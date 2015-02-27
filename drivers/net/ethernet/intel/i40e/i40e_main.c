@@ -1541,7 +1541,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 			vsi->tc_config.tc_info[i].qoffset = offset;
 			vsi->tc_config.tc_info[i].qcount = qcount;
 
-			/* find the power-of-2 of the number of queue pairs */
+			/* find the next higher power-of-2 of num queue pairs */
 			num_qps = qcount;
 			pow = 0;
 			while (num_qps && ((1 << pow) < qcount)) {
@@ -6940,7 +6940,7 @@ static int i40e_reserve_msix_vectors(struct i40e_pf *pf, int vectors)
 static int i40e_init_msix(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	int other_vecs = 0;
+	int vectors_left;
 	int v_budget, i;
 	int v_actual;
 
@@ -6964,25 +6964,62 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	 * If we can't get what we want, we'll simplify to nearly nothing
 	 * and try again.  If that still fails, we punt.
 	 */
-	pf->num_lan_msix = min_t(int, num_online_cpus(),
-				 hw->func_caps.num_msix_vectors);
-	pf->num_vmdq_msix = pf->num_vmdq_qps;
-	other_vecs = 1;
-	other_vecs += (pf->num_vmdq_vsis * pf->num_vmdq_msix);
-	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
-		other_vecs++;
+	vectors_left = hw->func_caps.num_msix_vectors;
+	v_budget = 0;
 
-	/* Scale down if necessary, and the rings will share vectors */
-	pf->num_lan_msix = min_t(int, pf->num_lan_msix,
-			(hw->func_caps.num_msix_vectors - other_vecs));
-	v_budget = pf->num_lan_msix + other_vecs;
+	/* reserve one vector for miscellaneous handler */
+	if (vectors_left) {
+		v_budget++;
+		vectors_left--;
+	}
+
+	/* reserve vectors for the main PF traffic queues */
+	pf->num_lan_msix = min_t(int, num_online_cpus(), vectors_left);
+	vectors_left -= pf->num_lan_msix;
+	v_budget += pf->num_lan_msix;
+
+	/* reserve one vector for sideband flow director */
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
+		if (vectors_left) {
+			v_budget++;
+			vectors_left--;
+		} else {
+			pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		}
+	}
 
 #ifdef I40E_FCOE
+	/* can we reserve enough for FCoE? */
 	if (pf->flags & I40E_FLAG_FCOE_ENABLED) {
-		pf->num_fcoe_msix = pf->num_fcoe_qps;
+		if (!vectors_left)
+			pf->num_fcoe_msix = 0;
+		else if (vectors_left >= pf->num_fcoe_qps)
+			pf->num_fcoe_msix = pf->num_fcoe_qps;
+		else
+			pf->num_fcoe_msix = 1;
 		v_budget += pf->num_fcoe_msix;
+		vectors_left -= pf->num_fcoe_msix;
 	}
+
 #endif
+	/* any vectors left over go for VMDq support */
+	if (pf->flags & I40E_FLAG_VMDQ_ENABLED) {
+		int vmdq_vecs_wanted = pf->num_vmdq_vsis * pf->num_vmdq_qps;
+		int vmdq_vecs = min_t(int, vectors_left, vmdq_vecs_wanted);
+
+		/* if we're short on vectors for what's desired, we limit
+		 * the queues per vmdq.  If this is still more than are
+		 * available, the user will need to change the number of
+		 * queues/vectors used by the PF later with the ethtool
+		 * channels command
+		 */
+		if (vmdq_vecs < vmdq_vecs_wanted)
+			pf->num_vmdq_qps = 1;
+		pf->num_vmdq_msix = pf->num_vmdq_qps;
+
+		v_budget += vmdq_vecs;
+		vectors_left -= vmdq_vecs;
+	}
 
 	pf->msix_entries = kcalloc(v_budget, sizeof(struct msix_entry),
 				   GFP_KERNEL);
@@ -7028,6 +7065,8 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		/* Scale vector usage down */
 		pf->num_vmdq_msix = 1;    /* force VMDqs to only one vector */
 		pf->num_vmdq_vsis = 1;
+		pf->num_vmdq_qps = 1;
+		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
 
 		/* partition out the remaining vectors */
 		switch (vec) {
@@ -7053,10 +7092,8 @@ static int i40e_init_msix(struct i40e_pf *pf)
 				vec--;
 			}
 #endif
-			pf->num_lan_msix = min_t(int, (vec / 2),
-						 pf->num_lan_qps);
-			pf->num_vmdq_vsis = min_t(int, (vec - pf->num_lan_msix),
-						  I40E_DEFAULT_NUM_VMDQ_VSI);
+			/* give the rest to the PF */
+			pf->num_lan_msix = min_t(int, vec, pf->num_lan_qps);
 			break;
 		}
 	}
