@@ -102,38 +102,38 @@ static int omap2_gp_timer_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
-				    struct clock_event_device *evt)
+static int omap2_gp_timer_shutdown(struct clock_event_device *evt)
+{
+	__omap_dm_timer_stop(&clkev, OMAP_TIMER_POSTED, clkev.rate);
+	return 0;
+}
+
+static int omap2_gp_timer_set_periodic(struct clock_event_device *evt)
 {
 	u32 period;
 
 	__omap_dm_timer_stop(&clkev, OMAP_TIMER_POSTED, clkev.rate);
 
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		period = clkev.rate / HZ;
-		period -= 1;
-		/* Looks like we need to first set the load value separately */
-		__omap_dm_timer_write(&clkev, OMAP_TIMER_LOAD_REG,
-				      0xffffffff - period, OMAP_TIMER_POSTED);
-		__omap_dm_timer_load_start(&clkev,
-					OMAP_TIMER_CTRL_AR | OMAP_TIMER_CTRL_ST,
-					0xffffffff - period, OMAP_TIMER_POSTED);
-		break;
-	case CLOCK_EVT_MODE_ONESHOT:
-		break;
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_RESUME:
-		break;
-	}
+	period = clkev.rate / HZ;
+	period -= 1;
+	/* Looks like we need to first set the load value separately */
+	__omap_dm_timer_write(&clkev, OMAP_TIMER_LOAD_REG, 0xffffffff - period,
+			      OMAP_TIMER_POSTED);
+	__omap_dm_timer_load_start(&clkev,
+				   OMAP_TIMER_CTRL_AR | OMAP_TIMER_CTRL_ST,
+				   0xffffffff - period, OMAP_TIMER_POSTED);
+	return 0;
 }
 
 static struct clock_event_device clockevent_gpt = {
-	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.rating		= 300,
-	.set_next_event	= omap2_gp_timer_set_next_event,
-	.set_mode	= omap2_gp_timer_set_mode,
+	.features		= CLOCK_EVT_FEAT_PERIODIC |
+				  CLOCK_EVT_FEAT_ONESHOT,
+	.rating			= 300,
+	.set_next_event		= omap2_gp_timer_set_next_event,
+	.set_state_shutdown	= omap2_gp_timer_shutdown,
+	.set_state_periodic	= omap2_gp_timer_set_periodic,
+	.set_state_oneshot	= omap2_gp_timer_shutdown,
+	.tick_resume		= omap2_gp_timer_shutdown,
 };
 
 static struct property device_disabled = {
