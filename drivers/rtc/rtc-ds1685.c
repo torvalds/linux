@@ -399,21 +399,21 @@ ds1685_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	 * of this RTC chip.  We check for it anyways in case support is
 	 * added in the future.
 	 */
-	if (unlikely((seconds >= 0xc0) && (seconds <= 0xff)))
+	if (unlikely(seconds >= 0xc0))
 		alrm->time.tm_sec = -1;
 	else
 		alrm->time.tm_sec = ds1685_rtc_bcd2bin(rtc, seconds,
 						       RTC_SECS_BCD_MASK,
 						       RTC_SECS_BIN_MASK);
 
-	if (unlikely((minutes >= 0xc0) && (minutes <= 0xff)))
+	if (unlikely(minutes >= 0xc0))
 		alrm->time.tm_min = -1;
 	else
 		alrm->time.tm_min = ds1685_rtc_bcd2bin(rtc, minutes,
 						       RTC_MINS_BCD_MASK,
 						       RTC_MINS_BIN_MASK);
 
-	if (unlikely((hours >= 0xc0) && (hours <= 0xff)))
+	if (unlikely(hours >= 0xc0))
 		alrm->time.tm_hour = -1;
 	else
 		alrm->time.tm_hour = ds1685_rtc_bcd2bin(rtc, hours,
@@ -472,13 +472,13 @@ ds1685_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	 * field, and we only support four fields.  We put the support
 	 * here anyways for the future.
 	 */
-	if (unlikely((seconds >= 0xc0) && (seconds <= 0xff)))
+	if (unlikely(seconds >= 0xc0))
 		seconds = 0xff;
 
-	if (unlikely((minutes >= 0xc0) && (minutes <= 0xff)))
+	if (unlikely(minutes >= 0xc0))
 		minutes = 0xff;
 
-	if (unlikely((hours >= 0xc0) && (hours <= 0xff)))
+	if (unlikely(hours >= 0xc0))
 		hours = 0xff;
 
 	alrm->time.tm_mon	= -1;
