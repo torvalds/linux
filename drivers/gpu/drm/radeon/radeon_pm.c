@@ -852,6 +852,12 @@ static struct radeon_ps *radeon_dpm_pick_power_state(struct radeon_device *rdev,
 			single_display = false;
 	}
 
+	/* 120hz tends to be problematic even if they are under the
+	 * vblank limit.
+	 */
+	if (single_display && (r600_dpm_get_vrefresh(rdev) >= 120))
+		single_display = false;
+
 	/* certain older asics have a separare 3D performance state,
 	 * so try that first if the user selected performance
 	 */
