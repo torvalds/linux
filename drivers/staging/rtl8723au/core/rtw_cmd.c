@@ -1368,7 +1368,7 @@ void rtw_createbss_cmd23a_callback(struct rtw_adapter *padapter,
 				RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
 					 ("\nCan't alloc sta_info when "
 					  "createbss_cmd_callback\n"));
-				goto createbss_cmd_fail ;
+				goto createbss_cmd_fail;
 			}
 		}
 
