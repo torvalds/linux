@@ -261,7 +261,7 @@ ENTRY(instr_service)
 	lr  r0, [efa]
 	mov r1, sp
 
-	FAKE_RET_FROM_EXCPN r9
+	FAKE_RET_FROM_EXCPN
 
 	bl  do_insterror_or_kprobe
 	b   ret_from_exception
@@ -278,7 +278,7 @@ ENTRY(mem_service)
 	lr  r0, [efa]
 	mov r1, sp
 
-	FAKE_RET_FROM_EXCPN r9
+	FAKE_RET_FROM_EXCPN
 
 	bl  do_memory_error
 	b   ret_from_exception
@@ -330,12 +330,11 @@ ENTRY(EV_TLBProtV)
 	lr  r2, [ecr]
 	lr  r0, [efa]	; Faulting Data address
 
-	; --------(4) Return from CPU Exception Mode ---------
-	;  Fake a rtie, but rtie to next label
-	;  That way, subsequently, do_page_fault ( ) executes in pure kernel
-	;  mode with further Exceptions enabled
+	; Exception auto-disables further Intr/exceptions.
+	; Re-enable them by pretending to return from exception
+	; (so rest of handler executes in pure K mode)
 
-	FAKE_RET_FROM_EXCPN r9
+	FAKE_RET_FROM_EXCPN
 
 	mov   r1, sp
 
@@ -377,7 +376,7 @@ ENTRY(call_do_page_fault)
 	EXCEPTION_PROLOGUE
 	lr  r0, [efa]	; Faulting Data address
 	mov   r1, sp
-	FAKE_RET_FROM_EXCPN r9
+	FAKE_RET_FROM_EXCPN
 
 	mov blink, ret_from_exception
 	b  do_page_fault
@@ -394,7 +393,7 @@ ENTRY(EV_PrivilegeV)
 	lr  r0, [efa]
 	mov r1, sp
 
-	FAKE_RET_FROM_EXCPN r9
+	FAKE_RET_FROM_EXCPN
 
 	bl  do_privilege_fault
 	b   ret_from_exception
@@ -410,7 +409,7 @@ ENTRY(EV_Extension)
 	lr  r0, [efa]
 	mov r1, sp
 
-	FAKE_RET_FROM_EXCPN r9
+	FAKE_RET_FROM_EXCPN
 
 	bl  do_extension_fault
 	b   ret_from_exception
@@ -472,7 +471,7 @@ trap_with_param:
 
 	; Now that we have read EFA, it is safe to do "fake" rtie
 	;   and get out of CPU exception mode
-	FAKE_RET_FROM_EXCPN r11
+	FAKE_RET_FROM_EXCPN
 
 	; Save callee regs in case gdb wants to have a look
 	; SP will grow up by size of CALLEE Reg-File
@@ -512,8 +511,7 @@ ENTRY(EV_Trap)
 
 	; ======= (5a) Trap is due to System Call ========
 
-	; Before doing anything, return from CPU Exception Mode
-	FAKE_RET_FROM_EXCPN r11
+	FAKE_RET_FROM_EXCPN
 
 	; If syscall tracing ongoing, invoke pre-pos-hooks
 	GET_CURR_THR_INFO_FLAGS   r10

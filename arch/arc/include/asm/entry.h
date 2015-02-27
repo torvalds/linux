@@ -331,14 +331,14 @@
  * Look at EV_ProtV to see how this is actually used
  *-------------------------------------------------------------*/
 
-.macro FAKE_RET_FROM_EXCPN  reg
+.macro FAKE_RET_FROM_EXCPN
 
-	ld  \reg, [sp, PT_status32]
-	bic  \reg, \reg, (STATUS_U_MASK|STATUS_DE_MASK)
-	bset \reg, \reg, STATUS_L_BIT
-	sr  \reg, [erstatus]
-	mov \reg, 55f
-	sr  \reg, [eret]
+	ld  r9, [sp, PT_status32]
+	bic  r9, r9, (STATUS_U_MASK|STATUS_DE_MASK)
+	bset r9, r9, STATUS_L_BIT
+	sr  r9, [erstatus]
+	mov r9, 55f
+	sr  r9, [eret]
 
 	rtie
 55:
