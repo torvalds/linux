@@ -66,7 +66,7 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
-unsigned int halt_poll_ns = 0;
+static unsigned int halt_poll_ns;
 module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
 
 /*
