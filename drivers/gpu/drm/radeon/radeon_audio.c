@@ -101,8 +101,8 @@ static void radeon_audio_dp_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *mode);
 void r600_hdmi_enable(struct drm_encoder *encoder, bool enable);
 void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable);
-void evergreen_enable_dp_audio_packets(struct drm_encoder *encoder, bool enable);
-void dce6_enable_dp_audio_packets(struct drm_encoder *encoder, bool enable);
+void evergreen_dp_enable(struct drm_encoder *encoder, bool enable);
+void dce6_dp_enable(struct drm_encoder *encoder, bool enable);
 
 static const u32 pin_offsets[7] =
 {
@@ -210,7 +210,7 @@ static struct radeon_audio_funcs dce4_dp_funcs = {
 	.set_avi_packet = evergreen_set_avi_packet,
 	.set_audio_packet = dce4_set_audio_packet,
 	.mode_set = radeon_audio_dp_mode_set,
-	.dpms = evergreen_enable_dp_audio_packets,
+	.dpms = evergreen_dp_enable,
 };
 
 static struct radeon_audio_funcs dce6_hdmi_funcs = {
@@ -240,7 +240,7 @@ static struct radeon_audio_funcs dce6_dp_funcs = {
 	.set_avi_packet = evergreen_set_avi_packet,
 	.set_audio_packet = dce4_set_audio_packet,
 	.mode_set = radeon_audio_dp_mode_set,
-	.dpms = dce6_enable_dp_audio_packets,
+	.dpms = dce6_dp_enable,
 };
 
 static void radeon_audio_interface_init(struct radeon_device *rdev)

@@ -288,36 +288,26 @@ void dce6_dp_audio_set_dto(struct radeon_device *rdev,
     WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
 }
 
-void dce6_enable_dp_audio_packets(struct drm_encoder *encoder, bool enable)
+void dce6_dp_enable(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset;
 
 	if (!dig || !dig->afmt)
 		return;
 
-	offset = dig->afmt->offset;
-
 	if (enable) {
-        if (dig->afmt->enabled)
-            return;
-
-		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + offset, EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
-		WREG32(EVERGREEN_DP_SEC_CNTL + offset,
-			EVERGREEN_DP_SEC_ASP_ENABLE |		/* Audio packet transmission */
-			EVERGREEN_DP_SEC_ATP_ENABLE |		/* Audio timestamp packet transmission */
-			EVERGREEN_DP_SEC_AIP_ENABLE |		/* Audio infoframe packet transmission */
-			EVERGREEN_DP_SEC_STREAM_ENABLE);	/* Master enable for secondary stream engine */
-		radeon_audio_enable(rdev, dig->afmt->pin, true);
+		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + dig->afmt->offset,
+		       EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
+		WREG32(EVERGREEN_DP_SEC_CNTL + dig->afmt->offset,
+		       EVERGREEN_DP_SEC_ASP_ENABLE |		/* Audio packet transmission */
+		       EVERGREEN_DP_SEC_ATP_ENABLE |		/* Audio timestamp packet transmission */
+		       EVERGREEN_DP_SEC_AIP_ENABLE |		/* Audio infoframe packet transmission */
+		       EVERGREEN_DP_SEC_STREAM_ENABLE);	/* Master enable for secondary stream engine */
 	} else {
-		if (!dig->afmt->enabled)
-			return;
-
-		WREG32(EVERGREEN_DP_SEC_CNTL + offset, 0);
-		radeon_audio_enable(rdev, dig->afmt->pin, false);
+		WREG32(EVERGREEN_DP_SEC_CNTL + dig->afmt->offset, 0);
 	}
 
 	dig->afmt->enabled = enable;
