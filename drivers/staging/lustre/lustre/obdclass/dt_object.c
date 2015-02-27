@@ -424,11 +424,8 @@ EXPORT_SYMBOL(dt_find_or_create);
 /* dt class init function. */
 int dt_global_init(void)
 {
-	int result;
-
 	LU_CONTEXT_KEY_INIT(&dt_key);
-	result = lu_context_key_register(&dt_key);
-	return result;
+	return lu_context_key_register(&dt_key);
 }
 
 void dt_global_fini(void)
