@@ -12808,8 +12808,21 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		}
 	}
 
-	if (mode_cmd->modifier[0] == I915_FORMAT_MOD_Y_TILED) {
-		DRM_DEBUG("hardware does not support tiling Y\n");
+	/* Passed in modifier sanity checking. */
+	switch (mode_cmd->modifier[0]) {
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		if (INTEL_INFO(dev)->gen < 9) {
+			DRM_DEBUG("Unsupported tiling 0x%llx!\n",
+				  mode_cmd->modifier[0]);
+			return -EINVAL;
+		}
+	case DRM_FORMAT_MOD_NONE:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		DRM_ERROR("Unsupported fb modifier 0x%llx!\n",
+				mode_cmd->modifier[0]);
 		return -EINVAL;
 	}
 
