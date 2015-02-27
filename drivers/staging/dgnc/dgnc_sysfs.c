@@ -360,7 +360,7 @@ void dgnc_create_ports_sysfiles(struct dgnc_board *bd)
 	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_vpd);
 	rc |= device_create_file(&(bd->pdev->dev), &dev_attr_serial_number);
 	if (rc)
-		printk(KERN_ERR "DGNC: sysfs device_create_file failed!\n");
+		dev_err(&bd->pdev->dev, "dgnc: sysfs device_create_file failed!\n");
 }
 
 
