@@ -222,8 +222,7 @@ static void vt1708_update_hp_work(struct hda_codec *codec)
 		if (!spec->hp_work_active) {
 			codec->jackpoll_interval = msecs_to_jiffies(100);
 			snd_hda_codec_write(codec, 0x1, 0, 0xf81, 0);
-			queue_delayed_work(codec->bus->workq,
-					   &codec->jackpoll_work, 0);
+			schedule_delayed_work(&codec->jackpoll_work, 0);
 			spec->hp_work_active = true;
 		}
 	} else if (!hp_detect_with_aa(codec))

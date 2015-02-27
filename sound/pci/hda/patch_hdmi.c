@@ -1576,9 +1576,8 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 			update_eld = true;
 		}
 		else if (repoll) {
-			queue_delayed_work(codec->bus->workq,
-					   &per_pin->work,
-					   msecs_to_jiffies(300));
+			schedule_delayed_work(&per_pin->work,
+					      msecs_to_jiffies(300));
 			goto unlock;
 		}
 	}
@@ -2198,11 +2197,10 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 
-		cancel_delayed_work(&per_pin->work);
+		cancel_delayed_work_sync(&per_pin->work);
 		eld_proc_free(per_pin);
 	}
 
-	flush_workqueue(codec->bus->workq);
 	hdmi_array_free(spec);
 	kfree(spec);
 }

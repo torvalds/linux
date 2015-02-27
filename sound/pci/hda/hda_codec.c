@@ -681,7 +681,7 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 	struct hda_bus_unsolicited *unsol;
 	unsigned int wp;
 
-	if (!bus || !bus->workq)
+	if (!bus)
 		return 0;
 
 	trace_hda_unsol_event(bus, res, res_ex);
@@ -693,7 +693,7 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 	unsol->queue[wp] = res;
 	unsol->queue[wp + 1] = res_ex;
 
-	queue_work(bus->workq, &unsol->work);
+	schedule_work(&unsol->work);
 
 	return 0;
 }
@@ -732,13 +732,9 @@ static void snd_hda_bus_free(struct hda_bus *bus)
 		return;
 
 	WARN_ON(!list_empty(&bus->codec_list));
-	if (bus->workq)
-		flush_workqueue(bus->workq);
+	cancel_work_sync(&bus->unsol.work);
 	if (bus->ops.private_free)
 		bus->ops.private_free(bus);
-	if (bus->workq)
-		destroy_workqueue(bus->workq);
-
 	kfree(bus);
 }
 
@@ -784,16 +780,6 @@ int snd_hda_bus_new(struct snd_card *card,
 	mutex_init(&bus->prepare_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);
 	INIT_WORK(&bus->unsol.work, process_unsol_events);
-
-	snprintf(bus->workq_name, sizeof(bus->workq_name),
-		 "hd-audio%d", card->number);
-	bus->workq = create_singlethread_workqueue(bus->workq_name);
-	if (!bus->workq) {
-		dev_err(card->dev, "cannot create workqueue %s\n",
-			   bus->workq_name);
-		kfree(bus);
-		return -ENOMEM;
-	}
 
 	err = snd_device_new(card, SNDRV_DEV_BUS, bus, &dev_ops);
 	if (err < 0) {
@@ -1068,8 +1054,8 @@ static void hda_jackpoll_work(struct work_struct *work)
 	if (!codec->jackpoll_interval)
 		return;
 
-	queue_delayed_work(codec->bus->workq, &codec->jackpoll_work,
-			   codec->jackpoll_interval);
+	schedule_delayed_work(&codec->jackpoll_work,
+			      codec->jackpoll_interval);
 }
 
 static void init_hda_cache(struct hda_cache_rec *cache,
@@ -1178,7 +1164,6 @@ static void codec_release_pcms(struct hda_codec *codec)
 void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 {
 	cancel_delayed_work_sync(&codec->jackpoll_work);
-	flush_workqueue(codec->bus->workq);
 	if (!codec->in_freeing)
 		snd_hda_ctls_clear(codec);
 	codec_release_pcms(codec);
@@ -1214,7 +1199,6 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	if (device_is_registered(hda_codec_dev(codec)))
 		device_del(hda_codec_dev(codec));
 	free_init_pincfgs(codec);
-	flush_workqueue(codec->bus->workq);
 	list_del(&codec->list);
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	clear_bit(codec->addr, &codec->bus->codec_powered);

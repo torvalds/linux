@@ -132,8 +132,6 @@ struct hda_bus {
 
 	/* unsolicited event queue */
 	struct hda_bus_unsolicited unsol;
-	char workq_name[16];
-	struct workqueue_struct *workq;	/* common workqueue for codecs */
 
 	/* assigned PCMs */
 	DECLARE_BITMAP(pcm_dev_bits, SNDRV_PCM_DEVICES);
