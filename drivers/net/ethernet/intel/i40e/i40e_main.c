@@ -7398,13 +7398,10 @@ static int i40e_config_rss(struct i40e_pf *pf)
 
 	/* Check capability and Set table size and register per hw expectation*/
 	reg_val = rd32(hw, I40E_PFQF_CTL_0);
-	if (hw->func_caps.rss_table_size == 512) {
+	if (pf->rss_table_size == 512)
 		reg_val |= I40E_PFQF_CTL_0_HASHLUTSIZE_512;
-		pf->rss_table_size = 512;
-	} else {
-		pf->rss_table_size = 128;
+	else
 		reg_val &= ~I40E_PFQF_CTL_0_HASHLUTSIZE_512;
-	}
 	wr32(hw, I40E_PFQF_CTL_0, reg_val);
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
