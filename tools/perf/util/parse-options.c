@@ -508,12 +508,14 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 			printf("--%s ", options->long_name);
 			options++;
 		}
+		putchar('\n');
 		exit(130);
 	case PARSE_OPT_LIST_SUBCMDS:
 		if (subcommands) {
 			for (int i = 0; subcommands[i]; i++)
 				printf("%s ", subcommands[i]);
 		}
+		putchar('\n');
 		exit(130);
 	default: /* PARSE_OPT_UNKNOWN */
 		if (ctx.argv[0][1] == '-') {

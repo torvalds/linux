@@ -223,6 +223,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				struct cmd_struct *p = commands+i;
 				printf("%s ", p->cmd);
 			}
+			putchar('\n');
 			exit(0);
 		} else if (!strcmp(cmd, "--debug")) {
 			if (*argc < 2) {
