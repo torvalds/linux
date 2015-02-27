@@ -164,16 +164,13 @@ static int osc_cached_mb_seq_show(struct seq_file *m, void *v)
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
 	int shift = 20 - PAGE_CACHE_SHIFT;
-	int rc;
 
-	rc = seq_printf(m,
+	return seq_printf(m,
 		      "used_mb: %d\n"
 		      "busy_cnt: %d\n",
 		      (atomic_read(&cli->cl_lru_in_list) +
 			atomic_read(&cli->cl_lru_busy)) >> shift,
 		      atomic_read(&cli->cl_lru_busy));
-
-	return rc;
 }
 
 /* shrink the number of caching pages to a specific number */
