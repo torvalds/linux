@@ -110,13 +110,11 @@ __perf_main ()
 	# List perf subcommands or long options
 	if [ $cword -eq 1 ]; then
 		if [[ $cur == --* ]]; then
-			__perfcomp '--help --version \
-			--exec-path --html-path --paginate --no-pager \
-			--perf-dir --work-tree --debugfs-dir' -- "$cur"
+			cmds=$($cmd --list-opts)
 		else
 			cmds=$($cmd --list-cmds)
-			__perfcomp "$cmds" "$cur"
 		fi
+		__perfcomp "$cmds" "$cur"
 	# List possible events for -e option
 	elif [[ $prev == "-e" && "${words[1]}" == @(record|stat|top) ]]; then
 		evts=$($cmd list --raw-dump)
