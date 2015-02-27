@@ -811,8 +811,8 @@ struct req_capsule;
 	.rmf_name    = (name),				  \
 	.rmf_flags   = (flags),				 \
 	.rmf_size    = (size),				  \
-	.rmf_swabber = (void (*)(void*))(swabber),	      \
-	.rmf_dumper  = (void (*)(void*))(dumper)		\
+	.rmf_swabber = (void (*)(void *))(swabber),	      \
+	.rmf_dumper  = (void (*)(void *))(dumper)		\
 }
 
 struct req_msg_field RMF_GENERIC_DATA =
