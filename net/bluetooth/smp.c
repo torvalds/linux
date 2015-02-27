@@ -1252,7 +1252,10 @@ static void smp_distribute_keys(struct smp_chan *smp)
 
 		csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
 		if (csrk) {
-			csrk->master = 0x00;
+			if (hcon->sec_level > BT_SECURITY_MEDIUM)
+				csrk->type = MGMT_CSRK_LOCAL_AUTHENTICATED;
+			else
+				csrk->type = MGMT_CSRK_LOCAL_UNAUTHENTICATED;
 			memcpy(csrk->val, sign.csrk, sizeof(csrk->val));
 		}
 		smp->slave_csrk = csrk;
@@ -2352,7 +2355,10 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
 	if (csrk) {
-		csrk->master = 0x01;
+		if (conn->hcon->sec_level > BT_SECURITY_MEDIUM)
+			csrk->type = MGMT_CSRK_REMOTE_AUTHENTICATED;
+		else
+			csrk->type = MGMT_CSRK_REMOTE_UNAUTHENTICATED;
 		memcpy(csrk->val, rp->csrk, sizeof(csrk->val));
 	}
 	smp->csrk = csrk;

@@ -647,9 +647,14 @@ struct mgmt_ev_new_irk {
 	struct mgmt_irk_info irk;
 } __packed;
 
+#define MGMT_CSRK_LOCAL_UNAUTHENTICATED		0x00
+#define MGMT_CSRK_REMOTE_UNAUTHENTICATED	0x01
+#define MGMT_CSRK_LOCAL_AUTHENTICATED		0x02
+#define MGMT_CSRK_REMOTE_AUTHENTICATED		0x03
+
 struct mgmt_csrk_info {
 	struct mgmt_addr_info addr;
-	__u8 master;
+	__u8 type;
 	__u8 val[16];
 } __packed;
 

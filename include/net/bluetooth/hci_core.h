@@ -108,7 +108,7 @@ struct bt_uuid {
 struct smp_csrk {
 	bdaddr_t bdaddr;
 	u8 bdaddr_type;
-	u8 master;
+	u8 type;
 	u8 val[16];
 };
 

@@ -6664,7 +6664,7 @@ void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk,
 
 	bacpy(&ev.key.addr.bdaddr, &csrk->bdaddr);
 	ev.key.addr.type = link_to_bdaddr(LE_LINK, csrk->bdaddr_type);
-	ev.key.master = csrk->master;
+	ev.key.type = csrk->type;
 	memcpy(ev.key.val, csrk->val, sizeof(csrk->val));
 
 	mgmt_event(MGMT_EV_NEW_CSRK, hdev, &ev, sizeof(ev), NULL);
