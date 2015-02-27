@@ -193,6 +193,8 @@ static int adl_pci6208_pci_probe(struct pci_dev *dev,
 
 static const struct pci_device_id adl_pci6208_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x6208) },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
+			 0x9999, 0x6208) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci6208_pci_table);
