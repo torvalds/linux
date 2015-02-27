@@ -611,14 +611,42 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 
 	/* Initialize slice/subslice/EU info */
 	if (IS_CHERRYVIEW(dev)) {
-		u32 fuse, mask_eu;
+		u32 fuse, eu_dis;
 
 		fuse = I915_READ(CHV_FUSE_GT);
-		mask_eu = fuse & (CHV_FGT_EU_DIS_SS0_R0_MASK |
-				  CHV_FGT_EU_DIS_SS0_R1_MASK |
-				  CHV_FGT_EU_DIS_SS1_R0_MASK |
-				  CHV_FGT_EU_DIS_SS1_R1_MASK);
-		info->eu_total = 16 - hweight32(mask_eu);
+
+		info->slice_total = 1;
+
+		if (!(fuse & CHV_FGT_DISABLE_SS0)) {
+			info->subslice_per_slice++;
+			eu_dis = fuse & (CHV_FGT_EU_DIS_SS0_R0_MASK |
+					 CHV_FGT_EU_DIS_SS0_R1_MASK);
+			info->eu_total += 8 - hweight32(eu_dis);
+		}
+
+		if (!(fuse & CHV_FGT_DISABLE_SS1)) {
+			info->subslice_per_slice++;
+			eu_dis = fuse & (CHV_FGT_EU_DIS_SS1_R0_MASK |
+					CHV_FGT_EU_DIS_SS1_R1_MASK);
+			info->eu_total += 8 - hweight32(eu_dis);
+		}
+
+		info->subslice_total = info->subslice_per_slice;
+		/*
+		 * CHV expected to always have a uniform distribution of EU
+		 * across subslices.
+		*/
+		info->eu_per_subslice = info->subslice_total ?
+					info->eu_total / info->subslice_total :
+					0;
+		/*
+		 * CHV supports subslice power gating on devices with more than
+		 * one subslice, and supports EU power gating on devices with
+		 * more than one EU pair per subslice.
+		*/
+		info->has_slice_pg = 0;
+		info->has_subslice_pg = (info->subslice_total > 1);
+		info->has_eu_pg = (info->eu_per_subslice > 2);
 	} else if (IS_SKYLAKE(dev)) {
 		const int s_max = 3, ss_max = 4, eu_max = 8;
 		int s, ss;

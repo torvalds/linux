@@ -1522,6 +1522,8 @@ enum skl_disp_power_wells {
 
 /* Fuse readout registers for GT */
 #define CHV_FUSE_GT			(VLV_DISPLAY_BASE + 0x2168)
+#define   CHV_FGT_DISABLE_SS0		(1 << 10)
+#define   CHV_FGT_DISABLE_SS1		(1 << 11)
 #define   CHV_FGT_EU_DIS_SS0_R0_SHIFT	16
 #define   CHV_FGT_EU_DIS_SS0_R0_MASK	(0xf << CHV_FGT_EU_DIS_SS0_R0_SHIFT)
 #define   CHV_FGT_EU_DIS_SS0_R1_SHIFT	20
