@@ -1079,4 +1079,8 @@
 	};
 };
 
+&cpu_thermal {
+	polling-delay = <500>; /* milliseconds */
+};
+
 /include/ "omap54xx-clocks.dtsi"
