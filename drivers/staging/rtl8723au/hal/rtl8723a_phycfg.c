@@ -419,7 +419,6 @@ PHY_SetRFReg(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	bool is92C = IS_92C_SERIAL(pHalData->VersionID);
 
 	/*  */
 	/*  Config MAC */
@@ -429,7 +428,8 @@ int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 	/*  2010.07.13 AMPDU aggregation number 9 */
 	/* rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM); */
 	rtl8723au_write8(Adapter, REG_MAX_AGGR_NUM, 0x0A);
-	if (is92C && (BOARD_USB_DONGLE == pHalData->BoardType))
+	if (pHalData->rf_type == RF_2T2R &&
+	    BOARD_USB_DONGLE == pHalData->BoardType)
 		rtl8723au_write8(Adapter, 0x40, 0x04);
 
 	return _SUCCESS;

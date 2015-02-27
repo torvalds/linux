@@ -169,10 +169,8 @@ void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode)
 	    prevent conficting setting in Fw power */
 	/*  saving sequence. 2010.06.07. Added by tynli.
 	    Suggested by SD3 yschang. */
-	if ((Mode != PS_MODE_ACTIVE) &&
-	    (!IS_92C_SERIAL(pHalData->VersionID))) {
+	if (Mode != PS_MODE_ACTIVE && pHalData->rf_type != RF_2T2R)
 		ODM_RF_Saving23a(&pHalData->odmpriv, true);
-	}
 
 	H2CSetPwrMode.Mode = Mode;
 	H2CSetPwrMode.SmartPS = pwrpriv->smart_ps;

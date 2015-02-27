@@ -447,22 +447,9 @@ static void _InitRetryFunction(struct rtw_adapter *Adapter)
 static void _InitRFType(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	bool is92CU = IS_92C_SERIAL(pHalData->VersionID);
 
 	pHalData->rf_chip = RF_6052;
-
-	if (!is92CU) {
-		pHalData->rf_type = RF_1T1R;
-		DBG_8723A("Set RF Chip ID to RF_6052 and RF type to 1T1R.\n");
-		return;
-	}
-
-	/*  TODO: Consider that EEPROM set 92CU to 1T1R later. */
-	/*  Force to overwrite setting according to chip version. Ignore
-	    EEPROM setting. */
-	/* pHalData->RF_Type = is92CU ? RF_2T2R : RF_1T1R; */
-	MSG_8723A("Set RF Chip ID to RF_6052 and RF type to %d.\n",
-		  pHalData->rf_type);
+	pHalData->rf_type = RF_1T1R;
 }
 
 /*  Set CCK and OFDM Block "ON" */

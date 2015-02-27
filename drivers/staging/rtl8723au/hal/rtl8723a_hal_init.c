@@ -744,7 +744,7 @@ void rtl8723a_read_chip_version(struct rtw_adapter *padapter)
 	value32 = rtl8723au_read32(padapter, REG_SYS_CFG);
 	ChipVersion.ICType = CHIP_8723A;
 	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : NORMAL_CHIP);
-	ChipVersion.RFType = RF_TYPE_1T1R;
+	pHalData->rf_type = RF_1T1R;
 	ChipVersion.VendorType =
 		((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK) >> CHIP_VER_RTL_SHIFT;	/*  IC version (CUT) */
@@ -768,15 +768,7 @@ void rtl8723a_read_chip_version(struct rtw_adapter *padapter)
 	pHalData->PolarityCtl =
 		((value32 & WL_HWPDN_SL) ? RT_POLARITY_HIGH_ACT :
 		 RT_POLARITY_LOW_ACT);
-	dump_chip_info23a(ChipVersion);
 	pHalData->VersionID = ChipVersion;
-
-	if (IS_1T2R(ChipVersion))
-		pHalData->rf_type = RF_1T2R;
-	else if (IS_2T2R(ChipVersion))
-		pHalData->rf_type = RF_2T2R;
-	else
-		pHalData->rf_type = RF_1T1R;
 
 	MSG_8723A("RF_Type is %x!!\n", pHalData->rf_type);
 }

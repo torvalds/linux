@@ -978,12 +978,10 @@ void rtl8723a_phy_iq_calibrate(struct rtw_adapter *pAdapter, bool bReCovery)
 	is13simular = false;
 
 	for (i = 0; i < 3; i++) {
-		if (IS_92C_SERIAL(pHalData->VersionID)) {
-			 _PHY_IQCalibrate(pAdapter, result, i, true);
-		} else {
-			/*  For 88C 1T1R */
+		if (pHalData->rf_type == RF_2T2R)
+			_PHY_IQCalibrate(pAdapter, result, i, true);
+		else /*  For 88C 1T1R */
 			_PHY_IQCalibrate(pAdapter, result, i, false);
-		}
 
 		if (i == 1) {
 			is12simular = _PHY_SimularityCompare(pAdapter, result, 0, 1);
@@ -1051,9 +1049,10 @@ void rtl8723a_phy_iq_calibrate(struct rtw_adapter *pAdapter, bool bReCovery)
 	if ((RegE94 != 0)/*&&(RegEA4 != 0)*/)
 		_PHY_PathAFillIQKMatrix(pAdapter, bPathAOK, result, final_candidate, (RegEA4 == 0));
 
-	if (IS_92C_SERIAL(pHalData->VersionID)) {
+	if (pHalData->rf_type == RF_2T2R) {
 		if ((RegEB4 != 0)/*&&(RegEC4 != 0)*/)
-		_PHY_PathBFillIQKMatrix(pAdapter, bPathBOK, result, final_candidate, (RegEC4 == 0));
+			_PHY_PathBFillIQKMatrix(pAdapter, bPathBOK, result,
+						final_candidate, (RegEC4 == 0));
 	}
 
 	_PHY_SaveADDARegisters(pAdapter, IQK_BB_REG_92C, pdmpriv->IQK_BB_backup_recover, 9);
@@ -1072,12 +1071,10 @@ void rtl8723a_phy_lc_calibrate(struct rtw_adapter *pAdapter)
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS)
 		return;
 
-	if (IS_92C_SERIAL(pHalData->VersionID)) {
+	if (pHalData->rf_type == RF_2T2R)
 		_PHY_LCCalibrate(pAdapter, true);
-	} else {
-		/*  For 88C 1T1R */
+	else	/*  For 88C 1T1R */
 		_PHY_LCCalibrate(pAdapter, false);
-	}
 }
 
 void
