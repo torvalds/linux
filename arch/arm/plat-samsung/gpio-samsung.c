@@ -30,6 +30,7 @@
 
 #include <asm/irq.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
 #include <mach/gpio-samsung.h>

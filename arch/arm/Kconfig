@@ -705,6 +705,7 @@ config ARCH_S3C64XX
 	select SAMSUNG_ATAGS
 	select SAMSUNG_WAKEMASK
 	select SAMSUNG_WDT_RESET
+	select SPARSE_IRQ
 	help
 	  Samsung S3C64XX series based systems
 
