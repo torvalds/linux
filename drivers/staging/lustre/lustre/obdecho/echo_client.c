@@ -196,22 +196,22 @@ static struct lu_kmem_descr echo_caches[] = {
 	{
 		.ckd_cache = &echo_lock_kmem,
 		.ckd_name  = "echo_lock_kmem",
-		.ckd_size  = sizeof (struct echo_lock)
+		.ckd_size  = sizeof(struct echo_lock)
 	},
 	{
 		.ckd_cache = &echo_object_kmem,
 		.ckd_name  = "echo_object_kmem",
-		.ckd_size  = sizeof (struct echo_object)
+		.ckd_size  = sizeof(struct echo_object)
 	},
 	{
 		.ckd_cache = &echo_thread_kmem,
 		.ckd_name  = "echo_thread_kmem",
-		.ckd_size  = sizeof (struct echo_thread_info)
+		.ckd_size  = sizeof(struct echo_thread_info)
 	},
 	{
 		.ckd_cache = &echo_session_kmem,
 		.ckd_name  = "echo_session_kmem",
-		.ckd_size  = sizeof (struct echo_session_info)
+		.ckd_size  = sizeof(struct echo_session_info)
 	},
 	{
 		.ckd_cache = NULL
@@ -1113,8 +1113,8 @@ static int cl_echo_cancel0(struct lu_env *env, struct echo_device *ed,
 
 	LASSERT(ec != NULL);
 	spin_lock(&ec->ec_lock);
-	list_for_each (el, &ec->ec_locks) {
-		ecl = list_entry (el, struct echo_lock, el_chain);
+	list_for_each(el, &ec->ec_locks) {
+		ecl = list_entry(el, struct echo_lock, el_chain);
 		CDEBUG(D_INFO, "ecl: %p, cookie: %#llx\n", ecl, ecl->el_cookie);
 		found = (ecl->el_cookie == cookie);
 		if (found) {
@@ -1265,20 +1265,20 @@ out:
 static u64 last_object_id;
 
 static int
-echo_copyout_lsm (struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
+echo_copyout_lsm(struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
 {
 	struct lov_stripe_md *ulsm = _ulsm;
 	int nob, i;
 
-	nob = offsetof (struct lov_stripe_md, lsm_oinfo[lsm->lsm_stripe_count]);
+	nob = offsetof(struct lov_stripe_md, lsm_oinfo[lsm->lsm_stripe_count]);
 	if (nob > ulsm_nob)
 		return -EINVAL;
 
-	if (copy_to_user (ulsm, lsm, sizeof(*ulsm)))
+	if(copy_to_user (ulsm, lsm, sizeof(*ulsm)))
 		return -EFAULT;
 
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		if (copy_to_user (ulsm->lsm_oinfo[i], lsm->lsm_oinfo[i],
+		if(copy_to_user (ulsm->lsm_oinfo[i], lsm->lsm_oinfo[i],
 				      sizeof(lsm->lsm_oinfo[0])))
 			return -EFAULT;
 	}
@@ -1286,16 +1286,16 @@ echo_copyout_lsm (struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
 }
 
 static int
-echo_copyin_lsm (struct echo_device *ed, struct lov_stripe_md *lsm,
+echo_copyin_lsm(struct echo_device *ed, struct lov_stripe_md *lsm,
 		 void *ulsm, int ulsm_nob)
 {
 	struct echo_client_obd *ec = ed->ed_ec;
 	int		     i;
 
-	if (ulsm_nob < sizeof (*lsm))
+	if(ulsm_nob < sizeof (*lsm))
 		return -EINVAL;
 
-	if (copy_from_user (lsm, ulsm, sizeof (*lsm)))
+	if(copy_from_user (lsm, ulsm, sizeof (*lsm)))
 		return -EFAULT;
 
 	if (lsm->lsm_stripe_count > ec->ec_nstripes ||
