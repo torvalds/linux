@@ -608,9 +608,9 @@ static const struct svga3d_surface_desc svga3d_surface_descs[] = {
 	 {1, 1, 1},  1, 1, {8, {{0}, {0}, {8}, {0} } },
 	 {{{0}, {0}, {0}, {0} } } },     /* SVGA3D_R8_SINT */
 
-	{SVGA3DBLOCKDESC_RED,
-	 {8, 1, 1},  1, 1, {8, {{0}, {0}, {8}, {0} } },
-	 {{{0}, {0}, {0}, {0} } } },     /* SVGA3D_R1_UNORM */
+        {SVGA3DBLOCKDESC_NONE,
+         {1, 1, 1},  1, 1, {8, {{0}, {0}, {8}, {0} } },
+         {{{0}, {0}, {0}, {0} } } },     /* SVGA3D_P8 */
 
 	{SVGA3DBLOCKDESC_RGBE,
 	 {1, 1, 1},  4, 4, {32, {{9}, {9}, {9}, {5} } },
@@ -909,4 +909,65 @@ svga3dsurface_get_image_offset(SVGA3dSurfaceFormat format,
 	offset = mipChainBytes * face + mipChainBytesToLevel;
 
 	return offset;
+}
+
+
+/**
+ * svga3dsurface_is_gb_screen_target_format - Is the specified format usable as
+ *                                            a ScreenTarget?
+ *                                            (with just the GBObjects cap-bit
+ *                                             set)
+ * @format: format to queried
+ *
+ * RETURNS:
+ * true if queried format is valid for screen targets
+ */
+static inline bool
+svga3dsurface_is_gb_screen_target_format(SVGA3dSurfaceFormat format)
+{
+	return (format == SVGA3D_X8R8G8B8 ||
+		format == SVGA3D_A8R8G8B8 ||
+		format == SVGA3D_R5G6B5   ||
+		format == SVGA3D_X1R5G5B5 ||
+		format == SVGA3D_A1R5G5B5 ||
+		format == SVGA3D_P8);
+}
+
+
+/**
+ * svga3dsurface_is_dx_screen_target_format - Is the specified format usable as
+ *                                            a ScreenTarget?
+ *                                            (with DX10 enabled)
+ *
+ * @format: format to queried
+ *
+ * Results:
+ * true if queried format is valid for screen targets
+ */
+static inline bool
+svga3dsurface_is_dx_screen_target_format(SVGA3dSurfaceFormat format)
+{
+	return (format == SVGA3D_R8G8B8A8_UNORM ||
+		format == SVGA3D_B8G8R8A8_UNORM ||
+		format == SVGA3D_B8G8R8X8_UNORM);
+}
+
+
+/**
+ * svga3dsurface_is_screen_target_format - Is the specified format usable as a
+ *                                         ScreenTarget?
+ *                                         (for some combination of caps)
+ *
+ * @format: format to queried
+ *
+ * Results:
+ * true if queried format is valid for screen targets
+ */
+static inline bool
+svga3dsurface_is_screen_target_format(SVGA3dSurfaceFormat format)
+{
+	if (svga3dsurface_is_gb_screen_target_format(format)) {
+		return true;
+	}
+	return svga3dsurface_is_dx_screen_target_format(format);
 }

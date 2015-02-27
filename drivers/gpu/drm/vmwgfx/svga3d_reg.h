@@ -1,5 +1,5 @@
 /**********************************************************
- * Copyright 1998-2009 VMware, Inc.  All rights reserved.
+ * Copyright 1998-2014 VMware, Inc.  All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -224,7 +224,7 @@ typedef enum SVGA3dSurfaceFormat {
    SVGA3D_R8_SNORM                     = 95,
    SVGA3D_R8_SINT                      = 96,
    SVGA3D_A8_UNORM                     = 32,
-   SVGA3D_R1_UNORM                     = 97,
+   SVGA3D_P8                           = 97,
    SVGA3D_R9G9B9E5_SHAREDEXP           = 98,
    SVGA3D_R8G8_B8G8_UNORM              = 99,
    SVGA3D_G8R8_G8B8_UNORM              = 100,
@@ -1312,6 +1312,11 @@ struct {
 
 typedef enum {
    SVGA3D_SURFACE_CUBEMAP              = (1 << 0),
+
+   /*
+    * HINT flags are not enforced by the device but are useful for
+    * performance.
+    */
    SVGA3D_SURFACE_HINT_STATIC          = (1 << 1),
    SVGA3D_SURFACE_HINT_DYNAMIC         = (1 << 2),
    SVGA3D_SURFACE_HINT_INDEXBUFFER     = (1 << 3),
@@ -1322,6 +1327,50 @@ typedef enum {
    SVGA3D_SURFACE_HINT_WRITEONLY       = (1 << 8),
    SVGA3D_SURFACE_MASKABLE_ANTIALIAS   = (1 << 9),
    SVGA3D_SURFACE_AUTOGENMIPMAPS       = (1 << 10),
+   SVGA3D_SURFACE_DECODE_RENDERTARGET   = (1 << 11),
+
+   /*
+    * Is this surface using a base-level pitch for it's mob backing?
+    *
+    * This flag is not intended to be set by guest-drivers, but is instead
+    * set by the device when the surface is bound to a mob with a specified
+    * pitch.
+    */
+   SVGA3D_SURFACE_MOB_PITCH             = (1 << 12),
+
+   SVGA3D_SURFACE_INACTIVE              = (1 << 13),
+   SVGA3D_SURFACE_HINT_RT_LOCKABLE      = (1 << 14),
+   SVGA3D_SURFACE_VOLUME                = (1 << 15),
+
+   /*
+    * Required to be set on a surface to bind it to a screen target.
+    */
+   SVGA3D_SURFACE_SCREENTARGET          = (1 << 16),
+
+   /*
+    * Align images in the guest-backing mob to 16-bytes.
+    */
+   SVGA3D_SURFACE_ALIGN16               = (1 << 17),
+
+   SVGA3D_SURFACE_1D                    = (1 << 18),
+   SVGA3D_SURFACE_ARRAY                 = (1 << 19),
+
+   /*
+    * Bind flags.
+    * These are enforced for any surface defined with DefineGBSurface_v2.
+    */
+   SVGA3D_SURFACE_BIND_VERTEX_BUFFER    = (1 << 20),
+   SVGA3D_SURFACE_BIND_INDEX_BUFFER     = (1 << 21),
+   SVGA3D_SURFACE_BIND_CONSTANT_BUFFER  = (1 << 22),
+   SVGA3D_SURFACE_BIND_SHADER_RESOURCE  = (1 << 23),
+   SVGA3D_SURFACE_BIND_RENDER_TARGET    = (1 << 24),
+   SVGA3D_SURFACE_BIND_DEPTH_STENCIL    = (1 << 25),
+   SVGA3D_SURFACE_BIND_STREAM_OUTPUT    = (1 << 26),
+
+   /*
+    * Marker for the last defined bit.
+    */
+   SVGA3D_SURFACE_FLAG_MAX              = (1 << 27),
 } SVGA3dSurfaceFlags;
 
 typedef
@@ -2400,6 +2449,7 @@ struct {
    int32 xRoot;
    int32 yRoot;
    uint32 flags;
+   uint32 dpi;
 } __packed
 SVGA3dCmdDefineGBScreenTarget;    /* SVGA_3D_CMD_DEFINE_GB_SCREENTARGET */
 
@@ -2419,7 +2469,7 @@ SVGA3dCmdBindGBScreenTarget;  /* SVGA_3D_CMD_BIND_GB_SCREENTARGET */
 typedef
 struct {
    uint32 stid;
-   SVGA3dBox box;
+   SVGA3dRect rect;
 } __packed
 SVGA3dCmdUpdateGBScreenTarget;  /* SVGA_3D_CMD_UPDATE_GB_SCREENTARGET */
 
