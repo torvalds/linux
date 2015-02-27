@@ -4219,7 +4219,8 @@ int btree_readahead_hook(struct btrfs_root *root, struct extent_buffer *eb,
 static inline int is_fstree(u64 rootid)
 {
 	if (rootid == BTRFS_FS_TREE_OBJECTID ||
-	    (s64)rootid >= (s64)BTRFS_FIRST_FREE_OBJECTID)
+	    ((s64)rootid >= (s64)BTRFS_FIRST_FREE_OBJECTID &&
+	      !btrfs_qgroup_level(rootid)))
 		return 1;
 	return 0;
 }
