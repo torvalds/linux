@@ -2,7 +2,7 @@ ACT88xx regulators
 -------------------
 
 Required properties:
-- compatible: "active-semi,act8846" or "active-semi,act8865"
+- compatible: "active-semi,act8846" or "active-semi,act8865" or "active-semi,act8600"
 - reg: I2C slave address
 
 Optional properties:
@@ -16,6 +16,9 @@ The valid names for regulators are:
 	REG1, REG2, REG3, REG4, REG5, REG6, REG7, REG8, REG9, REG10, REG11, REG12
 	- for act8865:
 	DCDC_REG1, DCDC_REG2, DCDC_REG3, LDO_REG1, LDO_REG2, LDO_REG3, LDO_REG4.
+	- for act8600:
+	DCDC_REG1, DCDC_REG2, DCDC_REG3, SUDCDC_REG4, LDO_REG5, LDO_REG6, LDO_REG7,
+	LDO_REG8, LDO_REG9, LDO_REG10,
 
 Example:
 --------
