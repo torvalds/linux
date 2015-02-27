@@ -139,6 +139,9 @@
 # endif
 #endif
 
+#ifndef cpu_has_xpa
+#define cpu_has_xpa		(cpu_data[0].options & MIPS_CPU_XPA)
+#endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
 #endif

@@ -35,6 +35,17 @@
 #include <asm/uasm.h>
 #include <asm/setup.h>
 
+static int __cpuinitdata mips_xpa_disabled;
+
+static int __init xpa_disable(char *s)
+{
+	mips_xpa_disabled = 1;
+
+	return 1;
+}
+
+__setup("noxpa", xpa_disable);
+
 /*
  * TLB load/store/modify handlers.
  *
@@ -1027,12 +1038,27 @@ static void build_update_entries(u32 **p, unsigned int tmp, unsigned int ptep)
 	} else {
 		int pte_off_even = sizeof(pte_t) / 2;
 		int pte_off_odd = pte_off_even + sizeof(pte_t);
+#ifdef CONFIG_XPA
+		const int scratch = 1; /* Our extra working register */
 
-		/* The pte entries are pre-shifted */
-		uasm_i_lw(p, tmp, pte_off_even, ptep); /* get even pte */
-		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
-		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* get odd pte */
-		UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
+		uasm_i_addu(p, scratch, 0, ptep);
+#endif
+		uasm_i_lw(p, tmp, pte_off_even, ptep); /* even pte */
+		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* odd pte */
+		UASM_i_ROTR(p, tmp, tmp, ilog2(_PAGE_GLOBAL));
+		UASM_i_ROTR(p, ptep, ptep, ilog2(_PAGE_GLOBAL));
+		UASM_i_MTC0(p, tmp, C0_ENTRYLO0);
+		UASM_i_MTC0(p, ptep, C0_ENTRYLO1);
+#ifdef CONFIG_XPA
+		uasm_i_lw(p, tmp, 0, scratch);
+		uasm_i_lw(p, ptep, sizeof(pte_t), scratch);
+		uasm_i_lui(p, scratch, 0xff);
+		uasm_i_ori(p, scratch, scratch, 0xffff);
+		uasm_i_and(p, tmp, scratch, tmp);
+		uasm_i_and(p, ptep, scratch, ptep);
+		uasm_i_mthc0(p, tmp, C0_ENTRYLO0);
+		uasm_i_mthc0(p, ptep, C0_ENTRYLO1);
+#endif
 	}
 #else
 	UASM_i_LW(p, tmp, 0, ptep); /* get even pte */
@@ -1533,8 +1559,14 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 {
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	unsigned int hwmode = mode & (_PAGE_VALID | _PAGE_DIRTY);
-#endif
 
+	if (!cpu_has_64bits) {
+		const int scratch = 1; /* Our extra working register */
+
+		uasm_i_lui(p, scratch, (mode >> 16));
+		uasm_i_or(p, pte, pte, scratch);
+	} else
+#endif
 	uasm_i_ori(p, pte, pte, mode);
 #ifdef CONFIG_SMP
 # ifdef CONFIG_PHYS_ADDR_T_64BIT
@@ -1598,15 +1630,17 @@ build_pte_present(u32 **p, struct uasm_reloc **r,
 			uasm_il_bbit0(p, r, pte, ilog2(_PAGE_PRESENT), lid);
 			uasm_i_nop(p);
 		} else {
-			uasm_i_andi(p, t, pte, _PAGE_PRESENT);
+			uasm_i_srl(p, t, pte, _PAGE_PRESENT_SHIFT);
+			uasm_i_andi(p, t, t, 1);
 			uasm_il_beqz(p, r, t, lid);
 			if (pte == t)
 				/* You lose the SMP race :-(*/
 				iPTE_LW(p, pte, ptr);
 		}
 	} else {
-		uasm_i_andi(p, t, pte, _PAGE_PRESENT | _PAGE_READ);
-		uasm_i_xori(p, t, t, _PAGE_PRESENT | _PAGE_READ);
+		uasm_i_srl(p, t, pte, _PAGE_PRESENT_SHIFT);
+		uasm_i_andi(p, t, t, 3);
+		uasm_i_xori(p, t, t, 3);
 		uasm_il_bnez(p, r, t, lid);
 		if (pte == t)
 			/* You lose the SMP race :-(*/
@@ -1635,8 +1669,9 @@ build_pte_writable(u32 **p, struct uasm_reloc **r,
 {
 	int t = scratch >= 0 ? scratch : pte;
 
-	uasm_i_andi(p, t, pte, _PAGE_PRESENT | _PAGE_WRITE);
-	uasm_i_xori(p, t, t, _PAGE_PRESENT | _PAGE_WRITE);
+	uasm_i_srl(p, t, pte, _PAGE_PRESENT_SHIFT);
+	uasm_i_andi(p, t, t, 5);
+	uasm_i_xori(p, t, t, 5);
 	uasm_il_bnez(p, r, t, lid);
 	if (pte == t)
 		/* You lose the SMP race :-(*/
@@ -1672,7 +1707,8 @@ build_pte_modifiable(u32 **p, struct uasm_reloc **r,
 		uasm_i_nop(p);
 	} else {
 		int t = scratch >= 0 ? scratch : pte;
-		uasm_i_andi(p, t, pte, _PAGE_WRITE);
+		uasm_i_srl(p, t, pte, _PAGE_WRITE_SHIFT);
+		uasm_i_andi(p, t, t, 1);
 		uasm_il_beqz(p, r, t, lid);
 		if (pte == t)
 			/* You lose the SMP race :-(*/
@@ -2285,6 +2321,11 @@ static void config_htw_params(void)
 
 	pwsize = ilog2(PTRS_PER_PGD) << MIPS_PWSIZE_GDW_SHIFT;
 	pwsize |= ilog2(PTRS_PER_PTE) << MIPS_PWSIZE_PTW_SHIFT;
+
+	/* If XPA has been enabled, PTEs are 64-bit in size. */
+	if (read_c0_pagegrain() & PG_ELPA)
+		pwsize |= 1;
+
 	write_c0_pwsize(pwsize);
 
 	/* Make sure everything is set before we enable the HTW */
@@ -2296,6 +2337,28 @@ static void config_htw_params(void)
 	pr_info("Hardware Page Table Walker enabled\n");
 
 	print_htw_config();
+}
+
+static void config_xpa_params(void)
+{
+#ifdef CONFIG_XPA
+	unsigned int pagegrain;
+
+	if (mips_xpa_disabled) {
+		pr_info("Extended Physical Addressing (XPA) disabled\n");
+		return;
+	}
+
+	pagegrain = read_c0_pagegrain();
+	write_c0_pagegrain(pagegrain | PG_ELPA);
+	back_to_back_c0_hazard();
+	pagegrain = read_c0_pagegrain();
+
+	if (pagegrain & PG_ELPA)
+		pr_info("Extended Physical Addressing (XPA) enabled\n");
+	else
+		panic("Extended Physical Addressing (XPA) disabled");
+#endif
 }
 
 void build_tlb_refill_handler(void)
@@ -2362,8 +2425,9 @@ void build_tlb_refill_handler(void)
 		}
 		if (cpu_has_local_ebase)
 			build_r4000_tlb_refill_handler();
+		if (cpu_has_xpa)
+			config_xpa_params();
 		if (cpu_has_htw)
 			config_htw_params();
-
 	}
 }

@@ -377,6 +377,7 @@ config MIPS_MALTA
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_CPU_MIPS32_R3_5
+	select SYS_HAS_CPU_MIPS32_R5
 	select SYS_HAS_CPU_MIPS32_R6
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_MIPS64_R2
@@ -386,6 +387,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MICROMIPS
 	select SYS_SUPPORTS_MIPS_CMP
@@ -1596,6 +1598,33 @@ config CPU_MIPS32_3_5_EVA
 	  One of its primary benefits is an increase in the maximum size
 	  of lowmem (up to 3GB). If unsure, say 'N' here.
 
+config CPU_MIPS32_R5_FEATURES
+	bool "MIPS32 Release 5 Features"
+	depends on SYS_HAS_CPU_MIPS32_R5
+	depends on CPU_MIPS32_R2
+	help
+	  Choose this option to build a kernel for release 2 or later of the
+	  MIPS32 architecture including features from release 5 such as
+	  support for Extended Physical Addressing (XPA).
+
+config CPU_MIPS32_R5_XPA
+	bool "Extended Physical Addressing (XPA)"
+	depends on CPU_MIPS32_R5_FEATURES
+	depends on !EVA
+	depends on !PAGE_SIZE_4KB
+	depends on SYS_SUPPORTS_HIGHMEM
+	select XPA
+	select HIGHMEM
+	select ARCH_PHYS_ADDR_T_64BIT
+	default n
+	help
+	  Choose this option if you want to enable the Extended Physical
+	  Addressing (XPA) on your MIPS32 core (such as P5600 series). The
+	  benefit is to increase physical addressing equal to or greater
+	  than 40 bits. Note that this has the side effect of turning on
+	  64-bit addressing which in turn makes the PTEs 64-bit in size.
+	  If unsure, say 'N' here.
+
 if CPU_LOONGSON2F
 config CPU_NOP_WORKAROUNDS
 	bool
@@ -1697,6 +1726,9 @@ config SYS_HAS_CPU_MIPS32_R2
 	bool
 
 config SYS_HAS_CPU_MIPS32_R3_5
+	bool
+
+config SYS_HAS_CPU_MIPS32_R5
 	bool
 
 config SYS_HAS_CPU_MIPS32_R6
@@ -1834,6 +1866,9 @@ config CPU_MIPSR6
 	select MIPS_SPRAM
 
 config EVA
+	bool
+
+config XPA
 	bool
 
 config SYS_SUPPORTS_32BIT_KERNEL

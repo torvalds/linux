@@ -96,7 +96,7 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
 	pte = mk_pte(page, prot);
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
-	entrylo = pte.pte_high;
+	entrylo = pte_to_entrylo(pte.pte_high);
 #else
 	entrylo = pte_to_entrylo(pte_val(pte));
 #endif
@@ -106,6 +106,11 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 	write_c0_entryhi(vaddr & (PAGE_MASK << 1));
 	write_c0_entrylo0(entrylo);
 	write_c0_entrylo1(entrylo);
+#ifdef CONFIG_XPA
+	entrylo = (pte.pte_low & _PFNX_MASK);
+	writex_c0_entrylo0(entrylo);
+	writex_c0_entrylo1(entrylo);
+#endif
 	tlbidx = read_c0_wired();
 	write_c0_wired(tlbidx + 1);
 	write_c0_index(tlbidx);

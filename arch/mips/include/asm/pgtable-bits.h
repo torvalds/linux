@@ -37,7 +37,11 @@
 /*
  * The following bits are implemented by the TLB hardware
  */
-#define _PAGE_GLOBAL_SHIFT	0
+#define _PAGE_NO_EXEC_SHIFT	0
+#define _PAGE_NO_EXEC		(1 << _PAGE_NO_EXEC_SHIFT)
+#define _PAGE_NO_READ_SHIFT	(_PAGE_NO_EXEC_SHIFT + 1)
+#define _PAGE_NO_READ		(1 << _PAGE_NO_READ_SHIFT)
+#define _PAGE_GLOBAL_SHIFT	(_PAGE_NO_READ_SHIFT + 1)
 #define _PAGE_GLOBAL		(1 << _PAGE_GLOBAL_SHIFT)
 #define _PAGE_VALID_SHIFT	(_PAGE_GLOBAL_SHIFT + 1)
 #define _PAGE_VALID		(1 << _PAGE_VALID_SHIFT)
@@ -49,7 +53,7 @@
 /*
  * The following bits are implemented in software
  */
-#define _PAGE_PRESENT_SHIFT	(_CACHE_SHIFT + 3)
+#define _PAGE_PRESENT_SHIFT	(24)
 #define _PAGE_PRESENT		(1 << _PAGE_PRESENT_SHIFT)
 #define _PAGE_READ_SHIFT	(_PAGE_PRESENT_SHIFT + 1)
 #define _PAGE_READ		(1 << _PAGE_READ_SHIFT)
@@ -61,6 +65,11 @@
 #define _PAGE_MODIFIED		(1 << _PAGE_MODIFIED_SHIFT)
 
 #define _PFN_SHIFT		(PAGE_SHIFT - 12 + _CACHE_SHIFT + 3)
+
+/*
+ * Bits for extended EntryLo0/EntryLo1 registers
+ */
+#define _PFNX_MASK		0xffffff
 
 #elif defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
 
