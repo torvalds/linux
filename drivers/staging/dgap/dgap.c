@@ -3979,7 +3979,6 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	int result;
 	u8 mstat;
 	ulong lock_flags;
-	int rc;
 
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
@@ -4004,9 +4003,7 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
 	if (mstat & D_CD(ch))
 		result |= TIOCM_CD;
 
-	rc = put_user(result, value);
-
-	return rc;
+	return put_user(result, value);
 }
 
 /*
