@@ -501,18 +501,9 @@ necessary to disable interrupts (Linux guarantees the same interrupt will
 not be re-entered).  If a device uses multiple interrupts, the driver
 must disable interrupts while the lock is held.  If the device sends
 a different interrupt, the driver will deadlock trying to recursively
-acquire the spinlock.
-
-There are two solutions.  The first is to take the lock with
-spin_lock_irqsave() or spin_lock_irq() (see
-Documentation/DocBook/kernel-locking).  The second is to specify
-IRQF_DISABLED to request_irq() so that the kernel runs the entire
-interrupt routine with interrupts disabled.
-
-If your MSI interrupt routine does not hold the lock for the whole time
-it is running, the first solution may be best.  The second solution is
-normally preferred as it avoids making two transitions from interrupt
-disabled to enabled and back again.
+acquire the spinlock.  Such deadlocks can be avoided by using
+spin_lock_irqsave() or spin_lock_irq() which disable local interrupts
+and acquire the lock (see Documentation/DocBook/kernel-locking).
 
 4.6 How to tell whether MSI/MSI-X is enabled on a device
 
