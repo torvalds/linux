@@ -851,6 +851,9 @@ out:
 	if (msg->status == -EINPROGRESS)
 		msg->status = ret;
 
+	if (msg->status)
+		master->handle_err(master, msg);
+
 	spi_finalize_current_message(master);
 
 	return ret;
