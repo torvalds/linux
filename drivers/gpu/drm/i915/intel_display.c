@@ -2270,8 +2270,12 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 		}
 		break;
 	case I915_FORMAT_MOD_Y_TILED:
-		WARN(1, "Y tiled bo slipped through, driver bug!\n");
-		return -EINVAL;
+	case I915_FORMAT_MOD_Yf_TILED:
+		if (WARN_ONCE(INTEL_INFO(dev)->gen < 9,
+			  "Y tiling bo slipped through, driver bug!\n"))
+			return -EINVAL;
+		alignment = 1 * 1024 * 1024;
+		break;
 	default:
 		MISSING_CASE(fb->modifier[0]);
 		return -EINVAL;
