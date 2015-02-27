@@ -49,7 +49,7 @@ config CROS_EC_CHARDEV
 
 config CROS_EC_LPC
         tristate "ChromeOS Embedded Controller (LPC)"
-        depends on MFD_CROS_EC
+        depends on MFD_CROS_EC && (X86 || COMPILE_TEST)
         help
           If you say Y here, you get support for talking to the ChromeOS EC
           over an LPC bus. This uses a simple byte-level protocol with a
