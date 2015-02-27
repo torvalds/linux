@@ -502,7 +502,8 @@ static int nct7904_detect(struct i2c_client *client,
 	/* Determine the chip type. */
 	if (i2c_smbus_read_byte_data(client, VENDOR_ID_REG) != NUVOTON_ID ||
 	    i2c_smbus_read_byte_data(client, CHIP_ID_REG) != NCT7904_ID ||
-	    (i2c_smbus_read_byte_data(client, DEVICE_ID_REG) & 0xf0) != 0x50)
+	    (i2c_smbus_read_byte_data(client, DEVICE_ID_REG) & 0xf0) != 0x50 ||
+	    (i2c_smbus_read_byte_data(client, BANK_SEL_REG) & 0xf8) != 0x00)
 		return -ENODEV;
 
 	strlcpy(info->type, "nct7904", I2C_NAME_SIZE);
