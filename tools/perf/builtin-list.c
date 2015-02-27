@@ -50,9 +50,7 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	for (i = 0; i < argc; ++i) {
-		if (i)
-			putchar('\n');
-		if (strncmp(argv[i], "tracepoint", 10) == 0)
+		if (strcmp(argv[i], "tracepoint") == 0)
 			print_tracepoint_events(NULL, NULL, false);
 		else if (strcmp(argv[i], "hw") == 0 ||
 			 strcmp(argv[i], "hardware") == 0)
