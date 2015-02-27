@@ -146,6 +146,7 @@ static struct lu_context_key echo_thread_key;
 static inline struct echo_thread_info *echo_env_info(const struct lu_env *env)
 {
 	struct echo_thread_info *info;
+
 	info = lu_context_key_get(&env->le_ctx, &echo_thread_key);
 	LASSERT(info != NULL);
 	return info;
@@ -637,6 +638,7 @@ static void echo_thread_key_fini(const struct lu_context *ctx,
 			 struct lu_context_key *key, void *data)
 {
 	struct echo_thread_info *info = data;
+
 	OBD_SLAB_FREE_PTR(info, echo_thread_kmem);
 }
 
@@ -667,6 +669,7 @@ static void echo_session_key_fini(const struct lu_context *ctx,
 				 struct lu_context_key *key, void *data)
 {
 	struct echo_session_info *session = data;
+
 	OBD_SLAB_FREE_PTR(session, echo_session_kmem);
 }
 
@@ -783,6 +786,7 @@ out:
 	switch (cleanup) {
 	case 4: {
 		int rc2;
+
 		rc2 = echo_client_cleanup(obd);
 		if (rc2)
 			CERROR("Cleanup obd device %s error(%d)\n",
@@ -958,11 +962,13 @@ static struct echo_object *cl_echo_object_find(struct echo_device *d,
 	if (d->ed_next) {
 		if (!d->ed_next_islov) {
 			struct lov_oinfo *oinfo = lsm->lsm_oinfo[0];
+
 			LASSERT(oinfo != NULL);
 			oinfo->loi_oi = lsm->lsm_oi;
 			conf->eoc_cl.u.coc_oinfo = oinfo;
 		} else {
 			struct lustre_md *md;
+
 			md = &info->eti_md;
 			memset(md, 0, sizeof(*md));
 			md->lsm = lsm;
@@ -1011,6 +1017,7 @@ static int cl_echo_object_put(struct echo_object *eco)
 	/* an external function to kill an object? */
 	if (eco->eo_deleted) {
 		struct lu_object_header *loh = obj->co_lu.lo_header;
+
 		LASSERT(&eco->eo_hdr == luh2coh(loh));
 		set_bit(LU_OBJECT_HEARD_BANSHEE, &loh->loh_flags);
 	}
@@ -1152,6 +1159,7 @@ static int cl_echo_async_brw(const struct lu_env *env, struct cl_io *io,
 
 	cl_page_list_for_each_safe(clp, temp, &queue->c2_qin) {
 		int rc;
+
 		rc = cl_page_cache_add(env, io, clp, CRT_WRITE);
 		if (rc == 0)
 			continue;
@@ -1615,6 +1623,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 
 		if (verify) {
 			int vrc;
+
 			vrc = echo_client_page_debug_check(lsm, pgp->pg,
 							   ostid_id(&oa->o_oi),
 							   pgp->off, pgp->count);
@@ -1911,6 +1920,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		rc = echo_get_object(&eco, ed, oa);
 		if (rc == 0) {
 			struct obd_info oinfo = { { { 0 } } };
+
 			oinfo.oi_md = eco->eo_lsm;
 			oinfo.oi_oa = oa;
 			rc = obd_getattr(env, ec->ec_exp, &oinfo);
@@ -1927,6 +1937,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		rc = echo_get_object(&eco, ed, oa);
 		if (rc == 0) {
 			struct obd_info oinfo = { { { 0 } } };
+
 			oinfo.oi_oa = oa;
 			oinfo.oi_md = eco->eo_lsm;
 
