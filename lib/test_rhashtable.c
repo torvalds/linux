@@ -201,9 +201,8 @@ static int __init test_rht_init(void)
 		.key_offset = offsetof(struct test_obj, value),
 		.key_len = sizeof(int),
 		.hashfn = jhash,
+		.max_shift = 1, /* we expand/shrink manually here */
 		.nulls_base = (3U << RHT_BASE_SHIFT),
-		.grow_decision = rht_grow_above_75,
-		.shrink_decision = rht_shrink_below_30,
 	};
 	int err;
 
