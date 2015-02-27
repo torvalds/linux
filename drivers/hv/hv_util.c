@@ -340,12 +340,8 @@ static int util_probe(struct hv_device *dev,
 
 	set_channel_read_state(dev->channel, false);
 
-	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
-			srv->util_cb, dev->channel);
-	if (ret)
-		goto error;
-
 	hv_set_drvdata(dev, srv);
+
 	/*
 	 * Based on the host; initialize the framework and
 	 * service version numbers we will negotiate.
@@ -364,6 +360,11 @@ static int util_probe(struct hv_device *dev,
 		ts_srv_version = TS_VERSION;
 		hb_srv_version = HB_VERSION;
 	}
+
+	ret = vmbus_open(dev->channel, 4 * PAGE_SIZE, 4 * PAGE_SIZE, NULL, 0,
+			srv->util_cb, dev->channel);
+	if (ret)
+		goto error;
 
 	return 0;
 
