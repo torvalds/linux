@@ -132,8 +132,6 @@ static void rproc_disable_iommu(struct rproc *rproc)
 
 	iommu_detach_device(domain, dev);
 	iommu_domain_free(domain);
-
-	return;
 }
 
 /*
@@ -411,10 +409,8 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 	}
 
 	trace = kzalloc(sizeof(*trace), GFP_KERNEL);
-	if (!trace) {
-		dev_err(dev, "kzalloc trace failed\n");
+	if (!trace)
 		return -ENOMEM;
-	}
 
 	/* set the trace buffer dma properties */
 	trace->len = rsc->len;
@@ -489,10 +485,8 @@ static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
 	}
 
 	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
-	if (!mapping) {
-		dev_err(dev, "kzalloc mapping failed\n");
+	if (!mapping)
 		return -ENOMEM;
-	}
 
 	ret = iommu_map(rproc->domain, rsc->da, rsc->pa, rsc->len, rsc->flags);
 	if (ret) {
@@ -565,10 +559,8 @@ static int rproc_handle_carveout(struct rproc *rproc,
 			rsc->da, rsc->pa, rsc->len, rsc->flags);
 
 	carveout = kzalloc(sizeof(*carveout), GFP_KERNEL);
-	if (!carveout) {
-		dev_err(dev, "kzalloc carveout failed\n");
+	if (!carveout)
 		return -ENOMEM;
-	}
 
 	va = dma_alloc_coherent(dev->parent, rsc->len, &dma, GFP_KERNEL);
 	if (!va) {
@@ -768,7 +760,8 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 
 	/* clean up carveout allocations */
 	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
-		dma_free_coherent(dev->parent, entry->len, entry->va, entry->dma);
+		dma_free_coherent(dev->parent, entry->len, entry->va,
+				  entry->dma);
 		list_del(&entry->node);
 		kfree(entry);
 	}
@@ -808,9 +801,8 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	/* look for the resource table */
 	table = rproc_find_rsc_table(rproc, fw, &tablesz);
-	if (!table) {
+	if (!table)
 		goto clean_up;
-	}
 
 	/* Verify that resource table in loaded fw is unchanged */
 	if (rproc->table_csum != crc32(0, table, tablesz)) {
@@ -911,7 +903,8 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 
 	/* count the number of notify-ids */
 	rproc->max_notifyid = -1;
-	ret = rproc_handle_resources(rproc, tablesz, rproc_count_vrings_handler);
+	ret = rproc_handle_resources(rproc, tablesz,
+				     rproc_count_vrings_handler);
 	if (ret)
 		goto out;
 
@@ -1268,10 +1261,8 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 		name_len = strlen(name) + strlen(template) - 2 + 1;
 
 	rproc = kzalloc(sizeof(struct rproc) + len + name_len, GFP_KERNEL);
-	if (!rproc) {
-		dev_err(dev, "%s: kzalloc failed\n", __func__);
+	if (!rproc)
 		return NULL;
-	}
 
 	if (!firmware) {
 		p = (char *)rproc + sizeof(struct rproc) + len;
