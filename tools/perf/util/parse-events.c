@@ -20,11 +20,6 @@
 
 #define MAX_NAME_LEN 100
 
-struct event_symbol {
-	const char	*symbol;
-	const char	*alias;
-};
-
 #ifdef PARSER_DEBUG
 extern int parse_events_debug;
 #endif
@@ -39,7 +34,7 @@ static struct perf_pmu_event_symbol *perf_pmu_events_list;
  */
 static int perf_pmu_events_list_num;
 
-static struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
+struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = {
 		.symbol = "cpu-cycles",
 		.alias  = "cycles",
@@ -82,7 +77,7 @@ static struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
 	},
 };
 
-static struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
+struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 	[PERF_COUNT_SW_CPU_CLOCK] = {
 		.symbol = "cpu-clock",
 		.alias  = "",
@@ -1269,75 +1264,6 @@ static bool is_event_supported(u8 type, unsigned config)
 	return ret;
 }
 
-static void __print_events_type(u8 type, struct event_symbol *syms,
-				unsigned max)
-{
-	char name[64];
-	unsigned int i, evt_i = 0, evt_num = 0;
-	char **evt_list = NULL;
-	bool evt_num_known = false;
-
-restart:
-	if (evt_num_known) {
-		evt_list = zalloc(sizeof(char *) * evt_num);
-		if (!evt_list)
-			goto out_enomem;
-		syms -= max;
-	}
-
-	for (i = 0; i < max ; i++, syms++) {
-		if (!is_event_supported(type, i))
-			continue;
-
-		if (!evt_num_known) {
-			evt_num++;
-			continue;
-		}
-
-		if (strlen(syms->alias))
-			snprintf(name, sizeof(name),  "%s OR %s",
-				 syms->symbol, syms->alias);
-		else
-			snprintf(name, sizeof(name), "%s", syms->symbol);
-
-		evt_list[evt_i] = strdup(name);
-		if (evt_list[evt_i] == NULL)
-			goto out_enomem;
-		evt_i++;
-	}
-
-	if (!evt_num_known) {
-		evt_num_known = true;
-		goto restart;
-	}
-	qsort(evt_list, evt_num, sizeof(char *), cmp_string);
-	evt_i = 0;
-	while (evt_i < evt_num)
-		printf("  %-50s [%s]\n", evt_list[evt_i++], event_type_descriptors[type]);
-	if (evt_num)
-		printf("\n");
-
-out_free:
-	evt_num = evt_i;
-	for (evt_i = 0; evt_i < evt_num; evt_i++)
-		zfree(&evt_list[evt_i]);
-	zfree(&evt_list);
-	return;
-
-out_enomem:
-	printf("FATAL: not enough memory to print %s\n", event_type_descriptors[type]);
-	if (evt_list)
-		goto out_free;
-}
-
-void print_events_type(u8 type)
-{
-	if (type == PERF_TYPE_SOFTWARE)
-		__print_events_type(type, event_symbols_sw, PERF_COUNT_SW_MAX);
-	else
-		__print_events_type(type, event_symbols_hw, PERF_COUNT_HW_MAX);
-}
-
 int print_hwcache_events(const char *event_glob, bool name_only)
 {
 	unsigned int type, op, i, evt_i = 0, evt_num = 0;
@@ -1412,7 +1338,7 @@ out_enomem:
 	return evt_num;
 }
 
-static void print_symbol_events(const char *event_glob, unsigned type,
+void print_symbol_events(const char *event_glob, unsigned type,
 				struct event_symbol *syms, unsigned max,
 				bool name_only)
 {

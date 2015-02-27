@@ -54,10 +54,12 @@ int cmd_list(int argc, const char **argv, const char *prefix __maybe_unused)
 			print_tracepoint_events(NULL, NULL, false);
 		else if (strcmp(argv[i], "hw") == 0 ||
 			 strcmp(argv[i], "hardware") == 0)
-			print_events_type(PERF_TYPE_HARDWARE);
+			print_symbol_events(NULL, PERF_TYPE_HARDWARE,
+					event_symbols_hw, PERF_COUNT_HW_MAX, false);
 		else if (strcmp(argv[i], "sw") == 0 ||
 			 strcmp(argv[i], "software") == 0)
-			print_events_type(PERF_TYPE_SOFTWARE);
+			print_symbol_events(NULL, PERF_TYPE_SOFTWARE,
+					event_symbols_sw, PERF_COUNT_SW_MAX, false);
 		else if (strcmp(argv[i], "cache") == 0 ||
 			 strcmp(argv[i], "hwcache") == 0)
 			print_hwcache_events(NULL, false);
