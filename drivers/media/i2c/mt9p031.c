@@ -28,6 +28,7 @@
 #include <linux/videodev2.h>
 
 #include <media/mt9p031.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -1145,6 +1146,10 @@ static int mt9p031_probe(struct i2c_client *client,
 	}
 
 	ret = mt9p031_clk_setup(mt9p031);
+	if (ret)
+		goto done;
+
+	ret = v4l2_async_register_subdev(&mt9p031->subdev);
 
 done:
 	if (ret < 0) {
@@ -1162,7 +1167,7 @@ static int mt9p031_remove(struct i2c_client *client)
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 
 	v4l2_ctrl_handler_free(&mt9p031->ctrls);
-	v4l2_device_unregister_subdev(subdev);
+	v4l2_async_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
 	mutex_destroy(&mt9p031->power_lock);
 
