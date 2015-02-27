@@ -2542,6 +2542,21 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	if (paddr == 0 && rotation_type != OMAP_DSS_ROT_TILER)
 		return -EINVAL;
 
+	switch (color_mode) {
+	case OMAP_DSS_COLOR_YUV2:
+	case OMAP_DSS_COLOR_UYVY:
+	case OMAP_DSS_COLOR_NV12:
+		if (in_width & 1) {
+			DSSERR("input width %d is not even for YUV format\n",
+				in_width);
+			return -EINVAL;
+		}
+		break;
+
+	default:
+		break;
+	}
+
 	out_width = out_width == 0 ? width : out_width;
 	out_height = out_height == 0 ? height : out_height;
 
@@ -2571,6 +2586,27 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 
 	in_width = in_width / x_predecim;
 	in_height = in_height / y_predecim;
+
+	if (x_predecim > 1 || y_predecim > 1)
+		DSSDBG("predecimation %d x %x, new input size %d x %d\n",
+			x_predecim, y_predecim, in_width, in_height);
+
+	switch (color_mode) {
+	case OMAP_DSS_COLOR_YUV2:
+	case OMAP_DSS_COLOR_UYVY:
+	case OMAP_DSS_COLOR_NV12:
+		if (in_width & 1) {
+			DSSDBG("predecimated input width is not even for YUV format\n");
+			DSSDBG("adjusting input width %d -> %d\n",
+				in_width, in_width & ~1);
+
+			in_width &= ~1;
+		}
+		break;
+
+	default:
+		break;
+	}
 
 	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
 			color_mode == OMAP_DSS_COLOR_UYVY ||
