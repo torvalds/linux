@@ -23,6 +23,7 @@
 
 #include <linux/dmi.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
