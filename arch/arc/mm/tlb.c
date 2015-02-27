@@ -659,6 +659,26 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 	return pgtable;
 }
 
+void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			 unsigned long end)
+{
+	unsigned int cpu;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	cpu = smp_processor_id();
+
+	if (likely(asid_mm(vma->vm_mm, cpu) != MM_CTXT_NO_ASID)) {
+		unsigned int asid = hw_pid(vma->vm_mm, cpu);
+
+		/* No need to loop here: this will always be for 1 Huge Page */
+		tlb_entry_erase(start | _PAGE_HW_SZ | asid);
+	}
+
+	local_irq_restore(flags);
+}
+
 #endif
 
 /* Read the Cache Build Confuration Registers, Decode them and save into

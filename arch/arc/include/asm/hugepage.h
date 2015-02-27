@@ -74,4 +74,8 @@ extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 #define __HAVE_ARCH_PGTABLE_WITHDRAW
 extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
 
+#define __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
+extern void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
+				unsigned long end);
+
 #endif
