@@ -138,7 +138,9 @@
 #define GPMC_CONFIG1_PAGE_LEN(val)      ((val & 3) << 23)
 #define GPMC_CONFIG1_WAIT_READ_MON      (1 << 22)
 #define GPMC_CONFIG1_WAIT_WRITE_MON     (1 << 21)
-#define GPMC_CONFIG1_WAIT_MON_IIME(val) ((val & 3) << 18)
+#define GPMC_CONFIG1_WAIT_MON_TIME(val) ((val & 3) << 18)
+/** WAITMONITORINGTIME Max Ticks */
+#define GPMC_CONFIG1_WAITMONITORINGTIME_MAX  2
 #define GPMC_CONFIG1_WAIT_PIN_SEL(val)  ((val & 3) << 16)
 #define GPMC_CONFIG1_DEVICESIZE(val)    ((val & 3) << 12)
 #define GPMC_CONFIG1_DEVICESIZE_16      GPMC_CONFIG1_DEVICESIZE(1)
@@ -525,13 +527,48 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit,
 			t->field, #field) < 0)			\
 		return -1
 
+/**
+ * gpmc_calc_waitmonitoring_divider - calculate proper GPMCFCLKDIVIDER based on WAITMONITORINGTIME
+ * WAITMONITORINGTIME will be _at least_ as long as desired, i.e.
+ * read  --> don't sample bus too early
+ * write --> data is longer on bus
+ *
+ * Formula:
+ * gpmc_clk_div + 1 = ceil(ceil(waitmonitoringtime_ns / gpmc_fclk_ns)
+ *                    / waitmonitoring_ticks)
+ * WAITMONITORINGTIME resulting in 0 or 1 tick with div = 1 are caught by
+ * div <= 0 check.
+ *
+ * @wait_monitoring: WAITMONITORINGTIME in ns.
+ * @return:          -1 on failure to scale, else proper divider > 0.
+ */
+static int gpmc_calc_waitmonitoring_divider(unsigned int wait_monitoring)
+{
+
+	int div = gpmc_ns_to_ticks(wait_monitoring);
+
+	div += GPMC_CONFIG1_WAITMONITORINGTIME_MAX - 1;
+	div /= GPMC_CONFIG1_WAITMONITORINGTIME_MAX;
+
+	if (div > 4)
+		return -1;
+	if (div <= 0)
+		div = 1;
+
+	return div;
+
+}
+
+/**
+ * gpmc_calc_divider - calculate GPMC_FCLK divider for sync_clk GPMC_CLK period.
+ * @sync_clk: GPMC_CLK period in ps.
+ * @return:   Returns at least 1 if GPMC_FCLK can be divided to GPMC_CLK.
+ *            Else, returns -1.
+ */
 int gpmc_calc_divider(unsigned int sync_clk)
 {
-	int div;
-	u32 l;
+	int div = gpmc_ps_to_ticks(sync_clk);
 
-	l = sync_clk + (gpmc_get_fclk_period() - 1);
-	div = l / gpmc_get_fclk_period();
 	if (div > 4)
 		return -1;
 	if (div <= 0)
@@ -540,7 +577,15 @@ int gpmc_calc_divider(unsigned int sync_clk)
 	return div;
 }
 
-int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
+/**
+ * gpmc_cs_set_timings - program timing parameters for Chip Select Region.
+ * @cs:     Chip Select Region.
+ * @t:      GPMC timing parameters.
+ * @s:      GPMC timing settings.
+ * @return: 0 on success, -1 on error.
+ */
+int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
+			const struct gpmc_settings *s)
 {
 	int div;
 	u32 l;
@@ -549,6 +594,33 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 	div = gpmc_calc_divider(t->sync_clk);
 	if (div < 0)
 		return div;
+
+	/*
+	 * See if we need to change the divider for waitmonitoringtime.
+	 *
+	 * Calculate GPMCFCLKDIVIDER independent of gpmc,sync-clk-ps in DT for
+	 * pure asynchronous accesses, i.e. both read and write asynchronous.
+	 * However, only do so if WAITMONITORINGTIME is actually used, i.e.
+	 * either WAITREADMONITORING or WAITWRITEMONITORING is set.
+	 *
+	 * This statement must not change div to scale async WAITMONITORINGTIME
+	 * to protect mixed synchronous and asynchronous accesses.
+	 *
+	 * We raise an error later if WAITMONITORINGTIME does not fit.
+	 */
+	if (!s->sync_read && !s->sync_write &&
+	    (s->wait_on_read || s->wait_on_write)
+	   ) {
+
+		div = gpmc_calc_waitmonitoring_divider(t->wait_monitoring);
+		if (div < 0) {
+			pr_err("%s: waitmonitoringtime %3d ns too large for greatest gpmcfclkdivider.\n",
+			       __func__,
+			       t->wait_monitoring
+			       );
+			return -1;
+		}
+	}
 
 	GPMC_SET_ONE(GPMC_CS_CONFIG2,  0,  3, cs_on);
 	GPMC_SET_ONE(GPMC_CS_CONFIG2,  8, 12, cs_rd_off);
@@ -1810,7 +1882,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	if (ret < 0)
 		goto err;
 
-	ret = gpmc_cs_set_timings(cs, &gpmc_t);
+	ret = gpmc_cs_set_timings(cs, &gpmc_t, &gpmc_s);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set gpmc timings for: %s\n",
 			child->name);
