@@ -168,10 +168,18 @@
 #define DP_AUD_DEL_INS2			    0x02d
 /* End of AV_SYNC_DATA_BLOCK */
 
+#define DP_RECEIVER_ALPM_CAP		    0x02e   /* eDP 1.4 */
+# define DP_ALPM_CAP			    (1 << 0)
+
+#define DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP   0x02f   /* eDP 1.4 */
+# define DP_AUX_FRAME_SYNC_CAP		    (1 << 0)
+
 #define DP_GUID				    0x030   /* 1.2 */
 
 #define DP_PSR_SUPPORT                      0x070   /* XXX 1.2? */
 # define DP_PSR_IS_SUPPORTED                1
+# define DP_PSR2_IS_SUPPORTED		    2	    /* eDP 1.4 */
+
 #define DP_PSR_CAPS                         0x071   /* XXX 1.2? */
 # define DP_PSR_NO_TRAIN_ON_EXIT            1
 # define DP_PSR_SETUP_TIME_330              (0 << 1)
@@ -211,6 +219,7 @@
 
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
+# define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a
 # define DP_LINK_BW_5_4			    0x14    /* 1.2 */
@@ -307,15 +316,30 @@
 #define DP_AUDIO_DELAY2			    0x114
 
 #define DP_LINK_RATE_SET		    0x115   /* eDP 1.4 */
+# define DP_LINK_RATE_SET_SHIFT		    0
+# define DP_LINK_RATE_SET_MASK		    (7 << 0)
+
+#define DP_RECEIVER_ALPM_CONFIG		    0x116   /* eDP 1.4 */
+# define DP_ALPM_ENABLE			    (1 << 0)
+# define DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE  (1 << 1)
+
+#define DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF  0x117   /* eDP 1.4 */
+# define DP_AUX_FRAME_SYNC_ENABLE	    (1 << 0)
+# define DP_IRQ_HPD_ENABLE		    (1 << 1)
 
 #define DP_UPSTREAM_DEVICE_DP_PWR_NEED	    0x118   /* 1.2 */
 # define DP_PWR_NOT_NEEDED		    (1 << 0)
+
+#define DP_AUX_FRAME_SYNC_VALUE		    0x15c   /* eDP 1.4 */
+# define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
 
 #define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
 # define DP_PSR_ENABLE			    (1 << 0)
 # define DP_PSR_MAIN_LINK_ACTIVE	    (1 << 1)
 # define DP_PSR_CRC_VERIFICATION	    (1 << 2)
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
+# define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
+# define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
@@ -423,12 +447,18 @@
 # define DP_SET_POWER_MASK                  0x3
 
 #define DP_EDP_DPCD_REV			    0x700    /* eDP 1.2 */
+# define DP_EDP_11			    0x00
+# define DP_EDP_12			    0x01
+# define DP_EDP_13			    0x02
+# define DP_EDP_14			    0x03
 
 #define DP_EDP_GENERAL_CAP_1		    0x701
 
 #define DP_EDP_BACKLIGHT_ADJUSTMENT_CAP     0x702
 
 #define DP_EDP_GENERAL_CAP_2		    0x703
+
+#define DP_EDP_GENERAL_CAP_3		    0x704    /* eDP 1.4 */
 
 #define DP_EDP_DISPLAY_CONTROL_REGISTER     0x720
 
@@ -456,6 +486,9 @@
 #define DP_EDP_DBC_MINIMUM_BRIGHTNESS_SET   0x732
 #define DP_EDP_DBC_MAXIMUM_BRIGHTNESS_SET   0x733
 
+#define DP_EDP_REGIONAL_BACKLIGHT_BASE      0x740    /* eDP 1.4 */
+#define DP_EDP_REGIONAL_BACKLIGHT_0	    0x741    /* eDP 1.4 */
+
 #define DP_SIDEBAND_MSG_DOWN_REQ_BASE	    0x1000   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_UP_REP_BASE	    0x1200   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_DOWN_REP_BASE	    0x1400   /* 1.2 MST */
@@ -474,6 +507,7 @@
 #define DP_PSR_ERROR_STATUS                 0x2006  /* XXX 1.2? */
 # define DP_PSR_LINK_CRC_ERROR              (1 << 0)
 # define DP_PSR_RFB_STORAGE_ERROR           (1 << 1)
+# define DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR (1 << 2) /* eDP 1.4 */
 
 #define DP_PSR_ESI                          0x2007  /* XXX 1.2? */
 # define DP_PSR_CAPS_CHANGE                 (1 << 0)
@@ -486,6 +520,9 @@
 # define DP_PSR_SINK_ACTIVE_RESYNC          4
 # define DP_PSR_SINK_INTERNAL_ERROR         7
 # define DP_PSR_SINK_STATE_MASK             0x07
+
+#define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
+# define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
 
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
