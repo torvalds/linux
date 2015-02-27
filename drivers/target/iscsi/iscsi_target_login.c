@@ -26,7 +26,6 @@
 
 #include <target/iscsi/iscsi_target_core.h>
 #include <target/iscsi/iscsi_target_stat.h>
-#include "iscsi_target_tq.h"
 #include "iscsi_target_device.h"
 #include "iscsi_target_nego.h"
 #include "iscsi_target_erl0.h"

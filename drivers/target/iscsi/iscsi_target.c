@@ -33,7 +33,6 @@
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_parameters.h"
 #include "iscsi_target_seq_pdu_list.h"
-#include "iscsi_target_tq.h"
 #include "iscsi_target_configfs.h"
 #include "iscsi_target_datain_values.h"
 #include "iscsi_target_erl0.h"
@@ -4359,8 +4358,6 @@ int iscsit_close_connection(
 		conn->conn_transport->iscsit_free_conn(conn);
 
 	iscsit_put_transport(conn->conn_transport);
-
-	conn->thread_set = NULL;
 
 	pr_debug("Moving to TARG_CONN_STATE_FREE.\n");
 	conn->conn_state = TARG_CONN_STATE_FREE;
