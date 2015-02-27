@@ -318,7 +318,7 @@ static const struct file_operations i40e_dbg_dump_fops = {
  * setup, adding or removing filters, or other things.  Many of
  * these will be useful for some forms of unit testing.
  **************************************************************/
-static char i40e_dbg_command_buf[256] = "hello world";
+static char i40e_dbg_command_buf[256] = "";
 
 /**
  * i40e_dbg_command_read - read for command datum
@@ -1940,7 +1940,7 @@ static const struct file_operations i40e_dbg_command_fops = {
  * The netdev_ops entry in debugfs is for giving the driver commands
  * to be executed from the netdev operations.
  **************************************************************/
-static char i40e_dbg_netdev_ops_buf[256] = "hello world";
+static char i40e_dbg_netdev_ops_buf[256] = "";
 
 /**
  * i40e_dbg_netdev_ops - read for netdev_ops datum
