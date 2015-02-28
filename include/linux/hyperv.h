@@ -761,6 +761,9 @@ struct vmbus_channel {
 	 * link up channels based on their CPU affinity.
 	 */
 	struct list_head percpu_list;
+
+	int num_sc;
+	int next_oc;
 };
 
 static inline void set_channel_read_state(struct vmbus_channel *c, bool state)

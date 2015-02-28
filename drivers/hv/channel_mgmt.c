@@ -350,6 +350,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 			}
 
 			newchannel->state = CHANNEL_OPEN_STATE;
+			channel->num_sc++;
 			if (channel->sc_creation_callback != NULL)
 				/*
 				 * We need to invoke the sub-channel creation
@@ -862,9 +863,8 @@ cleanup:
 
 /*
  * Retrieve the (sub) channel on which to send an outgoing request.
- * When a primary channel has multiple sub-channels, we choose a
- * channel whose VCPU binding is closest to the VCPU on which
- * this call is being made.
+ * When a primary channel has multiple sub-channels, we try to
+ * distribute the load equally amongst all available channels.
  */
 struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
 {
@@ -872,10 +872,18 @@ struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
 	int cur_cpu;
 	struct vmbus_channel *cur_channel;
 	struct vmbus_channel *outgoing_channel = primary;
-	int cpu_distance, new_cpu_distance;
+	int next_channel;
+	int i = 1;
 
 	if (list_empty(&primary->sc_list))
 		return outgoing_channel;
+
+	next_channel = primary->next_oc++;
+
+	if (next_channel > (primary->num_sc)) {
+		primary->next_oc = 0;
+		return outgoing_channel;
+	}
 
 	cur_cpu = hv_context.vp_index[get_cpu()];
 	put_cpu();
@@ -887,18 +895,10 @@ struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
 		if (cur_channel->target_vp == cur_cpu)
 			return cur_channel;
 
-		cpu_distance = ((outgoing_channel->target_vp > cur_cpu) ?
-				(outgoing_channel->target_vp - cur_cpu) :
-				(cur_cpu - outgoing_channel->target_vp));
+		if (i == next_channel)
+			return cur_channel;
 
-		new_cpu_distance = ((cur_channel->target_vp > cur_cpu) ?
-				(cur_channel->target_vp - cur_cpu) :
-				(cur_cpu - cur_channel->target_vp));
-
-		if (cpu_distance < new_cpu_distance)
-			continue;
-
-		outgoing_channel = cur_channel;
+		i++;
 	}
 
 	return outgoing_channel;
