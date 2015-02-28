@@ -386,7 +386,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		&newchannel->offermsg.offer.if_instance,
 		newchannel);
 	if (!newchannel->device_obj)
-		goto err_free_chan;
+		goto err_deq_chan;
 
 	/*
 	 * Add the new device to the bus. This will kick off device-driver
@@ -398,14 +398,25 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		pr_err("unable to add child device object (relid %d)\n",
 			   newchannel->offermsg.child_relid);
 
-		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
-		list_del(&newchannel->listentry);
-		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 		kfree(newchannel->device_obj);
-		goto err_free_chan;
+		goto err_deq_chan;
 	}
 
 	return;
+
+err_deq_chan:
+	spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
+	list_del(&newchannel->listentry);
+	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
+
+	if (newchannel->target_cpu != get_cpu()) {
+		put_cpu();
+		smp_call_function_single(newchannel->target_cpu,
+					 percpu_channel_deq, newchannel, true);
+	} else {
+		percpu_channel_deq(newchannel);
+		put_cpu();
+	}
 
 err_free_chan:
 	free_channel(newchannel);
