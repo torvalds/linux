@@ -13,13 +13,12 @@
     wireless-wlan {
         compatible = "wlan-platdata";
 
-        /* wifi_chip_type - wifi chip define
-         * bcmwifi ==> like ap6xxx, rk90x;
-         * rtkwifi ==> like rtl8188xx, rtl8723xx;
-         * esp8089 ==> esp8089;
-         * other   ==> for other wifi;
-         */
-        wifi_chip_type = "bcmwifi";
+		/* wifi_chip_type - wifi chip define
+                 * ap6210, ap6330, ap6335
+                 * rtl8188eu, rtl8723bs, rtl8723bu
+                 * esp8089
+		*/
+		wifi_chip_type = "ap6335";
 
         sdio_vref = <1800>; //1800mv or 3300mv
 
