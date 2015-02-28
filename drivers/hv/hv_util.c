@@ -380,9 +380,9 @@ static int util_remove(struct hv_device *dev)
 {
 	struct hv_util_service *srv = hv_get_drvdata(dev);
 
-	vmbus_close(dev->channel);
 	if (srv->util_deinit)
 		srv->util_deinit();
+	vmbus_close(dev->channel);
 	kfree(srv->recv_buffer);
 
 	return 0;
