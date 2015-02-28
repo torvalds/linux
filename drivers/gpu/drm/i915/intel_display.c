@@ -10807,7 +10807,7 @@ static void check_wm_state(struct drm_device *dev)
 			continue;
 
 		/* planes */
-		for_each_plane(pipe, plane) {
+		for_each_plane(dev_priv, pipe, plane) {
 			hw_entry = &hw_ddb.plane[pipe][plane];
 			sw_entry = &sw_ddb->plane[pipe][plane];
 

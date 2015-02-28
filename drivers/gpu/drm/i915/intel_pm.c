@@ -2463,13 +2463,12 @@ static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */)
 {
-	struct drm_device *dev = dev_priv->dev;
 	enum pipe pipe;
 	int plane;
 	u32 val;
 
 	for_each_pipe(dev_priv, pipe) {
-		for_each_plane(pipe, plane) {
+		for_each_plane(dev_priv, pipe, plane) {
 			val = I915_READ(PLANE_BUF_CFG(pipe, plane));
 			skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane],
 						   val);
@@ -2518,6 +2517,7 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 		      struct skl_ddb_allocation *ddb /* out */)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	struct skl_ddb_entry *alloc = &ddb->pipe[pipe];
@@ -2542,7 +2542,7 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	alloc->end -= cursor_blocks;
 
 	/* 1. Allocate the mininum required blocks for each active plane */
-	for_each_plane(pipe, plane) {
+	for_each_plane(dev_priv, pipe, plane) {
 		const struct intel_plane_wm_parameters *p;
 
 		p = &params->plane[plane];
@@ -2996,12 +2996,11 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 static void
 skl_wm_flush_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, int pass)
 {
-	struct drm_device *dev = dev_priv->dev;
 	int plane;
 
 	DRM_DEBUG_KMS("flush pipe %c (pass %d)\n", pipe_name(pipe), pass);
 
-	for_each_plane(pipe, plane) {
+	for_each_plane(dev_priv, pipe, plane) {
 		I915_WRITE(PLANE_SURF(pipe, plane),
 			   I915_READ(PLANE_SURF(pipe, plane)));
 	}
