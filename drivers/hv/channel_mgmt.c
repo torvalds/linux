@@ -207,32 +207,20 @@ static void percpu_channel_deq(void *arg)
 	list_del(&channel->percpu_list);
 }
 
-/*
- * vmbus_process_rescind_offer -
- * Rescind the offer by initiating a device removal
- */
-static void vmbus_process_rescind_offer(struct work_struct *work)
+
+void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 {
-	struct vmbus_channel *channel = container_of(work,
-						     struct vmbus_channel,
-						     work);
+	struct vmbus_channel_relid_released msg;
 	unsigned long flags;
 	struct vmbus_channel *primary_channel;
-	struct vmbus_channel_relid_released msg;
-	struct device *dev;
-
-	if (channel->device_obj) {
-		dev = get_device(&channel->device_obj->device);
-		if (dev) {
-			vmbus_device_unregister(channel->device_obj);
-			put_device(dev);
-		}
-	}
 
 	memset(&msg, 0, sizeof(struct vmbus_channel_relid_released));
-	msg.child_relid = channel->offermsg.child_relid;
+	msg.child_relid = relid;
 	msg.header.msgtype = CHANNELMSG_RELID_RELEASED;
 	vmbus_post_msg(&msg, sizeof(struct vmbus_channel_relid_released));
+
+	if (channel == NULL)
+		return;
 
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
@@ -254,6 +242,29 @@ static void vmbus_process_rescind_offer(struct work_struct *work)
 		spin_unlock_irqrestore(&primary_channel->lock, flags);
 	}
 	free_channel(channel);
+}
+
+/*
+ * vmbus_process_rescind_offer -
+ * Rescind the offer by initiating a device removal
+ */
+static void vmbus_process_rescind_offer(struct work_struct *work)
+{
+	struct vmbus_channel *channel = container_of(work,
+						     struct vmbus_channel,
+						     work);
+	struct device *dev;
+
+	if (channel->device_obj) {
+		dev = get_device(&channel->device_obj->device);
+		if (dev) {
+			vmbus_device_unregister(channel->device_obj);
+			put_device(dev);
+		}
+	} else {
+		hv_process_channel_removal(channel,
+					   channel->offermsg.child_relid);
+	}
 }
 
 void vmbus_free_channels(void)
