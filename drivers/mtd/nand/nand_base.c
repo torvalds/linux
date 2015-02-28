@@ -2124,7 +2124,7 @@ static int nand_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 
 /**
- * nand_write_subpage_hwecc - [REPLACABLE] hardware ECC based subpage write
+ * nand_write_subpage_hwecc - [REPLACEABLE] hardware ECC based subpage write
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @offset:	column address of subpage within the page
