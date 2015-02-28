@@ -372,6 +372,10 @@ start:
 				 nfs_wait_bit_killable, TASK_KILLABLE);
 	if (ret)
 		return ret;
+	/*
+	 * Wait for O_DIRECT to complete
+	 */
+	nfs_inode_dio_wait(mapping->host);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
