@@ -706,7 +706,7 @@ endif
 
 ifndef NO_LIBBABELTRACE
   ifeq ($(feature-libbabeltrace), 0)
-    msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-devel/libbabeltrace-ctf-dev);
+    msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-dev[el]/libbabeltrace-ctf-dev);
     NO_LIBBABELTRACE := 1
   else
     CFLAGS += -DHAVE_LIBBABELTRACE_SUPPORT $(LIBBABELTRACE_CFLAGS)
