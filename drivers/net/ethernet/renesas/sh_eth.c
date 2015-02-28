@@ -597,7 +597,7 @@ static struct sh_eth_cpu_data sh7757_data = {
 static void sh_eth_chip_reset_giga(struct net_device *ndev)
 {
 	int i;
-	unsigned long mahr[2], malr[2];
+	u32 mahr[2], malr[2];
 
 	/* save MAHR and MALR */
 	for (i = 0; i < 2; i++) {
@@ -991,7 +991,7 @@ static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 	}
 }
 
-static unsigned long sh_eth_get_edtrr_trns(struct sh_eth_private *mdp)
+static u32 sh_eth_get_edtrr_trns(struct sh_eth_private *mdp)
 {
 	if (sh_eth_is_gether(mdp) || sh_eth_is_rz_fast_ether(mdp))
 		return EDTRR_TRNS_GETHER;
@@ -1565,7 +1565,7 @@ static void sh_eth_rcv_snd_enable(struct net_device *ndev)
 }
 
 /* error control function */
-static void sh_eth_error(struct net_device *ndev, int intr_status)
+static void sh_eth_error(struct net_device *ndev, u32 intr_status)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	u32 felic_stat;
@@ -1678,7 +1678,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_cpu_data *cd = mdp->cd;
 	irqreturn_t ret = IRQ_NONE;
-	unsigned long intr_status, intr_enable;
+	u32 intr_status, intr_enable;
 
 	spin_lock(&mdp->lock);
 
@@ -1709,7 +1709,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 			__napi_schedule(&mdp->napi);
 		} else {
 			netdev_warn(ndev,
-				    "ignoring interrupt, status 0x%08lx, mask 0x%08lx.\n",
+				    "ignoring interrupt, status 0x%08x, mask 0x%08x.\n",
 				    intr_status, intr_enable);
 		}
 	}
@@ -1742,7 +1742,7 @@ static int sh_eth_poll(struct napi_struct *napi, int budget)
 						  napi);
 	struct net_device *ndev = napi->dev;
 	int quota = budget;
-	unsigned long intr_status;
+	u32 intr_status;
 
 	for (;;) {
 		intr_status = sh_eth_read(ndev, EESR);
@@ -2133,7 +2133,7 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 
 	netif_err(mdp, timer, ndev,
 		  "transmit timed out, status %8.8x, resetting...\n",
-		  (int)sh_eth_read(ndev, EESR));
+		  sh_eth_read(ndev, EESR));
 
 	/* tx_errors count up */
 	ndev->stats.tx_errors++;
@@ -3019,6 +3019,36 @@ static int sh_eth_drv_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
+static int sh_eth_suspend(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (netif_running(ndev)) {
+		netif_device_detach(ndev);
+		ret = sh_eth_close(ndev);
+	}
+
+	return ret;
+}
+
+static int sh_eth_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (netif_running(ndev)) {
+		ret = sh_eth_open(ndev);
+		if (ret < 0)
+			return ret;
+		netif_device_attach(ndev);
+	}
+
+	return ret;
+}
+#endif
+
 static int sh_eth_runtime_nop(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
@@ -3032,8 +3062,8 @@ static int sh_eth_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops sh_eth_dev_pm_ops = {
-	.runtime_suspend = sh_eth_runtime_nop,
-	.runtime_resume = sh_eth_runtime_nop,
+	SET_SYSTEM_SLEEP_PM_OPS(sh_eth_suspend, sh_eth_resume)
+	SET_RUNTIME_PM_OPS(sh_eth_runtime_nop, sh_eth_runtime_nop, NULL)
 };
 #define SH_ETH_PM_OPS (&sh_eth_dev_pm_ops)
 #else

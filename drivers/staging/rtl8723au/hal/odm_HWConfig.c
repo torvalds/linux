@@ -113,7 +113,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct dm_odm_t *pDM_Odm,
 
 		cck_highpwr = pDM_Odm->bCckHighPower;
 
-		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a ;
+		cck_agc_rpt =  pPhyStaRpt->cck_agc_rpt_ofdm_cfosho_a;
 
 		/* The RSSI formula should be modified according to the gain table */
 		if (!cck_highpwr) {
@@ -138,16 +138,16 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct dm_odm_t *pDM_Odm,
 			report = (cck_agc_rpt & 0x60)>>5;
 			switch (report) {
 			case 0x3:
-				rx_pwr_all = -46 - ((cck_agc_rpt & 0x1f)<<1) ;
+				rx_pwr_all = -46 - ((cck_agc_rpt & 0x1f)<<1);
 				break;
 			case 0x2:
 				rx_pwr_all = -26 - ((cck_agc_rpt & 0x1f)<<1);
 				break;
 			case 0x1:
-				rx_pwr_all = -12 - ((cck_agc_rpt & 0x1f)<<1) ;
+				rx_pwr_all = -12 - ((cck_agc_rpt & 0x1f)<<1);
 				break;
 			case 0x0:
-				rx_pwr_all = 16 - ((cck_agc_rpt & 0x1f)<<1) ;
+				rx_pwr_all = 16 - ((cck_agc_rpt & 0x1f)<<1);
 				break;
 			}
 		}

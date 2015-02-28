@@ -19,8 +19,6 @@
 
 #include <video/mipi_display.h>
 
-#include <linux/host1x.h>
-
 struct sharp_panel {
 	struct drm_panel base;
 	/* the datasheet refers to them as DSI-LINK1 and DSI-LINK2 */
@@ -39,6 +37,16 @@ struct sharp_panel {
 static inline struct sharp_panel *to_sharp_panel(struct drm_panel *panel)
 {
 	return container_of(panel, struct sharp_panel, base);
+}
+
+static void sharp_wait_frames(struct sharp_panel *sharp, unsigned int frames)
+{
+	unsigned int refresh = drm_mode_vrefresh(sharp->mode);
+
+	if (WARN_ON(frames > refresh))
+		return;
+
+	msleep(1000 / (refresh / frames));
 }
 
 static int sharp_panel_write(struct sharp_panel *sharp, u16 offset, u8 value)
@@ -106,6 +114,8 @@ static int sharp_panel_unprepare(struct drm_panel *panel)
 	if (!sharp->prepared)
 		return 0;
 
+	sharp_wait_frames(sharp, 4);
+
 	err = mipi_dsi_dcs_set_display_off(sharp->link1);
 	if (err < 0)
 		dev_err(panel->dev, "failed to set display off: %d\n", err);
@@ -170,15 +180,13 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 	if (err < 0)
 		return err;
 
-	usleep_range(10000, 20000);
-
-	err = mipi_dsi_dcs_soft_reset(sharp->link1);
-	if (err < 0) {
-		dev_err(panel->dev, "soft reset failed: %d\n", err);
-		goto poweroff;
-	}
-
-	msleep(120);
+	/*
+	 * According to the datasheet, the panel needs around 10 ms to fully
+	 * power up. At least another 120 ms is required before exiting sleep
+	 * mode to make sure the panel is ready. Throw in another 20 ms for
+	 * good measure.
+	 */
+	msleep(150);
 
 	err = mipi_dsi_dcs_exit_sleep_mode(sharp->link1);
 	if (err < 0) {
@@ -237,6 +245,9 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 	}
 
 	sharp->prepared = true;
+
+	/* wait for 6 frames before continuing */
+	sharp_wait_frames(sharp, 6);
 
 	return 0;
 

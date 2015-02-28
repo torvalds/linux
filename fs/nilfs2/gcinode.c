@@ -172,7 +172,6 @@ int nilfs_init_gcinode(struct inode *inode)
 	inode->i_mode = S_IFREG;
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
 	inode->i_mapping->a_ops = &empty_aops;
-	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
 
 	ii->i_flags = 0;
 	nilfs_bmap_init_gc(ii->i_bmap);

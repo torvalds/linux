@@ -31,7 +31,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
-	cd-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 };
 
 &fec1 {
@@ -121,6 +121,7 @@
 
 		pinctrl_fec1: fec1grp {
 			fsl,pins = <
+				VF610_PAD_PTA6__RMII_CLKOUT		0x30d2
 				VF610_PAD_PTC9__ENET_RMII1_MDC		0x30d2
 				VF610_PAD_PTC10__ENET_RMII1_MDIO	0x30d3
 				VF610_PAD_PTC11__ENET_RMII1_CRS		0x30d1

@@ -948,6 +948,22 @@
 			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
+
+		vpfe0: vpfe@48326000 {
+			compatible = "ti,am437x-vpfe";
+			reg = <0x48326000 0x2000>;
+			interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "vpfe0";
+			status = "disabled";
+		};
+
+		vpfe1: vpfe@48328000 {
+			compatible = "ti,am437x-vpfe";
+			reg = <0x48328000 0x2000>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			ti,hwmods = "vpfe1";
+			status = "disabled";
+		};
 	};
 };
 

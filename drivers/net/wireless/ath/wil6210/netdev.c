@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,6 @@
  */
 
 #include <linux/etherdevice.h>
-
 #include "wil6210.h"
 #include "txrx.h"
 
@@ -122,6 +121,12 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 	return min(tx_done, budget);
 }
 
+static void wil_dev_setup(struct net_device *dev)
+{
+	ether_setup(dev);
+	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
+}
+
 void *wil_if_alloc(struct device *dev, void __iomem *csr)
 {
 	struct net_device *ndev;
@@ -153,7 +158,7 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	ch = wdev->wiphy->bands[IEEE80211_BAND_60GHZ]->channels;
 	cfg80211_chandef_create(&wdev->preset_chandef, ch, NL80211_CHAN_NO_HT);
 
-	ndev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, ether_setup);
+	ndev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, wil_dev_setup);
 	if (!ndev) {
 		dev_err(dev, "alloc_netdev_mqs failed\n");
 		rc = -ENOMEM;
@@ -174,7 +179,7 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	netif_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
 		       WIL6210_NAPI_BUDGET);
 
-	wil_link_off(wil);
+	netif_tx_stop_all_queues(ndev);
 
 	return wil;
 
@@ -216,8 +221,6 @@ int wil_if_add(struct wil6210_priv *wil)
 		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
 		return rc;
 	}
-
-	wil_link_off(wil);
 
 	return 0;
 }

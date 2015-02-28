@@ -52,7 +52,7 @@ static int mdc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t mdc_max_rpcs_in_flight_seq_write(struct file *file,
-						const char *buffer,
+						const char __user *buffer,
 						size_t count,
 						loff_t *off)
 {
@@ -82,8 +82,9 @@ static int mdc_kuc_open(struct inode *inode, struct file *file)
 }
 
 /* temporary for testing */
-static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
-			     size_t count, loff_t *off)
+static ssize_t mdc_kuc_write(struct file *file,
+				const char __user *buffer,
+				size_t count, loff_t *off)
 {
 	struct obd_device *obd =
 			((struct seq_file *)file->private_data)->private;
@@ -105,6 +106,8 @@ static ssize_t mdc_kuc_write(struct file *file, const char *buffer,
 		/* for mockup below */ 2 * cfs_size_round(sizeof(*hai));
 
 	OBD_ALLOC(lh, len);
+	if (!lh)
+		return -ENOMEM;
 
 	lh->kuc_magic = KUC_MAGIC;
 	lh->kuc_transport = KUC_TRANSPORT_HSM;

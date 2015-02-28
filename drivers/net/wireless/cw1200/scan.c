@@ -39,9 +39,9 @@ static int cw1200_scan_start(struct cw1200_common *priv, struct wsm_scan *scan)
 	cancel_delayed_work_sync(&priv->clear_recent_scan_work);
 	atomic_set(&priv->scan.in_progress, 1);
 	atomic_set(&priv->recent_scan, 1);
-	cw1200_pm_stay_awake(&priv->pm_state, tmo * HZ / 1000);
+	cw1200_pm_stay_awake(&priv->pm_state, msecs_to_jiffies(tmo));
 	queue_delayed_work(priv->workqueue, &priv->scan.timeout,
-			   tmo * HZ / 1000);
+			   msecs_to_jiffies(tmo));
 	ret = wsm_scan(priv, scan);
 	if (ret) {
 		atomic_set(&priv->scan.in_progress, 0);
@@ -386,8 +386,8 @@ void cw1200_probe_work(struct work_struct *work)
 	if (down_trylock(&priv->scan.lock)) {
 		/* Scan is already in progress. Requeue self. */
 		schedule();
-		queue_delayed_work(priv->workqueue,
-				   &priv->scan.probe_work, HZ / 10);
+		queue_delayed_work(priv->workqueue, &priv->scan.probe_work,
+				   msecs_to_jiffies(100));
 		mutex_unlock(&priv->conf_mutex);
 		return;
 	}

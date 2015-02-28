@@ -750,7 +750,7 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 	/* Are we beyond EOF? */
 	if (etype == -1) {
 		int ret;
-		isBeyondEOF = 1;
+		isBeyondEOF = true;
 		if (count) {
 			if (c)
 				laarr[0] = laarr[1];
@@ -792,7 +792,7 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 		endnum = c + 1;
 		lastblock = 1;
 	} else {
-		isBeyondEOF = 0;
+		isBeyondEOF = false;
 		endnum = startnum = ((count > 2) ? 2 : count);
 
 		/* if the current extent is in position 0,
@@ -1288,6 +1288,7 @@ static int udf_read_inode(struct inode *inode, bool hidden_inode)
 	struct kernel_lb_addr *iloc = &iinfo->i_location;
 	unsigned int link_count;
 	unsigned int indirections = 0;
+	int bs = inode->i_sb->s_blocksize;
 	int ret = -EIO;
 
 reread:
@@ -1374,38 +1375,35 @@ reread:
 	if (fe->descTag.tagIdent == cpu_to_le16(TAG_IDENT_EFE)) {
 		iinfo->i_efe = 1;
 		iinfo->i_use = 0;
-		ret = udf_alloc_i_data(inode, inode->i_sb->s_blocksize -
+		ret = udf_alloc_i_data(inode, bs -
 					sizeof(struct extendedFileEntry));
 		if (ret)
 			goto out;
 		memcpy(iinfo->i_ext.i_data,
 		       bh->b_data + sizeof(struct extendedFileEntry),
-		       inode->i_sb->s_blocksize -
-					sizeof(struct extendedFileEntry));
+		       bs - sizeof(struct extendedFileEntry));
 	} else if (fe->descTag.tagIdent == cpu_to_le16(TAG_IDENT_FE)) {
 		iinfo->i_efe = 0;
 		iinfo->i_use = 0;
-		ret = udf_alloc_i_data(inode, inode->i_sb->s_blocksize -
-						sizeof(struct fileEntry));
+		ret = udf_alloc_i_data(inode, bs - sizeof(struct fileEntry));
 		if (ret)
 			goto out;
 		memcpy(iinfo->i_ext.i_data,
 		       bh->b_data + sizeof(struct fileEntry),
-		       inode->i_sb->s_blocksize - sizeof(struct fileEntry));
+		       bs - sizeof(struct fileEntry));
 	} else if (fe->descTag.tagIdent == cpu_to_le16(TAG_IDENT_USE)) {
 		iinfo->i_efe = 0;
 		iinfo->i_use = 1;
 		iinfo->i_lenAlloc = le32_to_cpu(
 				((struct unallocSpaceEntry *)bh->b_data)->
 				 lengthAllocDescs);
-		ret = udf_alloc_i_data(inode, inode->i_sb->s_blocksize -
+		ret = udf_alloc_i_data(inode, bs -
 					sizeof(struct unallocSpaceEntry));
 		if (ret)
 			goto out;
 		memcpy(iinfo->i_ext.i_data,
 		       bh->b_data + sizeof(struct unallocSpaceEntry),
-		       inode->i_sb->s_blocksize -
-					sizeof(struct unallocSpaceEntry));
+		       bs - sizeof(struct unallocSpaceEntry));
 		return 0;
 	}
 
@@ -1489,6 +1487,15 @@ reread:
 	}
 	inode->i_generation = iinfo->i_unique;
 
+	/*
+	 * Sanity check length of allocation descriptors and extended attrs to
+	 * avoid integer overflows
+	 */
+	if (iinfo->i_lenEAttr > bs || iinfo->i_lenAlloc > bs)
+		goto out;
+	/* Now do exact checks */
+	if (udf_file_entry_alloc_offset(inode) + iinfo->i_lenAlloc > bs)
+		goto out;
 	/* Sanity checks for files in ICB so that we don't get confused later */
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		/*
@@ -1498,8 +1505,7 @@ reread:
 		if (iinfo->i_lenAlloc != inode->i_size)
 			goto out;
 		/* File in ICB has to fit in there... */
-		if (inode->i_size > inode->i_sb->s_blocksize -
-					udf_file_entry_alloc_offset(inode))
+		if (inode->i_size > bs - udf_file_entry_alloc_offset(inode))
 			goto out;
 	}
 

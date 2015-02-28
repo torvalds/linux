@@ -148,6 +148,8 @@ struct perf_limits {
 	int32_t min_perf;
 	int max_policy_pct;
 	int max_sysfs_pct;
+	int min_policy_pct;
+	int min_sysfs_pct;
 };
 
 static struct perf_limits limits = {
@@ -159,6 +161,8 @@ static struct perf_limits limits = {
 	.min_perf = 0,
 	.max_policy_pct = 100,
 	.max_sysfs_pct = 100,
+	.min_policy_pct = 0,
+	.min_sysfs_pct = 0,
 };
 
 static inline void pid_reset(struct _pid *pid, int setpoint, int busy,
@@ -338,6 +342,33 @@ static void __init intel_pstate_debug_expose_params(void)
 		return sprintf(buf, "%u\n", limits.object);		\
 	}
 
+static ssize_t show_turbo_pct(struct kobject *kobj,
+				struct attribute *attr, char *buf)
+{
+	struct cpudata *cpu;
+	int total, no_turbo, turbo_pct;
+	uint32_t turbo_fp;
+
+	cpu = all_cpu_data[0];
+
+	total = cpu->pstate.turbo_pstate - cpu->pstate.min_pstate + 1;
+	no_turbo = cpu->pstate.max_pstate - cpu->pstate.min_pstate + 1;
+	turbo_fp = div_fp(int_tofp(no_turbo), int_tofp(total));
+	turbo_pct = 100 - fp_toint(mul_fp(turbo_fp, int_tofp(100)));
+	return sprintf(buf, "%u\n", turbo_pct);
+}
+
+static ssize_t show_num_pstates(struct kobject *kobj,
+				struct attribute *attr, char *buf)
+{
+	struct cpudata *cpu;
+	int total;
+
+	cpu = all_cpu_data[0];
+	total = cpu->pstate.turbo_pstate - cpu->pstate.min_pstate + 1;
+	return sprintf(buf, "%u\n", total);
+}
+
 static ssize_t show_no_turbo(struct kobject *kobj,
 			     struct attribute *attr, char *buf)
 {
@@ -404,7 +435,9 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	limits.min_perf_pct = clamp_t(int, input, 0 , 100);
+
+	limits.min_sysfs_pct = clamp_t(int, input, 0 , 100);
+	limits.min_perf_pct = max(limits.min_policy_pct, limits.min_sysfs_pct);
 	limits.min_perf = div_fp(int_tofp(limits.min_perf_pct), int_tofp(100));
 
 	if (hwp_active)
@@ -418,11 +451,15 @@ show_one(min_perf_pct, min_perf_pct);
 define_one_global_rw(no_turbo);
 define_one_global_rw(max_perf_pct);
 define_one_global_rw(min_perf_pct);
+define_one_global_ro(turbo_pct);
+define_one_global_ro(num_pstates);
 
 static struct attribute *intel_pstate_attributes[] = {
 	&no_turbo.attr,
 	&max_perf_pct.attr,
 	&min_perf_pct.attr,
+	&turbo_pct.attr,
+	&num_pstates.attr,
 	NULL
 };
 
@@ -825,6 +862,7 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	ICPU(0x46, core_params),
 	ICPU(0x47, core_params),
 	ICPU(0x4c, byt_params),
+	ICPU(0x4e, core_params),
 	ICPU(0x4f, core_params),
 	ICPU(0x56, core_params),
 	{}
@@ -887,7 +925,9 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
 
-	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
+	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE &&
+	    policy->max >= policy->cpuinfo.max_freq) {
+		limits.min_policy_pct = 100;
 		limits.min_perf_pct = 100;
 		limits.min_perf = int_tofp(1);
 		limits.max_policy_pct = 100;
@@ -897,8 +937,9 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		return 0;
 	}
 
-	limits.min_perf_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
-	limits.min_perf_pct = clamp_t(int, limits.min_perf_pct, 0 , 100);
+	limits.min_policy_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
+	limits.min_policy_pct = clamp_t(int, limits.min_policy_pct, 0 , 100);
+	limits.min_perf_pct = max(limits.min_policy_pct, limits.min_sysfs_pct);
 	limits.min_perf = div_fp(int_tofp(limits.min_perf_pct), int_tofp(100));
 
 	limits.max_policy_pct = (policy->max * 100) / policy->cpuinfo.max_freq;
@@ -978,6 +1019,7 @@ static struct cpufreq_driver intel_pstate_driver = {
 
 static int __initdata no_load;
 static int __initdata no_hwp;
+static int __initdata hwp_only;
 static unsigned int force_load;
 
 static int intel_pstate_msrs_not_valid(void)
@@ -1175,6 +1217,9 @@ static int __init intel_pstate_init(void)
 	if (cpu_has(c,X86_FEATURE_HWP) && !no_hwp)
 		intel_pstate_hwp_enable();
 
+	if (!hwp_active && hwp_only)
+		goto out;
+
 	rc = cpufreq_register_driver(&intel_pstate_driver);
 	if (rc)
 		goto out;
@@ -1209,6 +1254,8 @@ static int __init intel_pstate_setup(char *str)
 		no_hwp = 1;
 	if (!strcmp(str, "force"))
 		force_load = 1;
+	if (!strcmp(str, "hwp_only"))
+		hwp_only = 1;
 	return 0;
 }
 early_param("intel_pstate", intel_pstate_setup);

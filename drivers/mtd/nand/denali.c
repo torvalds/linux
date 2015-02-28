@@ -1041,7 +1041,7 @@ static void denali_setup_dma(struct denali_nand_info *denali, int op)
 	index_addr(denali, mode | ((addr >> 16) << 8), 0x2200);
 
 	/* 3. set memory low address bits 23:8 */
-	index_addr(denali, mode | ((addr & 0xff) << 8), 0x2300);
+	index_addr(denali, mode | ((addr & 0xffff) << 8), 0x2300);
 
 	/* 4. interrupt when complete, burst len = 64 bytes */
 	index_addr(denali, mode | 0x14000, 0x2400);
@@ -1328,35 +1328,6 @@ static void denali_cmdfunc(struct mtd_info *mtd, unsigned int cmd, int col,
 		break;
 	}
 }
-
-/* stubs for ECC functions not used by the NAND core */
-static int denali_ecc_calculate(struct mtd_info *mtd, const uint8_t *data,
-				uint8_t *ecc_code)
-{
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
-
-	dev_err(denali->dev, "denali_ecc_calculate called unexpectedly\n");
-	BUG();
-	return -EIO;
-}
-
-static int denali_ecc_correct(struct mtd_info *mtd, uint8_t *data,
-				uint8_t *read_ecc, uint8_t *calc_ecc)
-{
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
-
-	dev_err(denali->dev, "denali_ecc_correct called unexpectedly\n");
-	BUG();
-	return -EIO;
-}
-
-static void denali_ecc_hwctl(struct mtd_info *mtd, int mode)
-{
-	struct denali_nand_info *denali = mtd_to_denali(mtd);
-
-	dev_err(denali->dev, "denali_ecc_hwctl called unexpectedly\n");
-	BUG();
-}
 /* end NAND core entry points */
 
 /* Initialization code to bring the device up to a known good state */
@@ -1608,15 +1579,6 @@ int denali_init(struct denali_nand_info *denali)
 	 */
 	denali->totalblks = denali->mtd.size >> denali->nand.phys_erase_shift;
 	denali->blksperchip = denali->totalblks / denali->nand.numchips;
-
-	/*
-	 * These functions are required by the NAND core framework, otherwise,
-	 * the NAND core will assert. However, we don't need them, so we'll stub
-	 * them out.
-	 */
-	denali->nand.ecc.calculate = denali_ecc_calculate;
-	denali->nand.ecc.correct = denali_ecc_correct;
-	denali->nand.ecc.hwctl = denali_ecc_hwctl;
 
 	/* override the default read operations */
 	denali->nand.ecc.size = ECC_SECTOR_SIZE * denali->devnum;

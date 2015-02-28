@@ -311,7 +311,6 @@ const struct super_operations nfs_sops = {
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs_write_inode,
 	.drop_inode	= nfs_drop_inode,
-	.put_super	= nfs_put_super,
 	.statfs		= nfs_statfs,
 	.evict_inode	= nfs_evict_inode,
 	.umount_begin	= nfs_umount_begin,
@@ -405,12 +404,15 @@ void __exit unregister_nfs_fs(void)
 	unregister_filesystem(&nfs_fs_type);
 }
 
-void nfs_sb_active(struct super_block *sb)
+bool nfs_sb_active(struct super_block *sb)
 {
 	struct nfs_server *server = NFS_SB(sb);
 
-	if (atomic_inc_return(&server->active) == 1)
-		atomic_inc(&sb->s_active);
+	if (!atomic_inc_not_zero(&sb->s_active))
+		return false;
+	if (atomic_inc_return(&server->active) != 1)
+		atomic_dec(&sb->s_active);
+	return true;
 }
 EXPORT_SYMBOL_GPL(nfs_sb_active);
 
@@ -2569,7 +2571,7 @@ struct dentry *nfs_fs_mount_common(struct nfs_server *server,
 		error = nfs_bdi_register(server);
 		if (error) {
 			mntroot = ERR_PTR(error);
-			goto error_splat_bdi;
+			goto error_splat_super;
 		}
 		server->super = s;
 	}
@@ -2601,9 +2603,6 @@ error_splat_root:
 	dput(mntroot);
 	mntroot = ERR_PTR(error);
 error_splat_super:
-	if (server && !s->s_root)
-		bdi_unregister(&server->backing_dev_info);
-error_splat_bdi:
 	deactivate_locked_super(s);
 	goto out;
 }
@@ -2651,27 +2650,19 @@ out:
 EXPORT_SYMBOL_GPL(nfs_fs_mount);
 
 /*
- * Ensure that we unregister the bdi before kill_anon_super
- * releases the device name
- */
-void nfs_put_super(struct super_block *s)
-{
-	struct nfs_server *server = NFS_SB(s);
-
-	bdi_unregister(&server->backing_dev_info);
-}
-EXPORT_SYMBOL_GPL(nfs_put_super);
-
-/*
  * Destroy an NFS2/3 superblock
  */
 void nfs_kill_super(struct super_block *s)
 {
 	struct nfs_server *server = NFS_SB(s);
+	dev_t dev = s->s_dev;
 
-	kill_anon_super(s);
+	generic_shutdown_super(s);
+
 	nfs_fscache_release_super_cookie(s);
+
 	nfs_free_server(server);
+	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL_GPL(nfs_kill_super);
 

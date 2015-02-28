@@ -2471,12 +2471,9 @@ verbose_printk("btrfs: send_utimes %llu\n", ino);
 	if (ret < 0)
 		goto out;
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, p);
-	TLV_PUT_BTRFS_TIMESPEC(sctx, BTRFS_SEND_A_ATIME, eb,
-			btrfs_inode_atime(ii));
-	TLV_PUT_BTRFS_TIMESPEC(sctx, BTRFS_SEND_A_MTIME, eb,
-			btrfs_inode_mtime(ii));
-	TLV_PUT_BTRFS_TIMESPEC(sctx, BTRFS_SEND_A_CTIME, eb,
-			btrfs_inode_ctime(ii));
+	TLV_PUT_BTRFS_TIMESPEC(sctx, BTRFS_SEND_A_ATIME, eb, &ii->atime);
+	TLV_PUT_BTRFS_TIMESPEC(sctx, BTRFS_SEND_A_MTIME, eb, &ii->mtime);
+	TLV_PUT_BTRFS_TIMESPEC(sctx, BTRFS_SEND_A_CTIME, eb, &ii->ctime);
 	/* TODO Add otime support when the otime patches get into upstream */
 
 	ret = send_cmd(sctx);

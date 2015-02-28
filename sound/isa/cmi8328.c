@@ -307,7 +307,7 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	if (err < 0)
 		goto error;
 
-	err = snd_wss_pcm(cmi->wss, 0, NULL);
+	err = snd_wss_pcm(cmi->wss, 0);
 	if (err < 0)
 		goto error;
 
@@ -318,7 +318,7 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 	if (err < 0)
 		goto error;
 
-	if (snd_wss_timer(cmi->wss, 0, NULL) < 0)
+	if (snd_wss_timer(cmi->wss, 0) < 0)
 		snd_printk(KERN_WARNING "error initializing WSS timer\n");
 
 	if (mpuport[ndev] == SNDRV_AUTO_PORT) {

@@ -71,7 +71,6 @@
 
 /**
  * enum iwl_fw_error_dump_type - types of data in the dump file
- * @IWL_FW_ERROR_DUMP_SRAM:
  * @IWL_FW_ERROR_DUMP_CSR: Control Status Registers - from offset 0
  * @IWL_FW_ERROR_DUMP_RXF:
  * @IWL_FW_ERROR_DUMP_TXCMD: last TX command data, structured as
@@ -82,9 +81,10 @@
  * @IWL_FW_ERROR_DUMP_PRPH: range of periphery registers - there can be several
  *	sections like this in a single file.
  * @IWL_FW_ERROR_DUMP_FH_REGS: range of FH registers
+ * @IWL_FW_ERROR_DUMP_MEM: chunk of memory
  */
 enum iwl_fw_error_dump_type {
-	IWL_FW_ERROR_DUMP_SRAM = 0,
+	/* 0 is deprecated */
 	IWL_FW_ERROR_DUMP_CSR = 1,
 	IWL_FW_ERROR_DUMP_RXF = 2,
 	IWL_FW_ERROR_DUMP_TXCMD = 3,
@@ -93,6 +93,7 @@ enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_PRPH = 6,
 	IWL_FW_ERROR_DUMP_TXF = 7,
 	IWL_FW_ERROR_DUMP_FH_REGS = 8,
+	IWL_FW_ERROR_DUMP_MEM = 9,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -130,6 +131,27 @@ struct iwl_fw_error_dump_file {
 struct iwl_fw_error_dump_txcmd {
 	__le32 cmdlen;
 	__le32 caplen;
+	u8 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_error_dump_fifo - RX/TX FIFO data
+ * @fifo_num: number of FIFO (starting from 0)
+ * @available_bytes: num of bytes available in FIFO (may be less than FIFO size)
+ * @wr_ptr: position of write pointer
+ * @rd_ptr: position of read pointer
+ * @fence_ptr: position of fence pointer
+ * @fence_mode: the current mode of the fence (before locking) -
+ *	0=follow RD pointer ; 1 = freeze
+ * @data: all of the FIFO's data
+ */
+struct iwl_fw_error_dump_fifo {
+	__le32 fifo_num;
+	__le32 available_bytes;
+	__le32 wr_ptr;
+	__le32 rd_ptr;
+	__le32 fence_ptr;
+	__le32 fence_mode;
 	u8 data[];
 } __packed;
 
@@ -178,6 +200,23 @@ struct iwl_fw_error_dump_fw_mon {
 struct iwl_fw_error_dump_prph {
 	__le32 prph_start;
 	__le32 data[];
+};
+
+enum iwl_fw_error_dump_mem_type {
+	IWL_FW_ERROR_DUMP_MEM_SRAM,
+	IWL_FW_ERROR_DUMP_MEM_SMEM,
+};
+
+/**
+ * struct iwl_fw_error_dump_mem - chunk of memory
+ * @type: %enum iwl_fw_error_dump_mem_type
+ * @offset: the offset from which the memory was read
+ * @data: the content of the memory
+ */
+struct iwl_fw_error_dump_mem {
+	__le32 type;
+	__le32 offset;
+	u8 data[];
 };
 
 /**

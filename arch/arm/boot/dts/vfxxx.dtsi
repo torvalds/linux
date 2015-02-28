@@ -22,11 +22,11 @@
 		serial3 = &uart3;
 		serial4 = &uart4;
 		serial5 = &uart5;
-		gpio0 = &gpio1;
-		gpio1 = &gpio2;
-		gpio2 = &gpio3;
-		gpio3 = &gpio4;
-		gpio4 = &gpio5;
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
 		usbphy0 = &usbphy0;
 		usbphy1 = &usbphy1;
 	};
@@ -41,6 +41,13 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
+	};
+
+	reboot: syscon-reboot {
+		compatible = "syscon-reboot";
+		regmap = <&src>;
+		offset = <0x0>;
+		mask = <0x1000>;
 	};
 
 	soc {
@@ -184,7 +191,7 @@
 				status = "disabled";
 			};
 
-			wdog@4003e000 {
+			wdoga5: wdog@4003e000 {
 				compatible = "fsl,vf610-wdt", "fsl,imx21-wdt";
 				reg = <0x4003e000 0x1000>;
 				clocks = <&clks VF610_CLK_WDT>;
@@ -209,7 +216,7 @@
 				#gpio-range-cells = <3>;
 			};
 
-			gpio1: gpio@40049000 {
+			gpio0: gpio@40049000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x40049000 0x1000 0x400ff000 0x40>;
 				gpio-controller;
@@ -219,7 +226,7 @@
 				gpio-ranges = <&iomuxc 0 0 32>;
 			};
 
-			gpio2: gpio@4004a000 {
+			gpio1: gpio@4004a000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x4004a000 0x1000 0x400ff040 0x40>;
 				gpio-controller;
@@ -229,7 +236,7 @@
 				gpio-ranges = <&iomuxc 0 32 32>;
 			};
 
-			gpio3: gpio@4004b000 {
+			gpio2: gpio@4004b000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x4004b000 0x1000 0x400ff080 0x40>;
 				gpio-controller;
@@ -239,7 +246,7 @@
 				gpio-ranges = <&iomuxc 0 64 32>;
 			};
 
-			gpio4: gpio@4004c000 {
+			gpio3: gpio@4004c000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x4004c000 0x1000 0x400ff0c0 0x40>;
 				gpio-controller;
@@ -249,7 +256,7 @@
 				gpio-ranges = <&iomuxc 0 96 32>;
 			};
 
-			gpio5: gpio@4004d000 {
+			gpio4: gpio@4004d000 {
 				compatible = "fsl,vf610-gpio";
 				reg = <0x4004d000 0x1000 0x400ff100 0x40>;
 				gpio-controller;
@@ -318,6 +325,11 @@
 				clocks = <&clks VF610_CLK_USBC0>;
 				status = "disabled";
 			};
+
+			src: src@4006e000 {
+				compatible = "fsl,vf610-src", "syscon";
+				reg = <0x4006e000 0x1000>;
+			};
 		};
 
 		aips1: aips-bus@40080000 {
@@ -337,6 +349,20 @@
 				clocks = <&clks VF610_CLK_DMAMUX2>,
 					<&clks VF610_CLK_DMAMUX3>;
 				status = "disabled";
+			};
+
+			snvs0: snvs@400a7000 {
+			    compatible = "fsl,sec-v4.0-mon", "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x400a7000 0x2000>;
+
+				snvsrtc: snvs-rtc-lp@34 {
+					compatible = "fsl,sec-v4.0-mon-rtc-lp";
+					reg = <0x34 0x58>;
+					clocks = <&clks VF610_CLK_SNVS>;
+					clock-names = "snvs-rtc";
+				};
 			};
 
 			uart4: serial@400a9000 {

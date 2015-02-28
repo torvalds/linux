@@ -344,14 +344,7 @@ static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 	struct device *dev;
 
 	gpd_data = container_of(nb, struct generic_pm_domain_data, nb);
-
-	mutex_lock(&gpd_data->lock);
 	dev = gpd_data->base.dev;
-	if (!dev) {
-		mutex_unlock(&gpd_data->lock);
-		return NOTIFY_DONE;
-	}
-	mutex_unlock(&gpd_data->lock);
 
 	for (;;) {
 		struct generic_pm_domain *genpd;
@@ -1384,25 +1377,66 @@ EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweron);
 
 #endif /* CONFIG_PM_SLEEP */
 
-static struct generic_pm_domain_data *__pm_genpd_alloc_dev_data(struct device *dev)
+static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
+					struct generic_pm_domain *genpd,
+					struct gpd_timing_data *td)
 {
 	struct generic_pm_domain_data *gpd_data;
+	int ret;
+
+	ret = dev_pm_get_subsys_data(dev);
+	if (ret)
+		return ERR_PTR(ret);
 
 	gpd_data = kzalloc(sizeof(*gpd_data), GFP_KERNEL);
-	if (!gpd_data)
-		return NULL;
+	if (!gpd_data) {
+		ret = -ENOMEM;
+		goto err_put;
+	}
 
-	mutex_init(&gpd_data->lock);
+	if (td)
+		gpd_data->td = *td;
+
+	gpd_data->base.dev = dev;
+	gpd_data->need_restore = -1;
+	gpd_data->td.constraint_changed = true;
+	gpd_data->td.effective_constraint_ns = -1;
 	gpd_data->nb.notifier_call = genpd_dev_pm_qos_notifier;
-	dev_pm_qos_add_notifier(dev, &gpd_data->nb);
+
+	spin_lock_irq(&dev->power.lock);
+
+	if (dev->power.subsys_data->domain_data) {
+		ret = -EINVAL;
+		goto err_free;
+	}
+
+	dev->power.subsys_data->domain_data = &gpd_data->base;
+	dev->pm_domain = &genpd->domain;
+
+	spin_unlock_irq(&dev->power.lock);
+
 	return gpd_data;
+
+ err_free:
+	spin_unlock_irq(&dev->power.lock);
+	kfree(gpd_data);
+ err_put:
+	dev_pm_put_subsys_data(dev);
+	return ERR_PTR(ret);
 }
 
-static void __pm_genpd_free_dev_data(struct device *dev,
-				     struct generic_pm_domain_data *gpd_data)
+static void genpd_free_dev_data(struct device *dev,
+				struct generic_pm_domain_data *gpd_data)
 {
-	dev_pm_qos_remove_notifier(dev, &gpd_data->nb);
+	spin_lock_irq(&dev->power.lock);
+
+	dev->pm_domain = NULL;
+	dev->power.subsys_data->domain_data = NULL;
+
+	spin_unlock_irq(&dev->power.lock);
+
 	kfree(gpd_data);
+	dev_pm_put_subsys_data(dev);
 }
 
 /**
@@ -1414,8 +1448,7 @@ static void __pm_genpd_free_dev_data(struct device *dev,
 int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 			  struct gpd_timing_data *td)
 {
-	struct generic_pm_domain_data *gpd_data_new, *gpd_data = NULL;
-	struct pm_domain_data *pdd;
+	struct generic_pm_domain_data *gpd_data;
 	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
@@ -1423,9 +1456,9 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev))
 		return -EINVAL;
 
-	gpd_data_new = __pm_genpd_alloc_dev_data(dev);
-	if (!gpd_data_new)
-		return -ENOMEM;
+	gpd_data = genpd_alloc_dev_data(dev, genpd, td);
+	if (IS_ERR(gpd_data))
+		return PTR_ERR(gpd_data);
 
 	genpd_acquire_lock(genpd);
 
@@ -1434,50 +1467,22 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 		goto out;
 	}
 
-	list_for_each_entry(pdd, &genpd->dev_list, list_node)
-		if (pdd->dev == dev) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-	ret = dev_pm_get_subsys_data(dev);
+	ret = genpd->attach_dev ? genpd->attach_dev(genpd, dev) : 0;
 	if (ret)
 		goto out;
 
 	genpd->device_count++;
 	genpd->max_off_time_changed = true;
 
-	spin_lock_irq(&dev->power.lock);
-
-	dev->pm_domain = &genpd->domain;
-	if (dev->power.subsys_data->domain_data) {
-		gpd_data = to_gpd_data(dev->power.subsys_data->domain_data);
-	} else {
-		gpd_data = gpd_data_new;
-		dev->power.subsys_data->domain_data = &gpd_data->base;
-	}
-	gpd_data->refcount++;
-	if (td)
-		gpd_data->td = *td;
-
-	spin_unlock_irq(&dev->power.lock);
-
-	if (genpd->attach_dev)
-		genpd->attach_dev(genpd, dev);
-
-	mutex_lock(&gpd_data->lock);
-	gpd_data->base.dev = dev;
 	list_add_tail(&gpd_data->base.list_node, &genpd->dev_list);
-	gpd_data->need_restore = -1;
-	gpd_data->td.constraint_changed = true;
-	gpd_data->td.effective_constraint_ns = -1;
-	mutex_unlock(&gpd_data->lock);
 
  out:
 	genpd_release_lock(genpd);
 
-	if (gpd_data != gpd_data_new)
-		__pm_genpd_free_dev_data(dev, gpd_data_new);
+	if (ret)
+		genpd_free_dev_data(dev, gpd_data);
+	else
+		dev_pm_qos_add_notifier(dev, &gpd_data->nb);
 
 	return ret;
 }
@@ -1504,7 +1509,6 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 {
 	struct generic_pm_domain_data *gpd_data;
 	struct pm_domain_data *pdd;
-	bool remove = false;
 	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
@@ -1513,6 +1517,11 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 	    ||  IS_ERR_OR_NULL(dev->pm_domain)
 	    ||  pd_to_genpd(dev->pm_domain) != genpd)
 		return -EINVAL;
+
+	/* The above validation also means we have existing domain_data. */
+	pdd = dev->power.subsys_data->domain_data;
+	gpd_data = to_gpd_data(pdd);
+	dev_pm_qos_remove_notifier(dev, &gpd_data->nb);
 
 	genpd_acquire_lock(genpd);
 
@@ -1527,56 +1536,20 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 	if (genpd->detach_dev)
 		genpd->detach_dev(genpd, dev);
 
-	spin_lock_irq(&dev->power.lock);
-
-	dev->pm_domain = NULL;
-	pdd = dev->power.subsys_data->domain_data;
 	list_del_init(&pdd->list_node);
-	gpd_data = to_gpd_data(pdd);
-	if (--gpd_data->refcount == 0) {
-		dev->power.subsys_data->domain_data = NULL;
-		remove = true;
-	}
-
-	spin_unlock_irq(&dev->power.lock);
-
-	mutex_lock(&gpd_data->lock);
-	pdd->dev = NULL;
-	mutex_unlock(&gpd_data->lock);
 
 	genpd_release_lock(genpd);
 
-	dev_pm_put_subsys_data(dev);
-	if (remove)
-		__pm_genpd_free_dev_data(dev, gpd_data);
+	genpd_free_dev_data(dev, gpd_data);
 
 	return 0;
 
  out:
 	genpd_release_lock(genpd);
+	dev_pm_qos_add_notifier(dev, &gpd_data->nb);
 
 	return ret;
 }
-
-/**
- * pm_genpd_dev_need_restore - Set/unset the device's "need restore" flag.
- * @dev: Device to set/unset the flag for.
- * @val: The new value of the device's "need restore" flag.
- */
-void pm_genpd_dev_need_restore(struct device *dev, bool val)
-{
-	struct pm_subsys_data *psd;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->power.lock, flags);
-
-	psd = dev_to_psd(dev);
-	if (psd && psd->domain_data)
-		to_gpd_data(psd->domain_data)->need_restore = val ? 1 : 0;
-
-	spin_unlock_irqrestore(&dev->power.lock, flags);
-}
-EXPORT_SYMBOL_GPL(pm_genpd_dev_need_restore);
 
 /**
  * pm_genpd_add_subdomain - Add a subdomain to an I/O PM domain.

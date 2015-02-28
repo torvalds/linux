@@ -80,6 +80,28 @@
 			default-state = "off";
 		};
 	};
+
+	gpio_fan: gpio_fan {
+		/* Based on 5v 500mA AFB02505HHB */
+		compatible = "gpio-fan";
+		gpios =  <&tps659038_gpio 1 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <0     0>,
+				     <13000 1>;
+	};
+
+	extcon_usb1: extcon_usb1 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&gpio7 25 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&extcon_usb1_pins>;
+	};
+
+	extcon_usb2: extcon_usb2 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&gpio7 24 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&extcon_usb2_pins>;
+	};
 };
 
 &dra7_pmx_core {
@@ -140,6 +162,86 @@
 		>;
 	};
 
+	cpsw_pins_default: cpsw_pins_default {
+		pinctrl-single,pins = <
+			/* Slave 1 */
+			0x250 (PIN_OUTPUT | MUX_MODE0)	/* rgmii1_tclk */
+			0x254 (PIN_OUTPUT | MUX_MODE0)	/* rgmii1_tctl */
+			0x258 (PIN_OUTPUT | MUX_MODE0)	/* rgmii1_td3 */
+			0x25c (PIN_OUTPUT | MUX_MODE0)	/* rgmii1_td2 */
+			0x260 (PIN_OUTPUT | MUX_MODE0)	/* rgmii1_td1 */
+			0x264 (PIN_OUTPUT | MUX_MODE0)	/* rgmii1_td0 */
+			0x268 (PIN_INPUT | MUX_MODE0)	/* rgmii1_rclk */
+			0x26c (PIN_INPUT | MUX_MODE0)	/* rgmii1_rctl */
+			0x270 (PIN_INPUT | MUX_MODE0)	/* rgmii1_rd3 */
+			0x274 (PIN_INPUT | MUX_MODE0)	/* rgmii1_rd2 */
+			0x278 (PIN_INPUT | MUX_MODE0)	/* rgmii1_rd1 */
+			0x27c (PIN_INPUT | MUX_MODE0)	/* rgmii1_rd0 */
+
+			/* Slave 2 */
+			0x198 (PIN_OUTPUT | MUX_MODE3)	/* rgmii2_tclk */
+			0x19c (PIN_OUTPUT | MUX_MODE3)	/* rgmii2_tctl */
+			0x1a0 (PIN_OUTPUT | MUX_MODE3)	/* rgmii2_td3 */
+			0x1a4 (PIN_OUTPUT | MUX_MODE3)	/* rgmii2_td2 */
+			0x1a8 (PIN_OUTPUT | MUX_MODE3)	/* rgmii2_td1 */
+			0x1ac (PIN_OUTPUT | MUX_MODE3)	/* rgmii2_td0 */
+			0x1b0 (PIN_INPUT | MUX_MODE3)	/* rgmii2_rclk */
+			0x1b4 (PIN_INPUT | MUX_MODE3)	/* rgmii2_rctl */
+			0x1b8 (PIN_INPUT | MUX_MODE3)	/* rgmii2_rd3 */
+			0x1bc (PIN_INPUT | MUX_MODE3)	/* rgmii2_rd2 */
+			0x1c0 (PIN_INPUT | MUX_MODE3)	/* rgmii2_rd1 */
+			0x1c4 (PIN_INPUT | MUX_MODE3)	/* rgmii2_rd0 */
+		>;
+
+	};
+
+	cpsw_pins_sleep: cpsw_pins_sleep {
+		pinctrl-single,pins = <
+			/* Slave 1 */
+			0x250 (PIN_INPUT | MUX_MODE15)
+			0x254 (PIN_INPUT | MUX_MODE15)
+			0x258 (PIN_INPUT | MUX_MODE15)
+			0x25c (PIN_INPUT | MUX_MODE15)
+			0x260 (PIN_INPUT | MUX_MODE15)
+			0x264 (PIN_INPUT | MUX_MODE15)
+			0x268 (PIN_INPUT | MUX_MODE15)
+			0x26c (PIN_INPUT | MUX_MODE15)
+			0x270 (PIN_INPUT | MUX_MODE15)
+			0x274 (PIN_INPUT | MUX_MODE15)
+			0x278 (PIN_INPUT | MUX_MODE15)
+			0x27c (PIN_INPUT | MUX_MODE15)
+
+			/* Slave 2 */
+			0x198 (PIN_INPUT | MUX_MODE15)
+			0x19c (PIN_INPUT | MUX_MODE15)
+			0x1a0 (PIN_INPUT | MUX_MODE15)
+			0x1a4 (PIN_INPUT | MUX_MODE15)
+			0x1a8 (PIN_INPUT | MUX_MODE15)
+			0x1ac (PIN_INPUT | MUX_MODE15)
+			0x1b0 (PIN_INPUT | MUX_MODE15)
+			0x1b4 (PIN_INPUT | MUX_MODE15)
+			0x1b8 (PIN_INPUT | MUX_MODE15)
+			0x1bc (PIN_INPUT | MUX_MODE15)
+			0x1c0 (PIN_INPUT | MUX_MODE15)
+			0x1c4 (PIN_INPUT | MUX_MODE15)
+		>;
+	};
+
+	davinci_mdio_pins_default: davinci_mdio_pins_default {
+		pinctrl-single,pins = <
+			/* MDIO */
+			0x23c (PIN_OUTPUT_PULLUP | MUX_MODE0)	/* mdio_mclk */
+			0x240 (PIN_INPUT_PULLUP | MUX_MODE0)	/* mdio_d */
+		>;
+	};
+
+	davinci_mdio_pins_sleep: davinci_mdio_pins_sleep {
+		pinctrl-single,pins = <
+			0x23c (PIN_INPUT | MUX_MODE15)
+			0x240 (PIN_INPUT | MUX_MODE15)
+		>;
+	};
+
 	tps659038_pins_default: tps659038_pins_default {
 		pinctrl-single,pins = <
 			0x418 (PIN_INPUT_PULLUP | MUX_MODE14)	/* wakeup0.gpio1_0 */
@@ -164,6 +266,17 @@
 		>;
 	};
 
+	extcon_usb1_pins: extcon_usb1_pins {
+		pinctrl-single,pins = <
+			0x3ec (PIN_INPUT_PULLUP | MUX_MODE14) /* uart1_rtsn.gpio7_25 */
+		>;
+	};
+
+	extcon_usb2_pins: extcon_usb2_pins {
+		pinctrl-single,pins = <
+			0x3e8 (PIN_INPUT_PULLUP | MUX_MODE14) /* uart1_ctsn.gpio7_24 */
+		>;
+	};
 };
 
 &i2c1 {
@@ -314,6 +427,12 @@
 			wakeup-source;
 			ti,palmas-long-press-seconds = <12>;
 		};
+
+		tps659038_gpio: tps659038_gpio {
+			compatible = "ti,palmas-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
 	};
 
 	tmp102: tmp102@48 {
@@ -365,6 +484,32 @@
 	pinctrl-0 = <&uart3_pins_default>;
 };
 
+&mac {
+	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cpsw_pins_default>;
+	pinctrl-1 = <&cpsw_pins_sleep>;
+	dual_emac;
+};
+
+&cpsw_emac0 {
+	phy_id = <&davinci_mdio>, <1>;
+	phy-mode = "rgmii";
+	dual_emac_res_vlan = <1>;
+};
+
+&cpsw_emac1 {
+	phy_id = <&davinci_mdio>, <2>;
+	phy-mode = "rgmii";
+	dual_emac_res_vlan = <2>;
+};
+
+&davinci_mdio {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&davinci_mdio_pins_default>;
+	pinctrl-1 = <&davinci_mdio_pins_sleep>;
+};
+
 &mmc1 {
 	status = "okay";
 
@@ -402,4 +547,8 @@
 	dr_mode = "host";
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_pins>;
+};
+
+&usb2 {
+	dr_mode = "peripheral";
 };

@@ -51,10 +51,20 @@ struct dentry *debugfs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops);
 
+struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
+					struct dentry *parent, void *data,
+					const struct file_operations *fops,
+					loff_t file_size);
+
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent);
 
 struct dentry *debugfs_create_symlink(const char *name, struct dentry *parent,
 				      const char *dest);
+
+struct dentry *debugfs_create_automount(const char *name,
+					struct dentry *parent,
+					struct vfsmount *(*f)(void *),
+					void *data);
 
 void debugfs_remove(struct dentry *dentry);
 void debugfs_remove_recursive(struct dentry *dentry);
@@ -120,6 +130,14 @@ bool debugfs_initialized(void);
 static inline struct dentry *debugfs_create_file(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
 					const struct file_operations *fops)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *debugfs_create_file_size(const char *name, umode_t mode,
+					struct dentry *parent, void *data,
+					const struct file_operations *fops,
+					loff_t file_size)
 {
 	return ERR_PTR(-ENODEV);
 }

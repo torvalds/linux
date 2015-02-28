@@ -223,33 +223,6 @@ error_ret:
 	return ret;
 }
 
-#ifdef SCA3000_DEBUG
-/**
- * sca3000_check_status() check the status register
- *
- * Only used for debugging purposes
- **/
-static int sca3000_check_status(struct device *dev)
-{
-	int ret;
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct sca3000_state *st = iio_priv(indio_dev);
-
-	mutex_lock(&st->lock);
-	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_STATUS, 1);
-	if (ret < 0)
-		goto error_ret;
-	if (st->rx[0] & SCA3000_EEPROM_CS_ERROR)
-		dev_err(dev, "eeprom error\n");
-	if (st->rx[0] & SCA3000_SPI_FRAME_ERROR)
-		dev_err(dev, "Previous SPI Frame was corrupt\n");
-
-error_ret:
-	mutex_unlock(&st->lock);
-	return ret;
-}
-#endif /* SCA3000_DEBUG */
-
 /**
  * sca3000_show_rev() - sysfs interface to read the chip revision number
  **/
@@ -459,6 +432,8 @@ static const struct iio_chan_spec sca3000_channels_with_temp[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_OFFSET),
+		/* No buffer support */
+		.scan_index = -1,
 	},
 };
 
@@ -1154,17 +1129,6 @@ static int sca3000_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	ret = iio_buffer_register(indio_dev,
-				  sca3000_channels,
-				  ARRAY_SIZE(sca3000_channels));
-	if (ret < 0)
-		goto error_unregister_dev;
-	if (indio_dev->buffer) {
-		iio_scan_mask_set(indio_dev, indio_dev->buffer, 0);
-		iio_scan_mask_set(indio_dev, indio_dev->buffer, 1);
-		iio_scan_mask_set(indio_dev, indio_dev->buffer, 2);
-	}
-
 	if (spi->irq) {
 		ret = request_threaded_irq(spi->irq,
 					   NULL,
@@ -1173,7 +1137,7 @@ static int sca3000_probe(struct spi_device *spi)
 					   "sca3000",
 					   indio_dev);
 		if (ret)
-			goto error_unregister_ring;
+			goto error_unregister_dev;
 	}
 	sca3000_register_ring_funcs(indio_dev);
 	ret = sca3000_clean_setup(st);
@@ -1184,8 +1148,6 @@ static int sca3000_probe(struct spi_device *spi)
 error_free_irq:
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
-error_unregister_ring:
-	iio_buffer_unregister(indio_dev);
 error_unregister_dev:
 	iio_device_unregister(indio_dev);
 	return ret;
@@ -1219,7 +1181,6 @@ static int sca3000_remove(struct spi_device *spi)
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 	iio_device_unregister(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	sca3000_unconfigure_ring(indio_dev);
 
 	return 0;

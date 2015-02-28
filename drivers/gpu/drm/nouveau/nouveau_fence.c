@@ -182,7 +182,7 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	else if (chan == chan->drm->channel)
 		strcpy(fctx->name, "generic kernel channel");
 	else
-		strcpy(fctx->name, nvkm_client(&cli->base)->name);
+		strcpy(fctx->name, nvxx_client(&cli->base)->name);
 
 	kref_init(&fctx->fence_ref);
 	if (!priv->uevent)

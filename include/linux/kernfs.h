@@ -43,7 +43,6 @@ enum kernfs_node_flag {
 	KERNFS_HAS_SEQ_SHOW	= 0x0040,
 	KERNFS_HAS_MMAP		= 0x0080,
 	KERNFS_LOCKDEP		= 0x0100,
-	KERNFS_STATIC_NAME	= 0x0200,
 	KERNFS_SUICIDAL		= 0x0400,
 	KERNFS_SUICIDED		= 0x0800,
 };
@@ -291,7 +290,6 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 umode_t mode, loff_t size,
 					 const struct kernfs_ops *ops,
 					 void *priv, const void *ns,
-					 bool name_is_static,
 					 struct lock_class_key *key);
 struct kernfs_node *kernfs_create_link(struct kernfs_node *parent,
 				       const char *name,
@@ -369,8 +367,7 @@ kernfs_create_dir_ns(struct kernfs_node *parent, const char *name,
 static inline struct kernfs_node *
 __kernfs_create_file(struct kernfs_node *parent, const char *name,
 		     umode_t mode, loff_t size, const struct kernfs_ops *ops,
-		     void *priv, const void *ns, bool name_is_static,
-		     struct lock_class_key *key)
+		     void *priv, const void *ns, struct lock_class_key *key)
 { return ERR_PTR(-ENOSYS); }
 
 static inline struct kernfs_node *
@@ -439,7 +436,7 @@ kernfs_create_file_ns(struct kernfs_node *parent, const char *name,
 	key = (struct lock_class_key *)&ops->lockdep_key;
 #endif
 	return __kernfs_create_file(parent, name, mode, size, ops, priv, ns,
-				    false, key);
+				    key);
 }
 
 static inline struct kernfs_node *

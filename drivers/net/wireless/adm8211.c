@@ -1837,6 +1837,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 	if (!priv->map) {
 		printk(KERN_ERR "%s (adm8211): Cannot map device memory\n",
 		       pci_name(pdev));
+		err = -ENOMEM;
 		goto err_free_dev;
 	}
 

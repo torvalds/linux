@@ -513,6 +513,31 @@ void __init pcibios_set_cache_line_size(void)
 	}
 }
 
+/*
+ * Some device drivers assume dev->irq won't change after calling
+ * pci_disable_device(). So delay releasing of IRQ resource to driver
+ * unbinding time. Otherwise it will break PM subsystem and drivers
+ * like xen-pciback etc.
+ */
+static int pci_irq_notifier(struct notifier_block *nb, unsigned long action,
+			    void *data)
+{
+	struct pci_dev *dev = to_pci_dev(data);
+
+	if (action != BUS_NOTIFY_UNBOUND_DRIVER)
+		return NOTIFY_DONE;
+
+	if (pcibios_disable_irq)
+		pcibios_disable_irq(dev);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block pci_irq_nb = {
+	.notifier_call = pci_irq_notifier,
+	.priority = INT_MIN,
+};
+
 int __init pcibios_init(void)
 {
 	if (!raw_pci_ops) {
@@ -525,6 +550,9 @@ int __init pcibios_init(void)
 
 	if (pci_bf_sort >= pci_force_bf)
 		pci_sort_breadthfirst();
+
+	bus_register_notifier(&pci_bus_type, &pci_irq_nb);
+
 	return 0;
 }
 
@@ -681,12 +709,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	if (!pci_dev_msi_enabled(dev))
 		return pcibios_enable_irq(dev);
 	return 0;
-}
-
-void pcibios_disable_device (struct pci_dev *dev)
-{
-	if (!pci_dev_msi_enabled(dev) && pcibios_disable_irq)
-		pcibios_disable_irq(dev);
 }
 
 int pci_ext_cfg_avail(void)

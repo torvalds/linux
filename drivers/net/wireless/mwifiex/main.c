@@ -83,9 +83,8 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	}
 	mwifiex_init_lock_list(adapter);
 
-	init_timer(&adapter->cmd_timer);
-	adapter->cmd_timer.function = mwifiex_cmd_timeout_func;
-	adapter->cmd_timer.data = (unsigned long) adapter;
+	setup_timer(&adapter->cmd_timer, mwifiex_cmd_timeout_func,
+		    (unsigned long)adapter);
 
 	return 0;
 
@@ -237,6 +236,7 @@ process_start:
 		    (is_command_pending(adapter) ||
 		     !mwifiex_wmm_lists_empty(adapter))) {
 			adapter->pm_wakeup_fw_try = true;
+			mod_timer(&adapter->wakeup_timer, jiffies + (HZ*3));
 			adapter->if_ops.wakeup(adapter);
 			continue;
 		}
@@ -244,6 +244,7 @@ process_start:
 		if (IS_CARD_RX_RCVD(adapter)) {
 			adapter->data_received = false;
 			adapter->pm_wakeup_fw_try = false;
+			del_timer_sync(&adapter->wakeup_timer);
 			if (adapter->ps_state == PS_STATE_SLEEP)
 				adapter->ps_state = PS_STATE_AWAKE;
 		} else {
@@ -511,8 +512,7 @@ err_dnld_fw:
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
 
-	if ((adapter->hw_status == MWIFIEX_HW_STATUS_FW_READY) ||
-	    (adapter->hw_status == MWIFIEX_HW_STATUS_READY)) {
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
 		pr_debug("info: %s: shutdown mwifiex\n", __func__);
 		adapter->init_wait_q_woken = false;
 
@@ -562,7 +562,8 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 static int
 mwifiex_open(struct net_device *dev)
 {
-	netif_tx_start_all_queues(dev);
+	netif_carrier_off(dev);
+
 	return 0;
 }
 
@@ -801,6 +802,114 @@ mwifiex_tx_timeout(struct net_device *dev)
 	}
 }
 
+void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter)
+{
+	void *p;
+	char drv_version[64];
+	struct usb_card_rec *cardp;
+	struct sdio_mmc_card *sdio_card;
+	struct mwifiex_private *priv;
+	int i, idx;
+	struct netdev_queue *txq;
+	struct mwifiex_debug_info *debug_info;
+
+	if (adapter->drv_info_dump) {
+		vfree(adapter->drv_info_dump);
+		adapter->drv_info_size = 0;
+	}
+
+	dev_info(adapter->dev, "=== DRIVER INFO DUMP START===\n");
+
+	adapter->drv_info_dump = vzalloc(MWIFIEX_DRV_INFO_SIZE_MAX);
+
+	if (!adapter->drv_info_dump)
+		return;
+
+	p = (char *)(adapter->drv_info_dump);
+	p += sprintf(p, "driver_name = " "\"mwifiex\"\n");
+
+	mwifiex_drv_get_driver_version(adapter, drv_version,
+				       sizeof(drv_version) - 1);
+	p += sprintf(p, "driver_version = %s\n", drv_version);
+
+	if (adapter->iface_type == MWIFIEX_USB) {
+		cardp = (struct usb_card_rec *)adapter->card;
+		p += sprintf(p, "tx_cmd_urb_pending = %d\n",
+			     atomic_read(&cardp->tx_cmd_urb_pending));
+		p += sprintf(p, "tx_data_urb_pending = %d\n",
+			     atomic_read(&cardp->tx_data_urb_pending));
+		p += sprintf(p, "rx_cmd_urb_pending = %d\n",
+			     atomic_read(&cardp->rx_cmd_urb_pending));
+		p += sprintf(p, "rx_data_urb_pending = %d\n",
+			     atomic_read(&cardp->rx_data_urb_pending));
+	}
+
+	p += sprintf(p, "tx_pending = %d\n",
+		     atomic_read(&adapter->tx_pending));
+	p += sprintf(p, "rx_pending = %d\n",
+		     atomic_read(&adapter->rx_pending));
+
+	if (adapter->iface_type == MWIFIEX_SDIO) {
+		sdio_card = (struct sdio_mmc_card *)adapter->card;
+		p += sprintf(p, "\nmp_rd_bitmap=0x%x curr_rd_port=0x%x\n",
+			     sdio_card->mp_rd_bitmap, sdio_card->curr_rd_port);
+		p += sprintf(p, "mp_wr_bitmap=0x%x curr_wr_port=0x%x\n",
+			     sdio_card->mp_wr_bitmap, sdio_card->curr_wr_port);
+	}
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		if (!adapter->priv[i] || !adapter->priv[i]->netdev)
+			continue;
+		priv = adapter->priv[i];
+		p += sprintf(p, "\n[interface  : \"%s\"]\n",
+			     priv->netdev->name);
+		p += sprintf(p, "wmm_tx_pending[0] = %d\n",
+			     atomic_read(&priv->wmm_tx_pending[0]));
+		p += sprintf(p, "wmm_tx_pending[1] = %d\n",
+			     atomic_read(&priv->wmm_tx_pending[1]));
+		p += sprintf(p, "wmm_tx_pending[2] = %d\n",
+			     atomic_read(&priv->wmm_tx_pending[2]));
+		p += sprintf(p, "wmm_tx_pending[3] = %d\n",
+			     atomic_read(&priv->wmm_tx_pending[3]));
+		p += sprintf(p, "media_state=\"%s\"\n", !priv->media_connected ?
+			     "Disconnected" : "Connected");
+		p += sprintf(p, "carrier %s\n", (netif_carrier_ok(priv->netdev)
+			     ? "on" : "off"));
+		for (idx = 0; idx < priv->netdev->num_tx_queues; idx++) {
+			txq = netdev_get_tx_queue(priv->netdev, idx);
+			p += sprintf(p, "tx queue %d:%s  ", idx,
+				     netif_tx_queue_stopped(txq) ?
+				     "stopped" : "started");
+		}
+		p += sprintf(p, "\n%s: num_tx_timeout = %d\n",
+			     priv->netdev->name, priv->num_tx_timeout);
+	}
+
+	if (adapter->iface_type == MWIFIEX_SDIO) {
+		p += sprintf(p, "\n=== SDIO register DUMP===\n");
+		if (adapter->if_ops.reg_dump)
+			p += adapter->if_ops.reg_dump(adapter, p);
+	}
+
+	p += sprintf(p, "\n=== MORE DEBUG INFORMATION\n");
+	debug_info = kzalloc(sizeof(*debug_info), GFP_KERNEL);
+	if (debug_info) {
+		for (i = 0; i < adapter->priv_num; i++) {
+			if (!adapter->priv[i] || !adapter->priv[i]->netdev)
+				continue;
+			priv = adapter->priv[i];
+			mwifiex_get_debug_info(priv, debug_info);
+			p += mwifiex_debug_info_to_buffer(priv, p, debug_info);
+			break;
+		}
+		kfree(debug_info);
+	}
+
+	adapter->drv_info_size = p - adapter->drv_info_dump;
+	dev_info(adapter->dev, "=== DRIVER INFO DUMP END===\n");
+}
+EXPORT_SYMBOL_GPL(mwifiex_dump_drv_info);
+
 /*
  * CFG802.11 network device handler for statistics retrieval.
  */
@@ -847,26 +956,34 @@ static const struct net_device_ops mwifiex_netdev_ops = {
  *      - Nick name             : Set to null
  *      - Number of Tx timeout  : Set to 0
  *      - Device address        : Set to current address
+ *      - Rx histogram statistc : Set to 0
  *
  * In addition, the CFG80211 work queue is also created.
  */
 void mwifiex_init_priv_params(struct mwifiex_private *priv,
-						struct net_device *dev)
+			      struct net_device *dev)
 {
 	dev->netdev_ops = &mwifiex_netdev_ops;
 	dev->destructor = free_netdev;
 	/* Initialize private structure */
 	priv->current_key_index = 0;
 	priv->media_connected = false;
-	memset(&priv->nick_name, 0, sizeof(priv->nick_name));
 	memset(priv->mgmt_ie, 0,
 	       sizeof(struct mwifiex_ie) * MAX_MGMT_IE_INDEX);
 	priv->beacon_idx = MWIFIEX_AUTO_IDX_MASK;
 	priv->proberesp_idx = MWIFIEX_AUTO_IDX_MASK;
 	priv->assocresp_idx = MWIFIEX_AUTO_IDX_MASK;
-	priv->rsn_idx = MWIFIEX_AUTO_IDX_MASK;
+	priv->gen_idx = MWIFIEX_AUTO_IDX_MASK;
 	priv->num_tx_timeout = 0;
+	ether_addr_copy(priv->curr_addr, priv->adapter->perm_addr);
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
+	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		priv->hist_data = kmalloc(sizeof(*priv->hist_data), GFP_KERNEL);
+		if (priv->hist_data)
+			mwifiex_hist_data_reset(priv);
+	}
 }
 
 /*
@@ -1000,8 +1117,7 @@ err_init_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
 	if (adapter->if_ops.unregister_dev)
 		adapter->if_ops.unregister_dev(adapter);
-	if ((adapter->hw_status == MWIFIEX_HW_STATUS_FW_READY) ||
-	    (adapter->hw_status == MWIFIEX_HW_STATUS_READY)) {
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_READY) {
 		pr_debug("info: %s: shutdown mwifiex\n", __func__);
 		adapter->init_wait_q_woken = false;
 
@@ -1052,6 +1168,8 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 
 	adapter->surprise_removed = true;
 
+	mwifiex_terminate_workqueue(adapter);
+
 	/* Stop data */
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
@@ -1086,15 +1204,14 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 			continue;
 
 		rtnl_lock();
-		if (priv->wdev && priv->netdev)
-			mwifiex_del_virtual_intf(adapter->wiphy, priv->wdev);
+		if (priv->netdev &&
+		    priv->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED)
+			mwifiex_del_virtual_intf(adapter->wiphy, &priv->wdev);
 		rtnl_unlock();
 	}
 
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
-
-	mwifiex_terminate_workqueue(adapter);
 
 	/* Unregister device */
 	dev_dbg(adapter->dev, "info: unregister device\n");

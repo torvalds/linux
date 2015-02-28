@@ -298,7 +298,8 @@ struct dn_fib_info *dn_fib_create_info(const struct rtmsg *r, struct nlattr *att
 			int type = nla_type(attr);
 
 			if (type) {
-				if (type > RTAX_MAX || nla_len(attr) < 4)
+				if (type > RTAX_MAX || type == RTAX_CC_ALGO ||
+				    nla_len(attr) < 4)
 					goto err_inval;
 
 				fi->fib_metrics[type-1] = nla_get_u32(attr);

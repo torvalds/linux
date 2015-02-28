@@ -332,12 +332,13 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 }
 
 void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task,
-			      struct iser_data_buf *data)
+			      struct iser_data_buf *data,
+			      enum dma_data_direction dir)
 {
 	struct ib_device *dev;
 
 	dev = iser_task->iser_conn->ib_conn.device->ib_device;
-	ib_dma_unmap_sg(dev, data->buf, data->size, DMA_FROM_DEVICE);
+	ib_dma_unmap_sg(dev, data->buf, data->size, dir);
 }
 
 static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
@@ -357,7 +358,9 @@ static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
 		iser_data_buf_dump(mem, ibdev);
 
 	/* unmap the command data before accessing it */
-	iser_dma_unmap_task_data(iser_task, mem);
+	iser_dma_unmap_task_data(iser_task, mem,
+				 (cmd_dir == ISER_DIR_OUT) ?
+				 DMA_TO_DEVICE : DMA_FROM_DEVICE);
 
 	/* allocate copy buf, if we are writing, copy the */
 	/* unaligned scatterlist, dma map the copy        */

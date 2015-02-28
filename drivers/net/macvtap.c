@@ -642,7 +642,7 @@ static void macvtap_skb_to_vnet_hdr(struct macvtap_queue *q,
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		vnet_hdr->flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-		if (vlan_tx_tag_present(skb))
+		if (skb_vlan_tag_present(skb))
 			vnet_hdr->csum_start = cpu_to_macvtap16(q,
 				skb_checksum_start_offset(skb) + VLAN_HLEN);
 		else
@@ -818,13 +818,13 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 	total = vnet_hdr_len;
 	total += skb->len;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		struct {
 			__be16 h_vlan_proto;
 			__be16 h_vlan_TCI;
 		} veth;
 		veth.h_vlan_proto = skb->vlan_proto;
-		veth.h_vlan_TCI = htons(vlan_tx_tag_get(skb));
+		veth.h_vlan_TCI = htons(skb_vlan_tag_get(skb));
 
 		vlan_offset = offsetof(struct vlan_ethhdr, h_vlan_proto);
 		total += VLAN_HLEN;

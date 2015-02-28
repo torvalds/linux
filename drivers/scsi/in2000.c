@@ -2226,36 +2226,36 @@ static int in2000_show_info(struct seq_file *m, struct Scsi_Host *instance)
 
 	if (hd->proc & PR_INFO) {
 		seq_printf(m, "\ndip_switch=%02x: irq=%d io=%02x floppy=%s sync/DOS5=%s", (hd->dip_switch & 0x7f), instance->irq, hd->io_base, (hd->dip_switch & 0x40) ? "Yes" : "No", (hd->dip_switch & 0x20) ? "Yes" : "No");
-		seq_printf(m, "\nsync_xfer[] =       ");
+		seq_puts(m, "\nsync_xfer[] =       ");
 		for (x = 0; x < 7; x++)
 			seq_printf(m, "\t%02x", hd->sync_xfer[x]);
-		seq_printf(m, "\nsync_stat[] =       ");
+		seq_puts(m, "\nsync_stat[] =       ");
 		for (x = 0; x < 7; x++)
 			seq_printf(m, "\t%02x", hd->sync_stat[x]);
 	}
 #ifdef PROC_STATISTICS
 	if (hd->proc & PR_STATISTICS) {
-		seq_printf(m, "\ncommands issued:    ");
+		seq_puts(m, "\ncommands issued:    ");
 		for (x = 0; x < 7; x++)
 			seq_printf(m, "\t%ld", hd->cmd_cnt[x]);
-		seq_printf(m, "\ndisconnects allowed:");
+		seq_puts(m, "\ndisconnects allowed:");
 		for (x = 0; x < 7; x++)
 			seq_printf(m, "\t%ld", hd->disc_allowed_cnt[x]);
-		seq_printf(m, "\ndisconnects done:   ");
+		seq_puts(m, "\ndisconnects done:   ");
 		for (x = 0; x < 7; x++)
 			seq_printf(m, "\t%ld", hd->disc_done_cnt[x]);
 		seq_printf(m, "\ninterrupts:      \t%ld", hd->int_cnt);
 	}
 #endif
 	if (hd->proc & PR_CONNECTED) {
-		seq_printf(m, "\nconnected:     ");
+		seq_puts(m, "\nconnected:     ");
 		if (hd->connected) {
 			cmd = (Scsi_Cmnd *) hd->connected;
 			seq_printf(m, " %d:%llu(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
 		}
 	}
 	if (hd->proc & PR_INPUTQ) {
-		seq_printf(m, "\ninput_Q:       ");
+		seq_puts(m, "\ninput_Q:       ");
 		cmd = (Scsi_Cmnd *) hd->input_Q;
 		while (cmd) {
 			seq_printf(m, " %d:%llu(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
@@ -2263,7 +2263,7 @@ static int in2000_show_info(struct seq_file *m, struct Scsi_Host *instance)
 		}
 	}
 	if (hd->proc & PR_DISCQ) {
-		seq_printf(m, "\ndisconnected_Q:");
+		seq_puts(m, "\ndisconnected_Q:");
 		cmd = (Scsi_Cmnd *) hd->disconnected_Q;
 		while (cmd) {
 			seq_printf(m, " %d:%llu(%02x)", cmd->device->id, cmd->device->lun, cmd->cmnd[0]);
@@ -2273,7 +2273,7 @@ static int in2000_show_info(struct seq_file *m, struct Scsi_Host *instance)
 	if (hd->proc & PR_TEST) {
 		;		/* insert your own custom function here */
 	}
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 	spin_unlock_irqrestore(instance->host_lock, flags);
 #endif				/* PROC_INTERFACE */
 	return 0;

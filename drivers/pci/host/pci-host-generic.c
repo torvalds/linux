@@ -76,55 +76,9 @@ static struct gen_pci_cfg_bus_ops gen_pci_cfg_ecam_bus_ops = {
 	.map_bus	= gen_pci_map_cfg_bus_ecam,
 };
 
-static int gen_pci_config_read(struct pci_bus *bus, unsigned int devfn,
-				int where, int size, u32 *val)
-{
-	void __iomem *addr;
-	struct pci_sys_data *sys = bus->sysdata;
-	struct gen_pci *pci = sys->private_data;
-
-	addr = pci->cfg.ops->map_bus(bus, devfn, where);
-
-	switch (size) {
-	case 1:
-		*val = readb(addr);
-		break;
-	case 2:
-		*val = readw(addr);
-		break;
-	default:
-		*val = readl(addr);
-	}
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int gen_pci_config_write(struct pci_bus *bus, unsigned int devfn,
-				 int where, int size, u32 val)
-{
-	void __iomem *addr;
-	struct pci_sys_data *sys = bus->sysdata;
-	struct gen_pci *pci = sys->private_data;
-
-	addr = pci->cfg.ops->map_bus(bus, devfn, where);
-
-	switch (size) {
-	case 1:
-		writeb(val, addr);
-		break;
-	case 2:
-		writew(val, addr);
-		break;
-	default:
-		writel(val, addr);
-	}
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
 static struct pci_ops gen_pci_ops = {
-	.read	= gen_pci_config_read,
-	.write	= gen_pci_config_write,
+	.read	= pci_generic_config_read,
+	.write	= pci_generic_config_write,
 };
 
 static const struct of_device_id gen_pci_of_match[] = {
@@ -149,14 +103,14 @@ static int gen_pci_parse_request_of_pci_ranges(struct gen_pci *pci)
 	struct device *dev = pci->host.dev.parent;
 	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
-	struct pci_host_bridge_window *win;
+	struct resource_entry *win;
 
 	err = of_pci_get_host_bridge_resources(np, 0, 0xff, &pci->resources,
 					       &iobase);
 	if (err)
 		return err;
 
-	list_for_each_entry(win, &pci->resources, list) {
+	resource_list_for_each_entry(win, &pci->resources) {
 		struct resource *parent, *res = win->res;
 
 		switch (resource_type(res)) {
@@ -287,6 +241,7 @@ static int gen_pci_probe(struct platform_device *pdev)
 
 	of_id = of_match_node(gen_pci_of_match, np);
 	pci->cfg.ops = of_id->data;
+	gen_pci_ops.map_bus = pci->cfg.ops->map_bus;
 	pci->host.dev.parent = dev;
 	INIT_LIST_HEAD(&pci->host.windows);
 	INIT_LIST_HEAD(&pci->resources);

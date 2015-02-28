@@ -3332,7 +3332,7 @@ extern struct lu_kmem_descr osc_caches[];
 extern spinlock_t osc_ast_guard;
 extern struct lock_class_key osc_ast_guard_class;
 
-int __init osc_init(void)
+static int __init osc_init(void)
 {
 	struct lprocfs_static_vars lvars = { NULL };
 	int rc;

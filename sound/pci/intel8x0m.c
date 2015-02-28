@@ -23,7 +23,7 @@
  *
  */      
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -1023,7 +1023,6 @@ static int snd_intel8x0m_free(struct intel8x0m *chip)
  */
 static int intel8x0m_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0m *chip = card->private_data;
 	int i;
@@ -1036,9 +1035,6 @@ static int intel8x0m_suspend(struct device *dev)
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
 	}
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
@@ -1048,14 +1044,6 @@ static int intel8x0m_resume(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct intel8x0m *chip = card->private_data;
 
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 	if (request_irq(pci->irq, snd_intel8x0m_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		dev_err(dev, "unable to grab IRQ %d, disabling device\n",

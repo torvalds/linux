@@ -23,6 +23,4 @@ struct sleep_save_sp {
 
 extern int __cpu_suspend(unsigned long arg, int (*fn)(unsigned long));
 extern void cpu_resume(void);
-extern int cpu_suspend(unsigned long);
-
 #endif

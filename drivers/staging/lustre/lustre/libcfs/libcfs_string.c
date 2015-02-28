@@ -47,7 +47,7 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 		 int *oldmask, int minmask, int allmask)
 {
 	const char *debugstr;
-	char op = 0;
+	char op = '\0';
 	int newmask = minmask, i, len, found = 0;
 
 	/* <str> must be a list of tokens separated by whitespace
@@ -55,10 +55,10 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 	 * appears first in <str>, '*oldmask' is used as the starting point
 	 * (relative), otherwise minmask is used (absolute).  An operator
 	 * applies to all following tokens up to the next operator. */
-	while (*str != 0) {
+	while (*str != '\0') {
 		while (isspace(*str))
 			str++;
-		if (*str == 0)
+		if (*str == '\0')
 			break;
 		if (*str == '+' || *str == '-') {
 			op = *str++;
@@ -67,13 +67,15 @@ int cfs_str2mask(const char *str, const char *(*bit2str)(int bit),
 				newmask = *oldmask;
 			while (isspace(*str))
 				str++;
-			if (*str == 0)	  /* trailing op */
+			if (*str == '\0')  /* trailing op */
 				return -EINVAL;
 		}
 
 		/* find token length */
-		for (len = 0; str[len] != 0 && !isspace(str[len]) &&
-		      str[len] != '+' && str[len] != '-'; len++);
+		len = 0;
+		while (str[len] != '\0' && !isspace(str[len]) &&
+		       str[len] != '+' && str[len] != '-')
+			len++;
 
 		/* match token */
 		found = 0;
@@ -132,7 +134,7 @@ char *cfs_firststr(char *str, size_t size)
 		++end;
 	}
 
-	*end= '\0';
+	*end = '\0';
 out:
 	return str;
 }

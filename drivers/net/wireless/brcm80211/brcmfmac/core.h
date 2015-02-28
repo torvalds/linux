@@ -29,8 +29,6 @@
 /* For supporting multiple interfaces */
 #define BRCMF_MAX_IFS	16
 
-#define DOT11_MAX_DEFAULT_KEYS	4
-
 /* Small, medium and maximum buffer size for dcmd
  */
 #define BRCMF_DCMD_SMLEN	256
@@ -73,6 +71,35 @@ struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
 struct brcmf_fws_info; /* firmware signalling info */
 
+/*
+ * struct brcmf_rev_info
+ *
+ * The result field stores the error code of the
+ * revision info request from firmware. For the
+ * other fields see struct brcmf_rev_info_le in
+ * fwil_types.h
+ */
+struct brcmf_rev_info {
+	int result;
+	u32 vendorid;
+	u32 deviceid;
+	u32 radiorev;
+	u32 chiprev;
+	u32 corerev;
+	u32 boardid;
+	u32 boardvendor;
+	u32 boardrev;
+	u32 driverrev;
+	u32 ucoderev;
+	u32 bus;
+	u32 chipnum;
+	u32 phytype;
+	u32 phyrev;
+	u32 anarev;
+	u32 chippkg;
+	u32 nvramrev;
+};
+
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
 	/* Linkage ponters */
@@ -106,6 +133,7 @@ struct brcmf_pub {
 	u32 feat_flags;
 	u32 chip_quirks;
 
+	struct brcmf_rev_info revinfo;
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
@@ -167,7 +195,7 @@ struct brcmf_skb_reorder_data {
 	u8 *reorder;
 };
 
-int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
+int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
 
 /* Return pointer to interface name */
 char *brcmf_ifname(struct brcmf_pub *drvr, int idx);

@@ -158,7 +158,7 @@ static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev,
 
 	host = c->host;
 
-	/* Platform specific code during emmc proble slot goes here */
+	/* Platform specific code during emmc probe slot goes here */
 
 	if (hid && uid && !strcmp(hid, "80860F14") && !strcmp(uid, "1") &&
 	    sdhci_readl(host, SDHCI_CAPABILITIES) == 0x446cc8b2 &&
@@ -179,7 +179,7 @@ static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev,
 
 	host = c->host;
 
-	/* Platform specific code during emmc proble slot goes here */
+	/* Platform specific code during sdio probe slot goes here */
 
 	return 0;
 }
@@ -195,7 +195,7 @@ static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev,
 
 	host = c->host;
 
-	/* Platform specific code during emmc proble slot goes here */
+	/* Platform specific code during sd probe slot goes here */
 
 	return 0;
 }
@@ -448,18 +448,13 @@ static int sdhci_acpi_runtime_resume(struct device *dev)
 	return sdhci_runtime_resume_host(c->host);
 }
 
-static int sdhci_acpi_runtime_idle(struct device *dev)
-{
-	return 0;
-}
-
 #endif
 
 static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 	.suspend		= sdhci_acpi_suspend,
 	.resume			= sdhci_acpi_resume,
 	SET_RUNTIME_PM_OPS(sdhci_acpi_runtime_suspend,
-			sdhci_acpi_runtime_resume, sdhci_acpi_runtime_idle)
+			sdhci_acpi_runtime_resume, NULL)
 };
 
 static struct platform_driver sdhci_acpi_driver = {

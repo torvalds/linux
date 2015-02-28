@@ -19,6 +19,7 @@
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/gfp.h>
 #include <linux/pagemap.h>
@@ -2091,7 +2092,7 @@ static ssize_t ntfs_file_aio_write_nolock(struct kiocb *iocb,
 	count = iov_length(iov, nr_segs);
 	pos = *ppos;
 	/* We can write back this queue in page reclaim. */
-	current->backing_dev_info = mapping->backing_dev_info;
+	current->backing_dev_info = inode_to_bdi(inode);
 	written = 0;
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
 	if (err)

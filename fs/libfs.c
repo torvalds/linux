@@ -329,7 +329,7 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 		struct inode *new_dir, struct dentry *new_dentry)
 {
 	struct inode *inode = old_dentry->d_inode;
-	int they_are_dirs = S_ISDIR(old_dentry->d_inode->i_mode);
+	int they_are_dirs = d_is_dir(old_dentry);
 
 	if (!simple_empty(new_dentry))
 		return -ENOTEMPTY;
@@ -948,7 +948,7 @@ int __generic_file_fsync(struct file *file, loff_t start, loff_t end,
 
 	mutex_lock(&inode->i_mutex);
 	ret = sync_mapping_buffers(inode->i_mapping);
-	if (!(inode->i_state & I_DIRTY))
+	if (!(inode->i_state & I_DIRTY_ALL))
 		goto out;
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
 		goto out;

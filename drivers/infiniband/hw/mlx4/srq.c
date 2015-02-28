@@ -316,8 +316,15 @@ int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	int err = 0;
 	int nreq;
 	int i;
+	struct mlx4_ib_dev *mdev = to_mdev(ibsrq->device);
 
 	spin_lock_irqsave(&srq->lock, flags);
+	if (mdev->dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR) {
+		err = -EIO;
+		*bad_wr = wr;
+		nreq = 0;
+		goto out;
+	}
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		if (unlikely(wr->num_sge > srq->msrq.max_gs)) {
@@ -362,6 +369,7 @@ int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 		*srq->db.db = cpu_to_be32(srq->wqe_ctr);
 	}
+out:
 
 	spin_unlock_irqrestore(&srq->lock, flags);
 

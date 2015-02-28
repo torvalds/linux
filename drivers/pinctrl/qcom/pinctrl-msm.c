@@ -204,21 +204,6 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 	return 0;
 }
 
-static int msm_config_get(struct pinctrl_dev *pctldev,
-			  unsigned int pin,
-			  unsigned long *config)
-{
-	dev_err(pctldev->dev, "pin_config_set op not supported\n");
-	return -ENOTSUPP;
-}
-
-static int msm_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
-				unsigned long *configs, unsigned num_configs)
-{
-	dev_err(pctldev->dev, "pin_config_set op not supported\n");
-	return -ENOTSUPP;
-}
-
 #define MSM_NO_PULL	0
 #define MSM_PULL_DOWN	1
 #define MSM_KEEPER	2
@@ -372,8 +357,6 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinconf_ops msm_pinconf_ops = {
-	.pin_config_get		= msm_config_get,
-	.pin_config_set		= msm_config_set,
 	.pin_config_group_get	= msm_config_group_get,
 	.pin_config_group_set	= msm_config_group_set,
 };

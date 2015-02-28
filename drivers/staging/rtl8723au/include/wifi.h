@@ -26,9 +26,9 @@
 ------------------------------------------------------------------------------*/
 
 struct AC_param {
-	unsigned char		ACI_AIFSN;
-	unsigned char		CW;
-	unsigned short	TXOP_limit;
+	u8			ACI_AIFSN;
+	u8			CW;
+	__le16			TXOP_limit;
 }  __packed;
 
 struct WMM_para_element {
@@ -38,10 +38,10 @@ struct WMM_para_element {
 }  __packed;
 
 struct ADDBA_request {
-	unsigned char		dialog_token;
-	unsigned short	BA_para_set;
-	unsigned short	BA_timeout_value;
-	unsigned short	BA_starting_seqctrl;
+	u8		dialog_token;
+	__le16		BA_para_set;
+	__le16		BA_timeout_value;
+	__le16		BA_starting_seqctrl;
 }  __packed;
 
 

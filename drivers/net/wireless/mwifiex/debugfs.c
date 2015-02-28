@@ -39,111 +39,6 @@ static char *bss_modes[] = {
 	"P2P_DEVICE",
 };
 
-/* size/addr for mwifiex_debug_info */
-#define item_size(n)		(FIELD_SIZEOF(struct mwifiex_debug_info, n))
-#define item_addr(n)		(offsetof(struct mwifiex_debug_info, n))
-
-/* size/addr for struct mwifiex_adapter */
-#define adapter_item_size(n)	(FIELD_SIZEOF(struct mwifiex_adapter, n))
-#define adapter_item_addr(n)	(offsetof(struct mwifiex_adapter, n))
-
-struct mwifiex_debug_data {
-	char name[32];		/* variable/array name */
-	u32 size;		/* size of the variable/array */
-	size_t addr;		/* address of the variable/array */
-	int num;		/* number of variables in an array */
-};
-
-static struct mwifiex_debug_data items[] = {
-	{"int_counter", item_size(int_counter),
-	 item_addr(int_counter), 1},
-	{"wmm_ac_vo", item_size(packets_out[WMM_AC_VO]),
-	 item_addr(packets_out[WMM_AC_VO]), 1},
-	{"wmm_ac_vi", item_size(packets_out[WMM_AC_VI]),
-	 item_addr(packets_out[WMM_AC_VI]), 1},
-	{"wmm_ac_be", item_size(packets_out[WMM_AC_BE]),
-	 item_addr(packets_out[WMM_AC_BE]), 1},
-	{"wmm_ac_bk", item_size(packets_out[WMM_AC_BK]),
-	 item_addr(packets_out[WMM_AC_BK]), 1},
-	{"tx_buf_size", item_size(tx_buf_size),
-	 item_addr(tx_buf_size), 1},
-	{"curr_tx_buf_size", item_size(curr_tx_buf_size),
-	 item_addr(curr_tx_buf_size), 1},
-	{"ps_mode", item_size(ps_mode),
-	 item_addr(ps_mode), 1},
-	{"ps_state", item_size(ps_state),
-	 item_addr(ps_state), 1},
-	{"is_deep_sleep", item_size(is_deep_sleep),
-	 item_addr(is_deep_sleep), 1},
-	{"wakeup_dev_req", item_size(pm_wakeup_card_req),
-	 item_addr(pm_wakeup_card_req), 1},
-	{"wakeup_tries", item_size(pm_wakeup_fw_try),
-	 item_addr(pm_wakeup_fw_try), 1},
-	{"hs_configured", item_size(is_hs_configured),
-	 item_addr(is_hs_configured), 1},
-	{"hs_activated", item_size(hs_activated),
-	 item_addr(hs_activated), 1},
-	{"num_tx_timeout", item_size(num_tx_timeout),
-	 item_addr(num_tx_timeout), 1},
-	{"is_cmd_timedout", item_size(is_cmd_timedout),
-	 item_addr(is_cmd_timedout), 1},
-	{"timeout_cmd_id", item_size(timeout_cmd_id),
-	 item_addr(timeout_cmd_id), 1},
-	{"timeout_cmd_act", item_size(timeout_cmd_act),
-	 item_addr(timeout_cmd_act), 1},
-	{"last_cmd_id", item_size(last_cmd_id),
-	 item_addr(last_cmd_id), DBG_CMD_NUM},
-	{"last_cmd_act", item_size(last_cmd_act),
-	 item_addr(last_cmd_act), DBG_CMD_NUM},
-	{"last_cmd_index", item_size(last_cmd_index),
-	 item_addr(last_cmd_index), 1},
-	{"last_cmd_resp_id", item_size(last_cmd_resp_id),
-	 item_addr(last_cmd_resp_id), DBG_CMD_NUM},
-	{"last_cmd_resp_index", item_size(last_cmd_resp_index),
-	 item_addr(last_cmd_resp_index), 1},
-	{"last_event", item_size(last_event),
-	 item_addr(last_event), DBG_CMD_NUM},
-	{"last_event_index", item_size(last_event_index),
-	 item_addr(last_event_index), 1},
-	{"num_cmd_h2c_fail", item_size(num_cmd_host_to_card_failure),
-	 item_addr(num_cmd_host_to_card_failure), 1},
-	{"num_cmd_sleep_cfm_fail",
-	 item_size(num_cmd_sleep_cfm_host_to_card_failure),
-	 item_addr(num_cmd_sleep_cfm_host_to_card_failure), 1},
-	{"num_tx_h2c_fail", item_size(num_tx_host_to_card_failure),
-	 item_addr(num_tx_host_to_card_failure), 1},
-	{"num_evt_deauth", item_size(num_event_deauth),
-	 item_addr(num_event_deauth), 1},
-	{"num_evt_disassoc", item_size(num_event_disassoc),
-	 item_addr(num_event_disassoc), 1},
-	{"num_evt_link_lost", item_size(num_event_link_lost),
-	 item_addr(num_event_link_lost), 1},
-	{"num_cmd_deauth", item_size(num_cmd_deauth),
-	 item_addr(num_cmd_deauth), 1},
-	{"num_cmd_assoc_ok", item_size(num_cmd_assoc_success),
-	 item_addr(num_cmd_assoc_success), 1},
-	{"num_cmd_assoc_fail", item_size(num_cmd_assoc_failure),
-	 item_addr(num_cmd_assoc_failure), 1},
-	{"cmd_sent", item_size(cmd_sent),
-	 item_addr(cmd_sent), 1},
-	{"data_sent", item_size(data_sent),
-	 item_addr(data_sent), 1},
-	{"cmd_resp_received", item_size(cmd_resp_received),
-	 item_addr(cmd_resp_received), 1},
-	{"event_received", item_size(event_received),
-	 item_addr(event_received), 1},
-
-	/* variables defined in struct mwifiex_adapter */
-	{"cmd_pending", adapter_item_size(cmd_pending),
-	 adapter_item_addr(cmd_pending), 1},
-	{"tx_pending", adapter_item_size(tx_pending),
-	 adapter_item_addr(tx_pending), 1},
-	{"rx_pending", adapter_item_size(rx_pending),
-	 adapter_item_addr(rx_pending), 1},
-};
-
-static int num_of_items = ARRAY_SIZE(items);
-
 /*
  * Proc info file read handler.
  *
@@ -297,6 +192,8 @@ mwifiex_fw_dump_read(struct file *file, char __user *ubuf,
  *      - Number of FCS errors
  *      - Number of Tx frames
  *      - WEP ICV error counts
+ *      - Number of received beacons
+ *      - Number of missed beacons
  */
 static ssize_t
 mwifiex_getlog_read(struct file *file, char __user *ubuf,
@@ -333,7 +230,9 @@ mwifiex_getlog_read(struct file *file, char __user *ubuf,
 		     "wepicverrcnt-1   %u\n"
 		     "wepicverrcnt-2   %u\n"
 		     "wepicverrcnt-3   %u\n"
-		     "wepicverrcnt-4   %u\n",
+		     "wepicverrcnt-4   %u\n"
+		     "bcn_rcv_cnt   %u\n"
+		     "bcn_miss_cnt   %u\n",
 		     stats.mcast_tx_frame,
 		     stats.failed,
 		     stats.retry,
@@ -349,7 +248,9 @@ mwifiex_getlog_read(struct file *file, char __user *ubuf,
 		     stats.wep_icv_error[0],
 		     stats.wep_icv_error[1],
 		     stats.wep_icv_error[2],
-		     stats.wep_icv_error[3]);
+		     stats.wep_icv_error[3],
+		     stats.bcn_rcv_cnt,
+		     stats.bcn_miss_cnt);
 
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *) page,
@@ -358,6 +259,103 @@ mwifiex_getlog_read(struct file *file, char __user *ubuf,
 free_and_exit:
 	free_page(page);
 	return ret;
+}
+
+/* Sysfs histogram file read handler.
+ *
+ * This function is called when the 'histogram' file is opened for reading
+ * It prints the following histogram information -
+ *      - Number of histogram samples
+ *      - Receive packet number of each rx_rate
+ *      - Receive packet number of each snr
+ *      - Receive packet number of each nosie_flr
+ *      - Receive packet number of each signal streath
+ */
+static ssize_t
+mwifiex_histogram_read(struct file *file, char __user *ubuf,
+		       size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv =
+		(struct mwifiex_private *)file->private_data;
+	ssize_t ret;
+	struct mwifiex_histogram_data *phist_data;
+	int i, value;
+	unsigned long page = get_zeroed_page(GFP_KERNEL);
+	char *p = (char *)page;
+
+	if (!p)
+		return -ENOMEM;
+
+	if (!priv || !priv->hist_data)
+		return -EFAULT;
+	phist_data = priv->hist_data;
+
+	p += sprintf(p, "\n"
+		     "total samples = %d\n",
+		     atomic_read(&phist_data->num_samples));
+
+	p += sprintf(p, "rx rates (in Mbps): 0=1M   1=2M");
+	p += sprintf(p, "2=5.5M  3=11M   4=6M   5=9M  6=12M\n");
+	p += sprintf(p, "7=18M  8=24M  9=36M  10=48M  11=54M");
+	p += sprintf(p, "12-27=MCS0-15(BW20) 28-43=MCS0-15(BW40)\n");
+
+	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info)) {
+		p += sprintf(p, "44-53=MCS0-9(VHT:BW20)");
+		p += sprintf(p, "54-63=MCS0-9(VHT:BW40)");
+		p += sprintf(p, "64-73=MCS0-9(VHT:BW80)\n\n");
+	} else {
+		p += sprintf(p, "\n");
+	}
+
+	for (i = 0; i < MWIFIEX_MAX_RX_RATES; i++) {
+		value = atomic_read(&phist_data->rx_rate[i]);
+		if (value)
+			p += sprintf(p, "rx_rate[%02d] = %d\n", i, value);
+	}
+
+	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info)) {
+		for (i = MWIFIEX_MAX_RX_RATES; i < MWIFIEX_MAX_AC_RX_RATES;
+		     i++) {
+			value = atomic_read(&phist_data->rx_rate[i]);
+			if (value)
+				p += sprintf(p, "rx_rate[%02d] = %d\n",
+					   i, value);
+		}
+	}
+
+	for (i = 0; i < MWIFIEX_MAX_SNR; i++) {
+		value =  atomic_read(&phist_data->snr[i]);
+		if (value)
+			p += sprintf(p, "snr[%02ddB] = %d\n", i, value);
+	}
+	for (i = 0; i < MWIFIEX_MAX_NOISE_FLR; i++) {
+		value = atomic_read(&phist_data->noise_flr[i]);
+		if (value)
+			p += sprintf(p, "noise_flr[-%02ddBm] = %d\n",
+				(int)(i-128), value);
+	}
+	for (i = 0; i < MWIFIEX_MAX_SIG_STRENGTH; i++) {
+		value = atomic_read(&phist_data->sig_str[i]);
+		if (value)
+			p += sprintf(p, "sig_strength[-%02ddBm] = %d\n",
+				i, value);
+	}
+
+	ret = simple_read_from_buffer(ubuf, count, ppos, (char *)page,
+				      (unsigned long)p - page);
+
+	return ret;
+}
+
+static ssize_t
+mwifiex_histogram_write(struct file *file, const char __user *ubuf,
+			size_t count, loff_t *ppos)
+{
+	struct mwifiex_private *priv = (void *)file->private_data;
+
+	if (priv && priv->hist_data)
+		mwifiex_hist_data_reset(priv);
+	return 0;
 }
 
 static struct mwifiex_debug_info info;
@@ -415,13 +413,9 @@ mwifiex_debug_read(struct file *file, char __user *ubuf,
 {
 	struct mwifiex_private *priv =
 		(struct mwifiex_private *) file->private_data;
-	struct mwifiex_debug_data *d = &items[0];
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	char *p = (char *) page;
 	ssize_t ret;
-	size_t size, addr;
-	long val;
-	int i, j;
 
 	if (!p)
 		return -ENOMEM;
@@ -430,68 +424,7 @@ mwifiex_debug_read(struct file *file, char __user *ubuf,
 	if (ret)
 		goto free_and_exit;
 
-	for (i = 0; i < num_of_items; i++) {
-		p += sprintf(p, "%s=", d[i].name);
-
-		size = d[i].size / d[i].num;
-
-		if (i < (num_of_items - 3))
-			addr = d[i].addr + (size_t) &info;
-		else /* The last 3 items are struct mwifiex_adapter variables */
-			addr = d[i].addr + (size_t) priv->adapter;
-
-		for (j = 0; j < d[i].num; j++) {
-			switch (size) {
-			case 1:
-				val = *((u8 *) addr);
-				break;
-			case 2:
-				val = *((u16 *) addr);
-				break;
-			case 4:
-				val = *((u32 *) addr);
-				break;
-			case 8:
-				val = *((long long *) addr);
-				break;
-			default:
-				val = -1;
-				break;
-			}
-
-			p += sprintf(p, "%#lx ", val);
-			addr += size;
-		}
-
-		p += sprintf(p, "\n");
-	}
-
-	if (info.tx_tbl_num) {
-		p += sprintf(p, "Tx BA stream table:\n");
-		for (i = 0; i < info.tx_tbl_num; i++)
-			p += sprintf(p, "tid = %d, ra = %pM\n",
-				     info.tx_tbl[i].tid, info.tx_tbl[i].ra);
-	}
-
-	if (info.rx_tbl_num) {
-		p += sprintf(p, "Rx reorder table:\n");
-		for (i = 0; i < info.rx_tbl_num; i++) {
-			p += sprintf(p, "tid = %d, ta = %pM, "
-				     "start_win = %d, "
-				     "win_size = %d, buffer: ",
-				     info.rx_tbl[i].tid,
-				     info.rx_tbl[i].ta,
-				     info.rx_tbl[i].start_win,
-				     info.rx_tbl[i].win_size);
-
-			for (j = 0; j < info.rx_tbl[i].win_size; j++)
-				p += sprintf(p, "%c ",
-					     info.rx_tbl[i].buffer[j] ?
-					     '1' : '0');
-
-			p += sprintf(p, "\n");
-		}
-	}
+	p += mwifiex_debug_info_to_buffer(priv, p, &info);
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *) page,
 				      (unsigned long) p - page);
@@ -817,6 +750,7 @@ MWIFIEX_DFS_FILE_READ_OPS(fw_dump);
 MWIFIEX_DFS_FILE_OPS(regrdwr);
 MWIFIEX_DFS_FILE_OPS(rdeeprom);
 MWIFIEX_DFS_FILE_OPS(hscfg);
+MWIFIEX_DFS_FILE_OPS(histogram);
 
 /*
  * This function creates the debug FS directory structure and the files.
@@ -840,6 +774,7 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(rdeeprom);
 	MWIFIEX_DFS_ADD_FILE(fw_dump);
 	MWIFIEX_DFS_ADD_FILE(hscfg);
+	MWIFIEX_DFS_ADD_FILE(histogram);
 }
 
 /*

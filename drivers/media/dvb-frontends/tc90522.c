@@ -214,6 +214,7 @@ static int tc90522s_get_frontend(struct dvb_frontend *fe)
 	state = fe->demodulator_priv;
 	c = &fe->dtv_property_cache;
 	c->delivery_system = SYS_ISDBS;
+	c->symbol_rate = 28860000;
 
 	layers = 0;
 	ret = reg_read(state, 0xe6, val, 5);

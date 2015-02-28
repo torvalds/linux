@@ -920,14 +920,15 @@ static void msm_console_write(struct console *co, const char *s,
 static int __init msm_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
-	struct msm_port *msm_port;
-	int baud = 0, flow, bits, parity;
+	int baud = 115200;
+	int bits = 8;
+	int parity = 'n';
+	int flow = 'n';
 
 	if (unlikely(co->index >= UART_NR || co->index < 0))
 		return -ENXIO;
 
 	port = get_port_from_line(co->index);
-	msm_port = UART_TO_MSM(port);
 
 	if (unlikely(!port->membase))
 		return -ENXIO;
@@ -936,23 +937,6 @@ static int __init msm_console_setup(struct console *co, char *options)
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
-
-	bits = 8;
-	parity = 'n';
-	flow = 'n';
-	msm_write(port, UART_MR2_BITS_PER_CHAR_8 | UART_MR2_STOP_BIT_LEN_ONE,
-		  UART_MR2);	/* 8N1 */
-
-	if (baud < 300 || baud > 115200)
-		baud = 115200;
-	msm_set_baud_rate(port, baud);
-
-	msm_reset(port);
-
-	if (msm_port->is_uartdm) {
-		msm_write(port, UART_CR_CMD_PROTECTION_EN, UART_CR);
-		msm_write(port, UART_CR_TX_ENABLE, UART_CR);
-	}
 
 	pr_info("msm_serial: console setup on port #%d\n", port->line);
 
@@ -1142,9 +1126,6 @@ static int __init msm_serial_init(void)
 
 static void __exit msm_serial_exit(void)
 {
-#ifdef CONFIG_SERIAL_MSM_CONSOLE
-	unregister_console(&msm_console);
-#endif
 	platform_driver_unregister(&msm_platform_driver);
 	uart_unregister_driver(&msm_uart_driver);
 }

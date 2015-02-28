@@ -504,6 +504,4 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Triple DES EDE Cipher Algorithm, asm optimized");
 MODULE_ALIAS_CRYPTO("des3_ede");
 MODULE_ALIAS_CRYPTO("des3_ede-asm");
-MODULE_ALIAS_CRYPTO("des");
-MODULE_ALIAS_CRYPTO("des-asm");
 MODULE_AUTHOR("Jussi Kivilinna <jussi.kivilinna@iki.fi>");

@@ -2290,7 +2290,8 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	if (err < 0 && err != -ENOENT)
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);

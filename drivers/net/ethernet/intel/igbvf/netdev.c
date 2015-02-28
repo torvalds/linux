@@ -2237,9 +2237,10 @@ static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		tx_flags |= IGBVF_TX_FLAGS_VLAN;
-		tx_flags |= (vlan_tx_tag_get(skb) << IGBVF_TX_FLAGS_VLAN_SHIFT);
+		tx_flags |= (skb_vlan_tag_get(skb) <<
+			     IGBVF_TX_FLAGS_VLAN_SHIFT);
 	}
 
 	if (protocol == htons(ETH_P_IP))

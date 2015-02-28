@@ -14,13 +14,14 @@
 
 #include <linux/input/mt.h>
 
-#define ALPS_PROTO_V1	1
-#define ALPS_PROTO_V2	2
-#define ALPS_PROTO_V3	3
-#define ALPS_PROTO_V4	4
-#define ALPS_PROTO_V5	5
-#define ALPS_PROTO_V6	6
-#define ALPS_PROTO_V7	7	/* t3btl t4s */
+#define ALPS_PROTO_V1		0x100
+#define ALPS_PROTO_V2		0x200
+#define ALPS_PROTO_V3		0x300
+#define ALPS_PROTO_V3_RUSHMORE	0x310
+#define ALPS_PROTO_V4		0x400
+#define ALPS_PROTO_V5		0x500
+#define ALPS_PROTO_V6		0x600
+#define ALPS_PROTO_V7		0x700	/* t3btl t4s */
 
 #define MAX_TOUCHES	2
 
@@ -46,29 +47,37 @@ enum V7_PACKET_ID {
 };
 
 /**
+ * struct alps_protocol_info - information about protocol used by a device
+ * @version: Indicates V1/V2/V3/...
+ * @byte0: Helps figure out whether a position report packet matches the
+ *   known format for this model.  The first byte of the report, ANDed with
+ *   mask0, should match byte0.
+ * @mask0: The mask used to check the first byte of the report.
+ * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
+ */
+struct alps_protocol_info {
+	u16 version;
+	u8 byte0, mask0;
+	unsigned int flags;
+};
+
+/**
  * struct alps_model_info - touchpad ID table
  * @signature: E7 response string to match.
  * @command_mode_resp: For V3/V4 touchpads, the final byte of the EC response
  *   (aka command mode response) identifies the firmware minor version.  This
  *   can be used to distinguish different hardware models which are not
  *   uniquely identifiable through their E7 responses.
- * @proto_version: Indicates V1/V2/V3/...
- * @byte0: Helps figure out whether a position report packet matches the
- *   known format for this model.  The first byte of the report, ANDed with
- *   mask0, should match byte0.
- * @mask0: The mask used to check the first byte of the report.
- * @flags: Additional device capabilities (passthrough port, trackstick, etc.).
+ * @protocol_info: information about protcol used by the device.
  *
  * Many (but not all) ALPS touchpads can be identified by looking at the
  * values returned in the "E7 report" and/or the "EC report."  This table
  * lists a number of such touchpads.
  */
 struct alps_model_info {
-	unsigned char signature[3];
-	unsigned char command_mode_resp;
-	unsigned char proto_version;
-	unsigned char byte0, mask0;
-	int flags;
+	u8 signature[3];
+	u8 command_mode_resp;
+	struct alps_protocol_info protocol_info;
 };
 
 /**
@@ -132,8 +141,12 @@ struct alps_fields {
 
 /**
  * struct alps_data - private data structure for the ALPS driver
- * @dev2: "Relative" device used to report trackstick or mouse activity.
- * @phys: Physical path for the relative device.
+ * @psmouse: Pointer to parent psmouse device
+ * @dev2: Trackstick device (can be NULL).
+ * @dev3: Generic PS/2 mouse (can be NULL, delayed registering).
+ * @phys2: Physical path for the trackstick device.
+ * @phys3: Physical path for the generic PS/2 mouse.
+ * @dev3_register_work: Delayed work for registering PS/2 mouse.
  * @nibble_commands: Command mapping used for touchpad register accesses.
  * @addr_command: Command used to tell the touchpad that a register address
  *   follows.
@@ -160,15 +173,19 @@ struct alps_fields {
  * @timer: Timer for flushing out the final report packet in the stream.
  */
 struct alps_data {
+	struct psmouse *psmouse;
 	struct input_dev *dev2;
-	char phys[32];
+	struct input_dev *dev3;
+	char phys2[32];
+	char phys3[32];
+	struct delayed_work dev3_register_work;
 
 	/* these are autodetected when the device is identified */
 	const struct alps_nibble_commands *nibble_commands;
 	int addr_command;
-	unsigned char proto_version;
-	unsigned char byte0, mask0;
-	unsigned char fw_ver[3];
+	u16 proto_version;
+	u8 byte0, mask0;
+	u8 fw_ver[3];
 	int flags;
 	int x_max;
 	int y_max;

@@ -135,7 +135,7 @@ static const struct regmap_access_table tps65218_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(tps65218_yes_ranges),
 };
 
-static struct regmap_config tps65218_regmap_config = {
+static const struct regmap_config tps65218_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,

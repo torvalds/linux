@@ -324,6 +324,7 @@ SOC_SINGLE("RIN34 Mute Switch", WM8400_RIGHT_LINE_INPUT_3_4_VOLUME,
 static int outmixer_event (struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol * kcontrol, int event)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	u32 reg_shift = mc->shift;
@@ -332,7 +333,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 
 	switch (reg_shift) {
 	case WM8400_SPEAKER_MIXER | (WM8400_LDSPK << 8) :
-		reg = snd_soc_read(w->codec, WM8400_OUTPUT_MIXER1);
+		reg = snd_soc_read(codec, WM8400_OUTPUT_MIXER1);
 		if (reg & WM8400_LDLO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 1 LDLO Set\n");
@@ -340,7 +341,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_SPEAKER_MIXER | (WM8400_RDSPK << 8):
-		reg = snd_soc_read(w->codec, WM8400_OUTPUT_MIXER2);
+		reg = snd_soc_read(codec, WM8400_OUTPUT_MIXER2);
 		if (reg & WM8400_RDRO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 2 RDRO Set\n");
@@ -348,7 +349,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_OUTPUT_MIXER1 | (WM8400_LDLO << 8):
-		reg = snd_soc_read(w->codec, WM8400_SPEAKER_MIXER);
+		reg = snd_soc_read(codec, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_LDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer LDSPK Set\n");
@@ -356,7 +357,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_OUTPUT_MIXER2 | (WM8400_RDRO << 8):
-		reg = snd_soc_read(w->codec, WM8400_SPEAKER_MIXER);
+		reg = snd_soc_read(codec, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_RDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer RDSPK Set\n");

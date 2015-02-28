@@ -129,6 +129,7 @@ extern void show_registers(struct pt_regs *regs);
 			: "=&r" (value), "=r" (res)         \
 			: "r" (addr), "i" (-EFAULT));
 
+#ifndef CONFIG_CPU_MIPSR6
 #define     LoadW(addr, value, res)   \
 		__asm__ __volatile__ (                      \
 			"1:\t"user_lwl("%0", "(%2)")"\n"    \
@@ -146,6 +147,39 @@ extern void show_registers(struct pt_regs *regs);
 			".previous"                         \
 			: "=&r" (value), "=r" (res)         \
 			: "r" (addr), "i" (-EFAULT));
+#else
+/* MIPSR6 has no lwl instruction */
+#define     LoadW(addr, value, res) \
+		__asm__ __volatile__ (			    \
+			".set\tpush\n"			    \
+			".set\tnoat\n\t"		    \
+			"1:"user_lb("%0", "0(%2)")"\n\t"    \
+			"2:"user_lbu("$1", "1(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"3:"user_lbu("$1", "2(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"4:"user_lbu("$1", "3(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"li\t%1, 0\n"			    \
+			".set\tpop\n"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%1, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			".previous"			    \
+			: "=&r" (value), "=r" (res)	    \
+			: "r" (addr), "i" (-EFAULT));
+#endif /* CONFIG_CPU_MIPSR6 */
 
 #define     LoadHWU(addr, value, res) \
 		__asm__ __volatile__ (                      \
@@ -169,6 +203,7 @@ extern void show_registers(struct pt_regs *regs);
 			: "=&r" (value), "=r" (res)         \
 			: "r" (addr), "i" (-EFAULT));
 
+#ifndef CONFIG_CPU_MIPSR6
 #define     LoadWU(addr, value, res)  \
 		__asm__ __volatile__ (                      \
 			"1:\t"user_lwl("%0", "(%2)")"\n"    \
@@ -206,6 +241,87 @@ extern void show_registers(struct pt_regs *regs);
 			".previous"                         \
 			: "=&r" (value), "=r" (res)         \
 			: "r" (addr), "i" (-EFAULT));
+#else
+/* MIPSR6 has not lwl and ldl instructions */
+#define	    LoadWU(addr, value, res) \
+		__asm__ __volatile__ (			    \
+			".set\tpush\n\t"		    \
+			".set\tnoat\n\t"		    \
+			"1:"user_lbu("%0", "0(%2)")"\n\t"   \
+			"2:"user_lbu("$1", "1(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"3:"user_lbu("$1", "2(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"4:"user_lbu("$1", "3(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"li\t%1, 0\n"			    \
+			".set\tpop\n"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%1, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			".previous"			    \
+			: "=&r" (value), "=r" (res)	    \
+			: "r" (addr), "i" (-EFAULT));
+
+#define     LoadDW(addr, value, res)  \
+		__asm__ __volatile__ (			    \
+			".set\tpush\n\t"		    \
+			".set\tnoat\n\t"		    \
+			"1:lb\t%0, 0(%2)\n\t"    	    \
+			"2:lbu\t $1, 1(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"3:lbu\t$1, 2(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"4:lbu\t$1, 3(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"5:lbu\t$1, 4(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"6:lbu\t$1, 5(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"7:lbu\t$1, 6(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"8:lbu\t$1, 7(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"li\t%1, 0\n"			    \
+			".set\tpop\n\t"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%1, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			STR(PTR)"\t5b, 11b\n\t"		    \
+			STR(PTR)"\t6b, 11b\n\t"		    \
+			STR(PTR)"\t7b, 11b\n\t"		    \
+			STR(PTR)"\t8b, 11b\n\t"		    \
+			".previous"			    \
+			: "=&r" (value), "=r" (res)	    \
+			: "r" (addr), "i" (-EFAULT));
+#endif /* CONFIG_CPU_MIPSR6 */
+
 
 #define     StoreHW(addr, value, res) \
 		__asm__ __volatile__ (                      \
@@ -228,6 +344,7 @@ extern void show_registers(struct pt_regs *regs);
 			: "=r" (res)                        \
 			: "r" (value), "r" (addr), "i" (-EFAULT));
 
+#ifndef CONFIG_CPU_MIPSR6
 #define     StoreW(addr, value, res)  \
 		__asm__ __volatile__ (                      \
 			"1:\t"user_swl("%1", "(%2)")"\n"    \
@@ -263,9 +380,82 @@ extern void show_registers(struct pt_regs *regs);
 			".previous"                         \
 		: "=r" (res)                                \
 		: "r" (value), "r" (addr), "i" (-EFAULT));
-#endif
+#else
+/* MIPSR6 has no swl and sdl instructions */
+#define     StoreW(addr, value, res)  \
+		__asm__ __volatile__ (                      \
+			".set\tpush\n\t"		    \
+			".set\tnoat\n\t"		    \
+			"1:"user_sb("%1", "3(%2)")"\n\t"    \
+			"srl\t$1, %1, 0x8\n\t"		    \
+			"2:"user_sb("$1", "2(%2)")"\n\t"    \
+			"srl\t$1, $1,  0x8\n\t"		    \
+			"3:"user_sb("$1", "1(%2)")"\n\t"    \
+			"srl\t$1, $1, 0x8\n\t"		    \
+			"4:"user_sb("$1", "0(%2)")"\n\t"    \
+			".set\tpop\n\t"			    \
+			"li\t%0, 0\n"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%0, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			".previous"			    \
+		: "=&r" (res)			    	    \
+		: "r" (value), "r" (addr), "i" (-EFAULT)    \
+		: "memory");
 
-#ifdef __LITTLE_ENDIAN
+#define     StoreDW(addr, value, res) \
+		__asm__ __volatile__ (                      \
+			".set\tpush\n\t"		    \
+			".set\tnoat\n\t"		    \
+			"1:sb\t%1, 7(%2)\n\t"    	    \
+			"dsrl\t$1, %1, 0x8\n\t"		    \
+			"2:sb\t$1, 6(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"3:sb\t$1, 5(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"4:sb\t$1, 4(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"5:sb\t$1, 3(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"6:sb\t$1, 2(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"7:sb\t$1, 1(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"8:sb\t$1, 0(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			".set\tpop\n\t"			    \
+			"li\t%0, 0\n"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%0, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			STR(PTR)"\t5b, 11b\n\t"		    \
+			STR(PTR)"\t6b, 11b\n\t"		    \
+			STR(PTR)"\t7b, 11b\n\t"		    \
+			STR(PTR)"\t8b, 11b\n\t"		    \
+			".previous"			    \
+		: "=&r" (res)			    	    \
+		: "r" (value), "r" (addr), "i" (-EFAULT)    \
+		: "memory");
+#endif /* CONFIG_CPU_MIPSR6 */
+
+#else /* __BIG_ENDIAN */
+
 #define     LoadHW(addr, value, res)  \
 		__asm__ __volatile__ (".set\tnoat\n"        \
 			"1:\t"user_lb("%0", "1(%2)")"\n"    \
@@ -286,6 +476,7 @@ extern void show_registers(struct pt_regs *regs);
 			: "=&r" (value), "=r" (res)         \
 			: "r" (addr), "i" (-EFAULT));
 
+#ifndef CONFIG_CPU_MIPSR6
 #define     LoadW(addr, value, res)   \
 		__asm__ __volatile__ (                      \
 			"1:\t"user_lwl("%0", "3(%2)")"\n"   \
@@ -303,6 +494,40 @@ extern void show_registers(struct pt_regs *regs);
 			".previous"                         \
 			: "=&r" (value), "=r" (res)         \
 			: "r" (addr), "i" (-EFAULT));
+#else
+/* MIPSR6 has no lwl instruction */
+#define     LoadW(addr, value, res) \
+		__asm__ __volatile__ (			    \
+			".set\tpush\n"			    \
+			".set\tnoat\n\t"		    \
+			"1:"user_lb("%0", "3(%2)")"\n\t"    \
+			"2:"user_lbu("$1", "2(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"3:"user_lbu("$1", "1(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"4:"user_lbu("$1", "0(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"li\t%1, 0\n"			    \
+			".set\tpop\n"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%1, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			".previous"			    \
+			: "=&r" (value), "=r" (res)	    \
+			: "r" (addr), "i" (-EFAULT));
+#endif /* CONFIG_CPU_MIPSR6 */
+
 
 #define     LoadHWU(addr, value, res) \
 		__asm__ __volatile__ (                      \
@@ -326,6 +551,7 @@ extern void show_registers(struct pt_regs *regs);
 			: "=&r" (value), "=r" (res)         \
 			: "r" (addr), "i" (-EFAULT));
 
+#ifndef CONFIG_CPU_MIPSR6
 #define     LoadWU(addr, value, res)  \
 		__asm__ __volatile__ (                      \
 			"1:\t"user_lwl("%0", "3(%2)")"\n"   \
@@ -363,6 +589,86 @@ extern void show_registers(struct pt_regs *regs);
 			".previous"                         \
 			: "=&r" (value), "=r" (res)         \
 			: "r" (addr), "i" (-EFAULT));
+#else
+/* MIPSR6 has not lwl and ldl instructions */
+#define	    LoadWU(addr, value, res) \
+		__asm__ __volatile__ (			    \
+			".set\tpush\n\t"		    \
+			".set\tnoat\n\t"		    \
+			"1:"user_lbu("%0", "3(%2)")"\n\t"   \
+			"2:"user_lbu("$1", "2(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"3:"user_lbu("$1", "1(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"4:"user_lbu("$1", "0(%2)")"\n\t"   \
+			"sll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"li\t%1, 0\n"			    \
+			".set\tpop\n"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%1, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			".previous"			    \
+			: "=&r" (value), "=r" (res)	    \
+			: "r" (addr), "i" (-EFAULT));
+
+#define     LoadDW(addr, value, res)  \
+		__asm__ __volatile__ (			    \
+			".set\tpush\n\t"		    \
+			".set\tnoat\n\t"		    \
+			"1:lb\t%0, 7(%2)\n\t"    	    \
+			"2:lbu\t$1, 6(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"3:lbu\t$1, 5(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"4:lbu\t$1, 4(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"5:lbu\t$1, 3(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"6:lbu\t$1, 2(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"7:lbu\t$1, 1(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"8:lbu\t$1, 0(%2)\n\t"   	    \
+			"dsll\t%0, 0x8\n\t"		    \
+			"or\t%0, $1\n\t"		    \
+			"li\t%1, 0\n"			    \
+			".set\tpop\n\t"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%1, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			STR(PTR)"\t5b, 11b\n\t"		    \
+			STR(PTR)"\t6b, 11b\n\t"		    \
+			STR(PTR)"\t7b, 11b\n\t"		    \
+			STR(PTR)"\t8b, 11b\n\t"		    \
+			".previous"			    \
+			: "=&r" (value), "=r" (res)	    \
+			: "r" (addr), "i" (-EFAULT));
+#endif /* CONFIG_CPU_MIPSR6 */
 
 #define     StoreHW(addr, value, res) \
 		__asm__ __volatile__ (                      \
@@ -384,7 +690,7 @@ extern void show_registers(struct pt_regs *regs);
 			".previous"                         \
 			: "=r" (res)                        \
 			: "r" (value), "r" (addr), "i" (-EFAULT));
-
+#ifndef CONFIG_CPU_MIPSR6
 #define     StoreW(addr, value, res)  \
 		__asm__ __volatile__ (                      \
 			"1:\t"user_swl("%1", "3(%2)")"\n"   \
@@ -420,6 +726,79 @@ extern void show_registers(struct pt_regs *regs);
 			".previous"                         \
 		: "=r" (res)                                \
 		: "r" (value), "r" (addr), "i" (-EFAULT));
+#else
+/* MIPSR6 has no swl and sdl instructions */
+#define     StoreW(addr, value, res)  \
+		__asm__ __volatile__ (                      \
+			".set\tpush\n\t"		    \
+			".set\tnoat\n\t"		    \
+			"1:"user_sb("%1", "0(%2)")"\n\t"    \
+			"srl\t$1, %1, 0x8\n\t"		    \
+			"2:"user_sb("$1", "1(%2)")"\n\t"    \
+			"srl\t$1, $1,  0x8\n\t"		    \
+			"3:"user_sb("$1", "2(%2)")"\n\t"    \
+			"srl\t$1, $1, 0x8\n\t"		    \
+			"4:"user_sb("$1", "3(%2)")"\n\t"    \
+			".set\tpop\n\t"			    \
+			"li\t%0, 0\n"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%0, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			".previous"			    \
+		: "=&r" (res)			    	    \
+		: "r" (value), "r" (addr), "i" (-EFAULT)    \
+		: "memory");
+
+#define     StoreDW(addr, value, res) \
+		__asm__ __volatile__ (                      \
+			".set\tpush\n\t"		    \
+			".set\tnoat\n\t"		    \
+			"1:sb\t%1, 0(%2)\n\t"    	    \
+			"dsrl\t$1, %1, 0x8\n\t"		    \
+			"2:sb\t$1, 1(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"3:sb\t$1, 2(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"4:sb\t$1, 3(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"5:sb\t$1, 4(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"6:sb\t$1, 5(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"7:sb\t$1, 6(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			"8:sb\t$1, 7(%2)\n\t"    	    \
+			"dsrl\t$1, $1, 0x8\n\t"		    \
+			".set\tpop\n\t"			    \
+			"li\t%0, 0\n"			    \
+			"10:\n\t"			    \
+			".insn\n\t"			    \
+			".section\t.fixup,\"ax\"\n\t"	    \
+			"11:\tli\t%0, %3\n\t"		    \
+			"j\t10b\n\t"			    \
+			".previous\n\t"			    \
+			".section\t__ex_table,\"a\"\n\t"    \
+			STR(PTR)"\t1b, 11b\n\t"		    \
+			STR(PTR)"\t2b, 11b\n\t"		    \
+			STR(PTR)"\t3b, 11b\n\t"		    \
+			STR(PTR)"\t4b, 11b\n\t"		    \
+			STR(PTR)"\t5b, 11b\n\t"		    \
+			STR(PTR)"\t6b, 11b\n\t"		    \
+			STR(PTR)"\t7b, 11b\n\t"		    \
+			STR(PTR)"\t8b, 11b\n\t"		    \
+			".previous"			    \
+		: "=&r" (res)			    	    \
+		: "r" (value), "r" (addr), "i" (-EFAULT)    \
+		: "memory");
+#endif /* CONFIG_CPU_MIPSR6 */
 #endif
 
 static void emulate_load_store_insn(struct pt_regs *regs,
@@ -703,10 +1082,13 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 			break;
 		return;
 
+#ifndef CONFIG_CPU_MIPSR6
 	/*
 	 * COP2 is available to implementor for application specific use.
 	 * It's up to applications to register a notifier chain and do
 	 * whatever they have to do, including possible sending of signals.
+	 *
+	 * This instruction has been reallocated in Release 6
 	 */
 	case lwc2_op:
 		cu2_notifier_call_chain(CU2_LWC2_OP, regs);
@@ -723,7 +1105,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	case sdc2_op:
 		cu2_notifier_call_chain(CU2_SDC2_OP, regs);
 		break;
-
+#endif
 	default:
 		/*
 		 * Pheeee...  We encountered an yet unknown instruction or

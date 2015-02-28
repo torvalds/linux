@@ -1,7 +1,7 @@
-#include <linux/init.h>
 #include <linux/interval_tree.h>
 #include <linux/interval_tree_generic.h>
-#include <linux/module.h>
+#include <linux/compiler.h>
+#include <linux/export.h>
 
 #define START(node) ((node)->start)
 #define LAST(node)  ((node)->last)

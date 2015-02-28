@@ -309,8 +309,13 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 		RSND_GEN_M_REG(SRC_BUSIF_MODE,	0x0,	0x20),
 		RSND_GEN_M_REG(SRC_ROUTE_MODE0,	0xc,	0x20),
 		RSND_GEN_M_REG(SRC_CTRL,	0x10,	0x20),
+		RSND_GEN_M_REG(SRC_INT_ENABLE0,	0x18,	0x20),
 		RSND_GEN_M_REG(CMD_ROUTE_SLCT,	0x18c,	0x20),
 		RSND_GEN_M_REG(CMD_CTRL,	0x190,	0x20),
+		RSND_GEN_S_REG(SCU_SYS_STATUS0,	0x1c8),
+		RSND_GEN_S_REG(SCU_SYS_INT_EN0,	0x1cc),
+		RSND_GEN_S_REG(SCU_SYS_STATUS1,	0x1d0),
+		RSND_GEN_S_REG(SCU_SYS_INT_EN1,	0x1c4),
 		RSND_GEN_M_REG(SRC_SWRSR,	0x200,	0x40),
 		RSND_GEN_M_REG(SRC_SRCIR,	0x204,	0x40),
 		RSND_GEN_M_REG(SRC_ADINR,	0x214,	0x40),
@@ -403,6 +408,16 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 		RSND_GEN_M_REG(SRC_IFSVR,	0x220,	0x40),
 		RSND_GEN_M_REG(SRC_SRCCR,	0x224,	0x40),
 		RSND_GEN_M_REG(SRC_MNFSR,	0x228,	0x40),
+		/*
+		 * ADD US
+		 *
+		 * SRC_STATUS
+		 * SRC_INT_EN
+		 * SCU_SYS_STATUS0
+		 * SCU_SYS_STATUS1
+		 * SCU_SYS_INT_EN0
+		 * SCU_SYS_INT_EN1
+		 */
 	};
 	struct rsnd_regmap_field_conf conf_adg[] = {
 		RSND_GEN_S_REG(BRRA,		0x00),

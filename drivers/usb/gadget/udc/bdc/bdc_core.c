@@ -521,7 +521,6 @@ static int bdc_remove(struct platform_device *pdev)
 static struct platform_driver bdc_driver = {
 	.driver		= {
 		.name	= BRCM_BDC_NAME,
-		.owner	= THIS_MODULE
 	},
 	.probe		= bdc_probe,
 	.remove		= bdc_remove,

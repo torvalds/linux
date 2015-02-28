@@ -407,7 +407,7 @@ int iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	iwl_mvm_update_frame_stats(mvm, &mvm->drv_rx_stats, rate_n_flags,
+	iwl_mvm_update_frame_stats(mvm, rate_n_flags,
 				   rx_status->flag & RX_FLAG_AMPDU_DETAILS);
 #endif
 	iwl_mvm_pass_packet_to_mac80211(mvm, skb, hdr, len, ampdu_status,
@@ -511,13 +511,17 @@ int iwl_mvm_rx_statistics(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_notif_statistics *stats = (void *)&pkt->data;
-	struct mvm_statistics_general_common *common = &stats->general.common;
 	struct iwl_mvm_stat_data data = {
 		.stats = stats,
 		.mvm = mvm,
 	};
 
-	iwl_mvm_tt_temp_changed(mvm, le32_to_cpu(common->temperature));
+	/* Only handle rx statistics temperature changes if async temp
+	 * notifications are not supported
+	 */
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_ASYNC_DTM))
+		iwl_mvm_tt_temp_changed(mvm,
+				le32_to_cpu(stats->general.radio_temperature));
 
 	iwl_mvm_update_rx_statistics(mvm, stats);
 

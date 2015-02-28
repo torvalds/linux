@@ -3,7 +3,7 @@
 /* Internationalization declarations */
 
 enum msg_index_t {
-	MSG_FIRST_INDEX ,
+	MSG_FIRST_INDEX,
 	MSG_ANNOUNCEMENTS_START = MSG_FIRST_INDEX,
 	MSG_BLANK = MSG_ANNOUNCEMENTS_START,
 	MSG_IAM_ALIVE,

@@ -259,3 +259,61 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcbsp2_pins>;
 };
+
+&gpmc {
+	ranges = <0 0 0x00000000 0x01000000>;
+
+	nand@0,0 {
+		reg = <0 0 4>;	/* CS0, offset 0, IO size 4 */
+		nand-bus-width = <8>;
+		gpmc,device-width = <1>;
+		ti,nand-ecc-opt = "sw";
+
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <120>;
+		gpmc,cs-wr-off-ns = <120>;
+
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <120>;
+		gpmc,adv-wr-off-ns = <120>;
+
+		gpmc,we-on-ns = <6>;
+		gpmc,we-off-ns = <90>;
+
+		gpmc,oe-on-ns = <6>;
+		gpmc,oe-off-ns = <90>;
+
+		gpmc,page-burst-access-ns = <6>;
+		gpmc,access-ns = <72>;
+		gpmc,cycle2cycle-delay-ns = <60>;
+
+		gpmc,rd-cycle-ns = <120>;
+		gpmc,wr-cycle-ns = <120>;
+		gpmc,wr-access-ns = <186>;
+		gpmc,wr-data-mux-bus-ns = <90>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "xloader";
+			reg = <0 0x80000>;
+		};
+		partition@0x80000 {
+			label = "uboot";
+			reg = <0x80000 0x1e0000>;
+		};
+		partition@0x260000 {
+			label = "uboot environment";
+			reg = <0x260000 0x40000>;
+		};
+		partition@0x2a0000 {
+			label = "linux";
+			reg = <0x2a0000 0x400000>;
+		};
+		partition@0x6a0000 {
+			label = "rootfs";
+			reg = <0x6a0000 0x1f880000>;
+		};
+	};
+};

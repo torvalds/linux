@@ -117,8 +117,8 @@ acpi_memory_get_resource(struct acpi_resource *resource, void *context)
 	list_for_each_entry(info, &mem_device->res_list, list) {
 		if ((info->caching == address64.info.mem.caching) &&
 		    (info->write_protect == address64.info.mem.write_protect) &&
-		    (info->start_addr + info->length == address64.minimum)) {
-			info->length += address64.address_length;
+		    (info->start_addr + info->length == address64.address.minimum)) {
+			info->length += address64.address.address_length;
 			return AE_OK;
 		}
 	}
@@ -130,8 +130,8 @@ acpi_memory_get_resource(struct acpi_resource *resource, void *context)
 	INIT_LIST_HEAD(&new->list);
 	new->caching = address64.info.mem.caching;
 	new->write_protect = address64.info.mem.write_protect;
-	new->start_addr = address64.minimum;
-	new->length = address64.address_length;
+	new->start_addr = address64.address.minimum;
+	new->length = address64.address.address_length;
 	list_add_tail(&new->list, &mem_device->res_list);
 
 	return AE_OK;

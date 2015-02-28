@@ -478,64 +478,59 @@ int drm_release(struct inode *inode, struct file *filp)
 }
 EXPORT_SYMBOL(drm_release);
 
-static bool
-drm_dequeue_event(struct drm_file *file_priv,
-		  size_t total, size_t max, struct drm_pending_event **out)
-{
-	struct drm_device *dev = file_priv->minor->dev;
-	struct drm_pending_event *e;
-	unsigned long flags;
-	bool ret = false;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-
-	*out = NULL;
-	if (list_empty(&file_priv->event_list))
-		goto out;
-	e = list_first_entry(&file_priv->event_list,
-			     struct drm_pending_event, link);
-	if (e->event->length + total > max)
-		goto out;
-
-	file_priv->event_space += e->event->length;
-	list_del(&e->link);
-	*out = e;
-	ret = true;
-
-out:
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-	return ret;
-}
-
 ssize_t drm_read(struct file *filp, char __user *buffer,
 		 size_t count, loff_t *offset)
 {
 	struct drm_file *file_priv = filp->private_data;
-	struct drm_pending_event *e;
-	size_t total;
-	ssize_t ret;
+	struct drm_device *dev = file_priv->minor->dev;
+	ssize_t ret = 0;
 
-	if ((filp->f_flags & O_NONBLOCK) == 0) {
-		ret = wait_event_interruptible(file_priv->event_wait,
-					       !list_empty(&file_priv->event_list));
-		if (ret < 0)
-			return ret;
-	}
+	if (!access_ok(VERIFY_WRITE, buffer, count))
+		return -EFAULT;
 
-	total = 0;
-	while (drm_dequeue_event(file_priv, total, count, &e)) {
-		if (copy_to_user(buffer + total,
-				 e->event, e->event->length)) {
-			total = -EFAULT;
+	spin_lock_irq(&dev->event_lock);
+	for (;;) {
+		if (list_empty(&file_priv->event_list)) {
+			if (ret)
+				break;
+
+			if (filp->f_flags & O_NONBLOCK) {
+				ret = -EAGAIN;
+				break;
+			}
+
+			spin_unlock_irq(&dev->event_lock);
+			ret = wait_event_interruptible(file_priv->event_wait,
+						       !list_empty(&file_priv->event_list));
+			spin_lock_irq(&dev->event_lock);
+			if (ret < 0)
+				break;
+
+			ret = 0;
+		} else {
+			struct drm_pending_event *e;
+
+			e = list_first_entry(&file_priv->event_list,
+					     struct drm_pending_event, link);
+			if (e->event->length + ret > count)
+				break;
+
+			if (__copy_to_user_inatomic(buffer + ret,
+						    e->event, e->event->length)) {
+				if (ret == 0)
+					ret = -EFAULT;
+				break;
+			}
+
+			file_priv->event_space += e->event->length;
+			ret += e->event->length;
+			list_del(&e->link);
 			e->destroy(e);
-			break;
 		}
-
-		total += e->event->length;
-		e->destroy(e);
 	}
+	spin_unlock_irq(&dev->event_lock);
 
-	return total ?: -EAGAIN;
+	return ret;
 }
 EXPORT_SYMBOL(drm_read);
 

@@ -93,7 +93,7 @@ int adf_service_unregister(struct service_hndl *service);
 int adf_dev_init(struct adf_accel_dev *accel_dev);
 int adf_dev_start(struct adf_accel_dev *accel_dev);
 int adf_dev_stop(struct adf_accel_dev *accel_dev);
-int adf_dev_shutdown(struct adf_accel_dev *accel_dev);
+void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
 
 int adf_ctl_dev_register(void);
 void adf_ctl_dev_unregister(void);

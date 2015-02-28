@@ -26,7 +26,7 @@ config DRM_NOUVEAU
 	  Choose this option for open-source NVIDIA support.
 
 config NOUVEAU_PLATFORM_DRIVER
-	tristate "Nouveau (NVIDIA) SoC GPUs"
+	bool "Nouveau (NVIDIA) SoC GPUs"
 	depends on DRM_NOUVEAU && ARCH_TEGRA
 	default y
 	help

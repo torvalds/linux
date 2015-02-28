@@ -49,7 +49,7 @@ static struct generic_pm_domain *ux500_pm_domains[NR_DOMAINS] = {
 	[DOMAIN_VAPE] = &ux500_pm_domain_vape,
 };
 
-static struct of_device_id ux500_pm_domain_matches[] = {
+static const struct of_device_id ux500_pm_domain_matches[] __initconst = {
 	{ .compatible = "stericsson,ux500-pm-domains", },
 	{ },
 };

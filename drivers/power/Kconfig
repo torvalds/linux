@@ -315,7 +315,7 @@ config CHARGER_GPIO
 
 config CHARGER_MANAGER
 	bool "Battery charger manager for multiple chargers"
-	depends on REGULATOR && RTC_CLASS
+	depends on REGULATOR
 	select EXTCON
 	help
           Say Y to enable charger-manager support, which allows multiple
@@ -327,10 +327,15 @@ config CHARGER_MANAGER
 config CHARGER_MAX14577
 	tristate "Maxim MAX14577/77836 battery charger driver"
 	depends on MFD_MAX14577
-	depends on SYSFS
 	help
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX14577/77836 MUICs.
+
+config CHARGER_MAX77693
+	tristate "Maxim MAX77693 battery charger driver"
+	depends on MFD_MAX77693
+	help
+	  Say Y to enable support for the Maxim MAX77693 battery charger.
 
 config CHARGER_MAX8997
 	tristate "Maxim MAX8997/MAX8966 PMIC battery charger driver"
@@ -383,6 +388,14 @@ config CHARGER_TPS65090
 	 Say Y here to enable support for battery charging with TPS65090
 	 PMIC chips.
 
+config BATTERY_GAUGE_LTC2941
+	tristate "LTC2941/LTC2943 Battery Gauge Driver"
+	depends on I2C
+	help
+	  Say Y here to include support for LTC2941 and LTC2943 Battery
+	  Gauge IC. The driver reports the charge count continuously, and
+	  measures the voltage and temperature every 10 seconds.
+
 config AB8500_BM
 	bool "AB8500 Battery Management Driver"
 	depends on AB8500_CORE && AB8500_GPADC
@@ -396,6 +409,14 @@ config BATTERY_GOLDFISH
 	help
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.
+
+config BATTERY_RT5033
+	tristate "RT5033 fuel gauge support"
+	depends on MFD_RT5033
+	help
+	  This adds support for battery fuel gauge in Richtek RT5033 PMIC.
+	  The fuelgauge calculates and determines the battery state of charge
+	  according to battery open circuit voltage.
 
 source "drivers/power/reset/Kconfig"
 

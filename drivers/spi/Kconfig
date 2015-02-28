@@ -29,7 +29,7 @@ menuconfig SPI
 if SPI
 
 config SPI_DEBUG
-	boolean "Debug support for SPI drivers"
+	bool "Debug support for SPI drivers"
 	depends on DEBUG_KERNEL
 	help
 	  Say "yes" to enable debug messaging (like dev_dbg and pr_debug),
@@ -40,8 +40,8 @@ config SPI_DEBUG
 #
 
 config SPI_MASTER
-#	boolean "SPI Master Support"
-	boolean
+#	bool "SPI Master Support"
+	bool
 	default SPI
 	help
 	  If your system has an master-capable SPI controller (which

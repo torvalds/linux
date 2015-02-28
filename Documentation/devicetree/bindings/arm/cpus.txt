@@ -175,6 +175,7 @@ nodes to be present and contain the properties described below.
 			    "marvell,pj4a"
 			    "marvell,pj4b"
 			    "marvell,sheeva-v5"
+			    "nvidia,tegra132-denver"
 			    "qcom,krait"
 			    "qcom,scorpion"
 	- enable-method

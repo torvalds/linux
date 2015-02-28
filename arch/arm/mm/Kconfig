@@ -892,13 +892,6 @@ config CACHE_L2X0
 
 if CACHE_L2X0
 
-config CACHE_PL310
-	bool
-	default y if CPU_V7 && !(CPU_V6 || CPU_V6K)
-	help
-	  This option enables optimisations for the PL310 cache
-	  controller.
-
 config PL310_ERRATA_588369
 	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
 	help

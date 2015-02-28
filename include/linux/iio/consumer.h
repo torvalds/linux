@@ -151,6 +151,16 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val);
 int iio_read_channel_processed(struct iio_channel *chan, int *val);
 
 /**
+ * iio_write_channel_raw() - write to a given channel
+ * @chan:		The channel being queried.
+ * @val:		Value being written.
+ *
+ * Note raw writes to iio channels are in dac counts and hence
+ * scale will need to be applied if standard units required.
+ */
+int iio_write_channel_raw(struct iio_channel *chan, int val);
+
+/**
  * iio_get_channel_type() - get the type of a channel
  * @channel:		The channel being queried.
  * @type:		The type of the channel.
@@ -191,7 +201,7 @@ int iio_read_channel_scale(struct iio_channel *chan, int *val,
  * The scale factor allows to increase the precession of the returned value. For
  * a scale factor of 1 the function will return the result in the normal IIO
  * unit for the channel type. E.g. millivolt for voltage channels, if you want
- * nanovolts instead pass 1000 as the scale factor.
+ * nanovolts instead pass 1000000 as the scale factor.
  */
 int iio_convert_raw_to_processed(struct iio_channel *chan, int raw,
 	int *processed, unsigned int scale);

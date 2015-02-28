@@ -1,4 +1,5 @@
 # MIPS headers
+generic-(CONFIG_GENERIC_CSUM) += checksum.h
 generic-y += cputime.h
 generic-y += current.h
 generic-y += dma-contiguous.h

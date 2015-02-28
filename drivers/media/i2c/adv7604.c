@@ -333,19 +333,9 @@ static inline struct adv7604_state *to_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct adv7604_state, sd);
 }
 
-static inline unsigned hblanking(const struct v4l2_bt_timings *t)
-{
-	return V4L2_DV_BT_BLANKING_WIDTH(t);
-}
-
 static inline unsigned htotal(const struct v4l2_bt_timings *t)
 {
 	return V4L2_DV_BT_FRAME_WIDTH(t);
-}
-
-static inline unsigned vblanking(const struct v4l2_bt_timings *t)
-{
-	return V4L2_DV_BT_BLANKING_HEIGHT(t);
 }
 
 static inline unsigned vtotal(const struct v4l2_bt_timings *t)
@@ -466,11 +456,6 @@ static inline int cec_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 	return adv_smbus_write_byte_data(state, ADV7604_PAGE_CEC, reg, val);
 }
 
-static inline int cec_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 val)
-{
-	return cec_write(sd, reg, (cec_read(sd, reg) & ~mask) | val);
-}
-
 static inline int infoframe_read(struct v4l2_subdev *sd, u8 reg)
 {
 	struct adv7604_state *state = to_state(sd);
@@ -484,34 +469,6 @@ static inline int infoframe_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 
 	return adv_smbus_write_byte_data(state, ADV7604_PAGE_INFOFRAME,
 					 reg, val);
-}
-
-static inline int esdp_read(struct v4l2_subdev *sd, u8 reg)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_read_byte_data(state, ADV7604_PAGE_ESDP, reg);
-}
-
-static inline int esdp_write(struct v4l2_subdev *sd, u8 reg, u8 val)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_write_byte_data(state, ADV7604_PAGE_ESDP, reg, val);
-}
-
-static inline int dpp_read(struct v4l2_subdev *sd, u8 reg)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_read_byte_data(state, ADV7604_PAGE_DPP, reg);
-}
-
-static inline int dpp_write(struct v4l2_subdev *sd, u8 reg, u8 val)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_write_byte_data(state, ADV7604_PAGE_DPP, reg, val);
 }
 
 static inline int afe_read(struct v4l2_subdev *sd, u8 reg)
@@ -559,32 +516,6 @@ static inline int edid_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 	struct adv7604_state *state = to_state(sd);
 
 	return adv_smbus_write_byte_data(state, ADV7604_PAGE_EDID, reg, val);
-}
-
-static inline int edid_read_block(struct v4l2_subdev *sd, unsigned len, u8 *val)
-{
-	struct adv7604_state *state = to_state(sd);
-	struct i2c_client *client = state->i2c_clients[ADV7604_PAGE_EDID];
-	u8 msgbuf0[1] = { 0 };
-	u8 msgbuf1[256];
-	struct i2c_msg msg[2] = {
-		{
-			.addr = client->addr,
-			.len = 1,
-			.buf = msgbuf0
-		},
-		{
-			.addr = client->addr,
-			.flags = I2C_M_RD,
-			.len = len,
-			.buf = msgbuf1
-		},
-	};
-
-	if (i2c_transfer(client->adapter, msg, 2) < 0)
-		return -EIO;
-	memcpy(val, msgbuf1, len);
-	return 0;
 }
 
 static inline int edid_write_block(struct v4l2_subdev *sd,
@@ -650,13 +581,6 @@ static inline int hdmi_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 static inline int hdmi_write_clr_set(struct v4l2_subdev *sd, u8 reg, u8 mask, u8 val)
 {
 	return hdmi_write(sd, reg, (hdmi_read(sd, reg) & ~mask) | val);
-}
-
-static inline int test_read(struct v4l2_subdev *sd, u8 reg)
-{
-	struct adv7604_state *state = to_state(sd);
-
-	return adv_smbus_read_byte_data(state, ADV7604_PAGE_TEST, reg);
 }
 
 static inline int test_write(struct v4l2_subdev *sd, u8 reg, u8 val)

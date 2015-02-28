@@ -555,15 +555,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 	    (status & ATH9K_INT_BB_WATCHDOG))
 		goto chip_reset;
 
-#ifdef CONFIG_ATH9K_WOW
-	if (status & ATH9K_INT_BMISS) {
-		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
-			atomic_inc(&sc->wow_got_bmiss_intr);
-			atomic_dec(&sc->wow_sleep_proc_intr);
-		}
-	}
-#endif
-
 	if (status & ATH9K_INT_SWBA)
 		tasklet_schedule(&sc->bcon_tasklet);
 

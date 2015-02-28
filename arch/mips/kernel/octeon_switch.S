@@ -31,15 +31,11 @@
 	/*
 	 * check if we need to save FPU registers
 	 */
-	PTR_L	t3, TASK_THREAD_INFO(a0)
-	LONG_L	t0, TI_FLAGS(t3)
-	li	t1, _TIF_USEDFPU
-	and	t2, t0, t1
-	beqz	t2, 1f
-	nor	t1, zero, t1
-
-	and	t0, t0, t1
-	LONG_S	t0, TI_FLAGS(t3)
+	.set push
+	.set noreorder
+	beqz	a3, 1f
+	 PTR_L	t3, TASK_THREAD_INFO(a0)
+	.set pop
 
 	/*
 	 * clear saved user stack CU1 bit
@@ -56,36 +52,9 @@
 	.set pop
 1:
 
-	/* check if we need to save COP2 registers */
-	PTR_L	t2, TASK_THREAD_INFO(a0)
-	LONG_L	t0, ST_OFF(t2)
-	bbit0	t0, 30, 1f
-
-	/* Disable COP2 in the stored process state */
-	li	t1, ST0_CU2
-	xor	t0, t1
-	LONG_S	t0, ST_OFF(t2)
-
-	/* Enable COP2 so we can save it */
-	mfc0	t0, CP0_STATUS
-	or	t0, t1
-	mtc0	t0, CP0_STATUS
-
-	/* Save COP2 */
-	daddu	a0, THREAD_CP2
-	jal octeon_cop2_save
-	dsubu	a0, THREAD_CP2
-
-	/* Disable COP2 now that we are done */
-	mfc0	t0, CP0_STATUS
-	li	t1, ST0_CU2
-	xor	t0, t1
-	mtc0	t0, CP0_STATUS
-
-1:
 #if CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
 	/* Check if we need to store CVMSEG state */
-	mfc0	t0, $11,7	/* CvmMemCtl */
+	dmfc0	t0, $11,7	/* CvmMemCtl */
 	bbit0	t0, 6, 3f	/* Is user access enabled? */
 
 	/* Store the CVMSEG state */
@@ -109,9 +78,9 @@
 	.set reorder
 
 	/* Disable access to CVMSEG */
-	mfc0	t0, $11,7	/* CvmMemCtl */
+	dmfc0	t0, $11,7	/* CvmMemCtl */
 	xori	t0, t0, 0x40	/* Bit 6 is CVMSEG user enable */
-	mtc0	t0, $11,7	/* CvmMemCtl */
+	dmtc0	t0, $11,7	/* CvmMemCtl */
 #endif
 3:
 
@@ -147,6 +116,8 @@
  * void octeon_cop2_save(struct octeon_cop2_state *a0)
  */
 	.align	7
+	.set push
+	.set noreorder
 	LEAF(octeon_cop2_save)
 
 	dmfc0	t9, $9,7	/* CvmCtl register. */
@@ -157,17 +128,17 @@
 	dmfc2	t2, 0x0200
 	sd	t0, OCTEON_CP2_CRC_IV(a0)
 	sd	t1, OCTEON_CP2_CRC_LENGTH(a0)
-	sd	t2, OCTEON_CP2_CRC_POLY(a0)
 	/* Skip next instructions if CvmCtl[NODFA_CP2] set */
 	bbit1	t9, 28, 1f
+	 sd	t2, OCTEON_CP2_CRC_POLY(a0)
 
 	/* Save the LLM state */
 	dmfc2	t0, 0x0402
 	dmfc2	t1, 0x040A
 	sd	t0, OCTEON_CP2_LLM_DAT(a0)
-	sd	t1, OCTEON_CP2_LLM_DAT+8(a0)
 
 1:	bbit1	t9, 26, 3f	/* done if CvmCtl[NOCRYPTO] set */
+	 sd	t1, OCTEON_CP2_LLM_DAT+8(a0)
 
 	/* Save the COP2 crypto state */
 	/* this part is mostly common to both pass 1 and later revisions */
@@ -198,18 +169,20 @@
 	sd	t2, OCTEON_CP2_AES_KEY+16(a0)
 	dmfc2	t2, 0x0101
 	sd	t3, OCTEON_CP2_AES_KEY+24(a0)
-	mfc0	t3, $15,0	/* Get the processor ID register */
+	mfc0	v0, $15,0	/* Get the processor ID register */
 	sd	t0, OCTEON_CP2_AES_KEYLEN(a0)
-	li	t0, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
+	li	v1, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
 	sd	t1, OCTEON_CP2_AES_RESULT(a0)
-	sd	t2, OCTEON_CP2_AES_RESULT+8(a0)
 	/* Skip to the Pass1 version of the remainder of the COP2 state */
-	beq	t3, t0, 2f
+	beq	v0, v1, 2f
+	 sd	t2, OCTEON_CP2_AES_RESULT+8(a0)
 
 	/* the non-pass1 state when !CvmCtl[NOCRYPTO] */
 	dmfc2	t1, 0x0240
 	dmfc2	t2, 0x0241
+	ori	v1, v1, 0x9500 /* lowest OCTEON III PrId*/
 	dmfc2	t3, 0x0242
+	subu	v1, v0, v1 /* prid - lowest OCTEON III PrId */
 	dmfc2	t0, 0x0243
 	sd	t1, OCTEON_CP2_HSH_DATW(a0)
 	dmfc2	t1, 0x0244
@@ -262,8 +235,16 @@
 	sd	t1, OCTEON_CP2_GFM_MULT+8(a0)
 	sd	t2, OCTEON_CP2_GFM_POLY(a0)
 	sd	t3, OCTEON_CP2_GFM_RESULT(a0)
-	sd	t0, OCTEON_CP2_GFM_RESULT+8(a0)
+	bltz	v1, 4f
+	 sd	t0, OCTEON_CP2_GFM_RESULT+8(a0)
+	/* OCTEON III things*/
+	dmfc2	t0, 0x024F
+	dmfc2	t1, 0x0050
+	sd	t0, OCTEON_CP2_SHA3(a0)
+	sd	t1, OCTEON_CP2_SHA3+8(a0)
+4:
 	jr	ra
+	 nop
 
 2:	/* pass 1 special stuff when !CvmCtl[NOCRYPTO] */
 	dmfc2	t3, 0x0040
@@ -289,7 +270,9 @@
 
 3:	/* pass 1 or CvmCtl[NOCRYPTO] set */
 	jr	ra
+	 nop
 	END(octeon_cop2_save)
+	.set pop
 
 /*
  * void octeon_cop2_restore(struct octeon_cop2_state *a0)
@@ -354,9 +337,9 @@
 	ld	t2, OCTEON_CP2_AES_RESULT+8(a0)
 	mfc0	t3, $15,0	/* Get the processor ID register */
 	dmtc2	t0, 0x0110
-	li	t0, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
+	li	v0, 0x000d0000	/* This is the processor ID of Octeon Pass1 */
 	dmtc2	t1, 0x0100
-	bne	t0, t3, 3f	/* Skip the next stuff for non-pass1 */
+	bne	v0, t3, 3f	/* Skip the next stuff for non-pass1 */
 	 dmtc2	t2, 0x0101
 
 	/* this code is specific for pass 1 */
@@ -384,6 +367,7 @@
 
 3:	/* this is post-pass1 code */
 	ld	t2, OCTEON_CP2_HSH_DATW(a0)
+	ori	v0, v0, 0x9500 /* lowest OCTEON III PrId*/
 	ld	t0, OCTEON_CP2_HSH_DATW+8(a0)
 	ld	t1, OCTEON_CP2_HSH_DATW+16(a0)
 	dmtc2	t2, 0x0240
@@ -437,9 +421,15 @@
 	dmtc2	t2, 0x0259
 	ld	t2, OCTEON_CP2_GFM_RESULT+8(a0)
 	dmtc2	t0, 0x025E
+	subu	v0, t3, v0 /* prid - lowest OCTEON III PrId */
 	dmtc2	t1, 0x025A
-	dmtc2	t2, 0x025B
-
+	bltz	v0, done_restore
+	 dmtc2	t2, 0x025B
+	/* OCTEON III things*/
+	ld	t0, OCTEON_CP2_SHA3(a0)
+	ld	t1, OCTEON_CP2_SHA3+8(a0)
+	dmtc2	t0, 0x0051
+	dmtc2	t1, 0x0050
 done_restore:
 	jr	ra
 	 nop
@@ -450,18 +440,23 @@ done_restore:
  * void octeon_mult_save()
  * sp is assumed to point to a struct pt_regs
  *
- * NOTE: This is called in SAVE_SOME in stackframe.h. It can only
- *	 safely modify k0 and k1.
+ * NOTE: This is called in SAVE_TEMP in stackframe.h. It can
+ *       safely modify v1,k0, k1,$10-$15, and $24.  It will
+ *	 be overwritten with a processor specific version of the code.
  */
-	.align	7
+	.p2align 7
 	.set push
 	.set noreorder
 	LEAF(octeon_mult_save)
-	dmfc0	k0, $9,7	/* CvmCtl register. */
-	bbit1	k0, 27, 1f	/* Skip CvmCtl[NOMUL] */
+	jr	ra
 	 nop
+	.space 30 * 4, 0
+octeon_mult_save_end:
+	EXPORT(octeon_mult_save_end)
+	END(octeon_mult_save)
 
-	/* Save the multiplier state */
+	LEAF(octeon_mult_save2)
+	/* Save the multiplier state OCTEON II and earlier*/
 	v3mulu	k0, $0, $0
 	v3mulu	k1, $0, $0
 	sd	k0, PT_MTP(sp)	      /* PT_MTP	   has P0 */
@@ -476,44 +471,107 @@ done_restore:
 	sd	k0, PT_MPL+8(sp)      /* PT_MPL+8  has MPL1 */
 	jr	ra
 	 sd	k1, PT_MPL+16(sp)     /* PT_MPL+16 has MPL2 */
+octeon_mult_save2_end:
+	EXPORT(octeon_mult_save2_end)
+	END(octeon_mult_save2)
 
-1:	/* Resume here if CvmCtl[NOMUL] */
+	LEAF(octeon_mult_save3)
+	/* Save the multiplier state OCTEON III */
+	v3mulu	$10, $0, $0		/* read P0 */
+	v3mulu	$11, $0, $0		/* read P1 */
+	v3mulu	$12, $0, $0		/* read P2 */
+	sd	$10, PT_MTP+(0*8)(sp)	/* store P0 */
+	v3mulu	$10, $0, $0		/* read P3 */
+	sd	$11, PT_MTP+(1*8)(sp)	/*  store P1 */
+	v3mulu	$11, $0, $0		/* read P4 */
+	sd	$12, PT_MTP+(2*8)(sp)	/* store P2 */
+	ori	$13, $0, 1
+	v3mulu	$12, $0, $0		/* read P5 */
+	sd	$10, PT_MTP+(3*8)(sp)	/* store P3 */
+	v3mulu	$13, $13, $0		/* P4-P0 = MPL5-MPL1, $13 = MPL0 */
+	sd	$11, PT_MTP+(4*8)(sp)	/* store P4 */
+	v3mulu	$10, $0, $0		/* read MPL1 */
+	sd	$12, PT_MTP+(5*8)(sp)	/* store P5 */
+	v3mulu	$11, $0, $0		/* read MPL2 */
+	sd	$13, PT_MPL+(0*8)(sp)	/* store MPL0 */
+	v3mulu	$12, $0, $0		/* read MPL3 */
+	sd	$10, PT_MPL+(1*8)(sp)	/* store MPL1 */
+	v3mulu	$10, $0, $0		/* read MPL4 */
+	sd	$11, PT_MPL+(2*8)(sp)	/* store MPL2 */
+	v3mulu	$11, $0, $0		/* read MPL5 */
+	sd	$12, PT_MPL+(3*8)(sp)	/* store MPL3 */
+	sd	$10, PT_MPL+(4*8)(sp)	/* store MPL4 */
 	jr	ra
-	END(octeon_mult_save)
+	 sd	$11, PT_MPL+(5*8)(sp)	/* store MPL5 */
+octeon_mult_save3_end:
+	EXPORT(octeon_mult_save3_end)
+	END(octeon_mult_save3)
 	.set pop
 
 /*
  * void octeon_mult_restore()
  * sp is assumed to point to a struct pt_regs
  *
- * NOTE: This is called in RESTORE_SOME in stackframe.h.
+ * NOTE: This is called in RESTORE_TEMP in stackframe.h.
  */
-	.align	7
+	.p2align 7
 	.set push
 	.set noreorder
 	LEAF(octeon_mult_restore)
-	dmfc0	k1, $9,7		/* CvmCtl register. */
-	ld	v0, PT_MPL(sp)		/* MPL0 */
-	ld	v1, PT_MPL+8(sp)	/* MPL1 */
-	ld	k0, PT_MPL+16(sp)	/* MPL2 */
-	bbit1	k1, 27, 1f		/* Skip CvmCtl[NOMUL] */
-	/* Normally falls through, so no time wasted here */
-	nop
-
-	/* Restore the multiplier state */
-	ld	k1, PT_MTP+16(sp)	/* P2 */
-	MTM0	v0			/* MPL0 */
-	ld	v0, PT_MTP+8(sp)	/* P1 */
-	MTM1	v1			/* MPL1 */
-	ld	v1, PT_MTP(sp)		/* P0 */
-	MTM2	k0			/* MPL2 */
-	MTP2	k1			/* P2 */
-	MTP1	v0			/* P1 */
-	jr	ra
-	 MTP0	v1			/* P0 */
-
-1:	/* Resume here if CvmCtl[NOMUL] */
 	jr	ra
 	 nop
+	.space 30 * 4, 0
+octeon_mult_restore_end:
+	EXPORT(octeon_mult_restore_end)
 	END(octeon_mult_restore)
+
+	LEAF(octeon_mult_restore2)
+	ld	v0, PT_MPL(sp)        	/* MPL0 */
+	ld	v1, PT_MPL+8(sp)      	/* MPL1 */
+	ld	k0, PT_MPL+16(sp)     	/* MPL2 */
+	/* Restore the multiplier state */
+	ld	k1, PT_MTP+16(sp)     	/* P2 */
+	mtm0	v0			/* MPL0 */
+	ld	v0, PT_MTP+8(sp)	/* P1 */
+	mtm1	v1			/* MPL1 */
+	ld	v1, PT_MTP(sp)   	/* P0 */
+	mtm2	k0			/* MPL2 */
+	mtp2	k1			/* P2 */
+	mtp1	v0			/* P1 */
+	jr	ra
+	 mtp0	v1			/* P0 */
+octeon_mult_restore2_end:
+	EXPORT(octeon_mult_restore2_end)
+	END(octeon_mult_restore2)
+
+	LEAF(octeon_mult_restore3)
+	ld	$12, PT_MPL+(0*8)(sp)	/* read MPL0 */
+	ld	$13, PT_MPL+(3*8)(sp)	/* read MPL3 */
+	ld	$10, PT_MPL+(1*8)(sp)	/* read MPL1 */
+	ld	$11, PT_MPL+(4*8)(sp)	/* read MPL4 */
+	.word	0x718d0008
+	/* mtm0	$12, $13		   restore MPL0 and MPL3 */
+	ld	$12, PT_MPL+(2*8)(sp)	/* read MPL2 */
+	.word	0x714b000c
+	/* mtm1	$10, $11		   restore MPL1 and MPL4 */
+	ld	$13, PT_MPL+(5*8)(sp)	/* read MPL5 */
+	ld	$10, PT_MTP+(0*8)(sp)	/* read P0 */
+	ld	$11, PT_MTP+(3*8)(sp)	/* read P3 */
+	.word	0x718d000d
+	/* mtm2	$12, $13		   restore MPL2 and MPL5 */
+	ld	$12, PT_MTP+(1*8)(sp)	/* read P1 */
+	.word	0x714b0009
+	/* mtp0	$10, $11		   restore P0 and P3 */
+	ld	$13, PT_MTP+(4*8)(sp)	/* read P4 */
+	ld	$10, PT_MTP+(2*8)(sp)	/* read P2 */
+	ld	$11, PT_MTP+(5*8)(sp)	/* read P5 */
+	.word	0x718d000a
+	/* mtp1	$12, $13		   restore P1 and P4 */
+	jr	ra
+	.word	0x714b000b
+	/* mtp2	$10, $11		   restore P2 and P5 */
+
+octeon_mult_restore3_end:
+	EXPORT(octeon_mult_restore3_end)
+	END(octeon_mult_restore3)
 	.set pop

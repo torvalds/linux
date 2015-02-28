@@ -724,10 +724,11 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
  * <= 0: driver handled the event, skb consumed
  *    1: driver does not handle the event, please do standard processing
  */
-static int pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+static int pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 				    struct sk_buff *skb)
 {
 	struct sk_buff *rgb_skb = NULL;
+	u8 gate = hdev->pipes[pipe].gate;
 	int r;
 
 	pr_debug("hci event %d\n", event);

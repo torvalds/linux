@@ -17,14 +17,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/spinlock.h>
 #include <linux/stop_machine.h>
+#include <linux/types.h>
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
 #include <asm/debug-monitors.h>
+#include <asm/fixmap.h>
 #include <asm/insn.h>
 
 #define AARCH64_INSN_SF_BIT	BIT(31)
@@ -72,6 +77,31 @@ bool __kprobes aarch64_insn_is_nop(u32 insn)
 	}
 }
 
+static DEFINE_SPINLOCK(patch_lock);
+
+static void __kprobes *patch_map(void *addr, int fixmap)
+{
+	unsigned long uintaddr = (uintptr_t) addr;
+	bool module = !core_kernel_text(uintaddr);
+	struct page *page;
+
+	if (module && IS_ENABLED(CONFIG_DEBUG_SET_MODULE_RONX))
+		page = vmalloc_to_page(addr);
+	else if (!module && IS_ENABLED(CONFIG_DEBUG_RODATA))
+		page = virt_to_page(addr);
+	else
+		return addr;
+
+	BUG_ON(!page);
+	set_fixmap(fixmap, page_to_phys(page));
+
+	return (void *) (__fix_to_virt(fixmap) + (uintaddr & ~PAGE_MASK));
+}
+
+static void __kprobes patch_unmap(int fixmap)
+{
+	clear_fixmap(fixmap);
+}
 /*
  * In ARMv8-A, A64 instructions have a fixed length of 32 bits and are always
  * little-endian.
@@ -88,10 +118,27 @@ int __kprobes aarch64_insn_read(void *addr, u32 *insnp)
 	return ret;
 }
 
+static int __kprobes __aarch64_insn_write(void *addr, u32 insn)
+{
+	void *waddr = addr;
+	unsigned long flags = 0;
+	int ret;
+
+	spin_lock_irqsave(&patch_lock, flags);
+	waddr = patch_map(addr, FIX_TEXT_POKE0);
+
+	ret = probe_kernel_write(waddr, &insn, AARCH64_INSN_SIZE);
+
+	patch_unmap(FIX_TEXT_POKE0);
+	spin_unlock_irqrestore(&patch_lock, flags);
+
+	return ret;
+}
+
 int __kprobes aarch64_insn_write(void *addr, u32 insn)
 {
 	insn = cpu_to_le32(insn);
-	return probe_kernel_write(addr, &insn, AARCH64_INSN_SIZE);
+	return __aarch64_insn_write(addr, insn);
 }
 
 static bool __kprobes __aarch64_insn_hotpatch_safe(u32 insn)

@@ -71,7 +71,6 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		poll-interval = <200>;
 
 		wps {
 			label = "WPS";

@@ -172,6 +172,7 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 	struct MR_FW_RAID_MAP_ALL     *fw_map_old    = NULL;
 	struct MR_FW_RAID_MAP         *pFwRaidMap    = NULL;
 	int i;
+	u16 ld_count;
 
 
 	struct MR_DRV_RAID_MAP_ALL *drv_map =
@@ -191,9 +192,10 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 		fw_map_old = (struct MR_FW_RAID_MAP_ALL *)
 			fusion->ld_map[(instance->map_id & 1)];
 		pFwRaidMap = &fw_map_old->raidMap;
+		ld_count = (u16)le32_to_cpu(pFwRaidMap->ldCount);
 
 #if VD_EXT_DEBUG
-		for (i = 0; i < le16_to_cpu(pFwRaidMap->ldCount); i++) {
+		for (i = 0; i < ld_count; i++) {
 			dev_dbg(&instance->pdev->dev, "(%d) :Index 0x%x "
 				"Target Id 0x%x Seq Num 0x%x Size 0/%llx\n",
 				instance->unique_id, i,
@@ -205,12 +207,15 @@ void MR_PopulateDrvRaidMap(struct megasas_instance *instance)
 
 		memset(drv_map, 0, fusion->drv_map_sz);
 		pDrvRaidMap->totalSize = pFwRaidMap->totalSize;
-		pDrvRaidMap->ldCount = (__le16)pFwRaidMap->ldCount;
+		pDrvRaidMap->ldCount = (__le16)cpu_to_le16(ld_count);
 		pDrvRaidMap->fpPdIoTimeoutSec = pFwRaidMap->fpPdIoTimeoutSec;
 		for (i = 0; i < MAX_RAIDMAP_LOGICAL_DRIVES + MAX_RAIDMAP_VIEWS; i++)
 			pDrvRaidMap->ldTgtIdToLd[i] =
 				(u8)pFwRaidMap->ldTgtIdToLd[i];
-		for (i = 0; i < le16_to_cpu(pDrvRaidMap->ldCount); i++) {
+		for (i = (MAX_RAIDMAP_LOGICAL_DRIVES + MAX_RAIDMAP_VIEWS);
+			i < MAX_LOGICAL_DRIVES_EXT; i++)
+			pDrvRaidMap->ldTgtIdToLd[i] = 0xff;
+		for (i = 0; i < ld_count; i++) {
 			pDrvRaidMap->ldSpanMap[i] = pFwRaidMap->ldSpanMap[i];
 #if VD_EXT_DEBUG
 			dev_dbg(&instance->pdev->dev,
@@ -252,7 +257,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance)
 	struct LD_LOAD_BALANCE_INFO *lbInfo;
 	PLD_SPAN_INFO ldSpanInfo;
 	struct MR_LD_RAID         *raid;
-	int ldCount, num_lds;
+	u16 ldCount, num_lds;
 	u16 ld;
 	u32 expected_size;
 
@@ -356,7 +361,7 @@ static int getSpanInfo(struct MR_DRV_RAID_MAP_ALL *map,
 
 	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
 		ld = MR_TargetIdToLdGet(ldCount, map);
-			if (ld >= MAX_LOGICAL_DRIVES_EXT)
+			if (ld >= (MAX_LOGICAL_DRIVES_EXT - 1))
 				continue;
 		raid = MR_LdRaidGet(ld, map);
 		dev_dbg(&instance->pdev->dev, "LD %x: span_depth=%x\n",
@@ -1157,7 +1162,7 @@ void mr_update_span_set(struct MR_DRV_RAID_MAP_ALL *map,
 
 	for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES_EXT; ldCount++) {
 		ld = MR_TargetIdToLdGet(ldCount, map);
-		if (ld >= MAX_LOGICAL_DRIVES_EXT)
+		if (ld >= (MAX_LOGICAL_DRIVES_EXT - 1))
 			continue;
 		raid = MR_LdRaidGet(ld, map);
 		for (element = 0; element < MAX_QUAD_DEPTH; element++) {

@@ -793,8 +793,10 @@ video_register_device_no_warn() instead.
 
 Whenever a device node is created some attributes are also created for you.
 If you look in /sys/class/video4linux you see the devices. Go into e.g.
-video0 and you will see 'name' and 'index' attributes. The 'name' attribute
-is the 'name' field of the video_device struct.
+video0 and you will see 'name', 'debug' and 'index' attributes. The 'name'
+attribute is the 'name' field of the video_device struct. The 'debug' attribute
+can be used to enable core debugging. See the next section for more detailed
+information on this.
 
 The 'index' attribute is the index of the device node: for each call to
 video_register_device() the index is just increased by 1. The first video
@@ -816,6 +818,25 @@ video_device was embedded in it. The vdev->release() callback will never
 be called if the registration failed, nor should you ever attempt to
 unregister the device if the registration failed.
 
+video device debugging
+----------------------
+
+The 'debug' attribute that is created for each video, vbi, radio or swradio
+device in /sys/class/video4linux/<devX>/ allows you to enable logging of
+file operations.
+
+It is a bitmask and the following bits can be set:
+
+0x01: Log the ioctl name and error code. VIDIOC_(D)QBUF ioctls are only logged
+      if bit 0x08 is also set.
+0x02: Log the ioctl name arguments and error code. VIDIOC_(D)QBUF ioctls are
+      only logged if bit 0x08 is also set.
+0x04: Log the file operations open, release, read, write, mmap and
+      get_unmapped_area. The read and write operations are only logged if
+      bit 0x08 is also set.
+0x08: Log the read and write file operations and the VIDIOC_QBUF and
+      VIDIOC_DQBUF ioctls.
+0x10: Log the poll file operation.
 
 video_device cleanup
 --------------------

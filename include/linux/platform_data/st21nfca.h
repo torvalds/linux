@@ -26,6 +26,8 @@
 struct st21nfca_nfc_platform_data {
 	unsigned int gpio_ena;
 	unsigned int irq_polarity;
+	bool is_ese_present;
+	bool is_uicc_present;
 };
 
 #endif /* _ST21NFCA_HCI_H_ */

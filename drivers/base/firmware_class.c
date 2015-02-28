@@ -94,7 +94,7 @@ static int loading_timeout = 60;	/* In seconds */
 
 static inline long firmware_loading_timeout(void)
 {
-	return loading_timeout > 0 ? loading_timeout * HZ : MAX_SCHEDULE_TIMEOUT;
+	return loading_timeout > 0 ? loading_timeout * HZ : MAX_JIFFY_OFFSET;
 }
 
 /* firmware behavior options */
@@ -446,7 +446,6 @@ static int fw_add_devm_name(struct device *dev, const char *name)
  */
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 struct firmware_priv {
-	struct delayed_work timeout_work;
 	bool nowait;
 	struct device dev;
 	struct firmware_buf *buf;
@@ -836,16 +835,6 @@ static struct bin_attribute firmware_attr_data = {
 	.write = firmware_data_write,
 };
 
-static void firmware_class_timeout_work(struct work_struct *work)
-{
-	struct firmware_priv *fw_priv = container_of(work,
-			struct firmware_priv, timeout_work.work);
-
-	mutex_lock(&fw_lock);
-	fw_load_abort(fw_priv);
-	mutex_unlock(&fw_lock);
-}
-
 static struct firmware_priv *
 fw_create_instance(struct firmware *firmware, const char *fw_name,
 		   struct device *device, unsigned int opt_flags)
@@ -855,16 +844,12 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 
 	fw_priv = kzalloc(sizeof(*fw_priv), GFP_KERNEL);
 	if (!fw_priv) {
-		dev_err(device, "%s: kmalloc failed\n", __func__);
 		fw_priv = ERR_PTR(-ENOMEM);
 		goto exit;
 	}
 
 	fw_priv->nowait = !!(opt_flags & FW_OPT_NOWAIT);
 	fw_priv->fw = firmware;
-	INIT_DELAYED_WORK(&fw_priv->timeout_work,
-		firmware_class_timeout_work);
-
 	f_dev = &fw_priv->dev;
 
 	device_initialize(f_dev);
@@ -917,16 +902,19 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		buf->need_uevent = true;
 		dev_set_uevent_suppress(f_dev, false);
 		dev_dbg(f_dev, "firmware: requesting %s\n", buf->fw_id);
-		if (timeout != MAX_SCHEDULE_TIMEOUT)
-			queue_delayed_work(system_power_efficient_wq,
-					   &fw_priv->timeout_work, timeout);
-
 		kobject_uevent(&fw_priv->dev.kobj, KOBJ_ADD);
+	} else {
+		timeout = MAX_JIFFY_OFFSET;
 	}
 
-	retval = wait_for_completion_interruptible(&buf->completion);
+	retval = wait_for_completion_interruptible_timeout(&buf->completion,
+			timeout);
+	if (retval == -ERESTARTSYS || !retval) {
+		mutex_lock(&fw_lock);
+		fw_load_abort(fw_priv);
+		mutex_unlock(&fw_lock);
+	}
 
-	cancel_delayed_work_sync(&fw_priv->timeout_work);
 	if (is_fw_load_aborted(buf))
 		retval = -EAGAIN;
 	else if (!buf->data)
@@ -1194,7 +1182,7 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 EXPORT_SYMBOL(request_firmware);
 
 /**
- * request_firmware: - load firmware directly without usermode helper
+ * request_firmware_direct: - load firmware directly without usermode helper
  * @firmware_p: pointer to firmware image
  * @name: name of firmware file
  * @device: device for which firmware is being loaded

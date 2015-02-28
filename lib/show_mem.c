@@ -6,7 +6,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/nmi.h>
 #include <linux/quicklist.h>
 #include <linux/cma.h>
 

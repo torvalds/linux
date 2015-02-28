@@ -154,7 +154,7 @@ static int get_softlockup_thresh(void)
  */
 static unsigned long get_timestamp(void)
 {
-	return local_clock() >> 30LL;  /* 2^30 ~= 10^9 */
+	return running_clock() >> 30LL;  /* 2^30 ~= 10^9 */
 }
 
 static void set_sample_period(void)

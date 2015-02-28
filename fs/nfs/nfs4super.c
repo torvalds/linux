@@ -53,7 +53,6 @@ static const struct super_operations nfs4_sops = {
 	.destroy_inode	= nfs_destroy_inode,
 	.write_inode	= nfs4_write_inode,
 	.drop_inode	= nfs_drop_inode,
-	.put_super	= nfs_put_super,
 	.statfs		= nfs_statfs,
 	.evict_inode	= nfs4_evict_inode,
 	.umount_begin	= nfs_umount_begin,
@@ -346,6 +345,9 @@ out:
 
 static void __exit exit_nfs_v4(void)
 {
+	/* Not called in the _init(), conditionally loaded */
+	nfs4_pnfs_v3_ds_connect_unload();
+
 	unregister_nfs_version(&nfs_v4);
 	nfs4_unregister_sysctl();
 	nfs_idmap_quit();

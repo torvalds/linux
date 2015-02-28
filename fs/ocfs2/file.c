@@ -295,7 +295,7 @@ out:
 	return ret;
 }
 
-static int ocfs2_set_inode_size(handle_t *handle,
+int ocfs2_set_inode_size(handle_t *handle,
 				struct inode *inode,
 				struct buffer_head *fe_bh,
 				u64 new_i_size)
@@ -441,7 +441,7 @@ out:
 	return status;
 }
 
-static int ocfs2_truncate_file(struct inode *inode,
+int ocfs2_truncate_file(struct inode *inode,
 			       struct buffer_head *di_bh,
 			       u64 new_i_size)
 {
@@ -569,7 +569,7 @@ static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 	handle_t *handle = NULL;
 	struct ocfs2_alloc_context *data_ac = NULL;
 	struct ocfs2_alloc_context *meta_ac = NULL;
-	enum ocfs2_alloc_restarted why;
+	enum ocfs2_alloc_restarted why = RESTART_NONE;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_extent_tree et;
 	int did_quota = 0;
@@ -707,6 +707,13 @@ leave:
 	bh = NULL;
 
 	return status;
+}
+
+int ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
+		u32 clusters_to_add, int mark_unwritten)
+{
+	return __ocfs2_extend_allocation(inode, logical_start,
+			clusters_to_add, mark_unwritten);
 }
 
 /*
@@ -2109,6 +2116,9 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	loff_t saved_pos = 0, end;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	int full_coherency = !(osb->s_mount_opt &
+		OCFS2_MOUNT_COHERENCY_BUFFERED);
 
 	/*
 	 * We start with a read level meta lock and only jump to an ex
@@ -2197,7 +2207,16 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 		 * one node could wind up truncating another
 		 * nodes writes.
 		 */
-		if (end > i_size_read(inode)) {
+		if (end > i_size_read(inode) && !full_coherency) {
+			*direct_io = 0;
+			break;
+		}
+
+		/*
+		 * Fallback to old way if the feature bit is not set.
+		 */
+		if (end > i_size_read(inode) &&
+				!ocfs2_supports_append_dio(osb)) {
 			*direct_io = 0;
 			break;
 		}
@@ -2210,7 +2229,13 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 		 */
 		ret = ocfs2_check_range_for_holes(inode, saved_pos, count);
 		if (ret == 1) {
-			*direct_io = 0;
+			/*
+			 * Fallback to old way if the feature bit is not set.
+			 * Otherwise try dio first and then complete the rest
+			 * request through buffer io.
+			 */
+			if (!ocfs2_supports_append_dio(osb))
+				*direct_io = 0;
 			ret = 0;
 		} else if (ret < 0)
 			mlog_errno(ret);
@@ -2243,6 +2268,7 @@ static ssize_t ocfs2_file_write_iter(struct kiocb *iocb,
 	u32 old_clusters;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
+	struct address_space *mapping = file->f_mapping;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
@@ -2357,13 +2383,53 @@ relock:
 
 	iov_iter_truncate(from, count);
 	if (direct_io) {
+		loff_t endbyte;
+		ssize_t written_buffered;
 		written = generic_file_direct_write(iocb, from, *ppos);
-		if (written < 0) {
+		if (written < 0 || written == count) {
 			ret = written;
 			goto out_dio;
 		}
+
+		/*
+		 * for completing the rest of the request.
+		 */
+		*ppos += written;
+		count -= written;
+		written_buffered = generic_perform_write(file, from, *ppos);
+		/*
+		 * If generic_file_buffered_write() returned a synchronous error
+		 * then we want to return the number of bytes which were
+		 * direct-written, or the error code if that was zero. Note
+		 * that this differs from normal direct-io semantics, which
+		 * will return -EFOO even if some bytes were written.
+		 */
+		if (written_buffered < 0) {
+			ret = written_buffered;
+			goto out_dio;
+		}
+
+		iocb->ki_pos = *ppos + written_buffered;
+		/* We need to ensure that the page cache pages are written to
+		 * disk and invalidated to preserve the expected O_DIRECT
+		 * semantics.
+		 */
+		endbyte = *ppos + written_buffered - 1;
+		ret = filemap_write_and_wait_range(file->f_mapping, *ppos,
+				endbyte);
+		if (ret == 0) {
+			written += written_buffered;
+			invalidate_mapping_pages(mapping,
+					*ppos >> PAGE_CACHE_SHIFT,
+					endbyte >> PAGE_CACHE_SHIFT);
+		} else {
+			/*
+			 * We don't know how much we wrote, so just return
+			 * the number of bytes which were direct-written
+			 */
+		}
 	} else {
-		current->backing_dev_info = file->f_mapping->backing_dev_info;
+		current->backing_dev_info = inode_to_bdi(inode);
 		written = generic_perform_write(file, from, *ppos);
 		if (likely(written >= 0))
 			iocb->ki_pos = *ppos + written;
