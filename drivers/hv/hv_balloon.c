@@ -503,6 +503,8 @@ struct hv_dynmem_device {
 	 * Number of pages we have currently ballooned out.
 	 */
 	unsigned int num_pages_ballooned;
+	unsigned int num_pages_onlined;
+	unsigned int num_pages_added;
 
 	/*
 	 * State to manage the ballooning (up) operation.
@@ -556,12 +558,15 @@ static void post_status(struct hv_dynmem_device *dm);
 static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 			      void *v)
 {
+	struct memory_notify *mem = (struct memory_notify *)v;
+
 	switch (val) {
 	case MEM_GOING_ONLINE:
 		mutex_lock(&dm_device.ha_region_mutex);
 		break;
 
 	case MEM_ONLINE:
+		dm_device.num_pages_onlined += mem->nr_pages;
 	case MEM_CANCEL_ONLINE:
 		mutex_unlock(&dm_device.ha_region_mutex);
 		if (dm_device.ha_waiting) {
@@ -570,8 +575,12 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 		}
 		break;
 
-	case MEM_GOING_OFFLINE:
 	case MEM_OFFLINE:
+		mutex_lock(&dm_device.ha_region_mutex);
+		dm_device.num_pages_onlined -= mem->nr_pages;
+		mutex_unlock(&dm_device.ha_region_mutex);
+		break;
+	case MEM_GOING_OFFLINE:
 	case MEM_CANCEL_OFFLINE:
 		break;
 	}
@@ -896,6 +905,8 @@ static void hot_add_req(struct work_struct *dummy)
 	if (do_hot_add)
 		resp.page_count = process_hot_add(pg_start, pfn_cnt,
 						rg_start, rg_sz);
+
+	dm->num_pages_added += resp.page_count;
 	mutex_unlock(&dm_device.ha_region_mutex);
 #endif
 	/*
@@ -1009,17 +1020,21 @@ static void post_status(struct hv_dynmem_device *dm)
 	status.hdr.trans_id = atomic_inc_return(&trans_id);
 
 	/*
-	 * The host expects the guest to report free memory.
-	 * Further, the host expects the pressure information to
-	 * include the ballooned out pages.
-	 * For a given amount of memory that we are managing, we
-	 * need to compute a floor below which we should not balloon.
-	 * Compute this and add it to the pressure report.
+	 * The host expects the guest to report free and committed memory.
+	 * Furthermore, the host expects the pressure information to include
+	 * the ballooned out pages. For a given amount of memory that we are
+	 * managing we need to compute a floor below which we should not
+	 * balloon. Compute this and add it to the pressure report.
+	 * We also need to report all offline pages (num_pages_added -
+	 * num_pages_onlined) as committed to the host, otherwise it can try
+	 * asking us to balloon them out.
 	 */
 	status.num_avail = val.freeram;
 	status.num_committed = vm_memory_committed() +
-				dm->num_pages_ballooned +
-				compute_balloon_floor();
+		dm->num_pages_ballooned +
+		(dm->num_pages_added > dm->num_pages_onlined ?
+		 dm->num_pages_added - dm->num_pages_onlined : 0) +
+		compute_balloon_floor();
 
 	/*
 	 * If our transaction ID is no longer current, just don't
