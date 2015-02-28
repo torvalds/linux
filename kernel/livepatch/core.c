@@ -248,11 +248,12 @@ static int klp_find_external_symbol(struct module *pmod, const char *name,
 	/* first, check if it's an exported symbol */
 	preempt_disable();
 	sym = find_symbol(name, NULL, NULL, true, true);
-	preempt_enable();
 	if (sym) {
 		*addr = sym->value;
+		preempt_enable();
 		return 0;
 	}
+	preempt_enable();
 
 	/* otherwise check if it's in another .o within the patch module */
 	return klp_find_object_symbol(pmod->name, name, addr);
