@@ -2199,6 +2199,27 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	return ret;
 }
 
+/* Warn if the current kernel's uprobe implementation is old */
+static void warn_uprobe_event_compat(struct probe_trace_event *tev)
+{
+	int i;
+	char *buf = synthesize_probe_trace_command(tev);
+
+	/* Old uprobe event doesn't support memory dereference */
+	if (!tev->uprobes || tev->nargs == 0 || !buf)
+		goto out;
+
+	for (i = 0; i < tev->nargs; i++)
+		if (strglobmatch(tev->args[i].value, "[$@+-]*")) {
+			pr_warning("Please upgrade your kernel to at least "
+				   "3.14 to have access to feature %s\n",
+				   tev->args[i].value);
+			break;
+		}
+out:
+	free(buf);
+}
+
 static int __add_probe_trace_events(struct perf_probe_event *pev,
 				     struct probe_trace_event *tevs,
 				     int ntevs, bool allow_suffix)
@@ -2295,6 +2316,8 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		 */
 		allow_suffix = true;
 	}
+	if (ret == -EINVAL && pev->uprobes)
+		warn_uprobe_event_compat(tev);
 
 	/* Note that it is possible to skip all events because of blacklist */
 	if (ret >= 0 && tev->event) {
