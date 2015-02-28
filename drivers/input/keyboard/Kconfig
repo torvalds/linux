@@ -686,4 +686,15 @@ config KEYBOARD_CAP11XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called cap11xx.
 
+config KEYBOARD_BCM
+	tristate "Broadcom keypad driver"
+	depends on OF && HAVE_CLK
+	select INPUT_MATRIXKMAP
+	default ARCH_BCM_CYGNUS
+	help
+	  Say Y here if you want to use Broadcom keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bcm-keypad.
+
 endif
