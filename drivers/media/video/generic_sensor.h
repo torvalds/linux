@@ -13,7 +13,7 @@
 #include <media/soc_camera.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include "../../../arch/arm/mach-rockchip/rk30_camera.h"/*yzm*/
+#include "../../../arch/arm/mach-rockchip/rk30_camera.h"
 #include <linux/kernel.h>
 /* Camera Sensor driver */
 

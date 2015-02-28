@@ -161,13 +161,16 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CIF_F0_READY (0x01<<0)
 #define CIF_F1_READY (0x01<<1)
 
+extern unsigned long rk_cif_grf_base;
+extern unsigned long rk_cif_cru_base;
+
 #define MIN(x,y)   ((x<y) ? x: y)
 #define MAX(x,y)    ((x>y) ? x: y)
 #define RK_SENSOR_24MHZ      24*1000*1000          /* MHz */
 #define RK_SENSOR_48MHZ      48
 
-#define __raw_readl(p)		  (*(unsigned long *)(p))
-#define __raw_writel(v,p)     (*(unsigned long *)(p) = (v))
+#define __raw_readl(p)		  (*(unsigned int *)(p))
+#define __raw_writel(v,p)     (*(unsigned int *)(p) = (v))
 
 #define write_cif_reg(base,addr, val)  __raw_writel(val, addr+(base))
 #define read_cif_reg(base,addr) __raw_readl(addr+(base))
@@ -207,6 +210,11 @@ static u32 CHIP_NAME;
 #define write_cru_reg(addr, val)            __raw_writel(val, addr+RK_CRU_VIRT)
 #define read_cru_reg(addr)                  __raw_readl(addr+RK_CRU_VIRT)
 #define mask_cru_reg(addr, msk, val)        write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
+
+#define rk3368_write_cru_reg(addr, val)            __raw_writel(val, addr+rk_cif_cru_base)
+#define rk3368_read_cru_reg(addr)                  __raw_readl(addr+rk_cif_cru_base)
+#define rk3368_mask_cru_reg(addr, msk, val)        rk3368_write_cru_reg(addr,(val)|((~(msk))&rk3368_read_cru_reg(addr)))
+
 /*********yzm*********end*/
 /*
 #if defined(CONFIG_ARCH_RK2928)
@@ -282,8 +290,10 @@ static u32 CHIP_NAME;
 		 1. Support pingpong mode.
 		 2. Fix cif_clk_out cannot close which base on XIN24M and cannot turn to 0.
 		 3. Move Camera Sensor Macro from rk_camera.h to rk_camera_sensor_info.h
+*v0.1.a:
+		1. Support rk3368.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x9)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xa)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -366,7 +376,7 @@ struct rk_camera_zoominfo
 #if CAMERA_VIDEOBUF_ARM_ACCESS
 struct rk29_camera_vbinfo
 {
-    unsigned int phy_addr;
+    unsigned long phy_addr;
     void __iomem *vir_addr;
     unsigned int size;
 };
@@ -424,7 +434,7 @@ struct rk_camera_dev
     unsigned long frame_interval;
     unsigned int pixfmt;
     /*for ipp	*/
-    unsigned int vipmem_phybase;
+    unsigned long vipmem_phybase;
     void __iomem *vipmem_virbase;
     unsigned int vipmem_size;
     unsigned int vipmem_bsize;
@@ -508,12 +518,33 @@ static void rk_camera_diffchips(const char *rockchip_name)
 		CRU_CLKSEL29_CON = 0xb8;
 
 		CHIP_NAME = 3126;
+	}else if(strstr(rockchip_name,"3368"))
+	{	
+		CRU_PCLK_REG30 = 0x154;
+		ENANABLE_INVERT_PCLK_CIF0 = ((0x1<<29)|(0x1<<13));
+		DISABLE_INVERT_PCLK_CIF0  = ((0x1<<29)|(0x0<<13));
+		ENANABLE_INVERT_PCLK_CIF1 = ENANABLE_INVERT_PCLK_CIF0;
+		DISABLE_INVERT_PCLK_CIF1  = DISABLE_INVERT_PCLK_CIF0;
+
+		//CRU_CLK_OUT = 0x16c;
+		CHIP_NAME = 3368;
 	}
 }
 static inline void rk_cru_set_soft_reset(u32 idx, bool on , u32 RK_CRU_SOFTRST_CON)
 {
-	void __iomem *reg = RK_CRU_VIRT + RK_CRU_SOFTRST_CON;
-	u32 val = on ? 0x10001U << 14 : 0x10000U << 14;
+	u32 val = 0;
+	void __iomem *reg;
+	
+	if(CHIP_NAME == 3368)
+		reg = (void*)(rk_cif_cru_base + RK_CRU_SOFTRST_CON);
+	else
+		reg = (void*)(RK_CRU_VIRT + RK_CRU_SOFTRST_CON);
+
+	if(CHIP_NAME == 3126){
+		val = on ? 0x10001U << 14 : 0x10000U << 14;
+	}else if(CHIP_NAME == 3368){
+		val = on ? 0x10001U << 8 : 0x10000U << 8;
+	}
 	writel_relaxed(val, reg);
 	dsb();
 }
@@ -525,6 +556,8 @@ static void rk_camera_cif_reset(struct rk_camera_dev *pcdev, int only_rst)
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 	if(strstr(pcdev->pdata->rockchip_name,"3128")||strstr(pcdev->pdata->rockchip_name,"3126"))
 		RK_CRU_SOFTRST_CON = RK312X_CRU_SOFTRSTS_CON(6);
+	else if(strstr(pcdev->pdata->rockchip_name,"3368"))
+		RK_CRU_SOFTRST_CON = RK3368_CRU_SOFTRSTS_CON(6);
 	
 	if (only_rst == true) {
         rk_cru_set_soft_reset(0, true ,RK_CRU_SOFTRST_CON);
@@ -737,7 +770,7 @@ out:
 
 static inline void rk_videobuf_capture(struct videobuf_buffer *vb,struct rk_camera_dev *rk_pcdev, int fmt_ready)
 {
-	unsigned int y_addr,uv_addr;
+	unsigned long y_addr,uv_addr;
 	struct rk_camera_dev *pcdev = rk_pcdev;
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
@@ -1302,8 +1335,9 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
     }
    
     //spin_lock(&clk->lock);
-    if (on && !clk->on) {  
-        clk_prepare_enable(clk->pd_cif);    /*yzm*/
+    if (on && !clk->on) {
+		if(CHIP_NAME != 3368)
+        	clk_prepare_enable(clk->pd_cif);    /*yzm*/
         clk_prepare_enable(clk->aclk_cif);
     	clk_prepare_enable(clk->hclk_cif);
     	clk_prepare_enable(clk->cif_clk_in);
@@ -1321,7 +1355,8 @@ static int rk_camera_mclk_ctrl(int cif_idx, int on, int clk_rate)
 			write_cru_reg(CRU_CLK_OUT, 0x00800080);
 		}
     	clk_disable_unprepare(clk->cif_clk_out);
-    	clk_disable_unprepare(clk->pd_cif);
+		if(CHIP_NAME != 3368)
+	    	clk_disable_unprepare(clk->pd_cif);
         clk->on = false;
     }
     //spin_unlock(&clk->lock);
@@ -1587,15 +1622,27 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
     
     if (common_flags & V4L2_MBUS_PCLK_SAMPLE_FALLING) {
        	if(IS_CIF0()) {
-    		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF0);
+			if(CHIP_NAME == 3368)
+    			rk3368_write_cru_reg(CRU_PCLK_REG30, rk3368_read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF0);
+			else
+				write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF0);
         } else {
-    		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF1);
+        	if(CHIP_NAME == 3368)
+    			rk3368_write_cru_reg(CRU_PCLK_REG30, rk3368_read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF1);
+			else
+				write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF1);
         }
     } else {
 		if(IS_CIF0()){
-			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFFEFF ) | DISABLE_INVERT_PCLK_CIF0);
+			if(CHIP_NAME == 3368)
+				rk3368_write_cru_reg(CRU_PCLK_REG30, (rk3368_read_cru_reg(CRU_PCLK_REG30) & 0xFFFFEFF ) | DISABLE_INVERT_PCLK_CIF0);
+			else
+				write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFFEFF ) | DISABLE_INVERT_PCLK_CIF0);
         } else {
-			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFEFFF) | DISABLE_INVERT_PCLK_CIF1);
+        	if(CHIP_NAME == 3368)
+				rk3368_write_cru_reg(CRU_PCLK_REG30, (rk3368_read_cru_reg(CRU_PCLK_REG30) & 0xFFFEFFF) | DISABLE_INVERT_PCLK_CIF1);
+			else
+				write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFEFFF) | DISABLE_INVERT_PCLK_CIF1);
         }
     }
     
@@ -2511,25 +2558,28 @@ static void rk_camera_reinit_work(struct work_struct *work)
     /*tmp_soc_cam_desc = to_soc_camera_link(pcdev->icd);*/ /*yzm*/
 	/*dump regs*/
 	{
-		RKCAMERA_TR("CIF_CIF_CTRL = 0x%lx\n",read_cif_reg(pcdev->base,CIF_CIF_CTRL));
-		RKCAMERA_TR("CIF_CIF_INTEN = 0x%lx\n",read_cif_reg(pcdev->base,CIF_CIF_INTEN));
-		RKCAMERA_TR("CIF_CIF_INTSTAT = 0x%lx\n",read_cif_reg(pcdev->base,CIF_CIF_INTSTAT));
-		RKCAMERA_TR("CIF_CIF_FOR = 0x%lx\n",read_cif_reg(pcdev->base,CIF_CIF_FOR));
-		RKCAMERA_TR("CIF_CIF_CROP = 0x%lx\n",read_cif_reg(pcdev->base,CIF_CIF_CROP));
-		RKCAMERA_TR("CIF_CIF_SET_SIZE = 0x%lx\n",read_cif_reg(pcdev->base,CIF_CIF_SET_SIZE));
-		RKCAMERA_TR("CIF_CIF_SCL_CTRL = 0x%lx\n",read_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL));
-		RKCAMERA_TR("CRU_PCLK_REG30 = 0X%lx\n",read_cru_reg(CRU_PCLK_REG30));
-		RKCAMERA_TR("CIF_CIF_LAST_LINE = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_LAST_LINE));
+		RKCAMERA_TR("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CTRL));
+		RKCAMERA_TR("CIF_CIF_INTEN = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_INTEN));
+		RKCAMERA_TR("CIF_CIF_INTSTAT = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_INTSTAT));
+		RKCAMERA_TR("CIF_CIF_FOR = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_FOR));
+		RKCAMERA_TR("CIF_CIF_CROP = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CROP));
+		RKCAMERA_TR("CIF_CIF_SET_SIZE = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_SET_SIZE));
+		RKCAMERA_TR("CIF_CIF_SCL_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL));
+		if(CHIP_NAME == 3368)
+			RKCAMERA_TR("CRU_PCLK_REG30 = 0X%x\n",rk3368_read_cru_reg(CRU_PCLK_REG30));
+		else
+			RKCAMERA_TR("CRU_PCLK_REG30 = 0X%x\n",read_cru_reg(CRU_PCLK_REG30));
+		RKCAMERA_TR("CIF_CIF_LAST_LINE = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LAST_LINE));
 		
-		RKCAMERA_TR("CIF_CIF_LAST_PIX = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_LAST_PIX));
-		RKCAMERA_TR("CIF_CIF_VIR_LINE_WIDTH = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH));
-    	RKCAMERA_TR("CIF_CIF_LINE_NUM_ADDR = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_LINE_NUM_ADDR));
-    	RKCAMERA_TR("CIF_CIF_FRM0_ADDR_Y = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_Y));
-    	RKCAMERA_TR("CIF_CIF_FRM0_ADDR_UV = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_UV));
-    	RKCAMERA_TR("CIF_CIF_FRAME_STATUS = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS));
-    	RKCAMERA_TR("CIF_CIF_SCL_VALID_NUM = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_SCL_VALID_NUM));
-    	RKCAMERA_TR("CIF_CIF_CUR_DST = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_CUR_DST));
-    	RKCAMERA_TR("CIF_CIF_LINE_NUM_ADDR = 0X%lx\n",read_cif_reg(pcdev->base,CIF_CIF_LINE_NUM_ADDR));
+		RKCAMERA_TR("CIF_CIF_LAST_PIX = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LAST_PIX));
+		RKCAMERA_TR("CIF_CIF_VIR_LINE_WIDTH = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH));
+    	RKCAMERA_TR("CIF_CIF_LINE_NUM_ADDR = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LINE_NUM_ADDR));
+    	RKCAMERA_TR("CIF_CIF_FRM0_ADDR_Y = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_Y));
+    	RKCAMERA_TR("CIF_CIF_FRM0_ADDR_UV = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_UV));
+    	RKCAMERA_TR("CIF_CIF_FRAME_STATUS = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS));
+    	RKCAMERA_TR("CIF_CIF_SCL_VALID_NUM = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_SCL_VALID_NUM));
+    	RKCAMERA_TR("CIF_CIF_CUR_DST = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_CUR_DST));
+    	RKCAMERA_TR("CIF_CIF_LINE_NUM_ADDR = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LINE_NUM_ADDR));
 	}
 	
     ctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);          /*ddl@rock-chips.com v0.3.0x13*/
@@ -2736,7 +2786,7 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 		pcdev->active_buf = 0;
         INIT_LIST_HEAD(&pcdev->capture);
     }
-	RKCAMERA_DG1("s_stream: enable : 0x%x , CIF_CIF_CTRL = 0x%lx\n",enable,read_cif_reg(pcdev->base,CIF_CIF_CTRL));
+	RKCAMERA_DG1("s_stream: enable : 0x%x , CIF_CIF_CTRL = 0x%x\n",enable,read_cif_reg(pcdev->base,CIF_CIF_CTRL));
 	return 0;
 }
 int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frmivalenum *fival)
@@ -3041,7 +3091,10 @@ static int rk_camera_cif_iomux(struct device *dev)
     char state_str[20] = {0};
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
-    strcpy(state_str,"cif_pin_jpe");
+	if(CHIP_NAME == 3368)
+		strcpy(state_str,"cif_pin_all");
+	else
+	    strcpy(state_str,"cif_pin_jpe");
 
 	/*__raw_writel(((1<<1)|(1<<(1+16))),RK_GRF_VIRT+0x0380);*/
 
@@ -3131,7 +3184,8 @@ static int rk_camera_probe(struct platform_device *pdev)
 	if (IS_CIF0()) {
 		debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$/is_cif0\n");
         clk = &cif_clk[0];
-        cif_clk[0].pd_cif = devm_clk_get(dev_cif, "pd_cif0");
+		if(CHIP_NAME != 3368)
+	        cif_clk[0].pd_cif = devm_clk_get(dev_cif, "pd_cif0");
         cif_clk[0].aclk_cif = devm_clk_get(dev_cif, "aclk_cif0");
         cif_clk[0].hclk_cif = devm_clk_get(dev_cif, "hclk_cif0");
         cif_clk[0].cif_clk_in = devm_clk_get(dev_cif, "cif0_in");
@@ -3141,7 +3195,8 @@ static int rk_camera_probe(struct platform_device *pdev)
         rk_camera_cif_iomux(dev_cif);/*yzm*/
     } else {
     	clk = &cif_clk[1];
-        cif_clk[1].pd_cif = devm_clk_get(dev_cif, "pd_cif0");/*cif0  only yzm*/
+		if(CHIP_NAME != 3368)
+	        cif_clk[1].pd_cif = devm_clk_get(dev_cif, "pd_cif0");/*cif0  only yzm*/
         cif_clk[1].aclk_cif = devm_clk_get(dev_cif, "aclk_cif0");
         cif_clk[1].hclk_cif = devm_clk_get(dev_cif, "hclk_cif0");
         cif_clk[1].cif_clk_in = devm_clk_get(dev_cif, "cif0_in");
@@ -3276,8 +3331,10 @@ exit_ioremap_vip:
     release_mem_region(res->start, res->end - res->start + 1);
 exit_reqmem_vip:
     if (clk) {
-        if (clk->pd_cif)
-            clk_put(clk->pd_cif);
+		if(CHIP_NAME != 3368){
+	        if (clk->pd_cif)
+	            clk_put(clk->pd_cif);
+		}
         if (clk->aclk_cif)
             clk_put(clk->aclk_cif);
         if (clk->hclk_cif)
