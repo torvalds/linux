@@ -548,22 +548,21 @@ endif
 disable-python = $(eval $(disable-python_code))
 define disable-python_code
   CFLAGS += -DNO_LIBPYTHON
-  $(if $(1),$(warning No $(1) was found))
-  $(warning Python support will not be built)
+  $(warning $1)
   NO_LIBPYTHON := 1
 endef
 
 ifdef NO_LIBPYTHON
-  $(call disable-python)
+  $(call disable-python,Python support disabled by user)
 else
 
   ifndef PYTHON
-    $(call disable-python,python interpreter)
+    $(call disable-python,No python interpreter was found: disables Python support - please install python-devel/python-dev)
   else
     PYTHON_WORD := $(call shell-wordify,$(PYTHON))
 
     ifndef PYTHON_CONFIG
-      $(call disable-python,python-config tool)
+      $(call disable-python,No 'python-config' tool was found: disables Python support - please install python-devel/python-dev)
     else
 
       PYTHON_CONFIG_SQ := $(call shell-sq,$(PYTHON_CONFIG))
@@ -575,7 +574,7 @@ else
       FLAGS_PYTHON_EMBED := $(PYTHON_EMBED_CCOPTS) $(PYTHON_EMBED_LDOPTS)
 
       ifneq ($(feature-libpython), 1)
-        $(call disable-python,Python.h (for Python 2.x))
+        $(call disable-python,No 'Python.h' (for Python 2.x support) was found: disables Python support - please install python-devel/python-dev)
       else
 
         ifneq ($(feature-libpython-version), 1)
