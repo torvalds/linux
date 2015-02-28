@@ -197,13 +197,19 @@ static void batadv_neigh_node_free_rcu(struct rcu_head *rcu)
 	struct hlist_node *node_tmp;
 	struct batadv_neigh_node *neigh_node;
 	struct batadv_neigh_ifinfo *neigh_ifinfo;
+	struct batadv_algo_ops *bao;
 
 	neigh_node = container_of(rcu, struct batadv_neigh_node, rcu);
+	bao = neigh_node->orig_node->bat_priv->bat_algo_ops;
 
 	hlist_for_each_entry_safe(neigh_ifinfo, node_tmp,
 				  &neigh_node->ifinfo_list, list) {
 		batadv_neigh_ifinfo_free_ref_now(neigh_ifinfo);
 	}
+
+	if (bao->bat_neigh_free)
+		bao->bat_neigh_free(neigh_node);
+
 	batadv_hardif_free_ref_now(neigh_node->if_incoming);
 
 	kfree(neigh_node);
