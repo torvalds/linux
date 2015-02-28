@@ -58,7 +58,7 @@ struct kuc_hdr {
 	__u8  kuc_flags;
 	__u16 kuc_msgtype;    /* Message type or opcode, transport-specific */
 	__u16 kuc_msglen;     /* Including header */
-} __attribute__((aligned(sizeof(__u64))));
+} __aligned(sizeof(__u64));
 
 #define KUC_CHANGELOG_MSG_MAXSIZE (sizeof(struct kuc_hdr)+CR_MAXSIZE)
 
