@@ -636,13 +636,18 @@ int vmbus_sendpacket(struct vmbus_channel *channel, void *buffer,
 EXPORT_SYMBOL(vmbus_sendpacket);
 
 /*
- * vmbus_sendpacket_pagebuffer - Send a range of single-page buffer
- * packets using a GPADL Direct packet type.
+ * vmbus_sendpacket_pagebuffer_ctl - Send a range of single-page buffer
+ * packets using a GPADL Direct packet type. This interface allows you
+ * to control notifying the host. This will be useful for sending
+ * batched data. Also the sender can control the send flags
+ * explicitly.
  */
-int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
+int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 				     struct hv_page_buffer pagebuffers[],
 				     u32 pagecount, void *buffer, u32 bufferlen,
-				     u64 requestid)
+				     u64 requestid,
+				     u32 flags,
+				     bool kick_q)
 {
 	int ret;
 	int i;
@@ -670,7 +675,7 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 
 	/* Setup the descriptor */
 	desc.type = VM_PKT_DATA_USING_GPA_DIRECT;
-	desc.flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	desc.flags = flags;
 	desc.dataoffset8 = descsize >> 3; /* in 8-bytes grandularity */
 	desc.length8 = (u16)(packetlen_aligned >> 3);
 	desc.transactionid = requestid;
@@ -691,10 +696,26 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if (ret == 0 && signal)
+	if ((ret == 0) && kick_q && signal)
 		vmbus_setevent(channel);
 
 	return ret;
+}
+
+/*
+ * vmbus_sendpacket_pagebuffer - Send a range of single-page buffer
+ * packets using a GPADL Direct packet type.
+ */
+int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
+				     struct hv_page_buffer pagebuffers[],
+				     u32 pagecount, void *buffer, u32 bufferlen,
+				     u64 requestid)
+{
+	u32 flags = VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED;
+	return vmbus_sendpacket_pagebuffer_ctl(channel, pagebuffers, pagecount,
+					       buffer, bufferlen, requestid,
+					       flags, true);
+
 }
 EXPORT_SYMBOL_GPL(vmbus_sendpacket_pagebuffer);
 

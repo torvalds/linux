@@ -874,6 +874,15 @@ extern int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 					    u32 bufferlen,
 					    u64 requestid);
 
+extern int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
+					   struct hv_page_buffer pagebuffers[],
+					   u32 pagecount,
+					   void *buffer,
+					   u32 bufferlen,
+					   u64 requestid,
+					   u32 flags,
+					   bool kick_q);
+
 extern int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 					struct hv_multipage_buffer *mpb,
 					void *buffer,
