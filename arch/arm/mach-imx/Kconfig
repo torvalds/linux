@@ -636,7 +636,7 @@ config SOC_VF610
 	select PL310_ERRATA_769419 if CACHE_L2X0
 
 	help
-	  This enable support for Freescale Vybrid VF610 processor.
+	  This enables support for Freescale Vybrid VF610 processor.
 
 choice
 	prompt "Clocksource for scheduler clock"
@@ -666,7 +666,7 @@ config SOC_LS1021A
 	select ZONE_DMA if ARM_LPAE
 
 	help
-	  This enable support for Freescale LS1021A processor.
+	  This enables support for Freescale LS1021A processor.
 
 endif
 
