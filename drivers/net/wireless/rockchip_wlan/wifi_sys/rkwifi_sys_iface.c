@@ -17,148 +17,95 @@ static ssize_t wifi_chip_read(struct class *cls, struct class_attribute *attr, c
     int count = 0;
     int type = get_wifi_chip_type();
 
-if(type == WIFI_RTKWIFI) {
-#ifdef CONFIG_RTL8192CU
-    count = sprintf(_buf, "%s", "RTL8188CU");
-    printk("Current WiFi chip is RTL8188CU.\n");
-#endif
+	if(type == WIFI_RK901) {
+	    count = sprintf(_buf, "%s", "APRK901");
+	    printk("Current WiFi chip is APRK901.\n");
+	}
 
-#ifdef CONFIG_RTL8192DU
-    count = sprintf(_buf, "%s", "RTL8192DU");
-    printk("Current WiFi chip is RTL8192DU.\n");
-#endif
+	if(type == WIFI_RK903) {
+	    count = sprintf(_buf, "%s", "APRK903");
+	    printk("Current WiFi chip is APRK903.\n");
+	}
+		
+	if(type == WIFI_AP6181) {
+	    count = sprintf(_buf, "%s", "AP6181");
+	    printk("Current WiFi chip is AP6181.\n");
+	}
 
-#ifdef CONFIG_RTL8188EU
-    count = sprintf(_buf, "%s", "RTL8188EU");
-    printk("Current WiFi chip is RTL8188EU.\n");
-#endif
+	if(type == WIFI_AP6210) {
+	    count = sprintf(_buf, "%s", "AP6210");
+	    printk("Current WiFi chip is AP6210.\n");
+	}
+	
+	if(type == WIFI_AP6234) {
+	    count = sprintf(_buf, "%s", "AP6234");
+	    printk("Current WiFi chip is AP6234.\n");
+	}
+	
+	if(type == WIFI_AP6330) {
+	    count = sprintf(_buf, "%s", "AP6330");
+	    printk("Current WiFi chip is AP6330.\n");
+	}
+	
+	if(type == WIFI_AP6335) {
+	    count = sprintf(_buf, "%s", "AP6335");
+	    printk("Current WiFi chip is AP6335.\n");
+	}
 
-#ifdef CONFIG_RTL8723AU
-    count = sprintf(_buf, "%s", "RTL8723AU");
-    printk("Current WiFi chip is RTL8723AU.\n");
-#endif
+	if(type == WIFI_AP6441) {
+	    count = sprintf(_buf, "%s", "AP6441");
+	    printk("Current WiFi chip is AP6441.\n");
+	}
 
-#ifdef CONFIG_RTL8723BU
-    count = sprintf(_buf, "%s", "RTL8723BU");
-    printk("Current WiFi chip is RTL8723BU.\n");
-#endif
+	if(type == WIFI_AP6476) {
+	    count = sprintf(_buf, "%s", "AP6476");
+	    printk("Current WiFi chip is AP6476.\n");
+	}
 
-#ifdef CONFIG_RTL8723BS
-    count = sprintf(_buf, "%s", "RTL8723BS");
-    printk("Current WiFi chip is RTL8723BS.\n");
-#endif
+	if(type == WIFI_AP6493) {
+	    count = sprintf(_buf, "%s", "AP6493");
+	    printk("Current WiFi chip is AP6493.\n");
+	}
 
-#ifdef CONFIG_RTL8723BS_VQ0
-    count = sprintf(_buf, "%s", "RTL8723BS");
-    printk("Current WiFi chip is RTL8723BS.\n");
-#endif
+	if(type == WIFI_RTL8188EU) {
+	    count = sprintf(_buf, "%s", "RTL8188EU");
+	    printk("Current WiFi chip is RTL8188EU.\n");
+	}
+	
+	if(type == WIFI_RTL8723BS) {
+	    count = sprintf(_buf, "%s", "RTL8723BS");
+	    printk("Current WiFi chip is RTL8723BS.\n");
+	}
 
-#ifdef CONFIG_RTL8189ES
-    count = sprintf(_buf, "%s", "RTL8189ES");
-    printk("Current WiFi chip is RTL8189ES.\n");
-#endif
+	if(type == WIFI_RTL8723AS) {
+	    count = sprintf(_buf, "%s", "RTL8723AS");
+	    printk("Current WiFi chip is RTL8723AS.\n");
+	}	
+	
+	if(type == WIFI_RTL8723BS_VQ0) {
+	    count = sprintf(_buf, "%s", "RTL8723BS_VQ0");
+	    printk("Current WiFi chip is RTL8723BS_VQ0.\n");
+	}		
+	
+	if(type == WIFI_RTL8723BU) {
+	    count = sprintf(_buf, "%s", "RTL8723BU");
+	    printk("Current WiFi chip is RTL8723BU.\n");
+	}
 
-#ifdef CONFIG_RTL8812AU
-    count = sprintf(_buf, "%s", "RTL8812AU");
-    printk("Current WiFi chip is RTL8812AU.\n");
-#endif
+	if(type == WIFI_RTL8723AU) {
+	    count = sprintf(_buf, "%s", "RTL8723AU");
+	    printk("Current WiFi chip is RTL8723AU.\n");
+	}							
 
+	if(type == WIFI_RTL8189ES) {
+	    count = sprintf(_buf, "%s", "RTL8189ES");
+	    printk("Current WiFi chip is RTL8189ES.\n");
+	}	
 
-}
-
-if(type == WIFI_BCMWIFI) {
-#ifdef CONFIG_BCM4330
-    count = sprintf(_buf, "%s", "BCM4330");
-    printk("Current WiFi chip is BCM4330.\n");
-#endif
-
-#ifdef CONFIG_RK901
-    count = sprintf(_buf, "%s", "RK901");
-    printk("Current WiFi chip is RK901.\n");
-#endif
-
-#ifdef CONFIG_RK903
-    count = sprintf(_buf, "%s", "RK903");
-    printk("Current WiFi chip is RK903.\n");
-#endif
-
-#ifdef CONFIG_AP6181
-    count = sprintf(_buf, "%s", "RK901");
-    printk("Current WiFi chip is AP6181.\n");
-#endif
-
-#ifdef CONFIG_AP6210
-    count = sprintf(_buf, "%s", "RK901");
-    printk("Current WiFi chip is AP6210.\n");
-#endif
-
-#ifdef CONFIG_AP6234
-    count = sprintf(_buf, "%s", "AP6234");
-    printk("Current WiFi chip is AP6234.\n");
-#endif
-
-#ifdef CONFIG_AP6330
-    count = sprintf(_buf, "%s", "RK903");
-    printk("Current WiFi chip is AP6330.\n");
-#endif
-
-#ifdef CONFIG_AP6335
-    count = sprintf(_buf, "%s", "AP6335");
-    printk("Current WiFi chip is AP6335.\n");
-#endif
-
-#ifdef CONFIG_AP6441
-    count = sprintf(_buf, "%s", "AP6441");
-    printk("Current WiFi chip is AP6441.\n");
-#endif
-
-#ifdef CONFIG_AP6476
-    count = sprintf(_buf, "%s", "RK901");
-    printk("Current WiFi chip is AP6476.\n");
-#endif
-
-#ifdef CONFIG_AP6493
-    count = sprintf(_buf, "%s", "RK903");
-    printk("Current WiFi chip is AP6493.\n");
-#endif
-
-#ifdef CONFIG_GB86302I
-    count = sprintf(_buf, "%s", "RK903");
-    printk("Current WiFi chip is GB86302I.\n");
-#endif
-}
-
-#ifdef CONFIG_MTK_COMBO
-	count = sprintf(_buf, "%s", "MT6620");
-	printk("Current WiFi chip is MT6620.\n");
-#endif
-
-#ifdef CONFIG_MT5931
-    count = sprintf(_buf, "%s", "MT5931");
-    printk("Current WiFi chip is MT5931.\n");
-#endif
-
-#ifdef CONFIG_MT5931_MT6622
-    count = sprintf(_buf, "%s", "MT5931");
-    printk("Current WiFi chip is MT5931.\n");
-#endif
-
-#ifdef CONFIG_MTK_MT5931
-    count = sprintf(_buf, "%s", "MT5931");
-    printk("Current WiFi chip is MT5931.\n");
-#endif
-
-#ifdef CONFIG_MT7601
-    count = sprintf(_buf, "%s", "MT7601");
-    printk("Current WiFi chip is MT7601.\n");
-#endif
-
-if(type == WIFI_ESP8089) {
-#ifdef CONFIG_ESP8089
-    count = sprintf(_buf, "%s", "ESP8089");
-    printk("Current WiFi chip is ESP8089.\n");
-#endif
-}
+	if(type == WIFI_ESP8089) {
+	    count = sprintf(_buf, "%s", "ESP8089");
+	    printk("Current WiFi chip is ESP8089.\n");
+	}
 
     return count;
 }
@@ -197,25 +144,25 @@ static int wifi_init_exit_module(int enable)
 {
     int ret = 0;
     int type = get_wifi_chip_type();
-#ifdef CONFIG_RKWIFI
-    if (type == WIFI_BCMWIFI) {
+//#ifdef CONFIG_RKWIFI
+    if (type < WIFI_AP6XXX_SERIES) {
         if (enable > 0)
             ret = rockchip_wifi_init_module_rkwifi();
         else
             rockchip_wifi_exit_module_rkwifi();
         return ret;
     }
-#endif
-#ifdef CONFIG_RTL_WIRELESS_SOLUTION
-    if (type == WIFI_RTKWIFI) {
+//#endif
+//#ifdef CONFIG_RTL_WIRELESS_SOLUTION
+    if (type < WIFI_RTL_SERIES) {
         if (enable > 0) 
             ret = rockchip_wifi_init_module_rtkwifi();
         else
             rockchip_wifi_exit_module_rtkwifi();
         return ret;
     }
-#endif
-#ifdef CONFIG_ESP8089
+//#endif
+//#ifdef CONFIG_ESP8089
     if (type == WIFI_ESP8089) {
         if (enable > 0)  
             ret = rockchip_wifi_init_module_esp8089();
@@ -223,16 +170,7 @@ static int wifi_init_exit_module(int enable)
             rockchip_wifi_exit_module_esp8089();
         return ret;
     }
-#endif
-
-#if !defined(CONFIG_RKWIFI) && !defined(CONFIG_RTL_WIRELESS_SOLUTION) && !defined(CONFIG_ESP8089)
-    if (type >= 0) {
-        if (enable > 0)
-            ret = rockchip_wifi_init_module();
-        else
-            rockchip_wifi_exit_module();
-    }
-#endif
+//#endif
 
     return ret;
 }

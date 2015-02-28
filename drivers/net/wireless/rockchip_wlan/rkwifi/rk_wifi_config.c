@@ -10,6 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/rfkill-wlan.h>
 
 /* 
  * Set Firmware Path
@@ -17,22 +18,20 @@
  
 #define ANDROID_FW_PATH "/system/etc/firmware/"
 
+extern int get_wifi_chip_type(void);
 int rkwifi_set_firmware(char *fw, char *nvram)
 {
-#ifdef CONFIG_RK903
+    int chip = get_wifi_chip_type();
+    
+if (chip == WIFI_RK903) {
 	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903b2.bin");
-#ifdef CONFIG_RKWIFI_26M
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903_26M.cal");
-#endif
-#ifdef CONFIG_RKWIFI_37_4M	
-	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903.cal");
-#endif	
-#endif	
+}
 
-#ifdef CONFIG_RK901
+if (chip == WIFI_RK901) {
 	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK901.txt");
-#endif
+}
 
 #ifdef CONFIG_BCM4330
 	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_bcm4330.bin");
@@ -43,50 +42,45 @@ int rkwifi_set_firmware(char *fw, char *nvram)
 #endif
 #endif
 
-#ifdef CONFIG_AP6181
+if (chip == WIFI_AP6181) {
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6181.txt");
-#endif
+}
 
-#ifdef CONFIG_AP6210
+if (chip == WIFI_AP6210) {
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
-#ifdef CONFIG_RKWIFI_26M
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6210.txt");
-#endif
-#ifdef CONFIG_RKWIFI_24M
-	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6210_24M.txt");
-#endif
-#endif
+}
 
-#ifdef CONFIG_AP6234
+if (chip == WIFI_AP6234) {
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_bcm43341b0_ag.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6234.txt");
-#endif
+}
 
-#ifdef CONFIG_AP6441
+if (chip == WIFI_AP6441) {
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_bcm43341b0_ag.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6441.txt");
-#endif
+}
 
-#ifdef CONFIG_AP6335
+if (chip == WIFI_AP6335) {
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_bcm4339a0_ag.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6335.txt");
-#endif
+}
 
-#ifdef CONFIG_AP6476
+if (chip == WIFI_AP6476) {
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6476.txt");
-#endif
+}
 
-#ifdef CONFIG_AP6493
+if (chip == WIFI_AP6493) {
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6493.txt");
-#endif
+}
 
-#ifdef CONFIG_AP6330
+if (chip == WIFI_AP6330) {
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903_ag.bin");
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_AP6330.txt");
-#endif
+}
 
 #ifdef CONFIG_GB86302I
     sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903_ag.bin");
