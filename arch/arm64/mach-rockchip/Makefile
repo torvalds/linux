@@ -10,3 +10,4 @@ obj-$(CONFIG_BLOCK_RKNAND) += ../../arm/mach-rockchip/rknandbase.o
 obj-$(CONFIG_RK_PL330_DMA_TEST) += ../../arm/mach-rockchip/dma_memcpy_test.o
 obj-$(CONFIG_RK_VCODEC) += ../../arm/mach-rockchip/vcodec_service.o
 obj-$(CONFIG_RK_PM_TESTS) += ../../arm/mach-rockchip/rk_pm_tests/
+obj-$(CONFIG_ROCK_CHIP_SOC_CAMERA) += ../../arm/mach-rockchip/rk_camera.o

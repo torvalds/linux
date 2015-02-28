@@ -6,6 +6,7 @@
 #include "../../../arm/boot/dts/vtl_ts_sdk8846.dtsi"
 //#include "../../../arm/boot/dts/lcd-b101ew05.dtsi"
 #include "../../../arm/boot/dts/lcd-F402.dtsi"
+#include "rk3368-cif-sensor.dtsi"
 
 / {
 	chosen {
@@ -813,14 +814,15 @@
 &ion_cma {
        reg = <0x00000000 0x28000000>; /* 640MB */
 };
+
+&rk3368_cif_sensor{
+	status = "okay";
+};
+
 /*
 &dwc_control_usb {
 	usb_uart {
 		status = "disabled";
 	};
-};
-
-&rk3288_cif_sensor{
-	status = "okay";
 };
 */

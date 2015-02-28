@@ -1166,8 +1166,25 @@
 		rockchip,isp,mipiphy = <2>;
 		rockchip,isp,cifphy = <1>;
 		rockchip,isp,mipiphy1,reg = <0xff964000 0x4000>;
+		rockchip,isp,csiphy,reg = <0xff96C000 0x4000>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
 		rockchip,gpios = <&gpio3 GPIO_C4 GPIO_ACTIVE_HIGH>;
-		rockchip,isp,iommu_enable = <1>;
+		rockchip,isp,iommu_enable = <0>;
+		status = "okay";
+	};
+
+	cif: cif@ff950000 {
+		compatible = "rockchip,cif";
+		reg = <0x0 0xff950000 0x0 0x10000>;
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		//clocks = <&pd_isp>,<&clk_gates15 14>,<&clk_gates15 15>,<&pclkin_vip>,<&clk_gates16 0>,<&clk_cif_out>;
+		clocks = <&clk_gates16 11>,<&clk_gates16 12>,<&pclkin_vip>,<&clk_vip>;
+		clock-names = "aclk_cif0","hclk_cif0","cif0_in","cif0_out";
+		pinctrl-names = "cif_pin_all";
+		pinctrl-0 = <&cif_clkout &isp_dvp_d2d9 &isp_dvp_d10d11>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
 		status = "okay";
 	};
 

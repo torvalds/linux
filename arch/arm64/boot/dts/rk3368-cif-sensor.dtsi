@@ -1,0 +1,30 @@
+#include "rk3368.dtsi"
+#include "../../../arm/mach-rockchip/rk_camera_sensor_info.h"
+
+/{
+	rk3368_cif_sensor: rk3368_cif_sensor{
+			compatible = "rockchip,sensor";
+			status = "disabled";
+
+	ov2659{
+		is_front = <0>;
+		rockchip,power = <&gpio0 GPIO_D0 GPIO_ACTIVE_HIGH>;
+		rockchip,powerdown = <&gpio1 GPIO_B4 GPIO_ACTIVE_HIGH>;
+		pwdn_active = <ov2659_PWRDN_ACTIVE>;
+		pwr_active = <PWR_ACTIVE_HIGH>;
+		mir = <0>;
+		flash_attach = <1>;
+		//rockchip,flash = <>;
+		flash_active = <1>;
+		resolution = <ov2659_FULL_RESOLUTION>;
+		powerup_sequence = <ov2659_PWRSEQ>;
+		orientation = <0>;
+		i2c_add = <ov2659_I2C_ADDR>;
+		i2c_rata = <100000>;
+		i2c_chl = <3>;
+		cif_chl = <0>;
+		mclk_rate = <24>;
+		};
+	};
+};
+
