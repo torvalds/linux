@@ -225,9 +225,8 @@ static void dsps_musb_enable(struct musb *musb)
 
 	dsps_writel(reg_base, wrp->epintr_set, epmask);
 	dsps_writel(reg_base, wrp->coreintr_set, coremask);
-	/* Force the DRVVBUS IRQ so we can start polling for ID change. */
-	dsps_writel(reg_base, wrp->coreintr_set,
-		    (1 << wrp->drvvbus) << wrp->usb_shift);
+	/* start polling for ID change. */
+	mod_timer(&glue->timer, jiffies + msecs_to_jiffies(wrp->poll_timeout));
 	dsps_musb_try_idle(musb, 0);
 }
 
