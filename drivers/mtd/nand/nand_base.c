@@ -968,7 +968,7 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 			__func__, (unsigned long long)ofs, len);
 
 	if (check_offs_len(mtd, ofs, len))
-		ret = -EINVAL;
+		return -EINVAL;
 
 	/* Align to last block address if size addresses end of the device */
 	if (ofs + len == mtd->size)
@@ -1031,7 +1031,7 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 			__func__, (unsigned long long)ofs, len);
 
 	if (check_offs_len(mtd, ofs, len))
-		ret = -EINVAL;
+		return -EINVAL;
 
 	nand_get_device(mtd, FL_LOCKING);
 
