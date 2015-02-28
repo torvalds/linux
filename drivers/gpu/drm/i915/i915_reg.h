@@ -3019,7 +3019,7 @@ enum skl_disp_power_wells {
 
 /* Video Data Island Packet control */
 #define VIDEO_DIP_DATA		0x61178
-/* Read the description of VIDEO_DIP_DATA (before Haswel) or VIDEO_DIP_ECC
+/* Read the description of VIDEO_DIP_DATA (before Haswell) or VIDEO_DIP_ECC
  * (Haswell and newer) to see which VIDEO_DIP_DATA byte corresponds to each byte
  * of the infoframe structure specified by CEA-861. */
 #define   VIDEO_DIP_DATA_SIZE	32
