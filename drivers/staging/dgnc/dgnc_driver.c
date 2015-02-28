@@ -362,7 +362,7 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 
 		spin_lock_irqsave(&dgnc_global_lock, flags);
 		brd->msgbuf = NULL;
-		printk("%s", brd->msgbuf_head);
+		dev_dbg(&brd->pdev->dev, "%s\n", brd->msgbuf_head);
 		kfree(brd->msgbuf_head);
 		brd->msgbuf_head = NULL;
 		spin_unlock_irqrestore(&dgnc_global_lock, flags);
@@ -610,7 +610,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	spin_lock_irqsave(&dgnc_global_lock, flags);
 	brd->msgbuf = NULL;
-	printk("%s", brd->msgbuf_head);
+	dev_dbg(&brd->pdev->dev, "%s\n", brd->msgbuf_head);
 	kfree(brd->msgbuf_head);
 	brd->msgbuf_head = NULL;
 	spin_unlock_irqrestore(&dgnc_global_lock, flags);
