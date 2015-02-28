@@ -41,5 +41,6 @@ generic-y += sockios.h
 generic-y += statfs.h
 generic-y += topology.h
 generic-y += trace_clock.h
+generic-y += types.h
 generic-y += vga.h
 generic-y += xor.h
