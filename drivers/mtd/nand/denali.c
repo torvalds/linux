@@ -225,7 +225,6 @@ static void nand_onfi_timing_set(struct denali_nand_info *denali,
 	uint16_t Twhr[6] = {120, 80, 80, 60, 60, 60};
 	uint16_t Tcs[6] = {70, 35, 25, 25, 20, 15};
 
-	uint16_t TclsRising = 1;
 	uint16_t data_invalid_rhoh, data_invalid_rloh, data_invalid;
 	uint16_t dv_window = 0;
 	uint16_t en_lo, en_hi;
@@ -276,8 +275,6 @@ static void nand_onfi_timing_set(struct denali_nand_info *denali,
 	re_2_re = CEIL_DIV(Trhz[mode], CLK_X);
 	we_2_re = CEIL_DIV(Twhr[mode], CLK_X);
 	cs_cnt = CEIL_DIV((Tcs[mode] - Trp[mode]), CLK_X);
-	if (!TclsRising)
-		cs_cnt = CEIL_DIV(Tcs[mode], CLK_X);
 	if (cs_cnt == 0)
 		cs_cnt = 1;
 
