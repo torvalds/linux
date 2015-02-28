@@ -103,6 +103,14 @@
 #define ANADIG_USB1_CHRG_DET_STAT_CHRG_DETECTED	BIT(1)
 #define ANADIG_USB1_CHRG_DET_STAT_PLUG_CONTACT	BIT(0)
 
+#define MX7D_USBNC_USB_CTRL2		0x4
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_MASK	0x3
+#define MX7D_USB_VBUS_WAKEUP_SOURCE(v)		(v << 0)
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_VBUS	MX7D_USB_VBUS_WAKEUP_SOURCE(0)
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_AVALID	MX7D_USB_VBUS_WAKEUP_SOURCE(1)
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_BVALID	MX7D_USB_VBUS_WAKEUP_SOURCE(2)
+#define MX7D_USB_VBUS_WAKEUP_SOURCE_SESS_END	MX7D_USB_VBUS_WAKEUP_SOURCE(3)
+
 struct usbmisc_ops {
 	/* It's called once when probe a usb device */
 	int (*init)(struct imx_usbmisc_data *data);
@@ -598,6 +606,31 @@ static int usbmisc_imx6sx_power_lost_check(struct imx_usbmisc_data *data)
 		return 0;
 }
 
+static int usbmisc_imx7d_set_wakeup
+	(struct imx_usbmisc_data *data, bool enabled)
+{
+	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	unsigned long flags;
+	u32 val;
+	u32 wakeup_setting = MX6_BM_WAKEUP_ENABLE;
+	int ret = 0;
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	val = readl(usbmisc->base);
+	if (enabled) {
+		wakeup_setting |= imx6q_finalize_wakeup_setting(data);
+		writel(val | wakeup_setting, usbmisc->base);
+	} else {
+		if (val & MX6_BM_WAKEUP_INTR)
+			dev_dbg(data->dev, "wakeup int\n");
+		wakeup_setting |= MX6_BM_VBUS_WAKEUP | MX6_BM_ID_WAKEUP;
+		writel(val & ~wakeup_setting, usbmisc->base);
+	}
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+
+	return ret;
+}
+
 static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 {
 	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
@@ -607,12 +640,19 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 	if (data->index >= 1)
 		return -EINVAL;
 
+	spin_lock_irqsave(&usbmisc->lock, flags);
 	if (data->disable_oc) {
-		spin_lock_irqsave(&usbmisc->lock, flags);
 		reg = readl(usbmisc->base);
 		writel(reg | MX6_BM_OVER_CUR_DIS, usbmisc->base);
-		spin_unlock_irqrestore(&usbmisc->lock, flags);
 	}
+
+	reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	reg &= ~MX7D_USB_VBUS_WAKEUP_SOURCE_MASK;
+	writel(reg | MX7D_USB_VBUS_WAKEUP_SOURCE_BVALID,
+		 usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+
+	usbmisc_imx7d_set_wakeup(data, false);
 
 	return 0;
 }
@@ -655,6 +695,7 @@ static const struct usbmisc_ops imx6sx_usbmisc_ops = {
 
 static const struct usbmisc_ops imx7d_usbmisc_ops = {
 	.init = usbmisc_imx7d_init,
+	.set_wakeup = usbmisc_imx7d_set_wakeup,
 };
 
 int imx_usbmisc_init(struct imx_usbmisc_data *data)
