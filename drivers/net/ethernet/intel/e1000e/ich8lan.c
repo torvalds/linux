@@ -603,12 +603,15 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 	u16 i;
 	u32 nvm_size;
 
-	/* Can't read flash registers if the register set isn't mapped. */
 	nvm->type = e1000_nvm_flash_sw;
-	/* in SPT, gfpreg doesn't exist. NVM size is taken from the
-	 * STRAP register
-	 */
+
 	if (hw->mac.type == e1000_pch_spt) {
+		/* in SPT, gfpreg doesn't exist. NVM size is taken from the
+		 * STRAP register. This is because in SPT the GbE Flash region
+		 * is no longer accessed through the flash registers. Instead,
+		 * the mechanism has changed, and the Flash region access
+		 * registers are now implemented in GbE memory space.
+		 */
 		nvm->flash_base_addr = 0;
 		nvm_size = (((er32(STRAP) >> 1) & 0x1F) + 1)
 		    * NVM_SIZE_MULTIPLIER;
@@ -618,6 +621,7 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 		/* Set the base address for flash register access */
 		hw->flash_address = hw->hw_addr + E1000_FLASH_BASE_ADDR;
 	} else {
+		/* Can't read flash registers if register set isn't mapped. */
 		if (!hw->flash_address) {
 			e_dbg("ERROR: Flash registers not mapped\n");
 			return -E1000_ERR_CONFIG;
