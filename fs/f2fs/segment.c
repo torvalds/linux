@@ -552,7 +552,7 @@ static void add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 		end = __find_rev_next_zero_bit(dmap, max_blocks, start + 1);
 
-		if (end - start < cpc->trim_minlen)
+		if (force && end - start < cpc->trim_minlen)
 			continue;
 
 		__add_discard_entry(sbi, cpc, start, end);
