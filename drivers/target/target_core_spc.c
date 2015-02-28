@@ -103,10 +103,12 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 		buf[5] |= 0x8;
 	/*
 	 * Set Protection (PROTECT) bit when DIF has been enabled on the
-	 * device, and the transport supports VERIFY + PASS.
+	 * device, and the fabric supports VERIFY + PASS.  Also report
+	 * PROTECT=1 if sess_prot_type has been configured to allow T10-PI
+	 * to unprotected devices.
 	 */
 	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
-		if (dev->dev_attrib.pi_prot_type)
+		if (dev->dev_attrib.pi_prot_type || cmd->se_sess->sess_prot_type)
 			buf[5] |= 0x1;
 	}
 
@@ -480,9 +482,11 @@ spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	 * only for TYPE3 protection.
 	 */
 	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
-		if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT)
+		if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE1_PROT ||
+		    cmd->se_sess->sess_prot_type == TARGET_DIF_TYPE1_PROT)
 			buf[4] = 0x5;
-		else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT)
+		else if (dev->dev_attrib.pi_prot_type == TARGET_DIF_TYPE3_PROT ||
+			cmd->se_sess->sess_prot_type == TARGET_DIF_TYPE3_PROT)
 			buf[4] = 0x4;
 	}
 
@@ -874,7 +878,7 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	 * TAG field.
 	 */
 	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
-		if (dev->dev_attrib.pi_prot_type)
+		if (dev->dev_attrib.pi_prot_type || sess->sess_prot_type)
 			p[5] |= 0x80;
 	}
 

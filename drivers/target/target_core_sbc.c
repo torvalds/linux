@@ -93,6 +93,8 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
+	int pi_prot_type = dev->dev_attrib.pi_prot_type;
+
 	unsigned char *rbuf;
 	unsigned char buf[32];
 	unsigned long long blocks = dev->transport->get_blocks(dev);
@@ -114,8 +116,15 @@ sbc_emulate_readcapacity_16(struct se_cmd *cmd)
 	 * Set P_TYPE and PROT_EN bits for DIF support
 	 */
 	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
-		if (dev->dev_attrib.pi_prot_type)
-			buf[12] = (dev->dev_attrib.pi_prot_type - 1) << 1 | 0x1;
+		/*
+		 * Only override a device's pi_prot_type if no T10-PI is
+		 * available, and sess_prot_type has been explicitly enabled.
+		 */
+		if (!pi_prot_type)
+			pi_prot_type = sess->sess_prot_type;
+
+		if (pi_prot_type)
+			buf[12] = (pi_prot_type - 1) << 1 | 0x1;
 	}
 
 	if (dev->transport->get_lbppbe)
