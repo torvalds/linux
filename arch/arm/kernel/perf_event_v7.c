@@ -1218,8 +1218,6 @@ static void krait_evt_setup(int idx, u32 config_base)
 	val |= config_base & (ARMV7_EXCLUDE_USER | ARMV7_EXCLUDE_PL1);
 	armv7_pmnc_write_evtsel(idx, val);
 
-	asm volatile("mcr p15, 0, %0, c9, c15, 0" : : "r" (0));
-
 	if (venum_event) {
 		venum_pre_pmresr(&vval, &fval);
 		val = venum_read_pmresr();
@@ -1339,6 +1337,8 @@ static void krait_pmu_enable_event(struct perf_event *event)
 static void krait_pmu_reset(void *info)
 {
 	u32 vval, fval;
+	struct arm_pmu *cpu_pmu = info;
+	u32 idx, nb_cnt = cpu_pmu->num_events;
 
 	armv7pmu_reset(info);
 
@@ -1350,6 +1350,13 @@ static void krait_pmu_reset(void *info)
 	venum_pre_pmresr(&vval, &fval);
 	venum_write_pmresr(0);
 	venum_post_pmresr(vval, fval);
+
+	/* Reset PMxEVNCTCR to sane default */
+	for (idx = ARMV7_IDX_CYCLE_COUNTER; idx < nb_cnt; ++idx) {
+		armv7_pmnc_select_counter(idx);
+		asm volatile("mcr p15, 0, %0, c9, c15, 0" : : "r" (0));
+	}
+
 }
 
 static int krait_event_to_bit(struct perf_event *event, unsigned int region,
