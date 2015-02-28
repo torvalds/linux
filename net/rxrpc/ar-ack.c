@@ -260,7 +260,7 @@ static void rxrpc_resend(struct rxrpc_call *call)
 				sp->resend_at = jiffies + 3;
 			} else {
 				sp->resend_at =
-					jiffies + rxrpc_resend_timeout * HZ;
+					jiffies + rxrpc_resend_timeout;
 			}
 		}
 
