@@ -155,8 +155,8 @@
 				     <14>,
 				     <15>;
 			#dma-cells = <1>;
-			#dma-channels = <32>;
-			#dma-requests = <96>;
+			dma-channels = <32>;
+			dma-requests = <96>;
 		};
 
 		omap3_pmx_core: pinmux@48002030 {
