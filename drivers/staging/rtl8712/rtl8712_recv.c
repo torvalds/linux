@@ -609,7 +609,7 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 		spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
 	} else {
 		spin_unlock_irqrestore(&ppending_recvframe_queue->lock, irql);
-		_cancel_timer_ex(&preorder_ctrl->reordering_ctrl_timer);
+		del_timer(&preorder_ctrl->reordering_ctrl_timer);
 	}
 	return _SUCCESS;
 _err_exit:
