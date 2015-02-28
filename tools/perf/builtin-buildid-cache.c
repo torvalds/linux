@@ -196,9 +196,8 @@ static int build_id_cache__add_file(const char *filename)
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	err = build_id_cache__add_s(sbuild_id, filename,
 				    false, false);
-	if (verbose)
-		pr_info("Adding %s %s: %s\n", sbuild_id, filename,
-			err ? "FAIL" : "Ok");
+	pr_debug("Adding %s %s: %s\n", sbuild_id, filename,
+		 err ? "FAIL" : "Ok");
 	return err;
 }
 
@@ -216,9 +215,33 @@ static int build_id_cache__remove_file(const char *filename)
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
 	err = build_id_cache__remove_s(sbuild_id);
-	if (verbose)
-		pr_info("Removing %s %s: %s\n", sbuild_id, filename,
-			err ? "FAIL" : "Ok");
+	pr_debug("Removing %s %s: %s\n", sbuild_id, filename,
+		 err ? "FAIL" : "Ok");
+
+	return err;
+}
+
+static int build_id_cache__purge_path(const char *pathname)
+{
+	struct strlist *list;
+	struct str_node *pos;
+	int err;
+
+	err = build_id_cache__list_build_ids(pathname, &list);
+	if (err)
+		goto out;
+
+	strlist__for_each(pos, list) {
+		err = build_id_cache__remove_s(pos->s);
+		pr_debug("Removing %s %s: %s\n", pos->s, pathname,
+			 err ? "FAIL" : "Ok");
+		if (err)
+			break;
+	}
+	strlist__delete(list);
+
+out:
+	pr_debug("Purging %s: %s\n", pathname, err ? "FAIL" : "Ok");
 
 	return err;
 }
@@ -255,7 +278,7 @@ static int build_id_cache__update_file(const char *filename)
 	u8 build_id[BUILD_ID_SIZE];
 	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
-	int err;
+	int err = 0;
 
 	if (filename__read_build_id(filename, &build_id, sizeof(build_id)) < 0) {
 		pr_debug("Couldn't read a build-id in %s\n", filename);
@@ -263,13 +286,14 @@ static int build_id_cache__update_file(const char *filename)
 	}
 
 	build_id__sprintf(build_id, sizeof(build_id), sbuild_id);
-	err = build_id_cache__remove_s(sbuild_id);
+	if (build_id_cache__cached(sbuild_id))
+		err = build_id_cache__remove_s(sbuild_id);
+
 	if (!err)
 		err = build_id_cache__add_s(sbuild_id, filename, false, false);
 
-	if (verbose)
-		pr_info("Updating %s %s: %s\n", sbuild_id, filename,
-			err ? "FAIL" : "Ok");
+	pr_debug("Updating %s %s: %s\n", sbuild_id, filename,
+		 err ? "FAIL" : "Ok");
 
 	return err;
 }
@@ -283,6 +307,7 @@ int cmd_buildid_cache(int argc, const char **argv,
 	bool force = false;
 	char const *add_name_list_str = NULL,
 		   *remove_name_list_str = NULL,
+		   *purge_name_list_str = NULL,
 		   *missing_filename = NULL,
 		   *update_name_list_str = NULL,
 		   *kcore_filename = NULL;
@@ -300,6 +325,8 @@ int cmd_buildid_cache(int argc, const char **argv,
 		   "file", "kcore file to add"),
 	OPT_STRING('r', "remove", &remove_name_list_str, "file list",
 		    "file(s) to remove"),
+	OPT_STRING('p', "purge", &purge_name_list_str, "path list",
+		    "path(s) to remove (remove old caches too)"),
 	OPT_STRING('M', "missing", &missing_filename, "file",
 		   "to find missing build ids in the cache"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -315,6 +342,11 @@ int cmd_buildid_cache(int argc, const char **argv,
 
 	argc = parse_options(argc, argv, buildid_cache_options,
 			     buildid_cache_usage, 0);
+
+	if (argc || (!add_name_list_str && !kcore_filename &&
+		     !remove_name_list_str && !purge_name_list_str &&
+		     !missing_filename && !update_name_list_str))
+		usage_with_options(buildid_cache_usage, buildid_cache_options);
 
 	if (missing_filename) {
 		file.path = missing_filename;
@@ -353,6 +385,24 @@ int cmd_buildid_cache(int argc, const char **argv,
 		if (list) {
 			strlist__for_each(pos, list)
 				if (build_id_cache__remove_file(pos->s)) {
+					if (errno == ENOENT) {
+						pr_debug("%s wasn't in the cache\n",
+							 pos->s);
+						continue;
+					}
+					pr_warning("Couldn't remove %s: %s\n",
+						   pos->s, strerror_r(errno, sbuf, sizeof(sbuf)));
+				}
+
+			strlist__delete(list);
+		}
+	}
+
+	if (purge_name_list_str) {
+		list = strlist__new(true, purge_name_list_str);
+		if (list) {
+			strlist__for_each(pos, list)
+				if (build_id_cache__purge_path(pos->s)) {
 					if (errno == ENOENT) {
 						pr_debug("%s wasn't in the cache\n",
 							 pos->s);

@@ -127,6 +127,12 @@ To limit the list use:
 One or more types can be used at the same time, listing the events for the
 types specified.
 
+Support raw format:
+
+. '--raw-dump', shows the raw-dump of all the events.
+. '--raw-dump [hw|sw|cache|tracepoint|pmu|event_glob]', shows the raw-dump of
+  a certain kind of events.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-top[1],

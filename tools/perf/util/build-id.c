@@ -281,35 +281,93 @@ void disable_buildid_cache(void)
 	no_buildid_cache = true;
 }
 
+static char *build_id_cache__dirname_from_path(const char *name,
+					       bool is_kallsyms, bool is_vdso)
+{
+	char *realname = (char *)name, *filename;
+	bool slash = is_kallsyms || is_vdso;
+
+	if (!slash) {
+		realname = realpath(name, NULL);
+		if (!realname)
+			return NULL;
+	}
+
+	if (asprintf(&filename, "%s%s%s", buildid_dir, slash ? "/" : "",
+		     is_vdso ? DSO__NAME_VDSO : realname) < 0)
+		filename = NULL;
+
+	if (!slash)
+		free(realname);
+
+	return filename;
+}
+
+int build_id_cache__list_build_ids(const char *pathname,
+				   struct strlist **result)
+{
+	struct strlist *list;
+	char *dir_name;
+	DIR *dir;
+	struct dirent *d;
+	int ret = 0;
+
+	list = strlist__new(true, NULL);
+	dir_name = build_id_cache__dirname_from_path(pathname, false, false);
+	if (!list || !dir_name) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* List up all dirents */
+	dir = opendir(dir_name);
+	if (!dir) {
+		ret = -errno;
+		goto out;
+	}
+
+	while ((d = readdir(dir)) != NULL) {
+		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
+			continue;
+		strlist__add(list, d->d_name);
+	}
+	closedir(dir);
+
+out:
+	free(dir_name);
+	if (ret)
+		strlist__delete(list);
+	else
+		*result = list;
+
+	return ret;
+}
+
 int build_id_cache__add_s(const char *sbuild_id, const char *name,
 			  bool is_kallsyms, bool is_vdso)
 {
 	const size_t size = PATH_MAX;
-	char *realname, *filename = zalloc(size),
+	char *realname = NULL, *filename = NULL, *dir_name = NULL,
 	     *linkname = zalloc(size), *targetname, *tmp;
-	int len, err = -1;
-	bool slash = is_kallsyms || is_vdso;
+	int err = -1;
 
-	if (is_kallsyms) {
-		if (symbol_conf.kptr_restrict) {
-			pr_debug("Not caching a kptr_restrict'ed /proc/kallsyms\n");
-			err = 0;
-			goto out_free;
-		}
-		realname = (char *) name;
-	} else
+	if (!is_kallsyms) {
 		realname = realpath(name, NULL);
+		if (!realname)
+			goto out_free;
+	}
 
-	if (realname == NULL || filename == NULL || linkname == NULL)
+	dir_name = build_id_cache__dirname_from_path(name, is_kallsyms, is_vdso);
+	if (!dir_name)
 		goto out_free;
 
-	len = scnprintf(filename, size, "%s%s%s",
-		       buildid_dir, slash ? "/" : "",
-		       is_vdso ? DSO__NAME_VDSO : realname);
-	if (mkdir_p(filename, 0755))
+	if (mkdir_p(dir_name, 0755))
 		goto out_free;
 
-	snprintf(filename + len, size - len, "/%s", sbuild_id);
+	if (asprintf(&filename, "%s/%s", dir_name, sbuild_id) < 0) {
+		filename = NULL;
+		goto out_free;
+	}
 
 	if (access(filename, F_OK)) {
 		if (is_kallsyms) {
@@ -337,6 +395,7 @@ out_free:
 	if (!is_kallsyms)
 		free(realname);
 	free(filename);
+	free(dir_name);
 	free(linkname);
 	return err;
 }
@@ -350,6 +409,18 @@ static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
 	build_id__sprintf(build_id, build_id_size, sbuild_id);
 
 	return build_id_cache__add_s(sbuild_id, name, is_kallsyms, is_vdso);
+}
+
+bool build_id_cache__cached(const char *sbuild_id)
+{
+	bool ret = false;
+	char *filename = build_id__filename(sbuild_id, NULL, 0);
+
+	if (filename && !access(filename, F_OK))
+		ret = true;
+	free(filename);
+
+	return ret;
 }
 
 int build_id_cache__remove_s(const char *sbuild_id)

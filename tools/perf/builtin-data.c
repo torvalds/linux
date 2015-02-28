@@ -86,7 +86,7 @@ static int cmd_data_convert(int argc, const char **argv,
 
 static struct data_cmd data_cmds[] = {
 	{ "convert", "converts data file between formats", cmd_data_convert },
-	{ NULL },
+	{ .name = NULL, },
 };
 
 int cmd_data(int argc, const char **argv, const char *prefix)

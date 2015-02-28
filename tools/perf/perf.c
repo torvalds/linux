@@ -13,6 +13,7 @@
 #include "util/quote.h"
 #include "util/run-command.h"
 #include "util/parse-events.h"
+#include "util/parse-options.h"
 #include "util/debug.h"
 #include <api/fs/debugfs.h>
 #include <pthread.h>
@@ -125,6 +126,23 @@ static void commit_pager_choice(void)
 	}
 }
 
+struct option options[] = {
+	OPT_ARGUMENT("help", "help"),
+	OPT_ARGUMENT("version", "version"),
+	OPT_ARGUMENT("exec-path", "exec-path"),
+	OPT_ARGUMENT("html-path", "html-path"),
+	OPT_ARGUMENT("paginate", "paginate"),
+	OPT_ARGUMENT("no-pager", "no-pager"),
+	OPT_ARGUMENT("perf-dir", "perf-dir"),
+	OPT_ARGUMENT("work-tree", "work-tree"),
+	OPT_ARGUMENT("debugfs-dir", "debugfs-dir"),
+	OPT_ARGUMENT("buildid-dir", "buildid-dir"),
+	OPT_ARGUMENT("list-cmds", "list-cmds"),
+	OPT_ARGUMENT("list-opts", "list-opts"),
+	OPT_ARGUMENT("debug", "debug"),
+	OPT_END()
+};
+
 static int handle_options(const char ***argv, int *argc, int *envchanged)
 {
 	int handled = 0;
@@ -223,6 +241,16 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				struct cmd_struct *p = commands+i;
 				printf("%s ", p->cmd);
 			}
+			putchar('\n');
+			exit(0);
+		} else if (!strcmp(cmd, "--list-opts")) {
+			unsigned int i;
+
+			for (i = 0; i < ARRAY_SIZE(options)-1; i++) {
+				struct option *p = options+i;
+				printf("--%s ", p->long_name);
+			}
+			putchar('\n');
 			exit(0);
 		} else if (!strcmp(cmd, "--debug")) {
 			if (*argc < 2) {
