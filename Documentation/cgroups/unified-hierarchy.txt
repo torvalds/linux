@@ -404,8 +404,8 @@ supported and the interface files "release_agent" and
   be understood as an underflow into the highest possible value, -2 or
   -10M etc. do not work, so it's not consistent.
 
-  memory.low, memory.high, and memory.max will use the string
-  "infinity" to indicate and set the highest possible value.
+  memory.low, memory.high, and memory.max will use the string "max" to
+  indicate and set the highest possible value.
 
 5. Planned Changes
 
