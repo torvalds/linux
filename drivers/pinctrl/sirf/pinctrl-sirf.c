@@ -568,7 +568,7 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	status = readl(sgpio->chip.regs + SIRFSOC_GPIO_INT_STATUS(bank->id));
 	if (!status) {
 		printk(KERN_WARNING
-			"%s: gpio id %d status %#x no interrupt is flaged\n",
+			"%s: gpio id %d status %#x no interrupt is flagged\n",
 			__func__, bank->id, status);
 		handle_bad_irq(irq, desc);
 		return;
