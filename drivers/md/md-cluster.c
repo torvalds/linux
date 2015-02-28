@@ -419,7 +419,7 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		pr_info("%s: %d Received message: NEWDISK from %d\n",
 			__func__, __LINE__, msg->slot);
 		process_add_new_disk(mddev, msg);
-	};
+	}
 }
 
 /*
