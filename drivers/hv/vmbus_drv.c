@@ -37,6 +37,8 @@
 #include <asm/hyperv.h>
 #include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
+#include <linux/notifier.h>
+#include <linux/ptrace.h>
 #include "hyperv_vmbus.h"
 
 static struct acpi_device  *hv_acpi_dev;
@@ -44,6 +46,31 @@ static struct acpi_device  *hv_acpi_dev;
 static struct tasklet_struct msg_dpc;
 static struct completion probe_event;
 static int irq;
+
+
+int hyperv_panic_event(struct notifier_block *nb,
+			unsigned long event, void *ptr)
+{
+	struct pt_regs *regs;
+
+	regs = current_pt_regs();
+
+	wrmsrl(HV_X64_MSR_CRASH_P0, regs->ip);
+	wrmsrl(HV_X64_MSR_CRASH_P1, regs->ax);
+	wrmsrl(HV_X64_MSR_CRASH_P2, regs->bx);
+	wrmsrl(HV_X64_MSR_CRASH_P3, regs->cx);
+	wrmsrl(HV_X64_MSR_CRASH_P4, regs->dx);
+
+	/*
+	 * Let Hyper-V know there is crash data available
+	 */
+	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block hyperv_panic_block = {
+	.notifier_call = hyperv_panic_event,
+};
 
 struct resource hyperv_mmio = {
 	.name  = "hyperv mmio",
@@ -795,6 +822,15 @@ static int vmbus_bus_init(int irq)
 		goto err_alloc;
 
 	hv_cpu_hotplug_quirk(true);
+
+	/*
+	 * Only register if the crash MSRs are available
+	 */
+	if (ms_hyperv.features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &hyperv_panic_block);
+	}
+
 	vmbus_request_offers();
 
 	return 0;
