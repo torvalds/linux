@@ -1374,7 +1374,7 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	/* Initializing the clock */
 	aes_dd->iclk = clk_get(&pdev->dev, "aes_clk");
 	if (IS_ERR(aes_dd->iclk)) {
-		dev_err(dev, "clock intialization failed.\n");
+		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(aes_dd->iclk);
 		goto clk_err;
 	}
