@@ -350,6 +350,29 @@ static const struct panel_desc auo_b101aw03 = {
 	},
 };
 
+static const struct drm_display_mode auo_b101ean01_mode = {
+	.clock = 72500,
+	.hdisplay = 1280,
+	.hsync_start = 1280 + 119,
+	.hsync_end = 1280 + 119 + 32,
+	.htotal = 1280 + 119 + 32 + 21,
+	.vdisplay = 800,
+	.vsync_start = 800 + 4,
+	.vsync_end = 800 + 4 + 20,
+	.vtotal = 800 + 4 + 20 + 8,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc auo_b101ean01 = {
+	.modes = &auo_b101ean01_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 217,
+		.height = 136,
+	},
+};
+
 static const struct drm_display_mode auo_b101xtn01_mode = {
 	.clock = 72000,
 	.hdisplay = 1366,
@@ -877,6 +900,9 @@ static const struct of_device_id platform_of_match[] = {
 	{
 		.compatible = "auo,b101aw03",
 		.data = &auo_b101aw03,
+	}, {
+		.compatible = "auo,b101ean01",
+		.data = &auo_b101ean01,
 	}, {
 		.compatible = "auo,b101xtn01",
 		.data = &auo_b101xtn01,
