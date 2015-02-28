@@ -1138,6 +1138,8 @@ static void balloon_up(struct work_struct *dummy)
 	bool alloc_error;
 	bool done = false;
 	int i;
+	struct sysinfo val;
+	unsigned long floor;
 
 	/* The host balloons pages in 2M granularity. */
 	WARN_ON_ONCE(num_pages % PAGES_IN_2M != 0);
@@ -1147,6 +1149,15 @@ static void balloon_up(struct work_struct *dummy)
 	 * allocate 2M chunks, we will go back to 4k allocations.
 	 */
 	alloc_unit = 512;
+
+	si_meminfo(&val);
+	floor = compute_balloon_floor();
+
+	/* Refuse to balloon below the floor, keep the 2M granularity. */
+	if (val.freeram - num_pages < floor) {
+		num_pages = val.freeram > floor ? (val.freeram - floor) : 0;
+		num_pages -= num_pages % PAGES_IN_2M;
+	}
 
 	while (!done) {
 		bl_resp = (struct dm_balloon_response *)send_buffer;
