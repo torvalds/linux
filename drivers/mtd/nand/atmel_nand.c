@@ -1719,7 +1719,7 @@ static int nfc_wait_interrupt(struct atmel_nand_host *host, u32 flag)
 		comp[index++] = &host->nfc->comp_cmd_done;
 
 	if (index == 0) {
-		dev_err(host->dev, "Unkown interrupt flag: 0x%08x\n", flag);
+		dev_err(host->dev, "Unknown interrupt flag: 0x%08x\n", flag);
 		return -EINVAL;
 	}
 
