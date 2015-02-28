@@ -32,7 +32,7 @@
 #include <linux/wireless.h>
 #include <linux/kmod.h>
 #include <linux/module.h>
-
+#include <linux/etherdevice.h>
 #include "rtllib.h"
 struct modes_unit {
 	char *mode_string;
@@ -65,7 +65,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	/* First entry *MUST* be the AP MAC address */
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(iwe.u.ap_addr.sa_data, network->bssid, ETH_ALEN);
+	ether_addr_copy(iwe.u.ap_addr.sa_data, network->bssid);
 	start = iwe_stream_add_event_rsl(info, start, stop,
 					 &iwe, IW_EV_ADDR_LEN);
 	/* Remaining entries will be displayed in the order we provide them */
