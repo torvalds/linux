@@ -322,10 +322,18 @@ void __transport_register_session(
 	struct se_session *se_sess,
 	void *fabric_sess_ptr)
 {
+	struct target_core_fabric_ops *tfo = se_tpg->se_tpg_tfo;
 	unsigned char buf[PR_REG_ISID_LEN];
 
 	se_sess->se_tpg = se_tpg;
 	se_sess->fabric_sess_ptr = fabric_sess_ptr;
+	/*
+	 * Determine if fabric allows for T10-PI feature bits to be exposed
+	 * to initiators for device backends with !dev->dev_attrib.pi_prot_type
+	 */
+	if (tfo->tpg_check_prot_fabric_only)
+		se_sess->sess_prot_type = tfo->tpg_check_prot_fabric_only(se_tpg);
+
 	/*
 	 * Used by struct se_node_acl's under ConfigFS to locate active se_session-t
 	 *

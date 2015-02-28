@@ -581,12 +581,13 @@ sbc_compare_and_write(struct se_cmd *cmd)
 }
 
 static int
-sbc_set_prot_op_checks(u8 protect, enum target_prot_type prot_type,
+sbc_set_prot_op_checks(u8 protect, bool fabric_prot, enum target_prot_type prot_type,
 		       bool is_write, struct se_cmd *cmd)
 {
 	if (is_write) {
-		cmd->prot_op = protect ? TARGET_PROT_DOUT_PASS :
-					 TARGET_PROT_DOUT_INSERT;
+		cmd->prot_op = fabric_prot ? TARGET_PROT_DOUT_STRIP :
+			       protect ? TARGET_PROT_DOUT_PASS :
+			       TARGET_PROT_DOUT_INSERT;
 		switch (protect) {
 		case 0x0:
 		case 0x3:
@@ -610,8 +611,9 @@ sbc_set_prot_op_checks(u8 protect, enum target_prot_type prot_type,
 			return -EINVAL;
 		}
 	} else {
-		cmd->prot_op = protect ? TARGET_PROT_DIN_PASS :
-					 TARGET_PROT_DIN_STRIP;
+		cmd->prot_op = fabric_prot ? TARGET_PROT_DIN_INSERT :
+			       protect ? TARGET_PROT_DIN_PASS :
+			       TARGET_PROT_DIN_STRIP;
 		switch (protect) {
 		case 0x0:
 		case 0x1:
@@ -644,11 +646,15 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 	       u32 sectors, bool is_write)
 {
 	u8 protect = cdb[1] >> 5;
+	int sp_ops = cmd->se_sess->sup_prot_ops;
+	int pi_prot_type = dev->dev_attrib.pi_prot_type;
+	bool fabric_prot = false;
 
 	if (!cmd->t_prot_sg || !cmd->t_prot_nents) {
-		if (protect && !dev->dev_attrib.pi_prot_type) {
-			pr_err("CDB contains protect bit, but device does not"
-			       " advertise PROTECT=1 feature bit\n");
+		if (unlikely(protect &&
+		    !dev->dev_attrib.pi_prot_type && !cmd->se_sess->sess_prot_type)) {
+			pr_err("CDB contains protect bit, but device + fabric does"
+			       " not advertise PROTECT=1 feature bit\n");
 			return TCM_INVALID_CDB_FIELD;
 		}
 		if (cmd->prot_pto)
@@ -669,15 +675,28 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 		cmd->reftag_seed = cmd->t_task_lba;
 		break;
 	case TARGET_DIF_TYPE0_PROT:
+		/*
+		 * See if the fabric supports T10-PI, and the session has been
+		 * configured to allow export PROTECT=1 feature bit with backend
+		 * devices that don't support T10-PI.
+		 */
+		fabric_prot = is_write ?
+			      !!(sp_ops & (TARGET_PROT_DOUT_PASS | TARGET_PROT_DOUT_STRIP)) :
+			      !!(sp_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DIN_INSERT));
+
+		if (fabric_prot && cmd->se_sess->sess_prot_type) {
+			pi_prot_type = cmd->se_sess->sess_prot_type;
+			break;
+		}
+		/* Fallthrough */
 	default:
 		return TCM_NO_SENSE;
 	}
 
-	if (sbc_set_prot_op_checks(protect, dev->dev_attrib.pi_prot_type,
-				   is_write, cmd))
+	if (sbc_set_prot_op_checks(protect, fabric_prot, pi_prot_type, is_write, cmd))
 		return TCM_INVALID_CDB_FIELD;
 
-	cmd->prot_type = dev->dev_attrib.pi_prot_type;
+	cmd->prot_type = pi_prot_type;
 	cmd->prot_length = dev->prot_length * sectors;
 
 	/**
@@ -1230,6 +1249,9 @@ sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
 	void *paddr, *addr;
 	unsigned int i, len, left;
 	unsigned int offset = sg_off;
+
+	if (!sg)
+		return;
 
 	left = sectors * dev->prot_length;
 

@@ -27,6 +27,14 @@ struct target_core_fabric_ops {
 	 * inquiry response
 	 */
 	int (*tpg_check_demo_mode_login_only)(struct se_portal_group *);
+	/*
+	 * Optionally used as a configfs tunable to determine when
+	 * target-core should signal the PROTECT=1 feature bit for
+	 * backends that don't support T10-PI, so that either fabric
+	 * HW offload or target-core emulation performs the associated
+	 * WRITE_STRIP and READ_INSERT operations.
+	 */
+	int (*tpg_check_prot_fabric_only)(struct se_portal_group *);
 	struct se_node_acl *(*tpg_alloc_fabric_acl)(
 					struct se_portal_group *);
 	void (*tpg_release_fabric_acl)(struct se_portal_group *,
