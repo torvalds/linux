@@ -390,7 +390,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			kfree(new_crypt);
 			new_crypt = NULL;
 
-			printk(KERN_WARNING "%s: could not initialize WEP: "
+			netdev_warn(dev, "%s: could not initialize WEP: "
 			       "load module rtllib_crypt_wep\n",
 			       dev->name);
 			return -EOPNOTSUPP;
@@ -423,7 +423,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 					     NULL, (*crypt)->priv);
 		if (len == 0) {
 			/* Set a default key of all 0 */
-			printk(KERN_INFO "Setting key %d to all zero.\n",
+			netdev_info(ieee->dev, "Setting key %d to all zero.\n",
 					   key);
 
 			RTLLIB_DEBUG_WX("Setting key %d to all zero.\n",
@@ -469,7 +469,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	if (ieee->reset_on_keychange &&
 	    ieee->iw_mode != IW_MODE_INFRA &&
 	    ieee->reset_port && ieee->reset_port(dev)) {
-		printk(KERN_DEBUG "%s: reset_port failed\n", dev->name);
+		netdev_dbg(dev, "%s: reset_port failed\n", dev->name);
 		return -EINVAL;
 	}
 	return 0;
@@ -596,7 +596,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		ret = -EINVAL;
 		goto done;
 	}
-	printk(KERN_INFO "alg name:%s\n", alg);
+	netdev_info(dev, "alg name:%s\n", alg);
 
 	ops = lib80211_get_crypto_ops(alg);
 	if (ops == NULL) {
@@ -610,7 +610,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	if (ops == NULL) {
 		RTLLIB_DEBUG_WX("%s: unknown crypto alg %d\n",
 				   dev->name, ext->alg);
-		printk(KERN_INFO "========>unknown crypto alg %d\n", ext->alg);
+		netdev_info(dev, "========>unknown crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -642,7 +642,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
 		RTLLIB_DEBUG_WX("%s: key setting failed\n", dev->name);
-		printk(KERN_INFO "key setting failed\n");
+		netdev_info(dev, "key setting failed\n");
 		ret = -EINVAL;
 		goto done;
 	}
@@ -759,9 +759,9 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 
 	case IW_MLME_DISASSOC:
 		if (deauth)
-			printk(KERN_INFO "disauth packet !\n");
+			netdev_info(ieee->dev, "disauth packet !\n");
 		else
-			printk(KERN_INFO "dis associate packet!\n");
+			netdev_info(ieee->dev, "dis associate packet!\n");
 
 		ieee->cannot_notify = true;
 
