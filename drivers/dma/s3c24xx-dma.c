@@ -1238,7 +1238,7 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	if (!s3cdma->phy_chans)
 		return -ENOMEM;
 
-	/* aquire irqs and clocks for all physical channels */
+	/* acquire irqs and clocks for all physical channels */
 	for (i = 0; i < pdata->num_phy_channels; i++) {
 		struct s3c24xx_dma_phy *phy = &s3cdma->phy_chans[i];
 		char clk_name[6];
@@ -1266,7 +1266,7 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 			sprintf(clk_name, "dma.%d", i);
 			phy->clk = devm_clk_get(&pdev->dev, clk_name);
 			if (IS_ERR(phy->clk) && sdata->has_clocks) {
-				dev_err(&pdev->dev, "unable to aquire clock for channel %d, error %lu",
+				dev_err(&pdev->dev, "unable to acquire clock for channel %d, error %lu\n",
 					i, PTR_ERR(phy->clk));
 				continue;
 			}
