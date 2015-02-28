@@ -886,10 +886,6 @@ static int rk3368_fbdc_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 	val = v_IFBDC_TILES_NUM(win->area[0].fbdc_num_tiles);
 	lcdc_msk_reg(lcdc_dev, IFBDC_TILES_NUM, mask, val);
 
-	mask = m_IFBDC_BASE_ADDR;
-	val = v_IFBDC_BASE_ADDR(win->area[0].y_addr);
-	lcdc_msk_reg(lcdc_dev, IFBDC_BASE_ADDR, mask, val);
-
 	mask = m_IFBDC_MB_SIZE_WIDTH | m_IFBDC_MB_SIZE_HEIGHT;
 	val = v_IFBDC_MB_SIZE_WIDTH(win->area[0].fbdc_mb_width) |
 	    v_IFBDC_MB_SIZE_HEIGHT(win->area[0].fbdc_mb_height);
@@ -2099,7 +2095,9 @@ static int win_0_1_display(struct lcdc_device *lcdc_dev,
 		win->area[0].uv_addr = uv_addr;
 		lcdc_writel(lcdc_dev, WIN0_YRGB_MST + off, win->area[0].y_addr);
 		lcdc_writel(lcdc_dev, WIN0_CBR_MST + off, win->area[0].uv_addr);
-		/*lcdc_cfg_done(lcdc_dev); */
+                if (win->area[0].fbdc_en == 1)
+                        lcdc_writel(lcdc_dev, IFBDC_BASE_ADDR,
+                                        win->area[0].y_addr);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
@@ -2128,6 +2126,9 @@ static int win_2_3_display(struct lcdc_device *lcdc_dev,
 		lcdc_writel(lcdc_dev, WIN2_MST1 + off, win->area[1].y_addr);
 		lcdc_writel(lcdc_dev, WIN2_MST2 + off, win->area[2].y_addr);
 		lcdc_writel(lcdc_dev, WIN2_MST3 + off, win->area[3].y_addr);
+                if (win->area[0].fbdc_en == 1)
+                        lcdc_writel(lcdc_dev, IFBDC_BASE_ADDR,
+                                        win->area[0].y_addr);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
