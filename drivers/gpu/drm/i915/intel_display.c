@@ -1300,14 +1300,14 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	if (INTEL_INFO(dev)->gen >= 9) {
-		for_each_sprite(pipe, sprite) {
+		for_each_sprite(dev_priv, pipe, sprite) {
 			val = I915_READ(PLANE_CTL(pipe, sprite));
 			I915_STATE_WARN(val & PLANE_CTL_ENABLE,
 			     "plane %d assertion failure, should be off on pipe %c but is still active\n",
 			     sprite, pipe_name(pipe));
 		}
 	} else if (IS_VALLEYVIEW(dev)) {
-		for_each_sprite(pipe, sprite) {
+		for_each_sprite(dev_priv, pipe, sprite) {
 			reg = SPCNTR(pipe, sprite);
 			val = I915_READ(reg);
 			I915_STATE_WARN(val & SP_ENABLE,
@@ -13363,7 +13363,7 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for_each_pipe(dev_priv, pipe) {
 		intel_crtc_init(dev, pipe);
-		for_each_sprite(pipe, sprite) {
+		for_each_sprite(dev_priv, pipe, sprite) {
 			ret = intel_plane_init(dev, pipe, sprite);
 			if (ret)
 				DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",

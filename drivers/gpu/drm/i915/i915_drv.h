@@ -227,7 +227,10 @@ enum hpd_pin {
 	for ((__p) = 0;							\
 	     (__p) < INTEL_INFO(__dev_priv)->num_sprites[(__pipe)] + 1;	\
 	     (__p)++)
-#define for_each_sprite(p, s) for ((s) = 0; (s) < INTEL_INFO(dev)->num_sprites[(p)]; (s)++)
+#define for_each_sprite(__dev_priv, __p, __s)				\
+	for ((__s) = 0;							\
+	     (__s) < INTEL_INFO(__dev_priv)->num_sprites[(__p)];	\
+	     (__s)++)
 
 #define for_each_crtc(dev, crtc) \
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
