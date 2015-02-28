@@ -357,8 +357,7 @@ static const char *pll_video_bypass_sel[] = { "pll_video_main", "pll_video_main_
 static int const clks_init_on[] __initconst = {
 	IMX7D_ARM_A7_ROOT_CLK, IMX7D_ARM_M4_ROOT_CLK, IMX7D_ARM_M0_ROOT_CLK,
 	IMX7D_MAIN_AXI_ROOT_CLK, IMX7D_DISP_AXI_ROOT_CLK, IMX7D_ENET_AXI_ROOT_CLK,
-	IMX7D_DRAM_PHYM_ROOT_CLK, IMX7D_DRAM_ROOT_CLK,
-	IMX7D_USB_HSIC_ROOT_CLK, IMX7D_PCIE_CTRL_ROOT_CLK,
+	IMX7D_DRAM_PHYM_ROOT_CLK, IMX7D_DRAM_ROOT_CLK, IMX7D_PCIE_CTRL_ROOT_CLK,
 	IMX7D_PCIE_PHY_ROOT_CLK, IMX7D_EPDC_PIXEL_ROOT_CLK,
 	IMX7D_LCDIF_PIXEL_ROOT_CLK, IMX7D_MIPI_DSI_ROOT_CLK,
 	IMX7D_MIPI_CSI_ROOT_CLK, IMX7D_MIPI_DPHY_ROOT_CLK, IMX7D_SAI1_ROOT_CLK,
@@ -776,7 +775,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_DRAM_PHYM_ALT_ROOT_CLK] = imx_clk_gate2("dram_phym_alt_root_clk", "dram_phym_alt_post_div", base + 0x4130, 0);
 	clks[IMX7D_DRAM_ALT_ROOT_CLK] = imx_clk_gate2("dram_alt_root_clk", "dram_alt_post_div", base + 0x4130, 0);
 	clks[IMX7D_MU_ROOT_CLK] = imx_clk_gate2("mu_root_clk", "ipg_root_clk", base + 0x4270, 0);
-	clks[IMX7D_USB_HSIC_ROOT_CLK] = imx_clk_gate2("usb_hsic_root_clk", "usb_hsic_post_div", base + 0x4420, 0);
+	clks[IMX7D_USB_HSIC_ROOT_CLK] = imx_clk_gate2("usb_hsic_root_clk", "usb_hsic_post_div", base + 0x4690, 0);
 	clks[IMX7D_PCIE_CTRL_ROOT_CLK] = imx_clk_gate2("pcie_ctrl_root_clk", "pcie_ctrl_post_div", base + 0x4600, 0);
 	clks[IMX7D_PCIE_PHY_ROOT_CLK] = imx_clk_gate2("pcie_phy_root_clk", "pcie_phy_post_div", base + 0x4600, 0);
 	clks[IMX7D_EPDC_PIXEL_ROOT_CLK] = imx_clk_gate2("epdc_pixel_root_clk", "epdc_pixel_post_div", base + 0x44a0, 0);
@@ -836,6 +835,9 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	clks[IMX7D_CSI_MCLK_ROOT_CLK] = imx_clk_gate2("csi_mclk_root_clk", "csi_mclk_post_div", base + 0x4490, 0);
 	clks[IMX7D_AUDIO_MCLK_ROOT_CLK] = imx_clk_gate2("audio_mclk_root_clk", "audio_mclk_post_div", base + 0x4790, 0);
 	clks[IMX7D_WRCLK_ROOT_CLK] = imx_clk_gate2("wrclk_root_clk", "wrclk_post_div", base + 0x47a0, 0);
+	clks[IMX7D_USB_CTRL_CLK] = imx_clk_gate2("usb_ctrl_clk", "ahb_root_clk", base + 0x4680, 0);
+	clks[IMX7D_USB_PHY1_CLK] = imx_clk_gate2("usb_phy1_clk", "pll_usb1_main_clk", base + 0x46a0, 0);
+	clks[IMX7D_USB_PHY2_CLK] = imx_clk_gate2("usb_phy2_clk", "pll_usb_main_clk", base + 0x46b0, 0);
 
 	clks[IMX7D_GPT_3M_CLK] = imx_clk_fixed_factor("gpt_3m", "osc", 1, 8);
 
@@ -870,5 +872,10 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 
 	/* set uart module clock's parent clock source that must be great then 80Mhz */
 	clk_set_parent(clks[IMX7D_UART1_ROOT_SRC], clks[IMX7D_OSC_24M_CLK]);
+
+	/* Set clock rate for USBPHY, the USB_PLL at CCM is from USBOTG2 */
+	clks[IMX7D_USB1_MAIN_480M_CLK] = imx_clk_fixed_factor("pll_usb1_main_clk", "osc", 20, 1);
+	clks[IMX7D_USB_MAIN_480M_CLK] = imx_clk_fixed_factor("pll_usb_main_clk", "osc", 20, 1);
+
 }
 CLK_OF_DECLARE(imx7d, "fsl,imx7d-ccm", imx7d_clocks_init);
