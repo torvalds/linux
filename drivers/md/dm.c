@@ -250,35 +250,35 @@ static unsigned reserved_bio_based_ios = RESERVED_BIO_BASED_IOS;
  */
 static unsigned reserved_rq_based_ios = RESERVED_REQUEST_BASED_IOS;
 
-static unsigned __dm_get_reserved_ios(unsigned *reserved_ios,
+static unsigned __dm_get_module_param(unsigned *module_param,
 				      unsigned def, unsigned max)
 {
-	unsigned ios = ACCESS_ONCE(*reserved_ios);
-	unsigned modified_ios = 0;
+	unsigned param = ACCESS_ONCE(*module_param);
+	unsigned modified_param = 0;
 
-	if (!ios)
-		modified_ios = def;
-	else if (ios > max)
-		modified_ios = max;
+	if (!param)
+		modified_param = def;
+	else if (param > max)
+		modified_param = max;
 
-	if (modified_ios) {
-		(void)cmpxchg(reserved_ios, ios, modified_ios);
-		ios = modified_ios;
+	if (modified_param) {
+		(void)cmpxchg(module_param, param, modified_param);
+		param = modified_param;
 	}
 
-	return ios;
+	return param;
 }
 
 unsigned dm_get_reserved_bio_based_ios(void)
 {
-	return __dm_get_reserved_ios(&reserved_bio_based_ios,
+	return __dm_get_module_param(&reserved_bio_based_ios,
 				     RESERVED_BIO_BASED_IOS, RESERVED_MAX_IOS);
 }
 EXPORT_SYMBOL_GPL(dm_get_reserved_bio_based_ios);
 
 unsigned dm_get_reserved_rq_based_ios(void)
 {
-	return __dm_get_reserved_ios(&reserved_rq_based_ios,
+	return __dm_get_module_param(&reserved_rq_based_ios,
 				     RESERVED_REQUEST_BASED_IOS, RESERVED_MAX_IOS);
 }
 EXPORT_SYMBOL_GPL(dm_get_reserved_rq_based_ios);
