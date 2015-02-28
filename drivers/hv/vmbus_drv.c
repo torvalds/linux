@@ -508,14 +508,17 @@ static int vmbus_probe(struct device *child_device)
  */
 static int vmbus_remove(struct device *child_device)
 {
-	struct hv_driver *drv = drv_to_hv_drv(child_device->driver);
+	struct hv_driver *drv;
 	struct hv_device *dev = device_to_hv_device(child_device);
 
-	if (drv->remove)
-		drv->remove(dev);
-	else
-		pr_err("remove not set for driver %s\n",
-			dev_name(child_device));
+	if (child_device->driver) {
+		drv = drv_to_hv_drv(child_device->driver);
+		if (drv->remove)
+			drv->remove(dev);
+		else
+			pr_err("remove not set for driver %s\n",
+				dev_name(child_device));
+	}
 
 	return 0;
 }
