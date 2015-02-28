@@ -344,7 +344,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 				if (key_provided)
 					break;
 				lib80211_crypt_delayed_deinit(&ieee->crypt_info,
-							    &ieee->crypt_info.crypt[i]);
+						    &ieee->crypt_info.crypt[i]);
 			}
 		}
 
