@@ -20,6 +20,7 @@
 #define PU_SOC_VOLTAGE_NORMAL	1250000
 #define PU_SOC_VOLTAGE_HIGH	1275000
 #define FREQ_1P2_GHZ		1200000000
+#define FREQ_396_MHZ		396000
 
 static struct regulator *arm_reg;
 static struct regulator *pu_reg;
@@ -76,7 +77,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	 * CPU freq is increasing, so need to ensure
 	 * that bus frequency is increased too.
 	 */
-	if (old_freq == freq_table[0].frequency)
+	if (old_freq <= FREQ_396_MHZ && new_freq > FREQ_396_MHZ)
 		request_bus_freq(BUS_FREQ_HIGH);
 
 	/* scaling up?  scale voltage before frequency */
@@ -179,7 +180,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	 * If CPU is dropped to the lowest level, release the need
 	 * for a high bus frequency.
 	 */
-	if (new_freq == freq_table[0].frequency)
+	if (old_freq > FREQ_396_MHZ && new_freq <= FREQ_396_MHZ)
 		release_bus_freq(BUS_FREQ_HIGH);
 
 	return 0;
@@ -197,9 +198,8 @@ static int imx6q_cpufreq_init(struct cpufreq_policy *policy)
 		dev_err(cpu_dev, "imx6 cpufreq init failed!\n");
 		return ret;
 	}
-	if (policy->cur > freq_table[0].frequency)
+	if (policy->cur > FREQ_396_MHZ)
 		request_bus_freq(BUS_FREQ_HIGH);
-
 	return 0;
 }
 
