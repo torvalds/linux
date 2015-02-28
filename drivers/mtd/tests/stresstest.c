@@ -96,7 +96,7 @@ static int do_read(void)
 		if (offs + len > mtd->erasesize)
 			len = mtd->erasesize - offs;
 	}
-	addr = eb * mtd->erasesize + offs;
+	addr = (loff_t)eb * mtd->erasesize + offs;
 	return mtdtest_read(mtd, addr, len, readbuf);
 }
 
@@ -124,7 +124,7 @@ static int do_write(void)
 			offsets[eb + 1] = 0;
 		}
 	}
-	addr = eb * mtd->erasesize + offs;
+	addr = (loff_t)eb * mtd->erasesize + offs;
 	err = mtdtest_write(mtd, addr, len, writebuf);
 	if (unlikely(err))
 		return err;

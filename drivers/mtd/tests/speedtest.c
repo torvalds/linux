@@ -185,7 +185,7 @@ static long calc_speed(void)
 	     (finish.tv_usec - start.tv_usec) / 1000;
 	if (ms == 0)
 		return 0;
-	k = goodebcnt * (mtd->erasesize / 1024) * 1000;
+	k = (uint64_t)goodebcnt * (mtd->erasesize / 1024) * 1000;
 	do_div(k, ms);
 	return k;
 }

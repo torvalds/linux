@@ -95,7 +95,7 @@ static int write_eraseblock2(int ebnum)
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	for (k = 1; k < 33; ++k) {
-		if (addr + (subpgsize * k) > (ebnum + 1) * mtd->erasesize)
+		if (addr + (subpgsize * k) > (loff_t)(ebnum + 1) * mtd->erasesize)
 			break;
 		prandom_bytes_state(&rnd_state, writebuf, subpgsize * k);
 		err = mtd_write(mtd, addr, subpgsize * k, &written, writebuf);
@@ -195,7 +195,7 @@ static int verify_eraseblock2(int ebnum)
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	for (k = 1; k < 33; ++k) {
-		if (addr + (subpgsize * k) > (ebnum + 1) * mtd->erasesize)
+		if (addr + (subpgsize * k) > (loff_t)(ebnum + 1) * mtd->erasesize)
 			break;
 		prandom_bytes_state(&rnd_state, writebuf, subpgsize * k);
 		clear_data(readbuf, subpgsize * k);

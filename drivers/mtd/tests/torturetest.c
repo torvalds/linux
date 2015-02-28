@@ -101,11 +101,11 @@ static inline int check_eraseblock(int ebnum, unsigned char *buf)
 {
 	int err, retries = 0;
 	size_t read;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	size_t len = mtd->erasesize;
 
 	if (pgcnt) {
-		addr = (ebnum + 1) * mtd->erasesize - pgcnt * pgsize;
+		addr = (loff_t)(ebnum + 1) * mtd->erasesize - pgcnt * pgsize;
 		len = pgcnt * pgsize;
 	}
 
@@ -155,11 +155,11 @@ static inline int write_pattern(int ebnum, void *buf)
 {
 	int err;
 	size_t written;
-	loff_t addr = ebnum * mtd->erasesize;
+	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	size_t len = mtd->erasesize;
 
 	if (pgcnt) {
-		addr = (ebnum + 1) * mtd->erasesize - pgcnt * pgsize;
+		addr = (loff_t)(ebnum + 1) * mtd->erasesize - pgcnt * pgsize;
 		len = pgcnt * pgsize;
 	}
 	err = mtd_write(mtd, addr, len, &written, buf);
