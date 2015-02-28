@@ -1777,8 +1777,8 @@ void rockchip_wifi_exit_module_rtkwifi(void)
     rockchip_wifi_power(0);
 }
 
-EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
-EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
+module_init(rockchip_wifi_init_module_rtkwifi);
+module_exit(rockchip_wifi_exit_module_rtkwifi);
 //module_init(rtw_drv_entry);
 //module_exit(rtw_drv_halt);
 

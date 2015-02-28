@@ -25,30 +25,16 @@ if WLAN
 #	  bool "rda 5990p"
 #	  ---help---
 #	    rda5990P fm bt wifi
-	    
-menuconfig RTL_WIRELESS_SOLUTION
-    bool "Realtek Wireless Device Driver Support"
-    default y
-
-if RTL_WIRELESS_SOLUTION
-choice
-    prompt "Realtek WiFi Device Driver Support"
-    default RTL8188EU
-
-    config RTL_WIFI_NONE
-    bool "No Realtek WiFi"
 
 source "drivers/net/wireless/rockchip_wlan/rtl8188eu/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8189es/Kconfig"
-source "drivers/net/wireless/rockchip_wlan/rtl8192cu/Kconfig"
+#source "drivers/net/wireless/rockchip_wlan/rtl8192cu/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8192du/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723au/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723bu/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723bs/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723bs-vq0/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8812au/Kconfig"
-endchoice
-endif
 
 #source "drivers/net/wireless/rockchip_wlan/mt5931/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/esp8089/Kconfig"

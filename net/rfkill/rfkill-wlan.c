@@ -97,14 +97,48 @@ static char wifi_chip_type_string[64];
 int get_wifi_chip_type(void)
 {
     int type;
-    if (strcmp(wifi_chip_type_string, "bcmwifi") == 0) {
-        type = WIFI_BCMWIFI;
-    } else if (strcmp(wifi_chip_type_string, "rtkwifi") == 0) {
-        type = WIFI_RTKWIFI;
+    if (strcmp(wifi_chip_type_string, "ap6210") == 0) {
+        type = WIFI_AP6210;
+    } else if (strcmp(wifi_chip_type_string, "rk901") == 0) {
+        type = WIFI_RK901;    
+    } else if (strcmp(wifi_chip_type_string, "rk903") == 0) {
+        type = WIFI_RK903;  
+    } else if (strcmp(wifi_chip_type_string, "ap6181") == 0) {
+        type = WIFI_AP6181;
+    } else if (strcmp(wifi_chip_type_string, "ap6234") == 0) {
+        type = WIFI_AP6234;                            
+    } else if (strcmp(wifi_chip_type_string, "ap6330") == 0) {
+        type = WIFI_AP6330;
+    } else if (strcmp(wifi_chip_type_string, "ap6335") == 0) {
+        type = WIFI_AP6335;
+    } else if (strcmp(wifi_chip_type_string, "ap6441") == 0) {
+        type = WIFI_AP6441;
+    } else if (strcmp(wifi_chip_type_string, "ap6476") == 0) {
+        type = WIFI_AP6476;    
+    } else if (strcmp(wifi_chip_type_string, "ap6493") == 0) {
+        type = WIFI_AP6493;                    
+    } else if (strcmp(wifi_chip_type_string, "rtl8188eu") == 0) {
+        type = WIFI_RTL8188EU;
+    } else if (strcmp(wifi_chip_type_string, "rtl8192du") == 0) {
+        type = WIFI_RTL8192DU;
+    } else if (strcmp(wifi_chip_type_string, "rtl8723as") == 0) {
+        type = WIFI_RTL8723AS;        
+    } else if (strcmp(wifi_chip_type_string, "rtl8723bs_vq0") == 0) {
+        type = WIFI_RTL8723BS_VQ0;        
+    } else if (strcmp(wifi_chip_type_string, "rtl8723bs") == 0) {
+        type = WIFI_RTL8723BS;
+    } else if (strcmp(wifi_chip_type_string, "rtl8723au") == 0) {
+        type = WIFI_RTL8723AU;        
+    } else if (strcmp(wifi_chip_type_string, "rtl8723bu") == 0) {
+        type = WIFI_RTL8723BU;
+    } else if (strcmp(wifi_chip_type_string, "rtl8189es") == 0) {
+        type = WIFI_RTL8189ES;
+    } else if (strcmp(wifi_chip_type_string, "rtl8812au") == 0) {
+        type = WIFI_RTL8812AU;                        
     } else if (strcmp(wifi_chip_type_string, "esp8089") == 0) {
         type = WIFI_ESP8089;
     } else {
-        type = TYPE_MAX;
+        type = WIFI_AP6210;
     }
     return type;
 }
@@ -115,7 +149,7 @@ EXPORT_SYMBOL(get_wifi_chip_type);
  * Broadcom Wifi Static Memory
  * 
  **********************************************************/
-#ifdef CONFIG_RKWIFI
+#if 0//def CONFIG_RKWIFI
 #define BCM_STATIC_MEMORY_SUPPORT 1
 #else
 #define BCM_STATIC_MEMORY_SUPPORT 0
@@ -450,7 +484,8 @@ int rockchip_wifi_set_carddetect(int val)
 	chip = get_wifi_chip_type();
 
 	/*  irq_type : 0, oob; 1, cap-sdio-irq */
-	if (chip == WIFI_BCMWIFI)
+	if (!strncmp(wifi_chip_type_string, "ap", 2) ||
+		!strncmp(wifi_chip_type_string, "rk", 2))
 		irq_type = 0;
 	else
 		irq_type = 1;

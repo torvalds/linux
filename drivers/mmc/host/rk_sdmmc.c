@@ -4114,7 +4114,7 @@ extern int get_wifi_chip_type(void);
 int dw_mci_suspend(struct dw_mci *host)
 {
 	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
-		(get_wifi_chip_type() == WIFI_ESP8089 || get_wifi_chip_type() == WIFI_RTKWIFI))
+		(get_wifi_chip_type() == WIFI_ESP8089 || get_wifi_chip_type() > WIFI_AP6XXX_SERIES))
 		return 0;
 
         if(host->vmmc)
@@ -4148,7 +4148,7 @@ int dw_mci_resume(struct dw_mci *host)
         struct dw_mci_slot *slot;
 
 	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
-		(get_wifi_chip_type() == WIFI_ESP8089 || get_wifi_chip_type() == WIFI_RTKWIFI))
+		(get_wifi_chip_type() == WIFI_ESP8089 || get_wifi_chip_type() > WIFI_AP6XXX_SERIES))
 		return 0;
 
 
