@@ -1,6 +1,0 @@
-OPTIONAL_DIRS= \
-    common \
-    os \
-    nic \
-    mgmt
-
