@@ -781,13 +781,23 @@ at86rf230_tx_trac_status(void *context)
 }
 
 static void
-at86rf230_rx(struct at86rf230_local *lp,
-	     const u8 *data, const u8 len, const u8 lqi)
+at86rf230_rx_read_frame_complete(void *context)
 {
-	struct sk_buff *skb;
+	struct at86rf230_state_change *ctx = context;
+	struct at86rf230_local *lp = ctx->lp;
 	u8 rx_local_buf[AT86RF2XX_MAX_BUF];
+	const u8 *buf = lp->irq.buf;
+	struct sk_buff *skb;
+	u8 len, lqi;
 
-	memcpy(rx_local_buf, data, len);
+	len = buf[1];
+	if (!ieee802154_is_valid_psdu_len(len)) {
+		dev_vdbg(&lp->spi->dev, "corrupted frame received\n");
+		len = IEEE802154_MTU;
+	}
+	lqi = buf[2 + len];
+
+	memcpy(rx_local_buf, buf + 2, len);
 	enable_irq(lp->spi->irq);
 
 	skb = dev_alloc_skb(IEEE802154_MTU);
@@ -798,22 +808,6 @@ at86rf230_rx(struct at86rf230_local *lp,
 
 	memcpy(skb_put(skb, len), rx_local_buf, len);
 	ieee802154_rx_irqsafe(lp->hw, skb, lqi);
-}
-
-static void
-at86rf230_rx_read_frame_complete(void *context)
-{
-	struct at86rf230_state_change *ctx = context;
-	struct at86rf230_local *lp = ctx->lp;
-	const u8 *buf = lp->irq.buf;
-	u8 len = buf[1];
-
-	if (!ieee802154_is_valid_psdu_len(len)) {
-		dev_vdbg(&lp->spi->dev, "corrupted frame received\n");
-		len = IEEE802154_MTU;
-	}
-
-	at86rf230_rx(lp, buf + 2, len, buf[2 + len]);
 }
 
 static void
