@@ -303,7 +303,6 @@ void __exit ieee80211_debug_exit(void)
 	}
 }
 
-#include <linux/moduleparam.h>
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
