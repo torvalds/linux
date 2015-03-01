@@ -159,5 +159,16 @@
 			clocks = <&clk81>;
 			status = "disabled";
 		};
+
+		ethmac: ethernet@c9410000 {
+			compatible = "amlogic,meson6-dwmac", "snps,dwmac";
+			reg = <0xc9410000 0x10000
+			       0xc1108108 0x4>;
+			interrupts = <0 8 1>;
+			interrupt-names = "macirq";
+			clocks = <&clk81>;
+			clock-names = "stmmaceth";
+			status = "disabled";
+		};
 	};
 }; /* end of / */
