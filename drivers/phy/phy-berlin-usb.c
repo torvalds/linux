@@ -202,10 +202,7 @@ static int phy_berlin_usb_probe(struct platform_device *pdev)
 
 	phy_provider =
 		devm_of_phy_provider_register(&pdev->dev, of_phy_simple_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static struct platform_driver phy_berlin_usb_driver = {
