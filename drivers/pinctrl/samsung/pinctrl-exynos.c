@@ -1477,7 +1477,6 @@ const struct samsung_pin_ctrl exynos7_pin_ctrl[] __initconst = {
 		/* pin-controller instance 0 Alive data */
 		.pin_banks	= exynos7_pin_banks0,
 		.nr_banks	= ARRAY_SIZE(exynos7_pin_banks0),
-		.eint_gpio_init = exynos_eint_gpio_init,
 		.eint_wkup_init = exynos_eint_wkup_init,
 	}, {
 		/* pin-controller instance 1 BUS0 data */
