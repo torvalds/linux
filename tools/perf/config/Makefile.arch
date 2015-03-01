@@ -21,6 +21,10 @@ ifeq ($(RAW_ARCH),x86_64)
   endif
 endif
 
+ifeq ($(RAW_ARCH),sparc64)
+  ARCH ?= sparc
+endif
+
 ARCH ?= $(RAW_ARCH)
 
 LP64 := $(shell echo __LP64__ | ${CC} ${CFLAGS} -E -x c - | tail -n 1)
