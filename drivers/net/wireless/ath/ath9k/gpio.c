@@ -271,7 +271,7 @@ static void ath_btcoex_no_stomp_timer(unsigned long arg)
 	ath9k_ps_restore(sc);
 }
 
-static int ath_init_btcoex_timer(struct ath_softc *sc)
+static void ath_init_btcoex_timer(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 
@@ -287,8 +287,6 @@ static int ath_init_btcoex_timer(struct ath_softc *sc)
 			(unsigned long) sc);
 
 	spin_lock_init(&btcoex->btcoex_lock);
-
-	return 0;
 }
 
 /*
@@ -409,9 +407,8 @@ int ath9k_init_btcoex(struct ath_softc *sc)
 		break;
 	case ATH_BTCOEX_CFG_3WIRE:
 		ath9k_hw_btcoex_init_3wire(sc->sc_ah);
-		r = ath_init_btcoex_timer(sc);
-		if (r)
-			return -1;
+		ath_init_btcoex_timer(sc);
+
 		txq = sc->tx.txq_map[IEEE80211_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
