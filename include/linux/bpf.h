@@ -117,11 +117,9 @@ struct bpf_prog;
 
 struct bpf_prog_aux {
 	atomic_t refcnt;
-	bool is_gpl_compatible;
-	enum bpf_prog_type prog_type;
+	u32 used_map_cnt;
 	const struct bpf_verifier_ops *ops;
 	struct bpf_map **used_maps;
-	u32 used_map_cnt;
 	struct bpf_prog *prog;
 	struct work_struct work;
 };

@@ -354,10 +354,11 @@ static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
 	list_for_each_entry(tl, &bpf_prog_types, list_node) {
 		if (tl->type == type) {
 			prog->aux->ops = tl->ops;
-			prog->aux->prog_type = type;
+			prog->type = type;
 			return 0;
 		}
 	}
+
 	return -EINVAL;
 }
 
@@ -508,7 +509,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 	prog->jited = false;
 
 	atomic_set(&prog->aux->refcnt, 1);
-	prog->aux->is_gpl_compatible = is_gpl;
+	prog->gpl_compatible = is_gpl;
 
 	/* find program type: socket_filter vs tracing_filter */
 	err = find_prog_type(type, prog);
@@ -517,7 +518,6 @@ static int bpf_prog_load(union bpf_attr *attr)
 
 	/* run eBPF verifier */
 	err = bpf_check(prog, attr);
-
 	if (err < 0)
 		goto free_used_maps;
 
@@ -528,7 +528,6 @@ static int bpf_prog_load(union bpf_attr *attr)
 	bpf_prog_select_runtime(prog);
 
 	err = anon_inode_getfd("bpf-prog", &bpf_prog_fops, prog, O_RDWR | O_CLOEXEC);
-
 	if (err < 0)
 		/* failed to allocate fd */
 		goto free_used_maps;

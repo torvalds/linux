@@ -308,9 +308,11 @@ struct bpf_binary_header {
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	bool			jited;		/* Is our filter JIT'ed? */
+	bool			gpl_compatible;	/* Is our filter GPL compatible? */
 	u32			len;		/* Number of filter blocks */
-	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
+	enum bpf_prog_type	type;		/* Type of BPF program */
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
+	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,
 					    const struct bpf_insn *filter);
 	/* Instructions for interpreter */

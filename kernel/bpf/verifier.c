@@ -852,7 +852,7 @@ static int check_call(struct verifier_env *env, int func_id)
 	}
 
 	/* eBPF programs must be GPL compatible to use GPL-ed functions */
-	if (!env->prog->aux->is_gpl_compatible && fn->gpl_only) {
+	if (!env->prog->gpl_compatible && fn->gpl_only) {
 		verbose("cannot call GPL only function from proprietary program\n");
 		return -EINVAL;
 	}
@@ -1205,7 +1205,7 @@ static int check_ld_abs(struct verifier_env *env, struct bpf_insn *insn)
 	struct reg_state *reg;
 	int i, err;
 
-	if (!may_access_skb(env->prog->aux->prog_type)) {
+	if (!may_access_skb(env->prog->type)) {
 		verbose("BPF_LD_ABS|IND instructions not allowed for this program type\n");
 		return -EINVAL;
 	}
