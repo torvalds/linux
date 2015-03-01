@@ -3985,6 +3985,34 @@ void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata)
 				      IEEE80211_DEAUTH_FRAME_LEN);
 	}
 
+	/* This is a bit of a hack - we should find a better and more generic
+	 * solution to this. Normally when suspending, cfg80211 will in fact
+	 * deauthenticate. However, it doesn't (and cannot) stop an ongoing
+	 * auth (not so important) or assoc (this is the problem) process.
+	 *
+	 * As a consequence, it can happen that we are in the process of both
+	 * associating and suspending, and receive an association response
+	 * after cfg80211 has checked if it needs to disconnect, but before
+	 * we actually set the flag to drop incoming frames. This will then
+	 * cause the workqueue flush to process the association response in
+	 * the suspend, resulting in a successful association just before it
+	 * tries to remove the interface from the driver, which now though
+	 * has a channel context assigned ... this results in issues.
+	 *
+	 * To work around this (for now) simply deauth here again if we're
+	 * now connected.
+	 */
+	if (ifmgd->associated && !sdata->local->wowlan) {
+		u8 bssid[ETH_ALEN];
+		struct cfg80211_deauth_request req = {
+			.reason_code = WLAN_REASON_DEAUTH_LEAVING,
+			.bssid = bssid,
+		};
+
+		memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
+		ieee80211_mgd_deauth(sdata, &req);
+	}
+
 	sdata_unlock(sdata);
 }
 
