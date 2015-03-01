@@ -107,7 +107,7 @@ typedef struct lustre_kernelcomm {
 	__u32 lk_group;
 	__u32 lk_data;
 	__u32 lk_flags;
-} __attribute__((packed)) lustre_kernelcomm;
+} __packed lustre_kernelcomm;
 
 /* Userspace methods */
 int libcfs_ukuc_start(lustre_kernelcomm *l, int groups);
