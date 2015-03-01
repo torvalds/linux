@@ -747,7 +747,6 @@ static void ipipeif_set_default_config(struct vpfe_ipipeif_device *ipipeif)
 			.clip = 4095,
 		},
 	};
-	memset(&ipipeif->config, 0, sizeof(struct ipipeif_params));
 	memcpy(&ipipeif->config, &ipipeif_defaults,
 	       sizeof(struct ipipeif_params));
 }
