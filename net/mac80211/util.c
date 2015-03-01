@@ -1811,8 +1811,25 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
-		    ieee80211_sdata_running(sdata))
+		    ieee80211_sdata_running(sdata)) {
 			res = drv_add_interface(local, sdata);
+			if (WARN_ON(res))
+				break;
+		}
+	}
+
+	/* If adding any of the interfaces failed above, roll back and
+	 * report failure.
+	 */
+	if (res) {
+		list_for_each_entry_continue_reverse(sdata, &local->interfaces,
+						     list)
+			if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+			    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
+			    ieee80211_sdata_running(sdata))
+				drv_remove_interface(local, sdata);
+		ieee80211_handle_reconfig_failure(local);
+		return res;
 	}
 
 	/* add channel contexts */
