@@ -786,22 +786,22 @@ define feature_print_text_code
     MSG = $(shell printf '...%30s: %s' $(1) $(2))
 endef
 
-PERF_FEATURES := $(foreach feat,$(FEATURE_DISPLAY),feature-$(feat)($(feature-$(feat))))
-PERF_FEATURES_FILE := $(shell touch $(OUTPUT)PERF-FEATURES; cat $(OUTPUT)PERF-FEATURES)
+FEATURE_DUMP := $(foreach feat,$(FEATURE_DISPLAY),feature-$(feat)($(feature-$(feat))))
+FEATURE_DUMP_FILE := $(shell touch $(OUTPUT)FEATURE-DUMP; cat $(OUTPUT)FEATURE-DUMP)
 
 ifeq ($(dwarf-post-unwind),1)
-  PERF_FEATURES += dwarf-post-unwind($(dwarf-post-unwind-text))
+  FEATURE_DUMP += dwarf-post-unwind($(dwarf-post-unwind-text))
 endif
 
 # The $(feature_display) controls the default detection message
 # output. It's set if:
 # - detected features differes from stored features from
-#   last build (in PERF-FEATURES file)
+#   last build (in FEATURE-DUMP file)
 # - one of the $(FEATURE_DISPLAY) is not detected
 # - VF is enabled
 
-ifneq ("$(PERF_FEATURES)","$(PERF_FEATURES_FILE)")
-  $(shell echo "$(PERF_FEATURES)" > $(OUTPUT)PERF-FEATURES)
+ifneq ("$(FEATURE_DUMP)","$(FEATURE_DUMP_FILE)")
+  $(shell echo "$(FEATURE_DUMP)" > $(OUTPUT)FEATURE-DUMP)
   feature_display := 1
 endif
 
