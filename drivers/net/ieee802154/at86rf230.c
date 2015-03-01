@@ -478,7 +478,6 @@ at86rf230_async_read_reg(struct at86rf230_local *lp, const u8 reg,
 	u8 *tx_buf = ctx->buf;
 
 	tx_buf[0] = (reg & CMD_REG_MASK) | CMD_REG;
-	ctx->trx.len = 2;
 	ctx->msg.complete = complete;
 	ctx->irq_enable = irq_enable;
 	rc = spi_async(lp->spi, &ctx->msg);
@@ -663,7 +662,6 @@ at86rf230_async_state_change_start(void *context)
 	 */
 	buf[0] = (RG_TRX_STATE & CMD_REG_MASK) | CMD_REG | CMD_WRITE;
 	buf[1] = ctx->to_state;
-	ctx->trx.len = 2;
 	ctx->msg.complete = at86rf230_async_state_delay;
 	rc = spi_async(lp->spi, &ctx->msg);
 	if (rc) {
@@ -799,6 +797,7 @@ at86rf230_rx_read_frame_complete(void *context)
 	lqi = buf[2 + len];
 
 	memcpy(rx_local_buf, buf + 2, len);
+	ctx->trx.len = 2;
 	enable_irq(ctx->irq);
 
 	skb = dev_alloc_skb(IEEE802154_MTU);
@@ -824,6 +823,7 @@ at86rf230_rx_read_frame(void *context)
 	ctx->msg.complete = at86rf230_rx_read_frame_complete;
 	rc = spi_async(lp->spi, &ctx->msg);
 	if (rc) {
+		ctx->trx.len = 2;
 		enable_irq(ctx->irq);
 		at86rf230_async_error(lp, ctx, rc);
 	}
@@ -893,7 +893,6 @@ static irqreturn_t at86rf230_isr(int irq, void *data)
 	disable_irq_nosync(irq);
 
 	buf[0] = (RG_IRQ_STATUS & CMD_REG_MASK) | CMD_REG;
-	ctx->trx.len = 2;
 	ctx->msg.complete = at86rf230_irq_status;
 	rc = spi_async(lp->spi, &ctx->msg);
 	if (rc) {
@@ -941,8 +940,10 @@ at86rf230_write_frame(void *context)
 	ctx->trx.len = skb->len + 2;
 	ctx->msg.complete = at86rf230_write_frame_complete;
 	rc = spi_async(lp->spi, &ctx->msg);
-	if (rc)
+	if (rc) {
+		ctx->trx.len = 2;
 		at86rf230_async_error(lp, ctx, rc);
+	}
 }
 
 static void
@@ -1541,6 +1542,7 @@ at86rf230_setup_spi_messages(struct at86rf230_local *lp)
 	lp->state.irq = lp->spi->irq;
 	spi_message_init(&lp->state.msg);
 	lp->state.msg.context = &lp->state;
+	lp->state.trx.len = 2;
 	lp->state.trx.tx_buf = lp->state.buf;
 	lp->state.trx.rx_buf = lp->state.buf;
 	spi_message_add_tail(&lp->state.trx, &lp->state.msg);
@@ -1549,6 +1551,7 @@ at86rf230_setup_spi_messages(struct at86rf230_local *lp)
 	lp->irq.irq = lp->spi->irq;
 	spi_message_init(&lp->irq.msg);
 	lp->irq.msg.context = &lp->irq;
+	lp->irq.trx.len = 2;
 	lp->irq.trx.tx_buf = lp->irq.buf;
 	lp->irq.trx.rx_buf = lp->irq.buf;
 	spi_message_add_tail(&lp->irq.trx, &lp->irq.msg);
@@ -1557,6 +1560,7 @@ at86rf230_setup_spi_messages(struct at86rf230_local *lp)
 	lp->tx.irq = lp->spi->irq;
 	spi_message_init(&lp->tx.msg);
 	lp->tx.msg.context = &lp->tx;
+	lp->tx.trx.len = 2;
 	lp->tx.trx.tx_buf = lp->tx.buf;
 	lp->tx.trx.rx_buf = lp->tx.buf;
 	spi_message_add_tail(&lp->tx.trx, &lp->tx.msg);
