@@ -977,19 +977,17 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	CDEBUG(D_CONFIG, "Found profile %s: mdc=%s osc=%s\n", profilenm,
 	       lprof->lp_md, lprof->lp_dt);
 
-	dt = kzalloc(strlen(lprof->lp_dt) + instlen + 2, GFP_NOFS);
+	dt = kasprintf(GFP_NOFS, "%s-%p", lprof->lp_dt, cfg->cfg_instance);
 	if (!dt) {
 		err = -ENOMEM;
 		goto out_free;
 	}
-	sprintf(dt, "%s-%p", lprof->lp_dt, cfg->cfg_instance);
 
-	md = kzalloc(strlen(lprof->lp_md) + instlen + 2, GFP_NOFS);
+	md = kasprintf(GFP_NOFS, "%s-%p", lprof->lp_dt, cfg->cfg_instance);
 	if (!md) {
 		err = -ENOMEM;
 		goto out_free;
 	}
-	sprintf(md, "%s-%p", lprof->lp_md, cfg->cfg_instance);
 
 	/* connections, registrations, sb setup */
 	err = client_common_fill_super(sb, md, dt, mnt);
