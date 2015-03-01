@@ -743,9 +743,14 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	int center_freq, prev_center_freq = 0;
 	int valid_rules = 0;
 	bool new_rule;
+	int max_num_ch = cfg->device_family == IWL_DEVICE_FAMILY_8000 ?
+			 IWL_NUM_CHANNELS_FAMILY_8000 : IWL_NUM_CHANNELS;
 
 	if (WARN_ON_ONCE(num_of_ch > NL80211_MAX_SUPP_REG_RULES))
 		return ERR_PTR(-EINVAL);
+
+	if (WARN_ON(num_of_ch > max_num_ch))
+		num_of_ch = max_num_ch;
 
 	IWL_DEBUG_DEV(dev, IWL_DL_LAR, "building regdom for %d channels\n",
 		      num_of_ch);
