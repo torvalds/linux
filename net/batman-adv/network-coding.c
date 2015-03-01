@@ -453,14 +453,8 @@ static uint32_t batadv_nc_hash_choose(const void *data, uint32_t size)
 	const struct batadv_nc_path *nc_path = data;
 	uint32_t hash = 0;
 
-	hash = batadv_hash_bytes(hash, &nc_path->prev_hop,
-				 sizeof(nc_path->prev_hop));
-	hash = batadv_hash_bytes(hash, &nc_path->next_hop,
-				 sizeof(nc_path->next_hop));
-
-	hash += (hash << 3);
-	hash ^= (hash >> 11);
-	hash += (hash << 15);
+	hash = jhash(&nc_path->prev_hop, sizeof(nc_path->prev_hop), hash);
+	hash = jhash(&nc_path->next_hop, sizeof(nc_path->next_hop), hash);
 
 	return hash % size;
 }

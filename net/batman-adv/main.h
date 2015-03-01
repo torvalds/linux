@@ -174,6 +174,7 @@ enum batadv_uev_type {
 #include <linux/workqueue.h>	/* workqueue */
 #include <linux/percpu.h>
 #include <linux/slab.h>
+#include <linux/jhash.h>
 #include <net/sock.h>		/* struct sock */
 #include <net/addrconf.h>	/* ipv6 address stuff */
 #include <linux/ip.h>

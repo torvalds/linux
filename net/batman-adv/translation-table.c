@@ -67,12 +67,8 @@ static inline uint32_t batadv_choose_tt(const void *data, uint32_t size)
 	uint32_t hash = 0;
 
 	tt = (struct batadv_tt_common_entry *)data;
-	hash = batadv_hash_bytes(hash, &tt->addr, ETH_ALEN);
-	hash = batadv_hash_bytes(hash, &tt->vid, sizeof(tt->vid));
-
-	hash += (hash << 3);
-	hash ^= (hash >> 11);
-	hash += (hash << 15);
+	hash = jhash(&tt->addr, ETH_ALEN, hash);
+	hash = jhash(&tt->vid, sizeof(tt->vid), hash);
 
 	return hash % size;
 }
