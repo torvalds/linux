@@ -228,7 +228,7 @@ FEATURE_TESTS =			\
 	libdw-dwarf-unwind		\
 	zlib
 
-LIB_FEATURE_TESTS =			\
+FEATURE_DISPLAY =			\
 	dwarf				\
 	glibc				\
 	gtk2				\
@@ -242,25 +242,6 @@ LIB_FEATURE_TESTS =			\
 	libunwind			\
 	libdw-dwarf-unwind		\
 	zlib
-
-VF_FEATURE_TESTS =			\
-	backtrace			\
-	fortify-source			\
-	sync-compare-and-swap		\
-	gtk2-infobar			\
-	libelf-getphdrnum		\
-	libelf-mmap			\
-	libpython-version		\
-	pthread-attr-setaffinity-np	\
-	stackprotector-all		\
-	timerfd				\
-	libunwind-debug-frame		\
-	bionic				\
-	liberty				\
-	liberty-z			\
-	cplus-demangle			\
-	compile-32			\
-	compile-x32
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not
@@ -805,7 +786,7 @@ define feature_print_text_code
     MSG = $(shell printf '...%30s: %s' $(1) $(2))
 endef
 
-PERF_FEATURES := $(foreach feat,$(LIB_FEATURE_TESTS),feature-$(feat)($(feature-$(feat))))
+PERF_FEATURES := $(foreach feat,$(FEATURE_DISPLAY),feature-$(feat)($(feature-$(feat))))
 PERF_FEATURES_FILE := $(shell touch $(OUTPUT)PERF-FEATURES; cat $(OUTPUT)PERF-FEATURES)
 
 ifeq ($(dwarf-post-unwind),1)
@@ -816,7 +797,7 @@ endif
 # output. It's set if:
 # - detected features differes from stored features from
 #   last build (in PERF-FEATURES file)
-# - one of the $(LIB_FEATURE_TESTS) is not detected
+# - one of the $(FEATURE_DISPLAY) is not detected
 # - VF is enabled
 
 ifneq ("$(PERF_FEATURES)","$(PERF_FEATURES_FILE)")
@@ -831,7 +812,7 @@ define feature_check_code
   endif
 endef
 
-$(foreach feat,$(LIB_FEATURE_TESTS),$(call feature_check,$(feat)))
+$(foreach feat,$(FEATURE_DISPLAY),$(call feature_check,$(feat)))
 
 ifeq ($(VF),1)
   display_lib := 1
@@ -841,7 +822,7 @@ endif
 ifeq ($(display_lib),1)
   $(info )
   $(info Auto-detecting system features:)
-  $(foreach feat,$(LIB_FEATURE_TESTS),$(call feature_print_status,$(feat),))
+  $(foreach feat,$(FEATURE_DISPLAY),$(call feature_print_status,$(feat),))
 
   ifeq ($(dwarf-post-unwind),1)
     $(call feature_print_text,"DWARF post unwind library", $(dwarf-post-unwind-text))
@@ -849,7 +830,8 @@ ifeq ($(display_lib),1)
 endif
 
 ifeq ($(display_vf),1)
-  $(foreach feat,$(VF_FEATURE_TESTS),$(call feature_print_status,$(feat),))
+  TMP := $(filter-out $(FEATURE_DISPLAY),$(FEATURE_TESTS))
+  $(foreach feat,$(TMP),$(call feature_print_status,$(feat),))
   $(info )
   $(call feature_print_var,prefix)
   $(call feature_print_var,bindir)
