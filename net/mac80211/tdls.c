@@ -287,17 +287,6 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 	size_t offset = 0, noffset;
 	u8 *pos;
 
-	rcu_read_lock();
-
-	/* we should have the peer STA if we're already responding */
-	if (action_code == WLAN_TDLS_SETUP_RESPONSE) {
-		sta = sta_info_get(sdata, peer);
-		if (WARN_ON_ONCE(!sta)) {
-			rcu_read_unlock();
-			return;
-		}
-	}
-
 	ieee80211_add_srates_ie(sdata, skb, false, band);
 	ieee80211_add_ext_srates_ie(sdata, skb, false, band);
 	ieee80211_tdls_add_supp_channels(sdata, skb);
@@ -348,6 +337,17 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_sub_if_data *sdata,
 		pos = skb_put(skb, noffset - offset);
 		memcpy(pos, extra_ies + offset, noffset - offset);
 		offset = noffset;
+	}
+
+	rcu_read_lock();
+
+	/* we should have the peer STA if we're already responding */
+	if (action_code == WLAN_TDLS_SETUP_RESPONSE) {
+		sta = sta_info_get(sdata, peer);
+		if (WARN_ON_ONCE(!sta)) {
+			rcu_read_unlock();
+			return;
+		}
 	}
 
 	/*
@@ -983,7 +983,7 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 	if (!is_zero_ether_addr(sdata->u.mgd.tdls_peer) &&
 	    !ether_addr_equal(sdata->u.mgd.tdls_peer, peer)) {
 		ret = -EBUSY;
-		goto exit;
+		goto out_unlock;
 	}
 
 	/*
@@ -998,27 +998,34 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 		if (!sta_info_get(sdata, peer)) {
 			rcu_read_unlock();
 			ret = -ENOLINK;
-			goto exit;
+			goto out_unlock;
 		}
 		rcu_read_unlock();
 	}
 
 	ieee80211_flush_queues(local, sdata, false);
+	memcpy(sdata->u.mgd.tdls_peer, peer, ETH_ALEN);
+	mutex_unlock(&local->mtx);
 
+	/* we cannot take the mutex while preparing the setup packet */
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
 					      dialog_token, status_code,
 					      peer_capability, initiator,
 					      extra_ies, extra_ies_len, 0,
 					      NULL);
-	if (ret < 0)
-		goto exit;
+	if (ret < 0) {
+		mutex_lock(&local->mtx);
+		eth_zero_addr(sdata->u.mgd.tdls_peer);
+		mutex_unlock(&local->mtx);
+		return ret;
+	}
 
-	memcpy(sdata->u.mgd.tdls_peer, peer, ETH_ALEN);
 	ieee80211_queue_delayed_work(&sdata->local->hw,
 				     &sdata->u.mgd.tdls_peer_del_work,
 				     TDLS_PEER_SETUP_TIMEOUT);
+	return 0;
 
-exit:
+out_unlock:
 	mutex_unlock(&local->mtx);
 	return ret;
 }
