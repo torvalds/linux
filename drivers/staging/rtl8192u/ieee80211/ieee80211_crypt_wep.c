@@ -109,6 +109,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 crc;
 	u8 *icv;
 	struct scatterlist sg;
+
 	if (skb_headroom(skb) < 4 || skb_tailroom(skb) < 4 ||
 	    skb->len < hdr_len)
 		return -1;
@@ -127,6 +128,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	 * can be used to speedup attacks, so avoid using them. */
 	if ((wep->iv & 0xff00) == 0xff00) {
 		u8 B = (wep->iv >> 16) & 0xff;
+
 		if (B >= 3 && B < klen)
 			wep->iv += 0x0100;
 	}
@@ -179,6 +181,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 crc;
 	u8 icv[4];
 	struct scatterlist sg;
+
 	if (skb->len < hdr_len + 8)
 		return -1;
 
@@ -255,6 +258,7 @@ static int prism2_wep_get_key(void *key, int len, u8 *seq, void *priv)
 static char *prism2_wep_print_stats(char *p, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
+
 	p += sprintf(p, "key[%d] alg=WEP len=%d\n",
 		     wep->key_idx, wep->key_len);
 	return p;
