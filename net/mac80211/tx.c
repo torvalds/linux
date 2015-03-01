@@ -1420,6 +1420,7 @@ bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw,
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_data tx;
+	struct sk_buff *skb2;
 
 	if (ieee80211_tx_prepare(sdata, &tx, skb) == TX_DROP)
 		return false;
@@ -1436,6 +1437,14 @@ bool ieee80211_tx_prepare_skb(struct ieee80211_hw *hw,
 			*sta = &tx.sta->sta;
 		else
 			*sta = NULL;
+	}
+
+	/* this function isn't suitable for fragmented data frames */
+	skb2 = __skb_dequeue(&tx.skbs);
+	if (WARN_ON(skb2 != skb || !skb_queue_empty(&tx.skbs))) {
+		ieee80211_free_txskb(hw, skb2);
+		ieee80211_purge_tx_queue(hw, &tx.skbs);
+		return false;
 	}
 
 	return true;
