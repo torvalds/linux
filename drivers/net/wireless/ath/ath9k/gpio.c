@@ -280,6 +280,7 @@ static void ath_init_btcoex_timer(struct ath_softc *sc)
 		btcoex->btcoex_period / 100;
 	btcoex->btscan_no_stomp = (100 - ATH_BTCOEX_BTSCAN_DUTY_CYCLE) *
 				   btcoex->btcoex_period / 100;
+	btcoex->bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 
 	setup_timer(&btcoex->period_timer, ath_btcoex_period_timer,
 			(unsigned long) sc);
@@ -408,19 +409,19 @@ int ath9k_init_btcoex(struct ath_softc *sc)
 	case ATH_BTCOEX_CFG_3WIRE:
 		ath9k_hw_btcoex_init_3wire(sc->sc_ah);
 		ath_init_btcoex_timer(sc);
-
 		txq = sc->tx.txq_map[IEEE80211_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
-		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
-		if (ath9k_hw_mci_is_enabled(ah)) {
-			sc->btcoex.duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
-			INIT_LIST_HEAD(&sc->btcoex.mci.info);
-			ath9k_hw_btcoex_init_mci(ah);
+		break;
+	case ATH_BTCOEX_CFG_MCI:
+		ath_init_btcoex_timer(sc);
 
-			r = ath_mci_setup(sc);
-			if (r)
-				return r;
-		}
+		sc->btcoex.duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
+		INIT_LIST_HEAD(&sc->btcoex.mci.info);
+		ath9k_hw_btcoex_init_mci(ah);
+
+		r = ath_mci_setup(sc);
+		if (r)
+			return r;
 
 		break;
 	default:
