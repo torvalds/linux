@@ -534,11 +534,13 @@ static int read_name(struct inode *ino, char *name)
 		init_special_inode(ino, st.mode & S_IFMT, rdev);
 		ino->i_op = &hostfs_iops;
 		break;
-
-	default:
+	case S_IFREG:
 		ino->i_op = &hostfs_iops;
 		ino->i_fop = &hostfs_file_fops;
 		ino->i_mapping->a_ops = &hostfs_aops;
+		break;
+	default:
+		return -EIO;
 	}
 
 	ino->i_ino = st.ino;
