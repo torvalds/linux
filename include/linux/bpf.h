@@ -113,8 +113,6 @@ struct bpf_prog_type_list {
 	enum bpf_prog_type type;
 };
 
-void bpf_register_prog_type(struct bpf_prog_type_list *tl);
-
 struct bpf_prog;
 
 struct bpf_prog_aux {
@@ -129,11 +127,25 @@ struct bpf_prog_aux {
 };
 
 #ifdef CONFIG_BPF_SYSCALL
+void bpf_register_prog_type(struct bpf_prog_type_list *tl);
+
 void bpf_prog_put(struct bpf_prog *prog);
-#else
-static inline void bpf_prog_put(struct bpf_prog *prog) {}
-#endif
 struct bpf_prog *bpf_prog_get(u32 ufd);
+#else
+static inline void bpf_register_prog_type(struct bpf_prog_type_list *tl)
+{
+}
+
+static inline struct bpf_prog *bpf_prog_get(u32 ufd)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline void bpf_prog_put(struct bpf_prog *prog)
+{
+}
+#endif
+
 /* verify correctness of eBPF program */
 int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
 
