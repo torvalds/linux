@@ -288,7 +288,8 @@ static struct bpf_test tests[] = {
 			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_10, -8),
 
 			/* should be able to access R0 = *(R2 + 8) */
-			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_2, 8),
+			/* BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_2, 8), */
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
 			BPF_EXIT_INSN(),
 		},
 		.result = ACCEPT,
@@ -687,7 +688,7 @@ static int test(void)
 		}
 		printf("#%d %s ", i, tests[i].descr);
 
-		prog_fd = bpf_prog_load(BPF_PROG_TYPE_UNSPEC, prog,
+		prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, prog,
 					prog_len * sizeof(struct bpf_insn),
 					"GPL");
 
