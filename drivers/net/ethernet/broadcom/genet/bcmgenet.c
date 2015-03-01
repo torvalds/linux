@@ -487,6 +487,7 @@ enum bcmgenet_stat_type {
 	BCMGENET_STAT_MIB_TX,
 	BCMGENET_STAT_RUNT,
 	BCMGENET_STAT_MISC,
+	BCMGENET_STAT_SOFT,
 };
 
 struct bcmgenet_stats {
@@ -515,6 +516,7 @@ struct bcmgenet_stats {
 #define STAT_GENET_MIB_RX(str, m) STAT_GENET_MIB(str, m, BCMGENET_STAT_MIB_RX)
 #define STAT_GENET_MIB_TX(str, m) STAT_GENET_MIB(str, m, BCMGENET_STAT_MIB_TX)
 #define STAT_GENET_RUNT(str, m) STAT_GENET_MIB(str, m, BCMGENET_STAT_RUNT)
+#define STAT_GENET_SOFT_MIB(str, m) STAT_GENET_MIB(str, m, BCMGENET_STAT_SOFT)
 
 #define STAT_GENET_MISC(str, m, offset) { \
 	.stat_string = str, \
@@ -614,9 +616,9 @@ static const struct bcmgenet_stats bcmgenet_gstrings_stats[] = {
 			UMAC_RBUF_OVFL_CNT),
 	STAT_GENET_MISC("rbuf_err_cnt", mib.rbuf_err_cnt, UMAC_RBUF_ERR_CNT),
 	STAT_GENET_MISC("mdf_err_cnt", mib.mdf_err_cnt, UMAC_MDF_ERR_CNT),
-	STAT_GENET_MIB_RX("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
-	STAT_GENET_MIB_RX("rx_dma_failed", mib.rx_dma_failed),
-	STAT_GENET_MIB_TX("tx_dma_failed", mib.tx_dma_failed),
+	STAT_GENET_SOFT_MIB("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
+	STAT_GENET_SOFT_MIB("rx_dma_failed", mib.rx_dma_failed),
+	STAT_GENET_SOFT_MIB("tx_dma_failed", mib.tx_dma_failed),
 };
 
 #define BCMGENET_STATS_LEN	ARRAY_SIZE(bcmgenet_gstrings_stats)
@@ -668,6 +670,7 @@ static void bcmgenet_update_mib_counters(struct bcmgenet_priv *priv)
 		s = &bcmgenet_gstrings_stats[i];
 		switch (s->type) {
 		case BCMGENET_STAT_NETDEV:
+		case BCMGENET_STAT_SOFT:
 			continue;
 		case BCMGENET_STAT_MIB_RX:
 		case BCMGENET_STAT_MIB_TX:
