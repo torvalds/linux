@@ -308,9 +308,6 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
 
 	drbg_string_fill(&data, out, drbg_blocklen(drbg));
 
-	/* 10.4.3 step 1 */
-	memset(out, 0, drbg_blocklen(drbg));
-
 	/* 10.4.3 step 2 / 4 */
 	list_for_each_entry(curr, in, list) {
 		const unsigned char *pos = curr->buf;
@@ -406,7 +403,6 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 
 	memset(pad, 0, drbg_blocklen(drbg));
 	memset(iv, 0, drbg_blocklen(drbg));
-	memset(temp, 0, drbg_statelen(drbg));
 
 	/* 10.4.2 step 1 is implicit as we work byte-wise */
 
@@ -523,7 +519,6 @@ static int drbg_ctr_update(struct drbg_state *drbg, struct list_head *seed,
 	unsigned int len = 0;
 	struct drbg_string cipherin;
 
-	memset(temp, 0, drbg_statelen(drbg) + drbg_blocklen(drbg));
 	if (3 > reseed)
 		memset(df_data, 0, drbg_statelen(drbg));
 
@@ -584,8 +579,6 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 	int len = 0;
 	int ret = 0;
 	struct drbg_string data;
-
-	memset(drbg->scratchpad, 0, drbg_blocklen(drbg));
 
 	/* 10.2.1.5.2 step 2 */
 	if (addtl && !list_empty(addtl)) {
@@ -761,7 +754,6 @@ static struct drbg_state_ops drbg_hmac_ops = {
 	.generate	= drbg_hmac_generate,
 	.crypto_init	= drbg_init_hash_kernel,
 	.crypto_fini	= drbg_fini_hash_kernel,
-
 };
 #endif /* CONFIG_CRYPTO_DRBG_HMAC */
 
@@ -838,8 +830,6 @@ static int drbg_hash_df(struct drbg_state *drbg,
 	unsigned char *tmp = drbg->scratchpad + drbg_statelen(drbg);
 	struct drbg_string data;
 
-	memset(tmp, 0, drbg_blocklen(drbg));
-
 	/* 10.4.1 step 3 */
 	input[0] = 1;
 	drbg_cpu_to_be32((outlen * 8), &input[1]);
@@ -879,7 +869,6 @@ static int drbg_hash_update(struct drbg_state *drbg, struct list_head *seed,
 	unsigned char *V = drbg->scratchpad;
 	unsigned char prefix = DRBG_PREFIX1;
 
-	memset(drbg->scratchpad, 0, drbg_statelen(drbg));
 	if (!seed)
 		return -EINVAL;
 
@@ -921,9 +910,6 @@ static int drbg_hash_process_addtl(struct drbg_state *drbg,
 	LIST_HEAD(datalist);
 	unsigned char prefix = DRBG_PREFIX2;
 
-	/* this is value w as per documentation */
-	memset(drbg->scratchpad, 0, drbg_blocklen(drbg));
-
 	/* 10.1.1.4 step 2 */
 	if (!addtl || list_empty(addtl))
 		return 0;
@@ -958,9 +944,6 @@ static int drbg_hash_hashgen(struct drbg_state *drbg,
 	unsigned char *dst = drbg->scratchpad + drbg_statelen(drbg);
 	struct drbg_string data;
 	LIST_HEAD(datalist);
-
-	memset(src, 0, drbg_statelen(drbg));
-	memset(dst, 0, drbg_blocklen(drbg));
 
 	/* 10.1.1.4 step hashgen 2 */
 	memcpy(src, drbg->V, drbg_statelen(drbg));
@@ -1018,7 +1001,6 @@ static int drbg_hash_generate(struct drbg_state *drbg,
 	len = drbg_hash_hashgen(drbg, buf, buflen);
 
 	/* this is the value H as documented in 10.1.1.4 */
-	memset(drbg->scratchpad, 0, drbg_blocklen(drbg));
 	/* 10.1.1.4 step 4 */
 	drbg_string_fill(&data1, &prefix, 1);
 	list_add_tail(&data1.list, &datalist);
