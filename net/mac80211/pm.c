@@ -97,6 +97,13 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			return err;
 		} else if (err > 0) {
 			WARN_ON(err != 1);
+			/* cfg80211 will call back into mac80211 to disconnect
+			 * all interfaces, allow that to proceed properly
+			 */
+			ieee80211_wake_queues_by_reason(hw,
+					IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_SUSPEND,
+					false);
 			return err;
 		} else {
 			goto suspend;
