@@ -230,8 +230,9 @@
 #define GEM_FBLDO_OFFSET	0 /* fixed burst length for DMA */
 #define GEM_FBLDO_SIZE		5
 #define GEM_ENDIA_DESC_OFFSET	6 /* endian swap mode for management descriptor access */
+#define GEM_ENDIA_DESC_SIZE	1
 #define GEM_ENDIA_PKT_OFFSET	7 /* endian swap mode for packet data access */
-#define GEM_ENDIA_SIZE		1
+#define GEM_ENDIA_PKT_SIZE	1
 #define GEM_RXBMS_OFFSET	8 /* RX packet buffer memory size select */
 #define GEM_RXBMS_SIZE		2
 #define GEM_TXPBMS_OFFSET	10 /* TX packet buffer memory size select */
