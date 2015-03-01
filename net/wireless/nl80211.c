@@ -9105,6 +9105,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	const struct wiphy_wowlan_support *wowlan = rdev->wiphy.wowlan;
 	int err, i;
 	bool prev_enabled = rdev->wiphy.wowlan_config;
+	bool regular = false;
 
 	if (!wowlan)
 		return -EOPNOTSUPP;
@@ -9132,12 +9133,14 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 		if (!(wowlan->flags & WIPHY_WOWLAN_DISCONNECT))
 			return -EINVAL;
 		new_triggers.disconnect = true;
+		regular = true;
 	}
 
 	if (tb[NL80211_WOWLAN_TRIG_MAGIC_PKT]) {
 		if (!(wowlan->flags & WIPHY_WOWLAN_MAGIC_PKT))
 			return -EINVAL;
 		new_triggers.magic_pkt = true;
+		regular = true;
 	}
 
 	if (tb[NL80211_WOWLAN_TRIG_GTK_REKEY_SUPPORTED])
@@ -9147,24 +9150,28 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 		if (!(wowlan->flags & WIPHY_WOWLAN_GTK_REKEY_FAILURE))
 			return -EINVAL;
 		new_triggers.gtk_rekey_failure = true;
+		regular = true;
 	}
 
 	if (tb[NL80211_WOWLAN_TRIG_EAP_IDENT_REQUEST]) {
 		if (!(wowlan->flags & WIPHY_WOWLAN_EAP_IDENTITY_REQ))
 			return -EINVAL;
 		new_triggers.eap_identity_req = true;
+		regular = true;
 	}
 
 	if (tb[NL80211_WOWLAN_TRIG_4WAY_HANDSHAKE]) {
 		if (!(wowlan->flags & WIPHY_WOWLAN_4WAY_HANDSHAKE))
 			return -EINVAL;
 		new_triggers.four_way_handshake = true;
+		regular = true;
 	}
 
 	if (tb[NL80211_WOWLAN_TRIG_RFKILL_RELEASE]) {
 		if (!(wowlan->flags & WIPHY_WOWLAN_RFKILL_RELEASE))
 			return -EINVAL;
 		new_triggers.rfkill_release = true;
+		regular = true;
 	}
 
 	if (tb[NL80211_WOWLAN_TRIG_PKT_PATTERN]) {
@@ -9172,6 +9179,8 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 		int n_patterns = 0;
 		int rem, pat_len, mask_len, pkt_offset;
 		struct nlattr *pat_tb[NUM_NL80211_PKTPAT];
+
+		regular = true;
 
 		nla_for_each_nested(pat, tb[NL80211_WOWLAN_TRIG_PKT_PATTERN],
 				    rem)
@@ -9234,6 +9243,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (tb[NL80211_WOWLAN_TRIG_TCP_CONNECTION]) {
+		regular = true;
 		err = nl80211_parse_wowlan_tcp(
 			rdev, tb[NL80211_WOWLAN_TRIG_TCP_CONNECTION],
 			&new_triggers);
@@ -9242,11 +9252,23 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (tb[NL80211_WOWLAN_TRIG_NET_DETECT]) {
+		regular = true;
 		err = nl80211_parse_wowlan_nd(
 			rdev, wowlan, tb[NL80211_WOWLAN_TRIG_NET_DETECT],
 			&new_triggers);
 		if (err)
 			goto error;
+	}
+
+	/* The 'any' trigger means the device continues operating more or less
+	 * as in its normal operation mode and wakes up the host on most of the
+	 * normal interrupts (like packet RX, ...)
+	 * It therefore makes little sense to combine with the more constrained
+	 * wakeup trigger modes.
+	 */
+	if (new_triggers.any && regular) {
+		err = -EINVAL;
+		goto error;
 	}
 
 	ntrig = kmemdup(&new_triggers, sizeof(new_triggers), GFP_KERNEL);

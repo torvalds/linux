@@ -3708,6 +3708,8 @@ struct nl80211_pattern_support {
  * @NL80211_WOWLAN_TRIG_ANY: wake up on any activity, do not really put
  *	the chip into a special state -- works best with chips that have
  *	support for low-power operation already (flag)
+ *	Note that this mode is incompatible with all of the others, if
+ *	any others are even supported by the device.
  * @NL80211_WOWLAN_TRIG_DISCONNECT: wake up on disconnect, the way disconnect
  *	is detected is implementation-specific (flag)
  * @NL80211_WOWLAN_TRIG_MAGIC_PKT: wake up on magic packet (6x 0xff, followed
