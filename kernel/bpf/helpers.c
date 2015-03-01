@@ -41,7 +41,7 @@ static u64 bpf_map_lookup_elem(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	return (unsigned long) value;
 }
 
-struct bpf_func_proto bpf_map_lookup_elem_proto = {
+const struct bpf_func_proto bpf_map_lookup_elem_proto = {
 	.func = bpf_map_lookup_elem,
 	.gpl_only = false,
 	.ret_type = RET_PTR_TO_MAP_VALUE_OR_NULL,
@@ -60,7 +60,7 @@ static u64 bpf_map_update_elem(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	return map->ops->map_update_elem(map, key, value, r4);
 }
 
-struct bpf_func_proto bpf_map_update_elem_proto = {
+const struct bpf_func_proto bpf_map_update_elem_proto = {
 	.func = bpf_map_update_elem,
 	.gpl_only = false,
 	.ret_type = RET_INTEGER,
@@ -80,7 +80,7 @@ static u64 bpf_map_delete_elem(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	return map->ops->map_delete_elem(map, key);
 }
 
-struct bpf_func_proto bpf_map_delete_elem_proto = {
+const struct bpf_func_proto bpf_map_delete_elem_proto = {
 	.func = bpf_map_delete_elem,
 	.gpl_only = false,
 	.ret_type = RET_INTEGER,

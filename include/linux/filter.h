@@ -145,8 +145,6 @@ struct bpf_prog_aux;
 		.off   = 0,					\
 		.imm   = ((__u64) (IMM)) >> 32 })
 
-#define BPF_PSEUDO_MAP_FD	1
-
 /* pseudo BPF_LD_IMM64 insn used to refer to process-local map_fd */
 #define BPF_LD_MAP_FD(DST, MAP_FD)				\
 	BPF_LD_IMM64_RAW(DST, BPF_PSEUDO_MAP_FD, MAP_FD)
@@ -310,9 +308,11 @@ struct bpf_binary_header {
 struct bpf_prog {
 	u16			pages;		/* Number of allocated pages */
 	bool			jited;		/* Is our filter JIT'ed? */
+	bool			gpl_compatible;	/* Is our filter GPL compatible? */
 	u32			len;		/* Number of filter blocks */
-	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
+	enum bpf_prog_type	type;		/* Type of BPF program */
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
+	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	unsigned int		(*bpf_func)(const struct sk_buff *skb,
 					    const struct bpf_insn *filter);
 	/* Instructions for interpreter */
