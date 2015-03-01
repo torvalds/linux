@@ -631,6 +631,7 @@ config SOC_IMX6SX
 
 config SOC_VF610
 	bool "Vybrid Family VF610 support"
+	select IRQ_DOMAIN_HIERARCHY
 	select ARM_GIC
 	select PINCTRL_VF610
 	select PL310_ERRATA_769419 if CACHE_L2X0
