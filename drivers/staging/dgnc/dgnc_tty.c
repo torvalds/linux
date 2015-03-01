@@ -886,10 +886,6 @@ void dgnc_check_queue_flow_control(struct channel_t *ch)
 				ch->ch_stops_sent++;
 			}
 		}
-		/* No FLOW */
-		else {
-			/* Empty... Can't do anything about the impending overflow... */
-		}
 	}
 
 	/*
