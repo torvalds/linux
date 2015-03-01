@@ -3419,6 +3419,26 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	if (ifmgd->csa_waiting_bcn)
 		ieee80211_chswitch_post_beacon(sdata);
 
+	/*
+	 * Update beacon timing and dtim count on every beacon appearance. This
+	 * will allow the driver to use the most updated values. Do it before
+	 * comparing this one with last received beacon.
+	 * IMPORTANT: These parameters would possibly be out of sync by the time
+	 * the driver will use them. The synchronized view is currently
+	 * guaranteed only in certain callbacks.
+	 */
+	if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
+		sdata->vif.bss_conf.sync_tsf =
+			le64_to_cpu(mgmt->u.beacon.timestamp);
+		sdata->vif.bss_conf.sync_device_ts =
+			rx_status->device_timestamp;
+		if (elems.tim)
+			sdata->vif.bss_conf.sync_dtim_count =
+				elems.tim->dtim_count;
+		else
+			sdata->vif.bss_conf.sync_dtim_count = 0;
+	}
+
 	if (ncrc == ifmgd->beacon_crc && ifmgd->beacon_crc_valid)
 		return;
 	ifmgd->beacon_crc = ncrc;
@@ -3445,18 +3465,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			bss_conf->dtim_period = elems.tim->dtim_period ?: 1;
 		else
 			bss_conf->dtim_period = 1;
-
-		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
-			sdata->vif.bss_conf.sync_tsf =
-				le64_to_cpu(mgmt->u.beacon.timestamp);
-			sdata->vif.bss_conf.sync_device_ts =
-				rx_status->device_timestamp;
-			if (elems.tim)
-				sdata->vif.bss_conf.sync_dtim_count =
-					elems.tim->dtim_count;
-			else
-				sdata->vif.bss_conf.sync_dtim_count = 0;
-		}
 
 		changed |= BSS_CHANGED_BEACON_INFO;
 		ifmgd->have_beacon = true;

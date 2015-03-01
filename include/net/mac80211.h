@@ -337,12 +337,15 @@ enum ieee80211_rssi_event {
  *	HW flag %IEEE80211_HW_TIMING_BEACON_ONLY is set, then this can
  *	only come from a beacon, but might not become valid until after
  *	association when a beacon is received (which is notified with the
- *	%BSS_CHANGED_DTIM flag.)
+ *	%BSS_CHANGED_DTIM flag.). See also sync_dtim_count important notice.
  * @sync_device_ts: the device timestamp corresponding to the sync_tsf,
  *	the driver/device can use this to calculate synchronisation
- *	(see @sync_tsf)
+ *	(see @sync_tsf). See also sync_dtim_count important notice.
  * @sync_dtim_count: Only valid when %IEEE80211_HW_TIMING_BEACON_ONLY
  *	is requested, see @sync_tsf/@sync_device_ts.
+ *	IMPORTANT: These three sync_* parameters would possibly be out of sync
+ *	by the time the driver will use them. The synchronized view is currently
+ *	guaranteed only in certain callbacks.
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @basic_rates: bitmap of basic rates, each bit stands for an
