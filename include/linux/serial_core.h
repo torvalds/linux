@@ -147,9 +147,9 @@ struct uart_port {
 #define UPIO_HUB6		(1)			/* Hub6 ISA card */
 #define UPIO_MEM		(2)			/* 8b MMIO access */
 #define UPIO_MEM32		(3)			/* 32b little endian */
-#define UPIO_MEM32BE		(4)			/* 32b big endian */
-#define UPIO_AU			(5)			/* Au1x00 and RT288x type IO */
-#define UPIO_TSI		(6)			/* Tsi108/109 type IO */
+#define UPIO_AU			(4)			/* Au1x00 and RT288x type IO */
+#define UPIO_TSI		(5)			/* Tsi108/109 type IO */
+#define UPIO_MEM32BE		(6)			/* 32b big endian */
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */
