@@ -61,7 +61,24 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	local->wowlan = wowlan && local->open_count;
 	if (local->wowlan) {
-		int err = drv_suspend(local, wowlan);
+		int err;
+
+		/* Drivers don't expect to suspend while some operations like
+		 * authenticating or associating are in progress. It doesn't
+		 * make sense anyway to accept that, since the authentication
+		 * or association would never finish since the driver can't do
+		 * that on its own.
+		 * Thus, clean up in-progress auth/assoc first.
+		 */
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (!ieee80211_sdata_running(sdata))
+				continue;
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				continue;
+			ieee80211_mgd_quiesce(sdata);
+		}
+
+		err = drv_suspend(local, wowlan);
 		if (err < 0) {
 			local->quiescing = false;
 			local->wowlan = false;
