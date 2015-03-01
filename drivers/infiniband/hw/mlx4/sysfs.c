@@ -46,21 +46,17 @@
 static ssize_t show_admin_alias_guid(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	int record_num;/*0-15*/
-	int guid_index_in_rec; /*0 - 7*/
 	struct mlx4_ib_iov_sysfs_attr *mlx4_ib_iov_dentry =
 		container_of(attr, struct mlx4_ib_iov_sysfs_attr, dentry);
 	struct mlx4_ib_iov_port *port = mlx4_ib_iov_dentry->ctx;
 	struct mlx4_ib_dev *mdev = port->dev;
+	__be64 sysadmin_ag_val;
 
-	record_num = mlx4_ib_iov_dentry->entry_num / 8 ;
-	guid_index_in_rec = mlx4_ib_iov_dentry->entry_num % 8 ;
+	sysadmin_ag_val = mlx4_get_admin_guid(mdev->dev,
+					      mlx4_ib_iov_dentry->entry_num,
+					      port->num);
 
-	return sprintf(buf, "%llx\n",
-		       be64_to_cpu(*(__be64 *)&mdev->sriov.alias_guid.
-				   ports_guid[port->num - 1].
-				   all_rec_per_port[record_num].
-				   all_recs[8 * guid_index_in_rec]));
+	return sprintf(buf, "%llx\n", be64_to_cpu(sysadmin_ag_val));
 }
 
 /* store_admin_alias_guid stores the (new) administratively assigned value of that GUID.
@@ -98,6 +94,10 @@ static ssize_t store_admin_alias_guid(struct device *dev,
 	/* Change the state to be pending for update */
 	mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].status
 		= MLX4_GUID_INFO_STATUS_IDLE ;
+	mlx4_set_admin_guid(mdev->dev, cpu_to_be64(sysadmin_ag_val),
+			    mlx4_ib_iov_dentry->entry_num,
+			    port->num);
+
 	switch (sysadmin_ag_val) {
 	case MLX4_GUID_FOR_DELETE_VAL:
 		mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].ownership

@@ -328,6 +328,12 @@ static void aliasguid_query_handler(int status,
 			} else {
 				*(__be64 *)&rec->all_recs[i * GUID_REC_SIZE] =
 					sm_response;
+				if (required_val == 0)
+					mlx4_set_admin_guid(dev->dev,
+							    sm_response,
+							    (guid_rec->block_num
+							    * NUM_ALIAS_GUID_IN_REC) + i,
+							    cb_ctx->port);
 				goto next_entry;
 			}
 		}
