@@ -1605,7 +1605,7 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 	struct lov_stripe_md *lsm = md->lsm;
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 
-	LASSERT ((lsm != NULL) == ((body->valid & OBD_MD_FLEASIZE) != 0));
+	LASSERT((lsm != NULL) == ((body->valid & OBD_MD_FLEASIZE) != 0));
 	if (lsm != NULL) {
 		if (!lli->lli_has_smd &&
 		    !(sbi->ll_flags & LL_SBI_LAYOUT_LOCK))
