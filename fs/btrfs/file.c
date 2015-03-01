@@ -1593,22 +1593,10 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	mutex_unlock(&inode->i_mutex);
 
 	/*
-	 * we want to make sure fsync finds this change
-	 * but we haven't joined a transaction running right now.
-	 *
-	 * Later on, someone is sure to update the inode and get the
-	 * real transid recorded.
-	 *
-	 * We set last_trans now to the fs_info generation + 1,
-	 * this will either be one more than the running transaction
-	 * or the generation used for the next transaction if there isn't
-	 * one running right now.
-	 *
 	 * We also have to set last_sub_trans to the current log transid,
 	 * otherwise subsequent syncs to a file that's been synced in this
 	 * transaction will appear to have already occured.
 	 */
-	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
 	BTRFS_I(inode)->last_sub_trans = root->log_transid;
 	if (num_written > 0 || num_written == -EIOCBQUEUED) {
 		err = generic_write_sync(file, pos, num_written);
@@ -1706,25 +1694,37 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	atomic_inc(&root->log_batch);
 
 	/*
-	 * check the transaction that last modified this inode
-	 * and see if its already been committed
-	 */
-	if (!BTRFS_I(inode)->last_trans) {
-		mutex_unlock(&inode->i_mutex);
-		goto out;
-	}
-
-	/*
-	 * if the last transaction that changed this file was before
-	 * the current transaction, we can bail out now without any
-	 * syncing
+	 * If the last transaction that changed this file was before the current
+	 * transaction and we have the full sync flag set in our inode, we can
+	 * bail out now without any syncing.
+	 *
+	 * Note that we can't bail out if the full sync flag isn't set. This is
+	 * because when the full sync flag is set we start all ordered extents
+	 * and wait for them to fully complete - when they complete they update
+	 * the inode's last_trans field through:
+	 *
+	 *     btrfs_finish_ordered_io() ->
+	 *         btrfs_update_inode_fallback() ->
+	 *             btrfs_update_inode() ->
+	 *                 btrfs_set_inode_last_trans()
+	 *
+	 * So we are sure that last_trans is up to date and can do this check to
+	 * bail out safely. For the fast path, when the full sync flag is not
+	 * set in our inode, we can not do it because we start only our ordered
+	 * extents and don't wait for them to complete (that is when
+	 * btrfs_finish_ordered_io runs), so here at this point their last_trans
+	 * value might be less than or equals to fs_info->last_trans_committed,
+	 * and setting a speculative last_trans for an inode when a buffered
+	 * write is made (such as fs_info->generation + 1 for example) would not
+	 * be reliable since after setting the value and before fsync is called
+	 * any number of transactions can start and commit (transaction kthread
+	 * commits the current transaction periodically), and a transaction
+	 * commit does not start nor waits for ordered extents to complete.
 	 */
 	smp_mb();
 	if (btrfs_inode_in_log(inode, root->fs_info->generation) ||
-	    BTRFS_I(inode)->last_trans <=
-	    root->fs_info->last_trans_committed) {
-		BTRFS_I(inode)->last_trans = 0;
-
+	    (full_sync && BTRFS_I(inode)->last_trans <=
+	     root->fs_info->last_trans_committed)) {
 		/*
 		 * We'v had everything committed since the last time we were
 		 * modified so clear this flag in case it was set for whatever
