@@ -203,7 +203,7 @@ endef
 #   the rule that uses them - an example for that is the 'bionic'
 #   feature check. ]
 #
-CORE_FEATURE_TESTS =			\
+FEATURE_TESTS =			\
 	backtrace			\
 	dwarf				\
 	fortify-source			\
@@ -262,7 +262,7 @@ VF_FEATURE_TESTS =			\
 	compile-32			\
 	compile-x32
 
-# Set FEATURE_CHECK_(C|LD)FLAGS-all for all CORE_FEATURE_TESTS features.
+# Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not
 # mentioned in this list we need to refactor this ;-).
 set_test_all_flags = $(eval $(set_test_all_flags_code))
@@ -271,7 +271,7 @@ define set_test_all_flags_code
   FEATURE_CHECK_LDFLAGS-all += $(FEATURE_CHECK_LDFLAGS-$(1))
 endef
 
-$(foreach feat,$(CORE_FEATURE_TESTS),$(call set_test_all_flags,$(feat)))
+$(foreach feat,$(FEATURE_TESTS),$(call set_test_all_flags,$(feat)))
 
 #
 # Special fast-path for the 'all features are available' case:
@@ -286,10 +286,10 @@ ifeq ($(feature-all), 1)
   #
   # test-all.c passed - just set all the core feature flags to 1:
   #
-  $(foreach feat,$(CORE_FEATURE_TESTS),$(call feature_set,$(feat)))
+  $(foreach feat,$(FEATURE_TESTS),$(call feature_set,$(feat)))
 else
-  $(shell $(MAKE) OUTPUT=$(OUTPUT_FEATURES) CFLAGS="$(EXTRA_CFLAGS)" LDFLAGS=$(LDFLAGS) -i -j -C config/feature-checks $(addsuffix .bin,$(CORE_FEATURE_TESTS)) >/dev/null 2>&1)
-  $(foreach feat,$(CORE_FEATURE_TESTS),$(call feature_check,$(feat)))
+  $(shell $(MAKE) OUTPUT=$(OUTPUT_FEATURES) CFLAGS="$(EXTRA_CFLAGS)" LDFLAGS=$(LDFLAGS) -i -j -C config/feature-checks $(addsuffix .bin,$(FEATURE_TESTS)) >/dev/null 2>&1)
+  $(foreach feat,$(FEATURE_TESTS),$(call feature_check,$(feat)))
 endif
 
 ifeq ($(feature-stackprotector-all), 1)
