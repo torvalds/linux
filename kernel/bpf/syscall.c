@@ -419,6 +419,7 @@ void bpf_prog_put(struct bpf_prog *prog)
 		bpf_prog_free(prog);
 	}
 }
+EXPORT_SYMBOL_GPL(bpf_prog_put);
 
 static int bpf_prog_release(struct inode *inode, struct file *filp)
 {
@@ -466,6 +467,7 @@ struct bpf_prog *bpf_prog_get(u32 ufd)
 	fdput(f);
 	return prog;
 }
+EXPORT_SYMBOL_GPL(bpf_prog_get);
 
 /* last field in 'union bpf_attr' used by this command */
 #define	BPF_PROG_LOAD_LAST_FIELD log_buf
