@@ -361,7 +361,8 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 		return;
 	}
 
-	ath9k_hw_set_gpio(ah, btcoex_hw->wlanactive_gpio, 0);
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		ath9k_hw_set_gpio(ah, btcoex_hw->wlanactive_gpio, 0);
 
 	ath9k_hw_cfg_output(ah, btcoex_hw->wlanactive_gpio,
 			AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
