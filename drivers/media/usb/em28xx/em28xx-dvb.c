@@ -1380,6 +1380,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			}
 		}
 		break;
+	case EM2884_BOARD_ELGATO_EYETV_HYBRID_2008:
 	case EM2884_BOARD_CINERGY_HTC_STICK:
 		terratec_htc_stick_init(dev);
 
