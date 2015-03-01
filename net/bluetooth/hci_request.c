@@ -116,7 +116,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 	}
 
 	if (skb_queue_empty(&req->cmd_q))
-		bt_cb(skb)->req_start = true;
+		bt_cb(skb)->req_start = 1;
 
 	bt_cb(skb)->req_event = event;
 

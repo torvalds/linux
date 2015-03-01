@@ -277,11 +277,11 @@ typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status, u16 opcode);
 
 struct bt_skb_cb {
 	__u8 pkt_type;
-	__u8 incoming;
+	__u8 force_active;
 	__u16 opcode;
 	__u16 expect;
-	__u8 force_active;
-	bool req_start;
+	__u8 incoming:1;
+	__u8 req_start:1;
 	u8 req_event;
 	hci_req_complete_t req_complete;
 	struct l2cap_chan *chan;
