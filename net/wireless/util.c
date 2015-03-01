@@ -1296,6 +1296,7 @@ bool ieee80211_operating_class_to_band(u8 operating_class,
 	switch (operating_class) {
 	case 112:
 	case 115 ... 127:
+	case 128 ... 130:
 		*band = IEEE80211_BAND_5GHZ;
 		return true;
 	case 81:
