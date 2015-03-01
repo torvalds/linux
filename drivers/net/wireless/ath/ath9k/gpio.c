@@ -202,17 +202,16 @@ static void ath_btcoex_period_timer(unsigned long data)
 	}
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
-	ath9k_mci_update_rssi(sc);
-
 	ath9k_ps_wakeup(sc);
+	spin_lock_bh(&btcoex->btcoex_lock);
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI) {
+		ath9k_mci_update_rssi(sc);
+		ath_mci_ftp_adjust(sc);
+	}
 
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
 		ath_detect_bt_priority(sc);
-
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
-		ath_mci_ftp_adjust(sc);
-
-	spin_lock_bh(&btcoex->btcoex_lock);
 
 	stomp_type = btcoex->bt_stomp_type;
 	timer_period = btcoex->btcoex_no_stomp;
@@ -252,9 +251,6 @@ static void ath_btcoex_no_stomp_timer(unsigned long arg)
 	struct ath_softc *sc = (struct ath_softc *)arg;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	ath_dbg(common, BTCOEX, "no stomp timer running\n");
 
 	ath9k_ps_wakeup(sc);
 	spin_lock_bh(&btcoex->btcoex_lock);
