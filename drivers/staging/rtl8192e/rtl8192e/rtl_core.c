@@ -131,7 +131,7 @@ static bool PlatformIOCheckPageLegalAndGetRegMask(u32 u4bPage, u8 *pu1bPageMask)
 
 void write_nic_io_byte(struct net_device *dev, int x, u8 y)
 {
-	u32 u4bPage = (x >> 8);
+	u32 u4bPage = x >> 8;
 	u8 u1PageMask = 0;
 	bool	bIsLegalPage = false;
 
@@ -154,7 +154,7 @@ void write_nic_io_byte(struct net_device *dev, int x, u8 y)
 
 void write_nic_io_word(struct net_device *dev, int x, u16 y)
 {
-	u32 u4bPage = (x >> 8);
+	u32 u4bPage = x >> 8;
 	u8 u1PageMask = 0;
 	bool	bIsLegalPage = false;
 
@@ -177,7 +177,7 @@ void write_nic_io_word(struct net_device *dev, int x, u16 y)
 
 void write_nic_io_dword(struct net_device *dev, int x, u32 y)
 {
-	u32 u4bPage = (x >> 8);
+	u32 u4bPage = x >> 8;
 	u8 u1PageMask = 0;
 	bool	bIsLegalPage = false;
 
@@ -199,7 +199,7 @@ void write_nic_io_dword(struct net_device *dev, int x, u32 y)
 
 u8 read_nic_io_byte(struct net_device *dev, int x)
 {
-	u32 u4bPage = (x >> 8);
+	u32 u4bPage = x >> 8;
 	u8 u1PageMask = 0;
 	bool	bIsLegalPage = false;
 	u8	Data = 0;
@@ -224,7 +224,7 @@ u8 read_nic_io_byte(struct net_device *dev, int x)
 
 u16 read_nic_io_word(struct net_device *dev, int x)
 {
-	u32 u4bPage = (x >> 8);
+	u32 u4bPage = x >> 8;
 	u8 u1PageMask = 0;
 	bool	bIsLegalPage = false;
 	u16	Data = 0;
@@ -250,7 +250,7 @@ u16 read_nic_io_word(struct net_device *dev, int x)
 
 u32 read_nic_io_dword(struct net_device *dev, int x)
 {
-	u32 u4bPage = (x >> 8);
+	u32 u4bPage = x >> 8;
 	u8 u1PageMask = 0;
 	bool	bIsLegalPage = false;
 	u32	Data = 0;
