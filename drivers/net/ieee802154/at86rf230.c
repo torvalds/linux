@@ -738,7 +738,7 @@ at86rf230_tx_on(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 
-	at86rf230_async_state_change(lp, &lp->irq, STATE_RX_AACK_ON,
+	at86rf230_async_state_change(lp, ctx, STATE_RX_AACK_ON,
 				     at86rf230_tx_complete, true);
 }
 
@@ -787,7 +787,7 @@ at86rf230_rx_read_frame_complete(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 	u8 rx_local_buf[AT86RF2XX_MAX_BUF];
-	const u8 *buf = lp->irq.buf;
+	const u8 *buf = ctx->buf;
 	struct sk_buff *skb;
 	u8 len, lqi;
 
@@ -816,17 +816,16 @@ at86rf230_rx_read_frame(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
+	u8 *buf = ctx->buf;
 	int rc;
 
-	u8 *buf = lp->irq.buf;
-
 	buf[0] = CMD_FB;
-	lp->irq.trx.len = AT86RF2XX_MAX_BUF;
-	lp->irq.msg.complete = at86rf230_rx_read_frame_complete;
-	rc = spi_async(lp->spi, &lp->irq.msg);
+	ctx->trx.len = AT86RF2XX_MAX_BUF;
+	ctx->msg.complete = at86rf230_rx_read_frame_complete;
+	rc = spi_async(lp->spi, &ctx->msg);
 	if (rc) {
 		enable_irq(ctx->irq);
-		at86rf230_async_error(lp, &lp->irq, rc);
+		at86rf230_async_error(lp, ctx, rc);
 	}
 }
 
@@ -872,7 +871,7 @@ at86rf230_irq_status(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
-	const u8 *buf = lp->irq.buf;
+	const u8 *buf = ctx->buf;
 	const u8 irq = buf[1];
 
 	if (irq & IRQ_TRX_END) {
@@ -929,7 +928,7 @@ at86rf230_write_frame(void *context)
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
 	struct sk_buff *skb = lp->tx_skb;
-	u8 *buf = lp->tx.buf;
+	u8 *buf = ctx->buf;
 	int rc;
 
 	spin_lock(&lp->lock);
@@ -939,9 +938,9 @@ at86rf230_write_frame(void *context)
 	buf[0] = CMD_FB | CMD_WRITE;
 	buf[1] = skb->len + 2;
 	memcpy(buf + 2, skb->data, skb->len);
-	lp->tx.trx.len = skb->len + 2;
-	lp->tx.msg.complete = at86rf230_write_frame_complete;
-	rc = spi_async(lp->spi, &lp->tx.msg);
+	ctx->trx.len = skb->len + 2;
+	ctx->msg.complete = at86rf230_write_frame_complete;
+	rc = spi_async(lp->spi, &ctx->msg);
 	if (rc)
 		at86rf230_async_error(lp, ctx, rc);
 }
