@@ -415,12 +415,11 @@ int ath9k_init_btcoex(struct ath_softc *sc)
 		if (ath9k_hw_mci_is_enabled(ah)) {
 			sc->btcoex.duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
 			INIT_LIST_HEAD(&sc->btcoex.mci.info);
+			ath9k_hw_btcoex_init_mci(ah);
 
 			r = ath_mci_setup(sc);
 			if (r)
 				return r;
-
-			ath9k_hw_btcoex_init_mci(ah);
 		}
 
 		break;
