@@ -120,6 +120,8 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_SOCKET_FILTER,
 };
 
+#define BPF_PSEUDO_MAP_FD	1
+
 /* flags for BPF_MAP_UPDATE_ELEM command */
 #define BPF_ANY		0 /* create new element or update existing */
 #define BPF_NOEXIST	1 /* create new element if it didn't exist */

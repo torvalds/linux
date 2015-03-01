@@ -145,8 +145,6 @@ struct bpf_prog_aux;
 		.off   = 0,					\
 		.imm   = ((__u64) (IMM)) >> 32 })
 
-#define BPF_PSEUDO_MAP_FD	1
-
 /* pseudo BPF_LD_IMM64 insn used to refer to process-local map_fd */
 #define BPF_LD_MAP_FD(DST, MAP_FD)				\
 	BPF_LD_IMM64_RAW(DST, BPF_PSEUDO_MAP_FD, MAP_FD)
