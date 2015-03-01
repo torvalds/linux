@@ -36,7 +36,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/obd_class.h"
 
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 LPROC_SEQ_FOPS_RO_TYPE(echo, uuid);
 static struct lprocfs_vars lprocfs_echo_obd_vars[] = {
 	{ "uuid",	 &echo_uuid_fops,	NULL, 0 },
