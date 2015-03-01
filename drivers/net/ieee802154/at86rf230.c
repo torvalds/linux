@@ -52,7 +52,13 @@ struct at86rf2xx_chip_data {
 	int (*get_desense_steps)(struct at86rf230_local *, s32);
 };
 
-#define AT86RF2XX_MAX_BUF (127 + 3)
+#define AT86RF2XX_MAX_BUF		(127 + 3)
+/* tx retries to access the TX_ON state
+ * if it's above then force change will be started.
+ *
+ * We assume the max_frame_retries (7) value of 802.15.4 here.
+ */
+#define AT86RF2XX_MAX_TX_RETRIES	7
 
 struct at86rf230_state_change {
 	struct at86rf230_local *lp;
@@ -85,6 +91,7 @@ struct at86rf230_local {
 	bool is_tx;
 	/* spinlock for is_tx protection */
 	spinlock_t lock;
+	u8 tx_retry;
 	struct sk_buff *tx_skb;
 	struct at86rf230_state_change tx;
 };
@@ -512,10 +519,20 @@ at86rf230_async_state_assert(void *context)
 			 * in STATE_BUSY_RX_AACK, we run a force state change
 			 * to STATE_TX_ON. This is a timeout handling, if the
 			 * transceiver stucks in STATE_BUSY_RX_AACK.
+			 *
+			 * Additional we do several retries to try to get into
+			 * TX_ON state without forcing. If the retries are
+			 * higher or equal than AT86RF2XX_MAX_TX_RETRIES we
+			 * will do a force change.
 			 */
 			if (ctx->to_state == STATE_TX_ON) {
-				at86rf230_async_state_change(lp, ctx,
-							     STATE_FORCE_TX_ON,
+				u8 state = STATE_TX_ON;
+
+				if (lp->tx_retry >= AT86RF2XX_MAX_TX_RETRIES)
+					state = STATE_FORCE_TX_ON;
+				lp->tx_retry++;
+
+				at86rf230_async_state_change(lp, ctx, state,
 							     ctx->complete,
 							     ctx->irq_enable);
 				return;
@@ -963,6 +980,7 @@ at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	if (lp->tx_aret)
 		tx_complete = at86rf230_xmit_tx_on;
 
+	lp->tx_retry = 0;
 	at86rf230_async_state_change(lp, ctx, STATE_TX_ON, tx_complete, false);
 
 	return 0;
