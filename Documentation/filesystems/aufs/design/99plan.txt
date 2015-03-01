@@ -1,0 +1,58 @@
+
+# Copyright (C) 2005-2014 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Plan
+
+Restoring some features which was implemented in aufs1.
+They were dropped in aufs2 in order to make source files simpler and
+easier to be reviewed.
+
+
+Being Another Aufs's Readonly Branch (robr)
+----------------------------------------------------------------------
+Aufs1 allows aufs to be another aufs's readonly branch.
+This feature was developed by a user's request. But it may not be used
+currecnly.
+
+
+Refresh the Opened File (refrof)
+----------------------------------------------------------------------
+This option is implemented in aufs1 but incomplete.
+
+When user reads from a file, he expects to get its latest filedata
+generally. If the file is removed and a new same named file is created,
+the content he gets is unchanged, ie. the unlinked filedata.
+
+Let's try case study again.
+- aufs has two branches.
+  /au = /rw + /ro
+- "fileA" exists under /ro, but /rw.
+- user opened "/au/fileA".
+- he or someone else inserts a branch (/new) between /rw and /ro.
+  /au = /rw + /new + /ro
+- the new branch has "fileA".
+- user reads from the opened "fileA"
+- which filedata should aufs return, from /ro or /new?
+
+Some people says it has to be "from /ro" and it is a semantics of Unix.
+The others say it should be "from /new" because the file is not removed
+and it is equivalent to the case of someone else modifies the file.
+
+Here again I don't have a best and final answer. I got an idea to
+implement 'refrof' and 'norefrof' option. When 'refrof' (REFResh the
+Opened File) is specified (by default), aufs returns the filedata from
+/new.
+Otherwise from /new.

@@ -207,6 +207,7 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 	*xattr_value = value;
 	return error;
 }
+EXPORT_SYMBOL(vfs_getxattr_alloc);
 
 /* Compare an extended attribute value with the given value */
 int vfs_xattr_cmp(struct dentry *dentry, const char *xattr_name,

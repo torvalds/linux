@@ -1,0 +1,133 @@
+
+# Copyright (C) 2005-2014 Junjiro R. Okajima
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Lookup in a Branch
+----------------------------------------------------------------------
+Since aufs has a character of sub-VFS (see Introduction), it operates
+lookup for branches as VFS does. It may be a heavy work. Generally
+speaking struct nameidata is a bigger structure and includes many
+information. But almost all lookup operation in aufs is the simplest
+case, ie. lookup only an entry directly connected to its parent. Digging
+down the directory hierarchy is unnecessary.
+
+VFS has a function lookup_one_len() for that use, but it is not usable
+for a branch filesystem which requires struct nameidata. So aufs
+implements a simple lookup wrapper function. When a branch filesystem
+allows NULL as nameidata, it calls lookup_one_len(). Otherwise it builds
+a simplest nameidata and calls lookup_hash().
+Here aufs applies "a principle in NFSD", ie. if the filesystem supports
+NFS-export, then it has to support NULL as a nameidata parameter for
+->create(), ->lookup() and ->d_revalidate(). So the lookup wrapper in
+aufs tests if ->s_export_op in the branch is NULL or not.
+
+When a branch is a remote filesystem, aufs basically trusts its
+->d_revalidate(), also aufs forces the hardest revalidate tests for
+them.
+For d_revalidate, aufs implements three levels of revalidate tests. See
+"Revalidate Dentry and UDBA" in detail.
+
+
+Test Only the Highest One for the Directory Permission (dirperm1 option)
+----------------------------------------------------------------------
+Let's try case study.
+- aufs has two branches, upper readwrite and lower readonly.
+  /au = /rw + /ro
+- "dirA" exists under /ro, but /rw. and its mode is 0700.
+- user invoked "chmod a+rx /au/dirA"
+- the internal copy-up is activated and "/rw/dirA" is created and its
+  permission bits are set to world readble.
+- then "/au/dirA" becomes world readable?
+
+In this case, /ro/dirA is still 0700 since it exists in readonly branch,
+or it may be a natively readonly filesystem. If aufs respects the lower
+branch, it should not respond readdir request from other users. But user
+allowed it by chmod. Should really aufs rejects showing the entries
+under /ro/dirA?
+
+To be honest, I don't have a best solution for this case. So aufs
+implements 'dirperm1' and 'nodirperm1' and leave it to users.
+When dirperm1 is specified, aufs checks only the highest one for the
+directory permission, and shows the entries. Otherwise, as usual, checks
+every dir existing on all branches and rejects the request.
+
+As a side effect, dirperm1 option improves the performance of aufs
+because the number of permission check is reduced when the number of
+branch is many.
+
+
+Loopback Mount
+----------------------------------------------------------------------
+Basically aufs supports any type of filesystem and block device for a
+branch (actually there are some exceptions). But it is prohibited to add
+a loopback mounted one whose backend file exists in a filesystem which is
+already added to aufs. The reason is to protect aufs from a recursive
+lookup. If it was allowed, the aufs lookup operation might re-enter a
+lookup for the loopback mounted branch in the same context, and will
+cause a deadlock.
+
+
+Revalidate Dentry and UDBA (User's Direct Branch Access)
+----------------------------------------------------------------------
+Generally VFS helpers re-validate a dentry as a part of lookup.
+0. digging down the directory hierarchy.
+1. lock the parent dir by its i_mutex.
+2. lookup the final (child) entry.
+3. revalidate it.
+4. call the actual operation (create, unlink, etc.)
+5. unlock the parent dir
+
+If the filesystem implements its ->d_revalidate() (step 3), then it is
+called. Actually aufs implements it and checks the dentry on a branch is
+still valid.
+But it is not enough. Because aufs has to release the lock for the
+parent dir on a branch at the end of ->lookup() (step 2) and
+->d_revalidate() (step 3) while the i_mutex of the aufs dir is still
+held by VFS.
+If the file on a branch is changed directly, eg. bypassing aufs, after
+aufs released the lock, then the subsequent operation may cause
+something unpleasant result.
+
+This situation is a result of VFS architecture, ->lookup() and
+->d_revalidate() is separated. But I never say it is wrong. It is a good
+design from VFS's point of view. It is just not suitable for sub-VFS
+character in aufs.
+
+Aufs supports such case by three level of revalidation which is
+selectable by user.
+1. Simple Revalidate
+   Addition to the native flow in VFS's, confirm the child-parent
+   relationship on the branch just after locking the parent dir on the
+   branch in the "actual operation" (step 4). When this validation
+   fails, aufs returns EBUSY. ->d_revalidate() (step 3) in aufs still
+   checks the validation of the dentry on branches.
+2. Monitor Changes Internally by Inotify/Fsnotify
+   Addition to above, in the "actual operation" (step 4) aufs re-lookup
+   the dentry on the branch, and returns EBUSY if it finds different
+   dentry.
+   Additionally, aufs sets the inotify/fsnotify watch for every dir on branches
+   during it is in cache. When the event is notified, aufs registers a
+   function to kernel 'events' thread by schedule_work(). And the
+   function sets some special status to the cached aufs dentry and inode
+   private data. If they are not cached, then aufs has nothing to
+   do. When the same file is accessed through aufs (step 0-3) later,
+   aufs will detect the status and refresh all necessary data.
+   In this mode, aufs has to ignore the event which is fired by aufs
+   itself.
+3. No Extra Validation
+   This is the simplest test and doesn't add any additional revalidation
+   test, and skip therevalidatin in step 4. It is useful and improves
+   aufs performance when system surely hide the aufs branches from user,
+   by over-mounting something (or another method).

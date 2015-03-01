@@ -36,7 +36,8 @@ struct files_stat_struct files_stat = {
 	.max_files = NR_FILE
 };
 
-DEFINE_STATIC_LGLOCK(files_lglock);
+DEFINE_LGLOCK(files_lglock);
+EXPORT_SYMBOL(files_lglock);
 
 /* SLAB cache for file structures */
 static struct kmem_cache *filp_cachep __read_mostly;
@@ -404,6 +405,8 @@ void file_sb_list_del(struct file *file)
 		lg_local_unlock_cpu(&files_lglock, file_list_cpu(file));
 	}
 }
+
+EXPORT_SYMBOL(file_sb_list_del);
 
 #ifdef CONFIG_SMP
 
