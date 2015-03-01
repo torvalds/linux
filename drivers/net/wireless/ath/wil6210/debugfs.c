@@ -626,7 +626,7 @@ static ssize_t wil_write_back(struct file *file, const char __user *buf,
 	struct wil6210_priv *wil = file->private_data;
 	int rc;
 	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
-	char cmd[8];
+	char cmd[9];
 	int p1, p2, p3;
 
 	if (!kbuf)
