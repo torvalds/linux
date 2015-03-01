@@ -54,6 +54,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
+		interrupt-parent = <&mscm_ir>;
 		ranges;
 
 		aips0: aips-bus@40000000 {
@@ -62,6 +63,19 @@
 			#size-cells = <1>;
 			ranges;
 
+			mscm_cpucfg: cpucfg@40001000 {
+				compatible = "fsl,vf610-mscm-cpucfg", "syscon";
+				reg = <0x40001000 0x800>;
+			};
+
+			mscm_ir: interrupt-controller@40001800 {
+				compatible = "fsl,vf610-mscm-ir";
+				reg = <0x40001800 0x400>;
+				fsl,cpucfg = <&mscm_cpucfg>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
 			edma0: dma-controller@40018000 {
 				#dma-cells = <2>;
 				compatible = "fsl,vf610-edma";
@@ -69,6 +83,9 @@
 					<0x40024000 0x1000>,
 					<0x40025000 0x1000>;
 				dma-channels = <32>;
+				interrupts = <8 IRQ_TYPE_LEVEL_HIGH>,
+						<9 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma-tx", "edma-err";
 				clock-names = "dmamux0", "dmamux1";
 				clocks = <&clks VF610_CLK_DMAMUX0>,
 					<&clks VF610_CLK_DMAMUX1>;
@@ -78,6 +95,7 @@
 			can0: flexcan@40020000 {
 				compatible = "fsl,vf610-flexcan";
 				reg = <0x40020000 0x4000>;
+				interrupts = <58 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_FLEXCAN0>,
 					 <&clks VF610_CLK_FLEXCAN0>;
 				clock-names = "ipg", "per";
@@ -87,6 +105,7 @@
 			uart0: serial@40027000 {
 				compatible = "fsl,vf610-lpuart";
 				reg = <0x40027000 0x1000>;
+				interrupts = <61 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_UART0>;
 				clock-names = "ipg";
 				dmas = <&edma0 0 2>,
@@ -98,6 +117,7 @@
 			uart1: serial@40028000 {
 				compatible = "fsl,vf610-lpuart";
 				reg = <0x40028000 0x1000>;
+				interrupts = <62 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_UART1>;
 				clock-names = "ipg";
 				dmas = <&edma0 0 4>,
@@ -109,6 +129,7 @@
 			uart2: serial@40029000 {
 				compatible = "fsl,vf610-lpuart";
 				reg = <0x40029000 0x1000>;
+				interrupts = <63 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_UART2>;
 				clock-names = "ipg";
 				dmas = <&edma0 0 6>,
@@ -120,6 +141,7 @@
 			uart3: serial@4002a000 {
 				compatible = "fsl,vf610-lpuart";
 				reg = <0x4002a000 0x1000>;
+				interrupts = <64 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_UART3>;
 				clock-names = "ipg";
 				dmas = <&edma0 0 8>,
@@ -133,6 +155,7 @@
 				#size-cells = <0>;
 				compatible = "fsl,vf610-dspi";
 				reg = <0x4002c000 0x1000>;
+				interrupts = <67 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_DSPI0>;
 				clock-names = "dspi";
 				spi-num-chipselects = <5>;
@@ -144,6 +167,7 @@
 				#size-cells = <0>;
 				compatible = "fsl,vf610-dspi";
 				reg = <0x4002d000 0x1000>;
+				interrupts = <68 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_DSPI1>;
 				clock-names = "dspi";
 				spi-num-chipselects = <5>;
@@ -153,6 +177,7 @@
 			sai2: sai@40031000 {
 				compatible = "fsl,vf610-sai";
 				reg = <0x40031000 0x1000>;
+				interrupts = <86 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_SAI2>;
 				clock-names = "sai";
 				dma-names = "tx", "rx";
@@ -164,6 +189,7 @@
 			pit: pit@40037000 {
 				compatible = "fsl,vf610-pit";
 				reg = <0x40037000 0x1000>;
+				interrupts = <39 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_PIT>;
 				clock-names = "pit";
 			};
@@ -197,6 +223,7 @@
 			adc0: adc@4003b000 {
 				compatible = "fsl,vf610-adc";
 				reg = <0x4003b000 0x1000>;
+				interrupts = <53 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_ADC0>;
 				clock-names = "adc";
 				status = "disabled";
@@ -205,6 +232,7 @@
 			wdoga5: wdog@4003e000 {
 				compatible = "fsl,vf610-wdt", "fsl,imx21-wdt";
 				reg = <0x4003e000 0x1000>;
+				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_WDT>;
 				clock-names = "wdog";
 				status = "disabled";
@@ -215,6 +243,7 @@
 				#size-cells = <0>;
 				compatible = "fsl,vf610-qspi";
 				reg = <0x40044000 0x1000>;
+				interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_QSPI0_EN>,
 					<&clks VF610_CLK_QSPI0>;
 				clock-names = "qspi_en", "qspi";
@@ -231,6 +260,7 @@
 				reg = <0x40049000 0x1000 0x400ff000 0x40>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupts = <107 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 0 32>;
@@ -241,6 +271,7 @@
 				reg = <0x4004a000 0x1000 0x400ff040 0x40>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupts = <108 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 32 32>;
@@ -251,6 +282,7 @@
 				reg = <0x4004b000 0x1000 0x400ff080 0x40>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupts = <109 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 64 32>;
@@ -261,6 +293,7 @@
 				reg = <0x4004c000 0x1000 0x400ff0c0 0x40>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupts = <110 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 96 32>;
@@ -271,6 +304,7 @@
 				reg = <0x4004d000 0x1000 0x400ff100 0x40>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				interrupts = <111 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 128 7>;
@@ -284,6 +318,7 @@
 			usbphy0: usbphy@40050800 {
 				compatible = "fsl,vf610-usbphy";
 				reg = <0x40050800 0x400>;
+				interrupts = <50 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_USBPHY0>;
 				fsl,anatop = <&anatop>;
 				status = "disabled";
@@ -292,6 +327,7 @@
 			usbphy1: usbphy@40050c00 {
 				compatible = "fsl,vf610-usbphy";
 				reg = <0x40050c00 0x400>;
+				interrupts = <51 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_USBPHY1>;
 				fsl,anatop = <&anatop>;
 				status = "disabled";
@@ -302,6 +338,7 @@
 				#size-cells = <0>;
 				compatible = "fsl,vf610-i2c";
 				reg = <0x40066000 0x1000>;
+				interrupts = <71 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_I2C0>;
 				clock-names = "ipg";
 				dmas = <&edma0 0 50>,
@@ -321,6 +358,7 @@
 			usbdev0: usb@40034000 {
 				compatible = "fsl,vf610-usb", "fsl,imx27-usb";
 				reg = <0x40034000 0x800>;
+				interrupts = <75 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_USBC0>;
 				fsl,usbphy = <&usbphy0>;
 				fsl,usbmisc = <&usbmisc0 0>;
@@ -355,6 +393,9 @@
 					<0x400a1000 0x1000>,
 					<0x400a2000 0x1000>;
 				dma-channels = <32>;
+				interrupts = <10 IRQ_TYPE_LEVEL_HIGH>,
+						<11 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "edma-tx", "edma-err";
 				clock-names = "dmamux0", "dmamux1";
 				clocks = <&clks VF610_CLK_DMAMUX2>,
 					<&clks VF610_CLK_DMAMUX3>;
@@ -378,6 +419,7 @@
 			uart4: serial@400a9000 {
 				compatible = "fsl,vf610-lpuart";
 				reg = <0x400a9000 0x1000>;
+				interrupts = <65 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_UART4>;
 				clock-names = "ipg";
 				status = "disabled";
@@ -386,6 +428,7 @@
 			uart5: serial@400aa000 {
 				compatible = "fsl,vf610-lpuart";
 				reg = <0x400aa000 0x1000>;
+				interrupts = <66 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_UART5>;
 				clock-names = "ipg";
 				status = "disabled";
@@ -394,6 +437,7 @@
 			adc1: adc@400bb000 {
 				compatible = "fsl,vf610-adc";
 				reg = <0x400bb000 0x1000>;
+				interrupts = <54 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_ADC1>;
 				clock-names = "adc";
 				status = "disabled";
@@ -402,6 +446,7 @@
 			esdhc1: esdhc@400b2000 {
 				compatible = "fsl,imx53-esdhc";
 				reg = <0x400b2000 0x1000>;
+				interrupts = <28 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_IPG_BUS>,
 					<&clks VF610_CLK_PLATFORM_BUS>,
 					<&clks VF610_CLK_ESDHC1>;
@@ -412,6 +457,7 @@
 			usbh1: usb@400b4000 {
 				compatible = "fsl,vf610-usb", "fsl,imx27-usb";
 				reg = <0x400b4000 0x800>;
+				interrupts = <76 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_USBC1>;
 				fsl,usbphy = <&usbphy1>;
 				fsl,usbmisc = <&usbmisc1 0>;
@@ -430,6 +476,7 @@
 			ftm: ftm@400b8000 {
 				compatible = "fsl,ftm-timer";
 				reg = <0x400b8000 0x1000 0x400b9000 0x1000>;
+				interrupts = <44 IRQ_TYPE_LEVEL_HIGH>;
 				clock-names = "ftm-evt", "ftm-src",
 					"ftm-evt-counter-en", "ftm-src-counter-en";
 				clocks = <&clks VF610_CLK_FTM2>,
@@ -442,6 +489,7 @@
 			fec0: ethernet@400d0000 {
 				compatible = "fsl,mvf600-fec";
 				reg = <0x400d0000 0x1000>;
+				interrupts = <78 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_ENET0>,
 					<&clks VF610_CLK_ENET0>,
 					<&clks VF610_CLK_ENET>;
@@ -452,6 +500,7 @@
 			fec1: ethernet@400d1000 {
 				compatible = "fsl,mvf600-fec";
 				reg = <0x400d1000 0x1000>;
+				interrupts = <79 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_ENET1>,
 					<&clks VF610_CLK_ENET1>,
 					<&clks VF610_CLK_ENET>;
@@ -462,6 +511,7 @@
 			can1: flexcan@400d4000 {
 				compatible = "fsl,vf610-flexcan";
 				reg = <0x400d4000 0x4000>;
+				interrupts = <59 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks VF610_CLK_FLEXCAN1>,
 					 <&clks VF610_CLK_FLEXCAN1>;
 				clock-names = "ipg", "per";
