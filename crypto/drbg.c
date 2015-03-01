@@ -119,19 +119,19 @@ static const struct drbg_core drbg_cores[] = {
 		.statelen = 32, /* 256 bits as defined in 10.2.1 */
 		.blocklen_bytes = 16,
 		.cra_name = "ctr_aes128",
-		.backend_cra_name = "ecb(aes)",
+		.backend_cra_name = "aes",
 	}, {
 		.flags = DRBG_CTR | DRBG_STRENGTH192,
 		.statelen = 40, /* 320 bits as defined in 10.2.1 */
 		.blocklen_bytes = 16,
 		.cra_name = "ctr_aes192",
-		.backend_cra_name = "ecb(aes)",
+		.backend_cra_name = "aes",
 	}, {
 		.flags = DRBG_CTR | DRBG_STRENGTH256,
 		.statelen = 48, /* 384 bits as defined in 10.2.1 */
 		.blocklen_bytes = 16,
 		.cra_name = "ctr_aes256",
-		.backend_cra_name = "ecb(aes)",
+		.backend_cra_name = "aes",
 	},
 #endif /* CONFIG_CRYPTO_DRBG_CTR */
 #ifdef CONFIG_CRYPTO_DRBG_HASH
@@ -1644,24 +1644,24 @@ static int drbg_kcapi_hash(struct drbg_state *drbg, const unsigned char *key,
 static int drbg_init_sym_kernel(struct drbg_state *drbg)
 {
 	int ret = 0;
-	struct crypto_blkcipher *tfm;
+	struct crypto_cipher *tfm;
 
-	tfm = crypto_alloc_blkcipher(drbg->core->backend_cra_name, 0, 0);
+	tfm = crypto_alloc_cipher(drbg->core->backend_cra_name, 0, 0);
 	if (IS_ERR(tfm)) {
 		pr_info("DRBG: could not allocate cipher TFM handle\n");
 		return PTR_ERR(tfm);
 	}
-	BUG_ON(drbg_blocklen(drbg) != crypto_blkcipher_blocksize(tfm));
+	BUG_ON(drbg_blocklen(drbg) != crypto_cipher_blocksize(tfm));
 	drbg->priv_data = tfm;
 	return ret;
 }
 
 static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 {
-	struct crypto_blkcipher *tfm =
-		(struct crypto_blkcipher *)drbg->priv_data;
+	struct crypto_cipher *tfm =
+		(struct crypto_cipher *)drbg->priv_data;
 	if (tfm)
-		crypto_free_blkcipher(tfm);
+		crypto_free_cipher(tfm);
 	drbg->priv_data = NULL;
 	return 0;
 }
@@ -1669,21 +1669,14 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 static int drbg_kcapi_sym(struct drbg_state *drbg, const unsigned char *key,
 			  unsigned char *outval, const struct drbg_string *in)
 {
-	int ret = 0;
-	struct scatterlist sg_in, sg_out;
-	struct blkcipher_desc desc;
-	struct crypto_blkcipher *tfm =
-		(struct crypto_blkcipher *)drbg->priv_data;
+	struct crypto_cipher *tfm =
+		(struct crypto_cipher *)drbg->priv_data;
 
-	desc.tfm = tfm;
-	desc.flags = 0;
-	crypto_blkcipher_setkey(tfm, key, (drbg_keylen(drbg)));
+	crypto_cipher_setkey(tfm, key, (drbg_keylen(drbg)));
 	/* there is only component in *in */
-	sg_init_one(&sg_in, in->buf, in->len);
-	sg_init_one(&sg_out, outval, drbg_blocklen(drbg));
-	ret = crypto_blkcipher_encrypt(&desc, &sg_out, &sg_in, in->len);
-
-	return ret;
+	BUG_ON(in->len < drbg_blocklen(drbg));
+	crypto_cipher_encrypt_one(tfm, outval, in->buf);
+	return 0;
 }
 #endif /* CONFIG_CRYPTO_DRBG_CTR */
 
