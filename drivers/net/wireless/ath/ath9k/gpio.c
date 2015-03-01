@@ -298,6 +298,10 @@ void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_hw *ah = sc->sc_ah;
 
+	if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_3WIRE &&
+	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_MCI)
+		return;
+
 	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Starting btcoex timers\n");
 
 	/* make sure duty cycle timer is also stopped when resuming */
@@ -311,13 +315,19 @@ void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 	mod_timer(&btcoex->period_timer, jiffies);
 }
 
-
 /*
  * Pause btcoex timer and bt duty cycle timer
  */
 void ath9k_btcoex_timer_pause(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_hw *ah = sc->sc_ah;
+
+	if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_3WIRE &&
+	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_MCI)
+		return;
+
+	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Stopping btcoex timers\n");
 
 	del_timer_sync(&btcoex->period_timer);
 	del_timer_sync(&btcoex->no_stomp_timer);
@@ -355,33 +365,33 @@ void ath9k_start_btcoex(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 
-	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) &&
-	    !ah->btcoex_hw.enabled) {
-		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
-			ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-						   AR_STOMP_LOW_WLAN_WGHT, 0);
-		else
-			ath9k_hw_btcoex_set_weight(ah, 0, 0,
-						   ATH_BTCOEX_STOMP_NONE);
-		ath9k_hw_btcoex_enable(ah);
+	if (ah->btcoex_hw.enabled ||
+	    ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
+		return;
 
-		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-			ath9k_btcoex_timer_resume(sc);
-	}
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT, 0);
+	else
+		ath9k_hw_btcoex_set_weight(ah, 0, 0,
+					   ATH_BTCOEX_STOMP_NONE);
+	ath9k_hw_btcoex_enable(ah);
+	ath9k_btcoex_timer_resume(sc);
 }
 
 void ath9k_stop_btcoex(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 
-	if (ah->btcoex_hw.enabled &&
-	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
-		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-			ath9k_btcoex_timer_pause(sc);
-		ath9k_hw_btcoex_disable(ah);
-		if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
-			ath_mci_flush_profile(&sc->btcoex.mci);
-	}
+	if (!ah->btcoex_hw.enabled ||
+	    ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
+		return;
+
+	ath9k_btcoex_timer_pause(sc);
+	ath9k_hw_btcoex_disable(ah);
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		ath_mci_flush_profile(&sc->btcoex.mci);
 }
 
 void ath9k_deinit_btcoex(struct ath_softc *sc)
