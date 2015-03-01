@@ -1,7 +1,7 @@
-feature_dir := $(srctree)/tools/perf/config/feature-checks
+feature_dir := $(srctree)/tools/build/feature
 
 ifneq ($(OUTPUT),)
-  OUTPUT_FEATURES = $(OUTPUT)config/feature-checks/
+  OUTPUT_FEATURES = $(OUTPUT)feature/
   $(shell mkdir -p $(OUTPUT_FEATURES))
 endif
 

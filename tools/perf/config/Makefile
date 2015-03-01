@@ -176,7 +176,7 @@ LDFLAGS += -Wl,-z,noexecstack
 
 EXTLIBS = -lpthread -lrt -lm -ldl
 
-include $(src-perf)/config/Makefile.feature
+include $(srctree)/tools/build/Makefile.feature
 
 ifeq ($(feature-stackprotector-all), 1)
   CFLAGS += -fstack-protector-all
