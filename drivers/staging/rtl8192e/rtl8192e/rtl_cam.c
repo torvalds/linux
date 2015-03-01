@@ -192,7 +192,7 @@ void CamRestoreAllEntry(struct net_device *dev)
 		for (EntryId = 0; EntryId < 4; EntryId++) {
 			MacAddr = CAM_CONST_ADDR[EntryId];
 			if (priv->rtllib->swcamtable[EntryId].bused) {
-				setKey(dev, EntryId , EntryId,
+				setKey(dev, EntryId, EntryId,
 				       priv->rtllib->pairwise_key_type, MacAddr,
 				       0, (u32 *)(&priv->rtllib->swcamtable
 				      [EntryId].key_buf[0]));
@@ -254,7 +254,7 @@ void CamRestoreAllEntry(struct net_device *dev)
 		MacAddr = CAM_CONST_BROAD;
 		for (EntryId = 1; EntryId < 4; EntryId++) {
 			if (priv->rtllib->swcamtable[EntryId].bused) {
-				setKey(dev, EntryId , EntryId,
+				setKey(dev, EntryId, EntryId,
 				       priv->rtllib->group_key_type,
 				       MacAddr, 0,
 				       (u32 *)(&priv->rtllib->swcamtable[EntryId].key_buf[0]));
@@ -263,7 +263,7 @@ void CamRestoreAllEntry(struct net_device *dev)
 
 		if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
 			if (priv->rtllib->swcamtable[0].bused) {
-				setKey(dev, 0 , 0,
+				setKey(dev, 0, 0,
 					priv->rtllib->group_key_type,
 					CAM_CONST_ADDR[0], 0,
 					(u32 *)(&priv->rtllib->swcamtable[0].key_buf[0]));
