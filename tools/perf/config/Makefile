@@ -793,7 +793,7 @@ ifeq ($(dwarf-post-unwind),1)
   PERF_FEATURES += dwarf-post-unwind($(dwarf-post-unwind-text))
 endif
 
-# The $(display_lib) controls the default detection message
+# The $(feature_display) controls the default detection message
 # output. It's set if:
 # - detected features differes from stored features from
 #   last build (in PERF-FEATURES file)
@@ -802,24 +802,24 @@ endif
 
 ifneq ("$(PERF_FEATURES)","$(PERF_FEATURES_FILE)")
   $(shell echo "$(PERF_FEATURES)" > $(OUTPUT)PERF-FEATURES)
-  display_lib := 1
+  feature_display := 1
 endif
 
 feature_check = $(eval $(feature_check_code))
 define feature_check_code
   ifneq ($(feature-$(1)), 1)
-    display_lib := 1
+    feature_display := 1
   endif
 endef
 
 $(foreach feat,$(FEATURE_DISPLAY),$(call feature_check,$(feat)))
 
 ifeq ($(VF),1)
-  display_lib := 1
+  feature_display := 1
   display_vf := 1
 endif
 
-ifeq ($(display_lib),1)
+ifeq ($(feature_display),1)
   $(info )
   $(info Auto-detecting system features:)
   $(foreach feat,$(FEATURE_DISPLAY),$(call feature_print_status,$(feat),))
@@ -841,7 +841,7 @@ ifeq ($(display_vf),1)
   $(call feature_print_var,LIBDW_DIR)
 endif
 
-ifeq ($(display_lib),1)
+ifeq ($(feature_display),1)
   $(info )
 endif
 
