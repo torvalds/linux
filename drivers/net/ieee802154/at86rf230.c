@@ -725,11 +725,10 @@ at86rf230_tx_complete(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
-	struct sk_buff *skb = lp->tx_skb;
 
 	enable_irq(lp->spi->irq);
 
-	ieee802154_xmit_complete(lp->hw, skb, !lp->tx_aret);
+	ieee802154_xmit_complete(lp->hw, lp->tx_skb, !lp->tx_aret);
 }
 
 static void
