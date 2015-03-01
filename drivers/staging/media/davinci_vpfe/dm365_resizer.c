@@ -907,7 +907,6 @@ resizer_set_defualt_configuration(struct vpfe_resizer_device *resizer)
 			.out_chr_pos = VPFE_IPIPE_YUV422_CHR_POS_COSITE,
 		},
 	};
-	memset(&resizer->config, 0, sizeof(struct resizer_params));
 	memcpy(&resizer->config, &rsz_default_config,
 	       sizeof(struct resizer_params));
 }
