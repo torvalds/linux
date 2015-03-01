@@ -3343,16 +3343,16 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			(is_legacy(rate)) ? "legacy" :
 			is_vht(rate) ? "VHT" : "HT");
 	if (!is_legacy(rate)) {
-		desc += sprintf(buff+desc, " %s",
+		desc += sprintf(buff + desc, " %s",
 		   (is_siso(rate)) ? "SISO" : "MIMO2");
-		   desc += sprintf(buff+desc, " %s",
-				   (is_ht20(rate)) ? "20MHz" :
-				   (is_ht40(rate)) ? "40MHz" :
-				   (is_ht80(rate)) ? "80Mhz" : "BAD BW");
-		   desc += sprintf(buff+desc, " %s %s %s\n",
-				   (rate->sgi) ? "SGI" : "NGI",
-				   (rate->ldpc) ? "LDPC" : "BCC",
-				   (lq_sta->is_agg) ? "AGG on" : "");
+		desc += sprintf(buff + desc, " %s",
+				(is_ht20(rate)) ? "20MHz" :
+				(is_ht40(rate)) ? "40MHz" :
+				(is_ht80(rate)) ? "80Mhz" : "BAD BW");
+		desc += sprintf(buff + desc, " %s %s %s\n",
+				(rate->sgi) ? "SGI" : "NGI",
+				(rate->ldpc) ? "LDPC" : "BCC",
+				(lq_sta->is_agg) ? "AGG on" : "");
 	}
 	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
 			lq_sta->last_rate_n_flags);

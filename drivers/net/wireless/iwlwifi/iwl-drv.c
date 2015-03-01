@@ -1014,34 +1014,34 @@ static int validate_sec_sizes(struct iwl_drv *drv,
 
 	/* Verify that uCode images will fit in card's SRAM. */
 	if (get_sec_size(pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_INST) >
-							cfg->max_inst_size) {
+	    cfg->max_inst_size) {
 		IWL_ERR(drv, "uCode instr len %Zd too large to fit in\n",
 			get_sec_size(pieces, IWL_UCODE_REGULAR,
-						IWL_UCODE_SECTION_INST));
+				     IWL_UCODE_SECTION_INST));
 		return -1;
 	}
 
 	if (get_sec_size(pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_DATA) >
-							cfg->max_data_size) {
+	    cfg->max_data_size) {
 		IWL_ERR(drv, "uCode data len %Zd too large to fit in\n",
 			get_sec_size(pieces, IWL_UCODE_REGULAR,
-						IWL_UCODE_SECTION_DATA));
+				     IWL_UCODE_SECTION_DATA));
 		return -1;
 	}
 
-	 if (get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST) >
-							cfg->max_inst_size) {
+	if (get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST) >
+	     cfg->max_inst_size) {
 		IWL_ERR(drv, "uCode init instr len %Zd too large to fit in\n",
 			get_sec_size(pieces, IWL_UCODE_INIT,
-						IWL_UCODE_SECTION_INST));
+				     IWL_UCODE_SECTION_INST));
 		return -1;
 	}
 
 	if (get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA) >
-							cfg->max_data_size) {
+	    cfg->max_data_size) {
 		IWL_ERR(drv, "uCode init data len %Zd too large to fit in\n",
 			get_sec_size(pieces, IWL_UCODE_REGULAR,
-						IWL_UCODE_SECTION_DATA));
+				     IWL_UCODE_SECTION_DATA));
 		return -1;
 	}
 	return 0;
