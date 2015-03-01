@@ -15,7 +15,6 @@ $(shell echo -n > .config-detected)
 detected     = $(shell echo "$(1)=y"       >> .config-detected)
 detected_var = $(shell echo "$(1)=$($(1))" >> .config-detected)
 
-LIB_INCLUDE := $(srctree)/tools/lib/
 CFLAGS := $(EXTRA_CFLAGS) $(EXTRA_WARNINGS)
 
 include $(src-perf)/config/Makefile.arch
@@ -320,7 +319,7 @@ endif
 
 CFLAGS += -I$(src-perf)/util
 CFLAGS += -I$(src-perf)
-CFLAGS += -I$(LIB_INCLUDE)
+CFLAGS += -I$(srctree)/tools/lib/
 
 CFLAGS += -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
 
