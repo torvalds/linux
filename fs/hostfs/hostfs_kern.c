@@ -295,7 +295,7 @@ static int hostfs_readdir(struct file *file, struct dir_context *ctx)
 	return 0;
 }
 
-static int hostfs_file_open(struct inode *ino, struct file *file)
+static int hostfs_open(struct inode *ino, struct file *file)
 {
 	char *name;
 	fmode_t mode = 0;
@@ -386,7 +386,7 @@ static const struct file_operations hostfs_file_fops = {
 	.write_iter	= generic_file_write_iter,
 	.write		= new_sync_write,
 	.mmap		= generic_file_mmap,
-	.open		= hostfs_file_open,
+	.open		= hostfs_open,
 	.release	= hostfs_file_release,
 	.fsync		= hostfs_fsync,
 };
@@ -395,6 +395,8 @@ static const struct file_operations hostfs_dir_fops = {
 	.llseek		= generic_file_llseek,
 	.iterate	= hostfs_readdir,
 	.read		= generic_read_dir,
+	.open		= hostfs_open,
+	.fsync		= hostfs_fsync,
 };
 
 static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
