@@ -1621,9 +1621,6 @@ void ieee80211_dynamic_ps_timer(unsigned long data)
 {
 	struct ieee80211_local *local = (void *) data;
 
-	if (local->quiescing || local->suspended)
-		return;
-
 	ieee80211_queue_work(&local->hw, &local->dynamic_ps_enable_work);
 }
 
@@ -3899,11 +3896,7 @@ static void ieee80211_sta_bcn_mon_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-
-	if (local->quiescing)
-		return;
 
 	if (sdata->vif.csa_active && !ifmgd->csa_waiting_bcn)
 		return;
@@ -3919,9 +3912,6 @@ static void ieee80211_sta_conn_mon_timer(unsigned long data)
 		(struct ieee80211_sub_if_data *) data;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
-
-	if (local->quiescing)
-		return;
 
 	if (sdata->vif.csa_active && !ifmgd->csa_waiting_bcn)
 		return;
