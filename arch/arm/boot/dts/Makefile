@@ -165,6 +165,7 @@ dtb-$(CONFIG_MACH_KIRKWOOD) += \
 	kirkwood-lsxhl.dtb \
 	kirkwood-mplcec4.dtb \
 	kirkwood-mv88f6281gtw-ge.dtb \
+	kirkwood-nas2big.dtb \
 	kirkwood-net2big.dtb \
 	kirkwood-net5big.dtb \
 	kirkwood-netgear_readynas_duo_v2.dtb \
