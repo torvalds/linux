@@ -1159,19 +1159,19 @@ static bool sock_filter_is_valid_access(int off, int size, enum bpf_access_type 
 	return false;
 }
 
-static struct bpf_verifier_ops sock_filter_ops = {
+static const struct bpf_verifier_ops sock_filter_ops = {
 	.get_func_proto = sock_filter_func_proto,
 	.is_valid_access = sock_filter_is_valid_access,
 };
 
-static struct bpf_prog_type_list tl = {
+static struct bpf_prog_type_list sock_filter_type __read_mostly = {
 	.ops = &sock_filter_ops,
 	.type = BPF_PROG_TYPE_SOCKET_FILTER,
 };
 
 static int __init register_sock_filter_ops(void)
 {
-	bpf_register_prog_type(&tl);
+	bpf_register_prog_type(&sock_filter_type);
 	return 0;
 }
 late_initcall(register_sock_filter_ops);

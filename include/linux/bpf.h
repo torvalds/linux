@@ -32,13 +32,13 @@ struct bpf_map {
 	u32 key_size;
 	u32 value_size;
 	u32 max_entries;
-	struct bpf_map_ops *ops;
+	const struct bpf_map_ops *ops;
 	struct work_struct work;
 };
 
 struct bpf_map_type_list {
 	struct list_head list_node;
-	struct bpf_map_ops *ops;
+	const struct bpf_map_ops *ops;
 	enum bpf_map_type type;
 };
 
@@ -109,7 +109,7 @@ struct bpf_verifier_ops {
 
 struct bpf_prog_type_list {
 	struct list_head list_node;
-	struct bpf_verifier_ops *ops;
+	const struct bpf_verifier_ops *ops;
 	enum bpf_prog_type type;
 };
 
@@ -121,7 +121,7 @@ struct bpf_prog_aux {
 	atomic_t refcnt;
 	bool is_gpl_compatible;
 	enum bpf_prog_type prog_type;
-	struct bpf_verifier_ops *ops;
+	const struct bpf_verifier_ops *ops;
 	struct bpf_map **used_maps;
 	u32 used_map_cnt;
 	struct bpf_prog *prog;
@@ -138,8 +138,8 @@ struct bpf_prog *bpf_prog_get(u32 ufd);
 int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
 
 /* verifier prototypes for helper functions called from eBPF programs */
-extern struct bpf_func_proto bpf_map_lookup_elem_proto;
-extern struct bpf_func_proto bpf_map_update_elem_proto;
-extern struct bpf_func_proto bpf_map_delete_elem_proto;
+extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
+extern const struct bpf_func_proto bpf_map_update_elem_proto;
+extern const struct bpf_func_proto bpf_map_delete_elem_proto;
 
 #endif /* _LINUX_BPF_H */
