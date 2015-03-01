@@ -4346,11 +4346,31 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw);
  *	haven't been re-added to the driver yet.
  * @IEEE80211_IFACE_ITER_RESUME_ALL: During resume, iterate over all
  *	interfaces, even if they haven't been re-added to the driver yet.
+ * @IEEE80211_IFACE_ITER_ACTIVE: Iterate only active interfaces (netdev is up).
  */
 enum ieee80211_interface_iteration_flags {
 	IEEE80211_IFACE_ITER_NORMAL	= 0,
 	IEEE80211_IFACE_ITER_RESUME_ALL	= BIT(0),
+	IEEE80211_IFACE_ITER_ACTIVE	= BIT(1),
 };
+
+/**
+ * ieee80211_iterate_interfaces - iterate interfaces
+ *
+ * This function iterates over the interfaces associated with a given
+ * hardware and calls the callback for them. This includes active as well as
+ * inactive interfaces. This function allows the iterator function to sleep.
+ * Will iterate over a new interface during add_interface().
+ *
+ * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iter_flags: iteration flags, see &enum ieee80211_interface_iteration_flags
+ * @iterator: the iterator function to call
+ * @data: first argument of the iterator function
+ */
+void ieee80211_iterate_interfaces(struct ieee80211_hw *hw, u32 iter_flags,
+				  void (*iterator)(void *data, u8 *mac,
+						   struct ieee80211_vif *vif),
+				  void *data);
 
 /**
  * ieee80211_iterate_active_interfaces - iterate active interfaces
@@ -4367,11 +4387,16 @@ enum ieee80211_interface_iteration_flags {
  * @iterator: the iterator function to call
  * @data: first argument of the iterator function
  */
-void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
-					 u32 iter_flags,
-					 void (*iterator)(void *data, u8 *mac,
-						struct ieee80211_vif *vif),
-					 void *data);
+static inline void
+ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw, u32 iter_flags,
+				    void (*iterator)(void *data, u8 *mac,
+						     struct ieee80211_vif *vif),
+				    void *data)
+{
+	ieee80211_iterate_interfaces(hw,
+				     iter_flags | IEEE80211_IFACE_ITER_ACTIVE,
+				     iterator, data);
+}
 
 /**
  * ieee80211_iterate_active_interfaces_atomic - iterate active interfaces
