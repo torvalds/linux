@@ -436,6 +436,14 @@ config CRYPTO_MD5_OCTEON
 	  MD5 message digest algorithm (RFC1321) implemented
 	  using OCTEON crypto instructions, when available.
 
+config CRYPTO_MD5_PPC
+	tristate "MD5 digest algorithm (PPC)"
+	depends on PPC
+	select CRYPTO_HASH
+	help
+	  MD5 message digest algorithm (RFC1321) implemented
+	  in PPC assembler.
+
 config CRYPTO_MD5_SPARC64
 	tristate "MD5 digest algorithm (SPARC64)"
 	depends on SPARC64
