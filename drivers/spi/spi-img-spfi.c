@@ -459,6 +459,13 @@ static int img_spfi_transfer_one(struct spi_master *master,
 	unsigned long flags;
 	int ret;
 
+	if (xfer->len > SPFI_TRANSACTION_TSIZE_MASK) {
+		dev_err(spfi->dev,
+			"Transfer length (%d) is greater than the max supported (%d)",
+			xfer->len, SPFI_TRANSACTION_TSIZE_MASK);
+		return -EINVAL;
+	}
+
 	/*
 	 * Stop all DMA and reset the controller if the previous transaction
 	 * timed-out and never completed it's DMA.
