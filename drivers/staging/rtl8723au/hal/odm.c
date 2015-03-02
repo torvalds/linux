@@ -191,7 +191,7 @@ void odm_DynamicBBPowerSaving23a(struct dm_odm_t *pDM_Odm);
 
 void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm);
 
-void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm);
+static void odm_RSSIMonitorCheck(struct dm_odm_t *pDM_Odm);
 void odm_DynamicTxPower23a(struct dm_odm_t *pDM_Odm);
 
 void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm);
@@ -251,7 +251,7 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 	odm_CmnInfoUpdate_Debug23a(pDM_Odm);
 	odm_CommonInfoSelfUpdate(pHalData);
 	odm_FalseAlarmCounterStatistics23a(pDM_Odm);
-	odm_RSSIMonitorCheck23a(pDM_Odm);
+	odm_RSSIMonitorCheck(pDM_Odm);
 
 	/* 8723A or 8189ES platform */
 	/* NeilChen--2012--08--24-- */
@@ -1170,14 +1170,15 @@ FindMinimumRSSI(
 		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 }
 
-void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm)
+static void odm_RSSIMonitorCheck(struct dm_odm_t *pDM_Odm)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
-	int	i;
-	int	tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
+	int i;
+	int MaxDB = 0, MinDB = 0xff;
 	u8 sta_cnt = 0;
+	u32 tmpdb;
 	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
 	struct sta_info *psta;
 
@@ -1187,36 +1188,36 @@ void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm)
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		psta = pDM_Odm->pODM_StaInfo[i];
 		if (psta) {
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB < tmpEntryMinPWDB)
-				tmpEntryMinPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB < MinDB)
+				MinDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
 
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB > tmpEntryMaxPWDB)
-				tmpEntryMaxPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB > MaxDB)
+				MaxDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
 
-			if (psta->rssi_stat.UndecoratedSmoothedPWDB != (-1))
-				PWDB_rssi[sta_cnt++] = (psta->mac_id | (psta->rssi_stat.UndecoratedSmoothedPWDB<<16));
+			if (psta->rssi_stat.UndecoratedSmoothedPWDB != -1) {
+				tmpdb = psta->rssi_stat.UndecoratedSmoothedPWDB;
+				PWDB_rssi[sta_cnt++] = psta->mac_id |
+					(tmpdb << 16);
+			}
 		}
 	}
 
 	for (i = 0; i < sta_cnt; i++) {
-		if (PWDB_rssi[i] != (0)) {
+		if (PWDB_rssi[i] != (0))
 			rtl8723a_set_rssi_cmd(Adapter, (u8 *)&PWDB_rssi[i]);
-		}
 	}
 
-	if (tmpEntryMaxPWDB != 0)	/*  If associated entry is found */
-		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = tmpEntryMaxPWDB;
-	else
-		pdmpriv->EntryMaxUndecoratedSmoothedPWDB = 0;
+	pdmpriv->EntryMaxUndecoratedSmoothedPWDB = MaxDB;
 
-	if (tmpEntryMinPWDB != 0xff) /*  If associated entry is found */
-		pdmpriv->EntryMinUndecoratedSmoothedPWDB = tmpEntryMinPWDB;
+	if (MinDB != 0xff) /*  If associated entry is found */
+		pdmpriv->EntryMinUndecoratedSmoothedPWDB = MinDB;
 	else
 		pdmpriv->EntryMinUndecoratedSmoothedPWDB = 0;
 
 	FindMinimumRSSI(Adapter);/* get pdmpriv->MinUndecoratedPWDBForDM */
 
-	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
+	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN,
+			     pdmpriv->MinUndecoratedPWDBForDM);
 }
 
 /* endif */
