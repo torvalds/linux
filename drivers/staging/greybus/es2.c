@@ -29,8 +29,8 @@
 #define ES1_GBUF_MSG_SIZE_MAX	PAGE_SIZE
 
 static const struct usb_device_id id_table[] = {
-	/* Made up numbers for the SVC USB Bridge in ES1 */
-	{ USB_DEVICE(0xffff, 0x0001) },
+	/* Made up numbers for the SVC USB Bridge in ES2 */
+	{ USB_DEVICE(0xffff, 0x0002) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
