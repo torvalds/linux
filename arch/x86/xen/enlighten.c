@@ -927,92 +927,6 @@ static void xen_io_delay(void)
 {
 }
 
-#ifdef CONFIG_X86_LOCAL_APIC
-static unsigned long xen_set_apic_id(unsigned int x)
-{
-	WARN_ON(1);
-	return x;
-}
-static unsigned int xen_get_apic_id(unsigned long x)
-{
-	return ((x)>>24) & 0xFFu;
-}
-static u32 xen_apic_read(u32 reg)
-{
-	struct xen_platform_op op = {
-		.cmd = XENPF_get_cpuinfo,
-		.interface_version = XENPF_INTERFACE_VERSION,
-		.u.pcpu_info.xen_cpuid = 0,
-	};
-	int ret = 0;
-
-	/* Shouldn't need this as APIC is turned off for PV, and we only
-	 * get called on the bootup processor. But just in case. */
-	if (!xen_initial_domain() || smp_processor_id())
-		return 0;
-
-	if (reg == APIC_LVR)
-		return 0x10;
-
-	if (reg != APIC_ID)
-		return 0;
-
-	ret = HYPERVISOR_dom0_op(&op);
-	if (ret)
-		return 0;
-
-	return op.u.pcpu_info.apic_id << 24;
-}
-
-static void xen_apic_write(u32 reg, u32 val)
-{
-	/* Warn to see if there's any stray references */
-	WARN_ON(1);
-}
-
-static u64 xen_apic_icr_read(void)
-{
-	return 0;
-}
-
-static void xen_apic_icr_write(u32 low, u32 id)
-{
-	/* Warn to see if there's any stray references */
-	WARN_ON(1);
-}
-
-static void xen_apic_wait_icr_idle(void)
-{
-        return;
-}
-
-static u32 xen_safe_apic_wait_icr_idle(void)
-{
-        return 0;
-}
-
-static void set_xen_basic_apic_ops(void)
-{
-	apic->read = xen_apic_read;
-	apic->write = xen_apic_write;
-	apic->icr_read = xen_apic_icr_read;
-	apic->icr_write = xen_apic_icr_write;
-	apic->wait_icr_idle = xen_apic_wait_icr_idle;
-	apic->safe_wait_icr_idle = xen_safe_apic_wait_icr_idle;
-	apic->set_apic_id = xen_set_apic_id;
-	apic->get_apic_id = xen_get_apic_id;
-
-#ifdef CONFIG_SMP
-	apic->send_IPI_allbutself = xen_send_IPI_allbutself;
-	apic->send_IPI_mask_allbutself = xen_send_IPI_mask_allbutself;
-	apic->send_IPI_mask = xen_send_IPI_mask;
-	apic->send_IPI_all = xen_send_IPI_all;
-	apic->send_IPI_self = xen_send_IPI_self;
-#endif
-}
-
-#endif
-
 static void xen_clts(void)
 {
 	struct multicall_space mcs;
@@ -1618,7 +1532,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	/*
 	 * set up the basic apic ops.
 	 */
-	set_xen_basic_apic_ops();
+	xen_init_apic();
 #endif
 
 	if (xen_feature(XENFEAT_mmu_pt_update_preserve_ad)) {
@@ -1730,8 +1644,6 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 		if (HYPERVISOR_dom0_op(&op) == 0)
 			boot_params.kbd_status = op.u.firmware_info.u.kbd_shift_flags;
-
-		xen_init_apic();
 
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
