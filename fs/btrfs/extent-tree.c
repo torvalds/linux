@@ -3858,14 +3858,14 @@ int btrfs_check_data_free_space(struct inode *inode, u64 bytes)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 used;
 	int ret = 0;
-	int committed = 0;
-	int have_pinned_space = 1;
+	int need_commit = 2;
+	int have_pinned_space;
 
 	/* make sure bytes are sectorsize aligned */
 	bytes = ALIGN(bytes, root->sectorsize);
 
 	if (btrfs_is_free_space_inode(inode)) {
-		committed = 1;
+		need_commit = 0;
 		ASSERT(current->journal_info);
 	}
 
@@ -3915,8 +3915,10 @@ alloc:
 			if (ret < 0) {
 				if (ret != -ENOSPC)
 					return ret;
-				else
+				else {
+					have_pinned_space = 1;
 					goto commit_trans;
+				}
 			}
 
 			if (!data_sinfo)
@@ -3930,23 +3932,23 @@ alloc:
 		 * allocation, and no removed chunk in current transaction,
 		 * don't bother committing the transaction.
 		 */
-		if (percpu_counter_compare(&data_sinfo->total_bytes_pinned,
-					   used + bytes -
-					   data_sinfo->total_bytes) < 0)
-			have_pinned_space = 0;
+		have_pinned_space = percpu_counter_compare(
+			&data_sinfo->total_bytes_pinned,
+			used + bytes - data_sinfo->total_bytes);
 		spin_unlock(&data_sinfo->lock);
 
 		/* commit the current transaction and try again */
 commit_trans:
-		if (!committed &&
+		if (need_commit &&
 		    !atomic_read(&root->fs_info->open_ioctl_trans)) {
-			committed = 1;
+			need_commit--;
 
 			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
-			if (have_pinned_space ||
-			    trans->transaction->have_free_bgs) {
+			if (have_pinned_space >= 0 ||
+			    trans->transaction->have_free_bgs ||
+			    need_commit > 0) {
 				ret = btrfs_commit_transaction(trans, root);
 				if (ret)
 					return ret;
