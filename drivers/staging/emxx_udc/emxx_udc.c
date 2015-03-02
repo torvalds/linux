@@ -2257,11 +2257,6 @@ static int _nbu2ss_pullup(struct nbu2ss_udc *udc, int is_on)
 {
 	u32	reg_dt;
 
-	if (!udc) {
-		ERR("%s, bad param\n", __func__);
-		return -EINVAL;
-	}
-
 	if (udc->vbus_active == 0)
 		return -ESHUTDOWN;
 
