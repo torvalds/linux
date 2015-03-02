@@ -919,10 +919,10 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	 * which falls into the single-cmd mode.
 	 * Better to make reset, then.
 	 */
-	if (!codec->bus->sync_write) {
+	if (!codec->bus->core.sync_write) {
 		codec_info(codec,
 			   "Enable sync_write for stable communication\n");
-		codec->bus->sync_write = 1;
+		codec->bus->core.sync_write = 1;
 		codec->bus->allow_bus_reset = 1;
 	}
 

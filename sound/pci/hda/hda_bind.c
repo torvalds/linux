@@ -74,6 +74,15 @@ static int hda_codec_match(struct hdac_device *dev, struct hdac_driver *drv)
 	return 0;
 }
 
+/* process an unsolicited event */
+static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
+{
+	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
+
+	if (codec->patch_ops.unsol_event)
+		codec->patch_ops.unsol_event(codec, ev);
+}
+
 /* reset the codec name from the preset */
 static int codec_refresh_name(struct hda_codec *codec, const char *name)
 {
@@ -163,6 +172,7 @@ int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
 	drv->core.driver.pm = &hda_codec_driver_pm;
 	drv->core.type = HDA_DEV_LEGACY;
 	drv->core.match = hda_codec_match;
+	drv->core.unsol_event = hda_codec_unsol_event;
 	return driver_register(&drv->core.driver);
 }
 EXPORT_SYMBOL_GPL(__hda_codec_driver_register);

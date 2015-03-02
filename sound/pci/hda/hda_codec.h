@@ -98,16 +98,6 @@ struct hda_bus_ops {
 #endif
 };
 
-/* unsolicited event handler */
-#define HDA_UNSOL_QUEUE_SIZE	64
-struct hda_bus_unsolicited {
-	/* ring buffer */
-	u32 queue[HDA_UNSOL_QUEUE_SIZE * 2];
-	unsigned int rp, wp;
-	/* workqueue */
-	struct work_struct work;
-};
-
 /*
  * codec bus
  *
@@ -115,6 +105,8 @@ struct hda_bus_unsolicited {
  * A hda_bus contains several codecs in the list codec_list.
  */
 struct hda_bus {
+	struct hdac_bus core;
+
 	struct snd_card *card;
 
 	void *private_data;
@@ -122,17 +114,7 @@ struct hda_bus {
 	const char *modelname;
 	struct hda_bus_ops ops;
 
-	/* codec linked list */
-	struct list_head codec_list;
-	unsigned int num_codecs;
-	/* link caddr -> codec */
-	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1];
-
-	struct mutex cmd_mutex;
 	struct mutex prepare_mutex;
-
-	/* unsolicited event queue */
-	struct hda_bus_unsolicited unsol;
 
 	/* assigned PCMs */
 	DECLARE_BITMAP(pcm_dev_bits, SNDRV_PCM_DEVICES);
@@ -140,7 +122,6 @@ struct hda_bus {
 	/* misc op flags */
 	unsigned int needs_damn_long_delay :1;
 	unsigned int allow_bus_reset:1;	/* allow bus reset at fatal error */
-	unsigned int sync_write:1;	/* sync after verb write */
 	/* status for codec/controller */
 	unsigned int shutdown :1;	/* being unloaded */
 	unsigned int rirb_error:1;	/* error in codec communication */
@@ -149,7 +130,6 @@ struct hda_bus {
 	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
-	unsigned long codec_powered;	/* bit flags of powered codecs */
 };
 
 /*
@@ -281,7 +261,6 @@ struct hda_codec {
 	struct hda_bus *bus;
 	struct snd_card *card;
 	unsigned int addr;	/* codec addr*/
-	struct list_head list;	/* list point */
 
 	hda_nid_t afg;	/* AFG node id */
 	hda_nid_t mfg;	/* MFG node id */
@@ -413,6 +392,9 @@ struct hda_codec {
 #define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, core.dev)
 #define hda_codec_dev(_dev)	(&(_dev)->core.dev)
 
+#define list_for_each_codec(c, bus) \
+	list_for_each_entry(c, &(bus)->core.codec_list, core.list)
+
 /* direction */
 enum {
 	HDA_INPUT, HDA_OUTPUT
@@ -473,7 +455,11 @@ void snd_hda_sequence_write(struct hda_codec *codec,
 			    const struct hda_verb *seq);
 
 /* unsolicited event */
-int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
+static inline void
+snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
+{
+	snd_hdac_bus_queue_event(&bus->core, res, res_ex);
+}
 
 /* cached write */
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
