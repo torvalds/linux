@@ -1355,6 +1355,24 @@ Sysfs notes:
 	rfkill controller switch "tpacpi_uwb_sw": refer to
 	Documentation/rfkill.txt for details.
 
+Adaptive keyboard
+-----------------
+
+sysfs device attribute: adaptive_kbd_mode
+
+This sysfs attribute controls the keyboard "face" that will be shown on the
+Lenovo X1 Carbon 2nd gen (2014)'s adaptive keyboard. The value can be read
+and set.
+
+1 = Home mode
+2 = Web-browser mode
+3 = Web-conference mode
+4 = Function mode
+5 = Layflat mode
+
+For more details about which buttons will appear depending on the mode, please
+review the laptop's user guide:
+http://www.lenovo.com/shop/americas/content/user_guides/x1carbon_2_ug_en.pdf
 
 Multiple Commands, Module Parameters
 ------------------------------------

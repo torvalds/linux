@@ -2918,6 +2918,57 @@ static void hotkey_wakeup_hotunplug_complete_notify_change(void)
 		     "wakeup_hotunplug_complete");
 }
 
+/* sysfs adaptive kbd mode --------------------------------------------- */
+
+static int adaptive_keyboard_get_mode(void);
+static int adaptive_keyboard_set_mode(int new_mode);
+
+enum ADAPTIVE_KEY_MODE {
+	HOME_MODE,
+	WEB_BROWSER_MODE,
+	WEB_CONFERENCE_MODE,
+	FUNCTION_MODE,
+	LAYFLAT_MODE
+};
+
+static ssize_t adaptive_kbd_mode_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	u32 current_mode;
+
+	current_mode = adaptive_keyboard_get_mode();
+	if (current_mode < 0)
+		return current_mode;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", current_mode);
+}
+
+static ssize_t adaptive_kbd_mode_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long t;
+	int res;
+
+	if (parse_strtoul(buf, LAYFLAT_MODE, &t))
+		return -EINVAL;
+
+	res = adaptive_keyboard_set_mode(t);
+	return (res < 0) ? res : count;
+}
+
+static DEVICE_ATTR_RW(adaptive_kbd_mode);
+
+static struct attribute *adaptive_kbd_attributes[] = {
+	&dev_attr_adaptive_kbd_mode.attr,
+	NULL
+};
+
+static const struct attribute_group adaptive_kbd_attr_group = {
+	.attrs = adaptive_kbd_attributes,
+};
+
 /* --------------------------------------------------------------------- */
 
 static struct attribute *hotkey_attributes[] __initdata = {
@@ -3233,8 +3284,13 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	 * Lenovo Carbon X1 2014 (2nd Gen).
 	 */
 	if (acpi_evalf(hkey_handle, &hkeyv, "MHKV", "qd")) {
-		if ((hkeyv >> 8) == 2)
+		if ((hkeyv >> 8) == 2) {
 			tp_features.has_adaptive_kbd = true;
+			res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+					&adaptive_kbd_attr_group);
+			if (res)
+				goto err_exit;
+		}
 	}
 
 	quirks = tpacpi_check_quirks(tpacpi_hotkey_qtable,
@@ -3447,6 +3503,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 err_exit:
 	delete_attr_set(hotkey_dev_attributes, &tpacpi_pdev->dev.kobj);
+	sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+			&adaptive_kbd_attr_group);
+
 	hotkey_dev_attributes = NULL;
 
 	return (res < 0) ? res : 1;
@@ -3459,14 +3518,6 @@ err_exit:
  * Will consider support rest of modes in future.
  *
  */
-enum ADAPTIVE_KEY_MODE {
-	HOME_MODE,
-	WEB_BROWSER_MODE,
-	WEB_CONFERENCE_MODE,
-	FUNCTION_MODE,
-	LAYFLAT_MODE
-};
-
 static const int adaptive_keyboard_modes[] = {
 	HOME_MODE,
 /*	WEB_BROWSER_MODE = 2,
