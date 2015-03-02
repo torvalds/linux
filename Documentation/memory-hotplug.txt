@@ -149,7 +149,7 @@ For example, assume 1GiB memory block size. A device for a memory starting at
 (0x100000000 / 1Gib = 4)
 This device covers address range [0x100000000 ... 0x140000000)
 
-Under each memory block, you can see 4 files:
+Under each memory block, you can see 5 files:
 
 /sys/devices/system/memory/memoryXXX/phys_index
 /sys/devices/system/memory/memoryXXX/phys_device
