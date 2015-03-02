@@ -365,15 +365,15 @@ struct ip_vs_seq {
 
 /* counters per cpu */
 struct ip_vs_counters {
-	__u32		conns;		/* connections scheduled */
-	__u32		inpkts;		/* incoming packets */
-	__u32		outpkts;	/* outgoing packets */
+	__u64		conns;		/* connections scheduled */
+	__u64		inpkts;		/* incoming packets */
+	__u64		outpkts;	/* outgoing packets */
 	__u64		inbytes;	/* incoming bytes */
 	__u64		outbytes;	/* outgoing bytes */
 };
 /* Stats per cpu */
 struct ip_vs_cpu_stats {
-	struct ip_vs_counters   ustats;
+	struct ip_vs_counters   cnt;
 	struct u64_stats_sync   syncp;
 };
 
@@ -383,23 +383,40 @@ struct ip_vs_estimator {
 
 	u64			last_inbytes;
 	u64			last_outbytes;
-	u32			last_conns;
-	u32			last_inpkts;
-	u32			last_outpkts;
+	u64			last_conns;
+	u64			last_inpkts;
+	u64			last_outpkts;
 
-	u32			cps;
-	u32			inpps;
-	u32			outpps;
-	u32			inbps;
-	u32			outbps;
+	u64			cps;
+	u64			inpps;
+	u64			outpps;
+	u64			inbps;
+	u64			outbps;
+};
+
+/*
+ * IPVS statistics object, 64-bit kernel version of struct ip_vs_stats_user
+ */
+struct ip_vs_kstats {
+	u64			conns;		/* connections scheduled */
+	u64			inpkts;		/* incoming packets */
+	u64			outpkts;	/* outgoing packets */
+	u64			inbytes;	/* incoming bytes */
+	u64			outbytes;	/* outgoing bytes */
+
+	u64			cps;		/* current connection rate */
+	u64			inpps;		/* current in packet rate */
+	u64			outpps;		/* current out packet rate */
+	u64			inbps;		/* current in byte rate */
+	u64			outbps;		/* current out byte rate */
 };
 
 struct ip_vs_stats {
-	struct ip_vs_stats_user	ustats;		/* statistics */
+	struct ip_vs_kstats	kstats;		/* kernel statistics */
 	struct ip_vs_estimator	est;		/* estimator */
 	struct ip_vs_cpu_stats __percpu	*cpustats;	/* per cpu counters */
 	spinlock_t		lock;		/* spin lock */
-	struct ip_vs_stats_user	ustats0;	/* reset values */
+	struct ip_vs_kstats	kstats0;	/* reset values */
 };
 
 struct dst_entry;
@@ -924,6 +941,7 @@ struct netns_ipvs {
 	int			sysctl_nat_icmp_send;
 	int			sysctl_pmtu_disc;
 	int			sysctl_backup_only;
+	int			sysctl_conn_reuse_mode;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -1042,6 +1060,11 @@ static inline int sysctl_backup_only(struct netns_ipvs *ipvs)
 	       ipvs->sysctl_backup_only;
 }
 
+static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_conn_reuse_mode;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1107,6 +1130,11 @@ static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
 static inline int sysctl_backup_only(struct netns_ipvs *ipvs)
 {
 	return 0;
+}
+
+static inline int sysctl_conn_reuse_mode(struct netns_ipvs *ipvs)
+{
+	return 1;
 }
 
 #endif
@@ -1388,8 +1416,7 @@ void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp, int pkts);
 void ip_vs_start_estimator(struct net *net, struct ip_vs_stats *stats);
 void ip_vs_stop_estimator(struct net *net, struct ip_vs_stats *stats);
 void ip_vs_zero_estimator(struct ip_vs_stats *stats);
-void ip_vs_read_estimator(struct ip_vs_stats_user *dst,
-			  struct ip_vs_stats *stats);
+void ip_vs_read_estimator(struct ip_vs_kstats *dst, struct ip_vs_stats *stats);
 
 /* Various IPVS packet transmitters (from ip_vs_xmit.c) */
 int ip_vs_null_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
