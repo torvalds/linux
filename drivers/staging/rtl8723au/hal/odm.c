@@ -191,7 +191,6 @@ void odm_DynamicBBPowerSaving23a(struct dm_odm_t *pDM_Odm);
 
 void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm);
 
-void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm);
 void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm);
 void odm_DynamicTxPower23a(struct dm_odm_t *pDM_Odm);
 
@@ -1186,20 +1185,6 @@ void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm)
 	pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
 }
 
-void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm)
-{
-	/*  For AP/ADSL use struct rtl8723a_priv * */
-	/*  For CE/NIC use struct rtw_adapter * */
-
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RSSI_MONITOR))
-		return;
-
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	odm_RSSIMonitorCheck23aCE(pDM_Odm);
-}	/*  odm_RSSIMonitorCheck23a */
-
 static void
 FindMinimumRSSI(
 	struct rtw_adapter *pAdapter
@@ -1218,7 +1203,7 @@ FindMinimumRSSI(
 		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 }
 
-void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm)
+void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
