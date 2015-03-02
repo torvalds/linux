@@ -366,9 +366,6 @@ int ax25_kiss_rcv(struct sk_buff *, struct net_device *, struct packet_type *,
 		  struct net_device *);
 
 /* ax25_ip.c */
-int ax25_hard_header(struct sk_buff *, struct net_device *, unsigned short,
-		     const void *, const void *, unsigned int);
-int ax25_rebuild_header(struct sk_buff *);
 extern const struct header_ops ax25_header_ops;
 
 /* ax25_out.c */
