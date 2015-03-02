@@ -942,6 +942,4 @@ void ODM_SingleDualAntennaDefaultSetting(struct dm_odm_t *pDM_Odm);
 
 bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode);
 
-void odm_dtc(struct dm_odm_t *pDM_Odm);
-
 #endif

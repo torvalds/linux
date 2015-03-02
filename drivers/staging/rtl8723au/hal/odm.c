@@ -280,8 +280,6 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 
 	ODM_TXPowerTrackingCheck23a(pDM_Odm);
 	odm_EdcaTurboCheck23a(pDM_Odm);
-
-	odm_dtc(pDM_Odm);
 }
 
 /*  */
@@ -1662,9 +1660,4 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 		bResult = false;
 	}
 	return bResult;
-}
-
-/* Justin: According to the current RRSI to adjust Response Frame TX power, 2012/11/05 */
-void odm_dtc(struct dm_odm_t *pDM_Odm)
-{
 }
