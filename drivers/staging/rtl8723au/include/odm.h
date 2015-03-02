@@ -359,8 +359,6 @@ enum {
 
 	/*  RF ODM section BIT 24-31 */
 	ODM_RF_RX_GAIN_TRACK			= BIT(25),
-	ODM_RF_CALIBRATION			= BIT(26),
-
 };
 
 /*	ODM_CMNINFO_INTERFACE */
