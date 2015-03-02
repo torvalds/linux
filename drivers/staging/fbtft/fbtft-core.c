@@ -302,12 +302,8 @@ void fbtft_register_backlight(struct fbtft_par *par)
 
 	bl_ops = devm_kzalloc(par->info->device, sizeof(struct backlight_ops),
 				GFP_KERNEL);
-	if (!bl_ops) {
-		dev_err(par->info->device,
-			"%s: could not allocate memeory for backlight operations.\n",
-			__func__);
+	if (!bl_ops)
 		return;
-	}
 
 	bl_ops->get_brightness = fbtft_backlight_get_brightness;
 	bl_ops->update_status = fbtft_backlight_update_status;
