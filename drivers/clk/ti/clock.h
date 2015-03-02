@@ -169,4 +169,6 @@ void ti_clk_patch_legacy_clks(struct ti_clk **patch);
 struct clk *ti_clk_register_clk(struct ti_clk *setup);
 int ti_clk_register_legacy_clks(struct ti_clk_alias *clks);
 
+u8 omap2_init_dpll_parent(struct clk_hw *hw);
+
 #endif
