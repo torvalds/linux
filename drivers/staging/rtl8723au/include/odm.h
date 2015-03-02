@@ -158,14 +158,6 @@ struct false_alarm_stats {
 	u32	Cnt_BW_LSC;	/* Gary */
 };
 
-struct pri_cca {
-	u8		PriCCA_flag;
-	u8		intf_flag;
-	u8		intf_type;
-	u8		DupRTS_flag;
-	u8		Monitor_flag;
-};
-
 struct rx_hp {
 	u8		RXHP_flag;
 	u8		PSD_func_trigger;
@@ -658,7 +650,6 @@ struct dm_odm_t {
 	/*  */
 	struct dig_t	DM_DigTable;
 	struct dynamic_pwr_sav		DM_PSTable;
-	struct pri_cca	DM_PriCCA;
 	struct rx_hp		DM_RXHP_Table;
 	struct false_alarm_stats	FalseAlmCnt;
 	struct false_alarm_stats	FlaseAlmCntBuddyAdapter;
