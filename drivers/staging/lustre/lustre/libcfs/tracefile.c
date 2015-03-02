@@ -224,8 +224,7 @@ static struct cfs_trace_page *cfs_trace_get_tage(struct cfs_trace_cpu_data *tcd,
 	 */
 
 	if (len > PAGE_CACHE_SIZE) {
-		printk(KERN_ERR
-		       "cowardly refusing to write %lu bytes in a page\n", len);
+		pr_err("cowardly refusing to write %lu bytes in a page\n", len);
 		return NULL;
 	}
 
@@ -688,8 +687,8 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	if (IS_ERR(filp)) {
 		rc = PTR_ERR(filp);
 		filp = NULL;
-		printk(KERN_ERR "LustreError: can't open %s for dump: rc %d\n",
-		      filename, rc);
+		pr_err("LustreError: can't open %s for dump: rc %d\n",
+			filename, rc);
 		goto out;
 	}
 
@@ -726,7 +725,7 @@ int cfs_tracefile_dump_all_pages(char *filename)
 	MMSPACE_CLOSE;
 	rc = vfs_fsync(filp, 1);
 	if (rc)
-		printk(KERN_ERR "sync returns %d\n", rc);
+		pr_err("sync returns %d\n", rc);
 close:
 	filp_close(filp, NULL);
 out:
@@ -1048,22 +1047,21 @@ static int tracefiled(void *arg)
 			int i;
 
 			printk(KERN_ALERT "Lustre: trace pages aren't empty\n");
-			printk(KERN_ERR "total cpus(%d): ",
-			       num_possible_cpus());
+			pr_err("total cpus(%d): ",
+				num_possible_cpus());
 			for (i = 0; i < num_possible_cpus(); i++)
 				if (cpu_online(i))
-					printk(KERN_ERR "%d(on) ", i);
+					pr_cont("%d(on) ", i);
 				else
-					printk(KERN_ERR "%d(off) ", i);
-			printk(KERN_ERR "\n");
+					pr_cont("%d(off) ", i);
+			pr_cont("\n");
 
 			i = 0;
 			list_for_each_entry_safe(tage, tmp, &pc.pc_pages,
 						     linkage)
-				printk(KERN_ERR "page %d belongs to cpu %d\n",
-				       ++i, tage->cpu);
-			printk(KERN_ERR "There are %d pages unwritten\n",
-			       i);
+				pr_err("page %d belongs to cpu %d\n",
+					++i, tage->cpu);
+			pr_err("There are %d pages unwritten\n", i);
 		}
 		__LASSERT(list_empty(&pc.pc_pages));
 end_loop:
