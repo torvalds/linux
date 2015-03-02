@@ -1537,7 +1537,7 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 		if (conn && conn->state == BT_CONNECT) {
 			if (status != 0x0c || conn->attempt > 2) {
 				conn->state = BT_CLOSED;
-				hci_proto_connect_cfm(conn, status);
+				hci_connect_cfm(conn, status);
 				hci_conn_del(conn);
 			} else
 				conn->state = BT_CONNECT2;
@@ -1581,7 +1581,7 @@ static void hci_cs_add_sco(struct hci_dev *hdev, __u8 status)
 		if (sco) {
 			sco->state = BT_CLOSED;
 
-			hci_proto_connect_cfm(sco, status);
+			hci_connect_cfm(sco, status);
 			hci_conn_del(sco);
 		}
 	}
@@ -1608,7 +1608,7 @@ static void hci_cs_auth_requested(struct hci_dev *hdev, __u8 status)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
 	if (conn) {
 		if (conn->state == BT_CONFIG) {
-			hci_proto_connect_cfm(conn, status);
+			hci_connect_cfm(conn, status);
 			hci_conn_drop(conn);
 		}
 	}
@@ -1635,7 +1635,7 @@ static void hci_cs_set_conn_encrypt(struct hci_dev *hdev, __u8 status)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
 	if (conn) {
 		if (conn->state == BT_CONFIG) {
-			hci_proto_connect_cfm(conn, status);
+			hci_connect_cfm(conn, status);
 			hci_conn_drop(conn);
 		}
 	}
@@ -1811,7 +1811,7 @@ static void hci_cs_read_remote_features(struct hci_dev *hdev, __u8 status)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
 	if (conn) {
 		if (conn->state == BT_CONFIG) {
-			hci_proto_connect_cfm(conn, status);
+			hci_connect_cfm(conn, status);
 			hci_conn_drop(conn);
 		}
 	}
@@ -1838,7 +1838,7 @@ static void hci_cs_read_remote_ext_features(struct hci_dev *hdev, __u8 status)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
 	if (conn) {
 		if (conn->state == BT_CONFIG) {
-			hci_proto_connect_cfm(conn, status);
+			hci_connect_cfm(conn, status);
 			hci_conn_drop(conn);
 		}
 	}
@@ -1873,7 +1873,7 @@ static void hci_cs_setup_sync_conn(struct hci_dev *hdev, __u8 status)
 		if (sco) {
 			sco->state = BT_CLOSED;
 
-			hci_proto_connect_cfm(sco, status);
+			hci_connect_cfm(sco, status);
 			hci_conn_del(sco);
 		}
 	}
@@ -2255,10 +2255,10 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_sco_setup(conn, ev->status);
 
 	if (ev->status) {
-		hci_proto_connect_cfm(conn, ev->status);
+		hci_connect_cfm(conn, ev->status);
 		hci_conn_del(conn);
 	} else if (ev->link_type != ACL_LINK)
-		hci_proto_connect_cfm(conn, ev->status);
+		hci_connect_cfm(conn, ev->status);
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -2366,7 +2366,7 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			     &cp);
 	} else {
 		conn->state = BT_CONNECT2;
-		hci_proto_connect_cfm(conn, 0);
+		hci_connect_cfm(conn, 0);
 	}
 }
 
@@ -2444,7 +2444,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	type = conn->type;
 
-	hci_proto_disconn_cfm(conn, ev->reason);
+	hci_disconn_cfm(conn, ev->reason);
 	hci_conn_del(conn);
 
 	/* Re-enable advertising if necessary, since it might
@@ -2501,7 +2501,7 @@ static void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 				     &cp);
 		} else {
 			conn->state = BT_CONNECTED;
-			hci_proto_connect_cfm(conn, ev->status);
+			hci_connect_cfm(conn, ev->status);
 			hci_conn_drop(conn);
 		}
 	} else {
@@ -2629,12 +2629,12 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		if (test_bit(HCI_SC_ONLY, &hdev->dev_flags) &&
 		    (!test_bit(HCI_CONN_AES_CCM, &conn->flags) ||
 		     conn->key_type != HCI_LK_AUTH_COMBINATION_P256)) {
-			hci_proto_connect_cfm(conn, HCI_ERROR_AUTH_FAILURE);
+			hci_connect_cfm(conn, HCI_ERROR_AUTH_FAILURE);
 			hci_conn_drop(conn);
 			goto unlock;
 		}
 
-		hci_proto_connect_cfm(conn, ev->status);
+		hci_connect_cfm(conn, ev->status);
 		hci_conn_drop(conn);
 	} else
 		hci_encrypt_cfm(conn, ev->status, ev->encrypt);
@@ -2707,7 +2707,7 @@ static void hci_remote_features_evt(struct hci_dev *hdev,
 
 	if (!hci_outgoing_auth_needed(hdev, conn)) {
 		conn->state = BT_CONNECTED;
-		hci_proto_connect_cfm(conn, ev->status);
+		hci_connect_cfm(conn, ev->status);
 		hci_conn_drop(conn);
 	}
 
@@ -3679,7 +3679,7 @@ static void hci_remote_ext_features_evt(struct hci_dev *hdev,
 
 	if (!hci_outgoing_auth_needed(hdev, conn)) {
 		conn->state = BT_CONNECTED;
-		hci_proto_connect_cfm(conn, ev->status);
+		hci_connect_cfm(conn, ev->status);
 		hci_conn_drop(conn);
 	}
 
@@ -3738,7 +3738,7 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 		break;
 	}
 
-	hci_proto_connect_cfm(conn, ev->status);
+	hci_connect_cfm(conn, ev->status);
 	if (ev->status)
 		hci_conn_del(conn);
 
@@ -3849,7 +3849,7 @@ static void hci_key_refresh_complete_evt(struct hci_dev *hdev,
 		if (!ev->status)
 			conn->state = BT_CONNECTED;
 
-		hci_proto_connect_cfm(conn, ev->status);
+		hci_connect_cfm(conn, ev->status);
 		hci_conn_drop(conn);
 	} else {
 		hci_auth_cfm(conn, ev->status);
@@ -4512,7 +4512,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_debugfs_create_conn(conn);
 	hci_conn_add_sysfs(conn);
 
-	hci_proto_connect_cfm(conn, ev->status);
+	hci_connect_cfm(conn, ev->status);
 
 	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, &conn->dst,
 					   conn->dst_type);

@@ -159,6 +159,7 @@ static const struct usb_device_id blacklist_table[] = {
 	/* Atheros 3011 with sflash firmware */
 	{ USB_DEVICE(0x0489, 0xe027), .driver_info = BTUSB_IGNORE },
 	{ USB_DEVICE(0x0489, 0xe03d), .driver_info = BTUSB_IGNORE },
+	{ USB_DEVICE(0x04f2, 0xaff1), .driver_info = BTUSB_IGNORE },
 	{ USB_DEVICE(0x0930, 0x0215), .driver_info = BTUSB_IGNORE },
 	{ USB_DEVICE(0x0cf3, 0x3002), .driver_info = BTUSB_IGNORE },
 	{ USB_DEVICE(0x0cf3, 0xe019), .driver_info = BTUSB_IGNORE },
@@ -337,16 +338,6 @@ struct btusb_data {
 	int (*recv_event)(struct hci_dev *hdev, struct sk_buff *skb);
 	int (*recv_bulk)(struct btusb_data *data, void *buffer, int count);
 };
-
-static int btusb_wait_on_bit_timeout(void *word, int bit, unsigned long timeout,
-				     unsigned mode)
-{
-	might_sleep();
-	if (!test_bit(bit, word))
-		return 0;
-	return out_of_line_wait_on_bit_timeout(word, bit, bit_wait_timeout,
-					       mode, timeout);
-}
 
 static inline void btusb_free_frags(struct btusb_data *data)
 {
@@ -2196,9 +2187,9 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	 * and thus just timeout if that happens and fail the setup
 	 * of this device.
 	 */
-	err = btusb_wait_on_bit_timeout(&data->flags, BTUSB_DOWNLOADING,
-					msecs_to_jiffies(5000),
-					TASK_INTERRUPTIBLE);
+	err = wait_on_bit_timeout(&data->flags, BTUSB_DOWNLOADING,
+				  TASK_INTERRUPTIBLE,
+				  msecs_to_jiffies(5000));
 	if (err == 1) {
 		BT_ERR("%s: Firmware loading interrupted", hdev->name);
 		err = -EINTR;
@@ -2249,9 +2240,9 @@ done:
 	 */
 	BT_INFO("%s: Waiting for device to boot", hdev->name);
 
-	err = btusb_wait_on_bit_timeout(&data->flags, BTUSB_BOOTING,
-					msecs_to_jiffies(1000),
-					TASK_INTERRUPTIBLE);
+	err = wait_on_bit_timeout(&data->flags, BTUSB_BOOTING,
+				  TASK_INTERRUPTIBLE,
+				  msecs_to_jiffies(1000));
 
 	if (err == 1) {
 		BT_ERR("%s: Device boot interrupted", hdev->name);
@@ -2331,6 +2322,27 @@ static int btusb_set_bdaddr_intel(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	return 0;
 }
 
+static int btusb_shutdown_intel(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+	long ret;
+
+	/* Some platforms have an issue with BT LED when the interface is
+	 * down or BT radio is turned off, which takes 5 seconds to BT LED
+	 * goes off. This command turns off the BT LED immediately.
+	 */
+	skb = __hci_cmd_sync(hdev, 0xfc3f, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: turning off Intel device LED failed (%ld)",
+		       hdev->name, ret);
+		return ret;
+	}
+	kfree_skb(skb);
+
+	return 0;
+}
+
 static int btusb_set_bdaddr_marvell(struct hci_dev *hdev,
 				    const bdaddr_t *bdaddr)
 {
@@ -2354,6 +2366,23 @@ static int btusb_set_bdaddr_marvell(struct hci_dev *hdev,
 	return 0;
 }
 
+static const struct {
+	u16 subver;
+	const char *name;
+} bcm_subver_table[] = {
+	{ 0x210b, "BCM43142A0"	},	/* 001.001.011 */
+	{ 0x2112, "BCM4314A0"	},	/* 001.001.018 */
+	{ 0x2118, "BCM20702A0"	},	/* 001.001.024 */
+	{ 0x2126, "BCM4335A0"	},	/* 001.001.038 */
+	{ 0x220e, "BCM20702A1"	},	/* 001.002.014 */
+	{ 0x230f, "BCM4354A2"	},	/* 001.003.015 */
+	{ 0x4106, "BCM4335B0"	},	/* 002.001.006 */
+	{ 0x410e, "BCM20702B0"	},	/* 002.001.014 */
+	{ 0x6109, "BCM4335C0"	},	/* 003.001.009 */
+	{ 0x610c, "BCM4354"	},	/* 003.001.012 */
+	{ }
+};
+
 #define BDADDR_BCM20702A0 (&(bdaddr_t) {{0x00, 0xa0, 0x02, 0x70, 0x20, 0x00}})
 
 static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
@@ -2366,29 +2395,20 @@ static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 	size_t fw_size;
 	const struct hci_command_hdr *cmd;
 	const u8 *cmd_param;
-	u16 opcode;
+	u16 opcode, subver, rev;
+	const char *hw_name = NULL;
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
 	struct hci_rp_read_bd_addr *bda;
 	long ret;
-
-	snprintf(fw_name, sizeof(fw_name), "brcm/%s-%04x-%04x.hcd",
-		 udev->product ? udev->product : "BCM",
-		 le16_to_cpu(udev->descriptor.idVendor),
-		 le16_to_cpu(udev->descriptor.idProduct));
-
-	ret = request_firmware(&fw, fw_name, &hdev->dev);
-	if (ret < 0) {
-		BT_INFO("%s: BCM: patch %s not found", hdev->name, fw_name);
-		return 0;
-	}
+	int i;
 
 	/* Reset */
 	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
 		ret = PTR_ERR(skb);
 		BT_ERR("%s: HCI_OP_RESET failed (%ld)", hdev->name, ret);
-		goto done;
+		return ret;
 	}
 	kfree_skb(skb);
 
@@ -2399,22 +2419,42 @@ static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 		ret = PTR_ERR(skb);
 		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION failed (%ld)",
 		       hdev->name, ret);
-		goto done;
+		return ret;
 	}
 
 	if (skb->len != sizeof(*ver)) {
 		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION event length mismatch",
 		       hdev->name);
 		kfree_skb(skb);
-		ret = -EIO;
-		goto done;
+		return -EIO;
 	}
 
 	ver = (struct hci_rp_read_local_version *)skb->data;
-	BT_INFO("%s: BCM: patching hci_ver=%02x hci_rev=%04x lmp_ver=%02x "
-		"lmp_subver=%04x", hdev->name, ver->hci_ver, ver->hci_rev,
-		ver->lmp_ver, ver->lmp_subver);
+	rev = le16_to_cpu(ver->hci_rev);
+	subver = le16_to_cpu(ver->lmp_subver);
 	kfree_skb(skb);
+
+	for (i = 0; bcm_subver_table[i].name; i++) {
+		if (subver == bcm_subver_table[i].subver) {
+			hw_name = bcm_subver_table[i].name;
+			break;
+		}
+	}
+
+	BT_INFO("%s: %s (%3.3u.%3.3u.%3.3u) build %4.4u", hdev->name,
+		hw_name ? : "BCM", (subver & 0x7000) >> 13,
+		(subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
+
+	snprintf(fw_name, sizeof(fw_name), "brcm/%s-%4.4x-%4.4x.hcd",
+		 hw_name ? : "BCM",
+		 le16_to_cpu(udev->descriptor.idVendor),
+		 le16_to_cpu(udev->descriptor.idProduct));
+
+	ret = request_firmware(&fw, fw_name, &hdev->dev);
+	if (ret < 0) {
+		BT_INFO("%s: BCM: patch %s not found", hdev->name, fw_name);
+		return 0;
+	}
 
 	/* Start Download */
 	skb = __hci_cmd_sync(hdev, 0xfc2e, 0, NULL, HCI_INIT_TIMEOUT);
@@ -2493,10 +2533,13 @@ reset_fw:
 	}
 
 	ver = (struct hci_rp_read_local_version *)skb->data;
-	BT_INFO("%s: BCM: firmware hci_ver=%02x hci_rev=%04x lmp_ver=%02x "
-		"lmp_subver=%04x", hdev->name, ver->hci_ver, ver->hci_rev,
-		ver->lmp_ver, ver->lmp_subver);
+	rev = le16_to_cpu(ver->hci_rev);
+	subver = le16_to_cpu(ver->lmp_subver);
 	kfree_skb(skb);
+
+	BT_INFO("%s: %s (%3.3u.%3.3u.%3.3u) build %4.4u", hdev->name,
+		hw_name ? : "BCM", (subver & 0x7000) >> 13,
+		(subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
 	/* Read BD Address */
 	skb = __hci_cmd_sync(hdev, HCI_OP_READ_BD_ADDR, 0, NULL,
@@ -2708,6 +2751,7 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (id->driver_info & BTUSB_INTEL) {
 		hdev->setup = btusb_setup_intel;
+		hdev->shutdown = btusb_shutdown_intel;
 		hdev->set_bdaddr = btusb_set_bdaddr_intel;
 		set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
 	}

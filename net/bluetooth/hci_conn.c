@@ -309,7 +309,7 @@ void hci_sco_setup(struct hci_conn *conn, __u8 status)
 		else
 			hci_add_sco(sco, conn->handle);
 	} else {
-		hci_proto_connect_cfm(sco, status);
+		hci_connect_cfm(sco, status);
 		hci_conn_del(sco);
 	}
 }
@@ -618,7 +618,7 @@ void hci_le_conn_failed(struct hci_conn *conn, u8 status)
 	mgmt_connect_failed(hdev, &conn->dst, conn->type, conn->dst_type,
 			    status);
 
-	hci_proto_connect_cfm(conn, status);
+	hci_connect_cfm(conn, status);
 
 	hci_conn_del(conn);
 
@@ -732,6 +732,14 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	struct smp_irk *irk;
 	struct hci_request req;
 	int err;
+
+	/* Let's make sure that le is enabled.*/
+	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+		if (lmp_le_capable(hdev))
+			return ERR_PTR(-ECONNREFUSED);
+
+		return ERR_PTR(-EOPNOTSUPP);
+	}
 
 	/* Some devices send ATT messages as soon as the physical link is
 	 * established. To be able to handle these ATT messages, the user-
@@ -856,8 +864,12 @@ struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 {
 	struct hci_conn *acl;
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		if (lmp_bredr_capable(hdev))
+			return ERR_PTR(-ECONNREFUSED);
+
 		return ERR_PTR(-EOPNOTSUPP);
+	}
 
 	acl = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
 	if (!acl) {
@@ -1139,7 +1151,7 @@ void hci_conn_hash_flush(struct hci_dev *hdev)
 	list_for_each_entry_safe(c, n, &h->list, list) {
 		c->state = BT_CLOSED;
 
-		hci_proto_disconn_cfm(c, HCI_ERROR_LOCAL_HOST_TERM);
+		hci_disconn_cfm(c, HCI_ERROR_LOCAL_HOST_TERM);
 		hci_conn_del(c);
 	}
 }

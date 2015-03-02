@@ -46,8 +46,6 @@ struct at86rf2xx_chip_data {
 	u16 t_off_to_tx_on;
 	u16 t_frame;
 	u16 t_p_ack;
-	/* completion timeout for tx in msecs */
-	u16 t_tx_timeout;
 	int rssi_base_val;
 
 	int (*set_channel)(struct at86rf230_local *, u8, u8);
@@ -689,7 +687,7 @@ at86rf230_sync_state_change_complete(void *context)
 static int
 at86rf230_sync_state_change(struct at86rf230_local *lp, unsigned int state)
 {
-	int rc;
+	unsigned long rc;
 
 	at86rf230_async_state_change(lp, &lp->state, state,
 				     at86rf230_sync_state_change_complete,
@@ -1281,7 +1279,6 @@ static struct at86rf2xx_chip_data at86rf233_data = {
 	.t_off_to_tx_on = 80,
 	.t_frame = 4096,
 	.t_p_ack = 545,
-	.t_tx_timeout = 2000,
 	.rssi_base_val = -91,
 	.set_channel = at86rf23x_set_channel,
 	.get_desense_steps = at86rf23x_get_desens_steps
@@ -1295,7 +1292,6 @@ static struct at86rf2xx_chip_data at86rf231_data = {
 	.t_off_to_tx_on = 110,
 	.t_frame = 4096,
 	.t_p_ack = 545,
-	.t_tx_timeout = 2000,
 	.rssi_base_val = -91,
 	.set_channel = at86rf23x_set_channel,
 	.get_desense_steps = at86rf23x_get_desens_steps
@@ -1309,13 +1305,12 @@ static struct at86rf2xx_chip_data at86rf212_data = {
 	.t_off_to_tx_on = 200,
 	.t_frame = 4096,
 	.t_p_ack = 545,
-	.t_tx_timeout = 2000,
 	.rssi_base_val = -100,
 	.set_channel = at86rf212_set_channel,
 	.get_desense_steps = at86rf212_get_desens_steps
 };
 
-static int at86rf230_hw_init(struct at86rf230_local *lp)
+static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 {
 	int rc, irq_type, irq_pol = IRQ_ACTIVE_HIGH;
 	unsigned int dvdd;
@@ -1326,7 +1321,12 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 		return rc;
 
 	irq_type = irq_get_trigger_type(lp->spi->irq);
-	if (irq_type == IRQ_TYPE_EDGE_FALLING)
+	if (irq_type == IRQ_TYPE_EDGE_RISING ||
+	    irq_type == IRQ_TYPE_EDGE_FALLING)
+		dev_warn(&lp->spi->dev,
+			 "Using edge triggered irq's are not recommended!\n");
+	if (irq_type == IRQ_TYPE_EDGE_FALLING ||
+	    irq_type == IRQ_TYPE_LEVEL_LOW)
 		irq_pol = IRQ_ACTIVE_LOW;
 
 	rc = at86rf230_write_subreg(lp, SR_IRQ_POLARITY, irq_pol);
@@ -1338,6 +1338,11 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 		return rc;
 
 	rc = at86rf230_write_subreg(lp, SR_IRQ_MASK, IRQ_TRX_END);
+	if (rc)
+		return rc;
+
+	/* reset values differs in at86rf231 and at86rf233 */
+	rc = at86rf230_write_subreg(lp, SR_IRQ_MASK_MODE, 0);
 	if (rc)
 		return rc;
 
@@ -1362,6 +1367,45 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	usleep_range(lp->data->t_sleep_cycle,
 		     lp->data->t_sleep_cycle + 100);
 
+	/* xtal_trim value is calculated by:
+	 * CL = 0.5 * (CX + CTRIM + CPAR)
+	 *
+	 * whereas:
+	 * CL = capacitor of used crystal
+	 * CX = connected capacitors at xtal pins
+	 * CPAR = in all at86rf2xx datasheets this is a constant value 3 pF,
+	 *	  but this is different on each board setup. You need to fine
+	 *	  tuning this value via CTRIM.
+	 * CTRIM = variable capacitor setting. Resolution is 0.3 pF range is
+	 *	   0 pF upto 4.5 pF.
+	 *
+	 * Examples:
+	 * atben transceiver:
+	 *
+	 * CL = 8 pF
+	 * CX = 12 pF
+	 * CPAR = 3 pF (We assume the magic constant from datasheet)
+	 * CTRIM = 0.9 pF
+	 *
+	 * (12+0.9+3)/2 = 7.95 which is nearly at 8 pF
+	 *
+	 * xtal_trim = 0x3
+	 *
+	 * openlabs transceiver:
+	 *
+	 * CL = 16 pF
+	 * CX = 22 pF
+	 * CPAR = 3 pF (We assume the magic constant from datasheet)
+	 * CTRIM = 4.5 pF
+	 *
+	 * (22+4.5+3)/2 = 14.75 which is the nearest value to 16 pF
+	 *
+	 * xtal_trim = 0xf
+	 */
+	rc = at86rf230_write_subreg(lp, SR_XTAL_TRIM, xtal_trim);
+	if (rc)
+		return rc;
+
 	rc = at86rf230_read_subreg(lp, SR_DVDD_OK, &dvdd);
 	if (rc)
 		return rc;
@@ -1377,24 +1421,30 @@ static int at86rf230_hw_init(struct at86rf230_local *lp)
 	return at86rf230_write_subreg(lp, SR_SLOTTED_OPERATION, 0);
 }
 
-static struct at86rf230_platform_data *
-at86rf230_get_pdata(struct spi_device *spi)
+static int
+at86rf230_get_pdata(struct spi_device *spi, int *rstn, int *slp_tr,
+		    u8 *xtal_trim)
 {
-	struct at86rf230_platform_data *pdata;
+	struct at86rf230_platform_data *pdata = spi->dev.platform_data;
+	int ret;
 
-	if (!IS_ENABLED(CONFIG_OF) || !spi->dev.of_node)
-		return spi->dev.platform_data;
+	if (!IS_ENABLED(CONFIG_OF) || !spi->dev.of_node) {
+		if (!pdata)
+			return -ENOENT;
 
-	pdata = devm_kzalloc(&spi->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		goto done;
+		*rstn = pdata->rstn;
+		*slp_tr = pdata->slp_tr;
+		*xtal_trim = pdata->xtal_trim;
+		return 0;
+	}
 
-	pdata->rstn = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
-	pdata->slp_tr = of_get_named_gpio(spi->dev.of_node, "sleep-gpio", 0);
+	*rstn = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
+	*slp_tr = of_get_named_gpio(spi->dev.of_node, "sleep-gpio", 0);
+	ret = of_property_read_u8(spi->dev.of_node, "xtal-trim", xtal_trim);
+	if (ret < 0 && ret != -EINVAL)
+		return ret;
 
-	spi->dev.platform_data = pdata;
-done:
-	return pdata;
+	return 0;
 }
 
 static int
@@ -1501,43 +1551,43 @@ at86rf230_setup_spi_messages(struct at86rf230_local *lp)
 
 static int at86rf230_probe(struct spi_device *spi)
 {
-	struct at86rf230_platform_data *pdata;
 	struct ieee802154_hw *hw;
 	struct at86rf230_local *lp;
 	unsigned int status;
-	int rc, irq_type;
+	int rc, irq_type, rstn, slp_tr;
+	u8 xtal_trim;
 
 	if (!spi->irq) {
 		dev_err(&spi->dev, "no IRQ specified\n");
 		return -EINVAL;
 	}
 
-	pdata = at86rf230_get_pdata(spi);
-	if (!pdata) {
-		dev_err(&spi->dev, "no platform_data\n");
-		return -EINVAL;
+	rc = at86rf230_get_pdata(spi, &rstn, &slp_tr, &xtal_trim);
+	if (rc < 0) {
+		dev_err(&spi->dev, "failed to parse platform_data: %d\n", rc);
+		return rc;
 	}
 
-	if (gpio_is_valid(pdata->rstn)) {
-		rc = devm_gpio_request_one(&spi->dev, pdata->rstn,
+	if (gpio_is_valid(rstn)) {
+		rc = devm_gpio_request_one(&spi->dev, rstn,
 					   GPIOF_OUT_INIT_HIGH, "rstn");
 		if (rc)
 			return rc;
 	}
 
-	if (gpio_is_valid(pdata->slp_tr)) {
-		rc = devm_gpio_request_one(&spi->dev, pdata->slp_tr,
+	if (gpio_is_valid(slp_tr)) {
+		rc = devm_gpio_request_one(&spi->dev, slp_tr,
 					   GPIOF_OUT_INIT_LOW, "slp_tr");
 		if (rc)
 			return rc;
 	}
 
 	/* Reset */
-	if (gpio_is_valid(pdata->rstn)) {
+	if (gpio_is_valid(rstn)) {
 		udelay(1);
-		gpio_set_value(pdata->rstn, 0);
+		gpio_set_value(rstn, 0);
 		udelay(1);
-		gpio_set_value(pdata->rstn, 1);
+		gpio_set_value(rstn, 1);
 		usleep_range(120, 240);
 	}
 
@@ -1571,7 +1621,7 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, lp);
 
-	rc = at86rf230_hw_init(lp);
+	rc = at86rf230_hw_init(lp, xtal_trim);
 	if (rc)
 		goto free_dev;
 

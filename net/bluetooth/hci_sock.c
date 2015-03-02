@@ -46,9 +46,9 @@ struct hci_pinfo {
 	unsigned short    channel;
 };
 
-static inline int hci_test_bit(int nr, void *addr)
+static inline int hci_test_bit(int nr, const void *addr)
 {
-	return *((__u32 *) addr + (nr >> 5)) & ((__u32) 1 << (nr & 31));
+	return *((const __u32 *) addr + (nr >> 5)) & ((__u32) 1 << (nr & 31));
 }
 
 /* Security filter */
@@ -183,12 +183,13 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 	kfree_skb(skb_copy);
 }
 
-/* Send frame to control socket */
-void hci_send_to_control(struct sk_buff *skb, struct sock *skip_sk)
+/* Send frame to sockets with specific channel */
+void hci_send_to_channel(unsigned short channel, struct sk_buff *skb,
+			 struct sock *skip_sk)
 {
 	struct sock *sk;
 
-	BT_DBG("len %d", skb->len);
+	BT_DBG("channel %u len %d", channel, skb->len);
 
 	read_lock(&hci_sk_list.lock);
 
@@ -202,35 +203,7 @@ void hci_send_to_control(struct sk_buff *skb, struct sock *skip_sk)
 		if (sk->sk_state != BT_BOUND)
 			continue;
 
-		if (hci_pi(sk)->channel != HCI_CHANNEL_CONTROL)
-			continue;
-
-		nskb = skb_clone(skb, GFP_ATOMIC);
-		if (!nskb)
-			continue;
-
-		if (sock_queue_rcv_skb(sk, nskb))
-			kfree_skb(nskb);
-	}
-
-	read_unlock(&hci_sk_list.lock);
-}
-
-static void queue_monitor_skb(struct sk_buff *skb)
-{
-	struct sock *sk;
-
-	BT_DBG("len %d", skb->len);
-
-	read_lock(&hci_sk_list.lock);
-
-	sk_for_each(sk, &hci_sk_list.head) {
-		struct sk_buff *nskb;
-
-		if (sk->sk_state != BT_BOUND)
-			continue;
-
-		if (hci_pi(sk)->channel != HCI_CHANNEL_MONITOR)
+		if (hci_pi(sk)->channel != channel)
 			continue;
 
 		nskb = skb_clone(skb, GFP_ATOMIC);
@@ -290,7 +263,7 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 	hdr->index = cpu_to_le16(hdev->id);
 	hdr->len = cpu_to_le16(skb->len);
 
-	queue_monitor_skb(skb_copy);
+	hci_send_to_channel(HCI_CHANNEL_MONITOR, skb_copy, NULL);
 	kfree_skb(skb_copy);
 }
 
@@ -397,7 +370,7 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event)
 
 		skb = create_monitor_event(hdev, event);
 		if (skb) {
-			queue_monitor_skb(skb);
+			hci_send_to_channel(HCI_CHANNEL_MONITOR, skb, NULL);
 			kfree_skb(skb);
 		}
 	}

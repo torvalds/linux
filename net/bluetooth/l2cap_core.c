@@ -1244,6 +1244,13 @@ static void l2cap_move_done(struct l2cap_chan *chan)
 
 static void l2cap_chan_ready(struct l2cap_chan *chan)
 {
+	/* The channel may have already been flagged as connected in
+	 * case of receiving data before the L2CAP info req/rsp
+	 * procedure is complete.
+	 */
+	if (chan->state == BT_CONNECTED)
+		return;
+
 	/* This clears all conf flags, including CONF_NOT_COMPLETE */
 	chan->conf_state = 0;
 	__clear_chan_timer(chan);
@@ -6785,6 +6792,13 @@ static void l2cap_data_channel(struct l2cap_conn *conn, u16 cid,
 
 	BT_DBG("chan %p, len %d", chan, skb->len);
 
+	/* If we receive data on a fixed channel before the info req/rsp
+	 * procdure is done simply assume that the channel is supported
+	 * and mark it as ready.
+	 */
+	if (chan->chan_type == L2CAP_CHAN_FIXED)
+		l2cap_chan_ready(chan);
+
 	if (chan->state != BT_CONNECTED)
 		goto drop;
 
@@ -7238,12 +7252,15 @@ static struct l2cap_chan *l2cap_global_fixed_chan(struct l2cap_chan *c,
 	return NULL;
 }
 
-void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
+static void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 {
 	struct hci_dev *hdev = hcon->hdev;
 	struct l2cap_conn *conn;
 	struct l2cap_chan *pchan;
 	u8 dst_type;
+
+	if (hcon->type != ACL_LINK && hcon->type != LE_LINK)
+		return;
 
 	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
 
@@ -7307,8 +7324,11 @@ int l2cap_disconn_ind(struct hci_conn *hcon)
 	return conn->disc_reason;
 }
 
-void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
+static void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 {
+	if (hcon->type != ACL_LINK && hcon->type != LE_LINK)
+		return;
+
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
 	l2cap_conn_del(hcon, bt_to_errno(reason));
@@ -7331,13 +7351,13 @@ static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
 	}
 }
 
-int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
+static void l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct l2cap_chan *chan;
 
 	if (!conn)
-		return 0;
+		return;
 
 	BT_DBG("conn %p status 0x%2.2x encrypt %u", conn, status, encrypt);
 
@@ -7420,8 +7440,6 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 	}
 
 	mutex_unlock(&conn->chan_lock);
-
-	return 0;
 }
 
 int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
@@ -7529,6 +7547,13 @@ drop:
 	return 0;
 }
 
+static struct hci_cb l2cap_cb = {
+	.name		= "L2CAP",
+	.connect_cfm	= l2cap_connect_cfm,
+	.disconn_cfm	= l2cap_disconn_cfm,
+	.security_cfm	= l2cap_security_cfm,
+};
+
 static int l2cap_debugfs_show(struct seq_file *f, void *p)
 {
 	struct l2cap_chan *c;
@@ -7570,6 +7595,8 @@ int __init l2cap_init(void)
 	if (err < 0)
 		return err;
 
+	hci_register_cb(&l2cap_cb);
+
 	if (IS_ERR_OR_NULL(bt_debugfs))
 		return 0;
 
@@ -7587,6 +7614,7 @@ int __init l2cap_init(void)
 void l2cap_exit(void)
 {
 	debugfs_remove(l2cap_debugfs);
+	hci_unregister_cb(&l2cap_cb);
 	l2cap_cleanup_sockets();
 }
 

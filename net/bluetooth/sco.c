@@ -1083,9 +1083,13 @@ int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 	return lm;
 }
 
-void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
+static void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 {
+	if (hcon->type != SCO_LINK && hcon->type != ESCO_LINK)
+		return;
+
 	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
+
 	if (!status) {
 		struct sco_conn *conn;
 
@@ -1096,8 +1100,11 @@ void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 		sco_conn_del(hcon, bt_to_errno(status));
 }
 
-void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
+static void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 {
+	if (hcon->type != SCO_LINK && hcon->type != ESCO_LINK)
+		return;
+
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
 	sco_conn_del(hcon, bt_to_errno(reason));
@@ -1121,6 +1128,12 @@ drop:
 	kfree_skb(skb);
 	return 0;
 }
+
+static struct hci_cb sco_cb = {
+	.name		= "SCO",
+	.connect_cfm	= sco_connect_cfm,
+	.disconn_cfm	= sco_disconn_cfm,
+};
 
 static int sco_debugfs_show(struct seq_file *f, void *p)
 {
@@ -1203,6 +1216,8 @@ int __init sco_init(void)
 
 	BT_INFO("SCO socket layer initialized");
 
+	hci_register_cb(&sco_cb);
+
 	if (IS_ERR_OR_NULL(bt_debugfs))
 		return 0;
 
@@ -1221,6 +1236,8 @@ void __exit sco_exit(void)
 	bt_procfs_cleanup(&init_net, "sco");
 
 	debugfs_remove(sco_debugfs);
+
+	hci_unregister_cb(&sco_cb);
 
 	bt_sock_unregister(BTPROTO_SCO);
 

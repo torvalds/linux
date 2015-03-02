@@ -28,7 +28,8 @@
 #include <asm/byteorder.h>
 
 #define IEEE802154_MTU			127
-#define IEEE802154_MIN_PSDU_LEN		5
+#define IEEE802154_ACK_PSDU_LEN		5
+#define IEEE802154_MIN_PSDU_LEN		9
 
 #define IEEE802154_PAN_ID_BROADCAST	0xffff
 #define IEEE802154_ADDR_SHORT_BROADCAST	0xffff
@@ -204,11 +205,18 @@ enum {
 
 /**
  * ieee802154_is_valid_psdu_len - check if psdu len is valid
+ * available lengths:
+ *	0-4	Reserved
+ *	5	MPDU (Acknowledgment)
+ *	6-8	Reserved
+ *	9-127	MPDU
+ *
  * @len: psdu len with (MHR + payload + MFR)
  */
 static inline bool ieee802154_is_valid_psdu_len(const u8 len)
 {
-	return (len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU);
+	return (len == IEEE802154_ACK_PSDU_LEN ||
+		(len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU));
 }
 
 /**

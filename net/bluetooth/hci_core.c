@@ -51,7 +51,7 @@ DEFINE_RWLOCK(hci_dev_list_lock);
 
 /* HCI callback list */
 LIST_HEAD(hci_cb_list);
-DEFINE_RWLOCK(hci_cb_list_lock);
+DEFINE_MUTEX(hci_cb_list_lock);
 
 /* HCI ID Numbering */
 static DEFINE_IDA(hci_index_ida);
@@ -390,7 +390,7 @@ static void bredr_init(struct hci_request *req)
 	hci_req_add(req, HCI_OP_READ_BD_ADDR, 0, NULL);
 }
 
-static void amp_init(struct hci_request *req)
+static void amp_init1(struct hci_request *req)
 {
 	req->hdev->flow_ctl_mode = HCI_FLOW_CTL_MODE_BLOCK_BASED;
 
@@ -399,9 +399,6 @@ static void amp_init(struct hci_request *req)
 
 	/* Read Local Supported Commands */
 	hci_req_add(req, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
-
-	/* Read Local Supported Features */
-	hci_req_add(req, HCI_OP_READ_LOCAL_FEATURES, 0, NULL);
 
 	/* Read Local AMP Info */
 	hci_req_add(req, HCI_OP_READ_LOCAL_AMP_INFO, 0, NULL);
@@ -414,6 +411,16 @@ static void amp_init(struct hci_request *req)
 
 	/* Read Location Data */
 	hci_req_add(req, HCI_OP_READ_LOCATION_DATA, 0, NULL);
+}
+
+static void amp_init2(struct hci_request *req)
+{
+	/* Read Local Supported Features. Not all AMP controllers
+	 * support this so it's placed conditionally in the second
+	 * stage init.
+	 */
+	if (req->hdev->commands[14] & 0x20)
+		hci_req_add(req, HCI_OP_READ_LOCAL_FEATURES, 0, NULL);
 }
 
 static void hci_init1_req(struct hci_request *req, unsigned long opt)
@@ -432,7 +439,7 @@ static void hci_init1_req(struct hci_request *req, unsigned long opt)
 		break;
 
 	case HCI_AMP:
-		amp_init(req);
+		amp_init1(req);
 		break;
 
 	default:
@@ -577,6 +584,9 @@ static void hci_setup_event_mask(struct hci_request *req)
 static void hci_init2_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
+
+	if (hdev->dev_type == HCI_AMP)
+		return amp_init2(req);
 
 	if (lmp_bredr_capable(hdev))
 		bredr_setup(req);
@@ -896,16 +906,16 @@ static int __hci_init(struct hci_dev *hdev)
 				    &dut_mode_fops);
 	}
 
-	/* HCI_BREDR covers both single-mode LE, BR/EDR and dual-mode
-	 * BR/EDR/LE type controllers. AMP controllers only need the
-	 * first stage init.
-	 */
-	if (hdev->dev_type != HCI_BREDR)
-		return 0;
-
 	err = __hci_req_sync(hdev, hci_init2_req, 0, HCI_INIT_TIMEOUT);
 	if (err < 0)
 		return err;
+
+	/* HCI_BREDR covers both single-mode LE, BR/EDR and dual-mode
+	 * BR/EDR/LE type controllers. AMP controllers only need the
+	 * first two stages of init.
+	 */
+	if (hdev->dev_type != HCI_BREDR)
+		return 0;
 
 	err = __hci_req_sync(hdev, hci_init3_req, 0, HCI_INIT_TIMEOUT);
 	if (err < 0)
@@ -1590,6 +1600,12 @@ static void hci_pend_le_actions_clear(struct hci_dev *hdev)
 static int hci_dev_do_close(struct hci_dev *hdev)
 {
 	BT_DBG("%s %p", hdev->name, hdev);
+
+	if (!test_bit(HCI_UNREGISTER, &hdev->dev_flags)) {
+		/* Execute vendor specific shutdown routine */
+		if (hdev->shutdown)
+			hdev->shutdown(hdev);
+	}
 
 	cancel_delayed_work(&hdev->power_off);
 
@@ -3448,9 +3464,9 @@ int hci_register_cb(struct hci_cb *cb)
 {
 	BT_DBG("%p name %s", cb, cb->name);
 
-	write_lock(&hci_cb_list_lock);
-	list_add(&cb->list, &hci_cb_list);
-	write_unlock(&hci_cb_list_lock);
+	mutex_lock(&hci_cb_list_lock);
+	list_add_tail(&cb->list, &hci_cb_list);
+	mutex_unlock(&hci_cb_list_lock);
 
 	return 0;
 }
@@ -3460,9 +3476,9 @@ int hci_unregister_cb(struct hci_cb *cb)
 {
 	BT_DBG("%p name %s", cb, cb->name);
 
-	write_lock(&hci_cb_list_lock);
+	mutex_lock(&hci_cb_list_lock);
 	list_del(&cb->list);
-	write_unlock(&hci_cb_list_lock);
+	mutex_unlock(&hci_cb_list_lock);
 
 	return 0;
 }

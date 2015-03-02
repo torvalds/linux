@@ -1252,7 +1252,10 @@ static void smp_distribute_keys(struct smp_chan *smp)
 
 		csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
 		if (csrk) {
-			csrk->master = 0x00;
+			if (hcon->sec_level > BT_SECURITY_MEDIUM)
+				csrk->type = MGMT_CSRK_LOCAL_AUTHENTICATED;
+			else
+				csrk->type = MGMT_CSRK_LOCAL_UNAUTHENTICATED;
 			memcpy(csrk->val, sign.csrk, sizeof(csrk->val));
 		}
 		smp->slave_csrk = csrk;
@@ -2352,7 +2355,10 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
 	if (csrk) {
-		csrk->master = 0x01;
+		if (conn->hcon->sec_level > BT_SECURITY_MEDIUM)
+			csrk->type = MGMT_CSRK_REMOTE_AUTHENTICATED;
+		else
+			csrk->type = MGMT_CSRK_REMOTE_UNAUTHENTICATED;
 		memcpy(csrk->val, rp->csrk, sizeof(csrk->val));
 	}
 	smp->csrk = csrk;
@@ -2951,24 +2957,14 @@ create_chan:
 	l2cap_chan_set_defaults(chan);
 
 	if (cid == L2CAP_CID_SMP) {
-		/* If usage of static address is forced or if the devices
-		 * does not have a public address, then listen on the static
-		 * address.
-		 *
-		 * In case BR/EDR has been disabled on a dual-mode controller
-		 * and a static address has been configued, then listen on
-		 * the static address instead.
-		 */
-		if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
-		    !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
-		    (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
-		     bacmp(&hdev->static_addr, BDADDR_ANY))) {
-			bacpy(&chan->src, &hdev->static_addr);
-			chan->src_type = BDADDR_LE_RANDOM;
-		} else {
-			bacpy(&chan->src, &hdev->bdaddr);
+		u8 bdaddr_type;
+
+		hci_copy_identity_address(hdev, &chan->src, &bdaddr_type);
+
+		if (bdaddr_type == ADDR_LE_DEV_PUBLIC)
 			chan->src_type = BDADDR_LE_PUBLIC;
-		}
+		else
+			chan->src_type = BDADDR_LE_RANDOM;
 	} else {
 		bacpy(&chan->src, &hdev->bdaddr);
 		chan->src_type = BDADDR_BREDR;
