@@ -347,7 +347,7 @@ static int init_libcfs_module(void)
 
 	rc = libcfs_debug_init(5 * 1024 * 1024);
 	if (rc < 0) {
-		printk(KERN_ERR "LustreError: libcfs_debug_init: %d\n", rc);
+		pr_err("LustreError: libcfs_debug_init: %d\n", rc);
 		return rc;
 	}
 
@@ -433,8 +433,7 @@ static void exit_libcfs_module(void)
 
 	rc = libcfs_debug_cleanup();
 	if (rc)
-		printk(KERN_ERR "LustreError: libcfs_debug_cleanup: %d\n",
-		       rc);
+		pr_err("LustreError: libcfs_debug_cleanup: %d\n", rc);
 
 	libcfs_arch_cleanup();
 }
