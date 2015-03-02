@@ -186,18 +186,6 @@ void omap3_dpll_deny_idle(struct clk_hw_omap *clk);
 
 void __init omap2_clk_disable_clkdm_control(void);
 
-/* clkt_clksel.c public functions */
-u32 omap2_clksel_round_rate_div(struct clk_hw_omap *clk,
-				unsigned long target_rate,
-				u32 *new_div);
-u8 omap2_clksel_find_parent_index(struct clk_hw *hw);
-unsigned long omap2_clksel_recalc(struct clk_hw *hw, unsigned long parent_rate);
-long omap2_clksel_round_rate(struct clk_hw *hw, unsigned long target_rate,
-				unsigned long *parent_rate);
-int omap2_clksel_set_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long parent_rate);
-int omap2_clksel_set_parent(struct clk_hw *hw, u8 field_val);
-
 int omap2_clk_enable_autoidle_all(void);
 int omap2_clk_allow_idle(struct clk *clk);
 int omap2_clk_deny_idle(struct clk *clk);
