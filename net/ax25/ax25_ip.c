@@ -115,9 +115,6 @@ static int ax25_neigh_xmit(struct sk_buff *skb)
 	dst = (ax25_address *)(bp + 1);
 	src = (ax25_address *)(bp + 8);
 
-	if (arp_find(bp + 1, skb))
-		return 1;
-
 	route = ax25_get_route(dst, NULL);
 	if (route) {
 		digipeat = route->digipeat;
@@ -218,16 +215,35 @@ put:
 
 static int ax25_neigh_output(struct neighbour *neigh, struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dev;
+	/* Except for calling ax25_neigh_xmit instead of
+	 * dev_queue_xmit this is neigh_resolve_output.
+	 */
+	int rc = 0;
 
-	__skb_pull(skb, skb_network_offset(skb));
+	if (!neigh_event_send(neigh, skb)) {
+		int err;
+		struct net_device *dev = neigh->dev;
+		unsigned int seq;
 
-	if (dev_hard_header(skb, dev, ntohs(skb->protocol), NULL, NULL,
-			    skb->len) < 0 &&
-	    ax25_neigh_xmit(skb));
-		return 0;
+		do {
+			__skb_pull(skb, skb_network_offset(skb));
+			seq = read_seqbegin(&neigh->ha_lock);
+			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+					      neigh->ha, NULL, skb->len);
+		} while (read_seqretry(&neigh->ha_lock, seq));
 
-	return dev_queue_xmit(skb);
+		if (err >= 0) {
+			ax25_neigh_xmit(skb);
+		} else
+			goto out_kfree_skb;
+	}
+out:
+	return rc;
+
+out_kfree_skb:
+	rc = -EINVAL;
+	kfree_skb(skb);
+	goto out;
 }
 
 int ax25_neigh_construct(struct neighbour *neigh)
