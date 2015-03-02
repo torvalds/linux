@@ -1360,7 +1360,6 @@ static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 	u32 edca_param;
 	u64 cur_tx_bytes = 0;
 	u64 cur_rx_bytes = 0;
-	u8 bbtchange = false;
 
 	/*  For AP/ADSL use struct rtl8723a_priv * */
 	/*  For CE/NIC use struct rtw_adapter * */
@@ -1382,7 +1381,7 @@ static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 		goto dm_CheckEdcaTurbo_EXIT;
 
 	/*  Check if the status needs to be changed. */
-	if ((bbtchange) || (!precvpriv->bIsAnyNonBEPkts)) {
+	if (!precvpriv->bIsAnyNonBEPkts) {
 		cur_tx_bytes = pxmitpriv->tx_bytes - pxmitpriv->last_tx_bytes;
 		cur_rx_bytes = precvpriv->rx_bytes - precvpriv->last_rx_bytes;
 
