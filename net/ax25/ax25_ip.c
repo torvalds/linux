@@ -100,7 +100,7 @@ static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return -AX25_HEADER_LEN;	/* Unfinished header */
 }
 
-static int ax25_rebuild_header(struct sk_buff *skb)
+static int ax25_neigh_xmit(struct sk_buff *skb)
 {
 	struct sk_buff *ourskb;
 	unsigned char *bp  = skb->data;
@@ -224,7 +224,7 @@ static int ax25_neigh_output(struct neighbour *neigh, struct sk_buff *skb)
 
 	if (dev_hard_header(skb, dev, ntohs(skb->protocol), NULL, NULL,
 			    skb->len) < 0 &&
-	    dev_rebuild_header(skb))
+	    ax25_neigh_xmit(skb));
 		return 0;
 
 	return dev_queue_xmit(skb);
@@ -255,11 +255,6 @@ static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return -AX25_HEADER_LEN;
 }
 
-static int ax25_rebuild_header(struct sk_buff *skb)
-{
-	return 1;
-}
-
 int ax25_neigh_construct(struct neighbour *neigh)
 {
 	return 0;
@@ -268,7 +263,6 @@ int ax25_neigh_construct(struct neighbour *neigh)
 
 const struct header_ops ax25_header_ops = {
 	.create = ax25_hard_header,
-	.rebuild = ax25_rebuild_header,
 };
 
 EXPORT_SYMBOL(ax25_header_ops);
