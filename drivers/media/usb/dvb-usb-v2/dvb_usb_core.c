@@ -429,7 +429,7 @@ static void dvb_usbv2_media_device_register(struct dvb_usb_adapter *adap)
 		return;
 	}
 
-	adap->dvb_adap.mdev = mdev;
+	dvb_register_media_controller(&adap->dvb_adap, mdev);
 
 	dev_info(&d->udev->dev, "media controller created\n");
 
