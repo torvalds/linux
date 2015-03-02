@@ -348,17 +348,6 @@ enum odm_cmninfo {
 enum {
 	/*  BB ODM section BIT 0-15 */
 	ODM_BB_ANT_DIV				= BIT(6),
-	ODM_BB_PWR_TRAIN			= BIT(8),
-	ODM_BB_RATE_ADAPTIVE			= BIT(9),
-	ODM_BB_PATH_DIV				= BIT(10),
-	ODM_BB_PSD				= BIT(11),
-	ODM_BB_RXHP				= BIT(12),
-
-	/*  MAC DM section BIT 16-23 */
-	ODM_MAC_EARLY_MODE			= BIT(17),
-
-	/*  RF ODM section BIT 24-31 */
-	ODM_RF_RX_GAIN_TRACK			= BIT(25),
 };
 
 /*	ODM_CMNINFO_INTERFACE */
