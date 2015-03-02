@@ -134,7 +134,6 @@ static inline void spfi_stop(struct img_spfi *spfi)
 static inline void spfi_reset(struct img_spfi *spfi)
 {
 	spfi_writel(spfi, SPFI_CONTROL_SOFT_RESET, SPFI_CONTROL);
-	udelay(1);
 	spfi_writel(spfi, 0, SPFI_CONTROL);
 }
 
