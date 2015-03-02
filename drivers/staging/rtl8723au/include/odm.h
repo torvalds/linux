@@ -548,33 +548,6 @@ struct odm_rf_cal_t {
 	u8	bDPPathBOK;
 };
 
-/*  ODM Dynamic common info value definition */
-struct odm_fat_t {
-	u8	Bssid[6];
-	u8	antsel_rx_keep_0;
-	u8	antsel_rx_keep_1;
-	u8	antsel_rx_keep_2;
-	u32	antSumRSSI[7];
-	u32	antRSSIcnt[7];
-	u32	antAveRSSI[7];
-	u8	FAT_State;
-	u32	TrainIdx;
-	u8	antsel_a[ODM_ASSOCIATE_ENTRY_NUM];
-	u8	antsel_b[ODM_ASSOCIATE_ENTRY_NUM];
-	u8	antsel_c[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	MainAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	AuxAnt_Sum[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	MainAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u32	AuxAnt_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
-	u8	RxIdleAnt;
-	bool	bBecomeLinked;
-};
-
-enum fat_state {
-	FAT_NORMAL_STATE		= 0,
-	FAT_TRAINING_STATE		= 1,
-};
-
 enum ant_dif_type {
 	NO_ANTDIV			= 0xFF,
 	CG_TRX_HW_ANTDIV		= 0x01,
@@ -683,7 +656,6 @@ struct dm_odm_t {
 	/*  */
 	/* ODM Structure */
 	/*  */
-	struct odm_fat_t		DM_FatTable;
 	struct dig_t	DM_DigTable;
 	struct dynamic_pwr_sav		DM_PSTable;
 	struct pri_cca	DM_PriCCA;
