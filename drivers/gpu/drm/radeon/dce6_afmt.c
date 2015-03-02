@@ -26,6 +26,9 @@
 #include "radeon_audio.h"
 #include "sid.h"
 
+#define DCE8_DCCG_AUDIO_DTO1_PHASE	0x05b8
+#define DCE8_DCCG_AUDIO_DTO1_MODULE	0x05bc
+
 u32 dce6_endpoint_rreg(struct radeon_device *rdev,
 			      u32 block_offset, u32 reg)
 {
@@ -284,8 +287,13 @@ void dce6_dp_audio_set_dto(struct radeon_device *rdev,
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
-	WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
-	WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
+	if (ASIC_IS_DCE8(rdev)) {
+		WREG32(DCE8_DCCG_AUDIO_DTO1_PHASE, 24000);
+		WREG32(DCE8_DCCG_AUDIO_DTO1_MODULE, clock);
+	} else {
+		WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
+		WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
+	}
 }
 
 void dce6_dp_enable(struct drm_encoder *encoder, bool enable)
