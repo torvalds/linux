@@ -3373,13 +3373,13 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	ss_params = le32_to_cpu(lq_sta->lq.ss_params);
 	desc += sprintf(buff+desc, "single stream params: %s%s%s%s\n",
 			(ss_params & LQ_SS_PARAMS_VALID) ?
-			"VALID," : "INVALID",
+			"VALID" : "INVALID",
 			(ss_params & LQ_SS_BFER_ALLOWED) ?
-			"BFER," : "",
+			", BFER" : "",
 			(ss_params & LQ_SS_STBC_1SS_ALLOWED) ?
-			"STBC," : "",
+			", STBC" : "",
 			(ss_params & LQ_SS_FORCE) ?
-			"FORCE" : "");
+			", FORCE" : "");
 	desc += sprintf(buff+desc,
 			"Start idx [0]=0x%x [1]=0x%x [2]=0x%x [3]=0x%x\n",
 			lq_sta->lq.initial_rate_index[0],
