@@ -3744,6 +3744,13 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret)
 			ath10k_warn(ar, "failed to recalculate rts/cts prot for vdev %d: %d\n",
 				    arvif->vdev_id, ret);
+
+		vdev_param = ar->wmi.vdev_param->protection_mode;
+		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
+						info->use_cts_prot ? 1 : 0);
+		if (ret)
+			ath10k_warn(ar, "failed to set protection mode %d on vdev %i: %d\n",
+					info->use_cts_prot, arvif->vdev_id, ret);
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
