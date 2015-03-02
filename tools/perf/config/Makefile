@@ -776,8 +776,8 @@ define feature_print_status_code
   endif
 endef
 
-feature_print_var = $(eval $(feature_print_var_code)) $(info $(MSG))
-define feature_print_var_code
+print_var = $(eval $(print_var_code)) $(info $(MSG))
+define print_var_code
     MSG = $(shell printf '...%30s: %s' $(1) $($(1)))
 endef
 
@@ -827,21 +827,22 @@ ifeq ($(feature_display),1)
   ifeq ($(dwarf-post-unwind),1)
     $(call feature_print_text,"DWARF post unwind library", $(dwarf-post-unwind-text))
   endif
+
+  ifneq ($(feature_verbose),1)
+    $(info )
+  endif
 endif
 
 ifeq ($(feature_verbose),1)
   TMP := $(filter-out $(FEATURE_DISPLAY),$(FEATURE_TESTS))
   $(foreach feat,$(TMP),$(call feature_print_status,$(feat),))
   $(info )
-  $(call feature_print_var,prefix)
-  $(call feature_print_var,bindir)
-  $(call feature_print_var,libdir)
-  $(call feature_print_var,sysconfdir)
-  $(call feature_print_var,LIBUNWIND_DIR)
-  $(call feature_print_var,LIBDW_DIR)
-endif
-
-ifeq ($(feature_display),1)
+  $(call print_var,prefix)
+  $(call print_var,bindir)
+  $(call print_var,libdir)
+  $(call print_var,sysconfdir)
+  $(call print_var,LIBUNWIND_DIR)
+  $(call print_var,LIBDW_DIR)
   $(info )
 endif
 
