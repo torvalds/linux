@@ -1442,7 +1442,7 @@ static int __maybe_unused rk3368_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 	return 0;
 }
 
-static int rk3368_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
+static int rk3368_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv, int reset_rate)
 {
 	int ret = 0, fps = 0;
 	struct lcdc_device *lcdc_dev =
@@ -1451,8 +1451,8 @@ static int rk3368_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
 #ifdef CONFIG_RK_FPGA
 	return 0;
 #endif
-
-	ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);/*set pll */
+        if (reset_rate)
+	        ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);/*set pll */
 	if (ret)
 		dev_err(dev_drv->dev, "set lcdc%d dclk failed\n", lcdc_dev->id);
 	lcdc_dev->pixclock =
@@ -1915,7 +1915,7 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		rk3368_config_timing(dev_drv);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-	rk3368_lcdc_set_dclk(dev_drv);
+	rk3368_lcdc_set_dclk(dev_drv, 1);
 	if (screen->type != SCREEN_HDMI && dev_drv->trsm_ops &&
 	    dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
@@ -2032,7 +2032,7 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		/*if (dev_drv->iommu_enabled)
 		   rk3368_lcdc_mmu_en(dev_drv); */
 		if ((support_uboot_display() && (lcdc_dev->prop == PRMRY))) {
-			/*rk3368_lcdc_set_dclk(dev_drv); */
+			rk3368_lcdc_set_dclk(dev_drv, 0);
 			rk3368_lcdc_enable_irq(dev_drv);
 		} else {
 			rk3368_load_screen(dev_drv, 1);
@@ -3094,7 +3094,6 @@ static int rk3368_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
-
 	return 0;
 }
 
