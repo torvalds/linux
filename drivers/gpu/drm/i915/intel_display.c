@@ -5038,6 +5038,7 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 				 int max_pixclk)
 {
 	int freq_320 = (dev_priv->hpll_freq <<  1) % 320000 != 0 ? 333333 : 320000;
+	int limit = IS_CHERRYVIEW(dev_priv) ? 95 : 90;
 
 	/* FIXME: Punit isn't quite ready yet */
 	if (IS_CHERRYVIEW(dev_priv->dev))
@@ -5048,17 +5049,18 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 	 *   200MHz
 	 *   267MHz
 	 *   320/333MHz (depends on HPLL freq)
-	 *   400MHz
-	 * So we check to see whether we're above 90% of the lower bin and
-	 * adjust if needed.
+	 *   400MHz (VLV only)
+	 * So we check to see whether we're above 90% (VLV) or 95% (CHV)
+	 * of the lower bin and adjust if needed.
 	 *
 	 * We seem to get an unstable or solid color picture at 200MHz.
 	 * Not sure what's wrong. For now use 200MHz only when all pipes
 	 * are off.
 	 */
-	if (max_pixclk > freq_320*9/10)
+	if (!IS_CHERRYVIEW(dev_priv) &&
+	    max_pixclk > freq_320*limit/100)
 		return 400000;
-	else if (max_pixclk > 266667*9/10)
+	else if (max_pixclk > 266667*limit/100)
 		return freq_320;
 	else if (max_pixclk > 0)
 		return 266667;
