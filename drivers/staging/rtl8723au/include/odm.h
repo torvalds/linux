@@ -219,7 +219,6 @@ struct sw_ant_sw {
 
 struct edca_turbo {
 	bool bCurrentTurboEDCA;
-	bool bIsCurRDLState;
 	u32	prv_traffic_idx; /*  edca turbo */
 };
 
