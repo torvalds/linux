@@ -18,14 +18,15 @@ struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 						u16 cport_id)
 {
 	struct gb_connection *connection = NULL;
+	unsigned long flags;
 
-	spin_lock_irq(&gb_connections_lock);
+	spin_lock_irqsave(&gb_connections_lock, flags);
 	list_for_each_entry(connection, &hd->connections, hd_links)
 		if (connection->hd_cport_id == cport_id)
 			goto found;
 	connection = NULL;
  found:
-	spin_unlock_irq(&gb_connections_lock);
+	spin_unlock_irqrestore(&gb_connections_lock, flags);
 
 	return connection;
 }
