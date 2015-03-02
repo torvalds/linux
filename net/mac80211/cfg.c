@@ -1068,6 +1068,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta->sta.wme = set & BIT(NL80211_STA_FLAG_WME);
 
 	if (mask & BIT(NL80211_STA_FLAG_MFP)) {
+		sta->sta.mfp = !!(set & BIT(NL80211_STA_FLAG_MFP));
 		if (set & BIT(NL80211_STA_FLAG_MFP))
 			set_sta_flag(sta, WLAN_STA_MFP);
 		else

@@ -2966,8 +2966,12 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	rate_control_rate_init(sta);
 
-	if (ifmgd->flags & IEEE80211_STA_MFP_ENABLED)
+	if (ifmgd->flags & IEEE80211_STA_MFP_ENABLED) {
 		set_sta_flag(sta, WLAN_STA_MFP);
+		sta->sta.mfp = true;
+	} else {
+		sta->sta.mfp = false;
+	}
 
 	sta->sta.wme = elems.wmm_param;
 
