@@ -12,15 +12,12 @@
 #ifndef __QCOM_SCM_H
 #define __QCOM_SCM_H
 
-#define QCOM_SCM_FLAG_COLDBOOT_CPU1		0x01
-#define QCOM_SCM_FLAG_COLDBOOT_CPU2		0x08
-#define QCOM_SCM_FLAG_COLDBOOT_CPU3		0x20
 #define QCOM_SCM_FLAG_WARMBOOT_CPU0		0x04
 #define QCOM_SCM_FLAG_WARMBOOT_CPU1		0x02
 #define QCOM_SCM_FLAG_WARMBOOT_CPU2		0x10
 #define QCOM_SCM_FLAG_WARMBOOT_CPU3		0x40
 
-extern int qcom_scm_set_boot_addr(u32 addr, int flags);
+extern int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 
 #define QCOM_SCM_VERSION(major, minor) (((major) << 16) | ((minor) & 0xFF))
 

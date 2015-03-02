@@ -34,6 +34,11 @@
 #define QCOM_SCM_ERROR		-1
 #define QCOM_SCM_INTERRUPTED	1
 
+#define QCOM_SCM_FLAG_COLDBOOT_CPU0	0x00
+#define QCOM_SCM_FLAG_COLDBOOT_CPU1	0x01
+#define QCOM_SCM_FLAG_COLDBOOT_CPU2	0x08
+#define QCOM_SCM_FLAG_COLDBOOT_CPU3	0x20
+
 static DEFINE_MUTEX(qcom_scm_lock);
 
 /**
@@ -329,7 +334,7 @@ EXPORT_SYMBOL(qcom_scm_get_version);
 /*
  * Set the cold/warm boot address for one of the CPU cores.
  */
-int qcom_scm_set_boot_addr(u32 addr, int flags)
+static int qcom_scm_set_boot_addr(u32 addr, int flags)
 {
 	struct {
 		__le32 flags;
@@ -341,4 +346,36 @@ int qcom_scm_set_boot_addr(u32 addr, int flags)
 	return qcom_scm_call(QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_ADDR,
 			&cmd, sizeof(cmd), NULL, 0);
 }
-EXPORT_SYMBOL(qcom_scm_set_boot_addr);
+
+/**
+ * qcom_scm_set_cold_boot_addr() - Set the cold boot address for cpus
+ * @entry: Entry point function for the cpus
+ * @cpus: The cpumask of cpus that will use the entry point
+ *
+ * Set the cold boot address of the cpus. Any cpu outside the supported
+ * range would be removed from the cpu present mask.
+ */
+int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)
+{
+	int flags = 0;
+	int cpu;
+	int scm_cb_flags[] = {
+		QCOM_SCM_FLAG_COLDBOOT_CPU0,
+		QCOM_SCM_FLAG_COLDBOOT_CPU1,
+		QCOM_SCM_FLAG_COLDBOOT_CPU2,
+		QCOM_SCM_FLAG_COLDBOOT_CPU3,
+	};
+
+	if (!cpus || (cpus && cpumask_empty(cpus)))
+		return -EINVAL;
+
+	for_each_cpu(cpu, cpus) {
+		if (cpu < ARRAY_SIZE(scm_cb_flags))
+			flags |= scm_cb_flags[cpu];
+		else
+			set_cpu_present(cpu, false);
+	}
+
+	return qcom_scm_set_boot_addr(virt_to_phys(entry), flags);
+}
+EXPORT_SYMBOL(qcom_scm_set_cold_boot_addr);
