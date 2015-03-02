@@ -4706,7 +4706,7 @@ static void emulator_invlpg(struct x86_emulate_ctxt *ctxt, ulong address)
 	kvm_mmu_invlpg(emul_to_vcpu(ctxt), address);
 }
 
-int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
+int kvm_emulate_wbinvd_noskip(struct kvm_vcpu *vcpu)
 {
 	if (!need_emulate_wbinvd(vcpu))
 		return X86EMUL_CONTINUE;
@@ -4723,11 +4723,19 @@ int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
 		wbinvd();
 	return X86EMUL_CONTINUE;
 }
+
+int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
+{
+	kvm_x86_ops->skip_emulated_instruction(vcpu);
+	return kvm_emulate_wbinvd_noskip(vcpu);
+}
 EXPORT_SYMBOL_GPL(kvm_emulate_wbinvd);
+
+
 
 static void emulator_wbinvd(struct x86_emulate_ctxt *ctxt)
 {
-	kvm_emulate_wbinvd(emul_to_vcpu(ctxt));
+	kvm_emulate_wbinvd_noskip(emul_to_vcpu(ctxt));
 }
 
 int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long *dest)
@@ -5817,7 +5825,7 @@ void kvm_arch_exit(void)
 	free_percpu(shared_msrs);
 }
 
-int kvm_emulate_halt(struct kvm_vcpu *vcpu)
+int kvm_vcpu_halt(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.halt_exits;
 	if (irqchip_in_kernel(vcpu->kvm)) {
@@ -5827,6 +5835,13 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 		vcpu->run->exit_reason = KVM_EXIT_HLT;
 		return 0;
 	}
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_halt);
+
+int kvm_emulate_halt(struct kvm_vcpu *vcpu)
+{
+	kvm_x86_ops->skip_emulated_instruction(vcpu);
+	return kvm_vcpu_halt(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_halt);
 
@@ -5911,6 +5926,8 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 {
 	unsigned long nr, a0, a1, a2, a3, ret;
 	int op_64_bit, r = 1;
+
+	kvm_x86_ops->skip_emulated_instruction(vcpu);
 
 	if (kvm_hv_hypercall_enabled(vcpu->kvm))
 		return kvm_hv_hypercall(vcpu);

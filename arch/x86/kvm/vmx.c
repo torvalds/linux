@@ -5000,7 +5000,7 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 		if (emulate_instruction(vcpu, 0) == EMULATE_DONE) {
 			if (vcpu->arch.halt_request) {
 				vcpu->arch.halt_request = 0;
-				return kvm_emulate_halt(vcpu);
+				return kvm_vcpu_halt(vcpu);
 			}
 			return 1;
 		}
@@ -5527,13 +5527,11 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 
 static int handle_halt(struct kvm_vcpu *vcpu)
 {
-	skip_emulated_instruction(vcpu);
 	return kvm_emulate_halt(vcpu);
 }
 
 static int handle_vmcall(struct kvm_vcpu *vcpu)
 {
-	skip_emulated_instruction(vcpu);
 	kvm_emulate_hypercall(vcpu);
 	return 1;
 }
@@ -5564,7 +5562,6 @@ static int handle_rdpmc(struct kvm_vcpu *vcpu)
 
 static int handle_wbinvd(struct kvm_vcpu *vcpu)
 {
-	skip_emulated_instruction(vcpu);
 	kvm_emulate_wbinvd(vcpu);
 	return 1;
 }
@@ -5903,7 +5900,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 
 		if (vcpu->arch.halt_request) {
 			vcpu->arch.halt_request = 0;
-			ret = kvm_emulate_halt(vcpu);
+			ret = kvm_vcpu_halt(vcpu);
 			goto out;
 		}
 
@@ -9518,7 +9515,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	vmcs12->launch_state = 1;
 
 	if (vmcs12->guest_activity_state == GUEST_ACTIVITY_HLT)
-		return kvm_emulate_halt(vcpu);
+		return kvm_vcpu_halt(vcpu);
 
 	vmx->nested.nested_run_pending = 1;
 
