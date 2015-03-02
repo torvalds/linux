@@ -455,9 +455,18 @@ re_phase:
                 MMC_DBG_INFO_FUNC(host->mmc,
                                 "execute tuning: candidates_degree = SDMMC_SHIFT_DEGREE_90 [%s]",
                                 mmc_hostname(host->mmc));
-                                
-                dw_mci_rockchip_set_degree(host, tuning_data->con_id, 
-                        tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_90);
+                if (host->cid == DW_MCI_TYPE_RK3368 && (candidates_degree[3] == SDMMC_SHIFT_DEGREE_270)) {
+			MMC_DBG_INFO_FUNC(host->mmc,
+				"execute tuning: candidates_degree = SDMMC_SHIFT_DEGREE_180 [%s]",
+				mmc_hostname(host->mmc));
+			dw_mci_rockchip_set_degree(host, tuning_data->con_id,
+				tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_180);
+		}
+		else {
+			dw_mci_rockchip_set_degree(host, tuning_data->con_id,
+				tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_90);
+		}
+
                 ret = 0;
                 goto done;
         }else if((candidates_degree[0] == SDMMC_SHIFT_DEGREE_90) 
