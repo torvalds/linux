@@ -124,20 +124,8 @@ static void cpuidle_idle_call(void)
 	 * Fall back to the default arch idle method on errors.
 	 */
 	next_state = cpuidle_select(drv, dev);
-	if (next_state < 0) {
-use_default:
-		/*
-		 * We can't use the cpuidle framework, let's use the default
-		 * idle routine.
-		 */
-		if (current_clr_polling_and_test())
-			local_irq_enable();
-		else
-			arch_cpu_idle();
-
-		goto exit_idle;
-	}
-
+	if (next_state < 0)
+		goto use_default;
 
 	/*
 	 * The idle task must be scheduled, it is pointless to
@@ -195,6 +183,19 @@ exit_idle:
 
 	rcu_idle_exit();
 	start_critical_timings();
+	return;
+
+use_default:
+	/*
+	 * We can't use the cpuidle framework, let's use the default
+	 * idle routine.
+	 */
+	if (current_clr_polling_and_test())
+		local_irq_enable();
+	else
+		arch_cpu_idle();
+
+	goto exit_idle;
 }
 
 /*
