@@ -56,19 +56,6 @@ static int rose_header(struct sk_buff *skb, struct net_device *dev,
 	return -37;
 }
 
-static int rose_rebuild_header(struct sk_buff *skb)
-{
-#ifdef CONFIG_INET
-	unsigned char *bp = (unsigned char *)skb->data;
-
-	if (arp_find(bp + 7, skb)) {
-		return 1;
-	}
-
-#endif
-	return 0;
-}
-
 static int rose_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *sa = addr;
@@ -133,7 +120,6 @@ static netdev_tx_t rose_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static const struct header_ops rose_header_ops = {
 	.create	= rose_header,
-	.rebuild = rose_rebuild_header,
 };
 
 static const struct net_device_ops rose_netdev_ops = {
