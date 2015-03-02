@@ -5755,7 +5755,7 @@ static int add_new_disk(struct mddev *mddev, mdu_disk_info_t *info)
 
 	if (mddev_is_clustered(mddev) &&
 		!(info->state & ((1 << MD_DISK_CLUSTER_ADD) | (1 << MD_DISK_CANDIDATE)))) {
-		pr_err("%s: Cannot add to clustered mddev. Try --cluster-add\n",
+		pr_err("%s: Cannot add to clustered mddev.\n",
 			       mdname(mddev));
 		return -EINVAL;
 	}
@@ -5853,7 +5853,11 @@ static int add_new_disk(struct mddev *mddev, mdu_disk_info_t *info)
 			if (info->state & (1 << MD_DISK_CANDIDATE)) {
 				/* Through --cluster-confirm */
 				set_bit(Candidate, &rdev->flags);
-				md_cluster_ops->new_disk_ack(mddev, true);
+				err = md_cluster_ops->new_disk_ack(mddev, true);
+				if (err) {
+					export_rdev(rdev);
+					return err;
+				}
 			} else if (info->state & (1 << MD_DISK_CLUSTER_ADD)) {
 				/* --add initiated by this node */
 				err = md_cluster_ops->add_new_disk_start(mddev, rdev);

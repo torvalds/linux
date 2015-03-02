@@ -42,6 +42,10 @@ struct resync_info {
 	__le64 hi;
 };
 
+/* md_cluster_info flags */
+#define		MD_CLUSTER_WAITING_FOR_NEWDISK		1
+
+
 struct md_cluster_info {
 	/* dlm lock space and resources for clustered raid. */
 	dlm_lockspace_t *lockspace;
@@ -61,6 +65,7 @@ struct md_cluster_info {
 	struct dlm_lock_resource *no_new_dev_lockres;
 	struct md_thread *recv_thread;
 	struct completion newdisk_completion;
+	unsigned long state;
 };
 
 enum msg_type {
@@ -380,9 +385,11 @@ static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 	snprintf(raid_slot, 16, "RAID_DISK=%d", cmsg->raid_slot);
 	pr_info("%s:%d Sending kobject change with %s and %s\n", __func__, __LINE__, disk_uuid, raid_slot);
 	init_completion(&cinfo->newdisk_completion);
+	set_bit(MD_CLUSTER_WAITING_FOR_NEWDISK, &cinfo->state);
 	kobject_uevent_env(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE, envp);
 	wait_for_completion_timeout(&cinfo->newdisk_completion,
 			NEW_DEV_TIMEOUT);
+	clear_bit(MD_CLUSTER_WAITING_FOR_NEWDISK, &cinfo->state);
 }
 
 
@@ -832,13 +839,19 @@ static int add_new_disk_finish(struct mddev *mddev)
 	return ret;
 }
 
-static void new_disk_ack(struct mddev *mddev, bool ack)
+static int new_disk_ack(struct mddev *mddev, bool ack)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	if (!test_bit(MD_CLUSTER_WAITING_FOR_NEWDISK, &cinfo->state)) {
+		pr_warn("md-cluster(%s): Spurious cluster confirmation\n", mdname(mddev));
+		return -EINVAL;
+	}
 
 	if (ack)
 		dlm_unlock_sync(cinfo->no_new_dev_lockres);
 	complete(&cinfo->newdisk_completion);
+	return 0;
 }
 
 static struct md_cluster_operations cluster_ops = {

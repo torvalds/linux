@@ -21,7 +21,7 @@ struct md_cluster_operations {
 	int (*area_resyncing)(struct mddev *mddev, sector_t lo, sector_t hi);
 	int (*add_new_disk_start)(struct mddev *mddev, struct md_rdev *rdev);
 	int (*add_new_disk_finish)(struct mddev *mddev);
-	void (*new_disk_ack)(struct mddev *mddev, bool ack);
+	int (*new_disk_ack)(struct mddev *mddev, bool ack);
 };
 
 #endif /* _MD_CLUSTER_H */
