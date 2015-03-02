@@ -956,7 +956,7 @@ static irqreturn_t kxcjk1013_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->mutex);
 
-	for_each_set_bit(bit, indio_dev->buffer->scan_mask,
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
 		ret = kxcjk1013_get_acc_reg(data, bit);
 		if (ret < 0) {
