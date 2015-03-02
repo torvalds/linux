@@ -2655,7 +2655,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 		case -NFS4ERR_BAD_STATEID:
 		case -NFS4ERR_EXPIRED:
 			if (!nfs4_stateid_match(&calldata->arg.stateid,
-						&state->stateid)) {
+						&state->open_stateid)) {
 				rpc_restart_call_prepare(task);
 				goto out_release;
 			}
@@ -2691,7 +2691,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	is_rdwr = test_bit(NFS_O_RDWR_STATE, &state->flags);
 	is_rdonly = test_bit(NFS_O_RDONLY_STATE, &state->flags);
 	is_wronly = test_bit(NFS_O_WRONLY_STATE, &state->flags);
-	nfs4_stateid_copy(&calldata->arg.stateid, &state->stateid);
+	nfs4_stateid_copy(&calldata->arg.stateid, &state->open_stateid);
 	/* Calculate the change in open mode */
 	calldata->arg.fmode = 0;
 	if (state->n_rdwr == 0) {
