@@ -71,6 +71,14 @@ config THERMAL_DEFAULT_GOV_USER_SPACE
 	  Select this if you want to let the user space manage the
 	  platform thermals.
 
+config THERMAL_DEFAULT_GOV_POWER_ALLOCATOR
+	bool "power_allocator"
+	select THERMAL_GOV_POWER_ALLOCATOR
+	help
+	  Select this if you want to control temperature based on
+	  system and device power allocation. This governor can only
+	  operate on cooling devices that implement the power API.
+
 endchoice
 
 config THERMAL_GOV_FAIR_SHARE
@@ -98,6 +106,13 @@ config THERMAL_GOV_USER_SPACE
 	bool "User_space thermal governor"
 	help
 	  Enable this to let the user space manage the platform thermals.
+
+config THERMAL_GOV_POWER_ALLOCATOR
+	bool "Power allocator thermal governor"
+	select THERMAL_POWER_ACTOR
+	help
+	  Enable this to manage platform thermals by dynamically
+	  allocating and limiting power to devices.
 
 config CPU_THERMAL
 	bool "generic cpu cooling support"

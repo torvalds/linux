@@ -59,6 +59,8 @@
 #define DEFAULT_THERMAL_GOVERNOR       "fair_share"
 #elif defined(CONFIG_THERMAL_DEFAULT_GOV_USER_SPACE)
 #define DEFAULT_THERMAL_GOVERNOR       "user_space"
+#elif defined(CONFIG_THERMAL_DEFAULT_GOV_POWER_ALLOCATOR)
+#define DEFAULT_THERMAL_GOVERNOR       "power_allocator"
 #endif
 
 struct thermal_zone_device;
@@ -154,8 +156,7 @@ struct thermal_attr {
  * @devdata:	private pointer for device private data
  * @trips:	number of trip points the thermal zone supports
  * @passive_delay:	number of milliseconds to wait between polls when
- *			performing passive cooling.  Currenty only used by the
- *			step-wise governor
+ *			performing passive cooling.
  * @polling_delay:	number of milliseconds to wait between polls when
  *			checking whether trip points have been crossed (0 for
  *			interrupt driven systems)
@@ -165,7 +166,6 @@ struct thermal_attr {
  * @last_temperature:	previous temperature read
  * @emul_temperature:	emulated temperature when using CONFIG_THERMAL_EMULATION
  * @passive:		1 if you've crossed a passive trip point, 0 otherwise.
- *			Currenty only used by the step-wise governor.
  * @forced_passive:	If > 0, temperature at which to switch on all ACPI
  *			processor cooling devices.  Currently only used by the
  *			step-wise governor.
@@ -197,7 +197,7 @@ struct thermal_zone_device {
 	int passive;
 	unsigned int forced_passive;
 	struct thermal_zone_device_ops *ops;
-	const struct thermal_zone_params *tzp;
+	struct thermal_zone_params *tzp;
 	struct thermal_governor *governor;
 	void *governor_data;
 	struct list_head thermal_instances;
@@ -275,6 +275,33 @@ struct thermal_zone_params {
 
 	int num_tbps;	/* Number of tbp entries */
 	struct thermal_bind_params *tbp;
+
+	/*
+	 * Sustainable power (heat) that this thermal zone can dissipate in
+	 * mW
+	 */
+	u32 sustainable_power;
+
+	/*
+	 * Proportional parameter of the PID controller when
+	 * overshooting (i.e., when temperature is below the target)
+	 */
+	s32 k_po;
+
+	/*
+	 * Proportional parameter of the PID controller when
+	 * undershooting
+	 */
+	s32 k_pu;
+
+	/* Integral parameter of the PID controller */
+	s32 k_i;
+
+	/* Derivative parameter of the PID controller */
+	s32 k_d;
+
+	/* threshold below which the error is no longer accumulated */
+	s32 integral_cutoff;
 };
 
 struct thermal_genl_event {
@@ -350,7 +377,7 @@ int power_actor_set_power(struct thermal_cooling_device *,
 			  struct thermal_instance *, u32);
 struct thermal_zone_device *thermal_zone_device_register(const char *, int, int,
 		void *, struct thermal_zone_device_ops *,
-		const struct thermal_zone_params *, int, int);
+		struct thermal_zone_params *, int, int);
 void thermal_zone_device_unregister(struct thermal_zone_device *);
 
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *, int,

@@ -1616,7 +1616,7 @@ static void remove_trip_attrs(struct thermal_zone_device *tz)
 struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	int trips, int mask, void *devdata,
 	struct thermal_zone_device_ops *ops,
-	const struct thermal_zone_params *tzp,
+	struct thermal_zone_params *tzp,
 	int passive_delay, int polling_delay)
 {
 	struct thermal_zone_device *tz;
@@ -1968,7 +1968,11 @@ static int __init thermal_register_governors(void)
 	if (result)
 		return result;
 
-	return thermal_gov_user_space_register();
+	result = thermal_gov_user_space_register();
+	if (result)
+		return result;
+
+	return thermal_gov_power_allocator_register();
 }
 
 static void thermal_unregister_governors(void)
@@ -1977,6 +1981,7 @@ static void thermal_unregister_governors(void)
 	thermal_gov_fair_share_unregister();
 	thermal_gov_bang_bang_unregister();
 	thermal_gov_user_space_unregister();
+	thermal_gov_power_allocator_unregister();
 }
 
 static int __init thermal_init(void)
