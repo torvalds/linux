@@ -62,9 +62,6 @@ OPTIONS
 --all-cpus::
         System-wide collection from all CPUs.
 
--l::
-        Scale counter values.
-
 -p::
 --pid=::
 	Record events on existing process ID (comma separated list).
