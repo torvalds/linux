@@ -216,6 +216,22 @@ put:
 	return 1;
 }
 
+int ax25_neigh_construct(struct neighbour *neigh)
+{
+	/* This trouble could be saved if ax25 would right a proper
+	 * dev_queue_xmit function.
+	 */
+	struct ax25_neigh_priv *priv = neighbour_priv(neigh);
+
+	if (neigh->tbl->family != AF_INET)
+		return -EINVAL;
+
+	priv->ops = *neigh->ops;
+	priv->ops.output = neigh_compat_output;
+	priv->ops.connected_output = neigh_compat_output;
+	return 0;
+}
+
 #else	/* INET */
 
 static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
@@ -230,6 +246,10 @@ static int ax25_rebuild_header(struct sk_buff *skb)
 	return 1;
 }
 
+int ax25_neigh_construct(struct neighbour *neigh)
+{
+	return 0;
+}
 #endif
 
 const struct header_ops ax25_header_ops = {
@@ -238,4 +258,5 @@ const struct header_ops ax25_header_ops = {
 };
 
 EXPORT_SYMBOL(ax25_header_ops);
+EXPORT_SYMBOL(ax25_neigh_construct);
 

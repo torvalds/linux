@@ -641,6 +641,7 @@ static const struct net_device_ops ax_netdev_ops = {
 	.ndo_stop            = ax_close,
 	.ndo_start_xmit	     = ax_xmit,
 	.ndo_set_mac_address = ax_set_mac_address,
+	.ndo_neigh_construct = ax25_neigh_construct,
 };
 
 static void ax_setup(struct net_device *dev)
@@ -650,6 +651,7 @@ static void ax_setup(struct net_device *dev)
 	dev->hard_header_len = 0;
 	dev->addr_len        = 0;
 	dev->type            = ARPHRD_AX25;
+	dev->neigh_priv_len  = sizeof(struct ax25_neigh_priv);
 	dev->tx_queue_len    = 10;
 	dev->header_ops      = &ax25_header_ops;
 	dev->netdev_ops	     = &ax_netdev_ops;

@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
+#include <net/neighbour.h>
 
 #define	AX25_T1CLAMPLO  		1
 #define	AX25_T1CLAMPHI 			(30 * HZ)
@@ -366,7 +367,11 @@ int ax25_kiss_rcv(struct sk_buff *, struct net_device *, struct packet_type *,
 		  struct net_device *);
 
 /* ax25_ip.c */
+int ax25_neigh_construct(struct neighbour *neigh);
 extern const struct header_ops ax25_header_ops;
+struct ax25_neigh_priv {
+	struct neigh_ops ops;
+};
 
 /* ax25_out.c */
 ax25_cb *ax25_send_frame(struct sk_buff *, int, ax25_address *, ax25_address *,
