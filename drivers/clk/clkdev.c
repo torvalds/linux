@@ -274,6 +274,19 @@ vclkdev_alloc(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
 	return &cla->cl;
 }
 
+static struct clk_lookup *
+vclkdev_create(struct clk_hw *hw, const char *con_id, const char *dev_fmt,
+	va_list ap)
+{
+	struct clk_lookup *cl;
+
+	cl = vclkdev_alloc(hw, con_id, dev_fmt, ap);
+	if (cl)
+		__clkdev_add(cl);
+
+	return cl;
+}
+
 struct clk_lookup * __init_refok
 clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 {
@@ -288,6 +301,29 @@ clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 }
 EXPORT_SYMBOL(clkdev_alloc);
 
+/**
+ * clkdev_create - allocate and add a clkdev lookup structure
+ * @clk: struct clk to associate with all clk_lookups
+ * @con_id: connection ID string on device
+ * @dev_fmt: format string describing device name
+ *
+ * Returns a clk_lookup structure, which can be later unregistered and
+ * freed.
+ */
+struct clk_lookup *clkdev_create(struct clk *clk, const char *con_id,
+	const char *dev_fmt, ...)
+{
+	struct clk_lookup *cl;
+	va_list ap;
+
+	va_start(ap, dev_fmt);
+	cl = vclkdev_create(__clk_get_hw(clk), con_id, dev_fmt, ap);
+	va_end(ap);
+
+	return cl;
+}
+EXPORT_SYMBOL_GPL(clkdev_create);
+
 int clk_add_alias(const char *alias, const char *alias_dev_name,
 	const char *con_id, struct device *dev)
 {
@@ -297,12 +333,10 @@ int clk_add_alias(const char *alias, const char *alias_dev_name,
 	if (IS_ERR(r))
 		return PTR_ERR(r);
 
-	l = clkdev_alloc(r, alias, alias_dev_name);
+	l = clkdev_create(r, alias, "%s", alias_dev_name);
 	clk_put(r);
-	if (!l)
-		return -ENODEV;
-	clkdev_add(l);
-	return 0;
+
+	return l ? 0 : -ENODEV;
 }
 EXPORT_SYMBOL(clk_add_alias);
 
@@ -342,15 +376,10 @@ int clk_register_clkdev(struct clk *clk, const char *con_id,
 		return PTR_ERR(clk);
 
 	va_start(ap, dev_fmt);
-	cl = vclkdev_alloc(__clk_get_hw(clk), con_id, dev_fmt, ap);
+	cl = vclkdev_create(__clk_get_hw(clk), con_id, dev_fmt, ap);
 	va_end(ap);
 
-	if (!cl)
-		return -ENOMEM;
-
-	clkdev_add(cl);
-
-	return 0;
+	return cl ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL(clk_register_clkdev);
 

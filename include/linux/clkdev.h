@@ -38,6 +38,9 @@ struct clk_lookup *clkdev_alloc(struct clk *clk, const char *con_id,
 void clkdev_add(struct clk_lookup *cl);
 void clkdev_drop(struct clk_lookup *cl);
 
+struct clk_lookup *clkdev_create(struct clk *clk, const char *con_id,
+	const char *dev_fmt, ...);
+
 void clkdev_add_table(struct clk_lookup *, size_t);
 int clk_add_alias(const char *, const char *, const char *, struct device *);
 
