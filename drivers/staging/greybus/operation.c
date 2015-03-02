@@ -94,6 +94,7 @@ static DEFINE_SPINLOCK(gb_operations_lock);
  */
 static bool gb_operation_result_set(struct gb_operation *operation, int result)
 {
+	unsigned long flags;
 	int prev;
 
 	if (result == -EINPROGRESS) {
@@ -104,13 +105,13 @@ static bool gb_operation_result_set(struct gb_operation *operation, int result)
 		 * and record an implementation error if it's
 		 * set at any other time.
 		 */
-		spin_lock_irq(&gb_operations_lock);
+		spin_lock_irqsave(&gb_operations_lock, flags);
 		prev = operation->errno;
 		if (prev == -EBADR)
 			operation->errno = result;
 		else
 			operation->errno = -EILSEQ;
-		spin_unlock_irq(&gb_operations_lock);
+		spin_unlock_irqrestore(&gb_operations_lock, flags);
 		WARN_ON(prev != -EBADR);
 
 		return true;
@@ -128,11 +129,11 @@ static bool gb_operation_result_set(struct gb_operation *operation, int result)
 	if (WARN_ON(result == -EBADR))
 		result = -EILSEQ; /* Nobody should be setting -EBADR */
 
-	spin_lock_irq(&gb_operations_lock);
+	spin_lock_irqsave(&gb_operations_lock, flags);
 	prev = operation->errno;
 	if (prev == -EINPROGRESS)
 		operation->errno = result;	/* First and final result */
-	spin_unlock_irq(&gb_operations_lock);
+	spin_unlock_irqrestore(&gb_operations_lock, flags);
 
 	return prev == -EINPROGRESS;
 }
@@ -151,15 +152,16 @@ static struct gb_operation *
 gb_operation_find(struct gb_connection *connection, u16 operation_id)
 {
 	struct gb_operation *operation;
+	unsigned long flags;
 	bool found = false;
 
-	spin_lock_irq(&gb_operations_lock);
+	spin_lock_irqsave(&gb_operations_lock, flags);
 	list_for_each_entry(operation, &connection->operations, links)
 		if (operation->id == operation_id) {
 			found = true;
 			break;
 		}
-	spin_unlock_irq(&gb_operations_lock);
+	spin_unlock_irqrestore(&gb_operations_lock, flags);
 
 	return found ? operation : NULL;
 }
@@ -490,6 +492,7 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 {
 	struct greybus_host_device *hd = connection->hd;
 	struct gb_operation *operation;
+	unsigned long flags;
 	gfp_t gfp_flags;
 
 	/*
@@ -525,9 +528,9 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	init_completion(&operation->completion);
 	kref_init(&operation->kref);
 
-	spin_lock_irq(&gb_operations_lock);
+	spin_lock_irqsave(&gb_operations_lock, flags);
 	list_add_tail(&operation->links, &connection->operations);
-	spin_unlock_irq(&gb_operations_lock);
+	spin_unlock_irqrestore(&gb_operations_lock, flags);
 
 	return operation;
 
@@ -593,13 +596,14 @@ void gb_operation_get(struct gb_operation *operation)
 static void _gb_operation_destroy(struct kref *kref)
 {
 	struct gb_operation *operation;
+	unsigned long flags;
 
 	operation = container_of(kref, struct gb_operation, kref);
 
 	/* XXX Make sure it's not in flight */
-	spin_lock_irq(&gb_operations_lock);
+	spin_lock_irqsave(&gb_operations_lock, flags);
 	list_del(&operation->links);
-	spin_unlock_irq(&gb_operations_lock);
+	spin_unlock_irqrestore(&gb_operations_lock, flags);
 
 	gb_operation_message_free(operation->response);
 	gb_operation_message_free(operation->request);
