@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/clk/ti.h>
 
 #include "clock.h"
 
@@ -31,9 +32,9 @@ void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk)
 	r = (__force void __iomem *)
 		((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
 
-	v = omap2_clk_readl(clk, r);
+	v = ti_clk_ll_ops->clk_readl(r);
 	v |= (1 << clk->enable_bit);
-	omap2_clk_writel(v, clk, r);
+	ti_clk_ll_ops->clk_writel(v, r);
 }
 
 /* XXX */
@@ -45,9 +46,9 @@ void omap2_clkt_iclk_deny_idle(struct clk_hw_omap *clk)
 	r = (__force void __iomem *)
 		((__force u32)clk->enable_reg ^ (CM_AUTOIDLE ^ CM_ICLKEN));
 
-	v = omap2_clk_readl(clk, r);
+	v = ti_clk_ll_ops->clk_readl(r);
 	v &= ~(1 << clk->enable_bit);
-	omap2_clk_writel(v, clk, r);
+	ti_clk_ll_ops->clk_writel(v, r);
 }
 
 /* Public data */
@@ -63,6 +64,3 @@ const struct clk_hw_omap_ops clkhwops_iclk_wait = {
 	.find_idlest	= omap2_clk_dflt_find_idlest,
 	.find_companion	= omap2_clk_dflt_find_companion,
 };
-
-
-
