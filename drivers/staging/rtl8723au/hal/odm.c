@@ -1153,9 +1153,7 @@ void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm)
 }
 
 static void
-FindMinimumRSSI(
-	struct rtw_adapter *pAdapter
-	)
+FindMinimumRSSI(struct rtw_adapter *pAdapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(pAdapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
@@ -1163,11 +1161,11 @@ FindMinimumRSSI(
 
 	/* 1 1.Determine the minimum RSSI */
 
-	if ((!pDM_Odm->bLinked) &&
-	    (pdmpriv->EntryMinUndecoratedSmoothedPWDB == 0))
+	if (!pDM_Odm->bLinked && !pdmpriv->EntryMinUndecoratedSmoothedPWDB)
 		pdmpriv->MinUndecoratedPWDBForDM = 0;
 	else
-		pdmpriv->MinUndecoratedPWDBForDM = pdmpriv->EntryMinUndecoratedSmoothedPWDB;
+		pdmpriv->MinUndecoratedPWDBForDM =
+			pdmpriv->EntryMinUndecoratedSmoothedPWDB;
 }
 
 static void odm_RSSIMonitorCheck(struct dm_odm_t *pDM_Odm)
