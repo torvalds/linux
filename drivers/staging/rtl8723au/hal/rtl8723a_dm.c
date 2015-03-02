@@ -129,8 +129,7 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	int i;
-	pdmpriv->InitODMFlag =	ODM_BB_PWR_SAVE		|
-				ODM_RF_TX_PWR_TRACK	|
+	pdmpriv->InitODMFlag =	ODM_RF_TX_PWR_TRACK	|
 				ODM_RF_CALIBRATION;
 	/*  Pointer reference */
 	rtl8723a_odm_support_ability_set(Adapter, DYNAMIC_ALL_FUNC_ENABLE);

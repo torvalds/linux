@@ -348,7 +348,6 @@ enum odm_cmninfo {
 enum {
 	/*  BB ODM section BIT 0-15 */
 	ODM_BB_ANT_DIV				= BIT(6),
-	ODM_BB_PWR_SAVE				= BIT(7),
 	ODM_BB_PWR_TRAIN			= BIT(8),
 	ODM_BB_RATE_ADAPTIVE			= BIT(9),
 	ODM_BB_PATH_DIV				= BIT(10),
