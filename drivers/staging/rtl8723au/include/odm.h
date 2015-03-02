@@ -358,7 +358,6 @@ enum {
 	ODM_MAC_EARLY_MODE			= BIT(17),
 
 	/*  RF ODM section BIT 24-31 */
-	ODM_RF_TX_PWR_TRACK			= BIT(24),
 	ODM_RF_RX_GAIN_TRACK			= BIT(25),
 	ODM_RF_CALIBRATION			= BIT(26),
 

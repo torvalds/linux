@@ -359,14 +359,10 @@ static void ODM_TXPowerTracking92CDirectCall(struct rtw_adapter *Adapter)
 	odm_TXPowerTrackingCallback_ThermalMeter_92C(Adapter);
 }
 
-static void odm_CheckTXPowerTracking_ThermalMeter(struct rtw_adapter *Adapter)
+void rtl8723a_odm_check_tx_power_tracking(struct rtw_adapter *Adapter)
 {
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
-	struct dm_odm_t *podmpriv = &pHalData->odmpriv;
-
-	if (!(podmpriv->SupportAbility & ODM_RF_TX_PWR_TRACK))
-		return;
 
 	if (!pdmpriv->TM_Trigger) {		/* at least delay 1 sec */
 		PHY_SetRFReg(Adapter, RF_PATH_A, RF_T_METER, bRFRegOffsetMask, 0x60);
@@ -377,11 +373,6 @@ static void odm_CheckTXPowerTracking_ThermalMeter(struct rtw_adapter *Adapter)
 		ODM_TXPowerTracking92CDirectCall(Adapter);
 		pdmpriv->TM_Trigger = 0;
 	}
-}
-
-void rtl8723a_odm_check_tx_power_tracking(struct rtw_adapter *Adapter)
-{
-	odm_CheckTXPowerTracking_ThermalMeter(Adapter);
 }
 
 /*	IQK */
