@@ -272,8 +272,7 @@ static void giveback(struct dw_spi *dws)
 
 static void int_error_stop(struct dw_spi *dws, const char *msg)
 {
-	/* Stop the hw */
-	spi_enable_chip(dws, 0);
+	spi_reset_chip(dws);
 
 	dev_err(&dws->master->dev, "%s\n", msg);
 	dws->cur_msg->state = ERROR_STATE;
@@ -606,9 +605,7 @@ static void dw_spi_cleanup(struct spi_device *spi)
 /* Restart the controller, disable all interrupts, clean rx fifo */
 static void spi_hw_init(struct device *dev, struct dw_spi *dws)
 {
-	spi_enable_chip(dws, 0);
-	spi_mask_intr(dws, 0xff);
-	spi_enable_chip(dws, 1);
+	spi_reset_chip(dws);
 
 	/*
 	 * Try to detect the FIFO depth if not set by interface driver,
