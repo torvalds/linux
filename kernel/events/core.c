@@ -4446,7 +4446,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	 * If we have rb pages ensure they're a power-of-two number, so we
 	 * can do bitmasks instead of modulo.
 	 */
-	if (!is_power_of_2(nr_pages))
+	if (nr_pages != 0 && !is_power_of_2(nr_pages))
 		return -EINVAL;
 
 	if (vma_size != PAGE_SIZE * (1 + nr_pages))
