@@ -702,7 +702,7 @@ static int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		}
 	}
 
-	dvb_create_media_graph(adap->dvb_adap.mdev);
+	dvb_create_media_graph(&adap->dvb_adap);
 
 	return 0;
 

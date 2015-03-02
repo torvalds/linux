@@ -381,9 +381,10 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 EXPORT_SYMBOL(dvb_unregister_device);
 
 
-void dvb_create_media_graph(struct media_device *mdev)
-{
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
+void dvb_create_media_graph(struct dvb_adapter *adap)
+{
+	struct media_device *mdev = adap->mdev;
 	struct media_entity *entity, *tuner = NULL, *fe = NULL;
 	struct media_entity *demux = NULL, *dvr = NULL, *ca = NULL;
 
@@ -421,9 +422,9 @@ void dvb_create_media_graph(struct media_device *mdev)
 
 	if (demux && ca)
 		media_entity_create_link(demux, 1, ca, 0, MEDIA_LNK_FL_ENABLED);
-#endif
 }
 EXPORT_SYMBOL_GPL(dvb_create_media_graph);
+#endif
 
 static int dvbdev_check_free_adapter_num(int num)
 {
