@@ -2774,6 +2774,12 @@ static int skinit_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
+static int wbinvd_interception(struct vcpu_svm *svm)
+{
+	kvm_emulate_wbinvd(&svm->vcpu);
+	return 1;
+}
+
 static int xsetbv_interception(struct vcpu_svm *svm)
 {
 	u64 new_bv = kvm_read_edx_eax(&svm->vcpu);
@@ -3373,7 +3379,7 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_STGI]				= stgi_interception,
 	[SVM_EXIT_CLGI]				= clgi_interception,
 	[SVM_EXIT_SKINIT]			= skinit_interception,
-	[SVM_EXIT_WBINVD]                       = emulate_on_interception,
+	[SVM_EXIT_WBINVD]                       = wbinvd_interception,
 	[SVM_EXIT_MONITOR]			= monitor_interception,
 	[SVM_EXIT_MWAIT]			= mwait_interception,
 	[SVM_EXIT_XSETBV]			= xsetbv_interception,
