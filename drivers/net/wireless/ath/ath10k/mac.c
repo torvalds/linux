@@ -936,6 +936,39 @@ static void ath10k_recalc_radar_detection(struct ath10k *ar)
 	}
 }
 
+static int ath10k_vdev_stop(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	reinit_completion(&ar->vdev_setup_done);
+
+	ret = ath10k_wmi_vdev_stop(ar, arvif->vdev_id);
+	if (ret) {
+		ath10k_warn(ar, "failed to stop WMI vdev %i: %d\n",
+			    arvif->vdev_id, ret);
+		return ret;
+	}
+
+	ret = ath10k_vdev_setup_sync(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to syncronise setup for vdev %i: %d\n",
+			    arvif->vdev_id, ret);
+		return ret;
+	}
+
+	WARN_ON(ar->num_started_vdevs == 0);
+
+	if (ar->num_started_vdevs != 0) {
+		ar->num_started_vdevs--;
+		ath10k_recalc_radar_detection(ar);
+	}
+
+	return ret;
+}
+
 static int ath10k_vdev_start_restart(struct ath10k_vif *arvif, bool restart)
 {
 	struct ath10k *ar = arvif->ar;
@@ -1011,39 +1044,6 @@ static int ath10k_vdev_start(struct ath10k_vif *arvif)
 static int ath10k_vdev_restart(struct ath10k_vif *arvif)
 {
 	return ath10k_vdev_start_restart(arvif, true);
-}
-
-static int ath10k_vdev_stop(struct ath10k_vif *arvif)
-{
-	struct ath10k *ar = arvif->ar;
-	int ret;
-
-	lockdep_assert_held(&ar->conf_mutex);
-
-	reinit_completion(&ar->vdev_setup_done);
-
-	ret = ath10k_wmi_vdev_stop(ar, arvif->vdev_id);
-	if (ret) {
-		ath10k_warn(ar, "failed to stop WMI vdev %i: %d\n",
-			    arvif->vdev_id, ret);
-		return ret;
-	}
-
-	ret = ath10k_vdev_setup_sync(ar);
-	if (ret) {
-		ath10k_warn(ar, "failed to synchronize setup for vdev %i stop: %d\n",
-			    arvif->vdev_id, ret);
-		return ret;
-	}
-
-	WARN_ON(ar->num_started_vdevs == 0);
-
-	if (ar->num_started_vdevs != 0) {
-		ar->num_started_vdevs--;
-		ath10k_recalc_radar_detection(ar);
-	}
-
-	return ret;
 }
 
 static int ath10k_mac_setup_bcn_p2p_ie(struct ath10k_vif *arvif,
