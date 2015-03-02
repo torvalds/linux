@@ -147,6 +147,9 @@ static int hix5hd2_sata_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
+
 	priv->base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!priv->base)
 		return -ENOMEM;
