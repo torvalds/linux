@@ -196,15 +196,11 @@ void odm_DynamicTxPower23a(struct dm_odm_t *pDM_Odm);
 
 void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm);
 
-void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm);
-
 void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm);
 
 void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm);
 
 void odm_TXPowerTrackingInit23a(struct dm_odm_t *pDM_Odm);
-
-void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm);
 
 static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm);
 static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
@@ -278,7 +274,6 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 
 	odm_DynamicBBPowerSaving23a(pDM_Odm);
 
-	ODM_TXPowerTrackingCheck23a(pDM_Odm);
 	odm_EdcaTurboCheck23a(pDM_Odm);
 }
 
@@ -1247,21 +1242,6 @@ void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm)
 	MSG_8723A("pdmpriv->TxPowerTrackControl = %d\n", pdmpriv->TxPowerTrackControl);
 
 	pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true;
-}
-
-void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm)
-{
-	/*  For AP/ADSL use struct rtl8723a_priv * */
-	/*  For CE/NIC use struct rtw_adapter * */
-
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	odm_TXPowerTrackingCheckCE23a(pDM_Odm);
-}
-
-void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm)
-{
 }
 
 /* EDCA Turbo */
