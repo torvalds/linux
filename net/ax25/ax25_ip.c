@@ -129,6 +129,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 		dev = skb->dev;
 
 	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL) {
+		kfree_skb(skb);
 		goto put;
 	}
 
