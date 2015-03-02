@@ -1454,16 +1454,11 @@ void ODM_SingleDualAntennaDefaultSetting(struct dm_odm_t *pDM_Odm)
 
 /* 2 8723A ANT DETECT */
 
-static void odm_PHY_SaveAFERegisters(
-	struct dm_odm_t *pDM_Odm,
-	u32 *AFEReg,
-	u32 *AFEBackup,
-	u32 RegisterNum
-	)
+static void odm_PHY_SaveAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
+				     u32 *AFEBackup, u32 RegisterNum)
 {
 	u32 i;
 
-	/* RTPRINT(FINIT, INIT_IQK, ("Save ADDA parameters.\n")); */
 	for (i = 0 ; i < RegisterNum ; i++)
 		AFEBackup[i] = ODM_GetBBReg(pDM_Odm, AFEReg[i], bMaskDWord);
 }
