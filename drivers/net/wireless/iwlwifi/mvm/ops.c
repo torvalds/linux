@@ -82,7 +82,6 @@
 #include "rs.h"
 #include "fw-api-scan.h"
 #include "time-event.h"
-#include "iwl-fw-error-dump.h"
 
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
