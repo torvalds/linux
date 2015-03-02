@@ -164,6 +164,10 @@
 			>;
 		};
 
+		pinctrl_hummingboard_pwm1: pwm1grp {
+			fsl,pins = <MX6QDL_PAD_DISP0_DAT8__PWM1_OUT 0x1b0b1>;
+		};
+
 		pinctrl_hummingboard_spdif: hummingboard-spdif {
 			fsl,pins = <MX6QDL_PAD_GPIO_17__SPDIF_OUT 0x13091>;
 		};
@@ -201,6 +205,17 @@
 			>;
 		};
 	};
+};
+
+&pwm1 {
+	 pinctrl-names = "default";
+	 pinctrl-0 = <&pinctrl_hummingboard_pwm1>;
+	 status = "okay";
+};
+
+&pwm2 {
+	 pinctrl-names = "default";
+	 status = "okay";
 };
 
 &spdif {
