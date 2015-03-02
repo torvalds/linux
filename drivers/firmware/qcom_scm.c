@@ -311,6 +311,45 @@ out:
 	return ret;
 }
 
+#define SCM_CLASS_REGISTER	(0x2 << 8)
+#define SCM_MASK_IRQS		BIT(5)
+#define SCM_ATOMIC(svc, cmd, n) (((((svc) << 10)|((cmd) & 0x3ff)) << 12) | \
+				SCM_CLASS_REGISTER | \
+				SCM_MASK_IRQS | \
+				(n & 0xf))
+
+/**
+ * qcom_scm_call_atomic1() - Send an atomic SCM command with one argument
+ * @svc_id: service identifier
+ * @cmd_id: command identifier
+ * @arg1: first argument
+ *
+ * This shall only be used with commands that are guaranteed to be
+ * uninterruptable, atomic and SMP safe.
+ */
+static s32 qcom_scm_call_atomic1(u32 svc, u32 cmd, u32 arg1)
+{
+	int context_id;
+
+	register u32 r0 asm("r0") = SCM_ATOMIC(svc, cmd, 1);
+	register u32 r1 asm("r1") = (u32)&context_id;
+	register u32 r2 asm("r2") = arg1;
+
+	asm volatile(
+			__asmeq("%0", "r0")
+			__asmeq("%1", "r0")
+			__asmeq("%2", "r1")
+			__asmeq("%3", "r2")
+#ifdef REQUIRES_SEC
+			".arch_extension sec\n"
+#endif
+			"smc    #0      @ switch to secure world\n"
+			: "=r" (r0)
+			: "r" (r0), "r" (r1), "r" (r2)
+			: "r3");
+	return r0;
+}
+
 u32 qcom_scm_get_version(void)
 {
 	int context_id;
@@ -435,3 +474,21 @@ int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus)
 	return ret;
 }
 EXPORT_SYMBOL(qcom_scm_set_warm_boot_addr);
+
+#define QCOM_SCM_CMD_TERMINATE_PC	0x2
+#define QCOM_SCM_FLUSH_FLAG_MASK	0x3
+
+/**
+ * qcom_scm_cpu_power_down() - Power down the cpu
+ * @flags - Flags to flush cache
+ *
+ * This is an end point to power down cpu. If there was a pending interrupt,
+ * the control would return from this function, otherwise, the cpu jumps to the
+ * warm boot entry point set for this cpu upon reset.
+ */
+void qcom_scm_cpu_power_down(u32 flags)
+{
+	qcom_scm_call_atomic1(QCOM_SCM_SVC_BOOT, QCOM_SCM_CMD_TERMINATE_PC,
+			flags & QCOM_SCM_FLUSH_FLAG_MASK);
+}
+EXPORT_SYMBOL(qcom_scm_cpu_power_down);
