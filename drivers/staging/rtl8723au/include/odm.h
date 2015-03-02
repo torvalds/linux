@@ -298,17 +298,16 @@ enum odm_cmninfo {
 	/*  Fixed value: */
 	/*  */
 
-	ODM_CMNINFO_PLATFORM = 0,
-	ODM_CMNINFO_INTERFACE,				/*  enum odm_interface_def */
+	ODM_CMNINFO_INTERFACE = 1,		/*  enum odm_interface_def */
 	ODM_CMNINFO_MP_TEST_CHIP,
-	ODM_CMNINFO_IC_TYPE,					/*  enum odm_ic_type_def */
-	ODM_CMNINFO_CUT_VER,					/*  enum odm_cut_version */
-	ODM_CMNINFO_FAB_VER,					/*  enum odm_fab_version */
-	ODM_CMNINFO_BOARD_TYPE,				/*  enum odm_board_type */
-	ODM_CMNINFO_EXT_LNA,					/*  true */
+	ODM_CMNINFO_IC_TYPE,			/*  enum odm_ic_type_def */
+	ODM_CMNINFO_CUT_VER,			/*  enum odm_cut_version */
+	ODM_CMNINFO_FAB_VER,			/*  enum odm_fab_version */
+	ODM_CMNINFO_BOARD_TYPE,			/*  enum odm_board_type */
+	ODM_CMNINFO_EXT_LNA,			/*  true */
 	ODM_CMNINFO_EXT_PA,
 	ODM_CMNINFO_EXT_TRSW,
-	ODM_CMNINFO_PATCH_ID,				/* CUSTOMER ID */
+	ODM_CMNINFO_PATCH_ID,			/* CUSTOMER ID */
 	ODM_CMNINFO_BINHCT_TEST,
 	ODM_CMNINFO_BWIFI_TEST,
 	ODM_CMNINFO_SMART_CONCURRENT,

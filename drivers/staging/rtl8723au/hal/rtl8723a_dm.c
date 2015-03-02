@@ -94,7 +94,6 @@ void rtl8723a_init_dm_priv(struct rtw_adapter *Adapter)
 	memset(pDM_Odm, 0, sizeof(*pDM_Odm));
 
 	pDM_Odm->Adapter = Adapter;
-	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_PLATFORM, 0x04);
 	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_INTERFACE, RTW_USB);/* RTL871X_HCI_TYPE */
 
 	ODM_CmnInfoInit23a(pDM_Odm, ODM_CMNINFO_IC_TYPE, ODM_RTL8723A);

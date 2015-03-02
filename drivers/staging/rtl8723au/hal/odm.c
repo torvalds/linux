@@ -297,8 +297,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 	/*  */
 	switch	(CmnInfo) {
 	/*  Fixed ODM value. */
-	case	ODM_CMNINFO_PLATFORM:
-		break;
 	case	ODM_CMNINFO_INTERFACE:
 		pDM_Odm->SupportInterface = (u8)Value;
 		break;
