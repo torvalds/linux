@@ -217,10 +217,9 @@ int fld_client_add_target(struct lu_client_fld *fld,
 		CERROR("%s: Attempt to add target %s (idx %llu) on fly - skip it\n",
 			fld->lcf_name, name, tar->ft_idx);
 		return 0;
-	} else {
-		CDEBUG(D_INFO, "%s: Adding target %s (idx %llu)\n",
-		       fld->lcf_name, name, tar->ft_idx);
 	}
+	CDEBUG(D_INFO, "%s: Adding target %s (idx %llu)\n",
+			fld->lcf_name, name, tar->ft_idx);
 
 	OBD_ALLOC_PTR(target);
 	if (target == NULL)
