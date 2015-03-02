@@ -441,8 +441,7 @@ static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
  *   - sends a call data packet
  *   - may send an abort (abort code in control data)
  */
-static int rxrpc_sendmsg(struct kiocb *iocb, struct socket *sock,
-			 struct msghdr *m, size_t len)
+static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 {
 	struct rxrpc_transport *trans;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
@@ -482,7 +481,7 @@ static int rxrpc_sendmsg(struct kiocb *iocb, struct socket *sock,
 	switch (rx->sk.sk_state) {
 	case RXRPC_SERVER_LISTENING:
 		if (!m->msg_name) {
-			ret = rxrpc_server_sendmsg(iocb, rx, m, len);
+			ret = rxrpc_server_sendmsg(rx, m, len);
 			break;
 		}
 	case RXRPC_SERVER_BOUND:
@@ -492,7 +491,7 @@ static int rxrpc_sendmsg(struct kiocb *iocb, struct socket *sock,
 			break;
 		}
 	case RXRPC_CLIENT_CONNECTED:
-		ret = rxrpc_client_sendmsg(iocb, rx, trans, m, len);
+		ret = rxrpc_client_sendmsg(rx, trans, m, len);
 		break;
 	default:
 		ret = -ENOTCONN;

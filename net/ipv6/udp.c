@@ -391,8 +391,7 @@ EXPORT_SYMBOL_GPL(udp6_lib_lookup);
  *	return it, otherwise we block.
  */
 
-int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
-		  struct msghdr *msg, size_t len,
+int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		  int noblock, int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -1101,8 +1100,7 @@ out:
 	return err;
 }
 
-int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
-		  struct msghdr *msg, size_t len)
+int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	struct ipv6_txoptions opt_space;
 	struct udp_sock *up = udp_sk(sk);
@@ -1164,12 +1162,12 @@ int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 do_udp_sendmsg:
 			if (__ipv6_only_sock(sk))
 				return -ENETUNREACH;
-			return udp_sendmsg(iocb, sk, msg, len);
+			return udp_sendmsg(sk, msg, len);
 		}
 	}
 
 	if (up->pending == AF_INET)
-		return udp_sendmsg(iocb, sk, msg, len);
+		return udp_sendmsg(sk, msg, len);
 
 	/* Rough check on arithmetic overflow,
 	   better check is made in ip6_append_data().

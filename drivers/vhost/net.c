@@ -390,7 +390,7 @@ static void handle_tx(struct vhost_net *net)
 			ubufs = NULL;
 		}
 		/* TODO: Check specific error and bomb out unless ENOBUFS? */
-		err = sock->ops->sendmsg(NULL, sock, &msg, len);
+		err = sock->ops->sendmsg(sock, &msg, len);
 		if (unlikely(err < 0)) {
 			if (zcopy_used) {
 				vhost_net_ubuf_put(ubufs);
@@ -566,7 +566,7 @@ static void handle_rx(struct vhost_net *net)
 		/* On overrun, truncate and discard */
 		if (unlikely(headcount > UIO_MAXIOV)) {
 			iov_iter_init(&msg.msg_iter, READ, vq->iov, 1, 1);
-			err = sock->ops->recvmsg(NULL, sock, &msg,
+			err = sock->ops->recvmsg(sock, &msg,
 						 1, MSG_DONTWAIT | MSG_TRUNC);
 			pr_debug("Discarded rx packet: len %zd\n", sock_len);
 			continue;
@@ -597,7 +597,7 @@ static void handle_rx(struct vhost_net *net)
 			 */
 			iov_iter_advance(&fixup, sizeof(hdr));
 		}
-		err = sock->ops->recvmsg(NULL, sock, &msg,
+		err = sock->ops->recvmsg(sock, &msg,
 					 sock_len, MSG_DONTWAIT | MSG_TRUNC);
 		/* Userspace might have consumed the packet meanwhile:
 		 * it's not supposed to do this usually, but might be hard

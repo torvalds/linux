@@ -23,8 +23,7 @@
  */
 unsigned rxrpc_resend_timeout = 4 * HZ;
 
-static int rxrpc_send_data(struct kiocb *iocb,
-			   struct rxrpc_sock *rx,
+static int rxrpc_send_data(struct rxrpc_sock *rx,
 			   struct rxrpc_call *call,
 			   struct msghdr *msg, size_t len);
 
@@ -129,9 +128,8 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
  * - caller holds the socket locked
  * - the socket may be either a client socket or a server socket
  */
-int rxrpc_client_sendmsg(struct kiocb *iocb, struct rxrpc_sock *rx,
-			 struct rxrpc_transport *trans, struct msghdr *msg,
-			 size_t len)
+int rxrpc_client_sendmsg(struct rxrpc_sock *rx, struct rxrpc_transport *trans,
+			 struct msghdr *msg, size_t len)
 {
 	struct rxrpc_conn_bundle *bundle;
 	enum rxrpc_command cmd;
@@ -191,7 +189,7 @@ int rxrpc_client_sendmsg(struct kiocb *iocb, struct rxrpc_sock *rx,
 		/* request phase complete for this client call */
 		ret = -EPROTO;
 	} else {
-		ret = rxrpc_send_data(iocb, rx, call, msg, len);
+		ret = rxrpc_send_data(rx, call, msg, len);
 	}
 
 	rxrpc_put_call(call);
@@ -232,7 +230,7 @@ int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
 		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
 		ret = -EPROTO; /* request phase complete for this client call */
 	} else {
-		ret = rxrpc_send_data(NULL, call->socket, call, msg, len);
+		ret = rxrpc_send_data(call->socket, call, msg, len);
 	}
 
 	release_sock(&call->socket->sk);
@@ -271,8 +269,7 @@ EXPORT_SYMBOL(rxrpc_kernel_abort_call);
  * send a message through a server socket
  * - caller holds the socket locked
  */
-int rxrpc_server_sendmsg(struct kiocb *iocb, struct rxrpc_sock *rx,
-			 struct msghdr *msg, size_t len)
+int rxrpc_server_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 {
 	enum rxrpc_command cmd;
 	struct rxrpc_call *call;
@@ -313,7 +310,7 @@ int rxrpc_server_sendmsg(struct kiocb *iocb, struct rxrpc_sock *rx,
 			break;
 		}
 
-		ret = rxrpc_send_data(iocb, rx, call, msg, len);
+		ret = rxrpc_send_data(rx, call, msg, len);
 		break;
 
 	case RXRPC_CMD_SEND_ABORT:
@@ -520,8 +517,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
  * - must be called in process context
  * - caller holds the socket locked
  */
-static int rxrpc_send_data(struct kiocb *iocb,
-			   struct rxrpc_sock *rx,
+static int rxrpc_send_data(struct rxrpc_sock *rx,
 			   struct rxrpc_call *call,
 			   struct msghdr *msg, size_t len)
 {

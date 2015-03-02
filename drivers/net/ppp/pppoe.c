@@ -835,8 +835,8 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd,
 	return err;
 }
 
-static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
-		  struct msghdr *m, size_t total_len)
+static int pppoe_sendmsg(struct socket *sock, struct msghdr *m,
+			 size_t total_len)
 {
 	struct sk_buff *skb;
 	struct sock *sk = sock->sk;
@@ -977,8 +977,8 @@ static const struct ppp_channel_ops pppoe_chan_ops = {
 	.start_xmit = pppoe_xmit,
 };
 
-static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
-		  struct msghdr *m, size_t total_len, int flags)
+static int pppoe_recvmsg(struct socket *sock, struct msghdr *m,
+			 size_t total_len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;

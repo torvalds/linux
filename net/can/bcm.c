@@ -1231,8 +1231,7 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk)
 /*
  * bcm_sendmsg - process BCM commands (opcodes) from the userspace
  */
-static int bcm_sendmsg(struct kiocb *iocb, struct socket *sock,
-		       struct msghdr *msg, size_t size)
+static int bcm_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 {
 	struct sock *sk = sock->sk;
 	struct bcm_sock *bo = bcm_sk(sk);
@@ -1535,8 +1534,8 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 	return 0;
 }
 
-static int bcm_recvmsg(struct kiocb *iocb, struct socket *sock,
-		       struct msghdr *msg, size_t size, int flags)
+static int bcm_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+		       int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
