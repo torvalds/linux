@@ -583,12 +583,6 @@ void odm_DIG23a(struct rtw_adapter *adapter)
 	u8 CurrentIGI = pDM_DigTable->CurIGValue;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() ==>\n"));
-	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT)) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
-			     ("odm_DIG23a() Return: SupportAbility ODM_BB_FA_CNT is disabled\n"));
-		return;
-	}
-
 	if (adapter->mlmepriv.bScanInProcess) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() Return: In Scan Progress \n"));
 		return;
@@ -757,9 +751,6 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 	u32 ret_value;
 	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 
-	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
-		return;
-
 	/* hold ofdm counter */
 	 /* hold page C counter */
 	ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 1);
@@ -863,7 +854,7 @@ void odm_CCKPacketDetectionThresh23a(struct dm_odm_t *pDM_Odm)
 	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u8 CurCCK_CCAThres;
 
-	if (!(pDM_Odm->SupportAbility & (ODM_BB_CCK_PD|ODM_BB_FA_CNT)))
+	if (!(pDM_Odm->SupportAbility & ODM_BB_CCK_PD))
 		return;
 
 	if (pDM_Odm->ExtLNA)
