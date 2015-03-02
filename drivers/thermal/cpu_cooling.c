@@ -31,6 +31,8 @@
 #include <linux/cpu.h>
 #include <linux/cpu_cooling.h>
 
+#include <trace/events/thermal.h>
+
 /*
  * Cooling state <-> CPUFreq frequency
  *
@@ -588,11 +590,19 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 				       u32 *power)
 {
 	unsigned long freq;
-	int cpu, ret;
+	int i = 0, cpu, ret;
 	u32 static_power, dynamic_power, total_load = 0;
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
+	u32 *load_cpu = NULL;
 
 	freq = cpufreq_quick_get(cpumask_any(&cpufreq_device->allowed_cpus));
+
+	if (trace_thermal_power_cpu_get_power_enabled()) {
+		u32 ncpus = cpumask_weight(&cpufreq_device->allowed_cpus);
+
+		load_cpu = devm_kcalloc(&cdev->device, ncpus, sizeof(*load_cpu),
+					GFP_KERNEL);
+	}
 
 	for_each_cpu(cpu, &cpufreq_device->allowed_cpus) {
 		u32 load;
@@ -603,14 +613,29 @@ static int cpufreq_get_requested_power(struct thermal_cooling_device *cdev,
 			load = 0;
 
 		total_load += load;
+		if (trace_thermal_power_cpu_limit_enabled() && load_cpu)
+			load_cpu[i] = load;
+
+		i++;
 	}
 
 	cpufreq_device->last_load = total_load;
 
 	dynamic_power = get_dynamic_power(cpufreq_device, freq);
 	ret = get_static_power(cpufreq_device, tz, freq, &static_power);
-	if (ret)
+	if (ret) {
+		if (load_cpu)
+			devm_kfree(&cdev->device, load_cpu);
 		return ret;
+	}
+
+	if (load_cpu) {
+		trace_thermal_power_cpu_get_power(
+			&cpufreq_device->allowed_cpus,
+			freq, load_cpu, i, dynamic_power, static_power);
+
+		devm_kfree(&cdev->device, load_cpu);
+	}
 
 	*power = static_power + dynamic_power;
 	return 0;
@@ -718,6 +743,8 @@ static int cpufreq_power2state(struct thermal_cooling_device *cdev,
 		return -EINVAL;
 	}
 
+	trace_thermal_power_cpu_limit(&cpufreq_device->allowed_cpus,
+				      target_freq, *state, power);
 	return 0;
 }
 
