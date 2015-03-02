@@ -42,10 +42,6 @@ struct bpf_map_type_list {
 	enum bpf_map_type type;
 };
 
-void bpf_register_map_type(struct bpf_map_type_list *tl);
-void bpf_map_put(struct bpf_map *map);
-struct bpf_map *bpf_map_get(struct fd f);
-
 /* function argument constraints */
 enum bpf_arg_type {
 	ARG_ANYTHING = 0,	/* any argument is ok */
@@ -126,9 +122,16 @@ struct bpf_prog_aux {
 
 #ifdef CONFIG_BPF_SYSCALL
 void bpf_register_prog_type(struct bpf_prog_type_list *tl);
+void bpf_register_map_type(struct bpf_map_type_list *tl);
 
-void bpf_prog_put(struct bpf_prog *prog);
 struct bpf_prog *bpf_prog_get(u32 ufd);
+void bpf_prog_put(struct bpf_prog *prog);
+
+struct bpf_map *bpf_map_get(struct fd f);
+void bpf_map_put(struct bpf_map *map);
+
+/* verify correctness of eBPF program */
+int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
 #else
 static inline void bpf_register_prog_type(struct bpf_prog_type_list *tl)
 {
@@ -142,10 +145,7 @@ static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 static inline void bpf_prog_put(struct bpf_prog *prog)
 {
 }
-#endif
-
-/* verify correctness of eBPF program */
-int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
+#endif /* CONFIG_BPF_SYSCALL */
 
 /* verifier prototypes for helper functions called from eBPF programs */
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
