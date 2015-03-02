@@ -511,10 +511,10 @@ static int ptlrpcd_bind(int index, int max)
 #if defined(CONFIG_NUMA)
 	{
 		int i;
-		mask = *cpumask_of_node(cpu_to_node(index));
+		cpumask_copy(&mask, cpumask_of_node(cpu_to_node(index)));
 		for (i = max; i < num_online_cpus(); i++)
-			cpu_clear(i, mask);
-		pc->pc_npartners = cpus_weight(mask) - 1;
+			cpumask_clear_cpu(i, &mask);
+		pc->pc_npartners = cpumask_weight(&mask) - 1;
 		set_bit(LIOD_BIND, &pc->pc_flags);
 	}
 #else
@@ -554,7 +554,7 @@ static int ptlrpcd_bind(int index, int max)
 				 * that are already initialized
 				 */
 				for (pidx = 0, i = 0; i < index; i++) {
-					if (cpu_isset(i, mask)) {
+					if (cpumask_test_cpu(i, &mask)) {
 						ppc = &ptlrpcds->pd_threads[i];
 						pc->pc_partners[pidx++] = ppc;
 						ppc->pc_partners[ppc->
