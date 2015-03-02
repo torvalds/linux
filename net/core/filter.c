@@ -1019,6 +1019,32 @@ void bpf_prog_destroy(struct bpf_prog *fp)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_destroy);
 
+static int __sk_attach_prog(struct bpf_prog *prog, struct sock *sk)
+{
+	struct sk_filter *fp, *old_fp;
+
+	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	if (!fp)
+		return -ENOMEM;
+
+	fp->prog = prog;
+	atomic_set(&fp->refcnt, 0);
+
+	if (!sk_filter_charge(sk, fp)) {
+		kfree(fp);
+		return -ENOMEM;
+	}
+
+	old_fp = rcu_dereference_protected(sk->sk_filter,
+					   sock_owned_by_user(sk));
+	rcu_assign_pointer(sk->sk_filter, fp);
+
+	if (old_fp)
+		sk_filter_uncharge(sk, old_fp);
+
+	return 0;
+}
+
 /**
  *	sk_attach_filter - attach a socket filter
  *	@fprog: the filter program
@@ -1031,7 +1057,6 @@ EXPORT_SYMBOL_GPL(bpf_prog_destroy);
  */
 int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 {
-	struct sk_filter *fp, *old_fp;
 	unsigned int fsize = bpf_classic_proglen(fprog);
 	unsigned int bpf_fsize = bpf_prog_size(fprog->len);
 	struct bpf_prog *prog;
@@ -1068,26 +1093,11 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 
-	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
-	if (!fp) {
+	err = __sk_attach_prog(prog, sk);
+	if (err < 0) {
 		__bpf_prog_release(prog);
-		return -ENOMEM;
+		return err;
 	}
-	fp->prog = prog;
-
-	atomic_set(&fp->refcnt, 0);
-
-	if (!sk_filter_charge(sk, fp)) {
-		__sk_filter_release(fp);
-		return -ENOMEM;
-	}
-
-	old_fp = rcu_dereference_protected(sk->sk_filter,
-					   sock_owned_by_user(sk));
-	rcu_assign_pointer(sk->sk_filter, fp);
-
-	if (old_fp)
-		sk_filter_uncharge(sk, old_fp);
 
 	return 0;
 }
@@ -1095,8 +1105,8 @@ EXPORT_SYMBOL_GPL(sk_attach_filter);
 
 int sk_attach_bpf(u32 ufd, struct sock *sk)
 {
-	struct sk_filter *fp, *old_fp;
 	struct bpf_prog *prog;
+	int err;
 
 	if (sock_flag(sk, SOCK_FILTER_LOCKED))
 		return -EPERM;
@@ -1110,26 +1120,11 @@ int sk_attach_bpf(u32 ufd, struct sock *sk)
 		return -EINVAL;
 	}
 
-	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
-	if (!fp) {
+	err = __sk_attach_prog(prog, sk);
+	if (err < 0) {
 		bpf_prog_put(prog);
-		return -ENOMEM;
+		return err;
 	}
-
-	fp->prog = prog;
-	atomic_set(&fp->refcnt, 0);
-
-	if (!sk_filter_charge(sk, fp)) {
-		__sk_filter_release(fp);
-		return -ENOMEM;
-	}
-
-	old_fp = rcu_dereference_protected(sk->sk_filter,
-					   sock_owned_by_user(sk));
-	rcu_assign_pointer(sk->sk_filter, fp);
-
-	if (old_fp)
-		sk_filter_uncharge(sk, old_fp);
 
 	return 0;
 }
