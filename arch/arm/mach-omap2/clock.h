@@ -204,11 +204,6 @@ extern const struct clkops clkops_omap2_dflt;
 
 extern struct clk_functions omap2_clk_functions;
 
-extern const struct clksel_rate gpt_32k_rates[];
-extern const struct clksel_rate gpt_sys_rates[];
-extern const struct clksel_rate gfx_l3_rates[];
-extern const struct clksel_rate dsp_ick_rates[];
-
 extern const struct clk_hw_omap_ops clkhwops_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_ssi_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap3430es2_dss_usbhost_wait;
@@ -216,15 +211,6 @@ extern const struct clk_hw_omap_ops clkhwops_omap3430es2_hsotgusb_wait;
 extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_module_wait;
 extern const struct clk_hw_omap_ops clkhwops_apll54;
 extern const struct clk_hw_omap_ops clkhwops_apll96;
-
-/* clksel_rate blocks shared between OMAP44xx and AM33xx */
-extern const struct clksel_rate div_1_0_rates[];
-extern const struct clksel_rate div3_1to4_rates[];
-extern const struct clksel_rate div_1_1_rates[];
-extern const struct clksel_rate div_1_2_rates[];
-extern const struct clksel_rate div_1_3_rates[];
-extern const struct clksel_rate div_1_4_rates[];
-extern const struct clksel_rate div31_1to31_rates[];
 
 extern int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 extern void omap2_clkops_disable_clkdm(struct clk_hw *hw);
