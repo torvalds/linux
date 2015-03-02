@@ -15,6 +15,7 @@ struct vc4_dev {
 	struct vc4_hdmi *hdmi;
 	struct vc4_hvs *hvs;
 	struct vc4_crtc *crtc[3];
+	struct vc4_v3d *v3d;
 
 	struct drm_fbdev_cma *fbdev;
 
@@ -82,6 +83,11 @@ to_vc4_bo(struct drm_gem_object *bo)
 	return (struct vc4_bo *)bo;
 }
 
+struct vc4_v3d {
+	struct platform_device *pdev;
+	void __iomem *regs;
+};
+
 struct vc4_hvs {
 	struct platform_device *pdev;
 	void __iomem *regs;
@@ -119,6 +125,8 @@ to_vc4_encoder(struct drm_encoder *encoder)
 	return container_of(encoder, struct vc4_encoder, base);
 }
 
+#define V3D_READ(offset) readl(vc4->v3d->regs + offset)
+#define V3D_WRITE(offset, val) writel(val, vc4->v3d->regs + offset)
 #define HVS_READ(offset) readl(vc4->hvs->regs + offset)
 #define HVS_WRITE(offset, val) writel(val, vc4->hvs->regs + offset)
 
@@ -240,6 +248,11 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				 enum drm_plane_type type);
 u32 vc4_plane_write_dlist(struct drm_plane *plane, u32 __iomem *dlist);
 u32 vc4_plane_dlist_size(struct drm_plane_state *state);
+
+/* vc4_v3d.c */
+extern struct platform_driver vc4_v3d_driver;
+int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused);
+int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_validate_shader.c */
 struct vc4_validated_shader_info *
