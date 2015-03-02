@@ -113,39 +113,6 @@ int eth_header(struct sk_buff *skb, struct net_device *dev,
 EXPORT_SYMBOL(eth_header);
 
 /**
- * eth_rebuild_header- rebuild the Ethernet MAC header.
- * @skb: socket buffer to update
- *
- * This is called after an ARP or IPV6 ndisc it's resolution on this
- * sk_buff. We now let protocol (ARP) fill in the other fields.
- *
- * This routine CANNOT use cached dst->neigh!
- * Really, it is used only when dst->neigh is wrong.
- */
-int eth_rebuild_header(struct sk_buff *skb)
-{
-	struct ethhdr *eth = (struct ethhdr *)skb->data;
-	struct net_device *dev = skb->dev;
-
-	switch (eth->h_proto) {
-#ifdef CONFIG_INET
-	case htons(ETH_P_IP):
-		return arp_find(eth->h_dest, skb);
-#endif
-	default:
-		netdev_dbg(dev,
-		       "%s: unable to resolve type %X addresses.\n",
-		       dev->name, ntohs(eth->h_proto));
-
-		memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
-		break;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(eth_rebuild_header);
-
-/**
  * eth_get_headlen - determine the the length of header for an ethernet frame
  * @data: pointer to start of frame
  * @len: total length of frame
@@ -369,7 +336,6 @@ EXPORT_SYMBOL(eth_validate_addr);
 const struct header_ops eth_header_ops ____cacheline_aligned = {
 	.create		= eth_header,
 	.parse		= eth_header_parse,
-	.rebuild	= eth_rebuild_header,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
 };

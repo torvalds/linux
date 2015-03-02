@@ -433,6 +433,7 @@ module_exit(dmascc_exit);
 static void __init dev_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_AX25;
+	dev->neigh_priv_len = sizeof(struct ax25_neigh_priv);
 	dev->hard_header_len = AX25_MAX_HEADER_LEN;
 	dev->mtu = 1500;
 	dev->addr_len = AX25_ADDR_LEN;
@@ -447,6 +448,7 @@ static const struct net_device_ops scc_netdev_ops = {
 	.ndo_start_xmit = scc_send_packet,
 	.ndo_do_ioctl = scc_ioctl,
 	.ndo_set_mac_address = scc_set_mac_address,
+	.ndo_neigh_construct = ax25_neigh_construct,
 };
 
 static int __init setup_adapter(int card_base, int type, int n)

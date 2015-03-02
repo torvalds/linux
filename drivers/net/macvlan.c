@@ -550,7 +550,6 @@ static int macvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 static const struct header_ops macvlan_hard_header_ops = {
 	.create  	= macvlan_hard_header,
-	.rebuild	= eth_rebuild_header,
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,

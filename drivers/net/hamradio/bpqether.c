@@ -469,6 +469,7 @@ static const struct net_device_ops bpq_netdev_ops = {
 	.ndo_start_xmit	     = bpq_xmit,
 	.ndo_set_mac_address = bpq_set_mac_address,
 	.ndo_do_ioctl	     = bpq_ioctl,
+	.ndo_neigh_construct = ax25_neigh_construct,
 };
 
 static void bpq_setup(struct net_device *dev)
@@ -486,6 +487,7 @@ static void bpq_setup(struct net_device *dev)
 #endif
 
 	dev->type            = ARPHRD_AX25;
+	dev->neigh_priv_len  = sizeof(struct ax25_neigh_priv);
 	dev->hard_header_len = AX25_MAX_HEADER_LEN + AX25_BPQ_HEADER_LEN;
 	dev->mtu             = AX25_DEF_PACLEN;
 	dev->addr_len        = AX25_ADDR_LEN;

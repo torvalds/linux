@@ -46,9 +46,9 @@
 
 #ifdef CONFIG_INET
 
-int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
-		     unsigned short type, const void *daddr,
-		     const void *saddr, unsigned int len)
+static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
+			    unsigned short type, const void *daddr,
+			    const void *saddr, unsigned int len)
 {
 	unsigned char *buff;
 
@@ -100,7 +100,7 @@ int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return -AX25_HEADER_LEN;	/* Unfinished header */
 }
 
-int ax25_rebuild_header(struct sk_buff *skb)
+static int ax25_neigh_xmit(struct sk_buff *skb)
 {
 	struct sk_buff *ourskb;
 	unsigned char *bp  = skb->data;
@@ -115,9 +115,6 @@ int ax25_rebuild_header(struct sk_buff *skb)
 	dst = (ax25_address *)(bp + 1);
 	src = (ax25_address *)(bp + 8);
 
-	if (arp_find(bp + 1, skb))
-		return 1;
-
 	route = ax25_get_route(dst, NULL);
 	if (route) {
 		digipeat = route->digipeat;
@@ -129,6 +126,7 @@ int ax25_rebuild_header(struct sk_buff *skb)
 		dev = skb->dev;
 
 	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL) {
+		kfree_skb(skb);
 		goto put;
 	}
 
@@ -215,28 +213,74 @@ put:
 	return 1;
 }
 
+static int ax25_neigh_output(struct neighbour *neigh, struct sk_buff *skb)
+{
+	/* Except for calling ax25_neigh_xmit instead of
+	 * dev_queue_xmit this is neigh_resolve_output.
+	 */
+	int rc = 0;
+
+	if (!neigh_event_send(neigh, skb)) {
+		int err;
+		struct net_device *dev = neigh->dev;
+		unsigned int seq;
+
+		do {
+			__skb_pull(skb, skb_network_offset(skb));
+			seq = read_seqbegin(&neigh->ha_lock);
+			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+					      neigh->ha, NULL, skb->len);
+		} while (read_seqretry(&neigh->ha_lock, seq));
+
+		if (err >= 0) {
+			ax25_neigh_xmit(skb);
+		} else
+			goto out_kfree_skb;
+	}
+out:
+	return rc;
+
+out_kfree_skb:
+	rc = -EINVAL;
+	kfree_skb(skb);
+	goto out;
+}
+
+int ax25_neigh_construct(struct neighbour *neigh)
+{
+	/* This trouble could be saved if ax25 would right a proper
+	 * dev_queue_xmit function.
+	 */
+	struct ax25_neigh_priv *priv = neighbour_priv(neigh);
+
+	if (neigh->tbl->family != AF_INET)
+		return -EINVAL;
+
+	priv->ops = *neigh->ops;
+	priv->ops.output = ax25_neigh_output;
+	priv->ops.connected_output = ax25_neigh_output;
+	return 0;
+}
+
 #else	/* INET */
 
-int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
-		     unsigned short type, const void *daddr,
-		     const void *saddr, unsigned int len)
+static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
+			    unsigned short type, const void *daddr,
+			    const void *saddr, unsigned int len)
 {
 	return -AX25_HEADER_LEN;
 }
 
-int ax25_rebuild_header(struct sk_buff *skb)
+int ax25_neigh_construct(struct neighbour *neigh)
 {
-	return 1;
+	return 0;
 }
-
 #endif
 
 const struct header_ops ax25_header_ops = {
 	.create = ax25_hard_header,
-	.rebuild = ax25_rebuild_header,
 };
 
-EXPORT_SYMBOL(ax25_hard_header);
-EXPORT_SYMBOL(ax25_rebuild_header);
 EXPORT_SYMBOL(ax25_header_ops);
+EXPORT_SYMBOL(ax25_neigh_construct);
 

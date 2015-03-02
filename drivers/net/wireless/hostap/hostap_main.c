@@ -798,7 +798,6 @@ static void prism2_tx_timeout(struct net_device *dev)
 
 const struct header_ops hostap_80211_ops = {
 	.create		= eth_header,
-	.rebuild	= eth_rebuild_header,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
 	.parse		= hostap_80211_header_parse,

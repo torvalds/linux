@@ -336,7 +336,6 @@ static int ipvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 static const struct header_ops ipvlan_header_ops = {
 	.create  	= ipvlan_hard_header,
-	.rebuild	= eth_rebuild_header,
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,

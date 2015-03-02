@@ -1263,10 +1263,10 @@ struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 EXPORT_SYMBOL(neigh_event_ns);
 
 /* called with read_lock_bh(&n->lock); */
-static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst)
+static void neigh_hh_init(struct neighbour *n)
 {
-	struct net_device *dev = dst->dev;
-	__be16 prot = dst->ops->protocol;
+	struct net_device *dev = n->dev;
+	__be16 prot = n->tbl->protocol;
 	struct hh_cache	*hh = &n->hh;
 
 	write_lock_bh(&n->lock);
@@ -1280,35 +1280,11 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst)
 	write_unlock_bh(&n->lock);
 }
 
-/* This function can be used in contexts, where only old dev_queue_xmit
- * worked, f.e. if you want to override normal output path (eql, shaper),
- * but resolution is not made yet.
- */
-
-int neigh_compat_output(struct neighbour *neigh, struct sk_buff *skb)
-{
-	struct net_device *dev = skb->dev;
-
-	__skb_pull(skb, skb_network_offset(skb));
-
-	if (dev_hard_header(skb, dev, ntohs(skb->protocol), NULL, NULL,
-			    skb->len) < 0 &&
-	    dev_rebuild_header(skb))
-		return 0;
-
-	return dev_queue_xmit(skb);
-}
-EXPORT_SYMBOL(neigh_compat_output);
-
 /* Slow and careful. */
 
 int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb_dst(skb);
 	int rc = 0;
-
-	if (!dst)
-		goto discard;
 
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
@@ -1316,7 +1292,7 @@ int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 		unsigned int seq;
 
 		if (dev->header_ops->cache && !neigh->hh.hh_len)
-			neigh_hh_init(neigh, dst);
+			neigh_hh_init(neigh);
 
 		do {
 			__skb_pull(skb, skb_network_offset(skb));
@@ -1332,8 +1308,6 @@ int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 	}
 out:
 	return rc;
-discard:
-	neigh_dbg(1, "%s: dst=%p neigh=%p\n", __func__, dst, neigh);
 out_kfree_skb:
 	rc = -EINVAL;
 	kfree_skb(skb);

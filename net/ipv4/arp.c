@@ -149,17 +149,10 @@ static const struct neigh_ops arp_direct_ops = {
 	.connected_output =	neigh_direct_output,
 };
 
-static const struct neigh_ops arp_broken_ops = {
-	.family =		AF_INET,
-	.solicit =		arp_solicit,
-	.error_report =		arp_error_report,
-	.output =		neigh_compat_output,
-	.connected_output =	neigh_compat_output,
-};
-
 struct neigh_table arp_tbl = {
 	.family		= AF_INET,
 	.key_len	= 4,
+	.protocol	= cpu_to_be16(ETH_P_IP),
 	.hash		= arp_hash,
 	.constructor	= arp_constructor,
 	.proxy_redo	= parp_redo,
@@ -260,35 +253,6 @@ static int arp_constructor(struct neighbour *neigh)
 		   in old paradigm.
 		 */
 
-#if 1
-		/* So... these "amateur" devices are hopeless.
-		   The only thing, that I can say now:
-		   It is very sad that we need to keep ugly obsolete
-		   code to make them happy.
-
-		   They should be moved to more reasonable state, now
-		   they use rebuild_header INSTEAD OF hard_start_xmit!!!
-		   Besides that, they are sort of out of date
-		   (a lot of redundant clones/copies, useless in 2.1),
-		   I wonder why people believe that they work.
-		 */
-		switch (dev->type) {
-		default:
-			break;
-		case ARPHRD_ROSE:
-#if IS_ENABLED(CONFIG_AX25)
-		case ARPHRD_AX25:
-#if IS_ENABLED(CONFIG_NETROM)
-		case ARPHRD_NETROM:
-#endif
-			neigh->ops = &arp_broken_ops;
-			neigh->output = neigh->ops->output;
-			return 0;
-#else
-			break;
-#endif
-		}
-#endif
 		if (neigh->type == RTN_MULTICAST) {
 			neigh->nud_state = NUD_NOARP;
 			arp_mc_map(addr, neigh->ha, dev, 1);
@@ -432,71 +396,6 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	ip_rt_put(rt);
 	return flag;
 }
-
-/* OBSOLETE FUNCTIONS */
-
-/*
- *	Find an arp mapping in the cache. If not found, post a request.
- *
- *	It is very UGLY routine: it DOES NOT use skb->dst->neighbour,
- *	even if it exists. It is supposed that skb->dev was mangled
- *	by a virtual device (eql, shaper). Nobody but broken devices
- *	is allowed to use this function, it is scheduled to be removed. --ANK
- */
-
-static int arp_set_predefined(int addr_hint, unsigned char *haddr,
-			      __be32 paddr, struct net_device *dev)
-{
-	switch (addr_hint) {
-	case RTN_LOCAL:
-		pr_debug("arp called for own IP address\n");
-		memcpy(haddr, dev->dev_addr, dev->addr_len);
-		return 1;
-	case RTN_MULTICAST:
-		arp_mc_map(paddr, haddr, dev, 1);
-		return 1;
-	case RTN_BROADCAST:
-		memcpy(haddr, dev->broadcast, dev->addr_len);
-		return 1;
-	}
-	return 0;
-}
-
-
-int arp_find(unsigned char *haddr, struct sk_buff *skb)
-{
-	struct net_device *dev = skb->dev;
-	__be32 paddr;
-	struct neighbour *n;
-
-	if (!skb_dst(skb)) {
-		pr_debug("arp_find is called with dst==NULL\n");
-		kfree_skb(skb);
-		return 1;
-	}
-
-	paddr = rt_nexthop(skb_rtable(skb), ip_hdr(skb)->daddr);
-	if (arp_set_predefined(inet_addr_type(dev_net(dev), paddr), haddr,
-			       paddr, dev))
-		return 0;
-
-	n = __neigh_lookup(&arp_tbl, &paddr, dev, 1);
-
-	if (n) {
-		n->used = jiffies;
-		if (n->nud_state & NUD_VALID || neigh_event_send(n, skb) == 0) {
-			neigh_ha_snapshot(haddr, n, dev);
-			neigh_release(n);
-			return 0;
-		}
-		neigh_release(n);
-	} else
-		kfree_skb(skb);
-	return 1;
-}
-EXPORT_SYMBOL(arp_find);
-
-/* END OF OBSOLETE FUNCTIONS */
 
 /*
  * Check if we can use proxy ARP for this path
