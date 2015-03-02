@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <pthread.h>
+#include <sched.h>
 
 int main(void)
 {
@@ -8,7 +9,8 @@ int main(void)
 	cpu_set_t cs;
 
 	pthread_attr_init(&thread_attr);
-	/* don't care abt exact args, just the API itself in libpthread */
+	CPU_ZERO(&cs);
+
 	ret = pthread_attr_setaffinity_np(&thread_attr, sizeof(cs), &cs);
 
 	return ret;
