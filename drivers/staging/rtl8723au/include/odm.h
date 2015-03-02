@@ -348,7 +348,6 @@ enum odm_cmninfo {
 enum {
 	/*  BB ODM section BIT 0-15 */
 	ODM_BB_DIG				= BIT(0),
-	ODM_BB_RA_MASK				= BIT(1),
 	ODM_BB_DYNAMIC_TXPWR			= BIT(2),
 	ODM_BB_FA_CNT				= BIT(3),
 	ODM_BB_RSSI_MONITOR			= BIT(4),

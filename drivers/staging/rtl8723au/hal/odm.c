@@ -189,8 +189,6 @@ void odm_DynamicBBPowerSaving23a(struct dm_odm_t *pDM_Odm);
 
 /* END---------BB POWER SAVE----------------------- */
 
-void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm);
-
 void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm);
 
 void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm);
@@ -1108,24 +1106,13 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
  *---------------------------------------------------------------------------*/
 void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm)
 {
-	if (!(pDM_Odm->SupportAbility & ODM_BB_RA_MASK))
-		return;
-	/*  */
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	/*  */
-	odm_RefreshRateAdaptiveMask23aCE23a(pDM_Odm);
-}
-
-void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm)
-{
 	u8 i;
 	struct rtw_adapter *pAdapter	 =  pDM_Odm->Adapter;
 
 	if (pAdapter->bDriverStopped) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_TRACE,
-			     ("<---- odm_RefreshRateAdaptiveMask23a(): driver is going to unload\n"));
+			     ("<---- %s: driver is going to unload\n",
+			      __func__));
 		return;
 	}
 

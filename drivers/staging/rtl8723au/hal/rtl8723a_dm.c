@@ -130,7 +130,6 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	int i;
 	pdmpriv->InitODMFlag =	ODM_BB_DIG		|
-				ODM_BB_RA_MASK		|
 				ODM_BB_DYNAMIC_TXPWR	|
 				ODM_BB_FA_CNT		|
 				ODM_BB_RSSI_MONITOR	|
