@@ -136,7 +136,6 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 				ODM_BB_RSSI_MONITOR	|
 				ODM_BB_CCK_PD		|
 				ODM_BB_PWR_SAVE		|
-				ODM_MAC_EDCA_TURBO	|
 				ODM_RF_TX_PWR_TRACK	|
 				ODM_RF_CALIBRATION;
 	/*  Pointer reference */

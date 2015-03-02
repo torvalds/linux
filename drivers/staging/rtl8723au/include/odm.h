@@ -362,7 +362,6 @@ enum {
 	ODM_BB_RXHP				= BIT(12),
 
 	/*  MAC DM section BIT 16-23 */
-	ODM_MAC_EDCA_TURBO			= BIT(16),
 	ODM_MAC_EARLY_MODE			= BIT(17),
 
 	/*  RF ODM section BIT 24-31 */
