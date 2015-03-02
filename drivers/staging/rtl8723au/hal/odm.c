@@ -194,7 +194,7 @@ void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm);
 static void odm_RSSIMonitorCheck(struct dm_odm_t *pDM_Odm);
 void odm_DynamicTxPower23a(struct dm_odm_t *pDM_Odm);
 
-void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm);
+static void odm_RefreshRateAdaptiveMask(struct dm_odm_t *pDM_Odm);
 
 void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm);
 
@@ -270,7 +270,7 @@ void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 	if (pwrctrlpriv->bpower_saving)
 		return;
 
-	odm_RefreshRateAdaptiveMask23a(pDM_Odm);
+	odm_RefreshRateAdaptiveMask(pDM_Odm);
 
 	odm_DynamicBBPowerSaving23a(pDM_Odm);
 
@@ -1045,7 +1045,7 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
 }
 
 /*-----------------------------------------------------------------------------
- * Function:	odm_RefreshRateAdaptiveMask23a()
+ * Function:	odm_RefreshRateAdaptiveMask()
  *
  * Overview:	Update rate table mask according to rssi
  *
@@ -1060,10 +1060,11 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
  *05/27/2009	hpfan	Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm)
+static void odm_RefreshRateAdaptiveMask(struct dm_odm_t *pDM_Odm)
 {
+	struct rtw_adapter *pAdapter = pDM_Odm->Adapter;
+	u32 smoothed;
 	u8 i;
-	struct rtw_adapter *pAdapter	 =  pDM_Odm->Adapter;
 
 	if (pAdapter->bDriverStopped) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_TRACE,
@@ -1075,17 +1076,19 @@ void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm)
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
 		if (pstat) {
-			if (ODM_RAStateCheck23a(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level)) {
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
+			smoothed = pstat->rssi_stat.UndecoratedSmoothedPWDB;
+			if (ODM_RAStateCheck23a(pDM_Odm, smoothed, false,
+						&pstat->rssi_level)) {
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK,
+					     ODM_DBG_LOUD,
 					     ("RSSI:%d, RSSI_LEVEL:%d\n",
-					     pstat->rssi_stat.UndecoratedSmoothedPWDB,
-					     pstat->rssi_level));
-				rtw_hal_update_ra_mask23a(pstat, pstat->rssi_level);
+					      smoothed,
+					      pstat->rssi_level));
+				rtw_hal_update_ra_mask23a(pstat,
+							  pstat->rssi_level);
 			}
-
 		}
 	}
-
 }
 
 /*  Return Value: bool */
