@@ -538,12 +538,8 @@ static void adv76xx_set_hpd(struct adv76xx_state *state, unsigned int hpd)
 {
 	unsigned int i;
 
-	for (i = 0; i < state->info->num_dv_ports; ++i) {
-		if (IS_ERR(state->hpd_gpio[i]))
-			continue;
-
+	for (i = 0; i < state->info->num_dv_ports; ++i)
 		gpiod_set_value_cansleep(state->hpd_gpio[i], hpd & BIT(i));
-	}
 
 	v4l2_subdev_notify(&state->sd, ADV76XX_HOTPLUG, &hpd);
 }
@@ -2729,13 +2725,13 @@ static int adv76xx_probe(struct i2c_client *client,
 	/* Request GPIOs. */
 	for (i = 0; i < state->info->num_dv_ports; ++i) {
 		state->hpd_gpio[i] =
-			devm_gpiod_get_index(&client->dev, "hpd", i);
+			devm_gpiod_get_index_optional(&client->dev, "hpd", i,
+						      GPIOD_OUT_LOW);
 		if (IS_ERR(state->hpd_gpio[i]))
-			continue;
+			return PTR_ERR(state->hpd_gpio[i]);
 
-		gpiod_direction_output(state->hpd_gpio[i], 0);
-
-		v4l_info(client, "Handling HPD %u GPIO\n", i);
+		if (state->hpd_gpio[i])
+			v4l_info(client, "Handling HPD %u GPIO\n", i);
 	}
 
 	state->timings = cea640x480;
