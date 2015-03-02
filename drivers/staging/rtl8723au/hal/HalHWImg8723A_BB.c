@@ -219,13 +219,12 @@ void ODM_ReadAndConfig_AGC_TAB_1T_8723A(struct dm_odm_t *pDM_Odm)
 	u32 hex;
 	u32 i;
 	u8 platform = 0x04;
-	u8 interfaceValue   = pDM_Odm->SupportInterface;
 	u8 board = pDM_Odm->BoardType;
 	u32 ArrayLen = sizeof(Array_AGC_TAB_1T_8723A)/sizeof(u32);
 	u32 *Array = Array_AGC_TAB_1T_8723A;
 
 	hex = board;
-	hex += interfaceValue << 8;
+	hex += ODM_ITRF_USB << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 2) {
@@ -467,13 +466,12 @@ void ODM_ReadAndConfig_PHY_REG_1T_8723A(struct dm_odm_t *pDM_Odm)
 	u32 hex = 0;
 	u32 i = 0;
 	u8  platform = 0x04;
-	u8  interfaceValue = pDM_Odm->SupportInterface;
 	u8  board = pDM_Odm->BoardType;
 	u32 ArrayLen = sizeof(Array_PHY_REG_1T_8723A)/sizeof(u32);
 	u32 *Array = Array_PHY_REG_1T_8723A;
 
 	hex += board;
-	hex += interfaceValue << 8;
+	hex += ODM_ITRF_USB << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 2) {
@@ -523,13 +521,12 @@ void ODM_ReadAndConfig_PHY_REG_MP_8723A(struct dm_odm_t *pDM_Odm)
 	u32     hex         = 0;
 	u32     i           = 0;
 	u8     platform    = 0x04;
-	u8     interfaceValue   = pDM_Odm->SupportInterface;
 	u8     board       = pDM_Odm->BoardType;
 	u32     ArrayLen    = sizeof(Array_PHY_REG_MP_8723A)/sizeof(u32);
 	u32 *Array       = Array_PHY_REG_MP_8723A;
 
 	hex += board;
-	hex += interfaceValue << 8;
+	hex += ODM_ITRF_USB << 8;
 	hex += platform << 16;
 	hex += 0xFF000000;
 	for (i = 0; i < ArrayLen; i += 2) {

@@ -298,8 +298,7 @@ enum odm_cmninfo {
 	/*  Fixed value: */
 	/*  */
 
-	ODM_CMNINFO_INTERFACE = 1,		/*  enum odm_interface_def */
-	ODM_CMNINFO_MP_TEST_CHIP,
+	ODM_CMNINFO_MP_TEST_CHIP = 2,
 	ODM_CMNINFO_IC_TYPE,			/*  enum odm_ic_type_def */
 	ODM_CMNINFO_CUT_VER,			/*  enum odm_cut_version */
 	ODM_CMNINFO_FAB_VER,			/*  enum odm_fab_version */
@@ -608,8 +607,6 @@ struct dm_odm_t {
 /* HOOK BEFORE REG INIT----------- */
 	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ ¡K¡K = 1/2/3/¡K */
 	u32			SupportAbility;
-	/*  ODM PCIE/USB/SDIO/GSPI = 0/1/2/3 */
-	u8			SupportInterface;
 	/*  ODM composite or independent. Bit oriented/ 92C+92D+ .... or any other type = 1/2/3/... */
 	u32			SupportICType;
 	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
