@@ -111,12 +111,12 @@ struct platform_device s3c_device_adc = {
 #if defined(CONFIG_SAMSUNG_DEV_ADC)
 static struct resource s3c_adc_resource[] = {
 	[0] = DEFINE_RES_MEM(SAMSUNG_PA_ADC, SZ_256),
-	[1] = DEFINE_RES_IRQ(IRQ_TC),
-	[2] = DEFINE_RES_IRQ(IRQ_ADC),
+	[1] = DEFINE_RES_IRQ(IRQ_ADC),
+	[2] = DEFINE_RES_IRQ(IRQ_TC),
 };
 
 struct platform_device s3c_device_adc = {
-	.name		= "samsung-adc",
+	.name		= "exynos-adc",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(s3c_adc_resource),
 	.resource	= s3c_adc_resource,
@@ -939,31 +939,19 @@ void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *hard_s3c2410ts_
 #endif /* CONFIG_PLAT_S3C24XX */
 
 #ifdef CONFIG_SAMSUNG_DEV_TS
-static struct resource s3c_ts_resource[] = {
-	[0] = DEFINE_RES_MEM(SAMSUNG_PA_ADC, SZ_256),
-	[1] = DEFINE_RES_IRQ(IRQ_TC),
-};
-
 static struct s3c2410_ts_mach_info default_ts_data __initdata = {
 	.delay			= 10000,
 	.presc			= 49,
 	.oversampling_shift	= 2,
 };
 
-struct platform_device s3c_device_ts = {
-	.name		= "s3c64xx-ts",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(s3c_ts_resource),
-	.resource	= s3c_ts_resource,
-};
-
-void __init s3c24xx_ts_set_platdata(struct s3c2410_ts_mach_info *pd)
+void __init s3c64xx_ts_set_platdata(struct s3c2410_ts_mach_info *pd)
 {
 	if (!pd)
 		pd = &default_ts_data;
 
 	s3c_set_platdata(pd, sizeof(struct s3c2410_ts_mach_info),
-			 &s3c_device_ts);
+			 &s3c_device_adc);
 }
 #endif /* CONFIG_SAMSUNG_DEV_TS */
 

@@ -253,7 +253,6 @@ static struct platform_device *smartq_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_rtc,
 	&samsung_device_pwm,
-	&s3c_device_ts,
 	&s3c_device_usb_hsotg,
 	&s3c64xx_device_iis0,
 	&smartq_backlight_device,
@@ -400,7 +399,7 @@ void __init smartq_machine_init(void)
 	s3c_hwmon_set_platdata(&smartq_hwmon_pdata);
 	s3c_sdhci1_set_platdata(&smartq_internal_hsmmc_pdata);
 	s3c_sdhci2_set_platdata(&smartq_internal_hsmmc_pdata);
-	s3c24xx_ts_set_platdata(&smartq_touchscreen_pdata);
+	s3c64xx_ts_set_platdata(&smartq_touchscreen_pdata);
 
 	i2c_register_board_info(0, smartq_i2c_devs,
 				ARRAY_SIZE(smartq_i2c_devs));

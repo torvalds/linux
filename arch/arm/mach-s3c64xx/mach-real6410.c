@@ -203,7 +203,6 @@ static struct platform_device *real6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_nand,
 	&s3c_device_adc,
-	&s3c_device_ts,
 	&s3c_device_ohci,
 };
 
@@ -302,7 +301,7 @@ static void __init real6410_machine_init(void)
 
 	s3c_fb_set_platdata(&real6410_lcd_pdata[features.lcd_index]);
 	s3c_nand_set_platdata(&real6410_nand_info);
-	s3c24xx_ts_set_platdata(NULL);
+	s3c64xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 

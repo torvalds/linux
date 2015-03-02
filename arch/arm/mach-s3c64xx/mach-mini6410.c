@@ -234,7 +234,6 @@ static struct platform_device *mini6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&mini6410_lcd_powerdev,
 	&s3c_device_adc,
-	&s3c_device_ts,
 };
 
 static void __init mini6410_map_io(void)
@@ -333,7 +332,7 @@ static void __init mini6410_machine_init(void)
 	s3c_nand_set_platdata(&mini6410_nand_info);
 	s3c_fb_set_platdata(&mini6410_lcd_pdata[features.lcd_index]);
 	s3c_sdhci1_set_platdata(&mini6410_hsmmc1_pdata);
-	s3c24xx_ts_set_platdata(NULL);
+	s3c64xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 
