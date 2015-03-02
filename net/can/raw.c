@@ -95,8 +95,8 @@ struct raw_sock {
  */
 static inline unsigned int *raw_flags(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(skb->cb) <= (sizeof(struct sockaddr_can) +
-					 sizeof(unsigned int)));
+	sock_skb_cb_check_size(sizeof(struct sockaddr_can) +
+			       sizeof(unsigned int));
 
 	/* return pointer after struct sockaddr_can */
 	return (unsigned int *)(&((struct sockaddr_can *)skb->cb)[1]);
@@ -135,7 +135,7 @@ static void raw_rcv(struct sk_buff *oskb, void *data)
 	 *  containing the interface index.
 	 */
 
-	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct sockaddr_can));
+	sock_skb_cb_check_size(sizeof(struct sockaddr_can));
 	addr = (struct sockaddr_can *)skb->cb;
 	memset(addr, 0, sizeof(*addr));
 	addr->can_family  = AF_CAN;

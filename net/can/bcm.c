@@ -328,7 +328,7 @@ static void bcm_send_to_user(struct bcm_op *op, struct bcm_msg_head *head,
 	 *  containing the interface index.
 	 */
 
-	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct sockaddr_can));
+	sock_skb_cb_check_size(sizeof(struct sockaddr_can));
 	addr = (struct sockaddr_can *)skb->cb;
 	memset(addr, 0, sizeof(*addr));
 	addr->can_family  = AF_CAN;
