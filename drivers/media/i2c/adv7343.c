@@ -506,7 +506,6 @@ static int adv7343_remove(struct i2c_client *client)
 	struct adv7343_state *state = to_state(sd);
 
 	v4l2_async_unregister_subdev(&state->sd);
-	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
 
 	return 0;

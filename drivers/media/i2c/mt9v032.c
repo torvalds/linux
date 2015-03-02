@@ -1016,7 +1016,6 @@ static int mt9v032_remove(struct i2c_client *client)
 
 	v4l2_async_unregister_subdev(subdev);
 	v4l2_ctrl_handler_free(&mt9v032->ctrls);
-	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
 
 	return 0;
