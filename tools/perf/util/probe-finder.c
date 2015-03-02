@@ -1345,11 +1345,8 @@ int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
 	const char *fname = NULL, *func = NULL, *basefunc = NULL, *tmp;
 	int baseline = 0, lineno = 0, ret = 0;
 
-	/* Adjust address with bias */
-	addr += dbg->bias;
-
 	/* Find cu die */
-	if (!dwarf_addrdie(dbg->dbg, (Dwarf_Addr)addr - dbg->bias, &cudie)) {
+	if (!dwarf_addrdie(dbg->dbg, (Dwarf_Addr)addr, &cudie)) {
 		pr_warning("Failed to find debug information for address %lx\n",
 			   addr);
 		ret = -EINVAL;
