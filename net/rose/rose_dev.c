@@ -41,6 +41,9 @@ static int rose_header(struct sk_buff *skb, struct net_device *dev,
 {
 	unsigned char *buff = skb_push(skb, ROSE_MIN_LEN + 2);
 
+	if (daddr)
+		memcpy(buff + 7, daddr, dev->addr_len);
+
 	*buff++ = ROSE_GFI | ROSE_Q_BIT;
 	*buff++ = 0x00;
 	*buff++ = ROSE_DATA;
