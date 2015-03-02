@@ -22,6 +22,7 @@ struct clk_lookup {
 	const char		*dev_id;
 	const char		*con_id;
 	struct clk		*clk;
+	struct clk_hw		*clk_hw;
 };
 
 #define CLKDEV_INIT(d, n, c)	\
