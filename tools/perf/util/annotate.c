@@ -1008,6 +1008,32 @@ fallback:
 			}
 			filename = symfs_filename;
 		}
+	} else if (dso__needs_decompress(dso)) {
+		char tmp[PATH_MAX];
+		struct kmod_path m;
+		int fd;
+		bool ret;
+
+		if (kmod_path__parse_ext(&m, symfs_filename))
+			goto out_free_filename;
+
+		snprintf(tmp, PATH_MAX, "/tmp/perf-kmod-XXXXXX");
+
+		fd = mkstemp(tmp);
+		if (fd < 0) {
+			free(m.ext);
+			goto out_free_filename;
+		}
+
+		ret = decompress_to_file(m.ext, symfs_filename, fd);
+
+		free(m.ext);
+		close(fd);
+
+		if (!ret)
+			goto out_free_filename;
+
+		strcpy(symfs_filename, tmp);
 	}
 
 	snprintf(command, sizeof(command),
@@ -1027,7 +1053,7 @@ fallback:
 
 	file = popen(command, "r");
 	if (!file)
-		goto out_free_filename;
+		goto out_remove_tmp;
 
 	while (!feof(file))
 		if (symbol__parse_objdump_line(sym, map, file, privsize,
@@ -1042,6 +1068,10 @@ fallback:
 		delete_last_nop(sym);
 
 	pclose(file);
+
+out_remove_tmp:
+	if (dso__needs_decompress(dso))
+		unlink(symfs_filename);
 out_free_filename:
 	if (delete_extract)
 		kcore_extract__delete(&kce);
