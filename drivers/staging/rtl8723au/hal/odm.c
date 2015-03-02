@@ -480,11 +480,10 @@ void odm_DIG23abyRSSI_LPS(struct dm_odm_t *pDM_Odm)
 	CurrentIGI = CurrentIGI+RSSI_OFFSET_DIG;
 	bFwCurrentInPSMode = pAdapter->pwrctrlpriv.bFwCurrentInPSMode;
 
-	/* ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG_LPS, ODM_DBG_LOUD, ("odm_DIG23a() ==>\n")); */
-
 	/*  Using FW PS mode to make IGI */
 	if (bFwCurrentInPSMode) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("---Neil---odm_DIG23a is in LPS mode\n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
+			     ("---Neil---odm_DIG23a is in LPS mode\n"));
 		/* Adjust by  FA in LPS MODE */
 		if (pFalseAlmCnt->Cnt_all > DM_DIG_FA_TH2_LPS)
 			CurrentIGI = CurrentIGI+2;
@@ -510,15 +509,16 @@ void odm_DIG23abyRSSI_LPS(struct dm_odm_t *pDM_Odm)
 	 else if (CurrentIGI < RSSI_Lower)
 		CurrentIGI = RSSI_Lower;
 
-	ODM_Write_DIG23a(pDM_Odm, CurrentIGI);/* ODM_Write_DIG23a(pDM_Odm, pDM_DigTable->CurIGValue); */
-
+	ODM_Write_DIG23a(pDM_Odm, CurrentIGI);
 }
 
 void odm_DIG23aInit(struct dm_odm_t *pDM_Odm)
 {
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
-	pDM_DigTable->CurIGValue = (u8) ODM_GetBBReg(pDM_Odm, ODM_REG(IGI_A, pDM_Odm), ODM_BIT(IGI, pDM_Odm));
+	pDM_DigTable->CurIGValue = (u8) ODM_GetBBReg(pDM_Odm,
+						     ODM_REG(IGI_A, pDM_Odm),
+						     ODM_BIT(IGI, pDM_Odm));
 	pDM_DigTable->RssiLowThresh	= DM_DIG_THRESH_LOW;
 	pDM_DigTable->RssiHighThresh	= DM_DIG_THRESH_HIGH;
 	pDM_DigTable->FALowThresh	= DM_FALSEALARM_THRESH_LOW;
@@ -556,19 +556,22 @@ void odm_DIG23a(struct rtw_adapter *adapter)
 	u8 dm_dig_max, dm_dig_min;
 	u8 CurrentIGI = pDM_DigTable->CurIGValue;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() ==>\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
+		     ("odm_DIG23a() ==>\n"));
 	if (adapter->mlmepriv.bScanInProcess) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() Return: In Scan Progress \n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
+			     ("odm_DIG23a() Return: In Scan Progress \n"));
 		return;
 	}
 
 	DIG_Dynamic_MIN = pDM_DigTable->DIG_Dynamic_MIN_0;
 	FirstConnect = (pDM_Odm->bLinked) && (!pDM_DigTable->bMediaConnect_0);
-	FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
+	FirstDisConnect = (!pDM_Odm->bLinked) &&
+		(pDM_DigTable->bMediaConnect_0);
 
 	/* 1 Boundary Decision */
 	if ((pDM_Odm->SupportICType & ODM_RTL8723A) &&
-	    ((pDM_Odm->BoardType == ODM_BOARD_HIGHPWR) || pDM_Odm->ExtLNA)) {
+	    (pDM_Odm->BoardType == ODM_BOARD_HIGHPWR || pDM_Odm->ExtLNA)) {
 		dm_dig_max = DM_DIG_MAX_NIC_HP;
 		dm_dig_min = DM_DIG_MIN_NIC_HP;
 		DIG_MaxOfMin = DM_DIG_MAX_AP_HP;
@@ -814,9 +817,12 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 		     ("Cnt_Crc8_fail =%d, Cnt_Mcs_fail =%d\n",
 		      FalseAlmCnt->Cnt_Crc8_fail, FalseAlmCnt->Cnt_Mcs_fail));
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Cck_fail =%d\n", FalseAlmCnt->Cnt_Cck_fail));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Ofdm_fail =%d\n", FalseAlmCnt->Cnt_Ofdm_fail));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Total False Alarm =%d\n", FalseAlmCnt->Cnt_all));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Cnt_Cck_fail =%d\n", FalseAlmCnt->Cnt_Cck_fail));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Cnt_Ofdm_fail =%d\n", FalseAlmCnt->Cnt_Ofdm_fail));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Total False Alarm =%d\n", FalseAlmCnt->Cnt_all));
 }
 
 /* 3 ============================================================ */
@@ -834,7 +840,7 @@ void odm_CCKPacketDetectionThresh23a(struct dm_odm_t *pDM_Odm)
 	if (pDM_Odm->bLinked) {
 		if (pDM_Odm->RSSI_Min > 25) {
 			CurCCK_CCAThres = 0xcd;
-		} else if ((pDM_Odm->RSSI_Min <= 25) && (pDM_Odm->RSSI_Min > 10)) {
+		} else if (pDM_Odm->RSSI_Min <= 25 && pDM_Odm->RSSI_Min > 10) {
 			CurCCK_CCAThres = 0x83;
 		} else {
 			if (FalseAlmCnt->Cnt_Cck_fail > 1000)
@@ -857,10 +863,10 @@ void ODM_Write_CCK_CCA_Thres23a(struct dm_odm_t *pDM_Odm, u8 CurCCK_CCAThres)
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	if (pDM_DigTable->CurCCK_CCAThres != CurCCK_CCAThres)
-		ODM_Write1Byte(pDM_Odm, ODM_REG(CCK_CCA, pDM_Odm), CurCCK_CCAThres);
+		ODM_Write1Byte(pDM_Odm, ODM_REG(CCK_CCA, pDM_Odm),
+			       CurCCK_CCAThres);
 	pDM_DigTable->PreCCK_CCAThres = pDM_DigTable->CurCCK_CCAThres;
 	pDM_DigTable->CurCCK_CCAThres = CurCCK_CCAThres;
-
 }
 
 /* 3 ============================================================ */
@@ -890,11 +896,14 @@ void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 	u8 Rssi_Low_bound = 25;
 	if (pDM_PSTable->initialize == 0) {
 
-		pDM_PSTable->Reg874 = (ODM_GetBBReg(pDM_Odm, 0x874, bMaskDWord)&0x1CC000)>>14;
+		pDM_PSTable->Reg874 = (ODM_GetBBReg(pDM_Odm, 0x874,
+						    bMaskDWord)&0x1CC000) >> 14;
 		pDM_PSTable->RegC70 =
 			(ODM_GetBBReg(pDM_Odm, 0xc70, bMaskDWord) & BIT(3)) >>3;
-		pDM_PSTable->Reg85C = (ODM_GetBBReg(pDM_Odm, 0x85c, bMaskDWord)&0xFF000000)>>24;
-		pDM_PSTable->RegA74 = (ODM_GetBBReg(pDM_Odm, 0xa74, bMaskDWord)&0xF000)>>12;
+		pDM_PSTable->Reg85C = (ODM_GetBBReg(pDM_Odm, 0x85c,
+						    bMaskDWord)&0xFF000000)>>24;
+		pDM_PSTable->RegA74 = (ODM_GetBBReg(pDM_Odm, 0xa74,
+						    bMaskDWord)&0xF000)>>12;
 		/* Reg818 = PHY_QueryBBReg(pAdapter, 0x818, bMaskDWord); */
 		pDM_PSTable->initialize = 1;
 	}
@@ -921,26 +930,40 @@ void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 
 	if (pDM_PSTable->PreRFState != pDM_PSTable->CurRFState) {
 		if (pDM_PSTable->CurRFState == RF_Save) {
-			/*  <tynli_note> 8723 RSSI report will be wrong. Set 0x874[5]= 1 when enter BB power saving mode. */
+			/*  <tynli_note> 8723 RSSI report will be wrong.
+			 * Set 0x874[5]= 1 when enter BB power saving mode. */
 			/*  Suggested by SD3 Yu-Nan. 2011.01.20. */
+			/* Reg874[5]= 1b'1 */
 			if (pDM_Odm->SupportICType == ODM_RTL8723A)
-				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x1); /* Reg874[5]= 1b'1 */
-			ODM_SetBBReg(pDM_Odm, 0x874, 0x1C0000, 0x2); /* Reg874[20:18]= 3'b010 */
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), 0); /* RegC70[3]= 1'b0 */
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, 0x63); /* Reg85C[31:24]= 0x63 */
-			ODM_SetBBReg(pDM_Odm, 0x874, 0xC000, 0x2); /* Reg874[15:14]= 2'b10 */
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, 0x3); /* RegA75[7:4]= 0x3 */
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0); /* Reg818[28]= 1'b0 */
-			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x1); /* Reg818[28]= 1'b1 */
+				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x1);
+			/* Reg874[20:18]= 3'b010 */
+			ODM_SetBBReg(pDM_Odm, 0x874, 0x1C0000, 0x2);
+			/* RegC70[3]= 1'b0 */
+			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), 0);
+			/* Reg85C[31:24]= 0x63 */
+			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, 0x63);
+			/* Reg874[15:14]= 2'b10 */
+			ODM_SetBBReg(pDM_Odm, 0x874, 0xC000, 0x2);
+			/* RegA75[7:4]= 0x3 */
+			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, 0x3);
+			/* Reg818[28]= 1'b0 */
+			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0);
+			/* Reg818[28]= 1'b1 */
+			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x1);
 		} else {
-			ODM_SetBBReg(pDM_Odm, 0x874, 0x1CC000, pDM_PSTable->Reg874);
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3), pDM_PSTable->RegC70);
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000, pDM_PSTable->Reg85C);
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000, pDM_PSTable->RegA74);
+			ODM_SetBBReg(pDM_Odm, 0x874, 0x1CC000,
+				     pDM_PSTable->Reg874);
+			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3),
+				     pDM_PSTable->RegC70);
+			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000,
+				     pDM_PSTable->Reg85C);
+			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000,
+				     pDM_PSTable->RegA74);
 			ODM_SetBBReg(pDM_Odm, 0x818, BIT(28), 0x0);
 
+			/* Reg874[5]= 1b'0 */
 			if (pDM_Odm->SupportICType == ODM_RTL8723A)
-				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x0); /* Reg874[5]= 1b'0 */
+				ODM_SetBBReg(pDM_Odm, 0x874, BIT(5), 0x0);
 		}
 		pDM_PSTable->PreRFState = pDM_PSTable->CurRFState;
 	}
@@ -1038,11 +1061,11 @@ u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
 		break;
 	}
 
-	/* printk("%s ==> rssi_level:0x%02x, WirelessMode:0x%02x, rate_bitmap:0x%08x \n", __func__, rssi_level, WirelessMode, rate_bitmap); */
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, (" ==> rssi_level:0x%02x, WirelessMode:0x%02x, rate_bitmap:0x%08x \n", rssi_level, WirelessMode, rate_bitmap));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
+	(" ==> rssi_level:0x%02x, WirelessMode:0x%02x, rate_bitmap:0x%08x \n",
+	 rssi_level, WirelessMode, rate_bitmap));
 
 	return rate_bitmap;
-
 }
 
 /*-----------------------------------------------------------------------------
@@ -1118,7 +1141,8 @@ bool ODM_RAStateCheck23a(struct dm_odm_t *pDM_Odm, s32 RSSI, bool bForceUpdate,
 		LowRSSIThreshForRA += GoUpGap;
 		break;
 	default:
-		ODM_RT_ASSERT(pDM_Odm, false, ("wrong rssi level setting %d !", *pRATRState));
+		ODM_RT_ASSERT(pDM_Odm, false, ("wrong rssi level setting %d !",
+					       *pRATRState));
 		break;
 	}
 
@@ -1242,7 +1266,8 @@ void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm)
 	pdmpriv->TXPowercount = 0;
 	pdmpriv->bTXPowerTrackingInit = false;
 	pdmpriv->TxPowerTrackControl = true;
-	MSG_8723A("pdmpriv->TxPowerTrackControl = %d\n", pdmpriv->TxPowerTrackControl);
+	MSG_8723A("pdmpriv->TxPowerTrackControl = %d\n",
+		  pdmpriv->TxPowerTrackControl);
 
 	pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true;
 }
@@ -1256,12 +1281,19 @@ static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial VO PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_VO_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial VI PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_VI_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial BE PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_BE_PARAM)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("Orginial BK PARAM: 0x%x\n", ODM_Read4Byte(pDM_Odm, ODM_EDCA_BK_PARAM)));
-
-}	/*  ODM_InitEdcaTurbo */
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
+		     ("Orginial VO PARAM: 0x%x\n",
+		      ODM_Read4Byte(pDM_Odm, ODM_EDCA_VO_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
+		     ("Orginial VI PARAM: 0x%x\n",
+		      ODM_Read4Byte(pDM_Odm, ODM_EDCA_VI_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
+		     ("Orginial BE PARAM: 0x%x\n",
+		      ODM_Read4Byte(pDM_Odm, ODM_EDCA_BE_PARAM)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
+		     ("Orginial BK PARAM: 0x%x\n",
+		      ODM_Read4Byte(pDM_Odm, ODM_EDCA_BK_PARAM)));
+}
 
 static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 {
@@ -1280,9 +1312,12 @@ static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 	/*  For AP/ADSL use struct rtl8723a_priv * */
 	/*  For CE/NIC use struct rtw_adapter * */
 
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
+	/*
+	 * 2011/09/29 MH In HW integration first stage, we provide 4
+	 * different handle to operate at the same time. In the stage2/3,
+	 * we need to prive universal interface and merge all HW dynamic
+	 * mechanism.
+	 */
 
 	if ((pregpriv->wifi_spec == 1))/*  (pmlmeinfo->HT_enable == 0)) */
 		goto dm_CheckEdcaTurbo_EXIT;
@@ -1362,14 +1397,13 @@ u32 GetPSDData(struct dm_odm_t *pDM_Odm, unsigned int point, u8 initial_gain_psd
 	/* Read PSD report, Reg8B4[15:0] */
 	psd_report = ODM_GetBBReg(pDM_Odm, 0x8B4, bMaskDWord) & 0x0000FFFF;
 
-	psd_report = (u32)(ConvertTo_dB23a(psd_report))+(u32)(initial_gain_psd-0x1c);
+	psd_report = (u32)(ConvertTo_dB23a(psd_report)) +
+		(u32)(initial_gain_psd-0x1c);
 
 	return psd_report;
 }
 
-u32
-ConvertTo_dB23a(
-	u32 Value)
+u32 ConvertTo_dB23a(u32 Value)
 {
 	u8 i;
 	u8 j;
@@ -1397,7 +1431,8 @@ ConvertTo_dB23a(
 
 /*  */
 /*  Description: */
-/*Set Single/Dual Antenna default setting for products that do not do detection in advance. */
+/* Set Single/Dual Antenna default setting for products that do not
+ * do detection in advance. */
 /*  */
 /*  Added by Joseph, 2012.03.22 */
 /*  */
@@ -1461,9 +1496,11 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 		return bResult;
 	/* 1 Backup Current RF/BB Settings */
 
-	CurrentChannel = ODM_GetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask);
+	CurrentChannel = ODM_GetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL,
+				      bRFRegOffsetMask);
 	RfLoopReg = ODM_GetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, ODM_DPDT, Antenna_A);  /*  change to Antenna A */
+	/*  change to Antenna A */
+	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, ODM_DPDT, Antenna_A);
 	/*  Step 1: USE IQK to transmitter single tone */
 
 	udelay(10);
@@ -1481,7 +1518,7 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 	ODM_SetBBReg(pDM_Odm, rFPGA0_PSDFunction, BIT(14) | BIT(15), 0x0);
 
 	/*  To SET CH1 to do */
-	ODM_SetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask, 0x01);     /* Channel 1 */
+	ODM_SetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask, 0x01);
 
 	/*  AFE all on step */
 	ODM_SetBBReg(pDM_Odm, rRx_Wait_CCA, bMaskDWord, 0x6FDB25A4);
@@ -1548,7 +1585,8 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 	}
 
 	/*  change to open case */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, 0);  /*  change to Ant A and B all open case */
+	/*  change to Ant A and B all open case */
+	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, 0);
 	udelay(10);
 
 	for (n = 0; n < 2; n++) {
@@ -1568,15 +1606,19 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, Reg874);
 	ODM_SetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, 0x7F, 0x40);
 	ODM_SetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, bMaskDWord, Regc50);
-	ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, CurrentChannel);
+	ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask,
+		     CurrentChannel);
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask, RfLoopReg);
 
 	/* Reload AFE Registers */
 	odm_PHY_ReloadAFERegisters(pDM_Odm, AFE_REG_8723A, AFE_Backup, 16);
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("psd_report_A[%d]= %d \n", 2416, AntA_report));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("psd_report_B[%d]= %d \n", 2416, AntB_report));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("psd_report_O[%d]= %d \n", 2416, AntO_report));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+		     ("psd_report_A[%d]= %d \n", 2416, AntA_report));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+		     ("psd_report_B[%d]= %d \n", 2416, AntB_report));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+		     ("psd_report_O[%d]= %d \n", 2416, AntO_report));
 
 	/* 2 Test Ant B based on Ant A is ON */
 	if (mode == ANTTESTB) {
@@ -1598,25 +1640,33 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 		if ((AntO_report >= 100) & (AntO_report < 118)) {
 			if (AntA_report > (AntO_report+1)) {
 				pDM_SWAT_Table->ANTA_ON = false;
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Ant A is OFF"));
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV,
+					     ODM_DBG_LOUD, ("Ant A is OFF"));
 			} else {
 				pDM_SWAT_Table->ANTA_ON = true;
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Ant A is ON"));
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV,
+					     ODM_DBG_LOUD, ("Ant A is ON"));
 			}
 
 			if (AntB_report > (AntO_report+2)) {
 				pDM_SWAT_Table->ANTB_ON = false;
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Ant B is OFF"));
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV,
+					     ODM_DBG_LOUD, ("Ant B is OFF"));
 			} else {
 				pDM_SWAT_Table->ANTB_ON = true;
-				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("Ant B is ON"));
+				ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV,
+					     ODM_DBG_LOUD, ("Ant B is ON"));
 			}
 		}
 	} else {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD, ("ODM_SingleDualAntennaDetection(): Need to check again\n"));
-		pDM_SWAT_Table->ANTA_ON = true; /*  Set Antenna A on as default */
-		pDM_SWAT_Table->ANTB_ON = false; /*  Set Antenna B off as default */
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_ANT_DIV, ODM_DBG_LOUD,
+		("ODM_SingleDualAntennaDetection(): Need to check again\n"));
+		/*  Set Antenna A on as default */
+		pDM_SWAT_Table->ANTA_ON = true;
+		/*  Set Antenna B off as default */
+		pDM_SWAT_Table->ANTB_ON = false;
 		bResult = false;
 	}
+
 	return bResult;
 }
