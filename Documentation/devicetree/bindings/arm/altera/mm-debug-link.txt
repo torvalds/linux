@@ -1,0 +1,19 @@
+Altera MM Debug Link driver
+
+Required properties:
+
+- #address-cells, #size-cells : Both #address-cells
+  and #size-cells must be equal to 1.
+
+- compatible : "altr,mm-debug-link-1.0";
+
+- reg : Base address and size of register space in MM Debug Link.
+
+Example:
+
+        sldhub_link: debugger {
+                #address-cells = <1>;
+                #size-cells = <1>;
+                compatible = "altr,mm-debug-link-1.0";
+                reg = <0xFF240000 0x80>;
+        };

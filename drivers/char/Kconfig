@@ -605,12 +605,14 @@ config TILE_SROM
 	  device appear much like a simple EEPROM, and knows
 	  how to partition a single ROM for multiple purposes.
 
-config SLDHUB
-	tristate "SLD HUB driver"
-	depends on m
+config ALTERA_MMDEBUGLINK
+	tristate "Altera MM Debug Link Driver"
 	depends on OF
 	help
-		The System-Level Debug HUB supports debugging of Altera FPGA Designs
+          The MM Debug Link supports debugging of Altera FPGA Designs
+          which contain the altera_mm_debug_link hardware component. The
+          altera_mm_debug_link component provides access to debug logic
+          via an Avalon-MM slave interface.
 
 endmenu
 
