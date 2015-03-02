@@ -583,10 +583,9 @@ void odm_DIG23a(struct rtw_adapter *adapter)
 	u8 CurrentIGI = pDM_DigTable->CurIGValue;
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() ==>\n"));
-	/* if (!(pDM_Odm->SupportAbility & (ODM_BB_DIG|ODM_BB_FA_CNT))) */
-	if ((!(pDM_Odm->SupportAbility&ODM_BB_DIG)) || (!(pDM_Odm->SupportAbility&ODM_BB_FA_CNT))) {
+	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT)) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD,
-			     ("odm_DIG23a() Return: SupportAbility ODM_BB_DIG or ODM_BB_FA_CNT is disabled\n"));
+			     ("odm_DIG23a() Return: SupportAbility ODM_BB_FA_CNT is disabled\n"));
 		return;
 	}
 
