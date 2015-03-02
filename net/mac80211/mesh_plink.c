@@ -17,7 +17,7 @@
 #define PLINK_GET_PLID(p) (p + 4)
 
 #define mod_plink_timer(s, t) (mod_timer(&s->plink_timer, \
-				jiffies + HZ * t / 1000))
+				jiffies + msecs_to_jiffies(t)))
 
 enum plink_event {
 	PLINK_UNDEFINED,
@@ -623,7 +623,7 @@ static void mesh_plink_timer(unsigned long data)
 
 static inline void mesh_plink_timer_set(struct sta_info *sta, int timeout)
 {
-	sta->plink_timer.expires = jiffies + (HZ * timeout / 1000);
+	sta->plink_timer.expires = jiffies + msecs_to_jiffies(timeout);
 	sta->plink_timer.data = (unsigned long) sta;
 	sta->plink_timer.function = mesh_plink_timer;
 	sta->plink_timeout = timeout;
