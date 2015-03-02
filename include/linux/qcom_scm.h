@@ -1,4 +1,5 @@
 /* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -12,12 +13,8 @@
 #ifndef __QCOM_SCM_H
 #define __QCOM_SCM_H
 
-#define QCOM_SCM_FLAG_WARMBOOT_CPU0		0x04
-#define QCOM_SCM_FLAG_WARMBOOT_CPU1		0x02
-#define QCOM_SCM_FLAG_WARMBOOT_CPU2		0x10
-#define QCOM_SCM_FLAG_WARMBOOT_CPU3		0x40
-
 extern int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
+extern int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus);
 
 #define QCOM_SCM_VERSION(major, minor) (((major) << 16) | ((minor) & 0xFF))
 
