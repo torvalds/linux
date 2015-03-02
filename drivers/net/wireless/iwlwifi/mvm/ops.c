@@ -872,8 +872,8 @@ static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
 
 	/* start recording again if the firmware is not crashed */
 	WARN_ON_ONCE((!test_bit(STATUS_FW_ERROR, &mvm->trans->status)) &&
-		      mvm->fw->dbg_dest_tlv &&
-		      iwl_mvm_start_fw_dbg_conf(mvm, mvm->fw_dbg_conf));
+		     mvm->fw->dbg_dest_tlv &&
+		     iwl_mvm_start_fw_dbg_conf(mvm, mvm->fw_dbg_conf));
 
 	mutex_unlock(&mvm->mutex);
 
