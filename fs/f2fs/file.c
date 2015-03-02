@@ -241,6 +241,8 @@ go_write:
 		 * will be used only for fsynced inodes after checkpoint.
 		 */
 		try_to_fix_pino(inode);
+		clear_inode_flag(fi, FI_APPEND_WRITE);
+		clear_inode_flag(fi, FI_UPDATE_WRITE);
 		goto out;
 	}
 sync_nodes:
