@@ -440,7 +440,9 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	if (rc < 0) {
 		pr_err("smscore_register_device(...) failed, rc %d\n", rc);
 		smsusb_term_device(intf);
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
 		media_device_unregister(mdev);
+#endif
 		kfree(mdev);
 		return rc;
 	}
