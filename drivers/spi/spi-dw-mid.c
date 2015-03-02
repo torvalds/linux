@@ -110,7 +110,7 @@ static void dw_spi_dma_tx_done(void *arg)
 
 	if (test_and_clear_bit(TX_BUSY, &dws->dma_chan_busy) & BIT(RX_BUSY))
 		return;
-	dw_spi_xfer_done(dws);
+	spi_finalize_current_transfer(dws->master);
 }
 
 static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws)
@@ -155,7 +155,7 @@ static void dw_spi_dma_rx_done(void *arg)
 
 	if (test_and_clear_bit(RX_BUSY, &dws->dma_chan_busy) & BIT(TX_BUSY))
 		return;
-	dw_spi_xfer_done(dws);
+	spi_finalize_current_transfer(dws->master);
 }
 
 static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)

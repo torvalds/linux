@@ -96,7 +96,6 @@ struct dw_spi_dma_ops {
 
 struct dw_spi {
 	struct spi_master	*master;
-	struct spi_device	*cur_dev;
 	enum dw_ssi_type	type;
 	char			name[16];
 
@@ -109,13 +108,7 @@ struct dw_spi {
 	u16			bus_num;
 	u16			num_cs;		/* supported slave numbers */
 
-	/* Message Transfer pump */
-	struct tasklet_struct	pump_transfers;
-
 	/* Current message transfer state info */
-	struct spi_message	*cur_msg;
-	struct spi_transfer	*cur_transfer;
-	struct chip_data	*cur_chip;
 	struct chip_data	*prev_chip;
 	size_t			len;
 	void			*tx;
@@ -128,10 +121,8 @@ struct dw_spi {
 	size_t			rx_map_len;
 	size_t			tx_map_len;
 	u8			n_bytes;	/* current is a 1/2 bytes op */
-	u8			max_bits_per_word;	/* maxim is 16b */
 	u32			dma_width;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
-	void			(*cs_control)(u32 command);
 
 	/* Dma info */
 	int			dma_inited;
@@ -182,22 +173,6 @@ static inline void spi_set_clk(struct dw_spi *dws, u16 div)
 	dw_writel(dws, DW_SPI_BAUDR, div);
 }
 
-static inline void spi_chip_sel(struct dw_spi *dws, struct spi_device *spi,
-		int active)
-{
-	u16 cs = spi->chip_select;
-	int gpio_val = active ? (spi->mode & SPI_CS_HIGH) :
-		!(spi->mode & SPI_CS_HIGH);
-
-	if (dws->cs_control)
-		dws->cs_control(active);
-	if (gpio_is_valid(spi->cs_gpio))
-		gpio_set_value(spi->cs_gpio, gpio_val);
-
-	if (active)
-		dw_writel(dws, DW_SPI_SER, 1 << cs);
-}
-
 /* Disable IRQ bits */
 static inline void spi_mask_intr(struct dw_spi *dws, u32 mask)
 {
@@ -245,7 +220,6 @@ extern int dw_spi_add_host(struct device *dev, struct dw_spi *dws);
 extern void dw_spi_remove_host(struct dw_spi *dws);
 extern int dw_spi_suspend_host(struct dw_spi *dws);
 extern int dw_spi_resume_host(struct dw_spi *dws);
-extern void dw_spi_xfer_done(struct dw_spi *dws);
 
 /* platform related setup */
 extern int dw_spi_mid_init(struct dw_spi *dws); /* Intel MID platforms */
