@@ -16,10 +16,12 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/thermal.h>
 #include "int340x_thermal_zone.h"
+#include "../intel_soc_dts_iosf.h"
 
 /* Broadwell-U/HSB thermal reporting device */
 #define PCI_DEVICE_ID_PROC_BDW_THERMAL	0x1603
@@ -42,6 +44,7 @@ struct proc_thermal_device {
 	struct acpi_device *adev;
 	struct power_config power_limits[2];
 	struct int34x_thermal_zone *int340x_zone;
+	struct intel_soc_dts_sensors *soc_dts;
 };
 
 enum proc_thermal_emum_mode_type {
@@ -308,6 +311,18 @@ static int int3401_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static irqreturn_t proc_thermal_pci_msi_irq(int irq, void *devid)
+{
+	struct proc_thermal_device *proc_priv;
+	struct pci_dev *pdev = devid;
+
+	proc_priv = pci_get_drvdata(pdev);
+
+	intel_soc_dts_iosf_interrupt_handler(proc_priv->soc_dts);
+
+	return IRQ_HANDLED;
+}
+
 static int  proc_thermal_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *unused)
 {
@@ -334,12 +349,50 @@ static int  proc_thermal_pci_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, proc_priv);
 	proc_thermal_emum_mode = PROC_THERMAL_PCI;
 
+	if (pdev->device == PCI_DEVICE_ID_PROC_BSW_THERMAL) {
+		/*
+		 * Enumerate additional DTS sensors available via IOSF.
+		 * But we are not treating as a failure condition, if
+		 * there are no aux DTSs enabled or fails. This driver
+		 * already exposes sensors, which can be accessed via
+		 * ACPI/MSR. So we don't want to fail for auxiliary DTSs.
+		 */
+		proc_priv->soc_dts = intel_soc_dts_iosf_init(
+					INTEL_SOC_DTS_INTERRUPT_MSI, 2, 0);
+
+		if (proc_priv->soc_dts && pdev->irq) {
+			ret = pci_enable_msi(pdev);
+			if (!ret) {
+				ret = request_threaded_irq(pdev->irq, NULL,
+						proc_thermal_pci_msi_irq,
+						IRQF_ONESHOT, "proc_thermal",
+						pdev);
+				if (ret) {
+					intel_soc_dts_iosf_exit(
+							proc_priv->soc_dts);
+					pci_disable_msi(pdev);
+					proc_priv->soc_dts = NULL;
+				}
+			}
+		} else
+			dev_err(&pdev->dev, "No auxiliary DTSs enabled\n");
+	}
+
 	return 0;
 }
 
 static void  proc_thermal_pci_remove(struct pci_dev *pdev)
 {
-	proc_thermal_remove(pci_get_drvdata(pdev));
+	struct proc_thermal_device *proc_priv = pci_get_drvdata(pdev);
+
+	if (proc_priv->soc_dts) {
+		intel_soc_dts_iosf_exit(proc_priv->soc_dts);
+		if (pdev->irq) {
+			free_irq(pdev->irq, pdev);
+			pci_disable_msi(pdev);
+		}
+	}
+	proc_thermal_remove(proc_priv);
 	pci_disable_device(pdev);
 }
 
