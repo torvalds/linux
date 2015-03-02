@@ -48,7 +48,7 @@ static struct completion probe_event;
 static int irq;
 
 
-int hyperv_panic_event(struct notifier_block *nb,
+static int hyperv_panic_event(struct notifier_block *nb,
 			unsigned long event, void *ptr)
 {
 	struct pt_regs *regs;
