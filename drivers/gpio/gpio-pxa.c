@@ -59,8 +59,7 @@
 #define GAFR_OFFSET	0x54
 #define ED_MASK_OFFSET	0x9C	/* GPIO edge detection for AP side */
 
-#define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : ((n) > 5 ? 0x200 : 0x100)	\
-			+ (((n) % 3) << 2))
+#define BANK_OFF(n)	(((n) / 3) << 8) + (((n) % 3) << 2)
 
 int pxa_last_gpio;
 static int irq_base;
