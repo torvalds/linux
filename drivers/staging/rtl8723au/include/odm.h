@@ -598,7 +598,6 @@ struct dm_odm_t {
 /*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
 	bool			bCckHighPower;
 	u8			RFPathRxEnable;		/*  ODM_CMNINFO_RFPATH_ENABLE */
-	u8			ControlChannel;
 /*  ODM HANDLE, DRIVER NEEDS NOT TO HOOK------ */
 
 /* 1  COMMON INFORMATION */

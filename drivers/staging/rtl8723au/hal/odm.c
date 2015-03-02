@@ -416,15 +416,6 @@ static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData)
 	u8 EntryCnt = 0;
 	u8 i;
 
-	if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_40) {
-		if (pHalData->nCur40MhzPrimeSC == 1)
-			pDM_Odm->ControlChannel = pHalData->CurrentChannel - 2;
-		else if (pHalData->nCur40MhzPrimeSC == 2)
-			pDM_Odm->ControlChannel = pHalData->CurrentChannel + 2;
-	} else {
-		pDM_Odm->ControlChannel = pHalData->CurrentChannel;
-	}
-
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		pEntry = pDM_Odm->pODM_StaInfo[i];
 		if (pEntry)
