@@ -804,7 +804,9 @@ static int ll_xattr_cache_seq_show(struct seq_file *m, void *v)
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
-	return seq_printf(m, "%u\n", sbi->ll_xattr_cache_enabled);
+	seq_printf(m, "%u\n", sbi->ll_xattr_cache_enabled);
+
+	return 0;
 }
 
 static ssize_t ll_xattr_cache_seq_write(struct file *file,

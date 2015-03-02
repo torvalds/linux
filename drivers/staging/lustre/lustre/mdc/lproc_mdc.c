@@ -43,12 +43,12 @@ static int mdc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
-	int rc;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	rc = seq_printf(m, "%u\n", cli->cl_max_rpcs_in_flight);
+	seq_printf(m, "%u\n", cli->cl_max_rpcs_in_flight);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	return rc;
+
+	return 0;
 }
 
 static ssize_t mdc_max_rpcs_in_flight_seq_write(struct file *file,

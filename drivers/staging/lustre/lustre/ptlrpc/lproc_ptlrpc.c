@@ -1328,13 +1328,12 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 {
 	struct obd_device *obd = m->private;
 	struct obd_import *imp = obd->u.cli.cl_import;
-	int rc;
 
 	LPROCFS_CLIMP_CHECK(obd);
-	rc = seq_printf(m, "%d\n", !imp->imp_no_pinger_recover);
+	seq_printf(m, "%d\n", !imp->imp_no_pinger_recover);
 	LPROCFS_CLIMP_EXIT(obd);
 
-	return rc;
+	return 0;
 }
 EXPORT_SYMBOL(lprocfs_rd_pinger_recov);
 

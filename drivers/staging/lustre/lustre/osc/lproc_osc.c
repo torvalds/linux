@@ -45,12 +45,12 @@
 static int osc_active_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
-	int rc;
 
 	LPROCFS_CLIMP_CHECK(dev);
-	rc = seq_printf(m, "%d\n", !dev->u.cli.cl_import->imp_deactive);
+	seq_printf(m, "%d\n", !dev->u.cli.cl_import->imp_deactive);
 	LPROCFS_CLIMP_EXIT(dev);
-	return rc;
+
+	return 0;
 }
 
 static ssize_t osc_active_seq_write(struct file *file,
@@ -80,12 +80,12 @@ static int osc_max_rpcs_in_flight_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
-	int rc;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	rc = seq_printf(m, "%u\n", cli->cl_max_rpcs_in_flight);
+	seq_printf(m, "%u\n", cli->cl_max_rpcs_in_flight);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	return rc;
+
+	return 0;
 }
 
 static ssize_t osc_max_rpcs_in_flight_seq_write(struct file *file,
@@ -165,12 +165,14 @@ static int osc_cached_mb_seq_show(struct seq_file *m, void *v)
 	struct client_obd *cli = &dev->u.cli;
 	int shift = 20 - PAGE_CACHE_SHIFT;
 
-	return seq_printf(m,
-		      "used_mb: %d\n"
-		      "busy_cnt: %d\n",
-		      (atomic_read(&cli->cl_lru_in_list) +
-			atomic_read(&cli->cl_lru_busy)) >> shift,
-		      atomic_read(&cli->cl_lru_busy));
+	seq_printf(m,
+		   "used_mb: %d\n"
+		   "busy_cnt: %d\n",
+		   (atomic_read(&cli->cl_lru_in_list) +
+		    atomic_read(&cli->cl_lru_busy)) >> shift,
+		   atomic_read(&cli->cl_lru_busy));
+
+	return 0;
 }
 
 /* shrink the number of caching pages to a specific number */
@@ -212,12 +214,12 @@ static int osc_cur_dirty_bytes_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
-	int rc;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	rc = seq_printf(m, "%lu\n", cli->cl_dirty);
+	seq_printf(m, "%lu\n", cli->cl_dirty);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	return rc;
+
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(osc_cur_dirty_bytes);
 
@@ -225,12 +227,12 @@ static int osc_cur_grant_bytes_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
-	int rc;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	rc = seq_printf(m, "%lu\n", cli->cl_avail_grant);
+	seq_printf(m, "%lu\n", cli->cl_avail_grant);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	return rc;
+
+	return 0;
 }
 
 static ssize_t osc_cur_grant_bytes_seq_write(struct file *file,
@@ -271,12 +273,12 @@ static int osc_cur_lost_grant_bytes_seq_show(struct seq_file *m, void *v)
 {
 	struct obd_device *dev = m->private;
 	struct client_obd *cli = &dev->u.cli;
-	int rc;
 
 	client_obd_list_lock(&cli->cl_loi_list_lock);
-	rc = seq_printf(m, "%lu\n", cli->cl_lost_grant);
+	seq_printf(m, "%lu\n", cli->cl_lost_grant);
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
-	return rc;
+
+	return 0;
 }
 LPROC_SEQ_FOPS_RO(osc_cur_lost_grant_bytes);
 
