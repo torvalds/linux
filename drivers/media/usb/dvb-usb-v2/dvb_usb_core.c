@@ -467,9 +467,7 @@ static int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 
 	adap->dvb_adap.priv = adap;
 
-#ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	dvb_usbv2_media_device_register(adap);
-#endif
 
 	if (d->props->read_mac_address) {
 		ret = d->props->read_mac_address(adap,
@@ -528,8 +526,6 @@ err_dvb_register_adapter:
 
 static int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 {
-	struct dvb_usb_device *d = adap_to_d(adap);
-
 	dev_dbg(&adap_to_d(adap)->udev->dev, "%s: adap=%d\n", __func__,
 			adap->id);
 

@@ -153,9 +153,7 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap, short *adapter_nums)
 	}
 	adap->dvb_adap.priv = adap;
 
-#ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	dvb_usb_media_device_register(adap);
-#endif
 
 	if (adap->dev->props.read_mac_address) {
 		if (adap->dev->props.read_mac_address(adap->dev,adap->dvb_adap.proposed_mac) == 0)
