@@ -2419,16 +2419,16 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	    mmc_send_if_cond(host, host->ocr_avail);
 
         /* Order's important: probe SDIO, then SD, then MMC */
-	if ((host->restrict_caps & RESTRICT_CARD_TYPE_SDIO) && !mmc_attach_sdio(host))
+	if ((host->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
+		!mmc_attach_sdio(host))
 		return 0;
-	if ((host->restrict_caps & (RESTRICT_CARD_TYPE_SD | RESTRICT_CARD_TYPE_TSD)) && !mmc_attach_sd(host))
+	if ((host->restrict_caps & RESTRICT_CARD_TYPE_SD) &&
+		!mmc_attach_sd(host))
 		return 0;
-	if ((host->restrict_caps & RESTRICT_CARD_TYPE_EMMC) && !mmc_attach_mmc(host))
-		return 0;   
+	if ((host->restrict_caps & RESTRICT_CARD_TYPE_EMMC) &&
+		!mmc_attach_mmc(host))
+		return 0;
 #endif
-
-
-
 
 	mmc_power_off(host);
 	return -EIO;
