@@ -259,7 +259,6 @@ extern const struct clk_ops ti_clk_mux_ops;
 
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
 
-void omap2_init_clk_hw_omap_clocks(struct clk *clk);
 int omap3_noncore_dpll_enable(struct clk_hw *hw);
 void omap3_noncore_dpll_disable(struct clk_hw *hw);
 int omap3_noncore_dpll_set_parent(struct clk_hw *hw, u8 index);
@@ -288,6 +287,9 @@ long omap3_clkoutx2_round_rate(struct clk_hw *hw, unsigned long rate,
 int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 int omap2_clk_disable_autoidle_all(void);
+int omap2_clk_enable_autoidle_all(void);
+int omap2_clk_allow_idle(struct clk *clk);
+int omap2_clk_deny_idle(struct clk *clk);
 void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks);
 int omap3_dpll4_set_rate(struct clk_hw *clk, unsigned long rate,
 			 unsigned long parent_rate);
@@ -320,7 +322,6 @@ void ti_dt_clk_init_retry_clks(void);
 void ti_dt_clockdomains_setup(void);
 int ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
 		      ti_of_clk_init_cb_t func);
-int of_ti_clk_autoidle_setup(struct device_node *node);
 int ti_clk_add_component(struct device_node *node, struct clk_hw *hw, int type);
 
 int omap3430_dt_clk_init(void);
@@ -350,14 +351,6 @@ struct ti_clk_features {
 
 void ti_clk_setup_features(struct ti_clk_features *features);
 const struct ti_clk_features *ti_clk_get_features(void);
-
-#ifdef CONFIG_OF
-void of_ti_clk_allow_autoidle_all(void);
-void of_ti_clk_deny_autoidle_all(void);
-#else
-static inline void of_ti_clk_allow_autoidle_all(void) { }
-static inline void of_ti_clk_deny_autoidle_all(void) { }
-#endif
 
 extern const struct clk_hw_omap_ops clkhwops_omap2xxx_dpll;
 extern const struct clk_hw_omap_ops clkhwops_omap2430_i2chs_wait;
