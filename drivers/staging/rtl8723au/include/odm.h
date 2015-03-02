@@ -347,7 +347,6 @@ enum odm_cmninfo {
 /*  Define ODM support ability.  ODM_CMNINFO_ABILITY */
 enum {
 	/*  BB ODM section BIT 0-15 */
-	ODM_BB_CCK_PD				= BIT(5),
 	ODM_BB_ANT_DIV				= BIT(6),
 	ODM_BB_PWR_SAVE				= BIT(7),
 	ODM_BB_PWR_TRAIN			= BIT(8),

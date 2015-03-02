@@ -853,9 +853,6 @@ void odm_CCKPacketDetectionThresh23a(struct dm_odm_t *pDM_Odm)
 	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u8 CurCCK_CCAThres;
 
-	if (!(pDM_Odm->SupportAbility & ODM_BB_CCK_PD))
-		return;
-
 	if (pDM_Odm->ExtLNA)
 		return;
 
