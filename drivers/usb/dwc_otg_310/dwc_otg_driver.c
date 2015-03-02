@@ -1597,11 +1597,7 @@ void rk_usb_power_up(void)
 	struct dwc_otg_platform_data *pldata_otg;
 	struct dwc_otg_platform_data *pldata_host;
 	struct rkehci_platform_data *pldata_ehci;
-	if (cpu_is_rk312x()) {
-		pldata_otg = &usb20otg_pdata_rk3126;
-		if (usb_to_uart_status)
-			pldata_otg->dwc_otg_uart_mode(pldata_otg, PHY_UART_MODE);
-	}
+
 	if (cpu_is_rk3288()) {
 #ifdef CONFIG_RK_USB_UART
 		/* enable USB bypass UART function  */
@@ -1638,6 +1634,15 @@ void rk_usb_power_up(void)
 		}
 #endif
 
+	} else {
+		dwc_otg_device_t *otg_dev = g_otgdev;
+
+		if (!otg_dev)
+			return;
+
+		pldata_otg = otg_dev->pldata;
+		if (pldata_otg && pldata_otg->phy_power_down)
+			pldata_otg->phy_power_down(PHY_POWER_UP);
 	}
 }
 
@@ -1647,11 +1652,6 @@ void rk_usb_power_down(void)
 	struct dwc_otg_platform_data *pldata_host;
 	struct rkehci_platform_data *pldata_ehci;
 
-	if (cpu_is_rk312x()) {
-		pldata_otg = &usb20otg_pdata_rk3126;
-		usb_to_uart_status = pldata_otg->get_status(USB_STATUS_UARTMODE);
-		pldata_otg->dwc_otg_uart_mode(pldata_otg, PHY_USB_MODE);
-	}
 	if (cpu_is_rk3288()) {
 #ifdef CONFIG_RK_USB_UART
 		/* disable USB bypass UART function */
@@ -1695,6 +1695,15 @@ void rk_usb_power_down(void)
 					       RK3288_GRF_UOC1_CON0);
 		}
 #endif
+	} else {
+		dwc_otg_device_t *otg_dev = g_otgdev;
+
+		if (!otg_dev)
+			return;
+
+		pldata_otg = otg_dev->pldata;
+		if (pldata_otg && pldata_otg->phy_power_down)
+			pldata_otg->phy_power_down(PHY_POWER_DOWN);
 	}
 }
 
