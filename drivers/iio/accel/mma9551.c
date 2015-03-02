@@ -425,7 +425,11 @@ static int mma9551_gpio_probe(struct iio_dev *indio_dev)
 			return PTR_ERR(gpio);
 		}
 
-		data->irqs[i] = gpiod_to_irq(gpio);
+		ret = gpiod_to_irq(gpio);
+		if (ret < 0)
+			return ret;
+
+		data->irqs[i] = ret;
 		ret = devm_request_threaded_irq(dev, data->irqs[i],
 				NULL, mma9551_event_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
