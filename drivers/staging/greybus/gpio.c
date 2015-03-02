@@ -421,7 +421,7 @@ static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 		pr_err("Unsupported hw irq %d\n", event->which);
 		return;
 	}
-	irq = gpio_to_irq(ggc->irq_base + event->which);
+	irq = gpio_to_irq(ggc->chip.base + event->which);
 	desc = irq_to_desc(irq);
 
 	/* Dispatch interrupt */
