@@ -692,7 +692,11 @@ static int rk312x_phy_init(struct dsi *dsi, int n)
 	*/
 
 	if (dsi->phy.ddr_clk >= 800*MHz) {
-		rk32_dsi_set_bits(dsi, 0x30, DSI_DPHY_BITS(0x05<<2, 32, 0));
+		if (dsi->ops.id == DWC_DSI_VERSION_RK3368) {
+			rk32_dsi_set_bits(dsi, 0x10, DSI_DPHY_BITS(0x05<<2, 32, 0));
+		} else {
+			rk32_dsi_set_bits(dsi, 0x30, DSI_DPHY_BITS(0x05<<2, 32, 0));
+		}
 	} else {
 		rk32_dsi_set_bits(dsi, 1, reg_da_ppfc);
 	}
@@ -722,8 +726,11 @@ static int rk312x_phy_init(struct dsi *dsi, int n)
 
 	rk32_dsi_set_bits(dsi, 0x0063, reg10_phy);
 	*/
-
-	rk32_dsi_set_bits(dsi, 0x06, reg5_phy);
+	if (dsi->ops.id == DWC_DSI_VERSION_RK3368) {
+		rk32_dsi_set_bits(dsi, 0x1, reg5_phy);
+	} else {
+		rk32_dsi_set_bits(dsi, 0x6, reg5_phy);
+	}
 	rk32_dsi_set_bits(dsi, 0x6, reg10_4_6_phy);
 	rk32_dsi_set_bits(dsi, 0x9, regb_phy);
 	return 0;
