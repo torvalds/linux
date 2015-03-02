@@ -72,7 +72,6 @@ static struct pinctrl_desc foo_desc = {
 	.name = "foo",
 	.pins = foo_pins,
 	.npins = ARRAY_SIZE(foo_pins),
-	.maxpin = 63,
 	.owner = THIS_MODULE,
 };
 
