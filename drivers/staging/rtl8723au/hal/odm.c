@@ -1358,8 +1358,8 @@ static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	u32 trafficIndex;
 	u32 edca_param;
-	u64 cur_tx_bytes = 0;
-	u64 cur_rx_bytes = 0;
+	u64 cur_tx_bytes;
+	u64 cur_rx_bytes;
 
 	/*  For AP/ADSL use struct rtl8723a_priv * */
 	/*  For CE/NIC use struct rtw_adapter * */
