@@ -306,7 +306,7 @@ phys_addr_t uboot_logo_offset=0;
 
 void __init rockchip_uboot_mem_reserve(void)
 {
-	if (uboot_logo_size=0)
+	if (uboot_logo_size==0)
 		return;
 
 	if (!memblock_is_region_reserved(uboot_logo_base, uboot_logo_size)
