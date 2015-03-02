@@ -183,8 +183,6 @@ struct clksel {
 u32 omap3_dpll_autoidle_read(struct clk_hw_omap *clk);
 void omap3_dpll_allow_idle(struct clk_hw_omap *clk);
 void omap3_dpll_deny_idle(struct clk_hw_omap *clk);
-void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk);
-void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk);
 
 void __init omap2_clk_disable_clkdm_control(void);
 
@@ -203,8 +201,6 @@ int omap2_clksel_set_parent(struct clk_hw *hw, u8 field_val);
 /* clkt_iclk.c public functions */
 extern void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk);
 extern void omap2_clkt_iclk_deny_idle(struct clk_hw_omap *clk);
-
-unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk);
 
 void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
 				   void __iomem **other_reg,
