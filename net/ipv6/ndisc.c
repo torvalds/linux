@@ -117,6 +117,7 @@ static const struct neigh_ops ndisc_direct_ops = {
 struct neigh_table nd_tbl = {
 	.family =	AF_INET6,
 	.key_len =	sizeof(struct in6_addr),
+	.protocol =	cpu_to_be16(ETH_P_IPV6),
 	.hash =		ndisc_hash,
 	.constructor =	ndisc_constructor,
 	.pconstructor =	pndisc_constructor,
