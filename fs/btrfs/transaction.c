@@ -1025,7 +1025,6 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 	struct btrfs_root *tree_root = root->fs_info->tree_root;
 
 	old_root_used = btrfs_root_used(&root->root_item);
-	btrfs_write_dirty_block_groups(trans, root);
 
 	while (1) {
 		old_root_bytenr = btrfs_root_bytenr(&root->root_item);
@@ -1082,6 +1081,10 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 	ret = btrfs_run_qgroups(trans, root->fs_info);
+	if (ret)
+		return ret;
+
+	ret = btrfs_setup_space_cache(trans, root);
 	if (ret)
 		return ret;
 
