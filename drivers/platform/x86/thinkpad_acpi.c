@@ -3483,6 +3483,32 @@ static const int adaptive_keyboard_modes[] = {
 static bool adaptive_keyboard_mode_is_saved;
 static int adaptive_keyboard_prev_mode;
 
+static int adaptive_keyboard_get_mode(void)
+{
+	int mode = 0;
+
+	if (!acpi_evalf(hkey_handle, &mode, "GTRW", "dd", 0)) {
+		pr_err("Cannot read adaptive keyboard mode\n");
+		return -EIO;
+	}
+
+	return mode;
+}
+
+static int adaptive_keyboard_set_mode(int new_mode)
+{
+	if (new_mode < 0 ||
+		new_mode > LAYFLAT_MODE)
+		return -EINVAL;
+
+	if (!acpi_evalf(hkey_handle, NULL, "STRW", "vd", new_mode)) {
+		pr_err("Cannot set adaptive keyboard mode\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int adaptive_keyboard_get_next_mode(int mode)
 {
 	size_t i;
@@ -3512,39 +3538,28 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 			new_mode = adaptive_keyboard_prev_mode;
 			adaptive_keyboard_mode_is_saved = false;
 		} else {
-			if (!acpi_evalf(
-					hkey_handle, &current_mode,
-					"GTRW", "dd", 0)) {
-				pr_err("Cannot read adaptive keyboard mode\n");
+			current_mode = adaptive_keyboard_get_mode();
+			if (current_mode < 0)
 				return false;
-			} else {
-				new_mode = adaptive_keyboard_get_next_mode(
-						current_mode);
-			}
+			new_mode = adaptive_keyboard_get_next_mode(
+					current_mode);
 		}
 
-		if (!acpi_evalf(hkey_handle, NULL, "STRW", "vd", new_mode)) {
-			pr_err("Cannot set adaptive keyboard mode\n");
+		if (adaptive_keyboard_set_mode(new_mode) < 0)
 			return false;
-		}
 
 		return true;
 
 	case DFR_SHOW_QUICKVIEW_ROW:
-		if (!acpi_evalf(hkey_handle,
-				&adaptive_keyboard_prev_mode,
-				"GTRW", "dd", 0)) {
-			pr_err("Cannot read adaptive keyboard mode\n");
+		current_mode = adaptive_keyboard_get_mode();
+		if (current_mode < 0)
 			return false;
-		} else {
-			adaptive_keyboard_mode_is_saved = true;
 
-			if (!acpi_evalf(hkey_handle,
-					NULL, "STRW", "vd", FUNCTION_MODE)) {
-				pr_err("Cannot set adaptive keyboard mode\n");
-				return false;
-			}
-		}
+		adaptive_keyboard_prev_mode = current_mode;
+		adaptive_keyboard_mode_is_saved = true;
+
+		if (adaptive_keyboard_set_mode (FUNCTION_MODE) < 0)
+			return false;
 		return true;
 
 	default:
