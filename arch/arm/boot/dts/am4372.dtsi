@@ -884,7 +884,7 @@
 		};
 
 		hdq: hdq@48347000 {
-			compatible = "ti,am43xx-hdq";
+			compatible = "ti,am4372-hdq";
 			reg = <0x48347000 0x1000>;
 			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&func_12m_clk>;
