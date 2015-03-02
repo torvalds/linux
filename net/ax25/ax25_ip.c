@@ -216,6 +216,20 @@ put:
 	return 1;
 }
 
+static int ax25_neigh_output(struct neighbour *neigh, struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+
+	__skb_pull(skb, skb_network_offset(skb));
+
+	if (dev_hard_header(skb, dev, ntohs(skb->protocol), NULL, NULL,
+			    skb->len) < 0 &&
+	    dev_rebuild_header(skb))
+		return 0;
+
+	return dev_queue_xmit(skb);
+}
+
 int ax25_neigh_construct(struct neighbour *neigh)
 {
 	/* This trouble could be saved if ax25 would right a proper
@@ -227,8 +241,8 @@ int ax25_neigh_construct(struct neighbour *neigh)
 		return -EINVAL;
 
 	priv->ops = *neigh->ops;
-	priv->ops.output = neigh_compat_output;
-	priv->ops.connected_output = neigh_compat_output;
+	priv->ops.output = ax25_neigh_output;
+	priv->ops.connected_output = ax25_neigh_output;
 	return 0;
 }
 
