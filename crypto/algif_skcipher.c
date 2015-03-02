@@ -239,8 +239,8 @@ static void skcipher_data_wakeup(struct sock *sk)
 	rcu_read_unlock();
 }
 
-static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
-			    struct msghdr *msg, size_t size)
+static int skcipher_sendmsg(struct socket *sock, struct msghdr *msg,
+			    size_t size)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -424,8 +424,8 @@ unlock:
 	return err ?: size;
 }
 
-static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
-			    struct msghdr *msg, size_t ignored, int flags)
+static int skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
+			    size_t ignored, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);

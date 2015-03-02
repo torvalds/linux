@@ -895,7 +895,6 @@ static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
 
 /**
  * tipc_sendmsg - send message in connectionless manner
- * @iocb: if NULL, indicates that socket lock is already held
  * @sock: socket structure
  * @m: message to send
  * @dsz: amount of user data to be sent
@@ -907,7 +906,7 @@ static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
  *
  * Returns the number of bytes sent on success, or errno otherwise
  */
-static int tipc_sendmsg(struct kiocb *iocb, struct socket *sock,
+static int tipc_sendmsg(struct socket *sock,
 			struct msghdr *m, size_t dsz)
 {
 	struct sock *sk = sock->sk;
@@ -1052,7 +1051,6 @@ static int tipc_wait_for_sndpkt(struct socket *sock, long *timeo_p)
 
 /**
  * tipc_send_stream - send stream-oriented data
- * @iocb: (unused)
  * @sock: socket structure
  * @m: data to send
  * @dsz: total length of data to be transmitted
@@ -1062,8 +1060,7 @@ static int tipc_wait_for_sndpkt(struct socket *sock, long *timeo_p)
  * Returns the number of bytes sent on success (or partial success),
  * or errno if no data sent
  */
-static int tipc_send_stream(struct kiocb *iocb, struct socket *sock,
-			    struct msghdr *m, size_t dsz)
+static int tipc_send_stream(struct socket *sock, struct msghdr *m, size_t dsz)
 {
 	struct sock *sk = sock->sk;
 	int ret;
@@ -1147,7 +1144,6 @@ next:
 
 /**
  * tipc_send_packet - send a connection-oriented message
- * @iocb: if NULL, indicates that socket lock is already held
  * @sock: socket structure
  * @m: message to send
  * @dsz: length of data to be transmitted
@@ -1156,13 +1152,12 @@ next:
  *
  * Returns the number of bytes sent on success, or errno otherwise
  */
-static int tipc_send_packet(struct kiocb *iocb, struct socket *sock,
-			    struct msghdr *m, size_t dsz)
+static int tipc_send_packet(struct socket *sock, struct msghdr *m, size_t dsz)
 {
 	if (dsz > TIPC_MAX_USER_MSG_SIZE)
 		return -EMSGSIZE;
 
-	return tipc_send_stream(iocb, sock, m, dsz);
+	return tipc_send_stream(sock, m, dsz);
 }
 
 /* tipc_sk_finish_conn - complete the setup of a connection
@@ -1337,7 +1332,6 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 
 /**
  * tipc_recvmsg - receive packet-oriented message
- * @iocb: (unused)
  * @m: descriptor for message info
  * @buf_len: total size of user buffer area
  * @flags: receive flags
@@ -1347,8 +1341,8 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
  *
  * Returns size of returned message data, errno otherwise
  */
-static int tipc_recvmsg(struct kiocb *iocb, struct socket *sock,
-			struct msghdr *m, size_t buf_len, int flags)
+static int tipc_recvmsg(struct socket *sock, struct msghdr *m, size_t buf_len,
+			int flags)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
@@ -1432,7 +1426,6 @@ exit:
 
 /**
  * tipc_recv_stream - receive stream-oriented data
- * @iocb: (unused)
  * @m: descriptor for message info
  * @buf_len: total size of user buffer area
  * @flags: receive flags
@@ -1442,8 +1435,8 @@ exit:
  *
  * Returns size of returned message data, errno otherwise
  */
-static int tipc_recv_stream(struct kiocb *iocb, struct socket *sock,
-			    struct msghdr *m, size_t buf_len, int flags)
+static int tipc_recv_stream(struct socket *sock, struct msghdr *m,
+			    size_t buf_len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
