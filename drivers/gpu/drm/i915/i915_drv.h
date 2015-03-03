@@ -2462,6 +2462,7 @@ struct i915_params {
 	bool enable_hangcheck;
 	bool fastboot;
 	bool prefault_disable;
+	bool load_detect_test;
 	bool reset;
 	bool disable_display;
 	bool disable_vtd_wa;

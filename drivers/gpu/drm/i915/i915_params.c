@@ -43,6 +43,7 @@ struct i915_params i915 __read_mostly = {
 	.enable_ips = 1,
 	.fastboot = 0,
 	.prefault_disable = 0,
+	.load_detect_test = 0,
 	.reset = true,
 	.invert_brightness = 0,
 	.disable_display = 0,
@@ -139,9 +140,14 @@ module_param_named(fastboot, i915.fastboot, bool, 0600);
 MODULE_PARM_DESC(fastboot,
 	"Try to skip unnecessary mode sets at boot time (default: false)");
 
-module_param_named(prefault_disable, i915.prefault_disable, bool, 0600);
+module_param_named_unsafe(prefault_disable, i915.prefault_disable, bool, 0600);
 MODULE_PARM_DESC(prefault_disable,
 	"Disable page prefaulting for pread/pwrite/reloc (default:false). "
+	"For developers only.");
+
+module_param_named_unsafe(load_detect_test, i915.load_detect_test, bool, 0600);
+MODULE_PARM_DESC(load_detect_test,
+	"Force-enable the VGA load detect code for testing (default:false). "
 	"For developers only.");
 
 module_param_named(invert_brightness, i915.invert_brightness, int, 0600);
