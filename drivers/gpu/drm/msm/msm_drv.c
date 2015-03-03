@@ -182,29 +182,9 @@ static int get_mdp_ver(struct platform_device *pdev)
 	return 4;
 }
 
-static int msm_load(struct drm_device *dev, unsigned long flags)
+static int msm_init_vram(struct drm_device *dev)
 {
-	struct platform_device *pdev = dev->platformdev;
-	struct msm_drm_private *priv;
-	struct msm_kms *kms;
-	int ret;
-
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev->dev, "failed to allocate private data\n");
-		return -ENOMEM;
-	}
-
-	dev->dev_private = priv;
-
-	priv->wq = alloc_ordered_workqueue("msm", 0);
-	init_waitqueue_head(&priv->fence_event);
-	init_waitqueue_head(&priv->pending_crtcs_event);
-
-	INIT_LIST_HEAD(&priv->inactive_list);
-	INIT_LIST_HEAD(&priv->fence_cbs);
-
-	drm_mode_config_init(dev);
+	struct msm_drm_private *priv = dev->dev_private;
 
 	/* if we have no IOMMU, then we need to use carveout allocator.
 	 * Grab the entire CMA chunk carved out in early startup in
@@ -232,14 +212,44 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		if (!p) {
 			dev_err(dev->dev, "failed to allocate VRAM\n");
 			priv->vram.paddr = 0;
-			ret = -ENOMEM;
-			goto fail;
+			return -ENOMEM;
 		}
 
 		dev_info(dev->dev, "VRAM: %08x->%08x\n",
 				(uint32_t)priv->vram.paddr,
 				(uint32_t)(priv->vram.paddr + size));
 	}
+
+	return 0;
+}
+
+static int msm_load(struct drm_device *dev, unsigned long flags)
+{
+	struct platform_device *pdev = dev->platformdev;
+	struct msm_drm_private *priv;
+	struct msm_kms *kms;
+	int ret;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		dev_err(dev->dev, "failed to allocate private data\n");
+		return -ENOMEM;
+	}
+
+	dev->dev_private = priv;
+
+	priv->wq = alloc_ordered_workqueue("msm", 0);
+	init_waitqueue_head(&priv->fence_event);
+	init_waitqueue_head(&priv->pending_crtcs_event);
+
+	INIT_LIST_HEAD(&priv->inactive_list);
+	INIT_LIST_HEAD(&priv->fence_cbs);
+
+	drm_mode_config_init(dev);
+
+	ret = msm_init_vram(dev);
+	if (ret)
+		goto fail;
 
 	platform_set_drvdata(pdev, dev);
 
