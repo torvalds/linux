@@ -336,3 +336,27 @@ const struct ti_clk_features *ti_clk_get_features(void)
 {
 	return &ti_clk_features;
 }
+
+/**
+ * omap2_clk_enable_init_clocks - prepare & enable a list of clocks
+ * @clk_names: ptr to an array of strings of clock names to enable
+ * @num_clocks: number of clock names in @clk_names
+ *
+ * Prepare and enable a list of clocks, named by @clk_names.  No
+ * return value. XXX Deprecated; only needed until these clocks are
+ * properly claimed and enabled by the drivers or core code that uses
+ * them.  XXX What code disables & calls clk_put on these clocks?
+ */
+void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks)
+{
+	struct clk *init_clk;
+	int i;
+
+	for (i = 0; i < num_clocks; i++) {
+		init_clk = clk_get(NULL, clk_names[i]);
+		if (WARN(IS_ERR(init_clk), "could not find init clock %s\n",
+			 clk_names[i]))
+			continue;
+		clk_prepare_enable(init_clk);
+	}
+}

@@ -19,6 +19,8 @@
 #include <linux/clk-provider.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 static struct ti_dt_clk omap2xxx_clks[] = {
 	DT_CLK(NULL, "func_32k_ck", "func_32k_ck"),
 	DT_CLK(NULL, "secure_32k_ck", "secure_32k_ck"),
