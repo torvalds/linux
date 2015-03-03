@@ -57,6 +57,8 @@
 	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
 
 	aliases {
+		serial2 = &uart2;
+		serial3 = &uart3;
 	};
 
 	soc {

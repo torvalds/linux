@@ -59,6 +59,8 @@
 	compatible = "marvell,armada-370-xp";
 
 	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	cpus {

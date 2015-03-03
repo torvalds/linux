@@ -60,6 +60,8 @@
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	clocks {
