@@ -154,7 +154,7 @@
 				clocks = <&coreclk 1>;
 			};
 
-			interrupt-controller@20000 {
+			interrupt-controller@20a00 {
 			      reg = <0x20a00 0x2d0>, <0x21070 0x58>;
 			};
 

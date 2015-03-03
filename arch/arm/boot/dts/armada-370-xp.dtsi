@@ -223,7 +223,7 @@
 				      <0x20250 0x8>;
 			};
 
-			mpic: interrupt-controller@20000 {
+			mpic: interrupt-controller@20a00 {
 				compatible = "marvell,mpic";
 				#interrupt-cells = <1>;
 				#size-cells = <1>;
