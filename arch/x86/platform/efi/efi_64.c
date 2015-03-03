@@ -41,8 +41,6 @@
 #include <asm/realmode.h>
 #include <asm/time.h>
 
-static pgd_t *save_pgd __initdata;
-
 /*
  * We allocate runtime services regions bottom-up, starting from -4G, i.e.
  * 0xffff_ffff_0000_0000 and limit EFI VA mapping space to 64G.
@@ -77,14 +75,16 @@ static void __init early_code_mapping_set_exec(int executable)
 	}
 }
 
-void __init efi_call_phys_prolog(void)
+pgd_t * __init efi_call_phys_prolog(void)
 {
 	unsigned long vaddress;
+	pgd_t *save_pgd;
+
 	int pgd;
 	int n_pgds;
 
 	if (!efi_enabled(EFI_OLD_MEMMAP))
-		return;
+		return NULL;
 
 	early_code_mapping_set_exec(1);
 
@@ -97,22 +97,28 @@ void __init efi_call_phys_prolog(void)
 		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));
 	}
 	__flush_tlb_all();
+
+	return save_pgd;
 }
 
-void __init efi_call_phys_epilog(void)
+void __init efi_call_phys_epilog(pgd_t *save_pgd)
 {
 	/*
 	 * After the lock is released, the original page table is restored.
 	 */
-	int pgd;
-	int n_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT) , PGDIR_SIZE);
+	int pgd_idx;
+	int nr_pgds;
 
-	if (!efi_enabled(EFI_OLD_MEMMAP))
+	if (!save_pgd)
 		return;
 
-	for (pgd = 0; pgd < n_pgds; pgd++)
-		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), save_pgd[pgd]);
+	nr_pgds = DIV_ROUND_UP((max_pfn << PAGE_SHIFT) , PGDIR_SIZE);
+
+	for (pgd_idx = 0; pgd_idx < nr_pgds; pgd_idx++)
+		set_pgd(pgd_offset_k(pgd_idx * PGDIR_SIZE), save_pgd[pgd_idx]);
+
 	kfree(save_pgd);
+
 	__flush_tlb_all();
 	early_code_mapping_set_exec(0);
 }

@@ -56,19 +56,24 @@ void __init efi_map_region(efi_memory_desc_t *md)
 void __init efi_map_region_fixed(efi_memory_desc_t *md) {}
 void __init parse_efi_setup(u64 phys_addr, u32 data_len) {}
 
-void __init efi_call_phys_prolog(void)
+pgd_t * __init efi_call_phys_prolog(void)
 {
 	struct desc_ptr gdt_descr;
+	pgd_t *save_pgd;
 
+	/* Current pgd is swapper_pg_dir, we'll restore it later: */
+	save_pgd = swapper_pg_dir;
 	load_cr3(initial_page_table);
 	__flush_tlb_all();
 
 	gdt_descr.address = __pa(get_cpu_gdt_table(0));
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
+
+	return save_pgd;
 }
 
-void __init efi_call_phys_epilog(void)
+void __init efi_call_phys_epilog(pgd_t *save_pgd)
 {
 	struct desc_ptr gdt_descr;
 
@@ -76,7 +81,7 @@ void __init efi_call_phys_epilog(void)
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 
-	load_cr3(swapper_pg_dir);
+	load_cr3(save_pgd);
 	__flush_tlb_all();
 }
 
