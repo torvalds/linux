@@ -3208,7 +3208,7 @@ void notify_wx_assoc_event(struct ieee80211_device *ieee)
 	if (ieee->state == IEEE80211_LINKED)
 		memcpy(wrqu.ap_addr.sa_data, ieee->current_network.bssid, ETH_ALEN);
 	else
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 	wireless_send_event(ieee->dev, SIOCGIWAP, &wrqu, NULL);
 }
 EXPORT_SYMBOL(notify_wx_assoc_event);
