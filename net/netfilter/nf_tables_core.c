@@ -170,25 +170,22 @@ next_rule:
 
 	switch (data[NFT_REG_VERDICT].verdict) {
 	case NFT_JUMP:
-		nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
-
 		BUG_ON(stackptr >= NFT_JUMP_STACK_SIZE);
 		jumpstack[stackptr].chain = chain;
 		jumpstack[stackptr].rule  = rule;
 		jumpstack[stackptr].rulenum = rulenum;
 		stackptr++;
-		chain = data[NFT_REG_VERDICT].chain;
-		goto do_chain;
+		/* fall through */
 	case NFT_GOTO:
 		nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
 
 		chain = data[NFT_REG_VERDICT].chain;
 		goto do_chain;
+	case NFT_CONTINUE:
+		rulenum++;
+		/* fall through */
 	case NFT_RETURN:
 		nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RETURN);
-		break;
-	case NFT_CONTINUE:
-		nft_trace_packet(pkt, chain, ++rulenum, NFT_TRACE_RETURN);
 		break;
 	default:
 		WARN_ON(1);
