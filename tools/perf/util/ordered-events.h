@@ -5,6 +5,7 @@
 
 struct perf_tool;
 struct perf_evlist;
+struct perf_sample;
 struct machines;
 
 struct ordered_event {
@@ -21,6 +22,12 @@ enum oe_flush {
 	OE_FLUSH__HALF,
 };
 
+struct ordered_events;
+
+typedef int (*ordered_events__deliver_t)(struct ordered_events *oe,
+					 struct ordered_event *event,
+					 struct perf_sample *sample);
+
 struct ordered_events {
 	u64			last_flush;
 	u64			next_flush;
@@ -35,6 +42,7 @@ struct ordered_events {
 	struct machines		*machines;
 	struct perf_evlist	*evlist;
 	struct perf_tool	*tool;
+	ordered_events__deliver_t deliver;
 	int			buffer_idx;
 	unsigned int		nr_events;
 	enum oe_flush		last_flush_type;
@@ -46,7 +54,8 @@ struct ordered_event *ordered_events__new(struct ordered_events *oe, u64 timesta
 void ordered_events__delete(struct ordered_events *oe, struct ordered_event *event);
 int ordered_events__flush(struct ordered_events *oe, enum oe_flush how);
 void ordered_events__init(struct ordered_events *oe, struct machines *machines,
-			  struct perf_evlist *evlsit, struct perf_tool *tool);
+			  struct perf_evlist *evlsit, struct perf_tool *tool,
+			  ordered_events__deliver_t deliver);
 void ordered_events__free(struct ordered_events *oe);
 
 static inline

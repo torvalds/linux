@@ -181,8 +181,7 @@ static int __ordered_events__flush(struct ordered_events *oe)
 		if (ret)
 			pr_err("Can't parse sample, err = %d\n", ret);
 		else {
-			ret = machines__deliver_event(oe->machines, oe->evlist, iter->event,
-						      &sample, oe->tool, iter->file_offset);
+			ret = oe->deliver(oe, iter, &sample);
 			if (ret)
 				return ret;
 		}
@@ -264,7 +263,8 @@ int ordered_events__flush(struct ordered_events *oe, enum oe_flush how)
 }
 
 void ordered_events__init(struct ordered_events *oe, struct machines *machines,
-			  struct perf_evlist *evlist, struct perf_tool *tool)
+			  struct perf_evlist *evlist, struct perf_tool *tool,
+			  ordered_events__deliver_t deliver)
 {
 	INIT_LIST_HEAD(&oe->events);
 	INIT_LIST_HEAD(&oe->cache);
@@ -274,6 +274,7 @@ void ordered_events__init(struct ordered_events *oe, struct machines *machines,
 	oe->evlist	   = evlist;
 	oe->machines	   = machines;
 	oe->tool	   = tool;
+	oe->deliver	   = deliver;
 }
 
 void ordered_events__free(struct ordered_events *oe)
