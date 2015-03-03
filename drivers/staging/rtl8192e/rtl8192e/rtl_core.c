@@ -1506,7 +1506,7 @@ RESET_START:
 		if (priv->rtllib->state == RTLLIB_LINKED)
 			LeisurePSLeave(dev);
 
-		if (IS_NIC_DOWN(priv)) {
+		if (priv->up) {
 			RT_TRACE(COMP_ERR, "%s():the driver is not up! "
 				 "return\n", __func__);
 			up(&priv->wx_sem);
@@ -1650,7 +1650,7 @@ void	rtl819x_watchdog_wqcallback(void *data)
 	bool	bHigherBusyRxTraffic = false;
 	bool bEnterPS = false;
 
-	if (IS_NIC_DOWN(priv) || priv->bHwRadioOff)
+	if (!priv->up || priv->bHwRadioOff)
 		return;
 
 	if (priv->rtllib->state >= RTLLIB_LINKED) {
@@ -1882,7 +1882,7 @@ void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				    MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
-	if ((priv->rtllib->eRFPowerState == eRfOff) || IS_NIC_DOWN(priv) ||
+	if ((priv->rtllib->eRFPowerState == eRfOff) || !priv->up ||
 	     priv->bResetInProgress) {
 		kfree_skb(skb);
 		return;
@@ -1916,7 +1916,7 @@ int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (queue_index != TXCMD_QUEUE) {
 		if ((priv->rtllib->eRFPowerState == eRfOff) ||
-		     IS_NIC_DOWN(priv) || priv->bResetInProgress) {
+		     !priv->up || priv->bResetInProgress) {
 			kfree_skb(skb);
 			return 0;
 		}
@@ -3032,7 +3032,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					(&(priv->rtllib->PowerSaveControl));
 
-	if (IS_NIC_DOWN(priv)) {
+	if (!priv->up) {
 		RT_TRACE(COMP_ERR, "ERR!!! %s(): Driver is already down!\n",
 			 __func__);
 		priv->bdisable_nic = false;

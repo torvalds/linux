@@ -98,8 +98,6 @@
 #define BIT(_i)				(1<<(_i))
 #endif
 
-#define IS_NIC_DOWN(priv)	(!(priv)->up)
-
 #define IS_ADAPTER_SENDS_BEACON(dev) 0
 
 #define IS_UNDER_11N_AES_MODE(_rtllib)		\
