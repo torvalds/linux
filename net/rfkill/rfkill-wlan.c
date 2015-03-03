@@ -635,17 +635,20 @@ static int rockchip_wifi_voltage_select(void)
 	        return -1;
 	    }
 	} else if(cpu_is_rk3036() || cpu_is_rk312x()) {
-	} else {
+	} else { // rk3368
+#ifdef CONFIG_MFD_SYSCON
 	    if (voltage > 2700 && voltage < 3500) {
 	        regmap_write(mrfkill->pdata->grf, RK3368_GRF_IO_VSEL, ((1<<3)<<16)|(0<<3)); //3.3
 	        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
 	    } else if (voltage  > 1500 && voltage < 1950) {
 	        regmap_write(mrfkill->pdata->grf, RK3368_GRF_IO_VSEL, ((1<<3)<<16)|(1<<3)); //1.8
 	        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
-	    } else {
+	    } else
+#endif
+            {
 	        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
 	        return -1;
-	    }		
+	    }
 	}
 
     return 0;
@@ -681,11 +684,13 @@ static int wlan_platdata_parse_dt(struct device *dev,
 
     memset(data, 0, sizeof(*data));
 
+#ifdef CONFIG_MFD_SYSCON
     data->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
     if (IS_ERR(data->grf)) {
             LOG("can't find rockchip,grf property\n");
             return -1;
     }
+#endif
 
     ret = of_property_read_string(node, "wifi_chip_type", &strings);
     if (ret) {
