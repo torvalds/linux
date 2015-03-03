@@ -222,10 +222,6 @@ struct omap_hsmmc_host {
 	struct omap_hsmmc_next	next_data;
 	struct	omap_hsmmc_platform_data	*pdata;
 
-	/* To handle board related suspend/resume functionality for MMC */
-	int (*suspend)(struct device *dev);
-	int (*resume)(struct device *dev);
-
 	/* return MMC cover switch state, can be NULL if not supported.
 	 *
 	 * possible return values:
