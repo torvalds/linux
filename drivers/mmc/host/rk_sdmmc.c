@@ -1522,15 +1522,21 @@ static int dw_mci_set_sdio_status(struct mmc_host *mmc, int val)
         spin_unlock_bh(&host->lock);
 
         if(test_bit(DW_MMC_CARD_PRESENT, &slot->flags)){
-                if(__clk_is_enabled(host->hclk_mmc) == false)
+                if (!IS_ERR(host->hpclk_mmc) &&
+			 __clk_is_enabled(host->hpclk_mmc) == false)
+			 clk_prepare_enable(host->hpclk_mmc);
+		if (__clk_is_enabled(host->hclk_mmc) == false)
                         clk_prepare_enable(host->hclk_mmc);
-                if(__clk_is_enabled(host->clk_mmc) == false)
+                if (__clk_is_enabled(host->clk_mmc) == false)
                         clk_prepare_enable(host->clk_mmc);
         }else{
-                if(__clk_is_enabled(host->clk_mmc) == true)
+                if (__clk_is_enabled(host->clk_mmc) == true)
                         clk_disable_unprepare(slot->host->clk_mmc);
-                if(__clk_is_enabled(host->hclk_mmc) == true)
+                if (__clk_is_enabled(host->hclk_mmc) == true)
                         clk_disable_unprepare(slot->host->hclk_mmc);
+		if (!IS_ERR(host->hpclk_mmc) &&
+			__clk_is_enabled(host->hpclk_mmc) == true)
+			clk_disable_unprepare(slot->host->hpclk_mmc);
         }
 
         mmc_detect_change(slot->mmc, 20);
@@ -3868,6 +3874,15 @@ int dw_mci_probe(struct dw_mci *host)
 	else
 		host->data_offset = DATA_240A_OFFSET;
 
+	//hpclk enable
+	host->hpclk_mmc= devm_clk_get(host->dev, "hpclk_mmc");
+	if (IS_ERR(host->hpclk_mmc)) {
+		dev_err(host->dev, "failed to get hpclk_mmc\n");
+		ret = PTR_ERR(host->hpclk_mmc);
+		goto err_hpclk_mmc;
+	}
+	clk_prepare_enable(host->hpclk_mmc);
+
         //hclk enable
         host->hclk_mmc= devm_clk_get(host->dev, "hclk_mmc");
         if (IS_ERR(host->hclk_mmc)) {
@@ -4063,12 +4078,14 @@ err_dmaunmap:
 	}
 
 err_clk_mmc:
-    if (!IS_ERR(host->clk_mmc))
+	if (!IS_ERR(host->clk_mmc))
 		clk_disable_unprepare(host->clk_mmc);
 err_hclk_mmc:
-    if (!IS_ERR(host->hclk_mmc))
+	if (!IS_ERR(host->hclk_mmc))
 		clk_disable_unprepare(host->hclk_mmc);
-		
+err_hpclk_mmc:
+	if (!IS_ERR(host->hpclk_mmc))
+		clk_disable_unprepare(host->hpclk_mmc);
 	return ret;
 }
 EXPORT_SYMBOL(dw_mci_probe);
@@ -4096,21 +4113,23 @@ void dw_mci_remove(struct dw_mci *host)
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)
                 unregister_pm_notifier(&host->mmc->pm_notify);
 
-        if(host->use_dma && host->dma_ops->exit)
+        if (host->use_dma && host->dma_ops->exit)
                 host->dma_ops->exit(host);
 
         if (gpio_is_valid(slot->cd_gpio))
                 dw_mci_of_free_cd_gpio_irq(host->dev, slot->cd_gpio, host->mmc);
 
-        if(host->vmmc){
+        if (host->vmmc){
                 regulator_disable(host->vmmc);
                 regulator_put(host->vmmc);
         }
-	if(!IS_ERR(host->clk_mmc))
+	if (!IS_ERR(host->clk_mmc))
                 clk_disable_unprepare(host->clk_mmc);
 
-        if(!IS_ERR(host->hclk_mmc))
+        if (!IS_ERR(host->hclk_mmc))
                 clk_disable_unprepare(host->hclk_mmc);
+	if (!IS_ERR(host->hpclk_mmc))
+		clk_disable_unprepare(host->hpclk_mmc);
 }
 EXPORT_SYMBOL(dw_mci_remove);
 

@@ -180,6 +180,7 @@ struct dw_mci {
 	struct dw_mci_board	*pdata;
 	const struct dw_mci_drv_data	*drv_data;
 	void			*priv;
+	struct clk	*hpclk_mmc;
 	struct clk      *hclk_mmc;
 	struct clk      *clk_mmc;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
