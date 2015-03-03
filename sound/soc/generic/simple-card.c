@@ -372,6 +372,11 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 			    strlen(dai_link->cpu_dai_name)   +
 			    strlen(dai_link->codec_dai_name) + 2,
 			    GFP_KERNEL);
+	if (!name) {
+		ret = -ENOMEM;
+		goto dai_link_of_err;
+	}
+
 	sprintf(name, "%s-%s", dai_link->cpu_dai_name,
 				dai_link->codec_dai_name);
 	dai_link->name = dai_link->stream_name = name;
