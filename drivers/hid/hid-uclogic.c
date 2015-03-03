@@ -713,6 +713,51 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
+static void uclogic_input_configured(struct hid_device *hdev,
+		struct hid_input *hi)
+{
+	char *name;
+	const char *suffix = NULL;
+	struct hid_field *field;
+	size_t len;
+
+	/* no report associated (HID_QUIRK_MULTI_INPUT not set) */
+	if (!hi->report)
+		return;
+
+	field = hi->report->field[0];
+
+	switch (field->application) {
+	case HID_GD_KEYBOARD:
+		suffix = "Keyboard";
+		break;
+	case HID_GD_MOUSE:
+		suffix = "Mouse";
+		break;
+	case HID_GD_KEYPAD:
+		suffix = "Pad";
+		break;
+	case HID_DG_PEN:
+		suffix = "Pen";
+		break;
+	case HID_CP_CONSUMER_CONTROL:
+		suffix = "Consumer Control";
+		break;
+	case HID_GD_SYSTEM_CONTROL:
+		suffix = "System Control";
+		break;
+	}
+
+	if (suffix) {
+		len = strlen(hdev->name) + 2 + strlen(suffix);
+		name = devm_kzalloc(&hi->input->dev, len, GFP_KERNEL);
+		if (name) {
+			snprintf(name, len, "%s %s", hdev->name, suffix);
+			hi->input->name = name;
+		}
+	}
+}
+
 /**
  * Enable fully-functional tablet mode and determine device parameters.
  *
@@ -901,6 +946,7 @@ static struct hid_driver uclogic_driver = {
 	.probe = uclogic_probe,
 	.report_fixup = uclogic_report_fixup,
 	.raw_event = uclogic_raw_event,
+	.input_configured = uclogic_input_configured,
 };
 module_hid_driver(uclogic_driver);
 
