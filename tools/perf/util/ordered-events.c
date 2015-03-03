@@ -131,8 +131,8 @@ static struct ordered_event *alloc_event(struct ordered_events *oe,
 	return new;
 }
 
-struct ordered_event *
-ordered_events__new(struct ordered_events *oe, u64 timestamp,
+static struct ordered_event *
+ordered_events__new_event(struct ordered_events *oe, u64 timestamp,
 		    union perf_event *event)
 {
 	struct ordered_event *new;
@@ -151,6 +151,36 @@ void ordered_events__delete(struct ordered_events *oe, struct ordered_event *eve
 	list_move(&event->list, &oe->cache);
 	oe->nr_events--;
 	free_dup_event(oe, event->event);
+}
+
+int ordered_events__queue(struct ordered_events *oe, union perf_event *event,
+			  struct perf_sample *sample, u64 file_offset)
+{
+	u64 timestamp = sample->time;
+	struct ordered_event *oevent;
+
+	if (!timestamp || timestamp == ~0ULL)
+		return -ETIME;
+
+	if (timestamp < oe->last_flush) {
+		pr_oe_time(timestamp,      "out of order event\n");
+		pr_oe_time(oe->last_flush, "last flush, last_flush_type %d\n",
+			   oe->last_flush_type);
+
+		oe->evlist->stats.nr_unordered_events++;
+	}
+
+	oevent = ordered_events__new_event(oe, timestamp, event);
+	if (!oevent) {
+		ordered_events__flush(oe, OE_FLUSH__HALF);
+		oevent = ordered_events__new_event(oe, timestamp, event);
+	}
+
+	if (!oevent)
+		return -ENOMEM;
+
+	oevent->file_offset = file_offset;
+	return 0;
 }
 
 static int __ordered_events__flush(struct ordered_events *oe)

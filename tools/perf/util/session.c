@@ -541,33 +541,7 @@ static int process_finished_round(struct perf_tool *tool __maybe_unused,
 int perf_session__queue_event(struct perf_session *s, union perf_event *event,
 			      struct perf_sample *sample, u64 file_offset)
 {
-	struct ordered_events *oe = &s->ordered_events;
-
-	u64 timestamp = sample->time;
-	struct ordered_event *new;
-
-	if (!timestamp || timestamp == ~0ULL)
-		return -ETIME;
-
-	if (timestamp < oe->last_flush) {
-		pr_oe_time(timestamp,      "out of order event\n");
-		pr_oe_time(oe->last_flush, "last flush, last_flush_type %d\n",
-			   oe->last_flush_type);
-
-		s->evlist->stats.nr_unordered_events++;
-	}
-
-	new = ordered_events__new(oe, timestamp, event);
-	if (!new) {
-		ordered_events__flush(oe, OE_FLUSH__HALF);
-		new = ordered_events__new(oe, timestamp, event);
-	}
-
-	if (!new)
-		return -ENOMEM;
-
-	new->file_offset = file_offset;
-	return 0;
+	return ordered_events__queue(&s->ordered_events, event, sample, file_offset);
 }
 
 static void callchain__lbr_callstack_printf(struct perf_sample *sample)

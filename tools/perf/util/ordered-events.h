@@ -49,8 +49,8 @@ struct ordered_events {
 	bool                    copy_on_queue;
 };
 
-struct ordered_event *ordered_events__new(struct ordered_events *oe, u64 timestamp,
-					  union perf_event *event);
+int ordered_events__queue(struct ordered_events *oe, union perf_event *event,
+			  struct perf_sample *sample, u64 file_offset);
 void ordered_events__delete(struct ordered_events *oe, struct ordered_event *event);
 int ordered_events__flush(struct ordered_events *oe, enum oe_flush how);
 void ordered_events__init(struct ordered_events *oe, struct machines *machines,
