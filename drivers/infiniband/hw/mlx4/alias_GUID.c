@@ -123,6 +123,57 @@ ib_sa_comp_mask mlx4_ib_get_aguid_comp_mask_from_ix(int index)
 	return IB_SA_COMP_MASK(4 + index);
 }
 
+void mlx4_ib_slave_alias_guid_event(struct mlx4_ib_dev *dev, int slave,
+				    int port,  int slave_init)
+{
+	__be64 curr_guid, required_guid;
+	int record_num = slave / 8;
+	int index = slave % 8;
+	int port_index = port - 1;
+	unsigned long flags;
+	int do_work = 0;
+
+	spin_lock_irqsave(&dev->sriov.alias_guid.ag_work_lock, flags);
+	if (dev->sriov.alias_guid.ports_guid[port_index].state_flags &
+	    GUID_STATE_NEED_PORT_INIT)
+		goto unlock;
+	if (!slave_init) {
+		curr_guid = *(__be64 *)&dev->sriov.
+			alias_guid.ports_guid[port_index].
+			all_rec_per_port[record_num].
+			all_recs[GUID_REC_SIZE * index];
+		if (curr_guid == cpu_to_be64(MLX4_GUID_FOR_DELETE_VAL) ||
+		    !curr_guid)
+			goto unlock;
+		required_guid = cpu_to_be64(MLX4_GUID_FOR_DELETE_VAL);
+	} else {
+		required_guid = mlx4_get_admin_guid(dev->dev, slave, port);
+		if (required_guid == cpu_to_be64(MLX4_GUID_FOR_DELETE_VAL))
+			goto unlock;
+	}
+	*(__be64 *)&dev->sriov.alias_guid.ports_guid[port_index].
+		all_rec_per_port[record_num].
+		all_recs[GUID_REC_SIZE * index] = required_guid;
+	dev->sriov.alias_guid.ports_guid[port_index].
+		all_rec_per_port[record_num].guid_indexes
+		|= mlx4_ib_get_aguid_comp_mask_from_ix(index);
+	dev->sriov.alias_guid.ports_guid[port_index].
+		all_rec_per_port[record_num].status
+		= MLX4_GUID_INFO_STATUS_IDLE;
+	/* set to run immediately */
+	dev->sriov.alias_guid.ports_guid[port_index].
+		all_rec_per_port[record_num].time_to_run = 0;
+	dev->sriov.alias_guid.ports_guid[port_index].
+		all_rec_per_port[record_num].
+		guids_retry_schedule[index] = 0;
+	do_work = 1;
+unlock:
+	spin_unlock_irqrestore(&dev->sriov.alias_guid.ag_work_lock, flags);
+
+	if (do_work)
+		mlx4_ib_init_alias_guid_work(dev, port_index);
+}
+
 /*
  * Whenever new GUID is set/unset (guid table change) create event and
  * notify the relevant slave (master also should be notified).

@@ -798,6 +798,8 @@ int add_sysfs_port_mcg_attr(struct mlx4_ib_dev *device, int port_num,
 void del_sysfs_port_mcg_attr(struct mlx4_ib_dev *device, int port_num,
 			     struct attribute *attr);
 ib_sa_comp_mask mlx4_ib_get_aguid_comp_mask_from_ix(int index);
+void mlx4_ib_slave_alias_guid_event(struct mlx4_ib_dev *dev, int slave,
+				    int port, int slave_init);
 
 int mlx4_ib_device_register_sysfs(struct mlx4_ib_dev *device) ;
 

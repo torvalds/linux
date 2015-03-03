@@ -2791,9 +2791,31 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	case MLX4_DEV_EVENT_SLAVE_INIT:
 		/* here, p is the slave id */
 		do_slave_init(ibdev, p, 1);
+		if (mlx4_is_master(dev)) {
+			int i;
+
+			for (i = 1; i <= ibdev->num_ports; i++) {
+				if (rdma_port_get_link_layer(&ibdev->ib_dev, i)
+					== IB_LINK_LAYER_INFINIBAND)
+					mlx4_ib_slave_alias_guid_event(ibdev,
+								       p, i,
+								       1);
+			}
+		}
 		return;
 
 	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
+		if (mlx4_is_master(dev)) {
+			int i;
+
+			for (i = 1; i <= ibdev->num_ports; i++) {
+				if (rdma_port_get_link_layer(&ibdev->ib_dev, i)
+					== IB_LINK_LAYER_INFINIBAND)
+					mlx4_ib_slave_alias_guid_event(ibdev,
+								       p, i,
+								       0);
+			}
+		}
 		/* here, p is the slave id */
 		do_slave_init(ibdev, p, 0);
 		return;
