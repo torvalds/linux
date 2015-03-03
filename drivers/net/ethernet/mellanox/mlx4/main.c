@@ -2276,6 +2276,21 @@ __be64 mlx4_get_admin_guid(struct mlx4_dev *dev, int entry, int port)
 }
 EXPORT_SYMBOL_GPL(mlx4_get_admin_guid);
 
+void mlx4_set_random_admin_guid(struct mlx4_dev *dev, int entry, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	__be64 guid;
+
+	/* hw GUID */
+	if (entry == 0)
+		return;
+
+	get_random_bytes((char *)&guid, sizeof(guid));
+	guid &= ~(cpu_to_be64(1ULL << 56));
+	guid |= cpu_to_be64(1ULL << 57);
+	priv->mfunc.master.vf_admin[entry].vport[port].guid = guid;
+}
+
 static int mlx4_setup_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
