@@ -435,7 +435,7 @@
 				status = "disabled";
 			};
 
-			usb@50000 {
+			usb@58000 {
 				compatible = "marvell,orion-ehci";
 				reg = <0x58000 0x500>;
 				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;

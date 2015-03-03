@@ -135,7 +135,7 @@
 			};
 
 			/* CON4 */
-			usb@50000 {
+			usb@58000 {
 				vcc-supply = <&reg_usb2_0_vbus>;
 				status = "okay";
 			};
