@@ -6,7 +6,7 @@ comment "HSI clients"
 
 config NOKIA_MODEM
 	tristate "Nokia Modem"
-	depends on HSI && SSI_PROTOCOL
+	depends on HSI && SSI_PROTOCOL && CMT_SPEECH
 	help
 	Say Y here if you want to add support for the modem on Nokia
 	N900 (Nokia RX-51) hardware.
