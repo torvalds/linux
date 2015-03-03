@@ -330,6 +330,6 @@ int read_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
 void ipte_lock(struct kvm_vcpu *vcpu);
 void ipte_unlock(struct kvm_vcpu *vcpu);
 int ipte_lock_held(struct kvm_vcpu *vcpu);
-int kvm_s390_check_low_addr_protection(struct kvm_vcpu *vcpu, unsigned long ga);
+int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra);
 
 #endif /* __KVM_S390_GACCESS_H */
