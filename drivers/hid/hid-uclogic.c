@@ -713,6 +713,25 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
+static int uclogic_input_mapping(struct hid_device *hdev, struct hid_input *hi,
+		struct hid_field *field, struct hid_usage *usage,
+		unsigned long **bit, int *max)
+{
+	struct usb_interface *intf;
+
+	if (hdev->product == USB_DEVICE_ID_HUION_TABLET) {
+		intf = to_usb_interface(hdev->dev.parent);
+
+		/* discard the unused pen interface */
+		if ((intf->cur_altsetting->desc.bInterfaceNumber != 0) &&
+		    (field->application == HID_DG_PEN))
+			return -1;
+	}
+
+	/* let hid-core decide what to do */
+	return 0;
+}
+
 static void uclogic_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 {
@@ -947,6 +966,7 @@ static struct hid_driver uclogic_driver = {
 	.probe = uclogic_probe,
 	.report_fixup = uclogic_report_fixup,
 	.raw_event = uclogic_raw_event,
+	.input_mapping = uclogic_input_mapping,
 	.input_configured = uclogic_input_configured,
 };
 module_hid_driver(uclogic_driver);
