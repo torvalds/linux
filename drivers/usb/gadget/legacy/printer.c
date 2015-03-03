@@ -1170,7 +1170,8 @@ static struct usb_configuration printer_cfg_driver = {
 	.bmAttributes		= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
 };
 
-static int __init printer_do_config(struct usb_configuration *c)
+static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
+				 unsigned q_len)
 {
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	struct printer_dev	*dev;
@@ -1179,8 +1180,6 @@ static int __init printer_do_config(struct usb_configuration *c)
 	size_t			len;
 	u32			i;
 	struct usb_request	*req;
-
-	usb_ep_autoconfig_reset(gadget);
 
 	dev = &usb_printer_gadget;
 
@@ -1219,20 +1218,12 @@ static int __init printer_do_config(struct usb_configuration *c)
 		goto fail;
 	}
 
-	if (iPNPstring)
-		strlcpy(&pnp_string[2], iPNPstring, (sizeof pnp_string)-2);
+	if (pnp_str)
+		strlcpy(&pnp_string[2], pnp_str, sizeof(pnp_string) - 2);
 
 	len = strlen(pnp_string);
 	pnp_string[0] = (len >> 8) & 0xFF;
 	pnp_string[1] = len & 0xFF;
-
-	usb_gadget_set_selfpowered(gadget);
-
-	if (gadget_is_otg(gadget)) {
-		otg_descriptor.bmAttributes |= USB_OTG_HNP;
-		printer_cfg_driver.descriptors = otg_desc;
-		printer_cfg_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-	}
 
 	spin_lock_init(&dev->lock);
 	mutex_init(&dev->lock_printer_io);
@@ -1250,14 +1241,14 @@ static int __init printer_do_config(struct usb_configuration *c)
 	dev->current_rx_buf = NULL;
 
 	status = -ENOMEM;
-	for (i = 0; i < QLEN; i++) {
+	for (i = 0; i < q_len; i++) {
 		req = printer_req_alloc(dev->in_ep, USB_BUFSIZE, GFP_KERNEL);
 		if (!req)
 			goto fail;
 		list_add(&req->list, &dev->tx_reqs);
 	}
 
-	for (i = 0; i < QLEN; i++) {
+	for (i = 0; i < q_len; i++) {
 		req = printer_req_alloc(dev->out_ep, USB_BUFSIZE, GFP_KERNEL);
 		if (!req)
 			goto fail;
@@ -1274,6 +1265,24 @@ fail:
 	printer_cfg_unbind(c);
 	usb_remove_function(c, &dev->function);
 	return status;
+}
+
+static int __init printer_do_config(struct usb_configuration *c)
+{
+	struct usb_gadget	*gadget = c->cdev->gadget;
+
+	usb_ep_autoconfig_reset(gadget);
+
+	usb_gadget_set_selfpowered(gadget);
+
+	if (gadget_is_otg(gadget)) {
+		otg_descriptor.bmAttributes |= USB_OTG_HNP;
+		printer_cfg_driver.descriptors = otg_desc;
+		printer_cfg_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+	}
+
+	return f_printer_bind_config(c, iPNPstring, QLEN);
+
 }
 
 static int __init printer_bind(struct usb_composite_dev *cdev)
