@@ -61,14 +61,6 @@ u16 cpu_mask;
 #define OMAP3PLUS_DPLL_FINT_MIN		32000
 #define OMAP3PLUS_DPLL_FINT_MAX		52000000
 
-/*
- * clkdm_control: if true, then when a clock is enabled in the
- * hardware, its clockdomain will first be enabled; and when a clock
- * is disabled in the hardware, its clockdomain will be disabled
- * afterwards.
- */
-static bool clkdm_control = true;
-
 struct clk_iomap {
 	struct regmap *regmap;
 	void __iomem *mem;
@@ -288,19 +280,6 @@ void omap2_init_clk_clkdm(struct clk_hw *hw)
 }
 
 /**
- * omap2_clk_disable_clkdm_control - disable clkdm control on clk enable/disable
- *
- * Prevent the OMAP clock code from calling into the clockdomain code
- * when a hardware clock in that clockdomain is enabled or disabled.
- * Intended to be called at init time from omap*_clk_init().  No
- * return value.
- */
-void __init omap2_clk_disable_clkdm_control(void)
-{
-	clkdm_control = false;
-}
-
-/**
  * omap2_clk_dflt_find_companion - find companion clock to @clk
  * @clk: struct clk * to find the companion clock of
  * @other_reg: void __iomem ** to return the companion clock CM_*CLKEN va in
@@ -384,6 +363,12 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 	struct clk_hw_omap *clk;
 	u32 v;
 	int ret = 0;
+	bool clkdm_control;
+
+	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL)
+		clkdm_control = false;
+	else
+		clkdm_control = true;
 
 	clk = to_clk_hw_omap(hw);
 
@@ -457,7 +442,8 @@ void omap2_dflt_clk_disable(struct clk_hw *hw)
 	omap2_clk_writel(v, clk, clk->enable_reg);
 	/* No OCP barrier needed here since it is a disable operation */
 
-	if (clkdm_control && clk->clkdm)
+	if (!(ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) &&
+	    clk->clkdm)
 		clkdm_clk_disable(clk->clkdm, hw->clk);
 }
 
@@ -490,7 +476,7 @@ int omap2_clkops_enable_clkdm(struct clk_hw *hw)
 		pr_err("%s: %s: should use dflt_clk_enable ?!\n", __func__,
 		       __clk_get_name(hw->clk));
 
-	if (!clkdm_control) {
+	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) {
 		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
 		       __func__, __clk_get_name(hw->clk));
 		return 0;
@@ -528,7 +514,7 @@ void omap2_clkops_disable_clkdm(struct clk_hw *hw)
 		pr_err("%s: %s: should use dflt_clk_disable ?!\n", __func__,
 		       __clk_get_name(hw->clk));
 
-	if (!clkdm_control) {
+	if (ti_clk_get_features()->flags & TI_CLK_DISABLE_CLKDM_CONTROL) {
 		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
 		       __func__, __clk_get_name(hw->clk));
 		return;

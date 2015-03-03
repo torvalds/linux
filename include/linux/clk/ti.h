@@ -330,6 +330,7 @@ struct ti_clk_features {
 
 #define TI_CLK_DPLL_HAS_FREQSEL			BIT(0)
 #define TI_CLK_DPLL4_DENY_REPROGRAM		BIT(1)
+#define TI_CLK_DISABLE_CLKDM_CONTROL		BIT(2)
 
 void ti_clk_setup_features(struct ti_clk_features *features);
 const struct ti_clk_features *ti_clk_get_features(void);
