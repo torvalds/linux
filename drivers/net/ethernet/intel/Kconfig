@@ -303,6 +303,15 @@ config I40E_FCOE
 
 	  If unsure, say N.
 
+config I40E_CONFIGFS_FS
+	bool "Config File System Support (configfs)"
+	default n
+	depends on I40E && CONFIGFS_FS && !(I40E=y && CONFIGFS_FS=m)
+	---help---
+	  Provides support for the configfs file system for additional
+	  driver configuration.  Say Y here if you want to use the
+	  configuration file system in the driver.
+
 config I40EVF
 	tristate "Intel(R) XL710 X710 Virtual Function Ethernet support"
 	depends on PCI_MSI

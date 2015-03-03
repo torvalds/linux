@@ -27,7 +27,7 @@
 #include <linux/configfs.h>
 #include "i40e.h"
 
-#if IS_ENABLED(CONFIG_CONFIGFS_FS)
+#if IS_ENABLED(CONFIG_I40E_CONFIGFS_FS)
 
 /**
  * configfs structure for i40e
@@ -351,4 +351,4 @@ void i40e_configfs_exit(void)
 {
 	configfs_unregister_subsystem(&i40e_cfgfs_group_subsys);
 }
-#endif /* IS_ENABLED(CONFIG_CONFIGFS_FS) */
+#endif /* IS_ENABLED(CONFIG_I40E_CONFIGFS_FS) */
