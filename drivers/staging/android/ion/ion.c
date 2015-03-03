@@ -1360,7 +1360,7 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		pr_err("%s: failure mapping buffer to userspace\n",
 		       __func__);
 
-	trace_ion_buffer_mmap("", (unsigned int)buffer, buffer->size,
+	trace_ion_buffer_mmap("", (void*)buffer, buffer->size,
 		vma->vm_start, vma->vm_end);
 
 	return ret;
@@ -1370,7 +1370,7 @@ int ion_munmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 
-	trace_ion_buffer_munmap("", (unsigned int)buffer, buffer->size,
+	trace_ion_buffer_munmap("", (void*)buffer, buffer->size,
 		vma->vm_start, vma->vm_end);
 
 	return 0;
