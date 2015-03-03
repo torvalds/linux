@@ -276,9 +276,11 @@ static inline struct usb_endpoint_descriptor *ep_desc(struct usb_gadget *gadget,
 
 /* descriptors that are built on-demand */
 
+#define PNP_STRING_LEN			1024
+
 static char				product_desc [40] = DRIVER_DESC;
 static char				serial_num [40] = "1";
-static char				pnp_string [1024] =
+static char				pnp_string[PNP_STRING_LEN] =
 	"XXMFG:linux;MDL:g_printer;CLS:PRINTER;SN:1;";
 
 /* static strings, in UTF-8 */
@@ -1247,7 +1249,7 @@ static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
 	INIT_LIST_HEAD(&dev->rx_buffers);
 
 	if (pnp_str)
-		strlcpy(&pnp_string[2], pnp_str, sizeof(pnp_string) - 2);
+		strlcpy(&pnp_string[2], pnp_str, PNP_STRING_LEN - 2);
 
 	len = strlen(pnp_string);
 	pnp_string[0] = (len >> 8) & 0xFF;
