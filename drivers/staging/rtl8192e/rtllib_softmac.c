@@ -3751,7 +3751,7 @@ void notify_wx_assoc_event(struct rtllib_device *ieee)
 
 		printk(KERN_INFO "%s(): Tell user space disconnected\n",
 		       __func__);
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 	}
 	wireless_send_event(ieee->dev, SIOCGIWAP, &wrqu, NULL);
 }
