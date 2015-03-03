@@ -33,6 +33,7 @@ static const char driver_desc [] = DRIVER_DESC;
  * This will be changed when f_printer is converted
  * to the new function interface.
  */
+#define USBF_PRINTER_INCLUDED
 #include "f_printer.c"
 
 /*-------------------------------------------------------------------------*/

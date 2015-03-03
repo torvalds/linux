@@ -24,6 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/idr.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -46,6 +47,8 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/g_printer.h>
 
+#include "u_printer.h"
+
 #define PNP_STRING_LEN		1024
 #define PRINTER_MINORS		4
 #define GET_DEVICE_ID		0
@@ -54,6 +57,10 @@
 
 static int major, minors;
 static struct class *usb_gadget_class;
+#ifndef USBF_PRINTER_INCLUDED
+static DEFINE_IDA(printer_ida);
+static DEFINE_MUTEX(printer_ida_lock); /* protects access do printer_ida */
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -999,7 +1006,7 @@ unknown:
 	return value;
 }
 
-static int __init printer_func_bind(struct usb_configuration *c,
+static int printer_func_bind(struct usb_configuration *c,
 		struct usb_function *f)
 {
 	struct usb_gadget *gadget = c->cdev->gadget;
@@ -1111,6 +1118,7 @@ fail_tx_reqs:
 
 }
 
+#ifdef USBF_PRINTER_INCLUDED
 static void printer_func_unbind(struct usb_configuration *c,
 		struct usb_function *f)
 {
@@ -1155,6 +1163,7 @@ static void printer_func_unbind(struct usb_configuration *c,
 	usb_free_all_descriptors(f);
 	kfree(dev);
 }
+#endif
 
 static int printer_func_set_alt(struct usb_function *f,
 		unsigned intf, unsigned alt)
@@ -1180,6 +1189,7 @@ static void printer_func_disable(struct usb_function *f)
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
+#ifdef USBF_PRINTER_INCLUDED
 static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
 				 char *pnp_string, unsigned q_len, int minor)
 {
@@ -1240,6 +1250,179 @@ static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
 	INFO(dev, "%s, version: " DRIVER_VERSION "\n", driver_desc);
 	return 0;
 }
+#else
+static inline int gprinter_get_minor(void)
+{
+	return ida_simple_get(&printer_ida, 0, 0, GFP_KERNEL);
+}
+
+static inline void gprinter_put_minor(int minor)
+{
+	ida_simple_remove(&printer_ida, minor);
+}
+
+static int gprinter_setup(int);
+static void gprinter_cleanup(void);
+
+static void gprinter_free_inst(struct usb_function_instance *f)
+{
+	struct f_printer_opts *opts;
+
+	opts = container_of(f, struct f_printer_opts, func_inst);
+
+	mutex_lock(&printer_ida_lock);
+
+	gprinter_put_minor(opts->minor);
+	if (idr_is_empty(&printer_ida.idr))
+		gprinter_cleanup();
+
+	mutex_unlock(&printer_ida_lock);
+
+	kfree(opts);
+}
+
+static struct usb_function_instance *gprinter_alloc_inst(void)
+{
+	struct f_printer_opts *opts;
+	struct usb_function_instance *ret;
+	int status = 0;
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts)
+		return ERR_PTR(-ENOMEM);
+
+	opts->func_inst.free_func_inst = gprinter_free_inst;
+	ret = &opts->func_inst;
+
+	mutex_lock(&printer_ida_lock);
+
+	if (idr_is_empty(&printer_ida.idr)) {
+		status = gprinter_setup(PRINTER_MINORS);
+		if (status) {
+			ret = ERR_PTR(status);
+			kfree(opts);
+			goto unlock;
+		}
+	}
+
+	opts->minor = gprinter_get_minor();
+	if (opts->minor < 0) {
+		ret = ERR_PTR(opts->minor);
+		kfree(opts);
+		if (idr_is_empty(&printer_ida.idr))
+			gprinter_cleanup();
+	}
+
+unlock:
+	mutex_unlock(&printer_ida_lock);
+	return ret;
+}
+
+static void gprinter_free(struct usb_function *f)
+{
+	struct printer_dev *dev = func_to_printer(f);
+
+	kfree(dev);
+}
+
+static void printer_func_unbind(struct usb_configuration *c,
+		struct usb_function *f)
+{
+	struct printer_dev	*dev;
+	struct usb_request	*req;
+
+	dev = func_to_printer(f);
+
+	device_destroy(usb_gadget_class, MKDEV(major, dev->minor));
+
+	/* Remove Character Device */
+	cdev_del(&dev->printer_cdev);
+
+	/* we must already have been disconnected ... no i/o may be active */
+	WARN_ON(!list_empty(&dev->tx_reqs_active));
+	WARN_ON(!list_empty(&dev->rx_reqs_active));
+
+	/* Free all memory for this driver. */
+	while (!list_empty(&dev->tx_reqs)) {
+		req = container_of(dev->tx_reqs.next, struct usb_request,
+				list);
+		list_del(&req->list);
+		printer_req_free(dev->in_ep, req);
+	}
+
+	if (dev->current_rx_req != NULL)
+		printer_req_free(dev->out_ep, dev->current_rx_req);
+
+	while (!list_empty(&dev->rx_reqs)) {
+		req = container_of(dev->rx_reqs.next,
+				struct usb_request, list);
+		list_del(&req->list);
+		printer_req_free(dev->out_ep, req);
+	}
+
+	while (!list_empty(&dev->rx_buffers)) {
+		req = container_of(dev->rx_buffers.next,
+				struct usb_request, list);
+		list_del(&req->list);
+		printer_req_free(dev->out_ep, req);
+	}
+	usb_free_all_descriptors(f);
+}
+
+static struct usb_function *gprinter_alloc(struct usb_function_instance *fi)
+{
+	struct printer_dev	*dev;
+	struct f_printer_opts	*opts;
+
+	opts = container_of(fi, struct f_printer_opts, func_inst);
+
+	if (opts->minor >= minors)
+		return ERR_PTR(-ENOENT);
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return ERR_PTR(-ENOMEM);
+
+	dev->minor = opts->minor;
+	dev->pnp_string = opts->pnp_string;
+	dev->q_len = opts->q_len;
+
+	dev->function.name = "printer";
+	dev->function.bind = printer_func_bind;
+	dev->function.setup = printer_func_setup;
+	dev->function.unbind = printer_func_unbind;
+	dev->function.set_alt = printer_func_set_alt;
+	dev->function.disable = printer_func_disable;
+	dev->function.req_match = gprinter_req_match;
+	dev->function.free_func = gprinter_free;
+
+	INIT_LIST_HEAD(&dev->tx_reqs);
+	INIT_LIST_HEAD(&dev->rx_reqs);
+	INIT_LIST_HEAD(&dev->rx_buffers);
+	INIT_LIST_HEAD(&dev->tx_reqs_active);
+	INIT_LIST_HEAD(&dev->rx_reqs_active);
+
+	spin_lock_init(&dev->lock);
+	mutex_init(&dev->lock_printer_io);
+	init_waitqueue_head(&dev->rx_wait);
+	init_waitqueue_head(&dev->tx_wait);
+	init_waitqueue_head(&dev->tx_flush_wait);
+
+	dev->interface = -1;
+	dev->printer_cdev_open = 0;
+	dev->printer_status = PRINTER_NOT_ERROR;
+	dev->current_rx_req = NULL;
+	dev->current_rx_bytes = 0;
+	dev->current_rx_buf = NULL;
+
+	return &dev->function;
+}
+
+DECLARE_USB_FUNCTION_INIT(printer, gprinter_alloc_inst, gprinter_alloc);
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Craig Nadler");
+
+#endif
 
 static int gprinter_setup(int count)
 {
