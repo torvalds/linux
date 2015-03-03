@@ -1330,18 +1330,32 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 {
 	int ret;
 
-	ret = usb_string_ids_tab(cdev, strings);
-	if (ret < 0)
+	ret = gprinter_setup();
+	if (ret)
 		return ret;
+
+	ret = usb_string_ids_tab(cdev, strings);
+	if (ret < 0) {
+		gprinter_cleanup();
+		return ret;
+	}
 	device_desc.iManufacturer = strings[USB_GADGET_MANUFACTURER_IDX].id;
 	device_desc.iProduct = strings[USB_GADGET_PRODUCT_IDX].id;
 	device_desc.iSerialNumber = strings[USB_GADGET_SERIAL_IDX].id;
 
 	ret = usb_add_config(cdev, &printer_cfg_driver, printer_do_config);
-	if (ret)
+	if (ret) {
+		gprinter_cleanup();
 		return ret;
+	}
 	usb_composite_overwrite_options(cdev, &coverwrite);
 	return ret;
+}
+
+static int __exit printer_unbind(struct usb_composite_dev *cdev)
+{
+	gprinter_cleanup();
+	return 0;
 }
 
 static __refdata struct usb_composite_driver printer_driver = {
@@ -1350,25 +1364,13 @@ static __refdata struct usb_composite_driver printer_driver = {
 	.strings        = dev_strings,
 	.max_speed      = USB_SPEED_SUPER,
 	.bind		= printer_bind,
+	.unbind		= printer_unbind,
 };
 
 static int __init
 init(void)
 {
-	int status;
-
-	status = gprinter_setup();
-	if (status)
-		return status;
-
-	status = usb_composite_probe(&printer_driver);
-	if (status) {
-		class_destroy(usb_gadget_class);
-		unregister_chrdev_region(g_printer_devno, 1);
-		pr_err("usb_gadget_probe_driver %x\n", status);
-	}
-
-	return status;
+	return usb_composite_probe(&printer_driver);
 }
 module_init(init);
 
@@ -1377,7 +1379,6 @@ cleanup(void)
 {
 	mutex_lock(&usb_printer_gadget.lock_printer_io);
 	usb_composite_unregister(&printer_driver);
-	gprinter_cleanup();
 	mutex_unlock(&usb_printer_gadget.lock_printer_io);
 }
 module_exit(cleanup);
