@@ -2181,7 +2181,7 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
-	if (skb_padto(skb, ETH_ZLEN))
+	if (skb_put_padto(skb, ETH_ZLEN))
 		return NETDEV_TX_OK;
 
 	entry = mdp->cur_tx % mdp->num_tx_ring;
