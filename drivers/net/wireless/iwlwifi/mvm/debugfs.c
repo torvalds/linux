@@ -942,7 +942,7 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	enum iwl_fw_dbg_conf conf;
+	int conf;
 	char buf[8];
 	const size_t bufsz = sizeof(buf);
 	int pos = 0;
@@ -966,7 +966,7 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_write(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	if (WARN_ON(conf_id >= FW_DBG_MAX))
+	if (WARN_ON(conf_id >= FW_DBG_CONF_MAX))
 		return -EINVAL;
 
 	mutex_lock(&mvm->mutex);
@@ -985,7 +985,7 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	iwl_mvm_fw_dbg_collect(mvm);
+	iwl_mvm_fw_dbg_collect(mvm, FW_DBG_TRIGGER_USER, NULL, 0, 0);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
 

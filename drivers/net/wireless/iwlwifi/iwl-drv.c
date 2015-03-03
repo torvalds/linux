@@ -175,6 +175,8 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	kfree(drv->fw.dbg_dest_tlv);
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_conf_tlv); i++)
 		kfree(drv->fw.dbg_conf_tlv[i]);
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++)
+		kfree(drv->fw.dbg_trigger_tlv[i]);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -293,8 +295,10 @@ struct iwl_firmware_pieces {
 
 	/* FW debug data parsed for driver usage */
 	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
-	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
-	size_t dbg_conf_tlv_len[FW_DBG_MAX];
+	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
+	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
+	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
+	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
 };
 
 /*
@@ -842,6 +846,23 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			capa->n_scan_channels =
 				le32_to_cpup((__le32 *)tlv_data);
 			break;
+		case IWL_UCODE_TLV_FW_VERSION: {
+			__le32 *ptr = (void *)tlv_data;
+			u32 major, minor;
+			u8 local_comp;
+
+			if (tlv_len != sizeof(u32) * 3)
+				goto invalid_tlv_len;
+
+			major = le32_to_cpup(ptr++);
+			minor = le32_to_cpup(ptr++);
+			local_comp = le32_to_cpup(ptr);
+
+			snprintf(drv->fw.fw_version,
+				 sizeof(drv->fw.fw_version), "%u.%u.%u",
+				 major, minor, local_comp);
+			break;
+			}
 		case IWL_UCODE_TLV_FW_DBG_DEST: {
 			struct iwl_fw_dbg_dest_tlv *dest = (void *)tlv_data;
 
@@ -895,6 +916,31 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			pieces->dbg_conf_tlv[conf->id] = conf;
 			pieces->dbg_conf_tlv_len[conf->id] = tlv_len;
+			break;
+			}
+		case IWL_UCODE_TLV_FW_DBG_TRIGGER: {
+			struct iwl_fw_dbg_trigger_tlv *trigger =
+				(void *)tlv_data;
+			u32 trigger_id = le32_to_cpu(trigger->id);
+
+			if (trigger_id >= ARRAY_SIZE(drv->fw.dbg_trigger_tlv)) {
+				IWL_ERR(drv,
+					"Skip unknown trigger: %u\n",
+					trigger->id);
+				break;
+			}
+
+			if (pieces->dbg_trigger_tlv[trigger_id]) {
+				IWL_ERR(drv,
+					"Ignore duplicate dbg trigger %u\n",
+					trigger->id);
+				break;
+			}
+
+			IWL_INFO(drv, "Found debug trigger: %u\n", trigger->id);
+
+			pieces->dbg_trigger_tlv[trigger_id] = trigger;
+			pieces->dbg_trigger_tlv_len[trigger_id] = tlv_len;
 			break;
 			}
 		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
@@ -1107,7 +1153,10 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		goto try_again;
 
-	api_ver = IWL_UCODE_API(drv->fw.ucode_ver);
+	if (drv->fw.ucode_capa.api[0] & IWL_UCODE_TLV_API_NEW_VERSION)
+		api_ver = drv->fw.ucode_ver;
+	else
+		api_ver = IWL_UCODE_API(drv->fw.ucode_ver);
 
 	/*
 	 * api_ver should match the api version forming part of the
@@ -1174,6 +1223,19 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 					drv->fw.dbg_conf_tlv_len[i],
 					GFP_KERNEL);
 			if (!drv->fw.dbg_conf_tlv[i])
+				goto out_free_fw;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++) {
+		if (pieces->dbg_trigger_tlv[i]) {
+			drv->fw.dbg_trigger_tlv_len[i] =
+				pieces->dbg_trigger_tlv_len[i];
+			drv->fw.dbg_trigger_tlv[i] =
+				kmemdup(pieces->dbg_trigger_tlv[i],
+					drv->fw.dbg_trigger_tlv_len[i],
+					GFP_KERNEL);
+			if (!drv->fw.dbg_trigger_tlv[i])
 				goto out_free_fw;
 		}
 	}

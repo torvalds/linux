@@ -370,7 +370,6 @@ enum secure_load_status_reg {
 #define MON_BUFF_CYCLE_CNT		(0xa03c48)
 
 #define DBGC_IN_SAMPLE			(0xa03c00)
-#define DBGC_OUT_CTRL			(0xa03c0c)
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
