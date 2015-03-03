@@ -48,7 +48,6 @@ USB_GADGET_COMPOSITE_OPTIONS();
 #define DRIVER_DESC		"Printer Gadget"
 #define DRIVER_VERSION		"2007 OCT 06"
 
-static DEFINE_MUTEX(printer_mutex);
 static const char shortname [] = "printer";
 static const char driver_desc [] = DRIVER_DESC;
 
@@ -420,7 +419,6 @@ printer_open(struct inode *inode, struct file *fd)
 	unsigned long		flags;
 	int			ret = -EBUSY;
 
-	mutex_lock(&printer_mutex);
 	dev = container_of(inode->i_cdev, struct printer_dev, printer_cdev);
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -436,7 +434,6 @@ printer_open(struct inode *inode, struct file *fd)
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	DBG(dev, "printer_open returned %x\n", ret);
-	mutex_unlock(&printer_mutex);
 	return ret;
 }
 
