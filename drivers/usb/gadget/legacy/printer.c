@@ -51,11 +51,12 @@ USB_GADGET_COMPOSITE_OPTIONS();
 #define GET_PORT_STATUS		1
 #define SOFT_RESET		2
 
+#define PRINTER_MINORS		4
+
 static const char shortname [] = "printer";
 static const char driver_desc [] = DRIVER_DESC;
 
-static dev_t g_printer_devno;
-
+static int major, minors;
 static struct class *usb_gadget_class;
 
 /*-------------------------------------------------------------------------*/
@@ -84,6 +85,7 @@ struct printer_dev {
 	u8			*current_rx_buf;
 	u8			printer_status;
 	u8			reset_printer;
+	int			minor;
 	struct cdev		printer_cdev;
 	u8			printer_cdev_open;
 	wait_queue_head_t	wait;
@@ -96,8 +98,6 @@ static inline struct printer_dev *func_to_printer(struct usb_function *f)
 {
 	return container_of(f, struct printer_dev, function);
 }
-
-static struct printer_dev usb_printer_gadget;
 
 /*-------------------------------------------------------------------------*/
 
@@ -1096,6 +1096,7 @@ static int __init printer_func_bind(struct usb_configuration *c,
 	struct usb_ep *in_ep;
 	struct usb_ep *out_ep = NULL;
 	struct usb_request *req;
+	dev_t devt;
 	int id;
 	int ret;
 	u32 i;
@@ -1153,8 +1154,9 @@ autoconf_fail:
 	}
 
 	/* Setup the sysfs files for the printer gadget. */
-	pdev = device_create(usb_gadget_class, NULL, g_printer_devno,
-				  NULL, "g_printer");
+	devt = MKDEV(major, dev->minor);
+	pdev = device_create(usb_gadget_class, NULL, devt,
+				  NULL, "g_printer%d", dev->minor);
 	if (IS_ERR(pdev)) {
 		ERROR(dev, "Failed to create device: g_printer\n");
 		ret = PTR_ERR(pdev);
@@ -1167,7 +1169,7 @@ autoconf_fail:
 	 */
 	cdev_init(&dev->printer_cdev, &printer_io_operations);
 	dev->printer_cdev.owner = THIS_MODULE;
-	ret = cdev_add(&dev->printer_cdev, g_printer_devno, 1);
+	ret = cdev_add(&dev->printer_cdev, devt, 1);
 	if (ret) {
 		ERROR(dev, "Failed to open char device\n");
 		goto fail_cdev_add;
@@ -1176,7 +1178,7 @@ autoconf_fail:
 	return 0;
 
 fail_cdev_add:
-	device_destroy(usb_gadget_class, g_printer_devno);
+	device_destroy(usb_gadget_class, devt);
 
 fail_rx_reqs:
 	while (!list_empty(&dev->rx_reqs)) {
@@ -1204,7 +1206,7 @@ static void printer_func_unbind(struct usb_configuration *c,
 
 	dev = func_to_printer(f);
 
-	device_destroy(usb_gadget_class, g_printer_devno);
+	device_destroy(usb_gadget_class, MKDEV(major, dev->minor));
 
 	/* Remove Character Device */
 	cdev_del(&dev->printer_cdev);
@@ -1238,6 +1240,7 @@ static void printer_func_unbind(struct usb_configuration *c,
 		printer_req_free(dev->out_ep, req);
 	}
 	usb_free_all_descriptors(f);
+	kfree(dev);
 }
 
 static int printer_func_set_alt(struct usb_function *f,
@@ -1271,14 +1274,21 @@ static struct usb_configuration printer_cfg_driver = {
 };
 
 static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
-				 char *pnp_string, unsigned q_len)
+				 char *pnp_string, unsigned q_len, int minor)
 {
 	struct printer_dev	*dev;
 	int			status = -ENOMEM;
 	size_t			len;
 
-	dev = &usb_printer_gadget;
+	if (minor >= minors)
+		return -ENOENT;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
 	dev->pnp_string = pnp_string;
+	dev->minor = minor;
 
 	dev->function.name = shortname;
 	dev->function.bind = printer_func_bind;
@@ -1315,8 +1325,10 @@ static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
 	dev->q_len = q_len;
 
 	status = usb_add_function(c, &dev->function);
-	if (status)
+	if (status) {
+		kfree(dev);
 		return status;
+	}
 	INFO(dev, "%s, version: " DRIVER_VERSION "\n", driver_desc);
 	return 0;
 }
@@ -1335,43 +1347,51 @@ static int __init printer_do_config(struct usb_configuration *c)
 		printer_cfg_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return f_printer_bind_config(c, iPNPstring, pnp_string, QLEN);
-
+	return f_printer_bind_config(c, iPNPstring, pnp_string, QLEN, 0);
 }
 
-static int gprinter_setup(void)
+static int gprinter_setup(int count)
 {
 	int status;
+	dev_t devt;
 
 	usb_gadget_class = class_create(THIS_MODULE, "usb_printer_gadget");
 	if (IS_ERR(usb_gadget_class)) {
 		status = PTR_ERR(usb_gadget_class);
+		usb_gadget_class = NULL;
 		pr_err("unable to create usb_gadget class %d\n", status);
 		return status;
 	}
 
-	status = alloc_chrdev_region(&g_printer_devno, 0, 1,
-			"USB printer gadget");
+	status = alloc_chrdev_region(&devt, 0, count, "USB printer gadget");
 	if (status) {
 		pr_err("alloc_chrdev_region %d\n", status);
 		class_destroy(usb_gadget_class);
+		usb_gadget_class = NULL;
+		return status;
 	}
+
+	major = MAJOR(devt);
+	minors = count;
 
 	return status;
 }
 
-/* must be called with struct printer_dev's lock_printer_io held */
 static void gprinter_cleanup(void)
 {
-	unregister_chrdev_region(g_printer_devno, 1);
+	if (major) {
+		unregister_chrdev_region(MKDEV(major, 0), minors);
+		major = minors = 0;
+	}
 	class_destroy(usb_gadget_class);
+	usb_gadget_class = NULL;
 }
 
 static int __init printer_bind(struct usb_composite_dev *cdev)
 {
 	int ret;
 
-	ret = gprinter_setup();
+	ret = gprinter_setup(PRINTER_MINORS);
 	if (ret)
 		return ret;
 
@@ -1418,9 +1438,7 @@ module_init(init);
 static void __exit
 cleanup(void)
 {
-	mutex_lock(&usb_printer_gadget.lock_printer_io);
 	usb_composite_unregister(&printer_driver);
-	mutex_unlock(&usb_printer_gadget.lock_printer_io);
 }
 module_exit(cleanup);
 
