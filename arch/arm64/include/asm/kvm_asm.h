@@ -27,7 +27,7 @@
 #define	MPIDR_EL1	1	/* MultiProcessor Affinity Register */
 #define	CSSELR_EL1	2	/* Cache Size Selection Register */
 #define	SCTLR_EL1	3	/* System Control Register */
-#define	ACTLR_EL1	4	/* Auxilliary Control Register */
+#define	ACTLR_EL1	4	/* Auxiliary Control Register */
 #define	CPACR_EL1	5	/* Coprocessor Access Control */
 #define	TTBR0_EL1	6	/* Translation Table Base Register 0 */
 #define	TTBR1_EL1	7	/* Translation Table Base Register 1 */
