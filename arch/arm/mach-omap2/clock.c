@@ -122,6 +122,8 @@ static struct ti_clk_ll_ops omap_clk_ll_ops = {
 	.clk_writel = clk_memmap_writel,
 	.clkdm_clk_enable = clkdm_clk_enable,
 	.clkdm_clk_disable = clkdm_clk_disable,
+	.cm_wait_module_ready = omap_cm_wait_module_ready,
+	.cm_split_idlest_reg = cm_split_idlest_reg,
 };
 
 /**
