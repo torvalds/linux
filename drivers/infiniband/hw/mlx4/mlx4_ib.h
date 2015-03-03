@@ -344,11 +344,7 @@ enum mlx4_guid_alias_rec_status {
 	MLX4_GUID_INFO_STATUS_SET,
 };
 
-enum mlx4_guid_alias_rec_ownership {
-	MLX4_GUID_DRIVER_ASSIGN,
-	MLX4_GUID_SYSADMIN_ASSIGN,
-	MLX4_GUID_NONE_ASSIGN, /*init state of each record*/
-};
+#define GUID_STATE_NEED_PORT_INIT 0x01
 
 enum mlx4_guid_alias_rec_method {
 	MLX4_GUID_INFO_RECORD_SET	= IB_MGMT_METHOD_SET,
@@ -359,7 +355,6 @@ struct mlx4_sriov_alias_guid_info_rec_det {
 	u8 all_recs[GUID_REC_SIZE * NUM_ALIAS_GUID_IN_REC];
 	ib_sa_comp_mask guid_indexes; /*indicates what from the 8 records are valid*/
 	enum mlx4_guid_alias_rec_status status; /*indicates the administraively status of the record.*/
-	enum mlx4_guid_alias_rec_ownership ownership; /*indicates who assign that alias_guid record*/
 	unsigned int guids_retry_schedule[NUM_ALIAS_GUID_IN_REC];
 	u64 time_to_run;
 };
@@ -369,6 +364,7 @@ struct mlx4_sriov_alias_guid_port_rec_det {
 	struct workqueue_struct *wq;
 	struct delayed_work alias_guid_work;
 	u8 port;
+	u32 state_flags;
 	struct mlx4_sriov_alias_guid *parent;
 	struct list_head cb_list;
 };

@@ -98,23 +98,6 @@ static ssize_t store_admin_alias_guid(struct device *dev,
 			    mlx4_ib_iov_dentry->entry_num,
 			    port->num);
 
-	switch (sysadmin_ag_val) {
-	case MLX4_GUID_FOR_DELETE_VAL:
-		mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].ownership
-			= MLX4_GUID_SYSADMIN_ASSIGN;
-		break;
-	/* The sysadmin requests the SM to re-assign */
-	case MLX4_NOT_SET_GUID:
-		mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].ownership
-			= MLX4_GUID_DRIVER_ASSIGN;
-		break;
-	/* The sysadmin requests a specific value.*/
-	default:
-		mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].ownership
-			= MLX4_GUID_SYSADMIN_ASSIGN;
-		break;
-	}
-
 	/* set the record index */
 	mdev->sriov.alias_guid.ports_guid[port->num - 1].all_rec_per_port[record_num].guid_indexes
 		|= mlx4_ib_get_aguid_comp_mask_from_ix(guid_index_in_rec);

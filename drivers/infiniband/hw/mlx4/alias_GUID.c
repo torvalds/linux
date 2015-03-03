@@ -298,19 +298,17 @@ static void aliasguid_query_handler(int status,
 		 */
 		if (sm_response == MLX4_NOT_SET_GUID) {
 			if (rec->guids_retry_schedule[i] == 0)
-				mlx4_ib_warn(&dev->ib_dev, "%s:Record num %d in "
-					     "block_num: %d was declined by SM, "
-					     "ownership by %d (0 = driver, 1=sysAdmin,"
-					     " 2=None)\n", __func__, i,
-					     guid_rec->block_num,
-					     rec->ownership);
+				mlx4_ib_warn(&dev->ib_dev,
+					     "%s:Record num %d in  block_num: %d was declined by SM\n",
+					     __func__, i,
+					     guid_rec->block_num);
 			goto entry_declined;
 		} else {
 		       /* properly assigned record. */
 		       /* We save the GUID we just got from the SM in the
 			* admin_guid in order to be persistent, and in the
 			* request from the sm the process will ask for the same GUID */
-			if (rec->ownership == MLX4_GUID_SYSADMIN_ASSIGN &&
+			if (required_val &&
 			    sm_response != required_val) {
 				/* Warn only on first retry */
 				if (rec->guids_retry_schedule[i] == 0)
@@ -416,9 +414,7 @@ static void invalidate_guid_record(struct mlx4_ib_dev *dev, u8 port, int index)
 		need to assign GUIDs, then don't put it up for assignment.
 		*/
 		if (MLX4_GUID_FOR_DELETE_VAL == cur_admin_val ||
-		    (!index && !i) ||
-		    MLX4_GUID_NONE_ASSIGN == dev->sriov.alias_guid.
-		    ports_guid[port - 1].all_rec_per_port[index].ownership)
+		    (!index && !i))
 			continue;
 		comp_mask |= mlx4_ib_get_aguid_comp_mask_from_ix(i);
 	}
@@ -526,6 +522,30 @@ out:
 	return err;
 }
 
+static void mlx4_ib_guid_port_init(struct mlx4_ib_dev *dev, int port)
+{
+	int j, k, entry;
+	__be64 guid;
+
+	/*Check if the SM doesn't need to assign the GUIDs*/
+	for (j = 0; j < NUM_ALIAS_GUID_REC_IN_PORT; j++) {
+		for (k = 0; k < NUM_ALIAS_GUID_IN_REC; k++) {
+			entry = j * NUM_ALIAS_GUID_IN_REC + k;
+			/* no request for the 0 entry (hw guid) */
+			if (!entry || entry > dev->dev->persist->num_vfs ||
+			    !mlx4_is_slave_active(dev->dev, entry))
+				continue;
+			guid = mlx4_get_admin_guid(dev->dev, entry, port);
+			*(__be64 *)&dev->sriov.alias_guid.ports_guid[port - 1].
+				all_rec_per_port[j].all_recs
+				[GUID_REC_SIZE * k] = guid;
+			pr_debug("guid was set, entry=%d, val=0x%llx, port=%d\n",
+				 entry,
+				 be64_to_cpu(guid),
+				 port);
+		}
+	}
+}
 void mlx4_ib_invalidate_all_guid_record(struct mlx4_ib_dev *dev, int port)
 {
 	int i;
@@ -535,6 +555,13 @@ void mlx4_ib_invalidate_all_guid_record(struct mlx4_ib_dev *dev, int port)
 
 	spin_lock_irqsave(&dev->sriov.going_down_lock, flags);
 	spin_lock_irqsave(&dev->sriov.alias_guid.ag_work_lock, flags1);
+
+	if (dev->sriov.alias_guid.ports_guid[port - 1].state_flags &
+		GUID_STATE_NEED_PORT_INIT) {
+		mlx4_ib_guid_port_init(dev, port);
+		dev->sriov.alias_guid.ports_guid[port - 1].state_flags &=
+			(~GUID_STATE_NEED_PORT_INIT);
+	}
 	for (i = 0; i < NUM_ALIAS_GUID_REC_IN_PORT; i++)
 		invalidate_guid_record(dev, port, i);
 
@@ -657,33 +684,6 @@ out:
 	return ret;
 }
 
-static void set_administratively_guid_record(struct mlx4_ib_dev *dev, int port,
-					     int rec_index,
-					     struct mlx4_sriov_alias_guid_info_rec_det *rec_det)
-{
-	dev->sriov.alias_guid.ports_guid[port].all_rec_per_port[rec_index].guid_indexes =
-		rec_det->guid_indexes;
-	memcpy(dev->sriov.alias_guid.ports_guid[port].all_rec_per_port[rec_index].all_recs,
-	       rec_det->all_recs, NUM_ALIAS_GUID_IN_REC * GUID_REC_SIZE);
-}
-
-static void set_all_slaves_guids(struct mlx4_ib_dev *dev, int port)
-{
-	int j;
-	struct mlx4_sriov_alias_guid_info_rec_det rec_det ;
-
-	for (j = 0 ; j < NUM_ALIAS_GUID_REC_IN_PORT ; j++) {
-		memset(rec_det.all_recs, 0, NUM_ALIAS_GUID_IN_REC * GUID_REC_SIZE);
-		rec_det.guid_indexes = (!j ? 0 : IB_SA_GUIDINFO_REC_GID0) |
-			IB_SA_GUIDINFO_REC_GID1 | IB_SA_GUIDINFO_REC_GID2 |
-			IB_SA_GUIDINFO_REC_GID3 | IB_SA_GUIDINFO_REC_GID4 |
-			IB_SA_GUIDINFO_REC_GID5 | IB_SA_GUIDINFO_REC_GID6 |
-			IB_SA_GUIDINFO_REC_GID7;
-		rec_det.status = MLX4_GUID_INFO_STATUS_IDLE;
-		set_administratively_guid_record(dev, port, j, &rec_det);
-	}
-}
-
 static void alias_guid_work(struct work_struct *work)
 {
 	struct delayed_work *delay = to_delayed_work(work);
@@ -779,7 +779,7 @@ int mlx4_ib_init_alias_guid_service(struct mlx4_ib_dev *dev)
 {
 	char alias_wq_name[15];
 	int ret = 0;
-	int i, j, k;
+	int i, j;
 	union ib_gid gid;
 
 	if (!mlx4_is_master(dev->dev))
@@ -803,33 +803,25 @@ int mlx4_ib_init_alias_guid_service(struct mlx4_ib_dev *dev)
 	for (i = 0 ; i < dev->num_ports; i++) {
 		memset(&dev->sriov.alias_guid.ports_guid[i], 0,
 		       sizeof (struct mlx4_sriov_alias_guid_port_rec_det));
-		/*Check if the SM doesn't need to assign the GUIDs*/
+		dev->sriov.alias_guid.ports_guid[i].state_flags |=
+				GUID_STATE_NEED_PORT_INIT;
 		for (j = 0; j < NUM_ALIAS_GUID_REC_IN_PORT; j++) {
-			if (mlx4_ib_sm_guid_assign) {
-				dev->sriov.alias_guid.ports_guid[i].
-					all_rec_per_port[j].
-					ownership = MLX4_GUID_DRIVER_ASSIGN;
-				continue;
-			}
-			dev->sriov.alias_guid.ports_guid[i].all_rec_per_port[j].
-					ownership = MLX4_GUID_NONE_ASSIGN;
-			/*mark each val as it was deleted,
-			  till the sysAdmin will give it valid val*/
-			for (k = 0; k < NUM_ALIAS_GUID_IN_REC; k++) {
-				*(__be64 *)&dev->sriov.alias_guid.ports_guid[i].
-					all_rec_per_port[j].all_recs[GUID_REC_SIZE * k] =
-						cpu_to_be64(MLX4_GUID_FOR_DELETE_VAL);
-			}
+			/* mark each val as it was deleted */
+			memset(dev->sriov.alias_guid.ports_guid[i].
+				all_rec_per_port[j].all_recs, 0xFF,
+				sizeof(dev->sriov.alias_guid.ports_guid[i].
+				all_rec_per_port[j].all_recs));
 		}
 		INIT_LIST_HEAD(&dev->sriov.alias_guid.ports_guid[i].cb_list);
 		/*prepare the records, set them to be allocated by sm*/
+		if (mlx4_ib_sm_guid_assign)
+			for (j = 1; j < NUM_ALIAS_GUID_PER_PORT; j++)
+				mlx4_set_admin_guid(dev->dev, 0, j, i + 1);
 		for (j = 0 ; j < NUM_ALIAS_GUID_REC_IN_PORT; j++)
 			invalidate_guid_record(dev, i + 1, j);
 
 		dev->sriov.alias_guid.ports_guid[i].parent = &dev->sriov.alias_guid;
 		dev->sriov.alias_guid.ports_guid[i].port  = i;
-		if (mlx4_ib_sm_guid_assign)
-			set_all_slaves_guids(dev, i);
 
 		snprintf(alias_wq_name, sizeof alias_wq_name, "alias_guid%d", i);
 		dev->sriov.alias_guid.ports_guid[i].wq =
