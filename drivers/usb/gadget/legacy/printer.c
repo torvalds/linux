@@ -1190,6 +1190,9 @@ static int __init printer_bind_config(struct usb_configuration *c)
 	dev->function.unbind = printer_func_unbind;
 	dev->function.set_alt = printer_func_set_alt;
 	dev->function.disable = printer_func_disable;
+	INIT_LIST_HEAD(&dev->tx_reqs);
+	INIT_LIST_HEAD(&dev->rx_reqs);
+	INIT_LIST_HEAD(&dev->rx_buffers);
 
 	status = usb_add_function(c, &dev->function);
 	if (status)
@@ -1233,11 +1236,8 @@ static int __init printer_bind_config(struct usb_configuration *c)
 
 	spin_lock_init(&dev->lock);
 	mutex_init(&dev->lock_printer_io);
-	INIT_LIST_HEAD(&dev->tx_reqs);
 	INIT_LIST_HEAD(&dev->tx_reqs_active);
-	INIT_LIST_HEAD(&dev->rx_reqs);
 	INIT_LIST_HEAD(&dev->rx_reqs_active);
-	INIT_LIST_HEAD(&dev->rx_buffers);
 	init_waitqueue_head(&dev->rx_wait);
 	init_waitqueue_head(&dev->tx_wait);
 	init_waitqueue_head(&dev->tx_flush_wait);
