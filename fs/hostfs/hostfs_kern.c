@@ -105,11 +105,10 @@ static char *__dentry_name(struct dentry *dentry, char *name)
 		__putname(name);
 		return NULL;
 	}
-	if (p > name + len) {
-		char *s = name + len;
-		while ((*s++ = *p++) != '\0')
-			;
-	}
+
+	if (p > name + len)
+		strcpy(name + len, p);
+
 	return name;
 }
 
