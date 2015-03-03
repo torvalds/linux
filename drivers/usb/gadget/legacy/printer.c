@@ -1156,43 +1156,11 @@ fail_tx_reqs:
 static void printer_func_unbind(struct usb_configuration *c,
 		struct usb_function *f)
 {
-	usb_free_all_descriptors(f);
-}
-
-static int printer_func_set_alt(struct usb_function *f,
-		unsigned intf, unsigned alt)
-{
-	struct printer_dev *dev = container_of(f, struct printer_dev, function);
-	int ret = -ENOTSUPP;
-
-	if (!alt)
-		ret = set_interface(dev, intf);
-
-	return ret;
-}
-
-static void printer_func_disable(struct usb_function *f)
-{
-	struct printer_dev *dev = container_of(f, struct printer_dev, function);
-	unsigned long		flags;
-
-	DBG(dev, "%s\n", __func__);
-
-	spin_lock_irqsave(&dev->lock, flags);
-	printer_reset_interface(dev);
-	spin_unlock_irqrestore(&dev->lock, flags);
-}
-
-static void printer_cfg_unbind(struct usb_configuration *c)
-{
 	struct printer_dev	*dev;
 	struct usb_request	*req;
 
 	dev = &usb_printer_gadget;
 
-	DBG(dev, "%s\n", __func__);
-
-	/* Remove sysfs files */
 	device_destroy(usb_gadget_class, g_printer_devno);
 
 	/* Remove Character Device */
@@ -1226,11 +1194,35 @@ static void printer_cfg_unbind(struct usb_configuration *c)
 		list_del(&req->list);
 		printer_req_free(dev->out_ep, req);
 	}
+	usb_free_all_descriptors(f);
+}
+
+static int printer_func_set_alt(struct usb_function *f,
+		unsigned intf, unsigned alt)
+{
+	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	int ret = -ENOTSUPP;
+
+	if (!alt)
+		ret = set_interface(dev, intf);
+
+	return ret;
+}
+
+static void printer_func_disable(struct usb_function *f)
+{
+	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	unsigned long		flags;
+
+	DBG(dev, "%s\n", __func__);
+
+	spin_lock_irqsave(&dev->lock, flags);
+	printer_reset_interface(dev);
+	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
 static struct usb_configuration printer_cfg_driver = {
 	.label			= "printer",
-	.unbind			= printer_cfg_unbind,
 	.bConfigurationValue	= 1,
 	.bmAttributes		= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
 };
