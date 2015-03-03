@@ -2706,20 +2706,16 @@ static int talitos_probe(struct platform_device *ofdev)
 		goto err_out;
 	}
 
+	priv->fifo_len = roundup_pow_of_two(priv->chfifo_len);
+
 	for (i = 0; i < priv->num_channels; i++) {
 		priv->chan[i].reg = priv->reg + TALITOS_CH_STRIDE * (i + 1);
 		if (!priv->irq[1] || !(i & 1))
 			priv->chan[i].reg += TALITOS_CH_BASE_OFFSET;
-	}
 
-	for (i = 0; i < priv->num_channels; i++) {
 		spin_lock_init(&priv->chan[i].head_lock);
 		spin_lock_init(&priv->chan[i].tail_lock);
-	}
 
-	priv->fifo_len = roundup_pow_of_two(priv->chfifo_len);
-
-	for (i = 0; i < priv->num_channels; i++) {
 		priv->chan[i].fifo = kzalloc(sizeof(struct talitos_request) *
 					     priv->fifo_len, GFP_KERNEL);
 		if (!priv->chan[i].fifo) {
@@ -2727,11 +2723,10 @@ static int talitos_probe(struct platform_device *ofdev)
 			err = -ENOMEM;
 			goto err_out;
 		}
-	}
 
-	for (i = 0; i < priv->num_channels; i++)
 		atomic_set(&priv->chan[i].submit_count,
 			   -(priv->chfifo_len - 1));
+	}
 
 	dma_set_mask(dev, DMA_BIT_MASK(36));
 
