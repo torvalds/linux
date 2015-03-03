@@ -1285,6 +1285,7 @@ static int __init printer_bind_config(struct usb_configuration *c)
 
 fail:
 	printer_cfg_unbind(c);
+	usb_remove_function(c, &dev->function);
 	return status;
 }
 
