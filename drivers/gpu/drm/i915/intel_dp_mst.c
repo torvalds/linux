@@ -58,7 +58,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	pipe_config->pipe_bpp = 24;
 	pipe_config->port_clock = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
 
-	list_for_each_entry(intel_connector, &dev->mode_config.connector_list, base.head) {
+	for_each_intel_connector(dev, intel_connector) {
 		if (intel_connector->new_encoder == encoder) {
 			found = intel_connector;
 			break;
@@ -140,7 +140,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	struct drm_crtc *crtc = encoder->base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	list_for_each_entry(intel_connector, &dev->mode_config.connector_list, base.head) {
+	for_each_intel_connector(dev, intel_connector) {
 		if (intel_connector->new_encoder == encoder) {
 			found = intel_connector;
 			break;

@@ -243,6 +243,12 @@ enum hpd_pin {
 			    &(dev)->mode_config.encoder_list,	\
 			    base.head)
 
+#define for_each_intel_connector(dev, intel_connector)		\
+	list_for_each_entry(intel_connector,			\
+			    &dev->mode_config.connector_list,	\
+			    base.head)
+
+
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
 		if ((intel_encoder)->base.crtc == (__crtc))

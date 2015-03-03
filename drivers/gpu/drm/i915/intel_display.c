@@ -10014,8 +10014,7 @@ static void intel_modeset_update_staged_output_state(struct drm_device *dev)
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		connector->new_encoder =
 			to_intel_encoder(connector->base.encoder);
 	}
@@ -10046,8 +10045,7 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		connector->base.encoder = &connector->new_encoder->base;
 	}
 
@@ -10135,8 +10133,7 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 	pipe_config->pipe_bpp = bpp;
 
 	/* Clamp display bpp to EDID value */
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		if (!connector->new_encoder ||
 		    connector->new_encoder->new_crtc != crtc)
 			continue;
@@ -10263,8 +10260,7 @@ static bool check_digital_port_conflicts(struct drm_device *dev)
 	 * list to detect the problem on ddi platforms
 	 * where there's just one encoder per digital port.
 	 */
-	list_for_each_entry(connector,
-			    &dev->mode_config.connector_list, base.head) {
+	for_each_intel_connector(dev, connector) {
 		struct intel_encoder *encoder = connector->new_encoder;
 
 		if (!encoder)
@@ -10437,8 +10433,7 @@ intel_modeset_affected_pipes(struct drm_crtc *crtc, unsigned *modeset_pipes,
 	 * to be part of the prepare_pipes mask. We don't (yet) support global
 	 * modeset across multiple crtcs, so modeset_pipes will only have one
 	 * bit set at most. */
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		if (connector->base.encoder == &connector->new_encoder->base)
 			continue;
 
@@ -10841,8 +10836,7 @@ check_connector_state(struct drm_device *dev)
 {
 	struct intel_connector *connector;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		/* This also checks the encoder/connector hw state with the
 		 * ->get_hw_state callbacks. */
 		intel_connector_check_state(connector);
@@ -10872,8 +10866,7 @@ check_encoder_state(struct drm_device *dev)
 		I915_STATE_WARN(encoder->connectors_active && !encoder->base.crtc,
 		     "encoder's active_connectors set, but no crtc\n");
 
-		list_for_each_entry(connector, &dev->mode_config.connector_list,
-				    base.head) {
+		for_each_intel_connector(dev, connector) {
 			if (connector->base.encoder != &encoder->base)
 				continue;
 			enabled = true;
@@ -11394,7 +11387,7 @@ static void intel_set_config_restore_state(struct drm_device *dev,
 	}
 
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head) {
+	for_each_intel_connector(dev, connector) {
 		connector->new_encoder =
 			to_intel_encoder(config->save_connector_encoders[count++]);
 	}
@@ -11486,8 +11479,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	WARN_ON(!set->fb && (set->num_connectors != 0));
 	WARN_ON(set->fb && (set->num_connectors == 0));
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		/* Otherwise traverse passed in connector list and get encoders
 		 * for them. */
 		for (ro = 0; ro < set->num_connectors; ro++) {
@@ -11519,8 +11511,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	/* connector->new_encoder is now updated for all connectors. */
 
 	/* Update crtc of enabled connectors. */
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		struct drm_crtc *new_crtc;
 
 		if (!connector->new_encoder)
@@ -11549,9 +11540,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	/* Check for any encoders that needs to be disabled. */
 	for_each_intel_encoder(dev, encoder) {
 		int num_connectors = 0;
-		list_for_each_entry(connector,
-				    &dev->mode_config.connector_list,
-				    base.head) {
+		for_each_intel_connector(dev, connector) {
 			if (connector->new_encoder == encoder) {
 				WARN_ON(!connector->new_encoder->new_crtc);
 				num_connectors++;
@@ -11571,8 +11560,7 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		}
 	}
 	/* Now we've also updated encoder->new_crtc for all encoders. */
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		if (connector->new_encoder)
 			if (connector->new_encoder != connector->encoder)
 				connector->encoder = connector->new_encoder;
@@ -11611,7 +11599,7 @@ static void disable_crtc_nofb(struct intel_crtc *crtc)
 	DRM_DEBUG_KMS("Trying to restore without FB -> disabling pipe %c\n",
 		      pipe_name(crtc->pipe));
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head) {
+	for_each_intel_connector(dev, connector) {
 		if (connector->new_encoder &&
 		    connector->new_encoder->new_crtc == crtc)
 			connector->new_encoder = NULL;
@@ -13419,9 +13407,7 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 	/* We can't just switch on the pipe A, we need to set things up with a
 	 * proper mode and output configuration. As a gross hack, enable pipe A
 	 * by enabling the load detect pipe once. */
-	list_for_each_entry(connector,
-			    &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		if (connector->encoder->type == INTEL_OUTPUT_ANALOG) {
 			crt = &connector->base;
 			break;
@@ -13492,8 +13478,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		crtc->plane = plane;
 
 		/* ... and break all links. */
-		list_for_each_entry(connector, &dev->mode_config.connector_list,
-				    base.head) {
+		for_each_intel_connector(dev, connector) {
 			if (connector->encoder->base.crtc != &crtc->base)
 				continue;
 
@@ -13502,8 +13487,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		}
 		/* multiple connectors may have the same encoder:
 		 *  handle them and break crtc link separately */
-		list_for_each_entry(connector, &dev->mode_config.connector_list,
-				    base.head)
+		for_each_intel_connector(dev, connector)
 			if (connector->encoder->base.crtc == &crtc->base) {
 				connector->encoder->base.crtc = NULL;
 				connector->encoder->connectors_active = false;
@@ -13607,9 +13591,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 		 * a bug in one of the get_hw_state functions. Or someplace else
 		 * in our code, like the register restore mess on resume. Clamp
 		 * things to off as a safer default. */
-		list_for_each_entry(connector,
-				    &dev->mode_config.connector_list,
-				    base.head) {
+		for_each_intel_connector(dev, connector) {
 			if (connector->encoder != encoder)
 				continue;
 			connector->base.dpms = DRM_MODE_DPMS_OFF;
@@ -13724,8 +13706,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			      pipe_name(pipe));
 	}
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_connector(dev, connector) {
 		if (connector->get_hw_state(connector)) {
 			connector->base.dpms = DRM_MODE_DPMS_ON;
 			connector->encoder->connectors_active = true;
