@@ -1241,21 +1241,11 @@ static void omap_hsmmc_protect_card(struct omap_hsmmc_host *host)
 static irqreturn_t omap_hsmmc_cover_irq(int irq, void *dev_id)
 {
 	struct omap_hsmmc_host *host = dev_id;
-	int carddetect;
 
 	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
 
-	if (host->card_detect) {
-		carddetect = host->card_detect(host->dev);
-	} else {
-		omap_hsmmc_protect_card(host);
-		carddetect = -ENOSYS;
-	}
-
-	if (carddetect)
-		mmc_detect_change(host->mmc, (HZ * 200) / 1000);
-	else
-		mmc_detect_change(host->mmc, (HZ * 50) / 1000);
+	omap_hsmmc_protect_card(host);
+	mmc_detect_change(host->mmc, (HZ * 200) / 1000);
 	return IRQ_HANDLED;
 }
 
@@ -1265,19 +1255,8 @@ static irqreturn_t omap_hsmmc_cover_irq(int irq, void *dev_id)
 static irqreturn_t omap_hsmmc_detect(int irq, void *dev_id)
 {
 	struct omap_hsmmc_host *host = dev_id;
-	int carddetect;
 
-	if (host->card_detect)
-		carddetect = host->card_detect(host->dev);
-	else {
-		omap_hsmmc_protect_card(host);
-		carddetect = -ENOSYS;
-	}
-
-	if (carddetect)
-		mmc_detect_change(host->mmc, (HZ * 200) / 1000);
-	else
-		mmc_detect_change(host->mmc, (HZ * 50) / 1000);
+	mmc_detect_change(host->mmc, (HZ * 200) / 1000);
 	return IRQ_HANDLED;
 }
 
