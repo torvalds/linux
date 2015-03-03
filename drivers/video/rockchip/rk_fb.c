@@ -3757,7 +3757,6 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			return 0;
 		} else {
 			if (dev_drv->iommu_enabled) {
-				rk_fb_poll_wait_frame_complete();
 				if (dev_drv->ops->mmu_en)
 					dev_drv->ops->mmu_en(dev_drv);
 				freed_index = 0;
