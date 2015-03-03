@@ -56,6 +56,12 @@ Optional properties:
     input singals. If values less than the number of input signals, elements
     that has not been specifed are set to 0 by default.
 
+  - wlf,dmic-ref : DMIC reference voltage source for each input, can be
+    selected from either MICVDD or one of the MICBIAS's, defines
+    (ARIZONA_DMIC_xxxx) are provided in <dt-bindings/mfd/arizona.txt>. If
+    present, the number of values should be less than or equal to the
+    number of inputs, unspecified inputs will use the chip default.
+
   - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
     they are being externally supplied. As covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
