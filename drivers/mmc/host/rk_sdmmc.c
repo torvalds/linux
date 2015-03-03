@@ -3878,10 +3878,9 @@ int dw_mci_probe(struct dw_mci *host)
 	host->hpclk_mmc= devm_clk_get(host->dev, "hpclk_mmc");
 	if (IS_ERR(host->hpclk_mmc)) {
 		dev_err(host->dev, "failed to get hpclk_mmc\n");
-		ret = PTR_ERR(host->hpclk_mmc);
-		goto err_hpclk_mmc;
+	} else {
+		clk_prepare_enable(host->hpclk_mmc);
 	}
-	clk_prepare_enable(host->hpclk_mmc);
 
         //hclk enable
         host->hclk_mmc= devm_clk_get(host->dev, "hclk_mmc");
@@ -4083,9 +4082,6 @@ err_clk_mmc:
 err_hclk_mmc:
 	if (!IS_ERR(host->hclk_mmc))
 		clk_disable_unprepare(host->hclk_mmc);
-err_hpclk_mmc:
-	if (!IS_ERR(host->hpclk_mmc))
-		clk_disable_unprepare(host->hpclk_mmc);
 	return ret;
 }
 EXPORT_SYMBOL(dw_mci_probe);
