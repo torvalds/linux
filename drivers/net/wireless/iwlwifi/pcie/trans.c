@@ -930,7 +930,6 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 {
 	int ret = 0;
 	int first_ucode_section;
-	u32 reg;
 
 	IWL_DEBUG_FW(trans, "working with %s CPU\n",
 		     image->is_dual_cpus ? "Dual" : "Single");
@@ -958,20 +957,6 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 					       &first_ucode_section);
 	if (ret)
 		return ret;
-
-	/* wait for image verification to complete  */
-	ret = iwl_poll_prph_bit(trans, LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0,
-				LMPM_SECURE_BOOT_STATUS_SUCCESS,
-				LMPM_SECURE_BOOT_STATUS_SUCCESS,
-				LMPM_SECURE_TIME_OUT);
-	if (ret < 0) {
-		reg = iwl_read_prph(trans,
-				    LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0);
-
-		IWL_ERR(trans, "Timeout on secure boot process, reg = %x\n",
-			reg);
-		return ret;
-	}
 
 	return 0;
 }
