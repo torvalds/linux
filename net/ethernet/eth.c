@@ -104,7 +104,7 @@ int eth_header(struct sk_buff *skb, struct net_device *dev,
 	 */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		memset(eth->h_dest, 0, ETH_ALEN);
+		eth_zero_addr(eth->h_dest);
 		return ETH_HLEN;
 	}
 
@@ -357,7 +357,7 @@ void ether_setup(struct net_device *dev)
 	dev->flags		= IFF_BROADCAST|IFF_MULTICAST;
 	dev->priv_flags		|= IFF_TX_SKB_SHARING;
 
-	memset(dev->broadcast, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(dev->broadcast);
 
 }
 EXPORT_SYMBOL(ether_setup);
