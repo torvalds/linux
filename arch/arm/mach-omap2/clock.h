@@ -180,10 +180,6 @@ struct clksel {
 #define OMAP4XXX_EN_DPLL_FRBYPASS		0x6
 #define OMAP4XXX_EN_DPLL_LOCKED			0x7
 
-u32 omap3_dpll_autoidle_read(struct clk_hw_omap *clk);
-void omap3_dpll_allow_idle(struct clk_hw_omap *clk);
-void omap3_dpll_deny_idle(struct clk_hw_omap *clk);
-
 void __init omap2_clk_disable_clkdm_control(void);
 
 void omap2_clk_print_new_rates(const char *hfclkin_ck_name,

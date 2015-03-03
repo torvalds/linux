@@ -189,15 +189,11 @@ obj-$(CONFIG_SOC_OMAP2430)		+= clock2430.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o clkt34xx_dpll3m2.o
 obj-$(CONFIG_ARCH_OMAP3)		+= clock3517.o
-obj-$(CONFIG_ARCH_OMAP3)		+= dpll3xxx.o
 obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common)
-obj-$(CONFIG_ARCH_OMAP4)		+= dpll3xxx.o
-obj-$(CONFIG_SOC_AM33XX)		+= $(clock-common) dpll3xxx.o
+obj-$(CONFIG_SOC_AM33XX)		+= $(clock-common)
 obj-$(CONFIG_SOC_OMAP5)			+= $(clock-common)
-obj-$(CONFIG_SOC_OMAP5)			+= dpll3xxx.o
 obj-$(CONFIG_SOC_DRA7XX)		+= $(clock-common)
-obj-$(CONFIG_SOC_DRA7XX)		+= dpll3xxx.o
-obj-$(CONFIG_SOC_AM43XX)		+= $(clock-common) dpll3xxx.o
+obj-$(CONFIG_SOC_AM43XX)		+= $(clock-common)
 
 # OMAP2 clock rate set data (old "OPP" data)
 obj-$(CONFIG_SOC_OMAP2420)		+= opp2420_data.o
