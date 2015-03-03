@@ -574,7 +574,6 @@ struct dma_tx_state {
  * @copy_align: alignment shift for memcpy operations
  * @xor_align: alignment shift for xor operations
  * @pq_align: alignment shift for pq operations
- * @fill_align: alignment shift for memset operations
  * @dev_id: unique device ID
  * @dev: struct device reference for dma mapping api
  * @src_addr_widths: bit mask of src addr widths the device supports
@@ -625,7 +624,6 @@ struct dma_device {
 	u8 copy_align;
 	u8 xor_align;
 	u8 pq_align;
-	u8 fill_align;
 	#define DMA_HAS_PQ_CONTINUE (1 << 15)
 
 	int dev_id;
@@ -824,12 +822,6 @@ static inline bool is_dma_pq_aligned(struct dma_device *dev, size_t off1,
 				     size_t off2, size_t len)
 {
 	return dmaengine_check_align(dev->pq_align, off1, off2, len);
-}
-
-static inline bool is_dma_fill_aligned(struct dma_device *dev, size_t off1,
-				       size_t off2, size_t len)
-{
-	return dmaengine_check_align(dev->fill_align, off1, off2, len);
 }
 
 static inline void
