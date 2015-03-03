@@ -331,8 +331,6 @@ void ti_clk_setup_features(struct ti_clk_features *features);
 const struct ti_clk_features *ti_clk_get_features(void);
 
 extern const struct clk_hw_omap_ops clkhwops_omap2xxx_dpll;
-extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_module_wait;
-extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_wait;
 
 #ifdef CONFIG_ATAGS
 int omap3430_clk_legacy_init(void);
