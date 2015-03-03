@@ -45,6 +45,7 @@ obj-$(CONFIG_DMA_JZ4780) += dma-jz4780.o
 obj-$(CONFIG_TI_CPPI41) += cppi41.o
 obj-$(CONFIG_K3_DMA) += k3dma.o
 obj-$(CONFIG_MOXART_DMA) += moxart-dma.o
+obj-$(CONFIG_FSL_RAID) += fsl_raid.o
 obj-$(CONFIG_FSL_EDMA) += fsl-edma.o
 obj-$(CONFIG_QCOM_BAM_DMA) += qcom_bam_dma.o
 obj-y += xilinx/

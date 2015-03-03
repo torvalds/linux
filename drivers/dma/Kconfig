@@ -125,6 +125,17 @@ config FSL_DMA
 	  EloPlus is on mpc85xx and mpc86xx and Pxxx parts, and the Elo3 is on
 	  some Txxx and Bxxx parts.
 
+config FSL_RAID
+        tristate "Freescale RAID engine Support"
+        depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
+        select DMA_ENGINE
+        select DMA_ENGINE_RAID
+        ---help---
+          Enable support for Freescale RAID Engine. RAID Engine is
+          available on some QorIQ SoCs (like P5020/P5040). It has
+          the capability to offload memcpy, xor and pq computation
+	  for raid5/6.
+
 config MPC512X_DMA
 	tristate "Freescale MPC512x built-in DMA engine support"
 	depends on PPC_MPC512x || PPC_MPC831x
