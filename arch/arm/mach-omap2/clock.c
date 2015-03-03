@@ -120,6 +120,8 @@ u32 omap2_clk_readl(struct clk_hw_omap *clk, void __iomem *reg)
 static struct ti_clk_ll_ops omap_clk_ll_ops = {
 	.clk_readl = clk_memmap_readl,
 	.clk_writel = clk_memmap_writel,
+	.clkdm_clk_enable = clkdm_clk_enable,
+	.clkdm_clk_disable = clkdm_clk_disable,
 };
 
 /**

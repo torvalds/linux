@@ -238,18 +238,24 @@ struct clk_omap_reg {
 };
 
 /**
- * struct ti_clk_ll_ops - low-level register access ops for a clock
+ * struct ti_clk_ll_ops - low-level ops for clocks
  * @clk_readl: pointer to register read function
  * @clk_writel: pointer to register write function
+ * @clkdm_clk_enable: pointer to clockdomain enable function
+ * @clkdm_clk_disable: pointer to clockdomain disable function
  *
- * Low-level register access ops are generally used by the basic clock types
- * (clk-gate, clk-mux, clk-divider etc.) to provide support for various
- * low-level hardware interfaces (direct MMIO, regmap etc.), but can also be
- * used by other hardware-specific clock drivers if needed.
+ * Low-level ops are generally used by the basic clock types (clk-gate,
+ * clk-mux, clk-divider etc.) to provide support for various low-level
+ * hadrware interfaces (direct MMIO, regmap etc.), and is initialized
+ * by board code. Low-level ops also contain some other platform specific
+ * operations not provided directly by clock drivers.
  */
 struct ti_clk_ll_ops {
 	u32	(*clk_readl)(void __iomem *reg);
 	void	(*clk_writel)(u32 val, void __iomem *reg);
+	int	(*clkdm_clk_enable)(struct clockdomain *clkdm, struct clk *clk);
+	int	(*clkdm_clk_disable)(struct clockdomain *clkdm,
+				     struct clk *clk);
 };
 
 extern struct ti_clk_ll_ops *ti_clk_ll_ops;
