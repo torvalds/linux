@@ -2196,7 +2196,7 @@ static struct board_t *dgap_found_board(struct pci_dev *pdev, int id,
 	 * will be mapped into the low 2MB of the 4MB memory space
 	 */
 	brd->port = brd->membase + PCI_IO_OFFSET;
-	brd->port_end = brd->port + PCI_IO_SIZE;
+	brd->port_end = brd->port + PCI_IO_SIZE_DGAP;
 
 	/*
 	 * Special initialization for non-PLX boards
