@@ -609,13 +609,28 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	return 1;
 }
 
+static int rbio_stripe_page_index(struct btrfs_raid_bio *rbio, int stripe,
+				  int index)
+{
+	return stripe * rbio->stripe_npages + index;
+}
+
+/*
+ * these are just the pages from the rbio array, not from anything
+ * the FS sent down to us
+ */
+static struct page *rbio_stripe_page(struct btrfs_raid_bio *rbio, int stripe,
+				     int index)
+{
+	return rbio->stripe_pages[rbio_stripe_page_index(rbio, stripe, index)];
+}
+
 /*
  * helper to index into the pstripe
  */
 static struct page *rbio_pstripe_page(struct btrfs_raid_bio *rbio, int index)
 {
-	index += (rbio->nr_data * rbio->stripe_len) >> PAGE_CACHE_SHIFT;
-	return rbio->stripe_pages[index];
+	return rbio_stripe_page(rbio, rbio->nr_data, index);
 }
 
 /*
@@ -626,10 +641,7 @@ static struct page *rbio_qstripe_page(struct btrfs_raid_bio *rbio, int index)
 {
 	if (rbio->nr_data + 1 == rbio->real_stripes)
 		return NULL;
-
-	index += ((rbio->nr_data + 1) * rbio->stripe_len) >>
-		PAGE_CACHE_SHIFT;
-	return rbio->stripe_pages[index];
+	return rbio_stripe_page(rbio, rbio->nr_data + 1, index);
 }
 
 /*
@@ -947,8 +959,7 @@ static struct page *page_in_rbio(struct btrfs_raid_bio *rbio,
  */
 static unsigned long rbio_nr_pages(unsigned long stripe_len, int nr_stripes)
 {
-	unsigned long nr = stripe_len * nr_stripes;
-	return DIV_ROUND_UP(nr, PAGE_CACHE_SIZE);
+	return DIV_ROUND_UP(stripe_len, PAGE_CACHE_SIZE) * nr_stripes;
 }
 
 /*
@@ -1026,13 +1037,13 @@ static int alloc_rbio_pages(struct btrfs_raid_bio *rbio)
 	return 0;
 }
 
-/* allocate pages for just the p/q stripes */
+/* only allocate pages for p/q stripes */
 static int alloc_rbio_parity_pages(struct btrfs_raid_bio *rbio)
 {
 	int i;
 	struct page *page;
 
-	i = (rbio->nr_data * rbio->stripe_len) >> PAGE_CACHE_SHIFT;
+	i = rbio_stripe_page_index(rbio, rbio->nr_data, 0);
 
 	for (; i < rbio->nr_pages; i++) {
 		if (rbio->stripe_pages[i])
@@ -1118,18 +1129,6 @@ static void validate_rbio_for_rmw(struct btrfs_raid_bio *rbio)
 	} else {
 		finish_rmw(rbio);
 	}
-}
-
-/*
- * these are just the pages from the rbio array, not from anything
- * the FS sent down to us
- */
-static struct page *rbio_stripe_page(struct btrfs_raid_bio *rbio, int stripe, int page)
-{
-	int index;
-	index = stripe * (rbio->stripe_len >> PAGE_CACHE_SHIFT);
-	index += page;
-	return rbio->stripe_pages[index];
 }
 
 /*
