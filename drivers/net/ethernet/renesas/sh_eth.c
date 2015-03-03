@@ -1543,7 +1543,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	/* If we don't need to check status, don't. -KDU */
 	if (!(sh_eth_read(ndev, EDRRR) & EDRRR_R)) {
 		/* fix the values for the next receiving if RDE is set */
-		if (intr_status & EESR_RDE) {
+		if (intr_status & EESR_RDE && mdp->reg_offset[RDFAR] != 0) {
 			u32 count = (sh_eth_read(ndev, RDFAR) -
 				     sh_eth_read(ndev, RDLAR)) >> 4;
 
