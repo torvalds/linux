@@ -186,7 +186,7 @@ static void __init kirkwood_dt_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, auxdata, NULL);
 }
 
-static const char * const kirkwood_dt_board_compat[] = {
+static const char * const kirkwood_dt_board_compat[] __initconst = {
 	"marvell,kirkwood",
 	NULL
 };
