@@ -501,7 +501,7 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 
 	/* if inline_data is set, should not report any block indices */
 	if (f2fs_has_inline_data(dn->inode) && index) {
-		err = -EINVAL;
+		err = -ENOENT;
 		f2fs_put_page(npage[0], 1);
 		goto release_out;
 	}
