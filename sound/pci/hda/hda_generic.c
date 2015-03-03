@@ -654,7 +654,7 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 	int type = get_wcaps_type(get_wcaps(codec, nid));
 	int i, n;
 
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		return true;
 
 	for (n = 0; n < spec->paths.used; n++) {
@@ -832,7 +832,7 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 
 	for (i = 0; i < path->depth; i++) {
 		nid = path->path[i];
-		if (nid == codec->afg)
+		if (nid == codec->core.afg)
 			continue;
 		if (!allow_powerdown || is_active_nid_for_any(codec, nid))
 			state = AC_PWRST_D0;
@@ -1897,12 +1897,11 @@ static void debug_show_configs(struct hda_codec *codec,
 static void fill_all_dac_nids(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	int i;
-	hda_nid_t nid = codec->start_nid;
+	hda_nid_t nid;
 
 	spec->num_all_dacs = 0;
 	memset(spec->all_dacs, 0, sizeof(spec->all_dacs));
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_AUD_OUT)
 			continue;
 		if (spec->num_all_dacs >= ARRAY_SIZE(spec->all_dacs)) {
@@ -3067,10 +3066,9 @@ static int fill_adc_nids(struct hda_codec *codec)
 	hda_nid_t nid;
 	hda_nid_t *adc_nids = spec->adc_nids;
 	int max_nums = ARRAY_SIZE(spec->adc_nids);
-	int i, nums = 0;
+	int nums = 0;
 
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		unsigned int caps = get_wcaps(codec, nid);
 		int type = get_wcaps_type(caps);
 
@@ -3864,8 +3862,7 @@ static void parse_digital(struct hda_codec *codec)
 
 	if (spec->autocfg.dig_in_pin) {
 		pin = spec->autocfg.dig_in_pin;
-		dig_nid = codec->start_nid;
-		for (i = 0; i < codec->num_nodes; i++, dig_nid++) {
+		for_each_hda_codec_node(dig_nid, codec) {
 			unsigned int wcaps = get_wcaps(codec, dig_nid);
 			if (get_wcaps_type(wcaps) != AC_WID_AUD_IN)
 				continue;
@@ -4706,7 +4703,7 @@ unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 						  hda_nid_t nid,
 						  unsigned int power_state)
 {
-	if (power_state != AC_PWRST_D0 || nid == codec->afg)
+	if (power_state != AC_PWRST_D0 || nid == codec->core.afg)
 		return power_state;
 	if (get_wcaps_type(get_wcaps(codec, nid)) >= AC_WID_POWER)
 		return power_state;
@@ -5478,7 +5475,7 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 
 	fill_pcm_stream_name(spec->stream_name_analog,
 			     sizeof(spec->stream_name_analog),
-			     " Analog", codec->chip_name);
+			     " Analog", codec->core.chip_name);
 	info = snd_hda_codec_pcm_new(codec, "%s", spec->stream_name_analog);
 	if (!info)
 		return -ENOMEM;
@@ -5509,7 +5506,7 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		fill_pcm_stream_name(spec->stream_name_digital,
 				     sizeof(spec->stream_name_digital),
-				     " Digital", codec->chip_name);
+				     " Digital", codec->core.chip_name);
 		info = snd_hda_codec_pcm_new(codec, "%s",
 					     spec->stream_name_digital);
 		if (!info)
@@ -5544,7 +5541,7 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	if (spec->alt_dac_nid || have_multi_adcs) {
 		fill_pcm_stream_name(spec->stream_name_alt_analog,
 				     sizeof(spec->stream_name_alt_analog),
-			     " Alt Analog", codec->chip_name);
+			     " Alt Analog", codec->core.chip_name);
 		info = snd_hda_codec_pcm_new(codec, "%s",
 					     spec->stream_name_alt_analog);
 		if (!info)

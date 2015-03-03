@@ -515,15 +515,18 @@ int snd_hda_codec_get_pin_target(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_codec_set_pin_target(struct hda_codec *codec, hda_nid_t nid,
 				 unsigned int val);
 
+#define for_each_hda_codec_node(nid, codec) \
+	for ((nid) = (codec)->core.start_nid; (nid) < (codec)->core.end_nid; (nid)++)
+
 /*
  * get widget capabilities
  */
 static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
 {
-	if (nid < codec->start_nid ||
-	    nid >= codec->start_nid + codec->num_nodes)
+	if (nid < codec->core.start_nid ||
+	    nid >= codec->core.start_nid + codec->core.num_nodes)
 		return 0;
-	return codec->wcaps[nid - codec->start_nid];
+	return codec->wcaps[nid - codec->core.start_nid];
 }
 
 /* get the widget type from widget capability bits */
@@ -547,9 +550,9 @@ static inline unsigned int get_wcaps_channels(u32 wcaps)
 static inline void snd_hda_override_wcaps(struct hda_codec *codec,
 					  hda_nid_t nid, u32 val)
 {
-	if (nid >= codec->start_nid &&
-	    nid < codec->start_nid + codec->num_nodes)
-		codec->wcaps[nid - codec->start_nid] = val;
+	if (nid >= codec->core.start_nid &&
+	    nid < codec->core.start_nid + codec->core.num_nodes)
+		codec->wcaps[nid - codec->core.start_nid] = val;
 }
 
 u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);

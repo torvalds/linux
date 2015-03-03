@@ -14,36 +14,6 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 
-/* codec vendor labels */
-struct hda_vendor_id {
-	unsigned int id;
-	const char *name;
-};
-
-static struct hda_vendor_id hda_vendor_ids[] = {
-	{ 0x1002, "ATI" },
-	{ 0x1013, "Cirrus Logic" },
-	{ 0x1057, "Motorola" },
-	{ 0x1095, "Silicon Image" },
-	{ 0x10de, "Nvidia" },
-	{ 0x10ec, "Realtek" },
-	{ 0x1102, "Creative" },
-	{ 0x1106, "VIA" },
-	{ 0x111d, "IDT" },
-	{ 0x11c1, "LSI" },
-	{ 0x11d4, "Analog Devices" },
-	{ 0x13f6, "C-Media" },
-	{ 0x14f1, "Conexant" },
-	{ 0x17e8, "Chrontel" },
-	{ 0x1854, "LG" },
-	{ 0x1aec, "Wolfson Microelectronics" },
-	{ 0x1af4, "QEMU" },
-	{ 0x434d, "C-Media" },
-	{ 0x8086, "Intel" },
-	{ 0x8384, "SigmaTel" },
-	{} /* terminator */
-};
-
 /*
  * find a matching codec preset
  */
@@ -54,19 +24,19 @@ static int hda_codec_match(struct hdac_device *dev, struct hdac_driver *drv)
 		container_of(drv, struct hda_codec_driver, core);
 	const struct hda_codec_preset *preset;
 	/* check probe_id instead of vendor_id if set */
-	u32 id = codec->probe_id ? codec->probe_id : codec->vendor_id;
+	u32 id = codec->probe_id ? codec->probe_id : codec->core.vendor_id;
 
 	for (preset = driver->preset; preset->id; preset++) {
 		u32 mask = preset->mask;
 
-		if (preset->afg && preset->afg != codec->afg)
+		if (preset->afg && preset->afg != codec->core.afg)
 			continue;
-		if (preset->mfg && preset->mfg != codec->mfg)
+		if (preset->mfg && preset->mfg != codec->core.mfg)
 			continue;
 		if (!mask)
 			mask = ~0;
 		if (preset->id == (id & mask) &&
-		    (!preset->rev || preset->rev == codec->revision_id)) {
+		    (!preset->rev || preset->rev == codec->core.revision_id)) {
 			codec->preset = preset;
 			return 1;
 		}
@@ -86,15 +56,11 @@ static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 /* reset the codec name from the preset */
 static int codec_refresh_name(struct hda_codec *codec, const char *name)
 {
-	char tmp[16];
-
-	kfree(codec->chip_name);
-	if (!name) {
-		sprintf(tmp, "ID %x", codec->vendor_id & 0xffff);
-		name = tmp;
+	if (name) {
+		kfree(codec->core.chip_name);
+		codec->core.chip_name = kstrdup(name, GFP_KERNEL);
 	}
-	codec->chip_name = kstrdup(name, GFP_KERNEL);
-	return codec->chip_name ? 0 : -ENOMEM;
+	return codec->core.chip_name ? 0 : -ENOMEM;
 }
 
 static int hda_codec_driver_probe(struct device *dev)
@@ -192,48 +158,23 @@ static inline bool codec_probed(struct hda_codec *codec)
 static void codec_bind_module(struct hda_codec *codec)
 {
 #ifdef MODULE
-	request_module("snd-hda-codec-id:%08x", codec->vendor_id);
+	request_module("snd-hda-codec-id:%08x", codec->core.vendor_id);
 	if (codec_probed(codec))
 		return;
 	request_module("snd-hda-codec-id:%04x*",
-		       (codec->vendor_id >> 16) & 0xffff);
+		       (codec->core.vendor_id >> 16) & 0xffff);
 	if (codec_probed(codec))
 		return;
 #endif
-}
-
-/* store the codec vendor name */
-static int get_codec_vendor_name(struct hda_codec *codec)
-{
-	const struct hda_vendor_id *c;
-	const char *vendor = NULL;
-	u16 vendor_id = codec->vendor_id >> 16;
-	char tmp[16];
-
-	for (c = hda_vendor_ids; c->id; c++) {
-		if (c->id == vendor_id) {
-			vendor = c->name;
-			break;
-		}
-	}
-	if (!vendor) {
-		sprintf(tmp, "Generic %04x", vendor_id);
-		vendor = tmp;
-	}
-	codec->vendor_name = kstrdup(vendor, GFP_KERNEL);
-	if (!codec->vendor_name)
-		return -ENOMEM;
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 /* if all audio out widgets are digital, let's assume the codec as a HDMI/DP */
 static bool is_likely_hdmi_codec(struct hda_codec *codec)
 {
-	hda_nid_t nid = codec->start_nid;
-	int i;
+	hda_nid_t nid;
 
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		unsigned int wcaps = get_wcaps(codec, nid);
 		switch (get_wcaps_type(wcaps)) {
 		case AC_WID_AUD_IN:
@@ -294,12 +235,6 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 {
 	int err;
 
-	if (!codec->vendor_name) {
-		err = get_codec_vendor_name(codec);
-		if (err < 0)
-			return err;
-	}
-
 	if (is_generic_config(codec))
 		codec->probe_id = HDA_CODEC_ID_GENERIC;
 	else
@@ -320,10 +255,10 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	}
 
 	/* audio codec should override the mixer name */
-	if (codec->afg || !*codec->card->mixername)
+	if (codec->core.afg || !*codec->card->mixername)
 		snprintf(codec->card->mixername,
-			 sizeof(codec->card->mixername),
-			 "%s %s", codec->vendor_name, codec->chip_name);
+			 sizeof(codec->card->mixername), "%s %s",
+			 codec->core.vendor_name, codec->core.chip_name);
 	return 0;
 
  error:

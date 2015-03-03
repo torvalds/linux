@@ -48,33 +48,33 @@ static DEVICE_ATTR_RO(power_on_acct);
 static DEVICE_ATTR_RO(power_off_acct);
 #endif /* CONFIG_PM */
 
-#define CODEC_INFO_SHOW(type)					\
+#define CODEC_INFO_SHOW(type, field)				\
 static ssize_t type##_show(struct device *dev,			\
 			   struct device_attribute *attr,	\
 			   char *buf)				\
 {								\
 	struct hda_codec *codec = dev_get_drvdata(dev);		\
-	return sprintf(buf, "0x%x\n", codec->type);		\
+	return sprintf(buf, "0x%x\n", codec->field);		\
 }
 
-#define CODEC_INFO_STR_SHOW(type)				\
+#define CODEC_INFO_STR_SHOW(type, field)			\
 static ssize_t type##_show(struct device *dev,			\
 			     struct device_attribute *attr,	\
 					char *buf)		\
 {								\
 	struct hda_codec *codec = dev_get_drvdata(dev);		\
 	return sprintf(buf, "%s\n",				\
-		       codec->type ? codec->type : "");		\
+		       codec->field ? codec->field : "");	\
 }
 
-CODEC_INFO_SHOW(vendor_id);
-CODEC_INFO_SHOW(subsystem_id);
-CODEC_INFO_SHOW(revision_id);
-CODEC_INFO_SHOW(afg);
-CODEC_INFO_SHOW(mfg);
-CODEC_INFO_STR_SHOW(vendor_name);
-CODEC_INFO_STR_SHOW(chip_name);
-CODEC_INFO_STR_SHOW(modelname);
+CODEC_INFO_SHOW(vendor_id, core.vendor_id);
+CODEC_INFO_SHOW(subsystem_id, core.subsystem_id);
+CODEC_INFO_SHOW(revision_id, core.revision_id);
+CODEC_INFO_SHOW(afg, core.afg);
+CODEC_INFO_SHOW(mfg, core.mfg);
+CODEC_INFO_STR_SHOW(vendor_name, core.vendor_name);
+CODEC_INFO_STR_SHOW(chip_name, core.chip_name);
+CODEC_INFO_STR_SHOW(modelname, modelname);
 
 static ssize_t pin_configs_show(struct hda_codec *codec,
 				struct snd_array *list,
@@ -170,7 +170,7 @@ static char *kstrndup_noeol(const char *src, size_t len)
 	return s;
 }
 
-#define CODEC_INFO_STORE(type)					\
+#define CODEC_INFO_STORE(type, field)				\
 static ssize_t type##_store(struct device *dev,			\
 			    struct device_attribute *attr,	\
 			    const char *buf, size_t count)	\
@@ -180,11 +180,11 @@ static ssize_t type##_store(struct device *dev,			\
 	int err = kstrtoul(buf, 0, &val);			\
 	if (err < 0)						\
 		return err;					\
-	codec->type = val;					\
+	codec->field = val;					\
 	return count;						\
 }
 
-#define CODEC_INFO_STR_STORE(type)				\
+#define CODEC_INFO_STR_STORE(type, field)			\
 static ssize_t type##_store(struct device *dev,			\
 			    struct device_attribute *attr,	\
 			    const char *buf, size_t count)	\
@@ -193,17 +193,17 @@ static ssize_t type##_store(struct device *dev,			\
 	char *s = kstrndup_noeol(buf, 64);			\
 	if (!s)							\
 		return -ENOMEM;					\
-	kfree(codec->type);					\
-	codec->type = s;					\
+	kfree(codec->field);					\
+	codec->field = s;					\
 	return count;						\
 }
 
-CODEC_INFO_STORE(vendor_id);
-CODEC_INFO_STORE(subsystem_id);
-CODEC_INFO_STORE(revision_id);
-CODEC_INFO_STR_STORE(vendor_name);
-CODEC_INFO_STR_STORE(chip_name);
-CODEC_INFO_STR_STORE(modelname);
+CODEC_INFO_STORE(vendor_id, core.vendor_id);
+CODEC_INFO_STORE(subsystem_id, core.subsystem_id);
+CODEC_INFO_STORE(revision_id, core.revision_id);
+CODEC_INFO_STR_STORE(vendor_name, core.vendor_name);
+CODEC_INFO_STR_STORE(chip_name, core.chip_name);
+CODEC_INFO_STR_STORE(modelname, modelname);
 
 #define CODEC_ACTION_STORE(type)				\
 static ssize_t type##_store(struct device *dev,			\
@@ -553,9 +553,9 @@ static void parse_codec_mode(char *buf, struct hda_bus *bus,
 	*codecp = NULL;
 	if (sscanf(buf, "%i %i %i", &vendorid, &subid, &caddr) == 3) {
 		list_for_each_codec(codec, bus) {
-			if ((vendorid <= 0 || codec->vendor_id == vendorid) &&
-			    (subid <= 0 || codec->subsystem_id == subid) &&
-			    codec->addr == caddr) {
+			if ((vendorid <= 0 || codec->core.vendor_id == vendorid) &&
+			    (subid <= 0 || codec->core.subsystem_id == subid) &&
+			    codec->core.addr == caddr) {
 				*codecp = codec;
 				break;
 			}
@@ -595,8 +595,8 @@ static void parse_model_mode(char *buf, struct hda_bus *bus,
 static void parse_chip_name_mode(char *buf, struct hda_bus *bus,
 				 struct hda_codec **codecp)
 {
-	kfree((*codecp)->chip_name);
-	(*codecp)->chip_name = kstrdup(buf, GFP_KERNEL);
+	kfree((*codecp)->core.chip_name);
+	(*codecp)->core.chip_name = kstrdup(buf, GFP_KERNEL);
 }
 
 #define DEFINE_PARSE_ID_MODE(name) \
@@ -605,7 +605,7 @@ static void parse_##name##_mode(char *buf, struct hda_bus *bus, \
 { \
 	unsigned long val; \
 	if (!kstrtoul(buf, 0, &val)) \
-		(*codecp)->name = val; \
+		(*codecp)->core.name = val; \
 }
 
 DEFINE_PARSE_ID_MODE(vendor_id);

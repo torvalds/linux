@@ -261,24 +261,10 @@ struct hda_codec {
 	struct hda_bus *bus;
 	struct snd_card *card;
 	unsigned int addr;	/* codec addr*/
-
-	hda_nid_t afg;	/* AFG node id */
-	hda_nid_t mfg;	/* MFG node id */
-
-	/* ids */
-	u8 afg_function_id;
-	u8 mfg_function_id;
-	u8 afg_unsol;
-	u8 mfg_unsol;
-	u32 vendor_id;
-	u32 subsystem_id;
-	u32 revision_id;
 	u32 probe_id; /* overridden id for probing */
 
 	/* detected preset */
 	const struct hda_codec_preset *preset;
-	const char *vendor_name;	/* codec vendor name */
-	const char *chip_name;		/* codec chip name */
 	const char *modelname;	/* model name for preset */
 
 	/* set by patch */
@@ -295,8 +281,6 @@ struct hda_codec {
 	unsigned int beep_mode;
 
 	/* widget capabilities cache */
-	unsigned int num_nodes;
-	hda_nid_t start_nid;
 	u32 *wcaps;
 
 	struct snd_array mixers;	/* list of assigned mixer elements */
@@ -347,14 +331,11 @@ struct hda_codec {
 	unsigned int inv_eapd:1; /* broken h/w: inverted EAPD control */
 	unsigned int inv_jack_detect:1;	/* broken h/w: inverted detection bit */
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
-	unsigned int epss:1;		/* supporting EPSS? */
 	unsigned int cached_write:1;	/* write only to caches */
 	unsigned int dp_mst:1; /* support DP1.2 Multi-stream transport */
 	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
 	unsigned int power_save_node:1; /* advanced PM for each widget */
 #ifdef CONFIG_PM
-	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
-	atomic_t in_pm;		/* suspend/resume being performed */
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
@@ -395,11 +376,6 @@ struct hda_codec {
 #define list_for_each_codec(c, bus) \
 	list_for_each_entry(c, &(bus)->core.codec_list, core.list)
 
-/* direction */
-enum {
-	HDA_INPUT, HDA_OUTPUT
-};
-
 /* snd_hda_codec_read/write optional flags */
 #define HDA_RW_NO_RESPONSE_FALLBACK	(1 << 0)
 
@@ -422,8 +398,8 @@ int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int flags,
 			unsigned int verb, unsigned int parm);
 #define snd_hda_param_read(codec, nid, param) \
 	snd_hda_codec_read(codec, nid, 0, AC_VERB_PARAMETERS, param)
-int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid,
-			  hda_nid_t *start_id);
+#define snd_hda_get_sub_nodes(codec, nid, start_nid) \
+	snd_hdac_get_sub_nodes(&(codec)->core, nid, start_nid)
 int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns);
 static inline int
@@ -431,9 +407,12 @@ snd_hda_get_num_conns(struct hda_codec *codec, hda_nid_t nid)
 {
 	return snd_hda_get_connections(codec, nid, NULL, 0);
 }
-int snd_hda_get_num_raw_conns(struct hda_codec *codec, hda_nid_t nid);
-int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
-			    hda_nid_t *conn_list, int max_conns);
+
+#define snd_hda_get_raw_connections(codec, nid, list, max_conns) \
+	snd_hdac_get_connections(&(codec)->core, nid, list, max_conns)
+#define snd_hda_get_num_raw_conns(codec, nid) \
+	snd_hdac_get_connections(&(codec)->core, nid, NULL, 0);
+
 int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
 			  const hda_nid_t **listp);
 int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int nums,
@@ -582,14 +561,12 @@ const char *snd_hda_get_jack_location(u32 cfg);
 /*
  * power saving
  */
+#define snd_hda_power_up(codec)		snd_hdac_power_up(&(codec)->core)
+#define snd_hda_power_down(codec)	snd_hdac_power_down(&(codec)->core)
 #ifdef CONFIG_PM
-void snd_hda_power_up(struct hda_codec *codec);
-void snd_hda_power_down(struct hda_codec *codec);
 void snd_hda_set_power_save(struct hda_bus *bus, int delay);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
-static inline void snd_hda_power_up(struct hda_codec *codec) {}
-static inline void snd_hda_power_down(struct hda_codec *codec) {}
 static inline void snd_hda_set_power_save(struct hda_bus *bus, int delay) {}
 #endif
 

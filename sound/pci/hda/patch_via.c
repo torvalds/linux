@@ -140,7 +140,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 
 static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 {
-	u32 vendor_id = codec->vendor_id;
+	u32 vendor_id = codec->core.vendor_id;
 	u16 ven_id = vendor_id >> 16;
 	u16 dev_id = vendor_id & 0xffff;
 	enum VIA_HDA_CODEC codec_type;
@@ -335,7 +335,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 		return;		/* other codecs are not supported */
 	}
 	/* send verb */
-	snd_hda_codec_write(codec, codec->afg, 0, verb, parm);
+	snd_hda_codec_write(codec, codec->core.afg, 0, verb, parm);
 }
 
 static void analog_low_current_mode(struct hda_codec *codec)
@@ -558,7 +558,7 @@ static int vt1708_build_pcms(struct hda_codec *codec)
 	int i, err;
 
 	err = snd_hda_gen_build_pcms(codec);
-	if (err < 0 || codec->vendor_id != 0x11061708)
+	if (err < 0 || codec->core.vendor_id != 0x11061708)
 		return err;
 
 	/* We got noisy outputs on the right channel on VT1708 when
@@ -714,19 +714,19 @@ static int patch_vt1708S(struct hda_codec *codec)
 
 	/* correct names for VT1708BCE */
 	if (get_codec_type(codec) == VT1708BCE)	{
-		kfree(codec->chip_name);
-		codec->chip_name = kstrdup("VT1708BCE", GFP_KERNEL);
+		kfree(codec->core.chip_name);
+		codec->core.chip_name = kstrdup("VT1708BCE", GFP_KERNEL);
 		snprintf(codec->card->mixername,
 			 sizeof(codec->card->mixername),
-			 "%s %s", codec->vendor_name, codec->chip_name);
+			 "%s %s", codec->core.vendor_name, codec->core.chip_name);
 	}
 	/* correct names for VT1705 */
-	if (codec->vendor_id == 0x11064397)	{
-		kfree(codec->chip_name);
-		codec->chip_name = kstrdup("VT1705", GFP_KERNEL);
+	if (codec->core.vendor_id == 0x11064397) {
+		kfree(codec->core.chip_name);
+		codec->core.chip_name = kstrdup("VT1705", GFP_KERNEL);
 		snprintf(codec->card->mixername,
 			 sizeof(codec->card->mixername),
-			 "%s %s", codec->vendor_name, codec->chip_name);
+			 "%s %s", codec->core.vendor_name, codec->core.chip_name);
 	}
 
 	/* automatic parse from the BIOS config */
@@ -815,8 +815,7 @@ static int add_secret_dac_path(struct hda_codec *codec)
 	}
 
 	/* find the primary DAC and add to the connection list */
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		unsigned int caps = get_wcaps(codec, nid);
 		if (get_wcaps_type(caps) == AC_WID_AUD_OUT &&
 		    !(caps & AC_WCAP_DIGITAL)) {

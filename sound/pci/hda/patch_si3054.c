@@ -205,8 +205,8 @@ static int si3054_build_pcms(struct hda_codec *codec)
 		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE]  = si3054_pcm;
-	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = codec->mfg;
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = codec->mfg;
+	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = codec->core.mfg;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = codec->core.mfg;
 	info->pcm_type = HDA_PCM_TYPE_MODEM;
 	return 0;
 }
@@ -223,7 +223,7 @@ static int si3054_init(struct hda_codec *codec)
 	u16 val;
 
 	snd_hda_codec_write(codec, AC_NODE_ROOT, 0, AC_VERB_SET_CODEC_RESET, 0);
-	snd_hda_codec_write(codec, codec->mfg, 0, AC_VERB_SET_STREAM_FORMAT, 0);
+	snd_hda_codec_write(codec, codec->core.mfg, 0, AC_VERB_SET_STREAM_FORMAT, 0);
 	SET_REG(codec, SI3054_LINE_RATE, 9600);
 	SET_REG(codec, SI3054_LINE_LEVEL, SI3054_DTAG_MASK|SI3054_ATAG_MASK);
 	SET_REG(codec, SI3054_EXTENDED_MID, 0);

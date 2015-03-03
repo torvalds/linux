@@ -8,6 +8,9 @@
 #include <linux/device.h>
 #include <sound/hda_verbs.h>
 
+/* codec node id */
+typedef u16 hda_nid_t;
+
 struct hdac_bus;
 struct hdac_device;
 struct hdac_driver;
@@ -26,6 +29,30 @@ struct hdac_device {
 	struct hdac_bus *bus;
 	unsigned int addr;		/* codec address */
 	struct list_head list;		/* list point for bus codec_list */
+
+	hda_nid_t afg;			/* AFG node id */
+	hda_nid_t mfg;			/* MFG node id */
+
+	/* ids */
+	unsigned int vendor_id;
+	unsigned int subsystem_id;
+	unsigned int revision_id;
+	unsigned int afg_function_id;
+	unsigned int mfg_function_id;
+	unsigned int afg_unsol:1;
+	unsigned int mfg_unsol:1;
+
+	unsigned int power_caps;	/* FG power caps */
+
+	const char *vendor_name;	/* codec vendor name */
+	const char *chip_name;		/* codec chip name */
+
+	/* widgets */
+	unsigned int num_nodes;
+	hda_nid_t start_nid, end_nid;
+
+	/* misc flags */
+	atomic_t in_pm;		/* suspend/resume being performed */
 };
 
 /* device/driver type used for matching */
@@ -34,7 +61,36 @@ enum {
 	HDA_DEV_LEGACY,
 };
 
+/* direction */
+enum {
+	HDA_INPUT, HDA_OUTPUT
+};
+
 #define dev_to_hdac_dev(_dev)	container_of(_dev, struct hdac_device, dev)
+
+int snd_hdac_device_init(struct hdac_device *dev, struct hdac_bus *bus,
+			 const char *name, unsigned int addr);
+void snd_hdac_device_exit(struct hdac_device *dev);
+
+int snd_hdac_refresh_widgets(struct hdac_device *codec);
+
+unsigned int snd_hdac_make_cmd(struct hdac_device *codec, hda_nid_t nid,
+			       unsigned int verb, unsigned int parm);
+int snd_hdac_read(struct hdac_device *codec, hda_nid_t nid,
+		  unsigned int verb, unsigned int parm, unsigned int *res);
+int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm);
+int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
+			     hda_nid_t *conn_list, int max_conns);
+int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
+			   hda_nid_t *start_id);
+
+#ifdef CONFIG_PM
+void snd_hdac_power_up(struct hdac_device *codec);
+void snd_hdac_power_down(struct hdac_device *codec);
+#else
+static inline void snd_hdac_power_up(struct hdac_device *codec) {}
+static inline void snd_hdac_power_down(struct hdac_device *codec) {}
+#endif
 
 /*
  * HD-audio codec base driver
@@ -99,5 +155,15 @@ void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex);
 int snd_hdac_bus_add_device(struct hdac_bus *bus, struct hdac_device *codec);
 void snd_hdac_bus_remove_device(struct hdac_bus *bus,
 				struct hdac_device *codec);
+
+static inline void snd_hdac_codec_link_up(struct hdac_device *codec)
+{
+	set_bit(codec->addr, &codec->bus->codec_powered);
+}
+
+static inline void snd_hdac_codec_link_down(struct hdac_device *codec)
+{
+	clear_bit(codec->addr, &codec->bus->codec_powered);
+}
 
 #endif /* __SOUND_HDAUDIO_H */

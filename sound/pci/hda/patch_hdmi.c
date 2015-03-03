@@ -45,14 +45,14 @@ static bool static_hdmi_pcm;
 module_param(static_hdmi_pcm, bool, 0644);
 MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 
-#define is_haswell(codec)  ((codec)->vendor_id == 0x80862807)
-#define is_broadwell(codec)    ((codec)->vendor_id == 0x80862808)
-#define is_skylake(codec) ((codec)->vendor_id == 0x80862809)
+#define is_haswell(codec)  ((codec)->core.vendor_id == 0x80862807)
+#define is_broadwell(codec)    ((codec)->core.vendor_id == 0x80862808)
+#define is_skylake(codec) ((codec)->core.vendor_id == 0x80862809)
 #define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec) \
 					|| is_skylake(codec))
 
-#define is_valleyview(codec) ((codec)->vendor_id == 0x80862882)
-#define is_cherryview(codec) ((codec)->vendor_id == 0x80862883)
+#define is_valleyview(codec) ((codec)->core.vendor_id == 0x80862882)
+#define is_cherryview(codec) ((codec)->core.vendor_id == 0x80862883)
 #define is_valleyview_plus(codec) (is_valleyview(codec) || is_cherryview(codec))
 
 struct hdmi_spec_per_cvt {
@@ -1391,13 +1391,12 @@ static void intel_not_share_assigned_cvt(struct hda_codec *codec,
 			hda_nid_t pin_nid, int mux_idx)
 {
 	struct hdmi_spec *spec = codec->spec;
-	hda_nid_t nid, end_nid;
+	hda_nid_t nid;
 	int cvt_idx, curr;
 	struct hdmi_spec_per_cvt *per_cvt;
 
 	/* configure all pins, including "no physical connection" ones */
-	end_nid = codec->start_nid + codec->num_nodes;
-	for (nid = codec->start_nid; nid < end_nid; nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		unsigned int wid_caps = get_wcaps(codec, nid);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
 
@@ -1728,7 +1727,7 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 	hda_nid_t nid;
 	int i, nodes;
 
-	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid);
+	nodes = snd_hda_get_sub_nodes(codec, codec->core.afg, &nid);
 	if (!nid || nodes < 0) {
 		codec_warn(codec, "HDMI: failed to get afg sub nodes\n");
 		return -EINVAL;
@@ -2928,7 +2927,8 @@ static int patch_nvhdmi(struct hda_codec *codec)
  */
 
 #define is_amdhdmi_rev3_or_later(codec) \
-	((codec)->vendor_id == 0x1002aa01 && ((codec)->revision_id & 0xff00) >= 0x0300)
+	((codec)->core.vendor_id == 0x1002aa01 && \
+	 ((codec)->core.revision_id & 0xff00) >= 0x0300)
 #define has_amd_full_remap_support(codec) is_amdhdmi_rev3_or_later(codec)
 
 /* ATI/AMD specific HDA pin verbs, see the AMD HDA Verbs specification */

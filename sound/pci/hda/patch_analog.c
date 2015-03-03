@@ -99,7 +99,7 @@ static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
 static void ad198x_power_eapd(struct hda_codec *codec)
 {
 	/* We currently only handle front, HP */
-	switch (codec->vendor_id) {
+	switch (codec->core.vendor_id) {
 	case 0x11d41882:
 	case 0x11d4882a:
 	case 0x11d41884:

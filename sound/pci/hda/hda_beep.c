@@ -165,8 +165,8 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 	input_dev->id.bustype = BUS_PCI;
 	input_dev->dev.parent = &codec->card->card_dev;
 
-	input_dev->id.vendor = codec->vendor_id >> 16;
-	input_dev->id.product = codec->vendor_id & 0xffff;
+	input_dev->id.vendor = codec->core.vendor_id >> 16;
+	input_dev->id.product = codec->core.vendor_id & 0xffff;
 	input_dev->id.version = 0x01;
 
 	input_dev->evbit[0] = BIT_MASK(EV_SND);

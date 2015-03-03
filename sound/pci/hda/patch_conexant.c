@@ -103,10 +103,9 @@ static int add_beep_ctls(struct hda_codec *codec)
 static void cx_auto_parse_beep(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	hda_nid_t nid, end_nid;
+	hda_nid_t nid;
 
-	end_nid = codec->start_nid + codec->num_nodes;
-	for (nid = codec->start_nid; nid < end_nid; nid++)
+	for_each_hda_codec_node(nid, codec)
 		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP) {
 			set_beep_amp(spec, nid, 0, HDA_OUTPUT);
 			break;
@@ -120,10 +119,9 @@ static void cx_auto_parse_beep(struct hda_codec *codec)
 static void cx_auto_parse_eapd(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
-	hda_nid_t nid, end_nid;
+	hda_nid_t nid;
 
-	end_nid = codec->start_nid + codec->num_nodes;
-	for (nid = codec->start_nid; nid < end_nid; nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
 			continue;
 		if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD))
@@ -848,7 +846,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	struct conexant_spec *spec;
 	int err;
 
-	codec_info(codec, "%s: BIOS auto-probing.\n", codec->chip_name);
+	codec_info(codec, "%s: BIOS auto-probing.\n", codec->core.chip_name);
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -862,7 +860,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (spec->dynamic_eapd)
 		spec->gen.vmaster_mute.hook = cx_auto_vmaster_hook;
 
-	switch (codec->vendor_id) {
+	switch (codec->core.vendor_id) {
 	case 0x14f15045:
 		codec->single_adc_amp = 1;
 		spec->gen.mixer_nid = 0x17;
@@ -896,7 +894,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	 * others may use EAPD really as an amp switch, so it might be
 	 * not good to expose it blindly.
 	 */
-	switch (codec->subsystem_id >> 16) {
+	switch (codec->core.subsystem_id >> 16) {
 	case 0x103c:
 		spec->gen.vmaster_mute_enum = 1;
 		break;
