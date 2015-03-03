@@ -5683,8 +5683,8 @@ static int nl80211_parse_random_mac(struct nlattr **attrs,
 	int i;
 
 	if (!attrs[NL80211_ATTR_MAC] && !attrs[NL80211_ATTR_MAC_MASK]) {
-		memset(mac_addr, 0, ETH_ALEN);
-		memset(mac_addr_mask, 0, ETH_ALEN);
+		eth_zero_addr(mac_addr);
+		eth_zero_addr(mac_addr_mask);
 		mac_addr[0] = 0x2;
 		mac_addr_mask[0] = 0x3;
 

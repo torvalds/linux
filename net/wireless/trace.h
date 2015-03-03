@@ -7,6 +7,7 @@
 #include <linux/tracepoint.h>
 
 #include <linux/rtnetlink.h>
+#include <linux/etherdevice.h>
 #include <net/cfg80211.h>
 #include "core.h"
 
@@ -15,7 +16,7 @@
 	if (given_mac)						     \
 		memcpy(__entry->entry_mac, given_mac, ETH_ALEN);     \
 	else							     \
-		memset(__entry->entry_mac, 0, ETH_ALEN);	     \
+		eth_zero_addr(__entry->entry_mac);		     \
 	} while (0)
 #define MAC_PR_FMT "%pM"
 #define MAC_PR_ARG(entry_mac) (__entry->entry_mac)
@@ -1077,7 +1078,7 @@ TRACE_EVENT(rdev_auth,
 		if (req->bss)
 			MAC_ASSIGN(bssid, req->bss->bssid);
 		else
-			memset(__entry->bssid, 0, ETH_ALEN);
+			eth_zero_addr(__entry->bssid);
 		__entry->auth_type = req->auth_type;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", auth type: %d, bssid: " MAC_PR_FMT,
@@ -1103,7 +1104,7 @@ TRACE_EVENT(rdev_assoc,
 		if (req->bss)
 			MAC_ASSIGN(bssid, req->bss->bssid);
 		else
-			memset(__entry->bssid, 0, ETH_ALEN);
+			eth_zero_addr(__entry->bssid);
 		MAC_ASSIGN(prev_bssid, req->prev_bssid);
 		__entry->use_mfp = req->use_mfp;
 		__entry->flags = req->flags;
@@ -1153,7 +1154,7 @@ TRACE_EVENT(rdev_disassoc,
 		if (req->bss)
 			MAC_ASSIGN(bssid, req->bss->bssid);
 		else
-			memset(__entry->bssid, 0, ETH_ALEN);
+			eth_zero_addr(__entry->bssid);
 		__entry->reason_code = req->reason_code;
 		__entry->local_state_change = req->local_state_change;
 	),
