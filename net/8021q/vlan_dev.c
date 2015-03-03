@@ -792,5 +792,5 @@ void vlan_setup(struct net_device *dev)
 	dev->destructor		= vlan_dev_free;
 	dev->ethtool_ops	= &vlan_ethtool_ops;
 
-	memset(dev->broadcast, 0, ETH_ALEN);
+	eth_zero_addr(dev->broadcast);
 }
