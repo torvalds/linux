@@ -223,7 +223,7 @@ EXPORT_SYMBOL(lprocfs_write_frac_helper);
 
 #if defined (CONFIG_PROC_FS)
 
-static int lprocfs_no_percpu_stats = 0;
+static int lprocfs_no_percpu_stats;
 module_param(lprocfs_no_percpu_stats, int, 0644);
 MODULE_PARM_DESC(lprocfs_no_percpu_stats, "Do not alloc percpu data for lprocfs stats");
 

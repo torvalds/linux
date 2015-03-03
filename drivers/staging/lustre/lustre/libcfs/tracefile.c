@@ -53,7 +53,7 @@ char cfs_tracefile[TRACEFILE_NAME_SIZE];
 long long cfs_tracefile_size = CFS_TRACEFILE_SIZE;
 static struct tracefiled_ctl trace_tctl;
 struct mutex cfs_trace_thread_mutex;
-static int thread_running = 0;
+static int thread_running;
 
 static atomic_t cfs_tage_allocated = ATOMIC_INIT(0);
 

@@ -479,7 +479,7 @@ int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 #define RQ_NOW     0x2
 #define RQ_LATER   0x4
 #define RQ_STOP    0x8
-static int		    rq_state = 0;
+static int rq_state;
 static wait_queue_head_t	    rq_waitq;
 static DECLARE_COMPLETION(rq_exit);
 

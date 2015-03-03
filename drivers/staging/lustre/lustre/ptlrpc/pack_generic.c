@@ -117,7 +117,7 @@ EXPORT_SYMBOL(lustre_msg_check_version);
 /* early reply size */
 int lustre_msg_early_size(void)
 {
-	static int size = 0;
+	static int size;
 	if (!size) {
 		/* Always reply old ptlrpc_body_v2 to keep interoprability
 		 * with the old client (< 2.3) which doesn't have pb_jobid

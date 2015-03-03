@@ -84,7 +84,7 @@ struct ll_sa_entry {
 	struct qstr	     se_qstr;
 };
 
-static unsigned int sai_generation = 0;
+static unsigned int sai_generation;
 static DEFINE_SPINLOCK(sai_generation_lock);
 
 static inline int ll_sa_entry_unhashed(struct ll_sa_entry *entry)

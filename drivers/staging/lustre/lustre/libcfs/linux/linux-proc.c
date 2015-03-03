@@ -165,7 +165,7 @@ static int proc_dobitmasks(struct ctl_table *table, int write,
 				 __proc_dobitmasks);
 }
 
-static int min_watchdog_ratelimit = 0;	  /* disable ratelimiting */
+static int min_watchdog_ratelimit;	  /* disable ratelimiting */
 static int max_watchdog_ratelimit = (24*60*60); /* limit to once per day */
 
 static int __proc_dump_kernel(void *data, int write,
