@@ -712,7 +712,8 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 }
 
 static int atmel_hlcdc_plane_prepare_fb(struct drm_plane *p,
-					struct drm_framebuffer *fb)
+					struct drm_framebuffer *fb,
+					const struct drm_plane_state *new_state)
 {
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
 

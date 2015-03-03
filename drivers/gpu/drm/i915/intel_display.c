@@ -11776,7 +11776,8 @@ static void intel_shared_dpll_init(struct drm_device *dev)
  */
 int
 intel_prepare_plane_fb(struct drm_plane *plane,
-		       struct drm_framebuffer *fb)
+		       struct drm_framebuffer *fb,
+		       const struct drm_plane_state *new_state)
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
@@ -11830,7 +11831,8 @@ intel_prepare_plane_fb(struct drm_plane *plane,
  */
 void
 intel_cleanup_plane_fb(struct drm_plane *plane,
-		       struct drm_framebuffer *fb)
+		       struct drm_framebuffer *fb,
+		       const struct drm_plane_state *old_state)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);

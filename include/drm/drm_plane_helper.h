@@ -59,9 +59,11 @@ extern int drm_crtc_init(struct drm_device *dev,
  */
 struct drm_plane_helper_funcs {
 	int (*prepare_fb)(struct drm_plane *plane,
-			  struct drm_framebuffer *fb);
+			  struct drm_framebuffer *fb,
+			  const struct drm_plane_state *new_state);
 	void (*cleanup_fb)(struct drm_plane *plane,
-			   struct drm_framebuffer *fb);
+			   struct drm_framebuffer *fb,
+			   const struct drm_plane_state *old_state);
 
 	int (*atomic_check)(struct drm_plane *plane,
 			    struct drm_plane_state *state);

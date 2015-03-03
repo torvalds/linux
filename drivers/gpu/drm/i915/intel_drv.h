@@ -943,9 +943,11 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe);
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
 void intel_check_page_flip(struct drm_device *dev, int pipe);
 int intel_prepare_plane_fb(struct drm_plane *plane,
-			   struct drm_framebuffer *fb);
+			   struct drm_framebuffer *fb,
+			   const struct drm_plane_state *new_state);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
-			    struct drm_framebuffer *fb);
+			    struct drm_framebuffer *fb,
+			    const struct drm_plane_state *old_state);
 int intel_plane_atomic_get_property(struct drm_plane *plane,
 				    const struct drm_plane_state *state,
 				    struct drm_property *property,
