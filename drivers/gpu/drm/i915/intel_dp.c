@@ -4966,12 +4966,13 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 	if (!dev_priv->drrs.dp)
 		return;
 
+	cancel_delayed_work_sync(&dev_priv->drrs.work);
+
 	mutex_lock(&dev_priv->drrs.mutex);
 	crtc = dp_to_dig_port(dev_priv->drrs.dp)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
 
 	if (dev_priv->drrs.refresh_rate_type == DRRS_LOW_RR) {
-		cancel_delayed_work_sync(&dev_priv->drrs.work);
 		intel_dp_set_drrs_state(dev_priv->dev,
 				dev_priv->drrs.dp->attached_connector->panel.
 				fixed_mode->vrefresh);
@@ -5004,12 +5005,12 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 	if (!dev_priv->drrs.dp)
 		return;
 
+	cancel_delayed_work_sync(&dev_priv->drrs.work);
+
 	mutex_lock(&dev_priv->drrs.mutex);
 	crtc = dp_to_dig_port(dev_priv->drrs.dp)->base.base.crtc;
 	pipe = to_intel_crtc(crtc)->pipe;
 	dev_priv->drrs.busy_frontbuffer_bits &= ~frontbuffer_bits;
-
-	cancel_delayed_work_sync(&dev_priv->drrs.work);
 
 	if (dev_priv->drrs.refresh_rate_type != DRRS_LOW_RR &&
 			!dev_priv->drrs.busy_frontbuffer_bits)
