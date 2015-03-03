@@ -113,6 +113,7 @@ struct vmw_resource {
 	bool backup_dirty; /* Protected by backup buffer reserved */
 	struct vmw_dma_buffer *backup;
 	unsigned long backup_offset;
+	unsigned long pin_count; /* Protected by resource reserved */
 	const struct vmw_res_func *func;
 	struct list_head lru_head; /* Protected by the resource lock */
 	struct list_head mob_head; /* Protected by @backup reserved */
@@ -941,6 +942,9 @@ int vmw_dumb_map_offset(struct drm_file *file_priv,
 int vmw_dumb_destroy(struct drm_file *file_priv,
 		     struct drm_device *dev,
 		     uint32_t handle);
+extern int vmw_resource_pin(struct vmw_resource *res);
+extern void vmw_resource_unpin(struct vmw_resource *res);
+
 /**
  * Overlay control - vmwgfx_overlay.c
  */

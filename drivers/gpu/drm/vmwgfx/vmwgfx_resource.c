@@ -1183,7 +1183,7 @@ void vmw_resource_unreserve(struct vmw_resource *res,
 	if (new_backup)
 		res->backup_offset = new_backup_offset;
 
-	if (!res->func->may_evict || res->id == -1)
+	if (!res->func->may_evict || res->id == -1 || res->pin_count)
 		return;
 
 	write_lock(&dev_priv->resource_lock);
@@ -1572,4 +1572,93 @@ void vmw_resource_evict_all(struct vmw_private *dev_priv)
 		vmw_resource_evict_type(dev_priv, type);
 
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
+}
+
+/**
+ * vmw_resource_pin - Add a pin reference on a resource
+ *
+ * @res: The resource to add a pin reference on
+ *
+ * This function adds a pin reference, and if needed validates the resource.
+ * Having a pin reference means that the resource can never be evicted, and
+ * its id will never change as long as there is a pin reference.
+ * This function returns 0 on success and a negative error code on failure.
+ */
+int vmw_resource_pin(struct vmw_resource *res)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	int ret;
+
+	ttm_write_lock(&dev_priv->reservation_sem, false);
+	mutex_lock(&dev_priv->cmdbuf_mutex);
+	ret = vmw_resource_reserve(res, false);
+	if (ret)
+		goto out_no_reserve;
+
+	if (res->pin_count == 0) {
+		struct ttm_buffer_object *bo = NULL;
+
+		if (res->backup) {
+			bo = &res->backup->base;
+
+			ttm_bo_reserve(bo, false, false, false, NULL);
+			ret = ttm_bo_validate(bo, res->func->backup_placement,
+					      false, false);
+			if (ret) {
+				ttm_bo_unreserve(bo);
+				goto out_no_validate;
+			}
+
+			/* Do we really need to pin the MOB as well? */
+			vmw_bo_pin(bo, true);
+		}
+		ret = vmw_resource_validate(res);
+		if (bo)
+			ttm_bo_unreserve(bo);
+		if (ret)
+			goto out_no_validate;
+	}
+	res->pin_count++;
+
+out_no_validate:
+	vmw_resource_unreserve(res, NULL, 0UL);
+out_no_reserve:
+	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	ttm_write_unlock(&dev_priv->reservation_sem);
+
+	return ret;
+}
+
+/**
+ * vmw_resource_unpin - Remove a pin reference from a resource
+ *
+ * @res: The resource to remove a pin reference from
+ *
+ * Having a pin reference means that the resource can never be evicted, and
+ * its id will never change as long as there is a pin reference.
+ */
+void vmw_resource_unpin(struct vmw_resource *res)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	int ret;
+
+	ttm_read_lock(&dev_priv->reservation_sem, false);
+	mutex_lock(&dev_priv->cmdbuf_mutex);
+
+	ret = vmw_resource_reserve(res, true);
+	WARN_ON(ret);
+
+	WARN_ON(res->pin_count == 0);
+	if (--res->pin_count == 0 && res->backup) {
+		struct ttm_buffer_object *bo = &res->backup->base;
+
+		ttm_bo_reserve(bo, false, false, false, NULL);
+		vmw_bo_pin(bo, false);
+		ttm_bo_unreserve(bo);
+	}
+
+	vmw_resource_unreserve(res, NULL, 0UL);
+
+	mutex_unlock(&dev_priv->cmdbuf_mutex);
+	ttm_read_unlock(&dev_priv->reservation_sem);
 }
