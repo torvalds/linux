@@ -234,8 +234,6 @@ struct omap_hsmmc_host {
 	int card_detect_irq;
 
 	int (*card_detect)(struct device *dev);
-	int (*get_ro)(struct device *dev);
-
 };
 
 struct omap_mmc_of_data {
@@ -250,13 +248,6 @@ static int omap_hsmmc_card_detect(struct device *dev)
 	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
 
 	return mmc_gpio_get_cd(host->mmc);
-}
-
-static int omap_hsmmc_get_wp(struct device *dev)
-{
-	struct omap_hsmmc_host *host = dev_get_drvdata(dev);
-
-	return mmc_gpio_get_ro(host->mmc);
 }
 
 static int omap_hsmmc_get_cover_state(struct device *dev)
@@ -455,12 +446,9 @@ static int omap_hsmmc_gpio_init(struct mmc_host *mmc,
 	}
 
 	if (gpio_is_valid(pdata->gpio_wp)) {
-		host->get_ro = omap_hsmmc_get_wp;
 		ret = mmc_gpio_request_ro(mmc, pdata->gpio_wp);
 		if (ret)
 			return ret;
-	} else {
-		pdata->gpio_wp = -EINVAL;
 	}
 
 	return 0;
@@ -1637,15 +1625,6 @@ static int omap_hsmmc_get_cd(struct mmc_host *mmc)
 	return host->card_detect(host->dev);
 }
 
-static int omap_hsmmc_get_ro(struct mmc_host *mmc)
-{
-	struct omap_hsmmc_host *host = mmc_priv(mmc);
-
-	if (!host->get_ro)
-		return -ENOSYS;
-	return host->get_ro(host->dev);
-}
-
 static void omap_hsmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
 {
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
@@ -1811,7 +1790,7 @@ static struct mmc_host_ops omap_hsmmc_ops = {
 	.request = omap_hsmmc_request,
 	.set_ios = omap_hsmmc_set_ios,
 	.get_cd = omap_hsmmc_get_cd,
-	.get_ro = omap_hsmmc_get_ro,
+	.get_ro = mmc_gpio_get_ro,
 	.init_card = omap_hsmmc_init_card,
 	.enable_sdio_irq = omap_hsmmc_enable_sdio_irq,
 };
