@@ -95,6 +95,7 @@ static int hda_codec_driver_probe(struct device *dev)
 		err = snd_card_register(codec->card);
 		if (err < 0)
 			goto error_module;
+		snd_hda_codec_register(codec);
 	}
 
 	return 0;

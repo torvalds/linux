@@ -912,6 +912,13 @@ static void codec_release_pcms(struct hda_codec *codec)
 
 void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 {
+	if (codec->registered) {
+		/* pm_runtime_put() is called in snd_hdac_device_exit() */
+		pm_runtime_get_noresume(hda_codec_dev(codec));
+		pm_runtime_disable(hda_codec_dev(codec));
+		codec->registered = 0;
+	}
+
 	cancel_delayed_work_sync(&codec->jackpoll_work);
 	if (!codec->in_freeing)
 		snd_hda_ctls_clear(codec);
@@ -943,15 +950,23 @@ void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 static unsigned int hda_set_power_state(struct hda_codec *codec,
 				unsigned int power_state);
 
+/* also called from hda_bind.c */
+void snd_hda_codec_register(struct hda_codec *codec)
+{
+	if (codec->registered)
+		return;
+	if (device_is_registered(hda_codec_dev(codec))) {
+		snd_hda_register_beep_device(codec);
+		pm_runtime_enable(hda_codec_dev(codec));
+		/* it was powered up in snd_hda_codec_new(), now all done */
+		snd_hda_power_down(codec);
+		codec->registered = 1;
+	}
+}
+
 static int snd_hda_codec_dev_register(struct snd_device *device)
 {
-	struct hda_codec *codec = device->device_data;
-
-	snd_hda_register_beep_device(codec);
-	if (device_is_registered(hda_codec_dev(codec)))
-		pm_runtime_enable(hda_codec_dev(codec));
-	/* it was powered up in snd_hda_codec_new(), now all done */
-	snd_hda_power_down(codec);
+	snd_hda_codec_register(device->device_data);
 	return 0;
 }
 
@@ -1094,7 +1109,6 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 	return 0;
 
  error:
-	pm_runtime_put_noidle(hda_codec_dev(codec));
 	put_device(hda_codec_dev(codec));
 	return err;
 }

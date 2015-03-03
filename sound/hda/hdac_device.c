@@ -109,7 +109,6 @@ int snd_hdac_device_init(struct hdac_device *codec, struct hdac_bus *bus,
 	return 0;
 
  error:
-	pm_runtime_put_noidle(&codec->dev);
 	put_device(&codec->dev);
 	return err;
 }
@@ -121,7 +120,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_device_init);
  */
 void snd_hdac_device_exit(struct hdac_device *codec)
 {
-	/* pm_runtime_put_noidle(&codec->dev); */
+	pm_runtime_put_noidle(&codec->dev);
 	snd_hdac_bus_remove_device(codec->bus, codec);
 	kfree(codec->vendor_name);
 	kfree(codec->chip_name);
