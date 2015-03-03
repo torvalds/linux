@@ -2149,7 +2149,7 @@
                                                 "clk_jtag",	"reserved",/* bit1: test_clk */
                                                 "clk_crypto",	"clk_pvtm_pmu",
 
-						"reserved",	"reserved",/* clk_mac_rx  clk_mac_tx */
+						"clk_mac_rx",	"clk_mac_tx",
 						"clk_mac_ref",	"clk_mac_refout",
 
 						"clk_nandc0",	"pclk_pmu_pre",

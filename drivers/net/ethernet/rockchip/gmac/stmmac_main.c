@@ -1129,6 +1129,9 @@ static void init_dma_desc_rings(struct net_device *dev)
 						  GFP_KERNEL);
 		if ((!priv->dma_rx) || (!priv->dma_tx))
 			return;
+
+		memset(priv->dma_rx, 0, rxsize * sizeof(struct dma_desc));
+		memset(priv->dma_tx, 0, txsize * sizeof(struct dma_desc));
 	}
 
 	priv->rx_skbuff_dma = kmalloc_array(rxsize, sizeof(dma_addr_t),

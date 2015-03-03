@@ -533,7 +533,7 @@
 			<&hclk_peri 150000000>,		<&pclk_peri 75000000>,
 			<&pclk_alive_pre 100000000>,	<&pclk_pmu_pre 100000000>,
 			<&clk_cs 300000000>,		<&clkin_trace 300000000>,
-			<&aclk_cci 600000000>,		<&clk_mac 50000000>,
+			<&aclk_cci 600000000>,		<&clk_mac 125000000>,
 			<&aclk_vio0 400000000>,		<&hclk_vio 100000000>,
 			<&aclk_rga_pre 400000000>,	<&clk_rga 400000000>,
 			<&clk_isp 400000000>,		<&clk_edp 200000000>,
@@ -1041,13 +1041,14 @@
 	gmac: eth@ff290000 {
 		compatible = "rockchip,rk3368-gmac";
 		reg = <0x0 0xff290000 0x0 0x10000>;
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;  /*irq=59*/
 		interrupt-names = "macirq";
 
-		clocks = <&clk_mac>, <&clk_gates5 0>,
-			 <&clk_gates5 1>, <&clk_gates5 2>,
-			 <&clk_gates5 3>, <&clk_gates8 0>,
-			 <&clk_gates8 1>;
+		clocks = <&clk_mac>, <&clk_gates7 4>,
+			 <&clk_gates7 5>, <&clk_gates7 6>,
+			 <&clk_gates7 7>, <&clk_gates20 13>,
+			 <&clk_gates20 14>;
 		clock-names = "clk_mac", "mac_clk_rx",
 			      "mac_clk_tx", "clk_mac_ref",
 			      "clk_mac_refout", "aclk_mac",
@@ -1055,7 +1056,7 @@
 
 		phy-mode = "rgmii";
 		pinctrl-names = "default";
-		pinctrl-0 = <&mac_clk &mac_txpins &mac_rxpins &mac_mdpins>;
+		pinctrl-0 = <&rgmii_pins>;
 	};
 
 	gpu {
@@ -1362,6 +1363,10 @@
 
 		pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
 			drive-strength = <8>;
+		};
+
+		pcfg_pull_none_drv_12ma: pcfg-pull-none-drv-12ma {
+			drive-strength = <12>;
 		};
 
 		pcfg_pull_up_drv_8ma: pcfg-pull-up-drv-8ma {
@@ -1889,37 +1894,35 @@
 		};
 
 		gmac {
-			mac_clk: mac-clk {
-				rockchip,pins =	<3 GPIO_C6 RK_FUNC_1 &pcfg_pull_none>;
-			};
-
-			mac_txpins: mac-txpins {
-				rockchip,pins =	<3 GPIO_B0 RK_FUNC_1 &pcfg_pull_none>,//TXD0
-						<3 GPIO_B1 RK_FUNC_1 &pcfg_pull_none>,//TXD1
-						<3 GPIO_B2 RK_FUNC_1 &pcfg_pull_none>,//TXD2
-						<3 GPIO_B6 RK_FUNC_1 &pcfg_pull_none>,//TXD3
-						<3 GPIO_B5 RK_FUNC_1 &pcfg_pull_none>,//TXEN
-						<3 GPIO_D4 RK_FUNC_1 &pcfg_pull_none>;//TXCLK
-			};
-
-			mac_rxpins: mac-rxpins {
-				rockchip,pins =	<3 GPIO_B7 RK_FUNC_1 &pcfg_pull_none>,//RXD0
+			rgmii_pins: rgmii-pins {
+				rockchip,pins =	<3 GPIO_C6 RK_FUNC_1 &pcfg_pull_none>,//MAC_CLK
+						<3 GPIO_D0 RK_FUNC_1 &pcfg_pull_none>,//MDIO
+						<3 GPIO_C3 RK_FUNC_1 &pcfg_pull_none>,//MDC
+						<3 GPIO_B0 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXD0
+						<3 GPIO_B1 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXD1
+						<3 GPIO_B2 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXD2
+						<3 GPIO_B6 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXD3
+						<3 GPIO_D4 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXCLK
+						<3 GPIO_B5 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXEN
+						<3 GPIO_B7 RK_FUNC_1 &pcfg_pull_none>,//RXD0
 						<3 GPIO_C0 RK_FUNC_1 &pcfg_pull_none>,//RXD1
 						<3 GPIO_C1 RK_FUNC_1 &pcfg_pull_none>,//RXD2
 						<3 GPIO_C2 RK_FUNC_1 &pcfg_pull_none>,//RXD3
-						<3 GPIO_C4 RK_FUNC_1 &pcfg_pull_none>,//RXDV
-						<3 GPIO_C5 RK_FUNC_1 &pcfg_pull_none>,//RXER
 						<3 GPIO_D1 RK_FUNC_1 &pcfg_pull_none>,//RXCLK
-						<3 GPIO_B4 RK_FUNC_1 &pcfg_pull_none>;//COL
+						<3 GPIO_C4 RK_FUNC_1 &pcfg_pull_none>;//RXDV
 			};
 
-			mac_crs: mac-crs {
-				rockchip,pins =	<3 GPIO_B3 RK_FUNC_1 &pcfg_pull_none>; //CRS
-			};
-
-			mac_mdpins: mac-mdpins {
-				rockchip,pins =	<3 GPIO_D0 RK_FUNC_1 &pcfg_pull_none>,//MDIO
-						<3 GPIO_C3 RK_FUNC_1 &pcfg_pull_none>;//MDC
+			rmii_pins: rmii-pins {
+				rockchip,pins =	<3 GPIO_C6 RK_FUNC_1 &pcfg_pull_none>,//MAC_CLK
+						<3 GPIO_D0 RK_FUNC_1 &pcfg_pull_none>,//MDIO
+						<3 GPIO_C3 RK_FUNC_1 &pcfg_pull_none>,//MDC
+						<3 GPIO_B0 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXD0
+						<3 GPIO_B1 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXD1
+						<3 GPIO_B5 RK_FUNC_1 &pcfg_pull_none_drv_12ma>,//TXEN
+						<3 GPIO_B7 RK_FUNC_1 &pcfg_pull_none>,//RXD0
+						<3 GPIO_C0 RK_FUNC_1 &pcfg_pull_none>,//RXD1
+						<3 GPIO_C4 RK_FUNC_1 &pcfg_pull_none>,//RXDV
+						<3 GPIO_C5 RK_FUNC_1 &pcfg_pull_none>;//RXER
 			};
 		};
 
