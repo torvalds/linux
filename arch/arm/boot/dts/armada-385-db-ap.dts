@@ -150,6 +150,19 @@
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
 			};
+
+			nfc: flash@d0000 {
+				status = "okay";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				num-cs = <1>;
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
+			};
 		};
 
 		pcie-controller {
