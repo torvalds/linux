@@ -983,7 +983,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 		goto out_free;
 	}
 
-	md = kasprintf(GFP_NOFS, "%s-%p", lprof->lp_dt, cfg->cfg_instance);
+	md = kasprintf(GFP_NOFS, "%s-%p", lprof->lp_md, cfg->cfg_instance);
 	if (!md) {
 		err = -ENOMEM;
 		goto out_free;
