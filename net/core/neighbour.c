@@ -2391,6 +2391,40 @@ void __neigh_for_each_release(struct neigh_table *tbl,
 }
 EXPORT_SYMBOL(__neigh_for_each_release);
 
+int neigh_xmit(int family, struct net_device *dev,
+	       const void *addr, struct sk_buff *skb)
+{
+	int err;
+	if (family == AF_PACKET) {
+		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+				      addr, NULL, skb->len);
+		if (err < 0)
+			goto out_kfree_skb;
+		err = dev_queue_xmit(skb);
+	} else {
+		struct neigh_table *tbl;
+		struct neighbour *neigh;
+
+		err = -ENETDOWN;
+		tbl = neigh_find_table(family);
+		if (!tbl)
+			goto out;
+		neigh = __neigh_lookup_noref(tbl, addr, dev);
+		if (!neigh)
+			neigh = __neigh_create(tbl, addr, dev, false);
+		err = PTR_ERR(neigh);
+		if (IS_ERR(neigh))
+			goto out_kfree_skb;
+		err = neigh->output(neigh, skb);
+	}
+out:
+	return err;
+out_kfree_skb:
+	kfree_skb(skb);
+	goto out;
+}
+EXPORT_SYMBOL(neigh_xmit);
+
 #ifdef CONFIG_PROC_FS
 
 static struct neighbour *neigh_get_first(struct seq_file *seq)
