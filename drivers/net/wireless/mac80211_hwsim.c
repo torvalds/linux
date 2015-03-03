@@ -1595,21 +1595,16 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 		vp->aid = info->aid;
 	}
 
-	if (changed & BSS_CHANGED_BEACON_INT) {
-		wiphy_debug(hw->wiphy, "  BCNINT: %d\n", info->beacon_int);
-		data->beacon_int = info->beacon_int * 1024;
-	}
-
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		wiphy_debug(hw->wiphy, "  BCN EN: %d\n", info->enable_beacon);
+		wiphy_debug(hw->wiphy, "  BCN EN: %d (BI=%u)\n",
+			    info->enable_beacon, info->beacon_int);
 		vp->bcn_en = info->enable_beacon;
 		if (data->started &&
 		    !hrtimer_is_queued(&data->beacon_timer.timer) &&
 		    info->enable_beacon) {
 			u64 tsf, until_tbtt;
 			u32 bcn_int;
-			if (WARN_ON(!data->beacon_int))
-				data->beacon_int = 1000 * 1024;
+			data->beacon_int = info->beacon_int * 1024;
 			tsf = mac80211_hwsim_get_tsf(hw, vif);
 			bcn_int = data->beacon_int;
 			until_tbtt = bcn_int - do_div(tsf, bcn_int);
@@ -1623,8 +1618,10 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 				mac80211_hwsim_bcn_en_iter, &count);
 			wiphy_debug(hw->wiphy, "  beaconing vifs remaining: %u",
 				    count);
-			if (count == 0)
+			if (count == 0) {
 				tasklet_hrtimer_cancel(&data->beacon_timer);
+				data->beacon_int = 0;
+			}
 		}
 	}
 
