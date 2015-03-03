@@ -110,7 +110,8 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	DBG("allocating %d bytes for fb %d", size, dev->primary->index);
 	mutex_lock(&dev->struct_mutex);
-	fbdev->bo = msm_gem_new(dev, size, MSM_BO_SCANOUT | MSM_BO_WC);
+	fbdev->bo = msm_gem_new(dev, size, MSM_BO_SCANOUT |
+			MSM_BO_WC | MSM_BO_STOLEN);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(fbdev->bo)) {
 		ret = PTR_ERR(fbdev->bo);
