@@ -272,8 +272,6 @@ extern const struct clk_ops ti_clk_mux_ops;
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
 
 void omap2_init_clk_clkdm(struct clk_hw *clk);
-int omap2_clkops_enable_clkdm(struct clk_hw *hw);
-void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 int omap2_clk_disable_autoidle_all(void);
 int omap2_clk_enable_autoidle_all(void);
 int omap2_clk_allow_idle(struct clk *clk);
