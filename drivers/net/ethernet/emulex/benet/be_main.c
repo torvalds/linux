@@ -3218,7 +3218,7 @@ static int be_setup_wol(struct be_adapter *adapter, bool enable)
 	int status = 0;
 	u8 mac[ETH_ALEN];
 
-	memset(mac, 0, ETH_ALEN);
+	eth_zero_addr(mac);
 
 	cmd.size = sizeof(struct be_cmd_req_acpi_wol_magic_config);
 	cmd.va = dma_zalloc_coherent(&adapter->pdev->dev, cmd.size, &cmd.dma,

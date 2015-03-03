@@ -1685,7 +1685,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	}
 
 	/* Attach rx QP to bradcast address */
-	memset(&mc_list[10], 0xff, ETH_ALEN);
+	eth_broadcast_addr(&mc_list[10]);
 	mc_list[5] = priv->port; /* needed for B0 steering support */
 	if (mlx4_multicast_attach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
 				  priv->port, 0, MLX4_PROT_ETH,
@@ -1788,7 +1788,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	}
 
 	/* Detach All multicasts */
-	memset(&mc_list[10], 0xff, ETH_ALEN);
+	eth_broadcast_addr(&mc_list[10]);
 	mc_list[5] = priv->port; /* needed for B0 steering support */
 	mlx4_multicast_detach(mdev->dev, &priv->rss_map.indir_qp, mc_list,
 			      MLX4_PROT_ETH, priv->broadcast_id);

@@ -843,7 +843,7 @@ static int smsc911x_phy_loopbacktest(struct net_device *dev)
 	unsigned long flags;
 
 	/* Initialise tx packet using broadcast destination address */
-	memset(pdata->loopback_tx_pkt, 0xff, ETH_ALEN);
+	eth_broadcast_addr(pdata->loopback_tx_pkt);
 
 	/* Use incrementing source address */
 	for (i = 6; i < 12; i++)

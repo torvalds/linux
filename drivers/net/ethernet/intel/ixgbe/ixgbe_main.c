@@ -3924,7 +3924,7 @@ static void ixgbe_flush_sw_mac_table(struct ixgbe_adapter *adapter)
 	for (i = 0; i < hw->mac.num_rar_entries; i++) {
 		adapter->mac_table[i].state |= IXGBE_MAC_STATE_MODIFIED;
 		adapter->mac_table[i].state &= ~IXGBE_MAC_STATE_IN_USE;
-		memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+		eth_zero_addr(adapter->mac_table[i].addr);
 		adapter->mac_table[i].queue = 0;
 	}
 	ixgbe_sync_mac_table(adapter);
@@ -3992,7 +3992,7 @@ int ixgbe_del_mac_filter(struct ixgbe_adapter *adapter, u8 *addr, u16 queue)
 		    adapter->mac_table[i].queue == queue) {
 			adapter->mac_table[i].state |= IXGBE_MAC_STATE_MODIFIED;
 			adapter->mac_table[i].state &= ~IXGBE_MAC_STATE_IN_USE;
-			memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+			eth_zero_addr(adapter->mac_table[i].addr);
 			adapter->mac_table[i].queue = 0;
 			ixgbe_sync_mac_table(adapter);
 			return 0;

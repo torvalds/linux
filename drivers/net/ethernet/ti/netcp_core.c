@@ -1320,7 +1320,7 @@ static struct netcp_addr *netcp_addr_add(struct netcp_intf *netcp,
 	if (addr)
 		ether_addr_copy(naddr->addr, addr);
 	else
-		memset(naddr->addr, 0, ETH_ALEN);
+		eth_zero_addr(naddr->addr);
 	list_add_tail(&naddr->node, &netcp->addr_list);
 
 	return naddr;

@@ -2693,7 +2693,7 @@ int bnx2x_get_vf_config(struct net_device *dev, int vfidx,
 			memcpy(&ivi->mac, bulletin->mac, ETH_ALEN);
 		else
 			/* function has not been loaded yet. Show mac as 0s */
-			memset(&ivi->mac, 0, ETH_ALEN);
+			eth_zero_addr(ivi->mac);
 
 		/* vlan */
 		if (bulletin->valid_bitmap & (1 << VLAN_VALID))

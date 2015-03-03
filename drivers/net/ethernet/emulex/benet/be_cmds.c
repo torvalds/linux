@@ -3076,7 +3076,7 @@ int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac)
 	int status;
 	bool pmac_valid = false;
 
-	memset(mac, 0, ETH_ALEN);
+	eth_zero_addr(mac);
 
 	if (BEx_chip(adapter)) {
 		if (be_physfn(adapter))
