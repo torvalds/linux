@@ -107,6 +107,8 @@ int snd_hdac_read(struct hdac_device *codec, hda_nid_t nid,
 		  unsigned int verb, unsigned int parm, unsigned int *res);
 int _snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm,
 			unsigned int *res);
+int snd_hdac_read_parm_uncached(struct hdac_device *codec, hda_nid_t nid,
+				int parm);
 int snd_hdac_get_connections(struct hdac_device *codec, hda_nid_t nid,
 			     hda_nid_t *conn_list, int max_conns);
 int snd_hdac_get_sub_nodes(struct hdac_device *codec, hda_nid_t nid,
