@@ -247,6 +247,9 @@ static netdev_tx_t sp_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sixpack *sp = netdev_priv(dev);
 
+	if (skb->protocol == htons(ETH_P_IP))
+		return ax25_ip_xmit(skb);
+
 	spin_lock_bh(&sp->lock);
 	/* We were not busy, so we are now... :-) */
 	netif_stop_queue(dev);
@@ -302,7 +305,6 @@ static const struct net_device_ops sp_netdev_ops = {
 	.ndo_stop		= sp_close,
 	.ndo_start_xmit		= sp_xmit,
 	.ndo_set_mac_address    = sp_set_mac_address,
-	.ndo_neigh_construct	= ax25_neigh_construct,
 };
 
 static void sp_setup(struct net_device *dev)
@@ -316,7 +318,6 @@ static void sp_setup(struct net_device *dev)
 
 	dev->addr_len		= AX25_ADDR_LEN;
 	dev->type		= ARPHRD_AX25;
-	dev->neigh_priv_len	= sizeof(struct ax25_neigh_priv);
 	dev->tx_queue_len	= 10;
 
 	/* Only activated in AX.25 mode */

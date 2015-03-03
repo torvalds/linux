@@ -529,6 +529,9 @@ static netdev_tx_t ax_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mkiss *ax = netdev_priv(dev);
 
+	if (skb->protocol == htons(ETH_P_IP))
+		return ax25_ip_xmit(skb);
+
 	if (!netif_running(dev))  {
 		printk(KERN_ERR "mkiss: %s: xmit call when iface is down\n", dev->name);
 		return NETDEV_TX_BUSY;
@@ -641,7 +644,6 @@ static const struct net_device_ops ax_netdev_ops = {
 	.ndo_stop            = ax_close,
 	.ndo_start_xmit	     = ax_xmit,
 	.ndo_set_mac_address = ax_set_mac_address,
-	.ndo_neigh_construct = ax25_neigh_construct,
 };
 
 static void ax_setup(struct net_device *dev)
@@ -651,7 +653,6 @@ static void ax_setup(struct net_device *dev)
 	dev->hard_header_len = 0;
 	dev->addr_len        = 0;
 	dev->type            = ARPHRD_AX25;
-	dev->neigh_priv_len  = sizeof(struct ax25_neigh_priv);
 	dev->tx_queue_len    = 10;
 	dev->header_ops      = &ax25_header_ops;
 	dev->netdev_ops	     = &ax_netdev_ops;

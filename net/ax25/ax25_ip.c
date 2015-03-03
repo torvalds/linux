@@ -100,7 +100,7 @@ static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return -AX25_HEADER_LEN;	/* Unfinished header */
 }
 
-static int ax25_neigh_xmit(struct sk_buff *skb)
+netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 {
 	struct sk_buff *ourskb;
 	unsigned char *bp  = skb->data;
@@ -210,56 +210,7 @@ put:
 	if (route)
 		ax25_put_route(route);
 
-	return 1;
-}
-
-static int ax25_neigh_output(struct neighbour *neigh, struct sk_buff *skb)
-{
-	/* Except for calling ax25_neigh_xmit instead of
-	 * dev_queue_xmit this is neigh_resolve_output.
-	 */
-	int rc = 0;
-
-	if (!neigh_event_send(neigh, skb)) {
-		int err;
-		struct net_device *dev = neigh->dev;
-		unsigned int seq;
-
-		do {
-			__skb_pull(skb, skb_network_offset(skb));
-			seq = read_seqbegin(&neigh->ha_lock);
-			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
-					      neigh->ha, NULL, skb->len);
-		} while (read_seqretry(&neigh->ha_lock, seq));
-
-		if (err >= 0) {
-			ax25_neigh_xmit(skb);
-		} else
-			goto out_kfree_skb;
-	}
-out:
-	return rc;
-
-out_kfree_skb:
-	rc = -EINVAL;
-	kfree_skb(skb);
-	goto out;
-}
-
-int ax25_neigh_construct(struct neighbour *neigh)
-{
-	/* This trouble could be saved if ax25 would right a proper
-	 * dev_queue_xmit function.
-	 */
-	struct ax25_neigh_priv *priv = neighbour_priv(neigh);
-
-	if (neigh->tbl->family != AF_INET)
-		return -EINVAL;
-
-	priv->ops = *neigh->ops;
-	priv->ops.output = ax25_neigh_output;
-	priv->ops.connected_output = ax25_neigh_output;
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 #else	/* INET */
@@ -271,9 +222,10 @@ static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return -AX25_HEADER_LEN;
 }
 
-int ax25_neigh_construct(struct neighbour *neigh)
+netdev_tx_t ax25_ip_xmit(sturct sk_buff *skb)
 {
-	return 0;
+	kfree_skb(skb);
+	return NETDEV_TX_OK;
 }
 #endif
 
@@ -282,5 +234,5 @@ const struct header_ops ax25_header_ops = {
 };
 
 EXPORT_SYMBOL(ax25_header_ops);
-EXPORT_SYMBOL(ax25_neigh_construct);
+EXPORT_SYMBOL(ax25_ip_xmit);
 

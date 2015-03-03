@@ -367,11 +367,8 @@ int ax25_kiss_rcv(struct sk_buff *, struct net_device *, struct packet_type *,
 		  struct net_device *);
 
 /* ax25_ip.c */
-int ax25_neigh_construct(struct neighbour *neigh);
+netdev_tx_t ax25_ip_xmit(struct sk_buff *skb);
 extern const struct header_ops ax25_header_ops;
-struct ax25_neigh_priv {
-	struct neigh_ops ops;
-};
 
 /* ax25_out.c */
 ax25_cb *ax25_send_frame(struct sk_buff *, int, ax25_address *, ax25_address *,

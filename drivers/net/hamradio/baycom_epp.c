@@ -772,6 +772,9 @@ static int baycom_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct baycom_state *bc = netdev_priv(dev);
 
+	if (skb->protocol == htons(ETH_P_IP))
+		return ax25_ip_xmit(skb);
+
 	if (skb->data[0] != 0) {
 		do_kiss_params(bc, skb->data, skb->len);
 		dev_kfree_skb(skb);
@@ -1109,7 +1112,6 @@ static const struct net_device_ops baycom_netdev_ops = {
 	.ndo_do_ioctl	     = baycom_ioctl,
 	.ndo_start_xmit      = baycom_send_packet,
 	.ndo_set_mac_address = baycom_set_mac_address,
-	.ndo_neigh_construct = ax25_neigh_construct,
 };
 
 /*
@@ -1147,7 +1149,6 @@ static void baycom_probe(struct net_device *dev)
 	dev->header_ops = &ax25_header_ops;
 	
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */
-	dev->neigh_priv_len = sizeof(struct ax25_neigh_priv);
 	dev->hard_header_len = AX25_MAX_HEADER_LEN + AX25_BPQ_HEADER_LEN;
 	dev->mtu = AX25_DEF_PACLEN;        /* eth_mtu is the default */
 	dev->addr_len = AX25_ADDR_LEN;     /* sizeof an ax.25 address */

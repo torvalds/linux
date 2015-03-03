@@ -597,6 +597,9 @@ static netdev_tx_t yam_send_packet(struct sk_buff *skb,
 {
 	struct yam_port *yp = netdev_priv(dev);
 
+	if (skb->protocol == htons(ETH_P_IP))
+		return ax25_ip_xmit(skb);
+
 	skb_queue_tail(&yp->send_queue, skb);
 	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
@@ -1100,7 +1103,6 @@ static const struct net_device_ops yam_netdev_ops = {
 	.ndo_start_xmit      = yam_send_packet,
 	.ndo_do_ioctl 	     = yam_ioctl,
 	.ndo_set_mac_address = yam_set_mac_address,
-	.ndo_neigh_construct = ax25_neigh_construct,
 };
 
 static void yam_setup(struct net_device *dev)
@@ -1129,7 +1131,6 @@ static void yam_setup(struct net_device *dev)
 	dev->header_ops = &ax25_header_ops;
 
 	dev->type = ARPHRD_AX25;
-	dev->neigh_priv_len = sizeof(struct ax25_neigh_priv);
 	dev->hard_header_len = AX25_MAX_HEADER_LEN;
 	dev->mtu = AX25_MTU;
 	dev->addr_len = AX25_ADDR_LEN;
