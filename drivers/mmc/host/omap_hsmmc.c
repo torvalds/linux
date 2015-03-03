@@ -230,9 +230,6 @@ struct omap_hsmmc_host {
 	 */
 	int (*get_cover_state)(struct device *dev);
 
-	/* Card detection IRQs */
-	int card_detect_irq;
-
 	int (*card_detect)(struct device *dev);
 };
 
@@ -422,6 +419,7 @@ static inline int omap_hsmmc_have_reg(void)
 #endif
 
 static irqreturn_t omap_hsmmc_detect(int irq, void *dev_id);
+static irqreturn_t omap_hsmmc_cover_irq(int irq, void *dev_id);
 
 static int omap_hsmmc_gpio_init(struct mmc_host *mmc,
 				struct omap_hsmmc_host *host,
@@ -429,20 +427,20 @@ static int omap_hsmmc_gpio_init(struct mmc_host *mmc,
 {
 	int ret;
 
-	if (gpio_is_valid(pdata->switch_pin)) {
-		if (pdata->cover)
-			host->get_cover_state =
-				omap_hsmmc_get_cover_state;
-		else
-			host->card_detect = omap_hsmmc_card_detect;
-		host->card_detect_irq =
-				gpio_to_irq(pdata->switch_pin);
-		mmc_gpio_set_cd_isr(mmc, omap_hsmmc_detect);
+	if (pdata->cover && gpio_is_valid(pdata->switch_pin)) {
 		ret = mmc_gpio_request_cd(mmc, pdata->switch_pin, 0);
 		if (ret)
 			return ret;
-	} else {
-		pdata->switch_pin = -EINVAL;
+
+		host->get_cover_state = omap_hsmmc_get_cover_state;
+		mmc_gpio_set_cd_isr(mmc, omap_hsmmc_cover_irq);
+	} else if (!pdata->cover && gpio_is_valid(pdata->switch_pin)) {
+		ret = mmc_gpio_request_cd(mmc, pdata->switch_pin, 0);
+		if (ret)
+			return ret;
+
+		host->card_detect = omap_hsmmc_card_detect;
+		mmc_gpio_set_cd_isr(mmc, omap_hsmmc_detect);
 	}
 
 	if (gpio_is_valid(pdata->gpio_wp)) {
@@ -1236,14 +1234,36 @@ static void omap_hsmmc_protect_card(struct omap_hsmmc_host *host)
 }
 
 /*
+ * irq handler when (cell-phone) cover is mounted/removed
+ */
+static irqreturn_t omap_hsmmc_cover_irq(int irq, void *dev_id)
+{
+	struct omap_hsmmc_host *host = dev_id;
+	int carddetect;
+
+	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
+
+	if (host->card_detect) {
+		carddetect = host->card_detect(host->dev);
+	} else {
+		omap_hsmmc_protect_card(host);
+		carddetect = -ENOSYS;
+	}
+
+	if (carddetect)
+		mmc_detect_change(host->mmc, (HZ * 200) / 1000);
+	else
+		mmc_detect_change(host->mmc, (HZ * 50) / 1000);
+	return IRQ_HANDLED;
+}
+
+/*
  * irq handler to notify the core about card insertion/removal
  */
 static irqreturn_t omap_hsmmc_detect(int irq, void *dev_id)
 {
 	struct omap_hsmmc_host *host = dev_id;
 	int carddetect;
-
-	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
 
 	if (host->card_detect)
 		carddetect = host->card_detect(host->dev);
@@ -2154,9 +2174,9 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err_slot_name;
 	}
-	if (host->card_detect_irq && host->get_cover_state) {
+	if (host->get_cover_state) {
 		ret = device_create_file(&mmc->class_dev,
-					&dev_attr_cover_switch);
+					 &dev_attr_cover_switch);
 		if (ret < 0)
 			goto err_slot_name;
 	}
