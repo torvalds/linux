@@ -1599,7 +1599,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	/* RF-kill already asserted again... */
 	if (!cmd.resp_pkt) {
-		ret = -ERFKILL;
+		fw_status = ERR_PTR(-ERFKILL);
 		goto out_free_resp;
 	}
 
@@ -1608,7 +1608,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	len = iwl_rx_packet_payload_len(cmd.resp_pkt);
 	if (len < status_size) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-		ret = -EIO;
+		fw_status = ERR_PTR(-EIO);
 		goto out_free_resp;
 	}
 
@@ -1616,7 +1616,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (len != (status_size +
 		    ALIGN(le32_to_cpu(status->wake_packet_bufsize), 4))) {
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");
-		ret = -EIO;
+		fw_status = ERR_PTR(-EIO);
 		goto out_free_resp;
 	}
 
@@ -1624,7 +1624,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 out_free_resp:
 	iwl_free_resp(&cmd);
-	return ret ? ERR_PTR(ret) : fw_status;
+	return fw_status;
 }
 
 /* releases the MVM mutex */
