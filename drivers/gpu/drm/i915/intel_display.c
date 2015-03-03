@@ -11504,7 +11504,9 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 
 
 		if (&connector->new_encoder->base != connector->base.encoder) {
-			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] encoder changed, full mode switch\n",
+				      connector->base.base.id,
+				      connector->base.name);
 			config->mode_changed = true;
 		}
 	}
@@ -11555,7 +11557,9 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		/* Only now check for crtc changes so we don't miss encoders
 		 * that will be disabled. */
 		if (&encoder->new_crtc->base != encoder->base.crtc) {
-			DRM_DEBUG_KMS("crtc changed, full mode switch\n");
+			DRM_DEBUG_KMS("[ENCODER:%d:%s] crtc changed, full mode switch\n",
+				      encoder->base.base.id,
+				      encoder->base.name);
 			config->mode_changed = true;
 		}
 	}
@@ -11576,7 +11580,8 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		}
 
 		if (crtc->new_enabled != crtc->base.state->enable) {
-			DRM_DEBUG_KMS("crtc %sabled, full mode switch\n",
+			DRM_DEBUG_KMS("[CRTC:%d] %sabled, full mode switch\n",
+				      crtc->base.base.id,
 				      crtc->new_enabled ? "en" : "dis");
 			config->mode_changed = true;
 		}
