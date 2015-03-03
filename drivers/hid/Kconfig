@@ -286,12 +286,6 @@ config HID_GT683R
 	Currently the following devices are know to be supported:
 	  - MSI GT683R
 
-config HID_HUION
-	tristate "Huion tablets"
-	depends on USB_HID
-	---help---
-	Support for Huion 580 tablet.
-
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
 	depends on HID
@@ -314,7 +308,7 @@ config HID_UCLOGIC
 	tristate "UC-Logic"
 	depends on HID
 	---help---
-	Support for UC-Logic tablets.
+	Support for UC-Logic and Huion tablets.
 
 config HID_WALTOP
 	tristate "Waltop"
