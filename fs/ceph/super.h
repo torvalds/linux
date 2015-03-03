@@ -882,7 +882,6 @@ extern int ceph_mmap(struct file *file, struct vm_area_struct *vma);
 
 /* file.c */
 extern const struct file_operations ceph_file_fops;
-extern const struct address_space_operations ceph_aops;
 
 extern int ceph_open(struct inode *inode, struct file *file);
 extern int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
