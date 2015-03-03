@@ -323,8 +323,8 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	_r8712_init_recv_priv(&padapter->recvpriv, padapter);
 	memset((unsigned char *)&padapter->securitypriv, 0,
 	       sizeof(struct security_priv));
-	_init_timer(&(padapter->securitypriv.tkip_timer), padapter->pnetdev,
-		    r8712_use_tkipkey_handler, padapter);
+	setup_timer(&padapter->securitypriv.tkip_timer,
+		    r8712_use_tkipkey_handler, (unsigned long)padapter);
 	_r8712_init_sta_priv(&padapter->stapriv);
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);

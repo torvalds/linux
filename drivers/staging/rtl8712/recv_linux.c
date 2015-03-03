@@ -137,18 +137,17 @@ _recv_indicatepkt_drop:
 	 precvpriv->rx_drop++;
 }
 
-static void _r8712_reordering_ctrl_timeout_handler (void *FunctionContext)
+static void _r8712_reordering_ctrl_timeout_handler (unsigned long data)
 {
 	struct recv_reorder_ctrl *preorder_ctrl =
-			 (struct recv_reorder_ctrl *)FunctionContext;
+			 (struct recv_reorder_ctrl *)data;
 
 	r8712_reordering_ctrl_timeout_handler(preorder_ctrl);
 }
 
 void r8712_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
 {
-	struct _adapter *padapter = preorder_ctrl->padapter;
-
-	_init_timer(&(preorder_ctrl->reordering_ctrl_timer), padapter->pnetdev,
-		    _r8712_reordering_ctrl_timeout_handler, preorder_ctrl);
+	setup_timer(&preorder_ctrl->reordering_ctrl_timer,
+		     _r8712_reordering_ctrl_timeout_handler,
+		     (unsigned long)preorder_ctrl);
 }
