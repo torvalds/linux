@@ -20,6 +20,7 @@ struct thread {
 	pid_t			tid;
 	pid_t			ppid;
 	int			cpu;
+	int			refcnt;
 	char			shortname[3];
 	bool			comm_set;
 	bool			dead; /* if set thread has exited */
@@ -37,6 +38,18 @@ struct comm;
 struct thread *thread__new(pid_t pid, pid_t tid);
 int thread__init_map_groups(struct thread *thread, struct machine *machine);
 void thread__delete(struct thread *thread);
+
+struct thread *thread__get(struct thread *thread);
+void thread__put(struct thread *thread);
+
+static inline void __thread__zput(struct thread **thread)
+{
+	thread__put(*thread);
+	*thread = NULL;
+}
+
+#define thread__zput(thread) __thread__zput(&thread)
+
 static inline void thread__exited(struct thread *thread)
 {
 	thread->dead = true;

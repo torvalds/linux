@@ -510,6 +510,9 @@ static int read_counter(struct perf_evsel *counter)
 	int ncpus = perf_evsel__nr_cpus(counter);
 	int cpu, thread;
 
+	if (!counter->supported)
+		return -ENOENT;
+
 	if (counter->system_wide)
 		nthreads = 1;
 
@@ -1285,7 +1288,7 @@ static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 	if (prefix)
 		fprintf(output, "%s", prefix);
 
-	if (scaled == -1) {
+	if (scaled == -1 || !counter->supported) {
 		fprintf(output, "%*s%s",
 			csv_output ? 0 : 18,
 			counter->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED,

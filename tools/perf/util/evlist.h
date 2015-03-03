@@ -28,7 +28,7 @@ struct perf_mmap {
 	int		 mask;
 	int		 refcnt;
 	unsigned int	 prev;
-	char		 event_copy[PERF_SAMPLE_MAX_SIZE];
+	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __attribute__((aligned(8)));
 };
 
 struct perf_evlist {

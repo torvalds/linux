@@ -95,9 +95,7 @@ static pid_t perf_event__get_comm_tgid(pid_t pid, char *comm, size_t len)
 	return tgid;
 }
 
-static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
-					 union perf_event *event, pid_t pid,
-					 perf_event__handler_t process,
+static pid_t perf_event__prepare_comm(union perf_event *event, pid_t pid,
 					 struct machine *machine)
 {
 	size_t size;
@@ -124,6 +122,19 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 				(sizeof(event->comm.comm) - size) +
 				machine->id_hdr_size);
 	event->comm.tid = pid;
+out:
+	return tgid;
+}
+
+static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
+					 union perf_event *event, pid_t pid,
+					 perf_event__handler_t process,
+					 struct machine *machine)
+{
+	pid_t tgid = perf_event__prepare_comm(event, pid, machine);
+
+	if (tgid == -1)
+		goto out;
 
 	if (process(tool, event, &synth_sample, machine) != 0)
 		return -1;
@@ -139,7 +150,6 @@ static int perf_event__synthesize_fork(struct perf_tool *tool,
 {
 	memset(&event->fork, 0, sizeof(event->fork) + machine->id_hdr_size);
 
-	/* this is really a clone event but we use fork to synthesize it */
 	event->fork.ppid = tgid;
 	event->fork.ptid = tgid;
 	event->fork.pid  = tgid;
@@ -368,19 +378,23 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		if (*end)
 			continue;
 
-		tgid = perf_event__synthesize_comm(tool, comm_event, _pid,
-						   process, machine);
+		tgid = perf_event__prepare_comm(comm_event, _pid, machine);
 		if (tgid == -1)
+			return -1;
+
+		if (perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
+						process, machine) < 0)
+			return -1;
+		/*
+		 * Send the prepared comm event
+		 */
+		if (process(tool, comm_event, &synth_sample, machine) != 0)
 			return -1;
 
 		if (_pid == pid) {
 			/* process the parent's maps too */
 			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
 						process, machine, mmap_data);
-		} else {
-			/* only fork the tid's map, to save time */
-			rc = perf_event__synthesize_fork(tool, fork_event, _pid, tgid,
-						 process, machine);
 		}
 
 		if (rc)

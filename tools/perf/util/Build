@@ -71,7 +71,7 @@ libperf-y += stat.o
 libperf-y += record.o
 libperf-y += srcline.o
 libperf-y += data.o
-libperf-y += tsc.o
+libperf-$(CONFIG_X86) += tsc.o
 libperf-y += cloexec.o
 libperf-y += thread-stack.o
 

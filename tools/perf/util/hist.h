@@ -60,7 +60,7 @@ struct hists {
 	struct rb_root		entries_collapsed;
 	u64			nr_entries;
 	u64			nr_non_filtered_entries;
-	const struct thread	*thread_filter;
+	struct thread		*thread_filter;
 	const struct dso	*dso_filter;
 	const char		*uid_filter_str;
 	const char		*symbol_filter_str;

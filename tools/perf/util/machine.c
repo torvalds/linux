@@ -14,6 +14,8 @@
 #include "unwind.h"
 #include "linux/hash.h"
 
+static void machine__remove_thread(struct machine *machine, struct thread *th);
+
 static void dsos__init(struct dsos *dsos)
 {
 	INIT_LIST_HEAD(&dsos->head);
@@ -89,16 +91,6 @@ static void dsos__delete(struct dsos *dsos)
 	}
 }
 
-void machine__delete_dead_threads(struct machine *machine)
-{
-	struct thread *n, *t;
-
-	list_for_each_entry_safe(t, n, &machine->dead_threads, node) {
-		list_del(&t->node);
-		thread__delete(t);
-	}
-}
-
 void machine__delete_threads(struct machine *machine)
 {
 	struct rb_node *nd = rb_first(&machine->threads);
@@ -106,9 +98,8 @@ void machine__delete_threads(struct machine *machine)
 	while (nd) {
 		struct thread *t = rb_entry(nd, struct thread, rb_node);
 
-		rb_erase(&t->rb_node, &machine->threads);
 		nd = rb_next(nd);
-		thread__delete(t);
+		machine__remove_thread(machine, t);
 	}
 }
 
@@ -361,9 +352,13 @@ static struct thread *__machine__findnew_thread(struct machine *machine,
 	 * the full rbtree:
 	 */
 	th = machine->last_match;
-	if (th && th->tid == tid) {
-		machine__update_thread_pid(machine, th, pid);
-		return th;
+	if (th != NULL) {
+		if (th->tid == tid) {
+			machine__update_thread_pid(machine, th, pid);
+			return th;
+		}
+
+		thread__zput(machine->last_match);
 	}
 
 	while (*p != NULL) {
@@ -371,7 +366,7 @@ static struct thread *__machine__findnew_thread(struct machine *machine,
 		th = rb_entry(parent, struct thread, rb_node);
 
 		if (th->tid == tid) {
-			machine->last_match = th;
+			machine->last_match = thread__get(th);
 			machine__update_thread_pid(machine, th, pid);
 			return th;
 		}
@@ -403,8 +398,11 @@ static struct thread *__machine__findnew_thread(struct machine *machine,
 			thread__delete(th);
 			return NULL;
 		}
-
-		machine->last_match = th;
+		/*
+		 * It is now in the rbtree, get a ref
+		 */
+		thread__get(th);
+		machine->last_match = thread__get(th);
 	}
 
 	return th;
@@ -1238,13 +1236,17 @@ out_problem:
 
 static void machine__remove_thread(struct machine *machine, struct thread *th)
 {
-	machine->last_match = NULL;
+	if (machine->last_match == th)
+		thread__zput(machine->last_match);
+
 	rb_erase(&th->rb_node, &machine->threads);
 	/*
-	 * We may have references to this thread, for instance in some hist_entry
-	 * instances, so just move them to a separate list.
+	 * Move it first to the dead_threads list, then drop the reference,
+	 * if this is the last reference, then the thread__delete destructor
+	 * will be called and we will remove it from the dead_threads list.
 	 */
 	list_add_tail(&th->node, &machine->dead_threads);
+	thread__put(th);
 }
 
 int machine__process_fork_event(struct machine *machine, union perf_event *event,

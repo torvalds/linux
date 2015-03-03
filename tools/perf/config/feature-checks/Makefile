@@ -39,24 +39,24 @@ PKG_CONFIG := $(CROSS_COMPILE)pkg-config
 
 all: $(FILES)
 
-BUILD = $(CC) $(CFLAGS) -o $(OUTPUT)$@ $(patsubst %.bin,%.c,$@) $(LDFLAGS)
+BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ $(patsubst %.bin,%.c,$@) $(LDFLAGS)
 
 ###############################
 
 test-all.bin:
-	$(BUILD) -Werror -fstack-protector-all -O2 -Werror -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -laudit -I/usr/include/slang -lslang $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -DPACKAGE='"perf"' -lbfd -ldl -lz -lbabeltrace
+	$(BUILD) -fstack-protector-all -O2 -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -laudit -I/usr/include/slang -lslang $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -DPACKAGE='"perf"' -lbfd -ldl -lz -lbabeltrace
 
 test-hello.bin:
 	$(BUILD)
 
 test-pthread-attr-setaffinity-np.bin:
-	$(BUILD) -D_GNU_SOURCE -Werror -lpthread
+	$(BUILD) -D_GNU_SOURCE -lpthread
 
 test-stackprotector-all.bin:
-	$(BUILD) -Werror -fstack-protector-all
+	$(BUILD) -fstack-protector-all
 
 test-fortify-source.bin:
-	$(BUILD) -O2 -Werror -D_FORTIFY_SOURCE=2
+	$(BUILD) -O2 -D_FORTIFY_SOURCE=2
 
 test-bionic.bin:
 	$(BUILD)
@@ -119,10 +119,10 @@ test-libbfd.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -lz -liberty -ldl
 
 test-liberty.bin:
-	$(CC) -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' -lbfd -ldl -liberty
+	$(CC) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' -lbfd -ldl -liberty
 
 test-liberty-z.bin:
-	$(CC) -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' -lbfd -ldl -liberty -lz
+	$(CC) -Wall -Werror -o $(OUTPUT)$@ test-libbfd.c -DPACKAGE='"perf"' -lbfd -ldl -liberty -lz
 
 test-cplus-demangle.bin:
 	$(BUILD) -liberty
@@ -140,7 +140,7 @@ test-libbabeltrace.bin:
 	$(BUILD) # -lbabeltrace provided by $(FEATURE_CHECK_LDFLAGS-libbabeltrace)
 
 test-sync-compare-and-swap.bin:
-	$(BUILD) -Werror
+	$(BUILD)
 
 test-compile-32.bin:
 	$(CC) -m32 -o $(OUTPUT)$@ test-compile.c

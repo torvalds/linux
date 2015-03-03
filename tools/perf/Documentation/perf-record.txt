@@ -55,15 +55,17 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
+	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
+	  Each event is separated by commas and the group should be quoted to
+	  prevent the shell interpretation.  You also need to use --group on
+	  "perf report" to view group events together.
+
 --filter=<filter>::
         Event filter.
 
 -a::
 --all-cpus::
         System-wide collection from all CPUs.
-
--l::
-        Scale counter values.
 
 -p::
 --pid=::
@@ -106,6 +108,10 @@ OPTIONS
 	Number of mmap data pages (must be a power of two) or size
 	specification with appended unit character - B/K/M/G. The
 	size is rounded up to have nearest pages power of two value.
+
+--group::
+	Put all events in a single event group.  This precedes the --event
+	option and remains only for backward compatibility.  See --event.
 
 -g::
 	Enables call-graph (stack chain/backtrace) recording.

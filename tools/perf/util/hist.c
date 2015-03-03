@@ -355,6 +355,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template,
 			callchain_init(he->callchain);
 
 		INIT_LIST_HEAD(&he->pairs.node);
+		thread__get(he->thread);
 	}
 
 	return he;
@@ -941,6 +942,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 
 void hist_entry__delete(struct hist_entry *he)
 {
+	thread__zput(he->thread);
 	zfree(&he->branch_info);
 	zfree(&he->mem_info);
 	zfree(&he->stat_acc);

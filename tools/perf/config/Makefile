@@ -531,7 +531,7 @@ else
   ifneq ($(feature-libperl), 1)
     CFLAGS += -DNO_LIBPERL
     NO_LIBPERL := 1
-    msg := $(warning Missing perl devel files. Disabling perl scripting support, consider installing perl-ExtUtils-Embed);
+    msg := $(warning Missing perl devel files. Disabling perl scripting support, please install perl-ExtUtils-Embed/libperl-dev);
   else
     LDFLAGS += $(PERL_EMBED_LDFLAGS)
     EXTLIBS += $(PERL_EMBED_LIBADD)
@@ -548,22 +548,21 @@ endif
 disable-python = $(eval $(disable-python_code))
 define disable-python_code
   CFLAGS += -DNO_LIBPYTHON
-  $(if $(1),$(warning No $(1) was found))
-  $(warning Python support will not be built)
+  $(warning $1)
   NO_LIBPYTHON := 1
 endef
 
 ifdef NO_LIBPYTHON
-  $(call disable-python)
+  $(call disable-python,Python support disabled by user)
 else
 
   ifndef PYTHON
-    $(call disable-python,python interpreter)
+    $(call disable-python,No python interpreter was found: disables Python support - please install python-devel/python-dev)
   else
     PYTHON_WORD := $(call shell-wordify,$(PYTHON))
 
     ifndef PYTHON_CONFIG
-      $(call disable-python,python-config tool)
+      $(call disable-python,No 'python-config' tool was found: disables Python support - please install python-devel/python-dev)
     else
 
       PYTHON_CONFIG_SQ := $(call shell-sq,$(PYTHON_CONFIG))
@@ -575,7 +574,7 @@ else
       FLAGS_PYTHON_EMBED := $(PYTHON_EMBED_CCOPTS) $(PYTHON_EMBED_LDOPTS)
 
       ifneq ($(feature-libpython), 1)
-        $(call disable-python,Python.h (for Python 2.x))
+        $(call disable-python,No 'Python.h' (for Python 2.x support) was found: disables Python support - please install python-devel/python-dev)
       else
 
         ifneq ($(feature-libpython-version), 1)
@@ -636,7 +635,7 @@ else
             EXTLIBS += -liberty
             CFLAGS += -DHAVE_CPLUS_DEMANGLE_SUPPORT
           else
-            msg := $(warning No bfd.h/libbfd found, install binutils-dev[el]/zlib-static to gain symbol demangling)
+            msg := $(warning No bfd.h/libbfd found, please install binutils-dev[el]/zlib-static/libiberty-dev to gain symbol demangling)
             CFLAGS += -DNO_DEMANGLE
           endif
         endif
@@ -707,7 +706,7 @@ endif
 
 ifndef NO_LIBBABELTRACE
   ifeq ($(feature-libbabeltrace), 0)
-    msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-devel/libbabeltrace-ctf-dev);
+    msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-dev[el]/libbabeltrace-ctf-dev);
     NO_LIBBABELTRACE := 1
   else
     CFLAGS += -DHAVE_LIBBABELTRACE_SUPPORT $(LIBBABELTRACE_CFLAGS)

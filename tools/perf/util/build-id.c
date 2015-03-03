@@ -61,8 +61,9 @@ static int perf_event__exit_del_thread(struct perf_tool *tool __maybe_unused,
 
 	if (thread) {
 		rb_erase(&thread->rb_node, &machine->threads);
-		machine->last_match = NULL;
-		thread__delete(thread);
+		if (machine->last_match == thread)
+			thread__zput(machine->last_match);
+		thread__put(thread);
 	}
 
 	return 0;
