@@ -318,9 +318,7 @@ retry:
 	if (mode & FMODE_READ)
 		r = 1;
 	if (mode & FMODE_WRITE)
-		w = 1;
-	if (w)
-		r = 1;
+		r = w = 1;
 
 	name = dentry_name(file->f_path.dentry);
 	if (name == NULL)
