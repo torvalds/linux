@@ -32,6 +32,9 @@ struct ordered_events {
 	struct list_head	to_free;
 	struct ordered_event	*buffer;
 	struct ordered_event	*last;
+	struct machines		*machines;
+	struct perf_evlist	*evlist;
+	struct perf_tool	*tool;
 	int			buffer_idx;
 	unsigned int		nr_events;
 	enum oe_flush		last_flush_type;
@@ -41,10 +44,9 @@ struct ordered_events {
 struct ordered_event *ordered_events__new(struct ordered_events *oe, u64 timestamp,
 					  union perf_event *event);
 void ordered_events__delete(struct ordered_events *oe, struct ordered_event *event);
-int ordered_events__flush(struct ordered_events *oe, struct machines *machines,
-			  struct perf_evlist *evlist, struct perf_tool *tool,
-			  enum oe_flush how);
-void ordered_events__init(struct ordered_events *oe);
+int ordered_events__flush(struct ordered_events *oe, enum oe_flush how);
+void ordered_events__init(struct ordered_events *oe, struct machines *machines,
+			  struct perf_evlist *evlsit, struct perf_tool *tool);
 void ordered_events__free(struct ordered_events *oe);
 
 static inline

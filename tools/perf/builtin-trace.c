@@ -2408,7 +2408,7 @@ static int trace__replay(struct trace *trace)
 
 	setup_pager();
 
-	err = perf_session__process_events(session, &trace->tool);
+	err = perf_session__process_events(session);
 	if (err)
 		pr_err("Failed to process events, error %d", err);
 

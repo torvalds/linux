@@ -579,7 +579,7 @@ int bt_convert__perf2ctf(const char *input, const char *path)
 		return -1;
 
 	/* perf.data session */
-	session = perf_session__new(&file, 0, NULL);
+	session = perf_session__new(&file, 0, &c.tool);
 	if (!session)
 		goto free_writer;
 
@@ -591,7 +591,7 @@ int bt_convert__perf2ctf(const char *input, const char *path)
 	if (setup_events(cw, session))
 		goto free_session;
 
-	err = perf_session__process_events(session, &c.tool);
+	err = perf_session__process_events(session);
 	if (!err)
 		err = bt_ctf_stream_flush(cw->stream);
 

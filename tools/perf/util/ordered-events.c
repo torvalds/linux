@@ -153,10 +153,7 @@ void ordered_events__delete(struct ordered_events *oe, struct ordered_event *eve
 	free_dup_event(oe, event->event);
 }
 
-static int __ordered_events__flush(struct ordered_events *oe,
-				   struct machines *machines,
-				   struct perf_evlist *evlist,
-				   struct perf_tool *tool)
+static int __ordered_events__flush(struct ordered_events *oe)
 {
 	struct list_head *head = &oe->events;
 	struct ordered_event *tmp, *iter;
@@ -180,12 +177,12 @@ static int __ordered_events__flush(struct ordered_events *oe,
 		if (iter->timestamp > limit)
 			break;
 
-		ret = perf_evlist__parse_sample(evlist, iter->event, &sample);
+		ret = perf_evlist__parse_sample(oe->evlist, iter->event, &sample);
 		if (ret)
 			pr_err("Can't parse sample, err = %d\n", ret);
 		else {
-			ret = machines__deliver_event(machines, evlist, iter->event,
-						      &sample, tool, iter->file_offset);
+			ret = machines__deliver_event(oe->machines, oe->evlist, iter->event,
+						      &sample, oe->tool, iter->file_offset);
 			if (ret)
 				return ret;
 		}
@@ -205,9 +202,7 @@ static int __ordered_events__flush(struct ordered_events *oe,
 	return 0;
 }
 
-int ordered_events__flush(struct ordered_events *oe, struct machines *machines,
-			  struct perf_evlist *evlist, struct perf_tool *tool,
-			  enum oe_flush how)
+int ordered_events__flush(struct ordered_events *oe, enum oe_flush how)
 {
 	static const char * const str[] = {
 		"NONE",
@@ -252,7 +247,7 @@ int ordered_events__flush(struct ordered_events *oe, struct machines *machines,
 		   str[how], oe->nr_events);
 	pr_oe_time(oe->max_timestamp, "max_timestamp\n");
 
-	err = __ordered_events__flush(oe, machines, evlist, tool);
+	err = __ordered_events__flush(oe);
 
 	if (!err) {
 		if (how == OE_FLUSH__ROUND)
@@ -268,13 +263,17 @@ int ordered_events__flush(struct ordered_events *oe, struct machines *machines,
 	return err;
 }
 
-void ordered_events__init(struct ordered_events *oe)
+void ordered_events__init(struct ordered_events *oe, struct machines *machines,
+			  struct perf_evlist *evlist, struct perf_tool *tool)
 {
 	INIT_LIST_HEAD(&oe->events);
 	INIT_LIST_HEAD(&oe->cache);
 	INIT_LIST_HEAD(&oe->to_free);
 	oe->max_alloc_size = (u64) -1;
 	oe->cur_alloc_size = 0;
+	oe->evlist	   = evlist;
+	oe->machines	   = machines;
+	oe->tool	   = tool;
 }
 
 void ordered_events__free(struct ordered_events *oe)

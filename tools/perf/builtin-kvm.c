@@ -730,9 +730,9 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 			return -1;
 		}
 
-		err = perf_session_queue_event(kvm->session, event, &kvm->tool, &sample, 0);
+		err = perf_session__queue_event(kvm->session, event, &sample, 0);
 		/*
-		 * FIXME: Here we can't consume the event, as perf_session_queue_event will
+		 * FIXME: Here we can't consume the event, as perf_session__queue_event will
 		 *        point to it, and it'll get possibly overwritten by the kernel.
 		 */
 		perf_evlist__mmap_consume(kvm->evlist, idx);
@@ -1066,7 +1066,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	if (ret < 0)
 		return ret;
 
-	return perf_session__process_events(kvm->session, &kvm->tool);
+	return perf_session__process_events(kvm->session);
 }
 
 static int parse_target_str(struct perf_kvm_stat *kvm)

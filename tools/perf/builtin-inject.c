@@ -359,8 +359,6 @@ static int __cmd_inject(struct perf_inject *inject)
 	} else if (inject->sched_stat) {
 		struct perf_evsel *evsel;
 
-		inject->tool.ordered_events = true;
-
 		evlist__for_each(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);
 
@@ -379,7 +377,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (!file_out->is_pipe)
 		lseek(fd, session->header.data_offset, SEEK_SET);
 
-	ret = perf_session__process_events(session, &inject->tool);
+	ret = perf_session__process_events(session);
 
 	if (!file_out->is_pipe) {
 		if (inject->build_ids)
@@ -457,6 +455,8 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 		perror("failed to create output file");
 		return -1;
 	}
+
+	inject.tool.ordered_events = inject.sched_stat;
 
 	file.path = inject.input_name;
 	inject.session = perf_session__new(&file, true, &inject.tool);

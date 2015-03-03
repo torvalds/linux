@@ -1623,7 +1623,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 		goto out_delete;
 	}
 
-	ret = perf_session__process_events(session, &tchart->tool);
+	ret = perf_session__process_events(session);
 	if (ret)
 		goto out_delete;
 

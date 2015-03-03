@@ -747,7 +747,7 @@ static int __cmd_diff(void)
 			goto out_delete;
 		}
 
-		ret = perf_session__process_events(d->session, &tool);
+		ret = perf_session__process_events(d->session);
 		if (ret) {
 			pr_err("Failed to process %s\n", d->file.path);
 			goto out_delete;

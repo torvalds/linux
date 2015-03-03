@@ -426,7 +426,7 @@ static int __cmd_kmem(struct perf_session *session)
 	}
 
 	setup_pager();
-	err = perf_session__process_events(session, &perf_kmem);
+	err = perf_session__process_events(session);
 	if (err != 0)
 		goto out;
 	sort_result();
