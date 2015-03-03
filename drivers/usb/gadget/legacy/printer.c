@@ -1170,7 +1170,7 @@ static struct usb_configuration printer_cfg_driver = {
 	.bmAttributes		= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
 };
 
-static int __init printer_bind_config(struct usb_configuration *c)
+static int __init printer_do_config(struct usb_configuration *c)
 {
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	struct printer_dev	*dev;
@@ -1287,7 +1287,7 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 	device_desc.iProduct = strings[USB_GADGET_PRODUCT_IDX].id;
 	device_desc.iSerialNumber = strings[USB_GADGET_SERIAL_IDX].id;
 
-	ret = usb_add_config(cdev, &printer_cfg_driver, printer_bind_config);
+	ret = usb_add_config(cdev, &printer_cfg_driver, printer_do_config);
 	if (ret)
 		return ret;
 	usb_composite_overwrite_options(cdev, &coverwrite);
