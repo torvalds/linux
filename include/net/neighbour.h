@@ -197,6 +197,7 @@ struct neigh_table {
 	__u32			(*hash)(const void *pkey,
 					const struct net_device *dev,
 					__u32 *hash_rnd);
+	bool			(*key_eq)(const struct neighbour *, const void *pkey);
 	int			(*constructor)(struct neighbour *);
 	int			(*pconstructor)(struct pneigh_entry *);
 	void			(*pdestructor)(struct pneigh_entry *);
@@ -246,6 +247,57 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_OVERRIDE_ISROUTER	0x00000004
 #define NEIGH_UPDATE_F_ISROUTER			0x40000000
 #define NEIGH_UPDATE_F_ADMIN			0x80000000
+
+
+static inline bool neigh_key_eq16(const struct neighbour *n, const void *pkey)
+{
+	return *(const u16 *)n->primary_key == *(const u16 *)pkey;
+}
+
+static inline bool neigh_key_eq32(const struct neighbour *n, const void *pkey)
+{
+	return *(const u32 *)n->primary_key == *(const u32 *)pkey;
+}
+
+static inline bool neigh_key_eq128(const struct neighbour *n, const void *pkey)
+{
+	const u32 *n32 = (const u32 *)n->primary_key;
+	const u32 *p32 = pkey;
+
+	return ((n32[0] ^ p32[0]) | (n32[1] ^ p32[1]) |
+		(n32[2] ^ p32[2]) | (n32[3] ^ p32[3])) == 0;
+}
+
+static inline struct neighbour *___neigh_lookup_noref(
+	struct neigh_table *tbl,
+	bool (*key_eq)(const struct neighbour *n, const void *pkey),
+	__u32 (*hash)(const void *pkey,
+		      const struct net_device *dev,
+		      __u32 *hash_rnd),
+	const void *pkey,
+	struct net_device *dev)
+{
+	struct neigh_hash_table *nht = rcu_dereference_bh(tbl->nht);
+	struct neighbour *n;
+	u32 hash_val;
+
+	hash_val = hash(pkey, dev, nht->hash_rnd) >> (32 - nht->hash_shift);
+	for (n = rcu_dereference_bh(nht->hash_buckets[hash_val]);
+	     n != NULL;
+	     n = rcu_dereference_bh(n->next)) {
+		if (n->dev == dev && key_eq(n, pkey))
+			return n;
+	}
+
+	return NULL;
+}
+
+static inline struct neighbour *__neigh_lookup_noref(struct neigh_table *tbl,
+						     const void *pkey,
+						     struct net_device *dev)
+{
+	return ___neigh_lookup_noref(tbl, tbl->key_eq, tbl->hash, pkey, dev);
+}
 
 void neigh_table_init(int index, struct neigh_table *tbl);
 int neigh_table_clear(int index, struct neigh_table *tbl);

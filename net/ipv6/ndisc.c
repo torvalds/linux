@@ -84,6 +84,7 @@ do {								\
 static u32 ndisc_hash(const void *pkey,
 		      const struct net_device *dev,
 		      __u32 *hash_rnd);
+static bool ndisc_key_eq(const struct neighbour *neigh, const void *pkey);
 static int ndisc_constructor(struct neighbour *neigh);
 static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb);
 static void ndisc_error_report(struct neighbour *neigh, struct sk_buff *skb);
@@ -119,6 +120,7 @@ struct neigh_table nd_tbl = {
 	.key_len =	sizeof(struct in6_addr),
 	.protocol =	cpu_to_be16(ETH_P_IPV6),
 	.hash =		ndisc_hash,
+	.key_eq =	ndisc_key_eq,
 	.constructor =	ndisc_constructor,
 	.pconstructor =	pndisc_constructor,
 	.pdestructor =	pndisc_destructor,
@@ -293,6 +295,11 @@ static u32 ndisc_hash(const void *pkey,
 		      __u32 *hash_rnd)
 {
 	return ndisc_hashfn(pkey, dev, hash_rnd);
+}
+
+static bool ndisc_key_eq(const struct neighbour *n, const void *pkey)
+{
+	return neigh_key_eq128(n, pkey);
 }
 
 static int ndisc_constructor(struct neighbour *neigh)

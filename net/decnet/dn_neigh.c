@@ -93,12 +93,18 @@ static u32 dn_neigh_hash(const void *pkey,
 	return jhash_2words(*(__u16 *)pkey, 0, hash_rnd[0]);
 }
 
+static bool dn_key_eq(const struct neighbour *neigh, const void *pkey)
+{
+	return neigh_key_eq16(neigh, pkey);
+}
+
 struct neigh_table dn_neigh_table = {
 	.family =			PF_DECnet,
 	.entry_size =			NEIGH_ENTRY_SIZE(sizeof(struct dn_neigh)),
 	.key_len =			sizeof(__le16),
 	.protocol =			cpu_to_be16(ETH_P_DNA_RT),
 	.hash =				dn_neigh_hash,
+	.key_eq =			dn_key_eq,
 	.constructor =			dn_neigh_construct,
 	.id =				"dn_neigh_cache",
 	.parms ={
