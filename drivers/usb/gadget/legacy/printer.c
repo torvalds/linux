@@ -86,6 +86,7 @@ struct printer_dev {
 	u8			printer_cdev_open;
 	wait_queue_head_t	wait;
 	unsigned		q_len;
+	char			*pnp_string;	/* We don't own memory! */
 	struct usb_function	function;
 };
 
@@ -994,10 +995,10 @@ static int printer_func_setup(struct usb_function *f,
 			if ((wIndex>>8) != dev->interface)
 				break;
 
-			value = (pnp_string[0]<<8)|pnp_string[1];
-			memcpy(req->buf, pnp_string, value);
+			value = (dev->pnp_string[0] << 8) | dev->pnp_string[1];
+			memcpy(req->buf, dev->pnp_string, value);
 			DBG(dev, "1284 PNP String: %x %s\n", value,
-					&pnp_string[2]);
+					&dev->pnp_string[2]);
 			break;
 
 		case 1: /* Get Port Status */
@@ -1230,13 +1231,14 @@ static struct usb_configuration printer_cfg_driver = {
 };
 
 static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
-				 unsigned q_len)
+				 char *pnp_string, unsigned q_len)
 {
 	struct printer_dev	*dev;
 	int			status = -ENOMEM;
 	size_t			len;
 
 	dev = &usb_printer_gadget;
+	dev->pnp_string = pnp_string;
 
 	dev->function.name = shortname;
 	dev->function.bind = printer_func_bind;
@@ -1249,7 +1251,7 @@ static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
 	INIT_LIST_HEAD(&dev->rx_buffers);
 
 	if (pnp_str)
-		strlcpy(&pnp_string[2], pnp_str, PNP_STRING_LEN - 2);
+		strlcpy(&dev->pnp_string[2], pnp_str, PNP_STRING_LEN - 2);
 
 	len = strlen(pnp_string);
 	pnp_string[0] = (len >> 8) & 0xFF;
@@ -1292,7 +1294,7 @@ static int __init printer_do_config(struct usb_configuration *c)
 		printer_cfg_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return f_printer_bind_config(c, iPNPstring, QLEN);
+	return f_printer_bind_config(c, iPNPstring, pnp_string, QLEN);
 
 }
 
