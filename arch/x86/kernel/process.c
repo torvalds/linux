@@ -130,6 +130,7 @@ void flush_thread(void)
 
 	flush_ptrace_hw_breakpoint(tsk);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
+
 	drop_init_fpu(tsk);
 	/*
 	 * Free the FPU state for non xsave platforms. They get reallocated
@@ -137,6 +138,12 @@ void flush_thread(void)
 	 */
 	if (!use_eager_fpu())
 		free_thread_xstate(tsk);
+	else if (!used_math()) {
+		/* kthread execs. TODO: cleanup this horror. */
+		if (WARN_ON(init_fpu(current)))
+			force_sig(SIGKILL, current);
+		math_state_restore();
+	}
 }
 
 static void hard_disable_TSC(void)

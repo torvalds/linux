@@ -41,8 +41,8 @@ void kernel_fpu_enable(void)
  * be set (so that the clts/stts pair does nothing that is
  * visible in the interrupted kernel thread).
  *
- * Except for the eagerfpu case when we return 1 unless we've already
- * been eager and saved the state in kernel_fpu_begin().
+ * Except for the eagerfpu case when we return true; in the likely case
+ * the thread has FPU but we are not going to set/clear TS.
  */
 static inline bool interrupted_kernel_fpu_idle(void)
 {
@@ -50,7 +50,7 @@ static inline bool interrupted_kernel_fpu_idle(void)
 		return false;
 
 	if (use_eager_fpu())
-		return __thread_has_fpu(current);
+		return true;
 
 	return !__thread_has_fpu(current) &&
 		(read_cr0() & X86_CR0_TS);
@@ -93,9 +93,10 @@ void __kernel_fpu_begin(void)
 
 	if (__thread_has_fpu(me)) {
 		__save_init_fpu(me);
-	} else if (!use_eager_fpu()) {
+	} else {
 		this_cpu_write(fpu_owner_task, NULL);
-		clts();
+		if (!use_eager_fpu())
+			clts();
 	}
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
