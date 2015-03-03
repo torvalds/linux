@@ -208,19 +208,7 @@ static __refdata struct usb_composite_driver printer_driver = {
 	.unbind		= printer_unbind,
 };
 
-static int __init
-init(void)
-{
-	return usb_composite_probe(&printer_driver);
-}
-module_init(init);
-
-static void __exit
-cleanup(void)
-{
-	usb_composite_unregister(&printer_driver);
-}
-module_exit(cleanup);
+module_usb_composite_driver(printer_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Craig Nadler");
