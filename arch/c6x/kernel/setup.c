@@ -26,7 +26,7 @@
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/of.h>
-
+#include <linux/console.h>
 
 #include <asm/sections.h>
 #include <asm/div64.h>
