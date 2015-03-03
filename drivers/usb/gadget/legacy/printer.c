@@ -1298,6 +1298,34 @@ static int __init printer_do_config(struct usb_configuration *c)
 
 }
 
+static int gprinter_setup(void)
+{
+	int status;
+
+	usb_gadget_class = class_create(THIS_MODULE, "usb_printer_gadget");
+	if (IS_ERR(usb_gadget_class)) {
+		status = PTR_ERR(usb_gadget_class);
+		pr_err("unable to create usb_gadget class %d\n", status);
+		return status;
+	}
+
+	status = alloc_chrdev_region(&g_printer_devno, 0, 1,
+			"USB printer gadget");
+	if (status) {
+		pr_err("alloc_chrdev_region %d\n", status);
+		class_destroy(usb_gadget_class);
+	}
+
+	return status;
+}
+
+/* must be called with struct printer_dev's lock_printer_io held */
+static void gprinter_cleanup(void)
+{
+	unregister_chrdev_region(g_printer_devno, 1);
+	class_destroy(usb_gadget_class);
+}
+
 static int __init printer_bind(struct usb_composite_dev *cdev)
 {
 	int ret;
@@ -1329,20 +1357,9 @@ init(void)
 {
 	int status;
 
-	usb_gadget_class = class_create(THIS_MODULE, "usb_printer_gadget");
-	if (IS_ERR(usb_gadget_class)) {
-		status = PTR_ERR(usb_gadget_class);
-		pr_err("unable to create usb_gadget class %d\n", status);
+	status = gprinter_setup();
+	if (status)
 		return status;
-	}
-
-	status = alloc_chrdev_region(&g_printer_devno, 0, 1,
-			"USB printer gadget");
-	if (status) {
-		pr_err("alloc_chrdev_region %d\n", status);
-		class_destroy(usb_gadget_class);
-		return status;
-	}
 
 	status = usb_composite_probe(&printer_driver);
 	if (status) {
@@ -1360,8 +1377,7 @@ cleanup(void)
 {
 	mutex_lock(&usb_printer_gadget.lock_printer_io);
 	usb_composite_unregister(&printer_driver);
-	unregister_chrdev_region(g_printer_devno, 1);
-	class_destroy(usb_gadget_class);
+	gprinter_cleanup();
 	mutex_unlock(&usb_printer_gadget.lock_printer_io);
 }
 module_exit(cleanup);
