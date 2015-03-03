@@ -1741,7 +1741,10 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	} else
 		ttrace->entry_pending = true;
 
-	trace->current = thread;
+	if (trace->current != thread) {
+		thread__put(trace->current);
+		trace->current = thread__get(thread);
+	}
 
 	return 0;
 }
@@ -2274,6 +2277,8 @@ next_event:
 	}
 
 out_disable:
+	thread__zput(trace->current);
+
 	perf_evlist__disable(evlist);
 
 	if (!err) {

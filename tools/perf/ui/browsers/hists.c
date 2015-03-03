@@ -1467,7 +1467,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
 
 	while (1) {
-		const struct thread *thread = NULL;
+		struct thread *thread = NULL;
 		const struct dso *dso = NULL;
 		int choice = 0,
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
@@ -1754,13 +1754,13 @@ zoom_thread:
 				pstack__remove(fstack, &browser->hists->thread_filter);
 zoom_out_thread:
 				ui_helpline__pop();
-				browser->hists->thread_filter = NULL;
+				thread__zput(browser->hists->thread_filter);
 				perf_hpp__set_elide(HISTC_THREAD, false);
 			} else {
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
 						   thread->comm_set ? thread__comm_str(thread) : "",
 						   thread->tid);
-				browser->hists->thread_filter = thread;
+				browser->hists->thread_filter = thread__get(thread);
 				perf_hpp__set_elide(HISTC_THREAD, false);
 				pstack__push(fstack, &browser->hists->thread_filter);
 			}

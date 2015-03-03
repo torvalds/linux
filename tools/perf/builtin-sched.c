@@ -831,7 +831,7 @@ static int thread_atoms_insert(struct perf_sched *sched, struct thread *thread)
 		return -1;
 	}
 
-	atoms->thread = thread;
+	atoms->thread = thread__get(thread);
 	INIT_LIST_HEAD(&atoms->work_list);
 	__thread_latency_insert(&sched->atom_root, atoms, &sched->cmp_pid);
 	return 0;

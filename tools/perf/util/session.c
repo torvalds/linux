@@ -138,11 +138,6 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 	return NULL;
 }
 
-static void perf_session__delete_dead_threads(struct perf_session *session)
-{
-	machine__delete_dead_threads(&session->machines.host);
-}
-
 static void perf_session__delete_threads(struct perf_session *session)
 {
 	machine__delete_threads(&session->machines.host);
@@ -167,7 +162,6 @@ static void perf_session_env__delete(struct perf_session_env *env)
 void perf_session__delete(struct perf_session *session)
 {
 	perf_session__destroy_kernel_maps(session);
-	perf_session__delete_dead_threads(session);
 	perf_session__delete_threads(session);
 	perf_session_env__delete(&session->header.env);
 	machines__exit(&session->machines);
