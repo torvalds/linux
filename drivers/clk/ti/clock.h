@@ -175,8 +175,13 @@ void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks);
 
 extern const struct clk_hw_omap_ops clkhwops_omap3_dpll;
 extern const struct clk_hw_omap_ops clkhwops_omap4_dpllmx;
+extern const struct clk_hw_omap_ops clkhwops_wait;
 extern const struct clk_hw_omap_ops clkhwops_iclk;
 extern const struct clk_hw_omap_ops clkhwops_iclk_wait;
+
+int omap2_dflt_clk_enable(struct clk_hw *hw);
+void omap2_dflt_clk_disable(struct clk_hw *hw);
+int omap2_dflt_clk_is_enabled(struct clk_hw *hw);
 
 u8 omap2_init_dpll_parent(struct clk_hw *hw);
 int omap3_noncore_dpll_enable(struct clk_hw *hw);
