@@ -59,8 +59,6 @@
 	compatible = "marvell,armada-370-xp";
 
 	aliases {
-		eth0 = &eth0;
-		eth1 = &eth1;
 	};
 
 	cpus {

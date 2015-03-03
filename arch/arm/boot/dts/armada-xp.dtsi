@@ -57,7 +57,6 @@
 	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
 
 	aliases {
-		eth2 = &eth2;
 	};
 
 	soc {
