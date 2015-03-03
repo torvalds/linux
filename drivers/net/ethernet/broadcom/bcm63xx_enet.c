@@ -486,7 +486,7 @@ static int bcm_enet_poll(struct napi_struct *napi, int budget)
 {
 	struct bcm_enet_priv *priv;
 	struct net_device *dev;
-	int tx_work_done, rx_work_done;
+	int rx_work_done;
 
 	priv = container_of(napi, struct bcm_enet_priv, napi);
 	dev = priv->net_dev;
@@ -498,14 +498,14 @@ static int bcm_enet_poll(struct napi_struct *napi, int budget)
 			 ENETDMAC_IR, priv->tx_chan);
 
 	/* reclaim sent skb */
-	tx_work_done = bcm_enet_tx_reclaim(dev, 0);
+	bcm_enet_tx_reclaim(dev, 0);
 
 	spin_lock(&priv->rx_lock);
 	rx_work_done = bcm_enet_receive_queue(dev, budget);
 	spin_unlock(&priv->rx_lock);
 
-	if (rx_work_done >= budget || tx_work_done > 0) {
-		/* rx/tx queue is not yet empty/clean */
+	if (rx_work_done >= budget) {
+		/* rx queue is not yet empty/clean */
 		return rx_work_done;
 	}
 
