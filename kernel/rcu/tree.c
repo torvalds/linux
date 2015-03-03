@@ -2335,8 +2335,6 @@ rcu_check_quiescent_state(struct rcu_state *rsp, struct rcu_data *rdp)
 	rcu_report_qs_rdp(rdp->cpu, rsp, rdp);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 /*
  * Send the specified CPU's RCU callbacks to the orphanage.  The
  * specified CPU must be offline, and the caller must hold the
@@ -2347,7 +2345,7 @@ rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 			  struct rcu_node *rnp, struct rcu_data *rdp)
 {
 	/* No-CBs CPUs do not have orphanable callbacks. */
-	if (rcu_is_nocb_cpu(rdp->cpu))
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) || rcu_is_nocb_cpu(rdp->cpu))
 		return;
 
 	/*
@@ -2406,7 +2404,8 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp, unsigned long flags)
 	struct rcu_data *rdp = raw_cpu_ptr(rsp->rda);
 
 	/* No-CBs CPUs are handled specially. */
-	if (rcu_nocb_adopt_orphan_cbs(rsp, rdp, flags))
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) ||
+	    rcu_nocb_adopt_orphan_cbs(rsp, rdp, flags))
 		return;
 
 	/* Do the accounting first. */
@@ -2453,6 +2452,9 @@ static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 	RCU_TRACE(struct rcu_data *rdp = this_cpu_ptr(rsp->rda));
 	RCU_TRACE(struct rcu_node *rnp = rdp->mynode);
 
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
+		return;
+
 	RCU_TRACE(mask = rdp->grpmask);
 	trace_rcu_grace_period(rsp->name,
 			       rnp->gpnum + 1 - !!(rnp->qsmask & mask),
@@ -2481,7 +2483,8 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 	long mask;
 	struct rcu_node *rnp = rnp_leaf;
 
-	if (rnp->qsmaskinit || rcu_preempt_has_tasks(rnp))
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) ||
+	    rnp->qsmaskinit || rcu_preempt_has_tasks(rnp))
 		return;
 	for (;;) {
 		mask = rnp->grpmask;
@@ -2512,6 +2515,9 @@ static void rcu_cleanup_dying_idle_cpu(int cpu, struct rcu_state *rsp)
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
+		return;
+
 	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
 	mask = rdp->grpmask;
 	raw_spin_lock_irqsave(&rnp->lock, flags);
@@ -2533,6 +2539,9 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU))
+		return;
+
 	/* Adjust any no-longer-needed kthreads. */
 	rcu_boost_kthread_setaffinity(rnp, -1);
 
@@ -2546,26 +2555,6 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, nxtlist=%p\n",
 		  cpu, rdp->qlen, rdp->nxtlist);
 }
-
-#else /* #ifdef CONFIG_HOTPLUG_CPU */
-
-static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
-{
-}
-
-static void __maybe_unused rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
-{
-}
-
-static void rcu_cleanup_dying_idle_cpu(int cpu, struct rcu_state *rsp)
-{
-}
-
-static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
-{
-}
-
-#endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * Invoke any RCU callbacks that have made it to the end of their grace
