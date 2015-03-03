@@ -89,6 +89,11 @@ struct printer_dev {
 	struct usb_function	function;
 };
 
+static inline struct printer_dev *func_to_printer(struct usb_function *f)
+{
+	return container_of(f, struct printer_dev, function);
+}
+
 static struct printer_dev usb_printer_gadget;
 
 /*-------------------------------------------------------------------------*/
@@ -973,7 +978,7 @@ static void printer_soft_reset(struct printer_dev *dev)
 static int printer_func_setup(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
-	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	struct printer_dev *dev = func_to_printer(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request	*req = cdev->req;
 	int			value = -EOPNOTSUPP;
@@ -1047,7 +1052,7 @@ static int __init printer_func_bind(struct usb_configuration *c,
 		struct usb_function *f)
 {
 	struct usb_gadget *gadget = c->cdev->gadget;
-	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	struct printer_dev *dev = func_to_printer(f);
 	struct device *pdev;
 	struct usb_composite_dev *cdev = c->cdev;
 	struct usb_ep *in_ep;
@@ -1159,7 +1164,7 @@ static void printer_func_unbind(struct usb_configuration *c,
 	struct printer_dev	*dev;
 	struct usb_request	*req;
 
-	dev = container_of(f, struct printer_dev, function);
+	dev = func_to_printer(f);
 
 	device_destroy(usb_gadget_class, g_printer_devno);
 
@@ -1200,7 +1205,7 @@ static void printer_func_unbind(struct usb_configuration *c,
 static int printer_func_set_alt(struct usb_function *f,
 		unsigned intf, unsigned alt)
 {
-	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	struct printer_dev *dev = func_to_printer(f);
 	int ret = -ENOTSUPP;
 
 	if (!alt)
@@ -1211,7 +1216,7 @@ static int printer_func_set_alt(struct usb_function *f,
 
 static void printer_func_disable(struct usb_function *f)
 {
-	struct printer_dev *dev = container_of(f, struct printer_dev, function);
+	struct printer_dev *dev = func_to_printer(f);
 	unsigned long		flags;
 
 	DBG(dev, "%s\n", __func__);
