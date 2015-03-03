@@ -626,6 +626,32 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
+static int uclogic_probe(struct hid_device *hdev,
+		const struct hid_device_id *id)
+{
+	int rc;
+
+	/*
+	 * libinput requires the pad interface to be on a different node
+	 * than the pen, so use QUIRK_MULTI_INPUT for all tablets.
+	 */
+	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
+
+	rc = hid_parse(hdev);
+	if (rc) {
+		hid_err(hdev, "parse failed\n");
+		return rc;
+	}
+
+	rc = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+	if (rc) {
+		hid_err(hdev, "hw start failed\n");
+		return rc;
+	}
+
+	return 0;
+}
+
 static const struct hid_device_id uclogic_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC,
 				USB_DEVICE_ID_UCLOGIC_TABLET_PF1209) },
@@ -648,6 +674,7 @@ MODULE_DEVICE_TABLE(hid, uclogic_devices);
 static struct hid_driver uclogic_driver = {
 	.name = "uclogic",
 	.id_table = uclogic_devices,
+	.probe = uclogic_probe,
 	.report_fixup = uclogic_report_fixup,
 };
 module_hid_driver(uclogic_driver);
