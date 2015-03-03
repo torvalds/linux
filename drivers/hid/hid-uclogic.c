@@ -564,6 +564,7 @@ enum uclogic_ph_id {
 
 /* Report descriptor template placeholder */
 #define UCLOGIC_PH(_ID) UCLOGIC_PH_HEAD, UCLOGIC_PH_ID_##_ID
+#define UCLOGIC_PEN_REPORT_ID	0x07
 
 /* Fixed report descriptor template */
 static const __u8 uclogic_tablet_rdesc_template[] = {
@@ -625,6 +626,7 @@ enum uclogic_prm {
 struct uclogic_drvdata {
 	__u8 *rdesc;
 	unsigned int rsize;
+	bool invert_pen_inrange;
 };
 
 static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
@@ -905,6 +907,7 @@ static int uclogic_probe(struct hid_device *hdev,
 				hid_err(hdev, "tablet enabling failed\n");
 				return rc;
 			}
+			drvdata->invert_pen_inrange = true;
 		}
 		break;
 	}
@@ -927,12 +930,12 @@ static int uclogic_probe(struct hid_device *hdev,
 static int uclogic_raw_event(struct hid_device *hdev, struct hid_report *report,
 			u8 *data, int size)
 {
-	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	/* If this is a pen input report */
-	if (intf->cur_altsetting->desc.bInterfaceNumber == 0 &&
-	    report->type == HID_INPUT_REPORT &&
-	    report->id == 0x07 && size >= 2)
+	if ((drvdata->invert_pen_inrange) &&
+	    (report->type == HID_INPUT_REPORT) &&
+	    (report->id == UCLOGIC_PEN_REPORT_ID) &&
+	    (size >= 2))
 		/* Invert the in-range bit */
 		data[1] ^= 0x40;
 
