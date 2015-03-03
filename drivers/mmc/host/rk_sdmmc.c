@@ -637,7 +637,13 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 	else
 		burst_limit = 16;
 
-	slave_config.dst_maxburst = (mburst > burst_limit) ? burst_limit : mburst;
+	if (mburst > burst_limit) {
+		mburst = burst_limit;
+		fifoth_val = SDMMC_SET_FIFOTH(mszs[3], mszs[3] - 1, (host->fifo_depth) / 2);
+		mci_writel(host, FIFOTH, fifoth_val);
+	}
+
+	slave_config.dst_maxburst = mburst;
 	slave_config.src_maxburst = slave_config.dst_maxburst;
 
 	if(host->data->flags & MMC_DATA_WRITE){
