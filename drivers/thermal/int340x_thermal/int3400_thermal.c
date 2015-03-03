@@ -262,13 +262,12 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	result = acpi_parse_art(priv->adev->handle, &priv->art_count,
 				&priv->arts, true);
 	if (result)
-		goto free_priv;
-
+		dev_dbg(&pdev->dev, "_ART table parsing error\n");
 
 	result = acpi_parse_trt(priv->adev->handle, &priv->trt_count,
 				&priv->trts, true);
 	if (result)
-		goto free_art;
+		dev_dbg(&pdev->dev, "_TRT table parsing error\n");
 
 	platform_set_drvdata(pdev, priv);
 
@@ -281,7 +280,7 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 						&int3400_thermal_params, 0, 0);
 	if (IS_ERR(priv->thermal)) {
 		result = PTR_ERR(priv->thermal);
-		goto free_trt;
+		goto free_art_trt;
 	}
 
 	priv->rel_misc_dev_res = acpi_thermal_rel_misc_device_add(
@@ -295,9 +294,8 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 
 free_zone:
 	thermal_zone_device_unregister(priv->thermal);
-free_trt:
+free_art_trt:
 	kfree(priv->trts);
-free_art:
 	kfree(priv->arts);
 free_priv:
 	kfree(priv);

@@ -8713,6 +8713,7 @@ retry:
 			old->release_fb->funcs->destroy(old->release_fb);
 		goto fail;
 	}
+	crtc->primary->crtc = crtc;
 
 	/* let the connector get through one full cycle before testing */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
