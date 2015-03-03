@@ -1159,7 +1159,7 @@ static void printer_func_unbind(struct usb_configuration *c,
 	struct printer_dev	*dev;
 	struct usb_request	*req;
 
-	dev = &usb_printer_gadget;
+	dev = container_of(f, struct printer_dev, function);
 
 	device_destroy(usb_gadget_class, g_printer_devno);
 
