@@ -378,9 +378,9 @@ static void __init of_selftest_property_string(void)
 	rc = of_property_match_string(np, "phandle-list-names", "first");
 	selftest(rc == 0, "first expected:0 got:%i\n", rc);
 	rc = of_property_match_string(np, "phandle-list-names", "second");
-	selftest(rc == 1, "second expected:0 got:%i\n", rc);
+	selftest(rc == 1, "second expected:1 got:%i\n", rc);
 	rc = of_property_match_string(np, "phandle-list-names", "third");
-	selftest(rc == 2, "third expected:0 got:%i\n", rc);
+	selftest(rc == 2, "third expected:2 got:%i\n", rc);
 	rc = of_property_match_string(np, "phandle-list-names", "fourth");
 	selftest(rc == -ENODATA, "unmatched string; rc=%i\n", rc);
 	rc = of_property_match_string(np, "missing-property", "blah");
