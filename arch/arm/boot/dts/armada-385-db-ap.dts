@@ -49,8 +49,7 @@
 	compatible = "marvell,a385-db-ap", "marvell,armada385", "marvell,armada38x";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
-		stdout-path = &uart1;
+		stdout-path = "serial1:115200n8";
 	};
 
 	memory {
