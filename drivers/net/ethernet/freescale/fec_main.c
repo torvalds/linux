@@ -1597,7 +1597,7 @@ fec_enet_interrupt(int irq, void *dev_id)
 	writel(int_events, fep->hwp + FEC_IEVENT);
 	fec_enet_collect_events(fep, int_events);
 
-	if (fep->work_tx || fep->work_rx) {
+	if ((fep->work_tx || fep->work_rx) && fep->link) {
 		ret = IRQ_HANDLED;
 
 		if (napi_schedule_prep(&fep->napi)) {
