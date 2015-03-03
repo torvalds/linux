@@ -1628,8 +1628,8 @@ void dm_change_dynamic_initgain_thresh(struct net_device *dev, u32 dm_type,
 		dm_digtable.rssi_low_thresh = dm_value;
 	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH) {
 		dm_digtable.rssi_high_power_highthresh = dm_value;
-	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH) {
-		dm_digtable.rssi_high_power_highthresh = dm_value;
+	} else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_LOW) {
+		dm_digtable.rssi_high_power_lowthresh = dm_value;
 	} else if (dm_type == DIG_TYPE_ENABLE) {
 		dm_digtable.dig_state		= DM_STA_DIG_MAX;
 		dm_digtable.dig_enable_flag	= true;
