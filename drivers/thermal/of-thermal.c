@@ -866,6 +866,7 @@ int __init of_parse_thermal_zones(void)
 	for_each_child_of_node(np, child) {
 		struct thermal_zone_device *zone;
 		struct thermal_zone_params *tzp;
+		int i, mask = 0;
 		u32 prop;
 
 		/* Check whether child is enabled or not */
@@ -896,8 +897,11 @@ int __init of_parse_thermal_zones(void)
 		if (!of_property_read_u32(child, "sustainable-power", &prop))
 			tzp->sustainable_power = prop;
 
+		for (i = 0; i < tz->ntrips; i++)
+			mask |= 1 << i;
+
 		zone = thermal_zone_device_register(child->name, tz->ntrips,
-						    0, tz,
+						    mask, tz,
 						    ops, tzp,
 						    tz->passive_delay,
 						    tz->polling_delay);
