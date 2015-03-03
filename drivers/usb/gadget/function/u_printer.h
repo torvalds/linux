@@ -25,6 +25,13 @@ struct f_printer_opts {
 	int				minor;
 	char				pnp_string[PNP_STRING_LEN];
 	unsigned			q_len;
+
+	/*
+	 * Protect the data from concurrent access by read/write
+	 * and create symlink/remove symlink
+	 */
+	struct mutex			lock;
+	int				refcnt;
 };
 
 #endif /* U_PRINTER_H */
