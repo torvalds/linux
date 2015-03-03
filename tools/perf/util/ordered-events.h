@@ -2,9 +2,10 @@
 #define __ORDERED_EVENTS_H
 
 #include <linux/types.h>
-#include "tool.h"
 
-struct perf_session;
+struct perf_tool;
+struct perf_evlist;
+struct machines;
 
 struct ordered_event {
 	u64			timestamp;
@@ -40,7 +41,8 @@ struct ordered_events {
 struct ordered_event *ordered_events__new(struct ordered_events *oe, u64 timestamp,
 					  union perf_event *event);
 void ordered_events__delete(struct ordered_events *oe, struct ordered_event *event);
-int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
+int ordered_events__flush(struct ordered_events *oe, struct machines *machines,
+			  struct perf_evlist *evlist, struct perf_tool *tool,
 			  enum oe_flush how);
 void ordered_events__init(struct ordered_events *oe);
 void ordered_events__free(struct ordered_events *oe);

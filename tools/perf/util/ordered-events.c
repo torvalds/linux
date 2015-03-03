@@ -153,10 +153,11 @@ void ordered_events__delete(struct ordered_events *oe, struct ordered_event *eve
 	free_dup_event(oe, event->event);
 }
 
-static int __ordered_events__flush(struct perf_session *s,
+static int __ordered_events__flush(struct ordered_events *oe,
+				   struct machines *machines,
+				   struct perf_evlist *evlist,
 				   struct perf_tool *tool)
 {
-	struct ordered_events *oe = &s->ordered_events;
 	struct list_head *head = &oe->events;
 	struct ordered_event *tmp, *iter;
 	struct perf_sample sample;
@@ -179,12 +180,12 @@ static int __ordered_events__flush(struct perf_session *s,
 		if (iter->timestamp > limit)
 			break;
 
-		ret = perf_evlist__parse_sample(s->evlist, iter->event, &sample);
+		ret = perf_evlist__parse_sample(evlist, iter->event, &sample);
 		if (ret)
 			pr_err("Can't parse sample, err = %d\n", ret);
 		else {
-			ret = perf_session__deliver_event(s, iter->event, &sample, tool,
-							  iter->file_offset);
+			ret = machines__deliver_event(machines, evlist, iter->event,
+						      &sample, tool, iter->file_offset);
 			if (ret)
 				return ret;
 		}
@@ -204,10 +205,10 @@ static int __ordered_events__flush(struct perf_session *s,
 	return 0;
 }
 
-int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
+int ordered_events__flush(struct ordered_events *oe, struct machines *machines,
+			  struct perf_evlist *evlist, struct perf_tool *tool,
 			  enum oe_flush how)
 {
-	struct ordered_events *oe = &s->ordered_events;
 	static const char * const str[] = {
 		"NONE",
 		"FINAL",
@@ -251,7 +252,7 @@ int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 		   str[how], oe->nr_events);
 	pr_oe_time(oe->max_timestamp, "max_timestamp\n");
 
-	err = __ordered_events__flush(s, tool);
+	err = __ordered_events__flush(oe, machines, evlist, tool);
 
 	if (!err) {
 		if (how == OE_FLUSH__ROUND)
