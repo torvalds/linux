@@ -304,9 +304,9 @@ static int hostfs_readdir(struct file *file, struct dir_context *ctx)
 static int hostfs_open(struct inode *ino, struct file *file)
 {
 	char *name;
-	fmode_t mode = 0;
+	fmode_t mode;
 	int err;
-	int r = 0, w = 0, fd;
+	int r, w, fd;
 
 	mode = file->f_mode & (FMODE_READ | FMODE_WRITE);
 	if ((mode & HOSTFS_I(ino)->mode) == mode)
