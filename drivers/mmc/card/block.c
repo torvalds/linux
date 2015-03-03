@@ -36,7 +36,6 @@
 #include <linux/compat.h>
 #include <linux/pm_runtime.h>
 
-#define CREATE_TRACE_POINTS
 #include <trace/events/mmc.h>
 
 #include <linux/mmc/ioctl.h>
