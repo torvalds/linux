@@ -930,7 +930,9 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 		return PTR_ERR(host->clk_sample);
 	}
 
-	host->reset = devm_reset_control_get(&pdev->dev, "ahb");
+	host->reset = devm_reset_control_get_optional(&pdev->dev, "ahb");
+	if (PTR_ERR(host->reset) == -EPROBE_DEFER)
+		return PTR_ERR(host->reset);
 
 	ret = clk_prepare_enable(host->clk_ahb);
 	if (ret) {
