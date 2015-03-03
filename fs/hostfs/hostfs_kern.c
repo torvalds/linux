@@ -142,21 +142,19 @@ static char *follow_link(char *link)
 	int len, n;
 	char *name, *resolved, *end;
 
-	len = 64;
-	while (1) {
+	name = __getname();
+	if (!name) {
 		n = -ENOMEM;
-		name = kmalloc(len, GFP_KERNEL);
-		if (name == NULL)
-			goto out;
-
-		n = hostfs_do_readlink(link, name, len);
-		if (n < len)
-			break;
-		len *= 2;
-		kfree(name);
+		goto out_free;
 	}
+
+	n = hostfs_do_readlink(link, name, PATH_MAX);
 	if (n < 0)
 		goto out_free;
+	else if (n == PATH_MAX) {
+		n = -E2BIG;
+		goto out_free;
+	}
 
 	if (*name == '/')
 		return name;
@@ -175,13 +173,12 @@ static char *follow_link(char *link)
 	}
 
 	sprintf(resolved, "%s%s", link, name);
-	kfree(name);
+	__putname(name);
 	kfree(link);
 	return resolved;
 
  out_free:
-	kfree(name);
- out:
+	__putname(name);
 	return ERR_PTR(n);
 }
 
