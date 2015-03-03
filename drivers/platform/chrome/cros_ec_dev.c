@@ -61,7 +61,7 @@ static int ec_get_version(struct cros_ec_device *ec, char *str, int maxlen)
 	if (resp->current_image >= ARRAY_SIZE(current_image_name))
 		resp->current_image = 3; /* invalid */
 
-	snprintf(str, maxlen, "%s\n%s\n%s\n\%s\n", CROS_EC_DEV_VERSION,
+	snprintf(str, maxlen, "%s\n%s\n%s\n%s\n", CROS_EC_DEV_VERSION,
 		 resp->version_string_ro, resp->version_string_rw,
 		 current_image_name[resp->current_image]);
 
