@@ -349,7 +349,7 @@ static int si2157_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 static const struct dvb_tuner_ops si2157_ops = {
 	.info = {
 		.name           = "Silicon Labs Si2146/2147/2148/2157/2158",
-		.frequency_min  = 110000000,
+		.frequency_min  = 55000000,
 		.frequency_max  = 862000000,
 	},
 
