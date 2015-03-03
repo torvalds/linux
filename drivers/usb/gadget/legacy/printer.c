@@ -1254,11 +1254,6 @@ static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
 	INIT_LIST_HEAD(&dev->rx_reqs);
 	INIT_LIST_HEAD(&dev->rx_buffers);
 
-	dev->q_len = q_len;
-	status = usb_add_function(c, &dev->function);
-	if (status)
-		return status;
-
 	if (pnp_str)
 		strlcpy(&pnp_string[2], pnp_str, sizeof(pnp_string) - 2);
 
@@ -1280,7 +1275,11 @@ static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
 	dev->current_rx_req = NULL;
 	dev->current_rx_bytes = 0;
 	dev->current_rx_buf = NULL;
+	dev->q_len = q_len;
 
+	status = usb_add_function(c, &dev->function);
+	if (status)
+		return status;
 	INFO(dev, "%s, version: " DRIVER_VERSION "\n", driver_desc);
 	return 0;
 }
