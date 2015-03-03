@@ -47,6 +47,9 @@ USB_GADGET_COMPOSITE_OPTIONS();
 
 #define DRIVER_DESC		"Printer Gadget"
 #define DRIVER_VERSION		"2007 OCT 06"
+#define GET_DEVICE_ID		0
+#define GET_PORT_STATUS		1
+#define SOFT_RESET		2
 
 static const char shortname [] = "printer";
 static const char driver_desc [] = DRIVER_DESC;
@@ -992,7 +995,7 @@ static int printer_func_setup(struct usb_function *f,
 	switch (ctrl->bRequestType&USB_TYPE_MASK) {
 	case USB_TYPE_CLASS:
 		switch (ctrl->bRequest) {
-		case 0: /* Get the IEEE-1284 PNP String */
+		case GET_DEVICE_ID: /* Get the IEEE-1284 PNP String */
 			/* Only one printer interface is supported. */
 			if ((wIndex>>8) != dev->interface)
 				break;
@@ -1003,7 +1006,7 @@ static int printer_func_setup(struct usb_function *f,
 					&dev->pnp_string[2]);
 			break;
 
-		case 1: /* Get Port Status */
+		case GET_PORT_STATUS: /* Get Port Status */
 			/* Only one printer interface is supported. */
 			if (wIndex != dev->interface)
 				break;
@@ -1012,7 +1015,7 @@ static int printer_func_setup(struct usb_function *f,
 			value = min(wLength, (u16) 1);
 			break;
 
-		case 2: /* Soft Reset */
+		case SOFT_RESET: /* Soft Reset */
 			/* Only one printer interface is supported. */
 			if (wIndex != dev->interface)
 				break;
