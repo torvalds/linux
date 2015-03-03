@@ -73,7 +73,7 @@ static u32 xen_apic_read(u32 reg)
 static void xen_apic_write(u32 reg, u32 val)
 {
 	/* Warn to see if there's any stray references */
-	WARN_ON(1);
+	WARN(1,"register: %x, value: %x\n", reg, val);
 }
 
 static u64 xen_apic_icr_read(void)
