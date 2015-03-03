@@ -77,6 +77,16 @@ static DEFINE_MUTEX(msi_used_lock);
 static phys_addr_t msi_doorbell_addr;
 #endif
 
+static inline bool is_percpu_irq(irq_hw_number_t irq)
+{
+	switch (irq) {
+	case ARMADA_370_XP_TIMER0_PER_CPU_IRQ:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /*
  * In SMP mode:
  * For shared global interrupts, mask/unmask global enable bit
@@ -86,7 +96,7 @@ static void armada_370_xp_irq_mask(struct irq_data *d)
 {
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	if (hwirq != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
+	if (!is_percpu_irq(hwirq))
 		writel(hwirq, main_int_base +
 				ARMADA_370_XP_INT_CLEAR_ENABLE_OFFS);
 	else
@@ -98,7 +108,7 @@ static void armada_370_xp_irq_unmask(struct irq_data *d)
 {
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	if (hwirq != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
+	if (!is_percpu_irq(hwirq))
 		writel(hwirq, main_int_base +
 				ARMADA_370_XP_INT_SET_ENABLE_OFFS);
 	else
@@ -287,14 +297,14 @@ static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
 				      unsigned int virq, irq_hw_number_t hw)
 {
 	armada_370_xp_irq_mask(irq_get_irq_data(virq));
-	if (hw != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
+	if (!is_percpu_irq(hw))
 		writel(hw, per_cpu_int_base +
 			ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
 	else
 		writel(hw, main_int_base + ARMADA_370_XP_INT_SET_ENABLE_OFFS);
 	irq_set_status_flags(virq, IRQ_LEVEL);
 
-	if (hw == ARMADA_370_XP_TIMER0_PER_CPU_IRQ) {
+	if (is_percpu_irq(hw)) {
 		irq_set_percpu_devid(virq);
 		irq_set_chip_and_handler(virq, &armada_370_xp_irq_chip,
 					handle_percpu_devid_irq);
