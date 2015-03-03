@@ -637,8 +637,6 @@ static void talitos_unregister_rng(struct device *dev)
 #define TALITOS_MAX_KEY_SIZE		96
 #define TALITOS_MAX_IV_LENGTH		16 /* max of AES_BLOCK_SIZE, DES3_EDE_BLOCK_SIZE */
 
-#define MD5_BLOCK_SIZE    64
-
 struct talitos_ctx {
 	struct device *dev;
 	int ch;
@@ -2195,7 +2193,7 @@ static struct talitos_alg_template driver_algs[] = {
 			.halg.base = {
 				.cra_name = "md5",
 				.cra_driver_name = "md5-talitos",
-				.cra_blocksize = MD5_BLOCK_SIZE,
+				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					     CRYPTO_ALG_ASYNC,
 			}
@@ -2285,7 +2283,7 @@ static struct talitos_alg_template driver_algs[] = {
 			.halg.base = {
 				.cra_name = "hmac(md5)",
 				.cra_driver_name = "hmac-md5-talitos",
-				.cra_blocksize = MD5_BLOCK_SIZE,
+				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					     CRYPTO_ALG_ASYNC,
 			}
