@@ -571,9 +571,10 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 re_read:
 	/* If cluster_slot is set, the cluster is setup */
 	if (bitmap->cluster_slot >= 0) {
-		sector_t bm_blocks;
+		sector_t bm_blocks = bitmap->mddev->resync_max_sectors;
 
-		bm_blocks = bitmap->mddev->resync_max_sectors / (bitmap->mddev->bitmap_info.chunksize >> 9);
+		sector_div(bm_blocks,
+			   bitmap->mddev->bitmap_info.chunksize >> 9);
 		bm_blocks = bm_blocks << 3;
 		bm_blocks = DIV_ROUND_UP_SECTOR_T(bm_blocks, 4096);
 		bitmap->mddev->bitmap_info.offset += bitmap->cluster_slot * (bm_blocks << 3);
