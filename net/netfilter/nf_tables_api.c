@@ -1968,6 +1968,10 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 			n++;
 		}
 	}
+	/* Check for overflow of dlen field */
+	err = -EFBIG;
+	if (size >= 1 << 12)
+		goto err1;
 
 	if (nla[NFTA_RULE_USERDATA])
 		ulen = nla_len(nla[NFTA_RULE_USERDATA]);
