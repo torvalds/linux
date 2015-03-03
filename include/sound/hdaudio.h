@@ -22,6 +22,17 @@ struct hdac_widget_tree;
 extern struct bus_type snd_hda_bus_type;
 
 /*
+ * generic arrays
+ */
+struct snd_array {
+	unsigned int used;
+	unsigned int alloced;
+	unsigned int elem_size;
+	unsigned int alloc_align;
+	void *list;
+};
+
+/*
  * HD-audio codec base device
  */
 struct hdac_device {
@@ -176,6 +187,28 @@ static inline void snd_hdac_codec_link_up(struct hdac_device *codec)
 static inline void snd_hdac_codec_link_down(struct hdac_device *codec)
 {
 	clear_bit(codec->addr, &codec->bus->codec_powered);
+}
+
+/*
+ * generic array helpers
+ */
+void *snd_array_new(struct snd_array *array);
+void snd_array_free(struct snd_array *array);
+static inline void snd_array_init(struct snd_array *array, unsigned int size,
+				  unsigned int align)
+{
+	array->elem_size = size;
+	array->alloc_align = align;
+}
+
+static inline void *snd_array_elem(struct snd_array *array, unsigned int idx)
+{
+	return array->list + idx * array->elem_size;
+}
+
+static inline unsigned int snd_array_index(struct snd_array *array, void *ptr)
+{
+	return (unsigned long)(ptr - array->list) / array->elem_size;
 }
 
 #endif /* __SOUND_HDAUDIO_H */
