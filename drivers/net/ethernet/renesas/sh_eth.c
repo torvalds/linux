@@ -508,7 +508,6 @@ static struct sh_eth_cpu_data r8a779x_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.rmiimode	= 1,
-	.shift_rd0	= 1,
 };
 
 static void sh_eth_set_rate_sh7724(struct net_device *ndev)
@@ -1462,8 +1461,8 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 
 		/* In case of almost all GETHER/ETHERs, the Receive Frame State
 		 * (RFS) bits in the Receive Descriptor 0 are from bit 9 to
-		 * bit 0. However, in case of the R8A7740, R8A779x, and
-		 * R7S72100 the RFS bits are from bit 25 to bit 16. So, the
+		 * bit 0. However, in case of the R8A7740 and R7S72100
+		 * the RFS bits are from bit 25 to bit 16. So, the
 		 * driver needs right shifting by 16.
 		 */
 		if (mdp->cd->shift_rd0)
