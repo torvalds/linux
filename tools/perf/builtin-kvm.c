@@ -18,6 +18,7 @@
 #include "util/stat.h"
 #include "util/top.h"
 #include "util/data.h"
+#include "util/ordered-events.h"
 
 #include <sys/prctl.h>
 #ifdef HAVE_TIMERFD_SUPPORT
@@ -783,8 +784,10 @@ static int perf_kvm__mmap_read(struct perf_kvm_stat *kvm)
 
 	/* flush queue after each round in which we processed events */
 	if (ntotal) {
-		kvm->session->ordered_events.next_flush = flush_time;
-		err = kvm->tool.finished_round(&kvm->tool, NULL, kvm->session);
+		struct ordered_events *oe = &kvm->session->ordered_events;
+
+		oe->next_flush = flush_time;
+		err = ordered_events__flush(oe, OE_FLUSH__ROUND);
 		if (err) {
 			if (kvm->lost_events)
 				pr_info("\nLost events: %" PRIu64 "\n\n",

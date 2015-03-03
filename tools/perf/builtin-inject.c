@@ -53,6 +53,13 @@ static int perf_event__repipe_synth(struct perf_tool *tool,
 	return 0;
 }
 
+static int perf_event__repipe_oe_synth(struct perf_tool *tool,
+				       union perf_event *event,
+				       struct ordered_events *oe __maybe_unused)
+{
+	return perf_event__repipe_synth(tool, event);
+}
+
 static int perf_event__repipe_op2_synth(struct perf_tool *tool,
 					union perf_event *event,
 					struct perf_session *session
@@ -406,7 +413,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.unthrottle	= perf_event__repipe,
 			.attr		= perf_event__repipe_attr,
 			.tracing_data	= perf_event__repipe_op2_synth,
-			.finished_round	= perf_event__repipe_op2_synth,
+			.finished_round	= perf_event__repipe_oe_synth,
 			.build_id	= perf_event__repipe_op2_synth,
 			.id_index	= perf_event__repipe_op2_synth,
 		},
