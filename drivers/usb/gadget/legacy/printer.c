@@ -1249,31 +1249,18 @@ static int __init printer_bind_config(struct usb_configuration *c)
 	dev->current_rx_bytes = 0;
 	dev->current_rx_buf = NULL;
 
+	status = -ENOMEM;
 	for (i = 0; i < QLEN; i++) {
 		req = printer_req_alloc(dev->in_ep, USB_BUFSIZE, GFP_KERNEL);
-		if (!req) {
-			while (!list_empty(&dev->tx_reqs)) {
-				req = container_of(dev->tx_reqs.next,
-						struct usb_request, list);
-				list_del(&req->list);
-				printer_req_free(dev->in_ep, req);
-			}
-			return -ENOMEM;
-		}
+		if (!req)
+			goto fail;
 		list_add(&req->list, &dev->tx_reqs);
 	}
 
 	for (i = 0; i < QLEN; i++) {
 		req = printer_req_alloc(dev->out_ep, USB_BUFSIZE, GFP_KERNEL);
-		if (!req) {
-			while (!list_empty(&dev->rx_reqs)) {
-				req = container_of(dev->rx_reqs.next,
-						struct usb_request, list);
-				list_del(&req->list);
-				printer_req_free(dev->out_ep, req);
-			}
-			return -ENOMEM;
-		}
+		if (!req)
+			goto fail;
 		list_add(&req->list, &dev->rx_reqs);
 	}
 
