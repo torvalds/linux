@@ -1288,11 +1288,6 @@ fail:
 	return status;
 }
 
-static int printer_unbind(struct usb_composite_dev *cdev)
-{
-	return 0;
-}
-
 static int __init printer_bind(struct usb_composite_dev *cdev)
 {
 	int ret;
@@ -1317,7 +1312,6 @@ static __refdata struct usb_composite_driver printer_driver = {
 	.strings        = dev_strings,
 	.max_speed      = USB_SPEED_SUPER,
 	.bind		= printer_bind,
-	.unbind		= printer_unbind,
 };
 
 static int __init
