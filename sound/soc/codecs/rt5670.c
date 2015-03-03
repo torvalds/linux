@@ -2700,6 +2700,12 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 
 	regmap_write(rt5670->regmap, RT5670_RESET, 0);
 
+	regmap_read(rt5670->regmap, RT5670_VENDOR_ID, &val);
+	if (val >= 4)
+		regmap_write(rt5670->regmap, RT5670_GPIO_CTRL3, 0x0980);
+	else
+		regmap_write(rt5670->regmap, RT5670_GPIO_CTRL3, 0x0d00);
+
 	ret = regmap_register_patch(rt5670->regmap, init_list,
 				    ARRAY_SIZE(init_list));
 	if (ret != 0)
