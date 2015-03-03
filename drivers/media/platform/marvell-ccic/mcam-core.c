@@ -1246,6 +1246,7 @@ static int mcam_setup_vb2(struct mcam_camera *cam)
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->drv_priv = cam;
 	vq->lock = &cam->s_mutex;
+	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	INIT_LIST_HEAD(&cam->buffers);
 	switch (cam->buffer_mode) {
 	case B_DMA_contig:
