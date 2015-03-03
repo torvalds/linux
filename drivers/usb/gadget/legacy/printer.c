@@ -29,12 +29,7 @@ USB_GADGET_COMPOSITE_OPTIONS();
 static const char shortname [] = "printer";
 static const char driver_desc [] = DRIVER_DESC;
 
-/*
- * This will be changed when f_printer is converted
- * to the new function interface.
- */
-#define USBF_PRINTER_INCLUDED
-#include "f_printer.c"
+#include "u_printer.h"
 
 /*-------------------------------------------------------------------------*/
 
@@ -64,6 +59,9 @@ static unsigned qlen = 10;
 module_param(qlen, uint, S_IRUGO|S_IWUSR);
 
 #define QLEN	qlen
+
+static struct usb_function_instance *fi_printer;
+static struct usb_function *f_printer;
 
 /*-------------------------------------------------------------------------*/
 
@@ -131,6 +129,7 @@ static struct usb_configuration printer_cfg_driver = {
 static int __init printer_do_config(struct usb_configuration *c)
 {
 	struct usb_gadget	*gadget = c->cdev->gadget;
+	int			status = 0;
 
 	usb_ep_autoconfig_reset(gadget);
 
@@ -142,20 +141,41 @@ static int __init printer_do_config(struct usb_configuration *c)
 		printer_cfg_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return f_printer_bind_config(c, iPNPstring, pnp_string, QLEN, 0);
+	f_printer = usb_get_function(fi_printer);
+	if (IS_ERR(f_printer))
+		return PTR_ERR(f_printer);
+
+	status = usb_add_function(c, f_printer);
+	if (status < 0)
+		usb_put_function(f_printer);
+
+	return status;
 }
 
 static int __init printer_bind(struct usb_composite_dev *cdev)
 {
-	int ret;
+	struct f_printer_opts *opts;
+	int ret, len;
 
-	ret = gprinter_setup(PRINTER_MINORS);
-	if (ret)
-		return ret;
+	fi_printer = usb_get_function_instance("printer");
+	if (IS_ERR(fi_printer))
+		return PTR_ERR(fi_printer);
+
+	if (iPNPstring)
+		strlcpy(&pnp_string[2], iPNPstring, PNP_STRING_LEN - 2);
+
+	len = strlen(pnp_string);
+	pnp_string[0] = (len >> 8) & 0xFF;
+	pnp_string[1] = len & 0xFF;
+
+	opts = container_of(fi_printer, struct f_printer_opts, func_inst);
+	opts->minor = 0;
+	memcpy(opts->pnp_string, pnp_string, PNP_STRING_LEN);
+	opts->q_len = QLEN;
 
 	ret = usb_string_ids_tab(cdev, strings);
 	if (ret < 0) {
-		gprinter_cleanup();
+		usb_put_function_instance(fi_printer);
 		return ret;
 	}
 	device_desc.iManufacturer = strings[USB_GADGET_MANUFACTURER_IDX].id;
@@ -164,7 +184,7 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 
 	ret = usb_add_config(cdev, &printer_cfg_driver, printer_do_config);
 	if (ret) {
-		gprinter_cleanup();
+		usb_put_function_instance(fi_printer);
 		return ret;
 	}
 	usb_composite_overwrite_options(cdev, &coverwrite);
@@ -173,7 +193,9 @@ static int __init printer_bind(struct usb_composite_dev *cdev)
 
 static int __exit printer_unbind(struct usb_composite_dev *cdev)
 {
-	gprinter_cleanup();
+	usb_put_function(f_printer);
+	usb_put_function_instance(fi_printer);
+
 	return 0;
 }
 
