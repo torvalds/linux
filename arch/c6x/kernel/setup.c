@@ -265,8 +265,8 @@ int __init c6x_add_memory(phys_addr_t start, unsigned long size)
  */
 notrace void __init machine_init(unsigned long dt_ptr)
 {
-	const void *dtb = __va(dt_ptr);
-	const void *fdt = _fdt_start;
+	void *dtb = __va(dt_ptr);
+	void *fdt = _fdt_start;
 
 	/* interrupts must be masked */
 	set_creg(IER, 2);
