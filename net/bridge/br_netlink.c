@@ -81,17 +81,19 @@ static size_t br_get_link_af_size_filtered(const struct net_device *dev,
 	struct net_port_vlans *pv;
 	int num_vlan_infos;
 
+	rcu_read_lock();
 	if (br_port_exists(dev))
-		pv = nbp_get_vlan_info(br_port_get_rtnl(dev));
+		pv = nbp_get_vlan_info(br_port_get_rcu(dev));
 	else if (dev->priv_flags & IFF_EBRIDGE)
 		pv = br_get_vlan_info((struct net_bridge *)netdev_priv(dev));
 	else
-		return 0;
+		pv = NULL;
+	if (pv)
+		num_vlan_infos = br_get_num_vlan_infos(pv, filter_mask);
+	else
+		num_vlan_infos = 0;
+	rcu_read_unlock();
 
-	if (!pv)
-		return 0;
-
-	num_vlan_infos = br_get_num_vlan_infos(pv, filter_mask);
 	if (!num_vlan_infos)
 		return 0;
 
