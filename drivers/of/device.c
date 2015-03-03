@@ -90,10 +90,11 @@ void of_dma_configure(struct device *dev, struct device_node *np)
 	struct iommu_ops *iommu;
 
 	/*
-	 * Set default dma-mask to 32 bit.  Drivers are expected to setup
-	 * the correct supported dma_mask.
+	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
+	 * setup the correct supported mask.
 	 */
-	dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	if (!dev->coherent_dma_mask)
+		dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	/*
 	 * Set it to coherent_dma_mask by default if the architecture
@@ -127,6 +128,15 @@ void of_dma_configure(struct device *dev, struct device_node *np)
 	}
 
 	dev->dma_pfn_offset = offset;
+
+	/*
+	 * Limit coherent and dma mask based on size and default mask
+	 * set by the driver.
+	 */
+	dev->coherent_dma_mask = min(dev->coherent_dma_mask,
+				     DMA_BIT_MASK(ilog2(dma_addr + size)));
+	*dev->dma_mask = min((*dev->dma_mask),
+			     DMA_BIT_MASK(ilog2(dma_addr + size)));
 
 	coherent = of_dma_is_coherent(np);
 	dev_dbg(dev, "device is%sdma coherent\n",
