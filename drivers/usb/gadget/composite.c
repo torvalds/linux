@@ -1472,6 +1472,13 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	req->length = 0;
 	gadget->ep0->driver_data = cdev;
 
+	/*
+	 * Don't let non-standard requests match any of the cases below
+	 * by accident.
+	 */
+	if ((ctrl->bRequestType & USB_TYPE_MASK) != USB_TYPE_STANDARD)
+		goto unknown;
+
 	switch (ctrl->bRequest) {
 
 	/* we handle all standard USB descriptors */
