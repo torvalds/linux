@@ -57,10 +57,8 @@
 
 static int major, minors;
 static struct class *usb_gadget_class;
-#ifndef USBF_PRINTER_INCLUDED
 static DEFINE_IDA(printer_ida);
 static DEFINE_MUTEX(printer_ida_lock); /* protects access do printer_ida */
-#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -1118,53 +1116,6 @@ fail_tx_reqs:
 
 }
 
-#ifdef USBF_PRINTER_INCLUDED
-static void printer_func_unbind(struct usb_configuration *c,
-		struct usb_function *f)
-{
-	struct printer_dev	*dev;
-	struct usb_request	*req;
-
-	dev = func_to_printer(f);
-
-	device_destroy(usb_gadget_class, MKDEV(major, dev->minor));
-
-	/* Remove Character Device */
-	cdev_del(&dev->printer_cdev);
-
-	/* we must already have been disconnected ... no i/o may be active */
-	WARN_ON(!list_empty(&dev->tx_reqs_active));
-	WARN_ON(!list_empty(&dev->rx_reqs_active));
-
-	/* Free all memory for this driver. */
-	while (!list_empty(&dev->tx_reqs)) {
-		req = container_of(dev->tx_reqs.next, struct usb_request,
-				list);
-		list_del(&req->list);
-		printer_req_free(dev->in_ep, req);
-	}
-
-	if (dev->current_rx_req != NULL)
-		printer_req_free(dev->out_ep, dev->current_rx_req);
-
-	while (!list_empty(&dev->rx_reqs)) {
-		req = container_of(dev->rx_reqs.next,
-				struct usb_request, list);
-		list_del(&req->list);
-		printer_req_free(dev->out_ep, req);
-	}
-
-	while (!list_empty(&dev->rx_buffers)) {
-		req = container_of(dev->rx_buffers.next,
-				struct usb_request, list);
-		list_del(&req->list);
-		printer_req_free(dev->out_ep, req);
-	}
-	usb_free_all_descriptors(f);
-	kfree(dev);
-}
-#endif
-
 static int printer_func_set_alt(struct usb_function *f,
 		unsigned intf, unsigned alt)
 {
@@ -1189,68 +1140,6 @@ static void printer_func_disable(struct usb_function *f)
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
-#ifdef USBF_PRINTER_INCLUDED
-static int f_printer_bind_config(struct usb_configuration *c, char *pnp_str,
-				 char *pnp_string, unsigned q_len, int minor)
-{
-	struct printer_dev	*dev;
-	int			status = -ENOMEM;
-	size_t			len;
-
-	if (minor >= minors)
-		return -ENOENT;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
-
-	dev->pnp_string = pnp_string;
-	dev->minor = minor;
-
-	dev->function.name = shortname;
-	dev->function.bind = printer_func_bind;
-	dev->function.setup = printer_func_setup;
-	dev->function.unbind = printer_func_unbind;
-	dev->function.set_alt = printer_func_set_alt;
-	dev->function.disable = printer_func_disable;
-	dev->function.req_match = gprinter_req_match;
-	INIT_LIST_HEAD(&dev->tx_reqs);
-	INIT_LIST_HEAD(&dev->rx_reqs);
-	INIT_LIST_HEAD(&dev->rx_buffers);
-
-	if (pnp_str)
-		strlcpy(&dev->pnp_string[2], pnp_str, PNP_STRING_LEN - 2);
-
-	len = strlen(pnp_string);
-	pnp_string[0] = (len >> 8) & 0xFF;
-	pnp_string[1] = len & 0xFF;
-
-	spin_lock_init(&dev->lock);
-	mutex_init(&dev->lock_printer_io);
-	INIT_LIST_HEAD(&dev->tx_reqs_active);
-	INIT_LIST_HEAD(&dev->rx_reqs_active);
-	init_waitqueue_head(&dev->rx_wait);
-	init_waitqueue_head(&dev->tx_wait);
-	init_waitqueue_head(&dev->tx_flush_wait);
-
-	dev->interface = -1;
-	dev->printer_cdev_open = 0;
-	dev->printer_status = PRINTER_NOT_ERROR;
-	dev->current_rx_req = NULL;
-	dev->current_rx_bytes = 0;
-	dev->current_rx_buf = NULL;
-	dev->q_len = q_len;
-
-	status = usb_add_function(c, &dev->function);
-	if (status) {
-		kfree(dev);
-		return status;
-	}
-
-	INFO(dev, "%s, version: " DRIVER_VERSION "\n", driver_desc);
-	return 0;
-}
-#else
 static inline int gprinter_get_minor(void)
 {
 	return ida_simple_get(&printer_ida, 0, 0, GFP_KERNEL);
@@ -1421,8 +1310,6 @@ static struct usb_function *gprinter_alloc(struct usb_function_instance *fi)
 DECLARE_USB_FUNCTION_INIT(printer, gprinter_alloc_inst, gprinter_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Craig Nadler");
-
-#endif
 
 static int gprinter_setup(int count)
 {
