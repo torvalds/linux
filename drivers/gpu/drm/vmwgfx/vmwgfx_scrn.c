@@ -621,7 +621,7 @@ int vmw_kms_sou_do_surface_dirty(struct vmw_private *dev_priv,
 		fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num;
 		cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
 		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-					  fifo_size, 0, NULL, out_fence);
+					  fifo_size, 0, 0, NULL, out_fence);
 
 		if (unlikely(ret != 0))
 			break;
@@ -827,7 +827,7 @@ static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
 	cmd->body.ptr.offset = 0;
 
 	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-				  fifo_size, 0, NULL, NULL);
+				  fifo_size, 0, 0, NULL, NULL);
 
 	kfree(cmd);
 
@@ -919,7 +919,7 @@ int vmw_kms_sou_do_dmabuf_dirty(struct drm_file *file_priv,
 
 		fifo_size = sizeof(*blits) * hit_num;
 		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, blits,
-					  fifo_size, 0, NULL, out_fence);
+					  fifo_size, 0, 0, NULL, out_fence);
 
 		if (unlikely(ret != 0))
 			break;

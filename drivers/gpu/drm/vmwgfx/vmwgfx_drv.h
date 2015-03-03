@@ -341,6 +341,8 @@ enum vmw_display_unit_type {
 };
 
 
+#define VMW_QUIRK_SCREENTARGET (1U << 0)
+
 struct vmw_sw_context{
 	struct drm_open_hash res_ht;
 	bool res_ht_initialized;
@@ -363,6 +365,7 @@ struct vmw_sw_context{
 	struct vmw_resource *error_resource;
 	struct vmw_ctx_binding_state staged_bindings;
 	struct list_head staged_cmd_res;
+	uint32_t quirks;
 };
 
 struct vmw_legacy_display;
@@ -831,6 +834,7 @@ extern int vmw_execbuf_process(struct drm_file *file_priv,
 			       void *kernel_commands,
 			       uint32_t command_size,
 			       uint64_t throttle_us,
+			       uint32_t quirks,
 			       struct drm_vmw_fence_rep __user
 			       *user_fence_rep,
 			       struct vmw_fence_obj **out_fence);

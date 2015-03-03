@@ -993,7 +993,7 @@ int vmw_kms_generic_present(struct vmw_private *dev_priv,
 		fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num;
 		cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
 		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-					  fifo_size, 0, NULL, NULL);
+					  fifo_size, 0, 0, NULL, NULL);
 
 		if (unlikely(ret != 0))
 			break;
@@ -1121,7 +1121,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 	fifo_size = sizeof(*cmd) + sizeof(*blits) * blits_pos;
 
 	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd, fifo_size,
-				  0, user_fence_rep, NULL);
+				  0, 0, user_fence_rep, NULL);
 
 	kfree(cmd);
 
