@@ -511,8 +511,6 @@ static int __klp_enable_patch(struct klp_patch *patch)
 	pr_notice("enabling patch '%s'\n", patch->mod->name);
 
 	for (obj = patch->objs; obj->funcs; obj++) {
-		klp_find_object_module(obj);
-
 		if (!klp_is_object_loaded(obj))
 			continue;
 
