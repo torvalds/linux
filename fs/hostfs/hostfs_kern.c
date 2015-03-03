@@ -93,6 +93,13 @@ static char *__dentry_name(struct dentry *dentry, char *name)
 		__putname(name);
 		return NULL;
 	}
+
+	/*
+	 * This function relies on the fact that dentry_path_raw() will place
+	 * the path name at the end of the provided buffer.
+	 */
+	BUG_ON(p + strlen(p) + 1 != name + PATH_MAX);
+
 	strlcpy(name, root, PATH_MAX);
 	if (len > p - name) {
 		__putname(name);
