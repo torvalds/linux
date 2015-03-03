@@ -43,7 +43,17 @@ DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
 DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
 DEFINE_PER_CPU(char, rcu_cpu_has_work);
 
-#endif /* #ifdef CONFIG_RCU_BOOST */
+#else /* #ifdef CONFIG_RCU_BOOST */
+
+/*
+ * Some architectures do not define rt_mutexes, but if !CONFIG_RCU_BOOST,
+ * all uses are in dead code.  Provide a definition to keep the compiler
+ * happy, but add WARN_ON_ONCE() to complain if used in the wrong place.
+ * This probably needs to be excluded from -rt builds.
+ */
+#define rt_mutex_owner(a) ({ WARN_ON_ONCE(1); NULL; })
+
+#endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 #ifdef CONFIG_RCU_NOCB_CPU
 static cpumask_var_t rcu_nocb_mask; /* CPUs to have callbacks offloaded. */
@@ -180,10 +190,9 @@ static void rcu_preempt_note_context_switch(void)
 		if ((rnp->qsmask & rdp->grpmask) && rnp->gp_tasks != NULL) {
 			list_add(&t->rcu_node_entry, rnp->gp_tasks->prev);
 			rnp->gp_tasks = &t->rcu_node_entry;
-#ifdef CONFIG_RCU_BOOST
-			if (rnp->boost_tasks != NULL)
+			if (IS_ENABLED(CONFIG_RCU_BOOST) &&
+			    rnp->boost_tasks != NULL)
 				rnp->boost_tasks = rnp->gp_tasks;
-#endif /* #ifdef CONFIG_RCU_BOOST */
 		} else {
 			list_add(&t->rcu_node_entry, &rnp->blkd_tasks);
 			if (rnp->qsmask & rdp->grpmask)
@@ -263,9 +272,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 	bool empty_exp_now;
 	unsigned long flags;
 	struct list_head *np;
-#ifdef CONFIG_RCU_BOOST
 	bool drop_boost_mutex = false;
-#endif /* #ifdef CONFIG_RCU_BOOST */
 	struct rcu_node *rnp;
 	union rcu_special special;
 
@@ -331,12 +338,12 @@ void rcu_read_unlock_special(struct task_struct *t)
 			rnp->gp_tasks = np;
 		if (&t->rcu_node_entry == rnp->exp_tasks)
 			rnp->exp_tasks = np;
-#ifdef CONFIG_RCU_BOOST
-		if (&t->rcu_node_entry == rnp->boost_tasks)
-			rnp->boost_tasks = np;
-		/* Snapshot ->boost_mtx ownership with rcu_node lock held. */
-		drop_boost_mutex = rt_mutex_owner(&rnp->boost_mtx) == t;
-#endif /* #ifdef CONFIG_RCU_BOOST */
+		if (IS_ENABLED(CONFIG_RCU_BOOST)) {
+			if (&t->rcu_node_entry == rnp->boost_tasks)
+				rnp->boost_tasks = np;
+			/* Snapshot ->boost_mtx ownership w/rnp->lock held. */
+			drop_boost_mutex = rt_mutex_owner(&rnp->boost_mtx) == t;
+		}
 
 		/*
 		 * If this was the last task on the current list, and if
@@ -358,11 +365,9 @@ void rcu_read_unlock_special(struct task_struct *t)
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		}
 
-#ifdef CONFIG_RCU_BOOST
 		/* Unboost if we were boosted. */
-		if (drop_boost_mutex)
+		if (IS_ENABLED(CONFIG_RCU_BOOST) && drop_boost_mutex)
 			rt_mutex_unlock(&rnp->boost_mtx);
-#endif /* #ifdef CONFIG_RCU_BOOST */
 
 		/*
 		 * If this was the last task on the expedited lists,
