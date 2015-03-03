@@ -1563,7 +1563,7 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 
 	wiphy_dbg(wiphy, "%s: mac address %pM\n", __func__, params->mac);
 
-	memset(deauth_mac, 0, ETH_ALEN);
+	eth_zero_addr(deauth_mac);
 
 	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 	sta_node = mwifiex_get_sta_entry(priv, params->mac);
@@ -1786,7 +1786,7 @@ mwifiex_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	wiphy_dbg(wiphy, "info: successfully disconnected from %pM:"
 		" reason code %d\n", priv->cfg_bssid, reason_code);
 
-	memset(priv->cfg_bssid, 0, ETH_ALEN);
+	eth_zero_addr(priv->cfg_bssid);
 	priv->hs2_enabled = false;
 
 	return 0;
@@ -2046,7 +2046,7 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		dev_dbg(priv->adapter->dev,
 			"info: association to bssid %pM failed\n",
 			priv->cfg_bssid);
-		memset(priv->cfg_bssid, 0, ETH_ALEN);
+		eth_zero_addr(priv->cfg_bssid);
 
 		if (ret > 0)
 			cfg80211_connect_result(priv->netdev, priv->cfg_bssid,
@@ -2194,7 +2194,7 @@ mwifiex_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	if (mwifiex_deauthenticate(priv, NULL))
 		return -EFAULT;
 
-	memset(priv->cfg_bssid, 0, ETH_ALEN);
+	eth_zero_addr(priv->cfg_bssid);
 
 	return 0;
 }

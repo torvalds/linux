@@ -66,6 +66,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/etherdevice.h>
 
 #include <net/mac80211.h>
 
@@ -491,7 +492,7 @@ void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	if (memcmp(vif->bss_conf.bssid, mvmvif->uapsd_misbehaving_bssid,
 		   ETH_ALEN))
-		memset(mvmvif->uapsd_misbehaving_bssid, 0, ETH_ALEN);
+		eth_zero_addr(mvmvif->uapsd_misbehaving_bssid);
 }
 
 static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,

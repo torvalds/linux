@@ -76,7 +76,7 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	u32 i;
 
 	priv->media_connected = false;
-	memset(priv->curr_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(priv->curr_addr);
 
 	priv->pkt_tx_ctrl = 0;
 	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
@@ -299,7 +299,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->ext_scan = false;
 	adapter->key_api_major_ver = 0;
 	adapter->key_api_minor_ver = 0;
-	memset(adapter->perm_addr, 0xff, ETH_ALEN);
+	eth_broadcast_addr(adapter->perm_addr);
 	adapter->iface_limit.sta_intf = MWIFIEX_MAX_STA_NUM;
 	adapter->iface_limit.uap_intf = MWIFIEX_MAX_UAP_NUM;
 	adapter->iface_limit.p2p_intf = MWIFIEX_MAX_P2P_NUM;

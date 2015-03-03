@@ -149,7 +149,7 @@ static void ath9k_htc_set_mac_bssid_mask(struct ath9k_htc_priv *priv,
 	 * when matching addresses.
 	 */
 	iter_data.hw_macaddr = NULL;
-	memset(&iter_data.mask, 0xff, ETH_ALEN);
+	eth_broadcast_addr(iter_data.mask);
 
 	if (vif)
 		ath9k_htc_bssid_iter(&iter_data, vif->addr, vif);

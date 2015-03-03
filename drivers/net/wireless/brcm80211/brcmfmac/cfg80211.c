@@ -700,7 +700,7 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 		/* Do a scan abort to stop the driver's scan engine */
 		brcmf_dbg(SCAN, "ABORT scan in firmware\n");
 		memset(&params_le, 0, sizeof(params_le));
-		memset(params_le.bssid, 0xFF, ETH_ALEN);
+		eth_broadcast_addr(params_le.bssid);
 		params_le.bss_type = DOT11_BSSTYPE_ANY;
 		params_le.scan_type = 0;
 		params_le.channel_num = cpu_to_le32(1);
@@ -866,7 +866,7 @@ static void brcmf_escan_prep(struct brcmf_cfg80211_info *cfg,
 	char *ptr;
 	struct brcmf_ssid_le ssid_le;
 
-	memset(params_le->bssid, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(params_le->bssid);
 	params_le->bss_type = DOT11_BSSTYPE_ANY;
 	params_le->scan_type = 0;
 	params_le->channel_num = 0;
@@ -1375,8 +1375,8 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 				   BRCMF_ASSOC_PARAMS_FIXED_SIZE;
 		memcpy(profile->bssid, params->bssid, ETH_ALEN);
 	} else {
-		memset(join_params.params_le.bssid, 0xFF, ETH_ALEN);
-		memset(profile->bssid, 0, ETH_ALEN);
+		eth_broadcast_addr(join_params.params_le.bssid);
+		eth_zero_addr(profile->bssid);
 	}
 
 	/* Channel */
@@ -1850,7 +1850,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if (sme->bssid)
 		memcpy(&ext_join_params->assoc_le.bssid, sme->bssid, ETH_ALEN);
 	else
-		memset(&ext_join_params->assoc_le.bssid, 0xFF, ETH_ALEN);
+		eth_broadcast_addr(ext_join_params->assoc_le.bssid);
 
 	if (cfg->channel) {
 		ext_join_params->assoc_le.chanspec_num = cpu_to_le32(1);
@@ -1895,7 +1895,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if (sme->bssid)
 		memcpy(join_params.params_le.bssid, sme->bssid, ETH_ALEN);
 	else
-		memset(join_params.params_le.bssid, 0xFF, ETH_ALEN);
+		eth_broadcast_addr(join_params.params_le.bssid);
 
 	if (cfg->channel) {
 		join_params.params_le.chanspec_list[0] = cpu_to_le16(chanspec);

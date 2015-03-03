@@ -730,7 +730,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	} else {
 		memcpy(ra, skb->data, ETH_ALEN);
 		if (ra[0] & 0x01 || mwifiex_is_skb_mgmt_frame(skb))
-			memset(ra, 0xff, ETH_ALEN);
+			eth_broadcast_addr(ra);
 		ra_list = mwifiex_wmm_get_queue_raptr(priv, tid_down, ra);
 	}
 

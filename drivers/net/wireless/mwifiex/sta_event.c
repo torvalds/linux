@@ -135,7 +135,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 		cfg80211_disconnected(priv->netdev, reason_code, NULL, 0,
 				      GFP_KERNEL);
 	}
-	memset(priv->cfg_bssid, 0, ETH_ALEN);
+	eth_zero_addr(priv->cfg_bssid);
 
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))

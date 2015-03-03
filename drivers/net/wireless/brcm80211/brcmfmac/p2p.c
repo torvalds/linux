@@ -697,7 +697,7 @@ static s32 brcmf_p2p_escan(struct brcmf_p2p_info *p2p, u32 num_chans,
 	else
 		sparams->scan_type = 1;
 
-	memset(&sparams->bssid, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(sparams->bssid);
 	if (ssid.SSID_len)
 		memcpy(sparams->ssid_le.SSID, ssid.SSID, ssid.SSID_len);
 	sparams->ssid_le.SSID_len = cpu_to_le32(ssid.SSID_len);

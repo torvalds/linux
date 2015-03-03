@@ -1182,7 +1182,7 @@ static void ath10k_control_ibss(struct ath10k_vif *arvif,
 		if (is_zero_ether_addr(arvif->bssid))
 			return;
 
-		memset(arvif->bssid, 0, ETH_ALEN);
+		eth_zero_addr(arvif->bssid);
 
 		return;
 	}

@@ -468,7 +468,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl1251_tx_flush(wl);
 	wl1251_power_off(wl);
 
-	memset(wl->bssid, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
 	wl->listen_int = 1;
 	wl->bss_type = MAX_BSS_TYPE;
 
@@ -547,7 +547,7 @@ static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 	wl1251_debug(DEBUG_MAC80211, "mac80211 remove interface");
 	wl->vif = NULL;
-	memset(wl->bssid, 0, ETH_ALEN);
+	eth_zero_addr(wl->bssid);
 	mutex_unlock(&wl->mutex);
 }
 

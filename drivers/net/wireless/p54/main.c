@@ -182,7 +182,7 @@ static int p54_start(struct ieee80211_hw *dev)
 	if (err)
 		goto out;
 
-	memset(priv->bssid, ~0, ETH_ALEN);
+	eth_broadcast_addr(priv->bssid);
 	priv->mode = NL80211_IFTYPE_MONITOR;
 	err = p54_setup_mac(priv);
 	if (err) {
@@ -274,8 +274,8 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 		wait_for_completion_interruptible_timeout(&priv->beacon_comp, HZ);
 	}
 	priv->mode = NL80211_IFTYPE_MONITOR;
-	memset(priv->mac_addr, 0, ETH_ALEN);
-	memset(priv->bssid, 0, ETH_ALEN);
+	eth_zero_addr(priv->mac_addr);
+	eth_zero_addr(priv->bssid);
 	p54_setup_mac(priv);
 	mutex_unlock(&priv->conf_mutex);
 }
@@ -794,7 +794,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	init_completion(&priv->beacon_comp);
 	INIT_DELAYED_WORK(&priv->work, p54_work);
 
-	memset(&priv->mc_maclist[0], ~0, ETH_ALEN);
+	eth_broadcast_addr(priv->mc_maclist[0]);
 	priv->curchan = NULL;
 	p54_reset_stats(priv);
 	return dev;

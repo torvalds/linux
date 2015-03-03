@@ -994,7 +994,7 @@ void ath9k_calculate_iter_data(struct ath_softc *sc,
 	 * BSSID mask when matching addresses.
 	 */
 	memset(iter_data, 0, sizeof(*iter_data));
-	memset(&iter_data->mask, 0xff, ETH_ALEN);
+	eth_broadcast_addr(iter_data->mask);
 	iter_data->slottime = ATH9K_SLOT_TIME_9;
 
 	list_for_each_entry(avp, &ctx->vifs, list)
@@ -1139,7 +1139,7 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 			ctx->primary_sta = iter_data.primary_sta;
 		} else {
 			ctx->primary_sta = NULL;
-			memset(common->curbssid, 0, ETH_ALEN);
+			eth_zero_addr(common->curbssid);
 			common->curaid = 0;
 			ath9k_hw_write_associd(sc->sc_ah);
 			if (ath9k_hw_mci_is_enabled(sc->sc_ah))

@@ -2033,7 +2033,7 @@ static int ath6kl_wow_sta(struct ath6kl *ar, struct ath6kl_vif *vif)
 	int ret;
 
 	/* Setup unicast pkt pattern */
-	memset(mac_mask, 0xff, ETH_ALEN);
+	eth_broadcast_addr(mac_mask);
 	ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
 				vif->fw_vif_idx, WOW_LIST_ID,
 				ETH_ALEN, 0, ndev->dev_addr,
