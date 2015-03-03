@@ -186,7 +186,6 @@ void omap3_dpll_deny_idle(struct clk_hw_omap *clk);
 
 void __init omap2_clk_disable_clkdm_control(void);
 
-int omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name);
 void omap2_clk_print_new_rates(const char *hfclkin_ck_name,
 			       const char *core_ck_name,
 			       const char *mpu_ck_name);

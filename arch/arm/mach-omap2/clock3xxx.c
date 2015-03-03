@@ -108,28 +108,3 @@ void __init omap3_clk_lock_dpll5(void)
 	clk_disable_unprepare(dpll5_clk);
 	return;
 }
-
-/* Common clock code */
-
-/*
- * Switch the MPU rate if specified on cmdline.  We cannot do this
- * early until cmdline is parsed.  XXX This should be removed from the
- * clock code and handled by the OPP layer code in the near future.
- */
-static int __init omap3xxx_clk_arch_init(void)
-{
-	int ret;
-
-	if (!cpu_is_omap34xx())
-		return 0;
-
-	ret = omap2_clk_switch_mpurate_at_boot("dpll1_ck");
-	if (!ret)
-		omap2_clk_print_new_rates("osc_sys_ck", "core_ck", "arm_fck");
-
-	return ret;
-}
-
-omap_arch_initcall(omap3xxx_clk_arch_init);
-
-

@@ -582,47 +582,6 @@ const struct clk_hw_omap_ops clkhwops_wait = {
 };
 
 /**
- * omap2_clk_switch_mpurate_at_boot - switch ARM MPU rate by boot-time argument
- * @mpurate_ck_name: clk name of the clock to change rate
- *
- * Change the ARM MPU clock rate to the rate specified on the command
- * line, if one was specified.  @mpurate_ck_name should be
- * "virt_prcm_set" on OMAP2xxx and "dpll1_ck" on OMAP34xx/OMAP36xx.
- * XXX Does not handle voltage scaling - on OMAP2xxx this is currently
- * handled by the virt_prcm_set clock, but this should be handled by
- * the OPP layer.  XXX This is intended to be handled by the OPP layer
- * code in the near future and should be removed from the clock code.
- * Returns -EINVAL if 'mpurate' is zero or if clk_set_rate() rejects
- * the rate, -ENOENT if the struct clk referred to by @mpurate_ck_name
- * cannot be found, or 0 upon success.
- */
-int __init omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name)
-{
-	struct clk *mpurate_ck;
-	int r;
-
-	if (!mpurate)
-		return -EINVAL;
-
-	mpurate_ck = clk_get(NULL, mpurate_ck_name);
-	if (WARN(IS_ERR(mpurate_ck), "Failed to get %s.\n", mpurate_ck_name))
-		return -ENOENT;
-
-	r = clk_set_rate(mpurate_ck, mpurate);
-	if (r < 0) {
-		WARN(1, "clock: %s: unable to set MPU rate to %d: %d\n",
-		     mpurate_ck_name, mpurate, r);
-		clk_put(mpurate_ck);
-		return -EINVAL;
-	}
-
-	calibrate_delay();
-	clk_put(mpurate_ck);
-
-	return 0;
-}
-
-/**
  * omap2_clk_print_new_rates - print summary of current clock tree rates
  * @hfclkin_ck_name: clk name for the off-chip HF oscillator
  * @core_ck_name: clk name for the on-chip CORE_CLK

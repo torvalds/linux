@@ -181,7 +181,7 @@ obj-$(CONFIG_SOC_DRA7XX)		+= $(clockdomain-common)
 obj-$(CONFIG_SOC_DRA7XX)		+= clockdomains7xx_data.o
 
 # Clock framework
-obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common)
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpllcore.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_virt_prcm_set.o
 obj-$(CONFIG_ARCH_OMAP2)		+= clkt2xxx_dpll.o
