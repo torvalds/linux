@@ -83,7 +83,6 @@ struct printer_dev {
 	u8			printer_status;
 	u8			reset_printer;
 	struct cdev		printer_cdev;
-	struct device		*pdev;
 	u8			printer_cdev_open;
 	wait_queue_head_t	wait;
 	struct usb_function	function;
@@ -1175,6 +1174,7 @@ static int __init printer_bind_config(struct usb_configuration *c)
 {
 	struct usb_gadget	*gadget = c->cdev->gadget;
 	struct printer_dev	*dev;
+	struct device		*pdev;
 	int			status = -ENOMEM;
 	size_t			len;
 	u32			i;
@@ -1199,11 +1199,11 @@ static int __init printer_bind_config(struct usb_configuration *c)
 		return status;
 
 	/* Setup the sysfs files for the printer gadget. */
-	dev->pdev = device_create(usb_gadget_class, NULL, g_printer_devno,
+	pdev = device_create(usb_gadget_class, NULL, g_printer_devno,
 				  NULL, "g_printer");
-	if (IS_ERR(dev->pdev)) {
+	if (IS_ERR(pdev)) {
 		ERROR(dev, "Failed to create device: g_printer\n");
-		status = PTR_ERR(dev->pdev);
+		status = PTR_ERR(pdev);
 		goto fail;
 	}
 
