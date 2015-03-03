@@ -48,6 +48,10 @@ struct hdac_device {
 	const char *vendor_name;	/* codec vendor name */
 	const char *chip_name;		/* codec chip name */
 
+	/* verb exec op override */
+	int (*exec_verb)(struct hdac_device *dev, unsigned int cmd,
+			 unsigned int flags, unsigned int *res);
+
 	/* widgets */
 	unsigned int num_nodes;
 	hda_nid_t start_nid, end_nid;
@@ -82,6 +86,8 @@ int snd_hdac_refresh_widgets(struct hdac_device *codec);
 
 unsigned int snd_hdac_make_cmd(struct hdac_device *codec, hda_nid_t nid,
 			       unsigned int verb, unsigned int parm);
+int snd_hdac_exec_verb(struct hdac_device *codec, unsigned int cmd,
+		       unsigned int flags, unsigned int *res);
 int snd_hdac_read(struct hdac_device *codec, hda_nid_t nid,
 		  unsigned int verb, unsigned int parm, unsigned int *res);
 int snd_hdac_read_parm(struct hdac_device *codec, hda_nid_t nid, int parm);

@@ -124,11 +124,12 @@ const char *snd_hda_get_jack_type(u32 cfg)
 EXPORT_SYMBOL_GPL(snd_hda_get_jack_type);
 
 /*
- * Send and receive a verb
+ * Send and receive a verb - passed to exec_verb override for hdac_device
  */
-static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
-			   int flags, unsigned int *res)
+static int codec_exec_verb(struct hdac_device *dev, unsigned int cmd,
+			   unsigned int flags, unsigned int *res)
 {
+	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
 	struct hda_bus *bus = codec->bus;
 	int err;
 
@@ -177,7 +178,7 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int cmd = snd_hdac_make_cmd(&codec->core, nid, verb, parm);
 	unsigned int res;
-	if (codec_exec_verb(codec, cmd, flags, &res))
+	if (snd_hdac_exec_verb(&codec->core, cmd, flags, &res))
 		return -1;
 	return res;
 }
@@ -199,7 +200,7 @@ int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int flags,
 			unsigned int verb, unsigned int parm)
 {
 	unsigned int cmd = snd_hdac_make_cmd(&codec->core, nid, verb, parm);
-	return codec_exec_verb(codec, cmd, flags, NULL);
+	return snd_hdac_exec_verb(&codec->core, cmd, flags, NULL);
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_write);
 
@@ -1026,6 +1027,7 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 
 	codec->core.dev.release = snd_hda_codec_dev_release;
 	codec->core.type = HDA_DEV_LEGACY;
+	codec->core.exec_verb = codec_exec_verb;
 
 	codec->bus = bus;
 	codec->card = card;

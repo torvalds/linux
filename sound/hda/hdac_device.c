@@ -194,6 +194,28 @@ unsigned int snd_hdac_make_cmd(struct hdac_device *codec, hda_nid_t nid,
 EXPORT_SYMBOL_GPL(snd_hdac_make_cmd);
 
 /**
+ * snd_hdac_exec_verb - execute an encoded verb
+ * @codec: the codec object
+ * @cmd: encoded verb to execute
+ * @flags: optional flags, pass zero for default
+ * @res: the pointer to store the result, NULL if running async
+ *
+ * Returns zero if successful, or a negative error code.
+ *
+ * This calls the exec_verb op when set in hdac_codec.  If not,
+ * call the default snd_hdac_bus_exec_verb().
+ */
+int snd_hdac_exec_verb(struct hdac_device *codec, unsigned int cmd,
+		       unsigned int flags, unsigned int *res)
+{
+	if (codec->exec_verb)
+		return codec->exec_verb(codec, cmd, flags, res);
+	return snd_hdac_bus_exec_verb(codec->bus, codec->addr, cmd, res);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_exec_verb);
+
+
+/**
  * snd_hdac_read - execute a verb
  * @codec: the codec object
  * @nid: NID to execute a verb
@@ -208,7 +230,7 @@ int snd_hdac_read(struct hdac_device *codec, hda_nid_t nid,
 {
 	unsigned int cmd = snd_hdac_make_cmd(codec, nid, verb, parm);
 
-	return snd_hdac_bus_exec_verb(codec->bus, codec->addr, cmd, res);
+	return snd_hdac_exec_verb(codec, cmd, 0, res);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_read);
 
