@@ -68,7 +68,7 @@ struct phy_dev_entry {
 	struct thermal_zone_device *tzone;
 };
 
-static const struct thermal_zone_params pkg_temp_tz_params = {
+static struct thermal_zone_params pkg_temp_tz_params = {
 	.no_hwmon	= true,
 };
 
