@@ -2,6 +2,9 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
+#include <linux/of_iommu.h>
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -65,6 +68,62 @@ int of_device_add(struct platform_device *ofdev)
 
 	return device_add(&ofdev->dev);
 }
+
+/**
+ * of_dma_configure - Setup DMA configuration
+ * @dev:	Device to apply DMA configuration
+ * @np:		Pointer to OF node having DMA configuration
+ *
+ * Try to get devices's DMA configuration from DT and update it
+ * accordingly.
+ *
+ * If platform code needs to use its own special DMA configuration, it
+ * can use a platform bus notifier and handle BUS_NOTIFY_ADD_DEVICE events
+ * to fix up DMA configuration.
+ */
+void of_dma_configure(struct device *dev, struct device_node *np)
+{
+	u64 dma_addr, paddr, size;
+	int ret;
+	bool coherent;
+	unsigned long offset;
+	struct iommu_ops *iommu;
+
+	/*
+	 * Set default dma-mask to 32 bit.  Drivers are expected to setup
+	 * the correct supported dma_mask.
+	 */
+	dev->coherent_dma_mask = DMA_BIT_MASK(32);
+
+	/*
+	 * Set it to coherent_dma_mask by default if the architecture
+	 * code has not set it.
+	 */
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
+
+	ret = of_dma_get_range(np, &dma_addr, &paddr, &size);
+	if (ret < 0) {
+		dma_addr = offset = 0;
+		size = dev->coherent_dma_mask;
+	} else {
+		offset = PFN_DOWN(paddr - dma_addr);
+		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", offset);
+	}
+
+	dev->dma_pfn_offset = offset;
+
+	coherent = of_dma_is_coherent(np);
+	dev_dbg(dev, "device is%sdma coherent\n",
+		coherent ? " " : " not ");
+
+	iommu = of_iommu_configure(dev, np);
+	dev_dbg(dev, "device is%sbehind an iommu\n",
+		iommu ? " " : " not ");
+
+	arch_setup_dma_ops(dev, dma_addr, size, iommu, coherent);
+}
+EXPORT_SYMBOL_GPL(of_dma_configure);
 
 int of_device_register(struct platform_device *pdev)
 {
