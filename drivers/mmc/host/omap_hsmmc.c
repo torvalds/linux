@@ -418,7 +418,6 @@ static inline int omap_hsmmc_have_reg(void)
 
 #endif
 
-static irqreturn_t omap_hsmmc_detect(int irq, void *dev_id);
 static irqreturn_t omap_hsmmc_cover_irq(int irq, void *dev_id);
 
 static int omap_hsmmc_gpio_init(struct mmc_host *mmc,
@@ -440,7 +439,6 @@ static int omap_hsmmc_gpio_init(struct mmc_host *mmc,
 			return ret;
 
 		host->card_detect = omap_hsmmc_card_detect;
-		mmc_gpio_set_cd_isr(mmc, omap_hsmmc_detect);
 	}
 
 	if (gpio_is_valid(pdata->gpio_wp)) {
@@ -1245,17 +1243,6 @@ static irqreturn_t omap_hsmmc_cover_irq(int irq, void *dev_id)
 	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
 
 	omap_hsmmc_protect_card(host);
-	mmc_detect_change(host->mmc, (HZ * 200) / 1000);
-	return IRQ_HANDLED;
-}
-
-/*
- * irq handler to notify the core about card insertion/removal
- */
-static irqreturn_t omap_hsmmc_detect(int irq, void *dev_id)
-{
-	struct omap_hsmmc_host *host = dev_id;
-
 	mmc_detect_change(host->mmc, (HZ * 200) / 1000);
 	return IRQ_HANDLED;
 }
