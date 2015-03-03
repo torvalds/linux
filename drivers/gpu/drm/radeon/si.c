@@ -5778,5 +5778,8 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 	mdelay(100);
 
+	/* posting read */
+	RREG32(SRBM_STATUS);
+
 	return 0;
 }
