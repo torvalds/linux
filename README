@@ -62,11 +62,7 @@ INSTALLING the kernel source:
    directory where you have permissions (eg. your home directory) and
    unpack it:
 
-     gzip -cd linux-4.X.tar.gz | tar xvf -
-
-   or
-
-     bzip2 -dc linux-4.X.tar.bz2 | tar xvf -
+     xz -cd linux-4.X.tar.xz | tar xvf -
 
    Replace "X" with the version number of the latest kernel.
 
@@ -76,15 +72,11 @@ INSTALLING the kernel source:
    whatever the kernel-du-jour happens to be.
 
  - You can also upgrade between 4.x releases by patching.  Patches are
-   distributed in the traditional gzip and the newer bzip2 format.  To
-   install by patching, get all the newer patch files, enter the
-   top level directory of the kernel source (linux-4.X) and execute:
+   distributed in the xz format.  To install by patching, get all the
+   newer patch files, enter the top level directory of the kernel source
+   (linux-4.X) and execute:
 
-     gzip -cd ../patch-4.x.gz | patch -p1
-
-   or
-
-     bzip2 -dc ../patch-4.x.bz2 | patch -p1
+     xz -cd ../patch-4.x.xz | patch -p1
 
    Replace "x" for all versions bigger than the version "X" of your current
    source tree, _in_order_, and you should be ok.  You may want to remove
