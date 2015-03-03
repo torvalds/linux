@@ -2870,6 +2870,115 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static void drrs_status_per_crtc(struct seq_file *m,
+		struct drm_device *dev, struct intel_crtc *intel_crtc)
+{
+	struct intel_encoder *intel_encoder;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_drrs *drrs = &dev_priv->drrs;
+	int vrefresh = 0;
+
+	for_each_encoder_on_crtc(dev, &intel_crtc->base, intel_encoder) {
+		/* Encoder connected on this CRTC */
+		switch (intel_encoder->type) {
+		case INTEL_OUTPUT_EDP:
+			seq_puts(m, "eDP:\n");
+			break;
+		case INTEL_OUTPUT_DSI:
+			seq_puts(m, "DSI:\n");
+			break;
+		case INTEL_OUTPUT_HDMI:
+			seq_puts(m, "HDMI:\n");
+			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			seq_puts(m, "DP:\n");
+			break;
+		default:
+			seq_printf(m, "Other encoder (id=%d).\n",
+						intel_encoder->type);
+			return;
+		}
+	}
+
+	if (dev_priv->vbt.drrs_type == STATIC_DRRS_SUPPORT)
+		seq_puts(m, "\tVBT: DRRS_type: Static");
+	else if (dev_priv->vbt.drrs_type == SEAMLESS_DRRS_SUPPORT)
+		seq_puts(m, "\tVBT: DRRS_type: Seamless");
+	else if (dev_priv->vbt.drrs_type == DRRS_NOT_SUPPORTED)
+		seq_puts(m, "\tVBT: DRRS_type: None");
+	else
+		seq_puts(m, "\tVBT: DRRS_type: FIXME: Unrecognized Value");
+
+	seq_puts(m, "\n\n");
+
+	if (intel_crtc->config->has_drrs) {
+		struct intel_panel *panel;
+
+		mutex_lock(&drrs->mutex);
+		/* DRRS Supported */
+		seq_puts(m, "\tDRRS Supported: Yes\n");
+
+		/* disable_drrs() will make drrs->dp NULL */
+		if (!drrs->dp) {
+			seq_puts(m, "Idleness DRRS: Disabled");
+			mutex_unlock(&drrs->mutex);
+			return;
+		}
+
+		panel = &drrs->dp->attached_connector->panel;
+		seq_printf(m, "\t\tBusy_frontbuffer_bits: 0x%X",
+					drrs->busy_frontbuffer_bits);
+
+		seq_puts(m, "\n\t\t");
+		if (drrs->refresh_rate_type == DRRS_HIGH_RR) {
+			seq_puts(m, "DRRS_State: DRRS_HIGH_RR\n");
+			vrefresh = panel->fixed_mode->vrefresh;
+		} else if (drrs->refresh_rate_type == DRRS_LOW_RR) {
+			seq_puts(m, "DRRS_State: DRRS_LOW_RR\n");
+			vrefresh = panel->downclock_mode->vrefresh;
+		} else {
+			seq_printf(m, "DRRS_State: Unknown(%d)\n",
+						drrs->refresh_rate_type);
+			mutex_unlock(&drrs->mutex);
+			return;
+		}
+		seq_printf(m, "\t\tVrefresh: %d", vrefresh);
+
+		seq_puts(m, "\n\t\t");
+		mutex_unlock(&drrs->mutex);
+	} else {
+		/* DRRS not supported. Print the VBT parameter*/
+		seq_puts(m, "\tDRRS Supported : No");
+	}
+	seq_puts(m, "\n");
+}
+
+static int i915_drrs_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct intel_crtc *intel_crtc;
+	int active_crtc_cnt = 0;
+
+	for_each_intel_crtc(dev, intel_crtc) {
+		drm_modeset_lock(&intel_crtc->base.mutex, NULL);
+
+		if (intel_crtc->active) {
+			active_crtc_cnt++;
+			seq_printf(m, "\nCRTC %d:  ", active_crtc_cnt);
+
+			drrs_status_per_crtc(m, dev, intel_crtc);
+		}
+
+		drm_modeset_unlock(&intel_crtc->base.mutex);
+	}
+
+	if (!active_crtc_cnt)
+		seq_puts(m, "No active crtc found\n");
+
+	return 0;
+}
+
 struct pipe_crc_info {
 	const char *name;
 	struct drm_device *dev;
@@ -4548,6 +4657,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_wa_registers", i915_wa_registers, 0},
 	{"i915_ddb_info", i915_ddb_info, 0},
 	{"i915_sseu_status", i915_sseu_status, 0},
+	{"i915_drrs_status", i915_drrs_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
