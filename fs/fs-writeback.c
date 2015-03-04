@@ -1439,7 +1439,9 @@ static long writeback_sb_inodes(struct super_block *sb,
 	unsigned long start_time = jiffies;
 	long write_chunk;
 	long wrote = 0;  /* count both pages and inodes */
+	struct blk_plug plug;
 
+	blk_start_plug(&plug);
 	while (!list_empty(&wb->b_io)) {
 		struct inode *inode = wb_inode(wb->b_io.prev);
 
@@ -1537,6 +1539,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 				break;
 		}
 	}
+	blk_finish_plug(&plug);
 	return wrote;
 }
 
