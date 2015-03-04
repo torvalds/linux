@@ -21,6 +21,8 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
+#include <linux/device.h>
+
 #undef TRACE_SYSTEM
 
 #define TRACE_SYSTEM mei
