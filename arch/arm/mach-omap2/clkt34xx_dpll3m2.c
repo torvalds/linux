@@ -23,7 +23,6 @@
 
 #include "clock.h"
 #include "clock3xxx.h"
-#include "clock34xx.h"
 #include "sdrc.h"
 #include "sram.h"
 
