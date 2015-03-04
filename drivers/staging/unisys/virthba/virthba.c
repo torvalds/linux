@@ -469,9 +469,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	LOGVER("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
 	       virtpcidev->device_no);
 
-	LOGINF("entering virthba_probe...\n");
-	LOGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
-	       virtpcidev->device_no);
 	POSTCODE_LINUX_2(VHBA_PROBE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	/* call scsi_host_alloc to register a scsi host adapter
 	 * instance - this virthba that has just been created is an
@@ -497,12 +494,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	 * scan is 0 to max (inclusive); so we will subtract one from
 	 * the max-channel value.
 	 */
-	LOGINF("virtpcidev->scsi.max.max_channel=%u, max_id=%u, max_lun=%u, cmd_per_lun=%u, max_io_size=%u\n",
-	     (unsigned)virtpcidev->scsi.max.max_channel - 1,
-	     (unsigned)virtpcidev->scsi.max.max_id,
-	     (unsigned)virtpcidev->scsi.max.max_lun,
-	     (unsigned)virtpcidev->scsi.max.cmd_per_lun,
-	     (unsigned)virtpcidev->scsi.max.max_io_size);
 	scsihost->max_channel = (unsigned)virtpcidev->scsi.max.max_channel;
 	scsihost->max_id = (unsigned)virtpcidev->scsi.max.max_id;
 	scsihost->max_lun = (unsigned)virtpcidev->scsi.max.max_lun;
@@ -513,13 +504,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	    (unsigned short)(virtpcidev->scsi.max.max_io_size / PAGE_SIZE);
 	if (scsihost->sg_tablesize > MAX_PHYS_INFO)
 		scsihost->sg_tablesize = MAX_PHYS_INFO;
-	LOGINF("scsihost->max_channel=%u, max_id=%u, max_lun=%llu, cmd_per_lun=%u, max_sectors=%hu, sg_tablesize=%hu\n",
-	     scsihost->max_channel, scsihost->max_id, scsihost->max_lun,
-	     scsihost->cmd_per_lun, scsihost->max_sectors,
-	     scsihost->sg_tablesize);
-	LOGINF("scsihost->can_queue=%u, scsihost->cmd_per_lun=%u, max_sectors=%hu, sg_tablesize=%hu\n",
-	     scsihost->can_queue, scsihost->cmd_per_lun, scsihost->max_sectors,
-	     scsihost->sg_tablesize);
 
 	/* this creates "host%d" in sysfs.  If 2nd argument is NULL,
 	 * then this generic /sys/devices/platform/host?  device is
@@ -591,15 +575,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		scsi_host_put(scsihost);
 		return -ENODEV;
 	}
-	LOGINF("sendInterruptHandle=0x%16llX",
-	       virthbainfo->intr.send_irq_handle);
-	LOGINF("recvInterruptHandle=0x%16llX",
-	       virthbainfo->intr.recv_irq_handle);
-	LOGINF("recvInterruptVector=0x%8X",
-	       virthbainfo->intr.recv_irq_vector);
-	LOGINF("recvInterruptShared=0x%2X",
-	       virthbainfo->intr.recv_irq_shared);
-	LOGINF("scsihost.hostt->name=%s", scsihost->hostt->name);
 	virthbainfo->interrupt_vector =
 	    virthbainfo->intr.recv_irq_handle & INTERRUPT_VECTOR_MASK;
 	rsp = request_irq(virthbainfo->interrupt_vector, handler, IRQF_SHARED,
@@ -624,7 +599,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 
 	scsi_scan_host(scsihost);
 
-	LOGINF("virthba added scsihost:0x%p\n", scsihost);
 	POSTCODE_LINUX_2(VHBA_PROBE_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	return 0;
 }
@@ -636,13 +610,9 @@ virthba_remove(struct virtpci_dev *virtpcidev)
 	struct Scsi_Host *scsihost =
 	    (struct Scsi_Host *)virtpcidev->scsi.scsihost;
 
-	LOGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
-	       virtpcidev->device_no);
 	virthbainfo = (struct virthba_info *)scsihost->hostdata;
 	if (virthbainfo->interrupt_vector != -1)
 		free_irq(virthbainfo->interrupt_vector, virthbainfo);
-	LOGINF("Removing virtpcidev: 0x%p, virthbainfo: 0x%p\n", virtpcidev,
-	       virthbainfo);
 
 	scsi_remove_host(scsihost);
 
@@ -652,7 +622,6 @@ virthba_remove(struct virtpci_dev *virtpcidev)
 	 * scsi_add_host so the scsi_host gets deleted
 	 */
 	scsi_host_put(scsihost);
-	LOGINF("virthba removed scsi_host.\n");
 }
 
 static int
@@ -665,9 +634,6 @@ forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 	    (struct virthba_info *)scsihost->hostdata;
 	int notifyresult = 0xffff;
 	wait_queue_head_t notifyevent;
-
-	LOGINF("vDiskMgmt:%d %d:%d:%d\n", vdiskcmdtype,
-	       vdest->channel, vdest->id, vdest->lun);
 
 	if (virthbainfo->serverdown || virthbainfo->serverchangingstate)
 		return FAILED;
@@ -703,10 +669,7 @@ forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 					     &virthbainfo->chinfo.insertlock,
 					     DONT_ISSUE_INTERRUPT, (u64)NULL,
 					     OK_TO_WAIT, "vhba");
-	LOGINF("VdiskMgmt waiting on event notifyevent=0x%p\n",
-	       cmdrsp->scsitaskmgmt.notify);
 	wait_event(notifyevent, notifyresult != 0xffff);
-	LOGINF("VdiskMgmt complete; result:%d\n", cmdrsp->vdiskmgmt.result);
 	kfree(cmdrsp);
 	return SUCCESS;
 }
@@ -724,9 +687,6 @@ forward_taskmgmt_command(enum task_mgmt_types tasktype,
 	    (struct virthba_info *)scsidev->host->hostdata;
 	int notifyresult = 0xffff;
 	wait_queue_head_t notifyevent;
-
-	LOGINF("TaskMgmt:%d %d:%d:%llu\n", tasktype,
-	       scsidev->channel, scsidev->id, scsidev->lun);
 
 	if (virthbainfo->serverdown || virthbainfo->serverchangingstate)
 		return FAILED;
@@ -761,10 +721,7 @@ forward_taskmgmt_command(enum task_mgmt_types tasktype,
 					     &virthbainfo->chinfo.insertlock,
 					     DONT_ISSUE_INTERRUPT, (u64)NULL,
 					     OK_TO_WAIT, "vhba");
-	LOGINF("TaskMgmt waiting on event notifyevent=0x%p\n",
-	       cmdrsp->scsitaskmgmt.notify);
 	wait_event(notifyevent, notifyresult != 0xffff);
-	LOGINF("TaskMgmt complete; result:%d\n", cmdrsp->scsitaskmgmt.result);
 	kfree(cmdrsp);
 	return SUCCESS;
 }
@@ -958,9 +915,6 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 		for_each_sg(sgl, sg, scsi_sg_count(scsicmd), i) {
 			cmdrsp->scsi.gpi_list[i].address = sg_phys(sg);
 			cmdrsp->scsi.gpi_list[i].length = sg->length;
-			if ((i != 0) && (sg->offset != 0))
-				LOGINF("Offset on a sg_entry other than zero =<<%d>>.\n",
-				       sg->offset);
 		}
 
 		if (sg_failed) {
@@ -1208,7 +1162,6 @@ complete_vdiskmgmt_command(struct uiscmdrsp *cmdrsp)
 	/* wake up the error handler that is waiting for this */
 	*(int *)cmdrsp->vdiskmgmt.notifyresult = cmdrsp->vdiskmgmt.result;
 	wake_up_all((wait_queue_head_t *)cmdrsp->vdiskmgmt.notify);
-	LOGINF("set notify result to %d\n", cmdrsp->vdiskmgmt.result);
 }
 
 static inline void
@@ -1219,7 +1172,6 @@ complete_taskmgmt_command(struct uiscmdrsp *cmdrsp)
 	*(int *)cmdrsp->scsitaskmgmt.notifyresult =
 	    cmdrsp->scsitaskmgmt.result;
 	wake_up_all((wait_queue_head_t *)cmdrsp->scsitaskmgmt.notify);
-	LOGINF("set notify result to %d\n", cmdrsp->scsitaskmgmt.result);
 }
 
 static void
@@ -1591,8 +1543,6 @@ virthba_mod_init(void)
 	if (!unisys_spar_platform)
 		return -ENODEV;
 
-	LOGINF("Entering virthba_mod_init...\n");
-
 	POSTCODE_LINUX_2(VHBA_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	virthba_parse_options(virthba_options);
 
@@ -1630,7 +1580,6 @@ virthba_mod_init(void)
 	}
 
 	POSTCODE_LINUX_2(VHBA_CREATE_EXIT_PC, POSTCODE_SEVERITY_INFO);
-	LOGINF("Leaving virthba_mod_init\n");
 	return error;
 }
 
@@ -1680,8 +1629,6 @@ static DEVICE_ATTRIBUTE *virthba_shost_attrs[] = {
 static void __exit
 virthba_mod_exit(void)
 {
-	LOGINF("entering virthba_mod_exit...\n");
-
 	virtpci_unregister_driver(&virthba_driver);
 	/* unregister is going to call virthba_remove */
 	/* destroy serverdown completion workqueue */
@@ -1691,7 +1638,6 @@ virthba_mod_exit(void)
 	}
 
 	debugfs_remove_recursive(virthba_debugfs_dir);
-	LOGINF("Leaving virthba_mod_exit\n");
 }
 
 /* specify function to be run at module insertion time */

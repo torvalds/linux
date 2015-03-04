@@ -66,7 +66,6 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 			return -1;
 		}
 		registered = TRUE;
-		INFODRV("New major number %d registered\n", MAJOR(majordev));
 	} else {
 		/* static major device number registration required */
 		if (register_chrdev_region(majordev, 1, MYDRVNAME) < 0) {
@@ -74,15 +73,12 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 			return -1;
 		}
 		registered = TRUE;
-		INFODRV("Static major number %d registered\n", MAJOR(majordev));
 	}
 	rc = cdev_add(&file_cdev, MKDEV(MAJOR(majordev), 0), 1);
 	if (rc  < 0) {
 		ERRDRV("failed to create char device: (status=%d)\n", rc);
 		return -1;
 	}
-	INFODRV("Registered char device for %s (major=%d)",
-		MYDRVNAME, MAJOR(majordev));
 	return 0;
 }
 

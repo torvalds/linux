@@ -87,13 +87,11 @@
 		(void *)(p2) = SWAPPOINTERS_TEMP;	\
 	} while (0)
 
-#define PRINTKDRV(fmt, args...) LOGINF(fmt, ## args)
 #define TBDDRV(fmt, args...)    LOGERR(fmt, ## args)
 #define HUHDRV(fmt, args...)    LOGERR(fmt, ## args)
 #define ERRDRV(fmt, args...)    LOGERR(fmt, ## args)
 #define WARNDRV(fmt, args...)   LOGWRN(fmt, ## args)
 #define SECUREDRV(fmt, args...) LOGWRN(fmt, ## args)
-#define INFODRV(fmt, args...)   LOGINF(fmt, ## args)
 
 #define PRINTKDEV(devname, fmt, args...)  LOGINFDEV(devname, fmt, ## args)
 #define TBDDEV(devname, fmt, args...)     LOGERRDEV(devname, fmt, ## args)

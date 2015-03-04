@@ -74,8 +74,6 @@ int
 uisctrl_register_req_handler(int type, void *fptr,
 			     struct ultra_vbus_deviceinfo *chipset_driver_info)
 {
-	LOGINF("type = %d, fptr = 0x%p.\n", type, fptr);
-
 	switch (type) {
 	case 2:
 		if (fptr) {

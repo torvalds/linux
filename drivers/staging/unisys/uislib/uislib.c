@@ -671,8 +671,6 @@ static int destroy_device(struct controlvm_message *msg, char *buf)
 	dev_no = msg->cmd.destroy_device.bus_no;
 
 	read_lock(&bus_list_lock);
-	LOGINF("destroy_device called for bus_no=%u, dev_no=%u", bus_no,
-	       dev_no);
 	for (bus = bus_list; bus; bus = bus->next) {
 		if (bus->bus_no == bus_no) {
 			/* make sure the device number is valid */
@@ -733,12 +731,10 @@ static int destroy_device(struct controlvm_message *msg, char *buf)
  * kernel paging request"
  */
 		if (dev->polling) {
-			LOGINF("calling uislib_disable_channel_interrupts");
 			uislib_disable_channel_interrupts(bus_no, dev_no);
 		}
 		/* unmap the channel memory for the device. */
 		if (!msg->hdr.flags.test_message) {
-			LOGINF("destroy_device, doing iounmap");
 			uislib_iounmap(dev->chanptr);
 		}
 		kfree(dev);
@@ -806,7 +802,6 @@ uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
 {
 	struct controlvm_message msg;
 
-	LOGINF("enter busNo=0x%x\n", bus_no);
 	/* step 0: init the chipset */
 	POSTCODE_LINUX_3(CHIPSET_INIT_ENTRY_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
@@ -826,7 +821,6 @@ uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
 			LOGERR("init_chipset failed.\n");
 			return 0;
 		}
-		LOGINF("chipset initialized\n");
 		POSTCODE_LINUX_3(CHIPSET_INIT_EXIT_PC, bus_no,
 				 POSTCODE_SEVERITY_INFO);
 	}
@@ -906,7 +900,6 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 {
 	struct controlvm_message msg;
 
-	LOGINF(" enter busNo=0x%x devNo=0x%x\n", bus_no, dev_no);
 	/* chipset init'ed with bus bus has been previously created -
 	* Verify it still exists step 2: create the VHBA device on the
 	* bus
@@ -965,7 +958,6 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 {
 	struct controlvm_message msg;
 
-	LOGINF(" enter busNo=0x%x devNo=0x%x\n", bus_no, dev_no);
 	/* chipset init'ed with bus bus has been previously created -
 	* Verify it still exists step 2: create the VNIC device on the
 	* bus
@@ -1249,7 +1241,6 @@ static int process_incoming(void *v)
 				wait_cycles = (cur_cycles - old_cycles);
 		}
 	}
-	LOGINF("wait_cycles=%llu", wait_cycles);
 	cycles_before_wait = wait_cycles;
 	idle_cycles = 0;
 	poll_dev_start = 0;
@@ -1310,7 +1301,6 @@ static int process_incoming(void *v)
 		if (kthread_should_stop())
 			break;
 		if (en_smart_wakeup == 0xFF) {
-			LOGINF("en_smart_wakeup set to 0xff, to force exiting process_incoming");
 			break;
 		}
 		/* wait for POLLJIFFIES_NORMAL jiffies, or until
@@ -1440,27 +1430,6 @@ uislib_mod_init(void)
 {
 	if (!unisys_spar_platform)
 		return -ENODEV;
-
-	LOGINF("MONITORAPIS");
-
-	LOGINF("sizeof(struct uiscmdrsp):%lu bytes\n",
-	       (ulong)sizeof(struct uiscmdrsp));
-	LOGINF("sizeof(struct phys_info):%lu\n",
-	       (ulong)sizeof(struct phys_info));
-	LOGINF("sizeof(uiscmdrsp_scsi):%lu\n",
-	       (ulong)sizeof(struct uiscmdrsp_scsi));
-	LOGINF("sizeof(uiscmdrsp_net):%lu\n",
-	       (ulong)sizeof(struct uiscmdrsp_net));
-	LOGINF("sizeof(CONTROLVM_MESSAGE):%lu bytes\n",
-	       (ulong)sizeof(struct controlvm_message));
-	LOGINF("sizeof(struct spar_controlvm_channel_protocol):%lu bytes\n",
-	       (ulong)sizeof(struct spar_controlvm_channel_protocol));
-	LOGINF("sizeof(CHANNEL_HEADER):%lu bytes\n",
-	       (ulong)sizeof(struct channel_header));
-	LOGINF("sizeof(struct spar_io_channel_protocol):%lu bytes\n",
-	       (ulong)sizeof(struct spar_io_channel_protocol));
-	LOGINF("SIZEOF_CMDRSP:%lu bytes\n", SIZEOF_CMDRSP);
-	LOGINF("SIZEOF_PROTOCOL:%lu bytes\n", SIZEOF_PROTOCOL);
 
 	/* initialize global pointers to NULL */
 	bus_list = NULL;

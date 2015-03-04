@@ -26,35 +26,6 @@
 #include <linux/printk.h>
 
 /*
- * # LOGINF
- *
- * \brief Log informational message - logs a message at the LOG_INFO level
- *
- * \param devname the device name of the device reporting this message, or
- *                NULL if this message is NOT device-related.
- * \param fmt printf()-style format string containing the message to log.
- * \param args Optional arguments to be formatted and inserted into the
- *             format string.
- * \return nothing
- *
- * Logs the specified message at the LOG_INFO level.
- */
-
-#define LOGINF(fmt, args...) pr_info(fmt, ## args)
-#define LOGINFDEV(devname, fmt, args...) \
-	pr_info("%s " fmt, devname, ## args)
-#define LOGINFDEVX(devno, fmt, args...) \
-	pr_info("dev%d " fmt, devno, ## args)
-#define LOGINFNAME(vnic, fmt, args...)				\
-	do {								\
-		if (vnic != NULL) {					\
-			pr_info("%s " fmt, vnic->name, ## args);	\
-		} else {						\
-			pr_info(fmt, ## args);				\
-		}							\
-	} while (0)
-
-/*
  * # LOGVER
  *
  * \brief Log verbose message - logs a message at the LOG_DEBUG level,

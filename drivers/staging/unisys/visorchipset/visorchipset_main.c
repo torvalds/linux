@@ -712,11 +712,9 @@ controlvm_respond(struct controlvm_message_header *msgHdr, int response)
 	    && g_DeviceChangeStatePacket.device_change_state.dev_no ==
 	    g_diagpoolDevNo)
 		outmsg.cmd = g_DeviceChangeStatePacket;
-	if (outmsg.hdr.flags.test_message == 1) {
-		LOGINF("%s controlvm_msg=0x%x response=%d for test message",
-		       __func__, outmsg.hdr.id, response);
+	if (outmsg.hdr.flags.test_message == 1)
 		return;
-	}
+
 	if (!visorchannel_signalinsert(ControlVm_channel,
 				       CONTROLVM_QUEUE_REQUEST, &outmsg)) {
 		LOGERR("signalinsert failed!");
@@ -1063,8 +1061,6 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 				 */
 				if (busNo == g_diagpoolBusNo
 				    && devNo == g_diagpoolDevNo) {
-					LOGINF("DEVICE_CHANGESTATE(DiagpoolChannel busNo=%d devNo=%d is pausing...)",
-					     busNo, devNo);
 					/* this will trigger the
 					 * diag_shutdown.sh script in
 					 * the visorchipset hotplug */
@@ -1292,8 +1288,6 @@ Away:
 	    is_diagpool_channel(pDevInfo->chan_info.channel_type_uuid)) {
 		g_diagpoolBusNo = busNo;
 		g_diagpoolDevNo = devNo;
-		LOGINF("CONTROLVM_DEVICE_CREATE for DiagPool channel: busNo=%lu, devNo=%lu",
-		     g_diagpoolBusNo, g_diagpoolDevNo);
 	}
 	device_epilog(busNo, devNo, segment_state_running,
 		      CONTROLVM_DEVICE_CREATE, &inmsg->hdr, rc,
@@ -1404,8 +1398,6 @@ initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
 	info->offset = offset;
 	info->bytes = bytes;
 	info->ptr = payload;
-	LOGINF("offset=%llu, bytes=%lu, ptr=%p",
-	       (u64) (info->offset), (ulong) (info->bytes), info->ptr);
 
 Away:
 	if (rc < 0) {
@@ -1506,7 +1498,6 @@ chipset_ready(struct controlvm_message_header *msgHdr)
 		 * and disks mounted for the partition
 		 */
 		g_ChipSetMsgHdr = *msgHdr;
-		LOGINF("Holding CHIPSET_READY response");
 	}
 }
 
@@ -1642,12 +1633,6 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 		cmd->device_change_state.dev_no >> 3);
 	sprintf(env_func, "SPAR_PARAHOTPLUG_FUNCTION=%d",
 		cmd->device_change_state.dev_no & 0x7);
-
-	LOGINF("parahotplug_request_kickoff: state=%d, bdf=%d/%d/%d, id=%u\n",
-	       cmd->device_change_state.state.active,
-	       cmd->device_change_state.bus_no,
-	       cmd->device_change_state.dev_no >> 3,
-	       cmd->device_change_state.dev_no & 7, req->id);
 
 	kobject_uevent_env(&Visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
 			   envp);
@@ -1827,43 +1812,24 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 	}
 	switch (inmsg.hdr.id) {
 	case CONTROLVM_CHIPSET_INIT:
-		LOGINF("CHIPSET_INIT(#busses=%lu,#switches=%lu)",
-		       (ulong) inmsg.cmd.init_chipset.bus_count,
-		       (ulong) inmsg.cmd.init_chipset.switch_count);
 		chipset_init(&inmsg);
 		break;
 	case CONTROLVM_BUS_CREATE:
-		LOGINF("BUS_CREATE(%lu,#devs=%lu)",
-		       (ulong) cmd->create_bus.bus_no,
-		       (ulong) cmd->create_bus.dev_count);
 		bus_create(&inmsg);
 		break;
 	case CONTROLVM_BUS_DESTROY:
-		LOGINF("BUS_DESTROY(%lu)", (ulong) cmd->destroy_bus.bus_no);
 		bus_destroy(&inmsg);
 		break;
 	case CONTROLVM_BUS_CONFIGURE:
-		LOGINF("BUS_CONFIGURE(%lu)", (ulong) cmd->configure_bus.bus_no);
 		bus_configure(&inmsg, parser_ctx);
 		break;
 	case CONTROLVM_DEVICE_CREATE:
-		LOGINF("DEVICE_CREATE(%lu,%lu)",
-		       (ulong) cmd->create_device.bus_no,
-		       (ulong) cmd->create_device.dev_no);
 		my_device_create(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CHANGESTATE:
 		if (cmd->device_change_state.flags.phys_device) {
-			LOGINF("DEVICE_CHANGESTATE for physical device (%lu,%lu, active=%lu)",
-			     (ulong) cmd->device_change_state.bus_no,
-			     (ulong) cmd->device_change_state.dev_no,
-			     (ulong) cmd->device_change_state.state.active);
 			parahotplug_process_message(&inmsg);
 		} else {
-			LOGINF("DEVICE_CHANGESTATE for virtual device (%lu,%lu, state.Alive=0x%lx)",
-			     (ulong) cmd->device_change_state.bus_no,
-			     (ulong) cmd->device_change_state.dev_no,
-			     (ulong) cmd->device_change_state.state.alive);
 			/* save the hdr and cmd structures for later use */
 			/* when sending back the response to Command */
 			my_device_changestate(&inmsg);
@@ -1873,29 +1839,20 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 		}
 		break;
 	case CONTROLVM_DEVICE_DESTROY:
-		LOGINF("DEVICE_DESTROY(%lu,%lu)",
-		       (ulong) cmd->destroy_device.bus_no,
-		       (ulong) cmd->destroy_device.dev_no);
 		my_device_destroy(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CONFIGURE:
-		LOGINF("DEVICE_CONFIGURE(%lu,%lu)",
-		       (ulong) cmd->configure_device.bus_no,
-		       (ulong) cmd->configure_device.dev_no);
 		/* no op for now, just send a respond that we passed */
 		if (inmsg.hdr.flags.response_expected)
 			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS);
 		break;
 	case CONTROLVM_CHIPSET_READY:
-		LOGINF("CHIPSET_READY");
 		chipset_ready(&inmsg.hdr);
 		break;
 	case CONTROLVM_CHIPSET_SELFTEST:
-		LOGINF("CHIPSET_SELFTEST");
 		chipset_selftest(&inmsg.hdr);
 		break;
 	case CONTROLVM_CHIPSET_STOP:
-		LOGINF("CHIPSET_STOP");
 		chipset_notready(&inmsg.hdr);
 		break;
 	default:
@@ -1923,7 +1880,6 @@ static HOSTADDRESS controlvm_get_channel_address(void)
 		       __func__);
 		return 0;
 	}
-	INFODRV("controlvm addr=%Lx", addr);
 	return addr;
 }
 
@@ -1956,7 +1912,6 @@ controlvm_periodic_work(struct work_struct *work)
 	if (visorchipset_holdchipsetready
 	    && (g_ChipSetMsgHdr.id != CONTROLVM_INVALID)) {
 		if (check_chipset_events() == 1) {
-			LOGINF("Sending CHIPSET_READY response");
 			controlvm_respond(&g_ChipSetMsgHdr, 0);
 			clear_chipset_events();
 			memset(&g_ChipSetMsgHdr, 0,
@@ -2019,13 +1974,11 @@ Away:
 		* polling
 		*/
 		if (Poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_SLOW) {
-			LOGINF("switched to slow controlvm polling");
 			Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
 		}
 	} else {
 		if (Poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_FAST) {
 			Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-			LOGINF("switched to fast controlvm polling");
 		}
 	}
 
@@ -2135,7 +2088,6 @@ setup_crash_devices_work_queue(struct work_struct *work)
 				 POSTCODE_SEVERITY_ERR);
 		return;
 	}
-	LOGINF("Bus and device ready for dumping");
 	POSTCODE_LINUX_2(CRASH_DEV_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	return;
 
@@ -2344,24 +2296,10 @@ static int __init
 visorchipset_init(void)
 {
 	int rc = 0, x = 0;
-	char s[64];
 	HOSTADDRESS addr;
 
 	if (!unisys_spar_platform)
 		return -ENODEV;
-
-	LOGINF("chipset driver version %s loaded", VERSION);
-	/* process module options */
-	POSTCODE_LINUX_2(DRIVER_ENTRY_PC, POSTCODE_SEVERITY_INFO);
-
-	LOGINF("option - testvnic=%d", visorchipset_testvnic);
-	LOGINF("option - testvnicclient=%d", visorchipset_testvnicclient);
-	LOGINF("option - testmsg=%d", visorchipset_testmsg);
-	LOGINF("option - testteardown=%d", visorchipset_testteardown);
-	LOGINF("option - major=%d", visorchipset_major);
-	LOGINF("option - serverregwait=%d", visorchipset_serverregwait);
-	LOGINF("option - clientregwait=%d", visorchipset_clientregwait);
-	LOGINF("option - holdchipsetready=%d", visorchipset_holdchipsetready);
 
 	memset(&BusDev_Server_Notifiers, 0, sizeof(BusDev_Server_Notifiers));
 	memset(&BusDev_Client_Notifiers, 0, sizeof(BusDev_Client_Notifiers));
@@ -2386,8 +2324,6 @@ visorchipset_init(void)
 		     spar_controlvm_channel_protocol_uuid);
 		if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
 				visorchannel_get_header(ControlVm_channel))) {
-			LOGINF("Channel %s (ControlVm) discovered",
-			       visorchannel_id(ControlVm_channel, s));
 			initialize_controlvm_payload();
 		} else {
 			LOGERR("controlvm channel is invalid");
@@ -2424,9 +2360,7 @@ visorchipset_init(void)
 		rc = -1;
 		goto Away;
 	}
-	if (visorchipset_disable_controlvm) {
-		LOGINF("visorchipset_init:controlvm disabled");
-	} else {
+	if (!visorchipset_disable_controlvm) {
 		/* if booting in a crash kernel */
 		if (visorchipset_crash_kernel)
 			INIT_DELAYED_WORK(&Periodic_controlvm_work,
@@ -2465,7 +2399,6 @@ visorchipset_init(void)
 		rc = -1;
 		goto Away;
 	}
-	LOGINF("visorchipset device created");
 	POSTCODE_LINUX_2(CHIPSET_INIT_SUCCESS_PC, POSTCODE_SEVERITY_INFO);
 	rc = 0;
 Away:
@@ -2480,8 +2413,6 @@ Away:
 static void
 visorchipset_exit(void)
 {
-	char s[99];
-
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
 
 	if (visorchipset_disable_controlvm) {
@@ -2507,13 +2438,10 @@ visorchipset_exit(void)
 
 	memset(&g_DelDumpMsgHdr, 0, sizeof(struct controlvm_message_header));
 
-	LOGINF("Channel %s (ControlVm) disconnected",
-	       visorchannel_id(ControlVm_channel, s));
 	visorchannel_destroy(ControlVm_channel);
 
 	visorchipset_file_cleanup();
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
-	LOGINF("chipset driver unloaded");
 }
 
 module_param_named(testvnic, visorchipset_testvnic, int, S_IRUGO);

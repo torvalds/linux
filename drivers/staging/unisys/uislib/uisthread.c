@@ -47,7 +47,6 @@ uisthread_start(struct uisthread_info *thrinfo,
 		return 0;	/* failure */
 	}
 	thrinfo->id = thrinfo->task->pid;
-	LOGINF("started thread pid:%d\n", thrinfo->id);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(uisthread_start);
@@ -60,16 +59,12 @@ uisthread_stop(struct uisthread_info *thrinfo)
 	if (thrinfo->id == 0)
 		return;		/* thread not running */
 
-	LOGINF("uisthread_stop stopping id:%d\n", thrinfo->id);
 	kthread_stop(thrinfo->task);
 	/* give up if the thread has NOT died in 1 minute */
 	if (wait_for_completion_timeout(&thrinfo->has_stopped, 60 * HZ))
 		stopped = 1;
-	else
-		LOGERR("timed out trying to signal thread\n");
 
 	if (stopped) {
-		LOGINF("uisthread_stop stopped id:%d\n", thrinfo->id);
 		thrinfo->id = 0;
 	}
 }
