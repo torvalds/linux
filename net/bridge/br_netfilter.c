@@ -764,6 +764,33 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 }
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
+static bool nf_bridge_copy_header(struct sk_buff *skb)
+{
+	int err;
+	unsigned int header_size;
+
+	nf_bridge_update_protocol(skb);
+	header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
+	err = skb_cow_head(skb, header_size);
+	if (err)
+		return false;
+
+	skb_copy_to_linear_data_offset(skb, -header_size,
+				       skb->nf_bridge->data, header_size);
+	__skb_push(skb, nf_bridge_encap_header_len(skb));
+	return true;
+}
+
+static int br_nf_push_frag_xmit(struct sk_buff *skb)
+{
+	if (!nf_bridge_copy_header(skb)) {
+		kfree_skb(skb);
+		return 0;
+	}
+
+	return br_dev_queue_push_xmit(skb);
+}
+
 static int br_nf_dev_queue_xmit(struct sk_buff *skb)
 {
 	int ret;
@@ -780,7 +807,7 @@ static int br_nf_dev_queue_xmit(struct sk_buff *skb)
 			/* Drop invalid packet */
 			return NF_DROP;
 		IPCB(skb)->frag_max_size = frag_max_size;
-		ret = ip_fragment(skb, br_dev_queue_push_xmit);
+		ret = ip_fragment(skb, br_nf_push_frag_xmit);
 	} else
 		ret = br_dev_queue_push_xmit(skb);
 
