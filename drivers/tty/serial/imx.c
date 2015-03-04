@@ -180,6 +180,7 @@
 
 #define UART_NR 8
 #define IMX_RXBD_NUM 20
+#define IMX_MODULE_MAX_CLK_RATE	80000000
 
 /* i.MX21 type uart runs on all i.mx except i.MX1 and i.MX6q */
 enum imx_uart_type {
@@ -2002,6 +2003,8 @@ static int serial_imx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (sport->clk_per > IMX_MODULE_MAX_CLK_RATE)
+		clk_set_rate(sport->clk_per, IMX_MODULE_MAX_CLK_RATE);
 	sport->port.uartclk = clk_get_rate(sport->clk_per);
 
 	/*
