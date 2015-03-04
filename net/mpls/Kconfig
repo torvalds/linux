@@ -1,9 +1,30 @@
 #
 # MPLS configuration
 #
+
+menuconfig MPLS
+	tristate "MultiProtocol Label Switching"
+	default n
+	---help---
+	  MultiProtocol Label Switching routes packets through logical
+	  circuits.  Originally conceved as a way of routing packets at
+	  hardware speeds (before hardware was capable of routing ipv4 packets),
+	  MPLS remains as simple way of making tunnels.
+
+	  If you have not heard of MPLS you probably want to say N here.
+
+if MPLS
+
 config NET_MPLS_GSO
-	tristate "MPLS: GSO support"
+	bool "MPLS: GSO support"
 	help
 	 This is helper module to allow segmentation of non-MPLS GSO packets
 	 that have had MPLS stack entries pushed onto them and thus
 	 become MPLS GSO packets.
+
+config MPLS_ROUTING
+	bool "MPLS: routing support"
+	help
+	 Add support for forwarding of mpls packets.
+
+endif # MPLS
