@@ -46,6 +46,8 @@
 #include <linux/semaphore.h>
 #include <net/iw_handler.h>
 #include <linux/if_arp.h>
+#include <linux/etherdevice.h>
+
 
 #define RTL_IOCTL_WPA_SUPPLICANT	(SIOCIWFIRSTPRIV + 0x1E)
 
@@ -112,7 +114,7 @@ void r8712_indicate_wx_disassoc_event(struct _adapter *padapter)
 	union iwreq_data wrqu;
 
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+	eth_zero_addr(wrqu.ap_addr.sa_data);
 	wireless_send_event(padapter->pnetdev, SIOCGIWAP, &wrqu, NULL);
 }
 
@@ -852,8 +854,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 			    strIssueBssid, ETH_ALEN)) {
 				/* BSSID is matched, the same AP => Remove
 				 * this PMKID information and reset it. */
-				memset(psecuritypriv->PMKIDList[j].Bssid,
-					0x00, ETH_ALEN);
+				eth_zero_addr(psecuritypriv->PMKIDList[j].Bssid);
 				psecuritypriv->PMKIDList[j].bUsed = false;
 				break;
 			}
@@ -1118,7 +1119,7 @@ static int r8711_wx_get_wap(struct net_device *dev,
 				     WIFI_AP_STATE))
 		memcpy(wrqu->ap_addr.sa_data, pcur_bss->MacAddress, ETH_ALEN);
 	else
-		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu->ap_addr.sa_data);
 	return 0;
 }
 
