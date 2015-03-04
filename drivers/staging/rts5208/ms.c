@@ -107,7 +107,7 @@ static int ms_transfer_tpc(struct rtsx_chip *chip, u8 trans_mode,
 }
 
 static int ms_transfer_data(struct rtsx_chip *chip, u8 trans_mode,
-			u8 tpc, u16 sec_cnt, u8 cfg, int mode_2k,
+			u8 tpc, u16 sec_cnt, u8 cfg, bool mode_2k,
 			int use_sg, void *buf, int buf_len)
 {
 	int retval;
@@ -2524,7 +2524,8 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 				u16 sector_cnt)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
-	int retval, mode_2k = 0;
+	bool mode_2k = false;
+	int retval;
 	u16 count;
 	u8 val, trans_mode, rw_tpc, rw_cmd;
 
@@ -2549,7 +2550,7 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 				rw_tpc = PRO_WRITE_QUAD_DATA;
 				rw_cmd = PRO_WRITE_2K_DATA;
 			}
-			mode_2k = 1;
+			mode_2k = true;
 		}
 	} else {
 		if (srb->sc_data_direction == DMA_FROM_DEVICE) {
@@ -2782,7 +2783,7 @@ void mspro_polling_format_status(struct rtsx_chip *chip)
 }
 
 int mspro_format(struct scsi_cmnd *srb, struct rtsx_chip *chip,
-		int short_data_len, int quick_format)
+		int short_data_len, bool quick_format)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval, i;

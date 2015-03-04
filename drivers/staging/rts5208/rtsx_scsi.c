@@ -2799,7 +2799,8 @@ static int ms_format_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	unsigned int lun = SCSI_LUN(srb);
-	int retval, quick_format;
+	bool quick_format;
+	int retval;
 
 	if (get_lun_card(chip, lun) != MS_CARD) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_LUN_NOT_SUPPORT);
@@ -2828,9 +2829,9 @@ static int ms_format_cmnd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	rtsx_set_stat(chip, RTSX_STAT_RUN);
 
 	if (srb->cmnd[8] & 0x01)
-		quick_format = 0;
+		quick_format = false;
 	else
-		quick_format = 1;
+		quick_format = true;
 
 	if (!(chip->card_ready & MS_CARD)) {
 		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
