@@ -1534,7 +1534,7 @@ virthba_serverdown_complete(struct work_struct *work)
 		switch (pendingdel->cmdtype) {
 		case CMD_SCSI_TYPE:
 			scsicmd = (struct scsi_cmnd *)pendingdel->sent;
-			scsicmd->result = (DID_RESET << 16);
+			scsicmd->result = DID_RESET << 16;
 			if (scsicmd->scsi_done)
 				scsicmd->scsi_done(scsicmd);
 			break;
