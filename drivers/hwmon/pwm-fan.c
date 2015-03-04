@@ -173,7 +173,8 @@ static const struct thermal_cooling_device_ops pwm_fan_cooling_ops = {
 	.set_cur_state = pwm_fan_set_cur_state,
 };
 
-int pwm_fan_of_get_cooling_data(struct device *dev, struct pwm_fan_ctx *ctx)
+static int pwm_fan_of_get_cooling_data(struct device *dev,
+				       struct pwm_fan_ctx *ctx)
 {
 	struct device_node *np = dev->of_node;
 	int num, i, ret;
