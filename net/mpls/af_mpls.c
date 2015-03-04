@@ -36,6 +36,10 @@ struct mpls_route { /* next hop label forwarding entry */
 static int zero = 0;
 static int label_limit = (1 << 20) - 1;
 
+static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
+		       struct nlmsghdr *nlh, struct net *net, u32 portid,
+		       unsigned int nlm_flags);
+
 static struct mpls_route *mpls_route_input_rcu(struct net *net, unsigned index)
 {
 	struct mpls_route *rt = NULL;
@@ -246,6 +250,20 @@ static void mpls_rt_free(struct mpls_route *rt)
 		kfree_rcu(rt, rt_rcu);
 }
 
+static void mpls_notify_route(struct net *net, unsigned index,
+			      struct mpls_route *old, struct mpls_route *new,
+			      const struct nl_info *info)
+{
+	struct nlmsghdr *nlh = info ? info->nlh : NULL;
+	unsigned portid = info ? info->portid : 0;
+	int event = new ? RTM_NEWROUTE : RTM_DELROUTE;
+	struct mpls_route *rt = new ? new : old;
+	unsigned nlm_flags = (old && new) ? NLM_F_REPLACE : 0;
+	/* Ignore reserved labels for now */
+	if (rt && (index >= 16))
+		rtmsg_lfib(event, index, rt, nlh, net, portid, nlm_flags);
+}
+
 static void mpls_route_update(struct net *net, unsigned index,
 			      struct net_device *dev, struct mpls_route *new,
 			      const struct nl_info *info)
@@ -259,6 +277,8 @@ static void mpls_route_update(struct net *net, unsigned index,
 		rcu_assign_pointer(net->mpls.platform_label[index], new);
 		old = rt;
 	}
+
+	mpls_notify_route(net, index, old, new, info);
 
 	/* If we removed a route free it now */
 	mpls_rt_free(old);
@@ -690,6 +710,46 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 	cb->args[0] = index;
 
 	return skb->len;
+}
+
+static inline size_t lfib_nlmsg_size(struct mpls_route *rt)
+{
+	size_t payload =
+		NLMSG_ALIGN(sizeof(struct rtmsg))
+		+ nla_total_size(2 + rt->rt_via_alen)	/* RTA_VIA */
+		+ nla_total_size(4);			/* RTA_DST */
+	if (rt->rt_labels)				/* RTA_NEWDST */
+		payload += nla_total_size(rt->rt_labels * 4);
+	if (rt->rt_dev)					/* RTA_OIF */
+		payload += nla_total_size(4);
+	return payload;
+}
+
+static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
+		       struct nlmsghdr *nlh, struct net *net, u32 portid,
+		       unsigned int nlm_flags)
+{
+	struct sk_buff *skb;
+	u32 seq = nlh ? nlh->nlmsg_seq : 0;
+	int err = -ENOBUFS;
+
+	skb = nlmsg_new(lfib_nlmsg_size(rt), GFP_KERNEL);
+	if (skb == NULL)
+		goto errout;
+
+	err = mpls_dump_route(skb, portid, seq, event, label, rt, nlm_flags);
+	if (err < 0) {
+		/* -EMSGSIZE implies BUG in lfib_nlmsg_size */
+		WARN_ON(err == -EMSGSIZE);
+		kfree_skb(skb);
+		goto errout;
+	}
+	rtnl_notify(skb, net, portid, RTNLGRP_MPLS_ROUTE, nlh, GFP_KERNEL);
+
+	return;
+errout:
+	if (err < 0)
+		rtnl_set_sk_err(net, RTNLGRP_MPLS_ROUTE, err);
 }
 
 static int resize_platform_label_table(struct net *net, size_t limit)
