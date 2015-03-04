@@ -2245,8 +2245,7 @@ static ssize_t bcm2048_fops_read(struct file *file, char __user *buf,
 
 		tmpbuf[i] = bdev->rds_info.radio_text[bdev->rd_index+i+2];
 		tmpbuf[i+1] = bdev->rds_info.radio_text[bdev->rd_index+i+1];
-		tmpbuf[i+2] = ((bdev->rds_info.radio_text[bdev->rd_index+i]
-				& 0xf0) >> 4);
+		tmpbuf[i+2] = (bdev->rds_info.radio_text[bdev->rd_index + i] & 0xf0) >> 4;
 		if ((bdev->rds_info.radio_text[bdev->rd_index+i] &
 			BCM2048_RDS_CRC_MASK) == BCM2048_RDS_CRC_UNRECOVARABLE)
 			tmpbuf[i+2] |= 0x80;
