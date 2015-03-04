@@ -216,7 +216,7 @@ static struct packet_type mpls_packet_type __read_mostly = {
 	.func = mpls_forward,
 };
 
-const struct nla_policy rtm_mpls_policy[RTA_MAX+1] = {
+static const struct nla_policy rtm_mpls_policy[RTA_MAX+1] = {
 	[RTA_DST]		= { .type = NLA_U32 },
 	[RTA_OIF]		= { .type = NLA_U32 },
 };
