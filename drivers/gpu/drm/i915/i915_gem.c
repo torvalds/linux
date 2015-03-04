@@ -2936,9 +2936,9 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	req = obj->last_read_req;
 
 	/* Do this after OLR check to make sure we make forward progress polling
-	 * on this IOCTL with a timeout <=0 (like busy ioctl)
+	 * on this IOCTL with a timeout == 0 (like busy ioctl)
 	 */
-	if (args->timeout_ns <= 0) {
+	if (args->timeout_ns == 0) {
 		ret = -ETIME;
 		goto out;
 	}
@@ -2948,7 +2948,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	i915_gem_request_reference(req);
 	mutex_unlock(&dev->struct_mutex);
 
-	ret = __i915_wait_request(req, reset_counter, true, &args->timeout_ns,
+	ret = __i915_wait_request(req, reset_counter, true,
+				  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
 				  file->driver_priv);
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_request_unreference(req);
