@@ -572,10 +572,6 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 
-	if ((rtllib_act_scanning(priv->rtllib, false)) &&
-	    !(priv->rtllib->softmac_features & IEEE_SOFTMAC_SCAN)) {
-		;	/* TODO - get rid of if */
-	}
 	if (priv->bHwRadioOff == true) {
 		printk(KERN_INFO "=========>%s():hw radio off,or Rf state is "
 		       "eRfOff, return\n", __func__);
@@ -708,11 +704,6 @@ static int r8192_wx_set_wap(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if ((rtllib_act_scanning(priv->rtllib, false)) &&
-	    !(priv->rtllib->softmac_features & IEEE_SOFTMAC_SCAN)) {
-		;	/* TODO - get rid of if */
-	}
-
 	if (priv->bHwRadioOff == true)
 		return 0;
 
@@ -763,9 +754,6 @@ static int r8192_wx_set_enc(struct net_device *dev,
 			     {0x00, 0x00, 0x00, 0x00, 0x00, 0x03} };
 	int i;
 
-	if ((rtllib_act_scanning(priv->rtllib, false)) &&
-	   !(priv->rtllib->softmac_features & IEEE_SOFTMAC_SCAN))
-		;	/* TODO - get rid of if */
 	if (priv->bHwRadioOff == true)
 		return 0;
 
