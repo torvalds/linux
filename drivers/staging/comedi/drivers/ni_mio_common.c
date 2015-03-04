@@ -755,7 +755,7 @@ static int ni_request_ai_mite_channel(struct comedi_device *dev)
 	BUG_ON(devpriv->ai_mite_chan);
 	devpriv->ai_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->ai_mite_ring);
-	if (devpriv->ai_mite_chan == NULL) {
+	if (!devpriv->ai_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for analog input\n");
@@ -776,7 +776,7 @@ static int ni_request_ao_mite_channel(struct comedi_device *dev)
 	BUG_ON(devpriv->ao_mite_chan);
 	devpriv->ao_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->ao_mite_ring);
-	if (devpriv->ao_mite_chan == NULL) {
+	if (!devpriv->ao_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for analog outut\n");
@@ -802,7 +802,7 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 	mite_chan =
 	    mite_request_channel(devpriv->mite,
 				 devpriv->gpct_mite_ring[gpct_index]);
-	if (mite_chan == NULL) {
+	if (!mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for counter\n");
@@ -828,7 +828,7 @@ static int ni_request_cdo_mite_channel(struct comedi_device *dev)
 	BUG_ON(devpriv->cdo_mite_chan);
 	devpriv->cdo_mite_chan =
 	    mite_request_channel(devpriv->mite, devpriv->cdo_mite_ring);
-	if (devpriv->cdo_mite_chan == NULL) {
+	if (!devpriv->cdo_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		dev_err(dev->class_dev,
 			"failed to reserve mite dma channel for correlated digital output\n");
@@ -1657,7 +1657,7 @@ static int ni_ai_setup_MITE_dma(struct comedi_device *dev)
 	comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
-	if (devpriv->ai_mite_chan == NULL) {
+	if (!devpriv->ai_mite_chan) {
 		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		return -EIO;
 	}
@@ -3699,7 +3699,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	   DIO_Serial_IO_In_Progress_St goes high one bit too early. */
 	udelay((devpriv->serial_interval_ns + 999) / 1000);
 
-	if (data_in != NULL)
+	if (data_in)
 		*data_in = ni_stc_readw(dev, DIO_Serial_Input_Register);
 
 Error:
