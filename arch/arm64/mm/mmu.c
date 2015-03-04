@@ -627,10 +627,7 @@ void __set_fixmap(enum fixed_addresses idx,
 	unsigned long addr = __fix_to_virt(idx);
 	pte_t *pte;
 
-	if (idx >= __end_of_fixed_addresses) {
-		BUG();
-		return;
-	}
+	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
 	pte = fixmap_pte(addr);
 
