@@ -303,6 +303,8 @@ enum rtattr_type_t {
 	RTA_TABLE,
 	RTA_MARK,
 	RTA_MFC_STATS,
+	RTA_VIA,
+	RTA_NEWDST,
 	__RTA_MAX
 };
 
@@ -343,6 +345,12 @@ struct rtnexthop {
 #define RTNH_LENGTH(len) (RTNH_ALIGN(sizeof(struct rtnexthop)) + (len))
 #define RTNH_SPACE(len)	RTNH_ALIGN(RTNH_LENGTH(len))
 #define RTNH_DATA(rtnh)   ((struct rtattr*)(((char*)(rtnh)) + RTNH_LENGTH(0)))
+
+/* RTA_VIA */
+struct rtvia {
+	__kernel_sa_family_t	rtvia_family;
+	__u8			rtvia_addr[0];
+};
 
 /* RTM_CACHEINFO */
 
