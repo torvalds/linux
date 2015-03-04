@@ -816,15 +816,9 @@ ENTRY(simd_coprocessor_error)
 	pushl_cfi $0
 #ifdef CONFIG_X86_INVD_BUG
 	/* AMD 486 bug: invd from userspace calls exception 19 instead of #GP */
-661:	pushl_cfi $do_general_protection
-662:
-.section .altinstructions,"a"
-	altinstruction_entry 661b, 663f, X86_FEATURE_XMM, 662b-661b, 664f-663f
-.previous
-.section .altinstr_replacement,"ax"
-663:	pushl $do_simd_coprocessor_error
-664:
-.previous
+	ALTERNATIVE "pushl_cfi $do_general_protection",	\
+		    "pushl $do_simd_coprocessor_error", \
+		    X86_FEATURE_XMM
 #else
 	pushl_cfi $do_simd_coprocessor_error
 #endif
