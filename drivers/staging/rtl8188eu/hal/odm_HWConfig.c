@@ -123,7 +123,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 		/* 2011.11.28 LukeLee: 88E use different LNA & VGA gain table */
 		/* The RSSI formula should be modified according to the gain table */
 		/* In 88E, cck_highpwr is always set to 1 */
-		LNA_idx = ((cck_agc_rpt & 0xE0) >> 5);
+		LNA_idx = (cck_agc_rpt & 0xE0) >> 5;
 		VGA_idx = (cck_agc_rpt & 0x1F);
 		switch (LNA_idx) {
 		case 7:
