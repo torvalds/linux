@@ -1201,6 +1201,7 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 	const t_key key = ntohl(flp->daddr);
 	struct tnode *n, *pn;
 	struct fib_alias *fa;
+	unsigned long index;
 	t_key cindex;
 
 	n = rcu_dereference(t->trie);
@@ -1216,19 +1217,23 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 
 	/* Step 1: Travel to the longest prefix match in the trie */
 	for (;;) {
-		unsigned long index = get_index(key, n);
+		index = get_index(key, n);
 
 		/* This bit of code is a bit tricky but it combines multiple
 		 * checks into a single check.  The prefix consists of the
 		 * prefix plus zeros for the "bits" in the prefix. The index
 		 * is the difference between the key and this value.  From
 		 * this we can actually derive several pieces of data.
-		 *   if (index & (~0ul << bits))
+		 *   if (index >= (1ul << bits))
 		 *     we have a mismatch in skip bits and failed
 		 *   else
 		 *     we know the value is cindex
+		 *
+		 * This check is safe even if bits == KEYLENGTH due to the
+		 * fact that we can only allocate a node with 32 bits if a
+		 * long is greater than 32 bits.
 		 */
-		if (index & (~0ul << n->bits))
+		if (index >= (1ul << n->bits))
 			break;
 
 		/* we have found a leaf. Prefixes have already been compared */
@@ -1302,14 +1307,17 @@ backtrace:
 	}
 
 found:
+	/* this line carries forward the xor from earlier in the function */
+	index = key ^ n->key;
+
 	/* Step 3: Process the leaf, if that fails fall back to backtracing */
 	hlist_for_each_entry_rcu(fa, &n->leaf, fa_list) {
 		struct fib_info *fi = fa->fa_info;
 		int nhsel, err;
 
-		if (((key ^ n->key) >= (1ul << fa->fa_slen)) &&
+		if ((index >= (1ul << fa->fa_slen)) &&
 		    ((BITS_PER_LONG > KEYLENGTH) || (fa->fa_slen != KEYLENGTH)))
-				continue;
+			continue;
 		if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
 			continue;
 		if (fi->fib_dead)
