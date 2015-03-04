@@ -1375,6 +1375,8 @@ struct super_block {
 	struct list_lru		s_inode_lru ____cacheline_aligned_in_smp;
 	struct rcu_head		rcu;
 
+	struct mutex		s_sync_lock;	/* sync serialisation lock */
+
 	/*
 	 * Indicates how deep in a filesystem stack this SB is
 	 */
