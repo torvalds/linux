@@ -638,8 +638,8 @@ kiblnd_get_completion_vector(kib_conn_t *conn, int cpt)
 		return 0;
 
 	/* hash NID to CPU id in this partition... */
-	off = do_div(nid, cpus_weight(*mask));
-	for_each_cpu_mask(i, *mask) {
+	off = do_div(nid, cpumask_weight(mask));
+	for_each_cpu(i, mask) {
 		if (off-- == 0)
 			return i % vectors;
 	}
