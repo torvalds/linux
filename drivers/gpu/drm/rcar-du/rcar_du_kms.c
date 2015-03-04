@@ -12,12 +12,15 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include <linux/of_graph.h>
+#include <linux/wait.h>
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
@@ -185,9 +188,309 @@ static void rcar_du_output_poll_changed(struct drm_device *dev)
 	drm_fbdev_cma_hotplug_event(rcdu->fbdev);
 }
 
+/* -----------------------------------------------------------------------------
+ * Atomic Check and Update
+ */
+
+/*
+ * Atomic hardware plane allocator
+ *
+ * The hardware plane allocator is solely based on the atomic plane states
+ * without keeping any external state to avoid races between .atomic_check()
+ * and .atomic_commit().
+ *
+ * The core idea is to avoid using a free planes bitmask that would need to be
+ * shared between check and commit handlers with a collective knowledge based on
+ * the allocated hardware plane(s) for each KMS plane. The allocator then loops
+ * over all plane states to compute the free planes bitmask, allocates hardware
+ * planes based on that bitmask, and stores the result back in the plane states.
+ *
+ * For this to work we need to access the current state of planes not touched by
+ * the atomic update. To ensure that it won't be modified, we need to lock all
+ * planes using drm_atomic_get_plane_state(). This effectively serializes atomic
+ * updates from .atomic_check() up to completion (when swapping the states if
+ * the check step has succeeded) or rollback (when freeing the states if the
+ * check step has failed).
+ *
+ * Allocation is performed in the .atomic_check() handler and applied
+ * automatically when the core swaps the old and new states.
+ */
+
+static bool rcar_du_plane_needs_realloc(struct rcar_du_plane *plane,
+					struct rcar_du_plane_state *state)
+{
+	const struct rcar_du_format_info *cur_format;
+
+	cur_format = to_rcar_du_plane_state(plane->plane.state)->format;
+
+	/* Lowering the number of planes doesn't strictly require reallocation
+	 * as the extra hardware plane will be freed when committing, but doing
+	 * so could lead to more fragmentation.
+	 */
+	return !cur_format || cur_format->planes != state->format->planes;
+}
+
+static unsigned int rcar_du_plane_hwmask(struct rcar_du_plane_state *state)
+{
+	unsigned int mask;
+
+	if (state->hwindex == -1)
+		return 0;
+
+	mask = 1 << state->hwindex;
+	if (state->format->planes == 2)
+		mask |= 1 << ((state->hwindex + 1) % 8);
+
+	return mask;
+}
+
+static int rcar_du_plane_hwalloc(unsigned int num_planes, unsigned int free)
+{
+	unsigned int i;
+
+	for (i = 0; i < RCAR_DU_NUM_HW_PLANES; ++i) {
+		if (!(free & (1 << i)))
+			continue;
+
+		if (num_planes == 1 || free & (1 << ((i + 1) % 8)))
+			break;
+	}
+
+	return i == RCAR_DU_NUM_HW_PLANES ? -EBUSY : i;
+}
+
+static int rcar_du_atomic_check(struct drm_device *dev,
+				struct drm_atomic_state *state)
+{
+	struct rcar_du_device *rcdu = dev->dev_private;
+	unsigned int group_freed_planes[RCAR_DU_MAX_GROUPS] = { 0, };
+	unsigned int group_free_planes[RCAR_DU_MAX_GROUPS] = { 0, };
+	bool needs_realloc = false;
+	unsigned int groups = 0;
+	unsigned int i;
+	int ret;
+
+	ret = drm_atomic_helper_check(dev, state);
+	if (ret < 0)
+		return ret;
+
+	/* Check if hardware planes need to be reallocated. */
+	for (i = 0; i < dev->mode_config.num_total_plane; ++i) {
+		struct rcar_du_plane_state *plane_state;
+		struct rcar_du_plane *plane;
+		unsigned int index;
+
+		if (!state->planes[i])
+			continue;
+
+		plane = to_rcar_plane(state->planes[i]);
+		plane_state = to_rcar_du_plane_state(state->plane_states[i]);
+
+		/* If the plane is being disabled we don't need to go through
+		 * the full reallocation procedure. Just mark the hardware
+		 * plane(s) as freed.
+		 */
+		if (!plane_state->format) {
+			index = plane - plane->group->planes.planes;
+			group_freed_planes[plane->group->index] |= 1 << index;
+			plane_state->hwindex = -1;
+			continue;
+		}
+
+		/* If the plane needs to be reallocated mark it as such, and
+		 * mark the hardware plane(s) as free.
+		 */
+		if (rcar_du_plane_needs_realloc(plane, plane_state)) {
+			groups |= 1 << plane->group->index;
+			needs_realloc = true;
+
+			index = plane - plane->group->planes.planes;
+			group_freed_planes[plane->group->index] |= 1 << index;
+			plane_state->hwindex = -1;
+		}
+	}
+
+	if (!needs_realloc)
+		return 0;
+
+	/* Grab all plane states for the groups that need reallocation to ensure
+	 * locking and avoid racy updates. This serializes the update operation,
+	 * but there's not much we can do about it as that's the hardware
+	 * design.
+	 *
+	 * Compute the used planes mask for each group at the same time to avoid
+	 * looping over the planes separately later.
+	 */
+	while (groups) {
+		unsigned int index = ffs(groups) - 1;
+		struct rcar_du_group *group = &rcdu->groups[index];
+		unsigned int used_planes = 0;
+
+		for (i = 0; i < RCAR_DU_NUM_KMS_PLANES; ++i) {
+			struct rcar_du_plane *plane = &group->planes.planes[i];
+			struct rcar_du_plane_state *plane_state;
+			struct drm_plane_state *s;
+
+			s = drm_atomic_get_plane_state(state, &plane->plane);
+			if (IS_ERR(s))
+				return PTR_ERR(s);
+
+			/* If the plane has been freed in the above loop its
+			 * hardware planes must not be added to the used planes
+			 * bitmask. However, the current state doesn't reflect
+			 * the free state yet, as we've modified the new state
+			 * above. Use the local freed planes list to check for
+			 * that condition instead.
+			 */
+			if (group_freed_planes[index] & (1 << i))
+				continue;
+
+			plane_state = to_rcar_du_plane_state(plane->plane.state);
+			used_planes |= rcar_du_plane_hwmask(plane_state);
+		}
+
+		group_free_planes[index] = 0xff & ~used_planes;
+		groups &= ~(1 << index);
+	}
+
+	/* Reallocate hardware planes for each plane that needs it. */
+	for (i = 0; i < dev->mode_config.num_total_plane; ++i) {
+		struct rcar_du_plane_state *plane_state;
+		struct rcar_du_plane *plane;
+		int idx;
+
+		if (!state->planes[i])
+			continue;
+
+		plane = to_rcar_plane(state->planes[i]);
+		plane_state = to_rcar_du_plane_state(state->plane_states[i]);
+
+		/* Skip planes that are being disabled or don't need to be
+		 * reallocated.
+		 */
+		if (!plane_state->format ||
+		    !rcar_du_plane_needs_realloc(plane, plane_state))
+			continue;
+
+		idx = rcar_du_plane_hwalloc(plane_state->format->planes,
+					group_free_planes[plane->group->index]);
+		if (idx < 0) {
+			dev_dbg(rcdu->dev, "%s: no available hardware plane\n",
+				__func__);
+			return idx;
+		}
+
+		plane_state->hwindex = idx;
+
+		group_free_planes[plane->group->index] &=
+			~rcar_du_plane_hwmask(plane_state);
+	}
+
+	return 0;
+}
+
+struct rcar_du_commit {
+	struct work_struct work;
+	struct drm_device *dev;
+	struct drm_atomic_state *state;
+	u32 crtcs;
+};
+
+static void rcar_du_atomic_complete(struct rcar_du_commit *commit)
+{
+	struct drm_device *dev = commit->dev;
+	struct rcar_du_device *rcdu = dev->dev_private;
+	struct drm_atomic_state *old_state = commit->state;
+
+	/* Apply the atomic update. */
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+	drm_atomic_helper_commit_planes(dev, old_state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
+
+	drm_atomic_state_free(old_state);
+
+	/* Complete the commit, wake up any waiter. */
+	spin_lock(&rcdu->commit.wait.lock);
+	rcdu->commit.pending &= ~commit->crtcs;
+	wake_up_all_locked(&rcdu->commit.wait);
+	spin_unlock(&rcdu->commit.wait.lock);
+
+	kfree(commit);
+}
+
+static void rcar_du_atomic_work(struct work_struct *work)
+{
+	struct rcar_du_commit *commit =
+		container_of(work, struct rcar_du_commit, work);
+
+	rcar_du_atomic_complete(commit);
+}
+
+static int rcar_du_atomic_commit(struct drm_device *dev,
+				 struct drm_atomic_state *state, bool async)
+{
+	struct rcar_du_device *rcdu = dev->dev_private;
+	struct rcar_du_commit *commit;
+	unsigned int i;
+	int ret;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/* Allocate the commit object. */
+	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	if (commit == NULL)
+		return -ENOMEM;
+
+	INIT_WORK(&commit->work, rcar_du_atomic_work);
+	commit->dev = dev;
+	commit->state = state;
+
+	/* Wait until all affected CRTCs have completed previous commits and
+	 * mark them as pending.
+	 */
+	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
+		if (state->crtcs[i])
+			commit->crtcs |= 1 << drm_crtc_index(state->crtcs[i]);
+	}
+
+	spin_lock(&rcdu->commit.wait.lock);
+	ret = wait_event_interruptible_locked(rcdu->commit.wait,
+			!(rcdu->commit.pending & commit->crtcs));
+	if (ret == 0)
+		rcdu->commit.pending |= commit->crtcs;
+	spin_unlock(&rcdu->commit.wait.lock);
+
+	if (ret) {
+		kfree(commit);
+		return ret;
+	}
+
+	/* Swap the state, this is the point of no return. */
+	drm_atomic_helper_swap_state(dev, state);
+
+	if (async)
+		schedule_work(&commit->work);
+	else
+		rcar_du_atomic_complete(commit);
+
+	return 0;
+}
+
+/* -----------------------------------------------------------------------------
+ * Initialization
+ */
+
 static const struct drm_mode_config_funcs rcar_du_mode_config_funcs = {
 	.fb_create = rcar_du_fb_create,
 	.output_poll_changed = rcar_du_output_poll_changed,
+	.atomic_check = rcar_du_atomic_check,
+	.atomic_commit = rcar_du_atomic_commit,
 };
 
 static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
@@ -392,6 +695,8 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	for (i = 0; i < num_groups; ++i) {
 		struct rcar_du_group *rgrp = &rcdu->groups[i];
 
+		mutex_init(&rgrp->lock);
+
 		rgrp->dev = rcdu;
 		rgrp->mmio_offset = mmio_offsets[i];
 		rgrp->index = i;
@@ -439,27 +744,21 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		encoder->possible_clones = (1 << num_encoders) - 1;
 	}
 
-	/* Now that the CRTCs have been initialized register the planes. */
-	for (i = 0; i < num_groups; ++i) {
-		ret = rcar_du_planes_register(&rcdu->groups[i]);
-		if (ret < 0)
-			return ret;
-	}
+	drm_mode_config_reset(dev);
 
 	drm_kms_helper_poll_init(dev);
 
-	drm_helper_disable_unused_functions(dev);
+	if (dev->mode_config.num_connector) {
+		fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
+					   dev->mode_config.num_connector);
+		if (IS_ERR(fbdev))
+			return PTR_ERR(fbdev);
 
-	fbdev = drm_fbdev_cma_init(dev, 32, dev->mode_config.num_crtc,
-				   dev->mode_config.num_connector);
-	if (IS_ERR(fbdev))
-		return PTR_ERR(fbdev);
-
-#ifndef CONFIG_FRAMEBUFFER_CONSOLE
-	drm_fbdev_cma_restore_mode(fbdev);
-#endif
-
-	rcdu->fbdev = fbdev;
+		rcdu->fbdev = fbdev;
+	} else {
+		dev_info(rcdu->dev,
+			 "no connector found, disabling fbdev emulation\n");
+	}
 
 	return 0;
 }
