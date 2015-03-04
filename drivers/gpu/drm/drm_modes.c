@@ -278,7 +278,7 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		hblank = drm_mode->hdisplay * hblank_percentage /
 			 (100 * HV_FACTOR - hblank_percentage);
 		hblank -= hblank % (2 * CVT_H_GRANULARITY);
-		/* 14. find the total pixes per line */
+		/* 14. find the total pixels per line */
 		drm_mode->htotal = drm_mode->hdisplay + hblank;
 		drm_mode->hsync_end = drm_mode->hdisplay + hblank / 2;
 		drm_mode->hsync_start = drm_mode->hsync_end -
@@ -1209,7 +1209,7 @@ EXPORT_SYMBOL(drm_mode_connector_list_update);
  *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
  *
  * The intermediate drm_cmdline_mode structure is required to store additional
- * options from the command line modline like the force-enabel/disable flag.
+ * options from the command line modline like the force-enable/disable flag.
  *
  * Returns:
  * True if a valid modeline has been parsed, false otherwise.

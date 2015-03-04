@@ -573,7 +573,7 @@ static void adv7511_encoder_dpms(struct drm_encoder *encoder, int mode)
 		 * goes low the adv7511 is reset and the outputs are disabled
 		 * which might cause the monitor to go to standby again. To
 		 * avoid this we ignore the HDP pin for the first few seconds
-		 * after enabeling the output.
+		 * after enabling the output.
 		 */
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
 				   ADV7511_REG_POWER2_HDP_SRC_MASK,
