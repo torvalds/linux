@@ -252,4 +252,8 @@ enum rk312x_cru_clk_gate {
 #define RK3368_CRU_CLKSELS_CON(i)	(RK3368_CRU_CLKSEL_CON + ((i) * 4))
 #define RK3368_CRU_CLKGATES_CON(i)	(RK3368_CRU_CLKGATE_CON + ((i) * 4))
 
+#define RK3368_CRU_SOFTRSTS_CON_CNT	(15)
+#define RK3368_CRU_SOFTRST_CON          0x300
+#define RK3368_CRU_SOFTRSTS_CON(i)	(RK3368_CRU_SOFTRST_CON + ((i) * 4))
+
 #endif

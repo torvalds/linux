@@ -96,11 +96,17 @@
 #define write_grf_reg(addr, val)           __raw_writel(val, addr+RK_GRF_VIRT)
 #define read_grf_reg(addr)                 __raw_readl(addr+RK_GRF_VIRT)
 #define mask_grf_reg(addr, msk, val)       write_grf_reg(addr,(val)|((~(msk))&read_grf_reg(addr)))
+#ifdef CONFIG_ARM64
+#define cru_writel(v, o)	do {writel(v, RK_CRU_VIRT + (o));} \
+				while (0)
 
+#define write_csihost_reg(addr, val)       __raw_writel(val, addr+(void __force __iomem *)(phy_virt))
+#define read_csihost_reg(addr)             __raw_readl(addr+(void __force __iomem *)(phy_virt))
+#else
 #define cru_writel(v, o)	do {writel(v, RK_CRU_VIRT + (o)); dsb();} \
 				while (0)
 
 #define write_csihost_reg(addr, val)       __raw_writel(val, addr+IOMEM(phy_virt))
 #define read_csihost_reg(addr)             __raw_readl(addr+IOMEM(phy_virt))
-
+#endif
 #endif

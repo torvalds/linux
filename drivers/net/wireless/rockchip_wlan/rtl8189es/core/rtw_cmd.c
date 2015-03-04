@@ -863,6 +863,10 @@ u8 rtw_sitesurvey_cmd(_adapter  *padapter, NDIS_802_11_SSID *ssid, int ssid_num,
 	struct rtw_ieee80211_channel *ch, int ch_num)
 {
 	u8 res = _FAIL;
+#ifdef CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+	u8 wireless_mode = 0;
+	u32 mlmext_info_state = 0;
+#endif
 	struct cmd_obj		*ph2c;
 	struct sitesurvey_parm	*psurveyPara;
 	struct cmd_priv 	*pcmdpriv = &padapter->cmdpriv;
@@ -939,12 +943,19 @@ _func_enter_;
 	if(res == _SUCCESS) {
 
 		pmlmepriv->scan_start_time = rtw_get_current_time();
-
 #ifdef CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
-		if((padapter->pbuddy_adapter->mlmeextpriv.mlmext_info.state&0x03) == WIFI_FW_AP_STATE)
-			_set_timer(&pmlmepriv->scan_to_timer, SURVEY_TO * 
-						( padapter->mlmeextpriv.max_chan_nums + ( padapter->mlmeextpriv.max_chan_nums / RTW_SCAN_NUM_OF_CH ) * RTW_STAY_AP_CH_MILLISECOND ) + 1000 );
-		else
+		mlmext_info_state =
+			padapter->pbuddy_adapter->mlmeextpriv.mlmext_info.state;
+		wireless_mode = padapter->registrypriv.wireless_mode;
+
+		if((mlmext_info_state & 0x03) == WIFI_FW_AP_STATE) {
+			if(IsSupported5G(wireless_mode) && IsSupported24G(wireless_mode))
+				_set_timer(&pmlmepriv->scan_to_timer,
+						CONC_SCANNING_TIMEOUT_DUAL_BAND);
+			else
+				_set_timer(&pmlmepriv->scan_to_timer,
+						CONC_SCANNING_TIMEOUT_SINGLE_BAND);
+		} else
 #endif //CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 			_set_timer(&pmlmepriv->scan_to_timer, SCANNING_TIMEOUT);
 

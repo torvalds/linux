@@ -5729,7 +5729,7 @@ int check_phy_efuse_tx_power_info_valid(PADAPTER padapter) {
 			tx_index_offset = 0x0010;
 		break;
 	}
-	for (index = 0 ; index < 12 ; index++) {
+	for (index = 0 ; index < 11 ; index++) {
 		if (pContent[tx_index_offset + index] == 0xFF) {
 			return _FALSE;
 		} else {

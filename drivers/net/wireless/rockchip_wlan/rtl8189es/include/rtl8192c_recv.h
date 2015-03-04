@@ -55,9 +55,11 @@
 
 
 #elif defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
-
-#define MAX_RECVBUF_SZ (10240)
-
+    #ifdef CONFIG_MINIMAL_MEMORY_USAGE
+	#define MAX_RECVBUF_SZ (4000)
+    #else
+	#define MAX_RECVBUF_SZ (10240)
+    #endif
 #endif
 
 

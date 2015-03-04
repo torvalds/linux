@@ -139,10 +139,10 @@ typedef struct _RT_8188E_FIRMWARE_HDR
 
 
 //#define MAX_RX_DMA_BUFFER_SIZE_88E	      0x2400 //9k for 88E nornal chip , //MaxRxBuff=10k-max(TxReportSize(64*8), WOLPattern(16*24))
-#define MAX_RX_DMA_BUFFER_SIZE_88E(__Adapter)	((!IS_VENDOR_8188E_I_CUT_SERIES(__Adapter))?0x2400:0x3C00)
+#define MAX_RX_DMA_BUFFER_SIZE_88E(__Adapter)	((!IS_VENDOR_8188E_I_CUT_SERIES(__Adapter))?0x2600:0x3E00)
 
 
-#define MAX_TX_REPORT_BUFFER_SIZE			0x0400 // 1k 
+#define MAX_TX_REPORT_BUFFER_SIZE			0x0200 // 1k 
 
 
 // Note: We will divide number of page equally for each queue other than public queue!

@@ -4396,6 +4396,20 @@ static void hw_var_set_mlme_sitesurvey(PADAPTER Adapter, u8 variable, u8* val)
 
 #endif /* CONFIG_FIND_BEST_CHANNEL */
 
+	if( (check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE)
+#ifdef CONFIG_CONCURRENT_MODE
+		|| (check_buddy_fwstate(Adapter, WIFI_AP_STATE) == _TRUE)
+#endif
+	) {
+		rcr_clear_bit = RCR_CBSSID_BCN;
+	}
+#ifdef CONFIG_TDLS
+	// TDLS will clear RCR_CBSSID_DATA bit for connection.
+	else if (Adapter->tdlsinfo.link_established == _TRUE) {
+		rcr_clear_bit = RCR_CBSSID_BCN;
+	}
+#endif // CONFIG_TDLS
+
 	value_rcr = rtw_read32(Adapter, REG_RCR);
 	if(*((u8 *)val))//under sitesurvey
 	{
@@ -4706,7 +4720,15 @@ _func_enter_;
 				value_rxfltmap2 = 0;
 
 	#endif /* CONFIG_FIND_BEST_CHANNEL */
-			
+				if (check_fwstate(&adapter->mlmepriv, WIFI_AP_STATE) == _TRUE) {
+					rcr_clear_bit = RCR_CBSSID_BCN;
+				}
+	#ifdef CONFIG_TDLS
+				// TDLS will clear RCR_CBSSID_DATA bit for connection.
+				else if (adapter->tdlsinfo.link_established == _TRUE) {
+					rcr_clear_bit = RCR_CBSSID_BCN;
+				}
+	#endif // CONFIG_TDLS
 				value_rcr = rtw_read32(adapter, REG_RCR);
 				if(*((u8 *)val))//under sitesurvey
 				{
@@ -5450,7 +5472,7 @@ break;
 			*(( u32*)pValue) = DRVINFO_SZ;
 			break;	
 		case HAL_DEF_MAX_RECVBUF_SZ:
-			*(( u32*)pValue) = MAX_RECVBUF_SZ;
+			*(( u32*)pValue) = MAX_RX_DMA_BUFFER_SIZE_88E(Adapter);
 			break;
 		case HAL_DEF_RX_PACKET_OFFSET:
 			*(( u32*)pValue) = RXDESC_SIZE + DRVINFO_SZ;

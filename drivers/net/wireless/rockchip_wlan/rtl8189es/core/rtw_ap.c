@@ -3185,6 +3185,7 @@ void start_ap_mode(_adapter *padapter)
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 	
 	pmlmepriv->update_bcn = _FALSE;
@@ -3202,6 +3203,11 @@ void start_ap_mode(_adapter *padapter)
 #ifdef CONFIG_80211N_HT
 	pmlmepriv->num_sta_no_ht = 0;
 #endif //CONFIG_80211N_HT
+
+	pmlmeinfo->HT_info_enable =0;
+	pmlmeinfo->HT_caps_enable=0;
+	pmlmeinfo->HT_enable=0;
+
 	pmlmepriv->num_sta_ht_20mhz = 0;
 
 	pmlmepriv->olbc = _FALSE;

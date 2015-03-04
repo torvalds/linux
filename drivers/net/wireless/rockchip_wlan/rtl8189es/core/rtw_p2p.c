@@ -3483,7 +3483,8 @@ _func_enter_;
 
 			set_channel_bwmode(padapter, pbuddy_mlmeext->cur_channel, pbuddy_mlmeext->cur_ch_offset, pbuddy_mlmeext->cur_bwmode);
 		
-			issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
+			if (check_buddy_fwstate(padapter, WIFI_FW_STATION_STATE))
+				issue_nulldata(pbuddy_adapter, NULL, 0, 3, 500);
 		}
 		else if( pwdinfo->driver_interface == DRIVER_WEXT )
 		{
@@ -3626,11 +3627,9 @@ _func_enter_;
 	pcfg80211_wdinfo->is_ro_ch = _FALSE;
 	pcfg80211_wdinfo->last_ro_ch_time = rtw_get_current_time();
 
-	if (pcfg80211_wdinfo->not_indic_ro_ch_exp == _TRUE)
-		return;
-
-	DBG_871X("cfg80211_remain_on_channel_expired, ch=%d, bw=%d, offset=%d\n", 
-		rtw_get_oper_ch(padapter), rtw_get_oper_bw(padapter), rtw_get_oper_choffset(padapter));
+	DBG_871X("cfg80211_remain_on_channel_expired cookie:0x%llx, ch=%d, bw=%d, offset=%d\n"
+		, pcfg80211_wdinfo->remain_on_ch_cookie
+		, rtw_get_oper_ch(padapter), rtw_get_oper_bw(padapter), rtw_get_oper_choffset(padapter));
 
 	rtw_cfg80211_remain_on_channel_expired(padapter, 
 		pcfg80211_wdinfo->remain_on_ch_cookie, 
