@@ -263,15 +263,15 @@ static void s5p_mfc_release_dev_context_buffer_v5(struct s5p_mfc_dev *dev)
 static void s5p_mfc_write_info_v5(struct s5p_mfc_ctx *ctx, unsigned int data,
 			unsigned int ofs)
 {
-	writel(data, (volatile void __iomem *)(ctx->shm.virt + ofs));
+	writel(data, (void *)(ctx->shm.virt + ofs));
 	wmb();
 }
 
 static unsigned int s5p_mfc_read_info_v5(struct s5p_mfc_ctx *ctx,
-				unsigned int ofs)
+				unsigned long ofs)
 {
 	rmb();
-	return readl((volatile void __iomem *)(ctx->shm.virt + ofs));
+	return readl((void *)(ctx->shm.virt + ofs));
 }
 
 static void s5p_mfc_dec_calc_dpb_size_v5(struct s5p_mfc_ctx *ctx)

@@ -1852,17 +1852,17 @@ static void s5p_mfc_write_info_v6(struct s5p_mfc_ctx *ctx, unsigned int data,
 		unsigned int ofs)
 {
 	s5p_mfc_clock_on();
-	writel(data, (volatile void __iomem *)((unsigned long)ofs));
+	writel(data, (void *)((unsigned long)ofs));
 	s5p_mfc_clock_off();
 }
 
 static unsigned int
-s5p_mfc_read_info_v6(struct s5p_mfc_ctx *ctx, unsigned int ofs)
+s5p_mfc_read_info_v6(struct s5p_mfc_ctx *ctx, unsigned long ofs)
 {
 	int ret;
 
 	s5p_mfc_clock_on();
-	ret = readl((volatile void __iomem *)((unsigned long)ofs));
+	ret = readl((void *)ofs);
 	s5p_mfc_clock_off();
 
 	return ret;
