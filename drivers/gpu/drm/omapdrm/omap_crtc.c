@@ -66,7 +66,8 @@ struct omap_crtc {
 	 * page queue has been submitted, WAIT when waiting for GEM async
 	 * completion, QUEUED when the page flip has been queued to the hardware
 	 * or CANCELLED when the CRTC is turned off before the flip gets queued
-	 * to the hardware. The flip event, if any, is stored in flip_event. The
+	 * to the hardware. The flip event, if any, is stored in flip_event, and
+	 * the framebuffer queued for page flip is stored in flip_fb. The
 	 * flip_wait wait queue is used to wait for page flip completion.
 	 *
 	 * The flip_work work queue handles page flip requests without caring
@@ -76,6 +77,7 @@ struct omap_crtc {
 	 */
 	enum omap_page_flip_state flip_state;
 	struct drm_pending_vblank_event *flip_event;
+	struct drm_framebuffer *flip_fb;
 	wait_queue_head_t flip_wait;
 	struct work_struct flip_work;
 
@@ -630,6 +632,7 @@ static void page_flip_worker(struct work_struct *work)
 	drm_modeset_lock(&crtc->mutex, NULL);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
+
 	/*
 	 * The page flip could have been cancelled while waiting for the GEM
 	 * async operation to complete. Don't queue the flip in that case.
@@ -641,9 +644,11 @@ static void page_flip_worker(struct work_struct *work)
 		omap_crtc->flip_state = OMAP_PAGE_FLIP_IDLE;
 		queue_flip = false;
 	}
-	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	fb = crtc->primary->fb;
+	fb = omap_crtc->flip_fb;
+	omap_crtc->flip_fb = NULL;
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	if (queue_flip) {
 		omap_plane_mode_set(crtc->primary, crtc, fb,
@@ -657,7 +662,7 @@ static void page_flip_worker(struct work_struct *work)
 
 	bo = omap_framebuffer_bo(fb, 0);
 	drm_gem_object_unreference_unlocked(bo);
-	drm_framebuffer_unreference(crtc->primary->fb);
+	drm_framebuffer_unreference(fb);
 }
 
 static void page_flip_cb(void *arg)
@@ -692,10 +697,19 @@ static int omap_crtc_page_flip(struct drm_crtc *crtc,
 		return -EBUSY;
 	}
 
+	/*
+	 * Store a reference to the framebuffer queued for page flip in the CRTC
+	 * private structure. We can't rely on crtc->primary->fb in the page
+	 * flip worker, as a racing CRTC disable (due for instance to an
+	 * explicit framebuffer deletion from userspace) would set that field to
+	 * NULL before the worker gets a change to run.
+	 */
+	drm_framebuffer_reference(fb);
+	omap_crtc->flip_fb = fb;
 	omap_crtc->flip_event = event;
 	omap_crtc->flip_state = OMAP_PAGE_FLIP_WAIT;
+
 	primary->fb = fb;
-	drm_framebuffer_reference(fb);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
