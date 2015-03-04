@@ -2446,8 +2446,6 @@ static void update_battery_info(struct battery_info *di)
 	di->remain_capacity = _get_realtime_capacity(di);
 	if (di->remain_capacity > di->fcc)
 		_capacity_init(di, di->fcc);
-	else if (di->remain_capacity < 0)
-		_capacity_init(di, 0);
 
 	if (di->real_soc > 100)
 		di->real_soc = 100;
