@@ -94,7 +94,7 @@
                 vmode = <0>; /**0:VMODE_720P 1:VMODE_LCD  2:VMODE_LVDS_1080P 3:VMODE_1080P*/
                 scale_mode = <1>; /*0:default 1:new*/
                 4k2k_fb = <0>;
-                display_size_default = <1920 1080 1920 3240 32>; //1920*1080*4*3 = 0x17BB000
+                display_size_default = <1280 720 1280 1440 32>; //1920*1080*4*3 = 0x17BB000
         };
 
         mesonstream{
@@ -242,11 +242,11 @@
             status = "okay";
             port = <5>;          /**0:sdio_a, 1:sdio_b, 2:sdio_c, 3:sdhc_a, 4:sdhc_b, 5:sdhc_c */
             pinname = "emmc";
-            ocr_avail = <0x200000>;          /**VDD voltage 3.3 ~ 3.4 */
+            ocr_avail = <0x00200080>;          /**VDD voltage 3.3 ~ 3.4 */
             caps = "MMC_CAP_8_BIT_DATA","MMC_CAP_MMC_HIGHSPEED","MMC_CAP_SD_HIGHSPEED", "MMC_CAP_NONREMOVABLE","MMC_CAP_ERASE", "MMC_CAP_HW_RESET"; // MMC_CAP_NEEDS_POLL -- for detect, MMC_CAP_NONREMOVABLE -- for eMMC/TSD
             caps2 = "MMC_CAP2_HS200_1_8V_SDR", "MMC_CAP2_BOOTPART_NOACC";
 	        f_min = <300000>;
-            f_max = <150000000>;
+            f_max = <100000000>;
             max_req_size = <0x20000>;          /**128KB*/
             gpio_dat3 = "BOOT_3";
             card_type = <1>; /* 0:unknown, 1:mmc card(include eMMC), 2:sd card(include tSD), 3:sdio device(ie:sdio-wifi), 4:SD combo (IO+mem) card, 5:NON sdio device(means sd/mmc card), other:reserved */
@@ -611,7 +611,9 @@
             vendor_name = "Amlogic";           /* Max Chars: 8     */
             vendor_id = <0x000000>;                 /* Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt   */
             product_desc = "M8 MBox SKTv1";        /* Max Chars: 16    */
-            cec_osd_string = "Amlogic MBox";        /* Max Chars: 14    */
+            cec_osd_string = "MBox";        /* Max Chars: 14    */
+            cec_config = <0x00000f>;
+            ao_cec = <0x000001>;
         };
 
         pwr_ctrl: pwr_ctrl{

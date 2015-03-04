@@ -23,10 +23,12 @@ struct hdmi_phy_set_data {
 };
 
 struct vendor_info_data {
-	unsigned char *vendor_name;	// Max Chars: 8
-	unsigned int  vendor_id;	// 3 Bytes, Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt
+	unsigned char *vendor_name;	    // Max Chars: 8
+	unsigned int  vendor_id;	    // 3 Bytes, Refer to http://standards.ieee.org/develop/regauth/oui/oui.txt
 	unsigned char *product_desc;	// Max Chars: 16
 	unsigned char *cec_osd_string;	// Max Chars: 14
+	unsigned int  cec_config;       // 4 bytes: use to control cec switch on/off
+	unsigned int  ao_cec;           //switch between ao-cec and ee-cec:: 1: ao-cec; 0: ee-cec
 };
 
 enum pwr_type {

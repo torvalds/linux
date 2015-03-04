@@ -31,6 +31,7 @@
 #include <plat/regops.h>
 #include <plat/io.h>
 #include <plat/wakeup.h>
+#include <linux/of.h>
 #ifdef CONFIG_MESON_TRUSTZONE
 #include <mach/meson-secure.h>
 #endif
@@ -47,10 +48,17 @@ static struct early_suspend early_suspend;
 static int early_suspend_flag = 0;
 #endif
 
+#define CONFIG_AO_TRIG_CLK 1
+#ifdef CONFIG_AO_TRIG_CLK
+#include "arc_trig_clk.h"
+#endif
+
 #define ON  1
 #define OFF 0
 
+static unsigned int  cec_config;       // 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
 static struct meson_pm_config *pdata;
+static struct device_node *cec_np = NULL;
 
 #define CLK(addr)  \
 { \
@@ -247,6 +255,69 @@ static void meson_system_late_resume(struct early_suspend *h)
 }
 #endif
 
+#ifdef CONFIG_AO_TRIG_CLK
+int run_arc_program(void)
+{
+//	int i;
+	unsigned vaddr2,v;
+	unsigned* pbuffer;
+	vaddr2 = IO_SRAM_BASE;
+	
+	if(cec_config & 0x1)// 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
+    {
+    	aml_write_reg32(P_AO_REMAP_REG0,0);
+    	udelay(10);
+    	pbuffer = (unsigned*)vaddr2;
+    
+    	memcpy(pbuffer,arc_code,sizeof(arc_code));//need not flush cache for sram. Sram locates at io mapping.
+    
+//    	for(i = 0; i<sizeof(arc_code)/4; i+=4,pbuffer+=4)
+//    		printk(" 0x%x	0x%x	0x%x	0x%x \n",*(pbuffer),*(pbuffer+1),*(pbuffer+2),*(pbuffer+3));
+        v = ((IO_SRAM_PHY_BASE & 0xFFFFF)>>12);
+        aml_write_reg32(P_AO_SECURE_REG0, v<<8 | aml_read_reg32(P_AO_SECURE_REG0)); //TEST_N : 1->output mode; 0->input mode
+    
+        aml_write_reg32(P_AO_RTI_STATUS_REG1, 0);//clean status
+    
+//    	writel(0x200,P_AO_CPU_CNTL);//halt first
+    	aml_write_reg32(P_RESET2_REGISTER, aml_read_reg32(P_RESET2_REGISTER)|(1<<13));//reset AO_CPU
+    
+    	udelay(10);
+    
+//      enable arc
+        aml_write_reg32(P_AO_CPU_CNTL, 0x0c900101);//remap is right?
+    
+    	udelay(20);
+    	if(aml_read_reg32(P_AO_RTI_STATUS_REG1) == 0xeeeeaaaa){
+    		printk("AO cpu runs ok.\n");
+    		return 0;
+    	}
+    	else{
+    		printk("AO cpu runs fail. 0x%x\n",aml_read_reg32(P_AO_RTI_STATUS_REG1));
+    		return -1;
+    	}
+    }
+    return -1;
+}
+
+int stop_ao_cpu(void)
+{
+	if(cec_config & 0x1)// 4 bytes: use to control cec switch on/off,distinguish between Mbox and Tablet. bit[0]:1:Mbox; 0:Tablet
+    {
+    	aml_write_reg32(P_AO_RTI_STATUS_REG1, 0xddddeeee); //ask ao to halt.
+		udelay(40);
+    	if(aml_read_reg32(P_AO_RTI_STATUS_REG1) == 0x0){
+    		printk("AO cpu stop ok.\n");
+    		return 0;
+    	}
+    	else{
+    		printk("AO cpu stop fail.\n");
+    		return -1;
+    	}
+    }
+    return -1;
+}
+#endif
+
 extern int det_pwr_key(void);
 extern void clr_pwr_key(void);
 
@@ -257,6 +328,9 @@ static void meson_pm_suspend(void)
 	ENABLE_SUSPEND_WATCHDOG;
 #endif    
 
+#ifdef CONFIG_AO_TRIG_CLK
+	stop_ao_cpu();
+#endif
 	//analog_switch(OFF);
 	 if (pdata->set_vccx2) {
 		pdata->set_vccx2(OFF);
@@ -321,6 +395,10 @@ static void meson_pm_suspend(void)
 	//power_gate_switch(ON);
 	clk_switch(ON);
 	//analog_switch(ON);
+
+#ifdef CONFIG_AO_TRIG_CLK
+	run_arc_program();
+#endif
 }
 
 static int meson_pm_prepare(void)
@@ -399,8 +477,25 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 	
 	clk81 = clk_get_sys("clk81", NULL);
 	clkxtal = clk_get_sys("xtal", NULL);
+	
+	cec_np = of_find_node_by_name(NULL, "vend_data");
+	if(cec_np){
+	    if(of_property_read_u32(cec_np, "cec_config", &cec_config))
+	        cec_config = 0x0;
+	}
+	else
+	{
+	    cec_config = 0x0;
+	}
+    printk("hdmi: cec_pm: cec config:0x%x\n", cec_config);
+    
 	printk(KERN_INFO "meson_pm_probe done !\n");
+
+#ifdef CONFIG_AO_TRIG_CLK
+	return run_arc_program();
+#else
 	return 0;
+#endif
 }
 
 static int __exit meson_pm_remove(struct platform_device *pdev)
