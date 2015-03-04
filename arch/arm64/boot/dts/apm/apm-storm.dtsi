@@ -622,7 +622,7 @@
 		};
 
 		sgenet0: ethernet@1f210000 {
-			compatible = "apm,xgene-enet";
+			compatible = "apm,xgene1-sgenet";
 			status = "disabled";
 			reg = <0x0 0x1f210000 0x0 0xd100>,
 			      <0x0 0x1f200000 0x0 0Xc300>,
@@ -636,7 +636,7 @@
 		};
 
 		xgenet: ethernet@1f610000 {
-			compatible = "apm,xgene-enet";
+			compatible = "apm,xgene1-xgenet";
 			status = "disabled";
 			reg = <0x0 0x1f610000 0x0 0xd100>,
 			      <0x0 0x1f600000 0x0 0Xc300>,
