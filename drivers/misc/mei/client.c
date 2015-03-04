@@ -668,14 +668,17 @@ void mei_host_client_init(struct work_struct *work)
 	me_cl = mei_me_cl_by_uuid(dev, &mei_amthif_guid);
 	if (me_cl)
 		mei_amthif_host_init(dev);
+	mei_me_cl_put(me_cl);
 
 	me_cl = mei_me_cl_by_uuid(dev, &mei_wd_guid);
 	if (me_cl)
 		mei_wd_host_init(dev);
+	mei_me_cl_put(me_cl);
 
 	me_cl = mei_me_cl_by_uuid(dev, &mei_nfc_guid);
 	if (me_cl)
 		mei_nfc_host_init(dev);
+	mei_me_cl_put(me_cl);
 
 
 	dev->dev_state = MEI_DEV_ENABLED;
