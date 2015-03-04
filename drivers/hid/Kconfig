@@ -306,7 +306,7 @@ config HID_KYE
 
 config HID_UCLOGIC
 	tristate "UC-Logic"
-	depends on HID
+	depends on USB_HID
 	---help---
 	Support for UC-Logic and Huion tablets.
 
