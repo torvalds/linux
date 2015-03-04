@@ -979,7 +979,7 @@ static int of_path_platform_device_exists(const char *path)
 	return pdev != NULL;
 }
 
-#if IS_ENABLED(CONFIG_I2C)
+#if IS_BUILTIN(CONFIG_I2C)
 
 /* get the i2c client device instantiated at the path */
 static struct i2c_client *of_path_to_i2c_client(const char *path)
@@ -1445,7 +1445,7 @@ static void of_selftest_overlay_11(void)
 		return;
 }
 
-#if IS_ENABLED(CONFIG_I2C) && IS_ENABLED(CONFIG_OF_OVERLAY)
+#if IS_BUILTIN(CONFIG_I2C) && IS_ENABLED(CONFIG_OF_OVERLAY)
 
 struct selftest_i2c_bus_data {
 	struct platform_device	*pdev;
@@ -1584,7 +1584,7 @@ static struct i2c_driver selftest_i2c_dev_driver = {
 	.id_table = selftest_i2c_dev_id,
 };
 
-#if IS_ENABLED(CONFIG_I2C_MUX)
+#if IS_BUILTIN(CONFIG_I2C_MUX)
 
 struct selftest_i2c_mux_data {
 	int nchans;
@@ -1695,7 +1695,7 @@ static int of_selftest_overlay_i2c_init(void)
 			"could not register selftest i2c bus driver\n"))
 		return ret;
 
-#if IS_ENABLED(CONFIG_I2C_MUX)
+#if IS_BUILTIN(CONFIG_I2C_MUX)
 	ret = i2c_add_driver(&selftest_i2c_mux_driver);
 	if (selftest(ret == 0,
 			"could not register selftest i2c mux driver\n"))
@@ -1707,7 +1707,7 @@ static int of_selftest_overlay_i2c_init(void)
 
 static void of_selftest_overlay_i2c_cleanup(void)
 {
-#if IS_ENABLED(CONFIG_I2C_MUX)
+#if IS_BUILTIN(CONFIG_I2C_MUX)
 	i2c_del_driver(&selftest_i2c_mux_driver);
 #endif
 	platform_driver_unregister(&selftest_i2c_bus_driver);
@@ -1814,7 +1814,7 @@ static void __init of_selftest_overlay(void)
 	of_selftest_overlay_10();
 	of_selftest_overlay_11();
 
-#if IS_ENABLED(CONFIG_I2C)
+#if IS_BUILTIN(CONFIG_I2C)
 	if (selftest(of_selftest_overlay_i2c_init() == 0, "i2c init failed\n"))
 		goto out;
 
