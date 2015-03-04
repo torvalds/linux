@@ -465,10 +465,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 
-	LOGVER("entering virthba_probe...\n");
-	LOGVER("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
-	       virtpcidev->device_no);
-
 	POSTCODE_LINUX_2(VHBA_PROBE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	/* call scsi_host_alloc to register a scsi host adapter
 	 * instance - this virthba that has just been created is an

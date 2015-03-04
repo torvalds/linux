@@ -26,34 +26,6 @@
 #include <linux/printk.h>
 
 /*
- * # LOGVER
- *
- * \brief Log verbose message - logs a message at the LOG_DEBUG level,
- *        which can be disabled at runtime
- *
- * \param devname the device name of the device reporting this message, or
- *                NULL if this message is NOT device-related.
- * \param fmt printf()-style format string containing the message to log.
- * \param args Optional arguments to be formatted and inserted into the format
- * \param string.
- * \return nothing
- *
- * Logs the specified message at the LOG_DEBUG level.  Note also that
- * LOG_DEBUG messages can be enabled/disabled at runtime as well.
- */
-#define LOGVER(fmt, args...) pr_debug(fmt, ## args)
-#define LOGVERDEV(devname, fmt, args...) \
-	pr_debug("%s " fmt, devname, ## args)
-#define LOGVERNAME(vnic, fmt, args...)					\
-	do {								\
-		if (vnic != NULL) {					\
-			pr_debug("%s " fmt, vnic->name, ## args);	\
-		} else {						\
-			pr_debug(fmt, ## args);				\
-		}							\
-	} while (0)
-
-/*
  * # LOGERR
  *
  * \brief Log error message - logs a message at the LOG_ERR level,
