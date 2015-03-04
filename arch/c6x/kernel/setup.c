@@ -63,6 +63,7 @@ unsigned char c6x_fuse_mac[6];
 
 unsigned long memory_start;
 unsigned long memory_end;
+EXPORT_SYMBOL(memory_end);
 
 unsigned long ram_start;
 unsigned long ram_end;
