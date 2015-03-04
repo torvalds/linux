@@ -44,7 +44,6 @@ static const struct sdhci_ops sdhci_pltfm_ops = {
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-#ifdef CONFIG_OF
 static struct sdhci_plat_data *sdhci_probe_config_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -66,16 +65,9 @@ static struct sdhci_plat_data *sdhci_probe_config_dt(struct platform_device *pde
 
 	return pdata;
 }
-#else
-static struct sdhci_plat_data *sdhci_probe_config_dt(struct platform_device *pdev)
-{
-	return ERR_PTR(-ENOSYS);
-}
-#endif
 
 static int sdhci_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_host *host;
 	struct resource *iomem;
 	struct spear_sdhci *sdhci;
@@ -124,14 +116,10 @@ static int sdhci_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Error setting desired clk, clk=%lu\n",
 				clk_get_rate(sdhci->clk));
 
-	if (np) {
-		sdhci->data = sdhci_probe_config_dt(pdev);
-		if (IS_ERR(sdhci->data)) {
-			dev_err(&pdev->dev, "DT: Failed to get pdata\n");
-			goto disable_clk;
-		}
-	} else {
-		sdhci->data = dev_get_platdata(&pdev->dev);
+	sdhci->data = sdhci_probe_config_dt(pdev);
+	if (IS_ERR(sdhci->data)) {
+		dev_err(&pdev->dev, "DT: Failed to get pdata\n");
+		goto disable_clk;
 	}
 
 	/*
