@@ -964,7 +964,6 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 				   const struct fw_img *fw, bool run_in_rfkill)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	bool hw_rfkill;
 
@@ -993,9 +992,6 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		IWL_ERR(trans, "Unable to init nic\n");
 		return ret;
 	}
-
-	/* init ref_count to 1 (should be cleared when ucode is loaded) */
-	trans_pcie->ref_count = 1;
 
 	/* make sure rfkill handshake bits are cleared */
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
@@ -1314,6 +1310,9 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->command_names = trans_cfg->command_names;
 	trans_pcie->bc_table_dword = trans_cfg->bc_table_dword;
 	trans_pcie->scd_set_active = trans_cfg->scd_set_active;
+
+	/* init ref_count to 1 (should be cleared when ucode is loaded) */
+	trans_pcie->ref_count = 1;
 
 	/* Initialize NAPI here - it should be before registering to mac80211
 	 * in the opmode but after the HW struct is allocated.
