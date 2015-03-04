@@ -238,8 +238,6 @@ struct bcma_drv_pci {
 #define pcicore_write16(pc, offset, val)	bcma_write16((pc)->core, offset, val)
 #define pcicore_write32(pc, offset, val)	bcma_write32((pc)->core, offset, val)
 
-extern void bcma_core_pci_early_init(struct bcma_drv_pci *pc);
-extern void bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_bus *bus,
 				 struct bcma_device *core, bool enable);
 extern void bcma_core_pci_power_save(struct bcma_bus *bus, bool up);
