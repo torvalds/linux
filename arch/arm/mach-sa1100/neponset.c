@@ -268,8 +268,8 @@ static int neponset_probe(struct platform_device *dev)
 		.id = 0,
 		.res = smc91x_resources,
 		.num_res = ARRAY_SIZE(smc91x_resources),
-		.data = &smc91c_platdata,
-		.size_data = sizeof(smc91c_platdata),
+		.data = &smc91x_platdata,
+		.size_data = sizeof(smc91x_platdata),
 	};
 	int ret, irq;
 
