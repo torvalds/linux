@@ -378,7 +378,7 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 		if (freeme == NULL)
 			goto out;
 	}
-	list_add_rcu(&delegation->super_list, &server->delegations);
+	list_add_tail_rcu(&delegation->super_list, &server->delegations);
 	rcu_assign_pointer(nfsi->delegation, delegation);
 	delegation = NULL;
 
