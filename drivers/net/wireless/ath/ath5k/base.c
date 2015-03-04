@@ -2858,7 +2858,7 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 {
 	struct ath_common *common = ath5k_hw_common(ah);
 	int ret, ani_mode;
-	bool fast;
+	bool fast = chan && modparam_fastchanswitch ? 1 : 0;
 
 	ATH5K_DBG(ah, ATH5K_DEBUG_RESET, "resetting\n");
 
@@ -2876,10 +2876,28 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 	 * so we should also free any remaining
 	 * tx buffers */
 	ath5k_drain_tx_buffs(ah);
+
+	/* Stop PCU */
+	ath5k_hw_stop_rx_pcu(ah);
+
+	/* Stop DMA
+	 *
+	 * Note: If DMA didn't stop continue
+	 * since only a reset will fix it.
+	 */
+	ret = ath5k_hw_dma_stop(ah);
+
+	/* RF Bus grant won't work if we have pending
+	 * frames
+	 */
+	if (ret && fast) {
+		ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
+			  "DMA didn't stop, falling back to normal reset\n");
+		fast = false;
+	}
+
 	if (chan)
 		ah->curchan = chan;
-
-	fast = ((chan != NULL) && modparam_fastchanswitch) ? 1 : 0;
 
 	ret = ath5k_hw_reset(ah, ah->opmode, ah->curchan, fast, skip_pcu);
 	if (ret) {
