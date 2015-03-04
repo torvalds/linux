@@ -838,7 +838,7 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned long flags;
 
 	/* Cannot handle null/empty chanlist. */
-	if (cmd->chanlist == NULL || cmd->chanlist_len == 0)
+	if (!cmd->chanlist || cmd->chanlist_len == 0)
 		return -EINVAL;
 
 	/* Determine which channels are enabled and their load order.  */
