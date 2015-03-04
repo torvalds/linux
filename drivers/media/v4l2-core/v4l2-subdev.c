@@ -321,6 +321,10 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_SUBDEV_ENUM_MBUS_CODE: {
 		struct v4l2_subdev_mbus_code_enum *code = arg;
 
+		if (code->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    code->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
 		if (code->pad >= sd->entity.num_pads)
 			return -EINVAL;
 
@@ -330,6 +334,10 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_ENUM_FRAME_SIZE: {
 		struct v4l2_subdev_frame_size_enum *fse = arg;
+
+		if (fse->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    fse->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
 
 		if (fse->pad >= sd->entity.num_pads)
 			return -EINVAL;
@@ -358,6 +366,10 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL: {
 		struct v4l2_subdev_frame_interval_enum *fie = arg;
+
+		if (fie->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    fie->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
 
 		if (fie->pad >= sd->entity.num_pads)
 			return -EINVAL;
