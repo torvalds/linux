@@ -12722,6 +12722,9 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
 			       PCICFG_VENDOR_ID_OFFSET);
 
+	/* Set PCIe reset type to fundamental for EEH recovery */
+	pdev->needs_freset = 1;
+
 	/* AER (Advanced Error reporting) configuration */
 	rc = pci_enable_pcie_error_reporting(pdev);
 	if (!rc)
