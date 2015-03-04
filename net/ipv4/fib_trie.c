@@ -912,9 +912,9 @@ static void fib_insert_alias(struct tnode *l, struct fib_alias *fa,
 }
 
 /* rcu_read_lock needs to be hold by caller from readside */
-static struct tnode *fib_find_node(struct trie *t, u32 key)
+static struct tnode *fib_find_node(struct trie *t, struct tnode **tn, u32 key)
 {
-	struct tnode *n = rcu_dereference_rtnl(t->trie);
+	struct tnode *pn = NULL, *n = rcu_dereference_rtnl(t->trie);
 
 	while (n) {
 		unsigned long index = get_index(key, n);
@@ -924,20 +924,29 @@ static struct tnode *fib_find_node(struct trie *t, u32 key)
 		 * prefix plus zeros for the bits in the cindex. The index
 		 * is the difference between the key and this value.  From
 		 * this we can actually derive several pieces of data.
-		 *   if (index & (~0ul << bits))
+		 *   if (index >= (1ul << bits))
 		 *     we have a mismatch in skip bits and failed
 		 *   else
 		 *     we know the value is cindex
+		 *
+		 * This check is safe even if bits == KEYLENGTH due to the
+		 * fact that we can only allocate a node with 32 bits if a
+		 * long is greater than 32 bits.
 		 */
-		if (index & (~0ul << n->bits))
-			return NULL;
+		if (index >= (1ul << n->bits)) {
+			n = NULL;
+			break;
+		}
 
 		/* we have found a leaf. Prefixes have already been compared */
 		if (IS_LEAF(n))
 			break;
 
+		pn = n;
 		n = tnode_get_child_rcu(n, index);
 	}
+
+	*tn = pn;
 
 	return n;
 }
@@ -1071,15 +1080,15 @@ static struct tnode *fib_insert_node(struct trie *t, u32 key, int plen)
  */
 int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 {
-	struct trie *t = (struct trie *) tb->tb_data;
+	struct trie *t = (struct trie *)tb->tb_data;
 	struct fib_alias *fa, *new_fa;
+	struct tnode *l, *tp;
 	struct fib_info *fi;
 	u8 plen = cfg->fc_dst_len;
 	u8 slen = KEYLENGTH - plen;
 	u8 tos = cfg->fc_tos;
-	u32 key, mask;
+	u32 key;
 	int err;
-	struct tnode *l;
 
 	if (plen > KEYLENGTH)
 		return -EINVAL;
@@ -1088,9 +1097,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 
 	pr_debug("Insert table=%u %08x/%d\n", tb->tb_id, key, plen);
 
-	mask = ntohl(inet_make_mask(plen));
-
-	if (key & ~mask)
+	if ((plen < KEYLENGTH) && (key << plen))
 		return -EINVAL;
 
 	fi = fib_create_info(cfg);
@@ -1099,7 +1106,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 		goto err;
 	}
 
-	l = fib_find_node(t, key);
+	l = fib_find_node(t, &tp, key);
 	fa = l ? fib_find_alias(&l->leaf, slen, tos, fi->fib_priority) : NULL;
 
 	/* Now fa, if non-NULL, points to the first fib alias
@@ -1406,22 +1413,21 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 {
 	struct trie *t = (struct trie *) tb->tb_data;
 	struct fib_alias *fa, *fa_to_delete;
+	struct tnode *l, *tp;
 	u8 plen = cfg->fc_dst_len;
-	u8 tos = cfg->fc_tos;
 	u8 slen = KEYLENGTH - plen;
-	struct tnode *l;
-	u32 key, mask;
+	u8 tos = cfg->fc_tos;
+	u32 key;
 
 	if (plen > KEYLENGTH)
 		return -EINVAL;
 
 	key = ntohl(cfg->fc_dst);
-	mask = ntohl(inet_make_mask(plen));
 
-	if (key & ~mask)
+	if ((plen < KEYLENGTH) && (key << plen))
 		return -EINVAL;
 
-	l = fib_find_node(t, key);
+	l = fib_find_node(t, &tp, key);
 	if (!l)
 		return -ESRCH;
 
