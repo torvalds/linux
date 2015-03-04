@@ -396,8 +396,9 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	 * guest will come up as expected, for now we simulate a MIPS 24kc
 	 */
 	kvm_write_c0_guest_prid(cop0, 0x00019300);
-	kvm_write_c0_guest_config(cop0,
-				  MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
+	/* Have config1, Cacheable, noncoherent, write-back, write allocate */
+	kvm_write_c0_guest_config(cop0, MIPS_CONF_M | (0x3 << CP0C0_K0) |
+				  (0x1 << CP0C0_AR) |
 				  (MMU_TYPE_R4000 << CP0C0_MT));
 
 	/* Read the cache characteristics from the host Config1 Register */
@@ -413,10 +414,12 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	      (1 << CP0C1_WR) | (1 << CP0C1_CA));
 	kvm_write_c0_guest_config1(cop0, config1);
 
-	kvm_write_c0_guest_config2(cop0, MIPS_CONFIG2);
-	/* MIPS_CONFIG2 | (read_c0_config2() & 0xfff) */
-	kvm_write_c0_guest_config3(cop0, MIPS_CONFIG3 | (0 << CP0C3_VInt) |
-					 (1 << CP0C3_ULRI));
+	/* Have config3, no tertiary/secondary caches implemented */
+	kvm_write_c0_guest_config2(cop0, MIPS_CONF_M);
+	/* MIPS_CONF_M | (read_c0_config2() & 0xfff) */
+
+	/* No config4, UserLocal */
+	kvm_write_c0_guest_config3(cop0, MIPS_CONF3_ULRI);
 
 	/* Set Wait IE/IXMT Ignore in Config7, IAR, AR */
 	kvm_write_c0_guest_config7(cop0, (MIPS_CONF7_WII) | (1 << 10));

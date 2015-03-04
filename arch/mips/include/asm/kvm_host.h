@@ -265,31 +265,6 @@ struct mips_coproc {
 #define CP0C3_SM		1
 #define CP0C3_TL		0
 
-/* Have config1, Cacheable, noncoherent, write-back, write allocate*/
-#define MIPS_CONFIG0						\
-  ((1 << CP0C0_M) | (0x3 << CP0C0_K0))
-
-/* Have config2, no coprocessor2 attached, no MDMX support attached,
-   no performance counters, watch registers present,
-   no code compression, EJTAG present, no FPU, no watch registers */
-#define MIPS_CONFIG1						\
-((1 << CP0C1_M) |						\
- (0 << CP0C1_C2) | (0 << CP0C1_MD) | (0 << CP0C1_PC) |		\
- (0 << CP0C1_WR) | (0 << CP0C1_CA) | (1 << CP0C1_EP) |		\
- (0 << CP0C1_FP))
-
-/* Have config3, no tertiary/secondary caches implemented */
-#define MIPS_CONFIG2						\
-((1 << CP0C2_M))
-
-/* No config4, no DSP ASE, no large physaddr (PABITS),
-   no external interrupt controller, no vectored interrupts,
-   no 1kb pages, no SmartMIPS ASE, no trace logic */
-#define MIPS_CONFIG3						\
-((0 << CP0C3_M) | (0 << CP0C3_DSPP) | (0 << CP0C3_LPA) |	\
- (0 << CP0C3_VEIC) | (0 << CP0C3_VInt) | (0 << CP0C3_SP) |	\
- (0 << CP0C3_SM) | (0 << CP0C3_TL))
-
 /* MMU types, the first four entries have the same layout as the
    CP0C0_MT field.  */
 enum mips_mmu_types {
