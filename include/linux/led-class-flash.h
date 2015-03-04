@@ -81,20 +81,6 @@ struct led_classdev_flash {
 
 	/* LED Flash class sysfs groups */
 	const struct attribute_group *sysfs_groups[LED_FLASH_MAX_SYSFS_GROUPS];
-
-	/* LEDs available for flash strobe synchronization */
-	struct led_classdev_flash **sync_leds;
-
-	/* Number of LEDs available for flash strobe synchronization */
-	int num_sync_leds;
-
-	/*
-	 * The identifier of the sub-led to synchronize the flash strobe with.
-	 * Identifiers start from 1, which reflects the first element from the
-	 * sync_leds array. 0 means that the flash strobe should not be
-	 * synchronized.
-	 */
-	u32 sync_led_id;
 };
 
 static inline struct led_classdev_flash *lcdev_to_flcdev(
