@@ -312,7 +312,7 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 		vio->u.fault.ft_vmpage    = NULL;
 		vio->u.fault.fault.ft_vmf = vmf;
 		vio->u.fault.fault.ft_flags = 0;
-		vio->u.fault.fault.ft_flags_valid = 0;
+		vio->u.fault.fault.ft_flags_valid = false;
 
 		result = cl_io_loop(env, io);
 

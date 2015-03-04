@@ -2143,7 +2143,7 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	//for silent reset
 	priv->IrpPendingCount = 1;
 	priv->ResetProgress = RESET_TYPE_NORESET;
-	priv->bForcedSilentReset = 0;
+	priv->bForcedSilentReset = false;
 	priv->bDisableNormalResetCheck = false;
 	priv->force_reset = false;
 

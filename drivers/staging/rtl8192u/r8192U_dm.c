@@ -2419,9 +2419,9 @@ void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 	/* Check Bit 0-3, it means if RF A-D is enabled. */
 	for (i = 0; i < RF90_PATH_MAX; i++) {
 		if (rfpath & (0x01<<i))
-			priv->brfpath_rxenable[i] = 1;
+			priv->brfpath_rxenable[i] = true;
 		else
-			priv->brfpath_rxenable[i] = 0;
+			priv->brfpath_rxenable[i] = false;
 	}
 	if (!DM_RxPathSelTable.Enable)
 		return;

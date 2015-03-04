@@ -1371,7 +1371,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 	else if(ieee->is_silent_reset == 1)
 	{
 		printk("==================>silent reset associate\n");
-		ieee->is_silent_reset = 0;
+		ieee->is_silent_reset = false;
 	}
 
 	if (ieee->data_hard_resume)
@@ -2719,7 +2719,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	ieee->sta_edca_param[2] = 0x005E4342;
 	ieee->sta_edca_param[3] = 0x002F3262;
 	ieee->aggregation = true;
-	ieee->enable_rx_imm_BA = 1;
+	ieee->enable_rx_imm_BA = true;
 	ieee->tx_pending.txb = NULL;
 
 	setup_timer(&ieee->associate_timer, ieee80211_associate_abort_cb,

@@ -544,7 +544,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 		if (ft1000dev->fProvComplete == 0)
 			return -EACCES;
 
-		ft1000dev->fAppMsgPend = 1;
+		ft1000dev->fAppMsgPend = true;
 
 		if (info->CardReady) {
 
@@ -719,7 +719,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 		result = -ENOTTY;
 		break;
 	}
-	ft1000dev->fAppMsgPend = 0;
+	ft1000dev->fAppMsgPend = false;
 	return result;
 }
 

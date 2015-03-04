@@ -943,7 +943,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if(net_ratelimit())
 		printk("find HTCControl\n");
 		hdrlen += 4;
-		rx_stats->bContainHTC = 1;
+		rx_stats->bContainHTC = true;
 	}
 
 	//IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA, skb->data, skb->len);

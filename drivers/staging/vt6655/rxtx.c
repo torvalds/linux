@@ -248,11 +248,11 @@ s_uGetDataDuration(
 	unsigned char byFBOption
 )
 {
-	bool bLastFrag = 0;
+	bool bLastFrag = false;
 	unsigned int uAckTime = 0, uNextPktTime = 0;
 
 	if (uFragIdx == (uMACfragNum-1))
-		bLastFrag = 1;
+		bLastFrag = true;
 
 	switch (byDurType) {
 	case DATADUR_B:    //DATADUR_B
