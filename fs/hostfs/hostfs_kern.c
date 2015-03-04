@@ -445,24 +445,26 @@ static int hostfs_readpage(struct file *file, struct page *page)
 {
 	char *buffer;
 	long long start;
-	int bytes_read, ret;
+	int bytes_read, ret = 0;
 
 	start = (long long) page->index << PAGE_CACHE_SHIFT;
 	buffer = kmap(page);
 	bytes_read = read_file(FILE_HOSTFS_I(file)->fd, &start, buffer,
 			PAGE_CACHE_SIZE);
 	if (bytes_read < 0) {
+		ClearPageUptodate(page);
+		SetPageError(page);
 		ret = bytes_read;
 		goto out;
 	}
 
 	memset(buffer + bytes_read, 0, PAGE_CACHE_SIZE - bytes_read);
 
-	flush_dcache_page(page);
+	ClearPageError(page);
 	SetPageUptodate(page);
-	if (PageError(page)) ClearPageError(page);
-	ret = 0;
+
  out:
+	flush_dcache_page(page);
 	kunmap(page);
 	unlock_page(page);
 	return ret;
