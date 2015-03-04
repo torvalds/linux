@@ -1489,8 +1489,12 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	/*
 	 * Clear IN_HW_RESTART flag when stopping the hw (as restart_complete()
 	 * won't be called in this case).
+	 * But make sure to cleanup interfaces that have gone down before/during
+	 * HW restart was requested.
 	 */
-	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
+	if (test_and_clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		ieee80211_iterate_interfaces(mvm->hw, 0,
+					     iwl_mvm_cleanup_iterator, mvm);
 
 	/* We shouldn't have any UIDs still set.  Loop over all the UIDs to
 	 * make sure there's nothing left there and warn if any is found.
