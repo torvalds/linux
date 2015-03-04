@@ -173,6 +173,7 @@ static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_ARGB8888_1X32,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
+	struct vsp1_sru *sru = to_sru(subdev);
 	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == SRU_PAD_SINK) {
@@ -187,7 +188,8 @@ static int sru_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (code->index)
 			return -EINVAL;
 
-		format = v4l2_subdev_get_try_format(subdev, cfg, SRU_PAD_SINK);
+		format = vsp1_entity_get_pad_format(&sru->entity, cfg,
+						    SRU_PAD_SINK, code->which);
 		code->code = format->code;
 	}
 

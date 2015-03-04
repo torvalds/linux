@@ -467,7 +467,7 @@ static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
 			return -EINVAL;
 
 		format = __ipipeif_get_format(ipipeif, cfg, IPIPEIF_PAD_SINK,
-					      V4L2_SUBDEV_FORMAT_TRY);
+					      code->which);
 
 		code->code = format->code;
 		break;

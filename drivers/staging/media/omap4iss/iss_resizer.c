@@ -513,7 +513,7 @@ static int resizer_enum_mbus_code(struct v4l2_subdev *sd,
 
 	case RESIZER_PAD_SOURCE_MEM:
 		format = __resizer_get_format(resizer, cfg, RESIZER_PAD_SINK,
-					      V4L2_SUBDEV_FORMAT_TRY);
+					      code->which);
 
 		if (code->index == 0) {
 			code->code = format->code;

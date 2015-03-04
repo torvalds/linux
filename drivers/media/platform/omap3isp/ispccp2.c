@@ -703,7 +703,7 @@ static int ccp2_enum_mbus_code(struct v4l2_subdev *sd,
 			return -EINVAL;
 
 		format = __ccp2_get_format(ccp2, cfg, CCP2_PAD_SINK,
-					      V4L2_SUBDEV_FORMAT_TRY);
+					      code->which);
 		code->code = format->code;
 	}
 

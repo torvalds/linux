@@ -2133,7 +2133,7 @@ static int ccdc_enum_mbus_code(struct v4l2_subdev *sd,
 
 	case CCDC_PAD_SOURCE_OF:
 		format = __ccdc_get_format(ccdc, cfg, code->pad,
-					   V4L2_SUBDEV_FORMAT_TRY);
+					   code->which);
 
 		if (format->code == MEDIA_BUS_FMT_YUYV8_2X8 ||
 		    format->code == MEDIA_BUS_FMT_UYVY8_2X8) {
@@ -2164,7 +2164,7 @@ static int ccdc_enum_mbus_code(struct v4l2_subdev *sd,
 			return -EINVAL;
 
 		format = __ccdc_get_format(ccdc, cfg, code->pad,
-					   V4L2_SUBDEV_FORMAT_TRY);
+					   code->which);
 
 		/* A pixel code equal to 0 means that the video port doesn't
 		 * support the input format. Don't enumerate any pixel code.

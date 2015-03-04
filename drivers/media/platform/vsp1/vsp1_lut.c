@@ -90,6 +90,7 @@ static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
 		MEDIA_BUS_FMT_AHSV8888_1X32,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
+	struct vsp1_lut *lut = to_lut(subdev);
 	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == LUT_PAD_SINK) {
@@ -104,7 +105,8 @@ static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (code->index)
 			return -EINVAL;
 
-		format = v4l2_subdev_get_try_format(subdev, cfg, LUT_PAD_SINK);
+		format = vsp1_entity_get_pad_format(&lut->entity, cfg,
+						    LUT_PAD_SINK, code->which);
 		code->code = format->code;
 	}
 

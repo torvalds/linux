@@ -908,7 +908,7 @@ static int csi2_enum_mbus_code(struct v4l2_subdev *sd,
 		code->code = csi2_input_fmts[code->index];
 	} else {
 		format = __csi2_get_format(csi2, cfg, CSI2_PAD_SINK,
-					   V4L2_SUBDEV_FORMAT_TRY);
+					   code->which);
 		switch (code->index) {
 		case 0:
 			/* Passthrough sink pad code */
