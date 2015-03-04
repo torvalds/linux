@@ -1523,6 +1523,9 @@ ath5k_set_current_imask(struct ath5k_hw *ah)
 	enum ath5k_int imask;
 	unsigned long flags;
 
+	if (test_bit(ATH_STAT_RESET, ah->status))
+		return;
+
 	spin_lock_irqsave(&ah->irqlock, flags);
 	imask = ah->imask;
 	if (ah->rx_pending)
@@ -2862,6 +2865,8 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 
 	ATH5K_DBG(ah, ATH5K_DEBUG_RESET, "resetting\n");
 
+	__set_bit(ATH_STAT_RESET, ah->status);
+
 	ath5k_hw_set_imr(ah, 0);
 	synchronize_irq(ah->irq);
 	ath5k_stop_tasklets(ah);
@@ -2951,6 +2956,8 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 	 * XXX needed?
 	 */
 /*	ath5k_chan_change(ah, c); */
+
+	__clear_bit(ATH_STAT_RESET, ah->status);
 
 	ath5k_beacon_config(ah);
 	/* intrs are enabled by ath5k_beacon_config */
