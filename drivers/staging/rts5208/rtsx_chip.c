@@ -153,22 +153,22 @@ static int rtsx_pre_handle_sdio_old(struct rtsx_chip *chip)
 static int rtsx_pre_handle_sdio_new(struct rtsx_chip *chip)
 {
 	u8 tmp;
-	int sw_bypass_sd = 0;
+	bool sw_bypass_sd = false;
 	int retval;
 
 	if (chip->driver_first_load) {
 		if (CHECK_PID(chip, 0x5288)) {
 			RTSX_READ_REG(chip, 0xFE5A, &tmp);
 			if (tmp & 0x08)
-				sw_bypass_sd = 1;
+				sw_bypass_sd = true;
 		} else if (CHECK_PID(chip, 0x5208)) {
 			RTSX_READ_REG(chip, 0xFE70, &tmp);
 			if (tmp & 0x80)
-				sw_bypass_sd = 1;
+				sw_bypass_sd = true;
 		}
 	} else {
 		if (chip->sdio_in_charge)
-			sw_bypass_sd = 1;
+			sw_bypass_sd = true;
 	}
 	dev_dbg(rtsx_dev(chip), "chip->sdio_in_charge = %d\n",
 		chip->sdio_in_charge);
@@ -501,13 +501,14 @@ nextcard:
 
 static inline int check_sd_speed_prior(u32 sd_speed_prior)
 {
-	int i, fake_para = 0;
+	bool fake_para = false;
+	int i;
 
 	for (i = 0; i < 4; i++) {
 		u8 tmp = (u8)(sd_speed_prior >> (i*8));
 
 		if ((tmp < 0x01) || (tmp > 0x04)) {
-			fake_para = 1;
+			fake_para = true;
 			break;
 		}
 	}
@@ -517,13 +518,14 @@ static inline int check_sd_speed_prior(u32 sd_speed_prior)
 
 static inline int check_sd_current_prior(u32 sd_current_prior)
 {
-	int i, fake_para = 0;
+	bool fake_para = false;
+	int i;
 
 	for (i = 0; i < 4; i++) {
 		u8 tmp = (u8)(sd_current_prior >> (i*8));
 
 		if (tmp > 0x03) {
-			fake_para = 1;
+			fake_para = true;
 			break;
 		}
 	}
@@ -784,31 +786,31 @@ static inline void rtsx_blink_led(struct rtsx_chip *chip)
 
 static void rtsx_monitor_aspm_config(struct rtsx_chip *chip)
 {
-	int maybe_support_aspm, reg_changed;
+	bool reg_changed, maybe_support_aspm;
 	u32 tmp = 0;
 	u8 reg0 = 0, reg1 = 0;
 
-	maybe_support_aspm = 0;
-	reg_changed = 0;
+	maybe_support_aspm = false;
+	reg_changed = false;
 	rtsx_read_config_byte(chip, LCTLR, &reg0);
 	if (chip->aspm_level[0] != reg0) {
-		reg_changed = 1;
+		reg_changed = true;
 		chip->aspm_level[0] = reg0;
 	}
 	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip)) {
 		rtsx_read_cfg_dw(chip, 1, 0xC0, &tmp);
 		reg1 = (u8)tmp;
 		if (chip->aspm_level[1] != reg1) {
-			reg_changed = 1;
+			reg_changed = true;
 			chip->aspm_level[1] = reg1;
 		}
 
 		if ((reg0 & 0x03) && (reg1 & 0x03))
-			maybe_support_aspm = 1;
+			maybe_support_aspm = true;
 
 	} else {
 		if (reg0 & 0x03)
-			maybe_support_aspm = 1;
+			maybe_support_aspm = true;
 	}
 
 	if (reg_changed) {
@@ -835,7 +837,7 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 #ifdef SUPPORT_SD_LOCK
 	struct sd_info *sd_card = &chip->sd_card;
 #endif
-	int ss_allowed;
+	bool ss_allowed;
 
 	if (rtsx_chk_stat(chip, RTSX_STAT_SUSPEND))
 		return;
@@ -887,21 +889,21 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 	rtsx_init_cards(chip);
 
 	if (chip->ss_en) {
-		ss_allowed = 1;
+		ss_allowed = true;
 
 		if (CHECK_PID(chip, 0x5288)) {
-			ss_allowed = 0;
+			ss_allowed = false;
 		} else {
 			if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip)) {
 				u32 val;
 
 				rtsx_read_cfg_dw(chip, 1, 0x04, &val);
 				if (val & 0x07)
-					ss_allowed = 0;
+					ss_allowed = false;
 			}
 		}
 	} else {
-		ss_allowed = 0;
+		ss_allowed = false;
 	}
 
 	if (ss_allowed && !chip->sd_io) {
@@ -1358,7 +1360,8 @@ int rtsx_read_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 
 int rtsx_write_phy_register(struct rtsx_chip *chip, u8 addr, u16 val)
 {
-	int i, finished = 0;
+	bool finished = false;
+	int i;
 	u8 tmp;
 
 	RTSX_WRITE_REG(chip, PHYDATA0, 0xFF, (u8)val);
@@ -1369,7 +1372,7 @@ int rtsx_write_phy_register(struct rtsx_chip *chip, u8 addr, u16 val)
 	for (i = 0; i < 100000; i++) {
 		RTSX_READ_REG(chip, PHYRWCTL, &tmp);
 		if (!(tmp & 0x80)) {
-			finished = 1;
+			finished = true;
 			break;
 		}
 	}
@@ -1382,7 +1385,8 @@ int rtsx_write_phy_register(struct rtsx_chip *chip, u8 addr, u16 val)
 
 int rtsx_read_phy_register(struct rtsx_chip *chip, u8 addr, u16 *val)
 {
-	int i, finished = 0;
+	bool finished = false;
+	int i;
 	u16 data = 0;
 	u8 tmp;
 
@@ -1392,7 +1396,7 @@ int rtsx_read_phy_register(struct rtsx_chip *chip, u8 addr, u16 *val)
 	for (i = 0; i < 100000; i++) {
 		RTSX_READ_REG(chip, PHYRWCTL, &tmp);
 		if (!(tmp & 0x80)) {
-			finished = 1;
+			finished = true;
 			break;
 		}
 	}
@@ -1615,7 +1619,7 @@ void rtsx_exit_ss(struct rtsx_chip *chip)
 int rtsx_pre_handle_interrupt(struct rtsx_chip *chip)
 {
 	u32 status, int_enable;
-	int exit_ss = 0;
+	bool exit_ss = false;
 #ifdef SUPPORT_OCP
 	u32 ocp_int = 0;
 
@@ -1625,7 +1629,7 @@ int rtsx_pre_handle_interrupt(struct rtsx_chip *chip)
 	if (chip->ss_en) {
 		chip->ss_counter = 0;
 		if (rtsx_get_stat(chip) == RTSX_STAT_SS) {
-			exit_ss = 1;
+			exit_ss = true;
 			rtsx_exit_L1(chip);
 			rtsx_set_stat(chip, RTSX_STAT_RUN);
 		}

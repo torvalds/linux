@@ -39,7 +39,8 @@ void scsi_show_command(struct rtsx_chip *chip)
 {
 	struct scsi_cmnd *srb = chip->srb;
 	char *what = NULL;
-	int unknown_cmd = 0, len;
+	bool unknown_cmd = false;
+	int len;
 
 	switch (srb->cmnd[0]) {
 	case TEST_UNIT_READY:
@@ -310,7 +311,8 @@ void scsi_show_command(struct rtsx_chip *chip)
 		what = "Realtek's vendor command";
 		break;
 	default:
-		what = "(unknown command)"; unknown_cmd = 1;
+		what = "(unknown command)";
+		unknown_cmd = true;
 		break;
 	}
 
@@ -485,7 +487,7 @@ static int inquiry(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned char sendbytes;
 	unsigned char *buf;
 	u8 card = get_lun_card(chip, lun);
-	int pro_formatter_flag = 0;
+	bool pro_formatter_flag = false;
 	unsigned char inquiry_buf[] = {
 		QULIFIRE|DRCT_ACCESS_DEV,
 		RMB_DISC|0x0D,
@@ -520,7 +522,7 @@ static int inquiry(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	if (chip->mspro_formatter_enable)
 #endif
 		if (!card || (card == MS_CARD))
-			pro_formatter_flag = 1;
+			pro_formatter_flag = true;
 
 	if (pro_formatter_flag) {
 		if (scsi_bufflen(srb) < 56)
@@ -663,7 +665,7 @@ static void ms_mode_sense(struct rtsx_chip *chip, u8 cmd,
 	struct ms_info *ms_card = &(chip->ms_card);
 	int sys_info_offset;
 	int data_size = buf_len;
-	int support_format = 0;
+	bool support_format = false;
 	int i = 0;
 
 	if (cmd == MODE_SENSE) {
@@ -684,10 +686,10 @@ static void ms_mode_sense(struct rtsx_chip *chip, u8 cmd,
 	/* Medium Type Code */
 	if (check_card_ready(chip, lun)) {
 		if (CHK_MSXC(ms_card)) {
-			support_format = 1;
+			support_format = true;
 			buf[i++] = 0x40;
 		} else if (CHK_MSPRO(ms_card)) {
-			support_format = 1;
+			support_format = true;
 			buf[i++] = 0x20;
 		} else {
 			buf[i++] = 0x10;
@@ -755,7 +757,7 @@ static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	unsigned int lun = SCSI_LUN(srb);
 	unsigned int dataSize;
 	int status;
-	int pro_formatter_flag;
+	bool pro_formatter_flag;
 	unsigned char pageCode, *buf;
 	u8 card = get_lun_card(chip, lun);
 
@@ -767,20 +769,20 @@ static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 #endif
 
-	pro_formatter_flag = 0;
+	pro_formatter_flag = false;
 	dataSize = 8;
 #ifdef SUPPORT_MAGIC_GATE
 	if ((chip->lun2card[lun] & MS_CARD)) {
 		if (!card || (card == MS_CARD)) {
 			dataSize = 108;
 			if (chip->mspro_formatter_enable)
-				pro_formatter_flag = 1;
+				pro_formatter_flag = true;
 		}
 	}
 #else
 	if (card == MS_CARD) {
 		if (chip->mspro_formatter_enable) {
-			pro_formatter_flag = 1;
+			pro_formatter_flag = true;
 			dataSize = 108;
 		}
 	}
@@ -2295,7 +2297,8 @@ Exit:
 static int read_cfg_byte(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 	int retval;
-	u8 func, func_max;
+	bool func_max;
+	u8 func;
 	u16 addr, len;
 	u8 *buf;
 
@@ -2315,9 +2318,9 @@ static int read_cfg_byte(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		__func__, func, addr, len);
 
 	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip))
-		func_max = 1;
+		func_max = true;
 	else
-		func_max = 0;
+		func_max = false;
 
 	if (func > func_max) {
 		set_sense_type(chip, SCSI_LUN(srb),
@@ -2349,7 +2352,8 @@ static int read_cfg_byte(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 static int write_cfg_byte(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 	int retval;
-	u8 func, func_max;
+	bool func_max;
+	u8 func;
 	u16 addr, len;
 	u8 *buf;
 
@@ -2369,9 +2373,9 @@ static int write_cfg_byte(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		__func__, func, addr);
 
 	if (CHK_SDIO_EXIST(chip) && !CHK_SDIO_IGNORED(chip))
-		func_max = 1;
+		func_max = true;
 	else
-		func_max = 0;
+		func_max = false;
 
 	if (func > func_max) {
 		set_sense_type(chip, SCSI_LUN(srb),
