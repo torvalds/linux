@@ -2045,12 +2045,6 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 
 err3:
 	list_del_rcu(&rule->list);
-	if (trans) {
-		list_del_rcu(&nft_trans_rule(trans)->list);
-		nft_rule_clear(net, nft_trans_rule(trans));
-		nft_trans_destroy(trans);
-		chain->use++;
-	}
 err2:
 	nf_tables_rule_destroy(&ctx, rule);
 err1:
