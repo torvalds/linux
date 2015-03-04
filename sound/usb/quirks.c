@@ -1120,17 +1120,24 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 /* Marantz/Denon USB DACs need a vendor cmd to switch
  * between PCM and native DSD mode
  */
+static bool is_marantz_denon_dac(unsigned int id)
+{
+	switch (id) {
+	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
+	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
+	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
+		return true;
+	}
+	return false;
+}
+
 int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 			      struct audioformat *fmt)
 {
 	struct usb_device *dev = subs->dev;
 	int err;
 
-	switch (subs->stream->chip->usb_id) {
-	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
-	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
-	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
-
+	if (is_marantz_denon_dac(subs->stream->chip->usb_id)) {
 		/* First switch to alt set 0, otherwise the mode switch cmd
 		 * will not be accepted by the DAC
 		 */
@@ -1203,17 +1210,10 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	/* Marantz/Denon devices with USB DAC functionality need a delay
 	 * after each class compliant request
 	 */
-	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x154e) &&
-	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS) {
-
-		switch (le16_to_cpu(dev->descriptor.idProduct)) {
-		case 0x1003: /* Denon DA300-USB */
-		case 0x3005: /* Marantz HD-DAC1 */
-		case 0x3006: /* Marantz SA-14S1 */
-			mdelay(20);
-			break;
-		}
-	}
+	if (is_marantz_denon_dac(USB_ID(le16_to_cpu(dev->descriptor.idVendor),
+					le16_to_cpu(dev->descriptor.idProduct)))
+	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+		mdelay(20);
 
 	/* Zoom R16/24 needs a tiny delay here, otherwise requests like
 	 * get/set frequency return as failed despite actually succeeding.
@@ -1268,15 +1268,9 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	}
 
 	/* Denon/Marantz devices with USB DAC functionality */
-	switch (chip->usb_id) {
-	case USB_ID(0x154e, 0x1003): /* Denon DA300-USB */
-	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
-	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
+	if (is_marantz_denon_dac(chip->usb_id)) {
 		if (fp->altsetting == 2)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
-		break;
-	default:
-		break;
 	}
 
 	return 0;
