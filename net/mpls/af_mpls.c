@@ -16,6 +16,7 @@
 #include <net/netns/generic.h>
 #include "internal.h"
 
+#define LABEL_NOT_SPECIFIED (1<<20)
 #define MAX_NEW_LABELS 2
 
 /* This maximum ha length copied from the definition of struct neighbour */
@@ -211,6 +212,19 @@ static struct packet_type mpls_packet_type __read_mostly = {
 	.func = mpls_forward,
 };
 
+struct mpls_route_config {
+	u32		rc_protocol;
+	u32		rc_ifindex;
+	u16		rc_via_family;
+	u16		rc_via_alen;
+	u8		rc_via[MAX_VIA_ALEN];
+	u32		rc_label;
+	u32		rc_output_labels;
+	u32		rc_output_label[MAX_NEW_LABELS];
+	u32		rc_nlflags;
+	struct nl_info	rc_nlinfo;
+};
+
 static struct mpls_route *mpls_rt_alloc(size_t alen)
 {
 	struct mpls_route *rt;
@@ -243,6 +257,125 @@ static void mpls_route_update(struct net *net, unsigned index,
 
 	/* If we removed a route free it now */
 	mpls_rt_free(old);
+}
+
+static unsigned find_free_label(struct net *net)
+{
+	unsigned index;
+	for (index = 16; index < net->mpls.platform_labels; index++) {
+		if (!net->mpls.platform_label[index])
+			return index;
+	}
+	return LABEL_NOT_SPECIFIED;
+}
+
+static int mpls_route_add(struct mpls_route_config *cfg)
+{
+	struct net *net = cfg->rc_nlinfo.nl_net;
+	struct net_device *dev = NULL;
+	struct mpls_route *rt, *old;
+	unsigned index;
+	int i;
+	int err = -EINVAL;
+
+	index = cfg->rc_label;
+
+	/* If a label was not specified during insert pick one */
+	if ((index == LABEL_NOT_SPECIFIED) &&
+	    (cfg->rc_nlflags & NLM_F_CREATE)) {
+		index = find_free_label(net);
+	}
+
+	/* The first 16 labels are reserved, and may not be set */
+	if (index < 16)
+		goto errout;
+
+	/* The full 20 bit range may not be supported. */
+	if (index >= net->mpls.platform_labels)
+		goto errout;
+
+	/* Ensure only a supported number of labels are present */
+	if (cfg->rc_output_labels > MAX_NEW_LABELS)
+		goto errout;
+
+	err = -ENODEV;
+	dev = dev_get_by_index(net, cfg->rc_ifindex);
+	if (!dev)
+		goto errout;
+
+	/* For now just support ethernet devices */
+	err = -EINVAL;
+	if ((dev->type != ARPHRD_ETHER) && (dev->type != ARPHRD_LOOPBACK))
+		goto errout;
+
+	err = -EINVAL;
+	if ((cfg->rc_via_family == AF_PACKET) &&
+	    (dev->addr_len != cfg->rc_via_alen))
+		goto errout;
+
+	/* Append makes no sense with mpls */
+	err = -EINVAL;
+	if (cfg->rc_nlflags & NLM_F_APPEND)
+		goto errout;
+
+	err = -EEXIST;
+	old = net->mpls.platform_label[index];
+	if ((cfg->rc_nlflags & NLM_F_EXCL) && old)
+		goto errout;
+
+	err = -EEXIST;
+	if (!(cfg->rc_nlflags & NLM_F_REPLACE) && old)
+		goto errout;
+
+	err = -ENOENT;
+	if (!(cfg->rc_nlflags & NLM_F_CREATE) && !old)
+		goto errout;
+
+	err = -ENOMEM;
+	rt = mpls_rt_alloc(cfg->rc_via_alen);
+	if (!rt)
+		goto errout;
+
+	rt->rt_labels = cfg->rc_output_labels;
+	for (i = 0; i < rt->rt_labels; i++)
+		rt->rt_label[i] = cfg->rc_output_label[i];
+	rt->rt_protocol = cfg->rc_protocol;
+	rt->rt_dev = dev;
+	rt->rt_via_family = cfg->rc_via_family;
+	memcpy(rt->rt_via, cfg->rc_via, cfg->rc_via_alen);
+
+	mpls_route_update(net, index, NULL, rt, &cfg->rc_nlinfo);
+
+	dev_put(dev);
+	return 0;
+
+errout:
+	if (dev)
+		dev_put(dev);
+	return err;
+}
+
+static int mpls_route_del(struct mpls_route_config *cfg)
+{
+	struct net *net = cfg->rc_nlinfo.nl_net;
+	unsigned index;
+	int err = -EINVAL;
+
+	index = cfg->rc_label;
+
+	/* The first 16 labels are reserved, and may not be removed */
+	if (index < 16)
+		goto errout;
+
+	/* The full 20 bit range may not be supported */
+	if (index >= net->mpls.platform_labels)
+		goto errout;
+
+	mpls_route_update(net, index, NULL, NULL, &cfg->rc_nlinfo);
+
+	err = 0;
+errout:
+	return err;
 }
 
 static void mpls_ifdown(struct net_device *dev)
