@@ -305,6 +305,7 @@ struct br_input_skb_cb {
 #endif
 
 	u16 frag_max_size;
+	bool proxyarp_replied;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
