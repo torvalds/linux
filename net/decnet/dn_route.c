@@ -743,15 +743,6 @@ out:
 	return NET_RX_DROP;
 }
 
-static int dn_to_neigh_output(struct sk_buff *skb)
-{
-	struct dst_entry *dst = skb_dst(skb);
-	struct dn_route *rt = (struct dn_route *) dst;
-	struct neighbour *n = rt->n;
-
-	return n->output(n, skb);
-}
-
 static int dn_output(struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);

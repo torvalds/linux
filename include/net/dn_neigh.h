@@ -22,6 +22,7 @@ int dn_neigh_router_hello(struct sk_buff *skb);
 int dn_neigh_endnode_hello(struct sk_buff *skb);
 void dn_neigh_pointopoint_hello(struct sk_buff *skb);
 int dn_neigh_elist(struct net_device *dev, unsigned char *ptr, int n);
+int dn_to_neigh_output(struct sk_buff *skb);
 
 extern struct neigh_table dn_neigh_table;
 
