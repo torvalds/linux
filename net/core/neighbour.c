@@ -397,25 +397,15 @@ struct neighbour *neigh_lookup(struct neigh_table *tbl, const void *pkey,
 			       struct net_device *dev)
 {
 	struct neighbour *n;
-	int key_len = tbl->key_len;
-	u32 hash_val;
-	struct neigh_hash_table *nht;
 
 	NEIGH_CACHE_STAT_INC(tbl, lookups);
 
 	rcu_read_lock_bh();
-	nht = rcu_dereference_bh(tbl->nht);
-	hash_val = tbl->hash(pkey, dev, nht->hash_rnd) >> (32 - nht->hash_shift);
-
-	for (n = rcu_dereference_bh(nht->hash_buckets[hash_val]);
-	     n != NULL;
-	     n = rcu_dereference_bh(n->next)) {
-		if (dev == n->dev && !memcmp(n->primary_key, pkey, key_len)) {
-			if (!atomic_inc_not_zero(&n->refcnt))
-				n = NULL;
-			NEIGH_CACHE_STAT_INC(tbl, hits);
-			break;
-		}
+	n = __neigh_lookup_noref(tbl, pkey, dev);
+	if (n) {
+		if (!atomic_inc_not_zero(&n->refcnt))
+			n = NULL;
+		NEIGH_CACHE_STAT_INC(tbl, hits);
 	}
 
 	rcu_read_unlock_bh();
@@ -2400,6 +2390,40 @@ void __neigh_for_each_release(struct neigh_table *tbl,
 	}
 }
 EXPORT_SYMBOL(__neigh_for_each_release);
+
+int neigh_xmit(int family, struct net_device *dev,
+	       const void *addr, struct sk_buff *skb)
+{
+	int err;
+	if (family == AF_PACKET) {
+		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+				      addr, NULL, skb->len);
+		if (err < 0)
+			goto out_kfree_skb;
+		err = dev_queue_xmit(skb);
+	} else {
+		struct neigh_table *tbl;
+		struct neighbour *neigh;
+
+		err = -ENETDOWN;
+		tbl = neigh_find_table(family);
+		if (!tbl)
+			goto out;
+		neigh = __neigh_lookup_noref(tbl, addr, dev);
+		if (!neigh)
+			neigh = __neigh_create(tbl, addr, dev, false);
+		err = PTR_ERR(neigh);
+		if (IS_ERR(neigh))
+			goto out_kfree_skb;
+		err = neigh->output(neigh, skb);
+	}
+out:
+	return err;
+out_kfree_skb:
+	kfree_skb(skb);
+	goto out;
+}
+EXPORT_SYMBOL(neigh_xmit);
 
 #ifdef CONFIG_PROC_FS
 
