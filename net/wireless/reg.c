@@ -128,9 +128,12 @@ static int reg_num_devs_support_basehint;
  * State variable indicating if the platform on which the devices
  * are attached is operating in an indoor environment. The state variable
  * is relevant for all registered devices.
- * (protected by RTNL)
  */
 static bool reg_is_indoor;
+static spinlock_t reg_indoor_lock;
+
+/* Used to track the userspace process controlling the indoor setting */
+static u32 reg_is_indoor_portid;
 
 static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 {
@@ -2288,13 +2291,48 @@ int regulatory_hint_user(const char *alpha2,
 	return 0;
 }
 
-int regulatory_hint_indoor_user(void)
+int regulatory_hint_indoor(bool is_indoor, u32 portid)
 {
+	spin_lock(&reg_indoor_lock);
 
+	/* It is possible that more than one user space process is trying to
+	 * configure the indoor setting. To handle such cases, clear the indoor
+	 * setting in case that some process does not think that the device
+	 * is operating in an indoor environment. In addition, if a user space
+	 * process indicates that it is controlling the indoor setting, save its
+	 * portid, i.e., make it the owner.
+	 */
+	reg_is_indoor = is_indoor;
+	if (reg_is_indoor) {
+		if (!reg_is_indoor_portid)
+			reg_is_indoor_portid = portid;
+	} else {
+		reg_is_indoor_portid = 0;
+	}
 
-	reg_is_indoor = true;
+	spin_unlock(&reg_indoor_lock);
+
+	if (!is_indoor)
+		reg_check_channels();
 
 	return 0;
+}
+
+void regulatory_netlink_notify(u32 portid)
+{
+	spin_lock(&reg_indoor_lock);
+
+	if (reg_is_indoor_portid != portid) {
+		spin_unlock(&reg_indoor_lock);
+		return;
+	}
+
+	reg_is_indoor = false;
+	reg_is_indoor_portid = 0;
+
+	spin_unlock(&reg_indoor_lock);
+
+	reg_check_channels();
 }
 
 /* Driver hints */
@@ -2464,7 +2502,17 @@ static void restore_regulatory_settings(bool reset_user)
 
 	ASSERT_RTNL();
 
-	reg_is_indoor = false;
+	/*
+	 * Clear the indoor setting in case that it is not controlled by user
+	 * space, as otherwise there is no guarantee that the device is still
+	 * operating in an indoor environment.
+	 */
+	spin_lock(&reg_indoor_lock);
+	if (reg_is_indoor && !reg_is_indoor_portid) {
+		reg_is_indoor = false;
+		reg_check_channels();
+	}
+	spin_unlock(&reg_indoor_lock);
 
 	reset_regdomains(true, &world_regdom);
 	restore_alpha2(alpha2, reset_user);
@@ -3061,6 +3109,7 @@ int __init regulatory_init(void)
 
 	spin_lock_init(&reg_requests_lock);
 	spin_lock_init(&reg_pending_beacons_lock);
+	spin_lock_init(&reg_indoor_lock);
 
 	reg_regdb_size_check();
 
