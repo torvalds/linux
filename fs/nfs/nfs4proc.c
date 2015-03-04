@@ -6897,9 +6897,13 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 
 	if (status == 0) {
 		clp->cl_clientid = res.clientid;
-		clp->cl_exchange_flags = (res.flags & ~EXCHGID4_FLAG_CONFIRMED_R);
-		if (!(res.flags & EXCHGID4_FLAG_CONFIRMED_R))
+		clp->cl_exchange_flags = res.flags;
+		/* Client ID is not confirmed */
+		if (!(res.flags & EXCHGID4_FLAG_CONFIRMED_R)) {
+			clear_bit(NFS4_SESSION_ESTABLISHED,
+					&clp->cl_session->session_state);
 			clp->cl_seqid = res.seqid;
+		}
 
 		kfree(clp->cl_serverowner);
 		clp->cl_serverowner = res.server_owner;
@@ -7231,6 +7235,9 @@ static void nfs4_update_session(struct nfs4_session *session,
 		struct nfs41_create_session_res *res)
 {
 	nfs4_copy_sessionid(&session->sess_id, &res->sessionid);
+	/* Mark client id and session as being confirmed */
+	session->clp->cl_exchange_flags |= EXCHGID4_FLAG_CONFIRMED_R;
+	set_bit(NFS4_SESSION_ESTABLISHED, &session->session_state);
 	session->flags = res->flags;
 	memcpy(&session->fc_attrs, &res->fc_attrs, sizeof(session->fc_attrs));
 	if (res->flags & SESSION4_BACK_CHAN)
@@ -7326,8 +7333,8 @@ int nfs4_proc_destroy_session(struct nfs4_session *session,
 	dprintk("--> nfs4_proc_destroy_session\n");
 
 	/* session is still being setup */
-	if (session->clp->cl_cons_state != NFS_CS_READY)
-		return status;
+	if (!test_and_clear_bit(NFS4_SESSION_ESTABLISHED, &session->session_state))
+		return 0;
 
 	status = rpc_call_sync(session->clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	trace_nfs4_destroy_session(session->clp, status);
