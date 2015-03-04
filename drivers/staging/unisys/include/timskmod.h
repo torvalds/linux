@@ -68,15 +68,6 @@
 #define HOSTADDRESS unsigned long long
 #endif
 
-/** Try to evaulate the provided expression, and do a RETINT(x) iff
- *  the expression evaluates to < 0.
- */
-#define ASSERT(cond)                                           \
-	do { if (!(cond))                                      \
-			HUHDRV("ASSERT failed - %s",	       \
-			       __stringify(cond));	       \
-	} while (0)
-
 #define sizeofmember(TYPE, MEMBER) (sizeof(((TYPE *)0)->MEMBER))
 /** "Covered quotient" function */
 #define COVQ(v, d)  (((v) + (d) - 1) / (d))

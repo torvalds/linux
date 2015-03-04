@@ -182,7 +182,7 @@ BOOL visor_periodic_work_stop(struct periodic_work *pw)
 			/* We get here if the delayed work was pending as
 			 * delayed work, but was NOT run.
 			 */
-			ASSERT(pw->is_scheduled);
+			WARN_ON(!pw->is_scheduled);
 			pw->is_scheduled = FALSE;
 		} else {
 			/* If we get here, either the delayed work:
