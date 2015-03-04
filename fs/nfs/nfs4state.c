@@ -346,9 +346,19 @@ int nfs41_discover_server_trunking(struct nfs_client *clp,
 	status = nfs4_proc_exchange_id(clp, cred);
 	if (status != NFS4_OK)
 		return status;
-	set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 
-	return nfs41_walk_client_list(clp, result, cred);
+	status = nfs41_walk_client_list(clp, result, cred);
+	if (status < 0)
+		return status;
+	if (clp != *result)
+		return 0;
+
+	set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	nfs4_schedule_state_manager(clp);
+	status = nfs_wait_client_init_complete(clp);
+	if (status < 0)
+		nfs_put_client(clp);
+	return status;
 }
 
 #endif /* CONFIG_NFS_V4_1 */
