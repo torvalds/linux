@@ -31,9 +31,7 @@
 #define __LINUX_RCUTREE_H
 
 void rcu_note_context_switch(void);
-#ifndef CONFIG_RCU_NOCB_CPU_ALL
 int rcu_needs_cpu(unsigned long *delta_jiffies);
-#endif /* #ifndef CONFIG_RCU_NOCB_CPU_ALL */
 void rcu_cpu_stall_reset(void);
 
 /*

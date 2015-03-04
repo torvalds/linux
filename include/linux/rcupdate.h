@@ -1153,13 +1153,13 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define kfree_rcu(ptr, rcu_head)					\
 	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
-#if defined(CONFIG_TINY_RCU) || defined(CONFIG_RCU_NOCB_CPU_ALL)
+#ifdef CONFIG_TINY_RCU
 static inline int rcu_needs_cpu(unsigned long *delta_jiffies)
 {
 	*delta_jiffies = ULONG_MAX;
 	return 0;
 }
-#endif /* #if defined(CONFIG_TINY_RCU) || defined(CONFIG_RCU_NOCB_CPU_ALL) */
+#endif /* #ifdef CONFIG_TINY_RCU */
 
 #if defined(CONFIG_RCU_NOCB_CPU_ALL)
 static inline bool rcu_is_nocb_cpu(int cpu) { return true; }
