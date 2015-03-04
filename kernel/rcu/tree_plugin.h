@@ -100,7 +100,7 @@ static void __init rcu_bootup_announce_oddness(void)
 #ifdef CONFIG_PREEMPT_RCU
 
 RCU_STATE_INITIALIZER(rcu_preempt, 'p', call_rcu);
-static struct rcu_state *rcu_state_p = &rcu_preempt_state;
+static struct rcu_state *const rcu_state_p = &rcu_preempt_state;
 
 static int rcu_preempted_readers_exp(struct rcu_node *rnp);
 static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
@@ -834,7 +834,7 @@ void exit_rcu(void)
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
-static struct rcu_state *rcu_state_p = &rcu_sched_state;
+static struct rcu_state *const rcu_state_p = &rcu_sched_state;
 
 /*
  * Tell them what RCU they are running.
