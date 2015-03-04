@@ -243,7 +243,7 @@ static int clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 	mask |= CFG_SRC_SEL_MASK | CFG_MODE_MASK;
 	cfg = f->pre_div << CFG_SRC_DIV_SHIFT;
 	cfg |= rcg->parent_map[f->src] << CFG_SRC_SEL_SHIFT;
-	if (rcg->mnd_width && f->n)
+	if (rcg->mnd_width && f->n && (f->m != f->n))
 		cfg |= CFG_MODE_DUAL_EDGE;
 	ret = regmap_update_bits(rcg->clkr.regmap,
 			rcg->cmd_rcgr + CFG_REG, mask, cfg);
