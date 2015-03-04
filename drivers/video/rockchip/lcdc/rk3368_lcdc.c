@@ -483,6 +483,13 @@ static int rk3368_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 	u16 post_dsp_vact_st_f1, post_dsp_vact_end_f1;
 	u16 post_h_fac, post_v_fac;
 
+	screen->post_dsp_stx = x_res * (100 - dev_drv->overscan.left) / 200;
+	screen->post_dsp_sty = y_res * (100 - dev_drv->overscan.top) / 200;
+	screen->post_xsize = x_res *
+	    (dev_drv->overscan.left + dev_drv->overscan.right) / 200;
+	screen->post_ysize = y_res *
+	    (dev_drv->overscan.top + dev_drv->overscan.bottom) / 200;
+
 	h_total = screen->mode.hsync_len + screen->mode.left_margin +
 	    x_res + screen->mode.right_margin;
 	v_total = screen->mode.vsync_len + screen->mode.upper_margin +
@@ -1485,13 +1492,6 @@ static int rk3368_config_timing(struct rk_lcdc_driver *dev_drv)
 
 	h_total = hsync_len + left_margin + x_res + right_margin;
 	v_total = vsync_len + upper_margin + y_res + lower_margin;
-
-	screen->post_dsp_stx = x_res * (100 - screen->overscan.left) / 200;
-	screen->post_dsp_sty = y_res * (100 - screen->overscan.top) / 200;
-	screen->post_xsize = x_res *
-	    (screen->overscan.left + screen->overscan.right) / 200;
-	screen->post_ysize = y_res *
-	    (screen->overscan.top + screen->overscan.bottom) / 200;
 
 	mask = m_DSP_HS_PW | m_DSP_HTOTAL;
 	val = v_DSP_HS_PW(hsync_len) | v_DSP_HTOTAL(h_total);
@@ -4196,6 +4196,14 @@ static int rk3368_lcdc_backlight_close(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 
+static int rk3368_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
+				    struct overscan *overscan)
+{
+        rk3368_lcdc_post_cfg(dev_drv);
+
+        return 0;
+}
+
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open = rk3368_lcdc_open,
 	.win_direct_en = rk3368_lcdc_win_direct_en,
@@ -4235,6 +4243,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dsp_black = rk3368_lcdc_dsp_black,
 	.backlight_close = rk3368_lcdc_backlight_close,
 	.mmu_en    = rk3368_lcdc_mmu_en,
+	.set_overscan   = rk3368_lcdc_set_overscan,
 };
 
 #ifdef LCDC_IRQ_EMPTY_DEBUG
