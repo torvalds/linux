@@ -255,20 +255,15 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_disable_pin(dapm, "LINEINR");
 
 	/* Headset and button jack detection */
-	ret_val = snd_soc_jack_new(runtime->codec, "Intel(R) MID Audio Jack",
-			SND_JACK_HEADSET | SND_JACK_BTN_0 |
-			SND_JACK_BTN_1, &mfld_jack);
+	ret_val = snd_soc_card_jack_new(runtime->card,
+			"Intel(R) MID Audio Jack", SND_JACK_HEADSET |
+			SND_JACK_BTN_0 | SND_JACK_BTN_1, &mfld_jack,
+			mfld_jack_pins, ARRAY_SIZE(mfld_jack_pins));
 	if (ret_val) {
 		pr_err("jack creation failed\n");
 		return ret_val;
 	}
 
-	ret_val = snd_soc_jack_add_pins(&mfld_jack,
-			ARRAY_SIZE(mfld_jack_pins), mfld_jack_pins);
-	if (ret_val) {
-		pr_err("adding jack pins failed\n");
-		return ret_val;
-	}
 	ret_val = snd_soc_jack_add_zones(&mfld_jack,
 			ARRAY_SIZE(mfld_zones), mfld_zones);
 	if (ret_val) {
