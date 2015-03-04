@@ -1850,7 +1850,7 @@ static void slic_xmit_build_request(struct adapter *adapter,
 
 	ihcmd = &hcmd->cmd64;
 
-	ihcmd->flags = (adapter->port << IHFLG_IFSHFT);
+	ihcmd->flags = adapter->port << IHFLG_IFSHFT;
 	ihcmd->command = IHCMD_XMT_REQ;
 	ihcmd->u.slic_buffers.totlen = skb->len;
 	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
