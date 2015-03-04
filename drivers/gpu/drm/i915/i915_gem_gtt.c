@@ -27,6 +27,7 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 
@@ -102,6 +103,9 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 
 	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
 	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
+
+	if (intel_vgpu_active(dev))
+		has_full_ppgtt = false; /* emulation is too hard */
 
 	/*
 	 * We don't allow disabling PPGTT for gen9+ as it's a requirement for
@@ -375,7 +379,7 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 	pt_vaddr = NULL;
 
 	for_each_sg_page(pages->sgl, &sg_iter, pages->nents, 0) {
-		if (WARN_ON(pdpe >= GEN8_LEGACY_PDPS))
+		if (WARN_ON(pdpe >= GEN8_LEGACY_PDPES))
 			break;
 
 		if (pt_vaddr == NULL)
@@ -486,7 +490,7 @@ bail:
 static int gen8_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt,
 					   const int max_pdp)
 {
-	struct page **pt_pages[GEN8_LEGACY_PDPS];
+	struct page **pt_pages[GEN8_LEGACY_PDPES];
 	int i, ret;
 
 	for (i = 0; i < max_pdp; i++) {
@@ -537,7 +541,7 @@ static int gen8_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt,
 		return -ENOMEM;
 
 	ppgtt->num_pd_pages = 1 << get_order(max_pdp << PAGE_SHIFT);
-	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPS);
+	BUG_ON(ppgtt->num_pd_pages > GEN8_LEGACY_PDPES);
 
 	return 0;
 }
@@ -797,6 +801,16 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	return 0;
 }
 
+static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
+			  struct intel_engine_cs *ring)
+{
+	struct drm_i915_private *dev_priv = to_i915(ppgtt->base.dev);
+
+	I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+	I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
+	return 0;
+}
+
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct intel_engine_cs *ring)
 {
@@ -1032,11 +1046,14 @@ alloc:
 		goto alloc;
 	}
 
+	if (ret)
+		return ret;
+
 	if (ppgtt->node.start < dev_priv->gtt.mappable_end)
 		DRM_DEBUG("Forced to use aperture for PDEs\n");
 
 	ppgtt->num_pd_entries = GEN6_PPGTT_PD_ENTRIES;
-	return ret;
+	return 0;
 }
 
 static int gen6_ppgtt_allocate_page_tables(struct i915_hw_ppgtt *ppgtt)
@@ -1122,6 +1139,9 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ppgtt->switch_mm = gen7_mm_switch;
 	} else
 		BUG();
+
+	if (intel_vgpu_active(dev))
+		ppgtt->switch_mm = vgpu_mm_switch;
 
 	ret = gen6_ppgtt_alloc(ppgtt);
 	if (ret)
@@ -1753,6 +1773,16 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 
 	/* Subtract the guard page ... */
 	drm_mm_init(&ggtt_vm->mm, start, end - start - PAGE_SIZE);
+
+	dev_priv->gtt.base.start = start;
+	dev_priv->gtt.base.total = end - start;
+
+	if (intel_vgpu_active(dev)) {
+		ret = intel_vgt_balloon(dev);
+		if (ret)
+			return ret;
+	}
+
 	if (!HAS_LLC(dev))
 		dev_priv->gtt.base.mm.color_adjust = i915_gtt_color_adjust;
 
@@ -1771,9 +1801,6 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 		}
 		vma->bound |= GLOBAL_BIND;
 	}
-
-	dev_priv->gtt.base.start = start;
-	dev_priv->gtt.base.total = end - start;
 
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &ggtt_vm->mm, hole_start, hole_end) {
@@ -1826,6 +1853,9 @@ void i915_global_gtt_cleanup(struct drm_device *dev)
 	}
 
 	if (drm_mm_initialized(&vm->mm)) {
+		if (intel_vgpu_active(dev))
+			intel_vgt_deballoon();
+
 		drm_mm_takedown(&vm->mm);
 		list_del(&vm->global_link);
 	}

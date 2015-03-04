@@ -31,6 +31,7 @@
 #define _I915_DRV_H_
 
 #include <uapi/drm/i915_drm.h>
+#include <uapi/drm/drm_fourcc.h>
 
 #include "i915_reg.h"
 #include "intel_bios.h"
@@ -55,7 +56,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150130"
+#define DRIVER_DATE		"20150214"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -772,10 +773,10 @@ struct intel_context {
 };
 
 struct i915_fbc {
-	unsigned long size;
+	unsigned long uncompressed_size;
 	unsigned threshold;
 	unsigned int fb_id;
-	enum plane plane;
+	struct intel_crtc *crtc;
 	int y;
 
 	struct drm_mm_node compressed_fb;
@@ -1640,6 +1641,10 @@ struct i915_workarounds {
 	u32 count;
 };
 
+struct i915_virtual_gpu {
+	bool active;
+};
+
 struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -1651,6 +1656,8 @@ struct drm_i915_private {
 	void __iomem *regs;
 
 	struct intel_uncore uncore;
+
+	struct i915_virtual_gpu vgpu;
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PORTS];
 
@@ -2153,6 +2160,9 @@ struct drm_i915_gem_request {
 	/** file_priv list entry for this request */
 	struct list_head client_list;
 
+	/** process identifier submitting this request */
+	struct pid *pid;
+
 	uint32_t uniq;
 
 	/**
@@ -2339,6 +2349,7 @@ struct drm_i915_cmd_table {
 })
 #define INTEL_INFO(p) 	(&__I915__(p)->info)
 #define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
+#define INTEL_REVID(p)	(__I915__(p)->dev->pdev->revision)
 
 #define IS_I830(dev)		(INTEL_DEVID(dev) == 0x3577)
 #define IS_845G(dev)		(INTEL_DEVID(dev) == 0x2562)
@@ -2361,9 +2372,6 @@ struct drm_i915_cmd_table {
 #define IS_IVB_GT1(dev)		(INTEL_DEVID(dev) == 0x0156 || \
 				 INTEL_DEVID(dev) == 0x0152 || \
 				 INTEL_DEVID(dev) == 0x015a)
-#define IS_SNB_GT1(dev)		(INTEL_DEVID(dev) == 0x0102 || \
-				 INTEL_DEVID(dev) == 0x0106 || \
-				 INTEL_DEVID(dev) == 0x010A)
 #define IS_VALLEYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview)
 #define IS_CHERRYVIEW(dev)	(INTEL_INFO(dev)->is_valleyview && IS_GEN8(dev))
 #define IS_HASWELL(dev)	(INTEL_INFO(dev)->is_haswell)
@@ -2385,6 +2393,12 @@ struct drm_i915_cmd_table {
 #define IS_HSW_ULX(dev)		(INTEL_DEVID(dev) == 0x0A0E || \
 				 INTEL_DEVID(dev) == 0x0A1E)
 #define IS_PRELIMINARY_HW(intel_info) ((intel_info)->is_preliminary)
+
+#define SKL_REVID_A0		(0x0)
+#define SKL_REVID_B0		(0x1)
+#define SKL_REVID_C0		(0x2)
+#define SKL_REVID_D0		(0x3)
+#define SKL_REVID_E0		(0x4)
 
 /*
  * The genX designation typically refers to the render engine, so render
@@ -2493,8 +2507,6 @@ extern int i915_max_ioctl;
 
 extern int i915_suspend_legacy(struct drm_device *dev, pm_message_t state);
 extern int i915_resume_legacy(struct drm_device *dev);
-extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
-extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
 
 /* i915_params.c */
 struct i915_params {
@@ -2577,6 +2589,10 @@ void intel_uncore_forcewake_get(struct drm_i915_private *dev_priv,
 void intel_uncore_forcewake_put(struct drm_i915_private *dev_priv,
 				enum forcewake_domains domains);
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
+static inline bool intel_vgpu_active(struct drm_device *dev)
+{
+	return to_i915(dev)->vgpu.active;
+}
 
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,
@@ -3182,8 +3198,7 @@ extern void i915_redisable_vga(struct drm_device *dev);
 extern void i915_redisable_vga_power_on(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);
-extern void gen6_set_rps(struct drm_device *dev, u8 val);
-extern void valleyview_set_rps(struct drm_device *dev, u8 val);
+extern void intel_set_rps(struct drm_device *dev, u8 val);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);
 extern void intel_detect_pch(struct drm_device *dev);
@@ -3195,8 +3210,6 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 int i915_get_reset_stats_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file);
-
-void intel_notify_mmio_flip(struct intel_engine_cs *ring);
 
 /* overlay */
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);

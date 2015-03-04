@@ -854,7 +854,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 
 
 		/* recovery disables */
-		I915_WRITE(MIPI_EOT_DISABLE(port), val);
+		I915_WRITE(MIPI_EOT_DISABLE(port), tmp);
 
 		/* in terms of low power clock */
 		I915_WRITE(MIPI_INIT_COUNT(port), intel_dsi->init_count);

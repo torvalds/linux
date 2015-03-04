@@ -23,6 +23,7 @@
 
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "i915_vgpu.h"
 
 #include <linux/pm_runtime.h>
 
@@ -328,8 +329,9 @@ static void intel_uncore_ellc_detect(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if ((IS_HASWELL(dev) || IS_BROADWELL(dev)) &&
-	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) == 1)) {
+	if ((IS_HASWELL(dev) || IS_BROADWELL(dev) ||
+	     INTEL_INFO(dev)->gen >= 9) &&
+	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) & EDRAM_ENABLED)) {
 		/* The docs do not explain exactly how the calculation can be
 		 * made. It is somewhat guessable, but for now, it's always
 		 * 128MB.
@@ -640,6 +642,14 @@ static inline void __force_wake_get(struct drm_i915_private *dev_priv,
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
 }
 
+#define __vgpu_read(x) \
+static u##x \
+vgpu_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
+	GEN6_READ_HEADER(x); \
+	val = __raw_i915_read##x(dev_priv, reg); \
+	GEN6_READ_FOOTER; \
+}
+
 #define __gen6_read(x) \
 static u##x \
 gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
@@ -703,6 +713,10 @@ gen9_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	GEN6_READ_FOOTER; \
 }
 
+__vgpu_read(8)
+__vgpu_read(16)
+__vgpu_read(32)
+__vgpu_read(64)
 __gen9_read(8)
 __gen9_read(16)
 __gen9_read(32)
@@ -724,6 +738,7 @@ __gen6_read(64)
 #undef __chv_read
 #undef __vlv_read
 #undef __gen6_read
+#undef __vgpu_read
 #undef GEN6_READ_FOOTER
 #undef GEN6_READ_HEADER
 
@@ -804,6 +819,14 @@ hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	} \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
 	hsw_unclaimed_reg_detect(dev_priv); \
+	GEN6_WRITE_FOOTER; \
+}
+
+#define __vgpu_write(x) \
+static void vgpu_write##x(struct drm_i915_private *dev_priv, \
+			  off_t reg, u##x val, bool trace) { \
+	GEN6_WRITE_HEADER; \
+	__raw_i915_write##x(dev_priv, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -924,12 +947,17 @@ __gen6_write(8)
 __gen6_write(16)
 __gen6_write(32)
 __gen6_write(64)
+__vgpu_write(8)
+__vgpu_write(16)
+__vgpu_write(32)
+__vgpu_write(64)
 
 #undef __gen9_write
 #undef __chv_write
 #undef __gen8_write
 #undef __hsw_write
 #undef __gen6_write
+#undef __vgpu_write
 #undef GEN6_WRITE_FOOTER
 #undef GEN6_WRITE_HEADER
 
@@ -972,6 +1000,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 		d->val_set = FORCEWAKE_KERNEL;
 		d->val_clear = 0;
 	} else {
+		/* WaRsClearFWBitsAtReset:bdw,skl */
 		d->val_reset = _MASKED_BIT_DISABLE(0xffff);
 		d->val_set = _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL);
 		d->val_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
@@ -1082,6 +1111,8 @@ void intel_uncore_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	i915_check_vgpu(dev);
+
 	intel_uncore_ellc_detect(dev);
 	intel_uncore_fw_domains_init(dev);
 	__intel_uncore_early_sanitize(dev, false);
@@ -1128,6 +1159,11 @@ void intel_uncore_init(struct drm_device *dev)
 		ASSIGN_WRITE_MMIO_VFUNCS(gen2);
 		ASSIGN_READ_MMIO_VFUNCS(gen2);
 		break;
+	}
+
+	if (intel_vgpu_active(dev)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(vgpu);
+		ASSIGN_READ_MMIO_VFUNCS(vgpu);
 	}
 
 	i915_check_and_clear_faults(dev);

@@ -630,6 +630,7 @@ struct drm_gem_open {
  */
 #define DRM_CAP_CURSOR_WIDTH		0x8
 #define DRM_CAP_CURSOR_HEIGHT		0x9
+#define DRM_CAP_ADDFB2_MODIFIERS	0x10
 
 /** DRM_IOCTL_GET_CAP ioctl argument type */
 struct drm_get_cap {

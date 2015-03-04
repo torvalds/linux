@@ -254,8 +254,10 @@ u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj)
 	return lrca >> 12;
 }
 
-static uint64_t execlists_ctx_descriptor(struct drm_i915_gem_object *ctx_obj)
+static uint64_t execlists_ctx_descriptor(struct intel_engine_cs *ring,
+					 struct drm_i915_gem_object *ctx_obj)
 {
+	struct drm_device *dev = ring->dev;
 	uint64_t desc;
 	uint64_t lrca = i915_gem_obj_ggtt_offset(ctx_obj);
 
@@ -272,6 +274,13 @@ static uint64_t execlists_ctx_descriptor(struct drm_i915_gem_object *ctx_obj)
 	 * signalling between Command Streamers */
 	/* desc |= GEN8_CTX_FORCE_RESTORE; */
 
+	/* WaEnableForceRestoreInCtxtDescForVCS:skl */
+	if (IS_GEN9(dev) &&
+	    INTEL_REVID(dev) <= SKL_REVID_B0 &&
+	    (ring->id == BCS || ring->id == VCS ||
+	    ring->id == VECS || ring->id == VCS2))
+		desc |= GEN8_CTX_FORCE_RESTORE;
+
 	return desc;
 }
 
@@ -286,13 +295,13 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 
 	/* XXX: You must always write both descriptors in the order below. */
 	if (ctx_obj1)
-		temp = execlists_ctx_descriptor(ctx_obj1);
+		temp = execlists_ctx_descriptor(ring, ctx_obj1);
 	else
 		temp = 0;
 	desc[1] = (u32)(temp >> 32);
 	desc[0] = (u32)temp;
 
-	temp = execlists_ctx_descriptor(ctx_obj0);
+	temp = execlists_ctx_descriptor(ring, ctx_obj0);
 	desc[3] = (u32)(temp >> 32);
 	desc[2] = (u32)temp;
 
@@ -776,7 +785,7 @@ int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
-/**
+/*
  * intel_logical_ring_advance_and_submit() - advance the tail and submit the workload
  * @ringbuf: Logical Ringbuffer to advance.
  *
@@ -785,9 +794,10 @@ int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
  * on a queue waiting for the ELSP to be ready to accept a new context submission. At that
  * point, the tail *inside* the context is updated and the ELSP written to.
  */
-void intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
-					   struct intel_context *ctx,
-					   struct drm_i915_gem_request *request)
+static void
+intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
+				      struct intel_context *ctx,
+				      struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 
@@ -1140,6 +1150,17 @@ static int gen8_init_render_ring(struct intel_engine_cs *ring)
 	return init_workarounds_ring(ring);
 }
 
+static int gen9_init_render_ring(struct intel_engine_cs *ring)
+{
+	int ret;
+
+	ret = gen8_init_common_ring(ring);
+	if (ret)
+		return ret;
+
+	return init_workarounds_ring(ring);
+}
+
 static int gen8_emit_bb_start(struct intel_ringbuffer *ringbuf,
 			      struct intel_context *ctx,
 			      u64 offset, unsigned flags)
@@ -1316,6 +1337,39 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
+static int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
+					      struct intel_context *ctx)
+{
+	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
+	struct render_state so;
+	struct drm_i915_file_private *file_priv = ctx->file_priv;
+	struct drm_file *file = file_priv ? file_priv->file : NULL;
+	int ret;
+
+	ret = i915_gem_render_state_prepare(ring, &so);
+	if (ret)
+		return ret;
+
+	if (so.rodata == NULL)
+		return 0;
+
+	ret = ring->emit_bb_start(ringbuf,
+			ctx,
+			so.ggtt_offset,
+			I915_DISPATCH_SECURE);
+	if (ret)
+		goto out;
+
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
+
+	ret = __i915_add_request(ring, file, so.obj);
+	/* intel_logical_ring_add_request moves object to inactive if it
+	 * fails */
+out:
+	i915_gem_render_state_fini(&so);
+	return ret;
+}
+
 static int gen8_init_rcs_context(struct intel_engine_cs *ring,
 		       struct intel_context *ctx)
 {
@@ -1399,7 +1453,10 @@ static int logical_render_ring_init(struct drm_device *dev)
 	if (HAS_L3_DPF(dev))
 		ring->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
-	ring->init_hw = gen8_init_render_ring;
+	if (INTEL_INFO(dev)->gen >= 9)
+		ring->init_hw = gen9_init_render_ring;
+	else
+		ring->init_hw = gen8_init_render_ring;
 	ring->init_context = gen8_init_rcs_context;
 	ring->cleanup = intel_fini_pipe_control;
 	ring->get_seqno = gen8_get_seqno;
@@ -1581,39 +1638,6 @@ cleanup_render_ring:
 	return ret;
 }
 
-int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
-				       struct intel_context *ctx)
-{
-	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
-	struct render_state so;
-	struct drm_i915_file_private *file_priv = ctx->file_priv;
-	struct drm_file *file = file_priv ? file_priv->file : NULL;
-	int ret;
-
-	ret = i915_gem_render_state_prepare(ring, &so);
-	if (ret)
-		return ret;
-
-	if (so.rodata == NULL)
-		return 0;
-
-	ret = ring->emit_bb_start(ringbuf,
-			ctx,
-			so.ggtt_offset,
-			I915_DISPATCH_SECURE);
-	if (ret)
-		goto out;
-
-	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
-
-	ret = __i915_add_request(ring, file, so.obj);
-	/* intel_logical_ring_add_request moves object to inactive if it
-	 * fails */
-out:
-	i915_gem_render_state_fini(&so);
-	return ret;
-}
-
 static int
 populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *ring, struct intel_ringbuffer *ringbuf)
@@ -1659,7 +1683,8 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	reg_state[CTX_LRI_HEADER_0] |= MI_LRI_FORCE_POSTED;
 	reg_state[CTX_CONTEXT_CONTROL] = RING_CONTEXT_CONTROL(ring);
 	reg_state[CTX_CONTEXT_CONTROL+1] =
-			_MASKED_BIT_ENABLE((1<<3) | MI_RESTORE_INHIBIT);
+		_MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
+				CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 	reg_state[CTX_RING_HEAD] = RING_HEAD(ring->mmio_base);
 	reg_state[CTX_RING_HEAD+1] = 0;
 	reg_state[CTX_RING_TAIL] = RING_TAIL(ring->mmio_base);

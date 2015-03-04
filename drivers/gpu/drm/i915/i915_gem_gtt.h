@@ -88,7 +88,7 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define GEN8_PDE_MASK			0x1ff
 #define GEN8_PTE_SHIFT			12
 #define GEN8_PTE_MASK			0x1ff
-#define GEN8_LEGACY_PDPS		4
+#define GEN8_LEGACY_PDPES		4
 #define GEN8_PTES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_gtt_pte_t))
 #define GEN8_PDES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_ppgtt_pde_t))
 
@@ -273,16 +273,16 @@ struct i915_hw_ppgtt {
 	unsigned num_pd_pages; /* gen8+ */
 	union {
 		struct page **pt_pages;
-		struct page **gen8_pt_pages[GEN8_LEGACY_PDPS];
+		struct page **gen8_pt_pages[GEN8_LEGACY_PDPES];
 	};
 	struct page *pd_pages;
 	union {
 		uint32_t pd_offset;
-		dma_addr_t pd_dma_addr[GEN8_LEGACY_PDPS];
+		dma_addr_t pd_dma_addr[GEN8_LEGACY_PDPES];
 	};
 	union {
 		dma_addr_t *pt_dma_addr;
-		dma_addr_t *gen8_pt_dma_addr[4];
+		dma_addr_t *gen8_pt_dma_addr[GEN8_LEGACY_PDPES];
 	};
 
 	struct drm_i915_file_private *file_priv;

@@ -29,6 +29,7 @@
 #include <drm/drm_vma_manager.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include <linux/oom.h>
@@ -2492,6 +2493,8 @@ int __i915_add_request(struct intel_engine_cs *ring,
 		list_add_tail(&request->client_list,
 			      &file_priv->mm.request_list);
 		spin_unlock(&file_priv->mm.lock);
+
+		request->pid = get_pid(task_pid(current));
 	}
 
 	trace_i915_gem_request_add(request);
@@ -2571,6 +2574,8 @@ static void i915_gem_free_request(struct drm_i915_gem_request *request)
 {
 	list_del(&request->list);
 	i915_gem_request_remove_from_client(request);
+
+	put_pid(request->pid);
 
 	i915_gem_request_unreference(request);
 }
@@ -4986,6 +4991,10 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 16;
 	else
 		dev_priv->num_fence_regs = 8;
+
+	if (intel_vgpu_active(dev))
+		dev_priv->num_fence_regs =
+				I915_READ(vgtif_reg(avail_rs.fence_num));
 
 	/* Initialize fence registers to zero */
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);

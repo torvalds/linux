@@ -502,6 +502,68 @@ static void ring_setup_phys_status_page(struct intel_engine_cs *ring)
 	I915_WRITE(HWS_PGA, addr);
 }
 
+static void intel_ring_setup_status_page(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 mmio = 0;
+
+	/* The ring status page addresses are no longer next to the rest of
+	 * the ring registers as of gen7.
+	 */
+	if (IS_GEN7(dev)) {
+		switch (ring->id) {
+		case RCS:
+			mmio = RENDER_HWS_PGA_GEN7;
+			break;
+		case BCS:
+			mmio = BLT_HWS_PGA_GEN7;
+			break;
+		/*
+		 * VCS2 actually doesn't exist on Gen7. Only shut up
+		 * gcc switch check warning
+		 */
+		case VCS2:
+		case VCS:
+			mmio = BSD_HWS_PGA_GEN7;
+			break;
+		case VECS:
+			mmio = VEBOX_HWS_PGA_GEN7;
+			break;
+		}
+	} else if (IS_GEN6(ring->dev)) {
+		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
+	} else {
+		/* XXX: gen8 returns to sanity */
+		mmio = RING_HWS_PGA(ring->mmio_base);
+	}
+
+	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
+	POSTING_READ(mmio);
+
+	/*
+	 * Flush the TLB for this page
+	 *
+	 * FIXME: These two bits have disappeared on gen8, so a question
+	 * arises: do we still need this and if so how should we go about
+	 * invalidating the TLB?
+	 */
+	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8) {
+		u32 reg = RING_INSTPM(ring->mmio_base);
+
+		/* ring should be idle before issuing a sync flush*/
+		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
+
+		I915_WRITE(reg,
+			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
+					      INSTPM_SYNC_FLUSH));
+		if (wait_for((I915_READ(reg) & INSTPM_SYNC_FLUSH) == 0,
+			     1000))
+			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
+				  ring->name);
+	}
+}
+
 static bool stop_ring(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = to_i915(ring->dev);
@@ -788,12 +850,14 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 * workaround for for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
-	/* WaForceEnableNonCoherent:bdw */
-	/* WaHdcDisableFetchWhenMasked:bdw */
-	/* WaDisableFenceDestinationToSLM:bdw (GT3 pre-production) */
 	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  /* WaForceEnableNonCoherent:bdw */
 			  HDC_FORCE_NON_COHERENT |
+			  /* WaForceContextSaveRestoreNonCoherent:bdw */
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT |
+			  /* WaHdcDisableFetchWhenMasked:bdw */
 			  HDC_DONOT_FETCH_MEM_WHEN_MASKED |
+			  /* WaDisableFenceDestinationToSLM:bdw (pre-prod) */
 			  (IS_BDW_GT3(dev) ? HDC_FENCE_DEST_SLM_DISABLE : 0));
 
 	/* From the Haswell PRM, Command Reference: Registers, CACHE_MODE_0:
@@ -870,6 +934,78 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 			    GEN6_WIZ_HASHING_MASK,
 			    GEN6_WIZ_HASHING_16x4);
 
+	if (INTEL_REVID(dev) == SKL_REVID_C0 ||
+	    INTEL_REVID(dev) == SKL_REVID_D0)
+		/* WaBarrierPerformanceFixDisable:skl */
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FENCE_DEST_SLM_DISABLE |
+				  HDC_BARRIER_PERFORMANCE_DISABLE);
+
+	return 0;
+}
+
+static int gen9_init_workarounds(struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* WaDisablePartialInstShootdown:skl */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
+			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
+
+	/* Syncing dependencies between camera and graphics */
+	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
+			  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
+
+	if (INTEL_REVID(dev) == SKL_REVID_A0 ||
+	    INTEL_REVID(dev) == SKL_REVID_B0) {
+		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl */
+		WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
+				  GEN9_DG_MIRROR_FIX_ENABLE);
+	}
+
+	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) {
+		/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl */
+		WA_SET_BIT_MASKED(GEN7_COMMON_SLICE_CHICKEN1,
+				  GEN9_RHWO_OPTIMIZATION_DISABLE);
+		WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN0,
+				  DISABLE_PIXEL_MASK_CAMMING);
+	}
+
+	if (INTEL_REVID(dev) >= SKL_REVID_C0) {
+		/* WaEnableYV12BugFixInHalfSliceChicken7:skl */
+		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
+				  GEN9_ENABLE_YV12_BUGFIX);
+	}
+
+	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
+		/*
+		 *Use Force Non-Coherent whenever executing a 3D context. This
+		 * is a workaround for a possible hang in the unlikely event
+		 * a TLB invalidation occurs during a PSD flush.
+		 */
+		/* WaForceEnableNonCoherent:skl */
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FORCE_NON_COHERENT);
+	}
+
+	/* Wa4x4STCOptimizationDisable:skl */
+	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
+
+	/* WaDisablePartialResolveInVc:skl */
+	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE);
+
+	/* WaCcsTlbPrefetchDisable:skl */
+	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
+			  GEN9_CCS_TLB_PREFETCH_ENABLE);
+
+	return 0;
+}
+
+static int skl_init_workarounds(struct intel_engine_cs *ring)
+{
+	gen9_init_workarounds(ring);
+
 	return 0;
 }
 
@@ -887,6 +1023,11 @@ int init_workarounds_ring(struct intel_engine_cs *ring)
 
 	if (IS_CHERRYVIEW(dev))
 		return chv_init_workarounds(ring);
+
+	if (IS_SKYLAKE(dev))
+		return skl_init_workarounds(ring);
+	else if (IS_GEN9(dev))
+		return gen9_init_workarounds(ring);
 
 	return 0;
 }
@@ -1384,68 +1525,6 @@ i8xx_ring_put_irq(struct intel_engine_cs *ring)
 		POSTING_READ16(IMR);
 	}
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
-}
-
-void intel_ring_setup_status_page(struct intel_engine_cs *ring)
-{
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	u32 mmio = 0;
-
-	/* The ring status page addresses are no longer next to the rest of
-	 * the ring registers as of gen7.
-	 */
-	if (IS_GEN7(dev)) {
-		switch (ring->id) {
-		case RCS:
-			mmio = RENDER_HWS_PGA_GEN7;
-			break;
-		case BCS:
-			mmio = BLT_HWS_PGA_GEN7;
-			break;
-		/*
-		 * VCS2 actually doesn't exist on Gen7. Only shut up
-		 * gcc switch check warning
-		 */
-		case VCS2:
-		case VCS:
-			mmio = BSD_HWS_PGA_GEN7;
-			break;
-		case VECS:
-			mmio = VEBOX_HWS_PGA_GEN7;
-			break;
-		}
-	} else if (IS_GEN6(ring->dev)) {
-		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
-	} else {
-		/* XXX: gen8 returns to sanity */
-		mmio = RING_HWS_PGA(ring->mmio_base);
-	}
-
-	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
-	POSTING_READ(mmio);
-
-	/*
-	 * Flush the TLB for this page
-	 *
-	 * FIXME: These two bits have disappeared on gen8, so a question
-	 * arises: do we still need this and if so how should we go about
-	 * invalidating the TLB?
-	 */
-	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 8) {
-		u32 reg = RING_INSTPM(ring->mmio_base);
-
-		/* ring should be idle before issuing a sync flush*/
-		WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
-
-		I915_WRITE(reg,
-			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
-					      INSTPM_SYNC_FLUSH));
-		if (wait_for((I915_READ(reg) & INSTPM_SYNC_FLUSH) == 0,
-			     1000))
-			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
-				  ring->name);
-	}
 }
 
 static int
@@ -2612,18 +2691,12 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 }
 
 /**
- * Initialize the second BSD ring for Broadwell GT3.
- * It is noted that this only exists on Broadwell GT3.
+ * Initialize the second BSD ring (eg. Broadwell GT3, Skylake GT3)
  */
 int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring = &dev_priv->ring[VCS2];
-
-	if ((INTEL_INFO(dev)->gen != 8)) {
-		DRM_ERROR("No dual-BSD ring on non-BDW machine\n");
-		return -EINVAL;
-	}
 
 	ring->name = "bsd2 ring";
 	ring->id = VCS2;

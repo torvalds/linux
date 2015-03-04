@@ -258,6 +258,7 @@ struct intel_plane_state {
 };
 
 struct intel_initial_plane_config {
+	struct intel_framebuffer *fb;
 	unsigned int tiling;
 	int size;
 	u32 base;
@@ -710,7 +711,7 @@ intel_get_crtc_for_plane(struct drm_device *dev, int plane)
 struct intel_unpin_work {
 	struct work_struct work;
 	struct drm_crtc *crtc;
-	struct drm_i915_gem_object *old_fb_obj;
+	struct drm_framebuffer *old_fb;
 	struct drm_i915_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
 	atomic_t pending;
@@ -878,7 +879,8 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 }
 
 int intel_fb_align_height(struct drm_device *dev, int height,
-			  unsigned int tiling);
+			  uint32_t pixel_format,
+			  uint64_t fb_format_modifier);
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 
 
@@ -932,7 +934,6 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 int intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 			       struct drm_framebuffer *fb,
 			       struct intel_engine_cs *pipelined);
-void intel_unpin_fb_obj(struct drm_i915_gem_object *obj);
 struct drm_framebuffer *
 __intel_framebuffer_create(struct drm_device *dev,
 			   struct drm_mode_fb_cmd2 *mode_cmd,
@@ -1017,7 +1018,6 @@ void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
 void intel_dp_encoder_destroy(struct drm_encoder *encoder);
-void intel_dp_check_link_status(struct intel_dp *intel_dp);
 int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc);
 bool intel_dp_compute_config(struct intel_encoder *encoder,
 			     struct intel_crtc_state *pipe_config);
@@ -1036,13 +1036,6 @@ int intel_dp_max_link_bw(struct intel_dp *intel_dp);
 void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
 void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv);
 uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
-void intel_dp_unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes);
-int intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
-		       struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-		       unsigned int crtc_w, unsigned int crtc_h,
-		       uint32_t src_x, uint32_t src_y,
-		       uint32_t src_w, uint32_t src_h);
-int intel_disable_plane(struct drm_plane *plane);
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_edp_drrs_enable(struct intel_dp *intel_dp);
 void intel_edp_drrs_disable(struct intel_dp *intel_dp);
@@ -1231,9 +1224,6 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob);
 int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
 			       enum plane plane);
-int intel_plane_set_property(struct drm_plane *plane,
-			     struct drm_property *prop,
-			     uint64_t val);
 int intel_plane_restore(struct drm_plane *plane);
 int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);

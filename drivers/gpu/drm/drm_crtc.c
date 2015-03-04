@@ -3272,6 +3272,12 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
 			return -EINVAL;
 		}
+
+		if (r->modifier[i] && !(r->flags & DRM_MODE_FB_MODIFIERS)) {
+			DRM_DEBUG_KMS("bad fb modifier %llu for plane %d\n",
+				      r->modifier[i], i);
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -3285,7 +3291,7 @@ static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	int ret;
 
-	if (r->flags & ~DRM_MODE_FB_INTERLACED) {
+	if (r->flags & ~(DRM_MODE_FB_INTERLACED | DRM_MODE_FB_MODIFIERS)) {
 		DRM_DEBUG_KMS("bad framebuffer flags 0x%08x\n", r->flags);
 		return ERR_PTR(-EINVAL);
 	}
@@ -3298,6 +3304,12 @@ static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
 	if ((config->min_height > r->height) || (r->height > config->max_height)) {
 		DRM_DEBUG_KMS("bad framebuffer height %d, should be >= %d && <= %d\n",
 			  r->height, config->min_height, config->max_height);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (r->flags & DRM_MODE_FB_MODIFIERS &&
+	    !dev->mode_config.allow_fb_modifiers) {
+		DRM_DEBUG_KMS("driver does not support fb modifiers\n");
 		return ERR_PTR(-EINVAL);
 	}
 

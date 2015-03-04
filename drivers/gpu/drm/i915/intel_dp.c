@@ -240,7 +240,7 @@ uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes)
 	return v;
 }
 
-void intel_dp_unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes)
+static void intel_dp_unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes)
 {
 	int i;
 	if (dst_bytes > 4)
@@ -3803,7 +3803,7 @@ go_again:
  *  3. Use Link Training from 2.5.3.3 and 3.5.1.3
  *  4. Check link status on receipt of hot-plug interrupt
  */
-void
+static void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);

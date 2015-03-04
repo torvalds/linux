@@ -245,11 +245,11 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 		BUG();
 	}
 
-	switch (obj->tiling_mode) {
-	case I915_TILING_NONE:
+	switch (fb->modifier[0]) {
+	case DRM_FORMAT_MOD_NONE:
 		stride = fb->pitches[0] >> 6;
 		break;
-	case I915_TILING_X:
+	case I915_FORMAT_MOD_X_TILED:
 		plane_ctl |= PLANE_CTL_TILED_X;
 		stride = fb->pitches[0] >> 9;
 		break;
@@ -993,7 +993,7 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	mutex_lock(&dev->struct_mutex);
-	if (dev_priv->fbc.plane == intel_crtc->plane)
+	if (dev_priv->fbc.crtc == intel_crtc)
 		intel_fbc_disable(dev);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1076,7 +1076,6 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc = to_intel_crtc(state->base.crtc);
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *fb = state->base.fb;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	int crtc_x, crtc_y;
 	unsigned int crtc_w, crtc_h;
 	uint32_t src_x, src_y, src_w, src_h;
@@ -1104,16 +1103,6 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	if (fb->width < 3 || fb->height < 3 || fb->pitches[0] > 16384) {
 		DRM_DEBUG_KMS("Unsuitable framebuffer for plane\n");
 		return -EINVAL;
-	}
-
-	/* Sprite planes can be linear or x-tiled surfaces */
-	switch (obj->tiling_mode) {
-		case I915_TILING_NONE:
-		case I915_TILING_X:
-			break;
-		default:
-			DRM_DEBUG_KMS("Unsupported tiling mode\n");
-			return -EINVAL;
 	}
 
 	/*

@@ -2190,11 +2190,15 @@ static bool need_vtd_wa(struct drm_device *dev)
 }
 
 int
-intel_fb_align_height(struct drm_device *dev, int height, unsigned int tiling)
+intel_fb_align_height(struct drm_device *dev, int height,
+		      uint32_t pixel_format,
+		      uint64_t fb_format_modifier)
 {
 	int tile_height;
 
-	tile_height = tiling ? (IS_GEN2(dev) ? 16 : 8) : 1;
+	tile_height = fb_format_modifier == I915_FORMAT_MOD_X_TILED ?
+		(IS_GEN2(dev) ? 16 : 8) : 1;
+
 	return ALIGN(height, tile_height);
 }
 
@@ -2211,8 +2215,8 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	switch (obj->tiling_mode) {
-	case I915_TILING_NONE:
+	switch (fb->modifier[0]) {
+	case DRM_FORMAT_MOD_NONE:
 		if (INTEL_INFO(dev)->gen >= 9)
 			alignment = 256 * 1024;
 		else if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
@@ -2222,7 +2226,7 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 		else
 			alignment = 64 * 1024;
 		break;
-	case I915_TILING_X:
+	case I915_FORMAT_MOD_X_TILED:
 		if (INTEL_INFO(dev)->gen >= 9)
 			alignment = 256 * 1024;
 		else {
@@ -2230,11 +2234,12 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 			alignment = 0;
 		}
 		break;
-	case I915_TILING_Y:
+	case I915_FORMAT_MOD_Y_TILED:
 		WARN(1, "Y tiled bo slipped through, driver bug!\n");
 		return -EINVAL;
 	default:
-		BUG();
+		MISSING_CASE(fb->modifier[0]);
+		return -EINVAL;
 	}
 
 	/* Note that the w/a also requires 64 PTE of padding following the
@@ -2282,7 +2287,7 @@ err_interruptible:
 	return ret;
 }
 
-void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
+static void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
 {
 	WARN_ON(!mutex_is_locked(&obj->base.dev->struct_mutex));
 
@@ -2371,6 +2376,7 @@ intel_alloc_plane_obj(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_gem_object *obj = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
+	struct drm_framebuffer *fb = &plane_config->fb->base;
 	u32 base = plane_config->base;
 
 	if (plane_config->size == 0)
@@ -2383,16 +2389,18 @@ intel_alloc_plane_obj(struct intel_crtc *crtc,
 
 	obj->tiling_mode = plane_config->tiling;
 	if (obj->tiling_mode == I915_TILING_X)
-		obj->stride = crtc->base.primary->fb->pitches[0];
+		obj->stride = fb->pitches[0];
 
-	mode_cmd.pixel_format = crtc->base.primary->fb->pixel_format;
-	mode_cmd.width = crtc->base.primary->fb->width;
-	mode_cmd.height = crtc->base.primary->fb->height;
-	mode_cmd.pitches[0] = crtc->base.primary->fb->pitches[0];
+	mode_cmd.pixel_format = fb->pixel_format;
+	mode_cmd.width = fb->width;
+	mode_cmd.height = fb->height;
+	mode_cmd.pitches[0] = fb->pitches[0];
+	mode_cmd.modifier[0] = fb->modifier[0];
+	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (intel_framebuffer_init(dev, to_intel_framebuffer(crtc->base.primary->fb),
+	if (intel_framebuffer_init(dev, to_intel_framebuffer(fb),
 				   &mode_cmd, obj)) {
 		DRM_DEBUG_KMS("intel fb init failed\n");
 		goto out_unref_obj;
@@ -2410,6 +2418,20 @@ out_unref_obj:
 	return false;
 }
 
+/* Update plane->state->fb to match plane->fb after driver-internal updates */
+static void
+update_state_fb(struct drm_plane *plane)
+{
+	if (plane->fb == plane->state->fb)
+		return;
+
+	if (plane->state->fb)
+		drm_framebuffer_unreference(plane->state->fb);
+	plane->state->fb = plane->fb;
+	if (plane->state->fb)
+		drm_framebuffer_reference(plane->state->fb);
+}
+
 static void
 intel_find_plane_obj(struct intel_crtc *intel_crtc,
 		     struct intel_initial_plane_config *plane_config)
@@ -2420,14 +2442,20 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 	struct intel_crtc *i;
 	struct drm_i915_gem_object *obj;
 
-	if (!intel_crtc->base.primary->fb)
+	if (!plane_config->fb)
 		return;
 
-	if (intel_alloc_plane_obj(intel_crtc, plane_config))
-		return;
+	if (intel_alloc_plane_obj(intel_crtc, plane_config)) {
+		struct drm_plane *primary = intel_crtc->base.primary;
 
-	kfree(intel_crtc->base.primary->fb);
-	intel_crtc->base.primary->fb = NULL;
+		primary->fb = &plane_config->fb->base;
+		primary->state->crtc = &intel_crtc->base;
+		update_state_fb(primary);
+
+		return;
+	}
+
+	kfree(plane_config->fb);
 
 	/*
 	 * Failed to alloc the obj, check to see if we should share
@@ -2447,15 +2475,20 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 			continue;
 
 		if (i915_gem_obj_ggtt_offset(obj) == plane_config->base) {
+			struct drm_plane *primary = intel_crtc->base.primary;
+
 			if (obj->tiling_mode != I915_TILING_NONE)
 				dev_priv->preserve_bios_swizzle = true;
 
 			drm_framebuffer_reference(c->primary->fb);
-			intel_crtc->base.primary->fb = c->primary->fb;
+			primary->fb = c->primary->fb;
+			primary->state->crtc = &intel_crtc->base;
+			update_state_fb(intel_crtc->base.primary);
 			obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 			break;
 		}
 	}
+
 }
 
 static void i9xx_update_primary_plane(struct drm_crtc *crtc,
@@ -2747,11 +2780,11 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	 * The stride is either expressed as a multiple of 64 bytes chunks for
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
-	switch (obj->tiling_mode) {
-	case I915_TILING_NONE:
+	switch (fb->modifier[0]) {
+	case DRM_FORMAT_MOD_NONE:
 		stride = fb->pitches[0] >> 6;
 		break;
-	case I915_TILING_X:
+	case I915_FORMAT_MOD_X_TILED:
 		plane_ctl |= PLANE_CTL_TILED_X;
 		stride = fb->pitches[0] >> 9;
 		break;
@@ -4251,11 +4284,10 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int plane = intel_crtc->plane;
 
 	intel_crtc_wait_for_pending_flips(crtc);
 
-	if (dev_priv->fbc.plane == plane)
+	if (dev_priv->fbc.crtc == intel_crtc)
 		intel_fbc_disable(dev);
 
 	hsw_disable_ips(intel_crtc);
@@ -6587,6 +6619,10 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
+	val = I915_READ(DSPCNTR(plane));
+	if (!(val & DISPLAY_PLANE_ENABLE))
+		return;
+
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
@@ -6595,11 +6631,12 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	fb = &intel_fb->base;
 
-	val = I915_READ(DSPCNTR(plane));
-
-	if (INTEL_INFO(dev)->gen >= 4)
-		if (val & DISPPLANE_TILED)
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (val & DISPPLANE_TILED) {
 			plane_config->tiling = I915_TILING_X;
+			fb->modifier[0] = I915_FORMAT_MOD_X_TILED;
+		}
+	}
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = i9xx_format_to_fourcc(pixel_format);
@@ -6625,7 +6662,8 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_fb_align_height(dev, fb->height,
-					       plane_config->tiling);
+					       fb->pixel_format,
+					       fb->modifier[0]);
 
 	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
 
@@ -6634,7 +6672,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 		      fb->bits_per_pixel, base, fb->pitches[0],
 		      plane_config->size);
 
-	crtc->base.primary->fb = fb;
+	plane_config->fb = intel_fb;
 }
 
 static void chv_crtc_clock_get(struct intel_crtc *crtc,
@@ -7628,8 +7666,13 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb = &intel_fb->base;
 
 	val = I915_READ(PLANE_CTL(pipe, 0));
-	if (val & PLANE_CTL_TILED_MASK)
+	if (!(val & PLANE_CTL_ENABLE))
+		goto error;
+
+	if (val & PLANE_CTL_TILED_MASK) {
 		plane_config->tiling = I915_TILING_X;
+		fb->modifier[0] = I915_FORMAT_MOD_X_TILED;
+	}
 
 	pixel_format = val & PLANE_CTL_FORMAT_MASK;
 	fourcc = skl_format_to_fourcc(pixel_format,
@@ -7662,7 +7705,8 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->pitches[0] = (val & 0x3ff) * stride_mult;
 
 	aligned_height = intel_fb_align_height(dev, fb->height,
-					       plane_config->tiling);
+					       fb->pixel_format,
+					       fb->modifier[0]);
 
 	plane_config->size = ALIGN(fb->pitches[0] * aligned_height, PAGE_SIZE);
 
@@ -7671,7 +7715,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 		      fb->bits_per_pixel, base, fb->pitches[0],
 		      plane_config->size);
 
-	crtc->base.primary->fb = fb;
+	plane_config->fb = intel_fb;
 	return;
 
 error:
@@ -7715,6 +7759,10 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
+	val = I915_READ(DSPCNTR(pipe));
+	if (!(val & DISPLAY_PLANE_ENABLE))
+		return;
+
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
@@ -7723,11 +7771,12 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 
 	fb = &intel_fb->base;
 
-	val = I915_READ(DSPCNTR(pipe));
-
-	if (INTEL_INFO(dev)->gen >= 4)
-		if (val & DISPPLANE_TILED)
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (val & DISPPLANE_TILED) {
 			plane_config->tiling = I915_TILING_X;
+			fb->modifier[0] = I915_FORMAT_MOD_X_TILED;
+		}
+	}
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = i9xx_format_to_fourcc(pixel_format);
@@ -7753,7 +7802,8 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_fb_align_height(dev, fb->height,
-					       plane_config->tiling);
+					       fb->pixel_format,
+					       fb->modifier[0]);
 
 	plane_config->size = PAGE_ALIGN(fb->pitches[0] * aligned_height);
 
@@ -7762,7 +7812,7 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 		      fb->bits_per_pixel, base, fb->pitches[0],
 		      plane_config->size);
 
-	crtc->base.primary->fb = fb;
+	plane_config->fb = intel_fb;
 }
 
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
@@ -9055,9 +9105,9 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	enum pipe pipe = to_intel_crtc(work->crtc)->pipe;
 
 	mutex_lock(&dev->struct_mutex);
-	intel_unpin_fb_obj(work->old_fb_obj);
+	intel_unpin_fb_obj(intel_fb_obj(work->old_fb));
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
-	drm_gem_object_unreference(&work->old_fb_obj->base);
+	drm_framebuffer_unreference(work->old_fb);
 
 	intel_fbc_update(dev);
 
@@ -9582,69 +9632,6 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 	return 0;
 }
 
-static int intel_gen9_queue_flip(struct drm_device *dev,
-				 struct drm_crtc *crtc,
-				 struct drm_framebuffer *fb,
-				 struct drm_i915_gem_object *obj,
-				 struct intel_engine_cs *ring,
-				 uint32_t flags)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	uint32_t plane = 0, stride;
-	int ret;
-
-	switch(intel_crtc->pipe) {
-	case PIPE_A:
-		plane = MI_DISPLAY_FLIP_SKL_PLANE_1_A;
-		break;
-	case PIPE_B:
-		plane = MI_DISPLAY_FLIP_SKL_PLANE_1_B;
-		break;
-	case PIPE_C:
-		plane = MI_DISPLAY_FLIP_SKL_PLANE_1_C;
-		break;
-	default:
-		WARN_ONCE(1, "unknown plane in flip command\n");
-		return -ENODEV;
-	}
-
-	switch (obj->tiling_mode) {
-	case I915_TILING_NONE:
-		stride = fb->pitches[0] >> 6;
-		break;
-	case I915_TILING_X:
-		stride = fb->pitches[0] >> 9;
-		break;
-	default:
-		WARN_ONCE(1, "unknown tiling in flip command\n");
-		return -ENODEV;
-	}
-
-	ret = intel_ring_begin(ring, 10);
-	if (ret)
-		return ret;
-
-	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, DERRMR);
-	intel_ring_emit(ring, ~(DERRMR_PIPEA_PRI_FLIP_DONE |
-				DERRMR_PIPEB_PRI_FLIP_DONE |
-				DERRMR_PIPEC_PRI_FLIP_DONE));
-	intel_ring_emit(ring, MI_STORE_REGISTER_MEM_GEN8(1) |
-			      MI_SRM_LRM_GLOBAL_GTT);
-	intel_ring_emit(ring, DERRMR);
-	intel_ring_emit(ring, ring->scratch.gtt_offset + 256);
-	intel_ring_emit(ring, 0);
-
-	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | plane);
-	intel_ring_emit(ring, stride << 6 | obj->tiling_mode);
-	intel_ring_emit(ring, intel_crtc->unpin_work->gtt_offset);
-
-	intel_mark_page_flip_active(intel_crtc);
-	__intel_ring_advance(ring);
-
-	return 0;
-}
-
 static int intel_default_queue_flip(struct drm_device *dev,
 				    struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
@@ -9760,7 +9747,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->event = event;
 	work->crtc = crtc;
-	work->old_fb_obj = intel_fb_obj(old_fb);
+	work->old_fb = old_fb;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
 	ret = drm_crtc_vblank_get(crtc);
@@ -9796,10 +9783,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup;
 
 	/* Reference the objects for the scheduled work. */
-	drm_gem_object_reference(&work->old_fb_obj->base);
+	drm_framebuffer_reference(work->old_fb);
 	drm_gem_object_reference(&obj->base);
 
 	crtc->primary->fb = fb;
+	update_state_fb(crtc->primary);
 
 	work->pending_flip_obj = obj;
 
@@ -9811,7 +9799,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	if (IS_VALLEYVIEW(dev)) {
 		ring = &dev_priv->ring[BCS];
-		if (obj->tiling_mode != work->old_fb_obj->tiling_mode)
+		if (obj->tiling_mode != intel_fb_obj(work->old_fb)->tiling_mode)
 			/* vlv: DISPLAY_FLIP fails to change tiling */
 			ring = NULL;
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
@@ -9852,7 +9840,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->flip_queued_vblank = drm_vblank_count(dev, intel_crtc->pipe);
 	work->enable_stall_check = true;
 
-	i915_gem_track_fb(work->old_fb_obj, obj,
+	i915_gem_track_fb(intel_fb_obj(work->old_fb), obj,
 			  INTEL_FRONTBUFFER_PRIMARY(pipe));
 
 	intel_fbc_disable(dev);
@@ -9868,7 +9856,8 @@ cleanup_unpin:
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
 	crtc->primary->fb = old_fb;
-	drm_gem_object_unreference(&work->old_fb_obj->base);
+	update_state_fb(crtc->primary);
+	drm_framebuffer_unreference(work->old_fb);
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -11897,7 +11886,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 		 */
 		if (intel_crtc->primary_enabled &&
 		    INTEL_INFO(dev)->gen <= 4 && !IS_G4X(dev) &&
-		    dev_priv->fbc.plane == intel_crtc->plane &&
+		    dev_priv->fbc.crtc == intel_crtc &&
 		    state->base.rotation != BIT(DRM_ROTATE_0)) {
 			intel_crtc->atomic.disable_fbc = true;
 		}
@@ -12069,8 +12058,8 @@ void intel_plane_destroy(struct drm_plane *plane)
 }
 
 const struct drm_plane_funcs intel_plane_funcs = {
-	.update_plane = drm_plane_helper_update,
-	.disable_plane = drm_plane_helper_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = intel_plane_destroy,
 	.set_property = drm_atomic_helper_plane_set_property,
 	.atomic_get_property = intel_plane_atomic_get_property,
@@ -12185,13 +12174,10 @@ intel_check_cursor_plane(struct drm_plane *plane,
 	if (fb == crtc->cursor->fb)
 		return 0;
 
-	/* we only need to pin inside GTT if cursor is non-phy */
-	mutex_lock(&dev->struct_mutex);
-	if (!INTEL_INFO(dev)->cursor_needs_physical && obj->tiling_mode) {
+	if (fb->modifier[0] != DRM_FORMAT_MOD_NONE) {
 		DRM_DEBUG_KMS("cursor cannot be tiled\n");
 		ret = -EINVAL;
 	}
-	mutex_unlock(&dev->struct_mutex);
 
 finish:
 	if (intel_crtc->active) {
@@ -12672,7 +12658,24 @@ static int intel_framebuffer_init(struct drm_device *dev,
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (obj->tiling_mode == I915_TILING_Y) {
+	if (mode_cmd->flags & DRM_MODE_FB_MODIFIERS) {
+		/* Enforce that fb modifier and tiling mode match, but only for
+		 * X-tiled. This is needed for FBC. */
+		if (!!(obj->tiling_mode == I915_TILING_X) !=
+		    !!(mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)) {
+			DRM_DEBUG("tiling_mode doesn't match fb modifier\n");
+			return -EINVAL;
+		}
+	} else {
+		if (obj->tiling_mode == I915_TILING_X)
+			mode_cmd->modifier[0] = I915_FORMAT_MOD_X_TILED;
+		else if (obj->tiling_mode == I915_TILING_Y) {
+			DRM_DEBUG("No Y tiling for legacy addfb\n");
+			return -EINVAL;
+		}
+	}
+
+	if (mode_cmd->modifier[0] == I915_FORMAT_MOD_Y_TILED) {
 		DRM_DEBUG("hardware does not support tiling Y\n");
 		return -EINVAL;
 	}
@@ -12686,12 +12689,12 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 5 && !IS_VALLEYVIEW(dev)) {
 		pitch_limit = 32*1024;
 	} else if (INTEL_INFO(dev)->gen >= 4) {
-		if (obj->tiling_mode)
+		if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)
 			pitch_limit = 16*1024;
 		else
 			pitch_limit = 32*1024;
 	} else if (INTEL_INFO(dev)->gen >= 3) {
-		if (obj->tiling_mode)
+		if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED)
 			pitch_limit = 8*1024;
 		else
 			pitch_limit = 16*1024;
@@ -12701,12 +12704,13 @@ static int intel_framebuffer_init(struct drm_device *dev,
 
 	if (mode_cmd->pitches[0] > pitch_limit) {
 		DRM_DEBUG("%s pitch (%d) must be at less than %d\n",
-			  obj->tiling_mode ? "tiled" : "linear",
+			  mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED ?
+			  "tiled" : "linear",
 			  mode_cmd->pitches[0], pitch_limit);
 		return -EINVAL;
 	}
 
-	if (obj->tiling_mode != I915_TILING_NONE &&
+	if (mode_cmd->modifier[0] == I915_FORMAT_MOD_X_TILED &&
 	    mode_cmd->pitches[0] != obj->stride) {
 		DRM_DEBUG("pitch (%d) must match tiling stride (%d)\n",
 			  mode_cmd->pitches[0], obj->stride);
@@ -12761,7 +12765,8 @@ static int intel_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 
 	aligned_height = intel_fb_align_height(dev, mode_cmd->height,
-					       obj->tiling_mode);
+					       mode_cmd->pixel_format,
+					       mode_cmd->modifier[0]);
 	/* FIXME drm helper for size checks (especially planar formats)? */
 	if (obj->base.size < aligned_height * mode_cmd->pitches[0])
 		return -EINVAL;
@@ -12923,9 +12928,6 @@ static void intel_init_display(struct drm_device *dev)
 			valleyview_modeset_global_resources;
 	}
 
-	/* Default just returns -ENODEV to indicate unsupported */
-	dev_priv->display.queue_flip = intel_default_queue_flip;
-
 	switch (INTEL_INFO(dev)->gen) {
 	case 2:
 		dev_priv->display.queue_flip = intel_gen2_queue_flip;
@@ -12948,8 +12950,10 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.queue_flip = intel_gen7_queue_flip;
 		break;
 	case 9:
-		dev_priv->display.queue_flip = intel_gen9_queue_flip;
-		break;
+		/* Drop through - unsupported since execlist only. */
+	default:
+		/* Default just returns -ENODEV to indicate unsupported */
+		dev_priv->display.queue_flip = intel_default_queue_flip;
 	}
 
 	intel_panel_init_backlight_funcs(dev);
@@ -13164,6 +13168,8 @@ void intel_modeset_init(struct drm_device *dev)
 
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.prefer_shadow = 1;
+
+	dev->mode_config.allow_fb_modifiers = true;
 
 	dev->mode_config.funcs = &intel_mode_funcs;
 
@@ -13702,6 +13708,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 				  to_intel_crtc(c)->pipe);
 			drm_framebuffer_unreference(c->primary->fb);
 			c->primary->fb = NULL;
+			update_state_fb(c->primary);
 		}
 	}
 	mutex_unlock(&dev->struct_mutex);

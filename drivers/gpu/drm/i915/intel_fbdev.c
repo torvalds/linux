@@ -594,7 +594,8 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		cur_size = intel_crtc->config->base.adjusted_mode.crtc_vdisplay;
 		cur_size = intel_fb_align_height(dev, cur_size,
-						 plane_config->tiling);
+						 fb->base.pixel_format,
+						 fb->base.modifier[0]);
 		cur_size *= fb->base.pitches[0];
 		DRM_DEBUG_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
 			      pipe_name(intel_crtc->pipe),

@@ -369,6 +369,19 @@ static const struct intel_device_info intel_skylake_info = {
 	IVB_CURSOR_OFFSETS,
 };
 
+static const struct intel_device_info intel_skylake_gt3_info = {
+	.is_preliminary = 1,
+	.is_skylake = 1,
+	.gen = 9, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING | BSD2_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+	IVB_CURSOR_OFFSETS,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -406,7 +419,9 @@ static const struct intel_device_info intel_skylake_info = {
 	INTEL_BDW_GT3M_IDS(&intel_broadwell_gt3m_info),	\
 	INTEL_BDW_GT3D_IDS(&intel_broadwell_gt3d_info), \
 	INTEL_CHV_IDS(&intel_cherryview_info),	\
-	INTEL_SKL_IDS(&intel_skylake_info)
+	INTEL_SKL_GT1_IDS(&intel_skylake_info),	\
+	INTEL_SKL_GT2_IDS(&intel_skylake_info),	\
+	INTEL_SKL_GT3_IDS(&intel_skylake_gt3_info)	\
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
@@ -1630,11 +1645,9 @@ static int __init i915_init(void)
 
 	if (!(driver.driver_features & DRIVER_MODESET)) {
 		driver.get_vblank_timestamp = NULL;
-#ifndef CONFIG_DRM_I915_UMS
 		/* Silently fail loading to not upset userspace. */
 		DRM_DEBUG_DRIVER("KMS and UMS disabled.\n");
 		return 0;
-#endif
 	}
 
 	/*
@@ -1650,10 +1663,8 @@ static int __init i915_init(void)
 
 static void __exit i915_exit(void)
 {
-#ifndef CONFIG_DRM_I915_UMS
 	if (!(driver.driver_features & DRIVER_MODESET))
 		return; /* Never loaded a driver. */
-#endif
 
 	drm_pci_exit(&driver, &i915_pci_driver);
 }
