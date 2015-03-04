@@ -28,6 +28,8 @@ config KVM
 	select KVM_ARM_HOST
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select SRCU
+	select HAVE_KVM_EVENTFD
+	select HAVE_KVM_IRQFD
 	---help---
 	  Support hosting virtualized guest machines.
 

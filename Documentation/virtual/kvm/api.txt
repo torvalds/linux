@@ -2234,7 +2234,7 @@ into the hash PTE second double word).
 4.75 KVM_IRQFD
 
 Capability: KVM_CAP_IRQFD
-Architectures: x86 s390
+Architectures: x86 s390 arm arm64
 Type: vm ioctl
 Parameters: struct kvm_irqfd (in)
 Returns: 0 on success, -1 on error
@@ -2259,6 +2259,10 @@ the interrupt if the device making use of it still requires service.
 Note that closing the resamplefd is not sufficient to disable the
 irqfd.  The KVM_IRQFD_FLAG_RESAMPLE is only necessary on assignment
 and need not be specified with KVM_IRQFD_FLAG_DEASSIGN.
+
+On ARM/ARM64, the gsi field in the kvm_irqfd struct specifies the Shared
+Peripheral Interrupt (SPI) index, such that the GIC interrupt ID is
+given by gsi + 32.
 
 4.76 KVM_PPC_ALLOCATE_HTAB
 

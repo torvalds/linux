@@ -31,6 +31,7 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_mmu.h>
+#include <trace/events/kvm.h>
 
 /*
  * How the whole thing works (courtesy of Christoffer Dall):
@@ -1083,6 +1084,7 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 	u32 status = vgic_get_interrupt_status(vcpu);
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	bool level_pending = false;
+	struct kvm *kvm = vcpu->kvm;
 
 	kvm_debug("STATUS = %08x\n", status);
 
@@ -1117,6 +1119,17 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 			 * is set.
 			 */
 			vgic_dist_irq_clear_soft_pend(vcpu, vlr.irq);
+
+			/*
+			 * kvm_notify_acked_irq calls kvm_set_irq()
+			 * to reset the IRQ level. Need to release the
+			 * lock for kvm_set_irq to grab it.
+			 */
+			spin_unlock(&dist->lock);
+
+			kvm_notify_acked_irq(kvm, 0,
+					     vlr.irq - VGIC_NR_PRIVATE_IRQS);
+			spin_lock(&dist->lock);
 
 			/* Any additional pending interrupt? */
 			if (vgic_dist_irq_get_level(vcpu, vlr.irq)) {
@@ -1912,4 +1925,39 @@ int kvm_vgic_hyp_init(void)
 out_free_irq:
 	free_percpu_irq(vgic->maint_irq, kvm_get_running_vcpus());
 	return ret;
+}
+
+int kvm_irq_map_gsi(struct kvm *kvm,
+		    struct kvm_kernel_irq_routing_entry *entries,
+		    int gsi)
+{
+	return gsi;
+}
+
+int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin)
+{
+	return pin;
+}
+
+int kvm_set_irq(struct kvm *kvm, int irq_source_id,
+		u32 irq, int level, bool line_status)
+{
+	unsigned int spi = irq + VGIC_NR_PRIVATE_IRQS;
+
+	trace_kvm_set_irq(irq, level, irq_source_id);
+
+	BUG_ON(!vgic_initialized(kvm));
+
+	if (spi > kvm->arch.vgic.nr_irqs)
+		return -EINVAL;
+	return kvm_vgic_inject_irq(kvm, 0, spi, level);
+
+}
+
+/* MSI not implemented yet */
+int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
+		struct kvm *kvm, int irq_source_id,
+		int level, bool line_status)
+{
+	return 0;
 }
