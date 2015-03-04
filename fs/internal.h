@@ -112,7 +112,6 @@ extern int vfs_open(const struct path *, struct file *, const struct cred *);
 /*
  * inode.c
  */
-extern spinlock_t inode_sb_list_lock;
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
 extern void inode_add_lru(struct inode *inode);
 
