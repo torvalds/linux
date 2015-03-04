@@ -1548,8 +1548,7 @@ ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	ipipe_try_format(ipipe, cfg, fse->pad, &format,
-			   V4L2_SUBDEV_FORMAT_TRY);
+	ipipe_try_format(ipipe, cfg, fse->pad, &format, fse->which);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
 
@@ -1559,8 +1558,7 @@ ipipe_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	ipipe_try_format(ipipe, cfg, fse->pad, &format,
-			   V4L2_SUBDEV_FORMAT_TRY);
+	ipipe_try_format(ipipe, cfg, fse->pad, &format, fse->which);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
 

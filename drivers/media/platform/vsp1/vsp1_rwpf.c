@@ -48,7 +48,8 @@ int vsp1_rwpf_enum_frame_size(struct v4l2_subdev *subdev,
 	struct vsp1_rwpf *rwpf = to_rwpf(subdev);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_try_format(subdev, cfg, fse->pad);
+	format = vsp1_entity_get_pad_format(&rwpf->entity, cfg, fse->pad,
+					    fse->which);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;

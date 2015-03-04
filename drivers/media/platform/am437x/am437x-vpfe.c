@@ -1645,6 +1645,7 @@ static int vpfe_enum_size(struct file *file, void  *priv,
 	fse.index = fsize->index;
 	fse.pad = 0;
 	fse.code = mbus.code;
+	fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(sdinfo->sd, pad, enum_frame_size, NULL, &fse);
 	if (ret)
 		return -EINVAL;

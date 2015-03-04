@@ -1489,7 +1489,7 @@ isif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 	format.format.code = fse->code;
 	format.format.width = 1;
 	format.format.height = 1;
-	format.which = V4L2_SUBDEV_FORMAT_TRY;
+	format.which = fse->which;
 	isif_try_format(isif, cfg, &format);
 	fse->min_width = format.format.width;
 	fse->min_height = format.format.height;
@@ -1501,7 +1501,7 @@ isif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 	format.format.code = fse->code;
 	format.format.width = -1;
 	format.format.height = -1;
-	format.which = V4L2_SUBDEV_FORMAT_TRY;
+	format.which = fse->which;
 	isif_try_format(isif, cfg, &format);
 	fse->max_width = format.format.width;
 	fse->max_height = format.format.height;

@@ -76,9 +76,11 @@ static int hsit_enum_frame_size(struct v4l2_subdev *subdev,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct vsp1_hsit *hsit = to_hsit(subdev);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_try_format(subdev, cfg, fse->pad);
+	format = vsp1_entity_get_pad_format(&hsit->entity, cfg, fse->pad,
+					    fse->which);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;

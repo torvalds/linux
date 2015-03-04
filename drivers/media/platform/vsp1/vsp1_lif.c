@@ -109,9 +109,11 @@ static int lif_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct vsp1_lif *lif = to_lif(subdev);
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_try_format(subdev, cfg, LIF_PAD_SINK);
+	format = vsp1_entity_get_pad_format(&lif->entity, cfg, LIF_PAD_SINK,
+					    fse->which);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;

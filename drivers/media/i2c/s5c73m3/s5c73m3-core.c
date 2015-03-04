@@ -1251,6 +1251,7 @@ static int s5c73m3_oif_enum_frame_size(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
 	int idx;
 
 	if (fse->pad == OIF_SOURCE_PAD) {
@@ -1260,11 +1261,25 @@ static int s5c73m3_oif_enum_frame_size(struct v4l2_subdev *sd,
 		switch (fse->code) {
 		case S5C73M3_JPEG_FMT:
 		case S5C73M3_ISP_FMT: {
-			struct v4l2_mbus_framefmt *mf =
-				v4l2_subdev_get_try_format(sd, cfg, OIF_ISP_PAD);
+			unsigned w, h;
 
-			fse->max_width = fse->min_width = mf->width;
-			fse->max_height = fse->min_height = mf->height;
+			if (fse->which == V4L2_SUBDEV_FORMAT_TRY) {
+				struct v4l2_mbus_framefmt *mf;
+
+				mf = v4l2_subdev_get_try_format(sd, cfg,
+								OIF_ISP_PAD);
+
+				w = mf->width;
+				h = mf->height;
+			} else {
+				const struct s5c73m3_frame_size *fs;
+
+				fs = state->oif_pix_size[RES_ISP];
+				w = fs->width;
+				h = fs->height;
+			}
+			fse->max_width = fse->min_width = w;
+			fse->max_height = fse->min_height = h;
 			return 0;
 		}
 		default:
