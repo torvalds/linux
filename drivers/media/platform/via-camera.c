@@ -1147,12 +1147,23 @@ static int viacam_enum_frameintervals(struct file *filp, void *priv,
 		struct v4l2_frmivalenum *interval)
 {
 	struct via_camera *cam = priv;
+	struct v4l2_subdev_frame_interval_enum fie = {
+		.index = interval->index,
+		.code = cam->mbus_code,
+		.width = cam->sensor_format.width,
+		.height = cam->sensor_format.height,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
 	mutex_lock(&cam->lock);
-	ret = sensor_call(cam, video, enum_frameintervals, interval);
+	ret = sensor_call(cam, pad, enum_frame_interval, NULL, &fie);
 	mutex_unlock(&cam->lock);
-	return ret;
+	if (ret)
+		return ret;
+	interval->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	interval->discrete = fie.interval;
+	return 0;
 }
 
 

@@ -1888,22 +1888,34 @@ static int default_enum_framesizes(struct soc_camera_device *icd,
 	int ret;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
-	__u32 pixfmt = fsize->pixel_format;
-	struct v4l2_frmsizeenum fsize_mbus = *fsize;
+	struct v4l2_subdev_frame_size_enum fse = {
+		.index = fsize->index,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 
-	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
+	xlate = soc_camera_xlate_by_fourcc(icd, fsize->pixel_format);
 	if (!xlate)
 		return -EINVAL;
-	/* map xlate-code to pixel_format, sensor only handle xlate-code*/
-	fsize_mbus.pixel_format = xlate->code;
+	fse.code = xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, enum_framesizes, &fsize_mbus);
+	ret = v4l2_subdev_call(sd, pad, enum_frame_size, NULL, &fse);
 	if (ret < 0)
 		return ret;
 
-	*fsize = fsize_mbus;
-	fsize->pixel_format = pixfmt;
-
+	if (fse.min_width == fse.max_width &&
+	    fse.min_height == fse.max_height) {
+		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		fsize->discrete.width = fse.min_width;
+		fsize->discrete.height = fse.min_height;
+		return 0;
+	}
+	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+	fsize->stepwise.min_width = fse.min_width;
+	fsize->stepwise.max_width = fse.max_width;
+	fsize->stepwise.min_height = fse.min_height;
+	fsize->stepwise.max_height = fse.max_height;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.step_height = 1;
 	return 0;
 }
 
