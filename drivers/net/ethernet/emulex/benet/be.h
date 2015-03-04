@@ -87,6 +87,7 @@
 #define BE3_MAX_EVT_QS		16
 #define BE3_SRIOV_MAX_EVT_QS	8
 
+#define MAX_RSS_IFACES		15
 #define MAX_RX_QS		32
 #define MAX_EVT_QS		32
 #define MAX_TX_QS		32
@@ -411,8 +412,11 @@ struct be_resources {
 	u16 max_tx_qs;
 	u16 max_rss_qs;
 	u16 max_rx_qs;
+	u16 max_cq_count;
 	u16 max_uc_mac;		/* Max UC MACs programmable */
 	u16 max_vlans;		/* Number of vlans supported */
+	u16 max_iface_count;
+	u16 max_mcc_count;
 	u16 max_evt_qs;
 	u32 if_cap_flags;
 	u32 vf_if_cap_flags;	/* VF if capability flags */
@@ -488,6 +492,8 @@ struct be_adapter {
 
 	/* Rx rings */
 	u16 num_rx_qs;
+	u16 num_rss_qs;
+	u16 need_def_rxq;
 	struct be_rx_obj rx_obj[MAX_RX_QS];
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
@@ -635,9 +641,8 @@ extern const struct ethtool_ops be_ethtool_ops;
 	for (i = 0, rxo = &adapter->rx_obj[i]; i < adapter->num_rx_qs;	\
 		i++, rxo++)
 
-/* Skip the default non-rss queue (last one)*/
 #define for_all_rss_queues(adapter, rxo, i)				\
-	for (i = 0, rxo = &adapter->rx_obj[i]; i < (adapter->num_rx_qs - 1);\
+	for (i = 0, rxo = &adapter->rx_obj[i]; i < adapter->num_rss_qs;	\
 		i++, rxo++)
 
 #define for_all_tx_queues(adapter, txo, i)				\
