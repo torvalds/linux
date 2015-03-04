@@ -909,6 +909,10 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 	enum ep0_state			state;
 
 	spin_lock_irq (&dev->lock);
+	if (dev->state <= STATE_DEV_OPENED) {
+		retval = -EINVAL;
+		goto done;
+	}
 
 	/* report fd mode change before acting on it */
 	if (dev->setup_abort) {
@@ -1107,8 +1111,6 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	struct dev_data		*dev = fd->private_data;
 	ssize_t			retval = -ESRCH;
 
-	spin_lock_irq (&dev->lock);
-
 	/* report fd mode change before acting on it */
 	if (dev->setup_abort) {
 		dev->setup_abort = 0;
@@ -1154,7 +1156,6 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	} else
 		DBG (dev, "fail %s, state %d\n", __func__, dev->state);
 
-	spin_unlock_irq (&dev->lock);
 	return retval;
 }
 
@@ -1201,6 +1202,9 @@ ep0_poll (struct file *fd, poll_table *wait)
        struct dev_data         *dev = fd->private_data;
        int                     mask = 0;
 
+	if (dev->state <= STATE_DEV_OPENED)
+		return DEFAULT_POLLMASK;
+
        poll_wait(fd, &dev->wait, wait);
 
        spin_lock_irq (&dev->lock);
@@ -1235,19 +1239,6 @@ static long dev_ioctl (struct file *fd, unsigned code, unsigned long value)
 
 	return ret;
 }
-
-/* used after device configuration */
-static const struct file_operations ep0_io_operations = {
-	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
-
-	.read =		ep0_read,
-	.write =	ep0_write,
-	.fasync =	ep0_fasync,
-	.poll =		ep0_poll,
-	.unlocked_ioctl =	dev_ioctl,
-	.release =	dev_release,
-};
 
 /*----------------------------------------------------------------------*/
 
@@ -1772,6 +1763,14 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	u32			tag;
 	char			*kbuf;
 
+	spin_lock_irq(&dev->lock);
+	if (dev->state > STATE_DEV_OPENED) {
+		value = ep0_write(fd, buf, len, ptr);
+		spin_unlock_irq(&dev->lock);
+		return value;
+	}
+	spin_unlock_irq(&dev->lock);
+
 	if (len < (USB_DT_CONFIG_SIZE + USB_DT_DEVICE_SIZE + 4))
 		return -EINVAL;
 
@@ -1845,7 +1844,6 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 		 * on, they can work ... except in cleanup paths that
 		 * kick in after the ep0 descriptor is closed.
 		 */
-		fd->f_op = &ep0_io_operations;
 		value = len;
 	}
 	return value;
@@ -1876,12 +1874,14 @@ dev_open (struct inode *inode, struct file *fd)
 	return value;
 }
 
-static const struct file_operations dev_init_operations = {
+static const struct file_operations ep0_operations = {
 	.llseek =	no_llseek,
 
 	.open =		dev_open,
+	.read =		ep0_read,
 	.write =	dev_config,
 	.fasync =	ep0_fasync,
+	.poll =		ep0_poll,
 	.unlocked_ioctl = dev_ioctl,
 	.release =	dev_release,
 };
@@ -1997,7 +1997,7 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 		goto Enomem;
 
 	dev->sb = sb;
-	dev->dentry = gadgetfs_create_file(sb, CHIP, dev, &dev_init_operations);
+	dev->dentry = gadgetfs_create_file(sb, CHIP, dev, &ep0_operations);
 	if (!dev->dentry) {
 		put_dev(dev);
 		goto Enomem;
