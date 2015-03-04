@@ -27,6 +27,7 @@
 #include <linux/fs.h>
 #include <linux/of.h>
 #include <linux/console.h>
+#include <linux/screen_info.h>
 
 #include <asm/sections.h>
 #include <asm/div64.h>
@@ -37,6 +38,8 @@
 #include <asm/special_insns.h>
 
 static const char *c6x_soc_name;
+
+struct screen_info screen_info;
 
 int c6x_num_cores;
 EXPORT_SYMBOL_GPL(c6x_num_cores);
