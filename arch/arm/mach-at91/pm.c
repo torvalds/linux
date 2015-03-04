@@ -218,7 +218,7 @@ static struct platform_device at91_cpuidle_device = {
 	.name = "cpuidle-at91",
 };
 
-void at91_pm_set_standby(void (*at91_standby)(void))
+static void at91_pm_set_standby(void (*at91_standby)(void))
 {
 	if (at91_standby) {
 		at91_cpuidle_device.dev.platform_data = at91_standby;
