@@ -302,15 +302,16 @@ phys_addr_t uboot_logo_offset=0;
 
 void __init rockchip_uboot_mem_reserve(void)
 {
-	if (uboot_logo_size) {
-		if (!memblock_is_region_reserved(uboot_logo_base, uboot_logo_size)
-			&& !memblock_reserve(uboot_logo_base, uboot_logo_size)){
-			pr_info("%s: reserve %zx@%zx for uboot logo\n", __func__,
-				uboot_logo_size, uboot_logo_base);
-		} else {
-			pr_err("%s: reserve of %zx@%zx failed\n", __func__,
-			       uboot_logo_size, uboot_logo_base);
-		}
+	if (uboot_logo_size==0)
+		return;
+
+	if (!memblock_is_region_reserved(uboot_logo_base, uboot_logo_size)
+	    && !memblock_reserve(uboot_logo_base, uboot_logo_size)){
+		pr_info("%s: reserve %pa@%pa for uboot logo\n", __func__,
+			&uboot_logo_size, &uboot_logo_base);
+	} else {
+		pr_err("%s: reserve of %pa@%pa failed\n", __func__,
+		       &uboot_logo_size, &uboot_logo_base);
 	}
 }
 
@@ -326,8 +327,8 @@ static int __init rockchip_uboot_logo_setup(char *p)
 		}
 	}
 
-	pr_info("%s: mem: %zx@%zx, offset:%zx\n", __func__,
-		uboot_logo_size, uboot_logo_base, uboot_logo_offset);
+	pr_info("%s: mem: %pa@%pa, offset:%pa\n", __func__,
+		&uboot_logo_size, &uboot_logo_base, &uboot_logo_offset);
 
 	return 0;
 }
@@ -342,8 +343,8 @@ static int __init rockchip_uboot_mem_late_init(void)
 		addr = PAGE_ALIGN(uboot_logo_base);
 		end = (uboot_logo_base+uboot_logo_size)&PAGE_MASK;
 
-		pr_info("%s: Freeing uboot logo memory: %zx@%zx\n", __func__,
-			uboot_logo_size, uboot_logo_base);
+		pr_info("%s: Freeing uboot logo memory: %pa@%pa\n", __func__,
+			&uboot_logo_size, &uboot_logo_base);
 
 		memblock_free(uboot_logo_base, uboot_logo_size);
 

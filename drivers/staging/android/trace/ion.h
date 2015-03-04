@@ -147,12 +147,12 @@ DEFINE_EVENT(ion_kmap_op, ion_kernel_map,
 	TP_ARGS(client, buffer, size, kaddr));
 
 DECLARE_EVENT_CLASS(ion_mmap_op,
-	TP_PROTO(const char* client, unsigned int buf, unsigned int size,
+	TP_PROTO(const char* client, void* buf, unsigned int size,
 		unsigned long vm_start, unsigned long vm_end),
 	TP_ARGS(client, buf, size, vm_start, vm_end),
 	TP_STRUCT__entry(
 		__string(client, client)
-		__field(unsigned int, buf)
+		__field(void*, buf)
 		__field(unsigned int, size)
 		__field(unsigned long, vm_start)
 		__field(unsigned long, vm_end)
@@ -164,18 +164,18 @@ DECLARE_EVENT_CLASS(ion_mmap_op,
 		__entry->vm_start = vm_start;
 		__entry->vm_end = vm_end;
 	),
-	TP_printk("client=%s,buffer=%08x:%d,vma[%08lx:%08lx]",
+	TP_printk("client=%s,buffer=%p:%d,vma[%08lx:%08lx]",
 		  __get_str(client), __entry->buf, __entry->size,
 		  __entry->vm_start, __entry->vm_end)
 );
 
 DEFINE_EVENT(ion_mmap_op, ion_buffer_mmap,
-	TP_PROTO(const char* client, unsigned int buf, unsigned int size,
+	TP_PROTO(const char* client, void* buf, unsigned int size,
 		unsigned long vm_start, unsigned long vm_end),
 	TP_ARGS(client, buf, size, vm_start, vm_end));
 
 DEFINE_EVENT(ion_mmap_op, ion_buffer_munmap,
-	TP_PROTO(const char* client, unsigned int buf, unsigned int size,
+	TP_PROTO(const char* client, void* buf, unsigned int size,
 		unsigned long vm_start, unsigned long vm_end),
 	TP_ARGS(client, buf, size, vm_start, vm_end));
 

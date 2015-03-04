@@ -265,8 +265,12 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	   allocation via dma_map_sg. The implicit contract here is that
 	   memory comming from the heaps is ready for dma, ie if it has a
 	   cached mapping that mapping has been invalidated */
-	for_each_sg(buffer->sg_table->sgl, sg, buffer->sg_table->nents, i)
+	for_each_sg(buffer->sg_table->sgl, sg, buffer->sg_table->nents, i) {
 		sg_dma_address(sg) = sg_phys(sg);
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		sg_dma_len(sg) = sg->length;
+#endif
+	}
 	mutex_lock(&dev->buffer_lock);
 	ion_buffer_add(dev, buffer);
 	mutex_unlock(&dev->buffer_lock);
@@ -806,12 +810,6 @@ int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
 	pr_debug("%s: map buffer(%p)\n", __func__, buffer);
 
 	mutex_lock(&buffer->lock);
-
-	if (ion_buffer_cached(buffer)) {
-		pr_err("%s: Cannot map iommu as cached.\n", __func__);
-		ret = -EINVAL;
-		goto out;
-	}
 
 	if (!handle->buffer->heap->ops->map_iommu) {
 		pr_err("%s: map_iommu is not implemented by this heap.\n",
@@ -1362,7 +1360,7 @@ static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		pr_err("%s: failure mapping buffer to userspace\n",
 		       __func__);
 
-	trace_ion_buffer_mmap("", (unsigned int)buffer, buffer->size,
+	trace_ion_buffer_mmap("", (void*)buffer, buffer->size,
 		vma->vm_start, vma->vm_end);
 
 	return ret;
@@ -1372,7 +1370,7 @@ int ion_munmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct ion_buffer *buffer = dmabuf->priv;
 
-	trace_ion_buffer_munmap("", (unsigned int)buffer, buffer->size,
+	trace_ion_buffer_munmap("", (void*)buffer, buffer->size,
 		vma->vm_start, vma->vm_end);
 
 	return 0;

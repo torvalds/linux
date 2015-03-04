@@ -31,7 +31,11 @@
 #include <linux/of_fdt.h>
 #endif
 
-static struct ion_device *idev;
+#include <linux/compat.h>
+
+struct ion_device *rockchip_ion_dev;
+EXPORT_SYMBOL(rockchip_ion_dev);
+
 static int num_heaps;
 static struct ion_heap **heaps;
 
@@ -109,41 +113,123 @@ static int rockchip_ion_populate_heap(struct ion_platform_heap *heap)
 
 struct ion_client *rockchip_ion_client_create(const char *name)
 {
-	return ion_client_create(idev, name);
+	return ion_client_create(rockchip_ion_dev, name);
 }
 EXPORT_SYMBOL(rockchip_ion_client_create);
+
+#ifdef CONFIG_COMPAT
+struct compat_ion_phys_data {
+	compat_int_t handle;
+	compat_ulong_t phys;
+	compat_ulong_t size;
+};
+
+#define COMPAT_ION_IOC_GET_PHYS	_IOWR(ION_IOC_ROCKCHIP_MAGIC, 0, \
+						struct compat_ion_phys_data)
+
+static int compat_get_ion_phys_data(
+			struct compat_ion_phys_data __user *data32,
+			struct ion_phys_data __user *data)
+{
+	compat_ulong_t l;
+	compat_int_t i;
+	int err;
+
+	err = get_user(i, &data32->handle);
+	err |= put_user(i, &data->handle);
+	err |= get_user(l, &data32->phys);
+	err |= put_user(l, &data->phys);
+	err |= get_user(l, &data32->size);
+	err |= put_user(l, &data->size);
+
+	return err;
+};
+
+static int compat_put_ion_phys_data(
+			struct compat_ion_phys_data __user *data32,
+			struct ion_phys_data __user *data)
+{
+	compat_ulong_t l;
+	compat_int_t i;
+	int err;
+
+	err = get_user(i, &data->handle);
+	err |= put_user(i, &data32->handle);
+	err |= get_user(l, &data->phys);
+	err |= put_user(l, &data32->phys);
+	err |= get_user(l, &data->size);
+	err |= put_user(l, &data32->size);
+
+	return err;
+};
+#endif
+
+static int rockchip_ion_get_phys(struct ion_client *client, unsigned long arg)
+{
+	struct ion_phys_data data;
+	struct ion_handle *handle;
+	int ret;
+
+	if (copy_from_user(&data, (void __user *)arg,
+			   sizeof(struct ion_phys_data)))
+		return -EFAULT;
+
+	handle = ion_handle_get_by_id(client, data.handle);
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	ret = ion_phys(client, handle, &data.phys, (size_t *)&data.size);
+	pr_debug("ret=%d, phys=0x%lX\n", ret, data.phys);
+	ion_handle_put(handle);
+	if (ret < 0)
+		return ret;
+	if (copy_to_user((void __user *)arg, &data,
+			 sizeof(struct ion_phys_data)))
+		return -EFAULT;
+
+	return 0;
+}
 
 static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			      unsigned long arg)
 {
-	pr_debug("[%s %d] cmd=%X\n", __func__, __LINE__, cmd);
+	pr_debug("%s(%d): cmd=%x\n", __func__, __LINE__, cmd);
 
-	switch (cmd) {
-	case ION_IOC_GET_PHYS:
-	{
-		struct ion_phys_data data;
-		struct ion_handle *handle;
-		int ret;
-		
-		if (copy_from_user(&data, (void __user *)arg,
-					sizeof(struct ion_phys_data)))
-			return -EFAULT;
+	if (is_compat_task()) {
+#ifdef CONFIG_COMPAT
+		long ret;
+		switch (cmd) {
+		case COMPAT_ION_IOC_GET_PHYS: {
+			struct compat_ion_phys_data __user *data32;
+			struct ion_phys_data __user *data;
+			int err;
 
-		handle = ion_handle_get_by_id(client, data.handle);
-		if (IS_ERR(handle))
-			return PTR_ERR(handle);
+			data32 = compat_ptr(arg);
+			data = compat_alloc_user_space(sizeof(*data));
+			if (data == NULL)
+				return -EFAULT;
 
-		ret = ion_phys(client, handle, &data.phys, (size_t *)&data.size);
-		pr_debug("ret=%d, phys=0x%lX\n", ret, data.phys);
-		ion_handle_put(handle);
-		if(ret < 0)
-			return ret;
-		if (copy_to_user((void __user *)arg, &data, sizeof(struct ion_phys_data)))
-			return -EFAULT;
-		break;
-	}
-	default:
-		return -ENOTTY;
+			err = compat_get_ion_phys_data(data32, data);
+			if (err)
+				return err;
+
+			ret = rockchip_ion_get_phys(client,
+						    (unsigned long)data);
+
+			err = compat_put_ion_phys_data(data32, data);
+			return ret ? ret : err;
+		}
+		default:
+			return -ENOTTY;
+		}
+#endif
+	} else {
+		switch (cmd) {
+		case ION_IOC_GET_PHYS:
+			return rockchip_ion_get_phys(client, arg);
+		default:
+			return -ENOTTY;
+		}
 	}
 	
 	return 0;
@@ -152,6 +238,7 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 static int rockchip_ion_probe(struct platform_device *pdev)
 {
 	struct ion_platform_data *pdata;
+	struct ion_device *idev;
 	int err;
 	int i;
 
@@ -178,6 +265,7 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 		kfree(heaps);
 		return PTR_ERR(idev);
 	}
+	rockchip_ion_dev = idev;
 	/* create the heaps as specified in the board file */
 	for (i = 0; i < num_heaps; i++) {
 		struct ion_platform_heap *heap_data = &pdata->heaps[i];
