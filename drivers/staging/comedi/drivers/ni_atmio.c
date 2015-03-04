@@ -250,7 +250,7 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 					  ISAPNP_FUNCTION(ni_boards[i].
 							  isapnp_id), NULL);
 
-		if (isapnp_dev == NULL || isapnp_dev->card == NULL)
+		if (!isapnp_dev || !isapnp_dev->card)
 			continue;
 
 		if (pnp_device_attach(isapnp_dev) < 0)
