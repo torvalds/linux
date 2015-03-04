@@ -450,8 +450,10 @@ int soc_dai_hw_params(struct snd_pcm_substream *substream,
 		      struct snd_soc_dai *dai);
 
 /* Jack reporting */
-int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
-		     struct snd_soc_jack *jack);
+int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
+	struct snd_soc_jack *jack, struct snd_soc_jack_pin *pins,
+	unsigned int num_pins);
+
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
@@ -659,7 +661,7 @@ struct snd_soc_jack_gpio {
 struct snd_soc_jack {
 	struct mutex mutex;
 	struct snd_jack *jack;
-	struct snd_soc_codec *codec;
+	struct snd_soc_card *card;
 	struct list_head pins;
 	int status;
 	struct blocking_notifier_head notifier;
@@ -1480,6 +1482,26 @@ static inline struct snd_soc_platform *snd_soc_kcontrol_platform(
 	struct snd_kcontrol *kcontrol)
 {
 	return snd_soc_component_to_platform(snd_soc_kcontrol_component(kcontrol));
+}
+
+/**
+ * snd_soc_jack_new - Create a new jack
+ * @codec: ASoC CODEC
+ * @id:    an identifying string for this jack
+ * @type:  a bitmask of enum snd_jack_type values that can be detected by
+ *         this jack
+ * @jack:  structure to use for the jack
+ *
+ * Creates a new jack object.
+ *
+ * Returns zero if successful, or a negative error code on failure.
+ * On success jack will be initialised.
+ */
+static inline int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id,
+	int type, struct snd_soc_jack *jack)
+{
+	return snd_soc_card_jack_new(codec->component.card, id, type, jack,
+		NULL, 0);
 }
 
 int snd_soc_util_init(void);
