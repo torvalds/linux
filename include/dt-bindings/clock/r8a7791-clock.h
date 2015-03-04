@@ -20,6 +20,8 @@
 #define R8A7791_CLK_SDH			6
 #define R8A7791_CLK_SD0			7
 #define R8A7791_CLK_Z			8
+#define R8A7791_CLK_RCAN		9
+#define R8A7791_CLK_ADSP		10
 
 /* MSTP0 */
 #define R8A7791_CLK_MSIOF0		0
@@ -71,6 +73,7 @@
 /* MSTP5 */
 #define R8A7791_CLK_AUDIO_DMAC1		1
 #define R8A7791_CLK_AUDIO_DMAC0		2
+#define R8A7791_CLK_ADSP_MOD		6
 #define R8A7791_CLK_THERMAL		22
 #define R8A7791_CLK_PWM			23
 

@@ -94,6 +94,8 @@
 			      0 6 IRQ_TYPE_LEVEL_HIGH
 			      0 7 IRQ_TYPE_LEVEL_HIGH
 			      0 8 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
+		control-parent;
 	};
 
 	irqpin1: irqpin@e6900004 {
@@ -113,6 +115,7 @@
 			      0 14 IRQ_TYPE_LEVEL_HIGH
 			      0 15 IRQ_TYPE_LEVEL_HIGH
 			      0 16 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
 		control-parent;
 	};
 
@@ -133,6 +136,8 @@
 			      0 22 IRQ_TYPE_LEVEL_HIGH
 			      0 23 IRQ_TYPE_LEVEL_HIGH
 			      0 24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
+		control-parent;
 	};
 
 	irqpin3: irqpin@e690000c {
@@ -152,6 +157,8 @@
 			      0 30 IRQ_TYPE_LEVEL_HIGH
 			      0 31 IRQ_TYPE_LEVEL_HIGH
 			      0 32 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp5_clks SH73A0_CLK_INTCA0>;
+		control-parent;
 	};
 
 	i2c0: i2c@e6820000 {
@@ -426,133 +433,159 @@
 		vclk1_clk: vclk1_clk@e6150008 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150008 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&extcki_clk>, <&extal2_clk>, <&main_div2_clk>,
+				 <&extalr_clk>, <&cpg_clocks SH73A0_CLK_MAIN>,
+				 <0>;
 			#clock-cells = <0>;
 			clock-output-names = "vclk1";
 		};
 		vclk2_clk: vclk2_clk@e615000c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615000c 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&extcki_clk>, <&extal2_clk>, <&main_div2_clk>,
+				 <&extalr_clk>, <&cpg_clocks SH73A0_CLK_MAIN>,
+				 <0>;
 			#clock-cells = <0>;
 			clock-output-names = "vclk2";
 		};
 		vclk3_clk: vclk3_clk@e615001c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615001c 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&extcki_clk>, <&extal2_clk>, <&main_div2_clk>,
+				 <&extalr_clk>, <&cpg_clocks SH73A0_CLK_MAIN>,
+				 <0>;
 			#clock-cells = <0>;
 			clock-output-names = "vclk3";
 		};
 		zb_clk: zb_clk@e6150010 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150010 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <0>,
+				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "zb";
 		};
 		flctl_clk: flctl_clk@e6150014 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150014 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <0>,
+				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "flctlck";
 		};
 		sdhi0_clk: sdhi0_clk@e6150074 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150074 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&pll1_div13_clk>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "sdhi0ck";
 		};
 		sdhi1_clk: sdhi1_clk@e6150078 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150078 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&pll1_div13_clk>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "sdhi1ck";
 		};
 		sdhi2_clk: sdhi2_clk@e615007c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615007c 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&pll1_div13_clk>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "sdhi2ck";
 		};
 		fsia_clk: fsia_clk@e6150018 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150018 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&fsiack_clk>, <&fsiack_clk>;
 			#clock-cells = <0>;
 			clock-output-names = "fsia";
 		};
 		fsib_clk: fsib_clk@e6150090 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150090 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&fsibck_clk>, <&fsibck_clk>;
 			#clock-cells = <0>;
 			clock-output-names = "fsib";
 		};
 		sub_clk: sub_clk@e6150080 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150080 4>;
-			clocks = <&extal2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&extal2_clk>, <&extal2_clk>;
 			#clock-cells = <0>;
 			clock-output-names = "sub";
 		};
 		spua_clk: spua_clk@e6150084 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150084 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&extal2_clk>, <&extal2_clk>;
 			#clock-cells = <0>;
 			clock-output-names = "spua";
 		};
 		spuv_clk: spuv_clk@e6150094 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150094 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&extal2_clk>, <&extal2_clk>;
 			#clock-cells = <0>;
 			clock-output-names = "spuv";
 		};
 		msu_clk: msu_clk@e6150088 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150088 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <0>,
+				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "msu";
 		};
 		hsi_clk: hsi_clk@e615008c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615008c 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&pll1_div7_clk>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "hsi";
 		};
 		mfg1_clk: mfg1_clk@e6150098 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150098 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <0>,
+				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "mfg1";
 		};
 		mfg2_clk: mfg2_clk@e615009c {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe615009c 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <0>,
+				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "mfg2";
 		};
 		dsit_clk: dsit_clk@e6150060 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150060 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <0>,
+				 <&cpg_clocks SH73A0_CLK_PLL2>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "dsit";
 		};
 		dsi0p_clk: dsi0p_clk@e6150064 {
 			compatible = "renesas,sh73a0-div6-clock", "renesas,cpg-div6-clock";
 			reg = <0xe6150064 4>;
-			clocks = <&pll1_div2_clk>;
+			clocks = <&pll1_div2_clk>, <&cpg_clocks SH73A0_CLK_PLL2>,
+				 <&cpg_clocks SH73A0_CLK_MAIN>, <&extal2_clk>,
+				 <&extcki_clk>, <0>, <0>, <0>;
 			#clock-cells = <0>;
 			clock-output-names = "dsi0pck";
 		};
@@ -694,6 +727,17 @@
 			>;
 			clock-output-names =
 				"iic3", "iic4", "keysc";
+		};
+		mstp5_clks: mstp5_clks@e6150144 {
+			compatible = "renesas,sh73a0-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xe6150144 4>, <0xe615003c 4>;
+			clocks = <&cpg_clocks SH73A0_CLK_HP>;
+			#clock-cells = <1>;
+			clock-indices = <
+				SH73A0_CLK_INTCA0
+			>;
+			clock-output-names =
+				"intca0";
 		};
 	};
 };

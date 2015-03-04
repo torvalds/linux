@@ -27,7 +27,7 @@
 
 static struct rcar_apmu_config r8a7791_apmu_config[] = {
 	{
-		.iomem = DEFINE_RES_MEM(0xe6152000, 0x88),
+		.iomem = DEFINE_RES_MEM(0xe6152000, 0x188),
 		.cpus = { 0, 1 },
 	}
 };

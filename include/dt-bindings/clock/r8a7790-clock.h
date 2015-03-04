@@ -21,6 +21,8 @@
 #define R8A7790_CLK_SD0			7
 #define R8A7790_CLK_SD1			8
 #define R8A7790_CLK_Z			9
+#define R8A7790_CLK_RCAN		10
+#define R8A7790_CLK_ADSP		11
 
 /* MSTP0 */
 #define R8A7790_CLK_MSIOF0		0
@@ -80,6 +82,7 @@
 /* MSTP5 */
 #define R8A7790_CLK_AUDIO_DMAC1		1
 #define R8A7790_CLK_AUDIO_DMAC0		2
+#define R8A7790_CLK_ADSP_MOD		6
 #define R8A7790_CLK_THERMAL		22
 #define R8A7790_CLK_PWM			23
 

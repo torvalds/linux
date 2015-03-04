@@ -45,7 +45,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x41000000 0x1e800000>;
+		reg = <0x40000000 0x20000000>;
 	};
 
 	reg_1p8v: regulator@0 {
@@ -188,6 +188,33 @@
 
 &i2c0 {
 	status = "okay";
+
+	compass@c {
+		compatible = "asahi-kasei,ak8975";
+		reg = <0x0c>;
+		interrupt-parent = <&irqpin3>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+	};
+
+	ak4648: codec@12 {
+		compatible = "asahi-kasei,ak4648";
+		reg = <0x12>;
+		#sound-dai-cells = <0>;
+	};
+
+	accelerometer@1d {
+		compatible = "adi,adxl34x";
+		reg = <0x1d>;
+		interrupt-parent = <&irqpin3>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
+			     <3 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	rtc@32 {
+		compatible = "ricoh,r2025sd";
+		reg = <0x32>;
+	};
+
 	as3711@40 {
 		compatible = "ams,as3711";
 		reg = <0x40>;
@@ -258,11 +285,16 @@
 			};
 		};
 	};
+};
 
-	ak4648: ak4648@12 {
-		#sound-dai-cells = <0>;
-		compatible = "asahi-kasei,ak4648";
-		reg = <0x12>;
+&i2c1 {
+	status = "okay";
+
+	touchscreen@55 {
+		compatible = "sitronix,st1232";
+		reg = <0x55>;
+		interrupt-parent = <&irqpin1>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
