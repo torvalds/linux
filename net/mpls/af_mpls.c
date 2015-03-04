@@ -410,6 +410,63 @@ static struct notifier_block mpls_dev_notifier = {
 	.notifier_call = mpls_dev_notify,
 };
 
+int nla_put_labels(struct sk_buff *skb, int attrtype,
+		   u8 labels, const u32 label[])
+{
+	struct nlattr *nla;
+	struct mpls_shim_hdr *nla_label;
+	bool bos;
+	int i;
+	nla = nla_reserve(skb, attrtype, labels*4);
+	if (!nla)
+		return -EMSGSIZE;
+
+	nla_label = nla_data(nla);
+	bos = true;
+	for (i = labels - 1; i >= 0; i--) {
+		nla_label[i] = mpls_entry_encode(label[i], 0, 0, bos);
+		bos = false;
+	}
+
+	return 0;
+}
+
+int nla_get_labels(const struct nlattr *nla,
+		   u32 max_labels, u32 *labels, u32 label[])
+{
+	unsigned len = nla_len(nla);
+	unsigned nla_labels;
+	struct mpls_shim_hdr *nla_label;
+	bool bos;
+	int i;
+
+	/* len needs to be an even multiple of 4 (the label size) */
+	if (len & 3)
+		return -EINVAL;
+
+	/* Limit the number of new labels allowed */
+	nla_labels = len/4;
+	if (nla_labels > max_labels)
+		return -EINVAL;
+
+	nla_label = nla_data(nla);
+	bos = true;
+	for (i = nla_labels - 1; i >= 0; i--, bos = false) {
+		struct mpls_entry_decoded dec;
+		dec = mpls_entry_decode(nla_label + i);
+
+		/* Ensure the bottom of stack flag is properly set
+		 * and ttl and tc are both clear.
+		 */
+		if ((dec.bos != bos) || dec.ttl || dec.tc)
+			return -EINVAL;
+
+		label[i] = dec.label;
+	}
+	*labels = nla_labels;
+	return 0;
+}
+
 static int resize_platform_label_table(struct net *net, size_t limit)
 {
 	size_t size = sizeof(struct mpls_route *) * limit;

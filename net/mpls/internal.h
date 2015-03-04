@@ -53,4 +53,7 @@ static inline struct mpls_entry_decoded mpls_entry_decode(struct mpls_shim_hdr *
 	return result;
 }
 
+int nla_put_labels(struct sk_buff *skb, int attrtype,  u8 labels, const u32 label[]);
+int nla_get_labels(const struct nlattr *nla, u32 max_labels, u32 *labels, u32 label[]);
+
 #endif /* MPLS_INTERNAL_H */
