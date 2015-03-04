@@ -22,4 +22,9 @@ config NET_MPLS_GSO
 	 that have had MPLS stack entries pushed onto them and thus
 	 become MPLS GSO packets.
 
+config MPLS_ROUTING
+	bool "MPLS: routing support"
+	help
+	 Add support for forwarding of mpls packets.
+
 endif # MPLS
