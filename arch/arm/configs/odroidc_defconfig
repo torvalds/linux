@@ -4300,15 +4300,15 @@ CONFIG_CRYPTO_AUTHENC=y
 #
 # Authenticated Encryption with Associated Data
 #
-# CONFIG_CRYPTO_CCM is not set
+CONFIG_CRYPTO_CCM=m
 # CONFIG_CRYPTO_GCM is not set
-# CONFIG_CRYPTO_SEQIV is not set
+CONFIG_CRYPTO_SEQIV=m
 
 #
 # Block modes
 #
 CONFIG_CRYPTO_CBC=y
-# CONFIG_CRYPTO_CTR is not set
+CONFIG_CRYPTO_CTR=m
 # CONFIG_CRYPTO_CTS is not set
 CONFIG_CRYPTO_ECB=y
 CONFIG_CRYPTO_LRW=m
