@@ -106,7 +106,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 
 	sr_data = XGI_CRT1Table[index].CR[5];
 
-	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3);
+	HDE = XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3;
 
 	cr_data = XGI_CRT1Table[index].CR[3];
 
@@ -1011,8 +1011,8 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			       XGIbios_mode[xgifb_info->mode_idx].mode_no);
 			return -EINVAL;
 		}
-		info->fix.line_length = ((info->var.xres_virtual
-				* info->var.bits_per_pixel) >> 6);
+		info->fix.line_length = (info->var.xres_virtual
+				* info->var.bits_per_pixel) >> 6;
 
 		xgifb_reg_set(XGISR, IND_SIS_PASSWORD, SIS_PASSWORD);
 
