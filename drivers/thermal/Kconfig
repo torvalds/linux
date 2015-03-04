@@ -120,7 +120,6 @@ config THERMAL_GOV_USER_SPACE
 
 config THERMAL_GOV_POWER_ALLOCATOR
 	bool "Power allocator thermal governor"
-	select THERMAL_POWER_ACTOR
 	help
 	  Enable this to manage platform thermals by dynamically
 	  allocating and limiting power to devices.
