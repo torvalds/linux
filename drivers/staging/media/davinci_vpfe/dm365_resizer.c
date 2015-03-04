@@ -1289,19 +1289,19 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
 /*
  * __resizer_get_format() - helper function for getting resizer format
  * @sd: pointer to subdev.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @pad: pad number.
  * @which: wanted subdev format.
  * Retun wanted mbus frame format.
  */
 static struct v4l2_mbus_framefmt *
-__resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+__resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		     unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	struct vpfe_resizer_device *resizer = v4l2_get_subdevdata(sd);
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(fh, pad);
+		return v4l2_subdev_get_try_format(sd, cfg, pad);
 	if (&resizer->crop_resizer.subdev == sd)
 		return &resizer->crop_resizer.formats[pad];
 	if (&resizer->resizer_a.subdev == sd)
@@ -1314,13 +1314,13 @@ __resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * resizer_try_format() - Handle try format by pad subdev method
  * @sd: pointer to subdev.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @pad: pad num.
  * @fmt: pointer to v4l2 format structure.
  * @which: wanted subdev format.
  */
 static void
-resizer_try_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+resizer_try_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 	unsigned int pad, struct v4l2_mbus_framefmt *fmt,
 	enum v4l2_subdev_format_whence which)
 {
@@ -1388,21 +1388,21 @@ resizer_try_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * resizer_set_format() - Handle set format by pads subdev method
  * @sd: pointer to v4l2 subdev structure
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __resizer_get_format(sd, fh, fmt->pad, fmt->which);
+	format = __resizer_get_format(sd, cfg, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	resizer_try_format(sd, fh, fmt->pad, &fmt->format, fmt->which);
+	resizer_try_format(sd, cfg, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
@@ -1448,16 +1448,16 @@ static int resizer_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * resizer_get_format() - Retrieve the video format on a pad
  * @sd: pointer to v4l2 subdev structure.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
-static int resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
 
-	format = __resizer_get_format(sd, fh, fmt->pad, fmt->which);
+	format = __resizer_get_format(sd, cfg, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
@@ -1469,11 +1469,11 @@ static int resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * resizer_enum_frame_size() - enum frame sizes on pads
  * @sd: Pointer to subdevice.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @code: pointer to v4l2_subdev_frame_size_enum structure.
  */
 static int resizer_enum_frame_size(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_fh *fh,
+				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct v4l2_mbus_framefmt format;
@@ -1484,7 +1484,7 @@ static int resizer_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	resizer_try_format(sd, fh, fse->pad, &format,
+	resizer_try_format(sd, cfg, fse->pad, &format,
 			    V4L2_SUBDEV_FORMAT_TRY);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
@@ -1495,7 +1495,7 @@ static int resizer_enum_frame_size(struct v4l2_subdev *sd,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	resizer_try_format(sd, fh, fse->pad, &format,
+	resizer_try_format(sd, cfg, fse->pad, &format,
 			   V4L2_SUBDEV_FORMAT_TRY);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
@@ -1506,11 +1506,11 @@ static int resizer_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * resizer_enum_mbus_code() - enum mbus codes for pads
  * @sd: Pointer to subdevice.
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @code: pointer to v4l2_subdev_mbus_code_enum structure
  */
 static int resizer_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad == RESIZER_PAD_SINK) {
@@ -1533,14 +1533,13 @@ static int resizer_enum_mbus_code(struct v4l2_subdev *sd,
  * @sd: Pointer to subdevice.
  * @fh: V4L2 subdev file handle.
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
- * formats are initialized on the file handle. Otherwise active formats are
- * initialized on the device.
+ * Initialize all pad formats with default values. Try formats are
+ * initialized on the file handle.
  */
 static int resizer_init_formats(struct v4l2_subdev *sd,
 				struct v4l2_subdev_fh *fh)
 {
-	__u32 which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	__u32 which = V4L2_SUBDEV_FORMAT_TRY;
 	struct vpfe_resizer_device *resizer = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_format format;
 
@@ -1551,7 +1550,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_HEIGHT;
-		resizer_set_format(sd, fh, &format);
+		resizer_set_format(sd, fh->pad, &format);
 
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_CROP_PAD_SOURCE;
@@ -1559,7 +1558,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_WIDTH;
-		resizer_set_format(sd, fh, &format);
+		resizer_set_format(sd, fh->pad, &format);
 
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_CROP_PAD_SOURCE2;
@@ -1567,7 +1566,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_WIDTH;
-		resizer_set_format(sd, fh, &format);
+		resizer_set_format(sd, fh->pad, &format);
 	} else if (&resizer->resizer_a.subdev == sd) {
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_PAD_SINK;
@@ -1575,7 +1574,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_HEIGHT;
-		resizer_set_format(sd, fh, &format);
+		resizer_set_format(sd, fh->pad, &format);
 
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_PAD_SOURCE;
@@ -1583,7 +1582,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 		format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
-		resizer_set_format(sd, fh, &format);
+		resizer_set_format(sd, fh->pad, &format);
 	} else if (&resizer->resizer_b.subdev == sd) {
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_PAD_SINK;
@@ -1591,7 +1590,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		format.format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 		format.format.width = MAX_IN_WIDTH;
 		format.format.height = MAX_IN_HEIGHT;
-		resizer_set_format(sd, fh, &format);
+		resizer_set_format(sd, fh->pad, &format);
 
 		memset(&format, 0, sizeof(format));
 		format.pad = RESIZER_PAD_SOURCE;
@@ -1599,7 +1598,7 @@ static int resizer_init_formats(struct v4l2_subdev *sd,
 		format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 		format.format.width = IPIPE_MAX_OUTPUT_WIDTH_B;
 		format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_B;
-		resizer_set_format(sd, fh, &format);
+		resizer_set_format(sd, fh->pad, &format);
 	}
 
 	return 0;

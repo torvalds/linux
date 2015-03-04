@@ -82,7 +82,7 @@ static int lut_s_stream(struct v4l2_subdev *subdev, int enable)
  */
 
 static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_fh *fh,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_mbus_code_enum *code)
 {
 	static const unsigned int codes[] = {
@@ -104,7 +104,7 @@ static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (code->index)
 			return -EINVAL;
 
-		format = v4l2_subdev_get_try_format(fh, LUT_PAD_SINK);
+		format = v4l2_subdev_get_try_format(subdev, cfg, LUT_PAD_SINK);
 		code->code = format->code;
 	}
 
@@ -112,12 +112,12 @@ static int lut_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 static int lut_enum_frame_size(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_fh *fh,
+			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_try_format(fh, fse->pad);
+	format = v4l2_subdev_get_try_format(subdev, cfg, fse->pad);
 
 	if (fse->index || fse->code != format->code)
 		return -EINVAL;
@@ -140,18 +140,18 @@ static int lut_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int lut_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
+static int lut_get_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lut *lut = to_lut(subdev);
 
-	fmt->format = *vsp1_entity_get_pad_format(&lut->entity, fh, fmt->pad,
+	fmt->format = *vsp1_entity_get_pad_format(&lut->entity, cfg, fmt->pad,
 						  fmt->which);
 
 	return 0;
 }
 
-static int lut_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
+static int lut_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_lut *lut = to_lut(subdev);
@@ -163,7 +163,7 @@ static int lut_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
 		fmt->format.code = MEDIA_BUS_FMT_AYUV8_1X32;
 
-	format = vsp1_entity_get_pad_format(&lut->entity, fh, fmt->pad,
+	format = vsp1_entity_get_pad_format(&lut->entity, cfg, fmt->pad,
 					    fmt->which);
 
 	if (fmt->pad == LUT_PAD_SOURCE) {
@@ -182,7 +182,7 @@ static int lut_set_format(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&lut->entity, fh, LUT_PAD_SOURCE,
+	format = vsp1_entity_get_pad_format(&lut->entity, cfg, LUT_PAD_SOURCE,
 					    fmt->which);
 	*format = fmt->format;
 

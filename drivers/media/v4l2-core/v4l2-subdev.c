@@ -262,7 +262,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (rval)
 			return rval;
 
-		return v4l2_subdev_call(sd, pad, get_fmt, subdev_fh, format);
+		return v4l2_subdev_call(sd, pad, get_fmt, subdev_fh->pad, format);
 	}
 
 	case VIDIOC_SUBDEV_S_FMT: {
@@ -272,7 +272,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (rval)
 			return rval;
 
-		return v4l2_subdev_call(sd, pad, set_fmt, subdev_fh, format);
+		return v4l2_subdev_call(sd, pad, set_fmt, subdev_fh->pad, format);
 	}
 
 	case VIDIOC_SUBDEV_G_CROP: {
@@ -289,7 +289,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		sel.target = V4L2_SEL_TGT_CROP;
 
 		rval = v4l2_subdev_call(
-			sd, pad, get_selection, subdev_fh, &sel);
+			sd, pad, get_selection, subdev_fh->pad, &sel);
 
 		crop->rect = sel.r;
 
@@ -311,7 +311,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		sel.r = crop->rect;
 
 		rval = v4l2_subdev_call(
-			sd, pad, set_selection, subdev_fh, &sel);
+			sd, pad, set_selection, subdev_fh->pad, &sel);
 
 		crop->rect = sel.r;
 
@@ -324,7 +324,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (code->pad >= sd->entity.num_pads)
 			return -EINVAL;
 
-		return v4l2_subdev_call(sd, pad, enum_mbus_code, subdev_fh,
+		return v4l2_subdev_call(sd, pad, enum_mbus_code, subdev_fh->pad,
 					code);
 	}
 
@@ -334,7 +334,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (fse->pad >= sd->entity.num_pads)
 			return -EINVAL;
 
-		return v4l2_subdev_call(sd, pad, enum_frame_size, subdev_fh,
+		return v4l2_subdev_call(sd, pad, enum_frame_size, subdev_fh->pad,
 					fse);
 	}
 
@@ -362,7 +362,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (fie->pad >= sd->entity.num_pads)
 			return -EINVAL;
 
-		return v4l2_subdev_call(sd, pad, enum_frame_interval, subdev_fh,
+		return v4l2_subdev_call(sd, pad, enum_frame_interval, subdev_fh->pad,
 					fie);
 	}
 
@@ -374,7 +374,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return rval;
 
 		return v4l2_subdev_call(
-			sd, pad, get_selection, subdev_fh, sel);
+			sd, pad, get_selection, subdev_fh->pad, sel);
 	}
 
 	case VIDIOC_SUBDEV_S_SELECTION: {
@@ -385,7 +385,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return rval;
 
 		return v4l2_subdev_call(
-			sd, pad, set_selection, subdev_fh, sel);
+			sd, pad, set_selection, subdev_fh->pad, sel);
 	}
 
 	case VIDIOC_G_EDID: {

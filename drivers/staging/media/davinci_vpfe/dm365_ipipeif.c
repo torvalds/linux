@@ -544,12 +544,12 @@ static int ipipeif_set_stream(struct v4l2_subdev *sd, int enable)
 /*
  * ipipeif_enum_mbus_code() - Handle pixel format enumeration
  * @sd: pointer to v4l2 subdev structure
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @code: pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
 static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_mbus_code_enum *code)
 {
 	switch (code->pad) {
@@ -577,11 +577,11 @@ static int ipipeif_enum_mbus_code(struct v4l2_subdev *sd,
 /*
  * ipipeif_get_format() - Handle get format by pads subdev method
  * @sd: pointer to v4l2 subdev structure
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @fmt: pointer to v4l2 subdev format structure
  */
 static int
-ipipeif_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipeif_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
@@ -589,7 +589,7 @@ ipipeif_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		fmt->format = ipipeif->formats[fmt->pad];
 	else
-		fmt->format = *(v4l2_subdev_get_try_format(fh, fmt->pad));
+		fmt->format = *(v4l2_subdev_get_try_format(sd, cfg, fmt->pad));
 
 	return 0;
 }
@@ -600,14 +600,14 @@ ipipeif_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * ipipeif_try_format() - Handle try format by pad subdev method
  * @ipipeif: VPFE ipipeif device.
- * @fh: V4L2 subdev file handle.
+ * @cfg: V4L2 subdev pad config
  * @pad: pad num.
  * @fmt: pointer to v4l2 format structure.
  * @which : wanted subdev format
  */
 static void
 ipipeif_try_format(struct vpfe_ipipeif_device *ipipeif,
-		   struct v4l2_subdev_fh *fh, unsigned int pad,
+		   struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 		   struct v4l2_mbus_framefmt *fmt,
 		   enum v4l2_subdev_format_whence which)
 {
@@ -641,7 +641,7 @@ ipipeif_try_format(struct vpfe_ipipeif_device *ipipeif,
 }
 
 static int
-ipipeif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipeif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		     struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
@@ -653,7 +653,7 @@ ipipeif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	format.code = fse->code;
 	format.width = 1;
 	format.height = 1;
-	ipipeif_try_format(ipipeif, fh, fse->pad, &format,
+	ipipeif_try_format(ipipeif, cfg, fse->pad, &format,
 			   V4L2_SUBDEV_FORMAT_TRY);
 	fse->min_width = format.width;
 	fse->min_height = format.height;
@@ -664,7 +664,7 @@ ipipeif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	format.code = fse->code;
 	format.width = -1;
 	format.height = -1;
-	ipipeif_try_format(ipipeif, fh, fse->pad, &format,
+	ipipeif_try_format(ipipeif, cfg, fse->pad, &format,
 			   V4L2_SUBDEV_FORMAT_TRY);
 	fse->max_width = format.width;
 	fse->max_height = format.height;
@@ -675,18 +675,18 @@ ipipeif_enum_frame_size(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 /*
  * __ipipeif_get_format() - helper function for getting ipipeif format
  * @ipipeif: pointer to ipipeif private structure.
+ * @cfg: V4L2 subdev pad config
  * @pad: pad number.
- * @fh: V4L2 subdev file handle.
  * @which: wanted subdev format.
  *
  */
 static struct v4l2_mbus_framefmt *
 __ipipeif_get_format(struct vpfe_ipipeif_device *ipipeif,
-		       struct v4l2_subdev_fh *fh, unsigned int pad,
+		       struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 		       enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(fh, pad);
+		return v4l2_subdev_get_try_format(&ipipeif->subdev, cfg, pad);
 
 	return &ipipeif->formats[pad];
 }
@@ -694,22 +694,22 @@ __ipipeif_get_format(struct vpfe_ipipeif_device *ipipeif,
 /*
  * ipipeif_set_format() - Handle set format by pads subdev method
  * @sd: pointer to v4l2 subdev structure
- * @fh: V4L2 subdev file handle
+ * @cfg: V4L2 subdev pad config
  * @fmt: pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
 static int
-ipipeif_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+ipipeif_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *fmt)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	format = __ipipeif_get_format(ipipeif, fh, fmt->pad, fmt->which);
+	format = __ipipeif_get_format(ipipeif, cfg, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;
 
-	ipipeif_try_format(ipipeif, fh, fmt->pad, &fmt->format, fmt->which);
+	ipipeif_try_format(ipipeif, cfg, fmt->pad, &fmt->format, fmt->which);
 	*format = fmt->format;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
@@ -757,9 +757,8 @@ static void ipipeif_set_default_config(struct vpfe_ipipeif_device *ipipeif)
  * @sd: VPFE ipipeif V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
- * formats are initialized on the file handle. Otherwise active formats are
- * initialized on the device.
+ * Initialize all pad formats with default values. Try formats are initialized
+ * on the file handle.
  */
 static int
 ipipeif_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -769,19 +768,19 @@ ipipeif_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPEIF_PAD_SINK;
-	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	format.which = V4L2_SUBDEV_FORMAT_TRY;
 	format.format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
-	ipipeif_set_format(sd, fh, &format);
+	ipipeif_set_format(sd, fh->pad, &format);
 
 	memset(&format, 0, sizeof(format));
 	format.pad = IPIPEIF_PAD_SOURCE;
-	format.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	format.which = V4L2_SUBDEV_FORMAT_TRY;
 	format.format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 	format.format.width = IPIPE_MAX_OUTPUT_WIDTH_A;
 	format.format.height = IPIPE_MAX_OUTPUT_HEIGHT_A;
-	ipipeif_set_format(sd, fh, &format);
+	ipipeif_set_format(sd, fh->pad, &format);
 
 	ipipeif_set_default_config(ipipeif);
 

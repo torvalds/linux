@@ -482,6 +482,18 @@ struct v4l2_subdev_ir_ops {
 				struct v4l2_subdev_ir_parameters *params);
 };
 
+/*
+ * Used for storing subdev pad information. This structure only needs
+ * to be passed to the pad op if the 'which' field of the main argument
+ * is set to V4L2_SUBDEV_FORMAT_TRY. For V4L2_SUBDEV_FORMAT_ACTIVE it is
+ * safe to pass NULL.
+ */
+struct v4l2_subdev_pad_config {
+	struct v4l2_mbus_framefmt try_fmt;
+	struct v4l2_rect try_crop;
+	struct v4l2_rect try_compose;
+};
+
 /**
  * struct v4l2_subdev_pad_ops - v4l2-subdev pad level operations
  * @get_frame_desc: get the current low level media bus frame parameters.
@@ -489,21 +501,26 @@ struct v4l2_subdev_ir_ops {
  *                  may be adjusted by the subdev driver to device capabilities.
  */
 struct v4l2_subdev_pad_ops {
-	int (*enum_mbus_code)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*enum_mbus_code)(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_mbus_code_enum *code);
 	int (*enum_frame_size)(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_fh *fh,
+			       struct v4l2_subdev_pad_config *cfg,
 			       struct v4l2_subdev_frame_size_enum *fse);
 	int (*enum_frame_interval)(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_fh *fh,
+				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_interval_enum *fie);
-	int (*get_fmt)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*get_fmt)(struct v4l2_subdev *sd,
+		       struct v4l2_subdev_pad_config *cfg,
 		       struct v4l2_subdev_format *format);
-	int (*set_fmt)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*set_fmt)(struct v4l2_subdev *sd,
+		       struct v4l2_subdev_pad_config *cfg,
 		       struct v4l2_subdev_format *format);
-	int (*get_selection)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*get_selection)(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_selection *sel);
-	int (*set_selection)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+	int (*set_selection)(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_selection *sel);
 	int (*get_edid)(struct v4l2_subdev *sd, struct v4l2_edid *edid);
 	int (*set_edid)(struct v4l2_subdev *sd, struct v4l2_edid *edid);
@@ -625,11 +642,7 @@ struct v4l2_subdev {
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-	struct {
-		struct v4l2_mbus_framefmt try_fmt;
-		struct v4l2_rect try_crop;
-		struct v4l2_rect try_compose;
-	} *pad;
+	struct v4l2_subdev_pad_config *pad;
 #endif
 };
 
@@ -639,17 +652,17 @@ struct v4l2_subdev_fh {
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 #define __V4L2_SUBDEV_MK_GET_TRY(rtype, fun_name, field_name)		\
 	static inline struct rtype *					\
-	v4l2_subdev_get_try_##fun_name(struct v4l2_subdev_fh *fh,	\
-				       unsigned int pad)		\
+	fun_name(struct v4l2_subdev *sd,				\
+		 struct v4l2_subdev_pad_config *cfg,			\
+		 unsigned int pad)					\
 	{								\
-		BUG_ON(pad >= vdev_to_v4l2_subdev(			\
-					fh->vfh.vdev)->entity.num_pads); \
-		return &fh->pad[pad].field_name;			\
+		BUG_ON(pad >= sd->entity.num_pads);			\
+		return &cfg[pad].field_name;				\
 	}
 
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_mbus_framefmt, format, try_fmt)
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, crop, try_crop)
-__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, compose, try_compose)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_mbus_framefmt, v4l2_subdev_get_try_format, try_fmt)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, v4l2_subdev_get_try_crop, try_crop)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, v4l2_subdev_get_try_compose, try_compose)
 #endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
