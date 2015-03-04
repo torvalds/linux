@@ -7,6 +7,7 @@
 
 #include <linux/uidgid.h>
 #include <net/inet_frag.h>
+#include <linux/rcupdate.h>
 
 struct tcpm_hash_bucket;
 struct ctl_table_header;
@@ -38,9 +39,9 @@ struct netns_ipv4 {
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rules_ops	*rules_ops;
 	bool			fib_has_custom_rules;
-	struct fib_table	*fib_local;
-	struct fib_table	*fib_main;
-	struct fib_table	*fib_default;
+	struct fib_table __rcu	*fib_local;
+	struct fib_table __rcu	*fib_main;
+	struct fib_table __rcu	*fib_default;
 #endif
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	int			fib_num_tclassid_users;

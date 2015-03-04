@@ -193,6 +193,13 @@ static inline struct tnode *tnode_get_child_rcu(const struct tnode *tn,
 	return rcu_dereference_rtnl(tn->tnode[i]);
 }
 
+static inline struct fib_table *trie_get_table(struct trie *t)
+{
+	unsigned long *tb_data = (unsigned long *)t;
+
+	return container_of(tb_data, struct fib_table, tb_data[0]);
+}
+
 /* To understand this stuff, an understanding of keys and all their bits is
  * necessary. Every node in the trie has a key associated with it, but not
  * all of the bits in that key are significant.
@@ -1593,14 +1600,20 @@ flush_complete:
 	return found;
 }
 
-void fib_free_table(struct fib_table *tb)
+static void __trie_free_rcu(struct rcu_head *head)
 {
+	struct fib_table *tb = container_of(head, struct fib_table, rcu);
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 	struct trie *t = (struct trie *)tb->tb_data;
 
 	free_percpu(t->stats);
 #endif /* CONFIG_IP_FIB_TRIE_STATS */
 	kfree(tb);
+}
+
+void fib_free_table(struct fib_table *tb)
+{
+	call_rcu(&tb->rcu, __trie_free_rcu);
 }
 
 static int fn_trie_dump_leaf(struct tnode *l, struct fib_table *tb,
@@ -1639,6 +1652,7 @@ static int fn_trie_dump_leaf(struct tnode *l, struct fib_table *tb,
 	return skb->len;
 }
 
+/* rcu_read_lock needs to be hold by caller from readside */
 int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 		   struct netlink_callback *cb)
 {
@@ -1650,15 +1664,12 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 	int count = cb->args[2];
 	t_key key = cb->args[3];
 
-	rcu_read_lock();
-
 	tp = rcu_dereference_rtnl(t->trie);
 
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
 		if (fn_trie_dump_leaf(l, tb, skb, cb) < 0) {
 			cb->args[3] = key;
 			cb->args[2] = count;
-			rcu_read_unlock();
 			return -1;
 		}
 
@@ -1672,8 +1683,6 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 		if (key < l->key)
 			break;
 	}
-
-	rcu_read_unlock();
 
 	cb->args[3] = key;
 	cb->args[2] = count;
