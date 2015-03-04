@@ -41,12 +41,7 @@
 #include <linux/of_gpio.h>
 
 #include "fbtft.h"
-
-extern void fbtft_sysfs_init(struct fbtft_par *par);
-extern void fbtft_sysfs_exit(struct fbtft_par *par);
-extern void fbtft_expand_debug_value(unsigned long *debug);
-extern int fbtft_gamma_parse_str(struct fbtft_par *par, unsigned long *curves,
-						const char *str, int size);
+#include "internal.h"
 
 static unsigned long debug;
 module_param(debug, ulong, 0);
