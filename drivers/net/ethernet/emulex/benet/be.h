@@ -488,6 +488,8 @@ struct be_adapter {
 
 	/* Rx rings */
 	u16 num_rx_qs;
+	u16 num_rss_qs;
+	u16 need_def_rxq;
 	struct be_rx_obj rx_obj[MAX_RX_QS];
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
@@ -635,9 +637,8 @@ extern const struct ethtool_ops be_ethtool_ops;
 	for (i = 0, rxo = &adapter->rx_obj[i]; i < adapter->num_rx_qs;	\
 		i++, rxo++)
 
-/* Skip the default non-rss queue (last one)*/
 #define for_all_rss_queues(adapter, rxo, i)				\
-	for (i = 0, rxo = &adapter->rx_obj[i]; i < (adapter->num_rx_qs - 1);\
+	for (i = 0, rxo = &adapter->rx_obj[i]; i < adapter->num_rss_qs;	\
 		i++, rxo++)
 
 #define for_all_tx_queues(adapter, txo, i)				\

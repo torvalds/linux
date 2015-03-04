@@ -3580,9 +3580,6 @@ static void be_copy_nic_desc(struct be_resources *res,
 	/* Clear flags that driver is not interested in */
 	res->if_cap_flags = le32_to_cpu(desc->cap_flags) &
 				BE_IF_CAP_FLAGS_WANT;
-	/* Need 1 RXQ as the default RXQ */
-	if (res->max_rss_qs && res->max_rss_qs == res->max_rx_qs)
-		res->max_rss_qs -= 1;
 }
 
 /* Uses Mbox */

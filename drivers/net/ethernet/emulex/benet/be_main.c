@@ -2454,13 +2454,19 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	int rc, i;
 
 	/* We can create as many RSS rings as there are EQs. */
-	adapter->num_rx_qs = adapter->num_evt_qs;
+	adapter->num_rss_qs = adapter->num_evt_qs;
 
-	/* We'll use RSS only if atleast 2 RSS rings are supported.
-	 * When RSS is used, we'll need a default RXQ for non-IP traffic.
+	/* We'll use RSS only if atleast 2 RSS rings are supported. */
+	if (adapter->num_rss_qs <= 1)
+		adapter->num_rss_qs = 0;
+
+	adapter->num_rx_qs = adapter->num_rss_qs + adapter->need_def_rxq;
+
+	/* When the interface is not capable of RSS rings (and there is no
+	 * need to create a default RXQ) we'll still need one RXQ
 	 */
-	if (adapter->num_rx_qs > 1)
-		adapter->num_rx_qs++;
+	if (adapter->num_rx_qs == 0)
+		adapter->num_rx_qs = 1;
 
 	adapter->big_page_size = (1 << get_order(rx_frag_size)) * PAGE_SIZE;
 	for_all_rx_queues(adapter, rxo, i) {
@@ -2479,8 +2485,7 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	}
 
 	dev_info(&adapter->pdev->dev,
-		 "created %d RSS queue(s) and 1 default RX queue\n",
-		 adapter->num_rx_qs - 1);
+		 "created %d RX queue(s)\n", adapter->num_rx_qs);
 	return 0;
 }
 
@@ -3110,12 +3115,14 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 			return rc;
 	}
 
-	/* The FW would like the default RXQ to be created first */
-	rxo = default_rxo(adapter);
-	rc = be_cmd_rxq_create(adapter, &rxo->q, rxo->cq.id, rx_frag_size,
-			       adapter->if_handle, false, &rxo->rss_id);
-	if (rc)
-		return rc;
+	if (adapter->need_def_rxq || !adapter->num_rss_qs) {
+		rxo = default_rxo(adapter);
+		rc = be_cmd_rxq_create(adapter, &rxo->q, rxo->cq.id,
+				       rx_frag_size, adapter->if_handle,
+				       false, &rxo->rss_id);
+		if (rc)
+			return rc;
+	}
 
 	for_all_rss_queues(adapter, rxo, i) {
 		rc = be_cmd_rxq_create(adapter, &rxo->q, rxo->cq.id,
@@ -3126,8 +3133,7 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 	}
 
 	if (be_multi_rxq(adapter)) {
-		for (j = 0; j < RSS_INDIR_TABLE_LEN;
-			j += adapter->num_rx_qs - 1) {
+		for (j = 0; j < RSS_INDIR_TABLE_LEN; j += adapter->num_rss_qs) {
 			for_all_rss_queues(adapter, rxo, i) {
 				if ((j + i) >= RSS_INDIR_TABLE_LEN)
 					break;
@@ -3439,7 +3445,7 @@ static int be_if_create(struct be_adapter *adapter, u32 *if_handle,
 
 	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 		   BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS |
-		   BE_IF_FLAGS_RSS;
+		   BE_IF_FLAGS_RSS | BE_IF_FLAGS_DEFQ_RSS;
 
 	en_flags &= cap_flags;
 
@@ -3649,6 +3655,7 @@ static void BEx_get_resources(struct be_adapter *adapter,
 		res->max_evt_qs = 1;
 
 	res->if_cap_flags = BE_IF_CAP_FLAGS_WANT;
+	res->if_cap_flags &= ~BE_IF_FLAGS_DEFQ_RSS;
 	if (!(adapter->function_caps & BE_FUNCTION_CAPS_RSS))
 		res->if_cap_flags &= ~BE_IF_FLAGS_RSS;
 }
@@ -3731,11 +3738,22 @@ static int be_get_resources(struct be_adapter *adapter)
 		if (status)
 			return status;
 
+		/* If a deafault RXQ must be created, we'll use up one RSSQ*/
+		if (res.max_rss_qs && res.max_rss_qs == res.max_rx_qs &&
+		    !(res.if_cap_flags & BE_IF_FLAGS_DEFQ_RSS))
+			res.max_rss_qs -= 1;
+
 		/* If RoCE may be enabled stash away half the EQs for RoCE */
 		if (be_roce_supported(adapter))
 			res.max_evt_qs /= 2;
 		adapter->res = res;
 	}
+
+	/* If FW supports RSS default queue, then skip creating non-RSS
+	 * queue for non-IP traffic.
+	 */
+	adapter->need_def_rxq = (be_if_cap_flags(adapter) &
+				 BE_IF_FLAGS_DEFQ_RSS) ? 0 : 1;
 
 	dev_info(dev, "Max: txqs %d, rxqs %d, rss %d, eqs %d, vfs %d\n",
 		 be_max_txqs(adapter), be_max_rxqs(adapter),
