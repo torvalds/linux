@@ -1473,7 +1473,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 		devpriv->ai_buffer[i] =
 			pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
 					     &devpriv->ai_buffer_bus_addr[i]);
-		if (devpriv->ai_buffer[i] == NULL)
+		if (!devpriv->ai_buffer[i])
 			return -ENOMEM;
 
 	}
@@ -1483,7 +1483,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 				pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
 						     &devpriv->
 						      ao_buffer_bus_addr[i]);
-			if (devpriv->ao_buffer[i] == NULL)
+			if (!devpriv->ao_buffer[i])
 				return -ENOMEM;
 
 		}
@@ -1493,7 +1493,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 		pci_alloc_consistent(pcidev, sizeof(struct plx_dma_desc) *
 				     ai_dma_ring_count(thisboard),
 				     &devpriv->ai_dma_desc_bus_addr);
-	if (devpriv->ai_dma_desc == NULL)
+	if (!devpriv->ai_dma_desc)
 		return -ENOMEM;
 
 	if (ao_cmd_is_supported(thisboard)) {
@@ -1502,7 +1502,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 					     sizeof(struct plx_dma_desc) *
 					     AO_DMA_RING_COUNT,
 					     &devpriv->ao_dma_desc_bus_addr);
-		if (devpriv->ao_dma_desc == NULL)
+		if (!devpriv->ao_dma_desc)
 			return -ENOMEM;
 	}
 	/*  initialize dma descriptors */
@@ -2975,7 +2975,7 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 	unsigned long flags;
 
 	/* board might not support ao, in which case write_subdev is NULL */
-	if (s == NULL)
+	if (!s)
 		return;
 	async = s->async;
 	cmd = &async->cmd;
