@@ -1847,35 +1847,6 @@ config ZBOOT_ROM
 	  Say Y here if you intend to execute your compressed kernel image
 	  (zImage) directly from ROM or flash.  If unsure, say N.
 
-choice
-	prompt "Include SD/MMC loader in zImage (EXPERIMENTAL)"
-	depends on ZBOOT_ROM && ARCH_SH7372
-	default ZBOOT_ROM_NONE
-	help
-	  Include experimental SD/MMC loading code in the ROM-able zImage.
-	  With this enabled it is possible to write the ROM-able zImage
-	  kernel image to an MMC or SD card and boot the kernel straight
-	  from the reset vector. At reset the processor Mask ROM will load
-	  the first part of the ROM-able zImage which in turn loads the
-	  rest the kernel image to RAM.
-
-config ZBOOT_ROM_NONE
-	bool "No SD/MMC loader in zImage (EXPERIMENTAL)"
-	help
-	  Do not load image from SD or MMC
-
-config ZBOOT_ROM_MMCIF
-	bool "Include MMCIF loader in zImage (EXPERIMENTAL)"
-	help
-	  Load image from MMCIF hardware block.
-
-config ZBOOT_ROM_SH_MOBILE_SDHI
-	bool "Include SuperH Mobile SDHI loader in zImage (EXPERIMENTAL)"
-	help
-	  Load image from SDHI hardware block
-
-endchoice
-
 config ARM_APPENDED_DTB
 	bool "Use appended device tree blob to zImage (EXPERIMENTAL)"
 	depends on OF

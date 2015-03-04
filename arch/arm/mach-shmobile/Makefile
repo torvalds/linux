@@ -6,7 +6,6 @@
 obj-y				:= timer.o console.o
 
 # CPU objects
-obj-$(CONFIG_ARCH_SH7372)	+= setup-sh7372.o intc-sh7372.o pm-sh7372.o
 obj-$(CONFIG_ARCH_SH73A0)	+= setup-sh73a0.o intc-sh73a0.o pm-sh73a0.o
 obj-$(CONFIG_ARCH_R8A73A4)	+= setup-r8a73a4.o
 obj-$(CONFIG_ARCH_R8A7740)	+= setup-r8a7740.o pm-r8a7740.o
@@ -21,7 +20,6 @@ obj-$(CONFIG_ARCH_R7S72100)	+= setup-r7s72100.o
 # Clock objects
 ifndef CONFIG_COMMON_CLK
 obj-y				+= clock.o
-obj-$(CONFIG_ARCH_SH7372)	+= clock-sh7372.o
 obj-$(CONFIG_ARCH_SH73A0)	+= clock-sh73a0.o
 obj-$(CONFIG_ARCH_R8A73A4)	+= clock-r8a73a4.o
 obj-$(CONFIG_ARCH_R8A7740)	+= clock-r8a7740.o
@@ -51,16 +49,12 @@ obj-$(CONFIG_CPU_FREQ)		+= cpufreq.o
 obj-$(CONFIG_PM_RCAR)		+= pm-rcar.o
 obj-$(CONFIG_PM_RMOBILE)	+= pm-rmobile.o
 
-# special sh7372 handling for IRQ objects and low level sleep code
-obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o sleep-sh7372.o
-
 # Board objects
 ifdef CONFIG_ARCH_SHMOBILE_MULTI
 obj-$(CONFIG_MACH_MARZEN)	+= board-marzen-reference.o
 else
 obj-$(CONFIG_MACH_APE6EVM)	+= board-ape6evm.o
 obj-$(CONFIG_MACH_APE6EVM_REFERENCE)	+= board-ape6evm-reference.o
-obj-$(CONFIG_MACH_MACKEREL)	+= board-mackerel.o
 obj-$(CONFIG_MACH_BOCKW)	+= board-bockw.o
 obj-$(CONFIG_MACH_BOCKW_REFERENCE)	+= board-bockw-reference.o
 obj-$(CONFIG_MACH_MARZEN)	+= board-marzen.o
