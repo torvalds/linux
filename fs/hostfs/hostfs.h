@@ -77,8 +77,7 @@ extern int write_file(int fd, unsigned long long *offset, const char *buf,
 		      int len);
 extern int lseek_file(int fd, long long offset, int whence);
 extern int fsync_file(int fd, int datasync);
-extern int file_create(char *name, int ur, int uw, int ux, int gr,
-		       int gw, int gx, int or, int ow, int ox);
+extern int file_create(char *name, int mode);
 extern int set_attr(const char *file, struct hostfs_iattr *attrs, int fd);
 extern int make_symlink(const char *from, const char *to);
 extern int unlink_file(const char *file);

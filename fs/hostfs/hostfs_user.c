@@ -175,21 +175,10 @@ void close_dir(void *stream)
 	closedir(stream);
 }
 
-int file_create(char *name, int ur, int uw, int ux, int gr,
-		int gw, int gx, int or, int ow, int ox)
+int file_create(char *name, int mode)
 {
-	int mode, fd;
+	int fd;
 
-	mode = 0;
-	mode |= ur ? S_IRUSR : 0;
-	mode |= uw ? S_IWUSR : 0;
-	mode |= ux ? S_IXUSR : 0;
-	mode |= gr ? S_IRGRP : 0;
-	mode |= gw ? S_IWGRP : 0;
-	mode |= gx ? S_IXGRP : 0;
-	mode |= or ? S_IROTH : 0;
-	mode |= ow ? S_IWOTH : 0;
-	mode |= ox ? S_IXOTH : 0;
 	fd = open64(name, O_CREAT | O_RDWR, mode);
 	if (fd < 0)
 		return -errno;
