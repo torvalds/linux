@@ -6203,6 +6203,9 @@ int si_irq_set(struct radeon_device *rdev)
 
 	WREG32(CG_THERMAL_INT, thermal_int);
 
+	/* posting read */
+	RREG32(SRBM_STATUS);
+
 	return 0;
 }
 
