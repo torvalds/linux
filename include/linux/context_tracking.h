@@ -43,7 +43,7 @@ static inline enum ctx_state exception_enter(void)
 static inline void exception_exit(enum ctx_state prev_ctx)
 {
 	if (context_tracking_is_enabled()) {
-		if (prev_ctx == IN_USER)
+		if (prev_ctx == CONTEXT_USER)
 			context_tracking_user_enter();
 	}
 }
