@@ -188,33 +188,6 @@ struct clk_hw_omap {
 /* DPLL Type and DCO Selection Flags */
 #define DPLL_J_TYPE		0x1
 
-/* Composite clock component types */
-enum {
-	CLK_COMPONENT_TYPE_GATE = 0,
-	CLK_COMPONENT_TYPE_DIVIDER,
-	CLK_COMPONENT_TYPE_MUX,
-	CLK_COMPONENT_TYPE_MAX,
-};
-
-/**
- * struct ti_dt_clk - OMAP DT clock alias declarations
- * @lk: clock lookup definition
- * @node_name: clock DT node to map to
- */
-struct ti_dt_clk {
-	struct clk_lookup		lk;
-	char				*node_name;
-};
-
-#define DT_CLK(dev, con, name)		\
-	{				\
-		.lk = {			\
-			.dev_id = dev,	\
-			.con_id = con,	\
-		},			\
-		.node_name = name,	\
-	}
-
 /* Static memmap indices */
 enum {
 	TI_CLKM_CM = 0,
@@ -224,8 +197,6 @@ enum {
 	TI_CLKM_CTRL,
 	CLK_MAX_MEMMAPS
 };
-
-typedef void (*ti_of_clk_init_cb_t)(struct clk_hw *, struct device_node *);
 
 /**
  * struct clk_omap_reg - OMAP register declaration
@@ -266,9 +237,6 @@ struct ti_clk_ll_ops {
 
 extern struct ti_clk_ll_ops *ti_clk_ll_ops;
 
-extern const struct clk_ops ti_clk_divider_ops;
-extern const struct clk_ops ti_clk_mux_ops;
-
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
 
 void omap2_init_clk_clkdm(struct clk_hw *clk);
@@ -276,14 +244,6 @@ int omap2_clk_disable_autoidle_all(void);
 int omap2_clk_enable_autoidle_all(void);
 int omap2_clk_allow_idle(struct clk *clk);
 int omap2_clk_deny_idle(struct clk *clk);
-void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk);
-void omap2_clkt_iclk_deny_idle(struct clk_hw_omap *clk);
-void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
-				   void __iomem **other_reg,
-				   u8 *other_bit);
-void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
-				void __iomem **idlest_reg,
-				u8 *idlest_bit, u8 *idlest_val);
 unsigned long omap2_dpllcore_recalc(struct clk_hw *hw,
 				    unsigned long parent_rate);
 int omap2_reprogram_dpllcore(struct clk_hw *clk, unsigned long rate,
@@ -292,14 +252,9 @@ void omap2xxx_clkt_dpllcore_init(struct clk_hw *hw);
 void omap2xxx_clkt_vps_init(void);
 unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk);
 
-void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index);
-void ti_dt_clocks_register(struct ti_dt_clk *oclks);
 void ti_dt_clk_init_provider(struct device_node *np, int index);
 void ti_dt_clk_init_retry_clks(void);
 void ti_dt_clockdomains_setup(void);
-int ti_clk_retry_init(struct device_node *node, struct clk_hw *hw,
-		      ti_of_clk_init_cb_t func);
-int ti_clk_add_component(struct device_node *node, struct clk_hw *hw, int type);
 
 int omap3430_dt_clk_init(void);
 int omap3630_dt_clk_init(void);

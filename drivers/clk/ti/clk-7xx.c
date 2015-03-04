@@ -16,10 +16,11 @@
 #include <linux/clkdev.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 #define DRA7_DPLL_ABE_DEFFREQ				180633600
 #define DRA7_DPLL_GMAC_DEFFREQ				1000000000
 #define DRA7_DPLL_USB_DEFFREQ				960000000
-
 
 static struct ti_dt_clk dra7xx_clks[] = {
 	DT_CLK(NULL, "atl_clkin0_ck", "atl_clkin0_ck"),

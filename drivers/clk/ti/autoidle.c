@@ -22,6 +22,8 @@
 #include <linux/of_address.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 struct clk_ti_autoidle {
 	void __iomem		*reg;
 	u8			shift;

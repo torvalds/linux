@@ -16,6 +16,8 @@
 #include <linux/clkdev.h>
 #include <linux/clk/ti.h>
 
+#include "clock.h"
+
 /*
  * OMAP4 ABE DPLL default frequency. In OMAP4460 TRM version V, section
  * "3.6.3.2.3 CM1_ABE Clock Generator" states that the "DPLL_ABE_X2_CLK

@@ -27,6 +27,8 @@
 #include <linux/clk/ti.h>
 #include <linux/delay.h>
 
+#include "clock.h"
+
 #define APLL_FORCE_LOCK 0x1
 #define APLL_AUTO_IDLE	0x2
 #define MAX_APLL_WAIT_TRIES		1000000
