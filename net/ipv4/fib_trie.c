@@ -277,6 +277,8 @@ static inline void alias_free_mem_rcu(struct fib_alias *fa)
 
 #define TNODE_KMALLOC_MAX \
 	ilog2((PAGE_SIZE - TNODE_SIZE(0)) / sizeof(struct tnode *))
+#define TNODE_VMALLOC_MAX \
+	ilog2((SIZE_MAX - TNODE_SIZE(0)) / sizeof(struct tnode *))
 
 static void __node_free_rcu(struct rcu_head *head)
 {
@@ -292,8 +294,17 @@ static void __node_free_rcu(struct rcu_head *head)
 
 #define node_free(n) call_rcu(&n->rcu, __node_free_rcu)
 
-static struct tnode *tnode_alloc(size_t size)
+static struct tnode *tnode_alloc(int bits)
 {
+	size_t size;
+
+	/* verify bits is within bounds */
+	if (bits > TNODE_VMALLOC_MAX)
+		return NULL;
+
+	/* determine size and verify it is non-zero and didn't overflow */
+	size = TNODE_SIZE(1ul << bits);
+
 	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_KERNEL);
 	else
@@ -334,8 +345,7 @@ static struct tnode *leaf_new(t_key key, struct fib_alias *fa)
 
 static struct tnode *tnode_new(t_key key, int pos, int bits)
 {
-	size_t sz = TNODE_SIZE(1ul << bits);
-	struct tnode *tn = tnode_alloc(sz);
+	struct tnode *tn = tnode_alloc(bits);
 	unsigned int shift = pos + bits;
 
 	/* verify bits and pos their msb bits clear and values are valid */
