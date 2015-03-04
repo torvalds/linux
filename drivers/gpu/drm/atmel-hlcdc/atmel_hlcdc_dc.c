@@ -222,6 +222,8 @@ static void atmel_hlcdc_fb_output_poll_changed(struct drm_device *dev)
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = atmel_hlcdc_fb_create,
 	.output_poll_changed = atmel_hlcdc_fb_output_poll_changed,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
@@ -318,6 +320,8 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 		dev_err(dev->dev, "failed to initialize mode setting\n");
 		goto err_periph_clk_disable;
 	}
+
+	drm_mode_config_reset(dev);
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret < 0) {
@@ -557,6 +561,52 @@ static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct drm_crtc *crtc;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	drm_modeset_lock_all(drm_dev);
+	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
+		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		if (crtc->enabled) {
+			crtc_funcs->disable(crtc);
+			/* save enable state for resume */
+			crtc->enabled = true;
+		}
+	}
+	drm_modeset_unlock_all(drm_dev);
+	return 0;
+}
+
+static int atmel_hlcdc_dc_drm_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+	struct drm_crtc *crtc;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	drm_modeset_lock_all(drm_dev);
+	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
+		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		if (crtc->enabled) {
+			crtc->enabled = false;
+			crtc_funcs->enable(crtc);
+		}
+	}
+	drm_modeset_unlock_all(drm_dev);
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(atmel_hlcdc_dc_drm_pm_ops,
+		atmel_hlcdc_dc_drm_suspend, atmel_hlcdc_dc_drm_resume);
+
 static const struct of_device_id atmel_hlcdc_dc_of_match[] = {
 	{ .compatible = "atmel,hlcdc-display-controller" },
 	{ },
@@ -567,6 +617,7 @@ static struct platform_driver atmel_hlcdc_dc_platform_driver = {
 	.remove	= atmel_hlcdc_dc_drm_remove,
 	.driver	= {
 		.name	= "atmel-hlcdc-display-controller",
+		.pm	= &atmel_hlcdc_dc_drm_pm_ops,
 		.of_match_table = atmel_hlcdc_dc_of_match,
 	},
 };

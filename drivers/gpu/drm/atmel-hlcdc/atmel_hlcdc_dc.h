@@ -26,11 +26,14 @@
 #include <linux/irqdomain.h>
 #include <linux/pwm.h>
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
 
 #include "atmel_hlcdc_layer.h"
@@ -69,7 +72,6 @@ struct atmel_hlcdc_dc_desc {
  */
 struct atmel_hlcdc_plane_properties {
 	struct drm_property *alpha;
-	struct drm_property *rotation;
 };
 
 /**
@@ -84,7 +86,6 @@ struct atmel_hlcdc_plane {
 	struct drm_plane base;
 	struct atmel_hlcdc_layer layer;
 	struct atmel_hlcdc_plane_properties *properties;
-	unsigned int rotation;
 };
 
 static inline struct atmel_hlcdc_plane *
@@ -98,43 +99,6 @@ atmel_hlcdc_layer_to_plane(struct atmel_hlcdc_layer *l)
 {
 	return container_of(l, struct atmel_hlcdc_plane, layer);
 }
-
-/**
- * Atmel HLCDC Plane update request structure.
- *
- * @crtc_x: x position of the plane relative to the CRTC
- * @crtc_y: y position of the plane relative to the CRTC
- * @crtc_w: visible width of the plane
- * @crtc_h: visible height of the plane
- * @src_x: x buffer position
- * @src_y: y buffer position
- * @src_w: buffer width
- * @src_h: buffer height
- * @fb: framebuffer object object
- * @bpp: bytes per pixel deduced from pixel_format
- * @offsets: offsets to apply to the GEM buffers
- * @xstride: value to add to the pixel pointer between each line
- * @pstride: value to add to the pixel pointer between each pixel
- * @nplanes: number of planes (deduced from pixel_format)
- */
-struct atmel_hlcdc_plane_update_req {
-	int crtc_x;
-	int crtc_y;
-	unsigned int crtc_w;
-	unsigned int crtc_h;
-	uint32_t src_x;
-	uint32_t src_y;
-	uint32_t src_w;
-	uint32_t src_h;
-	struct drm_framebuffer *fb;
-
-	/* These fields are private and should not be touched */
-	int bpp[ATMEL_HLCDC_MAX_PLANES];
-	unsigned int offsets[ATMEL_HLCDC_MAX_PLANES];
-	int xstride[ATMEL_HLCDC_MAX_PLANES];
-	int pstride[ATMEL_HLCDC_MAX_PLANES];
-	int nplanes;
-};
 
 /**
  * Atmel HLCDC Planes.
@@ -184,22 +148,7 @@ int atmel_hlcdc_dc_mode_valid(struct atmel_hlcdc_dc *dc,
 struct atmel_hlcdc_planes *
 atmel_hlcdc_create_planes(struct drm_device *dev);
 
-int atmel_hlcdc_plane_prepare_update_req(struct drm_plane *p,
-				struct atmel_hlcdc_plane_update_req *req,
-				const struct drm_display_mode *mode);
-
-int atmel_hlcdc_plane_apply_update_req(struct drm_plane *p,
-				struct atmel_hlcdc_plane_update_req *req);
-
-int atmel_hlcdc_plane_update_with_mode(struct drm_plane *p,
-				       struct drm_crtc *crtc,
-				       struct drm_framebuffer *fb,
-				       int crtc_x, int crtc_y,
-				       unsigned int crtc_w,
-				       unsigned int crtc_h,
-				       uint32_t src_x, uint32_t src_y,
-				       uint32_t src_w, uint32_t src_h,
-				       const struct drm_display_mode *mode);
+int atmel_hlcdc_plane_prepare_disc_area(struct drm_crtc_state *c_state);
 
 void atmel_hlcdc_crtc_irq(struct drm_crtc *c);
 
