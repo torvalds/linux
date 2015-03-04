@@ -20,7 +20,6 @@
 
 #include <linux/uuid.h>
 
-#include "uniklog.h"
 #include "timskmod.h"
 #include "channel.h"
 

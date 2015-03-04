@@ -34,7 +34,6 @@
 
 #include <linux/proc_fs.h>
 
-#include "uniklog.h"
 #include "timskmod.h"
 #include "easyproc.h"
 

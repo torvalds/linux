@@ -21,7 +21,6 @@
 #ifdef CONFIG_MODVERSIONS
 #include <config/modversions.h>
 #endif
-#include "uniklog.h"
 #include "diagnostics/appos_subsystems.h"
 #include "uisutils.h"
 #include "vbuschannel.h"

@@ -20,7 +20,6 @@
  *  channel memory (in main memory of the host system) from code running in
  *  a virtual partition.
  */
-#include "uniklog.h"
 #include "timskmod.h"
 #include "memregion.h"
 

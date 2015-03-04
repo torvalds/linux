@@ -21,7 +21,6 @@
 #include <linux/uuid.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include "uniklog.h"
 #include "uisutils.h"
 #include "version.h"
 #include "vbushelper.h"

@@ -19,7 +19,6 @@
  *  Helper functions to schedule periodic work in Linux kernel mode.
  */
 
-#include "uniklog.h"
 #include "timskmod.h"
 #include "periodic_work.h"
 
@@ -193,14 +192,6 @@ BOOL visor_periodic_work_stop(struct periodic_work *pw)
 		}
 		if (pw->is_scheduled) {
 			write_unlock(&pw->lock);
-			WARNDEV(pw->devnam,
-				"waiting for delayed work...");
-			/* We rely on the delayed work function running here,
-			 * and eventually calling
-			 * visor_periodic_work_nextperiod(),
-			 * which will see that want_to_stop is set, and
-			 * subsequently clear is_scheduled.
-			 */
 			SLEEPJIFFIES(10);
 			write_lock(&pw->lock);
 		} else {

@@ -22,7 +22,6 @@
 #include "periodic_work.h"
 #include "file.h"
 #include "parser.h"
-#include "uniklog.h"
 #include "uisutils.h"
 #include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"
@@ -1719,27 +1718,17 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 		parser_ctx =
 		    parser_init_byteStream(parametersAddr, parametersBytes,
 					   isLocalAddr, &retry);
-		if (!parser_ctx) {
-			if (retry) {
-				LOGWRN("throttling to copy payload");
-				return FALSE;
-			}
-			LOGWRN("parsing failed");
-			LOGWRN("inmsg.hdr.Id=0x%lx", (ulong) inmsg.hdr.id);
-			LOGWRN("parametersAddr=0x%llx", (u64) parametersAddr);
-			LOGWRN("parametersBytes=%lu", (ulong) parametersBytes);
-			LOGWRN("isLocalAddr=%d", isLocalAddr);
-		}
+		if (!parser_ctx && retry)
+			return FALSE;
 	}
 
 	if (!isLocalAddr) {
 		controlvm_init_response(&ackmsg, &inmsg.hdr,
 					CONTROLVM_RESP_SUCCESS);
-		if ((ControlVm_channel)
-		    &&
-		    (!visorchannel_signalinsert
-		     (ControlVm_channel, CONTROLVM_QUEUE_ACK, &ackmsg)))
-			LOGWRN("failed to send ACK failed");
+		if (ControlVm_channel)
+			visorchannel_signalinsert(ControlVm_channel,
+						  CONTROLVM_QUEUE_ACK,
+						  &ackmsg);
 	}
 	switch (inmsg.hdr.id) {
 	case CONTROLVM_CHIPSET_INIT:

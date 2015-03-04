@@ -29,7 +29,6 @@
 #include <linux/uuid.h>
 
 #include <linux/version.h>
-#include "uniklog.h"
 #include "diagnostics/appos_subsystems.h"
 #include "uisutils.h"
 #include "vbuschannel.h"

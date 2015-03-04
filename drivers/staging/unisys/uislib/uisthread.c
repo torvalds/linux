@@ -20,7 +20,6 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-#include "uniklog.h"
 #include "uisutils.h"
 #include "uisthread.h"
 
