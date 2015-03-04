@@ -12,7 +12,7 @@ Required properties:
   gpio_mux.
 - interrupt-names : Should be the names of irq resources. Each interrupt
   uses its own interrupt name, so there should be as many interrupt names
-  as referenced interrups.
+  as referenced interrupts.
 - interrupt-controller : Identifies the node as an interrupt controller.
 - #interrupt-cells: Specifies the number of cells needed to encode an
   interrupt source.
