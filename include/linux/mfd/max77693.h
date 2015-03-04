@@ -87,19 +87,6 @@ enum max77693_led_boost_mode {
 	MAX77693_LED_BOOST_FIXED,
 };
 
-struct max77693_led_platform_data {
-	u32 fleds[2];
-	u32 iout_torch[2];
-	u32 iout_flash[2];
-	u32 trigger[2];
-	u32 trigger_type[2];
-	u32 num_leds;
-	u32 boost_mode;
-	u32 flash_timeout;
-	u32 boost_vout;
-	u32 low_vsys;
-};
-
 /* MAX77693 */
 
 struct max77693_platform_data {
