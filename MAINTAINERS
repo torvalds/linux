@@ -2065,7 +2065,7 @@ F:	include/net/bluetooth/
 BONDING DRIVER
 M:	Jay Vosburgh <j.vosburgh@gmail.com>
 M:	Veaceslav Falico <vfalico@gmail.com>
-M:	Andy Gospodarek <andy@greyhouse.net>
+M:	Andy Gospodarek <gospo@cumulusnetworks.com>
 L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/bonding/
 S:	Supported

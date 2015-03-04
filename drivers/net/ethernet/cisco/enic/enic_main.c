@@ -272,8 +272,8 @@ static irqreturn_t enic_isr_legacy(int irq, void *data)
 	}
 
 	if (ENIC_TEST_INTR(pba, notify_intr)) {
-		vnic_intr_return_all_credits(&enic->intr[notify_intr]);
 		enic_notify_check(enic);
+		vnic_intr_return_all_credits(&enic->intr[notify_intr]);
 	}
 
 	if (ENIC_TEST_INTR(pba, err_intr)) {
@@ -346,8 +346,8 @@ static irqreturn_t enic_isr_msix_notify(int irq, void *data)
 	struct enic *enic = data;
 	unsigned int intr = enic_msix_notify_intr(enic);
 
-	vnic_intr_return_all_credits(&enic->intr[intr]);
 	enic_notify_check(enic);
+	vnic_intr_return_all_credits(&enic->intr[intr]);
 
 	return IRQ_HANDLED;
 }

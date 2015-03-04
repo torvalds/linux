@@ -938,7 +938,7 @@ static void eth_set_mcast_list(struct net_device *dev)
 	int i;
 	static const u8 allmulti[] = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-	if (dev->flags & IFF_ALLMULTI) {
+	if ((dev->flags & IFF_ALLMULTI) && !(dev->flags & IFF_PROMISC)) {
 		for (i = 0; i < ETH_ALEN; i++) {
 			__raw_writel(allmulti[i], &port->regs->mcast_addr[i]);
 			__raw_writel(allmulti[i], &port->regs->mcast_mask[i]);

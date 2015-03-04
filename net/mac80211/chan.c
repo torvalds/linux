@@ -1508,6 +1508,8 @@ static void __ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata)
 	if (ieee80211_chanctx_refcount(local, ctx) == 0)
 		ieee80211_free_chanctx(local, ctx);
 
+	sdata->radar_required = false;
+
 	/* Unreserving may ready an in-place reservation. */
 	if (use_reserved_switch)
 		ieee80211_vif_use_reserved_switch(local);
@@ -1566,6 +1568,9 @@ int ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_smps_chanctx(local, ctx);
 	ieee80211_recalc_radar_chanctx(local, ctx);
  out:
+	if (ret)
+		sdata->radar_required = false;
+
 	mutex_unlock(&local->chanctx_mtx);
 	return ret;
 }
