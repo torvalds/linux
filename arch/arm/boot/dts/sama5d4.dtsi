@@ -873,6 +873,8 @@
 				interrupts = <54 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_macb0_rmii>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&macb0_clk>, <&macb0_clk>;
 				clock-names = "hclk", "pclk";
 				status = "disabled";
