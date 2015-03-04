@@ -48,23 +48,23 @@ struct radar_types {
 #define WIDTH_LOWER(X) ((X*(100-WIDTH_TOLERANCE)+50)/100)
 #define WIDTH_UPPER(X) ((X*(100+WIDTH_TOLERANCE)+50)/100)
 
-#define ETSI_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB)	\
+#define ETSI_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB, CHIRP)	\
 {								\
 	ID, WIDTH_LOWER(WMIN), WIDTH_UPPER(WMAX),		\
 	(PRF2PRI(PMAX) - PRI_TOLERANCE),			\
 	(PRF2PRI(PMIN) * PRF + PRI_TOLERANCE), PRF, PPB * PRF,	\
-	PPB_THRESH(PPB), PRI_TOLERANCE,				\
+	PPB_THRESH(PPB), PRI_TOLERANCE,	CHIRP			\
 }
 
 /* radar types as defined by ETSI EN-301-893 v1.5.1 */
 static const struct radar_detector_specs etsi_radar_ref_types_v15[] = {
-	ETSI_PATTERN(0,  0,  1,  700,  700, 1, 18),
-	ETSI_PATTERN(1,  0,  5,  200, 1000, 1, 10),
-	ETSI_PATTERN(2,  0, 15,  200, 1600, 1, 15),
-	ETSI_PATTERN(3,  0, 15, 2300, 4000, 1, 25),
-	ETSI_PATTERN(4, 20, 30, 2000, 4000, 1, 20),
-	ETSI_PATTERN(5,  0,  2,  300,  400, 3, 10),
-	ETSI_PATTERN(6,  0,  2,  400, 1200, 3, 15),
+	ETSI_PATTERN(0,  0,  1,  700,  700, 1, 18, false),
+	ETSI_PATTERN(1,  0,  5,  200, 1000, 1, 10, false),
+	ETSI_PATTERN(2,  0, 15,  200, 1600, 1, 15, false),
+	ETSI_PATTERN(3,  0, 15, 2300, 4000, 1, 25, false),
+	ETSI_PATTERN(4, 20, 30, 2000, 4000, 1, 20, false),
+	ETSI_PATTERN(5,  0,  2,  300,  400, 3, 10, false),
+	ETSI_PATTERN(6,  0,  2,  400, 1200, 3, 15, false),
 };
 
 static const struct radar_types etsi_radar_types_v15 = {
@@ -73,21 +73,21 @@ static const struct radar_types etsi_radar_types_v15 = {
 	.radar_types		= etsi_radar_ref_types_v15,
 };
 
-#define FCC_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB)	\
+#define FCC_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB, CHIRP)	\
 {								\
 	ID, WIDTH_LOWER(WMIN), WIDTH_UPPER(WMAX),		\
 	PMIN - PRI_TOLERANCE,					\
 	PMAX * PRF + PRI_TOLERANCE, PRF, PPB * PRF,		\
-	PPB_THRESH(PPB), PRI_TOLERANCE,				\
+	PPB_THRESH(PPB), PRI_TOLERANCE,	CHIRP			\
 }
 
 static const struct radar_detector_specs fcc_radar_ref_types[] = {
-	FCC_PATTERN(0, 0, 1, 1428, 1428, 1, 18),
-	FCC_PATTERN(1, 0, 5, 150, 230, 1, 23),
-	FCC_PATTERN(2, 6, 10, 200, 500, 1, 16),
-	FCC_PATTERN(3, 11, 20, 200, 500, 1, 12),
-	FCC_PATTERN(4, 50, 100, 1000, 2000, 1, 1),
-	FCC_PATTERN(5, 0, 1, 333, 333, 1, 9),
+	FCC_PATTERN(0, 0, 1, 1428, 1428, 1, 18, false),
+	FCC_PATTERN(1, 0, 5, 150, 230, 1, 23, false),
+	FCC_PATTERN(2, 6, 10, 200, 500, 1, 16, false),
+	FCC_PATTERN(3, 11, 20, 200, 500, 1, 12, false),
+	FCC_PATTERN(4, 50, 100, 1000, 2000, 1, 1, true),
+	FCC_PATTERN(5, 0, 1, 333, 333, 1, 9, false),
 };
 
 static const struct radar_types fcc_radar_types = {
@@ -98,15 +98,15 @@ static const struct radar_types fcc_radar_types = {
 
 #define JP_PATTERN FCC_PATTERN
 static const struct radar_detector_specs jp_radar_ref_types[] = {
-	JP_PATTERN(0, 0, 1, 1428, 1428, 1, 18),
-	JP_PATTERN(1, 2, 3, 3846, 3846, 1, 18),
-	JP_PATTERN(2, 0, 1, 1388, 1388, 1, 18),
-	JP_PATTERN(3, 1, 2, 4000, 4000, 1, 18),
-	JP_PATTERN(4, 0, 5, 150, 230, 1, 23),
-	JP_PATTERN(5, 6, 10, 200, 500, 1, 16),
-	JP_PATTERN(6, 11, 20, 200, 500, 1, 12),
-	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 20),
-	JP_PATTERN(5, 0, 1, 333, 333, 1, 9),
+	JP_PATTERN(0, 0, 1, 1428, 1428, 1, 18, false),
+	JP_PATTERN(1, 2, 3, 3846, 3846, 1, 18, false),
+	JP_PATTERN(2, 0, 1, 1388, 1388, 1, 18, false),
+	JP_PATTERN(3, 1, 2, 4000, 4000, 1, 18, false),
+	JP_PATTERN(4, 0, 5, 150, 230, 1, 23, false),
+	JP_PATTERN(5, 6, 10, 200, 500, 1, 16, false),
+	JP_PATTERN(6, 11, 20, 200, 500, 1, 12, false),
+	JP_PATTERN(7, 50, 100, 1000, 2000, 1, 20, false),
+	JP_PATTERN(5, 0, 1, 333, 333, 1, 9, false),
 };
 
 static const struct radar_types jp_radar_types = {
