@@ -3879,9 +3879,6 @@ int be_cmd_set_sriov_config(struct be_adapter *adapter,
 		struct be_nic_res_desc nic_vft;
 	} __packed desc;
 
-	if (BEx_chip(adapter) || lancer_chip(adapter))
-		return 0;
-
 	/* PF PCIE descriptor */
 	be_reset_pcie_desc(&desc.pcie);
 	desc.pcie.hdr.desc_type = PCIE_RESOURCE_DESC_TYPE_V1;
