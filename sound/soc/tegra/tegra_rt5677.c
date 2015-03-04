@@ -331,7 +331,6 @@ static const struct of_device_id tegra_rt5677_of_match[] = {
 static struct platform_driver tegra_rt5677_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = tegra_rt5677_of_match,
 	},
