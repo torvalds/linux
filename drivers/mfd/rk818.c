@@ -1092,7 +1092,8 @@ static int rk818_pre_init(struct rk818 *rk818)
 
 	ret = rk818_set_bits(rk818, 0xa1,(0x7<<4),(0x7<<4)); //close charger when usb low then 3.4V
  	ret = rk818_set_bits(rk818, 0x52,(0x1<<1),(0x1<<1)); //no action when vref
-	
+ 	ret = rk818_set_bits(rk818, 0x52,(0x1<<0),(0x1<<0)); //enable HDMI 5V
+
 	/*******enable switch and boost***********/
 	val = rk818_reg_read(rk818,RK818_DCDC_EN_REG);
         val |= (0x3 << 5);    //enable switch1/2
