@@ -29,6 +29,8 @@
 
 #define CYCLES_PER_MHZ			1000000
 
+struct clk *sdrc_ick_p, *arm_fck_p;
+
 /*
  * CORE DPLL (DPLL3) M2 divider rate programming functions
  *
