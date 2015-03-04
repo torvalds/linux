@@ -63,9 +63,6 @@
 #include <asm/efi.h>
 #include <asm/virt.h>
 
-unsigned int processor_id;
-EXPORT_SYMBOL(processor_id);
-
 unsigned long elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
 

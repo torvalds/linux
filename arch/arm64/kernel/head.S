@@ -244,7 +244,6 @@ ENTRY(stext)
 	bl	el2_setup			// Drop to EL1, w20=cpu_boot_mode
 	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
 	bl	set_cpu_boot_mode_flag
-	mrs	x22, midr_el1			// x22=cpuid
 
 	bl	__vet_fdt
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
@@ -427,7 +426,6 @@ __switch_data:
 	.quad	__mmap_switched
 	.quad	__bss_start			// x6
 	.quad	__bss_stop			// x7
-	.quad	processor_id			// x4
 	.quad	__fdt_pointer			// x5
 	.quad	memstart_addr			// x6
 	.quad	init_thread_union + THREAD_START_SP // sp
@@ -445,11 +443,10 @@ __mmap_switched:
 	str	xzr, [x6], #8			// Clear BSS
 	b	1b
 2:
-	ldp	x4, x5, [x3], #16
+	ldr	x5, [x3], #8
 	ldr	x6, [x3], #8
 	ldr	x16, [x3]
 	mov	sp, x16
-	str	x22, [x4]			// Save processor ID
 	str	x21, [x5]			// Save FDT pointer
 	str	x24, [x6]			// Save PHYS_OFFSET
 	mov	x29, #0
@@ -621,8 +618,6 @@ ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
 	 */
-	mrs	x22, midr_el1			// x22=cpuid
-
 	pgtbl	x25, x26, x28			// x25=TTBR0, x26=TTBR1
 	bl	__cpu_setup			// initialise processor
 
