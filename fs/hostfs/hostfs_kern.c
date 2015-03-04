@@ -410,7 +410,7 @@ static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
 	struct address_space *mapping = page->mapping;
 	struct inode *inode = mapping->host;
 	char *buffer;
-	unsigned long long base;
+	loff_t base = page_offset(page);
 	int count = PAGE_CACHE_SIZE;
 	int end_index = inode->i_size >> PAGE_CACHE_SHIFT;
 	int err;
@@ -419,7 +419,6 @@ static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
 		count = inode->i_size & (PAGE_CACHE_SIZE-1);
 
 	buffer = kmap(page);
-	base = ((unsigned long long) page->index) << PAGE_CACHE_SHIFT;
 
 	err = write_file(HOSTFS_I(inode)->fd, &base, buffer, count);
 	if (err != count) {
@@ -444,10 +443,9 @@ static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
 static int hostfs_readpage(struct file *file, struct page *page)
 {
 	char *buffer;
-	long long start;
+	loff_t start = page_offset(page);
 	int bytes_read, ret = 0;
 
-	start = (long long) page->index << PAGE_CACHE_SHIFT;
 	buffer = kmap(page);
 	bytes_read = read_file(FILE_HOSTFS_I(file)->fd, &start, buffer,
 			PAGE_CACHE_SIZE);
