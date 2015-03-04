@@ -1191,6 +1191,7 @@ static int isp1760_udc_start(struct usb_gadget *gadget,
 			     struct usb_gadget_driver *driver)
 {
 	struct isp1760_udc *udc = gadget_to_udc(gadget);
+	unsigned long flags;
 
 	/* The hardware doesn't support low speed. */
 	if (driver->max_speed < USB_SPEED_FULL) {
@@ -1198,7 +1199,7 @@ static int isp1760_udc_start(struct usb_gadget *gadget,
 		return -EINVAL;
 	}
 
-	spin_lock(&udc->lock);
+	spin_lock_irqsave(&udc->lock, flags);
 
 	if (udc->driver) {
 		dev_err(udc->isp->dev, "UDC already has a gadget driver\n");
@@ -1208,7 +1209,7 @@ static int isp1760_udc_start(struct usb_gadget *gadget,
 
 	udc->driver = driver;
 
-	spin_unlock(&udc->lock);
+	spin_unlock_irqrestore(&udc->lock, flags);
 
 	dev_dbg(udc->isp->dev, "starting UDC with driver %s\n",
 		driver->function);
@@ -1232,6 +1233,7 @@ static int isp1760_udc_start(struct usb_gadget *gadget,
 static int isp1760_udc_stop(struct usb_gadget *gadget)
 {
 	struct isp1760_udc *udc = gadget_to_udc(gadget);
+	unsigned long flags;
 
 	dev_dbg(udc->isp->dev, "%s\n", __func__);
 
@@ -1239,9 +1241,9 @@ static int isp1760_udc_stop(struct usb_gadget *gadget)
 
 	isp1760_udc_write(udc, DC_MODE, 0);
 
-	spin_lock(&udc->lock);
+	spin_lock_irqsave(&udc->lock, flags);
 	udc->driver = NULL;
-	spin_unlock(&udc->lock);
+	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;
 }
