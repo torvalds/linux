@@ -751,7 +751,7 @@ void rtl8723a_read_chip_version(struct rtw_adapter *padapter)
 
 	value32 = rtl8723au_read32(padapter, REG_GPIO_OUTSTS);
 	/*  ROM code version. */
-	ChipVersion.ROMVer = ((value32 & RF_RL_ID) >> 20);
+	ChipVersion.ROMVer = (value32 & RF_RL_ID) >> 20;
 
 	/*  For multi-function consideration. Added by Roger, 2010.10.06. */
 	pHalData->MultiFunc = RT_MULTI_FUNC_NONE;
@@ -1728,8 +1728,8 @@ Hal_EfuseParseBTCoexistInfo_8723A(struct rtw_adapter *padapter,
 		/*  eeprom spec */
 		tempval = hwinfo[RF_OPTION4_8723A];
 		pHalData->EEPROMBluetoothAntNum = (tempval & 0x1);
-		pHalData->EEPROMBluetoothAntIsolation = ((tempval & 0x10) >> 4);
-		pHalData->EEPROMBluetoothRadioShared = ((tempval & 0x20) >> 5);
+		pHalData->EEPROMBluetoothAntIsolation = (tempval & 0x10) >> 4;
+		pHalData->EEPROMBluetoothRadioShared = (tempval & 0x20) >> 5;
 	} else {
 		pHalData->EEPROMBluetoothCoexist = 0;
 		pHalData->EEPROMBluetoothType = BT_RTL8723A;
