@@ -66,6 +66,7 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink);
 
 i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
 				u16 *fw_major_version, u16 *fw_minor_version,
+				u32 *fw_build,
 				u16 *api_major_version, u16 *api_minor_version,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_debug_write_register(struct i40e_hw *hw,

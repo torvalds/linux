@@ -1413,6 +1413,8 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			data += ETH_GSTRING_LEN;
 		}
 		break;
+	default:
+		break;
 	}
 }
 
@@ -1653,6 +1655,8 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		break;
 	case ETHTOOL_ID_INACTIVE:
 		i40e_led_set(hw, pf->led_status, false);
+		break;
+	default:
 		break;
 	}
 
@@ -2343,10 +2347,6 @@ static int i40e_set_channels(struct net_device *dev,
 
 	/* update feature limits from largest to smallest supported values */
 	/* TODO: Flow director limit, DCB etc */
-
-	/* cap RSS limit */
-	if (count > pf->rss_size_max)
-		count = pf->rss_size_max;
 
 	/* use rss_reconfig to rebuild with new queue count and update traffic
 	 * class queue mapping

@@ -1019,7 +1019,7 @@ static int fm10k_set_channels(struct net_device *dev,
 }
 
 static int fm10k_get_ts_info(struct net_device *dev,
-			   struct ethtool_ts_info *info)
+			     struct ethtool_ts_info *info)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
 

@@ -269,22 +269,21 @@ static bool i40e_dcbnl_find_app(struct i40e_dcbx_config *cfg,
 /**
  * i40e_dcbnl_flush_apps - Delete all removed APPs
  * @pf: the corresponding pf
+ * @old_cfg: old DCBX configuration data
  * @new_cfg: new DCBX configuration data
  *
  * Find and delete all APPs that are not present in the passed
  * DCB configuration
  **/
 void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
+			   struct i40e_dcbx_config *old_cfg,
 			   struct i40e_dcbx_config *new_cfg)
 {
 	struct i40e_dcb_app_priority_table app;
-	struct i40e_dcbx_config *dcbxcfg;
-	struct i40e_hw *hw = &pf->hw;
 	int i;
 
-	dcbxcfg = &hw->local_dcbx_config;
-	for (i = 0; i < dcbxcfg->numapps; i++) {
-		app = dcbxcfg->app[i];
+	for (i = 0; i < old_cfg->numapps; i++) {
+		app = old_cfg->app[i];
 		/* The APP is not available anymore delete it */
 		if (!i40e_dcbnl_find_app(new_cfg, &app))
 			i40e_dcbnl_del_app(pf, &app);
@@ -306,9 +305,7 @@ void i40e_dcbnl_setup(struct i40e_vsi *vsi)
 	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
 		return;
 
-	/* Do not setup DCB NL ops for MFP mode */
-	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
-		dev->dcbnl_ops = &dcbnl_ops;
+	dev->dcbnl_ops = &dcbnl_ops;
 
 	/* Set initial IEEE DCB settings */
 	i40e_dcbnl_set_all(vsi);

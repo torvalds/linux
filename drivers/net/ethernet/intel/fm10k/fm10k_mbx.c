@@ -72,7 +72,7 @@ static bool fm10k_fifo_empty(struct fm10k_mbx_fifo *fifo)
  *  @fifo: pointer to FIFO
  *  @offset: offset to add to head
  *
- *  This function returns the indicies into the fifo based on head + offset
+ *  This function returns the indices into the fifo based on head + offset
  **/
 static u16 fm10k_fifo_head_offset(struct fm10k_mbx_fifo *fifo, u16 offset)
 {
@@ -84,7 +84,7 @@ static u16 fm10k_fifo_head_offset(struct fm10k_mbx_fifo *fifo, u16 offset)
  *  @fifo: pointer to FIFO
  *  @offset: offset to add to tail
  *
- *  This function returns the indicies into the fifo based on tail + offset
+ *  This function returns the indices into the fifo based on tail + offset
  **/
 static u16 fm10k_fifo_tail_offset(struct fm10k_mbx_fifo *fifo, u16 offset)
 {
@@ -326,7 +326,7 @@ static u16 fm10k_mbx_validate_msg_size(struct fm10k_mbx_info *mbx, u16 len)
  *  fm10k_mbx_write_copy - pulls data off of Tx FIFO and places it in mbmem
  *  @mbx: pointer to mailbox
  *
- *  This function will take a seciton of the Rx FIFO and copy it into the
+ *  This function will take a section of the Rx FIFO and copy it into the
 		mbx->tail--;
  *  mailbox memory.  The offset in mbmem is based on the lower bits of the
  *  tail and len determines the length to copy.
@@ -418,7 +418,7 @@ static void fm10k_mbx_pull_head(struct fm10k_hw *hw,
  *  @hw: pointer to hardware structure
  *  @mbx: pointer to mailbox
  *
- *  This function will take a seciton of the mailbox memory and copy it
+ *  This function will take a section of the mailbox memory and copy it
  *  into the Rx FIFO.  The offset is based on the lower bits of the
  *  head and len determines the length to copy.
  **/
@@ -464,7 +464,7 @@ static void fm10k_mbx_read_copy(struct fm10k_hw *hw,
  *  @tail: tail index of message
  *
  *  This function will first validate the tail index and size for the
- *  incoming message.  It then updates the acknowlegment number and
+ *  incoming message.  It then updates the acknowledgment number and
  *  copies the data into the FIFO.  It will return the number of messages
  *  dequeued on success and a negative value on error.
  **/
@@ -761,7 +761,7 @@ static s32 fm10k_mbx_enqueue_tx(struct fm10k_hw *hw,
 		err = fm10k_fifo_enqueue(&mbx->tx, msg);
 	}
 
-	/* if we failed trhead the error */
+	/* if we failed treat the error */
 	if (err) {
 		mbx->timeout = 0;
 		mbx->tx_busy++;
@@ -815,7 +815,7 @@ static void fm10k_mbx_write(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx)
 {
 	u32 mbmem = mbx->mbmem_reg;
 
-	/* write new msg header to notify recepient of change */
+	/* write new msg header to notify recipient of change */
 	fm10k_write_reg(hw, mbmem, mbx->mbx_hdr);
 
 	/* write mailbox to sent interrupt */
@@ -1251,7 +1251,7 @@ static s32 fm10k_mbx_process_error(struct fm10k_hw *hw,
 	/* we will need to pull all of the fields for verification */
 	head = FM10K_MSG_HDR_FIELD_GET(*hdr, HEAD);
 
-	/* we only have lower 10 bits of error number os add upper bits */
+	/* we only have lower 10 bits of error number so add upper bits */
 	err_no = FM10K_MSG_HDR_FIELD_GET(*hdr, ERR_NO);
 	err_no |= ~FM10K_MSG_HDR_MASK(ERR_NO);
 
@@ -1548,7 +1548,7 @@ s32 fm10k_pfvf_mbx_init(struct fm10k_hw *hw, struct fm10k_mbx_info *mbx,
 	mbx->timeout = 0;
 	mbx->udelay = FM10K_MBX_INIT_DELAY;
 
-	/* initalize tail and head */
+	/* initialize tail and head */
 	mbx->tail = 1;
 	mbx->head = 1;
 
@@ -1627,7 +1627,7 @@ static void fm10k_sm_mbx_connect_reset(struct fm10k_mbx_info *mbx)
 	mbx->local = FM10K_SM_MBX_VERSION;
 	mbx->remote = 0;
 
-	/* initalize tail and head */
+	/* initialize tail and head */
 	mbx->tail = 1;
 	mbx->head = 1;
 

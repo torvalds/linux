@@ -1354,10 +1354,10 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	struct iphdr *iph;
 	__sum16 csum;
 
-	ipv4_tunnel = (rx_ptype > I40E_RX_PTYPE_GRENAT4_MAC_PAY3) &&
-		      (rx_ptype < I40E_RX_PTYPE_GRENAT4_MACVLAN_IPV6_ICMP_PAY4);
-	ipv6_tunnel = (rx_ptype > I40E_RX_PTYPE_GRENAT6_MAC_PAY3) &&
-		      (rx_ptype < I40E_RX_PTYPE_GRENAT6_MACVLAN_IPV6_ICMP_PAY4);
+	ipv4_tunnel = (rx_ptype >= I40E_RX_PTYPE_GRENAT4_MAC_PAY3) &&
+		     (rx_ptype <= I40E_RX_PTYPE_GRENAT4_MACVLAN_IPV6_ICMP_PAY4);
+	ipv6_tunnel = (rx_ptype >= I40E_RX_PTYPE_GRENAT6_MAC_PAY3) &&
+		     (rx_ptype <= I40E_RX_PTYPE_GRENAT6_MACVLAN_IPV6_ICMP_PAY4);
 
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -2043,6 +2043,9 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 		tx_flags |= I40E_TX_FLAGS_SW_VLAN;
 	}
 
+	if (!(tx_ring->vsi->back->flags & I40E_FLAG_DCB_ENABLED))
+		goto out;
+
 	/* Insert 802.1p priority into VLAN header */
 	if ((tx_flags & (I40E_TX_FLAGS_HW_VLAN | I40E_TX_FLAGS_SW_VLAN)) ||
 	    (skb->priority != TC_PRIO_CONTROL)) {
@@ -2063,6 +2066,8 @@ static int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 			tx_flags |= I40E_TX_FLAGS_HW_VLAN;
 		}
 	}
+
+out:
 	*flags = tx_flags;
 	return 0;
 }

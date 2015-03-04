@@ -356,7 +356,7 @@ static void fm10k_free_all_rx_resources(struct fm10k_intfc *interface)
  * fm10k_request_glort_range - Request GLORTs for use in configuring rules
  * @interface: board private structure
  *
- * This function allocates a range of glorts for this inteface to use.
+ * This function allocates a range of glorts for this interface to use.
  **/
 static void fm10k_request_glort_range(struct fm10k_intfc *interface)
 {
@@ -781,7 +781,7 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 
 	fm10k_mbx_lock(interface);
 
-	/* only need to update the VLAN if not in promiscous mode */
+	/* only need to update the VLAN if not in promiscuous mode */
 	if (!(netdev->flags & IFF_PROMISC)) {
 		err = hw->mac.ops.update_vlan(hw, vid, 0, set);
 		if (err)
@@ -970,7 +970,7 @@ static void fm10k_set_rx_mode(struct net_device *dev)
 
 	fm10k_mbx_lock(interface);
 
-	/* syncronize all of the addresses */
+	/* synchronize all of the addresses */
 	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
 		__dev_uc_sync(dev, fm10k_uc_sync, fm10k_uc_unsync);
 		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
@@ -1051,7 +1051,7 @@ void fm10k_restore_rx_state(struct fm10k_intfc *interface)
 					   vid, true, 0);
 	}
 
-	/* syncronize all of the addresses */
+	/* synchronize all of the addresses */
 	if (xcast_mode != FM10K_XCAST_MODE_PROMISC) {
 		__dev_uc_sync(netdev, fm10k_uc_sync, fm10k_uc_unsync);
 		if (xcast_mode != FM10K_XCAST_MODE_ALLMULTI)
@@ -1350,6 +1350,16 @@ static void fm10k_dfwd_del_station(struct net_device *dev, void *priv)
 	}
 }
 
+static netdev_features_t fm10k_features_check(struct sk_buff *skb,
+					      struct net_device *dev,
+					      netdev_features_t features)
+{
+	if (!skb->encapsulation || fm10k_tx_encap_offload(skb))
+		return features;
+
+	return features & ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
+}
+
 static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_open		= fm10k_open,
 	.ndo_stop		= fm10k_close,
@@ -1372,6 +1382,7 @@ static const struct net_device_ops fm10k_netdev_ops = {
 	.ndo_do_ioctl		= fm10k_ioctl,
 	.ndo_dfwd_add_station	= fm10k_dfwd_add_station,
 	.ndo_dfwd_del_station	= fm10k_dfwd_del_station,
+	.ndo_features_check	= fm10k_features_check,
 };
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
