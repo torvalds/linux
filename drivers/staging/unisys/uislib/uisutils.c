@@ -53,7 +53,6 @@ uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 	va_list args;
 	int len;
 
-	DBGINF("buffer = 0x%p : *buffer = 0x%p.\n", buffer, *buffer);
 	va_start(args, format);
 	len = vsnprintf(*buffer, *buffer_remaining, format, args);
 	va_end(args);

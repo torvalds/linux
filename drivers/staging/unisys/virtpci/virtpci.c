@@ -708,9 +708,6 @@ virtpci_match_device(const struct pci_device_id *ids,
 		     const struct virtpci_dev *dev)
 {
 	while (ids->vendor || ids->subvendor || ids->class_mask) {
-		DBGINF("ids->vendor:%x dev->vendor:%x ids->device:%x dev->device:%x\n",
-		       ids->vendor, dev->vendor, ids->device, dev->device);
-
 		if ((ids->vendor == dev->vendor) &&
 		    (ids->device == dev->device))
 			return ids;
@@ -731,20 +728,15 @@ static int virtpci_bus_match(struct device *dev, struct device_driver *drv)
 	struct virtpci_driver *virtpcidrv = driver_to_virtpci_driver(drv);
 	int match = 0;
 
-	DBGINF("In virtpci_bus_match dev->bus_id:%s drv->name:%s\n",
-	       dev->bus_id, drv->name);
-
 	/* check ids list for a match */
 	if (virtpci_match_device(virtpcidrv->id_table, virtpcidev))
 		match = 1;
 
-	DBGINF("returning match:%d\n", match);
 	return match;		/* 0 - no match; 1 - yes it matches */
 }
 
 static int virtpci_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	DBGINF("In virtpci_hotplug\n");
 	/* add variables to the environment prior to the generation of
 	 * hotplug events to user space
 	 */
@@ -876,10 +868,7 @@ static int virtpci_device_remove(struct device *dev_)
 		virtpcidev->mydriver = NULL;
 	}
 
-	DBGINF("calling putdevice\n");
 	put_device(dev_);
-
-	DBGINF("Leaving\n");
 	return 0;
 }
 
@@ -889,11 +878,6 @@ static int virtpci_device_remove(struct device *dev_)
 
 static void virtpci_bus_release(struct device *dev)
 {
-	/* this function is called when the last reference to the
-	 * device is removed
-	 */
-	DBGINF("In virtpci_bus_release\n");
-	/* what else is supposed to happen here? */
 }
 
 /*****************************************************/
@@ -1023,8 +1007,6 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	* list. Otherwise, a device_unregister from this function can
 	* cause a "scheduling while atomic".
 	*/
-	DBGINF("registering device:%p with bus_id:%s\n",
-	       &virtpcidev->generic_dev, virtpcidev->generic_dev.bus_id);
 	ret = device_register(&virtpcidev->generic_dev);
 	/* NOTE: THIS IS CALLING HOTPLUG virtpci_hotplug!!!
 	 * This call to device_register results in virtpci_bus_match
@@ -1323,8 +1305,6 @@ static ssize_t virtpci_driver_attr_show(struct kobject *kobj,
 	struct driver_private *dprivate = to_driver(kobj);
 	struct device_driver *driver = dprivate->driver;
 
-	DBGINF("In virtpci_driver_attr_show driver->name:%s\n",	driver->name);
-
 	if (dattr->show)
 		ret = dattr->show(driver, buf);
 
@@ -1341,8 +1321,6 @@ static ssize_t virtpci_driver_attr_store(struct kobject *kobj,
 	struct driver_private *dprivate = to_driver(kobj);
 	struct device_driver *driver = dprivate->driver;
 
-	DBGINF("In virtpci_driver_attr_store driver->name:%s\n", driver->name);
-
 	if (dattr->store)
 		ret = dattr->store(driver, buf, count);
 
@@ -1353,8 +1331,6 @@ static ssize_t virtpci_driver_attr_store(struct kobject *kobj,
 int virtpci_register_driver(struct virtpci_driver *drv)
 {
 	int result = 0;
-
-	DBGINF("In virtpci_register_driver\n");
 
 	if (drv->id_table == NULL) {
 		LOGERR("id_table missing\n");
@@ -1388,7 +1364,6 @@ EXPORT_SYMBOL_GPL(virtpci_register_driver);
 
 void virtpci_unregister_driver(struct virtpci_driver *drv)
 {
-	DBGINF("In virtpci_unregister_driver drv:%p\n", drv);
 	driver_unregister(&drv->core_driver);
 	/* driver_unregister calls bus_remove_driver
 	 * bus_remove_driver calls device_detach
@@ -1398,7 +1373,6 @@ void virtpci_unregister_driver(struct virtpci_driver *drv)
 	 * virtpci_device_remove
 	 * virtpci_device_remove calls virthba_remove
 	 */
-	DBGINF("Leaving\n");
 }
 EXPORT_SYMBOL_GPL(virtpci_unregister_driver);
 
@@ -1511,7 +1485,6 @@ static int __init virtpci_mod_init(void)
 				 POSTCODE_SEVERITY_ERR);
 		return ret;
 	}
-	DBGINF("bus_register successful\n");
 	bus_device_info_init(&bus_driver_info, "clientbus", "virtpci",
 			     VERSION, NULL);
 
@@ -1524,7 +1497,6 @@ static int __init virtpci_mod_init(void)
 				 POSTCODE_SEVERITY_ERR);
 		return ret;
 	}
-	DBGINF("device_register successful ret:%x\n", ret);
 
 	if (!uisctrl_register_req_handler(2, (void *)&virtpci_ctrlchan_func,
 					  &chipset_driver_info)) {

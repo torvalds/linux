@@ -106,7 +106,6 @@ visorchipset_open(struct inode *inode, struct file *file)
 {
 	unsigned minor_number = iminor(inode);
 
-	DEBUGDRV("%s", __func__);
 	if (minor_number != 0)
 		return -ENODEV;
 	file->private_data = NULL;
@@ -116,7 +115,6 @@ visorchipset_open(struct inode *inode, struct file *file)
 static int
 visorchipset_release(struct inode *inode, struct file *file)
 {
-	DEBUGDRV("%s", __func__);
 	return 0;
 }
 
@@ -128,7 +126,6 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 	GUEST_PHYSICAL_ADDRESS addr = 0;
 
 	/* sv_enable_dfp(); */
-	DEBUGDRV("%s", __func__);
 	if (offset & (PAGE_SIZE - 1)) {
 		ERRDRV("%s virtual address NOT page-aligned!", __func__);
 		return -ENXIO;	/* need aligned offsets */
@@ -149,7 +146,6 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 			return -ENXIO;
 		}
 		physaddr = (ulong)addr;
-		DEBUGDRV("mapping physical address = 0x%lx", physaddr);
 		if (remap_pfn_range(vma, vma->vm_start,
 				    physaddr >> PAGE_SHIFT,
 				    vma->vm_end - vma->vm_start,
@@ -162,7 +158,6 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 	default:
 		return -ENOSYS;
 	}
-	DEBUGDRV("%s success!", __func__);
 	return 0;
 }
 
@@ -172,7 +167,6 @@ static long visorchipset_ioctl(struct file *file, unsigned int cmd,
 	s64 adjustment;
 	s64 vrtc_offset;
 
-	DBGINF("entered visorchipset_ioctl, cmd=%d", cmd);
 	switch (cmd) {
 	case VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET:
 		/* get the physical rtc offset */
@@ -181,16 +175,12 @@ static long visorchipset_ioctl(struct file *file, unsigned int cmd,
 		    ((void __user *)arg, &vrtc_offset, sizeof(vrtc_offset))) {
 			return -EFAULT;
 		}
-		DBGINF("insde visorchipset_ioctl, cmd=%d, vrtc_offset=%lld",
-		       cmd, vrtc_offset);
 		return SUCCESS;
 	case VMCALL_UPDATE_PHYSICAL_TIME:
 		if (copy_from_user
 		    (&adjustment, (void __user *)arg, sizeof(adjustment))) {
 			return -EFAULT;
 		}
-		DBGINF("insde visorchipset_ioctl, cmd=%d, adjustment=%lld", cmd,
-		       adjustment);
 		return issue_vmcall_update_physical_time(adjustment);
 	default:
 		LOGERR("visorchipset_ioctl received invalid command");

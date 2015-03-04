@@ -26,8 +26,6 @@
  * which start with an 8 digit sequence number, a colon, and then
  * letters after that */
 
-#undef DBGINF
-
 #include <linux/kernel.h>
 #ifdef CONFIG_MODVERSIONS
 #include <config/modversions.h>
@@ -482,7 +480,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	 * initialization.  The host is not published to the scsi
 	 * midlayer until scsi_add_host is called.
 	 */
-	DBGINF("calling scsi_host_alloc.\n");
 
 	/* arg 2 passed in length of extra space we want allocated
 	 * with scsi_host struct for our own use scsi_host_alloc
@@ -492,9 +489,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 				   sizeof(struct virthba_info));
 	if (scsihost == NULL)
 		return -ENODEV;
-
-	DBGINF("scsihost: 0x%p, scsihost->this_id: %d, host_no: %d.\n",
-	       scsihost, scsihost->this_id, scsihost->host_no);
 
 	scsihost->this_id = UIS_MAGIC_VHBA;
 	/* linux treats max-channel differently than max-id & max-lun.
@@ -527,8 +521,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	     scsihost->can_queue, scsihost->cmd_per_lun, scsihost->max_sectors,
 	     scsihost->sg_tablesize);
 
-	DBGINF("calling scsi_add_host\n");
-
 	/* this creates "host%d" in sysfs.  If 2nd argument is NULL,
 	 * then this generic /sys/devices/platform/host?  device is
 	 * created and /sys/scsi_host/host? ->
@@ -560,9 +552,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	virthbainfo->virtpcidev = virtpcidev;
 	spin_lock_init(&virthbainfo->chinfo.insertlock);
 
-	DBGINF("generic_dev: 0x%p, queueinfo: 0x%p.\n",
-	       &virtpcidev->generic_dev, &virtpcidev->queueinfo);
-
 	init_waitqueue_head(&virthbainfo->rsp_queue);
 	spin_lock_init(&virthbainfo->privlock);
 	memset(&virthbainfo->pending, 0, sizeof(virthbainfo->pending));
@@ -584,8 +573,6 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	       ULTRA_IO_CHANNEL_IS_POLLING,
 	       &virthbainfo->chinfo.queueinfo->chan->features);
 	/* start thread that will receive scsicmnd responses */
-	DBGINF("starting rsp thread -- queueinfo: 0x%p, threadinfo: 0x%p.\n",
-	       virthbainfo->chinfo.queueinfo, &virthbainfo->chinfo.threadinfo);
 
 	channel_header = virthbainfo->chinfo.queueinfo->chan;
 	pqhdr = (struct signal_queue_header __iomem *)
@@ -635,9 +622,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		rsltq_wait_usecs = 4000000;
 	}
 
-	DBGINF("calling scsi_scan_host.\n");
 	scsi_scan_host(scsihost);
-	DBGINF("return from scsi_scan_host.\n");
 
 	LOGINF("virthba added scsihost:0x%p\n", scsihost);
 	POSTCODE_LINUX_2(VHBA_PROBE_EXIT_PC, POSTCODE_SEVERITY_INFO);
@@ -659,14 +644,9 @@ virthba_remove(struct virtpci_dev *virtpcidev)
 	LOGINF("Removing virtpcidev: 0x%p, virthbainfo: 0x%p\n", virtpcidev,
 	       virthbainfo);
 
-	DBGINF("removing scsihost: 0x%p, scsihost->this_id: %d\n", scsihost,
-	       scsihost->this_id);
 	scsi_remove_host(scsihost);
 
-	DBGINF("stopping thread.\n");
 	uisthread_stop(&virthbainfo->chinfo.threadinfo);
-
-	DBGINF("calling scsi_host_put\n");
 
 	/* decr refcount on scsihost which was incremented by
 	 * scsi_add_host so the scsi_host gets deleted
@@ -689,10 +669,8 @@ forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 	LOGINF("vDiskMgmt:%d %d:%d:%d\n", vdiskcmdtype,
 	       vdest->channel, vdest->id, vdest->lun);
 
-	if (virthbainfo->serverdown || virthbainfo->serverchangingstate) {
-		DBGINF("Server is down/changing state. Returning Failure.\n");
+	if (virthbainfo->serverdown || virthbainfo->serverchangingstate)
 		return FAILED;
-	}
 
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (cmdrsp == NULL)
@@ -750,10 +728,8 @@ forward_taskmgmt_command(enum task_mgmt_types tasktype,
 	LOGINF("TaskMgmt:%d %d:%d:%llu\n", tasktype,
 	       scsidev->channel, scsidev->id, scsidev->lun);
 
-	if (virthbainfo->serverdown || virthbainfo->serverchangingstate) {
-		DBGINF("Server is down/changing state. Returning Failure.\n");
+	if (virthbainfo->serverdown || virthbainfo->serverchangingstate)
 		return FAILED;
-	}
 
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (cmdrsp == NULL)
@@ -895,7 +871,6 @@ virthba_get_info(struct Scsi_Host *shp)
 static int
 virthba_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 {
-	DBGINF("In virthba_ioctl: ioctl: cmd=0x%x\n", cmd);
 	return -EINVAL;
 }
 
@@ -919,11 +894,8 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	struct scatterlist *sgl = NULL;
 	int sg_failed = 0;
 
-	if (virthbainfo->serverdown || virthbainfo->serverchangingstate) {
-		DBGINF("Server is down/changing state. Returning SCSI_MLQUEUE_DEVICE_BUSY.\n");
+	if (virthbainfo->serverdown || virthbainfo->serverchangingstate)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
-	}
-
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
 	if (cmdrsp == NULL)
 		return 1;	/* reject the command */
@@ -979,8 +951,6 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 			LOGERR("**** FAILED No scatter list for bufflen > 0\n");
 			BUG_ON(scsi_sg_count(scsicmd) == 0);
 		}
-		DBGINF("No sg; buffer:0x%p bufflen:%d\n",
-		       scsi_sglist(scsicmd), scsi_bufflen(scsicmd));
 	} else {
 		/* buffer is scatterlist - copy it out */
 		sgl = scsi_sglist(scsicmd);
@@ -1191,8 +1161,6 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 
 		sg = scsi_sglist(scsicmd);
 		for (i = 0; i < scsi_sg_count(scsicmd); i++) {
-			DBGVER("copying OUT OF buf into 0x%p %d\n",
-			       sg_page(sg + i), sg[i].length);
 			thispage_orig = kmap_atomic(sg_page(sg + i));
 			thispage = (void *)((unsigned long)thispage_orig |
 					     sg[i].offset);
@@ -1222,8 +1190,6 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 static void
 complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 {
-	DBGINF("cmdrsp: 0x%p, scsistat:0x%x.\n", cmdrsp, cmdrsp->scsi.scsistat);
-
 	/* take what we need out of cmdrsp and complete the scsicmd */
 	scsicmd->result = cmdrsp->scsi.linuxstat;
 	if (cmdrsp->scsi.linuxstat)
@@ -1231,10 +1197,8 @@ complete_scsi_command(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	else
 		do_scsi_nolinuxstat(cmdrsp, scsicmd);
 
-	if (scsicmd->scsi_done) {
-		DBGVER("Scsi_DONE\n");
+	if (scsicmd->scsi_done)
 		scsicmd->scsi_done(scsicmd);
-	}
 }
 
 static inline void
@@ -1352,7 +1316,6 @@ process_incoming_rsps(void *v)
 
 	kfree(cmdrsp);
 
-	DBGINF("exiting processing incoming rsps.\n");
 	complete_and_exit(&dc->threadinfo.has_stopped, 0);
 }
 
@@ -1475,13 +1438,9 @@ virthba_serverup(struct virtpci_dev *virtpcidev)
 	    (struct virthba_info *)((struct Scsi_Host *)virtpcidev->scsi.
 				     scsihost)->hostdata;
 
-	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
-	       virtpcidev->device_no);
-
-	if (!virthbainfo->serverdown) {
-		DBGINF("Server up message received while server is already up.\n");
+	if (!virthbainfo->serverdown)
 		return 1;
-	}
+
 	if (virthbainfo->serverchangingstate) {
 		LOGERR("Server already processing change state message\n");
 		return 0;
@@ -1540,12 +1499,10 @@ virthba_serverdown_complete(struct work_struct *work)
 			break;
 		case CMD_SCSITASKMGMT_TYPE:
 			cmdrsp = (struct uiscmdrsp *)pendingdel->sent;
-			DBGINF("cmdrsp=0x%x, notify=0x%x\n", cmdrsp,
-			       cmdrsp->scsitaskmgmt.notify);
-			*(int *)cmdrsp->scsitaskmgmt.notifyresult =
-			    TASK_MGMT_FAILED;
 			wake_up_all((wait_queue_head_t *)
 				    cmdrsp->scsitaskmgmt.notify);
+			*(int *)cmdrsp->scsitaskmgmt.notifyresult =
+				TASK_MGMT_FAILED;
 			break;
 		case CMD_VDISKMGMT_TYPE:
 			cmdrsp = (struct uiscmdrsp *)pendingdel->sent;
@@ -1566,8 +1523,6 @@ virthba_serverdown_complete(struct work_struct *work)
 
 	virtpcidev = virthbainfo->virtpcidev;
 
-	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
-	       virtpcidev->device_no);
 	virthbainfo->serverdown = true;
 	virthbainfo->serverchangingstate = false;
 	/* Return the ServerDown response to Command */
@@ -1584,10 +1539,6 @@ virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state)
 	struct virthba_info *virthbainfo =
 	    (struct virthba_info *)((struct Scsi_Host *)virtpcidev->scsi.
 				     scsihost)->hostdata;
-
-	DBGINF("virthba_serverdown");
-	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
-	       virtpcidev->device_no);
 
 	if (!virthbainfo->serverdown && !virthbainfo->serverchangingstate) {
 		virthbainfo->serverchangingstate = true;
@@ -1610,7 +1561,6 @@ virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state)
 static int __init
 virthba_parse_line(char *str)
 {
-	DBGINF("In virthba_parse_line %s\n", str);
 	return 1;
 }
 
@@ -1626,8 +1576,7 @@ virthba_parse_options(char *line)
 		next = strchr(line, ' ');
 		if (next != NULL)
 			*next++ = 0;
-		if (!virthba_parse_line(line))
-			DBGINF("Unknown option '%s'\n", line);
+		virthba_parse_line(line);
 	}
 
 	POSTCODE_LINUX_2(VHBA_CREATE_EXIT_PC, POSTCODE_SEVERITY_INFO);

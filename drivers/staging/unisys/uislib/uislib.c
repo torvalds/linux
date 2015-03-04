@@ -1161,7 +1161,6 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 
 /* *start = buf; */
 	if (debug_buf == NULL) {
-		DBGINF("debug_buf == NULL; allocating buffer.\n.");
 		debug_buf = vmalloc(PROC_READ_BUFFER_SIZE);
 
 		if (debug_buf == NULL) {
@@ -1173,7 +1172,6 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	temp = debug_buf;
 
 	if ((*offset == 0) || (!debug_buf_valid)) {
-		DBGINF("calling info_debugfs_read_helper.\n");
 		/* if the read fails, then -1 will be returned */
 		total_bytes = info_debugfs_read_helper(&temp, &remaining_bytes);
 		debug_buf_valid = 1;
@@ -1333,7 +1331,6 @@ static int process_incoming(void *v)
 			idle_cycles = idle_cycles + delta_cycles;
 		}
 	}
-	DBGINF("exiting.\n");
 	complete_and_exit(&incoming_ti.has_stopped, 0);
 }
 
@@ -1512,8 +1509,6 @@ uislib_mod_exit(void)
 	debugfs_remove(cycles_before_wait_debugfs_read);
 	debugfs_remove(platformnumber_debugfs_read);
 	debugfs_remove(dir_debugfs);
-
-	DBGINF("goodbye.\n");
 }
 
 module_init(uislib_mod_init);

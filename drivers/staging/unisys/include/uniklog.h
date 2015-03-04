@@ -26,45 +26,6 @@
 #include <linux/printk.h>
 
 /*
- * # DBGINF
- *
- * \brief Log debug informational message - log a LOG_INFO message only
- *        if DEBUG compiletime option enabled
- *
- * \param devname the device name of the device reporting this message, or
- *                NULL if this message is NOT device-related.
- * \param fmt printf()-style format string containing the message to log.
- * \param args Optional arguments to be formatted and inserted into the
- *             format string.
- * \return nothing
- *
- * Log a message at the LOG_INFO level, but only if DEBUG is enabled.  If
- * DEBUG is disabled, this expands to a no-op.
- */
-
-/*
- * # DBGVER
- *
- * \brief Log debug verbose message - log a LOG_DEBUG message only if
- *        DEBUG compiletime option enabled
- *
- * \param devname the device name of the device reporting this message, or
- *                NULL if this message is NOT device-related.
- * \param fmt printf()-style format string containing the message to log.
- * \param args Optional arguments to be formatted and inserted into the
- *             format string.
- * \return nothing
- *
- * Log a message at the LOG_DEBUG level, but only if DEBUG is enabled.  If
- * DEBUG is disabled, this expands to a no-op.  Note also that LOG_DEBUG
- * messages can be enabled/disabled at runtime as well.
- */
-#define DBGINFDEV(devname, fmt, args...)        do { } while (0)
-#define DBGVERDEV(devname, fmt, args...)        do { } while (0)
-#define DBGINF(fmt, args...)                    do { } while (0)
-#define DBGVER(fmt, args...)                    do { } while (0)
-
-/*
  * # LOGINF
  *
  * \brief Log informational message - logs a message at the LOG_INFO level

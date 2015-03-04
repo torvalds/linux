@@ -94,7 +94,6 @@
 #define WARNDRV(fmt, args...)   LOGWRN(fmt, ## args)
 #define SECUREDRV(fmt, args...) LOGWRN(fmt, ## args)
 #define INFODRV(fmt, args...)   LOGINF(fmt, ## args)
-#define DEBUGDRV(fmt, args...)  DBGINF(fmt, ## args)
 
 #define PRINTKDEV(devname, fmt, args...)  LOGINFDEV(devname, fmt, ## args)
 #define TBDDEV(devname, fmt, args...)     LOGERRDEV(devname, fmt, ## args)
@@ -105,7 +104,6 @@
 #define SECUREDEV(devname, fmt, args...)  LOGWRNDEV(devname, fmt, ## args)
 #define INFODEV(devname, fmt, args...)    LOGINFDEV(devname, fmt, ## args)
 #define INFODEVX(devno, fmt, args...)     LOGINFDEVX(devno, fmt, ## args)
-#define DEBUGDEV(devname, fmt, args...)   DBGINFDEV(devname, fmt, ## args)
 
 /** Verifies the consistency of your PRIVATEDEVICEDATA structure using
  *  conventional "signature" fields:
