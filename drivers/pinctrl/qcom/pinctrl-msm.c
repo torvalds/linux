@@ -193,6 +193,7 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*mask = 7;
 		break;
 	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_INPUT_ENABLE:
 		*bit = g->oe_bit;
 		*mask = 1;
 		break;
@@ -259,6 +260,12 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 
 		val = readl(pctrl->regs + g->io_reg);
 		arg = !!(val & BIT(g->in_bit));
+		break;
+	case PIN_CONFIG_INPUT_ENABLE:
+		/* Pin is output */
+		if (arg)
+			return -EINVAL;
+		arg = 1;
 		break;
 	default:
 		return -ENOTSUPP;
@@ -329,6 +336,10 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 
 			/* enable output */
 			arg = 1;
+			break;
+		case PIN_CONFIG_INPUT_ENABLE:
+			/* disable output */
+			arg = 0;
 			break;
 		default:
 			dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
