@@ -414,6 +414,10 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",noshare");
 	if (opt->flags & CEPH_OPT_NOCRC)
 		seq_puts(m, ",nocrc");
+	if (opt->flags & CEPH_OPT_NOMSGAUTH)
+		seq_puts(m, ",nocephx_require_signatures");
+	if ((opt->flags & CEPH_OPT_TCP_NODELAY) == 0)
+		seq_puts(m, ",notcp_nodelay");
 
 	if (opt->name)
 		seq_printf(m, ",name=%s", opt->name);

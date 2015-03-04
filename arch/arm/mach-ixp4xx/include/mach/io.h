@@ -245,8 +245,10 @@ static inline void outb(u8 value, u32 addr)
 }
 
 #define outsb outsb
-static inline void outsb(u32 io_addr, const u8 *vaddr, u32 count)
+static inline void outsb(u32 io_addr, const void *p, u32 count)
 {
+	const u8 *vaddr = p;
+
 	while (count--)
 		outb(*vaddr++, io_addr);
 }
@@ -262,8 +264,9 @@ static inline void outw(u16 value, u32 addr)
 }
 
 #define outsw outsw
-static inline void outsw(u32 io_addr, const u16 *vaddr, u32 count)
+static inline void outsw(u32 io_addr, const void *p, u32 count)
 {
+	const u16 *vaddr = p;
 	while (count--)
 		outw(cpu_to_le16(*vaddr++), io_addr);
 }
@@ -275,8 +278,9 @@ static inline void outl(u32 value, u32 addr)
 }
 
 #define outsl outsl
-static inline void outsl(u32 io_addr, const u32 *vaddr, u32 count)
+static inline void outsl(u32 io_addr, const void *p, u32 count)
 {
+	const u32 *vaddr = p;
 	while (count--)
 		outl(cpu_to_le32(*vaddr++), io_addr);
 }
@@ -294,8 +298,9 @@ static inline u8 inb(u32 addr)
 }
 
 #define insb insb
-static inline void insb(u32 io_addr, u8 *vaddr, u32 count)
+static inline void insb(u32 io_addr, void *p, u32 count)
 {
+	u8 *vaddr = p;
 	while (count--)
 		*vaddr++ = inb(io_addr);
 }
@@ -313,8 +318,9 @@ static inline u16 inw(u32 addr)
 }
 
 #define insw insw
-static inline void insw(u32 io_addr, u16 *vaddr, u32 count)
+static inline void insw(u32 io_addr, void *p, u32 count)
 {
+	u16 *vaddr = p;
 	while (count--)
 		*vaddr++ = le16_to_cpu(inw(io_addr));
 }
@@ -330,8 +336,9 @@ static inline u32 inl(u32 addr)
 }
 
 #define insl insl
-static inline void insl(u32 io_addr, u32 *vaddr, u32 count)
+static inline void insl(u32 io_addr, void *p, u32 count)
 {
+	u32 *vaddr = p;
 	while (count--)
 		*vaddr++ = le32_to_cpu(inl(io_addr));
 }

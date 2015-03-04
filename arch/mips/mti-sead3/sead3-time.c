@@ -72,7 +72,7 @@ void read_persistent_clock(struct timespec *ts)
 int get_c0_perfcount_int(void)
 {
 	if (gic_present)
-		return gic_get_c0_compare_int();
+		return gic_get_c0_perfcount_int();
 	if (cp0_perfcount_irq >= 0)
 		return MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
 	return -1;

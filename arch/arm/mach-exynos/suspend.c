@@ -587,7 +587,7 @@ static struct exynos_pm_data exynos5420_pm_data = {
 	.cpu_suspend	= exynos5420_cpu_suspend,
 };
 
-static struct of_device_id exynos_pmu_of_device_ids[] = {
+static const struct of_device_id exynos_pmu_of_device_ids[] __initconst = {
 	{
 		.compatible = "samsung,exynos3250-pmu",
 		.data = &exynos3250_pm_data,

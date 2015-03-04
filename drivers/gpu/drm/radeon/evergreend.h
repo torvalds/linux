@@ -1191,6 +1191,10 @@
 #define		SOFT_RESET_REGBB			(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
 
+#define SRBM_READ_ERROR					0xE98
+#define SRBM_INT_CNTL					0xEA0
+#define SRBM_INT_ACK					0xEA8
+
 /* display watermarks */
 #define	DC_LB_MEMORY_SPLIT				  0x6b0c
 #define	PRIORITY_A_CNT			                  0x6b18

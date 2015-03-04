@@ -266,7 +266,7 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		for (i = 0; !err && i < buf.count && buf.dentries[i]; i++) {
 			struct dentry *dentry = buf.dentries[i];
 
-			if (!S_ISDIR(dentry->d_inode->i_mode))
+			if (!d_is_dir(dentry))
 				err = action(dentry, data);
 
 			dput(dentry);
@@ -322,7 +322,7 @@ static int delete_one_xattr(struct dentry *dentry, void *data)
 	struct inode *dir = dentry->d_parent->d_inode;
 
 	/* This is the xattr dir, handle specially. */
-	if (S_ISDIR(dentry->d_inode->i_mode))
+	if (d_is_dir(dentry))
 		return xattr_rmdir(dir, dentry);
 
 	return xattr_unlink(dir, dentry);

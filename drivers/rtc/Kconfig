@@ -65,7 +65,7 @@ config RTC_DEBUG
 comment "RTC interfaces"
 
 config RTC_INTF_SYSFS
-	boolean "/sys/class/rtc/rtcN (sysfs)"
+	bool "/sys/class/rtc/rtcN (sysfs)"
 	depends on SYSFS
 	default RTC_CLASS
 	help
@@ -75,7 +75,7 @@ config RTC_INTF_SYSFS
 	  If unsure, say Y.
 
 config RTC_INTF_PROC
-	boolean "/proc/driver/rtc (procfs for rtcN)"
+	bool "/proc/driver/rtc (procfs for rtcN)"
 	depends on PROC_FS
 	default RTC_CLASS
 	help
@@ -88,7 +88,7 @@ config RTC_INTF_PROC
 	  If unsure, say Y.
 
 config RTC_INTF_DEV
-	boolean "/dev/rtcN (character devices)"
+	bool "/dev/rtcN (character devices)"
 	default RTC_CLASS
 	help
 	  Say yes here if you want to use your RTCs using the /dev
@@ -466,7 +466,7 @@ config RTC_DRV_DM355EVM
 	  Supports the RTC firmware in the MSP430 on the DM355 EVM.
 
 config RTC_DRV_TWL92330
-	boolean "TI TWL92330/Menelaus"
+	bool "TI TWL92330/Menelaus"
 	depends on MENELAUS
 	help
 	  If you say yes here you get support for the RTC on the

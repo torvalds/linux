@@ -39,6 +39,7 @@
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
 #include "xfs_trans.h"
+#include "xfs_pnfs.h"
 
 #include <linux/capability.h>
 #include <linux/dcache.h>
@@ -286,7 +287,7 @@ xfs_readlink_by_handle(
 		return PTR_ERR(dentry);
 
 	/* Restrict this handle operation to symlinks only. */
-	if (!S_ISLNK(dentry->d_inode->i_mode)) {
+	if (!d_is_symlink(dentry)) {
 		error = -EINVAL;
 		goto out_dput;
 	}
@@ -608,6 +609,7 @@ xfs_ioc_space(
 {
 	struct iattr		iattr;
 	enum xfs_prealloc_flags	flags = 0;
+	uint			iolock = XFS_IOLOCK_EXCL;
 	int			error;
 
 	/*
@@ -636,7 +638,10 @@ xfs_ioc_space(
 	if (error)
 		return error;
 
-	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	xfs_ilock(ip, iolock);
+	error = xfs_break_layouts(inode, &iolock);
+	if (error)
+		goto out_unlock;
 
 	switch (bf->l_whence) {
 	case 0: /*SEEK_SET*/
@@ -725,7 +730,7 @@ xfs_ioc_space(
 	error = xfs_update_prealloc_flags(ip, flags);
 
 out_unlock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	xfs_iunlock(ip, iolock);
 	mnt_drop_write_file(filp);
 	return error;
 }

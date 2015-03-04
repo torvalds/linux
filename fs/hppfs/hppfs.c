@@ -678,10 +678,10 @@ static struct inode *get_inode(struct super_block *sb, struct dentry *dentry)
 		return NULL;
 	}
 
-	if (S_ISDIR(dentry->d_inode->i_mode)) {
+	if (d_is_dir(dentry)) {
 		inode->i_op = &hppfs_dir_iops;
 		inode->i_fop = &hppfs_dir_fops;
-	} else if (S_ISLNK(dentry->d_inode->i_mode)) {
+	} else if (d_is_symlink(dentry)) {
 		inode->i_op = &hppfs_link_iops;
 		inode->i_fop = &hppfs_file_fops;
 	} else {

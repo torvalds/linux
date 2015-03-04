@@ -1,0 +1,93 @@
+* Dialog DA9063 Power Management Integrated Circuit (PMIC)
+
+DA9093 consists of a large and varied group of sub-devices (I2C Only):
+
+Device                   Supply Names    Description
+------                   ------------    -----------
+da9063-regulator        :               : LDOs & BUCKs
+da9063-rtc              :               : Real-Time Clock
+da9063-watchdog         :               : Watchdog
+
+======
+
+Required properties:
+
+- compatible : Should be "dlg,da9063"
+- reg : Specifies the I2C slave address (this defaults to 0x58 but it can be
+  modified to match the chip's OTP settings).
+- interrupt-parent : Specifies the reference to the interrupt controller for
+  the DA9063.
+- interrupts : IRQ line information.
+- interrupt-controller
+
+Sub-nodes:
+
+- regulators : This node defines the settings for the LDOs and BUCKs. The
+  DA9063 regulators are bound using their names listed below:
+
+    bcore1    : BUCK CORE1
+    bcore2    : BUCK CORE2
+    bpro      : BUCK PRO
+    bmem      : BUCK MEM
+    bio       : BUCK IO
+    bperi     : BUCK PERI
+    ldo1      : LDO_1
+    ldo2      : LDO_2
+    ldo3      : LDO_3
+    ldo4      : LDO_4
+    ldo5      : LDO_5
+    ldo6      : LDO_6
+    ldo7      : LDO_7
+    ldo8      : LDO_8
+    ldo9      : LDO_9
+    ldo10     : LDO_10
+    ldo11     : LDO_11
+
+  The component follows the standard regulator framework and the bindings
+  details of individual regulator device can be found in:
+  Documentation/devicetree/bindings/regulator/regulator.txt
+
+- rtc : This node defines settings for the Real-Time Clock associated with
+  the DA9063. There are currently no entries in this binding, however
+  compatible = "dlg,da9063-rtc" should be added if a node is created.
+
+- watchdog : This node defines settings for the Watchdog timer associated
+  with the DA9063. There are currently no entries in this binding, however
+  compatible = "dlg,da9063-watchdog" should be added if a node is created.
+
+
+Example:
+
+	pmic0: da9063@58 {
+		compatible = "dlg,da9063"
+		reg = <0x58>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+
+		rtc {
+			compatible = "dlg,da9063-rtc";
+		};
+
+		wdt {
+			compatible = "dlg,da9063-watchdog";
+		};
+
+		regulators {
+			DA9063_BCORE1: bcore1 {
+				regulator-name = "BCORE1";
+				regulator-min-microvolt = <300000>;
+				regulator-max-microvolt = <1570000>;
+				regulator-min-microamp = <500000>;
+				regulator-max-microamp = <2000000>;
+				regulator-boot-on;
+			};
+			DA9063_LDO11: ldo11 {
+				regulator-name = "LDO_11";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <3600000>;
+				regulator-boot-on;
+			};
+		};
+	};
+

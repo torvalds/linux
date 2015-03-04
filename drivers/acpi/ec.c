@@ -680,7 +680,7 @@ static void acpi_ec_start(struct acpi_ec *ec, bool resuming)
 		/* Enable GPE for event processing (SCI_EVT=1) */
 		if (!resuming)
 			acpi_ec_submit_request(ec);
-		pr_info("+++++ EC started +++++\n");
+		pr_debug("EC started\n");
 	}
 	spin_unlock_irqrestore(&ec->lock, flags);
 }
@@ -712,7 +712,7 @@ static void acpi_ec_stop(struct acpi_ec *ec, bool suspending)
 			acpi_ec_complete_request(ec);
 		clear_bit(EC_FLAGS_STARTED, &ec->flags);
 		clear_bit(EC_FLAGS_STOPPED, &ec->flags);
-		pr_info("+++++ EC stopped +++++\n");
+		pr_debug("EC stopped\n");
 	}
 	spin_unlock_irqrestore(&ec->lock, flags);
 }

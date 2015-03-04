@@ -5,9 +5,6 @@ controller instances named DMAC capable of serving multiple clients. Channels
 can be dedicated to specific clients or shared between a large number of
 clients.
 
-DMA clients are connected to the DMAC ports referenced by an 8-bit identifier
-called MID/RID.
-
 Each DMA client is connected to one dedicated port of the DMAC, identified by
 an 8-bit port number called the MID/RID. A DMA controller can thus serve up to
 256 clients in total. When the number of hardware channels is lower than the

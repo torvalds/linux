@@ -421,7 +421,7 @@ config MTD_NAND_ORION
 
 config MTD_NAND_FSL_ELBC
 	tristate "NAND support for Freescale eLBC controllers"
-	depends on PPC_OF
+	depends on PPC
 	select FSL_LBC
 	help
 	  Various Freescale chips, including the 8313, include a NAND Flash
@@ -523,5 +523,10 @@ config MTD_NAND_SUNXI
 	depends on ARCH_SUNXI
 	help
 	  Enables support for NAND Flash chips on Allwinner SoCs.
+
+config MTD_NAND_HISI504
+	tristate "Support for NAND controller on Hisilicon SoC Hip04"
+	help
+	  Enables support for NAND controller on Hisilicon SoC Hip04.
 
 endif # MTD_NAND

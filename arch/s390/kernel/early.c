@@ -393,17 +393,19 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_LC;
 	if (test_facility(129))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
-	if (test_facility(128))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_CAD;
 #endif
 }
 
-static int __init nocad_setup(char *str)
+static int __init cad_setup(char *str)
 {
-	S390_lowcore.machine_flags &= ~MACHINE_FLAG_CAD;
+	int val;
+
+	get_option(&str, &val);
+	if (val && test_facility(128))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_CAD;
 	return 0;
 }
-early_param("nocad", nocad_setup);
+early_param("cad", cad_setup);
 
 static int __init cad_init(void)
 {

@@ -237,6 +237,13 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 		c->isa_level |= MIPS_CPU_ISA_II | MIPS_CPU_ISA_III;
 		break;
 
+	/* R6 incompatible with everything else */
+	case MIPS_CPU_ISA_M64R6:
+		c->isa_level |= MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6;
+	case MIPS_CPU_ISA_M32R6:
+		c->isa_level |= MIPS_CPU_ISA_M32R6;
+		/* Break here so we don't add incompatible ISAs */
+		break;
 	case MIPS_CPU_ISA_M32R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2;
 	case MIPS_CPU_ISA_M32R1:
@@ -326,6 +333,9 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 		case 1:
 			set_isa(c, MIPS_CPU_ISA_M32R2);
 			break;
+		case 2:
+			set_isa(c, MIPS_CPU_ISA_M32R6);
+			break;
 		default:
 			goto unknown;
 		}
@@ -337,6 +347,9 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 			break;
 		case 1:
 			set_isa(c, MIPS_CPU_ISA_M64R2);
+			break;
+		case 2:
+			set_isa(c, MIPS_CPU_ISA_M64R6);
 			break;
 		default:
 			goto unknown;
@@ -424,8 +437,10 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 	if (config3 & MIPS_CONF3_MSA)
 		c->ases |= MIPS_ASE_MSA;
 	/* Only tested on 32-bit cores */
-	if ((config3 & MIPS_CONF3_PW) && config_enabled(CONFIG_32BIT))
+	if ((config3 & MIPS_CONF3_PW) && config_enabled(CONFIG_32BIT)) {
+		c->htw_seq = 0;
 		c->options |= MIPS_CPU_HTW;
+	}
 
 	return config3 & MIPS_CONF_M;
 }
@@ -499,6 +514,8 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_EVA;
 	if (config5 & MIPS_CONF5_MRP)
 		c->options |= MIPS_CPU_MAAR;
+	if (config5 & MIPS_CONF5_LLB)
+		c->options |= MIPS_CPU_RW_LLB;
 
 	return config5 & MIPS_CONF_M;
 }
@@ -533,7 +550,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 	if (cpu_has_rixi) {
 		/* Enable the RIXI exceptions */
-		write_c0_pagegrain(read_c0_pagegrain() | PG_IEC);
+		set_c0_pagegrain(PG_IEC);
 		back_to_back_c0_hazard();
 		/* Verify the IEC bit is set */
 		if (read_c0_pagegrain() & PG_IEC)
@@ -541,7 +558,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 	}
 
 #ifndef CONFIG_MIPS_CPS
-	if (cpu_has_mips_r2) {
+	if (cpu_has_mips_r2_r6) {
 		c->core = get_ebase_cpunum();
 		if (cpu_has_mipsmt)
 			c->core >>= fls(core_nvpes()) - 1;
@@ -896,6 +913,11 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 	switch (c->processor_id & PRID_IMP_MASK) {
+	case PRID_IMP_QEMU_GENERIC:
+		c->writecombine = _CACHE_UNCACHED;
+		c->cputype = CPU_QEMU_GENERIC;
+		__cpu_name[cpu] = "MIPS GENERIC QEMU";
+		break;
 	case PRID_IMP_4KC:
 		c->cputype = CPU_4KC;
 		c->writecombine = _CACHE_UNCACHED;
@@ -1345,8 +1367,7 @@ void cpu_probe(void)
 	if (c->options & MIPS_CPU_FPU) {
 		c->fpu_id = cpu_get_fpu_id();
 
-		if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M32R2 |
-				    MIPS_CPU_ISA_M64R1 | MIPS_CPU_ISA_M64R2)) {
+		if (c->isa_level & cpu_has_mips_r) {
 			if (c->fpu_id & MIPS_FPIR_3D)
 				c->ases |= MIPS_ASE_MIPS3D;
 			if (c->fpu_id & MIPS_FPIR_FREP)
@@ -1354,7 +1375,7 @@ void cpu_probe(void)
 		}
 	}
 
-	if (cpu_has_mips_r2) {
+	if (cpu_has_mips_r2_r6) {
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
 		/* R2 has Performance Counter Interrupt indicator */
 		c->options |= MIPS_CPU_PCI;

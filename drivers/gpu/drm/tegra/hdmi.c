@@ -851,6 +851,14 @@ static void tegra_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	h_back_porch = mode->htotal - mode->hsync_end;
 	h_front_porch = mode->hsync_start - mode->hdisplay;
 
+	err = clk_set_rate(hdmi->clk, pclk);
+	if (err < 0) {
+		dev_err(hdmi->dev, "failed to set HDMI clock frequency: %d\n",
+			err);
+	}
+
+	DRM_DEBUG_KMS("HDMI clock rate: %lu Hz\n", clk_get_rate(hdmi->clk));
+
 	/* power up sequence */
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_PLL0);
 	value &= ~SOR_PLL_PDBG;

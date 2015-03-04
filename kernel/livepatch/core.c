@@ -314,12 +314,12 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 	rcu_read_lock();
 	func = list_first_or_null_rcu(&ops->func_stack, struct klp_func,
 				      stack_node);
-	rcu_read_unlock();
-
 	if (WARN_ON_ONCE(!func))
-		return;
+		goto unlock;
 
 	klp_arch_set_pc(regs, (unsigned long)func->new_func);
+unlock:
+	rcu_read_unlock();
 }
 
 static int klp_disable_func(struct klp_func *func)
@@ -731,7 +731,7 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 	func->state = KLP_DISABLED;
 
 	return kobject_init_and_add(&func->kobj, &klp_ktype_func,
-				    obj->kobj, func->old_name);
+				    obj->kobj, "%s", func->old_name);
 }
 
 /* parts of the initialization that is done only when the object is loaded */
@@ -807,7 +807,7 @@ static int klp_init_patch(struct klp_patch *patch)
 	patch->state = KLP_DISABLED;
 
 	ret = kobject_init_and_add(&patch->kobj, &klp_ktype_patch,
-				   klp_root_kobj, patch->mod->name);
+				   klp_root_kobj, "%s", patch->mod->name);
 	if (ret)
 		goto unlock;
 

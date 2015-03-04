@@ -1606,7 +1606,7 @@ config SENSORS_W83795
 	  will be called w83795.
 
 config SENSORS_W83795_FANCTRL
-	boolean "Include automatic fan control support (DANGEROUS)"
+	bool "Include automatic fan control support (DANGEROUS)"
 	depends on SENSORS_W83795
 	default n
 	help

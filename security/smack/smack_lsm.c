@@ -855,7 +855,7 @@ static int smack_inode_link(struct dentry *old_dentry, struct inode *dir,
 	rc = smk_curacc(isp, MAY_WRITE, &ad);
 	rc = smk_bu_inode(old_dentry->d_inode, MAY_WRITE, rc);
 
-	if (rc == 0 && new_dentry->d_inode != NULL) {
+	if (rc == 0 && d_is_positive(new_dentry)) {
 		isp = smk_of_inode(new_dentry->d_inode);
 		smk_ad_setfield_u_fs_path_dentry(&ad, new_dentry);
 		rc = smk_curacc(isp, MAY_WRITE, &ad);
@@ -961,7 +961,7 @@ static int smack_inode_rename(struct inode *old_inode,
 	rc = smk_curacc(isp, MAY_READWRITE, &ad);
 	rc = smk_bu_inode(old_dentry->d_inode, MAY_READWRITE, rc);
 
-	if (rc == 0 && new_dentry->d_inode != NULL) {
+	if (rc == 0 && d_is_positive(new_dentry)) {
 		isp = smk_of_inode(new_dentry->d_inode);
 		smk_ad_setfield_u_fs_path_dentry(&ad, new_dentry);
 		rc = smk_curacc(isp, MAY_READWRITE, &ad);

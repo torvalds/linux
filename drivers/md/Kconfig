@@ -178,7 +178,7 @@ config MD_FAULTY
 source "drivers/md/bcache/Kconfig"
 
 config BLK_DEV_DM_BUILTIN
-	boolean
+	bool
 
 config BLK_DEV_DM
 	tristate "Device mapper support"
@@ -197,7 +197,7 @@ config BLK_DEV_DM
 	  If unsure, say N.
 
 config DM_DEBUG
-	boolean "Device mapper debugging support"
+	bool "Device mapper debugging support"
 	depends on BLK_DEV_DM
 	---help---
 	  Enable this for messages that may help debug device-mapper problems.

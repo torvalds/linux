@@ -46,7 +46,7 @@ static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
 	if (len && reslen && reslen == len && start <= end)
 		return true;
 
-	pr_info("ACPI: invalid or unassigned resource %s [%016llx - %016llx] length [%016llx]\n",
+	pr_debug("ACPI: invalid or unassigned resource %s [%016llx - %016llx] length [%016llx]\n",
 		io ? "io" : "mem", start, end, len);
 
 	return false;

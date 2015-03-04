@@ -769,9 +769,9 @@ static long __writeback_inodes_wb(struct bdi_writeback *wb,
 		struct inode *inode = wb_inode(wb->b_io.prev);
 		struct super_block *sb = inode->i_sb;
 
-		if (!grab_super_passive(sb)) {
+		if (!trylock_super(sb)) {
 			/*
-			 * grab_super_passive() may fail consistently due to
+			 * trylock_super() may fail consistently due to
 			 * s_umount being grabbed by someone else. Don't use
 			 * requeue_io() to avoid busy retrying the inode/sb.
 			 */
@@ -779,7 +779,7 @@ static long __writeback_inodes_wb(struct bdi_writeback *wb,
 			continue;
 		}
 		wrote += writeback_sb_inodes(sb, wb, work);
-		drop_super(sb);
+		up_read(&sb->s_umount);
 
 		/* refer to the same tests at the end of writeback_sb_inodes */
 		if (wrote) {

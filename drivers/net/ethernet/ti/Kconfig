@@ -50,7 +50,7 @@ config TI_DAVINCI_CPDMA
 	  will be called davinci_cpdma.  This is recommended.
 
 config TI_CPSW_PHY_SEL
-	boolean "TI CPSW Switch Phy sel Support"
+	bool "TI CPSW Switch Phy sel Support"
 	depends on TI_CPSW
 	---help---
 	  This driver supports configuring of the phy mode connected to
@@ -77,7 +77,7 @@ config TI_CPSW
 	  will be called cpsw.
 
 config TI_CPTS
-	boolean "TI Common Platform Time Sync (CPTS) Support"
+	bool "TI Common Platform Time Sync (CPTS) Support"
 	depends on TI_CPSW
 	select PTP_1588_CLOCK
 	---help---

@@ -174,6 +174,17 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_log_workqueue;
 	struct workqueue_struct *m_eofblocks_workqueue;
+
+	/*
+	 * Generation of the filesysyem layout.  This is incremented by each
+	 * growfs, and used by the pNFS server to ensure the client updates
+	 * its view of the block device once it gets a layout that might
+	 * reference the newly added blocks.  Does not need to be persistent
+	 * as long as we only allow file system size increments, but if we
+	 * ever support shrinks it would have to be persisted in addition
+	 * to various other kinds of pain inflicted on the pNFS server.
+	 */
+	__uint32_t		m_generation;
 } xfs_mount_t;
 
 /*

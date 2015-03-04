@@ -34,10 +34,12 @@
 #include <au1000.h>
 
 extern void __init board_setup(void);
-extern void set_cpuspec(void);
+extern void __init alchemy_set_lpj(void);
 
 void __init plat_mem_setup(void)
 {
+	alchemy_set_lpj();
+
 	if (au1xxx_cpu_needs_config_od())
 		/* Various early Au1xx0 errata corrected by this */
 		set_c0_config(1 << 19); /* Set Config[OD] */

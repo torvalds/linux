@@ -36,6 +36,7 @@ enum da9063_models {
 enum da9063_variant_codes {
 	PMIC_DA9063_AD = 0x3,
 	PMIC_DA9063_BB = 0x5,
+	PMIC_DA9063_CA = 0x6,
 };
 
 /* Interrupts */

@@ -245,6 +245,7 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
  */
 void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
 {
+	struct file_lock *lock;
 	struct file_lock_context *ctx;
 
 	*fcntl_count = 0;
@@ -252,8 +253,12 @@ void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
 
 	ctx = inode->i_flctx;
 	if (ctx) {
-		*fcntl_count = ctx->flc_posix_cnt;
-		*flock_count = ctx->flc_flock_cnt;
+		spin_lock(&ctx->flc_lock);
+		list_for_each_entry(lock, &ctx->flc_posix, fl_list)
+			++(*fcntl_count);
+		list_for_each_entry(lock, &ctx->flc_flock, fl_list)
+			++(*flock_count);
+		spin_unlock(&ctx->flc_lock);
 	}
 	dout("counted %d flock locks and %d fcntl locks",
 	     *flock_count, *fcntl_count);

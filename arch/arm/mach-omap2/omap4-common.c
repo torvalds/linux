@@ -242,7 +242,7 @@ static int __init omap4_sar_ram_init(void)
 }
 omap_early_initcall(omap4_sar_ram_init);
 
-static struct of_device_id gic_match[] = {
+static const struct of_device_id gic_match[] = {
 	{ .compatible = "arm,cortex-a9-gic", },
 	{ .compatible = "arm,cortex-a15-gic", },
 	{ },

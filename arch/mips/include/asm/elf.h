@@ -417,13 +417,15 @@ extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 struct arch_elf_state {
 	int fp_abi;
 	int interp_fp_abi;
-	int overall_abi;
+	int overall_fp_mode;
 };
 
+#define MIPS_ABI_FP_UNKNOWN	(-1)	/* Unknown FP ABI (kernel internal) */
+
 #define INIT_ARCH_ELF_STATE {			\
-	.fp_abi = -1,				\
-	.interp_fp_abi = -1,			\
-	.overall_abi = -1,			\
+	.fp_abi = MIPS_ABI_FP_UNKNOWN,		\
+	.interp_fp_abi = MIPS_ABI_FP_UNKNOWN,	\
+	.overall_fp_mode = -1,			\
 }
 
 extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,

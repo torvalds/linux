@@ -1167,8 +1167,15 @@ struct nfs41_impl_id {
 	struct nfstime4			date;
 };
 
+struct nfs41_bind_conn_to_session_args {
+	struct nfs_client		*client;
+	struct nfs4_sessionid		sessionid;
+	u32				dir;
+	bool				use_conn_in_rdma_mode;
+};
+
 struct nfs41_bind_conn_to_session_res {
-	struct nfs4_session		*session;
+	struct nfs4_sessionid		sessionid;
 	u32				dir;
 	bool				use_conn_in_rdma_mode;
 };
@@ -1185,6 +1192,8 @@ struct nfs41_exchange_id_res {
 
 struct nfs41_create_session_args {
 	struct nfs_client	       *client;
+	u64				clientid;
+	uint32_t			seqid;
 	uint32_t			flags;
 	uint32_t			cb_program;
 	struct nfs4_channel_attrs	fc_attrs;	/* Fore Channel */
@@ -1192,7 +1201,11 @@ struct nfs41_create_session_args {
 };
 
 struct nfs41_create_session_res {
-	struct nfs_client	       *client;
+	struct nfs4_sessionid		sessionid;
+	uint32_t			seqid;
+	uint32_t			flags;
+	struct nfs4_channel_attrs	fc_attrs;	/* Fore Channel */
+	struct nfs4_channel_attrs	bc_attrs;	/* Back Channel */
 };
 
 struct nfs41_reclaim_complete_args {
@@ -1351,7 +1364,7 @@ struct nfs_commit_completion_ops {
 };
 
 struct nfs_commit_info {
-	spinlock_t			*lock;
+	spinlock_t			*lock;	/* inode->i_lock */
 	struct nfs_mds_commit_info	*mds;
 	struct pnfs_ds_commit_info	*ds;
 	struct nfs_direct_req		*dreq;	/* O_DIRECT request */

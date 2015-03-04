@@ -337,6 +337,10 @@ void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
 	stop_stream(oxfw, stream);
 }
 
+/*
+ * This function should be called before starting the stream or after stopping
+ * the streams.
+ */
 void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
 				     struct amdtp_stream *stream)
 {
@@ -346,8 +350,6 @@ void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
 		conn = &oxfw->out_conn;
 	else
 		conn = &oxfw->in_conn;
-
-	stop_stream(oxfw, stream);
 
 	amdtp_stream_destroy(stream);
 	cmp_connection_destroy(conn);

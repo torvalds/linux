@@ -583,7 +583,7 @@ static bool lm3533_precious_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config regmap_config = {
+static const struct regmap_config regmap_config = {
 	.reg_bits	= 8,
 	.val_bits	= 8,
 	.max_register	= LM3533_REG_MAX,

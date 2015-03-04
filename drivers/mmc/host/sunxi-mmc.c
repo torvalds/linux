@@ -21,8 +21,6 @@
 #include <linux/err.h>
 
 #include <linux/clk.h>
-#include <linux/clk/sunxi.h>
-
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -229,6 +227,8 @@ struct sunxi_mmc_host {
 	/* clock management */
 	struct clk	*clk_ahb;
 	struct clk	*clk_mmc;
+	struct clk	*clk_sample;
+	struct clk	*clk_output;
 
 	/* irq */
 	spinlock_t	lock;
@@ -653,26 +653,31 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 
 	/* determine delays */
 	if (rate <= 400000) {
-		oclk_dly = 0;
-		sclk_dly = 7;
+		oclk_dly = 180;
+		sclk_dly = 42;
 	} else if (rate <= 25000000) {
-		oclk_dly = 0;
-		sclk_dly = 5;
+		oclk_dly = 180;
+		sclk_dly = 75;
 	} else if (rate <= 50000000) {
 		if (ios->timing == MMC_TIMING_UHS_DDR50) {
-			oclk_dly = 2;
-			sclk_dly = 4;
+			oclk_dly = 60;
+			sclk_dly = 120;
 		} else {
-			oclk_dly = 3;
-			sclk_dly = 5;
+			oclk_dly = 90;
+			sclk_dly = 150;
 		}
+	} else if (rate <= 100000000) {
+		oclk_dly = 6;
+		sclk_dly = 24;
+	} else if (rate <= 200000000) {
+		oclk_dly = 3;
+		sclk_dly = 12;
 	} else {
-		/* rate > 50000000 */
-		oclk_dly = 2;
-		sclk_dly = 4;
+		return -EINVAL;
 	}
 
-	clk_sunxi_mmc_phase_control(host->clk_mmc, sclk_dly, oclk_dly);
+	clk_set_phase(host->clk_sample, sclk_dly);
+	clk_set_phase(host->clk_output, oclk_dly);
 
 	return sunxi_mmc_oclk_onoff(host, 1);
 }
@@ -913,6 +918,18 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 		return PTR_ERR(host->clk_mmc);
 	}
 
+	host->clk_output = devm_clk_get(&pdev->dev, "output");
+	if (IS_ERR(host->clk_output)) {
+		dev_err(&pdev->dev, "Could not get output clock\n");
+		return PTR_ERR(host->clk_output);
+	}
+
+	host->clk_sample = devm_clk_get(&pdev->dev, "sample");
+	if (IS_ERR(host->clk_sample)) {
+		dev_err(&pdev->dev, "Could not get sample clock\n");
+		return PTR_ERR(host->clk_sample);
+	}
+
 	host->reset = devm_reset_control_get(&pdev->dev, "ahb");
 
 	ret = clk_prepare_enable(host->clk_ahb);
@@ -927,11 +944,23 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 		goto error_disable_clk_ahb;
 	}
 
+	ret = clk_prepare_enable(host->clk_output);
+	if (ret) {
+		dev_err(&pdev->dev, "Enable output clk err %d\n", ret);
+		goto error_disable_clk_mmc;
+	}
+
+	ret = clk_prepare_enable(host->clk_sample);
+	if (ret) {
+		dev_err(&pdev->dev, "Enable sample clk err %d\n", ret);
+		goto error_disable_clk_output;
+	}
+
 	if (!IS_ERR(host->reset)) {
 		ret = reset_control_deassert(host->reset);
 		if (ret) {
 			dev_err(&pdev->dev, "reset err %d\n", ret);
-			goto error_disable_clk_mmc;
+			goto error_disable_clk_sample;
 		}
 	}
 
@@ -950,6 +979,10 @@ static int sunxi_mmc_resource_request(struct sunxi_mmc_host *host,
 error_assert_reset:
 	if (!IS_ERR(host->reset))
 		reset_control_assert(host->reset);
+error_disable_clk_sample:
+	clk_disable_unprepare(host->clk_sample);
+error_disable_clk_output:
+	clk_disable_unprepare(host->clk_output);
 error_disable_clk_mmc:
 	clk_disable_unprepare(host->clk_mmc);
 error_disable_clk_ahb:

@@ -75,29 +75,25 @@ efi_status_t efi_get_memory_map(efi_system_table_t *sys_table_arg,
 	unsigned long key;
 	u32 desc_version;
 
-	*map_size = 0;
-	*desc_size = 0;
-	key = 0;
-	status = efi_call_early(get_memory_map, map_size, NULL,
-				&key, desc_size, &desc_version);
-	if (status != EFI_BUFFER_TOO_SMALL)
-		return EFI_LOAD_ERROR;
-
+	*map_size = sizeof(*m) * 32;
+again:
 	/*
 	 * Add an additional efi_memory_desc_t because we're doing an
 	 * allocation which may be in a new descriptor region.
 	 */
-	*map_size += *desc_size;
+	*map_size += sizeof(*m);
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				*map_size, (void **)&m);
 	if (status != EFI_SUCCESS)
 		goto fail;
 
+	*desc_size = 0;
+	key = 0;
 	status = efi_call_early(get_memory_map, map_size, m,
 				&key, desc_size, &desc_version);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		efi_call_early(free_pool, m);
-		return EFI_LOAD_ERROR;
+		goto again;
 	}
 
 	if (status != EFI_SUCCESS)

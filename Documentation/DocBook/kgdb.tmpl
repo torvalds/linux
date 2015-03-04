@@ -197,6 +197,7 @@
    may be configured as a kernel built-in or a kernel loadable module.
    You can only make use of <constant>kgdbwait</constant> and early
    debugging if you build kgdboc into the kernel as a built-in.
+   </para>
    <para>Optionally you can elect to activate kms (Kernel Mode
    Setting) integration.  When you use kms with kgdboc and you have a
    video driver that has atomic mode setting hooks, it is possible to
@@ -205,7 +206,6 @@
    This integration can serve as a useful tool to aid in diagnosing
    crashes or doing analysis of memory with kdb while allowing the
    full graphics console applications to run.
-   </para>
    </para>
    <sect2 id="kgdbocArgs">
    <title>kgdboc arguments</title>
@@ -284,7 +284,6 @@
    </listitem>
    </orderedlist>
    </para>
-   </sect3>
    <para>NOTE: Kgdboc does not support interrupting the target via the
    gdb remote protocol.  You must manually send a sysrq-g unless you
    have a proxy that splits console output to a terminal program.
@@ -305,6 +304,7 @@
     as well as on the initial connect, or to use a debugger proxy that
     allows an unmodified gdb to do the debugging.
    </para>
+   </sect3>
    </sect2>
    </sect1>
    <sect1 id="kgdbwait">
@@ -350,12 +350,12 @@
    </para>
    </listitem>
    </orderedlist>
+  </para>
    <para>IMPORTANT NOTE: You cannot use kgdboc + kgdbcon on a tty that is an
    active system console.  An example of incorrect usage is <constant>console=ttyS0,115200 kgdboc=ttyS0 kgdbcon</constant>
    </para>
    <para>It is possible to use this option with kgdboc on a tty that is not a system console.
    </para>
-  </para>
   </sect1>
    <sect1 id="kgdbreboot">
    <title>Run time parameter: kgdbreboot</title>

@@ -960,52 +960,19 @@ filelayout_mark_request_commit(struct nfs_page *req,
 {
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 	u32 i, j;
-	struct list_head *list;
-	struct pnfs_commit_bucket *buckets;
 
 	if (fl->commit_through_mds) {
-		list = &cinfo->mds->list;
-		spin_lock(cinfo->lock);
-		goto mds_commit;
-	}
-
-	/* Note that we are calling nfs4_fl_calc_j_index on each page
-	 * that ends up being committed to a data server.  An attractive
-	 * alternative is to add a field to nfs_write_data and nfs_page
-	 * to store the value calculated in filelayout_write_pagelist
-	 * and just use that here.
-	 */
-	j = nfs4_fl_calc_j_index(lseg, req_offset(req));
-	i = select_bucket_index(fl, j);
-	spin_lock(cinfo->lock);
-	buckets = cinfo->ds->buckets;
-	list = &buckets[i].written;
-	if (list_empty(list)) {
-		/* Non-empty buckets hold a reference on the lseg.  That ref
-		 * is normally transferred to the COMMIT call and released
-		 * there.  It could also be released if the last req is pulled
-		 * off due to a rewrite, in which case it will be done in
-		 * pnfs_generic_clear_request_commit
+		nfs_request_add_commit_list(req, &cinfo->mds->list, cinfo);
+	} else {
+		/* Note that we are calling nfs4_fl_calc_j_index on each page
+		 * that ends up being committed to a data server.  An attractive
+		 * alternative is to add a field to nfs_write_data and nfs_page
+		 * to store the value calculated in filelayout_write_pagelist
+		 * and just use that here.
 		 */
-		buckets[i].wlseg = pnfs_get_lseg(lseg);
-	}
-	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
-	cinfo->ds->nwritten++;
-
-mds_commit:
-	/* nfs_request_add_commit_list(). We need to add req to list without
-	 * dropping cinfo lock.
-	 */
-	set_bit(PG_CLEAN, &(req)->wb_flags);
-	nfs_list_add_request(req, list);
-	cinfo->mds->ncommit++;
-	spin_unlock(cinfo->lock);
-	if (!cinfo->dreq) {
-		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-		inc_bdi_stat(inode_to_bdi(page_file_mapping(req->wb_page)->host),
-			     BDI_RECLAIMABLE);
-		__mark_inode_dirty(req->wb_context->dentry->d_inode,
-				   I_DIRTY_DATASYNC);
+		j = nfs4_fl_calc_j_index(lseg, req_offset(req));
+		i = select_bucket_index(fl, j);
+		pnfs_layout_mark_request_commit(req, lseg, cinfo, i);
 	}
 }
 

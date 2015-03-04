@@ -35,6 +35,8 @@
 #include "prm44xx.h"
 #include "common.h"
 #include "clock.h"
+#include "cm.h"
+#include "control.h"
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
@@ -639,6 +641,15 @@ int __init of_prcm_init(void)
 	}
 
 	return 0;
+}
+
+void __init omap3_prcm_legacy_iomaps_init(void)
+{
+	ti_clk_ll_ops = &omap_clk_ll_ops;
+
+	clk_memmaps[TI_CLKM_CM] = cm_base + OMAP3430_IVA2_MOD;
+	clk_memmaps[TI_CLKM_PRM] = prm_base + OMAP3430_IVA2_MOD;
+	clk_memmaps[TI_CLKM_SCRM] = omap_ctrl_base_get();
 }
 
 static int __init prm_late_init(void)

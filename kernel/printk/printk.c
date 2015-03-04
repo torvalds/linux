@@ -1811,7 +1811,7 @@ int vprintk_default(const char *fmt, va_list args)
 
 #ifdef CONFIG_KGDB_KDB
 	if (unlikely(kdb_trap_printk)) {
-		r = vkdb_printf(fmt, args);
+		r = vkdb_printf(KDB_MSGSRC_PRINTK, fmt, args);
 		return r;
 	}
 #endif

@@ -275,10 +275,10 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	err = ceph_mdsc_do_request(mdsc,
 				   (flags & (O_CREAT|O_TRUNC)) ? dir : NULL,
 				   req);
+	err = ceph_handle_snapdir(req, dentry, err);
 	if (err)
 		goto out_req;
 
-	err = ceph_handle_snapdir(req, dentry, err);
 	if (err == 0 && (flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
 
@@ -292,7 +292,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	}
 	if (err)
 		goto out_req;
-	if (dn || dentry->d_inode == NULL || S_ISLNK(dentry->d_inode->i_mode)) {
+	if (dn || dentry->d_inode == NULL || d_is_symlink(dentry)) {
 		/* make vfs retry on splice, ENOENT, or symlink */
 		dout("atomic_open finish_no_open on dn %p\n", dn);
 		err = finish_no_open(file, dn);
@@ -392,13 +392,14 @@ more:
 	if (ret >= 0) {
 		int didpages;
 		if (was_short && (pos + ret < inode->i_size)) {
-			u64 tmp = min(this_len - ret,
-					inode->i_size - pos - ret);
+			int zlen = min(this_len - ret,
+				       inode->i_size - pos - ret);
+			int zoff = (o_direct ? buf_align : io_align) +
+				    read + ret;
 			dout(" zero gap %llu to %llu\n",
-				pos + ret, pos + ret + tmp);
-			ceph_zero_page_vector_range(page_align + read + ret,
-							tmp, pages);
-			ret += tmp;
+				pos + ret, pos + ret + zlen);
+			ceph_zero_page_vector_range(zoff, zlen, pages);
+			ret += zlen;
 		}
 
 		didpages = (page_align + ret) >> PAGE_CACHE_SHIFT;
@@ -878,28 +879,34 @@ again:
 
 		i_size = i_size_read(inode);
 		if (retry_op == READ_INLINE) {
-			/* does not support inline data > PAGE_SIZE */
-			if (i_size > PAGE_CACHE_SIZE) {
-				ret = -EIO;
-			} else if (iocb->ki_pos < i_size) {
+			BUG_ON(ret > 0 || read > 0);
+			if (iocb->ki_pos < i_size &&
+			    iocb->ki_pos < PAGE_CACHE_SIZE) {
 				loff_t end = min_t(loff_t, i_size,
 						   iocb->ki_pos + len);
+				end = min_t(loff_t, end, PAGE_CACHE_SIZE);
 				if (statret < end)
 					zero_user_segment(page, statret, end);
 				ret = copy_page_to_iter(page,
 						iocb->ki_pos & ~PAGE_MASK,
 						end - iocb->ki_pos, to);
 				iocb->ki_pos += ret;
-			} else {
-				ret = 0;
+				read += ret;
+			}
+			if (iocb->ki_pos < i_size && read < len) {
+				size_t zlen = min_t(size_t, len - read,
+						    i_size - iocb->ki_pos);
+				ret = iov_iter_zero(zlen, to);
+				iocb->ki_pos += ret;
+				read += ret;
 			}
 			__free_pages(page, 0);
-			return ret;
+			return read;
 		}
 
 		/* hit EOF or hole? */
 		if (retry_op == CHECK_EOF && iocb->ki_pos < i_size &&
-			ret < len) {
+		    ret < len) {
 			dout("sync_read hit hole, ppos %lld < size %lld"
 			     ", reading more\n", iocb->ki_pos,
 			     inode->i_size);

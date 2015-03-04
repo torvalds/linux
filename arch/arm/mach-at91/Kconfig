@@ -64,7 +64,6 @@ config SOC_SAMA5D4
 	select SOC_SAMA5
 	select CLKSRC_MMIO
 	select CACHE_L2X0
-	select CACHE_PL310
 	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD

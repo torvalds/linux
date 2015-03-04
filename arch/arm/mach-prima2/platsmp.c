@@ -40,7 +40,7 @@ static void sirfsoc_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static struct of_device_id clk_ids[]  = {
+static const struct of_device_id clk_ids[]  = {
 	{ .compatible = "sirf,atlas7-clkc" },
 	{},
 };

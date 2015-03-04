@@ -21,7 +21,7 @@ static void __init sirfsoc_init_late(void)
 }
 
 #ifdef CONFIG_ARCH_ATLAS6
-static const char *atlas6_dt_match[] __initconst = {
+static const char *const atlas6_dt_match[] __initconst = {
 	"sirf,atlas6",
 	NULL
 };
@@ -36,7 +36,7 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_ARCH_PRIMA2
-static const char *prima2_dt_match[] __initconst = {
+static const char *const prima2_dt_match[] __initconst = {
 	"sirf,prima2",
 	NULL
 };
@@ -52,7 +52,7 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_ARCH_ATLAS7
-static const char *atlas7_dt_match[] __initdata = {
+static const char *const atlas7_dt_match[] __initconst = {
 	"sirf,atlas7",
 	NULL
 };

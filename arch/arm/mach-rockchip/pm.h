@@ -24,7 +24,13 @@ extern unsigned long rkpm_bootdata_ddr_data;
 extern unsigned long rk3288_bootram_sz;
 
 void rockchip_slp_cpu_resume(void);
+#ifdef CONFIG_PM_SLEEP
 void __init rockchip_suspend_init(void);
+#else
+static inline void rockchip_suspend_init(void)
+{
+}
+#endif
 
 /****** following is rk3288 defined **********/
 #define RK3288_PMU_WAKEUP_CFG0		0x00

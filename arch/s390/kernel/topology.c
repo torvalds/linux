@@ -7,14 +7,14 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/workqueue.h>
-#include <linux/bootmem.h>
 #include <linux/cpuset.h>
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
@@ -42,8 +42,8 @@ static DEFINE_SPINLOCK(topology_lock);
 static struct mask_info socket_info;
 static struct mask_info book_info;
 
-struct cpu_topology_s390 cpu_topology[NR_CPUS];
-EXPORT_SYMBOL_GPL(cpu_topology);
+DEFINE_PER_CPU(struct cpu_topology_s390, cpu_topology);
+EXPORT_PER_CPU_SYMBOL_GPL(cpu_topology);
 
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
@@ -90,15 +90,15 @@ static struct mask_info *add_cpus_to_mask(struct topology_core *tl_core,
 		if (lcpu < 0)
 			continue;
 		for (i = 0; i <= smp_cpu_mtid; i++) {
-			cpu_topology[lcpu + i].book_id = book->id;
-			cpu_topology[lcpu + i].core_id = rcore;
-			cpu_topology[lcpu + i].thread_id = lcpu + i;
+			per_cpu(cpu_topology, lcpu + i).book_id = book->id;
+			per_cpu(cpu_topology, lcpu + i).core_id = rcore;
+			per_cpu(cpu_topology, lcpu + i).thread_id = lcpu + i;
 			cpumask_set_cpu(lcpu + i, &book->mask);
 			cpumask_set_cpu(lcpu + i, &socket->mask);
 			if (one_socket_per_cpu)
-				cpu_topology[lcpu + i].socket_id = rcore;
+				per_cpu(cpu_topology, lcpu + i).socket_id = rcore;
 			else
-				cpu_topology[lcpu + i].socket_id = socket->id;
+				per_cpu(cpu_topology, lcpu + i).socket_id = socket->id;
 			smp_cpu_set_polarization(lcpu + i, tl_core->pp);
 		}
 		if (one_socket_per_cpu)
@@ -249,14 +249,14 @@ static void update_cpu_masks(void)
 
 	spin_lock_irqsave(&topology_lock, flags);
 	for_each_possible_cpu(cpu) {
-		cpu_topology[cpu].thread_mask = cpu_thread_map(cpu);
-		cpu_topology[cpu].core_mask = cpu_group_map(&socket_info, cpu);
-		cpu_topology[cpu].book_mask = cpu_group_map(&book_info, cpu);
+		per_cpu(cpu_topology, cpu).thread_mask = cpu_thread_map(cpu);
+		per_cpu(cpu_topology, cpu).core_mask = cpu_group_map(&socket_info, cpu);
+		per_cpu(cpu_topology, cpu).book_mask = cpu_group_map(&book_info, cpu);
 		if (!MACHINE_HAS_TOPOLOGY) {
-			cpu_topology[cpu].thread_id = cpu;
-			cpu_topology[cpu].core_id = cpu;
-			cpu_topology[cpu].socket_id = cpu;
-			cpu_topology[cpu].book_id = cpu;
+			per_cpu(cpu_topology, cpu).thread_id = cpu;
+			per_cpu(cpu_topology, cpu).core_id = cpu;
+			per_cpu(cpu_topology, cpu).socket_id = cpu;
+			per_cpu(cpu_topology, cpu).book_id = cpu;
 		}
 	}
 	spin_unlock_irqrestore(&topology_lock, flags);
@@ -332,50 +332,6 @@ void topology_expect_change(void)
 		return;
 	atomic_add(60, &topology_poll);
 	set_topology_timer();
-}
-
-static int __init early_parse_topology(char *p)
-{
-	if (strncmp(p, "off", 3))
-		return 0;
-	topology_enabled = 0;
-	return 0;
-}
-early_param("topology", early_parse_topology);
-
-static void __init alloc_masks(struct sysinfo_15_1_x *info,
-			       struct mask_info *mask, int offset)
-{
-	int i, nr_masks;
-
-	nr_masks = info->mag[TOPOLOGY_NR_MAG - offset];
-	for (i = 0; i < info->mnest - offset; i++)
-		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
-	nr_masks = max(nr_masks, 1);
-	for (i = 0; i < nr_masks; i++) {
-		mask->next = alloc_bootmem_align(
-			roundup_pow_of_two(sizeof(struct mask_info)),
-			roundup_pow_of_two(sizeof(struct mask_info)));
-		mask = mask->next;
-	}
-}
-
-void __init s390_init_cpu_topology(void)
-{
-	struct sysinfo_15_1_x *info;
-	int i;
-
-	if (!MACHINE_HAS_TOPOLOGY)
-		return;
-	tl_info = alloc_bootmem_pages(PAGE_SIZE);
-	info = tl_info;
-	store_topology(info);
-	pr_info("The CPU configuration topology of the machine is:");
-	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
-		printk(KERN_CONT " %d", info->mag[i]);
-	printk(KERN_CONT " / %d\n", info->mnest);
-	alloc_masks(info, &socket_info, 1);
-	alloc_masks(info, &book_info, 2);
 }
 
 static int cpu_management;
@@ -467,19 +423,28 @@ int topology_cpu_init(struct cpu *cpu)
 
 const struct cpumask *cpu_thread_mask(int cpu)
 {
-	return &cpu_topology[cpu].thread_mask;
+	return &per_cpu(cpu_topology, cpu).thread_mask;
 }
 
 
 const struct cpumask *cpu_coregroup_mask(int cpu)
 {
-	return &cpu_topology[cpu].core_mask;
+	return &per_cpu(cpu_topology, cpu).core_mask;
 }
 
 static const struct cpumask *cpu_book_mask(int cpu)
 {
-	return &cpu_topology[cpu].book_mask;
+	return &per_cpu(cpu_topology, cpu).book_mask;
 }
+
+static int __init early_parse_topology(char *p)
+{
+	if (strncmp(p, "off", 3))
+		return 0;
+	topology_enabled = 0;
+	return 0;
+}
+early_param("topology", early_parse_topology);
 
 static struct sched_domain_topology_level s390_topology[] = {
 	{ cpu_thread_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
@@ -488,6 +453,42 @@ static struct sched_domain_topology_level s390_topology[] = {
 	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
 };
+
+static void __init alloc_masks(struct sysinfo_15_1_x *info,
+			       struct mask_info *mask, int offset)
+{
+	int i, nr_masks;
+
+	nr_masks = info->mag[TOPOLOGY_NR_MAG - offset];
+	for (i = 0; i < info->mnest - offset; i++)
+		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
+	nr_masks = max(nr_masks, 1);
+	for (i = 0; i < nr_masks; i++) {
+		mask->next = kzalloc(sizeof(*mask->next), GFP_KERNEL);
+		mask = mask->next;
+	}
+}
+
+static int __init s390_topology_init(void)
+{
+	struct sysinfo_15_1_x *info;
+	int i;
+
+	if (!MACHINE_HAS_TOPOLOGY)
+		return 0;
+	tl_info = (struct sysinfo_15_1_x *)__get_free_page(GFP_KERNEL);
+	info = tl_info;
+	store_topology(info);
+	pr_info("The CPU configuration topology of the machine is:");
+	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
+		printk(KERN_CONT " %d", info->mag[i]);
+	printk(KERN_CONT " / %d\n", info->mnest);
+	alloc_masks(info, &socket_info, 1);
+	alloc_masks(info, &book_info, 2);
+	set_sched_topology(s390_topology);
+	return 0;
+}
+early_initcall(s390_topology_init);
 
 static int __init topology_init(void)
 {
@@ -498,10 +499,3 @@ static int __init topology_init(void)
 	return device_create_file(cpu_subsys.dev_root, &dev_attr_dispatching);
 }
 device_initcall(topology_init);
-
-static int __init early_topology_init(void)
-{
-	set_sched_topology(s390_topology);
-	return 0;
-}
-early_initcall(early_topology_init);

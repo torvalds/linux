@@ -416,6 +416,15 @@ config NBPFAXI_DMA
 	help
 	  Support for "Type-AXI" NBPF DMA IPs from Renesas
 
+config IMG_MDC_DMA
+	tristate "IMG MDC support"
+	depends on MIPS || COMPILE_TEST
+	depends on MFD_SYSCON
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the IMG multi-threaded DMA controller (MDC).
+
 config DMA_ENGINE
 	bool
 
