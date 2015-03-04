@@ -702,6 +702,10 @@ struct input_keymap_entry {
 #define KEY_NUMERIC_9		0x209
 #define KEY_NUMERIC_STAR	0x20a
 #define KEY_NUMERIC_POUND	0x20b
+#define KEY_NUMERIC_A		0x20c	/* Phone key A - HUT Telephony 0xb9 */
+#define KEY_NUMERIC_B		0x20d
+#define KEY_NUMERIC_C		0x20e
+#define KEY_NUMERIC_D		0x20f
 
 #define KEY_CAMERA_FOCUS	0x210
 #define KEY_WPS_BUTTON		0x211	/* WiFi Protected Setup key */
