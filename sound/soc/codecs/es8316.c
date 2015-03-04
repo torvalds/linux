@@ -949,7 +949,7 @@ static int es8316_init_regs(struct snd_soc_codec *codec)
 	snd_soc_write(codec, ES8316_TESTMODE_REG50, 0xA0);
 	snd_soc_write(codec, ES8316_TEST2_REG52, 0x03);
 	/*alc set*/
-	snd_soc_write(codec, ES8316_ADC_PGAGAIN_REG23, 0xa0);
+	snd_soc_write(codec, ES8316_ADC_PGAGAIN_REG23, 0x60);
 	snd_soc_write(codec, ES8316_ADC_D2SEPGA_REG24, 0x01);
 	/*adc ds mode, HPF enable*/
 	snd_soc_write(codec, ES8316_ADC_DMIC_REG25, 0x08);
