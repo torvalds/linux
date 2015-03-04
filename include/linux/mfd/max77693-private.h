@@ -87,6 +87,7 @@ enum max77693_pmic_reg {
 /* MAX77693 ITORCH register */
 #define TORCH_IOUT1_SHIFT	0
 #define TORCH_IOUT2_SHIFT	4
+#define TORCH_IOUT_MASK(x)	(0xf << (x))
 #define TORCH_IOUT_MIN		15625
 #define TORCH_IOUT_MAX		250000
 #define TORCH_IOUT_STEP		15625
