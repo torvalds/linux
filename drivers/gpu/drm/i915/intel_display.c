@@ -4204,6 +4204,24 @@ static void intel_enable_sprite_planes(struct drm_crtc *crtc)
 	}
 }
 
+/*
+ * Disable a plane internally without actually modifying the plane's state.
+ * This will allow us to easily restore the plane later by just reprogramming
+ * its state.
+ */
+static void disable_plane_internal(struct drm_plane *plane)
+{
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct drm_plane_state *state =
+		plane->funcs->atomic_duplicate_state(plane);
+	struct intel_plane_state *intel_state = to_intel_plane_state(state);
+
+	intel_state->visible = false;
+	intel_plane->commit_plane(plane, intel_state);
+
+	intel_plane_destroy_state(plane, state);
+}
+
 static void intel_disable_sprite_planes(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -4213,8 +4231,8 @@ static void intel_disable_sprite_planes(struct drm_crtc *crtc)
 
 	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
 		intel_plane = to_intel_plane(plane);
-		if (intel_plane->pipe == pipe)
-			plane->funcs->disable_plane(plane);
+		if (plane->fb && intel_plane->pipe == pipe)
+			disable_plane_internal(plane);
 	}
 }
 
