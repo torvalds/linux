@@ -1469,7 +1469,7 @@ static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
 }
 
 /**
- * snd_soc_kcontrol_platform() - Returns the platform that registerd the control
+ * snd_soc_kcontrol_platform() - Returns the platform that registered the control
  * @kcontrol: The control for which to get the platform
  *
  * Note: This function will only work correctly if the control has been
