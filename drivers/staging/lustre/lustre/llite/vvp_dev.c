@@ -286,7 +286,7 @@ static void vvp_pgcache_id_unpack(loff_t pos, struct vvp_pgcache_id *id)
 
 	id->vpi_index  = pos & 0xffffffff;
 	id->vpi_depth  = (pos >> PGC_DEPTH_SHIFT) & 0xf;
-	id->vpi_bucket = ((unsigned long long)pos >> PGC_OBJ_SHIFT);
+	id->vpi_bucket = (unsigned long long)pos >> PGC_OBJ_SHIFT;
 }
 
 static loff_t vvp_pgcache_id_pack(struct vvp_pgcache_id *id)
