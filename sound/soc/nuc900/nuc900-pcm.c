@@ -306,11 +306,6 @@ static struct snd_pcm_ops nuc900_dma_ops = {
 	.mmap		= nuc900_dma_mmap,
 };
 
-static void nuc900_dma_free_dma_buffers(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int nuc900_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
@@ -330,7 +325,6 @@ static int nuc900_dma_new(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_platform_driver nuc900_soc_platform = {
 	.ops		= &nuc900_dma_ops,
 	.pcm_new	= nuc900_dma_new,
-	.pcm_free	= nuc900_dma_free_dma_buffers,
 };
 
 static int nuc900_soc_platform_probe(struct platform_device *pdev)

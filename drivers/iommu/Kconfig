@@ -4,6 +4,7 @@ config IOMMU_API
 
 menuconfig IOMMU_SUPPORT
 	bool "IOMMU Hardware Support"
+	depends on MMU
 	default y
 	---help---
 	  Say Y here if you want to compile device drivers for IO Memory
@@ -13,13 +14,43 @@ menuconfig IOMMU_SUPPORT
 
 if IOMMU_SUPPORT
 
+menu "Generic IOMMU Pagetable Support"
+
+# Selected by the actual pagetable implementations
+config IOMMU_IO_PGTABLE
+	bool
+
+config IOMMU_IO_PGTABLE_LPAE
+	bool "ARMv7/v8 Long Descriptor Format"
+	select IOMMU_IO_PGTABLE
+	help
+	  Enable support for the ARM long descriptor pagetable format.
+	  This allocator supports 4K/2M/1G, 16K/32M and 64K/512M page
+	  sizes at both stage-1 and stage-2, as well as address spaces
+	  up to 48-bits in size.
+
+config IOMMU_IO_PGTABLE_LPAE_SELFTEST
+	bool "LPAE selftests"
+	depends on IOMMU_IO_PGTABLE_LPAE
+	help
+	  Enable self-tests for LPAE page table allocator. This performs
+	  a series of page-table consistency checks during boot.
+
+	  If unsure, say N here.
+
+endmenu
+
+config IOMMU_IOVA
+	bool
+
 config OF_IOMMU
        def_bool y
        depends on OF && IOMMU_API
 
 config FSL_PAMU
 	bool "Freescale IOMMU support"
-	depends on PPC_E500MC
+	depends on PPC32
+	depends on PPC_E500MC || COMPILE_TEST
 	select IOMMU_API
 	select GENERIC_ALLOCATOR
 	help
@@ -30,7 +61,8 @@ config FSL_PAMU
 # MSM IOMMU support
 config MSM_IOMMU
 	bool "MSM IOMMU Support"
-	depends on ARCH_MSM8X60 || ARCH_MSM8960
+	depends on ARM
+	depends on ARCH_MSM8X60 || ARCH_MSM8960 || COMPILE_TEST
 	select IOMMU_API
 	help
 	  Support for the IOMMUs found on certain Qualcomm SOCs.
@@ -91,6 +123,7 @@ config INTEL_IOMMU
 	bool "Support for Intel IOMMU using DMA Remapping Devices"
 	depends on PCI_MSI && ACPI && (X86 || IA64_GENERIC)
 	select IOMMU_API
+	select IOMMU_IOVA
 	select DMAR_TABLE
 	help
 	  DMA remapping (DMAR) devices support enables independent address
@@ -140,7 +173,8 @@ config IRQ_REMAP
 # OMAP IOMMU support
 config OMAP_IOMMU
 	bool "OMAP IOMMU Support"
-	depends on ARCH_OMAP2PLUS
+	depends on ARM && MMU
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	select IOMMU_API
 
 config OMAP_IOMMU_DEBUG
@@ -187,7 +221,7 @@ config TEGRA_IOMMU_SMMU
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
-	depends on ARCH_EXYNOS && ARM
+	depends on ARCH_EXYNOS && ARM && MMU
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
 	help
@@ -216,7 +250,7 @@ config SHMOBILE_IPMMU_TLB
 config SHMOBILE_IOMMU
 	bool "IOMMU for Renesas IPMMU/IPMMUI"
 	default n
-	depends on ARM
+	depends on ARM && MMU
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
@@ -287,6 +321,7 @@ config IPMMU_VMSA
 	depends on ARM_LPAE
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU
 	help
 	  Support for the Renesas VMSA-compatible IPMMU Renesas found in the
@@ -304,13 +339,13 @@ config SPAPR_TCE_IOMMU
 
 config ARM_SMMU
 	bool "ARM Ltd. System MMU (SMMU) Support"
-	depends on ARM64 || (ARM_LPAE && OF)
+	depends on (ARM64 || ARM) && MMU
 	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
 	select ARM_DMA_USE_IOMMU if ARM
 	help
 	  Support for implementations of the ARM System MMU architecture
-	  versions 1 and 2. The driver supports both v7l and v8l table
-	  formats with 4k and 64k page sizes.
+	  versions 1 and 2.
 
 	  Say Y here if your SoC includes an IOMMU device implementing
 	  the ARM SMMU architecture.

@@ -132,7 +132,6 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
 	struct snd_soc_codec *codec = runtime->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_card *card = runtime->card;
 	const struct snd_soc_dapm_route *custom_map;
 	int num_routes;
@@ -161,7 +160,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 		num_routes = ARRAY_SIZE(byt_rt5640_intmic_dmic1_map);
 	}
 
-	ret = snd_soc_dapm_add_routes(dapm, custom_map, num_routes);
+	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
 	if (ret)
 		return ret;
 
@@ -171,13 +170,8 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 			return ret;
 	}
 
-	snd_soc_dapm_ignore_suspend(dapm, "HPOL");
-	snd_soc_dapm_ignore_suspend(dapm, "HPOR");
-
-	snd_soc_dapm_ignore_suspend(dapm, "SPOLP");
-	snd_soc_dapm_ignore_suspend(dapm, "SPOLN");
-	snd_soc_dapm_ignore_suspend(dapm, "SPORP");
-	snd_soc_dapm_ignore_suspend(dapm, "SPORN");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Speaker");
 
 	return ret;
 }

@@ -80,11 +80,9 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	struct usb_config_descriptor *pconf_desc;
 	struct usb_host_interface *phost_iface;
 	struct usb_interface_descriptor *piface_desc;
-	struct usb_host_endpoint *phost_endp;
 	struct usb_endpoint_descriptor *pendp_desc;
-	struct usb_device		 *pusbd;
-	int	i;
-	int	status = _FAIL;
+	struct usb_device *pusbd;
+	int i, status = _FAIL;
 
 	pdvobjpriv = kzalloc(sizeof(*pdvobjpriv), GFP_KERNEL);
 	if (!pdvobjpriv)
@@ -114,42 +112,38 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	pdvobjpriv->nr_endpoint = piface_desc->bNumEndpoints;
 
 	for (i = 0; i < pdvobjpriv->nr_endpoint; i++) {
-		phost_endp = phost_iface->endpoint + i;
-		if (phost_endp) {
-			pendp_desc = &phost_endp->desc;
+		pendp_desc = &phost_iface->endpoint[i].desc;
 
-			DBG_8723A("\nusb_endpoint_descriptor(%d):\n", i);
-			DBG_8723A("bLength =%x\n", pendp_desc->bLength);
-			DBG_8723A("bDescriptorType =%x\n",
-				  pendp_desc->bDescriptorType);
-			DBG_8723A("bEndpointAddress =%x\n",
-				  pendp_desc->bEndpointAddress);
-			DBG_8723A("wMaxPacketSize =%d\n",
-				  le16_to_cpu(pendp_desc->wMaxPacketSize));
-			DBG_8723A("bInterval =%x\n", pendp_desc->bInterval);
+		DBG_8723A("\nusb_endpoint_descriptor(%d):\n", i);
+		DBG_8723A("bLength =%x\n", pendp_desc->bLength);
+		DBG_8723A("bDescriptorType =%x\n", pendp_desc->bDescriptorType);
+		DBG_8723A("bEndpointAddress =%x\n",
+			  pendp_desc->bEndpointAddress);
+		DBG_8723A("wMaxPacketSize =%d\n",
+			  le16_to_cpu(pendp_desc->wMaxPacketSize));
+		DBG_8723A("bInterval =%x\n", pendp_desc->bInterval);
 
-			if (usb_endpoint_is_bulk_in(pendp_desc)) {
-				DBG_8723A("usb_endpoint_is_bulk_in = %x\n",
-					  usb_endpoint_num(pendp_desc));
-				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
-					usb_endpoint_num(pendp_desc);
-				pdvobjpriv->RtNumInPipes++;
-			} else if (usb_endpoint_is_int_in(pendp_desc)) {
-				DBG_8723A("usb_endpoint_is_int_in = %x, Interval = %x\n",
-					  usb_endpoint_num(pendp_desc),
-					  pendp_desc->bInterval);
-				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
-					usb_endpoint_num(pendp_desc);
-				pdvobjpriv->RtNumInPipes++;
-			} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
-				DBG_8723A("usb_endpoint_is_bulk_out = %x\n",
-					  usb_endpoint_num(pendp_desc));
-				pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
-					usb_endpoint_num(pendp_desc);
-				pdvobjpriv->RtNumOutPipes++;
-			}
-			pdvobjpriv->ep_num[i] = usb_endpoint_num(pendp_desc);
+		if (usb_endpoint_is_bulk_in(pendp_desc)) {
+			DBG_8723A("usb_endpoint_is_bulk_in = %x\n",
+				  usb_endpoint_num(pendp_desc));
+			pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
+				usb_endpoint_num(pendp_desc);
+			pdvobjpriv->RtNumInPipes++;
+		} else if (usb_endpoint_is_int_in(pendp_desc)) {
+			DBG_8723A("usb_endpoint_is_int_in = %x, Interval = "
+				  "%x\n", usb_endpoint_num(pendp_desc),
+				  pendp_desc->bInterval);
+			pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
+				usb_endpoint_num(pendp_desc);
+			pdvobjpriv->RtNumInPipes++;
+		} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
+			DBG_8723A("usb_endpoint_is_bulk_out = %x\n",
+				  usb_endpoint_num(pendp_desc));
+			pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
+				usb_endpoint_num(pendp_desc);
+			pdvobjpriv->RtNumOutPipes++;
 		}
+		pdvobjpriv->ep_num[i] = usb_endpoint_num(pendp_desc);
 	}
 	DBG_8723A("nr_endpoint =%d, in_num =%d, out_num =%d\n\n",
 		  pdvobjpriv->nr_endpoint, pdvobjpriv->RtNumInPipes,
@@ -271,104 +265,6 @@ static void rtw_dev_unload(struct rtw_adapter *padapter)
 	}
 	DBG_8723A("<=== rtw_dev_unload\n");
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-rtw_dev_unload\n"));
-}
-
-int rtw_hw_suspend23a(struct rtw_adapter *padapter)
-{
-	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	struct net_device *pnetdev = padapter->pnetdev;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
-	if ((!padapter->bup) || (padapter->bDriverStopped) ||
-	    (padapter->bSurpriseRemoved)) {
-		DBG_8723A("padapter->bup =%d bDriverStopped =%d bSurpriseRemoved = %d\n",
-			  padapter->bup, padapter->bDriverStopped,
-			  padapter->bSurpriseRemoved);
-		goto error_exit;
-	}
-
-	if (padapter) { /* system suspend */
-		LeaveAllPowerSaveMode23a(padapter);
-
-		DBG_8723A("==> rtw_hw_suspend23a\n");
-		down(&pwrpriv->lock);
-		pwrpriv->bips_processing = true;
-		/* padapter->net_closed = true; */
-		/* s1. */
-		if (pnetdev) {
-			netif_carrier_off(pnetdev);
-			netif_tx_stop_all_queues(pnetdev);
-		}
-
-		/* s2. */
-		rtw_disassoc_cmd23a(padapter, 500, false);
-
-		/* s2-2.  indicate disconnect to os */
-		/* rtw_indicate_disconnect23a(padapter); */
-		if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-			_clr_fwstate_(pmlmepriv, _FW_LINKED);
-
-			rtw_os_indicate_disconnect23a(padapter);
-
-			/* donnot enqueue cmd */
-			rtw_lps_ctrl_wk_cmd23a(padapter,
-					       LPS_CTRL_DISCONNECT, 0);
-		}
-		/* s2-3. */
-		rtw_free_assoc_resources23a(padapter, 1);
-
-		/* s2-4. */
-		rtw_free_network_queue23a(padapter);
-		rtw_ips_dev_unload23a(padapter);
-		pwrpriv->rf_pwrstate = rf_off;
-		pwrpriv->bips_processing = false;
-		up(&pwrpriv->lock);
-	} else {
-		goto error_exit;
-	}
-	return 0;
-error_exit:
-	DBG_8723A("%s, failed\n", __func__);
-	return -1;
-}
-
-int rtw_hw_resume23a(struct rtw_adapter *padapter)
-{
-	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
-	struct net_device *pnetdev = padapter->pnetdev;
-
-	if (padapter) { /* system resume */
-		DBG_8723A("==> rtw_hw_resume23a\n");
-		down(&pwrpriv->lock);
-		pwrpriv->bips_processing = true;
-		rtw_reset_drv_sw23a(padapter);
-
-		if (pm_netdev_open23a(pnetdev, false)) {
-			up(&pwrpriv->lock);
-			goto error_exit;
-		}
-
-		netif_device_attach(pnetdev);
-		netif_carrier_on(pnetdev);
-
-		if (!rtw_netif_queue_stopped(pnetdev))
-			netif_tx_start_all_queues(pnetdev);
-		else
-			netif_tx_wake_all_queues(pnetdev);
-
-		pwrpriv->bkeepfwalive = false;
-
-		pwrpriv->rf_pwrstate = rf_on;
-		pwrpriv->bips_processing = false;
-
-		up(&pwrpriv->lock);
-	} else {
-		goto error_exit;
-	}
-	return 0;
-error_exit:
-	DBG_8723A("%s, Open net dev failed\n", __func__);
-	return -1;
 }
 
 static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)

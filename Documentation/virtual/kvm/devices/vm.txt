@@ -24,3 +24,62 @@ Returns: 0
 
 Clear the CMMA status for all guest pages, so any pages the guest marked
 as unused are again used any may not be reclaimed by the host.
+
+1.3. ATTRIBUTE KVM_S390_VM_MEM_LIMIT_SIZE
+Parameters: in attr->addr the address for the new limit of guest memory
+Returns: -EFAULT if the given address is not accessible
+         -EINVAL if the virtual machine is of type UCONTROL
+         -E2BIG if the given guest memory is to big for that machine
+         -EBUSY if a vcpu is already defined
+         -ENOMEM if not enough memory is available for a new shadow guest mapping
+          0 otherwise
+
+Allows userspace to query the actual limit and set a new limit for
+the maximum guest memory size. The limit will be rounded up to
+2048 MB, 4096 GB, 8192 TB respectively, as this limit is governed by
+the number of page table levels.
+
+2. GROUP: KVM_S390_VM_CPU_MODEL
+Architectures: s390
+
+2.1. ATTRIBUTE: KVM_S390_VM_CPU_MACHINE (r/o)
+
+Allows user space to retrieve machine and kvm specific cpu related information:
+
+struct kvm_s390_vm_cpu_machine {
+       __u64 cpuid;           # CPUID of host
+       __u32 ibc;             # IBC level range offered by host
+       __u8  pad[4];
+       __u64 fac_mask[256];   # set of cpu facilities enabled by KVM
+       __u64 fac_list[256];   # set of cpu facilities offered by host
+}
+
+Parameters: address of buffer to store the machine related cpu data
+            of type struct kvm_s390_vm_cpu_machine*
+Returns:    -EFAULT if the given address is not accessible from kernel space
+	    -ENOMEM if not enough memory is available to process the ioctl
+	    0 in case of success
+
+2.2. ATTRIBUTE: KVM_S390_VM_CPU_PROCESSOR (r/w)
+
+Allows user space to retrieve or request to change cpu related information for a vcpu:
+
+struct kvm_s390_vm_cpu_processor {
+       __u64 cpuid;           # CPUID currently (to be) used by this vcpu
+       __u16 ibc;             # IBC level currently (to be) used by this vcpu
+       __u8  pad[6];
+       __u64 fac_list[256];   # set of cpu facilities currently (to be) used
+                              # by this vcpu
+}
+
+KVM does not enforce or limit the cpu model data in any form. Take the information
+retrieved by means of KVM_S390_VM_CPU_MACHINE as hint for reasonable configuration
+setups. Instruction interceptions triggered by additionally set facilitiy bits that
+are not handled by KVM need to by imlemented in the VM driver code.
+
+Parameters: address of buffer to store/set the processor related cpu
+	    data of type struct kvm_s390_vm_cpu_processor*.
+Returns:    -EBUSY in case 1 or more vcpus are already activated (only in write case)
+	    -EFAULT if the given address is not accessible from kernel space
+	    -ENOMEM if not enough memory is available to process the ioctl
+	    0 in case of success

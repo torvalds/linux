@@ -1913,7 +1913,6 @@ int mccic_register(struct mcam_camera *cam)
 
 	mutex_lock(&cam->s_mutex);
 	cam->vdev = mcam_v4l_template;
-	cam->vdev.debug = 0;
 	cam->vdev.v4l2_dev = &cam->v4l2_dev;
 	video_set_drvdata(&cam->vdev, cam);
 	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);

@@ -7,6 +7,7 @@ CONTENTS
   - FMan MURAM Node
   - FMan dTSEC/XGEC/mEMAC Node
   - FMan IEEE 1588 Node
+  - FMan MDIO Node
   - Example
 
 =============================================================================
@@ -357,6 +358,69 @@ ptp-timer@fe000 {
 };
 
 =============================================================================
+FMan MDIO Node
+
+DESCRIPTION
+
+The MDIO is a bus to which the PHY devices are connected.
+
+PROPERTIES
+
+- compatible
+		Usage: required
+		Value type: <stringlist>
+		Definition: A standard property.
+		Must include "fsl,fman-mdio" for 1 Gb/s MDIO from FMan v2.
+		Must include "fsl,fman-xmdio" for 10 Gb/s MDIO from FMan v2.
+		Must include "fsl,fman-memac-mdio" for 1/10 Gb/s MDIO from
+		FMan v3.
+
+- reg
+		Usage: required
+		Value type: <prop-encoded-array>
+		Definition: A standard property.
+
+- bus-frequency
+		Usage: optional
+		Value type: <u32>
+		Definition: Specifies the external MDIO bus clock speed to
+		be used, if different from the standard 2.5 MHz.
+		This may be due to the standard speed being unsupported (e.g.
+		due to a hardware problem), or to advertise that all relevant
+		components in the system support a faster speed.
+
+- interrupts
+		Usage: required for external MDIO
+		Value type: <prop-encoded-array>
+		Definition: Event interrupt of external MDIO controller.
+
+- fsl,fman-internal-mdio
+		Usage: required for internal MDIO
+		Value type: boolean
+		Definition: Fman has internal MDIO for internal PCS(Physical
+		Coding Sublayer) PHYs and external MDIO for external PHYs.
+		The settings and programming routines for internal/external
+		MDIO are different. Must be included for internal MDIO.
+
+EXAMPLE
+
+Example for FMan v2 external MDIO:
+
+mdio@f1000 {
+	compatible = "fsl,fman-xmdio";
+	reg = <0xf1000 0x1000>;
+	interrupts = <101 2 0 0>;
+};
+
+Example for FMan v3 internal MDIO:
+
+mdio@f1000 {
+	compatible = "fsl,fman-memac-mdio";
+	reg = <0xf1000 0x1000>;
+	fsl,fman-internal-mdio;
+};
+
+=============================================================================
 Example
 
 fman@400000 {
@@ -530,5 +594,11 @@ fman@400000 {
 	ptp-timer@fe000 {
 		compatible = "fsl,fman-ptp-timer";
 		reg = <0xfe000 0x1000>;
+	};
+
+	mdio@f1000 {
+		compatible = "fsl,fman-xmdio";
+		reg = <0xf1000 0x1000>;
+		interrupts = <101 2 0 0>;
 	};
 };

@@ -80,6 +80,12 @@
 #define SCLK_SDIO0_SAMPLE	119
 #define SCLK_SDIO1_SAMPLE	120
 #define SCLK_EMMC_SAMPLE	121
+#define SCLK_USBPHY480M_SRC	122
+#define SCLK_PVTM_CORE		123
+#define SCLK_PVTM_GPU		124
+
+#define SCLK_MAC		151
+#define SCLK_MACREF_OUT		152
 
 #define DCLK_VOP0		190
 #define DCLK_VOP1		191
@@ -154,6 +160,7 @@
 #define PCLK_PUBL0		365
 #define PCLK_DDRUPCTL1		366
 #define PCLK_PUBL1		367
+#define PCLK_WDT		368
 
 /* hclk gates */
 #define HCLK_GPS		448

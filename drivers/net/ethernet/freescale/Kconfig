@@ -69,7 +69,8 @@ config FSL_XGMAC_MDIO
 	select PHYLIB
 	select OF_MDIO
 	---help---
-	  This driver supports the MDIO bus on the Fman 10G Ethernet MACs.
+	  This driver supports the MDIO bus on the Fman 10G Ethernet MACs, and
+	  on the FMan mEMAC (which supports both Clauses 22 and 45)
 
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"

@@ -183,6 +183,7 @@ enum nfc_attrs {
 	NFC_ATTR_SE_APDU,
 	NFC_ATTR_TARGET_ISO15693_DSFID,
 	NFC_ATTR_TARGET_ISO15693_UID,
+	NFC_ATTR_SE_PARAMS,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };

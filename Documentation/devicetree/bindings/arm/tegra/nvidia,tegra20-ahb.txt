@@ -1,7 +1,10 @@
 NVIDIA Tegra AHB
 
 Required properties:
-- compatible : "nvidia,tegra20-ahb" or "nvidia,tegra30-ahb"
+- compatible : For Tegra20, must contain "nvidia,tegra20-ahb".  For
+  Tegra30, must contain "nvidia,tegra30-ahb".  Otherwise, must contain
+  '"nvidia,<chip>-ahb", "nvidia,tegra30-ahb"' where <chip> is tegra124,
+  tegra132, or tegra210.
 - reg : Should contain 1 register ranges(address and length)
 
 Example:

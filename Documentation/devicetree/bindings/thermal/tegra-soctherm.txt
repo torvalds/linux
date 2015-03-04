@@ -7,7 +7,9 @@ notifications. It is also used to manage emergency shutdown in an
 overheating situation.
 
 Required properties :
-- compatible : "nvidia,tegra124-soctherm".
+- compatible : For Tegra124, must contain "nvidia,tegra124-soctherm".
+  For Tegra132, must contain "nvidia,tegra132-soctherm".
+  For Tegra210, must contain "nvidia,tegra210-soctherm".
 - reg : Should contain 1 entry:
   - SOCTHERM register set
 - interrupts : Defines the interrupt used by SOCTHERM

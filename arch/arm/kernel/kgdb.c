@@ -14,9 +14,8 @@
 #include <linux/kgdb.h>
 #include <linux/uaccess.h>
 
+#include <asm/patch.h>
 #include <asm/traps.h>
-
-#include "patch.h"
 
 struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 {

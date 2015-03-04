@@ -150,6 +150,12 @@ struct bond_parm_tbl {
 	int mode;
 };
 
+struct netdev_notify_work {
+	struct delayed_work	work;
+	struct net_device	*dev;
+	struct netdev_bonding_info bonding_info;
+};
+
 struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
 	struct bonding *bond; /* our master */
@@ -243,6 +249,8 @@ struct bonding {
 #define bond_slave_get_rtnl(dev) \
 	((struct slave *) rtnl_dereference(dev->rx_handler_data))
 
+void bond_queue_slave_event(struct slave *slave);
+
 struct bond_vlan_tag {
 	__be16		vlan_proto;
 	unsigned short	vlan_id;
@@ -315,6 +323,7 @@ static inline void bond_set_active_slave(struct slave *slave)
 {
 	if (slave->backup) {
 		slave->backup = 0;
+		bond_queue_slave_event(slave);
 		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_ATOMIC);
 	}
 }
@@ -323,6 +332,7 @@ static inline void bond_set_backup_slave(struct slave *slave)
 {
 	if (!slave->backup) {
 		slave->backup = 1;
+		bond_queue_slave_event(slave);
 		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_ATOMIC);
 	}
 }
@@ -336,6 +346,7 @@ static inline void bond_set_slave_state(struct slave *slave,
 	slave->backup = slave_state;
 	if (notify) {
 		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_ATOMIC);
+		bond_queue_slave_event(slave);
 		slave->should_notify = 0;
 	} else {
 		if (slave->should_notify)
@@ -490,6 +501,12 @@ static inline bool bond_is_slave_inactive(struct slave *slave)
 	return slave->inactive;
 }
 
+static inline void bond_set_slave_link_state(struct slave *slave, int state)
+{
+	slave->link = state;
+	bond_queue_slave_event(slave);
+}
+
 static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be32 local)
 {
 	struct in_device *in_dev;
@@ -525,6 +542,7 @@ void bond_sysfs_slave_del(struct slave *slave);
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
 u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb);
+int bond_set_carrier(struct bonding *bond);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_create_debugfs(void);

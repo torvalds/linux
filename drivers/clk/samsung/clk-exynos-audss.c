@@ -82,6 +82,26 @@ static const struct of_device_id exynos_audss_clk_of_match[] = {
 	{},
 };
 
+static void exynos_audss_clk_teardown(void)
+{
+	int i;
+
+	for (i = EXYNOS_MOUT_AUDSS; i < EXYNOS_DOUT_SRP; i++) {
+		if (!IS_ERR(clk_table[i]))
+			clk_unregister_mux(clk_table[i]);
+	}
+
+	for (; i < EXYNOS_SRP_CLK; i++) {
+		if (!IS_ERR(clk_table[i]))
+			clk_unregister_divider(clk_table[i]);
+	}
+
+	for (; i < clk_data.clk_num; i++) {
+		if (!IS_ERR(clk_table[i]))
+			clk_unregister_gate(clk_table[i]);
+	}
+}
+
 /* register exynos_audss clocks */
 static int exynos_audss_clk_probe(struct platform_device *pdev)
 {
@@ -219,10 +239,7 @@ static int exynos_audss_clk_probe(struct platform_device *pdev)
 	return 0;
 
 unregister:
-	for (i = 0; i < clk_data.clk_num; i++) {
-		if (!IS_ERR(clk_table[i]))
-			clk_unregister(clk_table[i]);
-	}
+	exynos_audss_clk_teardown();
 
 	if (!IS_ERR(epll))
 		clk_disable_unprepare(epll);
@@ -232,18 +249,13 @@ unregister:
 
 static int exynos_audss_clk_remove(struct platform_device *pdev)
 {
-	int i;
-
 #ifdef CONFIG_PM_SLEEP
 	unregister_syscore_ops(&exynos_audss_clk_syscore_ops);
 #endif
 
 	of_clk_del_provider(pdev->dev.of_node);
 
-	for (i = 0; i < clk_data.clk_num; i++) {
-		if (!IS_ERR(clk_table[i]))
-			clk_unregister(clk_table[i]);
-	}
+	exynos_audss_clk_teardown();
 
 	if (!IS_ERR(epll))
 		clk_disable_unprepare(epll);

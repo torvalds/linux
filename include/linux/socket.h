@@ -318,13 +318,6 @@ struct ucred {
 /* IPX options */
 #define IPX_TYPE	1
 
-extern int csum_partial_copy_fromiovecend(unsigned char *kdata, 
-					  struct iovec *iov, 
-					  int offset, 
-					  unsigned int len, __wsum *csump);
-extern unsigned long iov_pages(const struct iovec *iov, int offset,
-			       unsigned long nr_segs);
-
 extern int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr_storage *kaddr);
 extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
 

@@ -1,7 +1,10 @@
 NVIDIA Tegra30 AHUB (Audio Hub)
 
 Required properties:
-- compatible : "nvidia,tegra30-ahub", "nvidia,tegra114-ahub", etc.
+- compatible : For Tegra30, must contain "nvidia,tegra30-ahub".  For Tegra114,
+  must contain "nvidia,tegra114-ahub".  For Tegra124, must contain
+  "nvidia,tegra124-ahub".  Otherwise, must contain "nvidia,<chip>-ahub",
+  plus at least one of the above, where <chip> is tegra132.
 - reg : Should contain the register physical address and length for each of
   the AHUB's register blocks.
   - Tegra30 requires 2 entries, for the APBIF and AHUB/AUDIO register blocks.

@@ -17,46 +17,9 @@
 #define __INC_HAL8723PHYCFG_H__
 
 /*--------------------------Define Parameters-------------------------------*/
-#define LOOP_LIMIT				5
-#define MAX_STALL_TIME		50		/* us */
-#define AntennaDiversityValue	0x80
-#define MAX_TXPWR_IDX_NMODE_92S	63
-#define Reset_Cnt_Limit		3
-
-
 #define MAX_AGGR_NUM	0x0909
 
-/*--------------------------Define Parameters-------------------------------*/
-
-
 /*------------------------------Define structure----------------------------*/
-enum swchnlcmdid {
-	CmdID_End,
-	CmdID_SetTxPowerLevel,
-	CmdID_BBRegWrite10,
-	CmdID_WritePortUlong,
-	CmdID_WritePortUshort,
-	CmdID_WritePortUchar,
-	CmdID_RF_WriteReg,
-};
-
-
-/* 1. Switch channel related */
-struct swchnlcmd {
-	enum swchnlcmdid	CmdID;
-	u32			Para1;
-	u32			Para2;
-	u32			msDelay;
-};
-
-enum HW90_BLOCK {
-	HW90_BLOCK_MAC = 0,
-	HW90_BLOCK_PHY0 = 1,
-	HW90_BLOCK_PHY1 = 2,
-	HW90_BLOCK_RF = 3,
-	HW90_BLOCK_MAXIMUM = 4, /*  Never use this */
-};
-
 enum RF_RADIO_PATH {
 	RF_PATH_A = 0,			/* Radio Path A */
 	RF_PATH_B = 1,			/* Radio Path B */
@@ -64,7 +27,6 @@ enum RF_RADIO_PATH {
 };
 
 #define CHANNEL_MAX_NUMBER		14	/*  14 is the max channel number */
-#define CHANNEL_GROUP_MAX		3	/*  ch1~3, ch4~9, ch10~14 total three groups */
 
 enum WIRELESS_MODE {
 	WIRELESS_MODE_UNKNOWN	= 0x00,
@@ -77,22 +39,6 @@ enum WIRELESS_MODE {
 	WIRELESS_MODE_AC	= BIT(6)
 };
 
-enum baseband_config_type {
-	BaseBand_Config_PHY_REG = 0,			/* Radio Path A */
-	BaseBand_Config_AGC_TAB = 1,			/* Radio Path B */
-};
-
-enum ra_offset_area {
-	RA_OFFSET_LEGACY_OFDM1,
-	RA_OFFSET_LEGACY_OFDM2,
-	RA_OFFSET_HT_OFDM1,
-	RA_OFFSET_HT_OFDM2,
-	RA_OFFSET_HT_OFDM3,
-	RA_OFFSET_HT_OFDM4,
-	RA_OFFSET_HT_CCK,
-};
-
-
 /* BB/RF related */
 enum rf_type_8190p {
 	RF_TYPE_MIN,		/*  0 */
@@ -100,7 +46,6 @@ enum rf_type_8190p {
 	RF_8256 = 2,		/*  2 11b/g/n */
 	RF_8258 = 3,		/*  3 11a/b/g/n RF */
 	RF_6052 = 4,		/*  4 11b/g/n RF */
-	RF_PSEUDO_11N = 5,	/*  5, It is a temporality RF. */
 };
 
 struct bb_reg_define {

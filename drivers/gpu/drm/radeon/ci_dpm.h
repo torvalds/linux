@@ -291,6 +291,7 @@ struct ci_power_info {
 	struct ci_ps requested_ps;
 	/* fan control */
 	bool fan_ctrl_is_in_default_mode;
+	bool fan_is_controlled_by_smc;
 	u32 t_min;
 	u32 fan_ctrl_default_mode;
 };

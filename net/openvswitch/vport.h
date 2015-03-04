@@ -236,4 +236,22 @@ static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
 int ovs_vport_ops_register(struct vport_ops *ops);
 void ovs_vport_ops_unregister(struct vport_ops *ops);
 
+static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
+						     const struct ovs_key_ipv4_tunnel *key,
+						     u32 mark,
+						     struct flowi4 *fl,
+						     u8 protocol)
+{
+	struct rtable *rt;
+
+	memset(fl, 0, sizeof(*fl));
+	fl->daddr = key->ipv4_dst;
+	fl->saddr = key->ipv4_src;
+	fl->flowi4_tos = RT_TOS(key->ipv4_tos);
+	fl->flowi4_mark = mark;
+	fl->flowi4_proto = protocol;
+
+	rt = ip_route_output_key(net, fl);
+	return rt;
+}
 #endif /* vport.h */

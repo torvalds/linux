@@ -126,7 +126,7 @@ int mvebu_system_controller_get_soc_id(u32 *dev, u32 *rev)
 		return -ENODEV;
 }
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_MACH_MVEBU_V7)
 void mvebu_armada375_smp_wa_init(void)
 {
 	u32 dev, rev;

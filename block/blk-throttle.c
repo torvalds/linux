@@ -1292,6 +1292,9 @@ static u64 tg_prfill_cpu_rwstat(struct seq_file *sf,
 	struct blkg_rwstat rwstat = { }, tmp;
 	int i, cpu;
 
+	if (tg->stats_cpu == NULL)
+		return 0;
+
 	for_each_possible_cpu(cpu) {
 		struct tg_stats_cpu *sc = per_cpu_ptr(tg->stats_cpu, cpu);
 

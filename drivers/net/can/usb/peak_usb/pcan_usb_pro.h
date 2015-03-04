@@ -27,6 +27,14 @@
 #define PCAN_USBPRO_INFO_BL		0
 #define PCAN_USBPRO_INFO_FW		1
 
+/* PCAN-USB Pro (FD) Endpoints */
+#define PCAN_USBPRO_EP_CMDOUT		1
+#define PCAN_USBPRO_EP_CMDIN		(PCAN_USBPRO_EP_CMDOUT | USB_DIR_IN)
+#define PCAN_USBPRO_EP_MSGOUT_0		2
+#define PCAN_USBPRO_EP_MSGIN		(PCAN_USBPRO_EP_MSGOUT_0 | USB_DIR_IN)
+#define PCAN_USBPRO_EP_MSGOUT_1		3
+#define PCAN_USBPRO_EP_UNUSED		(PCAN_USBPRO_EP_MSGOUT_1 | USB_DIR_IN)
+
 /* Vendor Request value for XXX_FCT */
 #define PCAN_USBPRO_FCT_DRVLD		5 /* tell device driver is loaded */
 #define PCAN_USBPRO_FCT_DRVLD_REQ_LEN	16
@@ -175,5 +183,10 @@ union pcan_usb_pro_rec {
 	struct pcan_usb_pro_rxts	rx_ts;
 	struct pcan_usb_pro_txmsg	tx_msg;
 };
+
+int pcan_usb_pro_probe(struct usb_interface *intf);
+int pcan_usb_pro_send_req(struct peak_usb_device *dev, int req_id,
+			  int req_value, void *req_addr, int req_size);
+void pcan_usb_pro_restart_complete(struct urb *urb);
 
 #endif

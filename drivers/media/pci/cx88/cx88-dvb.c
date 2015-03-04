@@ -1504,8 +1504,8 @@ static int dvb_register(struct cx8802_dev *dev)
 			fe0->dvb.frontend = dvb_attach(stv0288_attach,
 							    &tevii_tuner_earda_config,
 							    &core->i2c_adap);
-				if (fe0->dvb.frontend != NULL) {
-					if (!dvb_attach(stb6000_attach, fe0->dvb.frontend, 0x61,
+			if (fe0->dvb.frontend != NULL) {
+				if (!dvb_attach(stb6000_attach, fe0->dvb.frontend, 0x61,
 						&core->i2c_adap))
 					goto frontend_detach;
 				core->prev_set_voltage = fe0->dvb.frontend->ops.set_voltage;

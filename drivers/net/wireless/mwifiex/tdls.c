@@ -1123,6 +1123,36 @@ int mwifiex_get_tdls_link_status(struct mwifiex_private *priv, const u8 *mac)
 	return TDLS_NOT_SETUP;
 }
 
+int mwifiex_get_tdls_list(struct mwifiex_private *priv,
+			  struct tdls_peer_info *buf)
+{
+	struct mwifiex_sta_node *sta_ptr;
+	struct tdls_peer_info *peer = buf;
+	int count = 0;
+	unsigned long flags;
+
+	if (!ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info))
+		return 0;
+
+	/* make sure we are in station mode and connected */
+	if (!(priv->bss_type == MWIFIEX_BSS_TYPE_STA && priv->media_connected))
+		return 0;
+
+	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+	list_for_each_entry(sta_ptr, &priv->sta_list, list) {
+		if (sta_ptr->tdls_status == TDLS_SETUP_COMPLETE) {
+			ether_addr_copy(peer->peer_addr, sta_ptr->mac_addr);
+			peer++;
+			count++;
+			if (count >= MWIFIEX_MAX_TDLS_PEER_SUPPORTED)
+				break;
+		}
+	}
+	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+
+	return count;
+}
+
 void mwifiex_disable_all_tdls_links(struct mwifiex_private *priv)
 {
 	struct mwifiex_sta_node *sta_ptr;
@@ -1367,9 +1397,8 @@ void mwifiex_check_auto_tdls(unsigned long context)
 
 void mwifiex_setup_auto_tdls_timer(struct mwifiex_private *priv)
 {
-	init_timer(&priv->auto_tdls_timer);
-	priv->auto_tdls_timer.function = mwifiex_check_auto_tdls;
-	priv->auto_tdls_timer.data = (unsigned long)priv;
+	setup_timer(&priv->auto_tdls_timer, mwifiex_check_auto_tdls,
+		    (unsigned long)priv);
 	priv->auto_tdls_timer_active = true;
 	mod_timer(&priv->auto_tdls_timer,
 		  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));

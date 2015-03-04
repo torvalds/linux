@@ -47,6 +47,7 @@
 #include "t4vf_defs.h"
 
 #include "../cxgb4/t4_regs.h"
+#include "../cxgb4/t4_values.h"
 #include "../cxgb4/t4fw_api.h"
 #include "../cxgb4/t4_msg.h"
 
@@ -531,11 +532,11 @@ static inline void ring_fl_db(struct adapter *adapter, struct sge_fl *fl)
 	 */
 	if (fl->pend_cred >= FL_PER_EQ_UNIT) {
 		if (is_t4(adapter->params.chip))
-			val = PIDX(fl->pend_cred / FL_PER_EQ_UNIT);
+			val = PIDX_V(fl->pend_cred / FL_PER_EQ_UNIT);
 		else
-			val = PIDX_T5(fl->pend_cred / FL_PER_EQ_UNIT) |
-			      DBTYPE(1);
-		val |= DBPRIO(1);
+			val = PIDX_T5_V(fl->pend_cred / FL_PER_EQ_UNIT) |
+			      DBTYPE_F;
+		val |= DBPRIO_F;
 
 		/* Make sure all memory writes to the Free List queue are
 		 * committed before we tell the hardware about them.
@@ -549,9 +550,9 @@ static inline void ring_fl_db(struct adapter *adapter, struct sge_fl *fl)
 		if (unlikely(fl->bar2_addr == NULL)) {
 			t4_write_reg(adapter,
 				     T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
-				     QID(fl->cntxt_id) | val);
+				     QID_V(fl->cntxt_id) | val);
 		} else {
-			writel(val | QID(fl->bar2_qid),
+			writel(val | QID_V(fl->bar2_qid),
 			       fl->bar2_addr + SGE_UDB_KDOORBELL);
 
 			/* This Write memory Barrier will force the write to
@@ -925,7 +926,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
 	}
 
 	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
-			      ULPTX_NSGE(nfrags));
+			      ULPTX_NSGE_V(nfrags));
 	if (likely(--nfrags == 0))
 		return;
 	/*
@@ -979,12 +980,12 @@ static inline void ring_tx_db(struct adapter *adapter, struct sge_txq *tq,
 	 * doorbell mechanism; otherwise use the new BAR2 mechanism.
 	 */
 	if (unlikely(tq->bar2_addr == NULL)) {
-		u32 val = PIDX(n);
+		u32 val = PIDX_V(n);
 
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_KDOORBELL,
-			     QID(tq->cntxt_id) | val);
+			     QID_V(tq->cntxt_id) | val);
 	} else {
-		u32 val = PIDX_T5(n);
+		u32 val = PIDX_T5_V(n);
 
 		/* T4 and later chips share the same PIDX field offset within
 		 * the doorbell, but T5 and later shrank the field in order to
@@ -992,7 +993,7 @@ static inline void ring_tx_db(struct adapter *adapter, struct sge_txq *tq,
 		 * large in the first place (14 bits) so we just use the T5
 		 * and later limits and warn if a Queue ID is too large.
 		 */
-		WARN_ON(val & DBPRIO(1));
+		WARN_ON(val & DBPRIO_F);
 
 		/* If we're only writing a single Egress Unit and the BAR2
 		 * Queue ID is 0, we can use the Write Combining Doorbell
@@ -1023,7 +1024,7 @@ static inline void ring_tx_db(struct adapter *adapter, struct sge_txq *tq,
 				count--;
 			}
 		} else
-			writel(val | QID(tq->bar2_qid),
+			writel(val | QID_V(tq->bar2_qid),
 			       tq->bar2_addr + SGE_UDB_KDOORBELL);
 
 		/* This Write Memory Barrier will force the write to the User
@@ -1325,9 +1326,9 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * If there's a VLAN tag present, add that to the list of things to
 	 * do in this Work Request.
 	 */
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		txq->vlan_ins++;
-		cntrl |= TXPKT_VLAN_VLD | TXPKT_VLAN(vlan_tx_tag_get(skb));
+		cntrl |= TXPKT_VLAN_VLD | TXPKT_VLAN(skb_vlan_tag_get(skb));
 	}
 
 	/*
@@ -1603,7 +1604,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	 * If this is a good TCP packet and we have Generic Receive Offload
 	 * enabled, handle the packet in the GRO path.
 	 */
-	if ((pkt->l2info & cpu_to_be32(RXF_TCP)) &&
+	if ((pkt->l2info & cpu_to_be32(RXF_TCP_F)) &&
 	    (rspq->netdev->features & NETIF_F_GRO) && csum_ok &&
 	    !pkt->ip_frag) {
 		do_gro(rxq, gl, pkt);
@@ -1625,7 +1626,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	rxq->stats.pkts++;
 
 	if (csum_ok && !pkt->err_vec &&
-	    (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
+	    (be32_to_cpu(pkt->l2info) & (RXF_UDP_F | RXF_TCP_F))) {
 		if (!pkt->ip_frag)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else {
@@ -1875,13 +1876,13 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	if (unlikely(work_done == 0))
 		rspq->unhandled_irqs++;
 
-	val = CIDXINC(work_done) | SEINTARM(intr_params);
+	val = CIDXINC_V(work_done) | SEINTARM_V(intr_params);
 	if (is_t4(rspq->adapter->params.chip)) {
 		t4_write_reg(rspq->adapter,
 			     T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
-			     val | INGRESSQID((u32)rspq->cntxt_id));
+			     val | INGRESSQID_V((u32)rspq->cntxt_id));
 	} else {
-		writel(val | INGRESSQID(rspq->bar2_qid),
+		writel(val | INGRESSQID_V(rspq->bar2_qid),
 		       rspq->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
@@ -1975,12 +1976,12 @@ static unsigned int process_intrq(struct adapter *adapter)
 		rspq_next(intrq);
 	}
 
-	val = CIDXINC(work_done) | SEINTARM(intrq->intr_params);
+	val = CIDXINC_V(work_done) | SEINTARM_V(intrq->intr_params);
 	if (is_t4(adapter->params.chip))
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
-			     val | INGRESSQID(intrq->cntxt_id));
+			     val | INGRESSQID_V(intrq->cntxt_id));
 	else {
-		writel(val | INGRESSQID(intrq->bar2_qid),
+		writel(val | INGRESSQID_V(intrq->bar2_qid),
 		       intrq->bar2_addr + SGE_UDB_GTS);
 		wmb();
 	}
@@ -2583,7 +2584,7 @@ int t4vf_sge_init(struct adapter *adapter)
 			fl0, fl1);
 		return -EINVAL;
 	}
-	if ((sge_params->sge_control & RXPKTCPLMODE_MASK) == 0) {
+	if ((sge_params->sge_control & RXPKTCPLMODE_F) == 0) {
 		dev_err(adapter->pdev_dev, "bad SGE CPL MODE\n");
 		return -EINVAL;
 	}
@@ -2593,9 +2594,9 @@ int t4vf_sge_init(struct adapter *adapter)
 	 */
 	if (fl1)
 		s->fl_pg_order = ilog2(fl1) - PAGE_SHIFT;
-	s->stat_len = ((sge_params->sge_control & EGRSTATUSPAGESIZE_MASK)
+	s->stat_len = ((sge_params->sge_control & EGRSTATUSPAGESIZE_F)
 			? 128 : 64);
-	s->pktshift = PKTSHIFT_GET(sge_params->sge_control);
+	s->pktshift = PKTSHIFT_G(sge_params->sge_control);
 
 	/* T4 uses a single control field to specify both the PCIe Padding and
 	 * Packing Boundary.  T5 introduced the ability to specify these
@@ -2607,8 +2608,8 @@ int t4vf_sge_init(struct adapter *adapter)
 	 * end doing this because it would initialize the Padding Boundary and
 	 * leave the Packing Boundary initialized to 0 (16 bytes).)
 	 */
-	ingpadboundary = 1 << (INGPADBOUNDARY_GET(sge_params->sge_control) +
-			       X_INGPADBOUNDARY_SHIFT);
+	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_params->sge_control) +
+			       INGPADBOUNDARY_SHIFT_X);
 	if (is_t4(adapter->params.chip)) {
 		s->fl_align = ingpadboundary;
 	} else {
@@ -2633,7 +2634,7 @@ int t4vf_sge_init(struct adapter *adapter)
 	 * Congestion Threshold is in units of 2 Free List pointers.)
 	 */
 	s->fl_starve_thres
-		= EGRTHRESHOLD_GET(sge_params->sge_congestion_control)*2 + 1;
+		= EGRTHRESHOLD_G(sge_params->sge_congestion_control)*2 + 1;
 
 	/*
 	 * Set up tasklet timers.

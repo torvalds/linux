@@ -181,6 +181,8 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	if (!controller)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, controller);
+
 	/* Copy our reference */
 	controller->chip.gc = zevio_gpio_chip;
 	controller->chip.gc.dev = &pdev->dev;
@@ -202,6 +204,15 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int zevio_gpio_remove(struct platform_device *pdev)
+{
+	struct zevio_gpio *controller = platform_get_drvdata(pdev);
+
+	of_mm_gpiochip_remove(&controller->chip);
+
+	return 0;
+}
+
 static const struct of_device_id zevio_gpio_of_match[] = {
 	{ .compatible = "lsi,zevio-gpio", },
 	{ },
@@ -215,6 +226,7 @@ static struct platform_driver zevio_gpio_driver = {
 		.of_match_table = zevio_gpio_of_match,
 	},
 	.probe		= zevio_gpio_probe,
+	.remove		= zevio_gpio_remove,
 };
 module_platform_driver(zevio_gpio_driver);
 

@@ -228,8 +228,8 @@ static int pci_ampci_write_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops pci_direct_ampci = {
-	pci_ampci_read_config,
-	pci_ampci_write_config,
+	.read = pci_ampci_read_config,
+	.write = pci_ampci_write_config,
 };
 
 /*

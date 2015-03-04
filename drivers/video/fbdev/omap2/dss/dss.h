@@ -100,6 +100,14 @@ enum dss_writeback_channel {
 	DSS_WB_LCD3_MGR =	7,
 };
 
+enum dss_pll_id {
+	DSS_PLL_DSI1,
+	DSS_PLL_DSI2,
+	DSS_PLL_HDMI,
+	DSS_PLL_VIDEO1,
+	DSS_PLL_VIDEO2,
+};
+
 struct dss_pll;
 
 #define DSS_PLL_MAX_HSDIVS 4
@@ -150,6 +158,7 @@ struct dss_pll_hw {
 
 struct dss_pll {
 	const char *name;
+	enum dss_pll_id id;
 
 	struct clk *clkin;
 	struct regulator *regulator;
@@ -250,12 +259,20 @@ void dss_overlay_kobj_uninit(struct omap_overlay *ovl);
 int dss_init_platform_driver(void) __init;
 void dss_uninit_platform_driver(void);
 
+int dss_runtime_get(void);
+void dss_runtime_put(void);
+
 unsigned long dss_get_dispc_clk_rate(void);
 int dss_dpi_select_source(int port, enum omap_channel channel);
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
 enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
 const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
+
+/* DSS VIDEO PLL */
+struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
+	struct regulator *regulator);
+void dss_video_pll_uninit(struct dss_pll *pll);
 
 /* dss-of */
 struct device_node *dss_of_port_get_parent_device(struct device_node *port);
@@ -264,6 +281,10 @@ u32 dss_of_port_get_port_number(struct device_node *port);
 #if defined(CONFIG_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
+
+void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable);
+void dss_ctrl_pll_set_control_mux(enum dss_pll_id pll_id,
+	enum omap_channel channel);
 
 void dss_sdi_init(int datapairs);
 int dss_sdi_enable(void);
@@ -446,5 +467,6 @@ int dss_pll_write_config_type_a(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);
 int dss_pll_write_config_type_b(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);
+int dss_pll_wait_reset_done(struct dss_pll *pll);
 
 #endif

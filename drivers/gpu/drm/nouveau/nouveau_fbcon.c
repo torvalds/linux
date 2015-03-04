@@ -370,6 +370,7 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
+	info->skip_vt_switch = 1;
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {
@@ -487,30 +488,17 @@ static const struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
 	.fb_probe = nouveau_fbcon_create,
 };
 
-static void
-nouveau_fbcon_set_suspend_work(struct work_struct *work)
-{
-	struct nouveau_fbdev *fbcon = container_of(work, typeof(*fbcon), work);
-	console_lock();
-	nouveau_fbcon_accel_restore(fbcon->dev);
-	nouveau_fbcon_zfill(fbcon->dev, fbcon);
-	fb_set_suspend(fbcon->helper.fbdev, FBINFO_STATE_RUNNING);
-	console_unlock();
-}
-
 void
 nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	if (drm->fbcon) {
-		if (state == FBINFO_STATE_RUNNING) {
-			schedule_work(&drm->fbcon->work);
-			return;
-		}
-		flush_work(&drm->fbcon->work);
 		console_lock();
+		if (state == FBINFO_STATE_RUNNING)
+			nouveau_fbcon_accel_restore(dev);
 		fb_set_suspend(drm->fbcon->helper.fbdev, state);
-		nouveau_fbcon_accel_save_disable(dev);
+		if (state != FBINFO_STATE_RUNNING)
+			nouveau_fbcon_accel_save_disable(dev);
 		console_unlock();
 	}
 }
@@ -531,7 +519,6 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (!fbcon)
 		return -ENOMEM;
 
-	INIT_WORK(&fbcon->work, nouveau_fbcon_set_suspend_work);
 	fbcon->dev = dev;
 	drm->fbcon = fbcon;
 
@@ -539,12 +526,12 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	ret = drm_fb_helper_init(dev, &fbcon->helper,
 				 dev->mode_config.num_crtc, 4);
-	if (ret) {
-		kfree(fbcon);
-		return ret;
-	}
+	if (ret)
+		goto free;
 
-	drm_fb_helper_single_add_all_connectors(&fbcon->helper);
+	ret = drm_fb_helper_single_add_all_connectors(&fbcon->helper);
+	if (ret)
+		goto fini;
 
 	if (drm->device.info.ram_size <= 32 * 1024 * 1024)
 		preferred_bpp = 8;
@@ -557,8 +544,17 @@ nouveau_fbcon_init(struct drm_device *dev)
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
-	drm_fb_helper_initial_config(&fbcon->helper, preferred_bpp);
+	ret = drm_fb_helper_initial_config(&fbcon->helper, preferred_bpp);
+	if (ret)
+		goto fini;
+
 	return 0;
+
+fini:
+	drm_fb_helper_fini(&fbcon->helper);
+free:
+	kfree(fbcon);
+	return ret;
 }
 
 void

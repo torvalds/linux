@@ -10,8 +10,6 @@
  *  Copyright (C) 2004 Nadia Yvette Chambers
  */
 #include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/debugfs.h>
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>

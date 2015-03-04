@@ -1084,11 +1084,6 @@ static int saa7134_s_ctrl(struct v4l2_ctrl *ctrl)
 
 /* ------------------------------------------------------------------ */
 
-static inline struct vb2_queue *saa7134_queue(struct file *file)
-{
-	return video_devdata(file)->queue;
-}
-
 static int video_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);

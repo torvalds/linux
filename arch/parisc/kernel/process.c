@@ -193,9 +193,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * Make them const so the compiler knows they live in .text */
 	extern void * const ret_from_kernel_thread;
 	extern void * const child_return;
-#ifdef CONFIG_HPUX
-	extern void * const hpux_child_return;
-#endif
+
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(cregs, 0, sizeof(struct pt_regs));
 		if (!usp) /* idle thread */
@@ -229,15 +227,8 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 				cregs->gr[30] = usp;
 		}
 		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
-		if (personality(p->personality) == PER_HPUX) {
-#ifdef CONFIG_HPUX
-			cregs->kpc = (unsigned long) &hpux_child_return;
-#else
-			BUG();
-#endif
-		} else {
-			cregs->kpc = (unsigned long) &child_return;
-		}
+		cregs->kpc = (unsigned long) &child_return;
+
 		/* Setup thread TLS area from the 4th parameter in clone */
 		if (clone_flags & CLONE_SETTLS)
 			cregs->cr27 = cregs->gr[23];

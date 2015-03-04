@@ -35,7 +35,7 @@
 			regulator-name = "usbh_vbus";
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio3 19 GPIO_ACTIVE_LOW>;
+			gpio = <&gpio2 19 GPIO_ACTIVE_LOW>;
 			vin-supply = <&sys_5v0_reg>;
 		};
 	};

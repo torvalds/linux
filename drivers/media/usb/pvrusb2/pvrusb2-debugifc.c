@@ -322,14 +322,3 @@ int pvr2_debugifc_docmd(struct pvr2_hdw *hdw,const char *buf,
 
 	return 0;
 }
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

@@ -29,7 +29,7 @@ static void msm_fb_output_poll_changed(struct drm_device *dev)
 static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = msm_framebuffer_create,
 	.output_poll_changed = msm_fb_output_poll_changed,
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = msm_atomic_check,
 	.atomic_commit = msm_atomic_commit,
 };
 
@@ -52,6 +52,12 @@ MODULE_PARM_DESC(reglog, "Enable register read/write logging");
 module_param(reglog, bool, 0600);
 #else
 #define reglog 0
+#endif
+
+#ifdef CONFIG_DRM_MSM_FBDEV
+static bool fbdev = true;
+MODULE_PARM_DESC(fbdev, "Enable fbdev compat layer");
+module_param(fbdev, bool, 0600);
 #endif
 
 static char *vram = "16m";
@@ -300,7 +306,8 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	drm_mode_config_reset(dev);
 
 #ifdef CONFIG_DRM_MSM_FBDEV
-	priv->fbdev = msm_fbdev_init(dev);
+	if (fbdev)
+		priv->fbdev = msm_fbdev_init(dev);
 #endif
 
 	ret = msm_debugfs_late_init(dev);
@@ -1023,6 +1030,7 @@ static struct platform_driver msm_platform_driver = {
 static int __init msm_drm_register(void)
 {
 	DBG("init");
+	msm_edp_register();
 	hdmi_register();
 	adreno_register();
 	return platform_driver_register(&msm_platform_driver);
@@ -1034,6 +1042,7 @@ static void __exit msm_drm_unregister(void)
 	platform_driver_unregister(&msm_platform_driver);
 	hdmi_unregister();
 	adreno_unregister();
+	msm_edp_unregister();
 }
 
 module_init(msm_drm_register);

@@ -496,11 +496,8 @@ static void __exit wusbcore_exit(void)
 {
 	clear_bit(0, wusb_cluster_id_table);
 	if (!bitmap_empty(wusb_cluster_id_table, CLUSTER_IDS)) {
-		char buf[256];
-		bitmap_scnprintf(buf, sizeof(buf), wusb_cluster_id_table,
-				 CLUSTER_IDS);
-		printk(KERN_ERR "BUG: WUSB Cluster IDs not released "
-		       "on exit: %s\n", buf);
+		printk(KERN_ERR "BUG: WUSB Cluster IDs not released on exit: %*pb\n",
+		       CLUSTER_IDS, wusb_cluster_id_table);
 		WARN_ON(1);
 	}
 	usb_unregister_notify(&wusb_usb_notifier);

@@ -277,7 +277,7 @@ static int cachefiles_bury_object(struct cachefiles_cache *cache,
 	_debug("remove %p from %p", rep, dir);
 
 	/* non-directories can just be unlinked */
-	if (!S_ISDIR(rep->d_inode->i_mode)) {
+	if (!d_is_dir(rep)) {
 		_debug("unlink stale object");
 
 		path.mnt = cache->mnt;
@@ -323,7 +323,7 @@ try_again:
 		return 0;
 	}
 
-	if (!S_ISDIR(cache->graveyard->d_inode->i_mode)) {
+	if (!d_can_lookup(cache->graveyard)) {
 		unlock_rename(cache->graveyard, dir);
 		cachefiles_io_error(cache, "Graveyard no longer a directory");
 		return -EIO;
@@ -475,7 +475,7 @@ int cachefiles_walk_to_object(struct cachefiles_object *parent,
 	ASSERT(parent->dentry);
 	ASSERT(parent->dentry->d_inode);
 
-	if (!(S_ISDIR(parent->dentry->d_inode->i_mode))) {
+	if (!(d_is_dir(parent->dentry))) {
 		// TODO: convert file to dir
 		_leave("looking up in none directory");
 		return -ENOBUFS;
@@ -539,7 +539,7 @@ lookup_again:
 			_debug("mkdir -> %p{%p{ino=%lu}}",
 			       next, next->d_inode, next->d_inode->i_ino);
 
-		} else if (!S_ISDIR(next->d_inode->i_mode)) {
+		} else if (!d_can_lookup(next)) {
 			pr_err("inode %lu is not a directory\n",
 			       next->d_inode->i_ino);
 			ret = -ENOBUFS;
@@ -568,8 +568,8 @@ lookup_again:
 			_debug("create -> %p{%p{ino=%lu}}",
 			       next, next->d_inode, next->d_inode->i_ino);
 
-		} else if (!S_ISDIR(next->d_inode->i_mode) &&
-			   !S_ISREG(next->d_inode->i_mode)
+		} else if (!d_can_lookup(next) &&
+			   !d_is_reg(next)
 			   ) {
 			pr_err("inode %lu is not a file or directory\n",
 			       next->d_inode->i_ino);
@@ -642,7 +642,7 @@ lookup_again:
 
 	/* open a file interface onto a data file */
 	if (object->type != FSCACHE_COOKIE_TYPE_INDEX) {
-		if (S_ISREG(object->dentry->d_inode->i_mode)) {
+		if (d_is_reg(object->dentry)) {
 			const struct address_space_operations *aops;
 
 			ret = -EPERM;
@@ -763,7 +763,7 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	/* we need to make sure the subdir is a directory */
 	ASSERT(subdir->d_inode);
 
-	if (!S_ISDIR(subdir->d_inode->i_mode)) {
+	if (!d_can_lookup(subdir)) {
 		pr_err("%s is not a directory\n", dirname);
 		ret = -EIO;
 		goto check_error;

@@ -8,15 +8,18 @@ Required Properties:
   - compatible: Must be one of
     - "renesas,r8a7790-cpg-clocks" for the r8a7790 CPG
     - "renesas,r8a7791-cpg-clocks" for the r8a7791 CPG
+    - "renesas,r8a7793-cpg-clocks" for the r8a7793 CPG
     - "renesas,r8a7794-cpg-clocks" for the r8a7794 CPG
     - "renesas,rcar-gen2-cpg-clocks" for the generic R-Car Gen2 CPG
 
   - reg: Base address and length of the memory resource used by the CPG
 
-  - clocks: Reference to the parent clock
+  - clocks: References to the parent clocks: first to the EXTAL clock, second
+    to the USB_EXTAL clock
   - #clock-cells: Must be 1
   - clock-output-names: The names of the clocks. Supported clocks are "main",
-    "pll0", "pll1", "pll3", "lb", "qspi", "sdh", "sd0", "sd1" and "z"
+    "pll0", "pll1", "pll3", "lb", "qspi", "sdh", "sd0", "sd1", "z", "rcan", and
+    "adsp"
 
 
 Example
@@ -26,8 +29,9 @@ Example
 		compatible = "renesas,r8a7790-cpg-clocks",
 			     "renesas,rcar-gen2-cpg-clocks";
 		reg = <0 0xe6150000 0 0x1000>;
-		clocks = <&extal_clk>;
+		clocks = <&extal_clk &usb_extal_clk>;
 		#clock-cells = <1>;
 		clock-output-names = "main", "pll0, "pll1", "pll3",
-				     "lb", "qspi", "sdh", "sd0", "sd1", "z";
+				     "lb", "qspi", "sdh", "sd0", "sd1", "z",
+				     "rcan", "adsp";
 	};

@@ -24,7 +24,6 @@
  * debugging, please also see the debugfs interfaces of this driver.
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/module.h>

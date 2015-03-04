@@ -921,7 +921,7 @@ config NUMA_BALANCING_DEFAULT_ENABLED
 	  machine.
 
 menuconfig CGROUPS
-	boolean "Control Group support"
+	bool "Control Group support"
 	select KERNFS
 	help
 	  This option adds support for grouping sets of processes together, for
@@ -1287,27 +1287,11 @@ source "usr/Kconfig"
 
 endif
 
-config INIT_FALLBACK
-	bool "Fall back to defaults if init= parameter is bad"
-	default y
-	help
-	  If enabled, the kernel will try the default init binaries if an
-	  explicit request from the init= parameter fails.
-
-	  This can have unexpected effects.  For example, booting
-	  with init=/sbin/kiosk_app will run /sbin/init or even /bin/sh
-	  if /sbin/kiosk_app cannot be executed.
-
-	  The default value of Y is consistent with historical behavior.
-	  Selecting N is likely to be more appropriate for most uses,
-	  especially on kiosks and on kernels that are intended to be
-	  run under the control of a script.
-
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size"
 	help
-	  Enabling this option will pass "-Os" instead of "-O2" to gcc
-	  resulting in a smaller kernel.
+	  Enabling this option will pass "-Os" instead of "-O2" to
+	  your compiler resulting in a smaller kernel.
 
 	  If unsure, say N.
 
@@ -1778,7 +1762,7 @@ config SLABINFO
 	default y
 
 config RT_MUTEXES
-	boolean
+	bool
 
 config BASE_SMALL
 	int

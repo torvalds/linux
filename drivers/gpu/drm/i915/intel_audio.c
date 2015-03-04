@@ -22,6 +22,9 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/component.h>
+#include <drm/i915_component.h>
+#include "intel_drv.h"
 
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
@@ -397,7 +400,7 @@ void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
-	struct drm_display_mode *mode = &crtc->config.adjusted_mode;
+	struct drm_display_mode *mode = &crtc->config->base.adjusted_mode;
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -460,4 +463,111 @@ void intel_init_audio(struct drm_device *dev)
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
 	}
+}
+
+static void i915_audio_component_get_power(struct device *dev)
+{
+	intel_display_power_get(dev_to_i915(dev), POWER_DOMAIN_AUDIO);
+}
+
+static void i915_audio_component_put_power(struct device *dev)
+{
+	intel_display_power_put(dev_to_i915(dev), POWER_DOMAIN_AUDIO);
+}
+
+/* Get CDCLK in kHz  */
+static int i915_audio_component_get_cdclk_freq(struct device *dev)
+{
+	struct drm_i915_private *dev_priv = dev_to_i915(dev);
+	int ret;
+
+	if (WARN_ON_ONCE(!HAS_DDI(dev_priv)))
+		return -ENODEV;
+
+	intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
+	ret = intel_ddi_get_cdclk_freq(dev_priv);
+	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
+
+	return ret;
+}
+
+static const struct i915_audio_component_ops i915_audio_component_ops = {
+	.owner		= THIS_MODULE,
+	.get_power	= i915_audio_component_get_power,
+	.put_power	= i915_audio_component_put_power,
+	.get_cdclk_freq	= i915_audio_component_get_cdclk_freq,
+};
+
+static int i915_audio_component_bind(struct device *i915_dev,
+				     struct device *hda_dev, void *data)
+{
+	struct i915_audio_component *acomp = data;
+
+	if (WARN_ON(acomp->ops || acomp->dev))
+		return -EEXIST;
+
+	acomp->ops = &i915_audio_component_ops;
+	acomp->dev = i915_dev;
+
+	return 0;
+}
+
+static void i915_audio_component_unbind(struct device *i915_dev,
+					struct device *hda_dev, void *data)
+{
+	struct i915_audio_component *acomp = data;
+
+	acomp->ops = NULL;
+	acomp->dev = NULL;
+}
+
+static const struct component_ops i915_audio_component_bind_ops = {
+	.bind	= i915_audio_component_bind,
+	.unbind	= i915_audio_component_unbind,
+};
+
+/**
+ * i915_audio_component_init - initialize and register the audio component
+ * @dev_priv: i915 device instance
+ *
+ * This will register with the component framework a child component which
+ * will bind dynamically to the snd_hda_intel driver's corresponding master
+ * component when the latter is registered. During binding the child
+ * initializes an instance of struct i915_audio_component which it receives
+ * from the master. The master can then start to use the interface defined by
+ * this struct. Each side can break the binding at any point by deregistering
+ * its own component after which each side's component unbind callback is
+ * called.
+ *
+ * We ignore any error during registration and continue with reduced
+ * functionality (i.e. without HDMI audio).
+ */
+void i915_audio_component_init(struct drm_i915_private *dev_priv)
+{
+	int ret;
+
+	ret = component_add(dev_priv->dev->dev, &i915_audio_component_bind_ops);
+	if (ret < 0) {
+		DRM_ERROR("failed to add audio component (%d)\n", ret);
+		/* continue with reduced functionality */
+		return;
+	}
+
+	dev_priv->audio_component_registered = true;
+}
+
+/**
+ * i915_audio_component_cleanup - deregister the audio component
+ * @dev_priv: i915 device instance
+ *
+ * Deregisters the audio component, breaking any existing binding to the
+ * corresponding snd_hda_intel driver's master component.
+ */
+void i915_audio_component_cleanup(struct drm_i915_private *dev_priv)
+{
+	if (!dev_priv->audio_component_registered)
+		return;
+
+	component_del(dev_priv->dev->dev, &i915_audio_component_bind_ops);
+	dev_priv->audio_component_registered = false;
 }

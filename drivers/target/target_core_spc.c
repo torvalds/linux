@@ -647,7 +647,7 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 * support the use of the WRITE SAME (16) command to unmap LBAs.
 	 */
 	if (dev->dev_attrib.emulate_tpws != 0)
-		buf[5] |= 0x40;
+		buf[5] |= 0x40 | 0x20;
 
 	return 0;
 }

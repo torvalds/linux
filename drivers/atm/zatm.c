@@ -1306,19 +1306,20 @@ static int zatm_start(struct atm_dev *dev)
 
 		if (!mbx_entries[i])
 			continue;
-		mbx = pci_alloc_consistent(pdev, 2*MBX_SIZE(i), &mbx_dma);
+		mbx = dma_alloc_coherent(&pdev->dev,
+					 2 * MBX_SIZE(i), &mbx_dma, GFP_KERNEL);
 		if (!mbx) {
 			error = -ENOMEM;
 			goto out;
 		}
 		/*
-		 * Alignment provided by pci_alloc_consistent() isn't enough
+		 * Alignment provided by dma_alloc_coherent() isn't enough
 		 * for this device.
 		 */
 		if (((unsigned long)mbx ^ mbx_dma) & 0xffff) {
 			printk(KERN_ERR DEV_LABEL "(itf %d): system "
 			       "bus incompatible with driver\n", dev->number);
-			pci_free_consistent(pdev, 2*MBX_SIZE(i), mbx, mbx_dma);
+			dma_free_coherent(&pdev->dev, 2*MBX_SIZE(i), mbx, mbx_dma);
 			error = -ENODEV;
 			goto out;
 		}
@@ -1354,9 +1355,9 @@ out_tx:
 	kfree(zatm_dev->tx_map);
 out:
 	while (i-- > 0) {
-		pci_free_consistent(pdev, 2*MBX_SIZE(i), 
-				    (void *)zatm_dev->mbx_start[i],
-				    zatm_dev->mbx_dma[i]);
+		dma_free_coherent(&pdev->dev, 2 * MBX_SIZE(i),
+				  (void *)zatm_dev->mbx_start[i],
+				  zatm_dev->mbx_dma[i]);
 	}
 	free_irq(zatm_dev->irq, dev);
 	goto done;
@@ -1605,6 +1606,10 @@ static int zatm_init_one(struct pci_dev *pci_dev,
 		goto out_deregister;
 
 	ret = pci_request_regions(pci_dev, DEV_LABEL);
+	if (ret < 0)
+		goto out_disable;
+
+	ret = dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(32));
 	if (ret < 0)
 		goto out_disable;
 

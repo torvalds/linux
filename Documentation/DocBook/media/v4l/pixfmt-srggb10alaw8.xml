@@ -25,7 +25,7 @@
 	  </refnamediv>
 	  <refsect1>
 	    <title>Description</title>
-	    <para>The following four pixel formats are raw sRGB / Bayer
+	    <para>These four pixel formats are raw sRGB / Bayer
 	    formats with 10 bits per color compressed to 8 bits each,
 	    using the A-LAW algorithm. Each color component consumes 8
 	    bits of memory. In other respects this format is similar to

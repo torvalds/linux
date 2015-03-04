@@ -198,7 +198,6 @@ struct coda_ctx {
 	int				initialized;
 	int				streamon_out;
 	int				streamon_cap;
-	u32				isequence;
 	u32				qsequence;
 	u32				osequence;
 	u32				sequence_offset;
@@ -236,6 +235,7 @@ struct coda_ctx {
 	u32				frame_mem_ctrl;
 	int				display_idx;
 	struct dentry			*debugfs_entry;
+	bool				use_bit;
 };
 
 extern int coda_debug;

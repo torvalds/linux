@@ -46,12 +46,13 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 
 	ret = gc->of_xlate(gc, &gg_data->gpiospec, gg_data->flags);
 	if (ret < 0) {
-		/* We've found the gpio chip, but the translation failed.
-		 * Return true to stop looking and return the translation
-		 * error via out_gpio
+		/* We've found a gpio chip, but the translation failed.
+		 * Store translation error in out_gpio.
+		 * Return false to keep looking, as more than one gpio chip
+		 * could be registered per of-node.
 		 */
 		gg_data->out_gpio = ERR_PTR(ret);
-		return true;
+		return false;
 	 }
 
 	gg_data->out_gpio = gpiochip_get_desc(gc, ret);
@@ -209,6 +210,23 @@ err0:
 	return ret;
 }
 EXPORT_SYMBOL(of_mm_gpiochip_add);
+
+/**
+ * of_mm_gpiochip_remove - Remove memory mapped GPIO chip (bank)
+ * @mm_gc:	pointer to the of_mm_gpio_chip allocated structure
+ */
+void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc)
+{
+	struct gpio_chip *gc = &mm_gc->gc;
+
+	if (!mm_gc)
+		return;
+
+	gpiochip_remove(gc);
+	iounmap(mm_gc->regs);
+	kfree(gc->label);
+}
+EXPORT_SYMBOL(of_mm_gpiochip_remove);
 
 #ifdef CONFIG_PINCTRL
 static void of_gpiochip_add_pin_range(struct gpio_chip *chip)

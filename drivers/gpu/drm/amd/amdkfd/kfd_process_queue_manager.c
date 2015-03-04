@@ -128,7 +128,6 @@ static int create_cp_queue(struct process_queue_manager *pqm,
 	/* let DQM handle it*/
 	q_properties->vmid = 0;
 	q_properties->queue_id = qid;
-	q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
 
 	retval = init_queue(q, *q_properties);
 	if (retval != 0)
@@ -167,8 +166,11 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	q = NULL;
 	kq = NULL;
 
-	pdd = kfd_get_process_device_data(dev, pqm->process, 1);
-	BUG_ON(!pdd);
+	pdd = kfd_get_process_device_data(dev, pqm->process);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		return -1;
+	}
 
 	retval = find_available_queue_slot(pqm, qid);
 	if (retval != 0)
@@ -176,7 +178,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 
 	if (list_empty(&pqm->queues)) {
 		pdd->qpd.pqm = pqm;
-		dev->dqm->register_process(dev->dqm, &pdd->qpd);
+		dev->dqm->ops.register_process(dev->dqm, &pdd->qpd);
 	}
 
 	pqn = kzalloc(sizeof(struct process_queue_node), GFP_KERNEL);
@@ -186,6 +188,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	}
 
 	switch (type) {
+	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_COMPUTE:
 		/* check if there is over subscription */
 		if ((sched_policy == KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION) &&
@@ -201,7 +204,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		pqn->q = q;
 		pqn->kq = NULL;
-		retval = dev->dqm->create_queue(dev->dqm, q, &pdd->qpd,
+		retval = dev->dqm->ops.create_queue(dev->dqm, q, &pdd->qpd,
 						&q->properties.vmid);
 		pr_debug("DQM returned %d for create_queue\n", retval);
 		print_queue(q);
@@ -215,7 +218,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		kq->queue->properties.queue_id = *qid;
 		pqn->kq = kq;
 		pqn->q = NULL;
-		retval = dev->dqm->create_kernel_queue(dev->dqm, kq, &pdd->qpd);
+		retval = dev->dqm->ops.create_kernel_queue(dev->dqm,
+							kq, &pdd->qpd);
 		break;
 	default:
 		BUG();
@@ -245,7 +249,7 @@ err_allocate_pqn:
 	/* check if queues list is empty unregister process from device */
 	clear_bit(*qid, pqm->queue_slot_bitmap);
 	if (list_empty(&pqm->queues))
-		dev->dqm->unregister_process(dev->dqm, &pdd->qpd);
+		dev->dqm->ops.unregister_process(dev->dqm, &pdd->qpd);
 	return retval;
 }
 
@@ -277,19 +281,22 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		dev = pqn->q->device;
 	BUG_ON(!dev);
 
-	pdd = kfd_get_process_device_data(dev, pqm->process, 1);
-	BUG_ON(!pdd);
+	pdd = kfd_get_process_device_data(dev, pqm->process);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		return -1;
+	}
 
 	if (pqn->kq) {
 		/* destroy kernel queue (DIQ) */
 		dqm = pqn->kq->dev->dqm;
-		dqm->destroy_kernel_queue(dqm, pqn->kq, &pdd->qpd);
+		dqm->ops.destroy_kernel_queue(dqm, pqn->kq, &pdd->qpd);
 		kernel_queue_uninit(pqn->kq);
 	}
 
 	if (pqn->q) {
 		dqm = pqn->q->device->dqm;
-		retval = dqm->destroy_queue(dqm, &pdd->qpd, pqn->q);
+		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
 		if (retval != 0)
 			return retval;
 
@@ -301,7 +308,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	clear_bit(qid, pqm->queue_slot_bitmap);
 
 	if (list_empty(&pqm->queues))
-		dqm->unregister_process(dqm, &pdd->qpd);
+		dqm->ops.unregister_process(dqm, &pdd->qpd);
 
 	return retval;
 }
@@ -326,7 +333,8 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 	pqn->q->properties.queue_percent = p->queue_percent;
 	pqn->q->properties.priority = p->priority;
 
-	retval = pqn->q->device->dqm->update_queue(pqn->q->device->dqm, pqn->q);
+	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
+							pqn->q);
 	if (retval != 0)
 		return retval;
 

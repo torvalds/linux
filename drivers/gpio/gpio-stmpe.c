@@ -30,7 +30,7 @@ struct stmpe_gpio {
 	struct stmpe *stmpe;
 	struct device *dev;
 	struct mutex irq_lock;
-	unsigned norequest_mask;
+	u32 norequest_mask;
 	/* Caches of interrupt control registers for bus_lock */
 	u8 regs[CACHE_NR_REGS][CACHE_NR_BANKS];
 	u8 oldregs[CACHE_NR_REGS][CACHE_NR_BANKS];
@@ -340,12 +340,9 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *np = pdev->dev.of_node;
-	struct stmpe_gpio_platform_data *pdata;
 	struct stmpe_gpio *stmpe_gpio;
 	int ret;
 	int irq = 0;
-
-	pdata = stmpe->pdata->gpio;
 
 	irq = platform_get_irq(pdev, 0);
 
@@ -360,19 +357,14 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
 	stmpe_gpio->chip.dev = &pdev->dev;
-#ifdef CONFIG_OF
 	stmpe_gpio->chip.of_node = np;
-#endif
 	stmpe_gpio->chip.base = -1;
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
                 stmpe_gpio->chip.dbg_show = stmpe_dbg_show;
 
-	if (pdata)
-		stmpe_gpio->norequest_mask = pdata->norequest_mask;
-	else if (np)
-		of_property_read_u32(np, "st,norequest-mask",
-				&stmpe_gpio->norequest_mask);
+	of_property_read_u32(np, "st,norequest-mask",
+			&stmpe_gpio->norequest_mask);
 
 	if (irq < 0)
 		dev_info(&pdev->dev,
@@ -414,9 +406,6 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 					     NULL);
 	}
 
-	if (pdata && pdata->setup)
-		pdata->setup(stmpe, stmpe_gpio->chip.base);
-
 	platform_set_drvdata(pdev, stmpe_gpio);
 
 	return 0;
@@ -433,15 +422,9 @@ static int stmpe_gpio_remove(struct platform_device *pdev)
 {
 	struct stmpe_gpio *stmpe_gpio = platform_get_drvdata(pdev);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;
-	struct stmpe_gpio_platform_data *pdata = stmpe->pdata->gpio;
-
-	if (pdata && pdata->remove)
-		pdata->remove(stmpe, stmpe_gpio->chip.base);
 
 	gpiochip_remove(&stmpe_gpio->chip);
-
 	stmpe_disable(stmpe, STMPE_BLOCK_GPIO);
-
 	kfree(stmpe_gpio);
 
 	return 0;

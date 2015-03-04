@@ -366,7 +366,6 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	struct net_device *pnetdev;
 	struct usb_device *udev;
 
-	printk(KERN_INFO "r8712u: Staging version\n");
 	/* In this probe function, O.S. will provide the usb interface pointer
 	 * to driver. We have to increase the reference count of the usb device
 	 * structure by using the usb_get_dev function.
@@ -463,7 +462,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 				/* Use the mac address stored in the Efuse
 				 * offset = 0x12 for usb in efuse
 				 */
-				memcpy(mac, &pdata[0x12], ETH_ALEN);
+				ether_addr_copy(mac, &pdata[0x12]);
 			}
 			eeprom_CustomerID = pdata[0x52];
 			switch (eeprom_CustomerID) {
@@ -580,7 +579,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 		} else
 			dev_info(&udev->dev,
 				"r8712u: MAC Address from efuse = %pM\n", mac);
-		memcpy(pnetdev->dev_addr, mac, ETH_ALEN);
+		ether_addr_copy(pnetdev->dev_addr, mac);
 	}
 	/* step 6. Load the firmware asynchronously */
 	if (rtl871x_load_fw(padapter))

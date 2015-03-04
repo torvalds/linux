@@ -26,6 +26,7 @@
 
 	chosen {
 		bootargs ="console=ttySAC2,115200";
+		stdout-path = &serial_2;
 	};
 
 	firmware@0203F000 {

@@ -1,0 +1,17 @@
+Texas Instruments TPS65218 power button
+
+This driver provides a simple power button event via an Interrupt.
+
+Required properties:
+- compatible: should be "ti,tps65218-pwrbutton"
+- interrupts: should be one of the following
+   - <3 IRQ_TYPE_EDGE_BOTH>: For controllers compatible with tps65218
+
+Example:
+
+&tps {
+	power-button {
+		compatible = "ti,tps65218-pwrbutton";
+		interrupts = <3 IRQ_TYPE_EDGE_BOTH>;
+	};
+};

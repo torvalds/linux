@@ -213,7 +213,7 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 int
 nv84_fence_create(struct nouveau_drm *drm)
 {
-	struct nouveau_fifo *pfifo = nvkm_fifo(&drm->device);
+	struct nvkm_fifo *pfifo = nvxx_fifo(&drm->device);
 	struct nv84_fence_priv *priv;
 	int ret;
 

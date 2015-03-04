@@ -131,52 +131,6 @@ static void __iomem *rcar_pci_cfg_base(struct pci_bus *bus, unsigned int devfn,
 	return priv->reg + (slot >> 1) * 0x100 + where;
 }
 
-static int rcar_pci_read_config(struct pci_bus *bus, unsigned int devfn,
-				int where, int size, u32 *val)
-{
-	void __iomem *reg = rcar_pci_cfg_base(bus, devfn, where);
-
-	if (!reg)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	switch (size) {
-	case 1:
-		*val = ioread8(reg);
-		break;
-	case 2:
-		*val = ioread16(reg);
-		break;
-	default:
-		*val = ioread32(reg);
-		break;
-	}
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int rcar_pci_write_config(struct pci_bus *bus, unsigned int devfn,
-				 int where, int size, u32 val)
-{
-	void __iomem *reg = rcar_pci_cfg_base(bus, devfn, where);
-
-	if (!reg)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	switch (size) {
-	case 1:
-		iowrite8(val, reg);
-		break;
-	case 2:
-		iowrite16(val, reg);
-		break;
-	default:
-		iowrite32(val, reg);
-		break;
-	}
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
 /* PCI interrupt mapping */
 static int rcar_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
@@ -325,8 +279,9 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 }
 
 static struct pci_ops rcar_pci_ops = {
-	.read	= rcar_pci_read_config,
-	.write	= rcar_pci_write_config,
+	.map_bus = rcar_pci_cfg_base,
+	.read	= pci_generic_config_read,
+	.write	= pci_generic_config_write,
 };
 
 static int rcar_pci_probe(struct platform_device *pdev)

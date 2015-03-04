@@ -57,7 +57,7 @@ struct rpc_clnt {
 	const struct rpc_timeout *cl_timeout;	/* Timeout strategy */
 
 	int			cl_nodelen;	/* nodename length */
-	char 			cl_nodename[UNX_MAXNODENAME];
+	char 			cl_nodename[UNX_MAXNODENAME+1];
 	struct rpc_pipe_dir_head cl_pipedir_objects;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
@@ -112,6 +112,7 @@ struct rpc_create_args {
 	struct sockaddr		*saddress;
 	const struct rpc_timeout *timeout;
 	const char		*servername;
+	const char		*nodename;
 	const struct rpc_program *program;
 	u32			prognumber;	/* overrides program->number */
 	u32			version;

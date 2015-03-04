@@ -501,12 +501,29 @@ static int acpi_pci_run_wake(struct pci_dev *dev, bool enable)
 	return 0;
 }
 
+static bool acpi_pci_need_resume(struct pci_dev *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+
+	if (!adev || !acpi_device_power_manageable(adev))
+		return false;
+
+	if (device_may_wakeup(&dev->dev) != !!adev->wakeup.prepare_count)
+		return true;
+
+	if (acpi_target_system_state() == ACPI_STATE_S0)
+		return false;
+
+	return !!adev->power.flags.dsw_present;
+}
+
 static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.choose_state = acpi_pci_choose_state,
 	.sleep_wake = acpi_pci_sleep_wake,
 	.run_wake = acpi_pci_run_wake,
+	.need_resume = acpi_pci_need_resume,
 };
 
 void acpi_pci_add_bus(struct pci_bus *bus)

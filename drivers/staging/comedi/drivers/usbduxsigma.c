@@ -16,7 +16,7 @@
 /*
  * Driver: usbduxsigma
  * Description: University of Stirling USB DAQ & INCITE Technology Limited
- * Devices: (ITL) USB-DUX [usbduxsigma]
+ * Devices: [ITL] USB-DUX-SIGMA (usbduxsigma)
  * Author: Bernd Porr <mail@berndporr.me.uk>
  * Updated: 10 Oct 2014
  * Status: stable
@@ -45,13 +45,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/input.h>
-#include <linux/usb.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
 #include <asm/unaligned.h>
 
 #include "comedi_fc.h"
-#include "../comedidev.h"
+#include "../comedi_usb.h"
 
 /* timeout for the USB-transfer in ms*/
 #define BULK_TIMEOUT 1000
@@ -215,7 +214,6 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int dio_state;
 	uint32_t val;
 	int ret;
 	int i;
@@ -223,9 +221,6 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 	devpriv->ai_counter--;
 	if (devpriv->ai_counter == 0) {
 		devpriv->ai_counter = devpriv->ai_timer;
-
-		/* get the state of the dio pins to allow external trigger */
-		dio_state = be32_to_cpu(devpriv->in_buf[0]);
 
 		/* get the data from the USB bus and hand it over to comedi */
 		for (i = 0; i < cmd->chanlist_len; i++) {

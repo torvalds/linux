@@ -47,6 +47,11 @@ struct btrfs_transaction {
 	atomic_t num_writers;
 	atomic_t use_count;
 
+	/*
+	 * true if there is free bgs operations in this transaction
+	 */
+	int have_free_bgs;
+
 	/* Be protected by fs_info->trans_lock when we want to change it. */
 	enum btrfs_trans_state state;
 	struct list_head list;
@@ -58,6 +63,8 @@ struct btrfs_transaction {
 	struct list_head pending_chunks;
 	struct list_head pending_ordered;
 	struct list_head switch_commits;
+	struct list_head dirty_bgs;
+	spinlock_t dirty_bgs_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
 };

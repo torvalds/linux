@@ -64,6 +64,8 @@
 #define  BCMA_PCI_GPIO_XTAL		0x40	/* PCI config space GPIO 14 for Xtal powerup */
 #define  BCMA_PCI_GPIO_PLL		0x80	/* PCI config space GPIO 15 for PLL powerdown */
 
+#define BCMA_PCIE2_BAR0_WIN2		0x70
+
 /* SiliconBackplane Address Map.
  * All regions may not exist on all chips.
  */

@@ -14,24 +14,23 @@
  */
 
 /*
- Driver: dyna_pci10xx
- Devices: Dynalog India PCI DAQ Cards, http://www.dynalogindia.com/
- Author: Prashant Shah <pshah.mumbai@gmail.com>
- Developed at Automation Labs, Chemical Dept., IIT Bombay, India.
- Prof. Kannan Moudgalya <kannan@iitb.ac.in>
- http://www.iitb.ac.in
- Status: Stable
- Version: 1.0
- Device Supported :
- - Dynalog PCI 1050
-
- Notes :
- - Dynalog India Pvt. Ltd. does not have a registered PCI Vendor ID and
- they are using the PLX Technlogies Vendor ID since that is the PCI Chip used
- in the card.
- - Dynalog India Pvt. Ltd. has provided the internal register specification for
- their cards in their manuals.
-*/
+ * Driver: dyna_pci10xx
+ * Description: Dynalog India PCI DAQ Cards, http://www.dynalogindia.com/
+ * Devices: [Dynalog] PCI-1050 (dyna_pci1050)
+ * Author: Prashant Shah <pshah.mumbai@gmail.com>
+ * Status: Stable
+ *
+ * Developed at Automation Labs, Chemical Dept., IIT Bombay, India.
+ * Prof. Kannan Moudgalya <kannan@iitb.ac.in>
+ * http://www.iitb.ac.in
+ *
+ * Notes :
+ * - Dynalog India Pvt. Ltd. does not have a registered PCI Vendor ID and
+ *   they are using the PLX Technlogies Vendor ID since that is the PCI Chip
+ *   used in the card.
+ * - Dynalog India Pvt. Ltd. has provided the internal register specification
+ *   for their cards in their manuals.
+ */
 
 #include <linux/module.h>
 #include <linux/delay.h>

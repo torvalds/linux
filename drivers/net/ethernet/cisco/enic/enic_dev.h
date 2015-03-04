@@ -55,11 +55,6 @@ int enic_dev_set_ig_vlan_rewrite_mode(struct enic *enic);
 int enic_dev_enable(struct enic *enic);
 int enic_dev_disable(struct enic *enic);
 int enic_dev_intr_coal_timer_info(struct enic *enic);
-int enic_vnic_dev_deinit(struct enic *enic);
-int enic_dev_init_prov2(struct enic *enic, struct vic_provinfo *vp);
-int enic_dev_deinit_done(struct enic *enic, int *status);
-int enic_dev_enable2(struct enic *enic, int arg);
-int enic_dev_enable2_done(struct enic *enic, int *status);
 int enic_dev_status_to_errno(int devcmd_status);
 
 #endif /* _ENIC_DEV_H_ */

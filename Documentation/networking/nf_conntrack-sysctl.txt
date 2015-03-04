@@ -11,7 +11,8 @@ nf_conntrack_buckets - INTEGER (read-only)
 	Size of hash table. If not specified as parameter during module
 	loading, the default size is calculated by dividing total memory
 	by 16384 to determine the number of buckets but the hash table will
-	never have fewer than 32 or more than 16384 buckets.
+	never have fewer than 32 and limited to 16384 buckets. For systems
+	with more than 4GB of memory it will be 65536 buckets.
 
 nf_conntrack_checksum - BOOLEAN
 	0 - disabled

@@ -346,8 +346,14 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 		/* Process the output pipeline. */
 		ret = rcar_du_encoders_init_one(rcdu, output, &ep);
 		if (ret < 0) {
-			of_node_put(ep_node);
-			return ret;
+			if (ret == -EPROBE_DEFER) {
+				of_node_put(ep_node);
+				return ret;
+			}
+
+			dev_info(rcdu->dev,
+				 "encoder initialization failed, skipping\n");
+			continue;
 		}
 
 		num_encoders += ret;
@@ -412,6 +418,11 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	ret = rcar_du_encoders_init(rcdu);
 	if (ret < 0)
 		return ret;
+
+	if (ret == 0) {
+		dev_err(rcdu->dev, "error: no encoder could be initialized\n");
+		return -EINVAL;
+	}
 
 	num_encoders = ret;
 

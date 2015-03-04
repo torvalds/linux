@@ -27,6 +27,7 @@
 #include <asm/mach/map.h>
 #include <asm/hardware/cache-l2x0.h>
 #include "core.h"
+#include "pm.h"
 
 #define RK3288_GRF_SOC_CON0 0x244
 
@@ -52,6 +53,7 @@ static void __init rockchip_timer_init(void)
 
 static void __init rockchip_dt_init(void)
 {
+	rockchip_suspend_init();
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	platform_device_register_simple("cpufreq-dt", 0, NULL, 0);
 }
@@ -65,7 +67,7 @@ static const char * const rockchip_board_dt_compat[] = {
 	NULL,
 };
 
-DT_MACHINE_START(ROCKCHIP_DT, "Rockchip Cortex-A9 (Device Tree)")
+DT_MACHINE_START(ROCKCHIP_DT, "Rockchip (Device Tree)")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
 	.init_time	= rockchip_timer_init,

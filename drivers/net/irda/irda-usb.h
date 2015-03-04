@@ -29,7 +29,7 @@
  *
  *****************************************************************************/
 
-#include <linux/time.h>
+#include <linux/ktime.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/irda_device.h>      /* struct irlap_cb */
@@ -157,8 +157,7 @@ struct irda_usb_cb {
 	char *speed_buff;		/* Buffer for speed changes */
 	char *tx_buff;
 
-	struct timeval stamp;
-	struct timeval now;
+	ktime_t stamp;
 
 	spinlock_t lock;		/* For serializing Tx operations */
 
