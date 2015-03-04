@@ -3577,6 +3577,9 @@ static void be_copy_nic_desc(struct be_resources *res,
 	res->max_rss_qs = le16_to_cpu(desc->rssq_count);
 	res->max_rx_qs = le16_to_cpu(desc->rq_count);
 	res->max_evt_qs = le16_to_cpu(desc->eq_count);
+	res->max_cq_count = le16_to_cpu(desc->cq_count);
+	res->max_iface_count = le16_to_cpu(desc->iface_count);
+	res->max_mcc_count = le16_to_cpu(desc->mcc_count);
 	/* Clear flags that driver is not interested in */
 	res->if_cap_flags = le32_to_cpu(desc->cap_flags) &
 				BE_IF_CAP_FLAGS_WANT;
@@ -3641,7 +3644,7 @@ err:
 
 /* Will use MBOX only if MCCQ has not been created */
 int be_cmd_get_profile_config(struct be_adapter *adapter,
-			      struct be_resources *res, u8 domain)
+			      struct be_resources *res, u8 query, u8 domain)
 {
 	struct be_cmd_resp_get_profile_config *resp;
 	struct be_cmd_req_get_profile_config *req;
@@ -3651,7 +3654,7 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	struct be_nic_res_desc *nic;
 	struct be_mcc_wrb wrb = {0};
 	struct be_dma_mem cmd;
-	u32 desc_count;
+	u16 desc_count;
 	int status;
 
 	memset(&cmd, 0, sizeof(struct be_dma_mem));
@@ -3670,12 +3673,19 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 		req->hdr.version = 1;
 	req->type = ACTIVE_PROFILE_TYPE;
 
+	/* When QUERY_MODIFIABLE_FIELDS_TYPE bit is set, cmd returns the
+	 * descriptors with all bits set to "1" for the fields which can be
+	 * modified using SET_PROFILE_CONFIG cmd.
+	 */
+	if (query == RESOURCE_MODIFIABLE)
+		req->type |= QUERY_MODIFIABLE_FIELDS_TYPE;
+
 	status = be_cmd_notify_wait(adapter, &wrb);
 	if (status)
 		goto err;
 
 	resp = cmd.va;
-	desc_count = le32_to_cpu(resp->desc_count);
+	desc_count = le16_to_cpu(resp->desc_count);
 
 	pcie = be_get_pcie_desc(adapter->pdev->devfn, resp->func_param,
 				desc_count);
@@ -3800,14 +3810,74 @@ int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate, u16 link_speed,
 					 1, version, domain);
 }
 
+static void be_fill_vf_res_template(struct be_adapter *adapter,
+				    struct be_resources pool_res,
+				    u16 num_vfs, u16 num_vf_qs,
+				    struct be_nic_res_desc *nic_vft)
+{
+	u32 vf_if_cap_flags = pool_res.vf_if_cap_flags;
+	struct be_resources res_mod = {0};
+
+	/* Resource with fields set to all '1's by GET_PROFILE_CONFIG cmd,
+	 * which are modifiable using SET_PROFILE_CONFIG cmd.
+	 */
+	be_cmd_get_profile_config(adapter, &res_mod, RESOURCE_MODIFIABLE, 0);
+
+	/* If RSS IFACE capability flags are modifiable for a VF, set the
+	 * capability flag as valid and set RSS and DEFQ_RSS IFACE flags if
+	 * more than 1 RSSQ is available for a VF.
+	 * Otherwise, provision only 1 queue pair for VF.
+	 */
+	if (res_mod.vf_if_cap_flags & BE_IF_FLAGS_RSS) {
+		nic_vft->flags |= BIT(IF_CAPS_FLAGS_VALID_SHIFT);
+		if (num_vf_qs > 1) {
+			vf_if_cap_flags |= BE_IF_FLAGS_RSS;
+			if (pool_res.if_cap_flags & BE_IF_FLAGS_DEFQ_RSS)
+				vf_if_cap_flags |= BE_IF_FLAGS_DEFQ_RSS;
+		} else {
+			vf_if_cap_flags &= ~(BE_IF_FLAGS_RSS |
+					     BE_IF_FLAGS_DEFQ_RSS);
+		}
+
+		nic_vft->cap_flags = cpu_to_le32(vf_if_cap_flags);
+	} else {
+		num_vf_qs = 1;
+	}
+
+	nic_vft->rq_count = cpu_to_le16(num_vf_qs);
+	nic_vft->txq_count = cpu_to_le16(num_vf_qs);
+	nic_vft->rssq_count = cpu_to_le16(num_vf_qs);
+	nic_vft->cq_count = cpu_to_le16(pool_res.max_cq_count /
+					(num_vfs + 1));
+
+	/* Distribute unicast MACs, VLANs, IFACE count and MCCQ count equally
+	 * among the PF and it's VFs, if the fields are changeable
+	 */
+	if (res_mod.max_uc_mac == FIELD_MODIFIABLE)
+		nic_vft->unicast_mac_count = cpu_to_le16(pool_res.max_uc_mac /
+							 (num_vfs + 1));
+
+	if (res_mod.max_vlans == FIELD_MODIFIABLE)
+		nic_vft->vlan_count = cpu_to_le16(pool_res.max_vlans /
+						  (num_vfs + 1));
+
+	if (res_mod.max_iface_count == FIELD_MODIFIABLE)
+		nic_vft->iface_count = cpu_to_le16(pool_res.max_iface_count /
+						   (num_vfs + 1));
+
+	if (res_mod.max_mcc_count == FIELD_MODIFIABLE)
+		nic_vft->mcc_count = cpu_to_le16(pool_res.max_mcc_count /
+						 (num_vfs + 1));
+}
+
 int be_cmd_set_sriov_config(struct be_adapter *adapter,
-			    struct be_resources res, u16 num_vfs)
+			    struct be_resources pool_res, u16 num_vfs,
+			    u16 num_vf_qs)
 {
 	struct {
 		struct be_pcie_res_desc pcie;
 		struct be_nic_res_desc nic_vft;
 	} __packed desc;
-	u16 vf_q_count;
 
 	if (BEx_chip(adapter) || lancer_chip(adapter))
 		return 0;
@@ -3816,7 +3886,7 @@ int be_cmd_set_sriov_config(struct be_adapter *adapter,
 	be_reset_pcie_desc(&desc.pcie);
 	desc.pcie.hdr.desc_type = PCIE_RESOURCE_DESC_TYPE_V1;
 	desc.pcie.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
-	desc.pcie.flags = (1 << IMM_SHIFT) | (1 << NOSV_SHIFT);
+	desc.pcie.flags = BIT(IMM_SHIFT) | BIT(NOSV_SHIFT);
 	desc.pcie.pf_num = adapter->pdev->devfn;
 	desc.pcie.sriov_state = num_vfs ? 1 : 0;
 	desc.pcie.num_vfs = cpu_to_le16(num_vfs);
@@ -3825,32 +3895,12 @@ int be_cmd_set_sriov_config(struct be_adapter *adapter,
 	be_reset_nic_desc(&desc.nic_vft);
 	desc.nic_vft.hdr.desc_type = NIC_RESOURCE_DESC_TYPE_V1;
 	desc.nic_vft.hdr.desc_len = RESOURCE_DESC_SIZE_V1;
-	desc.nic_vft.flags = (1 << VFT_SHIFT) | (1 << IMM_SHIFT) |
-				(1 << NOSV_SHIFT);
+	desc.nic_vft.flags = BIT(VFT_SHIFT) | BIT(IMM_SHIFT) | BIT(NOSV_SHIFT);
 	desc.nic_vft.pf_num = adapter->pdev->devfn;
 	desc.nic_vft.vf_num = 0;
 
-	if (num_vfs && res.vf_if_cap_flags & BE_IF_FLAGS_RSS) {
-		/* If number of VFs requested is 8 less than max supported,
-		 * assign 8 queue pairs to the PF and divide the remaining
-		 * resources evenly among the VFs
-		 */
-		if (num_vfs < (be_max_vfs(adapter) - 8))
-			vf_q_count = (res.max_rss_qs - 8) / num_vfs;
-		else
-			vf_q_count = res.max_rss_qs / num_vfs;
-
-		desc.nic_vft.rq_count = cpu_to_le16(vf_q_count);
-		desc.nic_vft.txq_count = cpu_to_le16(vf_q_count);
-		desc.nic_vft.rssq_count = cpu_to_le16(vf_q_count - 1);
-		desc.nic_vft.cq_count = cpu_to_le16(3 * vf_q_count);
-	} else {
-		desc.nic_vft.txq_count = cpu_to_le16(1);
-		desc.nic_vft.rq_count = cpu_to_le16(1);
-		desc.nic_vft.rssq_count = cpu_to_le16(0);
-		/* One CQ for each TX, RX and MCCQ */
-		desc.nic_vft.cq_count = cpu_to_le16(3);
-	}
+	be_fill_vf_res_template(adapter, pool_res, num_vfs, num_vf_qs,
+				&desc.nic_vft);
 
 	return be_cmd_set_profile_config(adapter, &desc,
 					 2 * RESOURCE_DESC_SIZE_V1, 2, 1, 0);

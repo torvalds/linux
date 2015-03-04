@@ -3408,8 +3408,39 @@ static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 }
 #endif
 
+static u16 be_calculate_vf_qs(struct be_adapter *adapter, u16 num_vfs)
+{
+	struct be_resources res = adapter->pool_res;
+	u16 num_vf_qs = 1;
+
+	/* Distribute the queue resources equally among the PF and it's VFs
+	 * Do not distribute queue resources in multi-channel configuration.
+	 */
+	if (num_vfs && !be_is_mc(adapter)) {
+		/* If number of VFs requested is 8 less than max supported,
+		 * assign 8 queue pairs to the PF and divide the remaining
+		 * resources evenly among the VFs
+		 */
+		if (num_vfs < (be_max_vfs(adapter) - 8))
+			num_vf_qs = (res.max_rss_qs - 8) / num_vfs;
+		else
+			num_vf_qs = res.max_rss_qs / num_vfs;
+
+		/* Skyhawk-R chip supports only MAX_RSS_IFACES RSS capable
+		 * interfaces per port. Provide RSS on VFs, only if number
+		 * of VFs requested is less than MAX_RSS_IFACES limit.
+		 */
+		if (num_vfs >= MAX_RSS_IFACES)
+			num_vf_qs = 1;
+	}
+	return num_vf_qs;
+}
+
 static int be_clear(struct be_adapter *adapter)
 {
+	struct pci_dev *pdev = adapter->pdev;
+	u16 num_vf_qs;
+
 	be_cancel_worker(adapter);
 
 	if (sriov_enabled(adapter))
@@ -3418,9 +3449,13 @@ static int be_clear(struct be_adapter *adapter)
 	/* Re-configure FW to distribute resources evenly across max-supported
 	 * number of VFs, only when VFs are not already enabled.
 	 */
-	if (be_physfn(adapter) && !pci_vfs_assigned(adapter->pdev))
+	if (be_physfn(adapter) && !pci_vfs_assigned(pdev)) {
+		num_vf_qs = be_calculate_vf_qs(adapter,
+					       pci_sriov_get_totalvfs(pdev));
 		be_cmd_set_sriov_config(adapter, adapter->pool_res,
-					pci_sriov_get_totalvfs(adapter->pdev));
+					pci_sriov_get_totalvfs(pdev),
+					num_vf_qs);
+	}
 
 #ifdef CONFIG_BE2NET_VXLAN
 	be_disable_vxlan_offloads(adapter);
@@ -3469,6 +3504,7 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 	for_all_vfs(adapter, vf_cfg, vf) {
 		if (!BE3_chip(adapter)) {
 			status = be_cmd_get_profile_config(adapter, &res,
+							   RESOURCE_LIMITS,
 							   vf + 1);
 			if (!status)
 				cap_flags = res.if_cap_flags;
@@ -3635,7 +3671,8 @@ static void BEx_get_resources(struct be_adapter *adapter,
 		/* On a SuperNIC profile, the driver needs to use the
 		 * GET_PROFILE_CONFIG cmd to query the per-function TXQ limits
 		 */
-		be_cmd_get_profile_config(adapter, &super_nic_res, 0);
+		be_cmd_get_profile_config(adapter, &super_nic_res,
+					  RESOURCE_LIMITS, 0);
 		/* Some old versions of BE3 FW don't report max_tx_qs value */
 		res->max_tx_qs = super_nic_res.max_tx_qs ? : BE3_MAX_TX_QS;
 	} else {
@@ -3680,7 +3717,7 @@ static int be_get_sriov_config(struct be_adapter *adapter)
 	int max_vfs, old_vfs;
 
 	/* Some old versions of BE3 FW don't report max_vfs value */
-	be_cmd_get_profile_config(adapter, &res, 0);
+	be_cmd_get_profile_config(adapter, &res, RESOURCE_LIMITS, 0);
 
 	if (BE3_chip(adapter) && !res.max_vfs) {
 		max_vfs = pci_sriov_get_totalvfs(adapter->pdev);
@@ -3769,6 +3806,7 @@ static int be_get_resources(struct be_adapter *adapter)
 static void be_sriov_config(struct be_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
+	u16 num_vf_qs;
 	int status;
 
 	status = be_get_sriov_config(adapter);
@@ -3787,9 +3825,10 @@ static void be_sriov_config(struct be_adapter *adapter)
 	 * Also, this is done by FW in Lancer chip.
 	 */
 	if (be_max_vfs(adapter) && !pci_num_vf(adapter->pdev)) {
+		num_vf_qs = be_calculate_vf_qs(adapter, adapter->num_vfs);
 		status = be_cmd_set_sriov_config(adapter,
 						 adapter->pool_res,
-						 adapter->num_vfs);
+						 adapter->num_vfs, num_vf_qs);
 		if (status)
 			dev_err(dev, "Failed to optimize SR-IOV resources\n");
 	}
