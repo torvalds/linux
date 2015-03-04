@@ -2381,7 +2381,7 @@ static int pci230_auto_attach(struct comedi_device *dev,
 	spin_lock_init(&devpriv->ao_stop_spinlock);
 
 	dev->board_ptr = pci230_find_pci_board(pci_dev);
-	if (dev->board_ptr == NULL) {
+	if (!dev->board_ptr) {
 		dev_err(dev->class_dev,
 			"amplc_pci230: BUG! cannot determine board type!\n");
 		return -EINVAL;
