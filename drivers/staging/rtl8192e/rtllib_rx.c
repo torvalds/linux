@@ -1225,7 +1225,6 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 		}
 	}
 	kfree(rxb);
-	rxb = NULL;
 }
 
 static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
