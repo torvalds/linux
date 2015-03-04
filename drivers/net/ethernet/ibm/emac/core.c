@@ -2367,7 +2367,7 @@ static int emac_wait_deps(struct emac_instance *dev)
 	err = emac_check_deps(dev, deps) ? 0 : -ENODEV;
 	for (i = 0; i < EMAC_DEP_COUNT; i++) {
 		of_node_put(deps[i].node);
-		if (err && deps[i].ofdev)
+		if (err)
 			of_dev_put(deps[i].ofdev);
 	}
 	if (err == 0) {

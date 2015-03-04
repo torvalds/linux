@@ -74,10 +74,9 @@ static void i2sbus_release_dev(struct device *dev)
 	int i;
 
 	i2sdev = container_of(dev, struct i2sbus_dev, sound.ofdev.dev);
-
- 	if (i2sdev->intfregs) iounmap(i2sdev->intfregs);
- 	if (i2sdev->out.dbdma) iounmap(i2sdev->out.dbdma);
- 	if (i2sdev->in.dbdma) iounmap(i2sdev->in.dbdma);
+	iounmap(i2sdev->intfregs);
+	iounmap(i2sdev->out.dbdma);
+	iounmap(i2sdev->in.dbdma);
 	for (i = aoa_resource_i2smmio; i <= aoa_resource_rxdbdma; i++)
 		release_and_free_resource(i2sdev->allocated_resource[i]);
 	free_dbdma_descriptor_ring(i2sdev, &i2sdev->out.dbdma_ring);
@@ -318,9 +317,9 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 			free_irq(dev->interrupts[i], dev);
 	free_dbdma_descriptor_ring(dev, &dev->out.dbdma_ring);
 	free_dbdma_descriptor_ring(dev, &dev->in.dbdma_ring);
-	if (dev->intfregs) iounmap(dev->intfregs);
-	if (dev->out.dbdma) iounmap(dev->out.dbdma);
-	if (dev->in.dbdma) iounmap(dev->in.dbdma);
+	iounmap(dev->intfregs);
+	iounmap(dev->out.dbdma);
+	iounmap(dev->in.dbdma);
 	for (i=0;i<3;i++)
 		release_and_free_resource(dev->allocated_resource[i]);
 	mutex_destroy(&dev->lock);
@@ -381,10 +380,8 @@ static int i2sbus_suspend(struct macio_dev* dev, pm_message_t state)
 
 	list_for_each_entry(i2sdev, &control->list, item) {
 		/* Notify Alsa */
-		if (i2sdev->sound.pcm) {
-			/* Suspend PCM streams */
-			snd_pcm_suspend_all(i2sdev->sound.pcm);
-		}
+		/* Suspend PCM streams */
+		snd_pcm_suspend_all(i2sdev->sound.pcm);
 
 		/* Notify codecs */
 		list_for_each_entry(cii, &i2sdev->sound.codec_list, list) {

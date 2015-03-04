@@ -317,17 +317,17 @@ int cirrus_fbdev_init(struct cirrus_device *cdev)
 
 	ret = drm_fb_helper_init(cdev->dev, &gfbdev->helper,
 				 cdev->num_crtc, CIRRUSFB_CONN_LIMIT);
-	if (ret) {
-		kfree(gfbdev);
+	if (ret)
 		return ret;
-	}
-	drm_fb_helper_single_add_all_connectors(&gfbdev->helper);
+
+	ret = drm_fb_helper_single_add_all_connectors(&gfbdev->helper);
+	if (ret)
+		return ret;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(cdev->dev);
-	drm_fb_helper_initial_config(&gfbdev->helper, bpp_sel);
 
-	return 0;
+	return drm_fb_helper_initial_config(&gfbdev->helper, bpp_sel);
 }
 
 void cirrus_fbdev_fini(struct cirrus_device *cdev)

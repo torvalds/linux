@@ -429,7 +429,6 @@ int nilfs_mdt_init(struct inode *inode, gfp_t gfp_mask, size_t objsz)
 
 	inode->i_mode = S_IFREG;
 	mapping_set_gfp_mask(inode->i_mapping, gfp_mask);
-	inode->i_mapping->backing_dev_info = inode->i_sb->s_bdi;
 
 	inode->i_op = &def_mdt_iops;
 	inode->i_fop = &def_mdt_fops;
@@ -457,13 +456,12 @@ int nilfs_mdt_setup_shadow_map(struct inode *inode,
 			       struct nilfs_shadow_map *shadow)
 {
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
-	struct backing_dev_info *bdi = inode->i_sb->s_bdi;
 
 	INIT_LIST_HEAD(&shadow->frozen_buffers);
 	address_space_init_once(&shadow->frozen_data);
-	nilfs_mapping_init(&shadow->frozen_data, inode, bdi);
+	nilfs_mapping_init(&shadow->frozen_data, inode);
 	address_space_init_once(&shadow->frozen_btnodes);
-	nilfs_mapping_init(&shadow->frozen_btnodes, inode, bdi);
+	nilfs_mapping_init(&shadow->frozen_btnodes, inode);
 	mi->mi_shadow = shadow;
 	return 0;
 }

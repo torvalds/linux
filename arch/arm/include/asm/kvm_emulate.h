@@ -23,6 +23,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/kvm_arm.h>
+#include <asm/cputype.h>
 
 unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
 unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu);
@@ -36,6 +37,16 @@ void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr);
 static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.hcr = HCR_GUEST_MASK;
+}
+
+static inline unsigned long vcpu_get_hcr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.hcr;
+}
+
+static inline void vcpu_set_hcr(struct kvm_vcpu *vcpu, unsigned long hcr)
+{
+	vcpu->arch.hcr = hcr;
 }
 
 static inline bool vcpu_mode_is_32bit(struct kvm_vcpu *vcpu)
@@ -167,9 +178,9 @@ static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK;
 }
 
-static inline unsigned long kvm_vcpu_get_mpidr(struct kvm_vcpu *vcpu)
+static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.cp15[c0_MPIDR];
+	return vcpu->arch.cp15[c0_MPIDR] & MPIDR_HWID_BITMASK;
 }
 
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)

@@ -21,43 +21,7 @@
 
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"
-
-#define NUM_PINS(x)			(x + 2)
-
-#define SDMMC_CLKSEL			0x09C
-#define SDMMC_CLKSEL64			0x0A8
-#define SDMMC_CLKSEL_CCLK_SAMPLE(x)	(((x) & 7) << 0)
-#define SDMMC_CLKSEL_CCLK_DRIVE(x)	(((x) & 7) << 16)
-#define SDMMC_CLKSEL_CCLK_DIVIDER(x)	(((x) & 7) << 24)
-#define SDMMC_CLKSEL_GET_DRV_WD3(x)	(((x) >> 16) & 0x7)
-#define SDMMC_CLKSEL_TIMING(x, y, z)	(SDMMC_CLKSEL_CCLK_SAMPLE(x) |	\
-					SDMMC_CLKSEL_CCLK_DRIVE(y) |	\
-					SDMMC_CLKSEL_CCLK_DIVIDER(z))
-#define SDMMC_CLKSEL_WAKEUP_INT		BIT(11)
-
-#define EXYNOS4210_FIXED_CIU_CLK_DIV	2
-#define EXYNOS4412_FIXED_CIU_CLK_DIV	4
-
-/* Block number in eMMC */
-#define DWMCI_BLOCK_NUM		0xFFFFFFFF
-
-#define SDMMC_EMMCP_BASE	0x1000
-#define SDMMC_MPSECURITY	(SDMMC_EMMCP_BASE + 0x0010)
-#define SDMMC_MPSBEGIN0		(SDMMC_EMMCP_BASE + 0x0200)
-#define SDMMC_MPSEND0		(SDMMC_EMMCP_BASE + 0x0204)
-#define SDMMC_MPSCTRL0		(SDMMC_EMMCP_BASE + 0x020C)
-
-/* SMU control bits */
-#define DWMCI_MPSCTRL_SECURE_READ_BIT		BIT(7)
-#define DWMCI_MPSCTRL_SECURE_WRITE_BIT		BIT(6)
-#define DWMCI_MPSCTRL_NON_SECURE_READ_BIT	BIT(5)
-#define DWMCI_MPSCTRL_NON_SECURE_WRITE_BIT	BIT(4)
-#define DWMCI_MPSCTRL_USE_FUSE_KEY		BIT(3)
-#define DWMCI_MPSCTRL_ECB_MODE			BIT(2)
-#define DWMCI_MPSCTRL_ENCRYPTION		BIT(1)
-#define DWMCI_MPSCTRL_VALID			BIT(0)
-
-#define EXYNOS_CCLKIN_MIN	50000000	/* unit: HZ */
+#include "dw_mmc-exynos.h"
 
 /* Variations in Exynos specific dw-mshc controller */
 enum dw_mci_exynos_type {
@@ -114,11 +78,11 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS5420_SMU ||
 		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU) {
 		mci_writel(host, MPSBEGIN0, 0);
-		mci_writel(host, MPSEND0, DWMCI_BLOCK_NUM);
-		mci_writel(host, MPSCTRL0, DWMCI_MPSCTRL_SECURE_WRITE_BIT |
-			   DWMCI_MPSCTRL_NON_SECURE_READ_BIT |
-			   DWMCI_MPSCTRL_VALID |
-			   DWMCI_MPSCTRL_NON_SECURE_WRITE_BIT);
+		mci_writel(host, MPSEND0, SDMMC_ENDING_SEC_NR_MAX);
+		mci_writel(host, MPSCTRL0, SDMMC_MPSCTRL_SECURE_WRITE_BIT |
+			   SDMMC_MPSCTRL_NON_SECURE_READ_BIT |
+			   SDMMC_MPSCTRL_VALID |
+			   SDMMC_MPSCTRL_NON_SECURE_WRITE_BIT);
 	}
 
 	return 0;
@@ -127,9 +91,9 @@ static int dw_mci_exynos_priv_init(struct dw_mci *host)
 static int dw_mci_exynos_setup_clock(struct dw_mci *host)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
-	unsigned long rate = clk_get_rate(host->ciu_clk);
 
-	host->bus_hz = rate / (priv->ciu_div + 1);
+	host->bus_hz /= (priv->ciu_div + 1);
+
 	return 0;
 }
 
@@ -232,8 +196,11 @@ static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 			mci_writel(host, CLKSEL, priv->sdr_timing);
 	}
 
-	/* Don't care if wanted clock is zero */
-	if (!wanted)
+	/*
+	 * Don't care if wanted clock is zero or
+	 * ciu clock is unavailable
+	 */
+	if (!wanted || IS_ERR(host->ciu_clk))
 		return;
 
 	/* Guaranteed minimum frequency for cclkin */
@@ -263,10 +230,8 @@ static int dw_mci_exynos_parse_dt(struct dw_mci *host)
 	int ret;
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(host->dev, "mem alloc failed for private data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	for (idx = 0; idx < ARRAY_SIZE(exynos_compat); idx++) {
 		if (of_device_is_compatible(np, exynos_compat[idx].compatible))
@@ -375,64 +340,23 @@ out:
 	return loc;
 }
 
-static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
-					struct dw_mci_tuning_data *tuning_data)
+static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot)
 {
 	struct dw_mci *host = slot->host;
 	struct mmc_host *mmc = slot->mmc;
-	const u8 *blk_pattern = tuning_data->blk_pattern;
-	u8 *blk_test;
-	unsigned int blksz = tuning_data->blksz;
 	u8 start_smpl, smpl, candiates = 0;
 	s8 found = -1;
 	int ret = 0;
 
-	blk_test = kmalloc(blksz, GFP_KERNEL);
-	if (!blk_test)
-		return -ENOMEM;
-
 	start_smpl = dw_mci_exynos_get_clksmpl(host);
 
 	do {
-		struct mmc_request mrq = {NULL};
-		struct mmc_command cmd = {0};
-		struct mmc_command stop = {0};
-		struct mmc_data data = {0};
-		struct scatterlist sg;
-
-		cmd.opcode = opcode;
-		cmd.arg = 0;
-		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-		stop.opcode = MMC_STOP_TRANSMISSION;
-		stop.arg = 0;
-		stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
-
-		data.blksz = blksz;
-		data.blocks = 1;
-		data.flags = MMC_DATA_READ;
-		data.sg = &sg;
-		data.sg_len = 1;
-
-		sg_init_one(&sg, blk_test, blksz);
-		mrq.cmd = &cmd;
-		mrq.stop = &stop;
-		mrq.data = &data;
-		host->mrq = &mrq;
-
 		mci_writel(host, TMOUT, ~0);
 		smpl = dw_mci_exynos_move_next_clksmpl(host);
 
-		mmc_wait_for_req(mmc, &mrq);
+		if (!mmc_send_tuning(mmc))
+			candiates |= (1 << smpl);
 
-		if (!cmd.error && !data.error) {
-			if (!memcmp(blk_pattern, blk_test, blksz))
-				candiates |= (1 << smpl);
-		} else {
-			dev_dbg(host->dev,
-				"Tuning error: cmd.error:%d, data.error:%d\n",
-				cmd.error, data.error);
-		}
 	} while (start_smpl != smpl);
 
 	found = dw_mci_exynos_get_best_clksmpl(candiates);
@@ -441,7 +365,6 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	else
 		ret = -EIO;
 
-	kfree(blk_test);
 	return ret;
 }
 
@@ -499,7 +422,7 @@ static const struct dev_pm_ops dw_mci_exynos_pmops = {
 
 static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.probe		= dw_mci_exynos_probe,
-	.remove		= __exit_p(dw_mci_pltfm_remove),
+	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dwmmc_exynos",
 		.of_match_table	= dw_mci_exynos_match,

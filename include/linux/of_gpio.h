@@ -52,6 +52,7 @@ extern int of_get_named_gpio_flags(struct device_node *np,
 
 extern int of_mm_gpiochip_add(struct device_node *np,
 			      struct of_mm_gpio_chip *mm_gc);
+extern void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc);
 
 extern void of_gpiochip_add(struct gpio_chip *gc);
 extern void of_gpiochip_remove(struct gpio_chip *gc);

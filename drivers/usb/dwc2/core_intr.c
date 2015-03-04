@@ -476,12 +476,12 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 	u32 gintsts;
 	irqreturn_t retval = IRQ_NONE;
 
+	spin_lock(&hsotg->lock);
+
 	if (!dwc2_is_controller_alive(hsotg)) {
 		dev_warn(hsotg->dev, "Controller is dead\n");
 		goto out;
 	}
-
-	spin_lock(&hsotg->lock);
 
 	gintsts = dwc2_read_common_intr(hsotg);
 	if (gintsts & ~GINTSTS_PRTINT)
@@ -515,8 +515,8 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 		}
 	}
 
-	spin_unlock(&hsotg->lock);
 out:
+	spin_unlock(&hsotg->lock);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(dwc2_handle_common_intr);

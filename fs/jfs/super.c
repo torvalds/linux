@@ -619,8 +619,7 @@ out_mount_failed:
 	iput(sbi->direct_inode);
 	sbi->direct_inode = NULL;
 out_unload:
-	if (sbi->nls_tab)
-		unload_nls(sbi->nls_tab);
+	unload_nls(sbi->nls_tab);
 out_kfree:
 	kfree(sbi);
 	return ret;

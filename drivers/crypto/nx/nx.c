@@ -177,7 +177,7 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
 			break;
 
 		offset += sg_src->length;
-		sg_src = scatterwalk_sg_next(sg_src);
+		sg_src = sg_next(sg_src);
 	}
 
 	/* start - offset is the number of bytes to advance in the scatterlist
@@ -187,9 +187,9 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
 	while (len && (nx_sg - nx_dst) < sglen) {
 		n = scatterwalk_clamp(&walk, len);
 		if (!n) {
-			/* In cases where we have scatterlist chain scatterwalk_sg_next
+			/* In cases where we have scatterlist chain sg_next
 			 * handles with it properly */
-			scatterwalk_start(&walk, scatterwalk_sg_next(walk.sg));
+			scatterwalk_start(&walk, sg_next(walk.sg));
 			n = scatterwalk_clamp(&walk, len);
 		}
 		dst = scatterwalk_map(&walk);

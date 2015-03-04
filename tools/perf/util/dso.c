@@ -532,12 +532,8 @@ dso_cache__read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 			break;
 
 		cache_offset = offset & DSO__DATA_CACHE_MASK;
-		ret = -EINVAL;
 
-		if (-1 == lseek(dso->data.fd, cache_offset, SEEK_SET))
-			break;
-
-		ret = read(dso->data.fd, cache->data, DSO__DATA_CACHE_SIZE);
+		ret = pread(dso->data.fd, cache->data, DSO__DATA_CACHE_SIZE, cache_offset);
 		if (ret <= 0)
 			break;
 

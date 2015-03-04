@@ -1008,6 +1008,7 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 		if (status & SR_BS) {
 			state = CAN_STATE_BUS_OFF;
 			cf->can_id |= CAN_ERR_BUSOFF;
+			mod->can.can_stats.bus_off++;
 			can_bus_off(dev);
 		} else if (status & SR_ES) {
 			if (rxerr >= 128 || txerr >= 128)
@@ -1678,8 +1679,7 @@ static int ican3_get_berr_counter(const struct net_device *ndev,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&mod->buserror_comp, HZ);
-	if (ret == 0) {
+	if (!wait_for_completion_timeout(&mod->buserror_comp, HZ)) {
 		netdev_info(mod->ndev, "%s timed out\n", __func__);
 		return -ETIMEDOUT;
 	}
@@ -1704,8 +1704,7 @@ static ssize_t ican3_sysfs_show_term(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&mod->termination_comp, HZ);
-	if (ret == 0) {
+	if (!wait_for_completion_timeout(&mod->termination_comp, HZ)) {
 		netdev_info(mod->ndev, "%s timed out\n", __func__);
 		return -ETIMEDOUT;
 	}

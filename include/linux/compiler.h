@@ -54,7 +54,11 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 #include <linux/compiler-gcc.h>
 #endif
 
+#ifdef CC_USING_HOTPATCH
+#define notrace __attribute__((hotpatch(0,0)))
+#else
 #define notrace __attribute__((no_instrument_function))
+#endif
 
 /* Intel compiler defines __GNUC__. So we will overwrite implementations
  * coming from above header files here
@@ -198,7 +202,7 @@ static __always_inline void data_access_exceeds_word_size(void)
 {
 }
 
-static __always_inline void __read_once_size(volatile void *p, void *res, int size)
+static __always_inline void __read_once_size(const volatile void *p, void *res, int size)
 {
 	switch (size) {
 	case 1: *(__u8 *)res = *(volatile __u8 *)p; break;
@@ -255,10 +259,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  */
 
 #define READ_ONCE(x) \
-	({ typeof(x) __val; __read_once_size(&x, &__val, sizeof(__val)); __val; })
+	({ union { typeof(x) __val; char __c[1]; } __u; __read_once_size(&(x), __u.__c, sizeof(x)); __u.__val; })
 
 #define WRITE_ONCE(x, val) \
-	({ typeof(x) __val; __val = val; __write_once_size(&x, &__val, sizeof(__val)); __val; })
+	({ typeof(x) __val = (val); __write_once_size(&(x), &__val, sizeof(__val)); __val; })
 
 #endif /* __KERNEL__ */
 
@@ -385,7 +389,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 
 /* Is this type a native word size -- useful for atomic operations */
 #ifndef __native_word
-# define __native_word(t) (sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
+# define __native_word(t) (sizeof(t) == sizeof(char) || sizeof(t) == sizeof(short) || sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
 #endif
 
 /* Compile time object size, -1 for unknown */
@@ -447,12 +451,23 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * to make the compiler aware of ordering is to put the two invocations of
  * ACCESS_ONCE() in different C statements.
  *
- * This macro does absolutely -nothing- to prevent the CPU from reordering,
- * merging, or refetching absolutely anything at any time.  Its main intended
- * use is to mediate communication between process-level code and irq/NMI
- * handlers, all running on the same CPU.
+ * ACCESS_ONCE will only work on scalar types. For union types, ACCESS_ONCE
+ * on a union member will work as long as the size of the member matches the
+ * size of the union and the size is smaller than word size.
+ *
+ * The major use cases of ACCESS_ONCE used to be (1) Mediating communication
+ * between process-level code and irq/NMI handlers, all running on the same CPU,
+ * and (2) Ensuring that the compiler does not  fold, spindle, or otherwise
+ * mutilate accesses that either do not require ordering or that interact
+ * with an explicit memory barrier or atomic instruction that provides the
+ * required ordering.
+ *
+ * If possible use READ_ONCE/ASSIGN_ONCE instead.
  */
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#define __ACCESS_ONCE(x) ({ \
+	 __maybe_unused typeof(x) __var = (__force typeof(x)) 0; \
+	(volatile typeof(x) *)&(x); })
+#define ACCESS_ONCE(x) (*__ACCESS_ONCE(x))
 
 /* Ignore/forbid kprobes attach on very low level functions marked by this attribute: */
 #ifdef CONFIG_KPROBES

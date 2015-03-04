@@ -123,10 +123,10 @@ asmlinkage void start_secondary(void)
 	unsigned int cpu;
 
 	cpu_probe();
-	cpu_report();
 	per_cpu_trap_init(false);
 	mips_clockevent_init();
 	mp_ops->init_secondary();
+	cpu_report();
 
 	/*
 	 * XXX parity protection should be folded in here when it's converted

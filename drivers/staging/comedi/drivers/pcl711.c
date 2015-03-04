@@ -22,10 +22,8 @@
 /*
  * Driver: pcl711
  * Description: Advantech PCL-711 and 711b, ADLink ACL-8112
- * Devices: (Advantech) PCL-711 [pcl711]
- *	    (Advantech) PCL-711B [pcl711b]
- *	    (AdLink) ACL-8112HG [acl8112hg]
- *	    (AdLink) ACL-8112DG [acl8112dg]
+ * Devices: [Advantech] PCL-711 (pcl711), PCL-711B (pcl711b),
+ *   [ADLink] ACL-8112HG (acl8112hg), ACL-8112DG (acl8112dg)
  * Author: David A. Schleef <ds@schleef.org>
  *	   Janne Jalkanen <jalkanen@cs.hut.fi>
  *	   Eric Bunn <ebu@cs.hut.fi>

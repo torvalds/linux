@@ -69,9 +69,9 @@ static void test_hashmap_sanity(int i, void *data)
 
 	/* iterate over two elements */
 	assert(bpf_get_next_key(map_fd, &key, &next_key) == 0 &&
-	       next_key == 2);
+	       (next_key == 1 || next_key == 2));
 	assert(bpf_get_next_key(map_fd, &next_key, &next_key) == 0 &&
-	       next_key == 1);
+	       (next_key == 1 || next_key == 2));
 	assert(bpf_get_next_key(map_fd, &next_key, &next_key) == -1 &&
 	       errno == ENOENT);
 

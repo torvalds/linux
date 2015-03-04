@@ -43,6 +43,8 @@
 #include <linux/export.h>
 
 #include <asm/processor.h>
+#include <asm/traps.h>
+#include <asm/tlbflush.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 
@@ -115,7 +117,7 @@ static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
  * CPU/chipset specific EDAC code can register a notifier call here to print
  * MCE errors in a human-readable form.
  */
-ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
+static ATOMIC_NOTIFIER_HEAD(x86_mce_decoder_chain);
 
 /* Do initial initialization of a struct mce */
 void mce_setup(struct mce *m)
@@ -150,14 +152,11 @@ static struct mce_log mcelog = {
 void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
-	int ret = 0;
 
 	/* Emit the trace record: */
 	trace_mce_record(mce);
 
-	ret = atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
-	if (ret == NOTIFY_STOP)
-		return;
+	atomic_notifier_call_chain(&x86_mce_decoder_chain, 0, mce);
 
 	mce->finished = 0;
 	wmb();
@@ -311,7 +310,7 @@ static void wait_for_panic(void)
 	panic("Panicing machine check CPU died");
 }
 
-static void mce_panic(char *msg, struct mce *final, char *exp)
+static void mce_panic(const char *msg, struct mce *final, char *exp)
 {
 	int i, apei_err = 0;
 
@@ -529,7 +528,7 @@ static void mce_schedule_work(void)
 		schedule_work(this_cpu_ptr(&mce_work));
 }
 
-DEFINE_PER_CPU(struct irq_work, mce_irq_work);
+static DEFINE_PER_CPU(struct irq_work, mce_irq_work);
 
 static void mce_irq_work_cb(struct irq_work *entry)
 {
@@ -735,7 +734,7 @@ static atomic_t mce_callin;
 /*
  * Check if a timeout waiting for other CPUs happened.
  */
-static int mce_timed_out(u64 *t)
+static int mce_timed_out(u64 *t, const char *msg)
 {
 	/*
 	 * The others already did panic for some reason.
@@ -750,8 +749,7 @@ static int mce_timed_out(u64 *t)
 		goto out;
 	if ((s64)*t < SPINUNIT) {
 		if (mca_cfg.tolerant <= 1)
-			mce_panic("Timeout synchronizing machine check over CPUs",
-				  NULL, NULL);
+			mce_panic(msg, NULL, NULL);
 		cpu_missing = 1;
 		return 1;
 	}
@@ -867,7 +865,8 @@ static int mce_start(int *no_way_out)
 	 * Wait for everyone.
 	 */
 	while (atomic_read(&mce_callin) != cpus) {
-		if (mce_timed_out(&timeout)) {
+		if (mce_timed_out(&timeout,
+				  "Timeout: Not all CPUs entered broadcast exception handler")) {
 			atomic_set(&global_nwo, 0);
 			return -1;
 		}
@@ -892,7 +891,8 @@ static int mce_start(int *no_way_out)
 		 * only seen by one CPU before cleared, avoiding duplicates.
 		 */
 		while (atomic_read(&mce_executing) < order) {
-			if (mce_timed_out(&timeout)) {
+			if (mce_timed_out(&timeout,
+					  "Timeout: Subject CPUs unable to finish machine check processing")) {
 				atomic_set(&global_nwo, 0);
 				return -1;
 			}
@@ -936,7 +936,8 @@ static int mce_end(int order)
 		 * loops.
 		 */
 		while (atomic_read(&mce_executing) <= cpus) {
-			if (mce_timed_out(&timeout))
+			if (mce_timed_out(&timeout,
+					  "Timeout: Monarch CPU unable to finish machine check processing"))
 				goto reset;
 			ndelay(SPINUNIT);
 		}
@@ -949,7 +950,8 @@ static int mce_end(int order)
 		 * Subject: Wait for Monarch to finish.
 		 */
 		while (atomic_read(&mce_executing) != 0) {
-			if (mce_timed_out(&timeout))
+			if (mce_timed_out(&timeout,
+					  "Timeout: Monarch CPU did not finish machine check processing"))
 				goto reset;
 			ndelay(SPINUNIT);
 		}
@@ -1003,51 +1005,6 @@ static void mce_clear_state(unsigned long *toclear)
 }
 
 /*
- * Need to save faulting physical address associated with a process
- * in the machine check handler some place where we can grab it back
- * later in mce_notify_process()
- */
-#define	MCE_INFO_MAX	16
-
-struct mce_info {
-	atomic_t		inuse;
-	struct task_struct	*t;
-	__u64			paddr;
-	int			restartable;
-} mce_info[MCE_INFO_MAX];
-
-static void mce_save_info(__u64 addr, int c)
-{
-	struct mce_info *mi;
-
-	for (mi = mce_info; mi < &mce_info[MCE_INFO_MAX]; mi++) {
-		if (atomic_cmpxchg(&mi->inuse, 0, 1) == 0) {
-			mi->t = current;
-			mi->paddr = addr;
-			mi->restartable = c;
-			return;
-		}
-	}
-
-	mce_panic("Too many concurrent recoverable errors", NULL, NULL);
-}
-
-static struct mce_info *mce_find_info(void)
-{
-	struct mce_info *mi;
-
-	for (mi = mce_info; mi < &mce_info[MCE_INFO_MAX]; mi++)
-		if (atomic_read(&mi->inuse) && mi->t == current)
-			return mi;
-	return NULL;
-}
-
-static void mce_clear_info(struct mce_info *mi)
-{
-	atomic_set(&mi->inuse, 0);
-}
-
-/*
  * The actual machine check handler. This only handles real
  * exceptions when something got corrupted coming in through int 18.
  *
@@ -1063,6 +1020,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 {
 	struct mca_config *cfg = &mca_cfg;
 	struct mce m, *final;
+	enum ctx_state prev_state;
 	int i;
 	int worst = 0;
 	int severity;
@@ -1084,6 +1042,10 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 	DECLARE_BITMAP(valid_banks, MAX_NR_BANKS);
 	char *msg = "Unknown";
+	u64 recover_paddr = ~0ull;
+	int flags = MF_ACTION_REQUIRED;
+
+	prev_state = ist_enter(regs);
 
 	this_cpu_inc(mce_exception_count);
 
@@ -1203,9 +1165,9 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		if (no_way_out)
 			mce_panic("Fatal machine check on current CPU", &m, msg);
 		if (worst == MCE_AR_SEVERITY) {
-			/* schedule action before return to userland */
-			mce_save_info(m.addr, m.mcgstatus & MCG_STATUS_RIPV);
-			set_thread_flag(TIF_MCE_NOTIFY);
+			recover_paddr = m.addr;
+			if (!(m.mcgstatus & MCG_STATUS_RIPV))
+				flags |= MF_MUST_KILL;
 		} else if (kill_it) {
 			force_sig(SIGBUS, current);
 		}
@@ -1216,6 +1178,27 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
 out:
 	sync_core();
+
+	if (recover_paddr == ~0ull)
+		goto done;
+
+	pr_err("Uncorrected hardware memory error in user-access at %llx",
+		 recover_paddr);
+	/*
+	 * We must call memory_failure() here even if the current process is
+	 * doomed. We still need to mark the page as poisoned and alert any
+	 * other users of the page.
+	 */
+	ist_begin_non_atomic(regs);
+	local_irq_enable();
+	if (memory_failure(recover_paddr >> PAGE_SHIFT, MCE_VECTOR, flags) < 0) {
+		pr_err("Memory error not recovered");
+		force_sig(SIGBUS, current);
+	}
+	local_irq_disable();
+	ist_end_non_atomic();
+done:
+	ist_exit(regs, prev_state);
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
 
@@ -1231,42 +1214,6 @@ int memory_failure(unsigned long pfn, int vector, int flags)
 	return 0;
 }
 #endif
-
-/*
- * Called in process context that interrupted by MCE and marked with
- * TIF_MCE_NOTIFY, just before returning to erroneous userland.
- * This code is allowed to sleep.
- * Attempt possible recovery such as calling the high level VM handler to
- * process any corrupted pages, and kill/signal current process if required.
- * Action required errors are handled here.
- */
-void mce_notify_process(void)
-{
-	unsigned long pfn;
-	struct mce_info *mi = mce_find_info();
-	int flags = MF_ACTION_REQUIRED;
-
-	if (!mi)
-		mce_panic("Lost physical address for unconsumed uncorrectable error", NULL, NULL);
-	pfn = mi->paddr >> PAGE_SHIFT;
-
-	clear_thread_flag(TIF_MCE_NOTIFY);
-
-	pr_err("Uncorrected hardware memory error in user-access at %llx",
-		 mi->paddr);
-	/*
-	 * We must call memory_failure() here even if the current process is
-	 * doomed. We still need to mark the page as poisoned and alert any
-	 * other users of the page.
-	 */
-	if (!mi->restartable)
-		flags |= MF_MUST_KILL;
-	if (memory_failure(pfn, MCE_VECTOR, flags) < 0) {
-		pr_err("Memory error not recovered");
-		force_sig(SIGBUS, current);
-	}
-	mce_clear_info(mi);
-}
 
 /*
  * Action optional processing happens here (picking up
@@ -1503,7 +1450,7 @@ static void __mcheck_cpu_init_generic(void)
 	bitmap_fill(all_banks, MAX_NR_BANKS);
 	machine_check_poll(MCP_UC | m_fl, &all_banks);
 
-	set_in_cr4(X86_CR4_MCE);
+	cr4_set_bits(X86_CR4_MCE);
 
 	rdmsrl(MSR_IA32_MCG_CAP, cap);
 	if (cap & MCG_CTL_P)

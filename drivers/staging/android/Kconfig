@@ -14,23 +14,6 @@ config ASHMEM
 	  It is, in theory, a good memory allocator for low-memory devices,
 	  because it can discard shared memory units when under memory pressure.
 
-config ANDROID_LOGGER
-	tristate "Android log driver"
-	default n
-	---help---
-	  This adds support for system-wide logging using four log buffers.
-
-	  These are:
-
-	      1: main
-	      2: events
-	      3: radio
-	      4: system
-
-	  Log reading and writing is performed via normal Linux reads and
-	  optimized writes. This optimization avoids logging having too
-	  much overhead in the system.
-
 config ANDROID_TIMED_OUTPUT
 	bool "Timed output class driver"
 	default y
@@ -44,15 +27,6 @@ config ANDROID_LOW_MEMORY_KILLER
 	bool "Android Low Memory Killer"
 	---help---
 	  Registers processes to be killed when memory is low
-
-config ANDROID_INTF_ALARM_DEV
-	tristate "Android alarm driver"
-	depends on RTC_CLASS
-	default n
-	---help---
-	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
-	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
-	  Also exports the alarm interface to user-space.
 
 config SYNC
 	bool "Synchronization framework"

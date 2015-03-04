@@ -1429,10 +1429,16 @@ static bool d40_tx_is_linked(struct d40_chan *d40c)
 	return is_link;
 }
 
-static int d40_pause(struct d40_chan *d40c)
+static int d40_pause(struct dma_chan *chan)
 {
+	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	if (!d40c->busy)
 		return 0;
@@ -1448,10 +1454,16 @@ static int d40_pause(struct d40_chan *d40c)
 	return res;
 }
 
-static int d40_resume(struct d40_chan *d40c)
+static int d40_resume(struct dma_chan *chan)
 {
+	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int res = 0;
 	unsigned long flags;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	if (!d40c->busy)
 		return 0;
@@ -2604,11 +2616,16 @@ static void d40_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&d40c->lock, flags);
 }
 
-static void d40_terminate_all(struct dma_chan *chan)
+static int d40_terminate_all(struct dma_chan *chan)
 {
 	unsigned long flags;
 	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	int ret;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
@@ -2627,6 +2644,7 @@ static void d40_terminate_all(struct dma_chan *chan)
 	d40c->busy = false;
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
+	return 0;
 }
 
 static int
@@ -2672,6 +2690,11 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	dma_addr_t config_addr;
 	u32 src_maxburst, dst_maxburst;
 	int ret;
+
+	if (d40c->phy_chan == NULL) {
+		chan_err(d40c, "Channel is not allocated!\n");
+		return -EINVAL;
+	}
 
 	src_addr_width = config->src_addr_width;
 	src_maxburst = config->src_maxburst;
@@ -2781,35 +2804,6 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	return 0;
 }
 
-static int d40_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		       unsigned long arg)
-{
-	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
-
-	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Channel is not allocated!\n");
-		return -EINVAL;
-	}
-
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		d40_terminate_all(chan);
-		return 0;
-	case DMA_PAUSE:
-		return d40_pause(d40c);
-	case DMA_RESUME:
-		return d40_resume(d40c);
-	case DMA_SLAVE_CONFIG:
-		return d40_set_runtime_config(chan,
-			(struct dma_slave_config *) arg);
-	default:
-		break;
-	}
-
-	/* Other commands are unimplemented */
-	return -ENXIO;
-}
-
 /* Initialization functions */
 
 static void __init d40_chan_init(struct d40_base *base, struct dma_device *dma,
@@ -2870,7 +2864,10 @@ static void d40_ops_init(struct d40_base *base, struct dma_device *dev)
 	dev->device_free_chan_resources = d40_free_chan_resources;
 	dev->device_issue_pending = d40_issue_pending;
 	dev->device_tx_status = d40_tx_status;
-	dev->device_control = d40_control;
+	dev->device_config = d40_set_runtime_config;
+	dev->device_pause = d40_pause;
+	dev->device_resume = d40_resume;
+	dev->device_terminate_all = d40_terminate_all;
 	dev->dev = base->dev;
 }
 

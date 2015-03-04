@@ -174,6 +174,7 @@
 #define X86_FEATURE_TOPOEXT	( 6*32+22) /* topology extensions CPUID leafs */
 #define X86_FEATURE_PERFCTR_CORE ( 6*32+23) /* core performance counter extensions */
 #define X86_FEATURE_PERFCTR_NB  ( 6*32+24) /* NB performance counter extensions */
+#define X86_FEATURE_BPEXT	(6*32+26) /* data breakpoint extension */
 #define X86_FEATURE_PERFCTR_L2	( 6*32+28) /* L2 performance counter extensions */
 
 /*
@@ -388,6 +389,7 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define cpu_has_cx16		boot_cpu_has(X86_FEATURE_CX16)
 #define cpu_has_eager_fpu	boot_cpu_has(X86_FEATURE_EAGER_FPU)
 #define cpu_has_topoext		boot_cpu_has(X86_FEATURE_TOPOEXT)
+#define cpu_has_bpext		boot_cpu_has(X86_FEATURE_BPEXT)
 
 #if __GNUC__ >= 4
 extern void warn_pre_alternatives(void);

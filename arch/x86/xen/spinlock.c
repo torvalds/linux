@@ -41,7 +41,7 @@ static u8 zero_stats;
 static inline void check_zero(void)
 {
 	u8 ret;
-	u8 old = ACCESS_ONCE(zero_stats);
+	u8 old = READ_ONCE(zero_stats);
 	if (unlikely(old)) {
 		ret = cmpxchg(&zero_stats, old, 0);
 		/* This ensures only one fellow resets the stat */
@@ -112,6 +112,7 @@ __visible void xen_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
 	struct xen_lock_waiting *w = this_cpu_ptr(&lock_waiting);
 	int cpu = smp_processor_id();
 	u64 start;
+	__ticket_t head;
 	unsigned long flags;
 
 	/* If kicker interrupts not initialized yet, just spin */
@@ -159,11 +160,15 @@ __visible void xen_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
 	 */
 	__ticket_enter_slowpath(lock);
 
+	/* make sure enter_slowpath, which is atomic does not cross the read */
+	smp_mb__after_atomic();
+
 	/*
 	 * check again make sure it didn't become free while
 	 * we weren't looking
 	 */
-	if (ACCESS_ONCE(lock->tickets.head) == want) {
+	head = READ_ONCE(lock->tickets.head);
+	if (__tickets_equal(head, want)) {
 		add_stats(TAKEN_SLOW_PICKUP, 1);
 		goto out;
 	}
@@ -204,8 +209,8 @@ static void xen_unlock_kick(struct arch_spinlock *lock, __ticket_t next)
 		const struct xen_lock_waiting *w = &per_cpu(lock_waiting, cpu);
 
 		/* Make sure we read lock before want */
-		if (ACCESS_ONCE(w->lock) == lock &&
-		    ACCESS_ONCE(w->want) == next) {
+		if (READ_ONCE(w->lock) == lock &&
+		    READ_ONCE(w->want) == next) {
 			add_stats(RELEASED_SLOW_KICKED, 1);
 			xen_send_IPI_one(cpu, XEN_SPIN_UNLOCK_VECTOR);
 			break;

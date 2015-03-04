@@ -879,7 +879,7 @@ typedef struct hfa384x_usb_error {
 /* Unions for packaging all the known packet types together */
 
 typedef union hfa384x_usbout {
-	u16 type;
+	__le16 type;
 	hfa384x_usb_txfrm_t txfrm;
 	hfa384x_usb_cmdreq_t cmdreq;
 	hfa384x_usb_wridreq_t wridreq;
@@ -889,7 +889,7 @@ typedef union hfa384x_usbout {
 } __packed hfa384x_usbout_t;
 
 typedef union hfa384x_usbin {
-	u16 type;
+	__le16 type;
 	hfa384x_usb_rxfrm_t rxfrm;
 	hfa384x_usb_txfrm_t txfrm;
 	hfa384x_usb_infofrm_t infofrm;
@@ -1268,7 +1268,7 @@ typedef struct hfa384x {
 	hfa384x_downloadbuffer_t bufinfo;
 	u16 dltimeout;
 
-	int scanflag;		/* to signal scan comlete */
+	int scanflag;		/* to signal scan complete */
 	int join_ap;		/* are we joined to a specific ap */
 	int join_retries;	/* number of join retries till we fail */
 	hfa384x_JoinRequest_data_t joinreq;	/* join request saved data */

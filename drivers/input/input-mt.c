@@ -293,7 +293,7 @@ void input_mt_sync_frame(struct input_dev *dev)
 }
 EXPORT_SYMBOL(input_mt_sync_frame);
 
-static int adjust_dual(int *begin, int step, int *end, int eq)
+static int adjust_dual(int *begin, int step, int *end, int eq, int mu)
 {
 	int f, *p, s, c;
 
@@ -311,9 +311,10 @@ static int adjust_dual(int *begin, int step, int *end, int eq)
 			s = *p;
 
 	c = (f + s + 1) / 2;
-	if (c == 0 || (c > 0 && !eq))
+	if (c == 0 || (c > mu && (!eq || mu > 0)))
 		return 0;
-	if (s < 0)
+	/* Improve convergence for positive matrices by penalizing overcovers */
+	if (s < 0 && mu <= 0)
 		c *= 2;
 
 	for (p = begin; p != end; p += step)
@@ -322,23 +323,24 @@ static int adjust_dual(int *begin, int step, int *end, int eq)
 	return (c < s && s <= 0) || (f >= 0 && f < c);
 }
 
-static void find_reduced_matrix(int *w, int nr, int nc, int nrc)
+static void find_reduced_matrix(int *w, int nr, int nc, int nrc, int mu)
 {
 	int i, k, sum;
 
 	for (k = 0; k < nrc; k++) {
 		for (i = 0; i < nr; i++)
-			adjust_dual(w + i, nr, w + i + nrc, nr <= nc);
+			adjust_dual(w + i, nr, w + i + nrc, nr <= nc, mu);
 		sum = 0;
 		for (i = 0; i < nrc; i += nr)
-			sum += adjust_dual(w + i, 1, w + i + nr, nc <= nr);
+			sum += adjust_dual(w + i, 1, w + i + nr, nc <= nr, mu);
 		if (!sum)
 			break;
 	}
 }
 
 static int input_mt_set_matrix(struct input_mt *mt,
-			       const struct input_mt_pos *pos, int num_pos)
+			       const struct input_mt_pos *pos, int num_pos,
+			       int mu)
 {
 	const struct input_mt_pos *p;
 	struct input_mt_slot *s;
@@ -352,7 +354,7 @@ static int input_mt_set_matrix(struct input_mt *mt,
 		y = input_mt_get_value(s, ABS_MT_POSITION_Y);
 		for (p = pos; p != pos + num_pos; p++) {
 			int dx = x - p->x, dy = y - p->y;
-			*w++ = dx * dx + dy * dy;
+			*w++ = dx * dx + dy * dy - mu;
 		}
 	}
 
@@ -393,17 +395,24 @@ static void input_mt_set_slots(struct input_mt *mt,
  * @slots: the slot assignment to be filled
  * @pos: the position array to match
  * @num_pos: number of positions
+ * @dmax: maximum ABS_MT_POSITION displacement (zero for infinite)
  *
  * Performs a best match against the current contacts and returns
  * the slot assignment list. New contacts are assigned to unused
  * slots.
  *
+ * The assignments are balanced so that all coordinate displacements are
+ * below the euclidian distance dmax. If no such assignment can be found,
+ * some contacts are assigned to unused slots.
+ *
  * Returns zero on success, or negative error in case of failure.
  */
 int input_mt_assign_slots(struct input_dev *dev, int *slots,
-			  const struct input_mt_pos *pos, int num_pos)
+			  const struct input_mt_pos *pos, int num_pos,
+			  int dmax)
 {
 	struct input_mt *mt = dev->mt;
+	int mu = 2 * dmax * dmax;
 	int nrc;
 
 	if (!mt || !mt->red)
@@ -413,8 +422,8 @@ int input_mt_assign_slots(struct input_dev *dev, int *slots,
 	if (num_pos < 1)
 		return 0;
 
-	nrc = input_mt_set_matrix(mt, pos, num_pos);
-	find_reduced_matrix(mt->red, num_pos, nrc / num_pos, nrc);
+	nrc = input_mt_set_matrix(mt, pos, num_pos, mu);
+	find_reduced_matrix(mt->red, num_pos, nrc / num_pos, nrc, mu);
 	input_mt_set_slots(mt, slots, num_pos);
 
 	return 0;

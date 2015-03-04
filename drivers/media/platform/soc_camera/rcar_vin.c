@@ -804,62 +804,26 @@ error:
 	vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 }
 
-static void rcar_vin_videobuf_release(struct vb2_buffer *vb)
+/*
+ * Wait for capture to stop and all in-flight buffers to be finished with by
+ * the video hardware. This must be called under &priv->lock
+ *
+ */
+static void rcar_vin_wait_stop_streaming(struct rcar_vin_priv *priv)
 {
-	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct rcar_vin_priv *priv = ici->priv;
-	unsigned int i;
-	int buf_in_use = 0;
+	while (priv->state != STOPPED) {
+		/* issue stop if running */
+		if (priv->state == RUNNING)
+			rcar_vin_request_capture_stop(priv);
 
-	spin_lock_irq(&priv->lock);
-
-	/* Is the buffer in use by the VIN hardware? */
-	for (i = 0; i < MAX_BUFFER_NUM; i++) {
-		if (priv->queue_buf[i] == vb) {
-			buf_in_use = 1;
-			break;
+		/* wait until capturing has been stopped */
+		if (priv->state == STOPPING) {
+			priv->request_to_stop = true;
+			spin_unlock_irq(&priv->lock);
+			wait_for_completion(&priv->capture_stop);
+			spin_lock_irq(&priv->lock);
 		}
 	}
-
-	if (buf_in_use) {
-		while (priv->state != STOPPED) {
-
-			/* issue stop if running */
-			if (priv->state == RUNNING)
-				rcar_vin_request_capture_stop(priv);
-
-			/* wait until capturing has been stopped */
-			if (priv->state == STOPPING) {
-				priv->request_to_stop = true;
-				spin_unlock_irq(&priv->lock);
-				wait_for_completion(&priv->capture_stop);
-				spin_lock_irq(&priv->lock);
-			}
-		}
-		/*
-		 * Capturing has now stopped. The buffer we have been asked
-		 * to release could be any of the current buffers in use, so
-		 * release all buffers that are in use by HW
-		 */
-		for (i = 0; i < MAX_BUFFER_NUM; i++) {
-			if (priv->queue_buf[i]) {
-				vb2_buffer_done(priv->queue_buf[i],
-					VB2_BUF_STATE_ERROR);
-				priv->queue_buf[i] = NULL;
-			}
-		}
-	} else {
-		list_del_init(to_buf_list(vb));
-	}
-
-	spin_unlock_irq(&priv->lock);
-}
-
-static int rcar_vin_videobuf_init(struct vb2_buffer *vb)
-{
-	INIT_LIST_HEAD(to_buf_list(vb));
-	return 0;
 }
 
 static void rcar_vin_stop_streaming(struct vb2_queue *vq)
@@ -868,21 +832,34 @@ static void rcar_vin_stop_streaming(struct vb2_queue *vq)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
 	struct list_head *buf_head, *tmp;
+	int i;
 
 	spin_lock_irq(&priv->lock);
-	list_for_each_safe(buf_head, tmp, &priv->capture)
+	rcar_vin_wait_stop_streaming(priv);
+
+	for (i = 0; i < MAX_BUFFER_NUM; i++) {
+		if (priv->queue_buf[i]) {
+			vb2_buffer_done(priv->queue_buf[i],
+					VB2_BUF_STATE_ERROR);
+			priv->queue_buf[i] = NULL;
+		}
+	}
+
+	list_for_each_safe(buf_head, tmp, &priv->capture) {
+		vb2_buffer_done(&list_entry(buf_head,
+					struct rcar_vin_buffer, list)->vb,
+				VB2_BUF_STATE_ERROR);
 		list_del_init(buf_head);
+	}
 	spin_unlock_irq(&priv->lock);
 }
 
 static struct vb2_ops rcar_vin_vb2_ops = {
 	.queue_setup	= rcar_vin_videobuf_setup,
-	.buf_init	= rcar_vin_videobuf_init,
-	.buf_cleanup	= rcar_vin_videobuf_release,
 	.buf_queue	= rcar_vin_videobuf_queue,
 	.stop_streaming	= rcar_vin_stop_streaming,
-	.wait_prepare	= soc_camera_unlock,
-	.wait_finish	= soc_camera_lock,
+	.wait_prepare	= vb2_ops_wait_prepare,
+	.wait_finish	= vb2_ops_wait_finish,
 };
 
 static irqreturn_t rcar_vin_irq(int irq, void *data)
@@ -1799,13 +1776,17 @@ static int rcar_vin_querycap(struct soc_camera_host *ici,
 			     struct v4l2_capability *cap)
 {
 	strlcpy(cap->card, "R_Car_VIN", sizeof(cap->card));
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+
 	return 0;
 }
 
 static int rcar_vin_init_videobuf2(struct vb2_queue *vq,
 				   struct soc_camera_device *icd)
 {
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
 	vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	vq->io_modes = VB2_MMAP | VB2_USERPTR;
 	vq->drv_priv = icd;
@@ -1813,6 +1794,7 @@ static int rcar_vin_init_videobuf2(struct vb2_queue *vq,
 	vq->mem_ops = &vb2_dma_contig_memops;
 	vq->buf_struct_size = sizeof(struct rcar_vin_buffer);
 	vq->timestamp_flags  = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	vq->lock = &ici->host_lock;
 
 	return vb2_queue_init(vq);
 }

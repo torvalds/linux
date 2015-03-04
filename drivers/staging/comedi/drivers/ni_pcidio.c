@@ -418,7 +418,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 				 CHSR_DRQ1 | CHSR_MRDY)) {
 			dev_dbg(dev->class_dev,
 				"unknown mite interrupt, disabling IRQ\n");
-			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			async->events |= COMEDI_CB_ERROR;
 			disable_irq(dev->irq);
 		}
 	}
@@ -460,7 +460,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			break;
 		} else if (flags & Waited) {
 			writeb(ClearWaited, dev->mmio + Group_1_First_Clear);
-			async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+			async->events |= COMEDI_CB_ERROR;
 			break;
 		} else if (flags & PrimaryTC) {
 			writeb(ClearPrimaryTC,

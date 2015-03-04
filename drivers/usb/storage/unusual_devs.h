@@ -507,7 +507,7 @@ UNUSUAL_DEV(  0x04e6, 0x000c, 0x0100, 0x0100,
 UNUSUAL_DEV(  0x04e6, 0x000f, 0x0000, 0x9999,
 		"SCM Microsystems",
 		"eUSB SCSI Adapter (Bus Powered)",
-		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
+		USB_SC_SCSI, USB_PR_BULK, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
 
 UNUSUAL_DEV(  0x04e6, 0x0101, 0x0200, 0x0200,
@@ -1994,6 +1994,13 @@ UNUSUAL_DEV(  0x152d, 0x2329, 0x0100, 0x0100,
 		"USB to ATA/ATAPI Bridge",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE | US_FL_SANE_SENSE ),
+
+/* Reported by Dmitry Nezhevenko <dion@dion.org.ua> */
+UNUSUAL_DEV(  0x152d, 0x2566, 0x0114, 0x0114,
+		"JMicron",
+		"USB to ATA/ATAPI Bridge",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_BROKEN_FUA ),
 
 /* Entrega Technologies U1-SC25 (later Xircom PortGear PGSCSI)
  * and Mac USB Dock USB-SCSI */

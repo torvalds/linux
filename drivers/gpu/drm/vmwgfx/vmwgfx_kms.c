@@ -1828,9 +1828,7 @@ vmw_du_connector_detect(struct drm_connector *connector, bool force)
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct vmw_display_unit *du = vmw_connector_to_du(connector);
 
-	mutex_lock(&dev_priv->hw_mutex);
 	num_displays = vmw_read(dev_priv, SVGA_REG_NUM_DISPLAYS);
-	mutex_unlock(&dev_priv->hw_mutex);
 
 	return ((vmw_connector_to_du(connector)->unit < num_displays &&
 		 du->pref_active) ?

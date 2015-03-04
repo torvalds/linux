@@ -128,25 +128,25 @@ asm volatile ("\n"					\
 #define put_user(x, ptr)	__put_user(x, ptr)
 
 
-#define __get_user_asm(res, x, ptr, type, bwl, reg, err) ({	\
-	type __gu_val;						\
-	asm volatile ("\n"					\
-		"1:	"MOVES"."#bwl"	%2,%1\n"		\
-		"2:\n"						\
-		"	.section .fixup,\"ax\"\n"		\
-		"	.even\n"				\
-		"10:	move.l	%3,%0\n"			\
-		"	sub.l	%1,%1\n"			\
-		"	jra	2b\n"				\
-		"	.previous\n"				\
-		"\n"						\
-		"	.section __ex_table,\"a\"\n"		\
-		"	.align	4\n"				\
-		"	.long	1b,10b\n"			\
-		"	.previous"				\
-		: "+d" (res), "=&" #reg (__gu_val)		\
-		: "m" (*(ptr)), "i" (err));			\
-	(x) = (typeof(*(ptr)))(unsigned long)__gu_val;		\
+#define __get_user_asm(res, x, ptr, type, bwl, reg, err) ({		\
+	type __gu_val;							\
+	asm volatile ("\n"						\
+		"1:	"MOVES"."#bwl"	%2,%1\n"			\
+		"2:\n"							\
+		"	.section .fixup,\"ax\"\n"			\
+		"	.even\n"					\
+		"10:	move.l	%3,%0\n"				\
+		"	sub.l	%1,%1\n"				\
+		"	jra	2b\n"					\
+		"	.previous\n"					\
+		"\n"							\
+		"	.section __ex_table,\"a\"\n"			\
+		"	.align	4\n"					\
+		"	.long	1b,10b\n"				\
+		"	.previous"					\
+		: "+d" (res), "=&" #reg (__gu_val)			\
+		: "m" (*(ptr)), "i" (err));				\
+	(x) = (__force typeof(*(ptr)))(__force unsigned long)__gu_val;	\
 })
 
 #define __get_user(x, ptr)						\
@@ -188,7 +188,7 @@ asm volatile ("\n"					\
 			  "+a" (__gu_ptr)				\
 			: "i" (-EFAULT)					\
 			: "memory");					\
-		(x) = (typeof(*(ptr)))__gu_val;				\
+		(x) = (__force typeof(*(ptr)))__gu_val;			\
 		break;							\
 	    }	*/							\
 	default:							\

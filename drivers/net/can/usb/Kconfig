@@ -25,7 +25,7 @@ config CAN_KVASER_USB
 	tristate "Kvaser CAN/USB interface"
 	---help---
 	  This driver adds support for Kvaser CAN/USB devices like Kvaser
-	  Leaf Light.
+	  Leaf Light and Kvaser USBcan II.
 
 	  The driver provides support for the following devices:
 	    - Kvaser Leaf Light
@@ -46,6 +46,12 @@ config CAN_KVASER_USB
 	    - Kvaser USBcan R
 	    - Kvaser Leaf Light v2
 	    - Kvaser Mini PCI Express HS
+	    - Kvaser USBcan II HS/HS
+	    - Kvaser USBcan II HS/LS
+	    - Kvaser USBcan Rugged ("USBcan Rev B")
+	    - Kvaser Memorator HS/HS
+	    - Kvaser Memorator HS/LS
+	    - Scania VCI2 (if you have the Kvaser logo on top)
 
 	  If unsure, say N.
 
@@ -53,10 +59,18 @@ config CAN_KVASER_USB
 	  module will be called kvaser_usb.
 
 config CAN_PEAK_USB
-	tristate "PEAK PCAN-USB/USB Pro interfaces"
+	tristate "PEAK PCAN-USB/USB Pro interfaces for CAN 2.0b/CAN-FD"
 	---help---
-	  This driver supports the PCAN-USB and PCAN-USB Pro adapters
-	  from PEAK-System Technik (http://www.peak-system.com).
+	  This driver supports the PEAK-System Technik USB adapters that enable
+	  access to the CAN bus, with repect to the CAN 2.0b and/or CAN-FD
+	  standards, that is:
+
+	  PCAN-USB             single CAN 2.0b channel USB adapter
+	  PCAN-USB Pro         dual CAN 2.0b channels USB adapter
+	  PCAN-USB FD          single CAN-FD channel USB adapter
+	  PCAN-USB Pro FD      dual CAN-FD channels USB adapter
+
+	  (see also http://www.peak-system.com).
 
 config CAN_8DEV_USB
 	tristate "8 devices USB2CAN interface"

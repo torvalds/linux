@@ -63,16 +63,6 @@ static int migor_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_NB_IF |
-				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(rtd->cpu_dai, SND_SOC_DAIFMT_NB_IF |
-				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
 	codec_freq = rate * 512;
 	/*
 	 * This propagates the parent frequency change to children and
@@ -144,6 +134,8 @@ static struct snd_soc_dai_link migor_dai = {
 	.codec_dai_name = "wm8978-hifi",
 	.platform_name = "siu-pcm-audio",
 	.codec_name = "wm8978.0-001a",
+	.dai_fmt = SND_SOC_DAIFMT_NB_IF | SND_SOC_DAIFMT_I2S |
+		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &migor_dai_ops,
 };
 

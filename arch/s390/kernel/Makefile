@@ -4,8 +4,8 @@
 
 ifdef CONFIG_FUNCTION_TRACER
 # Don't trace early setup code and tracing code
-CFLAGS_REMOVE_early.o = -pg
-CFLAGS_REMOVE_ftrace.o = -pg
+CFLAGS_REMOVE_early.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_ftrace.o = $(CC_FLAGS_FTRACE)
 endif
 
 #

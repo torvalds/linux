@@ -214,6 +214,15 @@ enum blkif_protocol {
 	BLKIF_PROTOCOL_X86_64 = 3,
 };
 
+/*
+ * Default protocol if the frontend doesn't specify one.
+ */
+#ifdef CONFIG_X86
+#  define BLKIF_PROTOCOL_DEFAULT BLKIF_PROTOCOL_X86_32
+#else
+#  define BLKIF_PROTOCOL_DEFAULT BLKIF_PROTOCOL_NATIVE
+#endif
+
 struct xen_vbd {
 	/* What the domain refers to this vbd as. */
 	blkif_vdev_t		handle;
@@ -350,6 +359,9 @@ struct pending_req {
 	struct grant_page	*indirect_pages[MAX_INDIRECT_PAGES];
 	struct seg_buf		seg[MAX_INDIRECT_SEGMENTS];
 	struct bio		*biolist[MAX_INDIRECT_SEGMENTS];
+	struct gnttab_unmap_grant_ref unmap[MAX_INDIRECT_SEGMENTS];
+	struct page                   *unmap_pages[MAX_INDIRECT_SEGMENTS];
+	struct gntab_unmap_queue_data gnttab_unmap_data;
 };
 
 

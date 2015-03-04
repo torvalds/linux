@@ -71,9 +71,6 @@ endif
 ifneq ($(strip $(__clean-dirs)),)
 	+$(call cmd,cleandir)
 endif
-ifneq ($(strip $(clean-rule)),)
-	+$(clean-rule)
-endif
 	@:
 
 

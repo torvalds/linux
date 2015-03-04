@@ -92,6 +92,18 @@ Description:
 		is required is a consistent labeling.  Units after application
 		of scale and offset are millivolts.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_raw
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_raw
+KernelVersion:	3.17
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no bias removal etc.) current measurement from
+		channel Y. In special cases where the channel does not
+		correspond to externally available input one of the named
+		versions may be used. The number must always be specified and
+		unique to allow association with event codes. Units after
+		application of scale and offset are milliamps.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_capacitanceY_raw
 KernelVersion:	3.2
 Contact:	linux-iio@vger.kernel.org
@@ -234,6 +246,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_offset
+What:		/sys/bus/iio/devices/iio:deviceX/in_current_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_tempY_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_offset
@@ -262,9 +276,14 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_voltage-voltage_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentY_supply_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_current_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_peak_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_distance_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_scale
@@ -276,6 +295,7 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_rot_from_north_true_tilt_comp_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressureY_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_pressure_scale
 What:		/sys/bus/iio/devices/iio:deviceX/in_humidityrelative_scale
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_scale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -322,6 +342,44 @@ Description:
 		Hardware applied calibration scale factor (assumed to fix
 		production inaccuracies).  If shared across all channels,
 		<type>_calibscale is used.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender
+What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibgender
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Gender of the user (e.g.: male, female) used by some pedometers
+		to compute the stride length, distance, speed and activity
+		type.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibgender_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibgender_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibgender_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibgender_available
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available gender values (e.g.: male, female).
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_activity_calibheight
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibheight
+What:		/sys/bus/iio/devices/iio:deviceX/in_distance_calibheight
+What:		/sys/bus/iio/devices/iio:deviceX/in_velocity_calibheight
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Height of the user (in meters) used by some pedometers
+		to compute the stride length, distance, speed and activity
+		type.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_energy_calibweight
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Weight of the user (in kg). It is needed by some pedometers
+		to compute the calories burnt by the user.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_scale_available
 What:		/sys/.../iio:deviceX/in_voltageX_scale_available
@@ -783,12 +841,54 @@ What:		/sys/.../events/in_tempY_roc_falling_period
 What:		/sys/.../events/in_accel_x&y&z_mag_falling_period
 What:		/sys/.../events/in_intensity0_thresh_period
 What:		/sys/.../events/in_proximity0_thresh_period
+What:		/sys/.../events/in_activity_still_thresh_rising_period
+What:		/sys/.../events/in_activity_still_thresh_falling_period
+What:		/sys/.../events/in_activity_walking_thresh_rising_period
+What:		/sys/.../events/in_activity_walking_thresh_falling_period
+What:		/sys/.../events/in_activity_jogging_thresh_rising_period
+What:		/sys/.../events/in_activity_jogging_thresh_falling_period
+What:		/sys/.../events/in_activity_running_thresh_rising_period
+What:		/sys/.../events/in_activity_running_thresh_falling_period
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Period of time (in seconds) for which the condition must be
 		met before an event is generated. If direction is not
 		specified then this period applies to both directions.
+
+What:		/sys/.../events/in_activity_still_thresh_rising_en
+What:		/sys/.../events/in_activity_still_thresh_falling_en
+What:		/sys/.../events/in_activity_walking_thresh_rising_en
+What:		/sys/.../events/in_activity_walking_thresh_falling_en
+What:		/sys/.../events/in_activity_jogging_thresh_rising_en
+What:		/sys/.../events/in_activity_jogging_thresh_falling_en
+What:		/sys/.../events/in_activity_running_thresh_rising_en
+What:		/sys/.../events/in_activity_running_thresh_falling_en
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Enables or disables activitity events. Depending on direction
+		an event is generated when sensor ENTERS or LEAVES a given state.
+
+What:		/sys/.../events/in_activity_still_thresh_rising_value
+What:		/sys/.../events/in_activity_still_thresh_falling_value
+What:		/sys/.../events/in_activity_walking_thresh_rising_value
+What:		/sys/.../events/in_activity_walking_thresh_falling_value
+What:		/sys/.../events/in_activity_jogging_thresh_rising_value
+What:		/sys/.../events/in_activity_jogging_thresh_falling_value
+What:		/sys/.../events/in_activity_running_thresh_rising_value
+What:		/sys/.../events/in_activity_running_thresh_falling_value
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Confidence value (in units as percentage) to be used
+		for deciding when an event should be generated. E.g for
+		running: If the confidence value reported by the sensor
+		is greater than in_activity_running_thresh_rising_value
+		then the sensor ENTERS running state. Conversely, if the
+		confidence value reported by the sensor is lower than
+		in_activity_running_thresh_falling_value then the sensor
+		is LEAVING running state.
 
 What:		/sys/.../iio:deviceX/events/in_accel_mag_en
 What:		/sys/.../iio:deviceX/events/in_accel_mag_rising_en
@@ -821,6 +921,25 @@ Description:
 		The value to which the magnitude of the channel is compared. If
 		number or direction is not specified, applies to all channels of
 		this type.
+
+What:		/sys/.../events/in_steps_change_en
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Event generated when channel passes a threshold on the absolute
+		change in value. E.g. for steps: a step change event is
+		generated each time the user takes N steps, where N is set using
+		in_steps_change_value.
+
+What:		/sys/.../events/in_steps_change_value
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the value of change threshold that the
+		device is comparing against for the events enabled by
+		<type>[Y][_name]_roc[_rising|falling|]_en. E.g. for steps:
+		if set to 3, a step change event will be generated every 3
+		steps.
 
 What:		/sys/bus/iio/devices/iio:deviceX/trigger/current_trigger
 KernelVersion:	2.6.35
@@ -956,6 +1075,16 @@ Description:
 		and the relevant _type attributes to establish the data storage
 		format.
 
+What:		/sys/.../iio:deviceX/in_activity_still_input
+What:		/sys/.../iio:deviceX/in_activity_walking_input
+What:		/sys/.../iio:deviceX/in_activity_jogging_input
+What:		/sys/.../iio:deviceX/in_activity_running_input
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the confidence for an activity
+		expressed in units as percentage.
+
 What:		/sys/.../iio:deviceX/in_anglvel_z_quadrature_correction_raw
 KernelVersion:	2.6.38
 Contact:	linux-iio@vger.kernel.org
@@ -972,6 +1101,24 @@ Description:
 		low_power: enable low current consumption.
 		For a list of available output power modes read
 		in_accel_power_mode_available.
+
+What:		/sys/.../iio:deviceX/in_energy_input
+What:		/sys/.../iio:deviceX/in_energy_raw
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the energy value reported by the
+		device (e.g.: human activity sensors report energy burnt by the
+		user). Units after application of scale are Joules.
+
+What:		/sys/.../iio:deviceX/in_distance_input
+What:		/sys/.../iio:deviceX/in_distance_raw
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the distance covered by the user
+		since the last reboot while activated. Units after application
+		of scale are meters.
 
 What:		/sys/bus/iio/devices/iio:deviceX/store_eeprom
 KernelVersion:	3.4.0
@@ -992,7 +1139,9 @@ Description:
 		reflectivity of infrared or ultrasound emitted.
 		Often these sensors are unit less and as such conversion
 		to SI units is not possible.  Where it is, the units should
-		be meters.
+		be meters.  If such a conversion is not possible, the reported
+		values should behave in the same way as a distance, i.e. lower
+		values indicate something is closer to the sensor.
 
 What:		/sys/.../iio:deviceX/in_illuminanceY_input
 What:		/sys/.../iio:deviceX/in_illuminanceY_raw
@@ -1024,6 +1173,12 @@ Description:
 		This attribute is used to get/set the integration time in
 		seconds.
 
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_integration_time
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Number of seconds in which to compute speed.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_rot_quaternion_raw
 KernelVersion:	3.15
 Contact:	linux-iio@vger.kernel.org
@@ -1051,3 +1206,46 @@ Description:
 		after application of scale and offset. If no offset or scale is
 		present, output should be considered as processed with the
 		unit in milliamps.
+
+What:		/sys/.../iio:deviceX/in_energy_en
+What:		/sys/.../iio:deviceX/in_distance_en
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_en
+What:		/sys/.../iio:deviceX/in_steps_en
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Activates a device feature that runs in firmware/hardware.
+		E.g. for steps: the pedometer saves power while not used;
+		when activated, it will count the steps taken by the user in
+		firmware and export them through in_steps_input.
+
+What:		/sys/.../iio:deviceX/in_steps_input
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the number of steps taken by the user
+		since the last reboot while activated.
+
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_input
+What:		/sys/.../iio:deviceX/in_velocity_sqrt(x^2+y^2+z^2)_raw
+KernelVersion:	3.19
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute is used to read the current speed value of the
+		user (which is the norm or magnitude of the velocity vector).
+		Units after application of scale are m/s.
+
+What:		/sys/.../iio:deviceX/in_steps_debounce_count
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the number of steps that must occur within
+		in_steps_filter_debounce_time for the pedometer to decide the
+		consumer is making steps.
+
+What:		/sys/.../iio:deviceX/in_steps_debounce_time
+KernelVersion:	3.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies number of seconds in which we compute the steps
+		that occur in order to decide if the consumer is making steps.

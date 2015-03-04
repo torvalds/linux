@@ -870,6 +870,7 @@ fail_free_params:
 }
 
 static struct scsi_host_template wd719x_template = {
+	.module				= THIS_MODULE,
 	.name				= "Western Digital 719x",
 	.queuecommand			= wd719x_queuecommand,
 	.eh_abort_handler		= wd719x_abort,

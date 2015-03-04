@@ -143,6 +143,7 @@ void drm_err(const char *format, ...);
 #define DRIVER_MODESET     0x2000
 #define DRIVER_PRIME       0x4000
 #define DRIVER_RENDER      0x8000
+#define DRIVER_ATOMIC      0x10000
 
 /***********************************************************************/
 /** \name Macros to make printk easier */
@@ -283,6 +284,8 @@ struct drm_file {
 	 * in the plane list
 	 */
 	unsigned universal_planes:1;
+	/* true if client understands atomic properties */
+	unsigned atomic:1;
 
 	struct pid *pid;
 	kuid_t uid;
@@ -744,8 +747,6 @@ struct drm_device {
 
 	/** \name Context support */
 	/*@{ */
-	bool irq_enabled;		/**< True if irq handler is enabled */
-	int irq;
 
 	__volatile__ long context_flag;	/**< Context swapping flag */
 	int last_context;		/**< Last current context */
@@ -753,6 +754,8 @@ struct drm_device {
 
 	/** \name VBLANK IRQ support */
 	/*@{ */
+	bool irq_enabled;
+	int irq;
 
 	/*
 	 * At load time, disabling the vblank interrupt won't be allowed since
@@ -954,6 +957,7 @@ extern void drm_master_put(struct drm_master **master);
 extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
+extern bool drm_atomic;
 
 				/* Debugfs support */
 #if defined(CONFIG_DEBUG_FS)

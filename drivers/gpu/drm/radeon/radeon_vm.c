@@ -587,10 +587,8 @@ uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr)
 	uint64_t result;
 
 	/* page table offset */
-	result = rdev->gart.pages_addr[addr >> PAGE_SHIFT];
-
-	/* in case cpu page size != gpu page size*/
-	result |= addr & (~PAGE_MASK);
+	result = rdev->gart.pages_entry[addr >> RADEON_GPU_PAGE_SHIFT];
+	result &= ~RADEON_GPU_PAGE_MASK;
 
 	return result;
 }
@@ -745,9 +743,11 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
 	 */
 
 	/* NI is optimized for 256KB fragments, SI and newer for 64KB */
-	uint64_t frag_flags = rdev->family == CHIP_CAYMAN ?
+	uint64_t frag_flags = ((rdev->family == CHIP_CAYMAN) ||
+			       (rdev->family == CHIP_ARUBA)) ?
 			R600_PTE_FRAG_256KB : R600_PTE_FRAG_64KB;
-	uint64_t frag_align = rdev->family == CHIP_CAYMAN ? 0x200 : 0x80;
+	uint64_t frag_align = ((rdev->family == CHIP_CAYMAN) ||
+			       (rdev->family == CHIP_ARUBA)) ? 0x200 : 0x80;
 
 	uint64_t frag_start = ALIGN(pe_start, frag_align);
 	uint64_t frag_end = pe_end & ~(frag_align - 1);

@@ -102,7 +102,7 @@ static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
 
 	/* all planes connected to this encoder should be also disabled. */
 	drm_for_each_legacy_plane(plane, &dev->mode_config.plane_list) {
-		if (plane->crtc == encoder->crtc)
+		if (plane->crtc && (plane->crtc == encoder->crtc))
 			plane->funcs->disable_plane(plane);
 	}
 }

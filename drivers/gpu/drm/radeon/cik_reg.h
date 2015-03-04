@@ -147,140 +147,41 @@
 
 #define CIK_LB_DESKTOP_HEIGHT                     0x6b0c
 
+#define KFD_CIK_SDMA_QUEUE_OFFSET		0x200
+
 #define CP_HQD_IQ_RPTR					0xC970u
 #define AQL_ENABLE					(1U << 0)
-
-#define IDLE					(1 << 2)
-
-struct cik_mqd {
-	uint32_t header;
-	uint32_t compute_dispatch_initiator;
-	uint32_t compute_dim_x;
-	uint32_t compute_dim_y;
-	uint32_t compute_dim_z;
-	uint32_t compute_start_x;
-	uint32_t compute_start_y;
-	uint32_t compute_start_z;
-	uint32_t compute_num_thread_x;
-	uint32_t compute_num_thread_y;
-	uint32_t compute_num_thread_z;
-	uint32_t compute_pipelinestat_enable;
-	uint32_t compute_perfcount_enable;
-	uint32_t compute_pgm_lo;
-	uint32_t compute_pgm_hi;
-	uint32_t compute_tba_lo;
-	uint32_t compute_tba_hi;
-	uint32_t compute_tma_lo;
-	uint32_t compute_tma_hi;
-	uint32_t compute_pgm_rsrc1;
-	uint32_t compute_pgm_rsrc2;
-	uint32_t compute_vmid;
-	uint32_t compute_resource_limits;
-	uint32_t compute_static_thread_mgmt_se0;
-	uint32_t compute_static_thread_mgmt_se1;
-	uint32_t compute_tmpring_size;
-	uint32_t compute_static_thread_mgmt_se2;
-	uint32_t compute_static_thread_mgmt_se3;
-	uint32_t compute_restart_x;
-	uint32_t compute_restart_y;
-	uint32_t compute_restart_z;
-	uint32_t compute_thread_trace_enable;
-	uint32_t compute_misc_reserved;
-	uint32_t compute_user_data_0;
-	uint32_t compute_user_data_1;
-	uint32_t compute_user_data_2;
-	uint32_t compute_user_data_3;
-	uint32_t compute_user_data_4;
-	uint32_t compute_user_data_5;
-	uint32_t compute_user_data_6;
-	uint32_t compute_user_data_7;
-	uint32_t compute_user_data_8;
-	uint32_t compute_user_data_9;
-	uint32_t compute_user_data_10;
-	uint32_t compute_user_data_11;
-	uint32_t compute_user_data_12;
-	uint32_t compute_user_data_13;
-	uint32_t compute_user_data_14;
-	uint32_t compute_user_data_15;
-	uint32_t cp_compute_csinvoc_count_lo;
-	uint32_t cp_compute_csinvoc_count_hi;
-	uint32_t cp_mqd_base_addr_lo;
-	uint32_t cp_mqd_base_addr_hi;
-	uint32_t cp_hqd_active;
-	uint32_t cp_hqd_vmid;
-	uint32_t cp_hqd_persistent_state;
-	uint32_t cp_hqd_pipe_priority;
-	uint32_t cp_hqd_queue_priority;
-	uint32_t cp_hqd_quantum;
-	uint32_t cp_hqd_pq_base_lo;
-	uint32_t cp_hqd_pq_base_hi;
-	uint32_t cp_hqd_pq_rptr;
-	uint32_t cp_hqd_pq_rptr_report_addr_lo;
-	uint32_t cp_hqd_pq_rptr_report_addr_hi;
-	uint32_t cp_hqd_pq_wptr_poll_addr_lo;
-	uint32_t cp_hqd_pq_wptr_poll_addr_hi;
-	uint32_t cp_hqd_pq_doorbell_control;
-	uint32_t cp_hqd_pq_wptr;
-	uint32_t cp_hqd_pq_control;
-	uint32_t cp_hqd_ib_base_addr_lo;
-	uint32_t cp_hqd_ib_base_addr_hi;
-	uint32_t cp_hqd_ib_rptr;
-	uint32_t cp_hqd_ib_control;
-	uint32_t cp_hqd_iq_timer;
-	uint32_t cp_hqd_iq_rptr;
-	uint32_t cp_hqd_dequeue_request;
-	uint32_t cp_hqd_dma_offload;
-	uint32_t cp_hqd_sema_cmd;
-	uint32_t cp_hqd_msg_type;
-	uint32_t cp_hqd_atomic0_preop_lo;
-	uint32_t cp_hqd_atomic0_preop_hi;
-	uint32_t cp_hqd_atomic1_preop_lo;
-	uint32_t cp_hqd_atomic1_preop_hi;
-	uint32_t cp_hqd_hq_status0;
-	uint32_t cp_hqd_hq_control0;
-	uint32_t cp_mqd_control;
-	uint32_t cp_mqd_query_time_lo;
-	uint32_t cp_mqd_query_time_hi;
-	uint32_t cp_mqd_connect_start_time_lo;
-	uint32_t cp_mqd_connect_start_time_hi;
-	uint32_t cp_mqd_connect_end_time_lo;
-	uint32_t cp_mqd_connect_end_time_hi;
-	uint32_t cp_mqd_connect_end_wf_count;
-	uint32_t cp_mqd_connect_end_pq_rptr;
-	uint32_t cp_mqd_connect_end_pq_wptr;
-	uint32_t cp_mqd_connect_end_ib_rptr;
-	uint32_t reserved_96;
-	uint32_t reserved_97;
-	uint32_t reserved_98;
-	uint32_t reserved_99;
-	uint32_t iqtimer_pkt_header;
-	uint32_t iqtimer_pkt_dw0;
-	uint32_t iqtimer_pkt_dw1;
-	uint32_t iqtimer_pkt_dw2;
-	uint32_t iqtimer_pkt_dw3;
-	uint32_t iqtimer_pkt_dw4;
-	uint32_t iqtimer_pkt_dw5;
-	uint32_t iqtimer_pkt_dw6;
-	uint32_t reserved_108;
-	uint32_t reserved_109;
-	uint32_t reserved_110;
-	uint32_t reserved_111;
-	uint32_t queue_doorbell_id0;
-	uint32_t queue_doorbell_id1;
-	uint32_t queue_doorbell_id2;
-	uint32_t queue_doorbell_id3;
-	uint32_t queue_doorbell_id4;
-	uint32_t queue_doorbell_id5;
-	uint32_t queue_doorbell_id6;
-	uint32_t queue_doorbell_id7;
-	uint32_t queue_doorbell_id8;
-	uint32_t queue_doorbell_id9;
-	uint32_t queue_doorbell_id10;
-	uint32_t queue_doorbell_id11;
-	uint32_t queue_doorbell_id12;
-	uint32_t queue_doorbell_id13;
-	uint32_t queue_doorbell_id14;
-	uint32_t queue_doorbell_id15;
-};
+#define SDMA0_RLC0_RB_CNTL				0xD400u
+#define	SDMA_RB_VMID(x)					(x << 24)
+#define	SDMA0_RLC0_RB_BASE				0xD404u
+#define	SDMA0_RLC0_RB_BASE_HI				0xD408u
+#define	SDMA0_RLC0_RB_RPTR				0xD40Cu
+#define	SDMA0_RLC0_RB_WPTR				0xD410u
+#define	SDMA0_RLC0_RB_WPTR_POLL_CNTL			0xD414u
+#define	SDMA0_RLC0_RB_WPTR_POLL_ADDR_HI			0xD418u
+#define	SDMA0_RLC0_RB_WPTR_POLL_ADDR_LO			0xD41Cu
+#define	SDMA0_RLC0_RB_RPTR_ADDR_HI			0xD420u
+#define	SDMA0_RLC0_RB_RPTR_ADDR_LO			0xD424u
+#define	SDMA0_RLC0_IB_CNTL				0xD428u
+#define	SDMA0_RLC0_IB_RPTR				0xD42Cu
+#define	SDMA0_RLC0_IB_OFFSET				0xD430u
+#define	SDMA0_RLC0_IB_BASE_LO				0xD434u
+#define	SDMA0_RLC0_IB_BASE_HI				0xD438u
+#define	SDMA0_RLC0_IB_SIZE				0xD43Cu
+#define	SDMA0_RLC0_SKIP_CNTL				0xD440u
+#define	SDMA0_RLC0_CONTEXT_STATUS			0xD444u
+#define	SDMA_RLC_IDLE					(1 << 2)
+#define	SDMA0_RLC0_DOORBELL				0xD448u
+#define	SDMA_OFFSET(x)					(x << 0)
+#define	SDMA_DB_ENABLE					(1 << 28)
+#define	SDMA0_RLC0_VIRTUAL_ADDR				0xD49Cu
+#define	SDMA_ATC					(1 << 0)
+#define	SDMA_VA_PTR32					(1 << 4)
+#define	SDMA_VA_SHARED_BASE(x)				(x << 8)
+#define	SDMA0_RLC0_APE1_CNTL				0xD4A0u
+#define	SDMA0_RLC0_DOORBELL_LOG				0xD4A4u
+#define	SDMA0_RLC0_WATERMARK				0xD4A8u
+#define	SDMA0_CNTL					0xD010
+#define	SDMA1_CNTL					0xD810
 
 #endif

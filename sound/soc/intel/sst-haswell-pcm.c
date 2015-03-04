@@ -36,6 +36,11 @@
 #define HSW_PCM_COUNT		6
 #define HSW_VOLUME_MAX		0x7FFFFFFF	/* 0dB */
 
+#define SST_OLD_POSITION(d, r, o) ((d) +		\
+			frames_to_bytes(r, o))
+#define SST_SAMPLES(r, x) (bytes_to_samples(r,	\
+			frames_to_bytes(r, (x))))
+
 /* simple volume table */
 static const u32 volume_map[] = {
 	HSW_VOLUME_MAX >> 30,
@@ -78,7 +83,6 @@ static const u32 volume_map[] = {
 #define HSW_PCM_DAI_ID_OFFLOAD0	1
 #define HSW_PCM_DAI_ID_OFFLOAD1	2
 #define HSW_PCM_DAI_ID_LOOPBACK	3
-#define HSW_PCM_DAI_ID_CAPTURE	4
 
 
 static const struct snd_pcm_hardware hsw_pcm_hardware = {
@@ -87,7 +91,8 @@ static const struct snd_pcm_hardware hsw_pcm_hardware = {
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_PAUSE |
 				  SNDRV_PCM_INFO_RESUME |
-				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP |
+				  SNDRV_PCM_INFO_DRAIN_TRIGGER,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
 				  SNDRV_PCM_FMTBIT_S32_LE,
 	.period_bytes_min	= PAGE_SIZE,
@@ -99,6 +104,7 @@ static const struct snd_pcm_hardware hsw_pcm_hardware = {
 
 struct hsw_pcm_module_map {
 	int dai_id;
+	int stream;
 	enum sst_hsw_module_id mod_id;
 };
 
@@ -119,8 +125,9 @@ struct hsw_pcm_data {
 };
 
 enum hsw_pm_state {
-	HSW_PM_STATE_D3 = 0,
-	HSW_PM_STATE_D0 = 1,
+	HSW_PM_STATE_D0 = 0,
+	HSW_PM_STATE_RTD3 = 1,
+	HSW_PM_STATE_D3 = 2,
 };
 
 /* private data for the driver */
@@ -135,7 +142,17 @@ struct hsw_priv_data {
 	struct snd_dma_buffer dmab[HSW_PCM_COUNT][2];
 
 	/* DAI data */
-	struct hsw_pcm_data pcm[HSW_PCM_COUNT];
+	struct hsw_pcm_data pcm[HSW_PCM_COUNT][2];
+};
+
+
+/* static mappings between PCMs and modules - may be dynamic in future */
+static struct hsw_pcm_module_map mod_map[] = {
+	{HSW_PCM_DAI_ID_SYSTEM, 0, SST_HSW_MODULE_PCM_SYSTEM},
+	{HSW_PCM_DAI_ID_OFFLOAD0, 0, SST_HSW_MODULE_PCM},
+	{HSW_PCM_DAI_ID_OFFLOAD1, 0, SST_HSW_MODULE_PCM},
+	{HSW_PCM_DAI_ID_LOOPBACK, 1, SST_HSW_MODULE_PCM_REFERENCE},
+	{HSW_PCM_DAI_ID_SYSTEM, 1, SST_HSW_MODULE_PCM_CAPTURE},
 };
 
 static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data);
@@ -168,9 +185,14 @@ static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct hsw_priv_data *pdata =
 		snd_soc_platform_get_drvdata(platform);
-	struct hsw_pcm_data *pcm_data = &pdata->pcm[mc->reg];
+	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
+	int dai, stream;
+
+	dai = mod_map[mc->reg].dai_id;
+	stream = mod_map[mc->reg].stream;
+	pcm_data = &pdata->pcm[dai][stream];
 
 	mutex_lock(&pcm_data->mutex);
 	pm_runtime_get_sync(pdata->dev);
@@ -212,9 +234,14 @@ static int hsw_stream_volume_get(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct hsw_priv_data *pdata =
 		snd_soc_platform_get_drvdata(platform);
-	struct hsw_pcm_data *pcm_data = &pdata->pcm[mc->reg];
+	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
+	int dai, stream;
+
+	dai = mod_map[mc->reg].dai_id;
+	stream = mod_map[mc->reg].stream;
+	pcm_data = &pdata->pcm[dai][stream];
 
 	mutex_lock(&pcm_data->mutex);
 	pm_runtime_get_sync(pdata->dev);
@@ -309,7 +336,7 @@ static const struct snd_kcontrol_new hsw_volume_controls[] = {
 		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 	/* Mic Capture volume */
-	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 0, 0, 8,
+	SOC_DOUBLE_EXT_TLV("Mic Capture Volume", 4, 0, 8,
 		ARRAY_SIZE(volume_map) - 1, 0,
 		hsw_stream_volume_get, hsw_stream_volume_put, hsw_vol_tlv),
 };
@@ -353,7 +380,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct hsw_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct hsw_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
 	struct sst_module *module_data;
 	struct sst_dsp *dsp;
@@ -362,7 +389,10 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 	enum sst_hsw_stream_path_id path_id;
 	u32 rate, bits, map, pages, module_id;
 	u8 channels;
-	int ret;
+	int ret, dai;
+
+	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	/* check if we are being called a subsequent time */
 	if (pcm_data->allocated) {
@@ -552,19 +582,34 @@ static int hsw_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct hsw_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct hsw_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct hsw_pcm_data *pcm_data;
+	struct sst_hsw_stream *sst_stream;
 	struct sst_hsw *hsw = pdata->hsw;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	snd_pcm_uframes_t pos;
+	int dai;
+
+	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	pcm_data = &pdata->pcm[dai][substream->stream];
+	sst_stream = pcm_data->stream;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		sst_hsw_stream_set_silence_start(hsw, sst_stream, false);
 		sst_hsw_stream_resume(hsw, pcm_data->stream, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		sst_hsw_stream_set_silence_start(hsw, sst_stream, false);
 		sst_hsw_stream_pause(hsw, pcm_data->stream, 0);
+		break;
+	case SNDRV_PCM_TRIGGER_DRAIN:
+		pos = runtime->control->appl_ptr % runtime->buffer_size;
+		sst_hsw_stream_set_old_position(hsw, pcm_data->stream, pos);
+		sst_hsw_stream_set_silence_start(hsw, sst_stream, true);
 		break;
 	default:
 		break;
@@ -579,12 +624,61 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 	struct snd_pcm_substream *substream = pcm_data->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct hsw_priv_data *pdata =
+		snd_soc_platform_get_drvdata(rtd->platform);
+	struct sst_hsw *hsw = pdata->hsw;
 	u32 pos;
+	snd_pcm_uframes_t position = bytes_to_frames(runtime,
+		 sst_hsw_get_dsp_position(hsw, pcm_data->stream));
+	unsigned char *dma_area = runtime->dma_area;
+	snd_pcm_uframes_t dma_frames =
+		bytes_to_frames(runtime, runtime->dma_bytes);
+	snd_pcm_uframes_t old_position;
+	ssize_t samples;
 
 	pos = frames_to_bytes(runtime,
 		(runtime->control->appl_ptr % runtime->buffer_size));
 
 	dev_vdbg(rtd->dev, "PCM: App pointer %d bytes\n", pos);
+
+	/* SST fw don't know where to stop dma
+	 * So, SST driver need to clean the data which has been consumed
+	 */
+	if (dma_area == NULL || dma_frames <= 0
+		|| (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		|| !sst_hsw_stream_get_silence_start(hsw, stream)) {
+		snd_pcm_period_elapsed(substream);
+		return pos;
+	}
+
+	old_position = sst_hsw_stream_get_old_position(hsw, stream);
+	if (position > old_position) {
+		if (position < dma_frames) {
+			samples = SST_SAMPLES(runtime, position - old_position);
+			snd_pcm_format_set_silence(runtime->format,
+				SST_OLD_POSITION(dma_area,
+					runtime, old_position),
+				samples);
+		} else
+			dev_err(rtd->dev, "PCM: position is wrong\n");
+	} else {
+		if (old_position < dma_frames) {
+			samples = SST_SAMPLES(runtime,
+				dma_frames - old_position);
+			snd_pcm_format_set_silence(runtime->format,
+				SST_OLD_POSITION(dma_area,
+					runtime, old_position),
+				samples);
+		} else
+			dev_err(rtd->dev, "PCM: dma_bytes is wrong\n");
+		if (position < dma_frames) {
+			samples = SST_SAMPLES(runtime, position);
+			snd_pcm_format_set_silence(runtime->format,
+				dma_area, samples);
+		} else
+			dev_err(rtd->dev, "PCM: position is wrong\n");
+	}
+	sst_hsw_stream_set_old_position(hsw, stream, position);
 
 	/* let alsa know we have play a period */
 	snd_pcm_period_elapsed(substream);
@@ -597,11 +691,16 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct hsw_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct hsw_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
 	snd_pcm_uframes_t offset;
 	uint64_t ppos;
-	u32 position = sst_hsw_get_dsp_position(hsw, pcm_data->stream);
+	u32 position;
+	int dai;
+
+	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	pcm_data = &pdata->pcm[dai][substream->stream];
+	position = sst_hsw_get_dsp_position(hsw, pcm_data->stream);
 
 	offset = bytes_to_frames(runtime, position);
 	ppos = sst_hsw_get_dsp_presentation_position(hsw, pcm_data->stream);
@@ -618,8 +717,10 @@ static int hsw_pcm_open(struct snd_pcm_substream *substream)
 		snd_soc_platform_get_drvdata(rtd->platform);
 	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
+	int dai;
 
-	pcm_data = &pdata->pcm[rtd->cpu_dai->id];
+	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	mutex_lock(&pcm_data->mutex);
 	pm_runtime_get_sync(pdata->dev);
@@ -648,9 +749,12 @@ static int hsw_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct hsw_priv_data *pdata =
 		snd_soc_platform_get_drvdata(rtd->platform);
-	struct hsw_pcm_data *pcm_data = snd_soc_pcm_get_drvdata(rtd);
+	struct hsw_pcm_data *pcm_data;
 	struct sst_hsw *hsw = pdata->hsw;
-	int ret;
+	int ret, dai;
+
+	dai = mod_map[rtd->cpu_dai->id].dai_id;
+	pcm_data = &pdata->pcm[dai][substream->stream];
 
 	mutex_lock(&pcm_data->mutex);
 	ret = sst_hsw_stream_reset(hsw, pcm_data->stream);
@@ -685,15 +789,6 @@ static struct snd_pcm_ops hsw_pcm_ops = {
 	.page		= snd_pcm_sgbuf_ops_page,
 };
 
-/* static mappings between PCMs and modules - may be dynamic in future */
-static struct hsw_pcm_module_map mod_map[] = {
-	{HSW_PCM_DAI_ID_SYSTEM, SST_HSW_MODULE_PCM_SYSTEM},
-	{HSW_PCM_DAI_ID_OFFLOAD0, SST_HSW_MODULE_PCM},
-	{HSW_PCM_DAI_ID_OFFLOAD1, SST_HSW_MODULE_PCM},
-	{HSW_PCM_DAI_ID_LOOPBACK, SST_HSW_MODULE_PCM_REFERENCE},
-	{HSW_PCM_DAI_ID_CAPTURE, SST_HSW_MODULE_PCM_CAPTURE},
-};
-
 static int hsw_pcm_create_modules(struct hsw_priv_data *pdata)
 {
 	struct sst_hsw *hsw = pdata->hsw;
@@ -701,7 +796,7 @@ static int hsw_pcm_create_modules(struct hsw_priv_data *pdata)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
-		pcm_data = &pdata->pcm[i];
+		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
 
 		/* create new runtime module, use same offset if recreated */
 		pcm_data->runtime = sst_hsw_runtime_module_create(hsw,
@@ -716,7 +811,7 @@ static int hsw_pcm_create_modules(struct hsw_priv_data *pdata)
 
 err:
 	for (--i; i >= 0; i--) {
-		pcm_data = &pdata->pcm[i];
+		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
 		sst_hsw_runtime_module_free(pcm_data->runtime);
 	}
 
@@ -729,15 +824,10 @@ static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
-		pcm_data = &pdata->pcm[i];
+		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
 
 		sst_hsw_runtime_module_free(pcm_data->runtime);
 	}
-}
-
-static void hsw_pcm_free(struct snd_pcm *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
 static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
@@ -762,7 +852,10 @@ static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			return ret;
 		}
 	}
-	priv_data->pcm[rtd->cpu_dai->id].hsw_pcm = pcm;
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)
+		priv_data->pcm[rtd->cpu_dai->id][SNDRV_PCM_STREAM_PLAYBACK].hsw_pcm = pcm;
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream)
+		priv_data->pcm[rtd->cpu_dai->id][SNDRV_PCM_STREAM_CAPTURE].hsw_pcm = pcm;
 
 	return ret;
 }
@@ -871,10 +964,9 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 	/* allocate DSP buffer page tables */
 	for (i = 0; i < ARRAY_SIZE(hsw_dais); i++) {
 
-		mutex_init(&priv_data->pcm[i].mutex);
-
 		/* playback */
 		if (hsw_dais[i].playback.channels_min) {
+			mutex_init(&priv_data->pcm[i][SNDRV_PCM_STREAM_PLAYBACK].mutex);
 			ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dma_dev,
 				PAGE_SIZE, &priv_data->dmab[i][0]);
 			if (ret < 0)
@@ -883,6 +975,7 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 
 		/* capture */
 		if (hsw_dais[i].capture.channels_min) {
+			mutex_init(&priv_data->pcm[i][SNDRV_PCM_STREAM_CAPTURE].mutex);
 			ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, dma_dev,
 				PAGE_SIZE, &priv_data->dmab[i][1]);
 			if (ret < 0)
@@ -936,7 +1029,6 @@ static struct snd_soc_platform_driver hsw_soc_platform = {
 	.remove		= hsw_pcm_remove,
 	.ops		= &hsw_pcm_ops,
 	.pcm_new	= hsw_pcm_new,
-	.pcm_free	= hsw_pcm_free,
 };
 
 static const struct snd_soc_component_driver hsw_dai_component = {
@@ -1010,12 +1102,12 @@ static int hsw_pcm_runtime_suspend(struct device *dev)
 	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
 	struct sst_hsw *hsw = pdata->hsw;
 
-	if (pdata->pm_state == HSW_PM_STATE_D3)
+	if (pdata->pm_state >= HSW_PM_STATE_RTD3)
 		return 0;
 
 	sst_hsw_dsp_runtime_suspend(hsw);
 	sst_hsw_dsp_runtime_sleep(hsw);
-	pdata->pm_state = HSW_PM_STATE_D3;
+	pdata->pm_state = HSW_PM_STATE_RTD3;
 
 	return 0;
 }
@@ -1026,7 +1118,7 @@ static int hsw_pcm_runtime_resume(struct device *dev)
 	struct sst_hsw *hsw = pdata->hsw;
 	int ret;
 
-	if (pdata->pm_state == HSW_PM_STATE_D0)
+	if (pdata->pm_state != HSW_PM_STATE_RTD3)
 		return 0;
 
 	ret = sst_hsw_dsp_load(hsw);
@@ -1066,7 +1158,7 @@ static void hsw_pcm_complete(struct device *dev)
 	struct hsw_pcm_data *pcm_data;
 	int i, err;
 
-	if (pdata->pm_state == HSW_PM_STATE_D0)
+	if (pdata->pm_state != HSW_PM_STATE_D3)
 		return;
 
 	err = sst_hsw_dsp_load(hsw);
@@ -1081,8 +1173,8 @@ static void hsw_pcm_complete(struct device *dev)
 		return;
 	}
 
-	for (i = 0; i < HSW_PCM_DAI_ID_CAPTURE + 1; i++) {
-		pcm_data = &pdata->pcm[i];
+	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
+		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
 
 		if (!pcm_data->substream)
 			continue;
@@ -1114,41 +1206,42 @@ static int hsw_pcm_prepare(struct device *dev)
 
 	if (pdata->pm_state == HSW_PM_STATE_D3)
 		return 0;
-	/* suspend all active streams */
-	for (i = 0; i < HSW_PCM_DAI_ID_CAPTURE + 1; i++) {
-		pcm_data = &pdata->pcm[i];
+	else if (pdata->pm_state == HSW_PM_STATE_D0) {
+		/* suspend all active streams */
+		for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
+			pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
 
-		if (!pcm_data->substream)
-			continue;
-		dev_dbg(dev, "suspending pcm %d\n", i);
-		snd_pcm_suspend_all(pcm_data->hsw_pcm);
+			if (!pcm_data->substream)
+				continue;
+			dev_dbg(dev, "suspending pcm %d\n", i);
+			snd_pcm_suspend_all(pcm_data->hsw_pcm);
 
-		/* We need to wait until the DSP FW stops the streams */
-		msleep(2);
+			/* We need to wait until the DSP FW stops the streams */
+			msleep(2);
+		}
+
+		/* preserve persistent memory */
+		for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
+			pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
+
+			if (!pcm_data->substream)
+				continue;
+
+			dev_dbg(dev, "saving context pcm %d\n", i);
+			err = sst_module_runtime_save(pcm_data->runtime,
+				&pcm_data->context);
+			if (err < 0)
+				dev_err(dev, "failed to save context for PCM %d\n", i);
+		}
+		/* enter D3 state and stall */
+		sst_hsw_dsp_runtime_suspend(hsw);
+		/* put the DSP to sleep */
+		sst_hsw_dsp_runtime_sleep(hsw);
 	}
 
 	snd_soc_suspend(pdata->soc_card->dev);
 	snd_soc_poweroff(pdata->soc_card->dev);
 
-	/* enter D3 state and stall */
-	sst_hsw_dsp_runtime_suspend(hsw);
-
-	/* preserve persistent memory */
-	for (i = 0; i < HSW_PCM_DAI_ID_CAPTURE + 1; i++) {
-		pcm_data = &pdata->pcm[i];
-
-		if (!pcm_data->substream)
-			continue;
-
-		dev_dbg(dev, "saving context pcm %d\n", i);
-		err = sst_module_runtime_save(pcm_data->runtime,
-			&pcm_data->context);
-		if (err < 0)
-			dev_err(dev, "failed to save context for PCM %d\n", i);
-	}
-
-	/* put the DSP to sleep */
-	sst_hsw_dsp_runtime_sleep(hsw);
 	pdata->pm_state = HSW_PM_STATE_D3;
 
 	return 0;

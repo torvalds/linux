@@ -99,7 +99,7 @@ static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
 int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update)
 {
-	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd add_sta_cmd = {
 		.sta_id = mvm_sta->sta_id,
 		.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color),
@@ -209,6 +209,9 @@ static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
 {
 	unsigned long used_hw_queues;
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
+					mvm->cfg->base_params->wd_timeout :
+					IWL_WATCHDOG_DISABLED;
 	u32 ac;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -232,7 +235,7 @@ static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
 	/* Found a place for all queues - enable them */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		iwl_mvm_enable_ac_txq(mvm, mvmsta->hw_queue[ac],
-				      iwl_mvm_ac_to_tx_fifo[ac]);
+				      iwl_mvm_ac_to_tx_fifo[ac], wdg_timeout);
 		mvmsta->tfd_queue_msk |= BIT(mvmsta->hw_queue[ac]);
 	}
 
@@ -250,8 +253,8 @@ static void iwl_mvm_tdls_sta_deinit(struct iwl_mvm *mvm,
 
 	/* disable the TDLS STA-specific queues */
 	sta_msk = mvmsta->tfd_queue_msk;
-	for_each_set_bit(i, &sta_msk, sizeof(sta_msk))
-		iwl_mvm_disable_txq(mvm, i);
+	for_each_set_bit(i, &sta_msk, sizeof(sta_msk) * BITS_PER_BYTE)
+		iwl_mvm_disable_txq(mvm, i, 0);
 }
 
 int iwl_mvm_add_sta(struct iwl_mvm *mvm,
@@ -259,7 +262,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		    struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	int i, ret, sta_id;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -464,8 +467,8 @@ void iwl_mvm_sta_drained_wk(struct work_struct *wk)
 		if (mvm->tfd_drained[sta_id]) {
 			unsigned long i, msk = mvm->tfd_drained[sta_id];
 
-			for_each_set_bit(i, &msk, sizeof(msk))
-				iwl_mvm_disable_txq(mvm, i);
+			for_each_set_bit(i, &msk, sizeof(msk) * BITS_PER_BYTE)
+				iwl_mvm_disable_txq(mvm, i, 0);
 
 			mvm->tfd_drained[sta_id] = 0;
 			IWL_DEBUG_TDLS(mvm, "Drained sta %d, with queues %ld\n",
@@ -481,7 +484,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -626,13 +629,16 @@ static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
 
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 {
+	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
+					mvm->cfg->base_params->wd_timeout :
+					IWL_WATCHDOG_DISABLED;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
 	iwl_mvm_enable_ac_txq(mvm, mvm->aux_queue,
-			      IWL_MVM_TX_FIFO_MCAST);
+			      IWL_MVM_TX_FIFO_MCAST, wdg_timeout);
 
 	/* Allocate aux station and assign to it the aux queue */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
@@ -774,7 +780,7 @@ int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       int tid, u16 ssn, bool start)
 {
-	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd cmd = {};
 	int ret;
 	u32 status;
@@ -834,7 +840,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 static int iwl_mvm_sta_tx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			      int tid, u8 queue, bool start)
 {
-	struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd cmd = {};
 	int ret;
 	u32 status;
@@ -965,6 +971,9 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
+	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
+					mvm->cfg->base_params->wd_timeout :
+					IWL_WATCHDOG_DISABLED;
 	int queue, fifo, ret;
 	u16 ssn;
 
@@ -988,7 +997,7 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EIO;
 
 	iwl_mvm_enable_agg_txq(mvm, queue, fifo, mvmsta->sta_id, tid,
-			       buf_size, ssn);
+			       buf_size, ssn, wdg_timeout);
 
 	/*
 	 * Even though in theory the peer could have different
@@ -1058,7 +1067,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_mvm_disable_txq(mvm, txq_id);
+		iwl_mvm_disable_txq(mvm, txq_id, 0);
 		return 0;
 	case IWL_AGG_STARTING:
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1116,7 +1125,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_mvm_disable_txq(mvm, tid_data->txq_id);
+		iwl_mvm_disable_txq(mvm, tid_data->txq_id, 0);
 	}
 
 	mvm->queue_to_mac80211[tid_data->txq_id] =
@@ -1144,10 +1153,10 @@ static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm)
 static u8 iwl_mvm_get_key_sta_id(struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (sta) {
-		struct iwl_mvm_sta *mvm_sta = (void *)sta->drv_priv;
+		struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
 		return mvm_sta->sta_id;
 	}
@@ -1196,6 +1205,7 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP_13BYTES);
+		/* fall through */
 	case WLAN_CIPHER_SUITE_WEP40:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_WEP);
 		memcpy(cmd.key + 3, keyconf->key, keyconf->keylen);
@@ -1280,7 +1290,7 @@ static inline u8 *iwl_mvm_get_mac_addr(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (sta)
 		return sta->addr;

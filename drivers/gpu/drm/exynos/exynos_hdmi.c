@@ -1669,7 +1669,6 @@ static void hdmi_mode_apply(struct hdmi_context *hdata)
 
 static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 {
-	u8 buffer[2];
 	u32 reg;
 
 	clk_disable_unprepare(hdata->res.sclk_hdmi);
@@ -1677,11 +1676,8 @@ static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 	clk_prepare_enable(hdata->res.sclk_hdmi);
 
 	/* operation mode */
-	buffer[0] = 0x1f;
-	buffer[1] = 0x00;
-
-	if (hdata->hdmiphy_port)
-		i2c_master_send(hdata->hdmiphy_port, buffer, 2);
+	hdmiphy_reg_writeb(hdata, HDMIPHY_MODE_SET_DONE,
+				HDMI_PHY_ENABLE_MODE_SET);
 
 	if (hdata->type == HDMI_TYPE13)
 		reg = HDMI_V13_PHY_RSTOUT;
@@ -2036,9 +2032,8 @@ static void hdmi_commit(struct exynos_drm_display *display)
 	hdmi_conf_apply(hdata);
 }
 
-static void hdmi_poweron(struct exynos_drm_display *display)
+static void hdmi_poweron(struct hdmi_context *hdata)
 {
-	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct hdmi_resources *res = &hdata->res;
 
 	mutex_lock(&hdata->hdmi_mutex);
@@ -2064,12 +2059,11 @@ static void hdmi_poweron(struct exynos_drm_display *display)
 	clk_prepare_enable(res->sclk_hdmi);
 
 	hdmiphy_poweron(hdata);
-	hdmi_commit(display);
+	hdmi_commit(&hdata->display);
 }
 
-static void hdmi_poweroff(struct exynos_drm_display *display)
+static void hdmi_poweroff(struct hdmi_context *hdata)
 {
-	struct hdmi_context *hdata = display_to_hdmi(display);
 	struct hdmi_resources *res = &hdata->res;
 
 	mutex_lock(&hdata->hdmi_mutex);
@@ -2113,7 +2107,7 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		hdmi_poweron(display);
+		hdmi_poweron(hdata);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
@@ -2132,7 +2126,7 @@ static void hdmi_dpms(struct exynos_drm_display *display, int mode)
 		if (funcs && funcs->dpms)
 			(*funcs->dpms)(crtc, mode);
 
-		hdmi_poweroff(display);
+		hdmi_poweroff(hdata);
 		break;
 	default:
 		DRM_DEBUG_KMS("unknown dpms mode: %d\n", mode);

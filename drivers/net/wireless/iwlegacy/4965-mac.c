@@ -6247,13 +6247,10 @@ il4965_setup_deferred_work(struct il_priv *il)
 
 	INIT_WORK(&il->txpower_work, il4965_bg_txpower_work);
 
-	init_timer(&il->stats_periodic);
-	il->stats_periodic.data = (unsigned long)il;
-	il->stats_periodic.function = il4965_bg_stats_periodic;
+	setup_timer(&il->stats_periodic, il4965_bg_stats_periodic,
+		    (unsigned long)il);
 
-	init_timer(&il->watchdog);
-	il->watchdog.data = (unsigned long)il;
-	il->watchdog.function = il_bg_watchdog;
+	setup_timer(&il->watchdog, il_bg_watchdog, (unsigned long)il);
 
 	tasklet_init(&il->irq_tasklet,
 		     (void (*)(unsigned long))il4965_irq_tasklet,

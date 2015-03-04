@@ -806,8 +806,8 @@ static int cci_pmu_event_init(struct perf_event *event)
 static ssize_t pmu_attr_cpumask_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	int n = cpulist_scnprintf(buf, PAGE_SIZE - 2, &pmu->cpus);
-
+	int n = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
+			  cpumask_pr_args(&pmu->cpus));
 	buf[n++] = '\n';
 	buf[n] = '\0';
 	return n;

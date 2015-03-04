@@ -245,7 +245,7 @@ static void fixup_read_and_payload_sizes(void)
 {
 	struct pci_dev *dev = NULL;
 	int smallest_max_payload = 0x1; /* Tile maxes out at 256 bytes. */
-	int max_read_size = 0x2; /* Limit to 512 byte reads. */
+	int max_read_size = PCI_EXP_DEVCTL_READRQ_512B;
 	u16 new_values;
 
 	/* Scan for the smallest maximum payload size. */
@@ -258,7 +258,7 @@ static void fixup_read_and_payload_sizes(void)
 	}
 
 	/* Now, set the max_payload_size for all devices to that value. */
-	new_values = (max_read_size << 12) | (smallest_max_payload << 5);
+	new_values = max_read_size | (smallest_max_payload << 5);
 	for_each_pci_dev(dev)
 		pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
 				PCI_EXP_DEVCTL_PAYLOAD | PCI_EXP_DEVCTL_READRQ,

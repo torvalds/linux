@@ -46,6 +46,8 @@ struct led_classdev {
 #define LED_SYSFS_DISABLE	(1 << 20)
 #define SET_BRIGHTNESS_ASYNC	(1 << 21)
 #define SET_BRIGHTNESS_SYNC	(1 << 22)
+#define LED_DEV_CAP_FLASH	(1 << 23)
+#define LED_DEV_CAP_SYNC_STROBE	(1 << 24)
 
 	/* Set LED brightness level */
 	/* Must not sleep, use a workqueue if needed */
@@ -81,6 +83,7 @@ struct led_classdev {
 	unsigned long		 blink_delay_on, blink_delay_off;
 	struct timer_list	 blink_timer;
 	int			 blink_brightness;
+	void			(*flash_resume)(struct led_classdev *led_cdev);
 
 	struct work_struct	set_brightness_work;
 	int			delayed_set_value;

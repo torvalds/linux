@@ -122,7 +122,7 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 	mono = ktime_get_update_offsets_tick(&off_real, &off_boot, &off_tai);
 	boot = ktime_add(mono, off_boot);
 	xtim = ktime_add(mono, off_real);
-	tai = ktime_add(xtim, off_tai);
+	tai = ktime_add(mono, off_tai);
 
 	base->clock_base[HRTIMER_BASE_REALTIME].softirq_time = xtim;
 	base->clock_base[HRTIMER_BASE_MONOTONIC].softirq_time = mono;
@@ -1583,7 +1583,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 			goto out;
 	}
 
-	restart = &current_thread_info()->restart_block;
+	restart = &current->restart_block;
 	restart->fn = hrtimer_nanosleep_restart;
 	restart->nanosleep.clockid = t.timer.base->clockid;
 	restart->nanosleep.rmtp = rmtp;

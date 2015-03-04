@@ -801,9 +801,11 @@ static int mcp230xx_probe(struct i2c_client *client,
 		client->irq = irq_of_parse_and_map(client->dev.of_node, 0);
 	} else {
 		pdata = dev_get_platdata(&client->dev);
-		if (!pdata || !gpio_is_valid(pdata->base)) {
-			dev_dbg(&client->dev, "invalid platform data\n");
-			return -EINVAL;
+		if (!pdata) {
+			pdata = devm_kzalloc(&client->dev,
+					sizeof(struct mcp23s08_platform_data),
+					GFP_KERNEL);
+			pdata->base = -1;
 		}
 	}
 
@@ -924,10 +926,11 @@ static int mcp23s08_probe(struct spi_device *spi)
 	} else {
 		type = spi_get_device_id(spi)->driver_data;
 		pdata = dev_get_platdata(&spi->dev);
-		if (!pdata || !gpio_is_valid(pdata->base)) {
-			dev_dbg(&spi->dev,
-					"invalid or missing platform data\n");
-			return -EINVAL;
+		if (!pdata) {
+			pdata = devm_kzalloc(&spi->dev,
+					sizeof(struct mcp23s08_platform_data),
+					GFP_KERNEL);
+			pdata->base = -1;
 		}
 
 		for (addr = 0; addr < ARRAY_SIZE(pdata->chip); addr++) {

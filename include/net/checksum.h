@@ -167,4 +167,9 @@ static inline __wsum remcsum_adjust(void *ptr, __wsum csum,
 	return delta;
 }
 
+static inline void remcsum_unadjust(__sum16 *psum, __wsum delta)
+{
+	*psum = csum_fold(csum_sub(delta, *psum));
+}
+
 #endif

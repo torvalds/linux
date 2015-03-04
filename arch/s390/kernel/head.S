@@ -436,7 +436,9 @@ ENTRY(startup_kdump)
 # followed by the facility words.
 
 #if defined(CONFIG_64BIT)
-#if defined(CONFIG_MARCH_ZEC12)
+#if defined(CONFIG_MARCH_Z13)
+	.long 3, 0xc100eff2, 0xf46ce800, 0x00400000
+#elif defined(CONFIG_MARCH_ZEC12)
 	.long 3, 0xc100eff2, 0xf46ce800, 0x00400000
 #elif defined(CONFIG_MARCH_Z196)
 	.long 2, 0xc100eff2, 0xf46c0000

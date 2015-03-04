@@ -33,6 +33,7 @@
 #include "phy_lp.h"
 #include "phy_ht.h"
 #include "phy_lcn.h"
+#include "phy_ac.h"
 #include "b43.h"
 #include "main.h"
 
@@ -68,6 +69,11 @@ int b43_phy_allocate(struct b43_wldev *dev)
 	case B43_PHYTYPE_LCN:
 #ifdef CONFIG_B43_PHY_LCN
 		phy->ops = &b43_phyops_lcn;
+#endif
+		break;
+	case B43_PHYTYPE_AC:
+#ifdef CONFIG_B43_PHY_AC
+		phy->ops = &b43_phyops_ac;
 #endif
 		break;
 	}
@@ -572,7 +578,8 @@ void b43_phy_force_clock(struct b43_wldev *dev, bool force)
 	u32 tmp;
 
 	WARN_ON(dev->phy.type != B43_PHYTYPE_N &&
-		dev->phy.type != B43_PHYTYPE_HT);
+		dev->phy.type != B43_PHYTYPE_HT &&
+		dev->phy.type != B43_PHYTYPE_AC);
 
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA

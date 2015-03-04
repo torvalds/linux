@@ -332,13 +332,11 @@ static int run(struct mddev *mddev)
 	return 0;
 }
 
-static int stop(struct mddev *mddev)
+static void faulty_free(struct mddev *mddev, void *priv)
 {
-	struct faulty_conf *conf = mddev->private;
+	struct faulty_conf *conf = priv;
 
 	kfree(conf);
-	mddev->private = NULL;
-	return 0;
 }
 
 static struct md_personality faulty_personality =
@@ -348,7 +346,7 @@ static struct md_personality faulty_personality =
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
-	.stop		= stop,
+	.free		= faulty_free,
 	.status		= status,
 	.check_reshape	= reshape,
 	.size		= faulty_size,

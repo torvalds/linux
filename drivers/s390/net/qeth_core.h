@@ -596,7 +596,6 @@ struct qeth_channel {
 	struct ccw1 ccw;
 	spinlock_t iob_lock;
 	wait_queue_head_t wait_q;
-	struct tasklet_struct irq_tasklet;
 	struct ccw_device *ccwdev;
 /*command buffer for control data*/
 	struct qeth_cmd_buffer iob[QETH_CMD_BUFFER_NO];

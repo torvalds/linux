@@ -49,14 +49,13 @@ static void wusbhc_rsv_complete_cb(struct uwb_rsv *rsv)
 	struct wusbhc *wusbhc = rsv->pal_priv;
 	struct device *dev = wusbhc->dev;
 	struct uwb_mas_bm mas;
-	char buf[72];
 
 	dev_dbg(dev, "%s: state = %d\n", __func__, rsv->state);
 	switch (rsv->state) {
 	case UWB_RSV_STATE_O_ESTABLISHED:
 		uwb_rsv_get_usable_mas(rsv, &mas);
-		bitmap_scnprintf(buf, sizeof(buf), mas.bm, UWB_NUM_MAS);
-		dev_dbg(dev, "established reservation: %s\n", buf);
+		dev_dbg(dev, "established reservation: %*pb\n",
+			UWB_NUM_MAS, mas.bm);
 		wusbhc_bwa_set(wusbhc, rsv->stream, &mas);
 		break;
 	case UWB_RSV_STATE_NONE:

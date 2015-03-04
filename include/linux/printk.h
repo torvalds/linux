@@ -10,9 +10,6 @@
 extern const char linux_banner[];
 extern const char linux_proc_banner[];
 
-extern char *log_buf_addr_get(void);
-extern u32 log_buf_len_get(void);
-
 static inline int printk_get_level(const char *buffer)
 {
 	if (buffer[0] == KERN_SOH_ASCII && buffer[1]) {
@@ -163,6 +160,8 @@ extern int kptr_restrict;
 
 extern void wake_up_klogd(void);
 
+char *log_buf_addr_get(void);
+u32 log_buf_len_get(void);
 void log_buf_kexec_setup(void);
 void __init setup_log_buf(int early);
 void dump_stack_set_arch_desc(const char *fmt, ...);
@@ -196,6 +195,16 @@ static inline bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 
 static inline void wake_up_klogd(void)
 {
+}
+
+static inline char *log_buf_addr_get(void)
+{
+	return NULL;
+}
+
+static inline u32 log_buf_len_get(void)
+{
+	return 0;
 }
 
 static inline void log_buf_kexec_setup(void)
@@ -408,9 +417,9 @@ enum {
 	DUMP_PREFIX_ADDRESS,
 	DUMP_PREFIX_OFFSET
 };
-extern void hex_dump_to_buffer(const void *buf, size_t len,
-			       int rowsize, int groupsize,
-			       char *linebuf, size_t linebuflen, bool ascii);
+extern int hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
+			      int groupsize, char *linebuf, size_t linebuflen,
+			      bool ascii);
 #ifdef CONFIG_PRINTK
 extern void print_hex_dump(const char *level, const char *prefix_str,
 			   int prefix_type, int rowsize, int groupsize,

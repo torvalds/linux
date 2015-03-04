@@ -189,6 +189,20 @@ static inline int ecctr(u64 ctr, u64 *val)
 	return cc;
 }
 
+/* Store CPU counter multiple for the MT utilization counter set */
+static inline int stcctm5(u64 num, u64 *val)
+{
+	typedef struct { u64 _[num]; } addrtype;
+	int cc;
+
+	asm volatile (
+		"	.insn	rsy,0xeb0000000017,%2,5,%1\n"
+		"	ipm	%0\n"
+		"	srl	%0,28\n"
+		: "=d" (cc), "=Q" (*(addrtype *) val)  : "d" (num) : "cc");
+	return cc;
+}
+
 /* Query sampling information */
 static inline int qsi(struct hws_qsi_info_block *info)
 {

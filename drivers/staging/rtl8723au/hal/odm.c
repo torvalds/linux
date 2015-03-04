@@ -187,24 +187,13 @@ void odm23a_DynBBPSInit(struct dm_odm_t *pDM_Odm);
 
 void odm_DynamicBBPowerSaving23a(struct dm_odm_t *pDM_Odm);
 
-void odm_1R_CCA23a(struct dm_odm_t *pDM_Odm);
 /* END---------BB POWER SAVE----------------------- */
-
-void odm_RefreshRateAdaptiveMask23aMP23a(struct dm_odm_t *pDM_Odm);
 
 void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm);
 
-void odm_RefreshRateAdaptiveMask23aAPADSL23a(struct dm_odm_t *pDM_Odm);
-
 void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm);
 
-void odm_RSSIMonitorInit(struct dm_odm_t *pDM_Odm);
-
-void odm_RSSIMonitorCheck23aMP(struct dm_odm_t *pDM_Odm);
-
 void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm);
-void odm_RSSIMonitorCheck23aAP(struct dm_odm_t *pDM_Odm);
-
 void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm);
 void odm_DynamicTxPower23a(struct dm_odm_t *pDM_Odm);
 
@@ -212,15 +201,11 @@ void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm);
 
 void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm);
 
-void odm_TXPowerTrackingCheckAP(struct dm_odm_t *pDM_Odm);
-
 void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm);
 
 void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm);
 
 void odm_TXPowerTrackingInit23a(struct dm_odm_t *pDM_Odm);
-
-void odm_TXPowerTrackingCheckMP(struct dm_odm_t *pDM_Odm);
 
 void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm);
 
@@ -946,47 +931,13 @@ void odm_DynamicBBPowerSaving23a(struct dm_odm_t *pDM_Odm)
 	return;
 }
 
-void odm_1R_CCA23a(struct dm_odm_t *pDM_Odm)
-{
-	struct dynamic_pwr_sav *pDM_PSTable = &pDM_Odm->DM_PSTable;
-
-	if (pDM_Odm->RSSI_Min != 0xFF) {
-		if (pDM_PSTable->PreCCAState == CCA_2R) {
-			if (pDM_Odm->RSSI_Min >= 35)
-				pDM_PSTable->CurCCAState = CCA_1R;
-			else
-				pDM_PSTable->CurCCAState = CCA_2R;
-		} else {
-			if (pDM_Odm->RSSI_Min <= 30)
-				pDM_PSTable->CurCCAState = CCA_2R;
-			else
-				pDM_PSTable->CurCCAState = CCA_1R;
-		}
-	} else {
-		pDM_PSTable->CurCCAState = CCA_MAX;
-	}
-
-	if (pDM_PSTable->PreCCAState != pDM_PSTable->CurCCAState) {
-		if (pDM_PSTable->CurCCAState == CCA_1R) {
-			if (pDM_Odm->RFType == ODM_2T2R)
-				ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x13);
-			else
-				ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x23);
-		} else {
-			ODM_SetBBReg(pDM_Odm, 0xc04, bMaskByte0, 0x33);
-			/* PHY_SetBBReg(pAdapter, 0xe70, bMaskByte3, 0x63); */
-		}
-		pDM_PSTable->PreCCAState = pDM_PSTable->CurCCAState;
-	}
-}
-
 void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 {
 	struct dynamic_pwr_sav *pDM_PSTable = &pDM_Odm->DM_PSTable;
-	u8 Rssi_Up_bound = 30 ;
+	u8 Rssi_Up_bound = 30;
 	u8 Rssi_Low_bound = 25;
 	if (pDM_Odm->PatchID == 40) { /* RT_CID_819x_FUNAI_TV */
-		Rssi_Up_bound = 50 ;
+		Rssi_Up_bound = 50;
 		Rssi_Low_bound = 45;
 	}
 	if (pDM_PSTable->initialize == 0) {
@@ -1177,10 +1128,6 @@ void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm)
 	odm_RefreshRateAdaptiveMask23aCE23a(pDM_Odm);
 }
 
-void odm_RefreshRateAdaptiveMask23aMP23a(struct dm_odm_t *pDM_Odm)
-{
-}
-
 void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm)
 {
 	u8 i;
@@ -1214,10 +1161,6 @@ void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm)
 		}
 	}
 
-}
-
-void odm_RefreshRateAdaptiveMask23aAPADSL23a(struct dm_odm_t *pDM_Odm)
-{
 }
 
 /*  Return Value: bool */
@@ -1284,14 +1227,6 @@ void odm_DynamicTxPower23aInit(struct dm_odm_t *pDM_Odm)
 	pdmpriv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
 }
 
-/* 3 ============================================================ */
-/* 3 RSSI Monitor */
-/* 3 ============================================================ */
-
-void odm_RSSIMonitorInit(struct dm_odm_t *pDM_Odm)
-{
-}
-
 void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm)
 {
 	/*  For AP/ADSL use struct rtl8723a_priv * */
@@ -1305,10 +1240,6 @@ void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm)
 	/*  HW dynamic mechanism. */
 	odm_RSSIMonitorCheck23aCE(pDM_Odm);
 }	/*  odm_RSSIMonitorCheck23a */
-
-void odm_RSSIMonitorCheck23aMP(struct dm_odm_t *pDM_Odm)
-{
-}
 
 static void
 FindMinimumRSSI(
@@ -1378,10 +1309,6 @@ void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm)
 	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM);
 }
 
-void odm_RSSIMonitorCheck23aAP(struct dm_odm_t *pDM_Odm)
-{
-}
-
 /* endif */
 /* 3 ============================================================ */
 /* 3 Tx Power Tracking */
@@ -1422,19 +1349,12 @@ void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm)
 {
 }
 
-void odm_TXPowerTrackingCheckMP(struct dm_odm_t *pDM_Odm)
-{
-}
-
-void odm_TXPowerTrackingCheckAP(struct dm_odm_t *pDM_Odm)
-{
-}
-
 /* EDCA Turbo */
 static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 {
 
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
+
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 	pDM_Odm->DM_EDCA_Table.bIsCurRDLState = false;
 	Adapter->recvpriv.bIsAnyNonBEPkts = false;
@@ -1591,6 +1511,7 @@ ConvertTo_dB23a(
 void ODM_SingleDualAntennaDefaultSetting(struct dm_odm_t *pDM_Odm)
 {
 	struct sw_ant_sw *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
+
 	pDM_SWAT_Table->ANTA_ON = true;
 	pDM_SWAT_Table->ANTB_ON = true;
 }

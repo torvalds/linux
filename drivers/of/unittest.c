@@ -20,17 +20,15 @@
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 
+#include <linux/i2c.h>
+#include <linux/i2c-mux.h>
+
 #include "of_private.h"
 
 static struct selftest_results {
 	int passed;
 	int failed;
 } selftest_results;
-
-#define NO_OF_NODES 3
-static struct device_node *nodes[NO_OF_NODES];
-static int last_node_index;
-static bool selftest_live_tree;
 
 #define selftest(result, fmt, ...) ({ \
 	bool failed = !(result); \
@@ -822,6 +820,7 @@ static void update_node_properties(struct device_node *np,
 static int attach_node_and_children(struct device_node *np)
 {
 	struct device_node *next, *dup, *child;
+	unsigned long flags;
 
 	dup = of_find_node_by_path(np->full_name);
 	if (dup) {
@@ -829,17 +828,19 @@ static int attach_node_and_children(struct device_node *np)
 		return 0;
 	}
 
-	/* Children of the root need to be remembered for removal */
-	if (np->parent == of_root) {
-		if (WARN_ON(last_node_index >= NO_OF_NODES))
-			return -EINVAL;
-		nodes[last_node_index++] = np;
-	}
-
 	child = np->child;
 	np->child = NULL;
-	np->sibling = NULL;
-	of_attach_node(np);
+
+	mutex_lock(&of_mutex);
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+	np->sibling = np->parent->child;
+	np->parent->child = np;
+	of_node_clear_flag(np, OF_DETACHED);
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	__of_attach_node_sysfs(np);
+	mutex_unlock(&of_mutex);
+
 	while (child) {
 		next = child->sibling;
 		attach_node_and_children(child);
@@ -889,10 +890,7 @@ static int __init selftest_data_add(void)
 	}
 
 	if (!of_root) {
-		/* enabling flag for removing nodes */
-		selftest_live_tree = true;
 		of_root = selftest_data_node;
-
 		for_each_of_allnodes(np)
 			__of_attach_node_sysfs(np);
 		of_aliases = of_find_node_by_path("/aliases");
@@ -911,59 +909,6 @@ static int __init selftest_data_add(void)
 	return 0;
 }
 
-/**
- *	detach_node_and_children - detaches node
- *	and its children from live tree
- *
- *	@np:	Node to detach from live tree
- */
-static void detach_node_and_children(struct device_node *np)
-{
-	while (np->child)
-		detach_node_and_children(np->child);
-	of_detach_node(np);
-}
-
-/**
- *	selftest_data_remove - removes the selftest data
- *	nodes from the live tree
- */
-static void selftest_data_remove(void)
-{
-	struct device_node *np;
-	struct property *prop;
-
-	if (selftest_live_tree) {
-		of_node_put(of_aliases);
-		of_node_put(of_chosen);
-		of_aliases = NULL;
-		of_chosen = NULL;
-		for_each_child_of_node(of_root, np)
-			detach_node_and_children(np);
-		__of_detach_node_sysfs(of_root);
-		of_root = NULL;
-		return;
-	}
-
-	while (last_node_index-- > 0) {
-		if (nodes[last_node_index]) {
-			np = of_find_node_by_path(nodes[last_node_index]->full_name);
-			if (np == nodes[last_node_index]) {
-				if (of_aliases == np) {
-					of_node_put(of_aliases);
-					of_aliases = NULL;
-				}
-				detach_node_and_children(np);
-			} else {
-				for_each_property_of_node(np, prop) {
-					if (strcmp(prop->name, "testcase-alias") == 0)
-						of_remove_property(np, prop);
-				}
-			}
-		}
-	}
-}
-
 #ifdef CONFIG_OF_OVERLAY
 
 static int selftest_probe(struct platform_device *pdev)
@@ -978,6 +923,9 @@ static int selftest_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+
+	of_platform_populate(np, NULL, NULL, &pdev->dev);
+
 	return 0;
 }
 
@@ -1031,15 +979,92 @@ static int of_path_platform_device_exists(const char *path)
 	return pdev != NULL;
 }
 
-static const char *selftest_path(int nr)
+#if IS_ENABLED(CONFIG_I2C)
+
+/* get the i2c client device instantiated at the path */
+static struct i2c_client *of_path_to_i2c_client(const char *path)
 {
+	struct device_node *np;
+	struct i2c_client *client;
+
+	np = of_find_node_by_path(path);
+	if (np == NULL)
+		return NULL;
+
+	client = of_find_i2c_device_by_node(np);
+	of_node_put(np);
+
+	return client;
+}
+
+/* find out if a i2c client device exists at that path */
+static int of_path_i2c_client_exists(const char *path)
+{
+	struct i2c_client *client;
+
+	client = of_path_to_i2c_client(path);
+	if (client)
+		put_device(&client->dev);
+	return client != NULL;
+}
+#else
+static int of_path_i2c_client_exists(const char *path)
+{
+	return 0;
+}
+#endif
+
+enum overlay_type {
+	PDEV_OVERLAY,
+	I2C_OVERLAY
+};
+
+static int of_path_device_type_exists(const char *path,
+		enum overlay_type ovtype)
+{
+	switch (ovtype) {
+	case PDEV_OVERLAY:
+		return of_path_platform_device_exists(path);
+	case I2C_OVERLAY:
+		return of_path_i2c_client_exists(path);
+	}
+	return 0;
+}
+
+static const char *selftest_path(int nr, enum overlay_type ovtype)
+{
+	const char *base;
 	static char buf[256];
 
-	snprintf(buf, sizeof(buf) - 1,
-		"/testcase-data/overlay-node/test-bus/test-selftest%d", nr);
+	switch (ovtype) {
+	case PDEV_OVERLAY:
+		base = "/testcase-data/overlay-node/test-bus";
+		break;
+	case I2C_OVERLAY:
+		base = "/testcase-data/overlay-node/test-bus/i2c-test-bus";
+		break;
+	default:
+		buf[0] = '\0';
+		return buf;
+	}
+	snprintf(buf, sizeof(buf) - 1, "%s/test-selftest%d", base, nr);
 	buf[sizeof(buf) - 1] = '\0';
-
 	return buf;
+}
+
+static int of_selftest_device_exists(int selftest_nr, enum overlay_type ovtype)
+{
+	const char *path;
+
+	path = selftest_path(selftest_nr, ovtype);
+
+	switch (ovtype) {
+	case PDEV_OVERLAY:
+		return of_path_platform_device_exists(path);
+	case I2C_OVERLAY:
+		return of_path_i2c_client_exists(path);
+	}
+	return 0;
 }
 
 static const char *overlay_path(int nr)
@@ -1090,16 +1115,15 @@ out:
 
 /* apply an overlay while checking before and after states */
 static int of_selftest_apply_overlay_check(int overlay_nr, int selftest_nr,
-		int before, int after)
+		int before, int after, enum overlay_type ovtype)
 {
 	int ret;
 
 	/* selftest device must not be in before state */
-	if (of_path_platform_device_exists(selftest_path(selftest_nr))
-			!= before) {
+	if (of_selftest_device_exists(selftest_nr, ovtype) != before) {
 		selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
 				overlay_path(overlay_nr),
-				selftest_path(selftest_nr),
+				selftest_path(selftest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
 	}
@@ -1111,11 +1135,10 @@ static int of_selftest_apply_overlay_check(int overlay_nr, int selftest_nr,
 	}
 
 	/* selftest device must be to set to after state */
-	if (of_path_platform_device_exists(selftest_path(selftest_nr))
-			!= after) {
+	if (of_selftest_device_exists(selftest_nr, ovtype) != after) {
 		selftest(0, "overlay @\"%s\" failed to create @\"%s\" %s\n",
 				overlay_path(overlay_nr),
-				selftest_path(selftest_nr),
+				selftest_path(selftest_nr, ovtype),
 				!after ? "enabled" : "disabled");
 		return -EINVAL;
 	}
@@ -1125,16 +1148,16 @@ static int of_selftest_apply_overlay_check(int overlay_nr, int selftest_nr,
 
 /* apply an overlay and then revert it while checking before, after states */
 static int of_selftest_apply_revert_overlay_check(int overlay_nr,
-		int selftest_nr, int before, int after)
+		int selftest_nr, int before, int after,
+		enum overlay_type ovtype)
 {
 	int ret, ov_id;
 
 	/* selftest device must be in before state */
-	if (of_path_platform_device_exists(selftest_path(selftest_nr))
-			!= before) {
+	if (of_selftest_device_exists(selftest_nr, ovtype) != before) {
 		selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
 				overlay_path(overlay_nr),
-				selftest_path(selftest_nr),
+				selftest_path(selftest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
 	}
@@ -1147,11 +1170,10 @@ static int of_selftest_apply_revert_overlay_check(int overlay_nr,
 	}
 
 	/* selftest device must be in after state */
-	if (of_path_platform_device_exists(selftest_path(selftest_nr))
-			!= after) {
+	if (of_selftest_device_exists(selftest_nr, ovtype) != after) {
 		selftest(0, "overlay @\"%s\" failed to create @\"%s\" %s\n",
 				overlay_path(overlay_nr),
-				selftest_path(selftest_nr),
+				selftest_path(selftest_nr, ovtype),
 				!after ? "enabled" : "disabled");
 		return -EINVAL;
 	}
@@ -1160,16 +1182,15 @@ static int of_selftest_apply_revert_overlay_check(int overlay_nr,
 	if (ret != 0) {
 		selftest(0, "overlay @\"%s\" failed to be destroyed @\"%s\"\n",
 				overlay_path(overlay_nr),
-				selftest_path(selftest_nr));
+				selftest_path(selftest_nr, ovtype));
 		return ret;
 	}
 
 	/* selftest device must be again in before state */
-	if (of_path_platform_device_exists(selftest_path(selftest_nr))
-			!= before) {
+	if (of_selftest_device_exists(selftest_nr, PDEV_OVERLAY) != before) {
 		selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
 				overlay_path(overlay_nr),
-				selftest_path(selftest_nr),
+				selftest_path(selftest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
 	}
@@ -1183,7 +1204,7 @@ static void of_selftest_overlay_0(void)
 	int ret;
 
 	/* device should enable */
-	ret = of_selftest_apply_overlay_check(0, 0, 0, 1);
+	ret = of_selftest_apply_overlay_check(0, 0, 0, 1, PDEV_OVERLAY);
 	if (ret != 0)
 		return;
 
@@ -1196,7 +1217,7 @@ static void of_selftest_overlay_1(void)
 	int ret;
 
 	/* device should disable */
-	ret = of_selftest_apply_overlay_check(1, 1, 1, 0);
+	ret = of_selftest_apply_overlay_check(1, 1, 1, 0, PDEV_OVERLAY);
 	if (ret != 0)
 		return;
 
@@ -1209,7 +1230,7 @@ static void of_selftest_overlay_2(void)
 	int ret;
 
 	/* device should enable */
-	ret = of_selftest_apply_overlay_check(2, 2, 0, 1);
+	ret = of_selftest_apply_overlay_check(2, 2, 0, 1, PDEV_OVERLAY);
 	if (ret != 0)
 		return;
 
@@ -1222,7 +1243,7 @@ static void of_selftest_overlay_3(void)
 	int ret;
 
 	/* device should disable */
-	ret = of_selftest_apply_overlay_check(3, 3, 1, 0);
+	ret = of_selftest_apply_overlay_check(3, 3, 1, 0, PDEV_OVERLAY);
 	if (ret != 0)
 		return;
 
@@ -1235,7 +1256,7 @@ static void of_selftest_overlay_4(void)
 	int ret;
 
 	/* device should disable */
-	ret = of_selftest_apply_overlay_check(4, 4, 0, 1);
+	ret = of_selftest_apply_overlay_check(4, 4, 0, 1, PDEV_OVERLAY);
 	if (ret != 0)
 		return;
 
@@ -1248,7 +1269,7 @@ static void of_selftest_overlay_5(void)
 	int ret;
 
 	/* device should disable */
-	ret = of_selftest_apply_revert_overlay_check(5, 5, 0, 1);
+	ret = of_selftest_apply_revert_overlay_check(5, 5, 0, 1, PDEV_OVERLAY);
 	if (ret != 0)
 		return;
 
@@ -1265,12 +1286,12 @@ static void of_selftest_overlay_6(void)
 
 	/* selftest device must be in before state */
 	for (i = 0; i < 2; i++) {
-		if (of_path_platform_device_exists(
-					selftest_path(selftest_nr + i))
+		if (of_selftest_device_exists(selftest_nr + i, PDEV_OVERLAY)
 				!= before) {
 			selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
 					overlay_path(overlay_nr + i),
-					selftest_path(selftest_nr + i),
+					selftest_path(selftest_nr + i,
+						PDEV_OVERLAY),
 					!before ? "enabled" : "disabled");
 			return;
 		}
@@ -1297,12 +1318,12 @@ static void of_selftest_overlay_6(void)
 
 	for (i = 0; i < 2; i++) {
 		/* selftest device must be in after state */
-		if (of_path_platform_device_exists(
-					selftest_path(selftest_nr + i))
+		if (of_selftest_device_exists(selftest_nr + i, PDEV_OVERLAY)
 				!= after) {
 			selftest(0, "overlay @\"%s\" failed @\"%s\" %s\n",
 					overlay_path(overlay_nr + i),
-					selftest_path(selftest_nr + i),
+					selftest_path(selftest_nr + i,
+						PDEV_OVERLAY),
 					!after ? "enabled" : "disabled");
 			return;
 		}
@@ -1313,19 +1334,20 @@ static void of_selftest_overlay_6(void)
 		if (ret != 0) {
 			selftest(0, "overlay @\"%s\" failed destroy @\"%s\"\n",
 					overlay_path(overlay_nr + i),
-					selftest_path(selftest_nr + i));
+					selftest_path(selftest_nr + i,
+						PDEV_OVERLAY));
 			return;
 		}
 	}
 
 	for (i = 0; i < 2; i++) {
 		/* selftest device must be again in before state */
-		if (of_path_platform_device_exists(
-					selftest_path(selftest_nr + i))
+		if (of_selftest_device_exists(selftest_nr + i, PDEV_OVERLAY)
 				!= before) {
 			selftest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
 					overlay_path(overlay_nr + i),
-					selftest_path(selftest_nr + i),
+					selftest_path(selftest_nr + i,
+						PDEV_OVERLAY),
 					!before ? "enabled" : "disabled");
 			return;
 		}
@@ -1367,7 +1389,8 @@ static void of_selftest_overlay_8(void)
 	if (ret == 0) {
 		selftest(0, "overlay @\"%s\" was destroyed @\"%s\"\n",
 				overlay_path(overlay_nr + 0),
-				selftest_path(selftest_nr));
+				selftest_path(selftest_nr,
+					PDEV_OVERLAY));
 		return;
 	}
 
@@ -1377,13 +1400,368 @@ static void of_selftest_overlay_8(void)
 		if (ret != 0) {
 			selftest(0, "overlay @\"%s\" not destroyed @\"%s\"\n",
 					overlay_path(overlay_nr + i),
-					selftest_path(selftest_nr));
+					selftest_path(selftest_nr,
+						PDEV_OVERLAY));
 			return;
 		}
 	}
 
 	selftest(1, "overlay test %d passed\n", 8);
 }
+
+/* test insertion of a bus with parent devices */
+static void of_selftest_overlay_10(void)
+{
+	int ret;
+	char *child_path;
+
+	/* device should disable */
+	ret = of_selftest_apply_overlay_check(10, 10, 0, 1, PDEV_OVERLAY);
+	if (selftest(ret == 0,
+			"overlay test %d failed; overlay application\n", 10))
+		return;
+
+	child_path = kasprintf(GFP_KERNEL, "%s/test-selftest101",
+			selftest_path(10, PDEV_OVERLAY));
+	if (selftest(child_path, "overlay test %d failed; kasprintf\n", 10))
+		return;
+
+	ret = of_path_device_type_exists(child_path, PDEV_OVERLAY);
+	kfree(child_path);
+	if (selftest(ret, "overlay test %d failed; no child device\n", 10))
+		return;
+}
+
+/* test insertion of a bus with parent devices (and revert) */
+static void of_selftest_overlay_11(void)
+{
+	int ret;
+
+	/* device should disable */
+	ret = of_selftest_apply_revert_overlay_check(11, 11, 0, 1,
+			PDEV_OVERLAY);
+	if (selftest(ret == 0,
+			"overlay test %d failed; overlay application\n", 11))
+		return;
+}
+
+#if IS_ENABLED(CONFIG_I2C) && IS_ENABLED(CONFIG_OF_OVERLAY)
+
+struct selftest_i2c_bus_data {
+	struct platform_device	*pdev;
+	struct i2c_adapter	adap;
+};
+
+static int selftest_i2c_master_xfer(struct i2c_adapter *adap,
+		struct i2c_msg *msgs, int num)
+{
+	struct selftest_i2c_bus_data *std = i2c_get_adapdata(adap);
+
+	(void)std;
+
+	return num;
+}
+
+static u32 selftest_i2c_functionality(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+}
+
+static const struct i2c_algorithm selftest_i2c_algo = {
+	.master_xfer	= selftest_i2c_master_xfer,
+	.functionality	= selftest_i2c_functionality,
+};
+
+static int selftest_i2c_bus_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct selftest_i2c_bus_data *std;
+	struct i2c_adapter *adap;
+	int ret;
+
+	if (np == NULL) {
+		dev_err(dev, "No OF data for device\n");
+		return -EINVAL;
+
+	}
+
+	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+
+	std = devm_kzalloc(dev, sizeof(*std), GFP_KERNEL);
+	if (!std) {
+		dev_err(dev, "Failed to allocate selftest i2c data\n");
+		return -ENOMEM;
+	}
+
+	/* link them together */
+	std->pdev = pdev;
+	platform_set_drvdata(pdev, std);
+
+	adap = &std->adap;
+	i2c_set_adapdata(adap, std);
+	adap->nr = -1;
+	strlcpy(adap->name, pdev->name, sizeof(adap->name));
+	adap->class = I2C_CLASS_DEPRECATED;
+	adap->algo = &selftest_i2c_algo;
+	adap->dev.parent = dev;
+	adap->dev.of_node = dev->of_node;
+	adap->timeout = 5 * HZ;
+	adap->retries = 3;
+
+	ret = i2c_add_numbered_adapter(adap);
+	if (ret != 0) {
+		dev_err(dev, "Failed to add I2C adapter\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int selftest_i2c_bus_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct selftest_i2c_bus_data *std = platform_get_drvdata(pdev);
+
+	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	i2c_del_adapter(&std->adap);
+
+	return 0;
+}
+
+static struct of_device_id selftest_i2c_bus_match[] = {
+	{ .compatible = "selftest-i2c-bus", },
+	{},
+};
+
+static struct platform_driver selftest_i2c_bus_driver = {
+	.probe			= selftest_i2c_bus_probe,
+	.remove			= selftest_i2c_bus_remove,
+	.driver = {
+		.name		= "selftest-i2c-bus",
+		.of_match_table	= of_match_ptr(selftest_i2c_bus_match),
+	},
+};
+
+static int selftest_i2c_dev_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	struct device *dev = &client->dev;
+	struct device_node *np = client->dev.of_node;
+
+	if (!np) {
+		dev_err(dev, "No OF node\n");
+		return -EINVAL;
+	}
+
+	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+
+	return 0;
+};
+
+static int selftest_i2c_dev_remove(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct device_node *np = client->dev.of_node;
+
+	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	return 0;
+}
+
+static const struct i2c_device_id selftest_i2c_dev_id[] = {
+	{ .name = "selftest-i2c-dev" },
+	{ }
+};
+
+static struct i2c_driver selftest_i2c_dev_driver = {
+	.driver = {
+		.name = "selftest-i2c-dev",
+		.owner = THIS_MODULE,
+	},
+	.probe = selftest_i2c_dev_probe,
+	.remove = selftest_i2c_dev_remove,
+	.id_table = selftest_i2c_dev_id,
+};
+
+#if IS_ENABLED(CONFIG_I2C_MUX)
+
+struct selftest_i2c_mux_data {
+	int nchans;
+	struct i2c_adapter *adap[];
+};
+
+static int selftest_i2c_mux_select_chan(struct i2c_adapter *adap,
+			       void *client, u32 chan)
+{
+	return 0;
+}
+
+static int selftest_i2c_mux_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	int ret, i, nchans, size;
+	struct device *dev = &client->dev;
+	struct i2c_adapter *adap = to_i2c_adapter(dev->parent);
+	struct device_node *np = client->dev.of_node, *child;
+	struct selftest_i2c_mux_data *stm;
+	u32 reg, max_reg;
+
+	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+
+	if (!np) {
+		dev_err(dev, "No OF node\n");
+		return -EINVAL;
+	}
+
+	max_reg = (u32)-1;
+	for_each_child_of_node(np, child) {
+		ret = of_property_read_u32(child, "reg", &reg);
+		if (ret)
+			continue;
+		if (max_reg == (u32)-1 || reg > max_reg)
+			max_reg = reg;
+	}
+	nchans = max_reg == (u32)-1 ? 0 : max_reg + 1;
+	if (nchans == 0) {
+		dev_err(dev, "No channels\n");
+		return -EINVAL;
+	}
+
+	size = offsetof(struct selftest_i2c_mux_data, adap[nchans]);
+	stm = devm_kzalloc(dev, size, GFP_KERNEL);
+	if (!stm) {
+		dev_err(dev, "Out of memory\n");
+		return -ENOMEM;
+	}
+	stm->nchans = nchans;
+	for (i = 0; i < nchans; i++) {
+		stm->adap[i] = i2c_add_mux_adapter(adap, dev, client,
+				0, i, 0, selftest_i2c_mux_select_chan, NULL);
+		if (!stm->adap[i]) {
+			dev_err(dev, "Failed to register mux #%d\n", i);
+			for (i--; i >= 0; i--)
+				i2c_del_mux_adapter(stm->adap[i]);
+			return -ENODEV;
+		}
+	}
+
+	i2c_set_clientdata(client, stm);
+
+	return 0;
+};
+
+static int selftest_i2c_mux_remove(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct device_node *np = client->dev.of_node;
+	struct selftest_i2c_mux_data *stm = i2c_get_clientdata(client);
+	int i;
+
+	dev_dbg(dev, "%s for node @%s\n", __func__, np->full_name);
+	for (i = stm->nchans - 1; i >= 0; i--)
+		i2c_del_mux_adapter(stm->adap[i]);
+	return 0;
+}
+
+static const struct i2c_device_id selftest_i2c_mux_id[] = {
+	{ .name = "selftest-i2c-mux" },
+	{ }
+};
+
+static struct i2c_driver selftest_i2c_mux_driver = {
+	.driver = {
+		.name = "selftest-i2c-mux",
+		.owner = THIS_MODULE,
+	},
+	.probe = selftest_i2c_mux_probe,
+	.remove = selftest_i2c_mux_remove,
+	.id_table = selftest_i2c_mux_id,
+};
+
+#endif
+
+static int of_selftest_overlay_i2c_init(void)
+{
+	int ret;
+
+	ret = i2c_add_driver(&selftest_i2c_dev_driver);
+	if (selftest(ret == 0,
+			"could not register selftest i2c device driver\n"))
+		return ret;
+
+	ret = platform_driver_register(&selftest_i2c_bus_driver);
+	if (selftest(ret == 0,
+			"could not register selftest i2c bus driver\n"))
+		return ret;
+
+#if IS_ENABLED(CONFIG_I2C_MUX)
+	ret = i2c_add_driver(&selftest_i2c_mux_driver);
+	if (selftest(ret == 0,
+			"could not register selftest i2c mux driver\n"))
+		return ret;
+#endif
+
+	return 0;
+}
+
+static void of_selftest_overlay_i2c_cleanup(void)
+{
+#if IS_ENABLED(CONFIG_I2C_MUX)
+	i2c_del_driver(&selftest_i2c_mux_driver);
+#endif
+	platform_driver_unregister(&selftest_i2c_bus_driver);
+	i2c_del_driver(&selftest_i2c_dev_driver);
+}
+
+static void of_selftest_overlay_i2c_12(void)
+{
+	int ret;
+
+	/* device should enable */
+	ret = of_selftest_apply_overlay_check(12, 12, 0, 1, I2C_OVERLAY);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 12);
+}
+
+/* test deactivation of device */
+static void of_selftest_overlay_i2c_13(void)
+{
+	int ret;
+
+	/* device should disable */
+	ret = of_selftest_apply_overlay_check(13, 13, 1, 0, I2C_OVERLAY);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 13);
+}
+
+/* just check for i2c mux existence */
+static void of_selftest_overlay_i2c_14(void)
+{
+}
+
+static void of_selftest_overlay_i2c_15(void)
+{
+	int ret;
+
+	/* device should enable */
+	ret = of_selftest_apply_overlay_check(16, 15, 0, 1, I2C_OVERLAY);
+	if (ret != 0)
+		return;
+
+	selftest(1, "overlay test %d passed\n", 15);
+}
+
+#else
+
+static inline void of_selftest_overlay_i2c_14(void) { }
+static inline void of_selftest_overlay_i2c_15(void) { }
+
+#endif
 
 static void __init of_selftest_overlay(void)
 {
@@ -1409,15 +1787,15 @@ static void __init of_selftest_overlay(void)
 		goto out;
 	}
 
-	if (!of_path_platform_device_exists(selftest_path(100))) {
+	if (!of_selftest_device_exists(100, PDEV_OVERLAY)) {
 		selftest(0, "could not find selftest0 @ \"%s\"\n",
-				selftest_path(100));
+				selftest_path(100, PDEV_OVERLAY));
 		goto out;
 	}
 
-	if (of_path_platform_device_exists(selftest_path(101))) {
+	if (of_selftest_device_exists(101, PDEV_OVERLAY)) {
 		selftest(0, "selftest1 @ \"%s\" should not exist\n",
-				selftest_path(101));
+				selftest_path(101, PDEV_OVERLAY));
 		goto out;
 	}
 
@@ -1432,6 +1810,21 @@ static void __init of_selftest_overlay(void)
 	of_selftest_overlay_5();
 	of_selftest_overlay_6();
 	of_selftest_overlay_8();
+
+	of_selftest_overlay_10();
+	of_selftest_overlay_11();
+
+#if IS_ENABLED(CONFIG_I2C)
+	if (selftest(of_selftest_overlay_i2c_init() == 0, "i2c init failed\n"))
+		goto out;
+
+	of_selftest_overlay_i2c_12();
+	of_selftest_overlay_i2c_13();
+	of_selftest_overlay_i2c_14();
+	of_selftest_overlay_i2c_15();
+
+	of_selftest_overlay_i2c_cleanup();
+#endif
 
 out:
 	of_node_put(bus_np);
@@ -1474,9 +1867,6 @@ static int __init of_selftest(void)
 	of_selftest_match_node();
 	of_selftest_platform_populate();
 	of_selftest_overlay();
-
-	/* removing selftest data from live tree */
-	selftest_data_remove();
 
 	/* Double check linkage after removing testcase data */
 	of_selftest_check_tree_linkage();

@@ -391,8 +391,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	sctp_asconf_queue_teardown(asoc);
 
 	/* Free pending address space being deleted */
-	if (asoc->asconf_addr_del_pending != NULL)
-		kfree(asoc->asconf_addr_del_pending);
+	kfree(asoc->asconf_addr_del_pending);
 
 	/* AUTH - Free the endpoint shared keys */
 	sctp_auth_destroy_keys(&asoc->endpoint_shared_keys);
@@ -1182,7 +1181,6 @@ void sctp_assoc_update(struct sctp_association *asoc,
 	asoc->peer.peer_hmacs = new->peer.peer_hmacs;
 	new->peer.peer_hmacs = NULL;
 
-	sctp_auth_key_put(asoc->asoc_shared_key);
 	sctp_auth_asoc_init_active_key(asoc, GFP_ATOMIC);
 }
 

@@ -56,9 +56,6 @@ unsigned long thread_saved_pc(struct task_struct *t);
 /* Free all resources held by a thread */
 #define release_thread(thread) do { } while (0)
 
-/* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)    do { } while (0)
-
 /*
  * A lot of busy-wait loops in SMP are based off of non-volatile data otherwise
  * get optimised away by gcc

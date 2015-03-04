@@ -1269,6 +1269,7 @@ void trinity_dpm_setup_asic(struct radeon_device *rdev)
 	trinity_release_mutex(rdev);
 }
 
+#if 0
 void trinity_dpm_reset_asic(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
@@ -1284,6 +1285,7 @@ void trinity_dpm_reset_asic(struct radeon_device *rdev)
 	}
 	trinity_release_mutex(rdev);
 }
+#endif
 
 static u16 trinity_convert_voltage_index_to_value(struct radeon_device *rdev,
 						  u32 vid_2bit)

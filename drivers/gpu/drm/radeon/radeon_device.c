@@ -774,6 +774,8 @@ int radeon_dummy_page_init(struct radeon_device *rdev)
 		rdev->dummy_page.page = NULL;
 		return -ENOMEM;
 	}
+	rdev->dummy_page.entry = radeon_gart_get_page_entry(rdev->dummy_page.addr,
+							    RADEON_GART_PAGE_DUMMY);
 	return 0;
 }
 

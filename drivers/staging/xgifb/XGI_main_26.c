@@ -930,7 +930,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			+ var->hsync_len;
 	unsigned int vtotal = var->upper_margin + var->yres + var->lower_margin
 			+ var->vsync_len;
-#if defined(__powerpc__)
+#if defined(__BIG_ENDIAN)
 	u8 cr_data;
 #endif
 	unsigned int drate = 0, hrate = 0;
@@ -952,7 +952,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	} pr_debug("var->pixclock=%d, htotal=%d, vtotal=%d\n",
 			var->pixclock, htotal, vtotal);
 
-	if (var->pixclock && htotal && vtotal) {
+	if (var->pixclock) {
 		drate = 1000000000 / var->pixclock;
 		hrate = (drate * 1000) / htotal;
 		xgifb_info->refresh_rate = (unsigned int) (hrate * 2
@@ -1044,7 +1044,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			xgifb_info->DstColor = 0x0000;
 			xgifb_info->XGI310_AccelDepth = 0x00000000;
 			xgifb_info->video_cmap_len = 256;
-#if defined(__powerpc__)
+#if defined(__BIG_ENDIAN)
 			cr_data = xgifb_reg_get(XGICR, 0x4D);
 			xgifb_reg_set(XGICR, 0x4D, (cr_data & 0xE0));
 #endif
@@ -1052,7 +1052,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		case 16:
 			xgifb_info->DstColor = 0x8000;
 			xgifb_info->XGI310_AccelDepth = 0x00010000;
-#if defined(__powerpc__)
+#if defined(__BIG_ENDIAN)
 			cr_data = xgifb_reg_get(XGICR, 0x4D);
 			xgifb_reg_set(XGICR, 0x4D, ((cr_data & 0xE0) | 0x0B));
 #endif
@@ -1062,7 +1062,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 			xgifb_info->DstColor = 0xC000;
 			xgifb_info->XGI310_AccelDepth = 0x00020000;
 			xgifb_info->video_cmap_len = 16;
-#if defined(__powerpc__)
+#if defined(__BIG_ENDIAN)
 			cr_data = xgifb_reg_get(XGICR, 0x4D);
 			xgifb_reg_set(XGICR, 0x4D, ((cr_data & 0xE0) | 0x15));
 #endif

@@ -604,7 +604,7 @@ static ssize_t __sync_serial_read(struct file *file,
 				  struct timespec *ts)
 {
 	unsigned long flags;
-	int dev = MINOR(file->f_dentry->d_inode->i_rdev);
+	int dev = MINOR(file_inode(file)->i_rdev);
 	int avail;
 	struct sync_port *port;
 	unsigned char *start;
@@ -1286,7 +1286,7 @@ static void start_dma_out(struct sync_port *port, const char *data, int count)
 
 		tr_cfg.tr_en = regk_sser_yes;
 		REG_WR(sser, port->regi_sser, rw_tr_cfg, tr_cfg);
-		DEBUGTRDMA(pr_info(KERN_INFO "dma s\n"););
+		DEBUGTRDMA(pr_info("dma s\n"););
 	} else {
 		DMA_CONTINUE_DATA(port->regi_dmaout);
 		DEBUGTRDMA(pr_info("dma c\n"););
@@ -1443,7 +1443,7 @@ static inline void handle_rx_packet(struct sync_port *port)
 	reg_dma_rw_ack_intr ack_intr = { .data = regk_dma_yes };
 	unsigned long flags;
 
-	DEBUGRXINT(pr_info(KERN_INFO "!"));
+	DEBUGRXINT(pr_info("!"));
 	spin_lock_irqsave(&port->lock, flags);
 
 	/* If we overrun the user experience is crap regardless if we

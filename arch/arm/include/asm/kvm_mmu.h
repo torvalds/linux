@@ -44,6 +44,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
 
@@ -114,6 +115,27 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 	pmd_val(*pmd) |= L_PMD_S2_RDWR;
 }
 
+static inline void kvm_set_s2pte_readonly(pte_t *pte)
+{
+	pte_val(*pte) = (pte_val(*pte) & ~L_PTE_S2_RDWR) | L_PTE_S2_RDONLY;
+}
+
+static inline bool kvm_s2pte_readonly(pte_t *pte)
+{
+	return (pte_val(*pte) & L_PTE_S2_RDWR) == L_PTE_S2_RDONLY;
+}
+
+static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
+{
+	pmd_val(*pmd) = (pmd_val(*pmd) & ~L_PMD_S2_RDWR) | L_PMD_S2_RDONLY;
+}
+
+static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
+{
+	return (pmd_val(*pmd) & L_PMD_S2_RDWR) == L_PMD_S2_RDONLY;
+}
+
+
 /* Open coded p*d_addr_end that can deal with 64bit addresses */
 #define kvm_pgd_addr_end(addr, end)					\
 ({	u64 __boundary = ((addr) + PGDIR_SIZE) & PGDIR_MASK;		\
@@ -161,13 +183,10 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 	return (vcpu->arch.cp15[c1_SCTLR] & 0b101) == 0b101;
 }
 
-static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
-					     unsigned long size,
-					     bool ipa_uncached)
+static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
+					       unsigned long size,
+					       bool ipa_uncached)
 {
-	if (!vcpu_has_cache_enabled(vcpu) || ipa_uncached)
-		kvm_flush_dcache_to_poc((void *)hva, size);
-	
 	/*
 	 * If we are going to insert an instruction page and the icache is
 	 * either VIPT or PIPT, there is a potential problem where the host
@@ -179,18 +198,77 @@ static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
 	 *
 	 * VIVT caches are tagged using both the ASID and the VMID and doesn't
 	 * need any kind of flushing (DDI 0406C.b - Page B3-1392).
+	 *
+	 * We need to do this through a kernel mapping (using the
+	 * user-space mapping has proved to be the wrong
+	 * solution). For that, we need to kmap one page at a time,
+	 * and iterate over the range.
 	 */
-	if (icache_is_pipt()) {
-		__cpuc_coherent_user_range(hva, hva + size);
-	} else if (!icache_is_vivt_asid_tagged()) {
+
+	bool need_flush = !vcpu_has_cache_enabled(vcpu) || ipa_uncached;
+
+	VM_BUG_ON(size & PAGE_MASK);
+
+	if (!need_flush && !icache_is_pipt())
+		goto vipt_cache;
+
+	while (size) {
+		void *va = kmap_atomic_pfn(pfn);
+
+		if (need_flush)
+			kvm_flush_dcache_to_poc(va, PAGE_SIZE);
+
+		if (icache_is_pipt())
+			__cpuc_coherent_user_range((unsigned long)va,
+						   (unsigned long)va + PAGE_SIZE);
+
+		size -= PAGE_SIZE;
+		pfn++;
+
+		kunmap_atomic(va);
+	}
+
+vipt_cache:
+	if (!icache_is_pipt() && !icache_is_vivt_asid_tagged()) {
 		/* any kind of VIPT cache */
 		__flush_icache_all();
 	}
 }
 
+static inline void __kvm_flush_dcache_pte(pte_t pte)
+{
+	void *va = kmap_atomic(pte_page(pte));
+
+	kvm_flush_dcache_to_poc(va, PAGE_SIZE);
+
+	kunmap_atomic(va);
+}
+
+static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
+{
+	unsigned long size = PMD_SIZE;
+	pfn_t pfn = pmd_pfn(pmd);
+
+	while (size) {
+		void *va = kmap_atomic_pfn(pfn);
+
+		kvm_flush_dcache_to_poc(va, PAGE_SIZE);
+
+		pfn++;
+		size -= PAGE_SIZE;
+
+		kunmap_atomic(va);
+	}
+}
+
+static inline void __kvm_flush_dcache_pud(pud_t pud)
+{
+}
+
 #define kvm_virt_to_phys(x)		virt_to_idmap((unsigned long)(x))
 
-void stage2_flush_vm(struct kvm *kvm);
+void kvm_set_way_flush(struct kvm_vcpu *vcpu);
+void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
 
 #endif	/* !__ASSEMBLY__ */
 

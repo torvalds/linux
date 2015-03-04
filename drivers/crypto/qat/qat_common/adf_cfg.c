@@ -50,6 +50,7 @@
 #include <linux/seq_file.h>
 #include "adf_accel_devices.h"
 #include "adf_cfg.h"
+#include "adf_common_drv.h"
 
 static DEFINE_MUTEX(qat_cfg_read_lock);
 
@@ -159,6 +160,7 @@ void adf_cfg_del_all(struct adf_accel_dev *accel_dev)
 	down_write(&dev_cfg_data->lock);
 	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
 	up_write(&dev_cfg_data->lock);
+	clear_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
 }
 
 /**

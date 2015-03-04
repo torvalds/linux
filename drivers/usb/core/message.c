@@ -1551,6 +1551,7 @@ static void usb_release_interface(struct device *dev)
 			altsetting_to_usb_interface_cache(intf->altsetting);
 
 	kref_put(&intfc->ref, usb_release_interface_cache);
+	usb_put_dev(interface_to_usbdev(intf));
 	kfree(intf);
 }
 
@@ -1626,24 +1627,6 @@ static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
 
 /*
  * Internal function to queue a device reset
- *
- * This is initialized into the workstruct in 'struct
- * usb_device->reset_ws' that is launched by
- * message.c:usb_set_configuration() when initializing each 'struct
- * usb_interface'.
- *
- * It is safe to get the USB device without reference counts because
- * the life cycle of @iface is bound to the life cycle of @udev. Then,
- * this function will be ran only if @iface is alive (and before
- * freeing it any scheduled instances of it will have been cancelled).
- *
- * We need to set a flag (usb_dev->reset_running) because when we call
- * the reset, the interfaces might be unbound. The current interface
- * cannot try to remove the queued work as it would cause a deadlock
- * (you cannot remove your work from within your executing
- * workqueue). This flag lets it know, so that
- * usb_cancel_queued_reset() doesn't try to do it.
- *
  * See usb_queue_reset_device() for more details
  */
 static void __usb_queue_reset_device(struct work_struct *ws)
@@ -1655,11 +1638,10 @@ static void __usb_queue_reset_device(struct work_struct *ws)
 
 	rc = usb_lock_device_for_reset(udev, iface);
 	if (rc >= 0) {
-		iface->reset_running = 1;
 		usb_reset_device(udev);
-		iface->reset_running = 0;
 		usb_unlock_device(udev);
 	}
+	usb_put_intf(iface);	/* Undo _get_ in usb_queue_reset_device() */
 }
 
 
@@ -1854,6 +1836,7 @@ free_interfaces:
 		dev_set_name(&intf->dev, "%d-%s:%d.%d",
 			dev->bus->busnum, dev->devpath,
 			configuration, alt->desc.bInterfaceNumber);
+		usb_get_dev(dev);
 	}
 	kfree(new_interfaces);
 

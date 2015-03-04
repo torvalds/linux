@@ -145,7 +145,8 @@ static void gfs2_qd_dispose(struct list_head *list)
 }
 
 
-static enum lru_status gfs2_qd_isolate(struct list_head *item, spinlock_t *lock, void *arg)
+static enum lru_status gfs2_qd_isolate(struct list_head *item,
+		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
 {
 	struct list_head *dispose = arg;
 	struct gfs2_quota_data *qd = list_entry(item, struct gfs2_quota_data, qd_lru);
@@ -155,7 +156,7 @@ static enum lru_status gfs2_qd_isolate(struct list_head *item, spinlock_t *lock,
 
 	if (qd->qd_lockref.count == 0) {
 		lockref_mark_dead(&qd->qd_lockref);
-		list_move(&qd->qd_lru, dispose);
+		list_lru_isolate_move(lru, &qd->qd_lru, dispose);
 	}
 
 	spin_unlock(&qd->qd_lockref.lock);
@@ -171,8 +172,8 @@ static unsigned long gfs2_qd_shrink_scan(struct shrinker *shrink,
 	if (!(sc->gfp_mask & __GFP_FS))
 		return SHRINK_STOP;
 
-	freed = list_lru_walk_node(&gfs2_qd_lru, sc->nid, gfs2_qd_isolate,
-				   &dispose, &sc->nr_to_scan);
+	freed = list_lru_shrink_walk(&gfs2_qd_lru, sc,
+				     gfs2_qd_isolate, &dispose);
 
 	gfs2_qd_dispose(&dispose);
 
@@ -182,7 +183,7 @@ static unsigned long gfs2_qd_shrink_scan(struct shrinker *shrink,
 static unsigned long gfs2_qd_shrink_count(struct shrinker *shrink,
 					  struct shrink_control *sc)
 {
-	return vfs_pressure_ratio(list_lru_count_node(&gfs2_qd_lru, sc->nid));
+	return vfs_pressure_ratio(list_lru_shrink_count(&gfs2_qd_lru, sc));
 }
 
 struct shrinker gfs2_qd_shrinker = {
@@ -667,7 +668,7 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 
 static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 			     s64 change, struct gfs2_quota_data *qd,
-			     struct fs_disk_quota *fdq)
+			     struct qc_dqblk *fdq)
 {
 	struct inode *inode = &ip->i_inode;
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -697,16 +698,16 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	be64_add_cpu(&q.qu_value, change);
 	qd->qd_qb.qb_value = q.qu_value;
 	if (fdq) {
-		if (fdq->d_fieldmask & FS_DQ_BSOFT) {
-			q.qu_warn = cpu_to_be64(fdq->d_blk_softlimit >> sdp->sd_fsb2bb_shift);
+		if (fdq->d_fieldmask & QC_SPC_SOFT) {
+			q.qu_warn = cpu_to_be64(fdq->d_spc_softlimit >> sdp->sd_sb.sb_bsize_shift);
 			qd->qd_qb.qb_warn = q.qu_warn;
 		}
-		if (fdq->d_fieldmask & FS_DQ_BHARD) {
-			q.qu_limit = cpu_to_be64(fdq->d_blk_hardlimit >> sdp->sd_fsb2bb_shift);
+		if (fdq->d_fieldmask & QC_SPC_HARD) {
+			q.qu_limit = cpu_to_be64(fdq->d_spc_hardlimit >> sdp->sd_sb.sb_bsize_shift);
 			qd->qd_qb.qb_limit = q.qu_limit;
 		}
-		if (fdq->d_fieldmask & FS_DQ_BCOUNT) {
-			q.qu_value = cpu_to_be64(fdq->d_bcount >> sdp->sd_fsb2bb_shift);
+		if (fdq->d_fieldmask & QC_SPACE) {
+			q.qu_value = cpu_to_be64(fdq->d_space >> sdp->sd_sb.sb_bsize_shift);
 			qd->qd_qb.qb_value = q.qu_value;
 		}
 	}
@@ -1497,7 +1498,7 @@ static int gfs2_quota_get_xstate(struct super_block *sb,
 }
 
 static int gfs2_get_dqblk(struct super_block *sb, struct kqid qid,
-			  struct fs_disk_quota *fdq)
+			  struct qc_dqblk *fdq)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_quota_lvb *qlvb;
@@ -1505,7 +1506,7 @@ static int gfs2_get_dqblk(struct super_block *sb, struct kqid qid,
 	struct gfs2_holder q_gh;
 	int error;
 
-	memset(fdq, 0, sizeof(struct fs_disk_quota));
+	memset(fdq, 0, sizeof(*fdq));
 
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return -ESRCH; /* Crazy XFS error code */
@@ -1522,12 +1523,9 @@ static int gfs2_get_dqblk(struct super_block *sb, struct kqid qid,
 		goto out;
 
 	qlvb = (struct gfs2_quota_lvb *)qd->qd_gl->gl_lksb.sb_lvbptr;
-	fdq->d_version = FS_DQUOT_VERSION;
-	fdq->d_flags = (qid.type == USRQUOTA) ? FS_USER_QUOTA : FS_GROUP_QUOTA;
-	fdq->d_id = from_kqid_munged(current_user_ns(), qid);
-	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit) << sdp->sd_fsb2bb_shift;
-	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn) << sdp->sd_fsb2bb_shift;
-	fdq->d_bcount = be64_to_cpu(qlvb->qb_value) << sdp->sd_fsb2bb_shift;
+	fdq->d_spc_hardlimit = be64_to_cpu(qlvb->qb_limit) << sdp->sd_sb.sb_bsize_shift;
+	fdq->d_spc_softlimit = be64_to_cpu(qlvb->qb_warn) << sdp->sd_sb.sb_bsize_shift;
+	fdq->d_space = be64_to_cpu(qlvb->qb_value) << sdp->sd_sb.sb_bsize_shift;
 
 	gfs2_glock_dq_uninit(&q_gh);
 out:
@@ -1536,10 +1534,10 @@ out:
 }
 
 /* GFS2 only supports a subset of the XFS fields */
-#define GFS2_FIELDMASK (FS_DQ_BSOFT|FS_DQ_BHARD|FS_DQ_BCOUNT)
+#define GFS2_FIELDMASK (QC_SPC_SOFT|QC_SPC_HARD|QC_SPACE)
 
 static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
-			  struct fs_disk_quota *fdq)
+			  struct qc_dqblk *fdq)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
@@ -1583,17 +1581,17 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 		goto out_i;
 
 	/* If nothing has changed, this is a no-op */
-	if ((fdq->d_fieldmask & FS_DQ_BSOFT) &&
-	    ((fdq->d_blk_softlimit >> sdp->sd_fsb2bb_shift) == be64_to_cpu(qd->qd_qb.qb_warn)))
-		fdq->d_fieldmask ^= FS_DQ_BSOFT;
+	if ((fdq->d_fieldmask & QC_SPC_SOFT) &&
+	    ((fdq->d_spc_softlimit >> sdp->sd_sb.sb_bsize_shift) == be64_to_cpu(qd->qd_qb.qb_warn)))
+		fdq->d_fieldmask ^= QC_SPC_SOFT;
 
-	if ((fdq->d_fieldmask & FS_DQ_BHARD) &&
-	    ((fdq->d_blk_hardlimit >> sdp->sd_fsb2bb_shift) == be64_to_cpu(qd->qd_qb.qb_limit)))
-		fdq->d_fieldmask ^= FS_DQ_BHARD;
+	if ((fdq->d_fieldmask & QC_SPC_HARD) &&
+	    ((fdq->d_spc_hardlimit >> sdp->sd_sb.sb_bsize_shift) == be64_to_cpu(qd->qd_qb.qb_limit)))
+		fdq->d_fieldmask ^= QC_SPC_HARD;
 
-	if ((fdq->d_fieldmask & FS_DQ_BCOUNT) &&
-	    ((fdq->d_bcount >> sdp->sd_fsb2bb_shift) == be64_to_cpu(qd->qd_qb.qb_value)))
-		fdq->d_fieldmask ^= FS_DQ_BCOUNT;
+	if ((fdq->d_fieldmask & QC_SPACE) &&
+	    ((fdq->d_space >> sdp->sd_sb.sb_bsize_shift) == be64_to_cpu(qd->qd_qb.qb_value)))
+		fdq->d_fieldmask ^= QC_SPACE;
 
 	if (fdq->d_fieldmask == 0)
 		goto out_i;

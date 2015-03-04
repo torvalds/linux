@@ -157,7 +157,6 @@ struct xfs_dquot_acct {
 #define XFS_QM_RTBWARNLIMIT	5
 
 extern void		xfs_qm_destroy_quotainfo(struct xfs_mount *);
-extern int		xfs_qm_write_sb_changes(struct xfs_mount *, __int64_t);
 
 /* dquot stuff */
 extern void		xfs_qm_dqpurge_all(struct xfs_mount *, uint);
@@ -166,9 +165,9 @@ extern void		xfs_qm_dqrele_all_inodes(struct xfs_mount *, uint);
 /* quota ops */
 extern int		xfs_qm_scall_trunc_qfiles(struct xfs_mount *, uint);
 extern int		xfs_qm_scall_getquota(struct xfs_mount *, xfs_dqid_t,
-					uint, struct fs_disk_quota *);
+					uint, struct qc_dqblk *);
 extern int		xfs_qm_scall_setqlim(struct xfs_mount *, xfs_dqid_t, uint,
-					struct fs_disk_quota *);
+					struct qc_dqblk *);
 extern int		xfs_qm_scall_getqstat(struct xfs_mount *,
 					struct fs_quota_stat *);
 extern int		xfs_qm_scall_getqstatv(struct xfs_mount *,

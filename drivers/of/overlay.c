@@ -114,17 +114,6 @@ static int of_overlay_apply_single_device_node(struct of_overlay *ov,
 		ret = of_overlay_apply_one(ov, tchild, child);
 		if (ret)
 			return ret;
-
-		/* The properties are already copied, now do the child nodes */
-		for_each_child_of_node(child, grandchild) {
-			ret = of_overlay_apply_single_device_node(ov, tchild, grandchild);
-			if (ret) {
-				pr_err("%s: Failed to apply single node @%s/%s\n",
-					__func__, tchild->full_name,
-					grandchild->name);
-				return ret;
-			}
-		}
 	}
 
 	return ret;

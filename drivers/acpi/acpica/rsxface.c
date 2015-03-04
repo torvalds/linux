@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,11 +60,11 @@ ACPI_MODULE_NAME("rsxface")
 	ACPI_COPY_FIELD(out, in, min_address_fixed);         \
 	ACPI_COPY_FIELD(out, in, max_address_fixed);         \
 	ACPI_COPY_FIELD(out, in, info);                      \
-	ACPI_COPY_FIELD(out, in, granularity);               \
-	ACPI_COPY_FIELD(out, in, minimum);                   \
-	ACPI_COPY_FIELD(out, in, maximum);                   \
-	ACPI_COPY_FIELD(out, in, translation_offset);        \
-	ACPI_COPY_FIELD(out, in, address_length);            \
+	ACPI_COPY_FIELD(out, in, address.granularity);       \
+	ACPI_COPY_FIELD(out, in, address.minimum);           \
+	ACPI_COPY_FIELD(out, in, address.maximum);           \
+	ACPI_COPY_FIELD(out, in, address.translation_offset); \
+	ACPI_COPY_FIELD(out, in, address.address_length);    \
 	ACPI_COPY_FIELD(out, in, resource_source);
 /* Local prototypes */
 static acpi_status

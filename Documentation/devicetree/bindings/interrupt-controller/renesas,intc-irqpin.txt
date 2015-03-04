@@ -9,6 +9,11 @@ Required properties:
     - "renesas,intc-irqpin-r8a7778" (R-Car M1A)
     - "renesas,intc-irqpin-r8a7779" (R-Car H1)
     - "renesas,intc-irqpin-sh73a0" (SH-Mobile AG5)
+
+- reg: Base address and length of each register bank used by the external
+  IRQ pins driven by the interrupt controller hardware module. The base
+  addresses, length and number of required register banks varies with soctype.
+
 - #interrupt-cells: has to be <2>: an interrupt index and flags, as defined in
   interrupts.txt in this directory
 

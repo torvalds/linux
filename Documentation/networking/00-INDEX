@@ -1,7 +1,5 @@
 00-INDEX
 	- this file
-3c505.txt
-	- information on the 3Com EtherLink Plus (3c505) driver.
 3c509.txt
 	- information on the 3Com Etherlink III Series Ethernet cards.
 6pack.txt
@@ -24,6 +22,8 @@ README.sb1000
 	- info on General Instrument/NextLevel SURFboard1000 cable modem.
 alias.txt
 	- info on using alias network devices.
+altera_tse.txt
+	- Altera Triple-Speed Ethernet controller.
 arcnet-hardware.txt
 	- tons of info on ARCnet, hubs, jumper settings for ARCnet cards, etc.
 arcnet.txt
@@ -42,6 +42,8 @@ bridge.txt
 	- where to get user space programs for ethernet bridging with Linux.
 can.txt
 	- documentation on CAN protocol family.
+cdc_mbim.txt
+	- 3G/LTE USB modem (Mobile Broadband Interface Model)
 cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt
@@ -54,6 +56,8 @@ cxgb.txt
 	- Release Notes for the Chelsio N210 Linux device driver.
 dccp.txt
 	- the Datagram Congestion Control Protocol (DCCP) (RFC 4340..42).
+dctcp.txt
+	- DataCenter TCP congestion control
 de4x5.txt
 	- the Digital EtherWORKS DE4?? and DE5?? PCI Ethernet driver
 decnet.txt

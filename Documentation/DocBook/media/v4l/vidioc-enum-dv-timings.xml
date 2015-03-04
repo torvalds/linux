@@ -131,11 +131,3 @@ is out of bounds or the <structfield>pad</structfield> number is invalid.</para>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

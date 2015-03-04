@@ -70,6 +70,7 @@
 #include "iwl-debug.h"
 #include "iwl-csr.h" /* for iwl_mvm_rx_card_state_notif */
 #include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
+#include "iwl-prph.h"
 #include "iwl-eeprom-parse.h"
 
 #include "mvm.h"
@@ -269,7 +270,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	enum iwl_ucode_type ucode_type = mvm->cur_ucode;
 
 	/* Set parameters */
-	phy_cfg_cmd.phy_cfg = cpu_to_le32(mvm->fw->phy_config);
+	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_get_phy_config(mvm));
 	phy_cfg_cmd.calib_control.event_trigger =
 		mvm->fw->default_calib[ucode_type].event_trigger;
 	phy_cfg_cmd.calib_control.flow_trigger =
@@ -346,7 +347,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	mvm->calibrating = true;
 
 	/* Send TX valid antennas before triggering calibrations */
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)
 		goto error;
 
@@ -399,8 +400,71 @@ out:
 	return ret;
 }
 
-static int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm,
-				     enum iwl_fw_dbg_conf conf_id)
+static void iwl_mvm_get_shared_mem_conf(struct iwl_mvm *mvm)
+{
+	struct iwl_host_cmd cmd = {
+		.id = SHARED_MEM_CFG,
+		.flags = CMD_WANT_SKB,
+		.data = { NULL, },
+		.len = { 0, },
+	};
+	struct iwl_rx_packet *pkt;
+	struct iwl_shared_mem_cfg *mem_cfg;
+	u32 i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (WARN_ON(iwl_mvm_send_cmd(mvm, &cmd)))
+		return;
+
+	pkt = cmd.resp_pkt;
+	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
+		IWL_ERR(mvm, "Bad return from SHARED_MEM_CFG (0x%08X)\n",
+			pkt->hdr.flags);
+		goto exit;
+	}
+
+	mem_cfg = (void *)pkt->data;
+
+	mvm->shared_mem_cfg.shared_mem_addr =
+		le32_to_cpu(mem_cfg->shared_mem_addr);
+	mvm->shared_mem_cfg.shared_mem_size =
+		le32_to_cpu(mem_cfg->shared_mem_size);
+	mvm->shared_mem_cfg.sample_buff_addr =
+		le32_to_cpu(mem_cfg->sample_buff_addr);
+	mvm->shared_mem_cfg.sample_buff_size =
+		le32_to_cpu(mem_cfg->sample_buff_size);
+	mvm->shared_mem_cfg.txfifo_addr = le32_to_cpu(mem_cfg->txfifo_addr);
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.txfifo_size); i++)
+		mvm->shared_mem_cfg.txfifo_size[i] =
+			le32_to_cpu(mem_cfg->txfifo_size[i]);
+	for (i = 0; i < ARRAY_SIZE(mvm->shared_mem_cfg.rxfifo_size); i++)
+		mvm->shared_mem_cfg.rxfifo_size[i] =
+			le32_to_cpu(mem_cfg->rxfifo_size[i]);
+	mvm->shared_mem_cfg.page_buff_addr =
+		le32_to_cpu(mem_cfg->page_buff_addr);
+	mvm->shared_mem_cfg.page_buff_size =
+		le32_to_cpu(mem_cfg->page_buff_size);
+	IWL_DEBUG_INFO(mvm, "SHARED MEM CFG: got memory offsets/sizes\n");
+
+exit:
+	iwl_free_resp(&cmd);
+}
+
+void iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm)
+{
+	/* stop recording */
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
+		iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
+	} else {
+		iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, 0);
+		iwl_write_prph(mvm->trans, DBGC_OUT_CTRL, 0);
+	}
+
+	schedule_work(&mvm->fw_error_dump_wk);
+}
+
+int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, enum iwl_fw_dbg_conf conf_id)
 {
 	u8 *ptr;
 	int ret;
@@ -433,6 +497,35 @@ static int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm,
 
 	mvm->fw_dbg_conf = conf_id;
 	return ret;
+}
+
+static int iwl_mvm_config_ltr_v1(struct iwl_mvm *mvm)
+{
+	struct iwl_ltr_config_cmd_v1 cmd_v1 = {
+		.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
+	};
+
+	if (!mvm->trans->ltr_enabled)
+		return 0;
+
+	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
+				    sizeof(cmd_v1), &cmd_v1);
+}
+
+static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
+{
+	struct iwl_ltr_config_cmd cmd = {
+		.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
+	};
+
+	if (!mvm->trans->ltr_enabled)
+		return 0;
+
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_HDC_PHASE_0))
+		return iwl_mvm_config_ltr_v1(mvm);
+
+	return iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
+				    sizeof(cmd), &cmd);
 }
 
 int iwl_mvm_up(struct iwl_mvm *mvm)
@@ -482,6 +575,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 	}
 
+	if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 10)
+		iwl_mvm_get_shared_mem_conf(mvm);
+
 	ret = iwl_mvm_sf_update(mvm, NULL, false);
 	if (ret)
 		IWL_ERR(mvm, "Failed to initialize Smart Fifo\n");
@@ -489,7 +585,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	mvm->fw_dbg_conf = FW_DBG_INVALID;
 	iwl_mvm_start_fw_dbg_conf(mvm, FW_DBG_CUSTOM);
 
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)
 		goto error;
 
@@ -538,14 +634,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	/* Initialize tx backoffs to the minimal possible */
 	iwl_mvm_tt_tx_backoff(mvm, 0);
 
-	if (mvm->trans->ltr_enabled) {
-		struct iwl_ltr_config_cmd cmd = {
-			.flags = cpu_to_le32(LTR_CFG_FLAG_FEATURE_ENABLE),
-		};
-
-		WARN_ON(iwl_mvm_send_cmd_pdu(mvm, LTR_CONFIG, 0,
-					     sizeof(cmd), &cmd));
-	}
+	WARN_ON(iwl_mvm_config_ltr(mvm));
 
 	ret = iwl_mvm_power_update_device(mvm);
 	if (ret)
@@ -584,7 +673,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->fw->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)
 		goto error;
 

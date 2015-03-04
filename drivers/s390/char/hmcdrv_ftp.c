@@ -200,10 +200,9 @@ int hmcdrv_ftp_probe(void)
 	rc = hmcdrv_ftp_startup();
 
 	if (rc)
-		return rc;
+		goto out;
 
 	rc = hmcdrv_ftp_do(&ftp);
-	free_page((unsigned long) ftp.buf);
 	hmcdrv_ftp_shutdown();
 
 	switch (rc) {
@@ -216,7 +215,8 @@ int hmcdrv_ftp_probe(void)
 			rc = 0; /* clear length (success) */
 		break;
 	} /* switch */
-
+out:
+	free_page((unsigned long) ftp.buf);
 	return rc;
 }
 EXPORT_SYMBOL(hmcdrv_ftp_probe);

@@ -348,8 +348,10 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct uap_txpd *txpd;
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
-	int pad, len;
-	u16 pkt_type;
+	int pad;
+	u16 pkt_type, pkt_offset;
+	int hroom = (priv->adapter->iface_type == MWIFIEX_USB) ? 0 :
+		       INTF_HEADER_LEN;
 
 	if (!skb->len) {
 		dev_err(adapter->dev, "Tx: bad packet length: %d\n", skb->len);
@@ -357,22 +359,21 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 		return skb->data;
 	}
 
+	BUG_ON(skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN);
+
 	pkt_type = mwifiex_is_skb_mgmt_frame(skb) ? PKT_TYPE_MGMT : 0;
 
-	/* If skb->data is not aligned, add padding */
-	pad = (4 - (((void *)skb->data - NULL) & 0x3)) % 4;
+	pad = ((void *)skb->data - (sizeof(*txpd) + hroom) - NULL) &
+			(MWIFIEX_DMA_ALIGN_SZ - 1);
 
-	len = sizeof(*txpd) + pad;
-
-	BUG_ON(skb_headroom(skb) < len + INTF_HEADER_LEN);
-
-	skb_push(skb, len);
+	skb_push(skb, sizeof(*txpd) + pad);
 
 	txpd = (struct uap_txpd *)skb->data;
 	memset(txpd, 0, sizeof(*txpd));
 	txpd->bss_num = priv->bss_num;
 	txpd->bss_type = priv->bss_type;
-	txpd->tx_pkt_length = cpu_to_le16((u16)(skb->len - len));
+	txpd->tx_pkt_length = cpu_to_le16((u16)(skb->len - (sizeof(*txpd) +
+						pad)));
 	txpd->priority = (u8)skb->priority;
 
 	txpd->pkt_delay_2ms = mwifiex_wmm_compute_drv_pkt_delay(priv, skb);
@@ -392,16 +393,17 @@ void *mwifiex_process_uap_txpd(struct mwifiex_private *priv,
 		    cpu_to_le32(priv->wmm.user_pri_pkt_tx_ctrl[txpd->priority]);
 
 	/* Offset of actual data */
+	pkt_offset = sizeof(*txpd) + pad;
 	if (pkt_type == PKT_TYPE_MGMT) {
 		/* Set the packet type and add header for management frame */
 		txpd->tx_pkt_type = cpu_to_le16(pkt_type);
-		len += MWIFIEX_MGMT_FRAME_HEADER_SIZE;
+		pkt_offset += MWIFIEX_MGMT_FRAME_HEADER_SIZE;
 	}
 
-	txpd->tx_pkt_offset = cpu_to_le16(len);
+	txpd->tx_pkt_offset = cpu_to_le16(pkt_offset);
 
 	/* make space for INTF_HEADER_LEN */
-	skb_push(skb, INTF_HEADER_LEN);
+	skb_push(skb, hroom);
 
 	if (!txpd->tx_control)
 		/* TxCtrl set by user or default */

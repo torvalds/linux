@@ -50,19 +50,15 @@ void *module_alloc(unsigned long size)
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
 	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
-				    GFP_KERNEL, PAGE_KERNEL, NUMA_NO_NODE,
+				    GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));
 }
 #endif
 
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
+void module_arch_freeing_init(struct module *mod)
 {
-	if (mod) {
-		vfree(mod->arch.syminfo);
-		mod->arch.syminfo = NULL;
-	}
-	vfree(module_region);
+	vfree(mod->arch.syminfo);
+	mod->arch.syminfo = NULL;
 }
 
 static void check_rela(Elf_Rela *rela, struct module *me)

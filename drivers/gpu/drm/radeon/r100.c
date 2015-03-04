@@ -644,6 +644,7 @@ int r100_pci_gart_init(struct radeon_device *rdev)
 		return r;
 	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
 	rdev->asic->gart.tlb_flush = &r100_pci_gart_tlb_flush;
+	rdev->asic->gart.get_page_entry = &r100_pci_gart_get_page_entry;
 	rdev->asic->gart.set_page = &r100_pci_gart_set_page;
 	return radeon_gart_table_ram_alloc(rdev);
 }
@@ -681,11 +682,16 @@ void r100_pci_gart_disable(struct radeon_device *rdev)
 	WREG32(RADEON_AIC_HI_ADDR, 0);
 }
 
+uint64_t r100_pci_gart_get_page_entry(uint64_t addr, uint32_t flags)
+{
+	return addr;
+}
+
 void r100_pci_gart_set_page(struct radeon_device *rdev, unsigned i,
-			    uint64_t addr, uint32_t flags)
+			    uint64_t entry)
 {
 	u32 *gtt = rdev->gart.ptr;
-	gtt[i] = cpu_to_le32(lower_32_bits(addr));
+	gtt[i] = cpu_to_le32(lower_32_bits(entry));
 }
 
 void r100_pci_gart_fini(struct radeon_device *rdev)

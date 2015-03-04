@@ -103,6 +103,8 @@ static struct regulator_ops max14577_charger_ops = {
 static const struct regulator_desc max14577_supported_regulators[] = {
 	[MAX14577_SAFEOUT] = {
 		.name		= "SAFEOUT",
+		.of_match	= of_match_ptr("SAFEOUT"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id		= MAX14577_SAFEOUT,
 		.ops		= &max14577_safeout_ops,
 		.type		= REGULATOR_VOLTAGE,
@@ -114,6 +116,8 @@ static const struct regulator_desc max14577_supported_regulators[] = {
 	},
 	[MAX14577_CHARGER] = {
 		.name		= "CHARGER",
+		.of_match	= of_match_ptr("CHARGER"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id		= MAX14577_CHARGER,
 		.ops		= &max14577_charger_ops,
 		.type		= REGULATOR_CURRENT,
@@ -137,6 +141,8 @@ static struct regulator_ops max77836_ldo_ops = {
 static const struct regulator_desc max77836_supported_regulators[] = {
 	[MAX14577_SAFEOUT] = {
 		.name		= "SAFEOUT",
+		.of_match	= of_match_ptr("SAFEOUT"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id		= MAX14577_SAFEOUT,
 		.ops		= &max14577_safeout_ops,
 		.type		= REGULATOR_VOLTAGE,
@@ -148,6 +154,8 @@ static const struct regulator_desc max77836_supported_regulators[] = {
 	},
 	[MAX14577_CHARGER] = {
 		.name		= "CHARGER",
+		.of_match	= of_match_ptr("CHARGER"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id		= MAX14577_CHARGER,
 		.ops		= &max14577_charger_ops,
 		.type		= REGULATOR_CURRENT,
@@ -157,6 +165,8 @@ static const struct regulator_desc max77836_supported_regulators[] = {
 	},
 	[MAX77836_LDO1] = {
 		.name		= "LDO1",
+		.of_match	= of_match_ptr("LDO1"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id		= MAX77836_LDO1,
 		.ops		= &max77836_ldo_ops,
 		.type		= REGULATOR_VOLTAGE,
@@ -171,6 +181,8 @@ static const struct regulator_desc max77836_supported_regulators[] = {
 	},
 	[MAX77836_LDO2] = {
 		.name		= "LDO2",
+		.of_match	= of_match_ptr("LDO2"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id		= MAX77836_LDO2,
 		.ops		= &max77836_ldo_ops,
 		.type		= REGULATOR_VOLTAGE,
@@ -198,43 +210,6 @@ static struct of_regulator_match max77836_regulator_matches[] = {
 	{ .name = "LDO2", },
 };
 
-static int max14577_regulator_dt_parse_pdata(struct platform_device *pdev,
-		enum maxim_device_type dev_type)
-{
-	int ret;
-	struct device_node *np;
-	struct of_regulator_match *regulator_matches;
-	unsigned int regulator_matches_size;
-
-	np = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
-	if (!np) {
-		dev_err(&pdev->dev, "Failed to get child OF node for regulators\n");
-		return -EINVAL;
-	}
-
-	switch (dev_type) {
-	case MAXIM_DEVICE_TYPE_MAX77836:
-		regulator_matches = max77836_regulator_matches;
-		regulator_matches_size = ARRAY_SIZE(max77836_regulator_matches);
-		break;
-	case MAXIM_DEVICE_TYPE_MAX14577:
-	default:
-		regulator_matches = max14577_regulator_matches;
-		regulator_matches_size = ARRAY_SIZE(max14577_regulator_matches);
-	}
-
-	ret = of_regulator_match(&pdev->dev, np, regulator_matches,
-			regulator_matches_size);
-	if (ret < 0)
-		dev_err(&pdev->dev, "Error parsing regulator init data: %d\n", ret);
-	else
-		ret = 0;
-
-	of_node_put(np);
-
-	return ret;
-}
-
 static inline struct regulator_init_data *match_init_data(int index,
 		enum maxim_device_type dev_type)
 {
@@ -261,11 +236,6 @@ static inline struct device_node *match_of_node(int index,
 	}
 }
 #else /* CONFIG_OF */
-static int max14577_regulator_dt_parse_pdata(struct platform_device *pdev,
-		enum maxim_device_type dev_type)
-{
-	return 0;
-}
 static inline struct regulator_init_data *match_init_data(int index,
 		enum maxim_device_type dev_type)
 {
@@ -308,15 +278,11 @@ static int max14577_regulator_probe(struct platform_device *pdev)
 {
 	struct max14577 *max14577 = dev_get_drvdata(pdev->dev.parent);
 	struct max14577_platform_data *pdata = dev_get_platdata(max14577->dev);
-	int i, ret;
+	int i, ret = 0;
 	struct regulator_config config = {};
 	const struct regulator_desc *supported_regulators;
 	unsigned int supported_regulators_size;
 	enum maxim_device_type dev_type = max14577->dev_type;
-
-	ret = max14577_regulator_dt_parse_pdata(pdev, dev_type);
-	if (ret)
-		return ret;
 
 	switch (dev_type) {
 	case MAXIM_DEVICE_TYPE_MAX77836:
@@ -329,7 +295,7 @@ static int max14577_regulator_probe(struct platform_device *pdev)
 		supported_regulators_size = ARRAY_SIZE(max14577_supported_regulators);
 	}
 
-	config.dev = &pdev->dev;
+	config.dev = max14577->dev;
 	config.driver_data = max14577;
 
 	for (i = 0; i < supported_regulators_size; i++) {

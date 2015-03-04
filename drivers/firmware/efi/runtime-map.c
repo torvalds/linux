@@ -191,7 +191,7 @@ int __init efi_runtime_map_init(struct kobject *efi_kobj)
 
 	return 0;
 out_add_entry:
-	for (j = i - 1; j > 0; j--) {
+	for (j = i - 1; j >= 0; j--) {
 		entry = *(map_entries + j);
 		kobject_put(&entry->kobj);
 	}

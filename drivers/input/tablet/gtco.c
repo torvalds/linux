@@ -59,7 +59,7 @@ Scott Hill shill@gtcocalcomp.com
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
-
+#include <linux/bitops.h>
 
 #include <linux/usb/input.h>
 
@@ -614,7 +614,6 @@ static void gtco_urb_callback(struct urb *urbinfo)
 	struct input_dev  *inputdev;
 	int               rc;
 	u32               val = 0;
-	s8                valsigned = 0;
 	char              le_buffer[2];
 
 	inputdev = device->inputdevice;
@@ -665,20 +664,11 @@ static void gtco_urb_callback(struct urb *urbinfo)
 			/* Fall thru */
 		case 4:
 			/* Tilt */
+			input_report_abs(inputdev, ABS_TILT_X,
+					 sign_extend32(device->buffer[6], 6));
 
-			/* Sign extend these 7 bit numbers.  */
-			if (device->buffer[6] & 0x40)
-				device->buffer[6] |= 0x80;
-
-			if (device->buffer[7] & 0x40)
-				device->buffer[7] |= 0x80;
-
-
-			valsigned = (device->buffer[6]);
-			input_report_abs(inputdev, ABS_TILT_X, (s32)valsigned);
-
-			valsigned = (device->buffer[7]);
-			input_report_abs(inputdev, ABS_TILT_Y, (s32)valsigned);
+			input_report_abs(inputdev, ABS_TILT_Y,
+					 sign_extend32(device->buffer[7], 6));
 
 			/* Fall thru */
 		case 2:

@@ -1046,6 +1046,7 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 	struct atmel_spi_device	*asd;
 	int			timeout;
 	int			ret;
+	unsigned long		dma_timeout;
 
 	as = spi_master_get_devdata(master);
 
@@ -1103,15 +1104,12 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 
 		/* interrupts are disabled, so free the lock for schedule */
 		atmel_spi_unlock(as);
-		ret = wait_for_completion_timeout(&as->xfer_completion,
-							SPI_DMA_TIMEOUT);
+		dma_timeout = wait_for_completion_timeout(&as->xfer_completion,
+							  SPI_DMA_TIMEOUT);
 		atmel_spi_lock(as);
-		if (WARN_ON(ret == 0)) {
-			dev_err(&spi->dev,
-				"spi trasfer timeout, err %d\n", ret);
+		if (WARN_ON(dma_timeout == 0)) {
+			dev_err(&spi->dev, "spi transfer timeout\n");
 			as->done_status = -EIO;
-		} else {
-			ret = 0;
 		}
 
 		if (as->done_status)

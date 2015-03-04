@@ -70,6 +70,18 @@ void __init shmobile_init_delay(void)
 	if (!max_freq)
 		return;
 
+#ifdef CONFIG_ARCH_SHMOBILE_LEGACY
+	/* Non-multiplatform r8a73a4 SoC cannot use arch timer due
+	 * to GIC being initialized from C and arch timer via DT */
+	if (of_machine_is_compatible("renesas,r8a73a4"))
+		has_arch_timer = false;
+
+	/* Non-multiplatform r8a7790 SoC cannot use arch timer due
+	 * to GIC being initialized from C and arch timer via DT */
+	if (of_machine_is_compatible("renesas,r8a7790"))
+		has_arch_timer = false;
+#endif
+
 	if (!has_arch_timer || !IS_ENABLED(CONFIG_ARM_ARCH_TIMER)) {
 		if (is_a7_a8_a9)
 			shmobile_setup_delay_hz(max_freq, 1, 3);

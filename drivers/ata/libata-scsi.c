@@ -756,7 +756,7 @@ static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 {
 	struct ata_queued_cmd *qc;
 
-	qc = ata_qc_new_init(dev);
+	qc = ata_qc_new_init(dev, cmd->request->tag);
 	if (qc) {
 		qc->scsicmd = cmd;
 		qc->scsidone = cmd->scsi_done;
@@ -1995,8 +1995,8 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 
 	VPRINTK("ENTER\n");
 
-	/* set scsi removeable (RMB) bit per ata bit */
-	if (ata_id_removeable(args->id))
+	/* set scsi removable (RMB) bit per ata bit */
+	if (ata_id_removable(args->id))
 		hdr[1] |= (1 << 7);
 
 	if (args->dev->class == ATA_DEV_ZAC) {
@@ -2532,13 +2532,15 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 		rbuf[15] = lowest_aligned;
 
 		if (ata_id_has_trim(args->id)) {
-			rbuf[14] |= 0x80; /* TPE */
+			rbuf[14] |= 0x80; /* LBPME */
 
-			if (ata_id_has_zero_after_trim(args->id))
-				rbuf[14] |= 0x40; /* TPRZ */
+			if (ata_id_has_zero_after_trim(args->id) &&
+			    dev->horkage & ATA_HORKAGE_ZERO_AFTER_TRIM) {
+				ata_dev_info(dev, "Enabling discard_zeroes_data\n");
+				rbuf[14] |= 0x40; /* LBPRZ */
+			}
 		}
 	}
-
 	return 0;
 }
 
@@ -3666,6 +3668,9 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		 */
 		shost->max_host_blocked = 1;
 
+		if (scsi_init_shared_tag_map(shost, host->n_tags))
+			goto err_add;
+
 		rc = scsi_add_host_with_dma(ap->scsi_host,
 						&ap->tdev, ap->host->dev);
 		if (rc)
@@ -4228,3 +4233,31 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, struct ata_port *ap)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ata_sas_queuecmd);
+
+int ata_sas_allocate_tag(struct ata_port *ap)
+{
+	unsigned int max_queue = ap->host->n_tags;
+	unsigned int i, tag;
+
+	for (i = 0, tag = ap->sas_last_tag + 1; i < max_queue; i++, tag++) {
+		if (ap->flags & ATA_FLAG_LOWTAG)
+			tag = 1;
+		else
+			tag = tag < max_queue ? tag : 0;
+
+		/* the last tag is reserved for internal command. */
+		if (tag == ATA_TAG_INTERNAL)
+			continue;
+
+		if (!test_and_set_bit(tag, &ap->sas_tag_allocated)) {
+			ap->sas_last_tag = tag;
+			return tag;
+		}
+	}
+	return -1;
+}
+
+void ata_sas_free_tag(unsigned int tag, struct ata_port *ap)
+{
+	clear_bit(tag, &ap->sas_tag_allocated);
+}

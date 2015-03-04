@@ -23,6 +23,8 @@
 
 #include "msm_drv.h"
 
+#define MAX_PLANE	4
+
 /* As there are different display controller blocks depending on the
  * snapdragon version, the kms support is split out and the appropriate
  * implementation is loaded at runtime.  The kms module is responsible
@@ -38,6 +40,9 @@ struct msm_kms_funcs {
 	irqreturn_t (*irq)(struct msm_kms *kms);
 	int (*enable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
 	void (*disable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
+	/* modeset, bracketing atomic_commit(): */
+	void (*prepare_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
+	void (*complete_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
 	/* misc: */
 	const struct msm_format *(*get_format)(struct msm_kms *kms, uint32_t format);
 	long (*round_pixclk)(struct msm_kms *kms, unsigned long rate,

@@ -46,12 +46,19 @@
  */
 
 /dts-v1/;
-/include/ "sun5i-a13.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun5i-a13.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "HSG H702";
 	compatible = "hsg,h702", "allwinner,sun5i-a13";
+
+	aliases {
+		serial0 = &uart1;
+	};
 
 	soc@01c00000 {
 		mmc0: mmc@01c0f000 {
@@ -59,17 +66,13 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_h702>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 6 0 0>; /* PG0 */
+			cd-gpios = <&pio 6 0 GPIO_ACTIVE_HIGH>; /* PG0 */
 			cd-inverted;
 			status = "okay";
 		};
 
 		usbphy: phy@01c13400 {
-			/*
-			 * There doesn't seem to be a GPIO for controlling
-			 * usb1 vbus, despite the fex file saying otherwise.
-			 */
-			usb1_vbus-supply = <&reg_vcc5v0>;
+			usb1_vbus-supply = <&reg_ldo3>;
 			status = "okay";
 		};
 
@@ -85,8 +88,8 @@
 			mmc0_cd_pin_h702: mmc0_cd_pin@0 {
 				allwinner,pins = "PG0";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 		};
 
@@ -102,11 +105,8 @@
 			status = "okay";
 
 			axp209: pmic@34 {
-				compatible = "x-powers,axp209";
 				reg = <0x34>;
 				interrupts = <0>;
-				interrupt-controller;
-				#interrupt-cells = <1>;
 			};
 		};
 
@@ -127,4 +127,41 @@
 			status = "okay";
 		};
 	};
+};
+
+#include "axp209.dtsi"
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
+};
+
+&reg_dcdc2 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1500000>;
+	regulator-name = "vdd-cpu";
+};
+
+&reg_dcdc3 {
+	regulator-always-on;
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1400000>;
+	regulator-name = "vdd-int-dll";
+};
+
+&reg_ldo1 {
+	regulator-name = "vdd-rtc";
+};
+
+&reg_ldo2 {
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "avcc";
+};
+
+&reg_ldo3 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi";
 };

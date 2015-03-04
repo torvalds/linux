@@ -86,7 +86,7 @@ MODULE_PARM_DESC(fwpostfix, "Postfix for the firmware files to load.");
 static const struct ssb_device_id b43legacy_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 2),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 4),
-	SSB_DEVTABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(ssb, b43legacy_ssb_tbl);
 

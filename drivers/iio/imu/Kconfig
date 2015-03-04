@@ -25,6 +25,17 @@ config ADIS16480
 	  Say yes here to build support for Analog Devices ADIS16375, ADIS16480,
 	  ADIS16485, ADIS16488 inertial sensors.
 
+config KMX61
+	tristate "Kionix KMX61 6-axis accelerometer and magnetometer"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here if you want to build a driver for Kionix KMX61 6-axis
+	  accelerometer and magnetometer.
+	  To compile this driver as module, choose M here: the module will
+	  be called kmx61.
+
 source "drivers/iio/imu/inv_mpu6050/Kconfig"
 
 endmenu

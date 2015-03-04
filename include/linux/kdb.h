@@ -156,8 +156,14 @@ typedef enum {
 	KDB_REASON_SYSTEM_NMI,	/* In NMI due to SYSTEM cmd; regs valid */
 } kdb_reason_t;
 
+enum kdb_msgsrc {
+	KDB_MSGSRC_INTERNAL, /* direct call to kdb_printf() */
+	KDB_MSGSRC_PRINTK, /* trapped from printk() */
+};
+
 extern int kdb_trap_printk;
-extern __printf(1, 0) int vkdb_printf(const char *fmt, va_list args);
+extern __printf(2, 0) int vkdb_printf(enum kdb_msgsrc src, const char *fmt,
+				      va_list args);
 extern __printf(1, 2) int kdb_printf(const char *, ...);
 typedef __printf(1, 2) int (*kdb_printf_t)(const char *, ...);
 

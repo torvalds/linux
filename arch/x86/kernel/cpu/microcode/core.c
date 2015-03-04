@@ -552,7 +552,7 @@ static int __init microcode_init(void)
 	int error;
 
 	if (paravirt_enabled() || dis_ucode_ldr)
-		return 0;
+		return -EINVAL;
 
 	if (c->x86_vendor == X86_VENDOR_INTEL)
 		microcode_ops = init_intel_microcode();

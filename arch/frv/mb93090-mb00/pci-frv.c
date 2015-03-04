@@ -94,7 +94,7 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 				r = &dev->resource[idx];
 				if (!r->start)
 					continue;
-				pci_claim_resource(dev, idx);
+				pci_claim_bridge_resource(dev, idx);
 			}
 		}
 		pcibios_allocate_bus_resources(&bus->children);

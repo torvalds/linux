@@ -590,9 +590,3 @@ module_init(bt878_init_module);
 module_exit(bt878_cleanup_module);
 
 MODULE_LICENSE("GPL");
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

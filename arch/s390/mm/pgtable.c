@@ -527,7 +527,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		table += (gaddr >> 53) & 0x7ff;
 		if ((*table & _REGION_ENTRY_INVALID) &&
 		    gmap_alloc_table(gmap, table, _REGION2_ENTRY_EMPTY,
-				     gaddr & 0xffe0000000000000))
+				     gaddr & 0xffe0000000000000UL))
 			return -ENOMEM;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 	}
@@ -535,7 +535,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		table += (gaddr >> 42) & 0x7ff;
 		if ((*table & _REGION_ENTRY_INVALID) &&
 		    gmap_alloc_table(gmap, table, _REGION3_ENTRY_EMPTY,
-				     gaddr & 0xfffffc0000000000))
+				     gaddr & 0xfffffc0000000000UL))
 			return -ENOMEM;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 	}
@@ -543,7 +543,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		table += (gaddr >> 31) & 0x7ff;
 		if ((*table & _REGION_ENTRY_INVALID) &&
 		    gmap_alloc_table(gmap, table, _SEGMENT_ENTRY_EMPTY,
-				     gaddr & 0xffffffff80000000))
+				     gaddr & 0xffffffff80000000UL))
 			return -ENOMEM;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 	}

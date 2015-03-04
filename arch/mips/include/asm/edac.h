@@ -26,8 +26,8 @@ static inline void atomic_scrub(void *va, u32 size)
 		"	sc	%0, %1					\n"
 		"	beqz	%0, 1b					\n"
 		"	.set	mips0					\n"
-		: "=&r" (temp), "=" GCC_OFF12_ASM() (*virt_addr)
-		: GCC_OFF12_ASM() (*virt_addr));
+		: "=&r" (temp), "=" GCC_OFF_SMALL_ASM() (*virt_addr)
+		: GCC_OFF_SMALL_ASM() (*virt_addr));
 
 		virt_addr++;
 	}

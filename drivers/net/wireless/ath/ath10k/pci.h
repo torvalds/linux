@@ -152,6 +152,11 @@ struct ath10k_pci_pipe {
 	struct tasklet_struct intr;
 };
 
+struct ath10k_pci_supp_chip {
+	u32 dev_id;
+	u32 rev_id;
+};
+
 struct ath10k_pci {
 	struct pci_dev *pdev;
 	struct device *dev;
@@ -189,7 +194,7 @@ static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
 
 #define ATH10K_PCI_RX_POST_RETRY_MS 50
 #define ATH_PCI_RESET_WAIT_MAX 10 /* ms */
-#define PCIE_WAKE_TIMEOUT 5000	/* 5ms */
+#define PCIE_WAKE_TIMEOUT 10000	/* 10ms */
 
 #define BAR_NUM 0
 

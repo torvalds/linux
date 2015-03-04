@@ -1228,6 +1228,9 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	case -EINPROGRESS:
 		if (adapter->iface_type != MWIFIEX_PCIE)
 			adapter->data_sent = false;
+		break;
+	case 0:
+		mwifiex_write_data_complete(adapter, skb, 0, ret);
 	default:
 		break;
 	}
