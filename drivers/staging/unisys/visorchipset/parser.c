@@ -59,9 +59,6 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 		allocbytes++;
 	if ((Controlvm_Payload_Bytes_Buffered + bytes)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
-		ERRDRV("%s (%s:%d) - prevented allocation of %d bytes to prevent exceeding throttling max (%d)",
-		       __func__, __FILE__, __LINE__, allocbytes,
-		       MAX_CONTROLVM_PAYLOAD_BYTES);
 		if (tryAgain)
 			*tryAgain = TRUE;
 		rc = NULL;
@@ -84,9 +81,6 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 		void *p;
 
 		if (addr > virt_to_phys(high_memory - 1)) {
-			ERRDRV("%s - bad local address (0x%-16.16Lx for %lu)",
-			       __func__,
-			       (unsigned long long) addr, (ulong) bytes);
 			rc = NULL;
 			goto Away;
 		}
@@ -110,27 +104,15 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 	}
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	if (phdr->total_length != bytes) {
-		ERRDRV("%s - bad total length %lu (should be %lu)",
-		       __func__,
-		       (ulong) (phdr->total_length), (ulong) (bytes));
 		rc = NULL;
 		goto Away;
 	}
 	if (phdr->total_length < phdr->header_length) {
-		ERRDRV("%s - total length < header length (%lu < %lu)",
-		       __func__,
-		       (ulong) (phdr->total_length),
-		       (ulong) (phdr->header_length));
 		rc = NULL;
 		goto Away;
 	}
 	if (phdr->header_length <
 	    sizeof(struct spar_controlvm_parameters_header)) {
-		ERRDRV("%s - header is too small (%lu < %lu)",
-		       __func__,
-		       (ulong) (phdr->header_length),
-		       (ulong)(sizeof(
-				struct spar_controlvm_parameters_header)));
 		rc = NULL;
 		goto Away;
 	}
@@ -198,11 +180,8 @@ parser_id_get(PARSER_CONTEXT *ctx)
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (ctx == NULL) {
-		ERRDRV("%s (%s:%d) - no context",
-		       __func__, __FILE__, __LINE__);
+	if (ctx == NULL)
 		return NULL_UUID_LE;
-	}
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	return phdr->id;
 }
@@ -212,11 +191,8 @@ parser_param_start(PARSER_CONTEXT *ctx, PARSER_WHICH_STRING which_string)
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (ctx == NULL) {
-		ERRDRV("%s (%s:%d) - no context",
-		       __func__, __FILE__, __LINE__);
+	if (ctx == NULL)
 		goto Away;
-	}
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	switch (which_string) {
 	case PARSERSTRING_INITIATOR:
@@ -236,7 +212,6 @@ parser_param_start(PARSER_CONTEXT *ctx, PARSER_WHICH_STRING which_string)
 		ctx->bytes_remaining = phdr->name_length;
 		break;
 	default:
-		ERRDRV("%s - bad which_string %d", __func__, which_string);
 		break;
 	}
 
@@ -319,25 +294,18 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 	}
 
 	while (*pscan != ':') {
-		if (namesize <= 0) {
-			ERRDRV("%s - name too big", __func__);
+		if (namesize <= 0)
 			return NULL;
-		}
 		*pnam = toupper(*pscan);
 		pnam++;
 		namesize--;
 		pscan++;
 		nscan--;
-		if (nscan == 0) {
-			ERRDRV("%s - unexpected end of input parsing name",
-			       __func__);
+		if (nscan == 0)
 			return NULL;
-		}
 	}
-	if (namesize <= 0) {
-		ERRDRV("%s - name too big", __func__);
+	if (namesize <= 0)
 		return NULL;
-	}
 	*pnam = '\0';
 	nam[string_length_no_trail(nam, strlen(nam))] = '\0';
 
@@ -348,26 +316,17 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 	while (isspace(*pscan)) {
 		pscan++;
 		nscan--;
-		if (nscan == 0) {
-			ERRDRV("%s - unexpected end of input looking for value",
-			       __func__);
+		if (nscan == 0)
 			return NULL;
-		}
 	}
-	if (nscan == 0) {
-		ERRDRV("%s - unexpected end of input looking for value",
-		       __func__);
+	if (nscan == 0)
 		return NULL;
-	}
 	if (*pscan == '\'' || *pscan == '"') {
 		closing_quote = *pscan;
 		pscan++;
 		nscan--;
-		if (nscan == 0) {
-			ERRDRV("%s - unexpected end of input after %c",
-			       __func__, closing_quote);
+		if (nscan == 0)
 			return NULL;
-		}
 	}
 
 	/* look for a separator character, terminator character, or
@@ -375,10 +334,8 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 	 */
 	for (i = 0, value_length = -1; i < nscan; i++) {
 		if (closing_quote) {
-			if (pscan[i] == '\0') {
-				ERRDRV("%s - unexpected end of input parsing quoted value", __func__);
+			if (pscan[i] == '\0')
 				return NULL;
-			}
 			if (pscan[i] == closing_quote) {
 				value_length = i;
 				break;
@@ -391,10 +348,8 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 		}
 	}
 	if (value_length < 0) {
-		if (closing_quote) {
-			ERRDRV("%s - unexpected end of input parsing quoted value", __func__);
+		if (closing_quote)
 			return NULL;
-		}
 		value_length = nscan;
 	}
 	orig_value_length = value_length;
@@ -431,7 +386,6 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 				pscan++;
 				nscan--;
 			} else if (*pscan != '\0') {
-				ERRDRV("%s - missing separator after quoted string", __func__);
 				kfree(value);
 				value = NULL;
 				return NULL;

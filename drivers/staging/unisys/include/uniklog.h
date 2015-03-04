@@ -26,44 +26,6 @@
 #include <linux/printk.h>
 
 /*
- * # LOGERR
- *
- * \brief Log error message - logs a message at the LOG_ERR level,
- *        including source line number information
- *
- * \param devname the device name of the device reporting this message, or
- *                NULL if this message is NOT device-related.
- * \param fmt printf()-style format string containing the message to log.
- * \param args Optional arguments to be formatted and inserted into the format
- * \param string.
- * \return nothing
- *
- * Logs the specified error message at the LOG_ERR level.  It will also
- * include the file, line number, and function name of where the error
- * originated in the log message.
- */
-#define LOGERR(fmt, args...) pr_err(fmt, ## args)
-#define LOGERRDEV(devname, fmt, args...) \
-	pr_err("%s " fmt, devname, ## args)
-#define LOGERRDEVX(devno, fmt, args...) \
-	pr_err("dev%d " fmt, devno, ## args)
-#define LOGERRNAME(vnic, fmt, args...)				\
-	do {								\
-		if (vnic != NULL) {					\
-			pr_err("%s " fmt, vnic->name, ## args);	\
-		} else {						\
-			pr_err(fmt, ## args);				\
-		}							\
-	} while (0)
-#define LOGORDUMPERR(seqfile, fmt, args...) do {		\
-		if (seqfile) {					\
-			seq_printf(seqfile, fmt, ## args);	\
-		} else {					\
-			LOGERR(fmt, ## args);			\
-		}						\
-	} while (0)
-
-/*
  * # LOGWRN
  *
  * \brief Log warning message - Logs a message at the LOG_WARNING level,

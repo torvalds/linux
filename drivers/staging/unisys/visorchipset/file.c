@@ -60,25 +60,18 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 	file_cdev.owner = THIS_MODULE;
 	if (MAJOR(majordev) == 0) {
 		/* dynamic major device number registration required */
-		if (alloc_chrdev_region(&majordev, 0, 1, MYDRVNAME) < 0) {
-			ERRDRV("Unable to allocate+register char device %s",
-			       MYDRVNAME);
+		if (alloc_chrdev_region(&majordev, 0, 1, MYDRVNAME) < 0)
 			return -1;
-		}
 		registered = TRUE;
 	} else {
 		/* static major device number registration required */
-		if (register_chrdev_region(majordev, 1, MYDRVNAME) < 0) {
-			ERRDRV("Unable to register char device %s", MYDRVNAME);
+		if (register_chrdev_region(majordev, 1, MYDRVNAME) < 0)
 			return -1;
-		}
 		registered = TRUE;
 	}
 	rc = cdev_add(&file_cdev, MKDEV(MAJOR(majordev), 0), 1);
-	if (rc  < 0) {
-		ERRDRV("failed to create char device: (status=%d)\n", rc);
+	if (rc  < 0)
 		return -1;
-	}
 	return 0;
 }
 
@@ -122,15 +115,13 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 	GUEST_PHYSICAL_ADDRESS addr = 0;
 
 	/* sv_enable_dfp(); */
-	if (offset & (PAGE_SIZE - 1)) {
-		ERRDRV("%s virtual address NOT page-aligned!", __func__);
+	if (offset & (PAGE_SIZE - 1))
 		return -ENXIO;	/* need aligned offsets */
-	}
+
 	switch (offset) {
 	case VISORCHIPSET_MMAP_CONTROLCHANOFFSET:
 		vma->vm_flags |= VM_IO;
 		if (*file_controlvm_channel == NULL) {
-			ERRDRV("%s no controlvm channel yet", __func__);
 			return -ENXIO;
 		}
 		visorchannel_read(*file_controlvm_channel,
@@ -138,7 +129,6 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 				 gp_control_channel),
 			&addr, sizeof(addr));
 		if (addr == 0) {
-			ERRDRV("%s control channel address is 0", __func__);
 			return -ENXIO;
 		}
 		physaddr = (ulong)addr;
@@ -147,7 +137,6 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 				    vma->vm_end - vma->vm_start,
 				    /*pgprot_noncached */
 				    (vma->vm_page_prot))) {
-			ERRDRV("%s remap_pfn_range failed", __func__);
 			return -EAGAIN;
 		}
 		break;
@@ -179,7 +168,6 @@ static long visorchipset_ioctl(struct file *file, unsigned int cmd,
 		}
 		return issue_vmcall_update_physical_time(adjustment);
 	default:
-		LOGERR("visorchipset_ioctl received invalid command");
 		return -EFAULT;
 	}
 }

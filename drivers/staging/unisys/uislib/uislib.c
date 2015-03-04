@@ -132,14 +132,10 @@ static __iomem void *init_vbus_channel(u64 ch_addr, u32 ch_bytes)
 {
 	void __iomem *ch = uislib_ioremap_cache(ch_addr, ch_bytes);
 
-	if (!ch) {
-		LOGERR("CONTROLVM_BUS_CREATE error: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
-		       (unsigned long long)ch_addr,
-		       (unsigned long long)ch_bytes);
+	if (!ch)
 		return NULL;
-	}
+
 	if (!SPAR_VBUS_CHANNEL_OK_CLIENT(ch)) {
-		ERRDRV("%s channel cannot be used", __func__);
 		uislib_iounmap(ch);
 		return NULL;
 	}
@@ -154,8 +150,6 @@ create_bus(struct controlvm_message *msg, char *buf)
 	size_t size;
 
 	if (max_bus_count == bus_list_count) {
-		LOGERR("CONTROLVM_BUS_CREATE Failed: max buses:%d already created\n",
-		       max_bus_count);
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, max_bus_count,
 				 POSTCODE_SEVERITY_ERR);
 		return CONTROLVM_RESP_ERROR_MAX_BUSES;
@@ -208,8 +202,6 @@ create_bus(struct controlvm_message *msg, char *buf)
 		/* found a bus already in the list with same bus_no -
 		 * reject add
 		 */
-		LOGERR("CONTROLVM_BUS_CREATE Failed: bus %d already exists.\n",
-		       bus->bus_no);
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		kfree(bus);
@@ -233,14 +225,12 @@ create_bus(struct controlvm_message *msg, char *buf)
 		cmd.add_vbus.bus_uuid = msg->cmd.create_bus.bus_data_type_uuid;
 		cmd.add_vbus.instance_uuid = msg->cmd.create_bus.bus_inst_uuid;
 		if (!virt_control_chan_func) {
-			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci callback not registered.");
 			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
 					 POSTCODE_SEVERITY_ERR);
 			kfree(bus);
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
 		if (!virt_control_chan_func(&cmd)) {
-			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci GUEST_ADD_VBUS returned error.");
 			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
 					 POSTCODE_SEVERITY_ERR);
 			kfree(bus);
@@ -286,8 +276,6 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 	}
 
 	if (!bus) {
-		LOGERR("CONTROLVM_BUS_DESTROY Failed: failed to find bus %d.\n",
-		       bus_no);
 		read_unlock(&bus_list_lock);
 		return CONTROLVM_RESP_ERROR_ALREADY_DONE;
 	}
@@ -295,8 +283,6 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 	/* verify that this bus has no devices. */
 	for (i = 0; i < bus->device_count; i++) {
 		if (bus->device[i] != NULL) {
-			LOGERR("CONTROLVM_BUS_DESTROY Failed: device %i attached to bus %d.",
-			       i, bus_no);
 			read_unlock(&bus_list_lock);
 			return CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED;
 		}
@@ -310,14 +296,11 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 	   with this bus. */
 	cmd.msgtype = GUEST_DEL_VBUS;
 	cmd.del_vbus.bus_no = bus_no;
-	if (!virt_control_chan_func) {
-		LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci callback not registered.");
+	if (!virt_control_chan_func)
 		return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
-	}
-	if (!virt_control_chan_func(&cmd)) {
-		LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci GUEST_DEL_VBUS returned error.");
+
+	if (!virt_control_chan_func(&cmd))
 		return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
-	}
 
 	/* finally, remove the bus from the list */
 remove:
@@ -379,9 +362,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 			 */
 			min_size = req_handler->min_channel_bytes;
 		if (min_size > msg->cmd.create_device.channel_bytes) {
-			LOGERR("CONTROLVM_DEVICE_CREATE Failed: channel size is too small, channel size:0x%lx, required size:0x%lx",
-			       (ulong)msg->cmd.create_device.channel_bytes,
-			       (ulong)min_size);
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no,
 					 bus_no, POSTCODE_SEVERITY_ERR);
 			result = CONTROLVM_RESP_ERROR_CHANNEL_SIZE_TOO_SMALL;
@@ -391,9 +371,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 		    uislib_ioremap_cache(dev->channel_addr,
 					 msg->cmd.create_device.channel_bytes);
 		if (!dev->chanptr) {
-			LOGERR("CONTROLVM_DEVICE_CREATE Failed: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
-			       dev->channel_addr,
-			       msg->cmd.create_device.channel_bytes);
 			result = CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no,
 					 bus_no, POSTCODE_SEVERITY_ERR);
@@ -409,8 +386,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 			continue;
 		/* make sure the device number is valid */
 		if (dev_no >= bus->device_count) {
-			LOGERR("CONTROLVM_DEVICE_CREATE Failed: device (%d) >= deviceCount (%d).",
-			       dev_no, bus->device_count);
 			result = CONTROLVM_RESP_ERROR_MAX_DEVICES;
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no,
 					 bus_no, POSTCODE_SEVERITY_ERR);
@@ -419,8 +394,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 		}
 		/* make sure this device is not already set */
 		if (bus->device[dev_no]) {
-			LOGERR("CONTROLVM_DEVICE_CREATE Failed: device %d is already exists.",
-			       dev_no);
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC,
 					 dev_no, bus_no,
 					 POSTCODE_SEVERITY_ERR);
@@ -443,8 +416,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 			wait_for_valid_guid(&((struct channel_header __iomem *)
 					    (dev->chanptr))->chtype);
 			if (!SPAR_VHBA_CHANNEL_OK_CLIENT(dev->chanptr)) {
-				LOGERR("CONTROLVM_DEVICE_CREATE Failed:[CLIENT]VHBA dev %d chan invalid.",
-				       dev_no);
 				POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC,
 						 dev_no, bus_no,
 						 POSTCODE_SEVERITY_ERR);
@@ -462,8 +433,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 			wait_for_valid_guid(&((struct channel_header __iomem *)
 					    (dev->chanptr))->chtype);
 			if (!SPAR_VNIC_CHANNEL_OK_CLIENT(dev->chanptr)) {
-				LOGERR("CONTROLVM_DEVICE_CREATE Failed: VNIC[CLIENT] dev %d chan invalid.",
-				       dev_no);
 				POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC,
 						 dev_no, bus_no,
 						 POSTCODE_SEVERITY_ERR);
@@ -477,7 +446,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 			cmd.add_vnic.instance_uuid = dev->instance_uuid;
 			cmd.add_vhba.intr = dev->intr;
 		} else {
-			LOGERR("CONTROLVM_DEVICE_CREATE Failed: unknown channelTypeGuid.\n");
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no,
 					 bus_no, POSTCODE_SEVERITY_ERR);
 			result = CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
@@ -485,7 +453,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 		}
 
 		if (!virt_control_chan_func) {
-			LOGERR("CONTROLVM_DEVICE_CREATE Failed: virtpci callback not registered.");
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no,
 					 bus_no, POSTCODE_SEVERITY_ERR);
 			result = CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
@@ -493,7 +460,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 		}
 
 		if (!virt_control_chan_func(&cmd)) {
-			LOGERR("CONTROLVM_DEVICE_CREATE Failed: virtpci GUEST_ADD_[VHBA||VNIC] returned error.");
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no,
 					 bus_no, POSTCODE_SEVERITY_ERR);
 			result =
@@ -508,8 +474,6 @@ static int create_device(struct controlvm_message *msg, char *buf)
 	}
 	read_unlock(&bus_list_lock);
 
-	LOGERR("CONTROLVM_DEVICE_CREATE Failed: failed to find bus %d.",
-	       bus_no);
 	POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_ERR);
 	result = CONTROLVM_RESP_ERROR_BUS_INVALID;
@@ -540,15 +504,11 @@ static int pause_device(struct controlvm_message *msg)
 		if (bus->bus_no == bus_no) {
 			/* make sure the device number is valid */
 			if (dev_no >= bus->device_count) {
-				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: device(%d) >= deviceCount(%d).",
-				       dev_no, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
 				dev = bus->device[dev_no];
 				if (!dev) {
-					LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: device %d does not exist.",
-					       dev_no);
 					retval =
 					  CONTROLVM_RESP_ERROR_ALREADY_DONE;
 				}
@@ -556,11 +516,9 @@ static int pause_device(struct controlvm_message *msg)
 			break;
 		}
 	}
-	if (!bus) {
-		LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: bus %d does not exist",
-		       bus_no);
+	if (!bus)
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
-	}
+
 	read_unlock(&bus_list_lock);
 	if (retval == CONTROLVM_RESP_SUCCESS) {
 		/* the msg is bound for virtpci; send
@@ -575,15 +533,12 @@ static int pause_device(struct controlvm_message *msg)
 			cmd.msgtype = GUEST_PAUSE_VNIC;
 			cmd.pause_vnic.chanptr = dev->chanptr;
 		} else {
-			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: unknown channelTypeGuid.\n");
 			return CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
 		if (!virt_control_chan_func) {
-			LOGERR("CONTROLVM_DEVICE_CHANGESTATE Failed: virtpci callback not registered.");
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
 		if (!virt_control_chan_func(&cmd)) {
-			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: virtpci GUEST_PAUSE_[VHBA||VNIC] returned error.");
 			return
 			  CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
 		}
@@ -607,15 +562,11 @@ static int resume_device(struct controlvm_message *msg)
 		if (bus->bus_no == bus_no) {
 			/* make sure the device number is valid */
 			if (dev_no >= bus->device_count) {
-				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: device(%d) >= deviceCount(%d).",
-				       dev_no, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
 				dev = bus->device[dev_no];
 				if (!dev) {
-					LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: device %d does not exist.",
-					       dev_no);
 					retval =
 					  CONTROLVM_RESP_ERROR_ALREADY_DONE;
 				}
@@ -624,11 +575,9 @@ static int resume_device(struct controlvm_message *msg)
 		}
 	}
 
-	if (!bus) {
-		LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: bus %d does not exist",
-		       bus_no);
+	if (!bus)
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
-	}
+
 	read_unlock(&bus_list_lock);
 	/* the msg is bound for virtpci; send
 	 * guest_msgs struct to callback
@@ -643,15 +592,12 @@ static int resume_device(struct controlvm_message *msg)
 			cmd.msgtype = GUEST_RESUME_VNIC;
 			cmd.resume_vnic.chanptr = dev->chanptr;
 		} else {
-			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: unknown channelTypeGuid.\n");
 			return CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
 		if (!virt_control_chan_func) {
-			LOGERR("CONTROLVM_DEVICE_CHANGESTATE Failed: virtpci callback not registered.");
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
 		if (!virt_control_chan_func(&cmd)) {
-			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: virtpci GUEST_RESUME_[VHBA||VNIC] returned error.");
 			return
 			  CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
 		}
@@ -675,15 +621,11 @@ static int destroy_device(struct controlvm_message *msg, char *buf)
 		if (bus->bus_no == bus_no) {
 			/* make sure the device number is valid */
 			if (dev_no >= bus->device_count) {
-				LOGERR("CONTROLVM_DEVICE_DESTROY Failed: device(%d) >= device_count(%d).",
-				       dev_no, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
 				dev = bus->device[dev_no];
 				if (!dev) {
-					LOGERR("CONTROLVM_DEVICE_DESTROY Failed: device %d does not exist.",
-					       dev_no);
 					retval =
 					     CONTROLVM_RESP_ERROR_ALREADY_DONE;
 				}
@@ -692,11 +634,8 @@ static int destroy_device(struct controlvm_message *msg, char *buf)
 		}
 	}
 
-	if (!bus) {
-		LOGERR("CONTROLVM_DEVICE_DESTROY Failed: bus %d does not exist",
-		       bus_no);
+	if (!bus)
 		retval = CONTROLVM_RESP_ERROR_BUS_INVALID;
-	}
 	read_unlock(&bus_list_lock);
 	if (retval == CONTROLVM_RESP_SUCCESS) {
 		/* the msg is bound for virtpci; send
@@ -711,17 +650,14 @@ static int destroy_device(struct controlvm_message *msg, char *buf)
 			cmd.msgtype = GUEST_DEL_VNIC;
 			cmd.del_vnic.chanptr = dev->chanptr;
 		} else {
-			LOGERR("CONTROLVM_DEVICE_DESTROY Failed: unknown channelTypeGuid.\n");
 			return
 			    CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
 		if (!virt_control_chan_func) {
-			LOGERR("CONTROLVM_DEVICE_DESTROY Failed: virtpci callback not registered.");
 			return
 			    CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
 		if (!virt_control_chan_func(&cmd)) {
-			LOGERR("CONTROLVM_DEVICE_DESTROY Failed: virtpci GUEST_DEL_[VHBA||VNIC] returned error.");
 			return
 			    CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
 		}
@@ -774,10 +710,8 @@ static int delete_bus_glue(u32 bus_no)
 
 	init_msg_header(&msg, CONTROLVM_BUS_DESTROY, 0, 0);
 	msg.cmd.destroy_bus.bus_no = bus_no;
-	if (destroy_bus(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("destroy_bus failed. bus_no=0x%x\n", bus_no);
+	if (destroy_bus(&msg, NULL) != CONTROLVM_RESP_SUCCESS)
 		return 0;
-	}
 	return 1;
 }
 
@@ -788,11 +722,8 @@ static int delete_device_glue(u32 bus_no, u32 dev_no)
 	init_msg_header(&msg, CONTROLVM_DEVICE_DESTROY, 0, 0);
 	msg.cmd.destroy_device.bus_no = bus_no;
 	msg.cmd.destroy_device.dev_no = dev_no;
-	if (destroy_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("destroy_device failed. bus_no=0x%x dev_no=0x%x\n",
-		       bus_no, dev_no);
+	if (destroy_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS)
 		return 0;
-	}
 	return 1;
 }
 
@@ -817,10 +748,8 @@ uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
 		*/
 		msg.cmd.init_chipset.bus_count = 23;
 		msg.cmd.init_chipset.switch_count = 0;
-		if (init_chipset(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
-			LOGERR("init_chipset failed.\n");
+		if (init_chipset(&msg, NULL) != CONTROLVM_RESP_SUCCESS)
 			return 0;
-		}
 		POSTCODE_LINUX_3(CHIPSET_INIT_EXIT_PC, bus_no,
 				 POSTCODE_SEVERITY_INFO);
 	}
@@ -834,7 +763,6 @@ uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
 	msg.cmd.create_bus.channel_addr = channel_addr;
 	msg.cmd.create_bus.channel_bytes = n_channel_bytes;
 	if (create_bus(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("create_bus failed.\n");
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -863,11 +791,8 @@ uislib_client_inject_pause_vhba(u32 bus_no, u32 dev_no)
 	msg.cmd.device_change_state.dev_no = dev_no;
 	msg.cmd.device_change_state.state = segment_state_standby;
 	rc = pause_device(&msg);
-	if (rc != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("VHBA pause_device failed. busNo=0x%x devNo=0x%x\n",
-		       bus_no, dev_no);
+	if (rc != CONTROLVM_RESP_SUCCESS)
 		return rc;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_pause_vhba);
@@ -883,11 +808,8 @@ uislib_client_inject_resume_vhba(u32 bus_no, u32 dev_no)
 	msg.cmd.device_change_state.dev_no = dev_no;
 	msg.cmd.device_change_state.state = segment_state_running;
 	rc = resume_device(&msg);
-	if (rc != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("VHBA resume_device failed. busNo=0x%x devNo=0x%x\n",
-		       bus_no, dev_no);
+	if (rc != CONTROLVM_RESP_SUCCESS)
 		return rc;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vhba);
@@ -923,8 +845,6 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 		       sizeof(struct irq_info));
 	msg.cmd.create_device.channel_addr = phys_chan_addr;
 	if (chan_bytes < MIN_IO_CHANNEL_SIZE) {
-		LOGERR("wrong channel size.chan_bytes = 0x%x IO_CHANNEL_SIZE= 0x%x\n",
-		       chan_bytes, (unsigned int)MIN_IO_CHANNEL_SIZE);
 		POSTCODE_LINUX_4(VHBA_CREATE_FAILURE_PC, chan_bytes,
 				 MIN_IO_CHANNEL_SIZE, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -932,7 +852,6 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 	msg.cmd.create_device.channel_bytes = chan_bytes;
 	msg.cmd.create_device.data_type_uuid = spar_vhba_channel_protocol_uuid;
 	if (create_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("VHBA create_device failed.\n");
 		POSTCODE_LINUX_4(VHBA_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -981,8 +900,6 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 		       sizeof(struct irq_info));
 	msg.cmd.create_device.channel_addr = phys_chan_addr;
 	if (chan_bytes < MIN_IO_CHANNEL_SIZE) {
-		LOGERR("wrong channel size.chan_bytes = 0x%x IO_CHANNEL_SIZE= 0x%x\n",
-		       chan_bytes, (unsigned int)MIN_IO_CHANNEL_SIZE);
 		POSTCODE_LINUX_4(VNIC_CREATE_FAILURE_PC, chan_bytes,
 				 MIN_IO_CHANNEL_SIZE, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -990,7 +907,6 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 	msg.cmd.create_device.channel_bytes = chan_bytes;
 	msg.cmd.create_device.data_type_uuid = spar_vnic_channel_protocol_uuid;
 	if (create_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("VNIC create_device failed.\n");
 		POSTCODE_LINUX_4(VNIC_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -1014,8 +930,6 @@ uislib_client_inject_pause_vnic(u32 bus_no, u32 dev_no)
 	msg.cmd.device_change_state.state = segment_state_standby;
 	rc = pause_device(&msg);
 	if (rc != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("VNIC pause_device failed. busNo=0x%x devNo=0x%x\n",
-		       bus_no, dev_no);
 		return -1;
 	}
 	return 0;
@@ -1033,11 +947,8 @@ uislib_client_inject_resume_vnic(u32 bus_no, u32 dev_no)
 	msg.cmd.device_change_state.dev_no = dev_no;
 	msg.cmd.device_change_state.state = segment_state_running;
 	rc = resume_device(&msg);
-	if (rc != CONTROLVM_RESP_SUCCESS) {
-		LOGERR("VNIC resume_device failed. busNo=0x%x devNo=0x%x\n",
-		       bus_no, dev_no);
+	if (rc != CONTROLVM_RESP_SUCCESS)
 		return -1;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vnic);
@@ -1059,11 +970,8 @@ uislib_cache_alloc(struct kmem_cache *cur_pool, char *fn, int ln)
 	*/
 	void *p = kmem_cache_alloc(cur_pool, GFP_ATOMIC | __GFP_NORETRY);
 
-	if (p == NULL) {
-		LOGERR("uislib_malloc failed to alloc uiscmdrsp @%s:%d",
-		       fn, ln);
+	if (p == NULL)
 		return NULL;
-	}
 	return p;
 }
 EXPORT_SYMBOL_GPL(uislib_cache_alloc);
@@ -1071,10 +979,8 @@ EXPORT_SYMBOL_GPL(uislib_cache_alloc);
 void
 uislib_cache_free(struct kmem_cache *cur_pool, void *p, char *fn, int ln)
 {
-	if (p == NULL) {
-		LOGERR("uislib_free NULL pointer @%s:%d", fn, ln);
+	if (p == NULL)
 		return;
-	}
 	kmem_cache_free(cur_pool, p);
 }
 EXPORT_SYMBOL_GPL(uislib_cache_free);
@@ -1155,10 +1061,8 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	if (debug_buf == NULL) {
 		debug_buf = vmalloc(PROC_READ_BUFFER_SIZE);
 
-		if (debug_buf == NULL) {
-			LOGERR("failed to allocate buffer to provide proc data.\n");
+		if (debug_buf == NULL)
 			return -ENOMEM;
-		}
 	}
 
 	temp = debug_buf;
@@ -1184,17 +1088,9 @@ static struct device_info *find_dev(u32 bus_no, u32 dev_no)
 	for (bus = bus_list; bus; bus = bus->next) {
 		if (bus->bus_no == bus_no) {
 			/* make sure the device number is valid */
-			if (dev_no >= bus->device_count) {
-				LOGERR("%s bad bus_no, dev_no=%d,%d",
-				       __func__,
-				       (int)bus_no, (int)dev_no);
+			if (dev_no >= bus->device_count)
 				break;
-			}
 			dev = bus->device[dev_no];
-			if (!dev)
-				LOGERR("%s bad bus_no, dev_no=%d,%d",
-				       __func__,
-				       (int)bus_no, (int)dev_no);
 			break;
 		}
 	}
@@ -1331,7 +1227,6 @@ initialize_incoming_thread(void)
 		return TRUE;
 	if (!uisthread_start(&incoming_ti,
 			     &process_incoming, NULL, "dev_incoming")) {
-		LOGERR("uisthread_start initialize_incoming_thread ****FAILED");
 		return FALSE;
 	}
 	incoming_started = TRUE;
@@ -1352,11 +1247,9 @@ uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 	struct device_info *dev;
 
 	dev = find_dev(bus_no, dev_no);
-	if (!dev) {
-		LOGERR("%s busNo=%d, devNo=%d", __func__, (int)(bus_no),
-		       (int)(dev_no));
+	if (!dev)
 		return;
-	}
+
 	down(&poll_dev_lock);
 	initialize_incoming_thread();
 	dev->interrupt = interrupt;
@@ -1377,11 +1270,8 @@ uislib_disable_channel_interrupts(u32 bus_no, u32 dev_no)
 	struct device_info *dev;
 
 	dev = find_dev(bus_no, dev_no);
-	if (!dev) {
-		LOGERR("%s busNo=%d, devNo=%d", __func__, (int)(bus_no),
-		       (int)(dev_no));
+	if (!dev)
 		return;
-	}
 	down(&poll_dev_lock);
 	list_del(&dev->list_polling_device_channels);
 	dev->polling = FALSE;

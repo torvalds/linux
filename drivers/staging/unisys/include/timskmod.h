@@ -78,9 +78,6 @@
 		(void *)(p2) = SWAPPOINTERS_TEMP;	\
 	} while (0)
 
-#define TBDDRV(fmt, args...)    LOGERR(fmt, ## args)
-#define HUHDRV(fmt, args...)    LOGERR(fmt, ## args)
-#define ERRDRV(fmt, args...)    LOGERR(fmt, ## args)
 #define WARNDRV(fmt, args...)   LOGWRN(fmt, ## args)
 #define SECUREDRV(fmt, args...) LOGWRN(fmt, ## args)
 

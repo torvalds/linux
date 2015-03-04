@@ -39,11 +39,8 @@ struct charqueue *visor_charqueue_create(ulong nslots)
 	struct charqueue *cq;
 
 	cq = kmalloc(alloc_size, GFP_KERNEL|__GFP_NORETRY);
-	if (cq == NULL) {
-		ERRDRV("visor_charqueue_create allocation failed (alloc_size=%d)",
-		       alloc_size);
+	if (cq == NULL)
 		return NULL;
-	}
 	cq->alloc_size = alloc_size;
 	cq->nslots = nslots;
 	cq->head = 0;

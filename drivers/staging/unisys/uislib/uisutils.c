@@ -60,7 +60,6 @@ uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 		*buffer += *buffer_remaining;
 		*total += *buffer_remaining;
 		*buffer_remaining = 0;
-		LOGERR("bytes remaining is too small!\n");
 		return -1;
 	}
 	*buffer_remaining -= len;
@@ -88,7 +87,6 @@ uisctrl_register_req_handler(int type, void *fptr,
 		break;
 
 	default:
-		LOGERR("invalid type %d.\n", type);
 		return 0;
 	}
 	if (chipset_driver_info)

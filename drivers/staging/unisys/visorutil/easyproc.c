@@ -61,9 +61,6 @@ static struct proc_dir_entry *
 	createProcDir(char *name, struct proc_dir_entry *parent)
 {
 	struct proc_dir_entry *p = proc_mkdir_mode(name, S_IFDIR, parent);
-
-	if (p == NULL)
-		ERRDRV("failed to create /proc directory %s", name);
 	return p;
 }
 
@@ -114,8 +111,6 @@ void visor_easyproc_InitDriver(struct easyproc_driver_info *pdriver,
 {
 	memset(pdriver, 0, sizeof(struct easyproc_driver_info));
 	pdriver->ProcId = procId;
-	if (pdriver->ProcId == NULL)
-		ERRDRV("ProcId cannot be NULL (trouble ahead)!");
 	pdriver->Show_driver_info = show_driver_info;
 	pdriver->Show_device_info = show_device_info;
 	if (pdriver->ProcDir == NULL)
@@ -132,9 +127,6 @@ void visor_easyproc_InitDriver(struct easyproc_driver_info *pdriver,
 			proc_create_data("diag", 0,
 					 pdriver->ProcDriverDir,
 					 &proc_fops_driver, pdriver);
-		if (pdriver->ProcDriverDiagFile == NULL)
-			ERRDRV("failed to register /proc/%s/driver/diag entry",
-			       pdriver->ProcId);
 	}
 }
 EXPORT_SYMBOL_GPL(visor_easyproc_InitDriver);
@@ -209,10 +201,6 @@ void visor_easyproc_InitDevice(struct easyproc_driver_info *pdriver,
 		p->procDevicexDiagFile =
 			proc_create_data("diag", 0, p->procDevicexDir,
 					 &proc_fops_device, p);
-		if (p->procDevicexDiagFile == NULL)
-			ERRDEVX(devno, "failed to register /proc/%s/device/%d/diag entry",
-				pdriver->ProcId, devno
-			       );
 	}
 	memset(&(p->device_property_info[0]), 0,
 	       sizeof(p->device_property_info));
@@ -229,34 +217,26 @@ void visor_easyproc_CreateDeviceProperty(struct easyproc_device_info *p,
 	size_t i;
 	struct easyproc_device_property_info *px = NULL;
 
-	if (p->procDevicexDir == NULL) {
-		ERRDRV("state error");
+	if (p->procDevicexDir == NULL)
 		return;
-	}
 	for (i = 0; i < ARRAY_SIZE(p->device_property_info); i++) {
 		if (p->device_property_info[i].procEntry == NULL) {
 			px = &(p->device_property_info[i]);
 			break;
 		}
 	}
-	if (!px) {
-		ERRDEVX(p->devno, "too many device properties");
+	if (!px)
 		return;
-	}
+
 	px->devdata = p->devdata;
 	px->pdriver = p->pdriver;
 	px->procEntry = proc_create_data(property_name, 0, p->procDevicexDir,
 					 &proc_fops_device_property, px);
 	if (strlen(property_name)+1 > sizeof(px->property_name)) {
-		ERRDEVX(p->devno, "device property name %s too long",
-			property_name);
 		return;
 	}
 	strcpy(px->property_name, property_name);
 	if (px->procEntry == NULL) {
-		ERRDEVX(p->devno,
-			"failed to register /proc/%s/device/%d/%s entry",
-			p->pdriver->ProcId, p->devno, property_name);
 		return;
 	}
 	px->show_device_property_info = show_property_info;

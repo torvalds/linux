@@ -184,10 +184,8 @@ wait_for_valid_guid(uuid_le __iomem *guid)
 			      (void __iomem *)guid, sizeof(uuid_le));
 		if (uuid_le_cmp(tmpguid, NULL_UUID_LE) != 0)
 			break;
-		LOGERR("Waiting for non-0 GUID (why???)...\n");
 		UIS_THREAD_WAIT_SEC(5);
 	}
-	LOGERR("OK... GUID is non-0 now\n");
 }
 
 static inline unsigned int
