@@ -642,7 +642,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 	dma_addr_t addr;
 	u8 dir;
 	int err = 0;
-	u32 val = (1 << 31);
+	u32 val = 1 << 31;
 	long timeleft;
 
 	if ((buf == NULL) || (len <= 0))
