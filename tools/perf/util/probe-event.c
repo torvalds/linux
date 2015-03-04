@@ -790,7 +790,11 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	/* Convert source file path */
 	tmp = lr->path;
 	ret = get_real_path(tmp, lr->comp_dir, &lr->path);
-	free(tmp);	/* Free old path */
+
+	/* Free old path when new path is assigned */
+	if (tmp != lr->path)
+		free(tmp);
+
 	if (ret < 0) {
 		pr_warning("Failed to find source file path.\n");
 		return ret;
