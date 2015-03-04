@@ -216,6 +216,7 @@ int kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 	if (idx > current_cpu_data.tlbsize) {
 		kvm_err("%s: Invalid Index: %d\n", __func__, idx);
 		kvm_mips_dump_host_tlbs();
+		local_irq_restore(flags);
 		return -1;
 	}
 
