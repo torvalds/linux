@@ -428,7 +428,7 @@ static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd *cmd)
 		return MODE_SINGLE_CHAN;
 
 	/* chanlist may be NULL during cmdtest */
-	if (cmd->chanlist == NULL)
+	if (!cmd->chanlist)
 		return MODE_MULT_CHAN_UP;
 
 	chan0 = CR_CHAN(cmd->chanlist[0]);
