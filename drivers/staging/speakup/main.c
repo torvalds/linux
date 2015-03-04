@@ -1527,7 +1527,7 @@ static void update_color_buffer(struct vc_data *vc, const char *ic, int len)
 	int i, bi, hi;
 	int vc_num = vc->vc_num;
 
-	bi = ((vc->vc_attr & 0x70) >> 4);
+	bi = (vc->vc_attr & 0x70) >> 4;
 	hi = speakup_console[vc_num]->ht.highsize[bi];
 
 	i = 0;
