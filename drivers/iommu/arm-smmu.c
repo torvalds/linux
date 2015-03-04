@@ -730,6 +730,20 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 	stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
 	cb_base = ARM_SMMU_CB_BASE(smmu) + ARM_SMMU_CB(smmu, cfg->cbndx);
 
+	if (smmu->version > ARM_SMMU_V1) {
+		/*
+		 * CBA2R.
+		 * *Must* be initialised before CBAR thanks to VMID16
+		 * architectural oversight affected some implementations.
+		 */
+#ifdef CONFIG_64BIT
+		reg = CBA2R_RW64_64BIT;
+#else
+		reg = CBA2R_RW64_32BIT;
+#endif
+		writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBA2R(cfg->cbndx));
+	}
+
 	/* CBAR */
 	reg = cfg->cbar;
 	if (smmu->version == ARM_SMMU_V1)
@@ -746,16 +760,6 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 		reg |= ARM_SMMU_CB_VMID(cfg) << CBAR_VMID_SHIFT;
 	}
 	writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBAR(cfg->cbndx));
-
-	if (smmu->version > ARM_SMMU_V1) {
-		/* CBA2R */
-#ifdef CONFIG_64BIT
-		reg = CBA2R_RW64_64BIT;
-#else
-		reg = CBA2R_RW64_32BIT;
-#endif
-		writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBA2R(cfg->cbndx));
-	}
 
 	/* TTBRs */
 	if (stage1) {
