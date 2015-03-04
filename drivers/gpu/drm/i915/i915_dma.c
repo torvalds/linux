@@ -68,6 +68,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_CHIPSET_ID:
 		value = dev->pdev->device;
 		break;
+	case I915_PARAM_REVISION:
+		value = dev->pdev->revision;
+		break;
 	case I915_PARAM_HAS_GEM:
 		value = 1;
 		break;
