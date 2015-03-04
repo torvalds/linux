@@ -1576,7 +1576,7 @@ static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
 	       dev->mmio + S626_P_RPSADDR1);
 
 	/* Construct RPS program in rps_buf DMA buffer */
-	if (cmd != NULL && cmd->scan_begin_src != TRIG_FOLLOW) {
+	if (cmd->scan_begin_src != TRIG_FOLLOW) {
 		/* Wait for Start trigger. */
 		*rps++ = S626_RPS_PAUSE | S626_RPS_SIGADC;
 		*rps++ = S626_RPS_CLRSIGNAL | S626_RPS_SIGADC;
@@ -1665,7 +1665,7 @@ static void s626_reset_adc(struct comedi_device *dev, uint8_t *ppl)
 			*rps++ = jmp_adrs;
 		}
 
-		if (cmd != NULL && cmd->convert_src != TRIG_NOW) {
+		if (cmd->convert_src != TRIG_NOW) {
 			/* Wait for Start trigger. */
 			*rps++ = S626_RPS_PAUSE | S626_RPS_SIGADC;
 			*rps++ = S626_RPS_CLRSIGNAL | S626_RPS_SIGADC;
@@ -2033,10 +2033,6 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* reset ai_cmd_running flag */
 	devpriv->ai_cmd_running = 0;
-
-	/* test if cmd is valid */
-	if (cmd == NULL)
-		return -EINVAL;
 
 	s626_ai_load_polllist(ppl, cmd);
 	devpriv->ai_cmd_running = 1;
