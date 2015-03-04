@@ -1,5 +1,3 @@
-CC = $(CROSS_COMPILE)gcc
-
 all: get_size
 
 get_size: get_size.c

@@ -1,3 +1,7 @@
+# This mimics the top-level Makefile. We do it explicitly here so that this
+# Makefile can operate with or without the kbuild infrastructure.
+CC := $(CROSS_COMPILE)gcc
+
 define RUN_TESTS
 	@for TEST in $(TEST_PROGS); do \
 		(./$$TEST && echo "selftests: $$TEST [PASS]") || echo "selftests: $$TEST [FAIL]"; \

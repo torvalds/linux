@@ -1,4 +1,3 @@
-CC := $(CROSS_COMPILE)$(CC)
 CFLAGS += -I../../../../usr/include/
 
 all: kcmp_test
