@@ -593,7 +593,7 @@ static int xgene_enet_reset(struct xgene_enet_pdata *pdata)
 	if (!xgene_ring_mgr_init(pdata))
 		return -ENODEV;
 
-	if (!efi_enabled(EFI_BOOT)) {
+	if (pdata->clk) {
 		clk_prepare_enable(pdata->clk);
 		clk_disable_unprepare(pdata->clk);
 		clk_prepare_enable(pdata->clk);
