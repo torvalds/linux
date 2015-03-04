@@ -124,6 +124,70 @@ static bool hda_readable_reg(struct device *dev, unsigned int reg)
 	return hda_writeable_reg(dev, reg);
 }
 
+/*
+ * Stereo amp pseudo register:
+ * for making easier to handle the stereo volume control, we provide a
+ * fake register to deal both left and right channels by a single
+ * (pseudo) register access.  A verb consisting of SET_AMP_GAIN with
+ * *both* SET_LEFT and SET_RIGHT bits takes a 16bit value, the lower 8bit
+ * for the left and the upper 8bit for the right channel.
+ */
+static bool is_stereo_amp_verb(unsigned int reg)
+{
+	if (((reg >> 8) & 0x700) != AC_VERB_SET_AMP_GAIN_MUTE)
+		return false;
+	return (reg & (AC_AMP_SET_LEFT | AC_AMP_SET_RIGHT)) ==
+		(AC_AMP_SET_LEFT | AC_AMP_SET_RIGHT);
+}
+
+/* read a pseudo stereo amp register (16bit left+right) */
+static int hda_reg_read_stereo_amp(struct hdac_device *codec,
+				   unsigned int reg, unsigned int *val)
+{
+	unsigned int left, right;
+	int err;
+
+	reg &= ~(AC_AMP_SET_LEFT | AC_AMP_SET_RIGHT);
+	err = snd_hdac_exec_verb(codec, reg | AC_AMP_GET_LEFT, 0, &left);
+	if (err < 0)
+		return err;
+	err = snd_hdac_exec_verb(codec, reg | AC_AMP_GET_RIGHT, 0, &right);
+	if (err < 0)
+		return err;
+	*val = left | (right << 8);
+	return 0;
+}
+
+/* write a pseudo stereo amp register (16bit left+right) */
+static int hda_reg_write_stereo_amp(struct hdac_device *codec,
+				    unsigned int reg, unsigned int val)
+{
+	int err;
+	unsigned int verb, left, right;
+
+	verb = AC_VERB_SET_AMP_GAIN_MUTE << 8;
+	if (reg & AC_AMP_GET_OUTPUT)
+		verb |= AC_AMP_SET_OUTPUT;
+	else
+		verb |= AC_AMP_SET_INPUT | ((reg & 0xf) << 8);
+	reg = (reg & ~0xfffff) | verb;
+
+	left = val & 0xff;
+	right = (val >> 8) & 0xff;
+	if (left == right) {
+		reg |= AC_AMP_SET_LEFT | AC_AMP_SET_RIGHT;
+		return snd_hdac_exec_verb(codec, reg | left, 0, NULL);
+	}
+
+	err = snd_hdac_exec_verb(codec, reg | AC_AMP_SET_LEFT | left, 0, NULL);
+	if (err < 0)
+		return err;
+	err = snd_hdac_exec_verb(codec, reg | AC_AMP_SET_RIGHT | right, 0, NULL);
+	if (err < 0)
+		return err;
+	return 0;
+}
+
 static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct hdac_device *codec = context;
@@ -131,6 +195,8 @@ static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 	if (!codec_is_running(codec))
 		return -EAGAIN;
 	reg |= (codec->addr << 28);
+	if (is_stereo_amp_verb(reg))
+		return hda_reg_read_stereo_amp(codec, reg, val);
 	return snd_hdac_exec_verb(codec, reg, 0, val);
 }
 
@@ -145,8 +211,11 @@ static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
 
 	reg &= ~0x00080000U; /* drop GET bit */
 	reg |= (codec->addr << 28);
-	verb = get_verb(reg);
 
+	if (is_stereo_amp_verb(reg))
+		return hda_reg_write_stereo_amp(codec, reg, val);
+
+	verb = get_verb(reg);
 	switch (verb & 0xf00) {
 	case AC_VERB_SET_AMP_GAIN_MUTE:
 		verb = AC_VERB_SET_AMP_GAIN_MUTE;
