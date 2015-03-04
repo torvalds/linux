@@ -218,10 +218,10 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 
-	if (wait_event_interruptible_timeout(tty->write_wait,
-			!tty_chars_in_buffer(tty), timeout) < 0) {
+	timeout = wait_event_interruptible_timeout(tty->write_wait,
+			!tty_chars_in_buffer(tty), timeout);
+	if (timeout <= 0)
 		return;
-	}
 
 	if (timeout == MAX_SCHEDULE_TIMEOUT)
 		timeout = 0;
