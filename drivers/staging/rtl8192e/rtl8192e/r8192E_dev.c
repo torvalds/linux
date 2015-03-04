@@ -334,17 +334,17 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	}
 
 	if (!priv->AutoloadFailFlag) {
-		priv->eeprom_vid = eprom_read(dev, (EEPROM_VID >> 1));
-		priv->eeprom_did = eprom_read(dev, (EEPROM_DID >> 1));
+		priv->eeprom_vid = eprom_read(dev, EEPROM_VID >> 1);
+		priv->eeprom_did = eprom_read(dev, EEPROM_DID >> 1);
 
 		usValue = eprom_read(dev, (u16)(EEPROM_Customer_ID>>1)) >> 8;
 		priv->eeprom_CustomerID = (u8)(usValue & 0xff);
-		usValue = eprom_read(dev, (EEPROM_ICVersion_ChannelPlan>>1));
+		usValue = eprom_read(dev, EEPROM_ICVersion_ChannelPlan>>1);
 		priv->eeprom_ChannelPlan = usValue&0xff;
-		IC_Version = ((usValue&0xff00)>>8);
+		IC_Version = (usValue & 0xff00)>>8;
 
 		ICVer8192 = (IC_Version&0xf);
-		ICVer8256 = ((IC_Version&0xf0)>>4);
+		ICVer8256 = (IC_Version & 0xf0)>>4;
 		RT_TRACE(COMP_INIT, "\nICVer8192 = 0x%x\n", ICVer8192);
 		RT_TRACE(COMP_INIT, "\nICVer8256 = 0x%x\n", ICVer8256);
 		if (ICVer8192 == 0x2) {
@@ -424,7 +424,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 		if (priv->epromtype == EEPROM_93C46) {
 			if (!priv->AutoloadFailFlag) {
 				usValue = eprom_read(dev,
-					  (EEPROM_TxPwDiff_CrystalCap >> 1));
+					  EEPROM_TxPwDiff_CrystalCap >> 1);
 				priv->EEPROMAntPwDiff = (usValue&0x0fff);
 				priv->EEPROMCrystalCap = (u8)((usValue & 0xf000)
 							 >> 12);
@@ -483,15 +483,15 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 					 priv->EEPROMLegacyHTTxPowerDiff;
 			priv->AntennaTxPwDiff[0] = (priv->EEPROMAntPwDiff &
 						    0xf);
-			priv->AntennaTxPwDiff[1] = ((priv->EEPROMAntPwDiff &
-						    0xf0)>>4);
-			priv->AntennaTxPwDiff[2] = ((priv->EEPROMAntPwDiff &
-						    0xf00)>>8);
+			priv->AntennaTxPwDiff[1] = (priv->EEPROMAntPwDiff &
+							0xf0) >> 4;
+			priv->AntennaTxPwDiff[2] = (priv->EEPROMAntPwDiff &
+							0xf00) >> 8;
 			priv->CrystalCap = priv->EEPROMCrystalCap;
 			priv->ThermalMeter[0] = (priv->EEPROMThermalMeter &
 						 0xf);
-			priv->ThermalMeter[1] = ((priv->EEPROMThermalMeter &
-						 0xf0)>>4);
+			priv->ThermalMeter[1] = (priv->EEPROMThermalMeter &
+						     0xf0) >> 4;
 		} else if (priv->epromtype == EEPROM_93C56) {
 
 			for (i = 0; i < 3; i++) {
@@ -548,8 +548,8 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 			priv->CrystalCap = priv->EEPROMCrystalCap;
 			priv->ThermalMeter[0] = (priv->EEPROMThermalMeter &
 						 0xf);
-			priv->ThermalMeter[1] = ((priv->EEPROMThermalMeter &
-						 0xf0)>>4);
+			priv->ThermalMeter[1] = (priv->EEPROMThermalMeter &
+						     0xf0) >> 4;
 		}
 	}
 
