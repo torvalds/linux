@@ -280,7 +280,7 @@ static int dt2801_writedata2(struct comedi_device *dev, unsigned int data)
 	ret = dt2801_writedata(dev, data & 0xff);
 	if (ret < 0)
 		return ret;
-	ret = dt2801_writedata(dev, (data >> 8));
+	ret = dt2801_writedata(dev, data >> 8);
 	if (ret < 0)
 		return ret;
 
