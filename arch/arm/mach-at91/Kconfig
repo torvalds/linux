@@ -24,7 +24,6 @@ config SOC_SAMA5
 	select GENERIC_CLOCKEVENTS
 	select MEMORY
 	select ATMEL_SDRAMC
-	select PHYLIB if NETDEVICES
 
 menu "Atmel AT91 System-on-Chip"
 
