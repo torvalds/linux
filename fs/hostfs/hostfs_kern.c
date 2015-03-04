@@ -315,6 +315,8 @@ static int hostfs_open(struct inode *ino, struct file *file)
 	mode |= HOSTFS_I(ino)->mode;
 
 retry:
+	r = w = 0;
+
 	if (mode & FMODE_READ)
 		r = 1;
 	if (mode & FMODE_WRITE)
