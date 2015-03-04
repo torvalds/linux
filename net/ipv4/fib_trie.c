@@ -1485,71 +1485,71 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	return 0;
 }
 
-/* Scan for the next right leaf starting at node p->child[idx]
- * Since we have back pointer, no recursion necessary.
- */
-static struct tnode *leaf_walk_rcu(struct tnode *p, struct tnode *c)
+/* Scan for the next leaf starting at the provided key value */
+static struct tnode *leaf_walk_rcu(struct tnode **tn, t_key key)
 {
-	do {
-		unsigned long idx = c ? idx = get_index(c->key, p) + 1 : 0;
+	struct tnode *pn, *n = *tn;
+	unsigned long cindex;
 
-		while (idx < tnode_child_length(p)) {
-			c = tnode_get_child_rcu(p, idx++);
-			if (!c)
-				continue;
+	/* record parent node for backtracing */
+	pn = n;
+	cindex = n ? get_index(key, n) : 0;
 
-			if (IS_LEAF(c))
-				return c;
+	/* this loop is meant to try and find the key in the trie */
+	while (n) {
+		unsigned long idx = get_index(key, n);
 
-			/* Rescan start scanning in new node */
-			p = c;
-			idx = 0;
+		/* guarantee forward progress on the keys */
+		if (IS_LEAF(n) && (n->key >= key))
+			goto found;
+		if (idx >= (1ul << n->bits))
+			break;
+
+		/* record parent and next child index */
+		pn = n;
+		cindex = idx;
+
+		/* descend into the next child */
+		n = tnode_get_child_rcu(pn, cindex++);
+	}
+
+	/* this loop will search for the next leaf with a greater key */
+	while (pn) {
+		/* if we exhausted the parent node we will need to climb */
+		if (cindex >= (1ul << pn->bits)) {
+			t_key pkey = pn->key;
+
+			pn = node_parent_rcu(pn);
+			if (!pn)
+				break;
+
+			cindex = get_index(pkey, pn) + 1;
+			continue;
 		}
 
-		/* Node empty, walk back up to parent */
-		c = p;
-	} while ((p = node_parent_rcu(c)) != NULL);
+		/* grab the next available node */
+		n = tnode_get_child_rcu(pn, cindex++);
+		if (!n)
+			continue;
 
+		/* no need to compare keys since we bumped the index */
+		if (IS_LEAF(n))
+			goto found;
+
+		/* Rescan start scanning in new node */
+		pn = n;
+		cindex = 0;
+	}
+
+	*tn = pn;
 	return NULL; /* Root of trie */
+found:
+	/* if we are at the limit for keys just return NULL for the tnode */
+	*tn = (n->key == KEY_MAX) ? NULL : pn;
+	return n;
 }
 
-static struct tnode *trie_firstleaf(struct trie *t)
-{
-	struct tnode *n = rcu_dereference_rtnl(t->trie);
-
-	if (!n)
-		return NULL;
-
-	if (IS_LEAF(n))          /* trie is just a leaf */
-		return n;
-
-	return leaf_walk_rcu(n, NULL);
-}
-
-static struct tnode *trie_nextleaf(struct tnode *l)
-{
-	struct tnode *p = node_parent_rcu(l);
-
-	if (!p)
-		return NULL;	/* trie with just one leaf */
-
-	return leaf_walk_rcu(p, l);
-}
-
-static struct tnode *trie_leafindex(struct trie *t, int index)
-{
-	struct tnode *l = trie_firstleaf(t);
-
-	while (l && index-- > 0)
-		l = trie_nextleaf(l);
-
-	return l;
-}
-
-
-/*
- * Caller must hold RTNL.
- */
+/* Caller must hold RTNL. */
 int fib_table_flush(struct fib_table *tb)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
@@ -1680,41 +1680,41 @@ static int fn_trie_dump_leaf(struct tnode *l, struct fib_table *tb,
 int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 		   struct netlink_callback *cb)
 {
-	struct tnode *l;
-	struct trie *t = (struct trie *) tb->tb_data;
-	t_key key = cb->args[2];
-	int count = cb->args[3];
-
-	rcu_read_lock();
+	struct trie *t = (struct trie *)tb->tb_data;
+	struct tnode *l, *tp;
 	/* Dump starting at last key.
 	 * Note: 0.0.0.0/0 (ie default) is first key.
 	 */
-	if (count == 0)
-		l = trie_firstleaf(t);
-	else {
-		/* Normally, continue from last key, but if that is missing
-		 * fallback to using slow rescan
-		 */
-		l = fib_find_node(t, key);
-		if (!l)
-			l = trie_leafindex(t, count);
-	}
+	int count = cb->args[2];
+	t_key key = cb->args[3];
 
-	while (l) {
-		cb->args[2] = l->key;
+	rcu_read_lock();
+
+	tp = rcu_dereference_rtnl(t->trie);
+
+	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
 		if (fn_trie_dump_leaf(l, tb, skb, cb) < 0) {
-			cb->args[3] = count;
+			cb->args[3] = key;
+			cb->args[2] = count;
 			rcu_read_unlock();
 			return -1;
 		}
 
 		++count;
-		l = trie_nextleaf(l);
+		key = l->key + 1;
+
 		memset(&cb->args[4], 0,
 		       sizeof(cb->args) - 4*sizeof(cb->args[0]));
+
+		/* stop loop if key wrapped back to 0 */
+		if (key < l->key)
+			break;
 	}
-	cb->args[3] = count;
+
 	rcu_read_unlock();
+
+	cb->args[3] = key;
+	cb->args[2] = count;
 
 	return skb->len;
 }
@@ -2186,31 +2186,46 @@ static const struct file_operations fib_trie_fops = {
 
 struct fib_route_iter {
 	struct seq_net_private p;
-	struct trie *main_trie;
+	struct fib_table *main_tb;
+	struct tnode *tnode;
 	loff_t	pos;
 	t_key	key;
 };
 
 static struct tnode *fib_route_get_idx(struct fib_route_iter *iter, loff_t pos)
 {
-	struct tnode *l = NULL;
-	struct trie *t = iter->main_trie;
+	struct fib_table *tb = iter->main_tb;
+	struct tnode *l, **tp = &iter->tnode;
+	struct trie *t;
+	t_key key;
 
-	/* use cache location of last found key */
-	if (iter->pos > 0 && pos >= iter->pos && (l = fib_find_node(t, iter->key)))
+	/* use cache location of next-to-find key */
+	if (iter->pos > 0 && pos >= iter->pos) {
 		pos -= iter->pos;
-	else {
+		key = iter->key;
+	} else {
+		t = (struct trie *)tb->tb_data;
+		iter->tnode = rcu_dereference_rtnl(t->trie);
 		iter->pos = 0;
-		l = trie_firstleaf(t);
+		key = 0;
 	}
 
-	while (l && pos-- > 0) {
+	while ((l = leaf_walk_rcu(tp, key)) != NULL) {
+		key = l->key + 1;
 		iter->pos++;
-		l = trie_nextleaf(l);
+
+		if (pos-- <= 0)
+			break;
+
+		l = NULL;
+
+		/* handle unlikely case of a key wrap */
+		if (!key)
+			break;
 	}
 
 	if (l)
-		iter->key = pos;	/* remember it */
+		iter->key = key;	/* remember it */
 	else
 		iter->pos = 0;		/* forget it */
 
@@ -2222,37 +2237,46 @@ static void *fib_route_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct fib_route_iter *iter = seq->private;
 	struct fib_table *tb;
+	struct trie *t;
 
 	rcu_read_lock();
+
 	tb = fib_get_table(seq_file_net(seq), RT_TABLE_MAIN);
 	if (!tb)
 		return NULL;
 
-	iter->main_trie = (struct trie *) tb->tb_data;
-	if (*pos == 0)
-		return SEQ_START_TOKEN;
-	else
-		return fib_route_get_idx(iter, *pos - 1);
+	iter->main_tb = tb;
+
+	if (*pos != 0)
+		return fib_route_get_idx(iter, *pos);
+
+	t = (struct trie *)tb->tb_data;
+	iter->tnode = rcu_dereference_rtnl(t->trie);
+	iter->pos = 0;
+	iter->key = 0;
+
+	return SEQ_START_TOKEN;
 }
 
 static void *fib_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct fib_route_iter *iter = seq->private;
-	struct tnode *l = v;
+	struct tnode *l = NULL;
+	t_key key = iter->key;
 
 	++*pos;
-	if (v == SEQ_START_TOKEN) {
-		iter->pos = 0;
-		l = trie_firstleaf(iter->main_trie);
-	} else {
+
+	/* only allow key of 0 for start of sequence */
+	if ((v == SEQ_START_TOKEN) || key)
+		l = leaf_walk_rcu(&iter->tnode, key);
+
+	if (l) {
+		iter->key = l->key + 1;
 		iter->pos++;
-		l = trie_nextleaf(l);
+	} else {
+		iter->pos = 0;
 	}
 
-	if (l)
-		iter->key = l->key;
-	else
-		iter->pos = 0;
 	return l;
 }
 
