@@ -222,7 +222,7 @@ static int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
 	return -AX25_HEADER_LEN;
 }
 
-netdev_tx_t ax25_ip_xmit(sturct sk_buff *skb)
+netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return NETDEV_TX_OK;
