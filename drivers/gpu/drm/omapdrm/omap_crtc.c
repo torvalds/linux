@@ -571,42 +571,42 @@ static void omap_crtc_disable(struct drm_crtc *crtc)
 			WARN_ON(omap_plane_set_enable(plane, false));
 	}
 
+	/*
+	 * HACK: Unpin the primary plane frame buffer if we're disabled without
+	 * going through full mode set.
+	 * HACK: The legacy set config helper drm_crtc_helper_set_config() that
+	 * we still use calls the .disable() operation directly when called with
+	 * a NULL frame buffer (for instance from drm_fb_release()). As a result
+	 * the CRTC is disabled without going through a full mode set, and the
+	 * primary plane' framebuffer is kept pin. Unpin it manually here until
+	 * we switch to the atomic set config helper.
+	 */
+	if (crtc->primary->fb) {
+		const struct drm_plane_helper_funcs *funcs;
+
+		funcs = crtc->primary->helper_private;
+		funcs->cleanup_fb(crtc->primary, crtc->primary->fb, NULL);
+	}
+
 	omap_crtc->enabled = false;
 
 	omap_crtc_setup(crtc);
 	omap_crtc_flush(crtc);
 }
 
-static int omap_crtc_mode_set(struct drm_crtc *crtc,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode,
-		int x, int y,
-		struct drm_framebuffer *old_fb)
+static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-
-	mode = adjusted_mode;
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			omap_crtc->name, mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	    omap_crtc->name, mode->base.id, mode->name,
+	    mode->vrefresh, mode->clock,
+	    mode->hdisplay, mode->hsync_start, mode->hsync_end, mode->htotal,
+	    mode->vdisplay, mode->vsync_start, mode->vsync_end, mode->vtotal,
+	    mode->type, mode->flags);
 
 	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
-
-	/*
-	 * The primary plane CRTC can be reset if the plane is disabled directly
-	 * through the universal plane API. Set it again here.
-	 */
-	crtc->primary->crtc = crtc;
-
-	return omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
-				   0, 0, mode->hdisplay, mode->vdisplay,
-				   x, y, mode->hdisplay, mode->vdisplay);
 }
 
 static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -634,22 +634,6 @@ static void omap_crtc_commit(struct drm_crtc *crtc)
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	DBG("%s", omap_crtc->name);
 	omap_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
-}
-
-static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-		struct drm_framebuffer *old_fb)
-{
-	struct drm_plane *plane = crtc->primary;
-	struct drm_display_mode *mode = &crtc->mode;
-	int ret;
-
-	ret = omap_plane_mode_set(plane, crtc, crtc->primary->fb,
-				  0, 0, mode->hdisplay, mode->vdisplay,
-				  x, y, mode->hdisplay, mode->vdisplay);
-	if (ret < 0)
-		return ret;
-
-	return omap_crtc_flush(crtc);
 }
 
 static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
@@ -798,10 +782,11 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.dpms = omap_crtc_dpms,
 	.mode_fixup = omap_crtc_mode_fixup,
-	.mode_set = omap_crtc_mode_set,
+	.mode_set = drm_helper_crtc_mode_set,
 	.prepare = omap_crtc_prepare,
 	.commit = omap_crtc_commit,
-	.mode_set_base = omap_crtc_mode_set_base,
+	.mode_set_nofb = omap_crtc_mode_set_nofb,
+	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.disable = omap_crtc_disable,
 	.enable = omap_crtc_enable,
 	.atomic_begin = omap_crtc_atomic_begin,
