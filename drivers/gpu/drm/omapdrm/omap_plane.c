@@ -45,48 +45,11 @@ struct omap_plane {
 	struct omap_drm_window win;
 	bool enabled;
 
-	/* last fb that we pinned: */
-	struct drm_framebuffer *pinned_fb;
-
 	uint32_t nformats;
 	uint32_t formats[32];
 
 	struct omap_drm_irq error_irq;
 };
-
-/* update which fb (if any) is pinned for scanout */
-static int omap_plane_update_pin(struct drm_plane *plane)
-{
-	struct omap_plane *omap_plane = to_omap_plane(plane);
-	struct drm_framebuffer *pinned_fb = omap_plane->pinned_fb;
-	struct drm_framebuffer *fb = omap_plane->enabled ? plane->fb : NULL;
-	int ret = 0;
-
-	if (pinned_fb == fb)
-		return 0;
-
-	DBG("%p -> %p", pinned_fb, fb);
-
-	if (fb) {
-		drm_framebuffer_reference(fb);
-		ret = omap_framebuffer_pin(fb);
-	}
-
-	if (pinned_fb)
-		omap_crtc_queue_unpin(plane->crtc, pinned_fb);
-
-	if (ret) {
-		dev_err(plane->dev->dev, "could not swap %p -> %p\n",
-				omap_plane->pinned_fb, fb);
-		drm_framebuffer_unreference(fb);
-		omap_plane->pinned_fb = NULL;
-		return ret;
-	}
-
-	omap_plane->pinned_fb = fb;
-
-	return 0;
-}
 
 static int __omap_plane_setup(struct omap_plane *omap_plane,
 			      struct drm_crtc *crtc,
@@ -132,10 +95,6 @@ static int omap_plane_setup(struct omap_plane *omap_plane)
 {
 	struct drm_plane *plane = &omap_plane->base;
 	int ret;
-
-	ret = omap_plane_update_pin(plane);
-	if (ret < 0)
-		return ret;
 
 	dispc_runtime_get();
 	ret = __omap_plane_setup(omap_plane, plane->crtc, plane->fb);

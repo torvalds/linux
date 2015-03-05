@@ -52,9 +52,6 @@ struct omap_crtc {
 	struct omap_drm_irq vblank_irq;
 	struct omap_drm_irq error_irq;
 
-	/* list of framebuffers to unpin */
-	struct list_head pending_unpins;
-
 	/* pending event */
 	struct drm_pending_vblank_event *event;
 	wait_queue_head_t flip_wait;
@@ -62,11 +59,6 @@ struct omap_crtc {
 	struct completion completion;
 
 	bool ignore_digit_sync_lost;
-};
-
-struct omap_framebuffer_unpin {
-	struct list_head list;
-	struct drm_framebuffer *fb;
 };
 
 /* -----------------------------------------------------------------------------
@@ -365,7 +357,6 @@ static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 int omap_crtc_flush(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct omap_framebuffer_unpin *fb, *next;
 
 	DBG("%s: GO", omap_crtc->name);
 
@@ -384,29 +375,6 @@ int omap_crtc_flush(struct drm_crtc *crtc)
 	}
 
 	dispc_runtime_put();
-
-	/* Unpin and unreference pending framebuffers. */
-	list_for_each_entry_safe(fb, next, &omap_crtc->pending_unpins, list) {
-		omap_framebuffer_unpin(fb->fb);
-		drm_framebuffer_unreference(fb->fb);
-		list_del(&fb->list);
-		kfree(fb);
-	}
-
-	return 0;
-}
-
-int omap_crtc_queue_unpin(struct drm_crtc *crtc, struct drm_framebuffer *fb)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct omap_framebuffer_unpin *unpin;
-
-	unpin = kzalloc(sizeof(*unpin), GFP_KERNEL);
-	if (!unpin)
-		return -ENOMEM;
-
-	unpin->fb = fb;
-	list_add_tail(&unpin->list, &omap_crtc->pending_unpins);
 
 	return 0;
 }
@@ -643,9 +611,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	crtc = &omap_crtc->base;
 
 	init_waitqueue_head(&omap_crtc->flip_wait);
-
-	INIT_LIST_HEAD(&omap_crtc->pending_unpins);
-
 	init_completion(&omap_crtc->completion);
 
 	omap_crtc->channel = channel;
