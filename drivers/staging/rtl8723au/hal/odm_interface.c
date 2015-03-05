@@ -23,18 +23,6 @@
 /*  */
 #include <usb_ops_linux.h>
 
-void ODM_SetBBReg(
-	struct dm_odm_t *pDM_Odm,
-	u32		RegAddr,
-	u32		BitMask,
-	u32		Data
-	)
-{
-	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
-
-	PHY_SetBBReg(Adapter, RegAddr, BitMask, Data);
-}
-
 void ODM_SetRFReg(
 	struct dm_odm_t *pDM_Odm,
 	enum RF_RADIO_PATH	eRFPath,

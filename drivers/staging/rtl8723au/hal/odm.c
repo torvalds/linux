@@ -909,13 +909,12 @@ void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 	if (pDM_PSTable->initialize == 0) {
 
 		pDM_PSTable->Reg874 =
-			(rtl8723au_read32(adapter, 0x874) & 0x1CC000) >> 14;
+			rtl8723au_read32(adapter, 0x874) & 0x1CC000;
 		pDM_PSTable->RegC70 =
-			(rtl8723au_read32(adapter, 0xc70) & BIT(3)) >>3;
+			rtl8723au_read32(adapter, 0xc70) & BIT(3);
 		pDM_PSTable->Reg85C =
-			(rtl8723au_read32(adapter, 0x85c) & 0xFF000000) >> 24;
-		pDM_PSTable->RegA74 =
-			(rtl8723au_read32(adapter, 0xa74) & 0xF000) >> 12;
+			rtl8723au_read32(adapter, 0x85c) & 0xFF000000;
+		pDM_PSTable->RegA74 = rtl8723au_read32(adapter, 0xa74) & 0xF000;
 		pDM_PSTable->initialize = 1;
 	}
 
@@ -983,14 +982,22 @@ void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal)
 			val32 |= BIT(28);
 			rtl8723au_write32(adapter, 0x818, val32);
 		} else {
-			ODM_SetBBReg(pDM_Odm, 0x874, 0x1CC000,
-				     pDM_PSTable->Reg874);
-			ODM_SetBBReg(pDM_Odm, 0xc70, BIT(3),
-				     pDM_PSTable->RegC70);
-			ODM_SetBBReg(pDM_Odm, 0x85c, 0xFF000000,
-				     pDM_PSTable->Reg85C);
-			ODM_SetBBReg(pDM_Odm, 0xa74, 0xF000,
-				     pDM_PSTable->RegA74);
+			val32 = rtl8723au_read32(adapter, 0x874);
+			val32 |= pDM_PSTable->Reg874;
+			rtl8723au_write32(adapter, 0x874, val32);
+		
+			val32 = rtl8723au_read32(adapter, 0xc70);
+			val32 |= pDM_PSTable->RegC70;
+			rtl8723au_write32(adapter, 0xc70, val32);
+
+			val32 = rtl8723au_read32(adapter, 0x85c);
+			val32 |= pDM_PSTable->Reg85C;
+			rtl8723au_write32(adapter, 0x85c, val32);
+
+			val32 = rtl8723au_read32(adapter, 0xa74);
+			val32 |= pDM_PSTable->RegA74;
+			rtl8723au_write32(adapter, 0xa74, val32);
+
 			val32 = rtl8723au_read32(adapter, 0x818);
 			val32 &= ~BIT(28);
 			rtl8723au_write32(adapter, 0x818, val32);
