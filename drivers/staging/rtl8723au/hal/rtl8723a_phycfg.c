@@ -190,25 +190,24 @@ phy_RFSerialRead(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 	/*  For 92S LSSI Read RFLSSIRead */
 	/*  For RF A/B write 0x824/82c(does not work in the future) */
 	/*  We must use 0x824 for RF A and B to execute read trigger */
-	tmplong = PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord);
+	tmplong = rtl8723au_read32(Adapter, rFPGA0_XA_HSSIParameter2);
 	if (eRFPath == RF_PATH_A)
 		tmplong2 = tmplong;
 	else
-		tmplong2 = PHY_QueryBBReg(Adapter, pPhyReg->rfHSSIPara2,
-					  bMaskDWord);
+		tmplong2 = rtl8723au_read32(Adapter, pPhyReg->rfHSSIPara2);
 
 	tmplong2 = (tmplong2 & ~bLSSIReadAddress) |
 		(NewOffset << 23) | bLSSIReadEdge;	/* T65 RF */
 
-	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2,
-		     bMaskDWord, tmplong & (~bLSSIReadEdge));
+	rtl8723au_write32(Adapter, rFPGA0_XA_HSSIParameter2,
+			  tmplong & (~bLSSIReadEdge));
 	udelay(10);/*  PlatformStallExecution(10); */
 
-	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord, tmplong2);
+	rtl8723au_write32(Adapter, pPhyReg->rfHSSIPara2, tmplong2);
 	udelay(100);/* PlatformStallExecution(100); */
 
-	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord,
-		     tmplong | bLSSIReadEdge);
+	rtl8723au_write32(Adapter, rFPGA0_XA_HSSIParameter2,
+			  tmplong | bLSSIReadEdge);
 	udelay(10);/* PlatformStallExecution(10); */
 
 	if (eRFPath == RF_PATH_A)
@@ -319,9 +318,7 @@ phy_RFSerialWrite(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 	/*  */
 	/*  Write Operation */
 	/*  */
-	PHY_SetBBReg(Adapter, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
-	/* RTPRINT(FPHY, PHY_RFW, ("RFW-%d Addr[0x%lx]= 0x%lx\n", eRFPath, pPhyReg->rf3wireOffset, DataAndAddr)); */
-
+	rtl8723au_write32(Adapter, pPhyReg->rf3wireOffset, DataAndAddr);
 }
 
 /**
@@ -830,7 +827,7 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 			     (CrystalCap | (CrystalCap << 6)));
 	}
 
-	PHY_SetBBReg(Adapter, REG_LDOA15_CTRL, bMaskDWord, 0x01572505);
+	rtl8723au_write32(Adapter, REG_LDOA15_CTRL, 0x01572505);
 	return rtStatus;
 }
 
