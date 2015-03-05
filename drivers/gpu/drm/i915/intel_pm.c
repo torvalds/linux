@@ -756,8 +756,8 @@ static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
 
 	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
 	if (IS_CHERRYVIEW(dev))
-		*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_32 :
-					       DRAIN_LATENCY_PRECISION_16;
+		*prec_mult = (entries > 32) ? DRAIN_LATENCY_PRECISION_16 :
+					      DRAIN_LATENCY_PRECISION_8;
 	else
 		*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_64 :
 					       DRAIN_LATENCY_PRECISION_32;
@@ -787,7 +787,7 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 	enum pipe pipe = intel_crtc->pipe;
 	int plane_prec, prec_mult, plane_dl;
 	const int high_precision = IS_CHERRYVIEW(dev) ?
-		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_64;
+		DRAIN_LATENCY_PRECISION_16 : DRAIN_LATENCY_PRECISION_64;
 
 	plane_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_PLANE_PRECISION_HIGH |
 		   DRAIN_LATENCY_MASK | DDL_CURSOR_PRECISION_HIGH |
@@ -986,7 +986,7 @@ static void valleyview_update_sprite_wm(struct drm_plane *plane,
 	int sprite_dl;
 	int prec_mult;
 	const int high_precision = IS_CHERRYVIEW(dev) ?
-		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_64;
+		DRAIN_LATENCY_PRECISION_16 : DRAIN_LATENCY_PRECISION_64;
 
 	sprite_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_SPRITE_PRECISION_HIGH(sprite) |
 		    (DRAIN_LATENCY_MASK << DDL_SPRITE_SHIFT(sprite)));

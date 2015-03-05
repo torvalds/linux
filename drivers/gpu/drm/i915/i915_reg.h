@@ -4205,6 +4205,7 @@ enum skl_disp_power_wells {
 #define   DSPFW_PLANEA_WM1_HI_MASK	(1<<0)
 
 /* drain latency register values*/
+#define DRAIN_LATENCY_PRECISION_8	8
 #define DRAIN_LATENCY_PRECISION_16	16
 #define DRAIN_LATENCY_PRECISION_32	32
 #define DRAIN_LATENCY_PRECISION_64	64
