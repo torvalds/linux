@@ -1117,6 +1117,33 @@ hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config, int link_bw)
 	}
 }
 
+static int
+intel_read_sink_rates(struct intel_dp *intel_dp, uint32_t *sink_rates)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	int i = 0;
+	uint16_t val;
+
+	if (INTEL_INFO(dev)->gen >= 9 && intel_dp->supported_rates[0]) {
+		/*
+		 * Receiver supports only main-link rate selection by
+		 * link rate table method, so read link rates from
+		 * supported_link_rates
+		 */
+		for (i = 0; i < DP_MAX_SUPPORTED_RATES; ++i) {
+			val = le16_to_cpu(intel_dp->supported_rates[i]);
+			if (val == 0)
+				break;
+
+			sink_rates[i] = val * 200;
+		}
+
+		if (i <= 0)
+			DRM_ERROR("No rates in SUPPORTED_LINK_RATES");
+	}
+	return i;
+}
+
 static void
 intel_dp_set_clock(struct intel_encoder *encoder,
 		   struct intel_crtc_state *pipe_config, int link_bw)
@@ -3578,6 +3605,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint8_t rev;
 
 	if (intel_dp_dpcd_read_wake(&intel_dp->aux, 0x000, intel_dp->dpcd,
 				    sizeof(intel_dp->dpcd)) < 0)
@@ -3609,6 +3637,16 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	} else
 		intel_dp->use_tps3 = false;
 
+	/* Intermediate frequency support */
+	if (is_edp(intel_dp) &&
+	    (intel_dp->dpcd[DP_EDP_CONFIGURATION_CAP] &	DP_DPCD_DISPLAY_CONTROL_CAPABLE) &&
+	    (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_EDP_DPCD_REV, &rev, 1) == 1) &&
+	    (rev >= 0x03)) { /* eDp v1.4 or higher */
+		intel_dp_dpcd_read_wake(&intel_dp->aux,
+				DP_SUPPORTED_LINK_RATES,
+				intel_dp->supported_rates,
+				sizeof(intel_dp->supported_rates));
+	}
 	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 	      DP_DWN_STRM_PORT_PRESENT))
 		return true; /* native DP sink */
