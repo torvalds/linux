@@ -252,8 +252,12 @@ int regulator_list_hardware_vsel(struct regulator *regulator,
 /* regulator notifier block */
 int regulator_register_notifier(struct regulator *regulator,
 			      struct notifier_block *nb);
+int devm_regulator_register_notifier(struct regulator *regulator,
+				     struct notifier_block *nb);
 int regulator_unregister_notifier(struct regulator *regulator,
 				struct notifier_block *nb);
+void devm_regulator_unregister_notifier(struct regulator *regulator,
+					struct notifier_block *nb);
 
 /* driver data - core doesn't touch */
 void *regulator_get_drvdata(struct regulator *regulator);
@@ -515,8 +519,20 @@ static inline int regulator_register_notifier(struct regulator *regulator,
 	return 0;
 }
 
+static inline int devm_regulator_register_notifier(struct regulator *regulator,
+						   struct notifier_block *nb)
+{
+	return 0;
+}
+
 static inline int regulator_unregister_notifier(struct regulator *regulator,
 				struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int devm_regulator_unregister_notifier(struct regulator *regulator,
+						     struct notifier_block *nb)
 {
 	return 0;
 }
