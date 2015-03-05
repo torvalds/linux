@@ -29,29 +29,33 @@
 
 /*
  * Tables translating between page_cache_type_t and pte encoding.
- * Minimal supported modes are defined statically, modified if more supported
- * cache modes are available.
- * Index into __cachemode2pte_tbl is the cachemode.
- * Index into __pte2cachemode_tbl are the caching attribute bits of the pte
- * (_PAGE_PWT, _PAGE_PCD, _PAGE_PAT) at index bit positions 0, 1, 2.
+ *
+ * Minimal supported modes are defined statically, they are modified
+ * during bootup if more supported cache modes are available.
+ *
+ *   Index into __cachemode2pte_tbl[] is the cachemode.
+ *
+ *   Index into __pte2cachemode_tbl[] are the caching attribute bits of the pte
+ *   (_PAGE_PWT, _PAGE_PCD, _PAGE_PAT) at index bit positions 0, 1, 2.
  */
 uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
-	[_PAGE_CACHE_MODE_WB]		= 0,
-	[_PAGE_CACHE_MODE_WC]		= _PAGE_PWT,
-	[_PAGE_CACHE_MODE_UC_MINUS]	= _PAGE_PCD,
-	[_PAGE_CACHE_MODE_UC]		= _PAGE_PCD | _PAGE_PWT,
-	[_PAGE_CACHE_MODE_WT]		= _PAGE_PCD,
-	[_PAGE_CACHE_MODE_WP]		= _PAGE_PCD,
+	[_PAGE_CACHE_MODE_WB      ]	= 0         | 0        ,
+	[_PAGE_CACHE_MODE_WC      ]	= _PAGE_PWT | 0        ,
+	[_PAGE_CACHE_MODE_UC_MINUS]	= 0         | _PAGE_PCD,
+	[_PAGE_CACHE_MODE_UC      ]	= _PAGE_PWT | _PAGE_PCD,
+	[_PAGE_CACHE_MODE_WT      ]	= 0         | _PAGE_PCD,
+	[_PAGE_CACHE_MODE_WP      ]	= 0         | _PAGE_PCD,
 };
 EXPORT_SYMBOL(__cachemode2pte_tbl);
+
 uint8_t __pte2cachemode_tbl[8] = {
-	[__pte2cm_idx(0)] = _PAGE_CACHE_MODE_WB,
-	[__pte2cm_idx(_PAGE_PWT)] = _PAGE_CACHE_MODE_WC,
-	[__pte2cm_idx(_PAGE_PCD)] = _PAGE_CACHE_MODE_UC_MINUS,
-	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD)] = _PAGE_CACHE_MODE_UC,
-	[__pte2cm_idx(_PAGE_PAT)] = _PAGE_CACHE_MODE_WB,
-	[__pte2cm_idx(_PAGE_PWT | _PAGE_PAT)] = _PAGE_CACHE_MODE_WC,
-	[__pte2cm_idx(_PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
+	[__pte2cm_idx( 0        | 0         | 0        )] = _PAGE_CACHE_MODE_WB,
+	[__pte2cm_idx(_PAGE_PWT | 0         | 0        )] = _PAGE_CACHE_MODE_WC,
+	[__pte2cm_idx( 0        | _PAGE_PCD | 0        )] = _PAGE_CACHE_MODE_UC_MINUS,
+	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | 0        )] = _PAGE_CACHE_MODE_UC,
+	[__pte2cm_idx( 0        | 0         | _PAGE_PAT)] = _PAGE_CACHE_MODE_WB,
+	[__pte2cm_idx(_PAGE_PWT | 0         | _PAGE_PAT)] = _PAGE_CACHE_MODE_WC,
+	[__pte2cm_idx(0         | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
 	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC,
 };
 EXPORT_SYMBOL(__pte2cachemode_tbl);
