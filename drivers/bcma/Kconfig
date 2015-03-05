@@ -45,9 +45,9 @@ config BCMA_HOST_SOC
 
 	  If unsure, say N
 
-# TODO: make it depend on PCI when ready
 config BCMA_DRIVER_PCI
-	bool
+	bool "BCMA Broadcom PCI core driver"
+	depends on BCMA && PCI
 	default y
 	help
 	  BCMA bus may have many versions of PCIe core. This driver
