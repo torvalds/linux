@@ -308,6 +308,61 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
  */
 static const int pessimal_latency_ns = 5000;
 
+#define VLV_FIFO_START(dsparb, dsparb2, lo_shift, hi_shift) \
+	((((dsparb) >> (lo_shift)) & 0xff) | ((((dsparb2) >> (hi_shift)) & 0x1) << 8))
+
+static int vlv_get_fifo_size(struct drm_device *dev,
+			      enum pipe pipe, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int sprite0_start, sprite1_start, size;
+
+	switch (pipe) {
+		uint32_t dsparb, dsparb2, dsparb3;
+	case PIPE_A:
+		dsparb = I915_READ(DSPARB);
+		dsparb2 = I915_READ(DSPARB2);
+		sprite0_start = VLV_FIFO_START(dsparb, dsparb2, 0, 0);
+		sprite1_start = VLV_FIFO_START(dsparb, dsparb2, 8, 4);
+		break;
+	case PIPE_B:
+		dsparb = I915_READ(DSPARB);
+		dsparb2 = I915_READ(DSPARB2);
+		sprite0_start = VLV_FIFO_START(dsparb, dsparb2, 16, 8);
+		sprite1_start = VLV_FIFO_START(dsparb, dsparb2, 24, 12);
+		break;
+	case PIPE_C:
+		dsparb2 = I915_READ(DSPARB2);
+		dsparb3 = I915_READ(DSPARB3);
+		sprite0_start = VLV_FIFO_START(dsparb3, dsparb2, 0, 16);
+		sprite1_start = VLV_FIFO_START(dsparb3, dsparb2, 8, 20);
+		break;
+	default:
+		return 0;
+	}
+
+	switch (plane) {
+	case 0:
+		size = sprite0_start;
+		break;
+	case 1:
+		size = sprite1_start - sprite0_start;
+		break;
+	case 2:
+		size = 512 - 1 - sprite1_start;
+		break;
+	default:
+		return 0;
+	}
+
+	DRM_DEBUG_KMS("Pipe %c %s %c FIFO size: %d\n",
+		      pipe_name(pipe), plane == 0 ? "primary" : "sprite",
+		      plane == 0 ? plane_name(pipe) : sprite_name(pipe, plane - 1),
+		      size);
+
+	return size;
+}
+
 static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
