@@ -3933,8 +3933,7 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status,
 		 */
 		if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER,
 			     &hdev->quirks) &&
-		    (hdev->discovery.uuid_count > 0 ||
-		     hdev->discovery.rssi != HCI_RSSI_INVALID)) {
+		    hdev->discovery.result_filtering) {
 			hdev->discovery.scan_start = jiffies;
 			hdev->discovery.scan_duration = timeout;
 		}
@@ -4087,6 +4086,7 @@ static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
 	 */
 	hci_discovery_filter_clear(hdev);
 
+	hdev->discovery.result_filtering = true;
 	hdev->discovery.type = cp->type;
 	hdev->discovery.rssi = cp->rssi;
 	hdev->discovery.uuid_count = uuid_count;
@@ -7344,8 +7344,7 @@ void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			return;
 	}
 
-	if (hdev->discovery.rssi != HCI_RSSI_INVALID ||
-	    hdev->discovery.uuid_count > 0) {
+	if (hdev->discovery.result_filtering) {
 		/* We are using service discovery */
 		if (!is_filter_match(hdev, rssi, eir, eir_len, scan_rsp,
 				     scan_rsp_len))

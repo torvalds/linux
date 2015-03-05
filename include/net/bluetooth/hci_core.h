@@ -76,6 +76,7 @@ struct discovery_state {
 	u8			last_adv_data[HCI_MAX_AD_LENGTH];
 	u8			last_adv_data_len;
 	bool			report_invalid_rssi;
+	bool			result_filtering;
 	s8			rssi;
 	u16			uuid_count;
 	u8			(*uuids)[16];
@@ -525,6 +526,7 @@ static inline void discovery_init(struct hci_dev *hdev)
 
 static inline void hci_discovery_filter_clear(struct hci_dev *hdev)
 {
+	hdev->discovery.result_filtering = false;
 	hdev->discovery.report_invalid_rssi = true;
 	hdev->discovery.rssi = HCI_RSSI_INVALID;
 	hdev->discovery.uuid_count = 0;
