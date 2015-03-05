@@ -3057,8 +3057,12 @@ struct wmi_pdev_stats_peer {
 } __packed;
 
 enum wmi_stats_id {
-	WMI_REQUEST_PEER_STAT	= 0x01,
-	WMI_REQUEST_AP_STAT	= 0x02
+	WMI_STAT_PEER = BIT(0),
+	WMI_STAT_AP = BIT(1),
+	WMI_STAT_PDEV = BIT(2),
+	WMI_STAT_VDEV = BIT(3),
+	WMI_STAT_BCNFLT = BIT(4),
+	WMI_STAT_VDEV_RATE = BIT(5),
 };
 
 struct wlan_inst_rssi_args {
@@ -3093,7 +3097,7 @@ struct wmi_pdev_suspend_cmd {
 } __packed;
 
 struct wmi_stats_event {
-	__le32 stats_id; /* %WMI_REQUEST_ */
+	__le32 stats_id; /* WMI_STAT_ */
 	/*
 	 * number of pdev stats event structures
 	 * (wmi_pdev_stats) 0 or 1
@@ -3744,6 +3748,11 @@ enum wmi_10x_vdev_param {
 	WMI_10X_VDEV_PARAM_VHT_SGIMASK,
 	WMI_10X_VDEV_PARAM_VHT80_RATEMASK,
 };
+
+#define WMI_VDEV_PARAM_TXBF_SU_TX_BFEE BIT(0)
+#define WMI_VDEV_PARAM_TXBF_MU_TX_BFEE BIT(1)
+#define WMI_VDEV_PARAM_TXBF_SU_TX_BFER BIT(2)
+#define WMI_VDEV_PARAM_TXBF_MU_TX_BFER BIT(3)
 
 /* slot time long */
 #define WMI_VDEV_SLOT_TIME_LONG		0x1
@@ -4436,7 +4445,8 @@ enum wmi_peer_param {
 	WMI_PEER_AUTHORIZE  = 0x3,
 	WMI_PEER_CHAN_WIDTH = 0x4,
 	WMI_PEER_NSS        = 0x5,
-	WMI_PEER_USE_4ADDR  = 0x6
+	WMI_PEER_USE_4ADDR  = 0x6,
+	WMI_PEER_DUMMY_VAR  = 0xff, /* dummy parameter for STA PS workaround */
 };
 
 struct wmi_peer_set_param_cmd {
