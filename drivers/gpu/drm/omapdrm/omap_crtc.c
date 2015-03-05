@@ -652,6 +652,18 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return omap_crtc_flush(crtc);
 }
 
+static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
+{
+	dispc_runtime_get();
+}
+
+static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
+{
+	omap_crtc_flush(crtc);
+
+	dispc_runtime_put();
+}
+
 static void page_flip_worker(struct work_struct *work)
 {
 	struct omap_crtc *omap_crtc =
@@ -792,6 +804,8 @@ static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.mode_set_base = omap_crtc_mode_set_base,
 	.disable = omap_crtc_disable,
 	.enable = omap_crtc_enable,
+	.atomic_begin = omap_crtc_atomic_begin,
+	.atomic_flush = omap_crtc_atomic_flush,
 };
 
 /* -----------------------------------------------------------------------------
