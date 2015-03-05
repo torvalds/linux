@@ -1073,7 +1073,9 @@ static int mcam_vb_queue_setup(struct vb2_queue *vq,
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
 	int minbufs = (cam->buffer_mode == B_DMA_contig) ? 3 : 2;
 
-	sizes[0] = cam->pix_format.sizeimage;
+	if (fmt && fmt->fmt.pix.sizeimage < cam->pix_format.sizeimage)
+		return -EINVAL;
+	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : cam->pix_format.sizeimage;
 	*num_planes = 1; /* Someday we have to support planar formats... */
 	if (*nbufs < minbufs)
 		*nbufs = minbufs;
@@ -1380,7 +1382,7 @@ static int mcam_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	 * Can't do anything if the device is not idle
 	 * Also can't if there are streaming buffers in place.
 	 */
-	if (cam->state != S_IDLE || cam->vb_queue.num_buffers > 0)
+	if (cam->state != S_IDLE || vb2_is_busy(&cam->vb_queue))
 		return -EBUSY;
 
 	f = mcam_find_format(fmt->fmt.pix.pixelformat);
@@ -1573,6 +1575,7 @@ static const struct v4l2_ioctl_ops mcam_v4l_ioctl_ops = {
 	.vidioc_g_input		= mcam_vidioc_g_input,
 	.vidioc_s_input		= mcam_vidioc_s_input,
 	.vidioc_reqbufs		= vb2_ioctl_reqbufs,
+	.vidioc_create_bufs	= vb2_ioctl_create_bufs,
 	.vidioc_querybuf	= vb2_ioctl_querybuf,
 	.vidioc_qbuf		= vb2_ioctl_qbuf,
 	.vidioc_dqbuf		= vb2_ioctl_dqbuf,
