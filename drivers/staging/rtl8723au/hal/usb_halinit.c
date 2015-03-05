@@ -609,17 +609,22 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	}
 
 	/* reducing 80M spur */
-	PHY_SetBBReg(Adapter, REG_AFE_XTAL_CTRL, bMaskDWord, 0x0381808d);
-	PHY_SetBBReg(Adapter, REG_AFE_PLL_CTRL, bMaskDWord, 0xf0ffff83);
-	PHY_SetBBReg(Adapter, REG_AFE_PLL_CTRL, bMaskDWord, 0xf0ffff82);
-	PHY_SetBBReg(Adapter, REG_AFE_PLL_CTRL, bMaskDWord, 0xf0ffff83);
+	rtl8723au_write32(Adapter, REG_AFE_XTAL_CTRL, 0x0381808d);
+	rtl8723au_write32(Adapter, REG_AFE_PLL_CTRL, 0xf0ffff83);
+	rtl8723au_write32(Adapter, REG_AFE_PLL_CTRL, 0xf0ffff82);
+	rtl8723au_write32(Adapter, REG_AFE_PLL_CTRL, 0xf0ffff83);
 
 	/* RFSW Control */
-	PHY_SetBBReg(Adapter, rFPGA0_TxInfo, bMaskDWord, 0x00000003);	/* 0x804[14]= 0 */
-	PHY_SetBBReg(Adapter, rFPGA0_XAB_RFInterfaceSW, bMaskDWord, 0x07000760);	/* 0x870[6:5]= b'11 */
-	PHY_SetBBReg(Adapter, rFPGA0_XA_RFInterfaceOE, bMaskDWord, 0x66F60210); /* 0x860[6:5]= b'00 */
+	/* 0x804[14]= 0 */
+	rtl8723au_write32(Adapter, rFPGA0_TxInfo, 0x00000003);
+	/* 0x870[6:5]= b'11 */
+	rtl8723au_write32(Adapter, rFPGA0_XAB_RFInterfaceSW, 0x07000760);
+	/* 0x860[6:5]= b'00 */
+	rtl8723au_write32(Adapter, rFPGA0_XA_RFInterfaceOE, 0x66F60210);
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("%s: 0x870 = value 0x%x\n", __func__, PHY_QueryBBReg(Adapter, 0x870, bMaskDWord)));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
+		 ("%s: 0x870 = value 0x%x\n", __func__,
+		  rtl8723au_read32(Adapter, 0x870)));
 
 	/*  */
 	/*  Joseph Note: Keep RfRegChnlVal for later use. */
@@ -790,11 +795,9 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 
 		/* AFE */
 		if (pHalData->rf_type ==  RF_2T2R)
-			PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-				     0x63DB25A0);
+			rtl8723au_write32(Adapter, rRx_Wait_CCA, 0x63DB25A0);
 		else if (pHalData->rf_type ==  RF_1T1R)
-			PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-				     0x631B25A0);
+			rtl8723au_write32(Adapter, rRx_Wait_CCA, 0x631B25A0);
 
 		/*  4. issue 3-wire command that RF set to Rx idle
 		    mode. This is used to re-write the RX idle mode. */
@@ -825,13 +828,11 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 						for packet detection */
 		/*	(4) Reg800[1] = 1	enable preamble power saving */
 		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF0] =
-			PHY_QueryBBReg(Adapter, rFPGA0_XAB_RFParameter,
-				       bMaskDWord);
+			rtl8723au_read32(Adapter, rFPGA0_XAB_RFParameter);
 		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF1] =
-			PHY_QueryBBReg(Adapter, rOFDM0_TRxPathEnable,
-				       bMaskDWord);
+			rtl8723au_read32(Adapter, rOFDM0_TRxPathEnable);
 		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_RF2] =
-			PHY_QueryBBReg(Adapter, rFPGA0_RFMOD, bMaskDWord);
+			rtl8723au_read32(Adapter, rFPGA0_RFMOD);
 		if (pHalData->rf_type ==  RF_2T2R) {
 			PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter,
 				     0x380038, 0);
@@ -843,13 +844,11 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 
 		/*  2 .AFE control register to power down. bit[30:22] */
 		Adapter->pwrctrlpriv.PS_BBRegBackup[PSBBREG_AFE0] =
-			PHY_QueryBBReg(Adapter, rRx_Wait_CCA, bMaskDWord);
+			rtl8723au_read32(Adapter, rRx_Wait_CCA);
 		if (pHalData->rf_type ==  RF_2T2R)
-			PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-				     0x00DB25A0);
+			rtl8723au_write32(Adapter, rRx_Wait_CCA, 0x00DB25A0);
 		else if (pHalData->rf_type ==  RF_1T1R)
-			PHY_SetBBReg(Adapter, rRx_Wait_CCA, bMaskDWord,
-				     0x001B25A0);
+			rtl8723au_write32(Adapter, rRx_Wait_CCA, 0x001B25A0);
 
 		/*  3. issue 3-wire command that RF set to power down.*/
 		PHY_SetRFReg(Adapter, RF_PATH_A, RF_AC, bRFRegOffsetMask, 0);
