@@ -773,7 +773,7 @@ static void __init zone_sizes_init(void)
 		 * though, there'll be no lowmem, so we just alloc_bootmem
 		 * the memmap.  There will be no percpu memory either.
 		 */
-		if (i != 0 && cpu_isset(i, isolnodes)) {
+		if (i != 0 && cpumask_test_cpu(i, &isolnodes)) {
 			node_memmap_pfn[i] =
 				alloc_bootmem_pfn(0, memmap_size, 0);
 			BUG_ON(node_percpu[i] != 0);
