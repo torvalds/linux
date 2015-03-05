@@ -609,6 +609,7 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 			dev_err(dev,
 				"Failed to register regulator notifier: %d\n",
 				ret);
+			return ret;
 		}
 	}
 
@@ -616,7 +617,7 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 				    wm8804->supplies);
 	if (ret) {
 		dev_err(dev, "Failed to enable supplies: %d\n", ret);
-		goto err_reg_enable;
+		return ret;
 	}
 
 	ret = regmap_read(regmap, WM8804_RST_DEVID1, &id1);
@@ -653,8 +654,14 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 		goto err_reg_enable;
 	}
 
-	return snd_soc_register_codec(dev, &soc_codec_dev_wm8804,
-				      &wm8804_dai, 1);
+	ret = snd_soc_register_codec(dev, &soc_codec_dev_wm8804,
+				     &wm8804_dai, 1);
+	if (ret < 0) {
+		dev_err(dev, "Failed to register CODEC: %d\n", ret);
+		goto err_reg_enable;
+	}
+
+	return 0;
 
 err_reg_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies), wm8804->supplies);
