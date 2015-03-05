@@ -13909,8 +13909,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_fbc_disable(dev);
 
-	ironlake_teardown_rc6(dev);
-
 	mutex_unlock(&dev->struct_mutex);
 
 	/* flush any delayed tasks or pending work */

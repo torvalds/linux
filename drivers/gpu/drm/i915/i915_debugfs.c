@@ -1831,18 +1831,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	if (dev_priv->ips.pwrctx) {
-		seq_puts(m, "power context ");
-		describe_obj(m, dev_priv->ips.pwrctx);
-		seq_putc(m, '\n');
-	}
-
-	if (dev_priv->ips.renderctx) {
-		seq_puts(m, "render context ");
-		describe_obj(m, dev_priv->ips.renderctx);
-		seq_putc(m, '\n');
-	}
-
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
 		if (!i915.enable_execlists &&
 		    ctx->legacy_hw_ctx.rcs_state == NULL)

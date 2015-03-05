@@ -1065,9 +1065,6 @@ struct intel_ilk_power_mgmt {
 
 	int c_m;
 	int r_t;
-
-	struct drm_i915_gem_object *pwrctx;
-	struct drm_i915_gem_object *renderctx;
 };
 
 struct drm_i915_private;
