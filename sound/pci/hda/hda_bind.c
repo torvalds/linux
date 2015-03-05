@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/export.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -142,6 +143,14 @@ static int hda_codec_driver_remove(struct device *dev)
 	return 0;
 }
 
+static void hda_codec_driver_shutdown(struct device *dev)
+{
+	struct hda_codec *codec = dev_to_hda_codec(dev);
+
+	if (!pm_runtime_suspended(dev) && codec->patch_ops.reboot_notify)
+		codec->patch_ops.reboot_notify(codec);
+}
+
 int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
 			       struct module *owner)
 {
@@ -150,6 +159,7 @@ int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
 	drv->driver.bus = &snd_hda_bus_type;
 	drv->driver.probe = hda_codec_driver_probe;
 	drv->driver.remove = hda_codec_driver_remove;
+	drv->driver.shutdown = hda_codec_driver_shutdown;
 	drv->driver.pm = &hda_codec_driver_pm;
 	return driver_register(&drv->driver);
 }

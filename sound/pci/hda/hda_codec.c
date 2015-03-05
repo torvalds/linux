@@ -4942,24 +4942,6 @@ static void cleanup_dig_out_stream(struct hda_codec *codec, hda_nid_t nid)
 }
 
 /**
- * snd_hda_bus_reboot_notify - call the reboot notifier of each codec
- * @bus: HD-audio bus
- */
-void snd_hda_bus_reboot_notify(struct hda_bus *bus)
-{
-	struct hda_codec *codec;
-
-	if (!bus)
-		return;
-	list_for_each_entry(codec, &bus->codec_list, list) {
-		if (hda_codec_is_power_on(codec) &&
-		    codec->patch_ops.reboot_notify)
-			codec->patch_ops.reboot_notify(codec);
-	}
-}
-EXPORT_SYMBOL_GPL(snd_hda_bus_reboot_notify);
-
-/**
  * snd_hda_multi_out_dig_open - open the digital out in the exclusive mode
  * @codec: the HDA codec
  * @mout: hda_multi_out object

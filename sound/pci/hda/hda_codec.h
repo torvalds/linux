@@ -563,7 +563,6 @@ extern const struct snd_pcm_chmap_elem snd_pcm_2_1_chmaps[];
  * Misc
  */
 void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
-void snd_hda_bus_reboot_notify(struct hda_bus *bus);
 void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 				    unsigned int power_state);
 

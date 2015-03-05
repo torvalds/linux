@@ -290,8 +290,6 @@ static int hda_tegra_dev_free(struct snd_device *device)
 	int i;
 	struct azx *chip = device->device_data;
 
-	azx_notifier_unregister(chip);
-
 	if (chip->initialized) {
 		for (i = 0; i < chip->num_streams; i++)
 			azx_stream_stop(chip, &chip->azx_dev[i]);
@@ -502,7 +500,6 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	chip->running = 1;
-	azx_notifier_register(chip);
 	snd_hda_set_power_save(chip->bus, power_save * 1000);
 
 	return 0;
@@ -517,6 +514,18 @@ static int hda_tegra_remove(struct platform_device *pdev)
 	return snd_card_free(dev_get_drvdata(&pdev->dev));
 }
 
+static void hda_tegra_shutdown(struct platform_device *pdev)
+{
+	struct snd_card *card = dev_get_drvdata(&pdev->dev);
+	struct azx *chip;
+
+	if (!card)
+		return;
+	chip = card->private_data;
+	if (chip && chip->running)
+		azx_stop_chip(chip);
+}
+
 static struct platform_driver tegra_platform_hda = {
 	.driver = {
 		.name = "tegra-hda",
@@ -525,6 +534,7 @@ static struct platform_driver tegra_platform_hda = {
 	},
 	.probe = hda_tegra_probe,
 	.remove = hda_tegra_remove,
+	.shutdown = hda_tegra_shutdown,
 };
 module_platform_driver(tegra_platform_hda);
 

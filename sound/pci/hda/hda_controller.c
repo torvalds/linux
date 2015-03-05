@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/reboot.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include "hda_controller.h"
@@ -1971,31 +1970,6 @@ int azx_init_stream(struct azx *chip)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(azx_init_stream);
-
-/*
- * reboot notifier for hang-up problem at power-down
- */
-static int azx_halt(struct notifier_block *nb, unsigned long event, void *buf)
-{
-	struct azx *chip = container_of(nb, struct azx, reboot_notifier);
-	snd_hda_bus_reboot_notify(chip->bus);
-	azx_stop_chip(chip);
-	return NOTIFY_OK;
-}
-
-void azx_notifier_register(struct azx *chip)
-{
-	chip->reboot_notifier.notifier_call = azx_halt;
-	register_reboot_notifier(&chip->reboot_notifier);
-}
-EXPORT_SYMBOL_GPL(azx_notifier_register);
-
-void azx_notifier_unregister(struct azx *chip)
-{
-	if (chip->reboot_notifier.notifier_call)
-		unregister_reboot_notifier(&chip->reboot_notifier);
-}
-EXPORT_SYMBOL_GPL(azx_notifier_unregister);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Common HDA driver functions");
