@@ -17,6 +17,7 @@
 #include "core.h"
 #include "debug.h"
 #include "hw.h"
+#include "mac.h"
 #include "wmi.h"
 #include "wmi-ops.h"
 #include "wmi-tlv.h"
@@ -168,6 +169,7 @@ static int ath10k_wmi_tlv_event_bcn_tx_status(struct ath10k *ar,
 {
 	const void **tb;
 	const struct wmi_tlv_bcn_tx_status_ev *ev;
+	struct ath10k_vif *arvif;
 	u32 vdev_id, tx_status;
 	int ret;
 
@@ -200,6 +202,12 @@ static int ath10k_wmi_tlv_event_bcn_tx_status(struct ath10k *ar,
 			    vdev_id, tx_status);
 		break;
 	}
+
+	spin_lock_bh(&ar->data_lock);
+	arvif = ath10k_get_arvif(ar, vdev_id);
+	if (arvif && arvif->is_up)
+		ieee80211_queue_work(ar->hw, &arvif->ap_csa_work);
+	spin_unlock_bh(&ar->data_lock);
 
 	kfree(tb);
 	return 0;

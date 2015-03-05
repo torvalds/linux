@@ -341,6 +341,7 @@ struct ath10k_vif {
 	int num_legacy_stations;
 	int txpower;
 	struct wmi_wmm_params_all_arg wmm_params;
+	struct work_struct ap_csa_work;
 };
 
 struct ath10k_vif_iter {
