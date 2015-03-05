@@ -1258,10 +1258,7 @@ static int miphy28lp_probe(struct platform_device *pdev)
 	}
 
 	provider = devm_of_phy_provider_register(&pdev->dev, miphy28lp_xlate);
-	if (IS_ERR(provider))
-		return PTR_ERR(provider);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(provider);
 }
 
 static const struct of_device_id miphy28lp_of_match[] = {
