@@ -45,7 +45,7 @@ void smp_send_stop(void)
 	int i;
 
 	printk(KERN_INFO "Stopping all CPUs...");
-	for (i = 0; i < num_online_cpus(); i++) {
+	for_each_online_cpu(i) {
 		if (i == current_thread->cpu)
 			continue;
 		os_write_file(cpu_data[i].ipi_pipe[1], "S", 1);
