@@ -1409,6 +1409,17 @@ struct ilk_wm_values {
 
 struct vlv_wm_values {
 	struct {
+		uint16_t primary;
+		uint16_t sprite[2];
+		uint8_t cursor;
+	} pipe[3];
+
+	struct {
+		uint16_t plane;
+		uint8_t cursor;
+	} sr;
+
+	struct {
 		uint8_t cursor;
 		uint8_t sprite[2];
 		uint8_t primary;
