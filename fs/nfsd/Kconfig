@@ -82,6 +82,16 @@ config NFSD_V4
 
 	  If unsure, say N.
 
+config NFSD_PNFS
+	bool "NFSv4.1 server support for Parallel NFS (pNFS)"
+	depends on NFSD_V4
+	help
+	  This option enables support for the parallel NFS features of the
+	  minor version 1 of the NFSv4 protocol (RFC5661) in the kernel's NFS
+	  server.
+
+	  If unsure, say N.
+
 config NFSD_V4_SECURITY_LABEL
 	bool "Provide Security Label support for NFSv4 server"
 	depends on NFSD_V4 && SECURITY

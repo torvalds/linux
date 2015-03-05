@@ -115,7 +115,7 @@ static unsigned int max8649_get_mode(struct regulator_dev *rdev)
 	return REGULATOR_MODE_NORMAL;
 }
 
-static struct regulator_ops max8649_dcdc_ops = {
+static const struct regulator_ops max8649_dcdc_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage	= regulator_list_voltage_linear,
@@ -143,7 +143,7 @@ static struct regulator_desc dcdc_desc = {
 	.enable_is_inverted = true,
 };
 
-static struct regmap_config max8649_regmap_config = {
+static const struct regmap_config max8649_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };

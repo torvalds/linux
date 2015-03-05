@@ -1124,6 +1124,9 @@ static int ucma_set_ib_path(struct ucma_context *ctx,
 	if (!optlen)
 		return -EINVAL;
 
+	memset(&sa_path, 0, sizeof(sa_path));
+	sa_path.vlan_id = 0xffff;
+
 	ib_sa_unpack_path(path_data->path_rec, &sa_path);
 	ret = rdma_set_ib_paths(ctx->cm_id, &sa_path, 1);
 	if (ret)

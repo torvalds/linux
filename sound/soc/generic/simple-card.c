@@ -39,6 +39,37 @@ struct simple_card_data {
 #define simple_priv_to_link(priv, i) ((priv)->snd_card.dai_link + i)
 #define simple_priv_to_props(priv, i) ((priv)->dai_props + i)
 
+static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct simple_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props =
+		&priv->dai_props[rtd - rtd->card->rtd];
+	int ret;
+
+	ret = clk_prepare_enable(dai_props->cpu_dai.clk);
+	if (ret)
+		return ret;
+	
+	ret = clk_prepare_enable(dai_props->codec_dai.clk);
+	if (ret)
+		clk_disable_unprepare(dai_props->cpu_dai.clk);
+
+	return ret;
+}
+
+static void asoc_simple_card_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct simple_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
+	struct simple_dai_props *dai_props =
+		&priv->dai_props[rtd - rtd->card->rtd];
+
+	clk_disable_unprepare(dai_props->cpu_dai.clk);
+
+	clk_disable_unprepare(dai_props->codec_dai.clk);
+}
+
 static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
@@ -58,6 +89,8 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops asoc_simple_card_ops = {
+	.startup = asoc_simple_card_startup,
+	.shutdown = asoc_simple_card_shutdown,
 	.hw_params = asoc_simple_card_hw_params,
 };
 
@@ -219,6 +252,7 @@ asoc_simple_card_sub_parse_of(struct device_node *np,
 		}
 
 		dai->sysclk = clk_get_rate(clk);
+		dai->clk = clk;
 	} else if (!of_property_read_u32(np, "system-clock-frequency", &val)) {
 		dai->sysclk = val;
 	} else {
@@ -452,9 +486,8 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 }
 
 /* Decrease the reference count of the device nodes */
-static int asoc_simple_card_unref(struct platform_device *pdev)
+static int asoc_simple_card_unref(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct snd_soc_dai_link *dai_link;
 	int num_links;
 
@@ -556,7 +589,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		return ret;
 
 err:
-	asoc_simple_card_unref(pdev);
+	asoc_simple_card_unref(&priv->snd_card);
 	return ret;
 }
 
@@ -572,7 +605,7 @@ static int asoc_simple_card_remove(struct platform_device *pdev)
 		snd_soc_jack_free_gpios(&simple_card_mic_jack, 1,
 					&simple_card_mic_jack_gpio);
 
-	return asoc_simple_card_unref(pdev);
+	return asoc_simple_card_unref(card);
 }
 
 static const struct of_device_id asoc_simple_of_match[] = {

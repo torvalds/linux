@@ -54,9 +54,7 @@ extern unsigned int vced_count, vcei_count;
 #define TASK_SIZE	0x7fff8000UL
 #endif
 
-#ifdef __KERNEL__
 #define STACK_TOP_MAX	TASK_SIZE
-#endif
 
 #define TASK_IS_32BIT_ADDR 1
 
@@ -73,11 +71,7 @@ extern unsigned int vced_count, vcei_count;
 #define TASK_SIZE32	0x7fff8000UL
 #define TASK_SIZE64	0x10000000000UL
 #define TASK_SIZE (test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
-
-#ifdef __KERNEL__
 #define STACK_TOP_MAX	TASK_SIZE64
-#endif
-
 
 #define TASK_SIZE_OF(tsk)						\
 	(test_tsk_thread_flag(tsk, TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
@@ -211,6 +205,8 @@ struct octeon_cop2_state {
 	unsigned long	cop2_gfm_poly;
 	/* DMFC2 rt, 0x025A; DMFC2 rt, 0x025B - Pass2 */
 	unsigned long	cop2_gfm_result[2];
+	/* DMFC2 rt, 0x24F, DMFC2 rt, 0x50, OCTEON III */
+	unsigned long	cop2_sha3[2];
 };
 #define COP2_INIT						\
 	.cp2			= {0,},
@@ -398,5 +394,16 @@ unsigned long get_wchan(struct task_struct *p);
 #define prefetchw(x) __builtin_prefetch((x), 1, 1)
 
 #endif
+
+/*
+ * Functions & macros implementing the PR_GET_FP_MODE & PR_SET_FP_MODE options
+ * to the prctl syscall.
+ */
+extern int mips_get_process_fp_mode(struct task_struct *task);
+extern int mips_set_process_fp_mode(struct task_struct *task,
+				    unsigned int value);
+
+#define GET_FP_MODE(task)		mips_get_process_fp_mode(task)
+#define SET_FP_MODE(task,value)		mips_set_process_fp_mode(task, value)
 
 #endif /* _ASM_PROCESSOR_H */

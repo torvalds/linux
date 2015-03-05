@@ -793,7 +793,7 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 			  struct ieee80211_sta *ap_sta)
 {
 	int ret;
-	struct iwl_mvm_sta *mvm_ap_sta = (struct iwl_mvm_sta *)ap_sta->drv_priv;
+	struct iwl_mvm_sta *mvm_ap_sta = iwl_mvm_sta_from_mac80211(ap_sta);
 
 	/* TODO: wowlan_config_cmd->wowlan_ba_teardown_tids */
 
@@ -1137,12 +1137,43 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	return ret;
 }
 
+static int iwl_mvm_enter_d0i3_sync(struct iwl_mvm *mvm)
+{
+	struct iwl_notification_wait wait_d3;
+	static const u8 d3_notif[] = { D3_CONFIG_CMD };
+	int ret;
+
+	iwl_init_notification_wait(&mvm->notif_wait, &wait_d3,
+				   d3_notif, ARRAY_SIZE(d3_notif),
+				   NULL, NULL);
+
+	ret = iwl_mvm_enter_d0i3(mvm->hw->priv);
+	if (ret)
+		goto remove_notif;
+
+	ret = iwl_wait_notification(&mvm->notif_wait, &wait_d3, HZ);
+	WARN_ON_ONCE(ret);
+	return ret;
+
+remove_notif:
+	iwl_remove_notification(&mvm->notif_wait, &wait_d3);
+	return ret;
+}
+
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
 	iwl_trans_suspend(mvm->trans);
-	if (iwl_mvm_is_d0i3_supported(mvm)) {
+	if (wowlan->any) {
+		/* 'any' trigger means d0i3 usage */
+		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
+			int ret = iwl_mvm_enter_d0i3_sync(mvm);
+
+			if (ret)
+				return ret;
+		}
+
 		mutex_lock(&mvm->d0i3_suspend_mutex);
 		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
 		mutex_unlock(&mvm->d0i3_suspend_mutex);
@@ -1626,7 +1657,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	if (IS_ERR_OR_NULL(ap_sta))
 		goto out_free;
 
-	mvm_ap_sta = (struct iwl_mvm_sta *)ap_sta->drv_priv;
+	mvm_ap_sta = iwl_mvm_sta_from_mac80211(ap_sta);
 	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
 		u16 seq = status.qos_seq_ctr[i];
 		/* firmware stores last-used value, we store next value */
@@ -1876,8 +1907,20 @@ int iwl_mvm_resume(struct ieee80211_hw *hw)
 
 	iwl_trans_resume(mvm->trans);
 
-	if (iwl_mvm_is_d0i3_supported(mvm))
+	if (mvm->hw->wiphy->wowlan_config->any) {
+		/* 'any' trigger means d0i3 usage */
+		if (mvm->trans->d0i3_mode == IWL_D0I3_MODE_ON_SUSPEND) {
+			int ret = iwl_mvm_exit_d0i3(hw->priv);
+
+			if (ret)
+				return ret;
+			/*
+			 * d0i3 exit will be deferred until reconfig_complete.
+			 * make sure there we are out of d0i3.
+			 */
+		}
 		return 0;
+	}
 
 	return __iwl_mvm_resume(mvm, false);
 }

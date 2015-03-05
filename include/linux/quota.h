@@ -216,19 +216,21 @@ struct mem_dqinfo {
 	unsigned long dqi_flags;
 	unsigned int dqi_bgrace;
 	unsigned int dqi_igrace;
-	qsize_t dqi_maxblimit;
-	qsize_t dqi_maxilimit;
+	qsize_t dqi_max_spc_limit;
+	qsize_t dqi_max_ino_limit;
 	void *dqi_priv;
 };
 
 struct super_block;
 
-#define DQF_MASK 0xffff		/* Mask for format specific flags */
-#define DQF_GETINFO_MASK 0x1ffff	/* Mask for flags passed to userspace */
-#define DQF_SETINFO_MASK 0xffff		/* Mask for flags modifiable from userspace */
-#define DQF_SYS_FILE_B		16
-#define DQF_SYS_FILE (1 << DQF_SYS_FILE_B)	/* Quota file stored as system file */
-#define DQF_INFO_DIRTY_B	31
+/* Mask for flags passed to userspace */
+#define DQF_GETINFO_MASK (DQF_ROOT_SQUASH | DQF_SYS_FILE)
+/* Mask for flags modifiable from userspace */
+#define DQF_SETINFO_MASK DQF_ROOT_SQUASH
+
+enum {
+	DQF_INFO_DIRTY_B = DQF_PRIVATE,
+};
 #define DQF_INFO_DIRTY (1 << DQF_INFO_DIRTY_B)	/* Is info dirty? */
 
 extern void mark_info_dirty(struct super_block *sb, int type);
@@ -321,18 +323,61 @@ struct dquot_operations {
 
 struct path;
 
+/* Structure for communicating via ->get_dqblk() & ->set_dqblk() */
+struct qc_dqblk {
+	int d_fieldmask;	/* mask of fields to change in ->set_dqblk() */
+	u64 d_spc_hardlimit;	/* absolute limit on used space */
+	u64 d_spc_softlimit;	/* preferred limit on used space */
+	u64 d_ino_hardlimit;	/* maximum # allocated inodes */
+	u64 d_ino_softlimit;	/* preferred inode limit */
+	u64 d_space;		/* Space owned by the user */
+	u64 d_ino_count;	/* # inodes owned by the user */
+	s64 d_ino_timer;	/* zero if within inode limits */
+				/* if not, we refuse service */
+	s64 d_spc_timer;	/* similar to above; for space */
+	int d_ino_warns;	/* # warnings issued wrt num inodes */
+	int d_spc_warns;	/* # warnings issued wrt used space */
+	u64 d_rt_spc_hardlimit;	/* absolute limit on realtime space */
+	u64 d_rt_spc_softlimit;	/* preferred limit on RT space */
+	u64 d_rt_space;		/* realtime space owned */
+	s64 d_rt_spc_timer;	/* similar to above; for RT space */
+	int d_rt_spc_warns;	/* # warnings issued wrt RT space */
+};
+
+/* Field specifiers for ->set_dqblk() in struct qc_dqblk */
+#define	QC_INO_SOFT	(1<<0)
+#define	QC_INO_HARD	(1<<1)
+#define	QC_SPC_SOFT	(1<<2)
+#define	QC_SPC_HARD	(1<<3)
+#define	QC_RT_SPC_SOFT	(1<<4)
+#define	QC_RT_SPC_HARD	(1<<5)
+#define QC_LIMIT_MASK (QC_INO_SOFT | QC_INO_HARD | QC_SPC_SOFT | QC_SPC_HARD | \
+		       QC_RT_SPC_SOFT | QC_RT_SPC_HARD)
+#define	QC_SPC_TIMER	(1<<6)
+#define	QC_INO_TIMER	(1<<7)
+#define	QC_RT_SPC_TIMER	(1<<8)
+#define QC_TIMER_MASK (QC_SPC_TIMER | QC_INO_TIMER | QC_RT_SPC_TIMER)
+#define	QC_SPC_WARNS	(1<<9)
+#define	QC_INO_WARNS	(1<<10)
+#define	QC_RT_SPC_WARNS	(1<<11)
+#define QC_WARNS_MASK (QC_SPC_WARNS | QC_INO_WARNS | QC_RT_SPC_WARNS)
+#define	QC_SPACE	(1<<12)
+#define	QC_INO_COUNT	(1<<13)
+#define	QC_RT_SPACE	(1<<14)
+#define QC_ACCT_MASK (QC_SPACE | QC_INO_COUNT | QC_RT_SPACE)
+
 /* Operations handling requests from userspace */
 struct quotactl_ops {
 	int (*quota_on)(struct super_block *, int, int, struct path *);
-	int (*quota_on_meta)(struct super_block *, int, int);
 	int (*quota_off)(struct super_block *, int);
+	int (*quota_enable)(struct super_block *, unsigned int);
+	int (*quota_disable)(struct super_block *, unsigned int);
 	int (*quota_sync)(struct super_block *, int);
 	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
-	int (*get_dqblk)(struct super_block *, struct kqid, struct fs_disk_quota *);
-	int (*set_dqblk)(struct super_block *, struct kqid, struct fs_disk_quota *);
+	int (*get_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
+	int (*set_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
 	int (*get_xstate)(struct super_block *, struct fs_quota_stat *);
-	int (*set_xstate)(struct super_block *, unsigned int, int);
 	int (*get_xstatev)(struct super_block *, struct fs_quota_statv *);
 	int (*rm_xquota)(struct super_block *, unsigned int);
 };

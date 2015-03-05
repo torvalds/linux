@@ -46,8 +46,11 @@
  */
 
 /dts-v1/;
-/include/ "sun6i-a31.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun6i-a31.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Mele M9 / A1000G Quad top set box";
@@ -63,7 +66,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_m9>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 7 22 0>; /* PH22 */
+			cd-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -85,22 +88,22 @@
 			led_pins_m9: led_pins@0 {
 				allwinner,pins = "PH13";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			mmc0_cd_pin_m9: mmc0_cd_pin@0 {
 				allwinner,pins = "PH22";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			usb1_vbus_pin_m9: usb1_vbus_pin@0 {
 				allwinner,pins = "PC27";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -121,6 +124,12 @@
 				reg = <1>;
 			};
 		};
+
+		ir@01f02000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&ir_pins_a>;
+			status = "okay";
+		};
 	};
 
 	leds {
@@ -130,14 +139,14 @@
 
 		blue {
 			label = "m9:blue:usr";
-			gpios = <&pio 7 13 0>;
+			gpios = <&pio 7 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	reg_usb1_vbus: usb1-vbus {
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb1_vbus_pin_m9>;
-		gpio = <&pio 2 27 0>;
+		gpio = <&pio 2 27 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

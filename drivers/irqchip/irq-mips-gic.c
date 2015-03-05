@@ -37,6 +37,7 @@ static struct irq_domain *gic_irq_domain;
 static int gic_shared_intrs;
 static int gic_vpes;
 static unsigned int gic_cpu_pin;
+static unsigned int timer_cpu_pin;
 static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
 
 static void __gic_irq_dispatch(void);
@@ -189,14 +190,6 @@ static bool gic_local_irq_is_routable(int intr)
 	default:
 		return true;
 	}
-}
-
-unsigned int gic_get_timer_pending(void)
-{
-	unsigned int vpe_pending;
-
-	vpe_pending = gic_read(GIC_REG(VPE_LOCAL, GIC_VPE_PEND));
-	return vpe_pending & GIC_VPE_PEND_TIMER_MSK;
 }
 
 static void gic_bind_eic_interrupt(int irq, int set)
@@ -624,6 +617,8 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 			gic_write(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE_MAP), val);
 			break;
 		case GIC_LOCAL_INT_TIMER:
+			/* CONFIG_MIPS_CMP workaround (see __gic_init) */
+			val = GIC_MAP_TO_PIN_MSK | timer_cpu_pin;
 			gic_write(GIC_REG(VPE_OTHER, GIC_VPE_TIMER_MAP), val);
 			break;
 		case GIC_LOCAL_INT_PERFCTR:
@@ -721,12 +716,36 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	if (cpu_has_veic) {
 		/* Always use vector 1 in EIC mode */
 		gic_cpu_pin = 0;
+		timer_cpu_pin = gic_cpu_pin;
 		set_vi_handler(gic_cpu_pin + GIC_PIN_TO_VEC_OFFSET,
 			       __gic_irq_dispatch);
 	} else {
 		gic_cpu_pin = cpu_vec - GIC_CPU_PIN_OFFSET;
 		irq_set_chained_handler(MIPS_CPU_IRQ_BASE + cpu_vec,
 					gic_irq_dispatch);
+		/*
+		 * With the CMP implementation of SMP (deprecated), other CPUs
+		 * are started by the bootloader and put into a timer based
+		 * waiting poll loop. We must not re-route those CPU's local
+		 * timer interrupts as the wait instruction will never finish,
+		 * so just handle whatever CPU interrupt it is routed to by
+		 * default.
+		 *
+		 * This workaround should be removed when CMP support is
+		 * dropped.
+		 */
+		if (IS_ENABLED(CONFIG_MIPS_CMP) &&
+		    gic_local_irq_is_routable(GIC_LOCAL_INT_TIMER)) {
+			timer_cpu_pin = gic_read(GIC_REG(VPE_LOCAL,
+							 GIC_VPE_TIMER_MAP)) &
+					GIC_MAP_MSK;
+			irq_set_chained_handler(MIPS_CPU_IRQ_BASE +
+						GIC_CPU_PIN_OFFSET +
+						timer_cpu_pin,
+						gic_irq_dispatch);
+		} else {
+			timer_cpu_pin = gic_cpu_pin;
+		}
 	}
 
 	gic_irq_domain = irq_domain_add_simple(node, GIC_NUM_LOCAL_INTRS +

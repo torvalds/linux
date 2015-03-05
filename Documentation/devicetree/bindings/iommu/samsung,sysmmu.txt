@@ -45,7 +45,7 @@ Required properties:
 	       Exynos4 SoCs, there needs no "master" clock.
 	       Exynos5 SoCs, some System MMUs must have "master" clocks.
 - clocks: Required if the System MMU is needed to gate its clock.
-- samsung,power-domain: Required if the System MMU is needed to gate its power.
+- power-domains: Required if the System MMU is needed to gate its power.
 	  Please refer to the following document:
 	  Documentation/devicetree/bindings/arm/exynos/power_domain.txt
 
@@ -54,7 +54,7 @@ Examples:
 		compatible = "samsung,exynos5-gsc";
 		reg = <0x13e00000 0x1000>;
 		interrupts = <0 85 0>;
-		samsung,power-domain = <&pd_gsc>;
+		power-domains = <&pd_gsc>;
 		clocks = <&clock CLK_GSCL0>;
 		clock-names = "gscl";
 	};
@@ -66,5 +66,5 @@ Examples:
 		interrupts = <2 0>;
 		clock-names = "sysmmu", "master";
 		clocks = <&clock CLK_SMMU_GSCL0>, <&clock CLK_GSCL0>;
-		samsung,power-domain = <&pd_gsc>;
+		power-domains = <&pd_gsc>;
 	};

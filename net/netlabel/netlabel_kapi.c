@@ -1065,10 +1065,12 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  u16 family,
 			  struct netlbl_lsm_secattr *secattr)
 {
+	unsigned char *ptr;
+
 	switch (family) {
 	case AF_INET:
-		if (CIPSO_V4_OPTEXIST(skb) &&
-		    cipso_v4_skbuff_getattr(skb, secattr) == 0)
+		ptr = cipso_v4_optptr(skb);
+		if (ptr && cipso_v4_getattr(ptr, secattr) == 0)
 			return 0;
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1094,7 +1096,7 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
  */
 void netlbl_skbuff_err(struct sk_buff *skb, int error, int gateway)
 {
-	if (CIPSO_V4_OPTEXIST(skb))
+	if (cipso_v4_optptr(skb))
 		cipso_v4_error(skb, error, gateway);
 }
 
@@ -1126,11 +1128,14 @@ void netlbl_cache_invalidate(void)
 int netlbl_cache_add(const struct sk_buff *skb,
 		     const struct netlbl_lsm_secattr *secattr)
 {
+	unsigned char *ptr;
+
 	if ((secattr->flags & NETLBL_SECATTR_CACHE) == 0)
 		return -ENOMSG;
 
-	if (CIPSO_V4_OPTEXIST(skb))
-		return cipso_v4_cache_add(skb, secattr);
+	ptr = cipso_v4_optptr(skb);
+	if (ptr)
+		return cipso_v4_cache_add(ptr, secattr);
 
 	return -ENOMSG;
 }

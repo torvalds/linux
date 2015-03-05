@@ -24,50 +24,51 @@
 
 
 /**
- * sun9i_a80_get_pll4_factors() - calculates n, p, m factors for PLL1
+ * sun9i_a80_get_pll4_factors() - calculates n, p, m factors for PLL4
  * PLL4 rate is calculated as follows
  * rate = (parent_rate * n >> p) / (m + 1);
- * parent_rate is always 24Mhz
+ * parent_rate is always 24MHz
  *
  * p and m are named div1 and div2 in Allwinner's SDK
  */
 
 static void sun9i_a80_get_pll4_factors(u32 *freq, u32 parent_rate,
-				       u8 *n, u8 *k, u8 *m, u8 *p)
+				       u8 *n_ret, u8 *k, u8 *m_ret, u8 *p_ret)
 {
-	int div;
+	int n;
+	int m = 1;
+	int p = 1;
 
-	/* Normalize value to a 6M multiple */
-	div = DIV_ROUND_UP(*freq, 6000000);
+	/* Normalize value to a 6 MHz multiple (24 MHz / 4) */
+	n = DIV_ROUND_UP(*freq, 6000000);
 
-	/* divs above 256 cannot be odd */
-	if (div > 256)
-		div = round_up(div, 2);
+	/* If n is too large switch to steps of 12 MHz */
+	if (n > 255) {
+		m = 0;
+		n = (n + 1) / 2;
+	}
 
-	/* divs above 512 must be a multiple of 4 */
-	if (div > 512)
-		div = round_up(div, 4);
+	/* If n is still too large switch to steps of 24 MHz */
+	if (n > 255) {
+		p = 0;
+		n = (n + 1) / 2;
+	}
 
-	*freq = 6000000 * div;
+	/* n must be between 12 and 255 */
+	if (n > 255)
+		n = 255;
+	else if (n < 12)
+		n = 12;
+
+	*freq = ((24000000 * n) >> p) / (m + 1);
 
 	/* we were called to round the frequency, we can now return */
-	if (n == NULL)
+	if (n_ret == NULL)
 		return;
 
-	/* p will be 1 for divs under 512 */
-	if (div < 512)
-		*p = 1;
-	else
-		*p = 0;
-
-	/* m will be 1 if div is odd */
-	if (div & 1)
-		*m = 1;
-	else
-		*m = 0;
-
-	/* calculate a suitable n based on m and p */
-	*n = div / (*p + 1) / (*m + 1);
+	*n_ret = n;
+	*m_ret = m;
+	*p_ret = p;
 }
 
 static struct clk_factors_config sun9i_a80_pll4_config = {
@@ -89,7 +90,17 @@ static DEFINE_SPINLOCK(sun9i_a80_pll4_lock);
 
 static void __init sun9i_a80_pll4_setup(struct device_node *node)
 {
-	sunxi_factors_register(node, &sun9i_a80_pll4_data, &sun9i_a80_pll4_lock);
+	void __iomem *reg;
+
+	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (!reg) {
+		pr_err("Could not get registers for a80-pll4-clk: %s\n",
+		       node->name);
+		return;
+	}
+
+	sunxi_factors_register(node, &sun9i_a80_pll4_data,
+			       &sun9i_a80_pll4_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_pll4, "allwinner,sun9i-a80-pll4-clk", sun9i_a80_pll4_setup);
 
@@ -139,8 +150,18 @@ static DEFINE_SPINLOCK(sun9i_a80_gt_lock);
 
 static void __init sun9i_a80_gt_setup(struct device_node *node)
 {
-	struct clk *gt = sunxi_factors_register(node, &sun9i_a80_gt_data,
-						&sun9i_a80_gt_lock);
+	void __iomem *reg;
+	struct clk *gt;
+
+	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (!reg) {
+		pr_err("Could not get registers for a80-gt-clk: %s\n",
+		       node->name);
+		return;
+	}
+
+	gt = sunxi_factors_register(node, &sun9i_a80_gt_data,
+				    &sun9i_a80_gt_lock, reg);
 
 	/* The GT bus clock needs to be always enabled */
 	__clk_get(gt);
@@ -194,7 +215,17 @@ static DEFINE_SPINLOCK(sun9i_a80_ahb_lock);
 
 static void __init sun9i_a80_ahb_setup(struct device_node *node)
 {
-	sunxi_factors_register(node, &sun9i_a80_ahb_data, &sun9i_a80_ahb_lock);
+	void __iomem *reg;
+
+	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (!reg) {
+		pr_err("Could not get registers for a80-ahb-clk: %s\n",
+		       node->name);
+		return;
+	}
+
+	sunxi_factors_register(node, &sun9i_a80_ahb_data,
+			       &sun9i_a80_ahb_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_ahb, "allwinner,sun9i-a80-ahb-clk", sun9i_a80_ahb_setup);
 
@@ -210,7 +241,17 @@ static DEFINE_SPINLOCK(sun9i_a80_apb0_lock);
 
 static void __init sun9i_a80_apb0_setup(struct device_node *node)
 {
-	sunxi_factors_register(node, &sun9i_a80_apb0_data, &sun9i_a80_apb0_lock);
+	void __iomem *reg;
+
+	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (!reg) {
+		pr_err("Could not get registers for a80-apb0-clk: %s\n",
+		       node->name);
+		return;
+	}
+
+	sunxi_factors_register(node, &sun9i_a80_apb0_data,
+			       &sun9i_a80_apb0_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_apb0, "allwinner,sun9i-a80-apb0-clk", sun9i_a80_apb0_setup);
 
@@ -266,6 +307,16 @@ static DEFINE_SPINLOCK(sun9i_a80_apb1_lock);
 
 static void __init sun9i_a80_apb1_setup(struct device_node *node)
 {
-	sunxi_factors_register(node, &sun9i_a80_apb1_data, &sun9i_a80_apb1_lock);
+	void __iomem *reg;
+
+	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (!reg) {
+		pr_err("Could not get registers for a80-apb1-clk: %s\n",
+		       node->name);
+		return;
+	}
+
+	sunxi_factors_register(node, &sun9i_a80_apb1_data,
+			       &sun9i_a80_apb1_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_apb1, "allwinner,sun9i-a80-apb1-clk", sun9i_a80_apb1_setup);

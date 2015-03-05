@@ -8,6 +8,8 @@
 #include <linux/smp.h>
 
 #include <asm/processor.h>
+#include <asm/traps.h>
+#include <asm/tlbflush.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 
@@ -17,7 +19,10 @@ int mce_p5_enabled __read_mostly;
 /* Machine check handler for Pentium class Intel CPUs: */
 static void pentium_machine_check(struct pt_regs *regs, long error_code)
 {
+	enum ctx_state prev_state;
 	u32 loaddr, hi, lotype;
+
+	prev_state = ist_enter(regs);
 
 	rdmsr(MSR_IA32_P5_MC_ADDR, loaddr, hi);
 	rdmsr(MSR_IA32_P5_MC_TYPE, lotype, hi);
@@ -33,6 +38,8 @@ static void pentium_machine_check(struct pt_regs *regs, long error_code)
 	}
 
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
+
+	ist_exit(regs, prev_state);
 }
 
 /* Set up machine check reporting for processors with Intel style MCE: */
@@ -59,7 +66,7 @@ void intel_p5_mcheck_init(struct cpuinfo_x86 *c)
 	       "Intel old style machine check architecture supported.\n");
 
 	/* Enable MCE: */
-	set_in_cr4(X86_CR4_MCE);
+	cr4_set_bits(X86_CR4_MCE);
 	printk(KERN_INFO
 	       "Intel old style machine check reporting enabled on CPU#%d.\n",
 	       smp_processor_id());

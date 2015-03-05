@@ -36,8 +36,7 @@
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
 
-struct virtio_balloon_config
-{
+struct virtio_balloon_config {
 	/* Number of pages host wants Guest to give up. */
 	__le32 num_pages;
 	/* Number of pages we've actually got in balloon. */

@@ -139,6 +139,10 @@ void __init setup_arch(char **cmdline_p)
 
 	console_verbose();
 
+#ifdef CONFIG_EARLY_PRINTK
+	setup_early_printk();
+#endif
+
 	memory_start = PAGE_ALIGN((unsigned long)__pa(_end));
 	memory_end = (unsigned long) CONFIG_NIOS2_MEM_BASE + memory_size;
 

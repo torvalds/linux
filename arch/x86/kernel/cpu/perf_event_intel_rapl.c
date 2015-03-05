@@ -142,7 +142,7 @@ static inline u64 rapl_scale(u64 v)
 	 * or use ldexp(count, -32).
 	 * Watts = Joules/Time delta
 	 */
-	return v << (32 - __this_cpu_read(rapl_pmu->hw_unit));
+	return v << (32 - __this_cpu_read(rapl_pmu)->hw_unit);
 }
 
 static u64 rapl_event_update(struct perf_event *event)

@@ -35,7 +35,6 @@
  */
 
 #include "core.h"
-#include "config.h"
 #include "socket.h"
 #include "name_table.h"
 #include "bearer.h"
@@ -43,36 +42,6 @@
 #include "node.h"
 #include "net.h"
 #include <net/genetlink.h>
-
-static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
-{
-	struct sk_buff *rep_buf;
-	struct nlmsghdr *rep_nlh;
-	struct nlmsghdr *req_nlh = info->nlhdr;
-	struct tipc_genlmsghdr *req_userhdr = info->userhdr;
-	int hdr_space = nlmsg_total_size(GENL_HDRLEN + TIPC_GENL_HDRLEN);
-	u16 cmd;
-
-	if ((req_userhdr->cmd & 0xC000) && (!netlink_capable(skb, CAP_NET_ADMIN)))
-		cmd = TIPC_CMD_NOT_NET_ADMIN;
-	else
-		cmd = req_userhdr->cmd;
-
-	rep_buf = tipc_cfg_do_cmd(req_userhdr->dest, cmd,
-			nlmsg_data(req_nlh) + GENL_HDRLEN + TIPC_GENL_HDRLEN,
-			nlmsg_attrlen(req_nlh, GENL_HDRLEN + TIPC_GENL_HDRLEN),
-			hdr_space);
-
-	if (rep_buf) {
-		skb_push(rep_buf, hdr_space);
-		rep_nlh = nlmsg_hdr(rep_buf);
-		memcpy(rep_nlh, req_nlh, hdr_space);
-		rep_nlh->nlmsg_len = rep_buf->len;
-		genlmsg_unicast(&init_net, rep_buf, NETLINK_CB(skb).portid);
-	}
-
-	return 0;
-}
 
 static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
 	[TIPC_NLA_UNSPEC]	= { .type = NLA_UNSPEC, },
@@ -86,32 +55,16 @@ static const struct nla_policy tipc_nl_policy[TIPC_NLA_MAX + 1] = {
 	[TIPC_NLA_NAME_TABLE]	= { .type = NLA_NESTED, }
 };
 
-/* Legacy ASCII API */
-static struct genl_family tipc_genl_family = {
-	.id		= GENL_ID_GENERATE,
-	.name		= TIPC_GENL_NAME,
-	.version	= TIPC_GENL_VERSION,
-	.hdrsize	= TIPC_GENL_HDRLEN,
-	.maxattr	= 0,
-};
-
-/* Legacy ASCII API */
-static struct genl_ops tipc_genl_ops[] = {
-	{
-		.cmd		= TIPC_GENL_CMD,
-		.doit		= handle_cmd,
-	},
-};
-
 /* Users of the legacy API (tipc-config) can't handle that we add operations,
  * so we have a separate genl handling for the new API.
  */
-struct genl_family tipc_genl_v2_family = {
+struct genl_family tipc_genl_family = {
 	.id		= GENL_ID_GENERATE,
 	.name		= TIPC_GENL_V2_NAME,
 	.version	= TIPC_GENL_V2_VERSION,
 	.hdrsize	= 0,
 	.maxattr	= TIPC_NLA_MAX,
+	.netnsok	= true,
 };
 
 static const struct genl_ops tipc_genl_v2_ops[] = {
@@ -197,9 +150,9 @@ static const struct genl_ops tipc_genl_v2_ops[] = {
 
 int tipc_nlmsg_parse(const struct nlmsghdr *nlh, struct nlattr ***attr)
 {
-	u32 maxattr = tipc_genl_v2_family.maxattr;
+	u32 maxattr = tipc_genl_family.maxattr;
 
-	*attr = tipc_genl_v2_family.attrbuf;
+	*attr = tipc_genl_family.attrbuf;
 	if (!*attr)
 		return -EOPNOTSUPP;
 
@@ -210,13 +163,7 @@ int tipc_netlink_start(void)
 {
 	int res;
 
-	res = genl_register_family_with_ops(&tipc_genl_family, tipc_genl_ops);
-	if (res) {
-		pr_err("Failed to register legacy interface\n");
-		return res;
-	}
-
-	res = genl_register_family_with_ops(&tipc_genl_v2_family,
+	res = genl_register_family_with_ops(&tipc_genl_family,
 					    tipc_genl_v2_ops);
 	if (res) {
 		pr_err("Failed to register netlink interface\n");
@@ -228,5 +175,4 @@ int tipc_netlink_start(void)
 void tipc_netlink_stop(void)
 {
 	genl_unregister_family(&tipc_genl_family);
-	genl_unregister_family(&tipc_genl_v2_family);
 }

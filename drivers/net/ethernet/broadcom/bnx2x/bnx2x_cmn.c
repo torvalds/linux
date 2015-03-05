@@ -3175,7 +3175,7 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 		}
 #endif
 		if (!bnx2x_fp_lock_napi(fp))
-			return work_done;
+			return budget;
 
 		for_each_cos_in_tx_queue(fp, cos)
 			if (bnx2x_tx_queue_has_work(fp->txdata_ptr[cos]))
@@ -3865,9 +3865,9 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   "sending pkt %u @%p  next_idx %u  bd %u @%p\n",
 	   pkt_prod, tx_buf, txdata->tx_pkt_prod, bd_prod, tx_start_bd);
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		tx_start_bd->vlan_or_ethertype =
-		    cpu_to_le16(vlan_tx_tag_get(skb));
+		    cpu_to_le16(skb_vlan_tag_get(skb));
 		tx_start_bd->bd_flags.as_bitfield |=
 		    (X_ETH_OUTBAND_VLAN << ETH_TX_BD_FLAGS_VLAN_MODE_SHIFT);
 	} else {

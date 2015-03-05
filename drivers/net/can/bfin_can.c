@@ -352,6 +352,7 @@ static int bfin_can_err(struct net_device *dev, u16 isrc, u16 status)
 		netdev_dbg(dev, "bus-off mode interrupt\n");
 		state = CAN_STATE_BUS_OFF;
 		cf->can_id |= CAN_ERR_BUSOFF;
+		priv->can.can_stats.bus_off++;
 		can_bus_off(dev);
 	}
 

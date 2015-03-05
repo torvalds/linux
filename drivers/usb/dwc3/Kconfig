@@ -104,12 +104,6 @@ config USB_DWC3_DEBUG
 	help
 	  Say Y here to enable debugging messages on DWC3 Driver.
 
-config USB_DWC3_VERBOSE
-	bool "Enable Verbose Debugging Messages"
-	depends on USB_DWC3_DEBUG
-	help
-	  Say Y here to enable verbose debugging messages on DWC3 Driver.
-
 config DWC3_HOST_USB3_LPM_ENABLE
 	bool "Enable USB3 LPM Capability"
 	depends on USB_DWC3_HOST=y || USB_DWC3_DUAL_ROLE=y

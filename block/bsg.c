@@ -136,42 +136,6 @@ static inline struct hlist_head *bsg_dev_idx_hash(int index)
 	return &bsg_device_list[index & (BSG_LIST_ARRAY_SIZE - 1)];
 }
 
-static int bsg_io_schedule(struct bsg_device *bd)
-{
-	DEFINE_WAIT(wait);
-	int ret = 0;
-
-	spin_lock_irq(&bd->lock);
-
-	BUG_ON(bd->done_cmds > bd->queued_cmds);
-
-	/*
-	 * -ENOSPC or -ENODATA?  I'm going for -ENODATA, meaning "I have no
-	 * work to do", even though we return -ENOSPC after this same test
-	 * during bsg_write() -- there, it means our buffer can't have more
-	 * bsg_commands added to it, thus has no space left.
-	 */
-	if (bd->done_cmds == bd->queued_cmds) {
-		ret = -ENODATA;
-		goto unlock;
-	}
-
-	if (!test_bit(BSG_F_BLOCK, &bd->flags)) {
-		ret = -EAGAIN;
-		goto unlock;
-	}
-
-	prepare_to_wait(&bd->wq_done, &wait, TASK_UNINTERRUPTIBLE);
-	spin_unlock_irq(&bd->lock);
-	io_schedule();
-	finish_wait(&bd->wq_done, &wait);
-
-	return ret;
-unlock:
-	spin_unlock_irq(&bd->lock);
-	return ret;
-}
-
 static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 				struct sg_io_v4 *hdr, struct bsg_device *bd,
 				fmode_t has_write_perm)
@@ -482,6 +446,30 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	return ret;
 }
 
+static bool bsg_complete(struct bsg_device *bd)
+{
+	bool ret = false;
+	bool spin;
+
+	do {
+		spin_lock_irq(&bd->lock);
+
+		BUG_ON(bd->done_cmds > bd->queued_cmds);
+
+		/*
+		 * All commands consumed.
+		 */
+		if (bd->done_cmds == bd->queued_cmds)
+			ret = true;
+
+		spin = !test_bit(BSG_F_BLOCK, &bd->flags);
+
+		spin_unlock_irq(&bd->lock);
+	} while (!ret && spin);
+
+	return ret;
+}
+
 static int bsg_complete_all_commands(struct bsg_device *bd)
 {
 	struct bsg_command *bc;
@@ -492,17 +480,7 @@ static int bsg_complete_all_commands(struct bsg_device *bd)
 	/*
 	 * wait for all commands to complete
 	 */
-	ret = 0;
-	do {
-		ret = bsg_io_schedule(bd);
-		/*
-		 * look for -ENODATA specifically -- we'll sometimes get
-		 * -ERESTARTSYS when we've taken a signal, but we can't
-		 * return until we're done freeing the queue, so ignore
-		 * it.  The signal will get handled when we're done freeing
-		 * the bsg_device.
-		 */
-	} while (ret != -ENODATA);
+	io_wait_event(bd->wq_done, bsg_complete(bd));
 
 	/*
 	 * discard done commands

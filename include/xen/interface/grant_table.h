@@ -526,6 +526,13 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_cache_flush);
 #define GNTMAP_contains_pte     (1<<_GNTMAP_contains_pte)
 
 /*
+ * Bits to be placed in guest kernel available PTE bits (architecture
+ * dependent; only supported when XENFEAT_gnttab_map_avail_bits is set).
+ */
+#define _GNTMAP_guest_avail0    (16)
+#define GNTMAP_guest_avail_mask ((uint32_t)~0 << _GNTMAP_guest_avail0)
+
+/*
  * Values for error status returns. All errors are -ve.
  */
 #define GNTST_okay             (0)  /* Normal return.                        */

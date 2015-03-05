@@ -223,7 +223,7 @@ static int snd_cs5530_create(struct snd_card *card,
 		return err;
 	}
 
-	err = snd_sb16dsp_pcm(chip->sb, 0, &chip->sb->pcm);
+	err = snd_sb16dsp_pcm(chip->sb, 0);
 	if (err < 0) {
 		dev_err(card->dev, "Could not create PCM\n");
 		snd_cs5530_free(chip);

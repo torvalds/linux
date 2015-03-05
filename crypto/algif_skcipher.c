@@ -330,6 +330,7 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 
 		sgl = list_entry(ctx->tsgl.prev, struct skcipher_sg_list, list);
 		sg = sgl->sg;
+		sg_unmark_end(sg + sgl->cur);
 		do {
 			i = sgl->cur;
 			plen = min_t(int, len, PAGE_SIZE);
@@ -354,6 +355,9 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			size -= plen;
 			sgl->cur++;
 		} while (len && sgl->cur < MAX_SGL_ENTS);
+
+		if (!size)
+			sg_mark_end(sg + sgl->cur - 1);
 
 		ctx->merge = plen & (PAGE_SIZE - 1);
 	}
@@ -401,6 +405,10 @@ static ssize_t skcipher_sendpage(struct socket *sock, struct page *page,
 	ctx->merge = 0;
 	sgl = list_entry(ctx->tsgl.prev, struct skcipher_sg_list, list);
 
+	if (sgl->cur)
+		sg_unmark_end(sgl->sg + sgl->cur - 1);
+
+	sg_mark_end(sgl->sg + sgl->cur);
 	get_page(page);
 	sg_set_page(sgl->sg + sgl->cur, page, size, offset);
 	sgl->cur++;
@@ -426,67 +434,58 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 		&ctx->req));
 	struct skcipher_sg_list *sgl;
 	struct scatterlist *sg;
-	unsigned long iovlen;
-	const struct iovec *iov;
 	int err = -EAGAIN;
 	int used;
 	long copied = 0;
 
 	lock_sock(sk);
-	for (iov = msg->msg_iter.iov, iovlen = msg->msg_iter.nr_segs; iovlen > 0;
-	     iovlen--, iov++) {
-		unsigned long seglen = iov->iov_len;
-		char __user *from = iov->iov_base;
+	while (iov_iter_count(&msg->msg_iter)) {
+		sgl = list_first_entry(&ctx->tsgl,
+				       struct skcipher_sg_list, list);
+		sg = sgl->sg;
 
-		while (seglen) {
-			sgl = list_first_entry(&ctx->tsgl,
-					       struct skcipher_sg_list, list);
-			sg = sgl->sg;
+		while (!sg->length)
+			sg++;
 
-			while (!sg->length)
-				sg++;
-
-			if (!ctx->used) {
-				err = skcipher_wait_for_data(sk, flags);
-				if (err)
-					goto unlock;
-			}
-
-			used = min_t(unsigned long, ctx->used, seglen);
-
-			used = af_alg_make_sg(&ctx->rsgl, from, used, 1);
-			err = used;
-			if (err < 0)
+		if (!ctx->used) {
+			err = skcipher_wait_for_data(sk, flags);
+			if (err)
 				goto unlock;
+		}
 
-			if (ctx->more || used < ctx->used)
-				used -= used % bs;
+		used = min_t(unsigned long, ctx->used, iov_iter_count(&msg->msg_iter));
 
-			err = -EINVAL;
-			if (!used)
-				goto free;
+		used = af_alg_make_sg(&ctx->rsgl, &msg->msg_iter, used);
+		err = used;
+		if (err < 0)
+			goto unlock;
 
-			ablkcipher_request_set_crypt(&ctx->req, sg,
-						     ctx->rsgl.sg, used,
-						     ctx->iv);
+		if (ctx->more || used < ctx->used)
+			used -= used % bs;
 
-			err = af_alg_wait_for_completion(
+		err = -EINVAL;
+		if (!used)
+			goto free;
+
+		ablkcipher_request_set_crypt(&ctx->req, sg,
+					     ctx->rsgl.sg, used,
+					     ctx->iv);
+
+		err = af_alg_wait_for_completion(
 				ctx->enc ?
 					crypto_ablkcipher_encrypt(&ctx->req) :
 					crypto_ablkcipher_decrypt(&ctx->req),
 				&ctx->completion);
 
 free:
-			af_alg_free_sg(&ctx->rsgl);
+		af_alg_free_sg(&ctx->rsgl);
 
-			if (err)
-				goto unlock;
+		if (err)
+			goto unlock;
 
-			copied += used;
-			from += used;
-			seglen -= used;
-			skcipher_pull_sgl(sk, used);
-		}
+		copied += used;
+		skcipher_pull_sgl(sk, used);
+		iov_iter_advance(&msg->msg_iter, used);
 	}
 
 	err = 0;

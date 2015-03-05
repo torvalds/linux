@@ -527,6 +527,7 @@ values.  To do the latter, you can stick the following in your .emacs file:
                          (string-match (expand-file-name "~/src/linux-trees")
                                        filename))
                 (setq indent-tabs-mode t)
+                (setq show-trailing-whitespace t)
                 (c-set-style "linux-tabs-only")))))
 
 This will make emacs go better with the kernel coding style for C

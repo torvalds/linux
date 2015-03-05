@@ -1103,7 +1103,7 @@ static int cs42l52_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs42l52 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs42l52 = {
 	.probe = cs42l52_probe,
 	.remove = cs42l52_remove,
 	.set_bias_level = cs42l52_set_bias_level,
@@ -1130,7 +1130,7 @@ static const struct reg_default cs42l52_threshold_patch[] = {
 
 };
 
-static struct regmap_config cs42l52_regmap = {
+static const struct regmap_config cs42l52_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

@@ -531,7 +531,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 	 *
 	 * 3: same as 2
 	 *
-	 * 4: same as 3 plus dump extra junk
+	 * 4: same as 3
 	 */
 	if (unlikely(scsi_logging_level)) {
 		level = SCSI_LOG_LEVEL(SCSI_LOG_MLQUEUE_SHIFT,
@@ -540,13 +540,6 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 			scmd_printk(KERN_INFO, cmd,
 				    "Send: scmd 0x%p\n", cmd);
 			scsi_print_command(cmd);
-			if (level > 3) {
-				printk(KERN_INFO "buffer = 0x%p, bufflen = %d,"
-				       " queuecommand 0x%p\n",
-					scsi_sglist(cmd), scsi_bufflen(cmd),
-					cmd->device->host->hostt->queuecommand);
-
-			}
 		}
 	}
 }
@@ -572,7 +565,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 				       SCSI_LOG_MLCOMPLETE_BITS);
 		if (((level > 0) && (cmd->result || disposition != SUCCESS)) ||
 		    (level > 1)) {
-			scsi_print_result(cmd, "Done: ", disposition);
+			scsi_print_result(cmd, "Done", disposition);
 			scsi_print_command(cmd);
 			if (status_byte(cmd->result) & CHECK_CONDITION)
 				scsi_print_sense(cmd);
@@ -986,9 +979,9 @@ int scsi_device_get(struct scsi_device *sdev)
 		return -ENXIO;
 	if (!get_device(&sdev->sdev_gendev))
 		return -ENXIO;
-	/* We can fail this if we're doing SCSI operations
+	/* We can fail try_module_get if we're doing SCSI operations
 	 * from module exit (like cache flush) */
-	try_module_get(sdev->host->hostt->module);
+	__module_get(sdev->host->hostt->module);
 
 	return 0;
 }
@@ -1004,14 +997,7 @@ EXPORT_SYMBOL(scsi_device_get);
  */
 void scsi_device_put(struct scsi_device *sdev)
 {
-#ifdef CONFIG_MODULE_UNLOAD
-	struct module *module = sdev->host->hostt->module;
-
-	/* The module refcount will be zero if scsi_device_get()
-	 * was called from a module removal routine */
-	if (module && module_refcount(module) != 0)
-		module_put(module);
-#endif
+	module_put(sdev->host->hostt->module);
 	put_device(&sdev->sdev_gendev);
 }
 EXPORT_SYMBOL(scsi_device_put);

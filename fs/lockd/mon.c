@@ -65,7 +65,7 @@ static inline struct sockaddr *nsm_addr(const struct nsm_handle *nsm)
 	return (struct sockaddr *)&nsm->sm_addr;
 }
 
-static struct rpc_clnt *nsm_create(struct net *net)
+static struct rpc_clnt *nsm_create(struct net *net, const char *nodename)
 {
 	struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
@@ -77,6 +77,7 @@ static struct rpc_clnt *nsm_create(struct net *net)
 		.address		= (struct sockaddr *)&sin,
 		.addrsize		= sizeof(sin),
 		.servername		= "rpc.statd",
+		.nodename		= nodename,
 		.program		= &nsm_program,
 		.version		= NSM_VERSION,
 		.authflavor		= RPC_AUTH_NULL,
@@ -102,7 +103,7 @@ out:
 	return clnt;
 }
 
-static struct rpc_clnt *nsm_client_get(struct net *net)
+static struct rpc_clnt *nsm_client_get(struct net *net, const char *nodename)
 {
 	struct rpc_clnt	*clnt, *new;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
@@ -111,7 +112,7 @@ static struct rpc_clnt *nsm_client_get(struct net *net)
 	if (clnt != NULL)
 		goto out;
 
-	clnt = new = nsm_create(net);
+	clnt = new = nsm_create(net, nodename);
 	if (IS_ERR(clnt))
 		goto out;
 
@@ -190,11 +191,15 @@ int nsm_monitor(const struct nlm_host *host)
 	struct nsm_res	res;
 	int		status;
 	struct rpc_clnt *clnt;
+	const char *nodename = NULL;
 
 	dprintk("lockd: nsm_monitor(%s)\n", nsm->sm_name);
 
 	if (nsm->sm_monitored)
 		return 0;
+
+	if (host->h_rpcclnt)
+		nodename = host->h_rpcclnt->cl_nodename;
 
 	/*
 	 * Choose whether to record the caller_name or IP address of
@@ -202,7 +207,7 @@ int nsm_monitor(const struct nlm_host *host)
 	 */
 	nsm->sm_mon_name = nsm_use_hostnames ? nsm->sm_name : nsm->sm_addrbuf;
 
-	clnt = nsm_client_get(host->net);
+	clnt = nsm_client_get(host->net, nodename);
 	if (IS_ERR(clnt)) {
 		status = PTR_ERR(clnt);
 		dprintk("lockd: failed to create NSM upcall transport, "

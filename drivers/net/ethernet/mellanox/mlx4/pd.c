@@ -151,11 +151,13 @@ int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar)
 		return -ENOMEM;
 
 	if (mlx4_is_slave(dev))
-		offset = uar->index % ((int) pci_resource_len(dev->pdev, 2) /
+		offset = uar->index % ((int)pci_resource_len(dev->persist->pdev,
+							     2) /
 				       dev->caps.uar_page_size);
 	else
 		offset = uar->index;
-	uar->pfn = (pci_resource_start(dev->pdev, 2) >> PAGE_SHIFT) + offset;
+	uar->pfn = (pci_resource_start(dev->persist->pdev, 2) >> PAGE_SHIFT)
+		    + offset;
 	uar->map = NULL;
 	return 0;
 }
@@ -212,7 +214,6 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 		list_add(&uar->bf_list, &priv->bf_list);
 	}
 
-	bf->uar = uar;
 	idx = ffz(uar->free_bf_bmap);
 	uar->free_bf_bmap |= 1 << idx;
 	bf->uar = uar;

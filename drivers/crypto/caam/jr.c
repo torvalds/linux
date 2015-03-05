@@ -384,30 +384,28 @@ static int caam_jr_init(struct device *dev)
 	if (error) {
 		dev_err(dev, "can't connect JobR %d interrupt (%d)\n",
 			jrp->ridx, jrp->irq);
-		irq_dispose_mapping(jrp->irq);
-		jrp->irq = 0;
-		return -EINVAL;
+		goto out_kill_deq;
 	}
 
 	error = caam_reset_hw_jr(dev);
 	if (error)
-		return error;
+		goto out_free_irq;
 
+	error = -ENOMEM;
 	jrp->inpring = dma_alloc_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
 					  &inpbusaddr, GFP_KERNEL);
+	if (!jrp->inpring)
+		goto out_free_irq;
 
 	jrp->outring = dma_alloc_coherent(dev, sizeof(struct jr_outentry) *
 					  JOBR_DEPTH, &outbusaddr, GFP_KERNEL);
+	if (!jrp->outring)
+		goto out_free_inpring;
 
 	jrp->entinfo = kzalloc(sizeof(struct caam_jrentry_info) * JOBR_DEPTH,
 			       GFP_KERNEL);
-
-	if ((jrp->inpring == NULL) || (jrp->outring == NULL) ||
-	    (jrp->entinfo == NULL)) {
-		dev_err(dev, "can't allocate job rings for %d\n",
-			jrp->ridx);
-		return -ENOMEM;
-	}
+	if (!jrp->entinfo)
+		goto out_free_outring;
 
 	for (i = 0; i < JOBR_DEPTH; i++)
 		jrp->entinfo[i].desc_addr_dma = !0;
@@ -434,6 +432,19 @@ static int caam_jr_init(struct device *dev)
 		  (JOBR_INTC_TIME_THLD << JRCFG_ICTT_SHIFT));
 
 	return 0;
+
+out_free_outring:
+	dma_free_coherent(dev, sizeof(struct jr_outentry) * JOBR_DEPTH,
+			  jrp->outring, outbusaddr);
+out_free_inpring:
+	dma_free_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
+			  jrp->inpring, inpbusaddr);
+	dev_err(dev, "can't allocate job rings for %d\n", jrp->ridx);
+out_free_irq:
+	free_irq(jrp->irq, dev);
+out_kill_deq:
+	tasklet_kill(&jrp->irqtask);
+	return error;
 }
 
 
@@ -484,8 +495,10 @@ static int caam_jr_probe(struct platform_device *pdev)
 
 	/* Now do the platform independent part */
 	error = caam_jr_init(jrdev); /* now turn on hardware */
-	if (error)
+	if (error) {
+		irq_dispose_mapping(jrpriv->irq);
 		return error;
+	}
 
 	jrpriv->dev = jrdev;
 	spin_lock(&driver_data.jr_alloc_lock);

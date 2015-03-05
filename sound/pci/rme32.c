@@ -75,6 +75,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
@@ -84,8 +85,6 @@
 #include <sound/pcm-indirect.h>
 #include <sound/asoundef.h>
 #include <sound/initval.h>
-
-#include <asm/io.h>
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -632,7 +631,7 @@ snd_rme32_setframelog(struct rme32 * rme32, int n_channels, int is_playback)
 	}
 }
 
-static int snd_rme32_setformat(struct rme32 * rme32, int format)
+static int snd_rme32_setformat(struct rme32 *rme32, snd_pcm_format_t format)
 {
 	switch (format) {
 	case SNDRV_PCM_FORMAT_S16_LE:

@@ -195,7 +195,7 @@ static int soc_button_probe(struct platform_device *pdev)
 
 static struct soc_button_info soc_button_PNP0C40[] = {
 	{ "power", 0, EV_KEY, KEY_POWER, false, true },
-	{ "home", 1, EV_KEY, KEY_HOME, false, true },
+	{ "home", 1, EV_KEY, KEY_LEFTMETA, false, true },
 	{ "volume_up", 2, EV_KEY, KEY_VOLUMEUP, true, false },
 	{ "volume_down", 3, EV_KEY, KEY_VOLUMEDOWN, true, false },
 	{ "rotation_lock", 4, EV_SW, SW_ROTATE_LOCK, false, false },

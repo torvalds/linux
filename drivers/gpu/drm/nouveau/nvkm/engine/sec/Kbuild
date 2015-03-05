@@ -1,0 +1,1 @@
+nvkm-y += nvkm/engine/sec/g98.o

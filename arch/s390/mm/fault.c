@@ -171,7 +171,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 		table = table + ((address >> 20) & 0x7ff);
 		if (bad_address(table))
 			goto bad;
-		pr_cont(KERN_CONT "S:%016lx ", *table);
+		pr_cont("S:%016lx ", *table);
 		if (*table & (_SEGMENT_ENTRY_INVALID | _SEGMENT_ENTRY_LARGE))
 			goto out;
 		table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
@@ -261,7 +261,7 @@ static inline void report_user_fault(struct pt_regs *regs, long signr)
 		return;
 	if (!printk_ratelimit())
 		return;
-	printk(KERN_ALERT "User process fault: interruption code %04x ilc:%d",
+	printk(KERN_ALERT "User process fault: interruption code %04x ilc:%d ",
 	       regs->int_code & 0xffff, regs->int_code >> 17);
 	print_vma_addr(KERN_CONT "in ", regs->psw.addr & PSW_ADDR_INSN);
 	printk(KERN_CONT "\n");
@@ -374,6 +374,12 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 				do_no_context(regs);
 			else
 				pagefault_out_of_memory();
+		} else if (fault & VM_FAULT_SIGSEGV) {
+			/* Kernel mode? Handle exceptions or die */
+			if (!user_mode(regs))
+				do_no_context(regs);
+			else
+				do_sigsegv(regs, SEGV_MAPERR);
 		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!user_mode(regs))

@@ -22,10 +22,6 @@
 
 #define NUM_LAYERS 3
 
-static int debug = 1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
-
 enum mb86a20s_bandwidth {
 	MB86A20S_13SEG = 0,
 	MB86A20S_13SEG_PARTIAL = 1,

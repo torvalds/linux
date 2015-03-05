@@ -386,7 +386,18 @@ struct mddev {
 
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
-	spinlock_t			write_lock;
+	/* "lock" protects:
+	 *   flush_bio transition from NULL to !NULL
+	 *   rdev superblocks, events
+	 *   clearing MD_CHANGE_*
+	 *   in_sync - and related safemode and MD_CHANGE changes
+	 *   pers (also protected by reconfig_mutex and pending IO).
+	 *   clearing ->bitmap
+	 *   clearing ->bitmap_info.file
+	 *   changing ->resync_{min,max}
+	 *   setting MD_RECOVERY_RUNNING (which interacts with resync_{min,max})
+	 */
+	spinlock_t			lock;
 	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */
 	atomic_t			pending_writes;	/* number of active superblock writes */
 
@@ -439,12 +450,29 @@ struct mddev {
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 };
 
-static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
+static inline int __must_check mddev_lock(struct mddev *mddev)
 {
-	int faulty = test_bit(Faulty, &rdev->flags);
-	if (atomic_dec_and_test(&rdev->nr_pending) && faulty)
-		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	return mutex_lock_interruptible(&mddev->reconfig_mutex);
 }
+
+/* Sometimes we need to take the lock in a situation where
+ * failure due to interrupts is not acceptable.
+ */
+static inline void mddev_lock_nointr(struct mddev *mddev)
+{
+	mutex_lock(&mddev->reconfig_mutex);
+}
+
+static inline int mddev_is_locked(struct mddev *mddev)
+{
+	return mutex_is_locked(&mddev->reconfig_mutex);
+}
+
+static inline int mddev_trylock(struct mddev *mddev)
+{
+	return mutex_trylock(&mddev->reconfig_mutex);
+}
+extern void mddev_unlock(struct mddev *mddev);
 
 static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sectors)
 {
@@ -459,7 +487,7 @@ struct md_personality
 	struct module *owner;
 	void (*make_request)(struct mddev *mddev, struct bio *bio);
 	int (*run)(struct mddev *mddev);
-	int (*stop)(struct mddev *mddev);
+	void (*free)(struct mddev *mddev, void *priv);
 	void (*status)(struct seq_file *seq, struct mddev *mddev);
 	/* error_handler must set ->faulty and clear ->in_sync
 	 * if appropriate, and should abort recovery if needed
@@ -490,6 +518,13 @@ struct md_personality
 	 * array.
 	 */
 	void *(*takeover) (struct mddev *mddev);
+	/* congested implements bdi.congested_fn().
+	 * Will not be called while array is 'suspended' */
+	int (*congested)(struct mddev *mddev, int bits);
+	/* mergeable_bvec is use to implement ->merge_bvec_fn */
+	int (*mergeable_bvec)(struct mddev *mddev,
+			      struct bvec_merge_data *bvm,
+			      struct bio_vec *biovec);
 };
 
 struct md_sysfs_entry {
@@ -624,4 +659,14 @@ static inline int mddev_check_plugged(struct mddev *mddev)
 	return !!blk_check_plugged(md_unplug, mddev,
 				   sizeof(struct blk_plug_cb));
 }
+
+static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
+{
+	int faulty = test_bit(Faulty, &rdev->flags);
+	if (atomic_dec_and_test(&rdev->nr_pending) && faulty) {
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		md_wakeup_thread(mddev->thread);
+	}
+}
+
 #endif /* _MD_MD_H */

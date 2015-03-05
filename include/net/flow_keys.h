@@ -22,9 +22,9 @@ struct flow_keys {
 		__be32 ports;
 		__be16 port16[2];
 	};
-	u16 thoff;
-	u16 n_proto;
-	u8 ip_proto;
+	u16	thoff;
+	__be16	n_proto;
+	u8	ip_proto;
 };
 
 bool __skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow,

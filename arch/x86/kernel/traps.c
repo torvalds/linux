@@ -108,6 +108,88 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 	preempt_count_dec();
 }
 
+enum ctx_state ist_enter(struct pt_regs *regs)
+{
+	enum ctx_state prev_state;
+
+	if (user_mode_vm(regs)) {
+		/* Other than that, we're just an exception. */
+		prev_state = exception_enter();
+	} else {
+		/*
+		 * We might have interrupted pretty much anything.  In
+		 * fact, if we're a machine check, we can even interrupt
+		 * NMI processing.  We don't want in_nmi() to return true,
+		 * but we need to notify RCU.
+		 */
+		rcu_nmi_enter();
+		prev_state = IN_KERNEL;  /* the value is irrelevant. */
+	}
+
+	/*
+	 * We are atomic because we're on the IST stack (or we're on x86_32,
+	 * in which case we still shouldn't schedule).
+	 *
+	 * This must be after exception_enter(), because exception_enter()
+	 * won't do anything if in_interrupt() returns true.
+	 */
+	preempt_count_add(HARDIRQ_OFFSET);
+
+	/* This code is a bit fragile.  Test it. */
+	rcu_lockdep_assert(rcu_is_watching(), "ist_enter didn't work");
+
+	return prev_state;
+}
+
+void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
+{
+	/* Must be before exception_exit. */
+	preempt_count_sub(HARDIRQ_OFFSET);
+
+	if (user_mode_vm(regs))
+		return exception_exit(prev_state);
+	else
+		rcu_nmi_exit();
+}
+
+/**
+ * ist_begin_non_atomic() - begin a non-atomic section in an IST exception
+ * @regs:	regs passed to the IST exception handler
+ *
+ * IST exception handlers normally cannot schedule.  As a special
+ * exception, if the exception interrupted userspace code (i.e.
+ * user_mode_vm(regs) would return true) and the exception was not
+ * a double fault, it can be safe to schedule.  ist_begin_non_atomic()
+ * begins a non-atomic section within an ist_enter()/ist_exit() region.
+ * Callers are responsible for enabling interrupts themselves inside
+ * the non-atomic section, and callers must call is_end_non_atomic()
+ * before ist_exit().
+ */
+void ist_begin_non_atomic(struct pt_regs *regs)
+{
+	BUG_ON(!user_mode_vm(regs));
+
+	/*
+	 * Sanity check: we need to be on the normal thread stack.  This
+	 * will catch asm bugs and any attempt to use ist_preempt_enable
+	 * from double_fault.
+	 */
+	BUG_ON(((current_stack_pointer() ^ this_cpu_read_stable(kernel_stack))
+		& ~(THREAD_SIZE - 1)) != 0);
+
+	preempt_count_sub(HARDIRQ_OFFSET);
+}
+
+/**
+ * ist_end_non_atomic() - begin a non-atomic section in an IST exception
+ *
+ * Ends a non-atomic section started with ist_begin_non_atomic().
+ */
+void ist_end_non_atomic(void)
+{
+	preempt_count_add(HARDIRQ_OFFSET);
+}
+
 static nokprobe_inline int
 do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		  struct pt_regs *regs,	long error_code)
@@ -251,6 +333,8 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	 * end up promoting it to a doublefault.  In that case, modify
 	 * the stack to make it look like we just entered the #GP
 	 * handler from user space, similar to bad_iret.
+	 *
+	 * No need for ist_enter here because we don't use RCU.
 	 */
 	if (((long)regs->sp >> PGDIR_SHIFT) == ESPFIX_PGD_ENTRY &&
 		regs->cs == __KERNEL_CS &&
@@ -263,12 +347,12 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 		normal_regs->orig_ax = 0;  /* Missing (lost) #GP error code */
 		regs->ip = (unsigned long)general_protection;
 		regs->sp = (unsigned long)&normal_regs->orig_ax;
+
 		return;
 	}
 #endif
 
-	exception_enter();
-	/* Return not checked because double check cannot be ignored */
+	ist_enter(regs);  /* Discard prev_state because we won't return. */
 	notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
 
 	tsk->thread.error_code = error_code;
@@ -434,7 +518,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	if (poke_int3_handler(regs))
 		return;
 
-	prev_state = exception_enter();
+	prev_state = ist_enter(regs);
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
@@ -460,33 +544,20 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 	preempt_conditional_cli(regs);
 	debug_stack_usage_dec();
 exit:
-	exception_exit(prev_state);
+	ist_exit(regs, prev_state);
 }
 NOKPROBE_SYMBOL(do_int3);
 
 #ifdef CONFIG_X86_64
 /*
- * Help handler running on IST stack to switch back to user stack
- * for scheduling or signal handling. The actual stack switch is done in
- * entry.S
+ * Help handler running on IST stack to switch off the IST stack if the
+ * interrupted code was in user mode. The actual stack switch is done in
+ * entry_64.S
  */
 asmlinkage __visible notrace struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
-	struct pt_regs *regs = eregs;
-	/* Did already sync */
-	if (eregs == (struct pt_regs *)eregs->sp)
-		;
-	/* Exception from user space */
-	else if (user_mode(eregs))
-		regs = task_pt_regs(current);
-	/*
-	 * Exception from kernel and interrupts are enabled. Move to
-	 * kernel process stack.
-	 */
-	else if (eregs->flags & X86_EFLAGS_IF)
-		regs = (struct pt_regs *)(eregs->sp -= sizeof(struct pt_regs));
-	if (eregs != regs)
-		*regs = *eregs;
+	struct pt_regs *regs = task_pt_regs(current);
+	*regs = *eregs;
 	return regs;
 }
 NOKPROBE_SYMBOL(sync_regs);
@@ -554,7 +625,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	unsigned long dr6;
 	int si_code;
 
-	prev_state = exception_enter();
+	prev_state = ist_enter(regs);
 
 	get_debugreg(dr6, 6);
 
@@ -629,7 +700,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_dec();
 
 exit:
-	exception_exit(prev_state);
+	ist_exit(regs, prev_state);
 }
 NOKPROBE_SYMBOL(do_debug);
 
@@ -788,18 +859,16 @@ void math_state_restore(void)
 		local_irq_disable();
 	}
 
+	/* Avoid __kernel_fpu_begin() right after __thread_fpu_begin() */
+	kernel_fpu_disable();
 	__thread_fpu_begin(tsk);
-
-	/*
-	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
-	 */
 	if (unlikely(restore_fpu_checking(tsk))) {
 		drop_init_fpu(tsk);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
-		return;
+	} else {
+		tsk->thread.fpu_counter++;
 	}
-
-	tsk->thread.fpu_counter++;
+	kernel_fpu_enable();
 }
 EXPORT_SYMBOL_GPL(math_state_restore);
 

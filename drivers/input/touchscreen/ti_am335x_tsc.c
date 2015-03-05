@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/sort.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
 
@@ -52,6 +53,7 @@ struct titsc {
 	u32			bit_xp, bit_xn, bit_yp, bit_yn;
 	u32			inp_xp, inp_xn, inp_yp, inp_yn;
 	u32			step_mask;
+	u32			charge_delay;
 };
 
 static unsigned int titsc_readl(struct titsc *ts, unsigned int reg)
@@ -121,7 +123,7 @@ static void titsc_step_config(struct titsc *ts_dev)
 {
 	unsigned int	config;
 	int i;
-	int end_step;
+	int end_step, first_step, tsc_steps;
 	u32 stepenable;
 
 	config = STEPCONFIG_MODE_HWSYNC |
@@ -140,9 +142,11 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	}
 
-	/* 1 … coordinate_readouts is for X */
-	end_step = ts_dev->coordinate_readouts;
-	for (i = 0; i < end_step; i++) {
+	tsc_steps = ts_dev->coordinate_readouts * 2 + 2;
+	first_step = TOTAL_STEPS - tsc_steps;
+	/* Steps 16 to 16-coordinate_readouts is for X */
+	end_step = first_step + tsc_steps;
+	for (i = end_step - ts_dev->coordinate_readouts; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
@@ -164,22 +168,20 @@ static void titsc_step_config(struct titsc *ts_dev)
 		break;
 	}
 
-	/* coordinate_readouts … coordinate_readouts * 2 is for Y */
-	end_step = ts_dev->coordinate_readouts * 2;
-	for (i = ts_dev->coordinate_readouts; i < end_step; i++) {
+	/* 1 ... coordinate_readouts is for Y */
+	end_step = first_step + ts_dev->coordinate_readouts;
+	for (i = first_step; i < end_step; i++) {
 		titsc_writel(ts_dev, REG_STEPCONFIG(i), config);
 		titsc_writel(ts_dev, REG_STEPDELAY(i), STEPCONFIG_OPENDLY);
 	}
 
-	/* Charge step configuration */
-	config = ts_dev->bit_xp | ts_dev->bit_yn |
-			STEPCHARGE_RFP_XPUL | STEPCHARGE_RFM_XNUR |
-			STEPCHARGE_INM_AN1 | STEPCHARGE_INP(ts_dev->inp_yp);
+	/* Make CHARGECONFIG same as IDLECONFIG */
 
+	config = titsc_readl(ts_dev, REG_IDLECONFIG);
 	titsc_writel(ts_dev, REG_CHARGECONFIG, config);
-	titsc_writel(ts_dev, REG_CHARGEDELAY, CHARGEDLY_OPENDLY);
+	titsc_writel(ts_dev, REG_CHARGEDELAY, ts_dev->charge_delay);
 
-	/* coordinate_readouts * 2 … coordinate_readouts * 2 + 2 is for Z */
+	/* coordinate_readouts + 1 ... coordinate_readouts + 2 is for Z */
 	config = STEPCONFIG_MODE_HWSYNC |
 			STEPCONFIG_AVG_16 | ts_dev->bit_yp |
 			ts_dev->bit_xn | STEPCONFIG_INM_ADCREFM |
@@ -194,73 +196,104 @@ static void titsc_step_config(struct titsc *ts_dev)
 	titsc_writel(ts_dev, REG_STEPDELAY(end_step),
 			STEPCONFIG_OPENDLY);
 
-	/* The steps1 … end and bit 0 for TS_Charge */
-	stepenable = (1 << (end_step + 2)) - 1;
+	/* The steps end ... end - readouts * 2 + 2 and bit 0 for TS_Charge */
+	stepenable = 1;
+	for (i = 0; i < tsc_steps; i++)
+		stepenable |= 1 << (first_step + i + 1);
+
 	ts_dev->step_mask = stepenable;
 	am335x_tsc_se_set_cache(ts_dev->mfd_tscadc, ts_dev->step_mask);
+}
+
+static int titsc_cmp_coord(const void *a, const void *b)
+{
+	return *(int *)a - *(int *)b;
 }
 
 static void titsc_read_coordinates(struct titsc *ts_dev,
 		u32 *x, u32 *y, u32 *z1, u32 *z2)
 {
-	unsigned int fifocount = titsc_readl(ts_dev, REG_FIFO0CNT);
-	unsigned int prev_val_x = ~0, prev_val_y = ~0;
-	unsigned int prev_diff_x = ~0, prev_diff_y = ~0;
-	unsigned int read, diff;
-	unsigned int i, channel;
+	unsigned int yvals[7], xvals[7];
+	unsigned int i, xsum = 0, ysum = 0;
 	unsigned int creads = ts_dev->coordinate_readouts;
 
-	*z1 = *z2 = 0;
-	if (fifocount % (creads * 2 + 2))
-		fifocount -= fifocount % (creads * 2 + 2);
-	/*
-	 * Delta filter is used to remove large variations in sampled
-	 * values from ADC. The filter tries to predict where the next
-	 * coordinate could be. This is done by taking a previous
-	 * coordinate and subtracting it form current one. Further the
-	 * algorithm compares the difference with that of a present value,
-	 * if true the value is reported to the sub system.
-	 */
-	for (i = 0; i < fifocount; i++) {
-		read = titsc_readl(ts_dev, REG_FIFO0);
-
-		channel = (read & 0xf0000) >> 16;
-		read &= 0xfff;
-		if (channel < creads) {
-			diff = abs(read - prev_val_x);
-			if (diff < prev_diff_x) {
-				prev_diff_x = diff;
-				*x = read;
-			}
-			prev_val_x = read;
-
-		} else if (channel < creads * 2) {
-			diff = abs(read - prev_val_y);
-			if (diff < prev_diff_y) {
-				prev_diff_y = diff;
-				*y = read;
-			}
-			prev_val_y = read;
-
-		} else if (channel < creads * 2 + 1) {
-			*z1 = read;
-
-		} else if (channel < creads * 2 + 2) {
-			*z2 = read;
-		}
+	for (i = 0; i < creads; i++) {
+		yvals[i] = titsc_readl(ts_dev, REG_FIFO0);
+		yvals[i] &= 0xfff;
 	}
+
+	*z1 = titsc_readl(ts_dev, REG_FIFO0);
+	*z1 &= 0xfff;
+	*z2 = titsc_readl(ts_dev, REG_FIFO0);
+	*z2 &= 0xfff;
+
+	for (i = 0; i < creads; i++) {
+		xvals[i] = titsc_readl(ts_dev, REG_FIFO0);
+		xvals[i] &= 0xfff;
+	}
+
+	/*
+	 * If co-ordinates readouts is less than 4 then
+	 * report the average. In case of 4 or more
+	 * readouts, sort the co-ordinate samples, drop
+	 * min and max values and report the average of
+	 * remaining values.
+	 */
+	if (creads <=  3) {
+		for (i = 0; i < creads; i++) {
+			ysum += yvals[i];
+			xsum += xvals[i];
+		}
+		ysum /= creads;
+		xsum /= creads;
+	} else {
+		sort(yvals, creads, sizeof(unsigned int),
+		     titsc_cmp_coord, NULL);
+		sort(xvals, creads, sizeof(unsigned int),
+		     titsc_cmp_coord, NULL);
+		for (i = 1; i < creads - 1; i++) {
+			ysum += yvals[i];
+			xsum += xvals[i];
+		}
+		ysum /= creads - 2;
+		xsum /= creads - 2;
+	}
+	*y = ysum;
+	*x = xsum;
 }
 
 static irqreturn_t titsc_irq(int irq, void *dev)
 {
 	struct titsc *ts_dev = dev;
 	struct input_dev *input_dev = ts_dev->input;
-	unsigned int status, irqclr = 0;
+	unsigned int fsm, status, irqclr = 0;
 	unsigned int x = 0, y = 0;
 	unsigned int z1, z2, z;
-	unsigned int fsm;
 
-	status = titsc_readl(ts_dev, REG_IRQSTATUS);
+	status = titsc_readl(ts_dev, REG_RAWIRQSTATUS);
+	if (status & IRQENB_HW_PEN) {
+		ts_dev->pen_down = true;
+		titsc_writel(ts_dev, REG_IRQWAKEUP, 0x00);
+		titsc_writel(ts_dev, REG_IRQCLR, IRQENB_HW_PEN);
+		irqclr |= IRQENB_HW_PEN;
+	}
+
+	if (status & IRQENB_PENUP) {
+		fsm = titsc_readl(ts_dev, REG_ADCFSM);
+		if (fsm == ADCFSM_STEPID) {
+			ts_dev->pen_down = false;
+			input_report_key(input_dev, BTN_TOUCH, 0);
+			input_report_abs(input_dev, ABS_PRESSURE, 0);
+			input_sync(input_dev);
+		} else {
+			ts_dev->pen_down = true;
+		}
+		irqclr |= IRQENB_PENUP;
+	}
+
+	if (status & IRQENB_EOS)
+		irqclr |= IRQENB_EOS;
+
 	/*
 	 * ADC and touchscreen share the IRQ line.
 	 * FIFO1 interrupts are used by ADC. Handle FIFO0 IRQs here only
@@ -291,37 +324,11 @@ static irqreturn_t titsc_irq(int irq, void *dev)
 		}
 		irqclr |= IRQENB_FIFO0THRES;
 	}
-
-	/*
-	 * Time for sequencer to settle, to read
-	 * correct state of the sequencer.
-	 */
-	udelay(SEQ_SETTLE);
-
-	status = titsc_readl(ts_dev, REG_RAWIRQSTATUS);
-	if (status & IRQENB_PENUP) {
-		/* Pen up event */
-		fsm = titsc_readl(ts_dev, REG_ADCFSM);
-		if (fsm == ADCFSM_STEPID) {
-			ts_dev->pen_down = false;
-			input_report_key(input_dev, BTN_TOUCH, 0);
-			input_report_abs(input_dev, ABS_PRESSURE, 0);
-			input_sync(input_dev);
-		} else {
-			ts_dev->pen_down = true;
-		}
-		irqclr |= IRQENB_PENUP;
-	}
-
-	if (status & IRQENB_HW_PEN) {
-
-		titsc_writel(ts_dev, REG_IRQWAKEUP, 0x00);
-		titsc_writel(ts_dev, REG_IRQCLR, IRQENB_HW_PEN);
-	}
-
 	if (irqclr) {
 		titsc_writel(ts_dev, REG_IRQSTATUS, irqclr);
-		am335x_tsc_se_set_cache(ts_dev->mfd_tscadc, ts_dev->step_mask);
+		if (status & IRQENB_EOS)
+			am335x_tsc_se_set_cache(ts_dev->mfd_tscadc,
+						ts_dev->step_mask);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -368,6 +375,23 @@ static int titsc_parse_dt(struct platform_device *pdev,
 	if (err < 0)
 		return err;
 
+	if (ts_dev->coordinate_readouts <= 0) {
+		dev_warn(&pdev->dev,
+			 "invalid co-ordinate readouts, resetting it to 5\n");
+		ts_dev->coordinate_readouts = 5;
+	}
+
+	err = of_property_read_u32(node, "ti,charge-delay",
+				   &ts_dev->charge_delay);
+	/*
+	 * If ti,charge-delay value is not specified, then use
+	 * CHARGEDLY_OPENDLY as the default value.
+	 */
+	if (err < 0) {
+		ts_dev->charge_delay = CHARGEDLY_OPENDLY;
+		dev_warn(&pdev->dev, "ti,charge-delay not specified\n");
+	}
+
 	return of_property_read_u32_array(node, "ti,wire-config",
 			ts_dev->config_inp, ARRAY_SIZE(ts_dev->config_inp));
 }
@@ -411,6 +435,7 @@ static int titsc_probe(struct platform_device *pdev)
 	}
 
 	titsc_writel(ts_dev, REG_IRQENABLE, IRQENB_FIFO0THRES);
+	titsc_writel(ts_dev, REG_IRQENABLE, IRQENB_EOS);
 	err = titsc_config_wires(ts_dev);
 	if (err) {
 		dev_err(&pdev->dev, "wrong i/p wire configuration\n");

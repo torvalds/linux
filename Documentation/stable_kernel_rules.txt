@@ -32,18 +32,42 @@ Procedure for submitting patches to the -stable tree:
  - If the patch covers files in net/ or drivers/net please follow netdev stable
    submission guidelines as described in
    Documentation/networking/netdev-FAQ.txt
- - Send the patch, after verifying that it follows the above rules, to
-   stable@vger.kernel.org.  You must note the upstream commit ID in the
-   changelog of your submission, as well as the kernel version you wish
-   it to be applied to.
- - To have the patch automatically included in the stable tree, add the tag
+ - Security patches should not be handled (solely) by the -stable review
+   process but should follow the procedures in Documentation/SecurityBugs.
+
+For all other submissions, choose one of the following procedures:
+
+   --- Option 1 ---
+
+   To have the patch automatically included in the stable tree, add the tag
      Cc: stable@vger.kernel.org
    in the sign-off area. Once the patch is merged it will be applied to
    the stable tree without anything else needing to be done by the author
    or subsystem maintainer.
- - If the patch requires other patches as prerequisites which can be
-   cherry-picked, then this can be specified in the following format in
-   the sign-off area:
+
+   --- Option 2 ---
+
+   After the patch has been merged to Linus' tree, send an email to
+   stable@vger.kernel.org containing the subject of the patch, the commit ID,
+   why you think it should be applied, and what kernel version you wish it to
+   be applied to.
+
+   --- Option 3 ---
+
+   Send the patch, after verifying that it follows the above rules, to
+   stable@vger.kernel.org.  You must note the upstream commit ID in the
+   changelog of your submission, as well as the kernel version you wish
+   it to be applied to.
+
+Option 1 is probably the easiest and most common. Options 2 and 3 are more
+useful if the patch isn't deemed worthy at the time it is applied to a public
+git tree (for instance, because it deserves more regression testing first).
+Option 3 is especially useful if the patch needs some special handling to apply
+to an older kernel (e.g., if API's have changed in the meantime).
+
+Additionally, some patches submitted via Option 1 may have additional patch
+prerequisites which can be cherry-picked. This can be specified in the following
+format in the sign-off area:
 
      Cc: <stable@vger.kernel.org> # 3.3.x: a1f84a3: sched: Check for idle
      Cc: <stable@vger.kernel.org> # 3.3.x: 1b9508f: sched: Rate-limit newidle
@@ -57,13 +81,13 @@ Procedure for submitting patches to the -stable tree:
      git cherry-pick fd21073
      git cherry-pick <this commit>
 
+Following the submission:
+
  - The sender will receive an ACK when the patch has been accepted into the
    queue, or a NAK if the patch is rejected.  This response might take a few
    days, according to the developer's schedules.
  - If accepted, the patch will be added to the -stable queue, for review by
    other developers and by the relevant subsystem maintainer.
- - Security patches should not be sent to this alias, but instead to the
-   documented security@kernel.org address.
 
 
 Review cycle:

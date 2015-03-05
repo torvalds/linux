@@ -67,15 +67,21 @@ static int rk808_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	/* Force an update of the shadowed registers right now */
 	ret = regmap_update_bits(rk808->regmap, RK808_RTC_CTRL_REG,
 				 BIT_RTC_CTRL_REG_RTC_GET_TIME,
-				 0);
+				 BIT_RTC_CTRL_REG_RTC_GET_TIME);
 	if (ret) {
 		dev_err(dev, "Failed to update bits rtc_ctrl: %d\n", ret);
 		return ret;
 	}
 
+	/*
+	 * After we set the GET_TIME bit, the rtc time can't be read
+	 * immediately. So we should wait up to 31.25 us, about one cycle of
+	 * 32khz. If we clear the GET_TIME bit here, the time of i2c transfer
+	 * certainly more than 31.25us: 16 * 2.5us at 400kHz bus frequency.
+	 */
 	ret = regmap_update_bits(rk808->regmap, RK808_RTC_CTRL_REG,
 				 BIT_RTC_CTRL_REG_RTC_GET_TIME,
-				 BIT_RTC_CTRL_REG_RTC_GET_TIME);
+				 0);
 	if (ret) {
 		dev_err(dev, "Failed to update bits rtc_ctrl: %d\n", ret);
 		return ret;

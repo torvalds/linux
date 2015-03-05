@@ -269,51 +269,54 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	sta->sta.bandwidth = ieee80211_sta_cur_vht_bw(sta);
 }
 
+enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
+{
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
+	u32 cap_width;
+
+	if (!vht_cap->vht_supported)
+		return sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
+				IEEE80211_STA_RX_BW_40 :
+				IEEE80211_STA_RX_BW_20;
+
+	cap_width = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+
+	if (cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ ||
+	    cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		return IEEE80211_STA_RX_BW_160;
+
+	return IEEE80211_STA_RX_BW_80;
+}
+
+static enum ieee80211_sta_rx_bandwidth
+ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
+{
+	switch (width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+		return IEEE80211_STA_RX_BW_20;
+	case NL80211_CHAN_WIDTH_40:
+		return IEEE80211_STA_RX_BW_40;
+	case NL80211_CHAN_WIDTH_80:
+		return IEEE80211_STA_RX_BW_80;
+	case NL80211_CHAN_WIDTH_160:
+	case NL80211_CHAN_WIDTH_80P80:
+		return IEEE80211_STA_RX_BW_160;
+	default:
+		WARN_ON_ONCE(1);
+		return IEEE80211_STA_RX_BW_20;
+	}
+}
+
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	u32 cap = sta->sta.vht_cap.cap;
 	enum ieee80211_sta_rx_bandwidth bw;
 
-	if (!sta->sta.vht_cap.vht_supported) {
-		bw = sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
-				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
-		goto check_max;
-	}
+	bw = ieee80211_chan_width_to_rx_bw(sdata->vif.bss_conf.chandef.width);
+	bw = min(bw, ieee80211_sta_cap_rx_bw(sta));
+	bw = min(bw, sta->cur_max_bandwidth);
 
-	switch (sdata->vif.bss_conf.chandef.width) {
-	default:
-		WARN_ON_ONCE(1);
-		/* fall through */
-	case NL80211_CHAN_WIDTH_20_NOHT:
-	case NL80211_CHAN_WIDTH_20:
-		bw = IEEE80211_STA_RX_BW_20;
-		break;
-	case NL80211_CHAN_WIDTH_40:
-		bw = sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
-				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
-		break;
-	case NL80211_CHAN_WIDTH_160:
-		if ((cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) ==
-				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ) {
-			bw = IEEE80211_STA_RX_BW_160;
-			break;
-		}
-		/* fall through */
-	case NL80211_CHAN_WIDTH_80P80:
-		if ((cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) ==
-				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ) {
-			bw = IEEE80211_STA_RX_BW_160;
-			break;
-		}
-		/* fall through */
-	case NL80211_CHAN_WIDTH_80:
-		bw = IEEE80211_STA_RX_BW_80;
-	}
-
- check_max:
-	if (bw > sta->cur_max_bandwidth)
-		bw = sta->cur_max_bandwidth;
 	return bw;
 }
 

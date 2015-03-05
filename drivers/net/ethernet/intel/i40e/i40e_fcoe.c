@@ -39,15 +39,6 @@
 #include "i40e_fcoe.h"
 
 /**
- * i40e_rx_is_fip - returns true if the rx packet type is FIP
- * @ptype: the packet type field from rx descriptor write-back
- **/
-static inline bool i40e_rx_is_fip(u16 ptype)
-{
-	return ptype == I40E_RX_PTYPE_L2_FIP_PAY2;
-}
-
-/**
  * i40e_rx_is_fcoe - returns true if the rx packet type is FCoE
  * @ptype: the packet type field from rx descriptor write-back
  **/
@@ -404,6 +395,7 @@ int i40e_fcoe_vsi_init(struct i40e_vsi *vsi, struct i40e_vsi_context *ctxt)
 					    I40E_AQ_VSI_PROP_INGRESS_UP_VALID |
 					    I40E_AQ_VSI_PROP_EGRESS_UP_VALID));
 
+	info->switch_id = cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
 	enabled_tc = i40e_get_fcoe_tc_map(pf);
 	i40e_vsi_setup_queue_map(vsi, ctxt, enabled_tc, true);
 
@@ -1511,12 +1503,16 @@ void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi)
 	strlcpy(netdev->name, "fcoe%d", IFNAMSIZ-1);
 	netdev->mtu = FCOE_MTU;
 	SET_NETDEV_DEV(netdev, &pf->pdev->dev);
+	/* set different dev_port value 1 for FCoE netdev than the default
+	 * zero dev_port value for PF netdev, this helps biosdevname user
+	 * tool to differentiate them correctly while both attached to the
+	 * same PCI function.
+	 */
+	netdev->dev_port = 1;
 	i40e_add_filter(vsi, hw->mac.san_addr, 0, false, false);
 	i40e_add_filter(vsi, (u8[6]) FC_FCOE_FLOGI_MAC, 0, false, false);
 	i40e_add_filter(vsi, FIP_ALL_FCOE_MACS, 0, false, false);
 	i40e_add_filter(vsi, FIP_ALL_ENODE_MACS, 0, false, false);
-	i40e_add_filter(vsi, FIP_ALL_VN2VN_MACS, 0, false, false);
-	i40e_add_filter(vsi, FIP_ALL_P2P_MACS, 0, false, false);
 
 	/* use san mac */
 	ether_addr_copy(netdev->dev_addr, hw->mac.san_addr);

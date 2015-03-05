@@ -308,6 +308,25 @@ config SERIAL_8250_OMAP
 
 	  This driver uses ttyS instead of ttyO.
 
+config SERIAL_8250_OMAP_TTYO_FIXUP
+	bool "Replace ttyO with ttyS"
+	depends on SERIAL_8250_OMAP=y && SERIAL_8250_CONSOLE
+	default y
+	help
+	  This option replaces the "console=ttyO" argument with the matching
+	  ttyS argument if the user did not specified it on the command line.
+	  This ensures that the user can see the kernel output during boot
+	  which he wouldn't see otherwise. The getty has still to be configured
+	  for ttyS instead of ttyO regardless of this option.
+	  This option is intended for people who "automatically" enable this
+	  driver without knowing that this driver requires a different console=
+	  argument. If you read this, please keep this option disabled and
+	  instead update your kernel command line. If you prepare a kernel for a
+	  distribution or other kind of larger user base then you probably want
+	  to keep this option enabled. Otherwise people might complain about a
+	  not booting kernel because the serial console remains silent in case
+	  they forgot to update the command line.
+
 config SERIAL_8250_FINTEK
 	tristate "Support for Fintek F81216A LPC to 4 UART"
 	depends on SERIAL_8250 && PNP

@@ -159,8 +159,6 @@ struct solo_enc_dev {
 	u16			motion_thresh;
 	bool			motion_global;
 	bool			motion_enabled;
-	bool			motion_last_state;
-	u8			frames_since_last_motion;
 	u16			width;
 	u16			height;
 
@@ -170,9 +168,9 @@ struct solo_enc_dev {
 					__aligned(4);
 
 	/* VOP stuff */
-	unsigned char		vop[64];
+	u8			vop[64];
 	int			vop_len;
-	unsigned char		jpeg_header[1024];
+	u8			jpeg_header[1024];
 	int			jpeg_len;
 
 	u32			fmt;

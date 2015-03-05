@@ -111,6 +111,7 @@
 	.set		at
 #endif
 
+#ifndef CONFIG_CPU_MIPSR6
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), .Lfirst_fixup\@)	/* make word/dword aligned */
@@ -120,6 +121,30 @@
 	PTR_SUBU	a0, t0			/* long align ptr */
 	PTR_ADDU	a2, t0			/* correct size */
 
+#else /* CONFIG_CPU_MIPSR6 */
+#define STORE_BYTE(N)				\
+	EX(sb, a1, N(a0), .Lbyte_fixup\@);	\
+	beqz		t0, 0f;			\
+	PTR_ADDU	t0, 1;
+
+	PTR_ADDU	a2, t0			/* correct size */
+	PTR_ADDU	t0, 1
+	STORE_BYTE(0)
+	STORE_BYTE(1)
+#if LONGSIZE == 4
+	EX(sb, a1, 2(a0), .Lbyte_fixup\@)
+#else
+	STORE_BYTE(2)
+	STORE_BYTE(3)
+	STORE_BYTE(4)
+	STORE_BYTE(5)
+	EX(sb, a1, 6(a0), .Lbyte_fixup\@)
+#endif
+0:
+	ori		a0, STORMASK
+	xori		a0, STORMASK
+	PTR_ADDIU	a0, STORSIZE
+#endif /* CONFIG_CPU_MIPSR6 */
 1:	ori		t1, a2, 0x3f		/* # of full blocks */
 	xori		t1, 0x3f
 	beqz		t1, .Lmemset_partial\@	/* no block to fill */
@@ -159,12 +184,29 @@
 	andi		a2, STORMASK		/* At most one long to go */
 
 	beqz		a2, 1f
+#ifndef CONFIG_CPU_MIPSR6
 	PTR_ADDU	a0, a2			/* What's left */
 	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_R, a1, -1(a0), .Llast_fixup\@)
 #else
 	EX(LONG_S_L, a1, -1(a0), .Llast_fixup\@)
+#endif
+#else
+	PTR_SUBU	t0, $0, a2
+	PTR_ADDIU	t0, 1
+	STORE_BYTE(0)
+	STORE_BYTE(1)
+#if LONGSIZE == 4
+	EX(sb, a1, 2(a0), .Lbyte_fixup\@)
+#else
+	STORE_BYTE(2)
+	STORE_BYTE(3)
+	STORE_BYTE(4)
+	STORE_BYTE(5)
+	EX(sb, a1, 6(a0), .Lbyte_fixup\@)
+#endif
+0:
 #endif
 1:	jr		ra
 	move		a2, zero
@@ -185,6 +227,11 @@
 	.set __memset, 0
 	.hidden __memset
 	.endif
+
+.Lbyte_fixup\@:
+	PTR_SUBU	a2, $0, t0
+	jr		ra
+	 PTR_ADDIU	a2, 1
 
 .Lfirst_fixup\@:
 	jr	ra

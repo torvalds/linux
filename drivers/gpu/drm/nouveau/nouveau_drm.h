@@ -80,7 +80,7 @@ enum nouveau_drm_handle {
 
 struct nouveau_cli {
 	struct nvif_client base;
-	struct nouveau_vm *vm; /*XXX*/
+	struct nvkm_vm *vm; /*XXX*/
 	struct list_head head;
 	struct mutex mutex;
 	void *abi16;
@@ -142,7 +142,7 @@ struct nouveau_drm {
 	/* context for accelerated drm-internal operations */
 	struct nouveau_channel *cechan;
 	struct nouveau_channel *channel;
-	struct nouveau_gpuobj *notify;
+	struct nvkm_gpuobj *notify;
 	struct nouveau_fbdev *fbcon;
 	struct nvif_object nvsw;
 	struct nvif_object ntfy;

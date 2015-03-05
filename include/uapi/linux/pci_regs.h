@@ -451,6 +451,10 @@
 #define  PCI_EXP_DEVCTL_AUX_PME	0x0400	/* Auxiliary Power PM Enable */
 #define  PCI_EXP_DEVCTL_NOSNOOP_EN 0x0800  /* Enable No Snoop */
 #define  PCI_EXP_DEVCTL_READRQ	0x7000	/* Max_Read_Request_Size */
+#define  PCI_EXP_DEVCTL_READRQ_128B  0x0000 /* 128 Bytes */
+#define  PCI_EXP_DEVCTL_READRQ_256B  0x1000 /* 256 Bytes */
+#define  PCI_EXP_DEVCTL_READRQ_512B  0x2000 /* 512 Bytes */
+#define  PCI_EXP_DEVCTL_READRQ_1024B 0x3000 /* 1024 Bytes */
 #define  PCI_EXP_DEVCTL_BCR_FLR 0x8000  /* Bridge Configuration Retry / FLR */
 #define PCI_EXP_DEVSTA		10	/* Device Status */
 #define  PCI_EXP_DEVSTA_CED	0x0001	/* Correctable Error Detected */

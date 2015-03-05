@@ -219,6 +219,16 @@ static const char i40e_gstrings_test[][ETH_GSTRING_LEN] = {
 #define I40E_TEST_LEN (sizeof(i40e_gstrings_test) / ETH_GSTRING_LEN)
 
 /**
+ * i40e_partition_setting_complaint - generic complaint for MFP restriction
+ * @pf: the PF struct
+ **/
+static void i40e_partition_setting_complaint(struct i40e_pf *pf)
+{
+	dev_info(&pf->pdev->dev,
+		 "The link settings are allowed to be changed only from the first partition of a given port. Please switch to the first partition in order to change the setting.\n");
+}
+
+/**
  * i40e_get_settings - Get Link Speed and Duplex settings
  * @netdev: network interface device structure
  * @ecmd: ethtool command
@@ -485,6 +495,14 @@ static int i40e_set_settings(struct net_device *netdev,
 	u8 autoneg;
 	u32 advertise;
 
+	/* Changing port settings is not supported if this isn't the
+	 * port's controlling PF
+	 */
+	if (hw->partition_id != 1) {
+		i40e_partition_setting_complaint(pf);
+		return -EOPNOTSUPP;
+	}
+
 	if (vsi != pf->vsi[pf->lan_vsi])
 		return -EOPNOTSUPP;
 
@@ -686,6 +704,14 @@ static int i40e_set_pauseparam(struct net_device *netdev,
 	i40e_status status;
 	u8 aq_failures;
 	int err = 0;
+
+	/* Changing the port's flow control is not supported if this isn't the
+	 * port's controlling PF
+	 */
+	if (hw->partition_id != 1) {
+		i40e_partition_setting_complaint(pf);
+		return -EOPNOTSUPP;
+	}
 
 	if (vsi != pf->vsi[pf->lan_vsi])
 		return -EOPNOTSUPP;
@@ -1503,7 +1529,7 @@ static void i40e_get_wol(struct net_device *netdev,
 
 	/* NVM bit on means WoL disabled for the port */
 	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);
-	if ((1 << hw->port) & wol_nvm_bits) {
+	if ((1 << hw->port) & wol_nvm_bits || hw->partition_id != 1) {
 		wol->supported = 0;
 		wol->wolopts = 0;
 	} else {
@@ -1512,12 +1538,27 @@ static void i40e_get_wol(struct net_device *netdev,
 	}
 }
 
+/**
+ * i40e_set_wol - set the WakeOnLAN configuration
+ * @netdev: the netdev in question
+ * @wol: the ethtool WoL setting data
+ **/
 static int i40e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_hw *hw = &pf->hw;
 	u16 wol_nvm_bits;
+
+	/* WoL not supported if this isn't the controlling PF on the port */
+	if (hw->partition_id != 1) {
+		i40e_partition_setting_complaint(pf);
+		return -EOPNOTSUPP;
+	}
+
+	if (vsi != pf->vsi[pf->lan_vsi])
+		return -EOPNOTSUPP;
 
 	/* NVM bit on means WoL disabled for the port */
 	i40e_read_nvm_word(hw, I40E_SR_NVM_WAKE_ON_LAN, &wol_nvm_bits);

@@ -279,7 +279,3 @@ err_buf_detach:
 
 	return ERR_PTR(ret);
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM DMABUF Module");
-MODULE_LICENSE("GPL");

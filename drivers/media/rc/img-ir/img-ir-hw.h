@@ -133,6 +133,20 @@ struct img_ir_timing_regvals {
 #define IMG_IR_REPEATCODE	1	/* repeat the previous code */
 
 /**
+ * struct img_ir_scancode_req - Scancode request data.
+ * @protocol:	Protocol code of received message (defaults to
+ *		RC_TYPE_UNKNOWN).
+ * @scancode:	Scan code of received message (must be written by
+ *		handler if IMG_IR_SCANCODE is returned).
+ * @toggle:	Toggle bit (defaults to 0).
+ */
+struct img_ir_scancode_req {
+	enum rc_type protocol;
+	u32 scancode;
+	u8 toggle;
+};
+
+/**
  * struct img_ir_decoder - Decoder settings for an IR protocol.
  * @type:	Protocol types bitmap.
  * @tolerance:	Timing tolerance as a percentage (default 10%).
@@ -162,8 +176,8 @@ struct img_ir_decoder {
 	struct img_ir_control		control;
 
 	/* scancode logic */
-	int (*scancode)(int len, u64 raw, enum rc_type *protocol,
-			u32 *scancode, u64 enabled_protocols);
+	int (*scancode)(int len, u64 raw, u64 enabled_protocols,
+			struct img_ir_scancode_req *request);
 	int (*filter)(const struct rc_scancode_filter *in,
 		      struct img_ir_filter *out, u64 protocols);
 };
@@ -173,6 +187,8 @@ extern struct img_ir_decoder img_ir_jvc;
 extern struct img_ir_decoder img_ir_sony;
 extern struct img_ir_decoder img_ir_sharp;
 extern struct img_ir_decoder img_ir_sanyo;
+extern struct img_ir_decoder img_ir_rc5;
+extern struct img_ir_decoder img_ir_rc6;
 
 /**
  * struct img_ir_reg_timings - Reg values for decoder timings at clock rate.
@@ -204,6 +220,7 @@ enum img_ir_mode {
  * @rdev:		Remote control device
  * @clk_nb:		Notifier block for clock notify events.
  * @end_timer:		Timer until repeat timeout.
+ * @suspend_timer:	Timer to re-enable protocol.
  * @decoder:		Current decoder settings.
  * @enabled_protocols:	Currently enabled protocols.
  * @clk_hz:		Current core clock rate in Hz.
@@ -214,12 +231,14 @@ enum img_ir_mode {
  * @stopping:		Indicates that decoder is being taken down and timers
  *			should not be restarted.
  * @suspend_irqen:	Saved IRQ enable mask over suspend.
+ * @quirk_suspend_irq:	Saved IRQ enable mask over quirk suspend timer.
  */
 struct img_ir_priv_hw {
 	unsigned int			ct_quirks[4];
 	struct rc_dev			*rdev;
 	struct notifier_block		clk_nb;
 	struct timer_list		end_timer;
+	struct timer_list		suspend_timer;
 	const struct img_ir_decoder	*decoder;
 	u64				enabled_protocols;
 	unsigned long			clk_hz;
@@ -230,6 +249,7 @@ struct img_ir_priv_hw {
 	enum img_ir_mode		mode;
 	bool				stopping;
 	u32				suspend_irqen;
+	u32				quirk_suspend_irq;
 };
 
 static inline bool img_ir_hw_enabled(struct img_ir_priv_hw *hw)

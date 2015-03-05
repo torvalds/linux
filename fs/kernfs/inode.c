@@ -24,12 +24,6 @@ static const struct address_space_operations kernfs_aops = {
 	.write_end	= simple_write_end,
 };
 
-static struct backing_dev_info kernfs_bdi = {
-	.name		= "kernfs",
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-};
-
 static const struct inode_operations kernfs_iops = {
 	.permission	= kernfs_iop_permission,
 	.setattr	= kernfs_iop_setattr,
@@ -39,12 +33,6 @@ static const struct inode_operations kernfs_iops = {
 	.getxattr	= kernfs_iop_getxattr,
 	.listxattr	= kernfs_iop_listxattr,
 };
-
-void __init kernfs_inode_init(void)
-{
-	if (bdi_init(&kernfs_bdi))
-		panic("failed to init kernfs_bdi");
-}
 
 static struct kernfs_iattrs *kernfs_iattrs(struct kernfs_node *kn)
 {
@@ -298,7 +286,6 @@ static void kernfs_init_inode(struct kernfs_node *kn, struct inode *inode)
 	kernfs_get(kn);
 	inode->i_private = kn;
 	inode->i_mapping->a_ops = &kernfs_aops;
-	inode->i_mapping->backing_dev_info = &kernfs_bdi;
 	inode->i_op = &kernfs_iops;
 
 	set_default_inode_attr(inode, kn->mode);

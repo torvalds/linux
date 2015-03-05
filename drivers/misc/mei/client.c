@@ -27,7 +27,63 @@
 #include "client.h"
 
 /**
+ * mei_me_cl_init - initialize me client
+ *
+ * @me_cl: me client
+ */
+void mei_me_cl_init(struct mei_me_client *me_cl)
+{
+	INIT_LIST_HEAD(&me_cl->list);
+	kref_init(&me_cl->refcnt);
+}
+
+/**
+ * mei_me_cl_get - increases me client refcount
+ *
+ * @me_cl: me client
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * Return: me client or NULL
+ */
+struct mei_me_client *mei_me_cl_get(struct mei_me_client *me_cl)
+{
+	if (me_cl)
+		kref_get(&me_cl->refcnt);
+
+	return me_cl;
+}
+
+/**
+ * mei_me_cl_release - unlink and free me client
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * @ref: me_client refcount
+ */
+static void mei_me_cl_release(struct kref *ref)
+{
+	struct mei_me_client *me_cl =
+		container_of(ref, struct mei_me_client, refcnt);
+	list_del(&me_cl->list);
+	kfree(me_cl);
+}
+/**
+ * mei_me_cl_put - decrease me client refcount and free client if necessary
+ *
+ * Locking: called under "dev->device_lock" lock
+ *
+ * @me_cl: me client
+ */
+void mei_me_cl_put(struct mei_me_client *me_cl)
+{
+	if (me_cl)
+		kref_put(&me_cl->refcnt, mei_me_cl_release);
+}
+
+/**
  * mei_me_cl_by_uuid - locate me client by uuid
+ *	increases ref count
  *
  * @dev: mei device
  * @uuid: me client uuid
@@ -43,13 +99,14 @@ struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
 
 	list_for_each_entry(me_cl, &dev->me_clients, list)
 		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0)
-			return me_cl;
+			return mei_me_cl_get(me_cl);
 
 	return NULL;
 }
 
 /**
  * mei_me_cl_by_id - locate me client by client id
+ *	increases ref count
  *
  * @dev: the device structure
  * @client_id: me client id
@@ -65,12 +122,14 @@ struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
 
 	list_for_each_entry(me_cl, &dev->me_clients, list)
 		if (me_cl->client_id == client_id)
-			return me_cl;
+			return mei_me_cl_get(me_cl);
+
 	return NULL;
 }
 
 /**
  * mei_me_cl_by_uuid_id - locate me client by client id and uuid
+ *	increases ref count
  *
  * @dev: the device structure
  * @uuid: me client uuid
@@ -88,30 +147,66 @@ struct mei_me_client *mei_me_cl_by_uuid_id(struct mei_device *dev,
 	list_for_each_entry(me_cl, &dev->me_clients, list)
 		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0 &&
 		    me_cl->client_id == client_id)
-			return me_cl;
+			return mei_me_cl_get(me_cl);
+
 	return NULL;
 }
 
 /**
- * mei_me_cl_remove - remove me client matching uuid and client_id
+ * mei_me_cl_rm_by_uuid - remove all me clients matching uuid
  *
  * @dev: the device structure
  * @uuid: me client uuid
- * @client_id: me client address
+ *
+ * Locking: called under "dev->device_lock" lock
  */
-void mei_me_cl_remove(struct mei_device *dev, const uuid_le *uuid, u8 client_id)
+void mei_me_cl_rm_by_uuid(struct mei_device *dev, const uuid_le *uuid)
 {
 	struct mei_me_client *me_cl, *next;
 
+	dev_dbg(dev->dev, "remove %pUl\n", uuid);
+	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list)
+		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0)
+			mei_me_cl_put(me_cl);
+}
+
+/**
+ * mei_me_cl_rm_by_uuid_id - remove all me clients matching client id
+ *
+ * @dev: the device structure
+ * @uuid: me client uuid
+ * @id: me client id
+ *
+ * Locking: called under "dev->device_lock" lock
+ */
+void mei_me_cl_rm_by_uuid_id(struct mei_device *dev, const uuid_le *uuid, u8 id)
+{
+	struct mei_me_client *me_cl, *next;
+	const uuid_le *pn;
+
+	dev_dbg(dev->dev, "remove %pUl %d\n", uuid, id);
 	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list) {
-		if (uuid_le_cmp(*uuid, me_cl->props.protocol_name) == 0 &&
-		    me_cl->client_id == client_id) {
-			list_del(&me_cl->list);
-			kfree(me_cl);
-			break;
-		}
+		pn =  &me_cl->props.protocol_name;
+		if (me_cl->client_id == id && uuid_le_cmp(*uuid, *pn) == 0)
+			mei_me_cl_put(me_cl);
 	}
 }
+
+/**
+ * mei_me_cl_rm_all - remove all me clients
+ *
+ * @dev: the device structure
+ *
+ * Locking: called under "dev->device_lock" lock
+ */
+void mei_me_cl_rm_all(struct mei_device *dev)
+{
+	struct mei_me_client *me_cl, *next;
+
+	list_for_each_entry_safe(me_cl, next, &dev->me_clients, list)
+			mei_me_cl_put(me_cl);
+}
+
 
 
 /**
@@ -695,6 +790,7 @@ int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 {
 	struct mei_device *dev;
 	struct mei_me_client *me_cl;
+	int rets = 0;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
@@ -704,18 +800,19 @@ int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 	if (cl->mei_flow_ctrl_creds > 0)
 		return 1;
 
-	me_cl = mei_me_cl_by_id(dev, cl->me_client_id);
+	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
 	if (!me_cl) {
 		cl_err(dev, cl, "no such me client %d\n", cl->me_client_id);
 		return -ENOENT;
 	}
 
-	if (me_cl->mei_flow_ctrl_creds) {
+	if (me_cl->mei_flow_ctrl_creds > 0) {
+		rets = 1;
 		if (WARN_ON(me_cl->props.single_recv_buf == 0))
-			return -EINVAL;
-		return 1;
+			rets = -EINVAL;
 	}
-	return 0;
+	mei_me_cl_put(me_cl);
+	return rets;
 }
 
 /**
@@ -732,28 +829,36 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 {
 	struct mei_device *dev;
 	struct mei_me_client *me_cl;
+	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
 
 	dev = cl->dev;
 
-	me_cl = mei_me_cl_by_id(dev, cl->me_client_id);
+	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
 	if (!me_cl) {
 		cl_err(dev, cl, "no such me client %d\n", cl->me_client_id);
 		return -ENOENT;
 	}
 
 	if (me_cl->props.single_recv_buf) {
-		if (WARN_ON(me_cl->mei_flow_ctrl_creds <= 0))
-			return -EINVAL;
+		if (WARN_ON(me_cl->mei_flow_ctrl_creds <= 0)) {
+			rets = -EINVAL;
+			goto out;
+		}
 		me_cl->mei_flow_ctrl_creds--;
 	} else {
-		if (WARN_ON(cl->mei_flow_ctrl_creds <= 0))
-			return -EINVAL;
+		if (WARN_ON(cl->mei_flow_ctrl_creds <= 0)) {
+			rets = -EINVAL;
+			goto out;
+		}
 		cl->mei_flow_ctrl_creds--;
 	}
-	return 0;
+	rets = 0;
+out:
+	mei_me_cl_put(me_cl);
+	return rets;
 }
 
 /**
@@ -788,6 +893,9 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 		cl_err(dev, cl, "no such me client %d\n", cl->me_client_id);
 		return  -ENOTTY;
 	}
+	/* always allocate at least client max message */
+	length = max_t(size_t, length, me_cl->props.max_msg_length);
+	mei_me_cl_put(me_cl);
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
@@ -802,8 +910,6 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length)
 		goto out;
 	}
 
-	/* always allocate at least client max message */
-	length = max_t(size_t, length, me_cl->props.max_msg_length);
 	rets = mei_io_cb_alloc_resp_buf(cb, length);
 	if (rets)
 		goto out;

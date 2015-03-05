@@ -118,6 +118,27 @@ static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
 	pmd_val(*pmd) |= PMD_S2_RDWR;
 }
 
+static inline void kvm_set_s2pte_readonly(pte_t *pte)
+{
+	pte_val(*pte) = (pte_val(*pte) & ~PTE_S2_RDWR) | PTE_S2_RDONLY;
+}
+
+static inline bool kvm_s2pte_readonly(pte_t *pte)
+{
+	return (pte_val(*pte) & PTE_S2_RDWR) == PTE_S2_RDONLY;
+}
+
+static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
+{
+	pmd_val(*pmd) = (pmd_val(*pmd) & ~PMD_S2_RDWR) | PMD_S2_RDONLY;
+}
+
+static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
+{
+	return (pmd_val(*pmd) & PMD_S2_RDWR) == PMD_S2_RDONLY;
+}
+
+
 #define kvm_pgd_addr_end(addr, end)	pgd_addr_end(addr, end)
 #define kvm_pud_addr_end(addr, end)	pud_addr_end(addr, end)
 #define kvm_pmd_addr_end(addr, end)	pmd_addr_end(addr, end)
@@ -243,24 +264,46 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 	return (vcpu_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
 }
 
-static inline void coherent_cache_guest_page(struct kvm_vcpu *vcpu, hva_t hva,
-					     unsigned long size,
-					     bool ipa_uncached)
+static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
+					       unsigned long size,
+					       bool ipa_uncached)
 {
+	void *va = page_address(pfn_to_page(pfn));
+
 	if (!vcpu_has_cache_enabled(vcpu) || ipa_uncached)
-		kvm_flush_dcache_to_poc((void *)hva, size);
+		kvm_flush_dcache_to_poc(va, size);
 
 	if (!icache_is_aliasing()) {		/* PIPT */
-		flush_icache_range(hva, hva + size);
+		flush_icache_range((unsigned long)va,
+				   (unsigned long)va + size);
 	} else if (!icache_is_aivivt()) {	/* non ASID-tagged VIVT */
 		/* any kind of VIPT cache */
 		__flush_icache_all();
 	}
 }
 
+static inline void __kvm_flush_dcache_pte(pte_t pte)
+{
+	struct page *page = pte_page(pte);
+	kvm_flush_dcache_to_poc(page_address(page), PAGE_SIZE);
+}
+
+static inline void __kvm_flush_dcache_pmd(pmd_t pmd)
+{
+	struct page *page = pmd_page(pmd);
+	kvm_flush_dcache_to_poc(page_address(page), PMD_SIZE);
+}
+
+static inline void __kvm_flush_dcache_pud(pud_t pud)
+{
+	struct page *page = pud_page(pud);
+	kvm_flush_dcache_to_poc(page_address(page), PUD_SIZE);
+}
+
 #define kvm_virt_to_phys(x)		__virt_to_phys((unsigned long)(x))
 
-void stage2_flush_vm(struct kvm *kvm);
+void kvm_set_way_flush(struct kvm_vcpu *vcpu);
+void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */

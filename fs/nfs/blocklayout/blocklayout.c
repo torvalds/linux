@@ -860,12 +860,14 @@ static const struct nfs_pageio_ops bl_pg_read_ops = {
 	.pg_init = bl_pg_init_read,
 	.pg_test = bl_pg_test_read,
 	.pg_doio = pnfs_generic_pg_readpages,
+	.pg_cleanup = pnfs_generic_pg_cleanup,
 };
 
 static const struct nfs_pageio_ops bl_pg_write_ops = {
 	.pg_init = bl_pg_init_write,
 	.pg_test = bl_pg_test_write,
 	.pg_doio = pnfs_generic_pg_writepages,
+	.pg_cleanup = pnfs_generic_pg_cleanup,
 };
 
 static struct pnfs_layoutdriver_type blocklayout_type = {

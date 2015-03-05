@@ -27,9 +27,3 @@ int mxl111sf_i2c_xfer(struct i2c_adapter *adap,
 		      struct i2c_msg msg[], int num);
 
 #endif /* _DVB_USB_MXL111SF_I2C_H_ */
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

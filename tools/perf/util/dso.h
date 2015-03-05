@@ -139,6 +139,7 @@ struct dso {
 		u32		 status_seen;
 		size_t		 file_size;
 		struct list_head open_entry;
+		u64		 frame_offset;
 	} data;
 
 	union { /* Tool specific area */

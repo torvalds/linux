@@ -87,8 +87,8 @@
 				     <14>,
 				     <15>;
 			#dma-cells = <1>;
-			#dma-channels = <32>;
-			#dma-requests = <64>;
+			dma-channels = <32>;
+			dma-requests = <64>;
 		};
 
 		i2c1: i2c@48070000 {

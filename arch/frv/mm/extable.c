@@ -10,29 +10,6 @@ extern const void __memset_end, __memset_user_error_lr, __memset_user_error_hand
 extern const void __memcpy_end, __memcpy_user_error_lr, __memcpy_user_error_handler;
 extern spinlock_t modlist_lock;
 
-/*****************************************************************************/
-/*
- *
- */
-static inline unsigned long search_one_table(const struct exception_table_entry *first,
-					     const struct exception_table_entry *last,
-					     unsigned long value)
-{
-        while (first <= last) {
-		const struct exception_table_entry __attribute__((aligned(8))) *mid;
-		long diff;
-
-		mid = (last - first) / 2 + first;
-		diff = mid->insn - value;
-                if (diff == 0)
-                        return mid->fixup;
-                else if (diff < 0)
-                        first = mid + 1;
-                else
-                        last = mid - 1;
-        }
-        return 0;
-} /* end search_one_table() */
 
 /*****************************************************************************/
 /*

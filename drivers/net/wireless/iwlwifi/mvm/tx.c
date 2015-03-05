@@ -90,8 +90,6 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	if (ieee80211_is_probe_resp(fc))
 		tx_flags |= TX_CMD_FLG_TSF;
-	else if (ieee80211_is_back_req(fc))
-		tx_flags |= TX_CMD_FLG_ACK | TX_CMD_FLG_BAR;
 
 	if (ieee80211_has_morefrags(fc))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG;
@@ -100,6 +98,15 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		tx_cmd->tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL;
+	} else if (ieee80211_is_back_req(fc)) {
+		struct ieee80211_bar *bar = (void *)skb->data;
+		u16 control = le16_to_cpu(bar->control);
+
+		tx_flags |= TX_CMD_FLG_ACK | TX_CMD_FLG_BAR;
+		tx_cmd->tid_tspec = (control &
+				     IEEE80211_BAR_CTRL_TID_INFO_MASK) >>
+			IEEE80211_BAR_CTRL_TID_INFO_SHIFT;
+		WARN_ON_ONCE(tx_cmd->tid_tspec >= IWL_MAX_TID_COUNT);
 	} else {
 		tx_cmd->tid_tspec = IWL_TID_NON_QOS;
 		if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
@@ -213,7 +220,7 @@ void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm, struct iwl_tx_cmd *tx_cmd,
 	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(rate_idx);
 
 	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, mvm->fw->valid_tx_ant,
+		iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
 				     mvm->mgmt_last_antenna_idx);
 
 	if (info->band == IEEE80211_BAND_2GHZ &&
@@ -500,7 +507,7 @@ static void iwl_mvm_check_ratid_empty(struct iwl_mvm *mvm,
 		IWL_DEBUG_TX_QUEUES(mvm,
 				    "Can continue DELBA flow ssn = next_recl = %d\n",
 				    tid_data->next_reclaimed);
-		iwl_mvm_disable_txq(mvm, tid_data->txq_id);
+		iwl_mvm_disable_txq(mvm, tid_data->txq_id, CMD_ASYNC);
 		tid_data->state = IWL_AGG_OFF;
 		/*
 		 * we can't hold the mutex - but since we are after a sequence
@@ -660,7 +667,8 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 
 		/* Single frame failure in an AMPDU queue => send BAR */
 		if (txq_id >= mvm->first_agg_queue &&
-		    !(info->flags & IEEE80211_TX_STAT_ACK))
+		    !(info->flags & IEEE80211_TX_STAT_ACK) &&
+		    !(info->flags & IEEE80211_TX_STAT_TX_FILTERED))
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
 		/* W/A FW bug: seq_ctl is wrong when the status isn't success */
@@ -922,6 +930,11 @@ int iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 
 	sta_id = ba_notif->sta_id;
 	tid = ba_notif->tid;
+
+	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT ||
+		      tid >= IWL_MAX_TID_COUNT,
+		      "sta_id %d tid %d", sta_id, tid))
+		return 0;
 
 	rcu_read_lock();
 

@@ -1351,7 +1351,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 	unsigned long task_ratelimit;
 	unsigned long dirty_ratelimit;
 	unsigned long pos_ratio;
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
+	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	bool strictlimit = bdi->capabilities & BDI_CAP_STRICTLIMIT;
 	unsigned long start_time = jiffies;
 
@@ -1574,7 +1574,7 @@ DEFINE_PER_CPU(int, dirty_throttle_leaks) = 0;
  */
 void balance_dirty_pages_ratelimited(struct address_space *mapping)
 {
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
+	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	int ratelimit;
 	int *p;
 
@@ -1929,7 +1929,7 @@ continue_unlock:
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
 
-			trace_wbc_writepage(wbc, mapping->backing_dev_info);
+			trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
 			ret = (*writepage)(page, wbc, data);
 			if (unlikely(ret)) {
 				if (ret == AOP_WRITEPAGE_ACTIVATE) {
@@ -2094,10 +2094,12 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 	trace_writeback_dirty_page(page, mapping);
 
 	if (mapping_cap_account_dirty(mapping)) {
+		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+
 		__inc_zone_page_state(page, NR_FILE_DIRTY);
 		__inc_zone_page_state(page, NR_DIRTIED);
-		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
-		__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
+		__inc_bdi_stat(bdi, BDI_RECLAIMABLE);
+		__inc_bdi_stat(bdi, BDI_DIRTIED);
 		task_io_account_write(PAGE_CACHE_SIZE);
 		current->nr_dirtied++;
 		this_cpu_inc(bdp_ratelimits);
@@ -2156,7 +2158,7 @@ void account_page_redirty(struct page *page)
 	if (mapping && mapping_cap_account_dirty(mapping)) {
 		current->nr_dirtied--;
 		dec_zone_page_state(page, NR_DIRTIED);
-		dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
+		dec_bdi_stat(inode_to_bdi(mapping->host), BDI_DIRTIED);
 	}
 }
 EXPORT_SYMBOL(account_page_redirty);
@@ -2168,9 +2170,12 @@ EXPORT_SYMBOL(account_page_redirty);
  */
 int redirty_page_for_writepage(struct writeback_control *wbc, struct page *page)
 {
+	int ret;
+
 	wbc->pages_skipped++;
+	ret = __set_page_dirty_nobuffers(page);
 	account_page_redirty(page);
-	return __set_page_dirty_nobuffers(page);
+	return ret;
 }
 EXPORT_SYMBOL(redirty_page_for_writepage);
 
@@ -2295,7 +2300,7 @@ int clear_page_dirty_for_io(struct page *page)
 		 */
 		if (TestClearPageDirty(page)) {
 			dec_zone_page_state(page, NR_FILE_DIRTY);
-			dec_bdi_stat(mapping->backing_dev_info,
+			dec_bdi_stat(inode_to_bdi(mapping->host),
 					BDI_RECLAIMABLE);
 			return 1;
 		}
@@ -2308,14 +2313,12 @@ EXPORT_SYMBOL(clear_page_dirty_for_io);
 int test_clear_page_writeback(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
-	unsigned long memcg_flags;
 	struct mem_cgroup *memcg;
-	bool locked;
 	int ret;
 
-	memcg = mem_cgroup_begin_page_stat(page, &locked, &memcg_flags);
+	memcg = mem_cgroup_begin_page_stat(page);
 	if (mapping) {
-		struct backing_dev_info *bdi = mapping->backing_dev_info;
+		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 		unsigned long flags;
 
 		spin_lock_irqsave(&mapping->tree_lock, flags);
@@ -2338,21 +2341,19 @@ int test_clear_page_writeback(struct page *page)
 		dec_zone_page_state(page, NR_WRITEBACK);
 		inc_zone_page_state(page, NR_WRITTEN);
 	}
-	mem_cgroup_end_page_stat(memcg, &locked, &memcg_flags);
+	mem_cgroup_end_page_stat(memcg);
 	return ret;
 }
 
 int __test_set_page_writeback(struct page *page, bool keep_write)
 {
 	struct address_space *mapping = page_mapping(page);
-	unsigned long memcg_flags;
 	struct mem_cgroup *memcg;
-	bool locked;
 	int ret;
 
-	memcg = mem_cgroup_begin_page_stat(page, &locked, &memcg_flags);
+	memcg = mem_cgroup_begin_page_stat(page);
 	if (mapping) {
-		struct backing_dev_info *bdi = mapping->backing_dev_info;
+		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 		unsigned long flags;
 
 		spin_lock_irqsave(&mapping->tree_lock, flags);
@@ -2380,7 +2381,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
 		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_WRITEBACK);
 		inc_zone_page_state(page, NR_WRITEBACK);
 	}
-	mem_cgroup_end_page_stat(memcg, &locked, &memcg_flags);
+	mem_cgroup_end_page_stat(memcg);
 	return ret;
 
 }
@@ -2406,12 +2407,7 @@ EXPORT_SYMBOL(mapping_tagged);
  */
 void wait_for_stable_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
-
-	if (!bdi_cap_stable_pages_required(bdi))
-		return;
-
-	wait_on_page_writeback(page);
+	if (bdi_cap_stable_pages_required(inode_to_bdi(page->mapping->host)))
+		wait_on_page_writeback(page);
 }
 EXPORT_SYMBOL_GPL(wait_for_stable_page);

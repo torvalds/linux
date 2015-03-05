@@ -68,7 +68,7 @@ config ARCH_BCM_MOBILE
 	  This enables support for systems based on Broadcom mobile SoCs.
 
 config ARCH_BCM_281XX
-	bool "Broadcom BCM281XX SoC family"
+	bool "Broadcom BCM281XX SoC family" if ARCH_MULTI_V7
 	select ARCH_BCM_MOBILE
 	select HAVE_SMP
 	help
@@ -77,7 +77,7 @@ config ARCH_BCM_281XX
 	  variants.
 
 config ARCH_BCM_21664
-	bool "Broadcom BCM21664 SoC family"
+	bool "Broadcom BCM21664 SoC family" if ARCH_MULTI_V7
 	select ARCH_BCM_MOBILE
 	select HAVE_SMP
 	help

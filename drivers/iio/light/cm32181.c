@@ -169,7 +169,7 @@ static int cm32181_write_als_it(struct cm32181_chip *cm32181, int val)
  * @cm32181:	pointer of struct cm32181.
  *
  * Convert sensor raw data to lux.  It depends on integration
- * time and claibscale variable.
+ * time and calibscale variable.
  *
  * Return: Positive value is lux, otherwise is error code.
  */

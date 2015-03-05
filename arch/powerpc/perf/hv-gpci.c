@@ -31,7 +31,18 @@
 /* u32 */
 EVENT_DEFINE_RANGE_FORMAT(request, config, 0, 31);
 /* u32 */
+/*
+ * Note that starting_index, phys_processor_idx, sibling_part_id,
+ * hw_chip_id, partition_id all refer to the same bit range. They
+ * are basically aliases for the starting_index. The specific alias
+ * used depends on the event. See REQUEST_IDX_KIND in hv-gpci-requests.h
+ */
 EVENT_DEFINE_RANGE_FORMAT(starting_index, config, 32, 63);
+EVENT_DEFINE_RANGE_FORMAT_LITE(phys_processor_idx, config, 32, 63);
+EVENT_DEFINE_RANGE_FORMAT_LITE(sibling_part_id, config, 32, 63);
+EVENT_DEFINE_RANGE_FORMAT_LITE(hw_chip_id, config, 32, 63);
+EVENT_DEFINE_RANGE_FORMAT_LITE(partition_id, config, 32, 63);
+
 /* u16 */
 EVENT_DEFINE_RANGE_FORMAT(secondary_index, config1, 0, 15);
 /* u8 */
@@ -44,6 +55,10 @@ EVENT_DEFINE_RANGE_FORMAT(offset, config1, 32, 63);
 static struct attribute *format_attrs[] = {
 	&format_attr_request.attr,
 	&format_attr_starting_index.attr,
+	&format_attr_phys_processor_idx.attr,
+	&format_attr_sibling_part_id.attr,
+	&format_attr_hw_chip_id.attr,
+	&format_attr_partition_id.attr,
 	&format_attr_secondary_index.attr,
 	&format_attr_counter_info_version.attr,
 
@@ -55,6 +70,11 @@ static struct attribute *format_attrs[] = {
 static struct attribute_group format_group = {
 	.name = "format",
 	.attrs = format_attrs,
+};
+
+static struct attribute_group event_group = {
+	.name  = "events",
+	.attrs = hv_gpci_event_attrs,
 };
 
 #define HV_CAPS_ATTR(_name, _format)				\
@@ -102,6 +122,7 @@ static struct attribute_group interface_group = {
 
 static const struct attribute_group *attr_groups[] = {
 	&format_group,
+	&event_group,
 	&interface_group,
 	NULL,
 };
@@ -264,6 +285,8 @@ static int hv_gpci_init(void)
 	int r;
 	unsigned long hret;
 	struct hv_perf_caps caps;
+
+	hv_gpci_assert_offsets_correct();
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		pr_debug("not a virtualized system, not enabling\n");

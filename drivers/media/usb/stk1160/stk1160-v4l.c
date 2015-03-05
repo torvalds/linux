@@ -38,10 +38,6 @@
 #include "stk1160.h"
 #include "stk1160-reg.h"
 
-static unsigned int vidioc_debug;
-module_param(vidioc_debug, int, 0644);
-MODULE_PARM_DESC(vidioc_debug, "enable debug messages [vidioc]");
-
 static bool keep_buffers;
 module_param(keep_buffers, bool, 0644);
 MODULE_PARM_DESC(keep_buffers, "don't release buffers upon stop streaming");
@@ -659,7 +655,6 @@ int stk1160_video_register(struct stk1160 *dev)
 
 	/* Initialize video_device with a template structure */
 	dev->vdev = v4l_template;
-	dev->vdev.debug = vidioc_debug;
 	dev->vdev.queue = &dev->vb_vidq;
 
 	/*

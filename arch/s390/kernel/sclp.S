@@ -294,7 +294,8 @@ ENTRY(_sclp_print_early)
 #ifdef CONFIG_64BIT
 	tm	LC_AR_MODE_ID,1
 	jno	.Lesa3
-	lmh	%r6,%r15,96(%r15)		# store upper register halves
+	lgfr	%r2,%r2				# sign extend return value
+	lmh	%r6,%r15,96(%r15)		# restore upper register halves
 	ahi	%r15,80
 .Lesa3:
 #endif

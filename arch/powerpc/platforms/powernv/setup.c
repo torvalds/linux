@@ -304,7 +304,7 @@ int pnv_save_sprs_for_winkle(void)
 	 * all cpus at boot. Get these reg values of current cpu and use the
 	 * same accross all cpus.
 	 */
-	uint64_t lpcr_val = mfspr(SPRN_LPCR);
+	uint64_t lpcr_val = mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1;
 	uint64_t hid0_val = mfspr(SPRN_HID0);
 	uint64_t hid1_val = mfspr(SPRN_HID1);
 	uint64_t hid4_val = mfspr(SPRN_HID4);

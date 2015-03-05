@@ -35,3 +35,11 @@ Contact:	Corentin Chary <corentin.chary@gmail.com>
 Description:	Use your USB ports to charge devices, even
 		when your laptop is powered off.
 		1 means enabled, 0 means disabled.
+
+What:		/sys/devices/platform/samsung/lid_handling
+Date:		December 11, 2014
+KernelVersion:	3.19
+Contact:	Julijonas Kikutis <julijonas.kikutis@gmail.com>
+Description:	Some Samsung laptops handle lid closing quicker and
+		only handle lid opening with this mode enabled.
+		1 means enabled, 0 means disabled.

@@ -73,5 +73,7 @@ int nfs_map_group_to_gid(const struct nfs_server *, const char *, size_t, kgid_t
 int nfs_map_uid_to_name(const struct nfs_server *, kuid_t, char *, size_t);
 int nfs_map_gid_to_group(const struct nfs_server *, kgid_t, char *, size_t);
 
+int nfs_map_string_to_numeric(const char *name, size_t namelen, __u32 *res);
+
 extern unsigned int nfs_idmap_cache_timeout;
 #endif /* NFS_IDMAP_H */

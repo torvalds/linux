@@ -85,6 +85,9 @@ static inline int __is_po2(unsigned long long val)
 
 #include <linux/list.h>
 
+int libcfs_arch_init(void);
+void libcfs_arch_cleanup(void);
+
 /* libcfs tcpip */
 int libcfs_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask);
 int libcfs_ipif_enumerate(char ***names);

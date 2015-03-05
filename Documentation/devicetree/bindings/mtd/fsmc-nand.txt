@@ -9,7 +9,7 @@ Required properties:
 Optional properties:
 - bank-width : Width (in bytes) of the device.  If not present, the width
   defaults to 1 byte
-- nand-skip-bbtscan: Indicates the the BBT scanning should be skipped
+- nand-skip-bbtscan: Indicates the BBT scanning should be skipped
 - timings: array of 6 bytes for NAND timings. The meanings of these bytes
   are:
   byte 0 TCLR  : CLE to RE delay in number of AHB clock cycles, only 4 bits

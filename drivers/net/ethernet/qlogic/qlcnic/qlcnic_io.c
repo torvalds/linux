@@ -10,6 +10,7 @@
 #include <net/ip.h>
 #include <linux/ipv6.h>
 #include <net/checksum.h>
+#include <linux/printk.h>
 
 #include "qlcnic.h"
 
@@ -320,8 +321,8 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 		if (protocol == ETH_P_8021Q) {
 			vh = (struct vlan_ethhdr *)skb->data;
 			vlan_id = ntohs(vh->h_vlan_TCI);
-		} else if (vlan_tx_tag_present(skb)) {
-			vlan_id = vlan_tx_tag_get(skb);
+		} else if (skb_vlan_tag_present(skb)) {
+			vlan_id = skb_vlan_tag_get(skb);
 		}
 	}
 
@@ -472,9 +473,9 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 		flags = QLCNIC_FLAGS_VLAN_TAGGED;
 		vlan_tci = ntohs(vh->h_vlan_TCI);
 		protocol = ntohs(vh->h_vlan_encapsulated_proto);
-	} else if (vlan_tx_tag_present(skb)) {
+	} else if (skb_vlan_tag_present(skb)) {
 		flags = QLCNIC_FLAGS_VLAN_OOB;
-		vlan_tci = vlan_tx_tag_get(skb);
+		vlan_tci = skb_vlan_tag_get(skb);
 	}
 	if (unlikely(adapter->tx_pvid)) {
 		if (vlan_tci && !(adapter->flags & QLCNIC_TAGGING_ENABLED))
@@ -967,7 +968,12 @@ static int qlcnic_poll(struct napi_struct *napi, int budget)
 	tx_complete = qlcnic_process_cmd_ring(adapter, tx_ring,
 					      budget);
 	work_done = qlcnic_process_rcv_ring(sds_ring, budget);
-	if ((work_done < budget) && tx_complete) {
+
+	/* Check if we need a repoll */
+	if (!tx_complete)
+		work_done = budget;
+
+	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 			qlcnic_enable_sds_intr(adapter, sds_ring);
@@ -992,6 +998,9 @@ static int qlcnic_tx_poll(struct napi_struct *napi, int budget)
 		napi_complete(&tx_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
 			qlcnic_enable_tx_intr(adapter, tx_ring);
+	} else {
+		/* As qlcnic_process_cmd_ring() returned 0, we need a repoll*/
+		work_done = budget;
 	}
 
 	return work_done;
@@ -1465,14 +1474,14 @@ void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 
 static void dump_skb(struct sk_buff *skb, struct qlcnic_adapter *adapter)
 {
-	int i;
-	unsigned char *data = skb->data;
+	if (adapter->ahw->msg_enable & NETIF_MSG_DRV) {
+		char prefix[30];
 
-	pr_info(KERN_INFO "\n");
-	for (i = 0; i < skb->len; i++) {
-		QLCDB(adapter, DRV, "%02x ", data[i]);
-		if ((i & 0x0f) == 8)
-			pr_info(KERN_INFO "\n");
+		scnprintf(prefix, sizeof(prefix), "%s: %s: ",
+			  dev_name(&adapter->pdev->dev), __func__);
+
+		print_hex_dump_debug(prefix, DUMP_PREFIX_NONE, 16, 1,
+				     skb->data, skb->len, true);
 	}
 }
 
@@ -1950,7 +1959,12 @@ static int qlcnic_83xx_msix_sriov_vf_poll(struct napi_struct *napi, int budget)
 
 	tx_complete = qlcnic_process_cmd_ring(adapter, tx_ring, budget);
 	work_done = qlcnic_83xx_process_rcv_ring(sds_ring, budget);
-	if ((work_done < budget) && tx_complete) {
+
+	/* Check if we need a repoll */
+	if (!tx_complete)
+		work_done = budget;
+
+	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
@@ -1973,7 +1987,12 @@ static int qlcnic_83xx_poll(struct napi_struct *napi, int budget)
 
 	tx_complete = qlcnic_process_cmd_ring(adapter, tx_ring, budget);
 	work_done = qlcnic_83xx_process_rcv_ring(sds_ring, budget);
-	if ((work_done < budget) && tx_complete) {
+
+	/* Check if we need a repoll */
+	if (!tx_complete)
+		work_done = budget;
+
+	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		qlcnic_enable_sds_intr(adapter, sds_ring);
 	}
@@ -1995,6 +2014,9 @@ static int qlcnic_83xx_msix_tx_poll(struct napi_struct *napi, int budget)
 		napi_complete(&tx_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP , &adapter->state))
 			qlcnic_enable_tx_intr(adapter, tx_ring);
+	} else {
+		/* need a repoll */
+		work_done = budget;
 	}
 
 	return work_done;

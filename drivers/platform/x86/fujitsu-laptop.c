@@ -64,6 +64,7 @@
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/backlight.h>
+#include <linux/fb.h>
 #include <linux/input.h>
 #include <linux/kfifo.h>
 #include <linux/platform_device.h>
@@ -398,7 +399,7 @@ static int bl_get_brightness(struct backlight_device *b)
 static int bl_update_status(struct backlight_device *b)
 {
 	int ret;
-	if (b->props.power == 4)
+	if (b->props.power == FB_BLANK_POWERDOWN)
 		ret = call_fext_func(FUNC_BACKLIGHT, 0x1, 0x4, 0x3);
 	else
 		ret = call_fext_func(FUNC_BACKLIGHT, 0x1, 0x4, 0x0);
@@ -1139,9 +1140,9 @@ static int __init fujitsu_init(void)
 
 	if (!acpi_video_backlight_support()) {
 		if (call_fext_func(FUNC_BACKLIGHT, 0x2, 0x4, 0x0) == 3)
-			fujitsu->bl_device->props.power = 4;
+			fujitsu->bl_device->props.power = FB_BLANK_POWERDOWN;
 		else
-			fujitsu->bl_device->props.power = 0;
+			fujitsu->bl_device->props.power = FB_BLANK_UNBLANK;
 	}
 
 	pr_info("driver " FUJITSU_DRIVER_VERSION " successfully loaded\n");

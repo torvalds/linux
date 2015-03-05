@@ -793,6 +793,15 @@ config SND_RME9652
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-rme9652.
 
+config SND_SE6X
+	tristate "Studio Evolution SE6X"
+	depends on SND_OXYGEN=n && SND_VIRTUOSO=n  # PCI ID conflict
+	select SND_OXYGEN_LIB
+	select SND_PCM
+	select SND_MPU401_UART
+	help
+	  Say Y or M here only if you actually have this sound card.
+
 config SND_SIS7019
 	tristate "SiS 7019 Audio Accelerator"
 	depends on X86_32

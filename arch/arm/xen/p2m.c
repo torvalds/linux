@@ -102,7 +102,7 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 EXPORT_SYMBOL_GPL(set_foreign_p2m_mapping);
 
 int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
-			      struct gnttab_map_grant_ref *kmap_ops,
+			      struct gnttab_unmap_grant_ref *kunmap_ops,
 			      struct page **pages, unsigned int count)
 {
 	int i;

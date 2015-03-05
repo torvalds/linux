@@ -217,7 +217,7 @@ typedef struct lnet_msg {
 	unsigned int	  msg_wanted;
 	unsigned int	  msg_offset;
 	unsigned int	  msg_niov;
-	struct iovec	 *msg_iov;
+	struct kvec	 *msg_iov;
 	lnet_kiov_t	  *msg_kiov;
 
 	lnet_event_t	  msg_ev;
@@ -271,7 +271,7 @@ typedef struct lnet_libmd {
 	lnet_eq_t	    *md_eq;
 	unsigned int	  md_niov;		/* # frags */
 	union {
-		struct iovec  iov[LNET_MAX_IOV];
+		struct kvec   iov[LNET_MAX_IOV];
 		lnet_kiov_t   kiov[LNET_MAX_IOV];
 	} md_iov;
 } lnet_libmd_t;
@@ -346,7 +346,7 @@ typedef struct lnet_lnd {
 	 * credit if the LND does flow control. */
 	int (*lnd_recv)(struct lnet_ni *ni, void *private, lnet_msg_t *msg,
 			int delayed, unsigned int niov,
-			struct iovec *iov, lnet_kiov_t *kiov,
+			struct kvec *iov, lnet_kiov_t *kiov,
 			unsigned int offset, unsigned int mlen, unsigned int rlen);
 
 	/* lnet_parse() has had to delay processing of this message
@@ -622,7 +622,7 @@ typedef struct lnet_portal {
 	/* Match table for each CPT */
 	struct lnet_match_table	**ptl_mtables;
 	/* spread rotor of incoming "PUT" */
-	int			ptl_rotor;
+	unsigned int		ptl_rotor;
 	/* # active entries for this portal */
 	int		     ptl_mt_nmaps;
 	/* array of active entries' cpu-partition-id */

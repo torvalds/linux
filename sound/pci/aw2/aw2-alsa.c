@@ -229,9 +229,7 @@ static int snd_aw2_dev_free(struct snd_device *device)
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
 	/* release the i/o ports & memory */
-	if (chip->iobase_virt)
-		iounmap(chip->iobase_virt);
-
+	iounmap(chip->iobase_virt);
 	pci_release_regions(chip->pci);
 	/* disable the PCI entry */
 	pci_disable_device(chip->pci);

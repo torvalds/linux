@@ -236,10 +236,10 @@ static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 		if (errno == ENOENT)
 			return false;
 
-		pr_warning("Problems with %s file, consider removing it from the cache\n", 
+		pr_warning("Problems with %s file, consider removing it from the cache\n",
 			   filename);
 	} else if (memcmp(dso->build_id, build_id, sizeof(dso->build_id))) {
-		pr_warning("Problems with %s file, consider removing it from the cache\n", 
+		pr_warning("Problems with %s file, consider removing it from the cache\n",
 			   filename);
 	}
 

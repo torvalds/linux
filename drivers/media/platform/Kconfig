@@ -56,10 +56,8 @@ config VIDEO_VIU
 
 config VIDEO_TIMBERDALE
 	tristate "Support for timberdale Video In/LogiWIN"
-	depends on VIDEO_V4L2 && I2C && DMADEVICES
-	depends on MFD_TIMBERDALE || COMPILE_TEST
-	select DMA_ENGINE
-	select TIMB_DMA
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on (MFD_TIMBERDALE && TIMB_DMA) || COMPILE_TEST
 	select VIDEO_ADV7180
 	select VIDEOBUF_DMA_CONTIG
 	---help---
@@ -118,6 +116,7 @@ config VIDEO_S3C_CAMIF
 source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/s5p-tv/Kconfig"
+source "drivers/media/platform/am437x/Kconfig"
 
 endif # V4L_PLATFORM_DRIVERS
 
@@ -140,6 +139,7 @@ config VIDEO_CODA
 	depends on HAS_DMA
 	select SRAM
 	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV
 	select GENERIC_ALLOCATOR
 	---help---
@@ -213,7 +213,6 @@ config VIDEO_SAMSUNG_EXYNOS_GSC
 config VIDEO_SH_VEU
 	tristate "SuperH VEU mem2mem video processing driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
-	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	help
@@ -223,7 +222,7 @@ config VIDEO_SH_VEU
 config VIDEO_RENESAS_VSP1
 	tristate "Renesas VSP1 Video Processing Engine"
 	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAS_DMA
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on (ARCH_SHMOBILE && OF) || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This is a V4L2 driver for the Renesas VSP1 video processing engine.

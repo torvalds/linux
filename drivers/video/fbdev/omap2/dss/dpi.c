@@ -106,6 +106,17 @@ static struct dss_pll *dpi_get_pll(enum omap_channel channel)
 			return NULL;
 		}
 
+	case OMAPDSS_VER_DRA7xx:
+		switch (channel) {
+		case OMAP_DSS_CHANNEL_LCD:
+		case OMAP_DSS_CHANNEL_LCD2:
+			return dss_pll_find("video0");
+		case OMAP_DSS_CHANNEL_LCD3:
+			return dss_pll_find("video1");
+		default:
+			return NULL;
+		}
+
 	default:
 		return NULL;
 	}
@@ -590,6 +601,10 @@ static void dpi_init_pll(struct dpi_data *dpi)
 	if (!pll)
 		return;
 
+	/* On DRA7 we need to set a mux to use the PLL */
+	if (omapdss_get_version() == OMAPDSS_VER_DRA7xx)
+		dss_ctrl_pll_set_control_mux(pll->id, dpi->output.dispc_channel);
+
 	if (dpi_verify_dsi_pll(pll)) {
 		DSSWARN("DSI PLL not operational\n");
 		return;
@@ -614,6 +629,17 @@ static enum omap_channel dpi_get_channel(int port_num)
 	case OMAPDSS_VER_AM35xx:
 	case OMAPDSS_VER_AM43xx:
 		return OMAP_DSS_CHANNEL_LCD;
+
+	case OMAPDSS_VER_DRA7xx:
+		switch (port_num) {
+		case 2:
+			return OMAP_DSS_CHANNEL_LCD3;
+		case 1:
+			return OMAP_DSS_CHANNEL_LCD2;
+		case 0:
+		default:
+			return OMAP_DSS_CHANNEL_LCD;
+		}
 
 	case OMAPDSS_VER_OMAP4430_ES1:
 	case OMAPDSS_VER_OMAP4430_ES2:

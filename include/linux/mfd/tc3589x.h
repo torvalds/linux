@@ -163,24 +163,12 @@ struct tc3589x_keypad_platform_data {
 };
 
 /**
- * struct tc3589x_gpio_platform_data - TC3589x GPIO platform data
- * @setup: callback for board-specific initialization
- * @remove: callback for board-specific teardown
- */
-struct tc3589x_gpio_platform_data {
-	void (*setup)(struct tc3589x *tc3589x, unsigned gpio_base);
-	void (*remove)(struct tc3589x *tc3589x, unsigned gpio_base);
-};
-
-/**
  * struct tc3589x_platform_data - TC3589x platform data
  * @block: bitmask of blocks to enable (use TC3589x_BLOCK_*)
- * @gpio: GPIO-specific platform data
  * @keypad: keypad-specific platform data
  */
 struct tc3589x_platform_data {
 	unsigned int block;
-	struct tc3589x_gpio_platform_data *gpio;
 	const struct tc3589x_keypad_platform_data *keypad;
 };
 

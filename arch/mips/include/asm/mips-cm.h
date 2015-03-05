@@ -89,9 +89,9 @@ static inline bool mips_cm_has_l2sync(void)
 
 /* Macros to ease the creation of register access functions */
 #define BUILD_CM_R_(name, off)					\
-static inline u32 *addr_gcr_##name(void)			\
+static inline u32 __iomem *addr_gcr_##name(void)		\
 {								\
-	return (u32 *)(mips_cm_base + (off));			\
+	return (u32 __iomem *)(mips_cm_base + (off));		\
 }								\
 								\
 static inline u32 read_gcr_##name(void)				\

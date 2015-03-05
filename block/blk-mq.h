@@ -62,6 +62,8 @@ extern void blk_mq_sysfs_unregister(struct request_queue *q);
 
 extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
 
+void blk_mq_release(struct request_queue *q);
+
 /*
  * Basic implementation of sparser bitmap, allowing the user to spread
  * the bits over more cachelines.

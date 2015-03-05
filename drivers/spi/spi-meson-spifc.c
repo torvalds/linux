@@ -85,7 +85,7 @@ struct meson_spifc {
 	struct device *dev;
 };
 
-static struct regmap_config spifc_regmap_config = {
+static const struct regmap_config spifc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,

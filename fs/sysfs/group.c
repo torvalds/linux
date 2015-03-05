@@ -99,7 +99,7 @@ static int internal_create_group(struct kobject *kobj, int update,
 		return -EINVAL;
 	if (!grp->attrs && !grp->bin_attrs) {
 		WARN(1, "sysfs: (bin_)attrs not set by subsystem for group: %s/%s\n",
-			kobj->name, grp->name ? "" : grp->name);
+			kobj->name, grp->name ?: "");
 		return -EINVAL;
 	}
 	if (grp->name) {

@@ -134,7 +134,7 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
+	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	if (unlikely(need_fallback(sctx->key_len))) {
 		crypto_cipher_encrypt_one(sctx->fallback.cip, out, in);
@@ -159,7 +159,7 @@ static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 
 static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	const struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
+	struct s390_aes_ctx *sctx = crypto_tfm_ctx(tfm);
 
 	if (unlikely(need_fallback(sctx->key_len))) {
 		crypto_cipher_decrypt_one(sctx->fallback.cip, out, in);

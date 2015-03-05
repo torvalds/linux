@@ -85,7 +85,7 @@ static struct qib_diag_client *get_client(struct qib_devdata *dd)
 		client_pool = dc->next;
 	else
 		/* None in pool, alloc and init */
-		dc = kmalloc(sizeof *dc, GFP_KERNEL);
+		dc = kmalloc(sizeof(*dc), GFP_KERNEL);
 
 	if (dc) {
 		dc->next = NULL;
@@ -257,6 +257,7 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 	if (dd->userbase) {
 		/* If user regs mapped, they are after send, so set limit. */
 		u32 ulim = (dd->cfgctxts * dd->ureg_align) + dd->uregbase;
+
 		if (!dd->piovl15base)
 			snd_lim = dd->uregbase;
 		krb32 = (u32 __iomem *)dd->userbase;
@@ -280,6 +281,7 @@ static u32 __iomem *qib_remap_ioaddr32(struct qib_devdata *dd, u32 offset,
 	snd_bottom = dd->pio2k_bufbase;
 	if (snd_lim == 0) {
 		u32 tot2k = dd->piobcnt2k * ALIGN(dd->piosize2k, dd->palign);
+
 		snd_lim = snd_bottom + tot2k;
 	}
 	/* If 4k buffers exist, account for them by bumping
@@ -398,6 +400,7 @@ static int qib_write_umem64(struct qib_devdata *dd, u32 regoffs,
 	/* not very efficient, but it works for now */
 	while (reg_addr < reg_end) {
 		u64 data;
+
 		if (copy_from_user(&data, uaddr, sizeof(data))) {
 			ret = -EFAULT;
 			goto bail;
@@ -698,7 +701,7 @@ int qib_register_observer(struct qib_devdata *dd,
 
 	if (!dd || !op)
 		return -EINVAL;
-	olp = vmalloc(sizeof *olp);
+	olp = vmalloc(sizeof(*olp));
 	if (!olp) {
 		pr_err("vmalloc for observer failed\n");
 		return -ENOMEM;
@@ -796,6 +799,7 @@ static ssize_t qib_diag_read(struct file *fp, char __user *data,
 		op = diag_get_observer(dd, *off);
 		if (op) {
 			u32 offset = *off;
+
 			ret = op->hook(dd, op, offset, &data64, 0, use_32);
 		}
 		/*
@@ -873,6 +877,7 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 		if (count == 4 || count == 8) {
 			u64 data64;
 			u32 offset = *off;
+
 			ret = copy_from_user(&data64, data, count);
 			if (ret) {
 				ret = -EFAULT;

@@ -113,10 +113,8 @@ unsigned int sysctl_net_busy_read __read_mostly;
 unsigned int sysctl_net_busy_poll __read_mostly;
 #endif
 
-static ssize_t sock_aio_read(struct kiocb *iocb, const struct iovec *iov,
-			 unsigned long nr_segs, loff_t pos);
-static ssize_t sock_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			  unsigned long nr_segs, loff_t pos);
+static ssize_t sock_read_iter(struct kiocb *iocb, struct iov_iter *to);
+static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from);
 static int sock_mmap(struct file *file, struct vm_area_struct *vma);
 
 static int sock_close(struct inode *inode, struct file *file);
@@ -142,8 +140,10 @@ static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
 static const struct file_operations socket_file_ops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
-	.aio_read =	sock_aio_read,
-	.aio_write =	sock_aio_write,
+	.read =		new_sync_read,
+	.write =	new_sync_write,
+	.read_iter =	sock_read_iter,
+	.write_iter =	sock_write_iter,
 	.poll =		sock_poll,
 	.unlocked_ioctl = sock_ioctl,
 #ifdef CONFIG_COMPAT
@@ -613,13 +613,6 @@ EXPORT_SYMBOL(__sock_tx_timestamp);
 static inline int __sock_sendmsg_nosec(struct kiocb *iocb, struct socket *sock,
 				       struct msghdr *msg, size_t size)
 {
-	struct sock_iocb *si = kiocb_to_siocb(iocb);
-
-	si->sock = sock;
-	si->scm = NULL;
-	si->msg = msg;
-	si->size = size;
-
 	return sock->ops->sendmsg(iocb, sock, msg, size);
 }
 
@@ -635,11 +628,9 @@ static int do_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			   size_t size, bool nosec)
 {
 	struct kiocb iocb;
-	struct sock_iocb siocb;
 	int ret;
 
 	init_sync_kiocb(&iocb, NULL);
-	iocb.private = &siocb;
 	ret = nosec ? __sock_sendmsg_nosec(&iocb, sock, msg, size) :
 		      __sock_sendmsg(&iocb, sock, msg, size);
 	if (-EIOCBQUEUED == ret)
@@ -756,14 +747,6 @@ EXPORT_SYMBOL_GPL(__sock_recv_ts_and_drops);
 static inline int __sock_recvmsg_nosec(struct kiocb *iocb, struct socket *sock,
 				       struct msghdr *msg, size_t size, int flags)
 {
-	struct sock_iocb *si = kiocb_to_siocb(iocb);
-
-	si->sock = sock;
-	si->scm = NULL;
-	si->msg = msg;
-	si->size = size;
-	si->flags = flags;
-
 	return sock->ops->recvmsg(iocb, sock, msg, size, flags);
 }
 
@@ -779,11 +762,9 @@ int sock_recvmsg(struct socket *sock, struct msghdr *msg,
 		 size_t size, int flags)
 {
 	struct kiocb iocb;
-	struct sock_iocb siocb;
 	int ret;
 
 	init_sync_kiocb(&iocb, NULL);
-	iocb.private = &siocb;
 	ret = __sock_recvmsg(&iocb, sock, msg, size, flags);
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&iocb);
@@ -795,11 +776,9 @@ static int sock_recvmsg_nosec(struct socket *sock, struct msghdr *msg,
 			      size_t size, int flags)
 {
 	struct kiocb iocb;
-	struct sock_iocb siocb;
 	int ret;
 
 	init_sync_kiocb(&iocb, NULL);
-	iocb.private = &siocb;
 	ret = __sock_recvmsg_nosec(&iocb, sock, msg, size, flags);
 	if (-EIOCBQUEUED == ret)
 		ret = wait_on_sync_kiocb(&iocb);
@@ -866,92 +845,47 @@ static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
 	return sock->ops->splice_read(sock, ppos, pipe, len, flags);
 }
 
-static struct sock_iocb *alloc_sock_iocb(struct kiocb *iocb,
-					 struct sock_iocb *siocb)
+static ssize_t sock_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	if (!is_sync_kiocb(iocb))
-		BUG();
-
-	siocb->kiocb = iocb;
-	iocb->private = siocb;
-	return siocb;
-}
-
-static ssize_t do_sock_read(struct msghdr *msg, struct kiocb *iocb,
-		struct file *file, const struct iovec *iov,
-		unsigned long nr_segs)
-{
+	struct file *file = iocb->ki_filp;
 	struct socket *sock = file->private_data;
-	size_t size = 0;
-	int i;
+	struct msghdr msg = {.msg_iter = *to};
+	ssize_t res;
 
-	for (i = 0; i < nr_segs; i++)
-		size += iov[i].iov_len;
+	if (file->f_flags & O_NONBLOCK)
+		msg.msg_flags = MSG_DONTWAIT;
 
-	msg->msg_name = NULL;
-	msg->msg_namelen = 0;
-	msg->msg_control = NULL;
-	msg->msg_controllen = 0;
-	iov_iter_init(&msg->msg_iter, READ, iov, nr_segs, size);
-	msg->msg_flags = (file->f_flags & O_NONBLOCK) ? MSG_DONTWAIT : 0;
-
-	return __sock_recvmsg(iocb, sock, msg, size, msg->msg_flags);
-}
-
-static ssize_t sock_aio_read(struct kiocb *iocb, const struct iovec *iov,
-				unsigned long nr_segs, loff_t pos)
-{
-	struct sock_iocb siocb, *x;
-
-	if (pos != 0)
+	if (iocb->ki_pos != 0)
 		return -ESPIPE;
 
 	if (iocb->ki_nbytes == 0)	/* Match SYS5 behaviour */
 		return 0;
 
-
-	x = alloc_sock_iocb(iocb, &siocb);
-	if (!x)
-		return -ENOMEM;
-	return do_sock_read(&x->async_msg, iocb, iocb->ki_filp, iov, nr_segs);
+	res = __sock_recvmsg(iocb, sock, &msg,
+			     iocb->ki_nbytes, msg.msg_flags);
+	*to = msg.msg_iter;
+	return res;
 }
 
-static ssize_t do_sock_write(struct msghdr *msg, struct kiocb *iocb,
-			struct file *file, const struct iovec *iov,
-			unsigned long nr_segs)
+static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
+	struct file *file = iocb->ki_filp;
 	struct socket *sock = file->private_data;
-	size_t size = 0;
-	int i;
+	struct msghdr msg = {.msg_iter = *from};
+	ssize_t res;
 
-	for (i = 0; i < nr_segs; i++)
-		size += iov[i].iov_len;
-
-	msg->msg_name = NULL;
-	msg->msg_namelen = 0;
-	msg->msg_control = NULL;
-	msg->msg_controllen = 0;
-	iov_iter_init(&msg->msg_iter, WRITE, iov, nr_segs, size);
-	msg->msg_flags = (file->f_flags & O_NONBLOCK) ? MSG_DONTWAIT : 0;
-	if (sock->type == SOCK_SEQPACKET)
-		msg->msg_flags |= MSG_EOR;
-
-	return __sock_sendmsg(iocb, sock, msg, size);
-}
-
-static ssize_t sock_aio_write(struct kiocb *iocb, const struct iovec *iov,
-			  unsigned long nr_segs, loff_t pos)
-{
-	struct sock_iocb siocb, *x;
-
-	if (pos != 0)
+	if (iocb->ki_pos != 0)
 		return -ESPIPE;
 
-	x = alloc_sock_iocb(iocb, &siocb);
-	if (!x)
-		return -ENOMEM;
+	if (file->f_flags & O_NONBLOCK)
+		msg.msg_flags = MSG_DONTWAIT;
 
-	return do_sock_write(&x->async_msg, iocb, iocb->ki_filp, iov, nr_segs);
+	if (sock->type == SOCK_SEQPACKET)
+		msg.msg_flags |= MSG_EOR;
+
+	res = __sock_sendmsg(iocb, sock, &msg, iocb->ki_nbytes);
+	*from = msg.msg_iter;
+	return res;
 }
 
 /*

@@ -34,6 +34,9 @@ configfs/
 	- directory containing configfs documentation and example code.
 cramfs.txt
 	- info on the cram filesystem for small storage (ROMs etc).
+dax.txt
+	- info on avoiding the page cache for files stored on CPU-addressable
+	  storage devices.
 debugfs.txt
 	- info on the debugfs filesystem.
 devpts.txt
@@ -154,5 +157,3 @@ xfs-self-describing-metadata.txt
 	- info on XFS Self Describing Metadata.
 xfs.txt
 	- info and mount options for the XFS filesystem.
-xip.txt
-	- info on execute-in-place for file mappings.

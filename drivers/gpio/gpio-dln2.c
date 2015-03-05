@@ -396,6 +396,7 @@ static void dln2_gpio_event(struct platform_device *pdev, u16 echo,
 			    const void *data, int len)
 {
 	int pin, irq;
+
 	const struct {
 		__le16 count;
 		__u8 type;

@@ -53,3 +53,5 @@ obj-$(CONFIG_MWIFIEX_PCIE) += mwifiex_pcie.o
 
 mwifiex_usb-y += usb.o
 obj-$(CONFIG_MWIFIEX_USB) += mwifiex_usb.o
+
+ccflags-y += -D__CHECK_ENDIAN

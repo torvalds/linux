@@ -70,6 +70,10 @@
 
 #define PMC_SCRATCH41			0x140
 
+#define PMC_SENSOR_CTRL			0x1b0
+#define PMC_SENSOR_CTRL_SCRATCH_WRITE	(1 << 2)
+#define PMC_SENSOR_CTRL_ENABLE_RST	(1 << 1)
+
 #define IO_DPD_REQ			0x1b8
 #define  IO_DPD_REQ_CODE_IDLE		(0 << 30)
 #define  IO_DPD_REQ_CODE_OFF		(1 << 30)
@@ -81,6 +85,18 @@
 #define IO_DPD2_STATUS			0x1c4
 #define SEL_DPD_TIM			0x1c8
 
+#define PMC_SCRATCH54			0x258
+#define PMC_SCRATCH54_DATA_SHIFT	8
+#define PMC_SCRATCH54_ADDR_SHIFT	0
+
+#define PMC_SCRATCH55			0x25c
+#define PMC_SCRATCH55_RESET_TEGRA	(1 << 31)
+#define PMC_SCRATCH55_CNTRL_ID_SHIFT	27
+#define PMC_SCRATCH55_PINMUX_SHIFT	24
+#define PMC_SCRATCH55_16BITOP		(1 << 15)
+#define PMC_SCRATCH55_CHECKSUM_SHIFT	16
+#define PMC_SCRATCH55_I2CSLV1_SHIFT	0
+
 #define GPU_RG_CNTRL			0x2d4
 
 struct tegra_pmc_soc {
@@ -88,6 +104,9 @@ struct tegra_pmc_soc {
 	const char *const *powergates;
 	unsigned int num_cpu_powergates;
 	const u8 *cpu_powergates;
+
+	bool has_tsense_reset;
+	bool has_gpu_clamps;
 };
 
 /**
@@ -110,6 +129,7 @@ struct tegra_pmc_soc {
  * @powergates_lock: mutex for power gate register access
  */
 struct tegra_pmc {
+	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
 
@@ -225,11 +245,11 @@ int tegra_powergate_remove_clamping(int id)
 		return -EINVAL;
 
 	/*
-	 * The Tegra124 GPU has a separate register (with different semantics)
-	 * to remove clamps.
+	 * On Tegra124 and later, the clamps for the GPU are controlled by a
+	 * separate register (with different semantics).
 	 */
-	if (tegra_get_chip_id() == TEGRA124) {
-		if (id == TEGRA_POWERGATE_3D) {
+	if (id == TEGRA_POWERGATE_3D) {
+		if (pmc->soc->has_gpu_clamps) {
 			tegra_pmc_writel(0, GPU_RG_CNTRL);
 			return 0;
 		}
@@ -703,6 +723,83 @@ static void tegra_pmc_init(struct tegra_pmc *pmc)
 	tegra_pmc_writel(value, PMC_CNTRL);
 }
 
+void tegra_pmc_init_tsense_reset(struct tegra_pmc *pmc)
+{
+	static const char disabled[] = "emergency thermal reset disabled";
+	u32 pmu_addr, ctrl_id, reg_addr, reg_data, pinmux;
+	struct device *dev = pmc->dev;
+	struct device_node *np;
+	u32 value, checksum;
+
+	if (!pmc->soc->has_tsense_reset)
+		goto out;
+
+	np = of_find_node_by_name(pmc->dev->of_node, "i2c-thermtrip");
+	if (!np) {
+		dev_warn(dev, "i2c-thermtrip node not found, %s.\n", disabled);
+		goto out;
+	}
+
+	if (of_property_read_u32(np, "nvidia,i2c-controller-id", &ctrl_id)) {
+		dev_err(dev, "I2C controller ID missing, %s.\n", disabled);
+		goto out;
+	}
+
+	if (of_property_read_u32(np, "nvidia,bus-addr", &pmu_addr)) {
+		dev_err(dev, "nvidia,bus-addr missing, %s.\n", disabled);
+		goto out;
+	}
+
+	if (of_property_read_u32(np, "nvidia,reg-addr", &reg_addr)) {
+		dev_err(dev, "nvidia,reg-addr missing, %s.\n", disabled);
+		goto out;
+	}
+
+	if (of_property_read_u32(np, "nvidia,reg-data", &reg_data)) {
+		dev_err(dev, "nvidia,reg-data missing, %s.\n", disabled);
+		goto out;
+	}
+
+	if (of_property_read_u32(np, "nvidia,pinmux-id", &pinmux))
+		pinmux = 0;
+
+	value = tegra_pmc_readl(PMC_SENSOR_CTRL);
+	value |= PMC_SENSOR_CTRL_SCRATCH_WRITE;
+	tegra_pmc_writel(value, PMC_SENSOR_CTRL);
+
+	value = (reg_data << PMC_SCRATCH54_DATA_SHIFT) |
+		(reg_addr << PMC_SCRATCH54_ADDR_SHIFT);
+	tegra_pmc_writel(value, PMC_SCRATCH54);
+
+	value = PMC_SCRATCH55_RESET_TEGRA;
+	value |= ctrl_id << PMC_SCRATCH55_CNTRL_ID_SHIFT;
+	value |= pinmux << PMC_SCRATCH55_PINMUX_SHIFT;
+	value |= pmu_addr << PMC_SCRATCH55_I2CSLV1_SHIFT;
+
+	/*
+	 * Calculate checksum of SCRATCH54, SCRATCH55 fields. Bits 23:16 will
+	 * contain the checksum and are currently zero, so they are not added.
+	 */
+	checksum = reg_addr + reg_data + (value & 0xff) + ((value >> 8) & 0xff)
+		+ ((value >> 24) & 0xff);
+	checksum &= 0xff;
+	checksum = 0x100 - checksum;
+
+	value |= checksum << PMC_SCRATCH55_CHECKSUM_SHIFT;
+
+	tegra_pmc_writel(value, PMC_SCRATCH55);
+
+	value = tegra_pmc_readl(PMC_SENSOR_CTRL);
+	value |= PMC_SENSOR_CTRL_ENABLE_RST;
+	tegra_pmc_writel(value, PMC_SENSOR_CTRL);
+
+	dev_info(pmc->dev, "emergency thermal reset enabled\n");
+
+out:
+	of_node_put(np);
+	return;
+}
+
 static int tegra_pmc_probe(struct platform_device *pdev)
 {
 	void __iomem *base = pmc->base;
@@ -728,7 +825,11 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	pmc->dev = &pdev->dev;
+
 	tegra_pmc_init(pmc);
+
+	tegra_pmc_init_tsense_reset(pmc);
 
 	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
 		err = tegra_powergate_debugfs_init();
@@ -739,7 +840,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM)
 static int tegra_pmc_suspend(struct device *dev)
 {
 	tegra_pmc_writel(virt_to_phys(tegra_resume), PMC_SCRATCH41);
@@ -753,9 +854,10 @@ static int tegra_pmc_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(tegra_pmc_pm_ops, tegra_pmc_suspend, tegra_pmc_resume);
+
+#endif
 
 static const char * const tegra20_powergates[] = {
 	[TEGRA_POWERGATE_CPU] = "cpu",
@@ -772,6 +874,8 @@ static const struct tegra_pmc_soc tegra20_pmc_soc = {
 	.powergates = tegra20_powergates,
 	.num_cpu_powergates = 0,
 	.cpu_powergates = NULL,
+	.has_tsense_reset = false,
+	.has_gpu_clamps = false,
 };
 
 static const char * const tegra30_powergates[] = {
@@ -803,6 +907,8 @@ static const struct tegra_pmc_soc tegra30_pmc_soc = {
 	.powergates = tegra30_powergates,
 	.num_cpu_powergates = ARRAY_SIZE(tegra30_cpu_powergates),
 	.cpu_powergates = tegra30_cpu_powergates,
+	.has_tsense_reset = true,
+	.has_gpu_clamps = false,
 };
 
 static const char * const tegra114_powergates[] = {
@@ -838,6 +944,8 @@ static const struct tegra_pmc_soc tegra114_pmc_soc = {
 	.powergates = tegra114_powergates,
 	.num_cpu_powergates = ARRAY_SIZE(tegra114_cpu_powergates),
 	.cpu_powergates = tegra114_cpu_powergates,
+	.has_tsense_reset = true,
+	.has_gpu_clamps = false,
 };
 
 static const char * const tegra124_powergates[] = {
@@ -879,6 +987,8 @@ static const struct tegra_pmc_soc tegra124_pmc_soc = {
 	.powergates = tegra124_powergates,
 	.num_cpu_powergates = ARRAY_SIZE(tegra124_cpu_powergates),
 	.cpu_powergates = tegra124_cpu_powergates,
+	.has_tsense_reset = true,
+	.has_gpu_clamps = true,
 };
 
 static const struct of_device_id tegra_pmc_match[] = {
@@ -894,7 +1004,9 @@ static struct platform_driver tegra_pmc_driver = {
 		.name = "tegra-pmc",
 		.suppress_bind_attrs = true,
 		.of_match_table = tegra_pmc_match,
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM)
 		.pm = &tegra_pmc_pm_ops,
+#endif
 	},
 	.probe = tegra_pmc_probe,
 };

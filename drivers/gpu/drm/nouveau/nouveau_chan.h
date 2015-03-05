@@ -16,7 +16,7 @@ struct nouveau_channel {
 
 	struct {
 		struct nouveau_bo *buffer;
-		struct nouveau_vma vma;
+		struct nvkm_vma vma;
 		struct nvif_object ctxdma;
 	} push;
 

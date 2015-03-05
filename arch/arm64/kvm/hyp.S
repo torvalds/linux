@@ -17,15 +17,16 @@
 
 #include <linux/linkage.h>
 
-#include <asm/assembler.h>
-#include <asm/memory.h>
 #include <asm/asm-offsets.h>
+#include <asm/assembler.h>
 #include <asm/debug-monitors.h>
+#include <asm/esr.h>
 #include <asm/fpsimdmacros.h>
 #include <asm/kvm.h>
-#include <asm/kvm_asm.h>
 #include <asm/kvm_arm.h>
+#include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
+#include <asm/memory.h>
 
 #define CPU_GP_REG_OFFSET(x)	(CPU_GP_REGS + x)
 #define CPU_XREG_OFFSET(x)	CPU_GP_REG_OFFSET(CPU_USER_PT_REGS + 8*x)
@@ -1031,6 +1032,28 @@ ENTRY(__kvm_tlb_flush_vmid_ipa)
 	ret
 ENDPROC(__kvm_tlb_flush_vmid_ipa)
 
+/**
+ * void __kvm_tlb_flush_vmid(struct kvm *kvm) - Flush per-VMID TLBs
+ * @struct kvm *kvm - pointer to kvm structure
+ *
+ * Invalidates all Stage 1 and 2 TLB entries for current VMID.
+ */
+ENTRY(__kvm_tlb_flush_vmid)
+	dsb     ishst
+
+	kern_hyp_va     x0
+	ldr     x2, [x0, #KVM_VTTBR]
+	msr     vttbr_el2, x2
+	isb
+
+	tlbi    vmalls12e1is
+	dsb     ish
+	isb
+
+	msr     vttbr_el2, xzr
+	ret
+ENDPROC(__kvm_tlb_flush_vmid)
+
 ENTRY(__kvm_flush_vm_context)
 	dsb	ishst
 	tlbi	alle1is
@@ -1141,9 +1164,9 @@ el1_sync:					// Guest trapped into EL2
 	push	x2, x3
 
 	mrs	x1, esr_el2
-	lsr	x2, x1, #ESR_EL2_EC_SHIFT
+	lsr	x2, x1, #ESR_ELx_EC_SHIFT
 
-	cmp	x2, #ESR_EL2_EC_HVC64
+	cmp	x2, #ESR_ELx_EC_HVC64
 	b.ne	el1_trap
 
 	mrs	x3, vttbr_el2			// If vttbr is valid, the 64bit guest
@@ -1178,13 +1201,13 @@ el1_trap:
 	 * x1: ESR
 	 * x2: ESR_EC
 	 */
-	cmp	x2, #ESR_EL2_EC_DABT
-	mov	x0, #ESR_EL2_EC_IABT
+	cmp	x2, #ESR_ELx_EC_DABT_LOW
+	mov	x0, #ESR_ELx_EC_IABT_LOW
 	ccmp	x2, x0, #4, ne
 	b.ne	1f		// Not an abort we care about
 
 	/* This is an abort. Check for permission fault */
-	and	x2, x1, #ESR_EL2_FSC_TYPE
+	and	x2, x1, #ESR_ELx_FSC_TYPE
 	cmp	x2, #FSC_PERM
 	b.ne	1f		// Not a permission fault
 

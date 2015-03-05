@@ -75,6 +75,11 @@ Optional CPU/CODEC subnodes properties:
 					  it can be specified via "clocks" if system has
 					  clock node (= common clock), or "system-clock-frequency"
 					  (if system doens't support common clock)
+					  If a clock is specified, it is
+					  enabled with clk_prepare_enable()
+					  in dai startup() and disabled with
+					  clk_disable_unprepare() in dai
+					  shutdown().
 
 Example 1 - single DAI link:
 
