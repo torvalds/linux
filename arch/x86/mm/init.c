@@ -131,16 +131,21 @@ void  __init early_alloc_pgt_buf(void)
 
 int after_bootmem;
 
+static int page_size_mask;
+
 int direct_gbpages = IS_ENABLED(CONFIG_DIRECT_GBPAGES);
 
 static void __init init_gbpages(void)
 {
-#ifdef CONFIG_X86_64
-	if (direct_gbpages && cpu_has_gbpages)
-		printk(KERN_INFO "Using GB pages for direct mapping\n");
-	else
+	if (!IS_ENABLED(CONFIG_ENABLE_DIRECT_GBPAGES)) {
 		direct_gbpages = 0;
-#endif
+		return;
+	}
+	if (direct_gbpages && cpu_has_gbpages) {
+		printk(KERN_INFO "Using GB pages for direct mapping\n");
+		page_size_mask |= 1 << PG_LEVEL_1G;
+	} else
+		direct_gbpages = 0;
 }
 
 struct map_range {
@@ -148,8 +153,6 @@ struct map_range {
 	unsigned long end;
 	unsigned page_size_mask;
 };
-
-static int page_size_mask;
 
 static void __init probe_page_size_mask(void)
 {
@@ -161,8 +164,6 @@ static void __init probe_page_size_mask(void)
 	 * This will simplify cpa(), which otherwise needs to support splitting
 	 * large pages into small in interrupt context, etc.
 	 */
-	if (direct_gbpages)
-		page_size_mask |= 1 << PG_LEVEL_1G;
 	if (cpu_has_pse)
 		page_size_mask |= 1 << PG_LEVEL_2M;
 #endif

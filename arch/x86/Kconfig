@@ -1299,14 +1299,22 @@ config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
 	depends on X86_64 || HIGHMEM64G
 
+config ENABLE_DIRECT_GBPAGES
+	def_bool y
+	depends on X86_64 && !DEBUG_PAGEALLOC && !KMEMCHECK
+
 config DIRECT_GBPAGES
 	bool "Enable 1GB pages for kernel pagetables" if EXPERT
 	default y
-	depends on X86_64
+	depends on ENABLE_DIRECT_GBPAGES
 	---help---
-	  Allow the kernel linear mapping to use 1GB pages on CPUs that
-	  support it. This can improve the kernel's performance a tiny bit by
-	  reducing TLB pressure. If in doubt, say "Y".
+	  Enable by default the kernel linear mapping to use 1GB pages on CPUs
+	  that support it. This can improve the kernel's performance a tiny bit
+	  by reducing TLB pressure. If in doubt, say "Y". If you've disabled
+	  option but your platform is capable of handling support for this
+	  you can use the gbpages kernel parameter. Likewise if you've enabled
+	  this but you'd like to force disable this option you can use the
+	  nogbpages kernel parameter.
 
 # Common NUMA Features
 config NUMA
