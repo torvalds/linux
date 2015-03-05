@@ -188,6 +188,7 @@ static const struct v4l2_pix_format mcam_def_pix_format = {
 	.field		= V4L2_FIELD_NONE,
 	.bytesperline	= VGA_WIDTH*2,
 	.sizeimage	= VGA_WIDTH*VGA_HEIGHT*2,
+	.colorspace	= V4L2_COLORSPACE_SRGB,
 };
 
 static const u32 mcam_def_mbus_code = MEDIA_BUS_FMT_YUYV8_2X8;
@@ -1437,6 +1438,7 @@ static int mcam_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 		break;
 	}
 	pix->sizeimage = pix->height * pix->bytesperline;
+	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	return ret;
 }
 
