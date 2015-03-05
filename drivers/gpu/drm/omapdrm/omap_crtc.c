@@ -571,23 +571,6 @@ static void omap_crtc_disable(struct drm_crtc *crtc)
 			WARN_ON(omap_plane_set_enable(plane, false));
 	}
 
-	/*
-	 * HACK: Unpin the primary plane frame buffer if we're disabled without
-	 * going through full mode set.
-	 * HACK: The legacy set config helper drm_crtc_helper_set_config() that
-	 * we still use calls the .disable() operation directly when called with
-	 * a NULL frame buffer (for instance from drm_fb_release()). As a result
-	 * the CRTC is disabled without going through a full mode set, and the
-	 * primary plane' framebuffer is kept pin. Unpin it manually here until
-	 * we switch to the atomic set config helper.
-	 */
-	if (crtc->primary->fb) {
-		const struct drm_plane_helper_funcs *funcs;
-
-		funcs = crtc->primary->helper_private;
-		funcs->cleanup_fb(crtc->primary, crtc->primary->fb, NULL);
-	}
-
 	omap_crtc->enabled = false;
 
 	omap_crtc_setup(crtc);
@@ -620,20 +603,6 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 		omap_crtc_enable(crtc);
 	else
 		omap_crtc_disable(crtc);
-}
-
-static void omap_crtc_prepare(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	DBG("%s", omap_crtc->name);
-	omap_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
-static void omap_crtc_commit(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	DBG("%s", omap_crtc->name);
-	omap_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
 static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
@@ -771,7 +740,7 @@ static int omap_crtc_set_property(struct drm_crtc *crtc,
 
 static const struct drm_crtc_funcs omap_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.destroy = omap_crtc_destroy,
 	.page_flip = omap_crtc_page_flip,
 	.set_property = omap_crtc_set_property,
@@ -782,11 +751,7 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.dpms = omap_crtc_dpms,
 	.mode_fixup = omap_crtc_mode_fixup,
-	.mode_set = drm_helper_crtc_mode_set,
-	.prepare = omap_crtc_prepare,
-	.commit = omap_crtc_commit,
 	.mode_set_nofb = omap_crtc_mode_set_nofb,
-	.mode_set_base = drm_helper_crtc_mode_set_base,
 	.disable = omap_crtc_disable,
 	.enable = omap_crtc_enable,
 	.atomic_begin = omap_crtc_atomic_begin,
