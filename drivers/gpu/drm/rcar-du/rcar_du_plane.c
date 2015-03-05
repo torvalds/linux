@@ -316,6 +316,9 @@ rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 static void rcar_du_plane_atomic_destroy_state(struct drm_plane *plane,
 					       struct drm_plane_state *state)
 {
+	if (state->fb)
+		drm_framebuffer_unreference(state->fb);
+
 	kfree(to_rcar_du_plane_state(state));
 }
 
