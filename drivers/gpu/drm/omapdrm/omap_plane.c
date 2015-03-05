@@ -316,8 +316,8 @@ int omap_plane_set_property(struct drm_plane *plane,
 }
 
 static const struct drm_plane_funcs omap_plane_funcs = {
-	.update_plane = drm_plane_helper_update,
-	.disable_plane = drm_plane_helper_disable,
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
 	.reset = drm_atomic_helper_plane_reset,
 	.destroy = omap_plane_destroy,
 	.set_property = omap_plane_set_property,
