@@ -1373,4 +1373,4 @@ module_exit(aesni_exit);
 
 MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm, Intel AES-NI instructions optimized");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("aes");
+MODULE_ALIAS_CRYPTO("aes");

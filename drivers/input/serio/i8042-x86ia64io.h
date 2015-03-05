@@ -152,6 +152,14 @@ static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
+		/* Medion Akoya E7225 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Medion"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Akoya E7225"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "1.0"),
+		},
+	},
+	{
 		/* Blue FB5601 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "blue"),
@@ -405,6 +413,13 @@ static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1360"),
+		},
+	},
+	{
+		/* Acer Aspire 7738 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 7738"),
 		},
 	},
 	{
@@ -721,6 +736,35 @@ static const struct dmi_system_id __initconst i8042_dmi_dritek_table[] = {
 	{ }
 };
 
+/*
+ * Some laptops need keyboard reset before probing for the trackpad to get
+ * it detected, initialised & finally work.
+ */
+static const struct dmi_system_id __initconst i8042_dmi_kbdreset_table[] = {
+	{
+		/* Gigabyte P35 v2 - Elantech touchpad */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "P35V2"),
+		},
+	},
+		{
+		/* Aorus branded Gigabyte X3 Plus - Elantech touchpad */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X3"),
+		},
+	},
+	{
+		/* Gigabyte P34 - Elantech touchpad */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "P34"),
+		},
+	},
+	{ }
+};
+
 #endif /* CONFIG_X86 */
 
 #ifdef CONFIG_PNP
@@ -1000,6 +1044,9 @@ static int __init i8042_platform_init(void)
 
 	if (dmi_check_system(i8042_dmi_dritek_table))
 		i8042_dritek = true;
+
+	if (dmi_check_system(i8042_dmi_kbdreset_table))
+		i8042_kbdreset = true;
 
 	/*
 	 * A20 was already enabled during early kernel init. But some buggy

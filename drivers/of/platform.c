@@ -204,12 +204,13 @@ struct platform_device *of_platform_device_create_pdata(
 {
 	struct platform_device *dev;
 
-	if (!of_device_is_available(np))
+	if (!of_device_is_available(np) ||
+	    of_node_test_and_set_flag(np, OF_POPULATED))
 		return NULL;
 
 	dev = of_device_alloc(np, bus_id, parent);
 	if (!dev)
-		return NULL;
+		goto err_clear_flag;
 
 #if defined(CONFIG_MICROBLAZE)
 	dev->archdata.dma_mask = 0xffffffffUL;
@@ -225,10 +226,14 @@ struct platform_device *of_platform_device_create_pdata(
 
 	if (of_device_add(dev) != 0) {
 		platform_device_put(dev);
-		return NULL;
+		goto err_clear_flag;
 	}
 
 	return dev;
+
+err_clear_flag:
+	of_node_clear_flag(np, OF_POPULATED);
+	return NULL;
 }
 
 /**
@@ -260,12 +265,16 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 
 	pr_debug("Creating amba device %s\n", node->full_name);
 
-	if (!of_device_is_available(node))
+	if (!of_device_is_available(node) ||
+	    of_node_test_and_set_flag(node, OF_POPULATED))
 		return NULL;
 
 	dev = amba_device_alloc(NULL, 0, 0);
-	if (!dev)
-		return NULL;
+	if (!dev) {
+		pr_err("%s(): amba_device_alloc() failed for %s\n",
+		       __func__, node->full_name);
+		goto err_clear_flag;
+	}
 
 	/* setup generic device info */
 	dev->dev.coherent_dma_mask = ~0;
@@ -301,6 +310,8 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 
 err_free:
 	amba_device_put(dev);
+err_clear_flag:
+	of_node_clear_flag(node, OF_POPULATED);
 	return NULL;
 }
 #else /* CONFIG_ARM_AMBA */
@@ -390,6 +401,7 @@ static int of_platform_bus_create(struct device_node *bus,
 			break;
 		}
 	}
+	of_node_set_flag(bus, OF_POPULATED_BUS);
 	return rc;
 }
 
@@ -473,4 +485,109 @@ int of_platform_populate(struct device_node *root,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(of_platform_populate);
+
+static int of_platform_device_destroy(struct device *dev, void *data)
+{
+	/* Do not touch devices not populated from the device tree */
+	if (!dev->of_node || !of_node_check_flag(dev->of_node, OF_POPULATED))
+		return 0;
+
+	/* Recurse for any nodes that were treated as busses */
+	if (of_node_check_flag(dev->of_node, OF_POPULATED_BUS))
+		device_for_each_child(dev, NULL, of_platform_device_destroy);
+
+	if (dev->bus == &platform_bus_type)
+		platform_device_unregister(to_platform_device(dev));
+#ifdef CONFIG_ARM_AMBA
+	else if (dev->bus == &amba_bustype)
+		amba_device_unregister(to_amba_device(dev));
+#endif
+
+	of_node_clear_flag(dev->of_node, OF_POPULATED);
+	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
+	return 0;
+}
+
+/**
+ * of_platform_depopulate() - Remove devices populated from device tree
+ * @parent: device which children will be removed
+ *
+ * Complementary to of_platform_populate(), this function removes children
+ * of the given device (and, recurrently, their children) that have been
+ * created from their respective device tree nodes (and only those,
+ * leaving others - eg. manually created - unharmed).
+ *
+ * Returns 0 when all children devices have been removed or
+ * -EBUSY when some children remained.
+ */
+void of_platform_depopulate(struct device *parent)
+{
+	device_for_each_child(parent, NULL, of_platform_device_destroy);
+}
+EXPORT_SYMBOL_GPL(of_platform_depopulate);
+
+#ifdef CONFIG_OF_DYNAMIC
+static int of_platform_notify(struct notifier_block *nb,
+				unsigned long action, void *arg)
+{
+	struct of_reconfig_data *rd = arg;
+	struct platform_device *pdev_parent, *pdev;
+	bool children_left;
+
+	switch (of_reconfig_get_state_change(action, rd)) {
+	case OF_RECONFIG_CHANGE_ADD:
+		/* verify that the parent is a bus */
+		if (!of_node_check_flag(rd->dn->parent, OF_POPULATED_BUS))
+			return NOTIFY_OK;	/* not for us */
+
+		/* already populated? (driver using of_populate manually) */
+		if (of_node_check_flag(rd->dn, OF_POPULATED))
+			return NOTIFY_OK;
+
+		/* pdev_parent may be NULL when no bus platform device */
+		pdev_parent = of_find_device_by_node(rd->dn->parent);
+		pdev = of_platform_device_create(rd->dn, NULL,
+				pdev_parent ? &pdev_parent->dev : NULL);
+		of_dev_put(pdev_parent);
+
+		if (pdev == NULL) {
+			pr_err("%s: failed to create for '%s'\n",
+					__func__, rd->dn->full_name);
+			/* of_platform_device_create tosses the error code */
+			return notifier_from_errno(-EINVAL);
+		}
+		break;
+
+	case OF_RECONFIG_CHANGE_REMOVE:
+
+		/* already depopulated? */
+		if (!of_node_check_flag(rd->dn, OF_POPULATED))
+			return NOTIFY_OK;
+
+		/* find our device by node */
+		pdev = of_find_device_by_node(rd->dn);
+		if (pdev == NULL)
+			return NOTIFY_OK;	/* no? not meant for us */
+
+		/* unregister takes one ref away */
+		of_platform_device_destroy(&pdev->dev, &children_left);
+
+		/* and put the reference of the find */
+		of_dev_put(pdev);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block platform_of_notifier = {
+	.notifier_call = of_platform_notify,
+};
+
+void of_platform_register_reconfig_notifier(void)
+{
+	WARN_ON(of_reconfig_notifier_register(&platform_of_notifier));
+}
+#endif /* CONFIG_OF_DYNAMIC */
+
 #endif /* CONFIG_OF_ADDRESS */

@@ -1293,6 +1293,19 @@ static int cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 	if (vid == priv->data.default_vlan)
 		return 0;
 
+	if (priv->data.dual_emac) {
+		/* In dual EMAC, reserved VLAN id should not be used for
+		 * creating VLAN interfaces as this can break the dual
+		 * EMAC port separation
+		 */
+		int i;
+
+		for (i = 0; i < priv->data.slaves; i++) {
+			if (vid == priv->slaves[i].port_vlan)
+				return -EINVAL;
+		}
+	}
+
 	dev_info(priv->dev, "Adding vlanid %d to vlan filter\n", vid);
 	return cpsw_add_vlan_ale_entry(priv, vid);
 }
@@ -1305,6 +1318,15 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 
 	if (vid == priv->data.default_vlan)
 		return 0;
+
+	if (priv->data.dual_emac) {
+		int i;
+
+		for (i = 0; i < priv->data.slaves; i++) {
+			if (vid == priv->slaves[i].port_vlan)
+				return -EINVAL;
+		}
+	}
 
 	dev_info(priv->dev, "removing vlanid %d from vlan filter\n", vid);
 	ret = cpsw_ale_del_vlan(priv->ale, vid, 0);

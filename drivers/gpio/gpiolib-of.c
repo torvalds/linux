@@ -12,6 +12,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -42,8 +43,14 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 		return false;
 
 	ret = gc->of_xlate(gc, &gg_data->gpiospec, gg_data->flags);
-	if (ret < 0)
-		return false;
+	if (ret < 0) {
+		/* We've found the gpio chip, but the translation failed.
+		 * Return true to stop looking and return the translation
+		 * error via out_gpio
+		 */
+		gg_data->out_gpio = ret;
+		return true;
+	 }
 
 	gg_data->out_gpio = ret + gc->base;
 	return true;

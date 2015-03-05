@@ -970,7 +970,7 @@ static void __exit aes_s390_fini(void)
 module_init(aes_s390_init);
 module_exit(aes_s390_fini);
 
-MODULE_ALIAS("aes-all");
+MODULE_ALIAS_CRYPTO("aes-all");
 
 MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm");
 MODULE_LICENSE("GPL");

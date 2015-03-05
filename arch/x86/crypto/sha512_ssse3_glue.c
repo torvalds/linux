@@ -279,4 +279,4 @@ module_exit(sha512_ssse3_mod_fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA512 Secure Hash Algorithm, Supplemental SSE3 accelerated");
 
-MODULE_ALIAS("sha512");
+MODULE_ALIAS_CRYPTO("sha512");

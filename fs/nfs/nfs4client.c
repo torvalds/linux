@@ -394,19 +394,13 @@ static bool nfs4_match_clientids(struct nfs_client *a, struct nfs_client *b)
 }
 
 /*
- * Returns true if the server owners match
+ * Returns true if the server major ids match
  */
 static bool
-nfs4_match_serverowners(struct nfs_client *a, struct nfs_client *b)
+nfs4_check_clientid_trunking(struct nfs_client *a, struct nfs_client *b)
 {
 	struct nfs41_server_owner *o1 = a->cl_serverowner;
 	struct nfs41_server_owner *o2 = b->cl_serverowner;
-
-	if (o1->minor_id != o2->minor_id) {
-		dprintk("NFS: --> %s server owner minor IDs do not match\n",
-			__func__);
-		return false;
-	}
 
 	if (o1->major_id_sz != o2->major_id_sz)
 		goto out_major_mismatch;
@@ -468,7 +462,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 			prev = pos;
 
 			status = nfs_wait_client_init_complete(pos);
-			if (status == 0) {
+			if (pos->cl_cons_state == NFS_CS_SESSION_INITING) {
 				nfs4_schedule_lease_recovery(pos);
 				status = nfs4_wait_clnt_recover(pos);
 			}
@@ -483,7 +477,12 @@ int nfs41_walk_client_list(struct nfs_client *new,
 		if (!nfs4_match_clientids(pos, new))
 			continue;
 
-		if (!nfs4_match_serverowners(pos, new))
+		/*
+		 * Note that session trunking is just a special subcase of
+		 * client id trunking. In either case, we want to fall back
+		 * to using the existing nfs_client.
+		 */
+		if (!nfs4_check_clientid_trunking(pos, new))
 			continue;
 
 		atomic_inc(&pos->cl_count);

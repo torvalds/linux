@@ -1,0 +1,37 @@
+menu "Android"
+
+config ANDROID
+	bool "Android Drivers"
+	---help---
+	  Enable support for various drivers needed on the Android platform
+
+if ANDROID
+
+config ANDROID_BINDER_IPC
+	bool "Android Binder IPC Driver"
+	depends on MMU
+	default n
+	---help---
+	  Binder is used in Android for both communication between processes,
+	  and remote method invocation.
+
+	  This means one Android process can call a method/routine in another
+	  Android process, using Binder to identify, invoke and pass arguments
+	  between said processes.
+
+config ANDROID_BINDER_IPC_32BIT
+	bool
+	depends on !64BIT && ANDROID_BINDER_IPC
+	default y
+	---help---
+	  The Binder API has been changed to support both 32 and 64bit
+	  applications in a mixed environment.
+
+	  Enable this to support an old 32-bit Android user-space (v4.4 and
+	  earlier).
+
+	  Note that enabling this will break newer Android user-space.
+
+endif # if ANDROID
+
+endmenu

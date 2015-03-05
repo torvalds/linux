@@ -203,6 +203,7 @@ extern int ipv6_dev_ac_inc(struct net_device *dev, const struct in6_addr *addr);
 extern int __ipv6_dev_ac_dec(struct inet6_dev *idev, const struct in6_addr *addr);
 extern bool ipv6_chk_acast_addr(struct net *net, struct net_device *dev,
 				const struct in6_addr *addr);
+extern void ipv6_ac_destroy_dev(struct inet6_dev *idev);
 
 
 /* Device notifier */

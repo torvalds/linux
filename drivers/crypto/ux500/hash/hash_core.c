@@ -1998,7 +1998,7 @@ module_exit(ux500_hash_mod_fini);
 MODULE_DESCRIPTION("Driver for ST-Ericsson UX500 HASH engine.");
 MODULE_LICENSE("GPL");
 
-MODULE_ALIAS("sha1-all");
-MODULE_ALIAS("sha256-all");
-MODULE_ALIAS("hmac-sha1-all");
-MODULE_ALIAS("hmac-sha256-all");
+MODULE_ALIAS_CRYPTO("sha1-all");
+MODULE_ALIAS_CRYPTO("sha256-all");
+MODULE_ALIAS_CRYPTO("hmac-sha1-all");
+MODULE_ALIAS_CRYPTO("hmac-sha256-all");

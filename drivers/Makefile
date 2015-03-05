@@ -159,3 +159,4 @@ obj-$(CONFIG_NTB)		+= ntb/
 obj-$(CONFIG_GATOR)		+= gator/
 obj-y				+= headset_observe/
 obj-$(CONFIG_CORESIGHT)		+= coresight/
+obj-$(CONFIG_ANDROID)		+= android/

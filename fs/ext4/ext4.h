@@ -589,6 +589,7 @@ enum {
 #define EXT4_FREE_BLOCKS_NO_QUOT_UPDATE	0x0008
 #define EXT4_FREE_BLOCKS_NOFREE_FIRST_CLUSTER	0x0010
 #define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
+#define EXT4_FREE_BLOCKS_RESERVE		0x0040
 
 /*
  * Flags used by ext4_discard_partial_page_buffers

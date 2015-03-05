@@ -217,7 +217,7 @@ int sel_netport_sid(u8 protocol, u16 pnum, u32 *sid)
  * Remove all entries from the network address table.
  *
  */
-static void sel_netport_flush(void)
+void sel_netport_flush(void)
 {
 	unsigned int idx;
 	struct sel_netport *port, *port_tmp;
@@ -234,15 +234,6 @@ static void sel_netport_flush(void)
 	spin_unlock_bh(&sel_netport_lock);
 }
 
-static int sel_netport_avc_callback(u32 event)
-{
-	if (event == AVC_CALLBACK_RESET) {
-		sel_netport_flush();
-		synchronize_net();
-	}
-	return 0;
-}
-
 static __init int sel_netport_init(void)
 {
 	int iter;
@@ -255,10 +246,6 @@ static __init int sel_netport_init(void)
 		INIT_LIST_HEAD(&sel_netport_hash[iter].list);
 		sel_netport_hash[iter].size = 0;
 	}
-
-	ret = avc_add_callback(sel_netport_avc_callback, AVC_CALLBACK_RESET);
-	if (ret != 0)
-		panic("avc_add_callback() failed, error %d\n", ret);
 
 	return ret;
 }

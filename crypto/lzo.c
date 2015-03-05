@@ -103,3 +103,4 @@ module_exit(lzo_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("LZO Compression Algorithm");
+MODULE_ALIAS_CRYPTO("lzo");

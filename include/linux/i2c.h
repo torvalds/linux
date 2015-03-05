@@ -542,6 +542,26 @@ static inline int i2c_adapter_id(struct i2c_adapter *adap)
 
 #endif /* I2C */
 
+#if IS_ENABLED(CONFIG_OF)
+/* must call put_device() when done with returned i2c_client device */
+extern struct i2c_client *of_find_i2c_device_by_node(struct device_node *node);
+
+/* must call put_device() when done with returned i2c_adapter device */
+extern struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node);
+
+#else
+
+static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
+{
+	return NULL;
+}
+
+static inline struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
+{
+	return NULL;
+}
+#endif /* CONFIG_OF */
+
 #if IS_ENABLED(CONFIG_ACPI_I2C)
 extern void acpi_i2c_register_devices(struct i2c_adapter *adap);
 #else
