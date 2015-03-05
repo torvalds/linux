@@ -131,11 +131,7 @@ void  __init early_alloc_pgt_buf(void)
 
 int after_bootmem;
 
-int direct_gbpages
-#ifdef CONFIG_DIRECT_GBPAGES
-				= 1
-#endif
-;
+int direct_gbpages = IS_ENABLED(CONFIG_DIRECT_GBPAGES);
 
 static void __init init_gbpages(void)
 {
