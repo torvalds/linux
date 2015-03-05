@@ -14,6 +14,7 @@
  ******************************************************************************/
 
 #include "odm_precomp.h"
+#include "usb_ops_linux.h"
 
 void
 odm_ConfigRFReg_8723A(
@@ -54,21 +55,14 @@ void odm_ConfigMAC_8723A(struct dm_odm_t *pDM_Odm,
 		     Addr, Data));
 }
 
-void
-odm_ConfigBB_AGC_8723A(
-	struct dm_odm_t *pDM_Odm,
-	u32		Addr,
-	u32		Bitmask,
-	u32		Data
-  )
+void odm_ConfigBB_AGC_8723A(struct dm_odm_t *pDM_Odm, u32 addr, u32 data)
 {
-	ODM_SetBBReg(pDM_Odm, Addr, Bitmask, Data);
+	rtl8723au_write32(pDM_Odm->Adapter, addr, data);
 	/*  Add 1us delay between BB/RF register setting. */
 	udelay(1);
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_INIT, ODM_DBG_LOUD,
-		     ("===> ODM_ConfigBBWithHeaderFile23a: [AGC_TAB] %08X %08X\n",
-		     Addr, Data));
+		     ("===> %s: [AGC_TAB] %08X %08X\n", __func__, addr, data));
 }
 
 void
