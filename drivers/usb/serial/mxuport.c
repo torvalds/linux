@@ -1284,7 +1284,8 @@ static int mxuport_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	/* Initial port termios */
-	mxuport_set_termios(tty, port, NULL);
+	if (tty)
+		mxuport_set_termios(tty, port, NULL);
 
 	/*
 	 * TODO: use RQ_VENDOR_GET_MSR, once we know what it
