@@ -1009,7 +1009,7 @@
 		compatible = "rockchip,hevc_sub";
 		iommu_enabled = <0>;
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
-		interrupts-names = "irq_dec";
+		interrupt-names = "irq_dec";
 		dev_mode = <1>;
 		name = "hevc_service";
 	};
