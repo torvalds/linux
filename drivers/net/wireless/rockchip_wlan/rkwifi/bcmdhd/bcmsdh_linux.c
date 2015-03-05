@@ -352,7 +352,8 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 #endif
 	bcmsdh_osinfo->oob_irq_enabled = TRUE;
 	bcmsdh_osinfo->oob_irq_registered = TRUE;
-	return err;
+
+	return 0;
 }
 
 void bcmsdh_oob_intr_unregister(bcmsdh_info_t *bcmsdh)
@@ -377,7 +378,7 @@ void bcmsdh_oob_intr_unregister(bcmsdh_info_t *bcmsdh)
 	free_irq(bcmsdh_osinfo->oob_irq_num, bcmsdh);
 	bcmsdh_osinfo->oob_irq_registered = FALSE;
 }
-#endif 
+#endif
 
 /* Module parameters specific to each host-controller driver */
 
