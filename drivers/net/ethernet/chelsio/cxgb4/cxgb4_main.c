@@ -957,6 +957,28 @@ static void enable_rx(struct adapter *adap)
 	}
 }
 
+static int alloc_ofld_rxqs(struct adapter *adap, struct sge_ofld_rxq *q,
+			   unsigned int nq, unsigned int per_chan, int msi_idx,
+			   u16 *ids)
+{
+	int i, err;
+
+	for (i = 0; i < nq; i++, q++) {
+		if (msi_idx > 0)
+			msi_idx++;
+		err = t4_sge_alloc_rxq(adap, &q->rspq, false,
+				       adap->port[i / per_chan],
+				       msi_idx, q->fl.size ? &q->fl : NULL,
+				       uldrx_handler);
+		if (err)
+			return err;
+		memset(&q->stats, 0, sizeof(q->stats));
+		if (ids)
+			ids[i] = q->rspq.abs_id;
+	}
+	return 0;
+}
+
 /**
  *	setup_sge_queues - configure SGE Tx/Rx/response queues
  *	@adap: the adapter
@@ -1018,51 +1040,27 @@ freeout:	t4_free_sge_resources(adap);
 
 	j = s->ofldqsets / adap->params.nports; /* ofld queues per channel */
 	for_each_ofldrxq(s, i) {
-		struct sge_ofld_rxq *q = &s->ofldrxq[i];
-		struct net_device *dev = adap->port[i / j];
-
-		if (msi_idx > 0)
-			msi_idx++;
-		err = t4_sge_alloc_rxq(adap, &q->rspq, false, dev, msi_idx,
-				       q->fl.size ? &q->fl : NULL,
-				       uldrx_handler);
-		if (err)
-			goto freeout;
-		memset(&q->stats, 0, sizeof(q->stats));
-		s->ofld_rxq[i] = q->rspq.abs_id;
-		err = t4_sge_alloc_ofld_txq(adap, &s->ofldtxq[i], dev,
+		err = t4_sge_alloc_ofld_txq(adap, &s->ofldtxq[i],
+					    adap->port[i / j],
 					    s->fw_evtq.cntxt_id);
 		if (err)
 			goto freeout;
 	}
 
-	for_each_rdmarxq(s, i) {
-		struct sge_ofld_rxq *q = &s->rdmarxq[i];
+#define ALLOC_OFLD_RXQS(firstq, nq, per_chan, ids) do { \
+	err = alloc_ofld_rxqs(adap, firstq, nq, per_chan, msi_idx, ids); \
+	if (err) \
+		goto freeout; \
+	if (msi_idx > 0) \
+		msi_idx += nq; \
+} while (0)
 
-		if (msi_idx > 0)
-			msi_idx++;
-		err = t4_sge_alloc_rxq(adap, &q->rspq, false, adap->port[i],
-				       msi_idx, q->fl.size ? &q->fl : NULL,
-				       uldrx_handler);
-		if (err)
-			goto freeout;
-		memset(&q->stats, 0, sizeof(q->stats));
-		s->rdma_rxq[i] = q->rspq.abs_id;
-	}
+	ALLOC_OFLD_RXQS(s->ofldrxq, s->ofldqsets, j, s->ofld_rxq);
+	ALLOC_OFLD_RXQS(s->rdmarxq, s->rdmaqs, 1, s->rdma_rxq);
+	j = s->rdmaciqs / adap->params.nports; /* rdmaq queues per channel */
+	ALLOC_OFLD_RXQS(s->rdmaciq, s->rdmaciqs, j, s->rdma_ciq);
 
-	for_each_rdmaciq(s, i) {
-		struct sge_ofld_rxq *q = &s->rdmaciq[i];
-
-		if (msi_idx > 0)
-			msi_idx++;
-		err = t4_sge_alloc_rxq(adap, &q->rspq, false, adap->port[i],
-				       msi_idx, q->fl.size ? &q->fl : NULL,
-				       uldrx_handler);
-		if (err)
-			goto freeout;
-		memset(&q->stats, 0, sizeof(q->stats));
-		s->rdma_ciq[i] = q->rspq.abs_id;
-	}
+#undef ALLOC_OFLD_RXQS
 
 	for_each_port(adap, i) {
 		/*
@@ -5705,7 +5703,16 @@ static void cfg_queues(struct adapter *adap)
 			s->ofldqsets = adap->params.nports;
 		/* For RDMA one Rx queue per channel suffices */
 		s->rdmaqs = adap->params.nports;
-		s->rdmaciqs = adap->params.nports;
+		/* Try and allow at least 1 CIQ per cpu rounding down
+		 * to the number of ports, with a minimum of 1 per port.
+		 * A 2 port card in a 6 cpu system: 6 CIQs, 3 / port.
+		 * A 4 port card in a 6 cpu system: 4 CIQs, 1 / port.
+		 * A 4 port card in a 2 cpu system: 4 CIQs, 1 / port.
+		 */
+		s->rdmaciqs = min_t(int, MAX_RDMA_CIQS, num_online_cpus());
+		s->rdmaciqs = (s->rdmaciqs / adap->params.nports) *
+				adap->params.nports;
+		s->rdmaciqs = max_t(int, s->rdmaciqs, adap->params.nports);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
@@ -5791,12 +5798,17 @@ static void reduce_ethqs(struct adapter *adap, int n)
 static int enable_msix(struct adapter *adap)
 {
 	int ofld_need = 0;
-	int i, want, need;
+	int i, want, need, allocated;
 	struct sge *s = &adap->sge;
 	unsigned int nchan = adap->params.nports;
-	struct msix_entry entries[MAX_INGQ + 1];
+	struct msix_entry *entries;
 
-	for (i = 0; i < ARRAY_SIZE(entries); ++i)
+	entries = kmalloc(sizeof(*entries) * (MAX_INGQ + 1),
+			  GFP_KERNEL);
+	if (!entries)
+		return -ENOMEM;
+
+	for (i = 0; i < MAX_INGQ + 1; ++i)
 		entries[i].entry = i;
 
 	want = s->max_ethqsets + EXTRA_VECS;
@@ -5813,29 +5825,39 @@ static int enable_msix(struct adapter *adap)
 #else
 	need = adap->params.nports + EXTRA_VECS + ofld_need;
 #endif
-	want = pci_enable_msix_range(adap->pdev, entries, need, want);
-	if (want < 0)
-		return want;
+	allocated = pci_enable_msix_range(adap->pdev, entries, need, want);
+	if (allocated < 0) {
+		dev_info(adap->pdev_dev, "not enough MSI-X vectors left,"
+			 " not using MSI-X\n");
+		kfree(entries);
+		return allocated;
+	}
 
-	/*
-	 * Distribute available vectors to the various queue groups.
+	/* Distribute available vectors to the various queue groups.
 	 * Every group gets its minimum requirement and NIC gets top
 	 * priority for leftovers.
 	 */
-	i = want - EXTRA_VECS - ofld_need;
+	i = allocated - EXTRA_VECS - ofld_need;
 	if (i < s->max_ethqsets) {
 		s->max_ethqsets = i;
 		if (i < s->ethqsets)
 			reduce_ethqs(adap, i);
 	}
 	if (is_offload(adap)) {
-		i = want - EXTRA_VECS - s->max_ethqsets;
-		i -= ofld_need - nchan;
+		if (allocated < want) {
+			s->rdmaqs = nchan;
+			s->rdmaciqs = nchan;
+		}
+
+		/* leftovers go to OFLD */
+		i = allocated - EXTRA_VECS - s->max_ethqsets -
+		    s->rdmaqs - s->rdmaciqs;
 		s->ofldqsets = (i / nchan) * nchan;  /* round down */
 	}
-	for (i = 0; i < want; ++i)
+	for (i = 0; i < allocated; ++i)
 		adap->msix_info[i].vec = entries[i].vector;
 
+	kfree(entries);
 	return 0;
 }
 
