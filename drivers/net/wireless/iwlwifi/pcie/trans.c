@@ -719,10 +719,10 @@ static int iwl_pcie_rsa_race_bug_wa(struct iwl_trans *trans)
 	return -EIO;
 }
 
-static int iwl_pcie_load_cpu_sections_8000b(struct iwl_trans *trans,
-					    const struct fw_img *image,
-					    int cpu,
-					    int *first_ucode_section)
+static int iwl_pcie_load_cpu_sections_8000(struct iwl_trans *trans,
+					   const struct fw_img *image,
+					   int cpu,
+					   int *first_ucode_section)
 {
 	int shift_param;
 	int i, ret = 0, sec_num = 0x1;
@@ -917,16 +917,13 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	}
 
 	/* release CPU reset */
-	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
-		iwl_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
-	else
-		iwl_write32(trans, CSR_RESET, 0);
+	iwl_write32(trans, CSR_RESET, 0);
 
 	return 0;
 }
 
-static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
-					   const struct fw_img *image)
+static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
+					  const struct fw_img *image)
 {
 	int ret = 0;
 	int first_ucode_section;
@@ -947,14 +944,14 @@ static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
 	iwl_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
 
 	/* load to FW the binary Secured sections of CPU1 */
-	ret = iwl_pcie_load_cpu_sections_8000b(trans, image, 1,
-					       &first_ucode_section);
+	ret = iwl_pcie_load_cpu_sections_8000(trans, image, 1,
+					      &first_ucode_section);
 	if (ret)
 		return ret;
 
 	/* load to FW the binary sections of CPU2 */
-	ret = iwl_pcie_load_cpu_sections_8000b(trans, image, 2,
-					       &first_ucode_section);
+	ret = iwl_pcie_load_cpu_sections_8000(trans, image, 2,
+					      &first_ucode_section);
 	if (ret)
 		return ret;
 
@@ -1007,9 +1004,8 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Load the given image to the HW */
-	if ((trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) &&
-	    (CSR_HW_REV_STEP(trans->hw_rev) != SILICON_A_STEP))
-		return iwl_pcie_load_given_ucode_8000b(trans, fw);
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		return iwl_pcie_load_given_ucode_8000(trans, fw);
 	else
 		return iwl_pcie_load_given_ucode(trans, fw);
 }

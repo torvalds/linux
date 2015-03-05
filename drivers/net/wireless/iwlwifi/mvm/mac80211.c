@@ -1025,16 +1025,6 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* W/A for 8000 HW family A-step */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-	    CSR_HW_REV_STEP(mvm->trans->hw_rev) == SILICON_A_STEP) {
-		if (smem_len)
-			smem_len = 0x38000;
-
-		if (sram2_len)
-			sram2_len = 0x10000;
-	}
-
 	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
 		return;

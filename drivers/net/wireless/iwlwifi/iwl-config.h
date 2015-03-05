@@ -304,7 +304,6 @@ struct iwl_cfg {
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	bool no_power_up_nic_in_init;
 	const char *default_nvm_file;
-	const char *default_nvm_file_8000A;
 	unsigned int max_rx_agg_size;
 	bool disable_dummy_notification;
 	unsigned int max_tx_agg_size;
