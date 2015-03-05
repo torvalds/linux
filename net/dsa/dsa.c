@@ -583,7 +583,7 @@ static int dsa_of_probe(struct device *dev)
 
 	mdio_bus = of_mdio_find_bus(mdio);
 	if (!mdio_bus)
-		return -EINVAL;
+		return -EPROBE_DEFER;
 
 	ethernet = of_parse_phandle(np, "dsa,ethernet", 0);
 	if (!ethernet)
@@ -591,7 +591,7 @@ static int dsa_of_probe(struct device *dev)
 
 	ethernet_dev = of_find_device_by_node(ethernet);
 	if (!ethernet_dev)
-		return -ENODEV;
+		return -EPROBE_DEFER;
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
@@ -718,7 +718,7 @@ static int dsa_probe(struct platform_device *pdev)
 
 	dev = dev_to_net_device(pd->netdev);
 	if (dev == NULL) {
-		ret = -EINVAL;
+		ret = -EPROBE_DEFER;
 		goto out;
 	}
 
