@@ -3383,7 +3383,6 @@ fec_drv_remove(struct platform_device *pdev)
 		regulator_disable(fep->reg_phy);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
-	fec_enet_clk_enable(ndev, false);
 	of_node_put(fep->phy_node);
 	free_netdev(ndev);
 
