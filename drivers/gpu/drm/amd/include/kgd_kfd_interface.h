@@ -144,6 +144,8 @@ struct kfd2kgd_calls {
 	int (*init_pipeline)(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr);
 
+	int (*init_interrupts)(struct kgd_dev *kgd, uint32_t pipe_id);
+
 	int (*hqd_load)(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
 

@@ -66,7 +66,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 
 static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr);
-
+static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id);
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr);
 static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd);
@@ -89,6 +89,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
 	.init_pipeline = kgd_init_pipeline,
+	.init_interrupts = kgd_init_interrupts,
 	.hqd_load = kgd_hqd_load,
 	.hqd_sdma_load = kgd_hqd_sdma_load,
 	.hqd_is_occupied = kgd_hqd_is_occupied,
@@ -402,6 +403,24 @@ static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 			upper_32_bits(hpd_gpu_addr >> 8));
 	write_register(kgd, CP_HPD_EOP_VMID, 0);
 	write_register(kgd, CP_HPD_EOP_CONTROL, hpd_size);
+	unlock_srbm(kgd);
+
+	return 0;
+}
+
+static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
+{
+	uint32_t mec;
+	uint32_t pipe;
+
+	mec = (pipe_id / CIK_PIPE_PER_MEC) + 1;
+	pipe = (pipe_id % CIK_PIPE_PER_MEC);
+
+	lock_srbm(kgd, mec, pipe, 0, 0);
+
+	write_register(kgd, CPC_INT_CNTL,
+			TIME_STAMP_INT_ENABLE | OPCODE_ERROR_INT_ENABLE);
+
 	unlock_srbm(kgd);
 
 	return 0;
