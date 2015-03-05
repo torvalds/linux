@@ -1508,8 +1508,9 @@ static int cb_pcidas_auto_attach(struct comedi_device *dev,
 			dac08_write(dev, s->maxdata / 2);
 			s->readback[i] = s->maxdata / 2;
 		}
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  make sure mailbox 4 is empty */
 	inl(devpriv->s5933_config + AMCC_OP_REG_IMB4);

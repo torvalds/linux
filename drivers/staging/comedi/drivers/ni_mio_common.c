@@ -1700,8 +1700,9 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 			mite_prep_dma(devpriv->ao_mite_chan, 16, 32);
 		}
 		mite_dma_arm(devpriv->ao_mite_chan);
-	} else
+	} else {
 		retval = -EIO;
+	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
 	return retval;
@@ -4961,8 +4962,9 @@ static int ni_set_master_clock(struct comedi_device *dev,
 				}
 				devpriv->clock_ns = period_ns;
 				devpriv->clock_source = source;
-			} else
+			} else {
 				return -EINVAL;
+			}
 		}
 	}
 	return 3;

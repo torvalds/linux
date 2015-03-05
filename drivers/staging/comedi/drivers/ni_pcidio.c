@@ -354,8 +354,9 @@ static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->di_mite_chan) {
 		mite_prep_dma(devpriv->di_mite_chan, 32, 32);
 		mite_dma_arm(devpriv->di_mite_chan);
-	} else
+	} else {
 		retval = -EIO;
+	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
 	return retval;

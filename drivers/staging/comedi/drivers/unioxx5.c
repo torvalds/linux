@@ -411,8 +411,9 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 		if (ndef_flag) {
 			usp->usp_module_type[i] = 0;
 			ndef_flag = 0;
-		} else
+		} else {
 			usp->usp_module_type[i] = inb(iobase + 6);
+		}
 
 		udelay(1);
 	}

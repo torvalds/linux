@@ -2630,8 +2630,9 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		bits |= ADC_START_TRIG_EXT_BITS;
 		if (cmd->start_arg & CR_INVERT)
 			bits |= ADC_START_TRIG_FALLING_BIT;
-	} else if (cmd->start_src == TRIG_NOW)
+	} else if (cmd->start_src == TRIG_NOW) {
 		bits |= ADC_START_TRIG_SOFT_BITS;
+	}
 	if (use_hw_sample_counter(cmd))
 		bits |= ADC_SAMPLE_COUNTER_EN_BIT;
 	writew(bits, devpriv->main_iobase + ADC_CONTROL0_REG);
@@ -2820,8 +2821,9 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 		if (devpriv->ai_cmd_running) {
 			spin_unlock_irqrestore(&dev->spinlock, flags);
 			pio_drain_ai_fifo(dev);
-		} else
+		} else {
 			spin_unlock_irqrestore(&dev->spinlock, flags);
+		}
 	}
 	/*  if we are have all the data, then quit */
 	if ((cmd->stop_src == TRIG_COUNT &&
@@ -3810,8 +3812,9 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = di_rbits;
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  digital output */
 	if (thisboard->layout == LAYOUT_64XX) {
@@ -3822,8 +3825,9 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->maxdata = 1;
 		s->range_table = &range_digital;
 		s->insn_bits = do_wbits;
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/* 8255 */
 	s = &dev->subdevices[4];
@@ -3851,8 +3855,9 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->range_table = &range_digital;
 		s->insn_config = dio_60xx_config_insn;
 		s->insn_bits = dio_60xx_wbits;
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  caldac */
 	s = &dev->subdevices[6];
@@ -3891,8 +3896,9 @@ static int setup_subdevices(struct comedi_device *dev)
 			ad8402_write(dev, i, s->maxdata / 2);
 			s->readback[i] = s->maxdata / 2;
 		}
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/* serial EEPROM, if present */
 	s = &dev->subdevices[8];
@@ -3902,8 +3908,9 @@ static int setup_subdevices(struct comedi_device *dev)
 		s->n_chan = 128;
 		s->maxdata = 0xffff;
 		s->insn_read = eeprom_read_insn;
-	} else
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  user counter subd XXX */
 	s = &dev->subdevices[9];
