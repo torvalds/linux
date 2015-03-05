@@ -62,13 +62,6 @@ static const struct drm_encoder_funcs omap_encoder_funcs = {
 	.destroy = omap_encoder_destroy,
 };
 
-static bool omap_encoder_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void omap_encoder_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -117,11 +110,18 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 {
 }
 
+static int omap_encoder_atomic_check(struct drm_encoder *encoder,
+				     struct drm_crtc_state *crtc_state,
+				     struct drm_connector_state *conn_state)
+{
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
-	.mode_fixup = omap_encoder_mode_fixup,
 	.mode_set = omap_encoder_mode_set,
 	.disable = omap_encoder_disable,
 	.enable = omap_encoder_enable,
+	.atomic_check = omap_encoder_atomic_check,
 };
 
 /*
