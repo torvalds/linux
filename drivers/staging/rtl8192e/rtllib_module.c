@@ -72,11 +72,8 @@ static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 	ieee->networks = kzalloc(
 		MAX_NETWORK_COUNT * sizeof(struct rtllib_network),
 		GFP_KERNEL);
-	if (!ieee->networks) {
-		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
-		       ieee->dev->name);
+	if (!ieee->networks)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -161,10 +158,9 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	rtllib_softmac_init(ieee);
 
 	ieee->pHTInfo = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
-	if (ieee->pHTInfo == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc memory for HTInfo\n");
+	if (ieee->pHTInfo == NULL)
 		return NULL;
-	}
+
 	HTUpdateDefaultSetting(ieee);
 	HTInitializeHTInfo(ieee);
 	TSInitialize(ieee);

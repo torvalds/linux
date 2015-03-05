@@ -394,10 +394,9 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 		}
 		if (p == &ieee->ibss_mac_hash[index]) {
 			entry = kmalloc(sizeof(struct ieee_ibss_seq), GFP_ATOMIC);
-			if (!entry) {
-				printk(KERN_WARNING "Cannot malloc new mac entry\n");
+			if (!entry)
 				return 0;
-			}
+
 			memcpy(entry->mac, mac, ETH_ALEN);
 			entry->seq_num[tid] = seq;
 			entry->frag_num[tid] = frag;
@@ -1345,11 +1344,9 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* skb: hdr + (possible reassembled) full plaintext payload */
 	payload = skb->data + hdrlen;
 	rxb = kmalloc(sizeof(struct rtllib_rxb), GFP_ATOMIC);
-	if (rxb == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "%s(): kmalloc rxb error\n", __func__);
+	if (rxb == NULL)
 		goto rx_dropped;
-	}
+
 	/* to parse amsdu packets */
 	/* qos data packets & reserved bit is 1 */
 	if (parse_subframe(ieee, skb, rx_stats, rxb, src, dst) == 0) {
