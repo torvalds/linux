@@ -1366,8 +1366,10 @@ dm_CheckEdcaTurbo_EXIT:
 	precvpriv->last_rx_bytes = precvpriv->rx_bytes;
 }
 
-u32 GetPSDData(struct dm_odm_t *pDM_Odm, unsigned int point, u8 initial_gain_psd)
+u32 GetPSDData(struct dm_odm_t *pDM_Odm, unsigned int point,
+	       u8 initial_gain_psd)
 {
+	struct rtw_adapter *adapter = pDM_Odm->Adapter;
 	u32 psd_report;
 
 	/* Set DCO frequency index, offset = (40MHz/SamplePts)*point */
@@ -1379,7 +1381,7 @@ u32 GetPSDData(struct dm_odm_t *pDM_Odm, unsigned int point, u8 initial_gain_psd
 	udelay(30);
 	ODM_SetBBReg(pDM_Odm, 0x808, BIT(22), 0);
 	/* Read PSD report, Reg8B4[15:0] */
-	psd_report = ODM_GetBBReg(pDM_Odm, 0x8B4, bMaskDWord) & 0x0000FFFF;
+	psd_report = rtl8723au_read32(adapter, 0x8B4) & 0x0000FFFF;
 
 	psd_report = (u32)(ConvertTo_dB23a(psd_report)) +
 		(u32)(initial_gain_psd-0x1c);
@@ -1436,7 +1438,7 @@ static void odm_PHY_SaveAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
 	u32 i;
 
 	for (i = 0 ; i < RegisterNum ; i++)
-		AFEBackup[i] = ODM_GetBBReg(pDM_Odm, AFEReg[i], bMaskDWord);
+		AFEBackup[i] = rtl8723au_read32(pDM_Odm->Adapter, AFEReg[i]);
 }
 
 static void odm_PHY_ReloadAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
@@ -1445,7 +1447,7 @@ static void odm_PHY_ReloadAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
 	u32 i;
 
 	for (i = 0 ; i < RegiesterNum; i++)
-		ODM_SetBBReg(pDM_Odm, AFEReg[i], bMaskDWord, AFEBackup[i]);
+		rtl8723au_write32(pDM_Odm->Adapter, AFEReg[i], AFEBackup[i]);
 }
 
 /* 2 8723A ANT DETECT */
@@ -1455,6 +1457,7 @@ static void odm_PHY_ReloadAFERegisters(struct dm_odm_t *pDM_Odm, u32 *AFEReg,
 bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 {
 	struct sw_ant_sw *pDM_SWAT_Table = &pDM_Odm->DM_SWAT_Table;
+	struct rtw_adapter *adapter = pDM_Odm->Adapter;
 	u32 CurrentChannel, RfLoopReg;
 	u8 n;
 	u32 Reg88c, Regc08, Reg874, Regc50;
@@ -1490,10 +1493,10 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 	udelay(10);
 
 	/* Store A Path Register 88c, c08, 874, c50 */
-	Reg88c = ODM_GetBBReg(pDM_Odm, rFPGA0_AnalogParameter4, bMaskDWord);
-	Regc08 = ODM_GetBBReg(pDM_Odm, rOFDM0_TRMuxPar, bMaskDWord);
-	Reg874 = ODM_GetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord);
-	Regc50 = ODM_GetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, bMaskDWord);
+	Reg88c = rtl8723au_read32(adapter, rFPGA0_AnalogParameter4);
+	Regc08 = rtl8723au_read32(adapter, rOFDM0_TRMuxPar);
+	Reg874 = rtl8723au_read32(adapter, rFPGA0_XCD_RFInterfaceSW);
+	Regc50 = rtl8723au_read32(adapter, rOFDM0_XAAGCCore1);
 
 	/*  Store AFE Registers */
 	odm_PHY_SaveAFERegisters(pDM_Odm, AFE_REG_8723A, AFE_Backup, 16);
@@ -1505,49 +1508,49 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, ODM_CHANNEL, bRFRegOffsetMask, 0x01);
 
 	/*  AFE all on step */
-	ODM_SetBBReg(pDM_Odm, rRx_Wait_CCA, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_CCK_RFON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_CCK_BBON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_OFDM_RFON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_OFDM_BBON, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_To_Rx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rTx_To_Tx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_CCK, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_OFDM, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_Wait_RIFS, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rRx_TO_Rx, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rStandby, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rSleep, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rPMPD_ANAEN, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_SwitchControl, bMaskDWord, 0x6FDB25A4);
-	ODM_SetBBReg(pDM_Odm, rBlue_Tooth, bMaskDWord, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_Wait_CCA, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_CCK_RFON, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_CCK_BBON, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_OFDM_RFON, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_OFDM_BBON, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_To_Rx, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rTx_To_Tx, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_CCK, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_OFDM, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_Wait_RIFS, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rRx_TO_Rx, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rStandby, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rSleep, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rPMPD_ANAEN, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rFPGA0_XCD_SwitchControl, 0x6FDB25A4);
+	rtl8723au_write32(adapter, rBlue_Tooth, 0x6FDB25A4);
 
 	/*  3 wire Disable */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_AnalogParameter4, bMaskDWord, 0xCCF000C0);
+	rtl8723au_write32(adapter, rFPGA0_AnalogParameter4, 0xCCF000C0);
 
 	/* BB IQK Setting */
-	ODM_SetBBReg(pDM_Odm, rOFDM0_TRMuxPar, bMaskDWord, 0x000800E4);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, 0x22208000);
+	rtl8723au_write32(adapter, rOFDM0_TRMuxPar, 0x000800E4);
+	rtl8723au_write32(adapter, rFPGA0_XCD_RFInterfaceSW, 0x22208000);
 
 	/* IQK setting tone@ 4.34Mhz */
-	ODM_SetBBReg(pDM_Odm, rTx_IQK_Tone_A, bMaskDWord, 0x10008C1C);
-	ODM_SetBBReg(pDM_Odm, rTx_IQK, bMaskDWord, 0x01007c00);
+	rtl8723au_write32(adapter, rTx_IQK_Tone_A, 0x10008C1C);
+	rtl8723au_write32(adapter, rTx_IQK, 0x01007c00);
 
 	/* Page B init */
-	ODM_SetBBReg(pDM_Odm, rConfig_AntA, bMaskDWord, 0x00080000);
-	ODM_SetBBReg(pDM_Odm, rConfig_AntA, bMaskDWord, 0x0f600000);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK, bMaskDWord, 0x01004800);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK_Tone_A, bMaskDWord, 0x10008c1f);
-	ODM_SetBBReg(pDM_Odm, rTx_IQK_PI_A, bMaskDWord, 0x82150008);
-	ODM_SetBBReg(pDM_Odm, rRx_IQK_PI_A, bMaskDWord, 0x28150008);
-	ODM_SetBBReg(pDM_Odm, rIQK_AGC_Rsp, bMaskDWord, 0x001028d0);
+	rtl8723au_write32(adapter, rConfig_AntA, 0x00080000);
+	rtl8723au_write32(adapter, rConfig_AntA, 0x0f600000);
+	rtl8723au_write32(adapter, rRx_IQK, 0x01004800);
+	rtl8723au_write32(adapter, rRx_IQK_Tone_A, 0x10008c1f);
+	rtl8723au_write32(adapter, rTx_IQK_PI_A, 0x82150008);
+	rtl8723au_write32(adapter, rRx_IQK_PI_A, 0x28150008);
+	rtl8723au_write32(adapter, rIQK_AGC_Rsp, 0x001028d0);
 
 	/* RF loop Setting */
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x0, 0xFFFFF, 0x50008);
 
 	/* IQK Single tone start */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_IQK, bMaskDWord, 0x80800000);
-	ODM_SetBBReg(pDM_Odm, rIQK_AGC_Pts, bMaskDWord, 0xf8000000);
+	rtl8723au_write32(adapter, rFPGA0_IQK, 0x80800000);
+	rtl8723au_write32(adapter, rIQK_AGC_Pts, 0xf8000000);
 	udelay(1000);
 	PSD_report_tmp = 0x0;
 
@@ -1580,16 +1583,16 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 	}
 
 	/* Close IQK Single Tone function */
-	ODM_SetBBReg(pDM_Odm, rFPGA0_IQK, bMaskDWord, 0x00000000);
+	rtl8723au_write32(adapter, rFPGA0_IQK, 0x00000000);
 	PSD_report_tmp = 0x0;
 
 	/* 1 Return to antanna A */
 	ODM_SetBBReg(pDM_Odm, rFPGA0_XA_RFInterfaceOE, 0x300, Antenna_A);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_AnalogParameter4, bMaskDWord, Reg88c);
-	ODM_SetBBReg(pDM_Odm, rOFDM0_TRMuxPar, bMaskDWord, Regc08);
-	ODM_SetBBReg(pDM_Odm, rFPGA0_XCD_RFInterfaceSW, bMaskDWord, Reg874);
+	rtl8723au_write32(adapter, rFPGA0_AnalogParameter4, Reg88c);
+	rtl8723au_write32(adapter, rOFDM0_TRMuxPar, Regc08);
+	rtl8723au_write32(adapter, rFPGA0_XCD_RFInterfaceSW, Reg874);
 	ODM_SetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, 0x7F, 0x40);
-	ODM_SetBBReg(pDM_Odm, rOFDM0_XAAGCCore1, bMaskDWord, Regc50);
+	rtl8723au_write32(adapter, rOFDM0_XAAGCCore1, Regc50);
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask,
 		     CurrentChannel);
 	ODM_SetRFReg(pDM_Odm, RF_PATH_A, 0x00, bRFRegOffsetMask, RfLoopReg);
