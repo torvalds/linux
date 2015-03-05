@@ -362,7 +362,7 @@ static int bmips_cpu_disable(void)
 	pr_info("SMP: CPU%d is offline\n", cpu);
 
 	set_cpu_online(cpu, false);
-	cpu_clear(cpu, cpu_callin_map);
+	cpumask_clear_cpu(cpu, &cpu_callin_map);
 	clear_c0_status(IE_IRQ5);
 
 	local_flush_tlb_all();

@@ -75,30 +75,30 @@ static inline void set_cpu_sibling_map(int cpu)
 {
 	int i;
 
-	cpu_set(cpu, cpu_sibling_setup_map);
+	cpumask_set_cpu(cpu, &cpu_sibling_setup_map);
 
 	if (smp_num_siblings > 1) {
-		for_each_cpu_mask(i, cpu_sibling_setup_map) {
+		for_each_cpu(i, &cpu_sibling_setup_map) {
 			if (cpu_data[cpu].package == cpu_data[i].package &&
 				    cpu_data[cpu].core == cpu_data[i].core) {
-				cpu_set(i, cpu_sibling_map[cpu]);
-				cpu_set(cpu, cpu_sibling_map[i]);
+				cpumask_set_cpu(i, &cpu_sibling_map[cpu]);
+				cpumask_set_cpu(cpu, &cpu_sibling_map[i]);
 			}
 		}
 	} else
-		cpu_set(cpu, cpu_sibling_map[cpu]);
+		cpumask_set_cpu(cpu, &cpu_sibling_map[cpu]);
 }
 
 static inline void set_cpu_core_map(int cpu)
 {
 	int i;
 
-	cpu_set(cpu, cpu_core_setup_map);
+	cpumask_set_cpu(cpu, &cpu_core_setup_map);
 
-	for_each_cpu_mask(i, cpu_core_setup_map) {
+	for_each_cpu(i, &cpu_core_setup_map) {
 		if (cpu_data[cpu].package == cpu_data[i].package) {
-			cpu_set(i, cpu_core_map[cpu]);
-			cpu_set(cpu, cpu_core_map[i]);
+			cpumask_set_cpu(i, &cpu_core_map[cpu]);
+			cpumask_set_cpu(cpu, &cpu_core_map[i]);
 		}
 	}
 }
@@ -138,7 +138,7 @@ asmlinkage void start_secondary(void)
 	cpu = smp_processor_id();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 
-	cpu_set(cpu, cpu_coherent_mask);
+	cpumask_set_cpu(cpu, &cpu_coherent_mask);
 	notify_cpu_starting(cpu);
 
 	set_cpu_online(cpu, true);
@@ -146,7 +146,7 @@ asmlinkage void start_secondary(void)
 	set_cpu_sibling_map(cpu);
 	set_cpu_core_map(cpu);
 
-	cpu_set(cpu, cpu_callin_map);
+	cpumask_set_cpu(cpu, &cpu_callin_map);
 
 	synchronise_count_slave(cpu);
 
@@ -210,7 +210,7 @@ void smp_prepare_boot_cpu(void)
 {
 	set_cpu_possible(0, true);
 	set_cpu_online(0, true);
-	cpu_set(0, cpu_callin_map);
+	cpumask_set_cpu(0, &cpu_callin_map);
 }
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
@@ -220,7 +220,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	/*
 	 * Trust is futile.  We should really have timeouts ...
 	 */
-	while (!cpu_isset(cpu, cpu_callin_map))
+	while (!cpumask_test_cpu(cpu, &cpu_callin_map))
 		udelay(100);
 
 	synchronise_count_master(cpu);
