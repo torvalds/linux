@@ -784,8 +784,17 @@ static void skl_ddi_clock_get(struct intel_encoder *encoder,
 		case DPLL_CRTL1_LINK_RATE_810:
 			link_clock = 81000;
 			break;
+		case DPLL_CRTL1_LINK_RATE_1080:
+			link_clock = 108000;
+			break;
 		case DPLL_CRTL1_LINK_RATE_1350:
 			link_clock = 135000;
+			break;
+		case DPLL_CRTL1_LINK_RATE_1620:
+			link_clock = 162000;
+			break;
+		case DPLL_CRTL1_LINK_RATE_2160:
+			link_clock = 216000;
 			break;
 		case DPLL_CRTL1_LINK_RATE_2700:
 			link_clock = 270000;
