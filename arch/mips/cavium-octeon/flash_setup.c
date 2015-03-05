@@ -8,10 +8,11 @@
  * Copyright (C) 2007, 2008 Cavium Networks
  */
 #include <linux/kernel.h>
-#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/semaphore.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
+#include <linux/of_platform.h>
 #include <linux/mtd/partitions.h>
 
 #include <asm/octeon/octeon.h>
@@ -66,14 +67,22 @@ static void octeon_flash_map_copy_to(struct map_info *map, unsigned long to,
  *
  * Returns Zero on success
  */
-static int __init flash_init(void)
+static int octeon_flash_probe(struct platform_device *pdev)
 {
+	union cvmx_mio_boot_reg_cfgx region_cfg;
+	u32 cs;
+	int r;
+	struct device_node *np = pdev->dev.of_node;
+
+	r = of_property_read_u32(np, "reg", &cs);
+	if (r)
+		return r;
+
 	/*
 	 * Read the bootbus region 0 setup to determine the base
 	 * address of the flash.
 	 */
-	union cvmx_mio_boot_reg_cfgx region_cfg;
-	region_cfg.u64 = cvmx_read_csr(CVMX_MIO_BOOT_REG_CFGX(0));
+	region_cfg.u64 = cvmx_read_csr(CVMX_MIO_BOOT_REG_CFGX(cs));
 	if (region_cfg.s.en) {
 		/*
 		 * The bootloader always takes the flash and sets its
@@ -109,4 +118,27 @@ static int __init flash_init(void)
 	return 0;
 }
 
-late_initcall(flash_init);
+static const struct of_device_id of_flash_match[] = {
+	{
+		.compatible	= "cfi-flash",
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_flash_match);
+
+static struct platform_driver of_flash_driver = {
+	.driver = {
+		.name = "octeon-of-flash",
+		.owner = THIS_MODULE,
+		.of_match_table = of_flash_match,
+	},
+	.probe		= octeon_flash_probe,
+};
+
+static int octeon_flash_init(void)
+{
+	return platform_driver_register(&of_flash_driver);
+}
+late_initcall(octeon_flash_init);
+
+MODULE_LICENSE("GPL");
