@@ -17,6 +17,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_atomic_helper.h>
+
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"
 
@@ -287,8 +289,11 @@ int omap_plane_set_property(struct drm_plane *plane,
 static const struct drm_plane_funcs omap_plane_funcs = {
 	.update_plane = omap_plane_update,
 	.disable_plane = omap_plane_disable,
+	.reset = drm_atomic_helper_plane_reset,
 	.destroy = omap_plane_destroy,
 	.set_property = omap_plane_set_property,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
 static void omap_plane_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)

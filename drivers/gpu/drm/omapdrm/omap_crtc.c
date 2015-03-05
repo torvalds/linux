@@ -19,6 +19,8 @@
 
 #include <linux/completion.h>
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_mode.h>
@@ -742,6 +744,7 @@ static int omap_crtc_page_flip(struct drm_crtc *crtc,
 	omap_crtc->flip_event = event;
 	omap_crtc->flip_state = OMAP_PAGE_FLIP_WAIT;
 
+	drm_atomic_set_fb_for_plane(primary->state, fb);
 	primary->fb = fb;
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -771,10 +774,13 @@ static int omap_crtc_set_property(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_funcs omap_crtc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = omap_crtc_destroy,
 	.page_flip = omap_crtc_page_flip,
 	.set_property = omap_crtc_set_property,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {

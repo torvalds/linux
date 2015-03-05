@@ -350,6 +350,8 @@ static int omap_modeset_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &omap_mode_config_funcs;
 
+	drm_mode_config_reset(dev);
+
 	return 0;
 }
 
