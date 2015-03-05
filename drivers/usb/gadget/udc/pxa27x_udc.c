@@ -2422,7 +2422,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		}
 		udc->udc_command = mach->udc_command;
 	} else {
-		udc->gpiod = devm_gpiod_get(&pdev->dev, NULL);
+		udc->gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_ASIS);
 	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
