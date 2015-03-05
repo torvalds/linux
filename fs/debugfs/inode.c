@@ -521,7 +521,7 @@ static int __debugfs_remove(struct dentry *dentry, struct dentry *parent)
 
 	if (debugfs_positive(dentry)) {
 		dget(dentry);
-		if (S_ISDIR(dentry->d_inode->i_mode))
+		if (d_is_dir(dentry))
 			ret = simple_rmdir(parent->d_inode, dentry);
 		else
 			simple_unlink(parent->d_inode, dentry);
