@@ -161,7 +161,6 @@ int bind_irq_vector(int irq, int vector, cpumask_t domain)
 static void __clear_irq_vector(int irq)
 {
 	int vector, cpu;
-	cpumask_t mask;
 	cpumask_t domain;
 	struct irq_cfg *cfg = &irq_cfg[irq];
 
@@ -169,8 +168,7 @@ static void __clear_irq_vector(int irq)
 	BUG_ON(cfg->vector == IRQ_VECTOR_UNASSIGNED);
 	vector = cfg->vector;
 	domain = cfg->domain;
-	cpumask_and(&mask, &cfg->domain, cpu_online_mask);
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu_and(cpu, &cfg->domain, cpu_online_mask)
 		per_cpu(vector_irq, cpu)[vector] = -1;
 	cfg->vector = IRQ_VECTOR_UNASSIGNED;
 	cfg->domain = CPU_MASK_NONE;
