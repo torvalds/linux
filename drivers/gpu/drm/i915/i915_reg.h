@@ -1029,6 +1029,7 @@ enum skl_disp_power_wells {
 #define  DPIO_CHV_FIRST_MOD		(0 << 8)
 #define  DPIO_CHV_SECOND_MOD		(1 << 8)
 #define  DPIO_CHV_FEEDFWD_GAIN_SHIFT	0
+#define  DPIO_CHV_FEEDFWD_GAIN_MASK		(0xF << 0)
 #define CHV_PLL_DW3(ch) _PIPE(ch, _CHV_PLL_DW3_CH0, _CHV_PLL_DW3_CH1)
 
 #define _CHV_PLL_DW6_CH0		0x8018

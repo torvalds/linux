@@ -6161,6 +6161,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
 	u32 loopfilter, intcoeff;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2, bestm2_frac;
+	u32 dpio_val;
 	int refclk;
 
 	bestn = pipe_config->dpll.n;
@@ -6169,6 +6170,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	bestm2 = pipe_config->dpll.m2 >> 22;
 	bestp1 = pipe_config->dpll.p1;
 	bestp2 = pipe_config->dpll.p2;
+	dpio_val = 0;
 
 	/*
 	 * Enable Refclk and SSC
@@ -6194,12 +6196,16 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 			1 << DPIO_CHV_N_DIV_SHIFT);
 
 	/* M2 fraction division */
-	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW2(port), bestm2_frac);
+	if (bestm2_frac)
+		vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW2(port), bestm2_frac);
 
 	/* M2 fraction division enable */
-	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW3(port),
-		       DPIO_CHV_FRAC_DIV_EN |
-		       (2 << DPIO_CHV_FEEDFWD_GAIN_SHIFT));
+	dpio_val = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW3(port));
+	dpio_val &= ~(DPIO_CHV_FEEDFWD_GAIN_MASK | DPIO_CHV_FRAC_DIV_EN);
+	dpio_val |= (2 << DPIO_CHV_FEEDFWD_GAIN_SHIFT);
+	if (bestm2_frac)
+		dpio_val |= DPIO_CHV_FRAC_DIV_EN;
+	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW3(port), dpio_val);
 
 	/* Loop filter */
 	refclk = i9xx_get_refclk(crtc, 0);
