@@ -69,6 +69,7 @@ struct mdp5_cfg_hw {
 	struct mdp5_lm_block  lm;
 	struct mdp5_sub_block dspp;
 	struct mdp5_sub_block ad;
+	struct mdp5_sub_block pp;
 	struct mdp5_sub_block intf;
 
 	u32 intfs[MDP5_INTF_NUM_MAX]; /* array of enum mdp5_intf_type */

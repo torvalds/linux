@@ -58,6 +58,10 @@ const struct mdp5_cfg_hw msm8x74_config = {
 		.count = 2,
 		.base = { 0x13100, 0x13300 }, /* NOTE: no ad in v1.0 */
 	},
+	.pp = {
+		.count = 3,
+		.base = { 0x12d00, 0x12e00, 0x12f00 },
+	},
 	.intf = {
 		.count = 4,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00 },
@@ -110,6 +114,10 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.ad = {
 		.count = 3,
 		.base = { 0x13500, 0x13700, 0x13900 },
+	},
+	.pp = {
+		.count = 4,
+		.base = { 0x12f00, 0x13000, 0x13100, 0x13200 },
 	},
 	.intf = {
 		.count = 5,
