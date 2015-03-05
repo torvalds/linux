@@ -432,11 +432,7 @@ gen8_render_ring_flush(struct intel_engine_cs *ring,
 			return ret;
 	}
 
-	ret = gen8_emit_pipe_control(ring, flags, scratch_addr);
-	if (ret)
-		return ret;
-
-	return 0;
+	return gen8_emit_pipe_control(ring, flags, scratch_addr);
 }
 
 static void ring_write_tail(struct intel_engine_cs *ring,
