@@ -404,26 +404,11 @@ static inline bool d_mountpoint(const struct dentry *dentry)
 /*
  * Directory cache entry type accessor functions.
  */
-static inline void __d_set_type(struct dentry *dentry, unsigned type)
-{
-	dentry->d_flags = (dentry->d_flags & ~DCACHE_ENTRY_TYPE) | type;
-}
-
-static inline void __d_clear_type(struct dentry *dentry)
-{
-	__d_set_type(dentry, DCACHE_MISS_TYPE);
-}
-
-static inline void d_set_type(struct dentry *dentry, unsigned type)
-{
-	spin_lock(&dentry->d_lock);
-	__d_set_type(dentry, type);
-	spin_unlock(&dentry->d_lock);
-}
-
 static inline unsigned __d_entry_type(const struct dentry *dentry)
 {
-	return dentry->d_flags & DCACHE_ENTRY_TYPE;
+	unsigned type = READ_ONCE(dentry->d_flags);
+	smp_rmb();
+	return type & DCACHE_ENTRY_TYPE;
 }
 
 static inline bool d_is_miss(const struct dentry *dentry)
