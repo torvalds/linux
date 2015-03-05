@@ -198,9 +198,7 @@ static void odm_RefreshRateAdaptiveMask(struct dm_odm_t *pDM_Odm);
 
 void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm);
 
-void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm);
-
-void odm_TXPowerTrackingInit23a(struct dm_odm_t *pDM_Odm);
+static void odm_TXPowerTrackingInit(struct dm_odm_t *pDM_Odm);
 
 static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm);
 static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
@@ -234,7 +232,7 @@ void ODM23a_DMInit(struct dm_odm_t *pDM_Odm)
 
 	odm23a_DynBBPSInit(pDM_Odm);
 	odm_DynamicTxPower23aInit(pDM_Odm);
-	odm_TXPowerTrackingInit23a(pDM_Odm);
+	odm_TXPowerTrackingInit(pDM_Odm);
 	ODM_EdcaTurboInit23a(pDM_Odm);
 }
 
@@ -1242,12 +1240,7 @@ static void odm_RSSIMonitorCheck(struct dm_odm_t *pDM_Odm)
 /* 3 Tx Power Tracking */
 /* 3 ============================================================ */
 
-void odm_TXPowerTrackingInit23a(struct dm_odm_t *pDM_Odm)
-{
-	odm_TXPowerTrackingThermalMeterInit23a(pDM_Odm);
-}
-
-void odm_TXPowerTrackingThermalMeterInit23a(struct dm_odm_t *pDM_Odm)
+static void odm_TXPowerTrackingInit(struct dm_odm_t *pDM_Odm)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
