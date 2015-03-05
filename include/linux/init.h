@@ -268,6 +268,21 @@ struct obs_kernel_param {
 #define early_param(str, fn)					\
 	__setup_param(str, fn, fn, 1)
 
+#define early_param_on_off(str_on, str_off, var, config)			\
+	int var = IS_ENABLED(config);				\
+	static int __init parse_##var##_on(char *arg)		\
+	{							\
+		var = 1;					\
+		return 0;					\
+	}							\
+	static int __init parse_##var##_off(char *arg)		\
+	{							\
+		var = 0;					\
+		return 0;					\
+	}							\
+	__setup_param(str_on, parse_##var##_on, parse_##var##_on, 1); \
+	__setup_param(str_off, parse_##var##_off, parse_##var##_off, 1)
+
 /* Relies on boot_command_line being set */
 void __init parse_early_param(void);
 void __init parse_early_options(char *cmdline);
