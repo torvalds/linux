@@ -379,13 +379,18 @@ void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 
 }
 
-void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm
-	)
+void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm)
 {
-	pDM_Odm->bCckHighPower =
-		(bool) ODM_GetBBReg(pDM_Odm, rFPGA0_XA_HSSIParameter2, BIT(9));
+	u32 val32;
+
+	val32 = rtl8723au_read32(pDM_Odm->Adapter, rFPGA0_XA_HSSIParameter2);
+	if (val32 & BIT(9))
+		pDM_Odm->bCckHighPower = true;
+	else
+		pDM_Odm->bCckHighPower = false;
+		
 	pDM_Odm->RFPathRxEnable =
-		(u8) ODM_GetBBReg(pDM_Odm, rOFDM0_TRxPathEnable, 0x0F);
+		rtl8723au_read32(pDM_Odm->Adapter, rOFDM0_TRxPathEnable) & 0x0F;
 
 	ODM_InitDebugSetting23a(pDM_Odm);
 }
@@ -504,10 +509,11 @@ void odm_DIG23abyRSSI_LPS(struct dm_odm_t *pDM_Odm)
 void odm_DIG23aInit(struct dm_odm_t *pDM_Odm)
 {
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
+	u32 val32;
 
-	pDM_DigTable->CurIGValue = (u8) ODM_GetBBReg(pDM_Odm,
-						     ODM_REG(IGI_A, pDM_Odm),
-						     ODM_BIT(IGI, pDM_Odm));
+	val32 = rtl8723au_read32(pDM_Odm->Adapter, ODM_REG_IGI_A_11N);
+	pDM_DigTable->CurIGValue = val32 & ODM_BIT_IGI_11N;
+
 	pDM_DigTable->RssiLowThresh	= DM_DIG_THRESH_LOW;
 	pDM_DigTable->RssiHighThresh	= DM_DIG_THRESH_HIGH;
 	pDM_DigTable->FALowThresh	= DM_FALSEALARM_THRESH_LOW;
@@ -745,10 +751,10 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(12), 1);
 	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(14), 1);
 
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_LSB_11N, bMaskByte0);
+	ret_value = rtl8723au_read32(adapter, ODM_REG_CCK_FA_LSB_11N) & 0xff;
 	FalseAlmCnt->Cnt_Cck_fail = ret_value;
-	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_MSB_11N, bMaskByte3);
-	FalseAlmCnt->Cnt_Cck_fail +=  (ret_value & 0xff) << 8;
+	ret_value = rtl8723au_read32(adapter, ODM_REG_CCK_FA_MSB_11N) >> 16;
+	FalseAlmCnt->Cnt_Cck_fail += (ret_value & 0xff00);
 
 	ret_value = rtl8723au_read32(adapter, ODM_REG_CCK_CCA_CNT_11N);
 	FalseAlmCnt->Cnt_CCK_CCA =

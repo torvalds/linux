@@ -55,7 +55,6 @@ typedef void (*RT_WORKITEM_CALL_BACK)(struct work_struct *pContext);
 /*  */
 
 void ODM_SetBBReg(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 BitMask, u32 Data);
-u32 ODM_GetBBReg(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 BitMask);
 void ODM_SetRFReg(struct dm_odm_t *pDM_Odm, enum RF_RADIO_PATH eRFPath,
 		  u32 RegAddr, u32 BitMask, u32 Data);
 u32 ODM_GetRFReg(struct dm_odm_t *pDM_Odm, enum RF_RADIO_PATH eRFPath,

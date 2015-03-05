@@ -35,17 +35,6 @@ void ODM_SetBBReg(
 	PHY_SetBBReg(Adapter, RegAddr, BitMask, Data);
 }
 
-u32 ODM_GetBBReg(
-	struct dm_odm_t *pDM_Odm,
-	u32		RegAddr,
-	u32		BitMask
-	)
-{
-	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
-
-	return PHY_QueryBBReg(Adapter, RegAddr, BitMask);
-}
-
 void ODM_SetRFReg(
 	struct dm_odm_t *pDM_Odm,
 	enum RF_RADIO_PATH	eRFPath,
