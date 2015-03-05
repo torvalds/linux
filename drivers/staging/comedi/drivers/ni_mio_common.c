@@ -1068,7 +1068,7 @@ static int ni_ai_drain_dma(struct comedi_device *dev)
 			udelay(5);
 		}
 		if (i == timeout) {
-			dev_err(dev->class_dev, "%s timed out\n", __func__);
+			dev_err(dev->class_dev, "timed out\n");
 			dev_err(dev->class_dev,
 				"mite_bytes_in_transit=%i, AI_Status1_Register=0x%x\n",
 				mite_bytes_in_transit(devpriv->ai_mite_chan),
@@ -2116,8 +2116,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				}
 			}
 			if (i == NI_TIMEOUT) {
-				dev_err(dev->class_dev, "%s timeout\n",
-					__func__);
+				dev_err(dev->class_dev, "timeout\n");
 				return -ETIME;
 			}
 			d += signbits;
@@ -2140,8 +2139,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				}
 			}
 			if (i == NI_TIMEOUT) {
-				dev_err(dev->class_dev, "%s timeout\n",
-					__func__);
+				dev_err(dev->class_dev, "timeout\n");
 				return -ETIME;
 			}
 			data[n] = (((dl >> 16) & 0xFFFF) + signbits) & 0xFFFF;
@@ -2156,8 +2154,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 					break;
 			}
 			if (i == NI_TIMEOUT) {
-				dev_err(dev->class_dev, "%s timeout\n",
-					__func__);
+				dev_err(dev->class_dev, "timeout\n");
 				return -ETIME;
 			}
 			if (devpriv->is_m_series) {
@@ -2808,8 +2805,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 			break;
 		default:
 			dev_err(dev->class_dev,
-				"%s: bug! unhandled ao reference voltage\n",
-				__func__);
+				"bug! unhandled ao reference voltage\n");
 			break;
 		}
 		switch (krange->max + krange->min) {
@@ -2821,8 +2817,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 			break;
 		default:
 			dev_err(dev->class_dev,
-				"%s: bug! unhandled ao offset voltage\n",
-				__func__);
+				"bug! unhandled ao offset voltage\n");
 			break;
 		}
 		if (timed)
@@ -3694,8 +3689,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 		udelay((devpriv->serial_interval_ns + 999) / 1000);
 		if (--count < 0) {
 			dev_err(dev->class_dev,
-				"%s: SPI serial I/O didn't finish in time!\n",
-				__func__);
+				"SPI serial I/O didn't finish in time!\n");
 			err = -ETIME;
 			goto Error;
 		}
@@ -3833,8 +3827,7 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			err = ni_serial_sw_readwrite8(dev, s, byte_out,
 						      &byte_in);
 		} else {
-			dev_err(dev->class_dev, "%s: serial disabled!\n",
-				__func__);
+			dev_err(dev->class_dev, "serial disabled!\n");
 			return -EINVAL;
 		}
 		if (err < 0)
@@ -4520,8 +4513,7 @@ static unsigned ni_old_get_pfi_routing(struct comedi_device *dev,
 	case 9:
 		return NI_PFI_OUTPUT_G_GATE0;
 	default:
-		dev_err(dev->class_dev,
-			"%s: bug, unhandled case in switch.\n", __func__);
+		dev_err(dev->class_dev, "bug, unhandled case in switch.\n");
 		break;
 	}
 	return 0;
@@ -4673,7 +4665,7 @@ static int cs5529_wait_for_idle(struct comedi_device *dev)
 			return -EIO;
 	}
 	if (i == timeout) {
-		dev_err(dev->class_dev, "%s timeout\n", __func__);
+		dev_err(dev->class_dev, "timeout\n");
 		return -ETIME;
 	}
 	return 0;
@@ -4908,7 +4900,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 					       &devpriv->clock_ns);
 	if (retval < 0) {
 		dev_err(dev->class_dev,
-			"%s: bug, failed to find pll parameters\n", __func__);
+			"bug, failed to find pll parameters\n");
 		return retval;
 	}
 
@@ -4966,8 +4958,7 @@ static int ni_set_master_clock(struct comedi_device *dev,
 					      RTSI_Trig_Direction_Register);
 				if (period_ns == 0) {
 					dev_err(dev->class_dev,
-						"%s: we don't handle an unspecified clock period correctly yet, returning error\n",
-						__func__);
+						"we don't handle an unspecified clock period correctly yet, returning error\n");
 					return -EINVAL;
 				}
 				devpriv->clock_ns = period_ns;
@@ -5057,8 +5048,7 @@ static unsigned ni_get_rtsi_routing(struct comedi_device *dev, unsigned chan)
 	} else {
 		if (chan == old_RTSI_clock_channel)
 			return NI_RTSI_OUTPUT_RTSI_OSC;
-		dev_err(dev->class_dev, "%s: bug! should never get here?\n",
-			__func__);
+		dev_err(dev->class_dev, "bug! should never get here?\n");
 		return 0;
 	}
 }

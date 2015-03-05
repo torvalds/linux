@@ -1703,8 +1703,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 
 	/*  get acknowledge */
 	if (i2c_read_ack(dev) != 0) {
-		dev_err(dev->class_dev, "%s failed: no acknowledge\n",
-			__func__);
+		dev_err(dev->class_dev, "failed: no acknowledge\n");
 		i2c_stop(dev);
 		return;
 	}
@@ -1712,8 +1711,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	for (i = 0; i < length; i++) {
 		i2c_write_byte(dev, data[i]);
 		if (i2c_read_ack(dev) != 0) {
-			dev_err(dev->class_dev, "%s failed: no acknowledge\n",
-				__func__);
+			dev_err(dev->class_dev, "failed: no acknowledge\n");
 			i2c_stop(dev);
 			return;
 		}
