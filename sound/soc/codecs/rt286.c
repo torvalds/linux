@@ -395,9 +395,20 @@ int rt286_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 
 	rt286->jack = jack;
 
-	/* Send an initial empty report */
-	snd_soc_jack_report(rt286->jack, 0,
-		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
+	if (jack) {
+		/* enable IRQ */
+		if (rt286->jack->status | SND_JACK_HEADPHONE)
+			snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO1");
+		regmap_update_bits(rt286->regmap, RT286_IRQ_CTRL, 0x2, 0x2);
+		/* Send an initial empty report */
+		snd_soc_jack_report(rt286->jack, rt286->jack->status,
+			SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
+	} else {
+		/* disable IRQ */
+		regmap_update_bits(rt286->regmap, RT286_IRQ_CTRL, 0x2, 0x0);
+		snd_soc_dapm_disable_pin(&codec->dapm, "LDO1");
+	}
+	snd_soc_dapm_sync(&codec->dapm);
 
 	return 0;
 }

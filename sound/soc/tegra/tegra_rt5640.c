@@ -108,15 +108,11 @@ static const struct snd_kcontrol_new tegra_rt5640_controls[] = {
 
 static int tegra_rt5640_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
 	struct tegra_rt5640 *machine = snd_soc_card_get_drvdata(rtd->card);
 
-	snd_soc_jack_new(codec, "Headphones", SND_JACK_HEADPHONE,
-			 &tegra_rt5640_hp_jack);
-	snd_soc_jack_add_pins(&tegra_rt5640_hp_jack,
-			ARRAY_SIZE(tegra_rt5640_hp_jack_pins),
-			tegra_rt5640_hp_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Headphones", SND_JACK_HEADPHONE,
+			      &tegra_rt5640_hp_jack, tegra_rt5640_hp_jack_pins,
+			      ARRAY_SIZE(tegra_rt5640_hp_jack_pins));
 
 	if (gpio_is_valid(machine->gpio_hp_det)) {
 		tegra_rt5640_hp_jack_gpio.gpio = machine->gpio_hp_det;

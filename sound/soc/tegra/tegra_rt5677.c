@@ -146,10 +146,9 @@ static int tegra_rt5677_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct tegra_rt5677 *machine = snd_soc_card_get_drvdata(rtd->card);
 
-	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE,
-			&tegra_rt5677_hp_jack);
-	snd_soc_jack_add_pins(&tegra_rt5677_hp_jack, 1,
-			&tegra_rt5677_hp_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Headphone Jack", SND_JACK_HEADPHONE,
+			      &tegra_rt5677_hp_jack,
+			      &tegra_rt5677_hp_jack_pins, 1);
 
 	if (gpio_is_valid(machine->gpio_hp_det)) {
 		tegra_rt5677_hp_jack_gpio.gpio = machine->gpio_hp_det;
@@ -158,10 +157,9 @@ static int tegra_rt5677_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 
-	snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
-			&tegra_rt5677_mic_jack);
-	snd_soc_jack_add_pins(&tegra_rt5677_mic_jack, 1,
-			&tegra_rt5677_mic_jack_pins);
+	snd_soc_card_jack_new(rtd->card, "Mic Jack", SND_JACK_MICROPHONE,
+			      &tegra_rt5677_mic_jack,
+			      &tegra_rt5677_mic_jack_pins, 1);
 
 	if (gpio_is_valid(machine->gpio_mic_present)) {
 		tegra_rt5677_mic_jack_gpio.gpio = machine->gpio_mic_present;
