@@ -11,6 +11,7 @@
 #include <linux/bitmap.h>
 #include <linux/bug.h>
 
+/* Don't assign or return these: may not be this big! */
 typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
 
 /**
@@ -609,9 +610,7 @@ static inline int cpulist_parse(const char *buf, struct cpumask *dstp)
  */
 static inline size_t cpumask_size(void)
 {
-	/* FIXME: Once all cpumask assignments are eliminated, this
-	 * can be nr_cpumask_bits */
-	return BITS_TO_LONGS(NR_CPUS) * sizeof(long);
+	return BITS_TO_LONGS(nr_cpumask_bits) * sizeof(long);
 }
 
 /*
