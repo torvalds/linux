@@ -557,11 +557,9 @@ static netdev_tx_t ax_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* We were not busy, so we are now... :-) */
-	if (skb != NULL) {
-		netif_stop_queue(dev);
-		ax_encaps(dev, skb->data, skb->len);
-		kfree_skb(skb);
-	}
+	netif_stop_queue(dev);
+	ax_encaps(dev, skb->data, skb->len);
+	kfree_skb(skb);
 
 	return NETDEV_TX_OK;
 }
