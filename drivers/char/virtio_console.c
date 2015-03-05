@@ -2040,12 +2040,13 @@ static int virtcons_probe(struct virtio_device *vdev)
 
 	virtio_device_ready(portdev->vdev);
 
+	INIT_WORK(&portdev->control_work, &control_work_handler);
+
 	if (multiport) {
 		unsigned int nr_added_bufs;
 
 		spin_lock_init(&portdev->c_ivq_lock);
 		spin_lock_init(&portdev->c_ovq_lock);
-		INIT_WORK(&portdev->control_work, &control_work_handler);
 
 		nr_added_bufs = fill_queue(portdev->c_ivq,
 					   &portdev->c_ivq_lock);
