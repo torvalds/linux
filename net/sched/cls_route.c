@@ -258,6 +258,13 @@ static unsigned long route4_get(struct tcf_proto *tp, u32 handle)
 
 static int route4_init(struct tcf_proto *tp)
 {
+	struct route4_head *head;
+
+	head = kzalloc(sizeof(struct route4_head), GFP_KERNEL);
+	if (head == NULL)
+		return -ENOBUFS;
+
+	rcu_assign_pointer(tp->root, head);
 	return 0;
 }
 
@@ -484,13 +491,6 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 
 	err = -ENOBUFS;
-	if (head == NULL) {
-		head = kzalloc(sizeof(struct route4_head), GFP_KERNEL);
-		if (head == NULL)
-			goto errout;
-		rcu_assign_pointer(tp->root, head);
-	}
-
 	f = kzalloc(sizeof(struct route4_filter), GFP_KERNEL);
 	if (!f)
 		goto errout;
