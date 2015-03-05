@@ -6159,10 +6159,10 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	int pipe = crtc->pipe;
 	int dpll_reg = DPLL(crtc->pipe);
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
-	u32 loopfilter, intcoeff;
+	u32 loopfilter, tribuf_calcntr;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2, bestm2_frac;
 	u32 dpio_val;
-	int refclk;
+	int vco;
 
 	bestn = pipe_config->dpll.n;
 	bestm2_frac = pipe_config->dpll.m2 & 0x3fffff;
@@ -6170,7 +6170,9 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	bestm2 = pipe_config->dpll.m2 >> 22;
 	bestp1 = pipe_config->dpll.p1;
 	bestp2 = pipe_config->dpll.p2;
+	vco = pipe_config->dpll.vco;
 	dpio_val = 0;
+	loopfilter = 0;
 
 	/*
 	 * Enable Refclk and SSC
@@ -6217,17 +6219,34 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW9(port), dpio_val);
 
 	/* Loop filter */
-	refclk = i9xx_get_refclk(crtc, 0);
-	loopfilter = 5 << DPIO_CHV_PROP_COEFF_SHIFT |
-		2 << DPIO_CHV_GAIN_CTRL_SHIFT;
-	if (refclk == 100000)
-		intcoeff = 11;
-	else if (refclk == 38400)
-		intcoeff = 10;
-	else
-		intcoeff = 9;
-	loopfilter |= intcoeff << DPIO_CHV_INT_COEFF_SHIFT;
+	if (vco == 5400000) {
+		loopfilter |= (0x3 << DPIO_CHV_PROP_COEFF_SHIFT);
+		loopfilter |= (0x8 << DPIO_CHV_INT_COEFF_SHIFT);
+		loopfilter |= (0x1 << DPIO_CHV_GAIN_CTRL_SHIFT);
+		tribuf_calcntr = 0x9;
+	} else if (vco <= 6200000) {
+		loopfilter |= (0x5 << DPIO_CHV_PROP_COEFF_SHIFT);
+		loopfilter |= (0xB << DPIO_CHV_INT_COEFF_SHIFT);
+		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
+		tribuf_calcntr = 0x9;
+	} else if (vco <= 6480000) {
+		loopfilter |= (0x4 << DPIO_CHV_PROP_COEFF_SHIFT);
+		loopfilter |= (0x9 << DPIO_CHV_INT_COEFF_SHIFT);
+		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
+		tribuf_calcntr = 0x8;
+	} else {
+		/* Not supported. Apply the same limits as in the max case */
+		loopfilter |= (0x4 << DPIO_CHV_PROP_COEFF_SHIFT);
+		loopfilter |= (0x9 << DPIO_CHV_INT_COEFF_SHIFT);
+		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
+		tribuf_calcntr = 0;
+	}
 	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW6(port), loopfilter);
+
+	dpio_val = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW8(pipe));
+	dpio_val &= ~DPIO_CHV_TDC_TARGET_CNT_MASK;
+	dpio_val |= (tribuf_calcntr << DPIO_CHV_TDC_TARGET_CNT_SHIFT);
+	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW8(port), dpio_val);
 
 	/* AFC Recal */
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port),

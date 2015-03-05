@@ -1041,6 +1041,8 @@ enum skl_disp_power_wells {
 
 #define _CHV_PLL_DW8_CH0		0x8020
 #define _CHV_PLL_DW8_CH1		0x81A0
+#define   DPIO_CHV_TDC_TARGET_CNT_SHIFT 0
+#define   DPIO_CHV_TDC_TARGET_CNT_MASK  (0x3FF << 0)
 #define CHV_PLL_DW8(ch) _PIPE(ch, _CHV_PLL_DW8_CH0, _CHV_PLL_DW8_CH1)
 
 #define _CHV_PLL_DW9_CH0		0x8024
