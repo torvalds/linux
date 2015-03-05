@@ -408,7 +408,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		if (ret)
 			return ret;
 
-		/* intialize all channels to 0V */
+		/* initialize all channels to 0V */
 		for (i = 0; i < s->n_chan; i++) {
 			s->readback[i] = s->maxdata / 2;
 			das08_ao_set_data(dev, i, s->readback[i]);

@@ -30,7 +30,7 @@
  * This driver is for the Diamond Systems MM-32-AT board
  *	http://www.diamondsystems.com/products/diamondmm32at
  *
- * It is being used on serveral projects inside NASA, without
+ * It is being used on several projects inside NASA, without
  * problems so far. For analog input commands, TRIG_EXT is not
  * yet supported.
  */
@@ -391,7 +391,7 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* start the clock and enable the interrupts */
 		dmm32at_setaitimer(dev, cmd->scan_begin_arg);
 	} else {
-		/* start the interrups and initiate a single scan */
+		/* start the interrupts and initiate a single scan */
 		outb(DMM32AT_INTCLK_ADINT, dev->iobase + DMM32AT_INTCLK_REG);
 		outb(0xff, dev->iobase + DMM32AT_AI_START_CONV_REG);
 	}

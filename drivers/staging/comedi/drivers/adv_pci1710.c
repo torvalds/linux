@@ -4,7 +4,7 @@
  * Author: Michal Dobes <dobes@tesnet.cz>
  *
  * Thanks to ZhenGang Shang <ZhenGang.Shang@Advantech.com.cn>
- * for testing and informations.
+ * for testing and information.
  *
  *  hardware driver for Advantech cards:
  *   card:   PCI-1710, PCI-1710HG, PCI-1711, PCI-1713, PCI-1720, PCI-1731
