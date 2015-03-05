@@ -7,6 +7,7 @@
 #include <linux/if_arp.h>
 #include <linux/ipv6.h>
 #include <linux/mpls.h>
+#include <linux/vmalloc.h>
 #include <net/ip.h>
 #include <net/dst.h>
 #include <net/sock.h>
