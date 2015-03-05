@@ -535,7 +535,7 @@ struct nft_table {
 	u64				hgenerator;
 	u32				use;
 	u16				flags;
-	char				name[];
+	char				name[NFT_TABLE_MAXNAMELEN];
 };
 
 /**
