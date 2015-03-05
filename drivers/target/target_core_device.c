@@ -1548,8 +1548,6 @@ int target_configure_device(struct se_device *dev)
 	ret = dev->transport->configure_device(dev);
 	if (ret)
 		goto out;
-	dev->dev_flags |= DF_CONFIGURED;
-
 	/*
 	 * XXX: there is not much point to have two different values here..
 	 */
@@ -1610,6 +1608,8 @@ int target_configure_device(struct se_device *dev)
 	mutex_lock(&g_device_mutex);
 	list_add_tail(&dev->g_dev_node, &g_device_list);
 	mutex_unlock(&g_device_mutex);
+
+	dev->dev_flags |= DF_CONFIGURED;
 
 	return 0;
 
