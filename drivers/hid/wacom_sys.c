@@ -1408,6 +1408,9 @@ static int wacom_probe(struct hid_device *hdev,
 
 	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
 
+	/* hid-core sets this quirk for the boot interface */
+	hdev->quirks &= ~HID_QUIRK_NOGET;
+
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
 	if (!wacom)
 		return -ENOMEM;

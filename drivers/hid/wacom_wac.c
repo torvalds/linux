@@ -447,6 +447,19 @@ exit:
 	return retval;
 }
 
+static void wacom_intuos_schedule_prox_event(struct wacom_wac *wacom_wac)
+{
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
+	struct hid_report *r;
+	struct hid_report_enum *re;
+
+	re = &(wacom->hdev->report_enum[HID_FEATURE_REPORT]);
+	r = re->report_id_hash[WACOM_REPORT_INTUOSREAD];
+	if (r) {
+		hid_hw_request(wacom->hdev, r, HID_REQ_GET_REPORT);
+	}
+}
+
 static int wacom_intuos_inout(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
@@ -623,8 +636,11 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	}
 
 	/* don't report other events if we don't know the ID */
-	if (!wacom->id[idx])
+	if (!wacom->id[idx]) {
+		/* but reschedule a read of the current tool */
+		wacom_intuos_schedule_prox_event(wacom);
 		return 1;
+	}
 
 	return 0;
 }
