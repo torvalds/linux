@@ -19,3 +19,16 @@ config PINCTRL_BCM2835
 	bool
 	select PINMUX
 	select PINCONF
+
+config PINCTRL_CYGNUS_MUX
+	bool "Broadcom Cygnus IOMUX driver"
+	depends on (ARCH_BCM_CYGNUS || COMPILE_TEST)
+	select PINMUX
+	select GENERIC_PINCONF
+	default ARCH_BCM_CYGNUS
+	help
+	  Say yes here to enable the Broadcom Cygnus IOMUX driver.
+
+	  The Broadcom Cygnus IOMUX driver supports group based IOMUX
+	  configuration, with the exception that certain individual pins
+	  can be overrided to GPIO function
