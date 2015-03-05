@@ -9,6 +9,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/semaphore.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
@@ -24,6 +25,41 @@ static const char *part_probe_types[] = {
 #endif
 	NULL
 };
+
+static map_word octeon_flash_map_read(struct map_info *map, unsigned long ofs)
+{
+	map_word r;
+
+	down(&octeon_bootbus_sem);
+	r = inline_map_read(map, ofs);
+	up(&octeon_bootbus_sem);
+
+	return r;
+}
+
+static void octeon_flash_map_write(struct map_info *map, const map_word datum,
+				   unsigned long ofs)
+{
+	down(&octeon_bootbus_sem);
+	inline_map_write(map, datum, ofs);
+	up(&octeon_bootbus_sem);
+}
+
+static void octeon_flash_map_copy_from(struct map_info *map, void *to,
+				       unsigned long from, ssize_t len)
+{
+	down(&octeon_bootbus_sem);
+	inline_map_copy_from(map, to, from, len);
+	up(&octeon_bootbus_sem);
+}
+
+static void octeon_flash_map_copy_to(struct map_info *map, unsigned long to,
+				     const void *from, ssize_t len)
+{
+	down(&octeon_bootbus_sem);
+	inline_map_copy_to(map, to, from, len);
+	up(&octeon_bootbus_sem);
+}
 
 /**
  * Module/ driver initialization.
@@ -56,7 +92,11 @@ static int __init flash_init(void)
 		flash_map.virt = ioremap(flash_map.phys, flash_map.size);
 		pr_notice("Bootbus flash: Setting flash for %luMB flash at "
 			  "0x%08llx\n", flash_map.size >> 20, flash_map.phys);
-		simple_map_init(&flash_map);
+		WARN_ON(!map_bankwidth_supported(flash_map.bankwidth));
+		flash_map.read = octeon_flash_map_read;
+		flash_map.write = octeon_flash_map_write;
+		flash_map.copy_from = octeon_flash_map_copy_from;
+		flash_map.copy_to = octeon_flash_map_copy_to;
 		mymtd = do_map_probe("cfi_probe", &flash_map);
 		if (mymtd) {
 			mymtd->owner = THIS_MODULE;
