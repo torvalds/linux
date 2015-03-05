@@ -237,7 +237,6 @@ static int mf6x4_auto_attach(struct comedi_device *dev, unsigned long context)
 	else
 		devpriv->gpioc_R = devpriv->bar0_mem + MF624_GPIOC_R;
 
-
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
 		return ret;

@@ -354,7 +354,6 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 		return 5;
 
 	return 0;
-
 }
 
 static int pci9111_ai_do_cmd(struct comedi_device *dev,

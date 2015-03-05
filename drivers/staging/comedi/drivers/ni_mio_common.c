@@ -2569,7 +2569,6 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	if (dev->irq) {
-
 		/* interrupt on FIFO, errors, SC_TC */
 		interrupt_a_enable |= AI_Error_Interrupt_Enable |
 		    AI_SC_TC_Interrupt_Enable;
@@ -3839,7 +3838,6 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 	default:
 		return -EINVAL;
 	}
-
 }
 
 static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)

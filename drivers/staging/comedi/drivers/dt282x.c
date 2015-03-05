@@ -874,7 +874,6 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 		return 4;
 
 	return 0;
-
 }
 
 static int dt282x_ao_inttrig(struct comedi_device *dev,

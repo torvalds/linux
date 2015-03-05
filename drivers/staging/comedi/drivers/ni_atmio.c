@@ -282,7 +282,6 @@ static int ni_getboardtype(struct comedi_device *dev)
 	for (i = 0; i < ARRAY_SIZE(ni_boards); i++) {
 		if (ni_boards[i].device_id == device_id)
 			return i;
-
 	}
 	if (device_id == 255)
 		dev_err(dev->class_dev, "can't find board\n");
@@ -354,7 +353,6 @@ static int ni_atmio_attach(struct comedi_device *dev,
 	ret = ni_E_init(dev, ni_irqpin[dev->irq], 0);
 	if (ret < 0)
 		return ret;
-
 
 	return 0;
 }

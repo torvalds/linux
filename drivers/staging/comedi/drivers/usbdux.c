@@ -1041,7 +1041,6 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-
 	struct usbdux_private *devpriv = dev->private;
 	int ret;
 

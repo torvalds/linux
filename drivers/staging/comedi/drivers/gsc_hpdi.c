@@ -433,7 +433,6 @@ static int gsc_hpdi_cmd_test(struct comedi_device *dev,
 		return 5;
 
 	return 0;
-
 }
 
 /* setup dma descriptors so a link completes every 'len' bytes */

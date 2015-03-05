@@ -397,7 +397,6 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	return 0;
-
 }
 
 static int dmm32at_ai_cancel(struct comedi_device *dev,

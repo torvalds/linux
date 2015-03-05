@@ -839,7 +839,6 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {

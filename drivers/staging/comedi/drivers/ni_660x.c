@@ -195,7 +195,6 @@ static inline unsigned NI_660X_GPCT_SUBDEV(unsigned index)
 }
 
 struct NI_660xRegisterData {
-
 	const char *name;	/*  Register Name */
 	int offset;		/*  Offset from base address from GPCT chip */
 	enum ni_660x_register_direction direction;

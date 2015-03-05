@@ -39,14 +39,12 @@ Status: in development
 #include <linux/poll.h>
 
 struct serial2002_range_table_t {
-
 	/*  HACK... */
 	int length;
 	struct comedi_krange range;
 };
 
 struct serial2002_private {
-
 	int port;		/*  /dev/ttyS<port> */
 	int speed;		/*  baudrate */
 	struct file *tty;
@@ -300,7 +298,6 @@ static struct serial_data serial2002_read(struct file *f, int timeout)
 		}
 	}
 	return result;
-
 }
 
 static void serial2002_write(struct file *f, struct serial_data data)

@@ -30,8 +30,6 @@ Devices: [ComputerBoards] PC-CARD DAS16/16 (cb_das16_cs), PC-CARD DAS16/16-AO
 Author: ds
 Updated: Mon, 04 Nov 2002 20:04:21 -0800
 Status: experimental
-
-
 */
 
 #include <linux/module.h>

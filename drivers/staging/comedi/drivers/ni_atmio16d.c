@@ -96,7 +96,6 @@ Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
 #define CLOCK_100_HZ	0x8F25
 
 struct atmio16_board_t {
-
 	const char *name;
 	int has_8255;
 };

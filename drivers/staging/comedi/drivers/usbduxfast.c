@@ -419,7 +419,6 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	return 0;
-
 }
 
 static int usbduxfast_ai_inttrig(struct comedi_device *dev,

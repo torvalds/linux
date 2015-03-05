@@ -38,7 +38,6 @@ Devices: [Fastwel] UNIOxx-5 (unioxx5),
 
 */
 
-
 #include <linux/module.h>
 #include <linux/delay.h>
 #include "../comedidev.h"
@@ -81,7 +80,6 @@ struct unioxx5_subd_priv {
 
 static int __unioxx5_define_chan_offset(int chan_num)
 {
-
 	if (chan_num < 0 || chan_num > 23)
 		return -1;
 

@@ -1141,7 +1141,6 @@ static int das1800_di_rbits(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-
 	data[1] = inb(dev->iobase + DAS1800_DIGITAL) & 0xf;
 	data[0] = 0;
 

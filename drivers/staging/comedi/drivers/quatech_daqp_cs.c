@@ -315,7 +315,6 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	devpriv->interrupt_mode = semaphore;
 
 	for (i = 0; i < insn->n; i++) {
-
 		/* Start conversion */
 		outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
 		     dev->iobase + DAQP_COMMAND);

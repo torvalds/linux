@@ -126,7 +126,6 @@ static const struct comedi_lrange range_dt2801_ai_pgl_unipolar = {
 };
 
 struct dt2801_board {
-
 	const char *name;
 	int boardcode;
 	int ad_diff;

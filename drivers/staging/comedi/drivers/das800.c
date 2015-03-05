@@ -43,8 +43,6 @@ Notes:
 
 	The cio-das802/16 does not have a fifo-empty status bit!  Therefore
 	only fifo-half-full transfers are possible with this card.
-*/
-/*
 
 cmd triggers supported:
 	start_src:      TRIG_NOW | TRIG_EXT
@@ -52,8 +50,6 @@ cmd triggers supported:
 	scan_end_src:   TRIG_COUNT
 	convert_src:    TRIG_TIMER | TRIG_EXT
 	stop_src:       TRIG_NONE | TRIG_COUNT
-
-
 */
 
 #include <linux/module.h>

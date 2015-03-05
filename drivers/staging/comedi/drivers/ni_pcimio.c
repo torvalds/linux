@@ -1041,7 +1041,6 @@ static int pcimio_dio_change(struct comedi_device *dev,
 	return 0;
 }
 
-
 static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;

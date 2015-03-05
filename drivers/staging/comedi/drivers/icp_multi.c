@@ -370,7 +370,6 @@ static irqreturn_t interrupt_service_icp_multi(int irq, void *d)
 		break;
 	default:
 		break;
-
 	}
 
 	return IRQ_HANDLED;

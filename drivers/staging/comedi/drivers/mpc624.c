@@ -115,7 +115,6 @@ Configuration Options:
 	(MPC624_OSR4 | MPC624_OSR3 | MPC624_OSR2 | MPC624_OSR1 | MPC624_OSR0)
 /* -------------------------------------------------------------------------- */
 struct mpc624_private {
-
 	/*  set by mpc624_attach() from driver's parameters */
 	unsigned long int ulConvertionRate;
 };

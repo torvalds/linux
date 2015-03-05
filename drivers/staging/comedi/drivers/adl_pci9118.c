@@ -633,7 +633,6 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 			array[i] ^= 0x8000;
 		else
 			array[i] = (array[i] >> 4) & 0x0fff;
-
 	}
 }
 

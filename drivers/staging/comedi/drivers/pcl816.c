@@ -369,7 +369,6 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-
 	/* Step 3: check if arguments are trivially valid */
 
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
@@ -390,7 +389,6 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-
 	/* step 4: fix up any arguments */
 	if (cmd->convert_src == TRIG_TIMER) {
 		unsigned int arg = cmd->convert_arg;
@@ -401,7 +399,6 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 
 	if (err)
 		return 4;
-
 
 	/* step 5: complain about special chanlist considerations */
 

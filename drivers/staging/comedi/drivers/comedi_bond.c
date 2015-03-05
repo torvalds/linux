@@ -267,7 +267,6 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 				strlcat(devpriv->name, buf,
 					sizeof(devpriv->name));
 			}
-
 		}
 	}
 

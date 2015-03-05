@@ -1475,7 +1475,6 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 					     &devpriv->ai_buffer_bus_addr[i]);
 		if (!devpriv->ai_buffer[i])
 			return -ENOMEM;
-
 	}
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(thisboard)) {
@@ -1485,7 +1484,6 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 						      ao_buffer_bus_addr[i]);
 			if (!devpriv->ao_buffer[i])
 				return -ENOMEM;
-
 		}
 	}
 	/*  allocate dma descriptors */
@@ -1838,7 +1836,6 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	}
 
 	for (n = 0; n < insn->n; n++) {
-
 		/*  clear adc buffer (inside loop for 4020 sake) */
 		writew(0, devpriv->main_iobase + ADC_BUFFER_CLEAR_REG);
 
@@ -1900,7 +1897,6 @@ static int ai_config_block_size(struct comedi_device *dev, unsigned int *data)
 		retval = set_ai_fifo_size(dev, fifo_size);
 		if (retval < 0)
 			return retval;
-
 	}
 
 	block_size = ai_fifo_size(dev) / fifo->num_segments * bytes_in_sample;

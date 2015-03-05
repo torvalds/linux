@@ -623,7 +623,6 @@ static int ai_round_cmd_args(struct comedi_device *dev,
 			     unsigned int *init_ticks,
 			     unsigned int *scan_ticks, unsigned int *chan_ticks)
 {
-
 	int rest;
 
 	*init_ticks = 0;
@@ -730,7 +729,6 @@ static int ai_prepare(struct comedi_device *dev,
 		      unsigned int init_ticks,
 		      unsigned int scan_ticks, unsigned int chan_ticks)
 {
-
 	unsigned int tmp = 0;
 
 	/* Write timer arguments */
@@ -826,7 +824,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
-
 	unsigned int init_ticks;
 	unsigned int chan_ticks;
 	unsigned int scan_ticks;
@@ -918,7 +915,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	if (cmd->start_src == TRIG_NOW &&
 	    cmd->scan_begin_src == TRIG_TIMER &&
 	    cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -940,7 +936,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_NOW &&
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -955,7 +950,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_TIMER &&
 		   cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -977,7 +971,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_FOLLOW &&
 		   cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -992,7 +985,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_TIMER) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
@@ -1007,7 +999,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	} else if (cmd->start_src == TRIG_EXT &&
 		   cmd->scan_begin_src == TRIG_EXT &&
 		   cmd->convert_src == TRIG_EXT) {
-
 		/* Check timer arguments */
 		if (init_ticks < ME4000_AI_MIN_TICKS) {
 			dev_err(dev->class_dev, "Invalid start arg\n");
