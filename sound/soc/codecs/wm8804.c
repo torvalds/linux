@@ -601,8 +601,10 @@ int wm8804_probe(struct device *dev, struct regmap *regmap)
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++) {
-		ret = regulator_register_notifier(wm8804->supplies[i].consumer,
-						  &wm8804->disable_nb[i]);
+		struct regulator *regulator = wm8804->supplies[i].consumer;
+
+		ret = devm_regulator_register_notifier(regulator,
+						       &wm8804->disable_nb[i]);
 		if (ret != 0) {
 			dev_err(dev,
 				"Failed to register regulator notifier: %d\n",
@@ -662,15 +664,6 @@ EXPORT_SYMBOL_GPL(wm8804_probe);
 
 void wm8804_remove(struct device *dev)
 {
-	struct wm8804_priv *wm8804;
-	int i;
-
-	wm8804 = dev_get_drvdata(dev);
-
-	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); ++i)
-		regulator_unregister_notifier(wm8804->supplies[i].consumer,
-					      &wm8804->disable_nb[i]);
-
 	snd_soc_unregister_codec(dev);
 }
 EXPORT_SYMBOL_GPL(wm8804_remove);
