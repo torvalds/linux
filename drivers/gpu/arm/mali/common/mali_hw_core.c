@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -39,7 +39,9 @@ _mali_osk_errcode_t mali_hw_core_create(struct mali_hw_core *core, const _mali_o
 
 void mali_hw_core_delete(struct mali_hw_core *core)
 {
-	_mali_osk_mem_unmapioregion(core->phys_addr, core->size, core->mapped_registers);
-	core->mapped_registers = NULL;
+	if (NULL != core->mapped_registers) {
+		_mali_osk_mem_unmapioregion(core->phys_addr, core->size, core->mapped_registers);
+		core->mapped_registers = NULL;
+	}
 	_mali_osk_mem_unreqregion(core->phys_addr, core->size);
 }

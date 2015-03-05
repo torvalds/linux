@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -32,7 +32,8 @@ void mali_memory_terminate(void);
  * @param table_page GPU pointer to the allocated page
  * @param mapping CPU pointer to the mapping of the allocated page
  */
-MALI_STATIC_INLINE _mali_osk_errcode_t mali_mmu_get_table_page(u32 *table_page, mali_io_address *mapping)
+MALI_STATIC_INLINE _mali_osk_errcode_t
+mali_mmu_get_table_page(mali_dma_addr *table_page, mali_io_address *mapping)
 {
 	return mali_mem_os_get_table_page(table_page, mapping);
 }
@@ -43,7 +44,8 @@ MALI_STATIC_INLINE _mali_osk_errcode_t mali_mmu_get_table_page(u32 *table_page, 
  *
  * @param pa the GPU address of the page to release
  */
-MALI_STATIC_INLINE void mali_mmu_release_table_page(u32 phys, void *virt)
+MALI_STATIC_INLINE void
+mali_mmu_release_table_page(mali_dma_addr phys, void *virt)
 {
 	mali_mem_os_release_table_page(phys, virt);
 }

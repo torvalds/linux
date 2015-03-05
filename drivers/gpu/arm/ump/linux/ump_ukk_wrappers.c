@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -23,7 +23,7 @@
 /*
  * IOCTL operation; Negotiate version of IOCTL API
  */
-int ump_get_api_version_wrapper(u32 __user * argument, struct ump_session_data * session_data)
+int ump_get_api_version_wrapper(u32 __user *argument, struct ump_session_data *session_data)
 {
 	_ump_uk_api_version_s version_info;
 	_mali_osk_errcode_t err;
@@ -40,9 +40,9 @@ int ump_get_api_version_wrapper(u32 __user * argument, struct ump_session_data *
 		return -EFAULT;
 	}
 
-	version_info.ctx = (void*) session_data;
-	err = _ump_uku_get_api_version( &version_info );
-	if( _MALI_OSK_ERR_OK != err ) {
+	version_info.ctx = (void *) session_data;
+	err = _ump_uku_get_api_version(&version_info);
+	if (_MALI_OSK_ERR_OK != err) {
 		MSG_ERR(("_ump_uku_get_api_version() failed in ump_ioctl_get_api_version()\n"));
 		return map_errcode(err);
 	}
@@ -62,7 +62,7 @@ int ump_get_api_version_wrapper(u32 __user * argument, struct ump_session_data *
 /*
  * IOCTL operation; Release reference to specified UMP memory.
  */
-int ump_release_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+int ump_release_wrapper(u32 __user *argument, struct ump_session_data   *session_data)
 {
 	_ump_uk_release_s release_args;
 	_mali_osk_errcode_t err;
@@ -79,9 +79,9 @@ int ump_release_wrapper(u32 __user * argument, struct ump_session_data  * sessio
 		return -EFAULT;
 	}
 
-	release_args.ctx = (void*) session_data;
-	err = _ump_ukk_release( &release_args );
-	if( _MALI_OSK_ERR_OK != err ) {
+	release_args.ctx = (void *) session_data;
+	err = _ump_ukk_release(&release_args);
+	if (_MALI_OSK_ERR_OK != err) {
 		MSG_ERR(("_ump_ukk_release() failed in ump_ioctl_release()\n"));
 		return map_errcode(err);
 	}
@@ -93,7 +93,7 @@ int ump_release_wrapper(u32 __user * argument, struct ump_session_data  * sessio
 /*
  * IOCTL operation; Return size for specified UMP memory.
  */
-int ump_size_get_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+int ump_size_get_wrapper(u32 __user *argument, struct ump_session_data   *session_data)
 {
 	_ump_uk_size_get_s user_interaction;
 	_mali_osk_errcode_t err;
@@ -110,8 +110,8 @@ int ump_size_get_wrapper(u32 __user * argument, struct ump_session_data  * sessi
 	}
 
 	user_interaction.ctx = (void *) session_data;
-	err = _ump_ukk_size_get( &user_interaction );
-	if( _MALI_OSK_ERR_OK != err ) {
+	err = _ump_ukk_size_get(&user_interaction);
+	if (_MALI_OSK_ERR_OK != err) {
 		MSG_ERR(("_ump_ukk_size_get() failed in ump_ioctl_size_get()\n"));
 		return map_errcode(err);
 	}
@@ -129,7 +129,7 @@ int ump_size_get_wrapper(u32 __user * argument, struct ump_session_data  * sessi
 /*
  * IOCTL operation; Do cache maintenance on specified UMP memory.
  */
-int ump_msync_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+int ump_msync_wrapper(u32 __user *argument, struct ump_session_data   *session_data)
 {
 	_ump_uk_msync_s user_interaction;
 
@@ -146,7 +146,7 @@ int ump_msync_wrapper(u32 __user * argument, struct ump_session_data  * session_
 
 	user_interaction.ctx = (void *) session_data;
 
-	_ump_ukk_msync( &user_interaction );
+	_ump_ukk_msync(&user_interaction);
 
 	user_interaction.ctx = NULL;
 
@@ -157,7 +157,7 @@ int ump_msync_wrapper(u32 __user * argument, struct ump_session_data  * session_
 
 	return 0; /* success */
 }
-int ump_cache_operations_control_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+int ump_cache_operations_control_wrapper(u32 __user *argument, struct ump_session_data   *session_data)
 {
 	_ump_uk_cache_operations_control_s user_interaction;
 
@@ -174,7 +174,7 @@ int ump_cache_operations_control_wrapper(u32 __user * argument, struct ump_sessi
 
 	user_interaction.ctx = (void *) session_data;
 
-	_ump_ukk_cache_operations_control((_ump_uk_cache_operations_control_s*) &user_interaction );
+	_ump_ukk_cache_operations_control((_ump_uk_cache_operations_control_s *) &user_interaction);
 
 	user_interaction.ctx = NULL;
 
@@ -187,7 +187,7 @@ int ump_cache_operations_control_wrapper(u32 __user * argument, struct ump_sessi
 	return 0; /* success */
 }
 
-int ump_switch_hw_usage_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+int ump_switch_hw_usage_wrapper(u32 __user *argument, struct ump_session_data   *session_data)
 {
 	_ump_uk_switch_hw_usage_s user_interaction;
 
@@ -204,7 +204,7 @@ int ump_switch_hw_usage_wrapper(u32 __user * argument, struct ump_session_data  
 
 	user_interaction.ctx = (void *) session_data;
 
-	_ump_ukk_switch_hw_usage( &user_interaction );
+	_ump_ukk_switch_hw_usage(&user_interaction);
 
 	user_interaction.ctx = NULL;
 
@@ -217,7 +217,7 @@ int ump_switch_hw_usage_wrapper(u32 __user * argument, struct ump_session_data  
 	return 0; /* success */
 }
 
-int ump_lock_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+int ump_lock_wrapper(u32 __user *argument, struct ump_session_data   *session_data)
 {
 	_ump_uk_lock_s user_interaction;
 
@@ -234,7 +234,7 @@ int ump_lock_wrapper(u32 __user * argument, struct ump_session_data  * session_d
 
 	user_interaction.ctx = (void *) session_data;
 
-	_ump_ukk_lock( &user_interaction );
+	_ump_ukk_lock(&user_interaction);
 
 	user_interaction.ctx = NULL;
 
@@ -248,7 +248,7 @@ int ump_lock_wrapper(u32 __user * argument, struct ump_session_data  * session_d
 	return 0; /* success */
 }
 
-int ump_unlock_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+int ump_unlock_wrapper(u32 __user *argument, struct ump_session_data   *session_data)
 {
 	_ump_uk_unlock_s user_interaction;
 
@@ -265,7 +265,7 @@ int ump_unlock_wrapper(u32 __user * argument, struct ump_session_data  * session
 
 	user_interaction.ctx = (void *) session_data;
 
-	_ump_ukk_unlock( &user_interaction );
+	_ump_ukk_unlock(&user_interaction);
 
 	user_interaction.ctx = NULL;
 

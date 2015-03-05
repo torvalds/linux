@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -25,7 +25,7 @@
  * Soft jobs have to be signaled as complete after activation.  Normally this is done by user space,
  * but in order to guarantee that every soft job is completed, we also have a timer.
  */
-#define MALI_TIMELINE_TIMEOUT_HZ ((u32) (HZ * 3 / 2)) /* 1500 ms. */
+#define MALI_TIMELINE_TIMEOUT_HZ ((unsigned long) (HZ * 3 / 2)) /* 1500 ms. */
 
 /**
  * Timeline type.
@@ -194,10 +194,14 @@ struct mali_timeline_tracker {
 	void                          *job;          /**< Owner of tracker. */
 
 	/* The following fields are used to time out soft job trackers. */
-	u32                           os_tick_create;
-	u32                           os_tick_activate;
+	unsigned long                 os_tick_create;
+	unsigned long                 os_tick_activate;
 	mali_bool                     timer_active;
 };
+
+extern _mali_osk_atomic_t gp_tracker_count;
+extern _mali_osk_atomic_t phy_pp_tracker_count;
+extern _mali_osk_atomic_t virt_pp_tracker_count;
 
 /**
  * What follows is a set of functions to check the state of a timeline and to determine where on a
@@ -368,8 +372,8 @@ void mali_timeline_system_stop_timer(struct mali_timeline_system *system);
  * @return Point on timeline identifying this tracker, or MALI_TIMELINE_NO_POINT if not on timeline.
  */
 mali_timeline_point mali_timeline_system_add_tracker(struct mali_timeline_system *system,
-        struct mali_timeline_tracker *tracker,
-        enum mali_timeline_id timeline_id);
+		struct mali_timeline_tracker *tracker,
+		enum mali_timeline_id timeline_id);
 
 /**
  * Get latest point on timeline.
@@ -379,7 +383,7 @@ mali_timeline_point mali_timeline_system_add_tracker(struct mali_timeline_system
  * @return Latest point on timeline, or MALI_TIMELINE_NO_POINT if the timeline is empty.
  */
 mali_timeline_point mali_timeline_system_get_latest_point(struct mali_timeline_system *system,
-        enum mali_timeline_id timeline_id);
+		enum mali_timeline_id timeline_id);
 
 /**
  * Initialize tracker.
@@ -392,9 +396,9 @@ mali_timeline_point mali_timeline_system_get_latest_point(struct mali_timeline_s
  * @param job Pointer to job struct this tracker is associated with.
  */
 void mali_timeline_tracker_init(struct mali_timeline_tracker *tracker,
-                                mali_timeline_tracker_type type,
-                                struct mali_timeline_fence *fence,
-                                void *job);
+				mali_timeline_tracker_type type,
+				struct mali_timeline_fence *fence,
+				void *job);
 
 /**
  * Grab trigger ref count on tracker.
@@ -439,6 +443,14 @@ mali_scheduler_mask mali_timeline_system_tracker_put(struct mali_timeline_system
  */
 mali_scheduler_mask mali_timeline_tracker_release(struct mali_timeline_tracker *tracker);
 
+MALI_STATIC_INLINE mali_bool mali_timeline_tracker_activation_error(
+	struct mali_timeline_tracker *tracker)
+{
+	MALI_DEBUG_ASSERT_POINTER(tracker);
+	return (MALI_TIMELINE_ACTIVATION_ERROR_FATAL_BIT &
+		tracker->activation_error) ? MALI_TRUE : MALI_FALSE;
+}
+
 /**
  * Copy data from a UK fence to a Timeline fence.
  *
@@ -447,7 +459,28 @@ mali_scheduler_mask mali_timeline_tracker_release(struct mali_timeline_tracker *
  */
 void mali_timeline_fence_copy_uk_fence(struct mali_timeline_fence *fence, _mali_uk_fence_t *uk_fence);
 
+void mali_timeline_initialize(void);
+
+void mali_timeline_terminate(void);
+
+MALI_STATIC_INLINE mali_bool mali_timeline_has_gp_job(void)
+{
+	return 0 < _mali_osk_atomic_read(&gp_tracker_count);
+}
+
+MALI_STATIC_INLINE mali_bool mali_timeline_has_physical_pp_job(void)
+{
+	return 0 < _mali_osk_atomic_read(&phy_pp_tracker_count);
+}
+
+MALI_STATIC_INLINE mali_bool mali_timeline_has_virtual_pp_job(void)
+{
+	return 0 < _mali_osk_atomic_read(&virt_pp_tracker_count);
+}
+
+#if defined(DEBUG)
 #define MALI_TIMELINE_DEBUG_FUNCTIONS
+#endif /* DEBUG */
 #if defined(MALI_TIMELINE_DEBUG_FUNCTIONS)
 
 /**
@@ -473,21 +506,21 @@ mali_timeline_tracker_state mali_timeline_debug_get_tracker_state(struct mali_ti
  *
  * @param tracker Tracker to print.
  */
-void mali_timeline_debug_print_tracker(struct mali_timeline_tracker *tracker);
+void mali_timeline_debug_print_tracker(struct mali_timeline_tracker *tracker, _mali_osk_print_ctx *print_ctx);
 
 /**
  * Print debug information about timeline.
  *
  * @param timeline Timeline to print.
  */
-void mali_timeline_debug_print_timeline(struct mali_timeline *timeline);
+void mali_timeline_debug_print_timeline(struct mali_timeline *timeline, _mali_osk_print_ctx *print_ctx);
 
 /**
  * Print debug information about timeline system.
  *
  * @param system Timeline system to print.
  */
-void mali_timeline_debug_print_system(struct mali_timeline_system *system);
+void mali_timeline_debug_print_system(struct mali_timeline_system *system, _mali_osk_print_ctx *print_ctx);
 
 #endif /* defined(MALI_TIMELINE_DEBUG_FUNCTIONS) */
 

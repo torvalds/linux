@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -14,15 +14,6 @@
 #include "mali_osk.h"
 #include "mali_mmu_page_directory.h"
 #include "mali_hw_core.h"
-
-#include <linux/kernel.h>
-#include <asm/io.h>
-#include <mach/am_regs.h>
-#include <linux/module.h>
-#if MESON_CPU_TYPE == MESON_CPU_TYPE_MESON6
-#include "meson_m400/mali_fix.h"
-#endif
-
 
 /* Forward declaration from mali_group.h */
 struct mali_group;
@@ -88,13 +79,22 @@ mali_bool mali_mmu_zap_tlb(struct mali_mmu_core *mmu);
 void mali_mmu_zap_tlb_without_stall(struct mali_mmu_core *mmu);
 void mali_mmu_invalidate_page(struct mali_mmu_core *mmu, u32 mali_address);
 
-void mali_mmu_activate_page_directory(struct mali_mmu_core* mmu, struct mali_page_directory *pagedir);
-void mali_mmu_activate_empty_page_directory(struct mali_mmu_core* mmu);
-void mali_mmu_activate_fault_flush_page_directory(struct mali_mmu_core* mmu);
+void mali_mmu_activate_page_directory(struct mali_mmu_core *mmu, struct mali_page_directory *pagedir);
+void mali_mmu_activate_empty_page_directory(struct mali_mmu_core *mmu);
+void mali_mmu_activate_fault_flush_page_directory(struct mali_mmu_core *mmu);
 
 void mali_mmu_page_fault_done(struct mali_mmu_core *mmu);
 
-/*** Register reading/writing functions ***/
+MALI_STATIC_INLINE enum mali_interrupt_result mali_mmu_get_interrupt_result(struct mali_mmu_core *mmu)
+{
+	u32 rawstat_used = mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_INT_RAWSTAT);
+	if (0 == rawstat_used) {
+		return MALI_INTERRUPT_RESULT_NONE;
+	}
+	return MALI_INTERRUPT_RESULT_ERROR;
+}
+
+
 MALI_STATIC_INLINE u32 mali_mmu_get_int_status(struct mali_mmu_core *mmu)
 {
 	return mali_hw_core_register_read(&mmu->hw_core, MALI_MMU_REGISTER_INT_STATUS);

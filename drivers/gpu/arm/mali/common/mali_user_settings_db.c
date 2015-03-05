@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2012-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -8,8 +8,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include "mali_osk.h"
 #include "mali_kernel_common.h"
+#include "mali_osk.h"
+#include "mali_ukk.h"
 #include "mali_uk_types.h"
 #include "mali_user_settings_db.h"
 #include "mali_session.h"
@@ -48,7 +49,7 @@ static void mali_user_settings_notify(_mali_uk_user_setting_t setting, u32 value
 
 		for (i = 0; i < num_sessions_alloc; i++) {
 			notobjs[i] = _mali_osk_notification_create(_MALI_NOTIFICATION_SETTINGS_CHANGED,
-			             sizeof(_mali_uk_settings_changed_s));
+					sizeof(_mali_uk_settings_changed_s));
 			if (NULL != notobjs[i]) {
 				_mali_uk_settings_changed_s *data;
 				data = notobjs[i]->result_buffer;

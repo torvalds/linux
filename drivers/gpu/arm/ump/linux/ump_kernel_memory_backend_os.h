@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -17,7 +17,7 @@
 
 #include "ump_kernel_memory_backend.h"
 
-ump_memory_backend * ump_os_memory_backend_create(const int max_allocation);
+ump_memory_backend *ump_os_memory_backend_create(const int max_allocation);
 
 #endif /* __UMP_KERNEL_MEMORY_BACKEND_OS_H__ */
 

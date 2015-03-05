@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -60,19 +60,19 @@ typedef enum mali_mmu_entry_flags {
 
 
 #define MALI_MMU_FLAGS_FORCE_GP_READ_ALLOCATE ( \
-MALI_MMU_FLAGS_PRESENT | \
-	MALI_MMU_FLAGS_READ_PERMISSION |  \
-	MALI_MMU_FLAGS_WRITE_PERMISSION | \
-	MALI_MMU_FLAGS_OVERRIDE_CACHE | \
-	MALI_MMU_FLAGS_WRITE_CACHEABLE | \
-	MALI_MMU_FLAGS_WRITE_BUFFERABLE | \
-	MALI_MMU_FLAGS_READ_CACHEABLE | \
-	MALI_MMU_FLAGS_READ_ALLOCATE )
+		MALI_MMU_FLAGS_PRESENT | \
+		MALI_MMU_FLAGS_READ_PERMISSION |  \
+		MALI_MMU_FLAGS_WRITE_PERMISSION | \
+		MALI_MMU_FLAGS_OVERRIDE_CACHE | \
+		MALI_MMU_FLAGS_WRITE_CACHEABLE | \
+		MALI_MMU_FLAGS_WRITE_BUFFERABLE | \
+		MALI_MMU_FLAGS_READ_CACHEABLE | \
+		MALI_MMU_FLAGS_READ_ALLOCATE )
 
 #define MALI_MMU_FLAGS_DEFAULT ( \
-	MALI_MMU_FLAGS_PRESENT | \
-	MALI_MMU_FLAGS_READ_PERMISSION |  \
-	MALI_MMU_FLAGS_WRITE_PERMISSION )
+				 MALI_MMU_FLAGS_PRESENT | \
+				 MALI_MMU_FLAGS_READ_PERMISSION |  \
+				 MALI_MMU_FLAGS_WRITE_PERMISSION )
 
 
 struct mali_page_directory {
@@ -88,20 +88,23 @@ _mali_osk_errcode_t mali_mmu_pagedir_map(struct mali_page_directory *pagedir, u3
 _mali_osk_errcode_t mali_mmu_pagedir_unmap(struct mali_page_directory *pagedir, u32 mali_address, u32 size);
 
 /* Back virtual address space with actual pages. Assumes input is contiguous and 4k aligned. */
-void mali_mmu_pagedir_update(struct mali_page_directory *pagedir, u32 mali_address, u32 phys_address, u32 size, u32 cache_settings);
-
-u32 mali_page_directory_get_phys_address(struct mali_page_directory *pagedir, u32 index);
+void mali_mmu_pagedir_update(struct mali_page_directory *pagedir, u32 mali_address,
+			     mali_dma_addr phys_address, u32 size, u32 permission_bits);
 
 u32 mali_allocate_empty_page(mali_io_address *virtual);
-void mali_free_empty_page(u32 address, mali_io_address virtual);
-_mali_osk_errcode_t mali_create_fault_flush_pages(u32 *page_directory, mali_io_address *page_directory_mapping,
-        u32 *page_table, mali_io_address *page_table_mapping,
-        u32 *data_page, mali_io_address *data_page_mapping);
-void mali_destroy_fault_flush_pages(u32 *page_directory, mali_io_address *page_directory_mapping,
-                                    u32 *page_table, mali_io_address *page_table_mapping,
-                                    u32 *data_page, mali_io_address *data_page_mapping);
+void mali_free_empty_page(mali_dma_addr address, mali_io_address virt_addr);
+_mali_osk_errcode_t mali_create_fault_flush_pages(mali_dma_addr *page_directory,
+		mali_io_address *page_directory_mapping,
+		mali_dma_addr *page_table, mali_io_address *page_table_mapping,
+		mali_dma_addr *data_page, mali_io_address *data_page_mapping);
+void mali_destroy_fault_flush_pages(
+	mali_dma_addr *page_directory, mali_io_address *page_directory_mapping,
+	mali_dma_addr *page_table, mali_io_address *page_table_mapping,
+	mali_dma_addr *data_page, mali_io_address *data_page_mapping);
 
 struct mali_page_directory *mali_mmu_pagedir_alloc(void);
 void mali_mmu_pagedir_free(struct mali_page_directory *pagedir);
+
+void mali_mmu_pagedir_diag(struct mali_page_directory *pagedir, u32 fault_addr);
 
 #endif /* __MALI_MMU_PAGE_DIRECTORY_H__ */

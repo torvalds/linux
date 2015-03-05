@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -16,7 +16,7 @@
 
 #include "mali_memory.h"
 
-#include <ump/ump_kernel_interface.h>
+#include "ump_kernel_interface.h"
 
 static int mali_ump_map(struct mali_session_data *session, mali_mem_allocation *descriptor)
 {
@@ -42,7 +42,7 @@ static int mali_ump_map(struct mali_session_data *session, mali_mem_allocation *
 		return -EINVAL;
 	}
 
-	ump_blocks = _mali_osk_malloc(sizeof(*ump_blocks)*nr_blocks);
+	ump_blocks = _mali_osk_malloc(sizeof(*ump_blocks) * nr_blocks);
 	if (NULL == ump_blocks) {
 		return -ENOMEM;
 	}
@@ -63,13 +63,13 @@ static int mali_ump_map(struct mali_session_data *session, mali_mem_allocation *
 		return -ENOMEM;
 	}
 
-	for(i = 0; i < nr_blocks; ++i) {
+	for (i = 0; i < nr_blocks; ++i) {
 		u32 virt = descriptor->mali_mapping.addr + offset;
 
 		MALI_DEBUG_PRINT(7, ("Mapping in 0x%08x size %d\n", ump_blocks[i].addr , ump_blocks[i].size));
 
 		mali_mmu_pagedir_update(pagedir, virt, ump_blocks[i].addr,
-		                        ump_blocks[i].size, prop);
+					ump_blocks[i].size, prop);
 
 		offset += ump_blocks[i].size;
 	}
@@ -114,10 +114,9 @@ _mali_osk_errcode_t _mali_ukk_attach_ump_mem(_mali_uk_attach_ump_mem_s *args)
 	int md, ret;
 
 	MALI_DEBUG_ASSERT_POINTER(args);
-	MALI_CHECK_NON_NULL(args->ctx, _MALI_OSK_ERR_INVALID_ARGS);
+	MALI_DEBUG_ASSERT(NULL != (void *)(uintptr_t)args->ctx);
 
-	session = (struct mali_session_data *)args->ctx;
-	MALI_CHECK_NON_NULL(session, _MALI_OSK_ERR_INVALID_ARGS);
+	session = (struct mali_session_data *)(uintptr_t)args->ctx;
 
 	/* check arguments */
 	/* NULL might be a valid Mali address */
@@ -127,8 +126,8 @@ _mali_osk_errcode_t _mali_ukk_attach_ump_mem(_mali_uk_attach_ump_mem_s *args)
 	if (args->size % _MALI_OSK_MALI_PAGE_SIZE) MALI_ERROR(_MALI_OSK_ERR_INVALID_ARGS);
 
 	MALI_DEBUG_PRINT(3,
-	                 ("Requested to map ump memory with secure id %d into virtual memory 0x%08X, size 0x%08X\n",
-	                  args->secure_id, args->mali_address, args->size));
+			 ("Requested to map ump memory with secure id %d into virtual memory 0x%08X, size 0x%08X\n",
+			  args->secure_id, args->mali_address, args->size));
 
 	ump_mem = ump_dd_handle_create_from_secure_id((int)args->secure_id);
 
@@ -171,7 +170,7 @@ _mali_osk_errcode_t _mali_ukk_attach_ump_mem(_mali_uk_attach_ump_mem_s *args)
 
 	args->cookie = md;
 
-	MALI_DEBUG_PRINT(5,("Returning from UMP attach\n"));
+	MALI_DEBUG_PRINT(5, ("Returning from UMP attach\n"));
 
 	MALI_SUCCESS;
 }
@@ -187,16 +186,15 @@ void mali_mem_ump_release(mali_mem_allocation *descriptor)
 
 _mali_osk_errcode_t _mali_ukk_release_ump_mem(_mali_uk_release_ump_mem_s *args)
 {
-	mali_mem_allocation * descriptor;
+	mali_mem_allocation *descriptor;
 	struct mali_session_data *session;
 
 	MALI_DEBUG_ASSERT_POINTER(args);
-	MALI_CHECK_NON_NULL(args->ctx, _MALI_OSK_ERR_INVALID_ARGS);
+	MALI_DEBUG_ASSERT(NULL != (void *)(uintptr_t)args->ctx);
 
-	session = (struct mali_session_data *)args->ctx;
-	MALI_CHECK_NON_NULL(session, _MALI_OSK_ERR_INVALID_ARGS);
+	session = (struct mali_session_data *)(uintptr_t)args->ctx;
 
-	if (_MALI_OSK_ERR_OK != mali_descriptor_mapping_get(session->descriptor_mapping, args->cookie, (void**)&descriptor)) {
+	if (_MALI_OSK_ERR_OK != mali_descriptor_mapping_get(session->descriptor_mapping, args->cookie, (void **)&descriptor)) {
 		MALI_DEBUG_PRINT(1, ("Invalid memory descriptor %d used to release ump memory\n", args->cookie));
 		MALI_ERROR(_MALI_OSK_ERR_FAULT);
 	}

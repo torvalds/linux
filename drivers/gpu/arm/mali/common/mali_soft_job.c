@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -10,12 +10,12 @@
 
 #include "mali_soft_job.h"
 #include "mali_osk.h"
-#include "mali_osk_mali.h"
 #include "mali_timeline.h"
 #include "mali_session.h"
 #include "mali_kernel_common.h"
 #include "mali_uk_types.h"
 #include "mali_scheduler.h"
+#include "mali_executor.h"
 
 MALI_STATIC_INLINE void mali_soft_job_system_lock(struct mali_soft_job_system *system)
 {
@@ -48,9 +48,7 @@ MALI_STATIC_INLINE void mali_soft_job_system_assert_locked(struct mali_soft_job_
 
 struct mali_soft_job_system *mali_soft_job_system_create(struct mali_session_data *session)
 {
-	u32 i;
 	struct mali_soft_job_system *system;
-	struct mali_soft_job *job;
 
 	MALI_DEBUG_ASSERT_POINTER(session);
 
@@ -67,17 +65,9 @@ struct mali_soft_job_system *mali_soft_job_system_create(struct mali_session_dat
 		return NULL;
 	}
 	system->lock_owner = 0;
+	system->last_job_id = 0;
 
-	_MALI_OSK_INIT_LIST_HEAD(&(system->jobs_free));
 	_MALI_OSK_INIT_LIST_HEAD(&(system->jobs_used));
-
-	for (i = 0; i < MALI_MAX_NUM_SOFT_JOBS; ++i) {
-		job = &(system->jobs[i]);
-		_mali_osk_list_add(&(job->system_list), &(system->jobs_free));
-		job->system = system;
-		job->state = MALI_SOFT_JOB_STATE_FREE;
-		job->id = i;
-	}
 
 	return system;
 }
@@ -87,16 +77,7 @@ void mali_soft_job_system_destroy(struct mali_soft_job_system *system)
 	MALI_DEBUG_ASSERT_POINTER(system);
 
 	/* All jobs should be free at this point. */
-	MALI_DEBUG_CODE( {
-		u32 i;
-		struct mali_soft_job *job;
-
-		for (i = 0; i < MALI_MAX_NUM_SOFT_JOBS; ++i)
-		{
-			job = &(system->jobs[i]);
-			MALI_DEBUG_ASSERT(MALI_SOFT_JOB_STATE_FREE == job->state);
-		}
-	});
+	MALI_DEBUG_ASSERT(_mali_osk_list_empty(&(system->jobs_used)));
 
 	if (NULL != system) {
 		if (NULL != system->lock) {
@@ -106,31 +87,6 @@ void mali_soft_job_system_destroy(struct mali_soft_job_system *system)
 	}
 }
 
-static struct mali_soft_job *mali_soft_job_system_alloc_job(struct mali_soft_job_system *system)
-{
-	struct mali_soft_job *job;
-
-	MALI_DEBUG_ASSERT_POINTER(system);
-	MALI_ASSERT_SOFT_JOB_SYSTEM_LOCKED(system);
-
-	if (_mali_osk_list_empty(&(system->jobs_free))) {
-		/* No jobs available. */
-		return NULL;
-	}
-
-	/* Grab first job and move it to the used list. */
-	job = _MALI_OSK_LIST_ENTRY(system->jobs_free.next, struct mali_soft_job, system_list);
-	MALI_DEBUG_ASSERT(MALI_SOFT_JOB_STATE_FREE == job->state);
-
-	_mali_osk_list_move(&(job->system_list), &(system->jobs_used));
-	job->state = MALI_SOFT_JOB_STATE_ALLOCATED;
-
-	MALI_DEBUG_ASSERT(MALI_SOFT_JOB_INVALID_ID != job->id);
-	MALI_DEBUG_ASSERT(system == job->system);
-
-	return job;
-}
-
 static void mali_soft_job_system_free_job(struct mali_soft_job_system *system, struct mali_soft_job *job)
 {
 	MALI_DEBUG_ASSERT_POINTER(job);
@@ -138,23 +94,26 @@ static void mali_soft_job_system_free_job(struct mali_soft_job_system *system, s
 
 	mali_soft_job_system_lock(job->system);
 
-	MALI_DEBUG_ASSERT(MALI_SOFT_JOB_STATE_FREE != job->state);
 	MALI_DEBUG_ASSERT(MALI_SOFT_JOB_INVALID_ID != job->id);
 	MALI_DEBUG_ASSERT(system == job->system);
 
-	job->state = MALI_SOFT_JOB_STATE_FREE;
-	_mali_osk_list_move(&(job->system_list), &(system->jobs_free));
+	_mali_osk_list_del(&(job->system_list));
 
 	mali_soft_job_system_unlock(job->system);
+
+	_mali_osk_free(job);
 }
 
 MALI_STATIC_INLINE struct mali_soft_job *mali_soft_job_system_lookup_job(struct mali_soft_job_system *system, u32 job_id)
 {
+	struct mali_soft_job *job, *tmp;
+
 	MALI_DEBUG_ASSERT_POINTER(system);
 	MALI_ASSERT_SOFT_JOB_SYSTEM_LOCKED(system);
 
-	if (job_id < MALI_MAX_NUM_SOFT_JOBS) {
-		return &system->jobs[job_id];
+	_MALI_OSK_LIST_FOREACHENTRY(job, tmp, &system->jobs_used, struct mali_soft_job, system_list) {
+		if (job->id == job_id)
+			return job;
 	}
 
 	return NULL;
@@ -181,39 +140,40 @@ void mali_soft_job_destroy(struct mali_soft_job *job)
 	}
 }
 
-struct mali_soft_job *mali_soft_job_create(struct mali_soft_job_system *system, mali_soft_job_type type, u32 user_job)
+struct mali_soft_job *mali_soft_job_create(struct mali_soft_job_system *system, mali_soft_job_type type, u64 user_job)
 {
 	struct mali_soft_job *job;
 	_mali_osk_notification_t *notification = NULL;
 
 	MALI_DEBUG_ASSERT_POINTER(system);
-	MALI_DEBUG_ASSERT(MALI_SOFT_JOB_TYPE_USER_SIGNALED >= type);
+	MALI_DEBUG_ASSERT((MALI_SOFT_JOB_TYPE_USER_SIGNALED == type) ||
+			  (MALI_SOFT_JOB_TYPE_SELF_SIGNALED == type));
 
-	if (MALI_SOFT_JOB_TYPE_USER_SIGNALED == type) {
-		notification = _mali_osk_notification_create(_MALI_NOTIFICATION_SOFT_ACTIVATED, sizeof(_mali_uk_soft_job_activated_s));
-		if (unlikely(NULL == notification)) {
-			MALI_PRINT_ERROR(("Mali Soft Job: failed to allocate notification"));
-			return NULL;
-		}
+	notification = _mali_osk_notification_create(_MALI_NOTIFICATION_SOFT_ACTIVATED, sizeof(_mali_uk_soft_job_activated_s));
+	if (unlikely(NULL == notification)) {
+		MALI_PRINT_ERROR(("Mali Soft Job: failed to allocate notification"));
+		return NULL;
+	}
+
+	job = _mali_osk_malloc(sizeof(struct mali_soft_job));
+	if (unlikely(NULL == job)) {
+		MALI_DEBUG_PRINT(2, ("Mali Soft Job: system alloc job failed. \n"));
+		return NULL;
 	}
 
 	mali_soft_job_system_lock(system);
 
-	job = mali_soft_job_system_alloc_job(system);
-	if (NULL == job) {
-		mali_soft_job_system_unlock(system);
-		MALI_PRINT_ERROR(("Mali Soft Job: failed to allocate job"));
-		_mali_osk_notification_delete(notification);
-		return NULL;
-	}
+	job->system = system;
+	job->id = system->last_job_id++;
+	job->state = MALI_SOFT_JOB_STATE_ALLOCATED;
+
+	_mali_osk_list_add(&(job->system_list), &(system->jobs_used));
 
 	job->type = type;
 	job->user_job = user_job;
 	job->activated = MALI_FALSE;
 
-	if (MALI_SOFT_JOB_TYPE_USER_SIGNALED == type) {
-		job->activated_notification = notification;
-	}
+	job->activated_notification = notification;
 
 	_mali_osk_atomic_init(&job->refcount, 1);
 
@@ -277,7 +237,8 @@ _mali_osk_errcode_t mali_soft_job_system_signal_job(struct mali_soft_job_system 
 
 	job = mali_soft_job_system_lookup_job(system, job_id);
 
-	if (NULL == job || !(MALI_SOFT_JOB_STATE_STARTED == job->state || MALI_SOFT_JOB_STATE_TIMED_OUT == job->state)) {
+	if ((NULL == job) || (MALI_SOFT_JOB_TYPE_USER_SIGNALED != job->type)
+	    || !(MALI_SOFT_JOB_STATE_STARTED == job->state || MALI_SOFT_JOB_STATE_TIMED_OUT == job->state)) {
 		mali_soft_job_system_unlock(system);
 		MALI_PRINT_ERROR(("Mali Soft Job: invalid soft job id %u", job_id));
 		return _MALI_OSK_ERR_ITEM_NOT_FOUND;
@@ -311,7 +272,7 @@ _mali_osk_errcode_t mali_soft_job_system_signal_job(struct mali_soft_job_system 
 	MALI_DEBUG_PRINT(4, ("Mali Soft Job: signaling soft job %u (0x%08X)\n", job->id, job));
 
 	schedule_mask = mali_timeline_tracker_release(&job->tracker);
-	mali_scheduler_schedule_from_mask(schedule_mask, MALI_FALSE);
+	mali_executor_schedule_from_mask(schedule_mask, MALI_FALSE);
 
 	mali_soft_job_destroy(job);
 
@@ -354,9 +315,25 @@ void mali_soft_job_system_activate_job(struct mali_soft_job *job)
 
 	/* Wake up sleeping signaler. */
 	job->activated = MALI_TRUE;
-	_mali_osk_wait_queue_wake_up(job->tracker.system->wait_queue);
 
-	mali_soft_job_system_unlock(job->system);
+	/* If job type is self signaled, release tracker, move soft job to free list, and scheduler at once */
+	if (MALI_SOFT_JOB_TYPE_SELF_SIGNALED == job->type) {
+		mali_scheduler_mask schedule_mask;
+
+		MALI_DEBUG_ASSERT(MALI_SOFT_JOB_STATE_STARTED == job->state);
+
+		job->state = MALI_SOFT_JOB_STATE_SIGNALED;
+		mali_soft_job_system_unlock(job->system);
+
+		schedule_mask = mali_timeline_tracker_release(&job->tracker);
+		mali_executor_schedule_from_mask(schedule_mask, MALI_FALSE);
+
+		mali_soft_job_destroy(job);
+	} else {
+		_mali_osk_wait_queue_wake_up(job->tracker.system->wait_queue);
+
+		mali_soft_job_system_unlock(job->system);
+	}
 }
 
 mali_scheduler_mask mali_soft_job_system_timeout_job(struct mali_soft_job *job)
@@ -373,7 +350,7 @@ mali_scheduler_mask mali_soft_job_system_timeout_job(struct mali_soft_job *job)
 	mali_soft_job_system_lock(job->system);
 
 	MALI_DEBUG_ASSERT(MALI_SOFT_JOB_STATE_STARTED  == job->state ||
-	                  MALI_SOFT_JOB_STATE_SIGNALED == job->state);
+			  MALI_SOFT_JOB_STATE_SIGNALED == job->state);
 
 	if (unlikely(job->system->session->is_aborting)) {
 		/* The session is aborting.  This job will be released and destroyed by @ref
@@ -408,7 +385,6 @@ mali_scheduler_mask mali_soft_job_system_timeout_job(struct mali_soft_job *job)
 
 void mali_soft_job_system_abort(struct mali_soft_job_system *system)
 {
-	u32 i;
 	struct mali_soft_job *job, *tmp;
 	_MALI_OSK_LIST_HEAD_STATIC_INIT(jobs);
 
@@ -420,12 +396,9 @@ void mali_soft_job_system_abort(struct mali_soft_job_system *system)
 
 	mali_soft_job_system_lock(system);
 
-	for (i = 0; i < MALI_MAX_NUM_SOFT_JOBS; ++i) {
-		job = &(system->jobs[i]);
-
-		MALI_DEBUG_ASSERT(MALI_SOFT_JOB_STATE_FREE      == job->state ||
-		                  MALI_SOFT_JOB_STATE_STARTED   == job->state ||
-		                  MALI_SOFT_JOB_STATE_TIMED_OUT == job->state);
+	_MALI_OSK_LIST_FOREACHENTRY(job, tmp, &system->jobs_used, struct mali_soft_job, system_list) {
+		MALI_DEBUG_ASSERT(MALI_SOFT_JOB_STATE_STARTED   == job->state ||
+				  MALI_SOFT_JOB_STATE_TIMED_OUT == job->state);
 
 		if (MALI_SOFT_JOB_STATE_STARTED == job->state) {
 			/* If the job has been activated, we have to release the tracker and destroy
@@ -450,7 +423,7 @@ void mali_soft_job_system_abort(struct mali_soft_job_system *system)
 	/* Release and destroy jobs. */
 	_MALI_OSK_LIST_FOREACHENTRY(job, tmp, &jobs, struct mali_soft_job, system_list) {
 		MALI_DEBUG_ASSERT(MALI_SOFT_JOB_STATE_SIGNALED  == job->state ||
-		                  MALI_SOFT_JOB_STATE_TIMED_OUT == job->state);
+				  MALI_SOFT_JOB_STATE_TIMED_OUT == job->state);
 
 		if (MALI_SOFT_JOB_STATE_SIGNALED == job->state) {
 			mali_timeline_tracker_release(&job->tracker);
