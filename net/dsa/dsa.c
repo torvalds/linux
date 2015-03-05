@@ -175,43 +175,14 @@ __ATTRIBUTE_GROUPS(dsa_hwmon);
 #endif /* CONFIG_NET_DSA_HWMON */
 
 /* basic switch operations **************************************************/
-static struct dsa_switch *
-dsa_switch_setup(struct dsa_switch_tree *dst, int index,
-		 struct device *parent, struct device *host_dev)
+static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 {
-	struct dsa_chip_data *pd = dst->pd->chip + index;
-	struct dsa_switch_driver *drv;
-	struct dsa_switch *ds;
-	int ret;
-	char *name;
-	int i;
+	struct dsa_switch_driver *drv = ds->drv;
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_chip_data *pd = ds->pd;
 	bool valid_name_found = false;
-
-	/*
-	 * Probe for switch model.
-	 */
-	drv = dsa_switch_probe(host_dev, pd->sw_addr, &name);
-	if (drv == NULL) {
-		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
-			   index);
-		return ERR_PTR(-EINVAL);
-	}
-	netdev_info(dst->master_netdev, "[%d]: detected a %s switch\n",
-		    index, name);
-
-
-	/*
-	 * Allocate and initialise switch state.
-	 */
-	ds = kzalloc(sizeof(*ds) + drv->priv_size, GFP_KERNEL);
-	if (ds == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	ds->dst = dst;
-	ds->index = index;
-	ds->pd = dst->pd->chip + index;
-	ds->drv = drv;
-	ds->master_dev = host_dev;
+	int index = ds->index;
+	int i, ret;
 
 	/*
 	 * Validate supplied switch configuration.
@@ -350,13 +321,56 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	}
 #endif /* CONFIG_NET_DSA_HWMON */
 
-	return ds;
+	return ret;
 
 out_free:
 	mdiobus_free(ds->slave_mii_bus);
 out:
 	kfree(ds);
-	return ERR_PTR(ret);
+	return ret;
+}
+
+static struct dsa_switch *
+dsa_switch_setup(struct dsa_switch_tree *dst, int index,
+		 struct device *parent, struct device *host_dev)
+{
+	struct dsa_chip_data *pd = dst->pd->chip + index;
+	struct dsa_switch_driver *drv;
+	struct dsa_switch *ds;
+	int ret;
+	char *name;
+
+	/*
+	 * Probe for switch model.
+	 */
+	drv = dsa_switch_probe(host_dev, pd->sw_addr, &name);
+	if (drv == NULL) {
+		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
+			   index);
+		return ERR_PTR(-EINVAL);
+	}
+	netdev_info(dst->master_netdev, "[%d]: detected a %s switch\n",
+		    index, name);
+
+
+	/*
+	 * Allocate and initialise switch state.
+	 */
+	ds = kzalloc(sizeof(*ds) + drv->priv_size, GFP_KERNEL);
+	if (ds == NULL)
+		return NULL;
+
+	ds->dst = dst;
+	ds->index = index;
+	ds->pd = pd;
+	ds->drv = drv;
+	ds->master_dev = host_dev;
+
+	ret = dsa_switch_setup_one(ds, parent);
+	if (ret)
+		return NULL;
+
+	return ds;
 }
 
 static void dsa_switch_destroy(struct dsa_switch *ds)
