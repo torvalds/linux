@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -37,9 +37,9 @@ typedef struct _mali_osk_notification_wrapper_t_struct {
 	_mali_osk_notification_t data;   /**< Notification data */
 } _mali_osk_notification_wrapper_t;
 
-_mali_osk_notification_queue_t *_mali_osk_notification_queue_init( void )
+_mali_osk_notification_queue_t *_mali_osk_notification_queue_init(void)
 {
-	_mali_osk_notification_queue_t *	result;
+	_mali_osk_notification_queue_t         *result;
 
 	result = (_mali_osk_notification_queue_t *)kmalloc(sizeof(_mali_osk_notification_queue_t), GFP_KERNEL);
 	if (NULL == result) return NULL;
@@ -51,13 +51,13 @@ _mali_osk_notification_queue_t *_mali_osk_notification_queue_init( void )
 	return result;
 }
 
-_mali_osk_notification_t *_mali_osk_notification_create( u32 type, u32 size )
+_mali_osk_notification_t *_mali_osk_notification_create(u32 type, u32 size)
 {
 	/* OPT Recycling of notification objects */
 	_mali_osk_notification_wrapper_t *notification;
 
-	notification = (_mali_osk_notification_wrapper_t *)kmalloc( sizeof(_mali_osk_notification_wrapper_t) + size,
-	               GFP_KERNEL | __GFP_HIGH | __GFP_REPEAT);
+	notification = (_mali_osk_notification_wrapper_t *)kmalloc(sizeof(_mali_osk_notification_wrapper_t) + size,
+			GFP_KERNEL | __GFP_HIGH | __GFP_REPEAT);
 	if (NULL == notification) {
 		MALI_DEBUG_PRINT(1, ("Failed to create a notification object\n"));
 		return NULL;
@@ -67,7 +67,7 @@ _mali_osk_notification_t *_mali_osk_notification_create( u32 type, u32 size )
 	INIT_LIST_HEAD(&notification->list);
 
 	if (0 != size) {
-		notification->data.result_buffer = ((u8*)notification) + sizeof(_mali_osk_notification_wrapper_t);
+		notification->data.result_buffer = ((u8 *)notification) + sizeof(_mali_osk_notification_wrapper_t);
 	} else {
 		notification->data.result_buffer = NULL;
 	}
@@ -80,40 +80,40 @@ _mali_osk_notification_t *_mali_osk_notification_create( u32 type, u32 size )
 	return &(notification->data);
 }
 
-void _mali_osk_notification_delete( _mali_osk_notification_t *object )
+void _mali_osk_notification_delete(_mali_osk_notification_t *object)
 {
 	_mali_osk_notification_wrapper_t *notification;
-	MALI_DEBUG_ASSERT_POINTER( object );
+	MALI_DEBUG_ASSERT_POINTER(object);
 
-	notification = container_of( object, _mali_osk_notification_wrapper_t, data );
+	notification = container_of(object, _mali_osk_notification_wrapper_t, data);
 
 	/* Free the container */
 	kfree(notification);
 }
 
-void _mali_osk_notification_queue_term( _mali_osk_notification_queue_t *queue )
+void _mali_osk_notification_queue_term(_mali_osk_notification_queue_t *queue)
 {
 	_mali_osk_notification_t *result;
-	MALI_DEBUG_ASSERT_POINTER( queue );
+	MALI_DEBUG_ASSERT_POINTER(queue);
 
 	while (_MALI_OSK_ERR_OK == _mali_osk_notification_queue_dequeue(queue, &result)) {
-		_mali_osk_notification_delete( result );
+		_mali_osk_notification_delete(result);
 	}
 
 	/* not much to do, just free the memory */
 	kfree(queue);
 }
-void _mali_osk_notification_queue_send( _mali_osk_notification_queue_t *queue, _mali_osk_notification_t *object )
+void _mali_osk_notification_queue_send(_mali_osk_notification_queue_t *queue, _mali_osk_notification_t *object)
 {
 #if defined(MALI_UPPER_HALF_SCHEDULING)
 	unsigned long irq_flags;
 #endif
 
 	_mali_osk_notification_wrapper_t *notification;
-	MALI_DEBUG_ASSERT_POINTER( queue );
-	MALI_DEBUG_ASSERT_POINTER( object );
+	MALI_DEBUG_ASSERT_POINTER(queue);
+	MALI_DEBUG_ASSERT_POINTER(object);
 
-	notification = container_of( object, _mali_osk_notification_wrapper_t, data );
+	notification = container_of(object, _mali_osk_notification_wrapper_t, data);
 
 #if defined(MALI_UPPER_HALF_SCHEDULING)
 	spin_lock_irqsave(&queue->mutex, irq_flags);
@@ -133,7 +133,7 @@ void _mali_osk_notification_queue_send( _mali_osk_notification_queue_t *queue, _
 	wake_up(&queue->receive_queue);
 }
 
-_mali_osk_errcode_t _mali_osk_notification_queue_dequeue( _mali_osk_notification_queue_t *queue, _mali_osk_notification_t **result )
+_mali_osk_errcode_t _mali_osk_notification_queue_dequeue(_mali_osk_notification_queue_t *queue, _mali_osk_notification_t **result)
 {
 #if defined(MALI_UPPER_HALF_SCHEDULING)
 	unsigned long irq_flags;
@@ -164,17 +164,17 @@ _mali_osk_errcode_t _mali_osk_notification_queue_dequeue( _mali_osk_notification
 	return ret;
 }
 
-_mali_osk_errcode_t _mali_osk_notification_queue_receive( _mali_osk_notification_queue_t *queue, _mali_osk_notification_t **result )
+_mali_osk_errcode_t _mali_osk_notification_queue_receive(_mali_osk_notification_queue_t *queue, _mali_osk_notification_t **result)
 {
 	/* check input */
-	MALI_DEBUG_ASSERT_POINTER( queue );
-	MALI_DEBUG_ASSERT_POINTER( result );
+	MALI_DEBUG_ASSERT_POINTER(queue);
+	MALI_DEBUG_ASSERT_POINTER(result);
 
 	/* default result */
 	*result = NULL;
 
 	if (wait_event_interruptible(queue->receive_queue,
-	                             _MALI_OSK_ERR_OK == _mali_osk_notification_queue_dequeue(queue, result))) {
+				     _MALI_OSK_ERR_OK == _mali_osk_notification_queue_dequeue(queue, result))) {
 		return _MALI_OSK_ERR_RESTARTSYSCALL;
 	}
 

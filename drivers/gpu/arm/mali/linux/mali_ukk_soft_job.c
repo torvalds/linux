@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -21,8 +21,9 @@
 
 int soft_job_start_wrapper(struct mali_session_data *session, _mali_uk_soft_job_start_s __user *uargs)
 {
-	u32 type, user_job, point;
-	_mali_uk_fence_t uk_fence;
+	_mali_uk_soft_job_start_s kargs;
+	u32 type, point;
+	u64 user_job;
 	struct mali_timeline_fence fence;
 	struct mali_soft_job *job = NULL;
 	u32 __user *job_id_ptr = NULL;
@@ -35,14 +36,17 @@ int soft_job_start_wrapper(struct mali_session_data *session, _mali_uk_soft_job_
 
 	MALI_DEBUG_ASSERT_POINTER(session->soft_job_system);
 
-	if (0 != get_user(type, &uargs->type))                 return -EFAULT;
-	if (0 != get_user(user_job, &uargs->user_job))         return -EFAULT;
-	if (0 != get_user(job_id_ptr, &uargs->job_id_ptr))     return -EFAULT;
+	if (0 != copy_from_user(&kargs, uargs, sizeof(kargs))) {
+		return -EFAULT;
+	}
 
-	if (0 != copy_from_user(&uk_fence, &uargs->fence, sizeof(_mali_uk_fence_t))) return -EFAULT;
-	mali_timeline_fence_copy_uk_fence(&fence, &uk_fence);
+	type = kargs.type;
+	user_job = kargs.user_job;
+	job_id_ptr = (u32 __user *)(uintptr_t)kargs.job_id_ptr;
 
-	if (MALI_SOFT_JOB_TYPE_USER_SIGNALED < type) {
+	mali_timeline_fence_copy_uk_fence(&fence, &kargs.fence);
+
+	if ((MALI_SOFT_JOB_TYPE_USER_SIGNALED != type) && (MALI_SOFT_JOB_TYPE_SELF_SIGNALED != type)) {
 		MALI_DEBUG_PRINT_ERROR(("Invalid soft job type specified\n"));
 		return -EINVAL;
 	}

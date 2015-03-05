@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 
 #include <asm/memory.h>
-#include <asm/uaccess.h>			/* to verify pointers from user space */
+#include <asm/uaccess.h>                        /* to verify pointers from user space */
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
 
@@ -35,12 +35,12 @@ typedef struct ump_vma_usage_tracker {
 	ump_memory_allocation *descriptor;
 } ump_vma_usage_tracker;
 
-static void ump_vma_open(struct vm_area_struct * vma);
-static void ump_vma_close(struct vm_area_struct * vma);
+static void ump_vma_open(struct vm_area_struct *vma);
+static void ump_vma_close(struct vm_area_struct *vma);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 static int ump_cpu_page_fault_handler(struct vm_area_struct *vma, struct vm_fault *vmf);
 #else
-static unsigned long ump_cpu_page_fault_handler(struct vm_area_struct * vma, unsigned long address);
+static unsigned long ump_cpu_page_fault_handler(struct vm_area_struct *vma, unsigned long address);
 #endif
 
 static struct vm_operations_struct ump_vm_ops = {
@@ -60,11 +60,11 @@ static struct vm_operations_struct ump_vm_ops = {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 static int ump_cpu_page_fault_handler(struct vm_area_struct *vma, struct vm_fault *vmf)
 #else
-static unsigned long ump_cpu_page_fault_handler(struct vm_area_struct * vma, unsigned long address)
+static unsigned long ump_cpu_page_fault_handler(struct vm_area_struct *vma, unsigned long address)
 #endif
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-	void __user * address;
+	void __user *address;
 	address = vmf->virtual_address;
 #endif
 	MSG_ERR(("Page-fault in UMP memory region caused by the CPU\n"));
@@ -77,12 +77,12 @@ static unsigned long ump_cpu_page_fault_handler(struct vm_area_struct * vma, uns
 #endif
 }
 
-static void ump_vma_open(struct vm_area_struct * vma)
+static void ump_vma_open(struct vm_area_struct *vma)
 {
-	ump_vma_usage_tracker * vma_usage_tracker;
+	ump_vma_usage_tracker *vma_usage_tracker;
 	int new_val;
 
-	vma_usage_tracker = (ump_vma_usage_tracker*)vma->vm_private_data;
+	vma_usage_tracker = (ump_vma_usage_tracker *)vma->vm_private_data;
 	BUG_ON(NULL == vma_usage_tracker);
 
 	new_val = atomic_inc_return(&vma_usage_tracker->references);
@@ -90,13 +90,13 @@ static void ump_vma_open(struct vm_area_struct * vma)
 	DBG_MSG(4, ("VMA open, VMA reference count incremented. VMA: 0x%08lx, reference count: %d\n", (unsigned long)vma, new_val));
 }
 
-static void ump_vma_close(struct vm_area_struct * vma)
+static void ump_vma_close(struct vm_area_struct *vma)
 {
-	ump_vma_usage_tracker * vma_usage_tracker;
+	ump_vma_usage_tracker *vma_usage_tracker;
 	_ump_uk_unmap_mem_s args;
 	int new_val;
 
-	vma_usage_tracker = (ump_vma_usage_tracker*)vma->vm_private_data;
+	vma_usage_tracker = (ump_vma_usage_tracker *)vma->vm_private_data;
 	BUG_ON(NULL == vma_usage_tracker);
 
 	new_val = atomic_dec_return(&vma_usage_tracker->references);
@@ -104,7 +104,7 @@ static void ump_vma_close(struct vm_area_struct * vma)
 	DBG_MSG(4, ("VMA close, VMA reference count decremented. VMA: 0x%08lx, reference count: %d\n", (unsigned long)vma, new_val));
 
 	if (0 == new_val) {
-		ump_memory_allocation * descriptor;
+		ump_memory_allocation *descriptor;
 
 		descriptor = vma_usage_tracker->descriptor;
 
@@ -116,15 +116,15 @@ static void ump_vma_close(struct vm_area_struct * vma)
 		args._ukk_private = NULL; /** @note unused */
 
 		DBG_MSG(4, ("No more VMA references left, releasing UMP memory\n"));
-		_ump_ukk_unmap_mem( & args );
+		_ump_ukk_unmap_mem(& args);
 
 		/* vma_usage_tracker is free()d by _ump_osk_mem_mapregion_term() */
 	}
 }
 
-_mali_osk_errcode_t _ump_osk_mem_mapregion_init( ump_memory_allocation * descriptor )
+_mali_osk_errcode_t _ump_osk_mem_mapregion_init(ump_memory_allocation *descriptor)
 {
-	ump_vma_usage_tracker * vma_usage_tracker;
+	ump_vma_usage_tracker *vma_usage_tracker;
 	struct vm_area_struct *vma;
 
 	if (NULL == descriptor) return _MALI_OSK_ERR_FAULT;
@@ -135,8 +135,8 @@ _mali_osk_errcode_t _ump_osk_mem_mapregion_init( ump_memory_allocation * descrip
 		return -_MALI_OSK_ERR_FAULT;
 	}
 
-	vma = (struct vm_area_struct*)descriptor->process_mapping_info;
-	if (NULL == vma ) {
+	vma = (struct vm_area_struct *)descriptor->process_mapping_info;
+	if (NULL == vma) {
 		kfree(vma_usage_tracker);
 		return _MALI_OSK_ERR_FAULT;
 	}
@@ -152,16 +152,16 @@ _mali_osk_errcode_t _ump_osk_mem_mapregion_init( ump_memory_allocation * descrip
 #endif
 
 
-	if (0==descriptor->is_cached) {
+	if (0 == descriptor->is_cached) {
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	}
-	DBG_MSG(3, ("Mapping with page_prot: 0x%x\n", vma->vm_page_prot ));
+	DBG_MSG(3, ("Mapping with page_prot: 0x%x\n", vma->vm_page_prot));
 
 	/* Setup the functions which handle further VMA handling */
 	vma->vm_ops = &ump_vm_ops;
 
 	/* Do the va range allocation - in this case, it was done earlier, so we copy in that information */
-	descriptor->mapping = (void __user*)vma->vm_start;
+	descriptor->mapping = (void __user *)vma->vm_start;
 
 	atomic_set(&vma_usage_tracker->references, 1); /*this can later be increased if process is forked, see ump_vma_open() */
 	vma_usage_tracker->descriptor = descriptor;
@@ -169,16 +169,16 @@ _mali_osk_errcode_t _ump_osk_mem_mapregion_init( ump_memory_allocation * descrip
 	return _MALI_OSK_ERR_OK;
 }
 
-void _ump_osk_mem_mapregion_term( ump_memory_allocation * descriptor )
+void _ump_osk_mem_mapregion_term(ump_memory_allocation *descriptor)
 {
-	struct vm_area_struct* vma;
-	ump_vma_usage_tracker * vma_usage_tracker;
+	struct vm_area_struct *vma;
+	ump_vma_usage_tracker *vma_usage_tracker;
 
 	if (NULL == descriptor) return;
 
 	/* Linux does the right thing as part of munmap to remove the mapping
 	 * All that remains is that we remove the vma_usage_tracker setup in init() */
-	vma = (struct vm_area_struct*)descriptor->process_mapping_info;
+	vma = (struct vm_area_struct *)descriptor->process_mapping_info;
 
 	vma_usage_tracker = vma->vm_private_data;
 
@@ -187,26 +187,26 @@ void _ump_osk_mem_mapregion_term( ump_memory_allocation * descriptor )
 	return;
 }
 
-_mali_osk_errcode_t _ump_osk_mem_mapregion_map( ump_memory_allocation * descriptor, u32 offset, u32 * phys_addr, unsigned long size )
+_mali_osk_errcode_t _ump_osk_mem_mapregion_map(ump_memory_allocation *descriptor, u32 offset, u32 *phys_addr, unsigned long size)
 {
 	struct vm_area_struct *vma;
 	_mali_osk_errcode_t retval;
 
 	if (NULL == descriptor) return _MALI_OSK_ERR_FAULT;
 
-	vma = (struct vm_area_struct*)descriptor->process_mapping_info;
+	vma = (struct vm_area_struct *)descriptor->process_mapping_info;
 
-	if (NULL == vma ) return _MALI_OSK_ERR_FAULT;
+	if (NULL == vma) return _MALI_OSK_ERR_FAULT;
 
-	retval = remap_pfn_range( vma, ((u32)descriptor->mapping) + offset, (*phys_addr) >> PAGE_SHIFT, size, vma->vm_page_prot) ? _MALI_OSK_ERR_FAULT : _MALI_OSK_ERR_OK;;
+	retval = remap_pfn_range(vma, ((u32)descriptor->mapping) + offset, (*phys_addr) >> PAGE_SHIFT, size, vma->vm_page_prot) ? _MALI_OSK_ERR_FAULT : _MALI_OSK_ERR_OK;;
 
 	DBG_MSG(4, ("Mapping virtual to physical memory. ID: %u, vma: 0x%08lx, virtual addr:0x%08lx, physical addr: 0x%08lx, size:%lu, prot:0x%x, vm_flags:0x%x RETVAL: 0x%x\n",
-	            ump_dd_secure_id_get(descriptor->handle),
-	            (unsigned long)vma,
-	            (unsigned long)(vma->vm_start + offset),
-	            (unsigned long)*phys_addr,
-	            size,
-	            (unsigned int)vma->vm_page_prot, vma->vm_flags, retval));
+		    ump_dd_secure_id_get(descriptor->handle),
+		    (unsigned long)vma,
+		    (unsigned long)(vma->vm_start + offset),
+		    (unsigned long)*phys_addr,
+		    size,
+		    (unsigned int)vma->vm_page_prot, vma->vm_flags, retval));
 
 	return retval;
 }
@@ -217,18 +217,18 @@ static void level1_cache_flush_all(void)
 	__cpuc_flush_kern_all();
 }
 
-void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk_msync_op op, ump_session_data * session_data )
+void _ump_osk_msync(ump_dd_mem *mem, void *virt, u32 offset, u32 size, ump_uk_msync_op op, ump_session_data *session_data)
 {
 	int i;
 
 	/* Flush L1 using virtual address, the entire range in one go.
 	 * Only flush if user space process has a valid write mapping on given address. */
-	if( (mem) && (virt!=NULL) && (access_ok(VERIFY_WRITE, virt, size)) ) {
+	if ((mem) && (virt != NULL) && (access_ok(VERIFY_WRITE, virt, size))) {
 		__cpuc_flush_dcache_area(virt, size);
 		DBG_MSG(3, ("UMP[%02u] Flushing CPU L1 Cache. CPU address: %x, size: %x\n", mem->secure_id, virt, size));
 	} else {
 		if (session_data) {
-			if (op == _UMP_UK_MSYNC_FLUSH_L1  ) {
+			if (op == _UMP_UK_MSYNC_FLUSH_L1) {
 				DBG_MSG(4, ("UMP Pending L1 cache flushes: %d\n", session_data->has_pending_level1_cache_flush));
 				session_data->has_pending_level1_cache_flush = 0;
 				level1_cache_flush_all();
@@ -236,7 +236,7 @@ void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk
 			} else {
 				if (session_data->cache_operations_ongoing) {
 					session_data->has_pending_level1_cache_flush++;
-					DBG_MSG(4, ("UMP[%02u] Defering the L1 flush. Nr pending:%d\n", mem->secure_id, session_data->has_pending_level1_cache_flush) );
+					DBG_MSG(4, ("UMP[%02u] Defering the L1 flush. Nr pending:%d\n", mem->secure_id, session_data->has_pending_level1_cache_flush));
 				} else {
 					/* Flushing the L1 cache for each switch_user() if ump_cache_operations_control(START) is not called */
 					level1_cache_flush_all();
@@ -248,49 +248,49 @@ void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk
 		}
 	}
 
-	if ( NULL == mem ) return;
+	if (NULL == mem) return;
 
-	if ( mem->size_bytes==size) {
-		DBG_MSG(3, ("UMP[%02u] Flushing CPU L2 Cache\n",mem->secure_id));
+	if (mem->size_bytes == size) {
+		DBG_MSG(3, ("UMP[%02u] Flushing CPU L2 Cache\n", mem->secure_id));
 	} else {
 		DBG_MSG(3, ("UMP[%02u] Flushing CPU L2 Cache. Blocks:%u, TotalSize:%u. FlushSize:%u Offset:0x%x FirstPaddr:0x%08x\n",
-		            mem->secure_id, mem->nr_blocks, mem->size_bytes, size, offset, mem->block_array[0].addr));
+			    mem->secure_id, mem->nr_blocks, mem->size_bytes, size, offset, mem->block_array[0].addr));
 	}
 
 
 	/* Flush L2 using physical addresses, block for block. */
-	for (i=0 ; i < mem->nr_blocks; i++) {
+	for (i = 0 ; i < mem->nr_blocks; i++) {
 		u32 start_p, end_p;
 		ump_dd_physical_block *block;
 		block = &mem->block_array[i];
 
-		if(offset >= block->size) {
+		if (offset >= block->size) {
 			offset -= block->size;
 			continue;
 		}
 
-		if(offset) {
+		if (offset) {
 			start_p = (u32)block->addr + offset;
 			/* We'll zero the offset later, after using it to calculate end_p. */
 		} else {
 			start_p = (u32)block->addr;
 		}
 
-		if(size < block->size - offset) {
-			end_p = start_p + size - 1;
+		if (size < block->size - offset) {
+			end_p = start_p + size;
 			size = 0;
 		} else {
-			if(offset) {
-				end_p = start_p + (block->size - offset - 1);
+			if (offset) {
+				end_p = start_p + (block->size - offset);
 				size -= block->size - offset;
 				offset = 0;
 			} else {
-				end_p = start_p + block->size - 1;
+				end_p = start_p + block->size;
 				size -= block->size;
 			}
 		}
 
-		switch(op) {
+		switch (op) {
 		case _UMP_UK_MSYNC_CLEAN:
 			outer_clean_range(start_p, end_p);
 			break;
@@ -304,7 +304,7 @@ void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk
 			break;
 		}
 
-		if(0 == size) {
+		if (0 == size) {
 			/* Nothing left to flush. */
 			break;
 		}

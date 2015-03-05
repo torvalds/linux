@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -20,11 +20,6 @@ extern "C" {
 #include "mali_osk_types.h"
 
 extern struct platform_device *mali_platform_device;
-
-#if MALI_LICENSE_IS_GPL
-/* Defined in mali_osk_irq.h */
-extern struct workqueue_struct * mali_wq_normal;
-#endif
 
 #ifdef __cplusplus
 }

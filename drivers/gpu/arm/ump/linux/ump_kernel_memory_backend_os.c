@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011, 2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2011, 2013-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -36,9 +36,9 @@ typedef struct os_allocator {
 
 
 
-static void os_free(void* ctx, ump_dd_mem * descriptor);
-static int os_allocate(void* ctx, ump_dd_mem * descriptor);
-static void os_memory_backend_destroy(ump_memory_backend * backend);
+static void os_free(void *ctx, ump_dd_mem *descriptor);
+static int os_allocate(void *ctx, ump_dd_mem *descriptor);
+static void os_memory_backend_destroy(ump_memory_backend *backend);
 static u32 os_stat(struct ump_memory_backend *backend);
 
 
@@ -46,10 +46,10 @@ static u32 os_stat(struct ump_memory_backend *backend);
 /*
  * Create OS memory backend
  */
-ump_memory_backend * ump_os_memory_backend_create(const int max_allocation)
+ump_memory_backend *ump_os_memory_backend_create(const int max_allocation)
 {
-	ump_memory_backend * backend;
-	os_allocator * info;
+	ump_memory_backend *backend;
+	os_allocator *info;
 
 	info = kmalloc(sizeof(os_allocator), GFP_KERNEL);
 	if (NULL == info) {
@@ -83,9 +83,9 @@ ump_memory_backend * ump_os_memory_backend_create(const int max_allocation)
 /*
  * Destroy specified OS memory backend
  */
-static void os_memory_backend_destroy(ump_memory_backend * backend)
+static void os_memory_backend_destroy(ump_memory_backend *backend)
 {
-	os_allocator * info = (os_allocator*)backend->ctx;
+	os_allocator *info = (os_allocator *)backend->ctx;
 
 	DBG_MSG_IF(1, 0 != info->num_pages_allocated, ("%d pages still in use during shutdown\n", info->num_pages_allocated));
 
@@ -98,17 +98,17 @@ static void os_memory_backend_destroy(ump_memory_backend * backend)
 /*
  * Allocate UMP memory
  */
-static int os_allocate(void* ctx, ump_dd_mem * descriptor)
+static int os_allocate(void *ctx, ump_dd_mem *descriptor)
 {
 	u32 left;
-	os_allocator * info;
+	os_allocator *info;
 	int pages_allocated = 0;
 	int is_cached;
 
 	BUG_ON(!descriptor);
 	BUG_ON(!ctx);
 
-	info = (os_allocator*)ctx;
+	info = (os_allocator *)ctx;
 	left = descriptor->size_bytes;
 	is_cached = descriptor->is_cached;
 
@@ -130,7 +130,7 @@ static int os_allocate(void* ctx, ump_dd_mem * descriptor)
 	}
 
 	while (left > 0 && ((info->num_pages_allocated + pages_allocated) < info->num_pages_max)) {
-		struct page * new_page;
+		struct page *new_page;
 
 		if (is_cached) {
 			new_page = alloc_page(GFP_HIGHUSER | __GFP_ZERO | __GFP_REPEAT | __GFP_NOWARN);
@@ -142,11 +142,11 @@ static int os_allocate(void* ctx, ump_dd_mem * descriptor)
 		}
 
 		/* Ensure page caches are flushed. */
-		if ( is_cached ) {
+		if (is_cached) {
 			descriptor->block_array[pages_allocated].addr = page_to_phys(new_page);
 			descriptor->block_array[pages_allocated].size = PAGE_SIZE;
 		} else {
-			descriptor->block_array[pages_allocated].addr = dma_map_page(NULL, new_page, 0, PAGE_SIZE, DMA_BIDIRECTIONAL );
+			descriptor->block_array[pages_allocated].addr = dma_map_page(NULL, new_page, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
 			descriptor->block_array[pages_allocated].size = PAGE_SIZE;
 		}
 
@@ -166,12 +166,12 @@ static int os_allocate(void* ctx, ump_dd_mem * descriptor)
 	if (left) {
 		DBG_MSG(1, ("Failed to allocate needed pages\n"));
 
-		while(pages_allocated) {
+		while (pages_allocated) {
 			pages_allocated--;
-			if ( !is_cached ) {
+			if (!is_cached) {
 				dma_unmap_page(NULL, descriptor->block_array[pages_allocated].addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 			}
-			__free_page(pfn_to_page(descriptor->block_array[pages_allocated].addr >> PAGE_SHIFT) );
+			__free_page(pfn_to_page(descriptor->block_array[pages_allocated].addr >> PAGE_SHIFT));
 		}
 
 		up(&info->mutex);
@@ -192,15 +192,15 @@ static int os_allocate(void* ctx, ump_dd_mem * descriptor)
 /*
  * Free specified UMP memory
  */
-static void os_free(void* ctx, ump_dd_mem * descriptor)
+static void os_free(void *ctx, ump_dd_mem *descriptor)
 {
-	os_allocator * info;
+	os_allocator *info;
 	int i;
 
 	BUG_ON(!ctx);
 	BUG_ON(!descriptor);
 
-	info = (os_allocator*)ctx;
+	info = (os_allocator *)ctx;
 
 	BUG_ON(descriptor->nr_blocks > info->num_pages_allocated);
 
@@ -215,12 +215,12 @@ static void os_free(void* ctx, ump_dd_mem * descriptor)
 
 	up(&info->mutex);
 
-	for ( i = 0; i < descriptor->nr_blocks; i++) {
+	for (i = 0; i < descriptor->nr_blocks; i++) {
 		DBG_MSG(6, ("Freeing physical page. Address: 0x%08lx\n", descriptor->block_array[i].addr));
-		if ( ! descriptor->is_cached) {
+		if (! descriptor->is_cached) {
 			dma_unmap_page(NULL, descriptor->block_array[i].addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 		}
-		__free_page(pfn_to_page(descriptor->block_array[i].addr>>PAGE_SHIFT) );
+		__free_page(pfn_to_page(descriptor->block_array[i].addr >> PAGE_SHIFT));
 	}
 
 	vfree(descriptor->block_array);
@@ -230,6 +230,6 @@ static void os_free(void* ctx, ump_dd_mem * descriptor)
 static u32 os_stat(struct ump_memory_backend *backend)
 {
 	os_allocator *info;
-	info = (os_allocator*)backend->ctx;
+	info = (os_allocator *)backend->ctx;
 	return info->num_pages_allocated * _MALI_OSK_MALI_PAGE_SIZE;
 }

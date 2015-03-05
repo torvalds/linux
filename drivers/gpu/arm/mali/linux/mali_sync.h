@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -17,20 +17,21 @@
 #ifndef _MALI_SYNC_H_
 #define _MALI_SYNC_H_
 
-#include <linux/version.h>
-
 #if defined(CONFIG_SYNC)
 
 #include <linux/seq_file.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,10)
-#include <sync.h>
-#else
+#include <linux/version.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 10, 0)
 #include <linux/sync.h>
+#else
+#include <sync.h>
 #endif
+
 
 #include "mali_osk.h"
 
 struct mali_sync_flag;
+struct mali_timeline;
 
 /**
  * Create a sync timeline.
@@ -38,7 +39,7 @@ struct mali_sync_flag;
  * @param name Name of the sync timeline.
  * @return The new sync timeline if successful, NULL if not.
  */
-struct sync_timeline *mali_sync_timeline_create(const char *name);
+struct sync_timeline *mali_sync_timeline_create(struct mali_timeline *timeline, const char *name);
 
 /**
  * Check if sync timeline belongs to Mali.

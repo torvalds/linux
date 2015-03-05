@@ -192,7 +192,6 @@ int mali_meson_init_start(struct platform_device* ptr_plt_dev)
 	struct mali_gpu_device_data* pdev = ptr_plt_dev->dev.platform_data;
 
 	/* for mali platform data. */
-	pdev->utilization_interval = 200,
 	pdev->utilization_callback = mali_gpu_utilization_callback,
 
 	/* for resource data. */

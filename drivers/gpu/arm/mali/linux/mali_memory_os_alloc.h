@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2013-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -36,9 +36,9 @@ mali_mem_allocation *mali_mem_os_alloc(u32 mali_addr, u32 size, struct vm_area_s
  */
 void mali_mem_os_release(mali_mem_allocation *descriptor);
 
-_mali_osk_errcode_t mali_mem_os_get_table_page(u32 *phys, mali_io_address *mapping);
+_mali_osk_errcode_t mali_mem_os_get_table_page(mali_dma_addr *phys, mali_io_address *mapping);
 
-void mali_mem_os_release_table_page(u32 phys, void *virt);
+void mali_mem_os_release_table_page(mali_dma_addr phys, void *virt);
 
 _mali_osk_errcode_t mali_mem_os_init(void);
 void mali_mem_os_term(void);

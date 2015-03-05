@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2012, 2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -8,11 +8,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __ARCH_CONFIG_H__
-#define __ARCH_CONFIG_H__
+#ifndef __MALI_CONTROL_TIMER_H__
+#define __MALI_CONTROL_TIMER_H__
 
-#define ARCH_UMP_BACKEND_DEFAULT          0
-#define ARCH_UMP_MEMORY_ADDRESS_DEFAULT   0xE1000000
-#define ARCH_UMP_MEMORY_SIZE_DEFAULT 16UL * 1024UL * 1024UL
+#include "mali_osk.h"
 
-#endif /* __ARCH_CONFIG_H__ */
+_mali_osk_errcode_t mali_control_timer_init(void);
+
+void mali_control_timer_term(void);
+
+mali_bool mali_control_timer_resume(u64 time_now);
+
+void mali_control_timer_suspend(mali_bool suspend);
+
+void mali_control_timer_add(u32 timeout);
+
+#endif /* __MALI_CONTROL_TIMER_H__ */
+

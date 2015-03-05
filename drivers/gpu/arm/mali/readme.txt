@@ -19,6 +19,10 @@ where
 The result will be a mali.ko file, which can be loaded into the Linux kernel
 by using the insmod command.
 
+Use of UMP is not recommended. The dma-buf API in the Linux kernel has
+replaced UMP. The Mali Device Driver will be built with dma-buf support if the
+kernel config includes enabled dma-buf.
+
 The kernel needs to be provided with a platform_device struct for the Mali GPU
 device. See the mali_utgard.h header file for how to set up the Mali GPU
 resources.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2012-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -57,14 +57,14 @@ int pp_get_number_of_cores_wrapper(struct mali_session_data *session_data, _mali
 	MALI_CHECK_NON_NULL(uargs, -EINVAL);
 	MALI_CHECK_NON_NULL(session_data, -EINVAL);
 
-	kargs.ctx = session_data;
+	kargs.ctx = (uintptr_t)session_data;
 
 	err = _mali_ukk_get_pp_number_of_cores(&kargs);
 	if (_MALI_OSK_ERR_OK != err) {
 		return map_errcode(err);
 	}
 
-	kargs.ctx = NULL; /* prevent kernel address to be returned to user space */
+	kargs.ctx = (uintptr_t)NULL; /* prevent kernel address to be returned to user space */
 	if (0 != copy_to_user(uargs, &kargs, sizeof(_mali_uk_get_pp_number_of_cores_s))) {
 		return -EFAULT;
 	}
@@ -80,7 +80,7 @@ int pp_get_core_version_wrapper(struct mali_session_data *session_data, _mali_uk
 	MALI_CHECK_NON_NULL(uargs, -EINVAL);
 	MALI_CHECK_NON_NULL(session_data, -EINVAL);
 
-	kargs.ctx = session_data;
+	kargs.ctx = (uintptr_t)session_data;
 	err = _mali_ukk_get_pp_core_version(&kargs);
 	if (_MALI_OSK_ERR_OK != err) return map_errcode(err);
 
@@ -98,7 +98,7 @@ int pp_disable_wb_wrapper(struct mali_session_data *session_data, _mali_uk_pp_di
 
 	if (0 != copy_from_user(&kargs, uargs, sizeof(_mali_uk_pp_disable_wb_s))) return -EFAULT;
 
-	kargs.ctx = session_data;
+	kargs.ctx = (uintptr_t)session_data;
 	_mali_ukk_pp_job_disable_wb(&kargs);
 
 	return 0;

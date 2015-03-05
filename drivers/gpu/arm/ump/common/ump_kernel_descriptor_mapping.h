@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011, 2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2011, 2013-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -21,8 +21,8 @@
  * The actual descriptor mapping table, never directly accessed by clients
  */
 typedef struct ump_descriptor_table {
-	u32 * usage; /**< Pointer to bitpattern indicating if a descriptor is valid/used or not */
-	void** mappings; /**< Array of the pointers the descriptors map to */
+	u32 *usage;  /**< Pointer to bitpattern indicating if a descriptor is valid/used or not */
+	void **mappings; /**< Array of the pointers the descriptors map to */
 } ump_descriptor_table;
 
 /**
@@ -33,7 +33,7 @@ typedef struct ump_descriptor_mapping {
 	_mali_osk_mutex_rw_t *lock; /**< Lock protecting access to the mapping object */
 	int max_nr_mappings_allowed; /**< Max number of mappings to support in this namespace */
 	int current_nr_mappings; /**< Current number of possible mappings */
-	ump_descriptor_table * table; /**< Pointer to the current mapping table */
+	ump_descriptor_table *table;  /**< Pointer to the current mapping table */
 } ump_descriptor_mapping;
 
 /**
@@ -43,13 +43,13 @@ typedef struct ump_descriptor_mapping {
  * @param max_entries Number of entries to max support
  * @return Pointer to a descriptor mapping object, NULL on failure
  */
-ump_descriptor_mapping * ump_descriptor_mapping_create(int init_entries, int max_entries);
+ump_descriptor_mapping *ump_descriptor_mapping_create(int init_entries, int max_entries);
 
 /**
  * Destroy a descriptor mapping object
  * @param map The map to free
  */
-void ump_descriptor_mapping_destroy(ump_descriptor_mapping * map);
+void ump_descriptor_mapping_destroy(ump_descriptor_mapping *map);
 
 /**
  * Allocate a new mapping entry (descriptor ID)
@@ -58,7 +58,7 @@ void ump_descriptor_mapping_destroy(ump_descriptor_mapping * map);
  * @param target The value to map to
  * @return The descriptor allocated, a negative value on error
  */
-int ump_descriptor_mapping_allocate_mapping(ump_descriptor_mapping * map, void * target);
+int ump_descriptor_mapping_allocate_mapping(ump_descriptor_mapping *map, void *target);
 
 /**
  * Get the value mapped to by a descriptor ID
@@ -67,7 +67,7 @@ int ump_descriptor_mapping_allocate_mapping(ump_descriptor_mapping * map, void *
  * @param target Pointer to a pointer which will receive the stored value
  * @return 0 on successful lookup, negative on error
  */
-int ump_descriptor_mapping_get(ump_descriptor_mapping * map, int descriptor, void** target);
+int ump_descriptor_mapping_get(ump_descriptor_mapping *map, int descriptor, void **target);
 
 /**
  * Set the value mapped to by a descriptor ID
@@ -76,7 +76,7 @@ int ump_descriptor_mapping_get(ump_descriptor_mapping * map, int descriptor, voi
  * @param target Pointer to replace the current value with
  * @return 0 on successful lookup, negative on error
  */
-int ump_descriptor_mapping_set(ump_descriptor_mapping * map, int descriptor, void * target);
+int ump_descriptor_mapping_set(ump_descriptor_mapping *map, int descriptor, void *target);
 
 /**
  * Free the descriptor ID
@@ -84,6 +84,6 @@ int ump_descriptor_mapping_set(ump_descriptor_mapping * map, int descriptor, voi
  * @param map The map to free the descriptor from
  * @param descriptor The descriptor ID to free
  */
-void ump_descriptor_mapping_free(ump_descriptor_mapping * map, int descriptor);
+void ump_descriptor_mapping_free(ump_descriptor_mapping *map, int descriptor);
 
 #endif /* __UMP_KERNEL_DESCRIPTOR_MAPPING_H__ */

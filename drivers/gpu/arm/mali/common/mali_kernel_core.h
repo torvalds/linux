@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -33,7 +33,7 @@ u32 mali_kernel_core_get_gpu_major_version(void);
 
 u32 mali_kernel_core_get_gpu_minor_version(void);
 
-u32 _mali_kernel_core_dump_state(char* buf, u32 size);
+u32 _mali_kernel_core_dump_state(char *buf, u32 size);
 
 MALI_STATIC_INLINE mali_bool mali_is_mali450(void)
 {

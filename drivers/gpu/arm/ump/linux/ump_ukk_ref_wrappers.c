@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2013 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2013-2014 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -24,7 +24,7 @@
 /*
  * IOCTL operation; Allocate UMP memory
  */
-int ump_allocate_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+int ump_allocate_wrapper(u32 __user *argument, struct ump_session_data   *session_data)
 {
 	_ump_uk_allocate_s user_interaction;
 	_mali_osk_errcode_t err;
@@ -43,8 +43,8 @@ int ump_allocate_wrapper(u32 __user * argument, struct ump_session_data  * sessi
 
 	user_interaction.ctx = (void *) session_data;
 
-	err = _ump_ukk_allocate( &user_interaction );
-	if( _MALI_OSK_ERR_OK != err ) {
+	err = _ump_ukk_allocate(&user_interaction);
+	if (_MALI_OSK_ERR_OK != err) {
 		DBG_MSG(1, ("_ump_ukk_allocate() failed in ump_ioctl_allocate()\n"));
 		return map_errcode(err);
 	}
@@ -59,8 +59,8 @@ int ump_allocate_wrapper(u32 __user * argument, struct ump_session_data  * sessi
 		release_args.ctx = (void *) session_data;
 		release_args.secure_id = user_interaction.secure_id;
 
-		err = _ump_ukk_release( &release_args );
-		if(_MALI_OSK_ERR_OK != err) {
+		err = _ump_ukk_release(&release_args);
+		if (_MALI_OSK_ERR_OK != err) {
 			MSG_ERR(("_ump_ukk_release() also failed when trying to release newly allocated memory in ump_ioctl_allocate()\n"));
 		}
 
