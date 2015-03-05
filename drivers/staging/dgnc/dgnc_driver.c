@@ -251,9 +251,9 @@ static int dgnc_start(void)
 	 * Register management/dpa devices
 	 */
 	rc = register_chrdev(0, "dgnc", &dgnc_BoardFops);
-	if (rc <= 0) {
+	if (rc < 0) {
 		pr_err(DRVSTR ": Can't register dgnc driver device (%d)\n", rc);
-		return -ENXIO;
+		return rc;
 	}
 	dgnc_Major = rc;
 
