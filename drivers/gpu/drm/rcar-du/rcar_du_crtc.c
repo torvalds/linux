@@ -486,8 +486,6 @@ static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc)
 	unsigned long flags;
 
 	if (event) {
-		event->pipe = rcrtc->index;
-
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 		spin_lock_irqsave(&dev->event_lock, flags);
