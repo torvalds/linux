@@ -131,18 +131,7 @@ void  __init early_alloc_pgt_buf(void)
 
 int after_bootmem;
 
-static int page_size_mask;
-
 early_param_on_off("gbpages", "nogbpages", direct_gbpages, CONFIG_X86_DIRECT_GBPAGES);
-
-static void __init init_gbpages(void)
-{
-	if (direct_gbpages && cpu_has_gbpages) {
-		printk(KERN_INFO "Using GB pages for direct mapping\n");
-		page_size_mask |= 1 << PG_LEVEL_1G;
-	} else
-		direct_gbpages = 0;
-}
 
 struct map_range {
 	unsigned long start;
@@ -150,10 +139,10 @@ struct map_range {
 	unsigned page_size_mask;
 };
 
+static int page_size_mask;
+
 static void __init probe_page_size_mask(void)
 {
-	init_gbpages();
-
 #if !defined(CONFIG_DEBUG_PAGEALLOC) && !defined(CONFIG_KMEMCHECK)
 	/*
 	 * For CONFIG_DEBUG_PAGEALLOC, identity mapping will use small pages.
@@ -172,6 +161,14 @@ static void __init probe_page_size_mask(void)
 	if (cpu_has_pge) {
 		cr4_set_bits_and_update_boot(X86_CR4_PGE);
 		__supported_pte_mask |= _PAGE_GLOBAL;
+	}
+
+	/* Enable 1 GB linear kernel mappings if available: */
+	if (direct_gbpages && cpu_has_gbpages) {
+		printk(KERN_INFO "Using GB pages for direct mapping\n");
+		page_size_mask |= 1 << PG_LEVEL_1G;
+	} else {
+		direct_gbpages = 0;
 	}
 }
 
