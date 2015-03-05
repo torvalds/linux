@@ -4216,6 +4216,9 @@ enum skl_disp_power_wells {
 #define DDL_PRECISION_LOW		(0<<7)
 #define DRAIN_LATENCY_MASK		0x7f
 
+#define CBR1_VLV			(VLV_DISPLAY_BASE + 0x70400)
+#define  CBR_PND_DEADLINE_DISABLE	(1<<31)
+
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
 #define I915_FIFO_LINE_SIZE	64

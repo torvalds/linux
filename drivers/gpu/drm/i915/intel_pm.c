@@ -6141,11 +6141,22 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	gen6_check_mch_setup(dev);
 }
 
+static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * Disable trickle feed and enable pnd deadline calculation
+	 */
+	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
+	I915_WRITE(CBR1_VLV, 0);
+}
+
 static void valleyview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
+	vlv_init_display_clock_gating(dev_priv);
 
 	/* WaDisableEarlyCull:vlv */
 	I915_WRITE(_3D_CHICKEN3,
@@ -6193,8 +6204,6 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_UCGCTL4,
 		   I915_READ(GEN7_UCGCTL4) | GEN7_L3BANK2X_CLOCK_GATE_DISABLE);
 
-	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
-
 	/*
 	 * BSpec says this must be set, even though
 	 * WaDisable4x2SubspanOptimization isn't listed for VLV.
@@ -6231,9 +6240,7 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	I915_WRITE(DSPCLK_GATE_D, VRHUNIT_CLOCK_GATE_DISABLE);
-
-	I915_WRITE(MI_ARB_VLV, MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE);
+	vlv_init_display_clock_gating(dev_priv);
 
 	/* WaVSRefCountFullforceMissDisable:chv */
 	/* WaDSRefCountFullforceMissDisable:chv */
