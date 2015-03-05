@@ -755,15 +755,25 @@ static void vlv_write_wm_values(struct intel_crtc *crtc,
 }
 
 static uint8_t vlv_compute_drain_latency(struct drm_crtc *crtc,
-					 int pixel_size)
+					 struct drm_plane *plane)
 {
 	struct drm_device *dev = crtc->dev;
-	int entries, prec_mult, drain_latency;
-	int clock = to_intel_crtc(crtc)->config->base.adjusted_mode.crtc_clock;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int entries, prec_mult, drain_latency, pixel_size;
+	int clock = intel_crtc->config->base.adjusted_mode.crtc_clock;
 	const int high_precision = IS_CHERRYVIEW(dev) ? 16 : 64;
+
+	/*
+	 * FIXME the plane might have an fb
+	 * but be invisible (eg. due to clipping)
+	 */
+	if (!intel_crtc->active || !plane->state->fb)
+		return 0;
 
 	if (WARN(clock == 0, "Pixel clock is zero!\n"))
 		return 0;
+
+	pixel_size = drm_format_plane_cpp(plane->state->fb->pixel_format, 0);
 
 	if (WARN(pixel_size == 0, "Pixel size is zero!\n"))
 		return 0;
@@ -798,31 +808,11 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pixel_size;
 	enum pipe pipe = intel_crtc->pipe;
 	struct vlv_wm_values wm = dev_priv->wm.vlv;
 
-	wm.ddl[pipe].primary = 0;
-	wm.ddl[pipe].cursor = 0;
-
-	if (!intel_crtc_active(crtc)) {
-		vlv_write_wm_values(intel_crtc, &wm);
-		return;
-	}
-
-	/* Primary plane Drain Latency */
-	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;	/* BPP */
-	wm.ddl[pipe].primary = vlv_compute_drain_latency(crtc, pixel_size);
-
-	/* Cursor Drain Latency
-	 * BPP is always 4 for cursor
-	 */
-	pixel_size = 4;
-
-	/* Program cursor DL only if it is enabled */
-	if (intel_crtc->cursor_base)
-		wm.ddl[pipe].cursor =
-			vlv_compute_drain_latency(crtc, pixel_size);
+	wm.ddl[pipe].primary = vlv_compute_drain_latency(crtc, crtc->primary);
+	wm.ddl[pipe].cursor = vlv_compute_drain_latency(crtc, crtc->cursor);
 
 	vlv_write_wm_values(intel_crtc, &wm);
 }
@@ -989,7 +979,7 @@ static void valleyview_update_sprite_wm(struct drm_plane *plane,
 
 	if (enabled)
 		wm.ddl[pipe].sprite[sprite] =
-			vlv_compute_drain_latency(crtc, pixel_size);
+			vlv_compute_drain_latency(crtc, plane);
 	else
 		wm.ddl[pipe].sprite[sprite] = 0;
 
