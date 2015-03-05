@@ -239,6 +239,8 @@ static void mcam_buffer_done(struct mcam_camera *cam, int frame,
 {
 	vbuf->v4l2_buf.bytesused = cam->pix_format.sizeimage;
 	vbuf->v4l2_buf.sequence = cam->buf_seq[frame];
+	vbuf->v4l2_buf.field = V4L2_FIELD_NONE;
+	v4l2_get_timestamp(&vbuf->v4l2_buf.timestamp);
 	vb2_set_plane_payload(vbuf, 0, cam->pix_format.sizeimage);
 	vb2_buffer_done(vbuf, VB2_BUF_STATE_DONE);
 }
@@ -1671,7 +1673,7 @@ static void mcam_frame_complete(struct mcam_camera *cam, int frame)
 	set_bit(frame, &cam->flags);
 	clear_bit(CF_DMA_ACTIVE, &cam->flags);
 	cam->next_buf = frame;
-	cam->buf_seq[frame] = ++(cam->sequence);
+	cam->buf_seq[frame] = cam->sequence++;
 	cam->frame_state.frames++;
 	/*
 	 * "This should never happen"
