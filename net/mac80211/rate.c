@@ -683,7 +683,13 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	if (sdata->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
 		return;
 
-	ref->ops->get_rate(ref->priv, ista, priv_sta, txrc);
+	if (ista) {
+		spin_lock_bh(&sta->rate_ctrl_lock);
+		ref->ops->get_rate(ref->priv, ista, priv_sta, txrc);
+		spin_unlock_bh(&sta->rate_ctrl_lock);
+	} else {
+		ref->ops->get_rate(ref->priv, NULL, NULL, txrc);
+	}
 
 	if (sdata->local->hw.flags & IEEE80211_HW_SUPPORTS_RC_TABLE)
 		return;

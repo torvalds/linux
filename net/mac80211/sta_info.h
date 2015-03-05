@@ -353,6 +353,7 @@ struct sta_info {
 	u8 ptk_idx;
 	struct rate_control_ref *rate_ctrl;
 	void *rate_ctrl_priv;
+	spinlock_t rate_ctrl_lock;
 	spinlock_t lock;
 
 	struct work_struct drv_deliver_wk;
