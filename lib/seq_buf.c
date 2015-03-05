@@ -118,7 +118,7 @@ int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
 
 	if (s->len < s->size) {
 		ret = bstr_printf(s->buffer + s->len, len, fmt, binary);
-		if (seq_buf_can_fit(s, ret)) {
+		if (s->len + ret < s->size) {
 			s->len += ret;
 			return 0;
 		}
