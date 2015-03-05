@@ -20,6 +20,8 @@
  * http://www.ti.com/product/bq24153
  * http://www.ti.com/product/bq24153a
  * http://www.ti.com/product/bq24155
+ * http://www.ti.com/product/bq24157s
+ * http://www.ti.com/product/bq24158
  */
 
 #include <linux/kernel.h>
@@ -141,6 +143,7 @@ enum bq2415x_chip {
 	BQ24155,
 	BQ24156,
 	BQ24156A,
+	BQ24157S,
 	BQ24158,
 };
 
@@ -156,6 +159,7 @@ static char *bq2415x_chip_name[] = {
 	"bq24155",
 	"bq24156",
 	"bq24156a",
+	"bq24157s",
 	"bq24158",
 };
 
@@ -442,6 +446,8 @@ static enum bq2415x_chip bq2415x_detect_chip(struct bq2415x_device *bq)
 				return bq->chip;
 			return BQ24156;
 		case 2:
+			if (bq->chip == BQ24157S)
+				return bq->chip;
 			return BQ24158;
 		default:
 			return BQUNKNOWN;
@@ -474,6 +480,7 @@ static int bq2415x_detect_revision(struct bq2415x_device *bq)
 	case BQ24153A:
 	case BQ24156:
 	case BQ24156A:
+	case BQ24157S:
 	case BQ24158:
 		if (ret == 3)
 			return 0;
@@ -1717,6 +1724,7 @@ static const struct i2c_device_id bq2415x_i2c_id_table[] = {
 	{ "bq24155", BQ24155 },
 	{ "bq24156", BQ24156 },
 	{ "bq24156a", BQ24156A },
+	{ "bq24157s", BQ24157S },
 	{ "bq24158", BQ24158 },
 	{},
 };
