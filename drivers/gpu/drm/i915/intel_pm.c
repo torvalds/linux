@@ -263,6 +263,22 @@ static const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
 	return NULL;
 }
 
+static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
+{
+	u32 val;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	if (enable)
+		val |= DSP_MAXFIFO_PM5_ENABLE;
+	else
+		val &= ~DSP_MAXFIFO_PM5_ENABLE;
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
 void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -270,6 +286,8 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 
 	if (IS_VALLEYVIEW(dev)) {
 		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
+		if (IS_CHERRYVIEW(dev))
+			chv_set_memory_pm5(dev_priv, enable);
 	} else if (IS_G4X(dev) || IS_CRESTLINE(dev)) {
 		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
 	} else if (IS_PINEVIEW(dev)) {

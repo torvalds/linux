@@ -566,6 +566,9 @@
 #define   DSPFREQSTAT_MASK			(0x3 << DSPFREQSTAT_SHIFT)
 #define   DSPFREQGUAR_SHIFT			14
 #define   DSPFREQGUAR_MASK			(0x3 << DSPFREQGUAR_SHIFT)
+#define   DSP_MAXFIFO_PM5_STATUS		(1 << 22) /* chv */
+#define   DSP_AUTO_CDCLK_GATE_DISABLE		(1 << 7) /* chv */
+#define   DSP_MAXFIFO_PM5_ENABLE		(1 << 6) /* chv */
 #define   _DP_SSC(val, pipe)			((val) << (2 * (pipe)))
 #define   DP_SSC_MASK(pipe)			_DP_SSC(0x3, (pipe))
 #define   DP_SSC_PWR_ON(pipe)			_DP_SSC(0x0, (pipe))
