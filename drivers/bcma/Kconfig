@@ -1,6 +1,6 @@
 config BCMA_POSSIBLE
 	bool
-	depends on HAS_IOMEM && HAS_DMA && PCI
+	depends on HAS_IOMEM && HAS_DMA
 	default y
 
 menu "Broadcom specific AMBA"
