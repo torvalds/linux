@@ -1919,6 +1919,14 @@ int mccic_register(struct mcam_camera *cam)
 	mcam_ctlr_init(cam);
 
 	/*
+	 * Get the v4l2 setup done.
+	 */
+	ret = v4l2_ctrl_handler_init(&cam->ctrl_handler, 10);
+	if (ret)
+		goto out_unregister;
+	cam->v4l2_dev.ctrl_handler = &cam->ctrl_handler;
+
+	/*
 	 * Try to find the sensor.
 	 */
 	sensor_cfg.clock_speed = cam->clock_speed;
@@ -1934,13 +1942,6 @@ int mccic_register(struct mcam_camera *cam)
 	ret = mcam_cam_init(cam);
 	if (ret)
 		goto out_unregister;
-	/*
-	 * Get the v4l2 setup done.
-	 */
-	ret = v4l2_ctrl_handler_init(&cam->ctrl_handler, 10);
-	if (ret)
-		goto out_unregister;
-	cam->v4l2_dev.ctrl_handler = &cam->ctrl_handler;
 
 	mutex_lock(&cam->s_mutex);
 	cam->vdev = mcam_v4l_template;
@@ -1960,10 +1961,12 @@ int mccic_register(struct mcam_camera *cam)
 	}
 
 out:
-	v4l2_ctrl_handler_free(&cam->ctrl_handler);
+	if (ret)
+		v4l2_ctrl_handler_free(&cam->ctrl_handler);
 	mutex_unlock(&cam->s_mutex);
 	return ret;
 out_unregister:
+	v4l2_ctrl_handler_free(&cam->ctrl_handler);
 	v4l2_device_unregister(&cam->v4l2_dev);
 	return ret;
 }
