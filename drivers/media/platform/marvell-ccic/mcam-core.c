@@ -24,6 +24,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/ov7670.h>
 #include <media/videobuf2-vmalloc.h>
 #include <media/videobuf2-dma-contig.h>
@@ -1665,6 +1666,8 @@ static const struct v4l2_ioctl_ops mcam_v4l_ioctl_ops = {
 	.vidioc_s_parm		= mcam_vidioc_s_parm,
 	.vidioc_enum_framesizes = mcam_vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = mcam_vidioc_enum_frameintervals,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register	= mcam_vidioc_g_register,
 	.vidioc_s_register	= mcam_vidioc_s_register,
