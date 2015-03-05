@@ -263,7 +263,7 @@ static bool __match_event(struct perf_event *a, struct perf_event *b)
 	/*
 	 * Events that target same task are placed into the same cache group.
 	 */
-	if (a->hw.cqm_target == b->hw.cqm_target)
+	if (a->hw.target == b->hw.target)
 		return true;
 
 	/*
@@ -279,7 +279,7 @@ static bool __match_event(struct perf_event *a, struct perf_event *b)
 static inline struct perf_cgroup *event_to_cgroup(struct perf_event *event)
 {
 	if (event->attach_state & PERF_ATTACH_TASK)
-		return perf_cgroup_from_task(event->hw.cqm_target);
+		return perf_cgroup_from_task(event->hw.target);
 
 	return event->cgrp;
 }
@@ -1365,8 +1365,7 @@ static int __init intel_cqm_init(void)
 
 	__perf_cpu_notifier(intel_cqm_cpu_notifier);
 
-	ret = perf_pmu_register(&intel_cqm_pmu, "intel_cqm",
-				PERF_TYPE_INTEL_CQM);
+	ret = perf_pmu_register(&intel_cqm_pmu, "intel_cqm", -1);
 	if (ret)
 		pr_err("Intel CQM perf registration failed: %d\n", ret);
 	else

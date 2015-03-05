@@ -32,7 +32,6 @@ enum perf_type_id {
 	PERF_TYPE_HW_CACHE			= 3,
 	PERF_TYPE_RAW				= 4,
 	PERF_TYPE_BREAKPOINT			= 5,
-	PERF_TYPE_INTEL_CQM			= 6,
 
 	PERF_TYPE_MAX,				/* non-ABI */
 };
