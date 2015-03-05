@@ -17,6 +17,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/wait.h>
+
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -56,11 +59,117 @@ static void omap_fb_output_poll_changed(struct drm_device *dev)
 		drm_fb_helper_hotplug_event(priv->fbdev);
 }
 
+struct omap_atomic_state_commit {
+	struct work_struct work;
+	struct drm_device *dev;
+	struct drm_atomic_state *state;
+	u32 crtcs;
+};
+
+static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
+{
+	struct drm_device *dev = commit->dev;
+	struct omap_drm_private *priv = dev->dev_private;
+	struct drm_atomic_state *old_state = commit->state;
+
+	/* Apply the atomic update. */
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+	drm_atomic_helper_commit_planes(dev, old_state);
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
+
+	drm_atomic_state_free(old_state);
+
+	/* Complete the commit, wake up any waiter. */
+	spin_lock(&priv->commit.lock);
+	priv->commit.pending &= ~commit->crtcs;
+	spin_unlock(&priv->commit.lock);
+
+	wake_up_all(&priv->commit.wait);
+
+	kfree(commit);
+}
+
+static void omap_atomic_work(struct work_struct *work)
+{
+	struct omap_atomic_state_commit *commit =
+		container_of(work, struct omap_atomic_state_commit, work);
+
+	omap_atomic_complete(commit);
+}
+
+static bool omap_atomic_is_pending(struct omap_drm_private *priv,
+				   struct omap_atomic_state_commit *commit)
+{
+	bool pending;
+
+	spin_lock(&priv->commit.lock);
+	pending = priv->commit.pending & commit->crtcs;
+	spin_unlock(&priv->commit.lock);
+
+	return pending;
+}
+
+static int omap_atomic_commit(struct drm_device *dev,
+			      struct drm_atomic_state *state, bool async)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	struct omap_atomic_state_commit *commit;
+	unsigned int i;
+	int ret;
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	/* Allocate the commit object. */
+	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	if (commit == NULL) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	INIT_WORK(&commit->work, omap_atomic_work);
+	commit->dev = dev;
+	commit->state = state;
+
+	/* Wait until all affected CRTCs have completed previous commits and
+	 * mark them as pending.
+	 */
+	for (i = 0; i < dev->mode_config.num_crtc; ++i) {
+		if (state->crtcs[i])
+			commit->crtcs |= 1 << drm_crtc_index(state->crtcs[i]);
+	}
+
+	wait_event(priv->commit.wait, !omap_atomic_is_pending(priv, commit));
+
+	spin_lock(&priv->commit.lock);
+	priv->commit.pending |= commit->crtcs;
+	spin_unlock(&priv->commit.lock);
+
+	/* Swap the state, this is the point of no return. */
+	drm_atomic_helper_swap_state(dev, state);
+
+	if (async)
+		schedule_work(&commit->work);
+	else
+		omap_atomic_complete(commit);
+
+	return 0;
+
+error:
+	drm_atomic_helper_cleanup_planes(dev, state);
+	return ret;
+}
+
 static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.fb_create = omap_framebuffer_create,
 	.output_poll_changed = omap_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = drm_atomic_helper_commit,
+	.atomic_commit = omap_atomic_commit,
 };
 
 static int get_connector_type(struct omap_dss_device *dssdev)
@@ -521,6 +630,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = priv;
 
 	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
+	init_waitqueue_head(&priv->commit.wait);
+	spin_lock_init(&priv->commit.lock);
 
 	spin_lock_init(&priv->list_lock);
 	INIT_LIST_HEAD(&priv->obj_list);

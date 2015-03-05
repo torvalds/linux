@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/platform_data/omap_drm.h>
 #include <linux/types.h>
+#include <linux/wait.h>
 #include <video/omapdss.h>
 
 #include <drm/drmP.h>
@@ -105,6 +106,13 @@ struct omap_drm_private {
 	struct list_head irq_list;    /* list of omap_drm_irq */
 	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
 	struct omap_drm_irq error_handler;
+
+	/* atomic commit */
+	struct {
+		wait_queue_head_t wait;
+		u32 pending;
+		spinlock_t lock;	/* Protects commit.pending */
+	} commit;
 };
 
 
