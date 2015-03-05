@@ -15,10 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/i2c.h>
 #include <linux/of_device.h>
-#include <linux/spi/spi.h>
-#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -185,9 +182,9 @@ static bool wm8804_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static int wm8804_reset(struct snd_soc_codec *codec)
+static int wm8804_reset(struct wm8804_priv *wm8804)
 {
-	return snd_soc_write(codec, WM8804_RST_DEVID1, 0x0);
+	return regmap_write(wm8804->regmap, WM8804_RST_DEVID1, 0x0);
 }
 
 static int wm8804_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -518,100 +515,6 @@ static int wm8804_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm8804_remove(struct snd_soc_codec *codec)
-{
-	struct wm8804_priv *wm8804;
-	int i;
-
-	wm8804 = snd_soc_codec_get_drvdata(codec);
-
-	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); ++i)
-		regulator_unregister_notifier(wm8804->supplies[i].consumer,
-					      &wm8804->disable_nb[i]);
-	return 0;
-}
-
-static int wm8804_probe(struct snd_soc_codec *codec)
-{
-	struct wm8804_priv *wm8804;
-	int i, id1, id2, ret;
-
-	wm8804 = snd_soc_codec_get_drvdata(codec);
-
-	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++)
-		wm8804->supplies[i].supply = wm8804_supply_names[i];
-
-	ret = devm_regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8804->supplies),
-				 wm8804->supplies);
-	if (ret) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		return ret;
-	}
-
-	wm8804->disable_nb[0].notifier_call = wm8804_regulator_event_0;
-	wm8804->disable_nb[1].notifier_call = wm8804_regulator_event_1;
-
-	/* This should really be moved into the regulator core */
-	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++) {
-		ret = regulator_register_notifier(wm8804->supplies[i].consumer,
-						  &wm8804->disable_nb[i]);
-		if (ret != 0) {
-			dev_err(codec->dev,
-				"Failed to register regulator notifier: %d\n",
-				ret);
-		}
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
-				    wm8804->supplies);
-	if (ret) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		return ret;
-	}
-
-	id1 = snd_soc_read(codec, WM8804_RST_DEVID1);
-	if (id1 < 0) {
-		dev_err(codec->dev, "Failed to read device ID: %d\n", id1);
-		ret = id1;
-		goto err_reg_enable;
-	}
-
-	id2 = snd_soc_read(codec, WM8804_DEVID2);
-	if (id2 < 0) {
-		dev_err(codec->dev, "Failed to read device ID: %d\n", id2);
-		ret = id2;
-		goto err_reg_enable;
-	}
-
-	id2 = (id2 << 8) | id1;
-
-	if (id2 != 0x8805) {
-		dev_err(codec->dev, "Invalid device ID: %#x\n", id2);
-		ret = -EINVAL;
-		goto err_reg_enable;
-	}
-
-	ret = snd_soc_read(codec, WM8804_DEVREV);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read device revision: %d\n",
-			ret);
-		goto err_reg_enable;
-	}
-	dev_info(codec->dev, "revision %c\n", ret + 'A');
-
-	ret = wm8804_reset(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
-		goto err_reg_enable;
-	}
-
-	return 0;
-
-err_reg_enable:
-	regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies), wm8804->supplies);
-	return ret;
-}
-
 static const struct snd_soc_dai_ops wm8804_dai_ops = {
 	.hw_params = wm8804_hw_params,
 	.set_fmt = wm8804_set_fmt,
@@ -649,8 +552,6 @@ static struct snd_soc_dai_driver wm8804_dai = {
 };
 
 static const struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
-	.probe = wm8804_probe,
-	.remove = wm8804_remove,
 	.set_bias_level = wm8804_set_bias_level,
 	.idle_bias_off = true,
 
@@ -658,13 +559,7 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
 	.num_controls = ARRAY_SIZE(wm8804_snd_controls),
 };
 
-static const struct of_device_id wm8804_of_match[] = {
-	{ .compatible = "wlf,wm8804", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, wm8804_of_match);
-
-static const struct regmap_config wm8804_regmap_config = {
+const struct regmap_config wm8804_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -675,128 +570,110 @@ static const struct regmap_config wm8804_regmap_config = {
 	.reg_defaults = wm8804_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8804_reg_defaults),
 };
+EXPORT_SYMBOL_GPL(wm8804_regmap_config);
 
-#if defined(CONFIG_SPI_MASTER)
-static int wm8804_spi_probe(struct spi_device *spi)
+int wm8804_probe(struct device *dev, struct regmap *regmap)
 {
 	struct wm8804_priv *wm8804;
-	int ret;
+	unsigned int id1, id2;
+	int i, ret;
 
-	wm8804 = devm_kzalloc(&spi->dev, sizeof *wm8804, GFP_KERNEL);
+	wm8804 = devm_kzalloc(dev, sizeof(*wm8804), GFP_KERNEL);
 	if (!wm8804)
 		return -ENOMEM;
 
-	wm8804->regmap = devm_regmap_init_spi(spi, &wm8804_regmap_config);
-	if (IS_ERR(wm8804->regmap)) {
-		ret = PTR_ERR(wm8804->regmap);
-		return ret;
-	}
+	dev_set_drvdata(dev, wm8804);
 
-	spi_set_drvdata(spi, wm8804);
+	wm8804->regmap = regmap;
 
-	ret = snd_soc_register_codec(&spi->dev,
-				     &soc_codec_dev_wm8804, &wm8804_dai, 1);
+	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++)
+		wm8804->supplies[i].supply = wm8804_supply_names[i];
 
-	return ret;
-}
-
-static int wm8804_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
-static struct spi_driver wm8804_spi_driver = {
-	.driver = {
-		.name = "wm8804",
-		.owner = THIS_MODULE,
-		.of_match_table = wm8804_of_match,
-	},
-	.probe = wm8804_spi_probe,
-	.remove = wm8804_spi_remove
-};
-#endif
-
-#if IS_ENABLED(CONFIG_I2C)
-static int wm8804_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct wm8804_priv *wm8804;
-	int ret;
-
-	wm8804 = devm_kzalloc(&i2c->dev, sizeof *wm8804, GFP_KERNEL);
-	if (!wm8804)
-		return -ENOMEM;
-
-	wm8804->regmap = devm_regmap_init_i2c(i2c, &wm8804_regmap_config);
-	if (IS_ERR(wm8804->regmap)) {
-		ret = PTR_ERR(wm8804->regmap);
-		return ret;
-	}
-
-	i2c_set_clientdata(i2c, wm8804);
-
-	ret = snd_soc_register_codec(&i2c->dev,
-				     &soc_codec_dev_wm8804, &wm8804_dai, 1);
-	return ret;
-}
-
-static int wm8804_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_codec(&i2c->dev);
-	return 0;
-}
-
-static const struct i2c_device_id wm8804_i2c_id[] = {
-	{ "wm8804", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8804_i2c_id);
-
-static struct i2c_driver wm8804_i2c_driver = {
-	.driver = {
-		.name = "wm8804",
-		.owner = THIS_MODULE,
-		.of_match_table = wm8804_of_match,
-	},
-	.probe = wm8804_i2c_probe,
-	.remove = wm8804_i2c_remove,
-	.id_table = wm8804_i2c_id
-};
-#endif
-
-static int __init wm8804_modinit(void)
-{
-	int ret = 0;
-
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&wm8804_i2c_driver);
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(wm8804->supplies),
+				      wm8804->supplies);
 	if (ret) {
-		printk(KERN_ERR "Failed to register wm8804 I2C driver: %d\n",
-		       ret);
+		dev_err(dev, "Failed to request supplies: %d\n", ret);
+		return ret;
 	}
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&wm8804_spi_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8804 SPI driver: %d\n",
-		       ret);
+
+	wm8804->disable_nb[0].notifier_call = wm8804_regulator_event_0;
+	wm8804->disable_nb[1].notifier_call = wm8804_regulator_event_1;
+
+	/* This should really be moved into the regulator core */
+	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++) {
+		ret = regulator_register_notifier(wm8804->supplies[i].consumer,
+						  &wm8804->disable_nb[i]);
+		if (ret != 0) {
+			dev_err(dev,
+				"Failed to register regulator notifier: %d\n",
+				ret);
+		}
 	}
-#endif
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
+				    wm8804->supplies);
+	if (ret) {
+		dev_err(dev, "Failed to enable supplies: %d\n", ret);
+		goto err_reg_enable;
+	}
+
+	ret = regmap_read(regmap, WM8804_RST_DEVID1, &id1);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read device ID: %d\n", ret);
+		goto err_reg_enable;
+	}
+
+	ret = regmap_read(regmap, WM8804_DEVID2, &id2);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read device ID: %d\n", ret);
+		goto err_reg_enable;
+	}
+
+	id2 = (id2 << 8) | id1;
+
+	if (id2 != 0x8805) {
+		dev_err(dev, "Invalid device ID: %#x\n", id2);
+		ret = -EINVAL;
+		goto err_reg_enable;
+	}
+
+	ret = regmap_read(regmap, WM8804_DEVREV, &id1);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read device revision: %d\n",
+			ret);
+		goto err_reg_enable;
+	}
+	dev_info(dev, "revision %c\n", id1 + 'A');
+
+	ret = wm8804_reset(wm8804);
+	if (ret < 0) {
+		dev_err(dev, "Failed to issue reset: %d\n", ret);
+		goto err_reg_enable;
+	}
+
+	return snd_soc_register_codec(dev, &soc_codec_dev_wm8804,
+				      &wm8804_dai, 1);
+
+err_reg_enable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies), wm8804->supplies);
 	return ret;
 }
-module_init(wm8804_modinit);
+EXPORT_SYMBOL_GPL(wm8804_probe);
 
-static void __exit wm8804_exit(void)
+void wm8804_remove(struct device *dev)
 {
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&wm8804_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8804_spi_driver);
-#endif
+	struct wm8804_priv *wm8804;
+	int i;
+
+	wm8804 = dev_get_drvdata(dev);
+
+	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); ++i)
+		regulator_unregister_notifier(wm8804->supplies[i].consumer,
+					      &wm8804->disable_nb[i]);
+
+	snd_soc_unregister_codec(dev);
 }
-module_exit(wm8804_exit);
+EXPORT_SYMBOL_GPL(wm8804_remove);
 
 MODULE_DESCRIPTION("ASoC WM8804 driver");
 MODULE_AUTHOR("Dimitris Papastamos <dp@opensource.wolfsonmicro.com>");
