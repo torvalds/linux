@@ -131,7 +131,7 @@ enum omap_channel omap_crtc_channel(struct drm_crtc *crtc)
 static struct omap_crtc *omap_crtcs[8];
 
 /* we can probably ignore these until we support command-mode panels: */
-static int omap_crtc_connect(struct omap_overlay_manager *mgr,
+static int omap_crtc_dss_connect(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dst)
 {
 	if (mgr->output)
@@ -146,14 +146,14 @@ static int omap_crtc_connect(struct omap_overlay_manager *mgr,
 	return 0;
 }
 
-static void omap_crtc_disconnect(struct omap_overlay_manager *mgr,
+static void omap_crtc_dss_disconnect(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dst)
 {
 	mgr->output->manager = NULL;
 	mgr->output = NULL;
 }
 
-static void omap_crtc_start_update(struct omap_overlay_manager *mgr)
+static void omap_crtc_dss_start_update(struct omap_overlay_manager *mgr)
 {
 }
 
@@ -215,7 +215,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 }
 
 
-static int omap_crtc_enable(struct omap_overlay_manager *mgr)
+static int omap_crtc_dss_enable(struct omap_overlay_manager *mgr)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
 
@@ -227,14 +227,14 @@ static int omap_crtc_enable(struct omap_overlay_manager *mgr)
 	return 0;
 }
 
-static void omap_crtc_disable(struct omap_overlay_manager *mgr)
+static void omap_crtc_dss_disable(struct omap_overlay_manager *mgr)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
 
 	omap_crtc_set_enabled(&omap_crtc->base, false);
 }
 
-static void omap_crtc_set_timings(struct omap_overlay_manager *mgr,
+static void omap_crtc_dss_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
@@ -242,7 +242,7 @@ static void omap_crtc_set_timings(struct omap_overlay_manager *mgr,
 	omap_crtc->timings = *timings;
 }
 
-static void omap_crtc_set_lcd_config(struct omap_overlay_manager *mgr,
+static void omap_crtc_dss_set_lcd_config(struct omap_overlay_manager *mgr,
 		const struct dss_lcd_mgr_config *config)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
@@ -250,29 +250,29 @@ static void omap_crtc_set_lcd_config(struct omap_overlay_manager *mgr,
 	dispc_mgr_set_lcd_config(omap_crtc->channel, config);
 }
 
-static int omap_crtc_register_framedone_handler(
+static int omap_crtc_dss_register_framedone(
 		struct omap_overlay_manager *mgr,
 		void (*handler)(void *), void *data)
 {
 	return 0;
 }
 
-static void omap_crtc_unregister_framedone_handler(
+static void omap_crtc_dss_unregister_framedone(
 		struct omap_overlay_manager *mgr,
 		void (*handler)(void *), void *data)
 {
 }
 
 static const struct dss_mgr_ops mgr_ops = {
-	.connect = omap_crtc_connect,
-	.disconnect = omap_crtc_disconnect,
-	.start_update = omap_crtc_start_update,
-	.enable = omap_crtc_enable,
-	.disable = omap_crtc_disable,
-	.set_timings = omap_crtc_set_timings,
-	.set_lcd_config = omap_crtc_set_lcd_config,
-	.register_framedone_handler = omap_crtc_register_framedone_handler,
-	.unregister_framedone_handler = omap_crtc_unregister_framedone_handler,
+	.connect = omap_crtc_dss_connect,
+	.disconnect = omap_crtc_dss_disconnect,
+	.start_update = omap_crtc_dss_start_update,
+	.enable = omap_crtc_dss_enable,
+	.disable = omap_crtc_dss_disable,
+	.set_timings = omap_crtc_dss_set_timings,
+	.set_lcd_config = omap_crtc_dss_set_lcd_config,
+	.register_framedone_handler = omap_crtc_dss_register_framedone,
+	.unregister_framedone_handler = omap_crtc_dss_unregister_framedone,
 };
 
 /* -----------------------------------------------------------------------------
