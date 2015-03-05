@@ -253,34 +253,39 @@ struct obs_kernel_param {
  * obs_kernel_param "array" too far apart in .init.setup.
  */
 #define __setup_param(str, unique_id, fn, early)			\
-	static const char __setup_str_##unique_id[] __initconst	\
-		__aligned(1) = str; \
-	static struct obs_kernel_param __setup_##unique_id	\
-		__used __section(.init.setup)			\
-		__attribute__((aligned((sizeof(long)))))	\
+	static const char __setup_str_##unique_id[] __initconst		\
+		__aligned(1) = str; 					\
+	static struct obs_kernel_param __setup_##unique_id		\
+		__used __section(.init.setup)				\
+		__attribute__((aligned((sizeof(long)))))		\
 		= { __setup_str_##unique_id, fn, early }
 
-#define __setup(str, fn)					\
+#define __setup(str, fn)						\
 	__setup_param(str, fn, fn, 0)
 
-/* NOTE: fn is as per module_param, not __setup!  Emits warning if fn
- * returns non-zero. */
-#define early_param(str, fn)					\
+/*
+ * NOTE: fn is as per module_param, not __setup!
+ * Emits warning if fn returns non-zero.
+ */
+#define early_param(str, fn)						\
 	__setup_param(str, fn, fn, 1)
 
-#define early_param_on_off(str_on, str_off, var, config)			\
-	int var = IS_ENABLED(config);				\
-	static int __init parse_##var##_on(char *arg)		\
-	{							\
-		var = 1;					\
-		return 0;					\
-	}							\
-	static int __init parse_##var##_off(char *arg)		\
-	{							\
-		var = 0;					\
-		return 0;					\
-	}							\
-	__setup_param(str_on, parse_##var##_on, parse_##var##_on, 1); \
+#define early_param_on_off(str_on, str_off, var, config)		\
+									\
+	int var = IS_ENABLED(config);					\
+									\
+	static int __init parse_##var##_on(char *arg)			\
+	{								\
+		var = 1;						\
+		return 0;						\
+	}								\
+	__setup_param(str_on, parse_##var##_on, parse_##var##_on, 1);	\
+									\
+	static int __init parse_##var##_off(char *arg)			\
+	{								\
+		var = 0;						\
+		return 0;						\
+	}								\
 	__setup_param(str_off, parse_##var##_off, parse_##var##_off, 1)
 
 /* Relies on boot_command_line being set */
