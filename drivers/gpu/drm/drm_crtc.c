@@ -2408,6 +2408,27 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/**
+ * drm_plane_check_pixel_format - Check if the plane supports the pixel format
+ * @plane: plane to check for format support
+ * @format: the pixel format
+ *
+ * Returns:
+ * Zero of @plane has @format in its list of supported pixel formats, -EINVAL
+ * otherwise.
+ */
+int drm_plane_check_pixel_format(const struct drm_plane *plane, u32 format)
+{
+	unsigned int i;
+
+	for (i = 0; i < plane->format_count; i++) {
+		if (format == plane->format_types[i])
+			return 0;
+	}
+
+	return -EINVAL;
+}
+
 /*
  * setplane_internal - setplane handler for internal callers
  *
@@ -2428,7 +2449,6 @@ static int __setplane_internal(struct drm_plane *plane,
 {
 	int ret = 0;
 	unsigned int fb_width, fb_height;
-	unsigned int i;
 
 	/* No fb means shut it down */
 	if (!fb) {
@@ -2451,13 +2471,10 @@ static int __setplane_internal(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	for (i = 0; i < plane->format_count; i++)
-		if (fb->pixel_format == plane->format_types[i])
-			break;
-	if (i == plane->format_count) {
+	ret = drm_plane_check_pixel_format(plane, fb->pixel_format);
+	if (ret) {
 		DRM_DEBUG_KMS("Invalid pixel format %s\n",
 			      drm_get_format_name(fb->pixel_format));
-		ret = -EINVAL;
 		goto out;
 	}
 
