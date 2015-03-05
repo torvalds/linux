@@ -695,6 +695,15 @@
 		clock-names = "secss";
 	};
 
+	jpeg-codec@11840000 {
+		compatible = "samsung,exynos4210-jpeg";
+		reg = <0x11840000 0x1000>;
+		interrupts = <0 88 0>;
+		clocks = <&clock CLK_JPEG>;
+		clock-names = "jpeg";
+		power-domains = <&pd_cam>;
+	};
+
 	hdmi: hdmi@12D00000 {
 		compatible = "samsung,exynos4210-hdmi";
 		reg = <0x12D00000 0x70000>;

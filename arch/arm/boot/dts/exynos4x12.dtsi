@@ -426,6 +426,10 @@
 		status = "disabled";
 	};
 
+	jpeg-codec@11840000 {
+		compatible = "samsung,exynos4212-jpeg";
+	};
+
 	hdmi: hdmi@12D00000 {
 		compatible = "samsung,exynos4212-hdmi";
 	};
