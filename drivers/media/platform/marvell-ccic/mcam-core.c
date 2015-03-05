@@ -1508,7 +1508,6 @@ static int mcam_vidioc_enum_input(struct file *filp, void *priv,
 		return -EINVAL;
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	input->std = V4L2_STD_ALL; /* Not sure what should go here */
 	strcpy(input->name, "Camera");
 	return 0;
 }
@@ -1523,18 +1522,6 @@ static int mcam_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 {
 	if (i != 0)
 		return -EINVAL;
-	return 0;
-}
-
-/* from vivi.c */
-static int mcam_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id a)
-{
-	return 0;
-}
-
-static int mcam_vidioc_g_std(struct file *filp, void *priv, v4l2_std_id *a)
-{
-	*a = V4L2_STD_NTSC_M;
 	return 0;
 }
 
@@ -1666,8 +1653,6 @@ static const struct v4l2_ioctl_ops mcam_v4l_ioctl_ops = {
 	.vidioc_enum_input	= mcam_vidioc_enum_input,
 	.vidioc_g_input		= mcam_vidioc_g_input,
 	.vidioc_s_input		= mcam_vidioc_s_input,
-	.vidioc_s_std		= mcam_vidioc_s_std,
-	.vidioc_g_std		= mcam_vidioc_g_std,
 	.vidioc_reqbufs		= mcam_vidioc_reqbufs,
 	.vidioc_querybuf	= mcam_vidioc_querybuf,
 	.vidioc_qbuf		= mcam_vidioc_qbuf,
