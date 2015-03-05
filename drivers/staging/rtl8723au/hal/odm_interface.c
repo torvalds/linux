@@ -23,13 +23,6 @@
 /*  */
 #include <usb_ops_linux.h>
 
-u32 ODM_Read4Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr)
-{
-	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
-
-	return rtl8723au_read32(Adapter, RegAddr);
-}
-
 void ODM_SetBBReg(
 	struct dm_odm_t *pDM_Odm,
 	u32		RegAddr,

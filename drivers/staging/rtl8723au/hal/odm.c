@@ -1256,7 +1256,6 @@ static void odm_TXPowerTrackingInit(struct dm_odm_t *pDM_Odm)
 /* EDCA Turbo */
 static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 {
-
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
 
 	pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
@@ -1264,16 +1263,16 @@ static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
 		     ("Orginial VO PARAM: 0x%x\n",
-		      ODM_Read4Byte(pDM_Odm, ODM_EDCA_VO_PARAM)));
+		      rtl8723au_read32(Adapter, ODM_EDCA_VO_PARAM)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
 		     ("Orginial VI PARAM: 0x%x\n",
-		      ODM_Read4Byte(pDM_Odm, ODM_EDCA_VI_PARAM)));
+		      rtl8723au_read32(Adapter, ODM_EDCA_VI_PARAM)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
 		     ("Orginial BE PARAM: 0x%x\n",
-		      ODM_Read4Byte(pDM_Odm, ODM_EDCA_BE_PARAM)));
+		      rtl8723au_read32(Adapter, ODM_EDCA_BE_PARAM)));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD,
 		     ("Orginial BK PARAM: 0x%x\n",
-		      ODM_Read4Byte(pDM_Odm, ODM_EDCA_BK_PARAM)));
+		      rtl8723au_read32(Adapter, ODM_EDCA_BK_PARAM)));
 }
 
 static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
