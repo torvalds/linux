@@ -1122,7 +1122,7 @@ static int alloc_percpu_mpipe_resources(struct net_device *dev,
 			addr + i * sizeof(struct tile_net_comps);
 
 	/* If this is a network cpu, create an iqueue. */
-	if (cpu_isset(cpu, network_cpus_map)) {
+	if (cpumask_test_cpu(cpu, &network_cpus_map)) {
 		order = get_order(NOTIF_RING_SIZE);
 		page = homecache_alloc_pages(GFP_KERNEL, order, cpu);
 		if (page == NULL) {
@@ -1298,7 +1298,7 @@ static int tile_net_init_mpipe(struct net_device *dev)
 	int first_ring, ring;
 	int instance = mpipe_instance(dev);
 	struct mpipe_data *md = &mpipe_data[instance];
-	int network_cpus_count = cpus_weight(network_cpus_map);
+	int network_cpus_count = cpumask_weight(&network_cpus_map);
 
 	if (!hash_default) {
 		netdev_err(dev, "Networking requires hash_default!\n");

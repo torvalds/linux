@@ -512,7 +512,7 @@ static void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 	 */
 	smp_wmb();
 
-	for_each_cpu_mask(cpu, *mask) {
+	for_each_cpu(cpu, mask) {
 		u64 cluster_id = cpu_logical_map(cpu) & ~0xffUL;
 		u16 tlist;
 
