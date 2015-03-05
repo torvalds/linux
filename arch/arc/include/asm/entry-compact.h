@@ -33,6 +33,7 @@
 #define __ASM_ARC_ENTRY_COMPACT_H
 
 #include <asm/asm-offsets.h>
+#include <asm/irqflags-compact.h>
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
 /*--------------------------------------------------------------

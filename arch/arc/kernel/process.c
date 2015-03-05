@@ -166,8 +166,7 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 	 * [L] ZOL loop inhibited to begin with - cleared by a LP insn
 	 * Interrupts enabled
 	 */
-	regs->status32 = STATUS_U_MASK | STATUS_L_MASK |
-			 STATUS_E1_MASK | STATUS_E2_MASK;
+	regs->status32 = STATUS_U_MASK | STATUS_L_MASK | STATUS_IE_MASK;
 
 	/* bogus seed values for debugging */
 	regs->lp_start = 0x10;
