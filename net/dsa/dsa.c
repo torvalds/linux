@@ -563,9 +563,9 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 	kfree(pd->chip);
 }
 
-static int dsa_of_probe(struct platform_device *pdev)
+static int dsa_of_probe(struct device *dev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct device_node *child, *mdio, *ethernet, *port, *link;
 	struct mii_bus *mdio_bus;
 	struct platform_device *ethernet_dev;
@@ -597,7 +597,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 	if (!pd)
 		return -ENOMEM;
 
-	pdev->dev.platform_data = pd;
+	dev->platform_data = pd;
 	pd->netdev = &ethernet_dev->dev;
 	pd->nr_chips = of_get_available_child_count(np);
 	if (pd->nr_chips > DSA_MAX_SWITCHES)
@@ -670,27 +670,27 @@ out_free_chip:
 	dsa_of_free_platform_data(pd);
 out_free:
 	kfree(pd);
-	pdev->dev.platform_data = NULL;
+	dev->platform_data = NULL;
 	return ret;
 }
 
-static void dsa_of_remove(struct platform_device *pdev)
+static void dsa_of_remove(struct device *dev)
 {
-	struct dsa_platform_data *pd = pdev->dev.platform_data;
+	struct dsa_platform_data *pd = dev->platform_data;
 
-	if (!pdev->dev.of_node)
+	if (!dev->of_node)
 		return;
 
 	dsa_of_free_platform_data(pd);
 	kfree(pd);
 }
 #else
-static inline int dsa_of_probe(struct platform_device *pdev)
+static inline int dsa_of_probe(struct device *dev)
 {
 	return 0;
 }
 
-static inline void dsa_of_remove(struct platform_device *pdev)
+static inline void dsa_of_remove(struct device *dev)
 {
 }
 #endif
@@ -706,7 +706,7 @@ static int dsa_probe(struct platform_device *pdev)
 		       dsa_driver_version);
 
 	if (pdev->dev.of_node) {
-		ret = dsa_of_probe(pdev);
+		ret = dsa_of_probe(&pdev->dev);
 		if (ret)
 			return ret;
 
@@ -777,7 +777,7 @@ static int dsa_probe(struct platform_device *pdev)
 	return 0;
 
 out:
-	dsa_of_remove(pdev);
+	dsa_of_remove(&pdev->dev);
 
 	return ret;
 }
@@ -799,7 +799,7 @@ static int dsa_remove(struct platform_device *pdev)
 			dsa_switch_destroy(ds);
 	}
 
-	dsa_of_remove(pdev);
+	dsa_of_remove(&pdev->dev);
 
 	return 0;
 }
