@@ -227,7 +227,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 	 * switch.
 	 */
 	if (dst->cpu_switch == index) {
-		switch (drv->tag_protocol) {
+		switch (ds->tag_protocol) {
 #ifdef CONFIG_NET_DSA_TAG_DSA
 		case DSA_TAG_PROTO_DSA:
 			dst->rcv = dsa_netdev_ops.rcv;
@@ -255,7 +255,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 			goto out;
 		}
 
-		dst->tag_protocol = drv->tag_protocol;
+		dst->tag_protocol = ds->tag_protocol;
 	}
 
 	/*
@@ -364,6 +364,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	ds->index = index;
 	ds->pd = pd;
 	ds->drv = drv;
+	ds->tag_protocol = drv->tag_protocol;
 	ds->master_dev = host_dev;
 
 	ret = dsa_switch_setup_one(ds, parent);
