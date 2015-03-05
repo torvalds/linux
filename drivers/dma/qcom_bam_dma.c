@@ -1143,6 +1143,10 @@ static int bam_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_SLAVE, bdev->common.cap_mask);
 
 	/* initialize dmaengine apis */
+	bdev->common.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	bdev->common.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
+	bdev->common.src_addr_widths = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	bdev->common.dst_addr_widths = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	bdev->common.device_alloc_chan_resources = bam_alloc_chan;
 	bdev->common.device_free_chan_resources = bam_free_chan;
 	bdev->common.device_prep_slave_sg = bam_prep_slave_sg;
