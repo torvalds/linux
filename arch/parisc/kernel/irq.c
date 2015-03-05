@@ -525,8 +525,8 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	desc = irq_to_desc(irq);
 	cpumask_copy(&dest, desc->irq_data.affinity);
 	if (irqd_is_per_cpu(&desc->irq_data) &&
-	    !cpu_isset(smp_processor_id(), dest)) {
-		int cpu = first_cpu(dest);
+	    !cpumask_test_cpu(smp_processor_id(), &dest)) {
+		int cpu = cpumask_first(&dest);
 
 		printk(KERN_DEBUG "redirecting irq %d from CPU %d to %d\n",
 		       irq, smp_processor_id(), cpu);
