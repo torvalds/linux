@@ -477,7 +477,7 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot)
 	return ret;
 }
 
-int dw_mci_exynos_prepare_hs400_tuning(struct dw_mci *host,
+static int dw_mci_exynos_prepare_hs400_tuning(struct dw_mci *host,
 					struct mmc_ios *ios)
 {
 	struct dw_mci_exynos_priv_data *priv = host->priv;
