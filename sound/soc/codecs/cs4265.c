@@ -605,21 +605,14 @@ static int cs4265_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	cs4265->reset_gpio = devm_gpiod_get(&i2c_client->dev,
-		"reset-gpios");
-	if (IS_ERR(cs4265->reset_gpio)) {
-		ret = PTR_ERR(cs4265->reset_gpio);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return ret;
+	cs4265->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
+		"reset", GPIOD_OUT_LOW);
+	if (IS_ERR(cs4265->reset_gpio))
+		return PTR_ERR(cs4265->reset_gpio);
 
-		cs4265->reset_gpio = NULL;
-	} else {
-		ret = gpiod_direction_output(cs4265->reset_gpio, 0);
-		if (ret)
-			return ret;
+	if (cs4265->reset_gpio) {
 		mdelay(1);
 		gpiod_set_value_cansleep(cs4265->reset_gpio, 1);
-
 	}
 
 	i2c_set_clientdata(i2c_client, cs4265);
