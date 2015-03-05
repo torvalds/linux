@@ -2227,7 +2227,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 	req->dw_align_buf = NULL;
 	if ((dma_buf & 0x3) && GET_CORE_IF(pcd)->dma_enable
 			&& !GET_CORE_IF(pcd)->dma_desc_enable && buflen)
-		req->dw_align_buf = DWC_DMA_ALLOC(buflen,
+		req->dw_align_buf = DWC_DMA_ALLOC_ATOMIC(buflen,
 				 &req->dw_align_buf_dma);
 	DWC_SPINLOCK_IRQSAVE(pcd->lock, &flags);
 #if 0
