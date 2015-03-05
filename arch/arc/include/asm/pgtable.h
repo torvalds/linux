@@ -270,13 +270,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 		(unsigned long)(((pte_val(x) - CONFIG_LINUX_LINK_BASE) >> \
 				PAGE_SHIFT)))
 
-#define mk_pte(page, pgprot)						\
-({									\
-	pte_t pte;							\
-	pte_val(pte) = __pa(page_address(page)) + pgprot_val(pgprot);	\
-	pte;								\
-})
-
+#define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
 #define pfn_pte(pfn, prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 #define __pte_index(addr)	(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
@@ -360,7 +354,6 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 #define pgd_offset_fast(mm, addr)	pgd_offset(mm, addr)
 #endif
 
-extern void paging_init(void);
 extern pgd_t swapper_pg_dir[] __aligned(PAGE_SIZE);
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *ptep);

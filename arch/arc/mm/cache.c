@@ -806,8 +806,8 @@ void flush_anon_page(struct vm_area_struct *vma, struct page *page,
 void copy_user_highpage(struct page *to, struct page *from,
 	unsigned long u_vaddr, struct vm_area_struct *vma)
 {
-	unsigned long kfrom = (unsigned long)page_address(from);
-	unsigned long kto = (unsigned long)page_address(to);
+	void *kfrom = kmap_atomic(from);
+	void *kto = kmap_atomic(to);
 	int clean_src_k_mappings = 0;
 
 	/*
@@ -817,13 +817,16 @@ void copy_user_highpage(struct page *to, struct page *from,
 	 *
 	 * Note that while @u_vaddr refers to DST page's userspace vaddr, it is
 	 * equally valid for SRC page as well
+	 *
+	 * For !VIPT cache, all of this gets compiled out as
+	 * addr_not_cache_congruent() is 0
 	 */
 	if (page_mapped(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
-		__flush_dcache_page(kfrom, u_vaddr);
+		__flush_dcache_page((unsigned long)kfrom, u_vaddr);
 		clean_src_k_mappings = 1;
 	}
 
-	copy_page((void *)kto, (void *)kfrom);
+	copy_page(kto, kfrom);
 
 	/*
 	 * Mark DST page K-mapping as dirty for a later finalization by
@@ -840,11 +843,14 @@ void copy_user_highpage(struct page *to, struct page *from,
 	 * sync the kernel mapping back to physical page
 	 */
 	if (clean_src_k_mappings) {
-		__flush_dcache_page(kfrom, kfrom);
+		__flush_dcache_page((unsigned long)kfrom, (unsigned long)kfrom);
 		set_bit(PG_dc_clean, &from->flags);
 	} else {
 		clear_bit(PG_dc_clean, &from->flags);
 	}
+
+	kunmap_atomic(kto);
+	kunmap_atomic(kfrom);
 }
 
 void clear_user_page(void *to, unsigned long u_vaddr, struct page *page)
