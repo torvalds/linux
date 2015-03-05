@@ -551,11 +551,12 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	   (features->type == CINTIQ && !(data[1] & 0x40)))
 		return 1;
 
-	if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
+	if (wacom->shared) {
 		wacom->shared->stylus_in_proximity = true;
 
-	if (wacom->shared->touch_down)
-		return 1;
+		if (wacom->shared->touch_down)
+			return 1;
+	}
 
 	/* in Range while exiting */
 	if (((data[1] & 0xfe) == 0x20) && wacom->reporting_data) {
