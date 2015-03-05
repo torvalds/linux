@@ -1407,6 +1407,14 @@ struct ilk_wm_values {
 	enum intel_ddb_partitioning partitioning;
 };
 
+struct vlv_wm_values {
+	struct {
+		uint8_t cursor;
+		uint8_t sprite[2];
+		uint8_t primary;
+	} ddl[3];
+};
+
 struct skl_ddb_entry {
 	uint16_t start, end;	/* in number of blocks, 'end' is exclusive */
 };
@@ -1769,6 +1777,7 @@ struct drm_i915_private {
 		union {
 			struct ilk_wm_values hw;
 			struct skl_wm_values skl_hw;
+			struct vlv_wm_values vlv;
 		};
 	} wm;
 

@@ -739,6 +739,21 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
+static void vlv_write_wm_values(struct intel_crtc *crtc,
+				const struct vlv_wm_values *wm)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	I915_WRITE(VLV_DDL(pipe),
+		   (wm->ddl[pipe].cursor << DDL_CURSOR_SHIFT) |
+		   (wm->ddl[pipe].sprite[1] << DDL_SPRITE_SHIFT(1)) |
+		   (wm->ddl[pipe].sprite[0] << DDL_SPRITE_SHIFT(0)) |
+		   (wm->ddl[pipe].primary << DDL_PLANE_SHIFT));
+
+	dev_priv->wm.vlv = *wm;
+}
+
 static uint8_t vlv_compute_drain_latency(struct drm_crtc *crtc,
 					 int pixel_size)
 {
@@ -785,20 +800,19 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pixel_size;
 	enum pipe pipe = intel_crtc->pipe;
-	int plane_dl;
+	struct vlv_wm_values wm = dev_priv->wm.vlv;
 
-	plane_dl = I915_READ(VLV_DDL(pipe)) &
-		~(((DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK) << DDL_CURSOR_SHIFT) |
-		  ((DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK) << DDL_PLANE_SHIFT));
+	wm.ddl[pipe].primary = 0;
+	wm.ddl[pipe].cursor = 0;
 
 	if (!intel_crtc_active(crtc)) {
-		I915_WRITE(VLV_DDL(pipe), plane_dl);
+		vlv_write_wm_values(intel_crtc, &wm);
 		return;
 	}
 
 	/* Primary plane Drain Latency */
 	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;	/* BPP */
-	plane_dl = vlv_compute_drain_latency(crtc, pixel_size) << DDL_PLANE_SHIFT;
+	wm.ddl[pipe].primary = vlv_compute_drain_latency(crtc, pixel_size);
 
 	/* Cursor Drain Latency
 	 * BPP is always 4 for cursor
@@ -807,9 +821,10 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 
 	/* Program cursor DL only if it is enabled */
 	if (intel_crtc->cursor_base)
-		plane_dl |= vlv_compute_drain_latency(crtc, pixel_size) << DDL_CURSOR_SHIFT;
+		wm.ddl[pipe].cursor =
+			vlv_compute_drain_latency(crtc, pixel_size);
 
-	I915_WRITE(VLV_DDL(pipe), plane_dl);
+	vlv_write_wm_values(intel_crtc, &wm);
 }
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
@@ -967,17 +982,18 @@ static void valleyview_update_sprite_wm(struct drm_plane *plane,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe = to_intel_plane(plane)->pipe;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
 	int sprite = to_intel_plane(plane)->plane;
-	int sprite_dl;
-
-	sprite_dl = I915_READ(VLV_DDL(pipe)) &
-		~((DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK) << DDL_SPRITE_SHIFT(sprite));
+	struct vlv_wm_values wm = dev_priv->wm.vlv;
 
 	if (enabled)
-		sprite_dl |= vlv_compute_drain_latency(crtc, pixel_size) << DDL_SPRITE_SHIFT(sprite);
+		wm.ddl[pipe].sprite[sprite] =
+			vlv_compute_drain_latency(crtc, pixel_size);
+	else
+		wm.ddl[pipe].sprite[sprite] = 0;
 
-	I915_WRITE(VLV_DDL(pipe), sprite_dl);
+	vlv_write_wm_values(intel_crtc, &wm);
 }
 
 static void g4x_update_wm(struct drm_crtc *crtc)
