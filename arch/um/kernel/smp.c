@@ -67,12 +67,12 @@ static int idle_proc(void *cpup)
 	os_set_fd_async(cpu_data[cpu].ipi_pipe[0]);
 
 	wmb();
-	if (cpu_test_and_set(cpu, cpu_callin_map)) {
+	if (cpumask_test_and_set_cpu(cpu, &cpu_callin_map)) {
 		printk(KERN_ERR "huh, CPU#%d already present??\n", cpu);
 		BUG();
 	}
 
-	while (!cpu_isset(cpu, smp_commenced_mask))
+	while (!cpumask_test_cpu(cpu, &smp_commenced_mask))
 		cpu_relax();
 
 	notify_cpu_starting(cpu);
@@ -111,7 +111,7 @@ void smp_prepare_cpus(unsigned int maxcpus)
 		set_cpu_possible(i, true);
 
 	set_cpu_online(me, true);
-	cpu_set(me, cpu_callin_map);
+	cpumask_set_cpu(me, &cpu_callin_map);
 
 	err = os_pipe(cpu_data[me].ipi_pipe, 1, 1);
 	if (err < 0)
@@ -127,11 +127,11 @@ void smp_prepare_cpus(unsigned int maxcpus)
 		init_idle(idle, cpu);
 
 		waittime = 200000000;
-		while (waittime-- && !cpu_isset(cpu, cpu_callin_map))
+		while (waittime-- && !cpumask_test_cpu(cpu, &cpu_callin_map))
 			cpu_relax();
 
 		printk(KERN_INFO "%s\n",
-		       cpu_isset(cpu, cpu_calling_map) ? "done" : "failed");
+		       cpumask_test_cpu(cpu, &cpu_calling_map) ? "done" : "failed");
 	}
 }
 
@@ -142,7 +142,7 @@ void smp_prepare_boot_cpu(void)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	cpu_set(cpu, smp_commenced_mask);
+	cpumask_set_cpu(cpu, &smp_commenced_mask);
 	while (!cpu_online(cpu))
 		mb();
 	return 0;
