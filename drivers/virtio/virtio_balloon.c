@@ -499,6 +499,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	if (err < 0)
 		goto out_oom_notify;
 
+	virtio_device_ready(vdev);
+
 	vb->thread = kthread_run(balloon, vb, "vballoon");
 	if (IS_ERR(vb->thread)) {
 		err = PTR_ERR(vb->thread);
