@@ -755,11 +755,14 @@ static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
 		return false;
 
 	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
-	if (IS_CHERRYVIEW(dev))
-		*prec_mult = (entries > 32) ? 16 : 8;
-	else
-		*prec_mult = (entries > 128) ? 64 : 32;
+
+	*prec_mult = IS_CHERRYVIEW(dev) ? 16 : 64;
 	*drain_latency = (64 * (*prec_mult) * 4) / entries;
+
+	if (*drain_latency > DRAIN_LATENCY_MASK) {
+		*prec_mult /= 2;
+		*drain_latency = (64 * (*prec_mult) * 4) / entries;
+	}
 
 	if (*drain_latency > DRAIN_LATENCY_MASK)
 		*drain_latency = DRAIN_LATENCY_MASK;
