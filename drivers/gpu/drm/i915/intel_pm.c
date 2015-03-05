@@ -263,6 +263,28 @@ static const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
 	return NULL;
 }
 
+static void chv_set_memory_dvfs(struct drm_i915_private *dev_priv, bool enable)
+{
+	u32 val;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2);
+	if (enable)
+		val &= ~FORCE_DDR_HIGH_FREQ;
+	else
+		val |= FORCE_DDR_HIGH_FREQ;
+	val &= ~FORCE_DDR_LOW_FREQ;
+	val |= FORCE_DDR_FREQ_REQ_ACK;
+	vlv_punit_write(dev_priv, PUNIT_REG_DDR_SETUP2, val);
+
+	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2) &
+		      FORCE_DDR_FREQ_REQ_ACK) == 0, 3))
+		DRM_ERROR("timed out waiting for Punit DDR DVFS request\n");
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
 static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 {
 	u32 val;
@@ -309,6 +331,7 @@ void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 	DRM_DEBUG_KMS("memory self-refresh is %s\n",
 		      enable ? "enabled" : "disabled");
 }
+
 
 /*
  * Latency for FIFO fetches is dependent on several factors:
@@ -1019,6 +1042,17 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 		      "SR: plane=%d, cursor=%d\n", pipe_name(pipe),
 		      wm.pipe[pipe].primary, wm.pipe[pipe].cursor,
 		      wm.sr.plane, wm.sr.cursor);
+
+	/*
+	 * FIXME DDR DVFS introduces massive memory latencies which
+	 * are not known to system agent so any deadline specified
+	 * by the display may not be respected. To support DDR DVFS
+	 * the watermark code needs to be rewritten to essentially
+	 * bypass deadline mechanism and rely solely on the
+	 * watermarks. For now disable DDR DVFS.
+	 */
+	if (IS_CHERRYVIEW(dev_priv))
+		chv_set_memory_dvfs(dev_priv, false);
 
 	if (!cxsr_enabled)
 		intel_set_memory_cxsr(dev_priv, false);

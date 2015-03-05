@@ -644,6 +644,11 @@ enum skl_disp_power_wells {
 #define FB_GFX_FMIN_AT_VMIN_FUSE		0x137
 #define FB_GFX_FMIN_AT_VMIN_FUSE_SHIFT		8
 
+#define PUNIT_REG_DDR_SETUP2			0x139
+#define   FORCE_DDR_FREQ_REQ_ACK		(1 << 8)
+#define   FORCE_DDR_LOW_FREQ			(1 << 1)
+#define   FORCE_DDR_HIGH_FREQ			(1 << 0)
+
 #define PUNIT_GPU_STATUS_REG			0xdb
 #define PUNIT_GPU_STATUS_MAX_FREQ_SHIFT	16
 #define PUNIT_GPU_STATUS_MAX_FREQ_MASK		0xff
