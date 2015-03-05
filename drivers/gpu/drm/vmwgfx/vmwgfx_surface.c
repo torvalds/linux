@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009-2012 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2014 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -36,7 +36,7 @@
  * @base:           The TTM base object handling user-space visibility.
  * @srf:            The surface metadata.
  * @size:           TTM accounting size for the surface.
- * @master:         master of the creating client. Used for security check.
+ * @master: master of the creating client. Used for security check.
  */
 struct vmw_user_surface {
 	struct ttm_prime_object prime;
@@ -1218,6 +1218,7 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 	return 0;
 }
 
+
 /**
  * vmw_gb_surface_define_ioctl - Ioctl function implementing
  *                               the user surface define functionality.
@@ -1241,8 +1242,8 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	int ret;
 	uint32_t size;
-	const struct svga3d_surface_desc *desc;
 	uint32_t backup_handle;
+
 
 	if (unlikely(vmw_user_surface_size == 0))
 		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
@@ -1250,68 +1251,34 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	size = vmw_user_surface_size + 128;
 
-	desc = svga3dsurface_get_desc(req->format);
-	if (unlikely(desc->block_desc == SVGA3DBLOCKDESC_NONE)) {
-		DRM_ERROR("Invalid surface format for surface creation.\n");
-		return -EINVAL;
-	}
+	/* Define a surface based on the parameters. */
+	ret = vmw_surface_gb_priv_define(dev,
+			size,
+			req->svga3d_flags,
+			req->format,
+			req->drm_surface_flags & drm_vmw_surface_flag_scanout,
+			req->mip_levels,
+			req->multisample_count,
+			req->base_size,
+			&srf);
+	if (unlikely(ret != 0))
+		return ret;
+
+	user_srf = container_of(srf, struct vmw_user_surface, srf);
+	if (drm_is_primary_client(file_priv))
+		user_srf->master = drm_master_get(file_priv->master);
 
 	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
 	if (unlikely(ret != 0))
 		return ret;
 
-	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
-				   size, false, true);
-	if (unlikely(ret != 0)) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("Out of graphics memory for surface"
-				  " creation.\n");
-		goto out_unlock;
-	}
+	res = &user_srf->srf.res;
 
-	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
-	if (unlikely(user_srf == NULL)) {
-		ret = -ENOMEM;
-		goto out_no_user_srf;
-	}
 
-	srf = &user_srf->srf;
-	res = &srf->res;
-
-	srf->flags = req->svga3d_flags;
-	srf->format = req->format;
-	srf->scanout = req->drm_surface_flags & drm_vmw_surface_flag_scanout;
-	srf->mip_levels[0] = req->mip_levels;
-	srf->num_sizes = 1;
-	srf->sizes = NULL;
-	srf->offsets = NULL;
-	user_srf->size = size;
-	srf->base_size = req->base_size;
-	srf->autogen_filter = SVGA3D_TEX_FILTER_NONE;
-	srf->multisample_count = req->multisample_count;
-	res->backup_size = svga3dsurface_get_serialized_size
-	  (srf->format, srf->base_size, srf->mip_levels[0],
-	   srf->flags & SVGA3D_SURFACE_CUBEMAP);
-
-	user_srf->prime.base.shareable = false;
-	user_srf->prime.base.tfile = NULL;
-	if (drm_is_primary_client(file_priv))
-		user_srf->master = drm_master_get(file_priv->master);
-
-	/**
-	 * From this point, the generic resource management functions
-	 * destroy the object on failure.
-	 */
-
-	ret = vmw_surface_init(dev_priv, srf, vmw_user_surface_free);
-	if (unlikely(ret != 0))
-		goto out_unlock;
-
-	if (req->buffer_handle != SVGA3D_INVALID_ID) {
+	if (req->buffer_handle != SVGA3D_INVALID_ID)
 		ret = vmw_user_dmabuf_lookup(tfile, req->buffer_handle,
 					     &res->backup);
-	} else if (req->drm_surface_flags &
-		   drm_vmw_surface_flag_create_buffer)
+	else if (req->drm_surface_flags & drm_vmw_surface_flag_create_buffer)
 		ret = vmw_user_dmabuf_alloc(dev_priv, tfile,
 					    res->backup_size,
 					    req->drm_surface_flags &
@@ -1324,7 +1291,7 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	tmp = vmw_resource_reference(&srf->res);
+	tmp = vmw_resource_reference(res);
 	ret = ttm_prime_object_init(tfile, res->backup_size, &user_srf->prime,
 				    req->drm_surface_flags &
 				    drm_vmw_surface_flag_shareable,
@@ -1337,7 +1304,7 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	rep->handle = user_srf->prime.base.hash.key;
+	rep->handle      = user_srf->prime.base.hash.key;
 	rep->backup_size = res->backup_size;
 	if (res->backup) {
 		rep->buffer_map_handle =
@@ -1352,10 +1319,6 @@ int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	vmw_resource_unreference(&res);
 
-	ttm_read_unlock(&dev_priv->reservation_sem);
-	return 0;
-out_no_user_srf:
-	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
 	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
@@ -1427,5 +1390,115 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 out_bad_resource:
 	ttm_base_object_unref(&base);
 
+	return ret;
+}
+
+/**
+ * vmw_surface_gb_priv_define - Define a private GB surface
+ *
+ * @dev:  Pointer to a struct drm_device
+ * @user_accounting_size:  Used to track user-space memory usage, set
+ *                         to 0 for kernel mode only memory
+ * @svga3d_flags: SVGA3d surface flags for the device
+ * @format: requested surface format
+ * @for_scanout: true if inteded to be used for scanout buffer
+ * @num_mip_levels:  number of MIP levels
+ * @multisample_count:
+ * @size: width, heigh, depth of the surface requested
+ * @user_srf_out: allocated user_srf.  Set to NULL on failure.
+ *
+ * GB surfaces allocated by this function will not have a user mode handle, and
+ * thus will only be visible to vmwgfx.  For optimization reasons the
+ * surface may later be given a user mode handle by another function to make
+ * it available to user mode drivers.
+ */
+int vmw_surface_gb_priv_define(struct drm_device *dev,
+			       uint32_t user_accounting_size,
+			       uint32_t svga3d_flags,
+			       SVGA3dSurfaceFormat format,
+			       bool for_scanout,
+			       uint32_t num_mip_levels,
+			       uint32_t multisample_count,
+			       struct drm_vmw_size size,
+			       struct vmw_surface **srf_out)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct vmw_user_surface *user_srf;
+	struct vmw_surface *srf;
+	int ret;
+
+
+	*srf_out = NULL;
+
+	if (for_scanout) {
+		if (!svga3dsurface_is_screen_target_format(format)) {
+			DRM_ERROR("Invalid Screen Target surface format.");
+			return -EINVAL;
+		}
+	} else {
+		const struct svga3d_surface_desc *desc;
+
+		desc = svga3dsurface_get_desc(format);
+		if (unlikely(desc->block_desc == SVGA3DBLOCKDESC_NONE)) {
+			DRM_ERROR("Invalid surface format.\n");
+			return -EINVAL;
+		}
+	}
+
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = ttm_mem_global_alloc(vmw_mem_glob(dev_priv),
+				   user_accounting_size, false, true);
+	if (unlikely(ret != 0)) {
+		if (ret != -ERESTARTSYS)
+			DRM_ERROR("Out of graphics memory for surface"
+				  " creation.\n");
+		goto out_unlock;
+	}
+
+	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
+	if (unlikely(user_srf == NULL)) {
+		ret = -ENOMEM;
+		goto out_no_user_srf;
+	}
+
+	*srf_out  = &user_srf->srf;
+	user_srf->size = user_accounting_size;
+	user_srf->prime.base.shareable = false;
+	user_srf->prime.base.tfile     = NULL;
+
+	srf = &user_srf->srf;
+	srf->flags             = svga3d_flags;
+	srf->format            = format;
+	srf->scanout           = for_scanout;
+	srf->mip_levels[0]     = num_mip_levels;
+	srf->num_sizes         = 1;
+	srf->sizes             = NULL;
+	srf->offsets           = NULL;
+	srf->base_size         = size;
+	srf->autogen_filter    = SVGA3D_TEX_FILTER_NONE;
+	srf->multisample_count = multisample_count;
+
+	srf->res.backup_size   = svga3dsurface_get_serialized_size(srf->format,
+					srf->base_size,
+					srf->mip_levels[0],
+					srf->flags & SVGA3D_SURFACE_CUBEMAP);
+
+	/*
+	 * From this point, the generic resource management functions
+	 * destroy the object on failure.
+	 */
+	ret = vmw_surface_init(dev_priv, srf, vmw_user_surface_free);
+
+	ttm_read_unlock(&dev_priv->reservation_sem);
+	return ret;
+
+out_no_user_srf:
+	ttm_mem_global_free(vmw_mem_glob(dev_priv), user_accounting_size);
+
+out_unlock:
+	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
