@@ -2041,8 +2041,12 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 		if (!ftrace_rec_count(rec))
 			rec->flags = 0;
 		else
-			/* Just disable the record (keep REGS state) */
-			rec->flags &= ~FTRACE_FL_ENABLED;
+			/*
+			 * Just disable the record, but keep the ops TRAMP
+			 * and REGS states. The _EN flags must be disabled though.
+			 */
+			rec->flags &= ~(FTRACE_FL_ENABLED | FTRACE_FL_TRAMP_EN |
+					FTRACE_FL_REGS_EN);
 	}
 
 	return FTRACE_UPDATE_MAKE_NOP;
