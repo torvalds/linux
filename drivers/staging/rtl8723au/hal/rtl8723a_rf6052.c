@@ -353,7 +353,7 @@ static void writeOFDMPowerReg(struct rtw_adapter *Adapter, u8 index,
 		else
 			RegOffset = RegOffset_B[index];
 
-		PHY_SetBBReg(Adapter, RegOffset, bMaskDWord, writeVal);
+		rtl8723au_write32(Adapter, RegOffset, writeVal);
 
 		/*  201005115 Joseph: Set Tx Power diff for Tx power
 		    training mechanism. */
