@@ -330,15 +330,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 		/* do nothing */
 		break;
 	}
-
-	/*  */
-	/*  Tx power tracking BB swing table. */
-	/*  The base index = 12. +((12-n)/2)dB 13~?? = decrease tx pwr by -((n-12)/2)dB */
-	/*  */
-	pDM_Odm->BbSwingIdxOfdm			= 12; /*  Set defalut value as index 12. */
-	pDM_Odm->BbSwingIdxOfdmCurrent	= 12;
-	pDM_Odm->BbSwingFlagOfdm		= false;
-
 }
 
 void ODM_CmnInfoPtrArrayHook23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo CmnInfo,

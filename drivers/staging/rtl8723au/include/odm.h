@@ -609,14 +609,6 @@ struct dm_odm_t {
 	/*  2012/01/12 MH For MP, we need to reduce one array pointer for default port.?? */
 	struct sta_info *		pODM_StaInfo[ODM_ASSOCIATE_ENTRY_NUM];
 
-	/*  */
-	/*  2012/02/14 MH Add to share 88E ra with other SW team. */
-	/*  We need to colelct all support abilit to a proper area. */
-	/*  */
-	bool				RaSupport88E;
-
-	/*  Define ........... */
-
 	/*  Latest packet phy info (ODM write) */
 	struct odm_phy_dbg_info	 PhyDbgInfo;
 	/* PHY_INFO_88E		PhyInfo; */
@@ -648,29 +640,11 @@ struct dm_odm_t {
 	/*  */
 
 	/* PSD */
-	bool			bUserAssignLevel;
-	u8			RSSI_BT;			/* come from BT */
-	bool			bPSDinProcess;
-
+	u8			RSSI_BT;		/* come from BT */
 	struct odm_rate_adapt	RateAdaptive;
 
 
 	struct odm_rf_cal_t	RFCalibrateInfo;
-
-	/*  */
-	/*  TX power tracking */
-	/*  */
-	u8			BbSwingIdxOfdm;
-	u8			BbSwingIdxOfdmCurrent;
-	u8			BbSwingIdxOfdmBase;
-	bool			BbSwingFlagOfdm;
-	u8			BbSwingIdxCck;
-	u8			BbSwingIdxCckCurrent;
-	u8			BbSwingIdxCckBase;
-	bool			BbSwingFlagCck;
-	/*  */
-	/*  ODM system resource. */
-	/*  */
 };	/*  DM_Dynamic_Mechanism_Structure */
 
 enum odm_rf_content {
