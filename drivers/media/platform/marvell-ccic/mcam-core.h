@@ -163,6 +163,8 @@ struct mcam_camera {
 	unsigned int nbufs;		/* How many are alloc'd */
 	int next_buf;			/* Next to consume (dev_lock) */
 
+	char bus_info[32];		/* querycap bus_info */
+
 	/* DMA buffers - vmalloc mode */
 #ifdef MCAM_MODE_VMALLOC
 	unsigned int dma_buf_size;	/* allocated size */

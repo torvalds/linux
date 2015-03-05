@@ -1388,8 +1388,11 @@ static int mcam_vidioc_dqbuf(struct file *filp, void *priv,
 static int mcam_vidioc_querycap(struct file *file, void *priv,
 		struct v4l2_capability *cap)
 {
+	struct mcam_camera *cam = priv;
+
 	strcpy(cap->driver, "marvell_ccic");
 	strcpy(cap->card, "marvell_ccic");
+	strlcpy(cap->bus_info, cam->bus_info, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
