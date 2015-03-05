@@ -509,50 +509,70 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 	kfree(omap_crtc);
 }
 
-static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct omap_drm_private *priv = crtc->dev->dev_private;
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	bool enable = (mode == DRM_MODE_DPMS_ON);
-	int i;
-
-	DBG("%s: %d", omap_crtc->name, mode);
-
-	if (enable == omap_crtc->enabled)
-		return;
-
-	if (!enable) {
-		omap_crtc_wait_page_flip(crtc);
-		dispc_runtime_get();
-		drm_crtc_vblank_off(crtc);
-		dispc_runtime_put();
-	}
-
-	/* Enable/disable all planes associated with the CRTC. */
-	for (i = 0; i < priv->num_planes; i++) {
-		struct drm_plane *plane = priv->planes[i];
-
-		if (plane->crtc == crtc)
-			WARN_ON(omap_plane_set_enable(plane, enable));
-	}
-
-	omap_crtc->enabled = enable;
-
-	omap_crtc_setup(crtc);
-	omap_crtc_flush(crtc);
-
-	if (enable) {
-		dispc_runtime_get();
-		drm_crtc_vblank_on(crtc);
-		dispc_runtime_put();
-	}
-}
-
 static bool omap_crtc_mode_fixup(struct drm_crtc *crtc,
 		const struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
 {
 	return true;
+}
+
+static void omap_crtc_enable(struct drm_crtc *crtc)
+{
+	struct omap_drm_private *priv = crtc->dev->dev_private;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	unsigned int i;
+
+	DBG("%s", omap_crtc->name);
+
+	if (omap_crtc->enabled)
+		return;
+
+	/* Enable all planes associated with the CRTC. */
+	for (i = 0; i < priv->num_planes; i++) {
+		struct drm_plane *plane = priv->planes[i];
+
+		if (plane->crtc == crtc)
+			WARN_ON(omap_plane_set_enable(plane, true));
+	}
+
+	omap_crtc->enabled = true;
+
+	omap_crtc_setup(crtc);
+	omap_crtc_flush(crtc);
+
+	dispc_runtime_get();
+	drm_crtc_vblank_on(crtc);
+	dispc_runtime_put();
+}
+
+static void omap_crtc_disable(struct drm_crtc *crtc)
+{
+	struct omap_drm_private *priv = crtc->dev->dev_private;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	unsigned int i;
+
+	DBG("%s", omap_crtc->name);
+
+	if (!omap_crtc->enabled)
+		return;
+
+	omap_crtc_wait_page_flip(crtc);
+	dispc_runtime_get();
+	drm_crtc_vblank_off(crtc);
+	dispc_runtime_put();
+
+	/* Disable all planes associated with the CRTC. */
+	for (i = 0; i < priv->num_planes; i++) {
+		struct drm_plane *plane = priv->planes[i];
+
+		if (plane->crtc == crtc)
+			WARN_ON(omap_plane_set_enable(plane, false));
+	}
+
+	omap_crtc->enabled = false;
+
+	omap_crtc_setup(crtc);
+	omap_crtc_flush(crtc);
 }
 
 static int omap_crtc_mode_set(struct drm_crtc *crtc,
@@ -585,6 +605,19 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 	return omap_plane_mode_set(crtc->primary, crtc, crtc->primary->fb,
 				   0, 0, mode->hdisplay, mode->vdisplay,
 				   x, y, mode->hdisplay, mode->vdisplay);
+}
+
+static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	bool enable = (mode == DRM_MODE_DPMS_ON);
+
+	DBG("%s: %d", omap_crtc->name, mode);
+
+	if (enable)
+		omap_crtc_enable(crtc);
+	else
+		omap_crtc_disable(crtc);
 }
 
 static void omap_crtc_prepare(struct drm_crtc *crtc)
@@ -751,6 +784,8 @@ static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.prepare = omap_crtc_prepare,
 	.commit = omap_crtc_commit,
 	.mode_set_base = omap_crtc_mode_set_base,
+	.disable = omap_crtc_disable,
+	.enable = omap_crtc_enable,
 };
 
 /* -----------------------------------------------------------------------------
