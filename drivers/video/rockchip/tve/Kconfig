@@ -8,6 +8,7 @@ menuconfig RK_TVENCODER
 	help
 		Support RockChip TV Encoder if you say y here.
 
+source "drivers/video/rockchip/tve/rk1000/Kconfig"
 source "drivers/video/rockchip/tve/rk3036/Kconfig"
 source "drivers/video/rockchip/tve/rk610/Kconfig"
 

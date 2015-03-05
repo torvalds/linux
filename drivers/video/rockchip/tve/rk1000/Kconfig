@@ -1,0 +1,18 @@
+#
+# TV Encoder RK1000 drivers configuration
+#
+
+config RK1000_TVOUT
+	bool "RK1000 TV Encoder support"
+	depends on RK_TVENCODER
+	select MFD_RK1000
+	help
+		Support rk1000 to output YPbPr and CVBS.
+		
+config RK1000_TVOUT_YPbPr
+	bool "Support YPbPr Output"
+	depends on RK1000_TVOUT
+config RK1000_TVOUT_CVBS
+	bool "Support CVBS Output"
+	depends on RK1000_TVOUT
+

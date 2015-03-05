@@ -193,12 +193,11 @@ static int rockchip_ion_get_phys(struct ion_client *client, unsigned long arg)
 static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 			      unsigned long arg)
 {
-	long ret;
-
 	pr_debug("%s(%d): cmd=%x\n", __func__, __LINE__, cmd);
 
 	if (is_compat_task()) {
 #ifdef CONFIG_COMPAT
+		long ret;
 		switch (cmd) {
 		case COMPAT_ION_IOC_GET_PHYS: {
 			struct compat_ion_phys_data __user *data32;
