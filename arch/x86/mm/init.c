@@ -133,15 +133,10 @@ int after_bootmem;
 
 static int page_size_mask;
 
-early_param_on_off("gbpages", "nogbpages",
-		   direct_gbpages, CONFIG_DIRECT_GBPAGES);
+early_param_on_off("gbpages", "nogbpages", direct_gbpages, CONFIG_X86_DIRECT_GBPAGES);
 
 static void __init init_gbpages(void)
 {
-	if (!IS_ENABLED(CONFIG_ENABLE_DIRECT_GBPAGES)) {
-		direct_gbpages = 0;
-		return;
-	}
 	if (direct_gbpages && cpu_has_gbpages) {
 		printk(KERN_INFO "Using GB pages for direct mapping\n");
 		page_size_mask |= 1 << PG_LEVEL_1G;
