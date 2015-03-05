@@ -1046,6 +1046,7 @@ enum skl_disp_power_wells {
 #define _CHV_PLL_DW9_CH0		0x8024
 #define _CHV_PLL_DW9_CH1		0x81A4
 #define  DPIO_CHV_INT_LOCK_THRESHOLD_SHIFT		1 /* 3 bits */
+#define  DPIO_CHV_INT_LOCK_THRESHOLD_MASK		(7 << 1)
 #define  DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE	1 /* 1: coarse & 0 : fine  */
 #define CHV_PLL_DW9(ch) _PIPE(ch, _CHV_PLL_DW9_CH0, _CHV_PLL_DW9_CH1)
 

@@ -6207,6 +6207,15 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 		dpio_val |= DPIO_CHV_FRAC_DIV_EN;
 	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW3(port), dpio_val);
 
+	/* Program digital lock detect threshold */
+	dpio_val = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW9(port));
+	dpio_val &= ~(DPIO_CHV_INT_LOCK_THRESHOLD_MASK |
+					DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE);
+	dpio_val |= (0x5 << DPIO_CHV_INT_LOCK_THRESHOLD_SHIFT);
+	if (!bestm2_frac)
+		dpio_val |= DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE;
+	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW9(port), dpio_val);
+
 	/* Loop filter */
 	refclk = i9xx_get_refclk(crtc, 0);
 	loopfilter = 5 << DPIO_CHV_PROP_COEFF_SHIFT |
