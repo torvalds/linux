@@ -1073,9 +1073,32 @@ static int ov7670_enum_frame_interval(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_pad_config *cfg,
 				      struct v4l2_subdev_frame_interval_enum *fie)
 {
+	struct ov7670_info *info = to_state(sd);
+	unsigned int n_win_sizes = info->devtype->n_win_sizes;
+	int i;
+
 	if (fie->pad)
 		return -EINVAL;
 	if (fie->index >= ARRAY_SIZE(ov7670_frame_rates))
+		return -EINVAL;
+
+	/*
+	 * Check if the width/height is valid.
+	 *
+	 * If a minimum width/height was requested, filter out the capture
+	 * windows that fall outside that.
+	 */
+	for (i = 0; i < n_win_sizes; i++) {
+		struct ov7670_win_size *win = &info->devtype->win_sizes[i];
+
+		if (info->min_width && win->width < info->min_width)
+			continue;
+		if (info->min_height && win->height < info->min_height)
+			continue;
+		if (fie->width == win->width && fie->height == win->height)
+			break;
+	}
+	if (i == n_win_sizes)
 		return -EINVAL;
 	fie->interval.numerator = 1;
 	fie->interval.denominator = ov7670_frame_rates[fie->index];
