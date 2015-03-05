@@ -680,6 +680,7 @@ config MFD_RT5033
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
+	select REGMAP_IRQ
 	help
 	  This driver provides for the Richtek RT5033 Power Management IC,
 	  which includes the I2C driver and the Core APIs. This driver provides
