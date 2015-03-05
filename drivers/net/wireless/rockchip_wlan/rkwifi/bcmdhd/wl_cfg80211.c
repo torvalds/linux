@@ -10448,7 +10448,7 @@ static void wl_scan_timeout(unsigned long data)
 {
 	wl_event_msg_t msg;
 	struct bcm_cfg80211 *cfg = (struct bcm_cfg80211 *)data;
-	struct net_device *dev = bcmcfg_to_prmry_ndev(cfg);
+//	struct net_device *dev = bcmcfg_to_prmry_ndev(cfg);
 
 	if (!(cfg->scan_request)) {
 		WL_ERR(("timer expired but no scan request\n"));
@@ -10462,10 +10462,10 @@ static void wl_scan_timeout(unsigned long data)
 	wl_cfg80211_event(bcmcfg_to_prmry_ndev(cfg), &msg, NULL);
 
 	// terence 20130729: workaround to fix out of memory in firmware
-	if (dhd_conf_get_chip(dhd_get_pub(dev)) == BCM43362_CHIP_ID) {
-		WL_ERR(("Send hang event\n"));
-		net_os_send_hang_message(dev);
-	}
+//	if (dhd_conf_get_chip(dhd_get_pub(dev)) == BCM43362_CHIP_ID) {
+//		WL_ERR(("Send hang event\n"));
+//		net_os_send_hang_message(dev);
+//	}
 }
 
 static s32
@@ -10760,7 +10760,7 @@ static s32 wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 					goto exit;
 				if ((p2p_ie = wl_cfgp2p_find_p2pie(((u8 *) bi) + bi->ie_offset,
 					bi->ie_length)) == NULL) {
-						WL_INFORM(("Couldn't find P2PIE in probe"
+						WL_ERR(("Couldn't find P2PIE in probe"
 							" response/beacon\n"));
 						goto exit;
 				}
@@ -11509,6 +11509,44 @@ static void wl_wakeup_event(struct bcm_cfg80211 *cfg)
 	}
 }
 
+#if defined(WL_ENABLE_P2P_IF)
+static int wl_is_p2p_event(struct wl_event_q *e)
+{
+	switch (e->etype) {
+	/* We have to seperate out the P2P events received
+	 * on primary interface so that it can be send up
+	 * via p2p0 interface.
+	*/
+	case WLC_E_P2P_PROBREQ_MSG:
+	case WLC_E_P2P_DISC_LISTEN_COMPLETE:
+	case WLC_E_ACTION_FRAME_RX:
+	case WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE:
+	case WLC_E_ACTION_FRAME_COMPLETE:
+
+		if (e->emsg.ifidx != 0) {
+			WL_TRACE(("P2P event(%d) on virtual interface(ifidx:%d)\n",
+				e->etype, e->emsg.ifidx));
+			/* We are only bothered about the P2P events received
+			 * on primary interface. For rest of them return false
+			 * so that it is sent over the interface corresponding
+			 * to the ifidx.
+			 */
+			return FALSE;
+		} else {
+			WL_TRACE(("P2P event(%d) on interface(ifidx:%d)\n",
+				e->etype, e->emsg.ifidx));
+			return TRUE;
+		}
+		break;
+
+	default:
+		WL_TRACE(("NON-P2P event(%d) on interface(ifidx:%d)\n",
+			e->etype, e->emsg.ifidx));
+		return FALSE;
+	}
+}
+#endif /* BCMDONGLEHOST && (WL_CFG80211_P2P_DEV_IF || WL_ENABLE_P2P_IF) */
+
 static s32 wl_event_handler(void *data)
 {
 	struct bcm_cfg80211 *cfg = NULL;
@@ -11541,7 +11579,9 @@ static s32 wl_event_handler(void *data)
 					cfgdev = ndev_to_wdev(ndev);
 			}
 #elif defined(WL_ENABLE_P2P_IF)
-			if (WL_IS_P2P_DEV_EVENT(e) && (cfg->p2p_net)) {
+			// terence 20150116: fix for p2p connection in kernel 3.4
+//			if (WL_IS_P2P_DEV_EVENT(e) && (cfg->p2p_net)) {
+			if ((wl_is_p2p_event(e) == TRUE) && (cfg->p2p_net)) {
 				cfgdev = cfg->p2p_net;
 			} else {
 				cfgdev = dhd_idx2net((struct dhd_pub *)(cfg->pub),

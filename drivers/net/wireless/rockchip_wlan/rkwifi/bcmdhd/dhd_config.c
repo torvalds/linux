@@ -1068,6 +1068,169 @@ dhd_conf_read_log_level(dhd_pub_t *dhd, char *bufp, uint len)
 	}
 }
 
+void
+dhd_conf_read_wme_ac_params(dhd_pub_t *dhd, char *bufp, uint len)
+{
+	uint len_val;
+	char pick[MAXSZ_BUF];
+	struct dhd_conf *conf = dhd->conf;
+
+	/* Process WMM parameters */
+	memset(pick, 0, MAXSZ_BUF);
+	len_val = process_config_vars(bufp, len, pick, "force_wme_ac=");
+	if (len_val) {
+		conf->force_wme_ac = (int)simple_strtol(pick, NULL, 10);
+		printf("%s: force_wme_ac = %d\n", __FUNCTION__, conf->force_wme_ac);
+	}
+
+	if (conf->force_wme_ac) {
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "bk_aifsn=");
+		if (len_val) {
+			conf->wme.aifsn[AC_BK] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_BK aifsn = %d\n", __FUNCTION__, conf->wme.aifsn[AC_BK]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "bk_cwmin=");
+		if (len_val) {
+			conf->wme.cwmin[AC_BK] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_BK cwmin = %d\n", __FUNCTION__, conf->wme.cwmin[AC_BK]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "bk_cwmax=");
+		if (len_val) {
+			conf->wme.cwmax[AC_BK] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_BK cwmax = %d\n", __FUNCTION__, conf->wme.cwmax[AC_BK]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "be_aifsn=");
+		if (len_val) {
+			conf->wme.aifsn[AC_BE] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_BE aifsn = %d\n", __FUNCTION__, conf->wme.aifsn[AC_BE]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "be_cwmin=");
+		if (len_val) {
+			conf->wme.cwmin[AC_BE] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_BE cwmin = %d\n", __FUNCTION__, conf->wme.cwmin[AC_BE]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "be_cwmax=");
+		if (len_val) {
+			conf->wme.cwmax[AC_BE] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_BE cwmax = %d\n", __FUNCTION__, conf->wme.cwmax[AC_BE]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "vi_aifsn=");
+		if (len_val) {
+			conf->wme.aifsn[AC_VI] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_VI aifsn = %d\n", __FUNCTION__, conf->wme.aifsn[AC_VI]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "vi_cwmin=");
+		if (len_val) {
+			conf->wme.cwmin[AC_VI] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_VI cwmin = %d\n", __FUNCTION__, conf->wme.cwmin[AC_VI]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "vi_cwmax=");
+		if (len_val) {
+			conf->wme.cwmax[AC_VI] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_VI cwmax = %d\n", __FUNCTION__, conf->wme.cwmax[AC_VI]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "vo_aifsn=");
+		if (len_val) {
+			conf->wme.aifsn[AC_VO] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_VO aifsn = %d\n", __FUNCTION__, conf->wme.aifsn[AC_VO]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "vo_cwmin=");
+		if (len_val) {
+			conf->wme.cwmin[AC_VO] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_VO cwmin = %d\n", __FUNCTION__, conf->wme.cwmin[AC_VO]);
+		}
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "vo_cwmax=");
+		if (len_val) {
+			conf->wme.cwmax[AC_VO] = (int)simple_strtol(pick, NULL, 10);
+			printf("%s: AC_VO cwmax = %d\n", __FUNCTION__, conf->wme.cwmax[AC_VO]);
+		}
+	}
+
+}
+
+void
+dhd_conf_read_roam_params(dhd_pub_t *dhd, char *bufp, uint len)
+{
+	uint len_val;
+	char pick[MAXSZ_BUF];
+	struct dhd_conf *conf = dhd->conf;
+	
+	/* Process roam */
+	memset(pick, 0, MAXSZ_BUF);
+	len_val = process_config_vars(bufp, len, pick, "roam_off=");
+	if (len_val) {
+		if (!strncmp(pick, "0", len_val))
+			conf->roam_off = 0;
+		else
+			conf->roam_off = 1;
+		printf("%s: roam_off = %d\n", __FUNCTION__, conf->roam_off);
+	}
+
+	memset(pick, 0, MAXSZ_BUF);
+	len_val = process_config_vars(bufp, len, pick, "roam_off_suspend=");
+	if (len_val) {
+		if (!strncmp(pick, "0", len_val))
+			conf->roam_off_suspend = 0;
+		else
+			conf->roam_off_suspend = 1;
+		printf("%s: roam_off_suspend = %d\n", __FUNCTION__,
+			conf->roam_off_suspend);
+	}
+
+	if (!conf->roam_off || !conf->roam_off_suspend) {
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "roam_trigger=");
+		if (len_val)
+			conf->roam_trigger[0] = (int)simple_strtol(pick, NULL, 10);
+		printf("%s: roam_trigger = %d\n", __FUNCTION__,
+			conf->roam_trigger[0]);
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "roam_scan_period=");
+		if (len_val)
+			conf->roam_scan_period[0] = (int)simple_strtol(pick, NULL, 10);
+		printf("%s: roam_scan_period = %d\n", __FUNCTION__,
+			conf->roam_scan_period[0]);
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "roam_delta=");
+		if (len_val)
+			conf->roam_delta[0] = (int)simple_strtol(pick, NULL, 10);
+		printf("%s: roam_delta = %d\n", __FUNCTION__, conf->roam_delta[0]);
+
+		memset(pick, 0, MAXSZ_BUF);
+		len_val = process_config_vars(bufp, len, pick, "fullroamperiod=");
+		if (len_val)
+			conf->fullroamperiod = (int)simple_strtol(pick, NULL, 10);
+		printf("%s: fullroamperiod = %d\n", __FUNCTION__,
+			conf->fullroamperiod);
+	}
+
+}
+
 /*
  * [fw_by_mac]:
  * fw_by_mac=[fw_mac_num] \
@@ -1130,6 +1293,8 @@ dhd_conf_read_config(dhd_pub_t *dhd)
 
 		/* Process log_level */
 		dhd_conf_read_log_level(dhd, bufp, len);
+		dhd_conf_read_roam_params(dhd, bufp, len);
+		dhd_conf_read_wme_ac_params(dhd, bufp, len);
 
 		/* Process fw_by_mac */
 		memset(pick, 0, MAXSZ_BUF);
@@ -1280,57 +1445,6 @@ dhd_conf_read_config(dhd_pub_t *dhd)
 			printf("\n");
 		}
 
-		/* Process roam */
-		memset(pick, 0, MAXSZ_BUF);
-		len_val = process_config_vars(bufp, len, pick, "roam_off=");
-		if (len_val) {
-			if (!strncmp(pick, "0", len_val))
-				conf->roam_off = 0;
-			else
-				conf->roam_off = 1;
-			printf("%s: roam_off = %d\n", __FUNCTION__, conf->roam_off);
-		}
-
-		memset(pick, 0, MAXSZ_BUF);
-		len_val = process_config_vars(bufp, len, pick, "roam_off_suspend=");
-		if (len_val) {
-			if (!strncmp(pick, "0", len_val))
-				conf->roam_off_suspend = 0;
-			else
-				conf->roam_off_suspend = 1;
-			printf("%s: roam_off_suspend = %d\n", __FUNCTION__,
-				conf->roam_off_suspend);
-		}
-
-		if (!conf->roam_off || !conf->roam_off_suspend) {
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "roam_trigger=");
-			if (len_val)
-				conf->roam_trigger[0] = (int)simple_strtol(pick, NULL, 10);
-			printf("%s: roam_trigger = %d\n", __FUNCTION__,
-				conf->roam_trigger[0]);
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "roam_scan_period=");
-			if (len_val)
-				conf->roam_scan_period[0] = (int)simple_strtol(pick, NULL, 10);
-			printf("%s: roam_scan_period = %d\n", __FUNCTION__,
-				conf->roam_scan_period[0]);
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "roam_delta=");
-			if (len_val)
-				conf->roam_delta[0] = (int)simple_strtol(pick, NULL, 10);
-			printf("%s: roam_delta = %d\n", __FUNCTION__, conf->roam_delta[0]);
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "fullroamperiod=");
-			if (len_val)
-				conf->fullroamperiod = (int)simple_strtol(pick, NULL, 10);
-			printf("%s: fullroamperiod = %d\n", __FUNCTION__,
-				conf->fullroamperiod);
-		}
-
 		/* Process keep alive period */
 		memset(pick, 0, MAXSZ_BUF);
 		len_val = process_config_vars(bufp, len, pick, "keep_alive_period=");
@@ -1338,100 +1452,6 @@ dhd_conf_read_config(dhd_pub_t *dhd)
 			conf->keep_alive_period = (int)simple_strtol(pick, NULL, 10);
 			printf("%s: keep_alive_period = %d\n", __FUNCTION__,
 				conf->keep_alive_period);
-		}
-
-		/* Process WMM parameters */
-		memset(pick, 0, MAXSZ_BUF);
-		len_val = process_config_vars(bufp, len, pick, "force_wme_ac=");
-		if (len_val) {
-			conf->force_wme_ac = (int)simple_strtol(pick, NULL, 10);
-			printf("%s: force_wme_ac = %d\n", __FUNCTION__, conf->force_wme_ac);
-		}
-
-		if (conf->force_wme_ac) {
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "bk_aifsn=");
-			if (len_val) {
-				conf->wme.aifsn[AC_BK] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_BK aifsn = %d\n", __FUNCTION__, conf->wme.aifsn[AC_BK]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "bk_cwmin=");
-			if (len_val) {
-				conf->wme.cwmin[AC_BK] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_BK cwmin = %d\n", __FUNCTION__, conf->wme.cwmin[AC_BK]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "bk_cwmax=");
-			if (len_val) {
-				conf->wme.cwmax[AC_BK] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_BK cwmax = %d\n", __FUNCTION__, conf->wme.cwmax[AC_BK]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "be_aifsn=");
-			if (len_val) {
-				conf->wme.aifsn[AC_BE] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_BE aifsn = %d\n", __FUNCTION__, conf->wme.aifsn[AC_BE]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "be_cwmin=");
-			if (len_val) {
-				conf->wme.cwmin[AC_BE] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_BE cwmin = %d\n", __FUNCTION__, conf->wme.cwmin[AC_BE]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "be_cwmax=");
-			if (len_val) {
-				conf->wme.cwmax[AC_BE] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_BE cwmax = %d\n", __FUNCTION__, conf->wme.cwmax[AC_BE]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "vi_aifsn=");
-			if (len_val) {
-				conf->wme.aifsn[AC_VI] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_VI aifsn = %d\n", __FUNCTION__, conf->wme.aifsn[AC_VI]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "vi_cwmin=");
-			if (len_val) {
-				conf->wme.cwmin[AC_VI] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_VI cwmin = %d\n", __FUNCTION__, conf->wme.cwmin[AC_VI]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "vi_cwmax=");
-			if (len_val) {
-				conf->wme.cwmax[AC_VI] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_VI cwmax = %d\n", __FUNCTION__, conf->wme.cwmax[AC_VI]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "vo_aifsn=");
-			if (len_val) {
-				conf->wme.aifsn[AC_VO] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_VO aifsn = %d\n", __FUNCTION__, conf->wme.aifsn[AC_VO]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "vo_cwmin=");
-			if (len_val) {
-				conf->wme.cwmin[AC_VO] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_VO cwmin = %d\n", __FUNCTION__, conf->wme.cwmin[AC_VO]);
-			}
-
-			memset(pick, 0, MAXSZ_BUF);
-			len_val = process_config_vars(bufp, len, pick, "vo_cwmax=");
-			if (len_val) {
-				conf->wme.cwmax[AC_VO] = (int)simple_strtol(pick, NULL, 10);
-				printf("%s: AC_VO cwmax = %d\n", __FUNCTION__, conf->wme.cwmax[AC_VO]);
-			}
 		}
 
 		/* Process STBC parameters */

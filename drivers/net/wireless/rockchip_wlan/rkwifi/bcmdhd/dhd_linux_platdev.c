@@ -484,8 +484,8 @@ void wifi_ctrlfunc_unregister_drv(void)
 		adapter = &dhd_wifi_platdata->adapters[0];
 		if (is_power_on) {
 			wifi_platform_set_power(adapter, FALSE, WIFI_TURNOFF_DELAY);
-			wifi_platform_bus_enumerate(adapter, FALSE);
 		}
+		wifi_platform_bus_enumerate(adapter, FALSE);
 	}
 #endif /* !defined(CONFIG_DTS) */
 
