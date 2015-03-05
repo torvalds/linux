@@ -4206,15 +4206,11 @@ enum skl_disp_power_wells {
 
 /* drain latency register values*/
 #define VLV_DDL(pipe)			(VLV_DISPLAY_BASE + 0x70050 + 4 * (pipe))
-#define DDL_CURSOR_PRECISION_HIGH	(1<<31)
-#define DDL_CURSOR_PRECISION_LOW	(0<<31)
 #define DDL_CURSOR_SHIFT		24
-#define DDL_SPRITE_PRECISION_HIGH(sprite)	(1<<(15+8*(sprite)))
-#define DDL_SPRITE_PRECISION_LOW(sprite)	(0<<(15+8*(sprite)))
 #define DDL_SPRITE_SHIFT(sprite)	(8+8*(sprite))
-#define DDL_PLANE_PRECISION_HIGH	(1<<7)
-#define DDL_PLANE_PRECISION_LOW		(0<<7)
 #define DDL_PLANE_SHIFT			0
+#define DDL_PRECISION_HIGH		(1<<7)
+#define DDL_PRECISION_LOW		(0<<7)
 #define DRAIN_LATENCY_MASK		0x7f
 
 /* FIFO watermark sizes etc */

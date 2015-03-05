@@ -739,35 +739,35 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
-				      int pixel_size,
-				      int *prec_mult,
-				      int *drain_latency)
+static uint8_t vlv_compute_drain_latency(struct drm_crtc *crtc,
+					 int pixel_size)
 {
 	struct drm_device *dev = crtc->dev;
-	int entries;
+	int entries, prec_mult, drain_latency;
 	int clock = to_intel_crtc(crtc)->config->base.adjusted_mode.crtc_clock;
+	const int high_precision = IS_CHERRYVIEW(dev) ? 16 : 64;
 
 	if (WARN(clock == 0, "Pixel clock is zero!\n"))
-		return false;
+		return 0;
 
 	if (WARN(pixel_size == 0, "Pixel size is zero!\n"))
-		return false;
+		return 0;
 
 	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
 
-	*prec_mult = IS_CHERRYVIEW(dev) ? 16 : 64;
-	*drain_latency = (64 * (*prec_mult) * 4) / entries;
+	prec_mult = high_precision;
+	drain_latency = 64 * prec_mult * 4 / entries;
 
-	if (*drain_latency > DRAIN_LATENCY_MASK) {
-		*prec_mult /= 2;
-		*drain_latency = (64 * (*prec_mult) * 4) / entries;
+	if (drain_latency > DRAIN_LATENCY_MASK) {
+		prec_mult /= 2;
+		drain_latency = 64 * prec_mult * 4 / entries;
 	}
 
-	if (*drain_latency > DRAIN_LATENCY_MASK)
-		*drain_latency = DRAIN_LATENCY_MASK;
+	if (drain_latency > DRAIN_LATENCY_MASK)
+		drain_latency = DRAIN_LATENCY_MASK;
 
-	return true;
+	return drain_latency | (prec_mult == high_precision ?
+				DDL_PRECISION_HIGH : DDL_PRECISION_LOW);
 }
 
 /*
@@ -784,14 +784,12 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pixel_size;
-	int drain_latency;
 	enum pipe pipe = intel_crtc->pipe;
-	int plane_prec, prec_mult, plane_dl;
-	const int high_precision = IS_CHERRYVIEW(dev) ? 16 : 64;
+	int plane_dl;
 
-	plane_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_PLANE_PRECISION_HIGH |
-		   DRAIN_LATENCY_MASK | DDL_CURSOR_PRECISION_HIGH |
-		   (DRAIN_LATENCY_MASK << DDL_CURSOR_SHIFT));
+	plane_dl = I915_READ(VLV_DDL(pipe)) &
+		~(((DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK) << DDL_CURSOR_SHIFT) |
+		  ((DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK) << DDL_PLANE_SHIFT));
 
 	if (!intel_crtc_active(crtc)) {
 		I915_WRITE(VLV_DDL(pipe), plane_dl);
@@ -800,12 +798,7 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 
 	/* Primary plane Drain Latency */
 	pixel_size = crtc->primary->state->fb->bits_per_pixel / 8;	/* BPP */
-	if (vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
-		plane_prec = (prec_mult == high_precision) ?
-					   DDL_PLANE_PRECISION_HIGH :
-					   DDL_PLANE_PRECISION_LOW;
-		plane_dl |= plane_prec | drain_latency;
-	}
+	plane_dl = vlv_compute_drain_latency(crtc, pixel_size) << DDL_PLANE_SHIFT;
 
 	/* Cursor Drain Latency
 	 * BPP is always 4 for cursor
@@ -813,13 +806,8 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 	pixel_size = 4;
 
 	/* Program cursor DL only if it is enabled */
-	if (intel_crtc->cursor_base &&
-	    vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
-		plane_prec = (prec_mult == high_precision) ?
-					   DDL_CURSOR_PRECISION_HIGH :
-					   DDL_CURSOR_PRECISION_LOW;
-		plane_dl |= plane_prec | (drain_latency << DDL_CURSOR_SHIFT);
-	}
+	if (intel_crtc->cursor_base)
+		plane_dl |= vlv_compute_drain_latency(crtc, pixel_size) << DDL_CURSOR_SHIFT;
 
 	I915_WRITE(VLV_DDL(pipe), plane_dl);
 }
@@ -981,23 +969,13 @@ static void valleyview_update_sprite_wm(struct drm_plane *plane,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = to_intel_plane(plane)->pipe;
 	int sprite = to_intel_plane(plane)->plane;
-	int drain_latency;
-	int plane_prec;
 	int sprite_dl;
-	int prec_mult;
-	const int high_precision = IS_CHERRYVIEW(dev) ? 16 : 64;
 
-	sprite_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_SPRITE_PRECISION_HIGH(sprite) |
-		    (DRAIN_LATENCY_MASK << DDL_SPRITE_SHIFT(sprite)));
+	sprite_dl = I915_READ(VLV_DDL(pipe)) &
+		~((DDL_PRECISION_HIGH | DRAIN_LATENCY_MASK) << DDL_SPRITE_SHIFT(sprite));
 
-	if (enabled && vlv_compute_drain_latency(crtc, pixel_size, &prec_mult,
-						 &drain_latency)) {
-		plane_prec = (prec_mult == high_precision) ?
-					   DDL_SPRITE_PRECISION_HIGH(sprite) :
-					   DDL_SPRITE_PRECISION_LOW(sprite);
-		sprite_dl |= plane_prec |
-			     (drain_latency << DDL_SPRITE_SHIFT(sprite));
-	}
+	if (enabled)
+		sprite_dl |= vlv_compute_drain_latency(crtc, pixel_size) << DDL_SPRITE_SHIFT(sprite);
 
 	I915_WRITE(VLV_DDL(pipe), sprite_dl);
 }
