@@ -17,11 +17,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "omap_drv.h"
-#include "omap_dmm_tiler.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
+#include "omap_dmm_tiler.h"
+#include "omap_drv.h"
 
 /*
  * framebuffer funcs

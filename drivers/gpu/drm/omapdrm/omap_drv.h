@@ -20,15 +20,15 @@
 #ifndef __OMAP_DRV_H__
 #define __OMAP_DRV_H__
 
-#include <video/omapdss.h>
 #include <linux/module.h>
+#include <linux/platform_data/omap_drm.h>
 #include <linux/types.h>
+#include <video/omapdss.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/omap_drm.h>
 #include <drm/drm_gem.h>
-#include <linux/platform_data/omap_drm.h>
-
+#include <drm/omap_drm.h>
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG(fmt, ##__VA_ARGS__) /* verbose debug */

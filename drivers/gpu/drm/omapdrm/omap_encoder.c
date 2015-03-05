@@ -17,15 +17,13 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/list.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
 #include "omap_drv.h"
-
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-
-#include <linux/list.h>
-
 
 /*
  * encoder funcs
