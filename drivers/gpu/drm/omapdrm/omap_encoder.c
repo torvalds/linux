@@ -62,22 +62,6 @@ static const struct drm_encoder_funcs omap_encoder_funcs = {
 	.destroy = omap_encoder_destroy,
 };
 
-/*
- * The CRTC drm_crtc_helper_set_mode() doesn't really give us the right
- * order.. the easiest way to work around this for now is to make all
- * the encoder-helper's no-op's and have the omap_crtc code take care
- * of the sequencing and call us in the right points.
- *
- * Eventually to handle connecting CRTCs to different encoders properly,
- * either the CRTC helpers need to change or we need to replace
- * drm_crtc_helper_set_mode(), but lets wait until atomic-modeset for
- * that.
- */
-
-static void omap_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-}
-
 static bool omap_encoder_mode_fixup(struct drm_encoder *encoder,
 				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
@@ -116,6 +100,15 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	}
 }
 
+/*
+ * The CRTC drm_crtc_helper_set_mode() didn't really give us the right order.
+ * The easiest way to work around this was to make all the encoder-helper's
+ * no-op's and have the omap_crtc code take care of the sequencing and call
+ * us in the right points.
+ *
+ * FIXME: Revisit this after switching to atomic updates completely.
+ */
+
 static void omap_encoder_disable(struct drm_encoder *encoder)
 {
 }
@@ -125,7 +118,6 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
-	.dpms = omap_encoder_dpms,
 	.mode_fixup = omap_encoder_mode_fixup,
 	.mode_set = omap_encoder_mode_set,
 	.disable = omap_encoder_disable,

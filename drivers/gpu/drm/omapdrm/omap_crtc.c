@@ -592,19 +592,6 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
 }
 
-static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	bool enable = (mode == DRM_MODE_DPMS_ON);
-
-	DBG("%s: %d", omap_crtc->name, mode);
-
-	if (enable)
-		omap_crtc_enable(crtc);
-	else
-		omap_crtc_disable(crtc);
-}
-
 static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
 {
 	dispc_runtime_get();
@@ -749,7 +736,6 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
-	.dpms = omap_crtc_dpms,
 	.mode_fixup = omap_crtc_mode_fixup,
 	.mode_set_nofb = omap_crtc_mode_set_nofb,
 	.disable = omap_crtc_disable,
