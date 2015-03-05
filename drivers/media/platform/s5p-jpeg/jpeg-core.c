@@ -1844,7 +1844,7 @@ static void exynos4_jpeg_set_img_addr(struct s5p_jpeg_ctx *ctx)
 	struct s5p_jpeg *jpeg = ctx->jpeg;
 	struct s5p_jpeg_fmt *fmt;
 	struct vb2_buffer *vb;
-	struct s5p_jpeg_addr jpeg_addr;
+	struct s5p_jpeg_addr jpeg_addr = {};
 	u32 pix_size, padding_bytes = 0;
 
 	pix_size = ctx->cap_q.w * ctx->cap_q.h;
@@ -1945,7 +1945,7 @@ static void exynos3250_jpeg_set_img_addr(struct s5p_jpeg_ctx *ctx)
 	struct s5p_jpeg *jpeg = ctx->jpeg;
 	struct s5p_jpeg_fmt *fmt;
 	struct vb2_buffer *vb;
-	struct s5p_jpeg_addr jpeg_addr;
+	struct s5p_jpeg_addr jpeg_addr = {};
 	u32 pix_size;
 
 	pix_size = ctx->cap_q.w * ctx->cap_q.h;
