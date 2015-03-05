@@ -2105,6 +2105,14 @@ enum skl_disp_power_wells {
 #define   CDCLK_FREQ_SHIFT	4
 #define   CDCLK_FREQ_MASK	(0x1f << CDCLK_FREQ_SHIFT)
 #define   CZCLK_FREQ_MASK	0xf
+
+#define GCI_CONTROL		(VLV_DISPLAY_BASE + 0x650C)
+#define   PFI_CREDIT_63		(9 << 28)		/* chv only */
+#define   PFI_CREDIT_31		(8 << 28)		/* chv only */
+#define   PFI_CREDIT(x)		(((x) - 8) << 28)	/* 8-15 */
+#define   PFI_CREDIT_RESEND	(1 << 27)
+#define   VGA_FAST_MODE_DISABLE	(1 << 14)
+
 #define GMBUSFREQ_VLV		(VLV_DISPLAY_BASE + 0x6510)
 
 /*

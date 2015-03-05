@@ -5100,6 +5100,42 @@ static void valleyview_modeset_global_pipes(struct drm_device *dev,
 			*prepare_pipes |= (1 << intel_crtc->pipe);
 }
 
+static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
+{
+	unsigned int credits, default_credits;
+
+	if (IS_CHERRYVIEW(dev_priv))
+		default_credits = PFI_CREDIT(12);
+	else
+		default_credits = PFI_CREDIT(8);
+
+	if (DIV_ROUND_CLOSEST(dev_priv->vlv_cdclk_freq, 1000) >= dev_priv->rps.cz_freq) {
+		/* CHV suggested value is 31 or 63 */
+		if (IS_CHERRYVIEW(dev_priv))
+			credits = PFI_CREDIT_31;
+		else
+			credits = PFI_CREDIT(15);
+	} else {
+		credits = default_credits;
+	}
+
+	/*
+	 * WA - write default credits before re-programming
+	 * FIXME: should we also set the resend bit here?
+	 */
+	I915_WRITE(GCI_CONTROL, VGA_FAST_MODE_DISABLE |
+		   default_credits);
+
+	I915_WRITE(GCI_CONTROL, VGA_FAST_MODE_DISABLE |
+		   credits | PFI_CREDIT_RESEND);
+
+	/*
+	 * FIXME is this guaranteed to clear
+	 * immediately or should we poll for it?
+	 */
+	WARN_ON(I915_READ(GCI_CONTROL) & PFI_CREDIT_RESEND);
+}
+
 static void valleyview_modeset_global_resources(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5122,6 +5158,8 @@ static void valleyview_modeset_global_resources(struct drm_device *dev)
 			cherryview_set_cdclk(dev, req_cdclk);
 		else
 			valleyview_set_cdclk(dev, req_cdclk);
+
+		vlv_program_pfi_credits(dev_priv);
 
 		intel_display_power_put(dev_priv, POWER_DOMAIN_PIPE_A);
 	}
