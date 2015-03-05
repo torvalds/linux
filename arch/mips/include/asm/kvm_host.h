@@ -360,6 +360,7 @@ struct kvm_mips_tlb {
 };
 
 #define KVM_MIPS_FPU_FPU	0x1
+#define KVM_MIPS_FPU_MSA	0x2
 
 #define KVM_MIPS_GUEST_TLB_SIZE	64
 struct kvm_vcpu_arch {
@@ -432,6 +433,7 @@ struct kvm_vcpu_arch {
 	int wait;
 
 	u8 fpu_enabled;
+	u8 msa_enabled;
 };
 
 
@@ -576,6 +578,18 @@ static inline bool kvm_mips_guest_has_fpu(struct kvm_vcpu_arch *vcpu)
 		kvm_read_c0_guest_config1(vcpu->cop0) & MIPS_CONF1_FP;
 }
 
+static inline bool kvm_mips_guest_can_have_msa(struct kvm_vcpu_arch *vcpu)
+{
+	return (!__builtin_constant_p(cpu_has_msa) || cpu_has_msa) &&
+		vcpu->msa_enabled;
+}
+
+static inline bool kvm_mips_guest_has_msa(struct kvm_vcpu_arch *vcpu)
+{
+	return kvm_mips_guest_can_have_msa(vcpu) &&
+		kvm_read_c0_guest_config3(vcpu->cop0) & MIPS_CONF3_MSA;
+}
+
 struct kvm_mips_callbacks {
 	int (*handle_cop_unusable)(struct kvm_vcpu *vcpu);
 	int (*handle_tlb_mod)(struct kvm_vcpu *vcpu);
@@ -619,11 +633,16 @@ int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu);
 /* Trampoline ASM routine to start running in "Guest" context */
 extern int __kvm_mips_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu);
 
-/* FPU context management */
+/* FPU/MSA context management */
 void __kvm_save_fpu(struct kvm_vcpu_arch *vcpu);
 void __kvm_restore_fpu(struct kvm_vcpu_arch *vcpu);
 void __kvm_restore_fcsr(struct kvm_vcpu_arch *vcpu);
+void __kvm_save_msa(struct kvm_vcpu_arch *vcpu);
+void __kvm_restore_msa(struct kvm_vcpu_arch *vcpu);
+void __kvm_restore_msa_upper(struct kvm_vcpu_arch *vcpu);
+void __kvm_restore_msacsr(struct kvm_vcpu_arch *vcpu);
 void kvm_own_fpu(struct kvm_vcpu *vcpu);
+void kvm_own_msa(struct kvm_vcpu *vcpu);
 void kvm_drop_fpu(struct kvm_vcpu *vcpu);
 void kvm_lose_fpu(struct kvm_vcpu *vcpu);
 

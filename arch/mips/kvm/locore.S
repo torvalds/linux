@@ -36,6 +36,8 @@
 #define PT_HOST_USERLOCAL   PT_EPC
 
 #define CP0_DDATA_LO        $28,3
+#define CP0_CONFIG3         $16,3
+#define CP0_CONFIG5         $16,5
 #define CP0_EBASE           $15,1
 
 #define CP0_INTCTL          $12,1
@@ -369,6 +371,25 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	.set	pop
 	.set	noat
 1:
+
+#ifdef CONFIG_CPU_HAS_MSA
+	/*
+	 * If MSA is enabled, save MSACSR and clear it so that later
+	 * instructions don't trigger MSAFPE for pending exceptions.
+	 */
+	mfc0	t0, CP0_CONFIG3
+	ext	t0, t0, 28, 1 /* MIPS_CONF3_MSAP */
+	beqz	t0, 1f
+	 nop
+	mfc0	t0, CP0_CONFIG5
+	ext	t0, t0, 27, 1 /* MIPS_CONF5_MSAEN */
+	beqz	t0, 1f
+	 nop
+	_cfcmsa	t0, MSA_CSR
+	sw	t0, VCPU_MSA_CSR(k1)
+	_ctcmsa	MSA_CSR, zero
+1:
+#endif
 
 	/* Now that the new EBASE has been loaded, unset BEV and KSU_USER */
 	.set	at

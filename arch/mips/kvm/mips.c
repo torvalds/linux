@@ -1295,17 +1295,21 @@ skip_emul:
 
 	if (ret == RESUME_GUEST) {
 		/*
-		 * If FPU is enabled (i.e. the guest's FPU context is live),
-		 * restore FCR31.
+		 * If FPU / MSA are enabled (i.e. the guest's FPU / MSA context
+		 * is live), restore FCR31 / MSACSR.
 		 *
 		 * This should be before returning to the guest exception
-		 * vector, as it may well cause an FP exception if there are
-		 * pending exception bits unmasked. (see
+		 * vector, as it may well cause an [MSA] FP exception if there
+		 * are pending exception bits unmasked. (see
 		 * kvm_mips_csr_die_notifier() for how that is handled).
 		 */
 		if (kvm_mips_guest_has_fpu(&vcpu->arch) &&
 		    read_c0_status() & ST0_CU1)
 			__kvm_restore_fcsr(&vcpu->arch);
+
+		if (kvm_mips_guest_has_msa(&vcpu->arch) &&
+		    read_c0_config5() & MIPS_CONF5_MSAEN)
+			__kvm_restore_msacsr(&vcpu->arch);
 	}
 
 	/* Disable HTW before returning to guest or host */
@@ -1322,11 +1326,26 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 
 	preempt_disable();
 
+	sr = kvm_read_c0_guest_status(cop0);
+
+	/*
+	 * If MSA state is already live, it is undefined how it interacts with
+	 * FR=0 FPU state, and we don't want to hit reserved instruction
+	 * exceptions trying to save the MSA state later when CU=1 && FR=1, so
+	 * play it safe and save it first.
+	 *
+	 * In theory we shouldn't ever hit this case since kvm_lose_fpu() should
+	 * get called when guest CU1 is set, however we can't trust the guest
+	 * not to clobber the status register directly via the commpage.
+	 */
+	if (cpu_has_msa && sr & ST0_CU1 && !(sr & ST0_FR) &&
+	    vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA)
+		kvm_lose_fpu(vcpu);
+
 	/*
 	 * Enable FPU for guest
 	 * We set FR and FRE according to guest context
 	 */
-	sr = kvm_read_c0_guest_status(cop0);
 	change_c0_status(ST0_CU1 | ST0_FR, sr);
 	if (cpu_has_fre) {
 		cfg5 = kvm_read_c0_guest_config5(cop0);
@@ -1343,10 +1362,73 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	preempt_enable();
 }
 
-/* Drop FPU without saving it */
+#ifdef CONFIG_CPU_HAS_MSA
+/* Enable MSA for guest and restore context */
+void kvm_own_msa(struct kvm_vcpu *vcpu)
+{
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	unsigned int sr, cfg5;
+
+	preempt_disable();
+
+	/*
+	 * Enable FPU if enabled in guest, since we're restoring FPU context
+	 * anyway. We set FR and FRE according to guest context.
+	 */
+	if (kvm_mips_guest_has_fpu(&vcpu->arch)) {
+		sr = kvm_read_c0_guest_status(cop0);
+
+		/*
+		 * If FR=0 FPU state is already live, it is undefined how it
+		 * interacts with MSA state, so play it safe and save it first.
+		 */
+		if (!(sr & ST0_FR) &&
+		    (vcpu->arch.fpu_inuse & (KVM_MIPS_FPU_FPU |
+				KVM_MIPS_FPU_MSA)) == KVM_MIPS_FPU_FPU)
+			kvm_lose_fpu(vcpu);
+
+		change_c0_status(ST0_CU1 | ST0_FR, sr);
+		if (sr & ST0_CU1 && cpu_has_fre) {
+			cfg5 = kvm_read_c0_guest_config5(cop0);
+			change_c0_config5(MIPS_CONF5_FRE, cfg5);
+		}
+	}
+
+	/* Enable MSA for guest */
+	set_c0_config5(MIPS_CONF5_MSAEN);
+	enable_fpu_hazard();
+
+	switch (vcpu->arch.fpu_inuse & (KVM_MIPS_FPU_FPU | KVM_MIPS_FPU_MSA)) {
+	case KVM_MIPS_FPU_FPU:
+		/*
+		 * Guest FPU state already loaded, only restore upper MSA state
+		 */
+		__kvm_restore_msa_upper(&vcpu->arch);
+		vcpu->arch.fpu_inuse |= KVM_MIPS_FPU_MSA;
+		break;
+	case 0:
+		/* Neither FPU or MSA already active, restore full MSA state */
+		__kvm_restore_msa(&vcpu->arch);
+		vcpu->arch.fpu_inuse |= KVM_MIPS_FPU_MSA;
+		if (kvm_mips_guest_has_fpu(&vcpu->arch))
+			vcpu->arch.fpu_inuse |= KVM_MIPS_FPU_FPU;
+		break;
+	default:
+		break;
+	}
+
+	preempt_enable();
+}
+#endif
+
+/* Drop FPU & MSA without saving it */
 void kvm_drop_fpu(struct kvm_vcpu *vcpu)
 {
 	preempt_disable();
+	if (cpu_has_msa && vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA) {
+		disable_msa();
+		vcpu->arch.fpu_inuse &= ~KVM_MIPS_FPU_MSA;
+	}
 	if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
 		clear_c0_status(ST0_CU1 | ST0_FR);
 		vcpu->arch.fpu_inuse &= ~KVM_MIPS_FPU_FPU;
@@ -1354,18 +1436,29 @@ void kvm_drop_fpu(struct kvm_vcpu *vcpu)
 	preempt_enable();
 }
 
-/* Save and disable FPU */
+/* Save and disable FPU & MSA */
 void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * FPU gets disabled in root context (hardware) when it is disabled in
-	 * guest context (software), but the register state in the hardware may
-	 * still be in use. This is why we explicitly re-enable the hardware
+	 * FPU & MSA get disabled in root context (hardware) when it is disabled
+	 * in guest context (software), but the register state in the hardware
+	 * may still be in use. This is why we explicitly re-enable the hardware
 	 * before saving.
 	 */
 
 	preempt_disable();
-	if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
+	if (cpu_has_msa && vcpu->arch.fpu_inuse & KVM_MIPS_FPU_MSA) {
+		set_c0_config5(MIPS_CONF5_MSAEN);
+		enable_fpu_hazard();
+
+		__kvm_save_msa(&vcpu->arch);
+
+		/* Disable MSA & FPU */
+		disable_msa();
+		if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU)
+			clear_c0_status(ST0_CU1 | ST0_FR);
+		vcpu->arch.fpu_inuse &= ~(KVM_MIPS_FPU_FPU | KVM_MIPS_FPU_MSA);
+	} else if (vcpu->arch.fpu_inuse & KVM_MIPS_FPU_FPU) {
 		set_c0_status(ST0_CU1);
 		enable_fpu_hazard();
 
@@ -1379,9 +1472,9 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Step over a specific ctc1 to FCSR which is used to restore guest FCSR state
- * and may trigger a "harmless" FP exception if cause bits are set in the value
- * being written.
+ * Step over a specific ctc1 to FCSR and a specific ctcmsa to MSACSR which are
+ * used to restore guest FCSR/MSACSR state and may trigger a "harmless" FP/MSAFP
+ * exception if cause bits are set in the value being written.
  */
 static int kvm_mips_csr_die_notify(struct notifier_block *self,
 				   unsigned long cmd, void *ptr)
@@ -1390,8 +1483,8 @@ static int kvm_mips_csr_die_notify(struct notifier_block *self,
 	struct pt_regs *regs = args->regs;
 	unsigned long pc;
 
-	/* Only interested in FPE */
-	if (cmd != DIE_FP)
+	/* Only interested in FPE and MSAFPE */
+	if (cmd != DIE_FP && cmd != DIE_MSAFP)
 		return NOTIFY_DONE;
 
 	/* Return immediately if guest context isn't active */
@@ -1406,6 +1499,13 @@ static int kvm_mips_csr_die_notify(struct notifier_block *self,
 	case DIE_FP:
 		/* match 2nd instruction in __kvm_restore_fcsr */
 		if (pc != (unsigned long)&__kvm_restore_fcsr + 4)
+			return NOTIFY_DONE;
+		break;
+	case DIE_MSAFP:
+		/* match 2nd/3rd instruction in __kvm_restore_msacsr */
+		if (!cpu_has_msa ||
+		    pc < (unsigned long)&__kvm_restore_msacsr + 4 ||
+		    pc > (unsigned long)&__kvm_restore_msacsr + 8)
 			return NOTIFY_DONE;
 		break;
 	}

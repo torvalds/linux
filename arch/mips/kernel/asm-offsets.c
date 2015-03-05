@@ -440,6 +440,7 @@ void output_kvm_defines(void)
 	OFFSET(VCPU_FPR31, kvm_vcpu_arch, fpu.fpr[31]);
 
 	OFFSET(VCPU_FCR31, kvm_vcpu_arch, fpu.fcr31);
+	OFFSET(VCPU_MSA_CSR, kvm_vcpu_arch, fpu.msacsr);
 	BLANK();
 
 	OFFSET(VCPU_COP0, kvm_vcpu_arch, cop0);
