@@ -7244,7 +7244,7 @@ static int tg3_poll_msix(struct napi_struct *napi, int budget)
 			if (tnapi == &tp->napi[1] && tp->rx_refill)
 				continue;
 
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			/* Reenable interrupts. */
 			tw32_mailbox(tnapi->int_mbox, tnapi->last_tag << 24);
 
@@ -7337,7 +7337,7 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 			sblk->status &= ~SD_STATUS_UPDATED;
 
 		if (likely(!tg3_has_work(tnapi))) {
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			tg3_int_reenable(tnapi);
 			break;
 		}
