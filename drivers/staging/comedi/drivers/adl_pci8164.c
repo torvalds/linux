@@ -69,7 +69,7 @@ static int adl_pci8164_insn_write(struct comedi_device *dev,
 }
 
 static int adl_pci8164_auto_attach(struct comedi_device *dev,
-					     unsigned long context_unused)
+				   unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;

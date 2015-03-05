@@ -1181,8 +1181,8 @@ static void rtd_pci_latency_quirk(struct comedi_device *dev,
 	pci_read_config_byte(pcidev, PCI_LATENCY_TIMER, &pci_latency);
 	if (pci_latency < 32) {
 		dev_info(dev->class_dev,
-			"PCI latency changed from %d to %d\n",
-			pci_latency, 32);
+			 "PCI latency changed from %d to %d\n",
+			 pci_latency, 32);
 		pci_write_config_byte(pcidev, PCI_LATENCY_TIMER, 32);
 	}
 }

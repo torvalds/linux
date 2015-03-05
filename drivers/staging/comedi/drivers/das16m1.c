@@ -167,7 +167,7 @@ static int das16m1_ai_check_chanlist(struct comedi_device *dev,
 
 		if ((i % 2) != (chan % 2)) {
 			dev_dbg(dev->class_dev,
-				 "even/odd channels must go have even/odd chanlist indices\n");
+				"even/odd channels must go have even/odd chanlist indices\n");
 			return -EINVAL;
 		}
 	}

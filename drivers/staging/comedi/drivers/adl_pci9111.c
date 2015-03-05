@@ -378,7 +378,7 @@ static int pci9111_ai_do_cmd(struct comedi_device *dev,
 	/*  This is the same gain on every channel */
 
 	outb(CR_RANGE(cmd->chanlist[0]) & PCI9111_AI_RANGE_MASK,
-		dev->iobase + PCI9111_AI_RANGE_STAT_REG);
+	     dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 
 	/*  Set timer pacer */
 	dev_private->scan_delay = 0;
@@ -572,7 +572,7 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 	status = inb(dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 	if ((status & PCI9111_AI_RANGE_MASK) != range) {
 		outb(range & PCI9111_AI_RANGE_MASK,
-			dev->iobase + PCI9111_AI_RANGE_STAT_REG);
+		     dev->iobase + PCI9111_AI_RANGE_STAT_REG);
 	}
 
 	pci9111_fifo_reset(dev);
@@ -650,7 +650,7 @@ static int pci9111_reset(struct comedi_device *dev)
 }
 
 static int pci9111_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci9111_private_data *dev_private;

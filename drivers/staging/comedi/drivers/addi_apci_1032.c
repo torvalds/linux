@@ -238,7 +238,7 @@ static int apci1032_cos_cmd(struct comedi_device *dev,
 
 	if (!devpriv->ctrl) {
 		dev_warn(dev->class_dev,
-			"Interrupts disabled due to mode configuration!\n");
+			 "Interrupts disabled due to mode configuration!\n");
 		return -EINVAL;
 	}
 
@@ -296,7 +296,7 @@ static int apci1032_di_insn_bits(struct comedi_device *dev,
 }
 
 static int apci1032_auto_attach(struct comedi_device *dev,
-					  unsigned long context_unused)
+				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct apci1032_private *devpriv;

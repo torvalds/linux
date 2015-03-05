@@ -568,7 +568,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		} else if (it->options[2]) {
 			/* request the irq for the 2nd asic */
 			ret = request_irq(it->options[2], pcmuio_interrupt, 0,
-					dev->board_name, dev);
+					  dev->board_name, dev);
 			if (ret == 0)
 				devpriv->irq2 = it->options[2];
 		}

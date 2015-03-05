@@ -676,7 +676,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	}
 
 	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
-	       readb(dev->mmio + NI_65XX_ID_REG));
+		 readb(dev->mmio + NI_65XX_ID_REG));
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

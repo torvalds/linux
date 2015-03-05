@@ -134,7 +134,7 @@ static int cb_pcimdda_ao_insn_read(struct comedi_device *dev,
 }
 
 static int cb_pcimdda_auto_attach(struct comedi_device *dev,
-					    unsigned long context_unused)
+				  unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;

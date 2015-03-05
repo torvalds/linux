@@ -525,7 +525,7 @@ static int wait_for_nvram_ready(unsigned long s5933_base_addr)
 }
 
 static int nvram_read(struct comedi_device *dev, unsigned int address,
-			uint8_t *data)
+		      uint8_t *data)
 {
 	struct cb_pcidas_private *devpriv = dev->private;
 	unsigned long iobase = devpriv->s5933_config;

@@ -2526,7 +2526,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		start_stop_select |=
 		    AI_START_Select(1 + CR_CHAN(cmd->scan_begin_arg));
 		ni_stc_writew(dev, start_stop_select,
-				    AI_START_STOP_Select_Register);
+			      AI_START_STOP_Select_Register);
 		break;
 	}
 
