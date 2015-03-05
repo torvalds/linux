@@ -58,7 +58,6 @@ typedef void (*RT_WORKITEM_CALL_BACK)(struct work_struct *pContext);
 u8 ODM_Read1Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr);
 u16 ODM_Read2Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr);
 u32 ODM_Read4Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr);
-void ODM_Write1Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr, u8 Data);
 void ODM_Write2Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr, u16 Data);
 void ODM_Write4Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 Data);
 void ODM_SetMACReg(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 BitMask, u32 Data);

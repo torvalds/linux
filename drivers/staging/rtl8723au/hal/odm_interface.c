@@ -46,13 +46,6 @@ u32 ODM_Read4Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr)
 	return rtl8723au_read32(Adapter, RegAddr);
 }
 
-void ODM_Write1Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr, u8 Data)
-{
-	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
-
-	rtl8723au_write8(Adapter, RegAddr, Data);
-}
-
 void ODM_Write2Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr, u16 Data)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;

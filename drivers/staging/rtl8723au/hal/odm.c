@@ -849,8 +849,8 @@ void ODM_Write_CCK_CCA_Thres23a(struct dm_odm_t *pDM_Odm, u8 CurCCK_CCAThres)
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 
 	if (pDM_DigTable->CurCCK_CCAThres != CurCCK_CCAThres)
-		ODM_Write1Byte(pDM_Odm, ODM_REG(CCK_CCA, pDM_Odm),
-			       CurCCK_CCAThres);
+		rtl8723au_write8(pDM_Odm->Adapter, ODM_REG(CCK_CCA, pDM_Odm),
+				 CurCCK_CCAThres);
 	pDM_DigTable->PreCCK_CCAThres = pDM_DigTable->CurCCK_CCAThres;
 	pDM_DigTable->CurCCK_CCAThres = CurCCK_CCAThres;
 }
