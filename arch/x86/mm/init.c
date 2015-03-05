@@ -133,7 +133,8 @@ int after_bootmem;
 
 static int page_size_mask;
 
-int direct_gbpages = IS_ENABLED(CONFIG_DIRECT_GBPAGES);
+early_param_on_off("gbpages", "nogbpages",
+		   direct_gbpages, CONFIG_DIRECT_GBPAGES);
 
 static void __init init_gbpages(void)
 {
