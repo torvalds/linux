@@ -105,6 +105,8 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc);
 static void intel_finish_crtc_commit(struct drm_crtc *crtc);
 static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
 	struct intel_crtc_state *crtc_state);
+static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
+			   int num_connectors);
 
 static struct intel_encoder *intel_find_encoder(struct intel_connector *connector, int pipe)
 {
@@ -402,6 +404,18 @@ static const intel_limit_t intel_limits_chv = {
 	.p2 = {	.p2_slow = 1, .p2_fast = 14 },
 };
 
+static const intel_limit_t intel_limits_bxt = {
+	/* FIXME: find real dot limits */
+	.dot = { .min = 0, .max = INT_MAX },
+	.vco = { .min = 4800000, .max = 6480000 },
+	.n = { .min = 1, .max = 1 },
+	.m1 = { .min = 2, .max = 2 },
+	/* FIXME: find real m2 limits */
+	.m2 = { .min = 2 << 22, .max = 255 << 22 },
+	.p1 = { .min = 2, .max = 4 },
+	.p2 = { .p2_slow = 1, .p2_fast = 20 },
+};
+
 static void vlv_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = clock->m1 * clock->m2;
@@ -513,7 +527,9 @@ intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 	const intel_limit_t *limit;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (IS_BROXTON(dev))
+		limit = &intel_limits_bxt;
+	else if (HAS_PCH_SPLIT(dev))
 		limit = intel_ironlake_limit(crtc_state, refclk);
 	else if (IS_G4X(dev)) {
 		limit = intel_g4x_limit(crtc_state);
@@ -598,11 +614,11 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 	if (clock->m1  < limit->m1.min  || limit->m1.max  < clock->m1)
 		INTELPllInvalid("m1 out of range\n");
 
-	if (!IS_PINEVIEW(dev) && !IS_VALLEYVIEW(dev))
+	if (!IS_PINEVIEW(dev) && !IS_VALLEYVIEW(dev) && !IS_BROXTON(dev))
 		if (clock->m1 <= clock->m2)
 			INTELPllInvalid("m1 <= m2\n");
 
-	if (!IS_VALLEYVIEW(dev)) {
+	if (!IS_VALLEYVIEW(dev) && !IS_BROXTON(dev)) {
 		if (clock->p < limit->p.min || limit->p.max < clock->p)
 			INTELPllInvalid("p out of range\n");
 		if (clock->m < limit->m.min || limit->m.max < clock->m)
@@ -953,6 +969,15 @@ chv_find_best_dpll(const intel_limit_t *limit,
 	}
 
 	return found;
+}
+
+bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
+			intel_clock_t *best_clock)
+{
+	int refclk = i9xx_get_refclk(crtc_state, 0);
+
+	return chv_find_best_dpll(intel_limit(crtc_state, refclk), crtc_state,
+				  target_clock, refclk, NULL, best_clock);
 }
 
 bool intel_crtc_active(struct drm_crtc *crtc)
@@ -6574,7 +6599,7 @@ static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
 
 	WARN_ON(!crtc_state->base.state);
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_VALLEYVIEW(dev) || IS_BROXTON(dev)) {
 		refclk = 100000;
 	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
