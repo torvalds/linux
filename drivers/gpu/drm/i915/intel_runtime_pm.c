@@ -223,8 +223,10 @@ static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 	}
 
-	if (power_well->data == SKL_DISP_PW_1)
+	if (power_well->data == SKL_DISP_PW_1) {
+		intel_prepare_ddi(dev);
 		gen8_irq_power_well_post_enable(dev_priv, 1 << PIPE_A);
+	}
 }
 
 static void hsw_set_power_well(struct drm_i915_private *dev_priv,
