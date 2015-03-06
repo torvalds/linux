@@ -55,6 +55,7 @@ int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 			       u8 tos, u8 type, u32 tb_id);
 int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 			       u8 tos, u8 type, u32 tb_id);
+void netdev_switch_fib_ipv4_abort(struct fib_info *fi);
 
 #else
 
@@ -126,6 +127,10 @@ static inline int netdev_switch_fib_ipv4_del(u32 dst, int dst_len,
 					     u8 tos, u8 type, u32 tb_id)
 {
 	return 0;
+}
+
+void netdev_switch_fib_ipv4_abort(struct fib_info *fi)
+{
 }
 
 #endif

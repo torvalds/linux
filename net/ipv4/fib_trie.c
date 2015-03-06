@@ -79,6 +79,7 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <net/ip_fib.h>
+#include <net/switchdev.h>
 #include "fib_lookup.h"
 
 #define MAX_STAT_DEPTH 32
@@ -1135,7 +1136,18 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			new_fa->fa_state = state & ~FA_S_ACCESSED;
 			new_fa->fa_slen = fa->fa_slen;
 
+			err = netdev_switch_fib_ipv4_add(key, plen, fi,
+							 new_fa->fa_tos,
+							 cfg->fc_type,
+							 tb->tb_id);
+			if (err) {
+				netdev_switch_fib_ipv4_abort(fi);
+				kmem_cache_free(fn_alias_kmem, new_fa);
+				goto out;
+			}
+
 			hlist_replace_rcu(&fa->fa_list, &new_fa->fa_list);
+
 			alias_free_mem_rcu(fa);
 
 			fib_release_info(fi_drop);
@@ -1171,10 +1183,18 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	new_fa->fa_state = 0;
 	new_fa->fa_slen = slen;
 
+	/* (Optionally) offload fib entry to switch hardware. */
+	err = netdev_switch_fib_ipv4_add(key, plen, fi, tos,
+					 cfg->fc_type, tb->tb_id);
+	if (err) {
+		netdev_switch_fib_ipv4_abort(fi);
+		goto out_free_new_fa;
+	}
+
 	/* Insert new entry to the list. */
 	err = fib_insert_alias(t, tp, l, new_fa, fa, key);
 	if (err)
-		goto out_free_new_fa;
+		goto out_sw_fib_del;
 
 	if (!plen)
 		tb->tb_num_default++;
@@ -1185,6 +1205,8 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 succeeded:
 	return 0;
 
+out_sw_fib_del:
+	netdev_switch_fib_ipv4_del(key, plen, fi, tos, cfg->fc_type, tb->tb_id);
 out_free_new_fa:
 	kmem_cache_free(fn_alias_kmem, new_fa);
 out:
@@ -1456,6 +1478,9 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	if (!fa_to_delete)
 		return -ESRCH;
 
+	netdev_switch_fib_ipv4_del(key, plen, fa_to_delete->fa_info, tos,
+				   cfg->fc_type, tb->tb_id);
+
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa_to_delete, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 
@@ -1650,6 +1675,10 @@ backtrace:
 		struct fib_info *fi = fa->fa_info;
 
 		if (fi && (fi->fib_flags & RTNH_F_DEAD)) {
+			netdev_switch_fib_ipv4_del(n->key,
+						   KEYLENGTH - fa->fa_slen,
+						   fi, fa->fa_tos,
+						   fa->fa_type, tb->tb_id);
 			hlist_del_rcu(&fa->fa_list);
 			fib_release_info(fa->fa_info);
 			alias_free_mem_rcu(fa);

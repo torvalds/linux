@@ -305,8 +305,12 @@ int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	const struct net_device_ops *ops;
 	int err = 0;
 
-	/* Don't offload route if using custom ip rules */
-	if (fi->fib_net->ipv4.fib_has_custom_rules)
+	/* Don't offload route if using custom ip rules or if
+	 * IPv4 FIB offloading has been disabled completely.
+	 */
+
+	if (fi->fib_net->ipv4.fib_has_custom_rules |
+	    fi->fib_net->ipv4.fib_offload_disabled)
 		return 0;
 
 	dev = netdev_switch_get_dev_by_nhs(fi);
@@ -362,3 +366,23 @@ int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	return err;
 }
 EXPORT_SYMBOL(netdev_switch_fib_ipv4_del);
+
+/**
+ *	netdev_switch_fib_ipv4_abort - Abort an IPv4 FIB operation
+ *
+ *	@fi: route FIB info structure
+ */
+void netdev_switch_fib_ipv4_abort(struct fib_info *fi)
+{
+	/* There was a problem installing this route to the offload
+	 * device.  For now, until we come up with more refined
+	 * policy handling, abruptly end IPv4 fib offloading for
+	 * for entire net by flushing offload device(s) of all
+	 * IPv4 routes, and mark IPv4 fib offloading broken from
+	 * this point forward.
+	 */
+
+	fib_flush_external(fi->fib_net);
+	fi->fib_net->ipv4.fib_offload_disabled = true;
+}
+EXPORT_SYMBOL(netdev_switch_fib_ipv4_abort);
