@@ -2955,7 +2955,7 @@ static int rocker_port_vlan_flood_group(struct rocker_port *rocker_port,
 	struct rocker_port *p;
 	struct rocker *rocker = rocker_port->rocker;
 	u32 group_id = ROCKER_GROUP_L2_FLOOD(vlan_id, 0);
-	u32 group_ids[rocker->port_count];
+	u32 group_ids[ROCKER_FP_PORTS_MAX];
 	u8 group_count = 0;
 	int err;
 	int i;
