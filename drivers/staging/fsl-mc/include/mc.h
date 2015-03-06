@@ -66,6 +66,44 @@ struct fsl_mc_device_match_id {
 };
 
 /**
+ * enum fsl_mc_pool_type - Types of allocatable MC bus resources
+ *
+ * Entries in these enum are used as indices in the array of resource
+ * pools of an fsl_mc_bus object.
+ */
+enum fsl_mc_pool_type {
+	FSL_MC_POOL_DPMCP = 0x0,    /* corresponds to "dpmcp" in the MC */
+	FSL_MC_POOL_DPBP,	    /* corresponds to "dpbp" in the MC */
+	FSL_MC_POOL_DPCON,	    /* corresponds to "dpcon" in the MC */
+
+	/*
+	 * NOTE: New resource pool types must be added before this entry
+	 */
+	FSL_MC_NUM_POOL_TYPES
+};
+
+/**
+ * struct fsl_mc_resource - MC generic resource
+ * @type: type of resource
+ * @id: unique MC resource Id within the resources of the same type
+ * @data: pointer to resource-specific data if the resource is currently
+ * allocated, or NULL if the resource is not currently allocated.
+ * @parent_pool: pointer to the parent resource pool from which this
+ * resource is allocated from.
+ * @node: Node in the free list of the corresponding resource pool
+ *
+ * NOTE: This structure is to be embedded as a field of specific
+ * MC resource structures.
+ */
+struct fsl_mc_resource {
+	enum fsl_mc_pool_type type;
+	int32_t id;
+	void *data;
+	struct fsl_mc_resource_pool *parent_pool;
+	struct list_head node;
+};
+
+/**
  * Bit masks for a MC object device (struct fsl_mc_device) flags
  */
 #define FSL_MC_IS_DPRC	0x0001
@@ -86,6 +124,7 @@ struct fsl_mc_device_match_id {
  * NULL if none.
  * @obj_desc: MC description of the DPAA device
  * @regions: pointer to array of MMIO region entries
+ * @resource: generic resource associated with this MC object device, if any.
  *
  * Generic device object for MC object devices that are "attached" to a
  * MC bus.
@@ -95,6 +134,17 @@ struct fsl_mc_device_match_id {
  * - The SMMU notifier callback gets invoked after device_add() has been
  *   called for an MC object device, but before the device-specific probe
  *   callback gets called.
+ * - DP_OBJ_DPRC objects are the only MC objects that have built-in MC
+ *   portals. For all other MC objects, their device drivers are responsible for
+ *   allocating MC portals for them by calling fsl_mc_portal_allocate().
+ * - Some types of MC objects (e.g., DP_OBJ_DPBP, DP_OBJ_DPCON) are
+ *   treated as resources that can be allocated/deallocated from the
+ *   corresponding resource pool in the object's parent DPRC, using the
+ *   fsl_mc_object_allocate()/fsl_mc_object_free() functions. These MC objects
+ *   are known as "allocatable" objects. For them, the corresponding
+ *   fsl_mc_device's 'resource' points to the associated resource object.
+ *   For MC objects that are not allocatable (e.g., DP_OBJ_DPRC, DP_OBJ_DPNI),
+ *   'resource' is NULL.
  */
 struct fsl_mc_device {
 	struct device dev;
@@ -105,6 +155,7 @@ struct fsl_mc_device {
 	struct fsl_mc_io *mc_io;
 	struct dprc_obj_desc obj_desc;
 	struct resource *regions;
+	struct fsl_mc_resource *resource;
 };
 
 #define to_fsl_mc_device(_dev) \
@@ -130,6 +181,20 @@ int __must_check __fsl_mc_driver_register(struct fsl_mc_driver *fsl_mc_driver,
 					  struct module *owner);
 
 void fsl_mc_driver_unregister(struct fsl_mc_driver *driver);
+
+int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
+					uint16_t mc_io_flags,
+					struct fsl_mc_io **new_mc_io);
+
+void fsl_mc_portal_free(struct fsl_mc_io *mc_io);
+
+int fsl_mc_portal_reset(struct fsl_mc_io *mc_io);
+
+int __must_check fsl_mc_object_allocate(struct fsl_mc_device *mc_dev,
+					enum fsl_mc_pool_type pool_type,
+					struct fsl_mc_device **new_mc_adev);
+
+void fsl_mc_object_free(struct fsl_mc_device *mc_adev);
 
 extern struct bus_type fsl_mc_bus_type;
 

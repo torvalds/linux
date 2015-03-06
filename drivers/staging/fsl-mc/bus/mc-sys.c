@@ -60,6 +60,8 @@
  * @dev: device to be associated with the MC I/O object
  * @mc_portal_phys_addr: physical address of the MC portal to use
  * @mc_portal_size: size in bytes of the MC portal
+ * @resource: Pointer to MC bus object allocator resource associated
+ * with this MC I/O object or NULL if none.
  * @flags: flags for the new MC I/O object
  * @new_mc_io: Area to return pointer to newly created MC I/O object
  *
@@ -68,6 +70,7 @@
 int __must_check fsl_create_mc_io(struct device *dev,
 				  phys_addr_t mc_portal_phys_addr,
 				  uint32_t mc_portal_size,
+				  struct fsl_mc_resource *resource,
 				  uint32_t flags, struct fsl_mc_io **new_mc_io)
 {
 	struct fsl_mc_io *mc_io;
@@ -82,6 +85,7 @@ int __must_check fsl_create_mc_io(struct device *dev,
 	mc_io->flags = flags;
 	mc_io->portal_phys_addr = mc_portal_phys_addr;
 	mc_io->portal_size = mc_portal_size;
+	mc_io->resource = resource;
 	res = devm_request_mem_region(dev,
 				      mc_portal_phys_addr,
 				      mc_portal_size,

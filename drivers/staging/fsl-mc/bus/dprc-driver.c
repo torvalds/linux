@@ -156,6 +156,85 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 	}
 }
 
+static void dprc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
+{
+	int pool_type;
+	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
+
+	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++) {
+		struct fsl_mc_resource_pool *res_pool =
+		    &mc_bus->resource_pools[pool_type];
+
+		res_pool->type = pool_type;
+		res_pool->max_count = 0;
+		res_pool->free_count = 0;
+		res_pool->mc_bus = mc_bus;
+		INIT_LIST_HEAD(&res_pool->free_list);
+		mutex_init(&res_pool->mutex);
+	}
+}
+
+static void dprc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
+				       enum fsl_mc_pool_type pool_type)
+{
+	struct fsl_mc_resource *resource;
+	struct fsl_mc_resource *next;
+	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
+	struct fsl_mc_resource_pool *res_pool =
+					&mc_bus->resource_pools[pool_type];
+	int free_count = 0;
+
+	WARN_ON(res_pool->type != pool_type);
+	WARN_ON(res_pool->free_count != res_pool->max_count);
+
+	list_for_each_entry_safe(resource, next, &res_pool->free_list, node) {
+		free_count++;
+		WARN_ON(resource->type != res_pool->type);
+		WARN_ON(resource->parent_pool != res_pool);
+		devm_kfree(&mc_bus_dev->dev, resource);
+	}
+
+	WARN_ON(free_count != res_pool->free_count);
+}
+
+static void dprc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
+{
+	int pool_type;
+
+	for (pool_type = 0; pool_type < FSL_MC_NUM_POOL_TYPES; pool_type++)
+		dprc_cleanup_resource_pool(mc_bus_dev, pool_type);
+}
+
+static void reorder_obj_desc_array(struct dprc_obj_desc *obj_desc_array,
+				   int num_devs)
+{
+	struct dprc_obj_desc tmp;
+	struct dprc_obj_desc *top_cursor = &obj_desc_array[0];
+	struct dprc_obj_desc *bottom_cursor = &obj_desc_array[num_devs - 1];
+
+	/*
+	 * Reorder entries in obj_desc_array so that all allocatable devices
+	 * are placed before all non-allocatable devices:
+	 *
+	 * Loop Invariant: everything before top_cursor is allocatable and
+	 * everything after bottom_cursor is non-allocatable.
+	 */
+	while (top_cursor < bottom_cursor) {
+		if (FSL_MC_IS_ALLOCATABLE(top_cursor->type)) {
+			top_cursor++;
+		} else {
+			if (FSL_MC_IS_ALLOCATABLE(bottom_cursor->type)) {
+				tmp = *bottom_cursor;
+				*bottom_cursor = *top_cursor;
+				*top_cursor = tmp;
+				top_cursor++;
+			}
+
+			bottom_cursor--;
+		}
+	}
+}
+
 /**
  * dprc_scan_objects - Discover objects in a DPRC
  *
@@ -164,6 +243,14 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
  * Detects objects added and removed from a DPRC and synchronizes the
  * state of the Linux bus driver, MC by adding and removing
  * devices accordingly.
+ * Two types of devices can be found in a DPRC: allocatable objects (e.g.,
+ * dpbp, dpmcp) and non-allocatable devices (e.g., dprc, dpni).
+ * All allocatable devices needed to be probed before all non-allocatable
+ * devices, to ensure that device drivers for non-allocatable
+ * devices can allocate any type of allocatable devices.
+ * That is, we need to ensure that the corresponding resource pools are
+ * populated before they can get allocation requests from probe callbacks
+ * of the device drivers for the non-allocatable devices.
  */
 int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev)
 {
@@ -226,6 +313,8 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev)
 				"%d out of %d devices could not be retrieved\n",
 				dprc_get_obj_failures, num_child_objects);
 		}
+
+		reorder_obj_desc_array(child_obj_desc_array, num_child_objects);
 	}
 
 	dprc_remove_devices(mc_bus_dev, child_obj_desc_array,
@@ -255,12 +344,20 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev)
 	int error;
 	struct fsl_mc_bus *mc_bus = to_fsl_mc_bus(mc_bus_dev);
 
+	dprc_init_all_resource_pools(mc_bus_dev);
+
 	/*
 	 * Discover objects in the DPRC:
 	 */
 	mutex_lock(&mc_bus->scan_mutex);
 	error = dprc_scan_objects(mc_bus_dev);
 	mutex_unlock(&mc_bus->scan_mutex);
+	if (error < 0)
+		goto error;
+
+	return 0;
+error:
+	dprc_cleanup_all_resource_pools(mc_bus_dev);
 	return error;
 }
 EXPORT_SYMBOL_GPL(dprc_scan_container);
@@ -272,6 +369,8 @@ EXPORT_SYMBOL_GPL(dprc_scan_container);
  *
  * It opens the physical DPRC in the MC.
  * It scans the DPRC to discover the MC objects contained in it.
+ * It creates the interrupt pool for the MC bus associated with the DPRC.
+ * It configures the interrupts for the DPRC device itself.
  */
 static int dprc_probe(struct fsl_mc_device *mc_dev)
 {
@@ -295,7 +394,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		error = fsl_create_mc_io(&mc_dev->dev,
 					 mc_dev->regions[0].start,
 					 region_size,
-					 0, &mc_dev->mc_io);
+					 NULL, 0, &mc_dev->mc_io);
 		if (error < 0)
 			return error;
 	}
@@ -334,6 +433,8 @@ error_cleanup_mc_io:
  *
  * It removes the DPRC's child objects from Linux (not from the MC) and
  * closes the DPRC device in the MC.
+ * It tears down the interrupts that were configured for the DPRC device.
+ * It destroys the interrupt pool associated with this MC bus.
  */
 static int dprc_remove(struct fsl_mc_device *mc_dev)
 {
@@ -345,6 +446,7 @@ static int dprc_remove(struct fsl_mc_device *mc_dev)
 		return -EINVAL;
 
 	device_for_each_child(&mc_dev->dev, NULL, __fsl_mc_device_remove);
+	dprc_cleanup_all_resource_pools(mc_dev);
 	error = dprc_close(mc_dev->mc_io, mc_dev->mc_handle);
 	if (error < 0)
 		dev_err(&mc_dev->dev, "dprc_close() failed: %d\n", error);

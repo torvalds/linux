@@ -40,6 +40,7 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 
+struct fsl_mc_resource;
 struct mc_command;
 
 /**
@@ -49,6 +50,9 @@ struct mc_command;
  * @portal_size: MC command portal size in bytes
  * @portal_phys_addr: MC command portal physical address
  * @portal_virt_addr: MC command portal virtual address
+ * @resource: generic resource associated with the MC portal if
+ * the MC portal came from a resource pool, or NULL if the MC portal
+ * is permanently bound to a device (e.g., a DPRC)
  */
 struct fsl_mc_io {
 	struct device *dev;
@@ -56,11 +60,13 @@ struct fsl_mc_io {
 	uint32_t portal_size;
 	phys_addr_t portal_phys_addr;
 	void __iomem *portal_virt_addr;
+	struct fsl_mc_resource *resource;
 };
 
 int __must_check fsl_create_mc_io(struct device *dev,
 				  phys_addr_t mc_portal_phys_addr,
 				  uint32_t mc_portal_size,
+				  struct fsl_mc_resource *resource,
 				  uint32_t flags, struct fsl_mc_io **new_mc_io);
 
 void fsl_destroy_mc_io(struct fsl_mc_io *mc_io);

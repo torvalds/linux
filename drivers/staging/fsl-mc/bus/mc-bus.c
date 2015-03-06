@@ -604,7 +604,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	mc_portal_phys_addr = res.start;
 	mc_portal_size = resource_size(&res);
 	error = fsl_create_mc_io(&pdev->dev, mc_portal_phys_addr,
-				 mc_portal_size, 0, &mc_io);
+				 mc_portal_size, NULL, 0, &mc_io);
 	if (error < 0)
 		return error;
 
