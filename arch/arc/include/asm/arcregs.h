@@ -31,6 +31,7 @@
 #define ARC_REG_BPU_BCR		0xc0
 #define ARC_REG_ISA_CFG_BCR	0xc1
 #define ARC_REG_RTT_BCR		0xF2
+#define ARC_REG_IRQ_BCR		0xF3
 #define ARC_REG_SMART_BCR	0xFF
 
 /* status32 Bits Positions */
