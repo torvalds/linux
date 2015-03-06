@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
+#include <net/ip_fib.h>
 #include <net/switchdev.h>
 
 /**
@@ -225,3 +226,41 @@ int ndo_dflt_netdev_switch_port_bridge_dellink(struct net_device *dev,
 	return ret;
 }
 EXPORT_SYMBOL(ndo_dflt_netdev_switch_port_bridge_dellink);
+
+/**
+ *	netdev_switch_fib_ipv4_add - Add IPv4 route entry to switch
+ *
+ *	@dst: route's IPv4 destination address
+ *	@dst_len: destination address length (prefix length)
+ *	@fi: route FIB info structure
+ *	@tos: route TOS
+ *	@type: route type
+ *	@tb_id: route table ID
+ *
+ *	Add IPv4 route entry to switch device.
+ */
+int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
+			       u8 tos, u8 type, u32 tb_id)
+{
+	return 0;
+}
+EXPORT_SYMBOL(netdev_switch_fib_ipv4_add);
+
+/**
+ *	netdev_switch_fib_ipv4_del - Delete IPv4 route entry from switch
+ *
+ *	@dst: route's IPv4 destination address
+ *	@dst_len: destination address length (prefix length)
+ *	@fi: route FIB info structure
+ *	@tos: route TOS
+ *	@type: route type
+ *	@tb_id: route table ID
+ *
+ *	Delete IPv4 route entry from switch device.
+ */
+int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
+			       u8 tos, u8 type, u32 tb_id)
+{
+	return 0;
+}
+EXPORT_SYMBOL(netdev_switch_fib_ipv4_del);
