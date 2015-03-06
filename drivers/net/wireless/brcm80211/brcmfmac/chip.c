@@ -491,6 +491,10 @@ static void brcmf_chip_get_raminfo(struct brcmf_chip_priv *ci)
 	case BRCM_CC_43362_CHIP_ID:
 		ci->pub.ramsize = 0x3c000;
 		break;
+	case BRCM_CC_4345_CHIP_ID:
+		ci->pub.ramsize = 0xc8000;
+		ci->pub.rambase = 0x198000;
+		break;
 	case BRCM_CC_4339_CHIP_ID:
 	case BRCM_CC_4354_CHIP_ID:
 	case BRCM_CC_4356_CHIP_ID:
