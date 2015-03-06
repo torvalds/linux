@@ -2425,6 +2425,7 @@ struct drm_i915_cmd_table {
 #define NUM_L3_SLICES(dev) (IS_HSW_GT3(dev) ? 2 : HAS_L3_DPF(dev))
 
 #define GT_FREQUENCY_MULTIPLIER 50
+#define GEN9_FREQ_SCALER 3
 
 #include "i915_trace.h"
 

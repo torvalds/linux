@@ -2449,6 +2449,12 @@ enum skl_disp_power_wells {
 #define GEN6_RP_STATE_LIMITS	(MCHBAR_MIRROR_BASE_SNB + 0x5994)
 #define GEN6_RP_STATE_CAP	(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 
+#define INTERVAL_1_28_US(us)	(((us) * 100) >> 7)
+#define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
+#define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \
+				INTERVAL_1_33_US(us) : \
+				INTERVAL_1_28_US(us))
+
 /*
  * Logical Context regs
  */
@@ -6101,6 +6107,7 @@ enum skl_disp_power_wells {
 #define   GEN6_TURBO_DISABLE			(1<<31)
 #define   GEN6_FREQUENCY(x)			((x)<<25)
 #define   HSW_FREQUENCY(x)			((x)<<24)
+#define   GEN9_FREQUENCY(x)			((x)<<23)
 #define   GEN6_OFFSET(x)			((x)<<19)
 #define   GEN6_AGGRESSIVE_TURBO			(0<<15)
 #define GEN6_RC_VIDEO_FREQ			0xA00C
@@ -6119,8 +6126,10 @@ enum skl_disp_power_wells {
 #define GEN6_RPSTAT1				0xA01C
 #define   GEN6_CAGF_SHIFT			8
 #define   HSW_CAGF_SHIFT			7
+#define   GEN9_CAGF_SHIFT			23
 #define   GEN6_CAGF_MASK			(0x7f << GEN6_CAGF_SHIFT)
 #define   HSW_CAGF_MASK				(0x7f << HSW_CAGF_SHIFT)
+#define   GEN9_CAGF_MASK			(0x1ff << GEN9_CAGF_SHIFT)
 #define GEN6_RP_CONTROL				0xA024
 #define   GEN6_RP_MEDIA_TURBO			(1<<11)
 #define   GEN6_RP_MEDIA_MODE_MASK		(3<<9)
