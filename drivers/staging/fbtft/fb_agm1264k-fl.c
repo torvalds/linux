@@ -198,8 +198,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 
 	if (*buf > 1) {
 		va_end(args);
-		dev_err(par->info->device, "%s: Incorrect chip sellect request (%d)\n",
-			__func__, *buf);
+		dev_err(par->info->device,
+			"Incorrect chip sellect request (%d)\n", *buf);
 		return;
 	}
 
@@ -224,8 +224,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 		ret = par->fbtftops.write(par, par->buf, len * (sizeof(u8)));
 		if (ret < 0) {
 			va_end(args);
-			dev_err(par->info->device, "%s: write() failed and returned %d\n",
-				__func__, ret);
+			dev_err(par->info->device,
+				"write() failed and returned %d\n", ret);
 			return;
 		}
 	}
@@ -376,8 +376,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			ret = par->fbtftops.write(par, buf, len);
 			if (ret < 0)
 				dev_err(par->info->device,
-					"%s: write failed and returned: %d\n",
-					__func__, ret);
+					"write failed and returned: %d\n",
+					ret);
 		}
 		/* right half of display */
 		if (addr_win.xe >= par->info->var.xres / 2) {
@@ -398,8 +398,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			par->fbtftops.write(par, buf, len);
 			if (ret < 0)
 				dev_err(par->info->device,
-					"%s: write failed and returned: %d\n",
-					__func__, ret);
+					"write failed and returned: %d\n",
+					ret);
 		}
 	}
 	kfree(convert_buf);

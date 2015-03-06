@@ -238,8 +238,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	ret = par->fbtftops.write(par, par->buf, 2);
 	if (ret < 0) {
 		va_end(args);
-		dev_err(par->info->device, "%s: write() failed and returned %dn",
-			__func__, ret);
+		dev_err(par->info->device, "write() failed and returned %dn",
+			ret);
 		return;
 	}
 	len--;
@@ -256,8 +256,8 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 		ret = par->fbtftops.write(par, par->buf, len + 1);
 		if (ret < 0) {
 			va_end(args);
-			dev_err(par->info->device, "%s: write() failed and returned %dn",
-				__func__, ret);
+			dev_err(par->info->device,
+				"write() failed and returned %dn", ret);
 			return;
 		}
 	}

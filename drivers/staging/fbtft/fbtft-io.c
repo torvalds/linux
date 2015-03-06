@@ -59,8 +59,7 @@ int fbtft_write_spi_emulate_9(struct fbtft_par *par, void *buf, size_t len)
 	}
 	if ((len % 8) != 0) {
 		dev_err(par->info->device,
-			"%s: error: len=%zu must be divisible by 8\n",
-			__func__, len);
+			"error: len=%zu must be divisible by 8\n", len);
 		return -EINVAL;
 	}
 
@@ -106,8 +105,8 @@ int fbtft_read_spi(struct fbtft_par *par, void *buf, size_t len)
 	if (par->startbyte) {
 		if (len > 32) {
 			dev_err(par->info->device,
-				"%s: len=%zu can't be larger than 32 when using 'startbyte'\n",
-				__func__, len);
+				"len=%zu can't be larger than 32 when using 'startbyte'\n",
+				len);
 			return -EINVAL;
 		}
 		txbuf[0] = par->startbyte | 0x3;

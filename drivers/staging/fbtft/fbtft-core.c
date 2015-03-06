@@ -703,9 +703,8 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 
 	/* sanity check */
 	if (display->gamma_num * display->gamma_len > FBTFT_GAMMA_MAX_VALUES_TOTAL) {
-		dev_err(dev,
-			"%s: FBTFT_GAMMA_MAX_VALUES_TOTAL=%d is exceeded\n",
-			__func__, FBTFT_GAMMA_MAX_VALUES_TOTAL);
+		dev_err(dev, "FBTFT_GAMMA_MAX_VALUES_TOTAL=%d is exceeded\n",
+			FBTFT_GAMMA_MAX_VALUES_TOTAL);
 		return NULL;
 	}
 
