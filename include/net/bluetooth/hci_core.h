@@ -1273,11 +1273,15 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb);
 
 void hci_sock_dev_event(struct hci_dev *hdev, int event);
 
+#define HCI_MGMT_VAR_LEN	(1 << 0)
+#define HCI_MGMT_NO_HDEV	(1 << 1)
+#define HCI_MGMT_UNCONFIGURED	(1 << 2)
+
 struct hci_mgmt_handler {
 	int (*func) (struct sock *sk, struct hci_dev *hdev, void *data,
 		     u16 data_len);
-	bool var_len;
 	size_t data_len;
+	unsigned long flags;
 };
 
 struct hci_mgmt_chan {
