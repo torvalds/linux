@@ -468,7 +468,7 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 	u32 tsauxc, tsim, tsauxc_mask, tsim_mask, trgttiml, trgttimh;
 	unsigned long flags;
 	struct timespec ts;
-	int pin;
+	int pin = -1;
 	s64 ns;
 
 	switch (rq->type) {
