@@ -1952,6 +1952,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 
 static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 {
+	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 	struct wacom_features *features = &wacom_wac->features;
 	unsigned char *data = wacom_wac->data;
 
@@ -1964,6 +1965,30 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		input_report_switch(wacom_wac->shared->touch_input,
 				    SW_MUTE_DEVICE, data[8] & 0x40);
 		input_sync(wacom_wac->shared->touch_input);
+	}
+
+	if (data[9] & 0x02) { /* wireless module is attached */
+		int battery = (data[8] & 0x3f) * 100 / 31;
+		bool ps_connected = !!(data[8] & 0x80);
+		bool charging = ps_connected &&
+				wacom_wac->battery_capacity < 100;
+
+		wacom_notify_battery(wacom_wac, battery, charging,
+				     ps_connected);
+
+		if (!wacom->battery.dev &&
+		    !(features->quirks & WACOM_QUIRK_BATTERY)) {
+			features->quirks |= WACOM_QUIRK_BATTERY;
+			INIT_WORK(&wacom->work, wacom_battery_work);
+			wacom_schedule_work(wacom_wac);
+		}
+	}
+	else if ((features->quirks & WACOM_QUIRK_BATTERY) &&
+		 wacom->battery.dev) {
+		features->quirks &= ~WACOM_QUIRK_BATTERY;
+		INIT_WORK(&wacom->work, wacom_battery_work);
+		wacom_schedule_work(wacom_wac);
+		wacom_notify_battery(wacom_wac, 0, 0, 0);
 	}
 	return 0;
 }
