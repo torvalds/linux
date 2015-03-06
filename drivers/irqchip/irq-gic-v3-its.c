@@ -1320,6 +1320,34 @@ static const struct irq_domain_ops its_domain_ops = {
 	.deactivate		= its_irq_domain_deactivate,
 };
 
+static int its_force_quiescent(void __iomem *base)
+{
+	u32 count = 1000000;	/* 1s */
+	u32 val;
+
+	val = readl_relaxed(base + GITS_CTLR);
+	if (val & GITS_CTLR_QUIESCENT)
+		return 0;
+
+	/* Disable the generation of all interrupts to this ITS */
+	val &= ~GITS_CTLR_ENABLE;
+	writel_relaxed(val, base + GITS_CTLR);
+
+	/* Poll GITS_CTLR and wait until ITS becomes quiescent */
+	while (1) {
+		val = readl_relaxed(base + GITS_CTLR);
+		if (val & GITS_CTLR_QUIESCENT)
+			return 0;
+
+		count--;
+		if (!count)
+			return -EBUSY;
+
+		cpu_relax();
+		udelay(1);
+	}
+}
+
 static int its_probe(struct device_node *node, struct irq_domain *parent)
 {
 	struct resource res;
@@ -1345,6 +1373,13 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	if (val != 0x30 && val != 0x40) {
 		pr_warn("%s: no ITS detected, giving up\n", node->full_name);
 		err = -ENODEV;
+		goto out_unmap;
+	}
+
+	err = its_force_quiescent(its_base);
+	if (err) {
+		pr_warn("%s: failed to quiesce, giving up\n",
+			node->full_name);
 		goto out_unmap;
 	}
 
