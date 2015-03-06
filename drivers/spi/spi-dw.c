@@ -232,9 +232,7 @@ static irqreturn_t interrupt_transfer(struct dw_spi *dws)
 
 	/* Error handling */
 	if (irq_status & (SPI_INT_TXOI | SPI_INT_RXOI | SPI_INT_RXUI)) {
-		dw_readw(dws, DW_SPI_TXOICR);
-		dw_readw(dws, DW_SPI_RXOICR);
-		dw_readw(dws, DW_SPI_RXUICR);
+		dw_readw(dws, DW_SPI_ICR);
 		int_error_stop(dws, "interrupt_transfer: fifo overrun/underrun");
 		return IRQ_HANDLED;
 	}
