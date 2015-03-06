@@ -93,8 +93,6 @@ typedef unsigned int t_key;
 #define IS_LEAF(n) (!(n)->bits)
 
 struct key_vector {
-	struct key_vector __rcu *parent;
-
 	t_key key;
 	unsigned char pos;		/* 2log(KEYLENGTH) bits needed */
 	unsigned char bits;		/* 2log(KEYLENGTH) bits needed */
@@ -111,6 +109,7 @@ struct tnode {
 	struct rcu_head rcu;
 	t_key empty_children;		/* KEYLENGTH bits needed */
 	t_key full_children;		/* KEYLENGTH bits needed */
+	struct key_vector __rcu *parent;
 	struct key_vector kv[1];
 #define tn_bits kv[0].bits
 };
@@ -165,21 +164,21 @@ static inline struct tnode *tn_info(struct key_vector *kv)
 }
 
 /* caller must hold RTNL */
-#define node_parent(n) rtnl_dereference((n)->parent)
+#define node_parent(tn) rtnl_dereference(tn_info(tn)->parent)
 #define get_child(tn, i) rtnl_dereference((tn)->tnode[i])
 
 /* caller must hold RCU read lock or RTNL */
-#define node_parent_rcu(n) rcu_dereference_rtnl((n)->parent)
+#define node_parent_rcu(tn) rcu_dereference_rtnl(tn_info(tn)->parent)
 #define get_child_rcu(tn, i) rcu_dereference_rtnl((tn)->tnode[i])
 
 /* wrapper for rcu_assign_pointer */
 static inline void node_set_parent(struct key_vector *n, struct key_vector *tp)
 {
 	if (n)
-		rcu_assign_pointer(n->parent, tp);
+		rcu_assign_pointer(tn_info(n)->parent, tp);
 }
 
-#define NODE_INIT_PARENT(n, p) RCU_INIT_POINTER((n)->parent, p)
+#define NODE_INIT_PARENT(n, p) RCU_INIT_POINTER(tn_info(n)->parent, p)
 
 /* This provides us with the number of children in this node, in the case of a
  * leaf this will return 0 meaning none of the children are accessible.
