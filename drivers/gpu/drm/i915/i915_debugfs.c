@@ -1090,7 +1090,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
 	} else if (IS_GEN6(dev) || (IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) ||
-		   IS_BROADWELL(dev)) {
+		   IS_BROADWELL(dev) || IS_GEN9(dev)) {
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
@@ -1109,11 +1109,15 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 		reqf = I915_READ(GEN6_RPNSWREQ);
-		reqf &= ~GEN6_TURBO_DISABLE;
-		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-			reqf >>= 24;
-		else
-			reqf >>= 25;
+		if (IS_GEN9(dev))
+			reqf >>= 23;
+		else {
+			reqf &= ~GEN6_TURBO_DISABLE;
+			if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+				reqf >>= 24;
+			else
+				reqf >>= 25;
+		}
 		reqf = intel_gpu_freq(dev_priv, reqf);
 
 		rpmodectl = I915_READ(GEN6_RP_CONTROL);
@@ -1127,7 +1131,9 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI);
 		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN);
 		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN);
-		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		if (IS_GEN9(dev))
+			cagf = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
+		else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 			cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
 		else
 			cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
@@ -1153,7 +1159,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   pm_ier, pm_imr, pm_isr, pm_iir, pm_mask);
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
 		seq_printf(m, "Render p-state ratio: %d\n",
-			   (gt_perf_status & 0xff00) >> 8);
+			   (gt_perf_status & (IS_GEN9(dev) ? 0x1ff00 : 0xff00)) >> 8);
 		seq_printf(m, "Render p-state VID: %d\n",
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
@@ -1178,14 +1184,17 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   GEN6_CURBSYTAVG_MASK);
 
 		max_freq = (rp_state_cap & 0xff0000) >> 16;
+		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
+		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = rp_state_cap & 0xff;
+		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
