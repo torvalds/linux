@@ -35,7 +35,6 @@ struct omap_crtc {
 
 	const char *name;
 	enum omap_channel channel;
-	struct omap_overlay_manager_info info;
 	struct drm_encoder *current_encoder;
 
 	/*
@@ -188,8 +187,15 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 static int omap_crtc_dss_enable(struct omap_overlay_manager *mgr)
 {
 	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
+	struct omap_overlay_manager_info info;
 
-	dispc_mgr_setup(omap_crtc->channel, &omap_crtc->info);
+	memset(&info, 0, sizeof(info));
+	info.default_color = 0x00000000;
+	info.trans_key = 0x00000000;
+	info.trans_key_type = OMAP_DSS_COLOR_KEY_GFX_DST;
+	info.trans_enabled = false;
+
+	dispc_mgr_setup(omap_crtc->channel, &info);
 	dispc_mgr_set_timings(omap_crtc->channel,
 			&omap_crtc->timings);
 	omap_crtc_set_enabled(&omap_crtc->base, true);
@@ -628,7 +634,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 {
 	struct drm_crtc *crtc = NULL;
 	struct omap_crtc *omap_crtc;
-	struct omap_overlay_manager_info *info;
 	int ret;
 
 	DBG("%s", channel_names[channel]);
@@ -655,13 +660,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	/* temporary: */
 	omap_crtc->mgr = omap_dss_get_overlay_manager(channel);
-
-	/* TODO: fix hard-coded setup.. add properties! */
-	info = &omap_crtc->info;
-	info->default_color = 0x00000000;
-	info->trans_key = 0x00000000;
-	info->trans_key_type = OMAP_DSS_COLOR_KEY_GFX_DST;
-	info->trans_enabled = false;
 
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
 					&omap_crtc_funcs);
