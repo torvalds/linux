@@ -146,7 +146,7 @@ startup_64:
 	leaq	level2_kernel_pgt(%rip), %rdi
 	leaq	4096(%rdi), %r8
 	/* See if it is a valid page table entry */
-1:	testq	$1, 0(%rdi)
+1:	testb	$1, 0(%rdi)
 	jz	2f
 	addq	%rbp, 0(%rdi)
 	/* Go to the next page */

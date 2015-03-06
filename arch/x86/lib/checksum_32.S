@@ -125,7 +125,7 @@ ENTRY(csum_partial)
 6:	addl %ecx,%eax
 	adcl $0, %eax 
 7:	
-	testl $1, 12(%esp)
+	testb $1, 12(%esp)
 	jz 8f
 	roll $8, %eax
 8:
@@ -245,7 +245,7 @@ ENTRY(csum_partial)
 	addl %ebx,%eax
 	adcl $0,%eax
 80: 
-	testl $1, 12(%esp)
+	testb $1, 12(%esp)
 	jz 90f
 	roll $8, %eax
 90: 
