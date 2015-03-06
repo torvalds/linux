@@ -1188,21 +1188,22 @@
 		status = "okay";
 	};
 
+	thermal-zones {
+		#include "rk3368-thermal.dtsi"
+	};
+
 	tsadc: tsadc@ff280000 {
-		compatible = "rockchip,tsadc";
+		compatible = "rockchip,rk3368-tsadc";
 		reg = <0x0 0xff280000 0x0 0x100>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-		#io-channel-cells = <1>;
-		io-channel-ranges;
-		clock-frequency = <10000>;
 		clocks = <&clk_tsadc>, <&clk_gates20 0>;
-		clock-names = "tsadc", "pclk_tsadc";
-		pinctrl-names = "default", "tsadc_int";
-		pinctrl-0 = <&tsadc_gpio>;
-		pinctrl-1 = <&tsadc_int>;
-		tsadc-ht-temp = <120>;
-		tsadc-ht-reset-cru = <1>;
-		tsadc-ht-pull-gpio = <0>;
+		clock-names = "tsadc", "apb_pclk";
+		resets = <&reset RK3368_SRST_TSADC_P>;
+		reset-names = "tsadc-apb";
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsadc_int>;
+		#thermal-sensor-cells = <1>;
+		hw-shut-temp = <120000>;
 		status = "disabled";
 	};
 
