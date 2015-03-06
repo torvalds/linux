@@ -1309,7 +1309,9 @@ void hci_mgmt_chan_unregister(struct hci_mgmt_chan *c);
 #define DISCOV_BREDR_INQUIRY_LEN	0x08
 #define DISCOV_LE_RESTART_DELAY		msecs_to_jiffies(200)	/* msec */
 
-int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
+int mgmt_control(struct hci_mgmt_chan *chan, struct sock *sk,
+		 struct msghdr *msg, size_t msglen);
+
 int mgmt_new_settings(struct hci_dev *hdev);
 void mgmt_index_added(struct hci_dev *hdev);
 void mgmt_index_removed(struct hci_dev *hdev);

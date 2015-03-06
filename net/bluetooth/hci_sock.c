@@ -741,19 +741,6 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		hci_pi(sk)->hdev = hdev;
 		break;
 
-	case HCI_CHANNEL_CONTROL:
-		if (haddr.hci_dev != HCI_DEV_NONE) {
-			err = -EINVAL;
-			goto done;
-		}
-
-		if (!capable(CAP_NET_ADMIN)) {
-			err = -EPERM;
-			goto done;
-		}
-
-		break;
-
 	case HCI_CHANNEL_MONITOR:
 		if (haddr.hci_dev != HCI_DEV_NONE) {
 			err = -EINVAL;
@@ -900,7 +887,6 @@ static int hci_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		hci_sock_cmsg(sk, msg, skb);
 		break;
 	case HCI_CHANNEL_USER:
-	case HCI_CHANNEL_CONTROL:
 	case HCI_CHANNEL_MONITOR:
 		sock_recv_timestamp(msg, sk, skb);
 		break;
@@ -941,9 +927,6 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	case HCI_CHANNEL_RAW:
 	case HCI_CHANNEL_USER:
 		break;
-	case HCI_CHANNEL_CONTROL:
-		err = mgmt_control(sk, msg, len);
-		goto done;
 	case HCI_CHANNEL_MONITOR:
 		err = -EOPNOTSUPP;
 		goto done;
@@ -951,7 +934,7 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		mutex_lock(&mgmt_chan_list_lock);
 		chan = __hci_mgmt_chan_find(hci_pi(sk)->channel);
 		if (chan)
-			err = -ENOSYS; /* FIXME: call handler */
+			err = mgmt_control(chan, sk, msg, len);
 		else
 			err = -EINVAL;
 

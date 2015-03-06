@@ -6130,12 +6130,7 @@ unlock:
 	return err;
 }
 
-static const struct mgmt_handler {
-	int (*func) (struct sock *sk, struct hci_dev *hdev, void *data,
-		     u16 data_len);
-	bool var_len;
-	size_t data_len;
-} mgmt_handlers[] = {
+static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ NULL }, /* 0x0000 (no command) */
 	{ read_version,           false, MGMT_READ_VERSION_SIZE },
 	{ read_commands,          false, MGMT_READ_COMMANDS_SIZE },
@@ -6197,14 +6192,15 @@ static const struct mgmt_handler {
 	{ start_service_discovery,true,  MGMT_START_SERVICE_DISCOVERY_SIZE },
 };
 
-int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
+int mgmt_control(struct hci_mgmt_chan *chan, struct sock *sk,
+		 struct msghdr *msg, size_t msglen)
 {
 	void *buf;
 	u8 *cp;
 	struct mgmt_hdr *hdr;
 	u16 opcode, index, len;
 	struct hci_dev *hdev = NULL;
-	const struct mgmt_handler *handler;
+	const struct hci_mgmt_handler *handler;
 	int err;
 
 	BT_DBG("got %zu bytes", msglen);
@@ -6257,8 +6253,8 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		}
 	}
 
-	if (opcode >= ARRAY_SIZE(mgmt_handlers) ||
-	    mgmt_handlers[opcode].func == NULL) {
+	if (opcode >= chan->handler_count ||
+	    chan->handlers[opcode].func == NULL) {
 		BT_DBG("Unknown op %u", opcode);
 		err = cmd_status(sk, index, opcode,
 				 MGMT_STATUS_UNKNOWN_COMMAND);
@@ -6279,7 +6275,7 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		goto done;
 	}
 
-	handler = &mgmt_handlers[opcode];
+	handler = &chan->handlers[opcode];
 
 	if ((handler->var_len && len < handler->data_len) ||
 	    (!handler->var_len && len != handler->data_len)) {
@@ -7469,4 +7465,20 @@ void mgmt_reenable_advertising(struct hci_dev *hdev)
 	hci_req_init(&req, hdev);
 	enable_advertising(&req);
 	hci_req_run(&req, adv_enable_complete);
+}
+
+static struct hci_mgmt_chan chan = {
+	.channel	= HCI_CHANNEL_CONTROL,
+	.handler_count	= ARRAY_SIZE(mgmt_handlers),
+	.handlers	= mgmt_handlers,
+};
+
+int mgmt_init(void)
+{
+	return hci_mgmt_chan_register(&chan);
+}
+
+void mgmt_exit(void)
+{
+	hci_mgmt_chan_unregister(&chan);
 }
