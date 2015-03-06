@@ -154,8 +154,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 int omap_plane_set_enable(struct drm_plane *plane, bool enable);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
-int omap_plane_set_property(struct drm_plane *plane,
-		struct drm_property *property, uint64_t val);
 
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 		struct omap_dss_device *dssdev);

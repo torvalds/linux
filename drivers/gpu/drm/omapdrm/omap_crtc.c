@@ -540,17 +540,44 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
 	omap_crtc_flush(crtc);
 
 	dispc_runtime_put();
+
+	crtc->invert_dimensions = !!(crtc->primary->state->rotation &
+				    (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270)));
 }
 
-static int omap_crtc_set_property(struct drm_crtc *crtc,
-		struct drm_property *property, uint64_t val)
+static int omap_crtc_atomic_set_property(struct drm_crtc *crtc,
+					 struct drm_crtc_state *state,
+					 struct drm_property *property,
+					 uint64_t val)
 {
-	if (property == crtc->dev->mode_config.rotation_property) {
-		crtc->invert_dimensions =
-				!!(val & ((1LL << DRM_ROTATE_90) | (1LL << DRM_ROTATE_270)));
-	}
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane = crtc->primary;
 
-	return omap_plane_set_property(crtc->primary, property, val);
+	/*
+	 * Delegate property set to the primary plane. Get the plane state and
+	 * set the property directly.
+	 */
+
+	plane_state = drm_atomic_get_plane_state(state->state, plane);
+	if (!plane_state)
+		return -EINVAL;
+
+	return drm_atomic_plane_set_property(plane, plane_state, property, val);
+}
+
+static int omap_crtc_atomic_get_property(struct drm_crtc *crtc,
+					 const struct drm_crtc_state *state,
+					 struct drm_property *property,
+					 uint64_t *val)
+{
+	/*
+	 * Delegate property get to the primary plane. The
+	 * drm_atomic_plane_get_property() function isn't exported, but can be
+	 * called through drm_object_property_get_value() as that will call
+	 * drm_atomic_get_property() for atomic drivers.
+	 */
+	return drm_object_property_get_value(&crtc->primary->base, property,
+					     val);
 }
 
 static const struct drm_crtc_funcs omap_crtc_funcs = {
@@ -558,9 +585,11 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = omap_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
-	.set_property = omap_crtc_set_property,
+	.set_property = drm_atomic_helper_crtc_set_property,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.atomic_set_property = omap_crtc_atomic_set_property,
+	.atomic_get_property = omap_crtc_atomic_get_property,
 };
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
