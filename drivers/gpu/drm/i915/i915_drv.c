@@ -622,7 +622,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	return 0;
 }
 
-static int i915_drm_suspend_late(struct drm_device *drm_dev)
+static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 {
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
 	int ret;
@@ -636,7 +636,17 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev)
 	}
 
 	pci_disable_device(drm_dev->pdev);
-	pci_set_power_state(drm_dev->pdev, PCI_D3hot);
+	/*
+	 * During hibernation on some GEN4 platforms the BIOS may try to access
+	 * the device even though it's already in D3 and hang the machine. So
+	 * leave the device in D0 on those platforms and hope the BIOS will
+	 * power down the device properly. Platforms where this was seen:
+	 * Lenovo Thinkpad X301, X61s
+	 */
+	if (!(hibernation &&
+	      drm_dev->pdev->subsystem_vendor == PCI_VENDOR_ID_LENOVO &&
+	      INTEL_INFO(dev_priv)->gen == 4))
+		pci_set_power_state(drm_dev->pdev, PCI_D3hot);
 
 	return 0;
 }
@@ -662,7 +672,7 @@ int i915_suspend_legacy(struct drm_device *dev, pm_message_t state)
 	if (error)
 		return error;
 
-	return i915_drm_suspend_late(dev);
+	return i915_drm_suspend_late(dev, false);
 }
 
 static int i915_drm_resume(struct drm_device *dev)
@@ -950,7 +960,17 @@ static int i915_pm_suspend_late(struct device *dev)
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_suspend_late(drm_dev);
+	return i915_drm_suspend_late(drm_dev, false);
+}
+
+static int i915_pm_poweroff_late(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
+
+	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
+
+	return i915_drm_suspend_late(drm_dev, true);
 }
 
 static int i915_pm_resume_early(struct device *dev)
@@ -1520,7 +1540,7 @@ static const struct dev_pm_ops i915_pm_ops = {
 	.thaw_early = i915_pm_resume_early,
 	.thaw = i915_pm_resume,
 	.poweroff = i915_pm_suspend,
-	.poweroff_late = i915_pm_suspend_late,
+	.poweroff_late = i915_pm_poweroff_late,
 	.restore_early = i915_pm_resume_early,
 	.restore = i915_pm_resume,
 
