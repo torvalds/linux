@@ -485,10 +485,9 @@ struct brcmf_sdio {
 #endif				/* DEBUG */
 
 	uint clkstate;		/* State of sd and backplane clock(s) */
-	bool activity;		/* Activity flag for clock down */
 	s32 idletime;		/* Control for activity timeout */
-	s32 idlecount;	/* Activity timeout counter */
-	s32 idleclock;	/* How to set bus driver when idle */
+	s32 idlecount;		/* Activity timeout counter */
+	s32 idleclock;		/* How to set bus driver when idle */
 	bool rxflow_mode;	/* Rx flow control mode */
 	bool rxflow;		/* Is rx flow control on */
 	bool alp_only;		/* Don't use HT clock (ALP only) */
@@ -511,6 +510,7 @@ struct brcmf_sdio {
 	struct workqueue_struct *brcmf_wq;
 	struct work_struct datawork;
 	atomic_t dpc_tskcnt;
+	atomic_t dpc_running;
 
 	bool txoff;		/* Transmit flow-controlled */
 	struct brcmf_sdio_count sdcnt;
@@ -959,13 +959,8 @@ static int brcmf_sdio_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 	brcmf_dbg(SDIO, "Enter\n");
 
 	/* Early exit if we're already there */
-	if (bus->clkstate == target) {
-		if (target == CLK_AVAIL) {
-			brcmf_sdio_wd_timer(bus, BRCMF_WD_POLL_MS);
-			bus->activity = true;
-		}
+	if (bus->clkstate == target)
 		return 0;
-	}
 
 	switch (target) {
 	case CLK_AVAIL:
@@ -975,7 +970,6 @@ static int brcmf_sdio_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 		/* Now request HT Avail on the backplane */
 		brcmf_sdio_htclk(bus, true, pendok);
 		brcmf_sdio_wd_timer(bus, BRCMF_WD_POLL_MS);
-		bus->activity = true;
 		break;
 
 	case CLK_SDONLY:
@@ -1024,17 +1018,6 @@ brcmf_sdio_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
 
 		/* Going to sleep */
 		if (sleep) {
-			/* Don't sleep if something is pending */
-			if (atomic_read(&bus->intstatus) ||
-			    atomic_read(&bus->ipend) > 0 ||
-			    bus->ctrl_frame_stat ||
-			    (!atomic_read(&bus->fcstate) &&
-			    brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol) &&
-			    data_ok(bus))) {
-				 err = -EBUSY;
-				 goto done;
-			}
-
 			clkcsr = brcmf_sdiod_regrb(bus->sdiodev,
 						   SBSDIO_FUNC1_CHIPCLKCSR,
 						   &err);
@@ -1045,11 +1028,7 @@ brcmf_sdio_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
 						  SBSDIO_ALP_AVAIL_REQ, &err);
 			}
 			err = brcmf_sdio_kso_control(bus, false);
-			/* disable watchdog */
-			if (!err)
-				brcmf_sdio_wd_timer(bus, 0);
 		} else {
-			bus->idlecount = 0;
 			err = brcmf_sdio_kso_control(bus, true);
 		}
 		if (err) {
@@ -3566,7 +3545,7 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus)
 	queue_work(bus->brcmf_wq, &bus->datawork);
 }
 
-static bool brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
+static void brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TIMER, "Enter\n");
 
@@ -3627,22 +3606,21 @@ static bool brcmf_sdio_bus_watchdog(struct brcmf_sdio *bus)
 #endif				/* DEBUG */
 
 	/* On idle timeout clear activity flag and/or turn off clock */
-	if ((bus->idletime > 0) && (bus->clkstate == CLK_AVAIL)) {
-		if (++bus->idlecount >= bus->idletime) {
+	if ((atomic_read(&bus->dpc_tskcnt) == 0) &&
+	    (atomic_read(&bus->dpc_running) == 0) &&
+	    (bus->idletime > 0) && (bus->clkstate == CLK_AVAIL)) {
+		bus->idlecount++;
+		if (bus->idlecount > bus->idletime) {
+			brcmf_dbg(SDIO, "idle\n");
+			sdio_claim_host(bus->sdiodev->func[1]);
+			brcmf_sdio_wd_timer(bus, 0);
 			bus->idlecount = 0;
-			if (bus->activity) {
-				bus->activity = false;
-				brcmf_sdio_wd_timer(bus, BRCMF_WD_POLL_MS);
-			} else {
-				brcmf_dbg(SDIO, "idle\n");
-				sdio_claim_host(bus->sdiodev->func[1]);
-				brcmf_sdio_bus_sleep(bus, true, false);
-				sdio_release_host(bus->sdiodev->func[1]);
-			}
+			brcmf_sdio_bus_sleep(bus, true, false);
+			sdio_release_host(bus->sdiodev->func[1]);
 		}
+	} else {
+		bus->idlecount = 0;
 	}
-
-	return (atomic_read(&bus->ipend) > 0);
 }
 
 static void brcmf_sdio_dataworker(struct work_struct *work)
@@ -3651,8 +3629,11 @@ static void brcmf_sdio_dataworker(struct work_struct *work)
 					      datawork);
 
 	while (atomic_read(&bus->dpc_tskcnt)) {
+		atomic_set(&bus->dpc_running, 1);
 		atomic_set(&bus->dpc_tskcnt, 0);
 		brcmf_sdio_dpc(bus);
+		bus->idlecount = 0;
+		atomic_set(&bus->dpc_running, 0);
 	}
 	if (brcmf_sdiod_freezing(bus->sdiodev)) {
 		brcmf_sdiod_change_state(bus->sdiodev, BRCMF_SDIOD_DOWN);
@@ -4154,6 +4135,7 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	}
 	/* Initialize DPC thread */
 	atomic_set(&bus->dpc_tskcnt, 0);
+	atomic_set(&bus->dpc_running, 0);
 
 	/* Assign bus interface call back */
 	bus->sdiodev->bus_if->dev = bus->sdiodev->dev;
