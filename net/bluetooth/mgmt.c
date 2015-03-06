@@ -583,6 +583,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 		settings |= MGMT_SETTING_ADVERTISING;
 		settings |= MGMT_SETTING_SECURE_CONN;
 		settings |= MGMT_SETTING_PRIVACY;
+		settings |= MGMT_SETTING_STATIC_ADDRESS;
 	}
 
 	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) ||
@@ -637,6 +638,25 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 	if (test_bit(HCI_PRIVACY, &hdev->dev_flags))
 		settings |= MGMT_SETTING_PRIVACY;
+
+	/* The current setting for static address has two purposes. The
+	 * first is to indicate if the static address will be used and
+	 * the second is to indicate if it is actually set.
+	 *
+	 * This means if the static address is not configured, this flag
+	 * will never bet set. If the address is configured, then if the
+	 * address is actually used decides if the flag is set or not.
+	 *
+	 * For single mode LE only controllers and dual-mode controllers
+	 * with BR/EDR disabled, the existence of the static address will
+	 * be evaluated.
+	 */
+	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
+	    !test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) ||
+	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
+		if (bacmp(&hdev->static_addr, BDADDR_ANY))
+			settings |= MGMT_SETTING_STATIC_ADDRESS;
+	}
 
 	return settings;
 }
@@ -4498,10 +4518,14 @@ static int set_static_address(struct sock *sk, struct hci_dev *hdev,
 
 	bacpy(&hdev->static_addr, &cp->bdaddr);
 
-	err = cmd_complete(sk, hdev->id, MGMT_OP_SET_STATIC_ADDRESS, 0, NULL, 0);
+	err = send_settings_rsp(sk, MGMT_OP_SET_STATIC_ADDRESS, hdev);
+	if (err < 0)
+		goto unlock;
 
+	err = new_settings(hdev, sk);
+
+unlock:
 	hci_dev_unlock(hdev);
-
 	return err;
 }
 
