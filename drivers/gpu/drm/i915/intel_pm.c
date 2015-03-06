@@ -4233,23 +4233,21 @@ static void gen9_enable_rps(struct drm_device *dev)
 
 	gen6_init_rps_frequencies(dev);
 
-	I915_WRITE(GEN6_RPNSWREQ, 0xc800000);
-	I915_WRITE(GEN6_RC_VIDEO_FREQ, 0xc800000);
+	/* Program defaults and thresholds for RPS*/
+	I915_WRITE(GEN6_RC_VIDEO_FREQ,
+		GEN9_FREQUENCY(dev_priv->rps.rp1_freq));
 
-	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 0xf4240);
-	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, 0x12060000);
-	I915_WRITE(GEN6_RP_UP_THRESHOLD, 0xe808);
-	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 0x3bd08);
-	I915_WRITE(GEN6_RP_UP_EI, 0x101d0);
-	I915_WRITE(GEN6_RP_DOWN_EI, 0x55730);
+	/* 1 second timeout*/
+	I915_WRITE(GEN6_RP_DOWN_TIMEOUT,
+		GT_INTERVAL_FROM_US(dev_priv, 1000000));
+
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 0xa);
-	I915_WRITE(GEN6_PMINTRMSK, 0x6);
-	I915_WRITE(GEN6_RP_CONTROL, GEN6_RP_MEDIA_TURBO |
-		   GEN6_RP_MEDIA_HW_MODE | GEN6_RP_MEDIA_IS_GFX |
-		   GEN6_RP_ENABLE | GEN6_RP_UP_BUSY_AVG |
-		   GEN6_RP_DOWN_IDLE_AVG);
 
-	gen6_enable_rps_interrupts(dev);
+	/* Leaning on the below call to gen6_set_rps to program/setup the
+	 * Up/Down EI & threshold registers, as well as the RP_CONTROL,
+	 * RP_INTERRUPT_LIMITS & RPNSWREQ registers */
+	dev_priv->rps.power = HIGH_POWER; /* force a reset */
+	gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 }
