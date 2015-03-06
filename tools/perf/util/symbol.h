@@ -87,6 +87,7 @@ struct symbol_conf {
 			ignore_vmlinux_buildid,
 			show_kernel_path,
 			use_modules,
+			allow_aliases,
 			sort_by_name,
 			show_nr_samples,
 			show_total_period,
