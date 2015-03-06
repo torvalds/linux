@@ -2313,9 +2313,8 @@ static int slic_if_init(struct adapter *adapter)
 	}
 	rc = slic_adapter_allocresources(adapter);
 	if (rc) {
-		dev_err(&dev->dev,
-			"%s: slic_adapter_allocresources FAILED %x\n",
-			__func__, rc);
+		dev_err(&dev->dev, "slic_adapter_allocresources FAILED %x\n",
+			rc);
 		slic_adapter_freeresources(adapter);
 		goto err;
 	}
@@ -2549,8 +2548,8 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (copy_from_user(data, rq->ifr_data, 28))
 			return -EFAULT;
 		intagg = data[0];
-		dev_err(&dev->dev, "%s: set interrupt aggregation to %d\n",
-			__func__, intagg);
+		dev_err(&dev->dev, "set interrupt aggregation to %d\n",
+			intagg);
 		slic_intagg_set(adapter, intagg);
 		return 0;
 
