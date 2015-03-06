@@ -151,3 +151,5 @@ CLK_OF_DECLARE(exynos5250_clkout, "samsung,exynos5250-pmu",
 		exynos5_clkout_init);
 CLK_OF_DECLARE(exynos5420_clkout, "samsung,exynos5420-pmu",
 		exynos5_clkout_init);
+CLK_OF_DECLARE(exynos5433_clkout, "samsung,exynos5433-pmu",
+		exynos5_clkout_init);
