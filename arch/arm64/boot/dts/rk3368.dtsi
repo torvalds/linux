@@ -1208,8 +1208,8 @@
 		clock-frequency = <32000>;
 		resets = <&reset RK3368_SRST_TSADC_P>;
 		reset-names = "tsadc-apb";
-		pinctrl-names = "default";
-		pinctrl-0 = <&tsadc_int>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&tsadc_int>;
 		#thermal-sensor-cells = <1>;
 		hw-shut-temp = <120000>;
 		status = "disabled";
