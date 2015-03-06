@@ -586,8 +586,11 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 		case RTA_VIA:
 		{
 			struct rtvia *via = nla_data(nla);
+			if (nla_len(nla) < offsetof(struct rtvia, rtvia_addr))
+				goto errout;
 			cfg->rc_via_family = via->rtvia_family;
-			cfg->rc_via_alen   = nla_len(nla) - 2;
+			cfg->rc_via_alen   = nla_len(nla) -
+				offsetof(struct rtvia, rtvia_addr);
 			if (cfg->rc_via_alen > MAX_VIA_ALEN)
 				goto errout;
 
