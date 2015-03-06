@@ -3175,6 +3175,10 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 	uint32_t extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
 
 	spin_lock_irq(&dev_priv->irq_lock);
+	if (pipe_mask & 1 << PIPE_A)
+		GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_A,
+				  dev_priv->de_irq_mask[PIPE_A],
+				  ~dev_priv->de_irq_mask[PIPE_A] | extra_ier);
 	if (pipe_mask & 1 << PIPE_B)
 		GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B,
 				  dev_priv->de_irq_mask[PIPE_B],

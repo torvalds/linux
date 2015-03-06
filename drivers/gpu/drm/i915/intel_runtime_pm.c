@@ -199,6 +199,34 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 						1 << PIPE_C | 1 << PIPE_B);
 }
 
+static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
+				       struct i915_power_well *power_well)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	/*
+	 * After we re-enable the power well, if we touch VGA register 0x3d5
+	 * we'll get unclaimed register interrupts. This stops after we write
+	 * anything to the VGA MSR register. The vgacon module uses this
+	 * register all the time, so if we unbind our driver and, as a
+	 * consequence, bind vgacon, we'll get stuck in an infinite loop at
+	 * console_unlock(). So make here we touch the VGA MSR register, making
+	 * sure vgacon can keep working normally without triggering interrupts
+	 * and error messages.
+	 */
+	if (power_well->data == SKL_DISP_PW_2) {
+		vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+		outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
+		vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+
+		gen8_irq_power_well_post_enable(dev_priv,
+						1 << PIPE_C | 1 << PIPE_B);
+	}
+
+	if (power_well->data == SKL_DISP_PW_1)
+		gen8_irq_power_well_post_enable(dev_priv, 1 << PIPE_A);
+}
+
 static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 			       struct i915_power_well *power_well, bool enable)
 {
@@ -361,6 +389,9 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 				DRM_ERROR("PG2 distributing status timeout\n");
 		}
 	}
+
+	if (enable && !is_enabled)
+		skl_power_well_post_enable(dev_priv, power_well);
 }
 
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
