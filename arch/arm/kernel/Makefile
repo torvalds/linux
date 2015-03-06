@@ -86,7 +86,7 @@ obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 
 obj-$(CONFIG_ARM_VIRT_EXT)	+= hyp-stub.o
 ifeq ($(CONFIG_ARM_PSCI),y)
-obj-y				+= psci.o
+obj-y				+= psci.o psci-call.o
 obj-$(CONFIG_SMP)		+= psci_smp.o
 endif
 
