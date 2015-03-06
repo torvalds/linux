@@ -301,8 +301,7 @@ tsl2x7x_i2c_read(struct i2c_client *client, u8 reg, u8 *val)
 	/* select register to write */
 	ret = i2c_smbus_write_byte(client, (TSL2X7X_CMD_REG | reg));
 	if (ret < 0) {
-		dev_err(&client->dev, "%s: failed to write register %x\n"
-				, __func__, reg);
+		dev_err(&client->dev, "failed to write register %x\n", reg);
 		return ret;
 	}
 
@@ -311,8 +310,7 @@ tsl2x7x_i2c_read(struct i2c_client *client, u8 reg, u8 *val)
 	if (ret >= 0)
 		*val = (u8)ret;
 	else
-		dev_err(&client->dev, "%s: failed to read register %x\n"
-						, __func__, reg);
+		dev_err(&client->dev, "failed to read register %x\n", reg);
 
 	return ret;
 }
@@ -377,7 +375,7 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 			&buf[i]);
 		if (ret < 0) {
 			dev_err(&chip->client->dev,
-				"%s: failed to read. err=%x\n", __func__, ret);
+				"failed to read. err=%x\n", ret);
 			goto out_unlock;
 		}
 	}
@@ -389,8 +387,7 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 				TSL2X7X_CMD_ALS_INT_CLR));
 	if (ret < 0) {
 		dev_err(&chip->client->dev,
-		"%s: i2c_write_command failed - err = %d\n",
-			__func__, ret);
+			"i2c_write_command failed - err = %d\n", ret);
 		goto out_unlock; /* have no data, so return failure */
 	}
 
@@ -493,8 +490,7 @@ static int tsl2x7x_get_prox(struct iio_dev *indio_dev)
 	ret = tsl2x7x_i2c_read(chip->client,
 		(TSL2X7X_CMD_REG | TSL2X7X_STATUS), &status);
 	if (ret < 0) {
-		dev_err(&chip->client->dev,
-		"%s: i2c err=%d\n", __func__, ret);
+		dev_err(&chip->client->dev, "i2c err=%d\n", ret);
 		goto prox_poll_err;
 	}
 
@@ -583,8 +579,7 @@ static int tsl2x7x_als_calibrate(struct iio_dev *indio_dev)
 			(TSL2X7X_CMD_REG | TSL2X7X_CNTRL));
 	if (ret < 0) {
 		dev_err(&chip->client->dev,
-		"%s: failed to write CNTRL register, ret=%d\n",
-		__func__, ret);
+			"failed to write CNTRL register, ret=%d\n", ret);
 		return ret;
 	}
 
@@ -600,8 +595,7 @@ static int tsl2x7x_als_calibrate(struct iio_dev *indio_dev)
 			(TSL2X7X_CMD_REG | TSL2X7X_CNTRL));
 	if (ret < 0) {
 		dev_err(&chip->client->dev,
-			"%s: failed to write ctrl reg: ret=%d\n",
-			__func__, ret);
+			"failed to write ctrl reg: ret=%d\n", ret);
 		return ret;
 	}
 
@@ -720,7 +714,7 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 				TSL2X7X_CMD_REG + i, *dev_reg++);
 		if (ret < 0) {
 			dev_err(&chip->client->dev,
-			"%s: failed on write to reg %d.\n", __func__, i);
+				"failed on write to reg %d.\n", i);
 			return ret;
 		}
 	}
@@ -871,8 +865,8 @@ static void tsl2x7x_prox_cal(struct iio_dev *indio_dev)
 
 	if (chip->tsl2x7x_settings.prox_max_samples_cal > MAX_SAMPLES_CAL) {
 		dev_err(&chip->client->dev,
-			"%s: max prox samples cal is too big: %d\n",
-			__func__, chip->tsl2x7x_settings.prox_max_samples_cal);
+			"max prox samples cal is too big: %d\n",
+			chip->tsl2x7x_settings.prox_max_samples_cal);
 		chip->tsl2x7x_settings.prox_max_samples_cal = MAX_SAMPLES_CAL;
 	}
 
@@ -1563,8 +1557,8 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 		TSL2X7X_CMD_PROXALS_INT_CLR);
 	if (ret < 0)
 		dev_err(&chip->client->dev,
-			"%s: Failed to clear irq from event handler. err = %d\n",
-			__func__, ret);
+			"Failed to clear irq from event handler. err = %d\n",
+			ret);
 
 	return IRQ_HANDLED;
 }
@@ -1893,8 +1887,8 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 
 	ret = i2c_smbus_write_byte(clientp, (TSL2X7X_CMD_REG | TSL2X7X_CNTRL));
 	if (ret < 0) {
-		dev_err(&clientp->dev, "%s: write to cmd reg failed. err = %d\n",
-				__func__, ret);
+		dev_err(&clientp->dev, "write to cmd reg failed. err = %d\n",
+			ret);
 		return ret;
 	}
 
