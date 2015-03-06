@@ -62,7 +62,7 @@
  * (1 << 1):	Bluetooth enable/disable, RW.
  * (1 << 2):	GPS enable/disable, RW.
  * (1 << 3):	WiFi enable/disable, RW.
- * (1 << 4):	WWAN (3G) enable/disalbe, RW.
+ * (1 << 4):	WWAN (3G) enable/disable, RW.
  * (1 << 5):	Touchscreen enable/disable, Read Only.
  */
 #define OT_EC_DEVICE_STATE_ADDRESS	0xD6
