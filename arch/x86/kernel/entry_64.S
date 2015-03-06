@@ -959,7 +959,7 @@ apicinterrupt IRQ_WORK_VECTOR \
 /*
  * Exception entry points.
  */
-#define INIT_TSS_IST(x) PER_CPU_VAR(cpu_tss) + (TSS_ist + ((x) - 1) * 8)
+#define CPU_TSS_IST(x) PER_CPU_VAR(cpu_tss) + (TSS_ist + ((x) - 1) * 8)
 
 .macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1
 ENTRY(\sym)
@@ -1015,13 +1015,13 @@ ENTRY(\sym)
 	.endif
 
 	.if \shift_ist != -1
-	subq $EXCEPTION_STKSZ, INIT_TSS_IST(\shift_ist)
+	subq $EXCEPTION_STKSZ, CPU_TSS_IST(\shift_ist)
 	.endif
 
 	call \do_sym
 
 	.if \shift_ist != -1
-	addq $EXCEPTION_STKSZ, INIT_TSS_IST(\shift_ist)
+	addq $EXCEPTION_STKSZ, CPU_TSS_IST(\shift_ist)
 	.endif
 
 	/* these procedures expect "no swapgs" flag in ebx */
