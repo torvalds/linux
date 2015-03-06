@@ -159,7 +159,7 @@ static struct cpufreq_driver exynos_driver = {
 
 static int exynos_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *cpus, *np;
+	struct device_node *cpu0;
 	int ret = -EINVAL;
 
 	exynos_info = kzalloc(sizeof(*exynos_info), GFP_KERNEL);
@@ -206,28 +206,19 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_cpufreq_reg;
 
-	cpus = of_find_node_by_path("/cpus");
-	if (!cpus) {
-		pr_err("failed to find cpus node\n");
+	cpu0 = of_get_cpu_node(0, NULL);
+	if (!cpu0) {
+		pr_err("failed to find cpu0 node\n");
 		return 0;
 	}
 
-	np = of_get_next_child(cpus, NULL);
-	if (!np) {
-		pr_err("failed to find cpus child node\n");
-		of_node_put(cpus);
-		return 0;
-	}
-
-	if (of_find_property(np, "#cooling-cells", NULL)) {
-		cdev = of_cpufreq_cooling_register(np,
+	if (of_find_property(cpu0, "#cooling-cells", NULL)) {
+		cdev = of_cpufreq_cooling_register(cpu0,
 						   cpu_present_mask);
 		if (IS_ERR(cdev))
 			pr_err("running cpufreq without cooling device: %ld\n",
 			       PTR_ERR(cdev));
 	}
-	of_node_put(np);
-	of_node_put(cpus);
 
 	return 0;
 
