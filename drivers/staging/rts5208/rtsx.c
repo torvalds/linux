@@ -137,8 +137,8 @@ static int queuecommand_lck(struct scsi_cmnd *srb,
 
 	/* check for state-transition errors */
 	if (chip->srb != NULL) {
-		dev_err(&dev->pci->dev, "Error in %s: chip->srb = %p\n",
-			__func__, chip->srb);
+		dev_err(&dev->pci->dev, "Error: chip->srb = %p\n",
+			chip->srb);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
