@@ -1997,7 +1997,7 @@ static void dm_request_fn(struct request_queue *q)
 	goto out;
 
 delay_and_out:
-	blk_delay_queue(q, HZ / 10);
+	blk_delay_queue(q, HZ / 100);
 out:
 	dm_put_live_table(md, srcu_idx);
 }
