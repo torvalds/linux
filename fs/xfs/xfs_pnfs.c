@@ -300,8 +300,10 @@ xfs_fs_commit_blocks(
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
-	if (error)
+	if (error) {
+		xfs_trans_cancel(tp, 0);
 		goto out_drop_iolock;
+	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);

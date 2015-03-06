@@ -150,7 +150,7 @@ enum sst_cmd_type {
 
 enum sst_task {
 	SST_TASK_SBA = 1,
-	SST_TASK_MMX,
+	SST_TASK_MMX = 3,
 };
 
 enum sst_type {

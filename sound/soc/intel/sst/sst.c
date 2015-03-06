@@ -350,7 +350,9 @@ static inline void sst_save_shim64(struct intel_sst_drv *ctx,
 
 	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
 
-	shim_regs->imrx = sst_shim_read64(shim, SST_IMRX),
+	shim_regs->imrx = sst_shim_read64(shim, SST_IMRX);
+	shim_regs->csr = sst_shim_read64(shim, SST_CSR);
+
 
 	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
 }
@@ -367,6 +369,7 @@ static inline void sst_restore_shim64(struct intel_sst_drv *ctx,
 	 */
 	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
 	sst_shim_write64(shim, SST_IMRX, shim_regs->imrx),
+	sst_shim_write64(shim, SST_CSR, shim_regs->csr),
 	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
 }
 
@@ -379,6 +382,10 @@ void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
 	 * initially active. So change the state to active before
 	 * enabling the pm
 	 */
+
+	if (!acpi_disabled)
+		pm_runtime_set_active(ctx->dev);
+
 	pm_runtime_enable(ctx->dev);
 
 	if (acpi_disabled)
@@ -409,29 +416,142 @@ static int intel_sst_runtime_suspend(struct device *dev)
 	synchronize_irq(ctx->irq_num);
 	flush_workqueue(ctx->post_msg_wq);
 
+	ctx->ops->reset(ctx);
 	/* save the shim registers because PMC doesn't save state */
 	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 
 	return ret;
 }
 
-static int intel_sst_runtime_resume(struct device *dev)
+static int intel_sst_suspend(struct device *dev)
 {
-	int ret = 0;
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
+	struct sst_fw_save *fw_save;
+	int i, ret = 0;
 
-	if (ctx->sst_state == SST_RESET) {
-		ret = sst_load_fw(ctx);
-		if (ret) {
-			dev_err(dev, "FW download fail %d\n", ret);
-			sst_set_fw_state_locked(ctx, SST_RESET);
+	/* check first if we are already in SW reset */
+	if (ctx->sst_state == SST_RESET)
+		return 0;
+
+	/*
+	 * check if any stream is active and running
+	 * they should already by suspend by soc_suspend
+	 */
+	for (i = 1; i <= ctx->info.max_streams; i++) {
+		struct stream_info *stream = &ctx->streams[i];
+
+		if (stream->status == STREAM_RUNNING) {
+			dev_err(dev, "stream %d is running, cant susupend, abort\n", i);
+			return -EBUSY;
 		}
 	}
+	synchronize_irq(ctx->irq_num);
+	flush_workqueue(ctx->post_msg_wq);
+
+	/* Move the SST state to Reset */
+	sst_set_fw_state_locked(ctx, SST_RESET);
+
+	/* tell DSP we are suspending */
+	if (ctx->ops->save_dsp_context(ctx))
+		return -EBUSY;
+
+	/* save the memories */
+	fw_save = kzalloc(sizeof(*fw_save), GFP_KERNEL);
+	if (!fw_save)
+		return -ENOMEM;
+	fw_save->iram = kzalloc(ctx->iram_end - ctx->iram_base, GFP_KERNEL);
+	if (!fw_save->iram) {
+		ret = -ENOMEM;
+		goto iram;
+	}
+	fw_save->dram = kzalloc(ctx->dram_end - ctx->dram_base, GFP_KERNEL);
+	if (!fw_save->dram) {
+		ret = -ENOMEM;
+		goto dram;
+	}
+	fw_save->sram = kzalloc(SST_MAILBOX_SIZE, GFP_KERNEL);
+	if (!fw_save->sram) {
+		ret = -ENOMEM;
+		goto sram;
+	}
+
+	fw_save->ddr = kzalloc(ctx->ddr_end - ctx->ddr_base, GFP_KERNEL);
+	if (!fw_save->ddr) {
+		ret = -ENOMEM;
+		goto ddr;
+	}
+
+	memcpy32_fromio(fw_save->iram, ctx->iram, ctx->iram_end - ctx->iram_base);
+	memcpy32_fromio(fw_save->dram, ctx->dram, ctx->dram_end - ctx->dram_base);
+	memcpy32_fromio(fw_save->sram, ctx->mailbox, SST_MAILBOX_SIZE);
+	memcpy32_fromio(fw_save->ddr, ctx->ddr, ctx->ddr_end - ctx->ddr_base);
+
+	ctx->fw_save = fw_save;
+	ctx->ops->reset(ctx);
+	return 0;
+ddr:
+	kfree(fw_save->sram);
+sram:
+	kfree(fw_save->dram);
+dram:
+	kfree(fw_save->iram);
+iram:
+	kfree(fw_save);
+	return ret;
+}
+
+static int intel_sst_resume(struct device *dev)
+{
+	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
+	struct sst_fw_save *fw_save = ctx->fw_save;
+	int ret = 0;
+	struct sst_block *block;
+
+	if (!fw_save)
+		return 0;
+
+	sst_set_fw_state_locked(ctx, SST_FW_LOADING);
+
+	/* we have to restore the memory saved */
+	ctx->ops->reset(ctx);
+
+	ctx->fw_save = NULL;
+
+	memcpy32_toio(ctx->iram, fw_save->iram, ctx->iram_end - ctx->iram_base);
+	memcpy32_toio(ctx->dram, fw_save->dram, ctx->dram_end - ctx->dram_base);
+	memcpy32_toio(ctx->mailbox, fw_save->sram, SST_MAILBOX_SIZE);
+	memcpy32_toio(ctx->ddr, fw_save->ddr, ctx->ddr_end - ctx->ddr_base);
+
+	kfree(fw_save->sram);
+	kfree(fw_save->dram);
+	kfree(fw_save->iram);
+	kfree(fw_save->ddr);
+	kfree(fw_save);
+
+	block = sst_create_block(ctx, 0, FW_DWNL_ID);
+	if (block == NULL)
+		return -ENOMEM;
+
+
+	/* start and wait for ack */
+	ctx->ops->start(ctx);
+	ret = sst_wait_timeout(ctx, block);
+	if (ret) {
+		dev_err(ctx->dev, "fw download failed %d\n", ret);
+		/* FW download failed due to timeout */
+		ret = -EBUSY;
+
+	} else {
+		sst_set_fw_state_locked(ctx, SST_FW_RUNNING);
+	}
+
+	sst_free_block(ctx, block);
 	return ret;
 }
 
 const struct dev_pm_ops intel_sst_pm = {
+	.suspend = intel_sst_suspend,
+	.resume = intel_sst_resume,
 	.runtime_suspend = intel_sst_runtime_suspend,
-	.runtime_resume = intel_sst_runtime_resume,
 };
 EXPORT_SYMBOL_GPL(intel_sst_pm);

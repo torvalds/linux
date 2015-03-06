@@ -169,17 +169,17 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	ret = snd_soc_jack_new(codec, "Headphone Jack",
-				SND_JACK_HEADPHONE,
-				&ctx->hp_jack);
+	ret = snd_soc_card_jack_new(runtime->card, "Headphone Jack",
+				    SND_JACK_HEADPHONE, &ctx->hp_jack,
+				    NULL, 0);
 	if (ret) {
 		dev_err(runtime->dev, "HP jack creation failed %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_jack_new(codec, "Mic Jack",
-				SND_JACK_MICROPHONE,
-				&ctx->mic_jack);
+	ret = snd_soc_card_jack_new(runtime->card, "Mic Jack",
+				    SND_JACK_MICROPHONE, &ctx->mic_jack,
+				    NULL, 0);
 	if (ret) {
 		dev_err(runtime->dev, "Mic jack creation failed %d\n", ret);
 		return ret;
@@ -203,9 +203,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	channels->min = channels->max = 2;
 
 	/* set SSP2 to 24-bit */
-	snd_mask_set(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT -
-				    SNDRV_PCM_HW_PARAM_FIRST_MASK],
-				    SNDRV_PCM_FORMAT_S24_LE);
+	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
 	return 0;
 }
 

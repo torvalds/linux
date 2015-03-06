@@ -64,6 +64,7 @@ void usage()
 	printf("  -h, --help            show this help message\n");
 	printf("  -l, --log             log data to /var/tmp/tmon.log\n");
 	printf("  -t, --time-interval   sampling time interval, > 1 sec.\n");
+	printf("  -T, --target-temp     initial target temperature\n");
 	printf("  -v, --version         show version\n");
 	printf("  -z, --zone            target thermal zone id\n");
 
@@ -219,6 +220,7 @@ static struct option opts[] = {
 	{ "control", 1, NULL, 'c' },
 	{ "daemon", 0, NULL, 'd' },
 	{ "time-interval", 1, NULL, 't' },
+	{ "target-temp", 1, NULL, 'T' },
 	{ "log", 0, NULL, 'l' },
 	{ "help", 0, NULL, 'h' },
 	{ "version", 0, NULL, 'v' },
@@ -231,7 +233,7 @@ int main(int argc, char **argv)
 {
 	int err = 0;
 	int id2 = 0, c;
-	double yk = 0.0; /* controller output */
+	double yk = 0.0, temp; /* controller output */
 	int target_tz_index;
 
 	if (geteuid() != 0) {
@@ -239,7 +241,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	while ((c = getopt_long(argc, argv, "c:dlht:vgz:", opts, &id2)) != -1) {
+	while ((c = getopt_long(argc, argv, "c:dlht:T:vgz:", opts, &id2)) != -1) {
 		switch (c) {
 		case 'c':
 			no_control = 0;
@@ -253,6 +255,14 @@ int main(int argc, char **argv)
 			ticktime = strtod(optarg, NULL);
 			if (ticktime < 1)
 				ticktime = 1;
+			break;
+		case 'T':
+			temp = strtod(optarg, NULL);
+			if (temp < 0) {
+				fprintf(stderr, "error: temperature must be positive\n");
+				return 1;
+			}
+			target_temp_user = temp;
 			break;
 		case 'l':
 			printf("Logging data to /var/tmp/tmon.log\n");

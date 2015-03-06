@@ -5247,7 +5247,7 @@ static int memory_low_show(struct seq_file *m, void *v)
 	unsigned long low = ACCESS_ONCE(memcg->low);
 
 	if (low == PAGE_COUNTER_MAX)
-		seq_puts(m, "infinity\n");
+		seq_puts(m, "max\n");
 	else
 		seq_printf(m, "%llu\n", (u64)low * PAGE_SIZE);
 
@@ -5262,7 +5262,7 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
 	int err;
 
 	buf = strstrip(buf);
-	err = page_counter_memparse(buf, "infinity", &low);
+	err = page_counter_memparse(buf, "max", &low);
 	if (err)
 		return err;
 
@@ -5277,7 +5277,7 @@ static int memory_high_show(struct seq_file *m, void *v)
 	unsigned long high = ACCESS_ONCE(memcg->high);
 
 	if (high == PAGE_COUNTER_MAX)
-		seq_puts(m, "infinity\n");
+		seq_puts(m, "max\n");
 	else
 		seq_printf(m, "%llu\n", (u64)high * PAGE_SIZE);
 
@@ -5292,7 +5292,7 @@ static ssize_t memory_high_write(struct kernfs_open_file *of,
 	int err;
 
 	buf = strstrip(buf);
-	err = page_counter_memparse(buf, "infinity", &high);
+	err = page_counter_memparse(buf, "max", &high);
 	if (err)
 		return err;
 
@@ -5307,7 +5307,7 @@ static int memory_max_show(struct seq_file *m, void *v)
 	unsigned long max = ACCESS_ONCE(memcg->memory.limit);
 
 	if (max == PAGE_COUNTER_MAX)
-		seq_puts(m, "infinity\n");
+		seq_puts(m, "max\n");
 	else
 		seq_printf(m, "%llu\n", (u64)max * PAGE_SIZE);
 
@@ -5322,7 +5322,7 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
 	int err;
 
 	buf = strstrip(buf);
-	err = page_counter_memparse(buf, "infinity", &max);
+	err = page_counter_memparse(buf, "max", &max);
 	if (err)
 		return err;
 
@@ -5426,7 +5426,7 @@ bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg)
 	if (memcg == root_mem_cgroup)
 		return false;
 
-	if (page_counter_read(&memcg->memory) > memcg->low)
+	if (page_counter_read(&memcg->memory) >= memcg->low)
 		return false;
 
 	while (memcg != root) {
@@ -5435,7 +5435,7 @@ bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg)
 		if (memcg == root_mem_cgroup)
 			break;
 
-		if (page_counter_read(&memcg->memory) > memcg->low)
+		if (page_counter_read(&memcg->memory) >= memcg->low)
 			return false;
 	}
 	return true;

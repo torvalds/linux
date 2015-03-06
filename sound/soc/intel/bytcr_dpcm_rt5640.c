@@ -113,9 +113,7 @@ static int byt_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	channels->min = channels->max = 2;
 
 	/* set SSP2 to 24-bit */
-	snd_mask_set(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT -
-				    SNDRV_PCM_HW_PARAM_FIRST_MASK],
-				    SNDRV_PCM_FORMAT_S24_LE);
+	params_set_format(params, SNDRV_PCM_FORMAT_S24_LE);
 	return 0;
 }
 

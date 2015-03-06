@@ -543,14 +543,6 @@
 	};
 };
 
-&omap_dwc3_1 {
-	extcon = <&extcon_usb1>;
-};
-
-&omap_dwc3_2 {
-	extcon = <&extcon_usb2>;
-};
-
 &usb1 {
 	dr_mode = "peripheral";
 	pinctrl-names = "default";

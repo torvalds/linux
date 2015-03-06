@@ -80,15 +80,9 @@ static int broadwell_rt286_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	int ret = 0;
-	ret = snd_soc_jack_new(codec, "Headset",
-		SND_JACK_HEADSET | SND_JACK_BTN_0, &broadwell_headset);
-
-	if (ret)
-		return ret;
-
-	ret = snd_soc_jack_add_pins(&broadwell_headset,
-		ARRAY_SIZE(broadwell_headset_pins),
-		broadwell_headset_pins);
+	ret = snd_soc_card_jack_new(rtd->card, "Headset",
+		SND_JACK_HEADSET | SND_JACK_BTN_0, &broadwell_headset,
+		broadwell_headset_pins, ARRAY_SIZE(broadwell_headset_pins));
 	if (ret)
 		return ret;
 
@@ -110,9 +104,7 @@ static int broadwell_ssp0_fixup(struct snd_soc_pcm_runtime *rtd,
 	channels->min = channels->max = 2;
 
 	/* set SSP0 to 16 bit */
-	snd_mask_set(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT -
-				    SNDRV_PCM_HW_PARAM_FIRST_MASK],
-				    SNDRV_PCM_FORMAT_S16_LE);
+	params_set_format(params, SNDRV_PCM_FORMAT_S16_LE);
 	return 0;
 }
 

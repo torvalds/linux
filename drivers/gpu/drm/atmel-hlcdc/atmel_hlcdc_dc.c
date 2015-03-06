@@ -311,8 +311,6 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 
 	pm_runtime_enable(dev->dev);
 
-	pm_runtime_put_sync(dev->dev);
-
 	ret = atmel_hlcdc_dc_modeset_init(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize mode setting\n");
