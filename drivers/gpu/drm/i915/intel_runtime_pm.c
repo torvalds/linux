@@ -332,10 +332,10 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 	if (enable) {
 		if (!enable_requested) {
 			I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
-			DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
 		}
 
 		if (!is_enabled) {
+			DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
 			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
 				state_mask), 1))
 				DRM_ERROR("%s enable timeout\n",
