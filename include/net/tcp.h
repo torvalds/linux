@@ -65,7 +65,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCP_MIN_MSS		88U
 
 /* The least MTU to use for probing */
-#define TCP_BASE_MSS		512
+#define TCP_BASE_MSS		1024
 
 /* After receiving this amount of duplicate ACKs fast retransmit starts. */
 #define TCP_FASTRETRANS_THRESH 3
