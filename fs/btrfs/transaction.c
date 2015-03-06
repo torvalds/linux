@@ -1811,6 +1811,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		wait_for_commit(root, cur_trans);
 
+		if (unlikely(cur_trans->aborted))
+			ret = cur_trans->aborted;
+
 		btrfs_put_transaction(cur_trans);
 
 		return ret;
