@@ -128,21 +128,11 @@ EXPORT_SYMBOL_GPL(usb_gadget_giveback_request);
 
 static void usb_gadget_state_work(struct work_struct *work)
 {
-	struct usb_gadget	*gadget = work_to_gadget(work);
-	struct usb_udc		*udc = NULL;
+	struct usb_gadget *gadget = work_to_gadget(work);
+	struct usb_udc *udc = gadget->udc;
 
-	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list)
-		if (udc->gadget == gadget)
-			goto found;
-	mutex_unlock(&udc_lock);
-
-	return;
-
-found:
-	mutex_unlock(&udc_lock);
-
-	sysfs_notify(&udc->dev.kobj, NULL, "state");
+	if (udc)
+		sysfs_notify(&udc->dev.kobj, NULL, "state");
 }
 
 void usb_gadget_set_state(struct usb_gadget *gadget,
@@ -278,6 +268,7 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 		goto err3;
 
 	udc->gadget = gadget;
+	gadget->udc = udc;
 
 	mutex_lock(&udc_lock);
 	list_add_tail(&udc->list, &udc_list);
@@ -348,21 +339,14 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
  */
 void usb_del_gadget_udc(struct usb_gadget *gadget)
 {
-	struct usb_udc		*udc = NULL;
+	struct usb_udc *udc = gadget->udc;
 
-	mutex_lock(&udc_lock);
-	list_for_each_entry(udc, &udc_list, list)
-		if (udc->gadget == gadget)
-			goto found;
+	if (!udc)
+		return;
 
-	dev_err(gadget->dev.parent, "gadget not registered.\n");
-	mutex_unlock(&udc_lock);
-
-	return;
-
-found:
 	dev_vdbg(gadget->dev.parent, "unregistering gadget\n");
 
+	mutex_lock(&udc_lock);
 	list_del(&udc->list);
 	mutex_unlock(&udc_lock);
 

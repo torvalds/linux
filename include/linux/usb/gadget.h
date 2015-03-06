@@ -474,6 +474,7 @@ struct usb_dcd_config_params {
 
 struct usb_gadget;
 struct usb_gadget_driver;
+struct usb_udc;
 
 /* the rest of the api to the controller hardware: device operations,
  * which don't involve endpoints (or i/o).
@@ -496,6 +497,7 @@ struct usb_gadget_ops {
 /**
  * struct usb_gadget - represents a usb slave device
  * @work: (internal use) Workqueue to be used for sysfs_notify()
+ * @udc: struct usb_udc pointer for this gadget
  * @ops: Function pointers used to access hardware-specific operations.
  * @ep0: Endpoint zero, used when reading or writing responses to
  *	driver setup() requests
@@ -545,6 +547,7 @@ struct usb_gadget_ops {
  */
 struct usb_gadget {
 	struct work_struct		work;
+	struct usb_udc			*udc;
 	/* readonly to gadget driver */
 	const struct usb_gadget_ops	*ops;
 	struct usb_ep			*ep0;
