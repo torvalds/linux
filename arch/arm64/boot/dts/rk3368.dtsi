@@ -1190,16 +1190,22 @@
 		status = "okay";
 	};
 
+/*
 	thermal-zones {
 		#include "rk3368-thermal.dtsi"
 	};
+*/
 
 	tsadc: tsadc@ff280000 {
 		compatible = "rockchip,rk3368-tsadc";
 		reg = <0x0 0xff280000 0x0 0x100>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_tsadc>, <&clk_gates20 0>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
+		rockchip,pmu = <&pmu>;
 		clock-names = "tsadc", "apb_pclk";
+		clock-frequency = <32000>;
 		resets = <&reset RK3368_SRST_TSADC_P>;
 		reset-names = "tsadc-apb";
 		pinctrl-names = "default";

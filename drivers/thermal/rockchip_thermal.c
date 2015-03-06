@@ -22,6 +22,12 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/thermal.h>
+#include <linux/timer.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+
 
 /**
  * If the temperature over a period of time High,
@@ -31,6 +37,11 @@
 enum tshut_mode {
 	TSHUT_MODE_CRU = 0,
 	TSHUT_MODE_GPIO,
+};
+
+enum tsadc_mode {
+	TSADC_AUTO_MODE = 0,
+	TSHUT_USER_MODE,
 };
 
 /**
@@ -58,6 +69,7 @@ struct rockchip_tsadc_chip {
 	long hw_shut_temp;
 	enum tshut_mode tshut_mode;
 	enum tshut_polarity tshut_polarity;
+	enum tsadc_mode mode;
 	int cpu_id;
 	int gpu_id;
 
@@ -83,6 +95,7 @@ struct rockchip_thermal_sensor {
 
 struct rockchip_thermal_data {
 	const struct rockchip_tsadc_chip *chip;
+	struct kobject *rockchip_thermal_kobj;
 	struct platform_device *pdev;
 	struct reset_control *reset;
 
@@ -90,6 +103,13 @@ struct rockchip_thermal_data {
 
 	struct clk *clk;
 	struct clk *pclk;
+	struct regmap *cru;
+	struct regmap *grf;
+	struct regmap *pmu;
+
+	int cpu_temp_adjust;
+	int gpu_temp_adjust;
+	int cpu_temp;
 
 	void __iomem *regs;
 
@@ -99,6 +119,7 @@ struct rockchip_thermal_data {
 };
 
 /* TSADC V2 Sensor info define: */
+#define TSADCV2_USER_CON			0x00
 #define TSADCV2_AUTO_CON			0x04
 #define TSADCV2_INT_EN				0x08
 #define TSADCV2_INT_PD				0x0c
@@ -131,13 +152,23 @@ struct rockchip_thermal_data {
 #define TSADCV2_AUTO_PERIOD_TIME		250 /* msec */
 #define TSADCV2_AUTO_PERIOD_HT_TIME		50  /* msec */
 #define TSADCV3_AUTO_PERIOD_TIME		1500 /* msec */
-#define TSADCV3_AUTO_PERIOD_HT_TIME		1000  /* msec */
+#define TSADCV3_AUTO_PERIOD_HT_TIME		1000 /* msec */
+
+#define TSADC_CPU_GATE
+/*#define TSADC_GPU_GATE*/
+
+#define TSADC_CLK_GATE_DELAY_TIME		50/* usec */
+#define TSADC_CLK_CYCLE_TIME			30/* usec */
+#define TSADC_USER_MODE_DELAY_TIME		200/* usec */
+
+#define TSADC_TEST
+#define TSADC_TEST_SAMPLE_TIME			200/* msec */
 
 struct tsadc_table {
 	unsigned long code;
 	long temp;
 };
-
+static struct rockchip_thermal_data *s_thermal = NULL;
 static const struct tsadc_table v2_code_table[] = {
 	{TSADCV2_DATA_MASK, -40000},
 	{3800, -40000},
@@ -480,6 +511,7 @@ static const struct rockchip_tsadc_chip rk3288_tsadc_data = {
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
 	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
 	.hw_shut_temp = 125000,
+	.mode = TSADC_AUTO_MODE,
 	.cpu_id = 1,
 	.gpu_id = 2,
 
@@ -496,6 +528,7 @@ static const struct rockchip_tsadc_chip rk3368_tsadc_data = {
 	.tshut_mode = TSHUT_MODE_GPIO, /* default TSHUT via GPIO give PMIC */
 	.tshut_polarity = TSHUT_LOW_ACTIVE, /* default TSHUT LOW ACTIVE */
 	.hw_shut_temp = 125000,
+	.mode = TSHUT_USER_MODE,
 	.cpu_id = 0,
 	.gpu_id = 1,
 
@@ -521,8 +554,8 @@ static const struct of_device_id of_rockchip_thermal_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_rockchip_thermal_match);
 
-static void
-rockchip_thermal_toggle_sensor(struct rockchip_thermal_sensor *sensor, bool on)
+static void rockchip_thermal_toggle_sensor(struct rockchip_thermal_sensor *sensor
+	, bool on)
 {
 	struct thermal_zone_device *tzd = sensor->tzd;
 
@@ -580,6 +613,14 @@ static int rockchip_configure_from_dt(struct device *dev,
 				      struct rockchip_thermal_data *thermal)
 {
 	u32 shut_temp, tshut_mode, tshut_polarity;
+	u32 rate;
+
+	if(of_property_read_u32(np, "clock-frequency", &rate)) 
+	{
+		dev_err(dev, "Missing clock-frequency property in the DT.\n");
+		return -EINVAL;
+	}
+	clk_set_rate(thermal->clk, rate);
 
 	if (of_property_read_u32(np, "hw-shut-temp", &shut_temp)) {
 		dev_warn(dev,
@@ -668,6 +709,208 @@ static void rockchip_thermal_reset_controller(struct reset_control *reset)
 	reset_control_deassert(reset);
 }
 
+static struct rockchip_thermal_data *rockchip_thermal_get_data(void)
+{
+	BUG_ON(!s_thermal);
+	return s_thermal;
+}
+
+static int rockchip_thermal_user_mode_get_temp(struct rockchip_thermal_data *thermal,
+	int chn, int voltage)
+{
+	unsigned long flags;
+	int ret;
+
+	local_irq_save(flags);
+	/* GPU_GATING*/
+#ifdef TSADC_GPU_GATE
+	/*ret = regmap_write(thermal->cru, 0x210, 0x08000800);*/
+	ret = regmap_write(thermal->cru, 0x210, 0x09d809d8);
+	if (ret)
+		printk("Couldn't write to cru\n");
+	ret = regmap_write(thermal->cru, 0x214, 0x03000300);
+	if (ret)
+		printk("Couldn't write to cru\n");
+#endif
+
+	/* CPU 24M slow mode*/
+#ifdef TSADC_CPU_GATE
+	ret = regmap_write(thermal->cru, 0xc, 0x03000000);
+	if (ret)
+		printk("Couldn't write to cru\n");
+	ret = regmap_write(thermal->cru, 0x1c, 0x03000000);
+	if (ret)
+		printk("Couldn't write to cru\n");
+#endif
+	udelay(TSADC_CLK_GATE_DELAY_TIME);
+
+#ifdef TSADC_CPU_GATE
+	/*channe 0*/
+	u32 val_cpu_pd;
+	int val_cpu, temp_cpu;
+
+	/*power up, channel 0*/
+	writel_relaxed(0x208, thermal->regs + TSADCV2_USER_CON);
+	while(1)
+	{
+		val_cpu_pd = readl_relaxed(thermal->regs + TSADCV2_INT_PD);
+		udelay(TSADC_CLK_CYCLE_TIME);
+		if ((val_cpu_pd & 0x100) == 0x100) {
+			udelay(TSADC_USER_MODE_DELAY_TIME);
+			/*clear eoc inter*/
+			writel_relaxed(0x100, thermal->regs + TSADCV2_INT_PD);
+			/*read adc data*/
+			val_cpu = readl_relaxed(thermal->regs + TSADCV2_DATA(0));
+			break;
+		}
+	}
+	/*power down, channel 0*/
+	writel_relaxed(0x200, thermal->regs + TSADCV2_USER_CON);
+#endif
+
+#ifdef TSADC_GPU_GATE
+	udelay(10);
+
+	/*channe 1*/
+	u32 val_gpu_pd;
+	int val_gpu, temp_gpu;
+
+	/*power up, channel */
+	writel_relaxed(0x208 | 0x1, thermal->regs + TSADCV2_USER_CON);
+	while(1)
+	{
+		val_gpu_pd = readl_relaxed(thermal->regs + TSADCV2_INT_PD);
+		udelay(TSADC_CLK_CYCLE_TIME);
+		if ((val_gpu_pd & 0x100) == 0x100) {
+			udelay(TSADC_USER_MODE_DELAY_TIME);
+			/*clear eoc inter*/
+			writel_relaxed(0x100, thermal->regs + TSADCV2_INT_PD);
+			/*read adc data*/
+			val_gpu = readl_relaxed(thermal->regs + TSADCV2_DATA(1));
+			break;
+		}
+	}
+	/*power down, channel */
+	writel_relaxed(0x200, thermal->regs + TSADCV2_USER_CON);
+#endif
+
+	/* CPU normal mode*/
+#ifdef TSADC_CPU_GATE
+	ret = regmap_write(thermal->cru, 0xc, 0x03000100);
+	if (ret)
+		printk("Couldn't write to cru\n");
+	ret = regmap_write(thermal->cru, 0x1c, 0x03000100);
+	if (ret)
+		printk("Couldn't write to cru\n");
+#endif
+
+	/* GPU_UNGATING*/
+#ifdef TSADC_GPU_GATE
+	ret = regmap_write(thermal->cru, 0x214, 0x03000000);
+	if (ret)
+		printk("Couldn't write to cru\n");
+
+	ret = regmap_write(thermal->cru, 0x210, 0x09d80000);
+	if (ret)
+		printk("Couldn't write to cru\n");
+#endif
+	local_irq_restore(flags);
+
+#ifdef TSADC_CPU_GATE
+	temp_cpu = rk_tsadcv3_code_to_temp((val_cpu * voltage + 500000) / 1000000) / 1000;
+	temp_cpu = temp_cpu + thermal->cpu_temp_adjust;
+	thermal->cpu_temp = temp_cpu;
+	pr_info("cpu[%d, %d], voltage: %d\n", val_cpu, temp_cpu, voltage);
+#endif
+
+	return temp_cpu;
+}
+
+int rockchip_tsadc_get_temp(int chn, int voltage)
+{
+	struct rockchip_thermal_data *thermal = rockchip_thermal_get_data();
+	long out_temp;
+
+	if (thermal->chip->mode == TSADC_AUTO_MODE)
+	{
+		thermal->chip->get_temp(chn, thermal->regs, &out_temp);
+		return (int)out_temp/1000;
+	}
+	else
+	{
+		return rockchip_thermal_user_mode_get_temp(thermal, chn, voltage);
+	}
+}
+EXPORT_SYMBOL(rockchip_tsadc_get_temp);
+
+static ssize_t rockchip_thermal_temp_adjust_test_store(struct kobject *kobj
+	, struct kobj_attribute *attr, const char *buf, size_t n)
+{
+	struct rockchip_thermal_data *thermal = rockchip_thermal_get_data();
+	int getdata;
+	char cmd;
+	const char *buftmp = buf;
+
+	sscanf(buftmp, "%c ", &cmd);
+	switch (cmd) {
+	case 'c':
+		sscanf(buftmp, "%c %d", &cmd, &getdata);
+		thermal->cpu_temp_adjust = getdata;
+		printk("get cpu_temp_adjust value = %d\n", getdata);
+
+		break;
+	case 'g':
+		sscanf(buftmp, "%c %d", &cmd, &getdata);
+		thermal->gpu_temp_adjust = getdata;
+		printk("get gpu_temp_adjust value = %d\n", getdata);
+
+		break;
+	default:
+		printk("Unknown command\n");
+		break;
+	}
+
+	return n;
+}
+
+static ssize_t rockchip_thermal_temp_adjust_test_show(struct kobject *kobj
+	, struct kobj_attribute *attr, char *buf)
+{
+	struct rockchip_thermal_data *thermal = rockchip_thermal_get_data();
+	char *str = buf;
+
+	str += sprintf(str, "rockchip_thermal: cpu:%d, gpu:%d\n"
+		, thermal->cpu_temp_adjust, thermal->gpu_temp_adjust);
+	return (str - buf);
+}
+
+static ssize_t rockchip_thermal_temp_test_show(struct kobject *kobj
+	, struct kobj_attribute *attr, char *buf)
+{
+	struct rockchip_thermal_data *thermal = rockchip_thermal_get_data();
+	char *str = buf;
+
+	str += sprintf(str, "current cpu_temp:%d\n"
+		, thermal->cpu_temp);
+	return (str - buf);
+}
+
+struct rockchip_thermal_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+		const char *buf, size_t n);
+};
+
+static struct rockchip_thermal_attribute rockchip_thermal_attrs[] = {
+	/*node_name	permision show_func store_func*/
+	__ATTR(temp_adjust, S_IRUGO | S_IWUSR, rockchip_thermal_temp_adjust_test_show
+		, rockchip_thermal_temp_adjust_test_store),
+	__ATTR(temp, S_IRUGO | S_IWUSR, rockchip_thermal_temp_test_show
+		, NULL),
+};
+
 static int rockchip_thermal_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -711,6 +954,24 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 		return error;
 	}
 
+	thermal->cru = syscon_regmap_lookup_by_phandle(np, "rockchip,cru");
+	if (IS_ERR(thermal->cru)) {
+		dev_err(&pdev->dev, "couldn't find cru regmap\n");
+		return PTR_ERR(thermal->cru);
+	}
+
+	thermal->pmu = syscon_regmap_lookup_by_phandle(np, "rockchip,pmu");
+	if (IS_ERR(thermal->pmu)) {
+		dev_err(&pdev->dev, "couldn't find pmu regmap\n");
+		return PTR_ERR(thermal->pmu);
+	}
+
+	thermal->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR(thermal->grf)) {
+		dev_err(&pdev->dev, "couldn't find grf regmap\n");
+		return PTR_ERR(thermal->grf);
+	}
+
 	thermal->clk = devm_clk_get(&pdev->dev, "tsadc");
 	if (IS_ERR(thermal->clk)) {
 		error = PTR_ERR(thermal->clk);
@@ -728,8 +989,8 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 
 	error = clk_prepare_enable(thermal->clk);
 	if (error) {
-		dev_err(&pdev->dev, "failed to enable converter clock: %d\n",
-			error);
+		dev_err(&pdev->dev, "failed to enable converter clock: %d\n"
+			, error);
 		return error;
 	}
 
@@ -738,9 +999,8 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to enable pclk: %d\n", error);
 		goto err_disable_clk;
 	}
-
+	
 	rockchip_thermal_reset_controller(thermal->reset);
-
 	error = rockchip_configure_from_dt(&pdev->dev, np, thermal);
 	if (error) {
 		dev_err(&pdev->dev, "failed to parse device tree data: %d\n",
@@ -748,49 +1008,66 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 		goto err_disable_pclk;
 	}
 
-	thermal->chip->initialize(thermal->regs, thermal->tshut_polarity);
+	if (thermal->chip->mode == TSADC_AUTO_MODE)
+	{
+		thermal->chip->initialize(thermal->regs, thermal->tshut_polarity);
+		error = rockchip_thermal_register_sensor(pdev, thermal,
+							 &thermal->sensors[0],
+							 thermal->chip->cpu_id);
+		if (error) {
+			dev_err(&pdev->dev,
+				"failed to register CPU thermal sensor: %d\n", error);
+			goto err_disable_pclk;
+		}
 
-	error = rockchip_thermal_register_sensor(pdev, thermal,
-						 &thermal->sensors[0],
-						 thermal->chip->cpu_id);
-	if (error) {
-		dev_err(&pdev->dev,
-			"failed to register CPU thermal sensor: %d\n", error);
-		goto err_disable_pclk;
+		error = rockchip_thermal_register_sensor(pdev, thermal,
+							 &thermal->sensors[1],
+							 thermal->chip->gpu_id);
+		if (error) {
+			dev_err(&pdev->dev,
+				"failed to register GPU thermal sensor: %d\n", error);
+			goto err_unregister_cpu_sensor;
+		}
+
+		error = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+						  &rockchip_thermal_alarm_irq_thread,
+						  IRQF_ONESHOT,
+						  "rockchip_thermal", thermal);
+		if (error) {
+			dev_err(&pdev->dev,
+				"failed to request tsadc irq: %d\n", error);
+			goto err_unregister_gpu_sensor;
+		}
+
+		thermal->chip->control(thermal->regs, true);
+
+		for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
+			rockchip_thermal_toggle_sensor(&thermal->sensors[i], true);
 	}
 
-	error = rockchip_thermal_register_sensor(pdev, thermal,
-						 &thermal->sensors[1],
-						 thermal->chip->gpu_id);
-	if (error) {
-		dev_err(&pdev->dev,
-			"failed to register GPU thermal sensor: %d\n", error);
-		goto err_unregister_cpu_sensor;
+	thermal->rockchip_thermal_kobj = kobject_create_and_add("rockchip_thermal", NULL);
+	if (!thermal->rockchip_thermal_kobj)
+		return -ENOMEM;
+	for (i = 0; i < ARRAY_SIZE(rockchip_thermal_attrs); i++) {
+		error = sysfs_create_file(thermal->rockchip_thermal_kobj
+			, &rockchip_thermal_attrs[i].attr);
+		if (error != 0) {
+			printk("create index %d error\n", i);
+			return error;
+		}
 	}
 
-	error = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-					  &rockchip_thermal_alarm_irq_thread,
-					  IRQF_ONESHOT,
-					  "rockchip_thermal", thermal);
-	if (error) {
-		dev_err(&pdev->dev,
-			"failed to request tsadc irq: %d\n", error);
-		goto err_unregister_gpu_sensor;
-	}
-
-	thermal->chip->control(thermal->regs, true);
-
-	for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
-		rockchip_thermal_toggle_sensor(&thermal->sensors[i], true);
-
+	s_thermal = thermal;
 	platform_set_drvdata(pdev, thermal);
 
 	return 0;
 
 err_unregister_gpu_sensor:
-	thermal_zone_of_sensor_unregister(&pdev->dev, thermal->sensors[1].tzd);
+	if (thermal->chip->mode == TSADC_AUTO_MODE)
+		thermal_zone_of_sensor_unregister(&pdev->dev, thermal->sensors[1].tzd);
 err_unregister_cpu_sensor:
-	thermal_zone_of_sensor_unregister(&pdev->dev, thermal->sensors[0].tzd);
+	if (thermal->chip->mode == TSADC_AUTO_MODE)
+		thermal_zone_of_sensor_unregister(&pdev->dev, thermal->sensors[0].tzd);
 err_disable_pclk:
 	clk_disable_unprepare(thermal->pclk);
 err_disable_clk:
@@ -804,15 +1081,17 @@ static int rockchip_thermal_remove(struct platform_device *pdev)
 	struct rockchip_thermal_data *thermal = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++) {
-		struct rockchip_thermal_sensor *sensor = &thermal->sensors[i];
+	if (thermal->chip->mode == TSADC_AUTO_MODE)
+	{
+		for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++) {
+			struct rockchip_thermal_sensor *sensor = &thermal->sensors[i];
 
-		rockchip_thermal_toggle_sensor(sensor, false);
-		thermal_zone_of_sensor_unregister(&pdev->dev, sensor->tzd);
+			rockchip_thermal_toggle_sensor(sensor, false);
+			thermal_zone_of_sensor_unregister(&pdev->dev, sensor->tzd);
+		}
+
+		thermal->chip->control(thermal->regs, false);
 	}
-
-	thermal->chip->control(thermal->regs, false);
-
 	clk_disable_unprepare(thermal->pclk);
 	clk_disable_unprepare(thermal->clk);
 
@@ -825,11 +1104,13 @@ static int __maybe_unused rockchip_thermal_suspend(struct device *dev)
 	struct rockchip_thermal_data *thermal = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
-		rockchip_thermal_toggle_sensor(&thermal->sensors[i], false);
+	if (thermal->chip->mode == TSADC_AUTO_MODE)
+	{
+		for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
+			rockchip_thermal_toggle_sensor(&thermal->sensors[i], false);
 
-	thermal->chip->control(thermal->regs, false);
-
+		thermal->chip->control(thermal->regs, false);
+	}
 	clk_disable(thermal->pclk);
 	clk_disable(thermal->clk);
 
@@ -852,23 +1133,24 @@ static int __maybe_unused rockchip_thermal_resume(struct device *dev)
 		return error;
 
 	rockchip_thermal_reset_controller(thermal->reset);
+	if (thermal->chip->mode == TSADC_AUTO_MODE)
+	{
+		thermal->chip->initialize(thermal->regs, thermal->tshut_polarity);
 
-	thermal->chip->initialize(thermal->regs, thermal->tshut_polarity);
+		for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++) {
+			int id = thermal->sensors[i].id;
 
-	for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++) {
-		int id = thermal->sensors[i].id;
+			thermal->chip->set_tshut_mode(id, thermal->regs,
+						      thermal->tshut_mode);
+			thermal->chip->set_tshut_temp(id, thermal->regs,
+						      thermal->hw_shut_temp);
+		}
 
-		thermal->chip->set_tshut_mode(id, thermal->regs,
-					      thermal->tshut_mode);
-		thermal->chip->set_tshut_temp(id, thermal->regs,
-					      thermal->hw_shut_temp);
+		thermal->chip->control(thermal->regs, true);
+
+		for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
+			rockchip_thermal_toggle_sensor(&thermal->sensors[i], true);
 	}
-
-	thermal->chip->control(thermal->regs, true);
-
-	for (i = 0; i < ARRAY_SIZE(thermal->sensors); i++)
-		rockchip_thermal_toggle_sensor(&thermal->sensors[i], true);
-
 	return 0;
 }
 
