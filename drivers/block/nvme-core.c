@@ -3163,8 +3163,10 @@ static int __init nvme_init(void)
 		nvme_char_major = result;
 
 	nvme_class = class_create(THIS_MODULE, "nvme");
-	if (!nvme_class)
+	if (IS_ERR(nvme_class)) {
+		result = PTR_ERR(nvme_class);
 		goto unregister_chrdev;
+	}
 
 	result = pci_register_driver(&nvme_driver);
 	if (result)
