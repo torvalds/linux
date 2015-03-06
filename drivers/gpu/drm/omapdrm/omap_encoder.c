@@ -124,12 +124,22 @@ static void omap_encoder_commit(struct drm_encoder *encoder)
 {
 }
 
+static void omap_encoder_disable(struct drm_encoder *encoder)
+{
+}
+
+static void omap_encoder_enable(struct drm_encoder *encoder)
+{
+}
+
 static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
 	.dpms = omap_encoder_dpms,
 	.mode_fixup = omap_encoder_mode_fixup,
 	.mode_set = omap_encoder_mode_set,
 	.prepare = omap_encoder_prepare,
 	.commit = omap_encoder_commit,
+	.disable = omap_encoder_disable,
+	.enable = omap_encoder_enable,
 };
 
 /*
