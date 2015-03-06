@@ -977,6 +977,8 @@ static int wacom_battery_get_property(struct power_supply *psy,
 			else if (wacom->wacom_wac.battery_capacity == 100 &&
 				    wacom->wacom_wac.ps_connected)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
+			else if (wacom->wacom_wac.ps_connected)
+				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 			else
 				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 			break;

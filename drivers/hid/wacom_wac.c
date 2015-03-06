@@ -1917,7 +1917,7 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 
 	connected = data[1] & 0x01;
 	if (connected) {
-		int pid, battery, ps_connected, charging;
+		int pid, battery, charging;
 
 		if ((wacom->shared->type == INTUOSHT) &&
 		    wacom->shared->touch_input &&
@@ -1929,16 +1929,14 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 
 		pid = get_unaligned_be16(&data[6]);
 		battery = (data[5] & 0x3f) * 100 / 31;
-		ps_connected = !!(data[5] & 0x80);
-		charging = ps_connected && wacom->battery_capacity < 100;
+		charging = !!(data[5] & 0x80);
 		if (wacom->pid != pid) {
 			wacom->pid = pid;
 			wacom_schedule_work(wacom);
 		}
 
 		if (wacom->shared->type)
-			wacom_notify_battery(wacom, battery, charging,
-					     ps_connected);
+			wacom_notify_battery(wacom, battery, charging, 0);
 
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
@@ -1969,12 +1967,10 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	if (data[9] & 0x02) { /* wireless module is attached */
 		int battery = (data[8] & 0x3f) * 100 / 31;
-		bool ps_connected = !!(data[8] & 0x80);
-		bool charging = ps_connected &&
-				wacom_wac->battery_capacity < 100;
+		bool charging = !!(data[8] & 0x80);
 
 		wacom_notify_battery(wacom_wac, battery, charging,
-				     ps_connected);
+				     1);
 
 		if (!wacom->battery.dev &&
 		    !(features->quirks & WACOM_QUIRK_BATTERY)) {
