@@ -139,6 +139,9 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws)
 				1,
 				DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!txdesc)
+		return NULL;
+
 	txdesc->callback = dw_spi_dma_tx_done;
 	txdesc->callback_param = dws;
 
@@ -184,6 +187,9 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
 				1,
 				DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!rxdesc)
+		return NULL;
+
 	rxdesc->callback = dw_spi_dma_rx_done;
 	rxdesc->callback_param = dws;
 
