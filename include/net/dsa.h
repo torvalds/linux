@@ -128,6 +128,11 @@ struct dsa_switch {
 	int			index;
 
 	/*
+	 * Tagging protocol understood by this switch
+	 */
+	enum dsa_tag_protocol	tag_protocol;
+
+	/*
 	 * Configuration data for this switch.
 	 */
 	struct dsa_chip_data	*pd;
