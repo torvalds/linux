@@ -828,6 +828,11 @@ static int its_alloc_tables(struct its_node *its)
 			u32 ids = GITS_TYPER_DEVBITS(typer);
 
 			order = get_order((1UL << ids) * entry_size);
+			if (order >= MAX_ORDER) {
+				order = MAX_ORDER - 1;
+				pr_warn("%s: Device Table too large, reduce its page order to %u\n",
+					its->msi_chip.of_node->full_name, order);
+			}
 		}
 
 		alloc_size = (1 << order) * PAGE_SIZE;
