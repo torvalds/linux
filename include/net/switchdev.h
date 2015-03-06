@@ -129,7 +129,7 @@ static inline int netdev_switch_fib_ipv4_del(u32 dst, int dst_len,
 	return 0;
 }
 
-void netdev_switch_fib_ipv4_abort(struct fib_info *fi)
+static inline void netdev_switch_fib_ipv4_abort(struct fib_info *fi)
 {
 }
 
