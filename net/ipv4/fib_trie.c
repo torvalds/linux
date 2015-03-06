@@ -1586,13 +1586,8 @@ backtrace:
 			while (!(cindex--)) {
 				t_key pkey = pn->key;
 
-				n = pn;
-				pn = node_parent(n);
-
-				/* resize completed node */
-				resize(t, n);
-
 				/* if we got the root we are done */
+				pn = node_parent(pn);
 				if (!pn)
 					return;
 
@@ -1607,12 +1602,13 @@ backtrace:
 	hlist_for_each_entry(fa, &n->leaf, fa_list) {
 		struct fib_info *fi = fa->fa_info;
 
-		if (fi && (fi->fib_flags & RTNH_F_EXTERNAL)) {
-			netdev_switch_fib_ipv4_del(n->key,
-						   KEYLENGTH - fa->fa_slen,
-						   fi, fa->fa_tos,
-						   fa->fa_type, tb->tb_id);
-		}
+		if (!fi || !(fi->fib_flags & RTNH_F_EXTERNAL))
+			continue;
+
+		netdev_switch_fib_ipv4_del(n->key,
+					   KEYLENGTH - fa->fa_slen,
+					   fi, fa->fa_tos,
+					   fa->fa_type, tb->tb_id);
 	}
 
 	/* if trie is leaf only loop is completed */
