@@ -309,8 +309,12 @@ int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	 * IPv4 FIB offloading has been disabled completely.
 	 */
 
-	if (fi->fib_net->ipv4.fib_has_custom_rules |
-	    fi->fib_net->ipv4.fib_offload_disabled)
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	if (fi->fib_net->ipv4.fib_has_custom_rules)
+		return 0;
+#endif
+
+	if (fi->fib_net->ipv4.fib_offload_disabled)
 		return 0;
 
 	dev = netdev_switch_get_dev_by_nhs(fi);
