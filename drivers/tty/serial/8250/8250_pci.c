@@ -1989,13 +1989,6 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
-		.device		= PCI_DEVICE_ID_INTEL_QRK_UART,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= pci_default_setup,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_INTEL,
 		.device		= PCI_DEVICE_ID_INTEL_BSW_UART1,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
@@ -2199,13 +2192,6 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	/*
 	 * PLX
 	 */
-	{
-		.vendor		= PCI_VENDOR_ID_PLX,
-		.device		= PCI_DEVICE_ID_PLX_9030,
-		.subvendor	= PCI_SUBVENDOR_ID_PERLE,
-		.subdevice	= PCI_ANY_ID,
-		.setup		= pci_default_setup,
-	},
 	{
 		.vendor		= PCI_VENDOR_ID_PLX,
 		.device		= PCI_DEVICE_ID_PLX_9050,
