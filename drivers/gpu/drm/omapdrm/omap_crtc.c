@@ -646,9 +646,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 static int omap_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_property *property, uint64_t val)
 {
-	struct omap_drm_private *priv = crtc->dev->dev_private;
-
-	if (property == priv->rotation_prop) {
+	if (property == crtc->dev->mode_config.rotation_property) {
 		crtc->invert_dimensions =
 				!!(val & ((1LL << DRM_ROTATE_90) | (1LL << DRM_ROTATE_270)));
 	}

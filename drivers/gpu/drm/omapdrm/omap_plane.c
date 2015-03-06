@@ -297,33 +297,14 @@ void omap_plane_install_properties(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct omap_drm_private *priv = dev->dev_private;
-	struct drm_property *prop;
 
 	if (priv->has_dmm) {
-		prop = priv->rotation_prop;
-		if (!prop) {
-			prop = drm_mode_create_rotation_property(dev,
-								 BIT(DRM_ROTATE_0) |
-								 BIT(DRM_ROTATE_90) |
-								 BIT(DRM_ROTATE_180) |
-								 BIT(DRM_ROTATE_270) |
-								 BIT(DRM_REFLECT_X) |
-								 BIT(DRM_REFLECT_Y));
-			if (prop == NULL)
-				return;
-			priv->rotation_prop = prop;
-		}
+		struct drm_property *prop = dev->mode_config.rotation_property;
+
 		drm_object_attach_property(obj, prop, 0);
 	}
 
-	prop = priv->zorder_prop;
-	if (!prop) {
-		prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
-		if (prop == NULL)
-			return;
-		priv->zorder_prop = prop;
-	}
-	drm_object_attach_property(obj, prop, 0);
+	drm_object_attach_property(obj, priv->zorder_prop, 0);
 }
 
 int omap_plane_set_property(struct drm_plane *plane,
@@ -333,7 +314,7 @@ int omap_plane_set_property(struct drm_plane *plane,
 	struct omap_drm_private *priv = plane->dev->dev_private;
 	int ret = -EINVAL;
 
-	if (property == priv->rotation_prop) {
+	if (property == plane->dev->mode_config.rotation_property) {
 		DBG("%s: rotation: %02x", omap_plane->name, (uint32_t)val);
 		omap_plane->win.rotation = val;
 		ret = omap_plane_apply(plane);

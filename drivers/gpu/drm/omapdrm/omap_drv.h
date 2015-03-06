@@ -114,7 +114,6 @@ struct omap_drm_private {
 	bool has_dmm;
 
 	/* properties: */
-	struct drm_property *rotation_prop;
 	struct drm_property *zorder_prop;
 
 	/* irq handling: */

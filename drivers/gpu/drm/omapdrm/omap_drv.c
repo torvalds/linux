@@ -151,6 +151,27 @@ static int omap_modeset_create_crtc(struct drm_device *dev, int id,
 	return 0;
 }
 
+static int omap_modeset_init_properties(struct drm_device *dev)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+
+	if (priv->has_dmm) {
+		dev->mode_config.rotation_property =
+			drm_mode_create_rotation_property(dev,
+				BIT(DRM_ROTATE_0) | BIT(DRM_ROTATE_90) |
+				BIT(DRM_ROTATE_180) | BIT(DRM_ROTATE_270) |
+				BIT(DRM_REFLECT_X) | BIT(DRM_REFLECT_Y));
+		if (!dev->mode_config.rotation_property)
+			return -ENOMEM;
+	}
+
+	priv->zorder_prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
+	if (!priv->zorder_prop)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
@@ -164,6 +185,10 @@ static int omap_modeset_init(struct drm_device *dev)
 	drm_mode_config_init(dev);
 
 	omap_drm_irq_install(dev);
+
+	ret = omap_modeset_init_properties(dev);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * We usually don't want to create a CRTC for each manager, at least
@@ -583,7 +608,7 @@ static void dev_lastclose(struct drm_device *dev)
 
 	DBG("lastclose: dev=%p", dev);
 
-	if (priv->rotation_prop) {
+	if (dev->mode_config.rotation_property) {
 		/* need to restore default rotation state.. not sure
 		 * if there is a cleaner way to restore properties to
 		 * default state?  Maybe a flag that properties should
@@ -592,12 +617,12 @@ static void dev_lastclose(struct drm_device *dev)
 		 */
 		for (i = 0; i < priv->num_crtcs; i++) {
 			drm_object_property_set_value(&priv->crtcs[i]->base,
-					priv->rotation_prop, 0);
+					dev->mode_config.rotation_property, 0);
 		}
 
 		for (i = 0; i < priv->num_planes; i++) {
 			drm_object_property_set_value(&priv->planes[i]->base,
-					priv->rotation_prop, 0);
+					dev->mode_config.rotation_property, 0);
 		}
 	}
 
