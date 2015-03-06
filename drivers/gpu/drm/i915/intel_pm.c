@@ -6696,7 +6696,9 @@ static int chv_freq_opcode(struct drm_i915_private *dev_priv, int val)
 
 int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 {
-	if (IS_CHERRYVIEW(dev_priv->dev))
+	if (IS_GEN9(dev_priv->dev))
+		return (val * GT_FREQUENCY_MULTIPLIER) / GEN9_FREQ_SCALER;
+	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_gpu_freq(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
 		return byt_gpu_freq(dev_priv, val);
@@ -6706,7 +6708,9 @@ int intel_gpu_freq(struct drm_i915_private *dev_priv, int val)
 
 int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 {
-	if (IS_CHERRYVIEW(dev_priv->dev))
+	if (IS_GEN9(dev_priv->dev))
+		return (val * GEN9_FREQ_SCALER) / GT_FREQUENCY_MULTIPLIER;
+	else if (IS_CHERRYVIEW(dev_priv->dev))
 		return chv_freq_opcode(dev_priv, val);
 	else if (IS_VALLEYVIEW(dev_priv->dev))
 		return byt_freq_opcode(dev_priv, val);
