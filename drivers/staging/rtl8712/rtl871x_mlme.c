@@ -698,7 +698,7 @@ void r8712_ind_disconnect(struct _adapter *padapter)
 	}
 	if (padapter->pwrctrlpriv.pwr_mode !=
 	    padapter->registrypriv.power_mgnt) {
-		_cancel_timer_ex(&pmlmepriv->dhcp_timer);
+		del_timer_sync(&pmlmepriv->dhcp_timer);
 		r8712_set_ps_mode(padapter, padapter->registrypriv.power_mgnt,
 				  padapter->registrypriv.smart_ps);
 	}
