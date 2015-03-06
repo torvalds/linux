@@ -1568,8 +1568,6 @@ void fib_table_flush_external(struct fib_table *tb)
 	struct fib_alias *fa;
 	struct tnode *n, *pn;
 	unsigned long cindex;
-	unsigned char slen;
-	int found = 0;
 
 	n = rcu_dereference(t->trie);
 	if (!n)
