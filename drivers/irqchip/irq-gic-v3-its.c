@@ -1388,7 +1388,7 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	writeq_relaxed(baser, its->base + GITS_CBASER);
 	tmp = readq_relaxed(its->base + GITS_CBASER);
 	writeq_relaxed(0, its->base + GITS_CWRITER);
-	writel_relaxed(1, its->base + GITS_CTLR);
+	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
 	if ((tmp ^ baser) & GITS_BASER_SHAREABILITY_MASK) {
 		pr_info("ITS: using cache flushing for cmd queue\n");
