@@ -243,9 +243,8 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 		urb->dev = comedi_to_usb_dev(dev);
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret < 0) {
-			dev_err(dev->class_dev,
-				"%s: urb resubmit failed (%d)\n",
-				__func__, ret);
+			dev_err(dev->class_dev, "urb resubmit failed (%d)\n",
+				ret);
 			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
 					"buggy USB host controller or bug in IRQ handler\n");
@@ -292,8 +291,8 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 
 	default:
 		/* a real error */
-		dev_err(dev->class_dev, "%s: non-zero urb status (%d)\n",
-			__func__, urb->status);
+		dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
@@ -386,9 +385,8 @@ static void usbduxsigma_ao_handle_urb(struct comedi_device *dev,
 		urb->iso_frame_desc[0].status = 0;
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret < 0) {
-			dev_err(dev->class_dev,
-				"%s: urb resubmit failed (%d)\n",
-				__func__, ret);
+			dev_err(dev->class_dev, "urb resubmit failed (%d)\n",
+				ret);
 			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
 					"buggy USB host controller or bug in IRQ handler\n");
@@ -423,8 +421,8 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 
 	default:
 		/* a real error */
-		dev_err(dev->class_dev, "%s: non-zero urb status (%d)\n",
-			__func__, urb->status);
+		dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
@@ -1071,9 +1069,8 @@ static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 	default:
 		/* a real error */
 		if (devpriv->pwm_cmd_running) {
-			dev_err(dev->class_dev,
-				"%s: non-zero urb status (%d)\n",
-				__func__, urb->status);
+			dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+				urb->status);
 			usbduxsigma_pwm_stop(dev, 0);	/* w/o unlink */
 		}
 		return;
@@ -1087,8 +1084,7 @@ static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 	urb->status = 0;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret < 0) {
-		dev_err(dev->class_dev, "%s: urb resubmit failed (%d)\n",
-			__func__, ret);
+		dev_err(dev->class_dev, "urb resubmit failed (%d)\n", ret);
 		if (ret == -EL2NSYNC)
 			dev_err(dev->class_dev,
 				"buggy USB host controller or bug in IRQ handler\n");

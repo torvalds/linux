@@ -670,8 +670,8 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 		ni_writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
 		break;
 	default:
-		dev_err(dev->class_dev,
-			"%s called with invalid register %d\n", __func__, reg);
+		dev_err(dev->class_dev, "called with invalid register %d\n",
+			reg);
 		break;
 	}
 	mmiowb();
