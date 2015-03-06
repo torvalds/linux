@@ -1280,7 +1280,7 @@ static void drbg_restore_shadow(struct drbg_state *drbg,
  *	  as defined in SP800-90A. The additional input is mixed into
  *	  the state in addition to the pulled entropy.
  *
- * return: generated number of bytes
+ * return: 0 when all bytes are generated; < 0 in case of an error
  */
 static int drbg_generate(struct drbg_state *drbg,
 			 unsigned char *buf, unsigned int buflen,
@@ -1419,6 +1419,11 @@ static int drbg_generate(struct drbg_state *drbg,
 	}
 #endif
 
+	/*
+	 * All operations were successful, return 0 as mandated by
+	 * the kernel crypto API interface.
+	 */
+	len = 0;
 err:
 	shadow->d_ops->crypto_fini(shadow);
 	drbg_restore_shadow(drbg, &shadow);
