@@ -388,6 +388,16 @@ tcp_mtu_probing - INTEGER
 	  1 - Disabled by default, enabled when an ICMP black hole detected
 	  2 - Always enabled, use initial MSS of tcp_base_mss.
 
+tcp_probe_interval - INTEGER
+	Controls how often to start TCP Packetization-Layer Path MTU
+	Discovery reprobe. The default is reprobing every 10 minutes as
+	per RFC4821.
+
+tcp_probe_threshold - INTEGER
+	Controls when TCP Packetization-Layer Path MTU Discovery probing
+	will stop in respect to the width of search range in bytes. Default
+	is 8 bytes.
+
 tcp_no_metrics_save - BOOLEAN
 	By default, TCP saves various connection metrics in the route cache
 	when the connection closes, so that connections established in the
