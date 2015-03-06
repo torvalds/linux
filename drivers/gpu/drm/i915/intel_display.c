@@ -12583,10 +12583,15 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (HAS_DDI(dev)) {
 		int found;
 
-		/* Haswell uses DDI functions to detect digital outputs */
+		/*
+		 * Haswell uses DDI functions to detect digital outputs.
+		 * On SKL pre-D0 the strap isn't connected, so we assume
+		 * it's there.
+		 */
 		found = I915_READ(DDI_BUF_CTL_A) & DDI_INIT_DISPLAY_DETECTED;
-		/* DDI A only supports eDP */
-		if (found)
+		/* WaIgnoreDDIAStrap: skl */
+		if (found ||
+		    (IS_SKYLAKE(dev) && INTEL_REVID(dev) < SKL_REVID_D0))
 			intel_ddi_init(dev, PORT_A);
 
 		/* DDI B, C and D detection is indicated by the SFUSE_STRAP
