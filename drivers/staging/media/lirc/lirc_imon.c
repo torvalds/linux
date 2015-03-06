@@ -208,8 +208,7 @@ static void deregister_from_lirc(struct imon_context *context)
 	retval = lirc_unregister_driver(minor);
 	if (retval)
 		dev_err(&context->usbdev->dev,
-			": %s: unable to deregister from lirc(%d)",
-			__func__, retval);
+			"unable to deregister from lirc(%d)", retval);
 	else
 		dev_info(&context->usbdev->dev,
 			 "Deregistered iMON driver (minor:%d)\n", minor);
@@ -241,9 +240,8 @@ static int display_open(struct inode *inode, struct file *file)
 	context = usb_get_intfdata(interface);
 
 	if (!context) {
-		dev_err(&interface->dev,
-			"%s: no context found for minor %d\n",
-			__func__, subminor);
+		dev_err(&interface->dev, "no context found for minor %d\n",
+			subminor);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -344,8 +342,8 @@ static int send_packet(struct imon_context *context)
 	retval = usb_submit_urb(context->tx_urb, GFP_KERNEL);
 	if (retval) {
 		atomic_set(&(context->tx.busy), 0);
-		dev_err(&context->usbdev->dev,
-			"%s: error submitting urb(%d)\n", __func__, retval);
+		dev_err(&context->usbdev->dev, "error submitting urb(%d)\n",
+			retval);
 	} else {
 		/* Wait for transmission to complete (or abort) */
 		mutex_unlock(&context->ctx_lock);
@@ -359,8 +357,7 @@ static int send_packet(struct imon_context *context)
 		retval = context->tx.status;
 		if (retval)
 			dev_err(&context->usbdev->dev,
-				"%s: packet tx failed (%d)\n",
-				__func__, retval);
+				"packet tx failed (%d)\n", retval);
 	}
 
 	return retval;
@@ -437,8 +434,8 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 		retval = send_packet(context);
 		if (retval) {
 			dev_err(&context->usbdev->dev,
-				"%s: send packet failed for packet #%d\n",
-				__func__, seq/2);
+				"send packet failed for packet #%d\n",
+				seq / 2);
 			goto exit;
 		} else {
 			seq += 2;
@@ -454,8 +451,8 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 		retval = send_packet(context);
 		if (retval)
 			dev_err(&context->usbdev->dev,
-				"%s: send packet failed for packet #%d\n",
-					__func__, seq/2);
+				"send packet failed for packet #%d\n",
+				seq / 2);
 	}
 
 exit:
@@ -877,8 +874,7 @@ static int imon_probe(struct usb_interface *interface,
 	retval = usb_submit_urb(context->rx_urb, GFP_KERNEL);
 
 	if (retval) {
-		dev_err(dev, "%s: usb_submit_urb failed for intf0 (%d)\n",
-			__func__, retval);
+		dev_err(dev, "usb_submit_urb failed for intf0 (%d)\n", retval);
 		alloc_status = 8;
 		goto unlock;
 	}
