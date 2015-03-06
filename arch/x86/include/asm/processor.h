@@ -282,7 +282,7 @@ struct tss_struct {
 
 } ____cacheline_aligned;
 
-DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss);
 
 /*
  * Save the original ist values for checking stack pointers during debugging
@@ -566,7 +566,7 @@ static inline void native_swapgs(void)
 
 static inline unsigned long this_cpu_sp0(void)
 {
-	return this_cpu_read_stable(init_tss.x86_tss.sp0);
+	return this_cpu_read_stable(cpu_tss.x86_tss.sp0);
 }
 
 #ifdef CONFIG_PARAVIRT

@@ -248,7 +248,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct thread_struct *prev = &prev_p->thread,
 				 *next = &next_p->thread;
 	int cpu = smp_processor_id();
-	struct tss_struct *tss = &per_cpu(init_tss, cpu);
+	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
 	fpu_switch_t fpu;
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */

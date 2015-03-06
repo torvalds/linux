@@ -37,8 +37,8 @@
  * section. Since TSS's are completely CPU-local, we want them
  * on exact cacheline boundaries, to eliminate cacheline ping-pong.
  */
-__visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss) = INIT_TSS;
-EXPORT_PER_CPU_SYMBOL_GPL(init_tss);
+__visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = INIT_TSS;
+EXPORT_PER_CPU_SYMBOL_GPL(cpu_tss);
 
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU(unsigned char, is_idle);
@@ -110,7 +110,7 @@ void exit_thread(void)
 	unsigned long *bp = t->io_bitmap_ptr;
 
 	if (bp) {
-		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
+		struct tss_struct *tss = &per_cpu(cpu_tss, get_cpu());
 
 		t->io_bitmap_ptr = NULL;
 		clear_thread_flag(TIF_IO_BITMAP);

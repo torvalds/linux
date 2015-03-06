@@ -979,7 +979,7 @@ static void syscall32_cpu_init(void)
 void enable_sep_cpu(void)
 {
 	int cpu = get_cpu();
-	struct tss_struct *tss = &per_cpu(init_tss, cpu);
+	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
 
 	if (!boot_cpu_has(X86_FEATURE_SEP)) {
 		put_cpu();
@@ -1307,7 +1307,7 @@ void cpu_init(void)
 	 */
 	load_ucode_ap();
 
-	t = &per_cpu(init_tss, cpu);
+	t = &per_cpu(cpu_tss, cpu);
 	oist = &per_cpu(orig_ist, cpu);
 
 #ifdef CONFIG_NUMA
@@ -1391,7 +1391,7 @@ void cpu_init(void)
 {
 	int cpu = smp_processor_id();
 	struct task_struct *curr = current;
-	struct tss_struct *t = &per_cpu(init_tss, cpu);
+	struct tss_struct *t = &per_cpu(cpu_tss, cpu);
 	struct thread_struct *thread = &curr->thread;
 
 	wait_for_master_cpu(cpu);
