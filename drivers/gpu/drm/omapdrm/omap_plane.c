@@ -40,8 +40,6 @@ struct omap_plane {
 	int id;  /* TODO rename omap_plane -> omap_plane_id in omapdss so I can use the enum */
 	const char *name;
 
-	bool enabled;
-
 	uint32_t nformats;
 	uint32_t formats[32];
 
@@ -60,18 +58,19 @@ to_omap_plane_state(struct drm_plane_state *state)
 	return container_of(state, struct omap_plane_state, base);
 }
 
-static int omap_plane_setup(struct omap_plane *omap_plane)
+int omap_plane_setup(struct drm_plane *plane)
 {
-	struct drm_plane_state *state = omap_plane->base.state;
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+	struct drm_plane_state *state = plane->state;
 	struct omap_plane_state *omap_state = to_omap_plane_state(state);
-	struct drm_device *dev = omap_plane->base.dev;
+	struct drm_device *dev = plane->dev;
 	struct omap_overlay_info info;
 	struct omap_drm_window win;
 	int ret;
 
-	DBG("%s, enabled=%d", omap_plane->name, omap_plane->enabled);
+	DBG("%s, crtc=%p fb=%p", omap_plane->name, state->crtc, state->fb);
 
-	if (!omap_plane->enabled) {
+	if (!state->crtc) {
 		dispc_ovl_enable(omap_plane->id, false);
 		return 0;
 	}
@@ -134,23 +133,6 @@ static int omap_plane_setup(struct omap_plane *omap_plane)
 	return 0;
 }
 
-int omap_plane_set_enable(struct drm_plane *plane, bool enable)
-{
-	struct omap_plane *omap_plane = to_omap_plane(plane);
-	int ret;
-
-	if (enable == omap_plane->enabled)
-		return 0;
-
-	omap_plane->enabled = enable;
-
-	dispc_runtime_get();
-	ret = omap_plane_setup(omap_plane);
-	dispc_runtime_put();
-
-	return ret;
-}
-
 static int omap_plane_prepare_fb(struct drm_plane *plane,
 				 struct drm_framebuffer *fb,
 				 const struct drm_plane_state *new_state)
@@ -168,14 +150,7 @@ static void omap_plane_cleanup_fb(struct drm_plane *plane,
 static void omap_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct omap_plane *omap_plane = to_omap_plane(plane);
-	struct drm_plane_state *state = plane->state;
-
-	if (!state->fb || !state->crtc)
-		return;
-
-	omap_plane->enabled = true;
-	omap_plane_setup(omap_plane);
+	omap_plane_setup(plane);
 }
 
 static void omap_plane_atomic_disable(struct drm_plane *plane,
@@ -188,11 +163,7 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
 
-	if (!omap_plane->enabled)
-		return;
-
-	omap_plane->enabled = false;
-	omap_plane_setup(omap_plane);
+	omap_plane_setup(plane);
 }
 
 static const struct drm_plane_helper_funcs omap_plane_helper_funcs = {

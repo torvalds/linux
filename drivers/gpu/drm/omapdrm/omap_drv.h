@@ -151,7 +151,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
 		int id, enum drm_plane_type type);
-int omap_plane_set_enable(struct drm_plane *plane, bool enable);
+int omap_plane_setup(struct drm_plane *plane);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
 
