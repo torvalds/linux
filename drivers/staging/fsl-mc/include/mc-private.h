@@ -15,6 +15,8 @@
 #include <linux/mutex.h>
 #include <linux/stringify.h>
 
+#define FSL_MC_DPRC_DRIVER_NAME    "fsl_mc_dprc"
+
 #define FSL_MC_DEVICE_MATCH(_mc_dev, _obj_desc) \
 	(strcmp((_mc_dev)->obj_desc.type, (_obj_desc)->type) == 0 && \
 	 (_mc_dev)->obj_desc.id == (_obj_desc)->id)
@@ -63,5 +65,13 @@ int __must_check fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 				   struct fsl_mc_device **new_mc_dev);
 
 void fsl_mc_device_remove(struct fsl_mc_device *mc_dev);
+
+int dprc_scan_container(struct fsl_mc_device *mc_bus_dev);
+
+int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev);
+
+int __init dprc_driver_init(void);
+
+void __exit dprc_driver_exit(void);
 
 #endif /* _FSL_MC_PRIVATE_H_ */

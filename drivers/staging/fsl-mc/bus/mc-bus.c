@@ -725,7 +725,14 @@ static int __init fsl_mc_bus_driver_init(void)
 		goto error_cleanup_bus;
 	}
 
+	error = dprc_driver_init();
+	if (error < 0)
+		goto error_cleanup_driver;
+
 	return 0;
+
+error_cleanup_driver:
+	platform_driver_unregister(&fsl_mc_bus_driver);
 
 error_cleanup_bus:
 	bus_unregister(&fsl_mc_bus_type);
@@ -742,6 +749,7 @@ static void __exit fsl_mc_bus_driver_exit(void)
 	if (WARN_ON(!mc_dev_cache))
 		return;
 
+	dprc_driver_exit();
 	platform_driver_unregister(&fsl_mc_bus_driver);
 	bus_unregister(&fsl_mc_bus_type);
 	kmem_cache_destroy(mc_dev_cache);
