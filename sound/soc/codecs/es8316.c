@@ -45,9 +45,11 @@
 #define amic_used  0
 
 #define INVALID_GPIO -1
-int es8316_spk_con_gpio = INVALID_GPIO;
-int es8316_hp_con_gpio = INVALID_GPIO;
-int es8316_hp_det_gpio = INVALID_GPIO;
+
+#define ES8316_CODEC_SET_SPK	1
+#define ES8316_CODEC_SET_HP	2
+
+
 int HP_IRQ = 0;
 int hp_irq_flag = 0;
 int es8316_init_reg = 0;
@@ -107,7 +109,72 @@ struct es8316_priv {
 	unsigned int dmic_amic;
 	unsigned int sysclk;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
+
+	int spk_ctl_gpio;
+	int hp_ctl_gpio;
+	int hp_det_gpio;
+
+	bool spk_gpio_level;
+	bool hp_gpio_level;
+	bool hp_det_level;
 };
+
+struct es8316_priv *es8316_private;
+static int es8316_set_gpio(int gpio, bool level)
+{
+	struct es8316_priv *es8316 = es8316_private;
+
+	if (!es8316) {
+		DBG("%s : es8316_priv is NULL\n", __func__);
+		return 0;
+	}
+	DBG("%s : set %s %s ctl gpio %s\n", __func__,
+	    gpio & ES8316_CODEC_SET_SPK ? "spk" : "",
+	    gpio & ES8316_CODEC_SET_HP ? "hp" : "",
+	    level ? "HIGH" : "LOW");
+	if ((gpio & ES8316_CODEC_SET_SPK)
+	    && es8316 && es8316->spk_ctl_gpio != INVALID_GPIO) {
+		DBG("%d,set_value%s\n", es8316->spk_ctl_gpio, level ?
+		    "HIGH" : "LOW");
+		gpio_set_value(es8316->spk_ctl_gpio, level);
+	}
+	return 0;
+}
+
+static char mute_flag = 1;
+static irqreturn_t hp_det_irq_handler(int irq, void *dev_id)
+{
+	int ret;
+	unsigned int type;
+	struct es8316_priv *es8316 = es8316_private;
+
+	disable_irq_nosync(irq);
+
+	type = gpio_get_value(es8316->hp_det_gpio) ?
+		IRQ_TYPE_EDGE_FALLING : IRQ_TYPE_EDGE_RISING;
+	ret = irq_set_irq_type(irq, type);
+	if (ret < 0) {
+		DBG("%s: irq_set_irq_type(%d, %d) failed\n",
+		    __func__, irq, type);
+		return -1;
+	}
+
+	if (type == IRQ_TYPE_EDGE_FALLING)
+		hp_irq_flag = 0;
+	else
+		hp_irq_flag = 1;
+	if (mute_flag == 0) {
+		if (es8316->hp_det_level == gpio_get_value(es8316->hp_det_gpio))
+			es8316_set_gpio(ES8316_CODEC_SET_SPK,
+					!es8316->spk_gpio_level);
+		else
+			es8316_set_gpio(ES8316_CODEC_SET_SPK,
+					es8316->spk_gpio_level);
+	}
+	enable_irq(irq);
+
+	return IRQ_HANDLED;
+}
 
 /*
 * es8316S Controls
@@ -795,12 +862,21 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 static int es8316_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
+	struct es8316_priv *es8316 = es8316_private;
 
-	dev_dbg(codec->dev, "%s %d\n", __func__, mute);
-	if (mute)
+	mute_flag = mute;
+	if (mute) {
+		es8316_set_gpio(ES8316_CODEC_SET_SPK, !es8316->spk_gpio_level);
+		msleep(100);
 		snd_soc_write(codec, ES8316_DAC_SET1_REG30, 0x20);
-	else if (dai->playback_active)
+	} else if (dai->playback_active) {
 		snd_soc_write(codec, ES8316_DAC_SET1_REG30, 0x00);
+		msleep(130);
+		if (hp_irq_flag == 0)
+			es8316_set_gpio(ES8316_CODEC_SET_SPK,
+					es8316->spk_gpio_level);
+		msleep(150);
+	}
 	return 0;
 }
 
@@ -1092,9 +1168,15 @@ static struct spi_driver es8316_spi_driver = {
 static void es8316_i2c_shutdown(struct i2c_client *i2c)
 {
 	struct snd_soc_codec *codec;
+	struct es8316_priv *es8316 = es8316_private;
 
 	if (!es8316_codec)
 		goto err;
+
+	es8316_set_gpio(ES8316_CODEC_SET_SPK, !es8316->spk_gpio_level);
+	mdelay(150);
+
+
 	codec = es8316_codec;
 	snd_soc_write(codec, ES8316_CPHP_ICAL_VOL_REG18, 0x33);
 	snd_soc_write(codec, ES8316_CPHP_OUTEN_REG17, 0x00);
@@ -1118,14 +1200,68 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 {
 	struct es8316_priv *es8316;
 	int ret = -1;
+	unsigned long irq_flag = 0;
+	int hp_irq = 0;
+	enum of_gpio_flags flags;
+	struct device_node *np = i2c_client->dev.of_node;
 
 	DBG("---%s---probe start\n", __func__);
 
 	es8316 = kzalloc(sizeof(*es8316), GFP_KERNEL);
 	if (es8316 == NULL)
 		return -ENOMEM;
+	else
+		es8316_private = es8316;
+
 	es8316->dmic_amic = amic_used;     /*if internal mic is amic*/
 	i2c_set_clientdata(i2c_client, es8316);
+
+
+	es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
+					"spk-con-gpio", 0, &flags);
+	if (es8316->spk_ctl_gpio < 0) {
+		DBG("%s() Can not read property spk codec-en-gpio\n", __func__);
+		es8316->spk_ctl_gpio = INVALID_GPIO;
+	} else {
+	    es8316->spk_gpio_level = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+	    ret = gpio_request(es8316->spk_ctl_gpio, NULL);
+	    gpio_direction_output(es8316->spk_ctl_gpio,
+				  !es8316->spk_gpio_level);
+	}
+
+	es8316->hp_ctl_gpio = of_get_named_gpio_flags(np,
+					"hp-con-gpio", 0, &flags);
+	if (es8316->hp_ctl_gpio < 0) {
+		DBG("%s() Can not read property hp codec-en-gpio\n", __func__);
+		es8316->hp_ctl_gpio = INVALID_GPIO;
+	} else {
+	    es8316->hp_gpio_level = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+	    ret = gpio_request(es8316->hp_ctl_gpio, NULL);
+	    gpio_direction_output(es8316->hp_ctl_gpio, !es8316->hp_gpio_level);
+	}
+
+	es8316->hp_det_gpio = of_get_named_gpio_flags(np,
+					"hp-det-gpio", 0, &flags);
+	if (es8316->hp_det_gpio < 0) {
+		DBG("%s() Can not read property hp_det gpio\n", __func__);
+		es8316->hp_det_gpio = INVALID_GPIO;
+	} else {
+		es8316->hp_det_level = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+		ret = gpio_request(es8316->hp_det_gpio, NULL);
+		if (ret != 0) {
+			DBG("%s request HP_DET error", __func__);
+			return ret;
+		}
+		gpio_direction_input(es8316->hp_det_gpio);
+
+		irq_flag = IRQF_TRIGGER_LOW | IRQF_ONESHOT;
+		hp_irq = gpio_to_irq(es8316->hp_det_gpio);
+
+		if (hp_irq)
+			ret = request_threaded_irq(hp_irq, NULL,
+				hp_det_irq_handler, irq_flag, "ES8316", NULL);
+	}
+
 	ret = snd_soc_register_codec(&i2c_client->dev,
 				     &soc_codec_dev_es8316,
 				     &es8316_dai, 1);
@@ -1133,6 +1269,8 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 		kfree(es8316);
 		return ret;
 	}
+
+
 
 	return ret;
 }

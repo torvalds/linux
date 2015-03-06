@@ -170,7 +170,9 @@
 			gpio0_c2: gpio0-c2 {
 				rockchip,pins = <0 GPIO_C2 RK_FUNC_GPIO &pcfg_pull_down>;
 			};
-
+			gpio0_c3: gpio0-c3{
+				rockchip,pins = <0 GPIO_C3 RK_FUNC_GPIO &pcfg_pull_down>;
+			};
 			//to add
 		};
 
@@ -329,6 +331,8 @@
 	es8316: es8316@10 {
 		compatible = "es8316";
 		reg = <0x10>;
+		spk-con-gpio = <&gpio0 GPIO_C3 GPIO_ACTIVE_HIGH>;
+		hp-det-gpio = <&gpio0 GPIO_C7 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };
