@@ -174,8 +174,8 @@ void ist_begin_non_atomic(struct pt_regs *regs)
 	 * will catch asm bugs and any attempt to use ist_preempt_enable
 	 * from double_fault.
 	 */
-	BUG_ON(((current_stack_pointer() ^ this_cpu_read_stable(kernel_stack))
-		& ~(THREAD_SIZE - 1)) != 0);
+	BUG_ON((unsigned long)(this_cpu_sp0() - current_stack_pointer()) >=
+	       THREAD_SIZE);
 
 	preempt_count_sub(HARDIRQ_OFFSET);
 }

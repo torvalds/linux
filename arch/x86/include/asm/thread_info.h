@@ -159,8 +159,7 @@ DECLARE_PER_CPU(unsigned long, kernel_stack);
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-	ti = (void *)(this_cpu_read_stable(kernel_stack) +
-		      KERNEL_STACK_OFFSET - THREAD_SIZE);
+	ti = (void *)(this_cpu_sp0() - THREAD_SIZE);
 	return ti;
 }
 
