@@ -2700,11 +2700,13 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	if (bus->ctrl_frame_stat && (bus->clkstate == CLK_AVAIL) &&
 	    data_ok(bus)) {
 		sdio_claim_host(bus->sdiodev->func[1]);
-		err = brcmf_sdio_tx_ctrlframe(bus,  bus->ctrl_frame_buf,
-					      bus->ctrl_frame_len);
+		if (bus->ctrl_frame_stat) {
+			err = brcmf_sdio_tx_ctrlframe(bus,  bus->ctrl_frame_buf,
+						      bus->ctrl_frame_len);
+			bus->ctrl_frame_err = err;
+			bus->ctrl_frame_stat = false;
+		}
 		sdio_release_host(bus->sdiodev->func[1]);
-		bus->ctrl_frame_err = err;
-		bus->ctrl_frame_stat = false;
 		brcmf_sdio_wait_event_wakeup(bus);
 	}
 	/* Send queued frames (limit 1 if rx may still be pending) */
@@ -2720,9 +2722,13 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 		brcmf_err("failed backplane access over SDIO, halting operation\n");
 		atomic_set(&bus->intstatus, 0);
 		if (bus->ctrl_frame_stat) {
-			bus->ctrl_frame_err = -ENODEV;
-			bus->ctrl_frame_stat = false;
-			brcmf_sdio_wait_event_wakeup(bus);
+			sdio_claim_host(bus->sdiodev->func[1]);
+			if (bus->ctrl_frame_stat) {
+				bus->ctrl_frame_err = -ENODEV;
+				bus->ctrl_frame_stat = false;
+				brcmf_sdio_wait_event_wakeup(bus);
+			}
+			sdio_release_host(bus->sdiodev->func[1]);
 		}
 	} else if (atomic_read(&bus->intstatus) ||
 		   atomic_read(&bus->ipend) > 0 ||
@@ -2930,15 +2936,20 @@ brcmf_sdio_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	brcmf_sdio_trigger_dpc(bus);
 	wait_event_interruptible_timeout(bus->ctrl_wait, !bus->ctrl_frame_stat,
 					 msecs_to_jiffies(CTL_DONE_TIMEOUT));
-
-	if (!bus->ctrl_frame_stat) {
+	ret = 0;
+	if (bus->ctrl_frame_stat) {
+		sdio_claim_host(bus->sdiodev->func[1]);
+		if (bus->ctrl_frame_stat) {
+			brcmf_dbg(SDIO, "ctrl_frame timeout\n");
+			bus->ctrl_frame_stat = false;
+			ret = -ETIMEDOUT;
+		}
+		sdio_release_host(bus->sdiodev->func[1]);
+	}
+	if (!ret) {
 		brcmf_dbg(SDIO, "ctrl_frame complete, err=%d\n",
 			  bus->ctrl_frame_err);
 		ret = bus->ctrl_frame_err;
-	} else {
-		brcmf_dbg(SDIO, "ctrl_frame timeout\n");
-		bus->ctrl_frame_stat = false;
-		ret = -ETIMEDOUT;
 	}
 
 	if (ret)
