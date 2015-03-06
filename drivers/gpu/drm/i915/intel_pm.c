@@ -3826,6 +3826,8 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 {
 	int new_power;
+	u32 threshold_up = 0, threshold_down = 0; /* in % */
+	u32 ei_up = 0, ei_down = 0;
 
 	new_power = dev_priv->rps.power;
 	switch (dev_priv->rps.power) {
@@ -3858,58 +3860,52 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 	switch (new_power) {
 	case LOW_POWER:
 		/* Upclock if more than 95% busy over 16ms */
-		I915_WRITE(GEN6_RP_UP_EI, 12500);
-		I915_WRITE(GEN6_RP_UP_THRESHOLD, 11800);
+		ei_up = 16000;
+		threshold_up = 95;
 
 		/* Downclock if less than 85% busy over 32ms */
-		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 21250);
-
-		I915_WRITE(GEN6_RP_CONTROL,
-			   GEN6_RP_MEDIA_TURBO |
-			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-			   GEN6_RP_MEDIA_IS_GFX |
-			   GEN6_RP_ENABLE |
-			   GEN6_RP_UP_BUSY_AVG |
-			   GEN6_RP_DOWN_IDLE_AVG);
+		ei_down = 32000;
+		threshold_down = 85;
 		break;
 
 	case BETWEEN:
 		/* Upclock if more than 90% busy over 13ms */
-		I915_WRITE(GEN6_RP_UP_EI, 10250);
-		I915_WRITE(GEN6_RP_UP_THRESHOLD, 9225);
+		ei_up = 13000;
+		threshold_up = 90;
 
 		/* Downclock if less than 75% busy over 32ms */
-		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 18750);
-
-		I915_WRITE(GEN6_RP_CONTROL,
-			   GEN6_RP_MEDIA_TURBO |
-			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-			   GEN6_RP_MEDIA_IS_GFX |
-			   GEN6_RP_ENABLE |
-			   GEN6_RP_UP_BUSY_AVG |
-			   GEN6_RP_DOWN_IDLE_AVG);
+		ei_down = 32000;
+		threshold_down = 75;
 		break;
 
 	case HIGH_POWER:
 		/* Upclock if more than 85% busy over 10ms */
-		I915_WRITE(GEN6_RP_UP_EI, 8000);
-		I915_WRITE(GEN6_RP_UP_THRESHOLD, 6800);
+		ei_up = 10000;
+		threshold_up = 85;
 
 		/* Downclock if less than 60% busy over 32ms */
-		I915_WRITE(GEN6_RP_DOWN_EI, 25000);
-		I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 15000);
-
-		I915_WRITE(GEN6_RP_CONTROL,
-			   GEN6_RP_MEDIA_TURBO |
-			   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-			   GEN6_RP_MEDIA_IS_GFX |
-			   GEN6_RP_ENABLE |
-			   GEN6_RP_UP_BUSY_AVG |
-			   GEN6_RP_DOWN_IDLE_AVG);
+		ei_down = 32000;
+		threshold_down = 60;
 		break;
 	}
+
+	I915_WRITE(GEN6_RP_UP_EI,
+		GT_INTERVAL_FROM_US(dev_priv, ei_up));
+	I915_WRITE(GEN6_RP_UP_THRESHOLD,
+		GT_INTERVAL_FROM_US(dev_priv, (ei_up * threshold_up / 100)));
+
+	I915_WRITE(GEN6_RP_DOWN_EI,
+		GT_INTERVAL_FROM_US(dev_priv, ei_down));
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD,
+		GT_INTERVAL_FROM_US(dev_priv, (ei_down * threshold_down / 100)));
+
+	 I915_WRITE(GEN6_RP_CONTROL,
+		    GEN6_RP_MEDIA_TURBO |
+		    GEN6_RP_MEDIA_HW_NORMAL_MODE |
+		    GEN6_RP_MEDIA_IS_GFX |
+		    GEN6_RP_ENABLE |
+		    GEN6_RP_UP_BUSY_AVG |
+		    GEN6_RP_DOWN_IDLE_AVG);
 
 	dev_priv->rps.power = new_power;
 	dev_priv->rps.last_adj = 0;
