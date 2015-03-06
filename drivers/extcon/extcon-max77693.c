@@ -1019,8 +1019,6 @@ static void max77693_muic_irq_work(struct work_struct *work)
 		dev_err(info->dev, "failed to handle MUIC interrupt\n");
 
 	mutex_unlock(&info->mutex);
-
-	return;
 }
 
 static irqreturn_t max77693_muic_irq_handler(int irq, void *data)
@@ -1171,8 +1169,7 @@ static int max77693_muic_probe(struct platform_device *pdev)
 				muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"failed: irq request (IRQ: %d,"
-				" error :%d)\n",
+				"failed: irq request (IRQ: %d, error :%d)\n",
 				muic_irq->irq, ret);
 			return ret;
 		}

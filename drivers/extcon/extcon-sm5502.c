@@ -359,8 +359,8 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 			break;
 		default:
 			dev_dbg(info->dev,
-				"cannot identify the cable type: adc(0x%x) "
-				"dev_type1(0x%x)\n", adc, dev_type1);
+				"cannot identify the cable type: adc(0x%x)\n",
+				adc);
 			return -EINVAL;
 		};
 		break;
@@ -659,7 +659,7 @@ static int sm5502_muic_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static struct of_device_id sm5502_dt_match[] = {
+static const struct of_device_id sm5502_dt_match[] = {
 	{ .compatible = "siliconmitus,sm5502-muic" },
 	{ },
 };

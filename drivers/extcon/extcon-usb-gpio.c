@@ -214,7 +214,7 @@ static int usb_extcon_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(usb_extcon_pm_ops,
 			 usb_extcon_suspend, usb_extcon_resume);
 
-static struct of_device_id usb_extcon_dt_match[] = {
+static const struct of_device_id usb_extcon_dt_match[] = {
 	{ .compatible = "linux,extcon-usb-gpio", },
 	{ /* sentinel */ }
 };

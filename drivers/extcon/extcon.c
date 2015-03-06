@@ -158,6 +158,7 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 	/* Optional callback given by the user */
 	if (edev->print_name) {
 		int ret = edev->print_name(edev, buf);
+
 		if (ret >= 0)
 			return ret;
 	}
