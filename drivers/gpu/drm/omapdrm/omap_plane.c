@@ -39,10 +39,7 @@ struct omap_plane {
 	struct drm_plane base;
 	int id;  /* TODO rename omap_plane -> omap_plane_id in omapdss so I can use the enum */
 	const char *name;
-	struct omap_overlay_info info;
 
-	/* position/orientation of scanout within the fb: */
-	struct omap_drm_window win;
 	bool enabled;
 
 	uint32_t nformats;
@@ -67,8 +64,9 @@ static int omap_plane_setup(struct omap_plane *omap_plane)
 {
 	struct drm_plane_state *state = omap_plane->base.state;
 	struct omap_plane_state *omap_state = to_omap_plane_state(state);
-	struct omap_overlay_info *info = &omap_plane->info;
 	struct drm_device *dev = omap_plane->base.dev;
+	struct omap_overlay_info info;
+	struct omap_drm_window win;
 	int ret;
 
 	DBG("%s, enabled=%d", omap_plane->name, omap_plane->enabled);
@@ -78,22 +76,53 @@ static int omap_plane_setup(struct omap_plane *omap_plane)
 		return 0;
 	}
 
-	info->zorder = omap_state->zorder;
+	memset(&info, 0, sizeof(info));
+	info.rotation_type = OMAP_DSS_ROT_DMA;
+	info.rotation = OMAP_DSS_ROT_0;
+	info.global_alpha = 0xff;
+	info.mirror = 0;
+	info.zorder = omap_state->zorder;
+
+	memset(&win, 0, sizeof(win));
+	win.rotation = state->rotation;
+	win.crtc_x = state->crtc_x;
+	win.crtc_y = state->crtc_y;
+	win.crtc_w = state->crtc_w;
+	win.crtc_h = state->crtc_h;
+
+	/*
+	 * src values are in Q16 fixed point, convert to integer.
+	 * omap_framebuffer_update_scanout() takes adjusted src.
+	 */
+	win.src_x = state->src_x >> 16;
+	win.src_y = state->src_y >> 16;
+
+	switch (state->rotation & 0xf) {
+	case BIT(DRM_ROTATE_90):
+	case BIT(DRM_ROTATE_270):
+		win.src_w = state->src_h >> 16;
+		win.src_h = state->src_w >> 16;
+		break;
+	default:
+		win.src_w = state->src_w >> 16;
+		win.src_h = state->src_h >> 16;
+		break;
+	}
 
 	/* update scanout: */
-	omap_framebuffer_update_scanout(state->fb, &omap_plane->win, info);
+	omap_framebuffer_update_scanout(state->fb, &win, &info);
 
-	DBG("%dx%d -> %dx%d (%d)", info->width, info->height,
-			info->out_width, info->out_height,
-			info->screen_width);
-	DBG("%d,%d %pad %pad", info->pos_x, info->pos_y,
-			&info->paddr, &info->p_uv_addr);
+	DBG("%dx%d -> %dx%d (%d)", info.width, info.height,
+			info.out_width, info.out_height,
+			info.screen_width);
+	DBG("%d,%d %pad %pad", info.pos_x, info.pos_y,
+			&info.paddr, &info.p_uv_addr);
 
 	dispc_ovl_set_channel_out(omap_plane->id,
 				  omap_crtc_channel(state->crtc));
 
 	/* and finally, update omapdss: */
-	ret = dispc_ovl_setup(omap_plane->id, info, false,
+	ret = dispc_ovl_setup(omap_plane->id, &info, false,
 			      omap_crtc_timings(state->crtc), false);
 	if (ret) {
 		dev_err(dev->dev, "dispc_ovl_setup failed: %d\n", ret);
@@ -140,39 +169,10 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	struct omap_drm_window *win = &omap_plane->win;
 	struct drm_plane_state *state = plane->state;
-	uint32_t src_w;
-	uint32_t src_h;
 
 	if (!state->fb || !state->crtc)
 		return;
-
-	win->rotation = state->rotation;
-
-	/* omap_framebuffer_update_scanout() takes adjusted src */
-	switch (state->rotation & 0xf) {
-	case BIT(DRM_ROTATE_90):
-	case BIT(DRM_ROTATE_270):
-		src_w = state->src_h;
-		src_h = state->src_w;
-		break;
-	default:
-		src_w = state->src_w;
-		src_h = state->src_h;
-		break;
-	}
-
-	/* src values are in Q16 fixed point, convert to integer. */
-	win->crtc_x = state->crtc_x;
-	win->crtc_y = state->crtc_y;
-	win->crtc_w = state->crtc_w;
-	win->crtc_h = state->crtc_h;
-
-	win->src_x = state->src_x >> 16;
-	win->src_y = state->src_y >> 16;
-	win->src_w = src_w >> 16;
-	win->src_h = src_h >> 16;
 
 	omap_plane->enabled = true;
 	omap_plane_setup(omap_plane);
@@ -358,7 +358,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
-	struct omap_overlay_info *info;
 	int ret;
 
 	DBG("%s: type=%d", plane_names[id], type);
@@ -388,15 +387,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &omap_plane_helper_funcs);
 
 	omap_plane_install_properties(plane, &plane->base);
-
-	/* get our starting configuration, set defaults for parameters
-	 * we don't currently use, etc:
-	 */
-	info = &omap_plane->info;
-	info->rotation_type = OMAP_DSS_ROT_DMA;
-	info->rotation = OMAP_DSS_ROT_0;
-	info->global_alpha = 0xff;
-	info->mirror = 0;
 
 	return plane;
 
