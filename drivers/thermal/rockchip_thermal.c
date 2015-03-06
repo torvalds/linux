@@ -28,6 +28,13 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 
+#if 0
+#define thermal_dbg(dev, format, arg...)		\
+	dev_printk(KERN_INFO , dev , format , ## arg)
+#else
+#define thermal_dbg(dev, format, arg...)
+#endif
+
 
 /**
  * If the temperature over a period of time High,
@@ -820,7 +827,7 @@ static int rockchip_thermal_user_mode_get_temp(struct rockchip_thermal_data *the
 	temp_cpu = rk_tsadcv3_code_to_temp((val_cpu * voltage + 500000) / 1000000) / 1000;
 	temp_cpu = temp_cpu + thermal->cpu_temp_adjust;
 	thermal->cpu_temp = temp_cpu;
-	pr_info("cpu[%d, %d], voltage: %d\n", val_cpu, temp_cpu, voltage);
+	thermal_dbg(&thermal->pdev->dev, "cpu[%d, %d], voltage: %d\n", val_cpu, temp_cpu, voltage);
 #endif
 
 	return temp_cpu;
