@@ -2737,7 +2737,7 @@ static struct rocker_neigh_tbl_entry *
 {
 	struct rocker_neigh_tbl_entry *found;
 
-	hash_for_each_possible(rocker->neigh_tbl, found, entry, ip_addr)
+	hash_for_each_possible(rocker->neigh_tbl, found, entry, (u32)ip_addr)
 		if (found->ip_addr == ip_addr)
 			return found;
 
@@ -2749,7 +2749,7 @@ static void _rocker_neigh_add(struct rocker *rocker,
 {
 	entry->index = rocker->neigh_tbl_next_index++;
 	entry->ref_count++;
-	hash_add(rocker->neigh_tbl, &entry->entry, entry->ip_addr);
+	hash_add(rocker->neigh_tbl, &entry->entry, (u32)entry->ip_addr);
 }
 
 static void _rocker_neigh_del(struct rocker *rocker,
@@ -2868,7 +2868,7 @@ static int rocker_port_ipv4_resolve(struct rocker_port *rocker_port,
 				    __be32 ip_addr)
 {
 	struct net_device *dev = rocker_port->dev;
-	struct neighbour *n = __ipv4_neigh_lookup(dev, ip_addr);
+	struct neighbour *n = __ipv4_neigh_lookup(dev, (u32)ip_addr);
 	int err = 0;
 
 	if (!n)
