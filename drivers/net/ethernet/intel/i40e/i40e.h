@@ -749,10 +749,6 @@ int i40e_ptp_get_ts_config(struct i40e_pf *pf, struct ifreq *ifr);
 void i40e_ptp_init(struct i40e_pf *pf);
 void i40e_ptp_stop(struct i40e_pf *pf);
 int i40e_is_vsi_uplink_mode_veb(struct i40e_vsi *vsi);
-#if IS_ENABLED(CONFIG_I40E_CONFIGFS_FS)
-int i40e_configfs_init(void);
-void i40e_configfs_exit(void);
-#endif /* CONFIG_I40E_CONFIGFS_FS */
 i40e_status i40e_get_npar_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_set_npar_bw_setting(struct i40e_pf *pf);
 i40e_status i40e_commit_npar_bw_setting(struct i40e_pf *pf);
