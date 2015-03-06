@@ -818,22 +818,6 @@ static inline void spin_lock_prefetch(const void *x)
 	.io_bitmap_ptr		= NULL,					  \
 }
 
-/*
- * Note that the .io_bitmap member must be extra-big. This is because
- * the CPU will access an additional byte beyond the end of the IO
- * permission bitmap. The extra byte must be all 1 bits, and must
- * be within the limit.
- */
-#define INIT_TSS  {							  \
-	.x86_tss = {							  \
-		.sp0		= sizeof(init_stack) + (long)&init_stack, \
-		.ss0		= __KERNEL_DS,				  \
-		.ss1		= __KERNEL_CS,				  \
-		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,		  \
-	 },								  \
-	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },	  \
-}
-
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 #define THREAD_SIZE_LONGS      (THREAD_SIZE/sizeof(unsigned long))
@@ -890,10 +874,6 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 #define INIT_THREAD  { \
 	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
-}
-
-#define INIT_TSS  { \
-	.x86_tss.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
 }
 
 /*
