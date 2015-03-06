@@ -1783,37 +1783,33 @@ static int bcmgenet_init_rx_ring(struct bcmgenet_priv *priv,
 	u32 words_per_bd = WORDS_PER_BD(priv);
 	int ret;
 
-	priv->num_rx_bds = TOTAL_DESC;
-	priv->rx_bds = priv->base + priv->hw_params->rdma_offset;
 	priv->rx_bd_assign_ptr = priv->rx_bds;
 	priv->rx_bd_assign_index = 0;
 	priv->rx_c_index = 0;
 	priv->rx_read_ptr = 0;
-	priv->rx_cbs = kcalloc(priv->num_rx_bds, sizeof(struct enet_cb),
-			       GFP_KERNEL);
-	if (!priv->rx_cbs)
-		return -ENOMEM;
 
 	ret = bcmgenet_alloc_rx_buffers(priv);
 	if (ret) {
-		kfree(priv->rx_cbs);
 		return ret;
 	}
 
-	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_WRITE_PTR);
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_PROD_INDEX);
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_CONS_INDEX);
+	bcmgenet_rdma_ring_writel(priv, index, 1, DMA_MBUF_DONE_THRESH);
 	bcmgenet_rdma_ring_writel(priv, index,
 				  ((size << DMA_RING_SIZE_SHIFT) |
 				   RX_BUF_LENGTH), DMA_RING_BUF_SIZE);
-	bcmgenet_rdma_ring_writel(priv, index, 0, DMA_START_ADDR);
-	bcmgenet_rdma_ring_writel(priv, index,
-				  words_per_bd * size - 1, DMA_END_ADDR);
 	bcmgenet_rdma_ring_writel(priv, index,
 				  (DMA_FC_THRESH_LO <<
 				   DMA_XOFF_THRESHOLD_SHIFT) |
 				   DMA_FC_THRESH_HI, RDMA_XON_XOFF_THRESH);
+
+	/* Set start and end address, read and write pointers */
+	bcmgenet_rdma_ring_writel(priv, index, 0, DMA_START_ADDR);
 	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_READ_PTR);
+	bcmgenet_rdma_ring_writel(priv, index, 0, RDMA_WRITE_PTR);
+	bcmgenet_rdma_ring_writel(priv, index, words_per_bd * size - 1,
+				  DMA_END_ADDR);
 
 	return ret;
 }
@@ -1976,17 +1972,32 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv)
 	unsigned int i;
 	struct enet_cb *cb;
 
-	netif_dbg(priv, hw, priv->dev, "bcmgenet: init_edma\n");
+	netif_dbg(priv, hw, priv->dev, "%s\n", __func__);
 
-	/* by default, enable ring 16 (descriptor based) */
+	/* Init rDma */
+	bcmgenet_rdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
+
+	/* Initialize common Rx ring structures */
+	priv->rx_bds = priv->base + priv->hw_params->rdma_offset;
+	priv->num_rx_bds = TOTAL_DESC;
+	priv->rx_cbs = kcalloc(priv->num_rx_bds, sizeof(struct enet_cb),
+			       GFP_KERNEL);
+	if (!priv->rx_cbs)
+		return -ENOMEM;
+
+	for (i = 0; i < priv->num_rx_bds; i++) {
+		cb = priv->rx_cbs + i;
+		cb->bd_addr = priv->rx_bds + i * DMA_DESC_SIZE;
+	}
+
+	/* Initialize Rx default queue 16 */
 	ret = bcmgenet_init_rx_ring(priv, DESC_INDEX, TOTAL_DESC);
 	if (ret) {
 		netdev_err(priv->dev, "failed to initialize RX ring\n");
+		bcmgenet_free_rx_buffers(priv);
+		kfree(priv->rx_cbs);
 		return ret;
 	}
-
-	/* init rDma */
-	bcmgenet_rdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
 
 	/* Init tDma */
 	bcmgenet_tdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
