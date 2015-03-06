@@ -39,18 +39,6 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	bitmap_zero(wil->hw_capabilities, hw_capability_last);
 
 	switch (rev_id) {
-	case JTAG_DEV_ID_MARLON_B0:
-		wil->hw_name = "Marlon B0";
-		wil->hw_version = HW_VER_MARLON_B0;
-		break;
-	case JTAG_DEV_ID_SPARROW_A0:
-		wil->hw_name = "Sparrow A0";
-		wil->hw_version = HW_VER_SPARROW_A0;
-		break;
-	case JTAG_DEV_ID_SPARROW_A1:
-		wil->hw_name = "Sparrow A1";
-		wil->hw_version = HW_VER_SPARROW_A1;
-		break;
 	case JTAG_DEV_ID_SPARROW_B0:
 		wil->hw_name = "Sparrow B0";
 		wil->hw_version = HW_VER_SPARROW_B0;
@@ -62,13 +50,6 @@ void wil_set_capabilities(struct wil6210_priv *wil)
 	}
 
 	wil_info(wil, "Board hardware is %s\n", wil->hw_name);
-
-	if (wil->hw_version >= HW_VER_SPARROW_A0)
-		set_bit(hw_capability_reset_v2, wil->hw_capabilities);
-
-	if (wil->hw_version >= HW_VER_SPARROW_B0)
-		set_bit(hw_capability_advanced_itr_moderation,
-			wil->hw_capabilities);
 }
 
 void wil_disable_irq(struct wil6210_priv *wil)
@@ -150,7 +131,7 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 
 	/* need reset here to obtain MAC */
 	mutex_lock(&wil->mutex);
-	rc = wil_reset(wil);
+	rc = wil_reset(wil, false);
 	mutex_unlock(&wil->mutex);
 	if (debug_fw)
 		rc = 0;
@@ -305,7 +286,6 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id wil6210_pcie_ids[] = {
-	{ PCI_DEVICE(0x1ae9, 0x0301) },
 	{ PCI_DEVICE(0x1ae9, 0x0310) },
 	{ PCI_DEVICE(0x1ae9, 0x0302) }, /* same as above, firmware broken */
 	{ /* end: all zeroes */	},

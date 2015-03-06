@@ -339,13 +339,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	    !iwlwifi_mod_params.sw_crypto)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN ||
-	    mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
-		hw->flags |= IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS;
-		hw->wiphy->features |=
-			NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
-			NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
-	}
+	hw->flags |= IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS;
+	hw->wiphy->features |=
+		NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
+		NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	hw->sta_data_size = sizeof(struct iwl_mvm_sta);
 	hw->vif_data_size = sizeof(struct iwl_mvm_vif);
@@ -889,12 +886,23 @@ static void iwl_mvm_dump_fifos(struct iwl_mvm *mvm,
 	iwl_trans_release_nic_access(mvm->trans, &flags);
 }
 
+void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm)
+{
+	if (mvm->fw_dump_desc == &iwl_mvm_dump_desc_assert ||
+	    !mvm->fw_dump_desc)
+		return;
+
+	kfree(mvm->fw_dump_desc);
+	mvm->fw_dump_desc = NULL;
+}
+
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 {
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
 	struct iwl_fw_error_dump_mem *dump_mem;
+	struct iwl_fw_error_dump_trigger_desc *dump_trig;
 	struct iwl_mvm_dump_ptrs *fw_error_dump;
 	u32 sram_len, sram_ofs;
 	u32 file_len, fifo_data_len = 0;
@@ -964,6 +972,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 		   fifo_data_len +
 		   sizeof(*dump_info);
 
+	if (mvm->fw_dump_desc)
+		file_len += sizeof(*dump_data) + sizeof(*dump_trig) +
+			    mvm->fw_dump_desc->len;
+
 	/* Make room for the SMEM, if it exists */
 	if (smem_len)
 		file_len += sizeof(*dump_data) + sizeof(*dump_mem) + smem_len;
@@ -975,6 +987,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	dump_file = vzalloc(file_len);
 	if (!dump_file) {
 		kfree(fw_error_dump);
+		iwl_mvm_free_fw_dump_desc(mvm);
 		return;
 	}
 
@@ -1002,6 +1015,19 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	/* We only dump the FIFOs if the FW is in error state */
 	if (test_bit(STATUS_FW_ERROR, &mvm->trans->status))
 		iwl_mvm_dump_fifos(mvm, &dump_data);
+
+	if (mvm->fw_dump_desc) {
+		dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_ERROR_INFO);
+		dump_data->len = cpu_to_le32(sizeof(*dump_trig) +
+					     mvm->fw_dump_desc->len);
+		dump_trig = (void *)dump_data->data;
+		memcpy(dump_trig, &mvm->fw_dump_desc->trig_desc,
+		       sizeof(*dump_trig) + mvm->fw_dump_desc->len);
+
+		/* now we can free this copy */
+		iwl_mvm_free_fw_dump_desc(mvm);
+		dump_data = iwl_fw_error_next_data(dump_data);
+	}
 
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
 	dump_data->len = cpu_to_le32(sram_len + sizeof(*dump_mem));
@@ -1041,7 +1067,15 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	dev_coredumpm(mvm->trans->dev, THIS_MODULE, fw_error_dump, 0,
 		      GFP_KERNEL, iwl_mvm_read_coredump, iwl_mvm_free_coredump);
+
+	clear_bit(IWL_MVM_STATUS_DUMPING_FW_LOG, &mvm->status);
 }
+
+struct iwl_mvm_dump_desc iwl_mvm_dump_desc_assert = {
+	.trig_desc = {
+		.type = cpu_to_le32(FW_DBG_TRIGGER_FW_ASSERT),
+	},
+};
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
@@ -1049,8 +1083,10 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	 * firmware coredump on reconfiguration, we shouldn't do that
 	 * on D3->D0 transition
 	 */
-	if (!test_and_clear_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status))
+	if (!test_and_clear_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status)) {
+		mvm->fw_dump_desc = &iwl_mvm_dump_desc_assert;
 		iwl_mvm_fw_error_dump(mvm);
+	}
 
 	/* cleanup all stale references (scan, roc), but keep the
 	 * ucode_down ref until reconfig is complete
@@ -1091,6 +1127,10 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
+	mvm->fw_dbg_conf = FW_DBG_INVALID;
+
+	/* keep statistics ticking */
+	iwl_mvm_accu_radio_stats(mvm);
 }
 
 int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
@@ -1213,6 +1253,11 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 {
 	lockdep_assert_held(&mvm->mutex);
 
+	/* firmware counters are obviously reset now, but we shouldn't
+	 * partially track so also clear the fw_reset_accu counters.
+	 */
+	memset(&mvm->accu_radio_stats, 0, sizeof(mvm->accu_radio_stats));
+
 	/*
 	 * Disallow low power states when the FW is down by taking
 	 * the UCODE_DOWN ref. in case of ongoing hw restart the
@@ -1252,7 +1297,8 @@ static void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 
 	flush_work(&mvm->d0i3_exit_work);
 	flush_work(&mvm->async_handlers_wk);
-	flush_work(&mvm->fw_error_dump_wk);
+	cancel_delayed_work_sync(&mvm->fw_dump_wk);
+	iwl_mvm_free_fw_dump_desc(mvm);
 
 	mutex_lock(&mvm->mutex);
 	__iwl_mvm_mac_stop(mvm);
@@ -1316,6 +1362,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 */
 
 	mutex_lock(&mvm->mutex);
+
+	/* make sure that beacon statistics don't go backwards with FW reset */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		mvmvif->beacon_stats.accu_num_beacons +=
+			mvmvif->beacon_stats.num_beacons;
 
 	/* Allocate resources for the MAC context, and add it to the fw  */
 	ret = iwl_mvm_mac_ctxt_init(mvm, vif);
@@ -1810,6 +1861,11 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
+			/* clear statistics to get clean beacon counter */
+			iwl_mvm_request_statistics(mvm, true);
+			memset(&mvmvif->beacon_stats, 0,
+			       sizeof(mvmvif->beacon_stats));
+
 			/* add quota for this interface */
 			ret = iwl_mvm_update_quotas(mvm, NULL);
 			if (ret) {
@@ -2196,10 +2252,8 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
 		ret = iwl_mvm_scan_umac(mvm, vif, hw_req);
-	else if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
-		ret = iwl_mvm_unified_scan_lmac(mvm, vif, hw_req);
 	else
-		ret = iwl_mvm_scan_request(mvm, vif, req);
+		ret = iwl_mvm_unified_scan_lmac(mvm, vif, hw_req);
 
 	if (ret)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
@@ -2527,13 +2581,7 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* Newest FW fixes sched scan while connected on another interface */
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) {
-		if (!vif->bss_conf.idle) {
-			ret = -EBUSY;
-			goto out;
-		}
-	} else if (!iwl_mvm_is_idle(mvm)) {
+	if (!vif->bss_conf.idle) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -3433,6 +3481,9 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(mvm, "pre CSA to freq %d\n",
 			   chsw->chandef.center_freq1);
 
+	iwl_fw_dbg_trigger_simple_stop(mvm, vif, FW_DBG_TRIGGER_CHANNEL_SWITCH,
+				       NULL, 0);
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 		csa_vif =
@@ -3581,6 +3632,95 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	}
 }
 
+static int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
+				  struct survey_info *survey)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	memset(survey, 0, sizeof(*survey));
+
+	/* only support global statistics right now */
+	if (idx != 0)
+		return -ENOENT;
+
+	if (!(mvm->fw->ucode_capa.capa[0] &
+			IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
+		return -ENOENT;
+
+	mutex_lock(&mvm->mutex);
+
+	if (mvm->ucode_loaded) {
+		ret = iwl_mvm_request_statistics(mvm, false);
+		if (ret)
+			goto out;
+	}
+
+	survey->filled = SURVEY_INFO_TIME |
+			 SURVEY_INFO_TIME_RX |
+			 SURVEY_INFO_TIME_TX |
+			 SURVEY_INFO_TIME_SCAN;
+	survey->time = mvm->accu_radio_stats.on_time_rf +
+		       mvm->radio_stats.on_time_rf;
+	do_div(survey->time, USEC_PER_MSEC);
+
+	survey->time_rx = mvm->accu_radio_stats.rx_time +
+			  mvm->radio_stats.rx_time;
+	do_div(survey->time_rx, USEC_PER_MSEC);
+
+	survey->time_tx = mvm->accu_radio_stats.tx_time +
+			  mvm->radio_stats.tx_time;
+	do_div(survey->time_tx, USEC_PER_MSEC);
+
+	survey->time_scan = mvm->accu_radio_stats.on_time_scan +
+			    mvm->radio_stats.on_time_scan;
+	do_div(survey->time_scan, USEC_PER_MSEC);
+
+ out:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
+static void iwl_mvm_mac_sta_statistics(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_sta *sta,
+				       struct station_info *sinfo)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	if (!(mvm->fw->ucode_capa.capa[0] &
+				IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
+		return;
+
+	/* if beacon filtering isn't on mac80211 does it anyway */
+	if (!(vif->driver_flags & IEEE80211_VIF_BEACON_FILTER))
+		return;
+
+	if (!vif->bss_conf.assoc)
+		return;
+
+	mutex_lock(&mvm->mutex);
+
+	if (mvmvif->ap_sta_id != mvmsta->sta_id)
+		goto unlock;
+
+	if (iwl_mvm_request_statistics(mvm, false))
+		goto unlock;
+
+	sinfo->rx_beacon = mvmvif->beacon_stats.num_beacons +
+			   mvmvif->beacon_stats.accu_num_beacons;
+	sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_RX);
+	if (mvmvif->beacon_stats.avg_signal) {
+		/* firmware only reports a value after RXing a few beacons */
+		sinfo->rx_beacon_signal_avg = mvmvif->beacon_stats.avg_signal;
+		sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_SIGNAL_AVG);
+	}
+ unlock:
+	mutex_unlock(&mvm->mutex);
+}
+
 const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -3647,4 +3787,6 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 #endif
 	.set_default_unicast_key = iwl_mvm_set_default_unicast_key,
 #endif
+	.get_survey = iwl_mvm_mac_get_survey,
+	.sta_statistics = iwl_mvm_mac_sta_statistics,
 };

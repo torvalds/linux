@@ -75,7 +75,7 @@
 #define IWL8000_UCODE_API_OK	10
 
 /* Lowest firmware API version supported */
-#define IWL8000_UCODE_API_MIN	9
+#define IWL8000_UCODE_API_MIN	10
 
 /* NVM versions */
 #define IWL8000_NVM_VERSION		0x0a1d

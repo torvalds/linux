@@ -80,10 +80,12 @@ EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);
 int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		       struct mwifiex_tx_param *tx_param)
 {
-	int ret = -1;
+	int hroom, ret = -1;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	u8 *head_ptr;
 	struct txpd *local_tx_pd = NULL;
+
+	hroom = (adapter->iface_type == MWIFIEX_USB) ? 0 : INTF_HEADER_LEN;
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
 		head_ptr = mwifiex_process_uap_txpd(priv, skb);
@@ -92,11 +94,9 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 
 	if (head_ptr) {
 		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
-			local_tx_pd =
-				(struct txpd *) (head_ptr + INTF_HEADER_LEN);
+			local_tx_pd = (struct txpd *)(head_ptr + hroom);
 		if (adapter->iface_type == MWIFIEX_USB) {
 			adapter->data_sent = true;
-			skb_pull(skb, INTF_HEADER_LEN);
 			ret = adapter->if_ops.host_to_card(adapter,
 							   MWIFIEX_USB_EP_DATA,
 							   skb, NULL);

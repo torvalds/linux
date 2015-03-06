@@ -595,6 +595,7 @@ enum iwl_d0i3_mode {
  * @dflt_pwr_limit: default power limit fetched from the platform (ACPI)
  * @dbg_dest_tlv: points to the destination TLV for debug
  * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
+ * @dbg_trigger_tlv: array of pointers to triggers TLVs for debug
  * @dbg_dest_reg_num: num of reg_ops in %dbg_dest_tlv
  */
 struct iwl_trans {
@@ -628,7 +629,8 @@ struct iwl_trans {
 	u64 dflt_pwr_limit;
 
 	const struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
-	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_MAX];
+	const struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];
+	struct iwl_fw_dbg_trigger_tlv * const *dbg_trigger_tlv;
 	u8 dbg_dest_reg_num;
 
 	enum iwl_d0i3_mode d0i3_mode;

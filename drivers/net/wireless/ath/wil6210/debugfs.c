@@ -29,6 +29,7 @@
 static u32 mem_addr;
 static u32 dbg_txdesc_index;
 static u32 dbg_vring_index; /* 24+ for Rx, 0..23 for Tx */
+u32 vring_idle_trsh = 16; /* HW fetches up to 16 descriptors at once */
 
 enum dbg_off_type {
 	doff_u32 = 0,
@@ -102,23 +103,30 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 				   % vring->size;
 			int avail = vring->size - used - 1;
 			char name[10];
+			char sidle[10];
 			/* performance monitoring */
 			cycles_t now = get_cycles();
 			uint64_t idle = txdata->idle * 100;
 			uint64_t total = now - txdata->begin;
 
-			do_div(idle, total);
+			if (total != 0) {
+				do_div(idle, total);
+				snprintf(sidle, sizeof(sidle), "%3d%%",
+					 (int)idle);
+			} else {
+				snprintf(sidle, sizeof(sidle), "N/A");
+			}
 			txdata->begin = now;
 			txdata->idle = 0ULL;
 
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
 			seq_printf(s,
-				   "\n%pM CID %d TID %d BACK([%d] %d TU A%s) [%3d|%3d] idle %3d%%\n",
-				   wil->sta[cid].addr, cid, tid,
-				   txdata->agg_wsize, txdata->agg_timeout,
-				   txdata->agg_amsdu ? "+" : "-",
-				   used, avail, (int)idle);
+				"\n%pM CID %d TID %d BACK([%d] %d TU A%s) [%3d|%3d] idle %s\n",
+				wil->sta[cid].addr, cid, tid,
+				txdata->agg_wsize, txdata->agg_timeout,
+				txdata->agg_amsdu ? "+" : "-",
+				used, avail, sidle);
 
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
@@ -549,7 +557,7 @@ static ssize_t wil_write_file_reset(struct file *file, const char __user *buf,
 	dev_close(ndev);
 	ndev->flags &= ~IFF_UP;
 	rtnl_unlock();
-	wil_reset(wil);
+	wil_reset(wil, true);
 
 	return len;
 }
@@ -618,7 +626,7 @@ static ssize_t wil_write_back(struct file *file, const char __user *buf,
 	struct wil6210_priv *wil = file->private_data;
 	int rc;
 	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
-	char cmd[8];
+	char cmd[9];
 	int p1, p2, p3;
 
 	if (!kbuf)
@@ -1392,7 +1400,7 @@ static void wil6210_debugfs_init_isr(struct wil6210_priv *wil,
 
 /* fields in struct wil6210_priv */
 static const struct dbg_off dbg_wil_off[] = {
-	WIL_FIELD(secure_pcp,	S_IRUGO | S_IWUSR,	doff_u32),
+	WIL_FIELD(privacy,	S_IRUGO,		doff_u32),
 	WIL_FIELD(status[0],	S_IRUGO | S_IWUSR,	doff_ulong),
 	WIL_FIELD(fw_version,	S_IRUGO,		doff_u32),
 	WIL_FIELD(hw_version,	S_IRUGO,		doff_x32),
@@ -1412,6 +1420,8 @@ static const struct dbg_off dbg_statics[] = {
 	{"desc_index",	S_IRUGO | S_IWUSR, (ulong)&dbg_txdesc_index, doff_u32},
 	{"vring_index",	S_IRUGO | S_IWUSR, (ulong)&dbg_vring_index, doff_u32},
 	{"mem_addr",	S_IRUGO | S_IWUSR, (ulong)&mem_addr, doff_u32},
+	{"vring_idle_trsh", S_IRUGO | S_IWUSR, (ulong)&vring_idle_trsh,
+	 doff_u32},
 	{},
 };
 

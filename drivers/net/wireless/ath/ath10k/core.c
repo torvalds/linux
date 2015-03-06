@@ -436,16 +436,16 @@ static int ath10k_download_fw(struct ath10k *ar, enum ath10k_firmware_mode mode)
 
 static void ath10k_core_free_firmware_files(struct ath10k *ar)
 {
-	if (ar->board && !IS_ERR(ar->board))
+	if (!IS_ERR(ar->board))
 		release_firmware(ar->board);
 
-	if (ar->otp && !IS_ERR(ar->otp))
+	if (!IS_ERR(ar->otp))
 		release_firmware(ar->otp);
 
-	if (ar->firmware && !IS_ERR(ar->firmware))
+	if (!IS_ERR(ar->firmware))
 		release_firmware(ar->firmware);
 
-	if (ar->cal_file && !IS_ERR(ar->cal_file))
+	if (!IS_ERR(ar->cal_file))
 		release_firmware(ar->cal_file);
 
 	ar->board = NULL;

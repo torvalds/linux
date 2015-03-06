@@ -611,7 +611,7 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 		bt_cmd->enabled_modules |=
 			cpu_to_le32(BT_COEX_SYNC2SCO_ENABLED);
 
-	if (IWL_MVM_BT_COEX_CORUNNING)
+	if (iwl_mvm_bt_is_plcr_supported(mvm))
 		bt_cmd->enabled_modules |= cpu_to_le32(BT_COEX_CORUN_ENABLED);
 
 	if (IWL_MVM_BT_COEX_MPLUT) {
@@ -1234,7 +1234,7 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_rx_ant_coupling_notif_old(mvm, rxb, dev_cmd);
 
-	if (!IWL_MVM_BT_COEX_CORUNNING)
+	if (!iwl_mvm_bt_is_plcr_supported(mvm))
 		return 0;
 
 	lockdep_assert_held(&mvm->mutex);

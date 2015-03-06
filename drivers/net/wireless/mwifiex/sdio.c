@@ -105,8 +105,8 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 		card->tx_buf_size = data->tx_buf_size;
 		card->mp_tx_agg_buf_size = data->mp_tx_agg_buf_size;
 		card->mp_rx_agg_buf_size = data->mp_rx_agg_buf_size;
-		card->supports_fw_dump = data->supports_fw_dump;
-		card->auto_tdls = data->auto_tdls;
+		card->can_dump_fw = data->can_dump_fw;
+		card->can_auto_tdls = data->can_auto_tdls;
 		card->can_ext_scan = data->can_ext_scan;
 	}
 
@@ -1357,7 +1357,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 			return -1;
 		rx_len = (u16) (rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE);
 
-		skb = dev_alloc_skb(rx_len);
+		skb = mwifiex_alloc_rx_buf(rx_len, GFP_KERNEL | GFP_DMA);
 		if (!skb)
 			return -1;
 
@@ -1454,7 +1454,8 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 			}
 			rx_len = (u16) (rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE);
 
-			skb = dev_alloc_skb(rx_len);
+			skb = mwifiex_alloc_rx_buf(rx_len,
+						   GFP_KERNEL | GFP_DMA);
 
 			if (!skb) {
 				dev_err(adapter->dev, "%s: failed to alloc skb",
@@ -1887,7 +1888,7 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 		return -1;
 	}
 
-	adapter->auto_tdls = card->auto_tdls;
+	adapter->auto_tdls = card->can_auto_tdls;
 	adapter->ext_scan = card->can_ext_scan;
 	return ret;
 }
@@ -2032,7 +2033,7 @@ static void mwifiex_sdio_fw_dump_work(struct work_struct *work)
 
 	mwifiex_dump_drv_info(adapter);
 
-	if (!card->supports_fw_dump)
+	if (!card->can_dump_fw)
 		return;
 
 	for (idx = 0; idx < ARRAY_SIZE(mem_type_mapping_tbl); idx++) {

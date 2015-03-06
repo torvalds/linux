@@ -431,11 +431,11 @@ TRACE_EVENT(iwlwifi_dev_ucode_error,
 	TP_PROTO(const struct device *dev, u32 desc, u32 tsf_low,
 		 u32 data1, u32 data2, u32 line, u32 blink1,
 		 u32 blink2, u32 ilink1, u32 ilink2, u32 bcon_time,
-		 u32 gp1, u32 gp2, u32 gp3, u32 ucode_ver, u32 hw_ver,
+		 u32 gp1, u32 gp2, u32 gp3, u32 major, u32 minor, u32 hw_ver,
 		 u32 brd_ver),
 	TP_ARGS(dev, desc, tsf_low, data1, data2, line,
 		blink1, blink2, ilink1, ilink2, bcon_time, gp1, gp2,
-		gp3, ucode_ver, hw_ver, brd_ver),
+		gp3, major, minor, hw_ver, brd_ver),
 	TP_STRUCT__entry(
 		DEV_ENTRY
 		__field(u32, desc)
@@ -451,7 +451,8 @@ TRACE_EVENT(iwlwifi_dev_ucode_error,
 		__field(u32, gp1)
 		__field(u32, gp2)
 		__field(u32, gp3)
-		__field(u32, ucode_ver)
+		__field(u32, major)
+		__field(u32, minor)
 		__field(u32, hw_ver)
 		__field(u32, brd_ver)
 	),
@@ -470,21 +471,22 @@ TRACE_EVENT(iwlwifi_dev_ucode_error,
 		__entry->gp1 = gp1;
 		__entry->gp2 = gp2;
 		__entry->gp3 = gp3;
-		__entry->ucode_ver = ucode_ver;
+		__entry->major = major;
+		__entry->minor = minor;
 		__entry->hw_ver = hw_ver;
 		__entry->brd_ver = brd_ver;
 	),
 	TP_printk("[%s] #%02d %010u data 0x%08X 0x%08X line %u, "
 		  "blink 0x%05X 0x%05X ilink 0x%05X 0x%05X "
-		  "bcon_tm %010u gp 0x%08X 0x%08X 0x%08X uCode 0x%08X "
-		  "hw 0x%08X brd 0x%08X",
+		  "bcon_tm %010u gp 0x%08X 0x%08X 0x%08X major 0x%08X "
+		  "minor 0x%08X hw 0x%08X brd 0x%08X",
 		  __get_str(dev), __entry->desc, __entry->tsf_low,
 		  __entry->data1,
 		  __entry->data2, __entry->line, __entry->blink1,
 		  __entry->blink2, __entry->ilink1, __entry->ilink2,
 		  __entry->bcon_time, __entry->gp1, __entry->gp2,
-		  __entry->gp3, __entry->ucode_ver, __entry->hw_ver,
-		  __entry->brd_ver)
+		  __entry->gp3, __entry->major, __entry->minor,
+		  __entry->hw_ver, __entry->brd_ver)
 );
 
 TRACE_EVENT(iwlwifi_dev_ucode_event,

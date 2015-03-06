@@ -4819,7 +4819,7 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_core_pci_down(dev->dev->bdev->bus);
+		bcma_host_pci_down(dev->dev->bdev->bus);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
@@ -4866,9 +4866,9 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_core_pci_irq_ctl(&dev->dev->bdev->bus->drv_pci[0],
+		bcma_core_pci_irq_ctl(dev->dev->bdev->bus,
 				      dev->dev->bdev, true);
-		bcma_core_pci_up(dev->dev->bdev->bus);
+		bcma_host_pci_up(dev->dev->bdev->bus);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB

@@ -281,7 +281,6 @@ int wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 /*=== Event handlers ===*/
 static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 	struct wmi_ready_event *evt = d;
 
@@ -290,11 +289,7 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 
 	wil_info(wil, "FW ver. %d; MAC %pM; %d MID's\n", wil->fw_version,
 		 evt->mac, wil->n_mids);
-
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		memcpy(ndev->dev_addr, evt->mac, ETH_ALEN);
-		memcpy(ndev->perm_addr, evt->mac, ETH_ALEN);
-	}
+	/* ignore MAC address, we already have it from the boot loader */
 	snprintf(wdev->wiphy->fw_version, sizeof(wdev->wiphy->fw_version),
 		 "%d", wil->fw_version);
 }
@@ -879,7 +874,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		struct wmi_pcp_started_event evt;
 	} __packed reply;
 
-	if (!wil->secure_pcp)
+	if (!wil->privacy)
 		cmd.disable_sec = 1;
 
 	if ((cmd.pcp_max_assoc_sta > WIL6210_MAX_CID) ||

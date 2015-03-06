@@ -27,6 +27,7 @@
 #include "eeprom.h"
 #include "calib.h"
 #include "reg.h"
+#include "reg_mci.h"
 #include "phy.h"
 #include "btcoex.h"
 #include "dynack.h"

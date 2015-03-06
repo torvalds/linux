@@ -2397,7 +2397,6 @@ mwifiex_setup_ht_caps(struct ieee80211_sta_ht_cap *ht_info,
 	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 }
 
-#define MWIFIEX_MAX_WQ_LEN  30
 /*
  *  create a new virtual interface with the given name
  */
@@ -2411,7 +2410,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	struct mwifiex_private *priv;
 	struct net_device *dev;
 	void *mdev_priv;
-	char dfs_cac_str[MWIFIEX_MAX_WQ_LEN], dfs_chsw_str[MWIFIEX_MAX_WQ_LEN];
 
 	if (!adapter)
 		return ERR_PTR(-EFAULT);
@@ -2576,12 +2574,10 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-EFAULT);
 	}
 
-	strcpy(dfs_cac_str, "MWIFIEX_DFS_CAC");
-	strcat(dfs_cac_str, name);
-	priv->dfs_cac_workqueue = alloc_workqueue(dfs_cac_str,
+	priv->dfs_cac_workqueue = alloc_workqueue("MWIFIEX_DFS_CAC%s",
 						  WQ_HIGHPRI |
 						  WQ_MEM_RECLAIM |
-						  WQ_UNBOUND, 1);
+						  WQ_UNBOUND, 1, name);
 	if (!priv->dfs_cac_workqueue) {
 		wiphy_err(wiphy, "cannot register virtual network device\n");
 		free_netdev(dev);
@@ -2594,11 +2590,9 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 	INIT_DELAYED_WORK(&priv->dfs_cac_work, mwifiex_dfs_cac_work_queue);
 
-	strcpy(dfs_chsw_str, "MWIFIEX_DFS_CHSW");
-	strcat(dfs_chsw_str, name);
-	priv->dfs_chan_sw_workqueue = alloc_workqueue(dfs_chsw_str,
+	priv->dfs_chan_sw_workqueue = alloc_workqueue("MWIFIEX_DFS_CHSW%s",
 						      WQ_HIGHPRI | WQ_UNBOUND |
-						      WQ_MEM_RECLAIM, 1);
+						      WQ_MEM_RECLAIM, 1, name);
 	if (!priv->dfs_chan_sw_workqueue) {
 		wiphy_err(wiphy, "cannot register virtual network device\n");
 		free_netdev(dev);

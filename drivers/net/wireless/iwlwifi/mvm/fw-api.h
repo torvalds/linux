@@ -192,6 +192,7 @@ enum {
 	BEACON_NOTIFICATION = 0x90,
 	BEACON_TEMPLATE_CMD = 0x91,
 	TX_ANT_CONFIGURATION_CMD = 0x98,
+	STATISTICS_CMD = 0x9c,
 	STATISTICS_NOTIFICATION = 0x9d,
 	EOSP_NOTIFICATION = 0x9e,
 	REDUCE_TX_POWER_CMD = 0x9f,
@@ -431,7 +432,7 @@ enum {
 
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
-struct mvm_alive_resp {
+struct mvm_alive_resp_ver1 {
 	__le16 status;
 	__le16 flags;
 	u8 ucode_minor;
@@ -481,6 +482,30 @@ struct mvm_alive_resp_ver2 {
 	__le32 error_info_addr;		/* SRAM address for UMAC error log */
 	__le32 dbg_print_buff_addr;
 } __packed; /* ALIVE_RES_API_S_VER_2 */
+
+struct mvm_alive_resp {
+	__le16 status;
+	__le16 flags;
+	__le32 ucode_minor;
+	__le32 ucode_major;
+	u8 ver_subtype;
+	u8 ver_type;
+	u8 mac;
+	u8 opt;
+	__le32 timestamp;
+	__le32 error_event_table_ptr;	/* SRAM address for error log */
+	__le32 log_event_table_ptr;	/* SRAM address for LMAC event log */
+	__le32 cpu_register_ptr;
+	__le32 dbgm_config_ptr;
+	__le32 alive_counter_ptr;
+	__le32 scd_base_ptr;		/* SRAM address for SCD */
+	__le32 st_fwrd_addr;		/* pointer to Store and forward */
+	__le32 st_fwrd_size;
+	__le32 umac_minor;		/* UMAC version: minor */
+	__le32 umac_major;		/* UMAC version: major */
+	__le32 error_info_addr;		/* SRAM address for UMAC error log */
+	__le32 dbg_print_buff_addr;
+} __packed; /* ALIVE_RES_API_S_VER_3 */
 
 /* Error response/notification */
 enum {

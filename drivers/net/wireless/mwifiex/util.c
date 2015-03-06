@@ -367,6 +367,13 @@ mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 	if (!skb)
 		return -1;
 
+	if (!priv->mgmt_frame_mask ||
+	    priv->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED) {
+		dev_dbg(priv->adapter->dev,
+			"do not receive mgmt frames on uninitialized intf");
+		return -1;
+	}
+
 	rx_pd = (struct rxpd *)skb->data;
 
 	skb_pull(skb, le16_to_cpu(rx_pd->rx_pkt_offset));
@@ -624,3 +631,26 @@ void mwifiex_hist_data_reset(struct mwifiex_private *priv)
 	for (ix = 0; ix < MWIFIEX_MAX_SIG_STRENGTH; ix++)
 		atomic_set(&phist_data->sig_str[ix], 0);
 }
+
+void *mwifiex_alloc_rx_buf(int rx_len, gfp_t flags)
+{
+	struct sk_buff *skb;
+	int buf_len, pad;
+
+	buf_len = rx_len + MWIFIEX_RX_HEADROOM + MWIFIEX_DMA_ALIGN_SZ;
+
+	skb = __dev_alloc_skb(buf_len, flags);
+
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, MWIFIEX_RX_HEADROOM);
+
+	pad = MWIFIEX_ALIGN_ADDR(skb->data, MWIFIEX_DMA_ALIGN_SZ) -
+	      (long)skb->data;
+
+	skb_reserve(skb, pad);
+
+	return skb;
+}
+EXPORT_SYMBOL_GPL(mwifiex_alloc_rx_buf);

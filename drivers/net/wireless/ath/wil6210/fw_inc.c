@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -451,8 +451,6 @@ static int wil_fw_load(struct wil6210_priv *wil, const void *data, size_t size)
 		}
 		return -EINVAL;
 	}
-	/* Mark FW as loaded from host */
-	S(RGF_USER_USAGE_6, 1);
 
 	return rc;
 }

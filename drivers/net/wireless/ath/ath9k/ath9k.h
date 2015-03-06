@@ -645,6 +645,7 @@ void ath9k_calculate_iter_data(struct ath_softc *sc,
 			       struct ath9k_vif_iter_data *iter_data);
 void ath9k_calculate_summary_state(struct ath_softc *sc,
 				   struct ath_chanctx *ctx);
+void ath9k_set_txpower(struct ath_softc *sc, struct ieee80211_vif *vif);
 
 /*******************/
 /* Beacon Handling */

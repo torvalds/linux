@@ -387,11 +387,25 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	int ch;
 	int rc = 0;
 
+	wil_print_connect_params(wil, sme);
+
 	if (test_bit(wil_status_fwconnecting, wil->status) ||
 	    test_bit(wil_status_fwconnected, wil->status))
 		return -EALREADY;
 
-	wil_print_connect_params(wil, sme);
+	if (sme->ie_len > WMI_MAX_IE_LEN) {
+		wil_err(wil, "IE too large (%td bytes)\n", sme->ie_len);
+		return -ERANGE;
+	}
+
+	rsn_eid = sme->ie ?
+			cfg80211_find_ie(WLAN_EID_RSN, sme->ie, sme->ie_len) :
+			NULL;
+
+	if (sme->privacy && !rsn_eid) {
+		wil_err(wil, "Missing RSN IE for secure connection\n");
+		return -EINVAL;
+	}
 
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
 			       sme->ssid, sme->ssid_len,
@@ -407,17 +421,9 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 		rc = -ENOENT;
 		goto out;
 	}
+	wil->privacy = sme->privacy;
 
-	rsn_eid = sme->ie ?
-			cfg80211_find_ie(WLAN_EID_RSN, sme->ie, sme->ie_len) :
-			NULL;
-	if (rsn_eid) {
-		if (sme->ie_len > WMI_MAX_IE_LEN) {
-			rc = -ERANGE;
-			wil_err(wil, "IE too large (%td bytes)\n",
-				sme->ie_len);
-			goto out;
-		}
+	if (wil->privacy) {
 		/* For secure assoc, send WMI_DELETE_CIPHER_KEY_CMD */
 		rc = wmi_del_cipher_key(wil, 0, bss->bssid);
 		if (rc) {
@@ -450,7 +456,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 			bss->capability);
 		goto out;
 	}
-	if (rsn_eid) {
+	if (wil->privacy) {
 		conn.dot11_auth_mode = WMI_AUTH11_SHARED;
 		conn.auth_mode = WMI_AUTH_WPA2_PSK;
 		conn.pairwise_crypto_type = WMI_CRYPT_AES_GCMP;
@@ -769,7 +775,7 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	wmi_set_ie(wil, WMI_FRAME_ASSOC_RESP, bcon->assocresp_ies_len,
 		   bcon->assocresp_ies);
 
-	wil->secure_pcp = info->privacy;
+	wil->privacy = info->privacy;
 
 	netif_carrier_on(ndev);
 
