@@ -202,7 +202,7 @@ static struct watchdog_ops wdt_ops = {
 };
 
 static struct watchdog_info wdt_info = {
-	.options = WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
+	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.firmware_version = 0,
 	.identity = "z Watchdog",
 };
