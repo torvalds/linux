@@ -564,6 +564,11 @@ static inline void native_swapgs(void)
 #endif
 }
 
+static inline unsigned long this_cpu_sp0(void)
+{
+	return this_cpu_read_stable(init_tss.x86_tss.sp0);
+}
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else

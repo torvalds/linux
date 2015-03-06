@@ -912,6 +912,7 @@ static void xen_load_sp0(struct tss_struct *tss,
 	mcs = xen_mc_entry(0);
 	MULTI_stack_switch(mcs.mc, __KERNEL_DS, thread->sp0);
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
+	tss->x86_tss.sp0 = thread->sp0;
 }
 
 static void xen_set_iopl_mask(unsigned mask)

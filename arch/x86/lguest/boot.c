@@ -1076,6 +1076,7 @@ static void lguest_load_sp0(struct tss_struct *tss,
 {
 	lazy_hcall3(LHCALL_SET_STACK, __KERNEL_DS | 0x1, thread->sp0,
 		   THREAD_SIZE / PAGE_SIZE);
+	tss->x86_tss.sp0 = thread->sp0;
 }
 
 /* Let's just say, I wouldn't do debugging under a Guest. */
