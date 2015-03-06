@@ -35,14 +35,6 @@ extern void insl_16(unsigned long port, void *addr, unsigned long count);
 #define insw insw
 #define insl insl
 
-extern void dma_outsb(unsigned long port, const void *addr, unsigned short count);
-extern void dma_outsw(unsigned long port, const void *addr, unsigned short count);
-extern void dma_outsl(unsigned long port, const void *addr, unsigned short count);
-
-extern void dma_insb(unsigned long port, void *addr, unsigned short count);
-extern void dma_insw(unsigned long port, void *addr, unsigned short count);
-extern void dma_insl(unsigned long port, void *addr, unsigned short count);
-
 /**
  * I/O write barrier
  *
