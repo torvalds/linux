@@ -1059,6 +1059,12 @@ static __init void ftrace_profile_debugfs(struct dentry *d_tracer)
 
 static struct pid * const ftrace_swapper_pid = &init_struct_pid;
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static int ftrace_graph_active;
+#else
+# define ftrace_graph_active 0
+#endif
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 static struct ftrace_ops *removed_ops;
@@ -2692,24 +2698,36 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 
 static void ftrace_startup_sysctl(void)
 {
+	int command;
+
 	if (unlikely(ftrace_disabled))
 		return;
 
 	/* Force update next time */
 	saved_ftrace_func = NULL;
 	/* ftrace_start_up is true if we want ftrace running */
-	if (ftrace_start_up)
-		ftrace_run_update_code(FTRACE_UPDATE_CALLS);
+	if (ftrace_start_up) {
+		command = FTRACE_UPDATE_CALLS;
+		if (ftrace_graph_active)
+			command |= FTRACE_START_FUNC_RET;
+		ftrace_run_update_code(command);
+	}
 }
 
 static void ftrace_shutdown_sysctl(void)
 {
+	int command;
+
 	if (unlikely(ftrace_disabled))
 		return;
 
 	/* ftrace_start_up is true if ftrace is running */
-	if (ftrace_start_up)
-		ftrace_run_update_code(FTRACE_DISABLE_CALLS);
+	if (ftrace_start_up) {
+		command = FTRACE_DISABLE_CALLS;
+		if (ftrace_graph_active)
+			command |= FTRACE_STOP_FUNC_RET;
+		ftrace_run_update_code(command);
+	}
 }
 
 static cycle_t		ftrace_update_time;
@@ -5593,8 +5611,6 @@ static struct ftrace_ops graph_ops = {
 #endif
 	ASSIGN_OPS_HASH(graph_ops, &global_ops.local_hash)
 };
-
-static int ftrace_graph_active;
 
 int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace)
 {
