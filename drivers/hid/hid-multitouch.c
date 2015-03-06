@@ -116,6 +116,7 @@ struct mt_device {
 	__u8 touches_by_report;	/* how many touches are present in one report:
 				* 1 means we should use a serial protocol
 				* > 1 means hybrid (multitouch) protocol */
+	__u8 buttons_count;	/* number of physical buttons per touchpad */
 	bool serial_maybe;	/* need to check for serial protocol */
 	bool curvalid;		/* is the current contact valid? */
 	unsigned mt_flags;	/* flags to pass to input-mt */
@@ -378,6 +379,10 @@ static int mt_touch_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		td->mt_flags |= INPUT_MT_POINTER;
 		td->inputmode_value = MT_INPUTMODE_TOUCHPAD;
 	}
+
+	/* count the buttons on touchpads */
+	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON)
+		td->buttons_count++;
 
 	if (usage->usage_index)
 		prev_usage = &field->usage[usage->usage_index - 1];
@@ -727,6 +732,10 @@ static void mt_touch_input_configured(struct hid_device *hdev,
 
 	if (cls->quirks & MT_QUIRK_NOT_SEEN_MEANS_UP)
 		td->mt_flags |= INPUT_MT_DROP_UNUSED;
+
+	/* check for clickpads */
+	if ((td->mt_flags & INPUT_MT_POINTER) && (td->buttons_count == 1))
+		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 
 	input_mt_init_slots(input, td->maxcontacts, td->mt_flags);
 
