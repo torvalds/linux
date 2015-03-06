@@ -60,7 +60,7 @@ struct virtio_blk_config {
 	__u32 size_max;
 	/* The maximum number of segments (if VIRTIO_BLK_F_SEG_MAX) */
 	__u32 seg_max;
-	/* geometry the device (if VIRTIO_BLK_F_GEOMETRY) */
+	/* geometry of the device (if VIRTIO_BLK_F_GEOMETRY) */
 	struct virtio_blk_geometry {
 		__u16 cylinders;
 		__u8 heads;
