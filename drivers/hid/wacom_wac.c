@@ -2062,6 +2062,8 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case INTUOSPL:
 		if (len == WACOM_PKGLEN_BBTOUCH3)
 			sync = wacom_bpt3_touch(wacom_wac);
+		else if (wacom_wac->data[0] == WACOM_REPORT_USB)
+			sync = wacom_status_irq(wacom_wac, len);
 		else
 			sync = wacom_intuos_irq(wacom_wac);
 		break;
