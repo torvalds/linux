@@ -67,6 +67,9 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* The least MTU to use for probing */
 #define TCP_BASE_MSS		1024
 
+/* Specify interval when tcp mtu probing will stop */
+#define TCP_PROBE_THRESHOLD	8
+
 /* After receiving this amount of duplicate ACKs fast retransmit starts. */
 #define TCP_FASTRETRANS_THRESH 3
 
