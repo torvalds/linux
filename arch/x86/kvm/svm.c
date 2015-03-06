@@ -2944,7 +2944,10 @@ static int cr_interception(struct vcpu_svm *svm)
 		return emulate_on_interception(svm);
 
 	reg = svm->vmcb->control.exit_info_1 & SVM_EXITINFO_REG_MASK;
-	cr = svm->vmcb->control.exit_code - SVM_EXIT_READ_CR0;
+	if (svm->vmcb->control.exit_code == SVM_EXIT_CR0_SEL_WRITE)
+		cr = SVM_EXIT_WRITE_CR0 - SVM_EXIT_READ_CR0;
+	else
+		cr = svm->vmcb->control.exit_code - SVM_EXIT_READ_CR0;
 
 	err = 0;
 	if (cr >= 16) { /* mov to cr */
@@ -3328,7 +3331,7 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_READ_CR3]			= cr_interception,
 	[SVM_EXIT_READ_CR4]			= cr_interception,
 	[SVM_EXIT_READ_CR8]			= cr_interception,
-	[SVM_EXIT_CR0_SEL_WRITE]		= emulate_on_interception,
+	[SVM_EXIT_CR0_SEL_WRITE]		= cr_interception,
 	[SVM_EXIT_WRITE_CR0]			= cr_interception,
 	[SVM_EXIT_WRITE_CR3]			= cr_interception,
 	[SVM_EXIT_WRITE_CR4]			= cr_interception,
