@@ -383,7 +383,7 @@ static struct platform_driver omap_usb2_driver = {
 
 module_platform_driver(omap_usb2_driver);
 
-MODULE_ALIAS("platform: omap_usb2");
+MODULE_ALIAS("platform:omap_usb2");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("OMAP USB2 phy driver");
 MODULE_LICENSE("GPL v2");
