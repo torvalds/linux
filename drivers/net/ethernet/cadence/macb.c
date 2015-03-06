@@ -2211,7 +2211,7 @@ static void macb_probe_queues(void __iomem *mem,
 	/* is it macb or gem ? */
 	mid = readl_relaxed(mem + MACB_MID);
 
-	if (MACB_BFEXT(IDNUM, mid) != 0x2)
+	if (MACB_BFEXT(IDNUM, mid) < 0x2)
 		return;
 
 	/* bit 0 is never set but queue 0 always exists */
