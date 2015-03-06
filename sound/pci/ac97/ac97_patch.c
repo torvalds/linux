@@ -3360,14 +3360,8 @@ AC97_SINGLE("DC Offset removal", 0x5a, 10, 1, 0),
 
 static int patch_vt1613_specific(struct snd_ac97 *ac97)
 {
-	int err;
-
-	err = patch_build_controls(ac97, &snd_ac97_controls_vt1613[0],
-				ARRAY_SIZE(snd_ac97_controls_vt1613));
-	if (err)
-		return err;
-
-	return 0;
+	return patch_build_controls(ac97, &snd_ac97_controls_vt1613[0],
+				    ARRAY_SIZE(snd_ac97_controls_vt1613));
 };
 
 static const struct snd_ac97_build_ops patch_vt1613_ops = {
