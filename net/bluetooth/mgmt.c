@@ -219,8 +219,9 @@ static u8 mgmt_status(u8 hci_status)
 	return MGMT_STATUS_FAILED;
 }
 
-static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 data_len,
-		      struct sock *skip_sk)
+static int mgmt_send_event(u16 event, struct hci_dev *hdev,
+			   unsigned short channel, void *data, u16 data_len,
+			   struct sock *skip_sk)
 {
 	struct sk_buff *skb;
 	struct mgmt_hdr *hdr;
@@ -243,10 +244,17 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 data_len,
 	/* Time stamp */
 	__net_timestamp(skb);
 
-	hci_send_to_channel(HCI_CHANNEL_CONTROL, skb, skip_sk);
+	hci_send_to_channel(channel, skb, skip_sk);
 	kfree_skb(skb);
 
 	return 0;
+}
+
+static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 len,
+		      struct sock *skip_sk)
+{
+	return mgmt_send_event(event, hdev, HCI_CHANNEL_CONTROL, data, len,
+			       skip_sk);
 }
 
 static int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
