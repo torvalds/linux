@@ -93,8 +93,6 @@ typedef unsigned int t_key;
 #define IS_LEAF(n) (!(n)->bits)
 
 struct key_vector {
-	struct rcu_head rcu;
-
 	t_key empty_children; /* KEYLENGTH bits needed */
 	t_key full_children;  /* KEYLENGTH bits needed */
 	struct key_vector __rcu *parent;
@@ -112,7 +110,9 @@ struct key_vector {
 };
 
 struct tnode {
+	struct rcu_head rcu;
 	struct key_vector kv[1];
+#define tn_bits kv[0].bits
 };
 
 #define TNODE_SIZE(n)	offsetof(struct tnode, kv[0].tnode[n])
@@ -159,6 +159,11 @@ static const int sync_pages = 128;
 static struct kmem_cache *fn_alias_kmem __read_mostly;
 static struct kmem_cache *trie_leaf_kmem __read_mostly;
 
+static inline struct tnode *tn_info(struct key_vector *kv)
+{
+	return container_of(kv, struct tnode, kv[0]);
+}
+
 /* caller must hold RTNL */
 #define node_parent(n) rtnl_dereference((n)->parent)
 #define get_child(tn, i) rtnl_dereference((tn)->tnode[i])
@@ -189,13 +194,6 @@ static inline unsigned long get_index(t_key key, struct key_vector *kv)
 	unsigned long index = key ^ kv->key;
 
 	return index >> kv->pos;
-}
-
-static inline struct fib_table *trie_get_table(struct trie *t)
-{
-	unsigned long *tb_data = (unsigned long *)t;
-
-	return container_of(tb_data, struct fib_table, tb_data[0]);
 }
 
 /* To understand this stuff, an understanding of keys and all their bits is
@@ -280,17 +278,17 @@ static inline void alias_free_mem_rcu(struct fib_alias *fa)
 
 static void __node_free_rcu(struct rcu_head *head)
 {
-	struct key_vector *n = container_of(head, struct key_vector, rcu);
+	struct tnode *n = container_of(head, struct tnode, rcu);
 
-	if (IS_LEAF(n))
+	if (!n->tn_bits)
 		kmem_cache_free(trie_leaf_kmem, n);
-	else if (n->bits <= TNODE_KMALLOC_MAX)
+	else if (n->tn_bits <= TNODE_KMALLOC_MAX)
 		kfree(n);
 	else
 		vfree(n);
 }
 
-#define node_free(n) call_rcu(&n->rcu, __node_free_rcu)
+#define node_free(n) call_rcu(&tn_info(n)->rcu, __node_free_rcu)
 
 static struct tnode *tnode_alloc(int bits)
 {
@@ -441,26 +439,26 @@ static inline void put_child_root(struct key_vector *tp, struct trie *t,
 
 static inline void tnode_free_init(struct key_vector *tn)
 {
-	tn->rcu.next = NULL;
+	tn_info(tn)->rcu.next = NULL;
 }
 
 static inline void tnode_free_append(struct key_vector *tn,
 				     struct key_vector *n)
 {
-	n->rcu.next = tn->rcu.next;
-	tn->rcu.next = &n->rcu;
+	tn_info(n)->rcu.next = tn_info(tn)->rcu.next;
+	tn_info(tn)->rcu.next = &tn_info(n)->rcu;
 }
 
 static void tnode_free(struct key_vector *tn)
 {
-	struct callback_head *head = &tn->rcu;
+	struct callback_head *head = &tn_info(tn)->rcu;
 
 	while (head) {
 		head = head->next;
 		tnode_free_size += TNODE_SIZE(1ul << tn->bits);
 		node_free(tn);
 
-		tn = container_of(head, struct key_vector, rcu);
+		tn = container_of(head, struct tnode, rcu)->kv;
 	}
 
 	if (tnode_free_size >= PAGE_SIZE * sync_pages) {
