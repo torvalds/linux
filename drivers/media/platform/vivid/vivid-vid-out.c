@@ -114,13 +114,15 @@ static int vid_out_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned long size;
-	unsigned planes = dev->fmt_out->planes;
+	unsigned planes;
 	unsigned p;
 
 	dprintk(dev, 1, "%s\n", __func__);
 
 	if (WARN_ON(NULL == dev->fmt_out))
 		return -EINVAL;
+
+	planes = dev->fmt_out->planes;
 
 	if (dev->buf_prepare_error) {
 		/*
