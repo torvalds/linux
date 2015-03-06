@@ -542,7 +542,6 @@ struct i40e_rx_ptype_decoded i40evf_ptype_lookup[] = {
 	I40E_PTT_UNUSED_ENTRY(255)
 };
 
-
 /**
  * i40e_aq_send_msg_to_pf
  * @hw: pointer to the hardware structure

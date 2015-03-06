@@ -403,9 +403,6 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		u8 brdcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 		vf->lan_vsi_index = vsi->idx;
 		vf->lan_vsi_id = vsi->id;
-		dev_info(&pf->pdev->dev,
-			 "VF %d assigned LAN VSI index %d, VSI id %d\n",
-			 vf->vf_id, vsi->idx, vsi->id);
 		/* If the port VLAN has been configured and then the
 		 * VF driver was removed then the VSI port VLAN
 		 * configuration was destroyed.  Check if there is
