@@ -310,10 +310,8 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 
 	/* Find the address of given function */
 	map__for_each_symbol_by_name(map, pp->function, sym) {
-		if (sym->binding == STB_GLOBAL || sym->binding == STB_LOCAL) {
-			address = sym->start;
-			break;
-		}
+		address = sym->start;
+		break;
 	}
 	if (!address) {
 		ret = -ENOENT;
@@ -2485,8 +2483,7 @@ static int find_probe_functions(struct map *map, char *name)
 	struct symbol *sym;
 
 	map__for_each_symbol_by_name(map, name, sym) {
-		if (sym->binding == STB_GLOBAL || sym->binding == STB_LOCAL)
-			found++;
+		found++;
 	}
 
 	return found;
@@ -2846,8 +2843,7 @@ static struct strfilter *available_func_filter;
 static int filter_available_functions(struct map *map __maybe_unused,
 				      struct symbol *sym)
 {
-	if ((sym->binding == STB_GLOBAL || sym->binding == STB_LOCAL) &&
-	    strfilter__compare(available_func_filter, sym->name))
+	if (strfilter__compare(available_func_filter, sym->name))
 		return 0;
 	return 1;
 }
