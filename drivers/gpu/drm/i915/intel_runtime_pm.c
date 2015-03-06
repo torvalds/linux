@@ -294,7 +294,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 {
 	uint32_t tmp, fuse_status;
 	uint32_t req_mask, state_mask;
-	bool check_fuse_status = false;
+	bool is_enabled, enable_requested, check_fuse_status = false;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	fuse_status = I915_READ(SKL_FUSE_STATUS);
@@ -325,15 +325,17 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 	}
 
 	req_mask = SKL_POWER_WELL_REQ(power_well->data);
+	enable_requested = tmp & req_mask;
 	state_mask = SKL_POWER_WELL_STATE(power_well->data);
+	is_enabled = tmp & state_mask;
 
 	if (enable) {
-		if (!(tmp & req_mask)) {
+		if (!enable_requested) {
 			I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
 			DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
 		}
 
-		if (!(tmp & state_mask)) {
+		if (!is_enabled) {
 			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
 				state_mask), 1))
 				DRM_ERROR("%s enable timeout\n",
@@ -341,7 +343,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			check_fuse_status = true;
 		}
 	} else {
-		if (tmp & req_mask) {
+		if (enable_requested) {
 			I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
