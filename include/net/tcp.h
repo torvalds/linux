@@ -67,6 +67,9 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* The least MTU to use for probing */
 #define TCP_BASE_MSS		1024
 
+/* probing interval, default to 10 minutes as per RFC4821 */
+#define TCP_PROBE_INTERVAL	600
+
 /* Specify interval when tcp mtu probing will stop */
 #define TCP_PROBE_THRESHOLD	8
 
