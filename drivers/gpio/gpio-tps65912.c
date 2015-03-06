@@ -26,9 +26,12 @@ struct tps65912_gpio_data {
 	struct gpio_chip gpio_chip;
 };
 
+#define to_tgd(gc) container_of(gc, struct tps65912_gpio_data, gpio_chip)
+
 static int tps65912_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
-	struct tps65912 *tps65912 = container_of(gc, struct tps65912, gpio);
+	struct tps65912_gpio_data *tps65912_gpio = to_tgd(gc);
+	struct tps65912 *tps65912 = tps65912_gpio->tps65912;
 	int val;
 
 	val = tps65912_reg_read(tps65912, TPS65912_GPIO1 + offset);
@@ -42,7 +45,8 @@ static int tps65912_gpio_get(struct gpio_chip *gc, unsigned offset)
 static void tps65912_gpio_set(struct gpio_chip *gc, unsigned offset,
 			      int value)
 {
-	struct tps65912 *tps65912 = container_of(gc, struct tps65912, gpio);
+	struct tps65912_gpio_data *tps65912_gpio = to_tgd(gc);
+	struct tps65912 *tps65912 = tps65912_gpio->tps65912;
 
 	if (value)
 		tps65912_set_bits(tps65912, TPS65912_GPIO1 + offset,
@@ -55,7 +59,8 @@ static void tps65912_gpio_set(struct gpio_chip *gc, unsigned offset,
 static int tps65912_gpio_output(struct gpio_chip *gc, unsigned offset,
 				int value)
 {
-	struct tps65912 *tps65912 = container_of(gc, struct tps65912, gpio);
+	struct tps65912_gpio_data *tps65912_gpio = to_tgd(gc);
+	struct tps65912 *tps65912 = tps65912_gpio->tps65912;
 
 	/* Set the initial value */
 	tps65912_gpio_set(gc, offset, value);
@@ -66,7 +71,8 @@ static int tps65912_gpio_output(struct gpio_chip *gc, unsigned offset,
 
 static int tps65912_gpio_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct tps65912 *tps65912 = container_of(gc, struct tps65912, gpio);
+	struct tps65912_gpio_data *tps65912_gpio = to_tgd(gc);
+	struct tps65912 *tps65912 = tps65912_gpio->tps65912;
 
 	return tps65912_clear_bits(tps65912, TPS65912_GPIO1 + offset,
 								GPIO_CFG_MASK);

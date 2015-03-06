@@ -1252,6 +1252,8 @@ static int rsnd_probe(struct platform_device *pdev)
 			goto exit_snd_probe;
 	}
 
+	dev_set_drvdata(dev, priv);
+
 	/*
 	 *	asoc register
 	 */
@@ -1267,8 +1269,6 @@ static int rsnd_probe(struct platform_device *pdev)
 		dev_err(dev, "cannot snd dai register\n");
 		goto exit_snd_soc;
 	}
-
-	dev_set_drvdata(dev, priv);
 
 	pm_runtime_enable(dev);
 

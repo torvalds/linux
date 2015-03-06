@@ -997,8 +997,10 @@ static void tegra_crtc_reset(struct drm_crtc *crtc)
 	crtc->state = NULL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state)
+	if (state) {
 		crtc->state = &state->base;
+		crtc->state->crtc = crtc;
+	}
 }
 
 static struct drm_crtc_state *
@@ -1012,6 +1014,7 @@ tegra_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	copy->base.mode_changed = false;
+	copy->base.active_changed = false;
 	copy->base.planes_changed = false;
 	copy->base.event = NULL;
 
@@ -1227,9 +1230,6 @@ static void tegra_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	/* program display mode */
 	tegra_dc_set_timings(dc, mode);
 
-	if (dc->soc->supports_border_color)
-		tegra_dc_writel(dc, 0, DC_DISP_BORDER_COLOR);
-
 	/* interlacing isn't supported yet, so disable it */
 	if (dc->soc->supports_interlacing) {
 		value = tegra_dc_readl(dc, DC_DISP_INTERLACE_CONTROL);
@@ -1252,42 +1252,7 @@ static void tegra_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 static void tegra_crtc_prepare(struct drm_crtc *crtc)
 {
-	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned int syncpt;
-	unsigned long value;
-
 	drm_crtc_vblank_off(crtc);
-
-	if (dc->pipe)
-		syncpt = SYNCPT_VBLANK1;
-	else
-		syncpt = SYNCPT_VBLANK0;
-
-	/* initialize display controller */
-	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
-	tegra_dc_writel(dc, 0x100 | syncpt, DC_CMD_CONT_SYNCPT_VSYNC);
-
-	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT | WIN_A_OF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_TYPE);
-
-	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
-		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_POLARITY);
-
-	/* initialize timer */
-	value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(0x20) |
-		WINDOW_B_THRESHOLD(0x20) | WINDOW_C_THRESHOLD(0x20);
-	tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY);
-
-	value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(1) |
-		WINDOW_B_THRESHOLD(1) | WINDOW_C_THRESHOLD(1);
-	tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
-
-	value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
-
-	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
 }
 
 static void tegra_crtc_commit(struct drm_crtc *crtc)
@@ -1664,6 +1629,8 @@ static int tegra_dc_init(struct host1x_client *client)
 	struct tegra_drm *tegra = drm->dev_private;
 	struct drm_plane *primary = NULL;
 	struct drm_plane *cursor = NULL;
+	unsigned int syncpt;
+	u32 value;
 	int err;
 
 	if (tegra->domain) {
@@ -1729,6 +1696,40 @@ static int tegra_dc_init(struct host1x_client *client)
 			err);
 		goto cleanup;
 	}
+
+	/* initialize display controller */
+	if (dc->pipe)
+		syncpt = SYNCPT_VBLANK1;
+	else
+		syncpt = SYNCPT_VBLANK0;
+
+	tegra_dc_writel(dc, 0x00000100, DC_CMD_GENERAL_INCR_SYNCPT_CNTRL);
+	tegra_dc_writel(dc, 0x100 | syncpt, DC_CMD_CONT_SYNCPT_VSYNC);
+
+	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT | WIN_A_OF_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_TYPE);
+
+	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT |
+		WIN_A_OF_INT | WIN_B_OF_INT | WIN_C_OF_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_POLARITY);
+
+	/* initialize timer */
+	value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(0x20) |
+		WINDOW_B_THRESHOLD(0x20) | WINDOW_C_THRESHOLD(0x20);
+	tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY);
+
+	value = CURSOR_THRESHOLD(0) | WINDOW_A_THRESHOLD(1) |
+		WINDOW_B_THRESHOLD(1) | WINDOW_C_THRESHOLD(1);
+	tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
+
+	value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
+
+	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+
+	if (dc->soc->supports_border_color)
+		tegra_dc_writel(dc, 0, DC_DISP_BORDER_COLOR);
 
 	return 0;
 
