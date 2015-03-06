@@ -144,29 +144,6 @@ static int omap_plane_setup(struct omap_plane *omap_plane)
 	return ret;
 }
 
-int omap_plane_mode_set(struct drm_plane *plane,
-			struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			int crtc_x, int crtc_y,
-			unsigned int crtc_w, unsigned int crtc_h,
-			unsigned int src_x, unsigned int src_y,
-			unsigned int src_w, unsigned int src_h)
-{
-	struct omap_plane *omap_plane = to_omap_plane(plane);
-	struct omap_drm_window *win = &omap_plane->win;
-
-	win->crtc_x = crtc_x;
-	win->crtc_y = crtc_y;
-	win->crtc_w = crtc_w;
-	win->crtc_h = crtc_h;
-
-	win->src_x = src_x;
-	win->src_y = src_y;
-	win->src_w = src_w;
-	win->src_h = src_h;
-
-	return omap_plane_setup(omap_plane);
-}
-
 int omap_plane_set_enable(struct drm_plane *plane, bool enable)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
