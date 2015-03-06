@@ -242,6 +242,10 @@ EXPORT_SYMBOL(ndo_dflt_netdev_switch_port_bridge_dellink);
 int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 			       u8 tos, u8 type, u32 tb_id)
 {
+	/* Don't offload route if using custom ip rules */
+	if (fi->fib_net->ipv4.fib_has_custom_rules)
+		return 0;
+
 	return 0;
 }
 EXPORT_SYMBOL(netdev_switch_fib_ipv4_add);

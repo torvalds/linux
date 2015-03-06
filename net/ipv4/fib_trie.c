@@ -1536,6 +1536,67 @@ found:
 	return n;
 }
 
+/* Caller must hold RTNL */
+void fib_table_flush_external(struct fib_table *tb)
+{
+	struct trie *t = (struct trie *)tb->tb_data;
+	struct fib_alias *fa;
+	struct tnode *n, *pn;
+	unsigned long cindex;
+	unsigned char slen;
+	int found = 0;
+
+	n = rcu_dereference(t->trie);
+	if (!n)
+		return;
+
+	pn = NULL;
+	cindex = 0;
+
+	while (IS_TNODE(n)) {
+		/* record pn and cindex for leaf walking */
+		pn = n;
+		cindex = 1ul << n->bits;
+backtrace:
+		/* walk trie in reverse order */
+		do {
+			while (!(cindex--)) {
+				t_key pkey = pn->key;
+
+				n = pn;
+				pn = node_parent(n);
+
+				/* resize completed node */
+				resize(t, n);
+
+				/* if we got the root we are done */
+				if (!pn)
+					return;
+
+				cindex = get_index(pkey, pn);
+			}
+
+			/* grab the next available node */
+			n = tnode_get_child(pn, cindex);
+		} while (!n);
+	}
+
+	hlist_for_each_entry(fa, &n->leaf, fa_list) {
+		struct fib_info *fi = fa->fa_info;
+
+		if (fi && (fi->fib_flags & RTNH_F_EXTERNAL)) {
+			netdev_switch_fib_ipv4_del(n->key,
+						   KEYLENGTH - fa->fa_slen,
+						   fi, fa->fa_tos,
+						   fa->fa_type, tb->tb_id);
+		}
+	}
+
+	/* if trie is leaf only loop is completed */
+	if (pn)
+		goto backtrace;
+}
+
 /* Caller must hold RTNL. */
 int fib_table_flush(struct fib_table *tb)
 {
