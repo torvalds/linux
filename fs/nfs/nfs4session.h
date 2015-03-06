@@ -70,6 +70,7 @@ struct nfs4_session {
 
 enum nfs4_session_state {
 	NFS4_SESSION_INITING,
+	NFS4_SESSION_ESTABLISHED,
 };
 
 extern int nfs4_setup_slot_table(struct nfs4_slot_table *tbl,
