@@ -3806,7 +3806,7 @@ static void ironlake_disable_drps(struct drm_device *dev)
  * ourselves, instead of doing a rmw cycle (which might result in us clearing
  * all limits and the gpu stuck at whatever frequency it is at atm).
  */
-static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
+static u32 intel_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 {
 	u32 limits;
 
@@ -3816,9 +3816,15 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 	 * the hw runs at the minimal clock before selecting the desired
 	 * frequency, if the down threshold expires in that window we will not
 	 * receive a down interrupt. */
-	limits = dev_priv->rps.max_freq_softlimit << 24;
-	if (val <= dev_priv->rps.min_freq_softlimit)
-		limits |= dev_priv->rps.min_freq_softlimit << 16;
+	if (IS_GEN9(dev_priv->dev)) {
+		limits = (dev_priv->rps.max_freq_softlimit) << 23;
+		if (val <= dev_priv->rps.min_freq_softlimit)
+			limits |= (dev_priv->rps.min_freq_softlimit) << 14;
+	} else {
+		limits = dev_priv->rps.max_freq_softlimit << 24;
+		if (val <= dev_priv->rps.min_freq_softlimit)
+			limits |= dev_priv->rps.min_freq_softlimit << 16;
+	}
 
 	return limits;
 }
@@ -3959,7 +3965,7 @@ static void gen6_set_rps(struct drm_device *dev, u8 val)
 	/* Make sure we continue to get interrupts
 	 * until we hit the minimum or maximum frequencies.
 	 */
-	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, gen6_rps_limits(dev_priv, val));
+	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, intel_rps_limits(dev_priv, val));
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
 	POSTING_READ(GEN6_RPNSWREQ);
