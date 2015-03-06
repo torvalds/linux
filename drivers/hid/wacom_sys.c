@@ -1057,8 +1057,7 @@ static int wacom_initialize_battery(struct wacom *wacom)
 
 static void wacom_destroy_battery(struct wacom *wacom)
 {
-	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
-	     wacom->battery.dev) {
+	if (wacom->battery.dev) {
 		power_supply_unregister(&wacom->battery);
 		wacom->battery.dev = NULL;
 		power_supply_unregister(&wacom->ac);
@@ -1327,6 +1326,20 @@ fail:
 	wacom_clean_inputs(wacom1);
 	wacom_clean_inputs(wacom2);
 	return;
+}
+
+void wacom_battery_work(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, work);
+
+	if ((wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
+	     !wacom->battery.dev) {
+		wacom_initialize_battery(wacom);
+	}
+	else if (!(wacom->wacom_wac.features.quirks & WACOM_QUIRK_BATTERY) &&
+		 wacom->battery.dev) {
+		wacom_destroy_battery(wacom);
+	}
 }
 
 /*
