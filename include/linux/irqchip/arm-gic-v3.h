@@ -166,6 +166,8 @@
 
 #define GITS_TRANSLATER			0x10040
 
+#define GITS_TYPER_DEVBITS_SHIFT	13
+#define GITS_TYPER_DEVBITS(r)		((((r) >> GITS_TYPER_DEVBITS_SHIFT) & 0x1f) + 1)
 #define GITS_TYPER_PTA			(1UL << 19)
 
 #define GITS_CBASER_VALID		(1UL << 63)

@@ -806,14 +806,31 @@ static int its_alloc_tables(struct its_node *its)
 		u64 val = readq_relaxed(its->base + GITS_BASER + i * 8);
 		u64 type = GITS_BASER_TYPE(val);
 		u64 entry_size = GITS_BASER_ENTRY_SIZE(val);
+		int order = 0;
+		int alloc_size;
 		u64 tmp;
 		void *base;
 
 		if (type == GITS_BASER_TYPE_NONE)
 			continue;
 
-		/* We're lazy and only allocate a single page for now */
-		base = (void *)get_zeroed_page(GFP_KERNEL);
+		/*
+		 * Allocate as many entries as required to fit the
+		 * range of device IDs that the ITS can grok... The ID
+		 * space being incredibly sparse, this results in a
+		 * massive waste of memory.
+		 *
+		 * For other tables, only allocate a single page.
+		 */
+		if (type == GITS_BASER_TYPE_DEVICE) {
+			u64 typer = readq_relaxed(its->base + GITS_TYPER);
+			u32 ids = GITS_TYPER_DEVBITS(typer);
+
+			order = get_order((1UL << ids) * entry_size);
+		}
+
+		alloc_size = (1 << order) * PAGE_SIZE;
+		base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
 		if (!base) {
 			err = -ENOMEM;
 			goto out_free;
@@ -841,7 +858,7 @@ retry_baser:
 			break;
 		}
 
-		val |= (PAGE_SIZE / psz) - 1;
+		val |= (alloc_size / psz) - 1;
 
 		writeq_relaxed(val, its->base + GITS_BASER + i * 8);
 		tmp = readq_relaxed(its->base + GITS_BASER + i * 8);
@@ -882,7 +899,7 @@ retry_baser:
 		}
 
 		pr_info("ITS: allocated %d %s @%lx (psz %dK, shr %d)\n",
-			(int)(PAGE_SIZE / entry_size),
+			(int)(alloc_size / entry_size),
 			its_base_type_string[type],
 			(unsigned long)virt_to_phys(base),
 			psz / SZ_1K, (int)shr >> GITS_BASER_SHAREABILITY_SHIFT);
