@@ -174,6 +174,11 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	if (frh->tos & ~IPTOS_TOS_MASK)
 		goto errout;
 
+	/* split local/main if they are not already split */
+	err = fib_unmerge(net);
+	if (err)
+		goto errout;
+
 	if (rule->table == RT_TABLE_UNSPEC) {
 		if (rule->action == FR_ACT_TO_TBL) {
 			struct fib_table *table;
@@ -216,17 +221,24 @@ errout:
 	return err;
 }
 
-static void fib4_rule_delete(struct fib_rule *rule)
+static int fib4_rule_delete(struct fib_rule *rule)
 {
 	struct net *net = rule->fr_net;
-#ifdef CONFIG_IP_ROUTE_CLASSID
-	struct fib4_rule *rule4 = (struct fib4_rule *) rule;
+	int err;
 
-	if (rule4->tclassid)
+	/* split local/main if they are not already split */
+	err = fib_unmerge(net);
+	if (err)
+		goto errout;
+
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	if (((struct fib4_rule *)rule)->tclassid)
 		net->ipv4.fib_num_tclassid_users--;
 #endif
 	net->ipv4.fib_has_custom_rules = true;
 	fib_flush_external(rule->fr_net);
+errout:
+	return err;
 }
 
 static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,

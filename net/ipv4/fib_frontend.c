@@ -52,13 +52,13 @@ static int __net_init fib4_rules_init(struct net *net)
 {
 	struct fib_table *local_table, *main_table;
 
-	local_table = fib_trie_table(RT_TABLE_LOCAL);
-	if (local_table == NULL)
-		return -ENOMEM;
-
-	main_table  = fib_trie_table(RT_TABLE_MAIN);
+	main_table  = fib_trie_table(RT_TABLE_MAIN, NULL);
 	if (main_table == NULL)
 		goto fail;
+
+	local_table = fib_trie_table(RT_TABLE_LOCAL, main_table);
+	if (local_table == NULL)
+		return -ENOMEM;
 
 	hlist_add_head_rcu(&local_table->tb_hlist,
 				&net->ipv4.fib_table_hash[TABLE_LOCAL_INDEX]);
@@ -74,7 +74,7 @@ fail:
 
 struct fib_table *fib_new_table(struct net *net, u32 id)
 {
-	struct fib_table *tb;
+	struct fib_table *tb, *alias = NULL;
 	unsigned int h;
 
 	if (id == 0)
@@ -83,7 +83,10 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 	if (tb)
 		return tb;
 
-	tb = fib_trie_table(id);
+	if (id == RT_TABLE_LOCAL)
+		alias = fib_new_table(net, RT_TABLE_MAIN);
+
+	tb = fib_trie_table(id, alias);
 	if (!tb)
 		return NULL;
 
@@ -125,6 +128,48 @@ struct fib_table *fib_get_table(struct net *net, u32 id)
 	return NULL;
 }
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
+
+static void fib_replace_table(struct net *net, struct fib_table *old,
+			      struct fib_table *new)
+{
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	switch (new->tb_id) {
+	case RT_TABLE_LOCAL:
+		rcu_assign_pointer(net->ipv4.fib_local, new);
+		break;
+	case RT_TABLE_MAIN:
+		rcu_assign_pointer(net->ipv4.fib_main, new);
+		break;
+	case RT_TABLE_DEFAULT:
+		rcu_assign_pointer(net->ipv4.fib_default, new);
+		break;
+	default:
+		break;
+	}
+
+#endif
+	/* replace the old table in the hlist */
+	hlist_replace_rcu(&old->tb_hlist, &new->tb_hlist);
+}
+
+int fib_unmerge(struct net *net)
+{
+	struct fib_table *old, *new;
+
+	old = fib_get_table(net, RT_TABLE_LOCAL);
+	new = fib_trie_unmerge(old);
+
+	if (!new)
+		return -ENOMEM;
+
+	/* replace merged table with clean table */
+	if (new != old) {
+		fib_replace_table(net, old, new);
+		fib_free_table(old);
+	}
+
+	return 0;
+}
 
 static void fib_flush(struct net *net)
 {

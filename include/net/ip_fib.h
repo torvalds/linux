@@ -186,7 +186,8 @@ struct fib_table {
 	int			tb_default;
 	int			tb_num_default;
 	struct rcu_head		rcu;
-	unsigned long		tb_data[0];
+	unsigned long 		*tb_data;
+	unsigned long		__data[0];
 };
 
 int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
@@ -196,10 +197,9 @@ int fib_table_delete(struct fib_table *, struct fib_config *);
 int fib_table_dump(struct fib_table *table, struct sk_buff *skb,
 		   struct netlink_callback *cb);
 int fib_table_flush(struct fib_table *table);
+struct fib_table *fib_trie_unmerge(struct fib_table *main_tb);
 void fib_table_flush_external(struct fib_table *table);
 void fib_free_table(struct fib_table *tb);
-
-
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
@@ -229,18 +229,13 @@ static inline int fib_lookup(struct net *net, const struct flowi4 *flp,
 			     struct fib_result *res)
 {
 	struct fib_table *tb;
-	int err;
+	int err = -ENETUNREACH;
 
 	rcu_read_lock();
 
-	for (err = 0; !err; err = -ENETUNREACH) {
-		tb = fib_get_table(net, RT_TABLE_LOCAL);
-		if (tb && !fib_table_lookup(tb, flp, res, FIB_LOOKUP_NOREF))
-			break;
-		tb = fib_get_table(net, RT_TABLE_MAIN);
-		if (tb && !fib_table_lookup(tb, flp, res, FIB_LOOKUP_NOREF))
-			break;
-	}
+	tb = fib_get_table(net, RT_TABLE_MAIN);
+	if (tb && !fib_table_lookup(tb, flp, res, FIB_LOOKUP_NOREF))
+		err = 0;
 
 	rcu_read_unlock();
 
@@ -270,10 +265,6 @@ static inline int fib_lookup(struct net *net, struct flowi4 *flp,
 	res->tclassid = 0;
 
 	for (err = 0; !err; err = -ENETUNREACH) {
-		tb = rcu_dereference_rtnl(net->ipv4.fib_local);
-		if (tb && !fib_table_lookup(tb, flp, res, FIB_LOOKUP_NOREF))
-			break;
-
 		tb = rcu_dereference_rtnl(net->ipv4.fib_main);
 		if (tb && !fib_table_lookup(tb, flp, res, FIB_LOOKUP_NOREF))
 			break;
@@ -309,6 +300,7 @@ static inline int fib_num_tclassid_users(struct net *net)
 	return 0;
 }
 #endif
+int fib_unmerge(struct net *net);
 void fib_flush_external(struct net *net);
 
 /* Exported by fib_semantics.c */
@@ -320,7 +312,7 @@ void fib_select_multipath(struct fib_result *res);
 
 /* Exported by fib_trie.c */
 void fib_trie_init(void);
-struct fib_table *fib_trie_table(u32 id);
+struct fib_table *fib_trie_table(u32 id, struct fib_table *alias);
 
 static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 {
