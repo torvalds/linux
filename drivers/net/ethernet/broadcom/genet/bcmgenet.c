@@ -54,6 +54,8 @@
 /* Default highest priority queue for multi queue support */
 #define GENET_Q0_PRIORITY	0
 
+#define GENET_Q16_RX_BD_CNT	\
+	(TOTAL_DESC - priv->hw_params->rx_queues * priv->hw_params->rx_bds_per_q)
 #define GENET_Q16_TX_BD_CNT	\
 	(TOTAL_DESC - priv->hw_params->tx_queues * priv->hw_params->tx_bds_per_q)
 
@@ -2488,6 +2490,7 @@ static struct bcmgenet_hw_params bcmgenet_hw_params[] = {
 		.tx_queues = 0,
 		.tx_bds_per_q = 0,
 		.rx_queues = 0,
+		.rx_bds_per_q = 0,
 		.bp_in_en_shift = 16,
 		.bp_in_mask = 0xffff,
 		.hfb_filter_cnt = 16,
@@ -2501,6 +2504,7 @@ static struct bcmgenet_hw_params bcmgenet_hw_params[] = {
 		.tx_queues = 4,
 		.tx_bds_per_q = 32,
 		.rx_queues = 0,
+		.rx_bds_per_q = 0,
 		.bp_in_en_shift = 16,
 		.bp_in_mask = 0xffff,
 		.hfb_filter_cnt = 16,
@@ -2517,6 +2521,7 @@ static struct bcmgenet_hw_params bcmgenet_hw_params[] = {
 		.tx_queues = 4,
 		.tx_bds_per_q = 32,
 		.rx_queues = 0,
+		.rx_bds_per_q = 0,
 		.bp_in_en_shift = 17,
 		.bp_in_mask = 0x1ffff,
 		.hfb_filter_cnt = 48,
@@ -2533,6 +2538,7 @@ static struct bcmgenet_hw_params bcmgenet_hw_params[] = {
 		.tx_queues = 4,
 		.tx_bds_per_q = 32,
 		.rx_queues = 0,
+		.rx_bds_per_q = 0,
 		.bp_in_en_shift = 17,
 		.bp_in_mask = 0x1ffff,
 		.hfb_filter_cnt = 48,
@@ -2632,7 +2638,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 #endif
 
 	pr_debug("Configuration for version: %d\n"
-		"TXq: %1d, TXqBDs: %1d, RXq: %1d\n"
+		"TXq: %1d, TXqBDs: %1d, RXq: %1d, RXqBDs: %1d\n"
 		"BP << en: %2d, BP msk: 0x%05x\n"
 		"HFB count: %2d, QTAQ msk: 0x%05x\n"
 		"TBUF: 0x%04x, HFB: 0x%04x, HFBreg: 0x%04x\n"
@@ -2640,7 +2646,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 		"Words/BD: %d\n",
 		priv->version,
 		params->tx_queues, params->tx_bds_per_q,
-		params->rx_queues,
+		params->rx_queues, params->rx_bds_per_q,
 		params->bp_in_en_shift, params->bp_in_mask,
 		params->hfb_filter_cnt, params->qtag_mask,
 		params->tbuf_offset, params->hfb_offset,

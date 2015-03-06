@@ -505,6 +505,7 @@ struct bcmgenet_hw_params {
 	u8		tx_queues;
 	u8		tx_bds_per_q;
 	u8		rx_queues;
+	u8		rx_bds_per_q;
 	u8		bp_in_en_shift;
 	u32		bp_in_mask;
 	u8		hfb_filter_cnt;
