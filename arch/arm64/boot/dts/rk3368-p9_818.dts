@@ -156,6 +156,12 @@
 	};
 };
 
+&tsadc {
+       tsadc-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+       //tsadc-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+       status = "okay";
+};
+
 &pinctrl {
 	//used for init some gpio
 	init-gpios = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
