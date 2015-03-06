@@ -353,6 +353,31 @@ static int get_alternative_probe_event(struct debuginfo *dinfo,
 	return ret;
 }
 
+static int get_alternative_line_range(struct debuginfo *dinfo,
+				      struct line_range *lr,
+				      const char *target, bool user)
+{
+	struct perf_probe_point pp = { 0 }, result = { 0 };
+	int ret, len = 0;
+
+	pp.function = lr->function;
+	pp.file = lr->file;
+	pp.line = lr->start;
+	if (lr->end != INT_MAX)
+		len = lr->end - lr->start;
+	ret = find_alternative_probe_point(dinfo, &pp, &result,
+					   target, user);
+	if (!ret) {
+		lr->function = result.function;
+		lr->file = result.file;
+		lr->start = result.line;
+		if (lr->end != INT_MAX)
+			lr->end = lr->start + len;
+		clear_perf_probe_point(&pp);
+	}
+	return ret;
+}
+
 /* Open new debuginfo of given module */
 static struct debuginfo *open_debuginfo(const char *module, bool silent)
 {
@@ -734,7 +759,8 @@ static int _show_one_line(FILE *fp, int l, bool skip, bool show_num)
  * Show line-range always requires debuginfo to find source file and
  * line number.
  */
-static int __show_line_range(struct line_range *lr, const char *module)
+static int __show_line_range(struct line_range *lr, const char *module,
+			     bool user)
 {
 	int l = 1;
 	struct int_node *ln;
@@ -750,6 +776,11 @@ static int __show_line_range(struct line_range *lr, const char *module)
 		return -ENOENT;
 
 	ret = debuginfo__find_line_range(dinfo, lr);
+	if (!ret) {	/* Not found, retry with an alternative */
+		ret = get_alternative_line_range(dinfo, lr, module, user);
+		if (!ret)
+			ret = debuginfo__find_line_range(dinfo, lr);
+	}
 	debuginfo__delete(dinfo);
 	if (ret == 0 || ret == -ENOENT) {
 		pr_warning("Specified source line is not found.\n");
@@ -819,7 +850,7 @@ int show_line_range(struct line_range *lr, const char *module, bool user)
 	ret = init_symbol_maps(user);
 	if (ret < 0)
 		return ret;
-	ret = __show_line_range(lr, module);
+	ret = __show_line_range(lr, module, user);
 	exit_symbol_maps();
 
 	return ret;
