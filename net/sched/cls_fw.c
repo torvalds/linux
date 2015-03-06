@@ -133,14 +133,20 @@ static void fw_delete_filter(struct rcu_head *head)
 	kfree(f);
 }
 
-static void fw_destroy(struct tcf_proto *tp)
+static bool fw_destroy(struct tcf_proto *tp, bool force)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct fw_filter *f;
 	int h;
 
 	if (head == NULL)
-		return;
+		return true;
+
+	if (!force) {
+		for (h = 0; h < HTSIZE; h++)
+			if (rcu_access_pointer(head->ht[h]))
+				return false;
+	}
 
 	for (h = 0; h < HTSIZE; h++) {
 		while ((f = rtnl_dereference(head->ht[h])) != NULL) {
@@ -152,6 +158,7 @@ static void fw_destroy(struct tcf_proto *tp)
 	}
 	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
+	return true;
 }
 
 static int fw_delete(struct tcf_proto *tp, unsigned long arg)

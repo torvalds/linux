@@ -277,13 +277,20 @@ route4_delete_filter(struct rcu_head *head)
 	kfree(f);
 }
 
-static void route4_destroy(struct tcf_proto *tp)
+static bool route4_destroy(struct tcf_proto *tp, bool force)
 {
 	struct route4_head *head = rtnl_dereference(tp->root);
 	int h1, h2;
 
 	if (head == NULL)
-		return;
+		return true;
+
+	if (!force) {
+		for (h1 = 0; h1 <= 256; h1++) {
+			if (rcu_access_pointer(head->table[h1]))
+				return false;
+		}
+	}
 
 	for (h1 = 0; h1 <= 256; h1++) {
 		struct route4_bucket *b;
@@ -308,6 +315,7 @@ static void route4_destroy(struct tcf_proto *tp)
 	}
 	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
+	return true;
 }
 
 static int route4_delete(struct tcf_proto *tp, unsigned long arg)

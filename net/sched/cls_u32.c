@@ -460,12 +460,34 @@ static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
 	return -ENOENT;
 }
 
-static void u32_destroy(struct tcf_proto *tp)
+static bool ht_empty(struct tc_u_hnode *ht)
+{
+	unsigned int h;
+
+	for (h = 0; h <= ht->divisor; h++)
+		if (rcu_access_pointer(ht->ht[h]))
+			return false;
+
+	return true;
+}
+
+static bool u32_destroy(struct tcf_proto *tp, bool force)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);
 
 	WARN_ON(root_ht == NULL);
+
+	if (!force) {
+		if (root_ht) {
+			if (root_ht->refcnt > 1)
+				return false;
+			if (root_ht->refcnt == 1) {
+				if (!ht_empty(root_ht))
+					return false;
+			}
+		}
+	}
 
 	if (root_ht && --root_ht->refcnt == 0)
 		u32_destroy_hnode(tp, root_ht);
@@ -491,6 +513,7 @@ static void u32_destroy(struct tcf_proto *tp)
 	}
 
 	tp->data = NULL;
+	return true;
 }
 
 static int u32_delete(struct tcf_proto *tp, unsigned long arg)
