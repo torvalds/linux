@@ -900,7 +900,6 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 				  struct cmd_obj *pcmd)
 {
 	unsigned long irqL;
-	u8 timer_cancelled;
 	struct sta_info *psta = NULL;
 	struct wlan_network *pwlan = NULL;
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -911,7 +910,7 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 	if (pcmd->res != H2C_SUCCESS)
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(1));
-	_cancel_timer(&pmlmepriv->assoc_timer, &timer_cancelled);
+	del_timer_sync(&pmlmepriv->assoc_timer);
 #ifdef __BIG_ENDIAN
 	/* endian_convert */
 	pnetwork->Length = le32_to_cpu(pnetwork->Length);

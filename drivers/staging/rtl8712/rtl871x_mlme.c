@@ -582,9 +582,7 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY) == true) {
-		u8 timer_cancelled;
-
-		_cancel_timer(&pmlmepriv->scan_to_timer, &timer_cancelled);
+		del_timer_sync(&pmlmepriv->scan_to_timer);
 
 		_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 	}
@@ -717,7 +715,6 @@ void r8712_ind_disconnect(struct _adapter *padapter)
 void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 {
 	unsigned long irqL = 0, irqL2;
-	u8 timer_cancelled;
 	struct sta_info	*ptarget_sta = NULL, *pcur_sta = NULL;
 	struct sta_priv	*pstapriv = &adapter->stapriv;
 	struct mlme_priv	*pmlmepriv = &adapter->mlmepriv;
@@ -911,8 +908,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 			if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)
 				== true)
 				r8712_indicate_connect(adapter);
-			_cancel_timer(&pmlmepriv->assoc_timer,
-				      &timer_cancelled);
+			del_timer_sync(&pmlmepriv->assoc_timer);
 		} else
 			goto ignore_joinbss_callback;
 	} else {
