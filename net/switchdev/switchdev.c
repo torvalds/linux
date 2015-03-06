@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
+#include <net/ip_fib.h>
 #include <net/switchdev.h>
 
 /**
@@ -225,3 +226,163 @@ int ndo_dflt_netdev_switch_port_bridge_dellink(struct net_device *dev,
 	return ret;
 }
 EXPORT_SYMBOL(ndo_dflt_netdev_switch_port_bridge_dellink);
+
+static struct net_device *netdev_switch_get_lowest_dev(struct net_device *dev)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	struct net_device *lower_dev;
+	struct net_device *port_dev;
+	struct list_head *iter;
+
+	/* Recusively search down until we find a sw port dev.
+	 * (A sw port dev supports ndo_switch_parent_id_get).
+	 */
+
+	if (dev->features & NETIF_F_HW_SWITCH_OFFLOAD &&
+	    ops->ndo_switch_parent_id_get)
+		return dev;
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		port_dev = netdev_switch_get_lowest_dev(lower_dev);
+		if (port_dev)
+			return port_dev;
+	}
+
+	return NULL;
+}
+
+static struct net_device *netdev_switch_get_dev_by_nhs(struct fib_info *fi)
+{
+	struct netdev_phys_item_id psid;
+	struct netdev_phys_item_id prev_psid;
+	struct net_device *dev = NULL;
+	int nhsel;
+
+	/* For this route, all nexthop devs must be on the same switch. */
+
+	for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
+		const struct fib_nh *nh = &fi->fib_nh[nhsel];
+
+		if (!nh->nh_dev)
+			return NULL;
+
+		dev = netdev_switch_get_lowest_dev(nh->nh_dev);
+		if (!dev)
+			return NULL;
+
+		if (netdev_switch_parent_id_get(dev, &psid))
+			return NULL;
+
+		if (nhsel > 0) {
+			if (prev_psid.id_len != psid.id_len)
+				return NULL;
+			if (memcmp(prev_psid.id, psid.id, psid.id_len))
+				return NULL;
+		}
+
+		prev_psid = psid;
+	}
+
+	return dev;
+}
+
+/**
+ *	netdev_switch_fib_ipv4_add - Add IPv4 route entry to switch
+ *
+ *	@dst: route's IPv4 destination address
+ *	@dst_len: destination address length (prefix length)
+ *	@fi: route FIB info structure
+ *	@tos: route TOS
+ *	@type: route type
+ *	@tb_id: route table ID
+ *
+ *	Add IPv4 route entry to switch device.
+ */
+int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
+			       u8 tos, u8 type, u32 tb_id)
+{
+	struct net_device *dev;
+	const struct net_device_ops *ops;
+	int err = 0;
+
+	/* Don't offload route if using custom ip rules or if
+	 * IPv4 FIB offloading has been disabled completely.
+	 */
+
+	if (fi->fib_net->ipv4.fib_has_custom_rules |
+	    fi->fib_net->ipv4.fib_offload_disabled)
+		return 0;
+
+	dev = netdev_switch_get_dev_by_nhs(fi);
+	if (!dev)
+		return 0;
+	ops = dev->netdev_ops;
+
+	if (ops->ndo_switch_fib_ipv4_add) {
+		err = ops->ndo_switch_fib_ipv4_add(dev, htonl(dst), dst_len,
+						   fi, tos, type, tb_id);
+		if (!err)
+			fi->fib_flags |= RTNH_F_EXTERNAL;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(netdev_switch_fib_ipv4_add);
+
+/**
+ *	netdev_switch_fib_ipv4_del - Delete IPv4 route entry from switch
+ *
+ *	@dst: route's IPv4 destination address
+ *	@dst_len: destination address length (prefix length)
+ *	@fi: route FIB info structure
+ *	@tos: route TOS
+ *	@type: route type
+ *	@tb_id: route table ID
+ *
+ *	Delete IPv4 route entry from switch device.
+ */
+int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
+			       u8 tos, u8 type, u32 tb_id)
+{
+	struct net_device *dev;
+	const struct net_device_ops *ops;
+	int err = 0;
+
+	if (!(fi->fib_flags & RTNH_F_EXTERNAL))
+		return 0;
+
+	dev = netdev_switch_get_dev_by_nhs(fi);
+	if (!dev)
+		return 0;
+	ops = dev->netdev_ops;
+
+	if (ops->ndo_switch_fib_ipv4_del) {
+		err = ops->ndo_switch_fib_ipv4_del(dev, htonl(dst), dst_len,
+						   fi, tos, type, tb_id);
+		if (!err)
+			fi->fib_flags &= ~RTNH_F_EXTERNAL;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(netdev_switch_fib_ipv4_del);
+
+/**
+ *	netdev_switch_fib_ipv4_abort - Abort an IPv4 FIB operation
+ *
+ *	@fi: route FIB info structure
+ */
+void netdev_switch_fib_ipv4_abort(struct fib_info *fi)
+{
+	/* There was a problem installing this route to the offload
+	 * device.  For now, until we come up with more refined
+	 * policy handling, abruptly end IPv4 fib offloading for
+	 * for entire net by flushing offload device(s) of all
+	 * IPv4 routes, and mark IPv4 fib offloading broken from
+	 * this point forward.
+	 */
+
+	fib_flush_external(fi->fib_net);
+	fi->fib_net->ipv4.fib_offload_disabled = true;
+}
+EXPORT_SYMBOL(netdev_switch_fib_ipv4_abort);

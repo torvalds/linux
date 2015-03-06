@@ -51,6 +51,12 @@ int ndo_dflt_netdev_switch_port_bridge_dellink(struct net_device *dev,
 					       struct nlmsghdr *nlh, u16 flags);
 int ndo_dflt_netdev_switch_port_bridge_setlink(struct net_device *dev,
 					       struct nlmsghdr *nlh, u16 flags);
+int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
+			       u8 tos, u8 type, u32 tb_id);
+int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
+			       u8 tos, u8 type, u32 tb_id);
+void netdev_switch_fib_ipv4_abort(struct fib_info *fi);
+
 #else
 
 static inline int netdev_switch_parent_id_get(struct net_device *dev,
@@ -107,6 +113,24 @@ static inline int ndo_dflt_netdev_switch_port_bridge_setlink(struct net_device *
 							u16 flags)
 {
 	return 0;
+}
+
+static inline int netdev_switch_fib_ipv4_add(u32 dst, int dst_len,
+					     struct fib_info *fi,
+					     u8 tos, u8 type, u32 tb_id)
+{
+	return 0;
+}
+
+static inline int netdev_switch_fib_ipv4_del(u32 dst, int dst_len,
+					     struct fib_info *fi,
+					     u8 tos, u8 type, u32 tb_id)
+{
+	return 0;
+}
+
+void netdev_switch_fib_ipv4_abort(struct fib_info *fi)
+{
 }
 
 #endif

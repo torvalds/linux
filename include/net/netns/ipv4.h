@@ -47,6 +47,7 @@ struct netns_ipv4 {
 	int			fib_num_tclassid_users;
 #endif
 	struct hlist_head	*fib_table_hash;
+	bool			fib_offload_disabled;
 	struct sock		*fibnl;
 
 	struct sock  * __percpu	*icmp_sk;
