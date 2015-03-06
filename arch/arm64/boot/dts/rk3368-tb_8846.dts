@@ -407,7 +407,7 @@
 			regulator-max-microvolt = <1500000>;
 			regulator-always-on;
 			regulator-boot-on;
-			regulator-initial-mode = <0x2>;
+			regulator-initial-mode = <0x1>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
