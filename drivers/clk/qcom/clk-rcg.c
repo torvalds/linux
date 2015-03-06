@@ -495,6 +495,57 @@ static int clk_rcg_bypass_set_rate(struct clk_hw *hw, unsigned long rate,
 	return __clk_rcg_set_rate(rcg, rcg->freq_tbl);
 }
 
+/*
+ * This type of clock has a glitch-free mux that switches between the output of
+ * the M/N counter and an always on clock source (XO). When clk_set_rate() is
+ * called we need to make sure that we don't switch to the M/N counter if it
+ * isn't clocking because the mux will get stuck and the clock will stop
+ * outputting a clock. This can happen if the framework isn't aware that this
+ * clock is on and so clk_set_rate() doesn't turn on the new parent. To fix
+ * this we switch the mux in the enable/disable ops and reprogram the M/N
+ * counter in the set_rate op. We also make sure to switch away from the M/N
+ * counter in set_rate if software thinks the clock is off.
+ */
+static int clk_rcg_lcc_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
+{
+	struct clk_rcg *rcg = to_clk_rcg(hw);
+	const struct freq_tbl *f;
+	int ret;
+	u32 gfm = BIT(10);
+
+	f = qcom_find_freq(rcg->freq_tbl, rate);
+	if (!f)
+		return -EINVAL;
+
+	/* Switch to XO to avoid glitches */
+	regmap_update_bits(rcg->clkr.regmap, rcg->ns_reg, gfm, 0);
+	ret = __clk_rcg_set_rate(rcg, f);
+	/* Switch back to M/N if it's clocking */
+	if (__clk_is_enabled(hw->clk))
+		regmap_update_bits(rcg->clkr.regmap, rcg->ns_reg, gfm, gfm);
+
+	return ret;
+}
+
+static int clk_rcg_lcc_enable(struct clk_hw *hw)
+{
+	struct clk_rcg *rcg = to_clk_rcg(hw);
+	u32 gfm = BIT(10);
+
+	/* Use M/N */
+	return regmap_update_bits(rcg->clkr.regmap, rcg->ns_reg, gfm, gfm);
+}
+
+static void clk_rcg_lcc_disable(struct clk_hw *hw)
+{
+	struct clk_rcg *rcg = to_clk_rcg(hw);
+	u32 gfm = BIT(10);
+
+	/* Use XO */
+	regmap_update_bits(rcg->clkr.regmap, rcg->ns_reg, gfm, 0);
+}
+
 static int __clk_dyn_rcg_set_rate(struct clk_hw *hw, unsigned long rate)
 {
 	struct clk_dyn_rcg *rcg = to_clk_dyn_rcg(hw);
@@ -542,6 +593,17 @@ const struct clk_ops clk_rcg_bypass_ops = {
 	.set_rate = clk_rcg_bypass_set_rate,
 };
 EXPORT_SYMBOL_GPL(clk_rcg_bypass_ops);
+
+const struct clk_ops clk_rcg_lcc_ops = {
+	.enable = clk_rcg_lcc_enable,
+	.disable = clk_rcg_lcc_disable,
+	.get_parent = clk_rcg_get_parent,
+	.set_parent = clk_rcg_set_parent,
+	.recalc_rate = clk_rcg_recalc_rate,
+	.determine_rate = clk_rcg_determine_rate,
+	.set_rate = clk_rcg_lcc_set_rate,
+};
+EXPORT_SYMBOL_GPL(clk_rcg_lcc_ops);
 
 const struct clk_ops clk_dyn_rcg_ops = {
 	.enable = clk_enable_regmap,

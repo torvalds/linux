@@ -96,6 +96,7 @@ struct clk_rcg {
 
 extern const struct clk_ops clk_rcg_ops;
 extern const struct clk_ops clk_rcg_bypass_ops;
+extern const struct clk_ops clk_rcg_lcc_ops;
 
 #define to_clk_rcg(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg, clkr)
 
