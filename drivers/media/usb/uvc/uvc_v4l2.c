@@ -1133,6 +1133,9 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 		uvc_simplify_fraction(&fival->discrete.numerator,
 			&fival->discrete.denominator, 8, 333);
 	} else {
+		if (fival->index)
+			return -EINVAL;
+
 		fival->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 		fival->stepwise.min.numerator = frame->dwFrameInterval[0];
 		fival->stepwise.min.denominator = 10000000;
