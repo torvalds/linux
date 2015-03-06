@@ -1382,12 +1382,11 @@ static bool gic_rdists_supports_plpis(void)
 
 int its_cpu_init(void)
 {
-	if (!gic_rdists_supports_plpis()) {
-		pr_info("CPU%d: LPIs not supported\n", smp_processor_id());
-		return -ENXIO;
-	}
-
 	if (!list_empty(&its_nodes)) {
+		if (!gic_rdists_supports_plpis()) {
+			pr_info("CPU%d: LPIs not supported\n", smp_processor_id());
+			return -ENXIO;
+		}
 		its_cpu_init_lpis();
 		its_cpu_init_collection();
 	}
