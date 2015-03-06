@@ -1032,6 +1032,10 @@ extern void usb_gadget_udc_reset(struct usb_gadget *gadget,
 extern void usb_gadget_giveback_request(struct usb_ep *ep,
 		struct usb_request *req);
 
+/*-------------------------------------------------------------------------*/
+
+/* utility to update vbus status for udc core, it may be scheduled */
+extern void usb_udc_vbus_handler(struct usb_gadget *gadget, bool status);
 
 /*-------------------------------------------------------------------------*/
 
