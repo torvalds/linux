@@ -1273,6 +1273,23 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb);
 
 void hci_sock_dev_event(struct hci_dev *hdev, int event);
 
+struct hci_mgmt_handler {
+	int (*func) (struct sock *sk, struct hci_dev *hdev, void *data,
+		     u16 data_len);
+	bool var_len;
+	size_t data_len;
+};
+
+struct hci_mgmt_chan {
+	struct list_head list;
+	unsigned short channel;
+	size_t handler_count;
+	const struct hci_mgmt_handler *handlers;
+};
+
+int hci_mgmt_chan_register(struct hci_mgmt_chan *c);
+void hci_mgmt_chan_unregister(struct hci_mgmt_chan *c);
+
 /* Management interface */
 #define DISCOV_TYPE_BREDR		(BIT(BDADDR_BREDR))
 #define DISCOV_TYPE_LE			(BIT(BDADDR_LE_PUBLIC) | \
