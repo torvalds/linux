@@ -5612,12 +5612,7 @@ static void gen6_suspend_rps(struct drm_device *dev)
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-	/*
-	 * TODO: disable RPS interrupts on GEN9+ too once RPS support
-	 * is added for it.
-	 */
-	if (INTEL_INFO(dev)->gen < 9)
-		gen6_disable_rps_interrupts(dev);
+	gen6_disable_rps_interrupts(dev);
 }
 
 /**
@@ -5674,12 +5669,7 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 
-	/*
-	 * TODO: reset/enable RPS interrupts on GEN9+ too, once RPS support is
-	 * added for it.
-	 */
-	if (INTEL_INFO(dev)->gen < 9)
-		gen6_reset_rps_interrupts(dev);
+	gen6_reset_rps_interrupts(dev);
 
 	if (IS_CHERRYVIEW(dev)) {
 		cherryview_enable_rps(dev);
@@ -5698,8 +5688,7 @@ static void intel_gen6_powersave_work(struct work_struct *work)
 	}
 	dev_priv->rps.enabled = true;
 
-	if (INTEL_INFO(dev)->gen < 9)
-		gen6_enable_rps_interrupts(dev);
+	gen6_enable_rps_interrupts(dev);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
