@@ -514,7 +514,9 @@ static int rockchip_i2s_resume_noirq(struct device *dev)
 #ifdef CLK_SET_lATER
 static void set_clk_later_work(struct work_struct *work)
 {
-	struct rk30_i2s_info *i2s = rk30_i2s;
+	struct rk30_i2s_info *i2s = container_of(work, struct rk30_i2s_info,
+						 clk_delayed_work.work);
+
 	clk_set_rate(i2s->i2s_clk, 11289600);
 	if(!IS_ERR(i2s->i2s_mclk) )
 		clk_set_rate(i2s->i2s_mclk, 11289600);
