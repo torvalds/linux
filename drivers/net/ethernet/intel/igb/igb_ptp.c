@@ -358,7 +358,7 @@ static int igb_ptp_settime_i210(struct ptp_clock_info *ptp,
 static void igb_pin_direction(int pin, int input, u32 *ctrl, u32 *ctrl_ext)
 {
 	u32 *ptr = pin < 2 ? ctrl : ctrl_ext;
-	u32 mask[IGB_N_SDP] = {
+	static const u32 mask[IGB_N_SDP] = {
 		E1000_CTRL_SDP0_DIR,
 		E1000_CTRL_SDP1_DIR,
 		E1000_CTRL_EXT_SDP2_DIR,
@@ -373,16 +373,16 @@ static void igb_pin_direction(int pin, int input, u32 *ctrl, u32 *ctrl_ext)
 
 static void igb_pin_extts(struct igb_adapter *igb, int chan, int pin)
 {
-	struct e1000_hw *hw = &igb->hw;
-	u32 aux0_sel_sdp[IGB_N_SDP] = {
+	static const u32 aux0_sel_sdp[IGB_N_SDP] = {
 		AUX0_SEL_SDP0, AUX0_SEL_SDP1, AUX0_SEL_SDP2, AUX0_SEL_SDP3,
 	};
-	u32 aux1_sel_sdp[IGB_N_SDP] = {
+	static const u32 aux1_sel_sdp[IGB_N_SDP] = {
 		AUX1_SEL_SDP0, AUX1_SEL_SDP1, AUX1_SEL_SDP2, AUX1_SEL_SDP3,
 	};
-	u32 ts_sdp_en[IGB_N_SDP] = {
+	static const u32 ts_sdp_en[IGB_N_SDP] = {
 		TS_SDP0_EN, TS_SDP1_EN, TS_SDP2_EN, TS_SDP3_EN,
 	};
+	struct e1000_hw *hw = &igb->hw;
 	u32 ctrl, ctrl_ext, tssdp = 0;
 
 	ctrl = rd32(E1000_CTRL);
@@ -409,28 +409,28 @@ static void igb_pin_extts(struct igb_adapter *igb, int chan, int pin)
 
 static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin)
 {
-	struct e1000_hw *hw = &igb->hw;
-	u32 aux0_sel_sdp[IGB_N_SDP] = {
+	static const u32 aux0_sel_sdp[IGB_N_SDP] = {
 		AUX0_SEL_SDP0, AUX0_SEL_SDP1, AUX0_SEL_SDP2, AUX0_SEL_SDP3,
 	};
-	u32 aux1_sel_sdp[IGB_N_SDP] = {
+	static const u32 aux1_sel_sdp[IGB_N_SDP] = {
 		AUX1_SEL_SDP0, AUX1_SEL_SDP1, AUX1_SEL_SDP2, AUX1_SEL_SDP3,
 	};
-	u32 ts_sdp_en[IGB_N_SDP] = {
+	static const u32 ts_sdp_en[IGB_N_SDP] = {
 		TS_SDP0_EN, TS_SDP1_EN, TS_SDP2_EN, TS_SDP3_EN,
 	};
-	u32 ts_sdp_sel_tt0[IGB_N_SDP] = {
+	static const u32 ts_sdp_sel_tt0[IGB_N_SDP] = {
 		TS_SDP0_SEL_TT0, TS_SDP1_SEL_TT0,
 		TS_SDP2_SEL_TT0, TS_SDP3_SEL_TT0,
 	};
-	u32 ts_sdp_sel_tt1[IGB_N_SDP] = {
+	static const u32 ts_sdp_sel_tt1[IGB_N_SDP] = {
 		TS_SDP0_SEL_TT1, TS_SDP1_SEL_TT1,
 		TS_SDP2_SEL_TT1, TS_SDP3_SEL_TT1,
 	};
-	u32 ts_sdp_sel_clr[IGB_N_SDP] = {
+	static const u32 ts_sdp_sel_clr[IGB_N_SDP] = {
 		TS_SDP0_SEL_FC1, TS_SDP1_SEL_FC1,
 		TS_SDP2_SEL_FC1, TS_SDP3_SEL_FC1,
 	};
+	struct e1000_hw *hw = &igb->hw;
 	u32 ctrl, ctrl_ext, tssdp = 0;
 
 	ctrl = rd32(E1000_CTRL);
@@ -468,7 +468,7 @@ static int igb_ptp_feature_enable_i210(struct ptp_clock_info *ptp,
 	u32 tsauxc, tsim, tsauxc_mask, tsim_mask, trgttiml, trgttimh;
 	unsigned long flags;
 	struct timespec ts;
-	int pin;
+	int pin = -1;
 	s64 ns;
 
 	switch (rq->type) {
