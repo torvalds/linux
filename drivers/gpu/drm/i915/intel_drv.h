@@ -840,7 +840,8 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
-void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv);
+void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
+				     unsigned int pipe_mask);
 
 /* intel_crt.c */
 void intel_crt_init(struct drm_device *dev);
