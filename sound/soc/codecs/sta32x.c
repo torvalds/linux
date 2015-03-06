@@ -106,13 +106,11 @@ static const struct reg_default sta32x_regs[] = {
 };
 
 static const struct regmap_range sta32x_write_regs_range[] = {
-	regmap_reg_range(STA32X_CONFA,  STA32X_AUTO2),
-	regmap_reg_range(STA32X_C1CFG,  STA32X_FDRC2),
+	regmap_reg_range(STA32X_CONFA,  STA32X_FDRC2),
 };
 
 static const struct regmap_range sta32x_read_regs_range[] = {
-	regmap_reg_range(STA32X_CONFA,  STA32X_AUTO2),
-	regmap_reg_range(STA32X_C1CFG,  STA32X_FDRC2),
+	regmap_reg_range(STA32X_CONFA,  STA32X_FDRC2),
 };
 
 static const struct regmap_range sta32x_volatile_regs_range[] = {
