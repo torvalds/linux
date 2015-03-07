@@ -185,16 +185,6 @@ static void focaltech_process_abs_packet(struct psmouse *psmouse,
 
 	state->pressed = (packet[0] >> 4) & 1;
 
-	/*
-	 * packet[5] contains some kind of tool size in the most
-	 * significant nibble. 0xff is a special value (latching) that
-	 * signals a large contact area.
-	 */
-	if (packet[5] == 0xff) {
-		state->fingers[finger].valid = false;
-		return;
-	}
-
 	state->fingers[finger].x = ((packet[1] & 0xf) << 8) | packet[2];
 	state->fingers[finger].y = (packet[3] << 8) | packet[4];
 	state->fingers[finger].valid = true;
