@@ -162,7 +162,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	skb_forward_csum(skb);
 
 	/* Verify ttl is valid */
-	if (dec.ttl <= 2)
+	if (dec.ttl <= 1)
 		goto drop;
 	dec.ttl -= 1;
 
