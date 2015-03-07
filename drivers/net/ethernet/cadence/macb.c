@@ -2131,6 +2131,10 @@ static const struct net_device_ops macb_netdev_ops = {
 };
 
 #if defined(CONFIG_OF)
+static struct macb_config at91sam9260_config = {
+	.caps = MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_USRIO_DEFAULT_IS_MII,
+};
+
 static struct macb_config pc302gem_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
 	.dma_burst_length = 16,
@@ -2148,7 +2152,7 @@ static struct macb_config sama5d4_config = {
 
 static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "cdns,at32ap7000-macb" },
-	{ .compatible = "cdns,at91sam9260-macb" },
+	{ .compatible = "cdns,at91sam9260-macb", .data = &at91sam9260_config },
 	{ .compatible = "cdns,macb" },
 	{ .compatible = "cdns,pc302-gem", .data = &pc302gem_config },
 	{ .compatible = "cdns,gem", .data = &pc302gem_config },
@@ -2408,21 +2412,19 @@ static int macb_probe(struct platform_device *pdev)
 		bp->phy_interface = err;
 	}
 
+	config = 0;
 	if (bp->phy_interface == PHY_INTERFACE_MODE_RGMII)
-		macb_or_gem_writel(bp, USRIO, GEM_BIT(RGMII));
-	else if (bp->phy_interface == PHY_INTERFACE_MODE_RMII)
-#if defined(CONFIG_ARCH_AT91)
-		macb_or_gem_writel(bp, USRIO, (MACB_BIT(RMII) |
-					       MACB_BIT(CLKEN)));
-#else
-		macb_or_gem_writel(bp, USRIO, 0);
-#endif
-	else
-#if defined(CONFIG_ARCH_AT91)
-		macb_or_gem_writel(bp, USRIO, MACB_BIT(CLKEN));
-#else
-		macb_or_gem_writel(bp, USRIO, MACB_BIT(MII));
-#endif
+		config = GEM_BIT(RGMII);
+	else if (bp->phy_interface == PHY_INTERFACE_MODE_RMII &&
+		 (bp->caps & MACB_CAPS_USRIO_DEFAULT_IS_MII))
+		config = MACB_BIT(RMII);
+	else if (!(bp->caps & MACB_CAPS_USRIO_DEFAULT_IS_MII))
+		config = MACB_BIT(MII);
+
+	if (bp->caps & MACB_CAPS_USRIO_HAS_CLKEN)
+		config |= MACB_BIT(CLKEN);
+
+	macb_or_gem_writel(bp, USRIO, config);
 
 	err = register_netdev(dev);
 	if (err) {
