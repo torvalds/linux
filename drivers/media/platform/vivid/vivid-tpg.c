@@ -201,13 +201,49 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_ABGR32:
 		tpg->is_yuv = false;
 		break;
+	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_YVU420M:
+		tpg->buffers = 3;
+		/* fall through */
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
+		tpg->vdownsampling[1] = 2;
+		tpg->vdownsampling[2] = 2;
+		tpg->hdownsampling[1] = 2;
+		tpg->hdownsampling[2] = 2;
+		tpg->planes = 3;
+		tpg->is_yuv = true;
+		break;
+	case V4L2_PIX_FMT_YUV422P:
+		tpg->vdownsampling[1] = 1;
+		tpg->vdownsampling[2] = 1;
+		tpg->hdownsampling[1] = 2;
+		tpg->hdownsampling[2] = 2;
+		tpg->planes = 3;
+		tpg->is_yuv = true;
+		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
+		tpg->buffers = 2;
+		/* fall through */
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
 		tpg->vdownsampling[1] = 1;
 		tpg->hdownsampling[1] = 1;
-		tpg->buffers = 2;
 		tpg->planes = 2;
-		/* fall-through */
+		tpg->is_yuv = true;
+		break;
+	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV21M:
+		tpg->buffers = 2;
+		/* fall through */
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		tpg->vdownsampling[1] = 2;
+		tpg->hdownsampling[1] = 1;
+		tpg->planes = 2;
+		tpg->is_yuv = true;
+		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YVYU:
@@ -243,10 +279,28 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_ABGR32:
 		tpg->twopixelsize[0] = 2 * 4;
 		break;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV21M:
+		tpg->twopixelsize[0] = 2;
+		tpg->twopixelsize[1] = 2;
+		break;
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
 		tpg->twopixelsize[0] = 2;
 		tpg->twopixelsize[1] = 2;
+		break;
+	case V4L2_PIX_FMT_YUV422P:
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
+	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_YVU420M:
+		tpg->twopixelsize[0] = 2;
+		tpg->twopixelsize[1] = 2;
+		tpg->twopixelsize[2] = 2;
 		break;
 	}
 	return true;
@@ -685,6 +739,37 @@ static void gen_twopix(struct tpg_data *tpg,
 	b_v = tpg->colors[color][2]; /* B or precalculated V */
 
 	switch (tpg->fourcc) {
+	case V4L2_PIX_FMT_YUV422P:
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YUV420M:
+		buf[0][offset] = r_y;
+		if (odd) {
+			buf[1][0] = (buf[1][0] + g_u) / 2;
+			buf[2][0] = (buf[2][0] + b_v) / 2;
+			buf[1][1] = buf[1][0];
+			buf[2][1] = buf[2][0];
+			break;
+		}
+		buf[1][0] = g_u;
+		buf[2][0] = b_v;
+		break;
+	case V4L2_PIX_FMT_YVU420:
+	case V4L2_PIX_FMT_YVU420M:
+		buf[0][offset] = r_y;
+		if (odd) {
+			buf[1][0] = (buf[1][0] + b_v) / 2;
+			buf[2][0] = (buf[2][0] + g_u) / 2;
+			buf[1][1] = buf[1][0];
+			buf[2][1] = buf[2][0];
+			break;
+		}
+		buf[1][0] = b_v;
+		buf[2][0] = g_u;
+		break;
+
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV16M:
 		buf[0][offset] = r_y;
 		if (odd) {
@@ -695,6 +780,9 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[1][0] = g_u;
 		buf[1][1] = b_v;
 		break;
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV21M:
+	case V4L2_PIX_FMT_NV61:
 	case V4L2_PIX_FMT_NV61M:
 		buf[0][offset] = r_y;
 		if (odd) {
