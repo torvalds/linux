@@ -842,7 +842,7 @@
 			};
 
 			macb0: ethernet@fffc4000 {
-				compatible = "cdns,at32ap7000-macb", "cdns,macb";
+				compatible = "cdns,at91sam9260-macb", "cdns,macb";
 				reg = <0xfffc4000 0x100>;
 				interrupts = <21 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";
