@@ -90,7 +90,7 @@ enum tpg_move_mode {
 
 extern const char * const tpg_aspect_strings[];
 
-#define TPG_MAX_PLANES 2
+#define TPG_MAX_PLANES 3
 #define TPG_MAX_PAT_LINES 8
 
 struct tpg_data {
@@ -140,6 +140,8 @@ struct tpg_data {
 	unsigned			real_rgb_range;
 	unsigned			buffers;
 	unsigned			planes;
+	u8				vdownsampling[TPG_MAX_PLANES];
+	u8				hdownsampling[TPG_MAX_PLANES];
 	/* Used to store the colors in native format, either RGB or YUV */
 	u8				colors[TPG_COLOR_MAX][3];
 	u8				textfg[TPG_MAX_PLANES][8], textbg[TPG_MAX_PLANES][8];
@@ -361,9 +363,10 @@ static inline void tpg_s_bytesperline(struct tpg_data *tpg, unsigned plane, unsi
 	for (p = 0; p < tpg->planes; p++) {
 		unsigned plane_w = bpl * tpg->twopixelsize[p] / tpg->twopixelsize[0];
 
-		tpg->bytesperline[p] = plane_w;
+		tpg->bytesperline[p] = plane_w / tpg->hdownsampling[p];
 	}
 }
+
 
 static inline unsigned tpg_g_line_width(const struct tpg_data *tpg, unsigned plane)
 {
@@ -375,7 +378,7 @@ static inline unsigned tpg_g_line_width(const struct tpg_data *tpg, unsigned pla
 	for (p = 0; p < tpg->planes; p++) {
 		unsigned plane_w = tpg_g_bytesperline(tpg, p);
 
-		w += plane_w;
+		w += plane_w / tpg->vdownsampling[p];
 	}
 	return w;
 }
@@ -391,7 +394,8 @@ static inline unsigned tpg_calc_line_width(const struct tpg_data *tpg,
 	for (p = 0; p < tpg->planes; p++) {
 		unsigned plane_w = bpl * tpg->twopixelsize[p] / tpg->twopixelsize[0];
 
-		w += plane_w;
+		plane_w /= tpg->hdownsampling[p];
+		w += plane_w / tpg->vdownsampling[p];
 	}
 	return w;
 }
@@ -401,7 +405,8 @@ static inline unsigned tpg_calc_plane_size(const struct tpg_data *tpg, unsigned 
 	if (plane >= tpg->planes)
 		return 0;
 
-	return tpg_g_bytesperline(tpg, plane) * tpg->buf_height;
+	return tpg_g_bytesperline(tpg, plane) * tpg->buf_height /
+	       tpg->vdownsampling[plane];
 }
 
 static inline void tpg_s_buf_height(struct tpg_data *tpg, unsigned h)

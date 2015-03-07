@@ -172,6 +172,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	tpg->planes = 1;
 	tpg->buffers = 1;
 	tpg->recalc_colors = true;
+	tpg->vdownsampling[0] = 1;
+	tpg->hdownsampling[0] = 1;
 
 	switch (fourcc) {
 	case V4L2_PIX_FMT_RGB565:
@@ -192,6 +194,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
+		tpg->vdownsampling[1] = 1;
+		tpg->hdownsampling[1] = 1;
 		tpg->buffers = 2;
 		tpg->planes = 2;
 		/* fall-through */
@@ -273,7 +277,8 @@ void tpg_reset_source(struct tpg_data *tpg, unsigned width, unsigned height,
 	tpg->compose.width = width;
 	tpg->compose.height = tpg->buf_height;
 	for (p = 0; p < tpg->planes; p++)
-		tpg->bytesperline[p] = width * tpg->twopixelsize[p] / 2;
+		tpg->bytesperline[p] = (width * tpg->twopixelsize[p]) /
+				       (2 * tpg->hdownsampling[p]);
 	tpg->recalc_square_border = true;
 }
 
