@@ -1690,7 +1690,7 @@ enum {
 #define IXGBE_MACC_FS        0x00040000
 #define IXGBE_MAC_RX2TX_LPBK 0x00000002
 
-/* Veto Bit definiton */
+/* Veto Bit definition */
 #define IXGBE_MMNGC_MNG_VETO  0x00000001
 
 /* LINKS Bit Masks */

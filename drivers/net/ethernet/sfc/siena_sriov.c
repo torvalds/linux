@@ -1067,7 +1067,7 @@ void efx_siena_sriov_probe(struct efx_nic *efx)
 }
 
 /* Copy the list of individual addresses into the vfdi_status.peers
- * array and auxillary pages, protected by %local_lock. Drop that lock
+ * array and auxiliary pages, protected by %local_lock. Drop that lock
  * and then broadcast the address list to every VF.
  */
 static void efx_siena_sriov_peer_work(struct work_struct *data)

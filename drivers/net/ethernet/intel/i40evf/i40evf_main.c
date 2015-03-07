@@ -2009,7 +2009,7 @@ static int i40evf_check_reset_complete(struct i40e_hw *hw)
  *
  * This task completes the work that was begun in probe. Due to the nature
  * of VF-PF communications, we may need to wait tens of milliseconds to get
- * reponses back from the PF. Rather than busy-wait in probe and bog down the
+ * responses back from the PF. Rather than busy-wait in probe and bog down the
  * whole system, we'll do it in a task so we can sleep.
  * This task only runs during driver init. Once we've established
  * communications with the PF driver and set up our netdev, the watchdog
@@ -2400,7 +2400,7 @@ static int i40evf_suspend(struct pci_dev *pdev, pm_message_t state)
 }
 
 /**
- * i40evf_resume - Power managment resume routine
+ * i40evf_resume - Power management resume routine
  * @pdev: PCI device information struct
  *
  * Called when the system (VM) is resumed from sleep/suspend.

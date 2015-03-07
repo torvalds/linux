@@ -1578,7 +1578,7 @@ out1:
 
 #ifndef CONFIG_CS89x0_PLATFORM
 /*
- * This function converts the I/O port addres used by the cs89x0_probe() and
+ * This function converts the I/O port address used by the cs89x0_probe() and
  * init_module() functions to the I/O memory address used by the
  * cs89x0_probe1() function.
  */

@@ -1620,7 +1620,7 @@ void bnx2x_memset_stats(struct bnx2x *bp)
 	if (bp->port.pmf && bp->port.port_stx)
 		bnx2x_port_stats_base_init(bp);
 
-	/* mark the end of statistics initializiation */
+	/* mark the end of statistics initialization */
 	bp->stats_init = false;
 }
 

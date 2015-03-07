@@ -875,7 +875,7 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb)
 	 * Write Header (incorporated as part of the cpl_tx_pkt_lso and
 	 * cpl_tx_pkt structures), followed by either a TX Packet Write CPL
 	 * message or, if we're doing a Large Send Offload, an LSO CPL message
-	 * with an embeded TX Packet Write CPL message.
+	 * with an embedded TX Packet Write CPL message.
 	 */
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
 	if (skb_shinfo(skb)->gso_size)

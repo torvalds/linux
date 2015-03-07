@@ -1340,7 +1340,7 @@ bfa_ioc_fwver_md5_check(struct bfi_ioc_image_hdr *fwhdr_1,
 	return true;
 }
 
-/* Returns TRUE if major minor and maintainence are same.
+/* Returns TRUE if major minor and maintenance are same.
  * If patch version are same, check for MD5 Checksum to be same.
  */
 static bool

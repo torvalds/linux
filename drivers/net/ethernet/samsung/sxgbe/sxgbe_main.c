@@ -422,11 +422,11 @@ static int init_tx_ring(struct device *dev, u8 queue_no,
 	/* assign queue number */
 	tx_ring->queue_no = queue_no;
 
-	/* initalise counters */
+	/* initialise counters */
 	tx_ring->dirty_tx = 0;
 	tx_ring->cur_tx = 0;
 
-	/* initalise TX queue lock */
+	/* initialise TX queue lock */
 	spin_lock_init(&tx_ring->tx_lock);
 
 	return 0;
@@ -515,7 +515,7 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 			goto err_free_rx_buffers;
 	}
 
-	/* initalise counters */
+	/* initialise counters */
 	rx_ring->cur_rx = 0;
 	rx_ring->dirty_rx = (unsigned int)(desc_index - rx_rsize);
 	priv->dma_buf_sz = bfsize;
@@ -837,7 +837,7 @@ static void sxgbe_restart_tx_queue(struct sxgbe_priv_data *priv, int queue_num)
 	/* free the skbuffs of the ring */
 	tx_free_ring_skbufs(tx_ring);
 
-	/* initalise counters */
+	/* initialise counters */
 	tx_ring->cur_tx = 0;
 	tx_ring->dirty_tx = 0;
 
@@ -1176,7 +1176,7 @@ static int sxgbe_open(struct net_device *dev)
 	if (priv->phydev)
 		phy_start(priv->phydev);
 
-	/* initalise TX coalesce parameters */
+	/* initialise TX coalesce parameters */
 	sxgbe_tx_init_coalesce(priv);
 
 	if ((priv->use_riwt) && (priv->hw->dma->rx_watchdog)) {
@@ -1721,7 +1721,7 @@ static inline u64 sxgbe_get_stat64(void __iomem *ioaddr, int reg_lo, int reg_hi)
  *  Description:
  *  This function is a driver entry point whenever ifconfig command gets
  *  executed to see device statistics. Statistics are number of
- *  bytes sent or received, errors occured etc.
+ *  bytes sent or received, errors occurred etc.
  *  Return value:
  *  This function returns various statistical information of device.
  */

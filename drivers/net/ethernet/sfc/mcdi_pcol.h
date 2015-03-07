@@ -6497,7 +6497,7 @@
 #define    MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_LENMIN 12
 #define    MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_LENMAX 252
 #define    MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_LEN(num) (0+12*(num))
-/* Raw buffer table entries, layed out as BUFTBL_ENTRY. */
+/* Raw buffer table entries, laid out as BUFTBL_ENTRY. */
 #define       MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_ENTRY_OFST 0
 #define       MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_ENTRY_LEN 12
 #define       MC_CMD_DUMP_BUFTBL_ENTRIES_OUT_ENTRY_MINNUM 1

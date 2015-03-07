@@ -488,7 +488,7 @@ static void ixgbe_ptp_tx_hwtstamp(struct ixgbe_adapter *adapter)
  * @work: pointer to the work struct
  *
  * This work item polls TSYNCTXCTL valid bit to determine when a Tx hardware
- * timestamp has been taken for the current skb. It is necesary, because the
+ * timestamp has been taken for the current skb. It is necessary, because the
  * descriptor's "done" bit does not correlate with the timestamp event.
  */
 static void ixgbe_ptp_tx_hwtstamp_work(struct work_struct *work)

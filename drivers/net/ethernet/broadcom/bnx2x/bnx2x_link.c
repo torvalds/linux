@@ -563,7 +563,7 @@ static void bnx2x_ets_e3b0_set_credit_upper_bound_nig(
 *	Will return the NIG ETS registers to init values.Except
 *	credit_upper_bound.
 *	That isn't used in this configuration (No WFQ is enabled) and will be
-*	configured acording to spec
+*	configured according to spec
 *.
 ******************************************************************************/
 static void bnx2x_ets_e3b0_nig_disabled(const struct link_params *params,
@@ -680,7 +680,7 @@ static void bnx2x_ets_e3b0_set_credit_upper_bound_pbf(
 *	Will return the PBF ETS registers to init values.Except
 *	credit_upper_bound.
 *	That isn't used in this configuration (No WFQ is enabled) and will be
-*	configured acording to spec
+*	configured according to spec
 *.
 ******************************************************************************/
 static void bnx2x_ets_e3b0_pbf_disabled(const struct link_params *params)
@@ -738,7 +738,7 @@ static void bnx2x_ets_e3b0_pbf_disabled(const struct link_params *params)
 }
 /******************************************************************************
 * Description:
-*	E3B0 disable will return basicly the values to init values.
+*	E3B0 disable will return basically the values to init values.
 *.
 ******************************************************************************/
 static int bnx2x_ets_e3b0_disabled(const struct link_params *params,
@@ -761,7 +761,7 @@ static int bnx2x_ets_e3b0_disabled(const struct link_params *params,
 
 /******************************************************************************
 * Description:
-*	Disable will return basicly the values to init values.
+*	Disable will return basically the values to init values.
 *
 ******************************************************************************/
 int bnx2x_ets_disabled(struct link_params *params,
@@ -2938,7 +2938,7 @@ static int bnx2x_eee_initial_config(struct link_params *params,
 {
 	vars->eee_status |= ((u32) mode) << SHMEM_EEE_SUPPORTED_SHIFT;
 
-	/* Propogate params' bits --> vars (for migration exposure) */
+	/* Propagate params' bits --> vars (for migration exposure) */
 	if (params->eee_mode & EEE_MODE_ENABLE_LPI)
 		vars->eee_status |= SHMEM_EEE_LPI_REQUESTED_BIT;
 	else
@@ -13308,7 +13308,7 @@ static void bnx2x_check_over_curr(struct link_params *params,
 		vars->phy_flags &= ~PHY_OVER_CURRENT_FLAG;
 }
 
-/* Returns 0 if no change occured since last check; 1 otherwise. */
+/* Returns 0 if no change occurred since last check; 1 otherwise. */
 static u8 bnx2x_analyze_link_error(struct link_params *params,
 				    struct link_vars *vars, u32 status,
 				    u32 phy_flag, u32 link_flag, u8 notify)

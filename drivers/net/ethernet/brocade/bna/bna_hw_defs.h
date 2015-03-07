@@ -363,7 +363,7 @@ struct bna_txq_wi_vector {
 
 /*  TxQ Entry Structure
  *
- *  BEWARE:  Load values into this structure with correct endianess.
+ *  BEWARE:  Load values into this structure with correct endianness.
  */
 struct bna_txq_entry {
 	union {

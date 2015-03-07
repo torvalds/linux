@@ -699,7 +699,7 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb)
 
 	/*
 	 * Ignore mode and program for the max clock (which is FC16)
-	 * Firmware/NFC will do the PLL init appropiately
+	 * Firmware/NFC will do the PLL init appropriately
 	 */
 	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
 	r32 &= ~(__APP_PLL_SCLK_REFCLK_SEL | __APP_PLL_SCLK_CLK_DIV2);

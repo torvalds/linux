@@ -175,7 +175,7 @@ enum mlx4_res_tracker_free_type {
 
 /*
  *Virtual HCR structures.
- * mlx4_vhcr is the sw representation, in machine endianess
+ * mlx4_vhcr is the sw representation, in machine endianness
  *
  * mlx4_vhcr_cmd is the formalized structure, the one that is passed
  * to FW to go through communication channel.

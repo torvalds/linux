@@ -3027,7 +3027,7 @@ int mlx4_WRITE_MTT_wrapper(struct mlx4_dev *dev, int slave,
 
 	/* Call the SW implementation of write_mtt:
 	 * - Prepare a dummy mtt struct
-	 * - Translate inbox contents to simple addresses in host endianess */
+	 * - Translate inbox contents to simple addresses in host endianness */
 	mtt.offset = 0;  /* TBD this is broken but I don't handle it since
 			    we don't really use it */
 	mtt.order = 0;

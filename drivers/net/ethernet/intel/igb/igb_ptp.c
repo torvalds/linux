@@ -30,7 +30,7 @@
  *
  * Neither the 82576 nor the 82580 offer registers wide enough to hold
  * nanoseconds time values for very long. For the 82580, SYSTIM always
- * counts nanoseconds, but the upper 24 bits are not availible. The
+ * counts nanoseconds, but the upper 24 bits are not available. The
  * frequency is adjusted by changing the 32 bit fractional nanoseconds
  * register, TIMINCA.
  *

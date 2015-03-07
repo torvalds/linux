@@ -726,7 +726,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		if (ndev_status && (status >= 0)) {
 			/* The packet received is for the interface which
 			 * is already down and the other interface is up
-			 * and running, intead of freeing which results
+			 * and running, instead of freeing which results
 			 * in reducing of the number of rx descriptor in
 			 * DMA engine, requeue skb back to cpdma.
 			 */

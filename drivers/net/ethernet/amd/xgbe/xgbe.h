@@ -620,7 +620,7 @@ struct xgbe_hw_features {
 	unsigned int mgk;		/* PMT magic packet */
 	unsigned int mmc;		/* RMON module */
 	unsigned int aoe;		/* ARP Offload */
-	unsigned int ts;		/* IEEE 1588-2008 Adavanced Timestamp */
+	unsigned int ts;		/* IEEE 1588-2008 Advanced Timestamp */
 	unsigned int eee;		/* Energy Efficient Ethernet */
 	unsigned int tx_coe;		/* Tx Checksum Offload */
 	unsigned int rx_coe;		/* Rx Checksum Offload */

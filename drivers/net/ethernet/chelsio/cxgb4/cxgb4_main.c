@@ -5366,7 +5366,7 @@ static int adap_init0(struct adapter *adap)
 		adap->tids.stid_base = val[1];
 		adap->tids.nstids = val[2] - val[1] + 1;
 		/*
-		 * Setup server filter region. Divide the availble filter
+		 * Setup server filter region. Divide the available filter
 		 * region into two parts. Regular filters get 1/3rd and server
 		 * filters get 2/3rd part. This is only enabled if workarond
 		 * path is enabled.

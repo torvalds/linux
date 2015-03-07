@@ -29,7 +29,7 @@
 #define ATC_ATC_INT_STS_REG_ATC_TCPL_TO_NOT_PEND		 (0x1<<1)
 /* [RW 1] Initiate the ATC array - reset all the valid bits */
 #define ATC_REG_ATC_INIT_ARRAY					 0x1100b8
-/* [R 1] ATC initalization done */
+/* [R 1] ATC initialization done */
 #define ATC_REG_ATC_INIT_DONE					 0x1100bc
 /* [RC 6] Interrupt register #0 read clear */
 #define ATC_REG_ATC_INT_STS_CLR					 0x1101c0

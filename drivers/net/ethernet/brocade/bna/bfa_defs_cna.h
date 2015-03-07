@@ -135,7 +135,7 @@ struct bfa_cee_lldp_str {
 	u8 value[BFA_CEE_LLDP_MAX_STRING_LEN];
 };
 
-/* LLDP paramters */
+/* LLDP parameters */
 struct bfa_cee_lldp_cfg {
 	struct bfa_cee_lldp_str chassis_id;
 	struct bfa_cee_lldp_str port_id;

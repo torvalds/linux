@@ -136,7 +136,7 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		 */
 		writel(FEC_T_TF_MASK, fep->hwp + FEC_TCSR(fep->pps_channel));
 
-		/* It is recommended to doulbe check the TMODE field in the
+		/* It is recommended to double check the TMODE field in the
 		 * TCSR register to be cleared before the first compare counter
 		 * is written into TCCR register. Just add a double check.
 		 */

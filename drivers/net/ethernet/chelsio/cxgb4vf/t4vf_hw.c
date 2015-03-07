@@ -339,7 +339,7 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
  *      @adapter: the adapter
  *
  *	Issues a reset command to FW.  For a Physical Function this would
- *	result in the Firmware reseting all of its state.  For a Virtual
+ *	result in the Firmware resetting all of its state.  For a Virtual
  *	Function this just resets the state associated with the VF.
  */
 int t4vf_fw_reset(struct adapter *adapter)

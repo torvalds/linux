@@ -3021,7 +3021,7 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 
 		mac_count = resp->true_mac_count + resp->pseudo_mac_count;
 		/* Mac list returned could contain one or more active mac_ids
-		 * or one or more true or pseudo permanant mac addresses.
+		 * or one or more true or pseudo permanent mac addresses.
 		 * If an active mac_id is present, return first active mac_id
 		 * found.
 		 */

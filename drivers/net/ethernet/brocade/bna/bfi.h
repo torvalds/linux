@@ -159,8 +159,8 @@ enum bfi_asic_gen {
 };
 
 enum bfi_asic_mode {
-	BFI_ASIC_MODE_FC	= 1,	/* FC upto 8G speed		*/
-	BFI_ASIC_MODE_FC16	= 2,	/* FC upto 16G speed		*/
+	BFI_ASIC_MODE_FC	= 1,	/* FC up to 8G speed		*/
+	BFI_ASIC_MODE_FC16	= 2,	/* FC up to 16G speed		*/
 	BFI_ASIC_MODE_ETH	= 3,	/* Ethernet ports		*/
 	BFI_ASIC_MODE_COMBO	= 4,	/* FC 16G and Ethernet 10G port	*/
 };
