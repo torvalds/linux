@@ -283,9 +283,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	fpu = switch_fpu_prepare(prev_p, next_p, cpu);
 
-	/* Reload esp0 and ss1. */
-	load_sp0(tss, next);
-
 	/* We must save %fs and %gs before load_TLS() because
 	 * %fs and %gs may be cleared by load_TLS().
 	 *
@@ -412,6 +409,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	task_thread_info(prev_p)->saved_preempt_count = this_cpu_read(__preempt_count);
 	this_cpu_write(__preempt_count, task_thread_info(next_p)->saved_preempt_count);
+
+	/* Reload esp0 and ss1.  This changes current_thread_info(). */
+	load_sp0(tss, next);
 
 	this_cpu_write(kernel_stack,
 		  (unsigned long)task_stack_page(next_p) +

@@ -256,11 +256,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	fpu = switch_fpu_prepare(prev_p, next_p, cpu);
 
 	/*
-	 * Reload esp0.
-	 */
-	load_sp0(tss, next);
-
-	/*
 	 * Save away %gs. No need to save %fs, as it was saved on the
 	 * stack on entry.  No need to save %es and %ds, as those are
 	 * always kernel segments while inside the kernel.  Doing this
@@ -309,6 +304,11 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * to date.
 	 */
 	arch_end_context_switch(next_p);
+
+	/*
+	 * Reload esp0.  This changes current_thread_info().
+	 */
+	load_sp0(tss, next);
 
 	this_cpu_write(kernel_stack,
 		  (unsigned long)task_stack_page(next_p) +
