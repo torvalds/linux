@@ -1082,8 +1082,18 @@ static ssize_t tcm_qla2xxx_tpg_store_enable(
 
 TF_TPG_BASE_ATTR(tcm_qla2xxx, enable, S_IRUGO | S_IWUSR);
 
+static ssize_t tcm_qla2xxx_tpg_show_dynamic_sessions(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	return target_show_dynamic_sessions(se_tpg, page);
+}
+
+TF_TPG_BASE_ATTR_RO(tcm_qla2xxx, dynamic_sessions);
+
 static struct configfs_attribute *tcm_qla2xxx_tpg_attrs[] = {
 	&tcm_qla2xxx_tpg_enable.attr,
+	&tcm_qla2xxx_tpg_dynamic_sessions.attr,
 	NULL,
 };
 
