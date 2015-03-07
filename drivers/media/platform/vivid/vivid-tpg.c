@@ -530,7 +530,7 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	if (tpg->qual == TPG_QUAL_GRAY) {
 		/* Rec. 709 Luma function */
 		/* (0.2126, 0.7152, 0.0722) * (255 * 256) */
-		r = g = b = ((13879 * r + 46688 * g + 4713 * b) >> 16) + (16 << 4);
+		r = g = b = (13879 * r + 46688 * g + 4713 * b) >> 16;
 	}
 
 	/*
