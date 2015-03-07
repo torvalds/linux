@@ -1413,7 +1413,9 @@ void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 			linestart_older += line_offset;
 			linestart_newer += line_offset;
 		}
-		if (is_60hz) {
+		if (tpg->field_alternate) {
+			linestart_top = linestart_bottom = linestart_older;
+		} else if (is_60hz) {
 			linestart_top = linestart_newer;
 			linestart_bottom = linestart_older;
 		} else {

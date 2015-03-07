@@ -436,7 +436,8 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 	} else {
 		buf->vb.v4l2_buf.field = dev->field_cap;
 	}
-	tpg_s_field(&dev->tpg, buf->vb.v4l2_buf.field);
+	tpg_s_field(&dev->tpg, buf->vb.v4l2_buf.field,
+		    dev->field_cap == V4L2_FIELD_ALTERNATE);
 	tpg_s_perc_fill_blank(&dev->tpg, dev->must_blank[buf->vb.v4l2_buf.index]);
 
 	vivid_precalc_copy_rects(dev);

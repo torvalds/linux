@@ -733,7 +733,10 @@ int vivid_s_fmt_vid_cap(struct file *file, void *priv,
 	if (tpg_g_planes(&dev->tpg) > 1)
 		tpg_s_bytesperline(&dev->tpg, 1, mp->plane_fmt[1].bytesperline);
 	dev->field_cap = mp->field;
-	tpg_s_field(&dev->tpg, dev->field_cap);
+	if (dev->field_cap == V4L2_FIELD_ALTERNATE)
+		tpg_s_field(&dev->tpg, V4L2_FIELD_TOP, true);
+	else
+		tpg_s_field(&dev->tpg, dev->field_cap, false);
 	tpg_s_crop_compose(&dev->tpg, &dev->crop_cap, &dev->compose_cap);
 	tpg_s_fourcc(&dev->tpg, dev->fmt_cap->fourcc);
 	if (vivid_is_sdtv_cap(dev))

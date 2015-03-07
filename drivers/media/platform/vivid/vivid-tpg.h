@@ -98,6 +98,7 @@ struct tpg_data {
 	/* Scaled output frame size */
 	unsigned			scaled_width;
 	u32				field;
+	bool				field_alternate;
 	/* crop coordinates are frame-based */
 	struct v4l2_rect		crop;
 	/* compose coordinates are format-based */
@@ -348,9 +349,10 @@ static inline void tpg_s_buf_height(struct tpg_data *tpg, unsigned h)
 	tpg->buf_height = h;
 }
 
-static inline void tpg_s_field(struct tpg_data *tpg, unsigned field)
+static inline void tpg_s_field(struct tpg_data *tpg, unsigned field, bool alternate)
 {
 	tpg->field = field;
+	tpg->field_alternate = alternate;
 }
 
 static inline void tpg_s_perc_fill(struct tpg_data *tpg,
