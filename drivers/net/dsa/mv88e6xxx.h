@@ -88,6 +88,9 @@ int mv88e6xxx_eeprom_busy_wait(struct dsa_switch *ds);
 int mv88e6xxx_phy_read_indirect(struct dsa_switch *ds, int addr, int regnum);
 int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr, int regnum,
 				 u16 val);
+int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
+int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
+		      struct phy_device *phydev, struct ethtool_eee *e);
 
 extern struct dsa_switch_driver mv88e6131_switch_driver;
 extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;

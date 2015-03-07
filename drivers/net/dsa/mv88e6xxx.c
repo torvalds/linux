@@ -649,6 +649,57 @@ int mv88e6xxx_phy_write_indirect(struct dsa_switch *ds, int addr, int regnum,
 	return mv88e6xxx_phy_wait(ds);
 }
 
+int mv88e6xxx_get_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
+{
+	int reg;
+
+	reg = mv88e6xxx_phy_read_indirect(ds, port, 16);
+	if (reg < 0)
+		return -EOPNOTSUPP;
+
+	e->eee_enabled = !!(reg & 0x0200);
+	e->tx_lpi_enabled = !!(reg & 0x0100);
+
+	reg = REG_READ(REG_PORT(port), 0);
+	e->eee_active = !!(reg & 0x0040);
+
+	return 0;
+}
+
+static int mv88e6xxx_eee_enable_set(struct dsa_switch *ds, int port,
+				    bool eee_enabled, bool tx_lpi_enabled)
+{
+	int reg, nreg;
+
+	reg = mv88e6xxx_phy_read_indirect(ds, port, 16);
+	if (reg < 0)
+		return reg;
+
+	nreg = reg & ~0x0300;
+	if (eee_enabled)
+		nreg |= 0x0200;
+	if (tx_lpi_enabled)
+		nreg |= 0x0100;
+
+	if (nreg != reg)
+		return mv88e6xxx_phy_write_indirect(ds, port, 16, nreg);
+
+	return 0;
+}
+
+int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
+		      struct phy_device *phydev, struct ethtool_eee *e)
+{
+	int ret;
+
+	ret = mv88e6xxx_eee_enable_set(ds, port, e->eee_enabled,
+				       e->tx_lpi_enabled);
+	if (ret)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static int __init mv88e6xxx_init(void)
 {
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6131)
