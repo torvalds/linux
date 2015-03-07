@@ -1231,7 +1231,7 @@ error:
 	return err;
 }
 
-void __exit sco_exit(void)
+void sco_exit(void)
 {
 	bt_procfs_cleanup(&init_net, "sco");
 
