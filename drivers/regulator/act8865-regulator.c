@@ -173,9 +173,10 @@ static struct regulator_ops act8865_ldo_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-#define ACT88xx_REG(_name, _family, _id, _vsel_reg)			\
+#define ACT88xx_REG(_name, _family, _id, _vsel_reg, _supply)		\
 	[_family##_ID_##_id] = {					\
 		.name			= _name,			\
+		.supply_name		= _supply,			\
 		.id			= _family##_ID_##_id,		\
 		.type			= REGULATOR_VOLTAGE,		\
 		.ops			= &act8865_ops,			\
@@ -190,9 +191,9 @@ static struct regulator_ops act8865_ldo_ops = {
 	}
 
 static const struct regulator_desc act8600_regulators[] = {
-	ACT88xx_REG("DCDC1", ACT8600, DCDC1, VSET),
-	ACT88xx_REG("DCDC2", ACT8600, DCDC2, VSET),
-	ACT88xx_REG("DCDC3", ACT8600, DCDC3, VSET),
+	ACT88xx_REG("DCDC1", ACT8600, DCDC1, VSET, "vp1"),
+	ACT88xx_REG("DCDC2", ACT8600, DCDC2, VSET, "vp2"),
+	ACT88xx_REG("DCDC3", ACT8600, DCDC3, VSET, "vp3"),
 	{
 		.name = "SUDCDC_REG4",
 		.id = ACT8600_ID_SUDCDC4,
@@ -207,10 +208,10 @@ static const struct regulator_desc act8600_regulators[] = {
 		.enable_mask = ACT8865_ENA,
 		.owner = THIS_MODULE,
 	},
-	ACT88xx_REG("LDO5", ACT8600, LDO5, VSET),
-	ACT88xx_REG("LDO6", ACT8600, LDO6, VSET),
-	ACT88xx_REG("LDO7", ACT8600, LDO7, VSET),
-	ACT88xx_REG("LDO8", ACT8600, LDO8, VSET),
+	ACT88xx_REG("LDO5", ACT8600, LDO5, VSET, "inl"),
+	ACT88xx_REG("LDO6", ACT8600, LDO6, VSET, "inl"),
+	ACT88xx_REG("LDO7", ACT8600, LDO7, VSET, "inl"),
+	ACT88xx_REG("LDO8", ACT8600, LDO8, VSET, "inl"),
 	{
 		.name = "LDO_REG9",
 		.id = ACT8600_ID_LDO9,
@@ -236,28 +237,28 @@ static const struct regulator_desc act8600_regulators[] = {
 };
 
 static const struct regulator_desc act8846_regulators[] = {
-	ACT88xx_REG("REG1", ACT8846, REG1, VSET),
-	ACT88xx_REG("REG2", ACT8846, REG2, VSET0),
-	ACT88xx_REG("REG3", ACT8846, REG3, VSET0),
-	ACT88xx_REG("REG4", ACT8846, REG4, VSET0),
-	ACT88xx_REG("REG5", ACT8846, REG5, VSET),
-	ACT88xx_REG("REG6", ACT8846, REG6, VSET),
-	ACT88xx_REG("REG7", ACT8846, REG7, VSET),
-	ACT88xx_REG("REG8", ACT8846, REG8, VSET),
-	ACT88xx_REG("REG9", ACT8846, REG9, VSET),
-	ACT88xx_REG("REG10", ACT8846, REG10, VSET),
-	ACT88xx_REG("REG11", ACT8846, REG11, VSET),
-	ACT88xx_REG("REG12", ACT8846, REG12, VSET),
+	ACT88xx_REG("REG1", ACT8846, REG1, VSET, "vp1"),
+	ACT88xx_REG("REG2", ACT8846, REG2, VSET0, "vp2"),
+	ACT88xx_REG("REG3", ACT8846, REG3, VSET0, "vp3"),
+	ACT88xx_REG("REG4", ACT8846, REG4, VSET0, "vp4"),
+	ACT88xx_REG("REG5", ACT8846, REG5, VSET, "inl1"),
+	ACT88xx_REG("REG6", ACT8846, REG6, VSET, "inl1"),
+	ACT88xx_REG("REG7", ACT8846, REG7, VSET, "inl1"),
+	ACT88xx_REG("REG8", ACT8846, REG8, VSET, "inl2"),
+	ACT88xx_REG("REG9", ACT8846, REG9, VSET, "inl2"),
+	ACT88xx_REG("REG10", ACT8846, REG10, VSET, "inl3"),
+	ACT88xx_REG("REG11", ACT8846, REG11, VSET, "inl3"),
+	ACT88xx_REG("REG12", ACT8846, REG12, VSET, "inl3"),
 };
 
 static const struct regulator_desc act8865_regulators[] = {
-	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET1),
-	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET1),
-	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET1),
-	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET),
-	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET),
-	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET),
-	ACT88xx_REG("LDO_REG4", ACT8865, LDO4, VSET),
+	ACT88xx_REG("DCDC_REG1", ACT8865, DCDC1, VSET1, "vp1"),
+	ACT88xx_REG("DCDC_REG2", ACT8865, DCDC2, VSET1, "vp2"),
+	ACT88xx_REG("DCDC_REG3", ACT8865, DCDC3, VSET1, "vp3"),
+	ACT88xx_REG("LDO_REG1", ACT8865, LDO1, VSET, "inl45"),
+	ACT88xx_REG("LDO_REG2", ACT8865, LDO2, VSET, "inl45"),
+	ACT88xx_REG("LDO_REG3", ACT8865, LDO3, VSET, "inl67"),
+	ACT88xx_REG("LDO_REG4", ACT8865, LDO4, VSET, "inl67"),
 };
 
 #ifdef CONFIG_OF
