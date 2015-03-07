@@ -42,20 +42,26 @@ static const struct vivid_fmt formats_ovl[] = {
 	{
 		.name     = "RGB565 (LE)",
 		.fourcc   = V4L2_PIX_FMT_RGB565, /* gggbbbbb rrrrrggg */
-		.depth    = 16,
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
 		.planes   = 1,
+		.buffers = 1,
 	},
 	{
 		.name     = "XRGB555 (LE)",
 		.fourcc   = V4L2_PIX_FMT_XRGB555, /* gggbbbbb arrrrrgg */
-		.depth    = 16,
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
 		.planes   = 1,
+		.buffers = 1,
 	},
 	{
 		.name     = "ARGB555 (LE)",
 		.fourcc   = V4L2_PIX_FMT_ARGB555, /* gggbbbbb arrrrrgg */
-		.depth    = 16,
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
 		.planes   = 1,
+		.buffers = 1,
 	},
 };
 
@@ -597,9 +603,9 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 	/* This driver supports custom bytesperline values */
 
 	/* Calculate the minimum supported bytesperline value */
-	bytesperline = (mp->width * fmt->depth) >> 3;
+	bytesperline = (mp->width * fmt->bit_depth[0]) >> 3;
 	/* Calculate the maximum supported bytesperline value */
-	max_bpl = (MAX_ZOOM * MAX_WIDTH * fmt->depth) >> 3;
+	max_bpl = (MAX_ZOOM * MAX_WIDTH * fmt->bit_depth[0]) >> 3;
 	mp->num_planes = fmt->planes;
 	for (p = 0; p < mp->num_planes; p++) {
 		if (pfmt[p].bytesperline > max_bpl)
@@ -1224,7 +1230,7 @@ int vivid_vid_cap_s_fbuf(struct file *file, void *fh,
 	fmt = vivid_get_format(dev, a->fmt.pixelformat);
 	if (!fmt || !fmt->can_do_overlay)
 		return -EINVAL;
-	if (a->fmt.bytesperline < (a->fmt.width * fmt->depth) / 8)
+	if (a->fmt.bytesperline < (a->fmt.width * fmt->bit_depth[0]) / 8)
 		return -EINVAL;
 	if (a->fmt.height * a->fmt.bytesperline < a->fmt.sizeimage)
 		return -EINVAL;

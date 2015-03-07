@@ -269,9 +269,9 @@ void vivid_update_format_out(struct vivid_dev *dev)
 	if (V4L2_FIELD_HAS_T_OR_B(dev->field_out))
 		dev->crop_out.height /= 2;
 	dev->fmt_out_rect = dev->crop_out;
-	dev->bytesperline_out[0] = (dev->sink_rect.width * dev->fmt_out->depth) / 8;
+	dev->bytesperline_out[0] = (dev->sink_rect.width * dev->fmt_out->bit_depth[0]) / 8;
 	if (dev->fmt_out->planes == 2)
-		dev->bytesperline_out[1] = (dev->sink_rect.width * dev->fmt_out->depth) / 8;
+		dev->bytesperline_out[1] = (dev->sink_rect.width * dev->fmt_out->bit_depth[0]) / 8;
 }
 
 /* Map the field to something that is valid for the current output */
@@ -388,9 +388,9 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 	/* This driver supports custom bytesperline values */
 
 	/* Calculate the minimum supported bytesperline value */
-	bytesperline = (mp->width * fmt->depth) >> 3;
+	bytesperline = (mp->width * fmt->bit_depth[0]) >> 3;
 	/* Calculate the maximum supported bytesperline value */
-	max_bpl = (MAX_ZOOM * MAX_WIDTH * fmt->depth) >> 3;
+	max_bpl = (MAX_ZOOM * MAX_WIDTH * fmt->bit_depth[0]) >> 3;
 	mp->num_planes = fmt->planes;
 	for (p = 0; p < mp->num_planes; p++) {
 		if (pfmt[p].bytesperline > max_bpl)
