@@ -60,15 +60,6 @@
 
 /********** Clock Source Device *********/
 
-static bool is_usable_as_clocksource(void)
-{
-#ifdef CONFIG_SMP
-	return 0;
-#else
-	return 1;
-#endif
-}
-
 /*
  * set 32bit TIMER1 to keep counting monotonically and wraparound
  */
@@ -78,7 +69,8 @@ int arc_counter_setup(void)
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
 	write_aux_reg(ARC_REG_TIMER1_CTRL, TIMER_CTRL_NH);
 
-	return is_usable_as_clocksource();
+	/* Not usable in SMP */
+	return !IS_ENABLED(CONFIG_SMP);
 }
 
 static cycle_t arc_counter_read(struct clocksource *cs)
