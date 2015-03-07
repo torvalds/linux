@@ -67,9 +67,6 @@ static void focaltech_reset(struct psmouse *psmouse)
 
 #define FOC_MAX_FINGERS 5
 
-#define FOC_MAX_X 2431
-#define FOC_MAX_Y 1663
-
 /*
  * Current state of a single finger on the touchpad.
  */
@@ -131,7 +128,7 @@ static void focaltech_report_state(struct psmouse *psmouse)
 		if (active) {
 			input_report_abs(dev, ABS_MT_POSITION_X, finger->x);
 			input_report_abs(dev, ABS_MT_POSITION_Y,
-					 FOC_MAX_Y - finger->y);
+					 priv->y_max - finger->y);
 		}
 	}
 	input_mt_report_pointer_emulation(dev, true);
