@@ -138,6 +138,7 @@ struct tpg_data {
 	enum tpg_pixel_aspect		pix_aspect;
 	unsigned			rgb_range;
 	unsigned			real_rgb_range;
+	unsigned			buffers;
 	unsigned			planes;
 	/* Used to store the colors in native format, either RGB or YUV */
 	u8				colors[TPG_COLOR_MAX][3];
@@ -325,6 +326,11 @@ static inline void tpg_s_quantization(struct tpg_data *tpg, u32 quantization)
 static inline u32 tpg_g_quantization(const struct tpg_data *tpg)
 {
 	return tpg->quantization;
+}
+
+static inline unsigned tpg_g_buffers(const struct tpg_data *tpg)
+{
+	return tpg->buffers;
 }
 
 static inline unsigned tpg_g_planes(const struct tpg_data *tpg)

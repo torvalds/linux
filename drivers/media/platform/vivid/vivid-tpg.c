@@ -170,7 +170,9 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 {
 	tpg->fourcc = fourcc;
 	tpg->planes = 1;
+	tpg->buffers = 1;
 	tpg->recalc_colors = true;
+
 	switch (fourcc) {
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_RGB565X:
@@ -190,6 +192,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		break;
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
+		tpg->buffers = 2;
 		tpg->planes = 2;
 		/* fall-through */
 	case V4L2_PIX_FMT_YUYV:
