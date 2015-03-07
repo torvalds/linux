@@ -219,13 +219,13 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 	unsigned int max_depth;
 	unsigned int level;
 
+	*res_page = NULL;
+
 	if (f2fs_has_inline_dentry(dir))
 		return find_in_inline_dir(dir, child, res_page);
 
 	if (npages == 0)
 		return NULL;
-
-	*res_page = NULL;
 
 	name_hash = f2fs_dentry_hash(child);
 	max_depth = F2FS_I(dir)->i_current_depth;
