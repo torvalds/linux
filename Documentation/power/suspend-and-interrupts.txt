@@ -40,8 +40,10 @@ but also to IPIs and to some other special-purpose interrupts.
 
 The IRQF_NO_SUSPEND flag is used to indicate that to the IRQ subsystem when
 requesting a special-purpose interrupt.  It causes suspend_device_irqs() to
-leave the corresponding IRQ enabled so as to allow the interrupt to work all
-the time as expected.
+leave the corresponding IRQ enabled so as to allow the interrupt to work as
+expected during the suspend-resume cycle, but does not guarantee that the
+interrupt will wake the system from a suspended state -- for such cases it is
+necessary to use enable_irq_wake().
 
 Note that the IRQF_NO_SUSPEND flag affects the entire IRQ and not just one
 user of it.  Thus, if the IRQ is shared, all of the interrupt handlers installed
@@ -110,8 +112,9 @@ any special interrupt handling logic for it to work.
 IRQF_NO_SUSPEND and enable_irq_wake()
 -------------------------------------
 
-There are no valid reasons to use both enable_irq_wake() and the IRQF_NO_SUSPEND
-flag on the same IRQ.
+There are very few valid reasons to use both enable_irq_wake() and the
+IRQF_NO_SUSPEND flag on the same IRQ, and it is never valid to use both for the
+same device.
 
 First of all, if the IRQ is not shared, the rules for handling IRQF_NO_SUSPEND
 interrupts (interrupt handlers are invoked after suspend_device_irqs()) are
@@ -120,4 +123,13 @@ handlers are not invoked after suspend_device_irqs()).
 
 Second, both enable_irq_wake() and IRQF_NO_SUSPEND apply to entire IRQs and not
 to individual interrupt handlers, so sharing an IRQ between a system wakeup
-interrupt source and an IRQF_NO_SUSPEND interrupt source does not make sense.
+interrupt source and an IRQF_NO_SUSPEND interrupt source does not generally
+make sense.
+
+In rare cases an IRQ can be shared between a wakeup device driver and an
+IRQF_NO_SUSPEND user. In order for this to be safe, the wakeup device driver
+must be able to discern spurious IRQs from genuine wakeup events (signalling
+the latter to the core with pm_system_wakeup()), must use enable_irq_wake() to
+ensure that the IRQ will function as a wakeup source, and must request the IRQ
+with IRQF_COND_SUSPEND to tell the core that it meets these requirements. If
+these requirements are not met, it is not valid to use IRQF_COND_SUSPEND.

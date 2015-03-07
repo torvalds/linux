@@ -283,24 +283,34 @@ static int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
  * @sector:	start sector
  * @nr_sects:	number of sectors to write
  * @gfp_mask:	memory allocation flags (for bio_alloc)
+ * @discard:	whether to discard the block range
  *
  * Description:
- *  Generate and issue number of bios with zerofiled pages.
+ *  Zero-fill a block range.  If the discard flag is set and the block
+ *  device guarantees that subsequent READ operations to the block range
+ *  in question will return zeroes, the blocks will be discarded. Should
+ *  the discard request fail, if the discard flag is not set, or if
+ *  discard_zeroes_data is not supported, this function will resort to
+ *  zeroing the blocks manually, thus provisioning (allocating,
+ *  anchoring) them. If the block device supports the WRITE SAME command
+ *  blkdev_issue_zeroout() will use it to optimize the process of
+ *  clearing the block range. Otherwise the zeroing will be performed
+ *  using regular WRITE calls.
  */
 
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
-			 sector_t nr_sects, gfp_t gfp_mask)
+			 sector_t nr_sects, gfp_t gfp_mask, bool discard)
 {
-	if (bdev_write_same(bdev)) {
-		unsigned char bdn[BDEVNAME_SIZE];
+	struct request_queue *q = bdev_get_queue(bdev);
 
-		if (!blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
-					     ZERO_PAGE(0)))
-			return 0;
+	if (discard && blk_queue_discard(q) && q->limits.discard_zeroes_data &&
+	    blkdev_issue_discard(bdev, sector, nr_sects, gfp_mask, 0) == 0)
+		return 0;
 
-		bdevname(bdev, bdn);
-		pr_err("%s: WRITE SAME failed. Manually zeroing.\n", bdn);
-	}
+	if (bdev_write_same(bdev) &&
+	    blkdev_issue_write_same(bdev, sector, nr_sects, gfp_mask,
+				    ZERO_PAGE(0)) == 0)
+		return 0;
 
 	return __blkdev_issue_zeroout(bdev, sector, nr_sects, gfp_mask);
 }

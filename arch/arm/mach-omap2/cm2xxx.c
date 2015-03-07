@@ -370,16 +370,6 @@ u32 omap2xxx_cm_get_core_pll_config(void)
 	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
 }
 
-u32 omap2xxx_cm_get_pll_config(void)
-{
-	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKSEL1);
-}
-
-u32 omap2xxx_cm_get_pll_status(void)
-{
-	return omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
-}
-
 void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core, u32 mdm)
 {
 	u32 tmp;

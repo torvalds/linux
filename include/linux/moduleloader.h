@@ -26,7 +26,7 @@ unsigned int arch_mod_section_prepend(struct module *mod, unsigned int section);
 void *module_alloc(unsigned long size);
 
 /* Free memory returned from module_alloc. */
-void module_free(struct module *mod, void *module_region);
+void module_memfree(void *module_region);
 
 /*
  * Apply the given relocation to the (simplified) ELF.  Return -error
@@ -82,4 +82,6 @@ int module_finalize(const Elf_Ehdr *hdr,
 /* Any cleanup needed when module leaves. */
 void module_arch_cleanup(struct module *mod);
 
+/* Any cleanup before freeing mod->module_init */
+void module_arch_freeing_init(struct module *mod);
 #endif

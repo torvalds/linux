@@ -92,7 +92,7 @@ void cpsw_ale_stop(struct cpsw_ale *ale);
 
 int cpsw_ale_set_ageout(struct cpsw_ale *ale, int ageout);
 int cpsw_ale_flush(struct cpsw_ale *ale, int port_mask);
-int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask);
+int cpsw_ale_flush_multicast(struct cpsw_ale *ale, int port_mask, int vid);
 int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port,
 		       int flags, u16 vid);
 int cpsw_ale_del_ucast(struct cpsw_ale *ale, u8 *addr, int port,

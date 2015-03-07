@@ -26,13 +26,21 @@ config ARM_VEXPRESS_SPC_CPUFREQ
 
 
 config ARM_EXYNOS_CPUFREQ
-	bool
+	tristate "SAMSUNG EXYNOS CPUfreq Driver"
+	depends on CPU_EXYNOS4210 || SOC_EXYNOS4212 || SOC_EXYNOS4412 || SOC_EXYNOS5250
+	depends on THERMAL
+	help
+	  This adds the CPUFreq driver for Samsung EXYNOS platforms.
+	  Supported SoC versions are:
+	     Exynos4210, Exynos4212, Exynos4412, and Exynos5250.
+
+	  If in doubt, say N.
 
 config ARM_EXYNOS4210_CPUFREQ
 	bool "SAMSUNG EXYNOS4210"
 	depends on CPU_EXYNOS4210
+	depends on ARM_EXYNOS_CPUFREQ
 	default y
-	select ARM_EXYNOS_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS4210
 	  SoC (S5PV310 or S5PC210).
@@ -42,8 +50,8 @@ config ARM_EXYNOS4210_CPUFREQ
 config ARM_EXYNOS4X12_CPUFREQ
 	bool "SAMSUNG EXYNOS4x12"
 	depends on SOC_EXYNOS4212 || SOC_EXYNOS4412
+	depends on ARM_EXYNOS_CPUFREQ
 	default y
-	select ARM_EXYNOS_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS4X12
 	  SoC (EXYNOS4212 or EXYNOS4412).
@@ -53,25 +61,11 @@ config ARM_EXYNOS4X12_CPUFREQ
 config ARM_EXYNOS5250_CPUFREQ
 	bool "SAMSUNG EXYNOS5250"
 	depends on SOC_EXYNOS5250
+	depends on ARM_EXYNOS_CPUFREQ
 	default y
-	select ARM_EXYNOS_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS5250
 	  SoC.
-
-	  If in doubt, say N.
-
-config ARM_EXYNOS5440_CPUFREQ
-	bool "SAMSUNG EXYNOS5440"
-	depends on SOC_EXYNOS5440
-	depends on HAVE_CLK && OF
-	select PM_OPP
-	default y
-	help
-	  This adds the CPUFreq driver for Samsung EXYNOS5440
-	  SoC. The nature of exynos5440 clock controller is
-	  different than previous exynos controllers so not using
-	  the common exynos framework.
 
 	  If in doubt, say N.
 
@@ -87,6 +81,20 @@ config ARM_EXYNOS_CPU_FREQ_BOOST_SW
 
 	  It requires, for safe operation, thermal framework with properly
 	  defined trip points.
+
+	  If in doubt, say N.
+
+config ARM_EXYNOS5440_CPUFREQ
+	tristate "SAMSUNG EXYNOS5440"
+	depends on SOC_EXYNOS5440
+	depends on HAVE_CLK && OF
+	select PM_OPP
+	default y
+	help
+	  This adds the CPUFreq driver for Samsung EXYNOS5440
+	  SoC. The nature of exynos5440 clock controller is
+	  different than previous exynos controllers so not using
+	  the common exynos framework.
 
 	  If in doubt, say N.
 

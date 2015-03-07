@@ -216,7 +216,7 @@ static void pcibios_allocate_bridge_resources(struct pci_dev *dev)
 			continue;
 		if (r->parent)	/* Already allocated */
 			continue;
-		if (!r->start || pci_claim_resource(dev, idx) < 0) {
+		if (!r->start || pci_claim_bridge_resource(dev, idx) < 0) {
 			/*
 			 * Something is wrong with the region.
 			 * Invalidate the resource to prevent

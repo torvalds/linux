@@ -124,7 +124,7 @@ static int iblock_configure_device(struct se_device *dev)
 	q = bdev_get_queue(bd);
 
 	dev->dev_attrib.hw_block_size = bdev_logical_block_size(bd);
-	dev->dev_attrib.hw_max_sectors = UINT_MAX;
+	dev->dev_attrib.hw_max_sectors = queue_max_hw_sectors(q);
 	dev->dev_attrib.hw_queue_depth = q->nr_requests;
 
 	/*
@@ -464,6 +464,11 @@ iblock_execute_write_same(struct se_cmd *cmd)
 	sector_t block_lba = cmd->t_task_lba;
 	sector_t sectors = sbc_get_write_same_sectors(cmd);
 
+	if (cmd->prot_op) {
+		pr_err("WRITE_SAME: Protection information with IBLOCK"
+		       " backends not supported\n");
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 	sg = &cmd->t_data_sg[0];
 
 	if (cmd->t_data_nents > 1 ||
@@ -883,7 +888,6 @@ static struct configfs_attribute *iblock_backend_dev_attrs[] = {
 	&iblock_dev_attrib_hw_block_size.attr,
 	&iblock_dev_attrib_block_size.attr,
 	&iblock_dev_attrib_hw_max_sectors.attr,
-	&iblock_dev_attrib_fabric_max_sectors.attr,
 	&iblock_dev_attrib_optimal_sectors.attr,
 	&iblock_dev_attrib_hw_queue_depth.attr,
 	&iblock_dev_attrib_queue_depth.attr,

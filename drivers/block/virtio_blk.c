@@ -28,8 +28,7 @@ struct virtio_blk_vq {
 	char name[VQ_NAME_LEN];
 } ____cacheline_aligned_in_smp;
 
-struct virtio_blk
-{
+struct virtio_blk {
 	struct virtio_device *vdev;
 
 	/* The disk structure for the kernel. */
@@ -52,8 +51,7 @@ struct virtio_blk
 	struct virtio_blk_vq *vqs;
 };
 
-struct virtblk_req
-{
+struct virtblk_req {
 	struct request *req;
 	struct virtio_blk_outhdr out_hdr;
 	struct virtio_scsi_inhdr in_hdr;
@@ -575,6 +573,12 @@ static int virtblk_probe(struct virtio_device *vdev)
 	u16 min_io_size;
 	u8 physical_block_exp, alignment_offset;
 
+	if (!vdev->config->get) {
+		dev_err(&vdev->dev, "%s failure: config access disabled\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	err = ida_simple_get(&vd_index_ida, 0, minor_to_index(1 << MINORBITS),
 			     GFP_KERNEL);
 	if (err < 0)
@@ -638,7 +642,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_put_disk;
 
 	q = vblk->disk->queue = blk_mq_init_queue(&vblk->tag_set);
-	if (!q) {
+	if (IS_ERR(q)) {
 		err = -ENOMEM;
 		goto out_free_tags;
 	}

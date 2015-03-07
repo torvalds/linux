@@ -591,8 +591,6 @@ struct address_space_operations {
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
 	ssize_t (*direct_IO)(int, struct kiocb *, struct iov_iter *iter, loff_t offset);
-	struct page* (*get_xip_page)(struct address_space *, sector_t,
-			int);
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
@@ -747,11 +745,6 @@ struct address_space_operations {
         direct_IO - that is IO requests which bypass the page cache
         and transfer data directly between the storage and the
         application's address space.
-
-  get_xip_page: called by the VM to translate a block number to a page.
-	The page is valid until the corresponding filesystem is unmounted.
-	Filesystems that want to use execute-in-place (XIP) need to implement
-	it.  An example implementation can be found in fs/ext2/xip.c.
 
   migrate_page:  This is used to compact the physical memory usage.
         If the VM wants to relocate a page (maybe off a memory card

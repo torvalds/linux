@@ -23,7 +23,7 @@ Optional Properties:
 		devices in this power domain. Maximum of 4 pairs (N = 0 to 3)
 		are supported currently.
 
-Node of a device using power domains must have a samsung,power-domain property
+Node of a device using power domains must have a power-domains property
 defined with a phandle to respective power domain.
 
 Example:

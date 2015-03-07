@@ -451,7 +451,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 	u_phy = devm_usb_get_phy_by_phandle(&pdev->dev, "nvidia,phy", 0);
 	if (IS_ERR(u_phy)) {
-		err = PTR_ERR(u_phy);
+		err = -EPROBE_DEFER;
 		goto cleanup_clk_en;
 	}
 	hcd->usb_phy = u_phy;

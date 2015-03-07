@@ -111,6 +111,9 @@ static void ci_hdrc_pci_remove(struct pci_dev *pdev)
  * PCI device structure
  *
  * Check "pci.h" for details
+ *
+ * Note: ehci-pci driver may try to probe the device first. You have to add an
+ * ID to the bypass_pci_id_table in ehci-pci driver to prevent this.
  */
 static const struct pci_device_id ci_hdrc_pci_id_table[] = {
 	{

@@ -88,19 +88,6 @@ static void pty_unthrottle(struct tty_struct *tty)
 }
 
 /**
- *	pty_space	-	report space left for writing
- *	@to: tty we are writing into
- *
- *	Limit the buffer space used by ptys to 8k.
- */
-
-static int pty_space(struct tty_struct *to)
-{
-	int n = tty_buffer_space_avail(to->port);
-	return min(n, 8192);
-}
-
-/**
  *	pty_write		-	write to a pty
  *	@tty: the tty we write from
  *	@buf: kernel buffer of data
@@ -141,7 +128,7 @@ static int pty_write_room(struct tty_struct *tty)
 {
 	if (tty->stopped)
 		return 0;
-	return pty_space(tty->link);
+	return tty_buffer_space_avail(tty->link->port);
 }
 
 /**
@@ -210,6 +197,9 @@ static int pty_signal(struct tty_struct *tty, int sig)
 {
 	struct pid *pgrp;
 
+	if (sig != SIGINT && sig != SIGQUIT && sig != SIGTSTP)
+		return -EINVAL;
+
 	if (tty->link) {
 		pgrp = tty_get_pgrp(tty->link);
 		if (pgrp)
@@ -222,10 +212,16 @@ static int pty_signal(struct tty_struct *tty, int sig)
 static void pty_flush_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
+	struct tty_ldisc *ld;
 
 	if (!to)
 		return;
-	/* tty_buffer_flush(to); FIXME */
+
+	ld = tty_ldisc_ref(to);
+	tty_buffer_flush(to, ld);
+	if (ld)
+		tty_ldisc_deref(ld);
+
 	if (to->packet) {
 		spin_lock_irq(&tty->ctrl_lock);
 		tty->ctrl_status |= TIOCPKT_FLUSHWRITE;
@@ -399,6 +395,7 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 		goto err_put_module;
 
 	tty_set_lock_subclass(o_tty);
+	lockdep_set_subclass(&o_tty->termios_rwsem, TTY_LOCK_SLAVE);
 
 	if (legacy) {
 		/* We always use new tty termios data so we can do this
@@ -429,9 +426,13 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	o_tty->link = tty;
 	tty_port_init(ports[0]);
 	tty_port_init(ports[1]);
+	tty_buffer_set_limit(ports[0], 8192);
+	tty_buffer_set_limit(ports[1], 8192);
 	o_tty->port = ports[0];
 	tty->port = ports[1];
 	o_tty->port->itty = o_tty;
+
+	tty_buffer_set_lock_subclass(o_tty->port);
 
 	tty_driver_kref_get(driver);
 	tty->count++;

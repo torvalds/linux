@@ -7413,6 +7413,8 @@ static inline void tg3_netif_start(struct tg3 *tp)
 }
 
 static void tg3_irq_quiesce(struct tg3 *tp)
+	__releases(tp->lock)
+	__acquires(tp->lock)
 {
 	int i;
 
@@ -7421,8 +7423,12 @@ static void tg3_irq_quiesce(struct tg3 *tp)
 	tp->irq_sync = 1;
 	smp_mb();
 
+	spin_unlock_bh(&tp->lock);
+
 	for (i = 0; i < tp->irq_cnt; i++)
 		synchronize_irq(tp->napi[i].irq_vec);
+
+	spin_lock_bh(&tp->lock);
 }
 
 /* Fully shutdown all tg3 driver activity elsewhere in the system.
@@ -8002,9 +8008,9 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    !mss && skb->len > VLAN_ETH_FRAME_LEN)
 		base_flags |= TXD_FLAG_JMB_PKT;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (skb_vlan_tag_present(skb)) {
 		base_flags |= TXD_FLAG_VLAN;
-		vlan = vlan_tx_tag_get(skb);
+		vlan = skb_vlan_tag_get(skb);
 	}
 
 	if ((unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) &&
@@ -9018,6 +9024,8 @@ static void tg3_restore_clk(struct tg3 *tp)
 
 /* tp->lock is held. */
 static int tg3_chip_reset(struct tg3 *tp)
+	__releases(tp->lock)
+	__acquires(tp->lock)
 {
 	u32 val;
 	void (*write_op)(struct tg3 *, u32, u32);
@@ -9073,8 +9081,12 @@ static int tg3_chip_reset(struct tg3 *tp)
 	}
 	smp_mb();
 
+	tg3_full_unlock(tp);
+
 	for (i = 0; i < tp->irq_cnt; i++)
 		synchronize_irq(tp->napi[i].irq_vec);
+
+	tg3_full_lock(tp, 0);
 
 	if (tg3_asic_rev(tp) == ASIC_REV_57780) {
 		val = tr32(TG3_PCIE_LNKCTL) & ~TG3_PCIE_LNKCTL_L1_PLL_PD_EN;
@@ -10903,10 +10915,12 @@ static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
 
-	if (tp->irq_sync || tg3_flag(tp, RESET_TASK_PENDING))
-		goto restart_timer;
-
 	spin_lock(&tp->lock);
+
+	if (tp->irq_sync || tg3_flag(tp, RESET_TASK_PENDING)) {
+		spin_unlock(&tp->lock);
+		goto restart_timer;
+	}
 
 	if (tg3_asic_rev(tp) == ASIC_REV_5717 ||
 	    tg3_flag(tp, 57765_CLASS))
@@ -11101,11 +11115,13 @@ static void tg3_reset_task(struct work_struct *work)
 	struct tg3 *tp = container_of(work, struct tg3, reset_task);
 	int err;
 
+	rtnl_lock();
 	tg3_full_lock(tp, 0);
 
 	if (!netif_running(tp->dev)) {
 		tg3_flag_clear(tp, RESET_TASK_PENDING);
 		tg3_full_unlock(tp);
+		rtnl_unlock();
 		return;
 	}
 
@@ -11138,6 +11154,7 @@ out:
 		tg3_phy_start(tp);
 
 	tg3_flag_clear(tp, RESET_TASK_PENDING);
+	rtnl_unlock();
 }
 
 static int tg3_request_irq(struct tg3 *tp, int irq_num)
@@ -11556,11 +11573,7 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 	tg3_flag_set(tp, INIT_COMPLETE);
 	tg3_enable_ints(tp);
 
-	if (init)
-		tg3_ptp_init(tp);
-	else
-		tg3_ptp_resume(tp);
-
+	tg3_ptp_resume(tp);
 
 	tg3_full_unlock(tp);
 
@@ -11681,13 +11694,6 @@ static int tg3_open(struct net_device *dev)
 		pci_set_power_state(tp->pdev, PCI_D3hot);
 	}
 
-	if (tg3_flag(tp, PTP_CAPABLE)) {
-		tp->ptp_clock = ptp_clock_register(&tp->ptp_info,
-						   &tp->pdev->dev);
-		if (IS_ERR(tp->ptp_clock))
-			tp->ptp_clock = NULL;
-	}
-
 	return err;
 }
 
@@ -11700,8 +11706,6 @@ static int tg3_close(struct net_device *dev)
 			   "in progress\n");
 		return -EAGAIN;
 	}
-
-	tg3_ptp_fini(tp);
 
 	tg3_stop(tp);
 
@@ -17851,8 +17855,10 @@ static int tg3_init_one(struct pci_dev *pdev,
 	 */
 	if ((tr32(HOSTCC_MODE) & HOSTCC_MODE_ENABLE) ||
 	    (tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
+		tg3_full_lock(tp, 0);
 		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
+		tg3_full_unlock(tp);
 	}
 
 	err = tg3_test_dma(tp);
@@ -17878,6 +17884,14 @@ static int tg3_init_one(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting\n");
 		goto err_out_apeunmap;
+	}
+
+	if (tg3_flag(tp, PTP_CAPABLE)) {
+		tg3_ptp_init(tp);
+		tp->ptp_clock = ptp_clock_register(&tp->ptp_info,
+						   &tp->pdev->dev);
+		if (IS_ERR(tp->ptp_clock))
+			tp->ptp_clock = NULL;
 	}
 
 	netdev_info(dev, "Tigon3 [partno(%s) rev %04x] (%s) MAC address %pM\n",
@@ -17954,6 +17968,8 @@ static void tg3_remove_one(struct pci_dev *pdev)
 
 	if (dev) {
 		struct tg3 *tp = netdev_priv(dev);
+
+		tg3_ptp_fini(tp);
 
 		release_firmware(tp->fw);
 

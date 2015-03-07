@@ -56,6 +56,7 @@
 #include <linux/async.h>
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
+#include <linux/kasan.h>
 #include <linux/jump_label.h>
 #include <linux/pfn.h>
 #include <linux/bsearch.h>
@@ -772,9 +773,18 @@ static int try_stop_module(struct module *mod, int flags, int *forced)
 	return 0;
 }
 
-unsigned long module_refcount(struct module *mod)
+/**
+ * module_refcount - return the refcount or -1 if unloading
+ *
+ * @mod:	the module we're checking
+ *
+ * Returns:
+ *	-1 if the module is in the process of unloading
+ *	otherwise the number of references in the kernel to the module
+ */
+int module_refcount(struct module *mod)
 {
-	return (unsigned long)atomic_read(&mod->refcnt) - MODULE_REF_BASE;
+	return atomic_read(&mod->refcnt) - MODULE_REF_BASE;
 }
 EXPORT_SYMBOL(module_refcount);
 
@@ -856,7 +866,7 @@ static inline void print_unload_info(struct seq_file *m, struct module *mod)
 	struct module_use *use;
 	int printed_something = 0;
 
-	seq_printf(m, " %lu ", module_refcount(mod));
+	seq_printf(m, " %i ", module_refcount(mod));
 
 	/*
 	 * Always include a trailing , so userspace can differentiate
@@ -908,7 +918,7 @@ EXPORT_SYMBOL_GPL(symbol_put_addr);
 static ssize_t show_refcnt(struct module_attribute *mattr,
 			   struct module_kobject *mk, char *buffer)
 {
-	return sprintf(buffer, "%lu\n", module_refcount(mk->mod));
+	return sprintf(buffer, "%i\n", module_refcount(mk->mod));
 }
 
 static struct module_attribute modinfo_refcnt =
@@ -1216,6 +1226,12 @@ static const struct kernel_symbol *resolve_symbol(struct module *mod,
 	const unsigned long *crc;
 	int err;
 
+	/*
+	 * The module_mutex should not be a heavily contended lock;
+	 * if we get the occasional sleep here, we'll go an extra iteration
+	 * in the wait_event_interruptible(), which is harmless.
+	 */
+	sched_annotate_sleep();
 	mutex_lock(&module_mutex);
 	sym = find_symbol(name, &owner, &crc,
 			  !(mod->taints & (1 << TAINT_PROPRIETARY_MODULE)), true);
@@ -1795,12 +1811,17 @@ static void unset_module_core_ro_nx(struct module *mod) { }
 static void unset_module_init_ro_nx(struct module *mod) { }
 #endif
 
-void __weak module_free(struct module *mod, void *module_region)
+void __weak module_memfree(void *module_region)
 {
 	vfree(module_region);
+	kasan_module_free(module_region);
 }
 
 void __weak module_arch_cleanup(struct module *mod)
+{
+}
+
+void __weak module_arch_freeing_init(struct module *mod)
 {
 }
 
@@ -1841,7 +1862,8 @@ static void free_module(struct module *mod)
 
 	/* This may be NULL, but that's OK */
 	unset_module_init_ro_nx(mod);
-	module_free(mod, mod->module_init);
+	module_arch_freeing_init(mod);
+	module_memfree(mod->module_init);
 	kfree(mod->args);
 	percpu_modfree(mod);
 
@@ -1850,7 +1872,7 @@ static void free_module(struct module *mod)
 
 	/* Finally, free the core (containing the module structure) */
 	unset_module_core_ro_nx(mod);
-	module_free(mod, mod->module_core);
+	module_memfree(mod->module_core);
 
 #ifdef CONFIG_MPU
 	update_protections(current->mm);
@@ -2785,7 +2807,7 @@ static int move_module(struct module *mod, struct load_info *info)
 		 */
 		kmemleak_ignore(ptr);
 		if (!ptr) {
-			module_free(mod, mod->module_core);
+			module_memfree(mod->module_core);
 			return -ENOMEM;
 		}
 		memset(ptr, 0, mod->init_size);
@@ -2930,8 +2952,9 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 static void module_deallocate(struct module *mod, struct load_info *info)
 {
 	percpu_modfree(mod);
-	module_free(mod, mod->module_init);
-	module_free(mod, mod->module_core);
+	module_arch_freeing_init(mod);
+	module_memfree(mod->module_init);
+	module_memfree(mod->module_core);
 }
 
 int __weak module_finalize(const Elf_Ehdr *hdr,
@@ -2963,6 +2986,12 @@ static bool finished_loading(const char *name)
 	struct module *mod;
 	bool ret;
 
+	/*
+	 * The module_mutex should not be a heavily contended lock;
+	 * if we get the occasional sleep here, we'll go an extra iteration
+	 * in the wait_event_interruptible(), which is harmless.
+	 */
+	sched_annotate_sleep();
 	mutex_lock(&module_mutex);
 	mod = find_module_all(name, strlen(name), true);
 	ret = !mod || mod->state == MODULE_STATE_LIVE
@@ -2983,10 +3012,36 @@ static void do_mod_ctors(struct module *mod)
 #endif
 }
 
-/* This is where the real work happens */
-static int do_init_module(struct module *mod)
+/* For freeing module_init on success, in case kallsyms traversing */
+struct mod_initfree {
+	struct rcu_head rcu;
+	void *module_init;
+};
+
+static void do_free_init(struct rcu_head *head)
+{
+	struct mod_initfree *m = container_of(head, struct mod_initfree, rcu);
+	module_memfree(m->module_init);
+	kfree(m);
+}
+
+/*
+ * This is where the real work happens.
+ *
+ * Keep it uninlined to provide a reliable breakpoint target, e.g. for the gdb
+ * helper command 'lx-symbols'.
+ */
+static noinline int do_init_module(struct module *mod)
 {
 	int ret = 0;
+	struct mod_initfree *freeinit;
+
+	freeinit = kmalloc(sizeof(*freeinit), GFP_KERNEL);
+	if (!freeinit) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+	freeinit->module_init = mod->module_init;
 
 	/*
 	 * We want to find out whether @mod uses async during init.  Clear
@@ -2999,18 +3054,7 @@ static int do_init_module(struct module *mod)
 	if (mod->init != NULL)
 		ret = do_one_initcall(mod->init);
 	if (ret < 0) {
-		/*
-		 * Init routine failed: abort.  Try to protect us from
-		 * buggy refcounters.
-		 */
-		mod->state = MODULE_STATE_GOING;
-		synchronize_sched();
-		module_put(mod);
-		blocking_notifier_call_chain(&module_notify_list,
-					     MODULE_STATE_GOING, mod);
-		free_module(mod);
-		wake_up_all(&module_wq);
-		return ret;
+		goto fail_free_freeinit;
 	}
 	if (ret > 0) {
 		pr_warn("%s: '%s'->init suspiciously returned %d, it should "
@@ -3055,15 +3099,35 @@ static int do_init_module(struct module *mod)
 	mod->strtab = mod->core_strtab;
 #endif
 	unset_module_init_ro_nx(mod);
-	module_free(mod, mod->module_init);
+	module_arch_freeing_init(mod);
 	mod->module_init = NULL;
 	mod->init_size = 0;
 	mod->init_ro_size = 0;
 	mod->init_text_size = 0;
+	/*
+	 * We want to free module_init, but be aware that kallsyms may be
+	 * walking this with preempt disabled.  In all the failure paths,
+	 * we call synchronize_rcu/synchronize_sched, but we don't want
+	 * to slow down the success path, so use actual RCU here.
+	 */
+	call_rcu(&freeinit->rcu, do_free_init);
 	mutex_unlock(&module_mutex);
 	wake_up_all(&module_wq);
 
 	return 0;
+
+fail_free_freeinit:
+	kfree(freeinit);
+fail:
+	/* Try to protect us from buggy refcounters. */
+	mod->state = MODULE_STATE_GOING;
+	synchronize_sched();
+	module_put(mod);
+	blocking_notifier_call_chain(&module_notify_list,
+				     MODULE_STATE_GOING, mod);
+	free_module(mod);
+	wake_up_all(&module_wq);
+	return ret;
 }
 
 static int may_init_module(void)
@@ -3072,32 +3136,6 @@ static int may_init_module(void)
 		return -EPERM;
 
 	return 0;
-}
-
-/*
- * Can't use wait_event_interruptible() because our condition
- * 'finished_loading()' contains a blocking primitive itself (mutex_lock).
- */
-static int wait_finished_loading(struct module *mod)
-{
-	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int ret = 0;
-
-	add_wait_queue(&module_wq, &wait);
-	for (;;) {
-		if (finished_loading(mod->name))
-			break;
-
-		if (signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
-		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
-	}
-	remove_wait_queue(&module_wq, &wait);
-
-	return ret;
 }
 
 /*
@@ -3120,8 +3158,8 @@ again:
 		    || old->state == MODULE_STATE_UNFORMED) {
 			/* Wait in case it fails to load. */
 			mutex_unlock(&module_mutex);
-
-			err = wait_finished_loading(mod);
+			err = wait_event_interruptible(module_wq,
+					       finished_loading(mod->name));
 			if (err)
 				goto out_unlocked;
 			goto again;
@@ -3220,7 +3258,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	mod->sig_ok = info->sig_ok;
 	if (!mod->sig_ok) {
 		pr_notice_once("%s: module verification failed: signature "
-			       "and/or  required key missing - tainting "
+			       "and/or required key missing - tainting "
 			       "kernel\n", mod->name);
 		add_taint_module(mod, TAINT_UNSIGNED_MODULE, LOCKDEP_STILL_OK);
 	}
@@ -3310,6 +3348,9 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	mutex_lock(&module_mutex);
 	module_bug_cleanup(mod);
 	mutex_unlock(&module_mutex);
+
+	/* Free lock-classes: */
+	lockdep_free_key_range(mod->module_core, mod->core_size);
 
 	/* we can't deallocate the module until we clear memory protection */
 	unset_module_init_ro_nx(mod);

@@ -26,7 +26,7 @@ config CPU_FREQ_MAPLE
 config PPC_CORENET_CPUFREQ
 	tristate "CPU frequency scaling driver for Freescale E500MC SoCs"
 	depends on PPC_E500MC && OF && COMMON_CLK
-	select CLK_PPC_CORENET
+	select CLK_QORIQ
 	help
 	  This adds the CPUFreq driver support for Freescale e500mc,
 	  e5500 and e6500 series SoCs which are capable of changing

@@ -494,6 +494,11 @@ fd_execute_write_same(struct se_cmd *cmd)
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
 		return 0;
 	}
+	if (cmd->prot_op) {
+		pr_err("WRITE_SAME: Protection information with FILEIO"
+		       " backends not supported\n");
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 	sg = &cmd->t_data_sg[0];
 
 	if (cmd->t_data_nents > 1 ||
@@ -621,7 +626,16 @@ fd_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	struct fd_prot fd_prot;
 	sense_reason_t rc;
 	int ret = 0;
-
+	/*
+	 * We are currently limited by the number of iovecs (2048) per
+	 * single vfs_[writev,readv] call.
+	 */
+	if (cmd->data_length > FD_MAX_BYTES) {
+		pr_err("FILEIO: Not able to process I/O of %u bytes due to"
+		       "FD_MAX_BYTES: %u iovec count limitiation\n",
+			cmd->data_length, FD_MAX_BYTES);
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 	/*
 	 * Call vectorized fileio functions to map struct scatterlist
 	 * physical memory addresses to struct iovec virtual memory.
@@ -959,7 +973,6 @@ static struct configfs_attribute *fileio_backend_dev_attrs[] = {
 	&fileio_dev_attrib_hw_block_size.attr,
 	&fileio_dev_attrib_block_size.attr,
 	&fileio_dev_attrib_hw_max_sectors.attr,
-	&fileio_dev_attrib_fabric_max_sectors.attr,
 	&fileio_dev_attrib_optimal_sectors.attr,
 	&fileio_dev_attrib_hw_queue_depth.attr,
 	&fileio_dev_attrib_queue_depth.attr,

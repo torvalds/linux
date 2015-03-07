@@ -42,6 +42,12 @@ enum {
 	SMART_CONFIG_DECODE_EVENT_ID		 = BIT(23),
 };
 
+enum wl18xx_radar_types {
+	RADAR_TYPE_NONE,
+	RADAR_TYPE_REGULAR,
+	RADAR_TYPE_CHIRP
+};
+
 struct wl18xx_event_mailbox {
 	__le32 events_vector;
 
@@ -83,13 +89,19 @@ struct wl18xx_event_mailbox {
 	u8 sc_token_len;
 	u8 padding1;
 	u8 sc_ssid[32];
-	u8 sc_pwd[32];
+	u8 sc_pwd[64];
 	u8 sc_token[32];
 
 	/* smart config sync channel */
 	u8 sc_sync_channel;
 	u8 sc_sync_band;
 	u8 padding2[2];
+
+	/* radar detect */
+	u8 radar_channel;
+	u8 radar_type;
+
+	u8 padding3[2];
 } __packed;
 
 int wl18xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,

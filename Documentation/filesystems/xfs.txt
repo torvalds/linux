@@ -287,9 +287,9 @@ The following sysctls are available for the XFS filesystem:
 		XFS_ERRLEVEL_LOW:       1
 		XFS_ERRLEVEL_HIGH:      5
 
-  fs.xfs.panic_mask		(Min: 0  Default: 0  Max: 127)
+  fs.xfs.panic_mask		(Min: 0  Default: 0  Max: 255)
 	Causes certain error conditions to call BUG(). Value is a bitmask;
-	AND together the tags which represent errors which should cause panics:
+	OR together the tags which represent errors which should cause panics:
 
 		XFS_NO_PTAG                     0
 		XFS_PTAG_IFLUSH                 0x00000001
@@ -299,6 +299,7 @@ The following sysctls are available for the XFS filesystem:
 		XFS_PTAG_SHUTDOWN_CORRUPT       0x00000010
 		XFS_PTAG_SHUTDOWN_IOERROR       0x00000020
 		XFS_PTAG_SHUTDOWN_LOGERROR      0x00000040
+		XFS_PTAG_FSBLOCK_ZERO           0x00000080
 
 	This option is intended for debugging only.
 
@@ -348,16 +349,13 @@ The following sysctls are available for the XFS filesystem:
 Deprecated Sysctls
 ==================
 
-  fs.xfs.xfsbufd_centisecs	(Min: 50  Default: 100	Max: 3000)
-	Dirty metadata is now tracked by the log subsystem and
-	flushing is driven by log space and idling demands. The
-	xfsbufd no longer exists, so this syctl does nothing.
+None at present.
 
-	Due for removal in 3.14.
 
-  fs.xfs.age_buffer_centisecs	(Min: 100  Default: 1500  Max: 720000)
-	Dirty metadata is now tracked by the log subsystem and
-	flushing is driven by log space and idling demands. The
-	xfsbufd no longer exists, so this syctl does nothing.
+Removed Sysctls
+===============
 
-	Due for removal in 3.14.
+  Name				Removed
+  ----				-------
+  fs.xfs.xfsbufd_centisec	v3.20
+  fs.xfs.age_buffer_centisecs	v3.20

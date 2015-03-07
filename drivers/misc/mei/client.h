@@ -24,15 +24,22 @@
 
 #include "mei_dev.h"
 
-struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
-					const uuid_le *cuuid);
-struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
+/*
+ * reference counting base function
+ */
+void mei_me_cl_init(struct mei_me_client *me_cl);
+void mei_me_cl_put(struct mei_me_client *me_cl);
+struct mei_me_client *mei_me_cl_get(struct mei_me_client *me_cl);
 
+struct mei_me_client *mei_me_cl_by_uuid(const struct mei_device *dev,
+					const uuid_le *uuid);
+struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 struct mei_me_client *mei_me_cl_by_uuid_id(struct mei_device *dev,
 					   const uuid_le *uuid, u8 client_id);
-
-void mei_me_cl_remove(struct mei_device *dev,
-		      const uuid_le *uuid, u8 client_id);
+void mei_me_cl_rm_by_uuid(struct mei_device *dev, const uuid_le *uuid);
+void mei_me_cl_rm_by_uuid_id(struct mei_device *dev,
+			     const uuid_le *uuid, u8 id);
+void mei_me_cl_rm_all(struct mei_device *dev);
 
 /*
  * MEI IO Functions

@@ -173,7 +173,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
     /* request is i.e. "cat /proc/scsi/gdth/0" */ 
     /* format: %-15s\t%-10s\t%-15s\t%s */
     /* driver parameters */
-    seq_printf(m, "Driver Parameters:\n");
+    seq_puts(m, "Driver Parameters:\n");
     if (reserve_list[0] == 0xff)
         strcpy(hrec, "--");
     else {
@@ -192,7 +192,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                    max_ids, hdr_channel);
 
     /* controller information */
-    seq_printf(m,"\nDisk Array Controller Information:\n");
+    seq_puts(m, "\nDisk Array Controller Information:\n");
     seq_printf(m,
                    " Number:       \t%d         \tName:          \t%s\n",
                    ha->hanum, ha->binfo.type_string);
@@ -219,7 +219,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
 
 #ifdef GDTH_DMA_STATISTICS
     /* controller statistics */
-    seq_printf(m,"\nController Statistics:\n");
+    seq_puts(m, "\nController Statistics:\n");
     seq_printf(m,
                    " 32-bit DMA buffer:\t%lu\t64-bit DMA buffer:\t%lu\n",
                    ha->dma32_cnt, ha->dma64_cnt);
@@ -227,7 +227,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
 
     if (ha->more_proc) {
         /* more information: 2. about physical devices */
-        seq_printf(m, "\nPhysical Devices:");
+        seq_puts(m, "\nPhysical Devices:");
         flag = FALSE;
             
         buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
@@ -326,10 +326,10 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
 
         if (!flag)
-            seq_printf(m, "\n --\n");
+            seq_puts(m, "\n --\n");
 
         /* 3. about logical drives */
-        seq_printf(m,"\nLogical Drives:");
+        seq_puts(m, "\nLogical Drives:");
         flag = FALSE;
 
         buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
@@ -411,10 +411,10 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
         
         if (!flag)
-            seq_printf(m, "\n --\n");
+            seq_puts(m, "\n --\n");
 
         /* 4. about array drives */
-        seq_printf(m,"\nArray Drives:");
+        seq_puts(m, "\nArray Drives:");
         flag = FALSE;
 
         buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
@@ -471,10 +471,10 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
         
         if (!flag)
-            seq_printf(m, "\n --\n");
+            seq_puts(m, "\n --\n");
 
         /* 5. about host drives */
-        seq_printf(m,"\nHost Drives:");
+        seq_puts(m, "\nHost Drives:");
         flag = FALSE;
 
         buf = gdth_ioctl_alloc(ha, sizeof(gdth_hget_str), FALSE, &paddr);
@@ -527,11 +527,11 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         }
         
         if (!flag)
-            seq_printf(m, "\n --\n");
+            seq_puts(m, "\n --\n");
     }
 
     /* controller events */
-    seq_printf(m,"\nController Events:\n");
+    seq_puts(m, "\nController Events:\n");
 
     for (id = -1;;) {
         id = gdth_read_event(ha, id, estr);

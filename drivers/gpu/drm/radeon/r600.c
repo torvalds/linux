@@ -33,6 +33,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include "radeon_mode.h"
 #include "r600d.h"
 #include "atom.h"
@@ -3054,7 +3055,7 @@ static int r600_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	r = r600_audio_init(rdev);
+	r = radeon_audio_init(rdev);
 	if (r) {
 		DRM_ERROR("radeon: audio init failed\n");
 		return r;
@@ -3105,7 +3106,7 @@ int r600_resume(struct radeon_device *rdev)
 int r600_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r600_cp_stop(rdev);
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
@@ -3224,7 +3225,7 @@ int r600_init(struct radeon_device *rdev)
 void r600_fini(struct radeon_device *rdev)
 {
 	radeon_pm_fini(rdev);
-	r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	r600_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	if (rdev->has_uvd) {
@@ -3782,6 +3783,9 @@ int r600_irq_set(struct radeon_device *rdev)
 	} else if (rdev->family >= CHIP_RV770) {
 		WREG32(RV770_CG_THERMAL_INT, thermal_int);
 	}
+
+	/* posting read */
+	RREG32(R_000E50_SRBM_STATUS);
 
 	return 0;
 }

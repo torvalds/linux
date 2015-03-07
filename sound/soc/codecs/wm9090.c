@@ -254,7 +254,7 @@ SOC_SINGLE_TLV("MIXOUTR IN2B Volume", WM9090_OUTPUT_MIXER4, 0, 3, 1,
 static int hp_ev(struct snd_soc_dapm_widget *w,
 		 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	unsigned int reg = snd_soc_read(codec, WM9090_ANALOGUE_HP_0);
 
 	switch (event) {

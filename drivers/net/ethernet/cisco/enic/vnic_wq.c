@@ -47,11 +47,14 @@ static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 				wq->ring.desc_size * buf->index;
 			if (buf->index + 1 == count) {
 				buf->next = wq->bufs[0];
+				buf->next->prev = buf;
 				break;
 			} else if (j + 1 == VNIC_WQ_BUF_BLK_ENTRIES(count)) {
 				buf->next = wq->bufs[i + 1];
+				buf->next->prev = buf;
 			} else {
 				buf->next = buf + 1;
+				buf->next->prev = buf;
 				buf++;
 			}
 		}

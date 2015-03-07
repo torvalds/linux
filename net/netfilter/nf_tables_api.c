@@ -427,7 +427,8 @@ static int nf_tables_fill_table_info(struct sk_buff *skb, struct net *net,
 	    nla_put_be32(skb, NFTA_TABLE_USE, htonl(table->use)))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -713,14 +714,10 @@ static int nft_flush_table(struct nft_ctx *ctx)
 	struct nft_chain *chain, *nc;
 	struct nft_set *set, *ns;
 
-	list_for_each_entry_safe(chain, nc, &ctx->table->chains, list) {
+	list_for_each_entry(chain, &ctx->table->chains, list) {
 		ctx->chain = chain;
 
 		err = nft_delrule_by_chain(ctx);
-		if (err < 0)
-			goto out;
-
-		err = nft_delchain(ctx);
 		if (err < 0)
 			goto out;
 	}
@@ -731,6 +728,14 @@ static int nft_flush_table(struct nft_ctx *ctx)
 			continue;
 
 		err = nft_delset(ctx, set);
+		if (err < 0)
+			goto out;
+	}
+
+	list_for_each_entry_safe(chain, nc, &ctx->table->chains, list) {
+		ctx->chain = chain;
+
+		err = nft_delchain(ctx);
 		if (err < 0)
 			goto out;
 	}
@@ -967,7 +972,8 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, struct net *net,
 	if (nla_put_be32(skb, NFTA_CHAIN_USE, htonl(chain->use)))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -1130,9 +1136,11 @@ static struct nft_stats __percpu *nft_stats_alloc(const struct nlattr *attr)
 	/* Restore old counters on this cpu, no problem. Per-cpu statistics
 	 * are not exposed to userspace.
 	 */
+	preempt_disable();
 	stats = this_cpu_ptr(newstats);
 	stats->bytes = be64_to_cpu(nla_get_be64(tb[NFTA_COUNTER_BYTES]));
 	stats->pkts = be64_to_cpu(nla_get_be64(tb[NFTA_COUNTER_PACKETS]));
+	preempt_enable();
 
 	return newstats;
 }
@@ -1258,8 +1266,10 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		nft_ctx_init(&ctx, skb, nlh, afi, table, chain, nla);
 		trans = nft_trans_alloc(&ctx, NFT_MSG_NEWCHAIN,
 					sizeof(struct nft_trans_chain));
-		if (trans == NULL)
+		if (trans == NULL) {
+			free_percpu(stats);
 			return -ENOMEM;
+		}
 
 		nft_trans_chain_stats(trans) = stats;
 		nft_trans_chain_update(trans) = true;
@@ -1315,8 +1325,10 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 		hookfn = type->hooks[hooknum];
 
 		basechain = kzalloc(sizeof(*basechain), GFP_KERNEL);
-		if (basechain == NULL)
+		if (basechain == NULL) {
+			module_put(type->owner);
 			return -ENOMEM;
+		}
 
 		if (nla[NFTA_CHAIN_COUNTERS]) {
 			stats = nft_stats_alloc(nla[NFTA_CHAIN_COUNTERS]);
@@ -1703,7 +1715,8 @@ static int nf_tables_fill_rule_info(struct sk_buff *skb, struct net *net,
 	    nla_put(skb, NFTA_RULE_USERDATA, rule->ulen, nft_userdata(rule)))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -2357,7 +2370,8 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 		goto nla_put_failure;
 	nla_nest_end(skb, desc);
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -3031,7 +3045,8 @@ static int nf_tables_fill_setelem_info(struct sk_buff *skb,
 
 	nla_nest_end(skb, nest);
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -3320,7 +3335,8 @@ static int nf_tables_fill_gen_info(struct sk_buff *skb, struct net *net,
 	if (nla_put_be32(skb, NFTA_GEN_ID, htonl(net->nft.base_seq)))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_trim(skb, nlh);
@@ -3748,6 +3764,24 @@ int nft_chain_validate_dependency(const struct nft_chain *chain,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nft_chain_validate_dependency);
+
+int nft_chain_validate_hooks(const struct nft_chain *chain,
+			     unsigned int hook_flags)
+{
+	struct nft_base_chain *basechain;
+
+	if (chain->flags & NFT_BASE_CHAIN) {
+		basechain = nft_base_chain(chain);
+
+		if ((1 << basechain->ops[0].hooknum) & hook_flags)
+			return 0;
+
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nft_chain_validate_hooks);
 
 /*
  * Loop detection - walk through the ruleset beginning at the destination chain

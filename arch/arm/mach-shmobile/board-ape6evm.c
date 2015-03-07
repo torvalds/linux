@@ -18,6 +18,8 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/kernel.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
@@ -273,6 +275,22 @@ static void __init ape6evm_add_standard_devices(void)
 				      sizeof(ape6evm_leds_pdata));
 }
 
+static void __init ape6evm_legacy_init_time(void)
+{
+	/* Do not invoke DT-based timers via clocksource_of_init() */
+}
+
+static void __init ape6evm_legacy_init_irq(void)
+{
+	void __iomem *gic_dist_base = ioremap_nocache(0xf1001000, 0x1000);
+	void __iomem *gic_cpu_base = ioremap_nocache(0xf1002000, 0x1000);
+
+	gic_init(0, 29, gic_dist_base, gic_cpu_base);
+
+	/* Do not invoke DT-based interrupt code via irqchip_init() */
+}
+
+
 static const char *ape6evm_boards_compat_dt[] __initdata = {
 	"renesas,ape6evm",
 	NULL,
@@ -280,7 +298,9 @@ static const char *ape6evm_boards_compat_dt[] __initdata = {
 
 DT_MACHINE_START(APE6EVM_DT, "ape6evm")
 	.init_early	= shmobile_init_delay,
+	.init_irq       = ape6evm_legacy_init_irq,
 	.init_machine	= ape6evm_add_standard_devices,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= ape6evm_boards_compat_dt,
+	.init_time	= ape6evm_legacy_init_time,
 MACHINE_END

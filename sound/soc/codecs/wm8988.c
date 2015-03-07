@@ -244,7 +244,7 @@ SOC_DOUBLE_R_TLV("Output 2 Playback Volume", WM8988_LOUT2V, WM8988_ROUT2V,
 static int wm8988_lrc_control(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	u16 adctl2 = snd_soc_read(codec, WM8988_ADCTL2);
 
 	/* Use the DAC to gate LRC if active, otherwise use ADC */
@@ -813,7 +813,7 @@ static int wm8988_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8988 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8988 = {
 	.probe =	wm8988_probe,
 	.set_bias_level = wm8988_set_bias_level,
 	.suspend_bias_off = true,
@@ -826,7 +826,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8988 = {
 	.num_dapm_routes = ARRAY_SIZE(wm8988_dapm_routes),
 };
 
-static struct regmap_config wm8988_regmap = {
+static const struct regmap_config wm8988_regmap = {
 	.reg_bits = 7,
 	.val_bits = 9,
 

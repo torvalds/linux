@@ -437,6 +437,7 @@
 	ENTRY_SAME(getrandom)
 	ENTRY_SAME(memfd_create)	/* 340 */
 	ENTRY_SAME(bpf)
+	ENTRY_COMP(execveat)
 
 	/* Nothing yet */
 

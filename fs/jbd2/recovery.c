@@ -524,6 +524,9 @@ static int do_one_pass(journal_t *journal,
 			if (descr_csum_size > 0 &&
 			    !jbd2_descr_block_csum_verify(journal,
 							  bh->b_data)) {
+				printk(KERN_ERR "JBD2: Invalid checksum "
+				       "recovering block %lu in log\n",
+				       next_log_block);
 				err = -EIO;
 				brelse(bh);
 				goto failed;

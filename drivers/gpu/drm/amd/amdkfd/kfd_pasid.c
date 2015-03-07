@@ -30,7 +30,7 @@ static DEFINE_MUTEX(pasid_mutex);
 
 int kfd_pasid_init(void)
 {
-	pasid_limit = max_num_of_processes;
+	pasid_limit = KFD_MAX_NUM_OF_PROCESSES;
 
 	pasid_bitmap = kcalloc(BITS_TO_LONGS(pasid_limit), sizeof(long), GFP_KERNEL);
 	if (!pasid_bitmap)

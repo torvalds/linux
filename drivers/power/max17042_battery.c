@@ -658,7 +658,7 @@ max17042_get_pdata(struct device *dev)
 }
 #endif
 
-static struct regmap_config max17042_regmap_config = {
+static const struct regmap_config max17042_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,

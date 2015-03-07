@@ -45,8 +45,8 @@ int ath9k_modparam_nohwcrypt;
 module_param_named(nohwcrypt, ath9k_modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 
-int led_blink;
-module_param_named(blink, led_blink, int, 0444);
+int ath9k_led_blink;
+module_param_named(blink, ath9k_led_blink, int, 0444);
 MODULE_PARM_DESC(blink, "Enable LED blink on activity");
 
 static int ath9k_btcoex_enable;
@@ -996,6 +996,7 @@ void ath9k_deinit_device(struct ath_softc *sc)
 	ath9k_ps_restore(sc);
 
 	ath9k_deinit_debug(sc);
+	ath9k_deinit_wow(hw);
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath9k_deinit_softc(sc);

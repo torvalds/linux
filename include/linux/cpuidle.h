@@ -50,6 +50,15 @@ struct cpuidle_state {
 			int index);
 
 	int (*enter_dead) (struct cpuidle_device *dev, int index);
+
+	/*
+	 * CPUs execute ->enter_freeze with the local tick or entire timekeeping
+	 * suspended, so it must not re-enable interrupts at any point (even
+	 * temporarily) or attempt to change states of clock event devices.
+	 */
+	void (*enter_freeze) (struct cpuidle_device *dev,
+			      struct cpuidle_driver *drv,
+			      int index);
 };
 
 /* Idle State Flags */
@@ -117,6 +126,8 @@ struct cpuidle_driver {
 
 #ifdef CONFIG_CPU_IDLE
 extern void disable_cpuidle(void);
+extern bool cpuidle_not_available(struct cpuidle_driver *drv,
+				  struct cpuidle_device *dev);
 
 extern int cpuidle_select(struct cpuidle_driver *drv,
 			  struct cpuidle_device *dev);
@@ -141,11 +152,17 @@ extern void cpuidle_resume(void);
 extern int cpuidle_enable_device(struct cpuidle_device *dev);
 extern void cpuidle_disable_device(struct cpuidle_device *dev);
 extern int cpuidle_play_dead(void);
-extern void cpuidle_use_deepest_state(bool enable);
+extern int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
+				      struct cpuidle_device *dev);
+extern int cpuidle_enter_freeze(struct cpuidle_driver *drv,
+				struct cpuidle_device *dev);
 
 extern struct cpuidle_driver *cpuidle_get_cpu_driver(struct cpuidle_device *dev);
 #else
 static inline void disable_cpuidle(void) { }
+static inline bool cpuidle_not_available(struct cpuidle_driver *drv,
+					 struct cpuidle_device *dev)
+{return true; }
 static inline int cpuidle_select(struct cpuidle_driver *drv,
 				 struct cpuidle_device *dev)
 {return -ENODEV; }
@@ -174,7 +191,12 @@ static inline int cpuidle_enable_device(struct cpuidle_device *dev)
 {return -ENODEV; }
 static inline void cpuidle_disable_device(struct cpuidle_device *dev) { }
 static inline int cpuidle_play_dead(void) {return -ENODEV; }
-static inline void cpuidle_use_deepest_state(bool enable) {}
+static inline int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
+					     struct cpuidle_device *dev)
+{return -ENODEV; }
+static inline int cpuidle_enter_freeze(struct cpuidle_driver *drv,
+				       struct cpuidle_device *dev)
+{return -ENODEV; }
 static inline struct cpuidle_driver *cpuidle_get_cpu_driver(
 	struct cpuidle_device *dev) {return NULL; }
 #endif

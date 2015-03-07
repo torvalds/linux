@@ -65,7 +65,7 @@
  * - power management? (card can do voice wakeup according to datasheet!!)
  */
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/gameport.h>
@@ -988,7 +988,6 @@ static void snd_card_als4000_remove(struct pci_dev *pci)
 #ifdef CONFIG_PM_SLEEP
 static int snd_als4000_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_card_als4000 *acard = card->private_data;
 	struct snd_sb *chip = acard->chip;
@@ -997,28 +996,14 @@ static int snd_als4000_suspend(struct device *dev)
 	
 	snd_pcm_suspend_all(chip->pcm);
 	snd_sbmixer_suspend(chip);
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int snd_als4000_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_card_als4000 *acard = card->private_data;
 	struct snd_sb *chip = acard->chip;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	snd_als4000_configure(chip);
 	snd_sbdsp_reset(chip);

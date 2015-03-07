@@ -1,0 +1,5 @@
+nvkm-y += nvkm/engine/mpeg/nv31.o
+nvkm-y += nvkm/engine/mpeg/nv40.o
+nvkm-y += nvkm/engine/mpeg/nv44.o
+nvkm-y += nvkm/engine/mpeg/nv50.o
+nvkm-y += nvkm/engine/mpeg/g84.o

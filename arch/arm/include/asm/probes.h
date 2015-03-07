@@ -19,6 +19,8 @@
 #ifndef _ASM_PROBES_H
 #define _ASM_PROBES_H
 
+#ifndef __ASSEMBLY__
+
 typedef u32 probes_opcode_t;
 
 struct arch_probes_insn;
@@ -38,6 +40,19 @@ struct arch_probes_insn {
 	probes_check_cc			*insn_check_cc;
 	probes_insn_singlestep_t	*insn_singlestep;
 	probes_insn_fn_t		*insn_fn;
+	int				stack_space;
+	unsigned long			register_usage_flags;
+	bool				kprobe_direct_exec;
 };
+
+#endif /* __ASSEMBLY__ */
+
+/*
+ * We assume one instruction can consume at most 64 bytes stack, which is
+ * 'push {r0-r15}'. Instructions consume more or unknown stack space like
+ * 'str r0, [sp, #-80]' and 'str r0, [sp, r1]' should be prohibit to probe.
+ * Both kprobe and jprobe use this macro.
+ */
+#define MAX_STACK_SIZE			64
 
 #endif

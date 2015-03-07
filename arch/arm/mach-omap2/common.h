@@ -35,6 +35,7 @@
 #include <linux/irqchip/irq-omap-intc.h>
 
 #include <asm/proc-fns.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include "i2c.h"
 #include "serial.h"
@@ -94,11 +95,18 @@ extern void omap3_gptimer_timer_init(void);
 extern void omap4_local_timer_init(void);
 #ifdef CONFIG_CACHE_L2X0
 int omap_l2_cache_init(void);
+#define OMAP_L2C_AUX_CTRL	(L2C_AUX_CTRL_SHARED_OVERRIDE | \
+				 L310_AUX_CTRL_DATA_PREFETCH | \
+				 L310_AUX_CTRL_INSTR_PREFETCH)
+void omap4_l2c310_write_sec(unsigned long val, unsigned reg);
 #else
 static inline int omap_l2_cache_init(void)
 {
 	return 0;
 }
+
+#define OMAP_L2C_AUX_CTRL	0
+#define omap4_l2c310_write_sec	NULL
 #endif
 extern void omap5_realtime_timer_init(void);
 
@@ -110,7 +118,8 @@ void omap3630_init_early(void);
 void omap3_init_early(void);	/* Do not use this one */
 void am33xx_init_early(void);
 void am35xx_init_early(void);
-void ti81xx_init_early(void);
+void ti814x_init_early(void);
+void ti816x_init_early(void);
 void am33xx_init_early(void);
 void am43xx_init_early(void);
 void am43xx_init_late(void);
@@ -163,6 +172,14 @@ static inline void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
 }
 #endif
 
+#ifdef CONFIG_SOC_TI81XX
+void ti81xx_restart(enum reboot_mode mode, const char *cmd);
+#else
+static inline void ti81xx_restart(enum reboot_mode mode, const char *cmd)
+{
+}
+#endif
+
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
 	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM43XX)
 void omap44xx_restart(enum reboot_mode mode, const char *cmd);
@@ -211,6 +228,7 @@ extern struct device *omap2_get_iva_device(void);
 extern struct device *omap2_get_l3_device(void);
 extern struct device *omap4_get_dsp_device(void);
 
+unsigned int omap4_xlate_irq(unsigned int hwirq);
 void omap_gic_of_init(void);
 
 #ifdef CONFIG_CACHE_L2X0
@@ -249,6 +267,7 @@ extern void omap4_cpu_die(unsigned int cpu);
 extern struct smp_operations omap4_smp_ops;
 
 extern void omap5_secondary_startup(void);
+extern void omap5_secondary_hyp_startup(void);
 #endif
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PM)

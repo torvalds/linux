@@ -77,6 +77,10 @@
 			dbgu: serial@fffff200 {
 				status = "okay";
 			};
+
+			rtc: rtc@fffffe00 {
+				status = "okay";
+			};
 		};
 
 		usb0: ohci@00300000 {

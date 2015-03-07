@@ -103,27 +103,34 @@ static void c_can_hw_raminit_syscon(const struct c_can_priv *priv, bool enable)
 	mask = 1 << raminit->bits.start | 1 << raminit->bits.done;
 	regmap_read(raminit->syscon, raminit->reg, &ctrl);
 
-	/* We clear the done and start bit first. The start bit is
+	/* We clear the start bit first. The start bit is
 	 * looking at the 0 -> transition, but is not self clearing;
-	 * And we clear the init done bit as well.
 	 * NOTE: DONE must be written with 1 to clear it.
+	 * We can't clear the DONE bit here using regmap_update_bits()
+	 * as it will bypass the write if initial condition is START:0 DONE:1
+	 * e.g. on DRA7 which needs START pulse.
 	 */
-	ctrl &= ~(1 << raminit->bits.start);
-	ctrl |= 1 << raminit->bits.done;
-	regmap_write(raminit->syscon, raminit->reg, ctrl);
+	ctrl &= ~mask;	/* START = 0, DONE = 0 */
+	regmap_update_bits(raminit->syscon, raminit->reg, mask, ctrl);
 
-	ctrl &= ~(1 << raminit->bits.done);
-	c_can_hw_raminit_wait_syscon(priv, mask, ctrl);
+	/* check if START bit is 0. Ignore DONE bit for now
+	 * as it can be either 0 or 1.
+	 */
+	c_can_hw_raminit_wait_syscon(priv, 1 << raminit->bits.start, ctrl);
 
 	if (enable) {
-		/* Set start bit and wait for the done bit. */
+		/* Clear DONE bit & set START bit. */
 		ctrl |= 1 << raminit->bits.start;
-		regmap_write(raminit->syscon, raminit->reg, ctrl);
-
+		/* DONE must be written with 1 to clear it */
+		ctrl |= 1 << raminit->bits.done;
+		regmap_update_bits(raminit->syscon, raminit->reg, mask, ctrl);
+		/* prevent further clearing of DONE bit */
+		ctrl &= ~(1 << raminit->bits.done);
 		/* clear START bit if start pulse is needed */
 		if (raminit->needs_pulse) {
 			ctrl &= ~(1 << raminit->bits.start);
-			regmap_write(raminit->syscon, raminit->reg, ctrl);
+			regmap_update_bits(raminit->syscon, raminit->reg,
+					   mask, ctrl);
 		}
 
 		ctrl |= 1 << raminit->bits.done;

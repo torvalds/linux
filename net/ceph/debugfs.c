@@ -127,8 +127,6 @@ static int monc_show(struct seq_file *s, void *p)
 		op = le16_to_cpu(req->request->hdr.type);
 		if (op == CEPH_MSG_STATFS)
 			seq_printf(s, "%llu statfs\n", req->tid);
-		else if (op == CEPH_MSG_POOLOP)
-			seq_printf(s, "%llu poolop\n", req->tid);
 		else if (op == CEPH_MSG_MON_GET_VERSION)
 			seq_printf(s, "%llu mon_get_version", req->tid);
 		else

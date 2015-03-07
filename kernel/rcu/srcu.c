@@ -546,7 +546,7 @@ EXPORT_SYMBOL_GPL(srcu_barrier);
  * Report the number of batches, correlated with, but not necessarily
  * precisely the same as, the number of grace periods that have elapsed.
  */
-long srcu_batches_completed(struct srcu_struct *sp)
+unsigned long srcu_batches_completed(struct srcu_struct *sp)
 {
 	return sp->completed;
 }

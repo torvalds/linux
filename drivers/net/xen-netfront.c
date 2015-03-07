@@ -88,10 +88,8 @@ struct netfront_cb {
 #define IRQ_NAME_SIZE (QUEUE_NAME_SIZE + 3)
 
 struct netfront_stats {
-	u64			rx_packets;
-	u64			tx_packets;
-	u64			rx_bytes;
-	u64			tx_bytes;
+	u64			packets;
+	u64			bytes;
 	struct u64_stats_sync	syncp;
 };
 
@@ -144,10 +142,6 @@ struct netfront_queue {
 	struct sk_buff *rx_skbs[NET_RX_RING_SIZE];
 	grant_ref_t gref_rx_head;
 	grant_ref_t grant_rx_ref[NET_RX_RING_SIZE];
-
-	unsigned long rx_pfn_array[NET_RX_RING_SIZE];
-	struct multicall_entry rx_mcl[NET_RX_RING_SIZE+1];
-	struct mmu_update rx_mmu[NET_RX_RING_SIZE];
 };
 
 struct netfront_info {
@@ -160,7 +154,8 @@ struct netfront_info {
 	struct netfront_queue *queues;
 
 	/* Statistics */
-	struct netfront_stats __percpu *stats;
+	struct netfront_stats __percpu *rx_stats;
+	struct netfront_stats __percpu *tx_stats;
 
 	atomic_t rx_gso_checksum_fixup;
 };
@@ -224,11 +219,7 @@ static grant_ref_t xennet_get_rx_ref(struct netfront_queue *queue,
 }
 
 #ifdef CONFIG_SYSFS
-static int xennet_sysfs_addif(struct net_device *netdev);
-static void xennet_sysfs_delif(struct net_device *netdev);
-#else /* !CONFIG_SYSFS */
-#define xennet_sysfs_addif(dev) (0)
-#define xennet_sysfs_delif(dev) do { } while (0)
+static const struct attribute_group xennet_dev_group;
 #endif
 
 static bool xennet_can_sg(struct net_device *dev)
@@ -425,109 +416,68 @@ static void xennet_tx_buf_gc(struct netfront_queue *queue)
 	xennet_maybe_wake_tx(queue);
 }
 
-static void xennet_make_frags(struct sk_buff *skb, struct netfront_queue *queue,
-			      struct xen_netif_tx_request *tx)
+static struct xen_netif_tx_request *xennet_make_one_txreq(
+	struct netfront_queue *queue, struct sk_buff *skb,
+	struct page *page, unsigned int offset, unsigned int len)
 {
-	char *data = skb->data;
-	unsigned long mfn;
-	RING_IDX prod = queue->tx.req_prod_pvt;
-	int frags = skb_shinfo(skb)->nr_frags;
-	unsigned int offset = offset_in_page(data);
-	unsigned int len = skb_headlen(skb);
 	unsigned int id;
+	struct xen_netif_tx_request *tx;
 	grant_ref_t ref;
-	int i;
 
-	/* While the header overlaps a page boundary (including being
-	   larger than a page), split it it into page-sized chunks. */
-	while (len > PAGE_SIZE - offset) {
-		tx->size = PAGE_SIZE - offset;
+	len = min_t(unsigned int, PAGE_SIZE - offset, len);
+
+	id = get_id_from_freelist(&queue->tx_skb_freelist, queue->tx_skbs);
+	tx = RING_GET_REQUEST(&queue->tx, queue->tx.req_prod_pvt++);
+	ref = gnttab_claim_grant_reference(&queue->gref_tx_head);
+	BUG_ON((signed short)ref < 0);
+
+	gnttab_grant_foreign_access_ref(ref, queue->info->xbdev->otherend_id,
+					page_to_mfn(page), GNTMAP_readonly);
+
+	queue->tx_skbs[id].skb = skb;
+	queue->grant_tx_page[id] = page;
+	queue->grant_tx_ref[id] = ref;
+
+	tx->id = id;
+	tx->gref = ref;
+	tx->offset = offset;
+	tx->size = len;
+	tx->flags = 0;
+
+	return tx;
+}
+
+static struct xen_netif_tx_request *xennet_make_txreqs(
+	struct netfront_queue *queue, struct xen_netif_tx_request *tx,
+	struct sk_buff *skb, struct page *page,
+	unsigned int offset, unsigned int len)
+{
+	/* Skip unused frames from start of page */
+	page += offset >> PAGE_SHIFT;
+	offset &= ~PAGE_MASK;
+
+	while (len) {
 		tx->flags |= XEN_NETTXF_more_data;
-		len -= tx->size;
-		data += tx->size;
+		tx = xennet_make_one_txreq(queue, skb_get(skb),
+					   page, offset, len);
+		page++;
 		offset = 0;
-
-		id = get_id_from_freelist(&queue->tx_skb_freelist, queue->tx_skbs);
-		queue->tx_skbs[id].skb = skb_get(skb);
-		tx = RING_GET_REQUEST(&queue->tx, prod++);
-		tx->id = id;
-		ref = gnttab_claim_grant_reference(&queue->gref_tx_head);
-		BUG_ON((signed short)ref < 0);
-
-		mfn = virt_to_mfn(data);
-		gnttab_grant_foreign_access_ref(ref, queue->info->xbdev->otherend_id,
-						mfn, GNTMAP_readonly);
-
-		queue->grant_tx_page[id] = virt_to_page(data);
-		tx->gref = queue->grant_tx_ref[id] = ref;
-		tx->offset = offset;
-		tx->size = len;
-		tx->flags = 0;
+		len -= tx->size;
 	}
 
-	/* Grant backend access to each skb fragment page. */
-	for (i = 0; i < frags; i++) {
-		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
-		struct page *page = skb_frag_page(frag);
-
-		len = skb_frag_size(frag);
-		offset = frag->page_offset;
-
-		/* Skip unused frames from start of page */
-		page += offset >> PAGE_SHIFT;
-		offset &= ~PAGE_MASK;
-
-		while (len > 0) {
-			unsigned long bytes;
-
-			bytes = PAGE_SIZE - offset;
-			if (bytes > len)
-				bytes = len;
-
-			tx->flags |= XEN_NETTXF_more_data;
-
-			id = get_id_from_freelist(&queue->tx_skb_freelist,
-						  queue->tx_skbs);
-			queue->tx_skbs[id].skb = skb_get(skb);
-			tx = RING_GET_REQUEST(&queue->tx, prod++);
-			tx->id = id;
-			ref = gnttab_claim_grant_reference(&queue->gref_tx_head);
-			BUG_ON((signed short)ref < 0);
-
-			mfn = pfn_to_mfn(page_to_pfn(page));
-			gnttab_grant_foreign_access_ref(ref,
-							queue->info->xbdev->otherend_id,
-							mfn, GNTMAP_readonly);
-
-			queue->grant_tx_page[id] = page;
-			tx->gref = queue->grant_tx_ref[id] = ref;
-			tx->offset = offset;
-			tx->size = bytes;
-			tx->flags = 0;
-
-			offset += bytes;
-			len -= bytes;
-
-			/* Next frame */
-			if (offset == PAGE_SIZE && len) {
-				BUG_ON(!PageCompound(page));
-				page++;
-				offset = 0;
-			}
-		}
-	}
-
-	queue->tx.req_prod_pvt = prod;
+	return tx;
 }
 
 /*
- * Count how many ring slots are required to send the frags of this
- * skb. Each frag might be a compound page.
+ * Count how many ring slots are required to send this skb. Each frag
+ * might be a compound page.
  */
-static int xennet_count_skb_frag_slots(struct sk_buff *skb)
+static int xennet_count_skb_slots(struct sk_buff *skb)
 {
 	int i, frags = skb_shinfo(skb)->nr_frags;
-	int pages = 0;
+	int pages;
+
+	pages = PFN_UP(offset_in_page(skb->data) + skb_headlen(skb));
 
 	for (i = 0; i < frags; i++) {
 		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
@@ -563,18 +513,15 @@ static u16 xennet_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	unsigned short id;
 	struct netfront_info *np = netdev_priv(dev);
-	struct netfront_stats *stats = this_cpu_ptr(np->stats);
-	struct xen_netif_tx_request *tx;
-	char *data = skb->data;
-	RING_IDX i;
-	grant_ref_t ref;
-	unsigned long mfn;
+	struct netfront_stats *tx_stats = this_cpu_ptr(np->tx_stats);
+	struct xen_netif_tx_request *tx, *first_tx;
+	unsigned int i;
 	int notify;
 	int slots;
-	unsigned int offset = offset_in_page(data);
-	unsigned int len = skb_headlen(skb);
+	struct page *page;
+	unsigned int offset;
+	unsigned int len;
 	unsigned long flags;
 	struct netfront_queue *queue = NULL;
 	unsigned int num_queues = dev->real_num_tx_queues;
@@ -597,17 +544,17 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 	}
 
-	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE) +
-		xennet_count_skb_frag_slots(skb);
+	slots = xennet_count_skb_slots(skb);
 	if (unlikely(slots > MAX_SKB_FRAGS + 1)) {
 		net_dbg_ratelimited("xennet: skb rides the rocket: %d slots, %d bytes\n",
 				    slots, skb->len);
 		if (skb_linearize(skb))
 			goto drop;
-		data = skb->data;
-		offset = offset_in_page(data);
-		len = skb_headlen(skb);
 	}
+
+	page = virt_to_page(skb->data);
+	offset = offset_in_page(skb->data);
+	len = skb_headlen(skb);
 
 	spin_lock_irqsave(&queue->tx_lock, flags);
 
@@ -618,25 +565,13 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 	}
 
-	i = queue->tx.req_prod_pvt;
+	/* First request for the linear area. */
+	first_tx = tx = xennet_make_one_txreq(queue, skb,
+					      page, offset, len);
+	page++;
+	offset = 0;
+	len -= tx->size;
 
-	id = get_id_from_freelist(&queue->tx_skb_freelist, queue->tx_skbs);
-	queue->tx_skbs[id].skb = skb;
-
-	tx = RING_GET_REQUEST(&queue->tx, i);
-
-	tx->id   = id;
-	ref = gnttab_claim_grant_reference(&queue->gref_tx_head);
-	BUG_ON((signed short)ref < 0);
-	mfn = virt_to_mfn(data);
-	gnttab_grant_foreign_access_ref(
-		ref, queue->info->xbdev->otherend_id, mfn, GNTMAP_readonly);
-	queue->grant_tx_page[id] = virt_to_page(data);
-	tx->gref = queue->grant_tx_ref[id] = ref;
-	tx->offset = offset;
-	tx->size = len;
-
-	tx->flags = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		/* local packet? */
 		tx->flags |= XEN_NETTXF_csum_blank | XEN_NETTXF_data_validated;
@@ -644,11 +579,12 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* remote but checksummed. */
 		tx->flags |= XEN_NETTXF_data_validated;
 
+	/* Optional extra info after the first request. */
 	if (skb_shinfo(skb)->gso_size) {
 		struct xen_netif_extra_info *gso;
 
 		gso = (struct xen_netif_extra_info *)
-			RING_GET_REQUEST(&queue->tx, ++i);
+			RING_GET_REQUEST(&queue->tx, queue->tx.req_prod_pvt++);
 
 		tx->flags |= XEN_NETTXF_extra_info;
 
@@ -663,19 +599,28 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		gso->flags = 0;
 	}
 
-	queue->tx.req_prod_pvt = i + 1;
+	/* Requests for the rest of the linear area. */
+	tx = xennet_make_txreqs(queue, tx, skb, page, offset, len);
 
-	xennet_make_frags(skb, queue, tx);
-	tx->size = skb->len;
+	/* Requests for all the frags. */
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		tx = xennet_make_txreqs(queue, tx, skb,
+					skb_frag_page(frag), frag->page_offset,
+					skb_frag_size(frag));
+	}
+
+	/* First request has the packet length. */
+	first_tx->size = skb->len;
 
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->tx, notify);
 	if (notify)
 		notify_remote_via_irq(queue->tx_irq);
 
-	u64_stats_update_begin(&stats->syncp);
-	stats->tx_bytes += skb->len;
-	stats->tx_packets++;
-	u64_stats_update_end(&stats->syncp);
+	u64_stats_update_begin(&tx_stats->syncp);
+	tx_stats->bytes += skb->len;
+	tx_stats->packets++;
+	u64_stats_update_end(&tx_stats->syncp);
 
 	/* Note: It is not safe to access skb after xennet_tx_buf_gc()! */
 	xennet_tx_buf_gc(queue);
@@ -931,7 +876,7 @@ static int checksum_setup(struct net_device *dev, struct sk_buff *skb)
 static int handle_incoming_queue(struct netfront_queue *queue,
 				 struct sk_buff_head *rxq)
 {
-	struct netfront_stats *stats = this_cpu_ptr(queue->info->stats);
+	struct netfront_stats *rx_stats = this_cpu_ptr(queue->info->rx_stats);
 	int packets_dropped = 0;
 	struct sk_buff *skb;
 
@@ -952,10 +897,10 @@ static int handle_incoming_queue(struct netfront_queue *queue,
 			continue;
 		}
 
-		u64_stats_update_begin(&stats->syncp);
-		stats->rx_packets++;
-		stats->rx_bytes += skb->len;
-		u64_stats_update_end(&stats->syncp);
+		u64_stats_update_begin(&rx_stats->syncp);
+		rx_stats->packets++;
+		rx_stats->bytes += skb->len;
+		u64_stats_update_end(&rx_stats->syncp);
 
 		/* Pass it up. */
 		napi_gro_receive(&queue->napi, skb);
@@ -1079,18 +1024,22 @@ static struct rtnl_link_stats64 *xennet_get_stats64(struct net_device *dev,
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		struct netfront_stats *stats = per_cpu_ptr(np->stats, cpu);
+		struct netfront_stats *rx_stats = per_cpu_ptr(np->rx_stats, cpu);
+		struct netfront_stats *tx_stats = per_cpu_ptr(np->tx_stats, cpu);
 		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
 		unsigned int start;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
+			start = u64_stats_fetch_begin_irq(&tx_stats->syncp);
+			tx_packets = tx_stats->packets;
+			tx_bytes = tx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_stats->syncp, start));
 
-			rx_packets = stats->rx_packets;
-			tx_packets = stats->tx_packets;
-			rx_bytes = stats->rx_bytes;
-			tx_bytes = stats->tx_bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+		do {
+			start = u64_stats_fetch_begin_irq(&rx_stats->syncp);
+			rx_packets = rx_stats->packets;
+			rx_bytes = rx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
 
 		tot->rx_packets += rx_packets;
 		tot->tx_packets += tx_packets;
@@ -1275,6 +1224,15 @@ static const struct net_device_ops xennet_netdev_ops = {
 #endif
 };
 
+static void xennet_free_netdev(struct net_device *netdev)
+{
+	struct netfront_info *np = netdev_priv(netdev);
+
+	free_percpu(np->rx_stats);
+	free_percpu(np->tx_stats);
+	free_netdev(netdev);
+}
+
 static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 {
 	int err;
@@ -1295,8 +1253,11 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	np->queues = NULL;
 
 	err = -ENOMEM;
-	np->stats = netdev_alloc_pcpu_stats(struct netfront_stats);
-	if (np->stats == NULL)
+	np->rx_stats = netdev_alloc_pcpu_stats(struct netfront_stats);
+	if (np->rx_stats == NULL)
+		goto exit;
+	np->tx_stats = netdev_alloc_pcpu_stats(struct netfront_stats);
+	if (np->tx_stats == NULL)
 		goto exit;
 
 	netdev->netdev_ops	= &xennet_netdev_ops;
@@ -1327,7 +1288,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	return netdev;
 
  exit:
-	free_netdev(netdev);
+	xennet_free_netdev(netdev);
 	return ERR_PTR(err);
 }
 
@@ -1352,24 +1313,19 @@ static int netfront_probe(struct xenbus_device *dev,
 
 	info = netdev_priv(netdev);
 	dev_set_drvdata(&dev->dev, info);
-
+#ifdef CONFIG_SYSFS
+	info->netdev->sysfs_groups[0] = &xennet_dev_group;
+#endif
 	err = register_netdev(info->netdev);
 	if (err) {
 		pr_warn("%s: register_netdev err=%d\n", __func__, err);
 		goto fail;
 	}
 
-	err = xennet_sysfs_addif(info->netdev);
-	if (err) {
-		unregister_netdev(info->netdev);
-		pr_warn("%s: add sysfs failed err=%d\n", __func__, err);
-		goto fail;
-	}
-
 	return 0;
 
  fail:
-	free_netdev(netdev);
+	xennet_free_netdev(netdev);
 	dev_set_drvdata(&dev->dev, NULL);
 	return err;
 }
@@ -2129,39 +2085,20 @@ static ssize_t store_rxbuf(struct device *dev,
 	return len;
 }
 
-static struct device_attribute xennet_attrs[] = {
-	__ATTR(rxbuf_min, S_IRUGO|S_IWUSR, show_rxbuf, store_rxbuf),
-	__ATTR(rxbuf_max, S_IRUGO|S_IWUSR, show_rxbuf, store_rxbuf),
-	__ATTR(rxbuf_cur, S_IRUGO, show_rxbuf, NULL),
+static DEVICE_ATTR(rxbuf_min, S_IRUGO|S_IWUSR, show_rxbuf, store_rxbuf);
+static DEVICE_ATTR(rxbuf_max, S_IRUGO|S_IWUSR, show_rxbuf, store_rxbuf);
+static DEVICE_ATTR(rxbuf_cur, S_IRUGO, show_rxbuf, NULL);
+
+static struct attribute *xennet_dev_attrs[] = {
+	&dev_attr_rxbuf_min.attr,
+	&dev_attr_rxbuf_max.attr,
+	&dev_attr_rxbuf_cur.attr,
+	NULL
 };
 
-static int xennet_sysfs_addif(struct net_device *netdev)
-{
-	int i;
-	int err;
-
-	for (i = 0; i < ARRAY_SIZE(xennet_attrs); i++) {
-		err = device_create_file(&netdev->dev,
-					   &xennet_attrs[i]);
-		if (err)
-			goto fail;
-	}
-	return 0;
-
- fail:
-	while (--i >= 0)
-		device_remove_file(&netdev->dev, &xennet_attrs[i]);
-	return err;
-}
-
-static void xennet_sysfs_delif(struct net_device *netdev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(xennet_attrs); i++)
-		device_remove_file(&netdev->dev, &xennet_attrs[i]);
-}
-
+static const struct attribute_group xennet_dev_group = {
+	.attrs = xennet_dev_attrs
+};
 #endif /* CONFIG_SYSFS */
 
 static int xennet_remove(struct xenbus_device *dev)
@@ -2175,8 +2112,6 @@ static int xennet_remove(struct xenbus_device *dev)
 
 	xennet_disconnect_backend(info);
 
-	xennet_sysfs_delif(info->netdev);
-
 	unregister_netdev(info->netdev);
 
 	for (i = 0; i < num_queues; ++i) {
@@ -2189,9 +2124,7 @@ static int xennet_remove(struct xenbus_device *dev)
 		info->queues = NULL;
 	}
 
-	free_percpu(info->stats);
-
-	free_netdev(info->netdev);
+	xennet_free_netdev(info->netdev);
 
 	return 0;
 }

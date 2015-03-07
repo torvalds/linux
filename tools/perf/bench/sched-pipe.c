@@ -19,12 +19,12 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <linux/unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/syscall.h>
 
 #include <pthread.h>
 

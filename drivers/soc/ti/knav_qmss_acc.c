@@ -209,7 +209,7 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 	return IRQ_HANDLED;
 }
 
-int knav_range_setup_acc_irq(struct knav_range_info *range,
+static int knav_range_setup_acc_irq(struct knav_range_info *range,
 				int queue, bool enabled)
 {
 	struct knav_device *kdev = range->kdev;

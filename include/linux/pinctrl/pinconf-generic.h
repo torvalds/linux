@@ -115,6 +115,18 @@ enum pin_config_param {
 	PIN_CONFIG_END = 0x7FFF,
 };
 
+#ifdef CONFIG_DEBUG_FS
+#define PCONFDUMP(a, b, c, d) { .param = a, .display = b, .format = c, \
+				.has_arg = d }
+
+struct pin_config_item {
+	const enum pin_config_param param;
+	const char * const display;
+	const char * const format;
+	bool has_arg;
+};
+#endif /* CONFIG_DEBUG_FS */
+
 /*
  * Helpful configuration macro to be used in tables etc.
  */
@@ -150,6 +162,12 @@ static inline unsigned long pinconf_to_config_packed(enum pin_config_param param
 struct pinctrl_dev;
 struct pinctrl_map;
 
+struct pinconf_generic_params {
+	const char * const property;
+	enum pin_config_param param;
+	u32 default_value;
+};
+
 int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np, struct pinctrl_map **map,
 		unsigned *reserved_maps, unsigned *num_maps,
@@ -174,6 +192,17 @@ static inline int pinconf_generic_dt_node_to_map_pin(
 			PIN_MAP_TYPE_CONFIGS_PIN);
 }
 
+static inline int pinconf_generic_dt_node_to_map_all(
+		struct pinctrl_dev *pctldev, struct device_node *np_config,
+		struct pinctrl_map **map, unsigned *num_maps)
+{
+	/*
+	 * passing the type as PIN_MAP_TYPE_INVALID causes the underlying parser
+	 * to infer the map type from the DT properties used.
+	 */
+	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
+			PIN_MAP_TYPE_INVALID);
+}
 #endif
 
 #endif /* CONFIG_GENERIC_PINCONF */

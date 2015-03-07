@@ -48,12 +48,20 @@
  */
 
 /dts-v1/;
-/include/ "sun8i-a23.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun8i-a23.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Ippo Q8H Dual Core Tablet (v5)";
 	compatible = "ippo,q8h-v5", "allwinner,sun8i-a23";
+
+	aliases {
+		serial0 = &r_uart;
+	};
 
 	chosen {
 		bootargs = "earlyprintk console=ttyS0,115200";
@@ -65,7 +73,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_q8h>;
 			vmmc-supply = <&reg_vcc3v0>;
 			bus-width = <4>;
-			cd-gpios = <&pio 1 4 0>; /* PB4 */
+			cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -74,8 +82,27 @@
 			mmc0_cd_pin_q8h: mmc0_cd_pin@0 {
 				allwinner,pins = "PB4";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+			};
+		};
+
+		lradc: lradc@01c22800 {
+			vref-supply = <&reg_vcc3v0>;
+			status = "okay";
+
+			button@200 {
+				label = "Volume Up";
+				linux,code = <KEY_VOLUMEUP>;
+				channel = <0>;
+				voltage = <200000>;
+			};
+
+			button@400 {
+				label = "Volume Down";
+				linux,code = <KEY_VOLUMEDOWN>;
+				channel = <0>;
+				voltage = <400000>;
 			};
 		};
 

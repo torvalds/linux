@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -34,13 +35,20 @@ static struct regmap *regmap;
 static u32 rst_src_en;
 static u32 sw_mstr_rst;
 
+struct reset_reg_mask {
+	u32 rst_src_en_mask;
+	u32 sw_mstr_rst_mask;
+};
+
+static const struct reset_reg_mask *reset_masks;
+
 static int brcmstb_restart_handler(struct notifier_block *this,
 				   unsigned long mode, void *cmd)
 {
 	int rc;
 	u32 tmp;
 
-	rc = regmap_write(regmap, rst_src_en, 1);
+	rc = regmap_write(regmap, rst_src_en, reset_masks->rst_src_en_mask);
 	if (rc) {
 		pr_err("failed to write rst_src_en (%d)\n", rc);
 		return NOTIFY_DONE;
@@ -52,7 +60,7 @@ static int brcmstb_restart_handler(struct notifier_block *this,
 		return NOTIFY_DONE;
 	}
 
-	rc = regmap_write(regmap, sw_mstr_rst, 1);
+	rc = regmap_write(regmap, sw_mstr_rst, reset_masks->sw_mstr_rst_mask);
 	if (rc) {
 		pr_err("failed to write sw_mstr_rst (%d)\n", rc);
 		return NOTIFY_DONE;
@@ -75,10 +83,34 @@ static struct notifier_block brcmstb_restart_nb = {
 	.priority = 128,
 };
 
+static const struct reset_reg_mask reset_bits_40nm = {
+	.rst_src_en_mask = BIT(0),
+	.sw_mstr_rst_mask = BIT(0),
+};
+
+static const struct reset_reg_mask reset_bits_65nm = {
+	.rst_src_en_mask = BIT(3),
+	.sw_mstr_rst_mask = BIT(31),
+};
+
+static const struct of_device_id of_match[] = {
+	{ .compatible = "brcm,brcmstb-reboot", .data = &reset_bits_40nm },
+	{ .compatible = "brcm,bcm7038-reboot", .data = &reset_bits_65nm },
+	{},
+};
+
 static int brcmstb_reboot_probe(struct platform_device *pdev)
 {
 	int rc;
 	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *of_id;
+
+	of_id = of_match_node(of_match, np);
+	if (!of_id) {
+		pr_err("failed to look up compatible string\n");
+		return -EINVAL;
+	}
+	reset_masks = of_id->data;
 
 	regmap = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(regmap)) {
@@ -107,11 +139,6 @@ static int brcmstb_reboot_probe(struct platform_device *pdev)
 
 	return rc;
 }
-
-static const struct of_device_id of_match[] = {
-	{ .compatible = "brcm,brcmstb-reboot", },
-	{},
-};
 
 static struct platform_driver brcmstb_reboot_driver = {
 	.probe = brcmstb_reboot_probe,

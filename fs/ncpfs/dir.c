@@ -77,6 +77,7 @@ static int ncp_hash_dentry(const struct dentry *, struct qstr *);
 static int ncp_compare_dentry(const struct dentry *, const struct dentry *,
 		unsigned int, const char *, const struct qstr *);
 static int ncp_delete_dentry(const struct dentry *);
+static void ncp_d_prune(struct dentry *dentry);
 
 const struct dentry_operations ncp_dentry_operations =
 {
@@ -84,6 +85,7 @@ const struct dentry_operations ncp_dentry_operations =
 	.d_hash		= ncp_hash_dentry,
 	.d_compare	= ncp_compare_dentry,
 	.d_delete	= ncp_delete_dentry,
+	.d_prune	= ncp_d_prune,
 };
 
 #define ncp_namespace(i)	(NCP_SERVER(i)->name_space[NCP_FINFO(i)->volNumber])
@@ -384,42 +386,6 @@ finished:
 	return val;
 }
 
-static struct dentry *
-ncp_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
-{
-	struct dentry *dent = dentry;
-
-	if (d_validate(dent, parent)) {
-		if (dent->d_name.len <= NCP_MAXPATHLEN &&
-		    (unsigned long)dent->d_fsdata == fpos) {
-			if (!dent->d_inode) {
-				dput(dent);
-				dent = NULL;
-			}
-			return dent;
-		}
-		dput(dent);
-	}
-
-	/* If a pointer is invalid, we search the dentry. */
-	spin_lock(&parent->d_lock);
-	list_for_each_entry(dent, &parent->d_subdirs, d_child) {
-		if ((unsigned long)dent->d_fsdata == fpos) {
-			if (dent->d_inode)
-				dget(dent);
-			else
-				dent = NULL;
-			spin_unlock(&parent->d_lock);
-			goto out;
-		}
-	}
-	spin_unlock(&parent->d_lock);
-	return NULL;
-
-out:
-	return dent;
-}
-
 static time_t ncp_obtain_mtime(struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
@@ -433,6 +399,20 @@ static time_t ncp_obtain_mtime(struct dentry *dentry)
 		return 0;
 
 	return ncp_date_dos2unix(i.modifyTime, i.modifyDate);
+}
+
+static inline void
+ncp_invalidate_dircache_entries(struct dentry *parent)
+{
+	struct ncp_server *server = NCP_SERVER(parent->d_inode);
+	struct dentry *dentry;
+
+	spin_lock(&parent->d_lock);
+	list_for_each_entry(dentry, &parent->d_subdirs, d_child) {
+		dentry->d_fsdata = NULL;
+		ncp_age_dentry(server, dentry);
+	}
+	spin_unlock(&parent->d_lock);
 }
 
 static int ncp_readdir(struct file *file, struct dir_context *ctx)
@@ -500,10 +480,21 @@ static int ncp_readdir(struct file *file, struct dir_context *ctx)
 			struct dentry *dent;
 			bool over;
 
-			dent = ncp_dget_fpos(ctl.cache->dentry[ctl.idx],
-						dentry, ctx->pos);
-			if (!dent)
+			spin_lock(&dentry->d_lock);
+			if (!(NCP_FINFO(inode)->flags & NCPI_DIR_CACHE)) { 
+				spin_unlock(&dentry->d_lock);
 				goto invalid_cache;
+			}
+			dent = ctl.cache->dentry[ctl.idx];
+			if (unlikely(!lockref_get_not_dead(&dent->d_lockref))) {
+				spin_unlock(&dentry->d_lock);
+				goto invalid_cache;
+			}
+			spin_unlock(&dentry->d_lock);
+			if (!dent->d_inode) {
+				dput(dent);
+				goto invalid_cache;
+			}
 			over = !dir_emit(ctx, dent->d_name.name,
 					dent->d_name.len,
 					dent->d_inode->i_ino, DT_UNKNOWN);
@@ -548,6 +539,9 @@ init_cache:
 	ctl.filled = 0;
 	ctl.valid  = 1;
 read_really:
+	spin_lock(&dentry->d_lock);
+	NCP_FINFO(inode)->flags |= NCPI_DIR_CACHE;
+	spin_unlock(&dentry->d_lock);
 	if (ncp_is_server_root(inode)) {
 		ncp_read_volume_list(file, ctx, &ctl);
 	} else {
@@ -571,6 +565,13 @@ finished:
 	}
 out:
 	return result;
+}
+
+static void ncp_d_prune(struct dentry *dentry)
+{
+	if (!dentry->d_fsdata)	/* not referenced from page cache */
+		return;
+	NCP_FINFO(dentry->d_parent->d_inode)->flags &= ~NCPI_DIR_CACHE;
 }
 
 static int
@@ -630,6 +631,10 @@ ncp_fill_cache(struct file *file, struct dir_context *ctx,
 			d_instantiate(newdent, inode);
 			if (!hashed)
 				d_rehash(newdent);
+		} else {
+			spin_lock(&dentry->d_lock);
+			NCP_FINFO(inode)->flags &= ~NCPI_DIR_CACHE;
+			spin_unlock(&dentry->d_lock);
 		}
 	} else {
 		struct inode *inode = newdent->d_inode;
@@ -637,12 +642,6 @@ ncp_fill_cache(struct file *file, struct dir_context *ctx,
 		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
 		ncp_update_inode2(inode, entry);
 		mutex_unlock(&inode->i_mutex);
-	}
-
-	if (newdent->d_inode) {
-		ino = newdent->d_inode->i_ino;
-		newdent->d_fsdata = (void *) ctl.fpos;
-		ncp_new_dentry(newdent);
 	}
 
 	if (ctl.idx >= NCP_DIRCACHE_SIZE) {
@@ -660,8 +659,13 @@ ncp_fill_cache(struct file *file, struct dir_context *ctx,
 			ctl.cache = kmap(ctl.page);
 	}
 	if (ctl.cache) {
-		ctl.cache->dentry[ctl.idx] = newdent;
-		valid = 1;
+		if (newdent->d_inode) {
+			newdent->d_fsdata = newdent;
+			ctl.cache->dentry[ctl.idx] = newdent;
+			ino = newdent->d_inode->i_ino;
+			ncp_new_dentry(newdent);
+		}
+ 		valid = 1;
 	}
 	dput(newdent);
 end_advance:

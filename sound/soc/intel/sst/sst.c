@@ -350,7 +350,9 @@ static inline void sst_save_shim64(struct intel_sst_drv *ctx,
 
 	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
 
-	shim_regs->imrx = sst_shim_read64(shim, SST_IMRX),
+	shim_regs->imrx = sst_shim_read64(shim, SST_IMRX);
+	shim_regs->csr = sst_shim_read64(shim, SST_CSR);
+
 
 	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
 }
@@ -367,6 +369,7 @@ static inline void sst_restore_shim64(struct intel_sst_drv *ctx,
 	 */
 	spin_lock_irqsave(&ctx->ipc_spin_lock, irq_flags);
 	sst_shim_write64(shim, SST_IMRX, shim_regs->imrx),
+	sst_shim_write64(shim, SST_CSR, shim_regs->csr),
 	spin_unlock_irqrestore(&ctx->ipc_spin_lock, irq_flags);
 }
 
@@ -379,6 +382,10 @@ void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
 	 * initially active. So change the state to active before
 	 * enabling the pm
 	 */
+
+	if (!acpi_disabled)
+		pm_runtime_set_active(ctx->dev);
+
 	pm_runtime_enable(ctx->dev);
 
 	if (acpi_disabled)
@@ -409,6 +416,7 @@ static int intel_sst_runtime_suspend(struct device *dev)
 	synchronize_irq(ctx->irq_num);
 	flush_workqueue(ctx->post_msg_wq);
 
+	ctx->ops->reset(ctx);
 	/* save the shim registers because PMC doesn't save state */
 	sst_save_shim64(ctx, ctx->shim, ctx->shim_regs64);
 

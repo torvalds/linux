@@ -158,7 +158,7 @@ static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev,
 
 	host = c->host;
 
-	/* Platform specific code during emmc proble slot goes here */
+	/* Platform specific code during emmc probe slot goes here */
 
 	if (hid && uid && !strcmp(hid, "80860F14") && !strcmp(uid, "1") &&
 	    sdhci_readl(host, SDHCI_CAPABILITIES) == 0x446cc8b2 &&
@@ -179,7 +179,7 @@ static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev,
 
 	host = c->host;
 
-	/* Platform specific code during emmc proble slot goes here */
+	/* Platform specific code during sdio probe slot goes here */
 
 	return 0;
 }
@@ -195,7 +195,7 @@ static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev,
 
 	host = c->host;
 
-	/* Platform specific code during emmc proble slot goes here */
+	/* Platform specific code during sd probe slot goes here */
 
 	return 0;
 }
@@ -247,6 +247,7 @@ static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
 	{ "INT33BB"  , "3" , &sdhci_acpi_slot_int_sd },
 	{ "INT33C6"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "INT3436"  , NULL, &sdhci_acpi_slot_int_sdio },
+	{ "INT344D"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "PNP0D40"  },
 	{ },
 };
@@ -257,6 +258,7 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 	{ "INT33BB"  },
 	{ "INT33C6"  },
 	{ "INT3436"  },
+	{ "INT344D"  },
 	{ "PNP0D40"  },
 	{ },
 };
@@ -446,18 +448,13 @@ static int sdhci_acpi_runtime_resume(struct device *dev)
 	return sdhci_runtime_resume_host(c->host);
 }
 
-static int sdhci_acpi_runtime_idle(struct device *dev)
-{
-	return 0;
-}
-
 #endif
 
 static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 	.suspend		= sdhci_acpi_suspend,
 	.resume			= sdhci_acpi_resume,
 	SET_RUNTIME_PM_OPS(sdhci_acpi_runtime_suspend,
-			sdhci_acpi_runtime_resume, sdhci_acpi_runtime_idle)
+			sdhci_acpi_runtime_resume, NULL)
 };
 
 static struct platform_driver sdhci_acpi_driver = {

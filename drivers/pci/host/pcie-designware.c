@@ -283,6 +283,9 @@ static int dw_msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
 	struct msi_msg msg;
 	struct pcie_port *pp = sys_to_pcie(pdev->bus->sysdata);
 
+	if (desc->msi_attrib.is_msix)
+		return -EINVAL;
+
 	irq = assign_irq(1, desc, &pos);
 	if (irq < 0)
 		return irq;
@@ -508,9 +511,6 @@ int __init dw_pcie_host_init(struct pcie_port *pp)
 	dw_pci.private_data = (void **)&pp;
 
 	pci_common_init_dev(pp->dev, &dw_pci);
-#ifdef CONFIG_PCI_DOMAINS
-	dw_pci.domain++;
-#endif
 
 	return 0;
 }

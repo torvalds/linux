@@ -208,6 +208,7 @@ static int hdmi_phy_init_features(struct platform_device *pdev)
 		break;
 
 	case OMAPDSS_VER_OMAP5:
+	case OMAPDSS_VER_DRA7xx:
 		src = &omap54xx_phy_feats;
 		break;
 

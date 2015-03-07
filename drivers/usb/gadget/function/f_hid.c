@@ -399,8 +399,9 @@ static int hidg_setup(struct usb_function *f,
 	value	= __le16_to_cpu(ctrl->wValue);
 	length	= __le16_to_cpu(ctrl->wLength);
 
-	VDBG(cdev, "hid_setup crtl_request : bRequestType:0x%x bRequest:0x%x "
-		"Value:0x%x\n", ctrl->bRequestType, ctrl->bRequest, value);
+	VDBG(cdev,
+	     "%s crtl_request : bRequestType:0x%x bRequest:0x%x Value:0x%x\n",
+	     __func__, ctrl->bRequestType, ctrl->bRequest, value);
 
 	switch ((ctrl->bRequestType << 8) | ctrl->bRequest) {
 	case ((USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8
@@ -758,7 +759,7 @@ static struct f_hid_opts_attribute f_hid_opts_##name =			\
 
 F_HID_OPT(subclass, 8, 255);
 F_HID_OPT(protocol, 8, 255);
-F_HID_OPT(report_length, 16, 65536);
+F_HID_OPT(report_length, 16, 65535);
 
 static ssize_t f_hid_opts_report_desc_show(struct f_hid_opts *opts, char *page)
 {

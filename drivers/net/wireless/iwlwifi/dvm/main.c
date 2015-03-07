@@ -64,22 +64,8 @@
  *
  ******************************************************************************/
 
-/*
- * module name, copyright, version, etc.
- */
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-#define VD "d"
-#else
-#define VD
-#endif
-
-#define DRV_VERSION     IWLWIFI_VERSION VD
-
-
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
@@ -1011,13 +997,11 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	if (priv->lib->bt_params)
 		iwlagn_bt_setup_deferred_work(priv);
 
-	init_timer(&priv->statistics_periodic);
-	priv->statistics_periodic.data = (unsigned long)priv;
-	priv->statistics_periodic.function = iwl_bg_statistics_periodic;
+	setup_timer(&priv->statistics_periodic, iwl_bg_statistics_periodic,
+		    (unsigned long)priv);
 
-	init_timer(&priv->ucode_trace);
-	priv->ucode_trace.data = (unsigned long)priv;
-	priv->ucode_trace.function = iwl_bg_ucode_trace;
+	setup_timer(&priv->ucode_trace, iwl_bg_ucode_trace,
+		    (unsigned long)priv);
 }
 
 void iwl_cancel_deferred_work(struct iwl_priv *priv)
@@ -1244,11 +1228,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 	trans_cfg.rx_buf_size_8k = iwlwifi_mod_params.amsdu_size_8K;
-	if (!iwlwifi_mod_params.wd_disable)
-		trans_cfg.queue_watchdog_timeout =
-			priv->cfg->base_params->wd_timeout;
-	else
-		trans_cfg.queue_watchdog_timeout = IWL_WATCHDOG_DISABLED;
+	trans_cfg.cmd_q_wdg_timeout = IWL_WATCHDOG_DISABLED;
+
 	trans_cfg.command_names = iwl_dvm_cmd_strings;
 	trans_cfg.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
 

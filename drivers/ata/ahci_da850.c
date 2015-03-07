@@ -16,6 +16,8 @@
 #include <linux/ahci_platform.h>
 #include "ahci.h"
 
+#define DRV_NAME "ahci_da850"
+
 /* SATA PHY Control Register offset from AHCI base */
 #define SATA_P0PHYCR_REG	0x178
 
@@ -59,6 +61,10 @@ static const struct ata_port_info ahci_da850_port_info = {
 	.port_ops	= &ahci_platform_ops,
 };
 
+static struct scsi_host_template ahci_platform_sht = {
+	AHCI_SHT(DRV_NAME),
+};
+
 static int ahci_da850_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -85,7 +91,8 @@ static int ahci_da850_probe(struct platform_device *pdev)
 
 	da850_sata_init(dev, pwrdn_reg, hpriv->mmio);
 
-	rc = ahci_platform_init_host(pdev, hpriv, &ahci_da850_port_info);
+	rc = ahci_platform_init_host(pdev, hpriv, &ahci_da850_port_info,
+				     &ahci_platform_sht);
 	if (rc)
 		goto disable_resources;
 
@@ -102,7 +109,7 @@ static struct platform_driver ahci_da850_driver = {
 	.probe = ahci_da850_probe,
 	.remove = ata_platform_remove_one,
 	.driver = {
-		.name = "ahci_da850",
+		.name = DRV_NAME,
 		.pm = &ahci_da850_pm_ops,
 	},
 };

@@ -272,7 +272,7 @@ static irqreturn_t crystalcove_gpio_irq_handler(int irq, void *data)
 	for (gpio = 0; gpio < CRYSTALCOVE_GPIO_NUM; gpio++) {
 		if (pending & BIT(gpio)) {
 			virq = irq_find_mapping(cg->chip.irqdomain, gpio);
-			generic_handle_irq(virq);
+			handle_nested_irq(virq);
 		}
 	}
 

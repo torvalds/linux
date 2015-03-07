@@ -304,6 +304,11 @@ struct usba_request {
 	unsigned int				mapped:1;
 };
 
+struct usba_udc_errata {
+	void (*toggle_bias)(struct usba_udc *udc, int is_on);
+	void (*pulse_bias)(struct usba_udc *udc);
+};
+
 struct usba_udc {
 	/* Protect hw registers from concurrent modifications */
 	spinlock_t lock;
@@ -314,6 +319,7 @@ struct usba_udc {
 	struct usb_gadget gadget;
 	struct usb_gadget_driver *driver;
 	struct platform_device *pdev;
+	const struct usba_udc_errata *errata;
 	int irq;
 	int vbus_pin;
 	int vbus_pin_inverted;
@@ -321,11 +327,14 @@ struct usba_udc {
 	struct clk *pclk;
 	struct clk *hclk;
 	struct usba_ep *usba_ep;
+	bool bias_pulse_needed;
 
 	u16 devstatus;
 
 	u16 test_mode;
 	int vbus_prev;
+
+	u32 int_enb_cache;
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry *debugfs_root;

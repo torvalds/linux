@@ -1,0 +1,5 @@
+config IEEE802154_6LOWPAN
+	tristate "6lowpan support over IEEE 802.15.4"
+	depends on 6LOWPAN
+	---help---
+	  IPv6 compression over IEEE 802.15.4.

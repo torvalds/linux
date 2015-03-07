@@ -86,7 +86,7 @@ const char *qib_get_unit_name(int unit)
 {
 	static char iname[16];
 
-	snprintf(iname, sizeof iname, "infinipath%u", unit);
+	snprintf(iname, sizeof(iname), "infinipath%u", unit);
 	return iname;
 }
 
@@ -349,6 +349,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 		qp_num = be32_to_cpu(ohdr->bth[1]) & QIB_QPN_MASK;
 		if (qp_num != QIB_MULTICAST_QPN) {
 			int ruc_res;
+
 			qp = qib_lookup_qpn(ibp, qp_num);
 			if (!qp)
 				goto drop;
@@ -461,6 +462,7 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 	rhf_addr = (__le32 *) rcd->rcvhdrq + l + dd->rhf_offset;
 	if (dd->flags & QIB_NODMA_RTAIL) {
 		u32 seq = qib_hdrget_seq(rhf_addr);
+
 		if (seq != rcd->seq_cnt)
 			goto bail;
 		hdrqtail = 0;
@@ -651,6 +653,7 @@ bail:
 int qib_set_lid(struct qib_pportdata *ppd, u32 lid, u8 lmc)
 {
 	struct qib_devdata *dd = ppd->dd;
+
 	ppd->lid = lid;
 	ppd->lmc = lmc;
 

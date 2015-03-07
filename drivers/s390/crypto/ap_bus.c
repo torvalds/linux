@@ -204,6 +204,24 @@ ap_test_queue(ap_qid_t qid, int *queue_depth, int *device_type)
 }
 
 /**
+ * ap_query_facilities(): PQAP(TAPQ) query facilities.
+ * @qid: The AP queue number
+ *
+ * Returns content of general register 2 after the PQAP(TAPQ)
+ * instruction was called.
+ */
+static inline unsigned long ap_query_facilities(ap_qid_t qid)
+{
+	register unsigned long reg0 asm ("0") = qid | 0x00800000UL;
+	register unsigned long reg1 asm ("1");
+	register unsigned long reg2 asm ("2") = 0UL;
+
+	asm volatile(".long 0xb2af0000"  /* PQAP(TAPQ) */
+		     : "+d" (reg0), "=d" (reg1), "+d" (reg2) : : "cc");
+	return reg2;
+}
+
+/**
  * ap_reset_queue(): Reset adjunct processor queue.
  * @qid: The AP queue number
  *
@@ -1007,6 +1025,51 @@ void ap_bus_force_rescan(void)
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
 /*
+ * ap_test_config(): helper function to extract the nrth bit
+ *		     within the unsigned int array field.
+ */
+static inline int ap_test_config(unsigned int *field, unsigned int nr)
+{
+	if (nr > 0xFFu)
+		return 0;
+	return ap_test_bit((field + (nr >> 5)), (nr & 0x1f));
+}
+
+/*
+ * ap_test_config_card_id(): Test, whether an AP card ID is configured.
+ * @id AP card ID
+ *
+ * Returns 0 if the card is not configured
+ *	   1 if the card is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_card_id(unsigned int id)
+{
+	if (!ap_configuration)
+		return 1;
+	return ap_test_config(ap_configuration->apm, id);
+}
+
+/*
+ * ap_test_config_domain(): Test, whether an AP usage domain is configured.
+ * @domain AP usage domain ID
+ *
+ * Returns 0 if the usage domain is not configured
+ *	   1 if the usage domain is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_domain(unsigned int domain)
+{
+	if (!ap_configuration)	  /* QCI not supported */
+		if (domain < 16)
+			return 1; /* then domains 0...15 are configured */
+		else
+			return 0;
+	else
+		return ap_test_config(ap_configuration->aqm, domain);
+}
+
+/*
  * AP bus attributes.
  */
 static ssize_t ap_domain_show(struct bus_type *bus, char *buf)
@@ -1121,6 +1184,42 @@ static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 
 static BUS_ATTR(poll_timeout, 0644, poll_timeout_show, poll_timeout_store);
 
+static ssize_t ap_max_domain_id_show(struct bus_type *bus, char *buf)
+{
+	ap_qid_t qid;
+	int i, nd, max_domain_id = -1;
+	unsigned long fbits;
+
+	if (ap_configuration) {
+		if (ap_domain_index >= 0 && ap_domain_index < AP_DOMAINS) {
+			for (i = 0; i < AP_DEVICES; i++) {
+				if (!ap_test_config_card_id(i))
+					continue;
+				qid = AP_MKQID(i, ap_domain_index);
+				fbits = ap_query_facilities(qid);
+				if (fbits & (1UL << 57)) {
+					/* the N bit is 0, Nd field is filled */
+					nd = (int)((fbits & 0x00FF0000UL)>>16);
+					if (nd > 0)
+						max_domain_id = nd;
+					else
+						max_domain_id = 15;
+				} else {
+					/* N bit is 1, max 16 domains */
+					max_domain_id = 15;
+				}
+				break;
+			}
+		}
+	} else {
+		/* no APXA support, older machines with max 16 domains */
+		max_domain_id = 15;
+	}
+	return snprintf(buf, PAGE_SIZE, "%d\n", max_domain_id);
+}
+
+static BUS_ATTR(ap_max_domain_id, 0444, ap_max_domain_id_show, NULL);
+
 static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_ap_domain,
 	&bus_attr_ap_control_domain_mask,
@@ -1128,45 +1227,9 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	&bus_attr_poll_thread,
 	&bus_attr_ap_interrupts,
 	&bus_attr_poll_timeout,
+	&bus_attr_ap_max_domain_id,
 	NULL,
 };
-
-static inline int ap_test_config(unsigned int *field, unsigned int nr)
-{
-	if (nr > 0xFFu)
-		return 0;
-	return ap_test_bit((field + (nr >> 5)), (nr & 0x1f));
-}
-
-/*
- * ap_test_config_card_id(): Test, whether an AP card ID is configured.
- * @id AP card ID
- *
- * Returns 0 if the card is not configured
- *	   1 if the card is configured or
- *	     if the configuration information is not available
- */
-static inline int ap_test_config_card_id(unsigned int id)
-{
-	if (!ap_configuration)
-		return 1;
-	return ap_test_config(ap_configuration->apm, id);
-}
-
-/*
- * ap_test_config_domain(): Test, whether an AP usage domain is configured.
- * @domain AP usage domain ID
- *
- * Returns 0 if the usage domain is not configured
- *	   1 if the usage domain is configured or
- *	     if the configuration information is not available
- */
-static inline int ap_test_config_domain(unsigned int domain)
-{
-	if (!ap_configuration)
-		return 1;
-	return ap_test_config(ap_configuration->aqm, domain);
-}
 
 /**
  * ap_query_configuration(): Query AP configuration information.
@@ -1429,9 +1492,6 @@ static void ap_scan_bus(struct work_struct *unused)
 				kfree(ap_dev);
 				continue;
 			}
-			break;
-		case 11:
-			ap_dev->device_type = 10;
 			break;
 		default:
 			ap_dev->device_type = device_type;

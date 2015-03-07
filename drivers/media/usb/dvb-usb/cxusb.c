@@ -2232,7 +2232,7 @@ static struct dvb_usb_device_properties cxusb_mygica_t230_properties = {
 		{
 			"Mygica T230 DVB-T/T2/C",
 			{ NULL },
-			{ &cxusb_table[22], NULL },
+			{ &cxusb_table[20], NULL },
 		},
 	}
 };

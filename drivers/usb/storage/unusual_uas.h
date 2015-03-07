@@ -40,6 +40,16 @@
  * and don't forget to CC: the USB development list <linux-usb@vger.kernel.org>
  */
 
+/*
+ * Apricorn USB3 dongle sometimes returns "USBSUSBSUSBS" in response to SCSI
+ * commands in UAS mode.  Observed with the 1.28 firmware; are there others?
+ */
+UNUSUAL_DEV(0x0984, 0x0301, 0x0128, 0x0128,
+		"Apricorn",
+		"",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_IGNORE_UAS),
+
 /* https://bugzilla.kernel.org/show_bug.cgi?id=79511 */
 UNUSUAL_DEV(0x0bc2, 0x2312, 0x0000, 0x9999,
 		"Seagate",
@@ -68,6 +78,20 @@ UNUSUAL_DEV(0x0bc2, 0xa003, 0x0000, 0x9999,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_ATA_1X),
 
+/* Reported-by: Marcin Zajączkowski <mszpak@wp.pl> */
+UNUSUAL_DEV(0x0bc2, 0xa013, 0x0000, 0x9999,
+		"Seagate",
+		"Backup Plus",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
+/* Reported-by: Hans de Goede <hdegoede@redhat.com> */
+UNUSUAL_DEV(0x0bc2, 0xa0a4, 0x0000, 0x9999,
+		"Seagate",
+		"Backup Plus Desk",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
 /* https://bbs.archlinux.org/viewtopic.php?id=183190 */
 UNUSUAL_DEV(0x0bc2, 0xab20, 0x0000, 0x9999,
 		"Seagate",
@@ -82,20 +106,19 @@ UNUSUAL_DEV(0x0bc2, 0xab21, 0x0000, 0x9999,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_ATA_1X),
 
+/* Reported-by: G. Richard Bellamy <rbellamy@pteradigm.com> */
+UNUSUAL_DEV(0x0bc2, 0xab2a, 0x0000, 0x9999,
+		"Seagate",
+		"BUP Fast HDD",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_ATA_1X),
+
 /* Reported-by: Claudio Bizzarri <claudio.bizzarri@gmail.com> */
 UNUSUAL_DEV(0x152d, 0x0567, 0x0000, 0x9999,
 		"JMicron",
 		"JMS567",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_REPORT_OPCODES),
-
-/* Most ASM1051 based devices have issues with uas, blacklist them all */
-/* Reported-by: Hans de Goede <hdegoede@redhat.com> */
-UNUSUAL_DEV(0x174c, 0x5106, 0x0000, 0x9999,
-		"ASMedia",
-		"ASM1051",
-		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
-		US_FL_IGNORE_UAS),
 
 /* Reported-by: Hans de Goede <hdegoede@redhat.com> */
 UNUSUAL_DEV(0x2109, 0x0711, 0x0000, 0x9999,
@@ -104,9 +127,23 @@ UNUSUAL_DEV(0x2109, 0x0711, 0x0000, 0x9999,
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_NO_ATA_1X),
 
+/* Reported-by: Takeo Nakayama <javhera@gmx.com> */
+UNUSUAL_DEV(0x357d, 0x7788, 0x0000, 0x9999,
+		"JMicron",
+		"JMS566",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_REPORT_OPCODES),
+
 /* Reported-by: Hans de Goede <hdegoede@redhat.com> */
 UNUSUAL_DEV(0x4971, 0x1012, 0x0000, 0x9999,
 		"Hitachi",
 		"External HDD",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_IGNORE_UAS),
+
+/* Reported-by: Richard Henderson <rth@redhat.com> */
+UNUSUAL_DEV(0x4971, 0x8017, 0x0000, 0x9999,
+		"SimpleTech",
+		"External HDD",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_NO_REPORT_OPCODES),

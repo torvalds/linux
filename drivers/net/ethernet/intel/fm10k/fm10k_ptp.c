@@ -57,7 +57,6 @@ void fm10k_ts_tx_enqueue(struct fm10k_intfc *interface, struct sk_buff *skb)
 	struct sk_buff_head *list = &interface->ts_tx_skb_queue;
 	struct sk_buff *clone;
 	unsigned long flags;
-	__le16 dglort;
 
 	/* create clone for us to return on the Tx path */
 	clone = skb_clone_sk(skb);
@@ -65,8 +64,6 @@ void fm10k_ts_tx_enqueue(struct fm10k_intfc *interface, struct sk_buff *skb)
 		return;
 
 	FM10K_CB(clone)->ts_tx_timeout = jiffies + FM10K_TS_TX_TIMEOUT;
-	dglort = FM10K_CB(clone)->fi.w.dglort;
-
 	spin_lock_irqsave(&list->lock, flags);
 
 	/* attempt to locate any buffers with the same dglort,

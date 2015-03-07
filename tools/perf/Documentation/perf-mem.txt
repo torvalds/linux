@@ -12,11 +12,12 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-"perf mem -t <TYPE> record" runs a command and gathers memory operation data
+"perf mem record" runs a command and gathers memory operation data
 from it, into perf.data. Perf record options are accepted and are passed through.
 
-"perf mem -t <TYPE> report" displays the result. It invokes perf report with the
-right set of options to display a memory access profile.
+"perf mem report" displays the result. It invokes perf report with the
+right set of options to display a memory access profile. By default, loads
+and stores are sampled. Use the -t option to limit to loads or stores.
 
 Note that on Intel systems the memory latency reported is the use-latency,
 not the pure load (or store latency). Use latency includes any pipeline
@@ -29,7 +30,7 @@ OPTIONS
 
 -t::
 --type=::
-	Select the memory operation type: load or store (default: load)
+	Select the memory operation type: load or store (default: load,store)
 
 -D::
 --dump-raw-samples=::

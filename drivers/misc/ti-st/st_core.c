@@ -343,12 +343,26 @@ void st_int_recv(void *disc_data,
 			/* Unknow packet? */
 		default:
 			type = *ptr;
-			if (st_gdata->list[type] == NULL) {
-				pr_err("chip/interface misbehavior dropping"
-					" frame starting with 0x%02x", type);
-				goto done;
 
+			/* Default case means non-HCILL packets,
+			 * possibilities are packets for:
+			 * (a) valid protocol -  Supported Protocols within
+			 *     the ST_MAX_CHANNELS.
+			 * (b) registered protocol - Checked by
+			 *     "st_gdata->list[type] == NULL)" are supported
+			 *     protocols only.
+			 *  Rules out any invalid protocol and
+			 *  unregistered protocols with channel ID < 16.
+			 */
+
+			if ((type >= ST_MAX_CHANNELS) ||
+					(st_gdata->list[type] == NULL)) {
+				pr_err("chip/interface misbehavior: "
+						"dropping frame starting "
+						"with 0x%02x\n", type);
+				goto done;
 			}
+
 			st_gdata->rx_skb = alloc_skb(
 					st_gdata->list[type]->max_frame_size,
 					GFP_ATOMIC);
@@ -893,5 +907,3 @@ void st_core_exit(struct st_data_s *st_gdata)
 		kfree(st_gdata);
 	}
 }
-
-

@@ -197,7 +197,9 @@ of the following host1x client modules:
 - sor: serial output resource
 
   Required properties:
-  - compatible: "nvidia,tegra124-sor"
+  - compatible: For Tegra124, must contain "nvidia,tegra124-sor".  Otherwise,
+    must contain '"nvidia,<chip>-sor", "nvidia,tegra124-sor"', where <chip>
+    is tegra132.
   - reg: Physical base address and length of the controller's registers.
   - interrupts: The interrupt outputs from the controller.
   - clocks: Must contain an entry for each entry in clock-names.
@@ -222,7 +224,9 @@ of the following host1x client modules:
   - nvidia,dpaux: phandle to a DispayPort AUX interface
 
 - dpaux: DisplayPort AUX interface
-  - compatible: "nvidia,tegra124-dpaux"
+  - compatible: For Tegra124, must contain "nvidia,tegra124-dpaux".  Otherwise,
+    must contain '"nvidia,<chip>-dpaux", "nvidia,tegra124-dpaux"', where
+    <chip> is tegra132.
   - reg: Physical base address and length of the controller's registers.
   - interrupts: The interrupt outputs from the controller.
   - clocks: Must contain an entry for each entry in clock-names.

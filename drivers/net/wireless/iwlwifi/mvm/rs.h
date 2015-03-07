@@ -137,41 +137,9 @@ enum {
 
 #define IWL_INVALID_VALUE    -1
 
-#define IWL_MIN_RSSI_VAL                 -100
-#define IWL_MAX_RSSI_VAL                    0
-
-/* These values specify how many Tx frame attempts before
- * searching for a new modulation mode */
-#define IWL_LEGACY_FAILURE_LIMIT	160
-#define IWL_LEGACY_SUCCESS_LIMIT	480
-#define IWL_LEGACY_TABLE_COUNT		160
-
-#define IWL_NONE_LEGACY_FAILURE_LIMIT	400
-#define IWL_NONE_LEGACY_SUCCESS_LIMIT	4500
-#define IWL_NONE_LEGACY_TABLE_COUNT	1500
-
-/* Success ratio (ACKed / attempted tx frames) values (perfect is 128 * 100) */
-#define IWL_RS_GOOD_RATIO		12800	/* 100% */
-#define IWL_RATE_SCALE_SWITCH		10880	/*  85% */
-#define IWL_RATE_HIGH_TH		10880	/*  85% */
-#define IWL_RATE_INCREASE_TH		6400	/*  50% */
-#define RS_SR_FORCE_DECREASE		1920	/*  15% */
-#define RS_SR_NO_DECREASE		10880	/*  85% */
-
-#define TPC_SR_FORCE_INCREASE		9600	/* 75% */
-#define TPC_SR_NO_INCREASE		10880	/* 85% */
-#define TPC_TX_POWER_STEP		3
 #define TPC_MAX_REDUCTION		15
 #define TPC_NO_REDUCTION		0
 #define TPC_INVALID			0xff
-
-#define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000) /* 4 milliseconds */
-#define LINK_QUAL_AGG_TIME_LIMIT_MAX	(8000)
-#define LINK_QUAL_AGG_TIME_LIMIT_MIN	(100)
-
-#define LINK_QUAL_AGG_DISABLE_START_DEF	(3)
-#define LINK_QUAL_AGG_DISABLE_START_MAX	(255)
-#define LINK_QUAL_AGG_DISABLE_START_MIN	(0)
 
 #define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(63)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(63)
@@ -181,14 +149,7 @@ enum {
 
 /* load per tid defines for A-MPDU activation */
 #define IWL_AGG_TPT_THREHOLD	0
-#define IWL_AGG_LOAD_THRESHOLD	10
 #define IWL_AGG_ALL_TID		0xff
-#define TID_QUEUE_CELL_SPACING	50	/*mS */
-#define TID_QUEUE_MAX_SIZE	20
-#define TID_ROUND_VALUE		5	/* mS */
-
-#define TID_MAX_TIME_DIFF ((TID_QUEUE_MAX_SIZE - 1) * TID_QUEUE_CELL_SPACING)
-#define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
 
 enum iwl_table_type {
 	LQ_NONE,
@@ -279,6 +240,13 @@ enum rs_column {
 	RS_COLUMN_INVALID,
 };
 
+enum rs_ss_force_opt {
+	RS_SS_FORCE_NONE = 0,
+	RS_SS_FORCE_STBC,
+	RS_SS_FORCE_BFER,
+	RS_SS_FORCE_SISO,
+};
+
 /* Packet stats per rate */
 struct rs_rate_stats {
 	u64 success;
@@ -332,7 +300,9 @@ struct iwl_lq_sta {
 	u64 last_tx;
 	bool is_vht;
 	bool ldpc;              /* LDPC Rx is supported by the STA */
-	bool stbc;              /* Tx STBC is supported by chip and Rx by STA */
+	bool stbc_capable;      /* Tx STBC is supported by chip and Rx by STA */
+	bool bfer_capable;      /* Remote supports beamformee and we BFer */
+
 	enum ieee80211_band band;
 
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
@@ -360,6 +330,9 @@ struct iwl_lq_sta {
 
 	/* tx power reduce for this sta */
 	int tpc_reduce;
+
+	/* force STBC/BFER/SISO for testing */
+	enum rs_ss_force_opt ss_force;
 
 	/* persistent fields - initialized only once - keep last! */
 	struct lq_sta_pers {

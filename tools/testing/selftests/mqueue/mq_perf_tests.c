@@ -536,10 +536,9 @@ int main(int argc, char *argv[])
 {
 	struct mq_attr attr;
 	char *option, *next_option;
-	int i, cpu;
+	int i, cpu, rc;
 	struct sigaction sa;
 	poptContext popt_context;
-	char rc;
 	void *retval;
 
 	main_thread = pthread_self();

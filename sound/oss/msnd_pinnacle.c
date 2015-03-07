@@ -675,7 +675,7 @@ static void dsp_write_flush(void)
 		timeout);
 	clear_bit(F_WRITEFLUSH, &dev.flags);
 	if (!signal_pending(current)) {
-		current->state = TASK_INTERRUPTIBLE;
+		__set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(get_play_delay_jiffies(DAP_BUFF_SIZE));
 	}
 	clear_bit(F_WRITING, &dev.flags);
@@ -1288,7 +1288,7 @@ static int __init calibrate_adc(WORD srate)
 		       & ~0x0001, dev.SMA + SMA_wCurrHostStatusFlags);
 	if (msnd_send_word(&dev, 0, 0, HDEXAR_CAL_A_TO_D) == 0 &&
 	    chk_send_dsp_cmd(&dev, HDEX_AUX_REQ) == 0) {
-		current->state = TASK_INTERRUPTIBLE;
+		__set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(HZ / 3);
 		return 0;
 	}

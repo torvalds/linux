@@ -240,59 +240,25 @@ int configfs_make_dirent(struct configfs_dirent * parent_sd,
 	return 0;
 }
 
-static int init_dir(struct inode * inode)
+static void init_dir(struct inode * inode)
 {
 	inode->i_op = &configfs_dir_inode_operations;
 	inode->i_fop = &configfs_dir_operations;
 
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
-	return 0;
 }
 
-static int configfs_init_file(struct inode * inode)
+static void configfs_init_file(struct inode * inode)
 {
 	inode->i_size = PAGE_SIZE;
 	inode->i_fop = &configfs_file_operations;
-	return 0;
 }
 
-static int init_symlink(struct inode * inode)
+static void init_symlink(struct inode * inode)
 {
 	inode->i_op = &configfs_symlink_inode_operations;
-	return 0;
 }
-
-static int create_dir(struct config_item *k, struct dentry *d)
-{
-	int error;
-	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
-	struct dentry *p = d->d_parent;
-
-	BUG_ON(!k);
-
-	error = configfs_dirent_exists(p->d_fsdata, d->d_name.name);
-	if (!error)
-		error = configfs_make_dirent(p->d_fsdata, d, k, mode,
-					     CONFIGFS_DIR | CONFIGFS_USET_CREATING);
-	if (!error) {
-		configfs_set_dir_dirent_depth(p->d_fsdata, d->d_fsdata);
-		error = configfs_create(d, mode, init_dir);
-		if (!error) {
-			inc_nlink(p->d_inode);
-		} else {
-			struct configfs_dirent *sd = d->d_fsdata;
-			if (sd) {
-				spin_lock(&configfs_dirent_lock);
-				list_del_init(&sd->s_sibling);
-				spin_unlock(&configfs_dirent_lock);
-				configfs_put(sd);
-			}
-		}
-	}
-	return error;
-}
-
 
 /**
  *	configfs_create_dir - create a directory for an config_item.
@@ -303,11 +269,37 @@ static int create_dir(struct config_item *k, struct dentry *d)
  *	until it is validated by configfs_dir_set_ready()
  */
 
-static int configfs_create_dir(struct config_item * item, struct dentry *dentry)
+static int configfs_create_dir(struct config_item *item, struct dentry *dentry)
 {
-	int error = create_dir(item, dentry);
-	if (!error)
+	int error;
+	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
+	struct dentry *p = dentry->d_parent;
+
+	BUG_ON(!item);
+
+	error = configfs_dirent_exists(p->d_fsdata, dentry->d_name.name);
+	if (unlikely(error))
+		return error;
+
+	error = configfs_make_dirent(p->d_fsdata, dentry, item, mode,
+				     CONFIGFS_DIR | CONFIGFS_USET_CREATING);
+	if (unlikely(error))
+		return error;
+
+	configfs_set_dir_dirent_depth(p->d_fsdata, dentry->d_fsdata);
+	error = configfs_create(dentry, mode, init_dir);
+	if (!error) {
+		inc_nlink(p->d_inode);
 		item->ci_dentry = dentry;
+	} else {
+		struct configfs_dirent *sd = dentry->d_fsdata;
+		if (sd) {
+			spin_lock(&configfs_dirent_lock);
+			list_del_init(&sd->s_sibling);
+			spin_unlock(&configfs_dirent_lock);
+			configfs_put(sd);
+		}
+	}
 	return error;
 }
 

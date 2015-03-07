@@ -615,6 +615,9 @@ static void c_can_stop(struct net_device *dev)
 
 	c_can_irq_control(priv, false);
 
+	/* put ctrl to init on stop to end ongoing transmission */
+	priv->write_reg(priv, C_CAN_CTRL_REG, CONTROL_INIT);
+
 	/* deactivate pins */
 	pinctrl_pm_select_sleep_state(dev->dev.parent);
 	priv->can.state = CAN_STATE_STOPPED;
@@ -866,7 +869,7 @@ static int c_can_handle_state_change(struct net_device *dev,
 	case C_CAN_BUS_OFF:
 		/* bus-off state */
 		priv->can.state = CAN_STATE_BUS_OFF;
-		can_bus_off(dev);
+		priv->can.can_stats.bus_off++;
 		break;
 	default:
 		break;

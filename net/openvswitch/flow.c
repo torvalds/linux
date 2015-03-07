@@ -70,7 +70,7 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 {
 	struct flow_stats *stats;
 	int node = numa_node_id();
-	int len = skb->len + (vlan_tx_tag_present(skb) ? VLAN_HLEN : 0);
+	int len = skb->len + (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
 
 	stats = rcu_dereference(flow->stats[node]);
 
@@ -472,7 +472,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 	 */
 
 	key->eth.tci = 0;
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		key->eth.tci = htons(skb->vlan_tci);
 	else if (eth->h_proto == htons(ETH_P_8021Q))
 		if (unlikely(parse_vlan(skb, key)))
@@ -691,7 +691,7 @@ int ovs_flow_key_extract(const struct ovs_tunnel_info *tun_info,
 			BUILD_BUG_ON((1 << (sizeof(tun_info->options_len) *
 						   8)) - 1
 					> sizeof(key->tun_opts));
-			memcpy(GENEVE_OPTS(key, tun_info->options_len),
+			memcpy(TUN_METADATA_OPTS(key, tun_info->options_len),
 			       tun_info->options, tun_info->options_len);
 			key->tun_opts_len = tun_info->options_len;
 		} else {
@@ -716,6 +716,8 @@ int ovs_flow_key_extract_userspace(const struct nlattr *attr,
 				   struct sw_flow_key *key, bool log)
 {
 	int err;
+
+	memset(key, 0, OVS_SW_FLOW_KEY_METADATA_SIZE);
 
 	/* Extract metadata from netlink attributes. */
 	err = ovs_nla_get_flow_metadata(attr, key, log);

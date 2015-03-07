@@ -784,9 +784,7 @@ static int tcmu_netlink_event(enum tcmu_genl_cmd cmd, const char *name, int mino
 	if (ret < 0)
 		goto free_skb;
 
-	ret = genlmsg_end(skb, msg_header);
-	if (ret < 0)
-		goto free_skb;
+	genlmsg_end(skb, msg_header);
 
 	ret = genlmsg_multicast(&tcmu_genl_family, skb, 0,
 				TCMU_MCGRP_CONFIG, GFP_KERNEL);
@@ -1118,7 +1116,6 @@ static struct configfs_attribute *tcmu_backend_dev_attrs[] = {
 	&tcmu_dev_attrib_hw_block_size.attr,
 	&tcmu_dev_attrib_block_size.attr,
 	&tcmu_dev_attrib_hw_max_sectors.attr,
-	&tcmu_dev_attrib_fabric_max_sectors.attr,
 	&tcmu_dev_attrib_optimal_sectors.attr,
 	&tcmu_dev_attrib_hw_queue_depth.attr,
 	&tcmu_dev_attrib_queue_depth.attr,

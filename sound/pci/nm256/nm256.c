@@ -24,7 +24,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
   
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -1392,7 +1392,6 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
  */
 static int nm256_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct nm256 *chip = card->private_data;
 
@@ -1400,30 +1399,17 @@ static int nm256_suspend(struct device *dev)
 	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 	chip->coeffs_current = 0;
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int nm256_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct nm256 *chip = card->private_data;
 	int i;
 
 	/* Perform a full reset on the hardware */
 	chip->in_resume = 1;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	snd_nm256_init_chip(chip);
 
@@ -1460,10 +1446,8 @@ static int snd_nm256_free(struct nm256 *chip)
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 
-	if (chip->cport)
-		iounmap(chip->cport);
-	if (chip->buffer)
-		iounmap(chip->buffer);
+	iounmap(chip->cport);
+	iounmap(chip->buffer);
 	release_and_free_resource(chip->res_cport);
 	release_and_free_resource(chip->res_buffer);
 

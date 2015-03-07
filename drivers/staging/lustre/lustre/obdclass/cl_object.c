@@ -193,6 +193,7 @@ static spinlock_t *cl_object_attr_guard(struct cl_object *o)
  * cl_object_attr_get(), cl_object_attr_set().
  */
 void cl_object_attr_lock(struct cl_object *o)
+	__acquires(cl_object_attr_guard(o))
 {
 	spin_lock(cl_object_attr_guard(o));
 }
@@ -202,6 +203,7 @@ EXPORT_SYMBOL(cl_object_attr_lock);
  * Releases data-attributes lock, acquired by cl_object_attr_lock().
  */
 void cl_object_attr_unlock(struct cl_object *o)
+	__releases(cl_object_attr_guard(o))
 {
 	spin_unlock(cl_object_attr_guard(o));
 }
@@ -662,7 +664,8 @@ static int cl_env_store_init(void) {
 	return cl_env_hash != NULL ? 0 :-ENOMEM;
 }
 
-static void cl_env_store_fini(void) {
+static void cl_env_store_fini(void)
+{
 	cfs_hash_putref(cl_env_hash);
 }
 

@@ -606,9 +606,11 @@ cifs_security_flags_handle_must_flags(unsigned int *flags)
 		*flags = CIFSSEC_MUST_NTLMV2;
 	else if ((*flags & CIFSSEC_MUST_NTLM) == CIFSSEC_MUST_NTLM)
 		*flags = CIFSSEC_MUST_NTLM;
-	else if ((*flags & CIFSSEC_MUST_LANMAN) == CIFSSEC_MUST_LANMAN)
+	else if (CIFSSEC_MUST_LANMAN &&
+		 (*flags & CIFSSEC_MUST_LANMAN) == CIFSSEC_MUST_LANMAN)
 		*flags = CIFSSEC_MUST_LANMAN;
-	else if ((*flags & CIFSSEC_MUST_PLNTXT) == CIFSSEC_MUST_PLNTXT)
+	else if (CIFSSEC_MUST_PLNTXT &&
+		 (*flags & CIFSSEC_MUST_PLNTXT) == CIFSSEC_MUST_PLNTXT)
 		*flags = CIFSSEC_MUST_PLNTXT;
 
 	*flags |= signflags;

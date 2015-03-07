@@ -566,6 +566,7 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 		if (tx->sdata->control_port_no_encrypt)
 			info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
+		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;
 	}
 
 	return TX_CONTINUE;
@@ -626,6 +627,9 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 				tx->key = NULL;
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
 			if (!ieee80211_is_data_present(hdr->frame_control) &&
 			    !ieee80211_use_mfp(hdr->frame_control, tx->sta,
 					       tx->skb))
@@ -636,6 +640,9 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 					ieee80211_is_mgmt(hdr->frame_control);
 			break;
 		case WLAN_CIPHER_SUITE_AES_CMAC:
+		case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 			if (!ieee80211_is_mgmt(hdr->frame_control))
 				tx->key = NULL;
 			break;
@@ -815,6 +822,8 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 		/* for pure STA mode without beacons, we can do it */
 		hdr->seq_ctrl = cpu_to_le16(tx->sdata->sequence_number);
 		tx->sdata->sequence_number += 0x10;
+		if (tx->sta)
+			tx->sta->tx_msdu[IEEE80211_NUM_TIDS]++;
 		return TX_CONTINUE;
 	}
 
@@ -831,6 +840,7 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 	qc = ieee80211_get_qos_ctl(hdr);
 	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
 	seq = &tx->sta->tid_seq[tid];
+	tx->sta->tx_msdu[tid]++;
 
 	hdr->seq_ctrl = cpu_to_le16(*seq);
 
@@ -1008,9 +1018,21 @@ ieee80211_tx_h_encrypt(struct ieee80211_tx_data *tx)
 	case WLAN_CIPHER_SUITE_TKIP:
 		return ieee80211_crypto_tkip_encrypt(tx);
 	case WLAN_CIPHER_SUITE_CCMP:
-		return ieee80211_crypto_ccmp_encrypt(tx);
+		return ieee80211_crypto_ccmp_encrypt(
+			tx, IEEE80211_CCMP_MIC_LEN);
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		return ieee80211_crypto_ccmp_encrypt(
+			tx, IEEE80211_CCMP_256_MIC_LEN);
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		return ieee80211_crypto_aes_cmac_encrypt(tx);
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		return ieee80211_crypto_aes_cmac_256_encrypt(tx);
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		return ieee80211_crypto_aes_gmac_encrypt(tx);
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		return ieee80211_crypto_gcmp_encrypt(tx);
 	default:
 		return ieee80211_crypto_hw_encrypt(tx);
 	}
@@ -3152,7 +3174,7 @@ int ieee80211_reserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 	}
 
 	queues = BIT(sdata->vif.hw_queue[ieee802_1d_to_ac[tid]]);
-	__ieee80211_flush_queues(local, sdata, queues);
+	__ieee80211_flush_queues(local, sdata, queues, false);
 
 	sta->reserved_tid = tid;
 

@@ -45,8 +45,8 @@ ebt_vlan_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	/* VLAN encapsulated Type/Length field, given from orig frame */
 	__be16 encap;
 
-	if (vlan_tx_tag_present(skb)) {
-		TCI = vlan_tx_tag_get(skb);
+	if (skb_vlan_tag_present(skb)) {
+		TCI = skb_vlan_tag_get(skb);
 		encap = skb->protocol;
 	} else {
 		const struct vlan_hdr *fp;

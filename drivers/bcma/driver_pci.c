@@ -145,6 +145,47 @@ static u16 bcma_pcie_mdio_writeread(struct bcma_drv_pci *pc, u16 device,
 }
 
 /**************************************************
+ * Early init.
+ **************************************************/
+
+static void bcma_core_pci_fixcfg(struct bcma_drv_pci *pc)
+{
+	struct bcma_device *core = pc->core;
+	u16 val16, core_index;
+	uint regoff;
+
+	regoff = BCMA_CORE_PCI_SPROM(BCMA_CORE_PCI_SPROM_PI_OFFSET);
+	core_index = (u16)core->core_index;
+
+	val16 = pcicore_read16(pc, regoff);
+	if (((val16 & BCMA_CORE_PCI_SPROM_PI_MASK) >> BCMA_CORE_PCI_SPROM_PI_SHIFT)
+	     != core_index) {
+		val16 = (core_index << BCMA_CORE_PCI_SPROM_PI_SHIFT) |
+			(val16 & ~BCMA_CORE_PCI_SPROM_PI_MASK);
+		pcicore_write16(pc, regoff, val16);
+	}
+}
+
+/*
+ * Apply some early fixes required before accessing SPROM.
+ * See also si_pci_fixcfg.
+ */
+void bcma_core_pci_early_init(struct bcma_drv_pci *pc)
+{
+	if (pc->early_setup_done)
+		return;
+
+	pc->hostmode = bcma_core_pci_is_in_hostmode(pc);
+	if (pc->hostmode)
+		goto out;
+
+	bcma_core_pci_fixcfg(pc);
+
+out:
+	pc->early_setup_done = true;
+}
+
+/**************************************************
  * Workarounds.
  **************************************************/
 
@@ -175,24 +216,6 @@ static void bcma_pcicore_serdes_workaround(struct bcma_drv_pci *pc)
 		                     tmp & ~BCMA_CORE_PCI_PLL_CTRL_FREQDET_EN);
 }
 
-static void bcma_core_pci_fixcfg(struct bcma_drv_pci *pc)
-{
-	struct bcma_device *core = pc->core;
-	u16 val16, core_index;
-	uint regoff;
-
-	regoff = BCMA_CORE_PCI_SPROM(BCMA_CORE_PCI_SPROM_PI_OFFSET);
-	core_index = (u16)core->core_index;
-
-	val16 = pcicore_read16(pc, regoff);
-	if (((val16 & BCMA_CORE_PCI_SPROM_PI_MASK) >> BCMA_CORE_PCI_SPROM_PI_SHIFT)
-	     != core_index) {
-		val16 = (core_index << BCMA_CORE_PCI_SPROM_PI_SHIFT) |
-			(val16 & ~BCMA_CORE_PCI_SPROM_PI_MASK);
-		pcicore_write16(pc, regoff, val16);
-	}
-}
-
 /* Fix MISC config to allow coming out of L2/L3-Ready state w/o PRST */
 /* Needs to happen when coming out of 'standby'/'hibernate' */
 static void bcma_core_pci_config_fixup(struct bcma_drv_pci *pc)
@@ -216,7 +239,6 @@ static void bcma_core_pci_config_fixup(struct bcma_drv_pci *pc)
 
 static void bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
 {
-	bcma_core_pci_fixcfg(pc);
 	bcma_pcicore_serdes_workaround(pc);
 	bcma_core_pci_config_fixup(pc);
 }
@@ -226,13 +248,11 @@ void bcma_core_pci_init(struct bcma_drv_pci *pc)
 	if (pc->setup_done)
 		return;
 
-#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
-	pc->hostmode = bcma_core_pci_is_in_hostmode(pc);
+	bcma_core_pci_early_init(pc);
+
 	if (pc->hostmode)
 		bcma_core_pci_hostmode_init(pc);
-#endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
-
-	if (!pc->hostmode)
+	else
 		bcma_core_pci_clientmode_init(pc);
 }
 

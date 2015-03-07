@@ -57,6 +57,11 @@
 #define PCI_DEVICE_ID_INTEL_IOAT_BWD2	0x0C52
 #define PCI_DEVICE_ID_INTEL_IOAT_BWD3	0x0C53
 
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE0	0x6f50
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE1	0x6f51
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE2	0x6f52
+#define PCI_DEVICE_ID_INTEL_IOAT_BDXDE3	0x6f53
+
 #define IOAT_VER_1_2            0x12    /* Version 1.2 */
 #define IOAT_VER_2_0            0x20    /* Version 2.0 */
 #define IOAT_VER_3_0            0x30    /* Version 3.0 */

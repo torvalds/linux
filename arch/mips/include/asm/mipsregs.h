@@ -653,6 +653,7 @@
 #define MIPS_CONF5_NF		(_ULCAST_(1) << 0)
 #define MIPS_CONF5_UFR		(_ULCAST_(1) << 2)
 #define MIPS_CONF5_MRP		(_ULCAST_(1) << 3)
+#define MIPS_CONF5_LLB		(_ULCAST_(1) << 4)
 #define MIPS_CONF5_MVH		(_ULCAST_(1) << 5)
 #define MIPS_CONF5_FRE		(_ULCAST_(1) << 8)
 #define MIPS_CONF5_UFE		(_ULCAST_(1) << 9)
@@ -1127,6 +1128,8 @@ do {									\
 #define write_c0_config6(val)	__write_32bit_c0_register($16, 6, val)
 #define write_c0_config7(val)	__write_32bit_c0_register($16, 7, val)
 
+#define read_c0_lladdr()	__read_ulong_c0_register($17, 0)
+#define write_c0_lladdr(val)	__write_ulong_c0_register($17, 0, val)
 #define read_c0_maar()		__read_ulong_c0_register($17, 1)
 #define write_c0_maar(val)	__write_ulong_c0_register($17, 1, val)
 #define read_c0_maari()		__read_32bit_c0_register($17, 2)
@@ -1386,12 +1389,27 @@ do {									\
 	__res;								\
 })
 
+#define _write_32bit_cp1_register(dest, val, gas_hardfloat)		\
+do {									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	reorder					\n"	\
+	"	"STR(gas_hardfloat)"				\n"	\
+	"	ctc1	%0,"STR(dest)"				\n"	\
+	"	.set	pop					\n"	\
+	: : "r" (val));							\
+} while (0)
+
 #ifdef GAS_HAS_SET_HARDFLOAT
 #define read_32bit_cp1_register(source)					\
 	_read_32bit_cp1_register(source, .set hardfloat)
+#define write_32bit_cp1_register(dest, val)				\
+	_write_32bit_cp1_register(dest, val, .set hardfloat)
 #else
 #define read_32bit_cp1_register(source)					\
 	_read_32bit_cp1_register(source, )
+#define write_32bit_cp1_register(dest, val)				\
+	_write_32bit_cp1_register(dest, val, )
 #endif
 
 #ifdef HAVE_AS_DSP
@@ -1894,6 +1912,7 @@ __BUILD_SET_C0(config5)
 __BUILD_SET_C0(intcontrol)
 __BUILD_SET_C0(intctl)
 __BUILD_SET_C0(srsmap)
+__BUILD_SET_C0(pagegrain)
 __BUILD_SET_C0(brcm_config_0)
 __BUILD_SET_C0(brcm_bus_pll)
 __BUILD_SET_C0(brcm_reset)

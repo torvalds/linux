@@ -1000,10 +1000,20 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 			 */
 			if (fs_info->pending_changes == 0)
 				return 0;
+			/*
+			 * A non-blocking test if the fs is frozen. We must not
+			 * start a new transaction here otherwise a deadlock
+			 * happens. The pending operations are delayed to the
+			 * next commit after thawing.
+			 */
+			if (__sb_start_write(sb, SB_FREEZE_WRITE, false))
+				__sb_end_write(sb, SB_FREEZE_WRITE);
+			else
+				return 0;
 			trans = btrfs_start_transaction(root, 0);
-		} else {
-			return PTR_ERR(trans);
 		}
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 	}
 	return btrfs_commit_transaction(trans, root);
 }
@@ -1948,11 +1958,6 @@ static int btrfs_freeze(struct super_block *sb)
 	return btrfs_commit_transaction(trans, root);
 }
 
-static int btrfs_unfreeze(struct super_block *sb)
-{
-	return 0;
-}
-
 static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(root->d_sb);
@@ -2001,7 +2006,6 @@ static const struct super_operations btrfs_super_ops = {
 	.statfs		= btrfs_statfs,
 	.remount_fs	= btrfs_remount,
 	.freeze_fs	= btrfs_freeze,
-	.unfreeze_fs	= btrfs_unfreeze,
 };
 
 static const struct file_operations btrfs_ctl_fops = {

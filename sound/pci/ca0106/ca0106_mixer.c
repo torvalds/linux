@@ -70,7 +70,7 @@
 #include <sound/ac97_codec.h>
 #include <sound/info.h>
 #include <sound/tlv.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "ca0106.h"
 

@@ -530,7 +530,7 @@ static int null_add_dev(void)
 			goto out_cleanup_queues;
 
 		nullb->q = blk_mq_init_queue(&nullb->tag_set);
-		if (!nullb->q) {
+		if (IS_ERR(nullb->q)) {
 			rv = -ENOMEM;
 			goto out_cleanup_tags;
 		}
@@ -579,7 +579,7 @@ static int null_add_dev(void)
 	sector_div(size, bs);
 	set_capacity(disk, size);
 
-	disk->flags |= GENHD_FL_EXT_DEVT;
+	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
 	disk->major		= null_major;
 	disk->first_minor	= nullb->index;
 	disk->fops		= &null_fops;

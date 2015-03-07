@@ -50,11 +50,12 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
  * i915_gem_evict_something - Evict vmas to make room for binding a new one
  * @dev: drm_device
  * @vm: address space to evict from
- * @size: size of the desired free space
+ * @min_size: size of the desired free space
  * @alignment: alignment constraint of the desired free space
  * @cache_level: cache_level for the desired space
- * @mappable: whether the free space must be mappable
- * @nonblocking: whether evicting active objects is allowed or not
+ * @start: start (inclusive) of the range from which to evict objects
+ * @end: end (exclusive) of the range from which to evict objects
+ * @flags: additional flags to control the eviction algorithm
  *
  * This function will try to evict vmas until a free space satisfying the
  * requirements is found. Callers must check first whether any such hole exists
@@ -196,7 +197,6 @@ found:
 
 /**
  * i915_gem_evict_vm - Evict all idle vmas from a vm
- *
  * @vm: Address space to cleanse
  * @do_idle: Boolean directing whether to idle first.
  *
@@ -214,6 +214,7 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	struct i915_vma *vma, *next;
 	int ret;
 
+	WARN_ON(!mutex_is_locked(&vm->dev->struct_mutex));
 	trace_i915_gem_evict_vm(vm);
 
 	if (do_idle) {
@@ -222,6 +223,8 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 			return ret;
 
 		i915_gem_retire_requests(vm->dev);
+
+		WARN_ON(!list_empty(&vm->active_list));
 	}
 
 	list_for_each_entry_safe(vma, next, &vm->inactive_list, mm_list)

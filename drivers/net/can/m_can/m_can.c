@@ -589,6 +589,7 @@ static int m_can_handle_state_change(struct net_device *dev,
 		/* bus-off state */
 		priv->can.state = CAN_STATE_BUS_OFF;
 		m_can_disable_all_interrupts(priv);
+		priv->can.can_stats.bus_off++;
 		can_bus_off(dev);
 		break;
 	default:
@@ -955,6 +956,11 @@ static struct net_device *alloc_m_can_dev(void)
 	priv->can.data_bittiming_const = &m_can_data_bittiming_const;
 	priv->can.do_set_mode = m_can_set_mode;
 	priv->can.do_get_berr_counter = m_can_get_berr_counter;
+
+	/* CAN_CTRLMODE_FD_NON_ISO is fixed with M_CAN IP v3.0.1 */
+	priv->can.ctrlmode = CAN_CTRLMODE_FD_NON_ISO;
+
+	/* CAN_CTRLMODE_FD_NON_ISO can not be changed with M_CAN IP v3.0.1 */
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
 					CAN_CTRLMODE_LISTENONLY |
 					CAN_CTRLMODE_BERR_REPORTING |

@@ -176,6 +176,8 @@ retry:
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
+		else if (fault & VM_FAULT_SIGSEGV)
+			goto bad_area;
 		else if (fault & VM_FAULT_SIGBUS)
 			goto do_sigbus;
 		BUG();
@@ -217,6 +219,9 @@ retry:
 	/* User mode accesses just cause a SIGSEGV */
 
 	if (user_mode(regs)) {
+#ifdef CONFIG_NO_SEGFAULT_TERMINATION
+		DECLARE_WAIT_QUEUE_HEAD(wq);
+#endif
 		printk(KERN_NOTICE "%s (pid %d) segfaults for page "
 			"address %08lx at pc %08lx\n",
 			tsk->comm, tsk->pid,
@@ -227,7 +232,6 @@ retry:
 			show_registers(regs);
 
 #ifdef CONFIG_NO_SEGFAULT_TERMINATION
-		DECLARE_WAIT_QUEUE_HEAD(wq);
 		wait_event_interruptible(wq, 0 == 1);
 #else
 		info.si_signo = SIGSEGV;

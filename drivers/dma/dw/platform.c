@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -99,7 +100,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct dw_dma_platform_data *pdata;
-	u32 tmp, arr[4];
+	u32 tmp, arr[DW_DMA_MAX_NR_MASTERS];
 
 	if (!np) {
 		dev_err(&pdev->dev, "Missing DT data\n");
@@ -126,7 +127,7 @@ dw_dma_parse_dt(struct platform_device *pdev)
 		pdata->block_size = tmp;
 
 	if (!of_property_read_u32(np, "dma-masters", &tmp)) {
-		if (tmp > 4)
+		if (tmp > DW_DMA_MAX_NR_MASTERS)
 			return NULL;
 
 		pdata->nr_masters = tmp;
@@ -185,6 +186,8 @@ static int dw_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
+	pm_runtime_enable(&pdev->dev);
+
 	err = dw_dma_probe(chip, pdata);
 	if (err)
 		goto err_dw_dma_probe;
@@ -205,6 +208,7 @@ static int dw_probe(struct platform_device *pdev)
 	return 0;
 
 err_dw_dma_probe:
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
 	return err;
 }
@@ -217,6 +221,7 @@ static int dw_remove(struct platform_device *pdev)
 		of_dma_controller_free(pdev->dev.of_node);
 
 	dw_dma_remove(chip);
+	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(chip->clk);
 
 	return 0;

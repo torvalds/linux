@@ -27,10 +27,10 @@ static void nft_redir_ipv6_eval(const struct nft_expr *expr,
 
 	memset(&range, 0, sizeof(range));
 	if (priv->sreg_proto_min) {
-		range.min_proto.all = (__force __be16)
-					data[priv->sreg_proto_min].data[0];
-		range.max_proto.all = (__force __be16)
-					data[priv->sreg_proto_max].data[0];
+		range.min_proto.all =
+			*(__be16 *)&data[priv->sreg_proto_min].data[0];
+		range.max_proto.all =
+			*(__be16 *)&data[priv->sreg_proto_max].data[0];
 		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 

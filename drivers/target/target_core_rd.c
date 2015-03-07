@@ -657,7 +657,6 @@ static struct configfs_attribute *rd_mcp_backend_dev_attrs[] = {
 	&rd_mcp_dev_attrib_hw_block_size.attr,
 	&rd_mcp_dev_attrib_block_size.attr,
 	&rd_mcp_dev_attrib_hw_max_sectors.attr,
-	&rd_mcp_dev_attrib_fabric_max_sectors.attr,
 	&rd_mcp_dev_attrib_optimal_sectors.attr,
 	&rd_mcp_dev_attrib_hw_queue_depth.attr,
 	&rd_mcp_dev_attrib_queue_depth.attr,

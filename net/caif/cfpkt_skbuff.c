@@ -255,9 +255,9 @@ inline u16 cfpkt_getlen(struct cfpkt *pkt)
 	return skb->len;
 }
 
-inline u16 cfpkt_iterate(struct cfpkt *pkt,
-			 u16 (*iter_func)(u16, void *, u16),
-			 u16 data)
+int cfpkt_iterate(struct cfpkt *pkt,
+		  u16 (*iter_func)(u16, void *, u16),
+		  u16 data)
 {
 	/*
 	 * Don't care about the performance hit of linearizing,

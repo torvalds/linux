@@ -21,18 +21,12 @@
 /*
  * Driver: das08_isa
  * Description: DAS-08 ISA/PC-104 compatible boards
- * Devices: (Keithley Metrabyte) DAS08 [isa-das08],
- *	    (ComputerBoards) DAS08 [isa-das08]
- *	    (ComputerBoards) DAS08-PGM [das08-pgm]
- *	    (ComputerBoards) DAS08-PGH [das08-pgh]
- *	    (ComputerBoards) DAS08-PGL [das08-pgl]
- *	    (ComputerBoards) DAS08-AOH [das08-aoh]
- *	    (ComputerBoards) DAS08-AOL [das08-aol]
- *	    (ComputerBoards) DAS08-AOM [das08-aom]
- *	    (ComputerBoards) DAS08/JR-AO [das08/jr-ao]
- *	    (ComputerBoards) DAS08/JR-16-AO [das08jr-16-ao]
- *	    (ComputerBoards) PC104-DAS08 [pc104-das08]
- *	    (ComputerBoards) DAS08/JR/16 [das08jr/16]
+ * Devices: [Keithley Metrabyte] DAS08 (isa-das08),
+ *   [ComputerBoards] DAS08 (isa-das08), DAS08-PGM (das08-pgm),
+ *   DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
+ *   DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
+ *   DAS08/JR-16-AO (das08jr-16-ao), PC104-DAS08 (pc104-das08),
+ *   DAS08/JR/16 (das08jr/16)
  * Author: Warren Jasper, ds, Frank Hess
  * Updated: Fri, 31 Aug 2012 19:19:06 +0100
  * Status: works

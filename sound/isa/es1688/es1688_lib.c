@@ -25,11 +25,11 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/es1688.h>
 #include <sound/initval.h>
 
-#include <asm/io.h>
 #include <asm/dma.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -728,8 +728,7 @@ static struct snd_pcm_ops snd_es1688_capture_ops = {
 	.pointer =		snd_es1688_capture_pointer,
 };
 
-int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip,
-		   int device, struct snd_pcm **rpcm)
+int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -749,9 +748,6 @@ int snd_es1688_pcm(struct snd_card *card, struct snd_es1688 *chip,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_isa_data(),
 					      64*1024, 64*1024);
-
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 

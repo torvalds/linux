@@ -989,8 +989,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 	if (!cmd_buf)
 		return count;
 	bytes_not_copied = copy_from_user(cmd_buf, buffer, count);
-	if (bytes_not_copied < 0)
+	if (bytes_not_copied < 0) {
+		kfree(cmd_buf);
 		return bytes_not_copied;
+	}
 	if (bytes_not_copied > 0)
 		count -= bytes_not_copied;
 	cmd_buf[count] = '\0';
@@ -1890,7 +1892,6 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		dev_info(&pf->pdev->dev, "  dump desc tx <vsi_seid> <ring_id> [<desc_n>]\n");
 		dev_info(&pf->pdev->dev, "  dump desc rx <vsi_seid> <ring_id> [<desc_n>]\n");
 		dev_info(&pf->pdev->dev, "  dump desc aq\n");
-		dev_info(&pf->pdev->dev, "  dump stats\n");
 		dev_info(&pf->pdev->dev, "  dump reset stats\n");
 		dev_info(&pf->pdev->dev, "  msg_enable [level]\n");
 		dev_info(&pf->pdev->dev, "  read <reg>\n");

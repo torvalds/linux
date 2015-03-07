@@ -30,4 +30,29 @@ struct hv_24x7_catalog_page_0 {
 	__u8 reserved6[2];
 } __packed;
 
+struct hv_24x7_event_data {
+	__be16 length; /* in bytes, must be a multiple of 16 */
+	__u8 reserved1[2];
+	__u8 domain; /* Chip = 1, Core = 2 */
+	__u8 reserved2[1];
+	__be16 event_group_record_offs; /* in bytes, must be 8 byte aligned */
+	__be16 event_group_record_len; /* in bytes */
+
+	/* in bytes, offset from event_group_record */
+	__be16 event_counter_offs;
+
+	/* verified_state, unverified_state, caveat_state, broken_state, ... */
+	__be32 flags;
+
+	__be16 primary_group_ix;
+	__be16 group_count;
+	__be16 event_name_len;
+	__u8 remainder[];
+	/* __u8 event_name[event_name_len - 2]; */
+	/* __be16 event_description_len; */
+	/* __u8 event_desc[event_description_len - 2]; */
+	/* __be16 detailed_desc_len; */
+	/* __u8 detailed_desc[detailed_desc_len - 2]; */
+} __packed;
+
 #endif

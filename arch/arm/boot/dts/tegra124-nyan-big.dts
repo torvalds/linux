@@ -1131,6 +1131,8 @@
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 
 		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(I, 7) GPIO_ACTIVE_HIGH>;
+		nvidia,mic-det-gpios =
+				<&gpio TEGRA_GPIO(R, 7) GPIO_ACTIVE_HIGH>;
 	};
 };
 

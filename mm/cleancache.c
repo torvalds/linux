@@ -25,7 +25,7 @@
 static struct cleancache_ops *cleancache_ops __read_mostly;
 
 /*
- * Counters available via /sys/kernel/debug/frontswap (if debugfs is
+ * Counters available via /sys/kernel/debug/cleancache (if debugfs is
  * properly configured.  These are for information only so are not protected
  * against increment races.
  */

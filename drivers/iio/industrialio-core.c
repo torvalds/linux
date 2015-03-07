@@ -70,6 +70,11 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_CCT] = "cct",
 	[IIO_PRESSURE] = "pressure",
 	[IIO_HUMIDITYRELATIVE] = "humidityrelative",
+	[IIO_ACTIVITY] = "activity",
+	[IIO_STEPS] = "steps",
+	[IIO_ENERGY] = "energy",
+	[IIO_DISTANCE] = "distance",
+	[IIO_VELOCITY] = "velocity",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -91,6 +96,11 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_NORTH_TRUE] = "from_north_true",
 	[IIO_MOD_NORTH_MAGN_TILT_COMP] = "from_north_magnetic_tilt_comp",
 	[IIO_MOD_NORTH_TRUE_TILT_COMP] = "from_north_true_tilt_comp",
+	[IIO_MOD_RUNNING] = "running",
+	[IIO_MOD_JOGGING] = "jogging",
+	[IIO_MOD_WALKING] = "walking",
+	[IIO_MOD_STILL] = "still",
+	[IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z] = "sqrt(x^2+y^2+z^2)",
 };
 
 /* relies on pairs of these shared then separate */
@@ -113,6 +123,11 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_HARDWAREGAIN] = "hardwaregain",
 	[IIO_CHAN_INFO_HYSTERESIS] = "hysteresis",
 	[IIO_CHAN_INFO_INT_TIME] = "integration_time",
+	[IIO_CHAN_INFO_ENABLE] = "en",
+	[IIO_CHAN_INFO_CALIBHEIGHT] = "calibheight",
+	[IIO_CHAN_INFO_CALIBWEIGHT] = "calibweight",
+	[IIO_CHAN_INFO_DEBOUNCE_COUNT] = "debounce_count",
+	[IIO_CHAN_INFO_DEBOUNCE_TIME] = "debounce_time",
 };
 
 /**
@@ -1035,7 +1050,6 @@ struct iio_dev *devm_iio_device_alloc(struct device *dev, int sizeof_priv)
 	if (!ptr)
 		return NULL;
 
-	/* use raw alloc_dr for kmalloc caller tracing */
 	iio_dev = iio_device_alloc(sizeof_priv);
 	if (iio_dev) {
 		*ptr = iio_dev;
@@ -1127,6 +1141,29 @@ static const struct file_operations iio_buffer_fileops = {
 	.compat_ioctl = iio_ioctl,
 };
 
+static int iio_check_unique_scan_index(struct iio_dev *indio_dev)
+{
+	int i, j;
+	const struct iio_chan_spec *channels = indio_dev->channels;
+
+	if (!(indio_dev->modes & INDIO_ALL_BUFFER_MODES))
+		return 0;
+
+	for (i = 0; i < indio_dev->num_channels - 1; i++) {
+		if (channels[i].scan_index < 0)
+			continue;
+		for (j = i + 1; j < indio_dev->num_channels; j++)
+			if (channels[i].scan_index == channels[j].scan_index) {
+				dev_err(&indio_dev->dev,
+					"Duplicate scan index %d\n",
+					channels[i].scan_index);
+				return -EINVAL;
+			}
+	}
+
+	return 0;
+}
+
 static const struct iio_buffer_setup_ops noop_ring_setup_ops;
 
 /**
@@ -1141,6 +1178,10 @@ int iio_device_register(struct iio_dev *indio_dev)
 	if (!indio_dev->dev.of_node && indio_dev->dev.parent)
 		indio_dev->dev.of_node = indio_dev->dev.parent->of_node;
 
+	ret = iio_check_unique_scan_index(indio_dev);
+	if (ret < 0)
+		return ret;
+
 	/* configure elements for the chrdev */
 	indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);
 
@@ -1150,11 +1191,19 @@ int iio_device_register(struct iio_dev *indio_dev)
 			"Failed to register debugfs interfaces\n");
 		return ret;
 	}
+
+	ret = iio_buffer_alloc_sysfs_and_mask(indio_dev);
+	if (ret) {
+		dev_err(indio_dev->dev.parent,
+			"Failed to create buffer sysfs interfaces\n");
+		goto error_unreg_debugfs;
+	}
+
 	ret = iio_device_register_sysfs(indio_dev);
 	if (ret) {
 		dev_err(indio_dev->dev.parent,
 			"Failed to register sysfs interfaces\n");
-		goto error_unreg_debugfs;
+		goto error_buffer_free_sysfs;
 	}
 	ret = iio_device_register_eventset(indio_dev);
 	if (ret) {
@@ -1187,6 +1236,8 @@ error_unreg_eventset:
 	iio_device_unregister_eventset(indio_dev);
 error_free_sysfs:
 	iio_device_unregister_sysfs(indio_dev);
+error_buffer_free_sysfs:
+	iio_buffer_free_sysfs_and_mask(indio_dev);
 error_unreg_debugfs:
 	iio_device_unregister_debugfs(indio_dev);
 	return ret;
@@ -1215,6 +1266,8 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 	iio_buffer_wakeup_poll(indio_dev);
 
 	mutex_unlock(&indio_dev->info_exist_lock);
+
+	iio_buffer_free_sysfs_and_mask(indio_dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
 

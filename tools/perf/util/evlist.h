@@ -28,7 +28,7 @@ struct perf_mmap {
 	int		 mask;
 	int		 refcnt;
 	unsigned int	 prev;
-	char		 event_copy[PERF_SAMPLE_MAX_SIZE];
+	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __attribute__((aligned(8)));
 };
 
 struct perf_evlist {
@@ -183,7 +183,6 @@ static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
 
 size_t perf_evlist__fprintf(struct perf_evlist *evlist, FILE *fp);
 
-int perf_evlist__strerror_tp(struct perf_evlist *evlist, int err, char *buf, size_t size);
 int perf_evlist__strerror_open(struct perf_evlist *evlist, int err, char *buf, size_t size);
 int perf_evlist__strerror_mmap(struct perf_evlist *evlist, int err, char *buf, size_t size);
 

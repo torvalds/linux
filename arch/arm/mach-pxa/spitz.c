@@ -979,6 +979,8 @@ static void __init spitz_init(void)
 	spitz_nand_init();
 	spitz_i2c_init();
 	spitz_audio_init();
+
+	regulator_has_full_constraints();
 }
 
 static void __init spitz_fixup(struct tag *tags, char **cmdline)

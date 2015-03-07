@@ -215,12 +215,11 @@ early_param("mem", setup_mem);  /* compatibility with x86 */
 
 static int __init setup_isolnodes(char *str)
 {
-	char buf[MAX_NUMNODES * 5];
 	if (str == NULL || nodelist_parse(str, isolnodes) != 0)
 		return -EINVAL;
 
-	nodelist_scnprintf(buf, sizeof(buf), isolnodes);
-	pr_info("Set isolnodes value to '%s'\n", buf);
+	pr_info("Set isolnodes value to '%*pbl'\n",
+		nodemask_pr_args(&isolnodes));
 	return 0;
 }
 early_param("isolnodes", setup_isolnodes);
@@ -1315,11 +1314,9 @@ early_param("disabled_cpus", disabled_cpus);
 
 void __init print_disabled_cpus(void)
 {
-	if (!cpumask_empty(&disabled_map)) {
-		char buf[100];
-		cpulist_scnprintf(buf, sizeof(buf), &disabled_map);
-		pr_info("CPUs not available for Linux: %s\n", buf);
-	}
+	if (!cpumask_empty(&disabled_map))
+		pr_info("CPUs not available for Linux: %*pbl\n",
+			cpumask_pr_args(&disabled_map));
 }
 
 static void __init setup_cpu_maps(void)

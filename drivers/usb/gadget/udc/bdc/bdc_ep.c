@@ -718,9 +718,10 @@ static int ep_queue(struct bdc_ep *ep, struct bdc_req *req)
 	struct bdc *bdc;
 	int ret = 0;
 
-	bdc = ep->bdc;
-	if (!req || !ep || !ep->usb_ep.desc)
+	if (!req || !ep->usb_ep.desc)
 		return -EINVAL;
+
+	bdc = ep->bdc;
 
 	req->usb_req.actual = 0;
 	req->usb_req.status = -EINPROGRESS;
@@ -881,8 +882,8 @@ static int ep_set_halt(struct bdc_ep *ep, u32 value)
 
 		ret = bdc_ep_set_stall(bdc, ep->ep_num);
 		if (ret)
-			dev_err(bdc->dev, "failed to %s STALL on %s\n",
-				value ? "set" : "clear", ep->name);
+			dev_err(bdc->dev, "failed to set STALL on %s\n",
+				ep->name);
 		else
 			ep->flags |= BDC_EP_STALL;
 	} else {
@@ -890,8 +891,8 @@ static int ep_set_halt(struct bdc_ep *ep, u32 value)
 		dev_dbg(bdc->dev, "Before Clear\n");
 		ret = bdc_ep_clear_stall(bdc, ep->ep_num);
 		if (ret)
-			dev_err(bdc->dev, "failed to %s STALL on %s\n",
-				value ? "set" : "clear", ep->name);
+			dev_err(bdc->dev, "failed to clear STALL on %s\n",
+				ep->name);
 		else
 			ep->flags &= ~BDC_EP_STALL;
 		dev_dbg(bdc->dev, "After  Clear\n");

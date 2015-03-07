@@ -375,7 +375,7 @@ static void get_name(struct mlx4_ib_dev *dev, char *name, int i, int max)
 	char base_name[9];
 
 	/* pci_name format is: bus:dev:func -> xxxx:yy:zz.n */
-	strlcpy(name, pci_name(dev->dev->pdev), max);
+	strlcpy(name, pci_name(dev->dev->persist->pdev), max);
 	strncpy(base_name, name, 8); /*till xxxx:yy:*/
 	base_name[8] = '\0';
 	/* with no ARI only 3 last bits are used so when the fn is higher than 8
@@ -792,7 +792,7 @@ static int register_pkey_tree(struct mlx4_ib_dev *device)
 	if (!mlx4_is_master(device->dev))
 		return 0;
 
-	for (i = 0; i <= device->dev->num_vfs; ++i)
+	for (i = 0; i <= device->dev->persist->num_vfs; ++i)
 		register_one_pkey_tree(device, i);
 
 	return 0;
@@ -807,7 +807,7 @@ static void unregister_pkey_tree(struct mlx4_ib_dev *device)
 	if (!mlx4_is_master(device->dev))
 		return;
 
-	for (slave = device->dev->num_vfs; slave >= 0; --slave) {
+	for (slave = device->dev->persist->num_vfs; slave >= 0; --slave) {
 		list_for_each_entry_safe(p, t,
 					 &device->pkeys.pkey_port_list[slave],
 					 entry) {

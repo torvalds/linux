@@ -155,7 +155,7 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 		pte = *(orig_pte + ((index - start) / PAGE_SIZE));
 		pte_unmap_unlock(orig_pte, ptl);
 
-		if (pte_present(pte) || pte_none(pte) || pte_file(pte))
+		if (pte_present(pte) || pte_none(pte))
 			continue;
 		entry = pte_to_swp_entry(pte);
 		if (unlikely(non_swap_entry(entry)))
@@ -222,21 +222,24 @@ static long madvise_willneed(struct vm_area_struct *vma,
 	struct file *file = vma->vm_file;
 
 #ifdef CONFIG_SWAP
-	if (!file || mapping_cap_swap_backed(file->f_mapping)) {
+	if (!file) {
 		*prev = vma;
-		if (!file)
-			force_swapin_readahead(vma, start, end);
-		else
-			force_shm_swapin_readahead(vma, start, end,
-						file->f_mapping);
+		force_swapin_readahead(vma, start, end);
 		return 0;
 	}
-#endif
 
+	if (shmem_mapping(file->f_mapping)) {
+		*prev = vma;
+		force_shm_swapin_readahead(vma, start, end,
+					file->f_mapping);
+		return 0;
+	}
+#else
 	if (!file)
 		return -EBADF;
+#endif
 
-	if (file->f_mapping->a_ops->get_xip_mem) {
+	if (IS_DAX(file_inode(file))) {
 		/* no bad return value, but ignore advice */
 		return 0;
 	}
@@ -278,14 +281,7 @@ static long madvise_dontneed(struct vm_area_struct *vma,
 	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
 		return -EINVAL;
 
-	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
-		struct zap_details details = {
-			.nonlinear_vma = vma,
-			.last_index = ULONG_MAX,
-		};
-		zap_page_range(vma, start, end - start, &details);
-	} else
-		zap_page_range(vma, start, end - start, NULL);
+	zap_page_range(vma, start, end - start, NULL);
 	return 0;
 }
 
@@ -303,7 +299,7 @@ static long madvise_remove(struct vm_area_struct *vma,
 
 	*prev = NULL;	/* tell sys_madvise we drop mmap_sem */
 
-	if (vma->vm_flags & (VM_LOCKED|VM_NONLINEAR|VM_HUGETLB))
+	if (vma->vm_flags & (VM_LOCKED | VM_HUGETLB))
 		return -EINVAL;
 
 	f = vma->vm_file;

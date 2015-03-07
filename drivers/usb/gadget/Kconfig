@@ -45,7 +45,7 @@ menuconfig USB_GADGET
 if USB_GADGET
 
 config USB_GADGET_DEBUG
-	boolean "Debugging messages (DEVELOPMENT)"
+	bool "Debugging messages (DEVELOPMENT)"
 	depends on DEBUG_KERNEL
 	help
 	   Many controller and gadget drivers will print some debugging
@@ -73,7 +73,7 @@ config USB_GADGET_VERBOSE
 	   production build.
 
 config USB_GADGET_DEBUG_FILES
-	boolean "Debugging information files (DEVELOPMENT)"
+	bool "Debugging information files (DEVELOPMENT)"
 	depends on PROC_FS
 	help
 	   Some of the drivers in the "gadget" framework can expose
@@ -84,7 +84,7 @@ config USB_GADGET_DEBUG_FILES
 	   here.  If in doubt, or to conserve kernel memory, say "N".
 
 config USB_GADGET_DEBUG_FS
-	boolean "Debugging information files in debugfs (DEVELOPMENT)"
+	bool "Debugging information files in debugfs (DEVELOPMENT)"
 	depends on DEBUG_FS
 	help
 	   Some of the drivers in the "gadget" framework can expose
@@ -230,7 +230,7 @@ config USB_CONFIGFS
 	  For more information see Documentation/usb/gadget_configfs.txt.
 
 config USB_CONFIGFS_SERIAL
-	boolean "Generic serial bulk in/out"
+	bool "Generic serial bulk in/out"
 	depends on USB_CONFIGFS
 	depends on TTY
 	select USB_U_SERIAL
@@ -239,7 +239,7 @@ config USB_CONFIGFS_SERIAL
 	  The function talks to the Linux-USB generic serial driver.
 
 config USB_CONFIGFS_ACM
-	boolean "Abstract Control Model (CDC ACM)"
+	bool "Abstract Control Model (CDC ACM)"
 	depends on USB_CONFIGFS
 	depends on TTY
 	select USB_U_SERIAL
@@ -249,7 +249,7 @@ config USB_CONFIGFS_ACM
 	  MS-Windows hosts or with the Linux-USB "cdc-acm" driver.
 
 config USB_CONFIGFS_OBEX
-	boolean "Object Exchange Model (CDC OBEX)"
+	bool "Object Exchange Model (CDC OBEX)"
 	depends on USB_CONFIGFS
 	depends on TTY
 	select USB_U_SERIAL
@@ -259,7 +259,7 @@ config USB_CONFIGFS_OBEX
 	  since the kernel itself doesn't implement the OBEX protocol.
 
 config USB_CONFIGFS_NCM
-	boolean "Network Control Model (CDC NCM)"
+	bool "Network Control Model (CDC NCM)"
 	depends on USB_CONFIGFS
 	depends on NET
 	select USB_U_ETHER
@@ -270,7 +270,7 @@ config USB_CONFIGFS_NCM
 	  different alignment possibilities.
 
 config USB_CONFIGFS_ECM
-	boolean "Ethernet Control Model (CDC ECM)"
+	bool "Ethernet Control Model (CDC ECM)"
 	depends on USB_CONFIGFS
 	depends on NET
 	select USB_U_ETHER
@@ -282,7 +282,7 @@ config USB_CONFIGFS_ECM
 	  supported by firmware for smart network devices.
 
 config USB_CONFIGFS_ECM_SUBSET
-	boolean "Ethernet Control Model (CDC ECM) subset"
+	bool "Ethernet Control Model (CDC ECM) subset"
 	depends on USB_CONFIGFS
 	depends on NET
 	select USB_U_ETHER
@@ -323,7 +323,7 @@ config USB_CONFIGFS_EEM
 	  the host is the same (a usbX device), so the differences are minimal.
 
 config USB_CONFIGFS_PHONET
-	boolean "Phonet protocol"
+	bool "Phonet protocol"
 	depends on USB_CONFIGFS
 	depends on NET
 	depends on PHONET
@@ -333,7 +333,7 @@ config USB_CONFIGFS_PHONET
 	  The Phonet protocol implementation for USB device.
 
 config USB_CONFIGFS_MASS_STORAGE
-	boolean "Mass storage"
+	bool "Mass storage"
 	depends on USB_CONFIGFS
 	depends on BLOCK
 	select USB_F_MASS_STORAGE
@@ -344,7 +344,7 @@ config USB_CONFIGFS_MASS_STORAGE
 	  specified as a module parameter or sysfs option.
 
 config USB_CONFIGFS_F_LB_SS
-	boolean "Loopback and sourcesink function (for testing)"
+	bool "Loopback and sourcesink function (for testing)"
 	depends on USB_CONFIGFS
 	select USB_F_SS_LB
 	help
@@ -357,7 +357,7 @@ config USB_CONFIGFS_F_LB_SS
 	  and its driver through a basic set of functional tests.
 
 config USB_CONFIGFS_F_FS
-	boolean "Function filesystem (FunctionFS)"
+	bool "Function filesystem (FunctionFS)"
 	depends on USB_CONFIGFS
 	select USB_F_FS
 	help
@@ -369,7 +369,7 @@ config USB_CONFIGFS_F_FS
 	  mass storage) and other are implemented in user space.
 
 config USB_CONFIGFS_F_UAC1
-	boolean "Audio Class 1.0"
+	bool "Audio Class 1.0"
 	depends on USB_CONFIGFS
 	depends on SND
 	select USB_LIBCOMPOSITE
@@ -382,7 +382,7 @@ config USB_CONFIGFS_F_UAC1
 	  on the device.
 
 config USB_CONFIGFS_F_UAC2
-	boolean "Audio Class 2.0"
+	bool "Audio Class 2.0"
 	depends on USB_CONFIGFS
 	depends on SND
 	select USB_LIBCOMPOSITE
@@ -400,7 +400,7 @@ config USB_CONFIGFS_F_UAC2
 	  wants as audio data to the USB Host.
 
 config USB_CONFIGFS_F_MIDI
-	boolean "MIDI function"
+	bool "MIDI function"
 	depends on USB_CONFIGFS
 	depends on SND
 	select USB_LIBCOMPOSITE
@@ -414,7 +414,7 @@ config USB_CONFIGFS_F_MIDI
 	  ALSA's aconnect utility etc.
 
 config USB_CONFIGFS_F_HID
-	boolean "HID function"
+	bool "HID function"
 	depends on USB_CONFIGFS
 	select USB_F_HID
 	help
@@ -422,6 +422,17 @@ config USB_CONFIGFS_F_HID
 	  Human Interface Devices (HID).
 
 	  For more information, see Documentation/usb/gadget_hid.txt.
+
+config USB_CONFIGFS_F_UVC
+	bool "USB Webcam function"
+	depends on USB_CONFIGFS
+	depends on VIDEO_DEV
+	select VIDEOBUF2_VMALLOC
+	select USB_F_UVC
+	help
+	  The Webcam function acts as a composite USB Audio and Video Class
+	  device. It provides a userspace API to process UVC control requests
+	  and stream video data to the host.
 
 source "drivers/usb/gadget/legacy/Kconfig"
 

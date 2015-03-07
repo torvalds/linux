@@ -48,15 +48,18 @@ static void soc_ac97_device_release(struct device *dev)
 }
 
 /**
- * snd_soc_new_ac97_codec - initailise AC97 device
- * @codec: audio codec
+ * snd_soc_alloc_ac97_codec() - Allocate new a AC'97 device
+ * @codec: The CODEC for which to create the AC'97 device
  *
- * Initialises AC97 codec resources for use by ad-hoc devices only.
+ * Allocated a new snd_ac97 device and intializes it, but does not yet register
+ * it. The caller is responsible to either call device_add(&ac97->dev) to
+ * register the device, or to call put_device(&ac97->dev) to free the device.
+ *
+ * Returns: A snd_ac97 device or a PTR_ERR in case of an error.
  */
-struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec)
+struct snd_ac97 *snd_soc_alloc_ac97_codec(struct snd_soc_codec *codec)
 {
 	struct snd_ac97 *ac97;
-	int ret;
 
 	ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
 	if (ac97 == NULL)
@@ -73,7 +76,28 @@ struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec)
 		     codec->component.card->snd_card->number, 0,
 		     codec->component.name);
 
-	ret = device_register(&ac97->dev);
+	device_initialize(&ac97->dev);
+
+	return ac97;
+}
+EXPORT_SYMBOL(snd_soc_alloc_ac97_codec);
+
+/**
+ * snd_soc_new_ac97_codec - initailise AC97 device
+ * @codec: audio codec
+ *
+ * Initialises AC97 codec resources for use by ad-hoc devices only.
+ */
+struct snd_ac97 *snd_soc_new_ac97_codec(struct snd_soc_codec *codec)
+{
+	struct snd_ac97 *ac97;
+	int ret;
+
+	ac97 = snd_soc_alloc_ac97_codec(codec);
+	if (IS_ERR(ac97))
+		return ac97;
+
+	ret = device_add(&ac97->dev);
 	if (ret) {
 		put_device(&ac97->dev);
 		return ERR_PTR(ret);

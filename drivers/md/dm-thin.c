@@ -11,6 +11,7 @@
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
 #include <linux/dm-kcopyd.h>
+#include <linux/jiffies.h>
 #include <linux/log2.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
@@ -1700,8 +1701,8 @@ static void process_cell_fail(struct thin_c *tc, struct dm_bio_prison_cell *cell
  */
 static int need_commit_due_to_time(struct pool *pool)
 {
-	return jiffies < pool->last_commit_jiffies ||
-	       jiffies > pool->last_commit_jiffies + COMMIT_PERIOD;
+	return !time_in_range(jiffies, pool->last_commit_jiffies,
+			      pool->last_commit_jiffies + COMMIT_PERIOD);
 }
 
 #define thin_pbd(node) rb_entry((node), struct dm_thin_endio_hook, rb_node)
@@ -3384,6 +3385,12 @@ static int pool_message(struct dm_target *ti, unsigned argc, char **argv)
 	int r = -EINVAL;
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
+
+	if (get_pool_mode(pool) >= PM_READ_ONLY) {
+		DMERR("%s: unable to service pool target messages in READ_ONLY or FAIL mode",
+		      dm_device_name(pool->pool_md));
+		return -EINVAL;
+	}
 
 	if (!strcasecmp(argv[0], "create_thin"))
 		r = process_create_thin_mesg(argc, argv, pool);

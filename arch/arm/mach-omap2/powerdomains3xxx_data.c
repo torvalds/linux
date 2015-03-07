@@ -464,7 +464,7 @@ void __init omap3xxx_powerdomains_init(void)
 {
 	unsigned int rev;
 
-	if (!cpu_is_omap34xx())
+	if (!cpu_is_omap34xx() && !cpu_is_ti81xx())
 		return;
 
 	pwrdm_register_platform_funcs(&omap3_pwrdm_operations);

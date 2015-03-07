@@ -148,10 +148,10 @@ static inline bool xilinx_pcie_link_is_up(struct xilinx_pcie_port *port)
  */
 static void xilinx_pcie_clear_err_interrupts(struct xilinx_pcie_port *port)
 {
-	u32 val = pcie_read(port, XILINX_PCIE_REG_RPEFR);
+	unsigned long val = pcie_read(port, XILINX_PCIE_REG_RPEFR);
 
 	if (val & XILINX_PCIE_RPEFR_ERR_VALID) {
-		dev_dbg(port->dev, "Requester ID %d\n",
+		dev_dbg(port->dev, "Requester ID %lu\n",
 			val & XILINX_PCIE_RPEFR_REQ_ID);
 		pcie_write(port, XILINX_PCIE_RPEFR_ALL_MASK,
 			   XILINX_PCIE_REG_RPEFR);
@@ -189,7 +189,7 @@ static bool xilinx_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 }
 
 /**
- * xilinx_pcie_config_base - Get configuration base
+ * xilinx_pcie_map_bus - Get configuration base
  * @bus: PCI Bus structure
  * @devfn: Device/function
  * @where: Offset from base
@@ -197,11 +197,14 @@ static bool xilinx_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
  * Return: Base address of the configuration space needed to be
  *	   accessed.
  */
-static void __iomem *xilinx_pcie_config_base(struct pci_bus *bus,
-					     unsigned int devfn, int where)
+static void __iomem *xilinx_pcie_map_bus(struct pci_bus *bus,
+					 unsigned int devfn, int where)
 {
 	struct xilinx_pcie_port *port = sys_to_pcie(bus->sysdata);
 	int relbus;
+
+	if (!xilinx_pcie_valid_device(bus, devfn))
+		return NULL;
 
 	relbus = (bus->number << ECAM_BUS_NUM_SHIFT) |
 		 (devfn << ECAM_DEV_NUM_SHIFT);
@@ -209,84 +212,11 @@ static void __iomem *xilinx_pcie_config_base(struct pci_bus *bus,
 	return port->reg_base + relbus + where;
 }
 
-/**
- * xilinx_pcie_read_config - Read configuration space
- * @bus: PCI Bus structure
- * @devfn: Device/function
- * @where: Offset from base
- * @size: Byte/word/dword
- * @val: Value to be read
- *
- * Return: PCIBIOS_SUCCESSFUL on success
- *	   PCIBIOS_DEVICE_NOT_FOUND on failure
- */
-static int xilinx_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
-				   int where, int size, u32 *val)
-{
-	void __iomem *addr;
-
-	if (!xilinx_pcie_valid_device(bus, devfn)) {
-		*val = 0xFFFFFFFF;
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	}
-
-	addr = xilinx_pcie_config_base(bus, devfn, where);
-
-	switch (size) {
-	case 1:
-		*val = readb(addr);
-		break;
-	case 2:
-		*val = readw(addr);
-		break;
-	default:
-		*val = readl(addr);
-		break;
-	}
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-/**
- * xilinx_pcie_write_config - Write configuration space
- * @bus: PCI Bus structure
- * @devfn: Device/function
- * @where: Offset from base
- * @size: Byte/word/dword
- * @val: Value to be written to device
- *
- * Return: PCIBIOS_SUCCESSFUL on success
- *	   PCIBIOS_DEVICE_NOT_FOUND on failure
- */
-static int xilinx_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
-				    int where, int size, u32 val)
-{
-	void __iomem *addr;
-
-	if (!xilinx_pcie_valid_device(bus, devfn))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	addr = xilinx_pcie_config_base(bus, devfn, where);
-
-	switch (size) {
-	case 1:
-		writeb(val, addr);
-		break;
-	case 2:
-		writew(val, addr);
-		break;
-	default:
-		writel(val, addr);
-		break;
-	}
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
 /* PCIe operations */
 static struct pci_ops xilinx_pcie_ops = {
-	.read  = xilinx_pcie_read_config,
-	.write = xilinx_pcie_write_config,
+	.map_bus = xilinx_pcie_map_bus,
+	.read	= pci_generic_config_read,
+	.write	= pci_generic_config_write,
 };
 
 /* MSI functions */
@@ -737,7 +667,7 @@ static int xilinx_pcie_parse_and_add_res(struct xilinx_pcie_port *port)
 	resource_size_t offset;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
-	struct pci_host_bridge_window *win;
+	struct resource_entry *win;
 	int err = 0, mem_resno = 0;
 
 	/* Get the ranges */
@@ -807,7 +737,7 @@ static int xilinx_pcie_parse_and_add_res(struct xilinx_pcie_port *port)
 
 free_resources:
 	release_child_resources(&iomem_resource);
-	list_for_each_entry(win, &port->resources, list)
+	resource_list_for_each_entry(win, &port->resources)
 		devm_kfree(dev, win->res);
 	pci_free_resource_list(&port->resources);
 

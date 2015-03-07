@@ -2497,12 +2497,14 @@ static void ftrace_run_update_code(int command)
 }
 
 static void ftrace_run_modify_code(struct ftrace_ops *ops, int command,
-				   struct ftrace_hash *old_hash)
+				   struct ftrace_ops_hash *old_hash)
 {
 	ops->flags |= FTRACE_OPS_FL_MODIFYING;
-	ops->old_hash.filter_hash = old_hash;
+	ops->old_hash.filter_hash = old_hash->filter_hash;
+	ops->old_hash.notrace_hash = old_hash->notrace_hash;
 	ftrace_run_update_code(command);
 	ops->old_hash.filter_hash = NULL;
+	ops->old_hash.notrace_hash = NULL;
 	ops->flags &= ~FTRACE_OPS_FL_MODIFYING;
 }
 
@@ -3579,7 +3581,7 @@ static struct ftrace_ops trace_probe_ops __read_mostly =
 
 static int ftrace_probe_registered;
 
-static void __enable_ftrace_function_probe(struct ftrace_hash *old_hash)
+static void __enable_ftrace_function_probe(struct ftrace_ops_hash *old_hash)
 {
 	int ret;
 	int i;
@@ -3637,6 +3639,7 @@ int
 register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			      void *data)
 {
+	struct ftrace_ops_hash old_hash_ops;
 	struct ftrace_func_probe *entry;
 	struct ftrace_hash **orig_hash = &trace_probe_ops.func_hash->filter_hash;
 	struct ftrace_hash *old_hash = *orig_hash;
@@ -3657,6 +3660,10 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		return -EINVAL;
 
 	mutex_lock(&trace_probe_ops.func_hash->regex_lock);
+
+	old_hash_ops.filter_hash = old_hash;
+	/* Probes only have filters */
+	old_hash_ops.notrace_hash = NULL;
 
 	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, old_hash);
 	if (!hash) {
@@ -3718,7 +3725,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 	ret = ftrace_hash_move(&trace_probe_ops, 1, orig_hash, hash);
 
-	__enable_ftrace_function_probe(old_hash);
+	__enable_ftrace_function_probe(&old_hash_ops);
 
 	if (!ret)
 		free_ftrace_hash_rcu(old_hash);
@@ -4006,10 +4013,34 @@ ftrace_match_addr(struct ftrace_hash *hash, unsigned long ip, int remove)
 }
 
 static void ftrace_ops_update_code(struct ftrace_ops *ops,
-				   struct ftrace_hash *old_hash)
+				   struct ftrace_ops_hash *old_hash)
 {
-	if (ops->flags & FTRACE_OPS_FL_ENABLED && ftrace_enabled)
+	struct ftrace_ops *op;
+
+	if (!ftrace_enabled)
+		return;
+
+	if (ops->flags & FTRACE_OPS_FL_ENABLED) {
 		ftrace_run_modify_code(ops, FTRACE_UPDATE_CALLS, old_hash);
+		return;
+	}
+
+	/*
+	 * If this is the shared global_ops filter, then we need to
+	 * check if there is another ops that shares it, is enabled.
+	 * If so, we still need to run the modify code.
+	 */
+	if (ops->func_hash != &global_ops.local_hash)
+		return;
+
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
+		if (op->func_hash == &global_ops.local_hash &&
+		    op->flags & FTRACE_OPS_FL_ENABLED) {
+			ftrace_run_modify_code(op, FTRACE_UPDATE_CALLS, old_hash);
+			/* Only need to do this once */
+			return;
+		}
+	} while_for_each_ftrace_op(op);
 }
 
 static int
@@ -4017,6 +4048,7 @@ ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 		unsigned long ip, int remove, int reset, int enable)
 {
 	struct ftrace_hash **orig_hash;
+	struct ftrace_ops_hash old_hash_ops;
 	struct ftrace_hash *old_hash;
 	struct ftrace_hash *hash;
 	int ret;
@@ -4053,9 +4085,11 @@ ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 
 	mutex_lock(&ftrace_lock);
 	old_hash = *orig_hash;
+	old_hash_ops.filter_hash = ops->func_hash->filter_hash;
+	old_hash_ops.notrace_hash = ops->func_hash->notrace_hash;
 	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
 	if (!ret) {
-		ftrace_ops_update_code(ops, old_hash);
+		ftrace_ops_update_code(ops, &old_hash_ops);
 		free_ftrace_hash_rcu(old_hash);
 	}
 	mutex_unlock(&ftrace_lock);
@@ -4267,6 +4301,7 @@ static void __init set_ftrace_early_filters(void)
 int ftrace_regex_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
+	struct ftrace_ops_hash old_hash_ops;
 	struct ftrace_iterator *iter;
 	struct ftrace_hash **orig_hash;
 	struct ftrace_hash *old_hash;
@@ -4300,10 +4335,12 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 
 		mutex_lock(&ftrace_lock);
 		old_hash = *orig_hash;
+		old_hash_ops.filter_hash = iter->ops->func_hash->filter_hash;
+		old_hash_ops.notrace_hash = iter->ops->func_hash->notrace_hash;
 		ret = ftrace_hash_move(iter->ops, filter_hash,
 				       orig_hash, iter->hash);
 		if (!ret) {
-			ftrace_ops_update_code(iter->ops, old_hash);
+			ftrace_ops_update_code(iter->ops, &old_hash_ops);
 			free_ftrace_hash_rcu(old_hash);
 		}
 		mutex_unlock(&ftrace_lock);
@@ -5419,7 +5456,7 @@ static __init int ftrace_init_debugfs(void)
 	struct dentry *d_tracer;
 
 	d_tracer = tracing_init_dentry();
-	if (!d_tracer)
+	if (IS_ERR(d_tracer))
 		return 0;
 
 	ftrace_init_dyn_debugfs(d_tracer);

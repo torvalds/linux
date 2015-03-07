@@ -25,11 +25,11 @@
 		stmpe2401_1 {
 			stmpe2401_1_nhk_mode: stmpe2401_1_nhk {
 				nhk_cfg1 {
-					ste,pins = "GPIO76_B20"; // IRQ line
+					pins = "GPIO76_B20"; // IRQ line
 					ste,input = <0>;
 				};
 				nhk_cfg2 {
-					ste,pins = "GPIO77_B8"; // reset line
+					pins = "GPIO77_B8"; // reset line
 					ste,output = <1>;
 				};
 			};
@@ -37,11 +37,11 @@
 		stmpe2401_2 {
 			stmpe2401_2_nhk_mode: stmpe2401_2_nhk {
 				nhk_cfg1 {
-					ste,pins = "GPIO78_A8"; // IRQ line
+					pins = "GPIO78_A8"; // IRQ line
 					ste,input = <0>;
 				};
 				nhk_cfg2 {
-					ste,pins = "GPIO79_C9"; // reset line
+					pins = "GPIO79_C9"; // reset line
 					ste,output = <1>;
 				};
 			};

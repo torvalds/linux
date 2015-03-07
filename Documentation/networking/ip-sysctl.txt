@@ -66,6 +66,8 @@ fwmark_reflect - BOOLEAN
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
 	this when using large numbers of interfaces and/or routes.
+	From linux kernel 3.6 onwards, this is deprecated for ipv4
+	as route cache is no longer used.
 
 neigh/default/gc_thresh1 - INTEGER
 	Minimum number of entries to keep.  Garbage collector will not
@@ -287,6 +289,28 @@ tcp_frto - INTEGER
 	modification. It does not require any support from the peer.
 
 	By default it's enabled with a non-zero value. 0 disables F-RTO.
+
+tcp_invalid_ratelimit - INTEGER
+	Limit the maximal rate for sending duplicate acknowledgments
+	in response to incoming TCP packets that are for an existing
+	connection but that are invalid due to any of these reasons:
+
+	  (a) out-of-window sequence number,
+	  (b) out-of-window acknowledgment number, or
+	  (c) PAWS (Protection Against Wrapped Sequence numbers) check failure
+
+	This can help mitigate simple "ack loop" DoS attacks, wherein
+	a buggy or malicious middlebox or man-in-the-middle can
+	rewrite TCP header fields in manner that causes each endpoint
+	to think that the other is sending invalid TCP segments, thus
+	causing each side to send an unterminating stream of duplicate
+	acknowledgments for invalid segments.
+
+	Using 0 disables rate-limiting of dupacks in response to
+	invalid segments; otherwise this value specifies the minimal
+	space between sending such dupacks, in milliseconds.
+
+	Default: 500 (milliseconds).
 
 tcp_keepalive_time - INTEGER
 	How often TCP sends out keepalive messages when keepalive is enabled.
@@ -1281,6 +1305,13 @@ accept_ra_rt_info_max_plen - INTEGER
 
 accept_ra_rtr_pref - BOOLEAN
 	Accept Router Preference in RA.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
+accept_ra_mtu - BOOLEAN
+	Apply the MTU value specified in RA option 5 (RFC4861). If
+	disabled, the MTU specified in the RA will be ignored.
 
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.

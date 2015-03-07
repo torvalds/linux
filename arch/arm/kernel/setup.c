@@ -657,10 +657,13 @@ int __init arm_add_memory(u64 start, u64 size)
 
 	/*
 	 * Ensure that start/size are aligned to a page boundary.
-	 * Size is appropriately rounded down, start is rounded up.
+	 * Size is rounded down, start is rounded up.
 	 */
-	size -= start & ~PAGE_MASK;
 	aligned_start = PAGE_ALIGN(start);
+	if (aligned_start > start + size)
+		size = 0;
+	else
+		size -= aligned_start - start;
 
 #ifndef CONFIG_ARCH_PHYS_ADDR_T_64BIT
 	if (aligned_start > ULONG_MAX) {

@@ -667,7 +667,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
-	if (pe->freeze_count > EEH_MAX_ALLOWED_FREEZES)
+	if (pe->freeze_count > eeh_max_freezes)
 		goto excess_failures;
 	pr_warn("EEH: This PCI device has failed %d times in the last hour\n",
 		pe->freeze_count);
@@ -806,7 +806,7 @@ perm_error:
 	eeh_pe_dev_traverse(pe, eeh_report_failure, NULL);
 
 	/* Mark the PE to be removed permanently */
-	pe->freeze_count = EEH_MAX_ALLOWED_FREEZES + 1;
+	eeh_pe_state_mark(pe, EEH_PE_REMOVED);
 
 	/*
 	 * Shut down the device drivers for good. We mark

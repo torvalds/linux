@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "dra72x.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "TI DRA722";
@@ -23,6 +24,16 @@
 		regulator-name = "evm_3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	extcon_usb1: extcon_usb1 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pcf_gpio_21 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	extcon_usb2: extcon_usb2 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pcf_gpio_21 2 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -119,6 +130,18 @@
 			0x3d0   (MUX_MODE15)	/* dcan1_tx.off */
 			0x3d4   (MUX_MODE15)	/* dcan1_rx.off */
 			0x418   (MUX_MODE15)	/* wakeup0.off */
+		>;
+	};
+
+	qspi1_pins: pinmux_qspi1_pins {
+		pinctrl-single,pins = <
+			0x74 (PIN_OUTPUT | MUX_MODE1)	/* gpmc_a13.qspi1_rtclk */
+			0x78 (PIN_INPUT | MUX_MODE1)	/* gpmc_a14.qspi1_d3 */
+			0x7c (PIN_INPUT | MUX_MODE1)	/* gpmc_a15.qspi1_d2 */
+			0x80 (PIN_INPUT | MUX_MODE1)	/* gpmc_a16.qspi1_d1 */
+			0x84 (PIN_INPUT | MUX_MODE1)	/* gpmc_a17.qspi1_d0 */
+			0x88 (PIN_OUTPUT | MUX_MODE1)	/* qpmc_a18.qspi1_sclk */
+			0xb8 (PIN_OUTPUT | MUX_MODE1)	/* gpmc_cs2.qspi1_cs0 */
 		>;
 	};
 };
@@ -242,6 +265,18 @@
 			wakeup-source;
 			ti,palmas-long-press-seconds = <6>;
 		};
+	};
+
+	pcf_gpio_21: gpio@21 {
+		compatible = "ti,pcf8575";
+		reg = <0x21>;
+		lines-initial-states = <0x1408>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 	};
 };
 
@@ -460,4 +495,69 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&dcan1_pins_default>;
 	pinctrl-1 = <&dcan1_pins_sleep>;
+};
+
+&qspi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi1_pins>;
+
+	spi-max-frequency = <48000000>;
+	m25p80@0 {
+		compatible = "s25fl256s1";
+		spi-max-frequency = <48000000>;
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-cpol;
+		spi-cpha;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table.
+		 * The ROM checks the first four physical blocks
+		 * for a valid file to boot and the flash here is
+		 * 64KiB block size.
+		 */
+		partition@0 {
+			label = "QSPI.SPL";
+			reg = <0x00000000 0x000010000>;
+		};
+		partition@1 {
+			label = "QSPI.SPL.backup1";
+			reg = <0x00010000 0x00010000>;
+		};
+		partition@2 {
+			label = "QSPI.SPL.backup2";
+			reg = <0x00020000 0x00010000>;
+		};
+		partition@3 {
+			label = "QSPI.SPL.backup3";
+			reg = <0x00030000 0x00010000>;
+		};
+		partition@4 {
+			label = "QSPI.u-boot";
+			reg = <0x00040000 0x00100000>;
+		};
+		partition@5 {
+			label = "QSPI.u-boot-spl-os";
+			reg = <0x00140000 0x00080000>;
+		};
+		partition@6 {
+			label = "QSPI.u-boot-env";
+			reg = <0x001c0000 0x00010000>;
+		};
+		partition@7 {
+			label = "QSPI.u-boot-env.backup1";
+			reg = <0x001d0000 0x0010000>;
+		};
+		partition@8 {
+			label = "QSPI.kernel";
+			reg = <0x001e0000 0x0800000>;
+		};
+		partition@9 {
+			label = "QSPI.file-system";
+			reg = <0x009e0000 0x01620000>;
+		};
+	};
 };

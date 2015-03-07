@@ -119,15 +119,11 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 			continue;
 
 		result = acpi_bus_get_device(trt->source, &adev);
-		if (!result)
-			acpi_create_platform_device(adev);
-		else
+		if (result)
 			pr_warn("Failed to get source ACPI device\n");
 
 		result = acpi_bus_get_device(trt->target, &adev);
-		if (!result)
-			acpi_create_platform_device(adev);
-		else
+		if (result)
 			pr_warn("Failed to get target ACPI device\n");
 	}
 
@@ -206,16 +202,12 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 
 		if (art->source) {
 			result = acpi_bus_get_device(art->source, &adev);
-			if (!result)
-				acpi_create_platform_device(adev);
-			else
+			if (result)
 				pr_warn("Failed to get source ACPI device\n");
 		}
 		if (art->target) {
 			result = acpi_bus_get_device(art->target, &adev);
-			if (!result)
-				acpi_create_platform_device(adev);
-			else
+			if (result)
 				pr_warn("Failed to get source ACPI device\n");
 		}
 	}

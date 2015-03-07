@@ -110,7 +110,7 @@ int vrtc_set_mmss(const struct timespec *now)
 		spin_unlock_irqrestore(&rtc_lock, flags);
 	} else {
 		pr_err("%s: Invalid vRTC value: write of %lx to vRTC failed\n",
-			__FUNCTION__, now->tv_sec);
+			__func__, now->tv_sec);
 		retval = -EINVAL;
 	}
 	return retval;

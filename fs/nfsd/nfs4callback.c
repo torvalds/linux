@@ -546,6 +546,102 @@ out:
 	return status;
 }
 
+#ifdef CONFIG_NFSD_PNFS
+/*
+ * CB_LAYOUTRECALL4args
+ *
+ *	struct layoutrecall_file4 {
+ *		nfs_fh4         lor_fh;
+ *		offset4         lor_offset;
+ *		length4         lor_length;
+ *		stateid4        lor_stateid;
+ *	};
+ *
+ *	union layoutrecall4 switch(layoutrecall_type4 lor_recalltype) {
+ *	case LAYOUTRECALL4_FILE:
+ *		layoutrecall_file4 lor_layout;
+ *	case LAYOUTRECALL4_FSID:
+ *		fsid4              lor_fsid;
+ *	case LAYOUTRECALL4_ALL:
+ *		void;
+ *	};
+ *
+ *	struct CB_LAYOUTRECALL4args {
+ *		layouttype4             clora_type;
+ *		layoutiomode4           clora_iomode;
+ *		bool                    clora_changed;
+ *		layoutrecall4           clora_recall;
+ *	};
+ */
+static void encode_cb_layout4args(struct xdr_stream *xdr,
+				  const struct nfs4_layout_stateid *ls,
+				  struct nfs4_cb_compound_hdr *hdr)
+{
+	__be32 *p;
+
+	BUG_ON(hdr->minorversion == 0);
+
+	p = xdr_reserve_space(xdr, 5 * 4);
+	*p++ = cpu_to_be32(OP_CB_LAYOUTRECALL);
+	*p++ = cpu_to_be32(ls->ls_layout_type);
+	*p++ = cpu_to_be32(IOMODE_ANY);
+	*p++ = cpu_to_be32(1);
+	*p = cpu_to_be32(RETURN_FILE);
+
+	encode_nfs_fh4(xdr, &ls->ls_stid.sc_file->fi_fhandle);
+
+	p = xdr_reserve_space(xdr, 2 * 8);
+	p = xdr_encode_hyper(p, 0);
+	xdr_encode_hyper(p, NFS4_MAX_UINT64);
+
+	encode_stateid4(xdr, &ls->ls_recall_sid);
+
+	hdr->nops++;
+}
+
+static void nfs4_xdr_enc_cb_layout(struct rpc_rqst *req,
+				   struct xdr_stream *xdr,
+				   const struct nfsd4_callback *cb)
+{
+	const struct nfs4_layout_stateid *ls =
+		container_of(cb, struct nfs4_layout_stateid, ls_recall);
+	struct nfs4_cb_compound_hdr hdr = {
+		.ident = 0,
+		.minorversion = cb->cb_minorversion,
+	};
+
+	encode_cb_compound4args(xdr, &hdr);
+	encode_cb_sequence4args(xdr, cb, &hdr);
+	encode_cb_layout4args(xdr, ls, &hdr);
+	encode_cb_nops(&hdr);
+}
+
+static int nfs4_xdr_dec_cb_layout(struct rpc_rqst *rqstp,
+				  struct xdr_stream *xdr,
+				  struct nfsd4_callback *cb)
+{
+	struct nfs4_cb_compound_hdr hdr;
+	enum nfsstat4 nfserr;
+	int status;
+
+	status = decode_cb_compound4res(xdr, &hdr);
+	if (unlikely(status))
+		goto out;
+	if (cb) {
+		status = decode_cb_sequence4res(xdr, cb);
+		if (unlikely(status))
+			goto out;
+	}
+	status = decode_cb_op_status(xdr, OP_CB_LAYOUTRECALL, &nfserr);
+	if (unlikely(status))
+		goto out;
+	if (unlikely(nfserr != NFS4_OK))
+		status = nfs_cb_stat_to_errno(nfserr);
+out:
+	return status;
+}
+#endif /* CONFIG_NFSD_PNFS */
+
 /*
  * RPC procedure tables
  */
@@ -563,6 +659,9 @@ out:
 static struct rpc_procinfo nfs4_cb_procedures[] = {
 	PROC(CB_NULL,	NULL,		cb_null,	cb_null),
 	PROC(CB_RECALL,	COMPOUND,	cb_recall,	cb_recall),
+#ifdef CONFIG_NFSD_PNFS
+	PROC(CB_LAYOUT,	COMPOUND,	cb_layout,	cb_layout),
+#endif
 };
 
 static struct rpc_version nfs_cb_version4 = {

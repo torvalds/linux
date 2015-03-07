@@ -225,20 +225,6 @@ fWrite_hfc8(hfc4s8s_hw *a, u_char c)
 }
 
 static inline void
-Write_hfc16(hfc4s8s_hw *a, u_char b, u_short c)
-{
-	SetRegAddr(a, b);
-	outw(c, a->iobase);
-}
-
-static inline void
-Write_hfc32(hfc4s8s_hw *a, u_char b, u_long c)
-{
-	SetRegAddr(a, b);
-	outl(c, a->iobase);
-}
-
-static inline void
 fWrite_hfc32(hfc4s8s_hw *a, u_long c)
 {
 	outl(c, a->iobase);
@@ -263,13 +249,6 @@ Read_hfc16(hfc4s8s_hw *a, u_char b)
 {
 	SetRegAddr(a, b);
 	return (inw((volatile u_int) a->iobase));
-}
-
-static inline u_long
-Read_hfc32(hfc4s8s_hw *a, u_char b)
-{
-	SetRegAddr(a, b);
-	return (inl((volatile u_int) a->iobase));
 }
 
 static inline u_long

@@ -508,19 +508,12 @@ static void sti_hda_bridge_nope(struct drm_bridge *bridge)
 	/* do nothing */
 }
 
-static void sti_hda_brigde_destroy(struct drm_bridge *bridge)
-{
-	drm_bridge_cleanup(bridge);
-	kfree(bridge);
-}
-
 static const struct drm_bridge_funcs sti_hda_bridge_funcs = {
 	.pre_enable = sti_hda_pre_enable,
 	.enable = sti_hda_bridge_nope,
 	.disable = sti_hda_disable,
 	.post_disable = sti_hda_bridge_nope,
 	.mode_set = sti_hda_set_mode,
-	.destroy = sti_hda_brigde_destroy,
 };
 
 static int sti_hda_connector_get_modes(struct drm_connector *connector)
@@ -664,7 +657,8 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	bridge->driver_private = hda;
-	drm_bridge_init(drm_dev, bridge, &sti_hda_bridge_funcs);
+	bridge->funcs = &sti_hda_bridge_funcs;
+	drm_bridge_attach(drm_dev, bridge);
 
 	encoder->bridge = bridge;
 	connector->encoder = encoder;
@@ -693,7 +687,6 @@ static int sti_hda_bind(struct device *dev, struct device *master, void *data)
 err_sysfs:
 	drm_connector_unregister(drm_connector);
 err_connector:
-	drm_bridge_cleanup(bridge);
 	drm_connector_cleanup(drm_connector);
 	return -EINVAL;
 }

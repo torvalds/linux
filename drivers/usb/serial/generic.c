@@ -286,7 +286,7 @@ static int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 
 	res = usb_submit_urb(port->read_urbs[index], mem_flags);
 	if (res) {
-		if (res != -EPERM) {
+		if (res != -EPERM && res != -ENODEV) {
 			dev_err(&port->dev,
 					"%s - usb_submit_urb failed: %d\n",
 					__func__, res);
@@ -373,7 +373,7 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 							__func__, urb->status);
 		return;
 	default:
-		dev_err(&port->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&port->dev, "%s - nonzero urb status: %d\n",
 							__func__, urb->status);
 		goto resubmit;
 	}

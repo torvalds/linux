@@ -35,6 +35,8 @@
 #include "prm44xx.h"
 #include "common.h"
 #include "clock.h"
+#include "cm.h"
+#include "control.h"
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
@@ -187,6 +189,7 @@ int omap_prcm_event_to_irq(const char *name)
  */
 void omap_prcm_irq_cleanup(void)
 {
+	unsigned int irq;
 	int i;
 
 	if (!prcm_irq_setup) {
@@ -211,7 +214,11 @@ void omap_prcm_irq_cleanup(void)
 	kfree(prcm_irq_setup->priority_mask);
 	prcm_irq_setup->priority_mask = NULL;
 
-	irq_set_chained_handler(prcm_irq_setup->irq, NULL);
+	if (prcm_irq_setup->xlate_irq)
+		irq = prcm_irq_setup->xlate_irq(prcm_irq_setup->irq);
+	else
+		irq = prcm_irq_setup->irq;
+	irq_set_chained_handler(irq, NULL);
 
 	if (prcm_irq_setup->base_irq > 0)
 		irq_free_descs(prcm_irq_setup->base_irq,
@@ -259,6 +266,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 	int offset, i;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
+	unsigned int irq;
 
 	if (!irq_setup)
 		return -EINVAL;
@@ -298,7 +306,11 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 				1 << (offset & 0x1f);
 	}
 
-	irq_set_chained_handler(irq_setup->irq, omap_prcm_irq_handler);
+	if (irq_setup->xlate_irq)
+		irq = irq_setup->xlate_irq(irq_setup->irq);
+	else
+		irq = irq_setup->irq;
+	irq_set_chained_handler(irq, omap_prcm_irq_handler);
 
 	irq_setup->base_irq = irq_alloc_descs(-1, 0, irq_setup->nr_regs * 32,
 		0);
@@ -571,6 +583,10 @@ static const struct of_device_id omap_prcm_dt_match_table[] = {
 	{ .compatible = "ti,am3-scrm" },
 	{ .compatible = "ti,am4-prcm" },
 	{ .compatible = "ti,am4-scrm" },
+	{ .compatible = "ti,dm814-prcm" },
+	{ .compatible = "ti,dm814-scrm" },
+	{ .compatible = "ti,dm816-prcm" },
+	{ .compatible = "ti,dm816-scrm" },
 	{ .compatible = "ti,omap2-prcm" },
 	{ .compatible = "ti,omap2-scrm" },
 	{ .compatible = "ti,omap3-prm" },
@@ -625,6 +641,15 @@ int __init of_prcm_init(void)
 	}
 
 	return 0;
+}
+
+void __init omap3_prcm_legacy_iomaps_init(void)
+{
+	ti_clk_ll_ops = &omap_clk_ll_ops;
+
+	clk_memmaps[TI_CLKM_CM] = cm_base + OMAP3430_IVA2_MOD;
+	clk_memmaps[TI_CLKM_PRM] = prm_base + OMAP3430_IVA2_MOD;
+	clk_memmaps[TI_CLKM_SCRM] = omap_ctrl_base_get();
 }
 
 static int __init prm_late_init(void)

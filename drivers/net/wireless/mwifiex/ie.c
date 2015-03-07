@@ -317,27 +317,27 @@ done:
 	return ret;
 }
 
-/* This function parses different IEs-tail IEs, beacon IEs, probe response IEs,
- * association response IEs from cfg80211_ap_settings function and sets these IE
- * to FW.
+/* This function parses  head and tail IEs, from cfg80211_beacon_data and sets
+ * these IE to FW.
  */
-int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
-			 struct cfg80211_beacon_data *info)
+static int mwifiex_uap_set_head_tail_ies(struct mwifiex_private *priv,
+					 struct cfg80211_beacon_data *info)
 {
 	struct mwifiex_ie *gen_ie;
-	struct ieee_types_header *rsn_ie, *wpa_ie = NULL;
-	u16 rsn_idx = MWIFIEX_AUTO_IDX_MASK, ie_len = 0;
+	struct ieee_types_header *rsn_ie = NULL, *wpa_ie = NULL;
+	struct ieee_types_header *chsw_ie = NULL;
+	u16 gen_idx = MWIFIEX_AUTO_IDX_MASK, ie_len = 0;
 	const u8 *vendor_ie;
 
-	if (info->tail && info->tail_len) {
-		gen_ie = kzalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
-		if (!gen_ie)
-			return -ENOMEM;
-		gen_ie->ie_index = cpu_to_le16(rsn_idx);
-		gen_ie->mgmt_subtype_mask = cpu_to_le16(MGMT_MASK_BEACON |
-							MGMT_MASK_PROBE_RESP |
-							MGMT_MASK_ASSOC_RESP);
+	gen_ie = kzalloc(sizeof(*gen_ie), GFP_KERNEL);
+	if (!gen_ie)
+		return -ENOMEM;
+	gen_ie->ie_index = cpu_to_le16(gen_idx);
+	gen_ie->mgmt_subtype_mask = cpu_to_le16(MGMT_MASK_BEACON |
+						MGMT_MASK_PROBE_RESP |
+						MGMT_MASK_ASSOC_RESP);
 
+	if (info->tail && info->tail_len) {
 		rsn_ie = (void *)cfg80211_find_ie(WLAN_EID_RSN,
 						  info->tail, info->tail_len);
 		if (rsn_ie) {
@@ -358,18 +358,40 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 			gen_ie->ie_length = cpu_to_le16(ie_len);
 		}
 
-		if (rsn_ie || wpa_ie) {
-			if (mwifiex_update_uap_custom_ie(priv, gen_ie, &rsn_idx,
-							 NULL, NULL,
-							 NULL, NULL)) {
-				kfree(gen_ie);
-				return -1;
-			}
-			priv->rsn_idx = rsn_idx;
+		chsw_ie = (void *)cfg80211_find_ie(WLAN_EID_CHANNEL_SWITCH,
+						   info->tail, info->tail_len);
+		if (chsw_ie) {
+			memcpy(gen_ie->ie_buffer + ie_len,
+			       chsw_ie, chsw_ie->len + 2);
+			ie_len += chsw_ie->len + 2;
+			gen_ie->ie_length = cpu_to_le16(ie_len);
 		}
-
-		kfree(gen_ie);
 	}
+
+	if (rsn_ie || wpa_ie || chsw_ie) {
+		if (mwifiex_update_uap_custom_ie(priv, gen_ie, &gen_idx, NULL,
+						 NULL, NULL, NULL)) {
+			kfree(gen_ie);
+			return -1;
+		}
+		priv->gen_idx = gen_idx;
+	}
+
+	kfree(gen_ie);
+	return 0;
+}
+
+/* This function parses different IEs-head & tail IEs, beacon IEs,
+ * probe response IEs, association response IEs from cfg80211_ap_settings
+ * function and sets these IE to FW.
+ */
+int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
+			 struct cfg80211_beacon_data *info)
+{
+	int ret;
+
+	ret = mwifiex_uap_set_head_tail_ies(priv, info);
+		return ret;
 
 	return mwifiex_set_mgmt_beacon_data_ies(priv, info);
 }
@@ -378,25 +400,25 @@ int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 int mwifiex_del_mgmt_ies(struct mwifiex_private *priv)
 {
 	struct mwifiex_ie *beacon_ie = NULL, *pr_ie = NULL;
-	struct mwifiex_ie *ar_ie = NULL, *rsn_ie = NULL;
+	struct mwifiex_ie *ar_ie = NULL, *gen_ie = NULL;
 	int ret = 0;
 
-	if (priv->rsn_idx != MWIFIEX_AUTO_IDX_MASK) {
-		rsn_ie = kmalloc(sizeof(struct mwifiex_ie), GFP_KERNEL);
-		if (!rsn_ie)
+	if (priv->gen_idx != MWIFIEX_AUTO_IDX_MASK) {
+		gen_ie = kmalloc(sizeof(*gen_ie), GFP_KERNEL);
+		if (!gen_ie)
 			return -ENOMEM;
 
-		rsn_ie->ie_index = cpu_to_le16(priv->rsn_idx);
-		rsn_ie->mgmt_subtype_mask = cpu_to_le16(MWIFIEX_DELETE_MASK);
-		rsn_ie->ie_length = 0;
-		if (mwifiex_update_uap_custom_ie(priv, rsn_ie, &priv->rsn_idx,
+		gen_ie->ie_index = cpu_to_le16(priv->gen_idx);
+		gen_ie->mgmt_subtype_mask = cpu_to_le16(MWIFIEX_DELETE_MASK);
+		gen_ie->ie_length = 0;
+		if (mwifiex_update_uap_custom_ie(priv, gen_ie, &priv->gen_idx,
 						 NULL, &priv->proberesp_idx,
 						 NULL, &priv->assocresp_idx)) {
 			ret = -1;
 			goto done;
 		}
 
-		priv->rsn_idx = MWIFIEX_AUTO_IDX_MASK;
+		priv->gen_idx = MWIFIEX_AUTO_IDX_MASK;
 	}
 
 	if (priv->beacon_idx != MWIFIEX_AUTO_IDX_MASK) {
@@ -440,7 +462,6 @@ done:
 	kfree(beacon_ie);
 	kfree(pr_ie);
 	kfree(ar_ie);
-	kfree(rsn_ie);
 
 	return ret;
 }

@@ -2,11 +2,15 @@
 	- this file
 Booting
 	- requirements for booting
+CCN.txt
+	- Cache Coherent Network ring-bus and perf PMU driver.
 Interrupts
 	- ARM Interrupt subsystem documentation
 IXP4xx
 	- Intel IXP4xx Network processor.
-msm
+Makefile
+	- Build sourcefiles as part of the Documentation-build for arm
+msm/
 	- MSM specific documentation
 Netwinder
 	- Netwinder specific documentation
@@ -18,11 +22,9 @@ README
 	- General ARM documentation
 SA1100/
 	- SA1100 documentation
-Samsung-S3C24XX
+Samsung-S3C24XX/
 	- S3C24XX ARM Linux Overview
-Sharp-LH
-	- Linux on Sharp LH79524 and LH7A40X System On a Chip (SOC)
-SPEAr
+SPEAr/
 	- ST SPEAr platform Linux Overview
 VFP/
 	- Release notes for Linux Kernel Vector Floating Point support code

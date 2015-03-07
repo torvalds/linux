@@ -116,6 +116,22 @@ struct thread;
 #define map__for_each_symbol(map, pos, n)	\
 	dso__for_each_symbol(map->dso, pos, n, map->type)
 
+/* map__for_each_symbol_with_name - iterate over the symbols in the given map
+ *                                  that have the given name
+ *
+ * @map: the 'struct map *' in which symbols itereated
+ * @sym_name: the symbol name
+ * @pos: the 'struct symbol *' to use as a loop cursor
+ * @filter: to use when loading the DSO
+ */
+#define __map__for_each_symbol_by_name(map, sym_name, pos, filter)	\
+	for (pos = map__find_symbol_by_name(map, sym_name, filter);	\
+	     pos && strcmp(pos->name, sym_name) == 0;		\
+	     pos = symbol__next_by_name(pos))
+
+#define map__for_each_symbol_by_name(map, sym_name, pos)		\
+	__map__for_each_symbol_by_name(map, sym_name, (pos), NULL)
+
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
 void map__init(struct map *map, enum map_type type,

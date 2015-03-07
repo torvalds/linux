@@ -265,22 +265,12 @@ out:
 	data[NFT_REG_VERDICT].verdict = NF_DROP;
 }
 
-static int nft_reject_bridge_validate_hooks(const struct nft_chain *chain)
+static int nft_reject_bridge_validate(const struct nft_ctx *ctx,
+				      const struct nft_expr *expr,
+				      const struct nft_data **data)
 {
-	struct nft_base_chain *basechain;
-
-	if (chain->flags & NFT_BASE_CHAIN) {
-		basechain = nft_base_chain(chain);
-
-		switch (basechain->ops[0].hooknum) {
-		case NF_BR_PRE_ROUTING:
-		case NF_BR_LOCAL_IN:
-			break;
-		default:
-			return -EOPNOTSUPP;
-		}
-	}
-	return 0;
+	return nft_chain_validate_hooks(ctx->chain, (1 << NF_BR_PRE_ROUTING) |
+						    (1 << NF_BR_LOCAL_IN));
 }
 
 static int nft_reject_bridge_init(const struct nft_ctx *ctx,
@@ -290,7 +280,7 @@ static int nft_reject_bridge_init(const struct nft_ctx *ctx,
 	struct nft_reject *priv = nft_expr_priv(expr);
 	int icmp_code, err;
 
-	err = nft_reject_bridge_validate_hooks(ctx->chain);
+	err = nft_reject_bridge_validate(ctx, expr, NULL);
 	if (err < 0)
 		return err;
 
@@ -339,13 +329,6 @@ static int nft_reject_bridge_dump(struct sk_buff *skb,
 
 nla_put_failure:
 	return -1;
-}
-
-static int nft_reject_bridge_validate(const struct nft_ctx *ctx,
-				      const struct nft_expr *expr,
-				      const struct nft_data **data)
-{
-	return nft_reject_bridge_validate_hooks(ctx->chain);
 }
 
 static struct nft_expr_type nft_reject_bridge_type;

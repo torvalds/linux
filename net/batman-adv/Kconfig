@@ -62,6 +62,7 @@ config BATMAN_ADV_MCAST
 config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"
 	depends on BATMAN_ADV
+	depends on DEBUG_FS
 	help
 	  This is an option for use by developers; most people should
 	  say N here. This enables compilation of support for

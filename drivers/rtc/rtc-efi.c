@@ -218,6 +218,7 @@ static int __init efi_rtc_probe(struct platform_device *dev)
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
+	rtc->uie_unsupported = 1;
 	platform_set_drvdata(dev, rtc);
 
 	return 0;

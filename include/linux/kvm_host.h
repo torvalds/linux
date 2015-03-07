@@ -33,10 +33,6 @@
 
 #include <asm/kvm_host.h>
 
-#ifndef KVM_MMIO_SIZE
-#define KVM_MMIO_SIZE 8
-#endif
-
 /*
  * The bit 16 ~ bit 31 of kvm_memory_region::flags are internally used
  * in kvm, other bits are visible for userspace which are defined in
@@ -199,17 +195,6 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
 		       struct kvm_arch_async_pf *arch);
 int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 #endif
-
-/*
- * Carry out a gup that requires IO. Allow the mm to relinquish the mmap
- * semaphore if the filemap/swap has to wait on a page lock. pagep == NULL
- * controls whether we retry the gup one more time to completion in that case.
- * Typically this is called after a FAULT_FLAG_RETRY_NOWAIT in the main tdp
- * handler.
- */
-int kvm_get_user_page_io(struct task_struct *tsk, struct mm_struct *mm,
-			 unsigned long addr, bool write_fault,
-			 struct page **pagep);
 
 enum {
 	OUTSIDE_GUEST_MODE,
@@ -611,6 +596,15 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext);
 
 int kvm_get_dirty_log(struct kvm *kvm,
 			struct kvm_dirty_log *log, int *is_dirty);
+
+int kvm_get_dirty_log_protect(struct kvm *kvm,
+			struct kvm_dirty_log *log, bool *is_dirty);
+
+void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
+					struct kvm_memory_slot *slot,
+					gfn_t gfn_offset,
+					unsigned long mask);
+
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 				struct kvm_dirty_log *log);
 
@@ -652,7 +646,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu);
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id);
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu);
-int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu);
 
 int kvm_arch_hardware_enable(void);
@@ -1042,6 +1036,8 @@ void kvm_unregister_device_ops(u32 type);
 
 extern struct kvm_device_ops kvm_mpic_ops;
 extern struct kvm_device_ops kvm_xics_ops;
+extern struct kvm_device_ops kvm_arm_vgic_v2_ops;
+extern struct kvm_device_ops kvm_arm_vgic_v3_ops;
 
 #ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
 
