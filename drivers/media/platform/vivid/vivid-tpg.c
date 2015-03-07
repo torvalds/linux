@@ -1183,24 +1183,37 @@ void tpg_gen_text(struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 		div = 2;
 
 	for (p = 0; p < tpg->planes; p++) {
-		/* Print stream time */
+		unsigned vdiv = tpg->vdownsampling[p];
+		unsigned hdiv = tpg->hdownsampling[p];
+
+		/* Print text */
 #define PRINTSTR(PIXTYPE) do {	\
 	PIXTYPE fg;	\
 	PIXTYPE bg;	\
 	memcpy(&fg, tpg->textfg[p], sizeof(PIXTYPE));	\
 	memcpy(&bg, tpg->textbg[p], sizeof(PIXTYPE));	\
 	\
-	for (line = first; line < 16; line += step) {	\
+	for (line = first; line < 16; line += vdiv * step) {	\
 		int l = tpg->vflip ? 15 - line : line; \
-		PIXTYPE *pos = (PIXTYPE *)(basep[p][line & 1] + \
-			       ((y * step + l) / div) * tpg->bytesperline[p] + \
-			       x * sizeof(PIXTYPE));	\
+		PIXTYPE *pos = (PIXTYPE *)(basep[p][(line / vdiv) & 1] + \
+			       ((y * step + l) / (vdiv * div)) * tpg->bytesperline[p] + \
+			       (x / hdiv) * sizeof(PIXTYPE));	\
 		unsigned s;	\
 	\
 		for (s = 0; s < len; s++) {	\
 			u8 chr = font8x16[text[s] * 16 + line];	\
 	\
-			if (tpg->hflip) { \
+			if (hdiv == 2 && tpg->hflip) { \
+				pos[3] = (chr & (0x01 << 6) ? fg : bg);	\
+				pos[2] = (chr & (0x01 << 4) ? fg : bg);	\
+				pos[1] = (chr & (0x01 << 2) ? fg : bg);	\
+				pos[0] = (chr & (0x01 << 0) ? fg : bg);	\
+			} else if (hdiv == 2) { \
+				pos[0] = (chr & (0x01 << 7) ? fg : bg);	\
+				pos[1] = (chr & (0x01 << 5) ? fg : bg);	\
+				pos[2] = (chr & (0x01 << 3) ? fg : bg);	\
+				pos[3] = (chr & (0x01 << 1) ? fg : bg);	\
+			} else if (tpg->hflip) { \
 				pos[7] = (chr & (0x01 << 7) ? fg : bg);	\
 				pos[6] = (chr & (0x01 << 6) ? fg : bg);	\
 				pos[5] = (chr & (0x01 << 5) ? fg : bg);	\
@@ -1220,7 +1233,7 @@ void tpg_gen_text(struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
 				pos[7] = (chr & (0x01 << 0) ? fg : bg);	\
 			} \
 	\
-			pos += tpg->hflip ? -8 : 8;	\
+			pos += (tpg->hflip ? -8 : 8) / hdiv;	\
 		}	\
 	}	\
 } while (0)
