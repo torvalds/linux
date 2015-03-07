@@ -117,6 +117,7 @@ struct rockchip_thermal_data {
 	int cpu_temp_adjust;
 	int gpu_temp_adjust;
 	int cpu_temp;
+	bool logout;
 
 	void __iomem *regs;
 
@@ -827,7 +828,9 @@ static int rockchip_thermal_user_mode_get_temp(struct rockchip_thermal_data *the
 	temp_cpu = rk_tsadcv3_code_to_temp((val_cpu * voltage + 500000) / 1000000) / 1000;
 	temp_cpu = temp_cpu + thermal->cpu_temp_adjust;
 	thermal->cpu_temp = temp_cpu;
-	thermal_dbg(&thermal->pdev->dev, "cpu[%d, %d], voltage: %d\n", val_cpu, temp_cpu, voltage);
+	if(thermal->logout)
+		printk("cpu[%d, %d], voltage: %d\n"
+			, val_cpu, temp_cpu, voltage);
 #endif
 
 	return temp_cpu;
@@ -891,6 +894,29 @@ static ssize_t rockchip_thermal_temp_adjust_test_show(struct kobject *kobj
 	return (str - buf);
 }
 
+static ssize_t rockchip_thermal_temp_test_store(struct kobject *kobj
+	, struct kobj_attribute *attr, const char *buf, size_t n)
+{
+	struct rockchip_thermal_data *thermal = rockchip_thermal_get_data();
+	char cmd;
+	const char *buftmp = buf;
+
+	sscanf(buftmp, "%c", &cmd);
+	switch (cmd) {
+	case 't':
+		thermal->logout = true;
+		break;
+	case 'f':
+		thermal->logout = false;
+		break;
+	default:
+		printk("Unknown command\n");
+		break;
+	}
+
+	return n;
+}
+
 static ssize_t rockchip_thermal_temp_test_show(struct kobject *kobj
 	, struct kobj_attribute *attr, char *buf)
 {
@@ -915,7 +941,7 @@ static struct rockchip_thermal_attribute rockchip_thermal_attrs[] = {
 	__ATTR(temp_adjust, S_IRUGO | S_IWUSR, rockchip_thermal_temp_adjust_test_show
 		, rockchip_thermal_temp_adjust_test_store),
 	__ATTR(temp, S_IRUGO | S_IWUSR, rockchip_thermal_temp_test_show
-		, NULL),
+		, rockchip_thermal_temp_test_store),
 };
 
 static int rockchip_thermal_probe(struct platform_device *pdev)
