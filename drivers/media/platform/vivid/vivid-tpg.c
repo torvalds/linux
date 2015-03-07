@@ -687,28 +687,64 @@ static void gen_twopix(struct tpg_data *tpg,
 	switch (tpg->fourcc) {
 	case V4L2_PIX_FMT_NV16M:
 		buf[0][offset] = r_y;
-		buf[1][offset] = odd ? b_v : g_u;
+		if (odd) {
+			buf[1][0] = (buf[1][0] + g_u) / 2;
+			buf[1][1] = (buf[1][1] + b_v) / 2;
+			break;
+		}
+		buf[1][0] = g_u;
+		buf[1][1] = b_v;
 		break;
 	case V4L2_PIX_FMT_NV61M:
 		buf[0][offset] = r_y;
-		buf[1][offset] = odd ? g_u : b_v;
+		if (odd) {
+			buf[1][0] = (buf[1][0] + b_v) / 2;
+			buf[1][1] = (buf[1][1] + g_u) / 2;
+			break;
+		}
+		buf[1][0] = b_v;
+		buf[1][1] = g_u;
 		break;
 
 	case V4L2_PIX_FMT_YUYV:
 		buf[0][offset] = r_y;
-		buf[0][offset + 1] = odd ? b_v : g_u;
+		if (odd) {
+			buf[0][1] = (buf[0][1] + g_u) / 2;
+			buf[0][3] = (buf[0][3] + b_v) / 2;
+			break;
+		}
+		buf[0][1] = g_u;
+		buf[0][3] = b_v;
 		break;
 	case V4L2_PIX_FMT_UYVY:
-		buf[0][offset] = odd ? b_v : g_u;
 		buf[0][offset + 1] = r_y;
+		if (odd) {
+			buf[0][0] = (buf[0][0] + g_u) / 2;
+			buf[0][2] = (buf[0][2] + b_v) / 2;
+			break;
+		}
+		buf[0][0] = g_u;
+		buf[0][2] = b_v;
 		break;
 	case V4L2_PIX_FMT_YVYU:
 		buf[0][offset] = r_y;
-		buf[0][offset + 1] = odd ? g_u : b_v;
+		if (odd) {
+			buf[0][1] = (buf[0][1] + b_v) / 2;
+			buf[0][3] = (buf[0][3] + g_u) / 2;
+			break;
+		}
+		buf[0][1] = b_v;
+		buf[0][3] = g_u;
 		break;
 	case V4L2_PIX_FMT_VYUY:
-		buf[0][offset] = odd ? g_u : b_v;
 		buf[0][offset + 1] = r_y;
+		if (odd) {
+			buf[0][0] = (buf[0][0] + b_v) / 2;
+			buf[0][2] = (buf[0][2] + g_u) / 2;
+			break;
+		}
+		buf[0][0] = b_v;
+		buf[0][2] = g_u;
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		buf[0][offset] = (g_u << 5) | b_v;
