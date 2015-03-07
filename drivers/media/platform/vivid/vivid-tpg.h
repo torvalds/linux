@@ -189,6 +189,7 @@ void tpg_gen_text(struct tpg_data *tpg,
 		u8 *basep[TPG_MAX_PLANES][2], int y, int x, char *text);
 void tpg_calc_text_basep(struct tpg_data *tpg,
 		u8 *basep[TPG_MAX_PLANES][2], unsigned p, u8 *vbuf);
+void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf);
 void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf);
 bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc);
 void tpg_s_crop_compose(struct tpg_data *tpg, const struct v4l2_rect *crop,
@@ -350,7 +351,57 @@ static inline unsigned tpg_g_bytesperline(const struct tpg_data *tpg, unsigned p
 
 static inline void tpg_s_bytesperline(struct tpg_data *tpg, unsigned plane, unsigned bpl)
 {
-	tpg->bytesperline[plane] = bpl;
+	unsigned p;
+
+	if (tpg->buffers > 1) {
+		tpg->bytesperline[plane] = bpl;
+		return;
+	}
+
+	for (p = 0; p < tpg->planes; p++) {
+		unsigned plane_w = bpl * tpg->twopixelsize[p] / tpg->twopixelsize[0];
+
+		tpg->bytesperline[p] = plane_w;
+	}
+}
+
+static inline unsigned tpg_g_line_width(const struct tpg_data *tpg, unsigned plane)
+{
+	unsigned w = 0;
+	unsigned p;
+
+	if (tpg->buffers > 1)
+		return tpg_g_bytesperline(tpg, plane);
+	for (p = 0; p < tpg->planes; p++) {
+		unsigned plane_w = tpg_g_bytesperline(tpg, p);
+
+		w += plane_w;
+	}
+	return w;
+}
+
+static inline unsigned tpg_calc_line_width(const struct tpg_data *tpg,
+					   unsigned plane, unsigned bpl)
+{
+	unsigned w = 0;
+	unsigned p;
+
+	if (tpg->buffers > 1)
+		return bpl;
+	for (p = 0; p < tpg->planes; p++) {
+		unsigned plane_w = bpl * tpg->twopixelsize[p] / tpg->twopixelsize[0];
+
+		w += plane_w;
+	}
+	return w;
+}
+
+static inline unsigned tpg_calc_plane_size(const struct tpg_data *tpg, unsigned plane)
+{
+	if (plane >= tpg->planes)
+		return 0;
+
+	return tpg_g_bytesperline(tpg, plane) * tpg->buf_height;
 }
 
 static inline void tpg_s_buf_height(struct tpg_data *tpg, unsigned h)

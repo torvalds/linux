@@ -1321,7 +1321,7 @@ void tpg_calc_text_basep(struct tpg_data *tpg,
 		basep[p][0] += tpg->buf_height * stride / 2;
 }
 
-void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
+void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 {
 	bool is_tv = std;
 	bool is_60hz = is_tv && (std & V4L2_STD_525_60);
@@ -1579,5 +1579,21 @@ void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 				((f ^ vact) << 1) |
 				(hact ^ vact ^ f);
 		}
+	}
+}
+
+void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
+{
+	unsigned offset = 0;
+	unsigned i;
+
+	if (tpg->buffers > 1) {
+		tpg_fill_plane_buffer(tpg, std, p, vbuf);
+		return;
+	}
+
+	for (i = 0; i < tpg->planes; i++) {
+		tpg_fill_plane_buffer(tpg, std, i, vbuf + offset);
+		offset += tpg_calc_plane_size(tpg, i);
 	}
 }
