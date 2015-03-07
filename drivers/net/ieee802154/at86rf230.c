@@ -1572,7 +1572,7 @@ static int at86rf230_probe(struct spi_device *spi)
 	struct at86rf230_local *lp;
 	unsigned int status;
 	int rc, irq_type, rstn, slp_tr;
-	u8 xtal_trim;
+	u8 xtal_trim = 0;
 
 	if (!spi->irq) {
 		dev_err(&spi->dev, "no IRQ specified\n");
