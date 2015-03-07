@@ -1701,11 +1701,16 @@ static int vpfe_get_app_input_index(struct vpfe_device *vpfe,
 {
 	struct vpfe_config *cfg = vpfe->cfg;
 	struct vpfe_subdev_info *sdinfo;
+	struct i2c_client *client;
+	struct i2c_client *curr_client;
 	int i, j = 0;
 
+	curr_client = v4l2_get_subdevdata(vpfe->current_subdev->sd);
 	for (i = 0; i < ARRAY_SIZE(vpfe->cfg->asd); i++) {
 		sdinfo = &cfg->sub_devs[i];
-		if (!strcmp(sdinfo->name, vpfe->current_subdev->name)) {
+		client = v4l2_get_subdevdata(sdinfo->sd);
+		if (client->addr == curr_client->addr &&
+		    client->adapter->nr == client->adapter->nr) {
 			if (vpfe->current_input >= 1)
 				return -1;
 			*app_input_index = j + vpfe->current_input;
@@ -2297,20 +2302,10 @@ vpfe_async_bound(struct v4l2_async_notifier *notifier,
 	vpfe_dbg(1, vpfe, "vpfe_async_bound\n");
 
 	for (i = 0; i < ARRAY_SIZE(vpfe->cfg->asd); i++) {
-		sdinfo = &vpfe->cfg->sub_devs[i];
-
-		if (!strcmp(sdinfo->name, subdev->name)) {
+		if (vpfe->cfg->asd[i]->match.of.node == asd[i].match.of.node) {
+			sdinfo = &vpfe->cfg->sub_devs[i];
 			vpfe->sd[i] = subdev;
-			vpfe_info(vpfe,
-				 "v4l2 sub device %s registered\n",
-				 subdev->name);
-			vpfe->sd[i]->grp_id =
-					sdinfo->grp_id;
-			/* update tvnorms from the sub devices */
-			for (j = 0; j < 1; j++)
-				vpfe->video_dev->tvnorms |=
-					sdinfo->inputs[j].std;
-
+			vpfe->sd[i]->grp_id = sdinfo->grp_id;
 			found = true;
 			break;
 		}
@@ -2320,6 +2315,8 @@ vpfe_async_bound(struct v4l2_async_notifier *notifier,
 		vpfe_info(vpfe, "sub device (%s) not matched\n", subdev->name);
 		return -EINVAL;
 	}
+
+	vpfe->video_dev->tvnorms |= sdinfo->inputs[0].std;
 
 	/* setup the supported formats & indexes */
 	for (j = 0, i = 0; ; ++j) {
@@ -2500,8 +2497,6 @@ vpfe_get_pdata(struct platform_device *pdev)
 				endpoint->full_name);
 			goto done;
 		}
-
-		strncpy(sdinfo->name, rem->name, sizeof(sdinfo->name));
 
 		pdata->asd[i] = devm_kzalloc(&pdev->dev,
 					     sizeof(struct v4l2_async_subdev),

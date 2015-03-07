@@ -83,7 +83,6 @@ struct vpfe_route {
 };
 
 struct vpfe_subdev_info {
-	 char name[32];
 	/* Sub device group id */
 	int grp_id;
 	/* inputs available at the sub device */
