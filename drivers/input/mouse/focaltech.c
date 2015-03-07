@@ -386,6 +386,23 @@ static int focaltech_read_size(struct psmouse *psmouse)
 
 	return 0;
 }
+
+void focaltech_set_resolution(struct psmouse *psmouse, unsigned int resolution)
+{
+	/* not supported yet */
+}
+
+static void focaltech_set_rate(struct psmouse *psmouse, unsigned int rate)
+{
+	/* not supported yet */
+}
+
+static void focaltech_set_scale(struct psmouse *psmouse,
+				enum psmouse_scale scale)
+{
+	/* not supported yet */
+}
+
 int focaltech_init(struct psmouse *psmouse)
 {
 	struct focaltech_data *priv;
@@ -420,6 +437,14 @@ int focaltech_init(struct psmouse *psmouse)
 	psmouse->cleanup = focaltech_reset;
 	/* resync is not supported yet */
 	psmouse->resync_time = 0;
+	/*
+	 * rate/resolution/scale changes are not supported yet, and
+	 * the generic implementations of these functions seem to
+	 * confuse some touchpads
+	 */
+	psmouse->set_resolution = focaltech_set_resolution;
+	psmouse->set_rate = focaltech_set_rate;
+	psmouse->set_scale = focaltech_set_scale;
 
 	return 0;
 
