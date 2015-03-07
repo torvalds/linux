@@ -26,6 +26,7 @@
  * while TIMER1 for free running (clocksource)
  *
  * Newer ARC700 cores have 64bit clk fetching RTSC insn, preferred over TIMER1
+ * which however is currently broken
  */
 
 #include <linux/spinlock.h>
@@ -58,52 +59,6 @@
 #define ARC_TIMER_MAX	0xFFFFFFFF
 
 /********** Clock Source Device *********/
-
-#ifdef CONFIG_ARC_HAS_RTSC
-
-int arc_counter_setup(void)
-{
-	/*
-	 * For SMP this needs to be 0. However Kconfig glue doesn't
-	 * enable this option for SMP configs
-	 */
-	return 1;
-}
-
-static cycle_t arc_counter_read(struct clocksource *cs)
-{
-	unsigned long flags;
-	union {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		struct { u32 high, low; };
-#else
-		struct { u32 low, high; };
-#endif
-		cycle_t  full;
-	} stamp;
-
-	flags = arch_local_irq_save();
-
-	__asm__ __volatile(
-	"	.extCoreRegister tsch, 58,  r, cannot_shortcut	\n"
-	"	rtsc %0, 0	\n"
-	"	mov  %1, 0	\n"
-	: "=r" (stamp.low), "=r" (stamp.high));
-
-	arch_local_irq_restore(flags);
-
-	return stamp.full;
-}
-
-static struct clocksource arc_counter = {
-	.name   = "ARC RTSC",
-	.rating = 300,
-	.read   = arc_counter_read,
-	.mask   = CLOCKSOURCE_MASK(32),
-	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
-#else /* !CONFIG_ARC_HAS_RTSC */
 
 static bool is_usable_as_clocksource(void)
 {
@@ -138,8 +93,6 @@ static struct clocksource arc_counter = {
 	.mask   = CLOCKSOURCE_MASK(32),
 	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
 };
-
-#endif
 
 /********** Clock Event Device *********/
 

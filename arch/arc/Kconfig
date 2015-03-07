@@ -311,11 +311,6 @@ config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
 	default y
 
-config ARC_HAS_RTSC
-	bool "Insn: RTSC (64-bit r/o cycle counter)"
-	default y
-	depends on !SMP
-
 endmenu   # "ARC CPU Configuration"
 
 config LINUX_LINK_BASE
