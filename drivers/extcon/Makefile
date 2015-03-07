@@ -2,7 +2,7 @@
 # Makefile for external connector class (extcon) devices
 #
 
-obj-$(CONFIG_EXTCON)		+= extcon-class.o
+obj-$(CONFIG_EXTCON)		+= extcon.o
 obj-$(CONFIG_EXTCON_ADC_JACK)	+= extcon-adc-jack.o
 obj-$(CONFIG_EXTCON_ARIZONA)	+= extcon-arizona.o
 obj-$(CONFIG_EXTCON_GPIO)	+= extcon-gpio.o
