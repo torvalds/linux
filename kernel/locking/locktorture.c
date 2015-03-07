@@ -309,7 +309,7 @@ static int torture_rwlock_read_lock_irq(void) __acquires(torture_rwlock)
 static void torture_rwlock_read_unlock_irq(void)
 __releases(torture_rwlock)
 {
-	write_unlock_irqrestore(&torture_rwlock, cxt.cur_ops->flags);
+	read_unlock_irqrestore(&torture_rwlock, cxt.cur_ops->flags);
 }
 
 static struct lock_torture_ops rw_lock_irq_ops = {
