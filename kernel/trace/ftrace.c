@@ -2710,7 +2710,7 @@ static void ftrace_startup_sysctl(void)
 		command = FTRACE_UPDATE_CALLS;
 		if (ftrace_graph_active)
 			command |= FTRACE_START_FUNC_RET;
-		ftrace_run_update_code(command);
+		ftrace_startup_enable(command);
 	}
 }
 
@@ -5580,11 +5580,11 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 	if (ftrace_enabled) {
 
-		ftrace_startup_sysctl();
-
 		/* we are starting ftrace again */
 		if (ftrace_ops_list != &ftrace_list_end)
 			update_ftrace_function();
+
+		ftrace_startup_sysctl();
 
 	} else {
 		/* stopping ftrace calls (just send to ftrace_stub) */
