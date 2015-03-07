@@ -28,16 +28,15 @@ static ssize_t adis16220_read_16bit(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16220_state *st = iio_priv(indio_dev);
 	ssize_t ret;
-	s16 val = 0;
+	u16 val;
 
 	/* Take the iio_dev status lock */
 	mutex_lock(&indio_dev->mlock);
-	ret = adis_read_reg_16(&st->adis, this_attr->address,
-					(u16 *)&val);
+	ret = adis_read_reg_16(&st->adis, this_attr->address, &val);
 	mutex_unlock(&indio_dev->mlock);
 	if (ret)
 		return ret;
-	return sprintf(buf, "%d\n", val);
+	return sprintf(buf, "%u\n", val);
 }
 
 static ssize_t adis16220_write_16bit(struct device *dev,
