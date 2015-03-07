@@ -459,6 +459,8 @@ static void ipu_di_config_clock(struct ipu_di *di,
 
 		clkrate = clk_get_rate(di->clk_ipu);
 		div = DIV_ROUND_CLOSEST(clkrate, sig->mode.pixelclock);
+		if (div == 0)
+			div = 1;
 		rate = clkrate / div;
 
 		error = rate / (sig->mode.pixelclock / 1000);
