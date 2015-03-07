@@ -175,6 +175,7 @@ struct tpg_data {
 	/* Used to store TPG_MAX_PAT_LINES lines, each with up to two planes */
 	unsigned			max_line_width;
 	u8				*lines[TPG_MAX_PAT_LINES][TPG_MAX_PLANES];
+	u8				*downsampled_lines[TPG_MAX_PAT_LINES][TPG_MAX_PLANES];
 	u8				*random_line[TPG_MAX_PLANES];
 	u8				*contrast_line[TPG_MAX_PLANES];
 	u8				*black_line[TPG_MAX_PLANES];

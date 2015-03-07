@@ -128,6 +128,11 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w)
 			tpg->lines[pat][plane] = vzalloc(max_w * 2 * pixelsz);
 			if (!tpg->lines[pat][plane])
 				return -ENOMEM;
+			if (plane == 0)
+				continue;
+			tpg->downsampled_lines[pat][plane] = vzalloc(max_w * 2 * pixelsz);
+			if (!tpg->downsampled_lines[pat][plane])
+				return -ENOMEM;
 		}
 	}
 	for (plane = 0; plane < TPG_MAX_PLANES; plane++) {
@@ -155,6 +160,10 @@ void tpg_free(struct tpg_data *tpg)
 		for (plane = 0; plane < TPG_MAX_PLANES; plane++) {
 			vfree(tpg->lines[pat][plane]);
 			tpg->lines[pat][plane] = NULL;
+			if (plane == 0)
+				continue;
+			vfree(tpg->downsampled_lines[pat][plane]);
+			tpg->downsampled_lines[pat][plane] = NULL;
 		}
 	for (plane = 0; plane < TPG_MAX_PLANES; plane++) {
 		vfree(tpg->contrast_line[plane]);
@@ -1029,12 +1038,39 @@ static void tpg_precalculate_line(struct tpg_data *tpg)
 			gen_twopix(tpg, pix, tpg->hflip ? color1 : color2, 1);
 			for (p = 0; p < tpg->planes; p++) {
 				unsigned twopixsize = tpg->twopixelsize[p];
-				u8 *pos = tpg->lines[pat][p] + x * twopixsize / 2;
+				unsigned hdiv = tpg->hdownsampling[p];
+				u8 *pos = tpg->lines[pat][p] +
+						(x / hdiv) * twopixsize / 2;
 
-				memcpy(pos, pix[p], twopixsize);
+				memcpy(pos, pix[p], twopixsize / hdiv);
 			}
 		}
 	}
+
+	if (tpg->vdownsampling[tpg->planes - 1] > 1) {
+		unsigned pat_lines = tpg_get_pat_lines(tpg);
+
+		for (pat = 0; pat < pat_lines; pat++) {
+			unsigned next_pat = (pat + 1) % pat_lines;
+
+			for (p = 1; p < tpg->planes; p++) {
+				unsigned twopixsize = tpg->twopixelsize[p];
+				unsigned hdiv = tpg->hdownsampling[p];
+
+				for (x = 0; x < tpg->scaled_width * 2; x += 2) {
+					unsigned offset = (x / hdiv) * twopixsize / 2;
+					u8 *pos1 = tpg->lines[pat][p] + offset;
+					u8 *pos2 = tpg->lines[next_pat][p] + offset;
+					u8 *dest = tpg->downsampled_lines[pat][p] + offset;
+					unsigned i;
+
+					for (i = 0; i < twopixsize / hdiv; i++, dest++, pos1++, pos2++)
+						*dest = ((u16)*pos1 + (u16)*pos2) / 2;
+				}
+			}
+		}
+	}
+
 	for (x = 0; x < tpg->scaled_width; x += 2) {
 		u8 pix[TPG_MAX_PLANES][8];
 
