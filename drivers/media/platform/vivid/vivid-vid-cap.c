@@ -188,9 +188,9 @@ static int vid_cap_buf_prepare(struct vb2_buffer *vb)
 		size = tpg_g_bytesperline(&dev->tpg, p) * dev->fmt_cap_rect.height +
 			dev->fmt_cap->data_offset[p];
 
-		if (vb2_plane_size(vb, 0) < size) {
+		if (vb2_plane_size(vb, p) < size) {
 			dprintk(dev, 1, "%s data will not fit into plane %u (%lu < %lu)\n",
-					__func__, p, vb2_plane_size(vb, 0), size);
+					__func__, p, vb2_plane_size(vb, p), size);
 			return -EINVAL;
 		}
 
