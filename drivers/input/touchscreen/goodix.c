@@ -23,6 +23,8 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
+#include <linux/of.h>
 #include <asm/unaligned.h>
 
 struct goodix_ts_data {
@@ -375,11 +377,27 @@ static const struct i2c_device_id goodix_ts_id[] = {
 	{ }
 };
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id goodix_acpi_match[] = {
 	{ "GDIX1001", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, goodix_acpi_match);
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id goodix_of_match[] = {
+	{ .compatible = "goodix,gt911" },
+	{ .compatible = "goodix,gt9110" },
+	{ .compatible = "goodix,gt912" },
+	{ .compatible = "goodix,gt927" },
+	{ .compatible = "goodix,gt9271" },
+	{ .compatible = "goodix,gt928" },
+	{ .compatible = "goodix,gt967" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, goodix_of_match);
+#endif
 
 static struct i2c_driver goodix_ts_driver = {
 	.probe = goodix_ts_probe,
@@ -387,7 +405,8 @@ static struct i2c_driver goodix_ts_driver = {
 	.driver = {
 		.name = "Goodix-TS",
 		.owner = THIS_MODULE,
-		.acpi_match_table = goodix_acpi_match,
+		.acpi_match_table = ACPI_PTR(goodix_acpi_match),
+		.of_match_table = of_match_ptr(goodix_of_match),
 	},
 };
 module_i2c_driver(goodix_ts_driver);

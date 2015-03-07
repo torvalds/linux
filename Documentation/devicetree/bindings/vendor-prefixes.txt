@@ -65,6 +65,7 @@ gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 geniatech	Geniatech, Inc.
 globalscale	Globalscale Technologies, Inc.
 gmt	Global Mixed-mode Technology, Inc.
+goodix	Shenzhen Huiding Technology Co., Ltd.
 google	Google, Inc.
 gumstix	Gumstix, Inc.
 gw	Gateworks Corporation
