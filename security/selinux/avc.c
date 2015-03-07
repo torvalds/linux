@@ -70,6 +70,13 @@ struct avc_callback_node {
 	struct avc_callback_node *next;
 };
 
+struct avc_sidcmp {
+	int read		latest_notif;
+	char events		event_notif;
+};
+
+
+
 /* Exported via selinufs */
 unsigned int avc_cache_threshold = AVC_DEF_CACHE_THRESHOLD;
 
