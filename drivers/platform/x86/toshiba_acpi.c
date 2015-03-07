@@ -2770,6 +2770,21 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 	case 0x80: /* Hotkeys and some system events */
 		toshiba_acpi_process_hotkeys(dev);
 		break;
+	case 0x81: /* Dock events */
+	case 0x82:
+	case 0x83:
+		pr_info("Dock event received %x\n", event);
+		break;
+	case 0x88: /* Thermal events */
+		pr_info("Thermal event received\n");
+		break;
+	case 0x8f: /* LID closed */
+	case 0x90: /* LID is closed and Dock has been ejected */
+		break;
+	case 0x8c: /* SATA power events */
+	case 0x8b:
+		pr_info("SATA power event received %x\n", event);
+		break;
 	case 0x92: /* Keyboard backlight mode changed */
 		/* Update sysfs entries */
 		ret = sysfs_update_group(&acpi_dev->dev.kobj,
@@ -2777,17 +2792,19 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 		if (ret)
 			pr_err("Unable to update sysfs entries\n");
 		break;
-	case 0x81: /* Unknown */
-	case 0x82: /* Unknown */
-	case 0x83: /* Unknown */
-	case 0x8c: /* Unknown */
+	case 0x85: /* Unknown */
+	case 0x8d: /* Unknown */
 	case 0x8e: /* Unknown */
-	case 0x8f: /* Unknown */
-	case 0x90: /* Unknown */
+	case 0x94: /* Unknown */
+	case 0x95: /* Unknown */
 	default:
 		pr_info("Unknown event received %x\n", event);
 		break;
 	}
+
+	acpi_bus_generate_netlink_event(acpi_dev->pnp.device_class,
+					dev_name(&acpi_dev->dev),
+					event, 0);
 }
 
 #ifdef CONFIG_PM_SLEEP
