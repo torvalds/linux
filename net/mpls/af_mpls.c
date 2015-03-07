@@ -28,9 +28,9 @@ struct mpls_route { /* next hop label forwarding entry */
 	struct rcu_head		rt_rcu;
 	u32			rt_label[MAX_NEW_LABELS];
 	u8			rt_protocol; /* routing protocol that set this entry */
-	u8			rt_labels:2,
-				rt_via_alen:6;
-	unsigned short		rt_via_family;
+	u8			rt_labels;
+	u8			rt_via_alen;
+	u8			rt_via_table;
 	u8			rt_via[0];
 };
 
@@ -201,7 +201,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	err = neigh_xmit(rt->rt_via_family, out_dev, rt->rt_via, skb);
+	err = neigh_xmit(rt->rt_via_table, out_dev, rt->rt_via, skb);
 	if (err)
 		net_dbg_ratelimited("%s: packet transmission failed: %d\n",
 				    __func__, err);
@@ -225,7 +225,7 @@ static const struct nla_policy rtm_mpls_policy[RTA_MAX+1] = {
 struct mpls_route_config {
 	u32		rc_protocol;
 	u32		rc_ifindex;
-	u16		rc_via_family;
+	u16		rc_via_table;
 	u16		rc_via_alen;
 	u8		rc_via[MAX_VIA_ALEN];
 	u32		rc_label;
@@ -343,7 +343,7 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 		goto errout;
 
 	err = -EINVAL;
-	if ((cfg->rc_via_family == AF_PACKET) &&
+	if ((cfg->rc_via_table == NEIGH_LINK_TABLE) &&
 	    (dev->addr_len != cfg->rc_via_alen))
 		goto errout;
 
@@ -376,7 +376,7 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 		rt->rt_label[i] = cfg->rc_output_label[i];
 	rt->rt_protocol = cfg->rc_protocol;
 	RCU_INIT_POINTER(rt->rt_dev, dev);
-	rt->rt_via_family = cfg->rc_via_family;
+	rt->rt_via_table = cfg->rc_via_table;
 	memcpy(rt->rt_via, cfg->rc_via, cfg->rc_via_alen);
 
 	mpls_route_update(net, index, NULL, rt, &cfg->rc_nlinfo);
@@ -448,14 +448,21 @@ static struct notifier_block mpls_dev_notifier = {
 };
 
 static int nla_put_via(struct sk_buff *skb,
-		       u16 family, const void *addr, int alen)
+		       u8 table, const void *addr, int alen)
 {
+	static const int table_to_family[NEIGH_NR_TABLES + 1] = {
+		AF_INET, AF_INET6, AF_DECnet, AF_PACKET,
+	};
 	struct nlattr *nla;
 	struct rtvia *via;
+	int family = AF_UNSPEC;
 
 	nla = nla_reserve(skb, RTA_VIA, alen + 2);
 	if (!nla)
 		return -EMSGSIZE;
+
+	if (table <= NEIGH_NR_TABLES)
+		family = table_to_family[table];
 
 	via = nla_data(nla);
 	via->rtvia_family = family;
@@ -599,21 +606,23 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 			struct rtvia *via = nla_data(nla);
 			if (nla_len(nla) < offsetof(struct rtvia, rtvia_addr))
 				goto errout;
-			cfg->rc_via_family = via->rtvia_family;
 			cfg->rc_via_alen   = nla_len(nla) -
 				offsetof(struct rtvia, rtvia_addr);
 			if (cfg->rc_via_alen > MAX_VIA_ALEN)
 				goto errout;
 
 			/* Validate the address family */
-			switch(cfg->rc_via_family) {
+			switch(via->rtvia_family) {
 			case AF_PACKET:
+				cfg->rc_via_table = NEIGH_LINK_TABLE;
 				break;
 			case AF_INET:
+				cfg->rc_via_table = NEIGH_ARP_TABLE;
 				if (cfg->rc_via_alen != 4)
 					goto errout;
 				break;
 			case AF_INET6:
+				cfg->rc_via_table = NEIGH_ND_TABLE;
 				if (cfg->rc_via_alen != 16)
 					goto errout;
 				break;
@@ -686,7 +695,7 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 	if (rt->rt_labels &&
 	    nla_put_labels(skb, RTA_NEWDST, rt->rt_labels, rt->rt_label))
 		goto nla_put_failure;
-	if (nla_put_via(skb, rt->rt_via_family, rt->rt_via, rt->rt_via_alen))
+	if (nla_put_via(skb, rt->rt_via_table, rt->rt_via, rt->rt_via_alen))
 		goto nla_put_failure;
 	dev = rtnl_dereference(rt->rt_dev);
 	if (dev && nla_put_u32(skb, RTA_OIF, dev->ifindex))
@@ -799,7 +808,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 			goto nort0;
 		RCU_INIT_POINTER(rt0->rt_dev, lo);
 		rt0->rt_protocol = RTPROT_KERNEL;
-		rt0->rt_via_family = AF_PACKET;
+		rt0->rt_via_table = NEIGH_LINK_TABLE;
 		memcpy(rt0->rt_via, lo->dev_addr, lo->addr_len);
 	}
 	if (limit > LABEL_IPV6_EXPLICIT_NULL) {
@@ -809,7 +818,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 			goto nort2;
 		RCU_INIT_POINTER(rt2->rt_dev, lo);
 		rt2->rt_protocol = RTPROT_KERNEL;
-		rt2->rt_via_family = AF_PACKET;
+		rt2->rt_via_table = NEIGH_LINK_TABLE;
 		memcpy(rt2->rt_via, lo->dev_addr, lo->addr_len);
 	}
 
