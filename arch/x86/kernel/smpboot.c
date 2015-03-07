@@ -806,6 +806,8 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 #ifdef CONFIG_X86_32
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	irq_ctx_init(cpu);
+	per_cpu(cpu_current_top_of_stack, cpu) =
+		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
 #else
 	clear_tsk_thread_flag(idle, TIF_FORK);
 	initial_gs = per_cpu_offset(cpu);
