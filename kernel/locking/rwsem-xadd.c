@@ -324,32 +324,23 @@ done:
 	return ret;
 }
 
-static inline bool owner_running(struct rw_semaphore *sem,
-				 struct task_struct *owner)
-{
-	if (sem->owner != owner)
-		return false;
-
-	/*
-	 * Ensure we emit the owner->on_cpu, dereference _after_ checking
-	 * sem->owner still matches owner, if that fails, owner might
-	 * point to free()d memory, if it still matches, the rcu_read_lock()
-	 * ensures the memory stays valid.
-	 */
-	barrier();
-
-	return owner->on_cpu;
-}
-
 static noinline
 bool rwsem_spin_on_owner(struct rw_semaphore *sem, struct task_struct *owner)
 {
 	long count;
 
 	rcu_read_lock();
-	while (owner_running(sem, owner)) {
-		/* abort spinning when need_resched */
-		if (need_resched()) {
+	while (sem->owner == owner) {
+		/*
+		 * Ensure we emit the owner->on_cpu, dereference _after_
+		 * checking sem->owner still matches owner, if that fails,
+		 * owner might point to free()d memory, if it still matches,
+		 * the rcu_read_lock() ensures the memory stays valid.
+		 */
+		barrier();
+
+		/* abort spinning when need_resched or owner is not running */
+		if (!owner->on_cpu || need_resched()) {
 			rcu_read_unlock();
 			return false;
 		}
