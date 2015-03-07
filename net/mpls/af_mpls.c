@@ -239,7 +239,7 @@ static struct mpls_route *mpls_rt_alloc(size_t alen)
 {
 	struct mpls_route *rt;
 
-	rt = kzalloc(GFP_KERNEL, sizeof(*rt) + alen);
+	rt = kzalloc(sizeof(*rt) + alen, GFP_KERNEL);
 	if (rt)
 		rt->rt_via_alen = alen;
 	return rt;
