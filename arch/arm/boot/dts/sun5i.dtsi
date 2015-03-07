@@ -392,6 +392,7 @@
 		};
 
 		ehci0: usb@01c14000 {
+			compatible = "allwinner,sun5i-a13-ehci", "generic-ehci";
 			reg = <0x01c14000 0x100>;
 			interrupts = <39>;
 			clocks = <&ahb_gates 1>;
@@ -401,6 +402,7 @@
 		};
 
 		ohci0: usb@01c14400 {
+			compatible = "allwinner,sun5i-a13-ohci", "generic-ohci";
 			reg = <0x01c14400 0x100>;
 			interrupts = <40>;
 			clocks = <&usb_clk 6>, <&ahb_gates 2>;

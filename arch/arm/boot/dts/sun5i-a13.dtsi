@@ -152,14 +152,6 @@
 	cooling-max-level = <5>;
 };
 
-&ehci0 {
-	compatible = "allwinner,sun5i-a13-ehci", "generic-ehci";
-};
-
-&ohci0 {
-	compatible = "allwinner,sun5i-a13-ohci", "generic-ohci";
-};
-
 &pio {
 	compatible = "allwinner,sun5i-a13-pinctrl";
 
