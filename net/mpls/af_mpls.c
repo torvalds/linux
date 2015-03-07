@@ -348,7 +348,7 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 		goto errout;
 
 	/* Append makes no sense with mpls */
-	err = -EINVAL;
+	err = -EOPNOTSUPP;
 	if (cfg->rc_nlflags & NLM_F_APPEND)
 		goto errout;
 
