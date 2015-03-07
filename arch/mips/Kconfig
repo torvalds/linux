@@ -57,6 +57,7 @@ config MIPS
 	select ARCH_BINFMT_ELF_STATE
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
+	select HAVE_IRQ_TIME_ACCOUNTING
 
 menu "Machine selection"
 
