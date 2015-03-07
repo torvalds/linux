@@ -1499,6 +1499,15 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.verify = NULL,
 		.wrapper = mlx4_ACCESS_REG_wrapper,
 	},
+	{
+		.opcode = MLX4_CMD_CONGESTION_CTRL_OPCODE,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_CMD_EPERM_wrapper,
+	},
 	/* Native multicast commands are not available for guests */
 	{
 		.opcode = MLX4_CMD_QP_ATTACH,

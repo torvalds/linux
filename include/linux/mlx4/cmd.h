@@ -163,6 +163,9 @@ enum {
 	MLX4_QP_FLOW_STEERING_ATTACH = 0x65,
 	MLX4_QP_FLOW_STEERING_DETACH = 0x66,
 	MLX4_FLOW_STEERING_IB_UC_QP_RANGE = 0x64,
+
+	/* Update and read QCN parameters */
+	MLX4_CMD_CONGESTION_CTRL_OPCODE = 0x68,
 };
 
 enum {
@@ -231,6 +234,16 @@ struct mlx4_config_dev_params {
 	u16	vxlan_udp_dport;
 	u8	rx_csum_flags_port_1;
 	u8	rx_csum_flags_port_2;
+};
+
+enum mlx4_en_congestion_control_algorithm {
+	MLX4_CTRL_ALGO_802_1_QAU_REACTION_POINT = 0,
+};
+
+enum mlx4_en_congestion_control_opmod {
+	MLX4_CONGESTION_CONTROL_GET_PARAMS,
+	MLX4_CONGESTION_CONTROL_GET_STATISTICS,
+	MLX4_CONGESTION_CONTROL_SET_PARAMS = 4,
 };
 
 struct mlx4_dev;
