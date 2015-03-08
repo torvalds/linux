@@ -257,7 +257,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 		pr_cont(", width=%u, height=%u, "
 			"pixelformat=%c%c%c%c, field=%s, "
 			"bytesperline=%u, sizeimage=%u, colorspace=%d, "
-			"flags %x, ycbcr_enc=%u, quantization=%u\n",
+			"flags=0x%x, ycbcr_enc=%u, quantization=%u\n",
 			pix->width, pix->height,
 			(pix->pixelformat & 0xff),
 			(pix->pixelformat >>  8) & 0xff,
@@ -273,7 +273,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 		mp = &p->fmt.pix_mp;
 		pr_cont(", width=%u, height=%u, "
 			"format=%c%c%c%c, field=%s, "
-			"colorspace=%d, num_planes=%u, flags=%x, "
+			"colorspace=%d, num_planes=%u, flags=0x%x, "
 			"ycbcr_enc=%u, quantization=%u\n",
 			mp->width, mp->height,
 			(mp->pixelformat & 0xff),
