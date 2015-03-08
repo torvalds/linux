@@ -2722,6 +2722,8 @@ serial8250_pm(struct uart_port *port, unsigned int state,
 
 static unsigned int serial8250_port_size(struct uart_8250_port *pt)
 {
+	if (pt->port.mapsize)
+		return pt->port.mapsize;
 	if (pt->port.iotype == UPIO_AU) {
 		if (pt->port.type == PORT_RT2880)
 			return 0x100;
@@ -3553,6 +3555,7 @@ int __init early_serial_setup(struct uart_port *port)
 	p->iotype       = port->iotype;
 	p->flags        = port->flags;
 	p->mapbase      = port->mapbase;
+	p->mapsize      = port->mapsize;
 	p->private_data = port->private_data;
 	p->type		= port->type;
 	p->line		= port->line;
@@ -3807,6 +3810,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.flags        = up->port.flags | UPF_BOOT_AUTOCONF;
 		uart->bugs		= up->bugs;
 		uart->port.mapbase      = up->port.mapbase;
+		uart->port.mapsize      = up->port.mapsize;
 		uart->port.private_data = up->port.private_data;
 		uart->port.fifosize	= up->port.fifosize;
 		uart->tx_loadsz		= up->tx_loadsz;

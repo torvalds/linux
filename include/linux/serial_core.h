@@ -237,6 +237,7 @@ struct uart_port {
 	unsigned int		line;			/* port index */
 	unsigned int		minor;
 	resource_size_t		mapbase;		/* for ioremap */
+	resource_size_t		mapsize;
 	struct device		*dev;			/* parent device */
 	unsigned char		hub6;			/* this should be in the 8250 driver */
 	unsigned char		suspended;
