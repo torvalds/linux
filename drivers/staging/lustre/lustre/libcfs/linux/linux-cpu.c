@@ -204,7 +204,7 @@ cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
 		}
 
 		tmp += rc;
-		for_each_cpu_mask(j, *cptab->ctb_parts[i].cpt_cpumask) {
+		for_each_cpu(j, cptab->ctb_parts[i].cpt_cpumask) {
 			rc = snprintf(tmp, len, "%d ", j);
 			len -= rc;
 			if (len <= 0) {
@@ -251,8 +251,10 @@ cfs_cpt_online(struct cfs_cpt_table *cptab, int cpt)
 	LASSERT(cpt == CFS_CPT_ANY || (cpt >= 0 && cpt < cptab->ctb_nparts));
 
 	return cpt == CFS_CPT_ANY ?
-	       any_online_cpu(*cptab->ctb_cpumask) < nr_cpu_ids :
-	       any_online_cpu(*cptab->ctb_parts[cpt].cpt_cpumask) < nr_cpu_ids;
+	       cpumask_any_and(cptab->ctb_cpumask,
+			       cpu_online_mask) < nr_cpu_ids :
+	       cpumask_any_and(cptab->ctb_parts[cpt].cpt_cpumask,
+			       cpu_online_mask) < nr_cpu_ids;
 }
 EXPORT_SYMBOL(cfs_cpt_online);
 
@@ -356,22 +358,22 @@ cfs_cpt_unset_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu)
 	LASSERT(node_isset(node, *cptab->ctb_parts[cpt].cpt_nodemask));
 	LASSERT(node_isset(node, *cptab->ctb_nodemask));
 
-	for_each_cpu_mask(i, *cptab->ctb_parts[cpt].cpt_cpumask) {
+	for_each_cpu(i, cptab->ctb_parts[cpt].cpt_cpumask) {
 		/* this CPT has other CPU belonging to this node? */
 		if (cpu_to_node(i) == node)
 			break;
 	}
 
-	if (i == NR_CPUS)
+	if (i >= nr_cpu_ids)
 		node_clear(node, *cptab->ctb_parts[cpt].cpt_nodemask);
 
-	for_each_cpu_mask(i, *cptab->ctb_cpumask) {
+	for_each_cpu(i, cptab->ctb_cpumask) {
 		/* this CPT-table has other CPU belonging to this node? */
 		if (cpu_to_node(i) == node)
 			break;
 	}
 
-	if (i == NR_CPUS)
+	if (i >= nr_cpu_ids)
 		node_clear(node, *cptab->ctb_nodemask);
 
 	return;
@@ -383,13 +385,14 @@ cfs_cpt_set_cpumask(struct cfs_cpt_table *cptab, int cpt, cpumask_t *mask)
 {
 	int	i;
 
-	if (cpumask_weight(mask) == 0 || any_online_cpu(*mask) >= nr_cpu_ids) {
+	if (cpumask_weight(mask) == 0 ||
+	    cpumask_any_and(mask, cpu_online_mask) >= nr_cpu_ids) {
 		CDEBUG(D_INFO, "No online CPU is found in the CPU mask for CPU partition %d\n",
 		       cpt);
 		return 0;
 	}
 
-	for_each_cpu_mask(i, *mask) {
+	for_each_cpu(i, mask) {
 		if (!cfs_cpt_set_cpu(cptab, cpt, i))
 			return 0;
 	}
@@ -403,7 +406,7 @@ cfs_cpt_unset_cpumask(struct cfs_cpt_table *cptab, int cpt, cpumask_t *mask)
 {
 	int	i;
 
-	for_each_cpu_mask(i, *mask)
+	for_each_cpu(i, mask)
 		cfs_cpt_unset_cpu(cptab, cpt, i);
 }
 EXPORT_SYMBOL(cfs_cpt_unset_cpumask);
@@ -493,7 +496,7 @@ cfs_cpt_clear(struct cfs_cpt_table *cptab, int cpt)
 	}
 
 	for (; cpt <= last; cpt++) {
-		for_each_cpu_mask(i, *cptab->ctb_parts[cpt].cpt_cpumask)
+		for_each_cpu(i, cptab->ctb_parts[cpt].cpt_cpumask)
 			cfs_cpt_unset_cpu(cptab, cpt, i);
 	}
 }
@@ -578,7 +581,7 @@ cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt)
 		nodemask = cptab->ctb_parts[cpt].cpt_nodemask;
 	}
 
-	if (any_online_cpu(*cpumask) >= nr_cpu_ids) {
+	if (cpumask_any_and(cpumask, cpu_online_mask) >= nr_cpu_ids) {
 		CERROR("No online CPU found in CPU partition %d, did someone do CPU hotplug on system? You might need to reload Lustre modules to keep system working well.\n",
 		       cpt);
 		return -EINVAL;
@@ -654,7 +657,7 @@ cfs_cpt_choose_ncpus(struct cfs_cpt_table *cptab, int cpt,
 
 			LASSERT(!cpumask_empty(core));
 
-			for_each_cpu_mask(i, *core) {
+			for_each_cpu(i, core) {
 				cpumask_clear_cpu(i, socket);
 				cpumask_clear_cpu(i, node);
 
@@ -965,7 +968,8 @@ cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 		mutex_lock(&cpt_data.cpt_mutex);
 		/* if all HTs in a core are offline, it may break affinity */
 		cfs_cpu_ht_siblings(cpu, cpt_data.cpt_cpumask);
-		warn = any_online_cpu(*cpt_data.cpt_cpumask) >= nr_cpu_ids;
+		warn = cpumask_any_and(cpt_data.cpt_cpumask,
+				       cpu_online_mask) >= nr_cpu_ids;
 		mutex_unlock(&cpt_data.cpt_mutex);
 		CDEBUG(warn ? D_WARNING : D_INFO,
 		       "Lustre: can't support CPU plug-out well now, performance and stability could be impacted [CPU %u action: %lx]\n",
