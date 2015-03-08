@@ -55,6 +55,7 @@ config CRIS
 	select IRQ_DOMAIN if ETRAX_ARCH_V32
 	select OF if ETRAX_ARCH_V32
 	select OF_EARLY_FLATTREE if ETRAX_ARCH_V32
+	select GENERIC_CLOCKEVENTS if ETRAX_ARCH_V32
 
 config HZ
 	int
