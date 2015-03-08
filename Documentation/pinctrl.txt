@@ -1264,7 +1264,7 @@ The semantics of the pinctrl APIs are:
 
 Usually the pin control core handled the get/put pair and call out to the
 device drivers bookkeeping operations, like checking available functions and
-the associated pins, whereas the enable/disable pass on to the pin controller
+the associated pins, whereas select_state pass on to the pin controller
 driver which takes care of activating and/or deactivating the mux setting by
 quickly poking some registers.
 
@@ -1361,8 +1361,9 @@ function, but with different named in the mapping as described under
 "Advanced mapping" above. So that for an SPI device, we have two states named
 "pos-A" and "pos-B".
 
-This snippet first muxes the function in the pins defined by group A, enables
-it, disables and releases it, and muxes it in on the pins defined by group B:
+This snippet first initializes a state object for both groups (in foo_probe()),
+then muxes the function in the pins defined by group A, and finally muxes it in
+on the pins defined by group B:
 
 #include <linux/pinctrl/consumer.h>
 
