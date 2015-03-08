@@ -18,6 +18,9 @@
 #ifndef __LOCAL_ST33ZP24_H__
 #define __LOCAL_ST33ZP24_H__
 
+#define TPM_WRITE_DIRECTION             0x80
+#define TPM_BUFSIZE                     2048
+
 struct st33zp24_phy_ops {
 	int (*send)(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size);
 	int (*recv)(void *phy_id, u8 tpm_register, u8 *tpm_data, int tpm_size);

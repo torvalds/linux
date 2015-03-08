@@ -27,8 +27,6 @@
 #include "st33zp24.h"
 
 #define TPM_DUMMY_BYTE			0xAA
-#define TPM_WRITE_DIRECTION		0x80
-#define TPM_BUFSIZE			2048
 
 struct st33zp24_i2c_phy {
 	struct i2c_client *client;

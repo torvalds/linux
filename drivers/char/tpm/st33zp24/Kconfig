@@ -18,3 +18,13 @@ config TCG_TIS_ST33ZP24_I2C
 	  ST33ZP24 with i2c interface.
 	  To compile this driver as a module, choose M here; the module will be
 	  called tpm_st33zp24_i2c.
+
+config TCG_TIS_ST33ZP24_SPI
+	tristate "TPM 1.2 ST33ZP24 SPI support"
+	depends on TCG_TIS_ST33ZP24
+	depends on SPI
+	---help---
+	  This module adds support for the STMicroelectronics TPM security chip
+	  ST33ZP24 with spi interface.
+	  To compile this driver as a module, choose M here; the module will be
+	  called tpm_st33zp24_spi.
