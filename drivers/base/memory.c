@@ -152,20 +152,20 @@ static ssize_t show_mem_state(struct device *dev,
 	 * so that they're not open-coded
 	 */
 	switch (mem->state) {
-		case MEM_ONLINE:
-			len = sprintf(buf, "online\n");
-			break;
-		case MEM_OFFLINE:
-			len = sprintf(buf, "offline\n");
-			break;
-		case MEM_GOING_OFFLINE:
-			len = sprintf(buf, "going-offline\n");
-			break;
-		default:
-			len = sprintf(buf, "ERROR-UNKNOWN-%ld\n",
-					mem->state);
-			WARN_ON(1);
-			break;
+	case MEM_ONLINE:
+		len = sprintf(buf, "online\n");
+		break;
+	case MEM_OFFLINE:
+		len = sprintf(buf, "offline\n");
+		break;
+	case MEM_GOING_OFFLINE:
+		len = sprintf(buf, "going-offline\n");
+		break;
+	default:
+		len = sprintf(buf, "ERROR-UNKNOWN-%ld\n",
+				mem->state);
+		WARN_ON(1);
+		break;
 	}
 
 	return len;
@@ -232,19 +232,19 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
 	first_page = pfn_to_page(start_pfn);
 
 	switch (action) {
-		case MEM_ONLINE:
-			if (!pages_correctly_reserved(start_pfn))
-				return -EBUSY;
+	case MEM_ONLINE:
+		if (!pages_correctly_reserved(start_pfn))
+			return -EBUSY;
 
-			ret = online_pages(start_pfn, nr_pages, online_type);
-			break;
-		case MEM_OFFLINE:
-			ret = offline_pages(start_pfn, nr_pages);
-			break;
-		default:
-			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
-			     "%ld\n", __func__, phys_index, action, action);
-			ret = -EINVAL;
+		ret = online_pages(start_pfn, nr_pages, online_type);
+		break;
+	case MEM_OFFLINE:
+		ret = offline_pages(start_pfn, nr_pages);
+		break;
+	default:
+		WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+		     "%ld\n", __func__, phys_index, action, action);
+		ret = -EINVAL;
 	}
 
 	return ret;
