@@ -1589,12 +1589,12 @@ core_scsi3_decode_spec_i_port(
 			 * from the decoded fabric module specific TransportID
 			 * at *i_str.
 			 */
-			spin_lock_irq(&tmp_tpg->acl_node_lock);
+			mutex_lock(&tmp_tpg->acl_node_mutex);
 			dest_node_acl = __core_tpg_get_initiator_node_acl(
 						tmp_tpg, i_str);
 			if (dest_node_acl)
 				atomic_inc_mb(&dest_node_acl->acl_pr_ref_count);
-			spin_unlock_irq(&tmp_tpg->acl_node_lock);
+			mutex_unlock(&tmp_tpg->acl_node_mutex);
 
 			if (!dest_node_acl) {
 				core_scsi3_tpg_undepend_item(tmp_tpg);
@@ -3308,12 +3308,12 @@ after_iport_check:
 	/*
 	 * Locate the destination struct se_node_acl from the received Transport ID
 	 */
-	spin_lock_irq(&dest_se_tpg->acl_node_lock);
+	mutex_lock(&dest_se_tpg->acl_node_mutex);
 	dest_node_acl = __core_tpg_get_initiator_node_acl(dest_se_tpg,
 				initiator_str);
 	if (dest_node_acl)
 		atomic_inc_mb(&dest_node_acl->acl_pr_ref_count);
-	spin_unlock_irq(&dest_se_tpg->acl_node_lock);
+	mutex_unlock(&dest_se_tpg->acl_node_mutex);
 
 	if (!dest_node_acl) {
 		pr_err("Unable to locate %s dest_node_acl for"
