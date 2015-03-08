@@ -1265,6 +1265,10 @@ static void tpg_recalc(struct tpg_data *tpg)
 						V4L2_QUANTIZATION_LIM_RANGE;
 					break;
 				}
+			} else if (tpg->colorspace == V4L2_COLORSPACE_BT2020) {
+				/* R'G'B' BT.2020 is limited range */
+				tpg->real_quantization =
+					V4L2_QUANTIZATION_LIM_RANGE;
 			}
 		}
 		tpg_precalculate_colors(tpg);
