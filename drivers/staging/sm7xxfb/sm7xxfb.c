@@ -141,7 +141,6 @@ static int __init sm7xx_vga_setup(char *options)
 
 	return -1;
 }
-__setup("vga=", sm7xx_vga_setup);
 
 static void sm712_setpalette(int regno, unsigned red, unsigned green,
 			     unsigned blue, struct fb_info *info)
