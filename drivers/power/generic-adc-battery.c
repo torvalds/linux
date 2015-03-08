@@ -159,7 +159,7 @@ static int gab_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		gab_get_status(adc_bat);
+		val->intval = gab_get_status(adc_bat);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_EMPTY_DESIGN:
 		val->intval = 0;
