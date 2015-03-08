@@ -92,13 +92,11 @@ struct board_ops dgnc_cls_ops = {
 	.send_immediate_char =		cls_send_immediate_char
 };
 
-
 static inline void cls_set_cts_flow_control(struct channel_t *ch)
 {
 	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
 	unsigned char ier = readb(&ch->ch_cls_uart->ier);
 	unsigned char isr_fcr = 0;
-
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -136,13 +134,11 @@ static inline void cls_set_cts_flow_control(struct channel_t *ch)
 
 }
 
-
 static inline void cls_set_ixon_flow_control(struct channel_t *ch)
 {
 	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
 	unsigned char ier = readb(&ch->ch_cls_uart->ier);
 	unsigned char isr_fcr = 0;
-
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -184,13 +180,11 @@ static inline void cls_set_ixon_flow_control(struct channel_t *ch)
 
 }
 
-
 static inline void cls_set_no_output_flow_control(struct channel_t *ch)
 {
 	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
 	unsigned char ier = readb(&ch->ch_cls_uart->ier);
 	unsigned char isr_fcr = 0;
-
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -230,13 +224,11 @@ static inline void cls_set_no_output_flow_control(struct channel_t *ch)
 
 }
 
-
 static inline void cls_set_rts_flow_control(struct channel_t *ch)
 {
 	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
 	unsigned char ier = readb(&ch->ch_cls_uart->ier);
 	unsigned char isr_fcr = 0;
-
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -266,19 +258,16 @@ static inline void cls_set_rts_flow_control(struct channel_t *ch)
 		UART_16654_FCR_TXTRIGGER_16 | UART_FCR_CLEAR_RCVR),
 		&ch->ch_cls_uart->isr_fcr);
 
-
 	ch->ch_r_watermark = 4;
 	ch->ch_r_tlevel = 8;
 
 }
-
 
 static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
 {
 	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
 	unsigned char ier = readb(&ch->ch_cls_uart->ier);
 	unsigned char isr_fcr = 0;
-
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -316,13 +305,11 @@ static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
 
 }
 
-
 static inline void cls_set_no_input_flow_control(struct channel_t *ch)
 {
 	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
 	unsigned char ier = readb(&ch->ch_cls_uart->ier);
 	unsigned char isr_fcr = 0;
-
 
 	/*
 	 * The Enhanced Register Set may only be accessed when
@@ -356,7 +343,6 @@ static inline void cls_set_no_input_flow_control(struct channel_t *ch)
 	ch->ch_r_tlevel = 16;
 
 }
-
 
 /*
  * cls_clear_break.
@@ -392,7 +378,6 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 	}
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
-
 
 /* Parse the ISR register for the specific port */
 static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
@@ -456,7 +441,6 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 		cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 	}
 }
-
 
 /*
  * cls_param()
@@ -711,7 +695,6 @@ static void cls_param(struct tty_struct *tty)
 	cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 }
 
-
 /*
  * Our board poller function.
  */
@@ -784,7 +767,6 @@ static void cls_tasklet(unsigned long data)
 
 }
 
-
 /*
  * cls_intr()
  *
@@ -834,7 +816,6 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	return IRQ_HANDLED;
 }
 
-
 static void cls_disable_receiver(struct channel_t *ch)
 {
 	unsigned char tmp = readb(&ch->ch_cls_uart->ier);
@@ -843,7 +824,6 @@ static void cls_disable_receiver(struct channel_t *ch)
 	writeb(tmp, &ch->ch_cls_uart->ier);
 }
 
-
 static void cls_enable_receiver(struct channel_t *ch)
 {
 	unsigned char tmp = readb(&ch->ch_cls_uart->ier);
@@ -851,7 +831,6 @@ static void cls_enable_receiver(struct channel_t *ch)
 	tmp |= (UART_IER_RDI);
 	writeb(tmp, &ch->ch_cls_uart->ier);
 }
-
 
 static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 {
@@ -942,7 +921,6 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-
 /*
  * This function basically goes to sleep for secs, or until
  * it gets signalled that the port has fully drained.
@@ -978,7 +956,6 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 					 ((un->un_flags & UN_EMPTY) == 0));
 }
 
-
 /* Channel lock MUST be held before calling this function! */
 static void cls_flush_uart_write(struct channel_t *ch)
 {
@@ -991,7 +968,6 @@ static void cls_flush_uart_write(struct channel_t *ch)
 
 	ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 }
-
 
 /* Channel lock MUST be held before calling this function! */
 static void cls_flush_uart_read(struct channel_t *ch)
@@ -1012,7 +988,6 @@ static void cls_flush_uart_read(struct channel_t *ch)
 
 	udelay(10);
 }
-
 
 static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 {
@@ -1097,7 +1072,6 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-
 static void cls_parse_modem(struct channel_t *ch, unsigned char signals)
 {
 	unsigned char msignals = signals;
@@ -1162,7 +1136,6 @@ static void cls_parse_modem(struct channel_t *ch, unsigned char signals)
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
-
 /* Make the UART raise any of the output signals we want up */
 static void cls_assert_modem_signals(struct channel_t *ch)
 {
@@ -1182,7 +1155,6 @@ static void cls_assert_modem_signals(struct channel_t *ch)
 	udelay(10);
 }
 
-
 static void cls_send_start_character(struct channel_t *ch)
 {
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
@@ -1194,7 +1166,6 @@ static void cls_send_start_character(struct channel_t *ch)
 	}
 }
 
-
 static void cls_send_stop_character(struct channel_t *ch)
 {
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
@@ -1205,7 +1176,6 @@ static void cls_send_stop_character(struct channel_t *ch)
 		writeb(ch->ch_stopc, &ch->ch_cls_uart->txrx);
 	}
 }
-
 
 /* Inits UART */
 static void cls_uart_init(struct channel_t *ch)
@@ -1244,7 +1214,6 @@ static void cls_uart_init(struct channel_t *ch)
 	readb(&ch->ch_cls_uart->msr);
 }
 
-
 /*
  * Turns off UART.
  */
@@ -1252,7 +1221,6 @@ static void cls_uart_off(struct channel_t *ch)
 {
 	writeb(0, &ch->ch_cls_uart->ier);
 }
-
 
 /*
  * cls_get_uarts_bytes_left.
@@ -1282,7 +1250,6 @@ static uint cls_get_uart_bytes_left(struct channel_t *ch)
 
 	return left;
 }
-
 
 /*
  * cls_send_break.
@@ -1326,7 +1293,6 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 	}
 }
 
-
 /*
  * cls_send_immediate_char.
  * Sends a specific character as soon as possible to the UART,
@@ -1347,7 +1313,6 @@ static void cls_vpd(struct dgnc_board *brd)
 	ulong           vpdbase;        /* Start of io base of the card */
 	u8 __iomem           *re_map_vpdbase;/* Remapped memory of the card */
 	int i = 0;
-
 
 	vpdbase = pci_resource_start(brd->pdev, 3);
 
@@ -1370,4 +1335,3 @@ static void cls_vpd(struct dgnc_board *brd)
 	if (re_map_vpdbase)
 		iounmap(re_map_vpdbase);
 }
-
