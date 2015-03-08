@@ -492,17 +492,71 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
  */
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 {
-	gro_result_t rc;
+	gro_result_t rc = GRO_NORMAL;
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
+	struct wireless_dev *wdev = wil_to_wdev(wil);
 	unsigned int len = skb->len;
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
 	int cid = wil_rxdesc_cid(d);
+	struct ethhdr *eth = (void *)skb->data;
+	/* here looking for DA, not A1, thus Rxdesc's 'mcast' indication
+	 * is not suitable, need to look at data
+	 */
+	int mcast = is_multicast_ether_addr(eth->h_dest);
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
+	struct sk_buff *xmit_skb = NULL;
+	static const char * const gro_res_str[] = {
+		[GRO_MERGED]		= "GRO_MERGED",
+		[GRO_MERGED_FREE]	= "GRO_MERGED_FREE",
+		[GRO_HELD]		= "GRO_HELD",
+		[GRO_NORMAL]		= "GRO_NORMAL",
+		[GRO_DROP]		= "GRO_DROP",
+	};
 
 	skb_orphan(skb);
 
-	rc = napi_gro_receive(&wil->napi_rx, skb);
+	if (wdev->iftype == NL80211_IFTYPE_AP) {
+		if (mcast) {
+			/* send multicast frames both to higher layers in
+			 * local net stack and back to the wireless medium
+			 */
+			xmit_skb = skb_copy(skb, GFP_ATOMIC);
+		} else {
+			int xmit_cid = wil_find_cid(wil, eth->h_dest);
 
+			if (xmit_cid >= 0) {
+				/* The destination station is associated to
+				 * this AP (in this VLAN), so send the frame
+				 * directly to it and do not pass it to local
+				 * net stack.
+				 */
+				xmit_skb = skb;
+				skb = NULL;
+			}
+		}
+	}
+	if (xmit_skb) {
+		/* Send to wireless media and increase priority by 256 to
+		 * keep the received priority instead of reclassifying
+		 * the frame (see cfg80211_classify8021d).
+		 */
+		xmit_skb->dev = ndev;
+		xmit_skb->priority += 256;
+		xmit_skb->protocol = htons(ETH_P_802_3);
+		skb_reset_network_header(xmit_skb);
+		skb_reset_mac_header(xmit_skb);
+		wil_dbg_txrx(wil, "Rx -> Tx %d bytes\n", len);
+		dev_queue_xmit(xmit_skb);
+	}
+
+	if (skb) { /* deliver to local stack */
+
+		skb->protocol = eth_type_trans(skb, ndev);
+		rc = napi_gro_receive(&wil->napi_rx, skb);
+		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
+			     len, gro_res_str[rc]);
+	}
+	/* statistics. rc set to GRO_NORMAL for AP bridging */
 	if (unlikely(rc == GRO_DROP)) {
 		ndev->stats.rx_dropped++;
 		stats->rx_dropped++;
@@ -512,17 +566,8 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		stats->rx_packets++;
 		ndev->stats.rx_bytes += len;
 		stats->rx_bytes += len;
-	}
-	{
-		static const char * const gro_res_str[] = {
-			[GRO_MERGED]		= "GRO_MERGED",
-			[GRO_MERGED_FREE]	= "GRO_MERGED_FREE",
-			[GRO_HELD]		= "GRO_HELD",
-			[GRO_NORMAL]		= "GRO_NORMAL",
-			[GRO_DROP]		= "GRO_DROP",
-		};
-		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
-			     len, gro_res_str[rc]);
+		if (mcast)
+			ndev->stats.multicast++;
 	}
 }
 
@@ -553,7 +598,6 @@ void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 			skb->protocol = htons(ETH_P_802_2);
 			wil_netif_rx_any(skb, ndev);
 		} else {
-			skb->protocol = eth_type_trans(skb, ndev);
 			wil_rx_reorder(wil, skb);
 		}
 	}
