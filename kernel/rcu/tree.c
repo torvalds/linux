@@ -2199,8 +2199,8 @@ static void rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 	unsigned long mask;
 	struct rcu_node *rnp_p;
 
-	WARN_ON_ONCE(rsp == &rcu_bh_state || rsp == &rcu_sched_state);
-	if (rnp->qsmask != 0 || rcu_preempt_blocked_readers_cgp(rnp)) {
+	if (rcu_state_p == &rcu_sched_state || rsp != rcu_state_p ||
+	    rnp->qsmask != 0 || rcu_preempt_blocked_readers_cgp(rnp)) {
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		return;  /* Still need more quiescent states! */
 	}
@@ -2208,9 +2208,8 @@ static void rcu_report_unblock_qs_rnp(struct rcu_state *rsp,
 	rnp_p = rnp->parent;
 	if (rnp_p == NULL) {
 		/*
-		 * Either there is only one rcu_node in the tree,
-		 * or tasks were kicked up to root rcu_node due to
-		 * CPUs going offline.
+		 * Only one rcu_node structure in the tree, so don't
+		 * try to report up to its nonexistent parent!
 		 */
 		rcu_report_qs_rsp(rsp, flags);
 		return;
@@ -2713,8 +2712,29 @@ static void force_qs_rnp(struct rcu_state *rsp,
 			return;
 		}
 		if (rnp->qsmask == 0) {
-			rcu_initiate_boost(rnp, flags); /* releases rnp->lock */
-			continue;
+			if (rcu_state_p == &rcu_sched_state ||
+			    rsp != rcu_state_p ||
+			    rcu_preempt_blocked_readers_cgp(rnp)) {
+				/*
+				 * No point in scanning bits because they
+				 * are all zero.  But we might need to
+				 * priority-boost blocked readers.
+				 */
+				rcu_initiate_boost(rnp, flags);
+				/* rcu_initiate_boost() releases rnp->lock */
+				continue;
+			}
+			if (rnp->parent &&
+			    (rnp->parent->qsmask & rnp->grpmask)) {
+				/*
+				 * Race between grace-period
+				 * initialization and task exiting RCU
+				 * read-side critical section: Report.
+				 */
+				rcu_report_unblock_qs_rnp(rsp, rnp, flags);
+				/* rcu_report_unblock_qs_rnp() rlses ->lock */
+				continue;
+			}
 		}
 		cpu = rnp->grplo;
 		bit = 1;
@@ -2729,15 +2749,6 @@ static void force_qs_rnp(struct rcu_state *rsp,
 		if (mask != 0) {
 			/* Idle/offline CPUs, report. */
 			rcu_report_qs_rnp(mask, rsp, rnp, flags);
-		} else if (rnp->parent &&
-			 list_empty(&rnp->blkd_tasks) &&
-			 !rnp->qsmask &&
-			 (rnp->parent->qsmask & rnp->grpmask)) {
-			/*
-			 * Race between grace-period initialization and task
-			 * existing RCU read-side critical section, report.
-			 */
-			rcu_report_unblock_qs_rnp(rsp, rnp, flags);
 		} else {
 			/* Nothing to do here, so just drop the lock. */
 			raw_spin_unlock_irqrestore(&rnp->lock, flags);
