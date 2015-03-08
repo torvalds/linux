@@ -515,7 +515,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 
 	skb_orphan(skb);
 
-	if (wdev->iftype == NL80211_IFTYPE_AP) {
+	if (wdev->iftype == NL80211_IFTYPE_AP && !wil->ap_isolate) {
 		if (mcast) {
 			/* send multicast frames both to higher layers in
 			 * local net stack and back to the wireless medium

@@ -542,6 +542,7 @@ struct wil6210_priv {
 	u32 monitor_flags;
 	u32 privacy; /* secure connection? */
 	int sinfo_gen;
+	u32 ap_isolate; /* no intra-BSS communication */
 	/* interrupt moderation */
 	u32 tx_max_burst_duration;
 	u32 tx_interframe_timeout;

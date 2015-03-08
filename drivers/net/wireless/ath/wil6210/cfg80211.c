@@ -917,6 +917,21 @@ static int wil_cfg80211_probe_client(struct wiphy *wiphy,
 	return 0;
 }
 
+static int wil_cfg80211_change_bss(struct wiphy *wiphy,
+				   struct net_device *dev,
+				   struct bss_parameters *params)
+{
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	if (params->ap_isolate >= 0) {
+		wil_dbg_misc(wil, "%s(ap_isolate %d => %d)\n", __func__,
+			     wil->ap_isolate, params->ap_isolate);
+		wil->ap_isolate = params->ap_isolate;
+	}
+
+	return 0;
+}
+
 static struct cfg80211_ops wil_cfg80211_ops = {
 	.scan = wil_cfg80211_scan,
 	.connect = wil_cfg80211_connect,
@@ -937,6 +952,7 @@ static struct cfg80211_ops wil_cfg80211_ops = {
 	.stop_ap = wil_cfg80211_stop_ap,
 	.del_station = wil_cfg80211_del_station,
 	.probe_client = wil_cfg80211_probe_client,
+	.change_bss = wil_cfg80211_change_bss,
 };
 
 static void wil_wiphy_init(struct wiphy *wiphy)
