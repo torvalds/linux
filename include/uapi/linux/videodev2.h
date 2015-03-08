@@ -268,9 +268,10 @@ enum v4l2_ycbcr_encoding {
 
 enum v4l2_quantization {
 	/*
-	 * The default for R'G'B' quantization is always full range. For
-	 * Y'CbCr the quantization is always limited range, except for
-	 * SYCC, XV601, XV709 or JPEG: those are full range.
+	 * The default for R'G'B' quantization is always full range, except
+	 * for the BT2020 colorspace. For Y'CbCr the quantization is always
+	 * limited range, except for COLORSPACE_JPEG, SYCC, XV601 or XV709:
+	 * those are full range.
 	 */
 	V4L2_QUANTIZATION_DEFAULT     = 0,
 	V4L2_QUANTIZATION_FULL_RANGE  = 1,
