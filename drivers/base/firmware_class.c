@@ -181,7 +181,7 @@ static struct firmware_buf *__allocate_fw_buf(const char *fw_name,
 {
 	struct firmware_buf *buf;
 
-	buf = kzalloc(sizeof(*buf) + strlen(fw_name) + 1 , GFP_ATOMIC);
+	buf = kzalloc(sizeof(*buf) + strlen(fw_name) + 1, GFP_ATOMIC);
 
 	if (!buf)
 		return buf;
@@ -1168,7 +1168,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
  **/
 int
 request_firmware(const struct firmware **firmware_p, const char *name,
-                 struct device *device)
+		 struct device *device)
 {
 	int ret;
 
@@ -1196,6 +1196,7 @@ int request_firmware_direct(const struct firmware **firmware_p,
 			    const char *name, struct device *device)
 {
 	int ret;
+
 	__module_get(THIS_MODULE);
 	ret = _request_firmware(firmware_p, name, device,
 				FW_OPT_UEVENT | FW_OPT_NO_WARN);
@@ -1276,7 +1277,7 @@ request_firmware_nowait(
 {
 	struct firmware_work *fw_work;
 
-	fw_work = kzalloc(sizeof (struct firmware_work), gfp);
+	fw_work = kzalloc(sizeof(struct firmware_work), gfp);
 	if (!fw_work)
 		return -ENOMEM;
 
