@@ -391,6 +391,8 @@
 
 /* Capability mask bits */
 #define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x00000001
+#define MACB_CAPS_USRIO_HAS_CLKEN		0x00000002
+#define MACB_CAPS_USRIO_DEFAULT_IS_MII		0x00000004
 #define MACB_CAPS_FIFO_MODE			0x10000000
 #define MACB_CAPS_GIGABIT_MODE_AVAILABLE	0x20000000
 #define MACB_CAPS_SG_DISABLED			0x40000000
@@ -752,6 +754,7 @@ struct macb_or_gem_ops {
 struct macb_config {
 	u32			caps;
 	unsigned int		dma_burst_length;
+	int	(*init)(struct platform_device *pdev);
 };
 
 struct macb_queue {
@@ -821,15 +824,6 @@ struct macb {
 
 	u64			ethtool_stats[GEM_STATS_LEN];
 };
-
-extern const struct ethtool_ops macb_ethtool_ops;
-
-int macb_mii_init(struct macb *bp);
-int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-struct net_device_stats *macb_get_stats(struct net_device *dev);
-void macb_set_rx_mode(struct net_device *dev);
-void macb_set_hwaddr(struct macb *bp);
-void macb_get_hwaddr(struct macb *bp);
 
 static inline bool macb_is_gem(struct macb *bp)
 {
