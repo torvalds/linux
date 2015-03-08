@@ -978,7 +978,7 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2);
 int tomoyo_path_number_perm(const u8 operation, struct path *path,
 			    unsigned long number);
-int tomoyo_path_perm(const u8 operation, struct path *path,
+int tomoyo_path_perm(const u8 operation, const struct path *path,
 		     const char *target);
 unsigned int tomoyo_poll_control(struct file *file, poll_table *wait);
 unsigned int tomoyo_poll_log(struct file *file, poll_table *wait);
