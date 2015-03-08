@@ -632,7 +632,6 @@ struct se_lun_acl {
 	u32			mapped_lun;
 	struct se_node_acl	*se_lun_nacl;
 	struct se_lun		*se_lun;
-	struct list_head	lacl_list;
 	struct config_group	se_lun_group;
 	struct se_ml_stat_grps	ml_stat_grps;
 };
@@ -715,10 +714,8 @@ struct se_lun {
 	u32			unpacked_lun;
 	u32			lun_index;
 	atomic_t		lun_acl_count;
-	spinlock_t		lun_acl_lock;
 	spinlock_t		lun_sep_lock;
 	struct completion	lun_shutdown_comp;
-	struct list_head	lun_acl_list;
 	struct se_device	*lun_se_dev;
 	struct se_port		*lun_sep;
 	struct config_group	lun_group;

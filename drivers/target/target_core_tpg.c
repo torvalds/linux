@@ -495,8 +495,6 @@ static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 	atomic_set(&lun->lun_acl_count, 0);
 	init_completion(&lun->lun_shutdown_comp);
-	INIT_LIST_HEAD(&lun->lun_acl_list);
-	spin_lock_init(&lun->lun_acl_lock);
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 
@@ -610,8 +608,6 @@ struct se_lun *core_tpg_alloc_lun(
 	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 	atomic_set(&lun->lun_acl_count, 0);
 	init_completion(&lun->lun_shutdown_comp);
-	INIT_LIST_HEAD(&lun->lun_acl_list);
-	spin_lock_init(&lun->lun_acl_lock);
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 
