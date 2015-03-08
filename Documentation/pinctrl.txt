@@ -569,9 +569,8 @@ is possible to perform the requested mux setting, poke the hardware so that
 this happens.
 
 Pinmux drivers are required to supply a few callback functions, some are
-optional. Usually the enable() and disable() functions are implemented,
-writing values into some certain registers to activate a certain mux setting
-for a certain pin.
+optional. Usually the set_mux() function is implemented, writing values into
+some certain registers to activate a certain mux setting for a certain pin.
 
 A simple driver for the above example will work by setting bits 0, 1, 2, 3 or 4
 into some register named MUX to select a certain function with a certain
