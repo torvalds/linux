@@ -1203,7 +1203,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * IBM pSeries platform.
 		 * 15 bytes max appears to be the magic number.
 		 */
-		n = min((uint) n, (uint) 12);
+		n = min_t(uint, n, 12);
 
 		/*
 		 * Since we are grabbing the linestatus register, which
