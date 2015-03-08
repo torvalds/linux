@@ -945,7 +945,7 @@ char *tomoyo_encode2(const char *str, int str_len);
 char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 		      va_list args);
 char *tomoyo_read_token(struct tomoyo_acl_param *param);
-char *tomoyo_realpath_from_path(struct path *path);
+char *tomoyo_realpath_from_path(const struct path *path);
 char *tomoyo_realpath_nofollow(const char *pathname);
 const char *tomoyo_get_exe(void);
 const char *tomoyo_yesno(const unsigned int value);
