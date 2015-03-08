@@ -198,7 +198,6 @@ static int elan_initialize(struct elan_tp_data *data)
 		if (!error)
 			return 0;
 
-		repeat--;
 		msleep(30);
 	} while (--repeat > 0);
 
