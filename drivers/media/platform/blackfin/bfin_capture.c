@@ -244,18 +244,6 @@ static int bcap_release(struct file *file)
 	return 0;
 }
 
-static int bcap_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct bcap_device *bcap_dev = video_drvdata(file);
-	int ret;
-
-	if (mutex_lock_interruptible(&bcap_dev->mutex))
-		return -ERESTARTSYS;
-	ret = vb2_mmap(&bcap_dev->buffer_queue, vma);
-	mutex_unlock(&bcap_dev->mutex);
-	return ret;
-}
-
 #ifndef CONFIG_MMU
 static unsigned long bcap_get_unmapped_area(struct file *file,
 					    unsigned long addr,
@@ -272,17 +260,6 @@ static unsigned long bcap_get_unmapped_area(struct file *file,
 				     flags);
 }
 #endif
-
-static unsigned int bcap_poll(struct file *file, poll_table *wait)
-{
-	struct bcap_device *bcap_dev = video_drvdata(file);
-	unsigned int res;
-
-	mutex_lock(&bcap_dev->mutex);
-	res = vb2_poll(&bcap_dev->buffer_queue, file, wait);
-	mutex_unlock(&bcap_dev->mutex);
-	return res;
-}
 
 static int bcap_queue_setup(struct vb2_queue *vq,
 				const struct v4l2_format *fmt,
@@ -900,11 +877,11 @@ static struct v4l2_file_operations bcap_fops = {
 	.open = bcap_open,
 	.release = bcap_release,
 	.unlocked_ioctl = video_ioctl2,
-	.mmap = bcap_mmap,
+	.mmap = vb2_fop_mmap,
 #ifndef CONFIG_MMU
 	.get_unmapped_area = bcap_get_unmapped_area,
 #endif
-	.poll = bcap_poll
+	.poll = vb2_fop_poll
 };
 
 static int bcap_probe(struct platform_device *pdev)
@@ -1001,6 +978,7 @@ static int bcap_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&bcap_dev->dma_queue);
 
 	vfd->lock = &bcap_dev->mutex;
+	vfd->queue = q;
 
 	/* register video device */
 	ret = video_register_device(bcap_dev->video_dev, VFL_TYPE_GRABBER, -1);
