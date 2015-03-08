@@ -305,16 +305,16 @@ static int bcap_queue_setup(struct vb2_queue *vq,
 static int bcap_buffer_prepare(struct vb2_buffer *vb)
 {
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vb->vb2_queue);
-	struct bcap_buffer *buf = to_bcap_vb(vb);
-	unsigned long size;
+	unsigned long size = bcap_dev->fmt.sizeimage;
 
-	size = bcap_dev->fmt.sizeimage;
 	if (vb2_plane_size(vb, 0) < size) {
 		v4l2_err(&bcap_dev->v4l2_dev, "buffer too small (%lu < %lu)\n",
 				vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
-	vb2_set_plane_payload(&buf->vb, 0, size);
+	vb2_set_plane_payload(vb, 0, size);
+
+	vb->v4l2_buf.field = bcap_dev->fmt.field;
 
 	return 0;
 }
