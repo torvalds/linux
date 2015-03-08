@@ -790,9 +790,9 @@ case the BT.601 Y'CbCr encoding is used.</para>
 is similar to the Rec. 709 encoding, but it allows for R', G' and B' values that are outside the range
 [0&hellip;1]. The resulting Y', Cb and Cr values are scaled and offset:</term>
 	  <listitem>
-            <para>Y'&nbsp;=&nbsp;(219&nbsp;/&nbsp;255)&nbsp;*&nbsp;(0.2126R'&nbsp;+&nbsp;0.7152G'&nbsp;+&nbsp;0.0722B')&nbsp;+&nbsp;(16&nbsp;/&nbsp;255)</para>
-            <para>Cb&nbsp;=&nbsp;(224&nbsp;/&nbsp;255)&nbsp;*&nbsp;(-0.1146R'&nbsp;-&nbsp;0.3854G'&nbsp;+&nbsp;0.5B')</para>
-            <para>Cr&nbsp;=&nbsp;(224&nbsp;/&nbsp;255)&nbsp;*&nbsp;(0.5R'&nbsp;-&nbsp;0.4542G'&nbsp;-&nbsp;0.0458B')</para>
+            <para>Y'&nbsp;=&nbsp;(219&nbsp;/&nbsp;256)&nbsp;*&nbsp;(0.2126R'&nbsp;+&nbsp;0.7152G'&nbsp;+&nbsp;0.0722B')&nbsp;+&nbsp;(16&nbsp;/&nbsp;256)</para>
+            <para>Cb&nbsp;=&nbsp;(224&nbsp;/&nbsp;256)&nbsp;*&nbsp;(-0.1146R'&nbsp;-&nbsp;0.3854G'&nbsp;+&nbsp;0.5B')</para>
+            <para>Cr&nbsp;=&nbsp;(224&nbsp;/&nbsp;256)&nbsp;*&nbsp;(0.5R'&nbsp;-&nbsp;0.4542G'&nbsp;-&nbsp;0.0458B')</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
@@ -802,9 +802,9 @@ is similar to the Rec. 709 encoding, but it allows for R', G' and B' values that
 to the BT.601 encoding, but it allows for R', G' and B' values that are outside the range
 [0&hellip;1]. The resulting Y', Cb and Cr values are scaled and offset:</term>
 	  <listitem>
-            <para>Y'&nbsp;=&nbsp;(219&nbsp;/&nbsp;255)&nbsp;*&nbsp;(0.299R'&nbsp;+&nbsp;0.587G'&nbsp;+&nbsp;0.114B')&nbsp;+&nbsp;(16&nbsp;/&nbsp;255)</para>
-            <para>Cb&nbsp;=&nbsp;(224&nbsp;/&nbsp;255)&nbsp;*&nbsp;(-0.169R'&nbsp;-&nbsp;0.331G'&nbsp;+&nbsp;0.5B')</para>
-            <para>Cr&nbsp;=&nbsp;(224&nbsp;/&nbsp;255)&nbsp;*&nbsp;(0.5R'&nbsp;-&nbsp;0.419G'&nbsp;-&nbsp;0.081B')</para>
+            <para>Y'&nbsp;=&nbsp;(219&nbsp;/&nbsp;256)&nbsp;*&nbsp;(0.299R'&nbsp;+&nbsp;0.587G'&nbsp;+&nbsp;0.114B')&nbsp;+&nbsp;(16&nbsp;/&nbsp;256)</para>
+            <para>Cb&nbsp;=&nbsp;(224&nbsp;/&nbsp;256)&nbsp;*&nbsp;(-0.169R'&nbsp;-&nbsp;0.331G'&nbsp;+&nbsp;0.5B')</para>
+            <para>Cr&nbsp;=&nbsp;(224&nbsp;/&nbsp;256)&nbsp;*&nbsp;(0.5R'&nbsp;-&nbsp;0.419G'&nbsp;-&nbsp;0.081B')</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
