@@ -706,10 +706,20 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 	struct ll_inode_info     *lli = ll_i2info(dir);
 	struct ll_statahead_info *sai = NULL;
 	struct ll_sa_entry       *entry;
+	__u64			  handle = 0;
 	int		       wakeup;
 
 	if (it_disposition(it, DISP_LOOKUP_NEG))
 		rc = -ENOENT;
+
+	if (rc == 0) {
+		/* release ibits lock ASAP to avoid deadlock when statahead
+		 * thread enqueues lock on parent in readdir and another
+		 * process enqueues lock on child with parent lock held, eg.
+		 * unlink. */
+		handle = it->d.lustre.it_lock_handle;
+		ll_intent_drop_lock(it);
+	}
 
 	spin_lock(&lli->lli_sa_lock);
 	/* stale entry */
@@ -745,8 +755,7 @@ static int ll_statahead_interpret(struct ptlrpc_request *req,
 			 * when statahead thread tries to enqueue lock on parent
 			 * for readpage and other tries to enqueue lock on child
 			 * with parent's lock held, for example: unlink. */
-			entry->se_handle = it->d.lustre.it_lock_handle;
-			ll_intent_drop_lock(it);
+			entry->se_handle = handle;
 			wakeup = sa_received_empty(sai);
 			list_add_tail(&entry->se_list,
 					  &sai->sai_entries_received);
