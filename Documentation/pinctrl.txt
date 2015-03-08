@@ -681,12 +681,12 @@ static const struct foo_pmx_func foo_functions[] = {
 	},
 };
 
-int foo_get_functions_count(struct pinctrl_dev *pctldev)
+static int foo_get_functions_count(struct pinctrl_dev *pctldev)
 {
 	return ARRAY_SIZE(foo_functions);
 }
 
-const char *foo_get_fname(struct pinctrl_dev *pctldev, unsigned selector)
+static const char *foo_get_fname(struct pinctrl_dev *pctldev, unsigned selector)
 {
 	return foo_functions[selector].name;
 }
@@ -700,7 +700,7 @@ static int foo_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-int foo_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
+static int foo_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 		unsigned group)
 {
 	u8 regbit = (1 << selector + group);
@@ -709,7 +709,7 @@ int foo_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-struct pinmux_ops foo_pmxops = {
+static struct pinmux_ops foo_pmxops = {
 	.get_functions_count = foo_get_functions_count,
 	.get_function_name = foo_get_fname,
 	.get_function_groups = foo_get_groups,
