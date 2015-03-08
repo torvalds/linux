@@ -37,10 +37,9 @@ int fbtft_gamma_parse_str(struct fbtft_par *par, unsigned long *curves,
 
 	fbtft_par_dbg(DEBUG_SYSFS, par, "%s\n", str);
 
-	tmp = kmalloc(size+1, GFP_KERNEL);
+	tmp = kmemdup(str, size + 1, GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
-	memcpy(tmp, str, size+1);
 
 	/* replace optional separators */
 	str_p = tmp;
