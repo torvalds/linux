@@ -258,6 +258,15 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 		/* Allwinner SDK has temperature = -271 + (value / 6) (C) */
 		ts->temp_offset = 1626;
 		ts->temp_step = 167;
+	} else if (of_device_is_compatible(np, "allwinner,sun4i-a10-ts")) {
+		/*
+		 * The A10 temperature sensor has quite a wide spread, these
+		 * parameters are based on the averaging of the calibration
+		 * results of 4 completely different boards, with a spread of
+		 * temp_step from 96 - 170 and temp_offset from 1758 - 3310.
+		 */
+		ts->temp_offset = 2570;
+		ts->temp_step = 133;
 	} else {
 		/*
 		 * The user manuals do not contain the formula for calculating
@@ -330,10 +339,10 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	 * finally enable tp mode.
 	 */
 	reg = STYLUS_UP_DEBOUN(5) | STYLUS_UP_DEBOUN_EN(1);
-	if (of_device_is_compatible(np, "allwinner,sun4i-a10-ts"))
-		reg |= TP_MODE_EN(1);
-	else
+	if (of_device_is_compatible(np, "allwinner,sun6i-a31-ts"))
 		reg |= SUN6I_TP_MODE_EN(1);
+	else
+		reg |= TP_MODE_EN(1);
 	writel(reg, ts->base + TP_CTRL1);
 
 	/*
@@ -383,6 +392,7 @@ static int sun4i_ts_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_ts_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-ts", },
+	{ .compatible = "allwinner,sun5i-a13-ts", },
 	{ .compatible = "allwinner,sun6i-a31-ts", },
 	{ /* sentinel */ }
 };
