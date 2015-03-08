@@ -97,7 +97,6 @@ static int octeon_md5_update(struct shash_desc *desc, const u8 *data,
 	memcpy((char *)mctx->block + (sizeof(mctx->block) - avail), data,
 	       avail);
 
-	preempt_disable();
 	flags = octeon_crypto_enable(&state);
 	octeon_md5_store_hash(mctx);
 
@@ -113,7 +112,6 @@ static int octeon_md5_update(struct shash_desc *desc, const u8 *data,
 
 	octeon_md5_read_hash(mctx);
 	octeon_crypto_disable(&state, flags);
-	preempt_enable();
 
 	memcpy(mctx->block, data, len);
 
@@ -131,7 +129,6 @@ static int octeon_md5_final(struct shash_desc *desc, u8 *out)
 
 	*p++ = 0x80;
 
-	preempt_disable();
 	flags = octeon_crypto_enable(&state);
 	octeon_md5_store_hash(mctx);
 
@@ -149,7 +146,6 @@ static int octeon_md5_final(struct shash_desc *desc, u8 *out)
 
 	octeon_md5_read_hash(mctx);
 	octeon_crypto_disable(&state, flags);
-	preempt_enable();
 
 	memcpy(out, mctx->hash, sizeof(mctx->hash));
 	memset(mctx, 0, sizeof(*mctx));
