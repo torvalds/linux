@@ -2110,7 +2110,8 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	if (i2c->irq)
 		timeout *= 10;
 	else
-		timeout /= 2;
+		/* ensure timeout of atleast 1 jiffies */
+		timeout = timeout/2 ? : 1;
 
 	for (retry = 0; retry < 10; retry++) {
 		time_left = wait_for_completion_timeout(&wm8996->fll_lock,
