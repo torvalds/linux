@@ -142,6 +142,11 @@ struct tpg_data {
 	unsigned			planes;
 	u8				vdownsampling[TPG_MAX_PLANES];
 	u8				hdownsampling[TPG_MAX_PLANES];
+	/*
+	 * horizontal positions must be ANDed with this value to enforce
+	 * correct boundaries for packed YUYV values.
+	 */
+	unsigned			hmask[TPG_MAX_PLANES];
 	/* Used to store the colors in native format, either RGB or YUV */
 	u8				colors[TPG_COLOR_MAX][3];
 	u8				textfg[TPG_MAX_PLANES][8], textbg[TPG_MAX_PLANES][8];
@@ -345,6 +350,24 @@ static inline unsigned tpg_g_planes(const struct tpg_data *tpg)
 static inline unsigned tpg_g_twopixelsize(const struct tpg_data *tpg, unsigned plane)
 {
 	return tpg->twopixelsize[plane];
+}
+
+static inline unsigned tpg_hdiv(const struct tpg_data *tpg,
+				  unsigned plane, unsigned x)
+{
+	return ((x / tpg->hdownsampling[plane]) & tpg->hmask[plane]) *
+		tpg->twopixelsize[plane] / 2;
+}
+
+static inline unsigned tpg_hscale(const struct tpg_data *tpg, unsigned x)
+{
+	return (x * tpg->scaled_width) / tpg->src_width;
+}
+
+static inline unsigned tpg_hscale_div(const struct tpg_data *tpg,
+				      unsigned plane, unsigned x)
+{
+	return tpg_hdiv(tpg, plane, tpg_hscale(tpg, x));
 }
 
 static inline unsigned tpg_g_bytesperline(const struct tpg_data *tpg, unsigned plane)
