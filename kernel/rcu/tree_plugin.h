@@ -307,9 +307,11 @@ void rcu_read_unlock_special(struct task_struct *t)
 		t->rcu_read_unlock_special.b.blocked = false;
 
 		/*
-		 * Remove this task from the list it blocked on.  The
-		 * task can migrate while we acquire the lock, but at
-		 * most one time.  So at most two passes through loop.
+		 * Remove this task from the list it blocked on.  The task
+		 * now remains queued on the rcu_node corresponding to
+		 * the CPU it first blocked on, so the first attempt to
+		 * acquire the task's rcu_node's ->lock will succeed.
+		 * Keep the loop and add a WARN_ON() out of sheer paranoia.
 		 */
 		for (;;) {
 			rnp = t->rcu_blocked_node;
@@ -317,6 +319,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 			smp_mb__after_unlock_lock();
 			if (rnp == t->rcu_blocked_node)
 				break;
+			WARN_ON_ONCE(1);
 			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
 		}
 		empty_norm = !rcu_preempt_blocked_readers_cgp(rnp);
