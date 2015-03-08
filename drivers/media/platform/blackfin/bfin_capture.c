@@ -196,23 +196,6 @@ static void bcap_free_sensor_formats(struct bcap_device *bcap_dev)
 	bcap_dev->sensor_formats = NULL;
 }
 
-#ifndef CONFIG_MMU
-static unsigned long bcap_get_unmapped_area(struct file *file,
-					    unsigned long addr,
-					    unsigned long len,
-					    unsigned long pgoff,
-					    unsigned long flags)
-{
-	struct bcap_device *bcap_dev = video_drvdata(file);
-
-	return vb2_get_unmapped_area(&bcap_dev->buffer_queue,
-				     addr,
-				     len,
-				     pgoff,
-				     flags);
-}
-#endif
-
 static int bcap_queue_setup(struct vb2_queue *vq,
 				const struct v4l2_format *fmt,
 				unsigned int *nbuffers, unsigned int *nplanes,
@@ -783,7 +766,7 @@ static struct v4l2_file_operations bcap_fops = {
 	.unlocked_ioctl = video_ioctl2,
 	.mmap = vb2_fop_mmap,
 #ifndef CONFIG_MMU
-	.get_unmapped_area = bcap_get_unmapped_area,
+	.get_unmapped_area = vb2_fop_get_unmapped_area,
 #endif
 	.poll = vb2_fop_poll
 };
