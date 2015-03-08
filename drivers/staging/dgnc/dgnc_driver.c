@@ -60,7 +60,8 @@ static void		dgnc_init_globals(void);
 static int		dgnc_found_board(struct pci_dev *pdev, int id);
 static void		dgnc_cleanup_board(struct dgnc_board *brd);
 static void		dgnc_poll_handler(ulong dummy);
-static int		dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+static int		dgnc_init_one(struct pci_dev *pdev,
+				      const struct pci_device_id *ent);
 static void		dgnc_do_remap(struct dgnc_board *brd);
 
 /*
@@ -92,8 +93,8 @@ static struct class *dgnc_class;
  * Poller stuff
  */
 static DEFINE_SPINLOCK(dgnc_poll_lock); /* Poll scheduling lock */
-static ulong		dgnc_poll_time;				/* Time of next poll */
-static uint		dgnc_poll_stop;				/* Used to tell poller to stop */
+static ulong		dgnc_poll_time; /* Time of next poll */
+static uint		dgnc_poll_stop; /* Used to tell poller to stop */
 static struct timer_list dgnc_poll_timer;
 
 
@@ -214,7 +215,7 @@ static int __init dgnc_init_module(void)
 	 * If something went wrong in the scan, bail out of driver.
 	 */
 	if (rc < 0) {
-		/* Only unregister the pci driver if it was actually registered. */
+		/* Only unregister if it was actually registered. */
 		if (dgnc_NumBoards)
 			pci_unregister_driver(&dgnc_driver);
 		else
@@ -551,7 +552,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 		if (brd->re_map_membase) {
 
-			/* After remap is complete, we need to read and store the dvid */
+			/* Read and store the dvid after remapping */
 			brd->dvid = readb(brd->re_map_membase + 0x8D);
 
 			/* Get and store the board VPD, if it exists */
@@ -708,7 +709,7 @@ static void dgnc_poll_handler(ulong dummy)
 
 		spin_lock_irqsave(&brd->bd_lock, flags);
 
-		/* If board is in a failed state, don't bother scheduling a tasklet */
+		/* If board is in a failed state don't schedule a tasklet */
 		if (brd->state == BOARD_FAILED) {
 			spin_unlock_irqrestore(&brd->bd_lock, flags);
 			continue;
@@ -729,7 +730,7 @@ static void dgnc_poll_handler(ulong dummy)
 	new_time = dgnc_poll_time - jiffies;
 
 	if ((ulong) new_time >= 2 * dgnc_poll_tick)
-		dgnc_poll_time = jiffies +  dgnc_jiffies_from_ms(dgnc_poll_tick);
+		dgnc_poll_time = jiffies + dgnc_jiffies_from_ms(dgnc_poll_tick);
 
 	setup_timer(&dgnc_poll_timer, dgnc_poll_handler, 0);
 	dgnc_poll_timer.expires = dgnc_poll_time;
