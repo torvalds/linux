@@ -837,11 +837,14 @@ static int tpm_stm_i2c_remove(struct i2c_client *client)
  */
 static int tpm_stm_i2c_pm_suspend(struct device *dev)
 {
-	struct st33zp24_platform_data *pin_infos = dev->platform_data;
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct tpm_stm_dev *tpm_dev;
 	int ret = 0;
 
-	if (gpio_is_valid(pin_infos->io_lpcpd))
-		gpio_set_value(pin_infos->io_lpcpd, 0);
+	tpm_dev = (struct tpm_stm_dev *)TPM_VPRIV(chip);
+
+	if (gpio_is_valid(tpm_dev->io_lpcpd))
+		gpio_set_value(tpm_dev->io_lpcpd, 0);
 	else
 		ret = tpm_pm_suspend(dev);
 
@@ -856,12 +859,13 @@ static int tpm_stm_i2c_pm_suspend(struct device *dev)
 static int tpm_stm_i2c_pm_resume(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-	struct st33zp24_platform_data *pin_infos = dev->platform_data;
-
+	struct tpm_stm_dev *tpm_dev;
 	int ret = 0;
 
-	if (gpio_is_valid(pin_infos->io_lpcpd)) {
-		gpio_set_value(pin_infos->io_lpcpd, 1);
+	tpm_dev = (struct tpm_stm_dev *)TPM_VPRIV(chip);
+
+	if (gpio_is_valid(tpm_dev->io_lpcpd)) {
+		gpio_set_value(tpm_dev->io_lpcpd, 1);
 		ret = wait_for_stat(chip,
 				TPM_STS_VALID, chip->vendor.timeout_b,
 				&chip->vendor.read_queue, false);
