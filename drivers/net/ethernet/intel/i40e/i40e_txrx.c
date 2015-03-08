@@ -228,7 +228,7 @@ static int i40e_add_del_fdir_udpv4(struct i40e_vsi *vsi,
 			 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
 			 fd_data->pctype, fd_data->fd_id, ret);
 		err = true;
-	} else {
+	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
 		if (add)
 			dev_info(&pf->pdev->dev,
 				 "Filter OK for PCTYPE %d loc = %d\n",
@@ -303,7 +303,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 			 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
 			 fd_data->pctype, fd_data->fd_id, ret);
 		err = true;
-	} else {
+	} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
 		if (add)
 			dev_info(&pf->pdev->dev, "Filter OK for PCTYPE %d loc = %d)\n",
 				 fd_data->pctype, fd_data->fd_id);
@@ -376,7 +376,7 @@ static int i40e_add_del_fdir_ipv4(struct i40e_vsi *vsi,
 				 "PCTYPE:%d, Filter command send failed for fd_id:%d (ret = %d)\n",
 				 fd_data->pctype, fd_data->fd_id, ret);
 			err = true;
-		} else {
+		} else if (I40E_DEBUG_FD & pf->hw.debug_mask) {
 			if (add)
 				dev_info(&pf->pdev->dev,
 					 "Filter OK for PCTYPE %d loc = %d\n",
@@ -471,12 +471,27 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 			dev_warn(&pdev->dev, "ntuple filter loc = %d, could not be added\n",
 				 rx_desc->wb.qword0.hi_dword.fd_id);
 
+		/* Check if the programming error is for ATR.
+		 * If so, auto disable ATR and set a state for
+		 * flush in progress. Next time we come here if flush is in
+		 * progress do nothing, once flush is complete the state will
+		 * be cleared.
+		 */
+		if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+			return;
+
 		pf->fd_add_err++;
 		/* store the current atr filter count */
 		pf->fd_atr_cnt = i40e_get_current_atr_cnt(pf);
 
+		if ((rx_desc->wb.qword0.hi_dword.fd_id == 0) &&
+		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {
+			pf->auto_disable_flags |= I40E_FLAG_FD_ATR_ENABLED;
+			set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+		}
+
 		/* filter programming failed most likely due to table full */
-		fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
+		fcnt_prog = i40e_get_global_fd_count(pf);
 		fcnt_avail = pf->fdir_pf_filter_count;
 		/* If ATR is running fcnt_prog can quickly change,
 		 * if we are very close to full, it makes sense to disable
@@ -754,6 +769,8 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 			tx_buf = tx_ring->tx_bi;
 			tx_desc = I40E_TX_DESC(tx_ring, 0);
 		}
+
+		prefetch(tx_desc);
 
 		/* update budget accounting */
 		budget--;
@@ -1044,7 +1061,7 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 			for (i = 0; i < rx_ring->count; i++) {
 				rx_bi = &rx_ring->rx_bi[i];
 				rx_bi->dma = 0;
-				rx_bi->hdr_buf = 0;
+				rx_bi->hdr_buf = NULL;
 			}
 		}
 	}
@@ -1926,6 +1943,9 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
 		return;
 
+	if ((pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
+		return;
+
 	/* if sampling is disabled do nothing */
 	if (!tx_ring->atr_sample_rate)
 		return;
@@ -2198,8 +2218,16 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 	struct iphdr *this_ip_hdr;
 	u32 network_hdr_len;
 	u8 l4_hdr = 0;
+	u32 l4_tunnel = 0;
 
 	if (skb->encapsulation) {
+		switch (ip_hdr(skb)->protocol) {
+		case IPPROTO_UDP:
+			l4_tunnel = I40E_TXD_CTX_UDP_TUNNELING;
+			break;
+		default:
+			return;
+		}
 		network_hdr_len = skb_inner_network_header_len(skb);
 		this_ip_hdr = inner_ip_hdr(skb);
 		this_ipv6_hdr = inner_ipv6_hdr(skb);
@@ -2222,8 +2250,8 @@ static void i40e_tx_enable_csum(struct sk_buff *skb, u32 tx_flags,
 
 		/* Now set the ctx descriptor fields */
 		*cd_tunneling |= (skb_network_header_len(skb) >> 2) <<
-					I40E_TXD_CTX_QW0_EXT_IPLEN_SHIFT |
-				   I40E_TXD_CTX_UDP_TUNNELING            |
+				   I40E_TXD_CTX_QW0_EXT_IPLEN_SHIFT      |
+				   l4_tunnel                             |
 				   ((skb_inner_network_offset(skb) -
 					skb_transport_offset(skb)) >> 1) <<
 				   I40E_TXD_CTX_QW0_NATLEN_SHIFT;

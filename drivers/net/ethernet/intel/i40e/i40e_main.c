@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 2
-#define DRV_VERSION_BUILD 11
+#define DRV_VERSION_BUILD 12
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1541,7 +1541,7 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 			vsi->tc_config.tc_info[i].qoffset = offset;
 			vsi->tc_config.tc_info[i].qcount = qcount;
 
-			/* find the power-of-2 of the number of queue pairs */
+			/* find the next higher power-of-2 of num queue pairs */
 			num_qps = qcount;
 			pow = 0;
 			while (num_qps && ((1 << pow) < qcount)) {
@@ -5345,9 +5345,9 @@ static void i40e_service_event_complete(struct i40e_pf *pf)
  * i40e_get_cur_guaranteed_fd_count - Get the consumed guaranteed FD filters
  * @pf: board private structure
  **/
-int i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
+u32 i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
 {
-	int val, fcnt_prog;
+	u32 val, fcnt_prog;
 
 	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
 	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK);
@@ -5355,16 +5355,32 @@ int i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
 }
 
 /**
- * i40e_get_current_fd_count - Get the count of total FD filters programmed
+ * i40e_get_current_fd_count - Get total FD filters programmed for this PF
  * @pf: board private structure
  **/
-int i40e_get_current_fd_count(struct i40e_pf *pf)
+u32 i40e_get_current_fd_count(struct i40e_pf *pf)
 {
-	int val, fcnt_prog;
+	u32 val, fcnt_prog;
+
 	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
 	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK) +
 		    ((val & I40E_PFQF_FDSTAT_BEST_CNT_MASK) >>
 		      I40E_PFQF_FDSTAT_BEST_CNT_SHIFT);
+	return fcnt_prog;
+}
+
+/**
+ * i40e_get_global_fd_count - Get total FD filters programmed on device
+ * @pf: board private structure
+ **/
+u32 i40e_get_global_fd_count(struct i40e_pf *pf)
+{
+	u32 val, fcnt_prog;
+
+	val = rd32(&pf->hw, I40E_GLQF_FDCNT_0);
+	fcnt_prog = (val & I40E_GLQF_FDCNT_0_GUARANT_CNT_MASK) +
+		    ((val & I40E_GLQF_FDCNT_0_BESTCNT_MASK) >>
+		     I40E_GLQF_FDCNT_0_BESTCNT_SHIFT);
 	return fcnt_prog;
 }
 
@@ -5382,7 +5398,7 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	/* Check if, FD SB or ATR was auto disabled and if there is enough room
 	 * to re-enable
 	 */
-	fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
+	fcnt_prog = i40e_get_global_fd_count(pf);
 	fcnt_avail = pf->fdir_pf_filter_count;
 	if ((fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) ||
 	    (pf->fd_add_err == 0) ||
@@ -5404,13 +5420,17 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 }
 
 #define I40E_MIN_FD_FLUSH_INTERVAL 10
+#define I40E_MIN_FD_FLUSH_SB_ATR_UNSTABLE 30
 /**
  * i40e_fdir_flush_and_replay - Function to flush all FD filters and replay SB
  * @pf: board private structure
  **/
 static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 {
+	unsigned long min_flush_time;
 	int flush_wait_retry = 50;
+	bool disable_atr = false;
+	int fd_room;
 	int reg;
 
 	if (!(pf->flags & (I40E_FLAG_FD_SB_ENABLED | I40E_FLAG_FD_ATR_ENABLED)))
@@ -5418,9 +5438,20 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 
 	if (time_after(jiffies, pf->fd_flush_timestamp +
 				(I40E_MIN_FD_FLUSH_INTERVAL * HZ))) {
-		set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+		/* If the flush is happening too quick and we have mostly
+		 * SB rules we should not re-enable ATR for some time.
+		 */
+		min_flush_time = pf->fd_flush_timestamp
+				+ (I40E_MIN_FD_FLUSH_SB_ATR_UNSTABLE * HZ);
+		fd_room = pf->fdir_pf_filter_count - pf->fdir_pf_active_filters;
+
+		if (!(time_after(jiffies, min_flush_time)) &&
+		    (fd_room < I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR)) {
+			dev_info(&pf->pdev->dev, "ATR disabled, not enough FD filter space.\n");
+			disable_atr = true;
+		}
+
 		pf->fd_flush_timestamp = jiffies;
-		pf->auto_disable_flags |= I40E_FLAG_FD_SB_ENABLED;
 		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 		/* flush all filters */
 		wr32(&pf->hw, I40E_PFQF_CTL_1,
@@ -5440,10 +5471,8 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 		} else {
 			/* replay sideband filters */
 			i40e_fdir_filter_restore(pf->vsi[pf->lan_vsi]);
-
-			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
-			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
-			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+			if (!disable_atr)
+				pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
 			clear_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
 			dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
 		}
@@ -5454,7 +5483,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
  * i40e_get_current_atr_count - Get the count of total FD ATR filters programmed
  * @pf: board private structure
  **/
-int i40e_get_current_atr_cnt(struct i40e_pf *pf)
+u32 i40e_get_current_atr_cnt(struct i40e_pf *pf)
 {
 	return i40e_get_current_fd_count(pf) - pf->fdir_pf_active_filters;
 }
@@ -5480,9 +5509,7 @@ static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
 	if (!(pf->flags & (I40E_FLAG_FD_SB_ENABLED | I40E_FLAG_FD_ATR_ENABLED)))
 		return;
 
-	if ((pf->fd_add_err >= I40E_MAX_FD_PROGRAM_ERROR) &&
-	    (i40e_get_current_atr_cnt(pf) >= pf->fd_atr_cnt) &&
-	    (i40e_get_current_atr_cnt(pf) > pf->fdir_pf_filter_count))
+	if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
 		i40e_fdir_flush_and_replay(pf);
 
 	i40e_fdir_check_and_reenable(pf);
@@ -5909,6 +5936,74 @@ static void i40e_verify_eeprom(struct i40e_pf *pf)
 	if (!err && test_bit(__I40E_BAD_EEPROM, &pf->state)) {
 		dev_info(&pf->pdev->dev, "eeprom check passed, Tx/Rx traffic enabled\n");
 		clear_bit(__I40E_BAD_EEPROM, &pf->state);
+	}
+}
+
+/**
+ * i40e_enable_pf_switch_lb
+ * @pf: pointer to the pf structure
+ *
+ * enable switch loop back or die - no point in a return value
+ **/
+static void i40e_enable_pf_switch_lb(struct i40e_pf *pf)
+{
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	struct i40e_vsi_context ctxt;
+	int aq_ret;
+
+	ctxt.seid = pf->main_vsi_seid;
+	ctxt.pf_num = pf->hw.pf_id;
+	ctxt.vf_num = 0;
+	aq_ret = i40e_aq_get_vsi_params(&pf->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s couldn't get pf vsi config, err %d, aq_err %d\n",
+			 __func__, aq_ret, pf->hw.aq.asq_last_status);
+		return;
+	}
+	ctxt.flags = I40E_AQ_VSI_TYPE_PF;
+	ctxt.info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+	ctxt.info.switch_id |= cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+
+	aq_ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s: update vsi switch failed, aq_err=%d\n",
+			 __func__, vsi->back->hw.aq.asq_last_status);
+	}
+}
+
+/**
+ * i40e_disable_pf_switch_lb
+ * @pf: pointer to the pf structure
+ *
+ * disable switch loop back or die - no point in a return value
+ **/
+static void i40e_disable_pf_switch_lb(struct i40e_pf *pf)
+{
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	struct i40e_vsi_context ctxt;
+	int aq_ret;
+
+	ctxt.seid = pf->main_vsi_seid;
+	ctxt.pf_num = pf->hw.pf_id;
+	ctxt.vf_num = 0;
+	aq_ret = i40e_aq_get_vsi_params(&pf->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s couldn't get pf vsi config, err %d, aq_err %d\n",
+			 __func__, aq_ret, pf->hw.aq.asq_last_status);
+		return;
+	}
+	ctxt.flags = I40E_AQ_VSI_TYPE_PF;
+	ctxt.info.valid_sections = cpu_to_le16(I40E_AQ_VSI_PROP_SWITCH_VALID);
+	ctxt.info.switch_id &= ~cpu_to_le16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
+
+	aq_ret = i40e_aq_update_vsi_params(&vsi->back->hw, &ctxt, NULL);
+	if (aq_ret) {
+		dev_info(&pf->pdev->dev,
+			 "%s: update vsi switch failed, aq_err=%d\n",
+			 __func__, vsi->back->hw.aq.asq_last_status);
 	}
 }
 
@@ -6940,7 +7035,7 @@ static int i40e_reserve_msix_vectors(struct i40e_pf *pf, int vectors)
 static int i40e_init_msix(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	int other_vecs = 0;
+	int vectors_left;
 	int v_budget, i;
 	int v_actual;
 
@@ -6964,25 +7059,62 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	 * If we can't get what we want, we'll simplify to nearly nothing
 	 * and try again.  If that still fails, we punt.
 	 */
-	pf->num_lan_msix = min_t(int, num_online_cpus(),
-				 hw->func_caps.num_msix_vectors);
-	pf->num_vmdq_msix = pf->num_vmdq_qps;
-	other_vecs = 1;
-	other_vecs += (pf->num_vmdq_vsis * pf->num_vmdq_msix);
-	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
-		other_vecs++;
+	vectors_left = hw->func_caps.num_msix_vectors;
+	v_budget = 0;
 
-	/* Scale down if necessary, and the rings will share vectors */
-	pf->num_lan_msix = min_t(int, pf->num_lan_msix,
-			(hw->func_caps.num_msix_vectors - other_vecs));
-	v_budget = pf->num_lan_msix + other_vecs;
+	/* reserve one vector for miscellaneous handler */
+	if (vectors_left) {
+		v_budget++;
+		vectors_left--;
+	}
+
+	/* reserve vectors for the main PF traffic queues */
+	pf->num_lan_msix = min_t(int, num_online_cpus(), vectors_left);
+	vectors_left -= pf->num_lan_msix;
+	v_budget += pf->num_lan_msix;
+
+	/* reserve one vector for sideband flow director */
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
+		if (vectors_left) {
+			v_budget++;
+			vectors_left--;
+		} else {
+			pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		}
+	}
 
 #ifdef I40E_FCOE
+	/* can we reserve enough for FCoE? */
 	if (pf->flags & I40E_FLAG_FCOE_ENABLED) {
-		pf->num_fcoe_msix = pf->num_fcoe_qps;
+		if (!vectors_left)
+			pf->num_fcoe_msix = 0;
+		else if (vectors_left >= pf->num_fcoe_qps)
+			pf->num_fcoe_msix = pf->num_fcoe_qps;
+		else
+			pf->num_fcoe_msix = 1;
 		v_budget += pf->num_fcoe_msix;
+		vectors_left -= pf->num_fcoe_msix;
 	}
+
 #endif
+	/* any vectors left over go for VMDq support */
+	if (pf->flags & I40E_FLAG_VMDQ_ENABLED) {
+		int vmdq_vecs_wanted = pf->num_vmdq_vsis * pf->num_vmdq_qps;
+		int vmdq_vecs = min_t(int, vectors_left, vmdq_vecs_wanted);
+
+		/* if we're short on vectors for what's desired, we limit
+		 * the queues per vmdq.  If this is still more than are
+		 * available, the user will need to change the number of
+		 * queues/vectors used by the PF later with the ethtool
+		 * channels command
+		 */
+		if (vmdq_vecs < vmdq_vecs_wanted)
+			pf->num_vmdq_qps = 1;
+		pf->num_vmdq_msix = pf->num_vmdq_qps;
+
+		v_budget += vmdq_vecs;
+		vectors_left -= vmdq_vecs;
+	}
 
 	pf->msix_entries = kcalloc(v_budget, sizeof(struct msix_entry),
 				   GFP_KERNEL);
@@ -7028,6 +7160,8 @@ static int i40e_init_msix(struct i40e_pf *pf)
 		/* Scale vector usage down */
 		pf->num_vmdq_msix = 1;    /* force VMDqs to only one vector */
 		pf->num_vmdq_vsis = 1;
+		pf->num_vmdq_qps = 1;
+		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
 
 		/* partition out the remaining vectors */
 		switch (vec) {
@@ -7053,10 +7187,8 @@ static int i40e_init_msix(struct i40e_pf *pf)
 				vec--;
 			}
 #endif
-			pf->num_lan_msix = min_t(int, (vec / 2),
-						 pf->num_lan_qps);
-			pf->num_vmdq_vsis = min_t(int, (vec - pf->num_lan_msix),
-						  I40E_DEFAULT_NUM_VMDQ_VSI);
+			/* give the rest to the PF */
+			pf->num_lan_msix = min_t(int, vec, pf->num_lan_qps);
 			break;
 		}
 	}
@@ -7266,13 +7398,10 @@ static int i40e_config_rss(struct i40e_pf *pf)
 
 	/* Check capability and Set table size and register per hw expectation*/
 	reg_val = rd32(hw, I40E_PFQF_CTL_0);
-	if (hw->func_caps.rss_table_size == 512) {
+	if (pf->rss_table_size == 512)
 		reg_val |= I40E_PFQF_CTL_0_HASHLUTSIZE_512;
-		pf->rss_table_size = 512;
-	} else {
-		pf->rss_table_size = 128;
+	else
 		reg_val &= ~I40E_PFQF_CTL_0_HASHLUTSIZE_512;
-	}
 	wr32(hw, I40E_PFQF_CTL_0, reg_val);
 
 	/* Populate the LUT with max no. of queues in round robin fashion */
@@ -7923,7 +8052,7 @@ static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 }
 #endif /* HAVE_BRIDGE_ATTRIBS */
 
-const struct net_device_ops i40e_netdev_ops = {
+static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_open		= i40e_open,
 	.ndo_stop		= i40e_close,
 	.ndo_start_xmit		= i40e_lan_xmit_frame,
@@ -9242,14 +9371,6 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 	pf->fc_autoneg_status = ((pf->hw.phy.link_info.an_info &
 				  I40E_AQ_AN_COMPLETED) ? true : false);
 
-	/* fill in link information and enable LSE reporting */
-	i40e_aq_get_link_info(&pf->hw, true, NULL, NULL);
-	i40e_link_event(pf);
-
-	/* Initialize user-specific link properties */
-	pf->fc_autoneg_status = ((pf->hw.phy.link_info.an_info &
-				  I40E_AQ_AN_COMPLETED) ? true : false);
-
 	i40e_ptp_init(pf);
 
 	return ret;
@@ -10166,9 +10287,6 @@ static int __init i40e_init_module(void)
 		i40e_driver_string, i40e_driver_version_str);
 	pr_info("%s: %s\n", i40e_driver_name, i40e_copyright);
 
-#if IS_ENABLED(CONFIG_I40E_CONFIGFS_FS)
-	i40e_configfs_init();
-#endif /* CONFIG_I40E_CONFIGFS_FS */
 	i40e_dbg_init();
 	return pci_register_driver(&i40e_driver);
 }
@@ -10184,8 +10302,5 @@ static void __exit i40e_exit_module(void)
 {
 	pci_unregister_driver(&i40e_driver);
 	i40e_dbg_exit();
-#if IS_ENABLED(CONFIG_I40E_CONFIGFS_FS)
-	i40e_configfs_exit();
-#endif /* CONFIG_I40E_CONFIGFS_FS */
 }
 module_exit(i40e_exit_module);

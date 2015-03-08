@@ -85,9 +85,8 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 {
 	struct i40e_aq_desc *aq_desc = (struct i40e_aq_desc *)desc;
 	u16 len = le16_to_cpu(aq_desc->datalen);
-	u8 *aq_buffer = (u8 *)buffer;
-	u32 data[4];
-	u32 i = 0;
+	u8 *buf = (u8 *)buffer;
+	u16 i = 0;
 
 	if ((!(mask & hw->debug_mask)) || (desc == NULL))
 		return;
@@ -109,29 +108,30 @@ void i40evf_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
 		   le32_to_cpu(aq_desc->params.external.addr_low));
 
 	if ((buffer != NULL) && (aq_desc->datalen != 0)) {
-		memset(data, 0, sizeof(data));
 		i40e_debug(hw, mask, "AQ CMD Buffer:\n");
 		if (buf_len < len)
 			len = buf_len;
-		for (i = 0; i < len; i++) {
-			data[((i % 16) / 4)] |=
-				((u32)aq_buffer[i]) << (8 * (i % 4));
-			if ((i % 16) == 15) {
-				i40e_debug(hw, mask,
-					   "\t0x%04X  %08X %08X %08X %08X\n",
-					   i - 15, le32_to_cpu(data[0]),
-					   le32_to_cpu(data[1]),
-					   le32_to_cpu(data[2]),
-					   le32_to_cpu(data[3]));
-				memset(data, 0, sizeof(data));
-			}
+		/* write the full 16-byte chunks */
+		for (i = 0; i < (len - 16); i += 16)
+			i40e_debug(hw, mask,
+				   "\t0x%04X  %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+				   i, buf[i], buf[i + 1], buf[i + 2],
+				   buf[i + 3], buf[i + 4], buf[i + 5],
+				   buf[i + 6], buf[i + 7], buf[i + 8],
+				   buf[i + 9], buf[i + 10], buf[i + 11],
+				   buf[i + 12], buf[i + 13], buf[i + 14],
+				   buf[i + 15]);
+		/* write whatever's left over without overrunning the buffer */
+		if (i < len) {
+			char d_buf[80];
+			int j = 0;
+
+			memset(d_buf, 0, sizeof(d_buf));
+			j += sprintf(d_buf, "\t0x%04X ", i);
+			while (i < len)
+				j += sprintf(&d_buf[j], " %02X", buf[i++]);
+			i40e_debug(hw, mask, "%s\n", d_buf);
 		}
-		if ((i % 16) != 0)
-			i40e_debug(hw, mask, "\t0x%04X  %08X %08X %08X %08X\n",
-				   i - (i % 16), le32_to_cpu(data[0]),
-				   le32_to_cpu(data[1]),
-				   le32_to_cpu(data[2]),
-				   le32_to_cpu(data[3]));
 	}
 }
 
