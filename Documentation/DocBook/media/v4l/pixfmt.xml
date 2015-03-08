@@ -483,8 +483,8 @@ is the Y'CbCr encoding identifier (&v4l2-ycbcr-encoding;) to specify non-standar
 Y'CbCr encodings and the third is the quantization identifier (&v4l2-quantization;)
 to specify non-standard quantization methods. Most of the time only the colorspace
 field of &v4l2-pix-format; or &v4l2-pix-format-mplane; needs to be filled in. Note
-that the default R'G'B' quantization is always full range for all colorspaces,
-so this won't be mentioned explicitly for each colorspace description.</para>
+that the default R'G'B' quantization is full range for all colorspaces except for
+BT.2020 which uses limited range R'G'B' quantization.</para>
 
     <table pgwide="1" frame="none" id="v4l2-colorspace">
       <title>V4L2 Colorspaces</title>
@@ -598,7 +598,8 @@ so this won't be mentioned explicitly for each colorspace description.</para>
 	  <row>
 	    <entry><constant>V4L2_QUANTIZATION_DEFAULT</constant></entry>
 	    <entry>Use the default quantization encoding as defined by the colorspace.
-This is always full range for R'G'B' and usually limited range for Y'CbCr.</entry>
+This is always full range for R'G'B' (except for the BT.2020 colorspace) and usually
+limited range for Y'CbCr.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_QUANTIZATION_FULL_RANGE</constant></entry>
@@ -967,8 +968,8 @@ SMPTE 170M/BT.601. The Y'CbCr quantization is limited range.</para>
       <title id="col-bt2020">Colorspace BT.2020 (<constant>V4L2_COLORSPACE_BT2020</constant>)</title>
       <para>The <xref linkend="itu2020" /> standard defines the colorspace used by Ultra-high definition
 television (UHDTV). The default Y'CbCr encoding is <constant>V4L2_YCBCR_ENC_BT2020</constant>.
-The default Y'CbCr quantization is limited range. The chromaticities of the primary colors and
-the white reference are:</para>
+The default R'G'B' quantization is limited range (!), and so is the default Y'CbCr quantization.
+The chromaticities of the primary colors and the white reference are:</para>
       <table frame="none">
         <title>BT.2020 Chromaticities</title>
         <tgroup cols="3" align="left">
