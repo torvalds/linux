@@ -1096,10 +1096,8 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 		memcpy(eeprom->mac_addr, &hwinfo[EEPROM_MAC_ADDR_88EU], ETH_ALEN);
 	}
 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("Hal_EfuseParseMACAddr_8188EU: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
-		 eeprom->mac_addr[0], eeprom->mac_addr[1],
-		 eeprom->mac_addr[2], eeprom->mac_addr[3],
-		 eeprom->mac_addr[4], eeprom->mac_addr[5]));
+		 ("Hal_EfuseParseMACAddr_8188EU: Permanent Address = %pM\n",
+		 eeprom->mac_addr));
 }
 
 static void
