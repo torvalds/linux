@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
+#include <linux/blk-mq.h>
 
 #define DM_MSG_PREFIX "table"
 
@@ -1695,9 +1696,13 @@ void dm_table_run_md_queue_async(struct dm_table *t)
 	md = dm_table_get_md(t);
 	queue = dm_get_md_queue(md);
 	if (queue) {
-		spin_lock_irqsave(queue->queue_lock, flags);
-		blk_run_queue_async(queue);
-		spin_unlock_irqrestore(queue->queue_lock, flags);
+		if (queue->mq_ops)
+			blk_mq_run_hw_queues(queue, true);
+		else {
+			spin_lock_irqsave(queue->queue_lock, flags);
+			blk_run_queue_async(queue);
+			spin_unlock_irqrestore(queue->queue_lock, flags);
+		}
 	}
 }
 EXPORT_SYMBOL(dm_table_run_md_queue_async);
