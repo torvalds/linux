@@ -1942,6 +1942,7 @@ static int wm2200_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	struct wm2200_priv *wm2200 = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div factors;
 	int ret, i, timeout;
+	unsigned long time_left;
 
 	if (!Fout) {
 		dev_dbg(codec->dev, "FLL disabled");
@@ -2021,9 +2022,10 @@ static int wm2200_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	/* Poll for the lock; will use the interrupt to exit quickly */
 	for (i = 0; i < timeout; i++) {
 		if (i2c->irq) {
-			ret = wait_for_completion_timeout(&wm2200->fll_lock,
-							  msecs_to_jiffies(25));
-			if (ret > 0)
+			time_left = wait_for_completion_timeout(
+							&wm2200->fll_lock,
+							msecs_to_jiffies(25));
+			if (time_left > 0)
 				break;
 		} else {
 			msleep(1);
