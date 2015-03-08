@@ -116,12 +116,12 @@ static struct screen_info smtc_scr_info;
 static char *mode_option;
 
 /* process command line options, get vga parameter */
-static int __init sm7xx_vga_setup(char *options)
+static void __init sm7xx_vga_setup(char *options)
 {
 	int i;
 
 	if (!options || !*options)
-		return -EINVAL;
+		return;
 
 	smtc_scr_info.lfb_width = 0;
 	smtc_scr_info.lfb_height = 0;
@@ -135,11 +135,9 @@ static int __init sm7xx_vga_setup(char *options)
 			smtc_scr_info.lfb_height =
 						vesa_mode_table[i].lfb_height;
 			smtc_scr_info.lfb_depth  = vesa_mode_table[i].lfb_depth;
-			return 0;
+			return;
 		}
 	}
-
-	return -1;
 }
 
 static void sm712_setpalette(int regno, unsigned red, unsigned green,
