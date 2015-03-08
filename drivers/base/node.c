@@ -180,7 +180,7 @@ static ssize_t node_read_vmstat(struct device *dev,
 static DEVICE_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
 
 static ssize_t node_read_distance(struct device *dev,
-			struct device_attribute *attr, char * buf)
+			struct device_attribute *attr, char *buf)
 {
 	int nid = dev->id;
 	int len = 0;
