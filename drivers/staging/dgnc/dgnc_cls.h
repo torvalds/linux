@@ -35,15 +35,25 @@
  *			U = Unused.					*
  ************************************************************************/
 
+/*
+ * txrx    : WR RHR/THR - Holding reg
+ * ier     : WR IER - Interrupt Enable Reg
+ * isr_fcr : WR ISR/FCR - Interrupt Status Reg/Fifo Control Reg
+ * lcr     : WR LCR - Line Control Reg
+ * mcr     : WR MCR - Modem Control Reg
+ * lsr     : WR LSR - Line Status Reg
+ * msr     : WR MSG - Modem Status Reg
+ * spr     : WR SPR - Scratch pad Reg
+ */
 struct cls_uart_struct {
-	u8 txrx;	/* WR  RHR/THR - Holding Reg */
-	u8 ier;		/* WR  IER - Interrupt Enable Reg */
-	u8 isr_fcr;	/* WR  ISR/FCR - Interrupt Status Reg/Fifo Control Reg */
-	u8 lcr;		/* WR  LCR - Line Control Reg */
-	u8 mcr;		/* WR  MCR - Modem Control Reg */
-	u8 lsr;		/* WR  LSR - Line Status Reg */
-	u8 msr;		/* WR  MSR - Modem Status Reg */
-	u8 spr;		/* WR  SPR - Scratch Pad Reg */
+	u8 txrx;
+	u8 ier;
+	u8 isr_fcr;
+	u8 lcr;
+	u8 mcr;
+	u8 lsr;
+	u8 msr;
+	u8 spr;
 };
 
 /* Where to read the interrupt register (8bits) */
@@ -61,8 +71,11 @@ struct cls_uart_struct {
 #define UART_16654_FCR_RXTRIGGER_56	0x80
 #define UART_16654_FCR_RXTRIGGER_60     0xC0
 
-#define UART_IIR_CTSRTS			0x20	/* Received CTS/RTS change of state */
-#define UART_IIR_RDI_TIMEOUT		0x0C    /* Receiver data TIMEOUT */
+/* Received CTS/RTS change of state */
+#define UART_IIR_CTSRTS			0x20
+
+/* Receiver data TIMEOUT */
+#define UART_IIR_RDI_TIMEOUT		0x0C
 
 /*
  * These are the EXTENDED definitions for the Exar 654's Interrupt
@@ -74,8 +87,11 @@ struct cls_uart_struct {
 #define UART_EXAR654_EFR_RTSDTR   0x40    /* Auto RTS/DTR Flow Control Enable */
 #define UART_EXAR654_EFR_CTSDSR   0x80    /* Auto CTS/DSR Flow COntrol Enable */
 
-#define UART_EXAR654_XOFF_DETECT  0x1     /* Indicates whether chip saw an incoming XOFF char  */
-#define UART_EXAR654_XON_DETECT   0x2     /* Indicates whether chip saw an incoming XON char */
+/* Indicates whether chip saw an incoming XOFF char  */
+#define UART_EXAR654_XOFF_DETECT  0x1
+
+/* Indicates whether chip saw an incoming XON char */
+#define UART_EXAR654_XON_DETECT   0x2
 
 #define UART_EXAR654_IER_XOFF     0x20    /* Xoff Interrupt Enable */
 #define UART_EXAR654_IER_RTSDTR   0x40    /* Output Interrupt Enable */
