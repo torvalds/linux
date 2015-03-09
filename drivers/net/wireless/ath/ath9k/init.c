@@ -437,8 +437,14 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 		ath_info(common, "Enable WAR for ASPM D3/L1\n");
 	}
 
+	/*
+	 * The default value of pll_pwrsave is 1.
+	 * For certain AR9485 cards, it is set to 0.
+	 */
+	ah->config.pll_pwrsave = 1;
+
 	if (sc->driver_data & ATH9K_PCI_NO_PLL_PWRSAVE) {
-		ah->config.no_pll_pwrsave = true;
+		ah->config.pll_pwrsave = 0;
 		ath_info(common, "Disable PLL PowerSave\n");
 	}
 

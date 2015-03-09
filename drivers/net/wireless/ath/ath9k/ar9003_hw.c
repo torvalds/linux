@@ -195,16 +195,16 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
 			       ar9485_1_1_baseband_core_txfir_coeff_japan_2484);
 
-		if (ah->config.no_pll_pwrsave) {
+		if (ah->config.pll_pwrsave & AR_PCIE_PLL_PWRSAVE_CONTROL) {
 			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-				       ar9485_1_1_pcie_phy_clkreq_disable_L1);
+				       ar9485_1_1_pll_on_cdr_on_clkreq_disable_L1);
 			INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
-				       ar9485_1_1_pcie_phy_clkreq_disable_L1);
+				       ar9485_1_1_pll_on_cdr_on_clkreq_disable_L1);
 		} else {
 			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-				       ar9485_1_1_pll_on_cdr_on_clkreq_disable_L1);
+				       ar9485_1_1_pcie_phy_clkreq_disable_L1);
 			INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
-				       ar9485_1_1_pll_on_cdr_on_clkreq_disable_L1);
+				       ar9485_1_1_pcie_phy_clkreq_disable_L1);
 		}
 	} else if (AR_SREV_9462_21(ah)) {
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
