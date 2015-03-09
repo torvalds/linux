@@ -181,7 +181,6 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN0041",
 	"LEN0042", /* Yoga */
 	"LEN0045",
-	"LEN0046",
 	"LEN0047",
 	"LEN0049",
 	"LEN2000",
