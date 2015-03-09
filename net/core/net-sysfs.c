@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/jiffies.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 
 #include "net-sysfs.h"
 
@@ -1373,6 +1374,30 @@ static struct class net_class = {
 	.ns_type = &net_ns_type_operations,
 	.namespace = net_namespace,
 };
+
+#ifdef CONFIG_OF_NET
+static int of_dev_node_match(struct device *dev, const void *data)
+{
+	int ret = 0;
+
+	if (dev->parent)
+		ret = dev->parent->of_node == data;
+
+	return ret == 0 ? dev->of_node == data : ret;
+}
+
+struct net_device *of_find_net_device_by_node(struct device_node *np)
+{
+	struct device *dev;
+
+	dev = class_find_device(&net_class, NULL, np, of_dev_node_match);
+	if (!dev)
+		return NULL;
+
+	return to_net_dev(dev);
+}
+EXPORT_SYMBOL(of_find_net_device_by_node);
+#endif
 
 /* Delete sysfs entries but hold kobject reference until after all
  * netdev references are gone.
