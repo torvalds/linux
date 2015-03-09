@@ -149,7 +149,7 @@ static inline bool i40e_fcoe_xid_is_valid(u16 xid)
 
 /**
  * i40e_fcoe_ddp_unmap - unmap the mapped sglist associated
- * @pf: pointer to pf
+ * @pf: pointer to PF
  * @ddp: sw DDP context
  *
  * Unmap the scatter-gather list associated with the given SW DDP context
@@ -268,7 +268,7 @@ out:
 
 /**
  * i40e_fcoe_sw_init - sets up the HW for FCoE
- * @pf: pointer to pf
+ * @pf: pointer to PF
  *
  * Returns 0 if FCoE is supported otherwise the error code
  **/
@@ -328,7 +328,7 @@ int i40e_init_pf_fcoe(struct i40e_pf *pf)
 
 /**
  * i40e_get_fcoe_tc_map - Return TC map for FCoE APP
- * @pf: pointer to pf
+ * @pf: pointer to PF
  *
  **/
 u8 i40e_get_fcoe_tc_map(struct i40e_pf *pf)
@@ -1531,7 +1531,7 @@ void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi)
 
 /**
  * i40e_fcoe_vsi_setup - allocate and set up FCoE VSI
- * @pf: the pf that VSI is associated with
+ * @pf: the PF that VSI is associated with
  *
  **/
 void i40e_fcoe_vsi_setup(struct i40e_pf *pf)
@@ -1558,7 +1558,7 @@ void i40e_fcoe_vsi_setup(struct i40e_pf *pf)
 	vsi = i40e_vsi_setup(pf, I40E_VSI_FCOE, seid, 0);
 	if (vsi) {
 		dev_dbg(&pf->pdev->dev,
-			"Successfully created FCoE VSI seid %d id %d uplink_seid %d pf seid %d\n",
+			"Successfully created FCoE VSI seid %d id %d uplink_seid %d PF seid %d\n",
 			vsi->seid, vsi->id, vsi->uplink_seid, seid);
 	} else {
 		dev_info(&pf->pdev->dev, "Failed to create FCoE VSI\n");

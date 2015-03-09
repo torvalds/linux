@@ -691,7 +691,7 @@ i40e_status i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 /**
  * i40e_pre_tx_queue_cfg - pre tx queue configure
  * @hw: pointer to the HW structure
- * @queue: target pf queue index
+ * @queue: target PF queue index
  * @enable: state change request
  *
  * Handles hw requirement to indicate intention to enable
@@ -955,7 +955,7 @@ void i40e_clear_hw(struct i40e_hw *hw)
 	u32 val;
 	u32 eol = 0x7ff;
 
-	/* get number of interrupts, queues, and vfs */
+	/* get number of interrupts, queues, and VFs */
 	val = rd32(hw, I40E_GLPCI_CNF2);
 	num_pf_int = (val & I40E_GLPCI_CNF2_MSI_X_PF_N_MASK) >>
 		     I40E_GLPCI_CNF2_MSI_X_PF_N_SHIFT;
@@ -2017,7 +2017,7 @@ i40e_status i40e_aq_add_macvlan(struct i40e_hw *hw, u16 seid,
 	if (count == 0 || !mv_list || !hw)
 		return I40E_ERR_PARAM;
 
-	buf_size = count * sizeof(struct i40e_aqc_add_macvlan_element_data);
+	buf_size = count * sizeof(*mv_list);
 
 	/* prep the rest of the request */
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_add_macvlan);
@@ -2059,7 +2059,7 @@ i40e_status i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 seid,
 	if (count == 0 || !mv_list || !hw)
 		return I40E_ERR_PARAM;
 
-	buf_size = count * sizeof(struct i40e_aqc_remove_macvlan_element_data);
+	buf_size = count * sizeof(*mv_list);
 
 	/* prep the rest of the request */
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_remove_macvlan);
@@ -2081,7 +2081,7 @@ i40e_status i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 seid,
 /**
  * i40e_aq_send_msg_to_vf
  * @hw: pointer to the hardware structure
- * @vfid: vf id to send msg
+ * @vfid: VF id to send msg
  * @v_opcode: opcodes for VF-PF communication
  * @v_retval: return error code
  * @msg: pointer to the msg buffer

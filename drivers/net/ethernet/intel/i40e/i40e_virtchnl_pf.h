@@ -71,12 +71,12 @@ enum i40e_vf_capabilities {
 struct i40e_vf {
 	struct i40e_pf *pf;
 
-	/* vf id in the pf space */
+	/* VF id in the PF space */
 	u16 vf_id;
-	/* all vf vsis connect to the same parent */
+	/* all VF vsis connect to the same parent */
 	enum i40e_switch_element_types parent_type;
 
-	/* vf Port Extender (PE) stag if used */
+	/* VF Port Extender (PE) stag if used */
 	u16 stag;
 
 	struct i40e_virtchnl_ether_addr default_lan_addr;
@@ -91,7 +91,7 @@ struct i40e_vf {
 	u8 lan_vsi_index;	/* index into PF struct */
 	u8 lan_vsi_id;		/* ID as used by firmware */
 
-	u8 num_queue_pairs;	/* num of qps assigned to vf vsis */
+	u8 num_queue_pairs;	/* num of qps assigned to VF vsis */
 	u64 num_mdd_events;	/* num of mdd events detected */
 	u64 num_invalid_msgs;	/* num of malformed or invalid msgs detected */
 	u64 num_valid_msgs;	/* num of valid msgs detected */
@@ -100,7 +100,7 @@ struct i40e_vf {
 	unsigned long vf_states;	/* vf's runtime states */
 	unsigned int tx_rate;	/* Tx bandwidth limit in Mbps */
 	bool link_forced;
-	bool link_up;		/* only valid if vf link is forced */
+	bool link_up;		/* only valid if VF link is forced */
 	bool spoofchk;
 };
 
@@ -113,7 +113,7 @@ int i40e_vc_process_vflr_event(struct i40e_pf *pf);
 void i40e_reset_vf(struct i40e_vf *vf, bool flr);
 void i40e_vc_notify_vf_reset(struct i40e_vf *vf);
 
-/* vf configuration related iplink handlers */
+/* VF configuration related iplink handlers */
 int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac);
 int i40e_ndo_set_vf_port_vlan(struct net_device *netdev,
 			      int vf_id, u16 vlan_id, u8 qos);

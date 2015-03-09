@@ -177,6 +177,8 @@ struct i40e_lump_tracking {
 #define I40E_FDIR_BUFFER_HEAD_ROOM	32
 #define I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR (I40E_FDIR_BUFFER_HEAD_ROOM * 4)
 
+#define I40E_HKEY_ARRAY_SIZE ((I40E_PFQF_HKEY_MAX_INDEX + 1) * 4)
+
 enum i40e_fd_stat_idx {
 	I40E_FD_STAT_ATR,
 	I40E_FD_STAT_SB,
@@ -240,17 +242,17 @@ struct i40e_pf {
 	bool fc_autoneg_status;
 
 	u16 eeprom_version;
-	u16 num_vmdq_vsis;         /* num vmdq vsis this pf has set up */
+	u16 num_vmdq_vsis;         /* num vmdq vsis this PF has set up */
 	u16 num_vmdq_qps;          /* num queue pairs per vmdq pool */
 	u16 num_vmdq_msix;         /* num queue vectors per vmdq pool */
-	u16 num_req_vfs;           /* num vfs requested for this vf */
-	u16 num_vf_qps;            /* num queue pairs per vf */
+	u16 num_req_vfs;           /* num VFs requested for this VF */
+	u16 num_vf_qps;            /* num queue pairs per VF */
 #ifdef I40E_FCOE
-	u16 num_fcoe_qps;          /* num fcoe queues this pf has set up */
+	u16 num_fcoe_qps;          /* num fcoe queues this PF has set up */
 	u16 num_fcoe_msix;         /* num queue vectors per fcoe pool */
 #endif /* I40E_FCOE */
-	u16 num_lan_qps;           /* num lan queues this pf has set up */
-	u16 num_lan_msix;          /* num queue vectors for the base pf vsi */
+	u16 num_lan_qps;           /* num lan queues this PF has set up */
+	u16 num_lan_msix;          /* num queue vectors for the base PF vsi */
 	int queues_left;           /* queues left unclaimed */
 	u16 rss_size;              /* num queues in the RSS array */
 	u16 rss_size_max;          /* HW defined max RSS queues */
@@ -612,7 +614,7 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
 
 /**
  * i40e_get_fd_cnt_all - get the total FD filter space available
- * @pf: pointer to the pf struct
+ * @pf: pointer to the PF struct
  **/
 static inline int i40e_get_fd_cnt_all(struct i40e_pf *pf)
 {

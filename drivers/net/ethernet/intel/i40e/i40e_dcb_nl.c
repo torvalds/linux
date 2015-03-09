@@ -223,7 +223,7 @@ static int i40e_dcbnl_vsi_del_app(struct i40e_vsi *vsi,
 
 /**
  * i40e_dcbnl_del_app - Delete APP on all VSIs
- * @pf: the corresponding pf
+ * @pf: the corresponding PF
  * @app: APP to delete
  *
  * Delete given APP from all the VSIs for given PF
@@ -268,7 +268,7 @@ static bool i40e_dcbnl_find_app(struct i40e_dcbx_config *cfg,
 
 /**
  * i40e_dcbnl_flush_apps - Delete all removed APPs
- * @pf: the corresponding pf
+ * @pf: the corresponding PF
  * @old_cfg: old DCBX configuration data
  * @new_cfg: new DCBX configuration data
  *

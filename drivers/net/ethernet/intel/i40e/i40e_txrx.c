@@ -45,7 +45,7 @@ static inline __le64 build_ctob(u32 td_cmd, u32 td_offset, unsigned int size,
  * i40e_program_fdir_filter - Program a Flow Director filter
  * @fdir_data: Packet data that will be filter parameters
  * @raw_packet: the pre-allocated packet buffer for FDir
- * @pf: The pf pointer
+ * @pf: The PF pointer
  * @add: True for add/update, False for remove
  **/
 int i40e_program_fdir_filter(struct i40e_fdir_filter *fdir_data, u8 *raw_packet,
@@ -859,6 +859,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 static void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
 	u32 val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
+		  I40E_PFINT_DYN_CTLN_ITR_INDX_MASK | /* set noitr */
 		  I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
 		  I40E_PFINT_DYN_CTLN_SW_ITR_INDX_ENA_MASK;
 		  /* allow 00 to be written to the index */
