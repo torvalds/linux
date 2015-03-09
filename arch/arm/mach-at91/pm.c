@@ -120,13 +120,12 @@ int at91_suspend_entering_slow_clock(void)
 }
 EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
 
-
-static void (*slow_clock)(void __iomem *pmc, void __iomem *ramc0,
+static void (*at91_suspend_sram_fn)(void __iomem *pmc, void __iomem *ramc0,
 			  void __iomem *ramc1, int memctrl);
 
-extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0,
+extern void at91_pm_suspend_in_sram(void __iomem *pmc, void __iomem *ramc0,
 			    void __iomem *ramc1, int memctrl);
-extern u32 at91_slow_clock_sz;
+extern u32 at91_pm_suspend_in_sram_sz;
 
 static void at91_pm_suspend(suspend_state_t state)
 {
@@ -135,8 +134,8 @@ static void at91_pm_suspend(suspend_state_t state)
 	pm_data |= (state == PM_SUSPEND_MEM) ?
 				AT91_PM_MODE(AT91_PM_SLOW_CLOCK) : 0;
 
-	slow_clock(at91_pmc_base, at91_ramc_base[0],
-			at91_ramc_base[1], pm_data);
+	at91_suspend_sram_fn(at91_pmc_base, at91_ramc_base[0],
+				at91_ramc_base[1], pm_data);
 }
 
 static int at91_pm_enter(suspend_state_t state)
@@ -278,21 +277,23 @@ static void __init at91_pm_sram_init(void)
 		return;
 	}
 
-	sram_base = gen_pool_alloc(sram_pool, at91_slow_clock_sz);
+	sram_base = gen_pool_alloc(sram_pool, at91_pm_suspend_in_sram_sz);
 	if (!sram_base) {
-		pr_warn("%s: unable to alloc ocram!\n", __func__);
+		pr_warn("%s: unable to alloc sram!\n", __func__);
 		return;
 	}
 
 	sram_pbase = gen_pool_virt_to_phys(sram_pool, sram_base);
-	slow_clock = __arm_ioremap_exec(sram_pbase, at91_slow_clock_sz, false);
-	if (!slow_clock) {
+	at91_suspend_sram_fn = __arm_ioremap_exec(sram_pbase,
+					at91_pm_suspend_in_sram_sz, false);
+	if (!at91_suspend_sram_fn) {
 		pr_warn("SRAM: Could not map\n");
 		return;
 	}
 
-	/* Copy the slow_clock handler to SRAM */
-	slow_clock = fncpy(slow_clock, &at91_slow_clock, at91_slow_clock_sz);
+	/* Copy the pm suspend handler to SRAM */
+	at91_suspend_sram_fn = fncpy(at91_suspend_sram_fn,
+			&at91_pm_suspend_in_sram, at91_pm_suspend_in_sram_sz);
 }
 
 static void __init at91_pm_init(void)
@@ -302,7 +303,7 @@ static void __init at91_pm_init(void)
 	if (at91_cpuidle_device.dev.platform_data)
 		platform_device_register(&at91_cpuidle_device);
 
-	if (slow_clock)
+	if (at91_suspend_sram_fn)
 		suspend_set_ops(&at91_pm_ops);
 	else
 		pr_info("AT91: PM not supported, due to no SRAM allocated\n");

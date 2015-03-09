@@ -55,22 +55,18 @@ tmp2	.req	r5
 
 	.arm
 
-/* void at91_slow_clock(void __iomem *pmc, void __iomem *sdramc,
+/*
+ * void at91_pm_suspend_in_sram(void __iomem *pmc, void __iomem *sdramc,
  *			void __iomem *ramc1, int memctrl)
+ * @input param:
+ * 	@r0: base address of AT91_PMC
+ *  	@r1: base address of SDRAM Controller (SDRAM, DDRSDR, or AT91_SYS)
+ *	@r2: base address of second SDRAM Controller or 0 if not present
+ *	@r3: pm information
  */
-ENTRY(at91_slow_clock)
+ENTRY(at91_pm_suspend_in_sram)
 	/* Save registers on stack */
 	stmfd	sp!, {r4 - r12, lr}
-
-	/*
-	 * Register usage:
-	 *  R0 = Base address of AT91_PMC
-	 *  R1 = Base address of RAM Controller (SDRAM, DDRSDR, or AT91_SYS)
-	 *  R2 = Base address of second RAM Controller or 0 if not present
-	 *  R3 = Memory controller
-	 *  R4 = temporary register
-	 *  R5 = temporary register
-	 */
 
 	/* Drain write buffer */
 	mov	tmp1, #0
@@ -170,7 +166,7 @@ skip_enable_main_clock:
 
 	/* Restore registers, and return */
 	ldmfd	sp!, {r4 - r12, pc}
-ENDPROC(at91_slow_clock)
+ENDPROC(at91_pm_suspend_in_sram)
 
 /*
  * void at91_sramc_self_refresh(unsigned int is_active)
@@ -320,5 +316,5 @@ ENDPROC(at91_sramc_self_refresh)
 .saved_sam9_mdr1:
 	.word 0
 
-ENTRY(at91_slow_clock_sz)
-	.word .-at91_slow_clock
+ENTRY(at91_pm_suspend_in_sram_sz)
+	.word .-at91_pm_suspend_in_sram
