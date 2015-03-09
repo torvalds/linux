@@ -1374,7 +1374,9 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	if (video_data_to_mirroring)
 		video_data_to_mirroring(info, NULL);
 #endif
-	dev_drv->ops->cfg_done(dev_drv);
+        /*if not want the config effect,set reserved[3] bit[0] 1*/
+        if (likely((var->reserved[3] & 0x1) == 0))
+	        dev_drv->ops->cfg_done(dev_drv);
 
 	return 0;
 }
