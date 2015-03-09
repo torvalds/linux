@@ -162,7 +162,7 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 		err = -ENODEV;
 		goto tx_error;
 	}
-	if (htons(dst->proto) == ETH_P_IP) {
+	if (dst->proto == htons(ETH_P_IP)) {
 		struct flowi4 fl = {
 			.daddr = dst->ipv4.s_addr,
 			.saddr = src->ipv4.s_addr,
@@ -334,7 +334,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	struct udp_media_addr *remote;
 	struct udp_media_addr local = {0};
 	struct udp_port_cfg udp_conf = {0};
-	struct udp_tunnel_sock_cfg tuncfg = {0};
+	struct udp_tunnel_sock_cfg tuncfg = {NULL};
 
 	ub = kzalloc(sizeof(*ub), GFP_ATOMIC);
 	if (!ub)
@@ -351,7 +351,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	rcu_assign_pointer(b->media_ptr, ub);
 	rcu_assign_pointer(ub->bearer, b);
 	tipc_udp_media_addr_set(&b->addr, &local);
-	if (htons(local.proto) == ETH_P_IP) {
+	if (local.proto == htons(ETH_P_IP)) {
 		struct net_device *dev;
 
 		dev = __ip_dev_find(net, local.ipv4.s_addr, false);
@@ -366,7 +366,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 		b->mtu = dev->mtu - sizeof(struct iphdr)
 			- sizeof(struct udphdr);
 #if IS_ENABLED(CONFIG_IPV6)
-	} else if (htons(local.proto) == ETH_P_IPV6) {
+	} else if (local.proto == htons(ETH_P_IPV6)) {
 		udp_conf.family = AF_INET6;
 		udp_conf.use_udp6_tx_checksums = true;
 		udp_conf.use_udp6_rx_checksums = true;
