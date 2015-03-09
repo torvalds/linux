@@ -6733,3 +6733,21 @@ void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
 	}
 	unlock_chunks(root);
 }
+
+void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	while (fs_devices) {
+		fs_devices->fs_info = fs_info;
+		fs_devices = fs_devices->seed;
+	}
+}
+
+void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	while (fs_devices) {
+		fs_devices->fs_info = NULL;
+		fs_devices = fs_devices->seed;
+	}
+}
