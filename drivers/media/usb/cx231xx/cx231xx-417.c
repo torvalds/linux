@@ -1868,13 +1868,9 @@ void cx231xx_417_unregister(struct cx231xx *dev)
 	dprintk(1, "%s()\n", __func__);
 	dprintk(3, "%s()\n", __func__);
 
-	if (dev->v4l_device) {
-		if (-1 != dev->v4l_device->minor)
-			video_unregister_device(dev->v4l_device);
-		else
-			video_device_release(dev->v4l_device);
+	if (video_is_registered(&dev->v4l_device)) {
+		video_unregister_device(&dev->v4l_device);
 		v4l2_ctrl_handler_free(&dev->mpeg_ctrl_handler.hdl);
-		dev->v4l_device = NULL;
 	}
 }
 
@@ -1911,25 +1907,21 @@ static struct cx2341x_handler_ops cx231xx_ops = {
 	.s_video_encoding = cx231xx_s_video_encoding,
 };
 
-static struct video_device *cx231xx_video_dev_alloc(
+static void cx231xx_video_dev_init(
 	struct cx231xx *dev,
 	struct usb_device *usbdev,
-	struct video_device *template,
-	char *type)
+	struct video_device *vfd,
+	const struct video_device *template,
+	const char *type)
 {
-	struct video_device *vfd;
-
 	dprintk(1, "%s()\n", __func__);
-	vfd = video_device_alloc();
-	if (NULL == vfd)
-		return NULL;
 	*vfd = *template;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name,
 		type, cx231xx_boards[dev->model].name);
 
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->lock = &dev->lock;
-	vfd->release = video_device_release;
+	vfd->release = video_device_release_empty;
 	vfd->ctrl_handler = &dev->mpeg_ctrl_handler.hdl;
 	video_set_drvdata(vfd, dev);
 	if (dev->tuner_type == TUNER_ABSENT) {
@@ -1938,9 +1930,6 @@ static struct video_device *cx231xx_video_dev_alloc(
 		v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
 		v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
 	}
-
-	return vfd;
-
 }
 
 int cx231xx_417_register(struct cx231xx *dev)
@@ -1983,9 +1972,9 @@ int cx231xx_417_register(struct cx231xx *dev)
 	cx2341x_handler_set_50hz(&dev->mpeg_ctrl_handler, false);
 
 	/* Allocate and initialize V4L video device */
-	dev->v4l_device = cx231xx_video_dev_alloc(dev,
-		dev->udev, &cx231xx_mpeg_template, "mpeg");
-	err = video_register_device(dev->v4l_device,
+	cx231xx_video_dev_init(dev, dev->udev,
+			&dev->v4l_device, &cx231xx_mpeg_template, "mpeg");
+	err = video_register_device(&dev->v4l_device,
 		VFL_TYPE_GRABBER, -1);
 	if (err < 0) {
 		dprintk(3, "%s: can't register mpeg device\n", dev->name);
@@ -1994,7 +1983,7 @@ int cx231xx_417_register(struct cx231xx *dev)
 	}
 
 	dprintk(3, "%s: registered device video%d [mpeg]\n",
-	       dev->name, dev->v4l_device->num);
+	       dev->name, dev->v4l_device.num);
 
 	return 0;
 }

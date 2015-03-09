@@ -1230,9 +1230,9 @@ static void cx231xx_create_media_graph(struct cx231xx *dev)
 	if (tuner)
 		media_entity_create_link(tuner, 0, decoder, 0,
 					 MEDIA_LNK_FL_ENABLED);
-	media_entity_create_link(decoder, 1, &dev->vdev->entity, 0,
+	media_entity_create_link(decoder, 1, &dev->vdev.entity, 0,
 				 MEDIA_LNK_FL_ENABLED);
-	media_entity_create_link(decoder, 2, &dev->vbi_dev->entity, 0,
+	media_entity_create_link(decoder, 2, &dev->vbi_dev.entity, 0,
 				 MEDIA_LNK_FL_ENABLED);
 #endif
 }
@@ -1748,7 +1748,7 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 	if (dev->users) {
 		dev_warn(dev->dev,
 			 "device %s is open! Deregistration and memory deallocation are deferred on close.\n",
-			 video_device_node_name(dev->vdev));
+			 video_device_node_name(&dev->vdev));
 
 		/* Even having users, it is safe to remove the RC i2c driver */
 		cx231xx_ir_exit(dev);

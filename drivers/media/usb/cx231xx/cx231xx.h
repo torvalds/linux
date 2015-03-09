@@ -634,7 +634,7 @@ struct cx231xx {
 
 	/* video for linux */
 	int users;		/* user count for exclusive use */
-	struct video_device *vdev;	/* video for linux device struct */
+	struct video_device vdev;	/* video for linux device struct */
 	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_ainput;	/* selected audio input */
@@ -656,8 +656,8 @@ struct cx231xx {
 	struct mutex ctrl_urb_lock;	/* protects urb_buf */
 	struct list_head inqueue, outqueue;
 	wait_queue_head_t open, wait_frame, wait_stream;
-	struct video_device *vbi_dev;
-	struct video_device *radio_dev;
+	struct video_device vbi_dev;
+	struct video_device radio_dev;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_device *media_dev;
@@ -724,7 +724,7 @@ struct cx231xx {
 	u8 USE_ISO;
 	struct cx231xx_tvnorm      encodernorm;
 	struct cx231xx_tsport      ts1, ts2;
-	struct video_device        *v4l_device;
+	struct video_device        v4l_device;
 	atomic_t                   v4l_reader_count;
 	u32                        freq;
 	unsigned int               input;
