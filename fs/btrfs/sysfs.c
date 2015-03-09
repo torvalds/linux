@@ -515,7 +515,7 @@ static int addrm_unknown_feature_attrs(struct btrfs_fs_info *fs_info, bool add)
 	return 0;
 }
 
-static void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
+static void __btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 {
 	if (fs_devs->device_dir_kobj) {
 		kobject_del(fs_devs->device_dir_kobj);
@@ -526,6 +526,21 @@ static void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 	kobject_del(&fs_devs->super_kobj);
 	kobject_put(&fs_devs->super_kobj);
 	wait_for_completion(&fs_devs->kobj_unregister);
+}
+
+/* when fs_devs is NULL it will remove all fsid kobject */
+static void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
+{
+	struct list_head *fs_uuids = btrfs_get_fs_uuids();
+
+	if (fs_devs) {
+		__btrfs_sysfs_remove_fsid(fs_devs);
+		return;
+	}
+
+	list_for_each_entry(fs_devs, fs_uuids, list) {
+		__btrfs_sysfs_remove_fsid(fs_devs);
+	}
 }
 
 void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
