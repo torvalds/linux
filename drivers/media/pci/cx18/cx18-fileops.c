@@ -797,7 +797,7 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 		CX18_DEBUG_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;
 	}
-	v4l2_fh_init(&item->fh, s->video_dev);
+	v4l2_fh_init(&item->fh, &s->video_dev);
 
 	item->cx = cx;
 	item->type = s->type;

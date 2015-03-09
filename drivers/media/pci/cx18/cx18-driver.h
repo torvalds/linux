@@ -373,7 +373,7 @@ struct cx18_in_work_order {
 struct cx18_stream {
 	/* These first five fields are always set, even if the stream
 	   is not actually created. */
-	struct video_device *video_dev;	/* NULL when stream not created */
+	struct video_device video_dev;	/* v4l2_dev is NULL when stream not created */
 	struct cx18_dvb *dvb;		/* DVB / Digital Transport */
 	struct cx18 *cx; 		/* for ease of use */
 	const char *name;		/* name of the stream */
