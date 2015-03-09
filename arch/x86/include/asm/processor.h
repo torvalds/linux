@@ -291,9 +291,9 @@ struct tss_struct {
 	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
 
 	/*
-	 * .. and then another 0x100 bytes for the emergency kernel stack:
+	 * Space for the temporary SYSENTER stack:
 	 */
-	unsigned long		stack[64];
+	unsigned long		SYSENTER_stack[64];
 
 } ____cacheline_aligned;
 

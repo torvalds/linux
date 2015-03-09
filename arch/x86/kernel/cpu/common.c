@@ -987,7 +987,7 @@ void enable_sep_cpu(void)
 	}
 
 	tss->x86_tss.ss1 = __KERNEL_CS;
-	tss->x86_tss.sp1 = sizeof(struct tss_struct) + (unsigned long) tss;
+	tss->x86_tss.sp1 = (unsigned long)tss + offsetofend(struct tss_struct, SYSENTER_stack);
 	wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
 	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.sp1, 0);
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) ia32_sysenter_target, 0);
