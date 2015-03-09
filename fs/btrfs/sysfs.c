@@ -510,6 +510,13 @@ static int addrm_unknown_feature_attrs(struct btrfs_fs_info *fs_info, bool add)
 
 static void __btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 {
+	if (fs_info->device_dir_kobj) {
+		btrfs_kobj_rm_device(fs_info, NULL);
+		kobject_del(fs_info->device_dir_kobj);
+		kobject_put(fs_info->device_dir_kobj);
+		fs_info->device_dir_kobj = NULL;
+	}
+
 	kobject_del(&fs_info->super_kobj);
 	kobject_put(&fs_info->super_kobj);
 	wait_for_completion(&fs_info->kobj_unregister);
@@ -521,12 +528,6 @@ void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 		sysfs_remove_files(fs_info->space_info_kobj, allocation_attrs);
 		kobject_del(fs_info->space_info_kobj);
 		kobject_put(fs_info->space_info_kobj);
-	}
-	if (fs_info->device_dir_kobj) {
-		btrfs_kobj_rm_device(fs_info, NULL);
-		kobject_del(fs_info->device_dir_kobj);
-		kobject_put(fs_info->device_dir_kobj);
-		fs_info->device_dir_kobj = NULL;
 	}
 	addrm_unknown_feature_attrs(fs_info, false);
 	sysfs_remove_group(&fs_info->super_kobj, &btrfs_feature_attr_group);
@@ -700,6 +701,12 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 	if (error)
 		return error;
 
+	error = btrfs_kobj_add_device(fs_info, NULL);
+	if (error) {
+		__btrfs_sysfs_remove_one(fs_info);
+		return error;
+	}
+
 	error = sysfs_create_group(&fs_info->super_kobj,
 				   &btrfs_feature_attr_group);
 	if (error) {
@@ -708,10 +715,6 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 	}
 
 	error = addrm_unknown_feature_attrs(fs_info, true);
-	if (error)
-		goto failure;
-
-	error = btrfs_kobj_add_device(fs_info, NULL);
 	if (error)
 		goto failure;
 
