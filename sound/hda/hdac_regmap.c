@@ -191,13 +191,24 @@ static int hda_reg_write_stereo_amp(struct hdac_device *codec,
 static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct hdac_device *codec = context;
+	int err;
 
 	if (!codec_is_running(codec))
 		return -EAGAIN;
 	reg |= (codec->addr << 28);
 	if (is_stereo_amp_verb(reg))
 		return hda_reg_read_stereo_amp(codec, reg, val);
-	return snd_hdac_exec_verb(codec, reg, 0, val);
+	err = snd_hdac_exec_verb(codec, reg, 0, val);
+	if (err < 0)
+		return err;
+	/* special handling for asymmetric reads */
+	if (get_verb(reg) == AC_VERB_GET_POWER_STATE) {
+		if (*val & AC_PWRST_ERROR)
+			*val = -1;
+		else /* take only the actual state */
+			*val = (*val >> 4) & 0x0f;
+	}
+	return 0;
 }
 
 static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
