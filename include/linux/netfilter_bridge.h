@@ -36,44 +36,6 @@ static inline unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
 	}
 }
 
-static inline void nf_bridge_update_protocol(struct sk_buff *skb)
-{
-	if (skb->nf_bridge->mask & BRNF_8021Q)
-		skb->protocol = htons(ETH_P_8021Q);
-	else if (skb->nf_bridge->mask & BRNF_PPPoE)
-		skb->protocol = htons(ETH_P_PPP_SES);
-}
-
-/* Fill in the header for fragmented IP packets handled by
- * the IPv4 connection tracking code.
- *
- * Only used in br_forward.c
- */
-static inline int nf_bridge_copy_header(struct sk_buff *skb)
-{
-	int err;
-	unsigned int header_size;
-
-	nf_bridge_update_protocol(skb);
-	header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
-	err = skb_cow_head(skb, header_size);
-	if (err)
-		return err;
-
-	skb_copy_to_linear_data_offset(skb, -header_size,
-				       skb->nf_bridge->data, header_size);
-	__skb_push(skb, nf_bridge_encap_header_len(skb));
-	return 0;
-}
-
-static inline int nf_bridge_maybe_copy_header(struct sk_buff *skb)
-{
-	if (skb->nf_bridge &&
-	    skb->nf_bridge->mask & (BRNF_BRIDGED | BRNF_BRIDGED_DNAT))
-		return nf_bridge_copy_header(skb);
-  	return 0;
-}
-
 static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 {
 	if (unlikely(skb->nf_bridge->mask & BRNF_PPPoE))
@@ -82,18 +44,6 @@ static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 }
 
 int br_handle_frame_finish(struct sk_buff *skb);
-/* Only used in br_device.c */
-static inline int br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
-{
-	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
-
-	skb_pull(skb, ETH_HLEN);
-	nf_bridge->mask ^= BRNF_BRIDGED_DNAT;
-	skb_copy_to_linear_data_offset(skb, -(ETH_HLEN-ETH_ALEN),
-				       skb->nf_bridge->data, ETH_HLEN-ETH_ALEN);
-	skb->dev = nf_bridge->physindev;
-	return br_handle_frame_finish(skb);
-}
 
 /* This is called by the IP fragmenting code and it ensures there is
  * enough room for the encapsulating header (if there is one). */
@@ -119,7 +69,6 @@ static inline void br_drop_fake_rtable(struct sk_buff *skb)
 }
 
 #else
-#define nf_bridge_maybe_copy_header(skb)	(0)
 #define nf_bridge_pad(skb)			(0)
 #define br_drop_fake_rtable(skb)	        do { } while (0)
 #endif /* CONFIG_BRIDGE_NETFILTER */
