@@ -2494,7 +2494,6 @@ int open_ctree(struct super_block *sb,
 	seqlock_init(&fs_info->profiles_lock);
 	init_rwsem(&fs_info->delayed_iput_sem);
 
-	init_completion(&fs_info->kobj_unregister);
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
 	INIT_LIST_HEAD(&fs_info->space_info);
 	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
