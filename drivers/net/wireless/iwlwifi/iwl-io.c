@@ -201,6 +201,8 @@ void iwl_force_nmi(struct iwl_trans *trans)
 	} else {
 		iwl_write_prph(trans, DEVICE_SET_NMI_8000B_REG,
 			       DEVICE_SET_NMI_8000B_VAL);
+		iwl_write_prph(trans, DEVICE_SET_NMI_REG,
+			       DEVICE_SET_NMI_VAL_DRV);
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_force_nmi);
