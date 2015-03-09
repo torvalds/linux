@@ -1012,7 +1012,11 @@ int vivid_vid_cap_cropcap(struct file *file, void *priv,
 int vidioc_enum_fmt_vid_overlay(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
+	struct vivid_dev *dev = video_drvdata(file);
 	const struct vivid_fmt *fmt;
+
+	if (dev->multiplanar)
+		return -ENOTTY;
 
 	if (f->index >= ARRAY_SIZE(formats_ovl))
 		return -EINVAL;
@@ -1031,6 +1035,9 @@ int vidioc_g_fmt_vid_overlay(struct file *file, void *priv,
 	const struct v4l2_rect *compose = &dev->compose_cap;
 	struct v4l2_window *win = &f->fmt.win;
 	unsigned clipcount = win->clipcount;
+
+	if (dev->multiplanar)
+		return -ENOTTY;
 
 	win->w.top = dev->overlay_cap_top;
 	win->w.left = dev->overlay_cap_left;
@@ -1062,6 +1069,9 @@ int vidioc_try_fmt_vid_overlay(struct file *file, void *priv,
 	const struct v4l2_rect *compose = &dev->compose_cap;
 	struct v4l2_window *win = &f->fmt.win;
 	int i, j;
+
+	if (dev->multiplanar)
+		return -ENOTTY;
 
 	win->w.left = clamp_t(int, win->w.left,
 			      -dev->fb_cap.fmt.width, dev->fb_cap.fmt.width);
@@ -1150,6 +1160,9 @@ int vivid_vid_cap_overlay(struct file *file, void *fh, unsigned i)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
+	if (dev->multiplanar)
+		return -ENOTTY;
+
 	if (i && dev->fb_vbase_cap == NULL)
 		return -EINVAL;
 
@@ -1169,6 +1182,9 @@ int vivid_vid_cap_g_fbuf(struct file *file, void *fh,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 
+	if (dev->multiplanar)
+		return -ENOTTY;
+
 	*a = dev->fb_cap;
 	a->capability = V4L2_FBUF_CAP_BITMAP_CLIPPING |
 			V4L2_FBUF_CAP_LIST_CLIPPING;
@@ -1184,6 +1200,9 @@ int vivid_vid_cap_s_fbuf(struct file *file, void *fh,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	const struct vivid_fmt *fmt;
+
+	if (dev->multiplanar)
+		return -ENOTTY;
 
 	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
