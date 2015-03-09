@@ -149,12 +149,18 @@ static int __init early_serial8250_setup(struct earlycon_device *device,
 		return 0;
 
 	if (!device->baud) {
+		struct uart_port *port = &device->port;
+		unsigned int ier;
+
 		device->baud = probe_baud(&device->port);
 		snprintf(device->options, sizeof(device->options), "%u",
 			 device->baud);
-	}
 
-	init_port(device);
+		/* assume the device was initialized, only mask interrupts */
+		ier = serial8250_early_in(port, UART_IER);
+		serial8250_early_out(port, UART_IER, ier & UART_IER_UUE);
+	} else
+		init_port(device);
 
 	device->con->write = early_serial8250_write;
 	return 0;
