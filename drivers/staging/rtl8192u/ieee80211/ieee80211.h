@@ -634,7 +634,7 @@ struct ieee80211_snap_hdr {
 	u8    ctrl;   /* always 0x03 */
 	u8    oui[P80211_OUI_LEN];    /* organizational universal id */
 
-} __attribute__ ((packed));
+} __packed;
 
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
 
@@ -969,7 +969,7 @@ struct ieee80211_security {
 	u8 keys[WEP_KEYS][SCM_KEY_LEN];
 	u8 level;
 	u16 flags;
-} __attribute__ ((packed));
+} __packed;
 
 
 /*
@@ -1024,14 +1024,14 @@ struct ieee80211_hdr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 payload[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_hdr_1addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 payload[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_hdr_2addr {
 	__le16 frame_ctl;
@@ -1039,7 +1039,7 @@ struct ieee80211_hdr_2addr {
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
 	u8 payload[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_hdr_3addr {
 	__le16 frame_ctl;
@@ -1049,7 +1049,7 @@ struct ieee80211_hdr_3addr {
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
 	u8 payload[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_hdr_4addr {
 	__le16 frame_ctl;
@@ -1060,7 +1060,7 @@ struct ieee80211_hdr_4addr {
 	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
 	u8 payload[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_hdr_3addrqos {
 	__le16 frame_ctl;
@@ -1071,7 +1071,7 @@ struct ieee80211_hdr_3addrqos {
 	__le16 seq_ctl;
 	u8 payload[0];
 	__le16 qos_ctl;
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_hdr_4addrqos {
 	__le16 frame_ctl;
@@ -1083,13 +1083,13 @@ struct ieee80211_hdr_4addrqos {
 	u8 addr4[ETH_ALEN];
 	u8 payload[0];
 	__le16 qos_ctl;
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_info_element {
 	u8 id;
 	u8 len;
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_authentication {
 	struct ieee80211_hdr_3addr header;
@@ -1098,18 +1098,18 @@ struct ieee80211_authentication {
 	__le16 status;
 	/*challenge*/
 	struct ieee80211_info_element info_element[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_disassoc {
 	struct ieee80211_hdr_3addr header;
 	__le16 reason;
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_probe_request {
 	struct ieee80211_hdr_3addr header;
 	/* SSID, supported rates */
 	struct ieee80211_info_element info_element[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_probe_response {
 	struct ieee80211_hdr_3addr header;
@@ -1119,7 +1119,7 @@ struct ieee80211_probe_response {
 	/* SSID, supported rates, FH params, DS params,
 	 * CF params, IBSS params, TIM (if beacon), RSN */
 	struct ieee80211_info_element info_element[0];
-} __attribute__ ((packed));
+} __packed;
 
 /* Alias beacon for probe_response */
 #define ieee80211_beacon ieee80211_probe_response
@@ -1130,7 +1130,7 @@ struct ieee80211_assoc_request_frame {
 	__le16 listen_interval;
 	/* SSID, supported rates, RSN */
 	struct ieee80211_info_element info_element[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_reassoc_request_frame {
 	struct ieee80211_hdr_3addr header;
@@ -1139,7 +1139,7 @@ struct ieee80211_reassoc_request_frame {
 	u8 current_ap[ETH_ALEN];
 	/* SSID, supported rates, RSN */
 	struct ieee80211_info_element info_element[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_assoc_response_frame {
 	struct ieee80211_hdr_3addr header;
@@ -1147,7 +1147,7 @@ struct ieee80211_assoc_response_frame {
 	__le16 status;
 	__le16 aid;
 	struct ieee80211_info_element info_element[0]; /* supported rates */
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_txb {
 	u8 nr_frags;
@@ -1164,7 +1164,7 @@ struct ieee80211_txb {
 struct ieee80211_drv_agg_txb {
 	u8 nr_drv_agg_frames;
 	struct sk_buff *tx_agg_frames[MAX_TX_AGG_COUNT];
-}__attribute__((packed));
+} __packed;
 
 #define MAX_SUBFRAME_COUNT		  64
 struct ieee80211_rxb {
@@ -1172,7 +1172,7 @@ struct ieee80211_rxb {
 	struct sk_buff *subframes[MAX_SUBFRAME_COUNT];
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
-}__attribute__((packed));
+} __packed;
 
 typedef union _frameqos {
 	u16 shortdata;
@@ -1240,19 +1240,19 @@ struct ieee80211_qos_information_element {
 	u8 qui_subtype;
 	u8 version;
 	u8 ac_info;
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_qos_ac_parameter {
 	u8 aci_aifsn;
 	u8 ecw_min_max;
 	__le16 tx_op_limit;
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_qos_parameter_info {
 	struct ieee80211_qos_information_element info_element;
 	u8 reserved;
 	struct ieee80211_qos_ac_parameter ac_params_record[QOS_QUEUE_NUM];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_qos_parameters {
 	__le16 cw_min[QOS_QUEUE_NUM];
@@ -1260,7 +1260,7 @@ struct ieee80211_qos_parameters {
 	u8 aifs[QOS_QUEUE_NUM];
 	u8 flag[QOS_QUEUE_NUM];
 	__le16 tx_op_limit[QOS_QUEUE_NUM];
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_qos_data {
 	struct ieee80211_qos_parameters parameters;
@@ -1273,7 +1273,7 @@ struct ieee80211_qos_data {
 struct ieee80211_tim_parameters {
 	u8 tim_count;
 	u8 tim_period;
-} __attribute__ ((packed));
+} __packed;
 
 //#else
 struct ieee80211_wmm_ac_param {
@@ -1286,7 +1286,7 @@ struct ieee80211_wmm_ts_info {
 	u8 ac_dir_tid;
 	u8 ac_up_psb;
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_wmm_tspec_elem {
 	struct ieee80211_wmm_ts_info ts_info;
@@ -1305,7 +1305,7 @@ struct ieee80211_wmm_tspec_elem {
 	u32 min_phy_rate;
 	u16 surp_band_allow;
 	u16 medium_time;
-}__attribute__((packed));
+} __packed;
 enum eap_type {
 	EAP_PACKET = 0,
 	EAPOL_START,
@@ -1344,7 +1344,7 @@ struct eapol {
 	u8 version;
 	u8 type;
 	u16 length;
-} __attribute__ ((packed));
+} __packed;
 
 struct ieee80211_softmac_stats{
 	unsigned int rx_ass_ok;
@@ -1374,7 +1374,7 @@ struct ieee80211_softmac_stats{
 struct ieee80211_info_element_hdr {
 	u8 id;
 	u8 len;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * These are the data types that can make up management packets
@@ -1387,7 +1387,7 @@ struct ieee80211_info_element_hdr {
 	u16 listen_interval;
 	struct {
 		u16 association_id:14, reserved:2;
-	} __attribute__ ((packed));
+	} __packed;
 	u32 time_stamp[2];
 	u16 reason;
 	u16 status;
@@ -1448,7 +1448,7 @@ struct	ether_header {
 	u8 ether_dhost[ETHER_ADDR_LEN];
 	u8 ether_shost[ETHER_ADDR_LEN];
 	u16 ether_type;
-} __attribute__((packed));
+} __packed;
 
 #ifndef ETHERTYPE_PAE
 #define	ETHERTYPE_PAE	0x888e		/* EAPOL PAE/802.1x */
