@@ -298,14 +298,19 @@
 		pdma0: pdma@ff600000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xff600000 0x0 0x4000>;
+			clocks = <&clk_gates12 11>;
+			clock-names = "apb_pclk";
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
+
 		};
 
 		pdma1: pdma@ff250000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xff250000 0x0 0x4000>;
+			clocks = <&clk_gates19 3>;
+			clock-names = "apb_pclk";
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
