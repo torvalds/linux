@@ -1,6 +1,7 @@
 /*
  * net/switchdev/switchdev.c - Switch device API
  * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
+ * Copyright (c) 2014-2015 Scott Feldman <sfeldma@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -294,12 +295,13 @@ static struct net_device *netdev_switch_get_dev_by_nhs(struct fib_info *fi)
  *	@fi: route FIB info structure
  *	@tos: route TOS
  *	@type: route type
+ *	@nlflags: netlink flags passed in (NLM_F_*)
  *	@tb_id: route table ID
  *
  *	Add IPv4 route entry to switch device.
  */
 int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
-			       u8 tos, u8 type, u32 tb_id)
+			       u8 tos, u8 type, u32 nlflags, u32 tb_id)
 {
 	struct net_device *dev;
 	const struct net_device_ops *ops;
@@ -324,7 +326,8 @@ int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 
 	if (ops->ndo_switch_fib_ipv4_add) {
 		err = ops->ndo_switch_fib_ipv4_add(dev, htonl(dst), dst_len,
-						   fi, tos, type, tb_id);
+						   fi, tos, type, nlflags,
+						   tb_id);
 		if (!err)
 			fi->fib_flags |= RTNH_F_EXTERNAL;
 	}

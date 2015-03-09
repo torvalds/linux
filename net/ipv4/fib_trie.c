@@ -1155,6 +1155,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 			err = netdev_switch_fib_ipv4_add(key, plen, fi,
 							 new_fa->fa_tos,
 							 cfg->fc_type,
+							 cfg->fc_nlflags,
 							 tb->tb_id);
 			if (err) {
 				netdev_switch_fib_ipv4_abort(fi);
@@ -1201,7 +1202,9 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 
 	/* (Optionally) offload fib entry to switch hardware. */
 	err = netdev_switch_fib_ipv4_add(key, plen, fi, tos,
-					 cfg->fc_type, tb->tb_id);
+					 cfg->fc_type,
+					 cfg->fc_nlflags,
+					 tb->tb_id);
 	if (err) {
 		netdev_switch_fib_ipv4_abort(fi);
 		goto out_free_new_fa;

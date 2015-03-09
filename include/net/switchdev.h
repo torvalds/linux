@@ -1,6 +1,7 @@
 /*
  * include/net/switchdev.h - Switch device API
  * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
+ * Copyright (c) 2014-2015 Scott Feldman <sfeldma@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,7 +53,7 @@ int ndo_dflt_netdev_switch_port_bridge_dellink(struct net_device *dev,
 int ndo_dflt_netdev_switch_port_bridge_setlink(struct net_device *dev,
 					       struct nlmsghdr *nlh, u16 flags);
 int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
-			       u8 tos, u8 type, u32 tb_id);
+			       u8 tos, u8 type, u32 nlflags, u32 tb_id);
 int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 			       u8 tos, u8 type, u32 tb_id);
 void netdev_switch_fib_ipv4_abort(struct fib_info *fi);
@@ -117,7 +118,8 @@ static inline int ndo_dflt_netdev_switch_port_bridge_setlink(struct net_device *
 
 static inline int netdev_switch_fib_ipv4_add(u32 dst, int dst_len,
 					     struct fib_info *fi,
-					     u8 tos, u8 type, u32 tb_id)
+					     u8 tos, u8 type,
+					     u32 nlflags, u32 tb_id)
 {
 	return 0;
 }

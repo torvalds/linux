@@ -4152,7 +4152,8 @@ static int rocker_port_switch_port_stp_update(struct net_device *dev, u8 state)
 static int rocker_port_switch_fib_ipv4_add(struct net_device *dev,
 					   __be32 dst, int dst_len,
 					   struct fib_info *fi,
-					   u8 tos, u8 type, u32 tb_id)
+					   u8 tos, u8 type,
+					   u32 nlflags, u32 tb_id)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	int flags = 0;
