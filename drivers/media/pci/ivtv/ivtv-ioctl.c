@@ -987,7 +987,7 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 	else
 		std = V4L2_STD_ALL;
 	for (i = 0; i <= IVTV_ENC_STREAM_TYPE_VBI; i++)
-		itv->streams[i].vdev->tvnorms = std;
+		itv->streams[i].vdev.tvnorms = std;
 
 	/* prevent others from messing with the streams until
 	   we're finished changing inputs. */
@@ -1038,7 +1038,7 @@ static int ivtv_g_frequency(struct file *file, void *fh, struct v4l2_frequency *
 	struct ivtv *itv = fh2id(fh)->itv;
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
-	if (s->vdev->vfl_dir)
+	if (s->vdev.vfl_dir)
 		return -ENOTTY;
 	if (vf->tuner != 0)
 		return -EINVAL;
@@ -1052,7 +1052,7 @@ int ivtv_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *v
 	struct ivtv *itv = fh2id(fh)->itv;
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
 
-	if (s->vdev->vfl_dir)
+	if (s->vdev.vfl_dir)
 		return -ENOTTY;
 	if (vf->tuner != 0)
 		return -EINVAL;
@@ -1547,7 +1547,7 @@ static int ivtv_log_status(struct file *file, void *fh)
 	for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 		struct ivtv_stream *s = &itv->streams[i];
 
-		if (s->vdev == NULL || s->buffers == 0)
+		if (s->vdev.v4l2_dev == NULL || s->buffers == 0)
 			continue;
 		IVTV_INFO("Stream %s: status 0x%04lx, %d%% of %d KiB (%d buffers) in use\n", s->name, s->s_flags,
 				(s->buffers - s->q_free.buffers) * 100 / s->buffers,
