@@ -440,6 +440,7 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 	/*
 	 * The default value of pll_pwrsave is 1.
 	 * For certain AR9485 cards, it is set to 0.
+	 * For AR9462, AR9565 it's set to 7.
 	 */
 	ah->config.pll_pwrsave = 1;
 

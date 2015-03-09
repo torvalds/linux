@@ -366,6 +366,9 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.rimt_first = 700;
 	}
 
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah))
+		ah->config.pll_pwrsave = 7;
+
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
 	 * _and_ if on non-uniprocessor systems (Multiprocessor/HT).

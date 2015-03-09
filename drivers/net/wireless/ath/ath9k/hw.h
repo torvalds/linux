@@ -341,7 +341,7 @@ struct ath9k_ops_config {
 	u32 ant_ctrl_comm2g_switch_enable;
 	bool xatten_margin_cfg;
 	bool alt_mingainidx;
-	bool pll_pwrsave;
+	u8 pll_pwrsave;
 	bool tx_gain_buffalo;
 	bool led_active_high;
 };
