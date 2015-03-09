@@ -319,13 +319,16 @@ static inline int is_kernel(unsigned long addr)
 
 void __init setup_arch(char **cmdline_p)
 {
+#ifdef CONFIG_ARC_UBOOT_SUPPORT
 	/* make sure that uboot passed pointer to cmdline/dtb is valid */
 	if (uboot_tag && is_kernel((unsigned long)uboot_arg))
 		panic("Invalid uboot arg\n");
 
 	/* See if u-boot passed an external Device Tree blob */
 	machine_desc = setup_machine_fdt(uboot_arg);	/* uboot_tag == 2 */
-	if (!machine_desc) {
+	if (!machine_desc)
+#endif
+	{
 		/* No, so try the embedded one */
 		machine_desc = setup_machine_fdt(__dtb_start);
 		if (!machine_desc)

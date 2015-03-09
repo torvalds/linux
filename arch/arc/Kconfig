@@ -388,6 +388,18 @@ config ARC_DBG_TLB_MISS_COUNT
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
 
+config ARC_UBOOT_SUPPORT
+	bool "Support uboot arg Handling"
+	default n
+	help
+	  ARC Linux by default checks for uboot provided args as pointers to
+	  external cmdline or DTB. This however breaks in absence of uboot,
+	  when booting from Metaware debugger directly, as the registers are
+	  not zeroed out on reset by mdb and/or ARCv2 based cores. The bogus
+	  registers look like uboot args to kernel which then chokes.
+	  So only enable the uboot arg checking/processing if users are sure
+	  of uboot being in play.
+
 config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"
 	help
