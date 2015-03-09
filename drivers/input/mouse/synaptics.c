@@ -362,6 +362,9 @@ static int synaptics_resolution(struct psmouse *psmouse)
 		} else {
 			priv->x_max = (resp[0] << 5) | ((resp[1] & 0x0f) << 1);
 			priv->y_max = (resp[2] << 5) | ((resp[1] & 0xf0) >> 3);
+			psmouse_info(psmouse,
+				     "queried max coordinates: x [..%d], y [..%d]\n",
+				     priv->x_max, priv->y_max);
 		}
 	}
 
@@ -373,6 +376,9 @@ static int synaptics_resolution(struct psmouse *psmouse)
 		} else {
 			priv->x_min = (resp[0] << 5) | ((resp[1] & 0x0f) << 1);
 			priv->y_min = (resp[2] << 5) | ((resp[1] & 0xf0) >> 3);
+			psmouse_info(psmouse,
+				     "queried min coordinates: x [%d..], y [%d..]\n",
+				     priv->x_min, priv->y_min);
 		}
 	}
 
@@ -395,6 +401,10 @@ static void synaptics_apply_quirks(struct psmouse *psmouse)
 			priv->x_max = min_max_pnpid_table[i].x_max;
 			priv->y_min = min_max_pnpid_table[i].y_min;
 			priv->y_max = min_max_pnpid_table[i].y_max;
+			psmouse_info(psmouse,
+				     "quirked min/max coordinates: x [%d..%d], y [%d..%d]\n",
+				     priv->x_min, priv->x_max,
+				     priv->y_min, priv->y_max);
 			break;
 		}
 	}
