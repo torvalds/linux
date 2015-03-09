@@ -95,9 +95,11 @@ For 32-bit we have the following conventions - kernel is built with
 	CFI_ADJUST_CFA_OFFSET 15*8+\addskip
 	.endm
 
-	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8plus=1
-	.if \r8plus
+	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
+	.if \r11
 	movq_cfi r11, 6*8+\offset
+	.endif
+	.if \r8910
 	movq_cfi r10, 7*8+\offset
 	movq_cfi r9,  8*8+\offset
 	movq_cfi r8,  9*8+\offset
@@ -113,16 +115,19 @@ For 32-bit we have the following conventions - kernel is built with
 	movq_cfi rdi, 14*8+\offset
 	.endm
 	.macro SAVE_C_REGS offset=0
-	SAVE_C_REGS_HELPER \offset, 1, 1, 1
+	SAVE_C_REGS_HELPER \offset, 1, 1, 1, 1
 	.endm
 	.macro SAVE_C_REGS_EXCEPT_RAX_RCX offset=0
-	SAVE_C_REGS_HELPER \offset, 0, 0, 1
+	SAVE_C_REGS_HELPER \offset, 0, 0, 1, 1
 	.endm
 	.macro SAVE_C_REGS_EXCEPT_R891011
-	SAVE_C_REGS_HELPER 0, 1, 1, 0
+	SAVE_C_REGS_HELPER 0, 1, 1, 0, 0
 	.endm
 	.macro SAVE_C_REGS_EXCEPT_RCX_R891011
-	SAVE_C_REGS_HELPER 0, 1, 0, 0
+	SAVE_C_REGS_HELPER 0, 1, 0, 0, 0
+	.endm
+	.macro SAVE_C_REGS_EXCEPT_RAX_RCX_R11
+	SAVE_C_REGS_HELPER 0, 0, 0, 1, 0
 	.endm
 
 	.macro SAVE_EXTRA_REGS offset=0
@@ -178,6 +183,9 @@ For 32-bit we have the following conventions - kernel is built with
 	.endm
 	.macro RESTORE_C_REGS_EXCEPT_R11
 	RESTORE_C_REGS_HELPER 1,1,0,1,1
+	.endm
+	.macro RESTORE_C_REGS_EXCEPT_RCX_R11
+	RESTORE_C_REGS_HELPER 1,0,0,1,1
 	.endm
 	.macro RESTORE_RSI_RDI
 	RESTORE_C_REGS_HELPER 0,0,0,0,0

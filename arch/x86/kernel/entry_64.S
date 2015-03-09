@@ -121,14 +121,12 @@ ENDPROC(native_usergs_sysret64)
 #endif
 
 /*
- * C code is not supposed to know about undefined top of stack. Every time
- * a C function with an pt_regs argument is called from the SYSCALL based
- * fast path FIXUP_TOP_OF_STACK is needed.
+ * C code is not supposed to know that the iret frame is not populated.
+ * Every time a C function with an pt_regs argument is called from
+ * the SYSCALL based fast path FIXUP_TOP_OF_STACK is needed.
  * RESTORE_TOP_OF_STACK syncs the syscall state after any possible ptregs
  * manipulation.
  */
-
-	/* %rsp:at FRAMEEND */
 	.macro FIXUP_TOP_OF_STACK tmp offset=0
 	movq PER_CPU_VAR(old_rsp),\tmp
 	movq \tmp,RSP+\offset(%rsp)
@@ -136,15 +134,13 @@ ENDPROC(native_usergs_sysret64)
 	movq $__USER_CS,CS+\offset(%rsp)
 	movq RIP+\offset(%rsp),\tmp  /* get rip */
 	movq \tmp,RCX+\offset(%rsp)  /* copy it to rcx as sysret would do */
-	movq R11+\offset(%rsp),\tmp  /* get eflags */
-	movq \tmp,EFLAGS+\offset(%rsp)
+	movq EFLAGS+\offset(%rsp),\tmp /* ditto for rflags->r11 */
+	movq \tmp,R11+\offset(%rsp)
 	.endm
 
 	.macro RESTORE_TOP_OF_STACK tmp offset=0
 	movq RSP+\offset(%rsp),\tmp
 	movq \tmp,PER_CPU_VAR(old_rsp)
-	movq EFLAGS+\offset(%rsp),\tmp
-	movq \tmp,R11+\offset(%rsp)
 	.endm
 
 /*
@@ -257,9 +253,10 @@ GLOBAL(system_call_after_swapgs)
 	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
 	ALLOC_PT_GPREGS_ON_STACK 8		/* +8: space for orig_ax */
-	SAVE_C_REGS_EXCEPT_RAX_RCX
+	SAVE_C_REGS_EXCEPT_RAX_RCX_R11
 	movq	$-ENOSYS,RAX(%rsp)
 	movq_cfi rax,ORIG_RAX
+	movq	%r11,EFLAGS(%rsp)
 	movq	%rcx,RIP(%rsp)
 	CFI_REL_OFFSET rip,RIP
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP)
@@ -277,7 +274,7 @@ system_call_fastpath:
 	movq %rax,RAX(%rsp)
 /*
  * Syscall return path ending with SYSRET (fast path)
- * Has incomplete stack frame and undefined top of stack.
+ * Has incompletely filled pt_regs, iret frame is also incomplete.
  */
 ret_from_sys_call:
 	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,RIP)
@@ -291,9 +288,10 @@ ret_from_sys_call:
 	 * sysretq will re-enable interrupts:
 	 */
 	TRACE_IRQS_ON
-	RESTORE_C_REGS_EXCEPT_RCX
-	movq RIP(%rsp),%rcx
+	RESTORE_C_REGS_EXCEPT_RCX_R11
+	movq	RIP(%rsp),%rcx
 	CFI_REGISTER	rip,rcx
+	movq	EFLAGS(%rsp),%r11
 	/*CFI_REGISTER	rflags,r11*/
 	movq	PER_CPU_VAR(old_rsp), %rsp
 	/*
