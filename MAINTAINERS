@@ -9800,7 +9800,7 @@ F:	include/linux/wl12xx.h
 
 TIPC NETWORK LAYER
 M:	Jon Maloy <jon.maloy@ericsson.com>
-M:	Allan Stephens <allan.stephens@windriver.com>
+M:	Ying Xue <ying.xue@windriver.com>
 L:	netdev@vger.kernel.org (core kernel code)
 L:	tipc-discussion@lists.sourceforge.net (user apps, general discussion)
 W:	http://tipc.sourceforge.net/
