@@ -1471,8 +1471,7 @@ static void _InitBeaconParameters(struct ieee80211_hw *hw)
 		rtl_write_word(rtlpriv, REG_BCNTCFG, 0x66FF);
 }
 
-static void _beacon_function_enable(struct ieee80211_hw *hw, bool Enable,
-				    bool Linked)
+static void _beacon_function_enable(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
@@ -1517,7 +1516,7 @@ void rtl92cu_set_beacon_related_registers(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, REG_RXTSF_OFFSET_CCK, 0x50);
 		rtl_write_byte(rtlpriv, REG_RXTSF_OFFSET_OFDM, 0x50);
 	}
-	_beacon_function_enable(hw, true, true);
+	_beacon_function_enable(hw);
 }
 
 void rtl92cu_set_beacon_interval(struct ieee80211_hw *hw)
