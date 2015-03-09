@@ -230,7 +230,7 @@ struct wq_device;
  */
 struct workqueue_struct {
 	struct list_head	pwqs;		/* WR: all pwqs of this wq */
-	struct list_head	list;		/* PL: list of all workqueues */
+	struct list_head	list;		/* PR: list of all workqueues */
 
 	struct mutex		mutex;		/* protects this wq */
 	int			work_color;	/* WQ: current work color */
@@ -256,6 +256,13 @@ struct workqueue_struct {
 	struct lockdep_map	lockdep_map;
 #endif
 	char			name[WQ_NAME_LEN]; /* I: workqueue name */
+
+	/*
+	 * Destruction of workqueue_struct is sched-RCU protected to allow
+	 * walking the workqueues list without grabbing wq_pool_mutex.
+	 * This is used to dump all workqueues from sysrq.
+	 */
+	struct rcu_head		rcu;
 
 	/* hot fields used during command issue, aligned to cacheline */
 	unsigned int		flags ____cacheline_aligned; /* WQ: WQ_* flags */
@@ -288,7 +295,7 @@ static struct workqueue_attrs *wq_update_unbound_numa_attrs_buf;
 static DEFINE_MUTEX(wq_pool_mutex);	/* protects pools and workqueues list */
 static DEFINE_SPINLOCK(wq_mayday_lock);	/* protects wq->maydays list */
 
-static LIST_HEAD(workqueues);		/* PL: list of all workqueues */
+static LIST_HEAD(workqueues);		/* PR: list of all workqueues */
 static bool workqueue_freezing;		/* PL: have wqs started freezing? */
 
 /* the per-cpu worker pools */
@@ -3424,6 +3431,20 @@ static int init_worker_pool(struct worker_pool *pool)
 	return 0;
 }
 
+static void rcu_free_wq(struct rcu_head *rcu)
+{
+	struct workqueue_struct *wq =
+		container_of(rcu, struct workqueue_struct, rcu);
+
+	if (!(wq->flags & WQ_UNBOUND))
+		free_percpu(wq->cpu_pwqs);
+	else
+		free_workqueue_attrs(wq->unbound_attrs);
+
+	kfree(wq->rescuer);
+	kfree(wq);
+}
+
 static void rcu_free_pool(struct rcu_head *rcu)
 {
 	struct worker_pool *pool = container_of(rcu, struct worker_pool, rcu);
@@ -3601,12 +3622,10 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 
 	/*
 	 * If we're the last pwq going away, @wq is already dead and no one
-	 * is gonna access it anymore.  Free it.
+	 * is gonna access it anymore.  Schedule RCU free.
 	 */
-	if (is_last) {
-		free_workqueue_attrs(wq->unbound_attrs);
-		kfree(wq);
-	}
+	if (is_last)
+		call_rcu_sched(&wq->rcu, rcu_free_wq);
 }
 
 /**
@@ -4143,7 +4162,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 		pwq_adjust_max_active(pwq);
 	mutex_unlock(&wq->mutex);
 
-	list_add(&wq->list, &workqueues);
+	list_add_tail_rcu(&wq->list, &workqueues);
 
 	mutex_unlock(&wq_pool_mutex);
 
@@ -4199,24 +4218,20 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	 * flushing is complete in case freeze races us.
 	 */
 	mutex_lock(&wq_pool_mutex);
-	list_del_init(&wq->list);
+	list_del_rcu(&wq->list);
 	mutex_unlock(&wq_pool_mutex);
 
 	workqueue_sysfs_unregister(wq);
 
-	if (wq->rescuer) {
+	if (wq->rescuer)
 		kthread_stop(wq->rescuer->task);
-		kfree(wq->rescuer);
-		wq->rescuer = NULL;
-	}
 
 	if (!(wq->flags & WQ_UNBOUND)) {
 		/*
 		 * The base ref is never dropped on per-cpu pwqs.  Directly
-		 * free the pwqs and wq.
+		 * schedule RCU free.
 		 */
-		free_percpu(wq->cpu_pwqs);
-		kfree(wq);
+		call_rcu_sched(&wq->rcu, rcu_free_wq);
 	} else {
 		/*
 		 * We're the sole accessor of @wq at this point.  Directly
