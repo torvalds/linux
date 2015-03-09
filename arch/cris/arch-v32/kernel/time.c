@@ -39,27 +39,6 @@
 
 #define CRISV32_TIMER_FREQ	(100000000lu)
 
-/* Register the continuos readonly timer available in FS and ARTPEC-3.  */
-static cycle_t read_cont_rotime(struct clocksource *cs)
-{
-	return (u32)REG_RD(timer, regi_timer0, r_time);
-}
-
-static struct clocksource cont_rotime = {
-	.name   = "crisv32_rotime",
-	.rating = 300,
-	.read   = read_cont_rotime,
-	.mask   = CLOCKSOURCE_MASK(32),
-	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
-static int __init etrax_init_cont_rotime(void)
-{
-	clocksource_register_khz(&cont_rotime, 100000);
-	return 0;
-}
-arch_initcall(etrax_init_cont_rotime);
-
 unsigned long timer_regs[NR_CPUS] =
 {
 	regi_timer0,
@@ -295,6 +274,10 @@ void __init time_init(void)
 	timer_base = (void __iomem *) regi_timer0;
 
 	crisv32_timer_init();
+
+	clocksource_mmio_init(timer_base + REG_RD_ADDR_timer_r_time,
+			      "crisv32-timer", CRISV32_TIMER_FREQ,
+			      300, 32, clocksource_mmio_readl_up);
 
 	crisv32_clockevent.cpumask = cpu_possible_mask;
 	crisv32_clockevent.irq = irq;
