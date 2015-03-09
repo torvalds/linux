@@ -288,10 +288,10 @@ clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 }
 EXPORT_SYMBOL(clkdev_alloc);
 
-int clk_add_alias(const char *alias, const char *alias_dev_name, char *id,
-	struct device *dev)
+int clk_add_alias(const char *alias, const char *alias_dev_name,
+	const char *con_id, struct device *dev)
 {
-	struct clk *r = clk_get(dev, id);
+	struct clk *r = clk_get(dev, con_id);
 	struct clk_lookup *l;
 
 	if (IS_ERR(r))
