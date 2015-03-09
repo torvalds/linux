@@ -1419,7 +1419,7 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 		err = scan_all(ubi, ai, 0);
 	else {
 		err = scan_fast(ubi, &ai);
-		if (err > 0) {
+		if (err > 0 || mtd_is_eccerr(err)) {
 			if (err != UBI_NO_FASTMAP) {
 				destroy_ai(ai);
 				ai = alloc_ai();
