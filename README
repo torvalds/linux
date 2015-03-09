@@ -365,6 +365,9 @@ IF SOMETHING GOES WRONG:
    This utility can be downloaded from
    ftp://ftp.<country>.kernel.org/pub/linux/utils/kernel/ksymoops/ .
    Alternatively, you can do the dump lookup by hand:
+   
+   If you do not have access while using <country>, use the following links, 
+   ftp://ftp.kernel.org/pub/linux/kernel.
 
  - In debugging dumps like the above, it helps enormously if you can
    look up what the EIP value means.  The hex value as such doesn't help
