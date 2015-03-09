@@ -43,7 +43,7 @@ static int vid_out_queue_setup(struct vb2_queue *vq, const struct v4l2_format *f
 	unsigned p;
 
 	for (p = vfmt->buffers; p < vfmt->planes; p++)
-		size += dev->bytesperline_out[p] * h;
+		size += dev->bytesperline_out[p] * h / vfmt->vdownsampling[p];
 
 	if (dev->field_out == V4L2_FIELD_ALTERNATE) {
 		/*
@@ -331,7 +331,8 @@ int vivid_g_fmt_vid_out(struct file *file, void *priv,
 	for (p = fmt->buffers; p < fmt->planes; p++) {
 		unsigned stride = dev->bytesperline_out[p];
 
-		mp->plane_fmt[0].sizeimage += stride * mp->height;
+		mp->plane_fmt[0].sizeimage +=
+			(stride * mp->height) / fmt->vdownsampling[p];
 	}
 	return 0;
 }
@@ -405,7 +406,7 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 	}
 	for (p = fmt->buffers; p < fmt->planes; p++)
 		pfmt[0].sizeimage += (pfmt[0].bytesperline * fmt->bit_depth[p]) /
-				     fmt->bit_depth[0];
+				     (fmt->bit_depth[0] * fmt->vdownsampling[p]);
 	mp->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	mp->quantization = V4L2_QUANTIZATION_DEFAULT;
 	if (vivid_is_svid_out(dev)) {
