@@ -153,6 +153,16 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_MMAP_VERSION:
 		value = 1;
 		break;
+	case I915_PARAM_SUBSLICE_TOTAL:
+		value = INTEL_INFO(dev)->subslice_total;
+		if (!value)
+			return -ENODEV;
+		break;
+	case I915_PARAM_EU_TOTAL:
+		value = INTEL_INFO(dev)->eu_total;
+		if (!value)
+			return -ENODEV;
+		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
