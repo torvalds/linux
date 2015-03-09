@@ -729,8 +729,8 @@ int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs,
 
 	init_completion(&fs_devs->kobj_unregister);
 	fs_devs->super_kobj.kset = btrfs_kset;
-	error = kobject_init_and_add(&fs_devs->super_kobj, &btrfs_ktype, NULL,
-				     "%pU", fs_devs->fsid);
+	error = kobject_init_and_add(&fs_devs->super_kobj,
+				&btrfs_ktype, parent, "%pU", fs_devs->fsid);
 	return error;
 }
 
