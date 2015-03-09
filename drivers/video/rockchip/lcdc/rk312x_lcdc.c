@@ -472,8 +472,8 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 					    WIN1_MST, win->area[0].y_addr);
 			} else {
 				lcdc_writel(lcdc_dev, WIN1_DSP_INFO_RK312X,
-					    v_DSP_WIDTH(win->area[0].xact) |
-					    v_DSP_HEIGHT(win->area[0].yact));
+					    v_DSP_WIDTH(win->area[0].xsize) |
+					    v_DSP_HEIGHT(win->area[0].ysize));
 				lcdc_writel(lcdc_dev, WIN1_DSP_ST_RK312X,
 					    v_DSP_STX(win->area[0].dsp_stx) |
 					    v_DSP_STY(win->area[0].dsp_sty));
@@ -1516,6 +1516,17 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	spin_lock(&lcdc_dev->reg_lock);
 	win->area[0].dsp_stx = win->area[0].xpos + screen->mode.left_margin +
 			       screen->mode.hsync_len;
+	if (win_id == 1) {
+                if ((win->area[0].xact != win->area[0].xsize) ||
+                    (win->area[0].yact != win->area[0].ysize)) {
+                        pr_err("win[1],not support scale\n");
+                        pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
+                                win->area[0].xact,win->area[0].yact,
+                                win->area[0].xsize,win->area[0].ysize);
+                        win->area[0].xsize = win->area[0].xact;
+                        win->area[0].ysize = win->area[0].yact;
+                    }
+	}
 	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
 		win->area[0].ysize /= 2;
 		win->area[0].dsp_sty = win->area[0].ypos / 2 +

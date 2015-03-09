@@ -2282,6 +2282,16 @@ static int win2_set_par(struct lcdc_device *lcdc_dev,
 					screen->mode.upper_margin +
 					screen->mode.vsync_len;
 			}
+			if ((win->area[i].xact != win->area[i].xsize) ||
+			    (win->area[i].yact != win->area[i].ysize)) {
+                                pr_err("win[%d]->area[%d],not support scale\n",
+                                        win->id, i);
+                                pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
+                                        win->area[i].xact,win->area[i].yact,
+                                        win->area[i].xsize,win->area[i].ysize);
+                                win->area[i].xsize = win->area[i].xact;
+                                win->area[i].ysize = win->area[i].yact;
+			}
 		}
 	}
 	rk3288_win_2_3_reg_update(&lcdc_dev->driver,2);
@@ -2339,6 +2349,16 @@ static int win3_set_par(struct lcdc_device *lcdc_dev,
 					screen->mode.upper_margin +
 					screen->mode.vsync_len;
 			}
+		}
+		if ((win->area[i].xact != win->area[i].xsize) ||
+		    (win->area[i].yact != win->area[i].ysize)) {
+                        pr_err("win[%d]->area[%d],not support scale\n",
+                                win->id, i);
+                        pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
+                                win->area[i].xact,win->area[i].yact,
+                                win->area[i].xsize,win->area[i].ysize);
+                        win->area[i].xsize = win->area[i].xact;
+                        win->area[i].ysize = win->area[i].yact;
 		}
 	}
 	rk3288_win_2_3_reg_update(&lcdc_dev->driver,3);
