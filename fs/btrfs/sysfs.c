@@ -690,7 +690,12 @@ static struct dentry *btrfs_debugfs_root_dentry;
 /* Debugging tunables and exported data */
 u64 btrfs_debugfs_test;
 
-int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
+/*
+ * Can be called by the device discovery thread.
+ * And parent can be specified for seed device
+ */
+int btrfs_sysfs_add_fsid(struct btrfs_fs_info *fs_info,
+				struct kobject *parent)
 {
 	int error;
 
@@ -698,6 +703,14 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 	fs_info->super_kobj.kset = btrfs_kset;
 	error = kobject_init_and_add(&fs_info->super_kobj, &btrfs_ktype, NULL,
 				     "%pU", fs_info->fsid);
+	return error;
+}
+
+int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
+{
+	int error;
+
+	error = btrfs_sysfs_add_fsid(fs_info, NULL);
 	if (error)
 		return error;
 
