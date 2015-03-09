@@ -309,6 +309,12 @@ enum ath9k_hw_hang_checks {
 	HW_MAC_HANG               = BIT(5),
 };
 
+#define AR_PCIE_PLL_PWRSAVE_CONTROL BIT(0)
+#define AR_PCIE_PLL_PWRSAVE_ON_D3   BIT(1)
+#define AR_PCIE_PLL_PWRSAVE_ON_D0   BIT(2)
+#define AR_PCIE_CDR_PWRSAVE_ON_D3   BIT(3)
+#define AR_PCIE_CDR_PWRSAVE_ON_D0   BIT(4)
+
 struct ath9k_ops_config {
 	int dma_beacon_response_time;
 	int sw_beacon_response_time;
