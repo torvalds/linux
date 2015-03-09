@@ -542,5 +542,6 @@ static inline void unlock_chunks(struct btrfs_root *root)
 	mutex_unlock(&root->fs_info->chunk_mutex);
 }
 
+struct list_head *btrfs_get_fs_uuids(void);
 
 #endif

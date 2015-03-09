@@ -52,6 +52,10 @@ static void btrfs_dev_stat_print_on_load(struct btrfs_device *device);
 
 DEFINE_MUTEX(uuid_mutex);
 static LIST_HEAD(fs_uuids);
+struct list_head *btrfs_get_fs_uuids(void)
+{
+	return &fs_uuids;
+}
 
 static struct btrfs_fs_devices *__alloc_fs_devices(void)
 {
