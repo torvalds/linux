@@ -49,12 +49,14 @@ struct rhash_head {
 /**
  * struct bucket_table - Table of hash buckets
  * @size: Number of hash buckets
+ * @hash_rnd: Random seed to fold into hash
  * @locks_mask: Mask to apply before accessing locks[]
  * @locks: Array of spinlocks protecting individual buckets
  * @buckets: size * hash buckets
  */
 struct bucket_table {
 	size_t			size;
+	u32			hash_rnd;
 	unsigned int		locks_mask;
 	spinlock_t		*locks;
 
@@ -72,7 +74,6 @@ struct rhashtable;
  * @key_len: Length of key
  * @key_offset: Offset of key in struct to be hashed
  * @head_offset: Offset of rhash_head in struct to be hashed
- * @hash_rnd: Seed to use while hashing
  * @max_shift: Maximum number of shifts while expanding
  * @min_shift: Minimum number of shifts while shrinking
  * @nulls_base: Base value to generate nulls marker
@@ -85,7 +86,6 @@ struct rhashtable_params {
 	size_t			key_len;
 	size_t			key_offset;
 	size_t			head_offset;
-	u32			hash_rnd;
 	size_t			max_shift;
 	size_t			min_shift;
 	u32			nulls_base;

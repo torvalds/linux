@@ -66,25 +66,28 @@ static u32 rht_bucket_index(const struct bucket_table *tbl, u32 hash)
 	return hash & (tbl->size - 1);
 }
 
-static u32 obj_raw_hashfn(const struct rhashtable *ht, const void *ptr)
+static u32 obj_raw_hashfn(struct rhashtable *ht, const void *ptr)
 {
+	struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
 	u32 hash;
 
 	if (unlikely(!ht->p.key_len))
-		hash = ht->p.obj_hashfn(ptr, ht->p.hash_rnd);
+		hash = ht->p.obj_hashfn(ptr, tbl->hash_rnd);
 	else
 		hash = ht->p.hashfn(ptr + ht->p.key_offset, ht->p.key_len,
-				    ht->p.hash_rnd);
+				    tbl->hash_rnd);
 
 	return hash >> HASH_RESERVED_SPACE;
 }
 
 static u32 key_hashfn(struct rhashtable *ht, const void *key, u32 len)
 {
-	return ht->p.hashfn(key, len, ht->p.hash_rnd) >> HASH_RESERVED_SPACE;
+	struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
+
+	return ht->p.hashfn(key, len, tbl->hash_rnd) >> HASH_RESERVED_SPACE;
 }
 
-static u32 head_hashfn(const struct rhashtable *ht,
+static u32 head_hashfn(struct rhashtable *ht,
 		       const struct bucket_table *tbl,
 		       const struct rhash_head *he)
 {
@@ -92,7 +95,7 @@ static u32 head_hashfn(const struct rhashtable *ht,
 }
 
 #ifdef CONFIG_PROVE_LOCKING
-static void debug_dump_buckets(const struct rhashtable *ht,
+static void debug_dump_buckets(struct rhashtable *ht,
 			       const struct bucket_table *tbl)
 {
 	struct rhash_head *he;
@@ -385,6 +388,8 @@ int rhashtable_expand(struct rhashtable *ht)
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
+	new_tbl->hash_rnd = old_tbl->hash_rnd;
+
 	atomic_inc(&ht->shift);
 
 	/* Make insertions go into the new, empty table right away. Deletions
@@ -475,6 +480,8 @@ int rhashtable_shrink(struct rhashtable *ht)
 	new_tbl = bucket_table_alloc(ht, tbl->size / 2);
 	if (new_tbl == NULL)
 		return -ENOMEM;
+
+	new_tbl->hash_rnd = tbl->hash_rnd;
 
 	rcu_assign_pointer(ht->future_tbl, new_tbl);
 	synchronize_rcu();
@@ -1099,13 +1106,12 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	if (tbl == NULL)
 		return -ENOMEM;
 
+	get_random_bytes(&tbl->hash_rnd, sizeof(tbl->hash_rnd));
+
 	atomic_set(&ht->nelems, 0);
 	atomic_set(&ht->shift, ilog2(tbl->size));
 	RCU_INIT_POINTER(ht->tbl, tbl);
 	RCU_INIT_POINTER(ht->future_tbl, tbl);
-
-	if (!ht->p.hash_rnd)
-		get_random_bytes(&ht->p.hash_rnd, sizeof(ht->p.hash_rnd));
 
 	INIT_WORK(&ht->run_work, rht_deferred_worker);
 
