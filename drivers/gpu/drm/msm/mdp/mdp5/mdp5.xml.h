@@ -8,7 +8,7 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp5.xml            (  29843 bytes, from 2015-03-09 12:32:38)
+- /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp5.xml            (  28872 bytes, from 2015-03-09 12:40:51)
 - /local/mnt2/workspace2/sviau/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2014-06-02 18:31:15)
 - /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp_common.xml      (   2357 bytes, from 2015-01-23 16:20:19)
 
@@ -95,33 +95,6 @@ enum mdp5_pipe_bwc {
 	BWC_LOSSLESS = 0,
 	BWC_Q_HIGH = 1,
 	BWC_Q_MED = 2,
-};
-
-enum mdp5_client_id {
-	CID_UNUSED = 0,
-	CID_VIG0_Y = 1,
-	CID_VIG0_CR = 2,
-	CID_VIG0_CB = 3,
-	CID_VIG1_Y = 4,
-	CID_VIG1_CR = 5,
-	CID_VIG1_CB = 6,
-	CID_VIG2_Y = 7,
-	CID_VIG2_CR = 8,
-	CID_VIG2_CB = 9,
-	CID_DMA0_Y = 10,
-	CID_DMA0_CR = 11,
-	CID_DMA0_CB = 12,
-	CID_DMA1_Y = 13,
-	CID_DMA1_CR = 14,
-	CID_DMA1_CB = 15,
-	CID_RGB0 = 16,
-	CID_RGB1 = 17,
-	CID_RGB2 = 18,
-	CID_VIG3_Y = 19,
-	CID_VIG3_CR = 20,
-	CID_VIG3_CB = 21,
-	CID_RGB3 = 22,
-	CID_MAX = 23,
 };
 
 enum mdp5_cursor_format {
@@ -276,19 +249,19 @@ static inline uint32_t REG_MDP5_MDP_SMP_ALLOC_W(uint32_t i0, uint32_t i1) { retu
 static inline uint32_t REG_MDP5_MDP_SMP_ALLOC_W_REG(uint32_t i0, uint32_t i1) { return 0x00000080 + __offset_MDP(i0) + 0x4*i1; }
 #define MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0__MASK			0x000000ff
 #define MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0__SHIFT			0
-static inline uint32_t MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0(enum mdp5_client_id val)
+static inline uint32_t MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0(uint32_t val)
 {
 	return ((val) << MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0__SHIFT) & MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0__MASK;
 }
 #define MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1__MASK			0x0000ff00
 #define MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1__SHIFT			8
-static inline uint32_t MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1(enum mdp5_client_id val)
+static inline uint32_t MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1(uint32_t val)
 {
 	return ((val) << MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1__SHIFT) & MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1__MASK;
 }
 #define MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2__MASK			0x00ff0000
 #define MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2__SHIFT			16
-static inline uint32_t MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2(enum mdp5_client_id val)
+static inline uint32_t MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2(uint32_t val)
 {
 	return ((val) << MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2__SHIFT) & MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2__MASK;
 }
@@ -298,19 +271,19 @@ static inline uint32_t REG_MDP5_MDP_SMP_ALLOC_R(uint32_t i0, uint32_t i1) { retu
 static inline uint32_t REG_MDP5_MDP_SMP_ALLOC_R_REG(uint32_t i0, uint32_t i1) { return 0x00000130 + __offset_MDP(i0) + 0x4*i1; }
 #define MDP5_MDP_SMP_ALLOC_R_REG_CLIENT0__MASK			0x000000ff
 #define MDP5_MDP_SMP_ALLOC_R_REG_CLIENT0__SHIFT			0
-static inline uint32_t MDP5_MDP_SMP_ALLOC_R_REG_CLIENT0(enum mdp5_client_id val)
+static inline uint32_t MDP5_MDP_SMP_ALLOC_R_REG_CLIENT0(uint32_t val)
 {
 	return ((val) << MDP5_MDP_SMP_ALLOC_R_REG_CLIENT0__SHIFT) & MDP5_MDP_SMP_ALLOC_R_REG_CLIENT0__MASK;
 }
 #define MDP5_MDP_SMP_ALLOC_R_REG_CLIENT1__MASK			0x0000ff00
 #define MDP5_MDP_SMP_ALLOC_R_REG_CLIENT1__SHIFT			8
-static inline uint32_t MDP5_MDP_SMP_ALLOC_R_REG_CLIENT1(enum mdp5_client_id val)
+static inline uint32_t MDP5_MDP_SMP_ALLOC_R_REG_CLIENT1(uint32_t val)
 {
 	return ((val) << MDP5_MDP_SMP_ALLOC_R_REG_CLIENT1__SHIFT) & MDP5_MDP_SMP_ALLOC_R_REG_CLIENT1__MASK;
 }
 #define MDP5_MDP_SMP_ALLOC_R_REG_CLIENT2__MASK			0x00ff0000
 #define MDP5_MDP_SMP_ALLOC_R_REG_CLIENT2__SHIFT			16
-static inline uint32_t MDP5_MDP_SMP_ALLOC_R_REG_CLIENT2(enum mdp5_client_id val)
+static inline uint32_t MDP5_MDP_SMP_ALLOC_R_REG_CLIENT2(uint32_t val)
 {
 	return ((val) << MDP5_MDP_SMP_ALLOC_R_REG_CLIENT2__SHIFT) & MDP5_MDP_SMP_ALLOC_R_REG_CLIENT2__MASK;
 }
