@@ -3982,9 +3982,9 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 
 	BUILD_BUG_ON(MAX_RCU_LVLS > ARRAY_SIZE(buf));  /* Fix buf[] init! */
 
-	/* Silence gcc 4.8 warning about array index out of range. */
-	if (rcu_num_lvls > RCU_NUM_LVLS)
-		panic("rcu_init_one: rcu_num_lvls overflow");
+	/* Silence gcc 4.8 false positive about array index out of range. */
+	if (rcu_num_lvls <= 0 || rcu_num_lvls > RCU_NUM_LVLS)
+		panic("rcu_init_one: rcu_num_lvls out of range");
 
 	/* Initialize the level-tracking arrays. */
 
