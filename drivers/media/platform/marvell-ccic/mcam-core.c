@@ -755,11 +755,6 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 		widthy = fmt->width * 2;
 		widthuv = 0;
 		break;
-	case V4L2_PIX_FMT_JPEG:
-		imgsz_h = (fmt->sizeimage / fmt->bytesperline) << IMGSZ_V_SHIFT;
-		widthy = fmt->bytesperline;
-		widthuv = 0;
-		break;
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
@@ -794,10 +789,6 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_UYVY, C0_DF_MASK);
 		break;
 	case V4L2_PIX_FMT_UYVY:
-		mcam_reg_write_mask(cam, REG_CTRL0,
-			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_YUYV, C0_DF_MASK);
-		break;
-	case V4L2_PIX_FMT_JPEG:
 		mcam_reg_write_mask(cam, REG_CTRL0,
 			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_YUYV, C0_DF_MASK);
 		break;
