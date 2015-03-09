@@ -446,6 +446,13 @@ config LINUX_LINK_BASE
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
 
+config HIGHMEM
+	bool "High Memory Support"
+	help
+	  With ARC 2G:2G address split, only upper 2G is directly addressable by
+	  kernel. Enable this to potentially allow access to rest of 2G and PAE
+	  in future
+
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"
 	default y
