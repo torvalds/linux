@@ -408,7 +408,7 @@ err_ioremap:
 	return ret;
 }
 
-static int __exit omap_rng_remove(struct platform_device *pdev)
+static int omap_rng_remove(struct platform_device *pdev)
 {
 	struct omap_rng_dev *priv = platform_get_drvdata(pdev);
 
@@ -460,7 +460,7 @@ static struct platform_driver omap_rng_driver = {
 		.of_match_table = of_match_ptr(omap_rng_of_match),
 	},
 	.probe		= omap_rng_probe,
-	.remove		= __exit_p(omap_rng_remove),
+	.remove		= omap_rng_remove,
 };
 
 module_platform_driver(omap_rng_driver);
