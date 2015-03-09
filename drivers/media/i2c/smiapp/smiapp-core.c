@@ -3025,8 +3025,7 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 	dev_dbg(dev, "reset %d, nvm %d, clk %d, csi %d\n", pdata->xshutdown,
 		pdata->nvm_size, pdata->ext_clk, pdata->csi_signalling_mode);
 
-	rval = of_get_property(
-		dev->of_node, "link-frequencies", &asize) ? 0 : -ENOENT;
+	rval = of_get_property(ep, "link-frequencies", &asize) ? 0 : -ENOENT;
 	if (rval) {
 		dev_warn(dev, "can't get link-frequencies array size\n");
 		goto out_err;
@@ -3040,7 +3039,7 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 
 	asize /= sizeof(*pdata->op_sys_clock);
 	rval = of_property_read_u64_array(
-		dev->of_node, "link-frequencies", pdata->op_sys_clock, asize);
+		ep, "link-frequencies", pdata->op_sys_clock, asize);
 	if (rval) {
 		dev_warn(dev, "can't get link-frequencies\n");
 		goto out_err;
