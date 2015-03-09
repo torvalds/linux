@@ -125,7 +125,7 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 	vcpu->arch.sie_block->gpsw.mask |= cc << 44;
 }
 
-/* test availability of facility in a kvm intance */
+/* test availability of facility in a kvm instance */
 static inline int test_kvm_facility(struct kvm *kvm, unsigned long nr)
 {
 	return __test_facility(nr, kvm->arch.model.fac->mask) &&
