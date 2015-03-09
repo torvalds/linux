@@ -241,11 +241,24 @@ static int synaptics_model_id(struct psmouse *psmouse)
 	return 0;
 }
 
+static int synaptics_more_extended_queries(struct psmouse *psmouse)
+{
+	struct synaptics_data *priv = psmouse->private;
+	unsigned char buf[3];
+
+	if (synaptics_send_cmd(psmouse, SYN_QUE_MEXT_CAPAB_10, buf))
+		return -1;
+
+	priv->ext_cap_10 = (buf[0]<<16) | (buf[1]<<8) | buf[2];
+
+	return 0;
+}
+
 /*
- * Read the board id from the touchpad
+ * Read the board id and the "More Extended Queries" from the touchpad
  * The board id is encoded in the "QUERY MODES" response
  */
-static int synaptics_board_id(struct psmouse *psmouse)
+static int synaptics_query_modes(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	unsigned char bid[3];
@@ -257,6 +270,10 @@ static int synaptics_board_id(struct psmouse *psmouse)
 	if (synaptics_send_cmd(psmouse, SYN_QUE_MODES, bid))
 		return -1;
 	priv->board_id = ((bid[0] & 0xfc) << 6) | bid[1];
+
+	if (SYN_MEXT_CAP_BIT(bid[0]))
+		return synaptics_more_extended_queries(psmouse);
+
 	return 0;
 }
 
@@ -446,7 +463,7 @@ static int synaptics_query_hardware(struct psmouse *psmouse)
 		return -1;
 	if (synaptics_firmware_id(psmouse))
 		return -1;
-	if (synaptics_board_id(psmouse))
+	if (synaptics_query_modes(psmouse))
 		return -1;
 	if (synaptics_capability(psmouse))
 		return -1;
