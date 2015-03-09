@@ -6937,6 +6937,13 @@ S:	Supported
 F:	drivers/block/nvme*
 F:	include/linux/nvme.h
 
+NXP-NCI NFC DRIVER
+M:	Clément Perrochaud <clement.perrochaud@effinnov.com>
+R:	Charles Gorand <charles.gorand@effinnov.com>
+L:	linux-nfc@lists.01.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/nfc/nxp-nci
+
 NXP TDA998X DRM DRIVER
 M:	Russell King <rmk+kernel@arm.linux.org.uk>
 S:	Supported
