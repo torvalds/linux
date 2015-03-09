@@ -177,8 +177,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * If DAT is off data will be copied to guest real or absolute memory.
  * If DAT is on data will be copied to the address space as specified by
  * the address space bits of the PSW:
- * Primary, secondory or home space (access register mode is currently not
- * implemented).
+ * Primary, secondary, home space or access register mode.
  * The addressing mode of the PSW is also inspected, so that address wrap
  * around is taken into account for 24-, 31- and 64-bit addressing mode,
  * if the to be copied data crosses page boundaries in guest address space.
