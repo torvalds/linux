@@ -7,9 +7,9 @@ menuconfig MPLS
 	default n
 	---help---
 	  MultiProtocol Label Switching routes packets through logical
-	  circuits.  Originally conceved as a way of routing packets at
+	  circuits.  Originally conceived as a way of routing packets at
 	  hardware speeds (before hardware was capable of routing ipv4 packets),
-	  MPLS remains as simple way of making tunnels.
+	  MPLS remains a simple way of making tunnels.
 
 	  If you have not heard of MPLS you probably want to say N here.
 
