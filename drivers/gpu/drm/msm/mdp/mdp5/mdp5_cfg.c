@@ -31,6 +31,11 @@ const struct mdp5_cfg_hw msm8x74_config = {
 	.smp = {
 		.mmb_count = 22,
 		.mmb_size = 4096,
+		.clients = {
+			[SSPP_VIG0] =  1, [SSPP_VIG1] =  4, [SSPP_VIG2] =  7,
+			[SSPP_DMA0] = 10, [SSPP_DMA1] = 13,
+			[SSPP_RGB0] = 16, [SSPP_RGB1] = 17, [SSPP_RGB2] = 18,
+		},
 	},
 	.ctl = {
 		.count = 5,
@@ -86,11 +91,18 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.smp = {
 		.mmb_count = 44,
 		.mmb_size = 8192,
+		.clients = {
+			[SSPP_VIG0] =  1, [SSPP_VIG1] =  4,
+			[SSPP_VIG2] =  7, [SSPP_VIG3] = 19,
+			[SSPP_DMA0] = 10, [SSPP_DMA1] = 13,
+			[SSPP_RGB0] = 16, [SSPP_RGB1] = 17,
+			[SSPP_RGB2] = 18, [SSPP_RGB3] = 22,
+		},
 		.reserved_state[0] = GENMASK(7, 0),	/* first 8 MMBs */
-		.reserved[CID_RGB0] = 2,
-		.reserved[CID_RGB1] = 2,
-		.reserved[CID_RGB2] = 2,
-		.reserved[CID_RGB3] = 2,
+		.reserved = {
+			/* Two SMP blocks are statically tied to RGB pipes: */
+			[16] = 2, [17] = 2, [18] = 2, [22] = 2,
+		},
 	},
 	.ctl = {
 		.count = 5,
