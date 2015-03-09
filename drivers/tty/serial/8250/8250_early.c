@@ -167,8 +167,3 @@ static int __init early_serial8250_setup(struct earlycon_device *device,
 }
 EARLYCON_DECLARE(uart8250, early_serial8250_setup);
 EARLYCON_DECLARE(uart, early_serial8250_setup);
-
-int __init setup_early_serial8250_console(char *cmdline)
-{
-	return setup_earlycon(cmdline);
-}
