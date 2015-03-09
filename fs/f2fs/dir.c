@@ -127,22 +127,19 @@ struct f2fs_dir_entry *find_target_dentry(struct qstr *name, int *max_slots,
 		*max_slots = 0;
 	while (bit_pos < d->max) {
 		if (!test_bit_le(bit_pos, d->bitmap)) {
-			if (bit_pos == 0)
-				max_len = 1;
-			else if (!test_bit_le(bit_pos - 1, d->bitmap))
-				max_len++;
 			bit_pos++;
+			max_len++;
 			continue;
 		}
+
 		de = &d->dentry[bit_pos];
 		if (early_match_name(name->len, namehash, de) &&
 			!memcmp(d->filename[bit_pos], name->name, name->len))
 			goto found;
 
-		if (max_slots && max_len > *max_slots) {
+		if (max_slots && max_len > *max_slots)
 			*max_slots = max_len;
-			max_len = 0;
-		}
+		max_len = 0;
 
 		/* remain bug on condition */
 		if (unlikely(!de->name_len))
