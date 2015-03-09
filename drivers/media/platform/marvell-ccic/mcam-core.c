@@ -127,21 +127,21 @@ static struct mcam_format_struct {
 		.desc		= "YUV 4:2:2 PLANAR",
 		.pixelformat	= V4L2_PIX_FMT_YUV422P,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
-		.bpp		= 2,
+		.bpp		= 1,
 		.planar		= true,
 	},
 	{
 		.desc		= "YUV 4:2:0 PLANAR",
 		.pixelformat	= V4L2_PIX_FMT_YUV420,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
-		.bpp		= 2,
+		.bpp		= 1,
 		.planar		= true,
 	},
 	{
 		.desc		= "YVU 4:2:0 PLANAR",
 		.pixelformat	= V4L2_PIX_FMT_YVU420,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
-		.bpp		= 2,
+		.bpp		= 1,
 		.planar		= true,
 	},
 	{
@@ -764,6 +764,7 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 	default:
 		widthy = fmt->bytesperline;
 		widthuv = 0;
+		break;
 	}
 
 	mcam_reg_write_mask(cam, REG_IMGPITCH, widthuv << 16 | widthy,
@@ -1370,16 +1371,19 @@ static int mcam_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 	v4l2_fill_mbus_format(&mbus_fmt, pix, f->mbus_code);
 	ret = sensor_call(cam, video, try_mbus_fmt, &mbus_fmt);
 	v4l2_fill_pix_format(pix, &mbus_fmt);
+	pix->bytesperline = pix->width * f->bpp;
 	switch (f->pixelformat) {
+	case V4L2_PIX_FMT_YUV422P:
+		pix->sizeimage = pix->height * pix->bytesperline * 2;
+		break;
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
-		pix->bytesperline = pix->width * 3 / 2;
+		pix->sizeimage = pix->height * pix->bytesperline * 3 / 2;
 		break;
 	default:
-		pix->bytesperline = pix->width * f->bpp;
+		pix->sizeimage = pix->height * pix->bytesperline;
 		break;
 	}
-	pix->sizeimage = pix->height * pix->bytesperline;
 	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	return ret;
 }
