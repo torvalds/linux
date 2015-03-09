@@ -330,6 +330,7 @@ enum rk_hdmi_feature {
 	SUPPORT_CEC		=	(1 << 9),
 	SUPPORT_HDCP		=	(1 << 10),
 	SUPPORT_HDCP2		=	(1 << 11),
+	SUPPORT_YCBCR_INPUT	=	(1 << 12),
 };
 
 struct hdmi_property {
@@ -372,9 +373,9 @@ struct hdmi {
 			   2 means mute audio,
 			   1 means mute display;
 			   0 is unmute*/
-	int colordepth;
-	int colormode;
-
+	int colordepth;			/* Ouput color depth*/
+	int colormode;			/* Ouput color mode*/
+	int colormode_input;		/* Input color mode*/
 	struct hdmi_edid edid;		/* EDID information*/
 	int enable;			/* Enable flag*/
 	int sleep;			/* Sleep flag*/
