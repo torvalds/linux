@@ -556,7 +556,6 @@ void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 	sysfs_remove_group(&fs_info->fs_devices->super_kobj, &btrfs_feature_attr_group);
 	sysfs_remove_files(&fs_info->fs_devices->super_kobj, btrfs_attrs);
 	btrfs_kobj_rm_device(fs_info->fs_devices, NULL);
-	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
 }
 
 const char * const btrfs_feature_set_names[3] = {
@@ -688,10 +687,6 @@ int btrfs_kobj_add_device(struct btrfs_fs_devices *fs_devices,
 	int error = 0;
 	struct btrfs_device *dev;
 
-	error = btrfs_sysfs_add_device(fs_devices);
-	if (error)
-		return error;
-
 	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
 		struct hd_struct *disk;
 		struct kobject *disk_kobj;
@@ -747,19 +742,13 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 
 	btrfs_set_fs_info_ptr(fs_info);
 
-	error = btrfs_sysfs_add_fsid(fs_devs, NULL);
+	error = btrfs_kobj_add_device(fs_devs, NULL);
 	if (error)
 		return error;
 
-	error = btrfs_kobj_add_device(fs_devs, NULL);
-	if (error) {
-		btrfs_sysfs_remove_fsid(fs_devs);
-		return error;
-	}
-
 	error = sysfs_create_files(super_kobj, btrfs_attrs);
 	if (error) {
-		btrfs_sysfs_remove_fsid(fs_devs);
+		btrfs_kobj_rm_device(fs_devs, NULL);
 		return error;
 	}
 

@@ -2873,10 +2873,22 @@ retry_root_backup:
 
 	btrfs_close_extra_devices(fs_devices, 1);
 
+	ret = btrfs_sysfs_add_fsid(fs_devices, NULL);
+	if (ret) {
+		pr_err("BTRFS: failed to init sysfs fsid interface: %d\n", ret);
+		goto fail_block_groups;
+	}
+
+	ret = btrfs_sysfs_add_device(fs_devices);
+	if (ret) {
+		pr_err("BTRFS: failed to init sysfs device interface: %d\n", ret);
+		goto fail_fsdev_sysfs;
+	}
+
 	ret = btrfs_sysfs_add_one(fs_info);
 	if (ret) {
 		pr_err("BTRFS: failed to init sysfs interface: %d\n", ret);
-		goto fail_block_groups;
+		goto fail_fsdev_sysfs;
 	}
 
 	ret = btrfs_init_space_info(fs_info);
@@ -3053,6 +3065,9 @@ fail_cleaner:
 
 fail_sysfs:
 	btrfs_sysfs_remove_one(fs_info);
+
+fail_fsdev_sysfs:
+	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
 
 fail_block_groups:
 	btrfs_put_block_group_cache(fs_info);
@@ -3731,6 +3746,7 @@ void close_ctree(struct btrfs_root *root)
 	}
 
 	btrfs_sysfs_remove_one(fs_info);
+	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
 
 	btrfs_free_fs_roots(fs_info);
 
