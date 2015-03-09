@@ -203,6 +203,7 @@ struct pnfs_device {
 	struct page **pages;
 	unsigned int  pgbase;
 	unsigned int  pglen;	/* reply buffer length */
+	unsigned char nocache : 1;/* May not be cached */
 };
 
 #define NFS4_PNFS_GETDEVLIST_MAXNUM 16
@@ -291,6 +292,7 @@ void pnfs_error_mark_layout_for_return(struct inode *inode,
 enum {
 	NFS_DEVICEID_INVALID = 0,       /* set when MDS clientid recalled */
 	NFS_DEVICEID_UNAVAILABLE,	/* device temporarily unavailable */
+	NFS_DEVICEID_NOCACHE,		/* device may not be cached */
 };
 
 /* pnfs_dev.c */
