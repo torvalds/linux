@@ -606,33 +606,6 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DEBUG_RX(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_RX, f, ## a)
 #define IEEE80211_DEBUG_QOS(f, a...)  IEEE80211_DEBUG(IEEE80211_DL_QOS, f, ## a)
 
-#ifdef CONFIG_IEEE80211_DEBUG
-/* Added by Annie, 2005-11-22. */
-#define MAX_STR_LEN     64
-/* I want to see ASCII 33 to 126 only. Otherwise, I print '?'. Annie, 2005-11-22.*/
-#define PRINTABLE(_ch)  (_ch>'!' && _ch<'~')
-#define IEEE80211_PRINT_STR(_Comp, _TitleString, _Ptr, _Len)					\
-			if((_Comp) & level)							\
-			{                                                                       \
-				int             __i;                                            \
-				u8  buffer[MAX_STR_LEN];					\
-				int length = (_Len<MAX_STR_LEN)? _Len : (MAX_STR_LEN-1) ;	\
-				memset(buffer, 0, MAX_STR_LEN);					\
-				memcpy(buffer, (u8 *)_Ptr, length );				\
-				for( __i=0; __i<MAX_STR_LEN; __i++ )                            \
-				{                                                               \
-				     if( !PRINTABLE(buffer[__i]) )   buffer[__i] = '?';		\
-				}                                                               \
-				buffer[length] = '\0';                                          \
-				printk("Rtl819x: ");						\
-				printk(_TitleString);                                         \
-				printk(": %d, <%s>\n", _Len, buffer);                         \
-			}
-#else
-#define IEEE80211_PRINT_STR(_Comp, _TitleString, _Ptr, _Len)  do {} while (0)
-#endif
-
-#include <linux/netdevice.h>
 #include <linux/if_arp.h> /* ARPHRD_ETHER */
 
 #ifndef WIRELESS_SPY
