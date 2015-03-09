@@ -1543,13 +1543,26 @@ struct tpg_draw_params {
 	unsigned right_pillar_start;
 };
 
+static void tpg_fill_params_pattern(const struct tpg_data *tpg, unsigned p,
+				    struct tpg_draw_params *params)
+{
+	params->mv_hor_old =
+		tpg_hscale_div(tpg, p, tpg->mv_hor_count % tpg->src_width);
+	params->mv_hor_new =
+		tpg_hscale_div(tpg, p, (tpg->mv_hor_count + tpg->mv_hor_step) %
+			       tpg->src_width);
+	params->mv_vert_old = tpg->mv_vert_count % tpg->src_height;
+	params->mv_vert_new =
+		(tpg->mv_vert_count + tpg->mv_vert_step) % tpg->src_height;
+}
+
 void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 {
 	struct tpg_draw_params params;
-	unsigned mv_hor_old = tpg->mv_hor_count % tpg->src_width;
-	unsigned mv_hor_new = (tpg->mv_hor_count + tpg->mv_hor_step) % tpg->src_width;
-	unsigned mv_vert_old = tpg->mv_vert_count % tpg->src_height;
-	unsigned mv_vert_new = (tpg->mv_vert_count + tpg->mv_vert_step) % tpg->src_height;
+	unsigned mv_hor_old;
+	unsigned mv_hor_new;
+	unsigned mv_vert_old;
+	unsigned mv_vert_new;
 	unsigned wss_width;
 	unsigned f;
 	int h;
@@ -1578,12 +1591,17 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8
 	params.stride = tpg->bytesperline[p];
 	params.hmax = (tpg->compose.height * tpg->perc_fill) / 100;
 
+	tpg_fill_params_pattern(tpg, p, &params);
+
+	mv_hor_old = params.mv_hor_old;
+	mv_hor_new = params.mv_hor_new;
+	mv_vert_old = params.mv_vert_old;
+	mv_vert_new = params.mv_vert_new;
+
 	twopixsize = params.twopixsize;
 	img_width = params.img_width;
 	stride = params.stride;
 
-	mv_hor_old = tpg_hscale_div(tpg, p, mv_hor_old);
-	mv_hor_new = tpg_hscale_div(tpg, p, mv_hor_new);
 	wss_width = tpg->crop.left < tpg->src_width / 2 ?
 			tpg->src_width / 2 - tpg->crop.left : 0;
 	if (wss_width > tpg->crop.width)
