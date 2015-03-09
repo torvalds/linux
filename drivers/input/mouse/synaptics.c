@@ -250,6 +250,10 @@ static int synaptics_board_id(struct psmouse *psmouse)
 	struct synaptics_data *priv = psmouse->private;
 	unsigned char bid[3];
 
+	/* firmwares prior 7.5 have no board_id encoded */
+	if (SYN_ID_FULL(priv->identity) < 0x705)
+		return 0;
+
 	if (synaptics_send_cmd(psmouse, SYN_QUE_MODES, bid))
 		return -1;
 	priv->board_id = ((bid[0] & 0xfc) << 6) | bid[1];
