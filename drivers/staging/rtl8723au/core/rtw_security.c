@@ -1193,7 +1193,7 @@ static int aes_cipher(u8 *key, uint hdrlen, u8 *pframe, uint plen)
 	num_blocks = plen / 16;
 
 	/* Find start of payload */
-	payload_index = (hdrlen + 8);
+	payload_index = hdrlen + 8;
 
 	/* Calculate MIC */
 	aes128k128d(key, mic_iv, aes_out);
@@ -1466,7 +1466,7 @@ static int aes_decipher(u8 *key, uint	hdrlen,
 	num_blocks = (plen-8) / 16;
 
 	/* Find start of payload */
-	payload_index = (hdrlen + 8);
+	payload_index = hdrlen + 8;
 
 	/* Calculate MIC */
 	aes128k128d(key, mic_iv, aes_out);
