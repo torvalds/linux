@@ -1230,9 +1230,10 @@ static void ath10k_control_beaconing(struct ath10k_vif *arvif,
 	if (!info->enable_beacon) {
 		ath10k_vdev_stop(arvif);
 
-		spin_lock_bh(&arvif->ar->data_lock);
 		arvif->is_started = false;
 		arvif->is_up = false;
+
+		spin_lock_bh(&arvif->ar->data_lock);
 		ath10k_mac_vif_beacon_free(arvif);
 		spin_unlock_bh(&arvif->ar->data_lock);
 
@@ -1465,6 +1466,11 @@ static void ath10k_mac_vif_ap_csa_count_down(struct ath10k_vif *arvif)
 	struct ath10k *ar = arvif->ar;
 	struct ieee80211_vif *vif = arvif->vif;
 	int ret;
+
+	lockdep_assert_held(&arvif->ar->conf_mutex);
+
+	if (WARN_ON(!test_bit(WMI_SERVICE_BEACON_OFFLOAD, ar->wmi.svc_map)))
+		return;
 
 	if (arvif->vdev_type != WMI_VDEV_TYPE_AP)
 		return;
@@ -2091,9 +2097,7 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 		return;
 	}
 
-	spin_lock_bh(&arvif->ar->data_lock);
 	arvif->is_up = true;
-	spin_unlock_bh(&arvif->ar->data_lock);
 
 	/* Workaround: Some firmware revisions (tested with qca6174
 	 * WLAN.RM.2.0-00073) have buggy powersave state machine and must be
@@ -2135,9 +2139,7 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 		return;
 	}
 
-	spin_lock_bh(&arvif->ar->data_lock);
 	arvif->is_up = false;
-	spin_unlock_bh(&arvif->ar->data_lock);
 }
 
 static int ath10k_station_assoc(struct ath10k *ar,

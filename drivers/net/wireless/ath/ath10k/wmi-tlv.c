@@ -206,11 +206,9 @@ static int ath10k_wmi_tlv_event_bcn_tx_status(struct ath10k *ar,
 		break;
 	}
 
-	spin_lock_bh(&ar->data_lock);
 	arvif = ath10k_get_arvif(ar, vdev_id);
-	if (arvif && arvif->is_up)
+	if (arvif && arvif->is_up && arvif->vif->csa_active)
 		ieee80211_queue_work(ar->hw, &arvif->ap_csa_work);
-	spin_unlock_bh(&ar->data_lock);
 
 	kfree(tb);
 	return 0;
