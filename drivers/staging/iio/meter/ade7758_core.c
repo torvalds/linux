@@ -485,7 +485,7 @@ static ssize_t ade7758_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	int ret, len = 0;
+	int ret;
 	u8 t;
 	int sps;
 
@@ -498,8 +498,7 @@ static ssize_t ade7758_read_frequency(struct device *dev,
 	t = (t >> 5) & 0x3;
 	sps = 26040 / (1 << t);
 
-	len = sprintf(buf, "%d SPS\n", sps);
-	return len;
+	return sprintf(buf, "%d SPS\n", sps);
 }
 
 static ssize_t ade7758_write_frequency(struct device *dev,
