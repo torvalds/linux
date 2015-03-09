@@ -63,8 +63,7 @@ uisthread_stop(struct uisthread_info *thrinfo)
 	if (wait_for_completion_timeout(&thrinfo->has_stopped, 60 * HZ))
 		stopped = 1;
 
-	if (stopped) {
+	if (stopped)
 		thrinfo->id = 0;
-	}
 }
 EXPORT_SYMBOL_GPL(uisthread_stop);

@@ -534,9 +534,8 @@ static int pause_device(struct controlvm_message *msg)
 		} else {
 			return CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
-		if (!virt_control_chan_func) {
+		if (!virt_control_chan_func)
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
-		}
 		if (!virt_control_chan_func(&cmd)) {
 			return
 			  CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
@@ -593,9 +592,8 @@ static int resume_device(struct controlvm_message *msg)
 		} else {
 			return CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
-		if (!virt_control_chan_func) {
+		if (!virt_control_chan_func)
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
-		}
 		if (!virt_control_chan_func(&cmd)) {
 			return
 			  CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
@@ -665,13 +663,11 @@ static int destroy_device(struct controlvm_message *msg, char *buf)
  * on which accesses the channel and you will get a "unable to handle
  * kernel paging request"
  */
-		if (dev->polling) {
+		if (dev->polling)
 			uislib_disable_channel_interrupts(bus_no, dev_no);
-		}
 		/* unmap the channel memory for the device. */
-		if (!msg->hdr.flags.test_message) {
+		if (!msg->hdr.flags.test_message)
 			uislib_iounmap(dev->chanptr);
-		}
 		kfree(dev);
 		bus->device[dev_no] = NULL;
 	}
@@ -928,9 +924,8 @@ uislib_client_inject_pause_vnic(u32 bus_no, u32 dev_no)
 	msg.cmd.device_change_state.dev_no = dev_no;
 	msg.cmd.device_change_state.state = segment_state_standby;
 	rc = pause_device(&msg);
-	if (rc != CONTROLVM_RESP_SUCCESS) {
+	if (rc != CONTROLVM_RESP_SUCCESS)
 		return -1;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_pause_vnic);
@@ -1195,9 +1190,8 @@ static int process_incoming(void *v)
 		*/
 		if (kthread_should_stop())
 			break;
-		if (en_smart_wakeup == 0xFF) {
+		if (en_smart_wakeup == 0xFF)
 			break;
-		}
 		/* wait for POLLJIFFIES_NORMAL jiffies, or until
 		* someone wakes up poll_dev_wake_q,
 		* whichever comes first only do a wait when we have
