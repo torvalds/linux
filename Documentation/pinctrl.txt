@@ -163,8 +163,8 @@ static const char *foo_get_group_name(struct pinctrl_dev *pctldev,
 }
 
 static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-			       unsigned ** const pins,
-			       unsigned * const num_pins)
+			       const unsigned **pins,
+			       unsigned *num_pins)
 {
 	*pins = (unsigned *) foo_groups[selector].pins;
 	*num_pins = foo_groups[selector].num_pins;
