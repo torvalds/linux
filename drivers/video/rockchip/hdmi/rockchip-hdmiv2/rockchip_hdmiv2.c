@@ -416,7 +416,8 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 		rk_hdmi_property.feature |=
 				SUPPORT_4K |
 				SUPPORT_4K_4096 |
-				SUPPORT_YUV420;
+				SUPPORT_YUV420 |
+				SUPPORT_YCBCR_INPUT;
 	}
 	hdmi_dev->hdmi =
 		rockchip_hdmi_register(&rk_hdmi_property, &rk_hdmi_ops);
@@ -442,8 +443,7 @@ static int rockchip_hdmiv2_probe(struct platform_device *pdev)
 				    hdmi_dev->debugfs_dir,
 				    hdmi_dev, &rockchip_hdmiv2_reg_fops);
 #endif
-	if (rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
-		rk_display_device_enable(hdmi_dev->hdmi->ddev);
+	rk_display_device_enable(hdmi_dev->hdmi->ddev);
 
 #ifndef HDMI_INT_USE_POLL
 	/* get and request the IRQ */

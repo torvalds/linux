@@ -78,12 +78,6 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	DBG("%s", __func__);
 
 	video.vic = hdmi->vic & HDMI_VIC_MASK;
-	if (hdmi->vic & HDMI_VIDEO_YUV420)
-		video.color_input = HDMI_COLOR_YCBCR420;
-	else if (hdmi->edid.sink_hdmi == 0)
-		video.color_input = HDMI_COLOR_RGB_0_255;
-	else
-		video.color_input = HDMI_COLOR_YCBCR444;
 	video.sink_hdmi = hdmi->edid.sink_hdmi;
 	video.format_3d = hdmi->mode_3d;
 	/* For DVI, output RGB */
@@ -112,6 +106,16 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 	if (hdmi->vic & HDMI_VIDEO_YUV420)
 		video.color_output = HDMI_COLOR_YCBCR420;
 	pr_info("hdmi output corlor mode is %d\n", video.color_output);
+	video.color_input = HDMI_COLOR_RGB_0_255;
+	if (hdmi->property->feature & SUPPORT_YCBCR_INPUT) {
+		if (video.color_output == HDMI_COLOR_YCBCR444 ||
+		    video.color_output == HDMI_COLOR_YCBCR422)
+			video.color_input = HDMI_COLOR_YCBCR444;
+		else if (video.color_output == HDMI_COLOR_YCBCR420)
+			video.color_input = HDMI_COLOR_YCBCR420;
+	}
+	hdmi->colormode_input = video.color_input;
+	hdmi_set_lcdc(hdmi);
 	if (hdmi->ops->setvideo)
 		hdmi->ops->setvideo(hdmi, &video);
 }
@@ -211,7 +215,6 @@ static void hdmi_wq_insert(struct hdmi *hdmi)
 	hdmi_send_uevent(hdmi, KOBJ_ADD);
 	if (hdmi->enable) {
 		/*hdmi->autoset = 0;*/
-		hdmi_set_lcdc(hdmi);
 		hdmi_wq_set_video(hdmi);
 		#ifdef CONFIG_SWITCH
 		if ((hdmi->edid.baseaudio_support &&
@@ -347,9 +350,8 @@ static void hdmi_work_queue(struct work_struct *work)
 				msleep(2000);
 			else
 				msleep(1000);
-			hdmi_set_lcdc(hdmi);
-			hdmi_send_uevent(hdmi, KOBJ_CHANGE);
 			hdmi_wq_set_video(hdmi);
+			hdmi_send_uevent(hdmi, KOBJ_CHANGE);
 			hdmi_wq_set_audio(hdmi);
 			hdmi_wq_set_output(hdmi, hdmi->mute);
 			if (hdmi->ops->hdcp_cb)

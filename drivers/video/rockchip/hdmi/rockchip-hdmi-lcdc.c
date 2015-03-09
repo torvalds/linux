@@ -54,10 +54,10 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 
 	/* screen type & face */
 	screen->type = SCREEN_HDMI;
-	if (hdmi->edid.sink_hdmi)
-		screen->color_mode = COLOR_YCBCR;
-	else
+	if (hdmi->colormode_input == HDMI_COLOR_RGB_0_255)
 		screen->color_mode = COLOR_RGB;
+	else
+		screen->color_mode = COLOR_YCBCR;
 	if (hdmi->vic & HDMI_VIDEO_YUV420)
 		screen->face = OUT_YUV_420;
 	else
@@ -451,7 +451,7 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 			if (vic == hdmi_mode[i].vic ||
 			    vic == hdmi_mode[i].vic_2nd) {
 				if ((((feature & SUPPORT_TMDS_600M) == 0 &&
-				    !(modelist->vic & HDMI_VIDEO_YUV420)) ||
+				      !(modelist->vic & HDMI_VIDEO_YUV420)) ||
 				    edid->maxtmdsclock < 340000000) &&
 				    hdmi_mode[i].mode.pixclock > 340000000)
 					continue;
