@@ -96,26 +96,12 @@ static int __init parse_options(struct earlycon_device *device, char *options)
 	return 0;
 }
 
-int __init setup_earlycon(char *buf, const char *match,
-			  int (*setup)(struct earlycon_device *, const char *))
+
+static int __init
+register_earlycon(char *buf, int (*setup)(struct earlycon_device *, const char *))
 {
 	int err;
-	size_t len;
 	struct uart_port *port = &early_console_dev.port;
-
-	if (!buf || !match || !setup)
-		return 0;
-
-	len = strlen(match);
-	if (strncmp(buf, match, len))
-		return 0;
-
-	if (buf[len]) {
-		if (buf[len] != ',')
-			return 0;
-		buf += len + 1;
-	} else
-		buf = NULL;
 
 	/* On parsing error, pass the options buf to the setup function */
 	if (buf && !parse_options(&early_console_dev, buf))
@@ -134,6 +120,28 @@ int __init setup_earlycon(char *buf, const char *match,
 
 	register_console(early_console_dev.con);
 	return 0;
+}
+
+int __init setup_earlycon(char *buf, const char *match,
+			  int (*setup)(struct earlycon_device *, const char *))
+{
+	size_t len;
+
+	if (!buf || !match || !setup)
+		return 0;
+
+	len = strlen(match);
+	if (strncmp(buf, match, len))
+		return 0;
+
+	if (buf[len]) {
+		if (buf[len] != ',')
+			return 0;
+		buf += len + 1;
+	} else
+		buf = NULL;
+
+	return register_earlycon(buf, setup);
 }
 
 int __init of_setup_earlycon(unsigned long addr,
