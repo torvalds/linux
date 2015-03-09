@@ -15,6 +15,7 @@
 #include <linux/clk/at91_pmc.h>
 #include <mach/hardware.h>
 #include <mach/at91_ramc.h>
+#include "pm.h"
 
 #define	SRAMC_SELF_FRESH_ACTIVE		0x01
 #define	SRAMC_SELF_FRESH_EXIT		0x00
@@ -78,11 +79,21 @@ ENTRY(at91_slow_clock)
 	str	r0, .pmc_base
 	str	r1, .sramc_base
 	str	r2, .sramc1_base
-	str	r3, .memtype
+
+	and	r0, r3, #AT91_PM_MEMTYPE_MASK
+	str	r0, .memtype
+
+	lsr	r0, r3, #AT91_PM_MODE_OFFSET
+	and	r0, r0, #AT91_PM_MODE_MASK
+	str	r0, .pm_mode
 
 	/* Active the self-refresh mode */
 	mov	r0, #SRAMC_SELF_FRESH_ACTIVE
 	bl	at91_sramc_self_refresh
+
+	ldr	r0, .pm_mode
+	tst	r0, #AT91_PM_SLOW_CLOCK
+	beq	skip_disable_main_clock
 
 	ldr	pmc, .pmc_base
 
@@ -112,8 +123,17 @@ ENTRY(at91_slow_clock)
 	orr	tmp1, tmp1, #AT91_PMC_KEY
 	str	tmp1, [pmc, #AT91_CKGR_MOR]
 
+skip_disable_main_clock:
+	ldr	pmc, .pmc_base
+
 	/* Wait for interrupt */
 	mcr	p15, 0, tmp1, c7, c0, 4
+
+	ldr	r0, .pm_mode
+	tst	r0, #AT91_PM_SLOW_CLOCK
+	beq	skip_enable_main_clock
+
+	ldr	pmc, .pmc_base
 
 	/* Turn on the main oscillator */
 	ldr	tmp1, [pmc, #AT91_CKGR_MOR]
@@ -143,6 +163,7 @@ ENTRY(at91_slow_clock)
 
 	wait_mckrdy
 
+skip_enable_main_clock:
 	/* Exit the self-refresh mode */
 	mov	r0, #SRAMC_SELF_FRESH_EXIT
 	bl	at91_sramc_self_refresh
@@ -283,6 +304,8 @@ ENDPROC(at91_sramc_self_refresh)
 .sramc1_base:
 	.word 0
 .memtype:
+	.word 0
+.pm_mode:
 	.word 0
 .saved_mckr:
 	.word 0

@@ -128,62 +128,55 @@ extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0,
 			    void __iomem *ramc1, int memctrl);
 extern u32 at91_slow_clock_sz;
 
+static void at91_pm_suspend(suspend_state_t state)
+{
+	unsigned int pm_data = at91_pm_data.memctrl;
+
+	pm_data |= (state == PM_SUSPEND_MEM) ?
+				AT91_PM_MODE(AT91_PM_SLOW_CLOCK) : 0;
+
+	slow_clock(at91_pmc_base, at91_ramc_base[0],
+			at91_ramc_base[1], pm_data);
+}
+
 static int at91_pm_enter(suspend_state_t state)
 {
 	at91_pinctrl_gpio_suspend();
 
 	switch (state) {
+	/*
+	 * Suspend-to-RAM is like STANDBY plus slow clock mode, so
+	 * drivers must suspend more deeply, the master clock switches
+	 * to the clk32k and turns off the main oscillator
+	 */
+	case PM_SUSPEND_MEM:
 		/*
-		 * Suspend-to-RAM is like STANDBY plus slow clock mode, so
-		 * drivers must suspend more deeply:  only the master clock
-		 * controller may be using the main oscillator.
+		 * Ensure that clocks are in a valid state.
 		 */
-		case PM_SUSPEND_MEM:
-			/*
-			 * Ensure that clocks are in a valid state.
-			 */
-			if (!at91_pm_verify_clocks())
-				goto error;
-
-			/*
-			 * Enter slow clock mode by switching over to clk32k and
-			 * turning off the main oscillator; reverse on wakeup.
-			 */
-			if (slow_clock) {
-				slow_clock(at91_pmc_base, at91_ramc_base[0],
-					   at91_ramc_base[1],
-					   at91_pm_data.memctrl);
-				break;
-			} else {
-				pr_info("AT91: PM - no slow clock mode enabled ...\n");
-				/* FALLTHROUGH leaving master clock alone */
-			}
-
-		/*
-		 * STANDBY mode has *all* drivers suspended; ignores irqs not
-		 * marked as 'wakeup' event sources; and reduces DRAM power.
-		 * But otherwise it's identical to PM_SUSPEND_ON:  cpu idle, and
-		 * nothing fancy done with main or cpu clocks.
-		 */
-		case PM_SUSPEND_STANDBY:
-			/*
-			 * NOTE: the Wait-for-Interrupt instruction needs to be
-			 * in icache so no SDRAM accesses are needed until the
-			 * wakeup IRQ occurs and self-refresh is terminated.
-			 * For ARM 926 based chips, this requirement is weaker
-			 * as at91sam9 can access a RAM in self-refresh mode.
-			 */
-			if (at91_pm_standby)
-				at91_pm_standby();
-			break;
-
-		case PM_SUSPEND_ON:
-			cpu_do_idle();
-			break;
-
-		default:
-			pr_debug("AT91: PM - bogus suspend state %d\n", state);
+		if (!at91_pm_verify_clocks())
 			goto error;
+
+		at91_pm_suspend(state);
+
+		break;
+
+	/*
+	 * STANDBY mode has *all* drivers suspended; ignores irqs not
+	 * marked as 'wakeup' event sources; and reduces DRAM power.
+	 * But otherwise it's identical to PM_SUSPEND_ON: cpu idle, and
+	 * nothing fancy done with main or cpu clocks.
+	 */
+	case PM_SUSPEND_STANDBY:
+		at91_pm_suspend(state);
+		break;
+
+	case PM_SUSPEND_ON:
+		cpu_do_idle();
+		break;
+
+	default:
+		pr_debug("AT91: PM - bogus suspend state %d\n", state);
+		goto error;
 	}
 
 error:
