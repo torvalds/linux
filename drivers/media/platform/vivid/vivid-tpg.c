@@ -1514,6 +1514,35 @@ static int tpg_pattern_avg(const struct tpg_data *tpg,
 	return -1;
 }
 
+/*
+ * This struct contains common parameters used by both the drawing of the
+ * test pattern and the drawing of the extras (borders, square, etc.)
+ */
+struct tpg_draw_params {
+	/* common data */
+	bool is_tv;
+	bool is_60hz;
+	unsigned twopixsize;
+	unsigned img_width;
+	unsigned stride;
+	unsigned hmax;
+	unsigned frame_line;
+	unsigned frame_line_next;
+
+	/* test pattern */
+	unsigned mv_hor_old;
+	unsigned mv_hor_new;
+	unsigned mv_vert_old;
+	unsigned mv_vert_new;
+
+	/* extras */
+	unsigned wss_width;
+	unsigned wss_random_offset;
+	unsigned sav_eav_f;
+	unsigned left_pillar_width;
+	unsigned right_pillar_start;
+};
+
 void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 {
 	bool is_tv = std;
