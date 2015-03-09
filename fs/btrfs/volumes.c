@@ -1940,6 +1940,9 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	mutex_lock(&uuid_mutex);
 	WARN_ON(!tgtdev);
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+
+	btrfs_kobj_rm_device(fs_info->fs_devices, tgtdev);
+
 	if (tgtdev->bdev) {
 		btrfs_scratch_superblock(tgtdev);
 		fs_info->fs_devices->open_devices--;
