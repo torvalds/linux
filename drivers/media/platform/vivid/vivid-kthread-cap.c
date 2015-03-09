@@ -229,6 +229,20 @@ static void vivid_precalc_copy_rects(struct vivid_dev *dev)
 		dev->loop_vid_overlay_cap.left, dev->loop_vid_overlay_cap.top);
 }
 
+static void *plane_vaddr(struct tpg_data *tpg, struct vivid_buffer *buf,
+			 unsigned p, unsigned bpl[TPG_MAX_PLANES], unsigned h)
+{
+	unsigned i;
+	void *vbuf;
+
+	if (p == 0 || tpg_g_buffers(tpg) > 1)
+		return vb2_plane_vaddr(&buf->vb, p);
+	vbuf = vb2_plane_vaddr(&buf->vb, 0);
+	for (i = 0; i < p; i++)
+		vbuf += bpl[i] * h / tpg->vdownsampling[i];
+	return vbuf;
+}
+
 static int vivid_copy_buffer(struct vivid_dev *dev, unsigned p, u8 *vcapbuf,
 		struct vivid_buffer *vid_cap_buf)
 {
@@ -269,8 +283,10 @@ static int vivid_copy_buffer(struct vivid_dev *dev, unsigned p, u8 *vcapbuf,
 
 	vid_cap_buf->vb.v4l2_buf.field = vid_out_buf->vb.v4l2_buf.field;
 
-	voutbuf = vb2_plane_vaddr(&vid_out_buf->vb, p) +
-				  vid_out_buf->vb.v4l2_planes[p].data_offset;
+	voutbuf = plane_vaddr(tpg, vid_out_buf, p,
+			      dev->bytesperline_out, dev->fmt_out_rect.height);
+	if (p < dev->fmt_out->buffers)
+		voutbuf += vid_out_buf->vb.v4l2_planes[p].data_offset;
 	voutbuf += dev->loop_vid_out.left * pixsize + dev->loop_vid_out.top * stride_out;
 	vcapbuf += dev->compose_cap.left * pixsize + dev->compose_cap.top * stride_cap;
 
@@ -395,6 +411,7 @@ update_vid_out_y:
 
 static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 {
+	struct tpg_data *tpg = &dev->tpg;
 	unsigned factor = V4L2_FIELD_HAS_T_OR_B(dev->field_cap) ? 2 : 1;
 	unsigned line_height = 16 / factor;
 	bool is_tv = vivid_is_sdtv_cap(dev);
@@ -436,28 +453,29 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 	} else {
 		buf->vb.v4l2_buf.field = dev->field_cap;
 	}
-	tpg_s_field(&dev->tpg, buf->vb.v4l2_buf.field,
+	tpg_s_field(tpg, buf->vb.v4l2_buf.field,
 		    dev->field_cap == V4L2_FIELD_ALTERNATE);
-	tpg_s_perc_fill_blank(&dev->tpg, dev->must_blank[buf->vb.v4l2_buf.index]);
+	tpg_s_perc_fill_blank(tpg, dev->must_blank[buf->vb.v4l2_buf.index]);
 
 	vivid_precalc_copy_rects(dev);
 
-	for (p = 0; p < tpg_g_planes(&dev->tpg); p++) {
-		void *vbuf = vb2_plane_vaddr(&buf->vb, p);
+	for (p = 0; p < tpg_g_planes(tpg); p++) {
+		void *vbuf = plane_vaddr(tpg, buf, p,
+					 tpg->bytesperline, tpg->buf_height);
 
 		/*
 		 * The first plane of a multiplanar format has a non-zero
 		 * data_offset. This helps testing whether the application
 		 * correctly supports non-zero data offsets.
 		 */
-		if (dev->fmt_cap->data_offset[p]) {
+		if (p < tpg_g_buffers(tpg) && dev->fmt_cap->data_offset[p]) {
 			memset(vbuf, dev->fmt_cap->data_offset[p] & 0xff,
 			       dev->fmt_cap->data_offset[p]);
 			vbuf += dev->fmt_cap->data_offset[p];
 		}
-		tpg_calc_text_basep(&dev->tpg, basep, p, vbuf);
+		tpg_calc_text_basep(tpg, basep, p, vbuf);
 		if (!is_loop || vivid_copy_buffer(dev, p, vbuf, buf))
-			tpg_fillbuffer(&dev->tpg, vivid_get_std_cap(dev), p, vbuf);
+			tpg_fill_plane_buffer(tpg, vivid_get_std_cap(dev), p, vbuf);
 	}
 	dev->must_blank[buf->vb.v4l2_buf.index] = false;
 
@@ -476,12 +494,12 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 				(dev->field_cap == V4L2_FIELD_ALTERNATE) ?
 					(buf->vb.v4l2_buf.field == V4L2_FIELD_TOP ?
 					 " top" : " bottom") : "");
-		tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 	}
 	if (dev->osd_mode == 0) {
 		snprintf(str, sizeof(str), " %dx%d, input %d ",
 				dev->src_rect.width, dev->src_rect.height, dev->input);
-		tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 
 		gain = v4l2_ctrl_g_ctrl(dev->gain);
 		mutex_lock(dev->ctrl_hdl_user_vid.lock);
@@ -491,38 +509,38 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 			dev->contrast->cur.val,
 			dev->saturation->cur.val,
 			dev->hue->cur.val);
-		tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		snprintf(str, sizeof(str),
 			" autogain %d, gain %3d, alpha 0x%02x ",
 			dev->autogain->cur.val, gain, dev->alpha->cur.val);
 		mutex_unlock(dev->ctrl_hdl_user_vid.lock);
-		tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		mutex_lock(dev->ctrl_hdl_user_aud.lock);
 		snprintf(str, sizeof(str),
 			" volume %3d, mute %d ",
 			dev->volume->cur.val, dev->mute->cur.val);
 		mutex_unlock(dev->ctrl_hdl_user_aud.lock);
-		tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		mutex_lock(dev->ctrl_hdl_user_gen.lock);
 		snprintf(str, sizeof(str), " int32 %d, int64 %lld, bitmask %08x ",
 			dev->int32->cur.val,
 			*dev->int64->p_cur.p_s64,
 			dev->bitmask->cur.val);
-		tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		snprintf(str, sizeof(str), " boolean %d, menu %s, string \"%s\" ",
 			dev->boolean->cur.val,
 			dev->menu->qmenu[dev->menu->cur.val],
 			dev->string->p_cur.p_char);
-		tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		snprintf(str, sizeof(str), " integer_menu %lld, value %d ",
 			dev->int_menu->qmenu_int[dev->int_menu->cur.val],
 			dev->int_menu->cur.val);
 		mutex_unlock(dev->ctrl_hdl_user_gen.lock);
-		tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+		tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		if (dev->button_pressed) {
 			dev->button_pressed--;
 			snprintf(str, sizeof(str), " button pressed!");
-			tpg_gen_text(&dev->tpg, basep, line++ * line_height, 16, str);
+			tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
 		}
 	}
 

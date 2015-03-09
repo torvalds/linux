@@ -334,7 +334,7 @@ struct vivid_dev {
 	u32				ycbcr_enc_out;
 	u32				quantization_out;
 	u32				service_set_out;
-	u32				bytesperline_out[TPG_MAX_PLANES];
+	unsigned			bytesperline_out[TPG_MAX_PLANES];
 	unsigned			tv_field_out;
 	unsigned			tv_audio_output;
 	bool				vbi_out_have_wss;

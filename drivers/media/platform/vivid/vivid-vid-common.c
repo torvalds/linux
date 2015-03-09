@@ -234,7 +234,7 @@ const struct vivid_fmt *vivid_get_format(struct vivid_dev *dev, u32 pixelformat)
 	for (k = 0; k < ARRAY_SIZE(vivid_formats); k++) {
 		fmt = &vivid_formats[k];
 		if (fmt->fourcc == pixelformat)
-			if (fmt->planes == 1 || dev->multiplanar)
+			if (fmt->buffers == 1 || dev->multiplanar)
 				return fmt;
 	}
 
