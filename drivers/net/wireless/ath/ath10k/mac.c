@@ -4029,6 +4029,11 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		}
 	}
 
+	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+		flags |= WMI_KEY_PAIRWISE;
+	else
+		flags |= WMI_KEY_GROUP;
+
 	if (is_wep) {
 		if (cmd == SET_KEY)
 			arvif->wep_keys[key->keyidx] = key;
@@ -4054,29 +4059,24 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		 */
 		if (cmd == SET_KEY && arvif->def_wep_key_idx == -1)
 			flags |= WMI_KEY_TX_USAGE;
-	}
 
-	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
-		flags |= WMI_KEY_PAIRWISE;
-	else
-		flags |= WMI_KEY_GROUP;
-
-	/* mac80211 uploads static WEP keys as groupwise while fw/hw requires
-	 * pairwise keys for non-self peers, i.e. BSSID in STA mode and
-	 * associated stations in AP/IBSS.
-	 *
-	 * Static WEP keys for peer_addr=vif->addr and 802.1X WEP keys work
-	 * fine when mapped directly from mac80211.
-	 *
-	 * Note: When installing first static WEP groupwise key (which should
-	 * be pairwise) def_wep_key_idx isn't known yet (it's equal to -1).
-	 * Since .set_default_unicast_key is called only for static WEP it's
-	 * used to re-upload the key as pairwise.
-	 */
-	if (arvif->def_wep_key_idx >= 0 &&
-	    memcmp(peer_addr, arvif->vif->addr, ETH_ALEN)) {
-		flags &= ~WMI_KEY_GROUP;
-		flags |= WMI_KEY_PAIRWISE;
+		/* mac80211 uploads static WEP keys as groupwise while fw/hw
+		 * requires pairwise keys for non-self peers, i.e. BSSID in STA
+		 * mode and associated stations in AP/IBSS.
+		 *
+		 * Static WEP keys for peer_addr=vif->addr and 802.1X WEP keys
+		 * work fine when mapped directly from mac80211.
+		 *
+		 * Note: When installing first static WEP groupwise key (which
+		 * should be pairwise) def_wep_key_idx isn't known yet (it's
+		 * equal to -1).  Since .set_default_unicast_key is called only
+		 * for static WEP it's used to re-upload the key as pairwise.
+		 */
+		if (arvif->def_wep_key_idx >= 0 &&
+		    memcmp(peer_addr, arvif->vif->addr, ETH_ALEN)) {
+			flags &= ~WMI_KEY_GROUP;
+			flags |= WMI_KEY_PAIRWISE;
+		}
 	}
 
 	ret = ath10k_install_key(arvif, key, cmd, peer_addr, flags);
