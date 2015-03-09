@@ -513,9 +513,9 @@ struct em28xx_v4l2 {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_clk *clk;
 
-	struct video_device *vdev;
-	struct video_device *vbi_dev;
-	struct video_device *radio_dev;
+	struct video_device vdev;
+	struct video_device vbi_dev;
+	struct video_device radio_dev;
 
 	/* Videobuf2 */
 	struct vb2_queue vb_vidq;
