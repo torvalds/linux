@@ -896,8 +896,12 @@ bool intel_crtc_active(struct drm_crtc *crtc)
 	 *
 	 * We can ditch the crtc->primary->fb check as soon as we can
 	 * properly reconstruct framebuffers.
+	 *
+	 * FIXME: The intel_crtc->active here should be switched to
+	 * crtc->state->active once we have proper CRTC states wired up
+	 * for atomic.
 	 */
-	return intel_crtc->active && crtc->primary->fb &&
+	return intel_crtc->active && crtc->primary->state->fb &&
 		intel_crtc->config->base.adjusted_mode.crtc_clock;
 }
 
