@@ -733,6 +733,22 @@
 		power-domains = <&gsc_pd>;
 	};
 
+	jpeg_0: jpeg@11F50000 {
+		compatible = "samsung,exynos5420-jpeg";
+		reg = <0x11F50000 0x1000>;
+		interrupts = <0 89 0>;
+		clock-names = "jpeg";
+		clocks = <&clock CLK_JPEG>;
+	};
+
+	jpeg_1: jpeg@11F60000 {
+		compatible = "samsung,exynos5420-jpeg";
+		reg = <0x11F60000 0x1000>;
+		interrupts = <0 168 0>;
+		clock-names = "jpeg";
+		clocks = <&clock CLK_JPEG2>;
+	};
+
 	pmu_system_controller: system-controller@10040000 {
 		compatible = "samsung,exynos5420-pmu", "syscon";
 		reg = <0x10040000 0x5000>;
