@@ -238,8 +238,7 @@ nfs4_delete_deviceid(const struct pnfs_layoutdriver_type *ld,
 	spin_unlock(&nfs4_deviceid_lock);
 
 	/* balance the initial ref set in pnfs_insert_deviceid */
-	if (atomic_dec_and_test(&d->ref))
-		d->ld->free_deviceid_node(d);
+	nfs4_put_deviceid_node(d);
 }
 EXPORT_SYMBOL_GPL(nfs4_delete_deviceid);
 
@@ -323,8 +322,7 @@ _deviceid_purge_client(const struct nfs_client *clp, long hash)
 	while (!hlist_empty(&tmp)) {
 		d = hlist_entry(tmp.first, struct nfs4_deviceid_node, tmpnode);
 		hlist_del(&d->tmpnode);
-		if (atomic_dec_and_test(&d->ref))
-			d->ld->free_deviceid_node(d);
+		nfs4_put_deviceid_node(d);
 	}
 }
 
