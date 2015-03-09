@@ -1661,6 +1661,8 @@ static int soc_of_bind(struct soc_camera_host *ici,
 	ret = v4l2_async_notifier_register(&ici->v4l2_dev, &sasc->notifier);
 	if (!ret)
 		return 0;
+
+	v4l2_clk_unregister(icd->clk);
 eclkreg:
 	icd->clk = NULL;
 	platform_device_del(sasc->pdev);
