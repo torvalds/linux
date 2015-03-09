@@ -2988,10 +2988,8 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 		return NULL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		rval = -ENOMEM;
+	if (!pdata)
 		goto out_err;
-	}
 
 	v4l2_of_parse_endpoint(ep, &bus_cfg);
 
@@ -3001,7 +2999,6 @@ static struct smiapp_platform_data *smiapp_get_pdata(struct device *dev)
 		break;
 		/* FIXME: add CCP2 support. */
 	default:
-		rval = -EINVAL;
 		goto out_err;
 	}
 
