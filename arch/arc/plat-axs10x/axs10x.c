@@ -1,5 +1,5 @@
 /*
- * AXS101 Software Development Platform
+ * AXS101/AXS103 Software Development Platform
  *
  * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
  *
@@ -15,8 +15,10 @@
  */
 
 #include <linux/of_platform.h>
-#include <asm/mach_desc.h>
+#include <asm/clk.h>
 #include <asm/io.h>
+#include <asm/mach_desc.h>
+#include <asm/mcip.h>
 
 #define AXS_MB_CGU		0xE0010000
 #define AXS_MB_CREG		0xE0011000
@@ -28,14 +30,6 @@
 
 #define AXC001_CREG		0xF0001000
 #define AXC001_GPIO_INTC	0xF0003000
-
-#define CREG_CPU_ADDR_770	(AXC001_CREG + 0x20)
-#define CREG_CPU_ADDR_TUNN	(AXC001_CREG + 0x60)
-#define CREG_CPU_ADDR_770_UPD	(AXC001_CREG + 0x34)
-#define CREG_CPU_ADDR_TUNN_UPD	(AXC001_CREG + 0x74)
-
-#define CREG_CPU_ARC770_IRQ_MUX	(AXC001_CREG + 0x114)
-#define CREG_CPU_GPIO_UART_MUX	(AXC001_CREG + 0x120)
 
 static void __init axs10x_enable_gpio_intc_wire(void)
 {
@@ -83,6 +77,22 @@ static void __init axs10x_enable_gpio_intc_wire(void)
 	iowrite32(1 << MB_TO_GPIO_IRQ, (void __iomem *) GPIO_INTEN);
 }
 
+static inline void __init
+write_cgu_reg(uint32_t value, void __iomem *reg, void __iomem *lock_reg)
+{
+	unsigned int loops = 128 * 1024, ctr;
+
+	iowrite32(value, reg);
+
+	ctr = loops;
+	while (((ioread32(lock_reg) & 1) == 1) && ctr--) /* wait for unlock */
+		cpu_relax();
+
+	ctr = loops;
+	while (((ioread32(lock_reg) & 1) == 0) && ctr--) /* wait for re-lock */
+		cpu_relax();
+}
+
 static void __init axs10x_print_board_ver(unsigned int creg, const char *str)
 {
 	union ver {
@@ -117,6 +127,16 @@ static void __init axs10x_early_init(void)
 	scnprintf(mb, 32, "MainBoard v%d", mb_rev);
 	axs10x_print_board_ver(CREG_MB_VER, mb);
 }
+
+#ifdef CONFIG_AXS101
+
+#define CREG_CPU_ADDR_770	(AXC001_CREG + 0x20)
+#define CREG_CPU_ADDR_TUNN	(AXC001_CREG + 0x60)
+#define CREG_CPU_ADDR_770_UPD	(AXC001_CREG + 0x34)
+#define CREG_CPU_ADDR_TUNN_UPD	(AXC001_CREG + 0x74)
+
+#define CREG_CPU_ARC770_IRQ_MUX	(AXC001_CREG + 0x114)
+#define CREG_CPU_GPIO_UART_MUX	(AXC001_CREG + 0x120)
 
 /*
  * Set up System Memory Map for ARC cpu / peripherals controllers
@@ -287,6 +307,145 @@ static void __init axs101_early_init(void)
 	axs10x_early_init();
 }
 
+#endif	/* CONFIG_AXS101 */
+
+#ifdef CONFIG_AXS103
+
+#define AXC003_CGU	0xF0000000
+#define AXC003_CREG	0xF0001000
+#define AXC003_MST_AXI_TUNNEL	0
+#define AXC003_MST_HS38		1
+
+#define CREG_CPU_AXI_M0_IRQ_MUX	(AXC003_CREG + 0x440)
+#define CREG_CPU_GPIO_UART_MUX	(AXC003_CREG + 0x480)
+#define CREG_CPU_TUN_IO_CTRL	(AXC003_CREG + 0x494)
+
+
+union pll_reg {
+	struct {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		unsigned int pad:17, noupd:1, bypass:1, edge:1, high:6, low:6;
+#else
+		unsigned int low:6, high:6, edge:1, bypass:1, noupd:1, pad:17;
+#endif
+	};
+	unsigned int val;
+};
+
+static unsigned int __init axs103_get_freq(void)
+{
+	union pll_reg idiv, fbdiv, odiv;
+	unsigned int f = 33333333;
+
+	idiv.val = ioread32((void __iomem *)AXC003_CGU + 0x80 + 0);
+	fbdiv.val = ioread32((void __iomem *)AXC003_CGU + 0x80 + 4);
+	odiv.val = ioread32((void __iomem *)AXC003_CGU + 0x80 + 8);
+
+	if (idiv.bypass != 1)
+		f = f / (idiv.low + idiv.high);
+
+	if (fbdiv.bypass != 1)
+		f = f * (fbdiv.low + fbdiv.high);
+
+	if (odiv.bypass != 1)
+		f = f / (odiv.low + odiv.high);
+
+	f = (f + 500000) / 1000000; /* Rounding */
+	return f;
+}
+
+static inline unsigned int __init encode_div(unsigned int id, int upd)
+{
+	union pll_reg div;
+
+	div.val = 0;
+
+	div.noupd = !upd;
+	div.bypass = id == 1 ? 1 : 0;
+	div.edge = (id%2 == 0) ? 0 : 1;  /* 0 = rising */
+	div.low = (id%2 == 0) ? id >> 1 : (id >> 1)+1;
+	div.high = id >> 1;
+
+	return div.val;
+}
+
+noinline static void __init
+axs103_set_freq(unsigned int id, unsigned int fd, unsigned int od)
+{
+	write_cgu_reg(encode_div(id, 0),
+		      (void __iomem *)AXC003_CGU + 0x80 + 0,
+		      (void __iomem *)AXC003_CGU + 0x110);
+
+	write_cgu_reg(encode_div(fd, 0),
+		      (void __iomem *)AXC003_CGU + 0x80 + 4,
+		      (void __iomem *)AXC003_CGU + 0x110);
+
+	write_cgu_reg(encode_div(od, 1),
+		      (void __iomem *)AXC003_CGU + 0x80 + 8,
+		      (void __iomem *)AXC003_CGU + 0x110);
+}
+
+static void __init axs103_early_init(void)
+{
+	switch (arc_get_core_freq()/1000000) {
+	case 33:
+		axs103_set_freq(1, 1, 1);
+		break;
+	case 50:
+		axs103_set_freq(1, 30, 20);
+		break;
+	case 75:
+		axs103_set_freq(2, 45, 10);
+		break;
+	case 90:
+		axs103_set_freq(2, 54, 10);
+		break;
+	case 100:
+		axs103_set_freq(1, 30, 10);
+		break;
+	case 125:
+		axs103_set_freq(2, 45,  6);
+		break;
+	default:
+		/*
+		 * In this case, core_frequency derived from
+		 * DT "clock-frequency" might not match with board value.
+		 * Hence update it to match the board value.
+		 */
+		arc_set_core_freq(axs103_get_freq() * 1000000);
+		break;
+	}
+
+	pr_info("Freq is %dMHz\n", axs103_get_freq());
+
+	/* Memory maps already config in pre-bootloader */
+
+	/* set GPIO mux to UART */
+	iowrite32(0x01, (void __iomem *) CREG_CPU_GPIO_UART_MUX);
+
+	iowrite32((0x00100000U | 0x000C0000U | 0x00003322U),
+		  (void __iomem *) CREG_CPU_TUN_IO_CTRL);
+
+	/* Set up the AXS_MB interrupt system.*/
+	iowrite32(12, (void __iomem *) (CREG_CPU_AXI_M0_IRQ_MUX
+					 + (AXC003_MST_HS38 << 2)));
+
+	/* connect ICTL - Main Board with GPIO line */
+	iowrite32(0x01, (void __iomem *) CREG_MB_IRQ_MUX);
+
+	axs10x_print_board_ver(AXC003_CREG + 4088, "AXC003 CPU Card");
+
+	axs10x_early_init();
+
+#ifdef CONFIG_ARC_MCIP
+	/* No Hardware init, but filling the smp ops callbacks */
+	mcip_init_early_smp();
+#endif
+}
+#endif
+
+#ifdef CONFIG_AXS101
+
 static const char *axs101_compat[] __initconst = {
 	"snps,axs101",
 	NULL,
@@ -296,3 +455,22 @@ MACHINE_START(AXS101, "axs101")
 	.dt_compat	= axs101_compat,
 	.init_early	= axs101_early_init,
 MACHINE_END
+
+#endif	/* CONFIG_AXS101 */
+
+#ifdef CONFIG_AXS103
+
+static const char *axs103_compat[] __initconst = {
+	"snps,axs103",
+	NULL,
+};
+
+MACHINE_START(AXS103, "axs103")
+	.dt_compat	= axs103_compat,
+	.init_early	= axs103_early_init,
+#ifdef CONFIG_ARC_MCIP
+	.init_smp	= mcip_init_smp,
+#endif
+MACHINE_END
+
+#endif	/* CONFIG_AXS103 */
