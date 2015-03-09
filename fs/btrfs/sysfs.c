@@ -645,6 +645,18 @@ int btrfs_kobj_rm_device(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+int btrfs_sysfs_add_device(struct btrfs_fs_info *fs_info)
+{
+	if (!fs_info->device_dir_kobj)
+		fs_info->device_dir_kobj = kobject_create_and_add("devices",
+						&fs_info->super_kobj);
+
+	if (!fs_info->device_dir_kobj)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int btrfs_kobj_add_device(struct btrfs_fs_info *fs_info,
 		struct btrfs_device *one_device)
 {
@@ -652,12 +664,9 @@ int btrfs_kobj_add_device(struct btrfs_fs_info *fs_info,
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *dev;
 
-	if (!fs_info->device_dir_kobj)
-		fs_info->device_dir_kobj = kobject_create_and_add("devices",
-						&fs_info->super_kobj);
-
-	if (!fs_info->device_dir_kobj)
-		return -ENOMEM;
+	error = btrfs_sysfs_add_device(fs_info);
+	if (error)
+		return error;
 
 	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
 		struct hd_struct *disk;
