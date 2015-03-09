@@ -61,6 +61,7 @@ struct mdp5_smp_block {
 struct mdp5_cfg_hw {
 	char  *name;
 
+	struct mdp5_sub_block mdp;
 	struct mdp5_smp_block smp;
 	struct mdp5_ctl_block ctl;
 	struct mdp5_sub_block pipe_vig;

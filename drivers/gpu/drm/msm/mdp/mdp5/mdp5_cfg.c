@@ -24,6 +24,10 @@ const struct mdp5_cfg_hw *mdp5_cfg = NULL;
 
 const struct mdp5_cfg_hw msm8x74_config = {
 	.name = "msm8x74",
+	.mdp = {
+		.count = 1,
+		.base = { 0x00100 },
+	},
 	.smp = {
 		.mmb_count = 22,
 		.mmb_size = 4096,
@@ -75,6 +79,10 @@ const struct mdp5_cfg_hw msm8x74_config = {
 
 const struct mdp5_cfg_hw apq8084_config = {
 	.name = "apq8084",
+	.mdp = {
+		.count = 1,
+		.base = { 0x00100 },
+	},
 	.smp = {
 		.mmb_count = 44,
 		.mmb_size = 8192,

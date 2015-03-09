@@ -58,7 +58,7 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	 */
 
 	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
-	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, 0);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_DISP_INTF_SEL(0), 0);
 	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
 
 	mdp5_ctlm_hw_reset(mdp5_kms->ctlm);
@@ -296,11 +296,11 @@ static void read_hw_revision(struct mdp5_kms *mdp5_kms,
 	uint32_t version;
 
 	mdp5_enable(mdp5_kms);
-	version = mdp5_read(mdp5_kms, REG_MDP5_MDP_VERSION);
+	version = mdp5_read(mdp5_kms, REG_MDSS_HW_VERSION);
 	mdp5_disable(mdp5_kms);
 
-	*major = FIELD(version, MDP5_MDP_VERSION_MAJOR);
-	*minor = FIELD(version, MDP5_MDP_VERSION_MINOR);
+	*major = FIELD(version, MDSS_HW_VERSION_MAJOR);
+	*minor = FIELD(version, MDSS_HW_VERSION_MINOR);
 
 	DBG("MDP5 version v%d.%d", *major, *minor);
 }
@@ -343,6 +343,7 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 
 	mdp5_kms->dev = dev;
 
+	/* mdp5_kms->mmio actually represents the MDSS base address */
 	mdp5_kms->mmio = msm_ioremap(pdev, "mdp_phys", "MDP5");
 	if (IS_ERR(mdp5_kms->mmio)) {
 		ret = PTR_ERR(mdp5_kms->mmio);

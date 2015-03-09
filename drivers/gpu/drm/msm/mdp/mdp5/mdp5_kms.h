@@ -54,7 +54,7 @@ struct mdp5_kms {
 
 	/*
 	 * lock to protect access to global resources: ie., following register:
-	 *	- REG_MDP5_DISP_INTF_SEL
+	 *	- REG_MDP5_MDP_DISP_INTF_SEL
 	 */
 	spinlock_t resource_lock;
 

@@ -43,7 +43,7 @@
  *     set.
  *
  *  2) mdp5_smp_configure():
- *     As hw is programmed, before FLUSH, MDP5_SMP_ALLOC registers
+ *     As hw is programmed, before FLUSH, MDP5_MDP_SMP_ALLOC registers
  *     are configured for the union(pending, inuse)
  *
  *  3) mdp5_smp_commit():
@@ -237,25 +237,25 @@ static void update_smp_state(struct mdp5_smp *smp,
 		int idx = blk / 3;
 		int fld = blk % 3;
 
-		val = mdp5_read(mdp5_kms, REG_MDP5_SMP_ALLOC_W_REG(idx));
+		val = mdp5_read(mdp5_kms, REG_MDP5_MDP_SMP_ALLOC_W_REG(0, idx));
 
 		switch (fld) {
 		case 0:
-			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT0__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT0(cid);
+			val &= ~MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0__MASK;
+			val |= MDP5_MDP_SMP_ALLOC_W_REG_CLIENT0(cid);
 			break;
 		case 1:
-			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT1__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT1(cid);
+			val &= ~MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1__MASK;
+			val |= MDP5_MDP_SMP_ALLOC_W_REG_CLIENT1(cid);
 			break;
 		case 2:
-			val &= ~MDP5_SMP_ALLOC_W_REG_CLIENT2__MASK;
-			val |= MDP5_SMP_ALLOC_W_REG_CLIENT2(cid);
+			val &= ~MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2__MASK;
+			val |= MDP5_MDP_SMP_ALLOC_W_REG_CLIENT2(cid);
 			break;
 		}
 
-		mdp5_write(mdp5_kms, REG_MDP5_SMP_ALLOC_W_REG(idx), val);
-		mdp5_write(mdp5_kms, REG_MDP5_SMP_ALLOC_R_REG(idx), val);
+		mdp5_write(mdp5_kms, REG_MDP5_MDP_SMP_ALLOC_W_REG(0, idx), val);
+		mdp5_write(mdp5_kms, REG_MDP5_MDP_SMP_ALLOC_R_REG(0, idx), val);
 	}
 }
 
