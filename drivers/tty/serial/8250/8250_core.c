@@ -358,34 +358,46 @@ static void default_serial_dl_write(struct uart_8250_port *up, int value)
 #if defined(CONFIG_MIPS_ALCHEMY) || defined(CONFIG_SERIAL_8250_RT288X)
 
 /* Au1x00/RT288x UART hardware has a weird register layout */
-static const u8 au_io_in_map[] = {
-	[UART_RX]  = 0,
-	[UART_IER] = 2,
-	[UART_IIR] = 3,
-	[UART_LCR] = 5,
-	[UART_MCR] = 6,
-	[UART_LSR] = 7,
-	[UART_MSR] = 8,
+static const s8 au_io_in_map[8] = {
+	 0,	/* UART_RX  */
+	 2,	/* UART_IER */
+	 3,	/* UART_IIR */
+	 5,	/* UART_LCR */
+	 6,	/* UART_MCR */
+	 7,	/* UART_LSR */
+	 8,	/* UART_MSR */
+	-1,	/* UART_SCR (unmapped) */
 };
 
-static const u8 au_io_out_map[] = {
-	[UART_TX]  = 1,
-	[UART_IER] = 2,
-	[UART_FCR] = 4,
-	[UART_LCR] = 5,
-	[UART_MCR] = 6,
+static const s8 au_io_out_map[8] = {
+	 1,	/* UART_TX  */
+	 2,	/* UART_IER */
+	 4,	/* UART_FCR */
+	 5,	/* UART_LCR */
+	 6,	/* UART_MCR */
+	-1,	/* UART_LSR (unmapped) */
+	-1,	/* UART_MSR (unmapped) */
+	-1,	/* UART_SCR (unmapped) */
 };
 
 static unsigned int au_serial_in(struct uart_port *p, int offset)
 {
-	offset = au_io_in_map[offset] << p->regshift;
-	return __raw_readl(p->membase + offset);
+	if (offset >= ARRAY_SIZE(au_io_in_map))
+		return UINT_MAX;
+	offset = au_io_in_map[offset];
+	if (offset < 0)
+		return UINT_MAX;
+	return __raw_readl(p->membase + (offset << p->regshift));
 }
 
 static void au_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = au_io_out_map[offset] << p->regshift;
-	__raw_writel(value, p->membase + offset);
+	if (offset >= ARRAY_SIZE(au_io_out_map))
+		return;
+	offset = au_io_out_map[offset];
+	if (offset < 0)
+		return;
+	__raw_writel(value, p->membase + (offset << p->regshift));
 }
 
 /* Au1x00 haven't got a standard divisor latch */
