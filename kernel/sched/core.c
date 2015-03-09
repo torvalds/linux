@@ -306,6 +306,9 @@ __read_mostly int scheduler_running;
  */
 int sysctl_sched_rt_runtime = 950000;
 
+/* cpus with isolated domains */
+cpumask_var_t cpu_isolated_map;
+
 /*
  * this_rq_lock - lock this runqueue and disable interrupts.
  */
@@ -5810,9 +5813,6 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 
 	update_top_cache_domain(cpu);
 }
-
-/* cpus with isolated domains */
-static cpumask_var_t cpu_isolated_map;
 
 /* Setup the mask of cpus configured for isolated domains */
 static int __init isolated_cpu_setup(char *str)
