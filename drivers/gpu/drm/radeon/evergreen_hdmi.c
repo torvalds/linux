@@ -272,7 +272,7 @@ void dce4_hdmi_audio_set_dto(struct radeon_device *rdev,
 }
 
 void dce4_dp_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock)
+			   struct radeon_crtc *crtc, unsigned int clock)
 {
 	u32 value;
 
@@ -294,7 +294,7 @@ void dce4_dp_audio_set_dto(struct radeon_device *rdev,
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
 	WREG32(DCCG_AUDIO_DTO1_PHASE, 24000);
-	WREG32(DCCG_AUDIO_DTO1_MODULE, rdev->clock.max_pixel_clock * 10);
+	WREG32(DCCG_AUDIO_DTO1_MODULE, clock);
 }
 
 void dce4_set_vbi_packet(struct drm_encoder *encoder, u32 offset)
@@ -350,19 +350,8 @@ void dce4_set_audio_packet(struct drm_encoder *encoder, u32 offset)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	WREG32(HDMI_INFOFRAME_CONTROL0 + offset,
-		HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
-		HDMI_AUDIO_INFO_CONT); /* required for audio info values to be updated */
-
 	WREG32(AFMT_INFOFRAME_CONTROL0 + offset,
 		AFMT_AUDIO_INFO_UPDATE); /* required for audio info values to be updated */
-
-	WREG32(HDMI_INFOFRAME_CONTROL1 + offset,
-		HDMI_AUDIO_INFO_LINE(2)); /* anything other than 0 */
-
-	WREG32(HDMI_AUDIO_PACKET_CONTROL + offset,
-		HDMI_AUDIO_DELAY_EN(1) | /* set the default audio delay */
-		HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
 
 	WREG32(AFMT_60958_0 + offset,
 		AFMT_60958_CS_CHANNEL_NUMBER_L(1));
@@ -408,15 +397,19 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 	if (!dig || !dig->afmt)
 		return;
 
-	/* Silent, r600_hdmi_enable will raise WARN for us */
-	if (enable && dig->afmt->enabled)
-		return;
-	if (!enable && !dig->afmt->enabled)
-		return;
+	if (enable) {
+		WREG32(HDMI_INFOFRAME_CONTROL1 + dig->afmt->offset,
+		       HDMI_AUDIO_INFO_LINE(2)); /* anything other than 0 */
 
-	if (!enable && dig->afmt->pin) {
-		radeon_audio_enable(rdev, dig->afmt->pin, 0);
-		dig->afmt->pin = NULL;
+		WREG32(HDMI_AUDIO_PACKET_CONTROL + dig->afmt->offset,
+		       HDMI_AUDIO_DELAY_EN(1) | /* set the default audio delay */
+		       HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
+
+		WREG32(HDMI_INFOFRAME_CONTROL0 + dig->afmt->offset,
+		       HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
+		       HDMI_AUDIO_INFO_CONT); /* required for audio info values to be updated */
+	} else {
+		WREG32(HDMI_INFOFRAME_CONTROL0 + dig->afmt->offset, 0);
 	}
 
 	dig->afmt->enabled = enable;
@@ -425,18 +418,15 @@ void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
 		  enable ? "En" : "Dis", dig->afmt->offset, radeon_encoder->encoder_id);
 }
 
-void evergreen_enable_dp_audio_packets(struct drm_encoder *encoder, bool enable)
+void evergreen_dp_enable(struct drm_encoder *encoder, bool enable)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-	uint32_t offset;
 
 	if (!dig || !dig->afmt)
 		return;
-
-	offset = dig->afmt->offset;
 
 	if (enable) {
 		struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
@@ -444,14 +434,12 @@ void evergreen_enable_dp_audio_packets(struct drm_encoder *encoder, bool enable)
 		struct radeon_connector_atom_dig *dig_connector;
 		uint32_t val;
 
-		if (dig->afmt->enabled)
-			return;
-
-		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + offset, EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
+		WREG32(EVERGREEN_DP_SEC_TIMESTAMP + dig->afmt->offset,
+		       EVERGREEN_DP_SEC_TIMESTAMP_MODE(1));
 
 		if (radeon_connector->con_priv) {
 			dig_connector = radeon_connector->con_priv;
-			val = RREG32(EVERGREEN_DP_SEC_AUD_N + offset);
+			val = RREG32(EVERGREEN_DP_SEC_AUD_N + dig->afmt->offset);
 			val &= ~EVERGREEN_DP_SEC_N_BASE_MULTIPLE(0xf);
 
 			if (dig_connector->dp_clock == 162000)
@@ -459,21 +447,16 @@ void evergreen_enable_dp_audio_packets(struct drm_encoder *encoder, bool enable)
 			else
 				val |= EVERGREEN_DP_SEC_N_BASE_MULTIPLE(5);
 
-			WREG32(EVERGREEN_DP_SEC_AUD_N + offset, val);
+			WREG32(EVERGREEN_DP_SEC_AUD_N + dig->afmt->offset, val);
 		}
 
-		WREG32(EVERGREEN_DP_SEC_CNTL + offset,
+		WREG32(EVERGREEN_DP_SEC_CNTL + dig->afmt->offset,
 			EVERGREEN_DP_SEC_ASP_ENABLE |		/* Audio packet transmission */
 			EVERGREEN_DP_SEC_ATP_ENABLE |		/* Audio timestamp packet transmission */
 			EVERGREEN_DP_SEC_AIP_ENABLE |		/* Audio infoframe packet transmission */
 			EVERGREEN_DP_SEC_STREAM_ENABLE);	/* Master enable for secondary stream engine */
-		radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
 	} else {
-		if (!dig->afmt->enabled)
-			return;
-
-		WREG32(EVERGREEN_DP_SEC_CNTL + offset, 0);
-		radeon_audio_enable(rdev, dig->afmt->pin, 0);
+		WREG32(EVERGREEN_DP_SEC_CNTL + dig->afmt->offset, 0);
 	}
 
 	dig->afmt->enabled = enable;

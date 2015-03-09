@@ -2555,7 +2555,7 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 	return err ? err : len;
 }
 static struct rdev_sysfs_entry rdev_state =
-__ATTR(state, S_IRUGO|S_IWUSR, state_show, state_store);
+__ATTR_PREALLOC(state, S_IRUGO|S_IWUSR, state_show, state_store);
 
 static ssize_t
 errors_show(struct md_rdev *rdev, char *page)
@@ -3638,7 +3638,8 @@ resync_start_store(struct mddev *mddev, const char *buf, size_t len)
 	return err ?: len;
 }
 static struct md_sysfs_entry md_resync_start =
-__ATTR(resync_start, S_IRUGO|S_IWUSR, resync_start_show, resync_start_store);
+__ATTR_PREALLOC(resync_start, S_IRUGO|S_IWUSR,
+		resync_start_show, resync_start_store);
 
 /*
  * The array state can be:
@@ -3851,7 +3852,7 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 	return err ?: len;
 }
 static struct md_sysfs_entry md_array_state =
-__ATTR(array_state, S_IRUGO|S_IWUSR, array_state_show, array_state_store);
+__ATTR_PREALLOC(array_state, S_IRUGO|S_IWUSR, array_state_show, array_state_store);
 
 static ssize_t
 max_corrected_read_errors_show(struct mddev *mddev, char *page) {
@@ -4101,7 +4102,7 @@ out_unlock:
 }
 
 static struct md_sysfs_entry md_metadata =
-__ATTR(metadata_version, S_IRUGO|S_IWUSR, metadata_show, metadata_store);
+__ATTR_PREALLOC(metadata_version, S_IRUGO|S_IWUSR, metadata_show, metadata_store);
 
 static ssize_t
 action_show(struct mddev *mddev, char *page)
@@ -4189,7 +4190,7 @@ action_store(struct mddev *mddev, const char *page, size_t len)
 }
 
 static struct md_sysfs_entry md_scan_mode =
-__ATTR(sync_action, S_IRUGO|S_IWUSR, action_show, action_store);
+__ATTR_PREALLOC(sync_action, S_IRUGO|S_IWUSR, action_show, action_store);
 
 static ssize_t
 last_sync_action_show(struct mddev *mddev, char *page)
@@ -4335,7 +4336,8 @@ sync_completed_show(struct mddev *mddev, char *page)
 	return sprintf(page, "%llu / %llu\n", resync, max_sectors);
 }
 
-static struct md_sysfs_entry md_sync_completed = __ATTR_RO(sync_completed);
+static struct md_sysfs_entry md_sync_completed =
+	__ATTR_PREALLOC(sync_completed, S_IRUGO, sync_completed_show, NULL);
 
 static ssize_t
 min_sync_show(struct mddev *mddev, char *page)

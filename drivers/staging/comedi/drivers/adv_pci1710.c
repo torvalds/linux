@@ -405,7 +405,6 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 				unsigned int *data)
 {
 	struct pci1710_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
 	int ret = 0;
 	int i;
 
@@ -426,7 +425,7 @@ static int pci171x_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			break;
 
-		ret = pci171x_ai_read_sample(dev, s, chan, &val);
+		ret = pci171x_ai_read_sample(dev, s, 0, &val);
 		if (ret)
 			break;
 

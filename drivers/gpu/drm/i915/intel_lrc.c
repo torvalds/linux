@@ -503,18 +503,19 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 		 * If there isn't a request associated with this submission,
 		 * create one as a temporary holder.
 		 */
-		WARN(1, "execlist context submission without request");
 		request = kzalloc(sizeof(*request), GFP_KERNEL);
 		if (request == NULL)
 			return -ENOMEM;
 		request->ring = ring;
 		request->ctx = to;
+		kref_init(&request->ref);
+		request->uniq = dev_priv->request_uniq++;
+		i915_gem_context_reference(request->ctx);
 	} else {
+		i915_gem_request_reference(request);
 		WARN_ON(to != request->ctx);
 	}
 	request->tail = tail;
-	i915_gem_request_reference(request);
-	i915_gem_context_reference(request->ctx);
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -731,7 +732,6 @@ void intel_execlists_retire_requests(struct intel_engine_cs *ring)
 		if (ctx_obj && (ctx != ring->default_context))
 			intel_lr_context_unpin(ring, ctx);
 		intel_runtime_pm_put(dev_priv);
-		i915_gem_context_unreference(ctx);
 		list_del(&req->execlist_link);
 		i915_gem_request_unreference(req);
 	}

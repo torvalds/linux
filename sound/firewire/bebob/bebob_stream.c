@@ -410,8 +410,6 @@ break_both_connections(struct snd_bebob *bebob)
 static void
 destroy_both_connections(struct snd_bebob *bebob)
 {
-	break_both_connections(bebob);
-
 	cmp_connection_destroy(&bebob->in_conn);
 	cmp_connection_destroy(&bebob->out_conn);
 }
@@ -712,22 +710,16 @@ void snd_bebob_stream_update_duplex(struct snd_bebob *bebob)
 	mutex_unlock(&bebob->mutex);
 }
 
+/*
+ * This function should be called before starting streams or after stopping
+ * streams.
+ */
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob)
 {
-	mutex_lock(&bebob->mutex);
-
-	amdtp_stream_pcm_abort(&bebob->rx_stream);
-	amdtp_stream_pcm_abort(&bebob->tx_stream);
-
-	amdtp_stream_stop(&bebob->rx_stream);
-	amdtp_stream_stop(&bebob->tx_stream);
-
 	amdtp_stream_destroy(&bebob->rx_stream);
 	amdtp_stream_destroy(&bebob->tx_stream);
 
 	destroy_both_connections(bebob);
-
-	mutex_unlock(&bebob->mutex);
 }
 
 /*
