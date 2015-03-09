@@ -173,6 +173,10 @@
 	};
 };
 
+&pwm1 {
+	status = "okay";
+};
+
 &spdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cubox_i_spdif>;
