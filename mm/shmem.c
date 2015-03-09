@@ -1455,6 +1455,9 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 
 bool shmem_mapping(struct address_space *mapping)
 {
+	if (!mapping->host)
+		return false;
+
 	return mapping->host->i_sb->s_op == &shmem_ops;
 }
 

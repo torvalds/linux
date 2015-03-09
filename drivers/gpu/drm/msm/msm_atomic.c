@@ -219,8 +219,10 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * mark our set of crtc's as busy:
 	 */
 	ret = start_atomic(dev->dev_private, c->crtc_mask);
-	if (ret)
+	if (ret) {
+		kfree(c);
 		return ret;
+	}
 
 	/*
 	 * This is the point of no return - everything below never fails except

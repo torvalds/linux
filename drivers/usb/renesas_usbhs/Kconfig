@@ -6,6 +6,7 @@ config USB_RENESAS_USBHS
 	tristate 'Renesas USBHS controller'
 	depends on USB_GADGET
 	depends on ARCH_SHMOBILE || SUPERH || COMPILE_TEST
+	depends on EXTCON || !EXTCON # if EXTCON=m, USBHS cannot be built-in
 	default n
 	help
 	  Renesas USBHS is a discrete USB host and peripheral controller chip

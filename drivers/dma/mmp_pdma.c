@@ -219,6 +219,9 @@ static irqreturn_t mmp_pdma_int_handler(int irq, void *dev_id)
 
 	while (dint) {
 		i = __ffs(dint);
+		/* only handle interrupts belonging to pdma driver*/
+		if (i >= pdev->dma_channels)
+			break;
 		dint &= (dint - 1);
 		phy = &pdev->phy[i];
 		ret = mmp_pdma_chan_handler(irq, phy);
@@ -999,6 +1002,9 @@ static int mmp_pdma_probe(struct platform_device *op)
 	struct resource *iores;
 	int i, ret, irq = 0;
 	int dma_channels = 0, irq_num = 0;
+	const enum dma_slave_buswidth widths =
+		DMA_SLAVE_BUSWIDTH_1_BYTE   | DMA_SLAVE_BUSWIDTH_2_BYTES |
+		DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	pdev = devm_kzalloc(&op->dev, sizeof(*pdev), GFP_KERNEL);
 	if (!pdev)
@@ -1066,6 +1072,10 @@ static int mmp_pdma_probe(struct platform_device *op)
 	pdev->device.device_config = mmp_pdma_config;
 	pdev->device.device_terminate_all = mmp_pdma_terminate_all;
 	pdev->device.copy_align = PDMA_ALIGNMENT;
+	pdev->device.src_addr_widths = widths;
+	pdev->device.dst_addr_widths = widths;
+	pdev->device.directions = BIT(DMA_MEM_TO_DEV) | BIT(DMA_DEV_TO_MEM);
+	pdev->device.residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
 
 	if (pdev->dev->coherent_dma_mask)
 		dma_set_mask(pdev->dev, pdev->dev->coherent_dma_mask);

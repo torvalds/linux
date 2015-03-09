@@ -14,8 +14,10 @@ struct clip_entry {
 	spinlock_t lock;	/* Hold while modifying clip reference */
 	atomic_t refcnt;
 	struct list_head list;
-	u32 addr[4];
-	int addr_len;
+	union {
+		struct sockaddr_in addr;
+		struct sockaddr_in6 addr6;
+	};
 };
 
 struct clip_tbl {
