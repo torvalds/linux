@@ -91,7 +91,8 @@ struct dw_spi;
 struct dw_spi_dma_ops {
 	int (*dma_init)(struct dw_spi *dws);
 	void (*dma_exit)(struct dw_spi *dws);
-	int (*dma_transfer)(struct dw_spi *dws, int cs_change);
+	int (*dma_setup)(struct dw_spi *dws);
+	int (*dma_transfer)(struct dw_spi *dws);
 };
 
 struct dw_spi {
@@ -109,7 +110,6 @@ struct dw_spi {
 	u16			num_cs;		/* supported slave numbers */
 
 	/* Current message transfer state info */
-	struct chip_data	*prev_chip;
 	size_t			len;
 	void			*tx;
 	void			*tx_end;

@@ -207,11 +207,9 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
 	return rxdesc;
 }
 
-static void dw_spi_dma_setup(struct dw_spi *dws)
+static int mid_spi_dma_setup(struct dw_spi *dws)
 {
 	u16 dma_ctrl = 0;
-
-	spi_enable_chip(dws, 0);
 
 	dw_writew(dws, DW_SPI_DMARDLR, 0xf);
 	dw_writew(dws, DW_SPI_DMATDLR, 0x10);
@@ -222,21 +220,17 @@ static void dw_spi_dma_setup(struct dw_spi *dws)
 		dma_ctrl |= SPI_DMA_RDMAE;
 	dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
 
-	spi_enable_chip(dws, 1);
+	return 0;
 }
 
-static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
+static int mid_spi_dma_transfer(struct dw_spi *dws)
 {
 	struct dma_async_tx_descriptor *txdesc, *rxdesc;
 
-	/* 1. setup DMA related registers */
-	if (cs_change)
-		dw_spi_dma_setup(dws);
-
-	/* 2. Prepare the TX dma transfer */
+	/* Prepare the TX dma transfer */
 	txdesc = dw_spi_dma_prepare_tx(dws);
 
-	/* 3. Prepare the RX dma transfer */
+	/* Prepare the RX dma transfer */
 	rxdesc = dw_spi_dma_prepare_rx(dws);
 
 	/* rx must be started before tx due to spi instinct */
@@ -258,6 +252,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 static struct dw_spi_dma_ops mid_dma_ops = {
 	.dma_init	= mid_spi_dma_init,
 	.dma_exit	= mid_spi_dma_exit,
+	.dma_setup	= mid_spi_dma_setup,
 	.dma_transfer	= mid_spi_dma_transfer,
 };
 #endif

@@ -316,11 +316,11 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	struct dw_spi *dws = spi_master_get_devdata(master);
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u8 imask = 0;
-	u8 cs_change = 0;
 	u16 txlevel = 0;
 	u16 clk_div = 0;
 	u32 speed = 0;
 	u32 cr0 = 0;
+	int ret;
 
 	dws->n_bytes = chip->n_bytes;
 	dws->dma_width = chip->dma_width;
@@ -332,8 +332,6 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	dws->rx = transfer->rx_buf;
 	dws->rx_end = dws->rx + transfer->len;
 	dws->len = transfer->len;
-	if (chip != dws->prev_chip)
-		cs_change = 1;
 
 	spi_enable_chip(dws, 0);
 
@@ -397,7 +395,13 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	 * Interrupt mode
 	 * we only need set the TXEI IRQ, as TX/RX always happen syncronizely
 	 */
-	if (!dws->dma_mapped && !chip->poll_mode) {
+	if (dws->dma_mapped) {
+		ret = dws->dma_ops->dma_setup(dws);
+		if (ret < 0) {
+			spi_enable_chip(dws, 1);
+			return ret;
+		}
+	} else if (!chip->poll_mode) {
 		txlevel = min_t(u16, dws->fifo_len / 2, dws->len / dws->n_bytes);
 		dw_writew(dws, DW_SPI_TXFLTR, txlevel);
 
@@ -411,11 +415,11 @@ static int dw_spi_transfer_one(struct spi_master *master,
 
 	spi_enable_chip(dws, 1);
 
-	if (cs_change)
-		dws->prev_chip = chip;
-
-	if (dws->dma_mapped)
-		dws->dma_ops->dma_transfer(dws, cs_change);
+	if (dws->dma_mapped) {
+		ret = dws->dma_ops->dma_transfer(dws);
+		if (ret < 0)
+			return ret;
+	}
 
 	if (chip->poll_mode)
 		return poll_transfer(dws);
@@ -546,7 +550,6 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 
 	dws->master = master;
 	dws->type = SSI_MOTO_SPI;
-	dws->prev_chip = NULL;
 	dws->dma_inited = 0;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + 0x60);
 	snprintf(dws->name, sizeof(dws->name), "dw_spi%d", dws->bus_num);
