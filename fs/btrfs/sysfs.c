@@ -508,7 +508,7 @@ static int addrm_unknown_feature_attrs(struct btrfs_fs_info *fs_info, bool add)
 	return 0;
 }
 
-static void __btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
+static void btrfs_sysfs_remove_fsid(struct btrfs_fs_info *fs_info)
 {
 	if (fs_info->device_dir_kobj) {
 		btrfs_kobj_rm_device(fs_info, NULL);
@@ -531,7 +531,7 @@ void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 	}
 	addrm_unknown_feature_attrs(fs_info, false);
 	sysfs_remove_group(&fs_info->super_kobj, &btrfs_feature_attr_group);
-	__btrfs_sysfs_remove_one(fs_info);
+	btrfs_sysfs_remove_fsid(fs_info);
 }
 
 const char * const btrfs_feature_set_names[3] = {
@@ -703,14 +703,14 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 
 	error = btrfs_kobj_add_device(fs_info, NULL);
 	if (error) {
-		__btrfs_sysfs_remove_one(fs_info);
+		btrfs_sysfs_remove_fsid(fs_info);
 		return error;
 	}
 
 	error = sysfs_create_group(&fs_info->super_kobj,
 				   &btrfs_feature_attr_group);
 	if (error) {
-		__btrfs_sysfs_remove_one(fs_info);
+		btrfs_sysfs_remove_fsid(fs_info);
 		return error;
 	}
 
