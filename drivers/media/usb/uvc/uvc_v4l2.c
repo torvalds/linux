@@ -511,7 +511,7 @@ static int uvc_v4l2_open(struct file *file)
 	stream->dev->users++;
 	mutex_unlock(&stream->dev->lock);
 
-	v4l2_fh_init(&handle->vfh, stream->vdev);
+	v4l2_fh_init(&handle->vfh, &stream->vdev);
 	v4l2_fh_add(&handle->vfh);
 	handle->chain = stream->chain;
 	handle->stream = stream;

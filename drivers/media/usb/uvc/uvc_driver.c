@@ -1669,10 +1669,6 @@ static void uvc_delete(struct uvc_device *dev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 		uvc_mc_cleanup_entity(entity);
 #endif
-		if (entity->vdev) {
-			video_device_release(entity->vdev);
-			entity->vdev = NULL;
-		}
 		kfree(entity);
 	}
 
@@ -1717,11 +1713,10 @@ static void uvc_unregister_video(struct uvc_device *dev)
 	atomic_inc(&dev->nstreams);
 
 	list_for_each_entry(stream, &dev->streams, list) {
-		if (stream->vdev == NULL)
+		if (!video_is_registered(&stream->vdev))
 			continue;
 
-		video_unregister_device(stream->vdev);
-		stream->vdev = NULL;
+		video_unregister_device(&stream->vdev);
 
 		uvc_debugfs_cleanup_stream(stream);
 	}
@@ -1736,7 +1731,7 @@ static void uvc_unregister_video(struct uvc_device *dev)
 static int uvc_register_video(struct uvc_device *dev,
 		struct uvc_streaming *stream)
 {
-	struct video_device *vdev;
+	struct video_device *vdev = &stream->vdev;
 	int ret;
 
 	/* Initialize the video buffers queue. */
@@ -1757,12 +1752,6 @@ static int uvc_register_video(struct uvc_device *dev,
 	uvc_debugfs_init_stream(stream);
 
 	/* Register the device with V4L. */
-	vdev = video_device_alloc();
-	if (vdev == NULL) {
-		uvc_printk(KERN_ERR, "Failed to allocate video device (%d).\n",
-			   ret);
-		return -ENOMEM;
-	}
 
 	/* We already hold a reference to dev->udev. The video device will be
 	 * unregistered before the reference is released, so we don't need to
@@ -1780,15 +1769,12 @@ static int uvc_register_video(struct uvc_device *dev,
 	/* Set the driver data before calling video_register_device, otherwise
 	 * uvc_v4l2_open might race us.
 	 */
-	stream->vdev = vdev;
 	video_set_drvdata(vdev, stream);
 
 	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		uvc_printk(KERN_ERR, "Failed to register video device (%d).\n",
 			   ret);
-		stream->vdev = NULL;
-		video_device_release(vdev);
 		return ret;
 	}
 
@@ -1827,7 +1813,7 @@ static int uvc_register_terms(struct uvc_device *dev,
 		if (ret < 0)
 			return ret;
 
-		term->vdev = stream->vdev;
+		term->vdev = &stream->vdev;
 	}
 
 	return 0;
