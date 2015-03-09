@@ -509,11 +509,14 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	struct tid_ampdu_tx *tid_tx;
 	int ret = 0;
 
+	trace_api_start_tx_ba_session(pubsta, tid);
+
 	if (WARN(sta->reserved_tid == tid,
 		 "Requested to start BA session on reserved tid=%d", tid))
 		return -EINVAL;
 
-	trace_api_start_tx_ba_session(pubsta, tid);
+	if (!pubsta->ht_cap.ht_supported)
+		return -EINVAL;
 
 	if (WARN_ON_ONCE(!local->ops->ampdu_action))
 		return -EINVAL;
