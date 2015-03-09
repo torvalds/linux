@@ -368,8 +368,14 @@ static int synaptics_resolution(struct psmouse *psmouse)
 		}
 	}
 
-	if (SYN_EXT_CAP_REQUESTS(priv->capabilities) >= 7 &&
-	    SYN_CAP_MIN_DIMENSIONS(priv->ext_cap_0c)) {
+	if (SYN_CAP_MIN_DIMENSIONS(priv->ext_cap_0c) &&
+	    (SYN_EXT_CAP_REQUESTS(priv->capabilities) >= 7 ||
+	     /*
+	      * Firmware v8.1 does not report proper number of extended
+	      * capabilities, but has been proven to report correct min
+	      * coordinates.
+	      */
+	     SYN_ID_FULL(priv->identity) == 0x801)) {
 		if (synaptics_send_cmd(psmouse, SYN_QUE_EXT_MIN_COORDS, resp)) {
 			psmouse_warn(psmouse,
 				     "device claims to have min coordinates query, but I'm not able to read it.\n");
