@@ -164,7 +164,7 @@ struct  intel_engine_cs {
 				     u32 seqno);
 	int		(*dispatch_execbuffer)(struct intel_engine_cs *ring,
 					       u64 offset, u32 length,
-					       unsigned flags);
+					       unsigned dispatch_flags);
 #define I915_DISPATCH_SECURE 0x1
 #define I915_DISPATCH_PINNED 0x2
 	void		(*cleanup)(struct intel_engine_cs *ring);
@@ -242,7 +242,7 @@ struct  intel_engine_cs {
 				      u32 flush_domains);
 	int		(*emit_bb_start)(struct intel_ringbuffer *ringbuf,
 					 struct intel_context *ctx,
-					 u64 offset, unsigned flags);
+					 u64 offset, unsigned dispatch_flags);
 
 	/**
 	 * List of objects currently involved in rendering from the
@@ -373,11 +373,12 @@ intel_write_status_page(struct intel_engine_cs *ring,
  * 0x06: ring 2 head pointer (915-class)
  * 0x10-0x1b: Context status DWords (GM45)
  * 0x1f: Last written status offset. (GM45)
+ * 0x20-0x2f: Reserved (Gen6+)
  *
- * The area from dword 0x20 to 0x3ff is available for driver usage.
+ * The area from dword 0x30 to 0x3ff is available for driver usage.
  */
-#define I915_GEM_HWS_INDEX		0x20
-#define I915_GEM_HWS_SCRATCH_INDEX	0x30
+#define I915_GEM_HWS_INDEX		0x30
+#define I915_GEM_HWS_SCRATCH_INDEX	0x40
 #define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
 void intel_unpin_ringbuffer_obj(struct intel_ringbuffer *ringbuf);

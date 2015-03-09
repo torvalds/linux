@@ -501,6 +501,7 @@ struct intel_plane_wm_parameters {
 	uint8_t bytes_per_pixel;
 	bool enabled;
 	bool scaled;
+	u64 tiling;
 };
 
 struct intel_plane {
@@ -592,6 +593,26 @@ struct intel_hdmi {
 
 struct intel_dp_mst_encoder;
 #define DP_MAX_DOWNSTREAM_PORTS		0x10
+
+/*
+ * enum link_m_n_set:
+ *	When platform provides two set of M_N registers for dp, we can
+ *	program them and switch between them incase of DRRS.
+ *	But When only one such register is provided, we have to program the
+ *	required divider value on that registers itself based on the DRRS state.
+ *
+ * M1_N1	: Program dp_m_n on M1_N1 registers
+ *			  dp_m2_n2 on M2_N2 registers (If supported)
+ *
+ * M2_N2	: Program dp_m2_n2 on M1_N1 registers
+ *			  M2_N2 registers are not supported
+ */
+
+enum link_m_n_set {
+	/* Sets the m1_n1 and m2_n2 */
+	M1_N1 = 0,
+	M2_N2
+};
 
 struct intel_dp {
 	uint32_t output_reg;
@@ -883,6 +904,8 @@ int intel_fb_align_height(struct drm_device *dev, int height,
 			  uint64_t fb_format_modifier);
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 
+u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
+			      uint32_t pixel_format);
 
 /* intel_audio.c */
 void intel_init_audio(struct drm_device *dev);
@@ -996,7 +1019,7 @@ void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
-void intel_dp_set_m_n(struct intel_crtc *crtc);
+void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n);
 int intel_dotclock_calculate(int link_freq, const struct intel_link_m_n *m_n);
 void
 ironlake_check_encoder_dotclock(const struct intel_crtc_state *pipe_config,

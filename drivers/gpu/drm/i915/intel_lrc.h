@@ -73,6 +73,8 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring);
 void intel_lr_context_unpin(struct intel_engine_cs *ring,
 		struct intel_context *ctx);
+void intel_lr_context_reset(struct drm_device *dev,
+			struct intel_context *ctx);
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
@@ -82,7 +84,7 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas,
 			       struct drm_i915_gem_object *batch_obj,
-			       u64 exec_start, u32 flags);
+			       u64 exec_start, u32 dispatch_flags);
 u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj);
 
 void intel_lrc_irq_handler(struct intel_engine_cs *ring);

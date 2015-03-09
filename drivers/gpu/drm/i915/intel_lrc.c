@@ -620,7 +620,7 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
  * @vmas: list of vmas.
  * @batch_obj: the batchbuffer to submit.
  * @exec_start: batchbuffer start virtual address pointer.
- * @flags: translated execbuffer call flags.
+ * @dispatch_flags: translated execbuffer call flags.
  *
  * This is the evil twin version of i915_gem_ringbuffer_submission. It abstracts
  * away the submission details of the execbuffer ioctl call.
@@ -633,7 +633,7 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas,
 			       struct drm_i915_gem_object *batch_obj,
-			       u64 exec_start, u32 flags)
+			       u64 exec_start, u32 dispatch_flags)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
@@ -706,9 +706,11 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 		dev_priv->relative_constants_mode = instp_mode;
 	}
 
-	ret = ring->emit_bb_start(ringbuf, ctx, exec_start, flags);
+	ret = ring->emit_bb_start(ringbuf, ctx, exec_start, dispatch_flags);
 	if (ret)
 		return ret;
+
+	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring, batch_obj);
@@ -886,12 +888,9 @@ static int logical_ring_alloc_request(struct intel_engine_cs *ring,
 		return ret;
 	}
 
-	/* Hold a reference to the context this request belongs to
-	 * (we will need it when the time comes to emit/retire the
-	 * request).
-	 */
 	request->ctx = ctx;
 	i915_gem_context_reference(request->ctx);
+	request->ringbuf = ctx->engine[ring->id].ringbuf;
 
 	ring->outstanding_lazy_request = request;
 	return 0;
@@ -1163,9 +1162,9 @@ static int gen9_init_render_ring(struct intel_engine_cs *ring)
 
 static int gen8_emit_bb_start(struct intel_ringbuffer *ringbuf,
 			      struct intel_context *ctx,
-			      u64 offset, unsigned flags)
+			      u64 offset, unsigned dispatch_flags)
 {
-	bool ppgtt = !(flags & I915_DISPATCH_SECURE);
+	bool ppgtt = !(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
 
 	ret = intel_logical_ring_begin(ringbuf, ctx, 4);
@@ -1638,6 +1637,49 @@ cleanup_render_ring:
 	return ret;
 }
 
+static u32
+make_rpcs(struct drm_device *dev)
+{
+	u32 rpcs = 0;
+
+	/*
+	 * No explicit RPCS request is needed to ensure full
+	 * slice/subslice/EU enablement prior to Gen9.
+	*/
+	if (INTEL_INFO(dev)->gen < 9)
+		return 0;
+
+	/*
+	 * Starting in Gen9, render power gating can leave
+	 * slice/subslice/EU in a partially enabled state. We
+	 * must make an explicit request through RPCS for full
+	 * enablement.
+	*/
+	if (INTEL_INFO(dev)->has_slice_pg) {
+		rpcs |= GEN8_RPCS_S_CNT_ENABLE;
+		rpcs |= INTEL_INFO(dev)->slice_total <<
+			GEN8_RPCS_S_CNT_SHIFT;
+		rpcs |= GEN8_RPCS_ENABLE;
+	}
+
+	if (INTEL_INFO(dev)->has_subslice_pg) {
+		rpcs |= GEN8_RPCS_SS_CNT_ENABLE;
+		rpcs |= INTEL_INFO(dev)->subslice_per_slice <<
+			GEN8_RPCS_SS_CNT_SHIFT;
+		rpcs |= GEN8_RPCS_ENABLE;
+	}
+
+	if (INTEL_INFO(dev)->has_eu_pg) {
+		rpcs |= INTEL_INFO(dev)->eu_per_subslice <<
+			GEN8_RPCS_EU_MIN_SHIFT;
+		rpcs |= INTEL_INFO(dev)->eu_per_subslice <<
+			GEN8_RPCS_EU_MAX_SHIFT;
+		rpcs |= GEN8_RPCS_ENABLE;
+	}
+
+	return rpcs;
+}
+
 static int
 populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *ring, struct intel_ringbuffer *ringbuf)
@@ -1731,18 +1773,18 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	reg_state[CTX_PDP1_LDW] = GEN8_RING_PDP_LDW(ring, 1);
 	reg_state[CTX_PDP0_UDW] = GEN8_RING_PDP_UDW(ring, 0);
 	reg_state[CTX_PDP0_LDW] = GEN8_RING_PDP_LDW(ring, 0);
-	reg_state[CTX_PDP3_UDW+1] = upper_32_bits(ppgtt->pd_dma_addr[3]);
-	reg_state[CTX_PDP3_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[3]);
-	reg_state[CTX_PDP2_UDW+1] = upper_32_bits(ppgtt->pd_dma_addr[2]);
-	reg_state[CTX_PDP2_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[2]);
-	reg_state[CTX_PDP1_UDW+1] = upper_32_bits(ppgtt->pd_dma_addr[1]);
-	reg_state[CTX_PDP1_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[1]);
-	reg_state[CTX_PDP0_UDW+1] = upper_32_bits(ppgtt->pd_dma_addr[0]);
-	reg_state[CTX_PDP0_LDW+1] = lower_32_bits(ppgtt->pd_dma_addr[0]);
+	reg_state[CTX_PDP3_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[3]->daddr);
+	reg_state[CTX_PDP3_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[3]->daddr);
+	reg_state[CTX_PDP2_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[2]->daddr);
+	reg_state[CTX_PDP2_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[2]->daddr);
+	reg_state[CTX_PDP1_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[1]->daddr);
+	reg_state[CTX_PDP1_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[1]->daddr);
+	reg_state[CTX_PDP0_UDW+1] = upper_32_bits(ppgtt->pdp.page_directory[0]->daddr);
+	reg_state[CTX_PDP0_LDW+1] = lower_32_bits(ppgtt->pdp.page_directory[0]->daddr);
 	if (ring->id == RCS) {
 		reg_state[CTX_LRI_HEADER_2] = MI_LOAD_REGISTER_IMM(1);
-		reg_state[CTX_R_PWR_CLK_STATE] = 0x20c8;
-		reg_state[CTX_R_PWR_CLK_STATE+1] = 0;
+		reg_state[CTX_R_PWR_CLK_STATE] = GEN8_R_PWR_CLK_STATE;
+		reg_state[CTX_R_PWR_CLK_STATE+1] = make_rpcs(dev);
 	}
 
 	kunmap_atomic(reg_state);
@@ -1949,4 +1991,39 @@ error_unpin_ctx:
 		i915_gem_object_ggtt_unpin(ctx_obj);
 	drm_gem_object_unreference(&ctx_obj->base);
 	return ret;
+}
+
+void intel_lr_context_reset(struct drm_device *dev,
+			struct intel_context *ctx)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	int i;
+
+	for_each_ring(ring, dev_priv, i) {
+		struct drm_i915_gem_object *ctx_obj =
+				ctx->engine[ring->id].state;
+		struct intel_ringbuffer *ringbuf =
+				ctx->engine[ring->id].ringbuf;
+		uint32_t *reg_state;
+		struct page *page;
+
+		if (!ctx_obj)
+			continue;
+
+		if (i915_gem_object_get_pages(ctx_obj)) {
+			WARN(1, "Failed get_pages for context obj\n");
+			continue;
+		}
+		page = i915_gem_object_get_page(ctx_obj, 1);
+		reg_state = kmap_atomic(page);
+
+		reg_state[CTX_RING_HEAD+1] = 0;
+		reg_state[CTX_RING_TAIL+1] = 0;
+
+		kunmap_atomic(reg_state);
+
+		ringbuf->head = 0;
+		ringbuf->tail = 0;
+	}
 }

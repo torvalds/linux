@@ -2691,11 +2691,14 @@ static uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (INTEL_INFO(dev)->gen >= 9)
+	if (INTEL_INFO(dev)->gen >= 9) {
+		if (dev_priv->vbt.edp_low_vswing && port == PORT_A)
+			return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
-	else if (IS_VALLEYVIEW(dev))
+	} else if (IS_VALLEYVIEW(dev))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -2719,6 +2722,8 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 			return DP_TRAIN_PRE_EMPH_LEVEL_2;
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
 			return DP_TRAIN_PRE_EMPH_LEVEL_1;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_3:
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		default:
 			return DP_TRAIN_PRE_EMPH_LEVEL_0;
 		}
@@ -3201,6 +3206,9 @@ intel_hsw_signal_levels(uint8_t train_set)
 		return DDI_BUF_TRANS_SELECT(7);
 	case DP_TRAIN_VOLTAGE_SWING_LEVEL_2 | DP_TRAIN_PRE_EMPH_LEVEL_1:
 		return DDI_BUF_TRANS_SELECT(8);
+
+	case DP_TRAIN_VOLTAGE_SWING_LEVEL_3 | DP_TRAIN_PRE_EMPH_LEVEL_0:
+		return DDI_BUF_TRANS_SELECT(9);
 	default:
 		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level:"
 			      "0x%x\n", signal_levels);
@@ -4736,6 +4744,18 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		      I915_READ(pp_div_reg));
 }
 
+/**
+ * intel_dp_set_drrs_state - program registers for RR switch to take effect
+ * @dev: DRM device
+ * @refresh_rate: RR to be programmed
+ *
+ * This function gets called when refresh rate (RR) has to be changed from
+ * one frequency to another. Switches can be between high and low RR
+ * supported by the panel or to any other RR based on media playback (in
+ * this case, RR value needs to be passed from user space).
+ *
+ * The caller of this function needs to take a lock on dev_priv->drrs.
+ */
 static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4793,14 +4813,32 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 		return;
 	}
 
-	if (INTEL_INFO(dev)->gen > 6 && INTEL_INFO(dev)->gen < 8) {
+	if (INTEL_INFO(dev)->gen >= 8 && !IS_CHERRYVIEW(dev)) {
+		switch (index) {
+		case DRRS_HIGH_RR:
+			intel_dp_set_m_n(intel_crtc, M1_N1);
+			break;
+		case DRRS_LOW_RR:
+			intel_dp_set_m_n(intel_crtc, M2_N2);
+			break;
+		case DRRS_MAX_RR:
+		default:
+			DRM_ERROR("Unsupported refreshrate type\n");
+		}
+	} else if (INTEL_INFO(dev)->gen > 6) {
 		reg = PIPECONF(intel_crtc->config->cpu_transcoder);
 		val = I915_READ(reg);
+
 		if (index > DRRS_HIGH_RR) {
-			val |= PIPECONF_EDP_RR_MODE_SWITCH;
-			intel_dp_set_m_n(intel_crtc);
+			if (IS_VALLEYVIEW(dev))
+				val |= PIPECONF_EDP_RR_MODE_SWITCH_VLV;
+			else
+				val |= PIPECONF_EDP_RR_MODE_SWITCH;
 		} else {
-			val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
+			if (IS_VALLEYVIEW(dev))
+				val &= ~PIPECONF_EDP_RR_MODE_SWITCH_VLV;
+			else
+				val &= ~PIPECONF_EDP_RR_MODE_SWITCH;
 		}
 		I915_WRITE(reg, val);
 	}
@@ -4810,6 +4848,12 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 	DRM_DEBUG_KMS("eDP Refresh Rate set to : %dHz\n", refresh_rate);
 }
 
+/**
+ * intel_edp_drrs_enable - init drrs struct if supported
+ * @intel_dp: DP struct
+ *
+ * Initializes frontbuffer_bits and drrs.dp
+ */
 void intel_edp_drrs_enable(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
@@ -4837,6 +4881,11 @@ unlock:
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
+/**
+ * intel_edp_drrs_disable - Disable DRRS
+ * @intel_dp: DP struct
+ *
+ */
 void intel_edp_drrs_disable(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
@@ -4896,6 +4945,17 @@ unlock:
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
+/**
+ * intel_edp_drrs_invalidate - Invalidate DRRS
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * When there is a disturbance on screen (due to cursor movement/time
+ * update etc), DRRS needs to be invalidated, i.e. need to switch to
+ * high RR.
+ *
+ * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
+ */
 void intel_edp_drrs_invalidate(struct drm_device *dev,
 		unsigned frontbuffer_bits)
 {
@@ -4923,6 +4983,17 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
+/**
+ * intel_edp_drrs_flush - Flush DRRS
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * When there is no movement on screen, DRRS work can be scheduled.
+ * This DRRS work is responsible for setting relevant registers after a
+ * timeout of 1 second.
+ *
+ * Dirty frontbuffers relevant to DRRS are tracked in busy_frontbuffer_bits.
+ */
 void intel_edp_drrs_flush(struct drm_device *dev,
 		unsigned frontbuffer_bits)
 {
@@ -4947,6 +5018,56 @@ void intel_edp_drrs_flush(struct drm_device *dev,
 	mutex_unlock(&dev_priv->drrs.mutex);
 }
 
+/**
+ * DOC: Display Refresh Rate Switching (DRRS)
+ *
+ * Display Refresh Rate Switching (DRRS) is a power conservation feature
+ * which enables swtching between low and high refresh rates,
+ * dynamically, based on the usage scenario. This feature is applicable
+ * for internal panels.
+ *
+ * Indication that the panel supports DRRS is given by the panel EDID, which
+ * would list multiple refresh rates for one resolution.
+ *
+ * DRRS is of 2 types - static and seamless.
+ * Static DRRS involves changing refresh rate (RR) by doing a full modeset
+ * (may appear as a blink on screen) and is used in dock-undock scenario.
+ * Seamless DRRS involves changing RR without any visual effect to the user
+ * and can be used during normal system usage. This is done by programming
+ * certain registers.
+ *
+ * Support for static/seamless DRRS may be indicated in the VBT based on
+ * inputs from the panel spec.
+ *
+ * DRRS saves power by switching to low RR based on usage scenarios.
+ *
+ * eDP DRRS:-
+ *        The implementation is based on frontbuffer tracking implementation.
+ * When there is a disturbance on the screen triggered by user activity or a
+ * periodic system activity, DRRS is disabled (RR is changed to high RR).
+ * When there is no movement on screen, after a timeout of 1 second, a switch
+ * to low RR is made.
+ *        For integration with frontbuffer tracking code,
+ * intel_edp_drrs_invalidate() and intel_edp_drrs_flush() are called.
+ *
+ * DRRS can be further extended to support other internal panels and also
+ * the scenario of video playback wherein RR is set based on the rate
+ * requested by userspace.
+ */
+
+/**
+ * intel_dp_drrs_init - Init basic DRRS work and mutex.
+ * @intel_connector: eDP connector
+ * @fixed_mode: preferred mode of panel
+ *
+ * This function is  called only once at driver load to initialize basic
+ * DRRS stuff.
+ *
+ * Returns:
+ * Downclock mode if panel supports it, else return NULL.
+ * DRRS support is determined by the presence of downclock mode (apart
+ * from VBT setting).
+ */
 static struct drm_display_mode *
 intel_dp_drrs_init(struct intel_connector *intel_connector,
 		struct drm_display_mode *fixed_mode)
@@ -4970,7 +5091,7 @@ intel_dp_drrs_init(struct intel_connector *intel_connector,
 					(dev, fixed_mode, connector);
 
 	if (!downclock_mode) {
-		DRM_DEBUG_KMS("DRRS not supported\n");
+		DRM_DEBUG_KMS("Downclock mode is not found. DRRS not supported\n");
 		return NULL;
 	}
 

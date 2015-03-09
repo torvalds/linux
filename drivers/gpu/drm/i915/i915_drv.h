@@ -56,7 +56,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150214"
+#define DRIVER_DATE		"20150227"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -693,7 +693,18 @@ struct intel_device_info {
 	int trans_offsets[I915_MAX_TRANSCODERS];
 	int palette_offsets[I915_MAX_PIPES];
 	int cursor_offsets[I915_MAX_PIPES];
-	unsigned int eu_total;
+
+	/* Slice/subslice/EU info */
+	u8 slice_total;
+	u8 subslice_total;
+	u8 subslice_per_slice;
+	u8 eu_total;
+	u8 eu_per_subslice;
+	/* For each slice, which subslice(s) has(have) 7 EUs (bitfield)? */
+	u8 subslice_7eu[3];
+	u8 has_slice_pg:1;
+	u8 has_subslice_pg:1;
+	u8 has_eu_pg:1;
 };
 
 #undef DEFINE_FLAG
@@ -889,150 +900,21 @@ struct intel_gmbus {
 };
 
 struct i915_suspend_saved_registers {
-	u8 saveLBB;
-	u32 saveDSPACNTR;
-	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
-	u32 savePIPEACONF;
-	u32 savePIPEBCONF;
-	u32 savePIPEASRC;
-	u32 savePIPEBSRC;
-	u32 saveFPA0;
-	u32 saveFPA1;
-	u32 saveDPLL_A;
-	u32 saveDPLL_A_MD;
-	u32 saveHTOTAL_A;
-	u32 saveHBLANK_A;
-	u32 saveHSYNC_A;
-	u32 saveVTOTAL_A;
-	u32 saveVBLANK_A;
-	u32 saveVSYNC_A;
-	u32 saveBCLRPAT_A;
-	u32 saveTRANSACONF;
-	u32 saveTRANS_HTOTAL_A;
-	u32 saveTRANS_HBLANK_A;
-	u32 saveTRANS_HSYNC_A;
-	u32 saveTRANS_VTOTAL_A;
-	u32 saveTRANS_VBLANK_A;
-	u32 saveTRANS_VSYNC_A;
-	u32 savePIPEASTAT;
-	u32 saveDSPASTRIDE;
-	u32 saveDSPASIZE;
-	u32 saveDSPAPOS;
-	u32 saveDSPAADDR;
-	u32 saveDSPASURF;
-	u32 saveDSPATILEOFF;
-	u32 savePFIT_PGM_RATIOS;
-	u32 saveBLC_HIST_CTL;
-	u32 saveBLC_PWM_CTL;
-	u32 saveBLC_PWM_CTL2;
-	u32 saveBLC_CPU_PWM_CTL;
-	u32 saveBLC_CPU_PWM_CTL2;
-	u32 saveFPB0;
-	u32 saveFPB1;
-	u32 saveDPLL_B;
-	u32 saveDPLL_B_MD;
-	u32 saveHTOTAL_B;
-	u32 saveHBLANK_B;
-	u32 saveHSYNC_B;
-	u32 saveVTOTAL_B;
-	u32 saveVBLANK_B;
-	u32 saveVSYNC_B;
-	u32 saveBCLRPAT_B;
-	u32 saveTRANSBCONF;
-	u32 saveTRANS_HTOTAL_B;
-	u32 saveTRANS_HBLANK_B;
-	u32 saveTRANS_HSYNC_B;
-	u32 saveTRANS_VTOTAL_B;
-	u32 saveTRANS_VBLANK_B;
-	u32 saveTRANS_VSYNC_B;
-	u32 savePIPEBSTAT;
-	u32 saveDSPBSTRIDE;
-	u32 saveDSPBSIZE;
-	u32 saveDSPBPOS;
-	u32 saveDSPBADDR;
-	u32 saveDSPBSURF;
-	u32 saveDSPBTILEOFF;
-	u32 saveVGA0;
-	u32 saveVGA1;
-	u32 saveVGA_PD;
-	u32 saveVGACNTRL;
-	u32 saveADPA;
 	u32 saveLVDS;
 	u32 savePP_ON_DELAYS;
 	u32 savePP_OFF_DELAYS;
-	u32 saveDVOA;
-	u32 saveDVOB;
-	u32 saveDVOC;
 	u32 savePP_ON;
 	u32 savePP_OFF;
 	u32 savePP_CONTROL;
 	u32 savePP_DIVISOR;
-	u32 savePFIT_CONTROL;
-	u32 save_palette_a[256];
-	u32 save_palette_b[256];
 	u32 saveFBC_CONTROL;
-	u32 saveIER;
-	u32 saveIIR;
-	u32 saveIMR;
-	u32 saveDEIER;
-	u32 saveDEIMR;
-	u32 saveGTIER;
-	u32 saveGTIMR;
-	u32 saveFDI_RXA_IMR;
-	u32 saveFDI_RXB_IMR;
 	u32 saveCACHE_MODE_0;
 	u32 saveMI_ARB_STATE;
 	u32 saveSWF0[16];
 	u32 saveSWF1[16];
 	u32 saveSWF2[3];
-	u8 saveMSR;
-	u8 saveSR[8];
-	u8 saveGR[25];
-	u8 saveAR_INDEX;
-	u8 saveAR[21];
-	u8 saveDACMASK;
-	u8 saveCR[37];
 	uint64_t saveFENCE[I915_MAX_NUM_FENCES];
-	u32 saveCURACNTR;
-	u32 saveCURAPOS;
-	u32 saveCURABASE;
-	u32 saveCURBCNTR;
-	u32 saveCURBPOS;
-	u32 saveCURBBASE;
-	u32 saveCURSIZE;
-	u32 saveDP_B;
-	u32 saveDP_C;
-	u32 saveDP_D;
-	u32 savePIPEA_GMCH_DATA_M;
-	u32 savePIPEB_GMCH_DATA_M;
-	u32 savePIPEA_GMCH_DATA_N;
-	u32 savePIPEB_GMCH_DATA_N;
-	u32 savePIPEA_DP_LINK_M;
-	u32 savePIPEB_DP_LINK_M;
-	u32 savePIPEA_DP_LINK_N;
-	u32 savePIPEB_DP_LINK_N;
-	u32 saveFDI_RXA_CTL;
-	u32 saveFDI_TXA_CTL;
-	u32 saveFDI_RXB_CTL;
-	u32 saveFDI_TXB_CTL;
-	u32 savePFA_CTL_1;
-	u32 savePFB_CTL_1;
-	u32 savePFA_WIN_SZ;
-	u32 savePFB_WIN_SZ;
-	u32 savePFA_WIN_POS;
-	u32 savePFB_WIN_POS;
-	u32 savePCH_DREF_CONTROL;
-	u32 saveDISP_ARB_CTL;
-	u32 savePIPEA_DATA_M1;
-	u32 savePIPEA_DATA_N1;
-	u32 savePIPEA_LINK_M1;
-	u32 savePIPEA_LINK_N1;
-	u32 savePIPEB_DATA_M1;
-	u32 savePIPEB_DATA_N1;
-	u32 savePIPEB_LINK_M1;
-	u32 savePIPEB_LINK_N1;
-	u32 saveMCHBAR_RENDER_STANDBY;
 	u32 savePCH_PORT_HOTPLUG;
 	u16 saveGCDGMBUS;
 };
@@ -1455,6 +1337,7 @@ struct intel_vbt_data {
 	bool edp_initialized;
 	bool edp_support;
 	int edp_bpp;
+	bool edp_low_vswing;
 	struct edp_power_seq edp_pps;
 
 	struct {
@@ -2144,8 +2027,9 @@ struct drm_i915_gem_request {
 	/** Position in the ringbuffer of the end of the whole request */
 	u32 tail;
 
-	/** Context related to this request */
+	/** Context and ring buffer related to this request */
 	struct intel_context *ctx;
+	struct intel_ringbuffer *ringbuf;
 
 	/** Batch buffer related to this request if any */
 	struct drm_i915_gem_object *batch_obj;
@@ -3122,10 +3006,6 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
-
-/* i915_ums.c */
-void i915_save_display_reg(struct drm_device *dev);
-void i915_restore_display_reg(struct drm_device *dev);
 
 /* i915_sysfs.c */
 void i915_setup_sysfs(struct drm_device *dev_priv);

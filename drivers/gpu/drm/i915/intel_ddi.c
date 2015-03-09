@@ -139,6 +139,21 @@ static const struct ddi_buf_trans skl_ddi_translations_dp[] = {
 	{ 0x00004014, 0x00000087 },
 };
 
+/* eDP 1.4 low vswing translation parameters */
+static const struct ddi_buf_trans skl_ddi_translations_edp[] = {
+	{ 0x00000018, 0x000000a8 },
+	{ 0x00002016, 0x000000ab },
+	{ 0x00006012, 0x000000a2 },
+	{ 0x00008010, 0x00000088 },
+	{ 0x00000018, 0x000000ab },
+	{ 0x00004014, 0x000000a2 },
+	{ 0x00006012, 0x000000a6 },
+	{ 0x00000018, 0x000000a2 },
+	{ 0x00005013, 0x0000009c },
+	{ 0x00000018, 0x00000088 },
+};
+
+
 static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
 					/* Idx	NT mV   T mV    db  */
 	{ 0x00000018, 0x000000a0 },	/* 0:	400	400	0   */
@@ -187,7 +202,8 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
-	int i, n_hdmi_entries, hdmi_800mV_0dB;
+	int i, n_hdmi_entries, n_dp_entries, n_edp_entries, hdmi_800mV_0dB,
+	    size;
 	int hdmi_level = dev_priv->vbt.ddi_port_info[port].hdmi_level_shift;
 	const struct ddi_buf_trans *ddi_translations_fdi;
 	const struct ddi_buf_trans *ddi_translations_dp;
@@ -198,7 +214,15 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	if (IS_SKYLAKE(dev)) {
 		ddi_translations_fdi = NULL;
 		ddi_translations_dp = skl_ddi_translations_dp;
-		ddi_translations_edp = skl_ddi_translations_dp;
+		n_dp_entries = ARRAY_SIZE(skl_ddi_translations_dp);
+		if (dev_priv->vbt.edp_low_vswing) {
+			ddi_translations_edp = skl_ddi_translations_edp;
+			n_edp_entries = ARRAY_SIZE(skl_ddi_translations_edp);
+		} else {
+			ddi_translations_edp = skl_ddi_translations_dp;
+			n_edp_entries = ARRAY_SIZE(skl_ddi_translations_dp);
+		}
+
 		ddi_translations_hdmi = skl_ddi_translations_hdmi;
 		n_hdmi_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
 		hdmi_800mV_0dB = 7;
@@ -207,6 +231,8 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_edp = bdw_ddi_translations_edp;
 		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
+		n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
+		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
 		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
 		hdmi_800mV_0dB = 7;
 	} else if (IS_HASWELL(dev)) {
@@ -214,6 +240,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations_dp = hsw_ddi_translations_dp;
 		ddi_translations_edp = hsw_ddi_translations_dp;
 		ddi_translations_hdmi = hsw_ddi_translations_hdmi;
+		n_dp_entries = n_edp_entries = ARRAY_SIZE(hsw_ddi_translations_dp);
 		n_hdmi_entries = ARRAY_SIZE(hsw_ddi_translations_hdmi);
 		hdmi_800mV_0dB = 6;
 	} else {
@@ -222,6 +249,8 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_hdmi = bdw_ddi_translations_hdmi;
+		n_edp_entries = ARRAY_SIZE(bdw_ddi_translations_edp);
+		n_dp_entries = ARRAY_SIZE(bdw_ddi_translations_dp);
 		n_hdmi_entries = ARRAY_SIZE(bdw_ddi_translations_hdmi);
 		hdmi_800mV_0dB = 7;
 	}
@@ -229,29 +258,34 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	switch (port) {
 	case PORT_A:
 		ddi_translations = ddi_translations_edp;
+		size = n_edp_entries;
 		break;
 	case PORT_B:
 	case PORT_C:
 		ddi_translations = ddi_translations_dp;
+		size = n_dp_entries;
 		break;
 	case PORT_D:
-		if (intel_dp_is_edp(dev, PORT_D))
+		if (intel_dp_is_edp(dev, PORT_D)) {
 			ddi_translations = ddi_translations_edp;
-		else
+			size = n_edp_entries;
+		} else {
 			ddi_translations = ddi_translations_dp;
+			size = n_dp_entries;
+		}
 		break;
 	case PORT_E:
 		if (ddi_translations_fdi)
 			ddi_translations = ddi_translations_fdi;
 		else
 			ddi_translations = ddi_translations_dp;
+		size = n_dp_entries;
 		break;
 	default:
 		BUG();
 	}
 
-	for (i = 0, reg = DDI_BUF_TRANS(port);
-	     i < ARRAY_SIZE(hsw_ddi_translations_fdi); i++) {
+	for (i = 0, reg = DDI_BUF_TRANS(port); i < size; i++) {
 		I915_WRITE(reg, ddi_translations[i].trans1);
 		reg += 4;
 		I915_WRITE(reg, ddi_translations[i].trans2);

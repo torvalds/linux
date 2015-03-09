@@ -211,6 +211,13 @@ static void fw_domains_put_with_fifo(struct drm_i915_private *dev_priv,
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
+static inline u32 fifo_free_entries(struct drm_i915_private *dev_priv)
+{
+	u32 count = __raw_i915_read32(dev_priv, GTFIFOCTL);
+
+	return count & GT_FIFO_FREE_ENTRIES_MASK;
+}
+
 static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
@@ -218,16 +225,15 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	/* On VLV, FIFO will be shared by both SW and HW.
 	 * So, we need to read the FREE_ENTRIES everytime */
 	if (IS_VALLEYVIEW(dev_priv->dev))
-		dev_priv->uncore.fifo_count =
-			__raw_i915_read32(dev_priv, GTFIFOCTL) &
-						GT_FIFO_FREE_ENTRIES_MASK;
+		dev_priv->uncore.fifo_count = fifo_free_entries(dev_priv);
 
 	if (dev_priv->uncore.fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
 		int loop = 500;
-		u32 fifo = __raw_i915_read32(dev_priv, GTFIFOCTL) & GT_FIFO_FREE_ENTRIES_MASK;
+		u32 fifo = fifo_free_entries(dev_priv);
+
 		while (fifo <= GT_FIFO_NUM_RESERVED_ENTRIES && loop--) {
 			udelay(10);
-			fifo = __raw_i915_read32(dev_priv, GTFIFOCTL) & GT_FIFO_FREE_ENTRIES_MASK;
+			fifo = fifo_free_entries(dev_priv);
 		}
 		if (WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES))
 			++ret;
@@ -315,8 +321,7 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 
 		if (IS_GEN6(dev) || IS_GEN7(dev))
 			dev_priv->uncore.fifo_count =
-				__raw_i915_read32(dev_priv, GTFIFOCTL) &
-				GT_FIFO_FREE_ENTRIES_MASK;
+				fifo_free_entries(dev_priv);
 	}
 
 	if (!restore)

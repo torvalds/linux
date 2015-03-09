@@ -1065,7 +1065,6 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	struct put_image_params *params;
 	int ret;
 
-	/* No need to check for DRIVER_MODESET - we don't set it up then. */
 	overlay = dev_priv->overlay;
 	if (!overlay) {
 		DRM_DEBUG("userspace bug: no overlay\n");
@@ -1261,7 +1260,6 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 	struct overlay_registers __iomem *regs;
 	int ret;
 
-	/* No need to check for DRIVER_MODESET - we don't set it up then. */
 	overlay = dev_priv->overlay;
 	if (!overlay) {
 		DRM_DEBUG("userspace bug: no overlay\n");

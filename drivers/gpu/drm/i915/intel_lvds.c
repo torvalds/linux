@@ -509,7 +509,7 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 		intel_connector->panel.fitting_mode = value;
 
 		crtc = intel_attached_encoder(connector)->base.crtc;
-		if (crtc && crtc->enabled) {
+		if (crtc && crtc->state->enable) {
 			/*
 			 * If the CRTC is enabled, the display will be changed
 			 * according to the new panel fitting mode.

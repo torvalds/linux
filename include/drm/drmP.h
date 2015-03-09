@@ -931,6 +931,7 @@ extern void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
 extern void drm_vblank_off(struct drm_device *dev, int crtc);
 extern void drm_vblank_on(struct drm_device *dev, int crtc);
 extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
+extern void drm_crtc_vblank_reset(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
 extern void drm_vblank_cleanup(struct drm_device *dev);
 

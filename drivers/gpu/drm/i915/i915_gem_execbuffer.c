@@ -1076,16 +1076,15 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 			  struct drm_i915_gem_object *batch_obj,
 			  u32 batch_start_offset,
 			  u32 batch_len,
-			  bool is_master,
-			  u32 *flags)
+			  bool is_master)
 {
 	struct drm_i915_private *dev_priv = to_i915(batch_obj->base.dev);
 	struct drm_i915_gem_object *shadow_batch_obj;
-	bool need_reloc = false;
+	struct i915_vma *vma;
 	int ret;
 
 	shadow_batch_obj = i915_gem_batch_pool_get(&dev_priv->mm.batch_pool,
-						   batch_obj->base.size);
+						   PAGE_ALIGN(batch_len));
 	if (IS_ERR(shadow_batch_obj))
 		return shadow_batch_obj;
 
@@ -1095,40 +1094,30 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 			      batch_start_offset,
 			      batch_len,
 			      is_master);
-	if (ret) {
-		if (ret == -EACCES)
-			return batch_obj;
-	} else {
-		struct i915_vma *vma;
+	if (ret)
+		goto err;
 
-		memset(shadow_exec_entry, 0, sizeof(*shadow_exec_entry));
+	ret = i915_gem_obj_ggtt_pin(shadow_batch_obj, 0, 0);
+	if (ret)
+		goto err;
 
-		vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
-		vma->exec_entry = shadow_exec_entry;
-		vma->exec_entry->flags = __EXEC_OBJECT_PURGEABLE;
-		drm_gem_object_reference(&shadow_batch_obj->base);
-		i915_gem_execbuffer_reserve_vma(vma, ring, &need_reloc);
-		list_add_tail(&vma->exec_list, &eb->vmas);
+	memset(shadow_exec_entry, 0, sizeof(*shadow_exec_entry));
 
-		shadow_batch_obj->base.pending_read_domains =
-			batch_obj->base.pending_read_domains;
+	vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
+	vma->exec_entry = shadow_exec_entry;
+	vma->exec_entry->flags = __EXEC_OBJECT_PURGEABLE | __EXEC_OBJECT_HAS_PIN;
+	drm_gem_object_reference(&shadow_batch_obj->base);
+	list_add_tail(&vma->exec_list, &eb->vmas);
 
-		/*
-		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
-		 * bit from MI_BATCH_BUFFER_START commands issued in the
-		 * dispatch_execbuffer implementations. We specifically
-		 * don't want that set when the command parser is
-		 * enabled.
-		 *
-		 * FIXME: with aliasing ppgtt, buffers that should only
-		 * be in ggtt still end up in the aliasing ppgtt. remove
-		 * this check when that is fixed.
-		 */
-		if (USES_FULL_PPGTT(dev))
-			*flags |= I915_DISPATCH_SECURE;
-	}
+	shadow_batch_obj->base.pending_read_domains = I915_GEM_DOMAIN_COMMAND;
 
-	return ret ? ERR_PTR(ret) : shadow_batch_obj;
+	return shadow_batch_obj;
+
+err:
+	if (ret == -EACCES) /* unhandled chained batch */
+		return batch_obj;
+	else
+		return ERR_PTR(ret);
 }
 
 int
@@ -1138,7 +1127,7 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas,
 			       struct drm_i915_gem_object *batch_obj,
-			       u64 exec_start, u32 flags)
+			       u64 exec_start, u32 dispatch_flags)
 {
 	struct drm_clip_rect *cliprects = NULL;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1266,19 +1255,19 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 
 			ret = ring->dispatch_execbuffer(ring,
 							exec_start, exec_len,
-							flags);
+							dispatch_flags);
 			if (ret)
 				goto error;
 		}
 	} else {
 		ret = ring->dispatch_execbuffer(ring,
 						exec_start, exec_len,
-						flags);
+						dispatch_flags);
 		if (ret)
 			return ret;
 	}
 
-	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), flags);
+	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring, batch_obj);
@@ -1353,7 +1342,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct i915_address_space *vm;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u64 exec_start = args->batch_start_offset;
-	u32 flags;
+	u32 dispatch_flags;
 	int ret;
 	bool need_relocs;
 
@@ -1364,15 +1353,15 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	flags = 0;
+	dispatch_flags = 0;
 	if (args->flags & I915_EXEC_SECURE) {
 		if (!file->is_master || !capable(CAP_SYS_ADMIN))
 		    return -EPERM;
 
-		flags |= I915_DISPATCH_SECURE;
+		dispatch_flags |= I915_DISPATCH_SECURE;
 	}
 	if (args->flags & I915_EXEC_IS_PINNED)
-		flags |= I915_DISPATCH_PINNED;
+		dispatch_flags |= I915_DISPATCH_PINNED;
 
 	if ((args->flags & I915_EXEC_RING_MASK) > LAST_USER_RING) {
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
@@ -1494,12 +1483,27 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 						      batch_obj,
 						      args->batch_start_offset,
 						      args->batch_len,
-						      file->is_master,
-						      &flags);
+						      file->is_master);
 		if (IS_ERR(batch_obj)) {
 			ret = PTR_ERR(batch_obj);
 			goto err;
 		}
+
+		/*
+		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
+		 * bit from MI_BATCH_BUFFER_START commands issued in the
+		 * dispatch_execbuffer implementations. We specifically
+		 * don't want that set when the command parser is
+		 * enabled.
+		 *
+		 * FIXME: with aliasing ppgtt, buffers that should only
+		 * be in ggtt still end up in the aliasing ppgtt. remove
+		 * this check when that is fixed.
+		 */
+		if (USES_FULL_PPGTT(dev))
+			dispatch_flags |= I915_DISPATCH_SECURE;
+
+		exec_start = 0;
 	}
 
 	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
@@ -1507,7 +1511,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.
 	 * hsw should have this fixed, but bdw mucks it up again. */
-	if (flags & I915_DISPATCH_SECURE) {
+	if (dispatch_flags & I915_DISPATCH_SECURE) {
 		/*
 		 * So on first glance it looks freaky that we pin the batch here
 		 * outside of the reservation loop. But:
@@ -1527,7 +1531,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		exec_start += i915_gem_obj_offset(batch_obj, vm);
 
 	ret = dev_priv->gt.do_execbuf(dev, file, ring, ctx, args,
-				      &eb->vmas, batch_obj, exec_start, flags);
+				      &eb->vmas, batch_obj, exec_start,
+				      dispatch_flags);
 
 	/*
 	 * FIXME: We crucially rely upon the active tracking for the (ppgtt)
@@ -1535,7 +1540,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * needs to be adjusted to also track the ggtt batch vma properly as
 	 * active.
 	 */
-	if (flags & I915_DISPATCH_SECURE)
+	if (dispatch_flags & I915_DISPATCH_SECURE)
 		i915_gem_object_ggtt_unpin(batch_obj);
 err:
 	/* the request owns the ref now */

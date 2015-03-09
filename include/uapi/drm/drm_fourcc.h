@@ -192,4 +192,19 @@
  */
 #define I915_FORMAT_MOD_Y_TILED	fourcc_mod_code(INTEL, 2)
 
+/*
+ * Intel Yf-tiling layout
+ *
+ * This is a tiled layout using 4Kb tiles in row-major layout.
+ * Within the tile pixels are laid out in 16 256 byte units / sub-tiles which
+ * are arranged in four groups (two wide, two high) with column-major layout.
+ * Each group therefore consits out of four 256 byte units, which are also laid
+ * out as 2x2 column-major.
+ * 256 byte units are made out of four 64 byte blocks of pixels, producing
+ * either a square block or a 2:1 unit.
+ * 64 byte blocks of pixels contain four pixel rows of 16 bytes, where the width
+ * in pixel depends on the pixel depth.
+ */
+#define I915_FORMAT_MOD_Yf_TILED fourcc_mod_code(INTEL, 3)
+
 #endif /* DRM_FOURCC_H */
