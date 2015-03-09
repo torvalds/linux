@@ -53,6 +53,7 @@ static int hdmi_set_mode(struct rk_display_device *device,
 			container_of(mode, struct display_modelist, mode);
 	int vic = 0;
 
+	mutex_lock(&hdmi->lock);
 	if (mode == NULL) {
 		hdmi->autoset = 1;
 		vic = hdmi_find_best_mode(hdmi, 0);
@@ -66,6 +67,7 @@ static int hdmi_set_mode(struct rk_display_device *device,
 		if (hdmi->hotplug == HDMI_HPD_ACTIVED)
 			hdmi_submit_work(hdmi, HDMI_SET_VIDEO, 0, NULL);
 	}
+	mutex_unlock(&hdmi->lock);
 	return 0;
 }
 

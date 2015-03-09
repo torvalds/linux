@@ -210,7 +210,7 @@ static void hdmi_wq_insert(struct hdmi *hdmi)
 		rockchip_hdmi_cec_set_pa(hdmi->edid.cecaddress);
 	hdmi_send_uevent(hdmi, KOBJ_ADD);
 	if (hdmi->enable) {
-		hdmi->autoset = 0;
+		/*hdmi->autoset = 0;*/
 		hdmi_set_lcdc(hdmi);
 		hdmi_wq_set_video(hdmi);
 		#ifdef CONFIG_SWITCH
