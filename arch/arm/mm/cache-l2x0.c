@@ -1648,6 +1648,7 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	struct device_node *np;
 	struct resource res;
 	u32 cache_id, old_aux;
+	u32 cache_level = 2;
 
 	np = of_find_matching_node(NULL, l2x0_ids);
 	if (!np)
@@ -1679,6 +1680,12 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	/* All L2 caches are unified, so this property should be specified */
 	if (!of_property_read_bool(np, "cache-unified"))
 		pr_err("L2C: device tree omits to specify unified cache\n");
+
+	if (of_property_read_u32(np, "cache-level", &cache_level))
+		pr_err("L2C: device tree omits to specify cache-level\n");
+
+	if (cache_level != 2)
+		pr_err("L2C: device tree specifies invalid cache level\n");
 
 	/* Read back current (default) hardware configuration */
 	if (data->save)
