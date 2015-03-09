@@ -28,8 +28,6 @@
 #include <linux/sched.h>
 #include <linux/async.h>
 #include <linux/suspend.h>
-#include <trace/events/power.h>
-#include <linux/cpufreq.h>
 #include <linux/cpuidle.h>
 #include "../base.h"
 #include "power.h"
@@ -715,8 +713,6 @@ void dpm_resume(pm_message_t state)
 	mutex_unlock(&dpm_list_mtx);
 	async_synchronize_full();
 	dpm_show_time(starttime, state, NULL);
-
-	cpufreq_resume();
 }
 
 /**
@@ -1180,8 +1176,6 @@ int dpm_suspend(pm_message_t state)
 	int error = 0;
 
 	might_sleep();
-
-	cpufreq_suspend();
 
 	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
