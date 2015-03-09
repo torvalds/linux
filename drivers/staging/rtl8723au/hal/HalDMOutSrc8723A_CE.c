@@ -222,7 +222,7 @@ odm_TXPowerTrackingCallback_ThermalMeter_92C(struct rtw_adapter *Adapter)
 			}
 
 			if (CCK_index > (CCK_TABLE_SIZE-1))
-				CCK_index = (CCK_TABLE_SIZE-1);
+				CCK_index = CCK_TABLE_SIZE-1;
 			else if (CCK_index < 0)
 				CCK_index = 0;
 		}
