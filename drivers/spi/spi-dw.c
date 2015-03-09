@@ -315,7 +315,6 @@ static int dw_spi_transfer_one(struct spi_master *master,
 {
 	struct dw_spi *dws = spi_master_get_devdata(master);
 	struct chip_data *chip = spi_get_ctldata(spi);
-	u8 bits = 0;
 	u8 imask = 0;
 	u8 cs_change = 0;
 	u16 txlevel = 0;
@@ -357,9 +356,14 @@ static int dw_spi_transfer_one(struct spi_master *master,
 		}
 	}
 	if (transfer->bits_per_word) {
-		bits = transfer->bits_per_word;
-		dws->n_bytes = dws->dma_width = bits >> 3;
-		cr0 = (bits - 1)
+		if (transfer->bits_per_word == 8) {
+			dws->n_bytes = 1;
+			dws->dma_width = 1;
+		} else if (transfer->bits_per_word == 16) {
+			dws->n_bytes = 2;
+			dws->dma_width = 2;
+		}
+		cr0 = (transfer->bits_per_word - 1)
 			| (chip->type << SPI_FRF_OFFSET)
 			| (spi->mode << SPI_MODE_OFFSET)
 			| (chip->tmode << SPI_TMOD_OFFSET);
