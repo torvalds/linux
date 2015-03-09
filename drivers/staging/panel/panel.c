@@ -473,8 +473,6 @@ static struct pardevice *pprt;
 
 static int keypad_initialized;
 
-static char init_in_progress;
-
 static void (*lcd_write_cmd)(int);
 static void (*lcd_write_data)(int);
 static void (*lcd_clear_fast)(void);
@@ -1718,9 +1716,6 @@ static struct miscdevice keypad_dev = {
 
 static void keypad_send_key(const char *string, int max_len)
 {
-	if (init_in_progress)
-		return;
-
 	/* send the key to the device only if a process is attached to it. */
 	if (!atomic_read(&keypad_available)) {
 		while (max_len-- && keypad_buflen < KEYPAD_BUFFER && *string) {
@@ -2379,9 +2374,6 @@ static int __init panel_init_module(void)
 		break;
 	}
 
-	/* tells various subsystems about the fact that we are initializing */
-	init_in_progress = 1;
-
 	if (!lcd.enabled && !keypad.enabled) {
 		/* no device enabled, let's exit */
 		pr_err("driver version " PANEL_VERSION " disabled.\n");
@@ -2401,9 +2393,6 @@ static int __init panel_init_module(void)
 	else
 		pr_info("driver version " PANEL_VERSION
 			" not yet registered\n");
-	/* tells various subsystems about the fact that initialization
-	   is finished */
-	init_in_progress = 0;
 	return 0;
 }
 
