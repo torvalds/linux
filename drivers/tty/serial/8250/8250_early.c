@@ -173,26 +173,3 @@ int __init setup_early_serial8250_console(char *cmdline)
 
 	return setup_earlycon(cmdline, match, early_serial8250_setup);
 }
-
-int serial8250_find_port_for_earlycon(void)
-{
-	struct earlycon_device *device = early_device;
-	struct uart_port *port = device ? &device->port : NULL;
-	int line;
-	int ret;
-
-	if (!port || (!port->membase && !port->iobase))
-		return -ENODEV;
-
-	line = serial8250_find_port(port);
-	if (line < 0)
-		return -ENODEV;
-
-	ret = update_console_cmdline("uart", 8250,
-			     "ttyS", line, device->options);
-	if (ret < 0)
-		ret = update_console_cmdline("uart", 0,
-				     "ttyS", line, device->options);
-
-	return ret;
-}

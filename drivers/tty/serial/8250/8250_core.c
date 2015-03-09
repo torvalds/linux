@@ -3322,9 +3322,54 @@ static int serial8250_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-static int serial8250_console_early_setup(void)
+/**
+ *	serial8250_console_match - non-standard console matching
+ *	@co:	  registering console
+ *	@name:	  name from console command line
+ *	@idx:	  index from console command line
+ *	@options: ptr to option string from console command line
+ *
+ *	Only attempts to match console command lines of the form:
+ *	    console=uart<>,io|mmio|mmio32,<addr>,<options>
+ *	    console=uart<>,<addr>,options
+ *	This form is used to register an initial earlycon boot console and
+ *	replace it with the serial8250_console at 8250 driver init.
+ *
+ *	Performs console setup for a match (as required by interface)
+ *
+ *	Returns 0 if console matches; otherwise non-zero to use default matching
+ */
+static int serial8250_console_match(struct console *co, char *name, int idx,
+				    char *options)
 {
-	return serial8250_find_port_for_earlycon();
+	char match[] = "uart";	/* 8250-specific earlycon name */
+	unsigned char iotype;
+	unsigned long addr;
+	int i;
+
+	if (strncmp(name, match, 4) != 0)
+		return -ENODEV;
+
+	if (uart_parse_earlycon(options, &iotype, &addr, &options))
+		return -ENODEV;
+
+	/* try to match the port specified on the command line */
+	for (i = 0; i < nr_uarts; i++) {
+		struct uart_port *port = &serial8250_ports[i].port;
+
+		if (port->iotype != iotype)
+			continue;
+		if ((iotype == UPIO_MEM || iotype == UPIO_MEM32) &&
+		    (port->mapbase != addr))
+			continue;
+		if (iotype == UPIO_PORT && port->iobase != addr)
+			continue;
+
+		co->index = i;
+		return serial8250_console_setup(co, options);
+	}
+
+	return -ENODEV;
 }
 
 static struct console serial8250_console = {
@@ -3332,7 +3377,7 @@ static struct console serial8250_console = {
 	.write		= serial8250_console_write,
 	.device		= uart_console_device,
 	.setup		= serial8250_console_setup,
-	.early_setup	= serial8250_console_early_setup,
+	.match		= serial8250_console_match,
 	.flags		= CON_PRINTBUFFER | CON_ANYTIME,
 	.index		= -1,
 	.data		= &serial8250_reg,
@@ -3345,19 +3390,6 @@ static int __init serial8250_console_init(void)
 	return 0;
 }
 console_initcall(serial8250_console_init);
-
-int serial8250_find_port(struct uart_port *p)
-{
-	int line;
-	struct uart_port *port;
-
-	for (line = 0; line < nr_uarts; line++) {
-		port = &serial8250_ports[line].port;
-		if (uart_match_port(p, port))
-			return line;
-	}
-	return -ENODEV;
-}
 
 #define SERIAL8250_CONSOLE	&serial8250_console
 #else

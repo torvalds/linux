@@ -118,8 +118,6 @@ void serial8250_resume_port(int line);
 
 extern int early_serial_setup(struct uart_port *port);
 
-extern int serial8250_find_port(struct uart_port *p);
-extern int serial8250_find_port_for_earlycon(void);
 extern unsigned int serial8250_early_in(struct uart_port *port, int offset);
 extern void serial8250_early_out(struct uart_port *port, int offset, int value);
 extern int setup_early_serial8250_console(char *cmdline);
