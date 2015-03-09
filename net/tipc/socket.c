@@ -1318,11 +1318,11 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 		err = 0;
 		if (!skb_queue_empty(&sk->sk_receive_queue))
 			break;
-		err = sock_intr_errno(timeo);
-		if (signal_pending(current))
-			break;
 		err = -EAGAIN;
 		if (!timeo)
+			break;
+		err = sock_intr_errno(timeo);
+		if (signal_pending(current))
 			break;
 	}
 	finish_wait(sk_sleep(sk), &wait);
@@ -2026,11 +2026,11 @@ static int tipc_wait_for_accept(struct socket *sock, long timeo)
 		err = -EINVAL;
 		if (sock->state != SS_LISTENING)
 			break;
-		err = sock_intr_errno(timeo);
-		if (signal_pending(current))
-			break;
 		err = -EAGAIN;
 		if (!timeo)
+			break;
+		err = sock_intr_errno(timeo);
+		if (signal_pending(current))
 			break;
 	}
 	finish_wait(sk_sleep(sk), &wait);
