@@ -302,6 +302,7 @@ struct nfs4_deviceid_node {
 	unsigned long 			flags;
 	unsigned long			timestamp_unavailable;
 	struct nfs4_deviceid		deviceid;
+	struct rcu_head			rcu;
 	atomic_t			ref;
 };
 

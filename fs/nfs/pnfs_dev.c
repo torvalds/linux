@@ -175,8 +175,8 @@ __nfs4_find_get_deviceid(struct nfs_server *server,
 	rcu_read_lock();
 	d = _lookup_deviceid(server->pnfs_curr_ld, server->nfs_client, id,
 			hash);
-	if (d != NULL)
-		atomic_inc(&d->ref);
+	if (d != NULL && !atomic_inc_not_zero(&d->ref))
+		d = NULL;
 	rcu_read_unlock();
 	return d;
 }
@@ -236,7 +236,6 @@ nfs4_delete_deviceid(const struct pnfs_layoutdriver_type *ld,
 	}
 	hlist_del_init_rcu(&d->node);
 	spin_unlock(&nfs4_deviceid_lock);
-	synchronize_rcu();
 
 	/* balance the initial ref set in pnfs_insert_deviceid */
 	if (atomic_dec_and_test(&d->ref))
@@ -321,7 +320,6 @@ _deviceid_purge_client(const struct nfs_client *clp, long hash)
 	if (hlist_empty(&tmp))
 		return;
 
-	synchronize_rcu();
 	while (!hlist_empty(&tmp)) {
 		d = hlist_entry(tmp.first, struct nfs4_deviceid_node, tmpnode);
 		hlist_del(&d->tmpnode);

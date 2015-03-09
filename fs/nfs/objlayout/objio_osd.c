@@ -57,7 +57,7 @@ objio_free_deviceid_node(struct nfs4_deviceid_node *d)
 
 	dprintk("%s: free od=%p\n", __func__, de->od.od);
 	osduld_put_device(de->od.od);
-	kfree(de);
+	kfree_rcu(d, rcu);
 }
 
 struct objio_segment {
