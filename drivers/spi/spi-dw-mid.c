@@ -100,6 +100,22 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 	dma_release_channel(dws->rxchan);
 }
 
+static irqreturn_t dma_transfer(struct dw_spi *dws)
+{
+	u16 irq_status = dw_readw(dws, DW_SPI_ISR);
+
+	if (!irq_status)
+		return IRQ_NONE;
+
+	dw_readw(dws, DW_SPI_ICR);
+	spi_reset_chip(dws);
+
+	dev_err(&dws->master->dev, "%s: FIFO overrun/underrun\n", __func__);
+	dws->master->cur_msg->status = -EIO;
+	spi_finalize_current_transfer(dws->master);
+	return IRQ_HANDLED;
+}
+
 static enum dma_slave_buswidth convert_dma_width(u32 dma_width) {
 	if (dma_width == 1)
 		return DMA_SLAVE_BUSWIDTH_1_BYTE;
@@ -219,6 +235,11 @@ static int mid_spi_dma_setup(struct dw_spi *dws)
 	if (dws->rx_dma)
 		dma_ctrl |= SPI_DMA_RDMAE;
 	dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
+
+	/* Set the interrupt mask */
+	spi_umask_intr(dws, SPI_INT_TXOI | SPI_INT_RXUI | SPI_INT_RXOI);
+
+	dws->transfer_handler = dma_transfer;
 
 	return 0;
 }
