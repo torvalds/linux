@@ -193,12 +193,14 @@ void tpg_reset_source(struct tpg_data *tpg, unsigned width, unsigned height,
 		       u32 field);
 
 void tpg_set_font(const u8 *f);
-void tpg_gen_text(struct tpg_data *tpg,
+void tpg_gen_text(const struct tpg_data *tpg,
 		u8 *basep[TPG_MAX_PLANES][2], int y, int x, char *text);
 void tpg_calc_text_basep(struct tpg_data *tpg,
 		u8 *basep[TPG_MAX_PLANES][2], unsigned p, u8 *vbuf);
-void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf);
-void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf);
+void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std,
+			   unsigned p, u8 *vbuf);
+void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std,
+		    unsigned p, u8 *vbuf);
 bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc);
 void tpg_s_crop_compose(struct tpg_data *tpg, const struct v4l2_rect *crop,
 		const struct v4l2_rect *compose);

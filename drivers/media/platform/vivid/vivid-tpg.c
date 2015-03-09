@@ -1241,8 +1241,8 @@ static void tpg_precalculate_line(struct tpg_data *tpg)
 /* need this to do rgb24 rendering */
 typedef struct { u16 __; u8 _; } __packed x24;
 
-void tpg_gen_text(struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
-		int y, int x, char *text)
+void tpg_gen_text(const struct tpg_data *tpg, u8 *basep[TPG_MAX_PLANES][2],
+		  int y, int x, char *text)
 {
 	int line;
 	unsigned step = V4L2_FIELD_HAS_T_OR_B(tpg->field) ? 2 : 1;
@@ -1389,7 +1389,7 @@ void tpg_update_mv_step(struct tpg_data *tpg)
 }
 
 /* Map the line number relative to the crop rectangle to a frame line number */
-static unsigned tpg_calc_frameline(struct tpg_data *tpg, unsigned src_y,
+static unsigned tpg_calc_frameline(const struct tpg_data *tpg, unsigned src_y,
 				    unsigned field)
 {
 	switch (field) {
@@ -1406,7 +1406,7 @@ static unsigned tpg_calc_frameline(struct tpg_data *tpg, unsigned src_y,
  * Map the line number relative to the compose rectangle to a destination
  * buffer line number.
  */
-static unsigned tpg_calc_buffer_line(struct tpg_data *tpg, unsigned y,
+static unsigned tpg_calc_buffer_line(const struct tpg_data *tpg, unsigned y,
 				    unsigned field)
 {
 	y += tpg->compose.top;
