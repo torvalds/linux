@@ -421,6 +421,8 @@ at86rf230_reg_volatile(struct device *dev, unsigned int reg)
 	case RG_PHY_ED_LEVEL:
 	case RG_IRQ_STATUS:
 	case RG_VREG_CTRL:
+	case RG_PLL_CF:
+	case RG_PLL_DCU:
 		return true;
 	default:
 		return false;
