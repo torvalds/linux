@@ -522,6 +522,7 @@ void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 		kobject_del(fs_info->space_info_kobj);
 		kobject_put(fs_info->space_info_kobj);
 	}
+	btrfs_kobj_rm_device(fs_info, NULL);
 	kobject_del(fs_info->device_dir_kobj);
 	kobject_put(fs_info->device_dir_kobj);
 	addrm_unknown_feature_attrs(fs_info, false);
@@ -604,6 +605,8 @@ static void init_feature_attrs(void)
 	}
 }
 
+/* when one_device is NULL, it removes all device links */
+
 int btrfs_kobj_rm_device(struct btrfs_fs_info *fs_info,
 		struct btrfs_device *one_device)
 {
@@ -614,6 +617,20 @@ int btrfs_kobj_rm_device(struct btrfs_fs_info *fs_info,
 		return -EINVAL;
 
 	if (one_device && one_device->bdev) {
+		disk = one_device->bdev->bd_part;
+		disk_kobj = &part_to_dev(disk)->kobj;
+
+		sysfs_remove_link(fs_info->device_dir_kobj,
+						disk_kobj->name);
+	}
+
+	if (one_device)
+		return 0;
+
+	list_for_each_entry(one_device,
+			&fs_info->fs_devices->devices, dev_list) {
+		if (!one_device->bdev)
+			continue;
 		disk = one_device->bdev->bd_part;
 		disk_kobj = &part_to_dev(disk)->kobj;
 
