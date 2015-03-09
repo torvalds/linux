@@ -1346,6 +1346,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
+	mvmvif->mvm = mvm;
+
 	/*
 	 * make sure D0i3 exit is completed, otherwise a target access
 	 * during tx queue configuration could be done when still in
