@@ -682,6 +682,7 @@ static void exynos7_tmu_control(struct platform_device *pdev, bool on)
 
 	if (on) {
 		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con |= (1 << EXYNOS7_PD_DET_EN_SHIFT);
 		interrupt_en =
 			(of_thermal_is_trip_valid(tz, 7)
 			<< EXYNOS7_TMU_INTEN_RISE7_SHIFT) |
@@ -704,9 +705,9 @@ static void exynos7_tmu_control(struct platform_device *pdev, bool on)
 			interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
 	} else {
 		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con &= ~(1 << EXYNOS7_PD_DET_EN_SHIFT);
 		interrupt_en = 0; /* Disable all interrupts */
 	}
-	con |= 1 << EXYNOS7_PD_DET_EN_SHIFT;
 
 	writel(interrupt_en, data->base + EXYNOS7_TMU_REG_INTEN);
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
@@ -918,34 +919,16 @@ static irqreturn_t exynos_tmu_irq(int irq, void *id)
 }
 
 static const struct of_device_id exynos_tmu_match[] = {
-	{
-		.compatible = "samsung,exynos3250-tmu",
-	},
-	{
-		.compatible = "samsung,exynos4210-tmu",
-	},
-	{
-		.compatible = "samsung,exynos4412-tmu",
-	},
-	{
-		.compatible = "samsung,exynos5250-tmu",
-	},
-	{
-		.compatible = "samsung,exynos5260-tmu",
-	},
-	{
-		.compatible = "samsung,exynos5420-tmu",
-	},
-	{
-		.compatible = "samsung,exynos5420-tmu-ext-triminfo",
-	},
-	{
-		.compatible = "samsung,exynos5440-tmu",
-	},
-	{
-		.compatible = "samsung,exynos7-tmu",
-	},
-	{},
+	{ .compatible = "samsung,exynos3250-tmu", },
+	{ .compatible = "samsung,exynos4210-tmu", },
+	{ .compatible = "samsung,exynos4412-tmu", },
+	{ .compatible = "samsung,exynos5250-tmu", },
+	{ .compatible = "samsung,exynos5260-tmu", },
+	{ .compatible = "samsung,exynos5420-tmu", },
+	{ .compatible = "samsung,exynos5420-tmu-ext-triminfo", },
+	{ .compatible = "samsung,exynos5440-tmu", },
+	{ .compatible = "samsung,exynos7-tmu", },
+	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, exynos_tmu_match);
 

@@ -625,8 +625,12 @@ nft_match_select_ops(const struct nft_ctx *ctx,
 		struct xt_match *match = nft_match->ops.data;
 
 		if (strcmp(match->name, mt_name) == 0 &&
-		    match->revision == rev && match->family == family)
+		    match->revision == rev && match->family == family) {
+			if (!try_module_get(match->me))
+				return ERR_PTR(-ENOENT);
+
 			return &nft_match->ops;
+		}
 	}
 
 	match = xt_request_find_match(family, mt_name, rev);
@@ -695,8 +699,12 @@ nft_target_select_ops(const struct nft_ctx *ctx,
 		struct xt_target *target = nft_target->ops.data;
 
 		if (strcmp(target->name, tg_name) == 0 &&
-		    target->revision == rev && target->family == family)
+		    target->revision == rev && target->family == family) {
+			if (!try_module_get(target->me))
+				return ERR_PTR(-ENOENT);
+
 			return &nft_target->ops;
+		}
 	}
 
 	target = xt_request_find_target(family, tg_name, rev);

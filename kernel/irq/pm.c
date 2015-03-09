@@ -43,9 +43,12 @@ void irq_pm_install_action(struct irq_desc *desc, struct irqaction *action)
 
 	if (action->flags & IRQF_NO_SUSPEND)
 		desc->no_suspend_depth++;
+	else if (action->flags & IRQF_COND_SUSPEND)
+		desc->cond_suspend_depth++;
 
 	WARN_ON_ONCE(desc->no_suspend_depth &&
-		     desc->no_suspend_depth != desc->nr_actions);
+		     (desc->no_suspend_depth +
+			desc->cond_suspend_depth) != desc->nr_actions);
 }
 
 /*
@@ -61,6 +64,8 @@ void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action)
 
 	if (action->flags & IRQF_NO_SUSPEND)
 		desc->no_suspend_depth--;
+	else if (action->flags & IRQF_COND_SUSPEND)
+		desc->cond_suspend_depth--;
 }
 
 static bool suspend_device_irq(struct irq_desc *desc, int irq)

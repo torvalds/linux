@@ -163,6 +163,8 @@ void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 int init_pipelines(struct device_queue_manager *dqm,
 		unsigned int pipes_num, unsigned int first_pipe);
+unsigned int get_first_pipe(struct device_queue_manager *dqm);
+unsigned int get_pipes_num(struct device_queue_manager *dqm);
 
 extern inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {
@@ -173,12 +175,6 @@ extern inline unsigned int
 get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 {
 	return (pdd->lds_base >> 60) & 0x0E;
-}
-
-extern inline unsigned int get_pipes_num(struct device_queue_manager *dqm)
-{
-	BUG_ON(!dqm || !dqm->dev);
-	return dqm->dev->shared_resources.compute_pipe_count;
 }
 
 #endif /* KFD_DEVICE_QUEUE_MANAGER_H_ */

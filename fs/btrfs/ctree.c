@@ -1645,14 +1645,14 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 	parent_nritems = btrfs_header_nritems(parent);
 	blocksize = root->nodesize;
-	end_slot = parent_nritems;
+	end_slot = parent_nritems - 1;
 
-	if (parent_nritems == 1)
+	if (parent_nritems <= 1)
 		return 0;
 
 	btrfs_set_lock_blocking(parent);
 
-	for (i = start_slot; i < end_slot; i++) {
+	for (i = start_slot; i <= end_slot; i++) {
 		int close = 1;
 
 		btrfs_node_key(parent, &disk_key, i);
@@ -1669,7 +1669,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			other = btrfs_node_blockptr(parent, i - 1);
 			close = close_blocks(blocknr, other, blocksize);
 		}
-		if (!close && i < end_slot - 2) {
+		if (!close && i < end_slot) {
 			other = btrfs_node_blockptr(parent, i + 1);
 			close = close_blocks(blocknr, other, blocksize);
 		}

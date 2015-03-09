@@ -2867,6 +2867,10 @@ xfs_rename(
 	 * Handle RENAME_EXCHANGE flags
 	 */
 	if (flags & RENAME_EXCHANGE) {
+		if (target_ip == NULL) {
+			error = -EINVAL;
+			goto error_return;
+		}
 		error = xfs_cross_rename(tp, src_dp, src_name, src_ip,
 					 target_dp, target_name, target_ip,
 					 &free_list, &first_block, spaceres);
