@@ -23,29 +23,31 @@
 #include "spi-dw.h"
 
 #ifdef CONFIG_SPI_DW_MID_DMA
-#include <linux/intel_mid_dma.h>
 #include <linux/pci.h>
+#include <linux/platform_data/dma-dw.h>
 
 #define RX_BUSY		0
 #define TX_BUSY		1
 
-struct mid_dma {
-	struct intel_mid_dma_slave	dmas_tx;
-	struct intel_mid_dma_slave	dmas_rx;
-};
+static struct dw_dma_slave mid_dma_tx = { .dst_id = 1 };
+static struct dw_dma_slave mid_dma_rx = { .src_id = 0 };
 
 static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 {
-	struct dw_spi *dws = param;
+	struct dw_dma_slave *s = param;
 
-	return dws->dma_dev == chan->device->dev;
+	if (s->dma_dev != chan->device->dev)
+		return false;
+
+	chan->private = s;
+	return true;
 }
 
 static int mid_spi_dma_init(struct dw_spi *dws)
 {
-	struct mid_dma *dw_dma = dws->dma_priv;
 	struct pci_dev *dma_dev;
-	struct intel_mid_dma_slave *rxs, *txs;
+	struct dw_dma_slave *tx = dws->dma_tx;
+	struct dw_dma_slave *rx = dws->dma_rx;
 	dma_cap_mask_t mask;
 
 	/*
@@ -56,29 +58,21 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 	if (!dma_dev)
 		return -ENODEV;
 
-	dws->dma_dev = &dma_dev->dev;
-
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* 1. Init rx channel */
-	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, dws);
+	rx->dma_dev = &dma_dev->dev;
+	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, rx);
 	if (!dws->rxchan)
 		goto err_exit;
-	rxs = &dw_dma->dmas_rx;
-	rxs->hs_mode = LNW_DMA_HW_HS;
-	rxs->cfg_mode = LNW_DMA_PER_TO_MEM;
-	dws->rxchan->private = rxs;
 	dws->master->dma_rx = dws->rxchan;
 
 	/* 2. Init tx channel */
-	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, dws);
+	tx->dma_dev = &dma_dev->dev;
+	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, tx);
 	if (!dws->txchan)
 		goto free_rxchan;
-	txs = &dw_dma->dmas_tx;
-	txs->hs_mode = LNW_DMA_HW_HS;
-	txs->cfg_mode = LNW_DMA_MEM_TO_PER;
-	dws->txchan->private = txs;
 	dws->master->dma_tx = dws->txchan;
 
 	dws->dma_inited = 1;
@@ -163,7 +157,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
 
 	txconf.direction = DMA_MEM_TO_DEV;
 	txconf.dst_addr = dws->dma_addr;
-	txconf.dst_maxburst = LNW_DMA_MSIZE_16;
+	txconf.dst_maxburst = 16;
 	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	txconf.dst_addr_width = convert_dma_width(dws->dma_width);
 	txconf.device_fc = false;
@@ -209,7 +203,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 
 	rxconf.direction = DMA_DEV_TO_MEM;
 	rxconf.src_addr = dws->dma_addr;
-	rxconf.src_maxburst = LNW_DMA_MSIZE_16;
+	rxconf.src_maxburst = 16;
 	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	rxconf.src_addr_width = convert_dma_width(dws->dma_width);
 	rxconf.device_fc = false;
@@ -328,9 +322,8 @@ int dw_spi_mid_init(struct dw_spi *dws)
 	iounmap(clk_reg);
 
 #ifdef CONFIG_SPI_DW_MID_DMA
-	dws->dma_priv = kzalloc(sizeof(struct mid_dma), GFP_KERNEL);
-	if (!dws->dma_priv)
-		return -ENOMEM;
+	dws->dma_tx = &mid_dma_tx;
+	dws->dma_rx = &mid_dma_rx;
 	dws->dma_ops = &mid_dma_ops;
 #endif
 	return 0;

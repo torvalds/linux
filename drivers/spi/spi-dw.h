@@ -128,10 +128,10 @@ struct dw_spi {
 	struct dma_chan		*txchan;
 	struct dma_chan		*rxchan;
 	unsigned long		dma_chan_busy;
-	struct device		*dma_dev;
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	struct dw_spi_dma_ops	*dma_ops;
-	void			*dma_priv; /* platform relate info */
+	void			*dma_tx;
+	void			*dma_rx;
 
 	/* Bus interface info */
 	void			*priv;
