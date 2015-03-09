@@ -379,7 +379,7 @@ out_err:
 	return ret;
 }
 
-static void __exit adf_remove(struct pci_dev *pdev)
+static void adf_remove(struct pci_dev *pdev)
 {
 	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
 
