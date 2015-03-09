@@ -2432,9 +2432,9 @@
                                                 <&clk_gates16 9>,	<&clk_gates16 8>,
 
 						<&clk_gates16 9>,	<&clk_gates16 9>,
-						<&clk_gates16 8>,	<&clk_gates16 8>,
+						<&clk_gates16 8>,	<&clk_gates17 8>,
 
-						<&hclk_vio>,	<&aclk_vio0>,
+						<&clk_gates16 7>,	<&aclk_vio0>,
 						<&aclk_rga_pre>,	<&clk_gates16 9>,
 
 						<&clk_gates16 8>,	<&pclkin_vip>,
@@ -2464,9 +2464,9 @@
                                                 <&pclkin_isp>,	<&pclk_vio>,
 
 						<&pclk_vio>,	<&dummy>,
-						<&pclk_vio>,	<&clk_gates16 8>,
+						<&pclk_vio>,	<&hclk_vio>,
 
-						<&pclk_vio>,	<&pclk_vio>,
+						<&clk_gates17 7>,	<&pclk_vio>,
 						<&clk_gates16 10>,	<&pclk_vio>,
 
 						<&clk_gates16 8>,	<&dummy>,
