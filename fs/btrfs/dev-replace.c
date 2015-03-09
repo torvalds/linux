@@ -583,7 +583,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	mutex_unlock(&uuid_mutex);
 
 	/* replace the sysfs entry */
-	btrfs_kobj_rm_device(fs_info, src_device);
+	btrfs_kobj_rm_device(fs_info->fs_devices, src_device);
 	btrfs_kobj_add_device(fs_info->fs_devices, tgt_device);
 	btrfs_rm_dev_replace_free_srcdev(fs_info, src_device);
 

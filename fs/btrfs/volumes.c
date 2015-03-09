@@ -1710,7 +1710,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (device->bdev) {
 		device->fs_devices->open_devices--;
 		/* remove sysfs entry */
-		btrfs_kobj_rm_device(root->fs_info, device);
+		btrfs_kobj_rm_device(root->fs_info->fs_devices, device);
 	}
 
 	call_rcu(&device->rcu, free_device);
@@ -2294,7 +2294,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 error_trans:
 	btrfs_end_transaction(trans, root);
 	rcu_string_free(device->name);
-	btrfs_kobj_rm_device(root->fs_info, device);
+	btrfs_kobj_rm_device(root->fs_info->fs_devices, device);
 	kfree(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);

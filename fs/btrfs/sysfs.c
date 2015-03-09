@@ -555,7 +555,7 @@ void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 	addrm_unknown_feature_attrs(fs_info, false);
 	sysfs_remove_group(&fs_info->fs_devices->super_kobj, &btrfs_feature_attr_group);
 	sysfs_remove_files(&fs_info->fs_devices->super_kobj, btrfs_attrs);
-	btrfs_kobj_rm_device(fs_info, NULL);
+	btrfs_kobj_rm_device(fs_info->fs_devices, NULL);
 	btrfs_sysfs_remove_fsid(fs_info->fs_devices);
 }
 
@@ -636,20 +636,20 @@ static void init_feature_attrs(void)
 
 /* when one_device is NULL, it removes all device links */
 
-int btrfs_kobj_rm_device(struct btrfs_fs_info *fs_info,
+int btrfs_kobj_rm_device(struct btrfs_fs_devices *fs_devices,
 		struct btrfs_device *one_device)
 {
 	struct hd_struct *disk;
 	struct kobject *disk_kobj;
 
-	if (!fs_info->fs_devices->device_dir_kobj)
+	if (!fs_devices->device_dir_kobj)
 		return -EINVAL;
 
 	if (one_device && one_device->bdev) {
 		disk = one_device->bdev->bd_part;
 		disk_kobj = &part_to_dev(disk)->kobj;
 
-		sysfs_remove_link(fs_info->fs_devices->device_dir_kobj,
+		sysfs_remove_link(fs_devices->device_dir_kobj,
 						disk_kobj->name);
 	}
 
@@ -657,13 +657,13 @@ int btrfs_kobj_rm_device(struct btrfs_fs_info *fs_info,
 		return 0;
 
 	list_for_each_entry(one_device,
-			&fs_info->fs_devices->devices, dev_list) {
+			&fs_devices->devices, dev_list) {
 		if (!one_device->bdev)
 			continue;
 		disk = one_device->bdev->bd_part;
 		disk_kobj = &part_to_dev(disk)->kobj;
 
-		sysfs_remove_link(fs_info->fs_devices->device_dir_kobj,
+		sysfs_remove_link(fs_devices->device_dir_kobj,
 						disk_kobj->name);
 	}
 
