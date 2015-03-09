@@ -1456,7 +1456,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_aux_display_runtime_get - grab an auxilliary power domain reference
+ * intel_aux_display_runtime_get - grab an auxiliary power domain reference
  * @dev_priv: i915 device instance
  *
  * This function grabs a power domain reference for the auxiliary power domain
@@ -1473,10 +1473,10 @@ void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_aux_display_runtime_put - release an auxilliary power domain reference
+ * intel_aux_display_runtime_put - release an auxiliary power domain reference
  * @dev_priv: i915 device instance
  *
- * This function drops the auxilliary power domain reference obtained by
+ * This function drops the auxiliary power domain reference obtained by
  * intel_aux_display_runtime_get() and might power down the corresponding
  * hardware block right away if this is the last reference.
  */
