@@ -2705,6 +2705,12 @@ static int win_0_1_set_par(struct lcdc_device *lcdc_dev,
 			win->fmt_10 = 0;
 			win->area[0].fbdc_fmt_cfg = 0x0c;
 			break;
+		case FBDC_ABGR_888:
+			fmt_cfg = 0;
+			swap_rb = 1;
+			win->fmt_10 = 0;
+			win->area[0].fbdc_fmt_cfg = 0x0c;
+			break;
 		case FBDC_RGBX_888:
 			fmt_cfg = 0;
 			swap_rb = 0;

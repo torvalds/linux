@@ -149,6 +149,7 @@ int rk_fb_pixel_width(int data_format)
 	case ABGR888:
 	case ARGB888:
 	case FBDC_ARGB_888:
+	case FBDC_ABGR_888:
 	case FBDC_RGBX_888:
 		pixel_width = 4 * 8;
 		break;
@@ -224,6 +225,9 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 			break;
 		case HAL_PIXEL_FORMAT_FBDC_U8U8U8U8:	/* fbdc argb888 */
 			fb_data_fmt = FBDC_ARGB_888;
+			break;
+		case HAL_PIXEL_FORMAT_FBDC_RGBA888:	/* fbdc abgr888 */
+			fb_data_fmt = FBDC_ABGR_888;
 			break;
 		case HAL_PIXEL_FORMAT_FBDC_U8U8U8:	/* fbdc rgb888 */
 			fb_data_fmt = FBDC_RGBX_888;
@@ -551,6 +555,7 @@ char *get_format_string(enum data_format format, char *fmt)
 		strcpy(fmt, "FBDC_RGB_565");
 		break;
 	case FBDC_ARGB_888:
+	case FBDC_ABGR_888:
 		strcpy(fmt, "FBDC_ARGB_888");
 		break;
 	case FBDC_RGBX_888:
@@ -1934,6 +1939,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 
 		ppixel_a |= ((fb_data_fmt == ARGB888) ||
 			     (fb_data_fmt == FBDC_ARGB_888) ||
+			     (fb_data_fmt == FBDC_ABGR_888) ||
 			     (fb_data_fmt == ABGR888)) ? 1 : 0;
 		/* visiable pos in panel */
 		reg_win_data->reg_area_data[i].xpos = win_par->area_par[i].xpos;
@@ -2885,6 +2891,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->alpha_mode = 4;	/* AB_SRC_OVER; */
 	win->alpha_en = ((win->area[0].format == ARGB888) ||
 			 (win->area[0].format == FBDC_ARGB_888) ||
+			 (win->area[0].format == FBDC_ABGR_888) ||
 			 (win->area[0].format == ABGR888)) ? 1 : 0;
 	win->g_alpha_val = 0;
 
