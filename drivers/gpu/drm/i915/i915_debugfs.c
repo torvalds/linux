@@ -2234,6 +2234,11 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	enum pipe pipe;
 	bool enabled = false;
 
+	if (!HAS_PSR(dev)) {
+		seq_puts(m, "PSR not supported\n");
+		return 0;
+	}
+
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->psr.lock);
@@ -2246,17 +2251,15 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	seq_printf(m, "Re-enable work scheduled: %s\n",
 		   yesno(work_busy(&dev_priv->psr.work.work)));
 
-	if (HAS_PSR(dev)) {
-		if (HAS_DDI(dev))
-			enabled = I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
-		else {
-			for_each_pipe(dev_priv, pipe) {
-				stat[pipe] = I915_READ(VLV_PSRSTAT(pipe)) &
-					VLV_EDP_PSR_CURR_STATE_MASK;
-				if ((stat[pipe] == VLV_EDP_PSR_ACTIVE_NORFB_UP) ||
-				    (stat[pipe] == VLV_EDP_PSR_ACTIVE_SF_UPDATE))
-					enabled = true;
-			}
+	if (HAS_DDI(dev))
+		enabled = I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
+	else {
+		for_each_pipe(dev_priv, pipe) {
+			stat[pipe] = I915_READ(VLV_PSRSTAT(pipe)) &
+				VLV_EDP_PSR_CURR_STATE_MASK;
+			if ((stat[pipe] == VLV_EDP_PSR_ACTIVE_NORFB_UP) ||
+			    (stat[pipe] == VLV_EDP_PSR_ACTIVE_SF_UPDATE))
+				enabled = true;
 		}
 	}
 	seq_printf(m, "HW Enabled & Active bit: %s", yesno(enabled));
@@ -2273,7 +2276,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		   yesno((bool)dev_priv->psr.link_standby));
 
 	/* CHV PSR has no kind of performance counter */
-	if (HAS_PSR(dev) && HAS_DDI(dev)) {
+	if (HAS_DDI(dev)) {
 		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &
 			EDP_PSR_PERF_CNT_MASK;
 
