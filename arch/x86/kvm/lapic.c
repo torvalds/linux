@@ -1572,7 +1572,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 		apic_set_reg(apic, APIC_TMR + 0x10 * i, 0);
 	}
 	apic->irr_pending = kvm_apic_vid_enabled(vcpu->kvm);
-	apic->isr_count = kvm_apic_vid_enabled(vcpu->kvm);
+	apic->isr_count = kvm_x86_ops->hwapic_isr_update ? 1 : 0;
 	apic->highest_isr_cache = -1;
 	update_divide_count(apic);
 	atomic_set(&apic->lapic_timer.pending, 0);
@@ -1782,7 +1782,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	update_divide_count(apic);
 	start_apic_timer(apic);
 	apic->irr_pending = true;
-	apic->isr_count = kvm_apic_vid_enabled(vcpu->kvm) ?
+	apic->isr_count = kvm_x86_ops->hwapic_isr_update ?
 				1 : count_vectors(apic->regs + APIC_ISR);
 	apic->highest_isr_cache = -1;
 	if (kvm_x86_ops->hwapic_irr_update)
