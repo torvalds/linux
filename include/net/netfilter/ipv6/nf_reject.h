@@ -13,7 +13,7 @@ const struct tcphdr *nf_reject_ip6_tcphdr_get(struct sk_buff *oldskb,
 					      unsigned int *otcplen, int hook);
 struct ipv6hdr *nf_reject_ip6hdr_put(struct sk_buff *nskb,
 				     const struct sk_buff *oldskb,
-				     __be16 protocol, int hoplimit);
+				     __u8 protocol, int hoplimit);
 void nf_reject_ip6_tcphdr_put(struct sk_buff *nskb,
 			      const struct sk_buff *oldskb,
 			      const struct tcphdr *oth, unsigned int otcplen);

@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(nf_reject_ip_tcphdr_get);
 
 struct iphdr *nf_reject_iphdr_put(struct sk_buff *nskb,
 				  const struct sk_buff *oldskb,
-				  __be16 protocol, int ttl)
+				  __u8 protocol, int ttl)
 {
 	struct iphdr *niph, *oiph = ip_hdr(oldskb);
 
