@@ -91,8 +91,10 @@ struct dw_spi;
 struct dw_spi_dma_ops {
 	int (*dma_init)(struct dw_spi *dws);
 	void (*dma_exit)(struct dw_spi *dws);
-	int (*dma_setup)(struct dw_spi *dws);
-	int (*dma_transfer)(struct dw_spi *dws);
+	int (*dma_setup)(struct dw_spi *dws, struct spi_transfer *xfer);
+	bool (*can_dma)(struct spi_master *master, struct spi_device *spi,
+			struct spi_transfer *xfer);
+	int (*dma_transfer)(struct dw_spi *dws, struct spi_transfer *xfer);
 	void (*dma_stop)(struct dw_spi *dws);
 };
 
@@ -117,20 +119,14 @@ struct dw_spi {
 	void			*rx;
 	void			*rx_end;
 	int			dma_mapped;
-	dma_addr_t		rx_dma;
-	dma_addr_t		tx_dma;
-	size_t			rx_map_len;
-	size_t			tx_map_len;
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	u32			dma_width;
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 
-	/* Dma info */
+	/* DMA info */
 	int			dma_inited;
 	struct dma_chan		*txchan;
-	struct scatterlist	tx_sgl;
 	struct dma_chan		*rxchan;
-	struct scatterlist	rx_sgl;
 	unsigned long		dma_chan_busy;
 	struct device		*dma_dev;
 	dma_addr_t		dma_addr; /* phy address of the Data register */
@@ -206,14 +202,13 @@ static inline void spi_reset_chip(struct dw_spi *dws)
 
 /*
  * Each SPI slave device to work with dw_api controller should
- * has such a structure claiming its working mode (PIO/DMA etc),
+ * has such a structure claiming its working mode (poll or PIO/DMA),
  * which can be save in the "controller_data" member of the
  * struct spi_device.
  */
 struct dw_spi_chip {
 	u8 poll_mode;	/* 1 for controller polling mode */
 	u8 type;	/* SPI/SSP/MicroWire */
-	u8 enable_dma;
 	void (*cs_control)(u32 command);
 };
 

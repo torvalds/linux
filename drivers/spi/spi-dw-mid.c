@@ -69,6 +69,7 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 	rxs->hs_mode = LNW_DMA_HW_HS;
 	rxs->cfg_mode = LNW_DMA_PER_TO_MEM;
 	dws->rxchan->private = rxs;
+	dws->master->dma_rx = dws->rxchan;
 
 	/* 2. Init tx channel */
 	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, dws);
@@ -78,6 +79,7 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 	txs->hs_mode = LNW_DMA_HW_HS;
 	txs->cfg_mode = LNW_DMA_MEM_TO_PER;
 	dws->txchan->private = txs;
+	dws->master->dma_tx = dws->txchan;
 
 	dws->dma_inited = 1;
 	return 0;
@@ -116,6 +118,17 @@ static irqreturn_t dma_transfer(struct dw_spi *dws)
 	return IRQ_HANDLED;
 }
 
+static bool mid_spi_can_dma(struct spi_master *master, struct spi_device *spi,
+		struct spi_transfer *xfer)
+{
+	struct dw_spi *dws = spi_master_get_devdata(master);
+
+	if (!dws->dma_inited)
+		return false;
+
+	return xfer->len > dws->fifo_len;
+}
+
 static enum dma_slave_buswidth convert_dma_width(u32 dma_width) {
 	if (dma_width == 1)
 		return DMA_SLAVE_BUSWIDTH_1_BYTE;
@@ -139,12 +152,13 @@ static void dw_spi_dma_tx_done(void *arg)
 	spi_finalize_current_transfer(dws->master);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws)
+static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
+		struct spi_transfer *xfer)
 {
 	struct dma_slave_config txconf;
 	struct dma_async_tx_descriptor *txdesc;
 
-	if (!dws->tx_dma)
+	if (!xfer->tx_buf)
 		return NULL;
 
 	txconf.direction = DMA_MEM_TO_DEV;
@@ -156,13 +170,9 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws)
 
 	dmaengine_slave_config(dws->txchan, &txconf);
 
-	memset(&dws->tx_sgl, 0, sizeof(dws->tx_sgl));
-	dws->tx_sgl.dma_address = dws->tx_dma;
-	dws->tx_sgl.length = dws->len;
-
 	txdesc = dmaengine_prep_slave_sg(dws->txchan,
-				&dws->tx_sgl,
-				1,
+				xfer->tx_sg.sgl,
+				xfer->tx_sg.nents,
 				DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
@@ -188,12 +198,13 @@ static void dw_spi_dma_rx_done(void *arg)
 	spi_finalize_current_transfer(dws->master);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
+static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
+		struct spi_transfer *xfer)
 {
 	struct dma_slave_config rxconf;
 	struct dma_async_tx_descriptor *rxdesc;
 
-	if (!dws->rx_dma)
+	if (!xfer->rx_buf)
 		return NULL;
 
 	rxconf.direction = DMA_DEV_TO_MEM;
@@ -205,13 +216,9 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
 
 	dmaengine_slave_config(dws->rxchan, &rxconf);
 
-	memset(&dws->rx_sgl, 0, sizeof(dws->rx_sgl));
-	dws->rx_sgl.dma_address = dws->rx_dma;
-	dws->rx_sgl.length = dws->len;
-
 	rxdesc = dmaengine_prep_slave_sg(dws->rxchan,
-				&dws->rx_sgl,
-				1,
+				xfer->rx_sg.sgl,
+				xfer->rx_sg.nents,
 				DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
@@ -223,16 +230,16 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
 	return rxdesc;
 }
 
-static int mid_spi_dma_setup(struct dw_spi *dws)
+static int mid_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	u16 dma_ctrl = 0;
 
 	dw_writew(dws, DW_SPI_DMARDLR, 0xf);
 	dw_writew(dws, DW_SPI_DMATDLR, 0x10);
 
-	if (dws->tx_dma)
+	if (xfer->tx_buf)
 		dma_ctrl |= SPI_DMA_TDMAE;
-	if (dws->rx_dma)
+	if (xfer->rx_buf)
 		dma_ctrl |= SPI_DMA_RDMAE;
 	dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
 
@@ -244,15 +251,15 @@ static int mid_spi_dma_setup(struct dw_spi *dws)
 	return 0;
 }
 
-static int mid_spi_dma_transfer(struct dw_spi *dws)
+static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *txdesc, *rxdesc;
 
 	/* Prepare the TX dma transfer */
-	txdesc = dw_spi_dma_prepare_tx(dws);
+	txdesc = dw_spi_dma_prepare_tx(dws, xfer);
 
 	/* Prepare the RX dma transfer */
-	rxdesc = dw_spi_dma_prepare_rx(dws);
+	rxdesc = dw_spi_dma_prepare_rx(dws, xfer);
 
 	/* rx must be started before tx due to spi instinct */
 	if (rxdesc) {
@@ -286,6 +293,7 @@ static struct dw_spi_dma_ops mid_dma_ops = {
 	.dma_init	= mid_spi_dma_init,
 	.dma_exit	= mid_spi_dma_exit,
 	.dma_setup	= mid_spi_dma_setup,
+	.can_dma	= mid_spi_can_dma,
 	.dma_transfer	= mid_spi_dma_transfer,
 	.dma_stop	= mid_spi_dma_stop,
 };

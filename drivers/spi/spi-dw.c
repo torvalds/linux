@@ -217,32 +217,6 @@ static void dw_reader(struct dw_spi *dws)
 	}
 }
 
-/*
- * Note: first step is the protocol driver prepares
- * a dma-capable memory, and this func just need translate
- * the virt addr to physical
- */
-static int map_dma_buffers(struct spi_master *master,
-		struct spi_device *spi, struct spi_transfer *transfer)
-{
-	struct dw_spi *dws = spi_master_get_devdata(master);
-	struct chip_data *chip = spi_get_ctldata(spi);
-
-	if (!master->cur_msg->is_dma_mapped
-		|| !dws->dma_inited
-		|| !chip->enable_dma
-		|| !dws->dma_ops)
-		return 0;
-
-	if (transfer->tx_dma)
-		dws->tx_dma = transfer->tx_dma;
-
-	if (transfer->rx_dma)
-		dws->rx_dma = transfer->rx_dma;
-
-	return 1;
-}
-
 static void int_error_stop(struct dw_spi *dws, const char *msg)
 {
 	spi_reset_chip(dws);
@@ -322,11 +296,10 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	u32 cr0 = 0;
 	int ret;
 
+	dws->dma_mapped = 0;
 	dws->n_bytes = chip->n_bytes;
 	dws->dma_width = chip->dma_width;
 
-	dws->rx_dma = transfer->rx_dma;
-	dws->tx_dma = transfer->tx_dma;
 	dws->tx = (void *)transfer->tx_buf;
 	dws->tx_end = dws->tx + transfer->len;
 	dws->rx = transfer->rx_buf;
@@ -386,7 +359,8 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	dw_writew(dws, DW_SPI_CTRL0, cr0);
 
 	/* Check if current transfer is a DMA transaction */
-	dws->dma_mapped = map_dma_buffers(master, spi, transfer);
+	if (master->can_dma && master->can_dma(master, spi, transfer))
+		dws->dma_mapped = master->cur_msg_mapped;
 
 	/* For poll mode just disable all interrupts */
 	spi_mask_intr(dws, 0xff);
@@ -396,7 +370,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	 * we only need set the TXEI IRQ, as TX/RX always happen syncronizely
 	 */
 	if (dws->dma_mapped) {
-		ret = dws->dma_ops->dma_setup(dws);
+		ret = dws->dma_ops->dma_setup(dws, transfer);
 		if (ret < 0) {
 			spi_enable_chip(dws, 1);
 			return ret;
@@ -416,7 +390,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 	spi_enable_chip(dws, 1);
 
 	if (dws->dma_mapped) {
-		ret = dws->dma_ops->dma_transfer(dws);
+		ret = dws->dma_ops->dma_transfer(dws, transfer);
 		if (ret < 0)
 			return ret;
 	}
@@ -470,8 +444,6 @@ static int dw_spi_setup(struct spi_device *spi)
 
 		chip->rx_threshold = 0;
 		chip->tx_threshold = 0;
-
-		chip->enable_dma = chip_info->enable_dma;
 	}
 
 	if (spi->bits_per_word == 8) {
@@ -584,6 +556,8 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		if (ret) {
 			dev_warn(dev, "DMA init failed\n");
 			dws->dma_inited = 0;
+		} else {
+			master->can_dma = dws->dma_ops->can_dma;
 		}
 	}
 
