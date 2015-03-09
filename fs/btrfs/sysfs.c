@@ -428,7 +428,7 @@ static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 
 BTRFS_ATTR(clone_alignment, btrfs_clone_alignment_show);
 
-static struct attribute *btrfs_attrs[] = {
+static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(label),
 	BTRFS_ATTR_PTR(nodesize),
 	BTRFS_ATTR_PTR(sectorsize),
@@ -447,7 +447,6 @@ static void btrfs_release_super_kobj(struct kobject *kobj)
 static struct kobj_type btrfs_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.release	= btrfs_release_super_kobj,
-	.default_attrs	= btrfs_attrs,
 };
 
 static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
@@ -531,6 +530,7 @@ void btrfs_sysfs_remove_one(struct btrfs_fs_info *fs_info)
 	}
 	addrm_unknown_feature_attrs(fs_info, false);
 	sysfs_remove_group(&fs_info->super_kobj, &btrfs_feature_attr_group);
+	sysfs_remove_files(&fs_info->super_kobj, btrfs_attrs);
 	btrfs_sysfs_remove_fsid(fs_info);
 }
 
@@ -720,12 +720,16 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 		return error;
 	}
 
-	error = sysfs_create_group(&fs_info->super_kobj,
-				   &btrfs_feature_attr_group);
+	error = sysfs_create_files(&fs_info->super_kobj, btrfs_attrs);
 	if (error) {
 		btrfs_sysfs_remove_fsid(fs_info);
 		return error;
 	}
+
+	error = sysfs_create_group(&fs_info->super_kobj,
+				   &btrfs_feature_attr_group);
+	if (error)
+		goto failure;
 
 	error = addrm_unknown_feature_attrs(fs_info, true);
 	if (error)
