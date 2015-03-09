@@ -97,11 +97,10 @@ config ISA_ARCOMPACT
 	help
 	  The original ARC ISA of ARC600/700 cores
 
-### For bisectability, disable ARCv2 support until we have all the bits in place
-#config ISA_ARCV2
-#	bool "ARC ISA v2"
-#	help
-#	  ISA for the Next Generation ARC-HS cores
+config ISA_ARCV2
+	bool "ARC ISA v2"
+	help
+	  ISA for the Next Generation ARC-HS cores
 
 endchoice
 
