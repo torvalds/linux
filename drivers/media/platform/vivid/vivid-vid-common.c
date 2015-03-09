@@ -210,6 +210,13 @@ bool vivid_vid_can_loop(struct vivid_dev *dev)
 		return false;
 	if (dev->field_cap != dev->field_out)
 		return false;
+	/*
+	 * While this can be supported, it is just too much work
+	 * to actually implement.
+	 */
+	if (dev->field_cap == V4L2_FIELD_SEQ_TB ||
+	    dev->field_cap == V4L2_FIELD_SEQ_BT)
+		return false;
 	if (vivid_is_svid_cap(dev) && vivid_is_svid_out(dev)) {
 		if (!(dev->std_cap & V4L2_STD_525_60) !=
 		    !(dev->std_out & V4L2_STD_525_60))
