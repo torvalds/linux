@@ -727,7 +727,7 @@ u64 btrfs_debugfs_test;
  * Can be called by the device discovery thread.
  * And parent can be specified for seed device
  */
-static int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs,
+int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs,
 				struct kobject *parent)
 {
 	int error;
