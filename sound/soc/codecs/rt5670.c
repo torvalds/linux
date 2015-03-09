@@ -2273,13 +2273,6 @@ static int rt5670_set_dai_sysclk(struct snd_soc_dai *dai,
 	if (freq == rt5670->sysclk && clk_id == rt5670->sysclk_src)
 		return 0;
 
-	if (rt5670->pdata.jd_mode) {
-		if (clk_id == RT5670_SCLK_S_PLL1)
-			snd_soc_dapm_force_enable_pin(&codec->dapm, "PLL1");
-		else
-			snd_soc_dapm_disable_pin(&codec->dapm, "PLL1");
-		snd_soc_dapm_sync(&codec->dapm);
-	}
 	switch (clk_id) {
 	case RT5670_SCLK_S_MCLK:
 		reg_val |= RT5670_SCLK_SRC_MCLK;
@@ -2724,10 +2717,6 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (rt5670->pdata.jd_mode) {
-		regmap_update_bits(rt5670->regmap, RT5670_GLB_CLK,
-				   RT5670_SCLK_SRC_MASK, RT5670_SCLK_SRC_RCCLK);
-		rt5670->sysclk = 0;
-		rt5670->sysclk_src = RT5670_SCLK_S_RCCLK;
 		regmap_update_bits(rt5670->regmap, RT5670_PWR_ANLG1,
 				   RT5670_PWR_MB, RT5670_PWR_MB);
 		regmap_update_bits(rt5670->regmap, RT5670_PWR_ANLG2,
