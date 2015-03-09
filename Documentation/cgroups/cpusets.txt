@@ -392,8 +392,10 @@ Put simply, it costs less to balance between two smaller sched domains
 than one big one, but doing so means that overloads in one of the
 two domains won't be load balanced to the other one.
 
-By default, there is one sched domain covering all CPUs, except those
-marked isolated using the kernel boot time "isolcpus=" argument.
+By default, there is one sched domain covering all CPUs, including those
+marked isolated using the kernel boot time "isolcpus=" argument. However,
+the isolated CPUs will not participate in load balancing, and will not
+have tasks running on them unless explicitly assigned.
 
 This default load balancing across all CPUs is not well suited for
 the following two situations:
@@ -464,6 +466,10 @@ don't leave tasks that might use non-trivial amounts of CPU in
 such partially load balanced cpusets, as they may be artificially
 constrained to some subset of the CPUs allowed to them, for lack of
 load balancing to the other CPUs.
+
+CPUs in "cpuset.isolcpus" were excluded from load balancing by the
+isolcpus= kernel boot option, and will never be load balanced regardless
+of the value of "cpuset.sched_load_balance" in any cpuset.
 
 1.7.1 sched_load_balance implementation details.
 ------------------------------------------------
