@@ -2282,7 +2282,7 @@ static struct parport_driver panel_driver = {
 /* init function */
 static int __init panel_init_module(void)
 {
-	int selected_keypad_type = NOT_SET;
+	int selected_keypad_type = NOT_SET, err;
 
 	/* take care of an eventual profile */
 	switch (profile) {
@@ -2388,9 +2388,10 @@ static int __init panel_init_module(void)
 		return -ENODEV;
 	}
 
-	if (parport_register_driver(&panel_driver)) {
+	err = parport_register_driver(&panel_driver);
+	if (err) {
 		pr_err("could not register with parport. Aborting.\n");
-		return -EIO;
+		return err;
 	}
 
 	if (pprt)
