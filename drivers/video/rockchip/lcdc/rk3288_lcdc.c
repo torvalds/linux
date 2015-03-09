@@ -767,12 +767,13 @@ static int rk3288_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 
 	if(win->state == 1){
 		mask =  m_WIN0_EN | m_WIN0_DATA_FMT | m_WIN0_FMT_10 |
-			m_WIN0_LB_MODE | m_WIN0_RB_SWAP;
+			m_WIN0_LB_MODE | m_WIN0_RB_SWAP | m_WIN0_UV_SWAP;
 		val  =  v_WIN0_EN(win->state) |
 			v_WIN0_DATA_FMT(win->area[0].fmt_cfg) |
 			v_WIN0_FMT_10(win->fmt_10) | 
 			v_WIN0_LB_MODE(win->win_lb_mode) | 
-			v_WIN0_RB_SWAP(win->area[0].swap_rb);
+			v_WIN0_RB_SWAP(win->area[0].swap_rb) |
+			v_WIN0_UV_SWAP(win->area[0].swap_uv);
 		lcdc_msk_reg(lcdc_dev, WIN0_CTRL0+off, mask,val);	
 	
 		mask =	m_WIN0_BIC_COE_SEL |
@@ -2043,7 +2044,7 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 			struct rk_screen *screen, struct rk_lcdc_win *win)
 {
 	u32 xact,yact,xvir, yvir,xpos, ypos;
-	u8 fmt_cfg = 0, swap_rb;
+	u8 fmt_cfg = 0, swap_rb, swap_uv = 0;
 	char fmt[9] = "NULL";
 
 	xpos = win->area[0].xpos + screen->mode.left_margin + screen->mode.hsync_len;
@@ -2084,6 +2085,12 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
+		case YUV420_NV21:
+			fmt_cfg = 4;
+			swap_rb = 0;
+			swap_uv = 1;
+			win->fmt_10 = 0;
+			break;	
 		case YUV444:	
 			fmt_cfg = 6;
 			swap_rb = 0;
@@ -2112,6 +2119,7 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 		win->area[0].swap_rb = swap_rb;
 		win->area[0].dsp_stx = xpos;
 		win->area[0].dsp_sty = ypos;
+		win->area[0].swap_uv = swap_uv;
 		xact = win->area[0].xact;
 		yact = win->area[0].yact;
 		xvir = win->area[0].xvir;
@@ -2132,7 +2140,7 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 			struct rk_screen *screen, struct rk_lcdc_win *win)
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u8 fmt_cfg = 0, swap_rb;
+	u8 fmt_cfg = 0, swap_rb, swap_uv = 0;
 	char fmt[9] = "NULL";
 
 	xpos = win->area[0].xpos + screen->mode.left_margin + screen->mode.hsync_len;
@@ -2173,6 +2181,12 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
+		case YUV420_NV21:
+			fmt_cfg = 4;
+			swap_rb = 0;
+			swap_uv = 1;
+			win->fmt_10 = 0;
+			break;
 		case YUV444:
 			fmt_cfg = 6;
 			swap_rb = 0;
@@ -2202,6 +2216,7 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 		win->area[0].swap_rb = swap_rb;
 		win->area[0].dsp_stx = xpos;
 		win->area[0].dsp_sty = ypos;
+		win->area[0].swap_uv = swap_uv;
 		xact = win->area[0].xact;
 		yact = win->area[0].yact;
 		xvir = win->area[0].xvir;

@@ -416,10 +416,12 @@ static void lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 			lcdc_layer_csc_mode(lcdc_dev, win);
 
 		if (win->id == 0) {
-			mask = m_WIN0_EN | m_WIN0_FORMAT | m_WIN0_RB_SWAP;
+			mask = m_WIN0_EN | m_WIN0_FORMAT | m_WIN0_RB_SWAP |
+			        m_WIN0_UV_SWAP;
 			val = v_WIN0_EN(win->state) |
 				v_WIN0_FORMAT(win->area[0].fmt_cfg) |
-				v_WIN0_RB_SWAP(win->area[0].swap_rb);
+				v_WIN0_RB_SWAP(win->area[0].swap_rb) |
+				v_WIN0_UV_SWAP(win->area[0].swap_uv);
 			lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 			lcdc_writel(lcdc_dev, WIN0_SCL_FACTOR_YRGB,
 				    v_X_SCL_FACTOR(win->scale_yrgb_x) |
@@ -1531,18 +1533,22 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	case ARGB888:
 		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
 		win->area[0].swap_rb = 0;
+		win->area[0].swap_uv = 0;
 		break;
 	case XBGR888:
 		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
 		win->area[0].swap_rb = 1;
+		win->area[0].swap_uv = 0;
 		break;
 	case ABGR888:
 		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
 		win->area[0].swap_rb = 1;
+		win->area[0].swap_uv = 0;
 		break;
 	case RGB888:
 		win->area[0].fmt_cfg = VOP_FORMAT_RGB888;
 		win->area[0].swap_rb = 0;
+		win->area[0].swap_uv = 0;
 		break;
 	case RGB565:
 		win->area[0].fmt_cfg = VOP_FORMAT_RGB565;
@@ -1556,6 +1562,7 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 			win->scale_cbcr_y =
 			    CalScale(win->area[0].yact, win->area[0].ysize);
 			win->area[0].swap_rb = 0;
+			win->area[0].swap_uv = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n", __func__);
@@ -1569,6 +1576,7 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 			win->scale_cbcr_y =
 			    CalScale(win->area[0].yact, win->area[0].ysize);
 			win->area[0].swap_rb = 0;
+			win->area[0].swap_uv = 0;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n", __func__);
@@ -1582,6 +1590,21 @@ static int rk312x_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 			win->scale_cbcr_y =
 			    CalScale(win->area[0].yact / 2, win->area[0].ysize);
 			win->area[0].swap_rb = 0;
+		        win->area[0].swap_uv = 0;
+		} else {
+			dev_err(lcdc_dev->driver.dev,
+				"%s:un supported format!\n", __func__);
+		}
+		break;
+	case YUV420_NV21:
+		if (win_id == 0) {
+			win->area[0].fmt_cfg = VOP_FORMAT_YCBCR420;
+			win->scale_cbcr_x =
+			    CalScale(win->area[0].xact / 2, win->area[0].xsize);
+			win->scale_cbcr_y =
+			    CalScale(win->area[0].yact / 2, win->area[0].ysize);
+			win->area[0].swap_rb = 0;
+			win->area[0].swap_uv = 1;
 		} else {
 			dev_err(lcdc_dev->driver.dev,
 				"%s:un supported format!\n", __func__);

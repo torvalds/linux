@@ -213,7 +213,8 @@ enum data_format {
 	ABGR888,
 	YUV420_A = 10,
 	YUV422_A,
-	YUV444_A,	
+	YUV444_A,
+	YUV420_NV21,
 };
 
 enum
@@ -315,6 +316,7 @@ struct rk_lcdc_win_area {
 	enum data_format format;
 	u8 fmt_cfg;
 	u8 swap_rb;
+	u8 swap_uv;
 	u32 y_offset;		/*yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx*/
 	u32 c_offset;		/*cb cr offset--->LCDC_WINx_CBR_MSTx*/
 	u16 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/

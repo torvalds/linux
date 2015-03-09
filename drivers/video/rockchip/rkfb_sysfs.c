@@ -48,6 +48,7 @@ static char *get_format_str(enum data_format format)
 	case RGB565:
 		return "RGB565";
 	case YUV420:
+	case YUV420_NV21:
 		return "YUV420";
 	case YUV422:
 		return "YUV422";
@@ -65,9 +66,9 @@ static char *get_format_str(enum data_format format)
 		return "XBGR888";
 	case ABGR888:
 		return "ABGR888";
+	default:
+		return "invalid";        
 	}
-
-	return "invalid";
 }
 
 static ssize_t show_screen_info(struct device *dev,
