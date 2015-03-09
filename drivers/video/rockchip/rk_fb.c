@@ -1646,6 +1646,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	int count = 100;
 	unsigned int dsp_addr[4];
 	long timeout;
+	int win_status = 0;
 
 	/* acq_fence wait */
 	for (i = 0; i < regs->win_num; i++) {
@@ -1695,28 +1696,36 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
 		wait_for_vsync = false;
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+                        if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
+			    (!strcmp(dev_drv->win[i]->name, "hwc")))
+			        continue;
 			if (dev_drv->win[i]->state == 1) {
-				if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-				    (!strcmp(dev_drv->win[i]->name, "hwc"))) {
-					continue;
-				} else {
-					u32 new_start =
-					    dev_drv->win[i]->area[0].smem_start +
-					    dev_drv->win[i]->area[0].y_offset;
-					u32 reg_start = dsp_addr[i];
+				u32 new_start =
+				    dev_drv->win[i]->area[0].smem_start +
+				    dev_drv->win[i]->area[0].y_offset;
+				u32 reg_start = dsp_addr[i];
 
-					if ((rk_fb->disp_policy ==
-					     DISPLAY_POLICY_BOX) &&
-					    (dev_drv->suspend_flag))
-						continue;
-					if (unlikely(new_start != reg_start)) {
-						wait_for_vsync = true;
-						dev_info(dev_drv->dev,
-						       "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
-						       i, new_start, reg_start, 101 - count);
-						break;
-					}
+				if ((rk_fb->disp_policy ==
+				     DISPLAY_POLICY_BOX) &&
+				    (dev_drv->suspend_flag))
+					continue;
+				if (unlikely(new_start != reg_start)) {
+					wait_for_vsync = true;
+					dev_info(dev_drv->dev,
+					       "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
+					       i, new_start, reg_start, 101 - count);
+					break;
 				}
+			} else if (dev_drv->win[i]->state == 0) {
+                                if (dev_drv->ops->get_win_state) {
+                                        win_status =
+                                        dev_drv->ops->get_win_state(dev_drv, i);
+                                        if (win_status)
+                                               wait_for_vsync = true;
+                                }
+			} else {
+                                pr_err("!!!win[%d]state:%d,error!!!\n",
+                                        i, dev_drv->win[i]->state);
 			}
 		}
 	} while (wait_for_vsync && count--);
