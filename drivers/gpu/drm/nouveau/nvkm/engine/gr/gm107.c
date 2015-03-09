@@ -464,7 +464,7 @@ gm107_gr_oclass = &(struct gf100_gr_oclass) {
 	.cclass = &gm107_grctx_oclass,
 	.sclass =  gm107_gr_sclass,
 	.mmio = gm107_gr_pack_mmio,
-	.fecs.ucode = 0 ? &gm107_gr_fecs_ucode : NULL,
+	.fecs.ucode = &gm107_gr_fecs_ucode,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,
 	.ppc_nr = 2,
 }.base;
