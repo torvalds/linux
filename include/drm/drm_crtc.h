@@ -830,6 +830,7 @@ enum drm_plane_type {
  * @possible_crtcs: pipes this plane can be bound to
  * @format_types: array of formats supported by this plane
  * @format_count: number of formats supported
+ * @format_default: driver hasn't supplied supported formats for the plane
  * @crtc: currently bound CRTC
  * @fb: currently bound fb
  * @old_fb: Temporary tracking of the old fb while a modeset is ongoing. Used by
@@ -850,6 +851,7 @@ struct drm_plane {
 	uint32_t possible_crtcs;
 	uint32_t *format_types;
 	uint32_t format_count;
+	bool format_default;
 
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;

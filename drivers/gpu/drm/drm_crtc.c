@@ -2798,6 +2798,23 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 
+		/*
+		 * Check whether the primary plane supports the fb pixel format.
+		 * Drivers not implementing the universal planes API use a
+		 * default formats list provided by the DRM core which doesn't
+		 * match real hardware capabilities. Skip the check in that
+		 * case.
+		 */
+		if (!crtc->primary->format_default) {
+			ret = drm_plane_check_pixel_format(crtc->primary,
+							   fb->pixel_format);
+			if (ret) {
+				DRM_DEBUG_KMS("Invalid pixel format %s\n",
+					drm_get_format_name(fb->pixel_format));
+				goto out;
+			}
+		}
+
 		ret = drm_crtc_check_viewport(crtc, crtc_req->x, crtc_req->y,
 					      mode, fb);
 		if (ret)
