@@ -1545,23 +1545,21 @@ struct tpg_draw_params {
 
 void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 {
-	bool is_tv = std;
-	bool is_60hz = is_tv && (std & V4L2_STD_525_60);
+	struct tpg_draw_params params;
 	unsigned mv_hor_old = tpg->mv_hor_count % tpg->src_width;
 	unsigned mv_hor_new = (tpg->mv_hor_count + tpg->mv_hor_step) % tpg->src_width;
 	unsigned mv_vert_old = tpg->mv_vert_count % tpg->src_height;
 	unsigned mv_vert_new = (tpg->mv_vert_count + tpg->mv_vert_step) % tpg->src_height;
 	unsigned wss_width;
 	unsigned f;
-	int hmax = (tpg->compose.height * tpg->perc_fill) / 100;
 	int h;
-	unsigned twopixsize = tpg->twopixelsize[p];
+	unsigned twopixsize;
 	unsigned vdiv = tpg->vdownsampling[p];
-	unsigned img_width = tpg_hdiv(tpg, p, tpg->compose.width);
+	unsigned img_width;
 	unsigned line_offset;
 	unsigned left_pillar_width = 0;
-	unsigned right_pillar_start = img_width;
-	unsigned stride = tpg->bytesperline[p];
+	unsigned right_pillar_start;
+	unsigned stride;
 	unsigned factor = V4L2_FIELD_HAS_T_OR_B(tpg->field) ? 2 : 1;
 	u8 *orig_vbuf = vbuf;
 
@@ -1572,6 +1570,17 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8
 	unsigned error = 0;
 
 	tpg_recalc(tpg);
+
+	params.is_tv = std;
+	params.is_60hz = std & V4L2_STD_525_60;
+	params.twopixsize = tpg->twopixelsize[p];
+	params.img_width = tpg_hdiv(tpg, p, tpg->compose.width);
+	params.stride = tpg->bytesperline[p];
+	params.hmax = (tpg->compose.height * tpg->perc_fill) / 100;
+
+	twopixsize = params.twopixsize;
+	img_width = params.img_width;
+	stride = params.stride;
 
 	mv_hor_old = tpg_hscale_div(tpg, p, mv_hor_old);
 	mv_hor_new = tpg_hscale_div(tpg, p, mv_hor_new);
@@ -1589,6 +1598,7 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8
 			left_pillar_width = tpg->crop.width;
 		left_pillar_width = tpg_hscale_div(tpg, p, left_pillar_width);
 	}
+	right_pillar_start = img_width;
 	if (tpg->crop.left + tpg->crop.width > tpg->border.left + tpg->border.width) {
 		right_pillar_start = tpg->border.left + tpg->border.width - tpg->crop.left;
 		right_pillar_start = tpg_hscale_div(tpg, p, right_pillar_start);
@@ -1596,7 +1606,7 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8
 			right_pillar_start = img_width;
 	}
 
-	f = tpg->field == (is_60hz ? V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
+	f = tpg->field == (params.is_60hz ? V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
 
 	for (h = 0; h < tpg->compose.height; h++) {
 		bool even;
@@ -1640,8 +1650,8 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8
 			buf_line /= vdiv;
 		}
 
-		if (h >= hmax) {
-			if (hmax == tpg->compose.height)
+		if (h >= params.hmax) {
+			if (params.hmax == tpg->compose.height)
 				continue;
 			if (!tpg->perc_fill_blank)
 				continue;
@@ -1724,7 +1734,7 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8
 		}
 		if (tpg->field_alternate) {
 			linestart_top = linestart_bottom = linestart_older;
-		} else if (is_60hz) {
+		} else if (params.is_60hz) {
 			linestart_top = linestart_newer;
 			linestart_bottom = linestart_older;
 		} else {
@@ -1785,7 +1795,7 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8
 			buf_line /= vdiv;
 		}
 
-		if (is_tv && !is_60hz && frame_line == 0 && wss_width) {
+		if (params.is_tv && !params.is_60hz && frame_line == 0 && wss_width) {
 			/*
 			 * Replace the first half of the top line of a 50 Hz frame
 			 * with random data to simulate a WSS signal.
