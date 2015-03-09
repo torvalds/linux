@@ -2252,7 +2252,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		 */
 		snprintf(fsid_buf, BTRFS_UUID_UNPARSED_SIZE, "%pU",
 						root->fs_info->fsid);
-		if (kobject_rename(&root->fs_info->super_kobj, fsid_buf))
+		if (kobject_rename(&root->fs_info->fs_devices->super_kobj,
+								fsid_buf))
 			goto error_trans;
 	}
 

@@ -253,6 +253,11 @@ struct btrfs_fs_devices {
 	 * nonrot flag set
 	 */
 	int rotating;
+
+	/* sysfs kobjects */
+	struct kobject super_kobj;
+	struct kobject *device_dir_kobj;
+	struct completion kobj_unregister;
 };
 
 #define BTRFS_BIO_INLINE_CSUM_SIZE	64

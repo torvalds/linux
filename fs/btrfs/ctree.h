@@ -1619,10 +1619,7 @@ struct btrfs_fs_info {
 	struct task_struct *cleaner_kthread;
 	int thread_pool_size;
 
-	struct kobject super_kobj;
 	struct kobject *space_info_kobj;
-	struct kobject *device_dir_kobj;
-	struct completion kobj_unregister;
 	int do_barriers;
 	int closing;
 	int log_root_recovering;
