@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/hrtimer.h>
+#include <linux/jiffies.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
@@ -60,6 +61,8 @@ struct at86rf2xx_chip_data {
  * We assume the max_frame_retries (7) value of 802.15.4 here.
  */
 #define AT86RF2XX_MAX_TX_RETRIES	7
+/* We use the recommended 5 minutes timeout to recalibrate */
+#define AT86RF2XX_CAL_LOOP_TIMEOUT	(5 * 60 * HZ)
 
 struct at86rf230_state_change {
 	struct at86rf230_local *lp;
@@ -90,6 +93,7 @@ struct at86rf230_local {
 	struct at86rf230_state_change irq;
 
 	bool tx_aret;
+	unsigned long cal_timeout;
 	s8 max_frame_retries;
 	bool is_tx;
 	/* spinlock for is_tx protection */
@@ -491,6 +495,14 @@ at86rf230_async_read_reg(struct at86rf230_local *lp, const u8 reg,
 	}
 }
 
+static inline u8 at86rf230_state_to_force(u8 state)
+{
+	if (state == STATE_TX_ON)
+		return STATE_FORCE_TX_ON;
+	else
+		return STATE_FORCE_TRX_OFF;
+}
+
 static void
 at86rf230_async_state_assert(void *context)
 {
@@ -527,11 +539,12 @@ at86rf230_async_state_assert(void *context)
 			 * higher or equal than AT86RF2XX_MAX_TX_RETRIES we
 			 * will do a force change.
 			 */
-			if (ctx->to_state == STATE_TX_ON) {
-				u8 state = STATE_TX_ON;
+			if (ctx->to_state == STATE_TX_ON ||
+			    ctx->to_state == STATE_TRX_OFF) {
+				u8 state = ctx->to_state;
 
 				if (lp->tx_retry >= AT86RF2XX_MAX_TX_RETRIES)
-					state = STATE_FORCE_TX_ON;
+					state = at86rf230_state_to_force(state);
 				lp->tx_retry++;
 
 				at86rf230_async_state_change(lp, ctx, state,
@@ -599,6 +612,11 @@ at86rf230_async_state_delay(void *context)
 			goto change;
 		case STATE_TX_ON:
 			tim = ktime_set(0, c->t_off_to_tx_on * NSEC_PER_USEC);
+			/* state change from TRX_OFF to TX_ON to do a
+			 * calibration, we need to reset the timeout for the
+			 * next one.
+			 */
+			lp->cal_timeout = jiffies + AT86RF2XX_CAL_LOOP_TIMEOUT;
 			goto change;
 		default:
 			break;
@@ -606,10 +624,11 @@ at86rf230_async_state_delay(void *context)
 		break;
 	case STATE_BUSY_RX_AACK:
 		switch (ctx->to_state) {
+		case STATE_TRX_OFF:
 		case STATE_TX_ON:
 			/* Wait for worst case receiving time if we
 			 * didn't make a force change from BUSY_RX_AACK
-			 * to TX_ON.
+			 * to TX_ON or TRX_OFF.
 			 */
 			if (!force) {
 				tim = ktime_set(0, (c->t_frame + c->t_p_ack) *
@@ -969,25 +988,45 @@ at86rf230_xmit_tx_on(void *context)
 				     at86rf230_write_frame, false);
 }
 
-static int
-at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
+static void
+at86rf230_xmit_start(void *context)
 {
-	struct at86rf230_local *lp = hw->priv;
-	struct at86rf230_state_change *ctx = &lp->tx;
-
-	void (*tx_complete)(void *context) = at86rf230_write_frame;
-
-	lp->tx_skb = skb;
+	struct at86rf230_state_change *ctx = context;
+	struct at86rf230_local *lp = ctx->lp;
 
 	/* In ARET mode we need to go into STATE_TX_ARET_ON after we
 	 * are in STATE_TX_ON. The pfad differs here, so we change
 	 * the complete handler.
 	 */
 	if (lp->tx_aret)
-		tx_complete = at86rf230_xmit_tx_on;
+		at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
+					     at86rf230_xmit_tx_on, false);
+	else
+		at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
+					     at86rf230_write_frame, false);
+}
 
+static int
+at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
+{
+	struct at86rf230_local *lp = hw->priv;
+	struct at86rf230_state_change *ctx = &lp->tx;
+
+	lp->tx_skb = skb;
 	lp->tx_retry = 0;
-	at86rf230_async_state_change(lp, ctx, STATE_TX_ON, tx_complete, false);
+
+	/* After 5 minutes in PLL and the same frequency we run again the
+	 * calibration loops which is recommended by at86rf2xx datasheets.
+	 *
+	 * The calibration is initiate by a state change from TRX_OFF
+	 * to TX_ON, the lp->cal_timeout should be reinit by state_delay
+	 * function then to start in the next 5 minutes.
+	 */
+	if (time_is_before_jiffies(lp->cal_timeout))
+		at86rf230_async_state_change(lp, ctx, STATE_TRX_OFF,
+					     at86rf230_xmit_start, false);
+	else
+		at86rf230_xmit_start(ctx);
 
 	return 0;
 }
@@ -1003,6 +1042,9 @@ at86rf230_ed(struct ieee802154_hw *hw, u8 *level)
 static int
 at86rf230_start(struct ieee802154_hw *hw)
 {
+	struct at86rf230_local *lp = hw->priv;
+
+	lp->cal_timeout = jiffies + AT86RF2XX_CAL_LOOP_TIMEOUT;
 	return at86rf230_sync_state_change(hw->priv, STATE_RX_AACK_ON);
 }
 
@@ -1083,6 +1125,8 @@ at86rf230_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	/* Wait for PLL */
 	usleep_range(lp->data->t_channel_switch,
 		     lp->data->t_channel_switch + 10);
+
+	lp->cal_timeout = jiffies + AT86RF2XX_CAL_LOOP_TIMEOUT;
 	return rc;
 }
 
