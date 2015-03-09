@@ -2234,6 +2234,7 @@ static void panel_attach(struct parport *port)
 		if (misc_register(&keypad_dev))
 			goto err_lcd_unreg;
 	}
+	register_reboot_notifier(&panel_notifier);
 	return;
 
 err_lcd_unreg:
@@ -2254,6 +2255,8 @@ static void panel_detach(struct parport *port)
 		       __func__, port->number, parport);
 		return;
 	}
+
+	unregister_reboot_notifier(&panel_notifier);
 
 	if (keypad.enabled && keypad_initialized) {
 		misc_deregister(&keypad_dev);
@@ -2320,7 +2323,6 @@ static int __init panel_init_module(void)
 		selected_lcd_type = LCD_TYPE_OLD;
 		break;
 	}
-
 
 	/*
 	 * Overwrite selection with module param values (both keypad and lcd),
@@ -2391,8 +2393,6 @@ static int __init panel_init_module(void)
 		return -EIO;
 	}
 
-	register_reboot_notifier(&panel_notifier);
-
 	if (pprt)
 		pr_info("driver version " PANEL_VERSION
 			" registered on parport%d (io=0x%lx).\n", parport,
@@ -2408,7 +2408,6 @@ static int __init panel_init_module(void)
 
 static void __exit panel_cleanup_module(void)
 {
-	unregister_reboot_notifier(&panel_notifier);
 
 	if (scan_timer.function != NULL)
 		del_timer_sync(&scan_timer);
