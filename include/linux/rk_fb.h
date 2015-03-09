@@ -517,6 +517,7 @@ struct rk_fb_reg_area_data {
 	u32 c_offset;		/*cb cr offset--->LCDC_WINx_CBR_MSTx*/
 	u32 y_vir_stride;
 	u32 uv_vir_stride;
+	u32 buff_len;
 	u16 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/
 	u16 ypos;
 	u16 xsize;		/* display window width/height  -->LCDC_WINx_DSP_INFO*/
