@@ -109,13 +109,16 @@ int __init setup_earlycon(char *buf, const char *match,
 	len = strlen(match);
 	if (strncmp(buf, match, len))
 		return 0;
-	if (buf[len] && (buf[len] != ','))
-		return 0;
 
-	buf += len + 1;
+	if (buf[len]) {
+		if (buf[len] != ',')
+			return 0;
+		buf += len + 1;
+	} else
+		buf = NULL;
 
 	/* On parsing error, pass the options buf to the setup function */
-	if (!parse_options(&early_console_dev, buf))
+	if (buf && !parse_options(&early_console_dev, buf))
 		buf = NULL;
 
 	port->uartclk = BASE_BAUD * 16;
