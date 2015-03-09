@@ -1414,7 +1414,7 @@ ff_layout_get_ds_info(struct inode *inode)
 }
 
 static void
-ff_layout_free_deveiceid_node(struct nfs4_deviceid_node *d)
+ff_layout_free_deviceid_node(struct nfs4_deviceid_node *d)
 {
 	nfs4_ff_layout_free_deviceid(container_of(d, struct nfs4_ff_layout_ds,
 						  id_node));
@@ -1498,7 +1498,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.pg_read_ops		= &ff_layout_pg_read_ops,
 	.pg_write_ops		= &ff_layout_pg_write_ops,
 	.get_ds_info		= ff_layout_get_ds_info,
-	.free_deviceid_node	= ff_layout_free_deveiceid_node,
+	.free_deviceid_node	= ff_layout_free_deviceid_node,
 	.mark_request_commit	= pnfs_layout_mark_request_commit,
 	.clear_request_commit	= pnfs_generic_clear_request_commit,
 	.scan_commit_lists	= pnfs_generic_scan_commit_lists,
