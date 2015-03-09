@@ -36,8 +36,6 @@
 #include <asm/io.h>
 #include <asm/serial.h>
 
-static struct earlycon_device *early_device;
-
 unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offset)
 {
 	switch (port->iotype) {
@@ -90,7 +88,8 @@ static void __init serial_putc(struct uart_port *port, int c)
 static void __init early_serial8250_write(struct console *console,
 					const char *s, unsigned int count)
 {
-	struct uart_port *port = &early_device->port;
+	struct earlycon_device *device = console->data;
+	struct uart_port *port = &device->port;
 	unsigned int ier;
 
 	/* Save the IER and disable interrupts preserving the UUE bit */
@@ -157,7 +156,6 @@ static int __init early_serial8250_setup(struct earlycon_device *device,
 
 	init_port(device);
 
-	early_device = device;
 	device->con->write = early_serial8250_write;
 	return 0;
 }
