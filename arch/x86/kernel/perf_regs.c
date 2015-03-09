@@ -177,7 +177,7 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 		 * than just blindly copying user_regs.
 		 */
 		regs_user->abi = PERF_SAMPLE_REGS_ABI_64;
-		regs_user_copy->sp = this_cpu_read(old_rsp);
+		regs_user_copy->sp = user_regs->sp;
 		regs_user_copy->cs = __USER_CS;
 		regs_user_copy->ss = __USER_DS;
 		regs_user_copy->cx = -1;  /* usually contains garbage */

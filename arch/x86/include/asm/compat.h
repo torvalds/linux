@@ -301,7 +301,7 @@ static inline void __user *arch_compat_alloc_user_space(long len)
 		sp = task_pt_regs(current)->sp;
 	} else {
 		/* -128 for the x32 ABI redzone */
-		sp = this_cpu_read(old_rsp) - 128;
+		sp = task_pt_regs(current)->sp - 128;
 	}
 
 	return (void __user *)round_down(sp - len, 16);

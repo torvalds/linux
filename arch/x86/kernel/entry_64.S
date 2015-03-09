@@ -128,8 +128,6 @@ ENDPROC(native_usergs_sysret64)
  * manipulation.
  */
 	.macro FIXUP_TOP_OF_STACK tmp offset=0
-	movq PER_CPU_VAR(old_rsp),\tmp
-	movq \tmp,RSP+\offset(%rsp)
 	movq $__USER_DS,SS+\offset(%rsp)
 	movq $__USER_CS,CS+\offset(%rsp)
 	movq RIP+\offset(%rsp),\tmp  /* get rip */
@@ -139,8 +137,7 @@ ENDPROC(native_usergs_sysret64)
 	.endm
 
 	.macro RESTORE_TOP_OF_STACK tmp offset=0
-	movq RSP+\offset(%rsp),\tmp
-	movq \tmp,PER_CPU_VAR(old_rsp)
+	/* nothing to do */
 	.endm
 
 /*
@@ -222,9 +219,6 @@ ENDPROC(native_usergs_sysret64)
  * Interrupts are off on entry.
  * Only called from user space.
  *
- * XXX	if we had a free scratch register we could save the RSP into the stack frame
- *      and report it properly in ps. Unfortunately we haven't.
- *
  * When user can change the frames always force IRET. That is because
  * it deals with uncanonical addresses better. SYSRET has trouble
  * with them due to bugs in both AMD and Intel CPUs.
@@ -253,11 +247,13 @@ GLOBAL(system_call_after_swapgs)
 	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
 	ALLOC_PT_GPREGS_ON_STACK 8		/* +8: space for orig_ax */
+	movq	%rcx,RIP(%rsp)
+	movq	PER_CPU_VAR(old_rsp),%rcx
+	movq	%r11,EFLAGS(%rsp)
+	movq	%rcx,RSP(%rsp)
+	movq_cfi rax,ORIG_RAX
 	SAVE_C_REGS_EXCEPT_RAX_RCX_R11
 	movq	$-ENOSYS,RAX(%rsp)
-	movq_cfi rax,ORIG_RAX
-	movq	%r11,EFLAGS(%rsp)
-	movq	%rcx,RIP(%rsp)
 	CFI_REL_OFFSET rip,RIP
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP)
 	jnz tracesys
@@ -293,7 +289,7 @@ ret_from_sys_call:
 	CFI_REGISTER	rip,rcx
 	movq	EFLAGS(%rsp),%r11
 	/*CFI_REGISTER	rflags,r11*/
-	movq	PER_CPU_VAR(old_rsp), %rsp
+	movq	RSP(%rsp),%rsp
 	/*
 	 * 64bit SYSRET restores rip from rcx,
 	 * rflags from r11 (but RF and VM bits are forced to 0),
