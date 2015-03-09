@@ -146,7 +146,7 @@ static int __init early_serial8250_setup(struct earlycon_device *device,
 					 const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))
-		return 0;
+		return -ENODEV;
 
 	if (!device->baud) {
 		struct uart_port *port = &device->port;
