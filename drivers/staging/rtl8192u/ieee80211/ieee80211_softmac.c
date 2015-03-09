@@ -1920,6 +1920,66 @@ static void ieee80211_process_action(struct ieee80211_device *ieee,
 	return;
 
 }
+
+void ieee80211_check_auth_response(struct ieee80211_device *ieee,
+				   struct sk_buff *skb)
+{
+	/* default support N mode, disable halfNmode */
+	bool bSupportNmode = true, bHalfSupportNmode = false;
+	u16 errcode;
+	u8 *challenge;
+	int chlen = 0;
+	u32 iotAction;
+
+	errcode = auth_parse(skb, &challenge, &chlen);
+	if (!errcode) {
+		if (ieee->open_wep || !challenge) {
+			ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATED;
+			ieee->softmac_stats.rx_auth_rs_ok++;
+			iotAction = ieee->pHTInfo->IOTAction;
+			if (!(iotAction & HT_IOT_ACT_PURE_N_MODE)) {
+				if (!ieee->GetNmodeSupportBySecCfg(ieee->dev)) {
+					/* WEP or TKIP encryption */
+					if (IsHTHalfNmodeAPs(ieee)) {
+						bSupportNmode = true;
+						bHalfSupportNmode = true;
+					} else {
+						bSupportNmode = false;
+						bHalfSupportNmode = false;
+					}
+					printk("==========>to link with AP using SEC(%d, %d)",
+						bSupportNmode,
+						bHalfSupportNmode);
+				}
+			}
+			/* Dummy wirless mode setting- avoid encryption issue */
+			if (bSupportNmode) {
+				/* N mode setting */
+				ieee->SetWirelessMode(ieee->dev,
+						ieee->current_network.mode);
+			} else {
+				/* b/g mode setting - TODO */
+				ieee->SetWirelessMode(ieee->dev, IEEE_G);
+			}
+
+			if (ieee->current_network.mode == IEEE_N_24G &&
+					bHalfSupportNmode == true) {
+				printk("===============>entern half N mode\n");
+				ieee->bHalfWirelessN24GMode = true;
+			} else
+				ieee->bHalfWirelessN24GMode = false;
+
+			ieee80211_associate_step2(ieee);
+		} else {
+			ieee80211_auth_challenge(ieee, challenge, chlen);
+		}
+	} else {
+		ieee->softmac_stats.rx_auth_rs_err++;
+		IEEE80211_DEBUG_MGMT("Auth response status code 0x%x", errcode);
+		ieee80211_associate_abort(ieee);
+	}
+}
+
 inline int
 ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats, u16 type,
@@ -1927,12 +1987,9 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 {
 	struct ieee80211_hdr_3addr *header = (struct ieee80211_hdr_3addr *) skb->data;
 	u16 errcode;
-	u8 *challenge;
-	int chlen=0;
 	int aid;
 	struct ieee80211_assoc_response_frame *assoc_resp;
 //	struct ieee80211_info_element *info_element;
-	bool bSupportNmode = true, bHalfSupportNmode = false; //default support N mode, disable halfNmode
 
 	if(!ieee->proto_started)
 		return 0;
@@ -2014,67 +2071,15 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 	case IEEE80211_STYPE_AUTH:
 
 		if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE){
-			if (ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATING &&
-			ieee->iw_mode == IW_MODE_INFRA){
+			if (ieee->state == IEEE80211_ASSOCIATING_AUTHENTICATING
+				&& ieee->iw_mode == IW_MODE_INFRA) {
 
-					IEEE80211_DEBUG_MGMT("Received authentication response");
-
-					errcode = auth_parse(skb, &challenge, &chlen);
-					if (!errcode) {
-						if(ieee->open_wep || !challenge){
-							ieee->state = IEEE80211_ASSOCIATING_AUTHENTICATED;
-							ieee->softmac_stats.rx_auth_rs_ok++;
-							if(!(ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE))
-							{
-								if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
-								{
-											// WEP or TKIP encryption
-									if(IsHTHalfNmodeAPs(ieee))
-									{
-										bSupportNmode = true;
-										bHalfSupportNmode = true;
-									}
-									else
-									{
-										bSupportNmode = false;
-										bHalfSupportNmode = false;
-									}
-								printk("==========>to link with AP using SEC(%d, %d)", bSupportNmode, bHalfSupportNmode);
-								}
-							}
-							/* Dummy wirless mode setting to avoid encryption issue */
-							if(bSupportNmode) {
-								//N mode setting
-								ieee->SetWirelessMode(ieee->dev, \
-										ieee->current_network.mode);
-							}else{
-								//b/g mode setting
-								/*TODO*/
-								ieee->SetWirelessMode(ieee->dev, IEEE_G);
-							}
-
-							if (ieee->current_network.mode == IEEE_N_24G && bHalfSupportNmode == true)
-							{
-								printk("===============>entern half N mode\n");
-								ieee->bHalfWirelessN24GMode = true;
-							}
-							else
-								ieee->bHalfWirelessN24GMode = false;
-
-							ieee80211_associate_step2(ieee);
-						}else{
-							ieee80211_auth_challenge(ieee, challenge, chlen);
-						}
-					}else{
-						ieee->softmac_stats.rx_auth_rs_err++;
-						IEEE80211_DEBUG_MGMT("Authentication response status code 0x%x",errcode);
-						ieee80211_associate_abort(ieee);
-					}
-
-				}else if (ieee->iw_mode == IW_MODE_MASTER){
-					ieee80211_rx_auth_rq(ieee, skb);
-				}
+				IEEE80211_DEBUG_MGMT("Received auth response");
+				ieee80211_check_auth_response(ieee, skb);
+			} else if (ieee->iw_mode == IW_MODE_MASTER) {
+				ieee80211_rx_auth_rq(ieee, skb);
 			}
+		}
 		break;
 
 	case IEEE80211_STYPE_PROBE_REQ:
