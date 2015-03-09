@@ -76,8 +76,6 @@ static int __init parse_options(struct earlycon_device *device, char *options)
 		return -EINVAL;
 	}
 
-	port->uartclk = BASE_BAUD * 16;
-
 	if (options) {
 		device->baud = simple_strtoul(options, NULL, 0);
 		length = min(strcspn(options, " ") + 1,
@@ -121,6 +119,7 @@ int __init setup_earlycon(char *buf, const char *match,
 	if (!err)
 		buf = NULL;
 
+	port->uartclk = BASE_BAUD * 16;
 	if (port->mapbase)
 		port->membase = earlycon_map(port->mapbase, 64);
 
