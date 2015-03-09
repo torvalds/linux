@@ -529,7 +529,7 @@ static void __btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 }
 
 /* when fs_devs is NULL it will remove all fsid kobject */
-static void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
+void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 {
 	struct list_head *fs_uuids = btrfs_get_fs_uuids();
 
