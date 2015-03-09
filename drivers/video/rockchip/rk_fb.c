@@ -1846,6 +1846,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	u8 ppixel_a = 0, global_a = 0;
 	ion_phys_addr_t phy_addr;
 	int ret = 0;
+	int buff_len;
 
 	reg_win_data->reg_area_data[0].smem_start = -1;
 	reg_win_data->area_num = 0;
@@ -1887,6 +1888,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				reg_win_data->reg_area_data[i].smem_start = phy_addr;
 				reg_win_data->area_buf_num++;
 				reg_win_data->reg_area_data[i].index_buf = 1;
+				reg_win_data->reg_area_data[i].buff_len = len;
 			}
 		}
 	} else {
@@ -1991,6 +1993,26 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				    xoffset * pixel_width / 8;
 			}
 		}
+		if ((fb_data_fmt != YUV420) &&
+		    (fb_data_fmt != YUV420_NV21) &&
+		    (fb_data_fmt != YUV422) &&
+                    (fb_data_fmt != YUV444)) {
+                        buff_len = reg_win_data->reg_area_data[i].y_offset +
+                                reg_win_data->reg_area_data[i].xvir *
+                                reg_win_data->reg_area_data[i].yact *
+                                pixel_width / 8 -
+                                reg_win_data->reg_area_data[i].xoff*
+                                pixel_width / 8;
+                        if (buff_len > reg_win_data->reg_area_data[i].buff_len)
+                                pr_err("\n!!!!!!error: fmt=%d,xvir[%d]*"
+                                       "yact[%d]*bpp[%d]"
+                                       "=buff_len[0x%x]>>mmu len=0x%x\n",
+                                       fb_data_fmt,
+                                       reg_win_data->reg_area_data[i].xvir,
+                                       reg_win_data->reg_area_data[i].yact,
+                                       pixel_width, buff_len,
+                                       reg_win_data->reg_area_data[i].buff_len);
+		}
 	}
 
 	global_a = (win_par->g_alpha_val == 0) ? 0 : 1;
@@ -2060,6 +2082,23 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				    uv_x_off * pixel_width / 8;
 			}
 		}
+		buff_len = reg_win_data->reg_area_data[0].cbr_start +
+			reg_win_data->reg_area_data[0].c_offset +
+			reg_win_data->reg_area_data[0].xvir *
+			reg_win_data->reg_area_data[0].yact *
+			pixel_width / 16 -
+			reg_win_data->reg_area_data[0].smem_start -
+			reg_win_data->reg_area_data[0].xoff*
+			pixel_width / 16 ;
+		if (buff_len > reg_win_data->reg_area_data[0].buff_len)
+			pr_err("\n!!!!!!error: fmt=%d,xvir[%d]*"
+			       "yact[%d]*bpp[%d]"
+			       "=buff_len[0x%x]>>mmu len=0x%x\n",
+			       fb_data_fmt,
+			       reg_win_data->reg_area_data[0].xvir,
+			       reg_win_data->reg_area_data[0].yact,
+			       pixel_width, buff_len,
+			       reg_win_data->reg_area_data[0].buff_len);
 	}
 
 	/* record buffer information for rk_fb_disp_scale to prevent fence timeout
