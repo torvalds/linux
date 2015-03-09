@@ -648,6 +648,7 @@ static int rk3368_lcdc_alpha_cfg(struct rk_lcdc_driver *dev_drv, int win_id)
 	for (i = 0; i < win->area_num; i++) {
 		ppixel_alpha |= ((win->area[i].format == ARGB888) ||
 				 (win->area[i].format == FBDC_ARGB_888) ||
+				 (win->area[i].format == FBDC_ABGR_888) ||
 				 (win->area[i].format == ABGR888)) ? 1 : 0;
 	}
 	global_alpha = (win->g_alpha_val == 0) ? 0 : 1;
