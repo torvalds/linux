@@ -432,6 +432,9 @@ static void dw_spi_handle_err(struct spi_master *master,
 {
 	struct dw_spi *dws = spi_master_get_devdata(master);
 
+	if (dws->dma_mapped)
+		dws->dma_ops->dma_stop(dws);
+
 	spi_reset_chip(dws);
 }
 

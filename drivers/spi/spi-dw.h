@@ -93,6 +93,7 @@ struct dw_spi_dma_ops {
 	void (*dma_exit)(struct dw_spi *dws);
 	int (*dma_setup)(struct dw_spi *dws);
 	int (*dma_transfer)(struct dw_spi *dws);
+	void (*dma_stop)(struct dw_spi *dws);
 };
 
 struct dw_spi {
