@@ -3323,7 +3323,7 @@ static int em_clts(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int em_vmcall(struct x86_emulate_ctxt *ctxt)
+static int em_hypercall(struct x86_emulate_ctxt *ctxt)
 {
 	int rc = ctxt->ops->fix_hypercall(ctxt);
 
@@ -3393,17 +3393,6 @@ static int em_lgdt_lidt(struct x86_emulate_ctxt *ctxt, bool lgdt)
 static int em_lgdt(struct x86_emulate_ctxt *ctxt)
 {
 	return em_lgdt_lidt(ctxt, true);
-}
-
-static int em_vmmcall(struct x86_emulate_ctxt *ctxt)
-{
-	int rc;
-
-	rc = ctxt->ops->fix_hypercall(ctxt);
-
-	/* Disable writeback. */
-	ctxt->dst.type = OP_NONE;
-	return rc;
 }
 
 static int em_lidt(struct x86_emulate_ctxt *ctxt)
@@ -3769,7 +3758,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 
 static const struct opcode group7_rm0[] = {
 	N,
-	I(SrcNone | Priv | EmulateOnUD,	em_vmcall),
+	I(SrcNone | Priv | EmulateOnUD,	em_hypercall),
 	N, N, N, N, N, N,
 };
 
@@ -3781,7 +3770,7 @@ static const struct opcode group7_rm1[] = {
 
 static const struct opcode group7_rm3[] = {
 	DIP(SrcNone | Prot | Priv,		vmrun,		check_svme_pa),
-	II(SrcNone  | Prot | EmulateOnUD,	em_vmmcall,	vmmcall),
+	II(SrcNone  | Prot | EmulateOnUD,	em_hypercall,	vmmcall),
 	DIP(SrcNone | Prot | Priv,		vmload,		check_svme_pa),
 	DIP(SrcNone | Prot | Priv,		vmsave,		check_svme_pa),
 	DIP(SrcNone | Prot | Priv,		stgi,		check_svme),
