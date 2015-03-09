@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/threads.h>
 #include <linux/cpufreq.h>
+#include <linux/sched_clock.h>
 #include <linux/mm.h>
 #include <asm/types.h>
 #include <asm/signal.h>
@@ -242,6 +243,11 @@ static struct irqaction irq_timer = {
 	.dev_id = &crisv32_clockevent,
 };
 
+static u64 notrace crisv32_timer_sched_clock(void)
+{
+	return REG_RD(timer, timer_base, r_time);
+}
+
 static void __init crisv32_timer_init(void)
 {
 	reg_timer_rw_intr_mask timer_intr_mask;
@@ -274,6 +280,9 @@ void __init time_init(void)
 	timer_base = (void __iomem *) regi_timer0;
 
 	crisv32_timer_init();
+
+	sched_clock_register(crisv32_timer_sched_clock, 32,
+			     CRISV32_TIMER_FREQ);
 
 	clocksource_mmio_init(timer_base + REG_RD_ADDR_timer_r_time,
 			      "crisv32-timer", CRISV32_TIMER_FREQ,
