@@ -634,6 +634,7 @@ static const struct acpi_device_id dw8250_acpi_match[] = {
 	{ "80860F0A", 0 },
 	{ "8086228A", 0 },
 	{ "APMC0D08", 0},
+	{ "AMD0020", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
