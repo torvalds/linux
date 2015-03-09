@@ -1920,7 +1920,7 @@ encode_getdeviceinfo(struct xdr_stream *xdr,
 
 	p = reserve_space(xdr, 4 + 4);
 	*p++ = cpu_to_be32(1);			/* bitmap length */
-	*p++ = cpu_to_be32(NOTIFY_DEVICEID4_CHANGE | NOTIFY_DEVICEID4_DELETE);
+	*p++ = cpu_to_be32(args->notify_types);
 }
 
 static void
@@ -5753,8 +5753,9 @@ out_overflow:
 
 #if defined(CONFIG_NFS_V4_1)
 static int decode_getdeviceinfo(struct xdr_stream *xdr,
-				struct pnfs_device *pdev)
+				struct nfs4_getdeviceinfo_res *res)
 {
+	struct pnfs_device *pdev = res->pdev;
 	__be32 *p;
 	uint32_t len, type;
 	int status;
@@ -5802,12 +5803,7 @@ static int decode_getdeviceinfo(struct xdr_stream *xdr,
 		if (unlikely(!p))
 			goto out_overflow;
 
-		if (be32_to_cpup(p++) &
-		    ~(NOTIFY_DEVICEID4_CHANGE | NOTIFY_DEVICEID4_DELETE)) {
-			dprintk("%s: unsupported notification\n",
-				__func__);
-		}
-
+		res->notification = be32_to_cpup(p++);
 		for (i = 1; i < len; i++) {
 			if (be32_to_cpup(p++)) {
 				dprintk("%s: unsupported notification\n",
@@ -7061,7 +7057,7 @@ static int nfs4_xdr_dec_getdeviceinfo(struct rpc_rqst *rqstp,
 	status = decode_sequence(xdr, &res->seq_res, rqstp);
 	if (status != 0)
 		goto out;
-	status = decode_getdeviceinfo(xdr, res->pdev);
+	status = decode_getdeviceinfo(xdr, res);
 out:
 	return status;
 }

@@ -255,11 +255,13 @@ struct nfs4_layoutget {
 struct nfs4_getdeviceinfo_args {
 	struct nfs4_sequence_args seq_args;
 	struct pnfs_device *pdev;
+	__u32 notify_types;
 };
 
 struct nfs4_getdeviceinfo_res {
 	struct nfs4_sequence_res seq_res;
 	struct pnfs_device *pdev;
+	__u32 notification;
 };
 
 struct nfs4_layoutcommit_args {
