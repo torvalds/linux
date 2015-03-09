@@ -161,6 +161,7 @@ int rk_fb_pixel_width(int data_format)
 		break;
 	case YUV422:
 	case YUV420:
+	case YUV420_NV21:
 	case YUV444:
 		pixel_width = 1 * 8;
 		break;
@@ -199,6 +200,9 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 			break;
 		case HAL_PIXEL_FORMAT_YCbCr_422_SP:	/* yuv422 */
 			fb_data_fmt = YUV422;
+			break;
+		case HAL_PIXEL_FORMAT_YCrCb_420_SP:	/* YUV420---vuvuvu */
+			fb_data_fmt = YUV420_NV21;
 			break;
 		case HAL_PIXEL_FORMAT_YCrCb_NV12:	/* YUV420---uvuvuv */
 			fb_data_fmt = YUV420;
@@ -516,6 +520,7 @@ char *get_format_string(enum data_format format, char *fmt)
 		strcpy(fmt, "RGB565");
 		break;
 	case YUV420:
+	case YUV420_NV21:
 		strcpy(fmt, "YUV420");
 		break;
 	case YUV422:
@@ -1279,7 +1284,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 		fix->line_length = stride;
 		uv_y_act = win->area[0].yact >> 1;
 		break;
-	case YUV420:		/* 420sp */
+	case YUV420:		/* nv12 */
+	case YUV420_NV21:	/* nv21 */
 	case YUV420_A:
 		is_pic_yuv = 1;
 		stride = stride_32bit_1;
@@ -1665,6 +1671,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		if (win_data) {
 			if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
 			    (win_data->reg_area_data[0].data_format == YUV420 ||
+			     win_data->reg_area_data[0].data_format == YUV420_NV21 ||
 			     win_data->reg_area_data[0].data_format == YUV420_A))
 				continue;
 			mutex_lock(&dev_drv->win_config);
@@ -2002,7 +2009,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		fix->line_length = stride;
 		uv_y_act = win_par->area_par[0].yact >> 1;
 		break;
-	case YUV420:		/* 420sp */
+	case YUV420:		/* nv12 */
+	case YUV420_NV21:	/* nv21 */
 	case YUV420_A:
 		is_pic_yuv = 1;
 		stride = stride_32bit_1;
@@ -2604,7 +2612,8 @@ static ssize_t rk_fb_read(struct fb_info *info, char __user *buf,
 	/* only read the current frame buffer */
 	if (win->area[0].format == RGB565) {
 		total_size = win->area[0].y_vir_stride * win->area[0].yact << 1;
-	} else if (win->area[0].format == YUV420) {
+	} else if ((win->area[0].format == YUV420) ||
+	           (win->area[0].format == YUV420_NV21)) {
 		total_size =
 		    (win->area[0].y_vir_stride * win->area[0].yact * 6);
 	} else {
@@ -2790,7 +2799,8 @@ static int rk_fb_set_par(struct fb_info *info)
 		cblen = crlen = (xvir * yvir) >> 1;
 		uv_y_act = win->area[0].yact >> 1;
 		break;
-	case YUV420:		/* 420sp */
+	case YUV420:		/* nv12 */
+	case YUV420_NV21:	/* nv21 */
 	case YUV420_A:
 		is_pic_yuv = 1;
 		stride = stride_32bit_1;
@@ -2840,8 +2850,10 @@ static int rk_fb_set_par(struct fb_info *info)
 	win->g_alpha_val = 0;
 
 	if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-	    (win->area[0].format == YUV420 || win->area[0].format == YUV420_A))
-	    win->state = 1;
+	    (win->area[0].format == YUV420 ||
+	     win->area[0].format == YUV420_NV21 ||
+	     win->area[0].format == YUV420_A))
+                win->state = 1;
 
 	dev_drv->ops->set_par(dev_drv, win_id);
 
