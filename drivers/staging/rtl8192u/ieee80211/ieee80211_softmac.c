@@ -1947,9 +1947,9 @@ void ieee80211_check_auth_response(struct ieee80211_device *ieee,
 						bSupportNmode = false;
 						bHalfSupportNmode = false;
 					}
-					printk("==========>to link with AP using SEC(%d, %d)",
-						bSupportNmode,
-						bHalfSupportNmode);
+					netdev_dbg(ieee->dev, "SEC(%d, %d)\n",
+							bSupportNmode,
+							bHalfSupportNmode);
 				}
 			}
 			/* Dummy wirless mode setting- avoid encryption issue */
@@ -1964,7 +1964,7 @@ void ieee80211_check_auth_response(struct ieee80211_device *ieee,
 
 			if (ieee->current_network.mode == IEEE_N_24G &&
 					bHalfSupportNmode == true) {
-				printk("===============>entern half N mode\n");
+				netdev_dbg(ieee->dev, "enter half N mode\n");
 				ieee->bHalfWirelessN24GMode = true;
 			} else
 				ieee->bHalfWirelessN24GMode = false;
