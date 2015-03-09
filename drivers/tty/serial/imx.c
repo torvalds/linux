@@ -2003,7 +2003,8 @@ static int serial_imx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (sport->clk_per > IMX_MODULE_MAX_CLK_RATE)
+	sport->port.uartclk = clk_get_rate(sport->clk_per);
+	if (sport->port.uartclk > IMX_MODULE_MAX_CLK_RATE)
 		clk_set_rate(sport->clk_per, IMX_MODULE_MAX_CLK_RATE);
 	sport->port.uartclk = clk_get_rate(sport->clk_per);
 
