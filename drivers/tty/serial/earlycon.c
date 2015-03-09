@@ -54,44 +54,31 @@ static void __iomem * __init earlycon_map(unsigned long paddr, size_t size)
 	return base;
 }
 
-static int __init parse_options(struct earlycon_device *device,
-				char *options)
+static int __init parse_options(struct earlycon_device *device, char *options)
 {
 	struct uart_port *port = &device->port;
-	int mmio, mmio32, length;
+	int length;
 	unsigned long addr;
 
-	if (!options)
-		return -ENODEV;
+	if (uart_parse_earlycon(options, &port->iotype, &addr, &options))
+		return -EINVAL;
 
-	mmio = !strncmp(options, "mmio,", 5);
-	mmio32 = !strncmp(options, "mmio32,", 7);
-	if (mmio || mmio32) {
-		port->iotype = (mmio ? UPIO_MEM : UPIO_MEM32);
-		options += mmio ? 5 : 7;
-		addr = simple_strtoul(options, NULL, 0);
+	switch (port->iotype) {
+	case UPIO_MEM32:
+		port->regshift = 2;	/* fall-through */
+	case UPIO_MEM:
 		port->mapbase = addr;
-		if (mmio32)
-			port->regshift = 2;
-	} else if (!strncmp(options, "io,", 3)) {
-		port->iotype = UPIO_PORT;
-		options += 3;
-		addr = simple_strtoul(options, NULL, 0);
+		break;
+	case UPIO_PORT:
 		port->iobase = addr;
-		mmio = 0;
-	} else if (!strncmp(options, "0x", 2)) {
-		port->iotype = UPIO_MEM;
-		addr = simple_strtoul(options, NULL, 0);
-		port->mapbase = addr;
-	} else {
+		break;
+	default:
 		return -EINVAL;
 	}
 
 	port->uartclk = BASE_BAUD * 16;
 
-	options = strchr(options, ',');
 	if (options) {
-		options++;
 		device->baud = simple_strtoul(options, NULL, 0);
 		length = min(strcspn(options, " ") + 1,
 			     (size_t)(sizeof(device->options)));
@@ -100,7 +87,7 @@ static int __init parse_options(struct earlycon_device *device,
 
 	if (port->iotype == UPIO_MEM || port->iotype == UPIO_MEM32)
 		pr_info("Early serial console at MMIO%s 0x%llx (options '%s')\n",
-			mmio32 ? "32" : "",
+			(port->iotype == UPIO_MEM32) ? "32" : "",
 			(unsigned long long)port->mapbase,
 			device->options);
 	else

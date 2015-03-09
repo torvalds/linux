@@ -125,6 +125,8 @@ config FSL_DMA
 	  EloPlus is on mpc85xx and mpc86xx and Pxxx parts, and the Elo3 is on
 	  some Txxx and Bxxx parts.
 
+source "drivers/dma/hsu/Kconfig"
+
 config MPC512X_DMA
 	tristate "Freescale MPC512x built-in DMA engine support"
 	depends on PPC_MPC512x || PPC_MPC831x

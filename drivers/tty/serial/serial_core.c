@@ -1118,8 +1118,7 @@ uart_wait_modem_status(struct uart_state *state, unsigned long arg)
 
 		cprev = cnow;
 	}
-
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->delta_msr_wait, &wait);
 
 	return ret;
@@ -1808,6 +1807,52 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
 
 	return ports + idx;
 }
+
+/**
+ *	uart_parse_earlycon - Parse earlycon options
+ *	@p:	  ptr to 2nd field (ie., just beyond '<name>,')
+ *	@iotype:  ptr for decoded iotype (out)
+ *	@addr:    ptr for decoded mapbase/iobase (out)
+ *	@options: ptr for <options> field; NULL if not present (out)
+ *
+ *	Decodes earlycon kernel command line parameters of the form
+ *	   earlycon=<name>,io|mmio|mmio32,<addr>,<options>
+ *	   console=<name>,io|mmio|mmio32,<addr>,<options>
+ *
+ *	The optional form
+ *	   earlycon=<name>,0x<addr>,<options>
+ *	   console=<name>,0x<addr>,<options>
+ *	is also accepted; the returned @iotype will be UPIO_MEM.
+ *
+ *	Returns 0 on success or -EINVAL on failure
+ */
+int uart_parse_earlycon(char *p, unsigned char *iotype, unsigned long *addr,
+			char **options)
+{
+	if (strncmp(p, "mmio,", 5) == 0) {
+		*iotype = UPIO_MEM;
+		p += 5;
+	} else if (strncmp(p, "mmio32,", 7) == 0) {
+		*iotype = UPIO_MEM32;
+		p += 7;
+	} else if (strncmp(p, "io,", 3) == 0) {
+		*iotype = UPIO_PORT;
+		p += 3;
+	} else if (strncmp(p, "0x", 2) == 0) {
+		*iotype = UPIO_MEM;
+	} else {
+		return -EINVAL;
+	}
+
+	*addr = simple_strtoul(p, NULL, 0);
+	p = strchr(p, ',');
+	if (p)
+		p++;
+
+	*options = p;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(uart_parse_earlycon);
 
 /**
  *	uart_parse_options - Parse serial port baud/parity/bits/flow control.

@@ -1237,7 +1237,7 @@ static void default_attr(struct vc_data *vc)
 
 struct rgb { u8 r; u8 g; u8 b; };
 
-struct rgb rgb_from_256(int i)
+static struct rgb rgb_from_256(int i)
 {
 	struct rgb c;
 	if (i < 8) {            /* Standard colours. */
@@ -1573,7 +1573,7 @@ static void setterm_command(struct vc_data *vc)
 		case 11: /* set bell duration in msec */
 			if (vc->vc_npar >= 1)
 				vc->vc_bell_duration = (vc->vc_par[1] < 2000) ?
-					vc->vc_par[1] * HZ / 1000 : 0;
+					msecs_to_jiffies(vc->vc_par[1]) : 0;
 			else
 				vc->vc_bell_duration = DEFAULT_BELL_DURATION;
 			break;
