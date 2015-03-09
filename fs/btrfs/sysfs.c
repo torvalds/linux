@@ -439,6 +439,8 @@ static struct attribute *btrfs_attrs[] = {
 static void btrfs_release_super_kobj(struct kobject *kobj)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+
+	memset(&fs_info->super_kobj, 0, sizeof(struct kobject));
 	complete(&fs_info->kobj_unregister);
 }
 
