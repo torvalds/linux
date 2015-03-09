@@ -2033,7 +2033,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 	struct mtd_info *mtd;
 	struct resource *ress;
 	void __iomem *base;
-	int ret, floor, found = 0;
+	int ret, floor;
 	struct docg3_cascade *cascade;
 
 	ret = -ENXIO;
@@ -2073,14 +2073,11 @@ static int __init docg3_probe(struct platform_device *pdev)
 						0);
 		if (ret)
 			goto err_probe;
-		found++;
 	}
 
 	ret = doc_register_sysfs(pdev, cascade);
 	if (ret)
 		goto err_probe;
-	if (!found)
-		goto notfound;
 
 	platform_set_drvdata(pdev, cascade);
 	doc_dbg_register(cascade->floors[0]->priv);
