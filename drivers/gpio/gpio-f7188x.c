@@ -410,7 +410,7 @@ err:
 }
 
 /*
- * Try to match a supported Fintech device by reading the (hard-wired)
+ * Try to match a supported Fintek device by reading the (hard-wired)
  * configuration I/O ports. If available, then register both the platform
  * device and driver to support the GPIOs.
  */
