@@ -30,6 +30,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 #include <asm/fncpy.h>
+#include <asm/cacheflush.h>
 
 #include <mach/cpu.h>
 #include <mach/hardware.h>
@@ -133,8 +134,13 @@ static void at91_pm_suspend(suspend_state_t state)
 	pm_data |= (state == PM_SUSPEND_MEM) ?
 				AT91_PM_MODE(AT91_PM_SLOW_CLOCK) : 0;
 
+	flush_cache_all();
+	outer_disable();
+
 	at91_suspend_sram_fn(at91_pmc_base, at91_ramc_base[0],
 				at91_ramc_base[1], pm_data);
+
+	outer_resume();
 }
 
 static int at91_pm_enter(suspend_state_t state)
