@@ -4457,6 +4457,166 @@ void print_worker_info(const char *log_lvl, struct task_struct *task)
 	}
 }
 
+static void pr_cont_pool_info(struct worker_pool *pool)
+{
+	pr_cont(" cpus=%*pbl", nr_cpumask_bits, pool->attrs->cpumask);
+	if (pool->node != NUMA_NO_NODE)
+		pr_cont(" node=%d", pool->node);
+	pr_cont(" flags=0x%x nice=%d", pool->flags, pool->attrs->nice);
+}
+
+static void pr_cont_work(bool comma, struct work_struct *work)
+{
+	if (work->func == wq_barrier_func) {
+		struct wq_barrier *barr;
+
+		barr = container_of(work, struct wq_barrier, work);
+
+		pr_cont("%s BAR(%d)", comma ? "," : "",
+			task_pid_nr(barr->task));
+	} else {
+		pr_cont("%s %pf", comma ? "," : "", work->func);
+	}
+}
+
+static void show_pwq(struct pool_workqueue *pwq)
+{
+	struct worker_pool *pool = pwq->pool;
+	struct work_struct *work;
+	struct worker *worker;
+	bool has_in_flight = false, has_pending = false;
+	int bkt;
+
+	pr_info("  pwq %d:", pool->id);
+	pr_cont_pool_info(pool);
+
+	pr_cont(" active=%d/%d%s\n", pwq->nr_active, pwq->max_active,
+		!list_empty(&pwq->mayday_node) ? " MAYDAY" : "");
+
+	hash_for_each(pool->busy_hash, bkt, worker, hentry) {
+		if (worker->current_pwq == pwq) {
+			has_in_flight = true;
+			break;
+		}
+	}
+	if (has_in_flight) {
+		bool comma = false;
+
+		pr_info("    in-flight:");
+		hash_for_each(pool->busy_hash, bkt, worker, hentry) {
+			if (worker->current_pwq != pwq)
+				continue;
+
+			pr_cont("%s %d%s:%pf", comma ? "," : "",
+				task_pid_nr(worker->task),
+				worker == pwq->wq->rescuer ? "(RESCUER)" : "",
+				worker->current_func);
+			list_for_each_entry(work, &worker->scheduled, entry)
+				pr_cont_work(false, work);
+			comma = true;
+		}
+		pr_cont("\n");
+	}
+
+	list_for_each_entry(work, &pool->worklist, entry) {
+		if (get_work_pwq(work) == pwq) {
+			has_pending = true;
+			break;
+		}
+	}
+	if (has_pending) {
+		bool comma = false;
+
+		pr_info("    pending:");
+		list_for_each_entry(work, &pool->worklist, entry) {
+			if (get_work_pwq(work) != pwq)
+				continue;
+
+			pr_cont_work(comma, work);
+			comma = !(*work_data_bits(work) & WORK_STRUCT_LINKED);
+		}
+		pr_cont("\n");
+	}
+
+	if (!list_empty(&pwq->delayed_works)) {
+		bool comma = false;
+
+		pr_info("    delayed:");
+		list_for_each_entry(work, &pwq->delayed_works, entry) {
+			pr_cont_work(comma, work);
+			comma = !(*work_data_bits(work) & WORK_STRUCT_LINKED);
+		}
+		pr_cont("\n");
+	}
+}
+
+/**
+ * show_workqueue_state - dump workqueue state
+ *
+ * Called from a sysrq handler and prints out all busy workqueues and
+ * pools.
+ */
+void show_workqueue_state(void)
+{
+	struct workqueue_struct *wq;
+	struct worker_pool *pool;
+	unsigned long flags;
+	int pi;
+
+	rcu_read_lock_sched();
+
+	pr_info("Showing busy workqueues and worker pools:\n");
+
+	list_for_each_entry_rcu(wq, &workqueues, list) {
+		struct pool_workqueue *pwq;
+		bool idle = true;
+
+		for_each_pwq(pwq, wq) {
+			if (pwq->nr_active || !list_empty(&pwq->delayed_works)) {
+				idle = false;
+				break;
+			}
+		}
+		if (idle)
+			continue;
+
+		pr_info("workqueue %s: flags=0x%x\n", wq->name, wq->flags);
+
+		for_each_pwq(pwq, wq) {
+			spin_lock_irqsave(&pwq->pool->lock, flags);
+			if (pwq->nr_active || !list_empty(&pwq->delayed_works))
+				show_pwq(pwq);
+			spin_unlock_irqrestore(&pwq->pool->lock, flags);
+		}
+	}
+
+	for_each_pool(pool, pi) {
+		struct worker *worker;
+		bool first = true;
+
+		spin_lock_irqsave(&pool->lock, flags);
+		if (pool->nr_workers == pool->nr_idle)
+			goto next_pool;
+
+		pr_info("pool %d:", pool->id);
+		pr_cont_pool_info(pool);
+		pr_cont(" workers=%d", pool->nr_workers);
+		if (pool->manager)
+			pr_cont(" manager: %d",
+				task_pid_nr(pool->manager->task));
+		list_for_each_entry(worker, &pool->idle_list, entry) {
+			pr_cont(" %s%d", first ? "idle: " : "",
+				task_pid_nr(worker->task));
+			first = false;
+		}
+		pr_cont("\n");
+	next_pool:
+		spin_unlock_irqrestore(&pool->lock, flags);
+	}
+
+	rcu_read_unlock_sched();
+}
+
 /*
  * CPU hotplug.
  *
