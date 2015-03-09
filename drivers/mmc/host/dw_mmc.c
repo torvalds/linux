@@ -1021,6 +1021,15 @@ static void __dw_mci_start_request(struct dw_mci *host,
 
 	dw_mci_start_command(host, cmd, cmdflags);
 
+	if (cmd->opcode == SD_SWITCH_VOLTAGE) {
+		/*
+		 * Databook says to fail after 2ms w/ no response; give an
+		 * extra jiffy just in case we're about to roll over.
+		 */
+		mod_timer(&host->cmd11_timer,
+			  jiffies + msecs_to_jiffies(2) + 1);
+	}
+
 	if (mrq->stop)
 		host->stop_cmdr = dw_mci_prepare_command(slot->mmc, mrq->stop);
 	else
@@ -2159,6 +2168,8 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		/* Check volt switch first, since it can look like an error */
 		if ((host->state == STATE_SENDING_CMD11) &&
 		    (pending & SDMMC_INT_VOLT_SWITCH)) {
+			del_timer(&host->cmd11_timer);
+
 			mci_writel(host, RINTSTS, SDMMC_INT_VOLT_SWITCH);
 			pending &= ~SDMMC_INT_VOLT_SWITCH;
 			dw_mci_cmd_interrupt(host, pending);
@@ -2572,6 +2583,18 @@ ciu_out:
 	return ret;
 }
 
+static void dw_mci_cmd11_timer(unsigned long arg)
+{
+	struct dw_mci *host = (struct dw_mci *)arg;
+
+	if (host->state != STATE_SENDING_CMD11)
+		dev_info(host->dev, "Unexpected CMD11 timeout\n");
+
+	host->cmd_status = SDMMC_INT_RTO;
+	set_bit(EVENT_CMD_COMPLETE, &host->pending_events);
+	tasklet_schedule(&host->tasklet);
+}
+
 #ifdef CONFIG_OF
 static struct dw_mci_of_quirks {
 	char *quirk;
@@ -2745,6 +2768,9 @@ int dw_mci_probe(struct dw_mci *host)
 			goto err_clk_ciu;
 		}
 	}
+
+	setup_timer(&host->cmd11_timer,
+		    dw_mci_cmd11_timer, (unsigned long)host);
 
 	host->quirks = host->pdata->quirks;
 

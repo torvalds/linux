@@ -202,6 +202,8 @@ struct dw_mci {
 	int			irq;
 
 	int			sdio_id0;
+
+	struct timer_list       cmd11_timer;
 };
 
 /* DMA ops for Internal/External DMAC interface */
