@@ -106,10 +106,9 @@ snd_seq_oss_synth_probe(struct device *_dev)
 	struct snd_seq_oss_reg *reg = SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	unsigned long flags;
 
-	if ((rec = kzalloc(sizeof(*rec), GFP_KERNEL)) == NULL) {
-		pr_err("ALSA: seq_oss: can't malloc synth info\n");
+	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
+	if (!rec)
 		return -ENOMEM;
-	}
 	rec->seq_device = -1;
 	rec->synth_type = reg->type;
 	rec->synth_subtype = reg->subtype;
@@ -249,7 +248,6 @@ snd_seq_oss_synth_setup(struct seq_oss_devinfo *dp)
 		if (info->nr_voices > 0) {
 			info->ch = kcalloc(info->nr_voices, sizeof(struct seq_oss_chinfo), GFP_KERNEL);
 			if (!info->ch) {
-				pr_err("ALSA: seq_oss: Cannot malloc voices\n");
 				rec->oper.close(&info->arg);
 				module_put(rec->oper.owner);
 				snd_use_lock_free(&rec->use_lock);
