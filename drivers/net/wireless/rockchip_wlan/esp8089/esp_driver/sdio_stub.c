@@ -22,17 +22,6 @@ extern int rockchip_wifi_set_carddetect(int val);
 extern int rk29sdk_wifi_power(int on);
 extern int rk29sdk_wifi_set_carddetect(int val);
 
-
-int rockchip_wifi_init_module_esp8089(void)
-{
-       return esp_sdio_init();
-}
-
-void rockchip_wifi_exit_module_esp8089(void)
-{
-      esp_sdio_exit();
-}
-
 void sif_platform_rescan_card(unsigned insert)
 {
 		//rk29sdk_wifi_set_carddetect(insert); libing
@@ -68,7 +57,7 @@ void sif_platform_target_poweroff(void)
 	printk("=======================================================\n");
 	printk("==== Dislaunching Wi-Fi driver! (Powered by Rockchip) ====\n");
 	printk("=======================================================\n");
-	printk("Espressif ESP8089 SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", ESP8089_DRV_VERSION);
+	printk("Espressif ESP8089 SDIO WiFi driver (Powered by Rockchip, Ver2.25(03/10/2015),Drv: %s) exit.\n", ESP8089_DRV_VERSION);
 
 	//rk29sdk_wifi_set_carddetect(0);
 	if(sif_get_bt_config() != 1)
@@ -81,7 +70,7 @@ void sif_platform_target_poweron(void)
 	printk("=======================================================\n");
 	printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
 	printk("=======================================================\n");
-	printk("Espressif ESP8089 SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", ESP8089_DRV_VERSION);
+	printk("Espressif ESP8089 SDIO WiFi driver (Powered by Rockchip, Ver2.25(03/10/2015),Drv: %s) init.\n", ESP8089_DRV_VERSION);
 
 	if(sif_get_bt_config() == 1){
 		sif_platform_reset_target();
@@ -119,5 +108,3 @@ void sif_platform_ack_interrupt(struct esp_pub *epub)
 }
 #endif //ESP_ACK_INTERRUPT
 
-EXPORT_SYMBOL(rockchip_wifi_init_module_esp8089);
-EXPORT_SYMBOL(rockchip_wifi_exit_module_esp8089);

@@ -54,7 +54,7 @@ void esp_common_exit(void)
 #endif
 }
 
-static int __init esp_init(void)
+static int /*__init*/ esp_init(void)
 {
         u64 ver;
 	int edf_ret = 0;
@@ -82,7 +82,7 @@ static int __init esp_init(void)
 	return esp_common_init();
 }
 
-static void __exit esp_exit(void)
+static void /*__exit */ esp_exit(void)
 {
 	esp_debugfs_exit();
 #ifdef ESP_CLASS
@@ -92,5 +92,20 @@ static void __exit esp_exit(void)
 	esp_common_exit();
 }
 
-module_init(esp_init);
-module_exit(esp_exit);
+int rockchip_wifi_init_module_esp8089(void)
+{
+		
+	return esp_init();		
+}
+
+void rockchip_wifi_exit_module_esp8089(void)
+{
+	esp_exit(); 
+		 
+}
+
+EXPORT_SYMBOL(rockchip_wifi_init_module_esp8089);
+EXPORT_SYMBOL(rockchip_wifi_exit_module_esp8089);
+
+//module_init(esp_init);
+//module_exit(esp_exit);

@@ -9,8 +9,8 @@ MODPATH := $(shell pwd)
 DRIVER_NAME := esp_prealloc
 
 ####################### NORMAL OPTION ########################################
-#EXTRA_CFLAGS += -DESP_PRE_MEM              # normal mode, support SDIO
-EXTRA_CFLAGS += -DESP_PRE_MEM -DESP_SPI   # normal mode, support SPI
+EXTRA_CFLAGS += -DESP_PRE_MEM              # normal mode, support SDIO
+#EXTRA_CFLAGS += -DESP_PRE_MEM -DESP_SPI   # normal mode, support SPI
 ##############################################################################
 
 ####################### ADVANCE OPTION ###########################
