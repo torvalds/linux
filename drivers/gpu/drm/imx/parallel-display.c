@@ -236,8 +236,11 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	panel_node = of_parse_phandle(np, "fsl,panel", 0);
-	if (panel_node)
+	if (panel_node) {
 		imxpd->panel = of_drm_find_panel(panel_node);
+		if (!imxpd->panel)
+			return -EPROBE_DEFER;
+	}
 
 	imxpd->dev = dev;
 

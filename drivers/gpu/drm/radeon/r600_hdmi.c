@@ -476,17 +476,6 @@ void r600_hdmi_enable(struct drm_encoder *encoder, bool enable)
 	if (!dig || !dig->afmt)
 		return;
 
-	/* Silent, r600_hdmi_enable will raise WARN for us */
-	if (enable && dig->afmt->enabled)
-		return;
-	if (!enable && !dig->afmt->enabled)
-		return;
-
-	if (!enable && dig->afmt->pin) {
-		radeon_audio_enable(rdev, dig->afmt->pin, 0);
-		dig->afmt->pin = NULL;
-	}
-
 	/* Older chipsets require setting HDMI and routing manually */
 	if (!ASIC_IS_DCE3(rdev)) {
 		if (enable)

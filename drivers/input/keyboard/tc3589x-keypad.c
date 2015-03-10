@@ -411,9 +411,9 @@ static int tc3589x_keypad_probe(struct platform_device *pdev)
 
 	input_set_drvdata(input, keypad);
 
-	error = request_threaded_irq(irq, NULL,
-			tc3589x_keypad_irq, plat->irqtype,
-			"tc3589x-keypad", keypad);
+	error = request_threaded_irq(irq, NULL, tc3589x_keypad_irq,
+				     plat->irqtype | IRQF_ONESHOT,
+				     "tc3589x-keypad", keypad);
 	if (error < 0) {
 		dev_err(&pdev->dev,
 				"Could not allocate irq %d,error %d\n",

@@ -2131,7 +2131,23 @@ static const struct net_device_ops macb_netdev_ops = {
  */
 static void macb_configure_caps(struct macb *bp)
 {
+	const struct of_device_id *match;
+	const struct macb_config *config;
 	u32 dcfg;
+
+	if (bp->pdev->dev.of_node) {
+		match = of_match_node(macb_dt_ids, bp->pdev->dev.of_node);
+		if (match && match->data) {
+			config = match->data;
+
+			bp->caps = config->caps;
+			/*
+			 * As we have access to the matching node, configure
+			 * DMA burst length as well
+			 */
+			bp->dma_burst_length = config->dma_burst_length;
+		}
+	}
 
 	if (MACB_BFEXT(IDNUM, macb_readl(bp, MID)) == 0x2)
 		bp->caps |= MACB_CAPS_MACB_IS_GEM;
@@ -2636,30 +2652,30 @@ err_disable_clk:
 	return err;
 }
 
-static struct macb_config at91sam9260_config = {
+static const struct macb_config at91sam9260_config = {
 	.caps = MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_USRIO_DEFAULT_IS_MII,
 	.init = macb_init,
 };
 
-static struct macb_config pc302gem_config = {
+static const struct macb_config pc302gem_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
 	.dma_burst_length = 16,
 	.init = macb_init,
 };
 
-static struct macb_config sama5d3_config = {
+static const struct macb_config sama5d3_config = {
 	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
 	.dma_burst_length = 16,
 	.init = macb_init,
 };
 
-static struct macb_config sama5d4_config = {
+static const struct macb_config sama5d4_config = {
 	.caps = 0,
 	.dma_burst_length = 4,
 	.init = macb_init,
 };
 
-static struct macb_config emac_config = {
+static const struct macb_config emac_config = {
 	.init = at91ether_init,
 };
 

@@ -569,7 +569,7 @@ fail:
 	return status;
 }
 
-const struct file_operations f_hidg_fops = {
+static const struct file_operations f_hidg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= f_hidg_open,
 	.release	= f_hidg_release,

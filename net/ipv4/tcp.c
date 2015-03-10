@@ -835,17 +835,13 @@ static unsigned int tcp_xmit_size_goal(struct sock *sk, u32 mss_now,
 				       int large_allowed)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	u32 new_size_goal, size_goal, hlen;
+	u32 new_size_goal, size_goal;
 
 	if (!large_allowed || !sk_can_gso(sk))
 		return mss_now;
 
-	/* Maybe we should/could use sk->sk_prot->max_header here ? */
-	hlen = inet_csk(sk)->icsk_af_ops->net_header_len +
-	       inet_csk(sk)->icsk_ext_hdr_len +
-	       tp->tcp_header_len;
-
-	new_size_goal = sk->sk_gso_max_size - 1 - hlen;
+	/* Note : tcp_tso_autosize() will eventually split this later */
+	new_size_goal = sk->sk_gso_max_size - 1 - MAX_TCP_HEADER;
 	new_size_goal = tcp_bound_to_half_wnd(tp, new_size_goal);
 
 	/* We try hard to avoid divides here */
