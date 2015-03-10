@@ -42,11 +42,11 @@ static int __init gpbridge_init(void)
 		goto error_usb;
 	}
 	if (gb_i2c_protocol_init()) {
-		pr_err("error initializing usb protocol\n");
+		pr_err("error initializing i2c protocol\n");
 		goto error_i2c;
 	}
 	if (gb_spi_protocol_init()) {
-		pr_err("error initializing usb protocol\n");
+		pr_err("error initializing spi protocol\n");
 		goto error_spi;
 	}
 	return 0;
