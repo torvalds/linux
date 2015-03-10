@@ -520,7 +520,7 @@ static acpi_status cmpc_get_accel(acpi_handle handle,
 {
 	union acpi_object param[2];
 	struct acpi_object_list input;
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, 0 };
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	unsigned char *locs;
 	acpi_status status;
 

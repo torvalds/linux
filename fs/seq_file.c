@@ -539,38 +539,6 @@ int seq_dentry(struct seq_file *m, struct dentry *dentry, const char *esc)
 	return res;
 }
 
-int seq_bitmap(struct seq_file *m, const unsigned long *bits,
-				   unsigned int nr_bits)
-{
-	if (m->count < m->size) {
-		int len = bitmap_scnprintf(m->buf + m->count,
-				m->size - m->count, bits, nr_bits);
-		if (m->count + len < m->size) {
-			m->count += len;
-			return 0;
-		}
-	}
-	seq_set_overflow(m);
-	return -1;
-}
-EXPORT_SYMBOL(seq_bitmap);
-
-int seq_bitmap_list(struct seq_file *m, const unsigned long *bits,
-		unsigned int nr_bits)
-{
-	if (m->count < m->size) {
-		int len = bitmap_scnlistprintf(m->buf + m->count,
-				m->size - m->count, bits, nr_bits);
-		if (m->count + len < m->size) {
-			m->count += len;
-			return 0;
-		}
-	}
-	seq_set_overflow(m);
-	return -1;
-}
-EXPORT_SYMBOL(seq_bitmap_list);
-
 static void *single_start(struct seq_file *p, loff_t *pos)
 {
 	return NULL + (*pos == 0);

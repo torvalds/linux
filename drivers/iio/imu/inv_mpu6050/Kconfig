@@ -7,6 +7,7 @@ config INV_MPU6050_IIO
 	depends on I2C && SYSFS
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	select I2C_MUX
 	help
 	  This driver supports the Invensense MPU6050 devices.
 	  This driver can also support MPU6500 in MPU6050 compatibility mode

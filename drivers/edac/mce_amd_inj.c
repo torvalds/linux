@@ -197,7 +197,7 @@ static int inj_bank_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(bank_fops, inj_bank_get, inj_bank_set, "%llu\n");
 
-struct dfs_node {
+static struct dfs_node {
 	char *name;
 	struct dentry *d;
 	const struct file_operations *fops;

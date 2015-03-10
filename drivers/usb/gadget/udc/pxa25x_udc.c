@@ -1272,7 +1272,6 @@ static int pxa25x_udc_start(struct usb_gadget *g,
 			goto bind_fail;
 	}
 
-	pullup(dev);
 	dump_state(dev);
 	return 0;
 bind_fail:
@@ -1339,7 +1338,6 @@ static int pxa25x_udc_stop(struct usb_gadget*g)
 
 	local_irq_disable();
 	dev->pullup = 0;
-	pullup(dev);
 	stop_activity(dev, NULL);
 	local_irq_enable();
 

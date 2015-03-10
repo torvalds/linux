@@ -116,7 +116,6 @@ static void __cleanup_single_sta(struct sta_info *sta)
 		clear_sta_flag(sta, WLAN_STA_PS_DELIVER);
 
 		atomic_dec(&ps->num_sta_ps);
-		sta_info_recalc_tim(sta);
 	}
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
@@ -625,7 +624,7 @@ static unsigned long ieee80211_tids_for_ac(int ac)
 	}
 }
 
-void sta_info_recalc_tim(struct sta_info *sta)
+static void __sta_info_recalc_tim(struct sta_info *sta, bool ignore_pending)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ps_data *ps;
@@ -667,6 +666,9 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	if (ignore_for_tim == BIT(IEEE80211_NUM_ACS) - 1)
 		ignore_for_tim = 0;
 
+	if (ignore_pending)
+		ignore_for_tim = BIT(IEEE80211_NUM_ACS) - 1;
+
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
@@ -695,7 +697,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	else
 		__bss_tim_clear(ps->tim, id);
 
-	if (local->ops->set_tim) {
+	if (local->ops->set_tim && !WARN_ON(sta->dead)) {
 		local->tim_in_locked_section = true;
 		drv_set_tim(local, &sta->sta, indicate_tim);
 		local->tim_in_locked_section = false;
@@ -703,6 +705,11 @@ void sta_info_recalc_tim(struct sta_info *sta)
 
 out_unlock:
 	spin_unlock_bh(&local->tim_lock);
+}
+
+void sta_info_recalc_tim(struct sta_info *sta)
+{
+	__sta_info_recalc_tim(sta, false);
 }
 
 static bool sta_info_buffer_expired(struct sta_info *sta, struct sk_buff *skb)
@@ -874,6 +881,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct station_info sinfo = {};
 	int ret;
 
 	/*
@@ -886,6 +894,9 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 
 	/* now keys can no longer be reached */
 	ieee80211_free_sta_keys(local, sta);
+
+	/* disable TIM bit - last chance to tell driver */
+	__sta_info_recalc_tim(sta, true);
 
 	sta->dead = true;
 
@@ -908,7 +919,8 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 
 	sta_dbg(sdata, "Removed STA %pM\n", sta->sta.addr);
 
-	cfg80211_del_sta(sdata->dev, sta->sta.addr, GFP_KERNEL);
+	sta_set_sinfo(sta, &sinfo);
+	cfg80211_del_sta_sinfo(sdata->dev, sta->sta.addr, &sinfo, GFP_KERNEL);
 
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
@@ -1243,9 +1255,10 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	 * ends the poll/service period.
 	 */
 	info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
-		       IEEE80211_TX_CTL_PS_RESPONSE |
 		       IEEE80211_TX_STATUS_EOSP |
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
+
+	info->control.flags |= IEEE80211_TX_CTRL_PS_RESPONSE;
 
 	if (call_driver)
 		drv_allow_buffered_frames(local, sta, BIT(tid), 1,
@@ -1395,8 +1408,8 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			 * STA may still remain is PS mode after this frame
 			 * exchange.
 			 */
-			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
-				       IEEE80211_TX_CTL_PS_RESPONSE;
+			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER;
+			info->control.flags |= IEEE80211_TX_CTRL_PS_RESPONSE;
 
 			/*
 			 * Use MoreData flag to indicate whether there are
@@ -1743,7 +1756,6 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	struct ieee80211_local *local = sdata->local;
 	struct rate_control_ref *ref = NULL;
 	struct timespec uptime;
-	u64 packets = 0;
 	u32 thr = 0;
 	int i, ac;
 
@@ -1752,49 +1764,90 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 
 	sinfo->generation = sdata->local->sta_generation;
 
-	sinfo->filled = STATION_INFO_INACTIVE_TIME |
-			STATION_INFO_RX_BYTES64 |
-			STATION_INFO_TX_BYTES64 |
-			STATION_INFO_RX_PACKETS |
-			STATION_INFO_TX_PACKETS |
-			STATION_INFO_TX_RETRIES |
-			STATION_INFO_TX_FAILED |
-			STATION_INFO_TX_BITRATE |
-			STATION_INFO_RX_BITRATE |
-			STATION_INFO_RX_DROP_MISC |
-			STATION_INFO_BSS_PARAM |
-			STATION_INFO_CONNECTED_TIME |
-			STATION_INFO_STA_FLAGS |
-			STATION_INFO_BEACON_LOSS_COUNT;
+	/* do before driver, so beacon filtering drivers have a
+	 * chance to e.g. just add the number of filtered beacons
+	 * (or just modify the value entirely, of course)
+	 */
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		sinfo->rx_beacon = sdata->u.mgd.count_beacon_signal;
+
+	drv_sta_statistics(local, sdata, &sta->sta, sinfo);
+
+	sinfo->filled |= BIT(NL80211_STA_INFO_INACTIVE_TIME) |
+			 BIT(NL80211_STA_INFO_STA_FLAGS) |
+			 BIT(NL80211_STA_INFO_BSS_PARAM) |
+			 BIT(NL80211_STA_INFO_CONNECTED_TIME) |
+			 BIT(NL80211_STA_INFO_RX_DROP_MISC) |
+			 BIT(NL80211_STA_INFO_BEACON_LOSS);
 
 	ktime_get_ts(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
-
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
-	sinfo->tx_bytes = 0;
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		sinfo->tx_bytes += sta->tx_bytes[ac];
-		packets += sta->tx_packets[ac];
+
+	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_TX_BYTES64) |
+			       BIT(NL80211_STA_INFO_TX_BYTES)))) {
+		sinfo->tx_bytes = 0;
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+			sinfo->tx_bytes += sta->tx_bytes[ac];
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
 	}
-	sinfo->tx_packets = packets;
-	sinfo->rx_bytes = sta->rx_bytes;
-	sinfo->rx_packets = sta->rx_packets;
-	sinfo->tx_retries = sta->tx_retry_count;
-	sinfo->tx_failed = sta->tx_retry_failed;
+
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_PACKETS))) {
+		sinfo->tx_packets = 0;
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+			sinfo->tx_packets += sta->tx_packets[ac];
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
+	}
+
+	if (!(sinfo->filled & (BIT(NL80211_STA_INFO_RX_BYTES64) |
+			       BIT(NL80211_STA_INFO_RX_BYTES)))) {
+		sinfo->rx_bytes = sta->rx_bytes;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
+	}
+
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_RX_PACKETS))) {
+		sinfo->rx_packets = sta->rx_packets;
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
+	}
+
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_RETRIES))) {
+		sinfo->tx_retries = sta->tx_retry_count;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_RETRIES);
+	}
+
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_FAILED))) {
+		sinfo->tx_failed = sta->tx_retry_failed;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_FAILED);
+	}
+
 	sinfo->rx_dropped_misc = sta->rx_dropped;
 	sinfo->beacon_loss_count = sta->beacon_loss_count;
 
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    !(sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_BEACON_RX) |
+				 BIT(NL80211_STA_INFO_BEACON_SIGNAL_AVG);
+		sinfo->rx_beacon_signal_avg = ieee80211_ave_rssi(&sdata->vif);
+	}
+
 	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
 	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
-		sinfo->filled |= STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
-		if (!local->ops->get_rssi ||
-		    drv_get_rssi(local, sdata, &sta->sta, &sinfo->signal))
+		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL))) {
 			sinfo->signal = (s8)sta->last_signal;
-		sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
+			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		}
+
+		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))) {
+			sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
+			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
+		}
 	}
-	if (sta->chains) {
-		sinfo->filled |= STATION_INFO_CHAIN_SIGNAL |
-				 STATION_INFO_CHAIN_SIGNAL_AVG;
+
+	if (sta->chains &&
+	    !(sinfo->filled & (BIT(NL80211_STA_INFO_CHAIN_SIGNAL) |
+			       BIT(NL80211_STA_INFO_CHAIN_SIGNAL_AVG)))) {
+		sinfo->filled |= BIT(NL80211_STA_INFO_CHAIN_SIGNAL) |
+				 BIT(NL80211_STA_INFO_CHAIN_SIGNAL_AVG);
 
 		sinfo->chains = sta->chains;
 		for (i = 0; i < ARRAY_SIZE(sinfo->chain_signal); i++) {
@@ -1804,23 +1857,61 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		}
 	}
 
-	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
-	sta_set_rate_info_rx(sta, &sinfo->rxrate);
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_TX_BITRATE))) {
+		sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+	}
+
+	if (!(sinfo->filled & BIT(NL80211_STA_INFO_RX_BITRATE))) {
+		sta_set_rate_info_rx(sta, &sinfo->rxrate);
+		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
+	}
+
+	sinfo->filled |= BIT(NL80211_STA_INFO_TID_STATS);
+	for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
+		struct cfg80211_tid_stats *tidstats = &sinfo->pertid[i];
+
+		if (!(tidstats->filled & BIT(NL80211_TID_STATS_RX_MSDU))) {
+			tidstats->filled |= BIT(NL80211_TID_STATS_RX_MSDU);
+			tidstats->rx_msdu = sta->rx_msdu[i];
+		}
+
+		if (!(tidstats->filled & BIT(NL80211_TID_STATS_TX_MSDU))) {
+			tidstats->filled |= BIT(NL80211_TID_STATS_TX_MSDU);
+			tidstats->tx_msdu = sta->tx_msdu[i];
+		}
+
+		if (!(tidstats->filled &
+				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES)) &&
+		    local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+			tidstats->filled |=
+				BIT(NL80211_TID_STATS_TX_MSDU_RETRIES);
+			tidstats->tx_msdu_retries = sta->tx_msdu_retries[i];
+		}
+
+		if (!(tidstats->filled &
+				BIT(NL80211_TID_STATS_TX_MSDU_FAILED)) &&
+		    local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+			tidstats->filled |=
+				BIT(NL80211_TID_STATS_TX_MSDU_FAILED);
+			tidstats->tx_msdu_failed = sta->tx_msdu_failed[i];
+		}
+	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
-		sinfo->filled |= STATION_INFO_LLID |
-				 STATION_INFO_PLID |
-				 STATION_INFO_PLINK_STATE |
-				 STATION_INFO_LOCAL_PM |
-				 STATION_INFO_PEER_PM |
-				 STATION_INFO_NONPEER_PM;
+		sinfo->filled |= BIT(NL80211_STA_INFO_LLID) |
+				 BIT(NL80211_STA_INFO_PLID) |
+				 BIT(NL80211_STA_INFO_PLINK_STATE) |
+				 BIT(NL80211_STA_INFO_LOCAL_PM) |
+				 BIT(NL80211_STA_INFO_PEER_PM) |
+				 BIT(NL80211_STA_INFO_NONPEER_PM);
 
 		sinfo->llid = sta->llid;
 		sinfo->plid = sta->plid;
 		sinfo->plink_state = sta->plink_state;
 		if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
-			sinfo->filled |= STATION_INFO_T_OFFSET;
+			sinfo->filled |= BIT(NL80211_STA_INFO_T_OFFSET);
 			sinfo->t_offset = sta->t_offset;
 		}
 		sinfo->local_pm = sta->local_pm;
@@ -1869,7 +1960,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		thr = drv_get_expected_throughput(local, &sta->sta);
 
 	if (thr != 0) {
-		sinfo->filled |= STATION_INFO_EXPECTED_THROUGHPUT;
+		sinfo->filled |= BIT(NL80211_STA_INFO_EXPECTED_THROUGHPUT);
 		sinfo->expected_throughput = thr;
 	}
 }

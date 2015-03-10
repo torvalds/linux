@@ -304,12 +304,12 @@ static long rtc_dev_ioctl(struct file *file,
 		 * Not supported here.
 		 */
 		{
-			unsigned long now, then;
+			time64_t now, then;
 
 			err = rtc_read_time(rtc, &tm);
 			if (err < 0)
 				return err;
-			rtc_tm_to_time(&tm, &now);
+			now = rtc_tm_to_time64(&tm);
 
 			alarm.time.tm_mday = tm.tm_mday;
 			alarm.time.tm_mon = tm.tm_mon;
@@ -317,11 +317,11 @@ static long rtc_dev_ioctl(struct file *file,
 			err  = rtc_valid_tm(&alarm.time);
 			if (err < 0)
 				return err;
-			rtc_tm_to_time(&alarm.time, &then);
+			then = rtc_tm_to_time64(&alarm.time);
 
 			/* alarm may need to wrap into tomorrow */
 			if (then < now) {
-				rtc_time_to_tm(now + 24 * 60 * 60, &tm);
+				rtc_time64_to_tm(now + 24 * 60 * 60, &tm);
 				alarm.time.tm_mday = tm.tm_mday;
 				alarm.time.tm_mon = tm.tm_mon;
 				alarm.time.tm_year = tm.tm_year;

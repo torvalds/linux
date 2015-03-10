@@ -36,6 +36,11 @@ are located at offsets 0xbf8 and 0xbfc
 	Value type:	<prop-encoded-array>
 	Definition:	Standard property. The error interrupt
 
+- fsl,bman-portals
+	Usage:		Required
+	Value type:	<phandle>
+	Definition:	Phandle to this BMan instance's portals
+
 - fsl,liodn
 	Usage:		See pamu.txt
 	Value type:	<prop-encoded-array>
@@ -96,13 +101,17 @@ The example below shows a BMan FBPR dynamic allocation memory node
 
 		bman_fbpr: bman-fbpr {
 			compatible = "fsl,bman-fbpr";
-			alloc-ranges = <0 0 0xf 0xffffffff>;
+			alloc-ranges = <0 0 0x10 0>;
 			size = <0 0x1000000>;
 			alignment = <0 0x1000000>;
 		};
 	};
 
 The example below shows a (P4080) BMan CCSR-space node
+
+	bportals: bman-portals@ff4000000 {
+		...
+	};
 
 	crypto@300000 {
 		...
@@ -115,6 +124,7 @@ The example below shows a (P4080) BMan CCSR-space node
 		reg = <0x31a000 0x1000>;
 		interrupts = <16 2 1 2>;
 		fsl,liodn = <0x17>;
+		fsl,bman-portals = <&bportals>;
 		memory-region = <&bman_fbpr>;
 	};
 

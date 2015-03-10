@@ -47,9 +47,11 @@ struct table_instance {
 
 struct flow_table {
 	struct table_instance __rcu *ti;
+	struct table_instance __rcu *ufid_ti;
 	struct list_head mask_list;
 	unsigned long last_rehash;
 	unsigned int count;
+	unsigned int ufid_count;
 };
 
 extern struct kmem_cache *flow_stats_cache;
@@ -78,8 +80,10 @@ struct sw_flow *ovs_flow_tbl_lookup(struct flow_table *,
 				    const struct sw_flow_key *);
 struct sw_flow *ovs_flow_tbl_lookup_exact(struct flow_table *tbl,
 					  const struct sw_flow_match *match);
-bool ovs_flow_cmp_unmasked_key(const struct sw_flow *flow,
-			       const struct sw_flow_match *match);
+struct sw_flow *ovs_flow_tbl_lookup_ufid(struct flow_table *,
+					 const struct sw_flow_id *);
+
+bool ovs_flow_cmp(const struct sw_flow *, const struct sw_flow_match *);
 
 void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 		       const struct sw_flow_mask *mask);

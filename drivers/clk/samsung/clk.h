@@ -392,7 +392,8 @@ extern void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 			struct samsung_pll_clock *pll_list,
 			unsigned int nr_clk, void __iomem *base);
 
-extern void __init samsung_cmu_register_one(struct device_node *,
+extern struct samsung_clk_provider __init *samsung_cmu_register_one(
+			struct device_node *,
 			struct samsung_cmu_info *);
 
 extern unsigned long _get_rate(const char *clk_name);

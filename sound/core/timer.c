@@ -1030,9 +1030,7 @@ static int snd_timer_register_system(void)
 		snd_timer_free(timer);
 		return -ENOMEM;
 	}
-	init_timer(&priv->tlist);
-	priv->tlist.function = snd_timer_s_function;
-	priv->tlist.data = (unsigned long) timer;
+	setup_timer(&priv->tlist, snd_timer_s_function, (unsigned long) timer);
 	timer->private_data = priv;
 	timer->private_free = snd_timer_free_system;
 	return snd_timer_global_register(timer);
@@ -1942,6 +1940,17 @@ static const struct file_operations snd_timer_f_ops =
 	.fasync = 	snd_timer_user_fasync,
 };
 
+/* unregister the system timer */
+static void snd_timer_free_all(void)
+{
+	struct snd_timer *timer, *n;
+
+	list_for_each_entry_safe(timer, n, &snd_timer_list, device_list)
+		snd_timer_free(timer);
+}
+
+static struct device timer_dev;
+
 /*
  *  ENTRY functions
  */
@@ -1950,30 +1959,39 @@ static int __init alsa_timer_init(void)
 {
 	int err;
 
+	snd_device_initialize(&timer_dev, NULL);
+	dev_set_name(&timer_dev, "timer");
+
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_register(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1,
 			      "system timer");
 #endif
 
-	if ((err = snd_timer_register_system()) < 0)
+	err = snd_timer_register_system();
+	if (err < 0) {
 		pr_err("ALSA: unable to register system timer (%i)\n", err);
-	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0,
-				       &snd_timer_f_ops, NULL, "timer")) < 0)
+		put_device(&timer_dev);
+		return err;
+	}
+
+	err = snd_register_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0,
+				  &snd_timer_f_ops, NULL, &timer_dev);
+	if (err < 0) {
 		pr_err("ALSA: unable to register timer device (%i)\n", err);
+		snd_timer_free_all();
+		put_device(&timer_dev);
+		return err;
+	}
+
 	snd_timer_proc_init();
 	return 0;
 }
 
 static void __exit alsa_timer_exit(void)
 {
-	struct list_head *p, *n;
-
-	snd_unregister_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0);
-	/* unregister the system timer */
-	list_for_each_safe(p, n, &snd_timer_list) {
-		struct snd_timer *timer = list_entry(p, struct snd_timer, device_list);
-		snd_timer_free(timer);
-	}
+	snd_unregister_device(&timer_dev);
+	snd_timer_free_all();
+	put_device(&timer_dev);
 	snd_timer_proc_done();
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1);

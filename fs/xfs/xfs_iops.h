@@ -32,6 +32,7 @@ extern void xfs_setup_inode(struct xfs_inode *);
  */
 #define XFS_ATTR_NOACL		0x01	/* Don't call posix_acl_chmod */
 
+extern void xfs_setattr_time(struct xfs_inode *ip, struct iattr *iattr);
 extern int xfs_setattr_nonsize(struct xfs_inode *ip, struct iattr *vap,
 			       int flags);
 extern int xfs_setattr_size(struct xfs_inode *ip, struct iattr *vap);

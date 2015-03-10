@@ -225,7 +225,6 @@ static bool rt5670_volatile_register(struct device *dev, unsigned int reg)
 	case RT5670_ADC_EQ_CTRL1:
 	case RT5670_EQ_CTRL1:
 	case RT5670_ALC_CTRL_1:
-	case RT5670_IRQ_CTRL1:
 	case RT5670_IRQ_CTRL2:
 	case RT5670_INT_IRQ_ST:
 	case RT5670_IL_CMD:
@@ -500,7 +499,7 @@ static const struct snd_kcontrol_new rt5670_snd_controls[] = {
 static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 	int idx = -EINVAL;
 
@@ -529,6 +528,7 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 static int is_using_asrc(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
 	unsigned int reg, shift, val;
 
 	switch (source->shift) {
@@ -564,7 +564,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *source,
 		return 0;
 	}
 
-	val = (snd_soc_read(source->codec, reg) >> shift) & 0xf;
+	val = (snd_soc_read(codec, reg) >> shift) & 0xf;
 	switch (val) {
 	case 1:
 	case 2:
@@ -1230,7 +1230,7 @@ static const struct snd_kcontrol_new rt5670_vad_adc_mux =
 static int rt5670_hp_power_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -1266,7 +1266,7 @@ static int rt5670_hp_power_event(struct snd_soc_dapm_widget *w,
 static int rt5670_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
@@ -1316,7 +1316,7 @@ static int rt5670_hp_event(struct snd_soc_dapm_widget *w,
 static int rt5670_bst1_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -1339,7 +1339,7 @@ static int rt5670_bst1_event(struct snd_soc_dapm_widget *w,
 static int rt5670_bst2_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -2604,6 +2604,7 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5670 = {
 static const struct regmap_config rt5670_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
+	.use_single_rw = true,
 	.max_register = RT5670_VENDOR_ID2 + 1 + (ARRAY_SIZE(rt5670_ranges) *
 					       RT5670_PR_SPACING),
 	.volatile_reg = rt5670_volatile_register,
@@ -2714,6 +2715,10 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (rt5670->pdata.jd_mode) {
+		regmap_update_bits(rt5670->regmap, RT5670_GLB_CLK,
+				   RT5670_SCLK_SRC_MASK, RT5670_SCLK_SRC_RCCLK);
+		rt5670->sysclk = 0;
+		rt5670->sysclk_src = RT5670_SCLK_S_RCCLK;
 		regmap_update_bits(rt5670->regmap, RT5670_PWR_ANLG1,
 				   RT5670_PWR_MB, RT5670_PWR_MB);
 		regmap_update_bits(rt5670->regmap, RT5670_PWR_ANLG2,

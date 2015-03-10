@@ -159,6 +159,22 @@ overlay filesystem (though an operation on the name of the file such as
 rename or unlink will of course be noticed and handled).
 
 
+Multiple lower layers
+---------------------
+
+Multiple lower layers can now be given using the the colon (":") as a
+separator character between the directory names.  For example:
+
+  mount -t overlay overlay -olowerdir=/lower1:/lower2:/lower3 /merged
+
+As the example shows, "upperdir=" and "workdir=" may be omitted.  In
+that case the overlay will be read-only.
+
+The specified lower directories will be stacked beginning from the
+rightmost one and going left.  In the above example lower1 will be the
+top, lower2 the middle and lower3 the bottom layer.
+
+
 Non-standard behavior
 ---------------------
 
@@ -196,3 +212,15 @@ Changes to the underlying filesystems while part of a mounted overlay
 filesystem are not allowed.  If the underlying filesystem is changed,
 the behavior of the overlay is undefined, though it will not result in
 a crash or deadlock.
+
+Testsuite
+---------
+
+There's testsuite developed by David Howells at:
+
+  git://git.infradead.org/users/dhowells/unionmount-testsuite.git
+
+Run as root:
+
+  # cd unionmount-testsuite
+  # ./run --ov

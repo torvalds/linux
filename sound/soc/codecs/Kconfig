@@ -69,6 +69,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
+	select SND_SOC_MAX98357A if GPIOLIB
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
@@ -456,6 +457,9 @@ config SND_SOC_MAX98090
 config SND_SOC_MAX98095
        tristate
 
+config SND_SOC_MAX98357A
+       tristate
+
 config SND_SOC_MAX9850
 	tristate
 
@@ -525,7 +529,7 @@ config SND_SOC_RT5677
 
 config SND_SOC_RT5677_SPI
 	tristate
-	default SND_SOC_RT5677
+	default SND_SOC_RT5677 && SPI
 
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
@@ -580,7 +584,9 @@ config SND_SOC_SSM4567
 	depends on I2C
 
 config SND_SOC_STA32X
-	tristate
+	tristate "STA326, STA328 and STA329 speaker amplifier"
+	depends on I2C
+	select REGMAP_I2C
 
 config SND_SOC_STA350
 	tristate "STA350 speaker amplifier"

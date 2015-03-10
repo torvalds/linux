@@ -104,13 +104,21 @@ void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 {
 	struct rcar_du_group *rgrp = plane->group;
 	unsigned int index = plane->hwindex;
+	bool interlaced;
 	u32 mwr;
 
-	/* Memory pitch (expressed in pixels) */
+	interlaced = plane->crtc->mode.flags & DRM_MODE_FLAG_INTERLACE;
+
+	/* Memory pitch (expressed in pixels). Must be doubled for interlaced
+	 * operation with 32bpp formats.
+	 */
 	if (plane->format->planes == 2)
 		mwr = plane->pitch;
 	else
 		mwr = plane->pitch * 8 / plane->format->bpp;
+
+	if (interlaced && plane->format->bpp == 32)
+		mwr *= 2;
 
 	rcar_du_plane_write(rgrp, index, PnMWR, mwr);
 
@@ -119,16 +127,22 @@ void rcar_du_plane_update_base(struct rcar_du_plane *plane)
 	 * doubling the Y position is found in the R8A7779 datasheet, but the
 	 * rule seems to apply there as well.
 	 *
+	 * Despite not being documented, doubling seem not to be needed when
+	 * operating in interlaced mode.
+	 *
 	 * Similarly, for the second plane, NV12 and NV21 formats seem to
-	 * require a halved Y position value.
+	 * require a halved Y position value, in both progressive and interlaced
+	 * modes.
 	 */
 	rcar_du_plane_write(rgrp, index, PnSPXR, plane->src_x);
 	rcar_du_plane_write(rgrp, index, PnSPYR, plane->src_y *
-			    (plane->format->bpp == 32 ? 2 : 1));
+			    (!interlaced && plane->format->bpp == 32 ? 2 : 1));
 	rcar_du_plane_write(rgrp, index, PnDSA0R, plane->dma[0]);
 
 	if (plane->format->planes == 2) {
 		index = (index + 1) % 8;
+
+		rcar_du_plane_write(rgrp, index, PnMWR, plane->pitch);
 
 		rcar_du_plane_write(rgrp, index, PnSPXR, plane->src_x);
 		rcar_du_plane_write(rgrp, index, PnSPYR, plane->src_y *

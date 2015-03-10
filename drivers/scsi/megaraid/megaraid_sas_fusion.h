@@ -306,14 +306,9 @@ struct MPI2_RAID_SCSI_IO_REQUEST {
  * MPT RAID MFA IO Descriptor.
  */
 struct MEGASAS_RAID_MFA_IO_REQUEST_DESCRIPTOR {
-#if   defined(__BIG_ENDIAN_BITFIELD)
-	u32     MessageAddress1:24; /* bits 31:8*/
 	u32     RequestFlags:8;
-#else
-	u32     RequestFlags:8;
-	u32     MessageAddress1:24; /* bits 31:8*/
-#endif
-	u32     MessageAddress2;      /* bits 61:32 */
+	u32     MessageAddress1:24;
+	u32     MessageAddress2;
 };
 
 /* Default Request Descriptor */

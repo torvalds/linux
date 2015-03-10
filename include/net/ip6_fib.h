@@ -74,6 +74,11 @@ struct fib6_node {
 #define FIB6_SUBTREE(fn)	((fn)->subtree)
 #endif
 
+struct mx6_config {
+	const u32 *mx;
+	DECLARE_BITMAP(mx_valid, RTAX_MAX);
+};
+
 /*
  *	routing information
  *
@@ -291,9 +296,8 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 void fib6_clean_all(struct net *net, int (*func)(struct rt6_info *, void *arg),
 		    void *arg);
 
-int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info,
-	     struct nlattr *mx, int mx_len);
-
+int fib6_add(struct fib6_node *root, struct rt6_info *rt,
+	     struct nl_info *info, struct mx6_config *mxc);
 int fib6_del(struct rt6_info *rt, struct nl_info *info);
 
 void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info);

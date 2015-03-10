@@ -53,6 +53,8 @@
 			};
 
 			usb2: gadget@f803c000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_board_usb2>;
 				atmel,vbus-gpio = <&pioB 16 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
@@ -78,6 +80,13 @@
 					pinctrl_board_mmc1: mmc1-board {
 						atmel,pins =
 							<AT91_PIOD 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PD14 gpio CD pin pull up and deglitch */
+					};
+				};
+
+				usb2 {
+					pinctrl_board_usb2: usb2-board {
+						atmel,pins =
+							<AT91_PIOB 16 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>;		/* PB16 gpio vbus sense, deglitch */
 					};
 				};
 			};

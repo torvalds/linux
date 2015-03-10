@@ -1,7 +1,4 @@
 ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/msm
-ifeq (, $(findstring -W,$(EXTRA_CFLAGS)))
-	ccflags-y += -Werror
-endif
 
 msm-y := \
 	adreno/adreno_device.o \
@@ -16,6 +13,12 @@ msm-y := \
 	hdmi/hdmi_phy_8960.o \
 	hdmi/hdmi_phy_8x60.o \
 	hdmi/hdmi_phy_8x74.o \
+	edp/edp.o \
+	edp/edp_aux.o \
+	edp/edp_bridge.o \
+	edp/edp_connector.o \
+	edp/edp_ctrl.o \
+	edp/edp_phy.o \
 	mdp/mdp_format.o \
 	mdp/mdp_kms.o \
 	mdp/mdp4/mdp4_crtc.o \

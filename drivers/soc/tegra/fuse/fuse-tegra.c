@@ -81,6 +81,7 @@ static const struct of_device_id car_match[] __initconst = {
 	{ .compatible = "nvidia,tegra30-car", },
 	{ .compatible = "nvidia,tegra114-car", },
 	{ .compatible = "nvidia,tegra124-car", },
+	{ .compatible = "nvidia,tegra132-car", },
 	{},
 };
 

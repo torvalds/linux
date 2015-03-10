@@ -89,7 +89,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	int rval;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -158,7 +158,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 {
 	struct rt_sigframe __user *frame;
 	int err = 0, sig = ksig->sig;
-	int signal;
+	unsigned long signal;
 	unsigned long address = 0;
 #ifdef CONFIG_MMU
 	pmd_t *pmdp;
@@ -174,7 +174,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 		&& current_thread_info()->exec_domain->signal_invmap
 		&& sig < 32
 		? current_thread_info()->exec_domain->signal_invmap[sig]
-		: sig;
+		: (unsigned long)sig;
 
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 		err |= copy_siginfo_to_user(&frame->info, &ksig->info);

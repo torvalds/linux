@@ -22,17 +22,14 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-static int mv88e6352_wait(struct dsa_switch *ds, int reg, u16 mask)
+static int mv88e6352_wait(struct dsa_switch *ds, int reg, int offset, u16 mask)
 {
 	unsigned long timeout = jiffies + HZ / 10;
 
 	while (time_before(jiffies, timeout)) {
 		int ret;
 
-		ret = REG_READ(REG_GLOBAL2, reg);
-		if (ret < 0)
-			return ret;
-
+		ret = REG_READ(reg, offset);
 		if (!(ret & mask))
 			return 0;
 
@@ -43,17 +40,17 @@ static int mv88e6352_wait(struct dsa_switch *ds, int reg, u16 mask)
 
 static inline int mv88e6352_phy_wait(struct dsa_switch *ds)
 {
-	return mv88e6352_wait(ds, 0x18, 0x8000);
+	return mv88e6352_wait(ds, REG_GLOBAL2, 0x18, 0x8000);
 }
 
 static inline int mv88e6352_eeprom_load_wait(struct dsa_switch *ds)
 {
-	return mv88e6352_wait(ds, 0x14, 0x0800);
+	return mv88e6352_wait(ds, REG_GLOBAL2, 0x14, 0x0800);
 }
 
 static inline int mv88e6352_eeprom_busy_wait(struct dsa_switch *ds)
 {
-	return mv88e6352_wait(ds, 0x14, 0x8000);
+	return mv88e6352_wait(ds, REG_GLOBAL2, 0x14, 0x8000);
 }
 
 static int __mv88e6352_phy_read(struct dsa_switch *ds, int addr, int regnum)

@@ -38,6 +38,16 @@
 			     <1 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
+	dbsc1: memory-controller@e6790000 {
+		compatible = "renesas,dbsc-r8a73a4";
+		reg = <0 0xe6790000 0 0x10000>;
+	};
+
+	dbsc2: memory-controller@e67a0000 {
+		compatible = "renesas,dbsc-r8a73a4";
+		reg = <0 0xe67a0000 0 0x10000>;
+	};
+
 	dmac: dma-multiplexer {
 		compatible = "renesas,shdma-mux";
 		#dma-cells = <1>;

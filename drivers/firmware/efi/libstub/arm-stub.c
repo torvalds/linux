@@ -17,10 +17,10 @@
 
 #include "efistub.h"
 
-static int __init efi_secureboot_enabled(efi_system_table_t *sys_table_arg)
+static int efi_secureboot_enabled(efi_system_table_t *sys_table_arg)
 {
-	static efi_guid_t const var_guid __initconst = EFI_GLOBAL_VARIABLE_GUID;
-	static efi_char16_t const var_name[] __initconst = {
+	static efi_guid_t const var_guid = EFI_GLOBAL_VARIABLE_GUID;
+	static efi_char16_t const var_name[] = {
 		'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 0 };
 
 	efi_get_variable_t *f_getvar = sys_table_arg->runtime->get_variable;
@@ -164,7 +164,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
  * for both archictectures, with the arch-specific code provided in the
  * handle_kernel_image() function.
  */
-unsigned long __init efi_entry(void *handle, efi_system_table_t *sys_table,
+unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 			       unsigned long *image_addr)
 {
 	efi_loaded_image_t *image;
@@ -294,4 +294,63 @@ fail_free_image:
 	efi_free(sys_table, reserve_size, reserve_addr);
 fail:
 	return EFI_ERROR;
+}
+
+/*
+ * This is the base address at which to start allocating virtual memory ranges
+ * for UEFI Runtime Services. This is in the low TTBR0 range so that we can use
+ * any allocation we choose, and eliminate the risk of a conflict after kexec.
+ * The value chosen is the largest non-zero power of 2 suitable for this purpose
+ * both on 32-bit and 64-bit ARM CPUs, to maximize the likelihood that it can
+ * be mapped efficiently.
+ */
+#define EFI_RT_VIRTUAL_BASE	0x40000000
+
+/*
+ * efi_get_virtmap() - create a virtual mapping for the EFI memory map
+ *
+ * This function populates the virt_addr fields of all memory region descriptors
+ * in @memory_map whose EFI_MEMORY_RUNTIME attribute is set. Those descriptors
+ * are also copied to @runtime_map, and their total count is returned in @count.
+ */
+void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
+		     unsigned long desc_size, efi_memory_desc_t *runtime_map,
+		     int *count)
+{
+	u64 efi_virt_base = EFI_RT_VIRTUAL_BASE;
+	efi_memory_desc_t *out = runtime_map;
+	int l;
+
+	for (l = 0; l < map_size; l += desc_size) {
+		efi_memory_desc_t *in = (void *)memory_map + l;
+		u64 paddr, size;
+
+		if (!(in->attribute & EFI_MEMORY_RUNTIME))
+			continue;
+
+		/*
+		 * Make the mapping compatible with 64k pages: this allows
+		 * a 4k page size kernel to kexec a 64k page size kernel and
+		 * vice versa.
+		 */
+		paddr = round_down(in->phys_addr, SZ_64K);
+		size = round_up(in->num_pages * EFI_PAGE_SIZE +
+				in->phys_addr - paddr, SZ_64K);
+
+		/*
+		 * Avoid wasting memory on PTEs by choosing a virtual base that
+		 * is compatible with section mappings if this region has the
+		 * appropriate size and physical alignment. (Sections are 2 MB
+		 * on 4k granule kernels)
+		 */
+		if (IS_ALIGNED(in->phys_addr, SZ_2M) && size >= SZ_2M)
+			efi_virt_base = round_up(efi_virt_base, SZ_2M);
+
+		in->virt_addr = efi_virt_base + in->phys_addr - paddr;
+		efi_virt_base += size;
+
+		memcpy(out, in, desc_size);
+		out = (void *)out + desc_size;
+		++*count;
+	}
 }

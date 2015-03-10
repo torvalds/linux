@@ -536,24 +536,12 @@ static void buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&camif->slock, flags);
 }
 
-static void camif_lock(struct vb2_queue *vq)
-{
-	struct camif_vp *vp = vb2_get_drv_priv(vq);
-	mutex_lock(&vp->camif->lock);
-}
-
-static void camif_unlock(struct vb2_queue *vq)
-{
-	struct camif_vp *vp = vb2_get_drv_priv(vq);
-	mutex_unlock(&vp->camif->lock);
-}
-
 static const struct vb2_ops s3c_camif_qops = {
 	.queue_setup	 = queue_setup,
 	.buf_prepare	 = buffer_prepare,
 	.buf_queue	 = buffer_queue,
-	.wait_prepare	 = camif_unlock,
-	.wait_finish	 = camif_lock,
+	.wait_prepare	 = vb2_ops_wait_prepare,
+	.wait_finish	 = vb2_ops_wait_finish,
 	.start_streaming = start_streaming,
 	.stop_streaming	 = stop_streaming,
 };
@@ -1161,6 +1149,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	q->buf_struct_size = sizeof(struct camif_buffer);
 	q->drv_priv = vp;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->lock = &vp->camif->lock;
 
 	ret = vb2_queue_init(q);
 	if (ret)

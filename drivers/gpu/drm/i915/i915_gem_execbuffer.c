@@ -37,6 +37,7 @@
 #define  __EXEC_OBJECT_HAS_FENCE (1<<30)
 #define  __EXEC_OBJECT_NEEDS_MAP (1<<29)
 #define  __EXEC_OBJECT_NEEDS_BIAS (1<<28)
+#define  __EXEC_OBJECT_PURGEABLE (1<<27)
 
 #define BATCH_OFFSET_BIAS (256*1024)
 
@@ -223,7 +224,12 @@ i915_gem_execbuffer_unreserve_vma(struct i915_vma *vma)
 	if (entry->flags & __EXEC_OBJECT_HAS_PIN)
 		vma->pin_count--;
 
-	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE | __EXEC_OBJECT_HAS_PIN);
+	if (entry->flags & __EXEC_OBJECT_PURGEABLE)
+		obj->madv = I915_MADV_DONTNEED;
+
+	entry->flags &= ~(__EXEC_OBJECT_HAS_FENCE |
+			  __EXEC_OBJECT_HAS_PIN |
+			  __EXEC_OBJECT_PURGEABLE);
 }
 
 static void eb_destroy(struct eb_vmas *eb)
@@ -357,9 +363,12 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	 * through the ppgtt for non_secure batchbuffers. */
 	if (unlikely(IS_GEN6(dev) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-	    !(target_vma->bound & GLOBAL_BIND)))
-		target_vma->bind_vma(target_vma, target_i915_obj->cache_level,
-				GLOBAL_BIND);
+	    !(target_vma->bound & GLOBAL_BIND))) {
+		ret = i915_vma_bind(target_vma, target_i915_obj->cache_level,
+				    GLOBAL_BIND);
+		if (WARN_ONCE(ret, "Unexpected failure to bind target VMA!"))
+			return ret;
+	}
 
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
@@ -943,7 +952,7 @@ void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 				   struct intel_engine_cs *ring)
 {
-	u32 seqno = intel_ring_get_seqno(ring);
+	struct drm_i915_gem_request *req = intel_ring_get_request(ring);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, vmas, exec_list) {
@@ -960,7 +969,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		i915_vma_move_to_active(vma, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
-			obj->last_write_seqno = seqno;
+			i915_gem_request_assign(&obj->last_write_req, req);
 
 			intel_fb_obj_invalidate(obj, ring);
 
@@ -968,7 +977,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
 		}
 		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-			obj->last_fenced_seqno = seqno;
+			i915_gem_request_assign(&obj->last_fenced_req, req);
 			if (entry->flags & __EXEC_OBJECT_HAS_FENCE) {
 				struct drm_i915_private *dev_priv = to_i915(ring->dev);
 				list_move_tail(&dev_priv->fence_regs[obj->fence_reg].lru_list,
@@ -990,7 +999,7 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 	ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
-	(void)__i915_add_request(ring, file, obj, NULL);
+	(void)__i915_add_request(ring, file, obj);
 }
 
 static int
@@ -1060,6 +1069,67 @@ i915_emit_box(struct intel_engine_cs *ring,
 	return 0;
 }
 
+static struct drm_i915_gem_object*
+i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
+			  struct drm_i915_gem_exec_object2 *shadow_exec_entry,
+			  struct eb_vmas *eb,
+			  struct drm_i915_gem_object *batch_obj,
+			  u32 batch_start_offset,
+			  u32 batch_len,
+			  bool is_master,
+			  u32 *flags)
+{
+	struct drm_i915_private *dev_priv = to_i915(batch_obj->base.dev);
+	struct drm_i915_gem_object *shadow_batch_obj;
+	bool need_reloc = false;
+	int ret;
+
+	shadow_batch_obj = i915_gem_batch_pool_get(&dev_priv->mm.batch_pool,
+						   batch_obj->base.size);
+	if (IS_ERR(shadow_batch_obj))
+		return shadow_batch_obj;
+
+	ret = i915_parse_cmds(ring,
+			      batch_obj,
+			      shadow_batch_obj,
+			      batch_start_offset,
+			      batch_len,
+			      is_master);
+	if (ret) {
+		if (ret == -EACCES)
+			return batch_obj;
+	} else {
+		struct i915_vma *vma;
+
+		memset(shadow_exec_entry, 0, sizeof(*shadow_exec_entry));
+
+		vma = i915_gem_obj_to_ggtt(shadow_batch_obj);
+		vma->exec_entry = shadow_exec_entry;
+		vma->exec_entry->flags = __EXEC_OBJECT_PURGEABLE;
+		drm_gem_object_reference(&shadow_batch_obj->base);
+		i915_gem_execbuffer_reserve_vma(vma, ring, &need_reloc);
+		list_add_tail(&vma->exec_list, &eb->vmas);
+
+		shadow_batch_obj->base.pending_read_domains =
+			batch_obj->base.pending_read_domains;
+
+		/*
+		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
+		 * bit from MI_BATCH_BUFFER_START commands issued in the
+		 * dispatch_execbuffer implementations. We specifically
+		 * don't want that set when the command parser is
+		 * enabled.
+		 *
+		 * FIXME: with aliasing ppgtt, buffers that should only
+		 * be in ggtt still end up in the aliasing ppgtt. remove
+		 * this check when that is fixed.
+		 */
+		if (USES_FULL_PPGTT(dev))
+			*flags |= I915_DISPATCH_SECURE;
+	}
+
+	return ret ? ERR_PTR(ret) : shadow_batch_obj;
+}
 
 int
 i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
@@ -1208,7 +1278,7 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 			return ret;
 	}
 
-	trace_i915_gem_ring_dispatch(ring, intel_ring_get_seqno(ring), flags);
+	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring, batch_obj);
@@ -1277,6 +1347,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
+	struct drm_i915_gem_exec_object2 shadow_exec_entry;
 	struct intel_engine_cs *ring;
 	struct intel_context *ctx;
 	struct i915_address_space *vm;
@@ -1309,13 +1380,35 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	if (((args->flags & I915_EXEC_RING_MASK) != I915_EXEC_BSD) &&
+	    ((args->flags & I915_EXEC_BSD_MASK) != 0)) {
+		DRM_DEBUG("execbuf with non bsd ring but with invalid "
+			"bsd dispatch flags: %d\n", (int)(args->flags));
+		return -EINVAL;
+	} 
+
 	if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_DEFAULT)
 		ring = &dev_priv->ring[RCS];
 	else if ((args->flags & I915_EXEC_RING_MASK) == I915_EXEC_BSD) {
 		if (HAS_BSD2(dev)) {
 			int ring_id;
-			ring_id = gen8_dispatch_bsd_ring(dev, file);
-			ring = &dev_priv->ring[ring_id];
+
+			switch (args->flags & I915_EXEC_BSD_MASK) {
+			case I915_EXEC_BSD_DEFAULT:
+				ring_id = gen8_dispatch_bsd_ring(dev, file);
+				ring = &dev_priv->ring[ring_id];
+				break;
+			case I915_EXEC_BSD_RING1:
+				ring = &dev_priv->ring[VCS];
+				break;
+			case I915_EXEC_BSD_RING2:
+				ring = &dev_priv->ring[VCS2];
+				break;
+			default:
+				DRM_DEBUG("execbuf with unknown bsd ring: %d\n",
+					  (int)(args->flags & I915_EXEC_BSD_MASK));
+				return -EINVAL;
+			}
 		} else
 			ring = &dev_priv->ring[VCS];
 	} else
@@ -1393,27 +1486,23 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		goto err;
 	}
-	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
 	if (i915_needs_cmd_parser(ring)) {
-		ret = i915_parse_cmds(ring,
-				      batch_obj,
-				      args->batch_start_offset,
-				      file->is_master);
-		if (ret) {
-			if (ret != -EACCES)
-				goto err;
-		} else {
-			/*
-			 * XXX: Actually do this when enabling batch copy...
-			 *
-			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
-			 * from MI_BATCH_BUFFER_START commands issued in the
-			 * dispatch_execbuffer implementations. We specifically don't
-			 * want that set when the command parser is enabled.
-			 */
+		batch_obj = i915_gem_execbuffer_parse(ring,
+						      &shadow_exec_entry,
+						      eb,
+						      batch_obj,
+						      args->batch_start_offset,
+						      args->batch_len,
+						      file->is_master,
+						      &flags);
+		if (IS_ERR(batch_obj)) {
+			ret = PTR_ERR(batch_obj);
+			goto err;
 		}
 	}
+
+	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
 	 * batch" bit. Hence we need to pin secure batches into the global gtt.

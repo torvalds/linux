@@ -15,7 +15,7 @@
 #ifndef __SOUND_HDA_PRIV_H
 #define __SOUND_HDA_PRIV_H
 
-#include <linux/clocksource.h>
+#include <linux/timecounter.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 

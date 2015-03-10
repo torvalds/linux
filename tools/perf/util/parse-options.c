@@ -46,7 +46,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		return opterror(opt, "is not usable", flags);
 
 	if (opt->flags & PARSE_OPT_EXCLUSIVE) {
-		if (p->excl_opt) {
+		if (p->excl_opt && p->excl_opt != opt) {
 			char msg[128];
 
 			if (((flags & OPT_SHORT) && p->excl_opt->short_name) ||

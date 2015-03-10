@@ -247,10 +247,9 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_freq_bands(struct file *file, void *priv,
-					 struct v4l2_frequency_band *band)
+int snd_tea575x_enum_freq_bands(struct snd_tea575x *tea,
+					struct v4l2_frequency_band *band)
 {
-	struct snd_tea575x *tea = video_drvdata(file);
 	int index;
 
 	if (band->tuner != 0)
@@ -279,18 +278,25 @@ static int vidioc_enum_freq_bands(struct file *file, void *priv,
 
 	return 0;
 }
+EXPORT_SYMBOL(snd_tea575x_enum_freq_bands);
 
-static int vidioc_g_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *v)
+static int vidioc_enum_freq_bands(struct file *file, void *priv,
+					 struct v4l2_frequency_band *band)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
+
+	return snd_tea575x_enum_freq_bands(tea, band);
+}
+
+int snd_tea575x_g_tuner(struct snd_tea575x *tea, struct v4l2_tuner *v)
+{
 	struct v4l2_frequency_band band_fm = { 0, };
 
 	if (v->index > 0)
 		return -EINVAL;
 
 	snd_tea575x_read(tea);
-	vidioc_enum_freq_bands(file, priv, &band_fm);
+	snd_tea575x_enum_freq_bands(tea, &band_fm);
 
 	memset(v, 0, sizeof(*v));
 	strlcpy(v->name, tea->has_am ? "FM/AM" : "FM", sizeof(v->name));
@@ -303,6 +309,15 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		V4L2_TUNER_MODE_MONO : V4L2_TUNER_MODE_STEREO;
 	v->signal = tea->tuned ? 0xffff : 0;
 	return 0;
+}
+EXPORT_SYMBOL(snd_tea575x_g_tuner);
+
+static int vidioc_g_tuner(struct file *file, void *priv,
+					struct v4l2_tuner *v)
+{
+	struct snd_tea575x *tea = video_drvdata(file);
+
+	return snd_tea575x_g_tuner(tea, v);
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
@@ -356,10 +371,9 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
-					const struct v4l2_hw_freq_seek *a)
+int snd_tea575x_s_hw_freq_seek(struct file *file, struct snd_tea575x *tea,
+				const struct v4l2_hw_freq_seek *a)
 {
-	struct snd_tea575x *tea = video_drvdata(file);
 	unsigned long timeout;
 	int i, spacing;
 
@@ -441,6 +455,15 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 	tea->val &= ~TEA575X_BIT_SEARCH;
 	snd_tea575x_set_freq(tea);
 	return -ENODATA;
+}
+EXPORT_SYMBOL(snd_tea575x_s_hw_freq_seek);
+
+static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
+					const struct v4l2_hw_freq_seek *a)
+{
+	struct snd_tea575x *tea = video_drvdata(file);
+
+	return snd_tea575x_s_hw_freq_seek(file, tea, a);
 }
 
 static int tea575x_s_ctrl(struct v4l2_ctrl *ctrl)

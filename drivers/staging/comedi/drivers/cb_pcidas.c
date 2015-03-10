@@ -1355,7 +1355,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		outw(devpriv->adc_fifo_bits | LADFUL,
 		     devpriv->control_status + INT_ADCFIFO);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
+		async->events |= COMEDI_CB_ERROR;
 	}
 
 	comedi_handle_events(dev, s);

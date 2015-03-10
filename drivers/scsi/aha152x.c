@@ -2490,299 +2490,296 @@ static void show_queues(struct Scsi_Host *shpnt)
 	disp_enintr(shpnt);
 }
 
-#undef SPRINTF
-#define SPRINTF(args...) seq_printf(m, ##args)
-
 static void get_command(struct seq_file *m, Scsi_Cmnd * ptr)
 {
 	int i;
 
-	SPRINTF("%p: target=%d; lun=%d; cmnd=( ",
+	seq_printf(m, "%p: target=%d; lun=%d; cmnd=( ",
 		ptr, ptr->device->id, (u8)ptr->device->lun);
 
 	for (i = 0; i < COMMAND_SIZE(ptr->cmnd[0]); i++)
-		SPRINTF("0x%02x ", ptr->cmnd[i]);
+		seq_printf(m, "0x%02x ", ptr->cmnd[i]);
 
-	SPRINTF("); resid=%d; residual=%d; buffers=%d; phase |",
+	seq_printf(m, "); resid=%d; residual=%d; buffers=%d; phase |",
 		scsi_get_resid(ptr), ptr->SCp.this_residual,
 		ptr->SCp.buffers_residual);
 
 	if (ptr->SCp.phase & not_issued)
-		SPRINTF("not issued|");
+		seq_puts(m, "not issued|");
 	if (ptr->SCp.phase & selecting)
-		SPRINTF("selecting|");
+		seq_puts(m, "selecting|");
 	if (ptr->SCp.phase & disconnected)
-		SPRINTF("disconnected|");
+		seq_puts(m, "disconnected|");
 	if (ptr->SCp.phase & aborted)
-		SPRINTF("aborted|");
+		seq_puts(m, "aborted|");
 	if (ptr->SCp.phase & identified)
-		SPRINTF("identified|");
+		seq_puts(m, "identified|");
 	if (ptr->SCp.phase & completed)
-		SPRINTF("completed|");
+		seq_puts(m, "completed|");
 	if (ptr->SCp.phase & spiordy)
-		SPRINTF("spiordy|");
+		seq_puts(m, "spiordy|");
 	if (ptr->SCp.phase & syncneg)
-		SPRINTF("syncneg|");
-	SPRINTF("; next=0x%p\n", SCNEXT(ptr));
+		seq_puts(m, "syncneg|");
+	seq_printf(m, "; next=0x%p\n", SCNEXT(ptr));
 }
 
 static void get_ports(struct seq_file *m, struct Scsi_Host *shpnt)
 {
 	int s;
 
-	SPRINTF("\n%s: %s(%s) ", CURRENT_SC ? "on bus" : "waiting", states[STATE].name, states[PREVSTATE].name);
+	seq_printf(m, "\n%s: %s(%s) ", CURRENT_SC ? "on bus" : "waiting", states[STATE].name, states[PREVSTATE].name);
 
 	s = GETPORT(SCSISEQ);
-	SPRINTF("SCSISEQ( ");
+	seq_puts(m, "SCSISEQ( ");
 	if (s & TEMODEO)
-		SPRINTF("TARGET MODE ");
+		seq_puts(m, "TARGET MODE ");
 	if (s & ENSELO)
-		SPRINTF("SELO ");
+		seq_puts(m, "SELO ");
 	if (s & ENSELI)
-		SPRINTF("SELI ");
+		seq_puts(m, "SELI ");
 	if (s & ENRESELI)
-		SPRINTF("RESELI ");
+		seq_puts(m, "RESELI ");
 	if (s & ENAUTOATNO)
-		SPRINTF("AUTOATNO ");
+		seq_puts(m, "AUTOATNO ");
 	if (s & ENAUTOATNI)
-		SPRINTF("AUTOATNI ");
+		seq_puts(m, "AUTOATNI ");
 	if (s & ENAUTOATNP)
-		SPRINTF("AUTOATNP ");
+		seq_puts(m, "AUTOATNP ");
 	if (s & SCSIRSTO)
-		SPRINTF("SCSIRSTO ");
-	SPRINTF(");");
+		seq_puts(m, "SCSIRSTO ");
+	seq_puts(m, ");");
 
-	SPRINTF(" SCSISIG(");
+	seq_puts(m, " SCSISIG(");
 	s = GETPORT(SCSISIG);
 	switch (s & P_MASK) {
 	case P_DATAO:
-		SPRINTF("DATA OUT");
+		seq_puts(m, "DATA OUT");
 		break;
 	case P_DATAI:
-		SPRINTF("DATA IN");
+		seq_puts(m, "DATA IN");
 		break;
 	case P_CMD:
-		SPRINTF("COMMAND");
+		seq_puts(m, "COMMAND");
 		break;
 	case P_STATUS:
-		SPRINTF("STATUS");
+		seq_puts(m, "STATUS");
 		break;
 	case P_MSGO:
-		SPRINTF("MESSAGE OUT");
+		seq_puts(m, "MESSAGE OUT");
 		break;
 	case P_MSGI:
-		SPRINTF("MESSAGE IN");
+		seq_puts(m, "MESSAGE IN");
 		break;
 	default:
-		SPRINTF("*invalid*");
+		seq_puts(m, "*invalid*");
 		break;
 	}
 
-	SPRINTF("); ");
+	seq_puts(m, "); ");
 
-	SPRINTF("INTSTAT (%s); ", TESTHI(DMASTAT, INTSTAT) ? "hi" : "lo");
+	seq_printf(m, "INTSTAT (%s); ", TESTHI(DMASTAT, INTSTAT) ? "hi" : "lo");
 
-	SPRINTF("SSTAT( ");
+	seq_puts(m, "SSTAT( ");
 	s = GETPORT(SSTAT0);
 	if (s & TARGET)
-		SPRINTF("TARGET ");
+		seq_puts(m, "TARGET ");
 	if (s & SELDO)
-		SPRINTF("SELDO ");
+		seq_puts(m, "SELDO ");
 	if (s & SELDI)
-		SPRINTF("SELDI ");
+		seq_puts(m, "SELDI ");
 	if (s & SELINGO)
-		SPRINTF("SELINGO ");
+		seq_puts(m, "SELINGO ");
 	if (s & SWRAP)
-		SPRINTF("SWRAP ");
+		seq_puts(m, "SWRAP ");
 	if (s & SDONE)
-		SPRINTF("SDONE ");
+		seq_puts(m, "SDONE ");
 	if (s & SPIORDY)
-		SPRINTF("SPIORDY ");
+		seq_puts(m, "SPIORDY ");
 	if (s & DMADONE)
-		SPRINTF("DMADONE ");
+		seq_puts(m, "DMADONE ");
 
 	s = GETPORT(SSTAT1);
 	if (s & SELTO)
-		SPRINTF("SELTO ");
+		seq_puts(m, "SELTO ");
 	if (s & ATNTARG)
-		SPRINTF("ATNTARG ");
+		seq_puts(m, "ATNTARG ");
 	if (s & SCSIRSTI)
-		SPRINTF("SCSIRSTI ");
+		seq_puts(m, "SCSIRSTI ");
 	if (s & PHASEMIS)
-		SPRINTF("PHASEMIS ");
+		seq_puts(m, "PHASEMIS ");
 	if (s & BUSFREE)
-		SPRINTF("BUSFREE ");
+		seq_puts(m, "BUSFREE ");
 	if (s & SCSIPERR)
-		SPRINTF("SCSIPERR ");
+		seq_puts(m, "SCSIPERR ");
 	if (s & PHASECHG)
-		SPRINTF("PHASECHG ");
+		seq_puts(m, "PHASECHG ");
 	if (s & REQINIT)
-		SPRINTF("REQINIT ");
-	SPRINTF("); ");
+		seq_puts(m, "REQINIT ");
+	seq_puts(m, "); ");
 
 
-	SPRINTF("SSTAT( ");
+	seq_puts(m, "SSTAT( ");
 
 	s = GETPORT(SSTAT0) & GETPORT(SIMODE0);
 
 	if (s & TARGET)
-		SPRINTF("TARGET ");
+		seq_puts(m, "TARGET ");
 	if (s & SELDO)
-		SPRINTF("SELDO ");
+		seq_puts(m, "SELDO ");
 	if (s & SELDI)
-		SPRINTF("SELDI ");
+		seq_puts(m, "SELDI ");
 	if (s & SELINGO)
-		SPRINTF("SELINGO ");
+		seq_puts(m, "SELINGO ");
 	if (s & SWRAP)
-		SPRINTF("SWRAP ");
+		seq_puts(m, "SWRAP ");
 	if (s & SDONE)
-		SPRINTF("SDONE ");
+		seq_puts(m, "SDONE ");
 	if (s & SPIORDY)
-		SPRINTF("SPIORDY ");
+		seq_puts(m, "SPIORDY ");
 	if (s & DMADONE)
-		SPRINTF("DMADONE ");
+		seq_puts(m, "DMADONE ");
 
 	s = GETPORT(SSTAT1) & GETPORT(SIMODE1);
 
 	if (s & SELTO)
-		SPRINTF("SELTO ");
+		seq_puts(m, "SELTO ");
 	if (s & ATNTARG)
-		SPRINTF("ATNTARG ");
+		seq_puts(m, "ATNTARG ");
 	if (s & SCSIRSTI)
-		SPRINTF("SCSIRSTI ");
+		seq_puts(m, "SCSIRSTI ");
 	if (s & PHASEMIS)
-		SPRINTF("PHASEMIS ");
+		seq_puts(m, "PHASEMIS ");
 	if (s & BUSFREE)
-		SPRINTF("BUSFREE ");
+		seq_puts(m, "BUSFREE ");
 	if (s & SCSIPERR)
-		SPRINTF("SCSIPERR ");
+		seq_puts(m, "SCSIPERR ");
 	if (s & PHASECHG)
-		SPRINTF("PHASECHG ");
+		seq_puts(m, "PHASECHG ");
 	if (s & REQINIT)
-		SPRINTF("REQINIT ");
-	SPRINTF("); ");
+		seq_puts(m, "REQINIT ");
+	seq_puts(m, "); ");
 
-	SPRINTF("SXFRCTL0( ");
+	seq_puts(m, "SXFRCTL0( ");
 
 	s = GETPORT(SXFRCTL0);
 	if (s & SCSIEN)
-		SPRINTF("SCSIEN ");
+		seq_puts(m, "SCSIEN ");
 	if (s & DMAEN)
-		SPRINTF("DMAEN ");
+		seq_puts(m, "DMAEN ");
 	if (s & CH1)
-		SPRINTF("CH1 ");
+		seq_puts(m, "CH1 ");
 	if (s & CLRSTCNT)
-		SPRINTF("CLRSTCNT ");
+		seq_puts(m, "CLRSTCNT ");
 	if (s & SPIOEN)
-		SPRINTF("SPIOEN ");
+		seq_puts(m, "SPIOEN ");
 	if (s & CLRCH1)
-		SPRINTF("CLRCH1 ");
-	SPRINTF("); ");
+		seq_puts(m, "CLRCH1 ");
+	seq_puts(m, "); ");
 
-	SPRINTF("SIGNAL( ");
+	seq_puts(m, "SIGNAL( ");
 
 	s = GETPORT(SCSISIG);
 	if (s & SIG_ATNI)
-		SPRINTF("ATNI ");
+		seq_puts(m, "ATNI ");
 	if (s & SIG_SELI)
-		SPRINTF("SELI ");
+		seq_puts(m, "SELI ");
 	if (s & SIG_BSYI)
-		SPRINTF("BSYI ");
+		seq_puts(m, "BSYI ");
 	if (s & SIG_REQI)
-		SPRINTF("REQI ");
+		seq_puts(m, "REQI ");
 	if (s & SIG_ACKI)
-		SPRINTF("ACKI ");
-	SPRINTF("); ");
+		seq_puts(m, "ACKI ");
+	seq_puts(m, "); ");
 
-	SPRINTF("SELID(%02x), ", GETPORT(SELID));
+	seq_printf(m, "SELID(%02x), ", GETPORT(SELID));
 
-	SPRINTF("STCNT(%d), ", GETSTCNT());
+	seq_printf(m, "STCNT(%d), ", GETSTCNT());
 
-	SPRINTF("SSTAT2( ");
+	seq_puts(m, "SSTAT2( ");
 
 	s = GETPORT(SSTAT2);
 	if (s & SOFFSET)
-		SPRINTF("SOFFSET ");
+		seq_puts(m, "SOFFSET ");
 	if (s & SEMPTY)
-		SPRINTF("SEMPTY ");
+		seq_puts(m, "SEMPTY ");
 	if (s & SFULL)
-		SPRINTF("SFULL ");
-	SPRINTF("); SFCNT (%d); ", s & (SFULL | SFCNT));
+		seq_puts(m, "SFULL ");
+	seq_printf(m, "); SFCNT (%d); ", s & (SFULL | SFCNT));
 
 	s = GETPORT(SSTAT3);
-	SPRINTF("SCSICNT (%d), OFFCNT(%d), ", (s & 0xf0) >> 4, s & 0x0f);
+	seq_printf(m, "SCSICNT (%d), OFFCNT(%d), ", (s & 0xf0) >> 4, s & 0x0f);
 
-	SPRINTF("SSTAT4( ");
+	seq_puts(m, "SSTAT4( ");
 	s = GETPORT(SSTAT4);
 	if (s & SYNCERR)
-		SPRINTF("SYNCERR ");
+		seq_puts(m, "SYNCERR ");
 	if (s & FWERR)
-		SPRINTF("FWERR ");
+		seq_puts(m, "FWERR ");
 	if (s & FRERR)
-		SPRINTF("FRERR ");
-	SPRINTF("); ");
+		seq_puts(m, "FRERR ");
+	seq_puts(m, "); ");
 
-	SPRINTF("DMACNTRL0( ");
+	seq_puts(m, "DMACNTRL0( ");
 	s = GETPORT(DMACNTRL0);
-	SPRINTF("%s ", s & _8BIT ? "8BIT" : "16BIT");
-	SPRINTF("%s ", s & DMA ? "DMA" : "PIO");
-	SPRINTF("%s ", s & WRITE_READ ? "WRITE" : "READ");
+	seq_printf(m, "%s ", s & _8BIT ? "8BIT" : "16BIT");
+	seq_printf(m, "%s ", s & DMA ? "DMA" : "PIO");
+	seq_printf(m, "%s ", s & WRITE_READ ? "WRITE" : "READ");
 	if (s & ENDMA)
-		SPRINTF("ENDMA ");
+		seq_puts(m, "ENDMA ");
 	if (s & INTEN)
-		SPRINTF("INTEN ");
+		seq_puts(m, "INTEN ");
 	if (s & RSTFIFO)
-		SPRINTF("RSTFIFO ");
+		seq_puts(m, "RSTFIFO ");
 	if (s & SWINT)
-		SPRINTF("SWINT ");
-	SPRINTF("); ");
+		seq_puts(m, "SWINT ");
+	seq_puts(m, "); ");
 
-	SPRINTF("DMASTAT( ");
+	seq_puts(m, "DMASTAT( ");
 	s = GETPORT(DMASTAT);
 	if (s & ATDONE)
-		SPRINTF("ATDONE ");
+		seq_puts(m, "ATDONE ");
 	if (s & WORDRDY)
-		SPRINTF("WORDRDY ");
+		seq_puts(m, "WORDRDY ");
 	if (s & DFIFOFULL)
-		SPRINTF("DFIFOFULL ");
+		seq_puts(m, "DFIFOFULL ");
 	if (s & DFIFOEMP)
-		SPRINTF("DFIFOEMP ");
-	SPRINTF(")\n");
+		seq_puts(m, "DFIFOEMP ");
+	seq_puts(m, ")\n");
 
-	SPRINTF("enabled interrupts( ");
+	seq_puts(m, "enabled interrupts( ");
 
 	s = GETPORT(SIMODE0);
 	if (s & ENSELDO)
-		SPRINTF("ENSELDO ");
+		seq_puts(m, "ENSELDO ");
 	if (s & ENSELDI)
-		SPRINTF("ENSELDI ");
+		seq_puts(m, "ENSELDI ");
 	if (s & ENSELINGO)
-		SPRINTF("ENSELINGO ");
+		seq_puts(m, "ENSELINGO ");
 	if (s & ENSWRAP)
-		SPRINTF("ENSWRAP ");
+		seq_puts(m, "ENSWRAP ");
 	if (s & ENSDONE)
-		SPRINTF("ENSDONE ");
+		seq_puts(m, "ENSDONE ");
 	if (s & ENSPIORDY)
-		SPRINTF("ENSPIORDY ");
+		seq_puts(m, "ENSPIORDY ");
 	if (s & ENDMADONE)
-		SPRINTF("ENDMADONE ");
+		seq_puts(m, "ENDMADONE ");
 
 	s = GETPORT(SIMODE1);
 	if (s & ENSELTIMO)
-		SPRINTF("ENSELTIMO ");
+		seq_puts(m, "ENSELTIMO ");
 	if (s & ENATNTARG)
-		SPRINTF("ENATNTARG ");
+		seq_puts(m, "ENATNTARG ");
 	if (s & ENPHASEMIS)
-		SPRINTF("ENPHASEMIS ");
+		seq_puts(m, "ENPHASEMIS ");
 	if (s & ENBUSFREE)
-		SPRINTF("ENBUSFREE ");
+		seq_puts(m, "ENBUSFREE ");
 	if (s & ENSCSIPERR)
-		SPRINTF("ENSCSIPERR ");
+		seq_puts(m, "ENSCSIPERR ");
 	if (s & ENPHASECHG)
-		SPRINTF("ENPHASECHG ");
+		seq_puts(m, "ENPHASECHG ");
 	if (s & ENREQINIT)
-		SPRINTF("ENREQINIT ");
-	SPRINTF(")\n");
+		seq_puts(m, "ENREQINIT ");
+	seq_puts(m, ")\n");
 }
 
 static int aha152x_set_info(struct Scsi_Host *shpnt, char *buffer, int length)
@@ -2825,56 +2822,56 @@ static int aha152x_show_info(struct seq_file *m, struct Scsi_Host *shpnt)
 	Scsi_Cmnd *ptr;
 	unsigned long flags;
 
-	SPRINTF(AHA152X_REVID "\n");
+	seq_puts(m, AHA152X_REVID "\n");
 
-	SPRINTF("ioports 0x%04lx to 0x%04lx\n",
+	seq_printf(m, "ioports 0x%04lx to 0x%04lx\n",
 		shpnt->io_port, shpnt->io_port + shpnt->n_io_port - 1);
-	SPRINTF("interrupt 0x%02x\n", shpnt->irq);
-	SPRINTF("disconnection/reconnection %s\n",
+	seq_printf(m, "interrupt 0x%02x\n", shpnt->irq);
+	seq_printf(m, "disconnection/reconnection %s\n",
 		RECONNECT ? "enabled" : "disabled");
-	SPRINTF("parity checking %s\n",
+	seq_printf(m, "parity checking %s\n",
 		PARITY ? "enabled" : "disabled");
-	SPRINTF("synchronous transfers %s\n",
+	seq_printf(m, "synchronous transfers %s\n",
 		SYNCHRONOUS ? "enabled" : "disabled");
-	SPRINTF("%d commands currently queued\n", HOSTDATA(shpnt)->commands);
+	seq_printf(m, "%d commands currently queued\n", HOSTDATA(shpnt)->commands);
 
 	if(SYNCHRONOUS) {
-		SPRINTF("synchronously operating targets (tick=50 ns):\n");
+		seq_puts(m, "synchronously operating targets (tick=50 ns):\n");
 		for (i = 0; i < 8; i++)
 			if (HOSTDATA(shpnt)->syncrate[i] & 0x7f)
-				SPRINTF("target %d: period %dT/%dns; req/ack offset %d\n",
+				seq_printf(m, "target %d: period %dT/%dns; req/ack offset %d\n",
 					i,
 					(((HOSTDATA(shpnt)->syncrate[i] & 0x70) >> 4) + 2),
 					(((HOSTDATA(shpnt)->syncrate[i] & 0x70) >> 4) + 2) * 50,
 				    HOSTDATA(shpnt)->syncrate[i] & 0x0f);
 	}
-	SPRINTF("\nqueue status:\n");
+	seq_puts(m, "\nqueue status:\n");
 	DO_LOCK(flags);
 	if (ISSUE_SC) {
-		SPRINTF("not yet issued commands:\n");
+		seq_puts(m, "not yet issued commands:\n");
 		for (ptr = ISSUE_SC; ptr; ptr = SCNEXT(ptr))
 			get_command(m, ptr);
 	} else
-		SPRINTF("no not yet issued commands\n");
+		seq_puts(m, "no not yet issued commands\n");
 	DO_UNLOCK(flags);
 
 	if (CURRENT_SC) {
-		SPRINTF("current command:\n");
+		seq_puts(m, "current command:\n");
 		get_command(m, CURRENT_SC);
 	} else
-		SPRINTF("no current command\n");
+		seq_puts(m, "no current command\n");
 
 	if (DISCONNECTED_SC) {
-		SPRINTF("disconnected commands:\n");
+		seq_puts(m, "disconnected commands:\n");
 		for (ptr = DISCONNECTED_SC; ptr; ptr = SCNEXT(ptr))
 			get_command(m, ptr);
 	} else
-		SPRINTF("no disconnected commands\n");
+		seq_puts(m, "no disconnected commands\n");
 
 	get_ports(m, shpnt);
 
 #if defined(AHA152X_STAT)
-	SPRINTF("statistics:\n"
+	seq_printf(m, "statistics:\n"
 		"total commands:               %d\n"
 		"disconnections:               %d\n"
 		"busfree with check condition: %d\n"
@@ -2894,7 +2891,7 @@ static int aha152x_show_info(struct seq_file *m, struct Scsi_Host *shpnt)
 		HOSTDATA(shpnt)->busfree_without_done_command,
 		HOSTDATA(shpnt)->busfree_without_any_action);
 	for(i=0; i<maxstate; i++) {
-		SPRINTF("%-10s %-12d %-12d %-12ld\n",
+		seq_printf(m, "%-10s %-12d %-12d %-12ld\n",
 			states[i].name,
 			HOSTDATA(shpnt)->count_trans[i],
 			HOSTDATA(shpnt)->count[i],

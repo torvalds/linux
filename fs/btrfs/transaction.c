@@ -220,6 +220,7 @@ loop:
 	 * commit the transaction.
 	 */
 	atomic_set(&cur_trans->use_count, 2);
+	cur_trans->have_free_bgs = 0;
 	cur_trans->start_time = get_seconds();
 
 	cur_trans->delayed_refs.href_root = RB_ROOT;
@@ -248,6 +249,8 @@ loop:
 	INIT_LIST_HEAD(&cur_trans->pending_chunks);
 	INIT_LIST_HEAD(&cur_trans->switch_commits);
 	INIT_LIST_HEAD(&cur_trans->pending_ordered);
+	INIT_LIST_HEAD(&cur_trans->dirty_bgs);
+	spin_lock_init(&cur_trans->dirty_bgs_lock);
 	list_add_tail(&cur_trans->list, &fs_info->trans_list);
 	extent_io_tree_init(&cur_trans->dirty_pages,
 			     fs_info->btree_inode->i_mapping);
@@ -1020,6 +1023,7 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 	u64 old_root_bytenr;
 	u64 old_root_used;
 	struct btrfs_root *tree_root = root->fs_info->tree_root;
+	bool extent_root = (root->objectid == BTRFS_EXTENT_TREE_OBJECTID);
 
 	old_root_used = btrfs_root_used(&root->root_item);
 	btrfs_write_dirty_block_groups(trans, root);
@@ -1027,7 +1031,9 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 	while (1) {
 		old_root_bytenr = btrfs_root_bytenr(&root->root_item);
 		if (old_root_bytenr == root->node->start &&
-		    old_root_used == btrfs_root_used(&root->root_item))
+		    old_root_used == btrfs_root_used(&root->root_item) &&
+		    (!extent_root ||
+		     list_empty(&trans->transaction->dirty_bgs)))
 			break;
 
 		btrfs_set_root_node(&root->root_item, root->node);
@@ -1038,7 +1044,12 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 			return ret;
 
 		old_root_used = btrfs_root_used(&root->root_item);
-		ret = btrfs_write_dirty_block_groups(trans, root);
+		if (extent_root) {
+			ret = btrfs_write_dirty_block_groups(trans, root);
+			if (ret)
+				return ret;
+		}
+		ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
 		if (ret)
 			return ret;
 	}
@@ -1060,10 +1071,6 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 	struct list_head *next;
 	struct extent_buffer *eb;
 	int ret;
-
-	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
-	if (ret)
-		return ret;
 
 	eb = btrfs_lock_root_node(fs_info->tree_root);
 	ret = btrfs_cow_block(trans, fs_info->tree_root, eb, NULL,
@@ -1097,6 +1104,7 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 		next = fs_info->dirty_cowonly_roots.next;
 		list_del_init(next);
 		root = list_entry(next, struct btrfs_root, dirty_list);
+		clear_bit(BTRFS_ROOT_DIRTY, &root->state);
 
 		if (root != fs_info->extent_root)
 			list_add_tail(&root->dirty_list,
@@ -1983,6 +1991,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	switch_commit_roots(cur_trans, root->fs_info);
 
 	assert_qgroups_uptodate(trans);
+	ASSERT(list_empty(&cur_trans->dirty_bgs));
 	update_super_roots(root);
 
 	btrfs_set_super_log_root(root->fs_info->super_copy, 0);
@@ -2025,6 +2034,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	mutex_unlock(&root->fs_info->tree_log_mutex);
 
 	btrfs_finish_extent_commit(trans, root);
+
+	if (cur_trans->have_free_bgs)
+		btrfs_clear_space_info_full(root->fs_info);
 
 	root->fs_info->last_trans_committed = cur_trans->transid;
 	/*

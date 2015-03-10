@@ -173,10 +173,8 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_features *features = &wacom->wacom_wac.features;
-	bool finger = (field->logical == HID_DG_FINGER) ||
-		      (field->physical == HID_DG_FINGER);
-	bool pen = (field->logical == HID_DG_STYLUS) ||
-		   (field->physical == HID_DG_STYLUS);
+	bool finger = WACOM_FINGER_FIELD(field);
+	bool pen = WACOM_PEN_FIELD(field);
 
 	/*
 	* Requiring Stylus Usage will ignore boot mouse
@@ -404,6 +402,9 @@ static int wacom_query_tablet_data(struct hid_device *hdev,
 		}
 		else if (features->type == WACOM_24HDT || features->type == CINTIQ_HYBRID) {
 			return wacom_set_device_mode(hdev, 18, 3, 2);
+		}
+		else if (features->type == WACOM_27QHDT) {
+			return wacom_set_device_mode(hdev, 131, 3, 2);
 		}
 	} else if (features->device_type == BTN_TOOL_PEN) {
 		if (features->type <= BAMBOO_PT && features->type != WIRELESS) {

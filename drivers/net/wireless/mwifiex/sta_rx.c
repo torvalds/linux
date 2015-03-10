@@ -90,6 +90,7 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 	struct ethhdr *eth;
 	u16 rx_pkt_off, rx_pkt_len;
 	u8 *offset;
+	u8 adj_rx_rate = 0;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 
@@ -154,6 +155,14 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 	priv->rxpd_rate = local_rx_pd->rx_rate;
 
 	priv->rxpd_htinfo = local_rx_pd->ht_info;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
+	    GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		adj_rx_rate = mwifiex_adjust_data_rate(priv, priv->rxpd_rate,
+						       priv->rxpd_htinfo);
+		mwifiex_hist_data_add(priv, adj_rx_rate, local_rx_pd->snr,
+				      local_rx_pd->nf);
+	}
 
 	ret = mwifiex_recv_packet(priv, skb);
 	if (ret == -1)

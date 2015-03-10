@@ -222,7 +222,7 @@ static struct regmap_bus retu_bus = {
 	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
 };
 
-static struct regmap_config retu_config = {
+static const struct regmap_config retu_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 };

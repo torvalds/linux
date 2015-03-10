@@ -952,20 +952,18 @@ static ssize_t show_size(struct _cpuid4_info *this_leaf, char *buf,
 static ssize_t show_shared_cpu_map_func(struct _cpuid4_info *this_leaf,
 					int type, char *buf)
 {
-	ptrdiff_t len = PTR_ALIGN(buf + PAGE_SIZE - 1, PAGE_SIZE) - buf;
-	int n = 0;
+	const struct cpumask *mask = to_cpumask(this_leaf->shared_cpu_map);
+	int ret;
 
-	if (len > 1) {
-		const struct cpumask *mask;
-
-		mask = to_cpumask(this_leaf->shared_cpu_map);
-		n = type ?
-			cpulist_scnprintf(buf, len-2, mask) :
-			cpumask_scnprintf(buf, len-2, mask);
-		buf[n++] = '\n';
-		buf[n] = '\0';
-	}
-	return n;
+	if (type)
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
+				cpumask_pr_args(mask));
+	else
+		ret = scnprintf(buf, PAGE_SIZE - 1, "%*pb",
+				cpumask_pr_args(mask));
+	buf[ret++] = '\n';
+	buf[ret] = '\0';
+	return ret;
 }
 
 static inline ssize_t show_shared_cpu_map(struct _cpuid4_info *leaf, char *buf,

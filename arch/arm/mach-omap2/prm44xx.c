@@ -712,7 +712,7 @@ int __init omap44xx_prm_init(void)
 	return prm_register(&omap44xx_prm_ll_data);
 }
 
-static struct of_device_id omap_prm_dt_match_table[] = {
+static const struct of_device_id omap_prm_dt_match_table[] = {
 	{ .compatible = "ti,omap4-prm" },
 	{ .compatible = "ti,omap5-prm" },
 	{ .compatible = "ti,dra7-prm" },

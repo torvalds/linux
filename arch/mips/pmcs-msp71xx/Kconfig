@@ -36,14 +36,14 @@ config PMC_MSP7120_FPGA
 endchoice
 
 config MSP_HAS_USB
-	boolean
+	bool
 	depends on PMC_MSP
 
 config MSP_ETH
-	boolean
+	bool
 	select MSP_HAS_MAC
 	depends on PMC_MSP
 
 config MSP_HAS_MAC
-	boolean
+	bool
 	depends on PMC_MSP

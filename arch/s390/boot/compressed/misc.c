@@ -8,6 +8,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
+#include <asm/sclp.h>
 #include <asm/ipl.h>
 #include "sizes.h"
 
@@ -62,8 +63,6 @@ static unsigned long free_mem_end_ptr;
 #ifdef CONFIG_KERNEL_XZ
 #include "../../../../lib/decompress_unxz.c"
 #endif
-
-extern _sclp_print_early(const char *);
 
 static int puts(const char *s)
 {

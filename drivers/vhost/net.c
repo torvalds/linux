@@ -84,10 +84,6 @@ struct vhost_net_ubuf_ref {
 
 struct vhost_net_virtqueue {
 	struct vhost_virtqueue vq;
-	/* hdr is used to store the virtio header.
-	 * Since each iovec has >= 1 byte length, we never need more than
-	 * header length entries to store the header. */
-	struct iovec hdr[sizeof(struct virtio_net_hdr_mrg_rxbuf)];
 	size_t vhost_hlen;
 	size_t sock_hlen;
 	/* vhost zerocopy support fields below: */
@@ -235,44 +231,6 @@ static bool vhost_sock_zcopy(struct socket *sock)
 		sock_flag(sock->sk, SOCK_ZEROCOPY);
 }
 
-/* Pop first len bytes from iovec. Return number of segments used. */
-static int move_iovec_hdr(struct iovec *from, struct iovec *to,
-			  size_t len, int iov_count)
-{
-	int seg = 0;
-	size_t size;
-
-	while (len && seg < iov_count) {
-		size = min(from->iov_len, len);
-		to->iov_base = from->iov_base;
-		to->iov_len = size;
-		from->iov_len -= size;
-		from->iov_base += size;
-		len -= size;
-		++from;
-		++to;
-		++seg;
-	}
-	return seg;
-}
-/* Copy iovec entries for len bytes from iovec. */
-static void copy_iovec_hdr(const struct iovec *from, struct iovec *to,
-			   size_t len, int iovcount)
-{
-	int seg = 0;
-	size_t size;
-
-	while (len && seg < iovcount) {
-		size = min(from->iov_len, len);
-		to->iov_base = from->iov_base;
-		to->iov_len = size;
-		len -= size;
-		++from;
-		++to;
-		++seg;
-	}
-}
-
 /* In case of DMA done not in order in lower device driver for some reason.
  * upend_idx is used to track end of used idx, done_idx is used to track head
  * of used idx. Once lower device DMA done contiguously, we will signal KVM
@@ -336,7 +294,7 @@ static void handle_tx(struct vhost_net *net)
 {
 	struct vhost_net_virtqueue *nvq = &net->vqs[VHOST_NET_VQ_TX];
 	struct vhost_virtqueue *vq = &nvq->vq;
-	unsigned out, in, s;
+	unsigned out, in;
 	int head;
 	struct msghdr msg = {
 		.msg_name = NULL,
@@ -395,16 +353,17 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		}
 		/* Skip header. TODO: support TSO. */
-		s = move_iovec_hdr(vq->iov, nvq->hdr, hdr_size, out);
 		len = iov_length(vq->iov, out);
 		iov_iter_init(&msg.msg_iter, WRITE, vq->iov, out, len);
+		iov_iter_advance(&msg.msg_iter, hdr_size);
 		/* Sanity check */
-		if (!len) {
+		if (!iov_iter_count(&msg.msg_iter)) {
 			vq_err(vq, "Unexpected header len for TX: "
 			       "%zd expected %zd\n",
-			       iov_length(nvq->hdr, s), hdr_size);
+			       len, hdr_size);
 			break;
 		}
+		len = iov_iter_count(&msg.msg_iter);
 
 		zcopy_used = zcopy && len >= VHOST_GOODCOPY_LEN
 				   && (nvq->upend_idx + 1) % UIO_MAXIOV !=
@@ -469,7 +428,7 @@ static int peek_head_len(struct sock *sk)
 	head = skb_peek(&sk->sk_receive_queue);
 	if (likely(head)) {
 		len = head->len;
-		if (vlan_tx_tag_present(head))
+		if (skb_vlan_tag_present(head))
 			len += VLAN_HLEN;
 	}
 
@@ -569,9 +528,9 @@ static void handle_rx(struct vhost_net *net)
 		.msg_controllen = 0,
 		.msg_flags = MSG_DONTWAIT,
 	};
-	struct virtio_net_hdr_mrg_rxbuf hdr = {
-		.hdr.flags = 0,
-		.hdr.gso_type = VIRTIO_NET_HDR_GSO_NONE
+	struct virtio_net_hdr hdr = {
+		.flags = 0,
+		.gso_type = VIRTIO_NET_HDR_GSO_NONE
 	};
 	size_t total_len = 0;
 	int err, mergeable;
@@ -579,6 +538,8 @@ static void handle_rx(struct vhost_net *net)
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
 	struct socket *sock;
+	struct iov_iter fixup;
+	__virtio16 num_buffers;
 
 	mutex_lock(&vq->mutex);
 	sock = vq->private_data;
@@ -623,14 +584,14 @@ static void handle_rx(struct vhost_net *net)
 			break;
 		}
 		/* We don't need to be notified again. */
-		if (unlikely((vhost_hlen)))
-			/* Skip header. TODO: support TSO. */
-			move_iovec_hdr(vq->iov, nvq->hdr, vhost_hlen, in);
-		else
-			/* Copy the header for use in VIRTIO_NET_F_MRG_RXBUF:
-			 * needed because recvmsg can modify msg_iov. */
-			copy_iovec_hdr(vq->iov, nvq->hdr, sock_hlen, in);
-		iov_iter_init(&msg.msg_iter, READ, vq->iov, in, sock_len);
+		iov_iter_init(&msg.msg_iter, READ, vq->iov, in, vhost_len);
+		fixup = msg.msg_iter;
+		if (unlikely((vhost_hlen))) {
+			/* We will supply the header ourselves
+			 * TODO: support TSO.
+			 */
+			iov_iter_advance(&msg.msg_iter, vhost_hlen);
+		}
 		err = sock->ops->recvmsg(NULL, sock, &msg,
 					 sock_len, MSG_DONTWAIT | MSG_TRUNC);
 		/* Userspace might have consumed the packet meanwhile:
@@ -642,20 +603,26 @@ static void handle_rx(struct vhost_net *net)
 			vhost_discard_vq_desc(vq, headcount);
 			continue;
 		}
-		if (unlikely(vhost_hlen) &&
-		    memcpy_toiovecend(nvq->hdr, (unsigned char *)&hdr, 0,
-				      vhost_hlen)) {
-			vq_err(vq, "Unable to write vnet_hdr at addr %p\n",
-			       vq->iov->iov_base);
-			break;
+		/* Supply virtio_net_hdr if VHOST_NET_F_VIRTIO_NET_HDR */
+		if (unlikely(vhost_hlen)) {
+			if (copy_to_iter(&hdr, sizeof(hdr),
+					 &fixup) != sizeof(hdr)) {
+				vq_err(vq, "Unable to write vnet_hdr "
+				       "at addr %p\n", vq->iov->iov_base);
+				break;
+			}
+		} else {
+			/* Header came from socket; we'll need to patch
+			 * ->num_buffers over if VIRTIO_NET_F_MRG_RXBUF
+			 */
+			iov_iter_advance(&fixup, sizeof(hdr));
 		}
 		/* TODO: Should check and handle checksum. */
 
-		hdr.num_buffers = cpu_to_vhost16(vq, headcount);
+		num_buffers = cpu_to_vhost16(vq, headcount);
 		if (likely(mergeable) &&
-		    memcpy_toiovecend(nvq->hdr, (void *)&hdr.num_buffers,
-				      offsetof(typeof(hdr), num_buffers),
-				      sizeof hdr.num_buffers)) {
+		    copy_to_iter(&num_buffers, sizeof num_buffers,
+				 &fixup) != sizeof num_buffers) {
 			vq_err(vq, "Failed num_buffers write");
 			vhost_discard_vq_desc(vq, headcount);
 			break;

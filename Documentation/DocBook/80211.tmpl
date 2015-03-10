@@ -113,7 +113,6 @@
 !Finclude/net/cfg80211.h cfg80211_beacon_data
 !Finclude/net/cfg80211.h cfg80211_ap_settings
 !Finclude/net/cfg80211.h station_parameters
-!Finclude/net/cfg80211.h station_info_flags
 !Finclude/net/cfg80211.h rate_info_flags
 !Finclude/net/cfg80211.h rate_info
 !Finclude/net/cfg80211.h station_info
@@ -435,7 +434,6 @@
       <section id="ps-client">
         <title>support for powersaving clients</title>
 !Pinclude/net/mac80211.h AP support for powersaving clients
-      </section>
 !Finclude/net/mac80211.h ieee80211_get_buffered_bc
 !Finclude/net/mac80211.h ieee80211_beacon_get
 !Finclude/net/mac80211.h ieee80211_sta_eosp
@@ -444,6 +442,7 @@
 !Finclude/net/mac80211.h ieee80211_sta_ps_transition_ni
 !Finclude/net/mac80211.h ieee80211_sta_set_buffered
 !Finclude/net/mac80211.h ieee80211_sta_block_awake
+      </section>
       </chapter>
 
       <chapter id="multi-iface">
@@ -488,8 +487,8 @@
           <title>RX A-MPDU aggregation</title>
 !Pnet/mac80211/agg-rx.c RX A-MPDU aggregation
 !Cnet/mac80211/agg-rx.c
-        </sect1>
 !Finclude/net/mac80211.h ieee80211_ampdu_mlme_action
+        </sect1>
       </chapter>
 
       <chapter id="smps">

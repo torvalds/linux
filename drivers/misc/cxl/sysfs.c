@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/sysfs.h>
+#include <linux/pci_regs.h>
 
 #include "cxl.h"
 
@@ -56,11 +57,68 @@ static ssize_t image_loaded_show(struct device *device,
 	return scnprintf(buf, PAGE_SIZE, "factory\n");
 }
 
+static ssize_t reset_adapter_store(struct device *device,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+	int rc;
+	int val;
+
+	rc = sscanf(buf, "%i", &val);
+	if ((rc != 1) || (val != 1))
+		return -EINVAL;
+
+	if ((rc = cxl_reset(adapter)))
+		return rc;
+	return count;
+}
+
+static ssize_t load_image_on_perst_show(struct device *device,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+
+	if (!adapter->perst_loads_image)
+		return scnprintf(buf, PAGE_SIZE, "none\n");
+
+	if (adapter->perst_select_user)
+		return scnprintf(buf, PAGE_SIZE, "user\n");
+	return scnprintf(buf, PAGE_SIZE, "factory\n");
+}
+
+static ssize_t load_image_on_perst_store(struct device *device,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+	int rc;
+
+	if (!strncmp(buf, "none", 4))
+		adapter->perst_loads_image = false;
+	else if (!strncmp(buf, "user", 4)) {
+		adapter->perst_select_user = true;
+		adapter->perst_loads_image = true;
+	} else if (!strncmp(buf, "factory", 7)) {
+		adapter->perst_select_user = false;
+		adapter->perst_loads_image = true;
+	} else
+		return -EINVAL;
+
+	if ((rc = cxl_update_image_control(adapter)))
+		return rc;
+
+	return count;
+}
+
 static struct device_attribute adapter_attrs[] = {
 	__ATTR_RO(caia_version),
 	__ATTR_RO(psl_revision),
 	__ATTR_RO(base_image),
 	__ATTR_RO(image_loaded),
+	__ATTR_RW(load_image_on_perst),
+	__ATTR(reset, S_IWUSR, NULL, reset_adapter_store),
 };
 
 
@@ -310,8 +368,6 @@ static struct device_attribute afu_attrs[] = {
 	__ATTR(reset, S_IWUSR, NULL, reset_store_afu),
 };
 
-
-
 int cxl_sysfs_adapter_add(struct cxl *adapter)
 {
 	int i, rc;
@@ -334,29 +390,189 @@ void cxl_sysfs_adapter_remove(struct cxl *adapter)
 		device_remove_file(&adapter->dev, &adapter_attrs[i]);
 }
 
+struct afu_config_record {
+	struct kobject kobj;
+	struct bin_attribute config_attr;
+	struct list_head list;
+	int cr;
+	u16 device;
+	u16 vendor;
+	u32 class;
+};
+
+#define to_cr(obj) container_of(obj, struct afu_config_record, kobj)
+
+static ssize_t vendor_show(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
+{
+	struct afu_config_record *cr = to_cr(kobj);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%.4x\n", cr->vendor);
+}
+
+static ssize_t device_show(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
+{
+	struct afu_config_record *cr = to_cr(kobj);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%.4x\n", cr->device);
+}
+
+static ssize_t class_show(struct kobject *kobj,
+			  struct kobj_attribute *attr, char *buf)
+{
+	struct afu_config_record *cr = to_cr(kobj);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%.6x\n", cr->class);
+}
+
+static ssize_t afu_read_config(struct file *filp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr, char *buf,
+			       loff_t off, size_t count)
+{
+	struct afu_config_record *cr = to_cr(kobj);
+	struct cxl_afu *afu = to_cxl_afu(container_of(kobj->parent, struct device, kobj));
+
+	u64 i, j, val, size = afu->crs_len;
+
+	if (off > size)
+		return 0;
+	if (off + count > size)
+		count = size - off;
+
+	for (i = 0; i < count;) {
+		val = cxl_afu_cr_read64(afu, cr->cr, off & ~0x7);
+		for (j = off & 0x7; j < 8 && i < count; i++, j++, off++)
+			buf[i] = (val >> (j * 8)) & 0xff;
+	}
+
+	return count;
+}
+
+static struct kobj_attribute vendor_attribute =
+	__ATTR_RO(vendor);
+static struct kobj_attribute device_attribute =
+	__ATTR_RO(device);
+static struct kobj_attribute class_attribute =
+	__ATTR_RO(class);
+
+static struct attribute *afu_cr_attrs[] = {
+	&vendor_attribute.attr,
+	&device_attribute.attr,
+	&class_attribute.attr,
+	NULL,
+};
+
+static void release_afu_config_record(struct kobject *kobj)
+{
+	struct afu_config_record *cr = to_cr(kobj);
+
+	kfree(cr);
+}
+
+static struct kobj_type afu_config_record_type = {
+	.sysfs_ops = &kobj_sysfs_ops,
+	.release = release_afu_config_record,
+	.default_attrs = afu_cr_attrs,
+};
+
+static struct afu_config_record *cxl_sysfs_afu_new_cr(struct cxl_afu *afu, int cr_idx)
+{
+	struct afu_config_record *cr;
+	int rc;
+
+	cr = kzalloc(sizeof(struct afu_config_record), GFP_KERNEL);
+	if (!cr)
+		return ERR_PTR(-ENOMEM);
+
+	cr->cr = cr_idx;
+	cr->device = cxl_afu_cr_read16(afu, cr_idx, PCI_DEVICE_ID);
+	cr->vendor = cxl_afu_cr_read16(afu, cr_idx, PCI_VENDOR_ID);
+	cr->class = cxl_afu_cr_read32(afu, cr_idx, PCI_CLASS_REVISION) >> 8;
+
+	/*
+	 * Export raw AFU PCIe like config record. For now this is read only by
+	 * root - we can expand that later to be readable by non-root and maybe
+	 * even writable provided we have a good use-case. Once we suport
+	 * exposing AFUs through a virtual PHB they will get that for free from
+	 * Linux' PCI infrastructure, but until then it's not clear that we
+	 * need it for anything since the main use case is just identifying
+	 * AFUs, which can be done via the vendor, device and class attributes.
+	 */
+	sysfs_bin_attr_init(&cr->config_attr);
+	cr->config_attr.attr.name = "config";
+	cr->config_attr.attr.mode = S_IRUSR;
+	cr->config_attr.size = afu->crs_len;
+	cr->config_attr.read = afu_read_config;
+
+	rc = kobject_init_and_add(&cr->kobj, &afu_config_record_type,
+				  &afu->dev.kobj, "cr%i", cr->cr);
+	if (rc)
+		goto err;
+
+	rc = sysfs_create_bin_file(&cr->kobj, &cr->config_attr);
+	if (rc)
+		goto err1;
+
+	rc = kobject_uevent(&cr->kobj, KOBJ_ADD);
+	if (rc)
+		goto err2;
+
+	return cr;
+err2:
+	sysfs_remove_bin_file(&cr->kobj, &cr->config_attr);
+err1:
+	kobject_put(&cr->kobj);
+	return ERR_PTR(rc);
+err:
+	kfree(cr);
+	return ERR_PTR(rc);
+}
+
+void cxl_sysfs_afu_remove(struct cxl_afu *afu)
+{
+	struct afu_config_record *cr, *tmp;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(afu_attrs); i++)
+		device_remove_file(&afu->dev, &afu_attrs[i]);
+
+	list_for_each_entry_safe(cr, tmp, &afu->crs, list) {
+		sysfs_remove_bin_file(&cr->kobj, &cr->config_attr);
+		kobject_put(&cr->kobj);
+	}
+}
+
 int cxl_sysfs_afu_add(struct cxl_afu *afu)
 {
+	struct afu_config_record *cr;
 	int i, rc;
+
+	INIT_LIST_HEAD(&afu->crs);
 
 	for (i = 0; i < ARRAY_SIZE(afu_attrs); i++) {
 		if ((rc = device_create_file(&afu->dev, &afu_attrs[i])))
 			goto err;
 	}
 
+	for (i = 0; i < afu->crs_num; i++) {
+		cr = cxl_sysfs_afu_new_cr(afu, i);
+		if (IS_ERR(cr)) {
+			rc = PTR_ERR(cr);
+			goto err1;
+		}
+		list_add(&cr->list, &afu->crs);
+	}
+
 	return 0;
 
+err1:
+	cxl_sysfs_afu_remove(afu);
+	return rc;
 err:
 	for (i--; i >= 0; i--)
 		device_remove_file(&afu->dev, &afu_attrs[i]);
 	return rc;
-}
-
-void cxl_sysfs_afu_remove(struct cxl_afu *afu)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(afu_attrs); i++)
-		device_remove_file(&afu->dev, &afu_attrs[i]);
 }
 
 int cxl_sysfs_afu_m_add(struct cxl_afu *afu)

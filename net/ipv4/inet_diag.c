@@ -203,7 +203,8 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		icsk->icsk_ca_ops->get_info(sk, ext, skb);
 
 out:
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 errout:
 	nlmsg_cancel(skb, nlh);
@@ -271,7 +272,8 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	}
 #endif
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 }
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
@@ -758,7 +760,8 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 	}
 #endif
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 }
 
 static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,

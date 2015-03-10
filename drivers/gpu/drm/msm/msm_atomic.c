@@ -20,6 +20,7 @@
 #include "msm_gem.h"
 
 struct msm_commit {
+	struct drm_device *dev;
 	struct drm_atomic_state *state;
 	uint32_t fence;
 	struct msm_fence_cb fence_cb;
@@ -58,14 +59,16 @@ static void end_atomic(struct msm_drm_private *priv, uint32_t crtc_mask)
 	spin_unlock(&priv->pending_crtcs_event.lock);
 }
 
-static struct msm_commit *new_commit(struct drm_atomic_state *state)
+static struct msm_commit *commit_init(struct drm_atomic_state *state)
 {
 	struct msm_commit *c = kzalloc(sizeof(*c), GFP_KERNEL);
 
 	if (!c)
 		return NULL;
 
+	c->dev = state->dev;
 	c->state = state;
+
 	/* TODO we might need a way to indicate to run the cb on a
 	 * different wq so wait_for_vblanks() doesn't block retiring
 	 * bo's..
@@ -75,6 +78,12 @@ static struct msm_commit *new_commit(struct drm_atomic_state *state)
 	return c;
 }
 
+static void commit_destroy(struct msm_commit *c)
+{
+	end_atomic(c->dev->dev_private, c->crtc_mask);
+	kfree(c);
+}
+
 /* The (potentially) asynchronous part of the commit.  At this point
  * nothing can fail short of armageddon.
  */
@@ -82,6 +91,10 @@ static void complete_commit(struct msm_commit *c)
 {
 	struct drm_atomic_state *state = c->state;
 	struct drm_device *dev = state->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+
+	kms->funcs->prepare_commit(kms, state);
 
 	drm_atomic_helper_commit_pre_planes(dev, state);
 
@@ -106,11 +119,11 @@ static void complete_commit(struct msm_commit *c)
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
+	kms->funcs->complete_commit(kms, state);
+
 	drm_atomic_state_free(state);
 
-	end_atomic(dev->dev_private, c->crtc_mask);
-
-	kfree(c);
+	commit_destroy(c);
 }
 
 static void fence_cb(struct msm_fence_cb *cb)
@@ -126,6 +139,26 @@ static void add_fb(struct msm_commit *c, struct drm_framebuffer *fb)
 	c->fence = max(c->fence, msm_gem_fence(to_msm_bo(obj), MSM_PREP_READ));
 }
 
+
+int msm_atomic_check(struct drm_device *dev,
+		     struct drm_atomic_state *state)
+{
+	int ret;
+
+	/*
+	 * msm ->atomic_check can update ->mode_changed for pixel format
+	 * changes, hence must be run before we check the modeset changes.
+	 */
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
+}
 
 /**
  * drm_atomic_helper_commit - commit validated state object
@@ -145,6 +178,7 @@ int msm_atomic_commit(struct drm_device *dev,
 {
 	int nplanes = dev->mode_config.num_total_plane;
 	int ncrtcs = dev->mode_config.num_crtc;
+	struct timespec timeout;
 	struct msm_commit *c;
 	int i, ret;
 
@@ -152,7 +186,7 @@ int msm_atomic_commit(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	c = new_commit(state);
+	c = commit_init(state);
 	if (!c)
 		return -ENOMEM;
 
@@ -185,8 +219,10 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * mark our set of crtc's as busy:
 	 */
 	ret = start_atomic(dev->dev_private, c->crtc_mask);
-	if (ret)
+	if (ret) {
+		kfree(c);
 		return ret;
+	}
 
 	/*
 	 * This is the point of no return - everything below never fails except
@@ -217,10 +253,12 @@ int msm_atomic_commit(struct drm_device *dev,
 		return 0;
 	}
 
-	ret = msm_wait_fence_interruptable(dev, c->fence, NULL);
+	jiffies_to_timespec(jiffies + msecs_to_jiffies(1000), &timeout);
+
+	ret = msm_wait_fence_interruptable(dev, c->fence, &timeout);
 	if (ret) {
 		WARN_ON(ret);  // TODO unswap state back?  or??
-		kfree(c);
+		commit_destroy(c);
 		return ret;
 	}
 

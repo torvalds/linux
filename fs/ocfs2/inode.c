@@ -648,7 +648,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 
 	if (!(OCFS2_I(inode)->ip_flags & OCFS2_INODE_SKIP_ORPHAN_DIR)) {
 		status = ocfs2_orphan_del(osb, handle, orphan_dir_inode, inode,
-					  orphan_dir_bh);
+					  orphan_dir_bh, false);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail_commit;

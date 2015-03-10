@@ -15,7 +15,6 @@
  * details.
  */
 
-
 #ifndef __VISORCHIPSET_GLOBALS_H__
 #define __VISORCHIPSET_GLOBALS_H__
 
@@ -27,7 +26,6 @@
 #include "version.h"
 
 #define MYDRVNAME "visorchipset"
-
 
 /* module parameters */
 

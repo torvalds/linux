@@ -3,12 +3,12 @@
  *
  * Copyright (c) 2011, Tom Herbert <therbert@google.com>
  */
-#include <linux/module.h>
 #include <linux/types.h>
-#include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
 #include <linux/dynamic_queue_limits.h>
+#include <linux/compiler.h>
+#include <linux/export.h>
 
 #define POSDIFF(A, B) ((int)((A) - (B)) > 0 ? (A) - (B) : 0)
 #define AFTER_EQ(A, B) ((int)((A) - (B)) >= 0)

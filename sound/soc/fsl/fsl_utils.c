@@ -86,33 +86,6 @@ int fsl_asoc_get_dma_channel(struct device_node *ssi_np,
 }
 EXPORT_SYMBOL(fsl_asoc_get_dma_channel);
 
-/**
- * fsl_asoc_xlate_tdm_slot_mask - generate TDM slot TX/RX mask.
- *
- * @slots: Number of slots in use.
- * @tx_mask: bitmask representing active TX slots.
- * @rx_mask: bitmask representing active RX slots.
- *
- * This function used to generate the TDM slot TX/RX mask. And the TX/RX
- * mask will use a 0 bit for an active slot as default, and the default
- * active bits are at the LSB of the mask value.
- */
-int fsl_asoc_xlate_tdm_slot_mask(unsigned int slots,
-				    unsigned int *tx_mask,
-				    unsigned int *rx_mask)
-{
-	if (!slots)
-		return -EINVAL;
-
-	if (tx_mask)
-		*tx_mask = ~((1 << slots) - 1);
-	if (rx_mask)
-		*rx_mask = ~((1 << slots) - 1);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fsl_asoc_xlate_tdm_slot_mask);
-
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale ASoC utility code");
 MODULE_LICENSE("GPL v2");

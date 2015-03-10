@@ -75,6 +75,7 @@ static struct lpc_sch_info sch_chipset_info[] = {
 	[LPC_QUARK_X1000] = {
 		.io_size_gpio = GPIO_IO_SIZE,
 		.irq_gpio = GPIO_IRQ_QUARK_X1000,
+		.io_size_wdt = WDT_IO_SIZE,
 	},
 };
 

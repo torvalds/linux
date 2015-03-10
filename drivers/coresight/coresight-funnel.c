@@ -252,17 +252,7 @@ static struct amba_driver funnel_driver = {
 	.id_table	= funnel_ids,
 };
 
-static int __init funnel_init(void)
-{
-	return amba_driver_register(&funnel_driver);
-}
-module_init(funnel_init);
-
-static void __exit funnel_exit(void)
-{
-	amba_driver_unregister(&funnel_driver);
-}
-module_exit(funnel_exit);
+module_amba_driver(funnel_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("CoreSight Funnel driver");

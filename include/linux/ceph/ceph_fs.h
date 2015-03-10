@@ -158,17 +158,6 @@ enum {
 };
 
 
-/* pool operations */
-enum {
-  POOL_OP_CREATE			= 0x01,
-  POOL_OP_DELETE			= 0x02,
-  POOL_OP_AUID_CHANGE			= 0x03,
-  POOL_OP_CREATE_SNAP			= 0x11,
-  POOL_OP_DELETE_SNAP			= 0x12,
-  POOL_OP_CREATE_UNMANAGED_SNAP		= 0x21,
-  POOL_OP_DELETE_UNMANAGED_SNAP		= 0x22,
-};
-
 struct ceph_mon_request_header {
 	__le64 have_version;
 	__le16 session_mon;
@@ -189,31 +178,6 @@ struct ceph_mon_statfs_reply {
 	struct ceph_fsid fsid;
 	__le64 version;
 	struct ceph_statfs st;
-} __attribute__ ((packed));
-
-const char *ceph_pool_op_name(int op);
-
-struct ceph_mon_poolop {
-	struct ceph_mon_request_header monhdr;
-	struct ceph_fsid fsid;
-	__le32 pool;
-	__le32 op;
-	__le64 auid;
-	__le64 snapid;
-	__le32 name_len;
-} __attribute__ ((packed));
-
-struct ceph_mon_poolop_reply {
-	struct ceph_mon_request_header monhdr;
-	struct ceph_fsid fsid;
-	__le32 reply_code;
-	__le32 epoch;
-	char has_data;
-	char data[0];
-} __attribute__ ((packed));
-
-struct ceph_mon_unmanaged_snap {
-	__le64 snapid;
 } __attribute__ ((packed));
 
 struct ceph_osd_getmap {
@@ -307,6 +271,7 @@ enum {
 	CEPH_SESSION_RECALL_STATE,
 	CEPH_SESSION_FLUSHMSG,
 	CEPH_SESSION_FLUSHMSG_ACK,
+	CEPH_SESSION_FORCE_RO,
 };
 
 extern const char *ceph_session_op_name(int op);

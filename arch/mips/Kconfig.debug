@@ -122,17 +122,4 @@ config SPINLOCK_TEST
 	help
 	  Add several files to the debugfs to test spinlock speed.
 
-config FP32XX_HYBRID_FPRS
-	bool "Run FP32 & FPXX code with hybrid FPRs"
-	depends on MIPS_O32_FP64_SUPPORT
-	help
-	  The hybrid FPR scheme is normally used only when a program needs to
-	  execute a mix of FP32 & FP64A code, since the trapping & emulation
-	  that it entails is expensive. When enabled, this option will lead
-	  to the kernel running programs which use the FP32 & FPXX FP ABIs
-	  using the hybrid FPR scheme, which can be useful for debugging
-	  purposes.
-
-	  If unsure, say N.
-
 endmenu

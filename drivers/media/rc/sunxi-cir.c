@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/reset.h>
 #include <media/rc-core.h>
 
 #define SUNXI_IR_DEV "sunxi-ir"
@@ -55,12 +56,12 @@
 #define REG_RXINT_RAI_EN		BIT(4)
 
 /* Rx FIFO available byte level */
-#define REG_RXINT_RAL(val)    (((val) << 8) & (GENMASK(11, 8)))
+#define REG_RXINT_RAL(val)    ((val) << 8)
 
 /* Rx Interrupt Status */
 #define SUNXI_IR_RXSTA_REG    0x30
 /* RX FIFO Get Available Counter */
-#define REG_RXSTA_GET_AC(val) (((val) >> 8) & (GENMASK(5, 0)))
+#define REG_RXSTA_GET_AC(val) (((val) >> 8) & (ir->fifo_size * 2 - 1))
 /* Clear all interrupt status value */
 #define REG_RXSTA_CLEARALL    0xff
 
@@ -71,10 +72,6 @@
 /* CIR_REG register idle threshold */
 #define REG_CIR_ITHR(val)    (((val) << 8) & (GENMASK(15, 8)))
 
-/* Hardware supported fifo size */
-#define SUNXI_IR_FIFO_SIZE    16
-/* How many messages in FIFO trigger IRQ */
-#define TRIGGER_LEVEL         8
 /* Required frequency for IR0 or IR1 clock in CIR mode */
 #define SUNXI_IR_BASE_CLK     8000000
 /* Frequency after IR internal divider  */
@@ -93,8 +90,10 @@ struct sunxi_ir {
 	struct rc_dev   *rc;
 	void __iomem    *base;
 	int             irq;
+	int		fifo_size;
 	struct clk      *clk;
 	struct clk      *apb_clk;
+	struct reset_control *rst;
 	const char      *map_name;
 };
 
@@ -113,11 +112,11 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 	/* clean all pending statuses */
 	writel(status | REG_RXSTA_CLEARALL, ir->base + SUNXI_IR_RXSTA_REG);
 
-	if (status & REG_RXINT_RAI_EN) {
+	if (status & (REG_RXINT_RAI_EN | REG_RXINT_RPEI_EN)) {
 		/* How many messages in fifo */
 		rc  = REG_RXSTA_GET_AC(status);
 		/* Sanity check */
-		rc = rc > SUNXI_IR_FIFO_SIZE ? SUNXI_IR_FIFO_SIZE : rc;
+		rc = rc > ir->fifo_size ? ir->fifo_size : rc;
 		/* If we have data */
 		for (cnt = 0; cnt < rc; cnt++) {
 			/* for each bit in fifo */
@@ -154,6 +153,11 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	if (!ir)
 		return -ENOMEM;
 
+	if (of_device_is_compatible(dn, "allwinner,sun5i-a13-ir"))
+		ir->fifo_size = 64;
+	else
+		ir->fifo_size = 16;
+
 	/* Clock */
 	ir->apb_clk = devm_clk_get(dev, "apb");
 	if (IS_ERR(ir->apb_clk)) {
@@ -166,15 +170,29 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 		return PTR_ERR(ir->clk);
 	}
 
+	/* Reset (optional) */
+	ir->rst = devm_reset_control_get_optional(dev, NULL);
+	if (IS_ERR(ir->rst)) {
+		ret = PTR_ERR(ir->rst);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		ir->rst = NULL;
+	} else {
+		ret = reset_control_deassert(ir->rst);
+		if (ret)
+			return ret;
+	}
+
 	ret = clk_set_rate(ir->clk, SUNXI_IR_BASE_CLK);
 	if (ret) {
 		dev_err(dev, "set ir base clock failed!\n");
-		return ret;
+		goto exit_reset_assert;
 	}
 
 	if (clk_prepare_enable(ir->apb_clk)) {
 		dev_err(dev, "try to enable apb_ir_clk failed\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit_reset_assert;
 	}
 
 	if (clk_prepare_enable(ir->clk)) {
@@ -255,7 +273,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	 * level
 	 */
 	writel(REG_RXINT_ROI_EN | REG_RXINT_RPEI_EN |
-	       REG_RXINT_RAI_EN | REG_RXINT_RAL(TRIGGER_LEVEL - 1),
+	       REG_RXINT_RAI_EN | REG_RXINT_RAL(ir->fifo_size / 2 - 1),
 	       ir->base + SUNXI_IR_RXINT_REG);
 
 	/* Enable IR Module */
@@ -271,6 +289,9 @@ exit_clkdisable_clk:
 	clk_disable_unprepare(ir->clk);
 exit_clkdisable_apb_clk:
 	clk_disable_unprepare(ir->apb_clk);
+exit_reset_assert:
+	if (ir->rst)
+		reset_control_assert(ir->rst);
 
 	return ret;
 }
@@ -282,6 +303,8 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ir->clk);
 	clk_disable_unprepare(ir->apb_clk);
+	if (ir->rst)
+		reset_control_assert(ir->rst);
 
 	spin_lock_irqsave(&ir->ir_lock, flags);
 	/* disable IR IRQ */
@@ -298,6 +321,7 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 
 static const struct of_device_id sunxi_ir_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-ir", },
+	{ .compatible = "allwinner,sun5i-a13-ir", },
 	{},
 };
 

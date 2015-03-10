@@ -129,28 +129,28 @@ config SPARSEMEM_VMEMMAP
 	 efficient option when sufficient kernel resources are available.
 
 config HAVE_MEMBLOCK
-	boolean
+	bool
 
 config HAVE_MEMBLOCK_NODE_MAP
-	boolean
+	bool
 
 config HAVE_MEMBLOCK_PHYS_MAP
-	boolean
+	bool
 
 config HAVE_GENERIC_RCU_GUP
-	boolean
+	bool
 
 config ARCH_DISCARD_MEMBLOCK
-	boolean
+	bool
 
 config NO_BOOTMEM
-	boolean
+	bool
 
 config MEMORY_ISOLATION
-	boolean
+	bool
 
 config MOVABLE_NODE
-	boolean "Enable to assign a node which has only movable memory"
+	bool "Enable to assign a node which has only movable memory"
 	depends on HAVE_MEMBLOCK
 	depends on NO_BOOTMEM
 	depends on X86_64
@@ -228,12 +228,12 @@ config SPLIT_PTLOCK_CPUS
 	default "4"
 
 config ARCH_ENABLE_SPLIT_PMD_PTLOCK
-	boolean
+	bool
 
 #
 # support for memory balloon
 config MEMORY_BALLOON
-	boolean
+	bool
 
 #
 # support for memory balloon compaction
@@ -276,7 +276,7 @@ config MIGRATION
 	  allocation instead of reclaiming.
 
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
-	boolean
+	bool
 
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
@@ -325,6 +325,7 @@ config VIRT_TO_BUS
 
 config MMU_NOTIFIER
 	bool
+	select SRCU
 
 config KSM
 	bool "Enable KSM for page merging"
@@ -600,6 +601,16 @@ config PGTABLE_MAPPING
 
 	  You can check speed with zsmalloc benchmark:
 	  https://github.com/spartacus06/zsmapbench
+
+config ZSMALLOC_STAT
+	bool "Export zsmalloc statistics"
+	depends on ZSMALLOC
+	select DEBUG_FS
+	help
+	  This option enables code in the zsmalloc to collect various
+	  statistics about whats happening in zsmalloc and exports that
+	  information to userspace via debugfs.
+	  If unsure, say N.
 
 config GENERIC_EARLY_IOREMAP
 	bool

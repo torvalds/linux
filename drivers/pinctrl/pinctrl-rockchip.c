@@ -89,7 +89,7 @@ struct rockchip_iomux {
  * @reg_pull: optional separate register for additional pull settings
  * @clk: clock of the gpio bank
  * @irq: interrupt of the gpio bank
- * @saved_enables: Saved content of GPIO_INTEN at suspend time.
+ * @saved_masks: Saved content of GPIO_INTEN at suspend time.
  * @pin_base: first pin number
  * @nr_pins: number of pins in this bank
  * @name: name of the bank
@@ -108,7 +108,7 @@ struct rockchip_pin_bank {
 	struct regmap			*regmap_pull;
 	struct clk			*clk;
 	int				irq;
-	u32				saved_enables;
+	u32				saved_masks;
 	u32				pin_base;
 	u8				nr_pins;
 	char				*name;
@@ -1142,7 +1142,7 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 			return -EINVAL;
 
 		np_config = of_find_node_by_phandle(be32_to_cpup(phandle));
-		ret = pinconf_generic_parse_dt_config(np_config,
+		ret = pinconf_generic_parse_dt_config(np_config, NULL,
 				&grp->data[j].configs, &grp->data[j].nconfigs);
 		if (ret)
 			return ret;
@@ -1545,8 +1545,8 @@ static void rockchip_irq_suspend(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct rockchip_pin_bank *bank = gc->private;
 
-	bank->saved_enables = irq_reg_readl(gc, GPIO_INTEN);
-	irq_reg_writel(gc, gc->wake_active, GPIO_INTEN);
+	bank->saved_masks = irq_reg_readl(gc, GPIO_INTMASK);
+	irq_reg_writel(gc, ~gc->wake_active, GPIO_INTMASK);
 }
 
 static void rockchip_irq_resume(struct irq_data *d)
@@ -1554,35 +1554,7 @@ static void rockchip_irq_resume(struct irq_data *d)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct rockchip_pin_bank *bank = gc->private;
 
-	irq_reg_writel(gc, bank->saved_enables, GPIO_INTEN);
-}
-
-static void rockchip_irq_disable(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	u32 val;
-
-	irq_gc_lock(gc);
-
-	val = irq_reg_readl(gc, GPIO_INTEN);
-	val &= ~d->mask;
-	irq_reg_writel(gc, val, GPIO_INTEN);
-
-	irq_gc_unlock(gc);
-}
-
-static void rockchip_irq_enable(struct irq_data *d)
-{
-	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
-	u32 val;
-
-	irq_gc_lock(gc);
-
-	val = irq_reg_readl(gc, GPIO_INTEN);
-	val |= d->mask;
-	irq_reg_writel(gc, val, GPIO_INTEN);
-
-	irq_gc_unlock(gc);
+	irq_reg_writel(gc, bank->saved_masks, GPIO_INTMASK);
 }
 
 static int rockchip_interrupts_register(struct platform_device *pdev,
@@ -1620,6 +1592,14 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 			continue;
 		}
 
+		/*
+		 * Linux assumes that all interrupts start out disabled/masked.
+		 * Our driver only uses the concept of masked and always keeps
+		 * things enabled, so for us that's all masked and all enabled.
+		 */
+		writel_relaxed(0xffffffff, bank->reg_base + GPIO_INTMASK);
+		writel_relaxed(0xffffffff, bank->reg_base + GPIO_INTEN);
+
 		gc = irq_get_domain_generic_chip(bank->domain, 0);
 		gc->reg_base = bank->reg_base;
 		gc->private = bank;
@@ -1628,8 +1608,6 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		gc->chip_types[0].chip.irq_ack = irq_gc_ack_set_bit;
 		gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
 		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_clr_bit;
-		gc->chip_types[0].chip.irq_enable = rockchip_irq_enable;
-		gc->chip_types[0].chip.irq_disable = rockchip_irq_disable;
 		gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
 		gc->chip_types[0].chip.irq_suspend = rockchip_irq_suspend;
 		gc->chip_types[0].chip.irq_resume = rockchip_irq_resume;

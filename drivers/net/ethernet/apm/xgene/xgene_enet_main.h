@@ -22,7 +22,10 @@
 #ifndef __XGENE_ENET_MAIN_H__
 #define __XGENE_ENET_MAIN_H__
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
+#include <linux/efi.h>
+#include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>

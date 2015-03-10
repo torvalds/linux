@@ -17,15 +17,6 @@
 #include <mach/hardware.h>
 #include <mach/at91_ramc.h>
 
-
-#ifdef CONFIG_SOC_AT91SAM9263
-/*
- * FIXME either or both the SDRAM controllers (EB0, EB1) might be in use;
- * handle those cases both here and in the Suspend-To-RAM support.
- */
-#warning Assuming EB1 SDRAM controller is *NOT* used
-#endif
-
 /*
  * When SLOWDOWN_MASTER_CLOCK is defined we will also slow down the Master
  * clock during suspend by adjusting its prescalar and divisor.

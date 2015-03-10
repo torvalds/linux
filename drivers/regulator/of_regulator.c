@@ -270,6 +270,7 @@ EXPORT_SYMBOL_GPL(of_regulator_match);
 
 struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 					    const struct regulator_desc *desc,
+					    struct regulator_config *config,
 					    struct device_node **node)
 {
 	struct device_node *search, *child;
@@ -305,6 +306,16 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 				"failed to parse DT for regulator %s\n",
 				child->name);
 			break;
+		}
+
+		if (desc->of_parse_cb) {
+			if (desc->of_parse_cb(child, desc, config)) {
+				dev_err(dev,
+					"driver callback failed to parse DT for regulator %s\n",
+					child->name);
+				init_data = NULL;
+				break;
+			}
 		}
 
 		of_node_get(child);

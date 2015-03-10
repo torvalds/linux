@@ -25,7 +25,6 @@ do {									\
 	if (cpu_has_htw) {						\
 		write_c0_pwbase(pgd);					\
 		back_to_back_c0_hazard();				\
-		htw_reset();						\
 	}								\
 } while (0)
 
@@ -132,6 +131,8 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	for_each_possible_cpu(i)
 		cpu_context(i, mm) = 0;
 
+	atomic_set(&mm->context.fp_mode_switching, 0);
+
 	return 0;
 }
 
@@ -142,6 +143,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	unsigned long flags;
 	local_irq_save(flags);
 
+	htw_stop();
 	/* Check if our ASID is of an older version and thus invalid */
 	if ((cpu_context(cpu, next) ^ asid_cache(cpu)) & ASID_VERSION_MASK)
 		get_new_mmu_context(next, cpu);
@@ -154,6 +156,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	 */
 	cpumask_clear_cpu(cpu, mm_cpumask(prev));
 	cpumask_set_cpu(cpu, mm_cpumask(next));
+	htw_start();
 
 	local_irq_restore(flags);
 }
@@ -180,6 +183,7 @@ activate_mm(struct mm_struct *prev, struct mm_struct *next)
 
 	local_irq_save(flags);
 
+	htw_stop();
 	/* Unconditionally get a new ASID.  */
 	get_new_mmu_context(next, cpu);
 
@@ -189,6 +193,7 @@ activate_mm(struct mm_struct *prev, struct mm_struct *next)
 	/* mark mmu ownership change */
 	cpumask_clear_cpu(cpu, mm_cpumask(prev));
 	cpumask_set_cpu(cpu, mm_cpumask(next));
+	htw_start();
 
 	local_irq_restore(flags);
 }
@@ -203,6 +208,7 @@ drop_mmu_context(struct mm_struct *mm, unsigned cpu)
 	unsigned long flags;
 
 	local_irq_save(flags);
+	htw_stop();
 
 	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))  {
 		get_new_mmu_context(mm, cpu);
@@ -211,6 +217,7 @@ drop_mmu_context(struct mm_struct *mm, unsigned cpu)
 		/* will get a new context next time */
 		cpu_context(cpu, mm) = 0;
 	}
+	htw_start();
 	local_irq_restore(flags);
 }
 

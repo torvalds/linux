@@ -45,6 +45,7 @@
 static struct clk *rt288x_wdt_clk;
 static unsigned long rt288x_wdt_freq;
 static void __iomem *rt288x_wdt_base;
+static struct reset_control *rt288x_wdt_reset;
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -151,16 +152,18 @@ static int rt288x_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(rt288x_wdt_clk))
 		return PTR_ERR(rt288x_wdt_clk);
 
-	device_reset(&pdev->dev);
+	rt288x_wdt_reset = devm_reset_control_get(&pdev->dev, NULL);
+	if (!IS_ERR(rt288x_wdt_reset))
+		reset_control_deassert(rt288x_wdt_reset);
 
 	rt288x_wdt_freq = clk_get_rate(rt288x_wdt_clk) / RALINK_WDT_PRESCALE;
 
 	rt288x_wdt_dev.dev = &pdev->dev;
 	rt288x_wdt_dev.bootstatus = rt288x_wdt_bootcause();
-
 	rt288x_wdt_dev.max_timeout = (0xfffful / rt288x_wdt_freq);
-	rt288x_wdt_dev.timeout = rt288x_wdt_dev.max_timeout;
 
+	watchdog_init_timeout(&rt288x_wdt_dev, rt288x_wdt_dev.max_timeout,
+			      &pdev->dev);
 	watchdog_set_nowayout(&rt288x_wdt_dev, nowayout);
 
 	ret = watchdog_register_device(&rt288x_wdt_dev);

@@ -217,12 +217,6 @@ config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3
 	default y
-	select OMAP_PACKAGE_CBB
-
-config MACH_CRANEBOARD
-	bool "AM3517/05 CRANE board"
-	depends on ARCH_OMAP3
-	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP3_PANDORA
 	bool "OMAP3 Pandora"
@@ -262,12 +256,6 @@ config MACH_CM_T35
 	default y
 	select MACH_CM_T3730
 	select OMAP_PACKAGE_CUS
-
-config MACH_CM_T3517
-	bool "CompuLab CM-T3517 module"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
 
 config MACH_CM_T3730
        bool

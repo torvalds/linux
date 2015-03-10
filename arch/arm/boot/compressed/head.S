@@ -178,7 +178,7 @@ not_angel:
 
 		/*
 		 * Set up a page table only if it won't overwrite ourself.
-		 * That means r4 < pc && r4 - 16k page directory > &_end.
+		 * That means r4 < pc || r4 - 16k page directory > &_end.
 		 * Given that r4 > &_end is most unfrequent, we add a rough
 		 * additional 1MB of room for a possible appended DTB.
 		 */

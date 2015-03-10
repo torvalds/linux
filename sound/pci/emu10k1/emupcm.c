@@ -1400,14 +1400,11 @@ static struct snd_pcm_ops snd_emu10k1_efx_playback_ops = {
 	.page =			snd_pcm_sgbuf_ops_page,
 };
 
-int snd_emu10k1_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
+int snd_emu10k1_pcm(struct snd_emu10k1 *emu, int device)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
 	int err;
-
-	if (rpcm)
-		*rpcm = NULL;
 
 	if ((err = snd_pcm_new(emu->card, "emu10k1", device, 32, 1, &pcm)) < 0)
 		return err;
@@ -1429,21 +1426,14 @@ int snd_emu10k1_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
 	for (substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream; substream; substream = substream->next)
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(emu->pci), 64*1024, 64*1024);
 
-	if (rpcm)
-		*rpcm = pcm;
-
 	return 0;
 }
 
-int snd_emu10k1_pcm_multi(struct snd_emu10k1 *emu, int device,
-			  struct snd_pcm **rpcm)
+int snd_emu10k1_pcm_multi(struct snd_emu10k1 *emu, int device)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
 	int err;
-
-	if (rpcm)
-		*rpcm = NULL;
 
 	if ((err = snd_pcm_new(emu->card, "emu10k1", device, 1, 0, &pcm)) < 0)
 		return err;
@@ -1461,9 +1451,6 @@ int snd_emu10k1_pcm_multi(struct snd_emu10k1 *emu, int device,
 		if ((err = snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV_SG, snd_dma_pci_data(emu->pci), 64*1024, 64*1024)) < 0)
 			return err;
 
-	if (rpcm)
-		*rpcm = pcm;
-
 	return 0;
 }
 
@@ -1479,14 +1466,10 @@ static struct snd_pcm_ops snd_emu10k1_capture_mic_ops = {
 	.pointer =		snd_emu10k1_capture_pointer,
 };
 
-int snd_emu10k1_pcm_mic(struct snd_emu10k1 *emu, int device,
-			struct snd_pcm **rpcm)
+int snd_emu10k1_pcm_mic(struct snd_emu10k1 *emu, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
-
-	if (rpcm)
-		*rpcm = NULL;
 
 	if ((err = snd_pcm_new(emu->card, "emu10k1 mic", device, 0, 1, &pcm)) < 0)
 		return err;
@@ -1501,8 +1484,6 @@ int snd_emu10k1_pcm_mic(struct snd_emu10k1 *emu, int device,
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(emu->pci), 64*1024, 64*1024);
 
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 
@@ -1822,15 +1803,11 @@ static struct snd_pcm_ops snd_emu10k1_fx8010_playback_ops = {
 	.ack =			snd_emu10k1_fx8010_playback_transfer,
 };
 
-int snd_emu10k1_pcm_efx(struct snd_emu10k1 *emu, int device,
-			struct snd_pcm **rpcm)
+int snd_emu10k1_pcm_efx(struct snd_emu10k1 *emu, int device)
 {
 	struct snd_pcm *pcm;
 	struct snd_kcontrol *kctl;
 	int err;
-
-	if (rpcm)
-		*rpcm = NULL;
 
 	if ((err = snd_pcm_new(emu->card, "emu10k1 efx", device, 8, 1, &pcm)) < 0)
 		return err;
@@ -1843,8 +1820,6 @@ int snd_emu10k1_pcm_efx(struct snd_emu10k1 *emu, int device,
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "Multichannel Capture/PT Playback");
 	emu->pcm_efx = pcm;
-	if (rpcm)
-		*rpcm = pcm;
 
 	/* EFX capture - record the "FXBUS2" channels, by default we connect the EXTINs 
 	 * to these
