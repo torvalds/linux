@@ -339,6 +339,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 		unsigned int pos, unsigned int count,
 		void *kbuf, void __user *ubuf)
 {
+	struct xsave_struct *xsave = &target->thread.fpu.state->xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
@@ -353,14 +354,12 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	 * memory layout in the thread struct, so that we can copy the entire
 	 * xstateregs to the user using one user_regset_copyout().
 	 */
-	memcpy(&target->thread.fpu.state->fxsave.sw_reserved,
-	       xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
-
+	memcpy(&xsave->i387.sw_reserved,
+		xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
 	/*
 	 * Copy the xstate memory layout.
 	 */
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpu.state->xsave, 0, -1);
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	return ret;
 }
 
@@ -368,8 +367,8 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		  unsigned int pos, unsigned int count,
 		  const void *kbuf, const void __user *ubuf)
 {
+	struct xsave_struct *xsave = &target->thread.fpu.state->xsave;
 	int ret;
-	struct xsave_hdr_struct *xsave_hdr;
 
 	if (!cpu_has_xsave)
 		return -ENODEV;
@@ -378,22 +377,16 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &target->thread.fpu.state->xsave, 0, -1);
-
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	/*
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
-	target->thread.fpu.state->fxsave.mxcsr &= mxcsr_feature_mask;
-
-	xsave_hdr = &target->thread.fpu.state->xsave.xsave_hdr;
-
-	xsave_hdr->xstate_bv &= pcntxt_mask;
+	xsave->i387.mxcsr &= mxcsr_feature_mask;
+	xsave->xsave_hdr.xstate_bv &= pcntxt_mask;
 	/*
 	 * These bits must be zero.
 	 */
-	memset(xsave_hdr->reserved, 0, 48);
-
+	memset(&xsave->xsave_hdr.reserved, 0, 48);
 	return ret;
 }
 
