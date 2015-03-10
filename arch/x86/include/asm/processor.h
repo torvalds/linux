@@ -209,9 +209,24 @@ struct x86_hw_tss {
 	unsigned short		back_link, __blh;
 	unsigned long		sp0;
 	unsigned short		ss0, __ss0h;
-	unsigned long		sp1;
-	/* ss1 caches MSR_IA32_SYSENTER_CS: */
-	unsigned short		ss1, __ss1h;
+
+	/*
+	 * We don't use ring 1, so sp1 and ss1 are convenient scratch
+	 * spaces in the same cacheline as sp0.  We use them to cache
+	 * some MSR values to avoid unnecessary wrmsr instructions.
+	 *
+	 * We use SYSENTER_ESP to find sp0 and for the NMI emergency
+	 * stack, but we need to context switch it because we do
+	 * horrible things to the kernel stack in vm86 mode.
+	 *
+	 * We use SYSENTER_CS to disable sysenter in vm86 mode to avoid
+	 * corrupting the stack if we went through the sysenter path
+	 * from vm86 mode.
+	 */
+	unsigned long		sp1;	/* MSR_IA32_SYSENTER_ESP */
+	unsigned short		ss1;	/* MSR_IA32_SYSENTER_CS */
+
+	unsigned short		__ss1h;
 	unsigned long		sp2;
 	unsigned short		ss2, __ss2h;
 	unsigned long		__cr3;
