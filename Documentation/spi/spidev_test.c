@@ -35,6 +35,7 @@ static uint32_t mode;
 static uint8_t bits = 8;
 static uint32_t speed = 500000;
 static uint16_t delay;
+static int verbose;
 
 static void hex_dump(const void *src, size_t length, size_t line_size, char *prefix)
 {
@@ -104,6 +105,8 @@ static void transfer(int fd)
 	if (ret < 1)
 		pabort("can't send spi message");
 
+	if (verbose)
+		hex_dump(tx, ARRAY_SIZE(tx), 32, "TX");
 	hex_dump(rx, ARRAY_SIZE(rx), 32, "RX");
 }
 
@@ -120,6 +123,7 @@ static void print_usage(const char *prog)
 	     "  -L --lsb      least significant bit first\n"
 	     "  -C --cs-high  chip select active high\n"
 	     "  -3 --3wire    SI/SO signals shared\n"
+	     "  -v --verbose  Verbose (show tx buffer)\n"
 	     "  -N --no-cs    no chip select\n"
 	     "  -R --ready    slave pulls low to pause\n"
 	     "  -2 --dual     dual transfer\n"
@@ -144,12 +148,13 @@ static void parse_opts(int argc, char *argv[])
 			{ "no-cs",   0, 0, 'N' },
 			{ "ready",   0, 0, 'R' },
 			{ "dual",    0, 0, '2' },
+			{ "verbose", 0, 0, 'v' },
 			{ "quad",    0, 0, '4' },
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NR24", lopts, NULL);
+		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NR24:v", lopts, NULL);
 
 		if (c == -1)
 			break;
@@ -187,6 +192,9 @@ static void parse_opts(int argc, char *argv[])
 			break;
 		case 'N':
 			mode |= SPI_NO_CS;
+			break;
+		case 'v':
+			verbose = 1;
 			break;
 		case 'R':
 			mode |= SPI_READY;
