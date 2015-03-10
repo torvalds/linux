@@ -122,6 +122,7 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
+	bus-width = <8>;
 	non-removable;
 	status = "okay";
 };
