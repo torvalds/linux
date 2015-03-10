@@ -457,13 +457,14 @@
                 status = "okay";
         };
 
-    meson-remote{
-                compatible = "amlogic,aml_remote";
-                dev_name = "meson-remote";
+        meson-ir {
+                compatible = "amlogic,meson6-ir";
+                reg = <0xc8100580 0x20>;
+                interrupts = <0 15 1>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&remote_pins>;
+                pulse-inverted;
                 status = "ok";
-                ao_baseaddr = <0xf3100480>;
-                pinctrl-names="default";
-                pinctrl-0=<&remote_pins>;
         };
 
     spi@cc000000{
