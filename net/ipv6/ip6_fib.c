@@ -638,6 +638,29 @@ static inline bool rt6_qualify_for_ecmp(struct rt6_info *rt)
 	       RTF_GATEWAY;
 }
 
+static void fib6_purge_rt(struct rt6_info *rt, struct fib6_node *fn,
+			  struct net *net)
+{
+	if (atomic_read(&rt->rt6i_ref) != 1) {
+		/* This route is used as dummy address holder in some split
+		 * nodes. It is not leaked, but it still holds other resources,
+		 * which must be released in time. So, scan ascendant nodes
+		 * and replace dummy references to this route with references
+		 * to still alive ones.
+		 */
+		while (fn) {
+			if (!(fn->fn_flags & RTN_RTINFO) && fn->leaf == rt) {
+				fn->leaf = fib6_find_prefix(net, fn);
+				atomic_inc(&fn->leaf->rt6i_ref);
+				rt6_release(rt);
+			}
+			fn = fn->parent;
+		}
+		/* No more references are possible at this point. */
+		BUG_ON(atomic_read(&rt->rt6i_ref) != 1);
+	}
+}
+
 /*
  *	Insert routing information in a node.
  */
@@ -775,11 +798,12 @@ add:
 		rt->dst.rt6_next = iter->dst.rt6_next;
 		atomic_inc(&rt->rt6i_ref);
 		inet6_rt_notify(RTM_NEWROUTE, rt, info);
-		rt6_release(iter);
 		if (!(fn->fn_flags & RTN_RTINFO)) {
 			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
 			fn->fn_flags |= RTN_RTINFO;
 		}
+		fib6_purge_rt(iter, fn, info->nl_net);
+		rt6_release(iter);
 	}
 
 	return 0;
@@ -1284,24 +1308,7 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 		fn = fib6_repair_tree(net, fn);
 	}
 
-	if (atomic_read(&rt->rt6i_ref) != 1) {
-		/* This route is used as dummy address holder in some split
-		 * nodes. It is not leaked, but it still holds other resources,
-		 * which must be released in time. So, scan ascendant nodes
-		 * and replace dummy references to this route with references
-		 * to still alive ones.
-		 */
-		while (fn) {
-			if (!(fn->fn_flags & RTN_RTINFO) && fn->leaf == rt) {
-				fn->leaf = fib6_find_prefix(net, fn);
-				atomic_inc(&fn->leaf->rt6i_ref);
-				rt6_release(rt);
-			}
-			fn = fn->parent;
-		}
-		/* No more references are possible at this point. */
-		BUG_ON(atomic_read(&rt->rt6i_ref) != 1);
-	}
+	fib6_purge_rt(rt, fn, net);
 
 	inet6_rt_notify(RTM_DELROUTE, rt, info);
 	rt6_release(rt);

@@ -201,8 +201,8 @@ static struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
 	if (!pdata)
 		return NULL;
 
-	of_property_read_u32(np, "mrvl,clk-delay-cycles", &clk_delay_cycles);
-	if (clk_delay_cycles > 0)
+	if (!of_property_read_u32(np, "mrvl,clk-delay-cycles",
+				  &clk_delay_cycles))
 		pdata->clk_delay_cycles = clk_delay_cycles;
 
 	return pdata;
