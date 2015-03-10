@@ -1298,7 +1298,7 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (sport->have_rtscts) {
 			ucr2 &= ~UCR2_IRTS;
 
-			if (port->rs485.flags & SER_RS485_ENABLED)
+			if (port->rs485.flags & SER_RS485_ENABLED) {
 				/*
 				 * RTS is mandatory for rs485 operation, so keep
 				 * it under manual control and keep transmitter
@@ -1307,9 +1307,9 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 				if (!(port->rs485.flags &
 				      SER_RS485_RTS_AFTER_SEND))
 					ucr2 |= UCR2_CTS;
-			else
+			} else {
 				ucr2 |= UCR2_CTSC;
-
+			}
 		} else {
 			termios->c_cflag &= ~CRTSCTS;
 		}
