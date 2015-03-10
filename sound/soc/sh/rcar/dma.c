@@ -539,6 +539,13 @@ void rsnd_dma_start(struct rsnd_dma *dma)
 
 void rsnd_dma_quit(struct rsnd_dma *dma)
 {
+	struct rsnd_mod *mod = rsnd_dma_to_mod(dma);
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
+
+	if (!dmac)
+		return;
+
 	dma->ops->quit(dma);
 }
 
@@ -548,7 +555,17 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id)
 	struct rsnd_mod *mod_from;
 	struct rsnd_mod *mod_to;
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
 	int is_play = rsnd_io_is_play(io);
+
+	/*
+	 * DMA failed. try to PIO mode
+	 * see
+	 *	rsnd_ssi_fallback()
+	 *	rsnd_rdai_continuance_probe()
+	 */
+	if (!dmac)
+		return -EAGAIN;
 
 	rsnd_dma_of_path(dma, is_play, &mod_from, &mod_to);
 
@@ -589,7 +606,7 @@ int rsnd_dma_probe(struct platform_device *pdev,
 	dmac = devm_kzalloc(dev, sizeof(*dmac), GFP_KERNEL);
 	if (!dmac || !res) {
 		dev_err(dev, "dma allocate failed\n");
-		return -ENOMEM;
+		return 0; /* it will be PIO mode */
 	}
 
 	dmac->dmapp_num = 0;
