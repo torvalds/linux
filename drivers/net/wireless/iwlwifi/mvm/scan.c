@@ -1613,3 +1613,35 @@ int iwl_mvm_scan_size(struct iwl_mvm *mvm)
 		mvm->fw->ucode_capa.n_scan_channels +
 		sizeof(struct iwl_scan_probe_req);
 }
+
+/*
+ * This function is used in nic restart flow, to inform mac80211 about scans
+ * that was aborted by restart flow or by an assert.
+ */
+void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
+{
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+		if (iwl_mvm_find_scan_type(mvm, IWL_UMAC_SCAN_UID_REG_SCAN))
+			ieee80211_scan_completed(mvm->hw, true);
+		if (iwl_mvm_find_scan_type(mvm, IWL_UMAC_SCAN_UID_SCHED_SCAN) &&
+		    !mvm->restart_fw)
+			ieee80211_sched_scan_stopped(mvm->hw);
+	} else {
+		switch (mvm->scan_status) {
+		case IWL_MVM_SCAN_NONE:
+			break;
+		case IWL_MVM_SCAN_OS:
+			ieee80211_scan_completed(mvm->hw, true);
+			break;
+		case IWL_MVM_SCAN_SCHED:
+			/*
+			 * Sched scan will be restarted by mac80211 in
+			 * restart_hw, so do not report if FW is about to be
+			 * restarted.
+			 */
+			if (!mvm->restart_fw)
+				ieee80211_sched_scan_stopped(mvm->hw);
+			break;
+		}
+	}
+}

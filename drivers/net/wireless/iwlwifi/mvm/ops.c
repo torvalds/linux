@@ -894,18 +894,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * the next start() call from mac80211. If restart isn't called
 	 * (no fw restart) scan status will stay busy.
 	 */
-	switch (mvm->scan_status) {
-	case IWL_MVM_SCAN_NONE:
-		break;
-	case IWL_MVM_SCAN_OS:
-		ieee80211_scan_completed(mvm->hw, true);
-		break;
-	case IWL_MVM_SCAN_SCHED:
-		/* Sched scan will be restarted by mac80211 in restart_hw. */
-		if (!mvm->restart_fw)
-			ieee80211_sched_scan_stopped(mvm->hw);
-		break;
-	}
+	iwl_mvm_report_scan_aborted(mvm);
 
 	/*
 	 * If we're restarting already, don't cycle restarts.
