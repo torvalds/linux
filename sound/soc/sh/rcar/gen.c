@@ -150,6 +150,7 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 	regc.reg_bits = 32;
 	regc.val_bits = 32;
 	regc.reg_stride = 4;
+	regc.name = name;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (!res)
