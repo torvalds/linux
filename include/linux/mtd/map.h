@@ -314,7 +314,17 @@ static inline map_word map_word_or(struct map_info *map, map_word val1, map_word
 	return r;
 }
 
-#define map_word_andequal(m, a, b, z) map_word_equal(m, z, map_word_and(m, a, b))
+static inline int map_word_andequal(struct map_info *map, map_word val1, map_word val2, map_word val3)
+{
+	int i;
+
+	for (i = 0; i < map_words(map); i++) {
+		if ((val1.x[i] & val2.x[i]) != val3.x[i])
+			return 0;
+	}
+
+	return 1;
+}
 
 static inline int map_word_bitsset(struct map_info *map, map_word val1, map_word val2)
 {
