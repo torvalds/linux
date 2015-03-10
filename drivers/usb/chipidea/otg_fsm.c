@@ -876,6 +876,10 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 
 void ci_hdrc_otg_fsm_remove(struct ci_hdrc *ci)
 {
+	/* Turn off vbus if vbus is on */
+	if (ci->fsm.a_vbus_vld)
+		otg_drv_vbus(&ci->fsm, 0);
+
 	sysfs_remove_group(&ci->dev->kobj, &inputs_attr_group);
 	del_timer_sync(&ci->hnp_polling_timer);
 }
