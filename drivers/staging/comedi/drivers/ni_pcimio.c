@@ -109,7 +109,7 @@ Bugs:
 #include <linux/module.h>
 #include <linux/delay.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include <asm/byteorder.h>
 
