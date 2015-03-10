@@ -37,16 +37,15 @@
 #include <net/route.h>
 #include <net/netfilter/br_netfilter.h>
 
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+#include <net/netfilter/nf_conntrack.h>
+#endif
+
 #include <asm/uaccess.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
-
-#define skb_origaddr(skb)	 (((struct bridge_skb_cb *) \
-				 (skb->nf_bridge->data))->daddr.ipv4)
-#define store_orig_dstaddr(skb)	 (skb_origaddr(skb) = ip_hdr(skb)->daddr)
-#define dnat_took_place(skb)	 (skb_origaddr(skb) != ip_hdr(skb)->daddr)
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *brnf_sysctl_header;
@@ -320,6 +319,22 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 free_skb:
 	kfree_skb(skb);
 	return 0;
+}
+
+static bool dnat_took_place(const struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct || nf_ct_is_untracked(ct))
+		return false;
+
+	return test_bit(IPS_DST_NAT_BIT, &ct->status);
+#else
+	return false;
+#endif
 }
 
 /* This requires some explaining. If DNAT has taken place,
@@ -625,7 +640,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
-	store_orig_dstaddr(skb);
+
 	skb->protocol = htons(ETH_P_IP);
 
 	NF_HOOK(NFPROTO_IPV4, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,

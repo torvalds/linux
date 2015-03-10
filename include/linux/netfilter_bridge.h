@@ -54,12 +54,6 @@ static inline unsigned int nf_bridge_pad(const struct sk_buff *skb)
 	return 0;
 }
 
-struct bridge_skb_cb {
-	union {
-		__be32 ipv4;
-	} daddr;
-};
-
 static inline void br_drop_fake_rtable(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
