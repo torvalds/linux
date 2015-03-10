@@ -268,6 +268,7 @@
 			reg = <0xff808000 0x1000>;
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
 			fifo-depth = <0x400>;
+			status = "disabled";
 		};
 
 		ocram: sram@ffe00000 {
@@ -324,6 +325,7 @@
 			interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
 		};
 
 		uart1: serial1@ffc02100 {
@@ -332,6 +334,7 @@
 			interrupts = <0 111 IRQ_TYPE_LEVEL_HIGH>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
+			status = "disabled";
 		};
 
 		usbphy0: usbphy@0 {
