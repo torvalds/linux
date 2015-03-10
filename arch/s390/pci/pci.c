@@ -287,7 +287,7 @@ void __iomem *pci_iomap_range(struct pci_dev *pdev,
 	addr = ZPCI_IOMAP_ADDR_BASE | ((u64) idx << 48);
 	return (void __iomem *) addr + offset;
 }
-EXPORT_SYMBOL_GPL(pci_iomap_range);
+EXPORT_SYMBOL(pci_iomap_range);
 
 void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
 {
@@ -309,7 +309,7 @@ void pci_iounmap(struct pci_dev *pdev, void __iomem *addr)
 	}
 	spin_unlock(&zpci_iomap_lock);
 }
-EXPORT_SYMBOL_GPL(pci_iounmap);
+EXPORT_SYMBOL(pci_iounmap);
 
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 		    int size, u32 *val)
@@ -483,9 +483,8 @@ void arch_teardown_msi_irqs(struct pci_dev *pdev)
 	airq_iv_free_bit(zpci_aisb_iv, zdev->aisb);
 }
 
-static void zpci_map_resources(struct zpci_dev *zdev)
+static void zpci_map_resources(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = zdev->pdev;
 	resource_size_t len;
 	int i;
 
@@ -499,9 +498,8 @@ static void zpci_map_resources(struct zpci_dev *zdev)
 	}
 }
 
-static void zpci_unmap_resources(struct zpci_dev *zdev)
+static void zpci_unmap_resources(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = zdev->pdev;
 	resource_size_t len;
 	int i;
 
@@ -651,7 +649,7 @@ int pcibios_add_device(struct pci_dev *pdev)
 
 	zdev->pdev = pdev;
 	pdev->dev.groups = zpci_attr_groups;
-	zpci_map_resources(zdev);
+	zpci_map_resources(pdev);
 
 	for (i = 0; i < PCI_BAR_COUNT; i++) {
 		res = &pdev->resource[i];
@@ -663,6 +661,11 @@ int pcibios_add_device(struct pci_dev *pdev)
 	return 0;
 }
 
+void pcibios_release_device(struct pci_dev *pdev)
+{
+	zpci_unmap_resources(pdev);
+}
+
 int pcibios_enable_device(struct pci_dev *pdev, int mask)
 {
 	struct zpci_dev *zdev = get_zdev(pdev);
@@ -670,7 +673,6 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 	zdev->pdev = pdev;
 	zpci_debug_init_device(zdev);
 	zpci_fmb_enable_device(zdev);
-	zpci_map_resources(zdev);
 
 	return pci_enable_resources(pdev, mask);
 }
@@ -679,7 +681,6 @@ void pcibios_disable_device(struct pci_dev *pdev)
 {
 	struct zpci_dev *zdev = get_zdev(pdev);
 
-	zpci_unmap_resources(zdev);
 	zpci_fmb_disable_device(zdev);
 	zpci_debug_exit_device(zdev);
 	zdev->pdev = NULL;
@@ -688,7 +689,8 @@ void pcibios_disable_device(struct pci_dev *pdev)
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 static int zpci_restore(struct device *dev)
 {
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct zpci_dev *zdev = get_zdev(pdev);
 	int ret = 0;
 
 	if (zdev->state != ZPCI_FN_STATE_ONLINE)
@@ -698,7 +700,7 @@ static int zpci_restore(struct device *dev)
 	if (ret)
 		goto out;
 
-	zpci_map_resources(zdev);
+	zpci_map_resources(pdev);
 	zpci_register_ioat(zdev, 0, zdev->start_dma + PAGE_OFFSET,
 			   zdev->start_dma + zdev->iommu_size - 1,
 			   (u64) zdev->dma_table);
@@ -709,12 +711,14 @@ out:
 
 static int zpci_freeze(struct device *dev)
 {
-	struct zpci_dev *zdev = get_zdev(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct zpci_dev *zdev = get_zdev(pdev);
 
 	if (zdev->state != ZPCI_FN_STATE_ONLINE)
 		return 0;
 
 	zpci_unregister_ioat(zdev, 0);
+	zpci_unmap_resources(pdev);
 	return clp_disable_fh(zdev);
 }
 
