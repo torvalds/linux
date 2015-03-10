@@ -61,6 +61,11 @@
 	chosen {
 		bootargs = "earlyprintk console=ttyS0,115200";
 	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&pio 6 10 GPIO_ACTIVE_LOW>; /* PG10 */
+	};
 };
 
 &ehci0 {
@@ -127,6 +132,16 @@
 	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
 
+&mmc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins_a>, <&wifi_reset_pin_hummingbird>;
+	vmmc-supply = <&vcc_wifi>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+};
+
 &ohci0 {
 	status = "okay";
 };
@@ -137,6 +152,13 @@
 		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	};
+
+	wifi_reset_pin_hummingbird: wifi_reset_pin@0 {
+		allwinner,pins = "PG10";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 
