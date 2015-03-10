@@ -4121,8 +4121,8 @@ enum skl_disp_power_wells {
 #define   DSPFW_SPRITEB_MASK_VLV	(0xff<<16) /* vlv/chv */
 #define   DSPFW_CURSORA_SHIFT		8
 #define   DSPFW_CURSORA_MASK		(0x3f<<8)
-#define   DSPFW_PLANEC_SHIFT_OLD	0
-#define   DSPFW_PLANEC_MASK_OLD		(0x7f<<0) /* pre-gen4 sprite C */
+#define   DSPFW_PLANEC_OLD_SHIFT	0
+#define   DSPFW_PLANEC_OLD_MASK		(0x7f<<0) /* pre-gen4 sprite C */
 #define   DSPFW_SPRITEA_SHIFT		0
 #define   DSPFW_SPRITEA_MASK		(0x7f<<0) /* g4x */
 #define   DSPFW_SPRITEA_MASK_VLV	(0xff<<0) /* vlv/chv */

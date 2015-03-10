@@ -301,6 +301,9 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
+#define FW_WM(value, plane) \
+	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK)
+
 void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -661,7 +664,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					pixel_size, latency->display_sr);
 		reg = I915_READ(DSPFW1);
 		reg &= ~DSPFW_SR_MASK;
-		reg |= wm << DSPFW_SR_SHIFT;
+		reg |= FW_WM(wm, SR);
 		I915_WRITE(DSPFW1, reg);
 		DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
 
@@ -671,7 +674,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					pixel_size, latency->cursor_sr);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_CURSOR_SR_MASK;
-		reg |= (wm & 0x3f) << DSPFW_CURSOR_SR_SHIFT;
+		reg |= FW_WM(wm, CURSOR_SR);
 		I915_WRITE(DSPFW3, reg);
 
 		/* Display HPLL off SR */
@@ -680,7 +683,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					pixel_size, latency->display_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_SR_MASK;
-		reg |= wm & DSPFW_HPLL_SR_MASK;
+		reg |= FW_WM(wm, HPLL_SR);
 		I915_WRITE(DSPFW3, reg);
 
 		/* cursor HPLL off SR */
@@ -689,7 +692,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					pixel_size, latency->cursor_hpll_disable);
 		reg = I915_READ(DSPFW3);
 		reg &= ~DSPFW_HPLL_CURSOR_MASK;
-		reg |= (wm & 0x3f) << DSPFW_HPLL_CURSOR_SHIFT;
+		reg |= FW_WM(wm, HPLL_CURSOR);
 		I915_WRITE(DSPFW3, reg);
 		DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
 
@@ -835,8 +838,6 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
-#define FW_WM(value, plane) \
-	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK)
 #define FW_WM_VLV(value, plane) \
 	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK_VLV)
 
@@ -904,7 +905,6 @@ static void vlv_write_wm_values(struct intel_crtc *crtc,
 	dev_priv->wm.vlv = *wm;
 }
 
-#undef FW_WM
 #undef FW_WM_VLV
 
 static uint8_t vlv_compute_drain_latency(struct drm_crtc *crtc,
@@ -1163,17 +1163,17 @@ static void g4x_update_wm(struct drm_crtc *crtc)
 		      plane_sr, cursor_sr);
 
 	I915_WRITE(DSPFW1,
-		   (plane_sr << DSPFW_SR_SHIFT) |
-		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
-		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
-		   (planea_wm << DSPFW_PLANEA_SHIFT));
+		   FW_WM(plane_sr, SR) |
+		   FW_WM(cursorb_wm, CURSORB) |
+		   FW_WM(planeb_wm, PLANEB) |
+		   FW_WM(planea_wm, PLANEA));
 	I915_WRITE(DSPFW2,
 		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
-		   (cursora_wm << DSPFW_CURSORA_SHIFT));
+		   FW_WM(cursora_wm, CURSORA));
 	/* HPLL off in SR has some issues on G4x... disable it */
 	I915_WRITE(DSPFW3,
 		   (I915_READ(DSPFW3) & ~(DSPFW_HPLL_SR_EN | DSPFW_CURSOR_SR_MASK)) |
-		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
+		   FW_WM(cursor_sr, CURSOR_SR));
 
 	if (cxsr_enabled)
 		intel_set_memory_cxsr(dev_priv, true);
@@ -1239,18 +1239,20 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		      srwm);
 
 	/* 965 has limitations... */
-	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) |
-		   (8 << DSPFW_CURSORB_SHIFT) |
-		   (8 << DSPFW_PLANEB_SHIFT) |
-		   (8 << DSPFW_PLANEA_SHIFT));
-	I915_WRITE(DSPFW2, (8 << DSPFW_CURSORA_SHIFT) |
-		   (8 << DSPFW_PLANEC_SHIFT_OLD));
+	I915_WRITE(DSPFW1, FW_WM(srwm, SR) |
+		   FW_WM(8, CURSORB) |
+		   FW_WM(8, PLANEB) |
+		   FW_WM(8, PLANEA));
+	I915_WRITE(DSPFW2, FW_WM(8, CURSORA) |
+		   FW_WM(8, PLANEC_OLD));
 	/* update cursor SR watermark */
-	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
+	I915_WRITE(DSPFW3, FW_WM(cursor_sr, CURSOR_SR));
 
 	if (cxsr_enabled)
 		intel_set_memory_cxsr(dev_priv, true);
 }
+
+#undef FW_WM
 
 static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 {
