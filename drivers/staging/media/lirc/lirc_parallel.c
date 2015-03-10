@@ -336,7 +336,7 @@ static ssize_t lirc_read(struct file *filep, char __user *buf, size_t n,
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (count < n) {
 		if (rptr != wptr) {
-			if (copy_to_user(buf+count, (char *) &rbuf[rptr],
+			if (copy_to_user(buf+count, &rbuf[rptr],
 					 sizeof(int))) {
 				result = -EFAULT;
 				break;
