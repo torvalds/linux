@@ -530,20 +530,20 @@ static int lynxfb_ops_mmap(struct fb_info * info, struct vm_area_struct * vma)
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
 	off = vma->vm_pgoff << PAGE_SHIFT;
-	printk("lynxfb mmap pgoff: %x\n", vma->vm_pgoff);
-	printk("lynxfb mmap off 1: %x\n", off);
+	printk("lynxfb mmap pgoff: %lx\n", vma->vm_pgoff);
+	printk("lynxfb mmap off 1: %lx\n", off);
 	
 	/* frame buffer memory */
 	start = info->fix.smem_start;
 	len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.smem_len);
 	
-	printk("lynxfb mmap start 1: %x\n", start);
+	printk("lynxfb mmap start 1: %lx\n", start);
 	printk("lynxfb mmap len 1: %x\n", len);
 	
 	if (off >= len) {
 		/* memory mapped io */
 		off -= len;
-		printk("lynxfb mmap off 2: %x\n", off);
+		printk("lynxfb mmap off 2: %lx\n", off);
 		if (info->var.accel_flags) {
 			printk("lynxfb mmap accel flags true");
 			return -EINVAL;
@@ -551,28 +551,28 @@ static int lynxfb_ops_mmap(struct fb_info * info, struct vm_area_struct * vma)
 		start = info->fix.mmio_start;
 		len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.mmio_len);
 		
-		printk("lynxfb mmap start 2: %x\n", start);
+		printk("lynxfb mmap start 2: %lx\n", start);
 		printk("lynxfb mmap len 2: %x\n", len);
 	}
 	start &= PAGE_MASK;
-	printk("lynxfb mmap start 3: %x\n", start);
-	printk("lynxfb mmap vm start: %x\n", vma->vm_start);
-	printk("lynxfb mmap vm end: %x\n", vma->vm_end);
+	printk("lynxfb mmap start 3: %lx\n", start);
+	printk("lynxfb mmap vm start: %lx\n", vma->vm_start);
+	printk("lynxfb mmap vm end: %lx\n", vma->vm_end);
 	printk("lynxfb mmap len: %x\n", len);
-	printk("lynxfb mmap off: %x\n", off);
+	printk("lynxfb mmap off: %lx\n", off);
 	if ((vma->vm_end - vma->vm_start + off) > len)
 	{
 		return -EINVAL;
 	}
 	off += start;
-	printk("lynxfb mmap off 3: %x\n", off);
+	printk("lynxfb mmap off 3: %lx\n", off);
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 	/* This is an IO map - tell maydump to skip this VMA */
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	fb_pgprotect(file, vma, off);
-	printk("lynxfb mmap off 4: %x\n", off);
-	printk("lynxfb mmap pgprot: %x\n", vma->vm_page_prot);
+	printk("lynxfb mmap off 4: %lx\n", off);
+	printk("lynxfb mmap pgprot: %lx\n", (unsigned long) pgprot_val(vma->vm_page_prot));
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
 		return -EAGAIN;

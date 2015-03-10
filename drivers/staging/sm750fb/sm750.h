@@ -59,10 +59,10 @@ struct lynx_share{
 		}mtrr;
 #endif
 	/* all smi graphic adaptor got below attributes */
-	resource_size_t vidmem_start;
-	resource_size_t vidreg_start;
-	resource_size_t vidmem_size;
-	resource_size_t vidreg_size;
+	unsigned long vidmem_start;
+	unsigned long vidreg_start;
+	__u32 vidmem_size;
+	__u32 vidreg_size;
 	volatile unsigned char __iomem * pvReg;
 	unsigned char __iomem * pvMem;
 	/* locks*/

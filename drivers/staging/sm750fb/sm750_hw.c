@@ -36,7 +36,7 @@ int hw_sm750_map(struct lynx_share* share,struct pci_dev* pdev)
 	share->vidreg_start  = pci_resource_start(pdev,1);
 	share->vidreg_size = MB(2);
 
-	pr_info("mmio phyAddr = %x\n",share->vidreg_start);
+	pr_info("mmio phyAddr = %lx\n", share->vidreg_start);
 
 	/* reserve the vidreg space of smi adaptor
 	 * if you do this, u need to add release region code
@@ -73,7 +73,7 @@ int hw_sm750_map(struct lynx_share* share,struct pci_dev* pdev)
 	 * @hw_sm750_getVMSize function can be safe.
 	 * */
 	share->vidmem_size = hw_sm750_getVMSize(share);
-	pr_info("video memory phyAddr = %x, size = %d bytes\n",
+	pr_info("video memory phyAddr = %lx, size = %u bytes\n",
 	share->vidmem_start,share->vidmem_size);
 
 	/* reserve the vidmem space of smi adaptor */
