@@ -87,7 +87,6 @@ struct mctrl_gpios *mctrl_gpio_init(struct device *dev, unsigned int idx)
 {
 	struct mctrl_gpios *gpios;
 	enum mctrl_gpio_idx i;
-	int err;
 
 	gpios = devm_kzalloc(dev, sizeof(*gpios), GFP_KERNEL);
 	if (!gpios)
@@ -107,7 +106,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct device *dev, unsigned int idx)
 						      idx, flags);
 
 		if (IS_ERR(gpios->gpio[i]))
-			return PTR_ERR(gpios->gpio[i]);
+			return ERR_CAST(gpios->gpio[i]);
 	}
 
 	return gpios;
