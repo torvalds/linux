@@ -472,6 +472,8 @@ int hw_sm750le_setBLANK(struct lynxfb_output * output,int blank){
 			dpms = CRT_DISPLAY_CTRL_DPMS_3;
 			crtdb = CRT_DISPLAY_CTRL_BLANK_ON;
 			break;
+		default:
+			return -EINVAL;
 	}
 
 	if(output->paths & sm750_crt){
