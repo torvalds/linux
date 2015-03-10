@@ -338,8 +338,8 @@ static int rsnd_dmapp_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 
 	rsnd_dmapp_stop(dma);
 
-	dev_dbg(dev, "id/src/dst/chcr = %d/%x/%x/%08x\n",
-		dmapp->dmapp_id, dma->src_addr, dma->dst_addr, dmapp->chcr);
+	dev_dbg(dev, "id/src/dst/chcr = %d/%pad/%pad/%08x\n",
+		dmapp->dmapp_id, &dma->src_addr, &dma->dst_addr, dmapp->chcr);
 
 	return 0;
 }
