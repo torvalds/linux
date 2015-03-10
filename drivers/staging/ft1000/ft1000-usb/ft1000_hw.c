@@ -339,7 +339,7 @@ int card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 	commandbuf = kmalloc(size + 2, GFP_KERNEL);
 	if (!commandbuf)
 		return -ENOMEM;
-	memcpy((void *)commandbuf + 2, (void *)ptempbuffer, size);
+	memcpy((void *)commandbuf + 2, ptempbuffer, size);
 
 	if (temp & 0x0100)
 		usleep_range(900, 1100);
@@ -429,7 +429,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 	/* Let's use the register provided by the Magnemite ASIC to reset the
 	 * ASIC and DSP.
 	 */
-	ft1000_write_register(ft1000dev, (DSP_RESET_BIT | ASIC_RESET_BIT),
+	ft1000_write_register(ft1000dev, DSP_RESET_BIT | ASIC_RESET_BIT,
 			      FT1000_REG_RESET);
 
 	mdelay(1);
@@ -542,7 +542,7 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 		hdr.portdest ^ hdr.portsrc ^ hdr.sh_str_id ^ hdr.control;
 
 	memcpy(&pFt1000Dev->tx_buf[0], &hdr, sizeof(hdr));
-	memcpy(&(pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)]), packet, len);
+	memcpy(&pFt1000Dev->tx_buf[sizeof(struct pseudo_hdr)], packet, len);
 
 	netif_stop_queue(netdev);
 
@@ -551,7 +551,7 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 			  usb_sndbulkpipe(pFt1000Dev->dev,
 					  pFt1000Dev->bulk_out_endpointAddr),
 			  pFt1000Dev->tx_buf, count,
-			  ft1000_usb_transmit_complete, (void *)pFt1000Dev);
+			  ft1000_usb_transmit_complete, pFt1000Dev);
 
 	t = (u8 *)pFt1000Dev->tx_urb->transfer_buffer;
 
@@ -606,7 +606,7 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err;
 	}
 
-	ft1000_copy_down_pkt(dev, (pdata + ENET_HEADER_SIZE - 2),
+	ft1000_copy_down_pkt(dev, pdata + ENET_HEADER_SIZE - 2,
 			     skb->len - ENET_HEADER_SIZE + 2);
 
 err:
@@ -1558,19 +1558,19 @@ int ft1000_poll(void *dev_id)
 				/* Reset ASIC and DSP */
 				status = ft1000_read_dpram16(dev,
 							     FT1000_MAG_DSP_TIMER0,
-							     (u8 *)&(info->DSP_TIME[0]),
+							     (u8 *)&info->DSP_TIME[0],
 							     FT1000_MAG_DSP_TIMER0_INDX);
 				status = ft1000_read_dpram16(dev,
 							     FT1000_MAG_DSP_TIMER1,
-							     (u8 *)&(info->DSP_TIME[1]),
+							     (u8 *)&info->DSP_TIME[1],
 							     FT1000_MAG_DSP_TIMER1_INDX);
 				status = ft1000_read_dpram16(dev,
 							     FT1000_MAG_DSP_TIMER2,
-							     (u8 *)&(info->DSP_TIME[2]),
+							     (u8 *)&info->DSP_TIME[2],
 							     FT1000_MAG_DSP_TIMER2_INDX);
 				status = ft1000_read_dpram16(dev,
 							     FT1000_MAG_DSP_TIMER3,
-							     (u8 *)&(info->DSP_TIME[3]),
+							     (u8 *)&info->DSP_TIME[3],
 							     FT1000_MAG_DSP_TIMER3_INDX);
 				info->CardReady = 0;
 				info->DrvErrNum = DSP_CONDRESET_INFO;
