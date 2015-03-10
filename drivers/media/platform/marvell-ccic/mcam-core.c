@@ -124,13 +124,6 @@ static struct mcam_format_struct {
 		.planar		= false,
 	},
 	{
-		.desc		= "YUV 4:2:2 PLANAR",
-		.pixelformat	= V4L2_PIX_FMT_YUV422P,
-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
-		.bpp		= 1,
-		.planar		= true,
-	},
-	{
 		.desc		= "YUV 4:2:0 PLANAR",
 		.pixelformat	= V4L2_PIX_FMT_YUV420,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
@@ -352,10 +345,6 @@ static void mcam_write_yuv_bases(struct mcam_camera *cam,
 	y = base;
 
 	switch (fmt->pixelformat) {
-	case V4L2_PIX_FMT_YUV422P:
-		u = y + pixel_count;
-		v = u + pixel_count / 2;
-		break;
 	case V4L2_PIX_FMT_YUV420:
 		u = y + pixel_count;
 		v = u + pixel_count / 4;
@@ -755,7 +744,6 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 		widthy = fmt->width * 2;
 		widthuv = 0;
 		break;
-	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 		widthy = fmt->width;
@@ -776,10 +764,6 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 	 * Tell the controller about the image format we are using.
 	 */
 	switch (fmt->pixelformat) {
-	case V4L2_PIX_FMT_YUV422P:
-		mcam_reg_write_mask(cam, REG_CTRL0,
-			C0_DF_YUV | C0_YUV_PLANAR | C0_YUVE_YVYU, C0_DF_MASK);
-		break;
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 		mcam_reg_write_mask(cam, REG_CTRL0,
@@ -1373,9 +1357,6 @@ static int mcam_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 	v4l2_fill_pix_format(pix, &mbus_fmt);
 	pix->bytesperline = pix->width * f->bpp;
 	switch (f->pixelformat) {
-	case V4L2_PIX_FMT_YUV422P:
-		pix->sizeimage = pix->height * pix->bytesperline * 2;
-		break;
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 		pix->sizeimage = pix->height * pix->bytesperline * 3 / 2;
