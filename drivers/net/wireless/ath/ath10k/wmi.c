@@ -1586,6 +1586,9 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 		}
 	}
 
+	if (ieee80211_is_beacon(hdr->frame_control))
+		ath10k_mac_handle_beacon(ar, skb);
+
 	ath10k_dbg(ar, ATH10K_DBG_MGMT,
 		   "event mgmt rx skb %p len %d ftype %02x stype %02x\n",
 		   skb, skb->len,
@@ -2815,8 +2818,10 @@ void ath10k_wmi_event_roam(struct ath10k *ar, struct sk_buff *skb)
 			    reason, vdev_id);
 
 	switch (reason) {
-	case WMI_ROAM_REASON_BETTER_AP:
 	case WMI_ROAM_REASON_BEACON_MISS:
+		ath10k_mac_handle_beacon_miss(ar, vdev_id);
+		break;
+	case WMI_ROAM_REASON_BETTER_AP:
 	case WMI_ROAM_REASON_LOW_RSSI:
 	case WMI_ROAM_REASON_SUITABLE_AP_FOUND:
 	case WMI_ROAM_REASON_HO_FAILED:

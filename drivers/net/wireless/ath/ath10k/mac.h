@@ -45,6 +45,8 @@ void ath10k_mac_vif_beacon_free(struct ath10k_vif *arvif);
 void ath10k_drain_tx(struct ath10k *ar);
 bool ath10k_mac_is_peer_wep_key_set(struct ath10k *ar, const u8 *addr,
 				    u8 keyidx);
+void ath10k_mac_handle_beacon(struct ath10k *ar, struct sk_buff *skb);
+void ath10k_mac_handle_beacon_miss(struct ath10k *ar, u32 vdev_id);
 
 static inline struct ath10k_vif *ath10k_vif_to_arvif(struct ieee80211_vif *vif)
 {

@@ -1509,6 +1509,75 @@ static void ath10k_mac_vif_ap_csa_work(struct work_struct *work)
 	mutex_unlock(&ar->conf_mutex);
 }
 
+static void ath10k_mac_handle_beacon_iter(void *data, u8 *mac,
+					  struct ieee80211_vif *vif)
+{
+	struct sk_buff *skb = data;
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (!ether_addr_equal(mgmt->bssid, vif->bss_conf.bssid))
+		return;
+
+	cancel_delayed_work(&arvif->connection_loss_work);
+}
+
+void ath10k_mac_handle_beacon(struct ath10k *ar, struct sk_buff *skb)
+{
+	ieee80211_iterate_active_interfaces_atomic(ar->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   ath10k_mac_handle_beacon_iter,
+						   skb);
+}
+
+static void ath10k_mac_handle_beacon_miss_iter(void *data, u8 *mac,
+					       struct ieee80211_vif *vif)
+{
+	u32 *vdev_id = data;
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k *ar = arvif->ar;
+	struct ieee80211_hw *hw = ar->hw;
+
+	if (arvif->vdev_id != *vdev_id)
+		return;
+
+	if (!arvif->is_up)
+		return;
+
+	ieee80211_beacon_loss(vif);
+
+	/* Firmware doesn't report beacon loss events repeatedly. If AP probe
+	 * (done by mac80211) succeeds but beacons do not resume then it
+	 * doesn't make sense to continue operation. Queue connection loss work
+	 * which can be cancelled when beacon is received.
+	 */
+	ieee80211_queue_delayed_work(hw, &arvif->connection_loss_work,
+				     ATH10K_CONNECTION_LOSS_HZ);
+}
+
+void ath10k_mac_handle_beacon_miss(struct ath10k *ar, u32 vdev_id)
+{
+	ieee80211_iterate_active_interfaces_atomic(ar->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   ath10k_mac_handle_beacon_miss_iter,
+						   &vdev_id);
+}
+
+static void ath10k_mac_vif_sta_connection_loss_work(struct work_struct *work)
+{
+	struct ath10k_vif *arvif = container_of(work, struct ath10k_vif,
+						connection_loss_work.work);
+	struct ieee80211_vif *vif = arvif->vif;
+
+	if (!arvif->is_up)
+		return;
+
+	ieee80211_connection_loss(vif);
+}
+
 /**********************/
 /* Station management */
 /**********************/
@@ -2140,6 +2209,8 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 	}
 
 	arvif->is_up = false;
+
+	cancel_delayed_work_sync(&arvif->connection_loss_work);
 }
 
 static int ath10k_station_assoc(struct ath10k *ar,
@@ -3378,6 +3449,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 
 	INIT_LIST_HEAD(&arvif->list);
 	INIT_WORK(&arvif->ap_csa_work, ath10k_mac_vif_ap_csa_work);
+	INIT_DELAYED_WORK(&arvif->connection_loss_work,
+			  ath10k_mac_vif_sta_connection_loss_work);
 
 	if (ar->free_vdev_map == 0) {
 		ath10k_warn(ar, "Free vdev map is empty, no more interfaces allowed.\n");
@@ -3596,6 +3669,7 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	int ret;
 
 	cancel_work_sync(&arvif->ap_csa_work);
+	cancel_delayed_work_sync(&arvif->connection_loss_work);
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -5727,7 +5801,8 @@ int ath10k_mac_register(struct ath10k *ar)
 			IEEE80211_HW_HAS_RATE_CONTROL |
 			IEEE80211_HW_AP_LINK_PS |
 			IEEE80211_HW_SPECTRUM_MGMT |
-			IEEE80211_HW_SW_CRYPTO_CONTROL;
+			IEEE80211_HW_SW_CRYPTO_CONTROL |
+			IEEE80211_HW_CONNECTION_MONITOR;
 
 	ar->hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
 
