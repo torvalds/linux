@@ -1238,6 +1238,7 @@ static void vmw_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
+	pci_disable_device(pdev);
 	drm_put_dev(dev);
 }
 
