@@ -31,4 +31,8 @@ struct scatterlist {
 #define sg_dma_len(sg)		((sg)->length)
 #endif
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+#define ARCH_HAS_SG_CHAIN
+#endif
+
 #endif /* __ASM_GENERIC_SCATTERLIST_H */
