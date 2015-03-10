@@ -125,8 +125,8 @@ static ssize_t goldfish_audio_read(struct file *fp, char __user *buf,
 		length = (count > READ_BUFFER_SIZE ? READ_BUFFER_SIZE : count);
 		AUDIO_WRITE(data, AUDIO_START_READ, length);
 
-		wait_event_interruptible(data->wait, (data->buffer_status &
-					 AUDIO_INT_READ_BUFFER_FULL));
+		wait_event_interruptible(data->wait, data->buffer_status &
+					 AUDIO_INT_READ_BUFFER_FULL);
 
 		length = AUDIO_READ(data, AUDIO_READ_BUFFER_AVAILABLE);
 
@@ -154,9 +154,9 @@ static ssize_t goldfish_audio_write(struct file *fp, const char __user *buf,
 
 		if (copy > WRITE_BUFFER_SIZE)
 			copy = WRITE_BUFFER_SIZE;
-		wait_event_interruptible(data->wait, (data->buffer_status &
+		wait_event_interruptible(data->wait, data->buffer_status &
 					(AUDIO_INT_WRITE_BUFFER_1_EMPTY |
-					AUDIO_INT_WRITE_BUFFER_2_EMPTY)));
+					AUDIO_INT_WRITE_BUFFER_2_EMPTY));
 
 		if ((data->buffer_status & AUDIO_INT_WRITE_BUFFER_1_EMPTY) != 0)
 			kbuf = data->write_buffer1;
