@@ -1000,7 +1000,7 @@ static void sm750fb_setup(struct lynx_share * share,char * src)
             goto NO_PARAM;
         }
 
-        while((opt = strsep(&src,":")) != NULL && *opt != NULL){
+        while((opt = strsep(&src,":")) != NULL && *opt != 0){
 			pr_err("opt=%s\n",opt);
 			pr_err("src=%s\n",src);
 
