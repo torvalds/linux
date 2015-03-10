@@ -136,7 +136,7 @@ static int set_var(struct fbtft_par *par)
 		write_reg(par, 0x36, MY | MV | (par->bgr << 3));
 		break;
 	case 180:
-		write_reg(par, 0x36, (par->bgr << 3));
+		write_reg(par, 0x36, par->bgr << 3);
 		break;
 	case 90:
 		write_reg(par, 0x36, MX | MV | (par->bgr << 3));
