@@ -142,6 +142,15 @@
 
 &p2wi {
 	status = "okay";
+
+	axp221: pmic@68 {
+		compatible = "x-powers,axp221";
+		reg = <0x68>;
+		interrupt-parent = <&nmi_intc>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
 };
 
 &reg_usb1_vbus {
