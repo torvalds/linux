@@ -358,7 +358,6 @@ static void udf_table_free_blocks(struct super_block *sb,
 	struct kernel_lb_addr eloc;
 	struct extent_position oepos, epos;
 	int8_t etype;
-	int i;
 	struct udf_inode_info *iinfo;
 
 	mutex_lock(&sbi->s_alloc_mutex);
@@ -425,7 +424,6 @@ static void udf_table_free_blocks(struct super_block *sb,
 		}
 
 		if (epos.bh != oepos.bh) {
-			i = -1;
 			oepos.block = epos.block;
 			brelse(oepos.bh);
 			get_bh(epos.bh);
