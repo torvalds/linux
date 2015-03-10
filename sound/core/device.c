@@ -50,10 +50,8 @@ int snd_device_new(struct snd_card *card, enum snd_device_type type,
 	if (snd_BUG_ON(!card || !device_data || !ops))
 		return -ENXIO;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(card->dev, "Cannot allocate device, type=%d\n", type);
+	if (!dev)
 		return -ENOMEM;
-	}
 	INIT_LIST_HEAD(&dev->list);
 	dev->card = card;
 	dev->type = type;

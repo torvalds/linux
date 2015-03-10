@@ -217,10 +217,8 @@ static int snd_ctl_new(struct snd_kcontrol **kctl, unsigned int count,
 	size += sizeof(struct snd_kcontrol_volatile) * count;
 
 	*kctl = kzalloc(size, GFP_KERNEL);
-	if (*kctl == NULL) {
-		pr_err("ALSA: Cannot allocate control instance\n");
+	if (!*kctl)
 		return -ENOMEM;
-	}
 
 	for (idx = 0; idx < count; idx++) {
 		(*kctl)->vd[idx].access = access;
