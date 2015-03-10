@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm 3.10.70 Kernel Configuration
+# Linux/arm 3.10.71 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -3861,7 +3861,7 @@ CONFIG_MALI_DVFS=y
 CONFIG_MALI_DMA_BUF_MAP_ON_ATTACH=y
 CONFIG_MALI_SHARED_INTERRUPTS=y
 # CONFIG_MALI_PMU_PARALLEL_POWER_UP is not set
-CONFIG_MALI_QUIET=y
+# CONFIG_MALI_QUIET is not set
 CONFIG_UMP=y
 # CONFIG_UMP_DEBUG is not set
 CONFIG_UMPLOCK=y
