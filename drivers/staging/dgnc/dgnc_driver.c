@@ -409,7 +409,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 		return -ENOMEM;
 
 	/* make a temporary message buffer for the boot messages */
-	brd->msgbuf_head = kzalloc(sizeof(u8) * 8192, GFP_KERNEL);
+	brd->msgbuf_head = kcalloc(8192, sizeof(u8), GFP_KERNEL);
 	brd->msgbuf = brd->msgbuf_head;
 
 	if (!brd->msgbuf) {
