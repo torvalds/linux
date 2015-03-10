@@ -190,7 +190,7 @@ int ft1000_create_dev(struct ft1000_usb *dev)
 	tmp->dent = dir;
 	tmp->file = file;
 	tmp->int_number = dev->CardNumber;
-	list_add(&(tmp->list), &(dev->nodes.list));
+	list_add(&tmp->list, &dev->nodes.list);
 
 	pr_debug("registered debugfs directory \"%s\"\n", dev->DeviceName);
 
@@ -477,14 +477,14 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 		/* Connect Message */
 		pr_debug("IOCTL_FT1000_CONNECT\n");
 		ConnectionMsg[79] = 0xfc;
-		result = card_send_command(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
+		result = card_send_command(ft1000dev, ConnectionMsg, 0x4c);
 
 		break;
 	case IOCTL_DISCONNECT:
 		/* Disconnect Message */
 		pr_debug("IOCTL_FT1000_DISCONNECT\n");
 		ConnectionMsg[79] = 0xfd;
-		result = card_send_command(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
+		result = card_send_command(ft1000dev, ConnectionMsg, 0x4c);
 		break;
 	case IOCTL_GET_DSP_STAT_CMD:
 		/* pr_debug("IOCTL_FT1000_GET_DSP_STAT\n"); */
@@ -642,7 +642,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 						}
 						pmsg++;
 						ppseudo_hdr = (struct pseudo_hdr *)pmsg;
-						result = card_send_command(ft1000dev, (unsigned short *)dpram_data, total_len+2);
+						result = card_send_command(ft1000dev, dpram_data, total_len+2);
 
 
 						ft1000dev->app_info[app_index].nTxMsg++;
