@@ -186,8 +186,8 @@ enum t100_type {
 #define MXT_T107_STYLUS_BUTTON0		(1 << 2)
 #define MXT_T107_STYLUS_BUTTON1		(1 << 3)
 
-#define MXT_TOUCH_MAJOR_DEFAULT		1
-#define MXT_PRESSURE_DEFAULT		1
+#define MXT_TOUCH_MAJOR_DEFAULT	1
+#define MXT_PRESSURE_DEFAULT	1
 
 /* Delay times */
 #define MXT_BACKUP_TIME		50	/* msec */
