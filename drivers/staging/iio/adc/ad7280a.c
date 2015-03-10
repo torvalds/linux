@@ -547,8 +547,9 @@ static int ad7280_attr_init(struct ad7280_state *st)
 {
 	int dev, ch, cnt;
 
-	st->iio_attr = kzalloc(sizeof(*st->iio_attr) * (st->slave_num + 1) *
-				AD7280A_CELLS_PER_DEV * 2, GFP_KERNEL);
+	st->iio_attr = kcalloc(2, sizeof(*st->iio_attr) *
+			       (st->slave_num + 1) * AD7280A_CELLS_PER_DEV,
+			       GFP_KERNEL);
 	if (st->iio_attr == NULL)
 		return -ENOMEM;
 
