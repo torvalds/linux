@@ -170,6 +170,14 @@
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
+
+	brcmf: bcrmf@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+		interrupt-parent = <&pio>;
+		interrupts = <10 IRQ_TYPE_LEVEL_LOW>; /* PH10 / EINT10 */
+		interrupt-names = "host-wake";
+	};
 };
 
 &mmc3_pins_a {
