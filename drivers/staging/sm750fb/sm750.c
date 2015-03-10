@@ -1175,6 +1175,7 @@ ALLOC_FB:
 		else
 		{
 			struct lynxfb_par * par;
+			int errno;
 			pr_info("framebuffer #%d alloc okay\n",fbidx);
 			share->fbinfo[fbidx] = info[fbidx];
 			par = info[fbidx]->par;
@@ -1191,7 +1192,7 @@ ALLOC_FB:
 
 			/* register frame buffer*/
 			pr_info("Ready to register framebuffer #%d.\n",fbidx);
-			int errno = register_framebuffer(info[fbidx]);
+			errno = register_framebuffer(info[fbidx]);
 			if (errno < 0) {
 				pr_err("Failed to register fb_info #%d. err %d\n",fbidx, errno);
 				if(fbidx == 0)
