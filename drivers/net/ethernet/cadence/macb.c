@@ -2131,23 +2131,7 @@ static const struct net_device_ops macb_netdev_ops = {
  */
 static void macb_configure_caps(struct macb *bp)
 {
-	const struct of_device_id *match;
-	const struct macb_config *config;
 	u32 dcfg;
-
-	if (bp->pdev->dev.of_node) {
-		match = of_match_node(macb_dt_ids, bp->pdev->dev.of_node);
-		if (match && match->data) {
-			config = match->data;
-
-			bp->caps = config->caps;
-			/*
-			 * As we have access to the matching node, configure
-			 * DMA burst length as well
-			 */
-			bp->dma_burst_length = config->dma_burst_length;
-		}
-	}
 
 	if (MACB_BFEXT(IDNUM, macb_readl(bp, MID)) == 0x2)
 		bp->caps |= MACB_CAPS_MACB_IS_GEM;
