@@ -296,7 +296,8 @@ static int iadc_do_conversion(struct iadc_chip *iadc, int chan, u16 *data)
 	if (iadc->poll_eoc) {
 		ret = iadc_poll_wait_eoc(iadc, wait);
 	} else {
-		ret = wait_for_completion_timeout(&iadc->complete, wait);
+		ret = wait_for_completion_timeout(&iadc->complete,
+			usecs_to_jiffies(wait));
 		if (!ret)
 			ret = -ETIMEDOUT;
 		else

@@ -100,17 +100,22 @@ end:
 	return err;
 }
 
+/*
+ * This function should be called before starting the stream or after stopping
+ * the streams.
+ */
 static void
 destroy_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 {
-	stop_stream(efw, stream);
-
-	amdtp_stream_destroy(stream);
+	struct cmp_connection *conn;
 
 	if (stream == &efw->tx_stream)
-		cmp_connection_destroy(&efw->out_conn);
+		conn = &efw->out_conn;
 	else
-		cmp_connection_destroy(&efw->in_conn);
+		conn = &efw->in_conn;
+
+	amdtp_stream_destroy(stream);
+	cmp_connection_destroy(&efw->out_conn);
 }
 
 static int
@@ -319,12 +324,8 @@ void snd_efw_stream_update_duplex(struct snd_efw *efw)
 
 void snd_efw_stream_destroy_duplex(struct snd_efw *efw)
 {
-	mutex_lock(&efw->mutex);
-
 	destroy_stream(efw, &efw->rx_stream);
 	destroy_stream(efw, &efw->tx_stream);
-
-	mutex_unlock(&efw->mutex);
 }
 
 void snd_efw_stream_lock_changed(struct snd_efw *efw)

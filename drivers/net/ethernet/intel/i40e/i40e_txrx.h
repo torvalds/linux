@@ -112,6 +112,7 @@ enum i40e_dyn_idx_t {
 
 #define i40e_rx_desc i40e_32byte_rx_desc
 
+#define I40E_MAX_BUFFER_TXD	8
 #define I40E_MIN_TX_LEN		17
 #define I40E_MAX_DATA_PER_TXD	8192
 

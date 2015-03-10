@@ -163,22 +163,7 @@ static void imx_ldb_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
-	struct drm_display_mode *mode = &encoder->crtc->hwmode;
 	u32 pixel_fmt;
-	unsigned long serial_clk;
-	unsigned long di_clk = mode->clock * 1000;
-	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->child, encoder);
-
-	if (ldb->ldb_ctrl & LDB_SPLIT_MODE_EN) {
-		/* dual channel LVDS mode */
-		serial_clk = 3500UL * mode->clock;
-		imx_ldb_set_clock(ldb, mux, 0, serial_clk, di_clk);
-		imx_ldb_set_clock(ldb, mux, 1, serial_clk, di_clk);
-	} else {
-		serial_clk = 7000UL * mode->clock;
-		imx_ldb_set_clock(ldb, mux, imx_ldb_ch->chno, serial_clk,
-				di_clk);
-	}
 
 	switch (imx_ldb_ch->chno) {
 	case 0:
@@ -247,6 +232,9 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 	struct imx_ldb_channel *imx_ldb_ch = enc_to_imx_ldb_ch(encoder);
 	struct imx_ldb *ldb = imx_ldb_ch->ldb;
 	int dual = ldb->ldb_ctrl & LDB_SPLIT_MODE_EN;
+	unsigned long serial_clk;
+	unsigned long di_clk = mode->clock * 1000;
+	int mux = imx_drm_encoder_get_mux_id(imx_ldb_ch->child, encoder);
 
 	if (mode->clock > 170000) {
 		dev_warn(ldb->dev,
@@ -255,6 +243,16 @@ static void imx_ldb_encoder_mode_set(struct drm_encoder *encoder,
 	if (mode->clock > 85000 && !dual) {
 		dev_warn(ldb->dev,
 			 "%s: mode exceeds 85 MHz pixel clock\n", __func__);
+	}
+
+	if (dual) {
+		serial_clk = 3500UL * mode->clock;
+		imx_ldb_set_clock(ldb, mux, 0, serial_clk, di_clk);
+		imx_ldb_set_clock(ldb, mux, 1, serial_clk, di_clk);
+	} else {
+		serial_clk = 7000UL * mode->clock;
+		imx_ldb_set_clock(ldb, mux, imx_ldb_ch->chno, serial_clk,
+				  di_clk);
 	}
 
 	/* FIXME - assumes straight connections DI0 --> CH0, DI1 --> CH1 */

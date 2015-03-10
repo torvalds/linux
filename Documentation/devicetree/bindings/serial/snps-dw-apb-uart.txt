@@ -21,6 +21,18 @@ Optional properties:
 - reg-io-width : the size (in bytes) of the IO accesses that should be
   performed on the device.  If this property is not present then single byte
   accesses are used.
+- dcd-override : Override the DCD modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- dsr-override : Override the DTS modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- cts-override : Override the CTS modem status signal. This signal will always
+  be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin.
+- ri-override : Override the RI modem status signal. This signal will always be
+  reported as inactive instead of being obtained from the modem status register.
+  Define this if your serial port does not use this pin.
 
 Example:
 
@@ -31,6 +43,10 @@ Example:
 		interrupts = <10>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dcd-override;
+		dsr-override;
+		cts-override;
+		ri-override;
 	};
 
 Example with one clock:

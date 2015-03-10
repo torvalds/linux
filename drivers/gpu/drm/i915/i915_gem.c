@@ -2659,8 +2659,7 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 		if (submit_req->ctx != ring->default_context)
 			intel_lr_context_unpin(ring, submit_req->ctx);
 
-		i915_gem_context_unreference(submit_req->ctx);
-		kfree(submit_req);
+		i915_gem_request_unreference(submit_req);
 	}
 
 	/*
