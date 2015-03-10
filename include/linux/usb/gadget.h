@@ -190,7 +190,7 @@ struct usb_ep {
  * @ep:the endpoint being configured
  * @maxpacket_limit:value of maximum packet size limit
  *
- * This function shoud be used only in UDC drivers to initialize endpoint
+ * This function should be used only in UDC drivers to initialize endpoint
  * (usually in probe function).
  */
 static inline void usb_ep_set_maxpacket_limit(struct usb_ep *ep,
