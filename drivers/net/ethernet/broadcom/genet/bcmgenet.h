@@ -548,6 +548,7 @@ struct bcmgenet_rx_ring {
 	unsigned int	read_ptr;	/* Rx ring read pointer */
 	unsigned int	cb_ptr;		/* Rx ring initial CB ptr */
 	unsigned int	end_ptr;	/* Rx ring end CB ptr */
+	unsigned int	old_discards;
 };
 
 /* device context */

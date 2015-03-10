@@ -1384,9 +1384,27 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_priv *priv,
 	int len, err;
 	unsigned int rxpktprocessed = 0, rxpkttoprocess;
 	unsigned int p_index;
+	unsigned int discards;
 	unsigned int chksum_ok = 0;
 
 	p_index = bcmgenet_rdma_ring_readl(priv, index, RDMA_PROD_INDEX);
+
+	discards = (p_index >> DMA_P_INDEX_DISCARD_CNT_SHIFT) &
+		   DMA_P_INDEX_DISCARD_CNT_MASK;
+	if (discards > ring->old_discards) {
+		discards = discards - ring->old_discards;
+		dev->stats.rx_missed_errors += discards;
+		dev->stats.rx_errors += discards;
+		ring->old_discards += discards;
+
+		/* Clear HW register when we reach 75% of maximum 0xFFFF */
+		if (ring->old_discards >= 0xC000) {
+			ring->old_discards = 0;
+			bcmgenet_rdma_ring_writel(priv, index, 0,
+						  RDMA_PROD_INDEX);
+		}
+	}
+
 	p_index &= DMA_P_INDEX_MASK;
 
 	if (likely(p_index >= ring->c_index))
