@@ -118,7 +118,7 @@ static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
 	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
 
-	rx_array = kzalloc(4 * scan_count, GFP_KERNEL);
+	rx_array = kcalloc(4, scan_count, GFP_KERNEL);
 	if (rx_array == NULL)
 		return -ENOMEM;
 	ret = lis3l02dq_read_all(indio_dev, rx_array);
