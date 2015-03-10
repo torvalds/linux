@@ -26,9 +26,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
-#include "../comedidev.h"
+
+#include "../comedi_pci.h"
 
 /* Registers present in BAR0 memory region */
 #define MF624_GPIOC_R					0x54
