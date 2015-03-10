@@ -303,62 +303,6 @@ static int lynxfb_ops_pan_display(struct fb_var_screeninfo *var,
     return ret;
 }
 
-
-
-
-#ifdef CONFIG_PM
-static int lynxfb_suspend(struct pci_dev * pdev,pm_message_t mesg)
-{
-	struct fb_info * info;
-	struct lynx_share * share;
-	int ret;
-	
-
-	if(mesg.event == pdev->dev.power.power_state.event)
-		return 0;
-
-	ret = 0;
-	share = pci_get_drvdata(pdev);
-	switch (mesg.event) {
-	case PM_EVENT_FREEZE:
-	case PM_EVENT_PRETHAW:
-		pdev->dev.power.power_state = mesg;
-		return 0;
-	}
-
-	console_lock();
-	if (mesg.event & PM_EVENT_SLEEP) {
-		info = share->fbinfo[0];
-		if(info)
-			fb_set_suspend(info, 1);/* 1 means do suspend*/
-
-		info = share->fbinfo[1];
-		if(info)
-			fb_set_suspend(info, 1);/* 1 means do suspend*/
-
-		ret = pci_save_state(pdev);
-		if(ret){
-			pr_err("error:%d occured in pci_save_state\n",ret);
-			return ret;
-		}
-
-		/* set chip to sleep mode	*/
-		if(share->suspend)
-			(*share->suspend)(share);
-
-		pci_disable_device(pdev);
-		ret = pci_set_power_state(pdev,pci_choose_state(pdev,mesg));
-		if(ret){
-			pr_err("error:%d occured in pci_set_power_state\n",ret);
-			return ret;
-		}
-	}
-
-	pdev->dev.power.power_state = mesg;
-	console_unlock();
-	return ret;
-}
-
 static int lynxfb_ops_set_par(struct fb_info * info)
 {
 	struct lynxfb_par * par;
@@ -369,7 +313,6 @@ static int lynxfb_ops_set_par(struct fb_info * info)
 	struct fb_fix_screeninfo * fix;
 	int ret;
 	unsigned int line_length;
-	
 
 	if(!info)
 		return -EINVAL;
@@ -441,6 +384,7 @@ static int lynxfb_ops_set_par(struct fb_info * info)
 		ret = output->proc_setMode(output,var,fix);
 	return ret;
 }
+
 static inline unsigned int chan_to_field(unsigned int chan,struct fb_bitfield * bf)
 {
 	chan &= 0xffff;
@@ -448,6 +392,58 @@ static inline unsigned int chan_to_field(unsigned int chan,struct fb_bitfield * 
 	return chan << bf->offset;
 }
 
+#ifdef CONFIG_PM
+static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
+{
+	struct fb_info *info;
+	struct lynx_share *share;
+	int ret;
+
+	if (mesg.event == pdev->dev.power.power_state.event)
+		return 0;
+
+	ret = 0;
+	share = pci_get_drvdata(pdev);
+	switch (mesg.event) {
+	case PM_EVENT_FREEZE:
+	case PM_EVENT_PRETHAW:
+		pdev->dev.power.power_state = mesg;
+		return 0;
+	}
+
+	console_lock();
+	if (mesg.event & PM_EVENT_SLEEP) {
+		info = share->fbinfo[0];
+		if (info)
+			/* 1 means do suspend*/
+			fb_set_suspend(info, 1);
+		info = share->fbinfo[1];
+		if (info)
+			/* 1 means do suspend*/
+			fb_set_suspend(info, 1);
+
+		ret = pci_save_state(pdev);
+		if (ret) {
+			pr_err("error:%d occurred in pci_save_state\n", ret);
+			return ret;
+		}
+
+		/* set chip to sleep mode*/
+		if (share->suspend)
+			(*share->suspend)(share);
+
+		pci_disable_device(pdev);
+		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
+		if (ret) {
+			pr_err("error:%d occurred in pci_set_power_state\n", ret);
+			return ret;
+		}
+	}
+
+	pdev->dev.power.power_state = mesg;
+	console_unlock();
+	return ret;
+}
 
 static int lynxfb_resume(struct pci_dev* pdev)
 {
