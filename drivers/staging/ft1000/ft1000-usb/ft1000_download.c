@@ -230,7 +230,7 @@ static u16 get_handshake_usb(struct ft1000_usb *ft1000dev, u16 expected_value)
 	while (loopcnt < 100) {
 		if (ft1000dev->usbboot == 2) {
 			status = ft1000_read_dpram32(ft1000dev, 0,
-						     (u8 *)&(ft1000dev->tempbuf[0]), 64);
+						     (u8 *)&ft1000dev->tempbuf[0], 64);
 			for (temp = 0; temp < 16; temp++) {
 				pr_debug("tempbuf %d = 0x%x\n",
 					 temp, ft1000dev->tempbuf[temp]);
@@ -538,7 +538,7 @@ static int write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 			  usb_sndbulkpipe(ft1000dev->dev,
 					  ft1000dev->bulk_out_endpointAddr),
 			  ft1000dev->tx_buf, byte_length, usb_dnld_complete,
-			  (void *)ft1000dev);
+			  ft1000dev);
 
 	usb_submit_urb(ft1000dev->tx_urb, GFP_ATOMIC);
 
@@ -704,7 +704,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 				case REQUEST_CODE_SEGMENT:
 					status = request_code_segment(ft1000dev,
 								      &s_file, &c_file,
-								      (const u8 *)boot_end,
+								      boot_end,
 								      true);
 					break;
 				default:
@@ -799,7 +799,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 
 					status = request_code_segment(ft1000dev,
 								      &s_file, &c_file,
-								      (const u8 *)code_end,
+								      code_end,
 								      false);
 
 					break;
@@ -971,11 +971,11 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 
 				/* Get buffer for provisioning data */
 				pbuffer =
-					kmalloc((pseudo_header_len +
-						 sizeof(struct pseudo_hdr)),
+					kmalloc(pseudo_header_len +
+						 sizeof(struct pseudo_hdr),
 						GFP_ATOMIC);
 				if (pbuffer) {
-					memcpy(pbuffer, (void *)c_file,
+					memcpy(pbuffer, c_file,
 					       (u32) (pseudo_header_len +
 						      sizeof(struct
 							     pseudo_hdr)));
