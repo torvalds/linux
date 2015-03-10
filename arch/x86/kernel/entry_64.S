@@ -421,22 +421,9 @@ ENTRY(stub_\func)
 END(stub_\func)
 	.endm
 
-	.macro FIXED_FRAME label,func
-ENTRY(\label)
-	CFI_STARTPROC
-	DEFAULT_FRAME 0, 8		/* offset 8: return address */
-	FIXUP_TOP_OF_STACK %r11, 8
-	call \func
-	RESTORE_TOP_OF_STACK %r11, 8
-	ret
-	CFI_ENDPROC
-END(\label)
-	.endm
-
 	FORK_LIKE  clone
 	FORK_LIKE  fork
 	FORK_LIKE  vfork
-	FIXED_FRAME stub_iopl, sys_iopl
 
 ENTRY(stub_execve)
 	CFI_STARTPROC
