@@ -132,6 +132,15 @@
 			enable-active-high;
 		};
 
+		reg_can2_3v3: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "can2-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		};
+
 		wlreg_on: fixedregulator@100 {
 			compatible = "regulator-fixed";
 			regulator-min-microvolt = <5000000>;
@@ -234,6 +243,13 @@
 			remote-endpoint = <&csi_ep>;
 		};
 	};
+};
+
+&flexcan2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan2>;
+	xceiver-supply = <&reg_can2_3v3>;
+	status = "okay";
 };
 
 &i2c1 {
@@ -578,6 +594,13 @@
                         >;
                 };
 
+		pinctrl_flexcan2: flexcan2grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO14__FLEXCAN2_RX	0x59
+				MX7D_PAD_GPIO1_IO15__FLEXCAN2_TX	0x59
+			>;
+		};
+
 		pinctrl_gpmi_nand_1: gpmi-nand-1 {
 			fsl,pins = <
 				MX7D_PAD_SD3_CLK__NAND_CLE			0x71
@@ -596,7 +619,6 @@
 				MX7D_PAD_SD3_DATA5__NAND_DATA05		0x71
 				MX7D_PAD_SD3_DATA6__NAND_DATA06		0x71
 				MX7D_PAD_SD3_DATA7__NAND_DATA07		0x71
-
 			>;
 		};
 
