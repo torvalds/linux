@@ -1279,7 +1279,7 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	ret = mxs_auart_init_gpios(s, &pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize GPIOs.\n");
-		got out_free_irq;
+		return ret;
 	}
 
 	/*
