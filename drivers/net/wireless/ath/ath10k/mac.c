@@ -66,8 +66,8 @@ static int ath10k_send_key(struct ath10k_vif *arvif,
 		arg.key_cipher = WMI_CIPHER_WEP;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
-		/* this one needs to be done in software */
-		return 1;
+		WARN_ON(1);
+		return -EINVAL;
 	default:
 		ath10k_warn(ar, "cipher %d is not supported\n", key->cipher);
 		return -EOPNOTSUPP;
@@ -4069,6 +4069,10 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		      key->cipher == WLAN_CIPHER_SUITE_WEP104;
 	int ret = 0;
 	u32 flags = 0;
+
+	/* this one needs to be done in software */
+	if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+		return 1;
 
 	if (key->keyidx > WMI_MAX_KEY_INDEX)
 		return -ENOSPC;
