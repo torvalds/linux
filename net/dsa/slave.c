@@ -617,6 +617,23 @@ static int dsa_slave_fixed_link_update(struct net_device *dev,
 }
 
 /* slave device setup *******************************************************/
+static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
+				 struct net_device *slave_dev)
+{
+	struct dsa_switch *ds = p->parent;
+
+	p->phy = ds->slave_mii_bus->phy_map[p->port];
+	if (!p->phy)
+		return -ENODEV;
+
+	/* Use already configured phy mode */
+	p->phy_interface = p->phy->interface;
+	phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
+			   p->phy_interface);
+
+	return 0;
+}
+
 static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 				struct net_device *slave_dev)
 {
@@ -662,14 +679,9 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	 * MDIO bus instead
 	 */
 	if (!p->phy) {
-		p->phy = ds->slave_mii_bus->phy_map[p->port];
-		if (!p->phy)
-			return -ENODEV;
-
-		/* Use already configured phy mode */
-		p->phy_interface = p->phy->interface;
-		phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
-				   p->phy_interface);
+		ret = dsa_slave_phy_connect(p, slave_dev);
+		if (ret)
+			return ret;
 	} else {
 		netdev_info(slave_dev, "attached PHY at address %d [%s]\n",
 			    p->phy->addr, p->phy->drv->name);
