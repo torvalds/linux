@@ -37,11 +37,10 @@ Commands are not supported.
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #define AO_VALUE_OFFSET			0x00
 #define	AO_CHAN_OFFSET			0x0c
