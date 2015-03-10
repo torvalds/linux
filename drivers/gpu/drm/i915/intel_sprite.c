@@ -1361,10 +1361,10 @@ out_unlock:
 
 int intel_plane_restore(struct drm_plane *plane)
 {
-	if (!plane->crtc || !plane->fb)
+	if (!plane->crtc || !plane->state->fb)
 		return 0;
 
-	return plane->funcs->update_plane(plane, plane->crtc, plane->fb,
+	return plane->funcs->update_plane(plane, plane->crtc, plane->state->fb,
 				  plane->state->crtc_x, plane->state->crtc_y,
 				  plane->state->crtc_w, plane->state->crtc_h,
 				  plane->state->src_x, plane->state->src_y,
