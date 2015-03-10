@@ -34,10 +34,9 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/mutex.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #define READ_TIMEOUT 50
 
