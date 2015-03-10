@@ -284,6 +284,7 @@
 		sysmgr: sysmgr@ffd06000 {
 			compatible = "altr,sys-mgr", "syscon";
 			reg = <0xffd06000 0x300>;
+			cpu1-start-addr = <0xffd06230>;
 		};
 
 		/* Local timer */
