@@ -835,6 +835,11 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
+#define FW_WM(value, plane) \
+	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK)
+#define FW_WM_VLV(value, plane) \
+	(((value) << DSPFW_ ## plane ## _SHIFT) & DSPFW_ ## plane ## _MASK_VLV)
+
 static void vlv_write_wm_values(struct intel_crtc *crtc,
 				const struct vlv_wm_values *wm)
 {
@@ -848,56 +853,59 @@ static void vlv_write_wm_values(struct intel_crtc *crtc,
 		   (wm->ddl[pipe].primary << DDL_PLANE_SHIFT));
 
 	I915_WRITE(DSPFW1,
-		   ((wm->sr.plane << DSPFW_SR_SHIFT) & DSPFW_SR_MASK) |
-		   ((wm->pipe[PIPE_B].cursor << DSPFW_CURSORB_SHIFT) & DSPFW_CURSORB_MASK) |
-		   ((wm->pipe[PIPE_B].primary << DSPFW_PLANEB_SHIFT) & DSPFW_PLANEB_MASK_VLV) |
-		   ((wm->pipe[PIPE_A].primary << DSPFW_PLANEA_SHIFT) & DSPFW_PLANEA_MASK_VLV));
+		   FW_WM(wm->sr.plane, SR) |
+		   FW_WM(wm->pipe[PIPE_B].cursor, CURSORB) |
+		   FW_WM_VLV(wm->pipe[PIPE_B].primary, PLANEB) |
+		   FW_WM_VLV(wm->pipe[PIPE_A].primary, PLANEA));
 	I915_WRITE(DSPFW2,
-		   ((wm->pipe[PIPE_A].sprite[1] << DSPFW_SPRITEB_SHIFT) & DSPFW_SPRITEB_MASK_VLV) |
-		   ((wm->pipe[PIPE_A].cursor << DSPFW_CURSORA_SHIFT) & DSPFW_CURSORA_MASK) |
-		   ((wm->pipe[PIPE_A].sprite[0] << DSPFW_SPRITEA_SHIFT) & DSPFW_SPRITEA_MASK_VLV));
+		   FW_WM_VLV(wm->pipe[PIPE_A].sprite[1], SPRITEB) |
+		   FW_WM(wm->pipe[PIPE_A].cursor, CURSORA) |
+		   FW_WM_VLV(wm->pipe[PIPE_A].sprite[0], SPRITEA));
 	I915_WRITE(DSPFW3,
-		   ((wm->sr.cursor << DSPFW_CURSOR_SR_SHIFT) & DSPFW_CURSOR_SR_MASK));
+		   FW_WM(wm->sr.cursor, CURSOR_SR));
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		I915_WRITE(DSPFW7_CHV,
-			   ((wm->pipe[PIPE_B].sprite[1] << DSPFW_SPRITED_SHIFT) & DSPFW_SPRITED_MASK) |
-			   ((wm->pipe[PIPE_B].sprite[0] << DSPFW_SPRITEC_SHIFT) & DSPFW_SPRITEC_MASK));
+			   FW_WM_VLV(wm->pipe[PIPE_B].sprite[1], SPRITED) |
+			   FW_WM_VLV(wm->pipe[PIPE_B].sprite[0], SPRITEC));
 		I915_WRITE(DSPFW8_CHV,
-			   ((wm->pipe[PIPE_C].sprite[1] << DSPFW_SPRITEF_SHIFT) & DSPFW_SPRITEF_MASK) |
-			   ((wm->pipe[PIPE_C].sprite[0] << DSPFW_SPRITEE_SHIFT) & DSPFW_SPRITEE_MASK));
+			   FW_WM_VLV(wm->pipe[PIPE_C].sprite[1], SPRITEF) |
+			   FW_WM_VLV(wm->pipe[PIPE_C].sprite[0], SPRITEE));
 		I915_WRITE(DSPFW9_CHV,
-			   ((wm->pipe[PIPE_C].primary << DSPFW_PLANEC_SHIFT) & DSPFW_PLANEC_MASK) |
-			   ((wm->pipe[PIPE_C].cursor << DSPFW_CURSORC_SHIFT) & DSPFW_CURSORC_MASK));
+			   FW_WM_VLV(wm->pipe[PIPE_C].primary, PLANEC) |
+			   FW_WM(wm->pipe[PIPE_C].cursor, CURSORC));
 		I915_WRITE(DSPHOWM,
-			   (((wm->sr.plane >> 9) << DSPFW_SR_HI_SHIFT) & DSPFW_SR_HI_MASK) |
-			   (((wm->pipe[PIPE_C].sprite[1] >> 8) << DSPFW_SPRITEF_HI_SHIFT) & DSPFW_SPRITEF_HI_MASK) |
-			   (((wm->pipe[PIPE_C].sprite[0] >> 8) << DSPFW_SPRITEE_HI_SHIFT) & DSPFW_SPRITEE_HI_MASK) |
-			   (((wm->pipe[PIPE_C].primary >> 8) << DSPFW_PLANEC_HI_SHIFT) & DSPFW_PLANEC_HI_MASK) |
-			   (((wm->pipe[PIPE_B].sprite[1] >> 8) << DSPFW_SPRITED_HI_SHIFT) & DSPFW_SPRITED_HI_MASK) |
-			   (((wm->pipe[PIPE_B].sprite[0] >> 8) << DSPFW_SPRITEC_HI_SHIFT) & DSPFW_SPRITEC_HI_MASK) |
-			   (((wm->pipe[PIPE_B].primary >> 8) << DSPFW_PLANEB_HI_SHIFT) & DSPFW_PLANEB_HI_MASK) |
-			   (((wm->pipe[PIPE_A].sprite[1] >> 8) << DSPFW_SPRITEB_HI_SHIFT) & DSPFW_SPRITEB_HI_MASK) |
-			   (((wm->pipe[PIPE_A].sprite[0] >> 8) << DSPFW_SPRITEA_HI_SHIFT) & DSPFW_SPRITEA_HI_MASK) |
-			   (((wm->pipe[PIPE_A].primary >> 8) << DSPFW_PLANEA_HI_SHIFT) & DSPFW_PLANEA_HI_MASK));
+			   FW_WM(wm->sr.plane >> 9, SR_HI) |
+			   FW_WM(wm->pipe[PIPE_C].sprite[1] >> 8, SPRITEF_HI) |
+			   FW_WM(wm->pipe[PIPE_C].sprite[0] >> 8, SPRITEE_HI) |
+			   FW_WM(wm->pipe[PIPE_C].primary >> 8, PLANEC_HI) |
+			   FW_WM(wm->pipe[PIPE_B].sprite[1] >> 8, SPRITED_HI) |
+			   FW_WM(wm->pipe[PIPE_B].sprite[0] >> 8, SPRITEC_HI) |
+			   FW_WM(wm->pipe[PIPE_B].primary >> 8, PLANEB_HI) |
+			   FW_WM(wm->pipe[PIPE_A].sprite[1] >> 8, SPRITEB_HI) |
+			   FW_WM(wm->pipe[PIPE_A].sprite[0] >> 8, SPRITEA_HI) |
+			   FW_WM(wm->pipe[PIPE_A].primary >> 8, PLANEA_HI));
 	} else {
 		I915_WRITE(DSPFW7,
-			   ((wm->pipe[PIPE_B].sprite[1] << DSPFW_SPRITED_SHIFT) & DSPFW_SPRITED_MASK) |
-			   ((wm->pipe[PIPE_B].sprite[0] << DSPFW_SPRITEC_SHIFT) & DSPFW_SPRITEC_MASK));
+			   FW_WM_VLV(wm->pipe[PIPE_B].sprite[1], SPRITED) |
+			   FW_WM_VLV(wm->pipe[PIPE_B].sprite[0], SPRITEC));
 		I915_WRITE(DSPHOWM,
-			   (((wm->sr.plane >> 9) << DSPFW_SR_HI_SHIFT) & DSPFW_SR_HI_MASK) |
-			   (((wm->pipe[PIPE_B].sprite[1] >> 8) << DSPFW_SPRITED_HI_SHIFT) & DSPFW_SPRITED_HI_MASK) |
-			   (((wm->pipe[PIPE_B].sprite[0] >> 8) << DSPFW_SPRITEC_HI_SHIFT) & DSPFW_SPRITEC_HI_MASK) |
-			   (((wm->pipe[PIPE_B].primary >> 8) << DSPFW_PLANEB_HI_SHIFT) & DSPFW_PLANEB_HI_MASK) |
-			   (((wm->pipe[PIPE_A].sprite[1] >> 8) << DSPFW_SPRITEB_HI_SHIFT) & DSPFW_SPRITEB_HI_MASK) |
-			   (((wm->pipe[PIPE_A].sprite[0] >> 8) << DSPFW_SPRITEA_HI_SHIFT) & DSPFW_SPRITEA_HI_MASK) |
-			   (((wm->pipe[PIPE_A].primary >> 8) << DSPFW_PLANEA_HI_SHIFT) & DSPFW_PLANEA_HI_MASK));
+			   FW_WM(wm->sr.plane >> 9, SR_HI) |
+			   FW_WM(wm->pipe[PIPE_B].sprite[1] >> 8, SPRITED_HI) |
+			   FW_WM(wm->pipe[PIPE_B].sprite[0] >> 8, SPRITEC_HI) |
+			   FW_WM(wm->pipe[PIPE_B].primary >> 8, PLANEB_HI) |
+			   FW_WM(wm->pipe[PIPE_A].sprite[1] >> 8, SPRITEB_HI) |
+			   FW_WM(wm->pipe[PIPE_A].sprite[0] >> 8, SPRITEA_HI) |
+			   FW_WM(wm->pipe[PIPE_A].primary >> 8, PLANEA_HI));
 	}
 
 	POSTING_READ(DSPFW1);
 
 	dev_priv->wm.vlv = *wm;
 }
+
+#undef FW_WM
+#undef FW_WM_VLV
 
 static uint8_t vlv_compute_drain_latency(struct drm_crtc *crtc,
 					 struct drm_plane *plane)

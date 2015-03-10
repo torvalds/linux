@@ -4161,25 +4161,25 @@ enum skl_disp_power_wells {
 #define   DSPFW_SPRITED_WM1_SHIFT	24
 #define   DSPFW_SPRITED_WM1_MASK	(0xff<<24)
 #define   DSPFW_SPRITED_SHIFT		16
-#define   DSPFW_SPRITED_MASK		(0xff<<16)
+#define   DSPFW_SPRITED_MASK_VLV	(0xff<<16)
 #define   DSPFW_SPRITEC_WM1_SHIFT	8
 #define   DSPFW_SPRITEC_WM1_MASK	(0xff<<8)
 #define   DSPFW_SPRITEC_SHIFT		0
-#define   DSPFW_SPRITEC_MASK		(0xff<<0)
+#define   DSPFW_SPRITEC_MASK_VLV	(0xff<<0)
 #define DSPFW8_CHV		(VLV_DISPLAY_BASE + 0x700b8)
 #define   DSPFW_SPRITEF_WM1_SHIFT	24
 #define   DSPFW_SPRITEF_WM1_MASK	(0xff<<24)
 #define   DSPFW_SPRITEF_SHIFT		16
-#define   DSPFW_SPRITEF_MASK		(0xff<<16)
+#define   DSPFW_SPRITEF_MASK_VLV	(0xff<<16)
 #define   DSPFW_SPRITEE_WM1_SHIFT	8
 #define   DSPFW_SPRITEE_WM1_MASK	(0xff<<8)
 #define   DSPFW_SPRITEE_SHIFT		0
-#define   DSPFW_SPRITEE_MASK		(0xff<<0)
+#define   DSPFW_SPRITEE_MASK_VLV	(0xff<<0)
 #define DSPFW9_CHV		(VLV_DISPLAY_BASE + 0x7007c) /* wtf #2? */
 #define   DSPFW_PLANEC_WM1_SHIFT	24
 #define   DSPFW_PLANEC_WM1_MASK		(0xff<<24)
 #define   DSPFW_PLANEC_SHIFT		16
-#define   DSPFW_PLANEC_MASK		(0xff<<16)
+#define   DSPFW_PLANEC_MASK_VLV		(0xff<<16)
 #define   DSPFW_CURSORC_WM1_SHIFT	8
 #define   DSPFW_CURSORC_WM1_MASK	(0x3f<<16)
 #define   DSPFW_CURSORC_SHIFT		0
