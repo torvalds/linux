@@ -331,11 +331,11 @@ static int send_packet(struct sasem_context *context)
 	context->tx_urb->actual_length = 0;
 
 	init_completion(&context->tx.finished);
-	atomic_set(&(context->tx.busy), 1);
+	atomic_set(&context->tx.busy, 1);
 
 	retval =  usb_submit_urb(context->tx_urb, GFP_KERNEL);
 	if (retval) {
-		atomic_set(&(context->tx.busy), 0);
+		atomic_set(&context->tx.busy, 0);
 		dev_err(&context->dev->dev, "error submitting urb (%d)\n",
 			retval);
 	} else {
@@ -387,7 +387,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 		goto exit;
 	}
 
-	data_buf = memdup_user((void const __user *)buf, n_bytes);
+	data_buf = memdup_user(buf, n_bytes);
 	if (IS_ERR(data_buf)) {
 		retval = PTR_ERR(data_buf);
 		data_buf = NULL;
