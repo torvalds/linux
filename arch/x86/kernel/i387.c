@@ -224,11 +224,12 @@ void fpu_finit(struct fpu *fpu)
 		return;
 	}
 
+	memset(fpu->state, 0, xstate_size);
+
 	if (cpu_has_fxsr) {
 		fx_finit(&fpu->state->fxsave);
 	} else {
 		struct i387_fsave_struct *fp = &fpu->state->fsave;
-		memset(fp, 0, xstate_size);
 		fp->cwd = 0xffff037fu;
 		fp->swd = 0xffff0000u;
 		fp->twd = 0xffffffffu;
