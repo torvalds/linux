@@ -1454,23 +1454,8 @@ static int ip_reply_glue_bits(void *dptr, char *to, int offset,
 /*
  *	Generic function to send a packet as reply to another packet.
  *	Used to send some TCP resets/acks so far.
- *
- *	Use a fake percpu inet socket to avoid false sharing and contention.
  */
-static DEFINE_PER_CPU(struct inet_sock, unicast_sock) = {
-	.sk = {
-		.__sk_common = {
-			.skc_refcnt = ATOMIC_INIT(1),
-		},
-		.sk_wmem_alloc	= ATOMIC_INIT(1),
-		.sk_allocation	= GFP_ATOMIC,
-		.sk_flags	= (1UL << SOCK_USE_WRITE_QUEUE),
-	},
-	.pmtudisc	= IP_PMTUDISC_WANT,
-	.uc_ttl		= -1,
-};
-
-void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
+void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb, __be32 daddr,
 			   __be32 saddr, const struct ip_reply_arg *arg,
 			   unsigned int len)
 {
@@ -1478,9 +1463,8 @@ void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
 	struct ipcm_cookie ipc;
 	struct flowi4 fl4;
 	struct rtable *rt = skb_rtable(skb);
+	struct net *net = sock_net(sk);
 	struct sk_buff *nskb;
-	struct sock *sk;
-	struct inet_sock *inet;
 	int err;
 
 	if (ip_options_echo(&replyopts.opt.opt, skb))
@@ -1508,15 +1492,11 @@ void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
 	if (IS_ERR(rt))
 		return;
 
-	inet = &get_cpu_var(unicast_sock);
+	inet_sk(sk)->tos = arg->tos;
 
-	inet->tos = arg->tos;
-	sk = &inet->sk;
 	sk->sk_priority = skb->priority;
 	sk->sk_protocol = ip_hdr(skb)->protocol;
 	sk->sk_bound_dev_if = arg->bound_dev_if;
-	sock_net_set(sk, net);
-	__skb_queue_head_init(&sk->sk_write_queue);
 	sk->sk_sndbuf = sysctl_wmem_default;
 	err = ip_append_data(sk, &fl4, ip_reply_glue_bits, arg->iov->iov_base,
 			     len, 0, &ipc, &rt, MSG_DONTWAIT);
@@ -1532,13 +1512,10 @@ void ip_send_unicast_reply(struct net *net, struct sk_buff *skb, __be32 daddr,
 			  arg->csumoffset) = csum_fold(csum_add(nskb->csum,
 								arg->csum));
 		nskb->ip_summed = CHECKSUM_NONE;
-		skb_orphan(nskb);
 		skb_set_queue_mapping(nskb, skb_get_queue_mapping(skb));
 		ip_push_pending_frames(sk, &fl4);
 	}
 out:
-	put_cpu_var(unicast_sock);
-
 	ip_rt_put(rt);
 }
 

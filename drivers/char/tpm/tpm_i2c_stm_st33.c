@@ -488,7 +488,7 @@ static int tpm_stm_i2c_send(struct tpm_chip *chip, unsigned char *buf,
 		if (burstcnt < 0)
 			return burstcnt;
 		size = min_t(int, len - i - 1, burstcnt);
-		ret = I2C_WRITE_DATA(client, TPM_DATA_FIFO, buf, size);
+		ret = I2C_WRITE_DATA(client, TPM_DATA_FIFO, buf + i, size);
 		if (ret < 0)
 			goto out_err;
 
