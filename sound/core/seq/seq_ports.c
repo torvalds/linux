@@ -141,10 +141,8 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 
 	/* create a new port */
 	new_port = kzalloc(sizeof(*new_port), GFP_KERNEL);
-	if (! new_port) {
-		pr_debug("ALSA: seq: malloc failed for registering client port\n");
+	if (!new_port)
 		return NULL;	/* failure, out of memory */
-	}
 	/* init port data */
 	new_port->addr.client = client->number;
 	new_port->addr.port = -1;
