@@ -67,6 +67,21 @@ config PINCTRL_AT91
 	help
 	  Say Y here to enable the at91 pinctrl driver
 
+config PINCTRL_AMD
+	bool "AMD GPIO pin control"
+	depends on GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  driver for memory mapped GPIO functionality on AMD platforms
+	  (x86 or arm).Most pins are usually muxed to some other
+	  functionality by firmware,so only a small amount is available
+	  for gpio use.
+
+	  Requires ACPI/FDT device enumeration code to set up a platform
+	  device.
+
 config PINCTRL_LANTIQ
 	bool
 	depends on LANTIQ
