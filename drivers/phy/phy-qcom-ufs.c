@@ -346,10 +346,10 @@ int ufs_qcom_phy_cfg_vreg(struct phy *phy,
 			goto out;
 		}
 		uA_load = on ? vreg->max_uA : 0;
-		ret = regulator_set_optimum_mode(reg, uA_load);
+		ret = regulator_set_load(reg, uA_load);
 		if (ret >= 0) {
 			/*
-			 * regulator_set_optimum_mode() returns new regulator
+			 * regulator_set_load() returns new regulator
 			 * mode upon success.
 			 */
 			ret = 0;
