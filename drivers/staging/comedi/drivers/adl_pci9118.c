@@ -73,13 +73,12 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "amcc_s5933.h"
 #include "comedi_8254.h"
