@@ -154,7 +154,7 @@ MYPROCTYPE *visor_proc_CreateType(struct proc_dir_entry *procDirRoot,
 			type->nProperties++;
 	while (type->name[type->nNames] != NULL)
 		type->nNames++;
-	type->procDirs = kzalloc((type->nNames + 1) *
+	type->procDirs = kcalloc((type->nNames + 1),
 				 sizeof(struct proc_dir_entry *),
 				 GFP_KERNEL | __GFP_NORETRY);
 	if (type->procDirs == NULL)
@@ -242,12 +242,12 @@ MYPROCOBJECT *visor_proc_CreateObject(MYPROCTYPE *type,
 			goto Away;
 	}
 	obj->procDirPropertyContexts =
-		kzalloc((type->nProperties + 1) *
+		kcalloc((type->nProperties + 1),
 			sizeof(struct proc_dir_entry_context),
 			GFP_KERNEL | __GFP_NORETRY);
 	if (obj->procDirPropertyContexts == NULL)
 		goto Away;
-	obj->procDirProperties = kzalloc((type->nProperties + 1) *
+	obj->procDirProperties = kcalloc((type->nProperties + 1),
 					 sizeof(struct proc_dir_entry *),
 					 GFP_KERNEL | __GFP_NORETRY);
 	if (obj->procDirProperties == NULL)
