@@ -302,9 +302,6 @@ static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 	slot->skb = skb;
 	slot->dma_addr = dma_addr;
 
-	if (slot->dma_addr & 0xC0000000)
-		bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
-
 	return 0;
 }
 
@@ -505,8 +502,6 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 				  ring->mmio_base);
 			goto err_dma_free;
 		}
-		if (ring->dma_base & 0xC0000000)
-			bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
 
 		ring->unaligned = bgmac_dma_unaligned(bgmac, ring,
 						      BGMAC_DMA_RING_TX);
@@ -536,8 +531,6 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 			err = -ENOMEM;
 			goto err_dma_free;
 		}
-		if (ring->dma_base & 0xC0000000)
-			bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
 
 		ring->unaligned = bgmac_dma_unaligned(bgmac, ring,
 						      BGMAC_DMA_RING_RX);

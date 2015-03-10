@@ -1597,7 +1597,7 @@ fec_enet_interrupt(int irq, void *dev_id)
 	writel(int_events, fep->hwp + FEC_IEVENT);
 	fec_enet_collect_events(fep, int_events);
 
-	if (fep->work_tx || fep->work_rx) {
+	if ((fep->work_tx || fep->work_rx) && fep->link) {
 		ret = IRQ_HANDLED;
 
 		if (napi_schedule_prep(&fep->napi)) {
@@ -3383,7 +3383,6 @@ fec_drv_remove(struct platform_device *pdev)
 		regulator_disable(fep->reg_phy);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
-	fec_enet_clk_enable(ndev, false);
 	of_node_put(fep->phy_node);
 	free_netdev(ndev);
 
