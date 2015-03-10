@@ -62,11 +62,10 @@ analog triggering on 1602 series
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "comedi_8254.h"
 #include "8255.h"
