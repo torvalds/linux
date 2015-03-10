@@ -290,7 +290,7 @@ static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
 	phys_addr_t addr = start, end = start + size;
 	phys_addr_t next;
 
-	pgd = pgdp + pgd_index(addr);
+	pgd = pgdp + kvm_pgd_index(addr);
 	do {
 		next = kvm_pgd_addr_end(addr, end);
 		if (!pgd_none(*pgd))
@@ -355,7 +355,7 @@ static void stage2_flush_memslot(struct kvm *kvm,
 	phys_addr_t next;
 	pgd_t *pgd;
 
-	pgd = kvm->arch.pgd + pgd_index(addr);
+	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
 	do {
 		next = kvm_pgd_addr_end(addr, end);
 		stage2_flush_puds(kvm, pgd, addr, next);
@@ -830,7 +830,7 @@ static pud_t *stage2_get_pud(struct kvm *kvm, struct kvm_mmu_memory_cache *cache
 	pgd_t *pgd;
 	pud_t *pud;
 
-	pgd = kvm->arch.pgd + pgd_index(addr);
+	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
 	if (WARN_ON(pgd_none(*pgd))) {
 		if (!cache)
 			return NULL;
@@ -1120,7 +1120,7 @@ static void stage2_wp_range(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
 	pgd_t *pgd;
 	phys_addr_t next;
 
-	pgd = kvm->arch.pgd + pgd_index(addr);
+	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
 	do {
 		/*
 		 * Release kvm_mmu_lock periodically if the memory region is
