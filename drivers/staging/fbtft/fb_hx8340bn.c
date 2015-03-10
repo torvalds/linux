@@ -129,7 +129,7 @@ static int set_var(struct fbtft_par *par)
 #define MV (1 << 5)
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, (par->bgr << 3));
+		write_reg(par, 0x36, par->bgr << 3);
 		break;
 	case 270:
 		write_reg(par, 0x36, MX | MV | (par->bgr << 3));
