@@ -215,6 +215,12 @@ struct sst_hsw_fx_enable {
 	struct sst_hsw_memory_info persistent_mem;
 } __attribute__((packed));
 
+struct sst_hsw_ipc_module_config {
+	struct sst_hsw_module_map map;
+	struct sst_hsw_memory_info persistent_mem;
+	struct sst_hsw_memory_info scratch_mem;
+} __attribute__((packed));
+
 struct sst_hsw_get_fx_param {
 	u32 parameter_id;
 	u32 param_size;
@@ -470,9 +476,14 @@ struct sst_dsp *sst_hsw_get_dsp(struct sst_hsw *hsw);
 /* fw module function */
 void sst_hsw_init_module_state(struct sst_hsw *hsw);
 bool sst_hsw_is_module_loaded(struct sst_hsw *hsw, u32 module_id);
+bool sst_hsw_is_module_active(struct sst_hsw *hsw, u32 module_id);
 
 int sst_hsw_module_load(struct sst_hsw *hsw,
 	u32 module_id, u32 instance_id, char *name);
+int sst_hsw_module_enable(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id);
+int sst_hsw_module_disable(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id);
 
 /* runtime module management */
 struct sst_module_runtime *sst_hsw_runtime_module_create(struct sst_hsw *hsw,
