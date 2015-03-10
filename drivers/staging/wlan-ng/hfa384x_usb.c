@@ -619,11 +619,10 @@ static hfa384x_usbctlx_t *usbctlx_alloc(void)
 {
 	hfa384x_usbctlx_t *ctlx;
 
-	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-	if (ctlx != NULL) {
-		memset(ctlx, 0, sizeof(*ctlx));
+	ctlx = kzalloc(sizeof(*ctlx),
+		       in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
+	if (ctlx != NULL)
 		init_completion(&ctlx->done);
-	}
 
 	return ctlx;
 }
