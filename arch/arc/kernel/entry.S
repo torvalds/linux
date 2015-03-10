@@ -24,6 +24,55 @@
  *------------------------------------------------------------------
  */
 
+;################### Special Sys Call Wrappers ##########################
+
+ENTRY(sys_clone_wrapper)
+	SAVE_CALLEE_SAVED_USER
+	bl  @sys_clone
+	DISCARD_CALLEE_SAVED_USER
+
+	GET_CURR_THR_INFO_FLAGS   r10
+	btst r10, TIF_SYSCALL_TRACE
+	bnz  tracesys_exit
+
+	b ret_from_system_call
+END(sys_clone_wrapper)
+
+ENTRY(ret_from_fork)
+	; when the forked child comes here from the __switch_to function
+	; r0 has the last task pointer.
+	; put last task in scheduler queue
+	bl   @schedule_tail
+
+	ld   r9, [sp, PT_status32]
+	brne r9, 0, 1f
+
+	jl.d [r14]		; kernel thread entry point
+	mov  r0, r13		; (see PF_KTHREAD block in copy_thread)
+
+1:
+	; Return to user space
+	; 1. Any forked task (Reach here via BRne above)
+	; 2. First ever init task (Reach here via return from JL above)
+	;    This is the historic "kernel_execve" use-case, to return to init
+	;    user mode, in a round about way since that is always done from
+	;    a kernel thread which is executed via JL above but always returns
+	;    out whenever kernel_execve (now inline do_fork()) is involved
+	b    ret_from_exception
+END(ret_from_fork)
+
+#ifdef CONFIG_ARC_DW2_UNWIND
+; Workaround for bug 94179 (STAR ):
+; Despite -fasynchronous-unwind-tables, linker is not making dwarf2 unwinder
+; section (.debug_frame) as loadable. So we force it here.
+; This also fixes STAR 9000487933 where the prev-workaround (objcopy --setflag)
+; would not work after a clean build due to kernel build system dependencies.
+.section .debug_frame, "wa",@progbits
+
+; Reset to .text as this file is included in entry-<isa>.S
+.section .text, "ax",@progbits
+#endif
+
 ;################### Non TLB Exception Handling #############################
 
 ; ---------------------------------------------
@@ -338,53 +387,6 @@ resume_kernel_mode:
 #endif
 
 	b	.Lrestore_regs
-END(ret_from_exception)
 
-ENTRY(ret_from_fork)
-	; when the forked child comes here from the __switch_to function
-	; r0 has the last task pointer.
-	; put last task in scheduler queue
-	bl   @schedule_tail
+##### DONT ADD CODE HERE - .Lrestore_regs actually follows in entry-<isa>.S
 
-	ld   r9, [sp, PT_status32]
-	brne r9, 0, 1f
-
-	jl.d [r14]		; kernel thread entry point
-	mov  r0, r13		; (see PF_KTHREAD block in copy_thread)
-
-1:
-	; Return to user space
-	; 1. Any forked task (Reach here via BRne above)
-	; 2. First ever init task (Reach here via return from JL above)
-	;    This is the historic "kernel_execve" use-case, to return to init
-	;    user mode, in a round about way since that is always done from
-	;    a kernel thread which is executed via JL above but always returns
-	;    out whenever kernel_execve (now inline do_fork()) is involved
-	b    ret_from_exception
-END(ret_from_fork)
-
-;################### Special Sys Call Wrappers ##########################
-
-ENTRY(sys_clone_wrapper)
-	SAVE_CALLEE_SAVED_USER
-	bl  @sys_clone
-	DISCARD_CALLEE_SAVED_USER
-
-	GET_CURR_THR_INFO_FLAGS   r10
-	btst r10, TIF_SYSCALL_TRACE
-	bnz  tracesys_exit
-
-	b ret_from_system_call
-END(sys_clone_wrapper)
-
-#ifdef CONFIG_ARC_DW2_UNWIND
-; Workaround for bug 94179 (STAR ):
-; Despite -fasynchronous-unwind-tables, linker is not making dwarf2 unwinder
-; section (.debug_frame) as loadable. So we force it here.
-; This also fixes STAR 9000487933 where the prev-workaround (objcopy --setflag)
-; would not work after a clean build due to kernel build system dependencies.
-.section .debug_frame, "wa",@progbits
-
-; Reset to .text as this file is included in entry-<isa>.S
-.section .text, "ax",@progbits
-#endif

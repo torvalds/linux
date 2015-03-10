@@ -391,3 +391,5 @@ not_level1_interrupt:
 	EXCEPTION_EPILOGUE
 debug_marker_syscall:
 	rtie
+
+END(ret_from_exception)
