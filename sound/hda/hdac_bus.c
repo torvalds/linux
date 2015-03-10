@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/export.h>
 #include <sound/hdaudio.h>
+#include "trace.h"
 
 static void process_unsol_events(struct work_struct *work);
 
@@ -82,6 +83,7 @@ int snd_hdac_bus_exec_verb_unlocked(struct hdac_bus *bus, unsigned int addr,
 	else if (bus->sync_write)
 		res = &tmp;
 	for (;;) {
+		trace_hda_send_cmd(bus, cmd);
 		err = bus->ops->command(bus, cmd);
 		if (err != -EAGAIN)
 			break;
@@ -90,8 +92,10 @@ int snd_hdac_bus_exec_verb_unlocked(struct hdac_bus *bus, unsigned int addr,
 		if (err)
 			break;
 	}
-	if (!err && res)
+	if (!err && res) {
 		err = bus->ops->get_response(bus, addr, res);
+		trace_hda_get_response(bus, addr, *res);
+	}
 	return err;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_exec_verb_unlocked);
@@ -113,6 +117,7 @@ void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex)
 	if (!bus)
 		return;
 
+	trace_hda_unsol_event(bus, res, res_ex);
 	wp = (bus->unsol_wp + 1) % HDA_UNSOL_QUEUE_SIZE;
 	bus->unsol_wp = wp;
 
