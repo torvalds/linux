@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <getopt.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -34,6 +35,33 @@ static uint32_t mode;
 static uint8_t bits = 8;
 static uint32_t speed = 500000;
 static uint16_t delay;
+
+static void hex_dump(const void *src, size_t length, size_t line_size, char *prefix)
+{
+	int i = 0;
+	const unsigned char *address = src;
+	const unsigned char *line = address;
+	unsigned char c;
+
+	printf("%s | ", prefix);
+	while (length-- > 0) {
+		printf("%02X ", *address++);
+		if (!(++i % line_size) || (length == 0 && i % line_size)) {
+			if (length == 0) {
+				while (i++ % line_size)
+					printf("__ ");
+			}
+			printf(" | ");  /* right close */
+			while (line < address) {
+				c = *line++;
+				printf("%c", (c < 33 || c == 255) ? 0x2E : c);
+			}
+			printf("\n");
+			if (length > 0)
+				printf("%s | ", prefix);
+		}
+	}
+}
 
 static void transfer(int fd)
 {
@@ -76,12 +104,7 @@ static void transfer(int fd)
 	if (ret < 1)
 		pabort("can't send spi message");
 
-	for (ret = 0; ret < ARRAY_SIZE(tx); ret++) {
-		if (!(ret % 6))
-			puts("");
-		printf("%.2X ", rx[ret]);
-	}
-	puts("");
+	hex_dump(rx, ARRAY_SIZE(rx), 32, "RX");
 }
 
 static void print_usage(const char *prog)
