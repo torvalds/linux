@@ -120,8 +120,9 @@ struct lynxfb_crtc{
 	int(*proc_setColReg)(struct lynxfb_crtc*,ushort,ushort,ushort,ushort);
 	void (*clear)(struct lynxfb_crtc*);
         /* pan display */
-        int(*proc_panDisplay)(struct lynxfb_crtc*, struct fb_var_screeninfo*,
-                struct fb_info*);
+	int (*proc_panDisplay)(struct lynxfb_crtc *,
+			       const struct fb_var_screeninfo *,
+			       const struct fb_info *);
 	/* cursor information */
 	struct lynx_cursor cursor;
 };
