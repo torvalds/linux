@@ -153,8 +153,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&brd, uarg, sizeof(int)))
 			return -EFAULT;
 
-		if ((brd < 0) || (brd > dgnc_NumBoards) ||
-		    (dgnc_NumBoards == 0))
+		if (brd < 0 || brd >= dgnc_NumBoards)
 			return -ENODEV;
 
 		memset(&di, 0, sizeof(di));
