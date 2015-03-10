@@ -72,6 +72,7 @@ struct dsa_platform_data {
 	 * to the root switch chip of the tree.
 	 */
 	struct device	*netdev;
+	struct net_device *of_netdev;
 
 	/*
 	 * Info structs describing each of the switch chips

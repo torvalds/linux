@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
+#include <linux/of_net.h>
 #include <linux/sysfs.h>
 #include "dsa_priv.h"
 
@@ -583,7 +584,7 @@ static int dsa_of_probe(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct device_node *child, *mdio, *ethernet, *port, *link;
 	struct mii_bus *mdio_bus;
-	struct platform_device *ethernet_dev;
+	struct net_device *ethernet_dev;
 	struct dsa_platform_data *pd;
 	struct dsa_chip_data *cd;
 	const char *port_name;
@@ -604,7 +605,7 @@ static int dsa_of_probe(struct device *dev)
 	if (!ethernet)
 		return -EINVAL;
 
-	ethernet_dev = of_find_device_by_node(ethernet);
+	ethernet_dev = of_find_net_device_by_node(ethernet);
 	if (!ethernet_dev)
 		return -EPROBE_DEFER;
 
@@ -613,7 +614,7 @@ static int dsa_of_probe(struct device *dev)
 		return -ENOMEM;
 
 	dev->platform_data = pd;
-	pd->netdev = &ethernet_dev->dev;
+	pd->of_netdev = ethernet_dev;
 	pd->nr_chips = of_get_available_child_count(np);
 	if (pd->nr_chips > DSA_MAX_SWITCHES)
 		pd->nr_chips = DSA_MAX_SWITCHES;
@@ -771,10 +772,15 @@ static int dsa_probe(struct platform_device *pdev)
 		pd = pdev->dev.platform_data;
 	}
 
-	if (pd == NULL || pd->netdev == NULL)
+	if (pd == NULL || (pd->netdev == NULL && pd->of_netdev == NULL))
 		return -EINVAL;
 
-	dev = dev_to_net_device(pd->netdev);
+	if (pd->of_netdev) {
+		dev = pd->of_netdev;
+		dev_hold(dev);
+	} else {
+		dev = dev_to_net_device(pd->netdev);
+	}
 	if (dev == NULL) {
 		ret = -EPROBE_DEFER;
 		goto out;
