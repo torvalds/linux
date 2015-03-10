@@ -1474,11 +1474,11 @@ static int test_cprng(struct crypto_rng *tfm, struct cprng_testvec *template,
 		for (j = 0; j < template[i].loops; j++) {
 			err = crypto_rng_get_bytes(tfm, result,
 						   template[i].rlen);
-			if (err != template[i].rlen) {
+			if (err < 0) {
 				printk(KERN_ERR "alg: cprng: Failed to obtain "
 				       "the correct amount of random data for "
-				       "%s (requested %d, got %d)\n", algo,
-				       template[i].rlen, err);
+				       "%s (requested %d)\n", algo,
+				       template[i].rlen);
 				goto out;
 			}
 		}
@@ -1759,7 +1759,7 @@ static int drbg_cavs_test(struct drbg_testvec *test, int pr,
 		ret = crypto_drbg_get_bytes_addtl(drng,
 			buf, test->expectedlen, &addtl);
 	}
-	if (ret <= 0) {
+	if (ret < 0) {
 		printk(KERN_ERR "alg: drbg: could not obtain random data for "
 		       "driver %s\n", driver);
 		goto outbuf;
@@ -1774,7 +1774,7 @@ static int drbg_cavs_test(struct drbg_testvec *test, int pr,
 		ret = crypto_drbg_get_bytes_addtl(drng,
 			buf, test->expectedlen, &addtl);
 	}
-	if (ret <= 0) {
+	if (ret < 0) {
 		printk(KERN_ERR "alg: drbg: could not obtain random data for "
 		       "driver %s\n", driver);
 		goto outbuf;
