@@ -713,10 +713,10 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 
 				/* Get buffer for provisioning data */
 				pbuffer =
-					kmalloc((usHdrLength + sizeof(struct pseudo_hdr)),
+					kmalloc(usHdrLength + sizeof(struct pseudo_hdr),
 						GFP_ATOMIC);
 				if (pbuffer) {
-					memcpy(pbuffer, (void *)pUcFile,
+					memcpy(pbuffer, pUcFile,
 					       (u32) (usHdrLength +
 						      sizeof(struct pseudo_hdr)));
 					/* link provisioning data */
