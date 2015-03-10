@@ -162,16 +162,14 @@ static inline bool kvm_page_empty(void *ptr)
 
 #define KVM_PREALLOC_LEVEL	0
 
-static inline int kvm_prealloc_hwpgd(struct kvm *kvm, pgd_t *pgd)
-{
-	return 0;
-}
-
-static inline void kvm_free_hwpgd(struct kvm *kvm) { }
-
 static inline void *kvm_get_hwpgd(struct kvm *kvm)
 {
 	return kvm->arch.pgd;
+}
+
+static inline unsigned int kvm_get_hwpgd_size(void)
+{
+	return PTRS_PER_S2_PGD * sizeof(pgd_t);
 }
 
 struct kvm;
