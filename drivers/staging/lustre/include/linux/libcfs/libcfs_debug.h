@@ -196,7 +196,7 @@ do {								\
 	       .msg_fn     = __func__,				\
 	       .msg_line   = __LINE__,				\
 	       .msg_cdls   = (cdls)	 };			\
-	dataname.msg_mask   = (mask);
+	dataname.msg_mask   = (mask)
 
 /**
  * Filters out logging messages based on mask and subsystem.
