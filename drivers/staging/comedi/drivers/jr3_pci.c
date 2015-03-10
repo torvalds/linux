@@ -39,14 +39,13 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "jr3_pci.h"
 
