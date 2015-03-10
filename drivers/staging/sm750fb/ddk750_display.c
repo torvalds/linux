@@ -201,17 +201,6 @@ static void waitNextVerticalSync(int ctrl,int delay)
 	}
 }
 
-static void swPanelPowerSequence_sm750le(int disp,int delay)
-{
-	unsigned int reg;
-	reg = PEEK32(DISPLAY_CONTROL_750LE);
-	if(disp)
-		reg |= 0xf;
-	else
-		reg &= ~0xf;
-	POKE32(DISPLAY_CONTROL_750LE,reg);
-}
-
 static void swPanelPowerSequence(int disp,int delay)
 {
 	unsigned int reg;

@@ -79,14 +79,6 @@ static unsigned long g_i2cDataGPIOMuxReg = GPIO_MUX;
 static unsigned long g_i2cDataGPIODataReg = GPIO_DATA;
 static unsigned long g_i2cDataGPIODataDirReg = GPIO_DATA_DIRECTION;
 
-static unsigned char peekIO(unsigned short port,unsigned short index)
-{
-#if defined(__i386__) || defined( __x86_64__)
-		outb_p(index,port);
-		return inb_p(port+1);
-#endif
-}
-
 /*
  *  This function puts a delay between command
  */
