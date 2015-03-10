@@ -26,9 +26,8 @@ Configuration Options: not applicable, uses comedi PCI auto config
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 /*
  * Register map
