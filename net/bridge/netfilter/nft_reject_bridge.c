@@ -99,7 +99,7 @@ static void nft_reject_br_send_v4_unreach(struct sk_buff *oldskb,
 	if (!pskb_may_pull(oldskb, len))
 		return;
 
-	if (pskb_trim_rcsum(oldskb, htons(ip_hdr(oldskb)->tot_len)))
+	if (pskb_trim_rcsum(oldskb, ntohs(ip_hdr(oldskb)->tot_len)))
 		return;
 
 	if (ip_hdr(oldskb)->protocol == IPPROTO_TCP ||

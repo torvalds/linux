@@ -763,17 +763,17 @@ static inline int br_vlan_enabled(struct net_bridge *br)
 }
 #endif
 
+struct nf_br_ops {
+	int (*br_dev_xmit_hook)(struct sk_buff *skb);
+};
+extern const struct nf_br_ops __rcu *nf_br_ops;
+
 /* br_netfilter.c */
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-int br_nf_prerouting_finish_bridge(struct sk_buff *skb);
 int br_nf_core_init(void);
 void br_nf_core_fini(void);
 void br_netfilter_rtable_init(struct net_bridge *);
 #else
-static inline int br_nf_prerouting_finish_bridge(struct sk_buff *skb)
-{
-        return 0;
-}
 static inline int br_nf_core_init(void) { return 0; }
 static inline void br_nf_core_fini(void) {}
 #define br_netfilter_rtable_init(x)

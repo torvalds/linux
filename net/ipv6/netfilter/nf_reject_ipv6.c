@@ -65,7 +65,7 @@ EXPORT_SYMBOL_GPL(nf_reject_ip6_tcphdr_get);
 
 struct ipv6hdr *nf_reject_ip6hdr_put(struct sk_buff *nskb,
 				     const struct sk_buff *oldskb,
-				     __be16 protocol, int hoplimit)
+				     __u8 protocol, int hoplimit)
 {
 	struct ipv6hdr *ip6h;
 	const struct ipv6hdr *oip6h = ipv6_hdr(oldskb);
