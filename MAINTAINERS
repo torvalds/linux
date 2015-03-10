@@ -4420,7 +4420,7 @@ S:	Maintained
 F:	block/partitions/efi.*
 
 STK1160 USB VIDEO CAPTURE DRIVER
-M:	Ezequiel Garcia <elezegarcia@gmail.com>
+M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Maintained
