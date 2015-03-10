@@ -65,11 +65,10 @@ TODO:
 */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "plx9052.h"
 #include "comedi_fc.h"
