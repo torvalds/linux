@@ -914,7 +914,7 @@ static void br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
 	br_handle_frame_finish(skb);
 }
 
-int br_nf_prerouting_finish_bridge(struct sk_buff *skb)
+static int br_nf_dev_xmit(struct sk_buff *skb)
 {
 	if (skb->nf_bridge && (skb->nf_bridge->mask & BRNF_BRIDGED_DNAT)) {
 		br_nf_pre_routing_finish_bridge_slow(skb);
@@ -922,7 +922,10 @@ int br_nf_prerouting_finish_bridge(struct sk_buff *skb)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(br_nf_prerouting_finish_bridge);
+
+static const struct nf_br_ops br_ops = {
+	.br_dev_xmit_hook =	br_nf_dev_xmit,
+};
 
 void br_netfilter_enable(void)
 {
@@ -1061,12 +1064,14 @@ static int __init br_netfilter_init(void)
 		return -ENOMEM;
 	}
 #endif
+	RCU_INIT_POINTER(nf_br_ops, &br_ops);
 	printk(KERN_NOTICE "Bridge firewalling registered\n");
 	return 0;
 }
 
 static void __exit br_netfilter_fini(void)
 {
+	RCU_INIT_POINTER(nf_br_ops, NULL);
 	nf_unregister_hooks(br_nf_ops, ARRAY_SIZE(br_nf_ops));
 #ifdef CONFIG_SYSCTL
 	unregister_net_sysctl_table(brnf_sysctl_header);
