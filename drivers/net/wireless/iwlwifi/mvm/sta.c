@@ -273,7 +273,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	else
 		sta_id = mvm_sta->sta_id;
 
-	if (WARN_ON_ONCE(sta_id == IWL_MVM_STATION_COUNT))
+	if (sta_id == IWL_MVM_STATION_COUNT)
 		return -ENOSPC;
 
 	spin_lock_init(&mvm_sta->lock);
