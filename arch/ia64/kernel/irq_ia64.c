@@ -173,7 +173,7 @@ static void __clear_irq_vector(int irq)
 	cfg->vector = IRQ_VECTOR_UNASSIGNED;
 	cfg->domain = CPU_MASK_NONE;
 	irq_status[irq] = IRQ_UNUSED;
-	cpus_andnot(vector_table[vector], vector_table[vector], domain);
+	cpumask_andnot(&vector_table[vector], &vector_table[vector], &domain);
 }
 
 static void clear_irq_vector(int irq)
@@ -259,7 +259,7 @@ static enum vector_domain_type {
 static cpumask_t vector_allocation_domain(int cpu)
 {
 	if (vector_domain_type == VECTOR_DOMAIN_PERCPU)
-		return cpumask_of_cpu(cpu);
+		return *cpumask_of(cpu);
 	return CPU_MASK_ALL;
 }
 
