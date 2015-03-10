@@ -1504,6 +1504,8 @@
 			<0 0xec5a0000 0 0x100>,  /* ADG */
 			<0 0xec540000 0 0x1000>, /* SSIU */
 			<0 0xec541000 0 0x1280>; /* SSI */
+		reg-names = "scu", "adg", "ssiu", "ssi";
+
 		clocks = <&mstp10_clks R8A7791_CLK_SSI_ALL>,
 			<&mstp10_clks R8A7791_CLK_SSI9>, <&mstp10_clks R8A7791_CLK_SSI8>,
 			<&mstp10_clks R8A7791_CLK_SSI7>, <&mstp10_clks R8A7791_CLK_SSI6>,
