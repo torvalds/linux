@@ -99,7 +99,6 @@ void hw_cursor_setData(struct lynx_cursor * cursor,
 	u8 color,mask,opr;
 	u16 data;
 	u16 * pbuffer,*pstart;
-	static ulong odd = 0;
 
 	/*  in byte*/
 	pitch = cursor->w >> 3;
@@ -188,7 +187,7 @@ void hw_cursor_setData2(struct lynx_cursor * cursor,
 			u16 rop,const u8* pcol,const u8* pmsk)
 {
 	int i,j,count,pitch,offset;
-	u8 color,mask,opr;
+	u8 color, mask;
 	u16 data;
 	u16 * pbuffer,*pstart;
 
