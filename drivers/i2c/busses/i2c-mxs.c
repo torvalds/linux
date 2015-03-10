@@ -568,6 +568,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	int ret;
 	int flags;
 	int use_pio = 0;
+	unsigned long time_left;
 
 	flags = stop ? MXS_I2C_CTRL0_POST_SEND_STOP : 0;
 
@@ -599,9 +600,9 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 		if (ret)
 			return ret;
 
-		ret = wait_for_completion_timeout(&i2c->cmd_complete,
+		time_left = wait_for_completion_timeout(&i2c->cmd_complete,
 						msecs_to_jiffies(1000));
-		if (ret == 0)
+		if (!time_left)
 			goto timeout;
 
 		ret = i2c->cmd_err;
