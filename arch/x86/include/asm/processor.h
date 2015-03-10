@@ -849,7 +849,8 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 #define task_pt_regs(task)                                             \
 ({                                                                     \
        struct pt_regs *__regs__;                                       \
-       __regs__ = (struct pt_regs *)(KSTK_TOP(task_stack_page(task))-8); \
+       __regs__ = (struct pt_regs *)(KSTK_TOP(task_stack_page(task)) - \
+				     TOP_OF_KERNEL_STACK_PADDING);     \
        __regs__ - 1;                                                   \
 })
 
