@@ -3646,6 +3646,8 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	mvmvif->csa_failed = false;
+
 	IWL_DEBUG_MAC80211(mvm, "pre CSA to freq %d\n",
 			   chsw->chandef.center_freq1);
 
@@ -3720,6 +3722,12 @@ static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
+
+	if (mvmvif->csa_failed) {
+		mvmvif->csa_failed = false;
+		ret = -EIO;
+		goto out_unlock;
+	}
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		struct iwl_mvm_sta *mvmsta;

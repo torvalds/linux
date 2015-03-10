@@ -196,19 +196,23 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 			     struct iwl_mvm_time_event_data *te_data,
 			     struct iwl_time_event_notif *notif)
 {
-	if (!le32_to_cpu(notif->status)) {
-		if (te_data->vif->type == NL80211_IFTYPE_STATION)
-			ieee80211_connection_loss(te_data->vif);
+	struct ieee80211_vif *vif = te_data->vif;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (!notif->status)
 		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
-		iwl_mvm_te_clear_data(mvm, te_data);
-		return;
-	}
 
 	switch (te_data->vif->type) {
 	case NL80211_IFTYPE_AP:
+		if (!notif->status)
+			mvmvif->csa_failed = true;
 		iwl_mvm_csa_noa_start(mvm);
 		break;
 	case NL80211_IFTYPE_STATION:
+		if (!notif->status) {
+			ieee80211_connection_loss(te_data->vif);
+			break;
+		}
 		iwl_mvm_csa_client_absent(mvm, te_data->vif);
 		ieee80211_chswitch_done(te_data->vif, true);
 		break;
