@@ -830,7 +830,7 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 	/* Double as long as the resulting node has a number of
 	 * nonempty nodes that are above the threshold.
 	 */
-	while (should_inflate(tp, tn) && max_work) {
+	while (should_inflate(tp, tn) && max_work--) {
 		tp = inflate(t, tn);
 		if (!tp) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -839,7 +839,6 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 			break;
 		}
 
-		max_work--;
 		tn = get_child(tp, cindex);
 	}
 
@@ -850,7 +849,7 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 	/* Halve as long as the number of empty children in this
 	 * node is above threshold.
 	 */
-	while (should_halve(tp, tn) && max_work) {
+	while (should_halve(tp, tn) && max_work--) {
 		tp = halve(t, tn);
 		if (!tp) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -859,7 +858,6 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 			break;
 		}
 
-		max_work--;
 		tn = get_child(tp, cindex);
 	}
 
