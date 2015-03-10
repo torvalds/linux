@@ -21,7 +21,6 @@
 
 #include "udfdecl.h"
 
-#include <linux/buffer_head.h>
 #include <linux/bitops.h>
 
 #include "udf_i.h"

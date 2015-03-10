@@ -33,7 +33,6 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/pagemap.h>
-#include <linux/buffer_head.h>
 #include <linux/aio.h>
 
 #include "udf_i.h"
