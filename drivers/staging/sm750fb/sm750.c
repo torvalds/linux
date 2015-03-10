@@ -54,9 +54,7 @@ static const char * g_fbmode[] = {NULL,NULL};
 static const char * g_def_fbmode = "800x600-16@60";
 static char * g_settings = NULL;
 static int g_dualview = 0;
-#ifdef MODULE
 static char * g_option = NULL;
-#endif
 
 /* if not use spin_lock,system will die if user load driver
  * and immediatly unload driver frequently (dual)*/
