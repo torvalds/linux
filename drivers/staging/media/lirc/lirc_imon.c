@@ -337,11 +337,11 @@ static int send_packet(struct imon_context *context)
 	context->tx_urb->actual_length = 0;
 
 	init_completion(&context->tx.finished);
-	atomic_set(&(context->tx.busy), 1);
+	atomic_set(&context->tx.busy, 1);
 
 	retval = usb_submit_urb(context->tx_urb, GFP_KERNEL);
 	if (retval) {
-		atomic_set(&(context->tx.busy), 0);
+		atomic_set(&context->tx.busy, 0);
 		dev_err(&context->usbdev->dev, "error submitting urb(%d)\n",
 			retval);
 	} else {
