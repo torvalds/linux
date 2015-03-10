@@ -248,6 +248,4 @@ void hw_cursor_setData2(struct lynx_cursor * cursor,
 		}
 
 	}
-	return 0;
-
 }
