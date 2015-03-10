@@ -958,6 +958,13 @@ void __init initmem_init(void)
 
 	memblock_dump_all();
 
+	/*
+	 * Reduce the possible NUMA nodes to the online NUMA nodes,
+	 * since we do not support node hotplug. This ensures that  we
+	 * lower the maximum NUMA node ID to what is actually present.
+	 */
+	nodes_and(node_possible_map, node_possible_map, node_online_map);
+
 	for_each_online_node(nid) {
 		unsigned long start_pfn, end_pfn;
 
