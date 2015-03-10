@@ -13,7 +13,7 @@ static const struct sock_diag_handler *sock_diag_handlers[AF_MAX];
 static int (*inet_rcv_compat)(struct sk_buff *skb, struct nlmsghdr *nlh);
 static DEFINE_MUTEX(sock_diag_table_mutex);
 
-int sock_diag_check_cookie(void *sk, __u32 *cookie)
+int sock_diag_check_cookie(void *sk, const __u32 *cookie)
 {
 	if ((cookie[0] != INET_DIAG_NOCOOKIE ||
 	     cookie[1] != INET_DIAG_NOCOOKIE) &&
