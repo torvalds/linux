@@ -39,7 +39,7 @@
  */
 __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 	.x86_tss = {
-		.sp0 = (unsigned long)&init_stack + sizeof(init_stack),
+		.sp0 = TOP_OF_INIT_STACK,
 #ifdef CONFIG_X86_32
 		.ss0 = __KERNEL_DS,
 		.ss1 = __KERNEL_CS,

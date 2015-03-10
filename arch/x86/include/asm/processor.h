@@ -811,6 +811,9 @@ static inline void spin_lock_prefetch(const void *x)
 	prefetchw(x);
 }
 
+#define TOP_OF_INIT_STACK ((unsigned long)&init_stack + sizeof(init_stack) - \
+			   TOP_OF_KERNEL_STACK_PADDING)
+
 #ifdef CONFIG_X86_32
 /*
  * User space process size: 3GB (default).
@@ -821,7 +824,7 @@ static inline void spin_lock_prefetch(const void *x)
 #define STACK_TOP_MAX		STACK_TOP
 
 #define INIT_THREAD  {							  \
-	.sp0			= sizeof(init_stack) + (long)&init_stack, \
+	.sp0			= TOP_OF_INIT_STACK,			  \
 	.vm86_info		= NULL,					  \
 	.sysenter_cs		= __KERNEL_CS,				  \
 	.io_bitmap_ptr		= NULL,					  \
@@ -883,7 +886,7 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 #define STACK_TOP_MAX		TASK_SIZE_MAX
 
 #define INIT_THREAD  { \
-	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+	.sp0 = TOP_OF_INIT_STACK \
 }
 
 /*
