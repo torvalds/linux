@@ -1278,11 +1278,10 @@ static int __init lynxfb_setup(char * options)
 	pr_info("options:%s\n",options);
 
 	len = strlen(options) + 1;
-	g_settings = kmalloc(len,GFP_KERNEL);
+	g_settings = kzalloc(len, GFP_KERNEL);
 	if(!g_settings)
 		return -ENOMEM;
 
-	memset(g_settings,0,len);
 	tmp = g_settings;
 
 	/* 	Notes:
