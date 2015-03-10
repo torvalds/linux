@@ -63,7 +63,7 @@ struct lynx_share{
 	unsigned long vidreg_start;
 	__u32 vidmem_size;
 	__u32 vidreg_size;
-	volatile unsigned char __iomem * pvReg;
+	void __iomem * pvReg;
 	unsigned char __iomem * pvMem;
 	/* locks*/
 	spinlock_t slock;

@@ -12,14 +12,14 @@
 #if 0
 /* if 718 big endian turned on,be aware that don't use this driver for general use,only for ppc big-endian */
 #warning "big endian on target cpu and enable nature big endian support of 718 capability !"
-#define PEEK32(addr)  			__raw_readl((void __iomem *)(mmio750)+(addr))
-#define POKE32(addr,data) 		__raw_writel((data),(void __iomem*)(mmio750)+(addr))
+#define PEEK32(addr)  			__raw_readl(mmio750 + addr)
+#define POKE32(addr,data) 		__raw_writel(data, mmio750 + addr)
 #else /* software control endianess */
-#define PEEK32(addr) readl((addr)+mmio750)
-#define POKE32(addr,data) writel((data),(addr)+mmio750)
+#define PEEK32(addr) readl(addr + mmio750)
+#define POKE32(addr,data) writel(data, addr + mmio750)
 #endif
 
-extern volatile unsigned  char __iomem * mmio750;
+extern void __iomem * mmio750;
 extern char revId750;
 extern unsigned short devId750;
 #else
