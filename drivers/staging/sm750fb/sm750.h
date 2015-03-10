@@ -23,7 +23,7 @@ struct lynx_accel{
 	volatile unsigned char __iomem * dpPortBase;
 
 	/* function fointers */
-	int (*de_init)(struct lynx_accel *);
+	void (*de_init)(struct lynx_accel *);
 
 	int (*de_wait)(void);/* see if hardware ready to work */
 
