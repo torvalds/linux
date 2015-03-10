@@ -300,7 +300,7 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 		return;
 
 	INIT_LIST_HEAD(&acpi_gpio->events);
-	acpi_walk_resources(ACPI_HANDLE(chip->dev), "_AEI",
+	acpi_walk_resources(handle, "_AEI",
 			    acpi_gpiochip_request_interrupt, acpi_gpio);
 }
 
