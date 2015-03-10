@@ -20,7 +20,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/i2c/atmel_mxt_ts.h>
+#include <linux/platform_data/atmel_mxt_ts.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -103,6 +103,7 @@ struct t7_config {
 #define MXT_POWER_CFG_DEEPSLEEP		1
 
 /* MXT_TOUCH_MULTI_T9 field */
+#define MXT_TOUCH_CTRL		0
 #define MXT_T9_ORIENT		9
 #define MXT_T9_RANGE		18
 
@@ -279,7 +280,6 @@ struct mxt_data {
 	u8 stylus_aux_pressure;
 	u8 stylus_aux_peak;
 	bool use_retrigen_workaround;
-	bool use_regulator;
 	struct regulator *reg_vdd;
 	struct regulator *reg_avdd;
 	char *fw_name;
@@ -862,6 +862,20 @@ static void mxt_proc_t6_messages(struct mxt_data *data, u8 *msg)
 
 	/* Save current status */
 	data->t6_status = status;
+}
+
+static int mxt_write_object(struct mxt_data *data,
+				 u8 type, u8 offset, u8 val)
+{
+	struct mxt_object *object;
+	u16 reg;
+
+	object = mxt_get_object(data, type);
+	if (!object || offset >= mxt_obj_size(object))
+		return -EINVAL;
+
+	reg = object->start_address;
+	return mxt_write_reg(data->client, reg + offset, val);
 }
 
 static void mxt_input_button(struct mxt_data *data, u8 *message)
@@ -2151,6 +2165,11 @@ static void mxt_regulator_enable(struct mxt_data *data)
 	if (error)
 		return;
 
+	/*
+	 * According to maXTouch power sequencing specification, RESET line
+	 * must be kept low until some time after regulators come up to
+	 * voltage
+	 */
 	msleep(MXT_REGULATOR_DELAY);
 	gpio_set_value(data->pdata->gpio_reset, 1);
 	msleep(MXT_CHG_DELAY);
@@ -2172,18 +2191,14 @@ static void mxt_regulator_disable(struct mxt_data *data)
 	regulator_disable(data->reg_avdd);
 }
 
-static void mxt_probe_regulators(struct mxt_data *data)
+static int mxt_probe_regulators(struct mxt_data *data)
 {
 	struct device *dev = &data->client->dev;
 	int error;
 
-	/*
-	 * According to maXTouch power sequencing specification, RESET line
-	 * must be kept low until some time after regulators come up to
-	 * voltage
-	 */
 	if (!gpio_is_valid(data->pdata->gpio_reset)) {
 		dev_dbg(dev, "Must have reset GPIO to use regulator support\n");
+		error = -EINVAL;
 		goto fail;
 	}
 
@@ -2201,18 +2216,17 @@ static void mxt_probe_regulators(struct mxt_data *data)
 		goto fail_release;
 	}
 
-	data->use_regulator = true;
 	mxt_regulator_enable(data);
 
 	dev_dbg(dev, "Initialised regulators\n");
-	return;
+	return 0;
 
 fail_release:
 	regulator_put(data->reg_vdd);
 fail:
 	data->reg_vdd = NULL;
 	data->reg_avdd = NULL;
-	data->use_regulator = false;
+	return error;
 }
 
 static int mxt_read_t9_resolution(struct mxt_data *data)
@@ -2897,10 +2911,12 @@ static int mxt_load_fw(struct device *dev)
 		goto release_firmware;
 
 	if (data->suspended) {
-		if (data->use_regulator)
+		if (data->pdata->suspend_mode == MXT_SUSPEND_REGULATOR)
 			mxt_regulator_enable(data);
 
-		enable_irq(data->irq);
+		if (data->pdata->suspend_mode == MXT_SUSPEND_DEEP_SLEEP)
+			enable_irq(data->irq);
+
 		data->suspended = false;
 	}
 
@@ -3064,6 +3080,7 @@ static ssize_t mxt_update_cfg_store(struct device *dev,
 		const char *buf, size_t count)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
+	const struct mxt_platform_data *pdata = data->pdata;
 	const struct firmware *cfg;
 	int ret;
 
@@ -3089,10 +3106,10 @@ static ssize_t mxt_update_cfg_store(struct device *dev,
 	mxt_free_input_device(data);
 
 	if (data->suspended) {
-		if (data->use_regulator) {
+		if (pdata->suspend_mode == MXT_SUSPEND_REGULATOR) {
 			enable_irq(data->irq);
 			mxt_regulator_enable(data);
-		} else {
+		} else if (pdata->suspend_mode == MXT_SUSPEND_DEEP_SLEEP) {
 			mxt_set_t7_power_cfg(data, MXT_POWER_CFG_RUN);
 			mxt_acquire_irq(data);
 		}
@@ -3274,13 +3291,24 @@ static void mxt_start(struct mxt_data *data)
 	if (!data->suspended || data->in_bootloader)
 		return;
 
-	if (data->use_regulator) {
-		enable_irq(data->irq);
+	switch (data->pdata->suspend_mode) {
+	case MXT_SUSPEND_TOUCH_CTRL:
+		mxt_soft_reset(data);
 
+		/* Touch enable */
+		mxt_write_object(data,
+				MXT_TOUCH_MULTI_T9, MXT_TOUCH_CTRL, 0x83);
+		break;
+
+	case MXT_SUSPEND_REGULATOR:
+		enable_irq(data->irq);
 		mxt_regulator_enable(data);
-	} else {
+		break;
+
+	case MXT_SUSPEND_DEEP_SLEEP:
+	default:
 		/*
-		 * Discard any messages still in message buffer
+		 * Discard any touch messages still in message buffer
 		 * from before chip went to sleep
 		 */
 		mxt_process_messages_until_invalid(data);
@@ -3291,6 +3319,7 @@ static void mxt_start(struct mxt_data *data)
 		mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
 
 		mxt_acquire_irq(data);
+		break;
 	}
 
 	data->suspended = false;
@@ -3301,14 +3330,29 @@ static void mxt_stop(struct mxt_data *data)
 	if (data->suspended || data->in_bootloader || data->updating_config)
 		return;
 
-	disable_irq(data->irq);
+	switch (data->pdata->suspend_mode) {
+	case MXT_SUSPEND_TOUCH_CTRL:
+		/* Touch disable */
+		mxt_write_object(data,
+				MXT_TOUCH_MULTI_T9, MXT_TOUCH_CTRL, 0);
+		break;
 
-	if (data->use_regulator)
+	case MXT_SUSPEND_REGULATOR:
+		disable_irq(data->irq);
 		mxt_regulator_disable(data);
-	else
+		mxt_reset_slots(data);
+		break;
+
+	case MXT_SUSPEND_DEEP_SLEEP:
+	default:
+		disable_irq(data->irq);
+
 		mxt_set_t7_power_cfg(data, MXT_POWER_CFG_DEEPSLEEP);
 
-	mxt_reset_slots(data);
+		mxt_reset_slots(data);
+		break;
+	}
+
 	data->suspended = true;
 }
 
@@ -3374,6 +3418,9 @@ static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 		pdata->t19_keymap = keymap;
 	}
 
+	of_property_read_u32(client->dev.of_node, "atmel,suspend-mode",
+			     &pdata->suspend_mode);
+
 	return pdata;
 }
 #else
@@ -3436,7 +3483,11 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto err_free_mem;
 	}
 
-	mxt_probe_regulators(data);
+	if (pdata->suspend_mode == MXT_SUSPEND_REGULATOR) {
+		error = mxt_probe_regulators(data);
+		if (error)
+			goto err_free_irq;
+	}
 
 	disable_irq(data->irq);
 

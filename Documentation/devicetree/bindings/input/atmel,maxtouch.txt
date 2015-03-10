@@ -22,6 +22,11 @@ Optional properties for main touchpad device:
     experiment to determine which bit corresponds to which input. Use
     KEY_RESERVED for unused padding values.
 
+- atmel,suspend-mode: Select method used to suspend:
+    MXT_SUSPEND_DEEP_SLEEP - use T7 to suspend the device into deep sleep
+    MXT_SUSPEND_TOUCH_CTRL - use T9.CTRL to turn off touch processing
+    Definitions are in <dt-bindings/input/atmel_mxt_ts.h>.
+
 - atmel,reset-gpio: Configure RESET GPIO. Required for regulator support.
 
 - atmel,cfg_name: Provide name of configuration file in OBP_RAW format. This
