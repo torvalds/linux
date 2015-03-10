@@ -1,7 +1,9 @@
 #ifndef DDK750_CHIP_H__
 #define DDK750_CHIP_H__
 #define DEFAULT_INPUT_CLOCK 14318181 /* Default reference clock */
-#define SM750LE_REVISION_ID (char)0xfe
+#ifndef SM750LE_REVISION_ID
+#define SM750LE_REVISION_ID ((unsigned char)0xfe)
+#endif
 
 /* This is all the chips recognized by this library */
 typedef enum _logical_chip_type_t

@@ -277,7 +277,7 @@ int hw_sm750_crtc_checkMode(struct lynxfb_crtc* crtc,struct fb_var_screeninfo* v
 		case 16:
 			break;
 		case 32:
-			if(share->revid == (unsigned char)SM750LE_REVISION_ID){
+			if (share->revid == SM750LE_REVISION_ID) {
 				pr_debug("750le do not support 32bpp\n");
 				return -EINVAL;
 			}
