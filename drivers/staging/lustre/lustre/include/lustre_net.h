@@ -1673,7 +1673,7 @@ ptlrpc_rqphase2str(struct ptlrpc_request *req)
 
 void _debug_req(struct ptlrpc_request *req,
 		struct libcfs_debug_msg_data *data, const char *fmt, ...)
-	__attribute__ ((format (printf, 3, 4)));
+	__printf(3, 4);
 
 /**
  * Helper that decides if we need to print request according to current debug
