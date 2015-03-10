@@ -1,7 +1,7 @@
 //============================================================
 // Description:
 //
-// This file is for RTL8821A_CSR_CSR Co-exist mechanism
+// This file is for RTL8821A_CSR Co-exist mechanism
 //
 // History
 // 2012/08/22 Cosa first check in.
@@ -13,6 +13,13 @@
 // include files
 //============================================================
 #include "Mp_Precomp.h"
+
+#define _BTCOEX_CSR 1
+
+#ifndef rtw_warn_on
+	#define rtw_warn_on(condition) do {} while (0)
+#endif
+
 #if(BT_30_SUPPORT == 1)
 //============================================================
 // Global variables, these are static variables
@@ -335,7 +342,210 @@ halbtc8821aCsr2ant_MonitorBtCtr(
 		regLPTxRx, regLPTx, regLPTx, regLPRx, regLPRx));
 
 	// reset counter
-	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x76e, 0xc);
+	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x76e, 0x5d);
+}
+
+VOID
+halbtc8821aCsr2ant_UpdateRaMask(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bForceExec,
+	IN	u4Byte				disRateMask
+	)
+{
+	pCoexDm->curRaMask = disRateMask;
+	
+	if( bForceExec || (pCoexDm->preRaMask != pCoexDm->curRaMask))
+	{
+		pBtCoexist->fBtcSet(pBtCoexist, BTC_SET_ACT_UPDATE_RAMASK, &pCoexDm->curRaMask);
+	}
+	pCoexDm->preRaMask = pCoexDm->curRaMask;
+}
+
+VOID
+halbtc8821aCsr2ant_AutoRateFallbackRetry(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bForceExec,
+	IN	u1Byte				type
+	)
+{
+	BOOLEAN	bWifiUnderBMode=FALSE;
+	
+	pCoexDm->curArfrType = type;
+
+	if( bForceExec || (pCoexDm->preArfrType != pCoexDm->curArfrType))
+	{
+		switch(pCoexDm->curArfrType)
+		{
+			case 0:	// normal mode
+				pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x430, pCoexDm->backupArfrCnt1);
+				pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x434, pCoexDm->backupArfrCnt2);
+				break;
+			case 1:	
+				pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_UNDER_B_MODE, &bWifiUnderBMode);
+				if(bWifiUnderBMode)
+				{
+					pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x430, 0x0);
+					pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x434, 0x01010101);
+				}
+				else
+				{
+					pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x430, 0x0);
+					pBtCoexist->fBtcWrite4Byte(pBtCoexist, 0x434, 0x04030201);
+				}
+				break;
+			default:
+				break;
+		}
+	}
+
+	pCoexDm->preArfrType = pCoexDm->curArfrType;
+}
+
+VOID
+halbtc8821aCsr2ant_RetryLimit(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bForceExec,
+	IN	u1Byte				type
+	)
+{
+	pCoexDm->curRetryLimitType = type;
+
+	if( bForceExec || (pCoexDm->preRetryLimitType != pCoexDm->curRetryLimitType))
+	{
+		switch(pCoexDm->curRetryLimitType)
+		{
+			case 0:	// normal mode
+				pBtCoexist->fBtcWrite2Byte(pBtCoexist, 0x42a, pCoexDm->backupRetryLimit);
+				break;
+			case 1:	// retry limit=8
+				pBtCoexist->fBtcWrite2Byte(pBtCoexist, 0x42a, 0x0808);
+				break;
+			default:
+				break;
+		}
+	}
+
+	pCoexDm->preRetryLimitType = pCoexDm->curRetryLimitType;
+}
+
+VOID
+halbtc8821aCsr2ant_AmpduMaxTime(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bForceExec,
+	IN	u1Byte				type
+	)
+{
+	pCoexDm->curAmpduTimeType = type;
+
+	if( bForceExec || (pCoexDm->preAmpduTimeType != pCoexDm->curAmpduTimeType))
+	{
+		switch(pCoexDm->curAmpduTimeType)
+		{
+			case 0:	// normal mode
+				pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x456, pCoexDm->backupAmpduMaxTime);
+				break;
+			case 1:	// AMPDU timw = 0x38 * 32us
+				pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x456, 0x38);
+				break;
+			case 2: 
+				pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x456, 0x17);
+				break;
+			default:
+				break;
+		}
+	}
+
+	pCoexDm->preAmpduTimeType = pCoexDm->curAmpduTimeType;
+}
+
+VOID
+halbtc8821aCsr2Ant_AmpduMaxNum(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bForceExec,
+	IN	u1Byte				type
+	)
+{
+	pCoexDm->curAmpduNumType = type;
+
+	if( bForceExec || (pCoexDm->preAmpduNumType != pCoexDm->curAmpduNumType))
+	{
+		switch(pCoexDm->curAmpduNumType)
+		{
+			case 0:	// normal mode
+				pBtCoexist->fBtcWrite2Byte(pBtCoexist, 0x4ca, pCoexDm->backupAmpduMaxNum);
+				break;
+			case 1:
+				pBtCoexist->fBtcWrite2Byte(pBtCoexist, 0x4ca, 0x0808);
+				break;
+			case 2: 
+				pBtCoexist->fBtcWrite2Byte(pBtCoexist, 0x4ca, 0x1f1f);
+				break;
+			default:
+				break;
+		}
+	}
+
+	pCoexDm->preAmpduNumType = pCoexDm->curAmpduNumType;
+
+}
+
+VOID
+halbtc8821aCsr2ant_LimitedTx(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bForceExec,
+	IN	u1Byte				raMaskType,
+	IN	u1Byte				arfrType,
+	IN	u1Byte				retryLimitType,
+	IN	u1Byte				ampduTimeType,
+	IN	u1Byte				ampduNumType
+	)
+{
+	switch(raMaskType)
+	{
+		case 0:	// normal mode
+			halbtc8821aCsr2ant_UpdateRaMask(pBtCoexist, bForceExec, 0x0);
+			break;
+		case 1:	// disable cck 1/2
+			halbtc8821aCsr2ant_UpdateRaMask(pBtCoexist, bForceExec, 0x00000003);
+			break;
+		case 2:	// disable cck 1/2/5.5, ofdm 6/9/12/18/24, mcs 0/1/2/3/4
+			halbtc8821aCsr2ant_UpdateRaMask(pBtCoexist, bForceExec, 0x0001f1f7);
+			break;
+		default:
+			break;
+	}
+
+	halbtc8821aCsr2ant_AutoRateFallbackRetry(pBtCoexist, bForceExec, arfrType);
+	halbtc8821aCsr2ant_RetryLimit(pBtCoexist, bForceExec, retryLimitType);
+	halbtc8821aCsr2ant_AmpduMaxTime(pBtCoexist, bForceExec, ampduTimeType);
+	halbtc8821aCsr2Ant_AmpduMaxNum(pBtCoexist, bForceExec, ampduNumType);
+}
+
+
+
+VOID
+halbtc8821aCsr2ant_LimitedRx(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bForceExec,
+	IN	BOOLEAN				bRejApAggPkt,
+	IN	BOOLEAN				bBtCtrlAggBufSize,
+	IN	u1Byte				aggBufSize
+	)
+{
+	BOOLEAN	bRejectRxAgg=bRejApAggPkt;
+	BOOLEAN	bBtCtrlRxAggSize=bBtCtrlAggBufSize;
+	u1Byte	rxAggSize=aggBufSize;
+
+	//============================================
+	//	Rx Aggregation related setting
+	//============================================
+	pBtCoexist->fBtcSet(pBtCoexist, BTC_SET_BL_TO_REJ_AP_AGG_PKT, &bRejectRxAgg);
+	// decide BT control aggregation buf size or not
+	pBtCoexist->fBtcSet(pBtCoexist, BTC_SET_BL_BT_CTRL_AGG_SIZE, &bBtCtrlRxAggSize);
+	// aggregation buf size, only work when BT control Rx aggregation size.
+	pBtCoexist->fBtcSet(pBtCoexist, BTC_SET_U1_AGG_BUF_SIZE, &rxAggSize);
+	// real update aggregation setting
+	pBtCoexist->fBtcSet(pBtCoexist, BTC_SET_ACT_AGGREGATE_CTRL, NULL);
 }
 
 VOID
@@ -352,8 +562,10 @@ halbtc8821aCsr2ant_QueryBtInfo(
 	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_EXEC, ("[BTCoex], Query Bt Info, FW write 0x61=0x%x\n", 
 		H2C_Parameter[0]));
 
+	rtw_warn_on(_BTCOEX_CSR);
 	pBtCoexist->fBtcFillH2c(pBtCoexist, 0x61, 1, H2C_Parameter);
 }
+
 u1Byte
 halbtc8821aCsr2ant_ActionAlgorithm(
 	IN	PBTC_COEXIST		pBtCoexist
@@ -365,14 +577,14 @@ halbtc8821aCsr2ant_ActionAlgorithm(
 	u1Byte				numOfDiffProfile=0;
 
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_HS_OPERATION, &bBtHsOn);
-	
-	//for win-8 stack HID report error
-	if(!pStackInfo->bHidExist)
-		pStackInfo->bHidExist = pCoexSta->bHidExist;  //sync  BTInfo with BT firmware and stack
-	// when stack HID report error, here we use the info from bt fw.
-	if(!pStackInfo->bBtLinkExist)
-		pStackInfo->bBtLinkExist = pCoexSta->bBtLinkExist;
-	
+
+	//sync StackInfo with BT firmware and stack
+	pStackInfo->bHidExist = pCoexSta->bHidExist;
+	pStackInfo->bBtLinkExist = pCoexSta->bBtLinkExist;
+	pStackInfo->bScoExist = pCoexSta->bScoExist;
+	pStackInfo->bPanExist = pCoexSta->bPanExist;
+	pStackInfo->bA2dpExist = pCoexSta->bA2dpExist;
+
 	if(!pStackInfo->bBtLinkExist)
 	{
 		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE, ("[BTCoex], No profile exists!!!\n"));
@@ -659,6 +871,7 @@ halbtc8821aCsr2ant_SetFwDecBtPwr(
 	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_EXEC, ("[BTCoex], decrease Bt Power : %s, FW write 0x62=0x%x\n", 
 		(bDecBtPwr? "Yes!!":"No!!"), H2C_Parameter[0]));
 
+	rtw_warn_on(_BTCOEX_CSR);
 	pBtCoexist->fBtcFillH2c(pBtCoexist, 0x62, 1, H2C_Parameter);	
 }
 
@@ -681,7 +894,9 @@ halbtc8821aCsr2ant_DecBtPwr(
 		if(pCoexDm->bPreDecBtPwr == pCoexDm->bCurDecBtPwr) 
 			return;
 	}
-	halbtc8821aCsr2ant_SetFwDecBtPwr(pBtCoexist, pCoexDm->bCurDecBtPwr);
+
+	/* TODO: may CSR consider to decrease BT power? */
+	//halbtc8821aCsr2ant_SetFwDecBtPwr(pBtCoexist, pCoexDm->bCurDecBtPwr);
 
 	pCoexDm->bPreDecBtPwr = pCoexDm->bCurDecBtPwr;
 }
@@ -704,6 +919,7 @@ halbtc8821aCsr2ant_SetBtAutoReport(
 	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_EXEC, ("[BTCoex], BT FW auto report : %s, FW write 0x68=0x%x\n", 
 		(bEnableAutoReport? "Enabled!!":"Disabled!!"), H2C_Parameter[0]));
 
+	rtw_warn_on(_BTCOEX_CSR);
 	pBtCoexist->fBtcFillH2c(pBtCoexist, 0x68, 1, H2C_Parameter);	
 }
 
@@ -726,7 +942,7 @@ halbtc8821aCsr2ant_BtAutoReport(
 		if(pCoexDm->bPreBtAutoReport == pCoexDm->bCurBtAutoReport) 
 			return;
 	}
-	halbtc8821aCsr2ant_SetBtAutoReport(pBtCoexist, pCoexDm->bCurBtAutoReport);
+	//halbtc8821aCsr2ant_SetBtAutoReport(pBtCoexist, pCoexDm->bCurBtAutoReport);
 
 	pCoexDm->bPreBtAutoReport = pCoexDm->bCurBtAutoReport;
 }
@@ -836,7 +1052,6 @@ halbtc8821aCsr2ant_LowPenaltyRa(
 	IN	BOOLEAN			bLowPenaltyRa
 	)
 {
-	//return;
 	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_SW, ("[BTCoex], %s turn LowPenaltyRA = %s\n",  
 		(bForceExec? "force to":""), ((bLowPenaltyRa)? "ON":"OFF")));
 	pCoexDm->bCurLowPenaltyRa = bLowPenaltyRa;
@@ -1084,6 +1299,7 @@ halbtc8821aCsr2ant_SetFwIgnoreWlanAct(
 	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_EXEC, ("[BTCoex], set FW for BT Ignore Wlan_Act, FW write 0x63=0x%x\n", 
 		H2C_Parameter[0]));
 
+	rtw_warn_on(_BTCOEX_CSR);
 	pBtCoexist->fBtcFillH2c(pBtCoexist, 0x63, 1, H2C_Parameter);
 }
 
@@ -1106,7 +1322,7 @@ halbtc8821aCsr2ant_IgnoreWlanAct(
 		if(pCoexDm->bPreIgnoreWlanAct == pCoexDm->bCurIgnoreWlanAct)
 			return;
 	}
-	halbtc8821aCsr2ant_SetFwIgnoreWlanAct(pBtCoexist, bEnable);
+	//halbtc8821aCsr2ant_SetFwIgnoreWlanAct(pBtCoexist, bEnable);
 
 	pCoexDm->bPreIgnoreWlanAct = pCoexDm->bCurIgnoreWlanAct;
 }
@@ -1121,25 +1337,27 @@ halbtc8821aCsr2ant_SetFwPstdma(
 	IN	u1Byte			byte5
 	)
 {
-	u1Byte			H2C_Parameter[5] ={0};
+	u1Byte			H2C_Parameter[6] ={0};
 
 	H2C_Parameter[0] = byte1;	
 	H2C_Parameter[1] = byte2;	
 	H2C_Parameter[2] = byte3;
 	H2C_Parameter[3] = byte4;
 	H2C_Parameter[4] = byte5;
+	H2C_Parameter[5] = 0x01;
 
 	pCoexDm->psTdmaPara[0] = byte1;
 	pCoexDm->psTdmaPara[1] = byte2;
 	pCoexDm->psTdmaPara[2] = byte3;
 	pCoexDm->psTdmaPara[3] = byte4;
 	pCoexDm->psTdmaPara[4] = byte5;
+	pCoexDm->psTdmaPara[5] = 0x01;
 	
-	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_EXEC, ("[BTCoex], FW write 0x60(5bytes)=0x%x%08x\n", 
+	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_EXEC, ("[BTCoex], FW write 0x60(6bytes)=0x%x%08x%02x\n", 
 		H2C_Parameter[0], 
-		H2C_Parameter[1]<<24|H2C_Parameter[2]<<16|H2C_Parameter[3]<<8|H2C_Parameter[4]));
+		H2C_Parameter[1]<<24|H2C_Parameter[2]<<16|H2C_Parameter[3]<<8|H2C_Parameter[4], H2C_Parameter[5]));
 
-	pBtCoexist->fBtcFillH2c(pBtCoexist, 0x60, 5, H2C_Parameter);
+	pBtCoexist->fBtcFillH2c(pBtCoexist, 0x60, 6, H2C_Parameter);
 }
 
 VOID
@@ -1328,6 +1546,12 @@ halbtc8821aCsr2ant_PsTdma(
 			case 21:	
 				halbtc8821aCsr2ant_SetFwPstdma(pBtCoexist, 0xe3, 0x15, 0x03, 0x70, 0x90);
 				break;
+			case 22:	//ad2dp master
+				halbtc8821aCsr2ant_SetFwPstdma(pBtCoexist, 0xeb, 0x11, 0x11, 0x21, 0x10);
+				break;
+			case 23:	//a2dp slave
+				halbtc8821aCsr2ant_SetFwPstdma(pBtCoexist, 0xeb, 0x12, 0x12, 0x20, 0x10);
+				break;
 			case 71:
 				halbtc8821aCsr2ant_SetFwPstdma(pBtCoexist, 0xe3, 0x1a, 0x1a, 0xe1, 0x90);
 				break;
@@ -1422,8 +1646,6 @@ halbtc8821aCsr2ant_IsCommonAction(
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_CONNECTED, &bWifiConnected);
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_BUSY, &bWifiBusy);
 
-	halbtc8821aCsr2ant_CoexTable(pBtCoexist, NORMAL_EXEC, 0x55ff55ff, 0x5afa5afa, 0xffff, 0x3);
-
 	if(!bWifiConnected && 
 		BT_8821A_CSR_2ANT_BT_STATUS_IDLE == pCoexDm->btStatus)
 	{
@@ -1439,6 +1661,8 @@ halbtc8821aCsr2ant_IsCommonAction(
 		
  		halbtc8821aCsr2ant_SwMechanism1(pBtCoexist,FALSE,FALSE,FALSE,FALSE);
 		halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,FALSE,0x18);
+		halbtc8821aCsr2ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 0, 0, 0, 0);
+		halbtc8821aCsr2ant_LimitedRx(pBtCoexist, NORMAL_EXEC, 0, 0, 0);
 
 		bCommon = TRUE;
 	}
@@ -1462,8 +1686,10 @@ halbtc8821aCsr2ant_IsCommonAction(
 		halbtc8821aCsr2ant_FwDacSwingLvl(pBtCoexist, NORMAL_EXEC, 6);
 		halbtc8821aCsr2ant_DecBtPwr(pBtCoexist, NORMAL_EXEC, FALSE);
 
-      		halbtc8821aCsr2ant_SwMechanism1(pBtCoexist,FALSE,FALSE,FALSE,FALSE);
+		halbtc8821aCsr2ant_SwMechanism1(pBtCoexist,FALSE,FALSE,FALSE,FALSE);
 		halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,FALSE,0x18);
+		halbtc8821aCsr2ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 0, 0, 0, 0);
+		halbtc8821aCsr2ant_LimitedRx(pBtCoexist, NORMAL_EXEC, 0, 0, 0);
 
 		bCommon = TRUE;
 	}
@@ -1481,6 +1707,8 @@ halbtc8821aCsr2ant_IsCommonAction(
 
 		halbtc8821aCsr2ant_SwMechanism1(pBtCoexist,FALSE,FALSE,FALSE,FALSE);
 		halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,FALSE,0x18);
+		halbtc8821aCsr2ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 0, 0, 0, 0);
+		halbtc8821aCsr2ant_LimitedRx(pBtCoexist, NORMAL_EXEC, 0, 0, 0);
 
 		bCommon = TRUE;
 	}
@@ -1506,6 +1734,8 @@ halbtc8821aCsr2ant_IsCommonAction(
 
 		halbtc8821aCsr2ant_SwMechanism1(pBtCoexist,TRUE,TRUE,TRUE,TRUE);
 		halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,FALSE,0x18);
+		halbtc8821aCsr2ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 0, 0, 0, 0);
+		halbtc8821aCsr2ant_LimitedRx(pBtCoexist, NORMAL_EXEC, 0, 0, 0);
 
 		bCommon = TRUE;
 	}
@@ -1523,6 +1753,8 @@ halbtc8821aCsr2ant_IsCommonAction(
 
 		halbtc8821aCsr2ant_SwMechanism1(pBtCoexist,FALSE,FALSE,FALSE,FALSE);
 		halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,FALSE,0x18);
+		halbtc8821aCsr2ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 0, 0, 0, 0);
+		halbtc8821aCsr2ant_LimitedRx(pBtCoexist, NORMAL_EXEC, 0, 0, 0);
 		
 		bCommon = TRUE;
 	}
@@ -1551,7 +1783,10 @@ halbtc8821aCsr2ant_IsCommonAction(
 
 		halbtc8821aCsr2ant_SwMechanism1(pBtCoexist,TRUE,TRUE,TRUE,TRUE);
 	}
-	
+
+	if (bCommon == TRUE)
+		halbtc8821aCsr2ant_CoexTable(pBtCoexist, NORMAL_EXEC, 0x55ff55ff, 0x5afa5afa, 0xffff, 0x3);
+
 	return bCommon;
 }
 VOID
@@ -2480,6 +2715,19 @@ halbtc8821aCsr2ant_ActionSco(
 	u1Byte	wifiRssiState,btRssiState;
 	u4Byte	wifiBw;
 
+	halbtc8821aCsr2ant_CoexTable(pBtCoexist, NORMAL_EXEC, 0x55555555, 0x55555555, 0xffffff, 0x3);
+	halbtc8821aCsr2ant_PsTdma(pBtCoexist, NORMAL_EXEC, FALSE, 0);
+
+	halbtc8821aCsr2ant_LowPenaltyRa(pBtCoexist, NORMAL_EXEC, TRUE);
+
+	halbtc8821aCsr2ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 1, 0, 2, 0);
+
+	if(pCoexSta->bSlave == FALSE)
+		halbtc8821aCsr2ant_LimitedRx(pBtCoexist, NORMAL_EXEC, FALSE, TRUE, 0x4);
+	else
+		halbtc8821aCsr2ant_LimitedRx(pBtCoexist, NORMAL_EXEC, FALSE, TRUE, 0x2);
+
+/*
 	wifiRssiState = halbtc8821aCsr2ant_WifiRssiState(pBtCoexist, 0, 2, 15, 0);
 	btRssiState = halbtc8821aCsr2ant_BtRssiState(2, 35, 0);
 
@@ -2558,6 +2806,7 @@ halbtc8821aCsr2ant_ActionSco(
 			 halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,FALSE,0x18);
 		}		
 	}
+*/
 }
 
 
@@ -2653,6 +2902,24 @@ halbtc8821aCsr2ant_ActionA2dp(
 	u1Byte		wifiRssiState, btRssiState;
 	u4Byte		wifiBw;
 
+	halbtc8821aCsr2ant_LimitedRx(pBtCoexist, NORMAL_EXEC, FALSE, TRUE, 0x8);
+
+	if(pCoexSta->bSlave == FALSE)
+	{
+		halbtc8821aCsr2ant_CoexTable(pBtCoexist, NORMAL_EXEC, 0xfdfdfdfd, 0xdfdadfda, 0xffffff, 0x3);
+		halbtc8821aCsr2ant_PsTdma(pBtCoexist, NORMAL_EXEC, TRUE, 22);
+		halbtc8821aCsr2ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 0, 0, 0, 1);
+		halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,TRUE,0x0c);
+	}
+	else
+	{
+		halbtc8821aCsr2ant_CoexTable(pBtCoexist, NORMAL_EXEC, 0xfdfdfdfd, 0xdfdadfda, 0xffffff, 0x3);
+		halbtc8821aCsr2ant_PsTdma(pBtCoexist, NORMAL_EXEC, TRUE, 23);
+		halbtc8821aCsr2ant_LimitedTx(pBtCoexist, NORMAL_EXEC, 0, 0, 0, 0, 2);
+		halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,TRUE,0x18);
+	}
+
+/*
 	wifiRssiState = halbtc8821aCsr2ant_WifiRssiState(pBtCoexist, 0, 2, 15, 0);
 	btRssiState = halbtc8821aCsr2ant_BtRssiState(2, 35, 0);
 
@@ -2719,6 +2986,7 @@ halbtc8821aCsr2ant_ActionA2dp(
 			 halbtc8821aCsr2ant_SwMechanism2(pBtCoexist,FALSE,FALSE,FALSE,0x18);
 		}		
 	}
+*/
 }
 
 VOID
@@ -3403,7 +3671,7 @@ halbtc8821aCsr2ant_RunCoexistMechanism(
 		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE, ("[BTCoex], Manual control!!!\n"));
 		return;
 	}
-	
+
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_UNDER_5G, &bWifiUnder5G);
 
 	if(bWifiUnder5G)
@@ -3413,7 +3681,7 @@ halbtc8821aCsr2ant_RunCoexistMechanism(
 		return;
 	}
 
-	if(pStackInfo->bProfileNotified)
+	//if(pStackInfo->bProfileNotified)
 	{
 		algorithm = halbtc8821aCsr2ant_ActionAlgorithm(pBtCoexist);
 		if(pCoexSta->bC2hBtInquiryPage && (BT_8821A_CSR_2ANT_COEX_ALGO_PANHS!=algorithm))
@@ -3489,15 +3757,6 @@ halbtc8821aCsr2ant_RunCoexistMechanism(
 			pCoexDm->preAlgorithm = pCoexDm->curAlgorithm;
 		}
 	}
-	else
-	{	// stack doesn't notify profile info.
-		// use the following profile info from bt fw.
-		//pCoexSta->bBtLinkExist
-		//pCoexSta->bScoExist
-		//pCoexSta->bA2dpExist
-		//pCoexSta->bHidExist
-		//pCoexSta->bPanExist
-}
 }
 
 
@@ -3530,15 +3789,27 @@ EXhalbtc8821aCsr2ant_InitHwConfig(
 
 	BTC_PRINT(BTC_MSG_INTERFACE, INTF_INIT, ("[BTCoex], 2Ant Init HW Config!!\n"));
 
-	// backup rf 0x1e value
-	pCoexDm->btRf0x1eBackup = 
-		pBtCoexist->fBtcGetRfReg(pBtCoexist, BTC_RF_A, 0x1e, 0xfffff);
+	if(bWifiOnly)
+		return;
+	
+	//if(bBackUp)
+	{
+		// backup rf 0x1e value
+		pCoexDm->btRf0x1eBackup = pBtCoexist->fBtcGetRfReg(pBtCoexist, BTC_RF_A, 0x1e, 0xfffff);
+		pCoexDm->backupArfrCnt1 = pBtCoexist->fBtcRead4Byte(pBtCoexist, 0x430);
+		pCoexDm->backupArfrCnt2 = pBtCoexist->fBtcRead4Byte(pBtCoexist, 0x434);
+		pCoexDm->backupRetryLimit = pBtCoexist->fBtcRead2Byte(pBtCoexist, 0x42a);
+		pCoexDm->backupAmpduMaxTime = pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x456);
+		pCoexDm->backupAmpduMaxNum = pBtCoexist->fBtcRead2Byte(pBtCoexist, 0x4ca);
+	}
 
+	#if 0 /* REMOVE */
 	// 0x790[5:0]=0x5
 	u1Tmp = pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x790);
 	u1Tmp &= 0xc0;
 	u1Tmp |= 0x5;
 	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x790, u1Tmp);
+	#endif
 	
 	//Antenna config
 	halbtc8821aCsr2ant_SetAntPath(pBtCoexist, BTC_ANT_WIFI_AT_MAIN, TRUE, FALSE);
@@ -3549,7 +3820,10 @@ EXhalbtc8821aCsr2ant_InitHwConfig(
 	// Enable counter statistics
 	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x76e, 0xc); //0x76e[3] =1, WLAN_Act control by PTA
 	pBtCoexist->fBtcWrite1Byte(pBtCoexist, 0x778, 0x3);
+
+	#if 0 /* REMOVE */
 	pBtCoexist->fBtcWrite1ByteBitMask(pBtCoexist, 0x40, 0x20, 0x1);
+	#endif
 }
 
 VOID
@@ -3572,11 +3846,6 @@ EXhalbtc8821aCsr2ant_DisplayCoexInfo(
 	pu1Byte				cliBuf=pBtCoexist->cliBuf;
 	u1Byte				u1Tmp[4], i, btInfoExt, psTdmaCase=0;
 	u4Byte				u4Tmp[4];
-	BOOLEAN				bRoam=FALSE, bScan=FALSE, bLink=FALSE, bWifiUnder5G=FALSE;
-	BOOLEAN				bBtHsOn=FALSE, bWifiBusy=FALSE;
-	s4Byte				wifiRssi=0, btHsRssi=0;
-	u4Byte				wifiBw, wifiTrafficDir;
-	u1Byte				wifiDot11Chnl, wifiHsChnl;
 	u4Byte				fwVer=0, btPatchVer=0;
 
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n ============[BT Coexist info]============");
@@ -3602,39 +3871,17 @@ EXhalbtc8821aCsr2ant_DisplayCoexInfo(
 		GLCoexVerDate8821aCsr2Ant, GLCoexVer8821aCsr2Ant, fwVer, btPatchVer, btPatchVer);
 	CL_PRINTF(cliBuf);
 
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_HS_OPERATION, &bBtHsOn);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U1_WIFI_DOT11_CHNL, &wifiDot11Chnl);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U1_WIFI_HS_CHNL, &wifiHsChnl);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d / %d(%d)", "Dot11 channel / HsMode(HsChnl)", \
-		wifiDot11Chnl, bBtHsOn, wifiHsChnl);
-	CL_PRINTF(cliBuf);
-
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %02x %02x %02x ", "H2C Wifi inform bt chnl Info", \
+	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %02x %02x %02x ", "Wifi channel informed to BT", \
 		pCoexDm->wifiChnlInfo[0], pCoexDm->wifiChnlInfo[1],
 		pCoexDm->wifiChnlInfo[2]);
 	CL_PRINTF(cliBuf);
 
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_S4_WIFI_RSSI, &wifiRssi);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_S4_HS_RSSI, &btHsRssi);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d/ %d", "Wifi rssi/ HS rssi", \
-		wifiRssi, btHsRssi);
+	// wifi status
+	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s", "============[Wifi Status]============");
 	CL_PRINTF(cliBuf);
+	pBtCoexist->fBtcDispDbgMsg(pBtCoexist, BTC_DBG_DISP_WIFI_STATUS);
 
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_SCAN, &bScan);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_LINK, &bLink);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_ROAM, &bRoam);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d/ %d/ %d ", "Wifi bLink/ bRoam/ bScan", \
-		bLink, bRoam, bScan);
-	CL_PRINTF(cliBuf);
-
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_UNDER_5G, &bWifiUnder5G);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U4_WIFI_BW, &wifiBw);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_BUSY, &bWifiBusy);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U4_WIFI_TRAFFIC_DIRECTION, &wifiTrafficDir);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %s / %s/ %s ", "Wifi status", \
-		(bWifiUnder5G? "5G":"2.4G"),
-		((BTC_WIFI_BW_LEGACY==wifiBw)? "Legacy": (((BTC_WIFI_BW_HT40==wifiBw)? "HT40":"HT20"))),
-		((!bWifiBusy)? "idle": ((BTC_WIFI_TRAFFIC_TX==wifiTrafficDir)? "uplink":"downlink")));
+	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s", "============[BT Status]============");
 	CL_PRINTF(cliBuf);
 
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = [%s/ %d/ %d] ", "BT [status/ rssi/ retryCnt]", \
@@ -3668,12 +3915,6 @@ EXhalbtc8821aCsr2ant_DisplayCoexInfo(
 			CL_PRINTF(cliBuf);
 		}
 	}
-
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %s/%s", "PS state, IPS/LPS", \
-		((pCoexSta->bUnderIps? "IPS ON":"IPS OFF")),
-		((pCoexSta->bUnderLps? "LPS ON":"LPS OFF")));
-	CL_PRINTF(cliBuf);
-	pBtCoexist->fBtcDispDbgMsg(pBtCoexist, BTC_DBG_DISP_FW_PWR_MODE_CMD);
 
 	// Sw mechanism	
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s", "============[Sw mechanism]============");
@@ -3767,12 +4008,6 @@ EXhalbtc8821aCsr2ant_DisplayCoexInfo(
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d/ %d", "0x774(low-pri Rx/Tx)", \
 		pCoexSta->lowPriorityRx, pCoexSta->lowPriorityTx);
 	CL_PRINTF(cliBuf);
-
-	// Tx mgnt queue hang or not, 0x41b should = 0xf, ex: 0xd ==>hang
-	u1Tmp[0] = pBtCoexist->fBtcRead1Byte(pBtCoexist, 0x41b);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = 0x%x", "0x41b (mgntQ hang chk == 0xf)", \
-		u1Tmp[0]);
-	CL_PRINTF(cliBuf);	
 
 	pBtCoexist->fBtcDispDbgMsg(pBtCoexist, BTC_DBG_DISP_COEX_STATISTICS);
 }
@@ -3880,7 +4115,8 @@ EXhalbtc8821aCsr2ant_MediaStatusNotify(
 		else
 			H2C_Parameter[2] = 0x20;
 	}
-			
+
+	#if 0 /* REMOVE */	
 	pCoexDm->wifiChnlInfo[0] = H2C_Parameter[0];
 	pCoexDm->wifiChnlInfo[1] = H2C_Parameter[1];
 	pCoexDm->wifiChnlInfo[2] = H2C_Parameter[2];
@@ -3888,7 +4124,9 @@ EXhalbtc8821aCsr2ant_MediaStatusNotify(
 	BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_EXEC, ("[BTCoex], FW write 0x66=0x%x\n", 
 		H2C_Parameter[0]<<16|H2C_Parameter[1]<<8|H2C_Parameter[2]));
 
+	rtw_warn_on(_BTCOEX_CSR);
 	pBtCoexist->fBtcFillH2c(pBtCoexist, 0x66, 3, H2C_Parameter);
+	#endif
 }
 
 VOID
@@ -3950,7 +4188,8 @@ EXhalbtc8821aCsr2ant_BtInfoNotify(
 
 		pCoexSta->btInfoExt = 
 			pCoexSta->btInfoC2h[rspSource][4];
-		
+
+		#if 0 /* REMOVE */
 		// Here we need to resend some wifi info to BT
 		// because bt is reset and loss of the info.
 		if( (pCoexSta->btInfoExt & BIT1) )
@@ -3965,7 +4204,9 @@ EXhalbtc8821aCsr2ant_BtInfoNotify(
 				EXhalbtc8821aCsr2ant_MediaStatusNotify(pBtCoexist, BTC_MEDIA_DISCONNECT);
 			}
 		}
+		#endif
 
+		#if 0 /* REMOVE */
 		if(!pBtCoexist->bManualControl && !bWifiUnder5G)
 		{
 			if( (pCoexSta->btInfoExt&BIT3) )
@@ -3986,7 +4227,9 @@ EXhalbtc8821aCsr2ant_BtInfoNotify(
 				}
 			}
 		}
+		#endif
 
+		#if 0 /* REMOVE */
 		if( (pCoexSta->btInfoExt & BIT4) )
 		{
 			// BT auto report already enabled, do nothing
@@ -3995,59 +4238,73 @@ EXhalbtc8821aCsr2ant_BtInfoNotify(
 		{
 			halbtc8821aCsr2ant_BtAutoReport(pBtCoexist, FORCE_EXEC, TRUE);
 		}
+		#endif
 	}
 		
 	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_HS_OPERATION, &bBtHsOn);
-	// check BIT2 first ==> check if bt is under inquiry or page scan
-	if(btInfo & BT_INFO_8821A_CSR_2ANT_B_INQ_PAGE)
+
+	if(btInfo == BT_INFO_8821A_CSR_2ANT_B_CONNECTION)	// connection exists but no busy
 	{
-		pCoexSta->bC2hBtInquiryPage = TRUE;
+		pCoexSta->bBtLinkExist = TRUE;
+		pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_CONNECTED_IDLE;
+	}
+	else if(btInfo & BT_INFO_8821A_CSR_2ANT_B_CONNECTION)	// connection exists and some link is busy
+	{
+		pCoexSta->bBtLinkExist = TRUE;
+
+		if(btInfo & BT_INFO_8821A_CSR_2ANT_B_FTP)
+			pCoexSta->bPanExist = TRUE;
+		else
+			pCoexSta->bPanExist = FALSE;
+
+		if(btInfo & BT_INFO_8821A_CSR_2ANT_B_A2DP)
+			pCoexSta->bA2dpExist = TRUE;
+		else
+			pCoexSta->bA2dpExist = FALSE;
+
+		if(btInfo & BT_INFO_8821A_CSR_2ANT_B_HID)
+			pCoexSta->bHidExist = TRUE;
+		else
+			pCoexSta->bHidExist = FALSE;
+
+		if(btInfo & BT_INFO_8821A_CSR_2ANT_B_SCO_ESCO)
+			pCoexSta->bScoExist = TRUE;
+		else
+			pCoexSta->bScoExist = FALSE;
+
+		if (pCoexSta->btInfoExt & 0x80)
+			pCoexSta->bSlave = TRUE; //Slave
+		else
+			pCoexSta->bSlave = FALSE; //Master
+
 		pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_NON_IDLE;
 	}
 	else
 	{
-		pCoexSta->bC2hBtInquiryPage = FALSE;
-		if(btInfo == 0x1)	// connection exists but no busy
-		{
-			pCoexSta->bBtLinkExist = TRUE;
-			pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_CONNECTED_IDLE;
-		}
-		else if(btInfo & BT_INFO_8821A_CSR_2ANT_B_CONNECTION)	// connection exists and some link is busy
-		{
-			pCoexSta->bBtLinkExist = TRUE;
-			if(btInfo & BT_INFO_8821A_CSR_2ANT_B_FTP)
-				pCoexSta->bPanExist = TRUE;
-			else
-				pCoexSta->bPanExist = FALSE;
-			if(btInfo & BT_INFO_8821A_CSR_2ANT_B_A2DP)
-				pCoexSta->bA2dpExist = TRUE;
-			else
-				pCoexSta->bA2dpExist = FALSE;
-			if(btInfo & BT_INFO_8821A_CSR_2ANT_B_HID)
-				pCoexSta->bHidExist = TRUE;
-			else
-				pCoexSta->bHidExist = FALSE;
-			if(btInfo & BT_INFO_8821A_CSR_2ANT_B_SCO_ESCO)
-				pCoexSta->bScoExist = TRUE;
-			else
-				pCoexSta->bScoExist = FALSE;
-			pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_NON_IDLE;
-		}
-		else
-		{
-			pCoexSta->bBtLinkExist = FALSE;
-			pCoexSta->bPanExist = FALSE;
-			pCoexSta->bA2dpExist = FALSE;
-			pCoexSta->bHidExist = FALSE;
-			pCoexSta->bScoExist = FALSE;
-			pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_IDLE;
-		}
-
-		if(bBtHsOn)
-		{
-			pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_NON_IDLE;
-		}
+		pCoexSta->bBtLinkExist = FALSE;
+		pCoexSta->bPanExist = FALSE;
+		pCoexSta->bA2dpExist = FALSE;
+		pCoexSta->bSlave = FALSE;
+		pCoexSta->bHidExist = FALSE;
+		pCoexSta->bScoExist = FALSE;
+		pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_IDLE;
 	}
+
+	if(bBtHsOn)
+	{
+		pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_NON_IDLE;
+	}
+
+	if(btInfo & BT_INFO_8821A_CSR_2ANT_B_INQ_PAGE)
+	{
+		pCoexSta->bC2hBtInquiryPage = TRUE;
+		pCoexDm->btStatus = BT_8821A_CSR_2ANT_BT_STATUS_NON_IDLE;
+	} 
+	else
+	{
+		pCoexSta->bC2hBtInquiryPage = FALSE;
+	}
+
 
 	if(BT_8821A_CSR_2ANT_BT_STATUS_NON_IDLE == pCoexDm->btStatus)
 	{
@@ -4130,7 +4387,8 @@ EXhalbtc8821aCsr2ant_Periodical(
 		BTC_PRINT(BTC_MSG_INTERFACE, INTF_INIT, ("[BTCoex], ****************************************************************\n"));
 	}
 
-	halbtc8821aCsr2ant_QueryBtInfo(pBtCoexist);
+	//halbtc8821aCsr2ant_QueryBtInfo(pBtCoexist);
+	//halbtc8821aCsr2ant_RunCoexistMechanism(pBtCoexist);
 	halbtc8821aCsr2ant_MonitorBtCtr(pBtCoexist);
 	halbtc8821aCsr2ant_MonitorBtEnableDisable(pBtCoexist);
 }

@@ -161,7 +161,8 @@ typedef struct compat_android_wifi_priv_cmd {
  */
 static int g_wifi_on = _TRUE;
 
-unsigned int oob_irq;
+unsigned int oob_irq = 0;
+unsigned int oob_gpio = 0;
 
 #ifdef CONFIG_PNO_SUPPORT
 /* 
@@ -848,17 +849,18 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 #ifdef CONFIG_GTK_OL
 	case ANDROID_WIFI_CMD_GTK_REKEY_OFFLOAD:
-		rtw_gtk_offload(net, (u8 *)&priv_cmd.buf);
+		rtw_gtk_offload(net, (u8*)command);
 		break;
 #endif //CONFIG_GTK_OL		
 	case ANDROID_WIFI_CMD_P2P_DISABLE:
 	{
+#ifdef CONFIG_P2P
 		struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;	
-		struct wifidirect_info 	*pwdinfo= &(padapter->wdinfo);
 		u8 channel, ch_offset;
 		u16 bwmode;
 
 		rtw_p2p_enable(padapter, P2P_ROLE_DISABLE);
+#endif // CONFIG_P2P
 		break;
 	}
 	default:
@@ -910,14 +912,9 @@ static struct resource *wifi_irqres = NULL;
 static int wifi_add_dev(void);
 static void wifi_del_dev(void);
 
-extern int rockchip_wifi_get_oob_irq(void);
 int rtw_android_wifictrl_func_add(void)
 {
 	int ret = 0;
-#if 1
-        oob_irq = rockchip_wifi_get_oob_irq();
-        printk("%s: rockchip_wifi_get_oob_irq :%d\n", __func__, oob_irq);
-#else
 	sema_init(&wifi_control_sem, 0);
 
 	ret = wifi_add_dev();
@@ -932,22 +929,20 @@ int rtw_android_wifictrl_func_add(void)
 		ret = -EINVAL;
 		DBG_871X("%s: platform_driver_register timeout\n", __FUNCTION__);
 	}
-#endif
+
 	return ret;
 }
 
 void rtw_android_wifictrl_func_del(void)
 {
-#if 0
 	if (g_wifidev_registered)
 	{
 		wifi_del_dev();
 		g_wifidev_registered = 0;
 	}
-#endif
 }
 
-void *rtw_wl_android_prealloc(int section, unsigned long size)
+void *wl_android_prealloc(int section, unsigned long size)
 {
 	void *alloc_ptr = NULL;
 	if (wifi_control_data && wifi_control_data->mem_prealloc) {
@@ -1043,9 +1038,13 @@ static int wifi_probe(struct platform_device *pdev)
 			wifi_irqres->start, wifi_wake_gpio);
 
 	if (wifi_wake_gpio > 0) {
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+		wifi_configure_gpio();
+#else //CONFIG_PLATFORM_INTEL_BYT
 		gpio_request(wifi_wake_gpio, "oob_irq");
 		gpio_direction_input(wifi_wake_gpio);
 		oob_irq = gpio_to_irq(wifi_wake_gpio);
+#endif //CONFIG_PLATFORM_INTEL_BYT
 		printk("%s oob_irq:%d\n", __func__, oob_irq);
 	}
 	else if(wifi_irqres)
@@ -1233,3 +1232,34 @@ static void wifi_del_dev(void)
 }
 #endif /* defined(RTW_ENABLE_WIFI_CONTROL_FUNC) */
 
+#ifdef CONFIG_GPIO_WAKEUP
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+int wifi_configure_gpio(void)
+{
+	if (gpio_request(oob_gpio, "oob_irq")) {
+		DBG_871X("## %s Cannot request GPIO\n", __FUNCTION__);
+		return -1;
+	}
+	gpio_export(oob_gpio, 0);
+	if (gpio_direction_input(oob_gpio)) {
+		DBG_871X("## %s Cannot set GPIO direction input\n", __FUNCTION__);
+		return -1;
+	}
+	if ((oob_irq = gpio_to_irq(oob_gpio)) < 0) {
+		DBG_871X("## %s Cannot convert GPIO to IRQ\n", __FUNCTION__);
+		return -1;
+	}
+
+	DBG_871X("## %s OOB_IRQ=%d\n", __FUNCTION__, oob_irq);
+
+	return 0;
+}
+#endif //CONFIG_PLATFORM_INTEL_BYT
+void wifi_free_gpio(unsigned int gpio)
+{
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+	if(gpio)
+		gpio_free(gpio);
+#endif //CONFIG_PLATFORM_INTEL_BYT
+}
+#endif //CONFIG_GPIO_WAKEUP

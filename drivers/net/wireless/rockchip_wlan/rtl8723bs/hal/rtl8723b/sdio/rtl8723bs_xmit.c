@@ -304,7 +304,7 @@ static s32 xmit_xmitframes(PADAPTER padapter, struct xmit_priv *pxmitpriv)
 	u32 txlen, max_xmit_len;
 	u8 txdesc_size = TXDESC_SIZE;
 	int inx[4];
-	
+	u8 pre_qsel=0xFF,next_qsel=0xFF;
 	err = 0;
 	no_res = _FALSE;
 	hwxmits = pxmitpriv->hwxmits;
@@ -363,9 +363,11 @@ static s32 xmit_xmitframes(PADAPTER padapter, struct xmit_priv *pxmitpriv)
 				
 				// check xmit_buf size enough or not
 				txlen = txdesc_size + rtw_wlan_pkt_size(pxmitframe);
+				next_qsel = pxmitframe->attrib.qsel;
 				if ((NULL == pxmitbuf) ||
 					((_RND(pxmitbuf->len, 8) + txlen) > max_xmit_len)
 					|| (k >= (rtw_hal_sdio_max_txoqt_free_space(padapter)-1))
+					|| ((k!=0) && (_FAIL == rtw_hal_busagg_qsel_check(padapter,pre_qsel,next_qsel)))
 				)
 				{
 					if (pxmitbuf)
@@ -440,7 +442,7 @@ static s32 xmit_xmitframes(PADAPTER padapter, struct xmit_priv *pxmitpriv)
 					if (k != 1)
 						rtl8723b_update_txdesc(pxmitframe, pxmitframe->buf_addr);
 					rtw_count_tx_stats(padapter, pxmitframe, pxmitframe->attrib.last_txcmdsz);
-
+					pre_qsel = pxmitframe->attrib.qsel;
 					txlen = txdesc_size + pxmitframe->attrib.last_txcmdsz;
 					pxmitframe->pg_num = (txlen + 127)/128;
 					pxmitbuf->pg_num += (txlen + 127)/128;
@@ -538,7 +540,11 @@ next:
 		if(padapter->registrypriv.wifi_spec)
 			rtw_msleep_os(1);
 		else
+#ifdef CONFIG_REDUCE_TX_CPU_LOADING 
+			rtw_msleep_os(1);
+#else
 			rtw_yield_os();
+#endif
 		goto next;
 	}
 
@@ -546,6 +552,9 @@ next:
 	ret = rtw_txframes_pending(padapter);
 	_exit_critical_bh(&pxmitpriv->lock, &irql);
 	if (ret == 1) {
+#ifdef CONFIG_REDUCE_TX_CPU_LOADING 
+		rtw_msleep_os(1);
+#endif
 		goto next;
 	}
 

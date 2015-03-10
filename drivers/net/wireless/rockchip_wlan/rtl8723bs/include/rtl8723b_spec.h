@@ -278,16 +278,12 @@
 #define RT_AC_INT_MASKS	(IMR_VIDOK_8723B | IMR_VODOK_8723B | IMR_BEDOK_8723B|IMR_BKDOK_8723B)
 #endif
 
-#endif
+//========================================================
+// General definitions
+//========================================================
 
-#ifdef CONFIG_USB_HCI
-//should be renamed and moved to another file
-typedef	enum _BOARD_TYPE_8192CUSB{
-	BOARD_USB_DONGLE 			= 0,		// USB dongle
-	BOARD_USB_High_PA 		= 1,		// USB dongle with high power PA
-	BOARD_MINICARD		  	= 2,		// Minicard
-	BOARD_USB_SOLO 		 	= 3,		// USB solo-Slim module
-	BOARD_USB_COMBO			= 4,		// USB Combo-Slim module
-} BOARD_TYPE_8723BUSB, *PBOARD_TYPE_8723BUSB;
+#define MACID_NUM_8723B 128
+#define CAM_ENTRY_NUM_8723B 64
 
-#endif
+#endif /* __RTL8723B_SPEC_H__ */
+

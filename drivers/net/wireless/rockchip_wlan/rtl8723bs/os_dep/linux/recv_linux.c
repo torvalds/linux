@@ -302,6 +302,7 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 
 void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, struct rx_pkt_attrib *pattrib)
 {
 	struct mlme_priv*pmlmepriv = &padapter->mlmepriv;
+	struct recv_priv *precvpriv = &(padapter->recvpriv);
 #ifdef CONFIG_BR_EXT
 	void *br_port = NULL;
 #endif
@@ -388,7 +389,8 @@ void rtw_os_recv_indicate_pkt(_adapter *padapter, _pkt *pkt, struct rx_pkt_attri
 			}							
 		}
 #endif	// CONFIG_BR_EXT
-
+		if( precvpriv->sink_udpport > 0)
+			rtw_sink_rtp_seq_dbg(padapter,pkt);
 		pkt->protocol = eth_type_trans(pkt, padapter->pnetdev);
 		pkt->dev = padapter->pnetdev;
 
@@ -569,12 +571,13 @@ int rtw_recv_indicatepkt(_adapter *padapter, union recv_frame *precv_frame)
 	_queue	*pfree_recv_queue;
 	_pkt *skb;
 	struct mlme_priv*pmlmepriv = &padapter->mlmepriv;
-	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
-
-_func_enter_;
+	struct rx_pkt_attrib *pattrib;
+	
+	if(NULL == precv_frame)
+		goto _recv_indicatepkt_drop;
 
 	DBG_COUNTER(padapter->rx_logs.os_indicate);
-
+	pattrib = &precv_frame->u.hdr.attrib;
 	precvpriv = &(padapter->recvpriv);
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 
@@ -642,7 +645,6 @@ _recv_indicatepkt_end:
 
 	RT_TRACE(_module_recv_osdep_c_,_drv_info_,("\n rtw_recv_indicatepkt :after rtw_os_recv_indicate_pkt!!!!\n"));
 
-_func_exit_;
 
         return _SUCCESS;
 
@@ -653,9 +655,8 @@ _recv_indicatepkt_drop:
 		 rtw_free_recvframe(precv_frame, pfree_recv_queue);
 
 	 DBG_COUNTER(padapter->rx_logs.os_indicate_err);
-	 return _FAIL;
 
-_func_exit_;
+	 return _FAIL;
 
 }
 

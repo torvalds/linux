@@ -254,10 +254,32 @@ struct cfg80211_wifidirect_info{
 	struct ieee80211_channel	remain_on_ch_channel;
 	enum nl80211_channel_type	remain_on_ch_type;
 	u64						remain_on_ch_cookie;
+	bool not_indic_ro_ch_exp;
 	bool is_ro_ch;
 	u32 last_ro_ch_time; /* this will be updated at the beginning and end of ro_ch */
 };
 #endif //CONFIG_IOCTL_CFG80211
+
+#ifdef CONFIG_P2P_WOWLAN
+
+enum P2P_WOWLAN_RECV_FRAME_TYPE
+{
+	P2P_WOWLAN_RECV_NEGO_REQ = 0,
+	P2P_WOWLAN_RECV_INVITE_REQ = 1,
+	P2P_WOWLAN_RECV_PROVISION_REQ = 2,
+};
+
+struct p2p_wowlan_info{
+
+	u8 						is_trigger;
+	enum P2P_WOWLAN_RECV_FRAME_TYPE	wowlan_recv_frame_type;
+	u8 						wowlan_peer_addr[ETH_ALEN];
+	u16						wowlan_peer_wpsconfig;
+	u8						wowlan_peer_is_persistent;
+	u8						wowlan_peer_invitation_type;
+};
+
+#endif //CONFIG_P2P_WOWLAN
 
 struct wifidirect_info{
 	_adapter*				padapter;
@@ -284,6 +306,11 @@ struct wifidirect_info{
 #ifdef CONFIG_WFD
 	struct wifi_display_info		*wfd_info;
 #endif	
+
+#ifdef CONFIG_P2P_WOWLAN
+	struct p2p_wowlan_info		p2p_wow_info;
+#endif //CONFIG_P2P_WOWLAN
+
 	enum P2P_ROLE			role;
 	enum P2P_STATE			pre_p2p_state;
 	enum P2P_STATE			p2p_state;
@@ -401,6 +428,18 @@ enum {
 	RTW_ROAM_ACTIVE = BIT2,
 };
 
+struct beacon_keys {
+	u8 ssid[IW_ESSID_MAX_SIZE];
+	u32 ssid_len;
+	u8 bcn_channel;
+	u16 ht_cap_info;
+	u8 ht_info_infos_0_sco; // bit0 & bit1 in infos[0] is second channel offset
+	int encryp_protocol;
+	int pairwise_cipher;
+	int group_cipher;
+	int is_8021x;
+};
+
 struct mlme_priv {
 
 	_lock	lock;
@@ -431,6 +470,12 @@ struct mlme_priv {
 
 	struct wlan_network	cur_network;
 	struct wlan_network *cur_network_scanned;
+
+	// bcn check info
+	struct beacon_keys cur_beacon_keys; // save current beacon keys
+	struct beacon_keys new_beacon_keys; // save new beacon keys
+	u8 new_beacon_cnts; // if new_beacon_cnts >= threshold, ap beacon is changed
+
 #ifdef CONFIG_ARP_KEEP_ALIVE
 	// for arp offload keep alive
 	u8	gw_mac_addr[6];
@@ -619,8 +664,8 @@ struct mlme_priv {
 	u8	scanning_via_buddy_intf;
 #endif
 
-	u8 	NumOfBcnInfoChkFail;
-	u32	timeBcnInfoChkStart;
+//	u8 	NumOfBcnInfoChkFail;
+//	u32	timeBcnInfoChkStart;
 };
 
 #define rtw_mlme_set_auto_scan_int(adapter, ms) \

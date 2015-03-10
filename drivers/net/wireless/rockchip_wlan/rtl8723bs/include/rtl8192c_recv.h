@@ -54,7 +54,7 @@
 //#endif
 
 
-#elif defined(CONFIG_SDIO_HCI)
+#elif defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 
 #define MAX_RECVBUF_SZ (10240)
 

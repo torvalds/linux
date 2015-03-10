@@ -50,7 +50,7 @@ struct xmit_frame	*rtw_IOL_accquire_xmit_frame(ADAPTER *adapter)
 
 	pattrib = &xmit_frame->attrib;
 	update_mgntframe_attrib(adapter, pattrib);
-	pattrib->qsel = 0x10;//Beacon	
+	pattrib->qsel = QSLT_BEACON;//Beacon	
 	pattrib->subtype = WIFI_BEACON;	
 	pattrib->pktlen = pattrib->last_txcmdsz = 0;
 
@@ -62,7 +62,7 @@ struct xmit_frame	*rtw_IOL_accquire_xmit_frame(ADAPTER *adapter)
 	else {
 		pattrib = &xmit_frame->attrib;
 		update_mgntframe_attrib(adapter, pattrib);
-		pattrib->qsel = 0x10;
+		pattrib->qsel = QSLT_BEACON;
 		pattrib->pktlen = pattrib->last_txcmdsz = 0;
 	}
 #endif
