@@ -807,6 +807,17 @@ static int hsw_pcm_create_modules(struct hsw_priv_data *pdata)
 			pcm_data->runtime->persistent_offset;
 	}
 
+	/* create runtime blocks for module waves */
+	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
+		pcm_data = &pdata->pcm[HSW_PCM_COUNT-1][0];
+		pcm_data->runtime = sst_hsw_runtime_module_create(hsw,
+			SST_HSW_MODULE_WAVES, pcm_data->persistent_offset);
+		if (pcm_data->runtime == NULL)
+			goto err;
+		pcm_data->persistent_offset =
+			pcm_data->runtime->persistent_offset;
+	}
+
 	return 0;
 
 err:
@@ -820,12 +831,16 @@ err:
 
 static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
 {
+	struct sst_hsw *hsw = pdata->hsw;
 	struct hsw_pcm_data *pcm_data;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
 		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
-
+		sst_hsw_runtime_module_free(pcm_data->runtime);
+	}
+	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
+		pcm_data = &pdata->pcm[HSW_PCM_COUNT-1][0];
 		sst_hsw_runtime_module_free(pcm_data->runtime);
 	}
 }
@@ -984,7 +999,9 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 	}
 
 	/* allocate runtime modules */
-	hsw_pcm_create_modules(priv_data);
+	ret = hsw_pcm_create_modules(priv_data);
+	if (ret < 0)
+		goto err;
 
 	/* enable runtime PM with auto suspend */
 	pm_runtime_set_autosuspend_delay(platform->dev,

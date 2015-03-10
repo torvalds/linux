@@ -100,6 +100,7 @@ static int hsw_parse_module(struct sst_dsp *dsp, struct sst_fw *fw,
 		&& module->type != SST_HSW_MODULE_PCM
 		&& module->type != SST_HSW_MODULE_PCM_REFERENCE
 		&& module->type != SST_HSW_MODULE_PCM_CAPTURE
+		&& module->type != SST_HSW_MODULE_WAVES
 		&& module->type != SST_HSW_MODULE_LPAL)
 		return 0;
 
@@ -139,6 +140,7 @@ static int hsw_parse_module(struct sst_dsp *dsp, struct sst_fw *fw,
 			mod->type = SST_MEM_IRAM;
 			break;
 		case SST_HSW_DRAM:
+		case SST_HSW_REGS:
 			ram = dsp->addr.lpe;
 			mod->offset = block->ram_offset;
 			mod->type = SST_MEM_DRAM;

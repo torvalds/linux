@@ -1896,9 +1896,25 @@ void sst_hsw_init_module_state(struct sst_hsw *hsw)
 	/* the base fw contains several modules */
 	for (id = SST_HSW_MODULE_BASE_FW; id < SST_HSW_MAX_MODULE_ID; id++) {
 		module = sst_module_get_from_id(hsw->dsp, id);
-		if (module)
-			module->state = SST_MODULE_STATE_ACTIVE;
+		if (module) {
+			/* module waves is active only after being enabled */
+			if (id == SST_HSW_MODULE_WAVES)
+				module->state = SST_MODULE_STATE_INITIALIZED;
+			else
+				module->state = SST_MODULE_STATE_ACTIVE;
+		}
 	}
+}
+
+bool sst_hsw_is_module_loaded(struct sst_hsw *hsw, u32 module_id)
+{
+	struct sst_module *module;
+
+	module = sst_module_get_from_id(hsw->dsp, module_id);
+	if (module == NULL || module->state == SST_MODULE_STATE_UNLOADED)
+		return false;
+	else
+		return true;
 }
 
 int sst_hsw_module_load(struct sst_hsw *hsw,
@@ -2021,6 +2037,9 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	ret = sst_hsw_module_load(hsw, SST_HSW_MODULE_BASE_FW, 0, "Base");
 	if (ret < 0)
 		goto fw_err;
+
+	/* try to load module waves */
+	sst_hsw_module_load(hsw, SST_HSW_MODULE_WAVES, 0, "intel/IntcPP01.bin");
 
 	/* allocate scratch mem regions */
 	ret = sst_block_alloc_scratch(hsw->dsp);
