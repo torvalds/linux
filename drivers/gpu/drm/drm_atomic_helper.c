@@ -151,7 +151,7 @@ steal_encoder(struct drm_atomic_state *state,
 static int
 update_connector_routing(struct drm_atomic_state *state, int conn_idx)
 {
-	struct drm_connector_helper_funcs *funcs;
+	const struct drm_connector_helper_funcs *funcs;
 	struct drm_encoder *new_encoder;
 	struct drm_crtc *encoder_crtc;
 	struct drm_connector *connector;
@@ -264,7 +264,7 @@ mode_fixup(struct drm_atomic_state *state)
 	}
 
 	for (i = 0; i < state->num_connector; i++) {
-		struct drm_encoder_helper_funcs *funcs;
+		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
 
 		conn_state = state->connector_states[i];
@@ -317,7 +317,7 @@ mode_fixup(struct drm_atomic_state *state)
 	}
 
 	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc_helper_funcs *funcs;
+		const struct drm_crtc_helper_funcs *funcs;
 		struct drm_crtc *crtc;
 
 		crtc_state = state->crtc_states[i];
@@ -481,7 +481,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 	int i, ret = 0;
 
 	for (i = 0; i < nplanes; i++) {
-		struct drm_plane_helper_funcs *funcs;
+		const struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = state->planes[i];
 		struct drm_plane_state *plane_state = state->plane_states[i];
 
@@ -504,7 +504,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 	}
 
 	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc_helper_funcs *funcs;
+		const struct drm_crtc_helper_funcs *funcs;
 		struct drm_crtc *crtc = state->crtcs[i];
 
 		if (!crtc)
@@ -571,9 +571,9 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 	int i;
 
 	for (i = 0; i < old_state->num_connector; i++) {
+		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_connector_state *old_conn_state;
 		struct drm_connector *connector;
-		struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
 		struct drm_crtc_state *old_crtc_state;
 
@@ -623,7 +623,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 	}
 
 	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc_helper_funcs *funcs;
+		const struct drm_crtc_helper_funcs *funcs;
 		struct drm_crtc *crtc;
 		struct drm_crtc_state *old_crtc_state;
 
@@ -713,7 +713,7 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 	int i;
 
 	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc_helper_funcs *funcs;
+		const struct drm_crtc_helper_funcs *funcs;
 		struct drm_crtc *crtc;
 
 		crtc = old_state->crtcs[i];
@@ -732,9 +732,9 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 	}
 
 	for (i = 0; i < old_state->num_connector; i++) {
+		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_connector *connector;
 		struct drm_crtc_state *new_crtc_state;
-		struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
 		struct drm_display_mode *mode, *adjusted_mode;
 
@@ -812,7 +812,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 	int i;
 
 	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc_helper_funcs *funcs;
+		const struct drm_crtc_helper_funcs *funcs;
 		struct drm_crtc *crtc;
 
 		crtc = old_state->crtcs[i];
@@ -838,8 +838,8 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 	}
 
 	for (i = 0; i < old_state->num_connector; i++) {
+		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_connector *connector;
-		struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
 
 		connector = old_state->connectors[i];
@@ -1114,7 +1114,7 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 	int ret, i;
 
 	for (i = 0; i < nplanes; i++) {
-		struct drm_plane_helper_funcs *funcs;
+		const struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = state->planes[i];
 		struct drm_plane_state *plane_state = state->plane_states[i];
 		struct drm_framebuffer *fb;
@@ -1137,7 +1137,7 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 
 fail:
 	for (i--; i >= 0; i--) {
-		struct drm_plane_helper_funcs *funcs;
+		const struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = state->planes[i];
 		struct drm_plane_state *plane_state = state->plane_states[i];
 		struct drm_framebuffer *fb;
@@ -1179,7 +1179,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	int i;
 
 	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc_helper_funcs *funcs;
+		const struct drm_crtc_helper_funcs *funcs;
 		struct drm_crtc *crtc = old_state->crtcs[i];
 
 		if (!crtc)
@@ -1194,7 +1194,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	}
 
 	for (i = 0; i < nplanes; i++) {
-		struct drm_plane_helper_funcs *funcs;
+		const struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = old_state->planes[i];
 		struct drm_plane_state *old_plane_state;
 
@@ -1219,7 +1219,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	}
 
 	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc_helper_funcs *funcs;
+		const struct drm_crtc_helper_funcs *funcs;
 		struct drm_crtc *crtc = old_state->crtcs[i];
 
 		if (!crtc)
@@ -1254,7 +1254,7 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 	int i;
 
 	for (i = 0; i < nplanes; i++) {
-		struct drm_plane_helper_funcs *funcs;
+		const struct drm_plane_helper_funcs *funcs;
 		struct drm_plane *plane = old_state->planes[i];
 		struct drm_plane_state *plane_state = old_state->plane_states[i];
 		struct drm_framebuffer *old_fb;
