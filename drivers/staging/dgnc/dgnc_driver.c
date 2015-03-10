@@ -140,14 +140,6 @@ static struct pci_driver dgnc_driver = {
 	.id_table       = dgnc_pci_tbl,
 };
 
-
-char *dgnc_state_text[] = {
-	"Board Failed",
-	"Board Found",
-	"Board READY",
-};
-
-
 /************************************************************************
  *
  * Driver load/unload functions

@@ -404,6 +404,5 @@ extern int		dgnc_poll_tick;		/* Poll interval - 20 ms */
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock */
 extern uint		dgnc_NumBoards;		/* Total number of boards */
 extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs */
-extern char		*dgnc_state_text[];	/* Array of state text */
 
 #endif
