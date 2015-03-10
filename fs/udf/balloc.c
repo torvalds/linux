@@ -63,15 +63,14 @@ static int __load_block_bitmap(struct super_block *sb,
 			  block_group, nr_groups);
 	}
 
-	if (bitmap->s_block_bitmap[block_group]) {
+	if (bitmap->s_block_bitmap[block_group])
 		return block_group;
-	} else {
-		retval = read_block_bitmap(sb, bitmap, block_group,
-					   block_group);
-		if (retval < 0)
-			return retval;
-		return block_group;
-	}
+
+	retval = read_block_bitmap(sb, bitmap, block_group, block_group);
+	if (retval < 0)
+		return retval;
+
+	return block_group;
 }
 
 static inline int load_block_bitmap(struct super_block *sb,
