@@ -45,6 +45,8 @@ struct wmi_ops {
 			struct wmi_rdy_ev_arg *arg);
 	int (*pull_fw_stats)(struct ath10k *ar, struct sk_buff *skb,
 			     struct ath10k_fw_stats *stats);
+	int (*pull_roam_ev)(struct ath10k *ar, struct sk_buff *skb,
+			    struct wmi_roam_ev_arg *arg);
 
 	struct sk_buff *(*gen_pdev_suspend)(struct ath10k *ar, u32 suspend_opt);
 	struct sk_buff *(*gen_pdev_resume)(struct ath10k *ar);
@@ -271,6 +273,16 @@ ath10k_wmi_pull_fw_stats(struct ath10k *ar, struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->pull_fw_stats(ar, skb, stats);
+}
+
+static inline int
+ath10k_wmi_pull_roam_ev(struct ath10k *ar, struct sk_buff *skb,
+			struct wmi_roam_ev_arg *arg)
+{
+	if (!ar->wmi.ops->pull_roam_ev)
+		return -EOPNOTSUPP;
+
+	return ar->wmi.ops->pull_roam_ev(ar, skb, arg);
 }
 
 static inline int

@@ -66,6 +66,8 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		= { .min_len = sizeof(struct wmi_tlv_diag_data_ev) },
 	[WMI_TLV_TAG_STRUCT_P2P_NOA_EVENT]
 		= { .min_len = sizeof(struct wmi_tlv_p2p_noa_ev) },
+	[WMI_TLV_TAG_STRUCT_ROAM_EVENT]
+		= { .min_len = sizeof(struct wmi_tlv_roam_ev) },
 };
 
 static int
@@ -1054,6 +1056,35 @@ static int ath10k_wmi_tlv_op_pull_fw_stats(struct ath10k *ar,
 		dst->peer_rx_rate = __le32_to_cpu(src->peer_rx_rate);
 		list_add_tail(&dst->list, &stats->peers);
 	}
+
+	kfree(tb);
+	return 0;
+}
+
+static int ath10k_wmi_tlv_op_pull_roam_ev(struct ath10k *ar,
+					  struct sk_buff *skb,
+					  struct wmi_roam_ev_arg *arg)
+{
+	const void **tb;
+	const struct wmi_tlv_roam_ev *ev;
+	int ret;
+
+	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath10k_warn(ar, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	ev = tb[WMI_TLV_TAG_STRUCT_ROAM_EVENT];
+	if (!ev) {
+		kfree(tb);
+		return -EPROTO;
+	}
+
+	arg->vdev_id = ev->vdev_id;
+	arg->reason = ev->reason;
+	arg->rssi = ev->rssi;
 
 	kfree(tb);
 	return 0;
@@ -2783,6 +2814,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.pull_svc_rdy = ath10k_wmi_tlv_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_tlv_op_pull_rdy_ev,
 	.pull_fw_stats = ath10k_wmi_tlv_op_pull_fw_stats,
+	.pull_roam_ev = ath10k_wmi_tlv_op_pull_roam_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_tlv_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_tlv_op_gen_pdev_resume,

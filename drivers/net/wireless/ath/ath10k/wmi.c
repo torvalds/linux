@@ -2789,7 +2789,41 @@ void ath10k_wmi_event_phyerr(struct ath10k *ar, struct sk_buff *skb)
 
 void ath10k_wmi_event_roam(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_ROAM_EVENTID\n");
+	struct wmi_roam_ev_arg arg = {};
+	int ret;
+	u32 vdev_id;
+	u32 reason;
+	s32 rssi;
+
+	ret = ath10k_wmi_pull_roam_ev(ar, skb, &arg);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse roam event: %d\n", ret);
+		return;
+	}
+
+	vdev_id = __le32_to_cpu(arg.vdev_id);
+	reason = __le32_to_cpu(arg.reason);
+	rssi = __le32_to_cpu(arg.rssi);
+	rssi += WMI_SPECTRAL_NOISE_FLOOR_REF_DEFAULT;
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi roam event vdev %u reason 0x%08x rssi %d\n",
+		   vdev_id, reason, rssi);
+
+	if (reason >= WMI_ROAM_REASON_MAX)
+		ath10k_warn(ar, "ignoring unknown roam event reason %d on vdev %i\n",
+			    reason, vdev_id);
+
+	switch (reason) {
+	case WMI_ROAM_REASON_BETTER_AP:
+	case WMI_ROAM_REASON_BEACON_MISS:
+	case WMI_ROAM_REASON_LOW_RSSI:
+	case WMI_ROAM_REASON_SUITABLE_AP_FOUND:
+	case WMI_ROAM_REASON_HO_FAILED:
+		ath10k_warn(ar, "ignoring not implemented roam event reason %d on vdev %i\n",
+			    reason, vdev_id);
+		break;
+	}
 }
 
 void ath10k_wmi_event_profile_match(struct ath10k *ar, struct sk_buff *skb)
@@ -3144,6 +3178,21 @@ static int ath10k_wmi_op_pull_rdy_ev(struct ath10k *ar, struct sk_buff *skb,
 	arg->abi_version = ev->abi_version;
 	arg->status = ev->status;
 	arg->mac_addr = ev->mac_addr.addr;
+
+	return 0;
+}
+
+static int ath10k_wmi_op_pull_roam_ev(struct ath10k *ar, struct sk_buff *skb,
+				      struct wmi_roam_ev_arg *arg)
+{
+	struct wmi_roam_ev *ev = (void *)skb->data;
+
+	if (skb->len < sizeof(*ev))
+		return -EPROTO;
+
+	skb_pull(skb, sizeof(*ev));
+	arg->vdev_id = ev->vdev_id;
+	arg->reason = ev->reason;
 
 	return 0;
 }
@@ -5140,6 +5189,7 @@ static const struct wmi_ops wmi_ops = {
 	.pull_svc_rdy = ath10k_wmi_main_op_pull_svc_rdy_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
 	.pull_fw_stats = ath10k_wmi_main_op_pull_fw_stats,
+	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,
@@ -5207,6 +5257,7 @@ static const struct wmi_ops wmi_10_1_ops = {
 	.pull_swba = ath10k_wmi_op_pull_swba_ev,
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
+	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,
@@ -5270,6 +5321,7 @@ static const struct wmi_ops wmi_10_2_ops = {
 	.pull_swba = ath10k_wmi_op_pull_swba_ev,
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
+	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,
@@ -5330,6 +5382,7 @@ static const struct wmi_ops wmi_10_2_4_ops = {
 	.pull_swba = ath10k_wmi_op_pull_swba_ev,
 	.pull_phyerr = ath10k_wmi_op_pull_phyerr_ev,
 	.pull_rdy = ath10k_wmi_op_pull_rdy_ev,
+	.pull_roam_ev = ath10k_wmi_op_pull_roam_ev,
 
 	.gen_pdev_suspend = ath10k_wmi_op_gen_pdev_suspend,
 	.gen_pdev_resume = ath10k_wmi_op_gen_pdev_resume,

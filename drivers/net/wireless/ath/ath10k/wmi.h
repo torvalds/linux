@@ -4769,6 +4769,22 @@ struct wmi_dbglog_cfg_cmd {
 	__le32 config_valid;
 } __packed;
 
+enum wmi_roam_reason {
+	WMI_ROAM_REASON_BETTER_AP = 1,
+	WMI_ROAM_REASON_BEACON_MISS = 2,
+	WMI_ROAM_REASON_LOW_RSSI = 3,
+	WMI_ROAM_REASON_SUITABLE_AP_FOUND = 4,
+	WMI_ROAM_REASON_HO_FAILED = 5,
+
+	/* keep last */
+	WMI_ROAM_REASON_MAX,
+};
+
+struct wmi_roam_ev {
+	__le32 vdev_id;
+	__le32 reason;
+} __packed;
+
 #define ATH10K_FRAGMT_THRESHOLD_MIN	540
 #define ATH10K_FRAGMT_THRESHOLD_MAX	2346
 
@@ -4855,6 +4871,12 @@ struct wmi_rdy_ev_arg {
 	__le32 abi_version;
 	__le32 status;
 	const u8 *mac_addr;
+};
+
+struct wmi_roam_ev_arg {
+	__le32 vdev_id;
+	__le32 reason;
+	__le32 rssi;
 };
 
 struct wmi_pdev_temperature_event {

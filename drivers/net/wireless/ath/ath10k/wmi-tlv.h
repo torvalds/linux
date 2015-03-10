@@ -1458,6 +1458,12 @@ struct wmi_tlv_p2p_noa_ev {
 	__le32 vdev_id;
 } __packed;
 
+struct wmi_tlv_roam_ev {
+	__le32 vdev_id;
+	__le32 reason;
+	__le32 rssi;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif
