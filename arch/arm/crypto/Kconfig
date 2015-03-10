@@ -110,4 +110,14 @@ config CRYPTO_AES_ARM_CE
 	  Use an implementation of AES in CBC, CTR and XTS modes that uses
 	  ARMv8 Crypto Extensions
 
+config CRYPTO_GHASH_ARM_CE
+	tristate "PMULL-accelerated GHASH using ARMv8 Crypto Extensions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_HASH
+	select CRYPTO_CRYPTD
+	help
+	  Use an implementation of GHASH (used by the GCM AEAD chaining mode)
+	  that uses the 64x64 to 128 bit polynomial multiplication (vmull.p64)
+	  that is part of the ARMv8 Crypto Extensions
+
 endif
