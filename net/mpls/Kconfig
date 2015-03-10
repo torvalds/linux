@@ -3,7 +3,7 @@
 #
 
 menuconfig MPLS
-	tristate "MultiProtocol Label Switching"
+	bool "MultiProtocol Label Switching"
 	default n
 	---help---
 	  MultiProtocol Label Switching routes packets through logical
@@ -16,14 +16,14 @@ menuconfig MPLS
 if MPLS
 
 config NET_MPLS_GSO
-	bool "MPLS: GSO support"
+	tristate "MPLS: GSO support"
 	help
 	 This is helper module to allow segmentation of non-MPLS GSO packets
 	 that have had MPLS stack entries pushed onto them and thus
 	 become MPLS GSO packets.
 
 config MPLS_ROUTING
-	bool "MPLS: routing support"
+	tristate "MPLS: routing support"
 	help
 	 Add support for forwarding of mpls packets.
 
