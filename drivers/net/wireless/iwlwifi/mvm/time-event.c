@@ -197,6 +197,8 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 			     struct iwl_time_event_notif *notif)
 {
 	if (!le32_to_cpu(notif->status)) {
+		if (te_data->vif->type == NL80211_IFTYPE_STATION)
+			ieee80211_connection_loss(te_data->vif);
 		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
 		iwl_mvm_te_clear_data(mvm, te_data);
 		return;
