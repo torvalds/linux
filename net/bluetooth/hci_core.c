@@ -2516,6 +2516,33 @@ void hci_remove_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type)
 	}
 }
 
+bool hci_bdaddr_is_paired(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
+{
+	struct smp_ltk *k;
+	u8 addr_type;
+
+	if (type == BDADDR_BREDR) {
+		if (hci_find_link_key(hdev, bdaddr))
+			return true;
+		return false;
+	}
+
+	/* Convert to HCI addr type which struct smp_ltk uses */
+	if (type == BDADDR_LE_PUBLIC)
+		addr_type = ADDR_LE_DEV_PUBLIC;
+	else
+		addr_type = ADDR_LE_DEV_RANDOM;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(k, &hdev->long_term_keys, list) {
+		if (k->bdaddr_type == addr_type && !bacmp(bdaddr, &k->bdaddr))
+			return true;
+	}
+	rcu_read_unlock();
+
+	return false;
+}
+
 /* HCI command timer function */
 static void hci_cmd_timeout(struct work_struct *work)
 {

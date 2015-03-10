@@ -43,6 +43,7 @@
 #define MGMT_STATUS_CANCELLED		0x10
 #define MGMT_STATUS_INVALID_INDEX	0x11
 #define MGMT_STATUS_RFKILLED		0x12
+#define MGMT_STATUS_ALREADY_PAIRED	0x13
 
 struct mgmt_hdr {
 	__le16	opcode;

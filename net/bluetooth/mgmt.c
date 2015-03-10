@@ -3245,6 +3245,13 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
+	if (hci_bdaddr_is_paired(hdev, &cp->addr.bdaddr, cp->addr.type)) {
+		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_PAIR_DEVICE,
+					MGMT_STATUS_ALREADY_PAIRED, &rp,
+					sizeof(rp));
+		goto unlock;
+	}
+
 	sec_level = BT_SECURITY_MEDIUM;
 	auth_type = HCI_AT_DEDICATED_BONDING;
 
