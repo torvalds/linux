@@ -919,6 +919,8 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		mutex_lock(&fw_lock);
 		fw_load_abort(fw_priv);
 		mutex_unlock(&fw_lock);
+	} else if (retval > 0) {
+		retval = 0;
 	}
 
 	if (is_fw_load_aborted(buf))
