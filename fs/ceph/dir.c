@@ -1242,11 +1242,12 @@ static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
 		dout("dir_fsync %p wait on tid %llu (until %llu)\n",
 		     inode, req->r_tid, last_tid);
 		if (req->r_timeout) {
-			ret = wait_for_completion_timeout(
-				&req->r_safe_completion, req->r_timeout);
-			if (ret > 0)
+			unsigned long time_left = wait_for_completion_timeout(
+							&req->r_safe_completion,
+							req->r_timeout);
+			if (time_left > 0)
 				ret = 0;
-			else if (ret == 0)
+			else
 				ret = -EIO;  /* timed out */
 		} else {
 			wait_for_completion(&req->r_safe_completion);
