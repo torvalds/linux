@@ -217,8 +217,6 @@ static unsigned char swI2CReadSDA(void)
         return 0;
 }
 
-#pragma optimize( "", off )
-
 /*
  *  This function sends ACK signal
  */
@@ -356,7 +354,6 @@ unsigned char swI2CReadByte(unsigned char ack)
 
     return data;
 }
-#pragma optimize( "", on )
 
 /*
  * This function initializes GPIO port for SW I2C communication.
