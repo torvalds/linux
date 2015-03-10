@@ -230,7 +230,8 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: Attempted to start non-idle channel\n");
+			"%s: BUG: Attempted to start non-idle channel\n",
+			__func__);
 		dwc_dump_chan_regs(dwc);
 
 		/* The tasklet will hopefully advance the queue... */
@@ -1261,7 +1262,8 @@ int dw_dma_cyclic_start(struct dma_chan *chan)
 	/* Assert channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: Attempted to start non-idle channel\n");
+			"%s: BUG: Attempted to start non-idle channel\n",
+			__func__);
 		dwc_dump_chan_regs(dwc);
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return -EBUSY;
