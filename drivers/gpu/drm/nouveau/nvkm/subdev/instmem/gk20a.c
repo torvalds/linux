@@ -148,7 +148,7 @@ gk20a_instobj_dtor_dma(struct gk20a_instobj_priv *_node)
 	struct gk20a_instmem_priv *priv = (void *)nvkm_instmem(node);
 	struct device *dev = nv_device_base(nv_device(priv));
 
-	if (unlikely(!node->handle))
+	if (unlikely(!node->cpuaddr))
 		return;
 
 	dma_free_attrs(dev, _node->mem->size << PAGE_SHIFT, node->cpuaddr,
