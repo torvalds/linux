@@ -128,7 +128,7 @@ static int find_cbdata(struct inode *inode)
 	rc = md_find_cbdata(sbi->ll_md_exp, ll_inode2fid(inode),
 			    return_if_equal, NULL);
 	if (rc != 0)
-		 return rc;
+		return rc;
 
 	lsm = ccc_inode_lsm_get(inode);
 	if (lsm == NULL)
