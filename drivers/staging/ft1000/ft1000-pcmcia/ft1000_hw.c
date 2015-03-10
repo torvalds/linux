@@ -327,7 +327,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 	 */
 	if (info->AsicID == MAGNEMITE_ID) {
 		ft1000_write_reg(dev, FT1000_REG_RESET,
-				 (DSP_RESET_BIT | ASIC_RESET_BIT));
+				 DSP_RESET_BIT | ASIC_RESET_BIT);
 	}
 	mdelay(1);
 	if (info->AsicID == ELECTRABUZZ_ID) {
@@ -387,7 +387,7 @@ static int ft1000_reset_card(struct net_device *dev)
 	} else {
 		pr_debug("resetting ASIC and DSP\n");
 		ft1000_write_reg(dev, FT1000_REG_RESET,
-				 (DSP_RESET_BIT | ASIC_RESET_BIT));
+				 DSP_RESET_BIT | ASIC_RESET_BIT);
 	}
 
 	/* Copy DSP session record into info block if this is not a coldstart */
@@ -1127,7 +1127,9 @@ static void ft1000_proc_drvmsg(struct net_device *dev)
 				info->DSPInfoBlk[8] = 0x7200;
 				info->DSPInfoBlk[9] =
 					htons(info->DSPInfoBlklen);
-				ft1000_send_cmd(dev, (u16 *)info->DSPInfoBlk, (u16)(info->DSPInfoBlklen+4), 0);
+				ft1000_send_cmd(dev, info->DSPInfoBlk,
+						(u16)(info->DSPInfoBlklen+4),
+						0);
 			}
 
 			break;
