@@ -572,26 +572,6 @@ config CRYPTO_SHA1_SPARC64
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
 	  using sparc64 crypto instructions, when available.
 
-config CRYPTO_SHA1_ARM
-	tristate "SHA1 digest algorithm (ARM-asm)"
-	depends on ARM
-	select CRYPTO_SHA1
-	select CRYPTO_HASH
-	help
-	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
-	  using optimized ARM assembler.
-
-config CRYPTO_SHA1_ARM_NEON
-	tristate "SHA1 digest algorithm (ARM NEON)"
-	depends on ARM && KERNEL_MODE_NEON
-	select CRYPTO_SHA1_ARM
-	select CRYPTO_SHA1
-	select CRYPTO_HASH
-	help
-	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
-	  using optimized ARM NEON assembly, when NEON instructions are
-	  available.
-
 config CRYPTO_SHA1_PPC
 	tristate "SHA1 digest algorithm (powerpc)"
 	depends on PPC
@@ -690,21 +670,6 @@ config CRYPTO_SHA512_SPARC64
 	help
 	  SHA-512 secure hash standard (DFIPS 180-2) implemented
 	  using sparc64 crypto instructions, when available.
-
-config CRYPTO_SHA512_ARM_NEON
-	tristate "SHA384 and SHA512 digest algorithm (ARM NEON)"
-	depends on ARM && KERNEL_MODE_NEON
-	select CRYPTO_SHA512
-	select CRYPTO_HASH
-	help
-	  SHA-512 secure hash standard (DFIPS 180-2) implemented
-	  using ARM NEON instructions, when available.
-
-	  This version of SHA implements a 512 bit hash with 256 bits of
-	  security against collision attacks.
-
-	  This code also includes SHA-384, a 384 bit hash with 192 bits
-	  of security against collision attacks.
 
 config CRYPTO_TGR192
 	tristate "Tiger digest algorithms"
@@ -867,46 +832,6 @@ config CRYPTO_AES_SPARC64
 	  In addition to AES cipher algorithm support, the acceleration
 	  for some popular block cipher mode is supported too, including
 	  ECB and CBC.
-
-config CRYPTO_AES_ARM
-	tristate "AES cipher algorithms (ARM-asm)"
-	depends on ARM
-	select CRYPTO_ALGAPI
-	select CRYPTO_AES
-	help
-	  Use optimized AES assembler routines for ARM platforms.
-
-	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
-	  algorithm.
-
-	  Rijndael appears to be consistently a very good performer in
-	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
-	  modes. Its key setup time is excellent, and its key agility is
-	  good. Rijndael's very low memory requirements make it very well
-	  suited for restricted-space environments, in which it also
-	  demonstrates excellent performance. Rijndael's operations are
-	  among the easiest to defend against power and timing attacks.
-
-	  The AES specifies three key sizes: 128, 192 and 256 bits
-
-	  See <http://csrc.nist.gov/encryption/aes/> for more information.
-
-config CRYPTO_AES_ARM_BS
-	tristate "Bit sliced AES using NEON instructions"
-	depends on ARM && KERNEL_MODE_NEON
-	select CRYPTO_ALGAPI
-	select CRYPTO_AES_ARM
-	select CRYPTO_ABLK_HELPER
-	help
-	  Use a faster and more secure NEON based implementation of AES in CBC,
-	  CTR and XTS modes
-
-	  Bit sliced AES gives around 45% speedup on Cortex-A15 for CTR mode
-	  and for XTS mode encryption, CBC and XTS mode decryption speedup is
-	  around 25%. (CBC encryption speed is not affected by this driver.)
-	  This implementation does not rely on any lookup tables so it is
-	  believed to be invulnerable to cache timing attacks.
 
 config CRYPTO_AES_PPC_SPE
 	tristate "AES cipher algorithms (PPC SPE)"
