@@ -61,12 +61,11 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "comedi_fc.h"
 #include "s626.h"
