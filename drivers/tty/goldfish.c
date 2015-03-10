@@ -229,7 +229,6 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 {
 	struct goldfish_tty *qtty;
 	int ret = -EINVAL;
-	int i;
 	struct resource *r;
 	struct device *ttydev;
 	void __iomem *base;
