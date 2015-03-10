@@ -521,6 +521,8 @@
 				      "sample";
 			interrupts = <32>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc1: mmc@01c10000 {
@@ -536,6 +538,8 @@
 				      "sample";
 			interrupts = <33>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc2: mmc@01c11000 {
@@ -551,6 +555,8 @@
 				      "sample";
 			interrupts = <34>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mmc3: mmc@01c12000 {
@@ -566,6 +572,8 @@
 				      "sample";
 			interrupts = <35>;
 			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		usbphy: phy@01c13400 {
