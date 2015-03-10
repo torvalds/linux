@@ -1968,15 +1968,6 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 no_scan_update:
-	/* If we're going from non-connectable to connectable or
-	 * vice-versa when fast connectable is enabled ensure that fast
-	 * connectable gets disabled. write_fast_connectable won't do
-	 * anything if the page scan parameters are already what they
-	 * should be.
-	 */
-	if (cp->val || test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
-		write_fast_connectable(&req, false);
-
 	/* Update the advertising parameters if necessary */
 	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		enable_advertising(&req);
@@ -4660,14 +4651,6 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
 				       MGMT_STATUS_INVALID_PARAMS);
 
-	if (!hdev_is_powered(hdev))
-		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
-				       MGMT_STATUS_NOT_POWERED);
-
-	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
-		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
-				       MGMT_STATUS_REJECTED);
-
 	hci_dev_lock(hdev);
 
 	if (mgmt_pending_find(MGMT_OP_SET_FAST_CONNECTABLE, hdev)) {
@@ -4679,6 +4662,14 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 	if (!!cp->val == test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_FAST_CONNECTABLE,
 					hdev);
+		goto unlock;
+	}
+
+	if (!hdev_is_powered(hdev)) {
+		change_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
+		err = send_settings_rsp(sk, MGMT_OP_SET_FAST_CONNECTABLE,
+					hdev);
+		new_settings(hdev, sk);
 		goto unlock;
 	}
 
@@ -6481,7 +6472,10 @@ static int powered_update_hci(struct hci_dev *hdev)
 			    sizeof(link_sec), &link_sec);
 
 	if (lmp_bredr_capable(hdev)) {
-		write_fast_connectable(&req, false);
+		if (test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
+			write_fast_connectable(&req, true);
+		else
+			write_fast_connectable(&req, false);
 		__hci_update_page_scan(&req);
 		update_class(&req);
 		update_name(&req);

@@ -231,7 +231,7 @@ enum {
  * or the HCI device is closed.
  */
 #define HCI_PERSISTENT_MASK (BIT(HCI_LE_SCAN) | BIT(HCI_PERIODIC_INQ) | \
-			      BIT(HCI_FAST_CONNECTABLE) | BIT(HCI_LE_ADV))
+			     BIT(HCI_LE_ADV))
 
 /* HCI timeouts */
 #define HCI_DISCONN_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */
