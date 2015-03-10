@@ -815,11 +815,8 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 slave_sg_todev_fill_desc:
 			desc = dwc_desc_get(dwc);
-			if (!desc) {
-				dev_err(chan2dev(chan),
-					"not enough descriptors available\n");
+			if (!desc)
 				goto err_desc_get;
-			}
 
 			desc->lli.sar = mem;
 			desc->lli.dar = reg;
@@ -875,11 +872,8 @@ slave_sg_todev_fill_desc:
 
 slave_sg_fromdev_fill_desc:
 			desc = dwc_desc_get(dwc);
-			if (!desc) {
-				dev_err(chan2dev(chan),
-						"not enough descriptors available\n");
+			if (!desc)
 				goto err_desc_get;
-			}
 
 			desc->lli.sar = reg;
 			desc->lli.dar = mem;
@@ -923,6 +917,8 @@ slave_sg_fromdev_fill_desc:
 	return &first->txd;
 
 err_desc_get:
+	dev_err(chan2dev(chan),
+		"not enough descriptors available. Direction %d\n", direction);
 	dwc_desc_put(dwc, first);
 	return NULL;
 }
