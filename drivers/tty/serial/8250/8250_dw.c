@@ -364,9 +364,9 @@ static int dw8250_probe_of(struct uart_port *p,
 	}
 
 	if (of_property_read_bool(np, "cts-override")) {
-		/* Always report DSR as active */
-		data->msr_mask_on |= UART_MSR_DSR;
-		data->msr_mask_off |= UART_MSR_DDSR;
+		/* Always report CTS as active */
+		data->msr_mask_on |= UART_MSR_CTS;
+		data->msr_mask_off |= UART_MSR_DCTS;
 	}
 
 	if (of_property_read_bool(np, "ri-override")) {
