@@ -12372,7 +12372,7 @@ intel_check_cursor_plane(struct drm_plane *plane,
 
 finish:
 	if (intel_crtc->active) {
-		if (intel_crtc->base.cursor->state->crtc_w != state->base.crtc_w)
+		if (plane->state->crtc_w != state->base.crtc_w)
 			intel_crtc->atomic.update_wm = true;
 
 		intel_crtc->atomic.fb_bits |=
