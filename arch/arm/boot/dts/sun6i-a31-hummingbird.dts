@@ -115,7 +115,7 @@
 &mmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_hummingbird>;
-	vmmc-supply = <&reg_vcc3v0>;
+	vmmc-supply = <&vcc_3v0>;
 	bus-width = <4>;
 	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
 	cd-inverted;
@@ -150,6 +150,60 @@
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
+		dcdc1-supply = <&vcc_3v0>;
+		dcdc5-supply = <&vcc_dram>;
+
+		regulators {
+			x-powers,dcdc-freq = <3000>;
+
+			vcc_3v0: dcdc1 {
+				regulator-always-on;
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-name = "vcc-3v0";
+			};
+
+			vdd_cpu: dcdc2 {
+				regulator-always-on;
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1320000>;
+				regulator-name = "vdd-cpu";
+			};
+
+			vdd_gpu: dcdc3 {
+				regulator-always-on;
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1320000>;
+				regulator-name = "vdd-gpu";
+			};
+
+			vdd_sys_dll: dcdc4 {
+				regulator-always-on;
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-name = "vdd-sys-dll";
+			};
+
+			vcc_dram: dcdc5 {
+				regulator-always-on;
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-name = "vcc-dram";
+			};
+
+			vcc_wifi: aldo1 {
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-name = "vcc_wifi";
+			};
+
+			avcc: aldo3 {
+				regulator-always-on;
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-name = "avcc";
+			};
+		};
 	};
 };
 
