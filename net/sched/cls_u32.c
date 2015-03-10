@@ -78,8 +78,11 @@ struct tc_u_hnode {
 	struct tc_u_common	*tp_c;
 	int			refcnt;
 	unsigned int		divisor;
-	struct tc_u_knode __rcu	*ht[1];
 	struct rcu_head		rcu;
+	/* The 'ht' field MUST be the last field in structure to allow for
+	 * more entries allocated at end of structure.
+	 */
+	struct tc_u_knode __rcu	*ht[1];
 };
 
 struct tc_u_common {
