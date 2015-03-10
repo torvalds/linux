@@ -31,9 +31,8 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include "ni_labpc.h"
 
