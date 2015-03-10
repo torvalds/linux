@@ -154,14 +154,14 @@ int fbtft_write_gpio8_wr(struct fbtft_par *par, void *buf, size_t len)
 			for (i = 0; i < 8; i++) {
 				if ((data & 1) != (prev_data & 1))
 					gpio_set_value(par->gpio.db[i],
-								(data & 1));
+								data & 1);
 				data >>= 1;
 				prev_data >>= 1;
 			}
 		}
 #else
 		for (i = 0; i < 8; i++) {
-			gpio_set_value(par->gpio.db[i], (data & 1));
+			gpio_set_value(par->gpio.db[i], data & 1);
 			data >>= 1;
 		}
 #endif
@@ -204,14 +204,14 @@ int fbtft_write_gpio16_wr(struct fbtft_par *par, void *buf, size_t len)
 			for (i = 0; i < 16; i++) {
 				if ((data & 1) != (prev_data & 1))
 					gpio_set_value(par->gpio.db[i],
-								(data & 1));
+								data & 1);
 				data >>= 1;
 				prev_data >>= 1;
 			}
 		}
 #else
 		for (i = 0; i < 16; i++) {
-			gpio_set_value(par->gpio.db[i], (data & 1));
+			gpio_set_value(par->gpio.db[i], data & 1);
 			data >>= 1;
 		}
 #endif
