@@ -467,6 +467,12 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata);
 void sst_hsw_dsp_free(struct device *dev, struct sst_pdata *pdata);
 struct sst_dsp *sst_hsw_get_dsp(struct sst_hsw *hsw);
 
+/* fw module function */
+void sst_hsw_init_module_state(struct sst_hsw *hsw);
+
+int sst_hsw_module_load(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id, char *name);
+
 /* runtime module management */
 struct sst_module_runtime *sst_hsw_runtime_module_create(struct sst_hsw *hsw,
 	int mod_id, int offset);

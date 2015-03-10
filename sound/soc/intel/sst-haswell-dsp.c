@@ -169,6 +169,7 @@ static int hsw_parse_module(struct sst_dsp *dsp, struct sst_fw *fw,
 
 		block = (void *)block + sizeof(*block) + block->size;
 	}
+	mod->state = SST_MODULE_STATE_LOADED;
 
 	return 0;
 }

@@ -173,6 +173,16 @@ struct sst_module_runtime_context {
 };
 
 /*
+ * Audio DSP Module State
+ */
+enum sst_module_state {
+	SST_MODULE_STATE_UNLOADED = 0,	/* default state */
+	SST_MODULE_STATE_LOADED,
+	SST_MODULE_STATE_INITIALIZED,	/* and inactive */
+	SST_MODULE_STATE_ACTIVE,
+};
+
+/*
  * Audio DSP Generic Module.
  *
  * Each Firmware file can consist of 1..N modules. A module can span multiple
@@ -203,6 +213,9 @@ struct sst_module {
 	struct list_head list;		/* DSP list of modules */
 	struct list_head list_fw;	/* FW list of modules */
 	struct list_head runtime_list;	/* list of runtime module objects*/
+
+	/* state */
+	enum sst_module_state state;
 };
 
 /*

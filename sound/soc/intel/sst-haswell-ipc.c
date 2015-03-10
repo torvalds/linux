@@ -1844,6 +1844,8 @@ int sst_hsw_dsp_runtime_resume(struct sst_hsw *hsw)
 	if (ret < 0)
 		dev_err(dev, "error: audio DSP boot failure\n");
 
+	sst_hsw_init_module_state(hsw);
+
 	ret = wait_event_timeout(hsw->boot_wait, hsw->boot_complete,
 		msecs_to_jiffies(IPC_BOOT_MSECS));
 	if (ret == 0) {
@@ -1884,6 +1886,74 @@ static int msg_empty_list_init(struct sst_hsw *hsw)
 struct sst_dsp *sst_hsw_get_dsp(struct sst_hsw *hsw)
 {
 	return hsw->dsp;
+}
+
+void sst_hsw_init_module_state(struct sst_hsw *hsw)
+{
+	struct sst_module *module;
+	enum sst_hsw_module_id id;
+
+	/* the base fw contains several modules */
+	for (id = SST_HSW_MODULE_BASE_FW; id < SST_HSW_MAX_MODULE_ID; id++) {
+		module = sst_module_get_from_id(hsw->dsp, id);
+		if (module)
+			module->state = SST_MODULE_STATE_ACTIVE;
+	}
+}
+
+int sst_hsw_module_load(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id, char *name)
+{
+	int ret = 0;
+	const struct firmware *fw = NULL;
+	struct sst_fw *hsw_sst_fw;
+	struct sst_module *module;
+	struct device *dev = hsw->dev;
+	struct sst_dsp *dsp = hsw->dsp;
+
+	dev_dbg(dev, "sst_hsw_module_load id=%d, name='%s'", module_id, name);
+
+	module = sst_module_get_from_id(dsp, module_id);
+	if (module == NULL) {
+		/* loading for the first time */
+		if (module_id == SST_HSW_MODULE_BASE_FW) {
+			/* for base module: use fw requested in acpi probe */
+			fw = dsp->pdata->fw;
+			if (!fw) {
+				dev_err(dev, "request Base fw failed\n");
+				return -ENODEV;
+			}
+		} else {
+			/* try and load any other optional modules if they are
+			 * available. Use dev_info instead of dev_err in case
+			 * request firmware failed */
+			ret = request_firmware(&fw, name, dev);
+			if (ret) {
+				dev_info(dev, "fw image %s not available(%d)\n",
+						name, ret);
+				return ret;
+			}
+		}
+		hsw_sst_fw = sst_fw_new(dsp, fw, hsw);
+		if (hsw_sst_fw  == NULL) {
+			dev_err(dev, "error: failed to load firmware\n");
+			ret = -ENOMEM;
+			goto out;
+		}
+		module = sst_module_get_from_id(dsp, module_id);
+		if (module == NULL) {
+			dev_err(dev, "error: no module %d in firmware %s\n",
+					module_id, name);
+		}
+	} else
+		dev_info(dev, "module %d (%s) already loaded\n",
+				module_id, name);
+out:
+	/* release fw, but base fw should be released by acpi driver */
+	if (fw && module_id != SST_HSW_MODULE_BASE_FW)
+		release_firmware(fw);
+
+	return ret;
 }
 
 static struct sst_dsp_device hsw_dev = {
@@ -1947,12 +2017,10 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	/* keep the DSP in reset state for base FW loading */
 	sst_dsp_reset(hsw->dsp);
 
-	hsw->sst_fw = sst_fw_new(hsw->dsp, pdata->fw, hsw);
-	if (hsw->sst_fw == NULL) {
-		ret = -ENODEV;
-		dev_err(dev, "error: failed to load firmware\n");
+	/* load base module and other modules in base firmware image */
+	ret = sst_hsw_module_load(hsw, SST_HSW_MODULE_BASE_FW, 0, "Base");
+	if (ret < 0)
 		goto fw_err;
-	}
 
 	/* allocate scratch mem regions */
 	ret = sst_block_alloc_scratch(hsw->dsp);
@@ -1971,6 +2039,9 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 		goto boot_err;
 	}
 
+	/* init module state after boot */
+	sst_hsw_init_module_state(hsw);
+
 	/* get the FW version */
 	sst_hsw_fw_get_version(hsw, &version);
 
@@ -1986,7 +2057,7 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 
 boot_err:
 	sst_dsp_reset(hsw->dsp);
-	sst_fw_free(hsw->sst_fw);
+	sst_fw_free_all(hsw->dsp);
 fw_err:
 	dma_free_coherent(hsw->dsp->dma_dev, SST_HSW_DX_CONTEXT_SIZE,
 			hsw->dx_context, hsw->dx_context_paddr);
