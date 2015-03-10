@@ -2882,8 +2882,6 @@ extern int rtllib_wx_get_rts(struct rtllib_device *ieee,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra);
 #define MAX_RECEIVE_BUFFER_SIZE 9100
-extern void HTDebugHTCapability(u8 *CapIE, u8 *TitleString);
-extern void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString);
 
 void HTSetConnectBwMode(struct rtllib_device *ieee,
 			enum ht_channel_width Bandwidth,
@@ -2910,7 +2908,6 @@ extern u16 MCS_DATA_RATE[2][2][77] ;
 extern u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame);
 extern void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo);
 extern bool IsHTHalfNmodeAPs(struct rtllib_device *ieee);
-extern u16 HTHalfMcsToDataRate(struct rtllib_device *ieee, u8 nMcsRate);
 extern u16 HTMcsToDataRate(struct rtllib_device *ieee, u8 nMcsRate);
 extern u16  TxCountToDataRate(struct rtllib_device *ieee, u8 nDataRate);
 extern int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb);
