@@ -1971,13 +1971,15 @@ struct gpio_desc *__must_check __gpiod_get_index(struct device *dev,
 
 	dev_dbg(dev, "GPIO lookup for consumer %s\n", con_id);
 
-	/* Using device tree? */
-	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node) {
-		dev_dbg(dev, "using device tree for GPIO lookup\n");
-		desc = of_find_gpio(dev, con_id, idx, &lookupflags);
-	} else if (IS_ENABLED(CONFIG_ACPI) && dev && ACPI_HANDLE(dev)) {
-		dev_dbg(dev, "using ACPI for GPIO lookup\n");
-		desc = acpi_find_gpio(dev, con_id, idx, &lookupflags);
+	if (dev) {
+		/* Using device tree? */
+		if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+			dev_dbg(dev, "using device tree for GPIO lookup\n");
+			desc = of_find_gpio(dev, con_id, idx, &lookupflags);
+		} else if (ACPI_COMPANION(dev)) {
+			dev_dbg(dev, "using ACPI for GPIO lookup\n");
+			desc = acpi_find_gpio(dev, con_id, idx, &lookupflags);
+		}
 	}
 
 	/*
