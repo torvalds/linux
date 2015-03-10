@@ -2658,9 +2658,6 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 
 	I915_WRITE(reg, dspcntr);
 
-	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
-		      i915_gem_obj_ggtt_offset(obj), linear_offset, x, y,
-		      fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
 		I915_WRITE(DSPSURF(plane),
@@ -2762,9 +2759,6 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 
 	I915_WRITE(reg, dspcntr);
 
-	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
-		      i915_gem_obj_ggtt_offset(obj), linear_offset, x, y,
-		      fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	I915_WRITE(DSPSURF(plane),
 		   i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset);
@@ -2889,11 +2883,6 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 					       fb->pixel_format);
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
-
-	DRM_DEBUG_KMS("Writing base %08lX %d,%d,%d,%d pitch=%d\n",
-		      i915_gem_obj_ggtt_offset(obj),
-		      x, y, fb->width, fb->height,
-		      fb->pitches[0]);
 
 	I915_WRITE(PLANE_POS(pipe, 0), 0);
 	I915_WRITE(PLANE_OFFSET(pipe, 0), (y << 16) | x);
