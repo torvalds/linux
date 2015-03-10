@@ -1479,8 +1479,7 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 
 			vlan_packet_rcvd = true;
 
-			skb_copy_to_linear_data_offset(skb, VLAN_HLEN,
-						       data, (2 * ETH_ALEN));
+			memmove(skb->data + VLAN_HLEN, data, ETH_ALEN * 2);
 			skb_pull(skb, VLAN_HLEN);
 		}
 
