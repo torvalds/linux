@@ -50,10 +50,26 @@ void read_inline_data(struct page *page, struct page *ipage)
 	SetPageUptodate(page);
 }
 
-static void truncate_inline_data(struct page *ipage)
+bool truncate_inline_inode(struct page *ipage, u64 from)
 {
+	void *addr;
+
+	/*
+	 * we should never truncate inline data past max inline data size,
+	 * because we always convert inline inode to normal one before
+	 * truncating real data if new size is past max inline data size.
+	 */
+	f2fs_bug_on(F2FS_P_SB(ipage), from > MAX_INLINE_DATA);
+
+	if (from >= MAX_INLINE_DATA)
+		return false;
+
+	addr = inline_data_addr(ipage);
+
 	f2fs_wait_on_page_writeback(ipage, NODE);
-	memset(inline_data_addr(ipage), 0, MAX_INLINE_DATA);
+	memset(addr + from, 0, MAX_INLINE_DATA - from);
+
+	return true;
 }
 
 int f2fs_read_inline_data(struct inode *inode, struct page *page)
@@ -131,7 +147,7 @@ no_update:
 	set_inode_flag(F2FS_I(dn->inode), FI_APPEND_WRITE);
 
 	/* clear inline data and flag after data writeback */
-	truncate_inline_data(dn->inode_page);
+	truncate_inline_inode(dn->inode_page, 0);
 clear_out:
 	stat_dec_inline_inode(dn->inode);
 	f2fs_clear_inline_inode(dn->inode);
@@ -245,7 +261,7 @@ process_inline:
 	if (f2fs_has_inline_data(inode)) {
 		ipage = get_node_page(sbi, inode->i_ino);
 		f2fs_bug_on(sbi, IS_ERR(ipage));
-		truncate_inline_data(ipage);
+		truncate_inline_inode(ipage, 0);
 		f2fs_clear_inline_inode(inode);
 		update_inode(inode, ipage);
 		f2fs_put_page(ipage, 1);
@@ -363,7 +379,7 @@ static int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
 	set_page_dirty(page);
 
 	/* clear inline dir and flag after data writeback */
-	truncate_inline_data(ipage);
+	truncate_inline_inode(ipage, 0);
 
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(F2FS_I(dir), FI_INLINE_DENTRY);

@@ -456,15 +456,16 @@ void truncate_data_blocks(struct dnode_of_data *dn)
 	truncate_data_blocks_range(dn, ADDRS_PER_BLOCK);
 }
 
-static int truncate_partial_data_page(struct inode *inode, u64 from)
+static int truncate_partial_data_page(struct inode *inode, u64 from,
+								bool force)
 {
 	unsigned offset = from & (PAGE_CACHE_SIZE - 1);
 	struct page *page;
 
-	if (!offset)
+	if (!offset && !force)
 		return 0;
 
-	page = find_data_page(inode, from >> PAGE_CACHE_SHIFT, false);
+	page = find_data_page(inode, from >> PAGE_CACHE_SHIFT, force);
 	if (IS_ERR(page))
 		return 0;
 
@@ -475,7 +476,8 @@ static int truncate_partial_data_page(struct inode *inode, u64 from)
 
 	f2fs_wait_on_page_writeback(page, DATA);
 	zero_user(page, offset, PAGE_CACHE_SIZE - offset);
-	set_page_dirty(page);
+	if (!force)
+		set_page_dirty(page);
 out:
 	f2fs_put_page(page, 1);
 	return 0;
@@ -489,6 +491,7 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	pgoff_t free_from;
 	int count = 0, err = 0;
 	struct page *ipage;
+	bool truncate_page = false;
 
 	trace_f2fs_truncate_blocks_enter(inode, from);
 
@@ -504,7 +507,10 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	}
 
 	if (f2fs_has_inline_data(inode)) {
+		if (truncate_inline_inode(ipage, from))
+			set_page_dirty(ipage);
 		f2fs_put_page(ipage, 1);
+		truncate_page = true;
 		goto out;
 	}
 
@@ -535,7 +541,7 @@ out:
 
 	/* lastly zero out the first data page */
 	if (!err)
-		err = truncate_partial_data_page(inode, from);
+		err = truncate_partial_data_page(inode, from, truncate_page);
 
 	trace_f2fs_truncate_blocks_exit(inode, err);
 	return err;
