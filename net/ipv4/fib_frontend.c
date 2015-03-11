@@ -54,11 +54,11 @@ static int __net_init fib4_rules_init(struct net *net)
 
 	main_table  = fib_trie_table(RT_TABLE_MAIN, NULL);
 	if (main_table == NULL)
-		goto fail;
+		return -ENOMEM;
 
 	local_table = fib_trie_table(RT_TABLE_LOCAL, main_table);
 	if (local_table == NULL)
-		return -ENOMEM;
+		goto fail;
 
 	hlist_add_head_rcu(&local_table->tb_hlist,
 				&net->ipv4.fib_table_hash[TABLE_LOCAL_INDEX]);
@@ -67,7 +67,7 @@ static int __net_init fib4_rules_init(struct net *net)
 	return 0;
 
 fail:
-	fib_free_table(local_table);
+	fib_free_table(main_table);
 	return -ENOMEM;
 }
 #else
