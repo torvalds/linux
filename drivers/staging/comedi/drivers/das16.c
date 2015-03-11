@@ -935,9 +935,8 @@ static void das16_alloc_dma(struct comedi_device *dev, unsigned int dma_chan)
 	devpriv->dma = comedi_isadma_alloc(dev, 2, dma_chan, dma_chan,
 					   DAS16_DMA_SIZE, COMEDI_ISADMA_READ);
 	if (devpriv->dma) {
-		init_timer(&devpriv->timer);
-		devpriv->timer.function = das16_timer_interrupt;
-		devpriv->timer.data = (unsigned long)dev;
+		setup_timer(&devpriv->timer, das16_timer_interrupt,
+			    (unsigned long)dev);
 	}
 }
 
