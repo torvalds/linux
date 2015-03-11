@@ -1,0 +1,9 @@
+# Generic Trusted Execution Environment Configuration
+config TEE
+	bool "Trusted Execution Environment support"
+	default n
+	select DMA_SHARED_BUFFER
+	select GENERIC_ALLOCATOR
+	help
+	  This implements a generic interface towards a Trusted Execution
+	  Environment (TEE).
