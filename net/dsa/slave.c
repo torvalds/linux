@@ -617,6 +617,24 @@ static int dsa_slave_fixed_link_update(struct net_device *dev,
 }
 
 /* slave device setup *******************************************************/
+static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
+				 struct net_device *slave_dev,
+				 int addr)
+{
+	struct dsa_switch *ds = p->parent;
+
+	p->phy = ds->slave_mii_bus->phy_map[addr];
+	if (!p->phy)
+		return -ENODEV;
+
+	/* Use already configured phy mode */
+	p->phy_interface = p->phy->interface;
+	phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
+			   p->phy_interface);
+
+	return 0;
+}
+
 static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 				struct net_device *slave_dev)
 {
@@ -650,10 +668,24 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	if (ds->drv->get_phy_flags)
 		phy_flags = ds->drv->get_phy_flags(ds, p->port);
 
-	if (phy_dn)
-		p->phy = of_phy_connect(slave_dev, phy_dn,
-					dsa_slave_adjust_link, phy_flags,
-					p->phy_interface);
+	if (phy_dn) {
+		ret = of_mdio_parse_addr(&slave_dev->dev, phy_dn);
+		/* If this PHY address is part of phys_mii_mask, which means
+		 * that we need to divert reads and writes to/from it, then we
+		 * want to bind this device using the slave MII bus created by
+		 * DSA to make that happen.
+		 */
+		if (ret >= 0 && (ds->phys_mii_mask & (1 << ret))) {
+			ret = dsa_slave_phy_connect(p, slave_dev, ret);
+			if (ret)
+				return ret;
+		} else {
+			p->phy = of_phy_connect(slave_dev, phy_dn,
+						dsa_slave_adjust_link,
+						phy_flags,
+						p->phy_interface);
+		}
+	}
 
 	if (p->phy && phy_is_fixed)
 		fixed_phy_set_link_update(p->phy, dsa_slave_fixed_link_update);
@@ -662,14 +694,9 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	 * MDIO bus instead
 	 */
 	if (!p->phy) {
-		p->phy = ds->slave_mii_bus->phy_map[p->port];
-		if (!p->phy)
-			return -ENODEV;
-
-		/* Use already configured phy mode */
-		p->phy_interface = p->phy->interface;
-		phy_connect_direct(slave_dev, p->phy, dsa_slave_adjust_link,
-				   p->phy_interface);
+		ret = dsa_slave_phy_connect(p, slave_dev, p->port);
+		if (ret)
+			return ret;
 	} else {
 		netdev_info(slave_dev, "attached PHY at address %d [%s]\n",
 			    p->phy->addr, p->phy->drv->name);
