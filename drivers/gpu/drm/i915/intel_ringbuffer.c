@@ -970,8 +970,8 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	 * FIXME: don't apply the following on BXT for stepping C. On BXT A0
 	 * the flag reads back as 0.
 	 */
-	/* WaDisableMaskBasedCammingInRCC:bxtA */
-	if (IS_BROXTON(dev))
+	/* WaDisableMaskBasedCammingInRCC:sklC,bxtA */
+	if (INTEL_REVID(dev) == SKL_REVID_C0 || IS_BROXTON(dev))
 		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
 				  PIXEL_MASK_CAMMING_DISABLE);
 
