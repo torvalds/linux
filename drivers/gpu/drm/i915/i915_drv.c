@@ -346,7 +346,6 @@ static const struct intel_device_info intel_broadwell_gt3m_info = {
 };
 
 static const struct intel_device_info intel_cherryview_info = {
-	.is_preliminary = 1,
 	.gen = 8, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
