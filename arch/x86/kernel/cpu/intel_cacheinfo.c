@@ -556,7 +556,7 @@ cache_get_priv_group(struct cacheinfo *this_leaf)
 {
 	struct amd_northbridge *nb = this_leaf->priv;
 
-	if (this_leaf->level < 3)
+	if (this_leaf->level < 3 || !nb)
 		return NULL;
 
 	if (nb && nb->l3_cache.indices)
