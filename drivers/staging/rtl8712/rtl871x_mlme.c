@@ -1597,17 +1597,15 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 	iEntry = SecIsInPMKIDList(adapter, pmlmepriv->assoc_bssid);
 	if (iEntry < 0)
 		return ielength;
-	else {
-		if (authmode == _WPA2_IE_ID_) {
-			out_ie[ielength] = 1;
-			ielength++;
-			out_ie[ielength] = 0;	/*PMKID count = 0x0100*/
-			ielength++;
-			memcpy(&out_ie[ielength],
-				&psecuritypriv->PMKIDList[iEntry].PMKID, 16);
-			ielength += 16;
-			out_ie[13] += 18;/*PMKID length = 2+16*/
-		}
+	if (authmode == _WPA2_IE_ID_) {
+		out_ie[ielength] = 1;
+		ielength++;
+		out_ie[ielength] = 0;	/*PMKID count = 0x0100*/
+		ielength++;
+		memcpy(&out_ie[ielength],
+			&psecuritypriv->PMKIDList[iEntry].PMKID, 16);
+		ielength += 16;
+		out_ie[13] += 18;/*PMKID length = 2+16*/
 	}
 	return ielength;
 }
