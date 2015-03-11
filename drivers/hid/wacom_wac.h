@@ -71,7 +71,6 @@
 #define WACOM_REPORT_USB		192
 #define WACOM_REPORT_BPAD_PEN		3
 #define WACOM_REPORT_BPAD_TOUCH		16
-#define WACOM_PKGLEN_STATUS		10
 
 /* device quirks */
 #define WACOM_QUIRK_MULTI_INPUT		0x0001
