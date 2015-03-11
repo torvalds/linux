@@ -72,6 +72,8 @@ MODULE_LICENSE("GPL");
 #define MT_INPUTMODE_TOUCHSCREEN	0x02
 #define MT_INPUTMODE_TOUCHPAD		0x03
 
+#define MT_BUTTONTYPE_CLICKPAD		0
+
 struct mt_slot {
 	__s32 x, y, cx, cy, p, w, h;
 	__s32 contactid;	/* the device ContactID assigned to this slot */
@@ -117,6 +119,7 @@ struct mt_device {
 				* 1 means we should use a serial protocol
 				* > 1 means hybrid (multitouch) protocol */
 	__u8 buttons_count;	/* number of physical buttons per touchpad */
+	bool is_buttonpad;	/* is this device a button pad? */
 	bool serial_maybe;	/* need to check for serial protocol */
 	bool curvalid;		/* is the current contact valid? */
 	unsigned mt_flags;	/* flags to pass to input-mt */
@@ -333,6 +336,16 @@ static void mt_feature_mapping(struct hid_device *hdev,
 		if (td->mtclass.maxcontacts)
 			/* check if the maxcontacts is given by the class */
 			td->maxcontacts = td->mtclass.maxcontacts;
+
+		break;
+	case HID_DG_BUTTONTYPE:
+		if (usage->usage_index >= field->report_count) {
+			dev_err(&hdev->dev, "HID_DG_BUTTONTYPE out of range\n");
+			break;
+		}
+
+		if (field->value[usage->usage_index] == MT_BUTTONTYPE_CLICKPAD)
+			td->is_buttonpad = true;
 
 		break;
 	}
@@ -735,6 +748,9 @@ static void mt_touch_input_configured(struct hid_device *hdev,
 
 	/* check for clickpads */
 	if ((td->mt_flags & INPUT_MT_POINTER) && (td->buttons_count == 1))
+		td->is_buttonpad = true;
+
+	if (td->is_buttonpad)
 		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 
 	input_mt_init_slots(input, td->maxcontacts, td->mt_flags);
