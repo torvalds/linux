@@ -356,12 +356,14 @@ static int get_alternative_line_range(struct debuginfo *dinfo,
 				      struct line_range *lr,
 				      const char *target, bool user)
 {
-	struct perf_probe_point pp = { 0 }, result = { 0 };
+	struct perf_probe_point pp = { .function = lr->function,
+				       .file = lr->file,
+				       .line = lr->start };
+	struct perf_probe_point result;
 	int ret, len = 0;
 
-	pp.function = lr->function;
-	pp.file = lr->file;
-	pp.line = lr->start;
+	memset(&result, 0, sizeof(result));
+
 	if (lr->end != INT_MAX)
 		len = lr->end - lr->start;
 	ret = find_alternative_probe_point(dinfo, &pp, &result,
