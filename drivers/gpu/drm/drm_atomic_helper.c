@@ -1096,9 +1096,9 @@ EXPORT_SYMBOL(drm_atomic_helper_commit);
  */
 
 /**
- * drm_atomic_helper_prepare_planes - prepare plane resources after commit
+ * drm_atomic_helper_prepare_planes - prepare plane resources before commit
  * @dev: DRM device
- * @state: atomic state object with old state structures
+ * @state: atomic state object with new state structures
  *
  * This function prepares plane state, specifically framebuffers, for the new
  * configuration. If any failure is encountered this function will call
