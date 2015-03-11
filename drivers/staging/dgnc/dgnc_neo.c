@@ -103,7 +103,7 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 
 	/* Turn on auto CTS flow control */
 #if 1
-	ier |= (UART_17158_IER_CTSDSR);
+	ier |= UART_17158_IER_CTSDSR;
 #else
 	ier &= ~(UART_17158_IER_CTSDSR);
 #endif
@@ -111,7 +111,7 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_CTSDSR);
 
 	/* Turn off auto Xon flow control */
-	efr &= ~(UART_17158_EFR_IXON);
+	efr &= ~UART_17158_EFR_IXON;
 
 	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
 	writeb(0, &ch->ch_neo_uart->efr);
@@ -139,15 +139,15 @@ static inline void neo_set_rts_flow_control(struct channel_t *ch)
 
 	/* Turn on auto RTS flow control */
 #if 1
-	ier |= (UART_17158_IER_RTSDTR);
+	ier |= UART_17158_IER_RTSDTR;
 #else
 	ier &= ~(UART_17158_IER_RTSDTR);
 #endif
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_RTSDTR);
 
 	/* Turn off auto Xoff flow control */
-	ier &= ~(UART_17158_IER_XOFF);
-	efr &= ~(UART_17158_EFR_IXOFF);
+	ier &= ~UART_17158_IER_XOFF;
+	efr &= ~UART_17158_EFR_IXOFF;
 
 	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
 	writeb(0, &ch->ch_neo_uart->efr);
@@ -169,7 +169,7 @@ static inline void neo_set_rts_flow_control(struct channel_t *ch)
 	 * RTS/DTR# output pin (MCR bit-0 or 1 to logic 1 after
 	 * it is enabled.
 	 */
-	ch->ch_mostat |= (UART_MCR_RTS);
+	ch->ch_mostat |= UART_MCR_RTS;
 
 	neo_pci_posting_flush(ch->ch_bd);
 }
@@ -181,8 +181,8 @@ static inline void neo_set_ixon_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto CTS flow control */
-	ier &= ~(UART_17158_IER_CTSDSR);
-	efr &= ~(UART_17158_EFR_CTSDSR);
+	ier &= ~UART_17158_IER_CTSDSR;
+	efr &= ~UART_17158_EFR_CTSDSR;
 
 	/* Turn on auto Xon flow control */
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_IXON);
@@ -218,11 +218,11 @@ static inline void neo_set_ixoff_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto RTS flow control */
-	ier &= ~(UART_17158_IER_RTSDTR);
-	efr &= ~(UART_17158_EFR_RTSDTR);
+	ier &= ~UART_17158_IER_RTSDTR;
+	efr &= ~UART_17158_EFR_RTSDTR;
 
 	/* Turn on auto Xoff flow control */
-	ier |= (UART_17158_IER_XOFF);
+	ier |= UART_17158_IER_XOFF;
 	efr |= (UART_17158_EFR_ECB | UART_17158_EFR_IXOFF);
 
 	/* Why? Becuz Exar's spec says we have to zero it out before setting it */
@@ -256,11 +256,11 @@ static inline void neo_set_no_input_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto RTS flow control */
-	ier &= ~(UART_17158_IER_RTSDTR);
-	efr &= ~(UART_17158_EFR_RTSDTR);
+	ier &= ~UART_17158_IER_RTSDTR;
+	efr &= ~UART_17158_EFR_RTSDTR;
 
 	/* Turn off auto Xoff flow control */
-	ier &= ~(UART_17158_IER_XOFF);
+	ier &= ~UART_17158_IER_XOFF;
 	if (ch->ch_c_iflag & IXON)
 		efr &= ~(UART_17158_EFR_IXOFF);
 	else
@@ -296,12 +296,12 @@ static inline void neo_set_no_output_flow_control(struct channel_t *ch)
 	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto CTS flow control */
-	ier &= ~(UART_17158_IER_CTSDSR);
-	efr &= ~(UART_17158_EFR_CTSDSR);
+	ier &= ~UART_17158_IER_CTSDSR;
+	efr &= ~UART_17158_EFR_CTSDSR;
 
 	/* Turn off auto Xon flow control */
 	if (ch->ch_c_iflag & IXOFF)
-		efr &= ~(UART_17158_EFR_IXON);
+		efr &= ~UART_17158_EFR_IXON;
 	else
 		efr &= ~(UART_17158_EFR_ECB | UART_17158_EFR_IXON);
 
