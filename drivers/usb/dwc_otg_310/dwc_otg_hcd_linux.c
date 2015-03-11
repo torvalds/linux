@@ -1170,7 +1170,7 @@ static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
 	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
-	if (rc){
+	if (rc) {
 		DWC_SPINUNLOCK_IRQRESTORE(dwc_otg_hcd->lock, flags);
 		return rc;
 	}
