@@ -499,6 +499,7 @@ config X86_INTEL_QUARK
 	depends on X86_IO_APIC
 	select IOSF_MBI
 	select INTEL_IMR
+	select COMMON_CLK
 	---help---
 	  Select to include support for Quark X1000 SoC.
 	  Say Y here if you have a Quark based system such as the Arduino

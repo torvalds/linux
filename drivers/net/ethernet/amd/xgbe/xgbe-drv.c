@@ -609,6 +609,68 @@ static void xgbe_napi_disable(struct xgbe_prv_data *pdata, unsigned int del)
 	}
 }
 
+static int xgbe_request_irqs(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_channel *channel;
+	struct net_device *netdev = pdata->netdev;
+	unsigned int i;
+	int ret;
+
+	ret = devm_request_irq(pdata->dev, pdata->dev_irq, xgbe_isr, 0,
+			       netdev->name, pdata);
+	if (ret) {
+		netdev_alert(netdev, "error requesting irq %d\n",
+			     pdata->dev_irq);
+		return ret;
+	}
+
+	if (!pdata->per_channel_irq)
+		return 0;
+
+	channel = pdata->channel;
+	for (i = 0; i < pdata->channel_count; i++, channel++) {
+		snprintf(channel->dma_irq_name,
+			 sizeof(channel->dma_irq_name) - 1,
+			 "%s-TxRx-%u", netdev_name(netdev),
+			 channel->queue_index);
+
+		ret = devm_request_irq(pdata->dev, channel->dma_irq,
+				       xgbe_dma_isr, 0,
+				       channel->dma_irq_name, channel);
+		if (ret) {
+			netdev_alert(netdev, "error requesting irq %d\n",
+				     channel->dma_irq);
+			goto err_irq;
+		}
+	}
+
+	return 0;
+
+err_irq:
+	/* Using an unsigned int, 'i' will go to UINT_MAX and exit */
+	for (i--, channel--; i < pdata->channel_count; i--, channel--)
+		devm_free_irq(pdata->dev, channel->dma_irq, channel);
+
+	devm_free_irq(pdata->dev, pdata->dev_irq, pdata);
+
+	return ret;
+}
+
+static void xgbe_free_irqs(struct xgbe_prv_data *pdata)
+{
+	struct xgbe_channel *channel;
+	unsigned int i;
+
+	devm_free_irq(pdata->dev, pdata->dev_irq, pdata);
+
+	if (!pdata->per_channel_irq)
+		return;
+
+	channel = pdata->channel;
+	for (i = 0; i < pdata->channel_count; i++, channel++)
+		devm_free_irq(pdata->dev, channel->dma_irq, channel);
+}
+
 void xgbe_init_tx_coalesce(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
@@ -810,19 +872,19 @@ int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
 		return -EINVAL;
 	}
 
-	phy_stop(pdata->phydev);
-
 	spin_lock_irqsave(&pdata->lock, flags);
 
 	if (caller == XGMAC_DRIVER_CONTEXT)
 		netif_device_detach(netdev);
 
 	netif_tx_stop_all_queues(netdev);
-	xgbe_napi_disable(pdata, 0);
 
-	/* Powerdown Tx/Rx */
 	hw_if->powerdown_tx(pdata);
 	hw_if->powerdown_rx(pdata);
+
+	xgbe_napi_disable(pdata, 0);
+
+	phy_stop(pdata->phydev);
 
 	pdata->power_down = 1;
 
@@ -854,14 +916,14 @@ int xgbe_powerup(struct net_device *netdev, unsigned int caller)
 
 	phy_start(pdata->phydev);
 
-	/* Enable Tx/Rx */
+	xgbe_napi_enable(pdata, 0);
+
 	hw_if->powerup_tx(pdata);
 	hw_if->powerup_rx(pdata);
 
 	if (caller == XGMAC_DRIVER_CONTEXT)
 		netif_device_attach(netdev);
 
-	xgbe_napi_enable(pdata, 0);
 	netif_tx_start_all_queues(netdev);
 
 	spin_unlock_irqrestore(&pdata->lock, flags);
@@ -875,6 +937,7 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct net_device *netdev = pdata->netdev;
+	int ret;
 
 	DBGPR("-->xgbe_start\n");
 
@@ -884,17 +947,31 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	phy_start(pdata->phydev);
 
+	xgbe_napi_enable(pdata, 1);
+
+	ret = xgbe_request_irqs(pdata);
+	if (ret)
+		goto err_napi;
+
 	hw_if->enable_tx(pdata);
 	hw_if->enable_rx(pdata);
 
 	xgbe_init_tx_timers(pdata);
 
-	xgbe_napi_enable(pdata, 1);
 	netif_tx_start_all_queues(netdev);
 
 	DBGPR("<--xgbe_start\n");
 
 	return 0;
+
+err_napi:
+	xgbe_napi_disable(pdata, 1);
+
+	phy_stop(pdata->phydev);
+
+	hw_if->exit(pdata);
+
+	return ret;
 }
 
 static void xgbe_stop(struct xgbe_prv_data *pdata)
@@ -907,15 +984,20 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 
 	DBGPR("-->xgbe_stop\n");
 
-	phy_stop(pdata->phydev);
-
 	netif_tx_stop_all_queues(netdev);
-	xgbe_napi_disable(pdata, 1);
 
 	xgbe_stop_tx_timers(pdata);
 
 	hw_if->disable_tx(pdata);
 	hw_if->disable_rx(pdata);
+
+	xgbe_free_irqs(pdata);
+
+	xgbe_napi_disable(pdata, 1);
+
+	phy_stop(pdata->phydev);
+
+	hw_if->exit(pdata);
 
 	channel = pdata->channel;
 	for (i = 0; i < pdata->channel_count; i++, channel++) {
@@ -931,10 +1013,6 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 
 static void xgbe_restart_dev(struct xgbe_prv_data *pdata)
 {
-	struct xgbe_channel *channel;
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	unsigned int i;
-
 	DBGPR("-->xgbe_restart_dev\n");
 
 	/* If not running, "restart" will happen on open */
@@ -942,18 +1020,9 @@ static void xgbe_restart_dev(struct xgbe_prv_data *pdata)
 		return;
 
 	xgbe_stop(pdata);
-	synchronize_irq(pdata->dev_irq);
-	if (pdata->per_channel_irq) {
-		channel = pdata->channel;
-		for (i = 0; i < pdata->channel_count; i++, channel++)
-			synchronize_irq(channel->dma_irq);
-	}
 
 	xgbe_free_tx_data(pdata);
 	xgbe_free_rx_data(pdata);
-
-	/* Issue software reset to device */
-	hw_if->exit(pdata);
 
 	xgbe_start(pdata);
 
@@ -1283,10 +1352,7 @@ static void xgbe_packet_info(struct xgbe_prv_data *pdata,
 static int xgbe_open(struct net_device *netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_desc_if *desc_if = &pdata->desc_if;
-	struct xgbe_channel *channel = NULL;
-	unsigned int i = 0;
 	int ret;
 
 	DBGPR("-->xgbe_open\n");
@@ -1329,54 +1395,13 @@ static int xgbe_open(struct net_device *netdev)
 	INIT_WORK(&pdata->restart_work, xgbe_restart);
 	INIT_WORK(&pdata->tx_tstamp_work, xgbe_tx_tstamp);
 
-	/* Request interrupts */
-	ret = devm_request_irq(pdata->dev, pdata->dev_irq, xgbe_isr, 0,
-			       netdev->name, pdata);
-	if (ret) {
-		netdev_alert(netdev, "error requesting irq %d\n",
-			     pdata->dev_irq);
-		goto err_rings;
-	}
-
-	if (pdata->per_channel_irq) {
-		channel = pdata->channel;
-		for (i = 0; i < pdata->channel_count; i++, channel++) {
-			snprintf(channel->dma_irq_name,
-				 sizeof(channel->dma_irq_name) - 1,
-				 "%s-TxRx-%u", netdev_name(netdev),
-				 channel->queue_index);
-
-			ret = devm_request_irq(pdata->dev, channel->dma_irq,
-					       xgbe_dma_isr, 0,
-					       channel->dma_irq_name, channel);
-			if (ret) {
-				netdev_alert(netdev,
-					     "error requesting irq %d\n",
-					     channel->dma_irq);
-				goto err_irq;
-			}
-		}
-	}
-
 	ret = xgbe_start(pdata);
 	if (ret)
-		goto err_start;
+		goto err_rings;
 
 	DBGPR("<--xgbe_open\n");
 
 	return 0;
-
-err_start:
-	hw_if->exit(pdata);
-
-err_irq:
-	if (pdata->per_channel_irq) {
-		/* Using an unsigned int, 'i' will go to UINT_MAX and exit */
-		for (i--, channel--; i < pdata->channel_count; i--, channel--)
-			devm_free_irq(pdata->dev, channel->dma_irq, channel);
-	}
-
-	devm_free_irq(pdata->dev, pdata->dev_irq, pdata);
 
 err_rings:
 	desc_if->free_ring_resources(pdata);
@@ -1399,29 +1424,15 @@ err_phy_init:
 static int xgbe_close(struct net_device *netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	struct xgbe_desc_if *desc_if = &pdata->desc_if;
-	struct xgbe_channel *channel;
-	unsigned int i;
 
 	DBGPR("-->xgbe_close\n");
 
 	/* Stop the device */
 	xgbe_stop(pdata);
 
-	/* Issue software reset to device */
-	hw_if->exit(pdata);
-
 	/* Free the ring descriptors and buffers */
 	desc_if->free_ring_resources(pdata);
-
-	/* Release the interrupts */
-	devm_free_irq(pdata->dev, pdata->dev_irq, pdata);
-	if (pdata->per_channel_irq) {
-		channel = pdata->channel;
-		for (i = 0; i < pdata->channel_count; i++, channel++)
-			devm_free_irq(pdata->dev, channel->dma_irq, channel);
-	}
 
 	/* Free the channel and ring structures */
 	xgbe_free_channels(pdata);
