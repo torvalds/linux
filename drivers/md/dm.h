@@ -211,6 +211,8 @@ int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
 void dm_internal_suspend(struct mapped_device *md);
 void dm_internal_resume(struct mapped_device *md);
 
+bool dm_use_blk_mq(struct mapped_device *md);
+
 int dm_io_init(void);
 void dm_io_exit(void);
 
@@ -220,7 +222,8 @@ void dm_kcopyd_exit(void);
 /*
  * Mempool operations
  */
-struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, unsigned per_bio_data_size);
+struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned type,
+					    unsigned integrity, unsigned per_bio_data_size);
 void dm_free_md_mempools(struct dm_md_mempools *pools);
 
 /*

@@ -940,7 +940,7 @@ bool dm_table_mq_request_based(struct dm_table *t)
 	return dm_table_get_type(t) == DM_TYPE_MQ_REQUEST_BASED;
 }
 
-static int dm_table_alloc_md_mempools(struct dm_table *t)
+static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *md)
 {
 	unsigned type = dm_table_get_type(t);
 	unsigned per_bio_data_size = 0;
@@ -958,7 +958,7 @@ static int dm_table_alloc_md_mempools(struct dm_table *t)
 			per_bio_data_size = max(per_bio_data_size, tgt->per_bio_data_size);
 		}
 
-	t->mempools = dm_alloc_md_mempools(type, t->integrity_supported, per_bio_data_size);
+	t->mempools = dm_alloc_md_mempools(md, type, t->integrity_supported, per_bio_data_size);
 	if (!t->mempools)
 		return -ENOMEM;
 
@@ -1128,7 +1128,7 @@ int dm_table_complete(struct dm_table *t)
 		return r;
 	}
 
-	r = dm_table_alloc_md_mempools(t);
+	r = dm_table_alloc_md_mempools(t, t->md);
 	if (r)
 		DMERR("unable to allocate mempools");
 

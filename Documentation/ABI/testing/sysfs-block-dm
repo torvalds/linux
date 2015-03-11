@@ -37,3 +37,11 @@ Description:	Allow control over how long a request that is a
 		accounting.  This attribute is not applicable to
 		bio-based DM devices so it will only ever report 0 for
 		them.
+
+What:		/sys/block/dm-<num>/dm/use_blk_mq
+Date:		March 2015
+KernelVersion:	4.1
+Contact:	dm-devel@redhat.com
+Description:	Request-based Device-mapper blk-mq I/O path mode.
+		Contains the value 1 if the device is using blk-mq.
+		Otherwise it contains 0. Read-only attribute.
