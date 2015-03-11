@@ -39,7 +39,8 @@ PKG_CONFIG := $(CROSS_COMPILE)pkg-config
 
 all: $(FILES)
 
-BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ $(patsubst %.bin,%.c,$@) $(LDFLAGS)
+__BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ $(patsubst %.bin,%.c,$@) $(LDFLAGS)
+  BUILD = $(__BUILD) > $(OUTPUT)$(@:.bin=.make.output) 2>&1
 
 ###############################
 
@@ -156,4 +157,4 @@ test-zlib.bin:
 ###############################
 
 clean:
-	rm -f $(FILES) *.d
+	rm -f $(FILES) *.d $(FILES:.bin=.make.output)
