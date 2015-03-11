@@ -98,7 +98,6 @@
 #define MAX_FW_UPDATE_RETRIES	30
 
 #define ELAN_FW_PAGESIZE	132
-#define ELAN_FW_FILENAME	"elants_i2c.bin"
 
 /* calibration timeout definition */
 #define ELAN_CALI_TIMEOUT_MSEC	10000
@@ -697,12 +696,19 @@ static int elants_i2c_fw_update(struct elants_data *ts)
 {
 	struct i2c_client *client = ts->client;
 	const struct firmware *fw;
+	char *fw_name;
 	int error;
 
-	error = request_firmware(&fw, ELAN_FW_FILENAME, &client->dev);
+	fw_name = kasprintf(GFP_KERNEL, "elants_i2c_%4x.bin", ts->hw_version);
+	if (!fw_name)
+		return -ENOMEM;
+
+	dev_info(&client->dev, "requesting fw name = %s\n", fw_name);
+	error = request_firmware(&fw, fw_name, &client->dev);
+	kfree(fw_name);
 	if (error) {
-		dev_err(&client->dev, "failed to request firmware %s: %d\n",
-			ELAN_FW_FILENAME, error);
+		dev_err(&client->dev, "failed to request firmware: %d\n",
+			error);
 		return error;
 	}
 
