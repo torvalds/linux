@@ -105,7 +105,6 @@ struct spi_imx_data {
 
 	/* DMA */
 	unsigned int dma_is_inited;
-	unsigned int dma_finished;
 	bool usedma;
 	u32 rx_wml;
 	u32 tx_wml;
@@ -301,11 +300,12 @@ static void __maybe_unused mx51_ecspi_intctrl(struct spi_imx_data *spi_imx, int 
 static void __maybe_unused mx51_ecspi_trigger(struct spi_imx_data *spi_imx)
 {
 	u32 reg = readl(spi_imx->base + MX51_ECSPI_CTRL);
-
+	/*
+	 * To workaround TKT238285, SDMA script need use XCH instead of SMC
+	 * just like PIO mode.
+	 */
 	if (!spi_imx->usedma)
 		reg |= MX51_ECSPI_CTRL_XCH;
-	else if (!spi_imx->dma_finished)
-		reg |= MX51_ECSPI_CTRL_SMC;
 	else
 		reg &= ~MX51_ECSPI_CTRL_SMC;
 	writel(reg, spi_imx->base + MX51_ECSPI_CTRL);
@@ -315,7 +315,6 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 		struct spi_imx_config *config)
 {
 	u32 ctrl = MX51_ECSPI_CTRL_ENABLE, cfg = 0, dma = 0;
-	u32 tx_wml_cfg, rx_wml_cfg, rxt_wml_cfg;
 	u32 clk = config->speed_hz, delay;
 
 	/*
@@ -372,22 +371,10 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	 * and enable DMA request.
 	 */
 	if (spi_imx->dma_is_inited) {
-		dma = readl(spi_imx->base + MX51_ECSPI_DMA);
-
-		spi_imx->tx_wml = spi_imx_get_fifosize(spi_imx) / 4;
 		spi_imx->rx_wml = spi_imx_get_fifosize(spi_imx) / 2;
-		spi_imx->rxt_wml = spi_imx_get_fifosize(spi_imx) / 2;
-		rx_wml_cfg = spi_imx->rx_wml << MX51_ECSPI_DMA_RX_WML_OFFSET;
-		tx_wml_cfg = spi_imx->tx_wml << MX51_ECSPI_DMA_TX_WML_OFFSET;
-		rxt_wml_cfg = spi_imx->rxt_wml << MX51_ECSPI_DMA_RXT_WML_OFFSET;
-		dma = (dma & ~MX51_ECSPI_DMA_TX_WML_MASK
-			   & ~MX51_ECSPI_DMA_RX_WML_MASK
-			   & ~MX51_ECSPI_DMA_RXT_WML_MASK)
-			   | rx_wml_cfg | tx_wml_cfg | rxt_wml_cfg
-			   |(1 << MX51_ECSPI_DMA_TEDEN_OFFSET)
-			   |(1 << MX51_ECSPI_DMA_RXDEN_OFFSET)
-			   |(1 << MX51_ECSPI_DMA_RXTDEN_OFFSET);
-
+		dma = (spi_imx->rx_wml - 1) << MX51_ECSPI_DMA_RX_WML_OFFSET
+		      | (1 << MX51_ECSPI_DMA_TEDEN_OFFSET)
+		      | (1 << MX51_ECSPI_DMA_RXDEN_OFFSET);
 		writel(dma, spi_imx->base + MX51_ECSPI_DMA);
 	}
 
@@ -945,8 +932,6 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	reinit_completion(&spi_imx->dma_tx_completion);
 
 	/* Trigger the cspi module. */
-	spi_imx->dma_finished = 0;
-
 	spi_imx->devtype_data->trigger(spi_imx);
 
 	dma_async_issue_pending(master->dma_tx);
@@ -979,9 +964,6 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 			}
 		}
 	}
-
-	spi_imx->dma_finished = 1;
-	spi_imx->devtype_data->trigger(spi_imx);
 
 	if (!ret)
 		ret = -ETIMEDOUT;
