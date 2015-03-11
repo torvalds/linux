@@ -1256,6 +1256,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2	38
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3	41
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
 		const struct sdma_script_start_addrs *addr)
@@ -1301,6 +1302,9 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 		break;
 	case 2:
 		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2;
+		break;
+	case 3:
+		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3;
 		break;
 	default:
 		dev_err(sdma->dev, "unknown firmware version\n");
