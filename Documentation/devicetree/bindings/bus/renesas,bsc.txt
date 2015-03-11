@@ -1,0 +1,46 @@
+Renesas Bus State Controller (BSC)
+==================================
+
+The Renesas Bus State Controller (BSC, sometimes called "LBSC within Bus
+Bridge", or "External Bus Interface") can be found in several Renesas ARM SoCs.
+It provides an external bus for connecting multiple external devices to the
+SoC, driving several chip select lines, for e.g. NOR FLASH, Ethernet and USB.
+
+While the BSC is a fairly simple memory-mapped bus, it may be part of a PM
+domain, and may have a gateable functional clock.
+Before a device connected to the BSC can be accessed, the PM domain
+containing the BSC must be powered on, and the functional clock
+driving the BSC must be enabled.
+
+The bindings for the BSC extend the bindings for "simple-pm-bus".
+
+
+Required properties
+  - compatible: Must contain an SoC-specific value, and "renesas,bsc" and
+		"simple-pm-bus" as fallbacks.
+                SoC-specific values can be:
+		"renesas,bsc-r8a73a4" for R-Mobile APE6 (r8a73a4)
+		"renesas,bsc-sh73a0" for SH-Mobile AG5 (sh73a0)
+  - #address-cells, #size-cells, ranges: Must describe the mapping between
+		parent address and child address spaces.
+  - reg: Must contain the base address and length to access the bus controller.
+
+Optional properties:
+  - interrupts: Must contain a reference to the BSC interrupt, if available.
+  - clocks: Must contain a reference to the functional clock, if available.
+  - power-domains: Must contain a reference to the PM domain, if available.
+
+
+Example:
+
+	bsc: bus@fec10000 {
+		compatible = "renesas,bsc-sh73a0", "renesas,bsc",
+			     "simple-pm-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x20000000>;
+		reg = <0xfec10000 0x400>;
+		interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&zb_clk>;
+		power-domains = <&pd_a4s>;
+	};

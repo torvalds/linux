@@ -16,6 +16,7 @@
 
 /include/ "skeleton.dtsi"
 
+#include <dt-bindings/clock/r8a7778-clock.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
@@ -38,6 +39,24 @@
 		spi0 = &hspi0;
 		spi1 = &hspi1;
 		spi2 = &hspi2;
+	};
+
+	bsc: bus@1c000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x1c000000>;
+	};
+
+	ether: ethernet@fde00000 {
+		compatible = "renesas,ether-r8a7778";
+		reg = <0xfde00000 0x400>;
+		interrupts = <0 105 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp1_clks R8A7778_CLK_ETHER>;
+		phy-mode = "rmii";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
 	};
 
 	gic: interrupt-controller@fe438000 {
@@ -132,6 +151,7 @@
 		compatible = "renesas,i2c-r8a7778";
 		reg = <0xffc70000 0x1000>;
 		interrupts = <0 67 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_I2C0>;
 		status = "disabled";
 	};
 
@@ -141,6 +161,7 @@
 		compatible = "renesas,i2c-r8a7778";
 		reg = <0xffc71000 0x1000>;
 		interrupts = <0 78 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_I2C1>;
 		status = "disabled";
 	};
 
@@ -150,6 +171,7 @@
 		compatible = "renesas,i2c-r8a7778";
 		reg = <0xffc72000 0x1000>;
 		interrupts = <0 76 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_I2C2>;
 		status = "disabled";
 	};
 
@@ -159,6 +181,7 @@
 		compatible = "renesas,i2c-r8a7778";
 		reg = <0xffc73000 0x1000>;
 		interrupts = <0 77 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_I2C3>;
 		status = "disabled";
 	};
 
@@ -168,6 +191,8 @@
 		interrupts = <0 32 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 33 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 34 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_TMU0>;
+		clock-names = "fck";
 
 		#renesas,channels = <3>;
 
@@ -180,6 +205,8 @@
 		interrupts = <0 36 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 37 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 38 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_TMU1>;
+		clock-names = "fck";
 
 		#renesas,channels = <3>;
 
@@ -192,16 +219,75 @@
 		interrupts = <0 40 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 41 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 42 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_TMU2>;
+		clock-names = "fck";
 
 		#renesas,channels = <3>;
 
 		status = "disabled";
 	};
 
+	rcar_sound: sound@ffd90000 {
+		#sound-dai-cells = <1>;
+		compatible = "renesas,rcar_sound-r8a7778", "renesas,rcar_sound-gen1";
+		reg =	<0xffd90000 0x1000>,	/* SRU */
+			<0xffd91000 0x1240>,	/* SSI */
+			<0xfffe0000 0x24>;	/* ADG */
+		clocks = <&mstp3_clks R8A7778_CLK_SSI8>,
+			<&mstp3_clks R8A7778_CLK_SSI7>,
+			<&mstp3_clks R8A7778_CLK_SSI6>,
+			<&mstp3_clks R8A7778_CLK_SSI5>,
+			<&mstp3_clks R8A7778_CLK_SSI4>,
+			<&mstp0_clks R8A7778_CLK_SSI3>,
+			<&mstp0_clks R8A7778_CLK_SSI2>,
+			<&mstp0_clks R8A7778_CLK_SSI1>,
+			<&mstp0_clks R8A7778_CLK_SSI0>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC8>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC7>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC6>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC5>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC4>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC3>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC2>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC1>,
+			<&mstp5_clks R8A7778_CLK_SRU_SRC0>,
+			<&audio_clk_a>, <&audio_clk_b>, <&audio_clk_c>,
+			<&cpg_clocks R8A7778_CLK_S1>;
+		clock-names = "ssi.8", "ssi.7", "ssi.6", "ssi.5", "ssi.4",
+			"ssi.3", "ssi.2", "ssi.1", "ssi.0",
+			"src.8", "src.7", "src.6", "src.5", "src.4",
+			"src.3", "src.2", "src.1", "src.0",
+			"clk_a", "clk_b", "clk_c", "clk_i";
+
+		status = "disabled";
+
+		rcar_sound,src {
+			src3: src@3 { };
+			src4: src@4 { };
+			src5: src@5 { };
+			src6: src@6 { };
+			src7: src@7 { };
+			src8: src@8 { };
+			src9: src@9 { };
+		};
+
+		rcar_sound,ssi {
+			ssi3: ssi@3 { interrupts = <0 0x85 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi4: ssi@4 { interrupts = <0 0x85 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi5: ssi@5 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi6: ssi@6 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi7: ssi@7 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi8: ssi@8 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+			ssi9: ssi@9 { interrupts = <0 0x86 IRQ_TYPE_LEVEL_HIGH>; };
+		};
+	};
+
 	scif0: serial@ffe40000 {
 		compatible = "renesas,scif-r8a7778", "renesas,scif";
 		reg = <0xffe40000 0x100>;
 		interrupts = <0 70 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF0>;
+		clock-names = "sci_ick";
 		status = "disabled";
 	};
 
@@ -209,6 +295,8 @@
 		compatible = "renesas,scif-r8a7778", "renesas,scif";
 		reg = <0xffe41000 0x100>;
 		interrupts = <0 71 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF1>;
+		clock-names = "sci_ick";
 		status = "disabled";
 	};
 
@@ -216,6 +304,8 @@
 		compatible = "renesas,scif-r8a7778", "renesas,scif";
 		reg = <0xffe42000 0x100>;
 		interrupts = <0 72 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF2>;
+		clock-names = "sci_ick";
 		status = "disabled";
 	};
 
@@ -223,6 +313,8 @@
 		compatible = "renesas,scif-r8a7778", "renesas,scif";
 		reg = <0xffe43000 0x100>;
 		interrupts = <0 73 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF3>;
+		clock-names = "sci_ick";
 		status = "disabled";
 	};
 
@@ -230,6 +322,8 @@
 		compatible = "renesas,scif-r8a7778", "renesas,scif";
 		reg = <0xffe44000 0x100>;
 		interrupts = <0 74 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF4>;
+		clock-names = "sci_ick";
 		status = "disabled";
 	};
 
@@ -237,6 +331,8 @@
 		compatible = "renesas,scif-r8a7778", "renesas,scif";
 		reg = <0xffe45000 0x100>;
 		interrupts = <0 75 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_SCIF5>;
+		clock-names = "sci_ick";
 		status = "disabled";
 	};
 
@@ -244,6 +340,7 @@
 		compatible = "renesas,sh-mmcif";
 		reg = <0xffe4e000 0x100>;
 		interrupts = <0 61 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7778_CLK_MMC>;
 		status = "disabled";
 	};
 
@@ -251,6 +348,7 @@
 		compatible = "renesas,sdhi-r8a7778";
 		reg = <0xffe4c000 0x100>;
 		interrupts = <0 87 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7778_CLK_SDHI0>;
 		status = "disabled";
 	};
 
@@ -258,6 +356,7 @@
 		compatible = "renesas,sdhi-r8a7778";
 		reg = <0xffe4d000 0x100>;
 		interrupts = <0 88 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7778_CLK_SDHI1>;
 		status = "disabled";
 	};
 
@@ -265,6 +364,7 @@
 		compatible = "renesas,sdhi-r8a7778";
 		reg = <0xffe4f000 0x100>;
 		interrupts = <0 86 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7778_CLK_SDHI2>;
 		status = "disabled";
 	};
 
@@ -272,6 +372,7 @@
 		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc7000 0x18>;
 		interrupts = <0 63 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_HSPI>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -281,6 +382,7 @@
 		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc8000 0x18>;
 		interrupts = <0 84 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_HSPI>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
@@ -290,8 +392,199 @@
 		compatible = "renesas,hspi-r8a7778", "renesas,hspi";
 		reg = <0xfffc6000 0x18>;
 		interrupts = <0 85 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp0_clks R8A7778_CLK_HSPI>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "disabled";
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* External input clock */
+		extal_clk: extal_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "extal";
+		};
+
+		/* Special CPG clocks */
+		cpg_clocks: cpg_clocks@ffc80000 {
+			compatible = "renesas,r8a7778-cpg-clocks";
+			reg = <0xffc80000 0x80>;
+			#clock-cells = <1>;
+			clocks = <&extal_clk>;
+			clock-output-names = "plla", "pllb", "b",
+					     "out", "p", "s", "s1";
+		};
+
+		/* Audio clocks; frequencies are set by boards if applicable. */
+		audio_clk_a: audio_clk_a {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-output-names = "audio_clk_a";
+		};
+		audio_clk_b: audio_clk_b {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-output-names = "audio_clk_b";
+		};
+		audio_clk_c: audio_clk_c {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-output-names = "audio_clk_c";
+		};
+
+		/* Fixed ratio clocks */
+		g_clk: g_clk {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
+			#clock-cells = <0>;
+			clock-div = <12>;
+			clock-mult = <1>;
+			clock-output-names = "g";
+		};
+		i_clk: i_clk {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
+			#clock-cells = <0>;
+			clock-div = <1>;
+			clock-mult = <1>;
+			clock-output-names = "i";
+		};
+		s3_clk: s3_clk {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
+			#clock-cells = <0>;
+			clock-div = <4>;
+			clock-mult = <1>;
+			clock-output-names = "s3";
+		};
+		s4_clk: s4_clk {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7778_CLK_PLLA>;
+			#clock-cells = <0>;
+			clock-div = <8>;
+			clock-mult = <1>;
+			clock-output-names = "s4";
+		};
+		z_clk: z_clk {
+			compatible = "fixed-factor-clock";
+			clocks = <&cpg_clocks R8A7778_CLK_PLLB>;
+			#clock-cells = <0>;
+			clock-div = <1>;
+			clock-mult = <1>;
+			clock-output-names = "z";
+		};
+
+		/* Gate clocks */
+		mstp0_clks: mstp0_clks@ffc80030 {
+			compatible = "renesas,r8a7778-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xffc80030 4>;
+			clocks = <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_S>;
+			#clock-cells = <1>;
+			clock-indices = <
+				R8A7778_CLK_I2C0 R8A7778_CLK_I2C1
+				R8A7778_CLK_I2C2 R8A7778_CLK_I2C3
+				R8A7778_CLK_SCIF0 R8A7778_CLK_SCIF1
+				R8A7778_CLK_SCIF2 R8A7778_CLK_SCIF3
+				R8A7778_CLK_SCIF4 R8A7778_CLK_SCIF5
+				R8A7778_CLK_TMU0 R8A7778_CLK_TMU1
+				R8A7778_CLK_TMU2 R8A7778_CLK_SSI0
+				R8A7778_CLK_SSI1 R8A7778_CLK_SSI2
+				R8A7778_CLK_SSI3 R8A7778_CLK_SRU
+				R8A7778_CLK_HSPI
+			>;
+			clock-output-names =
+				"i2c0", "i2c1", "i2c2", "i2c3", "scif0",
+				"scif1", "scif2", "scif3", "scif4", "scif5",
+				"tmu0", "tmu1", "tmu2", "ssi0", "ssi1",
+				"ssi2", "ssi3", "sru", "hspi";
+		};
+		mstp1_clks: mstp1_clks@ffc80034 {
+			compatible = "renesas,r8a7778-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xffc80034 4>, <0xffc80044 4>;
+			clocks = <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_S>,
+				 <&cpg_clocks R8A7778_CLK_S>,
+				 <&cpg_clocks R8A7778_CLK_P>;
+			#clock-cells = <1>;
+			clock-indices = <
+				R8A7778_CLK_ETHER R8A7778_CLK_VIN0
+				R8A7778_CLK_VIN1 R8A7778_CLK_USB
+			>;
+			clock-output-names =
+				"ether", "vin0", "vin1", "usb";
+		};
+		mstp3_clks: mstp3_clks@ffc8003c {
+			compatible = "renesas,r8a7778-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xffc8003c 4>;
+			clocks = <&s4_clk>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>;
+			#clock-cells = <1>;
+			clock-indices = <
+				R8A7778_CLK_MMC R8A7778_CLK_SDHI0
+				R8A7778_CLK_SDHI1 R8A7778_CLK_SDHI2
+				R8A7778_CLK_SSI4 R8A7778_CLK_SSI5
+				R8A7778_CLK_SSI6 R8A7778_CLK_SSI7
+				R8A7778_CLK_SSI8
+			>;
+			clock-output-names =
+				"mmc", "sdhi0", "sdhi1", "sdhi2", "ssi4",
+				"ssi5", "ssi6", "ssi7", "ssi8";
+		};
+		mstp5_clks: mstp5_clks@ffc80054 {
+			compatible = "renesas,r8a7778-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0xffc80054 4>;
+			clocks = <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>,
+				 <&cpg_clocks R8A7778_CLK_P>;
+			#clock-cells = <1>;
+			clock-indices = <
+				R8A7778_CLK_SRU_SRC0 R8A7778_CLK_SRU_SRC1
+				R8A7778_CLK_SRU_SRC2 R8A7778_CLK_SRU_SRC3
+				R8A7778_CLK_SRU_SRC4 R8A7778_CLK_SRU_SRC5
+				R8A7778_CLK_SRU_SRC6 R8A7778_CLK_SRU_SRC7
+				R8A7778_CLK_SRU_SRC8
+			>;
+			clock-output-names =
+				"sru-src0", "sru-src1", "sru-src2",
+				"sru-src3", "sru-src4", "sru-src5",
+				"sru-src6", "sru-src7", "sru-src8";
+		};
 	};
 };
