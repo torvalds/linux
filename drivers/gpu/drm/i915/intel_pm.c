@@ -103,10 +103,12 @@ static void bxt_init_clock_gating(struct drm_device *dev)
 	/*
 	 * FIXME:
 	 * GEN8_SDEUNIT_CLOCK_GATE_DISABLE applies on A0 only.
+	 * GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ applies on 3x6 GT SKUs only.
 	 */
 	 /* WaDisableSDEUnitClockGating:bxt */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
-		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE |
+		   GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ);
 
 }
 
