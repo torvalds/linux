@@ -2890,9 +2890,6 @@ int dw_mci_probe(struct dw_mci *host)
 			init_slots++;
 	}
 
-	/* Now that slots are all setup, we can enable card detect */
-	dw_mci_enable_cd(host);
-
 	if (init_slots) {
 		dev_info(host->dev, "%d slots initialized\n", init_slots);
 	} else {
@@ -2900,6 +2897,9 @@ int dw_mci_probe(struct dw_mci *host)
 					"but failed on all\n", host->num_slots);
 		goto err_dmaunmap;
 	}
+
+	/* Now that slots are all setup, we can enable card detect */
+	dw_mci_enable_cd(host);
 
 	if (host->quirks & DW_MCI_QUIRK_IDMAC_DTO)
 		dev_info(host->dev, "Internal DMAC interrupt fix enabled.\n");
