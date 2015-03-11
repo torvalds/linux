@@ -988,22 +988,16 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
 	/* No data to write to the UART */
-	if (ch->ch_w_tail == ch->ch_w_head) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if (ch->ch_w_tail == ch->ch_w_head)
+		goto exit_unlock;
 
 	/* If port is "stopped", don't send any data to the UART */
 	if ((ch->ch_flags & CH_FORCED_STOP) ||
-				 (ch->ch_flags & CH_BREAK_SENDING)) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+				 (ch->ch_flags & CH_BREAK_SENDING))
+		goto exit_unlock;
 
-	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM))) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
+		goto exit_unlock;
 
 	n = 32;
 
@@ -1053,6 +1047,7 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 	if (len_written > 0)
 		ch->ch_flags &= ~(CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 
+exit_unlock:
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 

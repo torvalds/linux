@@ -1420,16 +1420,13 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 	spin_lock_irqsave(&ch->ch_lock, flags);
 
 	/* No data to write to the UART */
-	if (ch->ch_w_tail == ch->ch_w_head) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if (ch->ch_w_tail == ch->ch_w_head)
+		goto exit_unlock;
 
 	/* If port is "stopped", don't send any data to the UART */
-	if ((ch->ch_flags & CH_FORCED_STOP) || (ch->ch_flags & CH_BREAK_SENDING)) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if ((ch->ch_flags & CH_FORCED_STOP) ||
+		 (ch->ch_flags & CH_BREAK_SENDING))
+		goto exit_unlock;
 
 	/*
 	 * If FIFOs are disabled. Send data directly to txrx register
@@ -1470,27 +1467,23 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 			ch->ch_w_tail &= WQUEUEMASK;
 			ch->ch_txcount++;
 		}
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
+
+		goto exit_unlock;
 	}
 
 	/*
 	 * We have to do it this way, because of the EXAR TXFIFO count bug.
 	 */
 	if ((ch->ch_bd->dvid & 0xf0) < UART_XR17E158_DVID) {
-		if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM))) {
-			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			return;
-		}
+		if (!(ch->ch_flags & (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM)))
+			goto exit_unlock;
 
 		len_written = 0;
 
 		n = readb(&ch->ch_neo_uart->tfifo);
 
-		if ((unsigned int) n > ch->ch_t_tlevel) {
-			spin_unlock_irqrestore(&ch->ch_lock, flags);
-			return;
-		}
+		if ((unsigned int) n > ch->ch_t_tlevel)
+			goto exit_unlock;
 
 		n = UART_17158_TX_FIFOSIZE - ch->ch_t_tlevel;
 	} else {
@@ -1554,6 +1547,7 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 		ch->ch_flags &= ~(CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
 	}
 
+exit_unlock:
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
