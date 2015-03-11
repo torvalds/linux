@@ -255,10 +255,21 @@ static void tegra114_gic_cpu_pm_registration(void)
 static void tegra114_gic_cpu_pm_registration(void) { }
 #endif
 
+static const struct of_device_id tegra_ictlr_match[] __initconst = {
+	{ .compatible = "nvidia,tegra20-ictlr" },
+	{ .compatible = "nvidia,tegra30-ictlr" },
+	{ }
+};
+
 void __init tegra_init_irq(void)
 {
 	int i;
 	void __iomem *distbase;
+
+	if (of_find_matching_node(NULL, tegra_ictlr_match))
+		goto skip_extn_setup;
+
+	tegra_legacy_irq_syscore_init();
 
 	distbase = IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE);
 	num_ictlrs = readl_relaxed(distbase + GIC_DIST_CTR) & 0x1f;
@@ -283,5 +294,6 @@ void __init tegra_init_irq(void)
 	gic_arch_extn.irq_set_wake = tegra_set_wake;
 	gic_arch_extn.flags = IRQCHIP_MASK_ON_SUSPEND;
 
+skip_extn_setup:
 	tegra114_gic_cpu_pm_registration();
 }
