@@ -2535,16 +2535,15 @@ static void ath10k_tx_h_nwifi(struct ieee80211_hw *hw, struct sk_buff *skb)
 		skb->data, (void *)qos_ctl - (void *)skb->data);
 	skb_pull(skb, IEEE80211_QOS_CTL_LEN);
 
-	/* Fw/Hw generates a corrupted QoS Control Field for QoS NullFunc
-	 * frames. Powersave is handled by the fw/hw so QoS NyllFunc frames are
-	 * used only for CQM purposes (e.g. hostapd station keepalive ping) so
-	 * it is safe to downgrade to NullFunc.
+	/* Some firmware revisions don't handle sending QoS NullFunc well.
+	 * These frames are mainly used for CQM purposes so it doesn't really
+	 * matter whether QoS NullFunc or NullFunc are sent.
 	 */
 	hdr = (void *)skb->data;
-	if (ieee80211_is_qos_nullfunc(hdr->frame_control)) {
-		hdr->frame_control &= ~__cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
+	if (ieee80211_is_qos_nullfunc(hdr->frame_control))
 		cb->htt.tid = HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
-	}
+
+	hdr->frame_control &= ~__cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 }
 
 static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
