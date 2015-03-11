@@ -1490,7 +1490,7 @@ odm_Process_RSSIForDM(
 	PSTA_INFO_T           	pEntry;
 
 
-	if(pPktinfo->StationID == 0xFF)
+	if (pPktinfo->StationID >= ODM_ASSOCIATE_ENTRY_NUM)
 		return;
 
 	//
@@ -1905,7 +1905,7 @@ ODM_ConfigRFWithHeaderFile(
 #endif
 
 #if (RTL8813A_SUPPORT == 1)
-	if (pDM_Odm->SupportICType == ODM_RTL8813A)
+	if (pDM_Odm->SupportICType == ODM_RTL8814A)
 	{
 		/*
 		if(ConfigType == CONFIG_RF_TXPWR_LMT) {
@@ -2137,7 +2137,7 @@ ODM_ConfigBBWithHeaderFile(
 	}
 #endif
 #if (RTL8813A_SUPPORT == 1)
-    if(pDM_Odm->SupportICType == ODM_RTL8813A)
+    if(pDM_Odm->SupportICType == ODM_RTL8814A)
 	{
 
 		if(ConfigType == CONFIG_BB_PHY_REG)

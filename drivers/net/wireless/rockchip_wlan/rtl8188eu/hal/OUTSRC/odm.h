@@ -22,6 +22,8 @@
 #ifndef	__HALDMOUTSRC_H__
 #define __HALDMOUTSRC_H__
 
+#include "PhyDM_Adaptivity.h"
+
 //============================================================
 // Definition 
 //============================================================
@@ -748,12 +750,15 @@ typedef enum _ODM_Support_Ability_Definition
 	ODM_BB_RXHP					= BIT12,
 	ODM_BB_ADAPTIVITY				= BIT13,
 	ODM_BB_DYNAMIC_ATC			= BIT14,
+	ODM_BB_NHM_CNT				= BIT15,
+	ODM_BB_PRIMARY_CCA			= BIT16,
+	ODM_BB_TXBF				= BIT17,
 	
 	//
-	// MAC DM section BIT 16-23
+	// MAC DM section BIT 20-23
 	//
-	ODM_MAC_EDCA_TURBO			= BIT16,
-	ODM_MAC_EARLY_MODE			= BIT17,
+	ODM_MAC_EDCA_TURBO			= BIT20,
+	ODM_MAC_EARLY_MODE			= BIT21,
 	
 	//
 	// RF ODM section BIT 24-31
@@ -776,21 +781,26 @@ typedef enum tag_ODM_Support_Interface_Definition
 // ODM_CMNINFO_IC_TYPE
 typedef enum tag_ODM_Support_IC_Type_Definition
 {
-	ODM_RTL8192S 	=	BIT0,
-	ODM_RTL8192C 	=	BIT1,
-	ODM_RTL8192D 	=	BIT2,
-	ODM_RTL8723A 	=	BIT3,
-	ODM_RTL8188E 	=	BIT4,
+	ODM_RTL8192S	=	BIT0,
+	ODM_RTL8192C	=	BIT1,
+	ODM_RTL8192D	=	BIT2,
+	ODM_RTL8723A	=	BIT3,
+	ODM_RTL8188E	=	BIT4,
 	ODM_RTL8812 	=	BIT5,
 	ODM_RTL8821 	=	BIT6,
-	ODM_RTL8192E 	=	BIT7,	
+	ODM_RTL8192E	=	BIT7,	
 	ODM_RTL8723B	=	BIT8,
-	ODM_RTL8813A	=	BIT9,	
-	ODM_RTL8881A 	=	BIT10
+	ODM_RTL8814A	=	BIT9,	
+	ODM_RTL8881A	=	BIT10,
+	ODM_RTL8821B	=	BIT11,
+	ODM_RTL8822B	=	BIT12,
+	ODM_RTL8703B	=	BIT13,
+	ODM_RTL8195A	=	BIT14,
+	ODM_RTL8188F	=	BIT15
 }ODM_IC_TYPE_E;
 
 #define ODM_IC_11N_SERIES		(ODM_RTL8192S|ODM_RTL8192C|ODM_RTL8192D|ODM_RTL8723A|ODM_RTL8188E|ODM_RTL8192E|ODM_RTL8723B)
-#define ODM_IC_11AC_SERIES		(ODM_RTL8812|ODM_RTL8821|ODM_RTL8813A|ODM_RTL8881A)
+#define ODM_IC_11AC_SERIES		(ODM_RTL8812|ODM_RTL8821|ODM_RTL8814A|ODM_RTL8881A)
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 #ifdef RTK_AC_SUPPORT
@@ -800,6 +810,14 @@ typedef enum tag_ODM_Support_IC_Type_Definition
 #endif
 #else
 #define ODM_IC_11AC_SERIES_SUPPORT		1
+#endif
+
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+#ifdef CONFIG_BT_COEXIST
+#define ODM_CONFIG_BT_COEXIST				1
+#else
+#define ODM_CONFIG_BT_COEXIST				0
+#endif
 #endif
 
 //ODM_CMNINFO_CUT_VER
@@ -1464,15 +1482,22 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure
 	BOOLEAN			IsBbSwingOffsetPositiveA;
 	u4Byte			BbSwingOffsetB;
 	BOOLEAN			IsBbSwingOffsetPositiveB;
+
+	//For Adaptivtiy
+	u2Byte			NHM_cnt_0;
+	u2Byte			NHM_cnt_1;
 	s1Byte			TH_L2H_ini;
 	s1Byte			TH_EDCCA_HL_diff;
-	s1Byte			IGI_Base;
-	u1Byte			IGI_target;
-	BOOLEAN			ForceEDCCA;
-	u1Byte			AdapEn_RSSI;
-	s1Byte			Force_TH_H;
-	s1Byte			Force_TH_L;
-	u1Byte			IGI_LowerBound;
+	s1Byte			TH_L2H_ini_backup;
+	BOOLEAN			Carrier_Sense_enable;
+	u1Byte			Adaptivity_IGI_upper;
+	BOOLEAN			adaptivity_flag;
+	u1Byte			DCbackoff;
+	BOOLEAN			Adaptivity_enable;
+	u1Byte			APTotalNum;
+	ADAPTIVITY_STATISTICS	Adaptivity;
+	//For Adaptivtiy
+	
 	u1Byte	                antdiv_rssi;
 	u1Byte			AntType;
 	u1Byte			pre_AntType;
@@ -2365,6 +2390,20 @@ ODM_DynamicARFBSelect(
 #if (DM_ODM_SUPPORT_TYPE == ODM_CE)
 void odm_dtc(PDM_ODM_T pDM_Odm);
 #endif /* #if (DM_ODM_SUPPORT_TYPE == ODM_CE) */
+
+typedef enum _PHYDM_STRUCTURE_TYPE{
+	PHYDM_FALSEALMCNT,
+	PHYDM_CFOTRACK,
+	PHYDM_ADAPTIVITY,
+	PHYDM_ROMINFO,
+	
+}PHYDM_STRUCTURE_TYPE;
+
+PVOID
+PhyDM_Get_Structure(
+	IN		PDM_ODM_T		pDM_Odm,
+	IN		u1Byte			Structure_Type
+);
 
 #endif
 

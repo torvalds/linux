@@ -648,23 +648,18 @@ ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, si
 	char tmp[32];
 	u32 TH_L2H_ini;
 	s8 TH_EDCCA_HL_diff;
-	u32 IGI_Base;
-	int ForceEDCCA;
-	u8 AdapEn_RSSI;
-	u8 IGI_LowerBound;
 
 	if (count < 1)
 		return -EFAULT;
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 
-		int num = sscanf(tmp, "%x %hhd %x %d %hhu %hhu",
-			&TH_L2H_ini, &TH_EDCCA_HL_diff, &IGI_Base, &ForceEDCCA, &AdapEn_RSSI, &IGI_LowerBound);
+		int num = sscanf(tmp, "%x %hhd",	&TH_L2H_ini, &TH_EDCCA_HL_diff);
 
-		if (num != 6)
+		if (num != 2)
 			return count;
 
-		rtw_odm_adaptivity_parm_set(padapter, (s8)TH_L2H_ini, TH_EDCCA_HL_diff, (s8)IGI_Base, (bool)ForceEDCCA, AdapEn_RSSI, IGI_LowerBound);
+		rtw_odm_adaptivity_parm_set(padapter, (s8)TH_L2H_ini, TH_EDCCA_HL_diff);
 	}
 	
 	return count;

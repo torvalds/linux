@@ -950,31 +950,19 @@ void rtl8188eu_recv_tasklet(void *priv)
 			rtw_skb_free(pskb);
 			break;
 		}
-	
+
 		recvbuf2recvframe(padapter, pskb);
-
-#ifdef CONFIG_PREALLOC_RECV_SKB
-
 		skb_reset_tail_pointer(pskb);
-
 		pskb->len = 0;
 		
 		skb_queue_tail(&precvpriv->free_recv_skb_queue, pskb);
-		
-#else
-		rtw_skb_free(pskb);
-#endif
-				
-	}
 
-	while (NULL != (precvbuf = rtw_dequeue_recvbuf(&precvpriv->recv_buf_pending_queue)))
-	{
-		DBG_871X("dequeue_recvbuf %p\n", precvbuf);
-		precvbuf->pskb = NULL;
-		precvbuf->reuse = _FALSE;
-		rtw_read_port(padapter, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf);
+		if (NULL != (precvbuf = rtw_dequeue_recvbuf(&precvpriv->recv_buf_pending_queue))) {
+			precvbuf->pskb = NULL;
+			precvbuf->reuse = _FALSE;
+			rtw_read_port(padapter, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf);
+		}
 	}
-	
 }
 
 
@@ -1133,12 +1121,14 @@ _func_enter_;
 	//re-assign for linux based on skb
 	if((precvbuf->reuse == _FALSE) || (precvbuf->pskb == NULL))
 	{
+		#ifndef CONFIG_FIX_NR_BULKIN_BUFFER
 		precvbuf->pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+		#endif
 
 		if(precvbuf->pskb == NULL)		
 		{
-			RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("init_recvbuf(): alloc_skb fail!\n"));
-			DBG_8192C("#### usb_read_port() alloc_skb fail!  precvbuf=%p #####\n", precvbuf);
+			if (0)
+				DBG_871X("usb_read_port() enqueue precvbuf=%p \n", precvbuf);
 			//enqueue precvbuf and wait for free skb
 			rtw_enqueue_recvbuf(precvbuf, &precvpriv->recv_buf_pending_queue);
 			return _FAIL;

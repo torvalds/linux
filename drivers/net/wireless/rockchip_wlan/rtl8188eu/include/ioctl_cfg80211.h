@@ -98,6 +98,7 @@ struct rtw_wdev_priv
 
 	u8 bandroid_scan;
 	bool block;
+	bool block_scan;
 	bool power_mgmt;
 
 #ifdef CONFIG_CONCURRENT_MODE

@@ -1471,16 +1471,16 @@ _func_enter_;
 			rtw_tdls_cmd(adapter, myid(&(adapter->eeprompriv)), TDLS_RS_RCR);
 			rtw_reset_tdls_info(adapter);
 			rtw_free_all_stainfo(adapter);
-			_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+			//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 		}
 		else
 #endif //CONFIG_TDLS
 		{
-			_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+			//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 			rtw_free_stainfo(adapter,  psta);
 		}
 
-		_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+		//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 		
 	}
 
@@ -1491,9 +1491,9 @@ _func_enter_;
 		rtw_free_all_stainfo(adapter);
 
 		psta = rtw_get_bcmc_stainfo(adapter);
-		_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		
+		//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 		rtw_free_stainfo(adapter, psta);
-		_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		
+		//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 
 		rtw_init_bcmc_stainfo(adapter);	
 	}
@@ -1721,17 +1721,17 @@ inline void rtw_indicate_scan_done( _adapter *padapter, bool aborted)
 #endif // CONFIG_IPS
 }
 
-void rtw_scan_abort(_adapter *adapter)
+u32 rtw_scan_abort_timeout(_adapter *adapter, u32 timeout_ms)
 {
-	u32 cnt=0;
 	u32 start;
-	struct mlme_priv	*pmlmepriv = &(adapter->mlmepriv);
-	struct mlme_ext_priv	*pmlmeext = &(adapter->mlmeextpriv);
+	u32 pass_ms;
+	struct mlme_priv *pmlmepriv = &(adapter->mlmepriv);
+	struct mlme_ext_priv *pmlmeext = &(adapter->mlmeextpriv);
 
 	start = rtw_get_current_time();
 	pmlmeext->scan_abort = _TRUE;
 	while (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)
-		&& rtw_get_passing_time_ms(start) <= 200) {
+		&& rtw_get_passing_time_ms(start) <= timeout_ms) {
 
 		if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 			break;
@@ -1751,6 +1751,23 @@ void rtw_scan_abort(_adapter *adapter)
 		rtw_indicate_scan_done(adapter, _TRUE);
 	}
 	pmlmeext->scan_abort = _FALSE;
+	pass_ms = rtw_get_passing_time_ms(start);
+
+	return pass_ms;
+}
+
+void rtw_scan_abort_no_wait(_adapter *adapter)
+{
+	struct mlme_priv *pmlmepriv = &(adapter->mlmepriv);
+	struct mlme_ext_priv *pmlmeext = &(adapter->mlmeextpriv);
+
+	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
+		pmlmeext->scan_abort = _TRUE;
+}
+
+void rtw_scan_abort(_adapter *adapter)
+{
+	rtw_scan_abort_timeout(adapter, 200);
 }
 
 static struct sta_info *rtw_joinbss_update_stainfo(_adapter *padapter, struct wlan_network *pnetwork)
@@ -2036,9 +2053,9 @@ _func_enter_;
 
 					pcur_sta = rtw_get_stainfo(pstapriv, cur_network->network.MacAddress);
 					if(pcur_sta){
-						_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
+						//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
 						rtw_free_stainfo(adapter,  pcur_sta);
-						_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
+						//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL2);
 					}
 
 					ptarget_wlan = rtw_find_network(&pmlmepriv->scanned_queue, pnetwork->network.MacAddress);
@@ -2502,9 +2519,9 @@ _func_enter_;
 	      check_fwstate(pmlmepriv,WIFI_ADHOC_STATE))
 	{
 		
-		_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+		//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 		rtw_free_stainfo(adapter,  psta);
-		_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+		//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 		
 		if(adapter->stapriv.asoc_sta_count== 1) //a sta + bc/mc_stainfo (not Ibss_stainfo)
 		{ 
@@ -4495,3 +4512,19 @@ u8 rtw_get_buddy_bBusyTraffic(_adapter *padapter)
 }
 
 #endif //CONFIG_CONCURRENT_MODE
+
+static const char *miracast_mode_str[] = {
+	"DISABLED",
+	"SOURCE",
+	"SINK",
+	"INVALID",
+};
+
+const char *get_miracast_mode_str(int mode)
+{
+	if (mode < MIRACAST_DISABLED || mode >= MIRACAST_INVALID)
+		mode = MIRACAST_INVALID;
+
+	return miracast_mode_str[mode];
+}
+

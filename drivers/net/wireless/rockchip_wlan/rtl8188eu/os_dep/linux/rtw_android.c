@@ -64,6 +64,9 @@ const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
 	"P2P_GET_NOA",
 	"P2P_SET_PS",
 	"SET_AP_WPS_P2P_IE",
+
+	"MIRACAST",
+
 #ifdef CONFIG_PNO_SUPPORT
 	"PNOSSIDCLR",
 	"PNOSETUP",
@@ -73,6 +76,7 @@ const char *android_wifi_cmd_str[ANDROID_WIFI_CMD_MAX] = {
 
 	"MACADDR",
 
+	"BLOCK_SCAN",
 	"BLOCK",
 	"WFD-ENABLE",
 	"WFD-DISABLE",
@@ -346,6 +350,18 @@ int rtw_android_get_p2p_dev_addr(struct net_device *net, char *command, int tota
 	return bytes_written;
 }
 
+int rtw_android_set_block_scan(struct net_device *net, char *command, int total_len)
+{
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(net);
+	char *block_value = command + strlen(android_wifi_cmd_str[ANDROID_WIFI_CMD_BLOCK_SCAN]) + 1;
+
+	#ifdef CONFIG_IOCTL_CFG80211
+	adapter_wdev_data(adapter)->block_scan = (*block_value == '0')?_FALSE:_TRUE;
+	#endif
+
+	return 0;
+}
+
 int rtw_android_set_block(struct net_device *net, char *command, int total_len)
 {
 	_adapter *adapter = (_adapter *)rtw_netdev_priv(net);
@@ -380,6 +396,28 @@ int rtw_android_getband(struct net_device *net, char *command, int total_len)
 
 	return bytes_written;
 }
+
+#ifdef CONFIG_WFD
+int rtw_android_set_miracast_mode(struct net_device *net, char *command, int total_len)
+{
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(net);
+	struct wifi_display_info *wfd_info = &adapter->wfd_info;
+	char *arg = command + strlen(android_wifi_cmd_str[ANDROID_WIFI_CMD_MIRACAST]) + 1;
+	u8 mode;
+	int num;
+	int ret = _FAIL;
+
+	num = sscanf(arg, "%hhu", &mode);
+
+	if (num >= 1) {
+		wfd_info->stack_wfd_mode = mode;
+		DBG_871X("Miracast mode: %s(%u)\n", get_miracast_mode_str(wfd_info->stack_wfd_mode), wfd_info->stack_wfd_mode);
+		ret = _SUCCESS;
+	}
+
+	return (ret == _SUCCESS)?0:-1;
+}
+#endif /* CONFIG_WFD */
 
 int get_int_from_command( char* pcmd )
 {
@@ -545,7 +583,11 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	case ANDROID_WIFI_CMD_MACADDR:
 		bytes_written = rtw_android_get_macaddr(net, command, priv_cmd.total_len);
 		break;
-		
+
+	case ANDROID_WIFI_CMD_BLOCK_SCAN:
+		bytes_written = rtw_android_set_block_scan(net, command, priv_cmd.total_len);
+		break;
+
 	case ANDROID_WIFI_CMD_BLOCK:
 		bytes_written = rtw_android_set_block(net, command, priv_cmd.total_len);
 		break;
@@ -595,7 +637,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	case ANDROID_WIFI_CMD_GETBAND:
 		bytes_written = rtw_android_getband(net, command, priv_cmd.total_len);
 		break;
-		
+
 	case ANDROID_WIFI_CMD_COUNTRY:
 		bytes_written = rtw_android_set_country(net, command, priv_cmd.total_len);
 		break;
@@ -639,6 +681,11 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 #endif //CONFIG_IOCTL_CFG80211
 
 #ifdef CONFIG_WFD
+
+	case ANDROID_WIFI_CMD_MIRACAST:
+		bytes_written = rtw_android_set_miracast_mode(net, command, priv_cmd.total_len);
+		break;
+
 	case ANDROID_WIFI_CMD_WFD_ENABLE:
 	{
 		//	Commented by Albert 2012/07/24

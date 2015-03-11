@@ -320,6 +320,22 @@ uint rtw_hiq_filter = CONFIG_RTW_HIQ_FILTER;
 module_param(rtw_hiq_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_hiq_filter, "0:allow all, 1:allow special, 2:deny all");
 
+uint rtw_adaptivity_en = CONFIG_RTW_ADAPTIVITY_EN;
+module_param(rtw_adaptivity_en, uint, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_en, "0:disable, 1:enable");
+
+uint rtw_adaptivity_mode = CONFIG_RTW_ADAPTIVITY_MODE;
+module_param(rtw_adaptivity_mode, uint, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_mode, "0:normal, 1:carrier sense");
+
+uint rtw_adaptivity_dml = CONFIG_RTW_ADAPTIVITY_DML;
+module_param(rtw_adaptivity_dml, uint, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_dml, "0:disable, 1:enable");
+
+uint rtw_adaptivity_dc_backoff = CONFIG_RTW_ADAPTIVITY_DC_BACKOFF;
+module_param(rtw_adaptivity_dc_backoff, uint, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_dc_backoff, "DC backoff for Adaptivity");
+
 #if defined(CONFIG_CALIBRATE_TX_POWER_BY_REGULATORY) //eFuse: Regulatory selection=1
 int rtw_tx_pwr_lmt_enable = 1;
 int rtw_tx_pwr_by_rate = 1;
@@ -533,6 +549,12 @@ _func_enter_;
 	registry_par->qos_opt_enable = (u8)rtw_qos_opt_enable;
 
 	registry_par->hiq_filter = (u8)rtw_hiq_filter;
+
+	registry_par->adaptivity_en = (u8)rtw_adaptivity_en;
+	registry_par->adaptivity_mode = (u8)rtw_adaptivity_mode;
+	registry_par->adaptivity_dml = (u8)rtw_adaptivity_dml;
+	registry_par->adaptivity_dc_backoff = (u8)rtw_adaptivity_dc_backoff;
+
 _func_exit_;
 
 	return status;

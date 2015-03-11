@@ -322,6 +322,12 @@ struct registry_priv
 	u8 qos_opt_enable;
 
 	u8 hiq_filter;
+
+	u8 adaptivity_en;
+	u8 adaptivity_mode;
+	u8 adaptivity_dml;
+	u8 adaptivity_dc_backoff;
+
 };
 
 
@@ -595,6 +601,7 @@ struct dvobj_priv
 
 #define dvobj_to_pwrctl(dvobj) (&(dvobj->pwrctl_priv))
 #define pwrctl_to_dvobj(pwrctl) container_of(pwrctl, struct dvobj_priv, pwrctl_priv)
+#define dvobj_to_regsty(dvobj) (&(dvobj->if1->registrypriv))
 
 #ifdef PLATFORM_LINUX
 static struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
