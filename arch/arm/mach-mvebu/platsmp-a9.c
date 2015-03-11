@@ -110,3 +110,5 @@ CPU_METHOD_OF_DECLARE(mvebu_armada_375_smp, "marvell,armada-375-smp",
 		      &mvebu_cortex_a9_smp_ops);
 CPU_METHOD_OF_DECLARE(mvebu_armada_380_smp, "marvell,armada-380-smp",
 		      &armada_38x_smp_ops);
+CPU_METHOD_OF_DECLARE(mvebu_armada_390_smp, "marvell,armada-390-smp",
+		      &armada_38x_smp_ops);
