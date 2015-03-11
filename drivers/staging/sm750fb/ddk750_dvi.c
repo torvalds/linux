@@ -62,7 +62,7 @@ int dviInit(
  *  Output:
  *      Vendor ID
  */
-unsigned short dviGetVendorID()
+unsigned short dviGetVendorID(void)
 {
     dvi_ctrl_device_t *pCurrentDviCtrl;
 
@@ -82,7 +82,7 @@ unsigned short dviGetVendorID()
  *  Output:
  *      Device ID
  */
-unsigned short dviGetDeviceID()
+unsigned short dviGetDeviceID(void)
 {
     dvi_ctrl_device_t *pCurrentDviCtrl;
 

@@ -581,7 +581,7 @@ void hw_sm750_initAccel(struct lynx_share * share)
 	share->accel.de_init(&share->accel);
 }
 
-int hw_sm750le_deWait()
+int hw_sm750le_deWait(void)
 {
 	int i=0x10000000;
 	while(i--){
@@ -598,7 +598,7 @@ int hw_sm750le_deWait()
 }
 
 
-int hw_sm750_deWait()
+int hw_sm750_deWait(void)
 {
 	int i=0x10000000;
 	while(i--){

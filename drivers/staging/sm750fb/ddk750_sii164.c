@@ -34,7 +34,7 @@ static char *gDviCtrlChipName = "Silicon Image SiI 164";
  *  Output:
  *      Vendor ID
  */
-unsigned short sii164GetVendorID()
+unsigned short sii164GetVendorID(void)
 {
     unsigned short vendorID;
 
@@ -51,7 +51,7 @@ unsigned short sii164GetVendorID()
  *  Output:
  *      Device ID
  */
-unsigned short sii164GetDeviceID()
+unsigned short sii164GetDeviceID(void)
 {
     unsigned short deviceID;
 
@@ -264,7 +264,7 @@ long sii164InitChip(
  *  sii164ResetChip
  *      This function resets the DVI Controller Chip.
  */
-void sii164ResetChip()
+void sii164ResetChip(void)
 {
     /* Power down */
     sii164SetPower(0);
@@ -277,7 +277,7 @@ void sii164ResetChip()
  *      This function returns a char string name of the current DVI Controller chip.
  *      It's convenient for application need to display the chip name.
  */
-char *sii164GetChipString()
+char *sii164GetChipString(void)
 {
     return gDviCtrlChipName;
 }
@@ -375,7 +375,7 @@ void sii164EnableHotPlugDetection(
  *      0   - Not Connected
  *      1   - Connected
  */
-unsigned char sii164IsConnected()
+unsigned char sii164IsConnected(void)
 {
     unsigned char hotPlugValue;
 
@@ -394,7 +394,7 @@ unsigned char sii164IsConnected()
  *      0   - No interrupt
  *      1   - Interrupt occurs
  */
-unsigned char sii164CheckInterrupt()
+unsigned char sii164CheckInterrupt(void)
 {
     unsigned char detectReg;
 
@@ -409,7 +409,7 @@ unsigned char sii164CheckInterrupt()
  *  sii164ClearInterrupt
  *      Clear the hot plug interrupt.
  */
-void sii164ClearInterrupt()
+void sii164ClearInterrupt(void)
 {
     unsigned char detectReg;
 

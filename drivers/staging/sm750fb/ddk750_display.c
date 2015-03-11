@@ -273,7 +273,7 @@ void ddk750_setLogicalDispOut(disp_output_t output)
 }
 
 
-int ddk750_initDVIDisp()
+int ddk750_initDVIDisp(void)
 {
     /* Initialize DVI. If the dviInit fail and the VendorID or the DeviceID are
        not zeroed, then set the failure flag. If it is zeroe, it might mean

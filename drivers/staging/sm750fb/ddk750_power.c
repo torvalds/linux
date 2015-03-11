@@ -15,7 +15,7 @@ void ddk750_setDPMS(DPMS_t state)
 	}
 }
 
-unsigned int getPowerMode()
+unsigned int getPowerMode(void)
 {
 	if(getChipType() == SM750LE)
 		return 0;

@@ -11,7 +11,7 @@ typedef struct _pllcalparam{
 pllcalparam;
 
 
-logical_chip_type_t getChipType()
+logical_chip_type_t getChipType(void)
 {
 	unsigned short physicalID;
 	char physicalRev;
@@ -91,7 +91,7 @@ unsigned int getPllValue(clock_type_t clockType, pll_value_t *pPLL)
 }
 
 
-unsigned int getChipClock()
+unsigned int getChipClock(void)
 {
     pll_value_t pll;
 #if 1
@@ -232,7 +232,7 @@ void setMasterClock(unsigned int frequency)
 }
 
 
-unsigned int ddk750_getVMSize()
+unsigned int ddk750_getVMSize(void)
 {
 	unsigned int reg;
 	unsigned int data;
