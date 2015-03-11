@@ -2519,6 +2519,7 @@ void hci_remove_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type)
 bool hci_bdaddr_is_paired(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct smp_ltk *k;
+	struct smp_irk *irk;
 	u8 addr_type;
 
 	if (type == BDADDR_BREDR) {
@@ -2532,6 +2533,12 @@ bool hci_bdaddr_is_paired(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 		addr_type = ADDR_LE_DEV_PUBLIC;
 	else
 		addr_type = ADDR_LE_DEV_RANDOM;
+
+	irk = hci_get_irk(hdev, bdaddr, addr_type);
+	if (irk) {
+		bdaddr = &irk->bdaddr;
+		addr_type = irk->addr_type;
+	}
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(k, &hdev->long_term_keys, list) {
