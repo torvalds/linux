@@ -432,7 +432,7 @@ static int dsps_musb_init(struct musb *musb)
 	musb->ctrl_base = reg_base;
 
 	/* NOP driver needs change if supporting dual instance */
-	musb->xceiv = devm_usb_get_phy_by_phandle(dev, "phys", 0);
+	musb->xceiv = devm_usb_get_phy_by_phandle(dev->parent, "phys", 0);
 	if (IS_ERR(musb->xceiv))
 		return PTR_ERR(musb->xceiv);
 
