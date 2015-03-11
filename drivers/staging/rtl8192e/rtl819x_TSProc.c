@@ -91,7 +91,7 @@ static void RxPktPendingTimeout(unsigned long data)
 	if (bPktInBuf && (pRxTs->RxTimeoutIndicateSeq == 0xffff)) {
 		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
 		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies +
-			  MSECS(ieee->pHTInfo->RxReorderPendingTime));
+			  msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime));
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
@@ -223,7 +223,7 @@ static void AdmitTS(struct rtllib_device *ieee,
 
 	if (InactTime != 0)
 		mod_timer(&pTsCommonInfo->InactTimer, jiffies +
-			  MSECS(InactTime));
+			  msecs_to_jiffies(InactTime));
 }
 
 static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
@@ -542,7 +542,7 @@ void TsStartAddBaProcess(struct rtllib_device *ieee, struct tx_ts_record *pTxTS)
 			RTLLIB_DEBUG(RTLLIB_DL_BA, "TsStartAddBaProcess(): "
 				     "Delayed Start ADDBA after 60 sec!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies +
-				  MSECS(TS_ADDBA_DELAY));
+				  msecs_to_jiffies(TS_ADDBA_DELAY));
 		} else {
 			RTLLIB_DEBUG(RTLLIB_DL_BA, "TsStartAddBaProcess(): "
 				     "Immediately Start ADDBA now!!\n");

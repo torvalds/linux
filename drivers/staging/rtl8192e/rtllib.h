@@ -525,7 +525,6 @@ struct ieee_param {
 #define IW_QUAL_NOISE_UPDATED  0x4
 #endif
 
-#define MSECS(t) msecs_to_jiffies(t)
 #define msleep_interruptible_rsl  msleep_interruptible
 
 #define RTLLIB_DATA_LEN		2304

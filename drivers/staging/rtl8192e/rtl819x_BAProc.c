@@ -26,7 +26,7 @@ static void ActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA,
 {
 	pBA->bValid = true;
 	if (Time != 0)
-		mod_timer(&pBA->Timer, jiffies + MSECS(Time));
+		mod_timer(&pBA->Timer, jiffies + msecs_to_jiffies(Time));
 }
 
 static void DeActivateBAEntry(struct rtllib_device *ieee, struct ba_record *pBA)

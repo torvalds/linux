@@ -108,7 +108,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	u32		CPU_status = 0;
 	unsigned long   timeout;
 
-	timeout = jiffies + MSECS(200);
+	timeout = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 		if (CPU_status & CPU_GEN_PUT_CODE_OK)
@@ -128,7 +128,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 		       (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
 	mdelay(1);
 
-	timeout = jiffies + MSECS(200);
+	timeout = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 		if (CPU_status&CPU_GEN_BOOT_RDY)
@@ -156,7 +156,7 @@ static bool CPUcheck_firmware_ready(struct net_device *dev)
 	u32	CPU_status = 0;
 	unsigned long timeout;
 
-	timeout = jiffies + MSECS(20);
+	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 		if (CPU_status&CPU_GEN_FIRM_RDY)

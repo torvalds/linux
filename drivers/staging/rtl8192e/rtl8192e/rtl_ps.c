@@ -67,7 +67,8 @@ void rtl8192_hw_wakeup(struct net_device *dev)
 		RT_TRACE(COMP_DBG, "rtl8192_hw_wakeup(): RF Change in "
 			 "progress!\n");
 		queue_delayed_work_rsl(priv->rtllib->wq,
-				       &priv->rtllib->hw_wakeup_wq, MSECS(10));
+				       &priv->rtllib->hw_wakeup_wq,
+				       msecs_to_jiffies(10));
 		return;
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -95,18 +96,18 @@ void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
 
 	spin_lock_irqsave(&priv->ps_lock, flags);
 
-	time -= MSECS(8+16+7);
+	time -= msecs_to_jiffies(8 + 16 + 7);
 
-	if ((time - jiffies) <= MSECS(MIN_SLEEP_TIME)) {
+	if ((time - jiffies) <= msecs_to_jiffies(MIN_SLEEP_TIME)) {
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
 		printk(KERN_INFO "too short to sleep::%lld < %ld\n",
-		       time - jiffies, MSECS(MIN_SLEEP_TIME));
+		       time - jiffies, msecs_to_jiffies(MIN_SLEEP_TIME));
 		return;
 	}
 
-	if ((time - jiffies) > MSECS(MAX_SLEEP_TIME)) {
+	if ((time - jiffies) > msecs_to_jiffies(MAX_SLEEP_TIME)) {
 		printk(KERN_INFO "========>too long to sleep:%lld > %ld\n",
-		       time - jiffies,  MSECS(MAX_SLEEP_TIME));
+		       time - jiffies,  msecs_to_jiffies(MAX_SLEEP_TIME));
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
 		return;
 	}

@@ -717,7 +717,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 			     __func__);
 		pTS->RxTimeoutIndicateSeq = pTS->RxIndicateSeq;
 		mod_timer(&pTS->RxPktPendingTimer, jiffies +
-			  MSECS(pHTInfo->RxReorderPendingTime));
+			  msecs_to_jiffies(pHTInfo->RxReorderPendingTime));
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }

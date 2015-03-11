@@ -1793,7 +1793,7 @@ void watch_dog_timer_callback(unsigned long data)
 
 	queue_delayed_work_rsl(priv->priv_wq, &priv->watch_dog_wq, 0);
 	mod_timer(&priv->watch_dog_timer, jiffies +
-		  MSECS(RTLLIB_WATCH_DOG_TIME));
+		  msecs_to_jiffies(RTLLIB_WATCH_DOG_TIME));
 }
 
 /****************************************************************************
@@ -3106,7 +3106,7 @@ void check_rfctrl_gpio_timer(unsigned long data)
 	queue_delayed_work_rsl(priv->priv_wq, &priv->gpio_change_rf_wq, 0);
 
 	mod_timer(&priv->gpio_polling_timer, jiffies +
-		  MSECS(RTLLIB_WATCH_DOG_TIME));
+		  msecs_to_jiffies(RTLLIB_WATCH_DOG_TIME));
 }
 
 /***************************************************************************

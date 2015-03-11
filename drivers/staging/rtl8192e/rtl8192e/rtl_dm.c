@@ -2665,14 +2665,14 @@ void dm_fsync_timer_callback(unsigned long data)
 			if (timer_pending(&priv->fsync_timer))
 				del_timer_sync(&priv->fsync_timer);
 			priv->fsync_timer.expires = jiffies +
-				 MSECS(priv->rtllib->fsync_time_interval *
+				 msecs_to_jiffies(priv->rtllib->fsync_time_interval *
 				 priv->rtllib->fsync_multiple_timeinterval);
 			add_timer(&priv->fsync_timer);
 		} else {
 			if (timer_pending(&priv->fsync_timer))
 				del_timer_sync(&priv->fsync_timer);
 			priv->fsync_timer.expires = jiffies +
-				 MSECS(priv->rtllib->fsync_time_interval);
+				 msecs_to_jiffies(priv->rtllib->fsync_time_interval);
 			add_timer(&priv->fsync_timer);
 		}
 	} else {
@@ -2762,7 +2762,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 	if (timer_pending(&priv->fsync_timer))
 		del_timer_sync(&priv->fsync_timer);
 	priv->fsync_timer.expires = jiffies +
-				    MSECS(priv->rtllib->fsync_time_interval);
+				    msecs_to_jiffies(priv->rtllib->fsync_time_interval);
 	add_timer(&priv->fsync_timer);
 
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cd);
