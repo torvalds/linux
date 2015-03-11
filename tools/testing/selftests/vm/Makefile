@@ -10,6 +10,7 @@ all: $(BINARIES)
 	$(CC) $(CFLAGS) -o $@ $^ -lrt
 
 TEST_PROGS := run_vmtests
+TEST_FILES := $(BINARIES)
 
 include ../lib.mk
 

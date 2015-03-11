@@ -12,6 +12,7 @@ all: $(NET_PROGS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 TEST_PROGS := run_netsocktests run_afpackettests test_bpf.sh
+TEST_FILES := $(NET_PROGS)
 
 include ../lib.mk
 

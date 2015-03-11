@@ -47,7 +47,40 @@ clean_hotplug:
 		make -C $$TARGET clean; \
 	done;
 
+INSTALL_PATH ?= install
+INSTALL_PATH := $(abspath $(INSTALL_PATH))
+ALL_SCRIPT := $(INSTALL_PATH)/run_kselftest.sh
+
+install:
+ifdef INSTALL_PATH
+	@# Ask all targets to install their files
+	mkdir -p $(INSTALL_PATH)
+	for TARGET in $(TARGETS); do \
+		mkdir -p $(INSTALL_PATH)/$$TARGET ; \
+		make -C $$TARGET INSTALL_PATH=$(INSTALL_PATH)/$$TARGET install; \
+	done;
+
+	@# Ask all targets to emit their test scripts
+	echo "#!/bin/bash" > $(ALL_SCRIPT)
+	echo "cd \$$(dirname \$$0)" >> $(ALL_SCRIPT)
+	echo "ROOT=\$$PWD" >> $(ALL_SCRIPT)
+
+	for TARGET in $(TARGETS); do \
+		echo "echo ; echo Running tests in $$TARGET" >> $(ALL_SCRIPT); \
+		echo "echo ========================================" >> $(ALL_SCRIPT); \
+		echo "cd $$TARGET" >> $(ALL_SCRIPT); \
+		make -s --no-print-directory -C $$TARGET emit_tests >> $(ALL_SCRIPT); \
+		echo "cd \$$ROOT" >> $(ALL_SCRIPT); \
+	done;
+
+	chmod u+x $(ALL_SCRIPT)
+else
+	$(error Error: set INSTALL_PATH to use install)
+endif
+
 clean:
 	for TARGET in $(TARGETS); do \
 		make -C $$TARGET clean; \
 	done;
+
+.PHONY: install

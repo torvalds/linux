@@ -5,6 +5,7 @@
 all:
 
 TEST_PROGS := run_numerictests run_stringtests
+TEST_FILES := common_tests
 
 include ../lib.mk
 
