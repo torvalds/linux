@@ -82,9 +82,15 @@ module_param(allow_duplicates, bool, 0644);
  * For Windows 8 systems: used to decide if video module
  * should skip registering backlight interface of its own.
  */
-static int use_native_backlight_param = -1;
+enum {
+	NATIVE_BACKLIGHT_NOT_SET = -1,
+	NATIVE_BACKLIGHT_OFF,
+	NATIVE_BACKLIGHT_ON,
+};
+
+static int use_native_backlight_param = NATIVE_BACKLIGHT_NOT_SET;
 module_param_named(use_native_backlight, use_native_backlight_param, int, 0444);
-static bool use_native_backlight_dmi = true;
+static int use_native_backlight_dmi = NATIVE_BACKLIGHT_NOT_SET;
 
 static int register_count;
 static struct mutex video_list_lock;
@@ -237,15 +243,16 @@ static void acpi_video_switch_brightness(struct work_struct *work);
 
 static bool acpi_video_use_native_backlight(void)
 {
-	if (use_native_backlight_param != -1)
+	if (use_native_backlight_param != NATIVE_BACKLIGHT_NOT_SET)
 		return use_native_backlight_param;
-	else
+	else if (use_native_backlight_dmi != NATIVE_BACKLIGHT_NOT_SET)
 		return use_native_backlight_dmi;
+	return acpi_osi_is_win8();
 }
 
 bool acpi_video_verify_backlight_support(void)
 {
-	if (acpi_osi_is_win8() && acpi_video_use_native_backlight() &&
+	if (acpi_video_use_native_backlight() &&
 	    backlight_device_registered(BACKLIGHT_RAW))
 		return false;
 	return acpi_video_backlight_support();
@@ -414,7 +421,7 @@ static int __init video_set_bqc_offset(const struct dmi_system_id *d)
 
 static int __init video_disable_native_backlight(const struct dmi_system_id *d)
 {
-	use_native_backlight_dmi = false;
+	use_native_backlight_dmi = NATIVE_BACKLIGHT_OFF;
 	return 0;
 }
 
