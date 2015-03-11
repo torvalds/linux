@@ -1,5 +1,4 @@
 generic-y += auxvec.h
-generic-y += barrier.h
 generic-y += bitsperlong.h
 generic-y += bugs.h
 generic-y += clkdev.h
