@@ -461,6 +461,24 @@ static int rt5670_headset_detect(struct snd_soc_codec *codec, int jack_insert)
 	return rt5670->jack_type;
 }
 
+void rt5670_jack_suspend(struct snd_soc_codec *codec)
+{
+	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+
+	rt5670->jack_type_saved = rt5670->jack_type;
+	rt5670_headset_detect(codec, 0);
+}
+EXPORT_SYMBOL_GPL(rt5670_jack_suspend);
+
+void rt5670_jack_resume(struct snd_soc_codec *codec)
+{
+	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+
+	if (rt5670->jack_type_saved)
+		rt5670_headset_detect(codec, 1);
+}
+EXPORT_SYMBOL_GPL(rt5670_jack_resume);
+
 static int rt5670_button_detect(struct snd_soc_codec *codec)
 {
 	int btn_type, val;
