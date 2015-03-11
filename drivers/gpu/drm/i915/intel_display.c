@@ -3141,12 +3141,6 @@ static void intel_fdi_normal_train(struct drm_crtc *crtc)
 			   FDI_FE_ERRC_ENABLE);
 }
 
-static bool pipe_has_enabled_pch(struct intel_crtc *crtc)
-{
-	return crtc->base.state->enable && crtc->active &&
-		crtc->config->has_pch_encoder;
-}
-
 /* The FDI link training functions for ILK/Ibexpeak. */
 static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 {
@@ -5539,13 +5533,21 @@ bool intel_connector_get_hw_state(struct intel_connector *connector)
 	return encoder->get_hw_state(encoder, &pipe);
 }
 
+static int pipe_required_fdi_lanes(struct drm_device *dev, enum pipe pipe)
+{
+	struct intel_crtc *crtc =
+		to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
+
+	if (crtc->base.state->enable &&
+	    crtc->config->has_pch_encoder)
+		return crtc->config->fdi_lanes;
+
+	return 0;
+}
+
 static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 				     struct intel_crtc_state *pipe_config)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *pipe_B_crtc =
-		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_B]);
-
 	DRM_DEBUG_KMS("checking fdi config on pipe %c, lanes %i\n",
 		      pipe_name(pipe), pipe_config->fdi_lanes);
 	if (pipe_config->fdi_lanes > 4) {
@@ -5572,8 +5574,8 @@ static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 	case PIPE_A:
 		return true;
 	case PIPE_B:
-		if (dev_priv->pipe_to_crtc_mapping[PIPE_C]->enabled &&
-		    pipe_config->fdi_lanes > 2) {
+		if (pipe_config->fdi_lanes > 2 &&
+		    pipe_required_fdi_lanes(dev, PIPE_C) > 0) {
 			DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
 				      pipe_name(pipe), pipe_config->fdi_lanes);
 			return false;
@@ -5585,8 +5587,7 @@ static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 				      pipe_name(pipe), pipe_config->fdi_lanes);
 			return false;
 		}
-		if (pipe_has_enabled_pch(pipe_B_crtc) &&
-		    pipe_B_crtc->config->fdi_lanes > 2) {
+		if (pipe_required_fdi_lanes(dev, PIPE_B) > 2) {
 			DRM_DEBUG_KMS("fdi link B uses too many lanes to enable link C\n");
 			return false;
 		}
