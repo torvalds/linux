@@ -508,10 +508,12 @@ static inline int restore_xstate_sig(void __user *buf, int ia32_frame)
 }
 
 /*
- * Need to be preemption-safe.
+ * Needs to be preemption-safe.
  *
  * NOTE! user_fpu_begin() must be used only immediately before restoring
- * it. This function does not do any save/restore on their own.
+ * the save state. It does not do any saving/restoring on its own. In
+ * lazy FPU mode, it is just an optimization to avoid a #NM exception,
+ * the task can lose the FPU right after preempt_enable().
  */
 static inline void user_fpu_begin(void)
 {
