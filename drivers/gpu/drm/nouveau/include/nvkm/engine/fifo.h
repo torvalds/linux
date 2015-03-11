@@ -116,6 +116,7 @@ extern struct nvkm_oclass *gf100_fifo_oclass;
 extern struct nvkm_oclass *gk104_fifo_oclass;
 extern struct nvkm_oclass *gk20a_fifo_oclass;
 extern struct nvkm_oclass *gk208_fifo_oclass;
+extern struct nvkm_oclass *gm204_fifo_oclass;
 
 int  nvkm_fifo_uevent_ctor(struct nvkm_object *, void *, u32,
 			   struct nvkm_notify *);

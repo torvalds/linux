@@ -32,6 +32,7 @@
 #define G82_CHANNEL_GPFIFO                                           0x0000826f
 #define FERMI_CHANNEL_GPFIFO                                         0x0000906f
 #define KEPLER_CHANNEL_GPFIFO_A                                      0x0000a06f
+#define MAXWELL_CHANNEL_GPFIFO_A                                     0x0000b06f
 
 #define NV50_DISP                                                    0x00005070
 #define G82_DISP                                                     0x00008270
