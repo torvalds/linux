@@ -227,7 +227,6 @@ CORE_FEATURE_TESTS =			\
 	stackprotector-all		\
 	timerfd				\
 	libdw-dwarf-unwind		\
-	libbabeltrace			\
 	zlib
 
 LIB_FEATURE_TESTS =			\
@@ -243,7 +242,6 @@ LIB_FEATURE_TESTS =			\
 	libslang			\
 	libunwind			\
 	libdw-dwarf-unwind		\
-	libbabeltrace			\
 	zlib
 
 VF_FEATURE_TESTS =			\
@@ -705,14 +703,15 @@ else
 endif
 
 ifndef NO_LIBBABELTRACE
-  ifeq ($(feature-libbabeltrace), 0)
-    msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-dev[el]/libbabeltrace-ctf-dev);
-    NO_LIBBABELTRACE := 1
-  else
+  $(call feature_check,libbabeltrace)
+  ifeq ($(feature-libbabeltrace), 1)
     CFLAGS += -DHAVE_LIBBABELTRACE_SUPPORT $(LIBBABELTRACE_CFLAGS)
     LDFLAGS += $(LIBBABELTRACE_LDFLAGS)
     EXTLIBS += -lbabeltrace-ctf
     $(call detected,CONFIG_LIBBABELTRACE)
+  else
+    msg := $(warning No libbabeltrace found, disables 'perf data' CTF format support, please install libbabeltrace-dev[el]/libbabeltrace-ctf-dev);
+    NO_LIBBABELTRACE := 1
   endif
 endif
 
