@@ -558,6 +558,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	rc = dgnc_finalize_board_init(brd);
 	if (rc < 0) {
+		dgnc_tty_uninit(brd);
 		pr_err(DRVSTR ": Can't finalize board init (%d)\n", rc);
 		brd->state = BOARD_FAILED;
 		brd->dpastatus = BD_NOFEP;
