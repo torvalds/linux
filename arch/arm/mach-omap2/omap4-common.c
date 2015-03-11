@@ -22,7 +22,6 @@
 #include <linux/of_platform.h>
 #include <linux/export.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/irqchip/irq-crossbar.h>
 #include <linux/of_address.h>
 #include <linux/reboot.h>
 #include <linux/genalloc.h>
@@ -292,8 +291,5 @@ void __init omap_gic_of_init(void)
 
 skip_errata_init:
 	omap_wakeupgen_init();
-#ifdef CONFIG_IRQ_CROSSBAR
-	irqcrossbar_init();
-#endif
 	irqchip_init();
 }
