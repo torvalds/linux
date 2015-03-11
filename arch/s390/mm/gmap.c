@@ -270,6 +270,17 @@ void gmap_disable(struct gmap *gmap)
 }
 EXPORT_SYMBOL_GPL(gmap_disable);
 
+/**
+ * gmap_get_enabled - get a pointer to the currently enabled gmap
+ *
+ * Returns a pointer to the currently enabled gmap. 0 if none is enabled.
+ */
+struct gmap *gmap_get_enabled(void)
+{
+	return (struct gmap *) S390_lowcore.gmap;
+}
+EXPORT_SYMBOL_GPL(gmap_get_enabled);
+
 /*
  * gmap_alloc_table is assumed to be called with mmap_sem held
  */
