@@ -60,8 +60,8 @@
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
-		ethernet0 = &eth0;
-		ethernet1 = &eth1;
+		serial0 = &uart0;
+		serial1 = &uart1;
 	};
 
 	clocks {
@@ -276,7 +276,7 @@
 				status = "disabled";
 			};
 
-			serial@12000 {
+			uart0: serial@12000 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12000 0x100>;
 				reg-shift = <2>;
@@ -286,7 +286,7 @@
 				status = "disabled";
 			};
 
-			serial@12100 {
+			uart1: serial@12100 {
 				compatible = "snps,dw-apb-uart";
 				reg = <0x12100 0x100>;
 				reg-shift = <2>;
@@ -394,7 +394,7 @@
 				reg = <0x20000 0x100>, <0x20180 0x20>;
 			};
 
-			mpic: interrupt-controller@20000 {
+			mpic: interrupt-controller@20a00 {
 				compatible = "marvell,mpic";
 				reg = <0x20a00 0x2d0>, <0x21070 0x58>;
 				#interrupt-cells = <1>;

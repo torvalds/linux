@@ -54,8 +54,7 @@
 		     "marvell,armadaxp", "marvell,armada-370-xp";
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlyprintk";
-		stdout-path = &uart0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {

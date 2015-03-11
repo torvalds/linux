@@ -49,8 +49,7 @@
 	compatible = "marvell,a385-db-ap", "marvell,armada385", "marvell,armada38x";
 
 	chosen {
-		bootargs = "console=ttyS0,115200";
-		stdout-path = &uart1;
+		stdout-path = "serial1:115200n8";
 	};
 
 	memory {
@@ -149,6 +148,19 @@
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
+			};
+
+			nfc: flash@d0000 {
+				status = "okay";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				num-cs = <1>;
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
+				marvell,nand-keep-config;
+				marvell,nand-enable-arbiter;
+				nand-on-flash-bbt;
 			};
 		};
 
