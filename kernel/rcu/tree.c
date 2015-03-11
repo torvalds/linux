@@ -163,12 +163,27 @@ static int kthread_prio = CONFIG_RCU_KTHREAD_PRIO;
 module_param(kthread_prio, int, 0644);
 
 /* Delay in jiffies for grace-period initialization delays, debug only. */
+
+#ifdef CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT
+static int gp_preinit_delay = CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT_DELAY;
+module_param(gp_preinit_delay, int, 0644);
+#else /* #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT */
+static const int gp_preinit_delay;
+#endif /* #else #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_PREINIT */
+
 #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_INIT
 static int gp_init_delay = CONFIG_RCU_TORTURE_TEST_SLOW_INIT_DELAY;
 module_param(gp_init_delay, int, 0644);
 #else /* #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_INIT */
 static const int gp_init_delay;
 #endif /* #else #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_INIT */
+
+#ifdef CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP
+static int gp_cleanup_delay = CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP_DELAY;
+module_param(gp_cleanup_delay, int, 0644);
+#else /* #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP */
+static const int gp_cleanup_delay;
+#endif /* #else #ifdef CONFIG_RCU_TORTURE_TEST_SLOW_CLEANUP */
 
 /*
  * Number of grace periods between delays, normalized by the duration of
@@ -1742,6 +1757,13 @@ static void note_gp_changes(struct rcu_state *rsp, struct rcu_data *rdp)
 		rcu_gp_kthread_wake(rsp);
 }
 
+static void rcu_gp_slow(struct rcu_state *rsp, int delay)
+{
+	if (delay > 0 &&
+	    !(rsp->gpnum % (rcu_num_nodes * PER_RCU_NODE_PERIOD * delay)))
+		schedule_timeout_uninterruptible(delay);
+}
+
 /*
  * Initialize a new grace period.  Return 0 if no grace period required.
  */
@@ -1784,6 +1806,7 @@ static int rcu_gp_init(struct rcu_state *rsp)
 	 * will handle subsequent offline CPUs.
 	 */
 	rcu_for_each_leaf_node(rsp, rnp) {
+		rcu_gp_slow(rsp, gp_preinit_delay);
 		raw_spin_lock_irq(&rnp->lock);
 		smp_mb__after_unlock_lock();
 		if (rnp->qsmaskinit == rnp->qsmaskinitnext &&
@@ -1840,6 +1863,7 @@ static int rcu_gp_init(struct rcu_state *rsp)
 	 * process finishes, because this kthread handles both.
 	 */
 	rcu_for_each_node_breadth_first(rsp, rnp) {
+		rcu_gp_slow(rsp, gp_init_delay);
 		raw_spin_lock_irq(&rnp->lock);
 		smp_mb__after_unlock_lock();
 		rdp = this_cpu_ptr(rsp->rda);
@@ -1857,10 +1881,6 @@ static int rcu_gp_init(struct rcu_state *rsp)
 		raw_spin_unlock_irq(&rnp->lock);
 		cond_resched_rcu_qs();
 		WRITE_ONCE(rsp->gp_activity, jiffies);
-		if (gp_init_delay > 0 &&
-		    !(rsp->gpnum %
-		      (rcu_num_nodes * PER_RCU_NODE_PERIOD * gp_init_delay)))
-			schedule_timeout_uninterruptible(gp_init_delay);
 	}
 
 	return 1;
@@ -1955,6 +1975,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		raw_spin_unlock_irq(&rnp->lock);
 		cond_resched_rcu_qs();
 		WRITE_ONCE(rsp->gp_activity, jiffies);
+		rcu_gp_slow(rsp, gp_cleanup_delay);
 	}
 	rnp = rcu_get_root(rsp);
 	raw_spin_lock_irq(&rnp->lock);
