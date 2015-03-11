@@ -5,6 +5,7 @@ dts-dirs += cavium
 dts-dirs += exynos
 dts-dirs += freescale
 dts-dirs += mediatek
+dts-dirs += sprd
 dts-dirs += xilinx
 
 subdir-y	:= $(dts-dirs)
