@@ -3733,9 +3733,13 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 		     struct sock *sk, int tstype)
 {
 	struct sk_buff *skb;
-	bool tsonly = sk->sk_tsflags & SOF_TIMESTAMPING_OPT_TSONLY;
+	bool tsonly;
 
-	if (!sk || !skb_may_tx_timestamp(sk, tsonly))
+	if (!sk)
+		return;
+
+	tsonly = sk->sk_tsflags & SOF_TIMESTAMPING_OPT_TSONLY;
+	if (!skb_may_tx_timestamp(sk, tsonly))
 		return;
 
 	if (tsonly)
