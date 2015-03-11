@@ -111,7 +111,10 @@ static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 			dw8250_force_idle(p);
 			writeb(value, p->membase + (UART_LCR << p->regshift));
 		}
-		dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		/*
+		 * FIXME: this deadlocks if port->lock is already held
+		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		 */
 	}
 }
 
@@ -155,7 +158,10 @@ static void dw8250_serial_outq(struct uart_port *p, int offset, int value)
 			__raw_writeq(value & 0xff,
 				     p->membase + (UART_LCR << p->regshift));
 		}
-		dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		/*
+		 * FIXME: this deadlocks if port->lock is already held
+		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		 */
 	}
 }
 #endif /* CONFIG_64BIT */
@@ -179,7 +185,10 @@ static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 			dw8250_force_idle(p);
 			writel(value, p->membase + (UART_LCR << p->regshift));
 		}
-		dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		/*
+		 * FIXME: this deadlocks if port->lock is already held
+		 * dev_err(p->dev, "Couldn't set LCR to %d\n", value);
+		 */
 	}
 }
 
