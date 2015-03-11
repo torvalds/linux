@@ -284,7 +284,6 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 	chan = dma_request_slave_channel_reason(dev, "tx");
 	if (IS_ERR(chan)) {
 		if (PTR_ERR(chan) == -EPROBE_DEFER) {
-			dev_info(uap->port.dev, "DMA driver not ready\n");
 			uap->dma_probed = false;
 			return;
 		}
