@@ -1038,7 +1038,6 @@ static struct uart_port *cdns_uart_get_port(int id)
 	/* At this point, we've got an empty uart_port struct, initialize it */
 	spin_lock_init(&port->lock);
 	port->membase	= NULL;
-	port->iobase	= 1; /* mark port in use */
 	port->irq	= 0;
 	port->type	= PORT_UNKNOWN;
 	port->iotype	= UPIO_MEM32;
