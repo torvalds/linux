@@ -96,7 +96,18 @@ static void skl_init_clock_gating(struct drm_device *dev)
 
 static void bxt_init_clock_gating(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	gen9_init_clock_gating(dev);
+
+	/*
+	 * FIXME:
+	 * GEN8_SDEUNIT_CLOCK_GATE_DISABLE applies on A0 only.
+	 */
+	 /* WaDisableSDEUnitClockGating:bxt */
+	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
+		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
