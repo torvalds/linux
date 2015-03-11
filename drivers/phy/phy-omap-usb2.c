@@ -296,9 +296,10 @@ static int omap_usb2_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev,
 				 "found usb_otg_ss_refclk960m, please fix DTS\n");
 		}
-	} else {
-		clk_prepare(phy->optclk);
 	}
+
+	if (!IS_ERR(phy->optclk))
+		clk_prepare(phy->optclk);
 
 	usb_add_phy_dev(&phy->phy);
 
