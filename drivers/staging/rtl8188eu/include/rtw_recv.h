@@ -216,8 +216,8 @@ struct recv_priv {
 };
 
 #define rtw_set_signal_stat_timer(recvpriv)			\
-	_set_timer(&(recvpriv)->signal_stat_timer,		\
-		   (recvpriv)->signal_stat_sampling_interval)
+	mod_timer(&(recvpriv)->signal_stat_timer, jiffies +	\
+		  msecs_to_jiffies((recvpriv)->signal_stat_sampling_interval))
 
 struct sta_recv_priv {
 	spinlock_t lock;
