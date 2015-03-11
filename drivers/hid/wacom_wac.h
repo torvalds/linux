@@ -212,6 +212,7 @@ struct wacom_wac {
 	int battery_capacity;
 	int num_contacts_left;
 	int bat_charging;
+	int bat_connected;
 	int ps_connected;
 	u8 bt_features;
 	u8 bt_high_speed;
