@@ -2535,8 +2535,10 @@ bool hci_bdaddr_is_paired(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(k, &hdev->long_term_keys, list) {
-		if (k->bdaddr_type == addr_type && !bacmp(bdaddr, &k->bdaddr))
+		if (k->bdaddr_type == addr_type && !bacmp(bdaddr, &k->bdaddr)) {
+			rcu_read_unlock();
 			return true;
+		}
 	}
 	rcu_read_unlock();
 
