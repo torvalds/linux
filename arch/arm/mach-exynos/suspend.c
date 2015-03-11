@@ -342,6 +342,8 @@ static void exynos_pm_enter_sleep_mode(void)
 
 static void exynos_pm_prepare(void)
 {
+	exynos_set_delayed_reset_assertion(false);
+
 	/* Set wake-up mask registers */
 	exynos_pm_set_wakeup_mask();
 
@@ -482,6 +484,7 @@ early_wakeup:
 
 	/* Clear SLEEP mode set in INFORM1 */
 	pmu_raw_writel(0x0, S5P_INFORM1);
+	exynos_set_delayed_reset_assertion(true);
 }
 
 static void exynos3250_pm_resume(void)
