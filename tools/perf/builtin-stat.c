@@ -769,6 +769,19 @@ static int run_perf_stat(int argc, const char **argv)
 	return ret;
 }
 
+static void print_running(u64 run, u64 ena)
+{
+	if (csv_output) {
+		fprintf(output, "%s%" PRIu64 "%s%.2f",
+					csv_sep,
+					run,
+					csv_sep,
+					ena ? 100.0 * run / ena : 100.0);
+	} else if (run != ena) {
+		fprintf(output, "  (%.2f%%)", 100.0 * run / ena);
+	}
+}
+
 static void print_noise_pct(double total, double avg)
 {
 	double pct = rel_stddev_stats(total, avg);
@@ -1252,6 +1265,7 @@ static void print_aggr(char *prefix)
 					fprintf(output, "%s%s",
 						csv_sep, counter->cgrp->name);
 
+				print_running(run, ena);
 				fputc('\n', output);
 				continue;
 			}
@@ -1262,13 +1276,10 @@ static void print_aggr(char *prefix)
 			else
 				abs_printout(id, nr, counter, uval);
 
-			if (!csv_output) {
+			if (!csv_output)
 				print_noise(counter, 1.0);
 
-				if (run != ena)
-					fprintf(output, "  (%.2f%%)",
-						100.0 * run / ena);
-			}
+			print_running(run, ena);
 			fputc('\n', output);
 		}
 	}
@@ -1284,6 +1295,10 @@ static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 	double avg = avg_stats(&ps->res_stats[0]);
 	int scaled = counter->counts->scaled;
 	double uval;
+	double avg_enabled, avg_running;
+
+	avg_enabled = avg_stats(&ps->res_stats[1]);
+	avg_running = avg_stats(&ps->res_stats[2]);
 
 	if (prefix)
 		fprintf(output, "%s", prefix);
@@ -1303,6 +1318,7 @@ static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 		if (counter->cgrp)
 			fprintf(output, "%s%s", csv_sep, counter->cgrp->name);
 
+		print_running(avg_running, avg_enabled);
 		fputc('\n', output);
 		return;
 	}
@@ -1316,19 +1332,7 @@ static void print_counter_aggr(struct perf_evsel *counter, char *prefix)
 
 	print_noise(counter, avg);
 
-	if (csv_output) {
-		fputc('\n', output);
-		return;
-	}
-
-	if (scaled) {
-		double avg_enabled, avg_running;
-
-		avg_enabled = avg_stats(&ps->res_stats[1]);
-		avg_running = avg_stats(&ps->res_stats[2]);
-
-		fprintf(output, " [%5.2f%%]", 100 * avg_running / avg_enabled);
-	}
+	print_running(avg_running, avg_enabled);
 	fprintf(output, "\n");
 }
 
@@ -1370,6 +1374,7 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 				fprintf(output, "%s%s",
 					csv_sep, counter->cgrp->name);
 
+			print_running(run, ena);
 			fputc('\n', output);
 			continue;
 		}
@@ -1381,13 +1386,10 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 		else
 			abs_printout(cpu, 0, counter, uval);
 
-		if (!csv_output) {
+		if (!csv_output)
 			print_noise(counter, 1.0);
+		print_running(run, ena);
 
-			if (run != ena)
-				fprintf(output, "  (%.2f%%)",
-					100.0 * run / ena);
-		}
 		fputc('\n', output);
 	}
 }
