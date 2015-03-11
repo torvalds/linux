@@ -2439,7 +2439,8 @@ void __init xen_hvm_init_mmu_ops(void)
 #define REMAP_BATCH_SIZE 16
 
 struct remap_data {
-	unsigned long mfn;
+	xen_pfn_t *mfn;
+	bool contiguous;
 	pgprot_t prot;
 	struct mmu_update *mmu_update;
 };
@@ -2448,7 +2449,14 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 				 unsigned long addr, void *data)
 {
 	struct remap_data *rmd = data;
-	pte_t pte = pte_mkspecial(mfn_pte(rmd->mfn++, rmd->prot));
+	pte_t pte = pte_mkspecial(mfn_pte(*rmd->mfn, rmd->prot));
+
+	/* If we have a contigious range, just update the mfn itself,
+	   else update pointer to be "next mfn". */
+	if (rmd->contiguous)
+		(*rmd->mfn)++;
+	else
+		rmd->mfn++;
 
 	rmd->mmu_update->ptr = virt_to_machine(ptep).maddr;
 	rmd->mmu_update->val = pte_val_ma(pte);
@@ -2457,26 +2465,26 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 	return 0;
 }
 
-int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
-			       unsigned long addr,
-			       xen_pfn_t mfn, int nr,
-			       pgprot_t prot, unsigned domid,
-			       struct page **pages)
-
+static int do_remap_mfn(struct vm_area_struct *vma,
+			unsigned long addr,
+			xen_pfn_t *mfn, int nr,
+			int *err_ptr, pgprot_t prot,
+			unsigned domid,
+			struct page **pages)
 {
+	int err = 0;
 	struct remap_data rmd;
 	struct mmu_update mmu_update[REMAP_BATCH_SIZE];
-	int batch;
 	unsigned long range;
-	int err = 0;
+	int mapped = 0;
 
 	BUG_ON(!((vma->vm_flags & (VM_PFNMAP | VM_IO)) == (VM_PFNMAP | VM_IO)));
 
 	if (xen_feature(XENFEAT_auto_translated_physmap)) {
 #ifdef CONFIG_XEN_PVH
 		/* We need to update the local page tables and the xen HAP */
-		return xen_xlate_remap_gfn_range(vma, addr, mfn, nr, prot,
-						 domid, pages);
+		return xen_xlate_remap_gfn_array(vma, addr, mfn, nr, err_ptr,
+						 prot, domid, pages);
 #else
 		return -EINVAL;
 #endif
@@ -2484,9 +2492,15 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 
 	rmd.mfn = mfn;
 	rmd.prot = prot;
+	/* We use the err_ptr to indicate if there we are doing a contigious
+	 * mapping or a discontigious mapping. */
+	rmd.contiguous = !err_ptr;
 
 	while (nr) {
-		batch = min(REMAP_BATCH_SIZE, nr);
+		int index = 0;
+		int done = 0;
+		int batch = min(REMAP_BATCH_SIZE, nr);
+		int batch_left = batch;
 		range = (unsigned long)batch << PAGE_SHIFT;
 
 		rmd.mmu_update = mmu_update;
@@ -2495,22 +2509,71 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 		if (err)
 			goto out;
 
-		err = HYPERVISOR_mmu_update(mmu_update, batch, NULL, domid);
-		if (err < 0)
-			goto out;
+		/* We record the error for each page that gives an error, but
+		 * continue mapping until the whole set is done */
+		do {
+			int i;
+
+			err = HYPERVISOR_mmu_update(&mmu_update[index],
+						    batch_left, &done, domid);
+
+			/*
+			 * @err_ptr may be the same buffer as @mfn, so
+			 * only clear it after each chunk of @mfn is
+			 * used.
+			 */
+			if (err_ptr) {
+				for (i = index; i < index + done; i++)
+					err_ptr[i] = 0;
+			}
+			if (err < 0) {
+				if (!err_ptr)
+					goto out;
+				err_ptr[i] = err;
+				done++; /* Skip failed frame. */
+			} else
+				mapped += done;
+			batch_left -= done;
+			index += done;
+		} while (batch_left);
 
 		nr -= batch;
 		addr += range;
+		if (err_ptr)
+			err_ptr += batch;
 	}
-
-	err = 0;
 out:
 
 	xen_flush_tlb_all();
 
-	return err;
+	return err < 0 ? err : mapped;
+}
+
+int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+			       unsigned long addr,
+			       xen_pfn_t mfn, int nr,
+			       pgprot_t prot, unsigned domid,
+			       struct page **pages)
+{
+	return do_remap_mfn(vma, addr, &mfn, nr, NULL, prot, domid, pages);
 }
 EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
+
+int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
+			       unsigned long addr,
+			       xen_pfn_t *mfn, int nr,
+			       int *err_ptr, pgprot_t prot,
+			       unsigned domid, struct page **pages)
+{
+	/* We BUG_ON because it's a programmer error to pass a NULL err_ptr,
+	 * and the consequences later is quite hard to detect what the actual
+	 * cause of "wrong memory was mapped in".
+	 */
+	BUG_ON(err_ptr == NULL);
+	return do_remap_mfn(vma, addr, mfn, nr, err_ptr, prot, domid, pages);
+}
+EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_array);
+
 
 /* Returns: 0 success */
 int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,

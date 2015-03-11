@@ -62,13 +62,15 @@ static int map_foreign_page(unsigned long lpfn, unsigned long fgmfn,
 }
 
 struct remap_data {
-	xen_pfn_t fgmfn; /* foreign domain's gmfn */
+	xen_pfn_t *fgmfn; /* foreign domain's gmfn */
 	pgprot_t prot;
 	domid_t  domid;
 	struct vm_area_struct *vma;
 	int index;
 	struct page **pages;
 	struct xen_remap_mfn_info *info;
+	int *err_ptr;
+	int mapped;
 };
 
 static int remap_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
@@ -80,38 +82,46 @@ static int remap_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
 	pte_t pte = pte_mkspecial(pfn_pte(pfn, info->prot));
 	int rc;
 
-	rc = map_foreign_page(pfn, info->fgmfn, info->domid);
-	if (rc < 0)
-		return rc;
-	set_pte_at(info->vma->vm_mm, addr, ptep, pte);
+	rc = map_foreign_page(pfn, *info->fgmfn, info->domid);
+	*info->err_ptr++ = rc;
+	if (!rc) {
+		set_pte_at(info->vma->vm_mm, addr, ptep, pte);
+		info->mapped++;
+	}
+	info->fgmfn++;
 
 	return 0;
 }
 
-int xen_xlate_remap_gfn_range(struct vm_area_struct *vma,
+int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 			      unsigned long addr,
-			      xen_pfn_t gfn, int nr,
-			      pgprot_t prot, unsigned domid,
+			      xen_pfn_t *mfn, int nr,
+			      int *err_ptr, pgprot_t prot,
+			      unsigned domid,
 			      struct page **pages)
 {
 	int err;
 	struct remap_data data;
+	unsigned long range = nr << PAGE_SHIFT;
 
-	/* TBD: Batching, current sole caller only does page at a time */
-	if (nr > 1)
-		return -EINVAL;
+	/* Kept here for the purpose of making sure code doesn't break
+	   x86 PVOPS */
+	BUG_ON(!((vma->vm_flags & (VM_PFNMAP | VM_IO)) == (VM_PFNMAP | VM_IO)));
 
-	data.fgmfn = gfn;
-	data.prot = prot;
+	data.fgmfn = mfn;
+	data.prot  = prot;
 	data.domid = domid;
-	data.vma = vma;
-	data.index = 0;
+	data.vma   = vma;
 	data.pages = pages;
-	err = apply_to_page_range(vma->vm_mm, addr, nr << PAGE_SHIFT,
+	data.index = 0;
+	data.err_ptr = err_ptr;
+	data.mapped = 0;
+
+	err = apply_to_page_range(vma->vm_mm, addr, range,
 				  remap_pte_fn, &data);
-	return err;
+	return err < 0 ? err : data.mapped;
 }
-EXPORT_SYMBOL_GPL(xen_xlate_remap_gfn_range);
+EXPORT_SYMBOL_GPL(xen_xlate_remap_gfn_array);
 
 int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 			      int nr, struct page **pages)

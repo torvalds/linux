@@ -53,14 +53,26 @@ EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
 
 static __read_mostly int xen_events_irq = -1;
 
-int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
-			       xen_pfn_t mfn, int nr,
-			       pgprot_t prot, unsigned domid,
+			       xen_pfn_t *mfn, int nr,
+			       int *err_ptr, pgprot_t prot,
+			       unsigned domid,
 			       struct page **pages)
 {
-	return xen_xlate_remap_gfn_range(vma, addr, mfn, nr,
+	return xen_xlate_remap_gfn_array(vma, addr, mfn, nr, err_ptr,
 					 prot, domid, pages);
+}
+EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_array);
+
+/* Not used by XENFEAT_auto_translated guests. */
+int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+                              unsigned long addr,
+                              xen_pfn_t mfn, int nr,
+                              pgprot_t prot, unsigned domid,
+                              struct page **pages)
+{
+	return -ENOSYS;
 }
 EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
 
