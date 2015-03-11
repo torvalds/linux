@@ -786,12 +786,6 @@ static int brcmf_chip_setup(struct brcmf_chip_priv *chip)
 	if (chip->ops->setup)
 		ret = chip->ops->setup(chip->ctx, pub);
 
-	/*
-	 * Make sure any on-chip ARM is off (in case strapping is wrong),
-	 * or downloaded code was already running.
-	 */
-	brcmf_chip_disable_arm(chip, BCMA_CORE_ARM_CM3);
-	brcmf_chip_disable_arm(chip, BCMA_CORE_ARM_CR4);
 	return ret;
 }
 
@@ -833,6 +827,8 @@ struct brcmf_chip *brcmf_chip_attach(void *ctx,
 	if (err < 0)
 		goto fail;
 
+	/* assure chip is passive for download */
+	brcmf_chip_set_passive(&chip->pub);
 	return &chip->pub;
 
 fail:

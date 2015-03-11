@@ -3356,9 +3356,6 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus,
 	sdio_claim_host(bus->sdiodev->func[1]);
 	brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
 
-	/* Keep arm in reset */
-	brcmf_chip_set_passive(bus->ci);
-
 	rstvec = get_unaligned_le32(fw->data);
 	brcmf_dbg(SDIO, "firmware rstvec: %x\n", rstvec);
 
