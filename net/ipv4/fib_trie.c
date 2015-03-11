@@ -2539,6 +2539,8 @@ static unsigned int fib_flag_trans(int type, __be32 mask, const struct fib_info 
  */
 static int fib_route_seq_show(struct seq_file *seq, void *v)
 {
+	struct fib_route_iter *iter = seq->private;
+	struct fib_table *tb = iter->main_tb;
 	struct fib_alias *fa;
 	struct key_vector *l = v;
 	__be32 prefix;
@@ -2559,6 +2561,9 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 
 		if ((fa->fa_type == RTN_BROADCAST) ||
 		    (fa->fa_type == RTN_MULTICAST))
+			continue;
+
+		if (fa->tb_id != tb->tb_id)
 			continue;
 
 		seq_setwidth(seq, 127);
