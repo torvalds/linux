@@ -5346,6 +5346,10 @@ enum skl_disp_power_wells {
 #define  HDC_FORCE_NON_COHERENT			(1<<4)
 #define  HDC_BARRIER_PERFORMANCE_DISABLE	(1<<10)
 
+/* GEN9 chicken */
+#define SLICE_ECO_CHICKEN0			0x7308
+#define   PIXEL_MASK_CAMMING_DISABLE		(1 << 14)
+
 /* WaCatErrorRejectionIssue */
 #define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030
 #define  GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB	(1<<11)
