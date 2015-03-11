@@ -1350,7 +1350,6 @@ static unsigned long clk_core_get_rate(struct clk_core *clk)
 
 	return rate;
 }
-EXPORT_SYMBOL_GPL(clk_core_get_rate);
 
 /**
  * clk_get_rate - return the rate of clk
