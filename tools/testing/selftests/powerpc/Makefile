@@ -22,10 +22,25 @@ all: $(TARGETS)
 $(TARGETS):
 	$(MAKE) -k -C $@ all
 
-run_tests: all
+include ../lib.mk
+
+override define RUN_TESTS
 	@for TARGET in $(TARGETS); do \
 		$(MAKE) -C $$TARGET run_tests; \
 	done;
+endef
+
+override define INSTALL_RULE
+	@for TARGET in $(TARGETS); do \
+		$(MAKE) -C $$TARGET install; \
+	done;
+endef
+
+override define EMIT_TESTS
+	@for TARGET in $(TARGETS); do \
+		$(MAKE) -s -C $$TARGET emit_tests; \
+	done;
+endef
 
 clean:
 	@for TARGET in $(TARGETS); do \
@@ -36,4 +51,4 @@ clean:
 tags:
 	find . -name '*.c' -o -name '*.h' | xargs ctags
 
-.PHONY: all run_tests clean tags $(TARGETS)
+.PHONY: tags $(TARGETS)
