@@ -53,7 +53,7 @@ struct old_serial_port {
 	unsigned int baud_base;
 	unsigned int port;
 	unsigned int irq;
-	unsigned int flags;
+	upf_t        flags;
 	unsigned char hub6;
 	unsigned char io_type;
 	unsigned char __iomem *iomem_base;
