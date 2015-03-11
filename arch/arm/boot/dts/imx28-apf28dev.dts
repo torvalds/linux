@@ -223,7 +223,7 @@
 
 		user-button {
 			label = "User button";
-			gpios = <&gpio0 17 0>;
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
 			linux,code = <0x100>;
 		};
 	};
