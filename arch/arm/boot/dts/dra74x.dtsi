@@ -41,7 +41,7 @@
 
 	pmu {
 		compatible = "arm,cortex-a15-pmu";
-		interrupt-parent = <&gic>;
+		interrupt-parent = <&wakeupgen>;
 		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
 	};

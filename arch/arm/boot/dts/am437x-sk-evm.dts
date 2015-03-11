@@ -392,7 +392,6 @@
 	tps@24 {
 		compatible = "ti,tps65218";
 		reg = <0x24>;
-		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
 		#interrupt-cells = <2>;

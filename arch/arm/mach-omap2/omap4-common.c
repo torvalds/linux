@@ -241,26 +241,26 @@ static int __init omap4_sar_ram_init(void)
 }
 omap_early_initcall(omap4_sar_ram_init);
 
-static const struct of_device_id gic_match[] = {
-	{ .compatible = "arm,cortex-a9-gic", },
-	{ .compatible = "arm,cortex-a15-gic", },
+static const struct of_device_id intc_match[] = {
+	{ .compatible = "ti,omap4-wugen-mpu", },
+	{ .compatible = "ti,omap5-wugen-mpu", },
 	{ },
 };
 
-static struct device_node *gic_node;
+static struct device_node *intc_node;
 
 unsigned int omap4_xlate_irq(unsigned int hwirq)
 {
 	struct of_phandle_args irq_data;
 	unsigned int irq;
 
-	if (!gic_node)
-		gic_node = of_find_matching_node(NULL, gic_match);
+	if (!intc_node)
+		intc_node = of_find_matching_node(NULL, intc_match);
 
-	if (WARN_ON(!gic_node))
+	if (WARN_ON(!intc_node))
 		return hwirq;
 
-	irq_data.np = gic_node;
+	irq_data.np = intc_node;
 	irq_data.args_count = 3;
 	irq_data.args[0] = 0;
 	irq_data.args[1] = hwirq - OMAP44XX_IRQ_GIC_START;
@@ -277,6 +277,12 @@ void __init omap_gic_of_init(void)
 {
 	struct device_node *np;
 
+	intc_node = of_find_matching_node(NULL, intc_match);
+	if (WARN_ON(!intc_node)) {
+		pr_err("No WUGEN found in DT, system will misbehave.\n");
+		pr_err("UPDATE YOUR DEVICE TREE!\n");
+	}
+
 	/* Extract GIC distributor and TWD bases for OMAP4460 ROM Errata WA */
 	if (!cpu_is_omap446x())
 		goto skip_errata_init;
@@ -290,6 +296,5 @@ void __init omap_gic_of_init(void)
 	WARN_ON(!twd_base);
 
 skip_errata_init:
-	omap_wakeupgen_init();
 	irqchip_init();
 }

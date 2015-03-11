@@ -64,6 +64,14 @@
 		interrupt-parent = <&gic>;
 	};
 
+	wakeupgen: interrupt-controller@48281000 {
+		compatible = "ti,omap5-wugen-mpu", "ti,omap4-wugen-mpu";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x48281000 0x1000>;
+		interrupt-parent = <&gic>;
+	};
+
 	/*
 	 * The soc node represents the soc top level view. It is used for IPs
 	 * that are not memory mapped in the MPU view or for the MPU itself.
@@ -92,7 +100,7 @@
 		reg = <0x44000000 0x1000000>,
 		      <0x45000000 0x1000>;
 		interrupts-extended = <&crossbar_mpu GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
-				      <&gic GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+				      <&wakeupgen GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
 		prm: prm@4ae06000 {
 			compatible = "ti,dra7-prm";
@@ -1341,7 +1349,7 @@
 			compatible = "ti,irq-crossbar";
 			reg = <0x4a002a48 0x130>;
 			interrupt-controller;
-			interrupt-parent = <&gic>;
+			interrupt-parent = <&wakeupgen>;
 			#interrupt-cells = <3>;
 			ti,max-irqs = <160>;
 			ti,max-crossbar-sources = <MAX_SOURCES>;
