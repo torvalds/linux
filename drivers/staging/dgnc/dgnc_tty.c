@@ -492,7 +492,7 @@ void dgnc_input(struct channel_t *ch)
 {
 	struct dgnc_board *bd;
 	struct tty_struct *tp;
-	struct tty_ldisc *ld;
+	struct tty_ldisc *ld = NULL;
 	uint	rmask;
 	ushort	head;
 	ushort	tail;
@@ -524,10 +524,8 @@ void dgnc_input(struct channel_t *ch)
 	tail = ch->ch_r_tail & rmask;
 	data_len = (head - tail) & rmask;
 
-	if (data_len == 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if (data_len == 0)
+		goto exit_unlock;
 
 	/*
 	 * If the device is not open, or CREAD is off,
@@ -541,17 +539,14 @@ void dgnc_input(struct channel_t *ch)
 		/* Force queue flow control to be released, if needed */
 		dgnc_check_queue_flow_control(ch);
 
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
+		goto exit_unlock;
 	}
 
 	/*
 	 * If we are throttled, simply don't read any data.
 	 */
-	if (ch->ch_flags & CH_FORCED_STOPI) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return;
-	}
+	if (ch->ch_flags & CH_FORCED_STOPI)
+		goto exit_unlock;
 
 	flip_len = TTY_FLIPBUF_SIZE;
 
@@ -589,12 +584,8 @@ void dgnc_input(struct channel_t *ch)
 		}
 	}
 
-	if (len <= 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		if (ld)
-			tty_ldisc_deref(ld);
-		return;
-	}
+	if (len <= 0)
+		goto exit_unlock;
 
 	/*
 	 * The tty layer in the kernel has changed in 2.6.16+.
@@ -662,6 +653,12 @@ void dgnc_input(struct channel_t *ch)
 
 	if (ld)
 		tty_ldisc_deref(ld);
+	return;
+
+exit_unlock:
+	if (ld)
+		tty_ldisc_deref(ld);
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
 
@@ -1758,10 +1755,8 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	/*
 	 * Bail if no space left.
 	 */
-	if (count <= 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return 0;
-	}
+	if (count <= 0)
+		goto exit_retry;
 
 	/*
 	 * Output the printer ON string, if we are in terminal mode, but
@@ -1788,10 +1783,8 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	/*
 	 * If there is nothing left to copy, or I can't handle any more data, leave.
 	 */
-	if (count <= 0) {
-		spin_unlock_irqrestore(&ch->ch_lock, flags);
-		return 0;
-	}
+	if (count <= 0)
+		goto exit_retry;
 
 	if (from_user) {
 
@@ -1877,6 +1870,11 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	}
 
 	return count;
+
+exit_retry:
+
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
+	return 0;
 }
 
 
