@@ -317,6 +317,32 @@ int iov_iter_fault_in_readable(struct iov_iter *i, size_t bytes)
 }
 EXPORT_SYMBOL(iov_iter_fault_in_readable);
 
+/*
+ * Fault in one or more iovecs of the given iov_iter, to a maximum length of
+ * bytes.  For each iovec, fault in each page that constitutes the iovec.
+ *
+ * Return 0 on success, or non-zero if the memory could not be accessed (i.e.
+ * because it is an invalid address).
+ */
+int iov_iter_fault_in_multipages_readable(struct iov_iter *i, size_t bytes)
+{
+	size_t skip = i->iov_offset;
+	const struct iovec *iov;
+	int err;
+	struct iovec v;
+
+	if (!(i->type & (ITER_BVEC|ITER_KVEC))) {
+		iterate_iovec(i, bytes, v, iov, skip, ({
+			err = fault_in_multipages_readable(v.iov_base,
+					v.iov_len);
+			if (unlikely(err))
+			return err;
+		0;}))
+	}
+	return 0;
+}
+EXPORT_SYMBOL(iov_iter_fault_in_multipages_readable);
+
 void iov_iter_init(struct iov_iter *i, int direction,
 			const struct iovec *iov, unsigned long nr_segs,
 			size_t count)
