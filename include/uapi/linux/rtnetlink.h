@@ -305,6 +305,7 @@ enum rtattr_type_t {
 	RTA_MFC_STATS,
 	RTA_VIA,
 	RTA_NEWDST,
+	RTA_PREF,
 	__RTA_MAX
 };
 
