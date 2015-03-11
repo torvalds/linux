@@ -5,8 +5,9 @@ test_objs = open-unlink create-read
 
 all: $(test_objs)
 
-run_tests: all
-	@/bin/bash ./efivarfs.sh || echo "efivarfs selftests: [FAIL]"
+TEST_PROGS := efivarfs.sh
+
+include ../lib.mk
 
 clean:
 	rm -f $(test_objs)

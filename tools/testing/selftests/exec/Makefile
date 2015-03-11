@@ -18,8 +18,9 @@ execveat.denatured: execveat
 %: %.c
 	$(CC) $(CFLAGS) -o $@ $^
 
-run_tests: all
-	./execveat
+TEST_PROGS := execveat
+
+include ../lib.mk
 
 clean:
 	rm -rf $(BINARIES) $(DEPS) subdir.moved execveat.moved xxxxx*

@@ -5,9 +5,9 @@ CFLAGS += -I../../../../include/
 all:
 	gcc $(CFLAGS) memfd_test.c -o memfd_test
 
-run_tests: all
-	gcc $(CFLAGS) memfd_test.c -o memfd_test
-	@./memfd_test || echo "memfd_test: [FAIL]"
+TEST_PROGS := memfd_test
+
+include ../lib.mk
 
 build_fuse:
 	gcc $(CFLAGS) fuse_mnt.c `pkg-config fuse --cflags --libs` -o fuse_mnt

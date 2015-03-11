@@ -3,8 +3,9 @@ CFLAGS += -I../../../../usr/include/
 
 all: kcmp_test
 
-run_tests: all
-	@./kcmp_test || echo "kcmp_test: [FAIL]"
+TEST_PROGS := kcmp_test
+
+include ../lib.mk
 
 clean:
 	$(RM) kcmp_test kcmp-test-file

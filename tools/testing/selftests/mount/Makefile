@@ -5,13 +5,9 @@ all: unprivileged-remount-test
 unprivileged-remount-test: unprivileged-remount-test.c
 	gcc -Wall -O2 unprivileged-remount-test.c -o unprivileged-remount-test
 
-# Allow specific tests to be selected.
-test_unprivileged_remount: unprivileged-remount-test
-	@if [ -f /proc/self/uid_map ] ; then ./unprivileged-remount-test ; fi
+include ../lib.mk
 
-run_tests: all test_unprivileged_remount
+override RUN_TESTS := if [ -f /proc/self/uid_map ] ; then ./unprivileged-remount-test ; fi
 
 clean:
 	rm -f unprivileged-remount-test
-
-.PHONY: all test_unprivileged_remount
