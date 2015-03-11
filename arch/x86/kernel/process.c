@@ -143,7 +143,8 @@ void flush_thread(void)
 		/* kthread execs. TODO: cleanup this horror. */
 		if (WARN_ON(init_fpu(current)))
 			force_sig(SIGKILL, current);
-		math_state_restore();
+		user_fpu_begin();
+		restore_init_xstate();
 	}
 }
 
