@@ -79,7 +79,7 @@ struct sx8654 {
 static irqreturn_t sx8654_irq(int irq, void *handle)
 {
 	struct sx8654 *sx8654 = handle;
-	u8 irqsrc;
+	int irqsrc;
 	u8 data[4];
 	unsigned int x, y;
 	int retval;
