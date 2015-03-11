@@ -922,6 +922,11 @@ static const struct irq_domain_ops gic_default_routable_irq_domain_ops = {
 const struct irq_domain_ops *gic_routable_irq_domain_ops =
 					&gic_default_routable_irq_domain_ops;
 
+void gic_set_irqchip_flags(unsigned long flags)
+{
+	gic_chip.flags |= flags;
+}
+
 void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 			   void __iomem *dist_base, void __iomem *cpu_base,
 			   u32 percpu_offset, struct device_node *node)
