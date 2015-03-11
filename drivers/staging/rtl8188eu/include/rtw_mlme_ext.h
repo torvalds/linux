@@ -645,9 +645,9 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter,
 
 void linked_status_chk(struct adapter *padapter);
 
-void survey_timer_hdl(void *function_context);
-void link_timer_hdl(void *funtion_context);
-void addba_timer_hdl(void *function_context);
+void survey_timer_hdl(unsigned long data);
+void link_timer_hdl(unsigned long data);
+void addba_timer_hdl(unsigned long data);
 
 #define set_survey_timer(mlmeext, ms) \
 	mod_timer(&mlmeext->survey_timer, jiffies +	\

@@ -103,7 +103,7 @@ struct led_priv {
 			(adapt)->ledpriv.LedControlHandler((adapt), (action)); \
 	} while (0)
 
-void BlinkTimerCallback(void *data);
+void BlinkTimerCallback(unsigned long data);
 void BlinkWorkItemCallback(struct work_struct *work);
 
 void ResetLedStatus(struct LED_871x *pLed);
