@@ -12,7 +12,6 @@ obj-$(CONFIG_PCMCIA)				+= pcmcia.o
 pcmcia_rsrc-y					+= rsrc_mgr.o
 pcmcia_rsrc-$(CONFIG_PCCARD_NONSTATIC)		+= rsrc_nonstatic.o
 pcmcia_rsrc-$(CONFIG_PCCARD_IODYN)		+= rsrc_iodyn.o
-pcmcia_rsrc-$(CONFIG_PCCARD_PCI)		+= rsrc_pci.o
 obj-$(CONFIG_PCCARD)				+= pcmcia_rsrc.o
 
 
