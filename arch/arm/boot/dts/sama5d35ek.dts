@@ -44,8 +44,6 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		pb_user1 {
 			label = "pb_user1";

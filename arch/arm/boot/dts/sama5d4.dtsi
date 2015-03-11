@@ -64,8 +64,13 @@
 		gpio2 = &pioC;
 		gpio3 = &pioD;
 		gpio4 = &pioE;
+		pwm0 = &pwm0;
+		ssc0 = &ssc0;
+		ssc1 = &ssc1;
 		tcb0 = &tcb0;
 		tcb1 = &tcb1;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 	};
 	cpus {
@@ -316,6 +321,21 @@
 				#dma-cells = <1>;
 				clocks = <&dma1_clk>;
 				clock-names = "dma_clk";
+			};
+
+			isi: isi@f0008000 {
+				compatible = "atmel,at91sam9g45-isi";
+				reg = <0xf0008000 0x4000>;
+				interrupts = <52 IRQ_TYPE_LEVEL_HIGH 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_isi_data_0_7>;
+				clocks = <&isi_clk>;
+				clock-names = "isi_clk";
+				status = "disabled";
+				port {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
 			};
 
 			ramc0: ramc@f0010000 {
@@ -799,6 +819,33 @@
 				clock-names = "mci_clk";
 			};
 
+			ssc0: ssc@f8008000 {
+				compatible = "atmel,at91sam9g45-ssc";
+				reg = <0xf8008000 0x4000>;
+				interrupts = <48 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ssc0_tx &pinctrl_ssc0_rx>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(26))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(27))>;
+				dma-names = "tx", "rx";
+				clocks = <&ssc0_clk>;
+				clock-names = "pclk";
+				status = "disabled";
+			};
+
+			pwm0: pwm@f800c000 {
+				compatible = "atmel,sama5d3-pwm";
+				reg = <0xf800c000 0x300>;
+				interrupts = <43 IRQ_TYPE_LEVEL_HIGH 4>;
+				#pwm-cells = <3>;
+				clocks = <&pwm_clk>;
+				status = "disabled";
+			};
+
 			spi0: spi@f8010000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -838,6 +885,25 @@
 				status = "disabled";
 			};
 
+			i2c1: i2c@f8018000 {
+				compatible = "atmel,at91sam9x5-i2c";
+				reg = <0xf8018000 0x4000>;
+				interrupts = <33 IRQ_TYPE_LEVEL_HIGH 6>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(4)>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(5)>;
+				dma-names = "tx", "rx";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&twi1_clk>;
+				status = "disabled";
+			};
+
 			tcb0: timer@f801c000 {
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xf801c000 0x100>;
@@ -852,6 +918,8 @@
 				interrupts = <54 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_macb0_rmii>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				clocks = <&macb0_clk>, <&macb0_clk>;
 				clock-names = "hclk", "pclk";
 				status = "disabled";
@@ -952,6 +1020,24 @@
 				status = "disabled";
 			};
 
+			ssc1: ssc@fc014000 {
+				compatible = "atmel,at91sam9g45-ssc";
+				reg = <0xfc014000 0x4000>;
+				interrupts = <49 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_ssc1_tx &pinctrl_ssc1_rx>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(28))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(29))>;
+				dma-names = "tx", "rx";
+				clocks = <&ssc1_clk>;
+				clock-names = "pclk";
+				status = "disabled";
+			};
+
 			tcb1: timer@fc020000 {
 				compatible = "atmel,at91sam9x5-tcb";
 				reg = <0xfc020000 0x100>;
@@ -1005,6 +1091,46 @@
 					trigger-name = "continuous";
 					trigger-value = <0x6>;
 				};
+			};
+
+			aes@fc044000 {
+				compatible = "atmel,at91sam9g46-aes";
+				reg = <0xfc044000 0x100>;
+				interrupts = <12 IRQ_TYPE_LEVEL_HIGH 0>;
+				dmas = <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(41)>,
+				       <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(40)>;
+				dma-names = "tx", "rx";
+				clocks = <&aes_clk>;
+				clock-names = "aes_clk";
+				status = "disabled";
+			};
+
+			tdes@fc04c000 {
+				compatible = "atmel,at91sam9g46-tdes";
+				reg = <0xfc04c000 0x100>;
+				interrupts = <14 IRQ_TYPE_LEVEL_HIGH 0>;
+				dmas = <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(42)>,
+				       <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(43)>;
+				dma-names = "tx", "rx";
+				clocks = <&tdes_clk>;
+				clock-names = "tdes_clk";
+				status = "disabled";
+			};
+
+			sha@fc050000 {
+				compatible = "atmel,at91sam9g46-sha";
+				reg = <0xfc050000 0x100>;
+				interrupts = <15 IRQ_TYPE_LEVEL_HIGH 0>;
+				dmas = <&dma0 (AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1))
+					AT91_XDMAC_DT_PERID(44)>;
+				dma-names = "tx";
+				clocks = <&sha_clk>;
+				clock-names = "sha_clk";
+				status = "disabled";
 			};
 
 			rstc@fc068600 {
@@ -1189,11 +1315,46 @@
 					};
 				};
 
+				i2c1 {
+					pinctrl_i2c1: i2c1-0 {
+						atmel,pins =
+							<AT91_PIOE 29 AT91_PERIPH_C AT91_PINCTRL_NONE	/* TWD1, conflicts with UART0 RX and DIBP */
+							 AT91_PIOE 30 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* TWCK1, conflicts with UART0 TX and DIBN */
+					};
+				};
+
 				i2c2 {
 					pinctrl_i2c2: i2c2-0 {
 						atmel,pins =
 							<AT91_PIOB 29 AT91_PERIPH_A AT91_PINCTRL_NONE	/* TWD2, conflicts with RD0 and PWML1 */
 							 AT91_PIOB 30 AT91_PERIPH_A AT91_PINCTRL_NONE>; /* TWCK2, conflicts with RF0 */
+					};
+				};
+
+				isi {
+					pinctrl_isi_data_0_7: isi-0-data-0-7 {
+						atmel,pins =
+							<AT91_PIOC 19 AT91_PERIPH_A AT91_PINCTRL_NONE	/* ISI_D0 */
+							 AT91_PIOC 20 AT91_PERIPH_A AT91_PINCTRL_NONE	/* ISI_D1 */
+							 AT91_PIOC 21 AT91_PERIPH_A AT91_PINCTRL_NONE	/* ISI_D2 */
+							 AT91_PIOC 22 AT91_PERIPH_A AT91_PINCTRL_NONE	/* ISI_D3 */
+							 AT91_PIOC 23 AT91_PERIPH_A AT91_PINCTRL_NONE	/* ISI_D4 */
+							 AT91_PIOC 24 AT91_PERIPH_A AT91_PINCTRL_NONE	/* ISI_D5 */
+							 AT91_PIOC 25 AT91_PERIPH_A AT91_PINCTRL_NONE	/* ISI_D6 */
+							 AT91_PIOC 26 AT91_PERIPH_A AT91_PINCTRL_NONE	/* ISI_D7 */
+							 AT91_PIOB  1 AT91_PERIPH_C AT91_PINCTRL_NONE	/* ISI_PCK, conflict with G0_RXCK */
+							 AT91_PIOB  3 AT91_PERIPH_C AT91_PINCTRL_NONE	/* ISI_VSYNC */
+							 AT91_PIOB  4 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* ISI_HSYNC */
+					};
+					pinctrl_isi_data_8_9: isi-0-data-8-9 {
+						atmel,pins =
+							<AT91_PIOC 0 AT91_PERIPH_C AT91_PINCTRL_NONE	/* ISI_D8, conflicts with SPI0_MISO, PWMH2 */
+							 AT91_PIOC 1 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* ISI_D9, conflicts with SPI0_MOSI, PWML2 */
+					};
+					pinctrl_isi_data_10_11: isi-0-data-10-11 {
+						atmel,pins =
+							<AT91_PIOC 2 AT91_PERIPH_C AT91_PINCTRL_NONE	/* ISI_D10, conflicts with SPI0_SPCK, PWMH3 */
+							 AT91_PIOC 3 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* ISI_D11, conflicts with SPI0_NPCS0, PWML3 */
 					};
 				};
 
@@ -1277,6 +1438,38 @@
 							 AT91_PIOC 1 AT91_PERIPH_A AT91_PINCTRL_NONE	/* SPI0_MOSI */
 							 AT91_PIOC 2 AT91_PERIPH_A AT91_PINCTRL_NONE	/* SPI0_SPCK */
 							>;
+					};
+				};
+
+				ssc0 {
+					pinctrl_ssc0_tx: ssc0_tx {
+						atmel,pins =
+							<AT91_PIOB 27 AT91_PERIPH_B AT91_PINCTRL_NONE	/* TK0 */
+							 AT91_PIOB 31 AT91_PERIPH_B AT91_PINCTRL_NONE	/* TF0 */
+							 AT91_PIOB 28 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* TD0 */
+					};
+
+					pinctrl_ssc0_rx: ssc0_rx {
+						atmel,pins =
+							<AT91_PIOB 26 AT91_PERIPH_B AT91_PINCTRL_NONE	/* RK0 */
+							 AT91_PIOB 30 AT91_PERIPH_B AT91_PINCTRL_NONE	/* RF0 */
+							 AT91_PIOB 29 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* RD0 */
+					};
+				};
+
+				ssc1 {
+					pinctrl_ssc1_tx: ssc1_tx {
+						atmel,pins =
+							<AT91_PIOC 19 AT91_PERIPH_B AT91_PINCTRL_NONE	/* TK1 */
+							 AT91_PIOC 20 AT91_PERIPH_B AT91_PINCTRL_NONE	/* TF1 */
+							 AT91_PIOC 21 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* TD1 */
+					};
+
+					pinctrl_ssc1_rx: ssc1_rx {
+						atmel,pins =
+							<AT91_PIOC 24 AT91_PERIPH_B AT91_PINCTRL_NONE	/* RK1 */
+							 AT91_PIOC 22 AT91_PERIPH_B AT91_PINCTRL_NONE	/* RF1 */
+							 AT91_PIOC 23 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* RD1 */
 					};
 				};
 

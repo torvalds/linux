@@ -1,8 +1,8 @@
 /*
- * at91-sama5d4ek.dts - Device Tree file for SAMA5D4 Evaluation Kit
+ * at91-sama5d4_xplained.dts - Device Tree file for SAMA5D4 Xplained board
  *
- *  Copyright (C) 2014 Atmel,
- *                2014 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *  Copyright (C) 2015 Atmel,
+ *                2015 Josh Wu <josh.wu@atmel.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -46,8 +46,8 @@
 #include "sama5d4.dtsi"
 
 / {
-	model = "Atmel SAMA5D4-EK";
-	compatible = "atmel,sama5d4ek", "atmel,sama5d4", "atmel,sama5";
+	model = "Atmel SAMA5D4 Xplained";
+	compatible = "atmel,sama5d4-xplained", "atmel,sama5d4", "atmel,sama5";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 ignore_loglevel earlyprintk";
@@ -78,47 +78,6 @@
 
 	ahb {
 		apb {
-			lcd_bus@f0000000 {
-				status = "okay";
-
-				lcd@f0000000 {
-					status = "okay";
-				};
-
-				lcdovl1@f0000140 {
-					status = "okay";
-				};
-
-				lcdovl2@f0000240 {
-					status = "okay";
-				};
-
-				lcdheo1@f0000340 {
-					status = "okay";
-				};
-			};
-
-			adc0: adc@fc034000 {
-				/* The vref depends on JP22 of EK. If connect 1-2 then use 3.3V. connect 2-3 use 3.0V */
-				atmel,adc-vref = <3300>;
-				/*atmel,adc-ts-wires = <4>;*/	/* Set up ADC touch screen */
-				status = "okay";		/* Enable ADC IIO support */
-			};
-
-			mmc0: mmc@f8000000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3 &pinctrl_mmc0_cd>;
-				slot@1 {
-					reg = <1>;
-					bus-width = <4>;
-					cd-gpios = <&pioE 5 0>;
-				};
-			};
-
-			ssc0: ssc@f8008000 {
-				status = "okay";
-			};
-
 			spi0: spi@f8010000 {
 				cs-gpios = <&pioC 3 0>, <0>, <0>, <0>;
 				status = "okay";
@@ -131,18 +90,17 @@
 
 			i2c0: i2c@f8014000 {
 				status = "okay";
-
-				wm8904: codec@1a {
-					compatible = "wlf,wm8904";
-					reg = <0x1a>;
-					clocks = <&pck2>;
-					clock-names = "mclk";
-				};
 			};
 
 			macb0: ethernet@f8020000 {
 				phy-mode = "rmii";
 				status = "okay";
+
+				phy0: ethernet-phy@1 {
+					interrupt-parent = <&pioE>;
+					interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+					reg = <1>;
+				};
 			};
 
 			mmc1: mmc@fc000000 {
@@ -152,12 +110,8 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioE 6 0>;
+					cd-gpios = <&pioE 3 0>;
 				};
-			};
-
-			usart2: serial@fc008000 {
-				status = "okay";
 			};
 
 			usart3: serial@fc00c000 {
@@ -168,23 +122,20 @@
 				status = "okay";
 			};
 
+			adc0: adc@fc034000 {
+				atmel,adc-vref = <3300>;
+				status = "okay";
+			};
+
 			watchdog@fc068640 {
 				status = "okay";
 			};
 
 			pinctrl@fc06a000 {
 				board {
-					pinctrl_mmc0_cd: mmc0_cd {
-						atmel,pins =
-							<AT91_PIOE 5 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
-					};
 					pinctrl_mmc1_cd: mmc1_cd {
 						atmel,pins =
-							<AT91_PIOE 6 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
-					};
-					pinctrl_pck2_as_audio_mck: pck2_as_audio_mck {
-						atmel,pins =
-							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+							<AT91_PIOE 3 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
 					pinctrl_usba_vbus: usba_vbus {
 						atmel,pins =
@@ -192,7 +143,7 @@
 					};
 					pinctrl_key_gpio: key_gpio_0 {
 						atmel,pins =
-							<AT91_PIOE 13 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>; /* PE13 gpio */
+							<AT91_PIOE 8 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
 				};
 			};
@@ -207,9 +158,9 @@
 
 		usb1: ohci@00500000 {
 			num-ports = <3>;
-			atmel,vbus-gpio = <0 /* &pioE 10 GPIO_ACTIVE_LOW */
-					   &pioE 11 GPIO_ACTIVE_LOW
-					   &pioE 12 GPIO_ACTIVE_LOW
+			atmel,vbus-gpio = <0
+					   &pioE 11 GPIO_ACTIVE_HIGH
+					   &pioE 14 GPIO_ACTIVE_HIGH
 					  >;
 			status = "okay";
 		};
@@ -265,7 +216,7 @@
 
 		pb_user1 {
 			label = "pb_user1";
-			gpios = <&pioE 13 GPIO_ACTIVE_HIGH>;
+			gpios = <&pioE 8 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x100>;
 			gpio-key,wakeup;
 		};
@@ -277,35 +228,14 @@
 
 		d8 {
 			label = "d8";
-			/* PE28, conflicts with usart4 rts pin */
-			gpios = <&pioE 28 GPIO_ACTIVE_LOW>;
-		};
-
-		d9 {
-			label = "d9";
-			gpios = <&pioE 9 GPIO_ACTIVE_HIGH>;
+			gpios = <&pioD 30 GPIO_ACTIVE_HIGH>;
+			status = "disabled";
 		};
 
 		d10 {
 			label = "d10";
-			gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
+			gpios = <&pioE 15 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
-	};
-
-	sound {
-		compatible = "atmel,asoc-wm8904";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pck2_as_audio_mck>;
-
-		atmel,model = "wm8904 @ SAMA5D4EK";
-		atmel,audio-routing =
-			"Headphone Jack", "HPOUTL",
-			"Headphone Jack", "HPOUTR",
-			"IN1L", "Line In Jack",
-			"IN1R", "Line In Jack";
-
-		atmel,ssc-controller = <&ssc0>;
-		atmel,audio-codec = <&wm8904>;
 	};
 };

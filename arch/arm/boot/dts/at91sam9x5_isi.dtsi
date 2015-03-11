@@ -13,12 +13,58 @@
 / {
 	ahb {
 		apb {
+			pinctrl@fffff400 {
+				isi {
+					pinctrl_isi_data_0_7: isi-0-data-0-7 {
+						atmel,pins =
+							<AT91_PIOC 0 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D0, conflicts with LCDDAT0 */
+							AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D1, conflicts with LCDDAT1 */
+							AT91_PIOC 2 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D2, conflicts with LCDDAT2 */
+							AT91_PIOC 3 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D3, conflicts with LCDDAT3 */
+							AT91_PIOC 4 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D4, conflicts with LCDDAT4 */
+							AT91_PIOC 5 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D5, conflicts with LCDDAT5 */
+							AT91_PIOC 6 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D6, conflicts with LCDDAT6 */
+							AT91_PIOC 7 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D7, conflicts with LCDDAT7 */
+							AT91_PIOC 12 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_PCK, conflicts with LCDDAT12 */
+							AT91_PIOC 14 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_HSYNC, conflicts with LCDDAT14 */
+							AT91_PIOC 13 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* ISI_VSYNC, conflicts with LCDDAT13 */
+					};
+
+					pinctrl_isi_data_8_9: isi-0-data-8-9 {
+						atmel,pins =
+							<AT91_PIOC 8 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D8, conflicts with LCDDAT8 */
+							AT91_PIOC 9 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* ISI_D9, conflicts with LCDDAT9 */
+					};
+
+					pinctrl_isi_data_10_11: isi-0-data-10-11 {
+						atmel,pins =
+							<AT91_PIOC 10 AT91_PERIPH_B AT91_PINCTRL_NONE	/* ISI_D10, conflicts with LCDDAT10 */
+							AT91_PIOC 11 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* ISI_D11, conflicts with LCDDAT11 */
+					};
+				};
+			};
+
 			pmc: pmc@fffffc00 {
 				periphck {
 					isi_clk: isi_clk {
 						#clock-cells = <0>;
 						reg = <25>;
 					};
+				};
+			};
+
+			isi: isi@f8048000 {
+				compatible = "atmel,at91sam9g45-isi";
+				reg = <0xf8048000 0x4000>;
+				interrupts = <25 IRQ_TYPE_LEVEL_HIGH 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_isi_data_0_7>;
+				clocks = <&isi_clk>;
+				clock-names = "isi_clk";
+				status = "disabled";
+				port {
+					#address-cells = <1>;
+					#size-cells = <0>;
 				};
 			};
 		};
