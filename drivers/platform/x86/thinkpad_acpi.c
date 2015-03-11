@@ -2938,7 +2938,7 @@ static ssize_t adaptive_kbd_mode_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	u32 current_mode;
+	int current_mode;
 
 	current_mode = adaptive_keyboard_get_mode();
 	if (current_mode < 0)
@@ -3621,7 +3621,7 @@ static int adaptive_keyboard_get_next_mode(int mode)
 
 static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 {
-	u32 current_mode = 0;
+	int current_mode = 0;
 	int new_mode = 0;
 	int keycode;
 
