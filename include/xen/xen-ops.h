@@ -34,6 +34,14 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 			       struct page **pages);
 int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
 			       int numpgs, struct page **pages);
+int xen_xlate_remap_gfn_range(struct vm_area_struct *vma,
+			      unsigned long addr,
+			      xen_pfn_t gfn, int nr,
+			      pgprot_t prot,
+			      unsigned domid,
+			      struct page **pages);
+int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
+			      int nr, struct page **pages);
 
 bool xen_running_on_version_or_later(unsigned int major, unsigned int minor);
 
