@@ -346,7 +346,7 @@ static int audit_set_backlog_wait_time(u32 timeout)
 static int audit_set_enabled(u32 state)
 {
 	int rc;
-	if (state < AUDIT_OFF || state > AUDIT_LOCKED)
+	if (state > AUDIT_LOCKED)
 		return -EINVAL;
 
 	rc =  audit_do_config_change("audit_enabled", &audit_enabled, state);
@@ -888,8 +888,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (s.mask & AUDIT_STATUS_BACKLOG_WAIT_TIME) {
 			if (sizeof(s) > (size_t)nlh->nlmsg_len)
 				return -EINVAL;
-			if (s.backlog_wait_time < 0 ||
-			    s.backlog_wait_time > 10*AUDIT_BACKLOG_WAIT_TIME)
+			if (s.backlog_wait_time > 10*AUDIT_BACKLOG_WAIT_TIME)
 				return -EINVAL;
 			err = audit_set_backlog_wait_time(s.backlog_wait_time);
 			if (err < 0)
