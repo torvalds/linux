@@ -39,15 +39,8 @@ EXPORT_SYMBOL(rtl_query_rxpwrpercentage);
 
 u8 rtl_evm_db_to_percentage(char value)
 {
-	char ret_val;
-	ret_val = value;
+	char ret_val = clamp(-value, 0, 33) * 3;
 
-	if (ret_val >= 0)
-		ret_val = 0;
-	if (ret_val <= -33)
-		ret_val = -33;
-	ret_val = 0 - ret_val;
-	ret_val *= 3;
 	if (ret_val == 99)
 		ret_val = 100;
 
