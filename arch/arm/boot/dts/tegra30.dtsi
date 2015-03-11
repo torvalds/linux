@@ -8,7 +8,7 @@
 
 / {
 	compatible = "nvidia,tegra30";
-	interrupt-parent = <&intc>;
+	interrupt-parent = <&lic>;
 
 	pcie-controller@00003000 {
 		compatible = "nvidia,tegra30-pcie";
@@ -228,6 +228,7 @@
 	timer@50040600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x50040600 0x20>;
+		interrupt-parent = <&intc>;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		clocks = <&tegra_car TEGRA30_CLK_TWD>;
@@ -239,6 +240,7 @@
 		       0x50040100 0x0100>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
 	};
 
 	cache-controller@50043000 {
@@ -248,6 +250,18 @@
 		arm,tag-latency = <5 5 2>;
 		cache-unified;
 		cache-level = <2>;
+	};
+
+	lic: interrupt-controller@60004000 {
+		compatible = "nvidia,tegra30-ictlr";
+		reg = <0x60004000 0x100>,
+		      <0x60004100 0x50>,
+		      <0x60004200 0x50>,
+		      <0x60004300 0x50>,
+		      <0x60004400 0x50>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&intc>;
 	};
 
 	timer@60005000 {
