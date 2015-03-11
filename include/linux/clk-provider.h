@@ -589,6 +589,7 @@ long __clk_mux_determine_rate_closest(struct clk_hw *hw, unsigned long rate,
 			      unsigned long max_rate,
 			      unsigned long *best_parent_rate,
 			      struct clk_hw **best_parent_p);
+void clk_hw_reparent(struct clk_hw *hw, struct clk_hw *new_parent);
 
 static inline void __clk_hw_set_clk(struct clk_hw *dst, struct clk_hw *src)
 {
