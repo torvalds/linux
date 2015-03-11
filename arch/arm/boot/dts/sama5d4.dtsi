@@ -462,8 +462,8 @@
 
 					lcdck: lcdck {
 						#clock-cells = <0>;
-						reg = <4>;
-						clocks = <&smd>;
+						reg = <3>;
+						clocks = <&mck>;
 					};
 
 					smdck: smdck {
@@ -771,7 +771,7 @@
 						reg = <50>;
 					};
 
-					lcd_clk: lcd_clk {
+					lcdc_clk: lcdc_clk {
 						#clock-cells = <0>;
 						reg = <51>;
 					};
