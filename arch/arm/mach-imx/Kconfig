@@ -77,13 +77,6 @@ config SOC_IMX21
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
 
-config SOC_IMX25
-	bool
-	select ARCH_MXC_IOMUX_V3
-	select CPU_ARM926T
-	select MXC_AVIC
-	select PINCTRL_IMX25
-
 config SOC_IMX27
 	bool
 	select CPU_ARM926T
@@ -148,13 +141,6 @@ config MACH_MX21ADS
 	help
 	  Include support for MX21ADS platform. This includes specific
 	  configurations for the board and its peripherals.
-
-config MACH_IMX25_DT
-	bool "Support i.MX25 platforms from device tree"
-	select SOC_IMX25
-	help
-	  Include support for Freescale i.MX25 based platforms
-	  using the device tree for discovery
 
 comment "MX27 platforms:"
 
@@ -506,6 +492,20 @@ config MACH_VPR200
 	  Include support for VPR200 platform. This includes specific
 	  configurations for the board and its peripherals.
 
+endif
+
+if ARCH_MULTI_V5
+
+comment "Device tree only"
+
+config SOC_IMX25
+	bool "i.MX25 support"
+	select ARCH_MXC_IOMUX_V3
+	select CPU_ARM926T
+	select MXC_AVIC
+	select PINCTRL_IMX25
+	help
+	  This enables support for Freescale i.MX25 processor
 endif
 
 if ARCH_MULTI_V7
