@@ -3357,7 +3357,7 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus,
 	brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
 
 	/* Keep arm in reset */
-	brcmf_chip_enter_download(bus->ci);
+	brcmf_chip_set_passive(bus->ci);
 
 	rstvec = get_unaligned_le32(fw->data);
 	brcmf_dbg(SDIO, "firmware rstvec: %x\n", rstvec);
@@ -3378,7 +3378,7 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus,
 	}
 
 	/* Take arm out of reset */
-	if (!brcmf_chip_exit_download(bus->ci, rstvec)) {
+	if (!brcmf_chip_set_active(bus->ci, rstvec)) {
 		brcmf_err("error getting out of ARM core reset\n");
 		goto err;
 	}
@@ -3771,8 +3771,8 @@ static int brcmf_sdio_buscoreprep(void *ctx)
 	return 0;
 }
 
-static void brcmf_sdio_buscore_exitdl(void *ctx, struct brcmf_chip *chip,
-				      u32 rstvec)
+static void brcmf_sdio_buscore_activate(void *ctx, struct brcmf_chip *chip,
+					u32 rstvec)
 {
 	struct brcmf_sdio_dev *sdiodev = ctx;
 	struct brcmf_core *core;
@@ -3815,7 +3815,7 @@ static void brcmf_sdio_buscore_write32(void *ctx, u32 addr, u32 val)
 
 static const struct brcmf_buscore_ops brcmf_sdio_buscore_ops = {
 	.prepare = brcmf_sdio_buscoreprep,
-	.exit_dl = brcmf_sdio_buscore_exitdl,
+	.activate = brcmf_sdio_buscore_activate,
 	.read32 = brcmf_sdio_buscore_read32,
 	.write32 = brcmf_sdio_buscore_write32,
 };
@@ -4239,12 +4239,11 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 				sdio_claim_host(bus->sdiodev->func[1]);
 				brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
 				/* Leave the device in state where it is
-				 * 'quiet'. This is done by putting it in
-				 * download_state which essentially resets
-				 * all necessary cores.
+				 * 'passive'. This is done by resetting all
+				 * necessary cores.
 				 */
 				msleep(20);
-				brcmf_chip_enter_download(bus->ci);
+				brcmf_chip_set_passive(bus->ci);
 				brcmf_sdio_clkctl(bus, CLK_NONE, false);
 				sdio_release_host(bus->sdiodev->func[1]);
 			}

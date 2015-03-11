@@ -807,7 +807,7 @@ struct brcmf_chip *brcmf_chip_attach(void *ctx,
 		err = -EINVAL;
 	if (WARN_ON(!ops->prepare))
 		err = -EINVAL;
-	if (WARN_ON(!ops->exit_dl))
+	if (WARN_ON(!ops->activate))
 		err = -EINVAL;
 	if (err < 0)
 		return ERR_PTR(-EINVAL);
@@ -905,7 +905,7 @@ void brcmf_chip_resetcore(struct brcmf_core *pub, u32 prereset, u32 reset,
 }
 
 static void
-brcmf_chip_cm3_enterdl(struct brcmf_chip_priv *chip)
+brcmf_chip_cm3_set_passive(struct brcmf_chip_priv *chip)
 {
 	struct brcmf_core *core;
 
@@ -919,7 +919,7 @@ brcmf_chip_cm3_enterdl(struct brcmf_chip_priv *chip)
 	brcmf_chip_resetcore(core, 0, 0, 0);
 }
 
-static bool brcmf_chip_cm3_exitdl(struct brcmf_chip_priv *chip)
+static bool brcmf_chip_cm3_set_active(struct brcmf_chip_priv *chip)
 {
 	struct brcmf_core *core;
 
@@ -929,7 +929,7 @@ static bool brcmf_chip_cm3_exitdl(struct brcmf_chip_priv *chip)
 		return false;
 	}
 
-	chip->ops->exit_dl(chip->ctx, &chip->pub, 0);
+	chip->ops->activate(chip->ctx, &chip->pub, 0);
 
 	core = brcmf_chip_get_core(&chip->pub, BCMA_CORE_ARM_CM3);
 	brcmf_chip_resetcore(core, 0, 0, 0);
@@ -938,7 +938,7 @@ static bool brcmf_chip_cm3_exitdl(struct brcmf_chip_priv *chip)
 }
 
 static inline void
-brcmf_chip_cr4_enterdl(struct brcmf_chip_priv *chip)
+brcmf_chip_cr4_set_passive(struct brcmf_chip_priv *chip)
 {
 	struct brcmf_core *core;
 
@@ -951,11 +951,11 @@ brcmf_chip_cr4_enterdl(struct brcmf_chip_priv *chip)
 			     D11_BCMA_IOCTL_PHYCLOCKEN);
 }
 
-static bool brcmf_chip_cr4_exitdl(struct brcmf_chip_priv *chip, u32 rstvec)
+static bool brcmf_chip_cr4_set_active(struct brcmf_chip_priv *chip, u32 rstvec)
 {
 	struct brcmf_core *core;
 
-	chip->ops->exit_dl(chip->ctx, &chip->pub, rstvec);
+	chip->ops->activate(chip->ctx, &chip->pub, rstvec);
 
 	/* restore ARM */
 	core = brcmf_chip_get_core(&chip->pub, BCMA_CORE_ARM_CR4);
@@ -964,7 +964,7 @@ static bool brcmf_chip_cr4_exitdl(struct brcmf_chip_priv *chip, u32 rstvec)
 	return true;
 }
 
-void brcmf_chip_enter_download(struct brcmf_chip *pub)
+void brcmf_chip_set_passive(struct brcmf_chip *pub)
 {
 	struct brcmf_chip_priv *chip;
 	struct brcmf_core *arm;
@@ -974,14 +974,14 @@ void brcmf_chip_enter_download(struct brcmf_chip *pub)
 	chip = container_of(pub, struct brcmf_chip_priv, pub);
 	arm = brcmf_chip_get_core(pub, BCMA_CORE_ARM_CR4);
 	if (arm) {
-		brcmf_chip_cr4_enterdl(chip);
+		brcmf_chip_cr4_set_passive(chip);
 		return;
 	}
 
-	brcmf_chip_cm3_enterdl(chip);
+	brcmf_chip_cm3_set_passive(chip);
 }
 
-bool brcmf_chip_exit_download(struct brcmf_chip *pub, u32 rstvec)
+bool brcmf_chip_set_active(struct brcmf_chip *pub, u32 rstvec)
 {
 	struct brcmf_chip_priv *chip;
 	struct brcmf_core *arm;
@@ -991,9 +991,9 @@ bool brcmf_chip_exit_download(struct brcmf_chip *pub, u32 rstvec)
 	chip = container_of(pub, struct brcmf_chip_priv, pub);
 	arm = brcmf_chip_get_core(pub, BCMA_CORE_ARM_CR4);
 	if (arm)
-		return brcmf_chip_cr4_exitdl(chip, rstvec);
+		return brcmf_chip_cr4_set_active(chip, rstvec);
 
-	return brcmf_chip_cm3_exitdl(chip);
+	return brcmf_chip_cm3_set_active(chip);
 }
 
 bool brcmf_chip_sr_capable(struct brcmf_chip *pub)
