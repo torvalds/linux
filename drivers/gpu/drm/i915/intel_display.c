@@ -3147,32 +3147,6 @@ static bool pipe_has_enabled_pch(struct intel_crtc *crtc)
 		crtc->config->has_pch_encoder;
 }
 
-static void ivb_modeset_global_resources(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *pipe_B_crtc =
-		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_B]);
-	struct intel_crtc *pipe_C_crtc =
-		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_C]);
-	uint32_t temp;
-
-	/*
-	 * When everything is off disable fdi C so that we could enable fdi B
-	 * with all lanes. Note that we don't care about enabled pipes without
-	 * an enabled pch encoder.
-	 */
-	if (!pipe_has_enabled_pch(pipe_B_crtc) &&
-	    !pipe_has_enabled_pch(pipe_C_crtc)) {
-		WARN_ON(I915_READ(FDI_RX_CTL(PIPE_B)) & FDI_RX_ENABLE);
-		WARN_ON(I915_READ(FDI_RX_CTL(PIPE_C)) & FDI_RX_ENABLE);
-
-		temp = I915_READ(SOUTH_CHICKEN1);
-		temp &= ~FDI_BC_BIFURCATION_SELECT;
-		DRM_DEBUG_KMS("disabling fdi C rx\n");
-		I915_WRITE(SOUTH_CHICKEN1, temp);
-	}
-}
-
 /* The FDI link training functions for ILK/Ibexpeak. */
 static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 {
@@ -3828,20 +3802,23 @@ static void ironlake_pch_transcoder_set_timings(struct intel_crtc *crtc,
 		   I915_READ(VSYNCSHIFT(cpu_transcoder)));
 }
 
-static void cpt_enable_fdi_bc_bifurcation(struct drm_device *dev)
+static void cpt_set_fdi_bc_bifurcation(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t temp;
 
 	temp = I915_READ(SOUTH_CHICKEN1);
-	if (temp & FDI_BC_BIFURCATION_SELECT)
+	if (!!(temp & FDI_BC_BIFURCATION_SELECT) == enable)
 		return;
 
 	WARN_ON(I915_READ(FDI_RX_CTL(PIPE_B)) & FDI_RX_ENABLE);
 	WARN_ON(I915_READ(FDI_RX_CTL(PIPE_C)) & FDI_RX_ENABLE);
 
-	temp |= FDI_BC_BIFURCATION_SELECT;
-	DRM_DEBUG_KMS("enabling fdi C rx\n");
+	temp &= ~FDI_BC_BIFURCATION_SELECT;
+	if (enable)
+		temp |= FDI_BC_BIFURCATION_SELECT;
+
+	DRM_DEBUG_KMS("%sabling fdi C rx\n", enable ? "en" : "dis");
 	I915_WRITE(SOUTH_CHICKEN1, temp);
 	POSTING_READ(SOUTH_CHICKEN1);
 }
@@ -3849,20 +3826,19 @@ static void cpt_enable_fdi_bc_bifurcation(struct drm_device *dev)
 static void ivybridge_update_fdi_bc_bifurcation(struct intel_crtc *intel_crtc)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	switch (intel_crtc->pipe) {
 	case PIPE_A:
 		break;
 	case PIPE_B:
 		if (intel_crtc->config->fdi_lanes > 2)
-			WARN_ON(I915_READ(SOUTH_CHICKEN1) & FDI_BC_BIFURCATION_SELECT);
+			cpt_set_fdi_bc_bifurcation(dev, false);
 		else
-			cpt_enable_fdi_bc_bifurcation(dev);
+			cpt_set_fdi_bc_bifurcation(dev, true);
 
 		break;
 	case PIPE_C:
-		cpt_enable_fdi_bc_bifurcation(dev);
+		cpt_set_fdi_bc_bifurcation(dev, true);
 
 		break;
 	default:
@@ -13141,8 +13117,6 @@ static void intel_init_display(struct drm_device *dev)
 	} else if (IS_IVYBRIDGE(dev)) {
 		/* FIXME: detect B0+ stepping and use auto training */
 		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
-		dev_priv->display.modeset_global_resources =
-			ivb_modeset_global_resources;
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 	} else if (IS_VALLEYVIEW(dev)) {
