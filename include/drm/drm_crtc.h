@@ -915,7 +915,7 @@ struct drm_bridge {
 };
 
 /**
- * struct struct drm_atomic_state - the global state object for atomic updates
+ * struct drm_atomic_state - the global state object for atomic updates
  * @dev: parent DRM device
  * @allow_modeset: allow full modeset
  * @legacy_cursor_update: hint to enforce legacy cursor ioctl semantics
