@@ -1150,6 +1150,7 @@ enum skl_disp_power_wells {
 /* control register for cpu gtt access */
 #define TILECTL				0x101000
 #define   TILECTL_SWZCTL			(1 << 0)
+#define   TILECTL_TLBPF			(1 << 1)
 #define   TILECTL_TLB_PREFETCH_DIS	(1 << 2)
 #define   TILECTL_BACKSNOOP_DIS		(1 << 3)
 

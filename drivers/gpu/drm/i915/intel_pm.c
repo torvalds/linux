@@ -110,6 +110,8 @@ static void bxt_init_clock_gating(struct drm_device *dev)
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE |
 		   GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ);
 
+	/* FIXME: apply on A0 only */
+	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
