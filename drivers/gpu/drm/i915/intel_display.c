@@ -5580,14 +5580,13 @@ static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		}
 		return true;
 	case PIPE_C:
-		if (!pipe_has_enabled_pch(pipe_B_crtc) ||
-		    pipe_B_crtc->config->fdi_lanes <= 2) {
-			if (pipe_config->fdi_lanes > 2) {
-				DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
-					      pipe_name(pipe), pipe_config->fdi_lanes);
-				return false;
-			}
-		} else {
+		if (pipe_config->fdi_lanes > 2) {
+			DRM_DEBUG_KMS("only 2 lanes on pipe %c: required %i lanes\n",
+				      pipe_name(pipe), pipe_config->fdi_lanes);
+			return false;
+		}
+		if (pipe_has_enabled_pch(pipe_B_crtc) &&
+		    pipe_B_crtc->config->fdi_lanes > 2) {
 			DRM_DEBUG_KMS("fdi link B uses too many lanes to enable link C\n");
 			return false;
 		}
