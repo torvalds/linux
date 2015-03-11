@@ -161,7 +161,7 @@ EXPORT_SYMBOL(drm_helper_crtc_in_use);
 static void
 drm_encoder_disable(struct drm_encoder *encoder)
 {
-	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
+	const struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 
 	if (encoder->bridge)
 		encoder->bridge->funcs->disable(encoder->bridge);
@@ -191,7 +191,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+		const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		if (!crtc->enabled) {
 			if (crtc_funcs->disable)
@@ -229,7 +229,7 @@ EXPORT_SYMBOL(drm_helper_disable_unused_functions);
 static void
 drm_crtc_prepare_encoders(struct drm_device *dev)
 {
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	struct drm_encoder *encoder;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -271,8 +271,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_display_mode *adjusted_mode, saved_mode, saved_hwmode;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	int saved_x, saved_y;
 	bool saved_enabled;
 	struct drm_encoder *encoder;
@@ -473,7 +473,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	bool fb_changed = false; /* if true and !mode_changed just do a flip */
 	struct drm_connector *save_connectors, *connector;
 	int count = 0, ro, fail = 0;
-	struct drm_crtc_helper_funcs *crtc_funcs;
+	const struct drm_crtc_helper_funcs *crtc_funcs;
 	struct drm_mode_set save_set;
 	int ret;
 	int i;
@@ -573,7 +573,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	/* a) traverse passed in connector list and get encoders for them */
 	count = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct drm_connector_helper_funcs *connector_funcs =
+		const struct drm_connector_helper_funcs *connector_funcs =
 			connector->helper_private;
 		new_encoder = connector->encoder;
 		for (ro = 0; ro < set->num_connectors; ro++) {
@@ -733,7 +733,7 @@ static int drm_helper_choose_encoder_dpms(struct drm_encoder *encoder)
 static void drm_helper_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_bridge *bridge = encoder->bridge;
-	struct drm_encoder_helper_funcs *encoder_funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 
 	if (bridge) {
 		if (mode == DRM_MODE_DPMS_ON)
@@ -795,7 +795,7 @@ void drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 	/* from off to on, do crtc then encoder */
 	if (mode < old_dpms) {
 		if (crtc) {
-			struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 			if (crtc_funcs->dpms)
 				(*crtc_funcs->dpms) (crtc,
 						     drm_helper_choose_crtc_dpms(crtc));
@@ -809,7 +809,7 @@ void drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 		if (encoder)
 			drm_helper_encoder_dpms(encoder, encoder_dpms);
 		if (crtc) {
-			struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+			const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 			if (crtc_funcs->dpms)
 				(*crtc_funcs->dpms) (crtc,
 						     drm_helper_choose_crtc_dpms(crtc));
@@ -871,7 +871,7 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
-	struct drm_crtc_helper_funcs *crtc_funcs;
+	const struct drm_crtc_helper_funcs *crtc_funcs;
 	int encoder_dpms;
 	bool ret;
 
@@ -936,7 +936,7 @@ int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mod
 			     struct drm_framebuffer *old_fb)
 {
 	struct drm_crtc_state *crtc_state;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	int ret;
 
 	if (crtc->funcs->atomic_duplicate_state)
