@@ -798,15 +798,12 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 		irq_domain_set_info(d, irq, hw, &gic_chip, d->host_data,
 				    handle_fasteoi_irq, NULL, NULL);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
-
-		gic_routable_irq_domain_ops->map(d, irq, hw);
 	}
 	return 0;
 }
 
 static void gic_irq_domain_unmap(struct irq_domain *d, unsigned int irq)
 {
-	gic_routable_irq_domain_ops->unmap(d, irq);
 }
 
 static int gic_irq_domain_xlate(struct irq_domain *d,
@@ -825,16 +822,8 @@ static int gic_irq_domain_xlate(struct irq_domain *d,
 	*out_hwirq = intspec[1] + 16;
 
 	/* For SPIs, we need to add 16 more to get the GIC irq ID number */
-	if (!intspec[0]) {
-		ret = gic_routable_irq_domain_ops->xlate(d, controller,
-							 intspec,
-							 intsize,
-							 out_hwirq,
-							 out_type);
-
-		if (IS_ERR_VALUE(ret))
-			return ret;
-	}
+	if (!intspec[0])
+		*out_hwirq += 16;
 
 	*out_type = intspec[2] & IRQ_TYPE_SENSE_MASK;
 
@@ -891,37 +880,6 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 	.xlate = gic_irq_domain_xlate,
 };
 
-/* Default functions for routable irq domain */
-static int gic_routable_irq_domain_map(struct irq_domain *d, unsigned int irq,
-			      irq_hw_number_t hw)
-{
-	return 0;
-}
-
-static void gic_routable_irq_domain_unmap(struct irq_domain *d,
-					  unsigned int irq)
-{
-}
-
-static int gic_routable_irq_domain_xlate(struct irq_domain *d,
-				struct device_node *controller,
-				const u32 *intspec, unsigned int intsize,
-				unsigned long *out_hwirq,
-				unsigned int *out_type)
-{
-	*out_hwirq += 16;
-	return 0;
-}
-
-static const struct irq_domain_ops gic_default_routable_irq_domain_ops = {
-	.map = gic_routable_irq_domain_map,
-	.unmap = gic_routable_irq_domain_unmap,
-	.xlate = gic_routable_irq_domain_xlate,
-};
-
-const struct irq_domain_ops *gic_routable_irq_domain_ops =
-					&gic_default_routable_irq_domain_ops;
-
 void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 			   void __iomem *dist_base, void __iomem *cpu_base,
 			   u32 percpu_offset, struct device_node *node)
@@ -929,7 +887,6 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 	irq_hw_number_t hwirq_base;
 	struct gic_chip_data *gic;
 	int gic_irqs, irq_base, i;
-	int nr_routable_irqs;
 
 	BUG_ON(gic_nr >= MAX_GIC_NR);
 
@@ -985,15 +942,9 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 	gic->gic_irqs = gic_irqs;
 
 	if (node) {		/* DT case */
-		const struct irq_domain_ops *ops = &gic_irq_domain_hierarchy_ops;
-
-		if (!of_property_read_u32(node, "arm,routable-irqs",
-					  &nr_routable_irqs)) {
-			ops = &gic_irq_domain_ops;
-			gic_irqs = nr_routable_irqs;
-		}
-
-		gic->domain = irq_domain_add_linear(node, gic_irqs, ops, gic);
+		gic->domain = irq_domain_add_linear(node, gic_irqs,
+						    &gic_irq_domain_hierarchy_ops,
+						    gic);
 	} else {		/* Non-DT case */
 		/*
 		 * For primary GICs, skip over SGIs.
