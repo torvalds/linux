@@ -32,7 +32,7 @@
  * The following structure pages are defined in GEN MMIO space
  * for virtualization. (One page for now)
  */
-#define VGT_MAGIC         0x4776544776544776	/* 'vGTvGTvG' */
+#define VGT_MAGIC         0x4776544776544776ULL	/* 'vGTvGTvG' */
 #define VGT_VERSION_MAJOR 1
 #define VGT_VERSION_MINOR 0
 
