@@ -353,39 +353,40 @@ static struct perf_evsel *nth_evsel(int n)
  * more semantic information such as miss/hit ratios,
  * instruction rates, etc:
  */
-static void update_shadow_stats(struct perf_evsel *counter, u64 *count)
+static void update_shadow_stats(struct perf_evsel *counter, u64 *count,
+				int cpu)
 {
 	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
-		update_stats(&runtime_nsecs_stats[0], count[0]);
+		update_stats(&runtime_nsecs_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-		update_stats(&runtime_cycles_stats[0], count[0]);
+		update_stats(&runtime_cycles_stats[cpu], count[0]);
 	else if (transaction_run &&
 		 perf_evsel__cmp(counter, nth_evsel(T_CYCLES_IN_TX)))
-		update_stats(&runtime_cycles_in_tx_stats[0], count[0]);
+		update_stats(&runtime_cycles_in_tx_stats[cpu], count[0]);
 	else if (transaction_run &&
 		 perf_evsel__cmp(counter, nth_evsel(T_TRANSACTION_START)))
-		update_stats(&runtime_transaction_stats[0], count[0]);
+		update_stats(&runtime_transaction_stats[cpu], count[0]);
 	else if (transaction_run &&
 		 perf_evsel__cmp(counter, nth_evsel(T_ELISION_START)))
-		update_stats(&runtime_elision_stats[0], count[0]);
+		update_stats(&runtime_elision_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
-		update_stats(&runtime_stalled_cycles_front_stats[0], count[0]);
+		update_stats(&runtime_stalled_cycles_front_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
-		update_stats(&runtime_stalled_cycles_back_stats[0], count[0]);
+		update_stats(&runtime_stalled_cycles_back_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-		update_stats(&runtime_branches_stats[0], count[0]);
+		update_stats(&runtime_branches_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
-		update_stats(&runtime_cacherefs_stats[0], count[0]);
+		update_stats(&runtime_cacherefs_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1D))
-		update_stats(&runtime_l1_dcache_stats[0], count[0]);
+		update_stats(&runtime_l1_dcache_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1I))
-		update_stats(&runtime_l1_icache_stats[0], count[0]);
+		update_stats(&runtime_l1_icache_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_LL))
-		update_stats(&runtime_ll_cache_stats[0], count[0]);
+		update_stats(&runtime_ll_cache_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_DTLB))
-		update_stats(&runtime_dtlb_cache_stats[0], count[0]);
+		update_stats(&runtime_dtlb_cache_stats[cpu], count[0]);
 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
-		update_stats(&runtime_itlb_cache_stats[0], count[0]);
+		update_stats(&runtime_itlb_cache_stats[cpu], count[0]);
 }
 
 static void zero_per_pkg(struct perf_evsel *counter)
@@ -447,7 +448,8 @@ static int read_cb(struct perf_evsel *evsel, int cpu, int thread __maybe_unused,
 			perf_evsel__compute_deltas(evsel, cpu, count);
 		perf_counts_values__scale(count, scale, NULL);
 		evsel->counts->cpu[cpu] = *count;
-		update_shadow_stats(evsel, count->values);
+		if (aggr_mode == AGGR_NONE)
+			update_shadow_stats(evsel, count->values, cpu);
 		break;
 	case AGGR_GLOBAL:
 		aggr->val += count->val;
@@ -495,7 +497,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	update_shadow_stats(counter, count);
+	update_shadow_stats(counter, count, 0);
 
 	return 0;
 }
