@@ -155,7 +155,7 @@ static struct resource *res_pci_find_mem(u_long base, u_long num,
 
 static int res_pci_init(struct pcmcia_socket *s)
 {
-	if (!s->cb_dev || !(s->features & SS_CAP_PAGE_REGS)) {
+	if (!s->cb_dev || (!s->features & SS_CAP_PAGE_REGS)) {
 		dev_err(&s->dev, "not supported by res_pci\n");
 		return -EOPNOTSUPP;
 	}
