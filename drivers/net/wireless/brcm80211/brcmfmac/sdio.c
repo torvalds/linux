@@ -432,8 +432,6 @@ struct brcmf_sdio {
 	struct brcmf_sdio_dev *sdiodev;	/* sdio device handler */
 	struct brcmf_chip *ci;	/* Chip info struct */
 
-	u32 ramsize;		/* Size of RAM in SOCRAM (bytes) */
-
 	u32 hostintmask;	/* Copy of Host Interrupt Mask */
 	atomic_t intstatus;	/* Intstatus bits (events) pending */
 	atomic_t fcstate;	/* State of dongle flow-control */
@@ -1075,7 +1073,7 @@ static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 	struct sdpcm_shared_le sh_le;
 	__le32 addr_le;
 
-	shaddr = bus->ci->rambase + bus->ramsize - 4;
+	shaddr = bus->ci->rambase + bus->ci->ramsize - 4;
 
 	/*
 	 * Read last word in socram to determine
@@ -3870,13 +3868,6 @@ brcmf_sdio_probe_attach(struct brcmf_sdio *bus)
 	else
 		drivestrength = DEFAULT_SDIO_DRIVE_STRENGTH;
 	brcmf_sdio_drivestrengthinit(bus->sdiodev, bus->ci, drivestrength);
-
-	/* Get info on the SOCRAM cores... */
-	bus->ramsize = bus->ci->ramsize;
-	if (!(bus->ramsize)) {
-		brcmf_err("failed to find SOCRAM memory!\n");
-		goto fail;
-	}
 
 	/* Set card control so an SDIO card reset does a WLAN backplane reset */
 	reg_val = brcmf_sdiod_regrb(bus->sdiodev,
