@@ -697,7 +697,6 @@ err_dbg:
 	debugfs_remove(priv->dbg_root);
 	return err;
 }
-EXPORT_SYMBOL(mlx5_dev_init);
 
 static void mlx5_dev_cleanup(struct mlx5_core_dev *dev)
 {
