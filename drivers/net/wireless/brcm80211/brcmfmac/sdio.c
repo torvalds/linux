@@ -1067,44 +1067,47 @@ static inline bool brcmf_sdio_valid_shared_address(u32 addr)
 static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 				 struct sdpcm_shared *sh)
 {
-	u32 addr;
+	u32 addr = 0;
 	int rv;
 	u32 shaddr = 0;
 	struct sdpcm_shared_le sh_le;
 	__le32 addr_le;
 
-	shaddr = bus->ci->rambase + bus->ci->ramsize - 4;
+	sdio_claim_host(bus->sdiodev->func[1]);
+	brcmf_sdio_bus_sleep(bus, false, false);
 
 	/*
 	 * Read last word in socram to determine
 	 * address of sdpcm_shared structure
 	 */
-	sdio_claim_host(bus->sdiodev->func[1]);
-	brcmf_sdio_bus_sleep(bus, false, false);
-	rv = brcmf_sdiod_ramrw(bus->sdiodev, false, shaddr, (u8 *)&addr_le, 4);
-	sdio_release_host(bus->sdiodev->func[1]);
+	shaddr = bus->ci->rambase + bus->ci->ramsize - 4;
+	if (!bus->ci->rambase && brcmf_chip_sr_capable(bus->ci))
+		shaddr -= bus->ci->srsize;
+	rv = brcmf_sdiod_ramrw(bus->sdiodev, false, shaddr,
+			       (u8 *)&addr_le, 4);
 	if (rv < 0)
-		return rv;
-
-	addr = le32_to_cpu(addr_le);
-
-	brcmf_dbg(SDIO, "sdpcm_shared address 0x%08X\n", addr);
+		goto fail;
 
 	/*
 	 * Check if addr is valid.
 	 * NVRAM length at the end of memory should have been overwritten.
 	 */
+	addr = le32_to_cpu(addr_le);
 	if (!brcmf_sdio_valid_shared_address(addr)) {
-			brcmf_err("invalid sdpcm_shared address 0x%08X\n",
-				  addr);
-			return -EINVAL;
+		brcmf_err("invalid sdpcm_shared address 0x%08X\n", addr);
+		rv = -EINVAL;
+		goto fail;
 	}
+
+	brcmf_dbg(INFO, "sdpcm_shared address 0x%08X\n", addr);
 
 	/* Read hndrte_shared structure */
 	rv = brcmf_sdiod_ramrw(bus->sdiodev, false, addr, (u8 *)&sh_le,
 			       sizeof(struct sdpcm_shared_le));
 	if (rv < 0)
-		return rv;
+		goto fail;
+
+	sdio_release_host(bus->sdiodev->func[1]);
 
 	/* Endianness */
 	sh->flags = le32_to_cpu(sh_le.flags);
@@ -1121,8 +1124,13 @@ static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 			  sh->flags & SDPCM_SHARED_VERSION_MASK);
 		return -EPROTO;
 	}
-
 	return 0;
+
+fail:
+	brcmf_err("unable to obtain sdpcm_shared info: rv=%d (addr=0x%x)\n",
+		  rv, addr);
+	sdio_release_host(bus->sdiodev->func[1]);
+	return rv;
 }
 
 static void brcmf_sdio_get_console_addr(struct brcmf_sdio *bus)
