@@ -186,7 +186,7 @@ static bool max98925_readable_register(struct device *dev, unsigned int reg)
 	}
 }
 
-DECLARE_TLV_DB_SCALE(max98925_spk_tlv, -600, 100, 0);
+static DECLARE_TLV_DB_SCALE(max98925_spk_tlv, -600, 100, 0);
 
 static const struct snd_kcontrol_new max98925_snd_controls[] = {
 	SOC_SINGLE_TLV("Speaker Volume", MAX98925_GAIN,
