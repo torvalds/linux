@@ -197,7 +197,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.name     = "RGB555 (LE)",
-		.fourcc   = V4L2_PIX_FMT_RGB555, /* gggbbbbb arrrrrgg */
+		.fourcc   = V4L2_PIX_FMT_RGB555, /* gggbbbbb xrrrrrgg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
 		.planes   = 1,
@@ -206,7 +206,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.name     = "XRGB555 (LE)",
-		.fourcc   = V4L2_PIX_FMT_XRGB555, /* gggbbbbb arrrrrgg */
+		.fourcc   = V4L2_PIX_FMT_XRGB555, /* gggbbbbb xrrrrrgg */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
 		.planes   = 1,
@@ -225,7 +225,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.name     = "RGB555 (BE)",
-		.fourcc   = V4L2_PIX_FMT_RGB555X, /* arrrrrgg gggbbbbb */
+		.fourcc   = V4L2_PIX_FMT_RGB555X, /* xrrrrrgg gggbbbbb */
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
 		.planes   = 1,
@@ -250,7 +250,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.name     = "RGB32 (LE)",
-		.fourcc   = V4L2_PIX_FMT_RGB32, /* argb */
+		.fourcc   = V4L2_PIX_FMT_RGB32, /* xrgb */
 		.vdownsampling = { 1 },
 		.bit_depth = { 32 },
 		.planes   = 1,
@@ -258,7 +258,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.name     = "RGB32 (BE)",
-		.fourcc   = V4L2_PIX_FMT_BGR32, /* bgra */
+		.fourcc   = V4L2_PIX_FMT_BGR32, /* bgrx */
 		.vdownsampling = { 1 },
 		.bit_depth = { 32 },
 		.planes   = 1,
@@ -266,7 +266,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.name     = "XRGB32 (LE)",
-		.fourcc   = V4L2_PIX_FMT_XRGB32, /* argb */
+		.fourcc   = V4L2_PIX_FMT_XRGB32, /* xrgb */
 		.vdownsampling = { 1 },
 		.bit_depth = { 32 },
 		.planes   = 1,
@@ -274,7 +274,7 @@ struct vivid_fmt vivid_formats[] = {
 	},
 	{
 		.name     = "XRGB32 (BE)",
-		.fourcc   = V4L2_PIX_FMT_XBGR32, /* bgra */
+		.fourcc   = V4L2_PIX_FMT_XBGR32, /* bgrx */
 		.vdownsampling = { 1 },
 		.bit_depth = { 32 },
 		.planes   = 1,
