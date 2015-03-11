@@ -419,13 +419,13 @@ static struct brcmf_core *brcmf_chip_add_core(struct brcmf_chip_priv *ci,
 	return &core->pub;
 }
 
-#ifdef DEBUG
 /* safety check for chipinfo */
 static int brcmf_chip_cores_check(struct brcmf_chip_priv *ci)
 {
 	struct brcmf_core_priv *core;
 	bool need_socram = false;
 	bool has_socram = false;
+	bool cpu_found = false;
 	int idx = 1;
 
 	list_for_each_entry(core, &ci->cores, list) {
@@ -435,12 +435,14 @@ static int brcmf_chip_cores_check(struct brcmf_chip_priv *ci)
 
 		switch (core->pub.id) {
 		case BCMA_CORE_ARM_CM3:
+			cpu_found = true;
 			need_socram = true;
 			break;
 		case BCMA_CORE_INTERNAL_MEM:
 			has_socram = true;
 			break;
 		case BCMA_CORE_ARM_CR4:
+			cpu_found = true;
 			if (ci->pub.rambase == 0) {
 				brcmf_err("RAM base not provided with ARM CR4 core\n");
 				return -ENOMEM;
@@ -451,19 +453,21 @@ static int brcmf_chip_cores_check(struct brcmf_chip_priv *ci)
 		}
 	}
 
+	if (!cpu_found) {
+		brcmf_err("CPU core not detected\n");
+		return -ENXIO;
+	}
 	/* check RAM core presence for ARM CM3 core */
 	if (need_socram && !has_socram) {
 		brcmf_err("RAM core not provided with ARM CM3 core\n");
 		return -ENODEV;
 	}
+	if (!ci->pub.ramsize) {
+		brcmf_err("RAM size is undetermined\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
-#else	/* DEBUG */
-static inline int brcmf_chip_cores_check(struct brcmf_chip_priv *ci)
-{
-	return 0;
-}
-#endif
 
 static void brcmf_chip_get_raminfo(struct brcmf_chip_priv *ci)
 {
