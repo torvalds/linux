@@ -70,6 +70,8 @@ tmp2	.req	r5
 
 	.text
 
+	.arm
+
 /* void at91_slow_clock(void __iomem *pmc, void __iomem *sdramc,
  *			void __iomem *ramc1, int memctrl)
  */
