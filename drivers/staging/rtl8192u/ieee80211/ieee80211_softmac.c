@@ -2122,20 +2122,20 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-/* following are for a simpler TX queue management.
- * Instead of using netif_[stop/wake]_queue the driver
- * will uses these two function (plus a reset one), that
- * will internally uses the kernel netif_* and takes
- * care of the ieee802.11 fragmentation.
- * So the driver receives a fragment per time and might
- * call the stop function when it want without take care
- * to have enought room to TX an entire packet.
- * This might be useful if each fragment need it's own
- * descriptor, thus just keep a total free memory > than
- * the max fragmentation treshold is not enought.. If the
- * ieee802.11 stack passed a TXB struct then you needed
+/* The following are for a simpler TX queue management.
+ * Instead of using netif_[stop/wake]_queue, the driver
+ * will use these two functions (plus a reset one) that
+ * will internally call the kernel netif_* and take care
+ * of the ieee802.11 fragmentation.
+ * So, the driver receives a fragment at a time and might
+ * call the stop function when it wants, without taking
+ * care to have enough room to TX an entire packet.
+ * This might be useful if each fragment needs its own
+ * descriptor. Thus, just keeping a total free memory > than
+ * the max fragmentation threshold is not enough. If the
+ * ieee802.11 stack passed a TXB struct, then you would need
  * to keep N free descriptors where
- * N = MAX_PACKET_SIZE / MIN_FRAG_TRESHOLD
+ * N = MAX_PACKET_SIZE / MIN_FRAG_THRESHOLD.
  * In this way you need just one and the 802.11 stack
  * will take care of buffering fragments and pass them to
  * to the driver later, when it wakes the queue.
