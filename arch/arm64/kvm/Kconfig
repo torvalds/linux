@@ -18,6 +18,7 @@ if VIRTUALIZATION
 
 config KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
+	depends on OF
 	select MMU_NOTIFIER
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
@@ -25,8 +26,7 @@ config KVM
 	select HAVE_KVM_ARCH_TLB_FLUSH_ALL
 	select KVM_MMIO
 	select KVM_ARM_HOST
-	select KVM_ARM_VGIC
-	select KVM_ARM_TIMER
+	select HAVE_KVM_IRQCHIP
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select SRCU
 	---help---
@@ -49,18 +49,5 @@ config KVM_ARM_MAX_VCPUS
 	  If you choose a high number, the vcpu structures will be quite
 	  large, so only choose a reasonable number that you expect to
 	  actually use.
-
-config KVM_ARM_VGIC
-	bool
-	depends on KVM_ARM_HOST && OF
-	select HAVE_KVM_IRQCHIP
-	---help---
-	  Adds support for a hardware assisted, in-kernel GIC emulation.
-
-config KVM_ARM_TIMER
-	bool
-	depends on KVM_ARM_VGIC
-	---help---
-	  Adds support for the Architected Timers in virtual machines.
 
 endif # VIRTUALIZATION

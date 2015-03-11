@@ -148,7 +148,6 @@ struct vgic_vm_ops {
 };
 
 struct vgic_dist {
-#ifdef CONFIG_KVM_ARM_VGIC
 	spinlock_t		lock;
 	bool			in_kernel;
 	bool			ready;
@@ -237,7 +236,6 @@ struct vgic_dist {
 	unsigned long		*irq_pending_on_cpu;
 
 	struct vgic_vm_ops	vm_ops;
-#endif
 };
 
 struct vgic_v2_cpu_if {
@@ -265,7 +263,6 @@ struct vgic_v3_cpu_if {
 };
 
 struct vgic_cpu {
-#ifdef CONFIG_KVM_ARM_VGIC
 	/* per IRQ to LR mapping */
 	u8		*vgic_irq_lr_map;
 
@@ -284,7 +281,6 @@ struct vgic_cpu {
 		struct vgic_v2_cpu_if	vgic_v2;
 		struct vgic_v3_cpu_if	vgic_v3;
 	};
-#endif
 };
 
 #define LR_EMPTY	0xff
@@ -297,7 +293,6 @@ struct kvm_vcpu;
 struct kvm_run;
 struct kvm_exit_mmio;
 
-#ifdef CONFIG_KVM_ARM_VGIC
 int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 int kvm_vgic_hyp_init(void);
 int kvm_vgic_map_resources(struct kvm *kvm);
@@ -331,86 +326,6 @@ static inline int vgic_v3_probe(struct device_node *vgic_node,
 				const struct vgic_params **params)
 {
 	return -ENODEV;
-}
-#endif
-
-#else
-static inline int kvm_vgic_hyp_init(void)
-{
-	return 0;
-}
-
-static inline int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr)
-{
-	return 0;
-}
-
-static inline int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
-{
-	return -ENXIO;
-}
-
-static inline int kvm_vgic_map_resources(struct kvm *kvm)
-{
-	return 0;
-}
-
-static inline int kvm_vgic_create(struct kvm *kvm, u32 type)
-{
-	return 0;
-}
-
-static inline void kvm_vgic_destroy(struct kvm *kvm)
-{
-}
-
-static inline void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
-{
-}
-
-static inline int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
-{
-	return 0;
-}
-
-static inline void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu) {}
-static inline void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu) {}
-
-static inline int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid,
-				      unsigned int irq_num, bool level)
-{
-	return 0;
-}
-
-static inline int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
-{
-	return 0;
-}
-
-static inline bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
-				    struct kvm_exit_mmio *mmio)
-{
-	return false;
-}
-
-static inline int irqchip_in_kernel(struct kvm *kvm)
-{
-	return 0;
-}
-
-static inline bool vgic_initialized(struct kvm *kvm)
-{
-	return true;
-}
-
-static inline bool vgic_ready(struct kvm *kvm)
-{
-	return true;
-}
-
-static inline int kvm_vgic_get_max_vcpus(void)
-{
-	return KVM_MAX_VCPUS;
 }
 #endif
 
