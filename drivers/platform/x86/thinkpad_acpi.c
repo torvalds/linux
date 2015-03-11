@@ -3656,8 +3656,9 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 		return true;
 
 	default:
-		if (scancode < FIRST_ADAPTIVE_KEY || scancode > FIRST_ADAPTIVE_KEY +
-				TPACPI_HOTKEY_MAP_LEN - ADAPTIVE_KEY_OFFSET) {
+		if (scancode < FIRST_ADAPTIVE_KEY ||
+		    scancode >= FIRST_ADAPTIVE_KEY + TPACPI_HOTKEY_MAP_LEN -
+				ADAPTIVE_KEY_OFFSET) {
 			pr_info("Unhandled adaptive keyboard key: 0x%x\n",
 					scancode);
 			return false;
