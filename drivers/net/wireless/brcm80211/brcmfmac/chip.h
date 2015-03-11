@@ -30,7 +30,8 @@
  * @pmucaps: PMU capabilities.
  * @pmurev: PMU revision.
  * @rambase: RAM base address (only applicable for ARM CR4 chips).
- * @ramsize: amount of RAM on chip.
+ * @ramsize: amount of RAM on chip including retention.
+ * @srsize: amount of retention RAM on chip.
  * @name: string representation of the chip identifier.
  */
 struct brcmf_chip {
@@ -41,6 +42,7 @@ struct brcmf_chip {
 	u32 pmurev;
 	u32 rambase;
 	u32 ramsize;
+	u32 srsize;
 	char name[8];
 };
 
