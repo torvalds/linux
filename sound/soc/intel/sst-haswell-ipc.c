@@ -1732,6 +1732,7 @@ static void sst_hsw_drop_all(struct sst_hsw *hsw)
 int sst_hsw_dsp_load(struct sst_hsw *hsw)
 {
 	struct sst_dsp *dsp = hsw->dsp;
+	struct sst_fw *sst_fw, *t;
 	int ret;
 
 	dev_dbg(hsw->dev, "loading audio DSP....");
@@ -1748,12 +1749,17 @@ int sst_hsw_dsp_load(struct sst_hsw *hsw)
 		return ret;
 	}
 
-	ret = sst_fw_reload(hsw->sst_fw);
-	if (ret < 0) {
-		dev_err(hsw->dev, "error: SST FW reload failed\n");
-		sst_dsp_dma_put_channel(dsp);
-		return -ENOMEM;
+	list_for_each_entry_safe_reverse(sst_fw, t, &dsp->fw_list, list) {
+		ret = sst_fw_reload(sst_fw);
+		if (ret < 0) {
+			dev_err(hsw->dev, "error: SST FW reload failed\n");
+			sst_dsp_dma_put_channel(dsp);
+			return -ENOMEM;
+		}
 	}
+	ret = sst_block_alloc_scratch(hsw->dsp);
+	if (ret < 0)
+		return -EINVAL;
 
 	sst_dsp_dma_put_channel(dsp);
 	return 0;
@@ -1809,12 +1815,17 @@ int sst_hsw_dsp_runtime_suspend(struct sst_hsw *hsw)
 
 int sst_hsw_dsp_runtime_sleep(struct sst_hsw *hsw)
 {
-	sst_fw_unload(hsw->sst_fw);
-	sst_block_free_scratch(hsw->dsp);
+	struct sst_fw *sst_fw, *t;
+	struct sst_dsp *dsp = hsw->dsp;
+
+	list_for_each_entry_safe(sst_fw, t, &dsp->fw_list, list) {
+		sst_fw_unload(sst_fw);
+	}
+	sst_block_free_scratch(dsp);
 
 	hsw->boot_complete = false;
 
-	sst_dsp_sleep(hsw->dsp);
+	sst_dsp_sleep(dsp);
 
 	return 0;
 }
@@ -1942,6 +1953,11 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 		dev_err(dev, "error: failed to load firmware\n");
 		goto fw_err;
 	}
+
+	/* allocate scratch mem regions */
+	ret = sst_block_alloc_scratch(hsw->dsp);
+	if (ret < 0)
+		goto boot_err;
 
 	/* wait for DSP boot completion */
 	sst_dsp_boot(hsw->dsp);
