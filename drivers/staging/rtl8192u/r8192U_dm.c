@@ -2681,10 +2681,8 @@ static void dm_init_fsync(struct net_device *dev)
 	priv->ieee80211->fsync_seconddiff_ratethreshold = 200;
 	priv->ieee80211->fsync_state = Default_Fsync;
 	priv->framesyncMonitor = 1;	/* current default 0xc38 monitor on */
-
-	init_timer(&priv->fsync_timer);
-	priv->fsync_timer.data = (unsigned long)dev;
-	priv->fsync_timer.function = dm_fsync_timer_callback;
+	setup_timer(&priv->fsync_timer, dm_fsync_timer_callback,
+		    (unsigned long)dev);
 }
 
 static void dm_deInit_fsync(struct net_device *dev)

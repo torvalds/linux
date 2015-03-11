@@ -2549,9 +2549,8 @@ static short rtl8192_init(struct net_device *dev)
 	rtl8192_read_eeprom_info(dev);
 	rtl8192_get_channel_map(dev);
 	init_hal_dm(dev);
-	init_timer(&priv->watch_dog_timer);
-	priv->watch_dog_timer.data = (unsigned long)dev;
-	priv->watch_dog_timer.function = watch_dog_timer_callback;
+	setup_timer(&priv->watch_dog_timer, watch_dog_timer_callback,
+		    (unsigned long)dev);
 	if (rtl8192_usb_initendpoints(dev) != 0) {
 		DMESG("Endopoints initialization failed");
 		return -ENOMEM;
