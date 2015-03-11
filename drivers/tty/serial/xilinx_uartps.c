@@ -37,7 +37,7 @@
 #define CDNS_UART_MINOR		0	/* works best with devtmpfs */
 #define CDNS_UART_NR_PORTS	2
 #define CDNS_UART_FIFO_SIZE	64	/* FIFO size */
-#define CDNS_UART_REGISTER_SPACE	0xFFF
+#define CDNS_UART_REGISTER_SPACE	0x1000
 
 #define cdns_uart_readl(offset)		ioread32(port->membase + offset)
 #define cdns_uart_writel(val, offset)	iowrite32(val, port->membase + offset)
