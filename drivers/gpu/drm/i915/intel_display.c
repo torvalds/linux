@@ -6246,7 +6246,7 @@ static void chv_prepare_pll(struct intel_crtc *crtc,
 	}
 	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW6(port), loopfilter);
 
-	dpio_val = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW8(pipe));
+	dpio_val = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW8(port));
 	dpio_val &= ~DPIO_CHV_TDC_TARGET_CNT_MASK;
 	dpio_val |= (tribuf_calcntr << DPIO_CHV_TDC_TARGET_CNT_SHIFT);
 	vlv_dpio_write(dev_priv, pipe, CHV_PLL_DW8(port), dpio_val);
