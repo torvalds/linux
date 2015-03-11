@@ -119,17 +119,15 @@
 
 	dcan1_pins_default: dcan1_pins_default {
 		pinctrl-single,pins = <
-			0x3d0   (PIN_OUTPUT | MUX_MODE0) /* dcan1_tx */
-			0x3d4   (MUX_MODE15)		/* dcan1_rx.off */
-			0x418   (PULL_DIS | MUX_MODE1) /* wakeup0.dcan1_rx */
+			0x3d0   (PIN_OUTPUT_PULLUP | MUX_MODE0) /* dcan1_tx */
+			0x418   (PULL_UP | MUX_MODE1)	/* wakeup0.dcan1_rx */
 		>;
 	};
 
 	dcan1_pins_sleep: dcan1_pins_sleep {
 		pinctrl-single,pins = <
-			0x3d0   (MUX_MODE15)	/* dcan1_tx.off */
-			0x3d4   (MUX_MODE15)	/* dcan1_rx.off */
-			0x418   (MUX_MODE15)	/* wakeup0.off */
+			0x3d0   (MUX_MODE15 | PULL_UP)	/* dcan1_tx.off */
+			0x418   (MUX_MODE15 | PULL_UP)	/* wakeup0.off */
 		>;
 	};
 
