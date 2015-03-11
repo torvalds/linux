@@ -428,7 +428,7 @@ static int __multipath_map(struct dm_target *ti, struct request *clone,
 	} else {
 		/* blk-mq request-based interface */
 		*__clone = blk_get_request(bdev_get_queue(bdev),
-					   rq_data_dir(rq), GFP_KERNEL);
+					   rq_data_dir(rq), GFP_ATOMIC);
 		if (IS_ERR(*__clone))
 			/* ENOMEM, requeue */
 			return r;
