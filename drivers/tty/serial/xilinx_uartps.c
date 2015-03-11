@@ -1010,7 +1010,7 @@ static struct uart_ops cdns_uart_ops = {
 #endif
 };
 
-static struct uart_port cdns_uart_port[2];
+static struct uart_port cdns_uart_port[CDNS_UART_NR_PORTS];
 
 /**
  * cdns_uart_get_port - Configure the port from platform device resource info
