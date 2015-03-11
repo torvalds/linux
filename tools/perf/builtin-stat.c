@@ -1094,6 +1094,8 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 		if (total) {
 			ratio = avg / total;
 			fprintf(output, " #   %5.2f  insns per cycle        ", ratio);
+		} else {
+			fprintf(output, "                                   ");
 		}
 		total = avg_stats(&runtime_stalled_cycles_front_stats[cpu]);
 		total = max(total, avg_stats(&runtime_stalled_cycles_back_stats[cpu]));
@@ -1163,6 +1165,8 @@ static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)
 		if (total) {
 			ratio = avg / total;
 			fprintf(output, " # %8.3f GHz                    ", ratio);
+		} else {
+			fprintf(output, "                                   ");
 		}
 	} else if (transaction_run &&
 		   perf_evsel__cmp(evsel, nth_evsel(T_CYCLES_IN_TX))) {
