@@ -4294,6 +4294,15 @@ S:	Supported
 F:	drivers/phy/
 F:	include/linux/phy/
 
+GENERIC PM DOMAINS
+M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
+M:	Kevin Hilman <khilman@kernel.org>
+M:	Ulf Hansson <ulf.hansson@linaro.org>
+L:	linux-pm@vger.kernel.org
+S:	Supported
+F:	drivers/base/power/domain*.c
+F:	include/linux/pm_domain.h
+
 GENERIC UIO DRIVER FOR PCI DEVICES
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	kvm@vger.kernel.org
