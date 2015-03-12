@@ -493,7 +493,6 @@ static u8 dm646x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_DM646X_EMACMISCINT]        = 7,
 	[IRQ_DM646X_MCASP0TXINT]        = 7,
 	[IRQ_DM646X_MCASP0RXINT]        = 7,
-	[IRQ_AEMIFINT]                  = 7,
 	[IRQ_DM646X_RESERVED_3]         = 7,
 	[IRQ_DM646X_MCASP1TXINT]        = 7,    /* clockevent */
 	[IRQ_TINT0_TINT34]              = 7,    /* clocksource */
