@@ -234,7 +234,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
 
 	new_bucket_lock = bucket_lock(new_tbl, new_hash);
 
-	spin_lock(new_bucket_lock);
+	spin_lock_nested(new_bucket_lock, RHT_LOCK_NESTED);
 	head = rht_dereference_bucket(new_tbl->buckets[new_hash],
 				      new_tbl, new_hash);
 
@@ -415,7 +415,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	tbl = rht_dereference_rcu(ht->future_tbl, ht);
 	if (tbl != old_tbl) {
 		hash = obj_raw_hashfn(ht, tbl, rht_obj(ht, obj));
-		spin_lock(bucket_lock(tbl, hash));
+		spin_lock_nested(bucket_lock(tbl, hash), RHT_LOCK_NESTED);
 	}
 
 	if (compare &&
