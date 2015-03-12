@@ -613,6 +613,8 @@ Description:
 		a given event type is enabled a future point (and not those for
 		whatever event was previously enabled).
 
+What:		/sys/.../events/in_accel_thresh_rising_value
+What:		/sys/.../events/in_accel_thresh_falling_value
 What:		/sys/.../events/in_accel_x_raw_thresh_rising_value
 What:		/sys/.../events/in_accel_x_raw_thresh_falling_value
 What:		/sys/.../events/in_accel_y_raw_thresh_rising_value
