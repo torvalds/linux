@@ -435,7 +435,7 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 {
 	struct kfd_ioctl_get_clock_counters_args *args = data;
 	struct kfd_dev *dev;
-	struct timespec time;
+	struct timespec64 time;
 
 	dev = kfd_device_by_id(args->gpu_id);
 	if (dev == NULL)
@@ -445,11 +445,11 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 	args->gpu_clock_counter = kfd2kgd->get_gpu_clock_counter(dev->kgd);
 
 	/* No access to rdtsc. Using raw monotonic time */
-	getrawmonotonic(&time);
-	args->cpu_clock_counter = (uint64_t)timespec_to_ns(&time);
+	getrawmonotonic64(&time);
+	args->cpu_clock_counter = (uint64_t)timespec64_to_ns(&time);
 
-	get_monotonic_boottime(&time);
-	args->system_clock_counter = (uint64_t)timespec_to_ns(&time);
+	get_monotonic_boottime64(&time);
+	args->system_clock_counter = (uint64_t)timespec64_to_ns(&time);
 
 	/* Since the counter is in nano-seconds we use 1GHz frequency */
 	args->system_clock_freq = 1000000000;
