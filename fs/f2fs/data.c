@@ -1066,7 +1066,10 @@ static void __allocate_data_blocks(struct inode *inode, loff_t offset,
 		end_offset = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
 
 		while (dn.ofs_in_node < end_offset && len) {
-			if (dn.data_blkaddr == NULL_ADDR) {
+			block_t blkaddr;
+
+			blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
+			if (blkaddr == NULL_ADDR) {
 				if (__allocate_data_block(&dn))
 					goto sync_out;
 				allocated = true;
