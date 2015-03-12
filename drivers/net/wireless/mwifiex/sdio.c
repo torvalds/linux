@@ -1133,6 +1133,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 	s32 f_do_rx_aggr = 0;
 	s32 f_do_rx_cur = 0;
 	s32 f_aggr_cur = 0;
+	s32 f_post_aggr_cur = 0;
 	struct sk_buff *skb_deaggr;
 	u32 pind;
 	u32 pkt_len, pkt_type, mport;
@@ -1169,7 +1170,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 			} else {
 				/* No room in Aggr buf, do rx aggr now */
 				f_do_rx_aggr = 1;
-				f_do_rx_cur = 1;
+				f_post_aggr_cur = 1;
 			}
 		} else {
 			/* Rx aggr not in progress */
@@ -1280,9 +1281,13 @@ rx_curr_single:
 
 		mwifiex_decode_rx_packet(adapter, skb, pkt_type);
 	}
+	if (f_post_aggr_cur) {
+		dev_dbg(adapter->dev, "info: current packet aggregation\n");
+		/* Curr pkt can be aggregated */
+		mp_rx_aggr_setup(card, skb, port);
+	}
 
 	return 0;
-
 error:
 	if (MP_RX_AGGR_IN_PROGRESS(card)) {
 		/* Multiport-aggregation transfer failed - cleanup */
