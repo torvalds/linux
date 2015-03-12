@@ -155,8 +155,8 @@ int setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 #else /* !CONFIG_X86_32 */
 		put_user_ex(regs->flags, &sc->flags);
 		put_user_ex(regs->cs, &sc->cs);
-		put_user_ex(0, &sc->gs);
-		put_user_ex(0, &sc->fs);
+		put_user_ex(0, &sc->__pad2);
+		put_user_ex(0, &sc->__pad1);
 		put_user_ex(regs->ss, &sc->ss);
 #endif /* CONFIG_X86_32 */
 
