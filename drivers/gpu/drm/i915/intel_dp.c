@@ -126,22 +126,11 @@ int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
 {
 	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
-	struct drm_device *dev = intel_dp->attached_connector->base.dev;
 
 	switch (max_link_bw) {
 	case DP_LINK_BW_1_62:
 	case DP_LINK_BW_2_7:
-		break;
-	case DP_LINK_BW_5_4: /* 1.2 capable displays may advertise higher bw */
-		if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
-			/* WaDisableHBR2:skl */
-			max_link_bw = DP_LINK_BW_2_7;
-		else if (((IS_HASWELL(dev) && !IS_HSW_ULX(dev)) ||
-		     INTEL_INFO(dev)->gen >= 8) &&
-		    intel_dp->dpcd[DP_DPCD_REV] >= 0x12)
-			max_link_bw = DP_LINK_BW_5_4;
-		else
-			max_link_bw = DP_LINK_BW_2_7;
+	case DP_LINK_BW_5_4:
 		break;
 	default:
 		WARN(1, "invalid max DP link bw val %x, using 1.62Gbps\n",
@@ -1154,10 +1143,8 @@ intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 }
 
 static int
-intel_dp_source_rates(struct intel_dp *intel_dp, const int **source_rates)
+intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-
 	if (INTEL_INFO(dev)->gen >= 9) {
 		*source_rates = gen9_rates;
 		return ARRAY_SIZE(gen9_rates);
@@ -1165,7 +1152,14 @@ intel_dp_source_rates(struct intel_dp *intel_dp, const int **source_rates)
 
 	*source_rates = default_rates;
 
-	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
+	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
+		/* WaDisableHBR2:skl */
+		return (DP_LINK_BW_2_7 >> 3) + 1;
+	else if (INTEL_INFO(dev)->gen >= 8 ||
+	    (IS_HASWELL(dev) && !IS_HSW_ULX(dev)))
+		return (DP_LINK_BW_5_4 >> 3) + 1;
+	else
+		return (DP_LINK_BW_2_7 >> 3) + 1;
 }
 
 static void
@@ -1259,7 +1253,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
 
-	source_len = intel_dp_source_rates(intel_dp, &source_rates);
+	source_len = intel_dp_source_rates(dev, &source_rates);
 
 	supported_len = intel_supported_rates(source_rates, source_len,
 				sink_rates, sink_len, supported_rates);
