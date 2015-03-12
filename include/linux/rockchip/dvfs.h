@@ -133,6 +133,10 @@ struct dvfs_node {
 	unsigned int		channel;
 	unsigned int		temp_channel;
 	unsigned long		temp_limit_rate;
+	unsigned int        target_temp;
+	unsigned int        temp_limit_enable;
+	unsigned int	    min_temp_limit;
+	int                 old_temp;
 	struct clk 		*clk;
 	struct pd_node		*pd;
 	struct vd_node		*vd;
