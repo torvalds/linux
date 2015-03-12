@@ -1239,6 +1239,46 @@ static int intel_supported_rates(struct intel_dp *intel_dp,
 			       supported_rates);
 }
 
+static void snprintf_int_array(char *str, size_t len,
+			       const int *array, int nelem)
+{
+	int i;
+
+	str[0] = '\0';
+
+	for (i = 0; i < nelem; i++) {
+		int r = snprintf(str, len, "%d,", array[i]);
+		if (r >= len)
+			return;
+		str += r;
+		len -= r;
+	}
+}
+
+static void intel_dp_print_rates(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	const int *source_rates, *sink_rates;
+	int source_len, sink_len, supported_len;
+	int supported_rates[DP_MAX_SUPPORTED_RATES];
+	char str[128]; /* FIXME: too big for stack? */
+
+	if ((drm_debug & DRM_UT_KMS) == 0)
+		return;
+
+	source_len = intel_dp_source_rates(dev, &source_rates);
+	snprintf_int_array(str, sizeof(str), source_rates, source_len);
+	DRM_DEBUG_KMS("source rates: %s\n", str);
+
+	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
+	snprintf_int_array(str, sizeof(str), sink_rates, sink_len);
+	DRM_DEBUG_KMS("sink rates: %s\n", str);
+
+	supported_len = intel_supported_rates(intel_dp, supported_rates);
+	snprintf_int_array(str, sizeof(str), supported_rates, supported_len);
+	DRM_DEBUG_KMS("supported rates: %s\n", str);
+}
+
 static int rate_to_index(int find, const int *rates)
 {
 	int i = 0;
@@ -3775,6 +3815,9 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		}
 		intel_dp->num_supported_rates = i;
 	}
+
+	intel_dp_print_rates(intel_dp);
+
 	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 	      DP_DWN_STRM_PORT_PRESENT))
 		return true; /* native DP sink */
