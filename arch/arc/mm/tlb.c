@@ -736,7 +736,8 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 
 	if (p_mmu->s_pg_sz_m)
 		scnprintf(super_pg, 64, "%dM Super Page%s, ",
-			  p_mmu->s_pg_sz_m, " (not used)");
+			  p_mmu->s_pg_sz_m,
+			  IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) ? "" : " (not used)");
 
 	n += scnprintf(buf + n, len - n,
 		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d %s\n",
@@ -770,6 +771,11 @@ void arc_mmu_init(void)
 
 	if (mmu->pg_sz_k != TO_KB(PAGE_SIZE))
 		panic("MMU pg size != PAGE_SIZE (%luk)\n", TO_KB(PAGE_SIZE));
+
+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
+	    mmu->s_pg_sz_m != TO_MB(HPAGE_PMD_SIZE))
+		panic("MMU Super pg size != Linux HPAGE_PMD_SIZE (%luM)\n",
+		      (unsigned long)TO_MB(HPAGE_PMD_SIZE));
 
 	/* Enable the MMU */
 	write_aux_reg(ARC_REG_PID, MMU_ENABLE);
