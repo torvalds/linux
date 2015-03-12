@@ -126,9 +126,9 @@ static void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
 	const char *name = tk->tkr.clock->name;
 
 	if (offset > max_cycles) {
-		printk_deferred("WARNING: timekeeping: Cycle offset (%lld) is larger than allowed by the '%s' clock's max_cycles value (%lld): time overflow\n",
+		printk_deferred("WARNING: timekeeping: Cycle offset (%lld) is larger than allowed by the '%s' clock's max_cycles value (%lld): time overflow danger\n",
 				offset, name, max_cycles);
-		printk_deferred("         timekeeping: Your kernel is sick, but tries to cope\n");
+		printk_deferred("         timekeeping: Your kernel is sick, but tries to cope by capping time updates\n");
 	} else {
 		if (offset > (max_cycles >> 1)) {
 			printk_deferred("INFO: timekeeping: Cycle offset (%lld) is larger than the the '%s' clock's 50%% safety margin (%lld)\n",
@@ -137,9 +137,38 @@ static void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
 		}
 	}
 }
+
+static inline cycle_t timekeeping_get_delta(struct tk_read_base *tkr)
+{
+	cycle_t cycle_now, delta;
+
+	/* read clocksource */
+	cycle_now = tkr->read(tkr->clock);
+
+	/* calculate the delta since the last update_wall_time */
+	delta = clocksource_delta(cycle_now, tkr->cycle_last, tkr->mask);
+
+	/* Cap delta value to the max_cycles values to avoid mult overflows */
+	if (unlikely(delta > tkr->clock->max_cycles))
+		delta = tkr->clock->max_cycles;
+
+	return delta;
+}
 #else
 static inline void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
 {
+}
+static inline cycle_t timekeeping_get_delta(struct tk_read_base *tkr)
+{
+	cycle_t cycle_now, delta;
+
+	/* read clocksource */
+	cycle_now = tkr->read(tkr->clock);
+
+	/* calculate the delta since the last update_wall_time */
+	delta = clocksource_delta(cycle_now, tkr->cycle_last, tkr->mask);
+
+	return delta;
 }
 #endif
 
@@ -218,14 +247,10 @@ static inline u32 arch_gettimeoffset(void) { return 0; }
 
 static inline s64 timekeeping_get_ns(struct tk_read_base *tkr)
 {
-	cycle_t cycle_now, delta;
+	cycle_t delta;
 	s64 nsec;
 
-	/* read clocksource: */
-	cycle_now = tkr->read(tkr->clock);
-
-	/* calculate the delta since the last update_wall_time: */
-	delta = clocksource_delta(cycle_now, tkr->cycle_last, tkr->mask);
+	delta = timekeeping_get_delta(tkr);
 
 	nsec = delta * tkr->mult + tkr->xtime_nsec;
 	nsec >>= tkr->shift;
@@ -237,14 +262,10 @@ static inline s64 timekeeping_get_ns(struct tk_read_base *tkr)
 static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
 {
 	struct clocksource *clock = tk->tkr.clock;
-	cycle_t cycle_now, delta;
+	cycle_t delta;
 	s64 nsec;
 
-	/* read clocksource: */
-	cycle_now = tk->tkr.read(clock);
-
-	/* calculate the delta since the last update_wall_time: */
-	delta = clocksource_delta(cycle_now, tk->tkr.cycle_last, tk->tkr.mask);
+	delta = timekeeping_get_delta(&tk->tkr);
 
 	/* convert delta to nanoseconds. */
 	nsec = clocksource_cyc2ns(delta, clock->mult, clock->shift);
