@@ -1878,6 +1878,13 @@ static int __init i2c_init(void)
 {
 	int retval;
 
+	retval = of_alias_get_highest_id("i2c");
+
+	down_write(&__i2c_board_lock);
+	if (retval >= __i2c_first_dynamic_bus_num)
+		__i2c_first_dynamic_bus_num = retval + 1;
+	up_write(&__i2c_board_lock);
+
 	retval = bus_register(&i2c_bus_type);
 	if (retval)
 		return retval;
