@@ -361,7 +361,6 @@ config ARCH_AT91
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select IRQ_DOMAIN
-	select NEED_MACH_IO_H if PCCARD
 	select PINCTRL
 	select PINCTRL_AT91
 	select USE_OF

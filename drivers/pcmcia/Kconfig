@@ -278,6 +278,7 @@ config BFIN_CFPCMCIA
 
 config AT91_CF
 	tristate "AT91 CompactFlash Controller"
+	depends on PCI
 	depends on PCMCIA && ARCH_AT91
 	depends on !ARCH_MULTIPLATFORM
 	help
