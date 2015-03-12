@@ -2166,6 +2166,65 @@ int sst_hsw_module_disable(struct sst_hsw *hsw,
 	return ret;
 }
 
+int sst_hsw_module_set_param(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id, u32 parameter_id,
+	u32 param_size, char *param)
+{
+	int ret;
+	unsigned char *data = NULL;
+	u32 header = 0;
+	u32 payload_size = 0, transfer_parameter_size = 0;
+	dma_addr_t dma_addr = 0;
+	struct sst_hsw_transfer_parameter *parameter;
+	struct device *dev = hsw->dev;
+
+	header = IPC_GLB_TYPE(IPC_GLB_MODULE_OPERATION) |
+			IPC_MODULE_OPERATION(IPC_MODULE_SET_PARAMETER) |
+			IPC_MODULE_ID(module_id);
+	dev_dbg(dev, "sst_hsw_module_set_param header=%x\n", header);
+
+	payload_size = param_size +
+		sizeof(struct sst_hsw_transfer_parameter) -
+		sizeof(struct sst_hsw_transfer_list);
+	dev_dbg(dev, "parameter size : %d\n", param_size);
+	dev_dbg(dev, "payload size   : %d\n", payload_size);
+
+	if (payload_size <= SST_HSW_IPC_MAX_SHORT_PARAMETER_SIZE) {
+		/* short parameter, mailbox can contain data */
+		dev_dbg(dev, "transfer parameter size : %d\n",
+			transfer_parameter_size);
+
+		transfer_parameter_size = ALIGN(payload_size, 4);
+		dev_dbg(dev, "transfer parameter aligned size : %d\n",
+			transfer_parameter_size);
+
+		parameter = kzalloc(transfer_parameter_size, GFP_KERNEL);
+		if (parameter == NULL)
+			return -ENOMEM;
+
+		memcpy(parameter->data, param, param_size);
+	} else {
+		dev_warn(dev, "transfer parameter size too large!");
+		return 0;
+	}
+
+	parameter->parameter_id = parameter_id;
+	parameter->data_size = param_size;
+
+	ret = ipc_tx_message_wait(hsw, header,
+		parameter, transfer_parameter_size , NULL, 0);
+	if (ret < 0)
+		dev_err(dev, "ipc: module set parameter failed - %d\n", ret);
+
+	kfree(parameter);
+
+	if (data)
+		dma_free_coherent(hsw->dsp->dma_dev,
+			param_size, (void *)data, dma_addr);
+
+	return ret;
+}
+
 static struct sst_dsp_device hsw_dev = {
 	.thread = hsw_irq_thread,
 	.ops = &haswell_ops,

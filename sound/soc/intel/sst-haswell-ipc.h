@@ -37,6 +37,7 @@
 #define SST_HSW_IPC_MAX_PAYLOAD_SIZE	400
 #define SST_HSW_MAX_INFO_SIZE		64
 #define SST_HSW_BUILD_HASH_LENGTH	40
+#define SST_HSW_IPC_MAX_SHORT_PARAMETER_SIZE	500
 
 struct sst_hsw;
 struct sst_hsw_stream;
@@ -186,6 +187,28 @@ enum sst_hsw_performance_action {
 	SST_HSW_PERF_START = 0,
 	SST_HSW_PERF_STOP = 1,
 };
+
+struct sst_hsw_transfer_info {
+	uint32_t destination;       /* destination address */
+	uint32_t reverse:1;         /* if 1 data flows from destination */
+	uint32_t size:31;           /* transfer size in bytes.*/
+	uint16_t first_page_offset; /* offset to data in the first page. */
+	uint8_t  packed_pages;   /* page addresses. Each occupies 20 bits */
+} __attribute__((packed));
+
+struct sst_hsw_transfer_list {
+	uint32_t transfers_count;
+	struct sst_hsw_transfer_info transfers;
+} __attribute__((packed));
+
+struct sst_hsw_transfer_parameter {
+	uint32_t parameter_id;
+	uint32_t data_size;
+	union {
+		uint8_t data[1];
+		struct sst_hsw_transfer_list transfer_list;
+	};
+} __attribute__((packed));
 
 /* SST firmware module info */
 struct sst_hsw_module_info {
@@ -487,6 +510,9 @@ int sst_hsw_module_enable(struct sst_hsw *hsw,
 	u32 module_id, u32 instance_id);
 int sst_hsw_module_disable(struct sst_hsw *hsw,
 	u32 module_id, u32 instance_id);
+int sst_hsw_module_set_param(struct sst_hsw *hsw,
+	u32 module_id, u32 instance_id, u32 parameter_id,
+	u32 param_size, char *param);
 
 /* runtime module management */
 struct sst_module_runtime *sst_hsw_runtime_module_create(struct sst_hsw *hsw,
