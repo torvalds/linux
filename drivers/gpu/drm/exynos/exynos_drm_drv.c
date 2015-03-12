@@ -81,7 +81,7 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	exynos_drm_mode_config_init(dev);
 
-	for (nr = 0; nr < MAX_PLANE; nr++) {
+	for (nr = 0; nr < MAX_PLANE - 1; nr++) {
 		struct drm_plane *plane;
 		unsigned long possible_crtcs = (1 << MAX_CRTC) - 1;
 
