@@ -35,6 +35,7 @@
 #include <linux/ctype.h>
 #include <linux/of.h>
 #include <linux/idr.h>
+#include <linux/inetdevice.h>
 
 #include "decl.h"
 #include "ioctl.h"
