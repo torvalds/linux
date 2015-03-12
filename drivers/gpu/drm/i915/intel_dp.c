@@ -1160,22 +1160,18 @@ intel_read_sink_rates(struct intel_dp *intel_dp, int *sink_rates)
 }
 
 static int
-intel_read_source_rates(struct intel_dp *intel_dp, int *source_rates)
+intel_dp_source_rates(struct intel_dp *intel_dp, const int **source_rates)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	int i;
-	int max_default_rate;
 
-	if (INTEL_INFO(dev)->gen >= 9 && intel_dp->supported_rates[0]) {
-		for (i = 0; i < ARRAY_SIZE(gen9_rates); ++i)
-			source_rates[i] = gen9_rates[i];
-	} else {
-		/* Index of the max_link_bw supported + 1 */
-		max_default_rate = (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
-		for (i = 0; i < max_default_rate; ++i)
-			source_rates[i] = default_rates[i];
+	if (INTEL_INFO(dev)->gen >= 9) {
+		*source_rates = gen9_rates;
+		return ARRAY_SIZE(gen9_rates);
 	}
-	return i;
+
+	*source_rates = default_rates;
+
+	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
 }
 
 static void
@@ -1272,12 +1268,12 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int link_avail, link_clock;
 	int sink_rates[8];
 	int supported_rates[8] = {0};
-	int source_rates[8];
+	const int *source_rates;
 	int source_len, sink_len, supported_len;
 
 	sink_len = intel_read_sink_rates(intel_dp, sink_rates);
 
-	source_len = intel_read_source_rates(intel_dp, source_rates);
+	source_len = intel_dp_source_rates(intel_dp, &source_rates);
 
 	supported_len = intel_supported_rates(source_rates, source_len,
 				sink_rates, sink_len, supported_rates);
