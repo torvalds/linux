@@ -1069,23 +1069,29 @@ static void usbhsf_dma_init_pdev(struct usbhs_fifo *fifo)
 					    &fifo->rx_slave);
 }
 
-static void usbhsf_dma_init_dt(struct device *dev, struct usbhs_fifo *fifo)
+static void usbhsf_dma_init_dt(struct device *dev, struct usbhs_fifo *fifo,
+			       int channel)
 {
-	fifo->tx_chan = dma_request_slave_channel_reason(dev, "tx");
+	char name[16];
+
+	snprintf(name, sizeof(name), "tx%d", channel);
+	fifo->tx_chan = dma_request_slave_channel_reason(dev, name);
 	if (IS_ERR(fifo->tx_chan))
 		fifo->tx_chan = NULL;
-	fifo->rx_chan = dma_request_slave_channel_reason(dev, "rx");
+
+	snprintf(name, sizeof(name), "rx%d", channel);
+	fifo->rx_chan = dma_request_slave_channel_reason(dev, name);
 	if (IS_ERR(fifo->rx_chan))
 		fifo->rx_chan = NULL;
 }
 
-static void usbhsf_dma_init(struct usbhs_priv *priv,
-			    struct usbhs_fifo *fifo)
+static void usbhsf_dma_init(struct usbhs_priv *priv, struct usbhs_fifo *fifo,
+			    int channel)
 {
 	struct device *dev = usbhs_priv_to_dev(priv);
 
 	if (dev->of_node)
-		usbhsf_dma_init_dt(dev, fifo);
+		usbhsf_dma_init_dt(dev, fifo, channel);
 	else
 		usbhsf_dma_init_pdev(fifo);
 
@@ -1231,7 +1237,7 @@ do {									\
 			usbhs_get_dparam(priv, d##channel##_tx_id);	\
 	fifo->rx_slave.shdma_slave.slave_id =				\
 			usbhs_get_dparam(priv, d##channel##_rx_id);	\
-	usbhsf_dma_init(priv, fifo);					\
+	usbhsf_dma_init(priv, fifo, channel);				\
 } while (0)
 
 #define USBHS_DFIFO_INIT(priv, fifo, channel)				\
