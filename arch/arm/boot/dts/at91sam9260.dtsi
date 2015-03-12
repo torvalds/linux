@@ -494,12 +494,12 @@
 
 					pinctrl_usart3_rts: usart3_rts-0 {
 						atmel,pins =
-							<AT91_PIOB 8 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PC8 periph B */
+							<AT91_PIOC 8 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 
 					pinctrl_usart3_cts: usart3_cts-0 {
 						atmel,pins =
-							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PC10 periph B */
+							<AT91_PIOC 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 				};
 
@@ -976,7 +976,6 @@
 				atmel,watchdog-type = "hardware";
 				atmel,reset-type = "all";
 				atmel,dbg-halt;
-				atmel,idle-halt;
 				status = "disabled";
 			};
 
