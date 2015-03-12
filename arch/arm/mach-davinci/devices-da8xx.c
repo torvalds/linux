@@ -475,6 +475,11 @@ static struct resource da830_mcasp1_resources[] = {
 		.end	= DAVINCI_DA830_DMA_MCASP1_AREVT,
 		.flags	= IORESOURCE_DMA,
 	},
+	{
+		.name	= "common",
+		.start	= IRQ_DA8XX_MCASPINT,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device da830_mcasp1_device = {
@@ -504,6 +509,11 @@ static struct resource da850_mcasp_resources[] = {
 		.start	= DAVINCI_DA8XX_DMA_MCASP0_AREVT,
 		.end	= DAVINCI_DA8XX_DMA_MCASP0_AREVT,
 		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.name	= "common",
+		.start	= IRQ_DA8XX_MCASPINT,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
