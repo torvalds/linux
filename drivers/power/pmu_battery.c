@@ -152,7 +152,7 @@ static int __init pmu_bat_init(void)
 		goto pdev_register_failed;
 	}
 
-	ret = power_supply_register(&bat_pdev->dev, &pmu_ac);
+	ret = power_supply_register(&bat_pdev->dev, &pmu_ac, NULL);
 	if (ret)
 		goto ac_register_failed;
 
@@ -169,7 +169,7 @@ static int __init pmu_bat_init(void)
 		pbat->bat.get_property = pmu_bat_get_property;
 		pbat->pbi = &pmu_batteries[i];
 
-		ret = power_supply_register(&bat_pdev->dev, &pbat->bat);
+		ret = power_supply_register(&bat_pdev->dev, &pbat->bat, NULL);
 		if (ret) {
 			kfree(pbat);
 			goto battery_register_failed;

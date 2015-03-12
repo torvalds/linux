@@ -536,7 +536,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 	wall->properties = wm831x_wall_props;
 	wall->num_properties = ARRAY_SIZE(wm831x_wall_props);
 	wall->get_property = wm831x_wall_get_prop;
-	ret = power_supply_register(&pdev->dev, wall);
+	ret = power_supply_register(&pdev->dev, wall, NULL);
 	if (ret)
 		goto err_kmalloc;
 
@@ -545,7 +545,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 	usb->properties = wm831x_usb_props;
 	usb->num_properties = ARRAY_SIZE(wm831x_usb_props);
 	usb->get_property = wm831x_usb_get_prop;
-	ret = power_supply_register(&pdev->dev, usb);
+	ret = power_supply_register(&pdev->dev, usb, NULL);
 	if (ret)
 		goto err_wall;
 
@@ -560,7 +560,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 		    battery->num_properties = ARRAY_SIZE(wm831x_bat_props);
 		    battery->get_property = wm831x_bat_get_prop;
 		    battery->use_for_apm = 1;
-		    ret = power_supply_register(&pdev->dev, battery);
+		    ret = power_supply_register(&pdev->dev, battery, NULL);
 		    if (ret)
 			    goto err_usb;
 	}

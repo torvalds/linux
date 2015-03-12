@@ -358,13 +358,13 @@ static int tosa_bat_probe(struct platform_device *dev)
 
 	INIT_WORK(&bat_work, tosa_bat_work);
 
-	ret = power_supply_register(&dev->dev, &tosa_bat_main.psy);
+	ret = power_supply_register(&dev->dev, &tosa_bat_main.psy, NULL);
 	if (ret)
 		goto err_psy_reg_main;
-	ret = power_supply_register(&dev->dev, &tosa_bat_jacket.psy);
+	ret = power_supply_register(&dev->dev, &tosa_bat_jacket.psy, NULL);
 	if (ret)
 		goto err_psy_reg_jacket;
-	ret = power_supply_register(&dev->dev, &tosa_bat_bu.psy);
+	ret = power_supply_register(&dev->dev, &tosa_bat_bu.psy, NULL);
 	if (ret)
 		goto err_psy_reg_bu;
 

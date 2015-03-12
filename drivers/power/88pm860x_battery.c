@@ -953,7 +953,7 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 	else
 		info->resistor = 300;	/* set default internal resistor */
 
-	ret = power_supply_register(&pdev->dev, &info->battery);
+	ret = power_supply_register(&pdev->dev, &info->battery, NULL);
 	if (ret)
 		return ret;
 	info->battery.dev->parent = &pdev->dev;

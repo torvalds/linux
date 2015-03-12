@@ -457,7 +457,7 @@ static int wm8350_power_probe(struct platform_device *pdev)
 	ac->properties = wm8350_ac_props;
 	ac->num_properties = ARRAY_SIZE(wm8350_ac_props);
 	ac->get_property = wm8350_ac_get_prop;
-	ret = power_supply_register(&pdev->dev, ac);
+	ret = power_supply_register(&pdev->dev, ac, NULL);
 	if (ret)
 		return ret;
 
@@ -466,7 +466,7 @@ static int wm8350_power_probe(struct platform_device *pdev)
 	battery->num_properties = ARRAY_SIZE(wm8350_bat_props);
 	battery->get_property = wm8350_bat_get_property;
 	battery->use_for_apm = 1;
-	ret = power_supply_register(&pdev->dev, battery);
+	ret = power_supply_register(&pdev->dev, battery, NULL);
 	if (ret)
 		goto battery_failed;
 
@@ -475,7 +475,7 @@ static int wm8350_power_probe(struct platform_device *pdev)
 	usb->properties = wm8350_usb_props;
 	usb->num_properties = ARRAY_SIZE(wm8350_usb_props);
 	usb->get_property = wm8350_usb_get_prop;
-	ret = power_supply_register(&pdev->dev, usb);
+	ret = power_supply_register(&pdev->dev, usb, NULL);
 	if (ret)
 		goto usb_failed;
 

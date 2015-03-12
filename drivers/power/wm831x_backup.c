@@ -197,7 +197,7 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 	backup->properties = wm831x_backup_props;
 	backup->num_properties = ARRAY_SIZE(wm831x_backup_props);
 	backup->get_property = wm831x_backup_get_prop;
-	ret = power_supply_register(&pdev->dev, backup);
+	ret = power_supply_register(&pdev->dev, backup, NULL);
 
 	return ret;
 }

@@ -310,14 +310,14 @@ static int s3c_adc_bat_probe(struct platform_device *pdev)
 	main_bat.cable_plugged = 0;
 	main_bat.status = POWER_SUPPLY_STATUS_DISCHARGING;
 
-	ret = power_supply_register(&pdev->dev, &main_bat.psy);
+	ret = power_supply_register(&pdev->dev, &main_bat.psy, NULL);
 	if (ret)
 		goto err_reg_main;
 	if (pdata->backup_volt_mult) {
 		backup_bat.client = client;
 		backup_bat.pdata = pdev->dev.platform_data;
 		backup_bat.volt_value = -1;
-		ret = power_supply_register(&pdev->dev, &backup_bat.psy);
+		ret = power_supply_register(&pdev->dev, &backup_bat.psy, NULL);
 		if (ret)
 			goto err_reg_backup;
 	}

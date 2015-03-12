@@ -312,7 +312,7 @@ static int gab_probe(struct platform_device *pdev)
 	 */
 	psy->num_properties = ARRAY_SIZE(gab_props) + index;
 
-	ret = power_supply_register(&pdev->dev, psy);
+	ret = power_supply_register(&pdev->dev, psy, NULL);
 	if (ret)
 		goto err_reg_fail;
 

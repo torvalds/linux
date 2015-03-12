@@ -625,7 +625,7 @@ static s32 da9052_bat_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = power_supply_register(&pdev->dev, &bat->psy);
+	ret = power_supply_register(&pdev->dev, &bat->psy, NULL);
 	 if (ret)
 		goto err;
 

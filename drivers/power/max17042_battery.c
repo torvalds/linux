@@ -731,7 +731,7 @@ static int max17042_probe(struct i2c_client *client,
 		regmap_write(chip->regmap, MAX17042_LearnCFG, 0x0007);
 	}
 
-	ret = power_supply_register(&client->dev, &chip->battery);
+	ret = power_supply_register(&client->dev, &chip->battery, NULL);
 	if (ret) {
 		dev_err(&client->dev, "failed: power supply register\n");
 		return ret;

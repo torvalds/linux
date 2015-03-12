@@ -195,11 +195,11 @@ static int goldfish_battery_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = power_supply_register(&pdev->dev, &data->ac);
+	ret = power_supply_register(&pdev->dev, &data->ac, NULL);
 	if (ret)
 		return ret;
 
-	ret = power_supply_register(&pdev->dev, &data->battery);
+	ret = power_supply_register(&pdev->dev, &data->battery, NULL);
 	if (ret) {
 		power_supply_unregister(&data->ac);
 		return ret;

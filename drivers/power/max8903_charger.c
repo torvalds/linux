@@ -288,7 +288,7 @@ static int max8903_probe(struct platform_device *pdev)
 	data->psy.properties = max8903_charger_props;
 	data->psy.num_properties = ARRAY_SIZE(max8903_charger_props);
 
-	ret = power_supply_register(dev, &data->psy);
+	ret = power_supply_register(dev, &data->psy, NULL);
 	if (ret) {
 		dev_err(dev, "failed: power supply register.\n");
 		goto err;

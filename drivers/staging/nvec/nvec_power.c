@@ -334,8 +334,6 @@ static struct power_supply nvec_bat_psy = {
 static struct power_supply nvec_psy = {
 	.name = "ac",
 	.type = POWER_SUPPLY_TYPE_MAINS,
-	.supplied_to = nvec_power_supplied_to,
-	.num_supplicants = ARRAY_SIZE(nvec_power_supplied_to),
 	.properties = nvec_power_props,
 	.num_properties = ARRAY_SIZE(nvec_power_props),
 	.get_property = nvec_power_get_property,
@@ -376,6 +374,7 @@ static int nvec_power_probe(struct platform_device *pdev)
 	struct power_supply *psy;
 	struct nvec_power *power;
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
+	struct power_supply_config psy_cfg = {};
 
 	power = devm_kzalloc(&pdev->dev, sizeof(struct nvec_power), GFP_NOWAIT);
 	if (power == NULL)
@@ -387,6 +386,8 @@ static int nvec_power_probe(struct platform_device *pdev)
 	switch (pdev->id) {
 	case AC:
 		psy = &nvec_psy;
+		psy_cfg.supplied_to = nvec_power_supplied_to;
+		psy_cfg.num_supplicants = ARRAY_SIZE(nvec_power_supplied_to);
 
 		power->notifier.notifier_call = nvec_power_notifier;
 
@@ -407,7 +408,7 @@ static int nvec_power_probe(struct platform_device *pdev)
 	if (pdev->id == BAT)
 		get_bat_mfg_data(power);
 
-	return power_supply_register(&pdev->dev, psy);
+	return power_supply_register(&pdev->dev, psy, &psy_cfg);
 }
 
 static int nvec_power_remove(struct platform_device *pdev)

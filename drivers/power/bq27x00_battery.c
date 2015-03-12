@@ -791,7 +791,7 @@ static int bq27x00_powersupply_init(struct bq27x00_device_info *di)
 	INIT_DELAYED_WORK(&di->work, bq27x00_battery_poll);
 	mutex_init(&di->lock);
 
-	ret = power_supply_register_no_ws(di->dev, &di->bat);
+	ret = power_supply_register_no_ws(di->dev, &di->bat, NULL);
 	if (ret) {
 		dev_err(di->dev, "failed to register battery: %d\n", ret);
 		return ret;

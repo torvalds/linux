@@ -550,7 +550,7 @@ static int da9150_charger_probe(struct platform_device *pdev)
 	usb->properties = da9150_charger_props;
 	usb->num_properties = ARRAY_SIZE(da9150_charger_props);
 	usb->get_property = da9150_charger_get_prop;
-	ret = power_supply_register(dev, usb);
+	ret = power_supply_register(dev, usb, NULL);
 	if (ret)
 		goto usb_fail;
 
@@ -559,7 +559,7 @@ static int da9150_charger_probe(struct platform_device *pdev)
 	battery->properties = da9150_charger_bat_props;
 	battery->num_properties = ARRAY_SIZE(da9150_charger_bat_props);
 	battery->get_property = da9150_charger_battery_get_prop;
-	ret = power_supply_register(dev, battery);
+	ret = power_supply_register(dev, battery, NULL);
 	if (ret)
 		goto battery_fail;
 

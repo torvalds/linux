@@ -233,6 +233,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 {
 	struct tps65090_charger *cdata;
 	struct tps65090_platform_data *pdata;
+	struct power_supply_config psy_cfg = {};
 	uint8_t status1 = 0;
 	int ret;
 	int irq;
@@ -264,11 +265,12 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 	cdata->ac.get_property		= tps65090_ac_get_property;
 	cdata->ac.properties		= tps65090_ac_props;
 	cdata->ac.num_properties	= ARRAY_SIZE(tps65090_ac_props);
-	cdata->ac.supplied_to		= pdata->supplied_to;
-	cdata->ac.num_supplicants	= pdata->num_supplicants;
-	cdata->ac.of_node		= pdev->dev.of_node;
 
-	ret = power_supply_register(&pdev->dev, &cdata->ac);
+	psy_cfg.supplied_to		= pdata->supplied_to;
+	psy_cfg.num_supplicants		= pdata->num_supplicants;
+	psy_cfg.of_node			= pdev->dev.of_node;
+
+	ret = power_supply_register(&pdev->dev, &cdata->ac, &psy_cfg);
 	if (ret) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
 		return ret;

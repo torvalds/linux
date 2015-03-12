@@ -541,7 +541,7 @@ static int da9030_battery_probe(struct platform_device *pdev)
 		goto err_notifier;
 
 	da9030_battery_setup_psy(charger);
-	ret = power_supply_register(&pdev->dev, &charger->psy);
+	ret = power_supply_register(&pdev->dev, &charger->psy, NULL);
 	if (ret)
 		goto err_ps_register;
 

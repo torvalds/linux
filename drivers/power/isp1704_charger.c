@@ -460,7 +460,7 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	isp->psy.num_properties	= ARRAY_SIZE(power_props);
 	isp->psy.get_property	= isp1704_charger_get_property;
 
-	ret = power_supply_register(isp->dev, &isp->psy);
+	ret = power_supply_register(isp->dev, &isp->psy, NULL);
 	if (ret)
 		goto fail1;
 

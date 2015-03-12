@@ -156,7 +156,7 @@ static int max8997_battery_probe(struct platform_device *pdev)
 	charger->dev = &pdev->dev;
 	charger->iodev = iodev;
 
-	ret = power_supply_register(&pdev->dev, &charger->battery);
+	ret = power_supply_register(&pdev->dev, &charger->battery, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
 		return ret;

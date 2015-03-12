@@ -424,7 +424,7 @@ static int ds278x_battery_probe(struct i2c_client *client,
 
 	INIT_DELAYED_WORK(&info->bat_work, ds278x_bat_work);
 
-	ret = power_supply_register(&client->dev, &info->battery);
+	ret = power_supply_register(&client->dev, &info->battery, NULL);
 	if (ret) {
 		dev_err(&client->dev, "failed to register battery\n");
 		goto fail_register;

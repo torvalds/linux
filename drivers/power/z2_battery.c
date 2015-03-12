@@ -230,7 +230,7 @@ static int z2_batt_probe(struct i2c_client *client,
 
 	INIT_WORK(&charger->bat_work, z2_batt_work);
 
-	ret = power_supply_register(&client->dev, &charger->batt_ps);
+	ret = power_supply_register(&client->dev, &charger->batt_ps, NULL);
 	if (ret)
 		goto err4;
 

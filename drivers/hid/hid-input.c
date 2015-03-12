@@ -439,7 +439,7 @@ static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 	dev->battery_report_type = report_type;
 	dev->battery_report_id = field->report->id;
 
-	ret = power_supply_register(&dev->dev, battery);
+	ret = power_supply_register(&dev->dev, battery, NULL);
 	if (ret != 0) {
 		hid_warn(dev, "can't register power supply: %d\n", ret);
 		kfree(battery->name);

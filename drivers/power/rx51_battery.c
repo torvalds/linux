@@ -238,7 +238,7 @@ static int rx51_battery_probe(struct platform_device *pdev)
 		goto error_channel_bsi;
 	}
 
-	ret = power_supply_register(di->dev, &di->bat);
+	ret = power_supply_register(di->dev, &di->bat, NULL);
 	if (ret)
 		goto error_channel_vbat;
 

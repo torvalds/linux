@@ -176,6 +176,16 @@ union power_supply_propval {
 struct device;
 struct device_node;
 
+/* Power supply instance specific configuration */
+struct power_supply_config {
+	struct device_node *of_node;
+	/* Driver private data */
+	void *drv_data;
+
+	char **supplied_to;
+	size_t num_supplicants;
+};
+
 struct power_supply {
 	const char *name;
 	enum power_supply_type type;
@@ -278,13 +288,17 @@ static inline int power_supply_is_system_supplied(void) { return -ENOSYS; }
 #endif
 
 extern int power_supply_register(struct device *parent,
-				 struct power_supply *psy);
+				 struct power_supply *psy,
+				 const struct power_supply_config *cfg);
 extern int power_supply_register_no_ws(struct device *parent,
-				 struct power_supply *psy);
+				 struct power_supply *psy,
+				 const struct power_supply_config *cfg);
 extern int devm_power_supply_register(struct device *parent,
-				 struct power_supply *psy);
+				 struct power_supply *psy,
+				 const struct power_supply_config *cfg);
 extern int devm_power_supply_register_no_ws(struct device *parent,
-				 struct power_supply *psy);
+				 struct power_supply *psy,
+				 const struct power_supply_config *cfg);
 extern void power_supply_unregister(struct power_supply *psy);
 extern int power_supply_powers(struct power_supply *psy, struct device *dev);
 

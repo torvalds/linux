@@ -157,8 +157,6 @@ static struct power_supply test_power_supplies[] = {
 	[TEST_AC] = {
 		.name = "test_ac",
 		.type = POWER_SUPPLY_TYPE_MAINS,
-		.supplied_to = test_power_ac_supplied_to,
-		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
 		.properties = test_power_ac_props,
 		.num_properties = ARRAY_SIZE(test_power_ac_props),
 		.get_property = test_power_get_ac_property,
@@ -173,14 +171,25 @@ static struct power_supply test_power_supplies[] = {
 	[TEST_USB] = {
 		.name = "test_usb",
 		.type = POWER_SUPPLY_TYPE_USB,
-		.supplied_to = test_power_ac_supplied_to,
-		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
 		.properties = test_power_ac_props,
 		.num_properties = ARRAY_SIZE(test_power_ac_props),
 		.get_property = test_power_get_usb_property,
 	},
 };
 
+static const struct power_supply_config test_power_configs[] = {
+	{
+		/* test_ac */
+		.supplied_to = test_power_ac_supplied_to,
+		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
+	}, {
+		/* test_battery */
+	}, {
+		/* test_usb */
+		.supplied_to = test_power_ac_supplied_to,
+		.num_supplicants = ARRAY_SIZE(test_power_ac_supplied_to),
+	},
+};
 
 static int __init test_power_init(void)
 {
@@ -188,9 +197,11 @@ static int __init test_power_init(void)
 	int ret;
 
 	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_supplies));
+	BUILD_BUG_ON(TEST_POWER_NUM != ARRAY_SIZE(test_power_configs));
 
 	for (i = 0; i < ARRAY_SIZE(test_power_supplies); i++) {
-		ret = power_supply_register(NULL, &test_power_supplies[i]);
+		ret = power_supply_register(NULL, &test_power_supplies[i],
+						&test_power_configs[i]);
 		if (ret) {
 			pr_err("%s: failed to register %s\n", __func__,
 				test_power_supplies[i].name);

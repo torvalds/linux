@@ -1418,7 +1418,7 @@ static int bq24190_probe(struct i2c_client *client,
 
 	bq24190_charger_init(&bdi->charger);
 
-	ret = power_supply_register(dev, &bdi->charger);
+	ret = power_supply_register(dev, &bdi->charger, NULL);
 	if (ret) {
 		dev_err(dev, "Can't register charger\n");
 		goto out2;
@@ -1426,7 +1426,7 @@ static int bq24190_probe(struct i2c_client *client,
 
 	bq24190_battery_init(&bdi->battery);
 
-	ret = power_supply_register(dev, &bdi->battery);
+	ret = power_supply_register(dev, &bdi->battery, NULL);
 	if (ret) {
 		dev_err(dev, "Can't register battery\n");
 		goto out3;

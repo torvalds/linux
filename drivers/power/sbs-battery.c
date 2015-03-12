@@ -801,6 +801,7 @@ static int sbs_probe(struct i2c_client *client,
 {
 	struct sbs_info *chip;
 	struct sbs_platform_data *pdata = client->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	int rc;
 	int irq;
 	char *name;
@@ -825,7 +826,7 @@ static int sbs_probe(struct i2c_client *client,
 	chip->power_supply.properties = sbs_properties;
 	chip->power_supply.num_properties = ARRAY_SIZE(sbs_properties);
 	chip->power_supply.get_property = sbs_get_property;
-	chip->power_supply.of_node = client->dev.of_node;
+	psy_cfg.of_node = client->dev.of_node;
 	/* ignore first notification of external change, it is generated
 	 * from the power_supply_register call back
 	 */
@@ -892,7 +893,8 @@ skip_gpio:
 		goto exit_psupply;
 	}
 
-	rc = power_supply_register(&client->dev, &chip->power_supply);
+	rc = power_supply_register(&client->dev, &chip->power_supply,
+			&psy_cfg);
 	if (rc) {
 		dev_err(&client->dev,
 			"%s: Failed to register power supply\n", __func__);

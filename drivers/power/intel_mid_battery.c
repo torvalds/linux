@@ -692,7 +692,7 @@ static int probe(int irq, struct device *dev)
 	pbi->batt.properties = pmic_battery_props;
 	pbi->batt.num_properties = ARRAY_SIZE(pmic_battery_props);
 	pbi->batt.get_property = pmic_battery_get_property;
-	retval = power_supply_register(dev, &pbi->batt);
+	retval = power_supply_register(dev, &pbi->batt, NULL);
 	if (retval) {
 		dev_err(dev,
 			"%s(): failed to register pmic battery device with power supply subsystem\n",
@@ -712,7 +712,7 @@ static int probe(int irq, struct device *dev)
 	pbi->usb.properties = pmic_usb_props;
 	pbi->usb.num_properties = ARRAY_SIZE(pmic_usb_props);
 	pbi->usb.get_property = pmic_usb_get_property;
-	retval = power_supply_register(dev, &pbi->usb);
+	retval = power_supply_register(dev, &pbi->usb, NULL);
 	if (retval) {
 		dev_err(dev,
 			"%s(): failed to register pmic usb device with power supply subsystem\n",

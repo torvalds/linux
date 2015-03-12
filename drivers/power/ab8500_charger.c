@@ -3446,6 +3446,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct abx500_bm_data *plat = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct ab8500_charger *di;
 	int irq, i, charger_status, ret = 0, ch_stat;
 
@@ -3483,6 +3484,10 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->autopower = false;
 	di->invalid_charger_detect_state = 0;
 
+	/* AC and USB supply config */
+	psy_cfg.supplied_to = supply_interface;
+	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
+
 	/* AC supply */
 	/* power_supply base class */
 	di->ac_chg.psy.name = "ab8500_ac";
@@ -3490,8 +3495,6 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.psy.properties = ab8500_charger_ac_props;
 	di->ac_chg.psy.num_properties = ARRAY_SIZE(ab8500_charger_ac_props);
 	di->ac_chg.psy.get_property = ab8500_charger_ac_get_property;
-	di->ac_chg.psy.supplied_to = supply_interface;
-	di->ac_chg.psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	/* ux500_charger sub-class */
 	di->ac_chg.ops.enable = &ab8500_charger_ac_en;
 	di->ac_chg.ops.check_enable = &ab8500_charger_ac_check_enable;
@@ -3517,8 +3520,6 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.psy.properties = ab8500_charger_usb_props;
 	di->usb_chg.psy.num_properties = ARRAY_SIZE(ab8500_charger_usb_props);
 	di->usb_chg.psy.get_property = ab8500_charger_usb_get_property;
-	di->usb_chg.psy.supplied_to = supply_interface;
-	di->usb_chg.psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	/* ux500_charger sub-class */
 	di->usb_chg.ops.enable = &ab8500_charger_usb_en;
 	di->usb_chg.ops.check_enable = &ab8500_charger_usb_check_enable;
@@ -3616,7 +3617,8 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 
 	/* Register AC charger class */
 	if (di->ac_chg.enabled) {
-		ret = power_supply_register(di->dev, &di->ac_chg.psy);
+		ret = power_supply_register(di->dev, &di->ac_chg.psy,
+						&psy_cfg);
 		if (ret) {
 			dev_err(di->dev, "failed to register AC charger\n");
 			goto free_charger_wq;
@@ -3625,7 +3627,8 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 
 	/* Register USB charger class */
 	if (di->usb_chg.enabled) {
-		ret = power_supply_register(di->dev, &di->usb_chg.psy);
+		ret = power_supply_register(di->dev, &di->usb_chg.psy,
+						&psy_cfg);
 		if (ret) {
 			dev_err(di->dev, "failed to register USB charger\n");
 			goto free_ac;

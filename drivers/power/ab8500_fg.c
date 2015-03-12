@@ -3075,6 +3075,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct abx500_bm_data *plat = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct ab8500_fg *di;
 	int i, irq;
 	int ret = 0;
@@ -3111,9 +3112,10 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->fg_psy.properties = ab8500_fg_props;
 	di->fg_psy.num_properties = ARRAY_SIZE(ab8500_fg_props);
 	di->fg_psy.get_property = ab8500_fg_get_property;
-	di->fg_psy.supplied_to = supply_interface;
-	di->fg_psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	di->fg_psy.external_power_changed = ab8500_fg_external_power_changed;
+
+	psy_cfg.supplied_to = supply_interface;
+	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 
 	di->bat_cap.max_mah_design = MILLI_TO_MICRO *
 		di->bm->bat_type[di->bm->batt_id].charge_full_design;
@@ -3174,7 +3176,7 @@ static int ab8500_fg_probe(struct platform_device *pdev)
 	di->flags.batt_id_received = false;
 
 	/* Register FG power supply class */
-	ret = power_supply_register(di->dev, &di->fg_psy);
+	ret = power_supply_register(di->dev, &di->fg_psy, &psy_cfg);
 	if (ret) {
 		dev_err(di->dev, "failed to register FG psy\n");
 		goto free_inst_curr_wq;

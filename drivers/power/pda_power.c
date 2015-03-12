@@ -83,8 +83,6 @@ static char *pda_power_supplied_to[] = {
 static struct power_supply pda_psy_ac = {
 	.name = "ac",
 	.type = POWER_SUPPLY_TYPE_MAINS,
-	.supplied_to = pda_power_supplied_to,
-	.num_supplicants = ARRAY_SIZE(pda_power_supplied_to),
 	.properties = pda_power_props,
 	.num_properties = ARRAY_SIZE(pda_power_props),
 	.get_property = pda_power_get_property,
@@ -93,8 +91,6 @@ static struct power_supply pda_psy_ac = {
 static struct power_supply pda_psy_usb = {
 	.name = "usb",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.supplied_to = pda_power_supplied_to,
-	.num_supplicants = ARRAY_SIZE(pda_power_supplied_to),
 	.properties = pda_power_props,
 	.num_properties = ARRAY_SIZE(pda_power_props),
 	.get_property = pda_power_get_property,
@@ -262,6 +258,7 @@ static int otg_handle_notification(struct notifier_block *nb,
 
 static int pda_power_probe(struct platform_device *pdev)
 {
+	struct power_supply_config psy_cfg = {};
 	int ret = 0;
 
 	dev = &pdev->dev;
@@ -309,10 +306,11 @@ static int pda_power_probe(struct platform_device *pdev)
 	usb_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "usb");
 
 	if (pdata->supplied_to) {
-		pda_psy_ac.supplied_to = pdata->supplied_to;
-		pda_psy_ac.num_supplicants = pdata->num_supplicants;
-		pda_psy_usb.supplied_to = pdata->supplied_to;
-		pda_psy_usb.num_supplicants = pdata->num_supplicants;
+		psy_cfg.supplied_to = pdata->supplied_to;
+		psy_cfg.num_supplicants = pdata->num_supplicants;
+	} else {
+		psy_cfg.supplied_to = pda_power_supplied_to;
+		psy_cfg.num_supplicants = ARRAY_SIZE(pda_power_supplied_to);
 	}
 
 #if IS_ENABLED(CONFIG_USB_PHY)
@@ -326,7 +324,7 @@ static int pda_power_probe(struct platform_device *pdev)
 #endif
 
 	if (pdata->is_ac_online) {
-		ret = power_supply_register(&pdev->dev, &pda_psy_ac);
+		ret = power_supply_register(&pdev->dev, &pda_psy_ac, &psy_cfg);
 		if (ret) {
 			dev_err(dev, "failed to register %s power supply\n",
 				pda_psy_ac.name);
@@ -347,7 +345,7 @@ static int pda_power_probe(struct platform_device *pdev)
 	}
 
 	if (pdata->is_usb_online) {
-		ret = power_supply_register(&pdev->dev, &pda_psy_usb);
+		ret = power_supply_register(&pdev->dev, &pda_psy_usb, &psy_cfg);
 		if (ret) {
 			dev_err(dev, "failed to register %s power supply\n",
 				pda_psy_usb.name);

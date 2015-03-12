@@ -1058,6 +1058,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct abx500_bm_data *plat = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct ab8500_btemp *di;
 	int irq, i, ret = 0;
 	u8 val;
@@ -1095,11 +1096,11 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	di->btemp_psy.properties = ab8500_btemp_props;
 	di->btemp_psy.num_properties = ARRAY_SIZE(ab8500_btemp_props);
 	di->btemp_psy.get_property = ab8500_btemp_get_property;
-	di->btemp_psy.supplied_to = supply_interface;
-	di->btemp_psy.num_supplicants = ARRAY_SIZE(supply_interface);
 	di->btemp_psy.external_power_changed =
 		ab8500_btemp_external_power_changed;
 
+	psy_cfg.supplied_to = supply_interface;
+	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 
 	/* Create a work queue for the btemp */
 	di->btemp_wq =
@@ -1140,7 +1141,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	}
 
 	/* Register BTEMP power supply class */
-	ret = power_supply_register(di->dev, &di->btemp_psy);
+	ret = power_supply_register(di->dev, &di->btemp_psy, &psy_cfg);
 	if (ret) {
 		dev_err(di->dev, "failed to register BTEMP psy\n");
 		goto free_btemp_wq;

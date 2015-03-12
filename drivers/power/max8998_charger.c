@@ -167,7 +167,7 @@ static int max8998_battery_probe(struct platform_device *pdev)
 	max8998->battery.properties = max8998_battery_props;
 	max8998->battery.num_properties = ARRAY_SIZE(max8998_battery_props);
 
-	ret = power_supply_register(max8998->dev, &max8998->battery);
+	ret = power_supply_register(max8998->dev, &max8998->battery, NULL);
 	if (ret) {
 		dev_err(max8998->dev, "failed: power supply register\n");
 		goto err;

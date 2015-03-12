@@ -2047,6 +2047,7 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct abx500_bm_data *plat = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct abx500_chargalg *di;
 	int ret = 0;
 
@@ -2080,10 +2081,11 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 	di->chargalg_psy.properties = abx500_chargalg_props;
 	di->chargalg_psy.num_properties = ARRAY_SIZE(abx500_chargalg_props);
 	di->chargalg_psy.get_property = abx500_chargalg_get_property;
-	di->chargalg_psy.supplied_to = supply_interface;
-	di->chargalg_psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	di->chargalg_psy.external_power_changed =
 		abx500_chargalg_external_power_changed;
+
+	psy_cfg.supplied_to = supply_interface;
+	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
 
 	/* Initilialize safety timer */
 	hrtimer_init(&di->safety_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
@@ -2115,7 +2117,7 @@ static int abx500_chargalg_probe(struct platform_device *pdev)
 	di->chg_info.prev_conn_chg = -1;
 
 	/* Register chargalg power supply class */
-	ret = power_supply_register(di->dev, &di->chargalg_psy);
+	ret = power_supply_register(di->dev, &di->chargalg_psy, &psy_cfg);
 	if (ret) {
 		dev_err(di->dev, "failed to register chargalg psy\n");
 		goto free_chargalg_wq;

@@ -244,7 +244,7 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	bat_ps.properties = prop;
 	bat_ps.num_properties = props;
 
-	ret = power_supply_register(&dev->dev, &bat_ps);
+	ret = power_supply_register(&dev->dev, &bat_ps, NULL);
 	if (!ret)
 		schedule_work(&bat_work);
 	else

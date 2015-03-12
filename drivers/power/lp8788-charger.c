@@ -400,15 +400,18 @@ static int lp8788_update_charger_params(struct platform_device *pdev,
 static int lp8788_psy_register(struct platform_device *pdev,
 				struct lp8788_charger *pchg)
 {
+	struct power_supply_config charger_cfg = {};
+
 	pchg->charger.name = LP8788_CHARGER_NAME;
 	pchg->charger.type = POWER_SUPPLY_TYPE_MAINS;
 	pchg->charger.properties = lp8788_charger_prop;
 	pchg->charger.num_properties = ARRAY_SIZE(lp8788_charger_prop);
 	pchg->charger.get_property = lp8788_charger_get_property;
-	pchg->charger.supplied_to = battery_supplied_to;
-	pchg->charger.num_supplicants = ARRAY_SIZE(battery_supplied_to);
 
-	if (power_supply_register(&pdev->dev, &pchg->charger))
+	charger_cfg.supplied_to = battery_supplied_to;
+	charger_cfg.num_supplicants = ARRAY_SIZE(battery_supplied_to);
+
+	if (power_supply_register(&pdev->dev, &pchg->charger, &charger_cfg))
 		return -EPERM;
 
 	pchg->battery.name = LP8788_BATTERY_NAME;
@@ -417,7 +420,7 @@ static int lp8788_psy_register(struct platform_device *pdev,
 	pchg->battery.num_properties = ARRAY_SIZE(lp8788_battery_prop);
 	pchg->battery.get_property = lp8788_battery_get_property;
 
-	if (power_supply_register(&pdev->dev, &pchg->battery)) {
+	if (power_supply_register(&pdev->dev, &pchg->battery, NULL)) {
 		power_supply_unregister(&pchg->charger);
 		return -EPERM;
 	}

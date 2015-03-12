@@ -989,6 +989,7 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		const struct i2c_device_id *id)
 {
 	struct pm2xxx_platform_data *pl_data = i2c_client->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct pm2xxx_charger *pm2;
 	int ret = 0;
 	u8 val;
@@ -1047,8 +1048,9 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	pm2->ac_chg.psy.properties = pm2xxx_charger_ac_props;
 	pm2->ac_chg.psy.num_properties = ARRAY_SIZE(pm2xxx_charger_ac_props);
 	pm2->ac_chg.psy.get_property = pm2xxx_charger_ac_get_property;
-	pm2->ac_chg.psy.supplied_to = pm2->pdata->supplied_to;
-	pm2->ac_chg.psy.num_supplicants = pm2->pdata->num_supplicants;
+
+	psy_cfg.supplied_to = pm2->pdata->supplied_to;
+	psy_cfg.num_supplicants = pm2->pdata->num_supplicants;
 	/* pm2xxx_charger sub-class */
 	pm2->ac_chg.ops.enable = &pm2xxx_charger_ac_en;
 	pm2->ac_chg.ops.kick_wd = &pm2xxx_charger_watchdog_kick;
@@ -1093,7 +1095,7 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	}
 
 	/* Register AC charger class */
-	ret = power_supply_register(pm2->dev, &pm2->ac_chg.psy);
+	ret = power_supply_register(pm2->dev, &pm2->ac_chg.psy, &psy_cfg);
 	if (ret) {
 		dev_err(pm2->dev, "failed to register AC charger\n");
 		goto free_regulator;

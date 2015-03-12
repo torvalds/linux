@@ -250,7 +250,7 @@ static int wiimod_battery_probe(const struct wiimod_ops *ops,
 	if (!wdata->battery.name)
 		return -ENOMEM;
 
-	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery);
+	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery, NULL);
 	if (ret) {
 		hid_err(wdata->hdev, "cannot register battery device\n");
 		goto err_free;

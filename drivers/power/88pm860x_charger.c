@@ -648,6 +648,7 @@ static struct pm860x_irq_desc {
 static int pm860x_charger_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
+	struct power_supply_config psy_cfg = {};
 	struct pm860x_charger_info *info;
 	int ret;
 	int count;
@@ -687,12 +688,12 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 
 	info->usb.name = "usb";
 	info->usb.type = POWER_SUPPLY_TYPE_USB;
-	info->usb.supplied_to = pm860x_supplied_to;
-	info->usb.num_supplicants = ARRAY_SIZE(pm860x_supplied_to);
 	info->usb.properties = pm860x_usb_props;
 	info->usb.num_properties = ARRAY_SIZE(pm860x_usb_props);
 	info->usb.get_property = pm860x_usb_get_prop;
-	ret = power_supply_register(&pdev->dev, &info->usb);
+	psy_cfg.supplied_to = pm860x_supplied_to;
+	psy_cfg.num_supplicants = ARRAY_SIZE(pm860x_supplied_to);
+	ret = power_supply_register(&pdev->dev, &info->usb, &psy_cfg);
 	if (ret)
 		goto out;
 

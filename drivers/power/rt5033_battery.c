@@ -138,7 +138,7 @@ static int rt5033_battery_probe(struct i2c_client *client,
 	battery->psy.properties		= rt5033_battery_props;
 	battery->psy.num_properties	= ARRAY_SIZE(rt5033_battery_props);
 
-	ret = power_supply_register(&client->dev, &battery->psy);
+	ret = power_supply_register(&client->dev, &battery->psy, NULL);
 	if (ret) {
 		dev_err(&client->dev, "Failed to register power supply\n");
 		return ret;

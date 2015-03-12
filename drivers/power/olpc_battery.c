@@ -619,7 +619,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 
 	/* Ignore the status. It doesn't actually matter */
 
-	ret = power_supply_register(&pdev->dev, &olpc_ac);
+	ret = power_supply_register(&pdev->dev, &olpc_ac, NULL);
 	if (ret)
 		return ret;
 
@@ -631,7 +631,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 		olpc_bat.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
 	}
 
-	ret = power_supply_register(&pdev->dev, &olpc_bat);
+	ret = power_supply_register(&pdev->dev, &olpc_bat, NULL);
 	if (ret)
 		goto battery_failed;
 

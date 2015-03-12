@@ -1194,6 +1194,7 @@ static int smb347_probe(struct i2c_client *client,
 {
 	static char *battery[] = { "smb347-battery" };
 	const struct smb347_charger_platform_data *pdata;
+	struct power_supply_config psy_cfg = {}; /* Only for mains and usb */
 	struct device *dev = &client->dev;
 	struct smb347_charger *smb;
 	int ret;
@@ -1223,15 +1224,15 @@ static int smb347_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
+	psy_cfg.supplied_to = battery;
+	psy_cfg.num_supplicants = ARRAY_SIZE(battery);
 	if (smb->pdata->use_mains) {
 		smb->mains.name = "smb347-mains";
 		smb->mains.type = POWER_SUPPLY_TYPE_MAINS;
 		smb->mains.get_property = smb347_mains_get_property;
 		smb->mains.properties = smb347_mains_properties;
 		smb->mains.num_properties = ARRAY_SIZE(smb347_mains_properties);
-		smb->mains.supplied_to = battery;
-		smb->mains.num_supplicants = ARRAY_SIZE(battery);
-		ret = power_supply_register(dev, &smb->mains);
+		ret = power_supply_register(dev, &smb->mains, &psy_cfg);
 		if (ret < 0)
 			return ret;
 	}
@@ -1242,9 +1243,7 @@ static int smb347_probe(struct i2c_client *client,
 		smb->usb.get_property = smb347_usb_get_property;
 		smb->usb.properties = smb347_usb_properties;
 		smb->usb.num_properties = ARRAY_SIZE(smb347_usb_properties);
-		smb->usb.supplied_to = battery;
-		smb->usb.num_supplicants = ARRAY_SIZE(battery);
-		ret = power_supply_register(dev, &smb->usb);
+		ret = power_supply_register(dev, &smb->usb, &psy_cfg);
 		if (ret < 0) {
 			if (smb->pdata->use_mains)
 				power_supply_unregister(&smb->mains);
@@ -1259,7 +1258,7 @@ static int smb347_probe(struct i2c_client *client,
 	smb->battery.num_properties = ARRAY_SIZE(smb347_battery_properties);
 
 
-	ret = power_supply_register(dev, &smb->battery);
+	ret = power_supply_register(dev, &smb->battery, NULL);
 	if (ret < 0) {
 		if (smb->pdata->use_usb)
 			power_supply_unregister(&smb->usb);

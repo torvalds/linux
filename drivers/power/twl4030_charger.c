@@ -590,7 +590,7 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	bci->ac.num_properties = ARRAY_SIZE(twl4030_charger_props);
 	bci->ac.get_property = twl4030_bci_get_property;
 
-	ret = power_supply_register(&pdev->dev, &bci->ac);
+	ret = power_supply_register(&pdev->dev, &bci->ac, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register ac: %d\n", ret);
 		goto fail_register_ac;
@@ -604,7 +604,7 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	bci->usb_reg = regulator_get(bci->dev, "bci3v1");
 
-	ret = power_supply_register(&pdev->dev, &bci->usb);
+	ret = power_supply_register(&pdev->dev, &bci->usb, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register usb: %d\n", ret);
 		goto fail_register_usb;

@@ -624,7 +624,8 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 	battery->bat.type = POWER_SUPPLY_TYPE_BATTERY;
 	battery->bat.get_property = acpi_battery_get_property;
 
-	result = power_supply_register_no_ws(&battery->device->dev, &battery->bat);
+	result = power_supply_register_no_ws(&battery->device->dev,
+			&battery->bat, NULL);
 
 	if (result)
 		return result;

@@ -330,7 +330,7 @@ static int jz_battery_probe(struct platform_device *pdev)
 	else
 		jz4740_adc_set_config(pdev->dev.parent, JZ_ADC_CONFIG_BAT_MB, 0);
 
-	ret = power_supply_register(&pdev->dev, &jz_battery->battery);
+	ret = power_supply_register(&pdev->dev, &jz_battery->battery, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "power supply battery register failed.\n");
 		goto err_free_charge_irq;

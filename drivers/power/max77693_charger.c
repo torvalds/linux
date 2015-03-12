@@ -714,7 +714,7 @@ static int max77693_charger_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = power_supply_register(&pdev->dev, &chg->charger);
+	ret = power_supply_register(&pdev->dev, &chg->charger, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
 		goto err;

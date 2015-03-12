@@ -540,7 +540,7 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 		    ARRAY_SIZE(sbs_energy_battery_props);
 	}
 	battery->bat.get_property = acpi_sbs_battery_get_property;
-	result = power_supply_register(&sbs->device->dev, &battery->bat);
+	result = power_supply_register(&sbs->device->dev, &battery->bat, NULL);
 	if (result)
 		goto end;
 
@@ -580,7 +580,7 @@ static int acpi_charger_add(struct acpi_sbs *sbs)
 	sbs->charger.properties = sbs_ac_props;
 	sbs->charger.num_properties = ARRAY_SIZE(sbs_ac_props);
 	sbs->charger.get_property = sbs_get_ac_property;
-	power_supply_register(&sbs->device->dev, &sbs->charger);
+	power_supply_register(&sbs->device->dev, &sbs->charger, NULL);
 	printk(KERN_INFO PREFIX "%s [%s]: AC Adapter [%s] (%s)\n",
 	       ACPI_SBS_DEVICE_NAME, acpi_device_bid(sbs->device),
 	       ACPI_AC_DIR_NAME, sbs->charger_present ? "on-line" : "off-line");

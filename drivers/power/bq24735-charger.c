@@ -249,6 +249,7 @@ static int bq24735_charger_probe(struct i2c_client *client,
 	int ret;
 	struct bq24735 *charger;
 	struct power_supply *supply;
+	struct power_supply_config psy_cfg = {};
 	char *name;
 
 	charger = devm_kzalloc(&client->dev, sizeof(*charger), GFP_KERNEL);
@@ -284,9 +285,10 @@ static int bq24735_charger_probe(struct i2c_client *client,
 	supply->properties = bq24735_charger_properties;
 	supply->num_properties = ARRAY_SIZE(bq24735_charger_properties);
 	supply->get_property = bq24735_charger_get_property;
-	supply->supplied_to = charger->pdata->supplied_to;
-	supply->num_supplicants = charger->pdata->num_supplicants;
-	supply->of_node = client->dev.of_node;
+
+	psy_cfg.supplied_to = charger->pdata->supplied_to;
+	psy_cfg.num_supplicants = charger->pdata->num_supplicants;
+	psy_cfg.of_node = client->dev.of_node;
 
 	i2c_set_clientdata(client, charger);
 
@@ -341,7 +343,7 @@ static int bq24735_charger_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = power_supply_register(&client->dev, supply);
+	ret = power_supply_register(&client->dev, supply, &psy_cfg);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to register power supply: %d\n",
 			ret);

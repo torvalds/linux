@@ -482,6 +482,7 @@ max8925_power_dt_init(struct platform_device *pdev)
 static int max8925_power_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
+	struct power_supply_config psy_cfg = {}; /* Only for ac and usb */
 	struct max8925_power_pdata *pdata = NULL;
 	struct max8925_power_info *info;
 	int ret;
@@ -502,14 +503,15 @@ static int max8925_power_probe(struct platform_device *pdev)
 	info->adc = chip->adc;
 	platform_set_drvdata(pdev, info);
 
+	psy_cfg.supplied_to = pdata->supplied_to;
+	psy_cfg.num_supplicants = pdata->num_supplicants;
+
 	info->ac.name = "max8925-ac";
 	info->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	info->ac.properties = max8925_ac_props;
 	info->ac.num_properties = ARRAY_SIZE(max8925_ac_props);
 	info->ac.get_property = max8925_ac_get_prop;
-	info->ac.supplied_to = pdata->supplied_to;
-	info->ac.num_supplicants = pdata->num_supplicants;
-	ret = power_supply_register(&pdev->dev, &info->ac);
+	ret = power_supply_register(&pdev->dev, &info->ac, &psy_cfg);
 	if (ret)
 		goto out;
 	info->ac.dev->parent = &pdev->dev;
@@ -519,10 +521,8 @@ static int max8925_power_probe(struct platform_device *pdev)
 	info->usb.properties = max8925_usb_props;
 	info->usb.num_properties = ARRAY_SIZE(max8925_usb_props);
 	info->usb.get_property = max8925_usb_get_prop;
-	info->usb.supplied_to = pdata->supplied_to;
-	info->usb.num_supplicants = pdata->num_supplicants;
 
-	ret = power_supply_register(&pdev->dev, &info->usb);
+	ret = power_supply_register(&pdev->dev, &info->usb, &psy_cfg);
 	if (ret)
 		goto out_usb;
 	info->usb.dev->parent = &pdev->dev;
@@ -532,7 +532,7 @@ static int max8925_power_probe(struct platform_device *pdev)
 	info->battery.properties = max8925_battery_props;
 	info->battery.num_properties = ARRAY_SIZE(max8925_battery_props);
 	info->battery.get_property = max8925_bat_get_prop;
-	ret = power_supply_register(&pdev->dev, &info->battery);
+	ret = power_supply_register(&pdev->dev, &info->battery, NULL);
 	if (ret)
 		goto out_battery;
 	info->battery.dev->parent = &pdev->dev;

@@ -1099,7 +1099,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	info->bat.set_property = fuel_gauge_set_property;
 	info->bat.property_is_writeable = fuel_gauge_property_is_writeable;
 	info->bat.external_power_changed = fuel_gauge_external_power_changed;
-	ret = power_supply_register(&pdev->dev, &info->bat);
+	ret = power_supply_register(&pdev->dev, &info->bat, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register battery: %d\n", ret);
 		return ret;

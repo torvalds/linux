@@ -368,6 +368,7 @@ static const u8 mbc_irq_handlers[] = {
 
 static int pcf50633_mbc_probe(struct platform_device *pdev)
 {
+	struct power_supply_config psy_cfg = {};
 	struct pcf50633_mbc *mbc;
 	int ret;
 	int i;
@@ -385,45 +386,42 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 		pcf50633_register_irq(mbc->pcf, mbc_irq_handlers[i],
 					pcf50633_mbc_irq_handler, mbc);
 
+	psy_cfg.supplied_to		= mbc->pcf->pdata->batteries;
+	psy_cfg.num_supplicants		= mbc->pcf->pdata->num_batteries;
+
 	/* Create power supplies */
 	mbc->adapter.name		= "adapter";
 	mbc->adapter.type		= POWER_SUPPLY_TYPE_MAINS;
 	mbc->adapter.properties		= power_props;
 	mbc->adapter.num_properties	= ARRAY_SIZE(power_props);
 	mbc->adapter.get_property	= &adapter_get_property;
-	mbc->adapter.supplied_to	= mbc->pcf->pdata->batteries;
-	mbc->adapter.num_supplicants	= mbc->pcf->pdata->num_batteries;
 
 	mbc->usb.name			= "usb";
 	mbc->usb.type			= POWER_SUPPLY_TYPE_USB;
 	mbc->usb.properties		= power_props;
 	mbc->usb.num_properties		= ARRAY_SIZE(power_props);
 	mbc->usb.get_property		= usb_get_property;
-	mbc->usb.supplied_to		= mbc->pcf->pdata->batteries;
-	mbc->usb.num_supplicants	= mbc->pcf->pdata->num_batteries;
 
 	mbc->ac.name			= "ac";
 	mbc->ac.type			= POWER_SUPPLY_TYPE_MAINS;
 	mbc->ac.properties		= power_props;
 	mbc->ac.num_properties		= ARRAY_SIZE(power_props);
 	mbc->ac.get_property		= ac_get_property;
-	mbc->ac.supplied_to		= mbc->pcf->pdata->batteries;
-	mbc->ac.num_supplicants		= mbc->pcf->pdata->num_batteries;
 
-	ret = power_supply_register(&pdev->dev, &mbc->adapter);
+	ret = power_supply_register(&pdev->dev, &mbc->adapter, &psy_cfg);
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register adapter\n");
 		return ret;
 	}
 
-	ret = power_supply_register(&pdev->dev, &mbc->usb);
+	ret = power_supply_register(&pdev->dev, &mbc->usb, &psy_cfg);
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register usb\n");
 		power_supply_unregister(&mbc->adapter);
 		return ret;
 	}
 
-	ret = power_supply_register(&pdev->dev, &mbc->ac);
+	ret = power_supply_register(&pdev->dev, &mbc->ac, &psy_cfg);
 	if (ret) {
 		dev_err(mbc->pcf->dev, "failed to register ac\n");
 		power_supply_unregister(&mbc->adapter);

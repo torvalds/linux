@@ -776,7 +776,7 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 	dev_info->bat.num_properties	= ARRAY_SIZE(ds2780_battery_props);
 	dev_info->bat.get_property	= ds2780_battery_get_property;
 
-	ret = power_supply_register(&pdev->dev, &dev_info->bat);
+	ret = power_supply_register(&pdev->dev, &dev_info->bat, NULL);
 	if (ret) {
 		dev_err(dev_info->dev, "failed to register battery\n");
 		goto fail;

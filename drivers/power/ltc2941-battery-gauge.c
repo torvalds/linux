@@ -473,7 +473,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 		goto fail_comm;
 	}
 
-	ret = power_supply_register(&client->dev, &info->supply);
+	ret = power_supply_register(&client->dev, &info->supply, NULL);
 	if (ret) {
 		dev_err(&client->dev, "failed to register ltc2941\n");
 		goto fail_register;

@@ -420,6 +420,7 @@ static void lp8727_charger_changed(struct power_supply *psy)
 
 static int lp8727_register_psy(struct lp8727_chg *pchg)
 {
+	struct power_supply_config psy_cfg = {}; /* Only for ac and usb */
 	struct lp8727_psy *psy;
 
 	psy = devm_kzalloc(pchg->dev, sizeof(*psy), GFP_KERNEL);
@@ -428,15 +429,16 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 
 	pchg->psy = psy;
 
+	psy_cfg.supplied_to = battery_supplied_to;
+	psy_cfg.num_supplicants = ARRAY_SIZE(battery_supplied_to);
+
 	psy->ac.name = "ac";
 	psy->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	psy->ac.properties = lp8727_charger_prop;
 	psy->ac.num_properties = ARRAY_SIZE(lp8727_charger_prop);
 	psy->ac.get_property = lp8727_charger_get_property;
-	psy->ac.supplied_to = battery_supplied_to;
-	psy->ac.num_supplicants = ARRAY_SIZE(battery_supplied_to);
 
-	if (power_supply_register(pchg->dev, &psy->ac))
+	if (power_supply_register(pchg->dev, &psy->ac, &psy_cfg))
 		goto err_psy_ac;
 
 	psy->usb.name = "usb";
@@ -444,10 +446,8 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 	psy->usb.properties = lp8727_charger_prop;
 	psy->usb.num_properties = ARRAY_SIZE(lp8727_charger_prop);
 	psy->usb.get_property = lp8727_charger_get_property;
-	psy->usb.supplied_to = battery_supplied_to;
-	psy->usb.num_supplicants = ARRAY_SIZE(battery_supplied_to);
 
-	if (power_supply_register(pchg->dev, &psy->usb))
+	if (power_supply_register(pchg->dev, &psy->usb, &psy_cfg))
 		goto err_psy_usb;
 
 	psy->batt.name = "main_batt";
@@ -457,7 +457,7 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 	psy->batt.get_property = lp8727_battery_get_property;
 	psy->batt.external_power_changed = lp8727_charger_changed;
 
-	if (power_supply_register(pchg->dev, &psy->batt))
+	if (power_supply_register(pchg->dev, &psy->batt, NULL))
 		goto err_psy_batt;
 
 	return 0;

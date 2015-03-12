@@ -127,6 +127,7 @@ struct gpio_charger_platform_data *gpio_charger_parse_dt(struct device *dev)
 static int gpio_charger_probe(struct platform_device *pdev)
 {
 	const struct gpio_charger_platform_data *pdata = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct gpio_charger *gpio_charger;
 	struct power_supply *charger;
 	int ret;
@@ -161,9 +162,10 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	charger->properties = gpio_charger_properties;
 	charger->num_properties = ARRAY_SIZE(gpio_charger_properties);
 	charger->get_property = gpio_charger_get_property;
-	charger->supplied_to = pdata->supplied_to;
-	charger->num_supplicants = pdata->num_supplicants;
-	charger->of_node = pdev->dev.of_node;
+
+	psy_cfg.supplied_to = pdata->supplied_to;
+	psy_cfg.num_supplicants = pdata->num_supplicants;
+	psy_cfg.of_node = pdev->dev.of_node;
 
 	ret = gpio_request(pdata->gpio, dev_name(&pdev->dev));
 	if (ret) {
@@ -178,7 +180,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 
 	gpio_charger->pdata = pdata;
 
-	ret = power_supply_register(&pdev->dev, charger);
+	ret = power_supply_register(&pdev->dev, charger, &psy_cfg);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register power supply: %d\n",
 			ret);

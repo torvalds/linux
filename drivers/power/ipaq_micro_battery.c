@@ -241,11 +241,11 @@ static int micro_batt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mb);
 	queue_delayed_work(mb->wq, &mb->update, 1);
 
-	ret = power_supply_register(&pdev->dev, &micro_batt_power);
+	ret = power_supply_register(&pdev->dev, &micro_batt_power, NULL);
 	if (ret < 0)
 		goto batt_err;
 
-	ret = power_supply_register(&pdev->dev, &micro_ac_power);
+	ret = power_supply_register(&pdev->dev, &micro_ac_power, NULL);
 	if (ret < 0)
 		goto ac_err;
 

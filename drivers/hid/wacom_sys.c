@@ -1021,13 +1021,14 @@ static int wacom_initialize_battery(struct wacom *wacom)
 		wacom->ac.use_for_apm = 0;
 
 		error = power_supply_register(&wacom->hdev->dev,
-					      &wacom->battery);
+					      &wacom->battery, NULL);
 		if (error)
 			return error;
 
 		power_supply_powers(&wacom->battery, &wacom->hdev->dev);
 
-		error = power_supply_register(&wacom->hdev->dev, &wacom->ac);
+		error = power_supply_register(&wacom->hdev->dev, &wacom->ac,
+					      NULL);
 		if (error) {
 			power_supply_unregister(&wacom->battery);
 			return error;
