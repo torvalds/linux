@@ -13,22 +13,39 @@ static const struct sock_diag_handler *sock_diag_handlers[AF_MAX];
 static int (*inet_rcv_compat)(struct sk_buff *skb, struct nlmsghdr *nlh);
 static DEFINE_MUTEX(sock_diag_table_mutex);
 
-int sock_diag_check_cookie(void *sk, const __u32 *cookie)
+static u64 sock_gen_cookie(struct sock *sk)
 {
-	if ((cookie[0] != INET_DIAG_NOCOOKIE ||
-	     cookie[1] != INET_DIAG_NOCOOKIE) &&
-	    ((u32)(unsigned long)sk != cookie[0] ||
-	     (u32)((((unsigned long)sk) >> 31) >> 1) != cookie[1]))
-		return -ESTALE;
-	else
+	while (1) {
+		u64 res = atomic64_read(&sk->sk_cookie);
+
+		if (res)
+			return res;
+		res = atomic64_inc_return(&sock_net(sk)->cookie_gen);
+		atomic64_cmpxchg(&sk->sk_cookie, 0, res);
+	}
+}
+
+int sock_diag_check_cookie(struct sock *sk, const __u32 *cookie)
+{
+	u64 res;
+
+	if (cookie[0] == INET_DIAG_NOCOOKIE && cookie[1] == INET_DIAG_NOCOOKIE)
 		return 0;
+
+	res = sock_gen_cookie(sk);
+	if ((u32)res != cookie[0] || (u32)(res >> 32) != cookie[1])
+		return -ESTALE;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(sock_diag_check_cookie);
 
-void sock_diag_save_cookie(void *sk, __u32 *cookie)
+void sock_diag_save_cookie(struct sock *sk, __u32 *cookie)
 {
-	cookie[0] = (u32)(unsigned long)sk;
-	cookie[1] = (u32)(((unsigned long)sk >> 31) >> 1);
+	u64 res = sock_gen_cookie(sk);
+
+	cookie[0] = (u32)res;
+	cookie[1] = (u32)(res >> 32);
 }
 EXPORT_SYMBOL_GPL(sock_diag_save_cookie);
 
