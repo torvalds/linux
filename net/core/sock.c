@@ -2726,6 +2726,42 @@ static inline void release_proto_idx(struct proto *prot)
 }
 #endif
 
+static void req_prot_cleanup(struct request_sock_ops *rsk_prot)
+{
+	if (!rsk_prot)
+		return;
+	kfree(rsk_prot->slab_name);
+	rsk_prot->slab_name = NULL;
+	if (rsk_prot->slab) {
+		kmem_cache_destroy(rsk_prot->slab);
+		rsk_prot->slab = NULL;
+	}
+}
+
+static int req_prot_init(const struct proto *prot)
+{
+	struct request_sock_ops *rsk_prot = prot->rsk_prot;
+
+	if (!rsk_prot)
+		return 0;
+
+	rsk_prot->slab_name = kasprintf(GFP_KERNEL, "request_sock_%s",
+					prot->name);
+	if (!rsk_prot->slab_name)
+		return -ENOMEM;
+
+	rsk_prot->slab = kmem_cache_create(rsk_prot->slab_name,
+					   rsk_prot->obj_size, 0,
+					   SLAB_HWCACHE_ALIGN, NULL);
+
+	if (!rsk_prot->slab) {
+		pr_crit("%s: Can't create request sock SLAB cache!\n",
+			prot->name);
+		return -ENOMEM;
+	}
+	return 0;
+}
+
 int proto_register(struct proto *prot, int alloc_slab)
 {
 	if (alloc_slab) {
@@ -2739,21 +2775,8 @@ int proto_register(struct proto *prot, int alloc_slab)
 			goto out;
 		}
 
-		if (prot->rsk_prot != NULL) {
-			prot->rsk_prot->slab_name = kasprintf(GFP_KERNEL, "request_sock_%s", prot->name);
-			if (prot->rsk_prot->slab_name == NULL)
-				goto out_free_sock_slab;
-
-			prot->rsk_prot->slab = kmem_cache_create(prot->rsk_prot->slab_name,
-								 prot->rsk_prot->obj_size, 0,
-								 SLAB_HWCACHE_ALIGN, NULL);
-
-			if (prot->rsk_prot->slab == NULL) {
-				pr_crit("%s: Can't create request sock SLAB cache!\n",
-					prot->name);
-				goto out_free_request_sock_slab_name;
-			}
-		}
+		if (req_prot_init(prot))
+			goto out_free_request_sock_slab;
 
 		if (prot->twsk_prot != NULL) {
 			prot->twsk_prot->twsk_slab_name = kasprintf(GFP_KERNEL, "tw_sock_%s", prot->name);
@@ -2782,14 +2805,8 @@ int proto_register(struct proto *prot, int alloc_slab)
 out_free_timewait_sock_slab_name:
 	kfree(prot->twsk_prot->twsk_slab_name);
 out_free_request_sock_slab:
-	if (prot->rsk_prot && prot->rsk_prot->slab) {
-		kmem_cache_destroy(prot->rsk_prot->slab);
-		prot->rsk_prot->slab = NULL;
-	}
-out_free_request_sock_slab_name:
-	if (prot->rsk_prot)
-		kfree(prot->rsk_prot->slab_name);
-out_free_sock_slab:
+	req_prot_cleanup(prot->rsk_prot);
+
 	kmem_cache_destroy(prot->slab);
 	prot->slab = NULL;
 out:
@@ -2809,11 +2826,7 @@ void proto_unregister(struct proto *prot)
 		prot->slab = NULL;
 	}
 
-	if (prot->rsk_prot != NULL && prot->rsk_prot->slab != NULL) {
-		kmem_cache_destroy(prot->rsk_prot->slab);
-		kfree(prot->rsk_prot->slab_name);
-		prot->rsk_prot->slab = NULL;
-	}
+	req_prot_cleanup(prot->rsk_prot);
 
 	if (prot->twsk_prot != NULL && prot->twsk_prot->twsk_slab != NULL) {
 		kmem_cache_destroy(prot->twsk_prot->twsk_slab);
