@@ -59,7 +59,7 @@ static DEFINE_MUTEX(netdev_switch_mutex);
 static RAW_NOTIFIER_HEAD(netdev_switch_notif_chain);
 
 /**
- *	register_netdev_switch_notifier - Register nofifier
+ *	register_netdev_switch_notifier - Register notifier
  *	@nb: notifier_block
  *
  *	Register switch device notifier. This should be used by code
@@ -78,7 +78,7 @@ int register_netdev_switch_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(register_netdev_switch_notifier);
 
 /**
- *	unregister_netdev_switch_notifier - Unregister nofifier
+ *	unregister_netdev_switch_notifier - Unregister notifier
  *	@nb: notifier_block
  *
  *	Unregister switch device notifier.
@@ -96,7 +96,7 @@ int unregister_netdev_switch_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(unregister_netdev_switch_notifier);
 
 /**
- *	call_netdev_switch_notifiers - Call nofifiers
+ *	call_netdev_switch_notifiers - Call notifiers
  *	@val: value passed unmodified to notifier function
  *	@dev: port device
  *	@info: notifier information data
