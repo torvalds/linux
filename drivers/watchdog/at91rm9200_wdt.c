@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -23,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
@@ -52,6 +54,27 @@ MODULE_PARM_DESC(nowayout,
 static unsigned long at91wdt_busy;
 
 /* ......................................................................... */
+
+static int at91rm9200_restart(struct notifier_block *this,
+					unsigned long mode, void *cmd)
+{
+	/*
+	 * Perform a hardware reset with the use of the Watchdog timer.
+	 */
+	regmap_write(regmap_st, AT91_ST_WDMR,
+		     AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
+	regmap_write(regmap_st, AT91_ST_CR, AT91_ST_WDRST);
+
+	mdelay(2000);
+
+	pr_emerg("Unable to restart system\n");
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block at91rm9200_restart_nb = {
+	.notifier_call = at91rm9200_restart,
+	.priority = 192,
+};
 
 /*
  * Disable the watchdog.
@@ -228,6 +251,10 @@ static int at91wdt_probe(struct platform_device *pdev)
 	if (res)
 		return res;
 
+	res = register_restart_handler(&at91rm9200_restart_nb);
+	if (res)
+		dev_warn(dev, "failed to register restart handler\n");
+
 	pr_info("AT91 Watchdog Timer enabled (%d seconds%s)\n",
 		wdt_time, nowayout ? ", nowayout" : "");
 	return 0;
@@ -235,7 +262,12 @@ static int at91wdt_probe(struct platform_device *pdev)
 
 static int at91wdt_remove(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int res;
+
+	res = unregister_restart_handler(&at91rm9200_restart_nb);
+	if (res)
+		dev_warn(dev, "failed to unregister restart handler\n");
 
 	res = misc_deregister(&at91wdt_miscdev);
 	if (!res)
