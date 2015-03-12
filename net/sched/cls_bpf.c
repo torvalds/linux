@@ -64,8 +64,10 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	struct cls_bpf_head *head = rcu_dereference_bh(tp->root);
 	struct cls_bpf_prog *prog;
-	int ret;
+	int ret = -1;
 
+	/* Needed here for accessing maps. */
+	rcu_read_lock();
 	list_for_each_entry_rcu(prog, &head->plist, link) {
 		int filter_res = BPF_PROG_RUN(prog->filter, skb);
 
@@ -80,10 +82,11 @@ static int cls_bpf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		if (ret < 0)
 			continue;
 
-		return ret;
+		break;
 	}
+	rcu_read_unlock();
 
-	return -1;
+	return ret;
 }
 
 static bool cls_bpf_is_ebpf(const struct cls_bpf_prog *prog)
