@@ -1141,22 +1141,16 @@ hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config, int link_bw)
 }
 
 static int
-intel_read_sink_rates(struct intel_dp *intel_dp, int *sink_rates)
+intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-
-	if (INTEL_INFO(dev)->gen >= 9 && intel_dp->supported_rates[0]) {
-		/*
-		 * Receiver supports only main-link rate selection by
-		 * link rate table method, so read link rates from
-		 * supported_link_rates
-		 */
-		memcpy(sink_rates, intel_dp->supported_rates,
-		       sizeof(intel_dp->supported_rates));
-
+	if (intel_dp->num_supported_rates) {
+		*sink_rates = intel_dp->supported_rates;
 		return intel_dp->num_supported_rates;
 	}
-	return 0;
+
+	*sink_rates = default_rates;
+
+	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
 }
 
 static int
@@ -1266,12 +1260,12 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int max_clock;
 	int bpp, mode_rate;
 	int link_avail, link_clock;
-	int sink_rates[8];
+	const int *sink_rates;
 	int supported_rates[8] = {0};
 	const int *source_rates;
 	int source_len, sink_len, supported_len;
 
-	sink_len = intel_read_sink_rates(intel_dp, sink_rates);
+	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
 
 	source_len = intel_dp_source_rates(intel_dp, &source_rates);
 
