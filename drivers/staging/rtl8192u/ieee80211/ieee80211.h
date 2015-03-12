@@ -1457,24 +1457,6 @@ struct	ether_header {
 #define	ETHERTYPE_IP	0x0800		/* IP protocol */
 #endif
 
-typedef struct _bss_ht{
-
-	bool				support_ht;
-
-	// HT related elements
-	u8					ht_cap_buf[32];
-	u16					ht_cap_len;
-	u8					ht_info_buf[32];
-	u16					ht_info_len;
-
-	HT_SPEC_VER			ht_spec_ver;
-	//HT_CAPABILITY_ELE			bdHTCapEle;
-	//HT_INFORMATION_ELE		bdHTInfoEle;
-
-	bool				aggregation;
-	bool				long_slot_time;
-}bss_ht, *pbss_ht;
-
 typedef enum _erp_t{
 	ERP_NonERPpresent	= 0x01,
 	ERP_UseProtection	= 0x02,
