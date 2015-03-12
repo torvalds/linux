@@ -1864,8 +1864,7 @@ static inline
 void dev_net_set(struct net_device *dev, struct net *net)
 {
 #ifdef CONFIG_NET_NS
-	release_net(dev->nd_net);
-	dev->nd_net = hold_net(net);
+	dev->nd_net = net;
 #endif
 }
 

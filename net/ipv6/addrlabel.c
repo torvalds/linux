@@ -129,9 +129,6 @@ static const __net_initconst struct ip6addrlbl_init_table
 /* Object management */
 static inline void ip6addrlbl_free(struct ip6addrlbl_entry *p)
 {
-#ifdef CONFIG_NET_NS
-	release_net(p->lbl_net);
-#endif
 	kfree(p);
 }
 
@@ -241,7 +238,7 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(struct net *net,
 	newp->label = label;
 	INIT_HLIST_NODE(&newp->list);
 #ifdef CONFIG_NET_NS
-	newp->lbl_net = hold_net(net);
+	newp->lbl_net = net;
 #endif
 	atomic_set(&newp->refcnt, 1);
 	return newp;

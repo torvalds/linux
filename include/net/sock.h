@@ -2204,7 +2204,7 @@ static inline void sk_change_net(struct sock *sk, struct net *net)
 
 	if (!net_eq(current_net, net)) {
 		put_net(current_net);
-		sock_net_set(sk, hold_net(net));
+		sock_net_set(sk, net);
 	}
 }
 
