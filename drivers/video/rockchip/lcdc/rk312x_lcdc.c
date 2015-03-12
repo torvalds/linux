@@ -1744,6 +1744,8 @@ static int rk312x_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv, int win_id)
 	        win_status = lcdc_read_bit(lcdc_dev, SYS_CTRL, m_WIN0_EN);
 	else if (win_id == 1)
 	        win_status = lcdc_read_bit(lcdc_dev, SYS_CTRL, m_WIN1_EN);
+	else if (win_id == 2)
+                win_status = lcdc_read_bit(lcdc_dev, SYS_CTRL, m_HWC_EN);
 	else
 	        pr_err("!!!%s,win_id :%d,unsupport!!!\n",__func__,win_id);
 
