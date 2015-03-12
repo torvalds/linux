@@ -47,6 +47,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "imx6sl.dtsi"
 
 / {
@@ -90,11 +91,26 @@
 			regulator-max-microvolt = <1800000>;
 		};
 	};
+
+	usdhc3_pwrseq: usdhc3_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio4 5 GPIO_ACTIVE_LOW>, 	/* WL_REG_ON */
+			      <&gpio3 25 GPIO_ACTIVE_LOW>, 	/* BT_REG_ON */
+			      <&gpio4 4 GPIO_ACTIVE_LOW>, 	/* BT_WAKE */
+			      <&gpio4 6 GPIO_ACTIVE_LOW>; 	/* BT_RST_N */
+	};
 };
 
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	fsl,uart-has-rtscts;
 	status = "okay";
 };
 
@@ -127,12 +143,34 @@
 	status = "okay";
 };
 
+&usdhc3 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
+	bus-width = <4>;
+	non-removable;
+	keep-power-in-suspend;
+	enable-sdio-wakeup;
+	mmc-pwrseq = <&usdhc3_pwrseq>;
+	status = "okay";
+};
+
 &iomuxc {
 	imx6sl-warp {
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX6SL_PAD_UART1_RXD__UART1_RX_DATA	0x41b0b1
 				MX6SL_PAD_UART1_TXD__UART1_TX_DATA	0x41b0b1
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX6SL_PAD_EPDC_D12__UART2_RX_DATA	0x41b0b1
+				MX6SL_PAD_EPDC_D13__UART2_TX_DATA	0x41b0b1
+				MX6SL_PAD_EPDC_D14__UART2_RTS_B		0x4130B1
+				MX6SL_PAD_EPDC_D15__UART2_CTS_B		0x4130B1
 			>;
 		};
 
@@ -185,6 +223,39 @@
 				MX6SL_PAD_SD2_DAT5__SD2_DATA5		0x4170f9
 				MX6SL_PAD_SD2_DAT6__SD2_DATA6		0x4170f9
 				MX6SL_PAD_SD2_DAT7__SD2_DATA7		0x4170f9
+			>;
+		};
+
+		pinctrl_usdhc3: usdhc3grp {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x417059
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x410059
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x417059
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x417059
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x417059
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x417059
+			>;
+		};
+
+		pinctrl_usdhc3_100mhz: usdhc3grp100mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x4170b9
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x4100b9
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x4170b9
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x4170b9
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x4170b9
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x4170b9
+			>;
+		};
+
+		pinctrl_usdhc3_200mhz: usdhc3grp200mhz {
+			fsl,pins = <
+				MX6SL_PAD_SD3_CMD__SD3_CMD		0x4170f9
+				MX6SL_PAD_SD3_CLK__SD3_CLK		0x4100f9
+				MX6SL_PAD_SD3_DAT0__SD3_DATA0		0x4170f9
+				MX6SL_PAD_SD3_DAT1__SD3_DATA1		0x4170f9
+				MX6SL_PAD_SD3_DAT2__SD3_DATA2		0x4170f9
+				MX6SL_PAD_SD3_DAT3__SD3_DATA3		0x4170f9
 			>;
 		};
 	};
