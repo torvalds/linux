@@ -85,10 +85,9 @@ static const struct dp_link_dpll chv_dpll[] = {
 		{ .p1 = 2, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } }
 };
 /* Skylake supports following rates */
-static const uint32_t gen9_rates[] = { 162000, 216000, 270000, 324000,
-					432000, 540000 };
-
-static const uint32_t default_rates[] = { 162000, 270000, 540000 };
+static const int gen9_rates[] = { 162000, 216000, 270000,
+				  324000, 432000, 540000 };
+static const int default_rates[] = { 162000, 270000, 540000 };
 
 /**
  * is_edp - is the given port attached to an eDP panel (either CPU or PCH)
@@ -1142,7 +1141,7 @@ hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config, int link_bw)
 }
 
 static int
-intel_read_sink_rates(struct intel_dp *intel_dp, uint32_t *sink_rates)
+intel_read_sink_rates(struct intel_dp *intel_dp, int *sink_rates)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	int i = 0;
@@ -1169,7 +1168,7 @@ intel_read_sink_rates(struct intel_dp *intel_dp, uint32_t *sink_rates)
 }
 
 static int
-intel_read_source_rates(struct intel_dp *intel_dp, uint32_t *source_rates)
+intel_read_source_rates(struct intel_dp *intel_dp, int *source_rates)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	int i;
@@ -1220,8 +1219,9 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	}
 }
 
-static int intel_supported_rates(const uint32_t *source_rates, int source_len,
-const uint32_t *sink_rates, int sink_len, uint32_t *supported_rates)
+static int intel_supported_rates(const int *source_rates, int source_len,
+				 const int *sink_rates, int sink_len,
+				 int *supported_rates)
 {
 	int i = 0, j = 0, k = 0;
 
@@ -1248,7 +1248,7 @@ const uint32_t *sink_rates, int sink_len, uint32_t *supported_rates)
 	return k;
 }
 
-static int rate_to_index(uint32_t find, const uint32_t *rates)
+static int rate_to_index(int find, const int *rates)
 {
 	int i = 0;
 
@@ -1278,9 +1278,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int max_clock;
 	int bpp, mode_rate;
 	int link_avail, link_clock;
-	uint32_t sink_rates[8];
-	uint32_t supported_rates[8] = {0};
-	uint32_t source_rates[8];
+	int sink_rates[8];
+	int supported_rates[8] = {0};
+	int source_rates[8];
 	int source_len, sink_len, supported_len;
 
 	sink_len = intel_read_sink_rates(intel_dp, sink_rates);
