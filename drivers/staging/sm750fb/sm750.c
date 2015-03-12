@@ -46,14 +46,14 @@ typedef int (*PROC_SPEC_INITHW)(struct lynx_share*,struct pci_dev*);
 
 /* common var for all device */
 static int g_hwcursor = 1;
-static int g_noaccel = 0;
+static int g_noaccel;
 #ifdef CONFIG_MTRR
-static int g_nomtrr  = 0;
+static int g_nomtrr;
 #endif
 static const char * g_fbmode[] = {NULL,NULL};
 static const char * g_def_fbmode = "800x600-16@60";
 static char * g_settings = NULL;
-static int g_dualview = 0;
+static int g_dualview;
 static char * g_option = NULL;
 
 /* if not use spin_lock,system will die if user load driver
