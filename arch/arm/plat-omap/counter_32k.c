@@ -103,7 +103,7 @@ int __init omap_init_clocksource_32k(void __iomem *vbase)
 
 	/*
 	 * 120000 rough estimate from the calculations in
-	 * __clocksource_updatefreq_scale.
+	 * __clocksource_update_freq_scale.
 	 */
 	clocks_calc_mult_shift(&persistent_mult, &persistent_shift,
 			32768, NSEC_PER_SEC, 120000);

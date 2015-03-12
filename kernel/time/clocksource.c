@@ -643,7 +643,7 @@ static void clocksource_enqueue(struct clocksource *cs)
 }
 
 /**
- * __clocksource_updatefreq_scale - Used update clocksource with new freq
+ * __clocksource_update_freq_scale - Used update clocksource with new freq
  * @cs:		clocksource to be registered
  * @scale:	Scale factor multiplied against freq to get clocksource hz
  * @freq:	clocksource frequency (cycles per second) divided by scale
@@ -651,9 +651,10 @@ static void clocksource_enqueue(struct clocksource *cs)
  * This should only be called from the clocksource->enable() method.
  *
  * This *SHOULD NOT* be called directly! Please use the
- * clocksource_updatefreq_hz() or clocksource_updatefreq_khz helper functions.
+ * __clocksource_update_freq_hz() or __clocksource_update_freq_khz() helper
+ * functions.
  */
-void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
+void __clocksource_update_freq_scale(struct clocksource *cs, u32 scale, u32 freq)
 {
 	u64 sec;
 
@@ -707,7 +708,7 @@ void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 	pr_info("clocksource %s: mask: 0x%llx max_cycles: 0x%llx, max_idle_ns: %lld ns\n",
 			cs->name, cs->mask, cs->max_cycles, cs->max_idle_ns);
 }
-EXPORT_SYMBOL_GPL(__clocksource_updatefreq_scale);
+EXPORT_SYMBOL_GPL(__clocksource_update_freq_scale);
 
 /**
  * __clocksource_register_scale - Used to install new clocksources
@@ -724,7 +725,7 @@ int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
 {
 
 	/* Initialize mult/shift and max_idle_ns */
-	__clocksource_updatefreq_scale(cs, scale, freq);
+	__clocksource_update_freq_scale(cs, scale, freq);
 
 	/* Add clocksource to the clocksource list */
 	mutex_lock(&clocksource_mutex);
