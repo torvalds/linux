@@ -148,6 +148,13 @@ static inline cycle_t timekeeping_get_delta(struct tk_read_base *tkr)
 	/* calculate the delta since the last update_wall_time */
 	delta = clocksource_delta(cycle_now, tkr->cycle_last, tkr->mask);
 
+	/*
+	 * Try to catch underflows by checking if we are seeing small
+	 * mask-relative negative values.
+	 */
+	if (unlikely((~delta & tkr->mask) < (tkr->mask >> 3)))
+		delta = 0;
+
 	/* Cap delta value to the max_cycles values to avoid mult overflows */
 	if (unlikely(delta > tkr->clock->max_cycles))
 		delta = tkr->clock->max_cycles;
