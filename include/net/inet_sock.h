@@ -249,6 +249,7 @@ static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops
 	if (req != NULL) {
 		kmemcheck_annotate_bitfield(ireq, flags);
 		ireq->opt = NULL;
+		atomic64_set(&ireq->ir_cookie, 0);
 	}
 
 	return req;
