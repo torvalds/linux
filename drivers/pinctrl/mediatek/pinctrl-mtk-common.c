@@ -1076,16 +1076,14 @@ static int mtk_pctrl_build_state(struct platform_device *pdev)
 	pctl->ngroups = pctl->devdata->npins;
 
 	/* Allocate groups */
-	pctl->groups = devm_kzalloc(&pdev->dev,
-				    pctl->ngroups * sizeof(*pctl->groups),
-				    GFP_KERNEL);
+	pctl->groups = devm_kcalloc(&pdev->dev, pctl->ngroups,
+				    sizeof(*pctl->groups), GFP_KERNEL);
 	if (!pctl->groups)
 		return -ENOMEM;
 
 	/* We assume that one pin is one group, use pin name as group name. */
-	pctl->grp_names = devm_kzalloc(&pdev->dev,
-				    pctl->ngroups * sizeof(*pctl->grp_names),
-				    GFP_KERNEL);
+	pctl->grp_names = devm_kcalloc(&pdev->dev, pctl->ngroups,
+				       sizeof(*pctl->grp_names), GFP_KERNEL);
 	if (!pctl->grp_names)
 		return -ENOMEM;
 
@@ -1152,8 +1150,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	pins = devm_kzalloc(&pdev->dev,
-			    pctl->devdata->npins * sizeof(*pins),
+	pins = devm_kcalloc(&pdev->dev, pctl->devdata->npins, sizeof(*pins),
 			    GFP_KERNEL);
 	if (!pins)
 		return -ENOMEM;
@@ -1211,8 +1208,8 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		goto chip_error;
 	}
 
-	pctl->eint_dual_edges = devm_kzalloc(&pdev->dev,
-			sizeof(int) * pctl->devdata->ap_num, GFP_KERNEL);
+	pctl->eint_dual_edges = devm_kcalloc(&pdev->dev, pctl->devdata->ap_num,
+					     sizeof(int), GFP_KERNEL);
 	if (!pctl->eint_dual_edges) {
 		ret = -ENOMEM;
 		goto chip_error;
