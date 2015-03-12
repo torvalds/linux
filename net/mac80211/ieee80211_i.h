@@ -464,6 +464,7 @@ struct ieee80211_if_managed {
 	unsigned int flags;
 
 	bool csa_waiting_bcn;
+	bool csa_ignored_same_chan;
 
 	bool beacon_crc_valid;
 	u32 beacon_crc;
