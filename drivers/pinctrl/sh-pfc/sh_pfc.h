@@ -69,9 +69,10 @@ struct pinmux_func {
 };
 
 struct pinmux_cfg_reg {
-	unsigned long reg, reg_width, field_width;
+	unsigned long reg;
+	u8 reg_width, field_width;
 	const u16 *enum_ids;
-	const unsigned long *var_field_width;
+	const u8 *var_field_width;
 };
 
 #define PINMUX_CFG_REG(name, r, r_width, f_width) \
@@ -80,12 +81,13 @@ struct pinmux_cfg_reg {
 
 #define PINMUX_CFG_REG_VAR(name, r, r_width, var_fw0, var_fwn...) \
 	.reg = r, .reg_width = r_width,	\
-	.var_field_width = (const unsigned long [r_width]) \
+	.var_field_width = (const u8 [r_width]) \
 		{ var_fw0, var_fwn, 0 }, \
 	.enum_ids = (const u16 [])
 
 struct pinmux_data_reg {
-	unsigned long reg, reg_width;
+	unsigned long reg;
+	u8 reg_width;
 	const u16 *enum_ids;
 };
 
