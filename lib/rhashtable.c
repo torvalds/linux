@@ -403,7 +403,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	rcu_read_lock();
 
 	old_tbl = rht_dereference_rcu(ht->tbl, ht);
-	hash = obj_raw_hashfn(ht, old_tbl, rht_obj(ht, obj));
+	hash = head_hashfn(ht, old_tbl, obj);
 
 	spin_lock_bh(bucket_lock(old_tbl, hash));
 
@@ -415,7 +415,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	 */
 	tbl = rht_dereference_rcu(ht->future_tbl, ht);
 	if (tbl != old_tbl) {
-		hash = obj_raw_hashfn(ht, tbl, rht_obj(ht, obj));
+		hash = head_hashfn(ht, tbl, obj);
 		spin_lock_nested(bucket_lock(tbl, hash), RHT_LOCK_NESTED);
 	}
 
@@ -428,7 +428,6 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 
 	no_resize_running = tbl == old_tbl;
 
-	hash = rht_bucket_index(tbl, hash);
 	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
 
 	if (rht_is_a_nulls(head))
@@ -444,11 +443,11 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 
 exit:
 	if (tbl != old_tbl) {
-		hash = obj_raw_hashfn(ht, tbl, rht_obj(ht, obj));
+		hash = head_hashfn(ht, tbl, obj);
 		spin_unlock(bucket_lock(tbl, hash));
 	}
 
-	hash = obj_raw_hashfn(ht, old_tbl, rht_obj(ht, obj));
+	hash = head_hashfn(ht, old_tbl, obj);
 	spin_unlock_bh(bucket_lock(old_tbl, hash));
 
 	rcu_read_unlock();
@@ -487,9 +486,8 @@ static bool __rhashtable_remove(struct rhashtable *ht,
 	unsigned hash;
 	bool ret = false;
 
-	hash = obj_raw_hashfn(ht, tbl, rht_obj(ht, obj));
+	hash = head_hashfn(ht, tbl, obj);
 	lock = bucket_lock(tbl, hash);
-	hash = rht_bucket_index(tbl, hash);
 
 	spin_lock_bh(lock);
 
