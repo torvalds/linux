@@ -87,6 +87,9 @@ static const struct dp_link_dpll chv_dpll[] = {
 /* Skylake supports following rates */
 static const int gen9_rates[] = { 162000, 216000, 270000,
 				  324000, 432000, 540000 };
+static const int chv_rates[] = { 162000, 202500, 210000, 216000,
+				 243000, 270000, 324000, 405000,
+				 420000, 432000, 540000 };
 static const int default_rates[] = { 162000, 270000, 540000 };
 
 /**
@@ -1148,6 +1151,9 @@ intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 	if (INTEL_INFO(dev)->gen >= 9) {
 		*source_rates = gen9_rates;
 		return ARRAY_SIZE(gen9_rates);
+	} else if (IS_CHERRYVIEW(dev)) {
+		*source_rates = chv_rates;
+		return ARRAY_SIZE(chv_rates);
 	}
 
 	*source_rates = default_rates;
