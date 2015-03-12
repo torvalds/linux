@@ -189,9 +189,6 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default PCI
 
-config PPC_OF
-	def_bool y
-
 config PPC_UDBG_16550
 	bool
 	default n
