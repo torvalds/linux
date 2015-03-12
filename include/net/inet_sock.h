@@ -27,6 +27,7 @@
 #include <net/sock.h>
 #include <net/request_sock.h>
 #include <net/netns/hash.h>
+#include <net/tcp_states.h>
 
 /** struct ip_options - IP Options
  *
@@ -79,6 +80,7 @@ struct inet_request_sock {
 #define ir_iif			req.__req_common.skc_bound_dev_if
 #define ir_cookie		req.__req_common.skc_cookie
 #define ireq_net		req.__req_common.skc_net
+#define ireq_state		req.__req_common.skc_state
 
 	kmemcheck_bitfield_begin(flags);
 	u16			snd_wscale : 4,
@@ -250,6 +252,7 @@ static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops
 		kmemcheck_annotate_bitfield(ireq, flags);
 		ireq->opt = NULL;
 		atomic64_set(&ireq->ir_cookie, 0);
+		ireq->ireq_state = TCP_NEW_SYN_RECV;
 	}
 
 	return req;
