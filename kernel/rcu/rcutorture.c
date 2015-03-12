@@ -1701,7 +1701,7 @@ rcu_torture_init(void)
 	if (nreaders >= 0) {
 		nrealreaders = nreaders;
 	} else {
-		nrealreaders = num_online_cpus() - 1;
+		nrealreaders = num_online_cpus() - 2 - nreaders;
 		if (nrealreaders <= 0)
 			nrealreaders = 1;
 	}

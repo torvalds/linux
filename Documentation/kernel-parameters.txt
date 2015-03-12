@@ -3101,7 +3101,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			test, hence the "fake".
 
 	rcutorture.nreaders= [KNL]
-			Set number of RCU readers.
+			Set number of RCU readers.  The value -1 selects
+			N-1, where N is the number of CPUs.  A value
+			"n" less than -1 selects N-n-2, where N is again
+			the number of CPUs.  For example, -2 selects N
+			(the number of CPUs), -3 selects N+1, and so on.
 
 	rcutorture.object_debug= [KNL]
 			Enable debug-object double-call_rcu() testing.
