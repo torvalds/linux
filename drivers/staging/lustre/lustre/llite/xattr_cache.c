@@ -132,11 +132,10 @@ static int ll_xattr_cache_add(struct list_head *cache,
 		       xattr->xe_namelen);
 		goto err_name;
 	}
-	xattr->xe_value = kzalloc(xattr_val_len, GFP_NOFS);
+	xattr->xe_value = kmemdup(xattr_val, xattr_val_len, GFP_NOFS);
 	if (!xattr->xe_value)
 		goto err_value;
 
-	memcpy(xattr->xe_value, xattr_val, xattr_val_len);
 	xattr->xe_vallen = xattr_val_len;
 	list_add(&xattr->xe_list, cache);
 
