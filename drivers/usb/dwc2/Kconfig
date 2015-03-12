@@ -62,6 +62,7 @@ config USB_DWC2_PCI
 	depends on PCI
 	default n
 	select USB_DWC2_PLATFORM
+	select NOP_USB_XCEIV
 	help
 	  The Designware USB2.0 PCI interface module for controllers
 	  connected to a PCI bus.
