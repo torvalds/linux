@@ -830,7 +830,7 @@
 			};
 
 			dbgu: serial@fffff200 {
-				compatible = "atmel,at91rm9200-usart";
+				compatible = "atmel,at91rm9200-dbgu", "atmel,at91rm9200-usart";
 				reg = <0xfffff200 0x200>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				pinctrl-names = "default";
