@@ -536,6 +536,48 @@ void hwrng_unregister(struct hwrng *rng)
 }
 EXPORT_SYMBOL_GPL(hwrng_unregister);
 
+static void devm_hwrng_release(struct device *dev, void *res)
+{
+	hwrng_unregister(*(struct hwrng **)res);
+}
+
+static int devm_hwrng_match(struct device *dev, void *res, void *data)
+{
+	struct hwrng **r = res;
+
+	if (WARN_ON(!r || !*r))
+		return 0;
+
+	return *r == data;
+}
+
+int devm_hwrng_register(struct device *dev, struct hwrng *rng)
+{
+	struct hwrng **ptr;
+	int error;
+
+	ptr = devres_alloc(devm_hwrng_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	error = hwrng_register(rng);
+	if (error) {
+		devres_free(ptr);
+		return error;
+	}
+
+	*ptr = rng;
+	devres_add(dev, ptr);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_hwrng_register);
+
+void devm_hwrng_unregister(struct device *dev, struct hwrng *rng)
+{
+	devres_release(dev, devm_hwrng_release, devm_hwrng_match, rng);
+}
+EXPORT_SYMBOL_GPL(devm_hwrng_unregister);
+
 static int __init hwrng_modinit(void)
 {
 	return register_miscdev();
