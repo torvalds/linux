@@ -5845,6 +5845,8 @@ int ath10k_mac_register(struct ath10k *ar)
 	ar->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 	ar->hw->wiphy->features |= NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE;
 
+	ar->hw->wiphy->max_ap_assoc_sta = ar->max_num_stations;
+
 	/*
 	 * on LL hardware queues are managed entirely by the FW
 	 * so we only advertise to mac we can do the queues thing
