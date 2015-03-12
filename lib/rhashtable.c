@@ -81,9 +81,10 @@ static u32 obj_raw_hashfn(struct rhashtable *ht,
 }
 
 static u32 key_hashfn(struct rhashtable *ht, const struct bucket_table *tbl,
-		      const void *key, u32 len)
+		      const void *key)
 {
-	return rht_bucket_index(tbl, ht->p.hashfn(key, len, tbl->hash_rnd) >>
+	return rht_bucket_index(tbl, ht->p.hashfn(key, ht->p.key_len,
+						  tbl->hash_rnd) >>
 				     HASH_RESERVED_SPACE);
 }
 
@@ -619,7 +620,7 @@ void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
 	rcu_read_lock();
 
 	tbl = rht_dereference_rcu(ht->tbl, ht);
-	hash = key_hashfn(ht, tbl, key, ht->p.key_len);
+	hash = key_hashfn(ht, tbl, key);
 restart:
 	rht_for_each_rcu(he, tbl, hash) {
 		if (!compare(rht_obj(ht, he), arg))
