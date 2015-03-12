@@ -8,5 +8,6 @@
 * Add at least one device driver for a DPAA2 object (child device of the
   fsl-mc bus).
 
-Please send any patches to Greg Kroah-Hartman <greg@kroah.com>,
-devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+Please send any patches to Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+german.rivera@freescale.com, devel@driverdev.osuosl.org,
+linux-kernel@vger.kernel.org
