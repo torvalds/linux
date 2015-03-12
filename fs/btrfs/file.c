@@ -2669,23 +2669,34 @@ static long btrfs_fallocate(struct file *file, int mode,
 							1 << inode->i_blkbits,
 							offset + len,
 							&alloc_hint);
-
-			if (ret < 0) {
-				free_extent_map(em);
-				break;
-			}
 		} else if (actual_end > inode->i_size &&
 			   !(mode & FALLOC_FL_KEEP_SIZE)) {
+			struct btrfs_trans_handle *trans;
+
 			/*
 			 * We didn't need to allocate any more space, but we
 			 * still extended the size of the file so we need to
-			 * update i_size.
+			 * update i_size and the inode item.
 			 */
-			inode->i_ctime = CURRENT_TIME;
-			i_size_write(inode, actual_end);
-			btrfs_ordered_update_i_size(inode, actual_end, NULL);
+			trans = btrfs_start_transaction(root, 1);
+			if (IS_ERR(trans)) {
+				ret = PTR_ERR(trans);
+			} else {
+				inode->i_ctime = CURRENT_TIME;
+				i_size_write(inode, actual_end);
+				btrfs_ordered_update_i_size(inode, actual_end,
+							    NULL);
+				ret = btrfs_update_inode(trans, root, inode);
+				if (ret)
+					btrfs_end_transaction(trans, root);
+				else
+					ret = btrfs_end_transaction(trans,
+								    root);
+			}
 		}
 		free_extent_map(em);
+		if (ret < 0)
+			break;
 
 		cur_offset = last_byte;
 		if (cur_offset >= alloc_end) {
