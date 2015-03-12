@@ -156,9 +156,12 @@ int fib_unmerge(struct net *net)
 {
 	struct fib_table *old, *new;
 
+	/* attempt to fetch local table if it has been allocated */
 	old = fib_get_table(net, RT_TABLE_LOCAL);
-	new = fib_trie_unmerge(old);
+	if (!old)
+		return 0;
 
+	new = fib_trie_unmerge(old);
 	if (!new)
 		return -ENOMEM;
 
