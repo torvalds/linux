@@ -378,7 +378,6 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 static void rt2800usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	rt2800_disable_radio(rt2x00dev);
-	rt2x00usb_disable_radio(rt2x00dev);
 }
 
 static int rt2800usb_set_state(struct rt2x00_dev *rt2x00dev,
