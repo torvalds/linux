@@ -118,6 +118,31 @@ static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 	tk->offs_boot = ktime_add(tk->offs_boot, delta);
 }
 
+#ifdef CONFIG_DEBUG_TIMEKEEPING
+static void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
+{
+
+	cycle_t max_cycles = tk->tkr.clock->max_cycles;
+	const char *name = tk->tkr.clock->name;
+
+	if (offset > max_cycles) {
+		printk_deferred("WARNING: timekeeping: Cycle offset (%lld) is larger than allowed by the '%s' clock's max_cycles value (%lld): time overflow\n",
+				offset, name, max_cycles);
+		printk_deferred("         timekeeping: Your kernel is sick, but tries to cope\n");
+	} else {
+		if (offset > (max_cycles >> 1)) {
+			printk_deferred("INFO: timekeeping: Cycle offset (%lld) is larger than the the '%s' clock's 50%% safety margin (%lld)\n",
+					offset, name, max_cycles >> 1);
+			printk_deferred("      timekeeping: Your kernel is still fine, but is feeling a bit nervous\n");
+		}
+	}
+}
+#else
+static inline void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
+{
+}
+#endif
+
 /**
  * tk_setup_internals - Set up internals to use clocksource clock.
  *
@@ -1629,6 +1654,9 @@ void update_wall_time(void)
 	/* Check if there's really nothing to do */
 	if (offset < real_tk->cycle_interval)
 		goto out;
+
+	/* Do some additional sanity checking */
+	timekeeping_check_update(real_tk, offset);
 
 	/*
 	 * With NO_HZ we may have to accumulate many cycle_intervals
