@@ -48,6 +48,24 @@ static bool hist_browser__has_filter(struct hist_browser *hb)
 	return hists__has_filter(hb->hists) || hb->min_pcnt;
 }
 
+static int hist_browser__get_folding(struct hist_browser *browser)
+{
+	struct rb_node *nd;
+	struct hists *hists = browser->hists;
+	int unfolded_rows = 0;
+
+	for (nd = rb_first(&hists->entries);
+	     (nd = hists__filter_entries(nd, browser->min_pcnt)) != NULL;
+	     nd = rb_next(nd)) {
+		struct hist_entry *he =
+			rb_entry(nd, struct hist_entry, rb_node);
+
+		if (he->ms.unfolded)
+			unfolded_rows += he->nr_rows;
+	}
+	return unfolded_rows;
+}
+
 static u32 hist_browser__nr_entries(struct hist_browser *hb)
 {
 	u32 nr_entries;
@@ -57,6 +75,7 @@ static u32 hist_browser__nr_entries(struct hist_browser *hb)
 	else
 		nr_entries = hb->hists->nr_entries;
 
+	hb->nr_callchain_rows = hist_browser__get_folding(hb);
 	return nr_entries + hb->nr_callchain_rows;
 }
 
