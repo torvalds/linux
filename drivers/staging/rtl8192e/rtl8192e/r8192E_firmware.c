@@ -36,7 +36,6 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 			     u32 buffer_len)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	bool		    rt_status = true;
 	u16		    frag_threshold;
 	u16		    frag_length, frag_offset = 0;
 	int		    i;
@@ -99,7 +98,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 	write_nic_byte(dev, TPPoll, TPPoll_CQ);
 
-	return rt_status;
+	return true;
 }
 
 static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)

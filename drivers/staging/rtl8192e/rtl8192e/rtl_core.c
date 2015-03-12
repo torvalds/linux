@@ -3059,7 +3059,6 @@ bool NicIFEnableNIC(struct net_device *dev)
 }
 bool NicIFDisableNIC(struct net_device *dev)
 {
-	bool	status = true;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 tmp_state = 0;
 
@@ -3074,7 +3073,7 @@ bool NicIFDisableNIC(struct net_device *dev)
 	priv->ops->stop_adapter(dev, false);
 	RT_TRACE(COMP_PS, "<=========%s()\n", __func__);
 
-	return status;
+	return true;
 }
 
 static int __init rtl8192_pci_module_init(void)

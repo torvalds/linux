@@ -232,9 +232,7 @@ static u8 HTIOTActIsDisableMCS14(struct rtllib_device *ieee, u8 *PeerMacAddr)
 
 static bool HTIOTActIsDisableMCS15(struct rtllib_device *ieee)
 {
-	bool retValue = false;
-
-	return retValue;
+	return false;
 }
 
 static bool HTIOTActIsDisableMCSTwoSpatialStream(struct rtllib_device *ieee)
