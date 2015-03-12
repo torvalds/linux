@@ -179,11 +179,11 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		channel = ni.channel;
 
 		/* Verify boundaries on board */
-		if ((board > dgnc_NumBoards) || (dgnc_NumBoards == 0))
+		if (board >= dgnc_NumBoards)
 			return -ENODEV;
 
 		/* Verify boundaries on channel */
-		if ((channel < 0) || (channel > dgnc_Board[board]->nasync))
+		if (channel >= dgnc_Board[board]->nasync)
 			return -ENODEV;
 
 		ch = dgnc_Board[board]->channels[channel];

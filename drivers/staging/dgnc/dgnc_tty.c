@@ -1042,7 +1042,7 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	spin_lock_irqsave(&brd->bd_lock, flags);
 
 	/* If opened device is greater than our number of ports, bail. */
-	if (PORT_NUM(minor) > brd->nasync) {
+	if (PORT_NUM(minor) >= brd->nasync) {
 		spin_unlock_irqrestore(&brd->bd_lock, flags);
 		return -ENXIO;
 	}

@@ -375,7 +375,7 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 	 * verified in the interrupt routine.
 	 */
 
-	if (port > brd->nasync)
+	if (port >= brd->nasync)
 		return;
 
 	ch = brd->channels[port];

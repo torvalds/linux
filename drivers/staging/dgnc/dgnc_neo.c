@@ -391,7 +391,7 @@ static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	if (port > brd->maxports)
+	if (port >= brd->maxports)
 		return;
 
 	ch = brd->channels[port];
@@ -521,7 +521,7 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	if (port > brd->maxports)
+	if (port >= brd->maxports)
 		return;
 
 	ch = brd->channels[port];
@@ -1003,7 +1003,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 */
 
 			/* Verify the port is in range. */
-			if (port > brd->nasync)
+			if (port >= brd->nasync)
 				continue;
 
 			ch = brd->channels[port];
