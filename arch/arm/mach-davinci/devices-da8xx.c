@@ -489,6 +489,41 @@ static struct platform_device da830_mcasp1_device = {
 	.resource	= da830_mcasp1_resources,
 };
 
+static struct resource da830_mcasp2_resources[] = {
+	{
+		.name	= "mpu",
+		.start	= DAVINCI_DA830_MCASP2_REG_BASE,
+		.end	= DAVINCI_DA830_MCASP2_REG_BASE + (SZ_1K * 12) - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	/* TX event */
+	{
+		.name	= "tx",
+		.start	= DAVINCI_DA830_DMA_MCASP2_AXEVT,
+		.end	= DAVINCI_DA830_DMA_MCASP2_AXEVT,
+		.flags	= IORESOURCE_DMA,
+	},
+	/* RX event */
+	{
+		.name	= "rx",
+		.start	= DAVINCI_DA830_DMA_MCASP2_AREVT,
+		.end	= DAVINCI_DA830_DMA_MCASP2_AREVT,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.name	= "common",
+		.start	= IRQ_DA8XX_MCASPINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device da830_mcasp2_device = {
+	.name		= "davinci-mcasp",
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(da830_mcasp2_resources),
+	.resource	= da830_mcasp2_resources,
+};
+
 static struct resource da850_mcasp_resources[] = {
 	{
 		.name	= "mpu",
@@ -538,6 +573,12 @@ void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 		if (!cpu_is_davinci_da830())
 			return;
 		pdev = &da830_mcasp1_device;
+		break;
+	case 2:
+		/* Valid for DA830/OMAP-L137 only */
+		if (!cpu_is_davinci_da830())
+			return;
+		pdev = &da830_mcasp2_device;
 		break;
 	default:
 		return;
