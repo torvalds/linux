@@ -1304,6 +1304,46 @@ out_unlock:
 	return ret;
 }
 
+/*
+ * Resolve the access fault by making the page young again.
+ * Note that because the faulting entry is guaranteed not to be
+ * cached in the TLB, we don't need to invalidate anything.
+ */
+static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
+{
+	pmd_t *pmd;
+	pte_t *pte;
+	pfn_t pfn;
+	bool pfn_valid = false;
+
+	trace_kvm_access_fault(fault_ipa);
+
+	spin_lock(&vcpu->kvm->mmu_lock);
+
+	pmd = stage2_get_pmd(vcpu->kvm, NULL, fault_ipa);
+	if (!pmd || pmd_none(*pmd))	/* Nothing there */
+		goto out;
+
+	if (kvm_pmd_huge(*pmd)) {	/* THP, HugeTLB */
+		*pmd = pmd_mkyoung(*pmd);
+		pfn = pmd_pfn(*pmd);
+		pfn_valid = true;
+		goto out;
+	}
+
+	pte = pte_offset_kernel(pmd, fault_ipa);
+	if (pte_none(*pte))		/* Nothing there either */
+		goto out;
+
+	*pte = pte_mkyoung(*pte);	/* Just a page... */
+	pfn = pte_pfn(*pte);
+	pfn_valid = true;
+out:
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	if (pfn_valid)
+		kvm_set_pfn_accessed(pfn);
+}
+
 /**
  * kvm_handle_guest_abort - handles all 2nd stage aborts
  * @vcpu:	the VCPU pointer
@@ -1370,6 +1410,12 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	/* Userspace should not be able to register out-of-bounds IPAs */
 	VM_BUG_ON(fault_ipa >= KVM_PHYS_SIZE);
+
+	if (fault_status == FSC_ACCESS) {
+		handle_access_fault(vcpu, fault_ipa);
+		ret = 1;
+		goto out_unlock;
+	}
 
 	ret = user_mem_abort(vcpu, fault_ipa, memslot, hva, fault_status);
 	if (ret == 0)
