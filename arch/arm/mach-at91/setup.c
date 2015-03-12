@@ -318,13 +318,3 @@ void __init at91_alt_map_io(void)
 		pr_info("AT91: Detected soc subtype: %s\n",
 			at91_get_soc_subtype(&at91_soc_initdata));
 }
-
-void __iomem *at91_matrix_base;
-EXPORT_SYMBOL_GPL(at91_matrix_base);
-
-void __init at91_ioremap_matrix(u32 base_addr)
-{
-	at91_matrix_base = ioremap(base_addr, 512);
-	if (!at91_matrix_base)
-		panic(pr_fmt("Impossible to ioremap at91_matrix_base\n"));
-}
