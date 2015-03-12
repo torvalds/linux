@@ -46,10 +46,12 @@ PIT Timer required properties:
   shared across all System Controller members.
 
 System Timer (ST) required properties:
-- compatible: Should be "atmel,at91rm9200-st"
+- compatible: Should be "atmel,at91rm9200-st", "syscon", "simple-mfd"
 - reg: Should contain registers location and length
 - interrupts: Should contain interrupt for the ST which is the IRQ line
   shared across all System Controller members.
+Its subnodes can be:
+- watchdog: compatible should be "atmel,at91rm9200-wdt"
 
 TC/TCLIB Timer required properties:
 - compatible: Should be "atmel,<chip>-tcb".
