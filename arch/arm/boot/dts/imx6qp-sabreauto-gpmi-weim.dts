@@ -1,0 +1,52 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6qp-sabreauto.dts"
+
+&ecspi1 {
+	/* pin conflict with weim */
+	status = "disabled";
+};
+
+/* remove #if 0 after flexcan is ready */
+#if 0
+&flexcan2 {
+	/* max7310_c on i2c3 is gone */
+	status = "disabled";
+};
+#endif
+
+&gpmi {
+	status = "okay";
+};
+
+&i2c3 {
+	/* pin conflict with weim */
+	status = "disabled";
+};
+
+&uart3 {
+	/* pin conflict with gpmi and weim */
+	status = "disabled";
+};
+
+&usbh1 {
+	/* max7310_b on i2c3 is gone */
+	status = "disabled";
+};
+
+&usbotg {
+	/* max7310_c on i2c3 is gone */
+	status = "okay";
+	dr_mode = "peripheral";
+};
+
+&weim {
+	pinctrl-assert-gpios = <&gpio5 4 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
