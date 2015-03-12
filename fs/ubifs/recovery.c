@@ -975,11 +975,8 @@ int ubifs_recover_inl_heads(struct ubifs_info *c, void *sbuf)
 		return err;
 
 	dbg_rcvry("checking LPT head at %d:%d", c->nhead_lnum, c->nhead_offs);
-	err = recover_head(c, c->nhead_lnum, c->nhead_offs, sbuf);
-	if (err)
-		return err;
 
-	return 0;
+	return recover_head(c, c->nhead_lnum, c->nhead_offs, sbuf);
 }
 
 /**
@@ -1004,10 +1001,7 @@ static int clean_an_unclean_leb(struct ubifs_info *c,
 
 	if (len == 0) {
 		/* Nothing to read, just unmap it */
-		err = ubifs_leb_unmap(c, lnum);
-		if (err)
-			return err;
-		return 0;
+		return ubifs_leb_unmap(c, lnum);
 	}
 
 	err = ubifs_leb_read(c, lnum, buf, offs, len, 0);
