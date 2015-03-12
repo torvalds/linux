@@ -84,7 +84,7 @@ static void gpio_setup_data_reg(struct sh_pfc_chip *chip, unsigned idx)
 	unsigned int bit;
 	unsigned int i;
 
-	for (i = 0, dreg = pfc->info->data_regs; dreg->reg; ++i, ++dreg) {
+	for (i = 0, dreg = pfc->info->data_regs; dreg->reg_width; ++i, ++dreg) {
 		for (bit = 0; bit < dreg->reg_width; bit++) {
 			if (dreg->enum_ids[bit] == pin->enum_id) {
 				gpio_pin->dreg = i;
