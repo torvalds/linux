@@ -337,6 +337,10 @@ struct sst_hsw {
 
 	/* FW log stream */
 	struct sst_hsw_log_stream log_stream;
+
+	/* flags bit field to track module state when resume from RTD3,
+	 * each bit represent state (enabled/disabled) of single module */
+	u32 enabled_modules_rtd3;
 };
 
 #define CREATE_TRACE_POINTS
@@ -1984,6 +1988,21 @@ bool sst_hsw_is_module_active(struct sst_hsw *hsw, u32 module_id)
 		return true;
 	else
 		return false;
+}
+
+void sst_hsw_set_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id)
+{
+	hsw->enabled_modules_rtd3 |= (1 << module_id);
+}
+
+void sst_hsw_set_module_disabled_rtd3(struct sst_hsw *hsw, u32 module_id)
+{
+	hsw->enabled_modules_rtd3 &= ~(1 << module_id);
+}
+
+bool sst_hsw_is_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id)
+{
+	return hsw->enabled_modules_rtd3 & (1 << module_id);
 }
 
 int sst_hsw_module_load(struct sst_hsw *hsw,

@@ -477,6 +477,9 @@ struct sst_dsp *sst_hsw_get_dsp(struct sst_hsw *hsw);
 void sst_hsw_init_module_state(struct sst_hsw *hsw);
 bool sst_hsw_is_module_loaded(struct sst_hsw *hsw, u32 module_id);
 bool sst_hsw_is_module_active(struct sst_hsw *hsw, u32 module_id);
+void sst_hsw_set_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id);
+void sst_hsw_set_module_disabled_rtd3(struct sst_hsw *hsw, u32 module_id);
+bool sst_hsw_is_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id);
 
 int sst_hsw_module_load(struct sst_hsw *hsw,
 	u32 module_id, u32 instance_id, char *name);
