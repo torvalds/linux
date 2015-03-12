@@ -50,14 +50,10 @@ void kasan_krealloc(const void *object, size_t new_size);
 void kasan_slab_alloc(struct kmem_cache *s, void *object);
 void kasan_slab_free(struct kmem_cache *s, void *object);
 
-#define MODULE_ALIGN (PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
-
 int kasan_module_alloc(void *addr, size_t size);
 void kasan_free_shadow(const struct vm_struct *vm);
 
 #else /* CONFIG_KASAN */
-
-#define MODULE_ALIGN 1
 
 static inline void kasan_unpoison_shadow(const void *address, size_t size) {}
 
