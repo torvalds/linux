@@ -476,19 +476,10 @@ u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask)
 
 	/*
 	 * Calculate the maximum number of cycles that we can pass to the
-	 * cyc2ns function without overflowing a 64-bit signed result. The
-	 * maximum number of cycles is equal to ULLONG_MAX/(mult+maxadj)
-	 * which is equivalent to the below.
-	 * max_cycles < (2^63)/(mult + maxadj)
-	 * max_cycles < 2^(log2((2^63)/(mult + maxadj)))
-	 * max_cycles < 2^(log2(2^63) - log2(mult + maxadj))
-	 * max_cycles < 2^(63 - log2(mult + maxadj))
-	 * max_cycles < 1 << (63 - log2(mult + maxadj))
-	 * Please note that we add 1 to the result of the log2 to account for
-	 * any rounding errors, ensure the above inequality is satisfied and
-	 * no overflow will occur.
+	 * cyc2ns() function without overflowing a 64-bit result.
 	 */
-	max_cycles = 1ULL << (63 - (ilog2(mult + maxadj) + 1));
+	max_cycles = ULLONG_MAX;
+	do_div(max_cycles, mult+maxadj);
 
 	/*
 	 * The actual maximum number of cycles we can defer the clocksource is
