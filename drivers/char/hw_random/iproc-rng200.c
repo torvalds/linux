@@ -208,25 +208,13 @@ static int iproc_rng200_probe(struct platform_device *pdev)
 	priv->rng.cleanup = iproc_rng200_cleanup,
 
 	/* Register driver */
-	ret = hwrng_register(&priv->rng);
+	ret = devm_hwrng_register(dev, &priv->rng);
 	if (ret) {
 		dev_err(dev, "hwrng registration failed\n");
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, priv);
-
 	dev_info(dev, "hwrng registered\n");
-
-	return 0;
-}
-
-static int iproc_rng200_remove(struct platform_device *pdev)
-{
-	struct iproc_rng200_dev *priv = platform_get_drvdata(pdev);
-
-	/* Unregister driver */
-	hwrng_unregister(&priv->rng);
 
 	return 0;
 }
@@ -243,7 +231,6 @@ static struct platform_driver iproc_rng200_driver = {
 		.of_match_table = iproc_rng200_of_match,
 	},
 	.probe		= iproc_rng200_probe,
-	.remove		= iproc_rng200_remove,
 };
 module_platform_driver(iproc_rng200_driver);
 
