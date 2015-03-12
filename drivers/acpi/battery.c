@@ -530,8 +530,8 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 		battery->rate_now != ACPI_BATTERY_VALUE_UNKNOWN &&
 		(s16)(battery->rate_now) < 0) {
 		battery->rate_now = abs((s16)battery->rate_now);
-		printk_once(KERN_WARNING FW_BUG "battery: (dis)charge rate"
-			" invalid.\n");
+		printk_once(KERN_WARNING FW_BUG
+			    "battery: (dis)charge rate invalid.\n");
 	}
 
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)
