@@ -125,9 +125,9 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 
 	new_mask = CLOCKSOURCE_MASK(bits);
 
-	/* calculate how many ns until we wrap */
+	/* calculate how many nanosecs until we risk wrapping */
 	wrap = clocks_calc_max_nsecs(new_mult, new_shift, 0, new_mask);
-	new_wrap_kt = ns_to_ktime(wrap - (wrap >> 3));
+	new_wrap_kt = ns_to_ktime(wrap);
 
 	/* update epoch for new counter and update epoch_ns from old counter*/
 	new_epoch = read();

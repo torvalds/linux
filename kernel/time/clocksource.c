@@ -469,6 +469,9 @@ static u32 clocksource_max_adjustment(struct clocksource *cs)
  * @shift:	cycle to nanosecond divisor (power of two)
  * @maxadj:	maximum adjustment value to mult (~11%)
  * @mask:	bitmask for two's complement subtraction of non 64 bit counters
+ *
+ * NOTE: This function includes a safety margin of 50%, so that bad clock values
+ * can be detected.
  */
 u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask)
 {
@@ -490,11 +493,14 @@ u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask)
 	max_cycles = min(max_cycles, mask);
 	max_nsecs = clocksource_cyc2ns(max_cycles, mult - maxadj, shift);
 
+	/* Return 50% of the actual maximum, so we can detect bad values */
+	max_nsecs >>= 1;
+
 	return max_nsecs;
 }
 
 /**
- * clocksource_max_deferment - Returns max time the clocksource can be deferred
+ * clocksource_max_deferment - Returns max time the clocksource should be deferred
  * @cs:         Pointer to clocksource
  *
  */
@@ -504,13 +510,7 @@ static u64 clocksource_max_deferment(struct clocksource *cs)
 
 	max_nsecs = clocks_calc_max_nsecs(cs->mult, cs->shift, cs->maxadj,
 					  cs->mask);
-	/*
-	 * To ensure that the clocksource does not wrap whilst we are idle,
-	 * limit the time the clocksource can be deferred by 12.5%. Please
-	 * note a margin of 12.5% is used because this can be computed with
-	 * a shift, versus say 10% which would require division.
-	 */
-	return max_nsecs - (max_nsecs >> 3);
+	return max_nsecs;
 }
 
 #ifndef CONFIG_ARCH_USES_GETTIMEOFFSET
@@ -659,10 +659,9 @@ void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 	 * conversion precision. 10 minutes is still a reasonable
 	 * amount. That results in a shift value of 24 for a
 	 * clocksource with mask >= 40bit and f >= 4GHz. That maps to
-	 * ~ 0.06ppm granularity for NTP. We apply the same 12.5%
-	 * margin as we do in clocksource_max_deferment()
+	 * ~ 0.06ppm granularity for NTP.
 	 */
-	sec = (cs->mask - (cs->mask >> 3));
+	sec = cs->mask;
 	do_div(sec, freq);
 	do_div(sec, scale);
 	if (!sec)
@@ -674,9 +673,8 @@ void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 			       NSEC_PER_SEC / scale, sec * scale);
 
 	/*
-	 * for clocksources that have large mults, to avoid overflow.
-	 * Since mult may be adjusted by ntp, add an safety extra margin
-	 *
+	 * Ensure clocksources that have large 'mult' values don't overflow
+	 * when adjusted.
 	 */
 	cs->maxadj = clocksource_max_adjustment(cs);
 	while ((cs->mult + cs->maxadj < cs->mult)
