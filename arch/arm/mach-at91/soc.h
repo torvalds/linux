@@ -32,4 +32,6 @@ struct at91_soc {
 struct soc_device * __init
 at91_soc_init(const struct at91_soc *socs);
 
+#define AT91RM9200_CIDR_MATCH		0x09290780
+
 #endif /* __AT91_SOC_H */
