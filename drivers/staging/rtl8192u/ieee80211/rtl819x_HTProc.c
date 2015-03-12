@@ -471,12 +471,10 @@ static bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
 static bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee,
 						 u8 *PeerMacAddr)
 {
-	bool retValue = false;
-
 #ifdef TODO
 	// Apply for 819u only
 #endif
-	return retValue;
+	return false;
 }
 
 /********************************************************************************************************************
@@ -488,11 +486,8 @@ static bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee,
   * *****************************************************************************************************************/
 static u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee,
 				     u8 *PeerMacAddr)
-{
-	u8	retValue = false;	// default enable EDCA Turbo mode.
-	// Set specific EDCA parameter for different AP in DM handler.
-
-	return retValue;
+{	/* default enable EDCA Turbo mode. */
+	return false;
 }
 
 /********************************************************************************************************************
