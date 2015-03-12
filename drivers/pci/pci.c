@@ -131,7 +131,7 @@ void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar)
 	/*
 	 * Make sure the BAR is actually a memory resource, not an IO resource
 	 */
-	if (!(res->flags & IORESOURCE_MEM)) {
+	if (res->flags & IORESOURCE_UNSET || !(res->flags & IORESOURCE_MEM)) {
 		dev_warn(&pdev->dev, "can't ioremap BAR %d: %pR\n", bar, res);
 		return NULL;
 	}
