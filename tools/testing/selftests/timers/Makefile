@@ -5,7 +5,7 @@ LDFLAGS += -lrt -lpthread
 bins = posix_timers nanosleep inconsistency-check nsleep-lat raw_skew \
 	set-timer-lat threadtest mqueue-lat valid-adjtimex \
 	alarmtimer-suspend change_skew skew_consistency clocksource-switch \
-	leap-a-day leapcrash
+	leap-a-day leapcrash set-tai
 
 all: ${bins}
 
@@ -32,6 +32,7 @@ run_destructive_tests: run_tests
 	./clocksource-switch
 	./leap-a-day -s -i 10
 	./leapcrash
+	./set-tai
 
 clean:
 	rm -f ${bins}
