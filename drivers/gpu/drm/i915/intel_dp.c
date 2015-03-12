@@ -1144,8 +1144,6 @@ static int
 intel_read_sink_rates(struct intel_dp *intel_dp, int *sink_rates)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	int i = 0;
-	uint16_t val;
 
 	if (INTEL_INFO(dev)->gen >= 9 && intel_dp->supported_rates[0]) {
 		/*
@@ -1153,18 +1151,12 @@ intel_read_sink_rates(struct intel_dp *intel_dp, int *sink_rates)
 		 * link rate table method, so read link rates from
 		 * supported_link_rates
 		 */
-		for (i = 0; i < DP_MAX_SUPPORTED_RATES; ++i) {
-			val = le16_to_cpu(intel_dp->supported_rates[i]);
-			if (val == 0)
-				break;
+		memcpy(sink_rates, intel_dp->supported_rates,
+		       sizeof(intel_dp->supported_rates));
 
-			sink_rates[i] = val * 200;
-		}
-
-		if (i <= 0)
-			DRM_ERROR("No rates in SUPPORTED_LINK_RATES");
+		return intel_dp->num_supported_rates;
 	}
-	return i;
+	return 0;
 }
 
 static int
@@ -3754,10 +3746,23 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	    (intel_dp->dpcd[DP_EDP_CONFIGURATION_CAP] &	DP_DPCD_DISPLAY_CONTROL_CAPABLE) &&
 	    (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_EDP_DPCD_REV, &rev, 1) == 1) &&
 	    (rev >= 0x03)) { /* eDp v1.4 or higher */
+		__le16 supported_rates[DP_MAX_SUPPORTED_RATES];
+		int i;
+
 		intel_dp_dpcd_read_wake(&intel_dp->aux,
 				DP_SUPPORTED_LINK_RATES,
-				intel_dp->supported_rates,
-				sizeof(intel_dp->supported_rates));
+				supported_rates,
+				sizeof(supported_rates));
+
+		for (i = 0; i < ARRAY_SIZE(supported_rates); i++) {
+			int val = le16_to_cpu(supported_rates[i]);
+
+			if (val == 0)
+				break;
+
+			intel_dp->supported_rates[i] = val * 200;
+		}
+		intel_dp->num_supported_rates = i;
 	}
 	if (!(intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] &
 	      DP_DWN_STRM_PORT_PRESENT))
