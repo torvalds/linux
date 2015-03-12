@@ -1743,9 +1743,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		smp->remote_key_dist &= ~SMP_SC_NO_DIST;
 		/* Wait for Public Key from Initiating Device */
 		return 0;
-	} else {
-		SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
 	}
+
+	SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
 
 	/* Request setup of TK */
 	ret = tk_request(conn, 0, auth, rsp.io_capability, req->io_capability);
@@ -1926,8 +1926,8 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (test_bit(SMP_FLAG_TK_VALID, &smp->flags))
 		return smp_confirm(smp);
-	else
-		set_bit(SMP_FLAG_CFM_PENDING, &smp->flags);
+
+	set_bit(SMP_FLAG_CFM_PENDING, &smp->flags);
 
 	return 0;
 }
