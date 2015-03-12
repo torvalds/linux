@@ -157,7 +157,7 @@ static inline u32 tx_max(struct dw_spi *dws)
 	u32 tx_left, tx_room, rxtx_gap;
 
 	tx_left = (dws->tx_end - dws->tx) / dws->n_bytes;
-	tx_room = dws->fifo_len - dw_readw(dws, DW_SPI_TXFLR);
+	tx_room = dws->fifo_len - dw_readl(dws, DW_SPI_TXFLR);
 
 	/*
 	 * Another concern is about the tx/rx mismatch, we
@@ -178,7 +178,7 @@ static inline u32 rx_max(struct dw_spi *dws)
 {
 	u32 rx_left = (dws->rx_end - dws->rx) / dws->n_bytes;
 
-	return min_t(u32, rx_left, dw_readw(dws, DW_SPI_RXFLR));
+	return min_t(u32, rx_left, dw_readl(dws, DW_SPI_RXFLR));
 }
 
 static void dw_writer(struct dw_spi *dws)
@@ -194,7 +194,7 @@ static void dw_writer(struct dw_spi *dws)
 			else
 				txw = *(u16 *)(dws->tx);
 		}
-		dw_writew(dws, DW_SPI_DR, txw);
+		dw_writel(dws, DW_SPI_DR, txw);
 		dws->tx += dws->n_bytes;
 	}
 }
@@ -205,7 +205,7 @@ static void dw_reader(struct dw_spi *dws)
 	u16 rxw;
 
 	while (max--) {
-		rxw = dw_readw(dws, DW_SPI_DR);
+		rxw = dw_readl(dws, DW_SPI_DR);
 		/* Care rx only if the transfer's original "rx" is not null */
 		if (dws->rx_end - dws->len) {
 			if (dws->n_bytes == 1)
@@ -228,11 +228,11 @@ static void int_error_stop(struct dw_spi *dws, const char *msg)
 
 static irqreturn_t interrupt_transfer(struct dw_spi *dws)
 {
-	u16 irq_status = dw_readw(dws, DW_SPI_ISR);
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
 
 	/* Error handling */
 	if (irq_status & (SPI_INT_TXOI | SPI_INT_RXOI | SPI_INT_RXUI)) {
-		dw_readw(dws, DW_SPI_ICR);
+		dw_readl(dws, DW_SPI_ICR);
 		int_error_stop(dws, "interrupt_transfer: fifo overrun/underrun");
 		return IRQ_HANDLED;
 	}
@@ -257,7 +257,7 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 {
 	struct spi_master *master = dev_id;
 	struct dw_spi *dws = spi_master_get_devdata(master);
-	u16 irq_status = dw_readw(dws, DW_SPI_ISR) & 0x3f;
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR) & 0x3f;
 
 	if (!irq_status)
 		return IRQ_NONE;
@@ -354,7 +354,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
 	}
 
-	dw_writew(dws, DW_SPI_CTRL0, cr0);
+	dw_writel(dws, DW_SPI_CTRL0, cr0);
 
 	/* Check if current transfer is a DMA transaction */
 	if (master->can_dma && master->can_dma(master, spi, transfer))
@@ -375,7 +375,7 @@ static int dw_spi_transfer_one(struct spi_master *master,
 		}
 	} else if (!chip->poll_mode) {
 		txlevel = min_t(u16, dws->fifo_len / 2, dws->len / dws->n_bytes);
-		dw_writew(dws, DW_SPI_TXFLTR, txlevel);
+		dw_writel(dws, DW_SPI_TXFLTR, txlevel);
 
 		/* Set the interrupt mask */
 		imask |= SPI_INT_TXEI | SPI_INT_TXOI |
@@ -499,11 +499,11 @@ static void spi_hw_init(struct device *dev, struct dw_spi *dws)
 		u32 fifo;
 
 		for (fifo = 1; fifo < 256; fifo++) {
-			dw_writew(dws, DW_SPI_TXFLTR, fifo);
-			if (fifo != dw_readw(dws, DW_SPI_TXFLTR))
+			dw_writel(dws, DW_SPI_TXFLTR, fifo);
+			if (fifo != dw_readl(dws, DW_SPI_TXFLTR))
 				break;
 		}
-		dw_writew(dws, DW_SPI_TXFLTR, 0);
+		dw_writel(dws, DW_SPI_TXFLTR, 0);
 
 		dws->fifo_len = (fifo == 1) ? 0 : fifo;
 		dev_dbg(dev, "Detected FIFO size: %u bytes\n", dws->fifo_len);

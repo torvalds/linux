@@ -98,12 +98,12 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 
 static irqreturn_t dma_transfer(struct dw_spi *dws)
 {
-	u16 irq_status = dw_readw(dws, DW_SPI_ISR);
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
 
 	if (!irq_status)
 		return IRQ_NONE;
 
-	dw_readw(dws, DW_SPI_ICR);
+	dw_readl(dws, DW_SPI_ICR);
 	spi_reset_chip(dws);
 
 	dev_err(&dws->master->dev, "%s: FIFO overrun/underrun\n", __func__);
@@ -228,14 +228,14 @@ static int mid_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	u16 dma_ctrl = 0;
 
-	dw_writew(dws, DW_SPI_DMARDLR, 0xf);
-	dw_writew(dws, DW_SPI_DMATDLR, 0x10);
+	dw_writel(dws, DW_SPI_DMARDLR, 0xf);
+	dw_writel(dws, DW_SPI_DMATDLR, 0x10);
 
 	if (xfer->tx_buf)
 		dma_ctrl |= SPI_DMA_TDMAE;
 	if (xfer->rx_buf)
 		dma_ctrl |= SPI_DMA_RDMAE;
-	dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
+	dw_writel(dws, DW_SPI_DMACR, dma_ctrl);
 
 	/* Set the interrupt mask */
 	spi_umask_intr(dws, SPI_INT_TXOI | SPI_INT_RXUI | SPI_INT_RXOI);
