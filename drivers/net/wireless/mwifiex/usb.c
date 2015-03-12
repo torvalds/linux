@@ -1006,7 +1006,7 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
 	/* Simulation of HS_AWAKE event */
 	adapter->pm_wakeup_fw_try = false;
-	del_timer_sync(&adapter->wakeup_timer);
+	del_timer(&adapter->wakeup_timer);
 	adapter->pm_wakeup_card_req = false;
 	adapter->ps_state = PS_STATE_AWAKE;
 
