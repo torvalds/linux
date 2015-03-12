@@ -271,6 +271,9 @@ static void rhashtable_rehash(struct rhashtable *ht,
 	 */
 	rcu_assign_pointer(ht->future_tbl, new_tbl);
 
+	/* Ensure the new table is visible to readers. */
+	smp_wmb();
+
 	for (old_hash = 0; old_hash < old_tbl->size; old_hash++)
 		rhashtable_rehash_chain(ht, old_hash);
 
@@ -617,6 +620,9 @@ restart:
 		rcu_read_unlock();
 		return rht_obj(ht, he);
 	}
+
+	/* Ensure we see any new tables. */
+	smp_rmb();
 
 	old_tbl = tbl;
 	tbl = rht_dereference_rcu(ht->future_tbl, ht);
