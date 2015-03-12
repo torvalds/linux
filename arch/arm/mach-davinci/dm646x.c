@@ -621,6 +621,16 @@ static struct resource dm646x_mcasp0_resources[] = {
 		.end	= DAVINCI_DM646X_DMA_MCASP0_AREVT0,
 		.flags	= IORESOURCE_DMA,
 	},
+	{
+		.name	= "tx",
+		.start	= IRQ_DM646X_MCASP0TXINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "rx",
+		.start	= IRQ_DM646X_MCASP0RXINT,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 /* DIT mode only, rx is not supported */
@@ -636,6 +646,11 @@ static struct resource dm646x_mcasp1_resources[] = {
 		.start	= DAVINCI_DM646X_DMA_MCASP1_AXEVT1,
 		.end	= DAVINCI_DM646X_DMA_MCASP1_AXEVT1,
 		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.name	= "tx",
+		.start	= IRQ_DM646X_MCASP1TXINT,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
