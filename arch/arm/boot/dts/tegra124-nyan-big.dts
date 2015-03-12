@@ -2,6 +2,8 @@
 
 #include "tegra124-nyan.dtsi"
 
+#include "tegra124-nyan-big-emc.dtsi"
+
 / {
 	model = "Acer Chromebook 13 CB5-311";
 	compatible = "google,nyan-big", "nvidia,tegra124";
