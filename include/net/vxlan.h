@@ -130,7 +130,7 @@ struct vxlan_sock {
 #define VXLAN_F_GBP			0x800
 #define VXLAN_F_REMCSUM_NOPARTIAL	0x1000
 
-/* Flags that are used in the receive patch. These flags must match in
+/* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable
  */
 #define VXLAN_F_RCV_FLAGS		(VXLAN_F_GBP |			\
