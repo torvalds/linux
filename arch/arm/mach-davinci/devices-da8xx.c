@@ -526,14 +526,25 @@ static struct platform_device da850_mcasp_device = {
 
 void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 {
-	/* DA830/OMAP-L137 has 3 instances of McASP */
-	if (cpu_is_davinci_da830() && id == 1) {
-		da830_mcasp1_device.dev.platform_data = pdata;
-		platform_device_register(&da830_mcasp1_device);
-	} else if (cpu_is_davinci_da850()) {
-		da850_mcasp_device.dev.platform_data = pdata;
-		platform_device_register(&da850_mcasp_device);
+	struct platform_device *pdev;
+
+	switch (id) {
+	case 0:
+		/* Valid for DA830/OMAP-L137 or DA850/OMAP-L138 */
+		pdev = &da850_mcasp_device;
+		break;
+	case 1:
+		/* Valid for DA830/OMAP-L137 only */
+		if (!cpu_is_davinci_da830())
+			return;
+		pdev = &da830_mcasp1_device;
+		break;
+	default:
+		return;
 	}
+
+	pdev->dev.platform_data = pdata;
+	platform_device_register(pdev);
 }
 
 static struct resource da8xx_pruss_resources[] = {
