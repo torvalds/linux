@@ -87,7 +87,7 @@ static void arcfour_encrypt(	struct arc4context	*parc4ctx,
 
 }
 
-static int bcrc32initialized = 0;
+static int bcrc32initialized;
 static u32 crc32_table[256];
 
 static u8 crc32_reverseBit(u8 data)
