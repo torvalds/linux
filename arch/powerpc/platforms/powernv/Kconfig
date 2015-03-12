@@ -19,10 +19,3 @@ config PPC_POWERNV
 	select CPU_FREQ_GOV_CONSERVATIVE
 	select PPC_DOORBELL
 	default y
-
-config PPC_POWERNV_RTAS
-	depends on PPC_POWERNV
-	bool "Support for RTAS based PowerNV platforms such as BML"
-	default y
-	select PPC_ICS_RTAS
-	select PPC_RTAS

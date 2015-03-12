@@ -662,66 +662,13 @@ void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 	tbl->it_type = TCE_PCI;
 }
 
-static struct iommu_table *pnv_pci_setup_bml_iommu(struct pci_controller *hose)
-{
-	struct iommu_table *tbl;
-	const __be64 *basep, *swinvp;
-	const __be32 *sizep;
-
-	basep = of_get_property(hose->dn, "linux,tce-base", NULL);
-	sizep = of_get_property(hose->dn, "linux,tce-size", NULL);
-	if (basep == NULL || sizep == NULL) {
-		pr_err("PCI: %s has missing tce entries !\n",
-		       hose->dn->full_name);
-		return NULL;
-	}
-	tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL, hose->node);
-	if (WARN_ON(!tbl))
-		return NULL;
-	pnv_pci_setup_iommu_table(tbl, __va(be64_to_cpup(basep)),
-				  be32_to_cpup(sizep), 0, IOMMU_PAGE_SHIFT_4K);
-	iommu_init_table(tbl, hose->node);
-	iommu_register_group(tbl, pci_domain_nr(hose->bus), 0);
-
-	/* Deal with SW invalidated TCEs when needed (BML way) */
-	swinvp = of_get_property(hose->dn, "linux,tce-sw-invalidate-info",
-				 NULL);
-	if (swinvp) {
-		tbl->it_busno = be64_to_cpu(swinvp[1]);
-		tbl->it_index = (unsigned long)ioremap(be64_to_cpup(swinvp), 8);
-		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
-	}
-	return tbl;
-}
-
-static void pnv_pci_dma_fallback_setup(struct pci_controller *hose,
-				       struct pci_dev *pdev)
-{
-	struct device_node *np = pci_bus_to_OF_node(hose->bus);
-	struct pci_dn *pdn;
-
-	if (np == NULL)
-		return;
-	pdn = PCI_DN(np);
-	if (!pdn->iommu_table)
-		pdn->iommu_table = pnv_pci_setup_bml_iommu(hose);
-	if (!pdn->iommu_table)
-		return;
-	set_iommu_table_base_and_group(&pdev->dev, pdn->iommu_table);
-}
-
 static void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
 
-	/* If we have no phb structure, try to setup a fallback based on
-	 * the device-tree (RTAS PCI for example)
-	 */
 	if (phb && phb->dma_dev_setup)
 		phb->dma_dev_setup(phb, pdev);
-	else
-		pnv_pci_dma_fallback_setup(hose, pdev);
 }
 
 int pnv_pci_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
@@ -767,38 +714,31 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_IBM, 0x3b9, pnv_p7ioc_rc_quirk);
 void __init pnv_pci_init(void)
 {
 	struct device_node *np;
+	bool found_ioda = false;
 
 	pci_add_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
-	/* OPAL absent, try POPAL first then RTAS detection of PHBs */
-	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
-#ifdef CONFIG_PPC_POWERNV_RTAS
-		init_pci_config_tokens();
-		find_and_init_phbs();
-#endif /* CONFIG_PPC_POWERNV_RTAS */
+	/* If we don't have OPAL, eg. in sim, just skip PCI probe */
+	if (!firmware_has_feature(FW_FEATURE_OPAL))
+		return;
+
+	/* Look for IODA IO-Hubs. We don't support mixing IODA
+	 * and p5ioc2 due to the need to change some global
+	 * probing flags
+	 */
+	for_each_compatible_node(np, NULL, "ibm,ioda-hub") {
+		pnv_pci_init_ioda_hub(np);
+		found_ioda = true;
 	}
-	/* OPAL is here, do our normal stuff */
-	else {
-		int found_ioda = 0;
 
-		/* Look for IODA IO-Hubs. We don't support mixing IODA
-		 * and p5ioc2 due to the need to change some global
-		 * probing flags
-		 */
-		for_each_compatible_node(np, NULL, "ibm,ioda-hub") {
-			pnv_pci_init_ioda_hub(np);
-			found_ioda = 1;
-		}
+	/* Look for p5ioc2 IO-Hubs */
+	if (!found_ioda)
+		for_each_compatible_node(np, NULL, "ibm,p5ioc2")
+			pnv_pci_init_p5ioc2_hub(np);
 
-		/* Look for p5ioc2 IO-Hubs */
-		if (!found_ioda)
-			for_each_compatible_node(np, NULL, "ibm,p5ioc2")
-				pnv_pci_init_p5ioc2_hub(np);
-
-		/* Look for ioda2 built-in PHB3's */
-		for_each_compatible_node(np, NULL, "ibm,ioda2-phb")
-			pnv_pci_init_ioda2_phb(np);
-	}
+	/* Look for ioda2 built-in PHB3's */
+	for_each_compatible_node(np, NULL, "ibm,ioda2-phb")
+		pnv_pci_init_ioda2_phb(np);
 
 	/* Setup the linkage between OF nodes and PHBs */
 	pci_devs_phb_init();

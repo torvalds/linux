@@ -32,7 +32,6 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/xics.h>
-#include <asm/rtas.h>
 #include <asm/opal.h>
 #include <asm/kexec.h>
 #include <asm/smp.h>
@@ -278,20 +277,6 @@ static void __init pnv_setup_machdep_opal(void)
 	ppc_md.handle_hmi_exception = opal_handle_hmi_exception;
 }
 
-#ifdef CONFIG_PPC_POWERNV_RTAS
-static void __init pnv_setup_machdep_rtas(void)
-{
-	if (rtas_token("get-time-of-day") != RTAS_UNKNOWN_SERVICE) {
-		ppc_md.get_boot_time = rtas_get_boot_time;
-		ppc_md.get_rtc_time = rtas_get_rtc_time;
-		ppc_md.set_rtc_time = rtas_set_rtc_time;
-	}
-	ppc_md.restart = rtas_restart;
-	pm_power_off = rtas_power_off;
-	ppc_md.halt = rtas_halt;
-}
-#endif /* CONFIG_PPC_POWERNV_RTAS */
-
 static u32 supported_cpuidle_states;
 
 int pnv_save_sprs_for_winkle(void)
@@ -470,10 +455,6 @@ static int __init pnv_probe(void)
 
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		pnv_setup_machdep_opal();
-#ifdef CONFIG_PPC_POWERNV_RTAS
-	else if (rtas.base)
-		pnv_setup_machdep_rtas();
-#endif /* CONFIG_PPC_POWERNV_RTAS */
 
 	pr_debug("PowerNV detected !\n");
 
