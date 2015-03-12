@@ -363,6 +363,7 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select PINCTRL
 	select PINCTRL_AT91
+	select SOC_BUS
 	select USE_OF
 	help
 	  This enables support for systems based on Atmel
