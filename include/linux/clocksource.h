@@ -179,7 +179,6 @@ static inline s64 clocksource_cyc2ns(cycle_t cycles, u32 mult, u32 shift)
 }
 
 
-extern int clocksource_register(struct clocksource*);
 extern int clocksource_unregister(struct clocksource*);
 extern void clocksource_touch_watchdog(void);
 extern struct clocksource* clocksource_get_next(void);
@@ -202,6 +201,15 @@ extern int
 __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq);
 extern void
 __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq);
+
+/*
+ * Don't call this unless you are a default clocksource
+ * (AKA: jiffies) and absolutely have to.
+ */
+static inline int __clocksource_register(struct clocksource *cs)
+{
+	return __clocksource_register_scale(cs, 1, 0);
+}
 
 static inline int clocksource_register_hz(struct clocksource *cs, u32 hz)
 {

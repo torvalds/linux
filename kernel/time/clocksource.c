@@ -656,37 +656,51 @@ static void clocksource_enqueue(struct clocksource *cs)
 void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 {
 	u64 sec;
+
 	/*
-	 * Calc the maximum number of seconds which we can run before
-	 * wrapping around. For clocksources which have a mask > 32bit
-	 * we need to limit the max sleep time to have a good
-	 * conversion precision. 10 minutes is still a reasonable
-	 * amount. That results in a shift value of 24 for a
-	 * clocksource with mask >= 40bit and f >= 4GHz. That maps to
-	 * ~ 0.06ppm granularity for NTP.
+	 * Default clocksources are *special* and self-define their mult/shift.
+	 * But, you're not special, so you should specify a freq value.
 	 */
-	sec = cs->mask;
-	do_div(sec, freq);
-	do_div(sec, scale);
-	if (!sec)
-		sec = 1;
-	else if (sec > 600 && cs->mask > UINT_MAX)
-		sec = 600;
+	if (freq) {
+		/*
+		 * Calc the maximum number of seconds which we can run before
+		 * wrapping around. For clocksources which have a mask > 32-bit
+		 * we need to limit the max sleep time to have a good
+		 * conversion precision. 10 minutes is still a reasonable
+		 * amount. That results in a shift value of 24 for a
+		 * clocksource with mask >= 40-bit and f >= 4GHz. That maps to
+		 * ~ 0.06ppm granularity for NTP.
+		 */
+		sec = cs->mask;
+		do_div(sec, freq);
+		do_div(sec, scale);
+		if (!sec)
+			sec = 1;
+		else if (sec > 600 && cs->mask > UINT_MAX)
+			sec = 600;
 
-	clocks_calc_mult_shift(&cs->mult, &cs->shift, freq,
-			       NSEC_PER_SEC / scale, sec * scale);
-
+		clocks_calc_mult_shift(&cs->mult, &cs->shift, freq,
+				       NSEC_PER_SEC / scale, sec * scale);
+	}
 	/*
 	 * Ensure clocksources that have large 'mult' values don't overflow
 	 * when adjusted.
 	 */
 	cs->maxadj = clocksource_max_adjustment(cs);
-	while ((cs->mult + cs->maxadj < cs->mult)
-		|| (cs->mult - cs->maxadj > cs->mult)) {
+	while (freq && ((cs->mult + cs->maxadj < cs->mult)
+		|| (cs->mult - cs->maxadj > cs->mult))) {
 		cs->mult >>= 1;
 		cs->shift--;
 		cs->maxadj = clocksource_max_adjustment(cs);
 	}
+
+	/*
+	 * Only warn for *special* clocksources that self-define
+	 * their mult/shift values and don't specify a freq.
+	 */
+	WARN_ONCE(cs->mult + cs->maxadj < cs->mult,
+		"timekeeping: Clocksource %s might overflow on 11%% adjustment\n",
+		cs->name);
 
 	clocksource_update_max_deferment(cs);
 }
@@ -718,33 +732,6 @@ int __clocksource_register_scale(struct clocksource *cs, u32 scale, u32 freq)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__clocksource_register_scale);
-
-
-/**
- * clocksource_register - Used to install new clocksources
- * @cs:		clocksource to be registered
- *
- * Returns -EBUSY if registration fails, zero otherwise.
- */
-int clocksource_register(struct clocksource *cs)
-{
-	/* calculate max adjustment for given mult/shift */
-	cs->maxadj = clocksource_max_adjustment(cs);
-	WARN_ONCE(cs->mult + cs->maxadj < cs->mult,
-		"Clocksource %s might overflow on 11%% adjustment\n",
-		cs->name);
-
-	/* Update max idle time permitted for this clocksource */
-	clocksource_update_max_deferment(cs);
-
-	mutex_lock(&clocksource_mutex);
-	clocksource_enqueue(cs);
-	clocksource_enqueue_watchdog(cs);
-	clocksource_select();
-	mutex_unlock(&clocksource_mutex);
-	return 0;
-}
-EXPORT_SYMBOL(clocksource_register);
 
 static void __clocksource_change_rating(struct clocksource *cs, int rating)
 {

@@ -191,7 +191,7 @@ static __init int setup_timer_cs(void)
 	timer_cs.mult = clocksource_hz2mult(sparc_config.clock_rate,
 	                                    timer_cs.shift);
 
-	return clocksource_register(&timer_cs);
+	return __clocksource_register(&timer_cs);
 }
 
 #ifdef CONFIG_SMP

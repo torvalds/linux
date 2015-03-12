@@ -283,7 +283,7 @@ void __init time_init(void)
 	if (register_external_irq(EXT_IRQ_TIMING_ALERT, timing_alert_interrupt))
 		panic("Couldn't request external interrupt 0x1406");
 
-	if (clocksource_register(&clocksource_tod) != 0)
+	if (__clocksource_register(&clocksource_tod) != 0)
 		panic("Could not register TOD clock source");
 
 	/* Enable TOD clock interrupts on the boot cpu. */
