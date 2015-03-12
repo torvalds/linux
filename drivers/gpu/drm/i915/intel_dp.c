@@ -1195,9 +1195,9 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 	}
 }
 
-static int intel_supported_rates(const int *source_rates, int source_len,
-				 const int *sink_rates, int sink_len,
-				 int *supported_rates)
+static int intersect_rates(const int *source_rates, int source_len,
+			   const int *sink_rates, int sink_len,
+			   int *supported_rates)
 {
 	int i = 0, j = 0, k = 0;
 
@@ -1214,6 +1214,21 @@ static int intel_supported_rates(const int *source_rates, int source_len,
 		}
 	}
 	return k;
+}
+
+static int intel_supported_rates(struct intel_dp *intel_dp,
+				 int *supported_rates)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	const int *source_rates, *sink_rates;
+	int source_len, sink_len;
+
+	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
+	source_len = intel_dp_source_rates(dev, &source_rates);
+
+	return intersect_rates(source_rates, source_len,
+			       sink_rates, sink_len,
+			       supported_rates);
 }
 
 static int rate_to_index(int find, const int *rates)
@@ -1246,17 +1261,10 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int max_clock;
 	int bpp, mode_rate;
 	int link_avail, link_clock;
-	const int *sink_rates;
-	int supported_rates[8] = {0};
-	const int *source_rates;
-	int source_len, sink_len, supported_len;
+	int supported_rates[DP_MAX_SUPPORTED_RATES] = {};
+	int supported_len;
 
-	sink_len = intel_dp_sink_rates(intel_dp, &sink_rates);
-
-	source_len = intel_dp_source_rates(dev, &source_rates);
-
-	supported_len = intel_supported_rates(source_rates, source_len,
-				sink_rates, sink_len, supported_rates);
+	supported_len = intel_supported_rates(intel_dp, supported_rates);
 
 	/* No common link rates between source and sink */
 	WARN_ON(supported_len <= 0);
@@ -1355,7 +1363,8 @@ found:
 
 	if (INTEL_INFO(dev)->gen >= 9 && intel_dp->supported_rates[0]) {
 		intel_dp->rate_select =
-			rate_to_index(supported_rates[clock], sink_rates);
+			rate_to_index(supported_rates[clock],
+				      intel_dp->supported_rates);
 		intel_dp->link_bw = 0;
 	}
 
