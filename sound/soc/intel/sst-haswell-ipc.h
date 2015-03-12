@@ -38,6 +38,8 @@
 #define SST_HSW_MAX_INFO_SIZE		64
 #define SST_HSW_BUILD_HASH_LENGTH	40
 #define SST_HSW_IPC_MAX_SHORT_PARAMETER_SIZE	500
+#define WAVES_PARAM_COUNT		128
+#define WAVES_PARAM_LINES		160
 
 struct sst_hsw;
 struct sst_hsw_stream;
@@ -503,6 +505,10 @@ bool sst_hsw_is_module_active(struct sst_hsw *hsw, u32 module_id);
 void sst_hsw_set_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id);
 void sst_hsw_set_module_disabled_rtd3(struct sst_hsw *hsw, u32 module_id);
 bool sst_hsw_is_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id);
+void sst_hsw_reset_param_buf(struct sst_hsw *hsw);
+int sst_hsw_store_param_line(struct sst_hsw *hsw, u8 *buf);
+int sst_hsw_load_param_line(struct sst_hsw *hsw, u8 *buf);
+int sst_hsw_launch_param_buf(struct sst_hsw *hsw);
 
 int sst_hsw_module_load(struct sst_hsw *hsw,
 	u32 module_id, u32 instance_id, char *name);

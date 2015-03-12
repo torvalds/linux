@@ -341,6 +341,11 @@ struct sst_hsw {
 	/* flags bit field to track module state when resume from RTD3,
 	 * each bit represent state (enabled/disabled) of single module */
 	u32 enabled_modules_rtd3;
+
+	/* buffer to store parameter lines */
+	u32 param_idx_w;	/* write index */
+	u32 param_idx_r;	/* read index */
+	u8 param_buf[WAVES_PARAM_LINES][WAVES_PARAM_COUNT];
 };
 
 #define CREATE_TRACE_POINTS
@@ -2005,6 +2010,62 @@ bool sst_hsw_is_module_enabled_rtd3(struct sst_hsw *hsw, u32 module_id)
 	return hsw->enabled_modules_rtd3 & (1 << module_id);
 }
 
+void sst_hsw_reset_param_buf(struct sst_hsw *hsw)
+{
+	hsw->param_idx_w = 0;
+	hsw->param_idx_r = 0;
+	memset((void *)hsw->param_buf, 0, sizeof(hsw->param_buf));
+}
+
+int sst_hsw_store_param_line(struct sst_hsw *hsw, u8 *buf)
+{
+	/* save line to the first available position of param buffer */
+	if (hsw->param_idx_w > WAVES_PARAM_LINES - 1) {
+		dev_warn(hsw->dev, "warning: param buffer overflow!\n");
+		return -EPERM;
+	}
+	memcpy(hsw->param_buf[hsw->param_idx_w], buf, WAVES_PARAM_COUNT);
+	hsw->param_idx_w++;
+	return 0;
+}
+
+int sst_hsw_load_param_line(struct sst_hsw *hsw, u8 *buf)
+{
+	u8 id = 0;
+
+	/* read the first matching line from param buffer */
+	while (hsw->param_idx_r < WAVES_PARAM_LINES) {
+		id = hsw->param_buf[hsw->param_idx_r][0];
+		hsw->param_idx_r++;
+		if (buf[0] == id) {
+			memcpy(buf, hsw->param_buf[hsw->param_idx_r],
+				WAVES_PARAM_COUNT);
+			break;
+		}
+	}
+	if (hsw->param_idx_r > WAVES_PARAM_LINES - 1) {
+		dev_dbg(hsw->dev, "end of buffer, roll to the beginning\n");
+		hsw->param_idx_r = 0;
+		return 0;
+	}
+	return 0;
+}
+
+int sst_hsw_launch_param_buf(struct sst_hsw *hsw)
+{
+	int ret, idx;
+
+	/* put all param lines to DSP through ipc */
+	for (idx = 0; idx < hsw->param_idx_w; idx++) {
+		ret = sst_hsw_module_set_param(hsw,
+			SST_HSW_MODULE_WAVES, 0, hsw->param_buf[idx][0],
+			WAVES_PARAM_COUNT, hsw->param_buf[idx]);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
 int sst_hsw_module_load(struct sst_hsw *hsw,
 	u32 module_id, u32 instance_id, char *name)
 {
@@ -2298,6 +2359,9 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	ret = sst_block_alloc_scratch(hsw->dsp);
 	if (ret < 0)
 		goto boot_err;
+
+	/* init param buffer */
+	sst_hsw_reset_param_buf(hsw);
 
 	/* wait for DSP boot completion */
 	sst_dsp_boot(hsw->dsp);

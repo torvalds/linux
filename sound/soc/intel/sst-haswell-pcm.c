@@ -366,6 +366,49 @@ static int hsw_waves_switch_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+static int hsw_waves_param_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
+	struct sst_hsw *hsw = pdata->hsw;
+
+	/* return a matching line from param buffer */
+	return sst_hsw_load_param_line(hsw, ucontrol->value.bytes.data);
+}
+
+static int hsw_waves_param_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
+	struct sst_hsw *hsw = pdata->hsw;
+	int ret;
+	enum sst_hsw_module_id id = SST_HSW_MODULE_WAVES;
+	int param_id = ucontrol->value.bytes.data[0];
+	int param_size = WAVES_PARAM_COUNT;
+
+	/* clear param buffer and reset buffer index */
+	if (param_id == 0xFF) {
+		sst_hsw_reset_param_buf(hsw);
+		return 0;
+	}
+
+	/* store params into buffer */
+	ret = sst_hsw_store_param_line(hsw, ucontrol->value.bytes.data);
+	if (ret < 0)
+		return ret;
+
+	if (sst_hsw_is_module_loaded(hsw, id)) {
+		if (!sst_hsw_is_module_active(hsw, id))
+			return 0;
+
+		ret = sst_hsw_module_set_param(hsw, id, 0, param_id,
+				param_size, ucontrol->value.bytes.data);
+	}
+	return ret;
+}
+
 /* TLV used by both global and stream volumes */
 static const DECLARE_TLV_DB_SCALE(hsw_vol_tlv, -9000, 300, 1);
 
@@ -390,6 +433,9 @@ static const struct snd_kcontrol_new hsw_volume_controls[] = {
 	/* enable/disable module waves */
 	SOC_SINGLE_BOOL_EXT("Waves Switch", 0,
 		hsw_waves_switch_get, hsw_waves_switch_put),
+	/* set parameters to module waves */
+	SND_SOC_BYTES_EXT("Waves Set Param", WAVES_PARAM_COUNT,
+		hsw_waves_param_get, hsw_waves_param_put),
 };
 
 /* Create DMA buffer page table for DSP */
@@ -1218,6 +1264,10 @@ static int hsw_pcm_runtime_resume(struct device *dev)
 	/* check flag when resume */
 	if (sst_hsw_is_module_enabled_rtd3(hsw, SST_HSW_MODULE_WAVES)) {
 		ret = sst_hsw_module_enable(hsw, SST_HSW_MODULE_WAVES, 0);
+		if (ret < 0)
+			return ret;
+		/* put parameters from buffer to dsp */
+		ret = sst_hsw_launch_param_buf(hsw);
 		if (ret < 0)
 			return ret;
 		/* unset flag */
