@@ -3,6 +3,8 @@
 #include <dt-bindings/input/input.h>
 #include "tegra124.dtsi"
 
+#include "tegra124-jetson-tk1-emc.dtsi"
+
 / {
 	model = "NVIDIA Tegra124 Jetson TK1";
 	compatible = "nvidia,jetson-tk1", "nvidia,tegra124";
