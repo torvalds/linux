@@ -23,12 +23,6 @@ static const struct at91_soc rm9200_socs[] = {
 	{ /* sentinel */ },
 };
 
-static void __init at91rm9200_dt_timer_init(void)
-{
-	of_clk_init(NULL);
-	at91rm9200_timer_init();
-}
-
 static void __init at91rm9200_dt_device_init(void)
 {
 	struct soc_device *soc;
@@ -50,7 +44,6 @@ static const char *at91rm9200_dt_board_compat[] __initconst = {
 };
 
 DT_MACHINE_START(at91rm9200_dt, "Atmel AT91RM9200")
-	.init_time      = at91rm9200_dt_timer_init,
 	.init_machine	= at91rm9200_dt_device_init,
 	.dt_compat	= at91rm9200_dt_board_compat,
 MACHINE_END

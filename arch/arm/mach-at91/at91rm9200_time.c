@@ -222,7 +222,7 @@ err:
 /*
  * ST (system timer) module supports both clockevents and clocksource.
  */
-void __init at91rm9200_timer_init(void)
+static void __init atmel_st_timer_init(struct device_node *node)
 {
 	/* For device tree enabled device: initialize here */
 	of_at91rm9200_st_init();
@@ -249,3 +249,5 @@ void __init at91rm9200_timer_init(void)
 	/* register clocksource */
 	clocksource_register_hz(&clk32k, AT91_SLOW_CLOCK);
 }
+CLOCKSOURCE_OF_DECLARE(atmel_st_timer, "atmel,at91rm9200-st",
+		       atmel_st_timer_init);
