@@ -559,6 +559,7 @@ static int setup_sorting(struct list_head *sort_list, const char *arg)
 {
 	char *tok;
 	char *str = strdup(arg);
+	char *pos = str;
 
 	if (!str) {
 		pr_err("%s: strdup failed\n", __func__);
@@ -566,7 +567,7 @@ static int setup_sorting(struct list_head *sort_list, const char *arg)
 	}
 
 	while (true) {
-		tok = strsep(&str, ",");
+		tok = strsep(&pos, ",");
 		if (!tok)
 			break;
 		if (sort_dimension__add(tok, sort_list) < 0) {
