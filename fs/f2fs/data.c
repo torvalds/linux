@@ -257,7 +257,7 @@ static void f2fs_map_bh(struct super_block *sb, pgoff_t pgofs,
 	unsigned int blkbits = sb->s_blocksize_bits;
 	size_t count;
 
-	set_buffer_new(bh_result);
+	clear_buffer_new(bh_result);
 	map_bh(bh_result, sb, ei->blk + pgofs - ei->fofs);
 	count = ei->fofs + ei->len - pgofs;
 	if (count < (UINT_MAX >> blkbits))
@@ -1139,7 +1139,7 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 		goto put_out;
 
 	if (dn.data_blkaddr != NULL_ADDR) {
-		set_buffer_new(bh_result);
+		clear_buffer_new(bh_result);
 		map_bh(bh_result, inode->i_sb, dn.data_blkaddr);
 	} else if (create) {
 		err = __allocate_data_block(&dn);
@@ -1184,6 +1184,7 @@ get_next:
 			if (err)
 				goto sync_out;
 			allocated = true;
+			set_buffer_new(bh_result);
 			blkaddr = dn.data_blkaddr;
 		}
 		/* Give more consecutive addresses for the readahead */
