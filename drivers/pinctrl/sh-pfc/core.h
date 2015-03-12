@@ -57,8 +57,8 @@ int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc);
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
 int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc);
 
-u32 sh_pfc_read_raw_reg(void __iomem *mapped_reg, unsigned long reg_width);
-void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned long reg_width,
+u32 sh_pfc_read_raw_reg(void __iomem *mapped_reg, unsigned int reg_width);
+void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned int reg_width,
 			  u32 data);
 
 int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin);

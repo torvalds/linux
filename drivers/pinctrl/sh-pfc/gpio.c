@@ -153,8 +153,8 @@ static void gpio_pin_set_value(struct sh_pfc_chip *chip, unsigned offset,
 			       int value)
 {
 	struct sh_pfc_gpio_data_reg *reg;
-	unsigned long pos;
 	unsigned int bit;
+	unsigned int pos;
 
 	gpio_get_data_reg(chip, offset, &reg, &bit);
 
@@ -185,8 +185,8 @@ static int gpio_pin_get(struct gpio_chip *gc, unsigned offset)
 {
 	struct sh_pfc_chip *chip = gpio_to_pfc_chip(gc);
 	struct sh_pfc_gpio_data_reg *reg;
-	unsigned long pos;
 	unsigned int bit;
+	unsigned int pos;
 
 	gpio_get_data_reg(chip, offset, &reg, &bit);
 
