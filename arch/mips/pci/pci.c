@@ -94,28 +94,29 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	pci_add_resource_offset(&resources, hose->io_resource, hose->io_offset);
 	bus = pci_scan_root_bus(NULL, next_busno, hose->pci_ops, hose,
 				&resources);
-	if (!bus)
-		pci_free_resource_list(&resources);
-
 	hose->bus = bus;
 
 	need_domain_info = need_domain_info || hose->index;
 	hose->need_domain_info = need_domain_info;
-	if (bus) {
-		next_busno = bus->busn_res.end + 1;
-		/* Don't allow 8-bit bus number overflow inside the hose -
-		   reserve some space for bridges. */
-		if (next_busno > 224) {
-			next_busno = 0;
-			need_domain_info = 1;
-		}
 
-		if (!pci_has_flag(PCI_PROBE_ONLY)) {
-			pci_bus_size_bridges(bus);
-			pci_bus_assign_resources(bus);
-		}
-		pci_bus_add_devices(bus);
+	if (!bus) {
+		pci_free_resource_list(&resources);
+		return;
 	}
+
+	next_busno = bus->busn_res.end + 1;
+	/* Don't allow 8-bit bus number overflow inside the hose -
+	   reserve some space for bridges. */
+	if (next_busno > 224) {
+		next_busno = 0;
+		need_domain_info = 1;
+	}
+
+	if (!pci_has_flag(PCI_PROBE_ONLY)) {
+		pci_bus_size_bridges(bus);
+		pci_bus_assign_resources(bus);
+	}
+	pci_bus_add_devices(bus);
 }
 
 #ifdef CONFIG_OF
