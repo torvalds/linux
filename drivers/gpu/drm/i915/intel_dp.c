@@ -1203,6 +1203,8 @@ static int intersect_rates(const int *source_rates, int source_len,
 
 	while (i < source_len && j < sink_len) {
 		if (source_rates[i] == sink_rates[j]) {
+			if (WARN_ON(k >= DP_MAX_SUPPORTED_RATES))
+				return k;
 			supported_rates[k] = source_rates[i];
 			++k;
 			++i;
