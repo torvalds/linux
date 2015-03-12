@@ -1207,14 +1207,6 @@ static int intel_supported_rates(const int *source_rates, int source_len,
 {
 	int i = 0, j = 0, k = 0;
 
-	/* For panels with edp version less than 1.4 */
-	if (sink_len == 0) {
-		for (i = 0; i < source_len; ++i)
-			supported_rates[i] = source_rates[i];
-		return source_len;
-	}
-
-	/* For edp1.4 panels, find the common rates between source and sink */
 	while (i < source_len && j < sink_len) {
 		if (source_rates[i] == sink_rates[j]) {
 			supported_rates[k] = source_rates[i];
