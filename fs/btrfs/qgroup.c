@@ -84,10 +84,41 @@ struct btrfs_qgroup {
 
 	/*
 	 * temp variables for accounting operations
+	 * Refer to qgroup_shared_accouting() for details.
 	 */
 	u64 old_refcnt;
 	u64 new_refcnt;
 };
+
+static void btrfs_qgroup_update_old_refcnt(struct btrfs_qgroup *qg, u64 seq,
+					   int mod)
+{
+	if (qg->old_refcnt < seq)
+		qg->old_refcnt = seq;
+	qg->old_refcnt += mod;
+}
+
+static void btrfs_qgroup_update_new_refcnt(struct btrfs_qgroup *qg, u64 seq,
+					   int mod)
+{
+	if (qg->new_refcnt < seq)
+		qg->new_refcnt = seq;
+	qg->new_refcnt += mod;
+}
+
+static inline u64 btrfs_qgroup_get_old_refcnt(struct btrfs_qgroup *qg, u64 seq)
+{
+	if (qg->old_refcnt < seq)
+		return 0;
+	return qg->old_refcnt - seq;
+}
+
+static inline u64 btrfs_qgroup_get_new_refcnt(struct btrfs_qgroup *qg, u64 seq)
+{
+	if (qg->new_refcnt < seq)
+		return 0;
+	return qg->new_refcnt - seq;
+}
 
 /*
  * glue structure to represent the relations between qgroups.
@@ -1601,6 +1632,7 @@ static int qgroup_calc_old_refcnt(struct btrfs_fs_info *fs_info,
 		ULIST_ITER_INIT(&tmp_uiter);
 		while ((tmp_unode = ulist_next(tmp, &tmp_uiter))) {
 			struct btrfs_qgroup_list *glist;
+			int mod;
 
 			qg = u64_to_ptr(tmp_unode->aux);
 			/*
@@ -1612,20 +1644,15 @@ static int qgroup_calc_old_refcnt(struct btrfs_fs_info *fs_info,
 			 * upper level qgroups in order to determine exclusive
 			 * counts.
 			 *
-			 * For rescan we want to set old_refcnt to seq so our
-			 * exclusive calculations end up correct.
+			 * For rescan none of the extent is recorded before so
+			 * we just don't add old_refcnt.
 			 */
 			if (rescan)
-				qg->old_refcnt = seq;
-			else if (qg->old_refcnt < seq)
-				qg->old_refcnt = seq + 1;
+				mod = 0;
 			else
-				qg->old_refcnt++;
-
-			if (qg->new_refcnt < seq)
-				qg->new_refcnt = seq + 1;
-			else
-				qg->new_refcnt++;
+				mod = 1;
+			btrfs_qgroup_update_old_refcnt(qg, seq, mod);
+			btrfs_qgroup_update_new_refcnt(qg, seq, 1);
 			list_for_each_entry(glist, &qg->groups, next_group) {
 				ret = ulist_add(qgroups, glist->group->qgroupid,
 						ptr_to_u64(glist->group),
@@ -1719,14 +1746,8 @@ next:
 		struct btrfs_qgroup_list *glist;
 
 		qg = u64_to_ptr(unode->aux);
-		if (qg->old_refcnt < seq)
-			qg->old_refcnt = seq + 1;
-		else
-			qg->old_refcnt++;
-		if (qg->new_refcnt < seq)
-			qg->new_refcnt = seq + 1;
-		else
-			qg->new_refcnt++;
+		btrfs_qgroup_update_old_refcnt(qg, seq, 1);
+		btrfs_qgroup_update_new_refcnt(qg, seq, 1);
 		list_for_each_entry(glist, &qg->groups, next_group) {
 			ret = ulist_add(qgroups, glist->group->qgroupid,
 					ptr_to_u64(glist->group), GFP_ATOMIC);
@@ -1767,17 +1788,10 @@ static int qgroup_calc_new_refcnt(struct btrfs_fs_info *fs_info,
 		struct btrfs_qgroup_list *glist;
 
 		qg = u64_to_ptr(unode->aux);
-		if (oper->type == BTRFS_QGROUP_OPER_ADD_SHARED) {
-			if (qg->new_refcnt < seq)
-				qg->new_refcnt = seq + 1;
-			else
-				qg->new_refcnt++;
-		} else {
-			if (qg->old_refcnt < seq)
-				qg->old_refcnt = seq + 1;
-			else
-				qg->old_refcnt++;
-		}
+		if (oper->type == BTRFS_QGROUP_OPER_ADD_SHARED)
+			btrfs_qgroup_update_new_refcnt(qg, seq, 1);
+		else
+			btrfs_qgroup_update_old_refcnt(qg, seq, 1);
 		list_for_each_entry(glist, &qg->groups, next_group) {
 			ret = ulist_add(tmp, glist->group->qgroupid,
 					ptr_to_u64(glist->group), GFP_ATOMIC);
@@ -1810,11 +1824,14 @@ static int qgroup_adjust_counters(struct btrfs_fs_info *fs_info,
 		bool dirty = false;
 
 		qg = u64_to_ptr(unode->aux);
+		cur_old_count = btrfs_qgroup_get_old_refcnt(qg, seq);
+		cur_new_count = btrfs_qgroup_get_new_refcnt(qg, seq);
+
 		/*
 		 * Wasn't referenced before but is now, add to the reference
 		 * counters.
 		 */
-		if (qg->old_refcnt <= seq && qg->new_refcnt > seq) {
+		if (cur_old_count == 0 && cur_new_count > 0) {
 			qg->rfer += num_bytes;
 			qg->rfer_cmpr += num_bytes;
 			dirty = true;
@@ -1824,20 +1841,11 @@ static int qgroup_adjust_counters(struct btrfs_fs_info *fs_info,
 		 * Was referenced before but isn't now, subtract from the
 		 * reference counters.
 		 */
-		if (qg->old_refcnt > seq && qg->new_refcnt <= seq) {
+		if (cur_old_count > 0 && cur_new_count == 0) {
 			qg->rfer -= num_bytes;
 			qg->rfer_cmpr -= num_bytes;
 			dirty = true;
 		}
-
-		if (qg->old_refcnt < seq)
-			cur_old_count = 0;
-		else
-			cur_old_count = qg->old_refcnt - seq;
-		if (qg->new_refcnt < seq)
-			cur_new_count = 0;
-		else
-			cur_new_count = qg->new_refcnt - seq;
 
 		/*
 		 * If our refcount was the same as the roots previously but our
@@ -2036,6 +2044,11 @@ static int qgroup_shared_accounting(struct btrfs_trans_handle *trans,
 		new_roots = old_roots;
 		old_roots++;
 	}
+
+	/*
+	 * Bump qgroup_seq to avoid seq overlap
+	 * XXX: This makes qgroup_seq mismatch with oper->seq.
+	 */
 	fs_info->qgroup_seq += old_roots + 1;
 
 
