@@ -755,13 +755,16 @@ static int check_func_arg(struct verifier_env *env, u32 regno,
 	enum bpf_reg_type expected_type;
 	int err = 0;
 
-	if (arg_type == ARG_ANYTHING)
+	if (arg_type == ARG_DONTCARE)
 		return 0;
 
 	if (reg->type == NOT_INIT) {
 		verbose("R%d !read_ok\n", regno);
 		return -EACCES;
 	}
+
+	if (arg_type == ARG_ANYTHING)
+		return 0;
 
 	if (arg_type == ARG_PTR_TO_STACK || arg_type == ARG_PTR_TO_MAP_KEY ||
 	    arg_type == ARG_PTR_TO_MAP_VALUE) {

@@ -44,7 +44,7 @@ struct bpf_map_type_list {
 
 /* function argument constraints */
 enum bpf_arg_type {
-	ARG_ANYTHING = 0,	/* any argument is ok */
+	ARG_DONTCARE = 0,	/* unused argument in helper function */
 
 	/* the following constraints used to prototype
 	 * bpf_map_lookup/update/delete_elem() functions
@@ -58,6 +58,8 @@ enum bpf_arg_type {
 	 */
 	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
 	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
+
+	ARG_ANYTHING,		/* any (initialized) argument is ok */
 };
 
 /* type of values returned from helper functions */
