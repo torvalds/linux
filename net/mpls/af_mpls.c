@@ -92,9 +92,24 @@ static bool mpls_egress(struct mpls_route *rt, struct sk_buff *skb,
 	 * The strange cases if we choose to support them will require
 	 * manual configuration.
 	 */
-	struct iphdr *hdr4 = ip_hdr(skb);
+	struct iphdr *hdr4;
 	bool success = true;
 
+	/* The IPv4 code below accesses through the IPv4 header
+	 * checksum, which is 12 bytes into the packet.
+	 * The IPv6 code below accesses through the IPv6 hop limit
+	 * which is 8 bytes into the packet.
+	 *
+	 * For all supported cases there should always be at least 12
+	 * bytes of packet data present.  The IPv4 header is 20 bytes
+	 * without options and the IPv6 header is always 40 bytes
+	 * long.
+	 */
+	if (!pskb_may_pull(skb, 12))
+		return false;
+
+	/* Use ip_hdr to find the ip protocol version */
+	hdr4 = ip_hdr(skb);
 	if (hdr4->version == 4) {
 		skb->protocol = htons(ETH_P_IP);
 		csum_replace2(&hdr4->check,
