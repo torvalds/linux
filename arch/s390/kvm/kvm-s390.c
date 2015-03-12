@@ -897,7 +897,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	kvm->arch.dbf = debug_register(debug_name, 8, 2, 8 * sizeof(long));
 	if (!kvm->arch.dbf)
-		goto out_nodbf;
+		goto out_err;
 
 	/*
 	 * The architectural maximum amount of facilities is 16 kbit. To store
@@ -909,7 +909,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.model.fac =
 		(struct kvm_s390_fac *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!kvm->arch.model.fac)
-		goto out_nofac;
+		goto out_err;
 
 	/* Populate the facility mask initially. */
 	memcpy(kvm->arch.model.fac->mask, S390_lowcore.stfle_fac_list,
@@ -929,7 +929,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.model.ibc = sclp_get_ibc() & 0x0fff;
 
 	if (kvm_s390_crypto_init(kvm) < 0)
-		goto out_crypto;
+		goto out_err;
 
 	spin_lock_init(&kvm->arch.float_int.lock);
 	INIT_LIST_HEAD(&kvm->arch.float_int.list);
@@ -944,7 +944,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	} else {
 		kvm->arch.gmap = gmap_alloc(current->mm, (1UL << 44) - 1);
 		if (!kvm->arch.gmap)
-			goto out_nogmap;
+			goto out_err;
 		kvm->arch.gmap->private = kvm;
 		kvm->arch.gmap->pfault_enabled = 0;
 	}
@@ -957,15 +957,11 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	spin_lock_init(&kvm->arch.start_stop_lock);
 
 	return 0;
-out_nogmap:
-	kfree(kvm->arch.crypto.crycb);
-out_crypto:
-	free_page((unsigned long)kvm->arch.model.fac);
-out_nofac:
-	debug_unregister(kvm->arch.dbf);
-out_nodbf:
-	free_page((unsigned long)(kvm->arch.sca));
 out_err:
+	kfree(kvm->arch.crypto.crycb);
+	free_page((unsigned long)kvm->arch.model.fac);
+	debug_unregister(kvm->arch.dbf);
+	free_page((unsigned long)(kvm->arch.sca));
 	return rc;
 }
 
