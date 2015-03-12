@@ -197,6 +197,8 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 			     struct iwl_time_event_notif *notif)
 {
 	if (!le32_to_cpu(notif->status)) {
+		if (te_data->vif->type == NL80211_IFTYPE_STATION)
+			ieee80211_connection_loss(te_data->vif);
 		IWL_DEBUG_TE(mvm, "CSA time event failed to start\n");
 		iwl_mvm_te_clear_data(mvm, te_data);
 		return;
@@ -756,8 +758,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 	 * request
 	 */
 	list_for_each_entry(te_data, &mvm->time_event_list, list) {
-		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE &&
-		    te_data->running) {
+		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
 			is_p2p = true;
 			goto remove_te;
@@ -772,10 +773,8 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 	 * request
 	 */
 	list_for_each_entry(te_data, &mvm->aux_roc_te_list, list) {
-		if (te_data->running) {
-			mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
-			goto remove_te;
-		}
+		mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
+		goto remove_te;
 	}
 
 remove_te:

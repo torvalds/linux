@@ -891,7 +891,8 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (!vif->bss_conf.assoc)
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
-	if (data->notif->rrc_enabled & BIT(mvmvif->phy_ctxt->id))
+	if (mvmvif->phy_ctxt &&
+	    data->notif->rrc_enabled & BIT(mvmvif->phy_ctxt->id))
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	IWL_DEBUG_COEX(data->mvm,
