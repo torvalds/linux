@@ -463,12 +463,14 @@ static struct resource da830_mcasp1_resources[] = {
 	},
 	/* TX event */
 	{
+		.name	= "tx",
 		.start	= DAVINCI_DA830_DMA_MCASP1_AXEVT,
 		.end	= DAVINCI_DA830_DMA_MCASP1_AXEVT,
 		.flags	= IORESOURCE_DMA,
 	},
 	/* RX event */
 	{
+		.name	= "rx",
 		.start	= DAVINCI_DA830_DMA_MCASP1_AREVT,
 		.end	= DAVINCI_DA830_DMA_MCASP1_AREVT,
 		.flags	= IORESOURCE_DMA,
@@ -491,12 +493,14 @@ static struct resource da850_mcasp_resources[] = {
 	},
 	/* TX event */
 	{
+		.name	= "tx",
 		.start	= DAVINCI_DA8XX_DMA_MCASP0_AXEVT,
 		.end	= DAVINCI_DA8XX_DMA_MCASP0_AXEVT,
 		.flags	= IORESOURCE_DMA,
 	},
 	/* RX event */
 	{
+		.name	= "rx",
 		.start	= DAVINCI_DA8XX_DMA_MCASP0_AREVT,
 		.end	= DAVINCI_DA8XX_DMA_MCASP0_AREVT,
 		.flags	= IORESOURCE_DMA,
