@@ -461,7 +461,6 @@ static struct platform_driver lcc_ipq806x_driver = {
 	.remove		= lcc_ipq806x_remove,
 	.driver		= {
 		.name	= "lcc-ipq806x",
-		.owner	= THIS_MODULE,
 		.of_match_table = lcc_ipq806x_match_table,
 	},
 };

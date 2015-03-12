@@ -417,8 +417,8 @@ static struct clk_rcg slimbus_src = {
 		.mnctr_en_bit = 8,
 		.mnctr_reset_bit = 7,
 		.mnctr_mode_shift = 5,
-		.n_val_shift = 16,
-		.m_val_shift = 16,
+		.n_val_shift = 24,
+		.m_val_shift = 8,
 		.width = 8,
 	},
 	.p = {
@@ -547,7 +547,7 @@ static int lcc_msm8960_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 
 	/* Use the correct frequency plan depending on speed of PLL4 */
-	val = regmap_read(regmap, 0x4, &val);
+	regmap_read(regmap, 0x4, &val);
 	if (val == 0x12) {
 		slimbus_src.freq_tbl = clk_tbl_aif_osr_492;
 		mi2s_osr_src.freq_tbl = clk_tbl_aif_osr_492;
@@ -574,7 +574,6 @@ static struct platform_driver lcc_msm8960_driver = {
 	.remove		= lcc_msm8960_remove,
 	.driver		= {
 		.name	= "lcc-msm8960",
-		.owner	= THIS_MODULE,
 		.of_match_table = lcc_msm8960_match_table,
 	},
 };
