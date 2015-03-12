@@ -1505,7 +1505,7 @@ static void set_charge_current(struct battery_info *di, int charge_current)
 
 	battery_read(di->rk818, USB_CTRL_REG, &usb_ctrl_reg, 1);
 	usb_ctrl_reg &= (~0x0f);/* (VLIM_4400MV | ILIM_1200MA) |(0x01 << 7); */
-	usb_ctrl_reg |= (charge_current | CHRG_CT_EN);
+	usb_ctrl_reg |= (charge_current);
 	battery_write(di->rk818, USB_CTRL_REG, &usb_ctrl_reg, 1);
 }
 
@@ -1524,9 +1524,9 @@ static void rk_battery_charger_init(struct  battery_info *di)
 	DBG("old usb_ctrl_reg = 0x%2x, CHRG_CTRL_REG1 = 0x%2x\n ", usb_ctrl_reg, chrg_ctrl_reg1);
 	usb_ctrl_reg &= (~0x0f);
 #ifdef SUPPORT_USB_CHARGE
-	usb_ctrl_reg |= (ILIM_450MA | CHRG_CT_EN);
+	usb_ctrl_reg |= (ILIM_450MA);
 #else
-	usb_ctrl_reg |= (ILIM_3000MA | CHRG_CT_EN);
+	usb_ctrl_reg |= (ILIM_3000MA);
 #endif
 	chrg_ctrl_reg1 &= (0x00);
 	chrg_ctrl_reg1 |= (CHRG_EN) | (CHRG_VOL4200 | CHRG_CUR1400mA);
@@ -2286,7 +2286,7 @@ static int  get_charging_status_type(struct battery_info *di)
 
 	if (0 == otg_status) {
 		di->usb_online = 0;
-		di->ac_online = 0;
+		di->ac_online = 1;
 		di->check_count = 0;
 
 	} else if (1 == otg_status) {
@@ -2446,8 +2446,6 @@ static void update_battery_info(struct battery_info *di)
 	di->remain_capacity = _get_realtime_capacity(di);
 	if (di->remain_capacity > di->fcc)
 		_capacity_init(di, di->fcc);
-	else if (di->remain_capacity < 0)
-		_capacity_init(di, 0);
 
 	if (di->real_soc > 100)
 		di->real_soc = 100;
