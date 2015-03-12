@@ -3,7 +3,8 @@ BUILD_FLAGS = -DKTEST
 CFLAGS += -O3 -Wl,-no-as-needed -Wall $(BUILD_FLAGS)
 LDFLAGS += -lrt -lpthread
 bins = posix_timers nanosleep inconsistency-check nsleep-lat raw_skew \
-	set-timer-lat threadtest mqueue-lat valid-adjtimex
+	set-timer-lat threadtest mqueue-lat valid-adjtimex \
+	alarmtimer-suspend
 
 all: ${bins}
 
@@ -22,7 +23,8 @@ run_tests: all
 # these tests require escalated privledges
 # and may modify the system time or trigger
 # other behavior like suspend
-run_destructive_tests: all
+run_destructive_tests: run_tests
+	./alarmtimer-suspend
 	./valid-adjtimex
 
 clean:
