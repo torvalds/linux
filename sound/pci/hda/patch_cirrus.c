@@ -584,6 +584,7 @@ static int patch_cs420x(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->gen.automute_hook = cs_automute;
+	codec->single_adc_amp = 1;
 
 	snd_hda_pick_fixup(codec, cs420x_models, cs420x_fixup_tbl,
 			   cs420x_fixups);
