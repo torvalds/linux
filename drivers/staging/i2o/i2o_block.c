@@ -1028,7 +1028,7 @@ static int i2o_block_probe(struct device *dev)
 	struct i2o_block_device *i2o_blk_dev;
 	struct gendisk *gd;
 	struct request_queue *queue;
-	static int unit = 0;
+	static int unit;
 	int rc;
 	u64 size;
 	u32 blocksize;

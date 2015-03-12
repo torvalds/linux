@@ -64,7 +64,7 @@ struct i2o_cfg_info {
 	struct i2o_cfg_info *next;
 };
 static struct i2o_cfg_info *open_files = NULL;
-static ulong i2o_cfg_info_id = 0;
+static ulong i2o_cfg_info_id;
 
 static int i2o_cfg_getiops(unsigned long arg)
 {

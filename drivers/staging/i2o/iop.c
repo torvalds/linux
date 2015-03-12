@@ -1042,7 +1042,7 @@ static void i2o_iop_release(struct device *dev)
  */
 struct i2o_controller *i2o_iop_alloc(void)
 {
-	static int unit = 0;	/* 0 and 1 are NULL IOP and Local Host */
+	static int unit;	/* 0 and 1 are NULL IOP and Local Host */
 	struct i2o_controller *c;
 	char poolname[32];
 
