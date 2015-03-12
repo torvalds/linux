@@ -50,7 +50,6 @@ static int pwm_beeper_event(struct input_dev *input,
 	}
 
 	if (value == 0) {
-		pwm_config(beeper->pwm, 0, 0);
 		pwm_disable(beeper->pwm);
 	} else {
 		period = HZ_TO_NANOSECONDS(value);
