@@ -202,7 +202,7 @@ int ath10k_thermal_register(struct ath10k *ar)
 	ret = sysfs_create_link(&ar->dev->kobj, &cdev->device.kobj,
 				"cooling_device");
 	if (ret) {
-		ath10k_err(ar, "failed to create thermal symlink\n");
+		ath10k_err(ar, "failed to create cooling device symlink\n");
 		goto err_cooling_destroy;
 	}
 
@@ -231,7 +231,7 @@ int ath10k_thermal_register(struct ath10k *ar)
 	return 0;
 
 err_remove_link:
-	sysfs_remove_link(&ar->dev->kobj, "thermal_sensor");
+	sysfs_remove_link(&ar->dev->kobj, "cooling_device");
 err_cooling_destroy:
 	thermal_cooling_device_unregister(cdev);
 	return ret;
