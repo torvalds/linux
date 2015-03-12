@@ -4,7 +4,7 @@ CFLAGS += -O3 -Wl,-no-as-needed -Wall $(BUILD_FLAGS)
 LDFLAGS += -lrt -lpthread
 bins = posix_timers nanosleep inconsistency-check nsleep-lat raw_skew \
 	set-timer-lat threadtest mqueue-lat valid-adjtimex \
-	alarmtimer-suspend change_skew
+	alarmtimer-suspend change_skew skew_consistency
 
 all: ${bins}
 
@@ -27,6 +27,7 @@ run_destructive_tests: run_tests
 	./alarmtimer-suspend
 	./valid-adjtimex
 	./change_skew
+	./skew_consistency
 
 clean:
 	rm -f ${bins}
