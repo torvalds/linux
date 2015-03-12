@@ -1207,6 +1207,11 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	struct user_element *ue;
 	int err;
 
+	if (!*info->id.name)
+		return -EINVAL;
+	if (strnlen(info->id.name, sizeof(info->id.name)) >= sizeof(info->id.name))
+		return -EINVAL;
+
 	/* Delete a control to replace them if needed. */
 	if (replace) {
 		info->id.numid = 0;

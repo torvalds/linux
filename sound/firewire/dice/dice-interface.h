@@ -299,23 +299,23 @@
 #define RX_ISOCHRONOUS			0x008
 
 /*
+ * Index of first quadlet to be interpreted; read/write.  If > 0, that many
+ * quadlets at the beginning of each data block will be ignored, and all the
+ * audio and MIDI quadlets will follow.
+ */
+#define RX_SEQ_START			0x00c
+
+/*
  * The number of audio channels; read-only.  There will be one quadlet per
  * channel.
  */
-#define RX_NUMBER_AUDIO			0x00c
+#define RX_NUMBER_AUDIO			0x010
 
 /*
  * The number of MIDI ports, 0-8; read-only.  If > 0, there will be one
  * additional quadlet in each data block, following the audio quadlets.
  */
-#define RX_NUMBER_MIDI			0x010
-
-/*
- * Index of first quadlet to be interpreted; read/write.  If > 0, that many
- * quadlets at the beginning of each data block will be ignored, and all the
- * audio and MIDI quadlets will follow.
- */
-#define RX_SEQ_START			0x014
+#define RX_NUMBER_MIDI			0x014
 
 /*
  * Names of all audio channels; read-only.  Quadlets are byte-swapped.  Names
