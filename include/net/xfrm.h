@@ -126,9 +126,7 @@ struct xfrm_state_walk {
 
 /* Full description of state of transformer. */
 struct xfrm_state {
-#ifdef CONFIG_NET_NS
-	struct net		*xs_net;
-#endif
+	possible_net_t		xs_net;
 	union {
 		struct hlist_node	gclist;
 		struct hlist_node	bydst;
@@ -522,9 +520,7 @@ struct xfrm_policy_queue {
 };
 
 struct xfrm_policy {
-#ifdef CONFIG_NET_NS
-	struct net		*xp_net;
-#endif
+	possible_net_t		xp_net;
 	struct hlist_node	bydst;
 	struct hlist_node	byidx;
 

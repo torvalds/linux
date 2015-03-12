@@ -29,9 +29,7 @@
  * Policy Table
  */
 struct ip6addrlbl_entry {
-#ifdef CONFIG_NET_NS
-	struct net *lbl_net;
-#endif
+	possible_net_t lbl_net;
 	struct in6_addr prefix;
 	int prefixlen;
 	int ifindex;
@@ -237,9 +235,7 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(struct net *net,
 	newp->addrtype = addrtype;
 	newp->label = label;
 	INIT_HLIST_NODE(&newp->list);
-#ifdef CONFIG_NET_NS
-	newp->lbl_net = net;
-#endif
+	write_pnet(&newp->lbl_net, net);
 	atomic_set(&newp->refcnt, 1);
 	return newp;
 }

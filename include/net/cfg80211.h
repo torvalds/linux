@@ -3183,10 +3183,8 @@ struct wiphy {
 	const struct ieee80211_ht_cap *ht_capa_mod_mask;
 	const struct ieee80211_vht_cap *vht_capa_mod_mask;
 
-#ifdef CONFIG_NET_NS
 	/* the network namespace this phy lives in currently */
-	struct net *_net;
-#endif
+	possible_net_t _net;
 
 #ifdef CONFIG_CFG80211_WEXT
 	const struct iw_handler_def *wext;

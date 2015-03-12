@@ -1721,9 +1721,7 @@ struct net_device {
 	struct netpoll_info __rcu	*npinfo;
 #endif
 
-#ifdef CONFIG_NET_NS
-	struct net		*nd_net;
-#endif
+	possible_net_t			nd_net;
 
 	/* mid-layer private */
 	union {
@@ -1863,9 +1861,7 @@ struct net *dev_net(const struct net_device *dev)
 static inline
 void dev_net_set(struct net_device *dev, struct net *net)
 {
-#ifdef CONFIG_NET_NS
-	dev->nd_net = net;
-#endif
+	write_pnet(&dev->nd_net, net);
 }
 
 static inline bool netdev_uses_dsa(struct net_device *dev)

@@ -47,13 +47,13 @@ static inline struct net *skb_net(const struct sk_buff *skb)
 	 * Start with the most likely hit
 	 * End with BUG
 	 */
-	if (likely(skb->dev && skb->dev->nd_net))
+	if (likely(skb->dev && dev_net(skb->dev)))
 		return dev_net(skb->dev);
 	if (skb_dst(skb) && skb_dst(skb)->dev)
 		return dev_net(skb_dst(skb)->dev);
 	WARN(skb->sk, "Maybe skb_sknet should be used in %s() at line:%d\n",
 		      __func__, __LINE__);
-	if (likely(skb->sk && skb->sk->sk_net))
+	if (likely(skb->sk && sock_net(skb->sk)))
 		return sock_net(skb->sk);
 	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
 		__func__, __LINE__);
@@ -71,11 +71,11 @@ static inline struct net *skb_sknet(const struct sk_buff *skb)
 #ifdef CONFIG_NET_NS
 #ifdef CONFIG_IP_VS_DEBUG
 	/* Start with the most likely hit */
-	if (likely(skb->sk && skb->sk->sk_net))
+	if (likely(skb->sk && sock_net(skb->sk)))
 		return sock_net(skb->sk);
 	WARN(skb->dev, "Maybe skb_net should be used instead in %s() line:%d\n",
 		       __func__, __LINE__);
-	if (likely(skb->dev && skb->dev->nd_net))
+	if (likely(skb->dev && dev_net(skb->dev)))
 		return dev_net(skb->dev);
 	pr_err("There is no net ptr to find in the skb in %s() line:%d\n",
 		__func__, __LINE__);
