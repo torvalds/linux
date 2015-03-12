@@ -663,6 +663,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	const char * const default_sort_order = "frag,hit,bytes";
 	const struct option kmem_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_INCR('v', "verbose", &verbose,
+		    "be more verbose (show symbol address, etc)"),
 	OPT_CALLBACK_NOOPT(0, "caller", NULL, NULL,
 			   "show per-callsite statistics", parse_caller_opt),
 	OPT_CALLBACK_NOOPT(0, "alloc", NULL, NULL,
