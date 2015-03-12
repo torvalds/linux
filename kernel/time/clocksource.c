@@ -142,13 +142,6 @@ static void __clocksource_unstable(struct clocksource *cs)
 		schedule_work(&watchdog_work);
 }
 
-static void clocksource_unstable(struct clocksource *cs, int64_t delta)
-{
-	printk(KERN_WARNING "Clocksource %s unstable (delta = %Ld ns)\n",
-	       cs->name, delta);
-	__clocksource_unstable(cs);
-}
-
 /**
  * clocksource_mark_unstable - mark clocksource unstable via watchdog
  * @cs:		clocksource to be marked unstable
@@ -174,7 +167,7 @@ void clocksource_mark_unstable(struct clocksource *cs)
 static void clocksource_watchdog(unsigned long data)
 {
 	struct clocksource *cs;
-	cycle_t csnow, wdnow, delta;
+	cycle_t csnow, wdnow, cslast, wdlast, delta;
 	int64_t wd_nsec, cs_nsec;
 	int next_cpu, reset_pending;
 
@@ -213,6 +206,8 @@ static void clocksource_watchdog(unsigned long data)
 
 		delta = clocksource_delta(csnow, cs->cs_last, cs->mask);
 		cs_nsec = clocksource_cyc2ns(delta, cs->mult, cs->shift);
+		wdlast = cs->wd_last; /* save these in case we print them */
+		cslast = cs->cs_last;
 		cs->cs_last = csnow;
 		cs->wd_last = wdnow;
 
@@ -221,7 +216,12 @@ static void clocksource_watchdog(unsigned long data)
 
 		/* Check the deviation from the watchdog clocksource. */
 		if ((abs(cs_nsec - wd_nsec) > WATCHDOG_THRESHOLD)) {
-			clocksource_unstable(cs, cs_nsec - wd_nsec);
+			pr_warn("timekeeping watchdog: Marking clocksource '%s' as unstable, because the skew is too large:\n", cs->name);
+			pr_warn("	'%s' wd_now: %llx wd_last: %llx mask: %llx\n",
+				watchdog->name, wdnow, wdlast, watchdog->mask);
+			pr_warn("	'%s' cs_now: %llx cs_last: %llx mask: %llx\n",
+				cs->name, csnow, cslast, cs->mask);
+			__clocksource_unstable(cs);
 			continue;
 		}
 
