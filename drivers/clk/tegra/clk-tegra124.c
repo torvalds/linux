@@ -1388,7 +1388,6 @@ static struct tegra_clk_init_table common_init_table[] __initdata = {
 	{TEGRA124_CLK_XUSB_HOST_SRC, TEGRA124_CLK_PLL_RE_OUT, 112000000, 0},
 	{TEGRA124_CLK_SATA, TEGRA124_CLK_PLL_P, 104000000, 0},
 	{TEGRA124_CLK_SATA_OOB, TEGRA124_CLK_PLL_P, 204000000, 0},
-	{TEGRA124_CLK_EMC, TEGRA124_CLK_CLK_MAX, 0, 1},
 	{TEGRA124_CLK_MSELECT, TEGRA124_CLK_CLK_MAX, 0, 1},
 	{TEGRA124_CLK_CSITE, TEGRA124_CLK_CLK_MAX, 0, 1},
 	{TEGRA124_CLK_TSENSOR, TEGRA124_CLK_CLK_M, 400000, 0},
@@ -1512,6 +1511,10 @@ static void __init tegra124_132_clock_init_post(struct device_node *np)
 	tegra_super_clk_gen4_init(clk_base, pmc_base, tegra124_clks,
 				  &pll_x_params);
 	tegra_add_of_provider(np);
+
+	clks[TEGRA124_CLK_EMC] = tegra_clk_register_emc(clk_base, np,
+							&emc_lock);
+
 	tegra_register_devclks(devclks, ARRAY_SIZE(devclks));
 
 	tegra_cpu_car_ops = &tegra124_cpu_car_ops;
