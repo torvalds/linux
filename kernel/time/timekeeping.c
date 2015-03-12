@@ -119,6 +119,20 @@ static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 }
 
 #ifdef CONFIG_DEBUG_TIMEKEEPING
+#define WARNING_FREQ (HZ*300) /* 5 minute rate-limiting */
+/*
+ * These simple flag variables are managed
+ * without locks, which is racy, but ok since
+ * we don't really care about being super
+ * precise about how many events were seen,
+ * just that a problem was observed.
+ */
+static int timekeeping_underflow_seen;
+static int timekeeping_overflow_seen;
+
+/* last_warning is only modified under the timekeeping lock */
+static long timekeeping_last_warning;
+
 static void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
 {
 
@@ -136,28 +150,64 @@ static void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
 			printk_deferred("      timekeeping: Your kernel is still fine, but is feeling a bit nervous\n");
 		}
 	}
+
+	if (timekeeping_underflow_seen) {
+		if (jiffies - timekeeping_last_warning > WARNING_FREQ) {
+			printk_deferred("WARNING: Underflow in clocksource '%s' observed, time update ignored.\n", name);
+			printk_deferred("         Please report this, consider using a different clocksource, if possible.\n");
+			printk_deferred("         Your kernel is probably still fine.\n");
+			timekeeping_last_warning = jiffies;
+		}
+		timekeeping_underflow_seen = 0;
+	}
+
+	if (timekeeping_overflow_seen) {
+		if (jiffies - timekeeping_last_warning > WARNING_FREQ) {
+			printk_deferred("WARNING: Overflow in clocksource '%s' observed, time update capped.\n", name);
+			printk_deferred("         Please report this, consider using a different clocksource, if possible.\n");
+			printk_deferred("         Your kernel is probably still fine.\n");
+			timekeeping_last_warning = jiffies;
+		}
+		timekeeping_overflow_seen = 0;
+	}
 }
 
 static inline cycle_t timekeeping_get_delta(struct tk_read_base *tkr)
 {
-	cycle_t cycle_now, delta;
+	cycle_t now, last, mask, max, delta;
+	unsigned int seq;
 
-	/* read clocksource */
-	cycle_now = tkr->read(tkr->clock);
+	/*
+	 * Since we're called holding a seqlock, the data may shift
+	 * under us while we're doing the calculation. This can cause
+	 * false positives, since we'd note a problem but throw the
+	 * results away. So nest another seqlock here to atomically
+	 * grab the points we are checking with.
+	 */
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+		now = tkr->read(tkr->clock);
+		last = tkr->cycle_last;
+		mask = tkr->mask;
+		max = tkr->clock->max_cycles;
+	} while (read_seqcount_retry(&tk_core.seq, seq));
 
-	/* calculate the delta since the last update_wall_time */
-	delta = clocksource_delta(cycle_now, tkr->cycle_last, tkr->mask);
+	delta = clocksource_delta(now, last, mask);
 
 	/*
 	 * Try to catch underflows by checking if we are seeing small
 	 * mask-relative negative values.
 	 */
-	if (unlikely((~delta & tkr->mask) < (tkr->mask >> 3)))
+	if (unlikely((~delta & mask) < (mask >> 3))) {
+		timekeeping_underflow_seen = 1;
 		delta = 0;
+	}
 
 	/* Cap delta value to the max_cycles values to avoid mult overflows */
-	if (unlikely(delta > tkr->clock->max_cycles))
+	if (unlikely(delta > max)) {
+		timekeeping_overflow_seen = 1;
 		delta = tkr->clock->max_cycles;
+	}
 
 	return delta;
 }
