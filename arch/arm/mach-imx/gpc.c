@@ -170,12 +170,15 @@ static void imx_gpc_irq_mask(struct irq_data *d)
 }
 
 static struct irq_chip imx_gpc_chip = {
-	.name		= "GPC",
-	.irq_eoi	= irq_chip_eoi_parent,
-	.irq_mask	= imx_gpc_irq_mask,
-	.irq_unmask	= imx_gpc_irq_unmask,
-	.irq_retrigger	= irq_chip_retrigger_hierarchy,
-	.irq_set_wake	= imx_gpc_irq_set_wake,
+	.name			= "GPC",
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_mask		= imx_gpc_irq_mask,
+	.irq_unmask		= imx_gpc_irq_unmask,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_set_wake		= imx_gpc_irq_set_wake,
+#ifdef CONFIG_SMP
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+#endif
 };
 
 static int imx_gpc_domain_xlate(struct irq_domain *domain,
