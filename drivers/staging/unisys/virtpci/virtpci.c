@@ -1289,8 +1289,8 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	printparam.str_pos = &str_pos;
 	printparam.buf = vbuf;
 	printparam.len = &len;
-	if (bus_for_each_dev(&virtpci_bus_type, NULL,
-			     (void *)&printparam, print_vbus))
+	bus_for_each_dev(&virtpci_bus_type, NULL, (void *)&printparam,
+			 print_vbus);
 
 	str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 			"\n Virtual PCI devices\n");
