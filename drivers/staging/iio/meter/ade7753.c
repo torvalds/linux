@@ -517,11 +517,7 @@ static int ade7753_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		return ret;
-
-	return 0;
+	return iio_device_register(indio_dev);
 }
 
 /* fixme, confirm ordering in this function */
