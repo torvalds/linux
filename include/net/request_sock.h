@@ -77,6 +77,11 @@ static inline struct request_sock *reqsk_alloc(const struct request_sock_ops *op
 	return req;
 }
 
+static inline struct request_sock *inet_reqsk(struct sock *sk)
+{
+	return (struct request_sock *)sk;
+}
+
 static inline void __reqsk_free(struct request_sock *req)
 {
 	kmem_cache_free(req->rsk_ops->slab, req);

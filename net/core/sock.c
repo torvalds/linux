@@ -1668,6 +1668,8 @@ void sock_edemux(struct sk_buff *skb)
 
 	if (sk->sk_state == TCP_TIME_WAIT)
 		inet_twsk_put(inet_twsk(sk));
+	else if (sk->sk_state == TCP_NEW_SYN_RECV)
+		reqsk_put(inet_reqsk(sk));
 	else
 		sock_put(sk);
 }
