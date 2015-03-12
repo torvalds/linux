@@ -1,0 +1,8 @@
+config ARCH_ALPINE
+	bool "Annapurna Labs Alpine platform" if ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select GENERIC_IRQ_CHIP
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  This enables support for the Annapurna Labs Alpine V1 boards.
