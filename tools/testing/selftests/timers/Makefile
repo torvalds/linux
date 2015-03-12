@@ -3,7 +3,7 @@ BUILD_FLAGS = -DKTEST
 CFLAGS += -O3 -Wl,-no-as-needed -Wall $(BUILD_FLAGS)
 LDFLAGS += -lrt -lpthread
 bins = posix_timers nanosleep inconsistency-check nsleep-lat raw_skew \
-	set-timer-lat
+	set-timer-lat threadtest
 
 all: ${bins}
 
@@ -14,6 +14,6 @@ run_tests: all
 	./set-timer-lat
 	./inconsistency-check
 	./raw_skew
-
+	./threadtest -t 30 -n 8
 clean:
 	rm -f ${bins}
