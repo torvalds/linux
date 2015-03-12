@@ -728,7 +728,7 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 		return -EMSGSIZE;
 
 	r = nlmsg_data(nlh);
-	r->idiag_family = sk->sk_family;
+	r->idiag_family = ireq->ireq_family;
 	r->idiag_state = TCP_SYN_RECV;
 	r->idiag_timer = 1;
 	r->idiag_retrans = req->num_retrans;
