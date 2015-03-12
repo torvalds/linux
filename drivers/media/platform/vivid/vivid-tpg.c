@@ -197,6 +197,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_XRGB555:
 	case V4L2_PIX_FMT_ARGB555:
 	case V4L2_PIX_FMT_RGB555X:
+	case V4L2_PIX_FMT_XRGB555X:
+	case V4L2_PIX_FMT_ARGB555X:
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_BGR24:
 	case V4L2_PIX_FMT_RGB32:
@@ -274,6 +276,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_XRGB555:
 	case V4L2_PIX_FMT_ARGB555:
 	case V4L2_PIX_FMT_RGB555X:
+	case V4L2_PIX_FMT_XRGB555X:
+	case V4L2_PIX_FMT_ARGB555X:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YVYU:
@@ -718,6 +722,8 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		case V4L2_PIX_FMT_XRGB555:
 		case V4L2_PIX_FMT_ARGB555:
 		case V4L2_PIX_FMT_RGB555X:
+		case V4L2_PIX_FMT_XRGB555X:
+		case V4L2_PIX_FMT_ARGB555X:
 			r >>= 7;
 			g >>= 7;
 			b >>= 7;
@@ -885,6 +891,10 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[0][offset + 1] = (alpha & 0x80) | (r_y << 2) | (g_u >> 3);
 		break;
 	case V4L2_PIX_FMT_RGB555X:
+	case V4L2_PIX_FMT_XRGB555X:
+		alpha = 0;
+		/* fall through */
+	case V4L2_PIX_FMT_ARGB555X:
 		buf[0][offset] = (alpha & 0x80) | (r_y << 2) | (g_u >> 3);
 		buf[0][offset + 1] = (g_u << 5) | b_v;
 		break;

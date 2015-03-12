@@ -230,7 +230,23 @@ struct vivid_fmt vivid_formats[] = {
 		.bit_depth = { 16 },
 		.planes   = 1,
 		.buffers = 1,
-		.can_do_overlay = true,
+	},
+	{
+		.name     = "XRGB555 (BE)",
+		.fourcc   = V4L2_PIX_FMT_XRGB555X, /* xrrrrrgg gggbbbbb */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.name     = "ARGB555 (BE)",
+		.fourcc   = V4L2_PIX_FMT_ARGB555X, /* arrrrrgg gggbbbbb */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+		.alpha_mask = 0x0080,
 	},
 	{
 		.name     = "RGB24 (LE)",
