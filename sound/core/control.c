@@ -1267,6 +1267,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	err = snd_ctl_new(&kctl, count, access, file);
 	if (err < 0)
 		return err;
+	memcpy(&kctl->id, &info->id, sizeof(kctl->id));
 	kctl->private_data = kzalloc(sizeof(struct user_element) + private_size,
 				     GFP_KERNEL);
 	if (kctl->private_data == NULL) {
