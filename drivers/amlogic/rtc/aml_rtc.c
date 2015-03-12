@@ -121,7 +121,6 @@ int get_rtc_status(void)
 	static int rtc_fail = -1;
 	//if (rtc_fail < 0) {
 		if (check_osc_clk() < 0) {
-			printk("rtc clock error\n");
 			rtc_fail = 1;
 		} else
 			rtc_fail = 0;
