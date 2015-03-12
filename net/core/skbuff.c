@@ -4173,7 +4173,7 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 	skb->ignore_df = 0;
 	skb_dst_drop(skb);
 	skb->mark = 0;
-	skb->sender_cpu = 0;
+	skb_sender_cpu_clear(skb);
 	skb_init_secmark(skb);
 	secpath_reset(skb);
 	nf_reset(skb);
