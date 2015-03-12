@@ -1222,7 +1222,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	if (!irq) {
 		dev_err(&pdev->dev, "couldn't parse and map irq\n");
 		ret = -EINVAL;
-		goto free_edges;
+		goto chip_error;
 	}
 
 	pctl->domain = irq_domain_add_linear(np,
@@ -1230,7 +1230,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	if (!pctl->domain) {
 		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
 		ret = -ENOMEM;
-		goto free_edges;
+		goto chip_error;
 	}
 
 	mtk_eint_init(pctl);
@@ -1248,8 +1248,6 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	set_irq_flags(irq, IRQF_VALID);
 	return 0;
 
-free_edges:
-	kfree(pctl->eint_dual_edges);
 chip_error:
 	gpiochip_remove(pctl->chip);
 pctrl_error:
