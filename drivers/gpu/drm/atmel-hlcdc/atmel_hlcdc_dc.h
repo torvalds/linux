@@ -155,6 +155,9 @@ void atmel_hlcdc_crtc_irq(struct drm_crtc *c);
 void atmel_hlcdc_crtc_cancel_page_flip(struct drm_crtc *crtc,
 				       struct drm_file *file);
 
+void atmel_hlcdc_crtc_suspend(struct drm_crtc *crtc);
+void atmel_hlcdc_crtc_resume(struct drm_crtc *crtc);
+
 int atmel_hlcdc_crtc_create(struct drm_device *dev);
 
 int atmel_hlcdc_create_outputs(struct drm_device *dev);
