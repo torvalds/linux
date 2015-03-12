@@ -77,8 +77,9 @@ extern void hcd_remove(struct platform_device *_dev);
 extern void dwc_otg_adp_start(dwc_otg_core_if_t *core_if, uint8_t is_host);
 
 
-
+#ifdef CONFIG_RK_USB_UART
 static u32 usb_to_uart_status;
+#endif
 /*-------------------------------------------------------------------------*/
 /* Encapsulate the module parameter settings */
 
