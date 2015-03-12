@@ -8542,6 +8542,7 @@ F:	include/uapi/linux/timex.h
 F:	kernel/time/clocksource.c
 F:	kernel/time/time*.c
 F:	kernel/time/ntp.c
+F:	tools/testing/selftests/timers/
 
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwanem@gmail.com>
