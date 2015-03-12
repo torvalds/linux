@@ -63,36 +63,25 @@ static void *rht_obj(const struct rhashtable *ht, const struct rhash_head *he)
 
 static u32 rht_bucket_index(const struct bucket_table *tbl, u32 hash)
 {
-	return hash & (tbl->size - 1);
-}
-
-static u32 obj_raw_hashfn(struct rhashtable *ht,
-			  const struct bucket_table *tbl, const void *ptr)
-{
-	u32 hash;
-
-	if (unlikely(!ht->p.key_len))
-		hash = ht->p.obj_hashfn(ptr, tbl->hash_rnd);
-	else
-		hash = ht->p.hashfn(ptr + ht->p.key_offset, ht->p.key_len,
-				    tbl->hash_rnd);
-
-	return hash >> HASH_RESERVED_SPACE;
+	return (hash >> HASH_RESERVED_SPACE) & (tbl->size - 1);
 }
 
 static u32 key_hashfn(struct rhashtable *ht, const struct bucket_table *tbl,
 		      const void *key)
 {
 	return rht_bucket_index(tbl, ht->p.hashfn(key, ht->p.key_len,
-						  tbl->hash_rnd) >>
-				     HASH_RESERVED_SPACE);
+						  tbl->hash_rnd));
 }
 
 static u32 head_hashfn(struct rhashtable *ht,
 		       const struct bucket_table *tbl,
 		       const struct rhash_head *he)
 {
-	return rht_bucket_index(tbl, obj_raw_hashfn(ht, tbl, rht_obj(ht, he)));
+	const char *ptr = rht_obj(ht, he);
+
+	return likely(ht->p.key_len) ?
+	       key_hashfn(ht, tbl, ptr + ht->p.key_offset) :
+	       rht_bucket_index(tbl, ht->p.obj_hashfn(ptr, tbl->hash_rnd));
 }
 
 #ifdef CONFIG_PROVE_LOCKING
