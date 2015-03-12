@@ -469,11 +469,13 @@ static u32 clocksource_max_adjustment(struct clocksource *cs)
  * @shift:	cycle to nanosecond divisor (power of two)
  * @maxadj:	maximum adjustment value to mult (~11%)
  * @mask:	bitmask for two's complement subtraction of non 64 bit counters
+ * @max_cyc:	maximum cycle value before potential overflow (does not include
+ *		any safety margin)
  *
  * NOTE: This function includes a safety margin of 50%, so that bad clock values
  * can be detected.
  */
-u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask)
+u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask, u64 *max_cyc)
 {
 	u64 max_nsecs, max_cycles;
 
@@ -493,6 +495,10 @@ u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask)
 	max_cycles = min(max_cycles, mask);
 	max_nsecs = clocksource_cyc2ns(max_cycles, mult - maxadj, shift);
 
+	/* return the max_cycles value as well if requested */
+	if (max_cyc)
+		*max_cyc = max_cycles;
+
 	/* Return 50% of the actual maximum, so we can detect bad values */
 	max_nsecs >>= 1;
 
@@ -500,17 +506,15 @@ u64 clocks_calc_max_nsecs(u32 mult, u32 shift, u32 maxadj, u64 mask)
 }
 
 /**
- * clocksource_max_deferment - Returns max time the clocksource should be deferred
- * @cs:         Pointer to clocksource
+ * clocksource_update_max_deferment - Updates the clocksource max_idle_ns & max_cycles
+ * @cs:         Pointer to clocksource to be updated
  *
  */
-static u64 clocksource_max_deferment(struct clocksource *cs)
+static inline void clocksource_update_max_deferment(struct clocksource *cs)
 {
-	u64 max_nsecs;
-
-	max_nsecs = clocks_calc_max_nsecs(cs->mult, cs->shift, cs->maxadj,
-					  cs->mask);
-	return max_nsecs;
+	cs->max_idle_ns = clocks_calc_max_nsecs(cs->mult, cs->shift,
+						cs->maxadj, cs->mask,
+						&cs->max_cycles);
 }
 
 #ifndef CONFIG_ARCH_USES_GETTIMEOFFSET
@@ -684,7 +688,7 @@ void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 		cs->maxadj = clocksource_max_adjustment(cs);
 	}
 
-	cs->max_idle_ns = clocksource_max_deferment(cs);
+	clocksource_update_max_deferment(cs);
 }
 EXPORT_SYMBOL_GPL(__clocksource_updatefreq_scale);
 
@@ -730,8 +734,8 @@ int clocksource_register(struct clocksource *cs)
 		"Clocksource %s might overflow on 11%% adjustment\n",
 		cs->name);
 
-	/* calculate max idle time permitted for this clocksource */
-	cs->max_idle_ns = clocksource_max_deferment(cs);
+	/* Update max idle time permitted for this clocksource */
+	clocksource_update_max_deferment(cs);
 
 	mutex_lock(&clocksource_mutex);
 	clocksource_enqueue(cs);
