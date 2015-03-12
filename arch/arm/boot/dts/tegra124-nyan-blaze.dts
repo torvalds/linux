@@ -2,6 +2,8 @@
 
 #include "tegra124-nyan.dtsi"
 
+#include "tegra124-nyan-blaze-emc.dtsi"
+
 / {
 	model = "HP Chromebook 14";
 	compatible = "google,nyan-blaze", "google,nyan", "nvidia,tegra124";
