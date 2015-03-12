@@ -69,7 +69,7 @@ struct pinmux_func {
 };
 
 struct pinmux_cfg_reg {
-	unsigned long reg;
+	u32 reg;
 	u8 reg_width, field_width;
 	const u16 *enum_ids;
 	const u8 *var_field_width;
@@ -86,7 +86,7 @@ struct pinmux_cfg_reg {
 	.enum_ids = (const u16 [])
 
 struct pinmux_data_reg {
-	unsigned long reg;
+	u32 reg;
 	u8 reg_width;
 	const u16 *enum_ids;
 };
@@ -150,7 +150,7 @@ struct sh_pfc_soc_info {
 	const struct pinmux_irq *gpio_irq;
 	unsigned int gpio_irq_size;
 
-	unsigned long unlock_reg;
+	u32 unlock_reg;
 };
 
 /* -----------------------------------------------------------------------------

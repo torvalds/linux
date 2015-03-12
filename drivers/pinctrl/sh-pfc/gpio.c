@@ -62,7 +62,8 @@ static void gpio_get_data_reg(struct sh_pfc_chip *chip, unsigned int offset,
 static u32 gpio_read_data_reg(struct sh_pfc_chip *chip,
 			      const struct pinmux_data_reg *dreg)
 {
-	void __iomem *mem = dreg->reg - chip->mem->phys + chip->mem->virt;
+	phys_addr_t address = dreg->reg;
+	void __iomem *mem = address - chip->mem->phys + chip->mem->virt;
 
 	return sh_pfc_read_raw_reg(mem, dreg->reg_width);
 }
@@ -70,7 +71,8 @@ static u32 gpio_read_data_reg(struct sh_pfc_chip *chip,
 static void gpio_write_data_reg(struct sh_pfc_chip *chip,
 				const struct pinmux_data_reg *dreg, u32 value)
 {
-	void __iomem *mem = dreg->reg - chip->mem->phys + chip->mem->virt;
+	phys_addr_t address = dreg->reg;
+	void __iomem *mem = address - chip->mem->phys + chip->mem->virt;
 
 	sh_pfc_write_raw_reg(mem, dreg->reg_width, value);
 }
@@ -340,6 +342,7 @@ sh_pfc_add_gpiochip(struct sh_pfc *pfc, int(*setup)(struct sh_pfc_chip *),
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 {
 	struct sh_pfc_chip *chip;
+	phys_addr_t address;
 	unsigned int i;
 	int ret;
 
@@ -351,11 +354,12 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	 * that covers the data registers. In that case don't try to handle
 	 * GPIOs.
 	 */
+	address = pfc->info->data_regs[0].reg;
 	for (i = 0; i < pfc->num_windows; ++i) {
 		struct sh_pfc_window *window = &pfc->windows[i];
 
-		if (pfc->info->data_regs[0].reg >= window->phys &&
-		    pfc->info->data_regs[0].reg < window->phys + window->size)
+		if (address >= window->phys &&
+		    address < window->phys + window->size)
 			break;
 	}
 
