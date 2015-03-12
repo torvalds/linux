@@ -227,7 +227,6 @@ static int hym8563_read_datetime(struct i2c_client *client, struct rtc_time *tm)
 	else
 		tm->tm_year += 2000;
 		
-	tm->tm_yday = rtc_year_days(tm->tm_mday, tm->tm_mon, tm->tm_year);	
 	tm->tm_year -= 1900;			//inorder to cooperate the systerm time	
 	if(tm->tm_year < 0)
 		tm->tm_year = 0;	
