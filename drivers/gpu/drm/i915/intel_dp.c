@@ -1371,14 +1371,15 @@ found:
 
 	intel_dp->lane_count = lane_count;
 
-	intel_dp->link_bw =
-		drm_dp_link_rate_to_bw_code(supported_rates[clock]);
-
-	if (INTEL_INFO(dev)->gen >= 9 && intel_dp->supported_rates[0]) {
+	if (intel_dp->num_supported_rates) {
+		intel_dp->link_bw = 0;
 		intel_dp->rate_select =
 			rate_to_index(supported_rates[clock],
 				      intel_dp->supported_rates);
-		intel_dp->link_bw = 0;
+	} else {
+		intel_dp->link_bw =
+			drm_dp_link_rate_to_bw_code(supported_rates[clock]);
+		intel_dp->rate_select = 0;
 	}
 
 	pipe_config->pipe_bpp = bpp;
@@ -3492,7 +3493,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
-	if (INTEL_INFO(dev)->gen >= 9 && intel_dp->supported_rates[0])
+	if (intel_dp->num_supported_rates)
 		drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_RATE_SET,
 				&intel_dp->rate_select, 1);
 
