@@ -85,8 +85,6 @@ Lconsts:
 .asciz	"AES for PowerISA 2.07, CRYPTOGAMS by <appro\@openssl.org>"
 
 .globl	.${prefix}_set_encrypt_key
-.align	5
-.${prefix}_set_encrypt_key:
 Lset_encrypt_key:
 	mflr		r11
 	$PUSH		r11,$LRSAVE($sp)
@@ -348,8 +346,6 @@ Lenc_key_abort:
 .size	.${prefix}_set_encrypt_key,.-.${prefix}_set_encrypt_key
 
 .globl	.${prefix}_set_decrypt_key
-.align	5
-.${prefix}_set_decrypt_key:
 	$STU		$sp,-$FRAME($sp)
 	mflr		r10
 	$PUSH		r10,$FRAME+$LRSAVE($sp)
@@ -405,8 +401,6 @@ my ($inp,$out,$key,$rounds,$idx)=map("r$_",(3..7));
 
 $code.=<<___;
 .globl	.${prefix}_${dir}crypt
-.align	5
-.${prefix}_${dir}crypt:
 	lwz		$rounds,240($key)
 	lis		r0,0xfc00
 	mfspr		$vrsave,256
@@ -484,8 +478,6 @@ my ($ivec,$inptail,$inpperm,$outhead,$outperm,$outmask,$keyperm)=
 						map("v$_",(4..10));
 $code.=<<___;
 .globl	.${prefix}_cbc_encrypt
-.align	5
-.${prefix}_cbc_encrypt:
 	${UCMP}i	$len,16
 	bltlr-
 
@@ -1243,8 +1235,6 @@ my $dat=$tmp;
 
 $code.=<<___;
 .globl	.${prefix}_ctr32_encrypt_blocks
-.align	5
-.${prefix}_ctr32_encrypt_blocks:
 	${UCMP}i	$len,1
 	bltlr-
 

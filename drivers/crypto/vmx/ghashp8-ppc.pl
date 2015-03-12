@@ -54,8 +54,6 @@ $code=<<___;
 .text
 
 .globl	.gcm_init_p8
-.align	5
-.gcm_init_p8:
 	lis		r0,0xfff0
 	li		r8,0x10
 	mfspr		$vrsave,256
@@ -98,8 +96,6 @@ $code=<<___;
 .size	.gcm_init_p8,.-.gcm_init_p8
 
 .globl	.gcm_gmult_p8
-.align	5
-.gcm_gmult_p8:
 	lis		r0,0xfff8
 	li		r8,0x10
 	mfspr		$vrsave,256
@@ -148,8 +144,6 @@ $code=<<___;
 .size	.gcm_gmult_p8,.-.gcm_gmult_p8
 
 .globl	.gcm_ghash_p8
-.align	5
-.gcm_ghash_p8:
 	lis		r0,0xfff8
 	li		r8,0x10
 	mfspr		$vrsave,256

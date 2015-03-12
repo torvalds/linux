@@ -27,25 +27,13 @@ my $globl = sub {
 	/osx/		&& do { $name = "_$name";
 				last;
 			      };
-	/linux.*(32|64le)/
-			&& do {	$ret .= ".globl	$name\n";
-				$ret .= ".type	$name,\@function";
-				last;
-			      };
-	/linux.*64/	&& do {	$ret .= ".globl	$name\n";
-				$ret .= ".type	$name,\@function\n";
-				$ret .= ".section	\".opd\",\"aw\"\n";
-				$ret .= ".align	3\n";
-				$ret .= "$name:\n";
-				$ret .= ".quad	.$name,.TOC.\@tocbase,0\n";
-				$ret .= ".previous\n";
-
-				$name = ".$name";
+	/linux/
+			&& do {	$ret = "_GLOBAL($name)";
 				last;
 			      };
     }
 
-    $ret = ".globl	$name" if (!$ret);
+    $ret = ".globl	$name\nalign 5\n$name:" if (!$ret);
     $$global = $name;
     $ret;
 };
@@ -187,6 +175,8 @@ my $mtsle	= sub {
     "	.long	".sprintf "0x%X",(31<<26)|($arg<<21)|(147*2);
 };
 
+print "#include <asm/ppc_asm.h>\n" if $flavour =~ /linux/;
+
 while($line=<>) {
 
     $line =~ s|[#!;].*$||;	# get rid of asm-style comments...
@@ -197,15 +187,6 @@ while($line=<>) {
     {
 	$line =~ s|\b\.L(\w+)|L$1|g;	# common denominator for Locallabel
 	$line =~ s|\bL(\w+)|\.L$1|g	if ($dotinlocallabels);
-    }
-
-    {
-	$line =~ s|(^[\.\w]+)\:\s*||;
-	my $label = $1;
-	if ($label) {
-	    printf "%s:",($GLOBALS{$label} or $label);
-	    printf "\n.localentry\t$GLOBALS{$label},0"	if ($GLOBALS{$label} && $flavour =~ /linux.*64le/);
-	}
     }
 
     {
