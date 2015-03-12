@@ -2159,6 +2159,13 @@ static void reg_process_pending_hints(void)
 	}
 
 	reg_process_hint(reg_request);
+
+	lr = get_last_request();
+
+	spin_lock(&reg_requests_lock);
+	if (!list_empty(&reg_requests_list) && lr && lr->processed)
+		schedule_work(&reg_work);
+	spin_unlock(&reg_requests_lock);
 }
 
 /* Processes beacon hints -- this has nothing to do with country IEs */
