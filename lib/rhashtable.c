@@ -63,34 +63,25 @@ static void *rht_obj(const struct rhashtable *ht, const struct rhash_head *he)
 
 static u32 rht_bucket_index(const struct bucket_table *tbl, u32 hash)
 {
-	return hash & (tbl->size - 1);
-}
-
-static u32 obj_raw_hashfn(struct rhashtable *ht,
-			  const struct bucket_table *tbl, const void *ptr)
-{
-	u32 hash;
-
-	if (unlikely(!ht->p.key_len))
-		hash = ht->p.obj_hashfn(ptr, tbl->hash_rnd);
-	else
-		hash = ht->p.hashfn(ptr + ht->p.key_offset, ht->p.key_len,
-				    tbl->hash_rnd);
-
-	return hash >> HASH_RESERVED_SPACE;
+	return (hash >> HASH_RESERVED_SPACE) & (tbl->size - 1);
 }
 
 static u32 key_hashfn(struct rhashtable *ht, const struct bucket_table *tbl,
-		      const void *key, u32 len)
+		      const void *key)
 {
-	return ht->p.hashfn(key, len, tbl->hash_rnd) >> HASH_RESERVED_SPACE;
+	return rht_bucket_index(tbl, ht->p.hashfn(key, ht->p.key_len,
+						  tbl->hash_rnd));
 }
 
 static u32 head_hashfn(struct rhashtable *ht,
 		       const struct bucket_table *tbl,
 		       const struct rhash_head *he)
 {
-	return rht_bucket_index(tbl, obj_raw_hashfn(ht, tbl, rht_obj(ht, he)));
+	const char *ptr = rht_obj(ht, he);
+
+	return likely(ht->p.key_len) ?
+	       key_hashfn(ht, tbl, ptr + ht->p.key_offset) :
+	       rht_bucket_index(tbl, ht->p.obj_hashfn(ptr, tbl->hash_rnd));
 }
 
 #ifdef CONFIG_PROVE_LOCKING
@@ -402,7 +393,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	rcu_read_lock();
 
 	old_tbl = rht_dereference_rcu(ht->tbl, ht);
-	hash = obj_raw_hashfn(ht, old_tbl, rht_obj(ht, obj));
+	hash = head_hashfn(ht, old_tbl, obj);
 
 	spin_lock_bh(bucket_lock(old_tbl, hash));
 
@@ -414,7 +405,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	 */
 	tbl = rht_dereference_rcu(ht->future_tbl, ht);
 	if (tbl != old_tbl) {
-		hash = obj_raw_hashfn(ht, tbl, rht_obj(ht, obj));
+		hash = head_hashfn(ht, tbl, obj);
 		spin_lock_nested(bucket_lock(tbl, hash), RHT_LOCK_NESTED);
 	}
 
@@ -427,7 +418,6 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 
 	no_resize_running = tbl == old_tbl;
 
-	hash = rht_bucket_index(tbl, hash);
 	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
 
 	if (rht_is_a_nulls(head))
@@ -443,11 +433,11 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 
 exit:
 	if (tbl != old_tbl) {
-		hash = obj_raw_hashfn(ht, tbl, rht_obj(ht, obj));
+		hash = head_hashfn(ht, tbl, obj);
 		spin_unlock(bucket_lock(tbl, hash));
 	}
 
-	hash = obj_raw_hashfn(ht, old_tbl, rht_obj(ht, obj));
+	hash = head_hashfn(ht, old_tbl, obj);
 	spin_unlock_bh(bucket_lock(old_tbl, hash));
 
 	rcu_read_unlock();
@@ -486,9 +476,8 @@ static bool __rhashtable_remove(struct rhashtable *ht,
 	unsigned hash;
 	bool ret = false;
 
-	hash = obj_raw_hashfn(ht, tbl, rht_obj(ht, obj));
+	hash = head_hashfn(ht, tbl, obj);
 	lock = bucket_lock(tbl, hash);
-	hash = rht_bucket_index(tbl, hash);
 
 	spin_lock_bh(lock);
 
@@ -620,9 +609,9 @@ void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
 	rcu_read_lock();
 
 	tbl = rht_dereference_rcu(ht->tbl, ht);
-	hash = key_hashfn(ht, tbl, key, ht->p.key_len);
+	hash = key_hashfn(ht, tbl, key);
 restart:
-	rht_for_each_rcu(he, tbl, rht_bucket_index(tbl, hash)) {
+	rht_for_each_rcu(he, tbl, hash) {
 		if (!compare(rht_obj(ht, he), arg))
 			continue;
 		rcu_read_unlock();
