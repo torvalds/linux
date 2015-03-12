@@ -445,4 +445,18 @@ config CRYPTO_DEV_VMX
 
 source "drivers/crypto/vmx/Kconfig"
 
+config CRYPTO_DEV_IMGTEC_HASH
+	depends on MIPS || COMPILE_TEST
+	tristate "Imagination Technologies hardware hash accelerator"
+	select CRYPTO_ALG_API
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select CRYPTO_SHA224
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  This driver interfaces with the Imagination Technologies
+	  hardware hash accelerator. Supporting MD5/SHA1/SHA224/SHA256
+	  hashing algorithms.
+
 endif # CRYPTO_HW
