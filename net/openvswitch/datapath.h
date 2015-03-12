@@ -84,10 +84,8 @@ struct datapath {
 	/* Stats. */
 	struct dp_stats_percpu __percpu *stats_percpu;
 
-#ifdef CONFIG_NET_NS
 	/* Network namespace ref. */
-	struct net *net;
-#endif
+	possible_net_t net;
 
 	u32 user_features;
 };
