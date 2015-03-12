@@ -206,7 +206,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 		target_clock = fixed_mode->clock;
 	}
 
-	max_link_clock = drm_dp_bw_code_to_link_rate(intel_dp_max_link_bw(intel_dp));
+	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);
 
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
@@ -1240,6 +1240,19 @@ static int rate_to_index(int find, const int *rates)
 			break;
 
 	return i;
+}
+
+int
+intel_dp_max_link_rate(struct intel_dp *intel_dp)
+{
+	int rates[DP_MAX_SUPPORTED_RATES] = {};
+	int len;
+
+	len = intel_supported_rates(intel_dp, rates);
+	if (WARN_ON(len <= 0))
+		return 162000;
+
+	return rates[rate_to_index(0, rates) - 1];
 }
 
 bool

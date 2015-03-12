@@ -1062,6 +1062,7 @@ void intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *co
 void intel_dp_mst_suspend(struct drm_device *dev);
 void intel_dp_mst_resume(struct drm_device *dev);
 int intel_dp_max_link_bw(struct intel_dp *intel_dp);
+int intel_dp_max_link_rate(struct intel_dp *intel_dp);
 void intel_dp_hot_plug(struct intel_encoder *intel_encoder);
 void vlv_power_sequencer_reset(struct drm_i915_private *dev_priv);
 uint32_t intel_dp_pack_aux(const uint8_t *src, int src_bytes);
