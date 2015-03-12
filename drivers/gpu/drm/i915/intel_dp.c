@@ -122,8 +122,8 @@ static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp);
 static void vlv_steal_power_sequencer(struct drm_device *dev,
 				      enum pipe pipe);
 
-int
-intel_dp_max_link_bw(struct intel_dp *intel_dp)
+static int
+intel_dp_max_link_bw(struct intel_dp  *intel_dp)
 {
 	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
 
@@ -1255,6 +1255,11 @@ intel_dp_max_link_rate(struct intel_dp *intel_dp)
 	return rates[rate_to_index(0, rates) - 1];
 }
 
+int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
+{
+	return rate_to_index(rate, intel_dp->supported_rates);
+}
+
 bool
 intel_dp_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config)
@@ -1374,8 +1379,7 @@ found:
 	if (intel_dp->num_supported_rates) {
 		intel_dp->link_bw = 0;
 		intel_dp->rate_select =
-			rate_to_index(supported_rates[clock],
-				      intel_dp->supported_rates);
+			intel_dp_rate_select(intel_dp, supported_rates[clock]);
 	} else {
 		intel_dp->link_bw =
 			drm_dp_link_rate_to_bw_code(supported_rates[clock]);
