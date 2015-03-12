@@ -22,9 +22,9 @@
 #include <linux/mfd/max14577.h>
 
 struct max14577_charger {
-	struct device *dev;
-	struct max14577	*max14577;
-	struct power_supply	charger;
+	struct device		*dev;
+	struct max14577		*max14577;
+	struct power_supply	*charger;
 
 	struct max14577_charger_platform_data	*pdata;
 };
@@ -421,9 +421,7 @@ static int max14577_charger_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
 {
-	struct max14577_charger *chg = container_of(psy,
-						  struct max14577_charger,
-						  charger);
+	struct max14577_charger *chg = power_supply_get_drvdata(psy);
 	int ret = 0;
 
 	switch (psp) {
@@ -455,6 +453,14 @@ static int max14577_charger_get_property(struct power_supply *psy,
 
 	return ret;
 }
+
+static const struct power_supply_desc max14577_charger_desc = {
+	.name = "max14577-charger",
+	.type = POWER_SUPPLY_TYPE_BATTERY,
+	.properties = max14577_charger_props,
+	.num_properties = ARRAY_SIZE(max14577_charger_props),
+	.get_property = max14577_charger_get_property,
+};
 
 #ifdef CONFIG_OF
 static struct max14577_charger_platform_data *max14577_charger_dt_init(
@@ -563,6 +569,7 @@ static DEVICE_ATTR(fast_charge_timer, S_IRUGO | S_IWUSR,
 static int max14577_charger_probe(struct platform_device *pdev)
 {
 	struct max14577_charger *chg;
+	struct power_supply_config psy_cfg = {};
 	struct max14577 *max14577 = dev_get_drvdata(pdev->dev.parent);
 	int ret;
 
@@ -582,21 +589,18 @@ static int max14577_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	chg->charger.name = "max14577-charger",
-	chg->charger.type = POWER_SUPPLY_TYPE_BATTERY,
-	chg->charger.properties = max14577_charger_props,
-	chg->charger.num_properties = ARRAY_SIZE(max14577_charger_props),
-	chg->charger.get_property = max14577_charger_get_property,
-
 	ret = device_create_file(&pdev->dev, &dev_attr_fast_charge_timer);
 	if (ret) {
 		dev_err(&pdev->dev, "failed: create sysfs entry\n");
 		return ret;
 	}
 
-	ret = power_supply_register(&pdev->dev, &chg->charger, NULL);
-	if (ret) {
+	psy_cfg.drv_data = chg;
+	chg->charger = power_supply_register(&pdev->dev, &max14577_charger_desc,
+						&psy_cfg);
+	if (IS_ERR(chg->charger)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
+		ret = PTR_ERR(chg->charger);
 		goto err;
 	}
 
@@ -617,7 +621,7 @@ static int max14577_charger_remove(struct platform_device *pdev)
 	struct max14577_charger *chg = platform_get_drvdata(pdev);
 
 	device_remove_file(&pdev->dev, &dev_attr_fast_charge_timer);
-	power_supply_unregister(&chg->charger);
+	power_supply_unregister(chg->charger);
 
 	return 0;
 }

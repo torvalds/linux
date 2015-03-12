@@ -339,7 +339,7 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 					 enum power_supply_property prop,
 					 union power_supply_propval *val)
 {
-	struct hid_device *dev = container_of(psy, struct hid_device, battery);
+	struct hid_device *dev = power_supply_get_drvdata(psy);
 	int ret = 0;
 	__u8 *buf;
 
@@ -397,26 +397,32 @@ static int hidinput_get_battery_property(struct power_supply *psy,
 
 static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type, struct hid_field *field)
 {
-	struct power_supply *battery = &dev->battery;
-	int ret;
+	struct power_supply_desc *psy_desc = NULL;
+	struct power_supply_config psy_cfg = { .drv_data = dev, };
 	unsigned quirks;
 	s32 min, max;
 
 	if (field->usage->hid != HID_DC_BATTERYSTRENGTH)
 		return false;	/* no match */
 
-	if (battery->name != NULL)
+	if (dev->battery != NULL)
 		goto out;	/* already initialized? */
 
-	battery->name = kasprintf(GFP_KERNEL, "hid-%s-battery", dev->uniq);
-	if (battery->name == NULL)
+	psy_desc = kzalloc(sizeof(*psy_desc), GFP_KERNEL);
+	if (psy_desc == NULL)
 		goto out;
 
-	battery->type = POWER_SUPPLY_TYPE_BATTERY;
-	battery->properties = hidinput_battery_props;
-	battery->num_properties = ARRAY_SIZE(hidinput_battery_props);
-	battery->use_for_apm = 0;
-	battery->get_property = hidinput_get_battery_property;
+	psy_desc->name = kasprintf(GFP_KERNEL, "hid-%s-battery", dev->uniq);
+	if (psy_desc->name == NULL) {
+		kfree(psy_desc);
+		goto out;
+	}
+
+	psy_desc->type = POWER_SUPPLY_TYPE_BATTERY;
+	psy_desc->properties = hidinput_battery_props;
+	psy_desc->num_properties = ARRAY_SIZE(hidinput_battery_props);
+	psy_desc->use_for_apm = 0;
+	psy_desc->get_property = hidinput_get_battery_property;
 
 	quirks = find_battery_quirk(dev);
 
@@ -439,14 +445,16 @@ static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 	dev->battery_report_type = report_type;
 	dev->battery_report_id = field->report->id;
 
-	ret = power_supply_register(&dev->dev, battery, NULL);
-	if (ret != 0) {
-		hid_warn(dev, "can't register power supply: %d\n", ret);
-		kfree(battery->name);
-		battery->name = NULL;
+	dev->battery = power_supply_register(&dev->dev, psy_desc, &psy_cfg);
+	if (IS_ERR(dev->battery)) {
+		hid_warn(dev, "can't register power supply: %ld\n",
+				PTR_ERR(dev->battery));
+		kfree(psy_desc->name);
+		kfree(psy_desc);
+		dev->battery = NULL;
 	}
 
-	power_supply_powers(battery, &dev->dev);
+	power_supply_powers(dev->battery, &dev->dev);
 
 out:
 	return true;
@@ -454,12 +462,13 @@ out:
 
 static void hidinput_cleanup_battery(struct hid_device *dev)
 {
-	if (!dev->battery.name)
+	if (!dev->battery)
 		return;
 
-	power_supply_unregister(&dev->battery);
-	kfree(dev->battery.name);
-	dev->battery.name = NULL;
+	power_supply_unregister(dev->battery);
+	kfree(dev->battery->desc->name);
+	kfree(dev->battery->desc);
+	dev->battery = NULL;
 }
 #else  /* !CONFIG_HID_BATTERY_STRENGTH */
 static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,

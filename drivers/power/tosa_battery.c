@@ -26,7 +26,7 @@ static struct work_struct bat_work;
 
 struct tosa_bat {
 	int status;
-	struct power_supply psy;
+	struct power_supply *psy;
 	int full_chrg;
 
 	struct mutex work_lock; /* protects data */
@@ -61,7 +61,7 @@ static unsigned long tosa_read_bat(struct tosa_bat *bat)
 	mutex_lock(&bat_lock);
 	gpio_set_value(bat->gpio_bat, 1);
 	msleep(5);
-	value = wm97xx_read_aux_adc(dev_get_drvdata(bat->psy.dev->parent),
+	value = wm97xx_read_aux_adc(dev_get_drvdata(bat->psy->dev.parent),
 			bat->adc_bat);
 	gpio_set_value(bat->gpio_bat, 0);
 	mutex_unlock(&bat_lock);
@@ -81,7 +81,7 @@ static unsigned long tosa_read_temp(struct tosa_bat *bat)
 	mutex_lock(&bat_lock);
 	gpio_set_value(bat->gpio_temp, 1);
 	msleep(5);
-	value = wm97xx_read_aux_adc(dev_get_drvdata(bat->psy.dev->parent),
+	value = wm97xx_read_aux_adc(dev_get_drvdata(bat->psy->dev.parent),
 			bat->adc_temp);
 	gpio_set_value(bat->gpio_temp, 0);
 	mutex_unlock(&bat_lock);
@@ -96,7 +96,7 @@ static int tosa_bat_get_property(struct power_supply *psy,
 			    union power_supply_propval *val)
 {
 	int ret = 0;
-	struct tosa_bat *bat = container_of(psy, struct tosa_bat, psy);
+	struct tosa_bat *bat = power_supply_get_drvdata(psy);
 
 	if (bat->is_present && !bat->is_present(bat)
 			&& psp != POWER_SUPPLY_PROP_PRESENT) {
@@ -158,14 +158,14 @@ static irqreturn_t tosa_bat_gpio_isr(int irq, void *data)
 static void tosa_bat_update(struct tosa_bat *bat)
 {
 	int old;
-	struct power_supply *psy = &bat->psy;
+	struct power_supply *psy = bat->psy;
 
 	mutex_lock(&bat->work_lock);
 
 	old = bat->status;
 
 	if (bat->is_present && !bat->is_present(bat)) {
-		printk(KERN_NOTICE "%s not present\n", psy->name);
+		printk(KERN_NOTICE "%s not present\n", psy->desc->name);
 		bat->status = POWER_SUPPLY_STATUS_UNKNOWN;
 		bat->full_chrg = -1;
 	} else if (power_supply_am_i_supplied(psy)) {
@@ -222,18 +222,38 @@ static enum power_supply_property tosa_bat_bu_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 };
 
+static const struct power_supply_desc tosa_bat_main_desc = {
+	.name		= "main-battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= tosa_bat_main_props,
+	.num_properties	= ARRAY_SIZE(tosa_bat_main_props),
+	.get_property	= tosa_bat_get_property,
+	.external_power_changed = tosa_bat_external_power_changed,
+	.use_for_apm	= 1,
+};
+
+static const struct power_supply_desc tosa_bat_jacket_desc = {
+	.name		= "jacket-battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= tosa_bat_main_props,
+	.num_properties	= ARRAY_SIZE(tosa_bat_main_props),
+	.get_property	= tosa_bat_get_property,
+	.external_power_changed = tosa_bat_external_power_changed,
+};
+
+static const struct power_supply_desc tosa_bat_bu_desc = {
+	.name		= "backup-battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= tosa_bat_bu_props,
+	.num_properties	= ARRAY_SIZE(tosa_bat_bu_props),
+	.get_property	= tosa_bat_get_property,
+	.external_power_changed = tosa_bat_external_power_changed,
+};
+
 static struct tosa_bat tosa_bat_main = {
 	.status = POWER_SUPPLY_STATUS_DISCHARGING,
 	.full_chrg = -1,
-	.psy = {
-		.name		= "main-battery",
-		.type		= POWER_SUPPLY_TYPE_BATTERY,
-		.properties	= tosa_bat_main_props,
-		.num_properties	= ARRAY_SIZE(tosa_bat_main_props),
-		.get_property	= tosa_bat_get_property,
-		.external_power_changed = tosa_bat_external_power_changed,
-		.use_for_apm	= 1,
-	},
+	.psy = NULL,
 
 	.gpio_full = TOSA_GPIO_BAT0_CRG,
 	.gpio_charge_off = TOSA_GPIO_CHARGE_OFF,
@@ -254,14 +274,7 @@ static struct tosa_bat tosa_bat_main = {
 static struct tosa_bat tosa_bat_jacket = {
 	.status = POWER_SUPPLY_STATUS_DISCHARGING,
 	.full_chrg = -1,
-	.psy = {
-		.name		= "jacket-battery",
-		.type		= POWER_SUPPLY_TYPE_BATTERY,
-		.properties	= tosa_bat_main_props,
-		.num_properties	= ARRAY_SIZE(tosa_bat_main_props),
-		.get_property	= tosa_bat_get_property,
-		.external_power_changed = tosa_bat_external_power_changed,
-	},
+	.psy = NULL,
 
 	.is_present = tosa_jacket_bat_is_present,
 	.gpio_full = TOSA_GPIO_BAT1_CRG,
@@ -283,15 +296,7 @@ static struct tosa_bat tosa_bat_jacket = {
 static struct tosa_bat tosa_bat_bu = {
 	.status = POWER_SUPPLY_STATUS_UNKNOWN,
 	.full_chrg = -1,
-
-	.psy = {
-		.name		= "backup-battery",
-		.type		= POWER_SUPPLY_TYPE_BATTERY,
-		.properties	= tosa_bat_bu_props,
-		.num_properties	= ARRAY_SIZE(tosa_bat_bu_props),
-		.get_property	= tosa_bat_get_property,
-		.external_power_changed = tosa_bat_external_power_changed,
-	},
+	.psy = NULL,
 
 	.gpio_full = -1,
 	.gpio_charge_off = -1,
@@ -345,6 +350,9 @@ static int tosa_bat_resume(struct platform_device *dev)
 static int tosa_bat_probe(struct platform_device *dev)
 {
 	int ret;
+	struct power_supply_config main_psy_cfg = {},
+				   jacket_psy_cfg = {},
+				   bu_psy_cfg = {};
 
 	if (!machine_is_tosa())
 		return -ENODEV;
@@ -358,15 +366,31 @@ static int tosa_bat_probe(struct platform_device *dev)
 
 	INIT_WORK(&bat_work, tosa_bat_work);
 
-	ret = power_supply_register(&dev->dev, &tosa_bat_main.psy, NULL);
-	if (ret)
+	main_psy_cfg.drv_data = &tosa_bat_main;
+	tosa_bat_main.psy = power_supply_register(&dev->dev,
+						  &tosa_bat_main_desc,
+						  &main_psy_cfg);
+	if (IS_ERR(tosa_bat_main.psy)) {
+		ret = PTR_ERR(tosa_bat_main.psy);
 		goto err_psy_reg_main;
-	ret = power_supply_register(&dev->dev, &tosa_bat_jacket.psy, NULL);
-	if (ret)
+	}
+
+	jacket_psy_cfg.drv_data = &tosa_bat_jacket;
+	tosa_bat_jacket.psy = power_supply_register(&dev->dev,
+						    &tosa_bat_jacket_desc,
+						    &jacket_psy_cfg);
+	if (IS_ERR(tosa_bat_jacket.psy)) {
+		ret = PTR_ERR(tosa_bat_jacket.psy);
 		goto err_psy_reg_jacket;
-	ret = power_supply_register(&dev->dev, &tosa_bat_bu.psy, NULL);
-	if (ret)
+	}
+
+	bu_psy_cfg.drv_data = &tosa_bat_bu;
+	tosa_bat_bu.psy = power_supply_register(&dev->dev, &tosa_bat_bu_desc,
+						&bu_psy_cfg);
+	if (IS_ERR(tosa_bat_bu.psy)) {
+		ret = PTR_ERR(tosa_bat_bu.psy);
 		goto err_psy_reg_bu;
+	}
 
 	ret = request_irq(gpio_to_irq(TOSA_GPIO_BAT0_CRG),
 				tosa_bat_gpio_isr,
@@ -395,11 +419,11 @@ static int tosa_bat_probe(struct platform_device *dev)
 err_req_jacket:
 	free_irq(gpio_to_irq(TOSA_GPIO_BAT0_CRG), &tosa_bat_main);
 err_req_main:
-	power_supply_unregister(&tosa_bat_bu.psy);
+	power_supply_unregister(tosa_bat_bu.psy);
 err_psy_reg_bu:
-	power_supply_unregister(&tosa_bat_jacket.psy);
+	power_supply_unregister(tosa_bat_jacket.psy);
 err_psy_reg_jacket:
-	power_supply_unregister(&tosa_bat_main.psy);
+	power_supply_unregister(tosa_bat_main.psy);
 err_psy_reg_main:
 
 	/* see comment in tosa_bat_remove */
@@ -415,9 +439,9 @@ static int tosa_bat_remove(struct platform_device *dev)
 	free_irq(gpio_to_irq(TOSA_GPIO_BAT1_CRG), &tosa_bat_jacket);
 	free_irq(gpio_to_irq(TOSA_GPIO_BAT0_CRG), &tosa_bat_main);
 
-	power_supply_unregister(&tosa_bat_bu.psy);
-	power_supply_unregister(&tosa_bat_jacket.psy);
-	power_supply_unregister(&tosa_bat_main.psy);
+	power_supply_unregister(tosa_bat_bu.psy);
+	power_supply_unregister(tosa_bat_jacket.psy);
+	power_supply_unregister(tosa_bat_main.psy);
 
 	/*
 	 * Now cancel the bat_work.  We won't get any more schedules,

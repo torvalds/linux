@@ -32,7 +32,8 @@ struct gpio_charger {
 	unsigned int irq;
 	bool wakeup_enabled;
 
-	struct power_supply charger;
+	struct power_supply *charger;
+	struct power_supply_desc charger_desc;
 };
 
 static irqreturn_t gpio_charger_irq(int irq, void *devid)
@@ -46,7 +47,7 @@ static irqreturn_t gpio_charger_irq(int irq, void *devid)
 
 static inline struct gpio_charger *psy_to_gpio_charger(struct power_supply *psy)
 {
-	return container_of(psy, struct gpio_charger, charger);
+	return power_supply_get_drvdata(psy);
 }
 
 static int gpio_charger_get_property(struct power_supply *psy,
@@ -129,7 +130,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	const struct gpio_charger_platform_data *pdata = pdev->dev.platform_data;
 	struct power_supply_config psy_cfg = {};
 	struct gpio_charger *gpio_charger;
-	struct power_supply *charger;
+	struct power_supply_desc *charger_desc;
 	int ret;
 	int irq;
 
@@ -155,17 +156,18 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	charger = &gpio_charger->charger;
+	charger_desc = &gpio_charger->charger_desc;
 
-	charger->name = pdata->name ? pdata->name : "gpio-charger";
-	charger->type = pdata->type;
-	charger->properties = gpio_charger_properties;
-	charger->num_properties = ARRAY_SIZE(gpio_charger_properties);
-	charger->get_property = gpio_charger_get_property;
+	charger_desc->name = pdata->name ? pdata->name : "gpio-charger";
+	charger_desc->type = pdata->type;
+	charger_desc->properties = gpio_charger_properties;
+	charger_desc->num_properties = ARRAY_SIZE(gpio_charger_properties);
+	charger_desc->get_property = gpio_charger_get_property;
 
 	psy_cfg.supplied_to = pdata->supplied_to;
 	psy_cfg.num_supplicants = pdata->num_supplicants;
 	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.drv_data = gpio_charger;
 
 	ret = gpio_request(pdata->gpio, dev_name(&pdev->dev));
 	if (ret) {
@@ -180,8 +182,10 @@ static int gpio_charger_probe(struct platform_device *pdev)
 
 	gpio_charger->pdata = pdata;
 
-	ret = power_supply_register(&pdev->dev, charger, &psy_cfg);
-	if (ret < 0) {
+	gpio_charger->charger = power_supply_register(&pdev->dev,
+						      charger_desc, &psy_cfg);
+	if (IS_ERR(gpio_charger->charger)) {
+		ret = PTR_ERR(gpio_charger->charger);
 		dev_err(&pdev->dev, "Failed to register power supply: %d\n",
 			ret);
 		goto err_gpio_free;
@@ -191,7 +195,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	if (irq > 0) {
 		ret = request_any_context_irq(irq, gpio_charger_irq,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				dev_name(&pdev->dev), charger);
+				dev_name(&pdev->dev), gpio_charger->charger);
 		if (ret < 0)
 			dev_warn(&pdev->dev, "Failed to request irq: %d\n", ret);
 		else
@@ -215,9 +219,9 @@ static int gpio_charger_remove(struct platform_device *pdev)
 	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
 
 	if (gpio_charger->irq)
-		free_irq(gpio_charger->irq, &gpio_charger->charger);
+		free_irq(gpio_charger->irq, gpio_charger->charger);
 
-	power_supply_unregister(&gpio_charger->charger);
+	power_supply_unregister(gpio_charger->charger);
 
 	gpio_free(gpio_charger->pdata->gpio);
 
@@ -243,7 +247,7 @@ static int gpio_charger_resume(struct device *dev)
 
 	if (device_may_wakeup(dev) && gpio_charger->wakeup_enabled)
 		disable_irq_wake(gpio_charger->irq);
-	power_supply_changed(&gpio_charger->charger);
+	power_supply_changed(gpio_charger->charger);
 
 	return 0;
 }

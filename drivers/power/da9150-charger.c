@@ -30,8 +30,8 @@ struct da9150_charger {
 	struct da9150 *da9150;
 	struct device *dev;
 
-	struct power_supply usb;
-	struct power_supply battery;
+	struct power_supply *usb;
+	struct power_supply *battery;
 	struct power_supply *supply_online;
 
 	struct usb_phy *usb_phy;
@@ -114,7 +114,7 @@ static int da9150_charger_get_prop(struct power_supply *psy,
 				   enum power_supply_property psp,
 				   union power_supply_propval *val)
 {
-	struct da9150_charger *charger = dev_get_drvdata(psy->dev->parent);
+	struct da9150_charger *charger = dev_get_drvdata(psy->dev.parent);
 	int ret;
 
 	switch (psp) {
@@ -326,7 +326,7 @@ static int da9150_charger_battery_get_prop(struct power_supply *psy,
 					   enum power_supply_property psp,
 					   union power_supply_propval *val)
 {
-	struct da9150_charger *charger = dev_get_drvdata(psy->dev->parent);
+	struct da9150_charger *charger = dev_get_drvdata(psy->dev.parent);
 	int ret;
 
 	switch (psp) {
@@ -369,7 +369,7 @@ static irqreturn_t da9150_charger_chg_irq(int irq, void *data)
 {
 	struct da9150_charger *charger = data;
 
-	power_supply_changed(&charger->battery);
+	power_supply_changed(charger->battery);
 
 	return IRQ_HANDLED;
 }
@@ -380,7 +380,7 @@ static irqreturn_t da9150_charger_tjunc_irq(int irq, void *data)
 
 	/* Nothing we can really do except report this. */
 	dev_crit(charger->dev, "TJunc over temperature!!!\n");
-	power_supply_changed(&charger->usb);
+	power_supply_changed(charger->usb);
 
 	return IRQ_HANDLED;
 }
@@ -391,8 +391,8 @@ static irqreturn_t da9150_charger_vfault_irq(int irq, void *data)
 
 	/* Nothing we can really do except report this. */
 	dev_crit(charger->dev, "VSYS under voltage!!!\n");
-	power_supply_changed(&charger->usb);
-	power_supply_changed(&charger->battery);
+	power_supply_changed(charger->usb);
+	power_supply_changed(charger->battery);
 
 	return IRQ_HANDLED;
 }
@@ -408,10 +408,10 @@ static irqreturn_t da9150_charger_vbus_irq(int irq, void *data)
 	switch (reg & DA9150_VBUS_STAT_MASK) {
 	case DA9150_VBUS_STAT_OFF:
 	case DA9150_VBUS_STAT_WAIT:
-		charger->supply_online = &charger->battery;
+		charger->supply_online = charger->battery;
 		break;
 	case DA9150_VBUS_STAT_CHG:
-		charger->supply_online = &charger->usb;
+		charger->supply_online = charger->usb;
 		break;
 	default:
 		dev_warn(charger->dev, "Unknown VBUS state - reg = 0x%x\n",
@@ -420,8 +420,8 @@ static irqreturn_t da9150_charger_vbus_irq(int irq, void *data)
 		break;
 	}
 
-	power_supply_changed(&charger->usb);
-	power_supply_changed(&charger->battery);
+	power_supply_changed(charger->usb);
+	power_supply_changed(charger->battery);
 
 	return IRQ_HANDLED;
 }
@@ -439,8 +439,8 @@ static void da9150_charger_otg_work(struct work_struct *data)
 		break;
 	case USB_EVENT_NONE:
 		/* Revert to charge mode */
-		power_supply_changed(&charger->usb);
-		power_supply_changed(&charger->battery);
+		power_supply_changed(charger->usb);
+		power_supply_changed(charger->battery);
 		da9150_set_bits(charger->da9150, DA9150_PPR_BKCTRL_A,
 				DA9150_VBUS_MODE_MASK, DA9150_VBUS_MODE_CHG);
 		break;
@@ -499,12 +499,27 @@ static void da9150_charger_unregister_irq(struct platform_device *pdev,
 	free_irq(irq, charger);
 }
 
+static const struct power_supply_desc usb_desc = {
+	.name		= "da9150-usb",
+	.type		= POWER_SUPPLY_TYPE_USB,
+	.properties	= da9150_charger_props,
+	.num_properties	= ARRAY_SIZE(da9150_charger_props),
+	.get_property	= da9150_charger_get_prop,
+};
+
+static const struct power_supply_desc battery_desc = {
+	.name		= "da9150-battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= da9150_charger_bat_props,
+	.num_properties	= ARRAY_SIZE(da9150_charger_bat_props),
+	.get_property	= da9150_charger_battery_get_prop,
+};
+
 static int da9150_charger_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct da9150 *da9150 = dev_get_drvdata(dev->parent);
 	struct da9150_charger *charger;
-	struct power_supply *usb, *battery;
 	u8 reg;
 	int ret;
 
@@ -542,26 +557,17 @@ static int da9150_charger_probe(struct platform_device *pdev)
 	}
 
 	/* Register power supplies */
-	usb = &charger->usb;
-	battery = &charger->battery;
-
-	usb->name = "da9150-usb",
-	usb->type = POWER_SUPPLY_TYPE_USB;
-	usb->properties = da9150_charger_props;
-	usb->num_properties = ARRAY_SIZE(da9150_charger_props);
-	usb->get_property = da9150_charger_get_prop;
-	ret = power_supply_register(dev, usb, NULL);
-	if (ret)
+	charger->usb = power_supply_register(dev, &usb_desc, NULL);
+	if (IS_ERR(charger->usb)) {
+		ret = PTR_ERR(charger->usb);
 		goto usb_fail;
+	}
 
-	battery->name = "da9150-battery";
-	battery->type = POWER_SUPPLY_TYPE_BATTERY;
-	battery->properties = da9150_charger_bat_props;
-	battery->num_properties = ARRAY_SIZE(da9150_charger_bat_props);
-	battery->get_property = da9150_charger_battery_get_prop;
-	ret = power_supply_register(dev, battery, NULL);
-	if (ret)
+	charger->battery = power_supply_register(dev, &battery_desc, NULL);
+	if (IS_ERR(charger->battery)) {
+		ret = PTR_ERR(charger->battery);
 		goto battery_fail;
+	}
 
 	/* Get initial online supply */
 	reg = da9150_reg_read(da9150, DA9150_STATUS_H);
@@ -569,10 +575,10 @@ static int da9150_charger_probe(struct platform_device *pdev)
 	switch (reg & DA9150_VBUS_STAT_MASK) {
 	case DA9150_VBUS_STAT_OFF:
 	case DA9150_VBUS_STAT_WAIT:
-		charger->supply_online = &charger->battery;
+		charger->supply_online = charger->battery;
 		break;
 	case DA9150_VBUS_STAT_CHG:
-		charger->supply_online = &charger->usb;
+		charger->supply_online = charger->usb;
 		break;
 	default:
 		dev_warn(dev, "Unknown VBUS state - reg = 0x%x\n", reg);
@@ -622,7 +628,7 @@ chg_irq_fail:
 	if (!IS_ERR_OR_NULL(charger->usb_phy))
 		usb_unregister_notifier(charger->usb_phy, &charger->otg_nb);
 battery_fail:
-	power_supply_unregister(usb);
+	power_supply_unregister(charger->usb);
 
 usb_fail:
 	iio_channel_release(charger->vbat_chan);
@@ -661,8 +667,8 @@ static int da9150_charger_remove(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(charger->usb_phy))
 		usb_unregister_notifier(charger->usb_phy, &charger->otg_nb);
 
-	power_supply_unregister(&charger->battery);
-	power_supply_unregister(&charger->usb);
+	power_supply_unregister(charger->battery);
+	power_supply_unregister(charger->usb);
 
 	/* Release ADC channels */
 	iio_channel_release(charger->ibus_chan);

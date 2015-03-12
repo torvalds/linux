@@ -31,7 +31,8 @@
 struct max8903_data {
 	struct max8903_pdata pdata;
 	struct device *dev;
-	struct power_supply psy;
+	struct power_supply *psy;
+	struct power_supply_desc psy_desc;
 	bool fault;
 	bool usb_in;
 	bool ta_in;
@@ -47,8 +48,7 @@ static int max8903_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
-	struct max8903_data *data = container_of(psy,
-			struct max8903_data, psy);
+	struct max8903_data *data = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -104,17 +104,17 @@ static irqreturn_t max8903_dcin(int irq, void *_data)
 	dev_dbg(data->dev, "TA(DC-IN) Charger %s.\n", ta_in ?
 			"Connected" : "Disconnected");
 
-	old_type = data->psy.type;
+	old_type = data->psy_desc.type;
 
 	if (data->ta_in)
-		data->psy.type = POWER_SUPPLY_TYPE_MAINS;
+		data->psy_desc.type = POWER_SUPPLY_TYPE_MAINS;
 	else if (data->usb_in)
-		data->psy.type = POWER_SUPPLY_TYPE_USB;
+		data->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 	else
-		data->psy.type = POWER_SUPPLY_TYPE_BATTERY;
+		data->psy_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 
-	if (old_type != data->psy.type)
-		power_supply_changed(&data->psy);
+	if (old_type != data->psy_desc.type)
+		power_supply_changed(data->psy);
 
 	return IRQ_HANDLED;
 }
@@ -143,17 +143,17 @@ static irqreturn_t max8903_usbin(int irq, void *_data)
 	dev_dbg(data->dev, "USB Charger %s.\n", usb_in ?
 			"Connected" : "Disconnected");
 
-	old_type = data->psy.type;
+	old_type = data->psy_desc.type;
 
 	if (data->ta_in)
-		data->psy.type = POWER_SUPPLY_TYPE_MAINS;
+		data->psy_desc.type = POWER_SUPPLY_TYPE_MAINS;
 	else if (data->usb_in)
-		data->psy.type = POWER_SUPPLY_TYPE_USB;
+		data->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 	else
-		data->psy.type = POWER_SUPPLY_TYPE_BATTERY;
+		data->psy_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 
-	if (old_type != data->psy.type)
-		power_supply_changed(&data->psy);
+	if (old_type != data->psy_desc.type)
+		power_supply_changed(data->psy);
 
 	return IRQ_HANDLED;
 }
@@ -184,6 +184,7 @@ static int max8903_probe(struct platform_device *pdev)
 	struct max8903_data *data;
 	struct device *dev = &pdev->dev;
 	struct max8903_pdata *pdata = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	int ret = 0;
 	int gpio;
 	int ta_in = 0;
@@ -280,17 +281,20 @@ static int max8903_probe(struct platform_device *pdev)
 	data->ta_in = ta_in;
 	data->usb_in = usb_in;
 
-	data->psy.name = "max8903_charger";
-	data->psy.type = (ta_in) ? POWER_SUPPLY_TYPE_MAINS :
+	data->psy_desc.name = "max8903_charger";
+	data->psy_desc.type = (ta_in) ? POWER_SUPPLY_TYPE_MAINS :
 			((usb_in) ? POWER_SUPPLY_TYPE_USB :
 			 POWER_SUPPLY_TYPE_BATTERY);
-	data->psy.get_property = max8903_get_property;
-	data->psy.properties = max8903_charger_props;
-	data->psy.num_properties = ARRAY_SIZE(max8903_charger_props);
+	data->psy_desc.get_property = max8903_get_property;
+	data->psy_desc.properties = max8903_charger_props;
+	data->psy_desc.num_properties = ARRAY_SIZE(max8903_charger_props);
 
-	ret = power_supply_register(dev, &data->psy, NULL);
-	if (ret) {
+	psy_cfg.drv_data = data;
+
+	data->psy = power_supply_register(dev, &data->psy_desc, &psy_cfg);
+	if (IS_ERR(data->psy)) {
 		dev_err(dev, "failed: power supply register.\n");
+		ret = PTR_ERR(data->psy);
 		goto err;
 	}
 
@@ -339,7 +343,7 @@ err_dc_irq:
 	if (pdata->dc_valid)
 		free_irq(gpio_to_irq(pdata->dok), data);
 err_psy:
-	power_supply_unregister(&data->psy);
+	power_supply_unregister(data->psy);
 err:
 	return ret;
 }
@@ -357,7 +361,7 @@ static int max8903_remove(struct platform_device *pdev)
 			free_irq(gpio_to_irq(pdata->uok), data);
 		if (pdata->dc_valid)
 			free_irq(gpio_to_irq(pdata->dok), data);
-		power_supply_unregister(&data->psy);
+		power_supply_unregister(data->psy);
 	}
 
 	return 0;

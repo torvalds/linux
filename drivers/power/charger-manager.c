@@ -864,8 +864,7 @@ static int charger_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
-	struct charger_manager *cm = container_of(psy,
-			struct charger_manager, charger_psy);
+	struct charger_manager *cm = power_supply_get_drvdata(psy);
 	struct charger_desc *desc = cm->desc;
 	struct power_supply *fuel_gauge;
 	int ret = 0;
@@ -1018,7 +1017,7 @@ static enum power_supply_property default_charger_props[] = {
 	 */
 };
 
-static struct power_supply psy_default = {
+static const struct power_supply_desc psy_default = {
 	.name = "battery",
 	.type = POWER_SUPPLY_TYPE_BATTERY,
 	.properties = default_charger_props,
@@ -1399,7 +1398,7 @@ static int charger_manager_register_sysfs(struct charger_manager *cm)
 		dev_info(cm->dev, "'%s' regulator's externally_control is %d\n",
 			 charger->regulator_name, charger->externally_control);
 
-		ret = sysfs_create_group(&cm->charger_psy.dev->kobj,
+		ret = sysfs_create_group(&cm->charger_psy->dev.kobj,
 					&charger->attr_g);
 		if (ret < 0) {
 			dev_err(cm->dev, "Cannot create sysfs entry of %s regulator\n",
@@ -1431,9 +1430,9 @@ static int cm_init_thermal_data(struct charger_manager *cm,
 					POWER_SUPPLY_PROP_TEMP, &val);
 
 	if (!ret) {
-		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+		cm->charger_psy_desc.properties[cm->charger_psy_desc.num_properties] =
 				POWER_SUPPLY_PROP_TEMP;
-		cm->charger_psy.num_properties++;
+		cm->charger_psy_desc.num_properties++;
 		cm->desc->measure_battery_temp = true;
 	}
 #ifdef CONFIG_THERMAL
@@ -1444,9 +1443,9 @@ static int cm_init_thermal_data(struct charger_manager *cm,
 			return PTR_ERR(cm->tzd_batt);
 
 		/* Use external thermometer */
-		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+		cm->charger_psy_desc.properties[cm->charger_psy_desc.num_properties] =
 				POWER_SUPPLY_PROP_TEMP_AMBIENT;
-		cm->charger_psy.num_properties++;
+		cm->charger_psy_desc.num_properties++;
 		cm->desc->measure_battery_temp = true;
 		ret = 0;
 	}
@@ -1606,6 +1605,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	int j = 0;
 	union power_supply_propval val;
 	struct power_supply *fuel_gauge;
+	struct power_supply_config psy_cfg = {};
 
 	if (IS_ERR(desc)) {
 		dev_err(&pdev->dev, "No platform data (desc) found\n");
@@ -1620,6 +1620,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	/* Basic Values. Unspecified are Null or 0 */
 	cm->dev = &pdev->dev;
 	cm->desc = desc;
+	psy_cfg.drv_data = cm;
 
 	/* Initialize alarm timer */
 	if (alarmtimer_get_rtcdev()) {
@@ -1699,40 +1700,40 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cm);
 
-	memcpy(&cm->charger_psy, &psy_default, sizeof(psy_default));
+	memcpy(&cm->charger_psy_desc, &psy_default, sizeof(psy_default));
 
 	if (!desc->psy_name)
 		strncpy(cm->psy_name_buf, psy_default.name, PSY_NAME_MAX);
 	else
 		strncpy(cm->psy_name_buf, desc->psy_name, PSY_NAME_MAX);
-	cm->charger_psy.name = cm->psy_name_buf;
+	cm->charger_psy_desc.name = cm->psy_name_buf;
 
 	/* Allocate for psy properties because they may vary */
-	cm->charger_psy.properties = devm_kzalloc(&pdev->dev,
+	cm->charger_psy_desc.properties = devm_kzalloc(&pdev->dev,
 				sizeof(enum power_supply_property)
 				* (ARRAY_SIZE(default_charger_props) +
 				NUM_CHARGER_PSY_OPTIONAL), GFP_KERNEL);
-	if (!cm->charger_psy.properties)
+	if (!cm->charger_psy_desc.properties)
 		return -ENOMEM;
 
-	memcpy(cm->charger_psy.properties, default_charger_props,
+	memcpy(cm->charger_psy_desc.properties, default_charger_props,
 		sizeof(enum power_supply_property) *
 		ARRAY_SIZE(default_charger_props));
-	cm->charger_psy.num_properties = psy_default.num_properties;
+	cm->charger_psy_desc.num_properties = psy_default.num_properties;
 
 	/* Find which optional psy-properties are available */
 	if (!power_supply_get_property(fuel_gauge,
 					  POWER_SUPPLY_PROP_CHARGE_NOW, &val)) {
-		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+		cm->charger_psy_desc.properties[cm->charger_psy_desc.num_properties] =
 				POWER_SUPPLY_PROP_CHARGE_NOW;
-		cm->charger_psy.num_properties++;
+		cm->charger_psy_desc.num_properties++;
 	}
 	if (!power_supply_get_property(fuel_gauge,
 					  POWER_SUPPLY_PROP_CURRENT_NOW,
 					  &val)) {
-		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+		cm->charger_psy_desc.properties[cm->charger_psy_desc.num_properties] =
 				POWER_SUPPLY_PROP_CURRENT_NOW;
-		cm->charger_psy.num_properties++;
+		cm->charger_psy_desc.num_properties++;
 	}
 
 	ret = cm_init_thermal_data(cm, fuel_gauge);
@@ -1743,11 +1744,12 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&cm->fullbatt_vchk_work, fullbatt_vchk);
 
-	ret = power_supply_register(NULL, &cm->charger_psy, NULL);
-	if (ret) {
+	cm->charger_psy = power_supply_register(NULL, &cm->charger_psy_desc,
+						&psy_cfg);
+	if (IS_ERR(cm->charger_psy)) {
 		dev_err(&pdev->dev, "Cannot register charger-manager with name \"%s\"\n",
-			cm->charger_psy.name);
-		return ret;
+			cm->charger_psy->desc->name);
+		return PTR_ERR(cm->charger_psy);
 	}
 
 	/* Register extcon device for charger cable */
@@ -1793,7 +1795,7 @@ err_reg_sysfs:
 		struct charger_regulator *charger;
 
 		charger = &desc->charger_regulators[i];
-		sysfs_remove_group(&cm->charger_psy.dev->kobj,
+		sysfs_remove_group(&cm->charger_psy->dev.kobj,
 				&charger->attr_g);
 	}
 err_reg_extcon:
@@ -1811,7 +1813,7 @@ err_reg_extcon:
 		regulator_put(desc->charger_regulators[i].consumer);
 	}
 
-	power_supply_unregister(&cm->charger_psy);
+	power_supply_unregister(cm->charger_psy);
 
 	return ret;
 }
@@ -1843,7 +1845,7 @@ static int charger_manager_remove(struct platform_device *pdev)
 	for (i = 0 ; i < desc->num_charger_regulators ; i++)
 		regulator_put(desc->charger_regulators[i].consumer);
 
-	power_supply_unregister(&cm->charger_psy);
+	power_supply_unregister(cm->charger_psy);
 
 	try_charger_enable(cm, false);
 
@@ -2002,7 +2004,7 @@ static bool find_power_supply(struct charger_manager *cm,
 	bool found = false;
 
 	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
-		if (!strcmp(psy->name, cm->desc->psy_charger_stat[i])) {
+		if (!strcmp(psy->desc->name, cm->desc->psy_charger_stat[i])) {
 			found = true;
 			break;
 		}

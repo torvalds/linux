@@ -152,8 +152,8 @@
 struct bq24190_dev_info {
 	struct i2c_client		*client;
 	struct device			*dev;
-	struct power_supply		charger;
-	struct power_supply		battery;
+	struct power_supply		*charger;
+	struct power_supply		*battery;
 	char				model_name[I2C_NAME_SIZE];
 	kernel_ulong_t			model;
 	unsigned int			gpio_int;
@@ -423,8 +423,7 @@ static ssize_t bq24190_sysfs_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct bq24190_dev_info *bdi =
-			container_of(psy, struct bq24190_dev_info, charger);
+	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	struct bq24190_sysfs_field_info *info;
 	int ret;
 	u8 v;
@@ -444,8 +443,7 @@ static ssize_t bq24190_sysfs_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct power_supply *psy = dev_get_drvdata(dev);
-	struct bq24190_dev_info *bdi =
-			container_of(psy, struct bq24190_dev_info, charger);
+	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	struct bq24190_sysfs_field_info *info;
 	int ret;
 	u8 v;
@@ -469,13 +467,13 @@ static int bq24190_sysfs_create_group(struct bq24190_dev_info *bdi)
 {
 	bq24190_sysfs_init_attrs();
 
-	return sysfs_create_group(&bdi->charger.dev->kobj,
+	return sysfs_create_group(&bdi->charger->dev.kobj,
 			&bq24190_sysfs_attr_group);
 }
 
 static void bq24190_sysfs_remove_group(struct bq24190_dev_info *bdi)
 {
-	sysfs_remove_group(&bdi->charger.dev->kobj, &bq24190_sysfs_attr_group);
+	sysfs_remove_group(&bdi->charger->dev.kobj, &bq24190_sysfs_attr_group);
 }
 #else
 static int bq24190_sysfs_create_group(struct bq24190_dev_info *bdi)
@@ -807,8 +805,7 @@ static int bq24190_charger_set_voltage(struct bq24190_dev_info *bdi,
 static int bq24190_charger_get_property(struct power_supply *psy,
 		enum power_supply_property psp, union power_supply_propval *val)
 {
-	struct bq24190_dev_info *bdi =
-			container_of(psy, struct bq24190_dev_info, charger);
+	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
@@ -861,8 +858,7 @@ static int bq24190_charger_set_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		const union power_supply_propval *val)
 {
-	struct bq24190_dev_info *bdi =
-			container_of(psy, struct bq24190_dev_info, charger);
+	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
@@ -922,18 +918,15 @@ static char *bq24190_charger_supplied_to[] = {
 	"main-battery",
 };
 
-static void bq24190_charger_init(struct power_supply *charger)
-{
-	charger->name = "bq24190-charger";
-	charger->type = POWER_SUPPLY_TYPE_USB;
-	charger->properties = bq24190_charger_properties;
-	charger->num_properties = ARRAY_SIZE(bq24190_charger_properties);
-	charger->supplied_to = bq24190_charger_supplied_to;
-	charger->num_supplicants = ARRAY_SIZE(bq24190_charger_supplied_to);
-	charger->get_property = bq24190_charger_get_property;
-	charger->set_property = bq24190_charger_set_property;
-	charger->property_is_writeable = bq24190_charger_property_is_writeable;
-}
+static const struct power_supply_desc bq24190_charger_desc = {
+	.name			= "bq24190-charger",
+	.type			= POWER_SUPPLY_TYPE_USB,
+	.properties		= bq24190_charger_properties,
+	.num_properties		= ARRAY_SIZE(bq24190_charger_properties),
+	.get_property		= bq24190_charger_get_property,
+	.set_property		= bq24190_charger_set_property,
+	.property_is_writeable	= bq24190_charger_property_is_writeable,
+};
 
 /* Battery power supply property routines */
 
@@ -1102,8 +1095,7 @@ static int bq24190_battery_set_temp_alert_max(struct bq24190_dev_info *bdi,
 static int bq24190_battery_get_property(struct power_supply *psy,
 		enum power_supply_property psp, union power_supply_propval *val)
 {
-	struct bq24190_dev_info *bdi =
-			container_of(psy, struct bq24190_dev_info, battery);
+	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
@@ -1144,8 +1136,7 @@ static int bq24190_battery_set_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		const union power_supply_propval *val)
 {
-	struct bq24190_dev_info *bdi =
-			container_of(psy, struct bq24190_dev_info, battery);
+	struct bq24190_dev_info *bdi = power_supply_get_drvdata(psy);
 	int ret;
 
 	dev_dbg(bdi->dev, "prop: %d\n", psp);
@@ -1193,16 +1184,15 @@ static enum power_supply_property bq24190_battery_properties[] = {
 	POWER_SUPPLY_PROP_SCOPE,
 };
 
-static void bq24190_battery_init(struct power_supply *battery)
-{
-	battery->name = "bq24190-battery";
-	battery->type = POWER_SUPPLY_TYPE_BATTERY;
-	battery->properties = bq24190_battery_properties;
-	battery->num_properties = ARRAY_SIZE(bq24190_battery_properties);
-	battery->get_property = bq24190_battery_get_property;
-	battery->set_property = bq24190_battery_set_property;
-	battery->property_is_writeable = bq24190_battery_property_is_writeable;
-}
+static const struct power_supply_desc bq24190_battery_desc = {
+	.name			= "bq24190-battery",
+	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.properties		= bq24190_battery_properties,
+	.num_properties		= ARRAY_SIZE(bq24190_battery_properties),
+	.get_property		= bq24190_battery_get_property,
+	.set_property		= bq24190_battery_set_property,
+	.property_is_writeable	= bq24190_battery_property_is_writeable,
+};
 
 static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 {
@@ -1269,8 +1259,8 @@ static irqreturn_t bq24190_irq_handler_thread(int irq, void *data)
 	 * interrupt received).
 	 */
 	if (alert_userspace && !bdi->first_time) {
-		power_supply_changed(&bdi->charger);
-		power_supply_changed(&bdi->battery);
+		power_supply_changed(bdi->charger);
+		power_supply_changed(bdi->battery);
 		bdi->first_time = false;
 	}
 
@@ -1362,6 +1352,7 @@ static int bq24190_probe(struct i2c_client *client,
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct device *dev = &client->dev;
 	struct bq24190_platform_data *pdata = client->dev.platform_data;
+	struct power_supply_config charger_cfg = {}, battery_cfg = {};
 	struct bq24190_dev_info *bdi;
 	int ret;
 
@@ -1416,19 +1407,23 @@ static int bq24190_probe(struct i2c_client *client,
 		goto out2;
 	}
 
-	bq24190_charger_init(&bdi->charger);
-
-	ret = power_supply_register(dev, &bdi->charger, NULL);
-	if (ret) {
+	charger_cfg.drv_data = bdi;
+	charger_cfg.supplied_to = bq24190_charger_supplied_to;
+	charger_cfg.num_supplicants = ARRAY_SIZE(bq24190_charger_supplied_to),
+	bdi->charger = power_supply_register(dev, &bq24190_charger_desc,
+						&charger_cfg);
+	if (IS_ERR(bdi->charger)) {
 		dev_err(dev, "Can't register charger\n");
+		ret = PTR_ERR(bdi->charger);
 		goto out2;
 	}
 
-	bq24190_battery_init(&bdi->battery);
-
-	ret = power_supply_register(dev, &bdi->battery, NULL);
-	if (ret) {
+	battery_cfg.drv_data = bdi;
+	bdi->battery = power_supply_register(dev, &bq24190_battery_desc,
+						&battery_cfg);
+	if (IS_ERR(bdi->battery)) {
 		dev_err(dev, "Can't register battery\n");
+		ret = PTR_ERR(bdi->battery);
 		goto out3;
 	}
 
@@ -1441,9 +1436,9 @@ static int bq24190_probe(struct i2c_client *client,
 	return 0;
 
 out4:
-	power_supply_unregister(&bdi->battery);
+	power_supply_unregister(bdi->battery);
 out3:
-	power_supply_unregister(&bdi->charger);
+	power_supply_unregister(bdi->charger);
 out2:
 	pm_runtime_disable(dev);
 out1:
@@ -1462,8 +1457,8 @@ static int bq24190_remove(struct i2c_client *client)
 	pm_runtime_put_sync(bdi->dev);
 
 	bq24190_sysfs_remove_group(bdi);
-	power_supply_unregister(&bdi->battery);
-	power_supply_unregister(&bdi->charger);
+	power_supply_unregister(bdi->battery);
+	power_supply_unregister(bdi->charger);
 	pm_runtime_disable(bdi->dev);
 
 	if (bdi->gpio_int)
@@ -1499,8 +1494,8 @@ static int bq24190_pm_resume(struct device *dev)
 	pm_runtime_put_sync(bdi->dev);
 
 	/* Things may have changed while suspended so alert upper layer */
-	power_supply_changed(&bdi->charger);
-	power_supply_changed(&bdi->battery);
+	power_supply_changed(bdi->charger);
+	power_supply_changed(bdi->battery);
 
 	return 0;
 }

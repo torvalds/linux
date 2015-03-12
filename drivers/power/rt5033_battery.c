@@ -72,8 +72,7 @@ static int rt5033_battery_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
-	struct rt5033_battery *battery = container_of(psy,
-				struct rt5033_battery, psy);
+	struct rt5033_battery *battery = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
@@ -108,10 +107,19 @@ static const struct regmap_config rt5033_battery_regmap_config = {
 	.max_register	= RT5033_FUEL_REG_END,
 };
 
+static const struct power_supply_desc rt5033_battery_desc = {
+	.name		= "rt5033-battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= rt5033_battery_get_property,
+	.properties	= rt5033_battery_props,
+	.num_properties	= ARRAY_SIZE(rt5033_battery_props),
+};
+
 static int rt5033_battery_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct power_supply_config psy_cfg = {};
 	struct rt5033_battery *battery;
 	u32 ret;
 
@@ -131,16 +139,13 @@ static int rt5033_battery_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, battery);
+	psy_cfg.drv_data = battery;
 
-	battery->psy.name		= "rt5033-battery";
-	battery->psy.type		= POWER_SUPPLY_TYPE_BATTERY;
-	battery->psy.get_property	= rt5033_battery_get_property;
-	battery->psy.properties		= rt5033_battery_props;
-	battery->psy.num_properties	= ARRAY_SIZE(rt5033_battery_props);
-
-	ret = power_supply_register(&client->dev, &battery->psy, NULL);
-	if (ret) {
+	battery->psy = power_supply_register(&client->dev,
+					     &rt5033_battery_desc, &psy_cfg);
+	if (IS_ERR(battery->psy)) {
 		dev_err(&client->dev, "Failed to register power supply\n");
+		ret = PTR_ERR(battery->psy);
 		return ret;
 	}
 
@@ -151,7 +156,7 @@ static int rt5033_battery_remove(struct i2c_client *client)
 {
 	struct rt5033_battery *battery = i2c_get_clientdata(client);
 
-	power_supply_unregister(&battery->psy);
+	power_supply_unregister(battery->psy);
 
 	return 0;
 }

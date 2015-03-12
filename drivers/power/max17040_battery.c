@@ -40,7 +40,7 @@
 struct max17040_chip {
 	struct i2c_client		*client;
 	struct delayed_work		work;
-	struct power_supply		battery;
+	struct power_supply		*battery;
 	struct max17040_platform_data	*pdata;
 
 	/* State Of Connect */
@@ -57,8 +57,7 @@ static int max17040_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
 {
-	struct max17040_chip *chip = container_of(psy,
-				struct max17040_chip, battery);
+	struct max17040_chip *chip = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -199,12 +198,20 @@ static enum power_supply_property max17040_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
+static const struct power_supply_desc max17040_battery_desc = {
+	.name		= "battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= max17040_get_property,
+	.properties	= max17040_battery_props,
+	.num_properties	= ARRAY_SIZE(max17040_battery_props),
+};
+
 static int max17040_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct power_supply_config psy_cfg = {};
 	struct max17040_chip *chip;
-	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
@@ -217,17 +224,13 @@ static int max17040_probe(struct i2c_client *client,
 	chip->pdata = client->dev.platform_data;
 
 	i2c_set_clientdata(client, chip);
+	psy_cfg.drv_data = chip;
 
-	chip->battery.name		= "battery";
-	chip->battery.type		= POWER_SUPPLY_TYPE_BATTERY;
-	chip->battery.get_property	= max17040_get_property;
-	chip->battery.properties	= max17040_battery_props;
-	chip->battery.num_properties	= ARRAY_SIZE(max17040_battery_props);
-
-	ret = power_supply_register(&client->dev, &chip->battery, NULL);
-	if (ret) {
+	chip->battery = power_supply_register(&client->dev,
+				&max17040_battery_desc, &psy_cfg);
+	if (IS_ERR(chip->battery)) {
 		dev_err(&client->dev, "failed: power supply register\n");
-		return ret;
+		return PTR_ERR(chip->battery);
 	}
 
 	max17040_reset(client);
@@ -244,7 +247,7 @@ static int max17040_remove(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
-	power_supply_unregister(&chip->battery);
+	power_supply_unregister(chip->battery);
 	cancel_delayed_work(&chip->work);
 	return 0;
 }

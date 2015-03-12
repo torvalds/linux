@@ -107,8 +107,8 @@ struct pmic_power_module_info {
 	unsigned int batt_prev_charge_full;	/* in mAS */
 	unsigned int batt_charge_rate;		/* in units per second */
 
-	struct power_supply usb;
-	struct power_supply batt;
+	struct power_supply *usb;
+	struct power_supply *batt;
 	int irq;				/* GPE_ID or IRQ# */
 	struct workqueue_struct *monitor_wqueue;
 	struct delayed_work monitor_battery;
@@ -404,8 +404,7 @@ static int pmic_usb_get_property(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
 {
-	struct pmic_power_module_info *pbi = container_of(psy,
-				struct pmic_power_module_info, usb);
+	struct pmic_power_module_info *pbi = power_supply_get_drvdata(psy);
 
 	/* update pmic_power_module_info members */
 	pmic_battery_read_status(pbi);
@@ -444,8 +443,7 @@ static int pmic_battery_get_property(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
 {
-	struct pmic_power_module_info *pbi = container_of(psy,
-				struct pmic_power_module_info, batt);
+	struct pmic_power_module_info *pbi = power_supply_get_drvdata(psy);
 
 	/* update pmic_power_module_info members */
 	pmic_battery_read_status(pbi);
@@ -640,6 +638,25 @@ static void pmic_battery_handle_intrpt(struct work_struct *work)
 			__func__);
 }
 
+/*
+ * Description of power supplies
+ */
+static const struct power_supply_desc pmic_usb_desc = {
+	.name		= "pmic-usb",
+	.type		= POWER_SUPPLY_TYPE_USB,
+	.properties	= pmic_usb_props,
+	.num_properties	= ARRAY_SIZE(pmic_usb_props),
+	.get_property	= pmic_usb_get_property,
+};
+
+static const struct power_supply_desc pmic_batt_desc = {
+	.name		= "pmic-batt",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= pmic_battery_props,
+	.num_properties	= ARRAY_SIZE(pmic_battery_props),
+	.get_property	= pmic_battery_get_property,
+};
+
 /**
  * pmic_battery_probe - pmic battery initialize
  * @irq: pmic battery device irq
@@ -653,6 +670,7 @@ static int probe(int irq, struct device *dev)
 {
 	int retval = 0;
 	struct pmic_power_module_info *pbi;
+	struct power_supply_config psy_cfg = {};
 
 	dev_dbg(dev, "pmic-battery: found pmic battery device\n");
 
@@ -666,6 +684,7 @@ static int probe(int irq, struct device *dev)
 	pbi->dev = dev;
 	pbi->irq = irq;
 	dev_set_drvdata(dev, pbi);
+	psy_cfg.drv_data = pbi;
 
 	/* initialize all required framework before enabling interrupts */
 	INIT_WORK(&pbi->handler, pmic_battery_handle_intrpt);
@@ -687,16 +706,12 @@ static int probe(int irq, struct device *dev)
 	}
 
 	/* register pmic-batt with power supply subsystem */
-	pbi->batt.name = "pmic-batt";
-	pbi->batt.type = POWER_SUPPLY_TYPE_BATTERY;
-	pbi->batt.properties = pmic_battery_props;
-	pbi->batt.num_properties = ARRAY_SIZE(pmic_battery_props);
-	pbi->batt.get_property = pmic_battery_get_property;
-	retval = power_supply_register(dev, &pbi->batt, NULL);
-	if (retval) {
+	pbi->batt = power_supply_register(dev, &pmic_usb_desc, &psy_cfg);
+	if (IS_ERR(pbi->batt)) {
 		dev_err(dev,
 			"%s(): failed to register pmic battery device with power supply subsystem\n",
 				__func__);
+		retval = PTR_ERR(pbi->batt);
 		goto power_reg_failed;
 	}
 
@@ -707,16 +722,12 @@ static int probe(int irq, struct device *dev)
 	queue_delayed_work(pbi->monitor_wqueue, &pbi->monitor_battery, HZ * 1);
 
 	/* register pmic-usb with power supply subsystem */
-	pbi->usb.name = "pmic-usb";
-	pbi->usb.type = POWER_SUPPLY_TYPE_USB;
-	pbi->usb.properties = pmic_usb_props;
-	pbi->usb.num_properties = ARRAY_SIZE(pmic_usb_props);
-	pbi->usb.get_property = pmic_usb_get_property;
-	retval = power_supply_register(dev, &pbi->usb, NULL);
-	if (retval) {
+	pbi->usb = power_supply_register(dev, &pmic_batt_desc, &psy_cfg);
+	if (IS_ERR(pbi->usb)) {
 		dev_err(dev,
 			"%s(): failed to register pmic usb device with power supply subsystem\n",
 				__func__);
+		retval = PTR_ERR(pbi->usb);
 		goto power_reg_failed_1;
 	}
 
@@ -728,7 +739,7 @@ static int probe(int irq, struct device *dev)
 	return retval;
 
 power_reg_failed_1:
-	power_supply_unregister(&pbi->batt);
+	power_supply_unregister(pbi->batt);
 power_reg_failed:
 	cancel_delayed_work_sync(&pbi->monitor_battery);
 requestirq_failed:
@@ -762,8 +773,8 @@ static int platform_pmic_battery_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&pbi->monitor_battery);
 	destroy_workqueue(pbi->monitor_wqueue);
 
-	power_supply_unregister(&pbi->usb);
-	power_supply_unregister(&pbi->batt);
+	power_supply_unregister(pbi->usb);
+	power_supply_unregister(pbi->batt);
 
 	cancel_work_sync(&pbi->handler);
 	kfree(pbi);

@@ -815,7 +815,8 @@ struct sony_sc {
 	struct led_classdev *leds[MAX_LEDS];
 	unsigned long quirks;
 	struct work_struct state_worker;
-	struct power_supply battery;
+	struct power_supply *battery;
+	struct power_supply_desc battery_desc;
 	int device_id;
 	__u8 *output_report_dmabuf;
 
@@ -1660,7 +1661,7 @@ static int sony_battery_get_property(struct power_supply *psy,
 				     enum power_supply_property psp,
 				     union power_supply_propval *val)
 {
-	struct sony_sc *sc = container_of(psy, struct sony_sc, battery);
+	struct sony_sc *sc = power_supply_get_drvdata(psy);
 	unsigned long flags;
 	int ret = 0;
 	u8 battery_charging, battery_capacity, cable_state;
@@ -1699,6 +1700,7 @@ static int sony_battery_get_property(struct power_supply *psy,
 
 static int sony_battery_probe(struct sony_sc *sc)
 {
+	struct power_supply_config psy_cfg = { .drv_data = sc, };
 	struct hid_device *hdev = sc->hdev;
 	int ret;
 
@@ -1708,39 +1710,42 @@ static int sony_battery_probe(struct sony_sc *sc)
 	 */
 	sc->battery_capacity = 100;
 
-	sc->battery.properties = sony_battery_props;
-	sc->battery.num_properties = ARRAY_SIZE(sony_battery_props);
-	sc->battery.get_property = sony_battery_get_property;
-	sc->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	sc->battery.use_for_apm = 0;
-	sc->battery.name = kasprintf(GFP_KERNEL, "sony_controller_battery_%pMR",
-				     sc->mac_address);
-	if (!sc->battery.name)
+	sc->battery_desc.properties = sony_battery_props;
+	sc->battery_desc.num_properties = ARRAY_SIZE(sony_battery_props);
+	sc->battery_desc.get_property = sony_battery_get_property;
+	sc->battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
+	sc->battery_desc.use_for_apm = 0;
+	sc->battery_desc.name = kasprintf(GFP_KERNEL,
+					  "sony_controller_battery_%pMR",
+					  sc->mac_address);
+	if (!sc->battery_desc.name)
 		return -ENOMEM;
 
-	ret = power_supply_register(&hdev->dev, &sc->battery, NULL);
-	if (ret) {
+	sc->battery = power_supply_register(&hdev->dev, &sc->battery_desc,
+					    &psy_cfg);
+	if (IS_ERR(sc->battery)) {
+		ret = PTR_ERR(sc->battery);
 		hid_err(hdev, "Unable to register battery device\n");
 		goto err_free;
 	}
 
-	power_supply_powers(&sc->battery, &hdev->dev);
+	power_supply_powers(sc->battery, &hdev->dev);
 	return 0;
 
 err_free:
-	kfree(sc->battery.name);
-	sc->battery.name = NULL;
+	kfree(sc->battery_desc.name);
+	sc->battery_desc.name = NULL;
 	return ret;
 }
 
 static void sony_battery_remove(struct sony_sc *sc)
 {
-	if (!sc->battery.name)
+	if (!sc->battery_desc.name)
 		return;
 
-	power_supply_unregister(&sc->battery);
-	kfree(sc->battery.name);
-	sc->battery.name = NULL;
+	power_supply_unregister(sc->battery);
+	kfree(sc->battery_desc.name);
+	sc->battery_desc.name = NULL;
 }
 
 /*

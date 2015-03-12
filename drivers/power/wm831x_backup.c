@@ -21,7 +21,8 @@
 
 struct wm831x_backup {
 	struct wm831x *wm831x;
-	struct power_supply backup;
+	struct power_supply *backup;
+	struct power_supply_desc backup_desc;
 	char name[20];
 };
 
@@ -115,7 +116,7 @@ static int wm831x_backup_get_prop(struct power_supply *psy,
 				  enum power_supply_property psp,
 				  union power_supply_propval *val)
 {
-	struct wm831x_backup *devdata = dev_get_drvdata(psy->dev->parent);
+	struct wm831x_backup *devdata = dev_get_drvdata(psy->dev.parent);
 	struct wm831x *wm831x = devdata->wm831x;
 	int ret = 0;
 
@@ -166,8 +167,6 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *wm831x_pdata = wm831x->dev->platform_data;
 	struct wm831x_backup *devdata;
-	struct power_supply *backup;
-	int ret;
 
 	devdata = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_backup),
 				GFP_KERNEL);
@@ -176,8 +175,6 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 
 	devdata->wm831x = wm831x;
 	platform_set_drvdata(pdev, devdata);
-
-	backup = &devdata->backup;
 
 	/* We ignore configuration failures since we can still read
 	 * back the status without enabling the charger (which may
@@ -192,21 +189,22 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 		snprintf(devdata->name, sizeof(devdata->name),
 			 "wm831x-backup");
 
-	backup->name = devdata->name;
-	backup->type = POWER_SUPPLY_TYPE_BATTERY;
-	backup->properties = wm831x_backup_props;
-	backup->num_properties = ARRAY_SIZE(wm831x_backup_props);
-	backup->get_property = wm831x_backup_get_prop;
-	ret = power_supply_register(&pdev->dev, backup, NULL);
+	devdata->backup_desc.name = devdata->name;
+	devdata->backup_desc.type = POWER_SUPPLY_TYPE_BATTERY;
+	devdata->backup_desc.properties = wm831x_backup_props;
+	devdata->backup_desc.num_properties = ARRAY_SIZE(wm831x_backup_props);
+	devdata->backup_desc.get_property = wm831x_backup_get_prop;
+	devdata->backup = power_supply_register(&pdev->dev,
+						&devdata->backup_desc, NULL);
 
-	return ret;
+	return PTR_ERR_OR_ZERO(devdata->backup);
 }
 
 static int wm831x_backup_remove(struct platform_device *pdev)
 {
 	struct wm831x_backup *devdata = platform_get_drvdata(pdev);
 
-	power_supply_unregister(&devdata->backup);
+	power_supply_unregister(devdata->backup);
 
 	return 0;
 }

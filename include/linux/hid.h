@@ -514,10 +514,10 @@ struct hid_device {							/* device report descriptor */
 #ifdef CONFIG_HID_BATTERY_STRENGTH
 	/*
 	 * Power supply information for HID devices which report
-	 * battery strength. power_supply is registered iff
-	 * battery.name is non-NULL.
+	 * battery strength. power_supply was successfully registered if
+	 * battery is non-NULL.
 	 */
-	struct power_supply battery;
+	struct power_supply *battery;
 	__s32 battery_min;
 	__s32 battery_max;
 	__s32 battery_report_type;

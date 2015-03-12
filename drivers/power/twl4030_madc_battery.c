@@ -21,7 +21,7 @@
 #include <linux/power/twl4030_madc_battery.h>
 
 struct twl4030_madc_battery {
-	struct power_supply psy;
+	struct power_supply *psy;
 	struct twl4030_madc_bat_platform_data *pdata;
 };
 
@@ -113,8 +113,7 @@ static int twl4030_madc_bat_get_property(struct power_supply *psy,
 					enum power_supply_property psp,
 					union power_supply_propval *val)
 {
-	struct twl4030_madc_battery *bat = container_of(psy,
-					struct twl4030_madc_battery, psy);
+	struct twl4030_madc_battery *bat = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -176,11 +175,18 @@ static int twl4030_madc_bat_get_property(struct power_supply *psy,
 
 static void twl4030_madc_bat_ext_changed(struct power_supply *psy)
 {
-	struct twl4030_madc_battery *bat = container_of(psy,
-					struct twl4030_madc_battery, psy);
-
-	power_supply_changed(&bat->psy);
+	power_supply_changed(psy);
 }
+
+static const struct power_supply_desc twl4030_madc_bat_desc = {
+	.name			= "twl4030_battery",
+	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.properties		= twl4030_madc_bat_props,
+	.num_properties		= ARRAY_SIZE(twl4030_madc_bat_props),
+	.get_property		= twl4030_madc_bat_get_property,
+	.external_power_changed	= twl4030_madc_bat_ext_changed,
+
+};
 
 static int twl4030_cmp(const void *a, const void *b)
 {
@@ -192,20 +198,12 @@ static int twl4030_madc_battery_probe(struct platform_device *pdev)
 {
 	struct twl4030_madc_battery *twl4030_madc_bat;
 	struct twl4030_madc_bat_platform_data *pdata = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	int ret = 0;
 
 	twl4030_madc_bat = kzalloc(sizeof(*twl4030_madc_bat), GFP_KERNEL);
 	if (!twl4030_madc_bat)
 		return -ENOMEM;
-
-	twl4030_madc_bat->psy.name = "twl4030_battery";
-	twl4030_madc_bat->psy.type = POWER_SUPPLY_TYPE_BATTERY;
-	twl4030_madc_bat->psy.properties = twl4030_madc_bat_props;
-	twl4030_madc_bat->psy.num_properties =
-					ARRAY_SIZE(twl4030_madc_bat_props);
-	twl4030_madc_bat->psy.get_property = twl4030_madc_bat_get_property;
-	twl4030_madc_bat->psy.external_power_changed =
-					twl4030_madc_bat_ext_changed;
 
 	/* sort charging and discharging calibration data */
 	sort(pdata->charging, pdata->charging_size,
@@ -217,9 +215,14 @@ static int twl4030_madc_battery_probe(struct platform_device *pdev)
 
 	twl4030_madc_bat->pdata = pdata;
 	platform_set_drvdata(pdev, twl4030_madc_bat);
-	ret = power_supply_register(&pdev->dev, &twl4030_madc_bat->psy, NULL);
-	if (ret < 0)
+	psy_cfg.drv_data = twl4030_madc_bat;
+	twl4030_madc_bat->psy = power_supply_register(&pdev->dev,
+						      &twl4030_madc_bat_desc,
+						      &psy_cfg);
+	if (IS_ERR(twl4030_madc_bat->psy)) {
+		ret = PTR_ERR(twl4030_madc_bat->psy);
 		kfree(twl4030_madc_bat);
+	}
 
 	return ret;
 }
@@ -228,7 +231,7 @@ static int twl4030_madc_battery_remove(struct platform_device *pdev)
 {
 	struct twl4030_madc_battery *bat = platform_get_drvdata(pdev);
 
-	power_supply_unregister(&bat->psy);
+	power_supply_unregister(bat->psy);
 	kfree(bat);
 
 	return 0;

@@ -156,7 +156,7 @@ static enum power_supply_property sbs_properties[] = {
 
 struct sbs_info {
 	struct i2c_client		*client;
-	struct power_supply		power_supply;
+	struct power_supply		*power_supply;
 	struct sbs_platform_data	*pdata;
 	bool				is_present;
 	bool				gpio_detect;
@@ -391,7 +391,7 @@ static int sbs_get_battery_property(struct i2c_client *client,
 			chip->last_state = val->intval;
 		else if (chip->last_state != val->intval) {
 			cancel_delayed_work_sync(&chip->work);
-			power_supply_changed(&chip->power_supply);
+			power_supply_changed(chip->power_supply);
 			chip->poll_time = 0;
 		}
 	} else {
@@ -556,8 +556,7 @@ static int sbs_get_property(struct power_supply *psy,
 	union power_supply_propval *val)
 {
 	int ret = 0;
-	struct sbs_info *chip = container_of(psy,
-				struct sbs_info, power_supply);
+	struct sbs_info *chip = power_supply_get_drvdata(psy);
 	struct i2c_client *client = chip->client;
 
 	switch (psp) {
@@ -638,7 +637,7 @@ static int sbs_get_property(struct power_supply *psy,
 	if (!chip->gpio_detect &&
 		chip->is_present != (ret >= 0)) {
 		chip->is_present = (ret >= 0);
-		power_supply_changed(&chip->power_supply);
+		power_supply_changed(chip->power_supply);
 	}
 
 done:
@@ -671,9 +670,7 @@ static irqreturn_t sbs_irq(int irq, void *devid)
 
 static void sbs_external_power_changed(struct power_supply *psy)
 {
-	struct sbs_info *chip;
-
-	chip = container_of(psy, struct sbs_info, power_supply);
+	struct sbs_info *chip = power_supply_get_drvdata(psy);
 
 	if (chip->ignore_changes > 0) {
 		chip->ignore_changes--;
@@ -712,7 +709,7 @@ static void sbs_delayed_work(struct work_struct *work)
 
 	if (chip->last_state != ret) {
 		chip->poll_time = 0;
-		power_supply_changed(&chip->power_supply);
+		power_supply_changed(chip->power_supply);
 		return;
 	}
 	if (chip->poll_time > 0) {
@@ -796,43 +793,48 @@ static struct sbs_platform_data *sbs_of_populate_pdata(
 }
 #endif
 
+static const struct power_supply_desc sbs_default_desc = {
+	.type = POWER_SUPPLY_TYPE_BATTERY,
+	.properties = sbs_properties,
+	.num_properties = ARRAY_SIZE(sbs_properties),
+	.get_property = sbs_get_property,
+	.external_power_changed = sbs_external_power_changed,
+};
+
 static int sbs_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	struct sbs_info *chip;
+	struct power_supply_desc *sbs_desc;
 	struct sbs_platform_data *pdata = client->dev.platform_data;
 	struct power_supply_config psy_cfg = {};
 	int rc;
 	int irq;
-	char *name;
 
-	name = kasprintf(GFP_KERNEL, "sbs-%s", dev_name(&client->dev));
-	if (!name) {
-		dev_err(&client->dev, "Failed to allocate device name\n");
+	sbs_desc = devm_kmemdup(&client->dev, &sbs_default_desc,
+			sizeof(*sbs_desc), GFP_KERNEL);
+	if (!sbs_desc)
 		return -ENOMEM;
-	}
+
+	sbs_desc->name = devm_kasprintf(&client->dev, GFP_KERNEL, "sbs-%s",
+			dev_name(&client->dev));
+	if (!sbs_desc->name)
+		return -ENOMEM;
 
 	chip = kzalloc(sizeof(struct sbs_info), GFP_KERNEL);
-	if (!chip) {
-		rc = -ENOMEM;
-		goto exit_free_name;
-	}
+	if (!chip)
+		return -ENOMEM;
 
 	chip->client = client;
 	chip->enable_detection = false;
 	chip->gpio_detect = false;
-	chip->power_supply.name = name;
-	chip->power_supply.type = POWER_SUPPLY_TYPE_BATTERY;
-	chip->power_supply.properties = sbs_properties;
-	chip->power_supply.num_properties = ARRAY_SIZE(sbs_properties);
-	chip->power_supply.get_property = sbs_get_property;
 	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.drv_data = chip;
 	/* ignore first notification of external change, it is generated
 	 * from the power_supply_register call back
 	 */
 	chip->ignore_changes = 1;
 	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
-	chip->power_supply.external_power_changed = sbs_external_power_changed;
 
 	pdata = sbs_of_populate_pdata(client);
 
@@ -871,7 +873,7 @@ static int sbs_probe(struct i2c_client *client,
 
 	rc = request_irq(irq, sbs_irq,
 		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-		dev_name(&client->dev), &chip->power_supply);
+		dev_name(&client->dev), chip->power_supply);
 	if (rc) {
 		dev_warn(&client->dev, "Failed to request irq: %d\n", rc);
 		gpio_free(pdata->battery_detect);
@@ -893,11 +895,12 @@ skip_gpio:
 		goto exit_psupply;
 	}
 
-	rc = power_supply_register(&client->dev, &chip->power_supply,
-			&psy_cfg);
-	if (rc) {
+	chip->power_supply = power_supply_register(&client->dev, sbs_desc,
+						   &psy_cfg);
+	if (IS_ERR(chip->power_supply)) {
 		dev_err(&client->dev,
 			"%s: Failed to register power supply\n", __func__);
+		rc = PTR_ERR(chip->power_supply);
 		goto exit_psupply;
 	}
 
@@ -912,14 +915,11 @@ skip_gpio:
 
 exit_psupply:
 	if (chip->irq)
-		free_irq(chip->irq, &chip->power_supply);
+		free_irq(chip->irq, chip->power_supply);
 	if (chip->gpio_detect)
 		gpio_free(pdata->battery_detect);
 
 	kfree(chip);
-
-exit_free_name:
-	kfree(name);
 
 	return rc;
 }
@@ -929,15 +929,14 @@ static int sbs_remove(struct i2c_client *client)
 	struct sbs_info *chip = i2c_get_clientdata(client);
 
 	if (chip->irq)
-		free_irq(chip->irq, &chip->power_supply);
+		free_irq(chip->irq, chip->power_supply);
 	if (chip->gpio_detect)
 		gpio_free(chip->pdata->battery_detect);
 
-	power_supply_unregister(&chip->power_supply);
+	power_supply_unregister(chip->power_supply);
 
 	cancel_delayed_work_sync(&chip->work);
 
-	kfree(chip->power_supply.name);
 	kfree(chip);
 	chip = NULL;
 

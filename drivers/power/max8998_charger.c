@@ -30,7 +30,7 @@
 struct max8998_battery_data {
 	struct device *dev;
 	struct max8998_dev *iodev;
-	struct power_supply battery;
+	struct power_supply *battery;
 };
 
 static enum power_supply_property max8998_battery_props[] = {
@@ -43,8 +43,7 @@ static int max8998_battery_get_property(struct power_supply *psy,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
-	struct max8998_battery_data *max8998 = container_of(psy,
-			struct max8998_battery_data, battery);
+	struct max8998_battery_data *max8998 = power_supply_get_drvdata(psy);
 	struct i2c_client *i2c = max8998->iodev->i2c;
 	int ret;
 	u8 reg;
@@ -75,10 +74,19 @@ static int max8998_battery_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static const struct power_supply_desc max8998_battery_desc = {
+	.name		= "max8998_pmic",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= max8998_battery_get_property,
+	.properties	= max8998_battery_props,
+	.num_properties	= ARRAY_SIZE(max8998_battery_props),
+};
+
 static int max8998_battery_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max8998_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct power_supply_config psy_cfg = {};
 	struct max8998_battery_data *max8998;
 	struct i2c_client *i2c;
 	int ret = 0;
@@ -161,15 +169,15 @@ static int max8998_battery_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	max8998->battery.name = "max8998_pmic";
-	max8998->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	max8998->battery.get_property = max8998_battery_get_property;
-	max8998->battery.properties = max8998_battery_props;
-	max8998->battery.num_properties = ARRAY_SIZE(max8998_battery_props);
+	psy_cfg.drv_data = max8998;
 
-	ret = power_supply_register(max8998->dev, &max8998->battery, NULL);
-	if (ret) {
-		dev_err(max8998->dev, "failed: power supply register\n");
+	max8998->battery = power_supply_register(max8998->dev,
+						 &max8998_battery_desc,
+						 &psy_cfg);
+	if (IS_ERR(max8998->battery)) {
+		ret = PTR_ERR(max8998->battery);
+		dev_err(max8998->dev, "failed: power supply register: %d\n",
+			ret);
 		goto err;
 	}
 
@@ -182,7 +190,7 @@ static int max8998_battery_remove(struct platform_device *pdev)
 {
 	struct max8998_battery_data *max8998 = platform_get_drvdata(pdev);
 
-	power_supply_unregister(&max8998->battery);
+	power_supply_unregister(max8998->battery);
 
 	return 0;
 }

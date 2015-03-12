@@ -44,14 +44,15 @@
 #define BQ24735_DEVICE_ID		0xff
 
 struct bq24735 {
-	struct power_supply	charger;
-	struct i2c_client	*client;
-	struct bq24735_platform	*pdata;
+	struct power_supply		*charger;
+	struct power_supply_desc	charger_desc;
+	struct i2c_client		*client;
+	struct bq24735_platform		*pdata;
 };
 
 static inline struct bq24735 *to_bq24735(struct power_supply *psy)
 {
-	return container_of(psy, struct bq24735, charger);
+	return power_supply_get_drvdata(psy);
 }
 
 static enum power_supply_property bq24735_charger_properties[] = {
@@ -192,9 +193,7 @@ static int bq24735_charger_get_property(struct power_supply *psy,
 					enum power_supply_property psp,
 					union power_supply_propval *val)
 {
-	struct bq24735 *charger;
-
-	charger = container_of(psy, struct bq24735, charger);
+	struct bq24735 *charger = to_bq24735(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -248,7 +247,7 @@ static int bq24735_charger_probe(struct i2c_client *client,
 {
 	int ret;
 	struct bq24735 *charger;
-	struct power_supply *supply;
+	struct power_supply_desc *supply_desc;
 	struct power_supply_config psy_cfg = {};
 	char *name;
 
@@ -278,17 +277,18 @@ static int bq24735_charger_probe(struct i2c_client *client,
 
 	charger->client = client;
 
-	supply = &charger->charger;
+	supply_desc = &charger->charger_desc;
 
-	supply->name = name;
-	supply->type = POWER_SUPPLY_TYPE_MAINS;
-	supply->properties = bq24735_charger_properties;
-	supply->num_properties = ARRAY_SIZE(bq24735_charger_properties);
-	supply->get_property = bq24735_charger_get_property;
+	supply_desc->name = name;
+	supply_desc->type = POWER_SUPPLY_TYPE_MAINS;
+	supply_desc->properties = bq24735_charger_properties;
+	supply_desc->num_properties = ARRAY_SIZE(bq24735_charger_properties);
+	supply_desc->get_property = bq24735_charger_get_property;
 
 	psy_cfg.supplied_to = charger->pdata->supplied_to;
 	psy_cfg.num_supplicants = charger->pdata->num_supplicants;
 	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.drv_data = charger;
 
 	i2c_set_clientdata(client, charger);
 
@@ -343,8 +343,10 @@ static int bq24735_charger_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = power_supply_register(&client->dev, supply, &psy_cfg);
-	if (ret < 0) {
+	charger->charger = power_supply_register(&client->dev, supply_desc,
+						 &psy_cfg);
+	if (IS_ERR(charger->charger)) {
+		ret = PTR_ERR(charger->charger);
 		dev_err(&client->dev, "Failed to register power supply: %d\n",
 			ret);
 		goto err_free_name;
@@ -356,7 +358,8 @@ static int bq24735_charger_probe(struct i2c_client *client,
 						IRQF_TRIGGER_RISING |
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
-						supply->name, supply);
+						supply_desc->name,
+						charger->charger);
 		if (ret) {
 			dev_err(&client->dev,
 				"Unable to register IRQ %d err %d\n",
@@ -367,7 +370,7 @@ static int bq24735_charger_probe(struct i2c_client *client,
 
 	return 0;
 err_unregister_supply:
-	power_supply_unregister(supply);
+	power_supply_unregister(charger->charger);
 err_free_name:
 	if (name != charger->pdata->name)
 		kfree(name);
@@ -383,10 +386,10 @@ static int bq24735_charger_remove(struct i2c_client *client)
 		devm_free_irq(&charger->client->dev, charger->client->irq,
 			      &charger->charger);
 
-	power_supply_unregister(&charger->charger);
+	power_supply_unregister(charger->charger);
 
-	if (charger->charger.name != charger->pdata->name)
-		kfree(charger->charger.name);
+	if (charger->charger_desc.name != charger->pdata->name)
+		kfree(charger->charger_desc.name);
 
 	return 0;
 }

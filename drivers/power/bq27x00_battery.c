@@ -116,7 +116,7 @@ struct bq27x00_device_info {
 	unsigned long last_update;
 	struct delayed_work work;
 
-	struct power_supply	bat;
+	struct power_supply	*bat;
 
 	struct bq27x00_access_methods bus;
 
@@ -531,7 +531,7 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 	}
 
 	if (di->cache.capacity != cache.capacity)
-		power_supply_changed(&di->bat);
+		power_supply_changed(di->bat);
 
 	if (memcmp(&di->cache, &cache, sizeof(cache)) != 0)
 		di->cache = cache;
@@ -603,7 +603,7 @@ static int bq27x00_battery_status(struct bq27x00_device_info *di,
 			status = POWER_SUPPLY_STATUS_FULL;
 		else if (di->cache.flags & BQ27000_FLAG_CHGS)
 			status = POWER_SUPPLY_STATUS_CHARGING;
-		else if (power_supply_am_i_supplied(&di->bat))
+		else if (power_supply_am_i_supplied(di->bat))
 			status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		else
 			status = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -675,15 +675,12 @@ static int bq27x00_simple_value(int value,
 	return 0;
 }
 
-#define to_bq27x00_device_info(x) container_of((x), \
-				struct bq27x00_device_info, bat);
-
 static int bq27x00_battery_get_property(struct power_supply *psy,
 					enum power_supply_property psp,
 					union power_supply_propval *val)
 {
 	int ret = 0;
-	struct bq27x00_device_info *di = to_bq27x00_device_info(psy);
+	struct bq27x00_device_info *di = power_supply_get_drvdata(psy);
 
 	mutex_lock(&di->lock);
 	if (time_is_before_jiffies(di->last_update + 5 * HZ)) {
@@ -761,38 +758,47 @@ static int bq27x00_battery_get_property(struct power_supply *psy,
 
 static void bq27x00_external_power_changed(struct power_supply *psy)
 {
-	struct bq27x00_device_info *di = to_bq27x00_device_info(psy);
+	struct bq27x00_device_info *di = power_supply_get_drvdata(psy);
 
 	cancel_delayed_work_sync(&di->work);
 	schedule_delayed_work(&di->work, 0);
 }
 
-static int bq27x00_powersupply_init(struct bq27x00_device_info *di)
+static int bq27x00_powersupply_init(struct bq27x00_device_info *di,
+				    const char *name)
 {
 	int ret;
+	struct power_supply_desc *psy_desc;
+	struct power_supply_config psy_cfg = { .drv_data = di, };
 
-	di->bat.type = POWER_SUPPLY_TYPE_BATTERY;
+	psy_desc = devm_kzalloc(di->dev, sizeof(*psy_desc), GFP_KERNEL);
+	if (!psy_desc)
+		return -ENOMEM;
+
+	psy_desc->name = name;
+	psy_desc->type = POWER_SUPPLY_TYPE_BATTERY;
 	if (di->chip == BQ27425) {
-		di->bat.properties = bq27425_battery_props;
-		di->bat.num_properties = ARRAY_SIZE(bq27425_battery_props);
+		psy_desc->properties = bq27425_battery_props;
+		psy_desc->num_properties = ARRAY_SIZE(bq27425_battery_props);
 	} else if (di->chip == BQ27742) {
-		di->bat.properties = bq27742_battery_props;
-		di->bat.num_properties = ARRAY_SIZE(bq27742_battery_props);
+		psy_desc->properties = bq27742_battery_props;
+		psy_desc->num_properties = ARRAY_SIZE(bq27742_battery_props);
 	} else if (di->chip == BQ27510) {
-		di->bat.properties = bq27510_battery_props;
-		di->bat.num_properties = ARRAY_SIZE(bq27510_battery_props);
+		psy_desc->properties = bq27510_battery_props;
+		psy_desc->num_properties = ARRAY_SIZE(bq27510_battery_props);
 	} else {
-		di->bat.properties = bq27x00_battery_props;
-		di->bat.num_properties = ARRAY_SIZE(bq27x00_battery_props);
+		psy_desc->properties = bq27x00_battery_props;
+		psy_desc->num_properties = ARRAY_SIZE(bq27x00_battery_props);
 	}
-	di->bat.get_property = bq27x00_battery_get_property;
-	di->bat.external_power_changed = bq27x00_external_power_changed;
+	psy_desc->get_property = bq27x00_battery_get_property;
+	psy_desc->external_power_changed = bq27x00_external_power_changed;
 
 	INIT_DELAYED_WORK(&di->work, bq27x00_battery_poll);
 	mutex_init(&di->lock);
 
-	ret = power_supply_register_no_ws(di->dev, &di->bat, NULL);
-	if (ret) {
+	di->bat = power_supply_register_no_ws(di->dev, psy_desc, &psy_cfg);
+	if (IS_ERR(di->bat)) {
+		ret = PTR_ERR(di->bat);
 		dev_err(di->dev, "failed to register battery: %d\n", ret);
 		return ret;
 	}
@@ -816,7 +822,7 @@ static void bq27x00_powersupply_unregister(struct bq27x00_device_info *di)
 
 	cancel_delayed_work_sync(&di->work);
 
-	power_supply_unregister(&di->bat);
+	power_supply_unregister(di->bat);
 
 	mutex_destroy(&di->lock);
 }
@@ -880,37 +886,34 @@ static int bq27x00_battery_probe(struct i2c_client *client,
 	if (num < 0)
 		return num;
 
-	name = kasprintf(GFP_KERNEL, "%s-%d", id->name, num);
+	name = devm_kasprintf(&client->dev, GFP_KERNEL, "%s-%d", id->name, num);
 	if (!name) {
 		dev_err(&client->dev, "failed to allocate device name\n");
 		retval = -ENOMEM;
-		goto batt_failed_1;
+		goto batt_failed;
 	}
 
 	di = devm_kzalloc(&client->dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		dev_err(&client->dev, "failed to allocate device info data\n");
 		retval = -ENOMEM;
-		goto batt_failed_2;
+		goto batt_failed;
 	}
 
 	di->id = num;
 	di->dev = &client->dev;
 	di->chip = id->driver_data;
-	di->bat.name = name;
 	di->bus.read = &bq27x00_read_i2c;
 
-	retval = bq27x00_powersupply_init(di);
+	retval = bq27x00_powersupply_init(di, name);
 	if (retval)
-		goto batt_failed_2;
+		goto batt_failed;
 
 	i2c_set_clientdata(client, di);
 
 	return 0;
 
-batt_failed_2:
-	kfree(name);
-batt_failed_1:
+batt_failed:
 	mutex_lock(&battery_mutex);
 	idr_remove(&battery_id, num);
 	mutex_unlock(&battery_mutex);
@@ -923,8 +926,6 @@ static int bq27x00_battery_remove(struct i2c_client *client)
 	struct bq27x00_device_info *di = i2c_get_clientdata(client);
 
 	bq27x00_powersupply_unregister(di);
-
-	kfree(di->bat.name);
 
 	mutex_lock(&battery_mutex);
 	idr_remove(&battery_id, di->id);
@@ -1014,6 +1015,7 @@ static int bq27000_battery_probe(struct platform_device *pdev)
 {
 	struct bq27x00_device_info *di;
 	struct bq27000_platform_data *pdata = pdev->dev.platform_data;
+	const char *name;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform_data supplied\n");
@@ -1036,10 +1038,10 @@ static int bq27000_battery_probe(struct platform_device *pdev)
 	di->dev = &pdev->dev;
 	di->chip = BQ27000;
 
-	di->bat.name = pdata->name ?: dev_name(&pdev->dev);
+	name = pdata->name ?: dev_name(&pdev->dev);
 	di->bus.read = &bq27000_read_platform;
 
-	return bq27x00_powersupply_init(di);
+	return bq27x00_powersupply_init(di, name);
 }
 
 static int bq27000_battery_remove(struct platform_device *pdev)

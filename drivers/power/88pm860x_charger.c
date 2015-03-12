@@ -102,7 +102,7 @@ struct pm860x_charger_info {
 	struct i2c_client *i2c_8606;
 	struct device *dev;
 
-	struct power_supply usb;
+	struct power_supply *usb;
 	struct mutex lock;
 	int irq_nums;
 	int irq[7];
@@ -415,7 +415,7 @@ static irqreturn_t pm860x_charger_handler(int irq, void *data)
 
 	set_charging_fsm(info);
 
-	power_supply_changed(&info->usb);
+	power_supply_changed(info->usb);
 out:
 	return IRQ_HANDLED;
 }
@@ -587,8 +587,7 @@ static int pm860x_usb_get_prop(struct power_supply *psy,
 			       enum power_supply_property psp,
 			       union power_supply_propval *val)
 {
-	struct pm860x_charger_info *info =
-	    dev_get_drvdata(psy->dev->parent);
+	struct pm860x_charger_info *info = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -648,6 +647,14 @@ static struct pm860x_irq_desc {
 	{ "vchg", pm860x_vchg_handler },
 };
 
+static const struct power_supply_desc pm860x_charger_desc = {
+	.name		= "usb",
+	.type		= POWER_SUPPLY_TYPE_USB,
+	.properties	= pm860x_usb_props,
+	.num_properties	= ARRAY_SIZE(pm860x_usb_props),
+	.get_property	= pm860x_usb_get_prop,
+};
+
 static int pm860x_charger_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
@@ -689,16 +696,15 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 	mutex_init(&info->lock);
 	platform_set_drvdata(pdev, info);
 
-	info->usb.name = "usb";
-	info->usb.type = POWER_SUPPLY_TYPE_USB;
-	info->usb.properties = pm860x_usb_props;
-	info->usb.num_properties = ARRAY_SIZE(pm860x_usb_props);
-	info->usb.get_property = pm860x_usb_get_prop;
+	psy_cfg.drv_data = info;
 	psy_cfg.supplied_to = pm860x_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(pm860x_supplied_to);
-	ret = power_supply_register(&pdev->dev, &info->usb, &psy_cfg);
-	if (ret)
+	info->usb = power_supply_register(&pdev->dev, &pm860x_charger_desc,
+					  &psy_cfg);
+	if (IS_ERR(info->usb)) {
+		ret = PTR_ERR(info->usb);
 		goto out;
+	}
 
 	pm860x_init_charger(info);
 
@@ -715,7 +721,7 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 	return 0;
 
 out_irq:
-	power_supply_unregister(&info->usb);
+	power_supply_unregister(info->usb);
 	while (--i >= 0)
 		free_irq(info->irq[i], info);
 out:
@@ -727,7 +733,7 @@ static int pm860x_charger_remove(struct platform_device *pdev)
 	struct pm860x_charger_info *info = platform_get_drvdata(pdev);
 	int i;
 
-	power_supply_unregister(&info->usb);
+	power_supply_unregister(info->usb);
 	free_irq(info->irq[0], info);
 	for (i = 0; i < info->irq_nums; i++)
 		free_irq(info->irq[i], info);

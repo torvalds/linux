@@ -93,7 +93,7 @@ static void micro_battery_work(struct work_struct *work)
 
 static int get_capacity(struct power_supply *b)
 {
-	struct micro_battery *mb = dev_get_drvdata(b->dev->parent);
+	struct micro_battery *mb = dev_get_drvdata(b->dev.parent);
 
 	switch (mb->flag & 0x07) {
 	case MICRO_BATT_STATUS_HIGH:
@@ -113,7 +113,7 @@ static int get_capacity(struct power_supply *b)
 
 static int get_status(struct power_supply *b)
 {
-	struct micro_battery *mb = dev_get_drvdata(b->dev->parent);
+	struct micro_battery *mb = dev_get_drvdata(b->dev.parent);
 
 	if (mb->flag == MICRO_BATT_STATUS_UNKNOWN)
 		return POWER_SUPPLY_STATUS_UNKNOWN;
@@ -132,7 +132,7 @@ static int micro_batt_get_property(struct power_supply *b,
 					enum power_supply_property psp,
 					union power_supply_propval *val)
 {
-	struct micro_battery *mb = dev_get_drvdata(b->dev->parent);
+	struct micro_battery *mb = dev_get_drvdata(b->dev.parent);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
@@ -180,7 +180,7 @@ static int micro_ac_get_property(struct power_supply *b,
 				 enum power_supply_property psp,
 				 union power_supply_propval *val)
 {
-	struct micro_battery *mb = dev_get_drvdata(b->dev->parent);
+	struct micro_battery *mb = dev_get_drvdata(b->dev.parent);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
@@ -202,7 +202,7 @@ static enum power_supply_property micro_batt_power_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
-static struct power_supply micro_batt_power = {
+static const struct power_supply_desc micro_batt_power_desc = {
 	.name			= "main-battery",
 	.type			= POWER_SUPPLY_TYPE_BATTERY,
 	.properties		= micro_batt_power_props,
@@ -215,13 +215,15 @@ static enum power_supply_property micro_ac_power_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
-static struct power_supply micro_ac_power = {
+static const struct power_supply_desc micro_ac_power_desc = {
 	.name			= "ac",
 	.type			= POWER_SUPPLY_TYPE_MAINS,
 	.properties		= micro_ac_power_props,
 	.num_properties		= ARRAY_SIZE(micro_ac_power_props),
 	.get_property		= micro_ac_get_property,
 };
+
+static struct power_supply *micro_batt_power, *micro_ac_power;
 
 static int micro_batt_probe(struct platform_device *pdev)
 {
@@ -241,19 +243,25 @@ static int micro_batt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mb);
 	queue_delayed_work(mb->wq, &mb->update, 1);
 
-	ret = power_supply_register(&pdev->dev, &micro_batt_power, NULL);
-	if (ret < 0)
+	micro_batt_power = power_supply_register(&pdev->dev,
+						 &micro_batt_power_desc, NULL);
+	if (IS_ERR(micro_batt_power)) {
+		ret = PTR_ERR(micro_batt_power);
 		goto batt_err;
+	}
 
-	ret = power_supply_register(&pdev->dev, &micro_ac_power, NULL);
-	if (ret < 0)
+	micro_ac_power = power_supply_register(&pdev->dev,
+					       &micro_ac_power_desc, NULL);
+	if (IS_ERR(micro_ac_power)) {
+		ret = PTR_ERR(micro_ac_power);
 		goto ac_err;
+	}
 
 	dev_info(&pdev->dev, "iPAQ micro battery driver\n");
 	return 0;
 
 ac_err:
-	power_supply_unregister(&micro_ac_power);
+	power_supply_unregister(micro_ac_power);
 batt_err:
 	cancel_delayed_work_sync(&mb->update);
 	destroy_workqueue(mb->wq);
@@ -265,8 +273,8 @@ static int micro_batt_remove(struct platform_device *pdev)
 {
 	struct micro_battery *mb = platform_get_drvdata(pdev);
 
-	power_supply_unregister(&micro_ac_power);
-	power_supply_unregister(&micro_batt_power);
+	power_supply_unregister(micro_ac_power);
+	power_supply_unregister(micro_batt_power);
 	cancel_delayed_work_sync(&mb->update);
 	destroy_workqueue(mb->wq);
 

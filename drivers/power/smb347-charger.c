@@ -139,9 +139,9 @@ struct smb347_charger {
 	struct mutex		lock;
 	struct device		*dev;
 	struct regmap		*regmap;
-	struct power_supply	mains;
-	struct power_supply	usb;
-	struct power_supply	battery;
+	struct power_supply	*mains;
+	struct power_supply	*usb;
+	struct power_supply	*battery;
 	bool			mains_online;
 	bool			usb_online;
 	bool			charging_enabled;
@@ -741,7 +741,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 	 */
 	if (stat_c & STAT_C_CHARGER_ERROR) {
 		dev_err(smb->dev, "charging stopped due to charger error\n");
-		power_supply_changed(&smb->battery);
+		power_supply_changed(smb->battery);
 		handled = true;
 	}
 
@@ -752,7 +752,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 	 */
 	if (irqstat_c & (IRQSTAT_C_TERMINATION_IRQ | IRQSTAT_C_TAPER_IRQ)) {
 		if (irqstat_c & IRQSTAT_C_TERMINATION_STAT)
-			power_supply_changed(&smb->battery);
+			power_supply_changed(smb->battery);
 		dev_dbg(smb->dev, "going to HW maintenance mode\n");
 		handled = true;
 	}
@@ -766,7 +766,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 
 		if (irqstat_d & IRQSTAT_D_CHARGE_TIMEOUT_STAT)
 			dev_warn(smb->dev, "charging stopped due to timeout\n");
-		power_supply_changed(&smb->battery);
+		power_supply_changed(smb->battery);
 		handled = true;
 	}
 
@@ -778,9 +778,9 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 		if (smb347_update_ps_status(smb) > 0) {
 			smb347_start_stop_charging(smb);
 			if (smb->pdata->use_mains)
-				power_supply_changed(&smb->mains);
+				power_supply_changed(smb->mains);
 			if (smb->pdata->use_usb)
-				power_supply_changed(&smb->usb);
+				power_supply_changed(smb->usb);
 		}
 		handled = true;
 	}
@@ -935,8 +935,7 @@ static int smb347_mains_get_property(struct power_supply *psy,
 				     enum power_supply_property prop,
 				     union power_supply_propval *val)
 {
-	struct smb347_charger *smb =
-		container_of(psy, struct smb347_charger, mains);
+	struct smb347_charger *smb = power_supply_get_drvdata(psy);
 	int ret;
 
 	switch (prop) {
@@ -977,8 +976,7 @@ static int smb347_usb_get_property(struct power_supply *psy,
 				   enum power_supply_property prop,
 				   union power_supply_propval *val)
 {
-	struct smb347_charger *smb =
-		container_of(psy, struct smb347_charger, usb);
+	struct smb347_charger *smb = power_supply_get_drvdata(psy);
 	int ret;
 
 	switch (prop) {
@@ -1064,8 +1062,7 @@ static int smb347_battery_get_property(struct power_supply *psy,
 				       enum power_supply_property prop,
 				       union power_supply_propval *val)
 {
-	struct smb347_charger *smb =
-			container_of(psy, struct smb347_charger, battery);
+	struct smb347_charger *smb = power_supply_get_drvdata(psy);
 	const struct smb347_charger_platform_data *pdata = smb->pdata;
 	int ret;
 
@@ -1189,12 +1186,36 @@ static const struct regmap_config smb347_regmap = {
 	.readable_reg	= smb347_readable_reg,
 };
 
+static const struct power_supply_desc smb347_mains_desc = {
+	.name		= "smb347-mains",
+	.type		= POWER_SUPPLY_TYPE_MAINS,
+	.get_property	= smb347_mains_get_property,
+	.properties	= smb347_mains_properties,
+	.num_properties	= ARRAY_SIZE(smb347_mains_properties),
+};
+
+static const struct power_supply_desc smb347_usb_desc = {
+	.name		= "smb347-usb",
+	.type		= POWER_SUPPLY_TYPE_USB,
+	.get_property	= smb347_usb_get_property,
+	.properties	= smb347_usb_properties,
+	.num_properties	= ARRAY_SIZE(smb347_usb_properties),
+};
+
+static const struct power_supply_desc smb347_battery_desc = {
+	.name		= "smb347-battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= smb347_battery_get_property,
+	.properties	= smb347_battery_properties,
+	.num_properties	= ARRAY_SIZE(smb347_battery_properties),
+};
+
 static int smb347_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	static char *battery[] = { "smb347-battery" };
 	const struct smb347_charger_platform_data *pdata;
-	struct power_supply_config psy_cfg = {}; /* Only for mains and usb */
+	struct power_supply_config mains_usb_cfg = {}, battery_cfg = {};
 	struct device *dev = &client->dev;
 	struct smb347_charger *smb;
 	int ret;
@@ -1224,47 +1245,35 @@ static int smb347_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	psy_cfg.supplied_to = battery;
-	psy_cfg.num_supplicants = ARRAY_SIZE(battery);
+	mains_usb_cfg.supplied_to = battery;
+	mains_usb_cfg.num_supplicants = ARRAY_SIZE(battery);
+	mains_usb_cfg.drv_data = smb;
 	if (smb->pdata->use_mains) {
-		smb->mains.name = "smb347-mains";
-		smb->mains.type = POWER_SUPPLY_TYPE_MAINS;
-		smb->mains.get_property = smb347_mains_get_property;
-		smb->mains.properties = smb347_mains_properties;
-		smb->mains.num_properties = ARRAY_SIZE(smb347_mains_properties);
-		ret = power_supply_register(dev, &smb->mains, &psy_cfg);
-		if (ret < 0)
-			return ret;
+		smb->mains = power_supply_register(dev, &smb347_mains_desc,
+						   &mains_usb_cfg);
+		if (IS_ERR(smb->mains))
+			return PTR_ERR(smb->mains);
 	}
 
 	if (smb->pdata->use_usb) {
-		smb->usb.name = "smb347-usb";
-		smb->usb.type = POWER_SUPPLY_TYPE_USB;
-		smb->usb.get_property = smb347_usb_get_property;
-		smb->usb.properties = smb347_usb_properties;
-		smb->usb.num_properties = ARRAY_SIZE(smb347_usb_properties);
-		ret = power_supply_register(dev, &smb->usb, &psy_cfg);
-		if (ret < 0) {
+		smb->usb = power_supply_register(dev, &smb347_usb_desc,
+						 &mains_usb_cfg);
+		if (IS_ERR(smb->usb)) {
 			if (smb->pdata->use_mains)
-				power_supply_unregister(&smb->mains);
-			return ret;
+				power_supply_unregister(smb->mains);
+			return PTR_ERR(smb->usb);
 		}
 	}
 
-	smb->battery.name = "smb347-battery";
-	smb->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	smb->battery.get_property = smb347_battery_get_property;
-	smb->battery.properties = smb347_battery_properties;
-	smb->battery.num_properties = ARRAY_SIZE(smb347_battery_properties);
-
-
-	ret = power_supply_register(dev, &smb->battery, NULL);
-	if (ret < 0) {
+	battery_cfg.drv_data = smb;
+	smb->battery = power_supply_register(dev, &smb347_battery_desc,
+					     &battery_cfg);
+	if (IS_ERR(smb->battery)) {
 		if (smb->pdata->use_usb)
-			power_supply_unregister(&smb->usb);
+			power_supply_unregister(smb->usb);
 		if (smb->pdata->use_mains)
-			power_supply_unregister(&smb->mains);
-		return ret;
+			power_supply_unregister(smb->mains);
+		return PTR_ERR(smb->battery);
 	}
 
 	/*
@@ -1294,11 +1303,11 @@ static int smb347_remove(struct i2c_client *client)
 		gpio_free(smb->pdata->irq_gpio);
 	}
 
-	power_supply_unregister(&smb->battery);
+	power_supply_unregister(smb->battery);
 	if (smb->pdata->use_usb)
-		power_supply_unregister(&smb->usb);
+		power_supply_unregister(smb->usb);
 	if (smb->pdata->use_mains)
-		power_supply_unregister(&smb->mains);
+		power_supply_unregister(smb->mains);
 	return 0;
 }
 

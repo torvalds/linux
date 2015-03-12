@@ -98,7 +98,7 @@ struct pm860x_battery_info {
 	struct i2c_client *i2c;
 	struct device *dev;
 
-	struct power_supply battery;
+	struct power_supply *battery;
 	struct mutex lock;
 	int status;
 	int irq_cc;
@@ -798,9 +798,8 @@ out:
 
 static void pm860x_external_power_changed(struct power_supply *psy)
 {
-	struct pm860x_battery_info *info;
+	struct pm860x_battery_info *info = dev_get_drvdata(psy->dev.parent);
 
-	info = container_of(psy, struct pm860x_battery_info, battery);
 	calc_resistor(info);
 }
 
@@ -808,7 +807,7 @@ static int pm860x_batt_get_prop(struct power_supply *psy,
 				enum power_supply_property psp,
 				union power_supply_propval *val)
 {
-	struct pm860x_battery_info *info = dev_get_drvdata(psy->dev->parent);
+	struct pm860x_battery_info *info = dev_get_drvdata(psy->dev.parent);
 	int data;
 	int ret;
 
@@ -874,7 +873,7 @@ static int pm860x_batt_set_prop(struct power_supply *psy,
 				       enum power_supply_property psp,
 				       const union power_supply_propval *val)
 {
-	struct pm860x_battery_info *info = dev_get_drvdata(psy->dev->parent);
+	struct pm860x_battery_info *info = dev_get_drvdata(psy->dev.parent);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
@@ -899,6 +898,16 @@ static enum power_supply_property pm860x_batt_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_TEMP,
+};
+
+static const struct power_supply_desc pm860x_battery_desc = {
+	.name			= "battery-monitor",
+	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.properties		= pm860x_batt_props,
+	.num_properties		= ARRAY_SIZE(pm860x_batt_props),
+	.get_property		= pm860x_batt_get_prop,
+	.set_property		= pm860x_batt_set_prop,
+	.external_power_changed	= pm860x_external_power_changed,
 };
 
 static int pm860x_battery_probe(struct platform_device *pdev)
@@ -936,14 +945,6 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 
 	pm860x_init_battery(info);
 
-	info->battery.name = "battery-monitor";
-	info->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	info->battery.properties = pm860x_batt_props;
-	info->battery.num_properties = ARRAY_SIZE(pm860x_batt_props);
-	info->battery.get_property = pm860x_batt_get_prop;
-	info->battery.set_property = pm860x_batt_set_prop;
-	info->battery.external_power_changed = pm860x_external_power_changed;
-
 	if (pdata && pdata->max_capacity)
 		info->max_capacity = pdata->max_capacity;
 	else
@@ -953,10 +954,11 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 	else
 		info->resistor = 300;	/* set default internal resistor */
 
-	ret = power_supply_register(&pdev->dev, &info->battery, NULL);
-	if (ret)
-		return ret;
-	info->battery.dev->parent = &pdev->dev;
+	info->battery = power_supply_register(&pdev->dev, &pm860x_battery_desc,
+					      NULL);
+	if (IS_ERR(info->battery))
+		return PTR_ERR(info->battery);
+	info->battery->dev.parent = &pdev->dev;
 
 	ret = request_threaded_irq(info->irq_cc, NULL,
 				pm860x_coulomb_handler, IRQF_ONESHOT,
@@ -981,7 +983,7 @@ static int pm860x_battery_probe(struct platform_device *pdev)
 out_coulomb:
 	free_irq(info->irq_cc, info);
 out_reg:
-	power_supply_unregister(&info->battery);
+	power_supply_unregister(info->battery);
 	return ret;
 }
 
@@ -991,7 +993,7 @@ static int pm860x_battery_remove(struct platform_device *pdev)
 
 	free_irq(info->irq_batt, info);
 	free_irq(info->irq_cc, info);
-	power_supply_unregister(&info->battery);
+	power_supply_unregister(info->battery);
 	return 0;
 }
 

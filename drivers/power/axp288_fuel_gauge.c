@@ -127,7 +127,7 @@ struct axp288_fg_info {
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *regmap_irqc;
 	int irq[AXP288_FG_INTR_NUM];
-	struct power_supply bat;
+	struct power_supply *bat;
 	struct mutex lock;
 	int status;
 	struct delayed_work status_monitor;
@@ -588,8 +588,7 @@ static int fuel_gauge_get_property(struct power_supply *ps,
 		enum power_supply_property prop,
 		union power_supply_propval *val)
 {
-	struct axp288_fg_info *info = container_of(ps,
-			struct axp288_fg_info, bat);
+	struct axp288_fg_info *info = power_supply_get_drvdata(ps);
 	int ret = 0, value;
 
 	mutex_lock(&info->lock);
@@ -715,8 +714,7 @@ static int fuel_gauge_set_property(struct power_supply *ps,
 		enum power_supply_property prop,
 		const union power_supply_propval *val)
 {
-	struct axp288_fg_info *info = container_of(ps,
-				struct axp288_fg_info, bat);
+	struct axp288_fg_info *info = power_supply_get_drvdata(ps);
 	int ret = 0;
 
 	mutex_lock(&info->lock);
@@ -798,7 +796,7 @@ static void fuel_gauge_status_monitor(struct work_struct *work)
 		struct axp288_fg_info, status_monitor.work);
 
 	fuel_gauge_get_status(info);
-	power_supply_changed(&info->bat);
+	power_supply_changed(info->bat);
 	schedule_delayed_work(&info->status_monitor, STATUS_MON_DELAY_JIFFIES);
 }
 
@@ -844,17 +842,27 @@ static irqreturn_t fuel_gauge_thread_handler(int irq, void *dev)
 		dev_warn(&info->pdev->dev, "Spurious Interrupt!!!\n");
 	}
 
-	power_supply_changed(&info->bat);
+	power_supply_changed(info->bat);
 	return IRQ_HANDLED;
 }
 
 static void fuel_gauge_external_power_changed(struct power_supply *psy)
 {
-	struct axp288_fg_info *info = container_of(psy,
-				struct axp288_fg_info, bat);
+	struct axp288_fg_info *info = power_supply_get_drvdata(psy);
 
-	power_supply_changed(&info->bat);
+	power_supply_changed(info->bat);
 }
+
+static const struct power_supply_desc fuel_gauge_desc = {
+	.name			= DEV_NAME,
+	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.properties		= fuel_gauge_props,
+	.num_properties		= ARRAY_SIZE(fuel_gauge_props),
+	.get_property		= fuel_gauge_get_property,
+	.set_property		= fuel_gauge_set_property,
+	.property_is_writeable	= fuel_gauge_property_is_writeable,
+	.external_power_changed	= fuel_gauge_external_power_changed,
+};
 
 static int fuel_gauge_set_lowbatt_thresholds(struct axp288_fg_info *info)
 {
@@ -1070,9 +1078,10 @@ static void fuel_gauge_init_hw_regs(struct axp288_fg_info *info)
 
 static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret = 0;
 	struct axp288_fg_info *info;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
+	struct power_supply_config psy_cfg = {};
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -1091,16 +1100,10 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 	mutex_init(&info->lock);
 	INIT_DELAYED_WORK(&info->status_monitor, fuel_gauge_status_monitor);
 
-	info->bat.name = DEV_NAME;
-	info->bat.type = POWER_SUPPLY_TYPE_BATTERY;
-	info->bat.properties = fuel_gauge_props;
-	info->bat.num_properties = ARRAY_SIZE(fuel_gauge_props);
-	info->bat.get_property = fuel_gauge_get_property;
-	info->bat.set_property = fuel_gauge_set_property;
-	info->bat.property_is_writeable = fuel_gauge_property_is_writeable;
-	info->bat.external_power_changed = fuel_gauge_external_power_changed;
-	ret = power_supply_register(&pdev->dev, &info->bat, NULL);
-	if (ret) {
+	psy_cfg.drv_data = info;
+	info->bat = power_supply_register(&pdev->dev, &fuel_gauge_desc, &psy_cfg);
+	if (IS_ERR(info->bat)) {
+		ret = PTR_ERR(info->bat);
 		dev_err(&pdev->dev, "failed to register battery: %d\n", ret);
 		return ret;
 	}
@@ -1125,7 +1128,7 @@ static int axp288_fuel_gauge_remove(struct platform_device *pdev)
 	int i;
 
 	cancel_delayed_work_sync(&info->status_monitor);
-	power_supply_unregister(&info->bat);
+	power_supply_unregister(info->bat);
 	fuel_gauge_remove_debugfs(info);
 
 	for (i = 0; i < AXP288_FG_INTR_NUM; i++)

@@ -37,7 +37,8 @@
 
 struct ds2780_device_info {
 	struct device *dev;
-	struct power_supply bat;
+	struct power_supply *bat;
+	struct power_supply_desc bat_desc;
 	struct device *w1_dev;
 };
 
@@ -52,7 +53,7 @@ static const char manufacturer[] = "Maxim/Dallas";
 static inline struct ds2780_device_info *
 to_ds2780_device_info(struct power_supply *psy)
 {
-	return container_of(psy, struct ds2780_device_info, bat);
+	return power_supply_get_drvdata(psy);
 }
 
 static inline struct power_supply *to_power_supply(struct device *dev)
@@ -757,6 +758,7 @@ static const struct attribute_group ds2780_attr_group = {
 
 static int ds2780_battery_probe(struct platform_device *pdev)
 {
+	struct power_supply_config psy_cfg = {};
 	int ret = 0;
 	struct ds2780_device_info *dev_info;
 
@@ -770,25 +772,29 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 
 	dev_info->dev			= &pdev->dev;
 	dev_info->w1_dev		= pdev->dev.parent;
-	dev_info->bat.name		= dev_name(&pdev->dev);
-	dev_info->bat.type		= POWER_SUPPLY_TYPE_BATTERY;
-	dev_info->bat.properties	= ds2780_battery_props;
-	dev_info->bat.num_properties	= ARRAY_SIZE(ds2780_battery_props);
-	dev_info->bat.get_property	= ds2780_battery_get_property;
+	dev_info->bat_desc.name		= dev_name(&pdev->dev);
+	dev_info->bat_desc.type		= POWER_SUPPLY_TYPE_BATTERY;
+	dev_info->bat_desc.properties	= ds2780_battery_props;
+	dev_info->bat_desc.num_properties = ARRAY_SIZE(ds2780_battery_props);
+	dev_info->bat_desc.get_property	= ds2780_battery_get_property;
 
-	ret = power_supply_register(&pdev->dev, &dev_info->bat, NULL);
-	if (ret) {
+	psy_cfg.drv_data		= dev_info;
+
+	dev_info->bat = power_supply_register(&pdev->dev, &dev_info->bat_desc,
+					      &psy_cfg);
+	if (IS_ERR(dev_info->bat)) {
 		dev_err(dev_info->dev, "failed to register battery\n");
+		ret = PTR_ERR(dev_info->bat);
 		goto fail;
 	}
 
-	ret = sysfs_create_group(&dev_info->bat.dev->kobj, &ds2780_attr_group);
+	ret = sysfs_create_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
 	if (ret) {
 		dev_err(dev_info->dev, "failed to create sysfs group\n");
 		goto fail_unregister;
 	}
 
-	ret = sysfs_create_bin_file(&dev_info->bat.dev->kobj,
+	ret = sysfs_create_bin_file(&dev_info->bat->dev.kobj,
 					&ds2780_param_eeprom_bin_attr);
 	if (ret) {
 		dev_err(dev_info->dev,
@@ -796,7 +802,7 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 		goto fail_remove_group;
 	}
 
-	ret = sysfs_create_bin_file(&dev_info->bat.dev->kobj,
+	ret = sysfs_create_bin_file(&dev_info->bat->dev.kobj,
 					&ds2780_user_eeprom_bin_attr);
 	if (ret) {
 		dev_err(dev_info->dev,
@@ -807,12 +813,12 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 	return 0;
 
 fail_remove_bin_file:
-	sysfs_remove_bin_file(&dev_info->bat.dev->kobj,
+	sysfs_remove_bin_file(&dev_info->bat->dev.kobj,
 				&ds2780_param_eeprom_bin_attr);
 fail_remove_group:
-	sysfs_remove_group(&dev_info->bat.dev->kobj, &ds2780_attr_group);
+	sysfs_remove_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
 fail_unregister:
-	power_supply_unregister(&dev_info->bat);
+	power_supply_unregister(dev_info->bat);
 fail:
 	return ret;
 }
@@ -821,10 +827,13 @@ static int ds2780_battery_remove(struct platform_device *pdev)
 {
 	struct ds2780_device_info *dev_info = platform_get_drvdata(pdev);
 
-	/* remove attributes */
-	sysfs_remove_group(&dev_info->bat.dev->kobj, &ds2780_attr_group);
+	/*
+	 * Remove attributes before unregistering power supply
+	 * because 'bat' will be freed on power_supply_unregister() call.
+	 */
+	sysfs_remove_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
 
-	power_supply_unregister(&dev_info->bat);
+	power_supply_unregister(dev_info->bat);
 
 	return 0;
 }

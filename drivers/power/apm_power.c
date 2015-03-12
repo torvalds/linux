@@ -48,7 +48,7 @@ static int __find_main_battery(struct device *dev, void *data)
 
 	bp->bat = dev_get_drvdata(dev);
 
-	if (bp->bat->use_for_apm) {
+	if (bp->bat->desc->use_for_apm) {
 		/* nice, we explicitly asked to report this battery. */
 		bp->main = bp->bat;
 		return 1;

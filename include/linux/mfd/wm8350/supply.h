@@ -123,9 +123,9 @@ struct wm8350_charger_policy {
 
 struct wm8350_power {
 	struct platform_device *pdev;
-	struct power_supply battery;
-	struct power_supply usb;
-	struct power_supply ac;
+	struct power_supply *battery;
+	struct power_supply *usb;
+	struct power_supply *ac;
 	struct wm8350_charger_policy *policy;
 
 	int rev_g_coeff;

@@ -69,7 +69,7 @@
 struct max17042_chip {
 	struct i2c_client *client;
 	struct regmap *regmap;
-	struct power_supply battery;
+	struct power_supply *battery;
 	enum max170xx_chip_type chip_type;
 	struct max17042_platform_data *pdata;
 	struct work_struct work;
@@ -96,8 +96,7 @@ static int max17042_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
 {
-	struct max17042_chip *chip = container_of(psy,
-				struct max17042_chip, battery);
+	struct max17042_chip *chip = power_supply_get_drvdata(psy);
 	struct regmap *map = chip->regmap;
 	int ret;
 	u32 data;
@@ -602,7 +601,7 @@ static irqreturn_t max17042_thread_handler(int id, void *dev)
 		max17042_set_soc_threshold(chip, 1);
 	}
 
-	power_supply_changed(&chip->battery);
+	power_supply_changed(chip->battery);
 	return IRQ_HANDLED;
 }
 
@@ -662,10 +661,28 @@ static const struct regmap_config max17042_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
 };
 
+static const struct power_supply_desc max17042_psy_desc = {
+	.name		= "max170xx_battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= max17042_get_property,
+	.properties	= max17042_battery_props,
+	.num_properties	= ARRAY_SIZE(max17042_battery_props),
+};
+
+static const struct power_supply_desc max17042_no_current_sense_psy_desc = {
+	.name		= "max170xx_battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.get_property	= max17042_get_property,
+	.properties	= max17042_battery_props,
+	.num_properties	= ARRAY_SIZE(max17042_battery_props) - 2,
+};
+
 static int max17042_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	const struct power_supply_desc *max17042_desc = &max17042_psy_desc;
+	struct power_supply_config psy_cfg = {};
 	struct max17042_chip *chip;
 	int ret;
 	int i;
@@ -692,6 +709,7 @@ static int max17042_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, chip);
+	psy_cfg.drv_data = chip;
 
 	regmap_read(chip->regmap, MAX17042_DevName, &val);
 	if (val == MAX17042_IC_VERSION) {
@@ -705,16 +723,10 @@ static int max17042_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	chip->battery.name		= "max170xx_battery";
-	chip->battery.type		= POWER_SUPPLY_TYPE_BATTERY;
-	chip->battery.get_property	= max17042_get_property;
-	chip->battery.properties	= max17042_battery_props;
-	chip->battery.num_properties	= ARRAY_SIZE(max17042_battery_props);
-
 	/* When current is not measured,
 	 * CURRENT_NOW and CURRENT_AVG properties should be invisible. */
 	if (!chip->pdata->enable_current_sense)
-		chip->battery.num_properties -= 2;
+		max17042_desc = &max17042_no_current_sense_psy_desc;
 
 	if (chip->pdata->r_sns == 0)
 		chip->pdata->r_sns = MAX17042_DEFAULT_SNS_RESISTOR;
@@ -731,17 +743,18 @@ static int max17042_probe(struct i2c_client *client,
 		regmap_write(chip->regmap, MAX17042_LearnCFG, 0x0007);
 	}
 
-	ret = power_supply_register(&client->dev, &chip->battery, NULL);
-	if (ret) {
+	chip->battery = power_supply_register(&client->dev, max17042_desc,
+						&psy_cfg);
+	if (IS_ERR(chip->battery)) {
 		dev_err(&client->dev, "failed: power supply register\n");
-		return ret;
+		return PTR_ERR(chip->battery);
 	}
 
 	if (client->irq) {
 		ret = request_threaded_irq(client->irq, NULL,
 					max17042_thread_handler,
 					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-					chip->battery.name, chip);
+					chip->battery->desc->name, chip);
 		if (!ret) {
 			regmap_update_bits(chip->regmap, MAX17042_CONFIG,
 					CONFIG_ALRT_BIT_ENBL,
@@ -771,7 +784,7 @@ static int max17042_remove(struct i2c_client *client)
 
 	if (client->irq)
 		free_irq(client->irq, chip);
-	power_supply_unregister(&chip->battery);
+	power_supply_unregister(chip->battery);
 	return 0;
 }
 

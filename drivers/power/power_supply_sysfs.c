@@ -74,7 +74,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 	union power_supply_propval value;
 
 	if (off == POWER_SUPPLY_PROP_TYPE) {
-		value.intval = psy->type;
+		value.intval = psy->desc->type;
 	} else {
 		ret = power_supply_get_property(psy, off, &value);
 
@@ -125,7 +125,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 
 	value.intval = long_val;
 
-	ret = power_supply_set_property(psy, off, &value);
+	ret = psy->desc->set_property(psy, off, &value);
 	if (ret < 0)
 		return ret;
 
@@ -218,11 +218,11 @@ static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 	if (attrno == POWER_SUPPLY_PROP_TYPE)
 		return mode;
 
-	for (i = 0; i < psy->num_properties; i++) {
-		int property = psy->properties[i];
+	for (i = 0; i < psy->desc->num_properties; i++) {
+		int property = psy->desc->properties[i];
 
 		if (property == attrno) {
-			if (psy->property_is_writeable &&
+			if (psy->desc->property_is_writeable &&
 			    power_supply_property_is_writeable(psy, property) > 0)
 				mode |= S_IWUSR;
 
@@ -279,14 +279,14 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	dev_dbg(dev, "uevent\n");
 
-	if (!psy || !psy->dev) {
+	if (!psy || !psy->desc) {
 		dev_dbg(dev, "No power supply yet\n");
 		return ret;
 	}
 
-	dev_dbg(dev, "POWER_SUPPLY_NAME=%s\n", psy->name);
+	dev_dbg(dev, "POWER_SUPPLY_NAME=%s\n", psy->desc->name);
 
-	ret = add_uevent_var(env, "POWER_SUPPLY_NAME=%s", psy->name);
+	ret = add_uevent_var(env, "POWER_SUPPLY_NAME=%s", psy->desc->name);
 	if (ret)
 		return ret;
 
@@ -294,11 +294,11 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (!prop_buf)
 		return -ENOMEM;
 
-	for (j = 0; j < psy->num_properties; j++) {
+	for (j = 0; j < psy->desc->num_properties; j++) {
 		struct device_attribute *attr;
 		char *line;
 
-		attr = &power_supply_attrs[psy->properties[j]];
+		attr = &power_supply_attrs[psy->desc->properties[j]];
 
 		ret = power_supply_show_property(dev, attr, prop_buf);
 		if (ret == -ENODEV || ret == -ENODATA) {

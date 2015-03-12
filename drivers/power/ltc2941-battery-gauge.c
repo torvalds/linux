@@ -59,7 +59,8 @@ enum ltc294x_reg {
 
 struct ltc294x_info {
 	struct i2c_client *client;	/* I2C Client pointer */
-	struct power_supply supply;	/* Supply pointer */
+	struct power_supply *supply;	/* Supply pointer */
+	struct power_supply_desc supply_desc;	/* Supply description */
 	struct delayed_work work;	/* Work scheduler */
 	int num_regs;	/* Number of registers (chip type) */
 	int id;		/* Identifier of ltc294x chip */
@@ -294,8 +295,7 @@ static int ltc294x_get_property(struct power_supply *psy,
 				enum power_supply_property prop,
 				union power_supply_propval *val)
 {
-	struct ltc294x_info *info =
-		container_of(psy, struct ltc294x_info, supply);
+	struct ltc294x_info *info = power_supply_get_drvdata(psy);
 
 	switch (prop) {
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
@@ -317,8 +317,7 @@ static int ltc294x_set_property(struct power_supply *psy,
 	enum power_supply_property psp,
 	const union power_supply_propval *val)
 {
-	struct ltc294x_info *info =
-		container_of(psy, struct ltc294x_info, supply);
+	struct ltc294x_info *info = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
@@ -345,7 +344,7 @@ static void ltc294x_update(struct ltc294x_info *info)
 
 	if (charge != info->charge) {
 		info->charge = charge;
-		power_supply_changed(&info->supply);
+		power_supply_changed(info->supply);
 	}
 }
 
@@ -371,8 +370,8 @@ static int ltc294x_i2c_remove(struct i2c_client *client)
 	struct ltc294x_info *info = i2c_get_clientdata(client);
 
 	cancel_delayed_work(&info->work);
-	power_supply_unregister(&info->supply);
-	kfree(info->supply.name);
+	power_supply_unregister(info->supply);
+	kfree(info->supply_desc.name);
 	mutex_lock(&ltc294x_lock);
 	idr_remove(&ltc294x_id, info->id);
 	mutex_unlock(&ltc294x_lock);
@@ -382,6 +381,7 @@ static int ltc294x_i2c_remove(struct i2c_client *client)
 static int ltc294x_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
+	struct power_supply_config psy_cfg = {};
 	struct ltc294x_info *info;
 	int ret;
 	int num;
@@ -406,8 +406,9 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, info);
 
 	info->num_regs = id->driver_data;
-	info->supply.name = kasprintf(GFP_KERNEL, "%s-%d", client->name, num);
-	if (!info->supply.name) {
+	info->supply_desc.name = kasprintf(GFP_KERNEL, "%s-%d", client->name,
+					   num);
+	if (!info->supply_desc.name) {
 		ret = -ENOMEM;
 		goto fail_name;
 	}
@@ -446,24 +447,26 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 
 	info->client = client;
 	info->id = num;
-	info->supply.type = POWER_SUPPLY_TYPE_BATTERY;
-	info->supply.properties = ltc294x_properties;
+	info->supply_desc.type = POWER_SUPPLY_TYPE_BATTERY;
+	info->supply_desc.properties = ltc294x_properties;
 	if (info->num_regs >= LTC294X_REG_TEMPERATURE_LSB)
-		info->supply.num_properties =
+		info->supply_desc.num_properties =
 			ARRAY_SIZE(ltc294x_properties);
 	else if (info->num_regs >= LTC294X_REG_CURRENT_LSB)
-		info->supply.num_properties =
+		info->supply_desc.num_properties =
 			ARRAY_SIZE(ltc294x_properties) - 1;
 	else if (info->num_regs >= LTC294X_REG_VOLTAGE_LSB)
-		info->supply.num_properties =
+		info->supply_desc.num_properties =
 			ARRAY_SIZE(ltc294x_properties) - 2;
 	else
-		info->supply.num_properties =
+		info->supply_desc.num_properties =
 			ARRAY_SIZE(ltc294x_properties) - 3;
-	info->supply.get_property = ltc294x_get_property;
-	info->supply.set_property = ltc294x_set_property;
-	info->supply.property_is_writeable = ltc294x_property_is_writeable;
-	info->supply.external_power_changed	= NULL;
+	info->supply_desc.get_property = ltc294x_get_property;
+	info->supply_desc.set_property = ltc294x_set_property;
+	info->supply_desc.property_is_writeable = ltc294x_property_is_writeable;
+	info->supply_desc.external_power_changed	= NULL;
+
+	psy_cfg.drv_data = info;
 
 	INIT_DELAYED_WORK(&info->work, ltc294x_work);
 
@@ -473,9 +476,11 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 		goto fail_comm;
 	}
 
-	ret = power_supply_register(&client->dev, &info->supply, NULL);
-	if (ret) {
+	info->supply = power_supply_register(&client->dev, &info->supply_desc,
+					     &psy_cfg);
+	if (IS_ERR(info->supply)) {
 		dev_err(&client->dev, "failed to register ltc2941\n");
+		ret = PTR_ERR(info->supply);
 		goto fail_register;
 	} else {
 		schedule_delayed_work(&info->work, LTC294X_WORK_DELAY * HZ);
@@ -484,7 +489,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	return 0;
 
 fail_register:
-	kfree(info->supply.name);
+	kfree(info->supply_desc.name);
 fail_comm:
 fail_name:
 fail_info:

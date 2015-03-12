@@ -486,6 +486,7 @@ struct pm2xxx_charger {
 	struct work_struct check_main_thermal_prot_work;
 	struct delayed_work check_hw_failure_work;
 	struct ux500_charger ac_chg;
+	struct power_supply_desc ac_chg_desc;
 	struct pm2xxx_charger_event_flags flags;
 };
 
