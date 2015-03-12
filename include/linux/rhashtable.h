@@ -50,6 +50,7 @@ struct rhash_head {
  * struct bucket_table - Table of hash buckets
  * @size: Number of hash buckets
  * @hash_rnd: Random seed to fold into hash
+ * @shift: Current size (1 << shift)
  * @locks_mask: Mask to apply before accessing locks[]
  * @locks: Array of spinlocks protecting individual buckets
  * @buckets: size * hash buckets
@@ -57,6 +58,7 @@ struct rhash_head {
 struct bucket_table {
 	size_t			size;
 	u32			hash_rnd;
+	u32			shift;
 	unsigned int		locks_mask;
 	spinlock_t		*locks;
 
@@ -99,7 +101,6 @@ struct rhashtable_params {
  * @tbl: Bucket table
  * @future_tbl: Table under construction during expansion/shrinking
  * @nelems: Number of elements in table
- * @shift: Current size (1 << shift)
  * @p: Configuration parameters
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
@@ -110,12 +111,11 @@ struct rhashtable {
 	struct bucket_table __rcu	*tbl;
 	struct bucket_table __rcu       *future_tbl;
 	atomic_t			nelems;
-	atomic_t			shift;
+	bool                            being_destroyed;
 	struct rhashtable_params	p;
 	struct work_struct		run_work;
 	struct mutex                    mutex;
 	struct list_head		walkers;
-	bool                            being_destroyed;
 };
 
 /**

@@ -147,7 +147,7 @@ static void bucket_table_free(const struct bucket_table *tbl)
 }
 
 static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
-					       size_t nbuckets)
+					       size_t nbuckets, u32 hash_rnd)
 {
 	struct bucket_table *tbl = NULL;
 	size_t size;
@@ -162,6 +162,8 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 		return NULL;
 
 	tbl->size = nbuckets;
+	tbl->shift = ilog2(nbuckets);
+	tbl->hash_rnd = hash_rnd;
 
 	if (alloc_bucket_locks(ht, tbl) < 0) {
 		bucket_table_free(tbl);
@@ -177,25 +179,27 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 /**
  * rht_grow_above_75 - returns true if nelems > 0.75 * table-size
  * @ht:		hash table
- * @new_size:	new table size
+ * @tbl:	current table
  */
-static bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size)
+static bool rht_grow_above_75(const struct rhashtable *ht,
+			      const struct bucket_table *tbl)
 {
 	/* Expand table when exceeding 75% load */
-	return atomic_read(&ht->nelems) > (new_size / 4 * 3) &&
-	       (!ht->p.max_shift || atomic_read(&ht->shift) < ht->p.max_shift);
+	return atomic_read(&ht->nelems) > (tbl->size / 4 * 3) &&
+	       (!ht->p.max_shift || tbl->shift < ht->p.max_shift);
 }
 
 /**
  * rht_shrink_below_30 - returns true if nelems < 0.3 * table-size
  * @ht:		hash table
- * @new_size:	new table size
+ * @tbl:	current table
  */
-static bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size)
+static bool rht_shrink_below_30(const struct rhashtable *ht,
+				const struct bucket_table *tbl)
 {
 	/* Shrink table beneath 30% load */
-	return atomic_read(&ht->nelems) < (new_size * 3 / 10) &&
-	       (atomic_read(&ht->shift) > ht->p.min_shift);
+	return atomic_read(&ht->nelems) < (tbl->size * 3 / 10) &&
+	       tbl->shift > ht->p.min_shift;
 }
 
 static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
@@ -310,16 +314,11 @@ int rhashtable_expand(struct rhashtable *ht)
 
 	ASSERT_RHT_MUTEX(ht);
 
-	new_tbl = bucket_table_alloc(ht, old_tbl->size * 2);
+	new_tbl = bucket_table_alloc(ht, old_tbl->size * 2, old_tbl->hash_rnd);
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
-	new_tbl->hash_rnd = old_tbl->hash_rnd;
-
-	atomic_inc(&ht->shift);
-
 	rhashtable_rehash(ht, new_tbl);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rhashtable_expand);
@@ -342,20 +341,15 @@ EXPORT_SYMBOL_GPL(rhashtable_expand);
  */
 int rhashtable_shrink(struct rhashtable *ht)
 {
-	struct bucket_table *new_tbl, *tbl = rht_dereference(ht->tbl, ht);
+	struct bucket_table *new_tbl, *old_tbl = rht_dereference(ht->tbl, ht);
 
 	ASSERT_RHT_MUTEX(ht);
 
-	new_tbl = bucket_table_alloc(ht, tbl->size / 2);
+	new_tbl = bucket_table_alloc(ht, old_tbl->size / 2, old_tbl->hash_rnd);
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
-	new_tbl->hash_rnd = tbl->hash_rnd;
-
-	atomic_dec(&ht->shift);
-
 	rhashtable_rehash(ht, new_tbl);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rhashtable_shrink);
@@ -376,9 +370,9 @@ static void rht_deferred_worker(struct work_struct *work)
 	list_for_each_entry(walker, &ht->walkers, list)
 		walker->resize = true;
 
-	if (rht_grow_above_75(ht, tbl->size))
+	if (rht_grow_above_75(ht, tbl))
 		rhashtable_expand(ht);
-	else if (rht_shrink_below_30(ht, tbl->size))
+	else if (rht_shrink_below_30(ht, tbl))
 		rhashtable_shrink(ht);
 unlock:
 	mutex_unlock(&ht->mutex);
@@ -431,7 +425,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	rcu_assign_pointer(tbl->buckets[hash], obj);
 
 	atomic_inc(&ht->nelems);
-	if (no_resize_running && rht_grow_above_75(ht, tbl->size))
+	if (no_resize_running && rht_grow_above_75(ht, tbl))
 		schedule_work(&ht->run_work);
 
 exit:
@@ -539,7 +533,7 @@ bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *obj)
 		bool no_resize_running = tbl == old_tbl;
 
 		atomic_dec(&ht->nelems);
-		if (no_resize_running && rht_shrink_below_30(ht, tbl->size))
+		if (no_resize_running && rht_shrink_below_30(ht, tbl))
 			schedule_work(&ht->run_work);
 	}
 
@@ -913,6 +907,7 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 {
 	struct bucket_table *tbl;
 	size_t size;
+	u32 hash_rnd;
 
 	size = HASH_DEFAULT_SIZE;
 
@@ -939,14 +934,14 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	else
 		ht->p.locks_mul = BUCKET_LOCKS_PER_CPU;
 
-	tbl = bucket_table_alloc(ht, size);
+	get_random_bytes(&hash_rnd, sizeof(hash_rnd));
+
+	tbl = bucket_table_alloc(ht, size, hash_rnd);
 	if (tbl == NULL)
 		return -ENOMEM;
 
-	get_random_bytes(&tbl->hash_rnd, sizeof(tbl->hash_rnd));
-
 	atomic_set(&ht->nelems, 0);
-	atomic_set(&ht->shift, ilog2(tbl->size));
+
 	RCU_INIT_POINTER(ht->tbl, tbl);
 	RCU_INIT_POINTER(ht->future_tbl, tbl);
 
