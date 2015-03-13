@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/usb.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
