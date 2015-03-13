@@ -428,10 +428,10 @@ hal_ReadEFuse_WiFi(struct rtw_adapter *padapter,
 				continue;
 
 			offset |= ((efuseExtHdr & 0xF0) >> 1);
-			wden = (efuseExtHdr & 0x0F);
+			wden = efuseExtHdr & 0x0F;
 		} else {
-			offset = ((efuseHeader >> 4) & 0x0f);
-			wden = (efuseHeader & 0x0f);
+			offset = (efuseHeader >> 4) & 0x0f;
+			wden = efuseHeader & 0x0f;
 		}
 
 		if (offset < EFUSE_MAX_SECTION_8723A) {
@@ -527,10 +527,10 @@ hal_ReadEFuse_BT(struct rtw_adapter *padapter,
 					continue;
 
 				offset |= ((efuseExtHdr & 0xF0) >> 1);
-				wden = (efuseExtHdr & 0x0F);
+				wden = efuseExtHdr & 0x0F;
 			} else {
-				offset = ((efuseHeader >> 4) & 0x0f);
-				wden = (efuseHeader & 0x0f);
+				offset = (efuseHeader >> 4) & 0x0f;
+				wden = efuseHeader & 0x0f;
 			}
 
 			if (offset < EFUSE_BT_MAX_SECTION) {

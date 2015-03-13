@@ -267,8 +267,8 @@ getTxPowerWriteValByRegulatory(struct rtw_adapter *Adapter, u8 Channel,
 			break;
 		case 2:	/*  Better regulatory */
 			/*  don't increase any power diff */
-			writeVal = ((index < 2) ? powerBase0[rf] :
-				    powerBase1[rf]);
+			writeVal = (index < 2) ? powerBase0[rf] :
+				    powerBase1[rf];
 			break;
 		case 3:	/*  Customer defined power diff. */
 			chnlGroup = 0;

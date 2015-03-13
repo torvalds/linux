@@ -126,7 +126,7 @@ PHY_SetBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask, u32	Data)
 	if (BitMask != bMaskDWord) {/* if not "double word" write */
 		OriginalValue = rtl8723au_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
-		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
+		Data = (OriginalValue & (~BitMask)) | (Data << BitShift);
 	}
 
 	rtl8723au_write32(Adapter, RegAddr, Data);
@@ -389,7 +389,7 @@ PHY_SetRFReg(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 	if (BitMask != bRFRegOffsetMask) {
 		Original_Value = phy_RFSerialRead(Adapter, eRFPath, RegAddr);
 		BitShift =  phy_CalculateBitShift(BitMask);
-		Data = ((Original_Value & (~BitMask)) | (Data << BitShift));
+		Data = (Original_Value & (~BitMask)) | (Data << BitShift);
 	}
 
 	phy_RFSerialWrite(Adapter, eRFPath, RegAddr, Data);

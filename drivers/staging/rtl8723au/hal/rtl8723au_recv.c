@@ -194,8 +194,8 @@ void update_recvframe_phyinfo(struct recv_frame *precvframe,
 	bool matchbssid = false;
 	u8 *bssid;
 
-	matchbssid = (!ieee80211_is_ctl(hdr->frame_control) &&
-		      !pattrib->icv_err && !pattrib->crc_err);
+	matchbssid = !ieee80211_is_ctl(hdr->frame_control) &&
+		      !pattrib->icv_err && !pattrib->crc_err;
 
 	if (matchbssid) {
 		switch (hdr->frame_control &
