@@ -739,6 +739,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
+	/*
+	 * RTNL is not taken during Ct-kill, but we don't need to scan/Tx
+	 * anyway, so don't init MCC.
+	 */
+	if (!test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status)) {
+		ret = iwl_mvm_init_mcc(mvm);
+		if (ret)
+			goto error;
+	}
+
 	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
 		ret = iwl_mvm_config_scan(mvm);
 		if (ret)

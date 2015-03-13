@@ -810,6 +810,9 @@ struct iwl_mvm {
 	/* system time of last beacon (for AP/GO interface) */
 	u32 ap_last_beacon_gp2;
 
+	bool lar_regdom_set;
+	enum iwl_mcc_source mcc_src;
+
 	u8 low_latency_agg_frame_limit;
 
 	/* TDLS channel switch data */
@@ -910,6 +913,30 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 	       (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_D0I3_SUPPORT);
 }
 
+static inline bool iwl_mvm_is_lar_supported(struct iwl_mvm *mvm)
+{
+	bool nvm_lar = mvm->nvm_data->lar_enabled;
+	bool tlv_lar = mvm->fw->ucode_capa.capa[0] &
+		IWL_UCODE_TLV_CAPA_LAR_SUPPORT;
+
+	if (iwlwifi_mod_params.lar_disable)
+		return false;
+
+	/*
+	 * Enable LAR only if it is supported by the FW (TLV) &&
+	 * enabled in the NVM
+	 */
+	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		return nvm_lar && tlv_lar;
+	else
+		return tlv_lar;
+}
+
+static inline bool iwl_mvm_is_wifi_mcc_supported(struct iwl_mvm *mvm)
+{
+	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_WIFI_MCC_UPDATE;
+}
+
 static inline bool iwl_mvm_is_scd_cfg_supported(struct iwl_mvm *mvm)
 {
 	return mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_SCD_CFG;
@@ -919,6 +946,12 @@ static inline bool iwl_mvm_bt_is_plcr_supported(struct iwl_mvm *mvm)
 {
 	return (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BT_COEX_PLCR) &&
 		IWL_MVM_BT_COEX_CORUNNING;
+}
+
+static inline bool iwl_mvm_bt_is_rrc_supported(struct iwl_mvm *mvm)
+{
+	return (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BT_COEX_RRC) &&
+		IWL_MVM_BT_COEX_RRC;
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1106,7 +1139,7 @@ int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 /* Quota management */
-int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
+int iwl_mvm_update_quotas(struct iwl_mvm *mvm, bool force_upload,
 			  struct ieee80211_vif *disabled_vif);
 
 /* Scanning */
@@ -1282,17 +1315,6 @@ int iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb,
 				      struct iwl_device_cmd *cmd);
 
-enum iwl_bt_kill_msk {
-	BT_KILL_MSK_DEFAULT,
-	BT_KILL_MSK_NEVER,
-	BT_KILL_MSK_ALWAYS,
-	BT_KILL_MSK_MAX,
-};
-
-extern const u8 iwl_bt_ack_kill_msk[BT_MAX_AG][BT_COEX_MAX_LUT];
-extern const u8 iwl_bt_cts_kill_msk[BT_MAX_AG][BT_COEX_MAX_LUT];
-extern const u32 iwl_bt_ctl_kill_msk[BT_KILL_MSK_MAX];
-
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void
@@ -1388,6 +1410,23 @@ void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff);
 void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
 int iwl_mvm_get_temp(struct iwl_mvm *mvm);
+
+/* Location Aware Regulatory */
+struct iwl_mcc_update_resp *
+iwl_mvm_update_mcc(struct iwl_mvm *mvm, const char *alpha2,
+		   enum iwl_mcc_source src_id);
+int iwl_mvm_init_mcc(struct iwl_mvm *mvm);
+int iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
+			       struct iwl_rx_cmd_buffer *rxb,
+			       struct iwl_device_cmd *cmd);
+struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
+						  const char *alpha2,
+						  enum iwl_mcc_source src_id,
+						  bool *changed);
+struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm,
+							  bool *changed);
+int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm);
+void iwl_mvm_update_changed_regdom(struct iwl_mvm *mvm);
 
 /* smart fifo */
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

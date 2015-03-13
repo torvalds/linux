@@ -562,11 +562,12 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 			       "\tSecondary Channel Bitmap 0x%016llx\n",
 			       le64_to_cpu(cmd->bt_secondary_ci));
 
-		pos += scnprintf(buf+pos, bufsz-pos, "BT Configuration CMD\n");
-		pos += scnprintf(buf+pos, bufsz-pos, "\tACK Kill Mask 0x%08x\n",
-				 iwl_bt_ctl_kill_msk[mvm->bt_ack_kill_msk[0]]);
-		pos += scnprintf(buf+pos, bufsz-pos, "\tCTS Kill Mask 0x%08x\n",
-				 iwl_bt_ctl_kill_msk[mvm->bt_cts_kill_msk[0]]);
+		pos += scnprintf(buf+pos, bufsz-pos,
+				 "BT Configuration CMD - 0=default, 1=never, 2=always\n");
+		pos += scnprintf(buf+pos, bufsz-pos, "\tACK Kill msk idx %d\n",
+				 mvm->bt_ack_kill_msk[0]);
+		pos += scnprintf(buf+pos, bufsz-pos, "\tCTS Kill msk idx %d\n",
+				 mvm->bt_cts_kill_msk[0]);
 
 	} else {
 		struct iwl_bt_coex_ci_cmd *cmd = &mvm->last_bt_ci_cmd;
@@ -579,21 +580,6 @@ static ssize_t iwl_dbgfs_bt_cmd_read(struct file *file, char __user *user_buf,
 		pos += scnprintf(buf+pos, bufsz-pos,
 			       "\tSecondary Channel Bitmap 0x%016llx\n",
 			       le64_to_cpu(cmd->bt_secondary_ci));
-
-		pos += scnprintf(buf+pos, bufsz-pos, "BT Configuration CMD\n");
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "\tPrimary: ACK Kill Mask 0x%08x\n",
-				 iwl_bt_ctl_kill_msk[mvm->bt_ack_kill_msk[0]]);
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "\tPrimary: CTS Kill Mask 0x%08x\n",
-				 iwl_bt_ctl_kill_msk[mvm->bt_cts_kill_msk[0]]);
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "\tSecondary: ACK Kill Mask 0x%08x\n",
-				 iwl_bt_ctl_kill_msk[mvm->bt_ack_kill_msk[1]]);
-		pos += scnprintf(buf+pos, bufsz-pos,
-				 "\tSecondary: CTS Kill Mask 0x%08x\n",
-				 iwl_bt_ctl_kill_msk[mvm->bt_cts_kill_msk[1]]);
-
 	}
 
 	mutex_unlock(&mvm->mutex);

@@ -371,6 +371,33 @@ enum secure_load_status_reg {
 
 #define DBGC_IN_SAMPLE			(0xa03c00)
 
+/* enable the ID buf for read */
+#define WFPM_PS_CTL_CLR			0xA0300C
+#define WFMP_MAC_ADDR_0			0xA03080
+#define WFMP_MAC_ADDR_1			0xA03084
+#define LMPM_PMG_EN			0xA01CEC
+#define RADIO_REG_SYS_MANUAL_DFT_0	0xAD4078
+#define RFIC_REG_RD			0xAD0470
+#define WFPM_CTRL_REG			0xA03030
+enum {
+	ENABLE_WFPM = BIT(31),
+	WFPM_AUX_CTL_AUX_IF_MAC_OWNER_MSK	= 0x80000000,
+};
+
+#define AUX_MISC_REG			0xA200B0
+enum {
+	HW_STEP_LOCATION_BITS = 24,
+};
+
+#define AUX_MISC_MASTER1_EN		0xA20818
+enum aux_misc_master1_en {
+	AUX_MISC_MASTER1_EN_SBE_MSK	= 0x1,
+};
+
+#define AUX_MISC_MASTER1_SMPHR_STATUS	0xA20800
+#define RSA_ENABLE			0xA24B08
+#define PREG_AUX_BUS_WPROT_0		0xA04CC0
+
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8
 enum {

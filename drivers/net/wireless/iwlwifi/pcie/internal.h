@@ -217,6 +217,8 @@ struct iwl_pcie_txq_scratch_buf {
  * @active: stores if queue is active
  * @ampdu: true if this queue is an ampdu queue for an specific RA/TID
  * @wd_timeout: queue watchdog timeout (jiffies) - per queue
+ * @frozen: tx stuck queue timer is frozen
+ * @frozen_expiry_remainder: remember how long until the timer fires
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -228,9 +230,11 @@ struct iwl_txq {
 	dma_addr_t scratchbufs_dma;
 	struct iwl_pcie_txq_entry *entries;
 	spinlock_t lock;
+	unsigned long frozen_expiry_remainder;
 	struct timer_list stuck_timer;
 	struct iwl_trans_pcie *trans_pcie;
 	bool need_update;
+	bool frozen;
 	u8 active;
 	bool ampdu;
 	unsigned long wd_timeout;

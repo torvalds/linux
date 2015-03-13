@@ -86,6 +86,7 @@
 #include "iwl-fw-error-dump.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
+#include "iwl-nvm-parse.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
@@ -301,6 +302,109 @@ static void iwl_mvm_reset_phy_ctxts(struct iwl_mvm *mvm)
 	}
 }
 
+struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
+						  const char *alpha2,
+						  enum iwl_mcc_source src_id,
+						  bool *changed)
+{
+	struct ieee80211_regdomain *regd = NULL;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mcc_update_resp *resp;
+
+	IWL_DEBUG_LAR(mvm, "Getting regdomain data for %s from FW\n", alpha2);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	resp = iwl_mvm_update_mcc(mvm, alpha2, src_id);
+	if (IS_ERR_OR_NULL(resp)) {
+		IWL_DEBUG_LAR(mvm, "Could not get update from FW %d\n",
+			      PTR_RET(resp));
+		goto out;
+	}
+
+	if (changed)
+		*changed = (resp->status == MCC_RESP_NEW_CHAN_PROFILE);
+
+	regd = iwl_parse_nvm_mcc_info(mvm->trans->dev, mvm->cfg,
+				      __le32_to_cpu(resp->n_channels),
+				      resp->channels,
+				      __le16_to_cpu(resp->mcc));
+	/* Store the return source id */
+	src_id = resp->source_id;
+	kfree(resp);
+	if (IS_ERR_OR_NULL(regd)) {
+		IWL_DEBUG_LAR(mvm, "Could not get parse update from FW %d\n",
+			      PTR_RET(regd));
+		goto out;
+	}
+
+	IWL_DEBUG_LAR(mvm, "setting alpha2 from FW to %s (0x%x, 0x%x) src=%d\n",
+		      regd->alpha2, regd->alpha2[0], regd->alpha2[1], src_id);
+	mvm->lar_regdom_set = true;
+	mvm->mcc_src = src_id;
+
+out:
+	return regd;
+}
+
+void iwl_mvm_update_changed_regdom(struct iwl_mvm *mvm)
+{
+	bool changed;
+	struct ieee80211_regdomain *regd;
+
+	if (!iwl_mvm_is_lar_supported(mvm))
+		return;
+
+	regd = iwl_mvm_get_current_regdomain(mvm, &changed);
+	if (!IS_ERR_OR_NULL(regd)) {
+		/* only update the regulatory core if changed */
+		if (changed)
+			regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
+
+		kfree(regd);
+	}
+}
+
+struct ieee80211_regdomain *iwl_mvm_get_current_regdomain(struct iwl_mvm *mvm,
+							  bool *changed)
+{
+	return iwl_mvm_get_regdomain(mvm->hw->wiphy, "ZZ",
+				     iwl_mvm_is_wifi_mcc_supported(mvm) ?
+				     MCC_SOURCE_GET_CURRENT :
+				     MCC_SOURCE_OLD_FW, changed);
+}
+
+int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
+{
+	enum iwl_mcc_source used_src;
+	struct ieee80211_regdomain *regd;
+	const struct ieee80211_regdomain *r =
+			rtnl_dereference(mvm->hw->wiphy->regd);
+
+	if (!r)
+		return 0;
+
+	/* save the last source in case we overwrite it below */
+	used_src = mvm->mcc_src;
+	if (iwl_mvm_is_wifi_mcc_supported(mvm)) {
+		/* Notify the firmware we support wifi location updates */
+		regd = iwl_mvm_get_current_regdomain(mvm, NULL);
+		if (!IS_ERR_OR_NULL(regd))
+			kfree(regd);
+	}
+
+	/* Now set our last stored MCC and source */
+	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, r->alpha2, used_src, NULL);
+	if (IS_ERR_OR_NULL(regd))
+		return -EIO;
+
+	regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
+	kfree(regd);
+
+	return 0;
+}
+
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 {
 	struct ieee80211_hw *hw = mvm->hw;
@@ -356,8 +460,12 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
-	hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
-				       REGULATORY_DISABLE_BEACON_HINTS;
+	hw->wiphy->regulatory_flags |= REGULATORY_ENABLE_RELAX_NO_IR;
+	if (iwl_mvm_is_lar_supported(mvm))
+		hw->wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
+	else
+		hw->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
+					       REGULATORY_DISABLE_BEACON_HINTS;
 
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_GO_UAPSD)
 		hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
@@ -402,7 +510,10 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_5GHZ];
 
-		if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_BEAMFORMER)
+		if ((mvm->fw->ucode_capa.capa[0] &
+		     IWL_UCODE_TLV_CAPA_BEAMFORMER) &&
+		    (mvm->fw->ucode_capa.api[0] &
+		     IWL_UCODE_TLV_API_LQ_SS_PARAMS))
 			hw->wiphy->bands[IEEE80211_BAND_5GHZ]->vht_cap.cap |=
 				IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE;
 	}
@@ -1190,7 +1301,7 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 	iwl_mvm_d0i3_enable_tx(mvm, NULL);
-	ret = iwl_mvm_update_quotas(mvm, NULL);
+	ret = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (ret)
 		IWL_ERR(mvm, "Failed to update quotas after restart (%d)\n",
 			ret);
@@ -1869,7 +1980,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			       sizeof(mvmvif->beacon_stats));
 
 			/* add quota for this interface */
-			ret = iwl_mvm_update_quotas(mvm, NULL);
+			ret = iwl_mvm_update_quotas(mvm, true, NULL);
 			if (ret) {
 				IWL_ERR(mvm, "failed to update quotas\n");
 				return;
@@ -1921,7 +2032,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 			mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
 			/* remove quota for this interface */
-			ret = iwl_mvm_update_quotas(mvm, NULL);
+			ret = iwl_mvm_update_quotas(mvm, false, NULL);
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 
@@ -2040,7 +2151,7 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	/* power updated needs to be done before quotas */
 	iwl_mvm_power_update_mac(mvm);
 
-	ret = iwl_mvm_update_quotas(mvm, NULL);
+	ret = iwl_mvm_update_quotas(mvm, false, NULL);
 	if (ret)
 		goto out_quota_failed;
 
@@ -2106,7 +2217,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	if (vif->p2p && mvm->p2p_device_vif)
 		iwl_mvm_mac_ctxt_changed(mvm, mvm->p2p_device_vif, false, NULL);
 
-	iwl_mvm_update_quotas(mvm, NULL);
+	iwl_mvm_update_quotas(mvm, false, NULL);
 	iwl_mvm_send_rm_bcast_sta(mvm, vif);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
@@ -2245,6 +2356,12 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
+		IWL_ERR(mvm, "scan while LAR regdomain is not set\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
 		ret = -EBUSY;
 		goto out;
@@ -2271,7 +2388,19 @@ static void iwl_mvm_mac_cancel_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	iwl_mvm_cancel_scan(mvm);
+	/* Due to a race condition, it's possible that mac80211 asks
+	 * us to stop a hw_scan when it's already stopped.  This can
+	 * happen, for instance, if we stopped the scan ourselves,
+	 * called ieee80211_scan_completed() and the userspace called
+	 * cancel scan scan before ieee80211_scan_work() could run.
+	 * To handle that, simply return if the scan is not running.
+	*/
+	/* FIXME: for now, we ignore this race for UMAC scans, since
+	 * they don't set the scan_status.
+	 */
+	if ((mvm->scan_status == IWL_MVM_SCAN_OS) ||
+	    (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN))
+		iwl_mvm_cancel_scan(mvm);
 
 	mutex_unlock(&mvm->mutex);
 }
@@ -2313,25 +2442,35 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	unsigned long txqs = 0, tids = 0;
 	int tid;
+
+	spin_lock_bh(&mvmsta->lock);
+	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
+		struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
+
+		if (tid_data->state != IWL_AGG_ON &&
+		    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
+			continue;
+
+		__set_bit(tid_data->txq_id, &txqs);
+
+		if (iwl_mvm_tid_queued(tid_data) == 0)
+			continue;
+
+		__set_bit(tid, &tids);
+	}
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
 		if (atomic_read(&mvm->pending_frames[mvmsta->sta_id]) > 0)
 			ieee80211_sta_block_awake(hw, sta, true);
-		spin_lock_bh(&mvmsta->lock);
-		for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
-			struct iwl_mvm_tid_data *tid_data;
 
-			tid_data = &mvmsta->tid_data[tid];
-			if (tid_data->state != IWL_AGG_ON &&
-			    tid_data->state != IWL_EMPTYING_HW_QUEUE_DELBA)
-				continue;
-			if (iwl_mvm_tid_queued(tid_data) == 0)
-				continue;
+		for_each_set_bit(tid, &tids, IWL_MAX_TID_COUNT)
 			ieee80211_sta_set_buffered(sta, tid, true);
-		}
-		spin_unlock_bh(&mvmsta->lock);
+
+		if (txqs)
+			iwl_trans_freeze_txq_timer(mvm->trans, txqs, true);
 		/*
 		 * The fw updates the STA to be asleep. Tx packets on the Tx
 		 * queues to this station will not be transmitted. The fw will
@@ -2341,11 +2480,15 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 	case STA_NOTIFY_AWAKE:
 		if (WARN_ON(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 			break;
+
+		if (txqs)
+			iwl_trans_freeze_txq_timer(mvm->trans, txqs, false);
 		iwl_mvm_sta_modify_ps_wake(mvm, sta);
 		break;
 	default:
 		break;
 	}
+	spin_unlock_bh(&mvmsta->lock);
 }
 
 static void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
@@ -2583,6 +2726,12 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
+		IWL_ERR(mvm, "sched-scan while LAR regdomain is not set\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (!vif->bss_conf.idle) {
 		ret = -EBUSY;
 		goto out;
@@ -2609,12 +2758,29 @@ static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
+
+	/* Due to a race condition, it's possible that mac80211 asks
+	 * us to stop a sched_scan when it's already stopped.  This
+	 * can happen, for instance, if we stopped the scan ourselves,
+	 * called ieee80211_sched_scan_stopped() and the userspace called
+	 * stop sched scan scan before ieee80211_sched_scan_stopped_work()
+	 * could run.  To handle this, simply return if the scan is
+	 * not running.
+	*/
+	/* FIXME: for now, we ignore this race for UMAC scans, since
+	 * they don't set the scan_status.
+	 */
+	if (mvm->scan_status != IWL_MVM_SCAN_SCHED &&
+	    !(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
+		mutex_unlock(&mvm->mutex);
+		return 0;
+	}
+
 	ret = iwl_mvm_scan_offload_stop(mvm, false);
 	mutex_unlock(&mvm->mutex);
 	iwl_mvm_wait_for_async_handlers(mvm);
 
 	return ret;
-
 }
 
 static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
@@ -3127,14 +3293,14 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 	 */
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		mvmvif->monitor_active = true;
-		ret = iwl_mvm_update_quotas(mvm, NULL);
+		ret = iwl_mvm_update_quotas(mvm, false, NULL);
 		if (ret)
 			goto out_remove_binding;
 	}
 
 	/* Handle binding during CSA */
 	if (vif->type == NL80211_IFTYPE_AP) {
-		iwl_mvm_update_quotas(mvm, NULL);
+		iwl_mvm_update_quotas(mvm, false, NULL);
 		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 	}
 
@@ -3158,7 +3324,7 @@ static int __iwl_mvm_assign_vif_chanctx(struct iwl_mvm *mvm,
 
 		iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_CSA);
 
-		iwl_mvm_update_quotas(mvm, NULL);
+		iwl_mvm_update_quotas(mvm, false, NULL);
 	}
 
 	goto out;
@@ -3231,7 +3397,7 @@ static void __iwl_mvm_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		break;
 	}
 
-	iwl_mvm_update_quotas(mvm, disabled_vif);
+	iwl_mvm_update_quotas(mvm, false, disabled_vif);
 	iwl_mvm_binding_remove_vif(mvm, vif);
 
 out:
@@ -3423,7 +3589,7 @@ static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
 		mvm->noa_duration = noa_duration;
 		mvm->noa_vif = vif;
 
-		return iwl_mvm_update_quotas(mvm, NULL);
+		return iwl_mvm_update_quotas(mvm, false, NULL);
 	case IWL_MVM_TM_CMD_SET_BEACON_FILTER:
 		/* must be associated client vif - ignore authorized */
 		if (!vif || vif->type != NL80211_IFTYPE_STATION ||
