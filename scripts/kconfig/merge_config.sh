@@ -103,20 +103,18 @@ for MERGE_FILE in $MERGE_LIST ; do
 	CFG_LIST=$(sed -n "$SED_CONFIG_EXP" $MERGE_FILE)
 
 	for CFG in $CFG_LIST ; do
-		grep -q -w $CFG $TMP_FILE
-		if [ $? -eq 0 ] ; then
-			PREV_VAL=$(grep -w $CFG $TMP_FILE)
-			NEW_VAL=$(grep -w $CFG $MERGE_FILE)
-			if [ "x$PREV_VAL" != "x$NEW_VAL" ] ; then
+		grep -q -w $CFG $TMP_FILE || continue
+		PREV_VAL=$(grep -w $CFG $TMP_FILE)
+		NEW_VAL=$(grep -w $CFG $MERGE_FILE)
+		if [ "x$PREV_VAL" != "x$NEW_VAL" ] ; then
 			echo Value of $CFG is redefined by fragment $MERGE_FILE:
 			echo Previous  value: $PREV_VAL
 			echo New value:       $NEW_VAL
 			echo
-			elif [ "$WARNREDUN" = "true" ]; then
+		elif [ "$WARNREDUN" = "true" ]; then
 			echo Value of $CFG is redundant by fragment $MERGE_FILE:
-			fi
-			sed -i "/$CFG[ =]/d" $TMP_FILE
 		fi
+		sed -i "/$CFG[ =]/d" $TMP_FILE
 	done
 	cat $MERGE_FILE >> $TMP_FILE
 done
