@@ -2823,7 +2823,7 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 		}
 		dm_initialize_txpower_tracking(dev);
 
-		if (priv->bDcut == true) {
+		if (priv->bDcut) {
 			u32 i, TempCCk;
 			u32 tmpRegA = rtl8192_QueryBBReg(dev, rOFDM0_XATxIQImbalance, bMaskDWord);
 			for (i = 0; i < TxBBGainTableLength; i++) {
