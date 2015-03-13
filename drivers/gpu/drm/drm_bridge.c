@@ -49,7 +49,7 @@ void drm_bridge_remove(struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL(drm_bridge_remove);
 
-extern int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge)
+int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge)
 {
 	if (!dev || !bridge)
 		return -EINVAL;
