@@ -359,44 +359,25 @@ static const struct regmap_config lpass_cpu_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static int lpass_cpu_parse_of(struct device *dev)
-{
-	struct device_node *dsp_of_node;
-
-	dsp_of_node = of_get_child_by_name(dev->of_node, "qcom,adsp");
-	if (!dsp_of_node) {
-		dev_err(dev, "%s() error getting qcom,adsp sub-node\n",
-				__func__);
-		return -EINVAL;
-	}
-
-	if (of_device_is_available(dsp_of_node)) {
-		dev_err(dev, "%s() DSP exists and holds audio resources\n",
-				__func__);
-		return -EBUSY;
-	}
-
-	return 0;
-}
-
 static int lpass_cpu_platform_probe(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata;
+	struct device_node *dsp_of_node;
 	struct resource *res;
 	int ret;
+
+	dsp_of_node = of_parse_phandle(pdev->dev.of_node, "qcom,adsp", 0);
+	if (dsp_of_node) {
+		dev_err(&pdev->dev, "%s() DSP exists and holds audio resources\n",
+				__func__);
+		return -EBUSY;
+	}
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct lpass_data),
 			GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, drvdata);
-
-	ret = lpass_cpu_parse_of(&pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "%s() error getting DT node info: %d\n",
-				__func__, ret);
-		return ret;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpass-lpaif");
 	if (!res) {
