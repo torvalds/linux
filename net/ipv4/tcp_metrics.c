@@ -40,6 +40,7 @@ struct tcp_fastopen_metrics {
 
 struct tcp_metrics_block {
 	struct tcp_metrics_block __rcu	*tcpm_next;
+	possible_net_t			tcpm_net;
 	struct inetpeer_addr		tcpm_saddr;
 	struct inetpeer_addr		tcpm_daddr;
 	unsigned long			tcpm_stamp;
@@ -51,6 +52,11 @@ struct tcp_metrics_block {
 
 	struct rcu_head			rcu_head;
 };
+
+static inline struct net *tm_net(struct tcp_metrics_block *tm)
+{
+	return read_pnet(&tm->tcpm_net);
+}
 
 static bool tcp_metric_locked(struct tcp_metrics_block *tm,
 			      enum tcp_metric_index idx)
@@ -183,6 +189,7 @@ static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 		if (!tm)
 			goto out_unlock;
 	}
+	write_pnet(&tm->tcpm_net, net);
 	tm->tcpm_saddr = *saddr;
 	tm->tcpm_daddr = *daddr;
 
@@ -217,7 +224,8 @@ static struct tcp_metrics_block *__tcp_get_metrics(const struct inetpeer_addr *s
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
 		if (addr_same(&tm->tcpm_saddr, saddr) &&
-		    addr_same(&tm->tcpm_daddr, daddr))
+		    addr_same(&tm->tcpm_daddr, daddr) &&
+		    net_eq(tm_net(tm), net))
 			break;
 		depth++;
 	}
@@ -258,7 +266,8 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
 		if (addr_same(&tm->tcpm_saddr, &saddr) &&
-		    addr_same(&tm->tcpm_daddr, &daddr))
+		    addr_same(&tm->tcpm_daddr, &daddr) &&
+		    net_eq(tm_net(tm), net))
 			break;
 	}
 	tcpm_check_stamp(tm, dst);
@@ -306,7 +315,8 @@ static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock 
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
 		if (addr_same(&tm->tcpm_saddr, &saddr) &&
-		    addr_same(&tm->tcpm_daddr, &daddr))
+		    addr_same(&tm->tcpm_daddr, &daddr) &&
+		    net_eq(tm_net(tm), net))
 			break;
 	}
 	return tm;
@@ -912,6 +922,8 @@ static int tcp_metrics_nl_dump(struct sk_buff *skb,
 		rcu_read_lock();
 		for (col = 0, tm = rcu_dereference(hb->chain); tm;
 		     tm = rcu_dereference(tm->tcpm_next), col++) {
+			if (!net_eq(tm_net(tm), net))
+				continue;
 			if (col < s_col)
 				continue;
 			if (tcp_metrics_dump_info(skb, cb, tm) < 0) {
@@ -1004,7 +1016,8 @@ static int tcp_metrics_nl_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
 		if (addr_same(&tm->tcpm_daddr, &daddr) &&
-		    (!src || addr_same(&tm->tcpm_saddr, &saddr))) {
+		    (!src || addr_same(&tm->tcpm_saddr, &saddr)) &&
+		    net_eq(tm_net(tm), net)) {
 			ret = tcp_metrics_fill_info(msg, tm);
 			break;
 		}
@@ -1081,7 +1094,8 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	spin_lock_bh(&tcp_metrics_lock);
 	for (tm = deref_locked_genl(*pp); tm; tm = deref_locked_genl(*pp)) {
 		if (addr_same(&tm->tcpm_daddr, &daddr) &&
-		    (!src || addr_same(&tm->tcpm_saddr, &saddr))) {
+		    (!src || addr_same(&tm->tcpm_saddr, &saddr)) &&
+		    net_eq(tm_net(tm), net)) {
 			*pp = tm->tcpm_next;
 			kfree_rcu(tm, rcu_head);
 			found = true;
