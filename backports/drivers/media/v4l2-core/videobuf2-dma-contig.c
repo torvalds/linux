@@ -188,6 +188,52 @@ static void *vb2_dc_alloc(void *alloc_ctx, unsigned long size,
 	return buf;
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
+static int
+backport_vb2_mmap_pfn_range(struct vm_area_struct *vma, unsigned long paddr,
+			    unsigned long size,
+			    const struct vm_operations_struct *vm_ops,
+			    void *priv)
+{
+	int ret;
+
+	size = min_t(unsigned long, vma->vm_end - vma->vm_start, size);
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	ret = remap_pfn_range(vma, vma->vm_start, paddr >> PAGE_SHIFT,
+				size, vma->vm_page_prot);
+	if (ret) {
+		printk(KERN_ERR "Remapping memory failed, error: %d\n", ret);
+		return ret;
+	}
+
+	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_private_data	= priv;
+	vma->vm_ops		= vm_ops;
+
+	vma->vm_ops->open(vma);
+
+	pr_debug("%s: mapped paddr 0x%08lx at 0x%08lx, size %ld\n",
+			__func__, paddr, vma->vm_start, size);
+
+	return 0;
+}
+
+static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
+{
+	struct vb2_dc_buf *buf = buf_priv;
+
+	if (!buf) {
+		printk(KERN_ERR "No buffer to map\n");
+		return -EINVAL;
+	}
+
+	return backport_vb2_mmap_pfn_range(vma, buf->dma_addr, buf->size,
+					   &vb2_common_vm_ops, &buf->handler);
+}
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0)) */
+#else
 static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 {
 	struct vb2_dc_buf *buf = buf_priv;
@@ -224,6 +270,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 
 	return 0;
 }
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)) */
 
 /*********************************************/
 /*         DMABUF ops for exporters          */
