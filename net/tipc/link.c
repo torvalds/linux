@@ -1048,61 +1048,6 @@ static void link_retrieve_defq(struct tipc_link *link,
 }
 
 /**
- * link_recv_buf_validate - validate basic format of received message
- *
- * This routine ensures a TIPC message has an acceptable header, and at least
- * as much data as the header indicates it should.  The routine also ensures
- * that the entire message header is stored in the main fragment of the message
- * buffer, to simplify future access to message header fields.
- *
- * Note: Having extra info present in the message header or data areas is OK.
- * TIPC will ignore the excess, under the assumption that it is optional info
- * introduced by a later release of the protocol.
- */
-static int link_recv_buf_validate(struct sk_buff *buf)
-{
-	static u32 min_data_hdr_size[8] = {
-		SHORT_H_SIZE, MCAST_H_SIZE, NAMED_H_SIZE, BASIC_H_SIZE,
-		MAX_H_SIZE, MAX_H_SIZE, MAX_H_SIZE, MAX_H_SIZE
-		};
-
-	struct tipc_msg *msg;
-	u32 tipc_hdr[2];
-	u32 size;
-	u32 hdr_size;
-	u32 min_hdr_size;
-
-	/* If this packet comes from the defer queue, the skb has already
-	 * been validated
-	 */
-	if (unlikely(TIPC_SKB_CB(buf)->deferred))
-		return 1;
-
-	if (unlikely(buf->len < MIN_H_SIZE))
-		return 0;
-
-	msg = skb_header_pointer(buf, 0, sizeof(tipc_hdr), tipc_hdr);
-	if (msg == NULL)
-		return 0;
-
-	if (unlikely(msg_version(msg) != TIPC_VERSION))
-		return 0;
-
-	size = msg_size(msg);
-	hdr_size = msg_hdr_sz(msg);
-	min_hdr_size = msg_isdata(msg) ?
-		min_data_hdr_size[msg_type(msg)] : INT_H_SIZE;
-
-	if (unlikely((hdr_size < min_hdr_size) ||
-		     (size < hdr_size) ||
-		     (buf->len < size) ||
-		     (size - hdr_size > TIPC_MAX_USER_MSG_SIZE)))
-		return 0;
-
-	return pskb_may_pull(buf, hdr_size);
-}
-
-/**
  * tipc_rcv - process TIPC packets/messages arriving from off-node
  * @net: the applicable net namespace
  * @skb: TIPC packet
@@ -1127,7 +1072,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 
 	while ((skb = __skb_dequeue(&head))) {
 		/* Ensure message is well-formed */
-		if (unlikely(!link_recv_buf_validate(skb)))
+		if (unlikely(!tipc_msg_validate(skb)))
 			goto discard;
 
 		/* Ensure message data is a single contiguous unit */
@@ -1398,7 +1343,6 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 
 	if (tipc_link_defer_pkt(&l_ptr->deferred_queue, buf)) {
 		l_ptr->stats.deferred_recv++;
-		TIPC_SKB_CB(buf)->deferred = true;
 		if ((skb_queue_len(&l_ptr->deferred_queue) % 16) == 1)
 			tipc_link_proto_xmit(l_ptr, STATE_MSG, 0, 0, 0, 0, 0);
 	} else {

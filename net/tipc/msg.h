@@ -1,7 +1,7 @@
 /*
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
- * Copyright (c) 2000-2007, 2014, Ericsson AB
+ * Copyright (c) 2000-2007, 2014-2015 Ericsson AB
  * Copyright (c) 2005-2008, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -92,7 +92,7 @@ struct plist;
 struct tipc_skb_cb {
 	void *handle;
 	struct sk_buff *tail;
-	bool deferred;
+	bool validated;
 	bool wakeup_pending;
 	bool bundling;
 	u16 chain_sz;
@@ -758,6 +758,7 @@ static inline u32 msg_tot_origport(struct tipc_msg *m)
 }
 
 struct sk_buff *tipc_buf_acquire(u32 size);
+bool tipc_msg_validate(struct sk_buff *skb);
 bool tipc_msg_reverse(u32 own_addr, struct sk_buff *buf, u32 *dnode,
 		      int err);
 void tipc_msg_init(u32 own_addr, struct tipc_msg *m, u32 user, u32 type,

@@ -1,7 +1,7 @@
 /*
  * net/tipc/msg.c: TIPC message header routines
  *
- * Copyright (c) 2000-2006, 2014, Ericsson AB
+ * Copyright (c) 2000-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -181,6 +181,48 @@ err:
 	return 0;
 }
 
+/* tipc_msg_validate - validate basic format of received message
+ *
+ * This routine ensures a TIPC message has an acceptable header, and at least
+ * as much data as the header indicates it should.  The routine also ensures
+ * that the entire message header is stored in the main fragment of the message
+ * buffer, to simplify future access to message header fields.
+ *
+ * Note: Having extra info present in the message header or data areas is OK.
+ * TIPC will ignore the excess, under the assumption that it is optional info
+ * introduced by a later release of the protocol.
+ */
+bool tipc_msg_validate(struct sk_buff *skb)
+{
+	struct tipc_msg *msg;
+	int msz, hsz;
+
+	if (unlikely(TIPC_SKB_CB(skb)->validated))
+		return true;
+	if (unlikely(!pskb_may_pull(skb, MIN_H_SIZE)))
+		return false;
+
+	hsz = msg_hdr_sz(buf_msg(skb));
+	if (unlikely(hsz < MIN_H_SIZE) || (hsz > MAX_H_SIZE))
+		return false;
+	if (unlikely(!pskb_may_pull(skb, hsz)))
+		return false;
+
+	msg = buf_msg(skb);
+	if (unlikely(msg_version(msg) != TIPC_VERSION))
+		return false;
+
+	msz = msg_size(msg);
+	if (unlikely(msz < hsz))
+		return false;
+	if (unlikely((msz - hsz) > TIPC_MAX_USER_MSG_SIZE))
+		return false;
+	if (unlikely(skb->len < msz))
+		return false;
+
+	TIPC_SKB_CB(skb)->validated = true;
+	return true;
+}
 
 /**
  * tipc_msg_build - create buffer chain containing specified header and data
