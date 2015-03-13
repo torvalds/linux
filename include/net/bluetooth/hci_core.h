@@ -354,7 +354,7 @@ struct hci_dev {
 	struct rfkill		*rfkill;
 
 	unsigned long		dbg_flags;
-	unsigned long		dev_flags;
+	DECLARE_BITMAP(dev_flags, __HCI_NUM_FLAGS);
 
 	struct delayed_work	le_scan_disable;
 	struct delayed_work	le_scan_restart;
@@ -502,14 +502,20 @@ extern struct list_head hci_cb_list;
 extern rwlock_t hci_dev_list_lock;
 extern struct mutex hci_cb_list_lock;
 
-#define hci_dev_set_flag(hdev, nr)    set_bit((nr), &(hdev)->dev_flags)
-#define hci_dev_clear_flag(hdev, nr)  clear_bit((nr), &(hdev)->dev_flags)
-#define hci_dev_change_flag(hdev, nr) change_bit((nr), &(hdev)->dev_flags)
-#define hci_dev_test_flag(hdev, nr)   test_bit((nr), &(hdev)->dev_flags)
+#define hci_dev_set_flag(hdev, nr)             set_bit((nr), (hdev)->dev_flags)
+#define hci_dev_clear_flag(hdev, nr)           clear_bit((nr), (hdev)->dev_flags)
+#define hci_dev_change_flag(hdev, nr)          change_bit((nr), (hdev)->dev_flags)
+#define hci_dev_test_flag(hdev, nr)            test_bit((nr), (hdev)->dev_flags)
+#define hci_dev_test_and_set_flag(hdev, nr)    test_and_set_bit((nr), (hdev)->dev_flags)
+#define hci_dev_test_and_clear_flag(hdev, nr)  test_and_clear_bit((nr), (hdev)->dev_flags)
+#define hci_dev_test_and_change_flag(hdev, nr) test_and_change_bit((nr), (hdev)->dev_flags)
 
-#define hci_dev_test_and_set_flag(hdev, nr)    test_and_set_bit((nr), &(hdev)->dev_flags)
-#define hci_dev_test_and_clear_flag(hdev, nr)  test_and_clear_bit((nr), &(hdev)->dev_flags)
-#define hci_dev_test_and_change_flag(hdev, nr) test_and_change_bit((nr), &(hdev)->dev_flags)
+#define hci_dev_clear_volatile_flags(hdev)			\
+	do {							\
+		hci_dev_clear_flag(hdev, HCI_LE_SCAN);		\
+		hci_dev_clear_flag(hdev, HCI_LE_ADV);		\
+		hci_dev_clear_flag(hdev, HCI_PERIODIC_INQ);	\
+	} while (0)
 
 /* ----- HCI interface to upper protocols ----- */
 int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);

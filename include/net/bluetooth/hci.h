@@ -226,13 +226,8 @@ enum {
 	HCI_FAST_CONNECTABLE,
 	HCI_BREDR_ENABLED,
 	HCI_LE_SCAN_INTERRUPTED,
+	__HCI_NUM_FLAGS,
 };
-
-/* A mask for the flags that are supposed to remain when a reset happens
- * or the HCI device is closed.
- */
-#define HCI_PERSISTENT_MASK (BIT(HCI_LE_SCAN) | BIT(HCI_PERIODIC_INQ) | \
-			     BIT(HCI_LE_ADV))
 
 /* HCI timeouts */
 #define HCI_DISCONN_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */

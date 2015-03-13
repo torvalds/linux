@@ -198,7 +198,7 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 
 	/* Reset all non-persistent flags */
-	hdev->dev_flags &= ~HCI_PERSISTENT_MASK;
+	hci_dev_clear_volatile_flags(hdev);
 
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 
