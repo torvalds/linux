@@ -950,6 +950,20 @@ static void vgic_retire_disabled_irqs(struct kvm_vcpu *vcpu)
 	}
 }
 
+static void vgic_queue_irq_to_lr(struct kvm_vcpu *vcpu, int irq,
+				 int lr_nr, struct vgic_lr vlr)
+{
+	if (vgic_dist_irq_is_pending(vcpu, irq)) {
+		vlr.state |= LR_STATE_PENDING;
+		kvm_debug("Set pending: 0x%x\n", vlr.state);
+	}
+
+	if (!vgic_irq_is_edge(vcpu, irq))
+		vlr.state |= LR_EOI_INT;
+
+	vgic_set_lr(vcpu, lr_nr, vlr);
+}
+
 /*
  * Queue an interrupt to a CPU virtual interface. Return true on success,
  * or false if it wasn't possible to queue it.
@@ -977,8 +991,7 @@ bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 		if (vlr.source == sgi_source_id) {
 			kvm_debug("LR%d piggyback for IRQ%d\n", lr, vlr.irq);
 			BUG_ON(!test_bit(lr, vgic_cpu->lr_used));
-			vlr.state |= LR_STATE_PENDING;
-			vgic_set_lr(vcpu, lr, vlr);
+			vgic_queue_irq_to_lr(vcpu, irq, lr, vlr);
 			return true;
 		}
 	}
@@ -995,11 +1008,8 @@ bool vgic_queue_irq(struct kvm_vcpu *vcpu, u8 sgi_source_id, int irq)
 
 	vlr.irq = irq;
 	vlr.source = sgi_source_id;
-	vlr.state = LR_STATE_PENDING;
-	if (!vgic_irq_is_edge(vcpu, irq))
-		vlr.state |= LR_EOI_INT;
-
-	vgic_set_lr(vcpu, lr, vlr);
+	vlr.state = 0;
+	vgic_queue_irq_to_lr(vcpu, irq, lr, vlr);
 
 	return true;
 }
