@@ -544,12 +544,12 @@ struct txbd8
 {
 	union {
 		struct {
-			u16	status;	/* Status Fields */
-			u16	length;	/* Buffer length */
+			__be16	status;	/* Status Fields */
+			__be16	length;	/* Buffer length */
 		};
-		u32 lstatus;
+		__be32 lstatus;
 	};
-	u32	bufPtr;	/* Buffer Pointer */
+	__be32	bufPtr;	/* Buffer Pointer */
 };
 
 struct txfcb {
@@ -565,12 +565,12 @@ struct rxbd8
 {
 	union {
 		struct {
-			u16	status;	/* Status Fields */
-			u16	length;	/* Buffer Length */
+			__be16	status;	/* Status Fields */
+			__be16	length;	/* Buffer Length */
 		};
-		u32 lstatus;
+		__be32 lstatus;
 	};
-	u32	bufPtr;	/* Buffer Pointer */
+	__be32	bufPtr;	/* Buffer Pointer */
 };
 
 struct rxfcb {
@@ -1285,6 +1285,14 @@ static inline void gfar_wmb(void)
 #else
 	wmb(); /* order write acesses for BD (or FCB) fields */
 #endif
+}
+
+static inline void gfar_clear_txbd_status(struct txbd8 *bdp)
+{
+	u32 lstatus = be32_to_cpu(bdp->lstatus);
+
+	lstatus &= BD_LFLAG(TXBD_WRAP);
+	bdp->lstatus = cpu_to_be32(lstatus);
 }
 
 irqreturn_t gfar_receive(int irq, void *dev_id);
