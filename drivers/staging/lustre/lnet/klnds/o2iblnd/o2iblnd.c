@@ -1893,13 +1893,11 @@ kiblnd_destroy_pmr_pool(kib_pool_t *pool)
 {
 	kib_pmr_pool_t *ppo = container_of(pool, kib_pmr_pool_t, ppo_pool);
 	kib_phys_mr_t  *pmr;
+	kib_phys_mr_t *tmp;
 
 	LASSERT(pool->po_allocated == 0);
 
-	while (!list_empty(&pool->po_free_list)) {
-		pmr = list_entry(pool->po_free_list.next,
-				     kib_phys_mr_t, pmr_list);
-
+	list_for_each_entry_safe(pmr, tmp, &pool->po_free_list, pmr_list) {
 		LASSERT(pmr->pmr_mr == NULL);
 		list_del(&pmr->pmr_list);
 

@@ -1936,14 +1936,13 @@ kiblnd_handle_early_rxs(kib_conn_t *conn)
 {
 	unsigned long    flags;
 	kib_rx_t	*rx;
+	kib_rx_t *tmp;
 
 	LASSERT(!in_interrupt());
 	LASSERT(conn->ibc_state >= IBLND_CONN_ESTABLISHED);
 
 	write_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
-	while (!list_empty(&conn->ibc_early_rxs)) {
-		rx = list_entry(conn->ibc_early_rxs.next,
-				    kib_rx_t, rx_list);
+	list_for_each_entry_safe(rx, tmp, &conn->ibc_early_rxs, rx_list) {
 		list_del(&rx->rx_list);
 		write_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 
@@ -2074,6 +2073,7 @@ kiblnd_connreq_done(kib_conn_t *conn, int status)
 {
 	kib_peer_t	*peer = conn->ibc_peer;
 	kib_tx_t	  *tx;
+	kib_tx_t *tmp;
 	struct list_head	 txs;
 	unsigned long      flags;
 	int		active;
@@ -2150,8 +2150,7 @@ kiblnd_connreq_done(kib_conn_t *conn, int status)
 
 	/* Schedule blocked txs */
 	spin_lock(&conn->ibc_lock);
-	while (!list_empty(&txs)) {
-		tx = list_entry(txs.next, kib_tx_t, tx_list);
+	list_for_each_entry_safe(tx, tmp, &txs, tx_list) {
 		list_del(&tx->tx_list);
 
 		kiblnd_queue_tx_locked(tx, conn);
@@ -3027,6 +3026,7 @@ kiblnd_check_conns(int idx)
 	struct list_head    *ptmp;
 	kib_peer_t    *peer;
 	kib_conn_t    *conn;
+	kib_conn_t *tmp;
 	struct list_head    *ctmp;
 	unsigned long  flags;
 
@@ -3080,9 +3080,7 @@ kiblnd_check_conns(int idx)
 	/* Handle timeout by closing the whole
 	 * connection. We can only be sure RDMA activity
 	 * has ceased once the QP has been modified. */
-	while (!list_empty(&closes)) {
-		conn = list_entry(closes.next,
-				      kib_conn_t, ibc_connd_list);
+	list_for_each_entry_safe(conn, tmp, &closes, ibc_connd_list) {
 		list_del(&conn->ibc_connd_list);
 		kiblnd_close_conn(conn, -ETIMEDOUT);
 		kiblnd_conn_decref(conn);
