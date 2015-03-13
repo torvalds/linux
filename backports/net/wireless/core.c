@@ -344,6 +344,17 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 	struct cfg80211_registered_device *rdev;
 	int alloc_size;
 
+	/*
+	 * Make sure the padding is >= the rest of the struct so that we
+	 * always keep it large enough to pad out the entire original
+	 * kernel's struct. We really only need to make sure it's larger
+	 * than the kernel compat is compiled against, but since it'll
+	 * only increase in size make sure it's larger than the current
+	 * version of it. Subtract since it's included.
+	 */
+	BUILD_BUG_ON(WIPHY_COMPAT_PAD_SIZE <
+		     sizeof(struct wiphy) - WIPHY_COMPAT_PAD_SIZE);
+
 	WARN_ON(ops->add_key && (!ops->del_key || !ops->set_default_key));
 	WARN_ON(ops->auth && (!ops->assoc || !ops->deauth || !ops->disassoc));
 	WARN_ON(ops->connect && !ops->disconnect);
