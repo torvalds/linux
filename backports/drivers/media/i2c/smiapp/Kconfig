@@ -1,7 +1,8 @@
-config VIDEO_SMIAPP
+config BACKPORT_VIDEO_SMIAPP
 	tristate "SMIA++/SMIA sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAVE_CLK
-	depends on MEDIA_CAMERA_SUPPORT
-	select VIDEO_SMIAPP_PLL
+	depends on !VIDEO_SMIAPP
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API && HAVE_CLK
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
+	select BACKPORT_VIDEO_SMIAPP_PLL
 	---help---
 	  This is a generic driver for SMIA++/SMIA camera modules.

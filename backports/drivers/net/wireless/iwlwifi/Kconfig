@@ -1,6 +1,7 @@
-config IWLWIFI
+config BACKPORT_IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
-	depends on PCI && MAC80211 && HAS_IOMEM
+	depends on !IWLWIFI
+	depends on PCI && BACKPORT_MAC80211 && HAS_IOMEM
 	select FW_LOADER
 	---help---
 	  Select to build the driver supporting the:
@@ -40,42 +41,47 @@ config IWLWIFI
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwlwifi.
 
-if IWLWIFI
+if BACKPORT_IWLWIFI
 
-config IWLWIFI_LEDS
+config BACKPORT_IWLWIFI_LEDS
 	bool
+	depends on !IWLWIFI_LEDS
 	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
 	select LEDS_TRIGGERS
-	select MAC80211_LEDS
+	select BACKPORT_MAC80211_LEDS
 	default y
 
-config IWLDVM
+config BACKPORT_IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
-	default IWLWIFI
+	depends on !IWLDVM
+	default BACKPORT_IWLWIFI
 	help
 	  This is the driver that supports the DVM firmware which is
 	  used by most existing devices (with the exception of 7260
 	  and 3160).
 
-config IWLMVM
+config BACKPORT_IWLMVM
 	tristate "Intel Wireless WiFi MVM Firmware support"
+	depends on !IWLMVM
 	select WANT_DEV_COREDUMP
 	help
 	  This is the driver that supports the MVM firmware which is
 	  currently only available for 7260 and 3160 devices.
 
 # don't call it _MODULE -- will confuse Kconfig/fixdep/...
-config IWLWIFI_OPMODE_MODULAR
+config BACKPORT_IWLWIFI_OPMODE_MODULAR
 	bool
-	default y if IWLDVM=m
-	default y if IWLMVM=m
+	depends on !IWLWIFI_OPMODE_MODULAR
+	default y if BACKPORT_IWLDVM=m
+	default y if BACKPORT_IWLMVM=m
 
-comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
-	depends on IWLDVM=n && IWLMVM=n
+comment "WARNING: iwlwifi is useless without BACKPORT_IWLDVM or IWLMVM"
+	depends on BACKPORT_IWLDVM=n && IWLMVM=n
 
-config IWLWIFI_BCAST_FILTERING
+config BACKPORT_IWLWIFI_BCAST_FILTERING
 	bool "Enable broadcast filtering"
-	depends on IWLMVM
+	depends on !IWLWIFI_BCAST_FILTERING
+	depends on BACKPORT_IWLMVM
 	help
 	  Say Y here to enable default bcast filtering configuration.
 
@@ -86,9 +92,10 @@ config IWLWIFI_BCAST_FILTERING
 	  If unsure, don't enable this option, as some programs might
 	  expect incoming broadcasts for their normal operations.
 
-config IWLWIFI_UAPSD
+config BACKPORT_IWLWIFI_UAPSD
 	bool "enable U-APSD by default"
-	depends on IWLMVM
+	depends on !IWLWIFI_UAPSD
+	depends on BACKPORT_IWLMVM
 	help
 	  Say Y here to enable U-APSD by default. This may cause
 	  interoperability problems with some APs, manifesting in lower than
@@ -98,8 +105,9 @@ config IWLWIFI_UAPSD
 
 menu "Debugging Options"
 
-config IWLWIFI_DEBUG
+config BACKPORT_IWLWIFI_DEBUG
 	bool "Enable full debugging output in the iwlwifi driver"
+	depends on !IWLWIFI_DEBUG
 	---help---
 	  This option will enable debug tracing output for the iwlwifi drivers
 
@@ -122,22 +130,25 @@ config IWLWIFI_DEBUG
 	  as the debug information can assist others in helping you resolve
 	  any problems you may encounter.
 
-config IWLWIFI_DEBUGFS
+config BACKPORT_IWLWIFI_DEBUGFS
         bool "iwlwifi debugfs support"
-        depends on MAC80211_DEBUGFS
+	depends on !IWLWIFI_DEBUGFS
+        depends on BACKPORT_MAC80211_DEBUGFS
         ---help---
 	  Enable creation of debugfs files for the iwlwifi drivers. This
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.
 
-config IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
+config BACKPORT_IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
         bool "Experimental uCode support"
-        depends on IWLWIFI_DEBUG
+	depends on !IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
+        depends on BACKPORT_IWLWIFI_DEBUG
         ---help---
 	  Enable use of experimental ucode for testing and debugging.
 
-config IWLWIFI_DEVICE_TRACING
+config BACKPORT_IWLWIFI_DEVICE_TRACING
 	bool "iwlwifi device access tracing"
+	depends on !IWLWIFI_DEVICE_TRACING
 	depends on EVENT_TRACING
 	help
 	  Say Y here to trace all commands, including TX frames and IO

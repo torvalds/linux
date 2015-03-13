@@ -3,21 +3,24 @@
 #
 
 # Enable the V4L2 core and API
-config VIDEO_V4L2
+config BACKPORT_VIDEO_V4L2
 	tristate
-	depends on (I2C || I2C=n) && VIDEO_DEV
-	default (I2C || I2C=n) && VIDEO_DEV
+	depends on !VIDEO_V4L2
+	depends on (I2C || I2C=n) && BACKPORT_VIDEO_DEV
+	default (I2C || I2C=n) && BACKPORT_VIDEO_DEV
 
-config VIDEO_ADV_DEBUG
+config BACKPORT_VIDEO_ADV_DEBUG
 	bool "Enable advanced debug functionality on V4L2 drivers"
+	depends on !VIDEO_ADV_DEBUG
 	default n
 	---help---
 	  Say Y here to enable advanced debugging functionality on some
 	  V4L devices.
 	  In doubt, say N.
 
-config VIDEO_FIXED_MINOR_RANGES
+config BACKPORT_VIDEO_FIXED_MINOR_RANGES
 	bool "Enable old-style fixed minor ranges on drivers/video devices"
+	depends on !VIDEO_FIXED_MINOR_RANGES
 	default n
 	---help---
 	  Say Y here to enable the old-style fixed-range minor assignments.
@@ -25,74 +28,88 @@ config VIDEO_FIXED_MINOR_RANGES
 
 	  When in doubt, say N.
 
-config VIDEO_PCI_SKELETON
+config BACKPORT_VIDEO_PCI_SKELETON
 	tristate "Skeleton PCI V4L2 driver"
+	depends on !VIDEO_PCI_SKELETON
 	depends on PCI && BUILD_DOCSRC
-	depends on VIDEO_V4L2 && VIDEOBUF2_CORE
-	depends on VIDEOBUF2_MEMOPS && VIDEOBUF2_DMA_CONTIG
+	depends on BACKPORT_VIDEO_V4L2 && VIDEOBUF2_CORE
+	depends on BACKPORT_VIDEOBUF2_MEMOPS && VIDEOBUF2_DMA_CONTIG
 	---help---
 	  Enable build of the skeleton PCI driver, used as a reference
 	  when developing new drivers.
 
 # Used by drivers that need tuner.ko
-config VIDEO_TUNER
+config BACKPORT_VIDEO_TUNER
 	tristate
-	depends on MEDIA_TUNER
+	depends on !VIDEO_TUNER
+	depends on BACKPORT_MEDIA_TUNER
 
 # Used by drivers that need v4l2-mem2mem.ko
-config V4L2_MEM2MEM_DEV
+config BACKPORT_V4L2_MEM2MEM_DEV
         tristate
-        depends on VIDEOBUF2_CORE
+	depends on !V4L2_MEM2MEM_DEV
+        depends on BACKPORT_VIDEOBUF2_CORE
 
 # Used by drivers that need Videobuf modules
-config VIDEOBUF_GEN
+config BACKPORT_VIDEOBUF_GEN
 	tristate
+	depends on !VIDEOBUF_GEN
 
-config VIDEOBUF_DMA_SG
+config BACKPORT_VIDEOBUF_DMA_SG
 	tristate
+	depends on !VIDEOBUF_DMA_SG
 	depends on HAS_DMA
-	select VIDEOBUF_GEN
+	select BACKPORT_VIDEOBUF_GEN
 
-config VIDEOBUF_VMALLOC
+config BACKPORT_VIDEOBUF_VMALLOC
 	tristate
-	select VIDEOBUF_GEN
+	depends on !VIDEOBUF_VMALLOC
+	select BACKPORT_VIDEOBUF_GEN
 
-config VIDEOBUF_DMA_CONTIG
+config BACKPORT_VIDEOBUF_DMA_CONTIG
 	tristate
+	depends on !VIDEOBUF_DMA_CONTIG
 	depends on HAS_DMA
-	select VIDEOBUF_GEN
+	select BACKPORT_VIDEOBUF_GEN
 
-config VIDEOBUF_DVB
+config BACKPORT_VIDEOBUF_DVB
 	tristate
-	select VIDEOBUF_GEN
+	depends on !VIDEOBUF_DVB
+	select BACKPORT_VIDEOBUF_GEN
 
 # Used by drivers that need Videobuf2 modules
-config VIDEOBUF2_CORE
+config BACKPORT_VIDEOBUF2_CORE
 	select DMA_SHARED_BUFFER if !KERNEL_3_5
+	depends on !VIDEOBUF2_CORE
 	tristate
 
-config VIDEOBUF2_MEMOPS
+config BACKPORT_VIDEOBUF2_MEMOPS
 	tristate
+	depends on !VIDEOBUF2_MEMOPS
 
-config VIDEOBUF2_DMA_CONTIG
+config BACKPORT_VIDEOBUF2_DMA_CONTIG
 	tristate
+	depends on !VIDEOBUF2_DMA_CONTIG
 	depends on HAS_DMA
-	select VIDEOBUF2_CORE
-	select VIDEOBUF2_MEMOPS
+	select BACKPORT_VIDEOBUF2_CORE
+	select BACKPORT_VIDEOBUF2_MEMOPS
 	select DMA_SHARED_BUFFER if !KERNEL_3_5
 
-config VIDEOBUF2_VMALLOC
+config BACKPORT_VIDEOBUF2_VMALLOC
 	tristate
-	select VIDEOBUF2_CORE
-	select VIDEOBUF2_MEMOPS
+	depends on !VIDEOBUF2_VMALLOC
+	select BACKPORT_VIDEOBUF2_CORE
+	select BACKPORT_VIDEOBUF2_MEMOPS
 	select DMA_SHARED_BUFFER if !KERNEL_3_5
 
-config VIDEOBUF2_DMA_SG
+config BACKPORT_VIDEOBUF2_DMA_SG
 	tristate
+	depends on !VIDEOBUF2_DMA_SG
 	#depends on HAS_DMA
-	select VIDEOBUF2_CORE
-	select VIDEOBUF2_MEMOPS
+	select BACKPORT_VIDEOBUF2_CORE
+	select BACKPORT_VIDEOBUF2_MEMOPS
 
-config VIDEOBUF2_DVB
+config BACKPORT_VIDEOBUF2_DVB
 	tristate
-	select VIDEOBUF2_CORE
+	depends on !VIDEOBUF2_DVB
+	select BACKPORT_VIDEOBUF2_CORE

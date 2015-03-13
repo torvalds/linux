@@ -1,45 +1,52 @@
-config LIBERTAS
+config BACKPORT_LIBERTAS
 	tristate "Marvell 8xxx Libertas WLAN driver support"
-	depends on CFG80211
+	depends on !LIBERTAS
+	depends on BACKPORT_CFG80211
 	select WIRELESS_EXT
 	select WEXT_SPY
-	select LIB80211
+	select BACKPORT_LIB80211
 	select FW_LOADER
 	---help---
 	  A library for Marvell Libertas 8xxx devices.
 
-config LIBERTAS_USB
+config BACKPORT_LIBERTAS_USB
 	tristate "Marvell Libertas 8388 USB 802.11b/g cards"
-	depends on LIBERTAS && USB
+	depends on !LIBERTAS_USB
+	depends on BACKPORT_LIBERTAS && USB
 	---help---
 	  A driver for Marvell Libertas 8388 USB devices.
 
-config LIBERTAS_CS
+config BACKPORT_LIBERTAS_CS
 	tristate "Marvell Libertas 8385 CompactFlash 802.11b/g cards"
-	depends on LIBERTAS && PCMCIA && HAS_IOPORT_MAP
+	depends on !LIBERTAS_CS
+	depends on BACKPORT_LIBERTAS && PCMCIA && HAS_IOPORT_MAP
 	---help---
 	  A driver for Marvell Libertas 8385 CompactFlash devices.
 
-config LIBERTAS_SDIO
+config BACKPORT_LIBERTAS_SDIO
 	tristate "Marvell Libertas 8385/8686/8688 SDIO 802.11b/g cards"
-	depends on LIBERTAS && MMC
+	depends on !LIBERTAS_SDIO
+	depends on BACKPORT_LIBERTAS && MMC
 	---help---
 	  A driver for Marvell Libertas 8385/8686/8688 SDIO devices.
 
-config LIBERTAS_SPI
+config BACKPORT_LIBERTAS_SPI
 	tristate "Marvell Libertas 8686 SPI 802.11b/g cards"
-	depends on LIBERTAS && SPI
+	depends on !LIBERTAS_SPI
+	depends on BACKPORT_LIBERTAS && SPI
 	---help---
 	  A driver for Marvell Libertas 8686 SPI devices.
 
-config LIBERTAS_DEBUG
+config BACKPORT_LIBERTAS_DEBUG
 	bool "Enable full debugging output in the Libertas module."
-	depends on LIBERTAS
+	depends on !LIBERTAS_DEBUG
+	depends on BACKPORT_LIBERTAS
 	---help---
 	  Debugging support.
 
-config LIBERTAS_MESH
+config BACKPORT_LIBERTAS_MESH
 	bool "Enable mesh support"
-	depends on LIBERTAS
+	depends on !LIBERTAS_MESH
+	depends on BACKPORT_LIBERTAS
 	help
 	  This enables Libertas' MESH support, used by e.g. the OLPC people.

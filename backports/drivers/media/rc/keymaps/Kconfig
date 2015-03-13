@@ -1,6 +1,7 @@
-config RC_MAP
+config BACKPORT_RC_MAP
 	tristate "Compile Remote Controller keymap modules"
-	depends on RC_CORE
+	depends on !RC_MAP
+	depends on BACKPORT_RC_CORE
 	default y
 
 	---help---

@@ -1,7 +1,8 @@
-config CARL9170
+config BACKPORT_CARL9170
 	tristate "Linux Community AR9170 802.11n USB support"
-	depends on USB && MAC80211
-	select ATH_COMMON
+	depends on !CARL9170
+	depends on USB && BACKPORT_MAC80211
+	select BACKPORT_ATH_COMMON
 	select FW_LOADER
 	select CRC32
 	help
@@ -15,10 +16,11 @@ config CARL9170
 
 	  If you choose to build a module, it'll be called carl9170.
 
-config CARL9170_LEDS
+config BACKPORT_CARL9170_LEDS
 	bool "SoftLED Support"
-	depends on CARL9170
-	select MAC80211_LEDS
+	depends on !CARL9170_LEDS
+	depends on BACKPORT_CARL9170
+	select BACKPORT_MAC80211_LEDS
 	select LEDS_CLASS
 	select NEW_LEDS
 	default y
@@ -27,23 +29,26 @@ config CARL9170_LEDS
 
 	  Say Y, unless you need the LEDs for firmware debugging.
 
-config CARL9170_DEBUGFS
+config BACKPORT_CARL9170_DEBUGFS
 	bool "DebugFS Support"
-	depends on CARL9170 && DEBUG_FS && MAC80211_DEBUGFS
+	depends on !CARL9170_DEBUGFS
+	depends on CARL9170 && DEBUG_FS && BACKPORT_MAC80211_DEBUGFS
 	default n
 	help
 	  Export several driver and device internals to user space.
 
 	  Say N.
 
-config CARL9170_WPC
+config BACKPORT_CARL9170_WPC
 	bool
-	depends on CARL9170 && (INPUT = y || INPUT = CARL9170)
+	depends on !CARL9170_WPC
+	depends on BACKPORT_CARL9170 && (INPUT = y || INPUT = BACKPORT_CARL9170)
 	default y
 
-config CARL9170_HWRNG
+config BACKPORT_CARL9170_HWRNG
         bool "Random number generator"
-        depends on CARL9170 && (HW_RANDOM = y || HW_RANDOM = CARL9170)
+	depends on !CARL9170_HWRNG
+        depends on BACKPORT_CARL9170 && (HW_RANDOM = y || HW_RANDOM = BACKPORT_CARL9170)
         default n
 	help
 	  Provides a hardware random number generator to the kernel.

@@ -1,30 +1,35 @@
-config ATH9K_HW
+config BACKPORT_ATH9K_HW
 	tristate
-config ATH9K_COMMON
+	depends on !ATH9K_HW
+config BACKPORT_ATH9K_COMMON
 	tristate
-	select ATH_COMMON
+	depends on !ATH9K_COMMON
+	select BACKPORT_ATH_COMMON
 	select DEBUG_FS
 	select RELAY
-config ATH9K_DFS_DEBUGFS
+config BACKPORT_ATH9K_DFS_DEBUGFS
 	def_bool y
-	depends on ATH9K_DEBUGFS && ATH9K_DFS_CERTIFIED
+	depends on !ATH9K_DFS_DEBUGFS
+	depends on BACKPORT_ATH9K_DEBUGFS && BACKPORT_ATH9K_DFS_CERTIFIED
 
-config ATH9K_BTCOEX_SUPPORT
+config BACKPORT_ATH9K_BTCOEX_SUPPORT
 	bool "Atheros bluetooth coexistence support"
-	depends on (ATH9K || ATH9K_HTC)
+	depends on !ATH9K_BTCOEX_SUPPORT
+	depends on (ATH9K || BACKPORT_ATH9K_HTC)
 	default y
 	---help---
 	  Say Y, if you want to use the ath9k/ath9k_htc radios together with
 	  Bluetooth modules in the same system.
 
-config ATH9K
+config BACKPORT_ATH9K
 	tristate "Atheros 802.11n wireless cards support"
-	depends on MAC80211 && HAS_DMA
-	select ATH9K_HW
-	select MAC80211_LEDS
+	depends on !ATH9K
+	depends on BACKPORT_MAC80211 && HAS_DMA
+	select BACKPORT_ATH9K_HW
+	select BACKPORT_MAC80211_LEDS
 	select LEDS_CLASS
 	select NEW_LEDS
-	select ATH9K_COMMON
+	select BACKPORT_ATH9K_COMMON
 	---help---
 	  This module adds support for wireless adapters based on
 	  Atheros IEEE 802.11n AR5008, AR9001 and AR9002 family
@@ -37,18 +42,20 @@ config ATH9K
 
 	  If you choose to build a module, it'll be called ath9k.
 
-config ATH9K_PCI
+config BACKPORT_ATH9K_PCI
 	bool "Atheros ath9k PCI/PCIe bus support"
+	depends on !ATH9K_PCI
 	default y
-	depends on ATH9K && PCI
+	depends on BACKPORT_ATH9K && PCI
 	---help---
 	  This option enables the PCI bus support in ath9k.
 
 	  Say Y, if you have a compatible PCI/PCIe wireless card.
 
-config ATH9K_AHB
+config BACKPORT_ATH9K_AHB
 	bool "Atheros ath9k AHB bus support"
-	depends on ATH9K
+	depends on !ATH9K_AHB
+	depends on BACKPORT_ATH9K
 	default n
 	---help---
 	  This option enables the AHB bus support in ath9k.
@@ -56,10 +63,11 @@ config ATH9K_AHB
 	  Say Y, if you have a SoC with a compatible built-in
 	  wireless MAC. Say N if unsure.
 
-config ATH9K_DEBUGFS
+config BACKPORT_ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"
-	depends on ATH9K && DEBUG_FS
-	select MAC80211_DEBUGFS
+	depends on !ATH9K_DEBUGFS
+	depends on BACKPORT_ATH9K && DEBUG_FS
+	select BACKPORT_MAC80211_DEBUGFS
 	select RELAY
 	---help---
 	  Say Y, if you need access to ath9k's statistics for
@@ -67,17 +75,19 @@ config ATH9K_DEBUGFS
 
 	  Also required for changing debug message flags at run time.
 
-config ATH9K_STATION_STATISTICS
+config BACKPORT_ATH9K_STATION_STATISTICS
 	bool "Detailed station statistics"
-	depends on ATH9K && ATH9K_DEBUGFS && DEBUG_FS
-	select MAC80211_DEBUGFS
+	depends on !ATH9K_STATION_STATISTICS
+	depends on BACKPORT_ATH9K && BACKPORT_ATH9K_DEBUGFS && DEBUG_FS
+	select BACKPORT_MAC80211_DEBUGFS
 	default n
 	---help---
 	  This option enables detailed statistics for association stations.
 
-config ATH9K_DFS_CERTIFIED
+config BACKPORT_ATH9K_DFS_CERTIFIED
 	bool "Atheros DFS support for certified platforms"
-	depends on ATH9K && CFG80211_CERTIFICATION_ONUS
+	depends on !ATH9K_DFS_CERTIFIED
+	depends on ATH9K && BACKPORT_CFG80211_CERTIFICATION_ONUS
 	default n
 	---help---
 	  This option enables DFS support for initiating radiation on
@@ -94,18 +104,20 @@ config ATH9K_DFS_CERTIFIED
 	  developed. At this point enabling this option won't do anything
 	  except increase code size.
 
-config ATH9K_DYNACK
+config BACKPORT_ATH9K_DYNACK
 	bool "Atheros ath9k ACK timeout estimation algorithm (EXPERIMENTAL)"
-	depends on ATH9K
+	depends on !ATH9K_DYNACK
+	depends on BACKPORT_ATH9K
 	default n
 	---help---
 	  This option enables ath9k dynamic ACK timeout estimation algorithm
 	  based on ACK frame RX timestamp, TX frame timestamp and frame
 	  duration
 
-config ATH9K_TX99
+config BACKPORT_ATH9K_TX99
 	bool "Atheros ath9k TX99 testing support"
-	depends on ATH9K_DEBUGFS && CFG80211_CERTIFICATION_ONUS
+	depends on !ATH9K_TX99
+	depends on ATH9K_DEBUGFS && BACKPORT_CFG80211_CERTIFICATION_ONUS
 	default n
 	---help---
 	  Say N. This should only be enabled on systems undergoing
@@ -123,17 +135,19 @@ config ATH9K_TX99
 	  be evaluated to meet the RF exposure limits set forth in the
 	  governmental SAR regulations.
 
-config ATH9K_WOW
+config BACKPORT_ATH9K_WOW
 	bool "Wake on Wireless LAN support (EXPERIMENTAL)"
-	depends on ATH9K && PM
+	depends on !ATH9K_WOW
+	depends on BACKPORT_ATH9K && PM
 	default n
 	---help---
 	  This option enables Wake on Wireless LAN support for certain cards.
 	  Currently, AR9462 is supported.
 
-config ATH9K_RFKILL
+config BACKPORT_ATH9K_RFKILL
 	bool "Atheros ath9k rfkill support" if EXPERT
-	depends on ATH9K
+	depends on !ATH9K_RFKILL
+	depends on BACKPORT_ATH9K
 	depends on RFKILL=y || RFKILL=ATH9K
 	default y
 	help
@@ -141,28 +155,31 @@ config ATH9K_RFKILL
 	  seconds. Turn off to save power, but enable it if you have
 	  a platform that can toggle the RF-Kill GPIO.
 
-config ATH9K_CHANNEL_CONTEXT
+config BACKPORT_ATH9K_CHANNEL_CONTEXT
        bool "Channel Context support"
-       depends on ATH9K
+	depends on !ATH9K_CHANNEL_CONTEXT
+       depends on BACKPORT_ATH9K
        default n
        ---help---
          This option enables channel context support in ath9k, which is needed
 	 for multi-channel concurrency. Enable this if P2P PowerSave support
 	 is required.
 
-config ATH9K_PCOEM
+config BACKPORT_ATH9K_PCOEM
 	bool "Atheros ath9k support for PC OEM cards" if EXPERT
-	depends on ATH9K
+	depends on !ATH9K_PCOEM
+	depends on BACKPORT_ATH9K
 	default y
 
-config ATH9K_HTC
+config BACKPORT_ATH9K_HTC
        tristate "Atheros HTC based wireless cards support"
-       depends on USB && MAC80211
-       select ATH9K_HW
-       select MAC80211_LEDS
+	depends on !ATH9K_HTC
+       depends on USB && BACKPORT_MAC80211
+       select BACKPORT_ATH9K_HW
+       select BACKPORT_MAC80211_LEDS
        select LEDS_CLASS
        select NEW_LEDS
-       select ATH9K_COMMON
+       select BACKPORT_ATH9K_COMMON
        ---help---
 	 Support for Atheros HTC based cards.
 	 Chipsets supported: AR9271
@@ -171,8 +188,9 @@ config ATH9K_HTC
 
 	 The built module will be ath9k_htc.
 
-config ATH9K_HTC_DEBUGFS
+config BACKPORT_ATH9K_HTC_DEBUGFS
 	bool "Atheros ath9k_htc debugging"
-	depends on ATH9K_HTC && DEBUG_FS
+	depends on !ATH9K_HTC_DEBUGFS
+	depends on BACKPORT_ATH9K_HTC && DEBUG_FS
 	---help---
 	  Say Y, if you need access to ath9k_htc's statistics.

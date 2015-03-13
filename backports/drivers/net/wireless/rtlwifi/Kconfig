@@ -1,6 +1,7 @@
-menuconfig RTL_CARDS
+menuconfig BACKPORT_RTL_CARDS
 	tristate "Realtek rtlwifi family of devices"
-	depends on MAC80211 && (PCI || USB)
+	depends on !RTL_CARDS
+	depends on BACKPORT_MAC80211 && (PCI || USB)
 	default y
 	---help---
 	  This option will enable support for the Realtek mac80211-based
@@ -8,96 +9,104 @@ menuconfig RTL_CARDS
 	  rtl8723ae, rtl8723be, rtl8188ee, rtl8192ee, and rtl8821ae share
 	  some common code.
 
-if RTL_CARDS
+if BACKPORT_RTL_CARDS
 
-config RTL8192CE
+config BACKPORT_RTL8192CE
 	tristate "Realtek RTL8192CE/RTL8188CE Wireless Network Adapter"
+	depends on !RTL8192CE
 	depends on PCI
-	select RTL8192C_COMMON
-	select RTLWIFI
-	select RTLWIFI_PCI
+	select BACKPORT_RTL8192C_COMMON
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_PCI
 	---help---
-	This is the driver for Realtek RTL8192CE/RTL8188CE 802.11n PCIe
+	This is the driver for Realtek BACKPORT_RTL8192CE/RTL8188CE 802.11n PCIe
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8192ce
 
-config RTL8192SE
+config BACKPORT_RTL8192SE
 	tristate "Realtek RTL8192SE/RTL8191SE PCIe Wireless Network Adapter"
+	depends on !RTL8192SE
 	depends on PCI
-	select RTLWIFI
-	select RTLWIFI_PCI
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_PCI
 	---help---
-	This is the driver for Realtek RTL8192SE/RTL8191SE 802.11n PCIe
+	This is the driver for Realtek BACKPORT_RTL8192SE/RTL8191SE 802.11n PCIe
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8192se
 
-config RTL8192DE
+config BACKPORT_RTL8192DE
 	tristate "Realtek RTL8192DE/RTL8188DE PCIe Wireless Network Adapter"
+	depends on !RTL8192DE
 	depends on PCI
-	select RTLWIFI
-	select RTLWIFI_PCI
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_PCI
 	---help---
-	This is the driver for Realtek RTL8192DE/RTL8188DE 802.11n PCIe
+	This is the driver for Realtek BACKPORT_RTL8192DE/RTL8188DE 802.11n PCIe
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8192de
 
-config RTL8723AE
+config BACKPORT_RTL8723AE
 	tristate "Realtek RTL8723AE PCIe Wireless Network Adapter"
+	depends on !RTL8723AE
 	depends on PCI
-	select RTLWIFI
-	select RTLWIFI_PCI
-	select RTL8723_COMMON
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_PCI
+	select BACKPORT_RTL8723_COMMON
 	select RTLBTCOEXIST
 	---help---
-	This is the driver for Realtek RTL8723AE 802.11n PCIe
+	This is the driver for Realtek BACKPORT_RTL8723AE 802.11n PCIe
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8723ae
 
-config RTL8723BE
+config BACKPORT_RTL8723BE
 	tristate "Realtek RTL8723BE PCIe Wireless Network Adapter"
+	depends on !RTL8723BE
 	depends on PCI
-	select RTLWIFI
-	select RTLWIFI_PCI
-	select RTL8723_COMMON
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_PCI
+	select BACKPORT_RTL8723_COMMON
 	select RTLBTCOEXIST
 	---help---
-	This is the driver for Realtek RTL8723BE 802.11n PCIe
+	This is the driver for Realtek BACKPORT_RTL8723BE 802.11n PCIe
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8723be
 
-config RTL8188EE
+config BACKPORT_RTL8188EE
 	tristate "Realtek RTL8188EE Wireless Network Adapter"
+	depends on !RTL8188EE
 	depends on PCI
-	select RTLWIFI
-	select RTLWIFI_PCI
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_PCI
 	---help---
-	This is the driver for Realtek RTL8188EE 802.11n PCIe
+	This is the driver for Realtek BACKPORT_RTL8188EE 802.11n PCIe
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8188ee
 
-config RTL8192EE
+config BACKPORT_RTL8192EE
 	tristate "Realtek RTL8192EE Wireless Network Adapter"
+	depends on !RTL8192EE
 	depends on PCI
-	select RTLWIFI
-	select RTLWIFI_PCI
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_PCI
 	select RTLBTCOEXIST
 	---help---
-	This is the driver for Realtek RTL8192EE 802.11n PCIe
+	This is the driver for Realtek BACKPORT_RTL8192EE 802.11n PCIe
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8192ee
 
-config RTL8821AE
+config BACKPORT_RTL8821AE
 	tristate "Realtek RTL8821AE/RTL8812AE Wireless Network Adapter"
+	depends on !RTL8821AE
 	depends on PCI
-	select RTLWIFI
-	select RTLWIFI_PCI
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_PCI
 	select RTLBTCOEXIST
 	---help---
 	This is the driver for Realtek RTL8i821AE/RTL8812AE 802.11av PCIe
@@ -105,50 +114,58 @@ config RTL8821AE
 
 	If you choose to build it as a module, it will be called rtl8821ae
 
-config RTL8192CU
+config BACKPORT_RTL8192CU
 	tristate "Realtek RTL8192CU/RTL8188CU USB Wireless Network Adapter"
+	depends on !RTL8192CU
 	depends on USB
-	select RTLWIFI
-	select RTLWIFI_USB
-	select RTL8192C_COMMON
+	select BACKPORT_RTLWIFI
+	select BACKPORT_RTLWIFI_USB
+	select BACKPORT_RTL8192C_COMMON
 	---help---
-	This is the driver for Realtek RTL8192CU/RTL8188CU 802.11n USB
+	This is the driver for Realtek BACKPORT_RTL8192CU/RTL8188CU 802.11n USB
 	wireless network adapters.
 
 	If you choose to build it as a module, it will be called rtl8192cu
 
-config RTLWIFI
+config BACKPORT_RTLWIFI
 	tristate
+	depends on !RTLWIFI
 	select FW_LOADER
 
-config RTLWIFI_PCI
+config BACKPORT_RTLWIFI_PCI
 	tristate
+	depends on !RTLWIFI_PCI
 
-config RTLWIFI_USB
+config BACKPORT_RTLWIFI_USB
 	tristate
+	depends on !RTLWIFI_USB
 
-config RTLWIFI_DEBUG
+config BACKPORT_RTLWIFI_DEBUG
 	bool "Debugging output for rtlwifi driver family"
-	depends on RTLWIFI
+	depends on !RTLWIFI_DEBUG
+	depends on BACKPORT_RTLWIFI
 	default y
 	---help---
 	To use the module option that sets the dynamic-debugging level for,
 	the front-end driver, this parameter must be "Y". For memory-limited
 	systems, choose "N". If in doubt, choose "Y".
 
-config RTL8192C_COMMON
+config BACKPORT_RTL8192C_COMMON
 	tristate
-	depends on RTL8192CE || RTL8192CU
+	depends on !RTL8192C_COMMON
+	depends on BACKPORT_RTL8192CE || RTL8192CU
 	default y
 
-config RTL8723_COMMON
+config BACKPORT_RTL8723_COMMON
 	tristate
-	depends on RTL8723AE || RTL8723BE
+	depends on !RTL8723_COMMON
+	depends on BACKPORT_RTL8723AE || RTL8723BE
 	default y
 
-config RTLBTCOEXIST
+config BACKPORT_RTLBTCOEXIST
 	tristate
-	depends on RTL8723AE || RTL8723BE || RTL8821AE || RTL8192EE
+	depends on !RTLBTCOEXIST
+	depends on BACKPORT_RTL8723AE || RTL8723BE || RTL8821AE || RTL8192EE
 	default y
 
 endif

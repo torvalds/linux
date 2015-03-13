@@ -1,6 +1,7 @@
-config USB_STV06XX
+config BACKPORT_USB_STV06XX
 	tristate "STV06XX USB Camera Driver"
-	depends on USB_GSPCA
+	depends on !USB_STV06XX
+	depends on BACKPORT_USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on
 	  the ST STV06XX chip.

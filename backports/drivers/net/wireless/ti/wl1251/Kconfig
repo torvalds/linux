@@ -1,6 +1,7 @@
-menuconfig WL1251
+menuconfig BACKPORT_WL1251
 	tristate "TI wl1251 driver support"
-	depends on MAC80211
+	depends on !WL1251
+	depends on BACKPORT_MAC80211
 	select FW_LOADER
 	select CRC7
 	---help---
@@ -10,9 +11,10 @@ menuconfig WL1251
 	  If you choose to build a module, it'll be called wl1251. Say
 	  N if unsure.
 
-config WL1251_SPI
+config BACKPORT_WL1251_SPI
 	tristate "TI wl1251 SPI support"
-	depends on WL1251 && SPI_MASTER
+	depends on !WL1251_SPI
+	depends on BACKPORT_WL1251 && SPI_MASTER
 	---help---
 	  This module adds support for the SPI interface of adapters using
 	  TI wl1251 chipset.  Select this if your platform is using
@@ -21,9 +23,10 @@ config WL1251_SPI
 	  If you choose to build a module, it'll be called wl1251_spi.
 	  Say N if unsure.
 
-config WL1251_SDIO
+config BACKPORT_WL1251_SDIO
 	tristate "TI wl1251 SDIO support"
-	depends on WL1251 && MMC
+	depends on !WL1251_SDIO
+	depends on BACKPORT_WL1251 && MMC
 	---help---
 	  This module adds support for the SDIO interface of adapters using
 	  TI wl1251 chipset.  Select this if your platform is using

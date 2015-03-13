@@ -1,8 +1,9 @@
-config HERMES
+config BACKPORT_HERMES
 	tristate "Hermes chipset 802.11b support (Orinoco/Prism2/Symbol)"
+	depends on !HERMES
 	depends on (PPC_PMAC || PCI || PCMCIA)
-	depends on CFG80211
-	select CFG80211_WEXT
+	depends on BACKPORT_CFG80211
+	select BACKPORT_CFG80211_WEXT
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV
@@ -28,9 +29,10 @@ config HERMES
 	  configure your card and that /etc/pcmcia/wireless.opts works :
 	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>
 
-config HERMES_PRISM
+config BACKPORT_HERMES_PRISM
 	bool "Support Prism 2/2.5 chipset"
-	depends on HERMES
+	depends on !HERMES_PRISM
+	depends on BACKPORT_HERMES
 	---help---
 
 	  Say Y to enable support for Prism 2 and 2.5 chipsets.  These
@@ -39,9 +41,10 @@ config HERMES_PRISM
 
 	  If you are not sure, say N.
 
-config HERMES_CACHE_FW_ON_INIT
+config BACKPORT_HERMES_CACHE_FW_ON_INIT
 	bool "Cache Hermes firmware on driver initialisation"
-	depends on HERMES
+	depends on !HERMES_CACHE_FW_ON_INIT
+	depends on BACKPORT_HERMES
 	default y
 	---help---
 	  Say Y to cache any firmware required by the Hermes drivers
@@ -54,9 +57,10 @@ config HERMES_CACHE_FW_ON_INIT
 
 	  If you are not sure, say Y.
 
-config APPLE_AIRPORT
+config BACKPORT_APPLE_AIRPORT
 	tristate "Apple Airport support (built-in)"
-	depends on PPC_PMAC && HERMES
+	depends on !APPLE_AIRPORT
+	depends on PPC_PMAC && BACKPORT_HERMES
 	help
 	  Say Y here to support the Airport 802.11b wireless Ethernet hardware
 	  built into the Macintosh iBook and other recent PowerPC-based
@@ -66,9 +70,10 @@ config APPLE_AIRPORT
 	  This driver does not support the Airport Extreme (802.11b/g). Use
 	  the BCM43xx driver for Airport Extreme cards.
 
-config PLX_HERMES
+config BACKPORT_PLX_HERMES
 	tristate "Hermes in PLX9052 based PCI adaptor support (Netgear MA301 etc.)"
-	depends on PCI && HERMES
+	depends on !PLX_HERMES
+	depends on PCI && BACKPORT_HERMES
 	help
 	  Enable support for PCMCIA cards supported by the "Hermes" (aka
 	  orinoco) driver when used in PLX9052 based PCI adaptors.  These
@@ -77,9 +82,10 @@ config PLX_HERMES
 	  802.11b PCMCIA cards can be used in desktop machines.  The Netgear
 	  MA301 is such an adaptor.
 
-config TMD_HERMES
+config BACKPORT_TMD_HERMES
 	tristate "Hermes in TMD7160 based PCI adaptor support"
-	depends on PCI && HERMES
+	depends on !TMD_HERMES
+	depends on PCI && BACKPORT_HERMES
 	help
 	  Enable support for PCMCIA cards supported by the "Hermes" (aka
 	  orinoco) driver when used in TMD7160 based PCI adaptors.  These
@@ -87,18 +93,20 @@ config TMD_HERMES
 	  PCI <-> PCMCIA bridge.  Several vendors sell such adaptors so that
 	  802.11b PCMCIA cards can be used in desktop machines.
 
-config NORTEL_HERMES
+config BACKPORT_NORTEL_HERMES
 	tristate "Nortel emobility PCI adaptor support"
-	depends on PCI && HERMES
+	depends on !NORTEL_HERMES
+	depends on PCI && BACKPORT_HERMES
 	help
 	  Enable support for PCMCIA cards supported by the "Hermes" (aka
 	  orinoco) driver when used in Nortel emobility PCI adaptors.  These
 	  adaptors are not full PCMCIA controllers, but act as a more limited
 	  PCI <-> PCMCIA bridge.
 
-config PCI_HERMES
+config BACKPORT_PCI_HERMES
 	tristate "Prism 2.5 PCI 802.11b adaptor support"
-	depends on PCI && HERMES && HERMES_PRISM
+	depends on !PCI_HERMES
+	depends on PCI && BACKPORT_HERMES && BACKPORT_HERMES_PRISM
 	help
 	  Enable support for PCI and mini-PCI 802.11b wireless NICs based on
 	  the Prism 2.5 chipset.  These are true PCI cards, not the 802.11b
@@ -106,24 +114,26 @@ config PCI_HERMES
 	  common.  Some of the built-in wireless adaptors in laptops are of
 	  this variety.
 
-config PCMCIA_HERMES
+config BACKPORT_PCMCIA_HERMES
 	tristate "Hermes PCMCIA card support"
-	depends on PCMCIA && HERMES && HAS_IOPORT_MAP
+	depends on !PCMCIA_HERMES
+	depends on PCMCIA && BACKPORT_HERMES && HAS_IOPORT_MAP
 	---help---
 	  A driver for "Hermes" chipset based PCMCIA wireless adaptors, such
 	  as the Lucent WavelanIEEE/Orinoco cards and their OEM (Cabletron/
 	  EnteraSys RoamAbout 802.11, ELSA Airlancer, Melco Buffalo and
 	  others).  It should also be usable on various Prism II based cards
 	  such as the Linksys, D-Link and Farallon Skyline.  It should also
-	  work on Symbol cards such as the 3Com AirConnect and Ericsson WLAN.
+	  work on Symbol cards such as the 3Com AirConnect and Ericsson BACKPORT_WLAN.
 
 	  You will very likely need the Wireless Tools in order to
 	  configure your card and that /etc/pcmcia/wireless.opts works:
 	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
 
-config PCMCIA_SPECTRUM
+config BACKPORT_PCMCIA_SPECTRUM
 	tristate "Symbol Spectrum24 Trilogy PCMCIA card support"
-	depends on PCMCIA && HERMES && HAS_IOPORT_MAP
+	depends on !PCMCIA_SPECTRUM
+	depends on PCMCIA && BACKPORT_HERMES && HAS_IOPORT_MAP
 	---help---
 
 	  This is a driver for 802.11b cards using RAM-loadable Symbol
@@ -134,9 +144,10 @@ config PCMCIA_SPECTRUM
 	  for downloading Symbol firmware are available at
 	  <http://sourceforge.net/projects/orinoco/>
 
-config ORINOCO_USB
+config BACKPORT_ORINOCO_USB
 	tristate "Agere Orinoco USB support"
-	depends on USB && HERMES
+	depends on !ORINOCO_USB
+	depends on USB && BACKPORT_HERMES
 	select FW_LOADER
 	---help---
 	  This driver is for USB versions of the Agere Orinoco card.

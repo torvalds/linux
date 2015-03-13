@@ -1,5 +1,6 @@
-config 6LOWPAN
+config BACKPORT_6LOWPAN
 	tristate "6LoWPAN Support"
+	depends on !6LOWPAN
 	depends on IPV6
 	---help---
 	  This enables IPv6 over Low power Wireless Personal Area Network -

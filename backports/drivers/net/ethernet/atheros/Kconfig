@@ -2,8 +2,9 @@
 # Atheros device configuration
 #
 
-config NET_VENDOR_ATHEROS
+config BACKPORT_NET_VENDOR_ATHEROS
 	bool "Atheros devices"
+	depends on !NET_VENDOR_ATHEROS
 	default y
 	depends on PCI
 	---help---
@@ -16,10 +17,11 @@ config NET_VENDOR_ATHEROS
 	  the questions about Atheros devices. If you say Y, you will be asked
 	  for your specific card in the following questions.
 
-if NET_VENDOR_ATHEROS
+if BACKPORT_NET_VENDOR_ATHEROS
 
-config ATL2
+config BACKPORT_ATL2
 	tristate "Atheros L2 Fast Ethernet support"
+	depends on !ATL2
 	depends on PCI
 	select CRC32
 	select MII
@@ -29,8 +31,9 @@ config ATL2
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl2.
 
-config ATL1
+config BACKPORT_ATL1
 	tristate "Atheros/Attansic L1 Gigabit Ethernet support"
+	depends on !ATL1
 	depends on PCI
 	select CRC32
 	select MII
@@ -41,8 +44,9 @@ config ATL1
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1.
 
-config ATL1E
+config BACKPORT_ATL1E
 	tristate "Atheros L1E Gigabit Ethernet support"
+	depends on !ATL1E
 	depends on PCI
 	select CRC32
 	select MII
@@ -52,8 +56,9 @@ config ATL1E
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1e.
 
-config ATL1C
+config BACKPORT_ATL1C
 	tristate "Atheros L1C Gigabit Ethernet support"
+	depends on !ATL1C
 	depends on PCI
 	select CRC32
 	select MII
@@ -63,11 +68,12 @@ config ATL1C
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1c.
 
-config ALX
+config BACKPORT_ALX
 	tristate "Qualcomm Atheros AR816x/AR817x support"
+	depends on !ALX
 	depends on PCI
 	select CRC32
-	select MDIO
+	select BACKPORT_MDIO
 	help
 	  This driver supports the Qualcomm Atheros L1F ethernet adapter,
 	  i.e. the following chipsets:
@@ -80,4 +86,4 @@ config ALX
 	  To compile this driver as a module, choose M here.  The module
 	  will be called alx.
 
-endif # NET_VENDOR_ATHEROS
+endif # BACKPORT_NET_VENDOR_ATHEROS

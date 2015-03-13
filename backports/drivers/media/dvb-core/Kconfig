@@ -2,9 +2,10 @@
 # DVB device configuration
 #
 
-config DVB_MAX_ADAPTERS
+config BACKPORT_DVB_MAX_ADAPTERS
 	int "maximum number of DVB/ATSC adapters"
-	depends on DVB_CORE
+	depends on !DVB_MAX_ADAPTERS
+	depends on BACKPORT_DVB_CORE
 	default 8
 	range 1 255
 	help
@@ -15,9 +16,10 @@ config DVB_MAX_ADAPTERS
 
 	  If you are unsure about this, use the default value 8
 
-config DVB_DYNAMIC_MINORS
+config BACKPORT_DVB_DYNAMIC_MINORS
 	bool "Dynamic DVB minor allocation"
-	depends on DVB_CORE
+	depends on !DVB_DYNAMIC_MINORS
+	depends on BACKPORT_DVB_CORE
 	default n
 	help
 	  If you say Y here, the DVB subsystem will use dynamic minor

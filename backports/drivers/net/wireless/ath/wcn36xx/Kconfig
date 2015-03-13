@@ -1,15 +1,17 @@
-config WCN36XX
+config BACKPORT_WCN36XX
 	tristate "Qualcomm Atheros WCN3660/3680 support"
-	depends on MAC80211 && HAS_DMA
+	depends on !WCN36XX
+	depends on BACKPORT_MAC80211 && HAS_DMA
 	---help---
 	  This module adds support for wireless adapters based on
 	  Qualcomm Atheros WCN3660 and WCN3680 mobile chipsets.
 
 	  If you choose to build a module, it'll be called wcn36xx.
 
-config WCN36XX_DEBUGFS
+config BACKPORT_WCN36XX_DEBUGFS
 	bool "WCN36XX debugfs support"
-	depends on WCN36XX
+	depends on !WCN36XX_DEBUGFS
+	depends on BACKPORT_WCN36XX
 	---help---
 	  Enabled debugfs support
 

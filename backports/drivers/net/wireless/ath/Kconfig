@@ -1,9 +1,11 @@
-config ATH_COMMON
+config BACKPORT_ATH_COMMON
 	tristate
+	depends on !ATH_COMMON
 
-menuconfig ATH_CARDS
+menuconfig BACKPORT_ATH_CARDS
 	tristate "Atheros Wireless Cards"
-	depends on CFG80211 && (!UML || BROKEN)
+	depends on !ATH_CARDS
+	depends on BACKPORT_CFG80211 && (!UML || BROKEN)
 	---help---
 	  This will enable the support for the Atheros wireless drivers.
 	  ath5k, ath9k, ath9k_htc and ar9170 drivers share some common code, this option
@@ -17,34 +19,38 @@ menuconfig ATH_CARDS
 
 	  http://wireless.kernel.org/en/users/Drivers/Atheros
 
-if ATH_CARDS
+if BACKPORT_ATH_CARDS
 
-config ATH_DEBUG
+config BACKPORT_ATH_DEBUG
 	bool "Atheros wireless debugging"
+	depends on !ATH_DEBUG
 	---help---
 	  Say Y, if you want to debug atheros wireless drivers.
 	  Right now only ath9k makes use of this.
 
-config ATH_TRACEPOINTS
+config BACKPORT_ATH_TRACEPOINTS
        bool "Atheros wireless tracing"
-       depends on ATH_DEBUG
+	depends on !ATH_TRACEPOINTS
+       depends on BACKPORT_ATH_DEBUG
        depends on EVENT_TRACING
        ---help---
          This option enables tracepoints for atheros wireless drivers.
 	 Currently, ath9k makes use of this facility.
 
-config ATH_REG_DYNAMIC_USER_REG_HINTS
+config BACKPORT_ATH_REG_DYNAMIC_USER_REG_HINTS
 	bool "Atheros dynamic user regulatory hints"
-	depends on CFG80211_CERTIFICATION_ONUS
+	depends on !ATH_REG_DYNAMIC_USER_REG_HINTS
+	depends on BACKPORT_CFG80211_CERTIFICATION_ONUS
 	default n
 	---help---
 	  Say N. This should only be enabled in countries where
 	  this feature is explicitly allowed and only on cards that
 	  specifically have been tested for this.
 
-config ATH_REG_DYNAMIC_USER_CERT_TESTING
+config BACKPORT_ATH_REG_DYNAMIC_USER_CERT_TESTING
 	bool "Atheros dynamic user regulatory testing"
-	depends on ATH_REG_DYNAMIC_USER_REG_HINTS && CFG80211_CERTIFICATION_ONUS
+	depends on !ATH_REG_DYNAMIC_USER_CERT_TESTING
+	depends on ATH_REG_DYNAMIC_USER_REG_HINTS && BACKPORT_CFG80211_CERTIFICATION_ONUS
 	default n
 	---help---
 	  Say N. This should only be enabled on systems

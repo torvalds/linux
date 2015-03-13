@@ -1,12 +1,13 @@
 #
 # RTL818X Wireless LAN device configuration
 #
-config RTL8180
+config BACKPORT_RTL8180
 	tristate "Realtek 8180/8185/8187SE PCI support"
-	depends on MAC80211 && PCI
+	depends on !RTL8180
+	depends on BACKPORT_MAC80211 && PCI
 	select EEPROM_93CX6
 	---help---
-	  This is a driver for RTL8180, RTL8185 and RTL8187SE based cards.
+	  This is a driver for BACKPORT_RTL8180, RTL8185 and RTL8187SE based cards.
 	  These are PCI based chips found in cards such as:
 
 	  (RTL8185 802.11g)
@@ -57,12 +58,13 @@ config RTL8180
 
 	  Thanks to Realtek for their support!
 
-config RTL8187
+config BACKPORT_RTL8187
 	tristate "Realtek 8187 and 8187B USB support"
-	depends on MAC80211 && USB
+	depends on !RTL8187
+	depends on BACKPORT_MAC80211 && USB
 	select EEPROM_93CX6
 	---help---
-	  This is a driver for RTL8187 and RTL8187B based cards.
+	  This is a driver for BACKPORT_RTL8187 and BACKPORT_RTL8187B based cards.
 	  These are USB based chips found in devices such as:
 
 	  Netgear WG111v2
@@ -79,10 +81,11 @@ config RTL8187
 
 	  Thanks to Realtek for their support!
 
-# If possible, automatically enable LEDs for RTL8187.
+# If possible, automatically enable LEDs for BACKPORT_RTL8187.
 
-config RTL8187_LEDS
+config BACKPORT_RTL8187_LEDS
 	bool
-	depends on RTL8187 && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = RTL8187)
+	depends on !RTL8187_LEDS
+	depends on RTL8187 && BACKPORT_MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = RTL8187)
 	default y
 

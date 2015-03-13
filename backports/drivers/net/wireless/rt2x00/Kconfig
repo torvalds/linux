@@ -1,6 +1,7 @@
-menuconfig RT2X00
+menuconfig BACKPORT_RT2X00
 	tristate "Ralink driver support"
-	depends on MAC80211 && HAS_DMA
+	depends on !RT2X00
+	depends on BACKPORT_MAC80211 && HAS_DMA
 	---help---
 	  This will enable the support for the Ralink drivers,
 	  developed in the rt2x00 project <http://rt2x00.serialmonkey.com>.
@@ -15,13 +16,14 @@ menuconfig RT2X00
 	  on the types of drivers being selected, these libraries will be
 	  called rt2x00pci and rt2x00usb.
 
-if RT2X00
+if BACKPORT_RT2X00
 
-config RT2400PCI
+config BACKPORT_RT2400PCI
 	tristate "Ralink rt2400 (PCI/PCMCIA) support"
+	depends on !RT2400PCI
 	depends on PCI
-	select RT2X00_LIB_MMIO
-	select RT2X00_LIB_PCI
+	select BACKPORT_RT2X00_LIB_MMIO
+	select BACKPORT_RT2X00_LIB_PCI
 	select EEPROM_93CX6
 	---help---
 	  This adds support for rt2400 wireless chipset family.
@@ -29,11 +31,12 @@ config RT2400PCI
 
 	  When compiled as a module, this driver will be called rt2400pci.
 
-config RT2500PCI
+config BACKPORT_RT2500PCI
 	tristate "Ralink rt2500 (PCI/PCMCIA) support"
+	depends on !RT2500PCI
 	depends on PCI
-	select RT2X00_LIB_MMIO
-	select RT2X00_LIB_PCI
+	select BACKPORT_RT2X00_LIB_MMIO
+	select BACKPORT_RT2X00_LIB_PCI
 	select EEPROM_93CX6
 	---help---
 	  This adds support for rt2500 wireless chipset family.
@@ -41,13 +44,14 @@ config RT2500PCI
 
 	  When compiled as a module, this driver will be called rt2500pci.
 
-config RT61PCI
+config BACKPORT_RT61PCI
 	tristate "Ralink rt2501/rt61 (PCI/PCMCIA) support"
+	depends on !RT61PCI
 	depends on PCI
-	select RT2X00_LIB_PCI
-	select RT2X00_LIB_MMIO
-	select RT2X00_LIB_FIRMWARE
-	select RT2X00_LIB_CRYPTO
+	select BACKPORT_RT2X00_LIB_PCI
+	select BACKPORT_RT2X00_LIB_MMIO
+	select BACKPORT_RT2X00_LIB_FIRMWARE
+	select BACKPORT_RT2X00_LIB_CRYPTO
 	select CRC_ITU_T
 	select EEPROM_93CX6
 	---help---
@@ -56,15 +60,16 @@ config RT61PCI
 
 	  When compiled as a module, this driver will be called rt61pci.
 
-config RT2800PCI
+config BACKPORT_RT2800PCI
 	tristate "Ralink rt27xx/rt28xx/rt30xx (PCI/PCIe/PCMCIA) support"
+	depends on !RT2800PCI
 	depends on PCI
-	select RT2800_LIB
-	select RT2800_LIB_MMIO
-	select RT2X00_LIB_MMIO
-	select RT2X00_LIB_PCI
-	select RT2X00_LIB_FIRMWARE
-	select RT2X00_LIB_CRYPTO
+	select BACKPORT_RT2800_LIB
+	select BACKPORT_RT2800_LIB_MMIO
+	select BACKPORT_RT2X00_LIB_MMIO
+	select BACKPORT_RT2X00_LIB_PCI
+	select BACKPORT_RT2X00_LIB_FIRMWARE
+	select BACKPORT_RT2X00_LIB_CRYPTO
 	select CRC_CCITT
 	select EEPROM_93CX6
 	---help---
@@ -74,18 +79,20 @@ config RT2800PCI
 
 	  When compiled as a module, this driver will be called "rt2800pci.ko".
 
-if RT2800PCI
+if BACKPORT_RT2800PCI
 
-config RT2800PCI_RT33XX
+config BACKPORT_RT2800PCI_RT33XX
 	bool "rt2800pci - Include support for rt33xx devices"
+	depends on !RT2800PCI_RT33XX
 	default y
 	---help---
 	  This adds support for rt33xx wireless chipset family to the
 	  rt2800pci driver.
 	  Supported chips: RT3390
 
-config RT2800PCI_RT35XX
+config BACKPORT_RT2800PCI_RT35XX
 	bool "rt2800pci - Include support for rt35xx devices (EXPERIMENTAL)"
+	depends on !RT2800PCI_RT35XX
 	default y
 	---help---
 	  This adds support for rt35xx wireless chipset family to the
@@ -93,16 +100,18 @@ config RT2800PCI_RT35XX
 	  Supported chips: RT3060, RT3062, RT3562, RT3592
 
 
-config RT2800PCI_RT53XX
+config BACKPORT_RT2800PCI_RT53XX
        bool "rt2800pci - Include support for rt53xx devices (EXPERIMENTAL)"
+	depends on !RT2800PCI_RT53XX
        default y
        ---help---
          This adds support for rt53xx wireless chipset family to the
          rt2800pci driver.
          Supported chips: RT5390
 
-config RT2800PCI_RT3290
+config BACKPORT_RT2800PCI_RT3290
        bool "rt2800pci - Include support for rt3290 devices (EXPERIMENTAL)"
+	depends on !RT2800PCI_RT3290
        default y
        ---help---
          This adds support for rt3290 wireless chipset family to the
@@ -110,23 +119,25 @@ config RT2800PCI_RT3290
          Supported chips: RT3290
 endif
 
-config RT2500USB
+config BACKPORT_RT2500USB
 	tristate "Ralink rt2500 (USB) support"
+	depends on !RT2500USB
 	depends on USB
-	select RT2X00_LIB_USB
-	select RT2X00_LIB_CRYPTO
+	select BACKPORT_RT2X00_LIB_USB
+	select BACKPORT_RT2X00_LIB_CRYPTO
 	---help---
 	  This adds support for rt2500 wireless chipset family.
 	  Supported chips: RT2571 & RT2572.
 
 	  When compiled as a module, this driver will be called rt2500usb.
 
-config RT73USB
+config BACKPORT_RT73USB
 	tristate "Ralink rt2501/rt73 (USB) support"
+	depends on !RT73USB
 	depends on USB
-	select RT2X00_LIB_USB
-	select RT2X00_LIB_FIRMWARE
-	select RT2X00_LIB_CRYPTO
+	select BACKPORT_RT2X00_LIB_USB
+	select BACKPORT_RT2X00_LIB_FIRMWARE
+	select BACKPORT_RT2X00_LIB_CRYPTO
 	select CRC_ITU_T
 	---help---
 	  This adds support for rt2501 wireless chipset family.
@@ -134,13 +145,14 @@ config RT73USB
 
 	  When compiled as a module, this driver will be called rt73usb.
 
-config RT2800USB
+config BACKPORT_RT2800USB
 	tristate "Ralink rt27xx/rt28xx/rt30xx (USB) support"
+	depends on !RT2800USB
 	depends on USB
-	select RT2800_LIB
-	select RT2X00_LIB_USB
-	select RT2X00_LIB_FIRMWARE
-	select RT2X00_LIB_CRYPTO
+	select BACKPORT_RT2800_LIB
+	select BACKPORT_RT2X00_LIB_USB
+	select BACKPORT_RT2X00_LIB_FIRMWARE
+	select BACKPORT_RT2X00_LIB_CRYPTO
 	select CRC_CCITT
 	---help---
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
@@ -148,46 +160,52 @@ config RT2800USB
 
 	  When compiled as a module, this driver will be called "rt2800usb.ko".
 
-if RT2800USB
+if BACKPORT_RT2800USB
 
-config RT2800USB_RT33XX
+config BACKPORT_RT2800USB_RT33XX
 	bool "rt2800usb - Include support for rt33xx devices"
+	depends on !RT2800USB_RT33XX
 	default y
 	---help---
 	  This adds support for rt33xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3370
 
-config RT2800USB_RT35XX
+config BACKPORT_RT2800USB_RT35XX
 	bool "rt2800usb - Include support for rt35xx devices (EXPERIMENTAL)"
+	depends on !RT2800USB_RT35XX
 	default y
 	---help---
 	  This adds support for rt35xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3572
 
-config RT2800USB_RT3573
+config BACKPORT_RT2800USB_RT3573
 	bool "rt2800usb - Include support for rt3573 devices (EXPERIMENTAL)"
+	depends on !RT2800USB_RT3573
 	---help---
 	  This enables support for RT3573 chipset based wireless USB devices
 	  in the rt2800usb driver.
 
-config RT2800USB_RT53XX
+config BACKPORT_RT2800USB_RT53XX
        bool "rt2800usb - Include support for rt53xx devices (EXPERIMENTAL)"
+	depends on !RT2800USB_RT53XX
        ---help---
          This adds support for rt53xx wireless chipset family to the
          rt2800usb driver.
          Supported chips: RT5370
 
-config RT2800USB_RT55XX
+config BACKPORT_RT2800USB_RT55XX
        bool "rt2800usb - Include support for rt55xx devices (EXPERIMENTAL)"
+	depends on !RT2800USB_RT55XX
        ---help---
          This adds support for rt55xx wireless chipset family to the
          rt2800usb driver.
          Supported chips: RT5572
 
-config RT2800USB_UNKNOWN
+config BACKPORT_RT2800USB_UNKNOWN
 	bool "rt2800usb - Include support for unknown (USB) devices"
+	depends on !RT2800USB_UNKNOWN
 	default n
 	---help---
 	  This adds support for rt2800usb devices that are known to
@@ -199,15 +217,16 @@ config RT2800USB_UNKNOWN
 
 endif
 
-config RT2800SOC
+config BACKPORT_RT2800SOC
 	tristate "Ralink WiSoC support"
+	depends on !RT2800SOC
 	depends on SOC_RT288X || SOC_RT305X
-	select RT2X00_LIB_SOC
-	select RT2X00_LIB_MMIO
-	select RT2X00_LIB_CRYPTO
-	select RT2X00_LIB_FIRMWARE
-	select RT2800_LIB
-	select RT2800_LIB_MMIO
+	select BACKPORT_RT2X00_LIB_SOC
+	select BACKPORT_RT2X00_LIB_MMIO
+	select BACKPORT_RT2X00_LIB_CRYPTO
+	select BACKPORT_RT2X00_LIB_FIRMWARE
+	select BACKPORT_RT2800_LIB
+	select BACKPORT_RT2800_LIB_MMIO
 	---help---
 	  This adds support for Ralink WiSoC devices.
 	  Supported chips: RT2880, RT3050, RT3052, RT3350, RT3352.
@@ -215,55 +234,67 @@ config RT2800SOC
 	  When compiled as a module, this driver will be called rt2800soc.
 
 
-config RT2800_LIB
+config BACKPORT_RT2800_LIB
 	tristate
+	depends on !RT2800_LIB
 
-config RT2800_LIB_MMIO
+config BACKPORT_RT2800_LIB_MMIO
 	tristate
-	select RT2X00_LIB_MMIO
-	select RT2800_LIB
+	depends on !RT2800_LIB_MMIO
+	select BACKPORT_RT2X00_LIB_MMIO
+	select BACKPORT_RT2800_LIB
 
-config RT2X00_LIB_MMIO
+config BACKPORT_RT2X00_LIB_MMIO
 	tristate
+	depends on !RT2X00_LIB_MMIO
 
-config RT2X00_LIB_PCI
+config BACKPORT_RT2X00_LIB_PCI
 	tristate
-	select RT2X00_LIB
+	depends on !RT2X00_LIB_PCI
+	select BACKPORT_RT2X00_LIB
 
-config RT2X00_LIB_SOC
+config BACKPORT_RT2X00_LIB_SOC
 	tristate
-	select RT2X00_LIB
+	depends on !RT2X00_LIB_SOC
+	select BACKPORT_RT2X00_LIB
 
-config RT2X00_LIB_USB
+config BACKPORT_RT2X00_LIB_USB
 	tristate
-	select RT2X00_LIB
+	depends on !RT2X00_LIB_USB
+	select BACKPORT_RT2X00_LIB
 
-config RT2X00_LIB
+config BACKPORT_RT2X00_LIB
 	tristate
+	depends on !RT2X00_LIB
 	select AVERAGE
 
-config RT2X00_LIB_FIRMWARE
+config BACKPORT_RT2X00_LIB_FIRMWARE
 	bool
+	depends on !RT2X00_LIB_FIRMWARE
 	select FW_LOADER
 
-config RT2X00_LIB_CRYPTO
+config BACKPORT_RT2X00_LIB_CRYPTO
 	bool
+	depends on !RT2X00_LIB_CRYPTO
 
-config RT2X00_LIB_LEDS
+config BACKPORT_RT2X00_LIB_LEDS
 	bool
+	depends on !RT2X00_LIB_LEDS
 	default y if (RT2X00_LIB=y && LEDS_CLASS=y) || (RT2X00_LIB=m && LEDS_CLASS!=n)
 
-config RT2X00_LIB_DEBUGFS
+config BACKPORT_RT2X00_LIB_DEBUGFS
 	bool "Ralink debugfs support"
-	depends on RT2X00_LIB && MAC80211_DEBUGFS
+	depends on !RT2X00_LIB_DEBUGFS
+	depends on RT2X00_LIB && BACKPORT_MAC80211_DEBUGFS
 	---help---
 	  Enable creation of debugfs files for the rt2x00 drivers.
 	  These debugfs files support both reading and writing of the
 	  most important register types of the rt2x00 hardware.
 
-config RT2X00_DEBUG
+config BACKPORT_RT2X00_DEBUG
 	bool "Ralink debug output"
-	depends on RT2X00_LIB
+	depends on !RT2X00_DEBUG
+	depends on BACKPORT_RT2X00_LIB
 	---help---
 	  Enable debugging output for all rt2x00 modules
 

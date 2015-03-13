@@ -1,7 +1,8 @@
-config WL18XX
+config BACKPORT_WL18XX
 	tristate "TI wl18xx support"
-	depends on MAC80211
-	select WLCORE
+	depends on !WL18XX
+	depends on BACKPORT_MAC80211
+	select BACKPORT_WLCORE
 	---help---
 	  This module adds support for wireless adapters based on TI
 	  WiLink 8 chipsets.

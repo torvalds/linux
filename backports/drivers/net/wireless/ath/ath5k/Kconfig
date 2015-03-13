@@ -1,13 +1,14 @@
-config ATH5K
+config BACKPORT_ATH5K
 	tristate "Atheros 5xxx wireless cards support"
-	depends on (PCI || ATH25) && MAC80211
-	select ATH_COMMON
-	select MAC80211_LEDS
+	depends on !ATH5K
+	depends on (PCI || ATH25) && BACKPORT_MAC80211
+	select BACKPORT_ATH_COMMON
+	select BACKPORT_MAC80211_LEDS
 	select LEDS_CLASS
 	select NEW_LEDS
 	select AVERAGE
-	select ATH5K_AHB if ATH25
-	select ATH5K_PCI if !ATH25
+	select BACKPORT_ATH5K_AHB if ATH25
+	select BACKPORT_ATH5K_PCI if !ATH25
 	---help---
 	  This module adds support for wireless adapters based on
 	  Atheros 5xxx chipset.
@@ -22,9 +23,10 @@ config ATH5K
 	  If you choose to build a module, it'll be called ath5k. Say M if
 	  unsure.
 
-config ATH5K_DEBUG
+config BACKPORT_ATH5K_DEBUG
 	bool "Atheros 5xxx debugging"
-	depends on ATH5K
+	depends on !ATH5K_DEBUG
+	depends on BACKPORT_ATH5K
 	---help---
 	  Atheros 5xxx debugging messages.
 
@@ -41,9 +43,10 @@ config ATH5K_DEBUG
 
 	  modprobe ath5k debug=0x00000400
 
-config ATH5K_TRACER
+config BACKPORT_ATH5K_TRACER
 	bool "Atheros 5xxx tracer"
-	depends on ATH5K
+	depends on !ATH5K_TRACER
+	depends on BACKPORT_ATH5K
 	depends on EVENT_TRACING
 	---help---
 	  Say Y here to enable tracepoints for the ath5k driver
@@ -52,23 +55,26 @@ config ATH5K_TRACER
 
 	  If unsure, say N.
 
-config ATH5K_AHB
+config BACKPORT_ATH5K_AHB
 	bool "Atheros 5xxx AHB bus support"
+	depends on !ATH5K_AHB
 	depends on ATH25
 	---help---
 	  This adds support for WiSoC type chipsets of the 5xxx Atheros
 	  family.
 
-config ATH5K_PCI
+config BACKPORT_ATH5K_PCI
 	bool "Atheros 5xxx PCI bus support"
+	depends on !ATH5K_PCI
 	depends on (!ATH25 && PCI)
 	---help---
 	  This adds support for PCI type chipsets of the 5xxx Atheros
 	  family.
 
-config ATH5K_TEST_CHANNELS
+config BACKPORT_ATH5K_TEST_CHANNELS
 	bool "Enables testing channels on ath5k"
-	depends on ATH5K && CFG80211_CERTIFICATION_ONUS
+	depends on !ATH5K_TEST_CHANNELS
+	depends on ATH5K && BACKPORT_CFG80211_CERTIFICATION_ONUS
 	---help---
 	  This enables non-standard IEEE 802.11 channels on ath5k, which
 	  can be used for research purposes. This option should be disabled

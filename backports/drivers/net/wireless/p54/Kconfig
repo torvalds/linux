@@ -1,6 +1,7 @@
-config P54_COMMON
+config BACKPORT_P54_COMMON
 	tristate "Softmac Prism54 support"
-	depends on MAC80211
+	depends on !P54_COMMON
+	depends on BACKPORT_MAC80211
 	select FW_LOADER
 	select CRC_CCITT
 	---help---
@@ -13,9 +14,10 @@ config P54_COMMON
 
 	  If you choose to build a module, it'll be called p54common.
 
-config P54_USB
+config BACKPORT_P54_USB
 	tristate "Prism54 USB support"
-	depends on P54_COMMON && USB
+	depends on !P54_USB
+	depends on BACKPORT_P54_COMMON && USB
 	select CRC32
 	---help---
 	  This driver is for USB isl38xx based wireless cards.
@@ -25,9 +27,10 @@ config P54_USB
 
 	  If you choose to build a module, it'll be called p54usb.
 
-config P54_PCI
+config BACKPORT_P54_PCI
 	tristate "Prism54 PCI support"
-	depends on P54_COMMON && PCI
+	depends on !P54_PCI
+	depends on BACKPORT_P54_COMMON && PCI
 	---help---
 	  This driver is for PCI isl38xx based wireless cards.
 	  This driver supports most devices that are supported by the
@@ -39,18 +42,20 @@ config P54_PCI
 
 	  If you choose to build a module, it'll be called p54pci.
 
-config P54_SPI
+config BACKPORT_P54_SPI
 	tristate "Prism54 SPI (stlc45xx) support"
-	depends on P54_COMMON && SPI_MASTER
+	depends on !P54_SPI
+	depends on BACKPORT_P54_COMMON && SPI_MASTER
 	---help---
 	  This driver is for stlc4550 or stlc4560 based wireless chips
 	  such as Nokia's N800/N810 Portable Internet Tablet.
 
 	  If you choose to build a module, it'll be called p54spi.
 
-config P54_SPI_DEFAULT_EEPROM
+config BACKPORT_P54_SPI_DEFAULT_EEPROM
 	bool "Include fallback EEPROM blob"
-	depends on P54_SPI
+	depends on !P54_SPI_DEFAULT_EEPROM
+	depends on BACKPORT_P54_SPI
 	default n
 	---help---
 	 Unlike the PCI or USB devices, the SPI variants don't have
@@ -65,7 +70,8 @@ config P54_SPI_DEFAULT_EEPROM
 
 	 Enabling this option adds about 4k to p54spi.
 
-config P54_LEDS
+config BACKPORT_P54_LEDS
 	bool
-	depends on P54_COMMON && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = P54_COMMON)
+	depends on !P54_LEDS
+	depends on P54_COMMON && BACKPORT_MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = P54_COMMON)
 	default y

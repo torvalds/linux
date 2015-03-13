@@ -29,7 +29,7 @@
 #	default m if BPAUTO_FOO
 #
 #	# or for build-testing (BPAUTO_USERSEL_BUILD_ALL is enabled)
-#	default m if BPAUTO_USERSEL_BUILD_ALL
+#	default m if BACKPORT_BPAUTO_USERSEL_BUILD_ALL
 #
 # config BPAUTO_FOO
 #	bool
@@ -53,33 +53,39 @@
 # Variations are obviously possible.
 #
 
-config BPAUTO_BUILD_CORDIC
+config BACKPORT_BPAUTO_BUILD_CORDIC
 	tristate
+	depends on !BPAUTO_BUILD_CORDIC
 	depends on !CORDIC
-	default m if BPAUTO_CORDIC
-	default m if BPAUTO_USERSEL_BUILD_ALL
+	default m if BACKPORT_BPAUTO_CORDIC
+	default m if BACKPORT_BPAUTO_USERSEL_BUILD_ALL
 	#module-name cordic
 	#c-file lib/cordic.c
 
-config BPAUTO_CORDIC
+config BACKPORT_BPAUTO_CORDIC
 	bool
+	depends on !BPAUTO_CORDIC
 
-config BPAUTO_BUILD_AVERAGE
+config BACKPORT_BPAUTO_BUILD_AVERAGE
 	bool
+	depends on !BPAUTO_BUILD_AVERAGE
 	depends on !AVERAGE
-	default y if BPAUTO_USERSEL_BUILD_ALL
-	default y if BPAUTO_AVERAGE
+	default y if BACKPORT_BPAUTO_USERSEL_BUILD_ALL
+	default y if BACKPORT_BPAUTO_AVERAGE
 	#h-file linux/average.h
 	#c-file lib/average.c
 
-config BPAUTO_AVERAGE
+config BACKPORT_BPAUTO_AVERAGE
 	bool
+	depends on !BPAUTO_AVERAGE
 
-config BPAUTO_MII
+config BACKPORT_BPAUTO_MII
 	bool
+	depends on !BPAUTO_MII
 
-config BPAUTO_BUILD_DMA_SHARED_HELPERS
+config BACKPORT_BPAUTO_BUILD_DMA_SHARED_HELPERS
 	bool
+	depends on !BPAUTO_BUILD_DMA_SHARED_HELPERS
 	depends on HAS_DMA
 	# Build on other kernels kernels < 3.9 if HAVE_GENERIC_DMA_COHERENT is
 	# not set. Kernels >= 3.8 have this if HAS_DMA is set.
@@ -87,26 +93,31 @@ config BPAUTO_BUILD_DMA_SHARED_HELPERS
 	# Always build if on 3.3 - 3.5
 	default y if (KERNEL_3_4 || KERNEL_3_5 || KERNEL_3_6)
 	# build for testing
-	default y if BPAUTO_USERSEL_BUILD_ALL
+	default y if BACKPORT_BPAUTO_USERSEL_BUILD_ALL
 
-config BPAUTO_BUILD_LEDS
+config BACKPORT_BPAUTO_BUILD_LEDS
 	bool
+	depends on !BPAUTO_BUILD_LEDS
 	depends on !NEW_LEDS || LEDS_CLASS=n || !LEDS_TRIGGERS
-	default y if BPAUTO_NEW_LEDS
-	default y if BPAUTO_LEDS_CLASS
-	default y if BPAUTO_LEDS_TRIGGERS
+	default y if BACKPORT_BPAUTO_NEW_LEDS
+	default y if BACKPORT_BPAUTO_LEDS_CLASS
+	default y if BACKPORT_BPAUTO_LEDS_TRIGGERS
 
-config BPAUTO_NEW_LEDS
+config BACKPORT_BPAUTO_NEW_LEDS
 	bool
+	depends on !BPAUTO_NEW_LEDS
 
-config BPAUTO_LEDS_CLASS
+config BACKPORT_BPAUTO_LEDS_CLASS
 	bool
+	depends on !BPAUTO_LEDS_CLASS
 
-config BPAUTO_LEDS_TRIGGERS
+config BACKPORT_BPAUTO_LEDS_TRIGGERS
 	bool
+	depends on !BPAUTO_LEDS_TRIGGERS
 
-config BPAUTO_USERSEL_BUILD_ALL
+config BACKPORT_BPAUTO_USERSEL_BUILD_ALL
 	bool "Build all compat code"
+	depends on !BPAUTO_USERSEL_BUILD_ALL
 	help
 	  This option selects all the compat code options
 	  that would otherwise only be selected by drivers.
@@ -114,24 +125,28 @@ config BPAUTO_USERSEL_BUILD_ALL
 	  It's only really useful for compat testing, so
 	  you probably shouldn't enable it.
 
-config BPAUTO_CRYPTO_CCM
+config BACKPORT_BPAUTO_CRYPTO_CCM
 	depends on CRYPTO_AEAD
+	depends on !BPAUTO_CRYPTO_CCM
 	depends on CRYPTO_CTR
 	bool
 
-config BPAUTO_BUILD_CRYPTO_CCM
+config BACKPORT_BPAUTO_BUILD_CRYPTO_CCM
 	bool
+	depends on !BPAUTO_BUILD_CRYPTO_CCM
 	default n if CRYPTO_CCM
-	default y if BPAUTO_CRYPTO_CCM
+	default y if BACKPORT_BPAUTO_CRYPTO_CCM
 	#c-file crypto/ccm.c
 
-config BPAUTO_WANT_DEV_COREDUMP
+config BACKPORT_BPAUTO_WANT_DEV_COREDUMP
 	bool
+	depends on !BPAUTO_WANT_DEV_COREDUMP
 
-config BPAUTO_BUILD_WANT_DEV_COREDUMP
+config BACKPORT_BPAUTO_BUILD_WANT_DEV_COREDUMP
 	bool
+	depends on !BPAUTO_BUILD_WANT_DEV_COREDUMP
 	default n if DEV_COREDUMP
 	default n if DISABLE_DEV_COREDUMP
-	default y if BPAUTO_WANT_DEV_COREDUMP
+	default y if BACKPORT_BPAUTO_WANT_DEV_COREDUMP
 	#h-file linux/devcoredump.h
 	#c-file drivers/base/devcoredump.c

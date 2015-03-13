@@ -1,20 +1,21 @@
-if PCI && MEDIA_SUPPORT
+if PCI && BACKPORT_MEDIA_SUPPORT
 
-menuconfig MEDIA_PCI_SUPPORT
+menuconfig BACKPORT_MEDIA_PCI_SUPPORT
 	bool "Media PCI Adapters"
+	depends on !MEDIA_PCI_SUPPORT
 	help
 	  Enable media drivers for PCI/PCIe bus.
 	  If you have such devices, say Y.
 
-if MEDIA_PCI_SUPPORT
+if BACKPORT_MEDIA_PCI_SUPPORT
 
-if MEDIA_CAMERA_SUPPORT
+if BACKPORT_MEDIA_CAMERA_SUPPORT
 	comment "Media capture support"
 source "$BACKPORT_DIR/drivers/media/pci/meye/Kconfig"
 source "$BACKPORT_DIR/drivers/media/pci/sta2x11/Kconfig"
 endif
 
-if MEDIA_ANALOG_TV_SUPPORT
+if BACKPORT_MEDIA_ANALOG_TV_SUPPORT
 	comment "Media capture/analog TV support"
 source "$BACKPORT_DIR/drivers/media/pci/ivtv/Kconfig"
 source "$BACKPORT_DIR/drivers/media/pci/zoran/Kconfig"
@@ -23,7 +24,7 @@ source "$BACKPORT_DIR/drivers/media/pci/solo6x10/Kconfig"
 source "$BACKPORT_DIR/drivers/media/pci/tw68/Kconfig"
 endif
 
-if MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
+if BACKPORT_MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
 	comment "Media capture/analog/hybrid TV support"
 source "$BACKPORT_DIR/drivers/media/pci/cx18/Kconfig"
 source "$BACKPORT_DIR/drivers/media/pci/cx23885/Kconfig"
@@ -35,7 +36,7 @@ source "$BACKPORT_DIR/drivers/media/pci/saa7164/Kconfig"
 
 endif
 
-if MEDIA_DIGITAL_TV_SUPPORT
+if BACKPORT_MEDIA_DIGITAL_TV_SUPPORT
 	comment "Media digital TV PCI Adapters"
 source "$BACKPORT_DIR/drivers/media/pci/ttpci/Kconfig"
 source "$BACKPORT_DIR/drivers/media/pci/b2c2/Kconfig"

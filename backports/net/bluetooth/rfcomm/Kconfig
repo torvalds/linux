@@ -1,6 +1,7 @@
-config BT_RFCOMM
+config BACKPORT_BT_RFCOMM
 	tristate "RFCOMM protocol support"
-	depends on BT_BREDR
+	depends on !BT_RFCOMM
+	depends on BACKPORT_BT_BREDR
 	help
 	  RFCOMM provides connection oriented stream transport.  RFCOMM
 	  support is required for Dialup Networking, OBEX and other Bluetooth
@@ -9,9 +10,10 @@ config BT_RFCOMM
 	  Say Y here to compile RFCOMM support into the kernel or say M to
 	  compile it as module (rfcomm).
 
-config BT_RFCOMM_TTY
+config BACKPORT_BT_RFCOMM_TTY
 	bool "RFCOMM TTY support"
-	depends on BT_RFCOMM
+	depends on !BT_RFCOMM_TTY
+	depends on BACKPORT_BT_RFCOMM
 	depends on TTY
 	help
 	  This option enables TTY emulation support for RFCOMM channels.

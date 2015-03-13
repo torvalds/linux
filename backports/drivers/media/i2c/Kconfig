@@ -2,11 +2,12 @@
 # Multimedia Video device configuration
 #
 
-if VIDEO_V4L2
+if BACKPORT_VIDEO_V4L2
 
-config VIDEO_IR_I2C
+config BACKPORT_VIDEO_IR_I2C
 	tristate "I2C module for IR" if !MEDIA_SUBDRV_AUTOSELECT
-	depends on I2C && RC_CORE
+	depends on !VIDEO_IR_I2C
+	depends on I2C && BACKPORT_RC_CORE
 	default y
 	---help---
 	  Most boards have an IR chip directly connected via GPIO. However,
@@ -26,9 +27,10 @@ menu "Encoders, decoders, sensors and other helper chips"
 
 comment "Audio decoders, processors and mixers"
 
-config VIDEO_TVAUDIO
+config BACKPORT_VIDEO_TVAUDIO
 	tristate "Simple audio decoder chips"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TVAUDIO
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for several audio decoder chips found on some bt8xx boards:
 	  Philips: tda9840, tda9873h, tda9874h/a, tda9850, tda985x, tea6300,
@@ -38,17 +40,19 @@ config VIDEO_TVAUDIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvaudio.
 
-config VIDEO_TDA7432
+config BACKPORT_VIDEO_TDA7432
 	tristate "Philips TDA7432 audio processor"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TDA7432
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for tda7432 audio decoder chip found on some bt8xx boards.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tda7432.
 
-config VIDEO_TDA9840
+config BACKPORT_VIDEO_TDA9840
 	tristate "Philips TDA9840 audio processor"
+	depends on !VIDEO_TDA9840
 	depends on I2C
 	---help---
 	  Support for tda9840 audio decoder chip found on some Zoran boards.
@@ -56,8 +60,9 @@ config VIDEO_TDA9840
 	  To compile this driver as a module, choose M here: the
 	  module will be called tda9840.
 
-config VIDEO_TEA6415C
+config BACKPORT_VIDEO_TEA6415C
 	tristate "Philips TEA6415C audio processor"
+	depends on !VIDEO_TEA6415C
 	depends on I2C
 	---help---
 	  Support for tea6415c audio decoder chip found on some bt8xx boards.
@@ -65,8 +70,9 @@ config VIDEO_TEA6415C
 	  To compile this driver as a module, choose M here: the
 	  module will be called tea6415c.
 
-config VIDEO_TEA6420
+config BACKPORT_VIDEO_TEA6420
 	tristate "Philips TEA6420 audio processor"
+	depends on !VIDEO_TEA6420
 	depends on I2C
 	---help---
 	  Support for tea6420 audio decoder chip found on some bt8xx boards.
@@ -74,18 +80,20 @@ config VIDEO_TEA6420
 	  To compile this driver as a module, choose M here: the
 	  module will be called tea6420.
 
-config VIDEO_MSP3400
+config BACKPORT_VIDEO_MSP3400
 	tristate "Micronas MSP34xx audio decoders"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_MSP3400
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Micronas MSP34xx series of audio decoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called msp3400.
 
-config VIDEO_CS5345
+config BACKPORT_VIDEO_CS5345
 	tristate "Cirrus Logic CS5345 audio ADC"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_CS5345
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Cirrus Logic CS5345 24-bit, 192 kHz
 	  stereo A/D converter.
@@ -93,9 +101,10 @@ config VIDEO_CS5345
 	  To compile this driver as a module, choose M here: the
 	  module will be called cs5345.
 
-config VIDEO_CS53L32A
+config BACKPORT_VIDEO_CS53L32A
 	tristate "Cirrus Logic CS53L32A audio ADC"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_CS53L32A
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Cirrus Logic CS53L32A low voltage
 	  stereo A/D converter.
@@ -103,27 +112,30 @@ config VIDEO_CS53L32A
 	  To compile this driver as a module, choose M here: the
 	  module will be called cs53l32a.
 
-config VIDEO_TLV320AIC23B
+config BACKPORT_VIDEO_TLV320AIC23B
 	tristate "Texas Instruments TLV320AIC23B audio codec"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TLV320AIC23B
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Texas Instruments TLV320AIC23B audio codec.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tlv320aic23b.
 
-config VIDEO_UDA1342
+config BACKPORT_VIDEO_UDA1342
 	tristate "Philips UDA1342 audio codec"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_UDA1342
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips UDA1342 audio codec.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called uda1342.
 
-config VIDEO_WM8775
+config BACKPORT_VIDEO_WM8775
 	tristate "Wolfson Microelectronics WM8775 audio ADC with input mixer"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_WM8775
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Wolfson Microelectronics WM8775 high
 	  performance stereo A/D Converter with a 4 channel input mixer.
@@ -131,9 +143,10 @@ config VIDEO_WM8775
 	  To compile this driver as a module, choose M here: the
 	  module will be called wm8775.
 
-config VIDEO_WM8739
+config BACKPORT_VIDEO_WM8739
 	tristate "Wolfson Microelectronics WM8739 stereo audio ADC"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_WM8739
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Wolfson Microelectronics WM8739
 	  stereo A/D Converter.
@@ -141,29 +154,32 @@ config VIDEO_WM8739
 	  To compile this driver as a module, choose M here: the
 	  module will be called wm8739.
 
-config VIDEO_VP27SMPX
+config BACKPORT_VIDEO_VP27SMPX
 	tristate "Panasonic VP27's internal MPX"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_VP27SMPX
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the internal MPX of the Panasonic VP27s tuner.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vp27smpx.
 
-config VIDEO_SONY_BTF_MPX
+config BACKPORT_VIDEO_SONY_BTF_MPX
 	tristate "Sony BTF's internal MPX"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_SONY_BTF_MPX
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	help
-	  Support for the internal MPX of the Sony BTF-PG472Z tuner.
+	  Support for the internal MPX of the Sony BACKPORT_BTF-PG472Z tuner.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sony-btf-mpx.
 
 comment "RDS decoders"
 
-config VIDEO_SAA6588
+config BACKPORT_VIDEO_SAA6588
 	tristate "SAA6588 Radio Chip RDS decoder support"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_SAA6588
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 
 	help
 	  Support for this Radio Data System (RDS) decoder. This allows
@@ -175,18 +191,20 @@ config VIDEO_SAA6588
 
 comment "Video decoders"
 
-config VIDEO_ADV7180
+config BACKPORT_VIDEO_ADV7180
 	tristate "Analog Devices ADV7180 decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_ADV7180
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Analog Devices ADV7180 video decoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7180.
 
-config VIDEO_ADV7183
+config BACKPORT_VIDEO_ADV7183
 	tristate "Analog Devices ADV7183 decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_ADV7183
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  V4l2 subdevice driver for the Analog Devices
 	  ADV7183 video decoder.
@@ -194,9 +212,10 @@ config VIDEO_ADV7183
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7183.
 
-config VIDEO_ADV7604
+config BACKPORT_VIDEO_ADV7604
 	tristate "Analog Devices ADV7604 decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
+	depends on !VIDEO_ADV7604
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && BACKPORT_MEDIA_CONTROLLER
 	---help---
 	  Support for the Analog Devices ADV7604 video decoder.
 
@@ -206,9 +225,10 @@ config VIDEO_ADV7604
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7604.
 
-config VIDEO_ADV7842
+config BACKPORT_VIDEO_ADV7842
 	tristate "Analog Devices ADV7842 decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
+	depends on !VIDEO_ADV7842
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && BACKPORT_MEDIA_CONTROLLER
 	---help---
 	  Support for the Analog Devices ADV7842 video decoder.
 
@@ -218,36 +238,40 @@ config VIDEO_ADV7842
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7842.
 
-config VIDEO_BT819
+config BACKPORT_VIDEO_BT819
 	tristate "BT819A VideoStream decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_BT819
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
-	  Support for BT819A video decoder.
+	  Support for BACKPORT_BT819A video decoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bt819.
 
-config VIDEO_BT856
+config BACKPORT_VIDEO_BT856
 	tristate "BT856 VideoStream decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_BT856
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
-	  Support for BT856 video decoder.
+	  Support for BACKPORT_BT856 video decoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bt856.
 
-config VIDEO_BT866
+config BACKPORT_VIDEO_BT866
 	tristate "BT866 VideoStream decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_BT866
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
-	  Support for BT866 video decoder.
+	  Support for BACKPORT_BT866 video decoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bt866.
 
-config VIDEO_KS0127
+config BACKPORT_VIDEO_KS0127
 	tristate "KS0127 video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_KS0127
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for KS0127 video decoder.
 
@@ -257,36 +281,40 @@ config VIDEO_KS0127
 	  To compile this driver as a module, choose M here: the
 	  module will be called ks0127.
 
-config VIDEO_ML86V7667
+config BACKPORT_VIDEO_ML86V7667
 	tristate "OKI ML86V7667 video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_ML86V7667
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the OKI Semiconductor ML86V7667 video decoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ml86v7667.
 
-config VIDEO_SAA7110
+config BACKPORT_VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_SAA7110
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7110 video decoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7110.
 
-config VIDEO_SAA711X
+config BACKPORT_VIDEO_SAA711X
 	tristate "Philips SAA7111/3/4/5 video decoders"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_SAA711X
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7111/3/4/5 video decoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
 
-config VIDEO_TVP514X
+config BACKPORT_VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TVP514X
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the TI TVP5146/47
 	  decoder. It is currently working with the TI OMAP3 camera
@@ -295,36 +323,40 @@ config VIDEO_TVP514X
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp514x.
 
-config VIDEO_TVP5150
+config BACKPORT_VIDEO_TVP5150
 	tristate "Texas Instruments TVP5150 video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TVP5150
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Texas Instruments TVP5150 video decoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp5150.
 
-config VIDEO_TVP7002
+config BACKPORT_VIDEO_TVP7002
 	tristate "Texas Instruments TVP7002 video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TVP7002
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Texas Instruments TVP7002 video decoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tvp7002.
 
-config VIDEO_TW2804
+config BACKPORT_VIDEO_TW2804
 	tristate "Techwell TW2804 multiple video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TW2804
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Techwell tw2804 multiple video decoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tw2804.
 
-config VIDEO_TW9903
+config BACKPORT_VIDEO_TW9903
 	tristate "Techwell TW9903 video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TW9903
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Techwell tw9903 multi-standard video decoder
 	  with high quality down scaler.
@@ -332,9 +364,10 @@ config VIDEO_TW9903
 	  To compile this driver as a module, choose M here: the
 	  module will be called tw9903.
 
-config VIDEO_TW9906
+config BACKPORT_VIDEO_TW9906
 	tristate "Techwell TW9906 video decoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_TW9906
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Techwell tw9906 enhanced multi-standard comb filter
 	  video decoder with YCbCr input support.
@@ -342,9 +375,10 @@ config VIDEO_TW9906
 	  To compile this driver as a module, choose M here: the
 	  module will be called tw9906.
 
-config VIDEO_VPX3220
+config BACKPORT_VIDEO_VPX3220
 	tristate "vpx3220a, vpx3216b & vpx3214c video decoders"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_VPX3220
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for VPX322x video decoders.
 
@@ -353,9 +387,10 @@ config VIDEO_VPX3220
 
 comment "Video and audio decoders"
 
-config VIDEO_SAA717X
+config BACKPORT_VIDEO_SAA717X
 	tristate "Philips SAA7171/3/4 audio/video decoders"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_SAA717X
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7171/3/4 audio/video decoders.
 
@@ -366,44 +401,49 @@ source "$BACKPORT_DIR/drivers/media/i2c/cx25840/Kconfig"
 
 comment "Video encoders"
 
-config VIDEO_SAA7127
+config BACKPORT_VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_SAA7127
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7127/9 digital video encoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7127.
 
-config VIDEO_SAA7185
+config BACKPORT_VIDEO_SAA7185
 	tristate "Philips SAA7185 video encoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_SAA7185
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7185 video encoder.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7185.
 
-config VIDEO_ADV7170
+config BACKPORT_VIDEO_ADV7170
 	tristate "Analog Devices ADV7170 video encoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_ADV7170
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Analog Devices ADV7170 video encoder driver
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7170.
 
-config VIDEO_ADV7175
+config BACKPORT_VIDEO_ADV7175
 	tristate "Analog Devices ADV7175 video encoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_ADV7175
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Analog Devices ADV7175 video encoder driver
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7175.
 
-config VIDEO_ADV7343
+config BACKPORT_VIDEO_ADV7343
 	tristate "ADV7343 video encoder"
+	depends on !VIDEO_ADV7343
 	depends on I2C
 	help
 	  Support for Analog Devices I2C bus based ADV7343 encoder.
@@ -411,8 +451,9 @@ config VIDEO_ADV7343
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7343.
 
-config VIDEO_ADV7393
+config BACKPORT_VIDEO_ADV7393
 	tristate "ADV7393 video encoder"
+	depends on !VIDEO_ADV7393
 	depends on I2C
 	help
 	  Support for Analog Devices I2C bus based ADV7393 encoder.
@@ -420,9 +461,10 @@ config VIDEO_ADV7393
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7393.
 
-config VIDEO_ADV7511
+config BACKPORT_VIDEO_ADV7511
 	tristate "Analog Devices ADV7511 encoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
+	depends on !VIDEO_ADV7511
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && BACKPORT_MEDIA_CONTROLLER
 	---help---
 	  Support for the Analog Devices ADV7511 video encoder.
 
@@ -431,9 +473,10 @@ config VIDEO_ADV7511
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7511.
 
-config VIDEO_AD9389B
+config BACKPORT_VIDEO_AD9389B
 	tristate "Analog Devices AD9389B encoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on !VIDEO_AD9389B
+	depends on VIDEO_V4L2 && I2C && BACKPORT_VIDEO_V4L2_SUBDEV_API
 	---help---
 	  Support for the Analog Devices AD9389B video encoder.
 
@@ -442,15 +485,17 @@ config VIDEO_AD9389B
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad9389b.
 
-config VIDEO_AK881X
+config BACKPORT_VIDEO_AK881X
 	tristate "AK8813/AK8814 video encoders"
+	depends on !VIDEO_AK881X
 	depends on I2C
 	help
 	  Video output driver for AKM AK8813 and AK8814 TV encoders
 
-config VIDEO_THS8200
+config BACKPORT_VIDEO_THS8200
 	tristate "Texas Instruments THS8200 video encoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_THS8200
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Texas Instruments THS8200 video encoder.
 
@@ -459,16 +504,19 @@ config VIDEO_THS8200
 
 comment "Camera sensor devices"
 
-config VIDEO_APTINA_PLL
+config BACKPORT_VIDEO_APTINA_PLL
 	tristate
+	depends on !VIDEO_APTINA_PLL
 
-config VIDEO_SMIAPP_PLL
+config BACKPORT_VIDEO_SMIAPP_PLL
 	tristate
+	depends on !VIDEO_SMIAPP_PLL
 
-config VIDEO_OV7640
+config BACKPORT_VIDEO_OV7640
 	tristate "OmniVision OV7640 sensor support"
-	depends on I2C && VIDEO_V4L2
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_OV7640
+	depends on I2C && BACKPORT_VIDEO_V4L2
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV7640 camera.
@@ -476,26 +524,29 @@ config VIDEO_OV7640
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov7640.
 
-config VIDEO_OV7670
+config BACKPORT_VIDEO_OV7670
 	tristate "OmniVision OV7670 sensor support"
-	depends on I2C && VIDEO_V4L2
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_OV7670
+	depends on I2C && BACKPORT_VIDEO_V4L2
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
-config VIDEO_OV9650
+config BACKPORT_VIDEO_OV9650
 	tristate "OmniVision OV9650/OV9652 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on !VIDEO_OV9650
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
 	---help---
 	  This is a V4L2 sensor-level driver for the Omnivision
 	  OV9650 and OV9652 camera sensors.
 
-config VIDEO_VS6624
+config BACKPORT_VIDEO_VS6624
 	tristate "ST VS6624 sensor support"
-	depends on VIDEO_V4L2 && I2C
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_VS6624
+	depends on BACKPORT_VIDEO_V4L2 && I2C
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the ST VS6624
 	  camera.
@@ -503,136 +554,152 @@ config VIDEO_VS6624
 	  To compile this driver as a module, choose M here: the
 	  module will be called vs6624.
 
-config VIDEO_MT9M032
+config BACKPORT_VIDEO_MT9M032
 	tristate "MT9M032 camera sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select VIDEO_APTINA_PLL
+	depends on !VIDEO_MT9M032
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
+	select BACKPORT_VIDEO_APTINA_PLL
 	---help---
 	  This driver supports MT9M032 camera sensors from Aptina, monochrome
 	  models only.
 
-config VIDEO_MT9P031
+config BACKPORT_VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	select VIDEO_APTINA_PLL
+	depends on !VIDEO_MT9P031
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
+	select BACKPORT_VIDEO_APTINA_PLL
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Aptina
 	  (Micron) mt9p031 5 Mpixel camera.
 
-config VIDEO_MT9T001
+config BACKPORT_VIDEO_MT9T001
 	tristate "Aptina MT9T001 support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_MT9T001
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Aptina
 	  (Micron) mt0t001 3 Mpixel camera.
 
-config VIDEO_MT9V011
+config BACKPORT_VIDEO_MT9V011
 	tristate "Micron mt9v011 sensor support"
-	depends on I2C && VIDEO_V4L2
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_MT9V011
+	depends on I2C && BACKPORT_VIDEO_V4L2
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Micron
 	  mt0v011 1.3 Mpixel camera.  It currently only works with the
 	  em28xx driver.
 
-config VIDEO_MT9V032
+config BACKPORT_VIDEO_MT9V032
 	tristate "Micron MT9V032 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_MT9V032
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	select REGMAP_I2C
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Micron
 	  MT9V032 752x480 CMOS sensor.
 
-config VIDEO_SR030PC30
+config BACKPORT_VIDEO_SR030PC30
 	tristate "Siliconfile SR030PC30 sensor support"
-	depends on I2C && VIDEO_V4L2
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_SR030PC30
+	depends on I2C && BACKPORT_VIDEO_V4L2
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This driver supports SR030PC30 VGA camera from Siliconfile
 
-config VIDEO_NOON010PC30
+config BACKPORT_VIDEO_NOON010PC30
 	tristate "Siliconfile NOON010PC30 sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_NOON010PC30
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This driver supports NOON010PC30 CIF camera from Siliconfile
 
 source "$BACKPORT_DIR/drivers/media/i2c/m5mols/Kconfig"
 
-config VIDEO_S5K6AA
+config BACKPORT_VIDEO_S5K6AA
 	tristate "Samsung S5K6AAFX sensor support"
-	depends on MEDIA_CAMERA_SUPPORT
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on !VIDEO_S5K6AA
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5K6AA(FX) 1.3M
 	  camera sensor with an embedded SoC image signal processor.
 
-config VIDEO_S5K6A3
+config BACKPORT_VIDEO_S5K6A3
 	tristate "Samsung S5K6A3 sensor support"
-	depends on MEDIA_CAMERA_SUPPORT
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on !VIDEO_S5K6A3
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5K6A3 raw
 	  camera sensor.
 
-config VIDEO_S5K4ECGX
+config BACKPORT_VIDEO_S5K4ECGX
         tristate "Samsung S5K4ECGX sensor support"
-        depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on !VIDEO_S5K4ECGX
+        depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
         ---help---
           This is a V4L2 sensor-level driver for Samsung S5K4ECGX 5M
           camera sensor with an embedded SoC image signal processor.
 
-config VIDEO_S5K5BAF
+config BACKPORT_VIDEO_S5K5BAF
 	tristate "Samsung S5K5BAF sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on !VIDEO_S5K5BAF
+	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5K5BAF 2M
 	  camera sensor with an embedded SoC image signal processor.
 
 source "$BACKPORT_DIR/drivers/media/i2c/smiapp/Kconfig"
 
-config VIDEO_S5C73M3
+config BACKPORT_VIDEO_S5C73M3
 	tristate "Samsung S5C73M3 sensor support"
-	depends on I2C && SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on !VIDEO_S5C73M3
+	depends on I2C && SPI && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5C73M3
 	  8 Mpixel camera.
 
 comment "Flash devices"
 
-config VIDEO_ADP1653
+config BACKPORT_VIDEO_ADP1653
 	tristate "ADP1653 flash support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_ADP1653
+	depends on I2C && VIDEO_V4L2 && BACKPORT_MEDIA_CONTROLLER
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a driver for the ADP1653 flash controller. It is used for
 	  example in Nokia N900.
 
-config VIDEO_AS3645A
+config BACKPORT_VIDEO_AS3645A
 	tristate "AS3645A flash driver support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_AS3645A
+	depends on I2C && VIDEO_V4L2 && BACKPORT_MEDIA_CONTROLLER
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	---help---
 	  This is a driver for the AS3645A and LM3555 flash controllers. It has
 	  build in control for flash, torch and indicator LEDs.
 
-config VIDEO_LM3560
+config BACKPORT_VIDEO_LM3560
 	tristate "LM3560 dual flash driver support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_LM3560
+	depends on I2C && VIDEO_V4L2 && BACKPORT_MEDIA_CONTROLLER
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	select REGMAP_I2C
 	---help---
 	  This is a driver for the lm3560 dual flash controllers. It controls
 	  flash, torch LEDs.
 
-config VIDEO_LM3646
+config BACKPORT_VIDEO_LM3646
 	tristate "LM3646 dual flash driver support"
-	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on !VIDEO_LM3646
+	depends on I2C && VIDEO_V4L2 && BACKPORT_MEDIA_CONTROLLER
+	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
 	select REGMAP_I2C
 	---help---
 	  This is a driver for the lm3646 dual flash controllers. It controls
@@ -640,9 +707,10 @@ config VIDEO_LM3646
 
 comment "Video improvement chips"
 
-config VIDEO_UPD64031A
+config BACKPORT_VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_UPD64031A
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the NEC Electronics uPD64031A Ghost Reduction
 	  video chip. It is most often found in NTSC TV cards made for
@@ -652,9 +720,10 @@ config VIDEO_UPD64031A
 	  To compile this driver as a module, choose M here: the
 	  module will be called upd64031a.
 
-config VIDEO_UPD64083
+config BACKPORT_VIDEO_UPD64083
 	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_UPD64083
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
 	  separation video chip. It is used to improve the quality of
@@ -665,9 +734,10 @@ config VIDEO_UPD64083
 
 comment "Audio/Video compression chips"
 
-config VIDEO_SAA6752HS
+config BACKPORT_VIDEO_SAA6752HS
 	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_SAA6752HS
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	select CRC32
 	---help---
 	  Support for the Philips SAA6752HS MPEG-2 video and MPEG-audio/AC-3
@@ -678,18 +748,20 @@ config VIDEO_SAA6752HS
 
 comment "Miscellaneous helper chips"
 
-config VIDEO_THS7303
+config BACKPORT_VIDEO_THS7303
 	tristate "THS7303/53 Video Amplifier"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_THS7303
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	help
 	  Support for TI THS7303/53 video amplifier
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ths7303.
 
-config VIDEO_M52790
+config BACKPORT_VIDEO_M52790
 	tristate "Mitsubishi M52790 A/V switch"
-	depends on VIDEO_V4L2 && I2C
+	depends on !VIDEO_M52790
+	depends on BACKPORT_VIDEO_V4L2 && I2C
 	---help---
 	 Support for the Mitsubishi M52790 A/V switch.
 
@@ -699,7 +771,7 @@ endmenu
 
 menu "Sensors used on soc_camera driver"
 
-if SOC_CAMERA
+if BACKPORT_SOC_CAMERA
 source "$BACKPORT_DIR/drivers/media/i2c/soc_camera/Kconfig"
 endif
 

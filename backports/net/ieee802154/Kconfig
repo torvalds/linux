@@ -1,5 +1,6 @@
-menuconfig IEEE802154
+menuconfig BACKPORT_IEEE802154
 	tristate "IEEE Std 802.15.4 Low-Rate Wireless Personal Area Networks support"
+	depends on !IEEE802154
 	---help---
 	  IEEE Std 802.15.4 defines a low data rate, low power and low
 	  complexity short range wireless personal area networks. It was
@@ -10,10 +11,11 @@ menuconfig IEEE802154
 	  Say Y here to compile LR-WPAN support into the kernel or say M to
 	  compile it as modules.
 
-if IEEE802154
+if BACKPORT_IEEE802154
 
-config IEEE802154_SOCKET
+config BACKPORT_IEEE802154_SOCKET
 	tristate "IEEE 802.15.4 socket interface"
+	depends on !IEEE802154_SOCKET
 	default y
 	---help---
 	  Socket interface for IEEE 802.15.4. Contains DGRAM sockets interface

@@ -1,14 +1,15 @@
-if USB && MEDIA_SUPPORT
+if USB && BACKPORT_MEDIA_SUPPORT
 
-menuconfig MEDIA_USB_SUPPORT
+menuconfig BACKPORT_MEDIA_USB_SUPPORT
 	bool "Media USB Adapters"
+	depends on !MEDIA_USB_SUPPORT
 	help
 	  Enable media drivers for USB bus.
 	  If you have such devices, say Y.
 
-if MEDIA_USB_SUPPORT
+if BACKPORT_MEDIA_USB_SUPPORT
 
-if MEDIA_CAMERA_SUPPORT
+if BACKPORT_MEDIA_CAMERA_SUPPORT
 	comment "Webcam devices"
 source "$BACKPORT_DIR/drivers/media/usb/uvc/Kconfig"
 source "$BACKPORT_DIR/drivers/media/usb/gspca/Kconfig"
@@ -20,7 +21,7 @@ source "$BACKPORT_DIR/drivers/media/usb/s2255/Kconfig"
 source "$BACKPORT_DIR/drivers/media/usb/usbtv/Kconfig"
 endif
 
-if MEDIA_ANALOG_TV_SUPPORT
+if BACKPORT_MEDIA_ANALOG_TV_SUPPORT
 	comment "Analog TV USB devices"
 source "$BACKPORT_DIR/drivers/media/usb/pvrusb2/Kconfig"
 source "$BACKPORT_DIR/drivers/media/usb/hdpvr/Kconfig"
@@ -37,7 +38,7 @@ source "$BACKPORT_DIR/drivers/media/usb/tm6000/Kconfig"
 endif
 
 
-if I2C && MEDIA_DIGITAL_TV_SUPPORT
+if I2C && BACKPORT_MEDIA_DIGITAL_TV_SUPPORT
 	comment "Digital TV USB devices"
 source "$BACKPORT_DIR/drivers/media/usb/dvb-usb/Kconfig"
 source "$BACKPORT_DIR/drivers/media/usb/dvb-usb-v2/Kconfig"
@@ -53,7 +54,7 @@ if (MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
 source "$BACKPORT_DIR/drivers/media/usb/em28xx/Kconfig"
 endif
 
-if MEDIA_SDR_SUPPORT
+if BACKPORT_MEDIA_SDR_SUPPORT
 	comment "Software defined radio USB devices"
 source "$BACKPORT_DIR/drivers/media/usb/airspy/Kconfig"
 source "$BACKPORT_DIR/drivers/media/usb/hackrf/Kconfig"

@@ -1,36 +1,39 @@
-config MANTIS_CORE
+config BACKPORT_MANTIS_CORE
 	tristate "Mantis/Hopper PCI bridge based devices"
-	depends on PCI && I2C && INPUT && RC_CORE
+	depends on !MANTIS_CORE
+	depends on PCI && I2C && INPUT && BACKPORT_RC_CORE
 
 	help
 	  Support for PCI cards based on the Mantis and Hopper PCi bridge.
 
 	  Say Y if you own such a device and want to use it.
 
-config DVB_MANTIS
+config BACKPORT_DVB_MANTIS
 	tristate "MANTIS based cards"
-	depends on MANTIS_CORE && DVB_CORE && PCI && I2C
-	select DVB_MB86A16 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_ZL10353 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_STB0899 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_STB6100 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_TDA665x if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_TDA10021 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_TDA10023 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_PLL
+	depends on !DVB_MANTIS
+	depends on MANTIS_CORE && BACKPORT_DVB_CORE && PCI && I2C
+	select DVB_MB86A16 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_ZL10353 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0299 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LNBP21 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STB0899 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STB6100 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA665x if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10021 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10023 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select BACKPORT_DVB_PLL
 	help
 	  Support for PCI cards based on the Mantis PCI bridge.
 	  Say Y when you have a Mantis based DVB card and want to use it.
 
 	  If unsure say N.
 
-config DVB_HOPPER
+config BACKPORT_DVB_HOPPER
 	tristate "HOPPER based cards"
-	depends on MANTIS_CORE && DVB_CORE && PCI && I2C
-	select DVB_ZL10353 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_PLL
+	depends on !DVB_HOPPER
+	depends on MANTIS_CORE && BACKPORT_DVB_CORE && PCI && I2C
+	select DVB_ZL10353 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select BACKPORT_DVB_PLL
 	help
 	  Support for PCI cards based on the Hopper  PCI bridge.
 	  Say Y when you have a Hopper based DVB card and want to use it.

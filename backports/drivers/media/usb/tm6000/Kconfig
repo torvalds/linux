@@ -1,10 +1,11 @@
-config VIDEO_TM6000
+config BACKPORT_VIDEO_TM6000
 	tristate "TV Master TM5600/6000/6010 driver"
-	depends on VIDEO_DEV && I2C && INPUT && RC_CORE && USB
-	select VIDEO_TUNER
-	select MEDIA_TUNER_XC2028
-	select MEDIA_TUNER_XC5000
-	select VIDEOBUF_VMALLOC
+	depends on !VIDEO_TM6000
+	depends on BACKPORT_VIDEO_DEV && I2C && INPUT && RC_CORE && USB
+	select BACKPORT_VIDEO_TUNER
+	select BACKPORT_MEDIA_TUNER_XC2028
+	select BACKPORT_MEDIA_TUNER_XC5000
+	select BACKPORT_VIDEOBUF_VMALLOC
 	help
 	  Support for TM5600/TM6000/TM6010 USB Device
 
@@ -14,9 +15,10 @@ config VIDEO_TM6000
 
 	  Say Y if you own such a device and want to use it.
 
-config VIDEO_TM6000_ALSA
+config BACKPORT_VIDEO_TM6000_ALSA
 	tristate "TV Master TM5600/6000/6010 audio support"
-	depends on VIDEO_TM6000 && SND
+	depends on !VIDEO_TM6000_ALSA
+	depends on BACKPORT_VIDEO_TM6000 && SND
 	select SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio for
@@ -25,9 +27,10 @@ config VIDEO_TM6000_ALSA
 	  To compile this driver as a module, choose M here: the
 	  module will be called tm6000-alsa.
 
-config VIDEO_TM6000_DVB
+config BACKPORT_VIDEO_TM6000_DVB
 	tristate "DVB Support for tm6000 based TV cards"
-	depends on VIDEO_TM6000 && DVB_CORE && USB
-	select DVB_ZL10353
+	depends on !VIDEO_TM6000_DVB
+	depends on VIDEO_TM6000 && BACKPORT_DVB_CORE && USB
+	select BACKPORT_DVB_ZL10353
 	---help---
 	  This adds support for DVB cards based on the tm5600/tm6000 chip.

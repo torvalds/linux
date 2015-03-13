@@ -1,6 +1,7 @@
-config USB_SI470X
+config BACKPORT_USB_SI470X
 	tristate "Silicon Labs Si470x FM Radio Receiver support with USB"
-	depends on USB && RADIO_SI470X
+	depends on !USB_SI470X
+	depends on USB && BACKPORT_RADIO_SI470X
 	---help---
 	  This is a driver for USB devices with the Silicon Labs SI470x
 	  chip. Currently these devices are known to work:
@@ -23,9 +24,10 @@ config USB_SI470X
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-usb-si470x.
 
-config I2C_SI470X
+config BACKPORT_I2C_SI470X
 	tristate "Silicon Labs Si470x FM Radio Receiver support with I2C"
-	depends on I2C && RADIO_SI470X && !USB_SI470X
+	depends on !I2C_SI470X
+	depends on I2C && BACKPORT_RADIO_SI470X && !USB_SI470X
 	---help---
 	  This is a driver for I2C devices with the Silicon Labs SI470x
 	  chip.

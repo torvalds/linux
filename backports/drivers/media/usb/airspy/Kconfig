@@ -1,7 +1,8 @@
-config USB_AIRSPY
+config BACKPORT_USB_AIRSPY
 	tristate "AirSpy"
-	depends on VIDEO_V4L2
-	select VIDEOBUF2_VMALLOC
+	depends on !USB_AIRSPY
+	depends on BACKPORT_VIDEO_V4L2
+	select BACKPORT_VIDEOBUF2_VMALLOC
 	---help---
 	  This is a video4linux2 driver for AirSpy SDR device.
 

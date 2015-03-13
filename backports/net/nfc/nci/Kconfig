@@ -1,21 +1,23 @@
-config NFC_NCI
+config BACKPORT_NFC_NCI
 	depends on NFC
+	depends on !NFC_NCI
 	tristate "NCI protocol support"
 	default n
 	help
 	  NCI (NFC Controller Interface) is a communication protocol between
-	  an NFC Controller (NFCC) and a Device Host (DH).
+	  an BACKPORT_NFC Controller (NFCC) and a Device Host (DH).
 
 	  Say Y here to compile NCI support into the kernel or say M to
 	  compile it as module (nci).
 
-config NFC_NCI_SPI
+config BACKPORT_NFC_NCI_SPI
 	depends on NFC_NCI && SPI
+	depends on !NFC_NCI_SPI
 	select CRC_CCITT
 	bool "NCI over SPI protocol support"
 	default n
 	help
 	  NCI (NFC Controller Interface) is a communication protocol between
-	  an NFC Controller (NFCC) and a Device Host (DH).
+	  an BACKPORT_NFC Controller (NFCC) and a Device Host (DH).
 
 	  Say yes if you use an NCI driver that requires SPI link layer.

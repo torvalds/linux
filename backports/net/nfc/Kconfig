@@ -1,29 +1,31 @@
 #
-# NFC sybsystem configuration
+# BACKPORT_NFC sybsystem configuration
 #
 
-menuconfig NFC
+menuconfig BACKPORT_NFC
 	depends on NET
+	depends on !NFC
 	depends on RFKILL || !RFKILL
 	tristate "NFC subsystem support"
 	default n
 	help
-	  Say Y here if you want to build support for NFC (Near field
+	  Say Y here if you want to build support for BACKPORT_NFC (Near field
 	  communication) devices.
 
 	  To compile this support as a module, choose M here: the module will
 	  be called nfc.
 
-config NFC_DIGITAL
+config BACKPORT_NFC_DIGITAL
 	depends on NFC
+	depends on !NFC_DIGITAL
 	select CRC_CCITT
 	select CRC_ITU_T
 	tristate "NFC Digital Protocol stack support"
 	default n
 	help
-	  Say Y if you want to build NFC digital protocol stack support.
-	  This is needed by NFC chipsets whose firmware only implement
-	  the NFC analog layer.
+	  Say Y if you want to build BACKPORT_NFC digital protocol stack support.
+	  This is needed by BACKPORT_NFC chipsets whose firmware only implement
+	  the BACKPORT_NFC analog layer.
 
 	  To compile this support as a module, choose M here: the module will
 	  be called nfc_digital.

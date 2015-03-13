@@ -1,7 +1,8 @@
-config VIDEO_HEXIUM_GEMINI
+config BACKPORT_VIDEO_HEXIUM_GEMINI
 	tristate "Hexium Gemini frame grabber"
-	depends on PCI && VIDEO_V4L2 && I2C
-	select VIDEO_SAA7146_VV
+	depends on !VIDEO_HEXIUM_GEMINI
+	depends on PCI && BACKPORT_VIDEO_V4L2 && I2C
+	select BACKPORT_VIDEO_SAA7146_VV
 	---help---
 	  This is a video4linux driver for the Hexium Gemini frame
 	  grabber card by Hexium. Please note that the Gemini Dual
@@ -10,10 +11,11 @@ config VIDEO_HEXIUM_GEMINI
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_gemini.
 
-config VIDEO_HEXIUM_ORION
+config BACKPORT_VIDEO_HEXIUM_ORION
 	tristate "Hexium HV-PCI6 and Orion frame grabber"
-	depends on PCI && VIDEO_V4L2 && I2C
-	select VIDEO_SAA7146_VV
+	depends on !VIDEO_HEXIUM_ORION
+	depends on PCI && BACKPORT_VIDEO_V4L2 && I2C
+	select BACKPORT_VIDEO_SAA7146_VV
 	---help---
 	  This is a video4linux driver for the Hexium HV-PCI6 and
 	  Orion frame grabber cards by Hexium.
@@ -21,15 +23,16 @@ config VIDEO_HEXIUM_ORION
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_orion.
 
-config VIDEO_MXB
+config BACKPORT_VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
-	depends on PCI && VIDEO_V4L2 && I2C
-	select VIDEO_SAA7146_VV
-	select VIDEO_TUNER
-	select VIDEO_SAA711X if MEDIA_SUBDRV_AUTOSELECT
-	select VIDEO_TDA9840 if MEDIA_SUBDRV_AUTOSELECT
-	select VIDEO_TEA6415C if MEDIA_SUBDRV_AUTOSELECT
-	select VIDEO_TEA6420 if MEDIA_SUBDRV_AUTOSELECT
+	depends on !VIDEO_MXB
+	depends on PCI && BACKPORT_VIDEO_V4L2 && I2C
+	select BACKPORT_VIDEO_SAA7146_VV
+	select BACKPORT_VIDEO_TUNER
+	select VIDEO_SAA711X if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_TDA9840 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_TEA6415C if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_TEA6420 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
 	---help---
 	  This is a video4linux driver for the 'Multimedia eXtension Board'
 	  TV card by Siemens-Nixdorf.

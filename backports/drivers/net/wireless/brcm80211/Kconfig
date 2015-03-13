@@ -1,76 +1,85 @@
-config BRCMUTIL
+config BACKPORT_BRCMUTIL
 	tristate
+	depends on !BRCMUTIL
 
-config BRCMSMAC
+config BACKPORT_BRCMSMAC
 	tristate "Broadcom IEEE802.11n PCIe SoftMAC WLAN driver"
-	depends on MAC80211
-	depends on BCMA_POSSIBLE
-	select BCMA
-	select NEW_LEDS if BCMA_DRIVER_GPIO
-	select LEDS_CLASS if BCMA_DRIVER_GPIO
-	select BRCMUTIL
+	depends on !BRCMSMAC
+	depends on BACKPORT_MAC80211
+	depends on BACKPORT_BCMA_POSSIBLE
+	select BACKPORT_BCMA
+	select NEW_LEDS if BACKPORT_BCMA_DRIVER_GPIO
+	select LEDS_CLASS if BACKPORT_BCMA_DRIVER_GPIO
+	select BACKPORT_BRCMUTIL
 	select FW_LOADER
 	select CORDIC
 	---help---
 	  This module adds support for PCIe wireless adapters based on Broadcom
-	  IEEE802.11n SoftMAC chipsets. It also has WLAN led support, which will
-	  be available if you select BCMA_DRIVER_GPIO. If you choose to build a
+	  IEEE802.11n SoftMAC chipsets. It also has BACKPORT_WLAN led support, which will
+	  be available if you select BACKPORT_BCMA_DRIVER_GPIO. If you choose to build a
 	  module, the driver will be called brcmsmac.ko.
 
-config BRCMFMAC
+config BACKPORT_BRCMFMAC
 	tristate "Broadcom IEEE802.11n embedded FullMAC WLAN driver"
-	depends on CFG80211
-	select BRCMUTIL
+	depends on !BRCMFMAC
+	depends on BACKPORT_CFG80211
+	select BACKPORT_BRCMUTIL
 	---help---
 	  This module adds support for embedded wireless adapters based on
 	  Broadcom IEEE802.11n FullMAC chipsets. It has to work with at least
 	  one of the bus interface support. If you choose to build a module,
 	  it'll be called brcmfmac.ko.
 
-config BRCMFMAC_PROTO_BCDC
+config BACKPORT_BRCMFMAC_PROTO_BCDC
 	bool
+	depends on !BRCMFMAC_PROTO_BCDC
 
-config BRCMFMAC_PROTO_MSGBUF
+config BACKPORT_BRCMFMAC_PROTO_MSGBUF
 	bool
+	depends on !BRCMFMAC_PROTO_MSGBUF
 
-config BRCMFMAC_SDIO
+config BACKPORT_BRCMFMAC_SDIO
 	bool "SDIO bus interface support for FullMAC driver"
-	depends on (MMC = y || MMC = BRCMFMAC)
-	depends on BRCMFMAC
-	select BRCMFMAC_PROTO_BCDC
+	depends on !BRCMFMAC_SDIO
+	depends on (MMC = y || MMC = BACKPORT_BRCMFMAC)
+	depends on BACKPORT_BRCMFMAC
+	select BACKPORT_BRCMFMAC_PROTO_BCDC
 	select FW_LOADER
 	default y
 	---help---
 	  This option enables the SDIO bus interface support for Broadcom
-	  IEEE802.11n embedded FullMAC WLAN driver. Say Y if you want to
+	  IEEE802.11n embedded FullMAC BACKPORT_WLAN driver. Say Y if you want to
 	  use the driver for a SDIO wireless card.
 
-config BRCMFMAC_USB
+config BACKPORT_BRCMFMAC_USB
 	bool "USB bus interface support for FullMAC driver"
-	depends on (USB = y || USB = BRCMFMAC)
-	depends on BRCMFMAC
-	select BRCMFMAC_PROTO_BCDC
+	depends on !BRCMFMAC_USB
+	depends on (USB = y || USB = BACKPORT_BRCMFMAC)
+	depends on BACKPORT_BRCMFMAC
+	select BACKPORT_BRCMFMAC_PROTO_BCDC
 	select FW_LOADER
 	---help---
 	  This option enables the USB bus interface support for Broadcom
-	  IEEE802.11n embedded FullMAC WLAN driver. Say Y if you want to
+	  IEEE802.11n embedded FullMAC BACKPORT_WLAN driver. Say Y if you want to
 	  use the driver for an USB wireless card.
 
-config BRCMFMAC_PCIE
+config BACKPORT_BRCMFMAC_PCIE
 	bool "PCIE bus interface support for FullMAC driver"
-	depends on BRCMFMAC
+	depends on !BRCMFMAC_PCIE
+	depends on BACKPORT_BRCMFMAC
 	depends on PCI
 	depends on HAS_DMA
-	select BRCMFMAC_PROTO_MSGBUF
+	select BACKPORT_BRCMFMAC_PROTO_MSGBUF
 	select FW_LOADER
 	---help---
 	  This option enables the PCIE bus interface support for Broadcom
-	  IEEE802.11ac embedded FullMAC WLAN driver. Say Y if you want to
+	  IEEE802.11ac embedded FullMAC BACKPORT_WLAN driver. Say Y if you want to
 	  use the driver for an PCIE wireless card.
 
-config BRCM_TRACING
+config BACKPORT_BRCM_TRACING
 	bool "Broadcom device tracing"
-	depends on BRCMSMAC || BRCMFMAC
+	depends on !BRCM_TRACING
+	depends on BACKPORT_BRCMSMAC || BRCMFMAC
 	---help---
 	  If you say Y here, the Broadcom wireless drivers will register
 	  with ftrace to dump event information into the trace ringbuffer.
@@ -79,8 +88,9 @@ config BRCM_TRACING
 	  is disabled. If unsure, say Y to allow developers to better help
 	  you when wireless problems occur.
 
-config BRCMDBG
+config BACKPORT_BRCMDBG
 	bool "Broadcom driver debug functions"
-	depends on BRCMSMAC || BRCMFMAC
+	depends on !BRCMDBG
+	depends on BACKPORT_BRCMSMAC || BRCMFMAC
 	---help---
 	  Selecting this enables additional code for debug purposes.

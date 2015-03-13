@@ -1,8 +1,9 @@
-config USB_ZR364XX
+config BACKPORT_USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
-	depends on VIDEO_V4L2
-	select VIDEOBUF_GEN
-	select VIDEOBUF_VMALLOC
+	depends on !USB_ZR364XX
+	depends on BACKPORT_VIDEO_V4L2
+	select BACKPORT_VIDEOBUF_GEN
+	select BACKPORT_VIDEOBUF_VMALLOC
 	---help---
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port.

@@ -1,26 +1,29 @@
 
-config VIDEO_SAMSUNG_EXYNOS4_IS
+config BACKPORT_VIDEO_SAMSUNG_EXYNOS4_IS
 	bool "Samsung S5P/EXYNOS4 SoC series Camera Subsystem driver"
-	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on !VIDEO_SAMSUNG_EXYNOS4_IS
+	depends on VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	depends on OF && COMMON_CLK
 	help
 	  Say Y here to enable camera host interface devices for
 	  Samsung S5P and EXYNOS SoC series.
 
-if VIDEO_SAMSUNG_EXYNOS4_IS
+if BACKPORT_VIDEO_SAMSUNG_EXYNOS4_IS
 
-config VIDEO_EXYNOS4_IS_COMMON
+config BACKPORT_VIDEO_EXYNOS4_IS_COMMON
        tristate
+	depends on !VIDEO_EXYNOS4_IS_COMMON
 
-config VIDEO_S5P_FIMC
+config BACKPORT_VIDEO_S5P_FIMC
 	tristate "S5P/EXYNOS4 FIMC/CAMIF camera interface driver"
+	depends on !VIDEO_S5P_FIMC
 	depends on I2C
 	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
+	select BACKPORT_VIDEOBUF2_DMA_CONTIG
+	select BACKPORT_V4L2_MEM2MEM_DEV
 	select MFD_SYSCON
-	select VIDEO_EXYNOS4_IS_COMMON
+	select BACKPORT_VIDEO_EXYNOS4_IS_COMMON
 	help
 	  This is a V4L2 driver for Samsung S5P and EXYNOS4 SoC camera host
 	  interface and video postprocessor (FIMC) devices.
@@ -28,8 +31,9 @@ config VIDEO_S5P_FIMC
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5p-fimc.
 
-config VIDEO_S5P_MIPI_CSIS
+config BACKPORT_VIDEO_S5P_MIPI_CSIS
 	tristate "S5P/EXYNOS MIPI-CSI2 receiver (MIPI-CSIS) driver"
+	depends on !VIDEO_S5P_MIPI_CSIS
 	depends on REGULATOR
 	select GENERIC_PHY
 	help
@@ -41,12 +45,13 @@ config VIDEO_S5P_MIPI_CSIS
 
 if SOC_EXYNOS4212 || SOC_EXYNOS4412 || SOC_EXYNOS5250
 
-config VIDEO_EXYNOS_FIMC_LITE
+config BACKPORT_VIDEO_EXYNOS_FIMC_LITE
 	tristate "EXYNOS FIMC-LITE camera interface driver"
+	depends on !VIDEO_EXYNOS_FIMC_LITE
 	depends on I2C
 	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	select VIDEO_EXYNOS4_IS_COMMON
+	select BACKPORT_VIDEOBUF2_DMA_CONTIG
+	select BACKPORT_VIDEO_EXYNOS4_IS_COMMON
 	help
 	  This is a V4L2 driver for Samsung EXYNOS4/5 SoC FIMC-LITE camera
 	  host interface.
@@ -55,10 +60,11 @@ config VIDEO_EXYNOS_FIMC_LITE
 	  module will be called exynos-fimc-lite.
 endif
 
-config VIDEO_EXYNOS4_FIMC_IS
+config BACKPORT_VIDEO_EXYNOS4_FIMC_IS
 	tristate "EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver"
+	depends on !VIDEO_EXYNOS4_FIMC_IS
 	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
+	select BACKPORT_VIDEOBUF2_DMA_CONTIG
 	depends on OF
 	select FW_LOADER
 	help
@@ -68,13 +74,14 @@ config VIDEO_EXYNOS4_FIMC_IS
 	  To compile this driver as a module, choose M here: the
 	  module will be called exynos4-fimc-is.
 
-config VIDEO_EXYNOS4_ISP_DMA_CAPTURE
+config BACKPORT_VIDEO_EXYNOS4_ISP_DMA_CAPTURE
 	bool "EXYNOS4x12 FIMC-IS ISP Direct DMA capture support"
-	depends on VIDEO_EXYNOS4_FIMC_IS
-	select VIDEO_EXYNOS4_IS_COMMON
+	depends on !VIDEO_EXYNOS4_ISP_DMA_CAPTURE
+	depends on BACKPORT_VIDEO_EXYNOS4_FIMC_IS
+	select BACKPORT_VIDEO_EXYNOS4_IS_COMMON
 	default y
 	  help
 	  This option enables an additional video device node exposing a V4L2
 	  video capture interface for the FIMC-IS ISP raw (Bayer) capture DMA.
 
-endif # VIDEO_SAMSUNG_EXYNOS4_IS
+endif # BACKPORT_VIDEO_SAMSUNG_EXYNOS4_IS

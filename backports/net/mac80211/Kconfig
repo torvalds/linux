@@ -1,6 +1,7 @@
-config MAC80211
+config BACKPORT_MAC80211
 	tristate "Generic IEEE 802.11 Networking Stack (mac80211)"
-	depends on CFG80211
+	depends on !MAC80211
+	depends on BACKPORT_CFG80211
 	select CRYPTO
 	select CRYPTO_ARC4
 	select CRYPTO_AES
@@ -12,67 +13,74 @@ config MAC80211
 	  networking stack.
 
 comment "CFG80211 needs to be enabled for MAC80211"
-	depends on CFG80211=n
+	depends on BACKPORT_CFG80211=n
 
-if MAC80211 != n
+if BACKPORT_MAC80211 != n
 
-config MAC80211_HAS_RC
+config BACKPORT_MAC80211_HAS_RC
 	bool
+	depends on !MAC80211_HAS_RC
 
-config MAC80211_RC_MINSTREL
+config BACKPORT_MAC80211_RC_MINSTREL
 	bool "Minstrel" if EXPERT
-	select MAC80211_HAS_RC
+	depends on !MAC80211_RC_MINSTREL
+	select BACKPORT_MAC80211_HAS_RC
 	default y
 	---help---
 	  This option enables the 'minstrel' TX rate control algorithm
 
-config MAC80211_RC_MINSTREL_HT
+config BACKPORT_MAC80211_RC_MINSTREL_HT
 	bool "Minstrel 802.11n support" if EXPERT
-	depends on MAC80211_RC_MINSTREL
+	depends on !MAC80211_RC_MINSTREL_HT
+	depends on BACKPORT_MAC80211_RC_MINSTREL
 	default y
 	---help---
 	  This option enables the 'minstrel_ht' TX rate control algorithm
 
-config MAC80211_RC_MINSTREL_VHT
+config BACKPORT_MAC80211_RC_MINSTREL_VHT
 	bool "Minstrel 802.11ac support" if EXPERT
-	depends on MAC80211_RC_MINSTREL_HT
+	depends on !MAC80211_RC_MINSTREL_VHT
+	depends on BACKPORT_MAC80211_RC_MINSTREL_HT
 	default n
 	---help---
 	  This option enables VHT in the 'minstrel_ht' TX rate control algorithm
 
 choice
 	prompt "Default rate control algorithm"
-	depends on MAC80211_HAS_RC
-	default MAC80211_RC_DEFAULT_MINSTREL
+	depends on BACKPORT_MAC80211_HAS_RC
+	default BACKPORT_MAC80211_RC_DEFAULT_MINSTREL
 	---help---
 	  This option selects the default rate control algorithm
 	  mac80211 will use. Note that this default can still be
 	  overridden through the ieee80211_default_rc_algo module
 	  parameter if different algorithms are available.
 
-config MAC80211_RC_DEFAULT_MINSTREL
+config BACKPORT_MAC80211_RC_DEFAULT_MINSTREL
 	bool "Minstrel"
-	depends on MAC80211_RC_MINSTREL
+	depends on !MAC80211_RC_DEFAULT_MINSTREL
+	depends on BACKPORT_MAC80211_RC_MINSTREL
 	---help---
 	  Select Minstrel as the default rate control algorithm.
 
 
 endchoice
 
-config MAC80211_RC_DEFAULT
+config BACKPORT_MAC80211_RC_DEFAULT
 	string
-	default "minstrel_ht" if MAC80211_RC_DEFAULT_MINSTREL && MAC80211_RC_MINSTREL_HT
-	default "minstrel" if MAC80211_RC_DEFAULT_MINSTREL
+	depends on !MAC80211_RC_DEFAULT
+	default "minstrel_ht" if BACKPORT_MAC80211_RC_DEFAULT_MINSTREL && BACKPORT_MAC80211_RC_MINSTREL_HT
+	default "minstrel" if BACKPORT_MAC80211_RC_DEFAULT_MINSTREL
 	default ""
 
 endif
 
 comment "Some wireless drivers require a rate control algorithm"
-	depends on MAC80211 && MAC80211_HAS_RC=n
+	depends on BACKPORT_MAC80211 && BACKPORT_MAC80211_HAS_RC=n
 
-config MAC80211_MESH
+config BACKPORT_MAC80211_MESH
 	bool "Enable mac80211 mesh networking (pre-802.11s) support"
-	depends on MAC80211
+	depends on !MAC80211_MESH
+	depends on BACKPORT_MAC80211
 	---help---
 	 This options enables support of Draft 802.11s mesh networking.
 	 The implementation is based on Draft 2.08 of the Mesh Networking
@@ -80,27 +88,30 @@ config MAC80211_MESH
 	 possible, as drafts leave a number of identifiers to be defined after
 	 ratification.  For more information visit http://o11s.org/.
 
-config MAC80211_LEDS
+config BACKPORT_MAC80211_LEDS
 	bool "Enable LED triggers"
-	depends on MAC80211
+	depends on !MAC80211_LEDS
+	depends on BACKPORT_MAC80211
 	depends on LEDS_CLASS
 	select LEDS_TRIGGERS
 	---help---
 	  This option enables a few LED triggers for different
 	  packet receive/transmit events.
 
-config MAC80211_DEBUGFS
+config BACKPORT_MAC80211_DEBUGFS
 	bool "Export mac80211 internals in DebugFS"
-	depends on MAC80211 && DEBUG_FS
+	depends on !MAC80211_DEBUGFS
+	depends on BACKPORT_MAC80211 && DEBUG_FS
 	---help---
 	  Select this to see extensive information about
 	  the internal state of mac80211 in debugfs.
 
 	  Say N unless you know you need this.
 
-config MAC80211_MESSAGE_TRACING
+config BACKPORT_MAC80211_MESSAGE_TRACING
 	bool "Trace all mac80211 debug messages"
-	depends on MAC80211
+	depends on !MAC80211_MESSAGE_TRACING
+	depends on BACKPORT_MAC80211
 	---help---
 	  Select this option to have mac80211 register the
 	  mac80211_msg trace subsystem with tracepoints to
@@ -111,15 +122,17 @@ config MAC80211_MESSAGE_TRACING
 	  need to be present in the binary and formatted at
 	  runtime for tracing.
 
-menuconfig MAC80211_DEBUG_MENU
+menuconfig BACKPORT_MAC80211_DEBUG_MENU
 	bool "Select mac80211 debugging features"
-	depends on MAC80211
+	depends on !MAC80211_DEBUG_MENU
+	depends on BACKPORT_MAC80211
 	---help---
 	  This option collects various mac80211 debug settings.
 
-config MAC80211_NOINLINE
+config BACKPORT_MAC80211_NOINLINE
 	bool "Do not inline TX/RX handlers"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_NOINLINE
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  This option affects code generation in mac80211, when
 	  selected some functions are marked "noinline" to allow
@@ -133,9 +146,10 @@ config MAC80211_NOINLINE
 	  If unsure, say N unless you expect to be finding problems
 	  in mac80211.
 
-config MAC80211_VERBOSE_DEBUG
+config BACKPORT_MAC80211_VERBOSE_DEBUG
 	bool "Verbose debugging output"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_VERBOSE_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  Selecting this option causes mac80211 to print out
 	  many debugging messages. It should not be selected
@@ -144,9 +158,10 @@ config MAC80211_VERBOSE_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_MLME_DEBUG
+config BACKPORT_MAC80211_MLME_DEBUG
 	bool "Verbose managed MLME output"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_MLME_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  Selecting this option causes mac80211 to print out
 	  debugging messages for the managed-mode MLME. It
@@ -155,18 +170,20 @@ config MAC80211_MLME_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_STA_DEBUG
+config BACKPORT_MAC80211_STA_DEBUG
 	bool "Verbose station debugging"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_STA_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  Selecting this option causes mac80211 to print out
 	  debugging messages for station addition/removal.
 
 	  Do not select this option.
 
-config MAC80211_HT_DEBUG
+config BACKPORT_MAC80211_HT_DEBUG
 	bool "Verbose HT debugging"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_HT_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  This option enables 802.11n High Throughput features
 	  debug tracing output.
@@ -176,9 +193,10 @@ config MAC80211_HT_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_OCB_DEBUG
+config BACKPORT_MAC80211_OCB_DEBUG
 	bool "Verbose OCB debugging"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_OCB_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  Selecting this option causes mac80211 to print out
 	  very verbose OCB debugging messages. It should not
@@ -187,9 +205,10 @@ config MAC80211_OCB_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_IBSS_DEBUG
+config BACKPORT_MAC80211_IBSS_DEBUG
 	bool "Verbose IBSS debugging"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_IBSS_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  Selecting this option causes mac80211 to print out
 	  very verbose IBSS debugging messages. It should not
@@ -198,9 +217,10 @@ config MAC80211_IBSS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_PS_DEBUG
+config BACKPORT_MAC80211_PS_DEBUG
 	bool "Verbose powersave mode debugging"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_PS_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  Selecting this option causes mac80211 to print out very
 	  verbose power save mode debugging messages (when mac80211
@@ -210,10 +230,11 @@ config MAC80211_PS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_MPL_DEBUG
+config BACKPORT_MAC80211_MPL_DEBUG
 	bool "Verbose mesh peer link debugging"
-	depends on MAC80211_DEBUG_MENU
-	depends on MAC80211_MESH
+	depends on !MAC80211_MPL_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
+	depends on BACKPORT_MAC80211_MESH
 	---help---
 	  Selecting this option causes mac80211 to print out very
 	  verbose mesh peer link debugging messages (when mac80211
@@ -223,10 +244,11 @@ config MAC80211_MPL_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_MPATH_DEBUG
+config BACKPORT_MAC80211_MPATH_DEBUG
 	bool "Verbose mesh path debugging"
-	depends on MAC80211_DEBUG_MENU
-	depends on MAC80211_MESH
+	depends on !MAC80211_MPATH_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
+	depends on BACKPORT_MAC80211_MESH
 	---help---
 	  Selecting this option causes mac80211 to print out very
 	  verbose mesh path selection debugging messages (when mac80211
@@ -236,10 +258,11 @@ config MAC80211_MPATH_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_MHWMP_DEBUG
+config BACKPORT_MAC80211_MHWMP_DEBUG
 	bool "Verbose mesh HWMP routing debugging"
-	depends on MAC80211_DEBUG_MENU
-	depends on MAC80211_MESH
+	depends on !MAC80211_MHWMP_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
+	depends on BACKPORT_MAC80211_MESH
 	---help---
 	  Selecting this option causes mac80211 to print out very
 	  verbose mesh routing (HWMP) debugging messages (when mac80211
@@ -249,10 +272,11 @@ config MAC80211_MHWMP_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_MESH_SYNC_DEBUG
+config BACKPORT_MAC80211_MESH_SYNC_DEBUG
 	bool "Verbose mesh synchronization debugging"
-	depends on MAC80211_DEBUG_MENU
-	depends on MAC80211_MESH
+	depends on !MAC80211_MESH_SYNC_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
+	depends on BACKPORT_MAC80211_MESH
 	---help---
 	  Selecting this option causes mac80211 to print out very verbose mesh
 	  synchronization debugging messages (when mac80211 is taking part in a
@@ -260,10 +284,11 @@ config MAC80211_MESH_SYNC_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_MESH_CSA_DEBUG
+config BACKPORT_MAC80211_MESH_CSA_DEBUG
 	bool "Verbose mesh channel switch debugging"
-	depends on MAC80211_DEBUG_MENU
-	depends on MAC80211_MESH
+	depends on !MAC80211_MESH_CSA_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
+	depends on BACKPORT_MAC80211_MESH
 	---help---
 	  Selecting this option causes mac80211 to print out very verbose mesh
 	  channel switch debugging messages (when mac80211 is taking part in a
@@ -271,10 +296,11 @@ config MAC80211_MESH_CSA_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_MESH_PS_DEBUG
+config BACKPORT_MAC80211_MESH_PS_DEBUG
 	bool "Verbose mesh powersave debugging"
-	depends on MAC80211_DEBUG_MENU
-	depends on MAC80211_MESH
+	depends on !MAC80211_MESH_PS_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
+	depends on BACKPORT_MAC80211_MESH
 	---help---
 	  Selecting this option causes mac80211 to print out very verbose mesh
 	  powersave debugging messages (when mac80211 is taking part in a
@@ -282,9 +308,10 @@ config MAC80211_MESH_PS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_TDLS_DEBUG
+config BACKPORT_MAC80211_TDLS_DEBUG
 	bool "Verbose TDLS debugging"
-	depends on MAC80211_DEBUG_MENU
+	depends on !MAC80211_TDLS_DEBUG
+	depends on BACKPORT_MAC80211_DEBUG_MENU
 	---help---
 	  Selecting this option causes mac80211 to print out very
 	  verbose TDLS selection debugging messages (when mac80211
@@ -294,10 +321,11 @@ config MAC80211_TDLS_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_DEBUG_COUNTERS
+config BACKPORT_MAC80211_DEBUG_COUNTERS
 	bool "Extra statistics for TX/RX debugging"
-	depends on MAC80211_DEBUG_MENU
-	depends on MAC80211_DEBUGFS
+	depends on !MAC80211_DEBUG_COUNTERS
+	depends on BACKPORT_MAC80211_DEBUG_MENU
+	depends on BACKPORT_MAC80211_DEBUGFS
 	---help---
 	  Selecting this option causes mac80211 to keep additional
 	  and very verbose statistics about TX and RX handler use

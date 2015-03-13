@@ -1,7 +1,8 @@
-config WL12XX
+config BACKPORT_WL12XX
        tristate "TI wl12xx support"
-	depends on MAC80211
-       select WLCORE
+	depends on !WL12XX
+	depends on BACKPORT_MAC80211
+       select BACKPORT_WLCORE
        ---help---
 	  This module adds support for wireless adapters based on TI wl1271,
 	  wl1273, wl1281 and wl1283 chipsets. This module does *not* include

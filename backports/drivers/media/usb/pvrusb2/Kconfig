@@ -1,14 +1,15 @@
-config VIDEO_PVRUSB2
+config BACKPORT_VIDEO_PVRUSB2
 	tristate "Hauppauge WinTV-PVR USB2 support"
-	depends on VIDEO_V4L2 && I2C
-	select VIDEO_TUNER
-	select VIDEO_TVEEPROM
-	select VIDEO_CX2341X
-	select VIDEO_SAA711X
-	select VIDEO_CX25840
-	select VIDEO_MSP3400
-	select VIDEO_WM8775
-	select VIDEO_CS53L32A
+	depends on !VIDEO_PVRUSB2
+	depends on BACKPORT_VIDEO_V4L2 && I2C
+	select BACKPORT_VIDEO_TUNER
+	select BACKPORT_VIDEO_TVEEPROM
+	select BACKPORT_VIDEO_CX2341X
+	select BACKPORT_VIDEO_SAA711X
+	select BACKPORT_VIDEO_CX25840
+	select BACKPORT_VIDEO_MSP3400
+	select BACKPORT_VIDEO_WM8775
+	select BACKPORT_VIDEO_CS53L32A
 	---help---
 	  This is a video4linux driver for Conexant 23416 based
 	  usb2 personal video recorder devices.
@@ -16,10 +17,11 @@ config VIDEO_PVRUSB2
 	  To compile this driver as a module, choose M here: the
 	  module will be called pvrusb2
 
-config VIDEO_PVRUSB2_SYSFS
+config BACKPORT_VIDEO_PVRUSB2_SYSFS
 	bool "pvrusb2 sysfs support"
+	depends on !VIDEO_PVRUSB2_SYSFS
 	default y
-	depends on VIDEO_PVRUSB2 && SYSFS
+	depends on BACKPORT_VIDEO_PVRUSB2 && SYSFS
 	---help---
 	  This option enables the operation of a sysfs based
 	  interface for query and control of the pvrusb2 driver.
@@ -32,17 +34,18 @@ config VIDEO_PVRUSB2_SYSFS
 
 	  Note: This feature is experimental and subject to change.
 
-config VIDEO_PVRUSB2_DVB
+config BACKPORT_VIDEO_PVRUSB2_DVB
 	bool "pvrusb2 ATSC/DVB support"
+	depends on !VIDEO_PVRUSB2_DVB
 	default y
-	depends on VIDEO_PVRUSB2 && DVB_CORE
-	select DVB_LGDT330X if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_S5H1409 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_S5H1411 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_TDA10048 if MEDIA_SUBDRV_AUTOSELECT
-	select MEDIA_TUNER_TDA18271 if MEDIA_SUBDRV_AUTOSELECT
-	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
-	select MEDIA_TUNER_TDA8290 if MEDIA_SUBDRV_AUTOSELECT
+	depends on VIDEO_PVRUSB2 && BACKPORT_DVB_CORE
+	select DVB_LGDT330X if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_S5H1409 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_S5H1411 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10048 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA18271 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SIMPLE if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA8290 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
 	---help---
 
 	  This option enables a DVB interface for the pvrusb2 driver.
@@ -51,9 +54,10 @@ config VIDEO_PVRUSB2_DVB
 
 	  If you are in doubt, say Y.
 
-config VIDEO_PVRUSB2_DEBUGIFC
+config BACKPORT_VIDEO_PVRUSB2_DEBUGIFC
 	bool "pvrusb2 debug interface"
-	depends on VIDEO_PVRUSB2_SYSFS
+	depends on !VIDEO_PVRUSB2_DEBUGIFC
+	depends on BACKPORT_VIDEO_PVRUSB2_SYSFS
 	---help---
 	  This option enables the inclusion of a debug interface
 	  in the pvrusb2 driver, hosted through sysfs.

@@ -2,10 +2,11 @@
 # Siano Mobile Silicon Digital TV device configuration
 #
 
-config SMS_SDIO_DRV
+config BACKPORT_SMS_SDIO_DRV
 	tristate "Siano SMS1xxx based MDTV via SDIO interface"
-	depends on DVB_CORE && HAS_DMA
+	depends on !SMS_SDIO_DRV
+	depends on BACKPORT_DVB_CORE && HAS_DMA
 	depends on MMC
-	select MEDIA_COMMON_OPTIONS
+	select BACKPORT_MEDIA_COMMON_OPTIONS
 	---help---
 	  Choose if you would like to have Siano's support for SDIO interface

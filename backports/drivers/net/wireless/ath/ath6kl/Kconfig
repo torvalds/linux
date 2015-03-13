@@ -1,6 +1,7 @@
-config ATH6KL
+config BACKPORT_ATH6KL
 	tristate "Atheros mobile chipsets support"
-	depends on CFG80211
+	depends on !ATH6KL
+	depends on BACKPORT_CFG80211
         ---help---
 	  This module adds core support for wireless adapters based on
 	  Atheros AR6003 and AR6004 chipsets. You still need separate
@@ -10,9 +11,10 @@ config ATH6KL
 	  ath6kl_core. Please note that AR6002 and AR6001 are not
 	  supported by this driver.
 
-config ATH6KL_SDIO
+config BACKPORT_ATH6KL_SDIO
 	tristate "Atheros ath6kl SDIO support"
-	depends on ATH6KL
+	depends on !ATH6KL_SDIO
+	depends on BACKPORT_ATH6KL
 	depends on MMC
 	---help---
 	  This module adds support for wireless adapters based on
@@ -21,9 +23,10 @@ config ATH6KL_SDIO
 	  Please note that AR6002 and AR6001 are not supported by this
 	  driver.
 
-config ATH6KL_USB
+config BACKPORT_ATH6KL_USB
 	tristate "Atheros ath6kl USB support"
-	depends on ATH6KL
+	depends on !ATH6KL_USB
+	depends on BACKPORT_ATH6KL
 	depends on USB
 	---help---
 	  This module adds support for wireless adapters based on
@@ -31,9 +34,10 @@ config ATH6KL_USB
 	  USB. If you choose to build it as a module, it will be
 	  called ath6kl_usb.
 
-config ATH6KL_DEBUG
+config BACKPORT_ATH6KL_DEBUG
 	bool "Atheros ath6kl debugging"
-	depends on ATH6KL
+	depends on !ATH6KL_DEBUG
+	depends on BACKPORT_ATH6KL
 	---help---
 	  Enables ath6kl debug support, including debug messages
 	  enabled with debug_mask module parameter and debugfs
@@ -41,9 +45,10 @@ config ATH6KL_DEBUG
 
 	  If unsure, say Y to make it easier to debug problems.
 
-config ATH6KL_TRACING
+config BACKPORT_ATH6KL_TRACING
 	bool "Atheros ath6kl tracing support"
-	depends on ATH6KL
+	depends on !ATH6KL_TRACING
+	depends on BACKPORT_ATH6KL
 	depends on EVENT_TRACING
 	---help---
 	  Select this to ath6kl use tracing infrastructure which, for
@@ -53,10 +58,11 @@ config ATH6KL_TRACING
 
 	  If unsure, say Y to make it easier to debug problems.
 
-config ATH6KL_REGDOMAIN
+config BACKPORT_ATH6KL_REGDOMAIN
 	bool "Atheros ath6kl regdomain support"
-	depends on ATH6KL
-	depends on CFG80211_CERTIFICATION_ONUS
+	depends on !ATH6KL_REGDOMAIN
+	depends on BACKPORT_ATH6KL
+	depends on BACKPORT_CFG80211_CERTIFICATION_ONUS
 	---help---
 	  Enabling this makes it possible to change the regdomain in
 	  the firmware. This can be only enabled if regulatory requirements

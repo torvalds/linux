@@ -1,6 +1,7 @@
-config DVB_DRX39XYJ
+config BACKPORT_DVB_DRX39XYJ
 	tristate "Micronas DRX-J demodulator"
-	depends on DVB_CORE && I2C
+	depends on !DVB_DRX39XYJ
+	depends on BACKPORT_DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want

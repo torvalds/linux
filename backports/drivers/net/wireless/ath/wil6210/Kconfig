@@ -1,6 +1,7 @@
-config WIL6210
+config BACKPORT_WIL6210
 	tristate "Wilocity 60g WiFi card wil6210 support"
-	depends on CFG80211
+	depends on !WIL6210
+	depends on BACKPORT_CFG80211
 	depends on PCI
 	default n
 	---help---
@@ -13,9 +14,10 @@ config WIL6210
 	  If you choose to build it as a module, it will be called
 	  wil6210
 
-config WIL6210_ISR_COR
+config BACKPORT_WIL6210_ISR_COR
 	bool "Use Clear-On-Read mode for ISR registers for wil6210"
-	depends on WIL6210
+	depends on !WIL6210_ISR_COR
+	depends on BACKPORT_WIL6210
 	default y
 	---help---
 	  ISR registers on wil6210 chip may operate in either
@@ -28,9 +30,10 @@ config WIL6210_ISR_COR
 	  such monitoring impossible.
 	  Say y unless you debug interrupts
 
-config WIL6210_TRACING
+config BACKPORT_WIL6210_TRACING
 	bool "wil6210 tracing support"
-	depends on WIL6210
+	depends on !WIL6210_TRACING
+	depends on BACKPORT_WIL6210
 	depends on EVENT_TRACING
 	default y
 	---help---
@@ -40,9 +43,10 @@ config WIL6210_TRACING
 
 	  If unsure, say Y to make it easier to debug problems.
 
-config WIL6210_PLATFORM_MSM
+config BACKPORT_WIL6210_PLATFORM_MSM
 	bool "wil6210 MSM platform specific support"
-	depends on WIL6210
+	depends on !WIL6210_PLATFORM_MSM
+	depends on BACKPORT_WIL6210
 	depends on ARCH_MSM
 	default y
 	---help---

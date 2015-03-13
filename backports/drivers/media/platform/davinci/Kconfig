@@ -1,11 +1,12 @@
-config VIDEO_DAVINCI_VPIF_DISPLAY
+config BACKPORT_VIDEO_DAVINCI_VPIF_DISPLAY
 	tristate "TI DaVinci VPIF V4L2-Display driver"
-	depends on VIDEO_DEV
+	depends on !VIDEO_DAVINCI_VPIF_DISPLAY
+	depends on BACKPORT_VIDEO_DEV
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	select VIDEO_ADV7343 if MEDIA_SUBDRV_AUTOSELECT
-	select VIDEO_THS7303 if MEDIA_SUBDRV_AUTOSELECT
+	select BACKPORT_VIDEOBUF2_DMA_CONTIG
+	select VIDEO_ADV7343 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_THS7303 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Enables Davinci VPIF module used for display devices.
 	  This module is used for display on TI DM6467/DA850/OMAPL138
@@ -14,12 +15,13 @@ config VIDEO_DAVINCI_VPIF_DISPLAY
 	  To compile this driver as a module, choose M here. There will
 	  be two modules called vpif.ko and vpif_display.ko
 
-config VIDEO_DAVINCI_VPIF_CAPTURE
+config BACKPORT_VIDEO_DAVINCI_VPIF_CAPTURE
 	tristate "TI DaVinci VPIF video capture driver"
-	depends on VIDEO_DEV
+	depends on !VIDEO_DAVINCI_VPIF_CAPTURE
+	depends on BACKPORT_VIDEO_DEV
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
+	select BACKPORT_VIDEOBUF2_DMA_CONTIG
 	help
 	  Enables Davinci VPIF module used for capture devices.
 	  This module is used for capture on TI DM6467/DA850/OMAPL138
@@ -28,15 +30,16 @@ config VIDEO_DAVINCI_VPIF_CAPTURE
 	  To compile this driver as a module, choose M here. There will
 	  be two modules called vpif.ko and vpif_capture.ko
 
-config VIDEO_DM6446_CCDC
+config BACKPORT_VIDEO_DM6446_CCDC
 	tristate "TI DM6446 CCDC video capture driver"
-	depends on VIDEO_V4L2
+	depends on !VIDEO_DM6446_CCDC
+	depends on BACKPORT_VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on HAS_DMA
-	select VIDEOBUF_DMA_CONTIG
+	select BACKPORT_VIDEOBUF_DMA_CONTIG
 	help
 	   Enables DaVinci CCD hw module. DaVinci CCDC hw interfaces
-	   with decoder modules such as TVP5146 over BT656 or
+	   with decoder modules such as TVP5146 over BACKPORT_BT656 or
 	   sensor module such as MT9T001 over a raw interface. This
 	   module configures the interface and CCDC/ISIF to do
 	   video frame capture from slave decoders.
@@ -44,15 +47,16 @@ config VIDEO_DM6446_CCDC
 	   To compile this driver as a module, choose M here. There will
 	   be three modules called vpfe_capture.ko, vpss.ko and dm644x_ccdc.ko
 
-config VIDEO_DM355_CCDC
+config BACKPORT_VIDEO_DM355_CCDC
 	tristate "TI DM355 CCDC video capture driver"
-	depends on VIDEO_V4L2
+	depends on !VIDEO_DM355_CCDC
+	depends on BACKPORT_VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on HAS_DMA
-	select VIDEOBUF_DMA_CONTIG
+	select BACKPORT_VIDEOBUF_DMA_CONTIG
 	help
 	   Enables DM355 CCD hw module. DM355 CCDC hw interfaces
-	   with decoder modules such as TVP5146 over BT656 or
+	   with decoder modules such as TVP5146 over BACKPORT_BT656 or
 	   sensor module such as MT9T001 over a raw interface. This
 	   module configures the interface and CCDC/ISIF to do
 	   video frame capture from a slave decoders
@@ -60,11 +64,12 @@ config VIDEO_DM355_CCDC
 	   To compile this driver as a module, choose M here. There will
 	   be three modules called vpfe_capture.ko, vpss.ko and dm355_ccdc.ko
 
-config VIDEO_DM365_ISIF
+config BACKPORT_VIDEO_DM365_ISIF
 	tristate "TI DM365 ISIF video capture driver"
-	depends on VIDEO_V4L2 && ARCH_DAVINCI
+	depends on !VIDEO_DM365_ISIF
+	depends on BACKPORT_VIDEO_V4L2 && ARCH_DAVINCI
 	depends on HAS_DMA
-	select VIDEOBUF_DMA_CONTIG
+	select BACKPORT_VIDEOBUF_DMA_CONTIG
 	help
 	   Enables ISIF hw module. This is the hardware module for
 	   configuring ISIF in VPFE to capture Raw Bayer RGB data from
@@ -73,11 +78,12 @@ config VIDEO_DM365_ISIF
 	   To compile this driver as a module, choose M here. There will
 	   be three modules called vpfe_capture.ko, vpss.ko and isif.ko
 
-config VIDEO_DAVINCI_VPBE_DISPLAY
+config BACKPORT_VIDEO_DAVINCI_VPBE_DISPLAY
 	tristate "TI DaVinci VPBE V4L2-Display driver"
+	depends on !VIDEO_DAVINCI_VPBE_DISPLAY
 	depends on ARCH_DAVINCI
 	depends on HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
+	select BACKPORT_VIDEOBUF2_DMA_CONTIG
 	help
 	    Enables Davinci VPBE module used for display devices.
 	    This module is used for display on TI DM644x/DM365/DM355

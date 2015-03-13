@@ -1,9 +1,10 @@
-config VIDEO_CX25821
+config BACKPORT_VIDEO_CX25821
 	tristate "Conexant cx25821 support"
-	depends on VIDEO_DEV && PCI && I2C
+	depends on !VIDEO_CX25821
+	depends on BACKPORT_VIDEO_DEV && PCI && I2C
 	select I2C_ALGOBIT
 	select VIDEO_BTCX
-	select VIDEOBUF_DMA_SG
+	select BACKPORT_VIDEOBUF_DMA_SG
 	---help---
 	  This is a video4linux driver for Conexant 25821 based
 	  TV cards.
@@ -11,9 +12,10 @@ config VIDEO_CX25821
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx25821
 
-config VIDEO_CX25821_ALSA
+config BACKPORT_VIDEO_CX25821_ALSA
 	tristate "Conexant 25821 DMA audio support"
-	depends on VIDEO_CX25821 && SND
+	depends on !VIDEO_CX25821_ALSA
+	depends on BACKPORT_VIDEO_CX25821 && SND
 	select SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on

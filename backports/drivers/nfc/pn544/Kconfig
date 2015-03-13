@@ -1,20 +1,22 @@
-config NFC_PN544
+config BACKPORT_NFC_PN544
 	tristate "NXP PN544 NFC driver"
-	depends on NFC_HCI
+	depends on !NFC_PN544
+	depends on BACKPORT_NFC_HCI
 	select CRC_CCITT
 	default n
 	---help---
 	  NXP PN544 core driver.
-	  This is a driver based on the HCI NFC kernel layers and
+	  This is a driver based on the HCI BACKPORT_NFC kernel layers and
 	  will thus not work with NXP libnfc library.
 
 	  To compile this driver as a module, choose m here. The module will
 	  be called pn544.
 	  Say N if unsure.
 
-config NFC_PN544_I2C
+config BACKPORT_NFC_PN544_I2C
 	tristate "NFC PN544 i2c support"
-	depends on NFC_PN544 && I2C && NFC_SHDLC
+	depends on !NFC_PN544_I2C
+	depends on BACKPORT_NFC_PN544 && I2C && BACKPORT_NFC_SHDLC
 	---help---
 	  This module adds support for the NXP pn544 i2c interface.
 	  Select this if your platform is using the i2c bus.
@@ -22,9 +24,10 @@ config NFC_PN544_I2C
 	  If you choose to build a module, it'll be called pn544_i2c.
 	  Say N if unsure.
 
-config NFC_PN544_MEI
+config BACKPORT_NFC_PN544_MEI
 	tristate "NFC PN544 MEI support"
-	depends on NFC_PN544 && NFC_MEI_PHY
+	depends on !NFC_PN544_MEI
+	depends on BACKPORT_NFC_PN544 && BACKPORT_NFC_MEI_PHY
 	---help---
 	  This module adds support for the mei interface of adapters using
 	  NXP pn544 chipsets.  Select this if your pn544 chipset

@@ -4,15 +4,17 @@
 comment "Host-side USB support is needed for USB Network Adapter support"
 	depends on !USB && NET
 
-menuconfig USB_NET_DRIVERS
+menuconfig BACKPORT_USB_NET_DRIVERS
 	tristate "USB Network Adapters"
+	depends on !USB_NET_DRIVERS
 	default USB if USB
 	depends on USB && NET
 
-if USB_NET_DRIVERS
+if BACKPORT_USB_NET_DRIVERS
 
-config USB_CATC
+config BACKPORT_USB_CATC
 	tristate "USB CATC NetMate-based Ethernet device support"
+	depends on !USB_CATC
 	select CRC32
 	---help---
 	  Say Y if you want to use one of the following 10Mbps USB Ethernet
@@ -30,8 +32,9 @@ config USB_CATC
 	  To compile this driver as a module, choose M here: the
 	  module will be called catc.
 
-config USB_KAWETH
+config BACKPORT_USB_KAWETH
 	tristate "USB KLSI KL5USB101-based ethernet device support"
+	depends on !USB_KAWETH
 	---help---
 	  Say Y here if you want to use one of the following 10Mbps only
 	  USB Ethernet adapters based on the KLSI KL5KUSB101B chipset:
@@ -69,8 +72,9 @@ config USB_KAWETH
 	  To compile this driver as a module, choose M here: the
 	  module will be called kaweth.
 
-config USB_PEGASUS
+config BACKPORT_USB_PEGASUS
 	tristate "USB Pegasus/Pegasus-II based ethernet device support"
+	depends on !USB_PEGASUS
 	select MII
 	---help---
 	  Say Y here if you know you have Pegasus or Pegasus-II based adapter.
@@ -84,8 +88,9 @@ config USB_PEGASUS
 	  To compile this driver as a module, choose M here: the
 	  module will be called pegasus.
 
-config USB_RTL8150
+config BACKPORT_USB_RTL8150
 	tristate "USB RTL8150 based ethernet device support"
+	depends on !USB_RTL8150
 	select MII
 	help
 	  Say Y here if you have RTL8150 based usb-ethernet adapter.
@@ -95,8 +100,9 @@ config USB_RTL8150
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtl8150.
 
-config USB_RTL8152
+config BACKPORT_USB_RTL8152
 	tristate "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
+	depends on !USB_RTL8152
 	select MII
 	help
 	  This option adds support for Realtek RTL8152 based USB 2.0
@@ -106,8 +112,9 @@ config USB_RTL8152
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8152.
 
-config USB_USBNET
+config BACKPORT_USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
+	depends on !USB_USBNET
 	select MII
 	---help---
 	  This driver supports several kinds of network links over USB,
@@ -140,9 +147,10 @@ config USB_USBNET
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbnet.
 
-config USB_NET_AX8817X
+config BACKPORT_USB_NET_AX8817X
 	tristate "ASIX AX88xxx Based USB 2.0 Ethernet Adapters"
-	depends on USB_USBNET
+	depends on !USB_NET_AX8817X
+	depends on BACKPORT_USB_USBNET
 	select CRC32
 	select PHYLIB
 	default y
@@ -168,9 +176,10 @@ config USB_NET_AX8817X
 	  This driver creates an interface named "ethX", where X depends on
 	  what other networking devices you have in use.
 
-config USB_NET_AX88179_178A
+config BACKPORT_USB_NET_AX88179_178A
 	tristate "ASIX AX88179/178A USB 3.0/2.0 to Gigabit Ethernet"
-	depends on USB_USBNET
+	depends on !USB_NET_AX88179_178A
+	depends on BACKPORT_USB_USBNET
 	select CRC32
 	select PHYLIB
 	default y
@@ -186,9 +195,10 @@ config USB_NET_AX88179_178A
 	  This driver creates an interface named "ethX", where X depends on
 	  what other networking devices you have in use.
 
-config USB_NET_CDCETHER
+config BACKPORT_USB_NET_CDCETHER
 	tristate "CDC Ethernet support (smart devices such as cable modems)"
-	depends on USB_USBNET
+	depends on !USB_NET_CDCETHER
+	depends on BACKPORT_USB_USBNET
 	default y
 	help
 	  This option supports devices conforming to the Communication Device
@@ -214,9 +224,10 @@ config USB_NET_CDCETHER
 	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
 	  name is used instead.
 
-config USB_NET_CDC_EEM
+config BACKPORT_USB_NET_CDC_EEM
 	tristate "CDC EEM support"
-	depends on USB_USBNET
+	depends on !USB_NET_CDC_EEM
+	depends on BACKPORT_USB_USBNET
 	help
 	  This option supports devices conforming to the Communication Device
 	  Class (CDC) Ethernet Emulation Model, a specification that's easy to
@@ -228,9 +239,10 @@ config USB_NET_CDC_EEM
 	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
 	  name is used instead.
 
-config USB_NET_CDC_NCM
+config BACKPORT_USB_NET_CDC_NCM
 	tristate "CDC NCM support"
-	depends on USB_USBNET
+	depends on !USB_NET_CDC_NCM
+	depends on BACKPORT_USB_USBNET
 	default y
 	help
 	  This driver provides support for CDC NCM (Network Control Model
@@ -247,11 +259,12 @@ config USB_NET_CDC_NCM
 	    * ST-Ericsson M343 HSPA Mobile Broadband Modem (reference design)
 	    * Ericsson F5521gw Mobile Broadband Module
 
-config USB_NET_HUAWEI_CDC_NCM
+config BACKPORT_USB_NET_HUAWEI_CDC_NCM
 	tristate "Huawei NCM embedded AT channel support"
-	depends on USB_USBNET
-	select USB_WDM
-	select USB_NET_CDC_NCM
+	depends on !USB_NET_HUAWEI_CDC_NCM
+	depends on BACKPORT_USB_USBNET
+	select BACKPORT_USB_WDM
+	select BACKPORT_USB_NET_CDC_NCM
 	help
 		This driver supports huawei-style NCM devices, that use NCM as a
 		transport for other protocols, usually an embedded AT channel.
@@ -262,11 +275,12 @@ config USB_NET_HUAWEI_CDC_NCM
 		To compile this driver as a module, choose M here: the module will be
 		called huawei_cdc_ncm.ko.
 
-config USB_NET_CDC_MBIM
+config BACKPORT_USB_NET_CDC_MBIM
 	tristate "CDC MBIM support"
-	depends on USB_USBNET
-	select USB_WDM
-	select USB_NET_CDC_NCM
+	depends on !USB_NET_CDC_MBIM
+	depends on BACKPORT_USB_USBNET
+	select BACKPORT_USB_WDM
+	select BACKPORT_USB_NET_CDC_NCM
 	help
 	  This driver provides support for CDC MBIM (Mobile Broadband
 	  Interface Model) devices. The CDC MBIM specification is
@@ -280,25 +294,28 @@ config USB_NET_CDC_MBIM
 	  To compile this driver as a module, choose M here: the
 	  module will be called cdc_mbim.
 
-config USB_NET_DM9601
+config BACKPORT_USB_NET_DM9601
 	tristate "Davicom DM96xx based USB 10/100 ethernet devices"
-	depends on USB_USBNET
+	depends on !USB_NET_DM9601
+	depends on BACKPORT_USB_USBNET
 	select CRC32
 	help
 	  This option adds support for Davicom DM9601/DM9620/DM9621A
 	  based USB 10/100 Ethernet adapters.
 
-config USB_NET_SR9700
+config BACKPORT_USB_NET_SR9700
 	tristate "CoreChip-sz SR9700 based USB 1.1 10/100 ethernet devices"
-	depends on USB_USBNET
+	depends on !USB_NET_SR9700
+	depends on BACKPORT_USB_USBNET
 	select CRC32
 	help
 	  This option adds support for CoreChip-sz SR9700 based USB 1.1
 	  10/100 Ethernet adapters.
 
-config USB_NET_SR9800
+config BACKPORT_USB_NET_SR9800
 	tristate "CoreChip-sz SR9800 based USB 2.0 10/100 ethernet devices"
-	depends on USB_USBNET
+	depends on !USB_NET_SR9800
+	depends on BACKPORT_USB_USBNET
 	select CRC32
 	---help---
 	  Say Y if you want to use one of the following 100Mbps USB Ethernet
@@ -311,9 +328,10 @@ config USB_NET_SR9800
 	  To compile this driver as a module, choose M here: the
 	  module will be called sr9800.
 
-config USB_NET_SMSC75XX
+config BACKPORT_USB_NET_SMSC75XX
 	tristate "SMSC LAN75XX based USB 2.0 gigabit ethernet devices"
-	depends on USB_USBNET
+	depends on !USB_NET_SMSC75XX
+	depends on BACKPORT_USB_USBNET
 	select BITREVERSE
 	select CRC16
 	select CRC32
@@ -321,9 +339,10 @@ config USB_NET_SMSC75XX
 	  This option adds support for SMSC LAN75XX based USB 2.0
 	  Gigabit Ethernet adapters.
 
-config USB_NET_SMSC95XX
+config BACKPORT_USB_NET_SMSC95XX
 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
-	depends on USB_USBNET
+	depends on !USB_NET_SMSC95XX
+	depends on BACKPORT_USB_USBNET
 	select BITREVERSE
 	select CRC16
 	select CRC32
@@ -331,45 +350,50 @@ config USB_NET_SMSC95XX
 	  This option adds support for SMSC LAN95XX based USB 2.0
 	  10/100 Ethernet adapters.
 
-config USB_NET_GL620A
+config BACKPORT_USB_NET_GL620A
 	tristate "GeneSys GL620USB-A based cables"
-	depends on USB_USBNET
+	depends on !USB_NET_GL620A
+	depends on BACKPORT_USB_USBNET
 	help
 	  Choose this option if you're using a host-to-host cable,
 	  or PC2PC motherboard, with this chip.
 
 	  Note that the half-duplex "GL620USB" is not supported.
 
-config USB_NET_NET1080
+config BACKPORT_USB_NET_NET1080
 	tristate "NetChip 1080 based cables (Laplink, ...)"
+	depends on !USB_NET_NET1080
 	default y
-	depends on USB_USBNET
+	depends on BACKPORT_USB_USBNET
 	help
 	  Choose this option if you're using a host-to-host cable based
 	  on this design:  one NetChip 1080 chip and supporting logic,
 	  optionally with LEDs that indicate traffic
 
-config USB_NET_PLUSB
+config BACKPORT_USB_NET_PLUSB
 	tristate "Prolific PL-2301/2302/25A1 based cables"
+	depends on !USB_NET_PLUSB
 	# if the handshake/init/reset problems, from original 'plusb',
 	# are ever resolved ... then remove "experimental"
-	depends on USB_USBNET
+	depends on BACKPORT_USB_USBNET
 	help
 	  Choose this option if you're using a host-to-host cable
 	  with one of these chips.
 
-config USB_NET_MCS7830
+config BACKPORT_USB_NET_MCS7830
 	tristate "MosChip MCS7830 based Ethernet adapters"
-	depends on USB_USBNET
+	depends on !USB_NET_MCS7830
+	depends on BACKPORT_USB_USBNET
 	help
 	  Choose this option if you're using a 10/100 Ethernet USB2
 	  adapter based on the MosChip 7830 controller. This includes
 	  adapters marketed under the DeLOCK brand.
 
-config USB_NET_RNDIS_HOST
+config BACKPORT_USB_NET_RNDIS_HOST
 	tristate "Host for RNDIS and ActiveSync devices"
-	depends on USB_USBNET
-	select USB_NET_CDCETHER
+	depends on !USB_NET_RNDIS_HOST
+	depends on BACKPORT_USB_USBNET
+	select BACKPORT_USB_NET_CDCETHER
 	help
 	  This option enables hosting "Remote NDIS" USB networking links,
 	  as encouraged by Microsoft (instead of CDC Ethernet!) for use in
@@ -381,9 +405,10 @@ config USB_NET_RNDIS_HOST
 	  The protocol specification is incomplete, and is controlled by
 	  (and for) Microsoft; it isn't an "Open" ecosystem or market.
 
-config USB_NET_CDC_SUBSET
+config BACKPORT_USB_NET_CDC_SUBSET
 	tristate "Simple USB Network Links (CDC Ethernet subset)"
-	depends on USB_USBNET
+	depends on !USB_NET_CDC_SUBSET
+	depends on BACKPORT_USB_USBNET
 	default y
 	help
 	  This driver module supports USB network devices that can work
@@ -396,33 +421,37 @@ config USB_NET_CDC_SUBSET
 	  the host on the other end) very well.  Also, these devices will
 	  not generally have permanently assigned Ethernet addresses.
 
-config USB_ALI_M5632
+config BACKPORT_USB_ALI_M5632
 	bool "ALi M5632 based 'USB 2.0 Data Link' cables"
-	depends on USB_NET_CDC_SUBSET
+	depends on !USB_ALI_M5632
+	depends on BACKPORT_USB_NET_CDC_SUBSET
 	help
 	  Choose this option if you're using a host-to-host cable
 	  based on this design, which supports USB 2.0 high speed.
 
-config USB_AN2720
+config BACKPORT_USB_AN2720
 	bool "AnchorChips 2720 based cables (Xircom PGUNET, ...)"
-	depends on USB_NET_CDC_SUBSET
+	depends on !USB_AN2720
+	depends on BACKPORT_USB_NET_CDC_SUBSET
 	help
 	  Choose this option if you're using a host-to-host cable
 	  based on this design.  Note that AnchorChips is now a
 	  Cypress brand.
 
-config USB_BELKIN
+config BACKPORT_USB_BELKIN
 	bool "eTEK based host-to-host cables (Advance, Belkin, ...)"
-	depends on USB_NET_CDC_SUBSET
+	depends on !USB_BELKIN
+	depends on BACKPORT_USB_NET_CDC_SUBSET
 	default y
 	help
 	  Choose this option if you're using a host-to-host cable
 	  based on this design:  two NetChip 2890 chips and an Atmel
 	  microcontroller, with LEDs that indicate traffic.
 
-config USB_ARMLINUX
+config BACKPORT_USB_ARMLINUX
 	bool "Embedded ARM Linux links (iPaq, ...)"
-	depends on USB_NET_CDC_SUBSET
+	depends on !USB_ARMLINUX
+	depends on BACKPORT_USB_NET_CDC_SUBSET
 	default y
 	help
 	  Choose this option to support the "usb-eth" networking driver
@@ -437,24 +466,27 @@ config USB_ARMLINUX
 	  different link level framing protocol, you can have them use
 	  this simpler protocol by installing a different kernel.
 
-config USB_EPSON2888
+config BACKPORT_USB_EPSON2888
 	bool "Epson 2888 based firmware (DEVELOPMENT)"
-	depends on USB_NET_CDC_SUBSET
+	depends on !USB_EPSON2888
+	depends on BACKPORT_USB_NET_CDC_SUBSET
 	help
 	  Choose this option to support the usb networking links used
 	  by some sample firmware from Epson.
 
-config USB_KC2190
+config BACKPORT_USB_KC2190
 	bool "KT Technology KC2190 based cables (InstaNet)"
-	depends on USB_NET_CDC_SUBSET
+	depends on !USB_KC2190
+	depends on BACKPORT_USB_NET_CDC_SUBSET
 	help
 	  Choose this option if you're using a host-to-host cable
 	  with one of these chips.
 
-config USB_NET_ZAURUS
+config BACKPORT_USB_NET_ZAURUS
 	tristate "Sharp Zaurus (stock ROMs) and compatible"
-	depends on USB_USBNET
-	select USB_NET_CDCETHER
+	depends on !USB_NET_ZAURUS
+	depends on BACKPORT_USB_USBNET
+	select BACKPORT_USB_NET_CDCETHER
 	select CRC32
 	default y
 	help
@@ -469,17 +501,19 @@ config USB_NET_ZAURUS
 	  really need this non-conformant variant of CDC Ethernet (or in
 	  some cases CDC MDLM) protocol, not "g_ether".
 
-config USB_NET_CX82310_ETH
+config BACKPORT_USB_NET_CX82310_ETH
 	tristate "Conexant CX82310 USB ethernet port"
-	depends on USB_USBNET
+	depends on !USB_NET_CX82310_ETH
+	depends on BACKPORT_USB_USBNET
 	help
 	  Choose this option if you're using a Conexant CX82310-based ADSL
 	  router with USB ethernet port. This driver is for routers only,
 	  it will not work with ADSL modems (use cxacru driver instead).
 
-config USB_NET_KALMIA
+config BACKPORT_USB_NET_KALMIA
 	tristate "Samsung Kalmia based LTE USB modem"
-	depends on USB_USBNET
+	depends on !USB_NET_KALMIA
+	depends on BACKPORT_USB_USBNET
 	help
 	  Choose this option if you have a Samsung Kalmia based USB modem
 	  as Samsung GT-B3730.
@@ -487,10 +521,11 @@ config USB_NET_KALMIA
 	  To compile this driver as a module, choose M here: the
 	  module will be called kalmia.
 
-config USB_NET_QMI_WWAN
+config BACKPORT_USB_NET_QMI_WWAN
 	tristate "QMI WWAN driver for Qualcomm MSM based 3G and LTE modems"
-	depends on USB_USBNET
-	select USB_WDM
+	depends on !USB_NET_QMI_WWAN
+	depends on BACKPORT_USB_USBNET
+	select BACKPORT_USB_WDM
 	help
 	  Support WWAN LTE/3G devices based on Qualcomm Mobile Data Modem
 	  (MDM) chipsets.  Examples of such devices are
@@ -509,8 +544,9 @@ config USB_NET_QMI_WWAN
 	  To compile this driver as a module, choose M here: the
 	  module will be called qmi_wwan.
 
-config USB_HSO
+config BACKPORT_USB_HSO
 	tristate "Option USB High Speed Mobile Devices"
+	depends on !USB_HSO
 	depends on USB && RFKILL && TTY
 	default n
 	help
@@ -520,24 +556,27 @@ config USB_HSO
 	  To compile this driver as a module, choose M here: the
 	  module will be called hso.
 
-config USB_NET_INT51X1
+config BACKPORT_USB_NET_INT51X1
 	tristate "Intellon PLC based usb adapter"
-	depends on USB_USBNET
+	depends on !USB_NET_INT51X1
+	depends on BACKPORT_USB_USBNET
 	help
 	  Choose this option if you're using a 14Mb USB-based PLC
 	  (Powerline Communications) solution with an Intellon
 	  INT51x1/INT5200 chip, like the "devolo dLan duo".
 
-config USB_CDC_PHONET
+config BACKPORT_USB_CDC_PHONET
 	tristate "CDC Phonet support"
+	depends on !USB_CDC_PHONET
 	depends on PHONET
 	help
 	  Choose this option to support the Phonet interface to a Nokia
 	  cellular modem, as found on most Nokia handsets with the
 	  "PC suite" USB profile.
 
-config USB_IPHETH
+config BACKPORT_USB_IPHETH
 	tristate "Apple iPhone USB Ethernet driver"
+	depends on !USB_IPHETH
 	default n
 	---help---
 	  Module used to share Internet connection (tethering) from your
@@ -548,19 +587,21 @@ config USB_IPHETH
 
 	  For more information: http://giagio.com/wiki/moin.cgi/iPhoneEthernetDriver
 
-config USB_SIERRA_NET
+config BACKPORT_USB_SIERRA_NET
 	tristate "USB-to-WWAN Driver for Sierra Wireless modems"
-	depends on USB_USBNET
+	depends on !USB_SIERRA_NET
+	depends on BACKPORT_USB_USBNET
 	help
 	  Choose this option if you have a Sierra Wireless USB-to-WWAN device.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sierra_net.
 
-config USB_VL600
+config BACKPORT_USB_VL600
 	tristate "LG VL600 modem dongle"
-	depends on USB_NET_CDCETHER && TTY
-	select USB_ACM
+	depends on !USB_VL600
+	depends on BACKPORT_USB_NET_CDCETHER && TTY
+	select BACKPORT_USB_ACM
 	help
 	  Select this if you want to use an LG Electronics 4G/LTE usb modem
 	  called VL600.  This driver only handles the ethernet
@@ -572,4 +613,4 @@ config USB_VL600
 
 	  http://ubuntuforums.org/showpost.php?p=10589647&postcount=17
 
-endif # USB_NET_DRIVERS
+endif # BACKPORT_USB_NET_DRIVERS

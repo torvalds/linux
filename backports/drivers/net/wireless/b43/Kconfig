@@ -1,8 +1,9 @@
-config B43
+config BACKPORT_B43
 	tristate "Broadcom 43xx wireless support (mac80211 stack)"
-	depends on (BCMA_POSSIBLE || SSB_POSSIBLE) && MAC80211 && HAS_DMA
-	select BCMA if B43_BCMA
-	select SSB if B43_SSB
+	depends on !B43
+	depends on (BCMA_POSSIBLE || SSB_POSSIBLE) && BACKPORT_MAC80211 && HAS_DMA
+	select BCMA if BACKPORT_B43_BCMA
+	select SSB if BACKPORT_B43_SSB
 	select FW_LOADER
 	---help---
 	  b43 is a driver for the Broadcom 43xx series wireless devices.
@@ -27,54 +28,62 @@ config B43
 	  This driver can be built as a module (recommended) that will be called "b43".
 	  If unsure, say M.
 
-config B43_BCMA
+config BACKPORT_B43_BCMA
 	bool
+	depends on !B43_BCMA
 
-config B43_SSB
+config BACKPORT_B43_SSB
 	bool
+	depends on !B43_SSB
 
 choice
 	prompt "Supported bus types"
-	depends on B43
-	default B43_BUSES_BCMA_AND_SSB
+	depends on BACKPORT_B43
+	default BACKPORT_B43_BUSES_BCMA_AND_SSB
 
-config B43_BUSES_BCMA_AND_SSB
+config BACKPORT_B43_BUSES_BCMA_AND_SSB
 	bool "BCMA and SSB"
-	depends on BCMA_POSSIBLE && SSB_POSSIBLE
-	select B43_BCMA
-	select B43_SSB
+	depends on !B43_BUSES_BCMA_AND_SSB
+	depends on BCMA_POSSIBLE && BACKPORT_SSB_POSSIBLE
+	select BACKPORT_B43_BCMA
+	select BACKPORT_B43_SSB
 
-config B43_BUSES_BCMA
+config BACKPORT_B43_BUSES_BCMA
 	bool "BCMA only"
-	depends on BCMA_POSSIBLE
-	select B43_BCMA
+	depends on !B43_BUSES_BCMA
+	depends on BACKPORT_BCMA_POSSIBLE
+	select BACKPORT_B43_BCMA
 
-config B43_BUSES_SSB
+config BACKPORT_B43_BUSES_SSB
 	bool "SSB only"
-	depends on SSB_POSSIBLE
-	select B43_SSB
+	depends on !B43_BUSES_SSB
+	depends on BACKPORT_SSB_POSSIBLE
+	select BACKPORT_B43_SSB
 
 endchoice
 
-# Auto-select SSB PCI-HOST support, if possible
-config B43_PCI_AUTOSELECT
+# Auto-select BACKPORT_SSB PCI-HOST support, if possible
+config BACKPORT_B43_PCI_AUTOSELECT
 	bool
-	depends on B43 && SSB_PCIHOST_POSSIBLE
-	select SSB_PCIHOST
+	depends on !B43_PCI_AUTOSELECT
+	depends on BACKPORT_B43 && SSB_PCIHOST_POSSIBLE
+	select BACKPORT_SSB_PCIHOST
 	select SSB_B43_PCI_BRIDGE
 	default y
 
-# Auto-select SSB PCICORE driver, if possible
-config B43_PCICORE_AUTOSELECT
+# Auto-select BACKPORT_SSB PCICORE driver, if possible
+config BACKPORT_B43_PCICORE_AUTOSELECT
 	bool
-	depends on B43 && SSB_DRIVER_PCICORE_POSSIBLE
-	select SSB_DRIVER_PCICORE
+	depends on !B43_PCICORE_AUTOSELECT
+	depends on BACKPORT_B43 && SSB_DRIVER_PCICORE_POSSIBLE
+	select BACKPORT_SSB_DRIVER_PCICORE
 	default y
 
-config B43_PCMCIA
+config BACKPORT_B43_PCMCIA
 	bool "Broadcom 43xx PCMCIA device support"
-	depends on B43 && B43_SSB && SSB_PCMCIAHOST_POSSIBLE
-	select SSB_PCMCIAHOST
+	depends on !B43_PCMCIA
+	depends on BACKPORT_B43 && BACKPORT_B43_SSB && SSB_PCMCIAHOST_POSSIBLE
+	select BACKPORT_SSB_PCMCIAHOST
 	---help---
 	  Broadcom 43xx PCMCIA device support.
 
@@ -87,53 +96,58 @@ config B43_PCMCIA
 	  CompactFlash formfactor in a PCMCIA adaptor.
 	  CF b43 cards can sometimes be found in handheld PCs.
 
-	  It's safe to select Y here, even if you don't have a B43 PCMCIA device.
+	  It's safe to select Y here, even if you don't have a BACKPORT_B43 PCMCIA device.
 
 	  If unsure, say N.
 
-config B43_SDIO
+config BACKPORT_B43_SDIO
 	bool "Broadcom 43xx SDIO device support"
-	depends on B43 && B43_SSB && SSB_SDIOHOST_POSSIBLE
-	select SSB_SDIOHOST
+	depends on !B43_SDIO
+	depends on BACKPORT_B43 && BACKPORT_B43_SSB && SSB_SDIOHOST_POSSIBLE
+	select BACKPORT_SSB_SDIOHOST
 	---help---
 	  Broadcom 43xx device support for Soft-MAC SDIO devices.
 
 	  With this config option you can drive Soft-MAC b43 cards with a
 	  Secure Digital I/O interface.
-	  This includes the WLAN daughter card found on the Nintendo Wii
+	  This includes the BACKPORT_WLAN daughter card found on the Nintendo Wii
 	  video game console.
 	  Note that this does not support Broadcom 43xx Full-MAC devices.
 
-	  It's safe to select Y here, even if you don't have a B43 SDIO device.
+	  It's safe to select Y here, even if you don't have a BACKPORT_B43 SDIO device.
 
 	  If unsure, say N.
 
 #Data transfers to the device via PIO. We want it as a fallback even
 # if we can do DMA.
-config B43_BCMA_PIO
+config BACKPORT_B43_BCMA_PIO
 	bool
-	depends on B43 && B43_BCMA
-	select BCMA_BLOCKIO
+	depends on !B43_BCMA_PIO
+	depends on BACKPORT_B43 && BACKPORT_B43_BCMA
+	select BACKPORT_BCMA_BLOCKIO
 	default y
 
-config B43_PIO
+config BACKPORT_B43_PIO
 	bool
-	depends on B43 && B43_SSB
-	select SSB_BLOCKIO
+	depends on !B43_PIO
+	depends on BACKPORT_B43 && BACKPORT_B43_SSB
+	select BACKPORT_SSB_BLOCKIO
 	default y
 
-config B43_PHY_G
+config BACKPORT_B43_PHY_G
 	bool "Support for G-PHY (802.11g) devices"
-	depends on B43 && B43_SSB
+	depends on !B43_PHY_G
+	depends on BACKPORT_B43 && BACKPORT_B43_SSB
 	default y
 	---help---
 	  This PHY type can be found in the following chipsets:
 	  PCI: BCM4306, BCM4311, BCM4318
 	  SoC: BCM4712, BCM5352E
 
-config B43_PHY_N
+config BACKPORT_B43_PHY_N
 	bool "Support for N-PHY (the main 802.11n series) devices"
-	depends on B43
+	depends on !B43_PHY_N
+	depends on BACKPORT_B43
 	default y
 	---help---
 	  This PHY type can be found in the following chipsets:
@@ -142,25 +156,28 @@ config B43_PHY_N
 	       BCM43131, BCM43217, BCM43227, BCM43228
 	  SoC: BCM4716, BCM4717, BCM4718, BCM5356, BCM5357, BCM5358
 
-config B43_PHY_LP
+config BACKPORT_B43_PHY_LP
 	bool "Support for LP-PHY (low-power 802.11g) devices"
-	depends on B43 && B43_SSB
+	depends on !B43_PHY_LP
+	depends on BACKPORT_B43 && BACKPORT_B43_SSB
 	default y
 	---help---
 	  The LP-PHY is a low-power PHY built into some notebooks
 	  and embedded devices. It supports 802.11a/b/g
 	  (802.11a support is optional, and currently disabled).
 
-config B43_PHY_HT
+config BACKPORT_B43_PHY_HT
 	bool "Support for HT-PHY (high throughput 802.11n) devices"
-	depends on B43 && B43_BCMA
+	depends on !B43_PHY_HT
+	depends on BACKPORT_B43 && BACKPORT_B43_BCMA
 	default y
 	---help---
 	  This PHY type with 3x3:3 MIMO can be found in the BCM4331 PCI chipset.
 
-config B43_PHY_LCN
+config BACKPORT_B43_PHY_LCN
 	bool "Support for LCN-PHY devices (BROKEN)"
-	depends on B43 && BROKEN
+	depends on !B43_PHY_LCN
+	depends on BACKPORT_B43 && BROKEN
 	---help---
 	  Support for the LCN-PHY.
 
@@ -168,21 +185,24 @@ config B43_PHY_LCN
 
 # This config option automatically enables b43 LEDS support,
 # if it's possible.
-config B43_LEDS
+config BACKPORT_B43_LEDS
 	bool
-	depends on B43 && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = B43)
+	depends on !B43_LEDS
+	depends on B43 && BACKPORT_MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = B43)
 	default y
 
 # This config option automatically enables b43 HW-RNG support,
 # if the HW-RNG core is enabled.
-config B43_HWRNG
+config BACKPORT_B43_HWRNG
 	bool
-	depends on B43 && (HW_RANDOM = y || HW_RANDOM = B43)
+	depends on !B43_HWRNG
+	depends on BACKPORT_B43 && (HW_RANDOM = y || HW_RANDOM = BACKPORT_B43)
 	default y
 
-config B43_DEBUG
+config BACKPORT_B43_DEBUG
 	bool "Broadcom 43xx debugging"
-	depends on B43
+	depends on !B43_DEBUG
+	depends on BACKPORT_B43
 	---help---
 	  Broadcom 43xx debugging.
 

@@ -1,9 +1,11 @@
-config VIDEO_SAA7146
+config BACKPORT_VIDEO_SAA7146
 	tristate
+	depends on !VIDEO_SAA7146
 	depends on I2C && PCI
 
-config VIDEO_SAA7146_VV
+config BACKPORT_VIDEO_SAA7146_VV
 	tristate
-	depends on VIDEO_V4L2
-	select VIDEOBUF_DMA_SG
-	select VIDEO_SAA7146
+	depends on !VIDEO_SAA7146_VV
+	depends on BACKPORT_VIDEO_V4L2
+	select BACKPORT_VIDEOBUF_DMA_SG
+	select BACKPORT_VIDEO_SAA7146

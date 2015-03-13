@@ -1,42 +1,49 @@
-config BCMA_POSSIBLE
+config BACKPORT_BCMA_POSSIBLE
 	bool
+	depends on !BCMA_POSSIBLE
 	depends on HAS_IOMEM && HAS_DMA
 	default y
 
 menu "Broadcom specific AMBA"
-	depends on BCMA_POSSIBLE
+	depends on BACKPORT_BCMA_POSSIBLE
 
-config BCMA
+config BACKPORT_BCMA
 	tristate "BCMA support"
-	depends on BCMA_POSSIBLE
+	depends on !BCMA
+	depends on BACKPORT_BCMA_POSSIBLE
 	help
 	  Bus driver for Broadcom specific Advanced Microcontroller Bus
 	  Architecture.
 
 # Support for Block-I/O. SELECT this from the driver that needs it.
-config BCMA_BLOCKIO
+config BACKPORT_BCMA_BLOCKIO
 	bool
-	depends on BCMA
+	depends on !BCMA_BLOCKIO
+	depends on BACKPORT_BCMA
 
-config BCMA_HOST_PCI_POSSIBLE
+config BACKPORT_BCMA_HOST_PCI_POSSIBLE
 	bool
-	depends on BCMA && PCI = y
+	depends on !BCMA_HOST_PCI_POSSIBLE
+	depends on BACKPORT_BCMA && PCI = y
 	default y
 
-config BCMA_HOST_PCI
+config BACKPORT_BCMA_HOST_PCI
 	bool "Support for BCMA on PCI-host bus"
-	depends on BCMA_HOST_PCI_POSSIBLE
+	depends on !BCMA_HOST_PCI
+	depends on BACKPORT_BCMA_HOST_PCI_POSSIBLE
 	default y
 
-config BCMA_DRIVER_PCI_HOSTMODE
+config BACKPORT_BCMA_DRIVER_PCI_HOSTMODE
 	bool "Driver for PCI core working in hostmode"
-	depends on BCMA && MIPS && BCMA_HOST_PCI
+	depends on !BCMA_DRIVER_PCI_HOSTMODE
+	depends on BACKPORT_BCMA && MIPS && BACKPORT_BCMA_HOST_PCI
 	help
 	  PCI core hostmode operation (external PCI bus).
 
-config BCMA_HOST_SOC
+config BACKPORT_BCMA_HOST_SOC
 	bool "Support for BCMA in a SoC"
-	depends on BCMA
+	depends on !BCMA_HOST_SOC
+	depends on BACKPORT_BCMA
 	help
 	  Host interface for a Broadcom AIX bus directly mapped into
 	  the memory. This only works with the Broadcom SoCs from the
@@ -44,46 +51,52 @@ config BCMA_HOST_SOC
 
 	  If unsure, say N
 
-config BCMA_DRIVER_MIPS
+config BACKPORT_BCMA_DRIVER_MIPS
 	bool "BCMA Broadcom MIPS core driver"
-	depends on BCMA && MIPS
+	depends on !BCMA_DRIVER_MIPS
+	depends on BACKPORT_BCMA && MIPS
 	help
 	  Driver for the Broadcom MIPS core attached to Broadcom specific
 	  Advanced Microcontroller Bus.
 
 	  If unsure, say N
 
-config BCMA_SFLASH
+config BACKPORT_BCMA_SFLASH
 	bool
-	depends on BCMA_DRIVER_MIPS
+	depends on !BCMA_SFLASH
+	depends on BACKPORT_BCMA_DRIVER_MIPS
 	default y
 
-config BCMA_NFLASH
+config BACKPORT_BCMA_NFLASH
 	bool
-	depends on BCMA_DRIVER_MIPS
+	depends on !BCMA_NFLASH
+	depends on BACKPORT_BCMA_DRIVER_MIPS
 	default y
 
-config BCMA_DRIVER_GMAC_CMN
+config BACKPORT_BCMA_DRIVER_GMAC_CMN
 	bool "BCMA Broadcom GBIT MAC COMMON core driver"
-	depends on BCMA
+	depends on !BCMA_DRIVER_GMAC_CMN
+	depends on BACKPORT_BCMA
 	help
 	  Driver for the Broadcom GBIT MAC COMMON core attached to Broadcom
 	  specific Advanced Microcontroller Bus.
 
 	  If unsure, say N
 
-config BCMA_DRIVER_GPIO
+config BACKPORT_BCMA_DRIVER_GPIO
 	bool "BCMA GPIO driver"
-	depends on BCMA && GPIOLIB
-	select IRQ_DOMAIN if BCMA_HOST_SOC
+	depends on !BCMA_DRIVER_GPIO
+	depends on BACKPORT_BCMA && GPIOLIB
+	select IRQ_DOMAIN if BACKPORT_BCMA_HOST_SOC
 	help
 	  Driver to provide access to the GPIO pins of the bcma bus.
 
 	  If unsure, say N
 
-config BCMA_DEBUG
+config BACKPORT_BCMA_DEBUG
 	bool "BCMA debugging"
-	depends on BCMA
+	depends on !BCMA_DEBUG
+	depends on BACKPORT_BCMA
 	help
 	  This turns on additional debugging messages.
 

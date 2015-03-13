@@ -2,20 +2,23 @@
 # Ethernet LAN device configuration
 #
 
-menuconfig ETHERNET
+menuconfig BACKPORT_ETHERNET
 	bool "Ethernet driver support"
+	depends on !ETHERNET
 	depends on NET
 	default y
 	---help---
 	  This section contains all the Ethernet device drivers.
 
-if ETHERNET
+if BACKPORT_ETHERNET
 
-config MDIO
+config BACKPORT_MDIO
 	tristate
+	depends on !MDIO
 
-config SUNGEM_PHY
+config BACKPORT_SUNGEM_PHY
 	tristate
+	depends on !SUNGEM_PHY
 
 #source "drivers/net/ethernet/3com/Kconfig"
 #source "drivers/net/ethernet/adaptec/Kconfig"
@@ -38,8 +41,9 @@ source "$BACKPORT_DIR/drivers/net/ethernet/broadcom/Kconfig"
 #source "drivers/net/ethernet/cirrus/Kconfig"
 #source "drivers/net/ethernet/cisco/Kconfig"
 
-config CX_ECAT
+config BACKPORT_CX_ECAT
 	tristate "Beckhoff CX5020 EtherCAT master support"
+	depends on !CX_ECAT
 	depends on PCI
 	depends on X86 || COMPILE_TEST
 	---help---
@@ -52,13 +56,14 @@ config CX_ECAT
 
 #source "drivers/net/ethernet/davicom/Kconfig"
 
-config DNET
+config BACKPORT_DNET
 	tristate "Dave ethernet support (DNET)"
+	depends on !DNET
 	depends on HAS_IOMEM
 	select PHYLIB
 	---help---
 	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
-	  Say Y to include support for the DNET chip.
+	  Say Y to include support for the BACKPORT_DNET chip.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called dnet.
@@ -78,8 +83,9 @@ source "$BACKPORT_DIR/drivers/net/ethernet/intel/Kconfig"
 #source "drivers/net/ethernet/xscale/Kconfig"
 #source "drivers/net/ethernet/icplus/Kconfig"
 
-config JME
+config BACKPORT_JME
 	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
+	depends on !JME
 	depends on PCI
 	select CRC32
 	select MII
@@ -90,15 +96,17 @@ config JME
 	  To compile this driver as a module, choose M here. The module
 	  will be called jme.
 
-config KORINA
+config BACKPORT_KORINA
 	tristate "Korina (IDT RC32434) Ethernet support"
+	depends on !KORINA
 	depends on MIKROTIK_RB532
 	---help---
 	  If you have a Mikrotik RouterBoard 500 or IDT RC32434
 	  based system say Y. Otherwise say N.
 
-config LANTIQ_ETOP
+config BACKPORT_LANTIQ_ETOP
 	tristate "Lantiq SoC ETOP driver"
+	depends on !LANTIQ_ETOP
 	depends on SOC_TYPE_XWAY
 	---help---
 	  Support for the MII0 inside the Lantiq SoC
@@ -110,8 +118,9 @@ config LANTIQ_ETOP
 #source "drivers/net/ethernet/moxa/Kconfig"
 #source "drivers/net/ethernet/myricom/Kconfig"
 
-config FEALNX
+config BACKPORT_FEALNX
 	tristate "Myson MTD-8xx PCI Ethernet support"
+	depends on !FEALNX
 	depends on PCI
 	select CRC32
 	select MII
@@ -122,8 +131,9 @@ config FEALNX
 #source "drivers/net/ethernet/natsemi/Kconfig"
 #source "drivers/net/ethernet/8390/Kconfig"
 
-config NET_NETX
+config BACKPORT_NET_NETX
 	tristate "NetX Ethernet support"
+	depends on !NET_NETX
 	select MII
 	depends on ARCH_NETX
 	---help---
@@ -138,8 +148,9 @@ config NET_NETX
 #source "drivers/net/ethernet/octeon/Kconfig"
 #source "drivers/net/ethernet/oki-semi/Kconfig"
 
-config ETHOC
+config BACKPORT_ETHOC
 	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
+	depends on !ETHOC
 	depends on HAS_IOMEM && HAS_DMA
 	select MII
 	select PHYLIB
@@ -175,4 +186,4 @@ config ETHOC
 #source "drivers/net/ethernet/xilinx/Kconfig"
 #source "drivers/net/ethernet/xircom/Kconfig"
 
-endif # ETHERNET
+endif # BACKPORT_ETHERNET

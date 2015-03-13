@@ -2,15 +2,16 @@
 # Intel Centrino wireless drivers
 #
 
-config IPW2100
+config BACKPORT_IPW2100
 	tristate "Intel PRO/Wireless 2100 Network Connection"
-	depends on PCI && CFG80211
+	depends on !IPW2100
+	depends on PCI && BACKPORT_CFG80211
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV
 	select FW_LOADER
-	select LIB80211
-	select LIBIPW
+	select BACKPORT_LIB80211
+	select BACKPORT_LIBIPW
 	---help---
           A driver for the Intel PRO/Wireless 2100 Network 
 	  Connection 802.11b wireless network adapter.
@@ -37,20 +38,22 @@ config IPW2100
           this driver into your kernel image, you can avoid this problem by
           including the firmware and a firmware loader in an initramfs.
  
-config IPW2100_MONITOR
+config BACKPORT_IPW2100_MONITOR
         bool "Enable promiscuous mode"
-        depends on IPW2100
+	depends on !IPW2100_MONITOR
+        depends on BACKPORT_IPW2100
         ---help---
 	  Enables promiscuous/monitor mode support for the ipw2100 driver.
 	  With this feature compiled into the driver, you can switch to 
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
 	  mode, no packets can be sent.
 
-config IPW2100_DEBUG
+config BACKPORT_IPW2100_DEBUG
 	bool "Enable full debugging output in IPW2100 module."
-	depends on IPW2100
+	depends on !IPW2100_DEBUG
+	depends on BACKPORT_IPW2100
 	---help---
-	  This option will enable debug tracing output for the IPW2100.  
+	  This option will enable debug tracing output for the BACKPORT_IPW2100.  
 
 	  This will result in the kernel module being ~60k larger.  You can 
 	  control which debug output is sent to the kernel log by setting the 
@@ -60,19 +63,20 @@ config IPW2100_DEBUG
 
 	  This entry will only exist if this option is enabled.
 
-	  If you are not trying to debug or develop the IPW2100 driver, you 
+	  If you are not trying to debug or develop the BACKPORT_IPW2100 driver, you 
 	  most likely want to say N here.
 
-config IPW2200
+config BACKPORT_IPW2200
 	tristate "Intel PRO/Wireless 2200BG and 2915ABG Network Connection"
-	depends on PCI && CFG80211
-	select CFG80211_WEXT
+	depends on !IPW2200
+	depends on PCI && BACKPORT_CFG80211
+	select BACKPORT_CFG80211_WEXT
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV
 	select FW_LOADER
-	select LIB80211
-	select LIBIPW
+	select BACKPORT_LIB80211
+	select BACKPORT_LIBIPW
 	---help---
           A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
 	  Connection adapters. 
@@ -99,23 +103,26 @@ config IPW2200
           this driver into your kernel image, you can avoid this problem by
           including the firmware and a firmware loader in an initramfs.
 
-config IPW2200_MONITOR
+config BACKPORT_IPW2200_MONITOR
         bool "Enable promiscuous mode"
-        depends on IPW2200
+	depends on !IPW2200_MONITOR
+        depends on BACKPORT_IPW2200
         ---help---
 	  Enables promiscuous/monitor mode support for the ipw2200 driver.
 	  With this feature compiled into the driver, you can switch to 
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
 	  mode, no packets can be sent.
 
-config IPW2200_RADIOTAP
+config BACKPORT_IPW2200_RADIOTAP
 	bool "Enable radiotap format 802.11 raw packet support"
-	depends on IPW2200_MONITOR
+	depends on !IPW2200_RADIOTAP
+	depends on BACKPORT_IPW2200_MONITOR
 
-config IPW2200_PROMISCUOUS
+config BACKPORT_IPW2200_PROMISCUOUS
 	bool "Enable creation of a RF radiotap promiscuous interface"
-	depends on IPW2200_MONITOR
-	select IPW2200_RADIOTAP
+	depends on !IPW2200_PROMISCUOUS
+	depends on BACKPORT_IPW2200_MONITOR
+	select BACKPORT_IPW2200_RADIOTAP
 	---help---
           Enables the creation of a second interface prefixed 'rtap'. 
           This second interface will provide every received in radiotap
@@ -136,15 +143,17 @@ config IPW2200_PROMISCUOUS
 	
             % echo 1 > /sys/bus/pci/drivers/ipw2200/*/rtap_iface
 
-config IPW2200_QOS
+config BACKPORT_IPW2200_QOS
         bool "Enable QoS support"
-        depends on IPW2200
+	depends on !IPW2200_QOS
+        depends on BACKPORT_IPW2200
 
-config IPW2200_DEBUG
+config BACKPORT_IPW2200_DEBUG
 	bool "Enable full debugging output in IPW2200 module."
-	depends on IPW2200
+	depends on !IPW2200_DEBUG
+	depends on BACKPORT_IPW2200
 	---help---
-	  This option will enable low level debug tracing output for IPW2200.
+	  This option will enable low level debug tracing output for BACKPORT_IPW2200.
 
 	  Note, normal debug code is already compiled in. This low level
 	  debug option enables debug on hot paths (e.g Tx, Rx, ISR) and
@@ -153,9 +162,10 @@ config IPW2200_DEBUG
 
 	  If you are not sure, say N here.
 
-config LIBIPW
+config BACKPORT_LIBIPW
 	tristate
-	depends on PCI && CFG80211
+	depends on !LIBIPW
+	depends on PCI && BACKPORT_CFG80211
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select CRYPTO
@@ -165,18 +175,19 @@ config LIBIPW
 	select CRYPTO_MICHAEL_MIC
 	select CRYPTO_ECB
 	select CRC32
-	select LIB80211
-	select LIB80211_CRYPT_WEP
-	select LIB80211_CRYPT_TKIP
-	select LIB80211_CRYPT_CCMP
+	select BACKPORT_LIB80211
+	select BACKPORT_LIB80211_CRYPT_WEP
+	select BACKPORT_LIB80211_CRYPT_TKIP
+	select BACKPORT_LIB80211_CRYPT_CCMP
 	---help---
 	This option enables the hardware independent IEEE 802.11
 	networking stack.  This component is deprecated in favor of the
 	mac80211 component.
 
-config LIBIPW_DEBUG
+config BACKPORT_LIBIPW_DEBUG
 	bool "Full debugging output for the LIBIPW component"
-	depends on LIBIPW
+	depends on !LIBIPW_DEBUG
+	depends on BACKPORT_LIBIPW
 	---help---
 	  This option will enable debug tracing output for the
 	  libipw component.

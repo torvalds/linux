@@ -1,6 +1,7 @@
-config BT_BNEP
+config BACKPORT_BT_BNEP
 	tristate "BNEP protocol support"
-	depends on BT_BREDR
+	depends on !BT_BNEP
+	depends on BACKPORT_BT_BREDR
 	select CRC32
 	help
 	  BNEP (Bluetooth Network Encapsulation Protocol) is Ethernet
@@ -10,15 +11,17 @@ config BT_BNEP
 	  Say Y here to compile BNEP support into the kernel or say M to
 	  compile it as module (bnep).
 
-config BT_BNEP_MC_FILTER
+config BACKPORT_BT_BNEP_MC_FILTER
 	bool "Multicast filter support"
-	depends on BT_BNEP
+	depends on !BT_BNEP_MC_FILTER
+	depends on BACKPORT_BT_BNEP
 	help
 	  This option enables the multicast filter support for BNEP.
 
-config BT_BNEP_PROTO_FILTER
+config BACKPORT_BT_BNEP_PROTO_FILTER
 	bool "Protocol filter support"
-	depends on BT_BNEP
+	depends on !BT_BNEP_PROTO_FILTER
+	depends on BACKPORT_BT_BNEP
 	help
 	  This option enables the protocol filter support for BNEP.
 
