@@ -105,6 +105,7 @@ static void hsu_pci_remove(struct pci_dev *pdev)
 
 static const struct pci_device_id hsu_pci_id_table[] = {
 	{ PCI_VDEVICE(INTEL, 0x081e), 0 },
+	{ PCI_VDEVICE(INTEL, 0x1192), 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, hsu_pci_id_table);
