@@ -1893,6 +1893,8 @@ int spi_setup(struct spi_device *spi)
 	if (!spi->max_speed_hz)
 		spi->max_speed_hz = spi->master->max_speed_hz;
 
+	spi_set_cs(spi, false);
+
 	if (spi->master->setup)
 		status = spi->master->setup(spi);
 
