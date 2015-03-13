@@ -333,7 +333,7 @@ static int deref_table(struct kvm *kvm, unsigned long gpa, unsigned long *val)
  * @write: indicates if access is a write access
  *
  * Translate a guest virtual address into a guest absolute address by means
- * of dynamic address translation as specified by the architecuture.
+ * of dynamic address translation as specified by the architecture.
  * If the resulting absolute address is not available in the configuration
  * an addressing exception is indicated and @gpa will not be changed.
  *

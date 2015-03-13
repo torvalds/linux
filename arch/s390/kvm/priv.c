@@ -229,18 +229,19 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	struct kvm_s390_interrupt_info *inti;
 	unsigned long len;
 	u32 tpi_data[3];
-	int cc, rc;
+	int rc;
 	u64 addr;
 
-	rc = 0;
 	addr = kvm_s390_get_base_disp_s(vcpu);
 	if (addr & 3)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-	cc = 0;
+
 	inti = kvm_s390_get_io_int(vcpu->kvm, vcpu->arch.sie_block->gcr[6], 0);
-	if (!inti)
-		goto no_interrupt;
-	cc = 1;
+	if (!inti) {
+		kvm_s390_set_psw_cc(vcpu, 0);
+		return 0;
+	}
+
 	tpi_data[0] = inti->io.subchannel_id << 16 | inti->io.subchannel_nr;
 	tpi_data[1] = inti->io.io_int_parm;
 	tpi_data[2] = inti->io.io_int_word;
@@ -251,30 +252,38 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 		 */
 		len = sizeof(tpi_data) - 4;
 		rc = write_guest(vcpu, addr, &tpi_data, len);
-		if (rc)
-			return kvm_s390_inject_prog_cond(vcpu, rc);
+		if (rc) {
+			rc = kvm_s390_inject_prog_cond(vcpu, rc);
+			goto reinject_interrupt;
+		}
 	} else {
 		/*
 		 * Store the three-word I/O interruption code into
 		 * the appropriate lowcore area.
 		 */
 		len = sizeof(tpi_data);
-		if (write_guest_lc(vcpu, __LC_SUBCHANNEL_ID, &tpi_data, len))
+		if (write_guest_lc(vcpu, __LC_SUBCHANNEL_ID, &tpi_data, len)) {
+			/* failed writes to the low core are not recoverable */
 			rc = -EFAULT;
+			goto reinject_interrupt;
+		}
 	}
+
+	/* irq was successfully handed to the guest */
+	kfree(inti);
+	kvm_s390_set_psw_cc(vcpu, 1);
+	return 0;
+reinject_interrupt:
 	/*
 	 * If we encounter a problem storing the interruption code, the
 	 * instruction is suppressed from the guest's view: reinject the
 	 * interrupt.
 	 */
-	if (!rc)
+	if (kvm_s390_reinject_io_int(vcpu->kvm, inti)) {
 		kfree(inti);
-	else
-		kvm_s390_reinject_io_int(vcpu->kvm, inti);
-no_interrupt:
-	/* Set condition code and we're done. */
-	if (!rc)
-		kvm_s390_set_psw_cc(vcpu, cc);
+		rc = -EFAULT;
+	}
+	/* don't set the cc, a pgm irq was injected or we drop to user space */
 	return rc ? -EFAULT : 0;
 }
 
@@ -467,6 +476,7 @@ static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 	for (n = mem->count - 1; n > 0 ; n--)
 		memcpy(&mem->vm[n], &mem->vm[n - 1], sizeof(mem->vm[0]));
 
+	memset(&mem->vm[0], 0, sizeof(mem->vm[0]));
 	mem->vm[0].cpus_total = cpus;
 	mem->vm[0].cpus_configured = cpus;
 	mem->vm[0].cpus_standby = 0;

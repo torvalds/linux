@@ -172,7 +172,9 @@ struct kvm_s390_sie_block {
 	__u32	fac;			/* 0x01a0 */
 	__u8	reserved1a4[20];	/* 0x01a4 */
 	__u64	cbrlo;			/* 0x01b8 */
-	__u8	reserved1c0[30];	/* 0x01c0 */
+	__u8	reserved1c0[8];		/* 0x01c0 */
+	__u32	ecd;			/* 0x01c8 */
+	__u8	reserved1cc[18];	/* 0x01cc */
 	__u64	pp;			/* 0x01de */
 	__u8	reserved1e6[2];		/* 0x01e6 */
 	__u64	itdba;			/* 0x01e8 */
@@ -183,11 +185,17 @@ struct kvm_s390_itdb {
 	__u8	data[256];
 } __packed;
 
+struct kvm_s390_vregs {
+	__vector128 vrs[32];
+	__u8	reserved200[512];	/* for future vector expansion */
+} __packed;
+
 struct sie_page {
 	struct kvm_s390_sie_block sie_block;
 	__u8 reserved200[1024];		/* 0x0200 */
 	struct kvm_s390_itdb itdb;	/* 0x0600 */
-	__u8 reserved700[2304];		/* 0x0700 */
+	__u8 reserved700[1280];		/* 0x0700 */
+	struct kvm_s390_vregs vregs;	/* 0x0c00 */
 } __packed;
 
 struct kvm_vcpu_stat {
@@ -238,6 +246,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_sigp_stop;
 	u32 instruction_sigp_stop_store_status;
 	u32 instruction_sigp_store_status;
+	u32 instruction_sigp_store_adtl_status;
 	u32 instruction_sigp_arch;
 	u32 instruction_sigp_prefix;
 	u32 instruction_sigp_restart;
@@ -270,6 +279,7 @@ struct kvm_vcpu_stat {
 #define PGM_SPECIAL_OPERATION		0x13
 #define PGM_OPERAND			0x15
 #define PGM_TRACE_TABEL			0x16
+#define PGM_VECTOR_PROCESSING		0x1b
 #define PGM_SPACE_SWITCH		0x1c
 #define PGM_HFP_SQUARE_ROOT		0x1d
 #define PGM_PC_TRANSLATION_SPEC		0x1f
@@ -465,6 +475,7 @@ struct kvm_vcpu_arch {
 	s390_fp_regs      host_fpregs;
 	unsigned int      host_acrs[NUM_ACRS];
 	s390_fp_regs      guest_fpregs;
+	struct kvm_s390_vregs	*host_vregs;
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
 	struct kvm_s390_pgm_info pgm;
@@ -551,6 +562,7 @@ struct kvm_arch{
 	int css_support;
 	int use_irqchip;
 	int use_cmma;
+	int use_vectors;
 	int user_cpu_state_ctrl;
 	int user_sigp;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];

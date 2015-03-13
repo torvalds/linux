@@ -3248,3 +3248,13 @@ All other orders will be handled completely in user space.
 Only privileged operation exceptions will be checked for in the kernel (or even
 in the hardware prior to interception). If this capability is not enabled, the
 old way of handling SIGP orders is used (partially in kernel and user space).
+
+7.3 KVM_CAP_S390_VECTOR_REGISTERS
+
+Architectures: s390
+Parameters: none
+Returns: 0 on success, negative value on error
+
+Allows use of the vector registers introduced with z13 processor, and
+provides for the synchronization between host and user space.  Will
+return -EINVAL if the machine does not support vectors.

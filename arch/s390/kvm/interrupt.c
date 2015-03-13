@@ -1,7 +1,7 @@
 /*
  * handling kvm guest interrupts
  *
- * Copyright IBM Corp. 2008,2014
+ * Copyright IBM Corp. 2008, 2015
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 #include <asm/asm-offsets.h>
+#include <asm/dis.h>
 #include <asm/uaccess.h>
 #include <asm/sclp.h>
 #include "kvm-s390.h"
@@ -265,8 +266,6 @@ static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
 
 static u16 get_ilc(struct kvm_vcpu *vcpu)
 {
-	const unsigned short table[] = { 2, 4, 4, 6 };
-
 	switch (vcpu->arch.sie_block->icptcode) {
 	case ICPT_INST:
 	case ICPT_INSTPROGI:
@@ -274,7 +273,7 @@ static u16 get_ilc(struct kvm_vcpu *vcpu)
 	case ICPT_PARTEXEC:
 	case ICPT_IOINST:
 		/* last instruction only stored for these icptcodes */
-		return table[vcpu->arch.sie_block->ipa >> 14];
+		return insn_length(vcpu->arch.sie_block->ipa >> 8);
 	case ICPT_PROGI:
 		return vcpu->arch.sie_block->pgmilc;
 	default:
@@ -352,6 +351,7 @@ static int __must_check __deliver_machine_check(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_mchk_info mchk;
+	unsigned long adtl_status_addr;
 	int rc;
 
 	spin_lock(&li->lock);
@@ -372,6 +372,9 @@ static int __must_check __deliver_machine_check(struct kvm_vcpu *vcpu)
 					 mchk.cr14, mchk.mcic);
 
 	rc  = kvm_s390_vcpu_store_status(vcpu, KVM_S390_STORE_STATUS_PREFIXED);
+	rc |= read_guest_lc(vcpu, __LC_VX_SAVE_AREA_ADDR,
+			    &adtl_status_addr, sizeof(unsigned long));
+	rc |= kvm_s390_vcpu_store_adtl_status(vcpu, adtl_status_addr);
 	rc |= put_guest_lc(vcpu, mchk.mcic,
 			   (u64 __user *) __LC_MCCK_CODE);
 	rc |= put_guest_lc(vcpu, mchk.failing_storage_address,
@@ -484,7 +487,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_pgm_info pgm_info;
-	int rc = 0;
+	int rc = 0, nullifying = false;
 	u16 ilc = get_ilc(vcpu);
 
 	spin_lock(&li->lock);
@@ -509,6 +512,8 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	case PGM_LX_TRANSLATION:
 	case PGM_PRIMARY_AUTHORITY:
 	case PGM_SECONDARY_AUTHORITY:
+		nullifying = true;
+		/* fall through */
 	case PGM_SPACE_SWITCH:
 		rc = put_guest_lc(vcpu, pgm_info.trans_exc_code,
 				  (u64 *)__LC_TRANS_EXC_CODE);
@@ -521,6 +526,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 	case PGM_EXTENDED_AUTHORITY:
 		rc = put_guest_lc(vcpu, pgm_info.exc_access_id,
 				  (u8 *)__LC_EXC_ACCESS_ID);
+		nullifying = true;
 		break;
 	case PGM_ASCE_TYPE:
 	case PGM_PAGE_TRANSLATION:
@@ -534,6 +540,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 				   (u8 *)__LC_EXC_ACCESS_ID);
 		rc |= put_guest_lc(vcpu, pgm_info.op_access_id,
 				   (u8 *)__LC_OP_ACCESS_ID);
+		nullifying = true;
 		break;
 	case PGM_MONITOR:
 		rc = put_guest_lc(vcpu, pgm_info.mon_class_nr,
@@ -541,6 +548,7 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 		rc |= put_guest_lc(vcpu, pgm_info.mon_code,
 				   (u64 *)__LC_MON_CODE);
 		break;
+	case PGM_VECTOR_PROCESSING:
 	case PGM_DATA:
 		rc = put_guest_lc(vcpu, pgm_info.data_exc_code,
 				  (u32 *)__LC_DATA_EXC_CODE);
@@ -550,6 +558,15 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 				  (u64 *)__LC_TRANS_EXC_CODE);
 		rc |= put_guest_lc(vcpu, pgm_info.exc_access_id,
 				   (u8 *)__LC_EXC_ACCESS_ID);
+		break;
+	case PGM_STACK_FULL:
+	case PGM_STACK_EMPTY:
+	case PGM_STACK_SPECIFICATION:
+	case PGM_STACK_TYPE:
+	case PGM_STACK_OPERATION:
+	case PGM_TRACE_TABEL:
+	case PGM_CRYPTO_OPERATION:
+		nullifying = true;
 		break;
 	}
 
@@ -563,6 +580,9 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 		rc |= put_guest_lc(vcpu, pgm_info.per_access_id,
 				   (u8 *) __LC_PER_ACCESS_ID);
 	}
+
+	if (nullifying && vcpu->arch.sie_block->icptcode == ICPT_INST)
+		kvm_s390_rewind_psw(vcpu, ilc);
 
 	rc |= put_guest_lc(vcpu, ilc, (u16 *) __LC_PGM_ILC);
 	rc |= put_guest_lc(vcpu, pgm_info.code,
@@ -1332,10 +1352,10 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	return rc;
 }
 
-void kvm_s390_reinject_io_int(struct kvm *kvm,
+int kvm_s390_reinject_io_int(struct kvm *kvm,
 			      struct kvm_s390_interrupt_info *inti)
 {
-	__inject_vm(kvm, inti);
+	return __inject_vm(kvm, inti);
 }
 
 int s390int_to_s390irq(struct kvm_s390_interrupt *s390int,

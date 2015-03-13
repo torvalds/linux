@@ -393,6 +393,9 @@ static int handle_sigp_order_in_user_space(struct kvm_vcpu *vcpu, u8 order_code)
 	case SIGP_STORE_STATUS_AT_ADDRESS:
 		vcpu->stat.instruction_sigp_store_status++;
 		break;
+	case SIGP_STORE_ADDITIONAL_STATUS:
+		vcpu->stat.instruction_sigp_store_adtl_status++;
+		break;
 	case SIGP_SET_PREFIX:
 		vcpu->stat.instruction_sigp_prefix++;
 		break;
