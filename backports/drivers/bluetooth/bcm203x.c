@@ -273,7 +273,9 @@ static struct usb_driver bcm203x_driver = {
 	.probe		= bcm203x_probe,
 	.disconnect	= bcm203x_disconnect,
 	.id_table	= bcm203x_table,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
 	.disable_hub_initiated_lpm = 1,
+#endif
 };
 
 module_usb_driver(bcm203x_driver);

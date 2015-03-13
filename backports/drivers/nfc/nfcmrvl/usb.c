@@ -448,7 +448,9 @@ static struct usb_driver nfcmrvl_usb_driver = {
 #endif
 	.id_table	= nfcmrvl_table,
 	.supports_autosuspend = 1,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
 	.disable_hub_initiated_lpm = 1,
+#endif
 	.soft_unbind = 1,
 };
 module_usb_driver(nfcmrvl_usb_driver);

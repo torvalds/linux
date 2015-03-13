@@ -403,7 +403,9 @@ static struct usb_driver rtl8192cu_driver = {
 	/* .resume = rtl_usb_resume, */
 	/* .reset_resume = rtl8192c_resume, */
 #endif /* CONFIG_PM */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
 	.disable_hub_initiated_lpm = 1,
+#endif
 };
 
 module_usb_driver(rtl8192cu_driver);

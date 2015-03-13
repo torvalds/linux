@@ -2566,7 +2566,9 @@ static struct usb_driver at76_driver = {
 	.probe = at76_probe,
 	.disconnect = at76_disconnect,
 	.id_table = dev_table,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
 	.disable_hub_initiated_lpm = 1,
+#endif
 };
 
 static int __init at76_mod_init(void)
