@@ -329,7 +329,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
 
-		if (!test_and_clear_bit(HCI_RPA_EXPIRED, &hdev->dev_flags) &&
+		if (!hci_dev_test_and_clear_flag(hdev, HCI_RPA_EXPIRED) &&
 		    !bacmp(&hdev->random_addr, &hdev->rpa))
 			return 0;
 

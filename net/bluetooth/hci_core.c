@@ -1554,7 +1554,7 @@ int hci_dev_open(__u16 dev)
 	 * particularly important if the setup procedure has not yet
 	 * completed.
 	 */
-	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+	if (hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF))
 		cancel_delayed_work(&hdev->power_off);
 
 	/* After this call it is guaranteed that the setup procedure
@@ -1629,7 +1629,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 	}
 
-	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
+	if (hci_dev_test_and_clear_flag(hdev, HCI_SERVICE_CACHE))
 		cancel_delayed_work(&hdev->service_cache);
 
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
@@ -1647,7 +1647,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 
-	if (!test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
+	if (!hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF)) {
 		if (hdev->dev_type == HCI_BREDR)
 			mgmt_powered(hdev, 0);
 	}
@@ -1728,7 +1728,7 @@ int hci_dev_close(__u16 dev)
 		goto done;
 	}
 
-	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+	if (hci_dev_test_and_clear_flag(hdev, HCI_AUTO_OFF))
 		cancel_delayed_work(&hdev->power_off);
 
 	err = hci_dev_do_close(hdev);
@@ -1839,16 +1839,16 @@ static void hci_update_scan_state(struct hci_dev *hdev, u8 scan)
 		conn_changed = !test_and_set_bit(HCI_CONNECTABLE,
 						 &hdev->dev_flags);
 	else
-		conn_changed = test_and_clear_bit(HCI_CONNECTABLE,
-						  &hdev->dev_flags);
+		conn_changed = hci_dev_test_and_clear_flag(hdev,
+							   HCI_CONNECTABLE);
 
 	if ((scan & SCAN_INQUIRY)) {
 		discov_changed = !test_and_set_bit(HCI_DISCOVERABLE,
 						   &hdev->dev_flags);
 	} else {
 		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
-		discov_changed = test_and_clear_bit(HCI_DISCOVERABLE,
-						    &hdev->dev_flags);
+		discov_changed = hci_dev_test_and_clear_flag(hdev,
+							     HCI_DISCOVERABLE);
 	}
 
 	if (!hci_dev_test_flag(hdev, HCI_MGMT))
@@ -2128,7 +2128,7 @@ static void hci_power_on(struct work_struct *work)
 				   HCI_AUTO_OFF_TIMEOUT);
 	}
 
-	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags)) {
+	if (hci_dev_test_and_clear_flag(hdev, HCI_SETUP)) {
 		/* For unconfigured devices, set the HCI_RAW flag
 		 * so that userspace can easily identify them.
 		 */
@@ -2143,7 +2143,7 @@ static void hci_power_on(struct work_struct *work)
 		 * and no event will be send.
 		 */
 		mgmt_index_added(hdev);
-	} else if (test_and_clear_bit(HCI_CONFIG, &hdev->dev_flags)) {
+	} else if (hci_dev_test_and_clear_flag(hdev, HCI_CONFIG)) {
 		/* When the controller is now configured, then it
 		 * is important to clear the HCI_RAW flag.
 		 */

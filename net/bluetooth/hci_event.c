@@ -1226,8 +1226,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		 * been disabled because of active scanning, so
 		 * re-enable it again if necessary.
 		 */
-		if (test_and_clear_bit(HCI_LE_SCAN_INTERRUPTED,
-				       &hdev->dev_flags))
+		if (hci_dev_test_and_clear_flag(hdev, HCI_LE_SCAN_INTERRUPTED))
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 		else if (!hci_dev_test_flag(hdev, HCI_LE_ADV) &&
 			 hdev->discovery.state == DISCOVERY_FINDING)
