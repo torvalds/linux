@@ -175,4 +175,5 @@ struct ni_info {
 #define T_NEO_EXPRESS 0001
 #define T_NEO 0000
 
+#define TTY_FLIPBUF_SIZE 512
 #endif /* DIGI_H */

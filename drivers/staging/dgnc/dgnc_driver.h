@@ -26,7 +26,6 @@
 #include <linux/interrupt.h>	/* For irqreturn_t type */
 
 #include "digi.h"		/* Digi specific ioctl header */
-#include "dgnc_kcompat.h"	/* Kernel 2.4/2.6 compat includes */
 #include "dgnc_sysfs.h"		/* Support for SYSFS */
 
 /*************************************************************************
