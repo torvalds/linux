@@ -171,17 +171,21 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *
  *  Starts the hardware using the generic start_hw function.
- *  Disables relaxed ordering Then set pcie completion timeout
+ *  Disables relaxed ordering for archs other than SPARC
+ *  Then set pcie completion timeout
  *
  **/
 static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 {
+#ifndef CONFIG_SPARC
 	u32 regval;
 	u32 i;
+#endif
 	s32 ret_val;
 
 	ret_val = ixgbe_start_hw_generic(hw);
 
+#ifndef CONFIG_SPARC
 	/* Disable relaxed ordering */
 	for (i = 0; ((i < hw->mac.max_tx_queues) &&
 	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
@@ -197,7 +201,7 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
-
+#endif
 	if (ret_val)
 		return ret_val;
 
