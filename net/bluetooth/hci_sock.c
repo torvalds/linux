@@ -474,7 +474,7 @@ static int hci_sock_release(struct socket *sock)
 	if (hdev) {
 		if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
 			mgmt_index_added(hdev);
-			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
 			hci_dev_close(hdev->id);
 		}
 
@@ -730,7 +730,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 
 		err = hci_dev_open(hdev->id);
 		if (err) {
-			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
 			mgmt_index_added(hdev);
 			hci_dev_put(hdev);
 			goto done;

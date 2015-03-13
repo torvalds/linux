@@ -1108,7 +1108,7 @@ static void enable_advertising(struct hci_request *req)
 	 * and write a new random address. The flag will be set back on
 	 * as soon as the SET_ADV_ENABLE HCI command completes.
 	 */
-	clear_bit(HCI_LE_ADV, &hdev->dev_flags);
+	hci_dev_clear_flag(hdev, HCI_LE_ADV);
 
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_CONNECTABLE))
 		connectable = true;
@@ -1189,7 +1189,7 @@ static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
 	 * for mgmt we require user-space to explicitly enable
 	 * it
 	 */
-	clear_bit(HCI_BONDABLE, &hdev->dev_flags);
+	hci_dev_clear_flag(hdev, HCI_BONDABLE);
 }
 
 static int read_controller_info(struct sock *sk, struct hci_dev *hdev,
@@ -1573,7 +1573,7 @@ static void set_discoverable_complete(struct hci_dev *hdev, u8 status,
 	if (status) {
 		u8 mgmt_err = mgmt_status(status);
 		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
-		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 		goto remove_cmd;
 	}
 
@@ -1725,7 +1725,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (cp->val == 0x02)
 		hci_dev_set_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 	else
-		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 
 	hci_req_init(&req, hdev);
 
@@ -1762,7 +1762,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 		scan |= SCAN_INQUIRY;
 	} else {
-		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 	}
 
 	hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, sizeof(scan), &scan);
@@ -1876,8 +1876,8 @@ static int set_connectable_update_settings(struct hci_dev *hdev,
 	if (val) {
 		hci_dev_set_flag(hdev, HCI_CONNECTABLE);
 	} else {
-		clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-		clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_CONNECTABLE);
+		hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
 	}
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_CONNECTABLE, hdev);
@@ -1941,8 +1941,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	 */
 	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
 		if (!cp->val) {
-			clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
-			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
+			hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
 		}
 		update_adv_data(&req);
 	} else if (cp->val != test_bit(HCI_PSCAN, &hdev->flags)) {
@@ -2126,7 +2126,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 				changed = test_and_clear_bit(HCI_HS_ENABLED,
 							     &hdev->dev_flags);
 			else
-				clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+				hci_dev_clear_flag(hdev, HCI_HS_ENABLED);
 		}
 
 		err = send_settings_rsp(sk, MGMT_OP_SET_SSP, hdev);
@@ -2306,7 +2306,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		}
 
 		if (!val && hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
-			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_ADVERTISING);
 			changed = true;
 		}
 
@@ -4412,7 +4412,7 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status,
 	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 		hci_dev_set_flag(hdev, HCI_ADVERTISING);
 	else
-		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_ADVERTISING);
 
 	mgmt_pending_foreach(MGMT_OP_SET_ADVERTISING, hdev, settings_rsp,
 			     &match);
@@ -4469,13 +4469,11 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 			if (cp->val == 0x02)
 				hci_dev_set_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 			else
-				clear_bit(HCI_ADVERTISING_CONNECTABLE,
-					  &hdev->dev_flags);
+				hci_dev_clear_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 		} else {
 			changed = test_and_clear_bit(HCI_ADVERTISING,
 						     &hdev->dev_flags);
-			clear_bit(HCI_ADVERTISING_CONNECTABLE,
-				  &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 		}
 
 		err = send_settings_rsp(sk, MGMT_OP_SET_ADVERTISING, hdev);
@@ -4506,7 +4504,7 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (cp->val == 0x02)
 		hci_dev_set_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 	else
-		clear_bit(HCI_ADVERTISING_CONNECTABLE, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 
 	if (val)
 		enable_advertising(&req);
@@ -4645,7 +4643,7 @@ static void fast_connectable_complete(struct hci_dev *hdev, u8 status,
 		if (cp->val)
 			hci_dev_set_flag(hdev, HCI_FAST_CONNECTABLE);
 		else
-			clear_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_FAST_CONNECTABLE);
 
 		send_settings_rsp(cmd->sk, MGMT_OP_SET_FAST_CONNECTABLE, hdev);
 		new_settings(hdev, cmd->sk);
@@ -4740,7 +4738,7 @@ static void set_bredr_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 		/* We need to restore the flag if related HCI commands
 		 * failed.
 		 */
-		clear_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_BREDR_ENABLED);
 
 		mgmt_cmd_status(cmd->sk, cmd->index, cmd->opcode, mgmt_err);
 	} else {
@@ -4784,11 +4782,11 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	if (!hdev_is_powered(hdev)) {
 		if (!cp->val) {
-			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
-			clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
-			clear_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
-			clear_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
-			clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
+			hci_dev_clear_flag(hdev, HCI_SSP_ENABLED);
+			hci_dev_clear_flag(hdev, HCI_LINK_SECURITY);
+			hci_dev_clear_flag(hdev, HCI_FAST_CONNECTABLE);
+			hci_dev_clear_flag(hdev, HCI_HS_ENABLED);
 		}
 
 		change_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
@@ -4889,12 +4887,12 @@ static void sc_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 
 	switch (cp->val) {
 	case 0x00:
-		clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
-		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_SC_ENABLED);
+		hci_dev_clear_flag(hdev, HCI_SC_ONLY);
 		break;
 	case 0x01:
 		hci_dev_set_flag(hdev, HCI_SC_ENABLED);
-		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_SC_ONLY);
 		break;
 	case 0x02:
 		hci_dev_set_flag(hdev, HCI_SC_ENABLED);
@@ -4949,11 +4947,11 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 			if (cp->val == 0x02)
 				hci_dev_set_flag(hdev, HCI_SC_ONLY);
 			else
-				clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
+				hci_dev_clear_flag(hdev, HCI_SC_ONLY);
 		} else {
 			changed = test_and_clear_bit(HCI_SC_ENABLED,
 						     &hdev->dev_flags);
-			clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_SC_ONLY);
 		}
 
 		err = send_settings_rsp(sk, MGMT_OP_SET_SECURE_CONN, hdev);
@@ -5082,7 +5080,7 @@ static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 	} else {
 		changed = test_and_clear_bit(HCI_PRIVACY, &hdev->dev_flags);
 		memset(hdev->irk, 0, sizeof(hdev->irk));
-		clear_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_RPA_EXPIRED);
 	}
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_PRIVACY, hdev);
@@ -6159,7 +6157,7 @@ static int set_public_address(struct sock *sk, struct hci_dev *hdev,
 	if (is_configured(hdev)) {
 		mgmt_index_removed(hdev);
 
-		clear_bit(HCI_UNCONFIGURED, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_UNCONFIGURED);
 
 		hci_dev_set_flag(hdev, HCI_CONFIG);
 		hci_dev_set_flag(hdev, HCI_AUTO_OFF);
@@ -6587,8 +6585,8 @@ void mgmt_discoverable_timeout(struct hci_dev *hdev)
 	 * of a timeout triggered from general discoverable, it is
 	 * safe to unconditionally clear the flag.
 	 */
-	clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
-	clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+	hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
+	hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
 
 	hci_req_init(&req, hdev);
 	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
@@ -7137,7 +7135,7 @@ void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 
 		if (enable && test_and_clear_bit(HCI_SSP_ENABLED,
 						 &hdev->dev_flags)) {
-			clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_HS_ENABLED);
 			new_settings(hdev, NULL);
 		}
 
@@ -7154,7 +7152,7 @@ void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 			changed = test_and_clear_bit(HCI_HS_ENABLED,
 						     &hdev->dev_flags);
 		else
-			clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_HS_ENABLED);
 	}
 
 	mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, settings_rsp, &match);

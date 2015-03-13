@@ -82,7 +82,7 @@ static void hci_cc_exit_periodic_inq(struct hci_dev *hdev, struct sk_buff *skb)
 	if (status)
 		return;
 
-	clear_bit(HCI_PERIODIC_INQ, &hdev->dev_flags);
+	hci_dev_clear_flag(hdev, HCI_PERIODIC_INQ);
 
 	hci_conn_check_pending(hdev);
 }
@@ -503,7 +503,7 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 		if (sent->mode)
 			hci_dev_set_flag(hdev, HCI_SSP_ENABLED);
 		else
-			clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_SSP_ENABLED);
 	}
 
 	hci_dev_unlock(hdev);
@@ -533,7 +533,7 @@ static void hci_cc_write_sc_support(struct hci_dev *hdev, struct sk_buff *skb)
 		if (sent->support)
 			hci_dev_set_flag(hdev, HCI_SC_ENABLED);
 		else
-			clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+			hci_dev_clear_flag(hdev, HCI_SC_ENABLED);
 	}
 
 	hci_dev_unlock(hdev);
@@ -1117,7 +1117,7 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 					   &conn->le_conn_timeout,
 					   conn->conn_timeout);
 	} else {
-		clear_bit(HCI_LE_ADV, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_LE_ADV);
 	}
 
 	hci_dev_unlock(hdev);
@@ -1217,7 +1217,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		 */
 		cancel_delayed_work(&hdev->le_scan_disable);
 
-		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_LE_SCAN);
 
 		/* The HCI_LE_SCAN_INTERRUPTED flag indicates that we
 		 * interrupted scanning due to a connect request. Mark
@@ -1391,8 +1391,8 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 		hci_dev_set_flag(hdev, HCI_LE_ENABLED);
 	} else {
 		hdev->features[1][0] &= ~LMP_HOST_LE;
-		clear_bit(HCI_LE_ENABLED, &hdev->dev_flags);
-		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
+		hci_dev_clear_flag(hdev, HCI_LE_ENABLED);
+		hci_dev_clear_flag(hdev, HCI_ADVERTISING);
 	}
 
 	if (sent->simul)
@@ -4409,7 +4409,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	/* All controllers implicitly stop advertising in the event of a
 	 * connection, so ensure that the state bit is cleared.
 	 */
-	clear_bit(HCI_LE_ADV, &hdev->dev_flags);
+	hci_dev_clear_flag(hdev, HCI_LE_ADV);
 
 	conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
 	if (!conn) {
