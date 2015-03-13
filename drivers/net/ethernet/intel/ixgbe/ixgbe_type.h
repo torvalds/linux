@@ -2462,8 +2462,8 @@ struct ixgbe_hic_read_shadow_ram {
 
 struct ixgbe_hic_write_shadow_ram {
 	union ixgbe_hic_hdr2 hdr;
-	u32 address;
-	u16 length;
+	__be32 address;
+	__be16 length;
 	u16 pad2;
 	u16 data;
 	u16 pad3;
