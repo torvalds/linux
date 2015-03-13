@@ -847,15 +847,8 @@ static inline void spin_lock_prefetch(const void *x)
 
 extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
-#define THREAD_SIZE_LONGS      (THREAD_SIZE/sizeof(unsigned long))
-#define KSTK_TOP(info)                                                 \
-({                                                                     \
-       unsigned long *__ptr = (unsigned long *)(info);                 \
-       (unsigned long)(&__ptr[THREAD_SIZE_LONGS]);                     \
-})
-
 /*
- * The below -8 is to reserve 8 bytes on top of the ring0 stack.
+ * TOP_OF_KERNEL_STACK_PADDING reserves 8 bytes on top of the ring0 stack.
  * This is necessary to guarantee that the entire "struct pt_regs"
  * is accessible even if the CPU haven't stored the SS/ESP registers
  * on the stack (interrupt gate does not save these registers
@@ -864,12 +857,11 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
  * "struct pt_regs" is possible, but they may contain the
  * completely wrong values.
  */
-#define task_pt_regs(task)                                             \
-({                                                                     \
-       struct pt_regs *__regs__;                                       \
-       __regs__ = (struct pt_regs *)(KSTK_TOP(task_stack_page(task)) - \
-				     TOP_OF_KERNEL_STACK_PADDING);     \
-       __regs__ - 1;                                                   \
+#define task_pt_regs(task) \
+({									\
+	unsigned long __ptr = (unsigned long)task_stack_page(task);	\
+	__ptr += THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;		\
+	((struct pt_regs *)__ptr) - 1;					\
 })
 
 #define KSTK_ESP(task)		(task_pt_regs(task)->sp)
