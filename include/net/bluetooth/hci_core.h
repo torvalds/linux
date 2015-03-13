@@ -502,6 +502,8 @@ extern struct list_head hci_cb_list;
 extern rwlock_t hci_dev_list_lock;
 extern struct mutex hci_cb_list_lock;
 
+#define hci_dev_test_flag(hdev, nr)   test_bit((nr), &(hdev)->dev_flags)
+
 /* ----- HCI interface to upper protocols ----- */
 int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int l2cap_disconn_ind(struct hci_conn *hcon);
@@ -598,14 +600,14 @@ enum {
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
-	return test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
+	return hci_dev_test_flag(hdev, HCI_SSP_ENABLED) &&
 	       test_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 }
 
 static inline bool hci_conn_sc_enabled(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
-	return test_bit(HCI_SC_ENABLED, &hdev->dev_flags) &&
+	return hci_dev_test_flag(hdev, HCI_SC_ENABLED) &&
 	       test_bit(HCI_CONN_SC_ENABLED, &conn->flags);
 }
 
@@ -1025,10 +1027,10 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_host_le_capable(dev)   (!!((dev)->features[1][0] & LMP_HOST_LE))
 #define lmp_host_le_br_capable(dev) (!!((dev)->features[1][0] & LMP_HOST_LE_BREDR))
 
-#define hdev_is_powered(hdev) (test_bit(HCI_UP, &hdev->flags) && \
-				!test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-#define bredr_sc_enabled(dev) (lmp_sc_capable(dev) && \
-			       test_bit(HCI_SC_ENABLED, &(dev)->dev_flags))
+#define hdev_is_powered(dev)   (test_bit(HCI_UP, &(dev)->flags) && \
+				!hci_dev_test_flag(dev, HCI_AUTO_OFF))
+#define bredr_sc_enabled(dev)  (lmp_sc_capable(dev) && \
+				hci_dev_test_flag(dev, HCI_SC_ENABLED))
 
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01

@@ -3900,7 +3900,7 @@ static int l2cap_connect_req(struct l2cap_conn *conn,
 		return -EPROTO;
 
 	hci_dev_lock(hdev);
-	if (test_bit(HCI_MGMT, &hdev->dev_flags) &&
+	if (hci_dev_test_flag(hdev, HCI_MGMT) &&
 	    !test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &hcon->flags))
 		mgmt_device_connected(hdev, hcon, 0, NULL, 0);
 	hci_dev_unlock(hdev);
@@ -6987,10 +6987,10 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 	conn->local_fixed_chan = L2CAP_FC_SIG_BREDR | L2CAP_FC_CONNLESS;
 
 	if (hcon->type == ACL_LINK &&
-	    test_bit(HCI_HS_ENABLED, &hcon->hdev->dev_flags))
+	    hci_dev_test_flag(hcon->hdev, HCI_HS_ENABLED))
 		conn->local_fixed_chan |= L2CAP_FC_A2MP;
 
-	if (test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags) &&
+	if (hci_dev_test_flag(hcon->hdev, HCI_LE_ENABLED) &&
 	    (bredr_sc_enabled(hcon->hdev) ||
 	     test_bit(HCI_FORCE_BREDR_SMP, &hcon->hdev->dbg_flags)))
 		conn->local_fixed_chan |= L2CAP_FC_SMP_BREDR;
@@ -7112,7 +7112,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		else
 			dst_type = ADDR_LE_DEV_RANDOM;
 
-		if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
 			role = HCI_ROLE_SLAVE;
 		else
 			role = HCI_ROLE_MASTER;

@@ -385,7 +385,7 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 	count = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (d->dev_type == HCI_BREDR &&
-		    !test_bit(HCI_UNCONFIGURED, &d->dev_flags))
+		    !hci_dev_test_flag(d, HCI_UNCONFIGURED))
 			count++;
 	}
 
@@ -398,9 +398,9 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	count = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
-		if (test_bit(HCI_SETUP, &d->dev_flags) ||
-		    test_bit(HCI_CONFIG, &d->dev_flags) ||
-		    test_bit(HCI_USER_CHANNEL, &d->dev_flags))
+		if (hci_dev_test_flag(d, HCI_SETUP) ||
+		    hci_dev_test_flag(d, HCI_CONFIG) ||
+		    hci_dev_test_flag(d, HCI_USER_CHANNEL))
 			continue;
 
 		/* Devices marked as raw-only are neither configured
@@ -410,7 +410,7 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 			continue;
 
 		if (d->dev_type == HCI_BREDR &&
-		    !test_bit(HCI_UNCONFIGURED, &d->dev_flags)) {
+		    !hci_dev_test_flag(d, HCI_UNCONFIGURED)) {
 			rp->index[count++] = cpu_to_le16(d->id);
 			BT_DBG("Added hci%u", d->id);
 		}
@@ -445,7 +445,7 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 	count = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (d->dev_type == HCI_BREDR &&
-		    test_bit(HCI_UNCONFIGURED, &d->dev_flags))
+		    hci_dev_test_flag(d, HCI_UNCONFIGURED))
 			count++;
 	}
 
@@ -458,9 +458,9 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 
 	count = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
-		if (test_bit(HCI_SETUP, &d->dev_flags) ||
-		    test_bit(HCI_CONFIG, &d->dev_flags) ||
-		    test_bit(HCI_USER_CHANNEL, &d->dev_flags))
+		if (hci_dev_test_flag(d, HCI_SETUP) ||
+		    hci_dev_test_flag(d, HCI_CONFIG) ||
+		    hci_dev_test_flag(d, HCI_USER_CHANNEL))
 			continue;
 
 		/* Devices marked as raw-only are neither configured
@@ -470,7 +470,7 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 			continue;
 
 		if (d->dev_type == HCI_BREDR &&
-		    test_bit(HCI_UNCONFIGURED, &d->dev_flags)) {
+		    hci_dev_test_flag(d, HCI_UNCONFIGURED)) {
 			rp->index[count++] = cpu_to_le16(d->id);
 			BT_DBG("Added hci%u", d->id);
 		}
@@ -492,7 +492,7 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 static bool is_configured(struct hci_dev *hdev)
 {
 	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) &&
-	    !test_bit(HCI_EXT_CONFIGURED, &hdev->dev_flags))
+	    !hci_dev_test_flag(hdev, HCI_EXT_CONFIGURED))
 		return false;
 
 	if (test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks) &&
@@ -507,7 +507,7 @@ static __le32 get_missing_options(struct hci_dev *hdev)
 	u32 options = 0;
 
 	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) &&
-	    !test_bit(HCI_EXT_CONFIGURED, &hdev->dev_flags))
+	    !hci_dev_test_flag(hdev, HCI_EXT_CONFIGURED))
 		options |= MGMT_OPTION_EXTERNAL_CONFIG;
 
 	if (test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks) &&
@@ -608,43 +608,43 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (hdev_is_powered(hdev))
 		settings |= MGMT_SETTING_POWERED;
 
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_CONNECTABLE))
 		settings |= MGMT_SETTING_CONNECTABLE;
 
-	if (test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_FAST_CONNECTABLE))
 		settings |= MGMT_SETTING_FAST_CONNECTABLE;
 
-	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
 		settings |= MGMT_SETTING_DISCOVERABLE;
 
-	if (test_bit(HCI_BONDABLE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_BONDABLE))
 		settings |= MGMT_SETTING_BONDABLE;
 
-	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		settings |= MGMT_SETTING_BREDR;
 
-	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		settings |= MGMT_SETTING_LE;
 
-	if (test_bit(HCI_LINK_SECURITY, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_LINK_SECURITY))
 		settings |= MGMT_SETTING_LINK_SECURITY;
 
-	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_SSP_ENABLED))
 		settings |= MGMT_SETTING_SSP;
 
-	if (test_bit(HCI_HS_ENABLED, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_HS_ENABLED))
 		settings |= MGMT_SETTING_HS;
 
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		settings |= MGMT_SETTING_ADVERTISING;
 
-	if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_SC_ENABLED))
 		settings |= MGMT_SETTING_SECURE_CONN;
 
-	if (test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_KEEP_DEBUG_KEYS))
 		settings |= MGMT_SETTING_DEBUG_KEYS;
 
-	if (test_bit(HCI_PRIVACY, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_PRIVACY))
 		settings |= MGMT_SETTING_PRIVACY;
 
 	/* The current setting for static address has two purposes. The
@@ -660,7 +660,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	 * be evaluated.
 	 */
 	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
-	    !test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) ||
+	    !hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) ||
 	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
 		if (bacmp(&hdev->static_addr, BDADDR_ANY))
 			settings |= MGMT_SETTING_STATIC_ADDRESS;
@@ -840,7 +840,7 @@ static void update_scan_rsp_data(struct hci_request *req)
 	struct hci_cp_le_set_scan_rsp_data cp;
 	u8 len;
 
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
 	memset(&cp, 0, sizeof(cp));
@@ -874,9 +874,9 @@ static u8 get_adv_discov_flags(struct hci_dev *hdev)
 		else if (cp->val == 0x02)
 			return LE_AD_LIMITED;
 	} else {
-		if (test_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags))
+		if (hci_dev_test_flag(hdev, HCI_LIMITED_DISCOVERABLE))
 			return LE_AD_LIMITED;
-		else if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+		else if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
 			return LE_AD_GENERAL;
 	}
 
@@ -889,7 +889,7 @@ static u8 create_adv_data(struct hci_dev *hdev, u8 *ptr)
 
 	flags |= get_adv_discov_flags(hdev);
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		flags |= LE_AD_NO_BREDR;
 
 	if (flags) {
@@ -921,7 +921,7 @@ static void update_adv_data(struct hci_request *req)
 	struct hci_cp_le_set_adv_data cp;
 	u8 len;
 
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
 	memset(&cp, 0, sizeof(cp));
@@ -1009,10 +1009,10 @@ static void update_eir(struct hci_request *req)
 	if (!lmp_ext_inq_capable(hdev))
 		return;
 
-	if (!test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_SSP_ENABLED))
 		return;
 
-	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_SERVICE_CACHE))
 		return;
 
 	memset(&cp, 0, sizeof(cp));
@@ -1048,17 +1048,17 @@ static void update_class(struct hci_request *req)
 	if (!hdev_is_powered(hdev))
 		return;
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return;
 
-	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_SERVICE_CACHE))
 		return;
 
 	cod[0] = hdev->minor_class;
 	cod[1] = hdev->major_class;
 	cod[2] = get_service_classes(hdev);
 
-	if (test_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_LIMITED_DISCOVERABLE))
 		cod[1] |= 0x20;
 
 	if (memcmp(cod, hdev->dev_class, 3) == 0)
@@ -1080,7 +1080,7 @@ static bool get_connectable(struct hci_dev *hdev)
 		return cp->val;
 	}
 
-	return test_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+	return hci_dev_test_flag(hdev, HCI_CONNECTABLE);
 }
 
 static void disable_advertising(struct hci_request *req)
@@ -1100,7 +1100,7 @@ static void enable_advertising(struct hci_request *req)
 	if (hci_conn_num(hdev, LE_LINK) > 0)
 		return;
 
-	if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 		disable_advertising(req);
 
 	/* Clear the HCI_LE_ADV bit temporarily so that the
@@ -1110,7 +1110,7 @@ static void enable_advertising(struct hci_request *req)
 	 */
 	clear_bit(HCI_LE_ADV, &hdev->dev_flags);
 
-	if (test_bit(HCI_ADVERTISING_CONNECTABLE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_CONNECTABLE))
 		connectable = true;
 	else
 		connectable = get_connectable(hdev);
@@ -1165,7 +1165,7 @@ static void rpa_expired(struct work_struct *work)
 
 	set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
 
-	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		return;
 
 	/* The generation of a new RPA and programming it into the
@@ -1328,7 +1328,7 @@ static bool hci_stop_discovery(struct hci_request *req)
 
 	default:
 		/* Passive scanning */
-		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags)) {
+		if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
 			hci_req_add_le_scan_disable(req);
 			return true;
 		}
@@ -1354,7 +1354,7 @@ static int clean_up_hci_state(struct hci_dev *hdev)
 		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 	}
 
-	if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 		disable_advertising(&req);
 
 	discov_stopped = hci_stop_discovery(&req);
@@ -1538,7 +1538,7 @@ static u8 mgmt_bredr_support(struct hci_dev *hdev)
 {
 	if (!lmp_bredr_capable(hdev))
 		return MGMT_STATUS_NOT_SUPPORTED;
-	else if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	else if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return MGMT_STATUS_REJECTED;
 	else
 		return MGMT_STATUS_SUCCESS;
@@ -1548,7 +1548,7 @@ static u8 mgmt_le_support(struct hci_dev *hdev)
 {
 	if (!lmp_le_capable(hdev))
 		return MGMT_STATUS_NOT_SUPPORTED;
-	else if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	else if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return MGMT_STATUS_REJECTED;
 	else
 		return MGMT_STATUS_SUCCESS;
@@ -1626,8 +1626,8 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("request for %s", hdev->name);
 
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&
-	    !test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED) &&
+	    !hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
 				       MGMT_STATUS_REJECTED);
 
@@ -1660,7 +1660,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags)) {
+	if (!hci_dev_test_flag(hdev, HCI_CONNECTABLE)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
 				      MGMT_STATUS_REJECTED);
 		goto failed;
@@ -1673,7 +1673,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 		 * not a valid operation since it requires a timeout
 		 * and so no need to check HCI_LIMITED_DISCOVERABLE.
 		 */
-		if (!!cp->val != test_bit(HCI_DISCOVERABLE, &hdev->dev_flags)) {
+		if (!!cp->val != hci_dev_test_flag(hdev, HCI_DISCOVERABLE)) {
 			change_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
 			changed = true;
 		}
@@ -1692,9 +1692,9 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	 * value with the new value. And if only the timeout gets updated,
 	 * then no need for any HCI transactions.
 	 */
-	if (!!cp->val == test_bit(HCI_DISCOVERABLE, &hdev->dev_flags) &&
-	    (cp->val == 0x02) == test_bit(HCI_LIMITED_DISCOVERABLE,
-					  &hdev->dev_flags)) {
+	if (!!cp->val == hci_dev_test_flag(hdev, HCI_DISCOVERABLE) &&
+	    (cp->val == 0x02) == hci_dev_test_flag(hdev,
+						   HCI_LIMITED_DISCOVERABLE)) {
 		cancel_delayed_work(&hdev->discov_off);
 		hdev->discov_timeout = timeout;
 
@@ -1732,7 +1732,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	/* The procedure for LE-only controllers is much simpler - just
 	 * update the advertising data.
 	 */
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		goto update_ad;
 
 	scan = SCAN_PAGE;
@@ -1785,7 +1785,7 @@ static void write_fast_connectable(struct hci_request *req, bool enable)
 	struct hci_cp_write_page_scan_activity acp;
 	u8 type;
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return;
 
 	if (hdev->hci_ver < BLUETOOTH_VER_1_2)
@@ -1870,7 +1870,7 @@ static int set_connectable_update_settings(struct hci_dev *hdev,
 	bool changed = false;
 	int err;
 
-	if (!!val != test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+	if (!!val != hci_dev_test_flag(hdev, HCI_CONNECTABLE))
 		changed = true;
 
 	if (val) {
@@ -1904,8 +1904,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("request for %s", hdev->name);
 
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&
-	    !test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED) &&
+	    !hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_CONNECTABLE,
 				       MGMT_STATUS_REJECTED);
 
@@ -1939,7 +1939,7 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	 * by-product of disabling connectable, we need to update the
 	 * advertising flags.
 	 */
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
 		if (!cp->val) {
 			clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
 			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
@@ -1972,7 +1972,7 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 no_scan_update:
 	/* Update the advertising parameters if necessary */
-	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		enable_advertising(&req);
 
 	err = hci_req_run(&req, set_connectable_complete);
@@ -2045,8 +2045,7 @@ static int set_link_security(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (!hdev_is_powered(hdev)) {
 		bool changed = false;
 
-		if (!!cp->val != test_bit(HCI_LINK_SECURITY,
-					  &hdev->dev_flags)) {
+		if (!!cp->val != hci_dev_test_flag(hdev, HCI_LINK_SECURITY)) {
 			change_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
 			changed = true;
 		}
@@ -2146,7 +2145,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	if (!!cp->val == test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+	if (!!cp->val == hci_dev_test_flag(hdev, HCI_SSP_ENABLED)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_SSP, hdev);
 		goto failed;
 	}
@@ -2157,7 +2156,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	if (!cp->val && test_bit(HCI_USE_DEBUG_KEYS, &hdev->dev_flags))
+	if (!cp->val && hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS))
 		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE,
 			     sizeof(cp->val), &cp->val);
 
@@ -2189,7 +2188,7 @@ static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
 				       MGMT_STATUS_NOT_SUPPORTED);
 
-	if (!test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_SSP_ENABLED))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
 				       MGMT_STATUS_REJECTED);
 
@@ -2255,7 +2254,7 @@ static void le_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 	 * has actually been enabled. During power on, the
 	 * update in powered_update_hci will take care of it.
 	 */
-	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+	if (hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
 		struct hci_request req;
 
 		hci_req_init(&req, hdev);
@@ -2289,7 +2288,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 				       MGMT_STATUS_INVALID_PARAMS);
 
 	/* LE-only devices do not allow toggling LE on/off */
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
 				       MGMT_STATUS_REJECTED);
 
@@ -2301,12 +2300,12 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	if (!hdev_is_powered(hdev) || val == enabled) {
 		bool changed = false;
 
-		if (val != test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+		if (val != hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
 			change_bit(HCI_LE_ENABLED, &hdev->dev_flags);
 			changed = true;
 		}
 
-		if (!val && test_bit(HCI_ADVERTISING, &hdev->dev_flags)) {
+		if (!val && hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
 			clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
 			changed = true;
 		}
@@ -2342,7 +2341,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		hci_cp.le = val;
 		hci_cp.simul = 0x00;
 	} else {
-		if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
+		if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 			disable_advertising(&req);
 	}
 
@@ -3860,12 +3859,12 @@ static bool trigger_discovery(struct hci_request *req, u8 *status)
 			return false;
 
 		if (hdev->discovery.type == DISCOV_TYPE_INTERLEAVED &&
-		    !test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+		    !hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
 			*status = MGMT_STATUS_NOT_SUPPORTED;
 			return false;
 		}
 
-		if (test_bit(HCI_LE_ADV, &hdev->dev_flags)) {
+		if (hci_dev_test_flag(hdev, HCI_LE_ADV)) {
 			/* Don't let discovery abort an outgoing
 			 * connection attempt that's using directed
 			 * advertising.
@@ -3883,7 +3882,7 @@ static bool trigger_discovery(struct hci_request *req, u8 *status)
 		 * is running. Thus, we should temporarily stop it in order to
 		 * set the discovery scanning parameters.
 		 */
-		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+		if (hci_dev_test_flag(hdev, HCI_LE_SCAN))
 			hci_req_add_le_scan_disable(req);
 
 		memset(&param_cp, 0, sizeof(param_cp));
@@ -4007,7 +4006,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 	}
 
 	if (hdev->discovery.state != DISCOVERY_STOPPED ||
-	    test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags)) {
+	    hci_dev_test_flag(hdev, HCI_PERIODIC_INQ)) {
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_START_DISCOVERY,
 					MGMT_STATUS_BUSY, &cp->type,
 					sizeof(cp->type));
@@ -4083,7 +4082,7 @@ static int start_service_discovery(struct sock *sk, struct hci_dev *hdev,
 	}
 
 	if (hdev->discovery.state != DISCOVERY_STOPPED ||
-	    test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags)) {
+	    hci_dev_test_flag(hdev, HCI_PERIODIC_INQ)) {
 		err = mgmt_cmd_complete(sk, hdev->id,
 					MGMT_OP_START_SERVICE_DISCOVERY,
 					MGMT_STATUS_BUSY, &cp->type,
@@ -4410,7 +4409,7 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status,
 		goto unlock;
 	}
 
-	if (test_bit(HCI_LE_ADV, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 		set_bit(HCI_ADVERTISING, &hdev->dev_flags);
 	else
 		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
@@ -4457,11 +4456,10 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	 * necessary).
 	 */
 	if (!hdev_is_powered(hdev) ||
-	    (val == test_bit(HCI_ADVERTISING, &hdev->dev_flags) &&
-	     (cp->val == 0x02) == test_bit(HCI_ADVERTISING_CONNECTABLE,
-					   &hdev->dev_flags)) ||
+	    (val == hci_dev_test_flag(hdev, HCI_ADVERTISING) &&
+	     (cp->val == 0x02) == hci_dev_test_flag(hdev, HCI_ADVERTISING_CONNECTABLE)) ||
 	    hci_conn_num(hdev, LE_LINK) > 0 ||
-	    (test_bit(HCI_LE_SCAN, &hdev->dev_flags) &&
+	    (hci_dev_test_flag(hdev, HCI_LE_SCAN) &&
 	     hdev->le_scan_type == LE_SCAN_ACTIVE)) {
 		bool changed;
 
@@ -4609,7 +4607,7 @@ static int set_scan_params(struct sock *sk, struct hci_dev *hdev,
 	/* If background scan is running, restart it so new parameters are
 	 * loaded.
 	 */
-	if (test_bit(HCI_LE_SCAN, &hdev->dev_flags) &&
+	if (hci_dev_test_flag(hdev, HCI_LE_SCAN) &&
 	    hdev->discovery.state == DISCOVERY_STOPPED) {
 		struct hci_request req;
 
@@ -4670,7 +4668,7 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 
 	BT_DBG("%s", hdev->name);
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) ||
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) ||
 	    hdev->hci_ver < BLUETOOTH_VER_1_2)
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
 				       MGMT_STATUS_NOT_SUPPORTED);
@@ -4687,7 +4685,7 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (!!cp->val == test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags)) {
+	if (!!cp->val == hci_dev_test_flag(hdev, HCI_FAST_CONNECTABLE)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_FAST_CONNECTABLE,
 					hdev);
 		goto unlock;
@@ -4770,7 +4768,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
 				       MGMT_STATUS_NOT_SUPPORTED);
 
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
 				       MGMT_STATUS_REJECTED);
 
@@ -4780,7 +4778,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	if (cp->val == test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+	if (cp->val == hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_BREDR, hdev);
 		goto unlock;
 	}
@@ -4824,9 +4822,9 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		 * switching BR/EDR back on when secure connections has been
 		 * enabled is not a supported transaction.
 		 */
-		if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
 		    (bacmp(&hdev->static_addr, BDADDR_ANY) ||
-		     test_bit(HCI_SC_ENABLED, &hdev->dev_flags))) {
+		     hci_dev_test_flag(hdev, HCI_SC_ENABLED))) {
 			err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
 					      MGMT_STATUS_REJECTED);
 			goto unlock;
@@ -4926,13 +4924,13 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 	BT_DBG("request for %s", hdev->name);
 
 	if (!lmp_sc_capable(hdev) &&
-	    !test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	    !hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
 				       MGMT_STATUS_NOT_SUPPORTED);
 
-	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
 	    lmp_sc_capable(hdev) &&
-	    !test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+	    !hci_dev_test_flag(hdev, HCI_SSP_ENABLED))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
 				       MGMT_STATUS_REJECTED);
 
@@ -4943,7 +4941,7 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev) || !lmp_sc_capable(hdev) ||
-	    !test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+	    !hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
 		bool changed;
 
 		if (cp->val) {
@@ -4977,8 +4975,8 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 
 	val = !!cp->val;
 
-	if (val == test_bit(HCI_SC_ENABLED, &hdev->dev_flags) &&
-	    (cp->val == 0x02) == test_bit(HCI_SC_ONLY, &hdev->dev_flags)) {
+	if (val == hci_dev_test_flag(hdev, HCI_SC_ENABLED) &&
+	    (cp->val == 0x02) == hci_dev_test_flag(hdev, HCI_SC_ONLY)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_SECURE_CONN, hdev);
 		goto failed;
 	}
@@ -5032,7 +5030,7 @@ static int set_debug_keys(struct sock *sk, struct hci_dev *hdev,
 						 &hdev->dev_flags);
 
 	if (hdev_is_powered(hdev) && use_changed &&
-	    test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+	    hci_dev_test_flag(hdev, HCI_SSP_ENABLED)) {
 		u8 mode = (cp->val == 0x02) ? 0x01 : 0x00;
 		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE,
 			     sizeof(mode), &mode);
@@ -6104,7 +6102,7 @@ static int set_external_config(struct sock *sk, struct hci_dev *hdev,
 
 	err = new_options(hdev, sk);
 
-	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) == is_configured(hdev)) {
+	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED) == is_configured(hdev)) {
 		mgmt_index_removed(hdev);
 
 		if (test_and_change_bit(HCI_UNCONFIGURED, &hdev->dev_flags)) {
@@ -6156,7 +6154,7 @@ static int set_public_address(struct sock *sk, struct hci_dev *hdev,
 	if (!changed)
 		goto unlock;
 
-	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
 		err = new_options(hdev, sk);
 
 	if (is_configured(hdev)) {
@@ -6304,15 +6302,15 @@ int mgmt_control(struct hci_mgmt_chan *chan, struct sock *sk,
 			goto done;
 		}
 
-		if (test_bit(HCI_SETUP, &hdev->dev_flags) ||
-		    test_bit(HCI_CONFIG, &hdev->dev_flags) ||
-		    test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		if (hci_dev_test_flag(hdev, HCI_SETUP) ||
+		    hci_dev_test_flag(hdev, HCI_CONFIG) ||
+		    hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
 			err = mgmt_cmd_status(sk, index, opcode,
 					      MGMT_STATUS_INVALID_INDEX);
 			goto done;
 		}
 
-		if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags) &&
+		if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED) &&
 		    !(handler->flags & HCI_MGMT_UNCONFIGURED)) {
 			err = mgmt_cmd_status(sk, index, opcode,
 					      MGMT_STATUS_INVALID_INDEX);
@@ -6362,7 +6360,7 @@ void mgmt_index_added(struct hci_dev *hdev)
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		return;
 
-	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
 		mgmt_event(MGMT_EV_UNCONF_INDEX_ADDED, hdev, NULL, 0, NULL);
 	else
 		mgmt_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0, NULL);
@@ -6380,7 +6378,7 @@ void mgmt_index_removed(struct hci_dev *hdev)
 
 	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &status);
 
-	if (test_bit(HCI_UNCONFIGURED, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
 		mgmt_event(MGMT_EV_UNCONF_INDEX_REMOVED, hdev, NULL, 0, NULL);
 	else
 		mgmt_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0, NULL);
@@ -6448,7 +6446,7 @@ static int powered_update_hci(struct hci_dev *hdev)
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
+	if (hci_dev_test_flag(hdev, HCI_SSP_ENABLED) &&
 	    !lmp_host_ssp_capable(hdev)) {
 		u8 mode = 0x01;
 
@@ -6462,7 +6460,7 @@ static int powered_update_hci(struct hci_dev *hdev)
 		}
 	}
 
-	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&
+	if (hci_dev_test_flag(hdev, HCI_LE_ENABLED) &&
 	    lmp_bredr_capable(hdev)) {
 		struct hci_cp_write_le_host_supported cp;
 
@@ -6483,24 +6481,24 @@ static int powered_update_hci(struct hci_dev *hdev)
 		 * advertising data. This also applies to the case
 		 * where BR/EDR was toggled during the AUTO_OFF phase.
 		 */
-		if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+		if (hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
 			update_adv_data(&req);
 			update_scan_rsp_data(&req);
 		}
 
-		if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
 			enable_advertising(&req);
 
 		restart_le_actions(&req);
 	}
 
-	link_sec = test_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
+	link_sec = hci_dev_test_flag(hdev, HCI_LINK_SECURITY);
 	if (link_sec != test_bit(HCI_AUTH, &hdev->flags))
 		hci_req_add(&req, HCI_OP_WRITE_AUTH_ENABLE,
 			    sizeof(link_sec), &link_sec);
 
 	if (lmp_bredr_capable(hdev)) {
-		if (test_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags))
+		if (hci_dev_test_flag(hdev, HCI_FAST_CONNECTABLE))
 			write_fast_connectable(&req, true);
 		else
 			write_fast_connectable(&req, false);
@@ -6519,7 +6517,7 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	u8 status, zero_cod[] = { 0, 0, 0 };
 	int err;
 
-	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_MGMT))
 		return 0;
 
 	if (powered) {
@@ -6540,7 +6538,7 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	 * been triggered, potentially causing misleading DISCONNECTED
 	 * status responses.
 	 */
-	if (test_bit(HCI_UNREGISTER, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_UNREGISTER))
 		status = MGMT_STATUS_INVALID_INDEX;
 	else
 		status = MGMT_STATUS_NOT_POWERED;
@@ -6594,7 +6592,7 @@ void mgmt_discoverable_timeout(struct hci_dev *hdev)
 	clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
 
 	hci_req_init(&req, hdev);
-	if (test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags)) {
+	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
 		u8 scan = SCAN_PAGE;
 		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE,
 			    sizeof(scan), &scan);
@@ -7170,8 +7168,8 @@ void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
-		if (test_bit(HCI_USE_DEBUG_KEYS, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_SSP_ENABLED)) {
+		if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS))
 			hci_req_add(&req, HCI_OP_WRITE_SSP_DEBUG_MODE,
 				    sizeof(enable), &enable);
 		update_eir(&req);
@@ -7343,7 +7341,7 @@ static bool eir_has_uuids(u8 *eir, u16 eir_len, u16 uuid_count, u8 (*uuids)[16])
 static void restart_le_scan(struct hci_dev *hdev)
 {
 	/* If controller is not scanning we are done. */
-	if (!test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
 		return;
 
 	if (time_after(jiffies + DISCOV_LE_RESTART_DELAY,
@@ -7514,7 +7512,7 @@ void mgmt_reenable_advertising(struct hci_dev *hdev)
 {
 	struct hci_request req;
 
-	if (!test_bit(HCI_ADVERTISING, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		return;
 
 	hci_req_init(&req, hdev);
