@@ -33,10 +33,12 @@
 
 static bool hda_volatile_reg(struct device *dev, unsigned int reg)
 {
+	struct hdac_device *codec = dev_to_hdac_dev(dev);
 	unsigned int verb = get_verb(reg);
 
 	switch (verb) {
 	case AC_VERB_GET_PROC_COEF:
+		return !codec->cache_coef;
 	case AC_VERB_GET_COEF_INDEX:
 	case AC_VERB_GET_PROC_STATE:
 	case AC_VERB_GET_POWER_STATE:
@@ -75,6 +77,8 @@ static bool hda_writeable_reg(struct device *dev, unsigned int reg)
 	case AC_VERB_GET_STREAM_FORMAT:
 	case AC_VERB_GET_AMP_GAIN_MUTE:
 		return true;
+	case AC_VERB_GET_PROC_COEF:
+		return codec->cache_coef;
 	case 0xf00:
 		break;
 	default:
@@ -188,9 +192,47 @@ static int hda_reg_write_stereo_amp(struct hdac_device *codec,
 	return 0;
 }
 
+/* read a pseudo coef register (16bit) */
+static int hda_reg_read_coef(struct hdac_device *codec, unsigned int reg,
+			     unsigned int *val)
+{
+	unsigned int verb;
+	int err;
+
+	if (!codec->cache_coef)
+		return -EINVAL;
+	/* LSB 8bit = coef index */
+	verb = (reg & ~0xfff00) | (AC_VERB_SET_COEF_INDEX << 8);
+	err = snd_hdac_exec_verb(codec, verb, 0, NULL);
+	if (err < 0)
+		return err;
+	verb = (reg & ~0xfffff) | (AC_VERB_GET_COEF_INDEX << 8);
+	return snd_hdac_exec_verb(codec, verb, 0, val);
+}
+
+/* write a pseudo coef register (16bit) */
+static int hda_reg_write_coef(struct hdac_device *codec, unsigned int reg,
+			      unsigned int val)
+{
+	unsigned int verb;
+	int err;
+
+	if (!codec->cache_coef)
+		return -EINVAL;
+	/* LSB 8bit = coef index */
+	verb = (reg & ~0xfff00) | (AC_VERB_SET_COEF_INDEX << 8);
+	err = snd_hdac_exec_verb(codec, verb, 0, NULL);
+	if (err < 0)
+		return err;
+	verb = (reg & ~0xfffff) | (AC_VERB_GET_COEF_INDEX << 8) |
+		(val & 0xffff);
+	return snd_hdac_exec_verb(codec, verb, 0, NULL);
+}
+
 static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct hdac_device *codec = context;
+	int verb = get_verb(reg);
 	int err;
 
 	if (!codec_is_running(codec))
@@ -198,11 +240,13 @@ static int hda_reg_read(void *context, unsigned int reg, unsigned int *val)
 	reg |= (codec->addr << 28);
 	if (is_stereo_amp_verb(reg))
 		return hda_reg_read_stereo_amp(codec, reg, val);
+	if (verb == AC_VERB_GET_PROC_COEF)
+		return hda_reg_read_coef(codec, reg, val);
 	err = snd_hdac_exec_verb(codec, reg, 0, val);
 	if (err < 0)
 		return err;
 	/* special handling for asymmetric reads */
-	if (get_verb(reg) == AC_VERB_GET_POWER_STATE) {
+	if (verb == AC_VERB_GET_POWER_STATE) {
 		if (*val & AC_PWRST_ERROR)
 			*val = -1;
 		else /* take only the actual state */
@@ -227,6 +271,9 @@ static int hda_reg_write(void *context, unsigned int reg, unsigned int val)
 		return hda_reg_write_stereo_amp(codec, reg, val);
 
 	verb = get_verb(reg);
+	if (verb == AC_VERB_SET_PROC_COEF)
+		return hda_reg_write_coef(codec, reg, val);
+
 	switch (verb & 0xf00) {
 	case AC_VERB_SET_AMP_GAIN_MUTE:
 		verb = AC_VERB_SET_AMP_GAIN_MUTE;

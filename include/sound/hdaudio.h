@@ -78,6 +78,7 @@ struct hdac_device {
 	struct snd_array vendor_verbs;
 	bool lazy_cache:1;	/* don't wake up for writes */
 	bool caps_overwriting:1; /* caps overwrite being in process */
+	bool cache_coef:1;	/* cache COEF read/write too */
 };
 
 /* device/driver type used for matching */
