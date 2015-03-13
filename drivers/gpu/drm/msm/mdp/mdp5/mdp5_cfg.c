@@ -31,6 +31,7 @@ const struct mdp5_cfg_hw msm8x74_config = {
 	.ctl = {
 		.count = 5,
 		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
+		.flush_hw_mask = 0x0003ffff,
 	},
 	.pipe_vig = {
 		.count = 3,
@@ -78,6 +79,7 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.ctl = {
 		.count = 5,
 		.base = { 0x00600, 0x00700, 0x00800, 0x00900, 0x00a00 },
+		.flush_hw_mask = 0x003fffff,
 	},
 	.pipe_vig = {
 		.count = 4,

@@ -44,6 +44,11 @@ struct mdp5_lm_block {
 	uint32_t nb_stages;		/* number of stages per blender */
 };
 
+struct mdp5_ctl_block {
+	MDP5_SUB_BLOCK_DEFINITION;
+	uint32_t flush_hw_mask;		/* FLUSH register's hardware mask */
+};
+
 struct mdp5_smp_block {
 	int mmb_count;			/* number of SMP MMBs */
 	int mmb_size;			/* MMB: size in bytes */
@@ -55,7 +60,7 @@ struct mdp5_cfg_hw {
 	char  *name;
 
 	struct mdp5_smp_block smp;
-	struct mdp5_sub_block ctl;
+	struct mdp5_ctl_block ctl;
 	struct mdp5_sub_block pipe_vig;
 	struct mdp5_sub_block pipe_rgb;
 	struct mdp5_sub_block pipe_dma;

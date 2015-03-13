@@ -82,8 +82,6 @@ static void request_pending(struct drm_crtc *crtc, uint32_t pending)
 	mdp_irq_register(&get_kms(crtc)->base, &mdp5_crtc->vblank);
 }
 
-#define mdp5_lm_get_flush(lm)	mdp_ctl_flush_mask_lm(lm)
-
 static void crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
@@ -110,8 +108,8 @@ static void crtc_flush_all(struct drm_crtc *crtc)
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		flush_mask |= mdp5_plane_get_flush(plane);
 	}
-	flush_mask |= mdp5_ctl_get_flush(mdp5_crtc->ctl);
-	flush_mask |= mdp5_lm_get_flush(mdp5_crtc->lm);
+
+	flush_mask |= mdp_ctl_flush_mask_lm(mdp5_crtc->lm);
 
 	crtc_flush(crtc, flush_mask);
 }
@@ -442,13 +440,14 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	struct drm_gem_object *cursor_bo, *old_bo;
+	struct drm_gem_object *cursor_bo, *old_bo = NULL;
 	uint32_t blendcfg, cursor_addr, stride;
 	int ret, bpp, lm;
 	unsigned int depth;
 	enum mdp5_cursor_alpha cur_alpha = CURSOR_ALPHA_PER_PIXEL;
 	uint32_t flush_mask = mdp_ctl_flush_mask_cursor(0);
 	uint32_t roi_w, roi_h;
+	bool cursor_enable = true;
 	unsigned long flags;
 
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
@@ -461,7 +460,8 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 
 	if (!handle) {
 		DBG("Cursor off");
-		return mdp5_ctl_set_cursor(mdp5_crtc->ctl, false);
+		cursor_enable = false;
+		goto set_cursor;
 	}
 
 	cursor_bo = drm_gem_object_lookup(dev, file, handle);
@@ -502,11 +502,14 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 
 	spin_unlock_irqrestore(&mdp5_crtc->cursor.lock, flags);
 
-	ret = mdp5_ctl_set_cursor(mdp5_crtc->ctl, true);
-	if (ret)
+set_cursor:
+	ret = mdp5_ctl_set_cursor(mdp5_crtc->ctl, 0, cursor_enable);
+	if (ret) {
+		dev_err(dev->dev, "failed to %sable cursor: %d\n",
+				cursor_enable ? "en" : "dis", ret);
 		goto end;
+	}
 
-	flush_mask |= mdp5_ctl_get_flush(mdp5_crtc->ctl);
 	crtc_flush(crtc, flush_mask);
 
 end:
@@ -628,11 +631,13 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
 int mdp5_crtc_get_lm(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	return WARN_ON(!crtc) ? -EINVAL : mdp5_crtc->lm;
+}
 
-	if (WARN_ON(!crtc))
-		return -EINVAL;
-
-	return mdp5_crtc->lm;
+struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	return WARN_ON(!crtc) ? NULL : mdp5_crtc->ctl;
 }
 
 /* initialize crtc */
