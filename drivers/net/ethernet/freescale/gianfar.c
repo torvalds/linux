@@ -2169,16 +2169,16 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb,
 	 */
 	if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
 		flags |= TXFCB_UDP;
-		fcb->phcs = udp_hdr(skb)->check;
+		fcb->phcs = (__force __be16)(udp_hdr(skb)->check);
 	} else
-		fcb->phcs = tcp_hdr(skb)->check;
+		fcb->phcs = (__force __be16)(tcp_hdr(skb)->check);
 
 	/* l3os is the distance between the start of the
 	 * frame (skb->data) and the start of the IP hdr.
 	 * l4os is the distance between the start of the
 	 * l3 hdr and the l4 hdr
 	 */
-	fcb->l3os = (u16)(skb_network_offset(skb) - fcb_length);
+	fcb->l3os = (u8)(skb_network_offset(skb) - fcb_length);
 	fcb->l4os = skb_network_header_len(skb);
 
 	fcb->flags = flags;
@@ -2187,7 +2187,7 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb,
 void inline gfar_tx_vlan(struct sk_buff *skb, struct txfcb *fcb)
 {
 	fcb->flags |= TXFCB_VLN;
-	fcb->vlctl = skb_vlan_tag_get(skb);
+	fcb->vlctl = cpu_to_be16(skb_vlan_tag_get(skb));
 }
 
 static inline struct txbd8 *skip_txbd(struct txbd8 *bdp, int stride,
@@ -2812,12 +2812,12 @@ static inline void gfar_rx_checksum(struct sk_buff *skb, struct rxfcb *fcb)
 	 * were verified, then we tell the kernel that no
 	 * checksumming is necessary.  Otherwise, it is [FIXME]
 	 */
-	if ((fcb->flags & RXFCB_CSUM_MASK) == (RXFCB_CIP | RXFCB_CTU))
+	if ((be16_to_cpu(fcb->flags) & RXFCB_CSUM_MASK) ==
+	    (RXFCB_CIP | RXFCB_CTU))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
 		skb_checksum_none_assert(skb);
 }
-
 
 /* gfar_process_frame() -- handle one incoming packet if skb isn't NULL. */
 static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
@@ -2860,8 +2860,9 @@ static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	 * RXFCB_VLN is pseudo randomly set.
 	 */
 	if (dev->features & NETIF_F_HW_VLAN_CTAG_RX &&
-	    fcb->flags & RXFCB_VLN)
-		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), fcb->vlctl);
+	    be16_to_cpu(fcb->flags) & RXFCB_VLN)
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       be16_to_cpu(fcb->vlctl));
 
 	/* Send the packet up the stack */
 	napi_gro_receive(napi, skb);

@@ -557,8 +557,8 @@ struct txfcb {
 	u8	ptp;    /* Flag to enable tx timestamping */
 	u8	l4os;	/* Level 4 Header Offset */
 	u8	l3os; 	/* Level 3 Header Offset */
-	u16	phcs;	/* Pseudo-header Checksum */
-	u16	vlctl;	/* VLAN control word */
+	__be16	phcs;	/* Pseudo-header Checksum */
+	__be16	vlctl;	/* VLAN control word */
 };
 
 struct rxbd8
@@ -574,11 +574,11 @@ struct rxbd8
 };
 
 struct rxfcb {
-	u16	flags;
+	__be16	flags;
 	u8	rq;	/* Receive Queue index */
 	u8	pro;	/* Layer 4 Protocol */
 	u16	reserved;
-	u16	vlctl;	/* VLAN control word */
+	__be16	vlctl;	/* VLAN control word */
 };
 
 struct gianfar_skb_cb {
