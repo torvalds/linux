@@ -1538,8 +1538,6 @@ static const struct snd_soc_dapm_widget rt5645_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY_S("adc stereo1 filter", 1, RT5645_PWR_DIG2,
 		RT5645_PWR_ADC_S1F_BIT, 0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY_S("adc stereo2 filter", 1, RT5645_PWR_DIG2,
-		RT5645_PWR_ADC_S2F_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER_E("Sto1 ADC MIXL", SND_SOC_NOPM, 0, 0,
 		rt5645_sto1_adc_l_mix, ARRAY_SIZE(rt5645_sto1_adc_l_mix),
 		NULL, 0),
@@ -1729,7 +1727,6 @@ static const struct snd_soc_dapm_widget rt5650_specific_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route rt5645_dapm_routes[] = {
 	{ "adc stereo1 filter", NULL, "ADC STO1 ASRC", is_using_asrc },
-	{ "adc stereo2 filter", NULL, "ADC STO2 ASRC", is_using_asrc },
 	{ "adc mono left filter", NULL, "ADC MONO L ASRC", is_using_asrc },
 	{ "adc mono right filter", NULL, "ADC MONO R ASRC", is_using_asrc },
 	{ "dac mono left filter", NULL, "DAC MONO L ASRC", is_using_asrc },
