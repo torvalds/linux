@@ -347,11 +347,9 @@ static int mt8135_pinctrl_probe(struct platform_device *pdev)
 	return mtk_pctrl_init(pdev, &mt8135_pinctrl_data);
 }
 
-static struct of_device_id mt8135_pctrl_match[] = {
-	{
-		.compatible = "mediatek,mt8135-pinctrl",
-	}, {
-	}
+static const struct of_device_id mt8135_pctrl_match[] = {
+	{ .compatible = "mediatek,mt8135-pinctrl", },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mt8135_pctrl_match);
 
