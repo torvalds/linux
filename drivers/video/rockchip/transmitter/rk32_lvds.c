@@ -73,9 +73,11 @@ static int rk32_lvds_en(void)
 
 	/* set lvds format */
 	val = screen->lvds_format;
-	if (screen->type == SCREEN_DUAL_LVDS)
+	if ((screen->type == SCREEN_DUAL_LVDS) ||
+	    (screen->type == SCREEN_DUAL_LVDS_10BIT))
 		val |= LVDS_DUAL | LVDS_CH0_EN | LVDS_CH1_EN;
-	else if(screen->type == SCREEN_LVDS)
+	else if((screen->type == SCREEN_LVDS) ||
+	        (screen->type == SCREEN_LVDS_10BIT))
 		val |= LVDS_CH0_EN;
 	else if (screen->type == SCREEN_RGB)
 		val |= LVDS_TTL_EN | LVDS_CH0_EN | LVDS_CH1_EN;
@@ -153,7 +155,9 @@ static int rk32_lvds_probe(struct platform_device *pdev)
 	rk_fb_get_prmry_screen(&lvds->screen);
 	if ((lvds->screen.type != SCREEN_RGB) && 
 		(lvds->screen.type != SCREEN_LVDS) &&
-		(lvds->screen.type != SCREEN_DUAL_LVDS)) {
+		(lvds->screen.type != SCREEN_DUAL_LVDS) &&
+		(lvds->screen.type != SCREEN_LVDS_10BIT) &&
+		(lvds->screen.type != SCREEN_DUAL_LVDS_10BIT)) {
 		dev_err(&pdev->dev, "screen is not lvds/rgb!\n");		
 		writel_relaxed(0xffff8000, RK_GRF_VIRT + RK3288_GRF_SOC_CON7);
 		return -EINVAL;
