@@ -918,7 +918,7 @@ static bool gprinter_req_match(struct usb_function *f,
 		return false;
 	case SOFT_RESET:
 		if (!w_value && !w_length &&
-		   (USB_DIR_OUT & ctrl->bRequestType))
+		   !(USB_DIR_IN & ctrl->bRequestType))
 			break;
 		/* fall through */
 	default:
