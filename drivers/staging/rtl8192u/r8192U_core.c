@@ -2078,10 +2078,10 @@ static u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
 	case RF_8225:
 	case RF_8256:
 	case RF_PSEUDO_11N:
-		ret = (WIRELESS_MODE_N_24G|WIRELESS_MODE_G|WIRELESS_MODE_B);
+		ret = WIRELESS_MODE_N_24G|WIRELESS_MODE_G|WIRELESS_MODE_B;
 		break;
 	case RF_8258:
-		ret = (WIRELESS_MODE_A|WIRELESS_MODE_N_5G);
+		ret = WIRELESS_MODE_A|WIRELESS_MODE_N_5G;
 		break;
 	default:
 		ret = WIRELESS_MODE_B;
@@ -2687,7 +2687,7 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 
 	read_nic_dword(dev, CPU_GEN, &dwRegRead);
 	if (priv->LoopbackMode == RTL819xU_NO_LOOPBACK)
-		dwRegRead = ((dwRegRead & CPU_GEN_NO_LOOPBACK_MSK) | CPU_GEN_NO_LOOPBACK_SET);
+		dwRegRead = (dwRegRead & CPU_GEN_NO_LOOPBACK_MSK) | CPU_GEN_NO_LOOPBACK_SET;
 	else if (priv->LoopbackMode == RTL819xU_MAC_LOOPBACK)
 		dwRegRead |= CPU_CCK_LOOPBACK;
 	else
@@ -3643,7 +3643,7 @@ static u8 HwRateToMRate90(bool bIsHT, u8 rate)
 				ret_rate = MGN_MCS15;
 				break;
 			case DESC90_RATEMCS32:
-				ret_rate = (0x80|0x20);
+				ret_rate = 0x80|0x20;
 				break;
 
 			default:
@@ -4228,9 +4228,9 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	praddr = hdr->addr1;
 
 	/* Check if the received packet is acceptable. */
-	bpacket_match_bssid = ((IEEE80211_FTYPE_CTL != type) &&
+	bpacket_match_bssid = (IEEE80211_FTYPE_CTL != type) &&
 			       (eqMacAddr(priv->ieee80211->current_network.bssid,  (fc & IEEE80211_FCTL_TODS) ? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS) ? hdr->addr2 : hdr->addr3))
-			       && (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV));
+			       && (!pstats->bHwError) && (!pstats->bCRC) && (!pstats->bICV);
 	bpacket_toself =  bpacket_match_bssid & (eqMacAddr(praddr, priv->ieee80211->dev->dev_addr));
 
 	if (WLAN_FC_GET_FRAMETYPE(fc) == IEEE80211_STYPE_BEACON)

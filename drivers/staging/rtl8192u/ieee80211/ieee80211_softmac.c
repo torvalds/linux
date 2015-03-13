@@ -877,7 +877,7 @@ static struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee,
 		crypt = ieee->crypt[ieee->tx_keyidx];
 	else crypt = NULL;
 
-	encrypt = (crypt && crypt->ops);
+	encrypt = crypt && crypt->ops;
 
 	if (encrypt)
 		assoc->capability |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);

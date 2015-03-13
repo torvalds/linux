@@ -823,8 +823,8 @@ static void rtl8192_BB_Config_ParaFile(struct net_device *dev)
 	write_nic_byte_E(dev, 0x5e, 0x00);
 	if (priv->card_8192_version == (u8)VERSION_819xU_A) {
 		/* Antenna gain offset from B/C/D to A */
-		reg_u32 = (priv->AntennaTxPwDiff[1]<<4 |
-			   priv->AntennaTxPwDiff[0]);
+		reg_u32 = priv->AntennaTxPwDiff[1]<<4 |
+			   priv->AntennaTxPwDiff[0];
 		rtl8192_setBBreg(dev, rFPGA0_TxGainStage, (bXBTxAGC|bXCTxAGC),
 				 reg_u32);
 

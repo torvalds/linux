@@ -130,8 +130,8 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 		       (WLAN_FC_GET_STYPE(fc) & 0x08));
 	*/
 	/* fixed by David :2006.9.6 */
-	qc_included = ((WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
-		       (WLAN_FC_GET_STYPE(fc) & 0x80));
+	qc_included = (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
+		       (WLAN_FC_GET_STYPE(fc) & 0x80);
 	aad_len = 22;
 	if (a4_included)
 		aad_len += 6;
