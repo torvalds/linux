@@ -494,12 +494,12 @@
 
 					pinctrl_usart3_rts: usart3_rts-0 {
 						atmel,pins =
-							<AT91_PIOB 8 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PC8 periph B */
+							<AT91_PIOC 8 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 
 					pinctrl_usart3_cts: usart3_cts-0 {
 						atmel,pins =
-							<AT91_PIOB 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PC10 periph B */
+							<AT91_PIOC 10 AT91_PERIPH_B AT91_PINCTRL_NONE>;
 					};
 				};
 
@@ -753,7 +753,7 @@
 			};
 
 			dbgu: serial@fffff200 {
-				compatible = "atmel,at91sam9260-usart";
+				compatible = "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
 				reg = <0xfffff200 0x200>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				pinctrl-names = "default";
@@ -853,7 +853,7 @@
 			};
 
 			usb1: gadget@fffa4000 {
-				compatible = "atmel,at91rm9200-udc";
+				compatible = "atmel,at91sam9260-udc";
 				reg = <0xfffa4000 0x4000>;
 				interrupts = <10 IRQ_TYPE_LEVEL_HIGH 2>;
 				clocks = <&udc_clk>, <&udpck>;
@@ -976,7 +976,6 @@
 				atmel,watchdog-type = "hardware";
 				atmel,reset-type = "all";
 				atmel,dbg-halt;
-				atmel,idle-halt;
 				status = "disabled";
 			};
 

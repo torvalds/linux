@@ -69,7 +69,7 @@
 
 	sram1: sram@00500000 {
 		compatible = "mmio-sram";
-		reg = <0x00300000 0x4000>;
+		reg = <0x00500000 0x4000>;
 	};
 
 	ahb {
@@ -762,7 +762,7 @@
 			};
 
 			dbgu: serial@ffffee00 {
-				compatible = "atmel,at91sam9260-usart";
+				compatible = "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
 				reg = <0xffffee00 0x200>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				pinctrl-names = "default";
@@ -856,7 +856,7 @@
 			};
 
 			usb1: gadget@fff78000 {
-				compatible = "atmel,at91rm9200-udc";
+				compatible = "atmel,at91sam9263-udc";
 				reg = <0xfff78000 0x4000>;
 				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 2>;
 				clocks = <&udc_clk>, <&udpck>;
@@ -905,7 +905,6 @@
 				atmel,watchdog-type = "hardware";
 				atmel,reset-type = "all";
 				atmel,dbg-halt;
-				atmel,idle-halt;
 				status = "disabled";
 			};
 
