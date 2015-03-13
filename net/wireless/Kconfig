@@ -1,5 +1,5 @@
 config WIRELESS_EXT
-	bool
+	bool "Wireless Extensions"
 
 config WEXT_CORE
 	def_bool y
