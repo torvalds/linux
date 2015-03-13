@@ -130,8 +130,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 	/* Verify that the to be replaced code matches what we expect. */
 	if (memcmp(&orig, &old, sizeof(old)))
 		return -EINVAL;
-	if (probe_kernel_write((void *) rec->ip, &new, sizeof(new)))
-		return -EPERM;
+	s390_kernel_write((void *) rec->ip, &new, sizeof(new));
 	return 0;
 }
 
@@ -159,8 +158,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	/* Verify that the to be replaced code matches what we expect. */
 	if (memcmp(&orig, &old, sizeof(old)))
 		return -EINVAL;
-	if (probe_kernel_write((void *) rec->ip, &new, sizeof(new)))
-		return -EPERM;
+	s390_kernel_write((void *) rec->ip, &new, sizeof(new));
 	return 0;
 }
 
@@ -231,14 +229,16 @@ int ftrace_enable_ftrace_graph_caller(void)
 {
 	u8 op = 0x04; /* set mask field to zero */
 
-	return probe_kernel_write(__va(ftrace_graph_caller)+1, &op, sizeof(op));
+	s390_kernel_write(__va(ftrace_graph_caller)+1, &op, sizeof(op));
+	return 0;
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
 	u8 op = 0xf4; /* set mask field to all ones */
 
-	return probe_kernel_write(__va(ftrace_graph_caller)+1, &op, sizeof(op));
+	s390_kernel_write(__va(ftrace_graph_caller)+1, &op, sizeof(op));
+	return 0;
 }
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

@@ -178,7 +178,7 @@ static int swap_instruction(void *data)
 	}
 skip_ftrace:
 	kcb->kprobe_status = KPROBE_SWAP_INST;
-	probe_kernel_write(p->addr, &new_insn, len);
+	s390_kernel_write(p->addr, &new_insn, len);
 	kcb->kprobe_status = status;
 	return 0;
 }

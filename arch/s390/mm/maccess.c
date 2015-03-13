@@ -16,13 +16,7 @@
 #include <asm/ctl_reg.h>
 #include <asm/io.h>
 
-/*
- * This function writes to kernel memory bypassing DAT and possible
- * write protection. It copies one to four bytes from src to dst
- * using the stura instruction.
- * Returns the number of bytes copied or -EFAULT.
- */
-static long probe_kernel_write_odd(void *dst, const void *src, size_t size)
+static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
 {
 	unsigned long count, aligned;
 	int offset, mask;
@@ -48,19 +42,34 @@ static long probe_kernel_write_odd(void *dst, const void *src, size_t size)
 	return rc ? rc : count;
 }
 
-long probe_kernel_write(void *dst, const void *src, size_t size)
+/*
+ * s390_kernel_write - write to kernel memory bypassing DAT
+ * @dst: destination address
+ * @src: source address
+ * @size: number of bytes to copy
+ *
+ * This function writes to kernel memory bypassing DAT and possible page table
+ * write protection. It writes to the destination using the sturg instruction.
+ * Therefore we have a read-modify-write sequence: the function reads four
+ * bytes from destination at a four byte boundary, modifies the bytes
+ * requested and writes the result back in a loop.
+ *
+ * Note: this means that this function may not be called concurrently on
+ *	 several cpus with overlapping words, since this may potentially
+ *	 cause data corruption.
+ */
+void notrace s390_kernel_write(void *dst, const void *src, size_t size)
 {
 	long copied = 0;
 
 	while (size) {
-		copied = probe_kernel_write_odd(dst, src, size);
+		copied = s390_kernel_write_odd(dst, src, size);
 		if (copied < 0)
 			break;
 		dst += copied;
 		src += copied;
 		size -= copied;
 	}
-	return copied < 0 ? -EFAULT : 0;
 }
 
 static int __memcpy_real(void *dest, void *src, size_t count)
