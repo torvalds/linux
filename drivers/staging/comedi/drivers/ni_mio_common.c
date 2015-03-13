@@ -1360,7 +1360,7 @@ static void get_last_sample_611x(struct comedi_device *dev)
 	/* Check if there's a single sample stuck in the FIFO */
 	if (ni_readb(dev, XXX_Status) & 0x80) {
 		dl = ni_readl(dev, ADC_FIFO_Data_611x);
-		data = (dl & 0xffff);
+		data = dl & 0xffff;
 		comedi_buf_write_samples(s, &data, 1);
 	}
 }
@@ -1871,7 +1871,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 		chan = CR_CHAN(list[0]);
 		range = CR_RANGE(list[0]);
 		range_code = ni_gainlkup[board->gainlkup][range];
-		dither = ((list[0] & CR_ALT_FILTER) != 0);
+		dither = (list[0] & CR_ALT_FILTER) != 0;
 		bypass_bits = MSeries_AI_Bypass_Config_FIFO_Bit;
 		bypass_bits |= chan;
 		bypass_bits |=
@@ -1895,7 +1895,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 		chan = CR_CHAN(list[i]);
 		aref = CR_AREF(list[i]);
 		range = CR_RANGE(list[i]);
-		dither = ((list[i] & CR_ALT_FILTER) != 0);
+		dither = (list[i] & CR_ALT_FILTER) != 0;
 
 		range_code = ni_gainlkup[board->gainlkup][range];
 		devpriv->ai_offset[i] = 0;
@@ -2021,7 +2021,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 			chan = CR_CHAN(list[i]);
 		aref = CR_AREF(list[i]);
 		range = CR_RANGE(list[i]);
-		dither = ((list[i] & CR_ALT_FILTER) != 0);
+		dither = (list[i] & CR_ALT_FILTER) != 0;
 
 		/* fix the external/internal range differences */
 		range = ni_gainlkup[board->gainlkup][range];

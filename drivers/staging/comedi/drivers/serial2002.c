@@ -143,8 +143,8 @@ static void serial2002_tty_read_poll_wait(struct file *f, int timeout)
 			break;
 		}
 		do_gettimeofday(&now);
-		elapsed = (1000000 * (now.tv_sec - start.tv_sec) +
-			  now.tv_usec - start.tv_usec);
+		elapsed = 1000000 * (now.tv_sec - start.tv_sec) +
+			  now.tv_usec - start.tv_usec;
 		if (elapsed > timeout)
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);

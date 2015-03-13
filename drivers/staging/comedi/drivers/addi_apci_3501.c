@@ -270,7 +270,7 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 
 	/*  Disable Interrupt */
 	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul);
+	ul_Command1 = ul_Command1 & 0xFFFFF9FDul;
 	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
 
 	ui_Timer_AOWatchdog = inl(dev->iobase + APCI3501_TIMER_IRQ_REG) & 0x1;
@@ -282,7 +282,7 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 	/* Enable Interrupt Send a signal to from kernel to user space */
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
 	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-	ul_Command1 = ((ul_Command1 & 0xFFFFF9FDul) | 1 << 1);
+	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul) | 1 << 1;
 	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
 	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
 
