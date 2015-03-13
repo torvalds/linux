@@ -51,7 +51,6 @@ void epit_timer_init(void __iomem *base, int irq);
 void mxc_timer_init(void __iomem *, int);
 int mx1_clocks_init(unsigned long fref);
 int mx21_clocks_init(unsigned long lref, unsigned long fref);
-int mx25_clocks_init(void);
 int mx27_clocks_init(unsigned long fref);
 int mx31_clocks_init(unsigned long fref);
 int mx35_clocks_init(void);
