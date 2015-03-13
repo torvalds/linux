@@ -67,6 +67,8 @@
 
 #define MWIFIEX_MP_AGGR_BUF_SIZE_16K	(16384)
 #define MWIFIEX_MP_AGGR_BUF_SIZE_32K	(32768)
+/* we leave one block of 256 bytes for DMA alignment*/
+#define MWIFIEX_MP_AGGR_BUF_SIZE_MAX    (65280)
 
 /* Misc. Config Register : Auto Re-enable interrupts */
 #define AUTO_RE_ENABLE_INT              BIT(4)
@@ -458,8 +460,8 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
 	.max_ports = 32,
 	.mp_agg_pkt_limit = 16,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
-	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
-	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_MAX,
 	.supports_sdio_new_mode = true,
 	.has_control_mask = false,
 	.can_dump_fw = true,
