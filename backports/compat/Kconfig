@@ -1,0 +1,137 @@
+#
+# backport Kconfig
+#
+# Some options are user-selectable ("BPAUTO_USERSEL_*")
+#
+# Most options, however, follow a few different schemes:
+#
+# A) An option that is selected by drivers ("select FOO") will be
+#    changed to "select BPAUTO_FOO" (if the option BPAUTO_FOO
+#    exists). The option BPAUTO_FOO then controls setting of the
+#    BPAUTO_BUILD_FOO option, which is a module, like this:
+#
+# config BPAUTO_BUILD_FOO
+#	tristate
+#	# or bool
+#
+#	# not possible on kernel < X.Y, build will fail if any
+#	# drivers are allowed to build on kernels < X.Y
+#	depends on KERNEL_X_Y
+#
+#	# don't build the backport code if FOO is in the kernel
+#	# already, but only if the kernel version is also >= X.Z;
+#	# this is an example of backporting where the version of
+#	# the FOO subsystem that we need is only available from
+#	# kernel version X.Z
+#	depends on !FOO || KERNEL_X_Z
+#
+#	# build if driver needs it (it selects BPAUTO_FOO)
+#	default m if BPAUTO_FOO
+#
+#	# or for build-testing (BPAUTO_USERSEL_BUILD_ALL is enabled)
+#	default m if BPAUTO_USERSEL_BUILD_ALL
+#
+# config BPAUTO_FOO
+#	bool
+#
+# This only works as-is if the kernel code is usable on any version,
+# otherwise the "&& !FOO" part needs to be different.
+#
+#
+# B) An option for code always present on some kernels (e.g. KFIFO).
+#    This simply depends on/sets the default based on the version:
+#
+# config BPAUTO_BUILD_KFIFO
+#	def_bool y
+#	depends on KERNEL_2_6_36
+#
+#
+# C) similarly, a kconfig symbol for an option, e.g.
+#    BPAUTO_OPTION_SOME_FIX (no examples provided) check git log
+#
+#
+# Variations are obviously possible.
+#
+
+config BPAUTO_BUILD_CORDIC
+	tristate
+	depends on !CORDIC
+	default m if BPAUTO_CORDIC
+	default m if BPAUTO_USERSEL_BUILD_ALL
+	#module-name cordic
+	#c-file lib/cordic.c
+
+config BPAUTO_CORDIC
+	bool
+
+config BPAUTO_BUILD_AVERAGE
+	bool
+	depends on !AVERAGE
+	default y if BPAUTO_USERSEL_BUILD_ALL
+	default y if BPAUTO_AVERAGE
+	#h-file linux/average.h
+	#c-file lib/average.c
+
+config BPAUTO_AVERAGE
+	bool
+
+config BPAUTO_MII
+	bool
+
+config BPAUTO_BUILD_DMA_SHARED_HELPERS
+	bool
+	depends on HAS_DMA
+	# Build on other kernels kernels < 3.9 if HAVE_GENERIC_DMA_COHERENT is
+	# not set. Kernels >= 3.8 have this if HAS_DMA is set.
+	depends on (!HAVE_GENERIC_DMA_COHERENT || KERNEL_3_9)
+	# Always build if on 3.3 - 3.5
+	default y if (KERNEL_3_4 || KERNEL_3_5 || KERNEL_3_6)
+	# build for testing
+	default y if BPAUTO_USERSEL_BUILD_ALL
+
+config BPAUTO_BUILD_LEDS
+	bool
+	depends on !NEW_LEDS || LEDS_CLASS=n || !LEDS_TRIGGERS
+	default y if BPAUTO_NEW_LEDS
+	default y if BPAUTO_LEDS_CLASS
+	default y if BPAUTO_LEDS_TRIGGERS
+
+config BPAUTO_NEW_LEDS
+	bool
+
+config BPAUTO_LEDS_CLASS
+	bool
+
+config BPAUTO_LEDS_TRIGGERS
+	bool
+
+config BPAUTO_USERSEL_BUILD_ALL
+	bool "Build all compat code"
+	help
+	  This option selects all the compat code options
+	  that would otherwise only be selected by drivers.
+
+	  It's only really useful for compat testing, so
+	  you probably shouldn't enable it.
+
+config BPAUTO_CRYPTO_CCM
+	depends on CRYPTO_AEAD
+	depends on CRYPTO_CTR
+	bool
+
+config BPAUTO_BUILD_CRYPTO_CCM
+	bool
+	default n if CRYPTO_CCM
+	default y if BPAUTO_CRYPTO_CCM
+	#c-file crypto/ccm.c
+
+config BPAUTO_WANT_DEV_COREDUMP
+	bool
+
+config BPAUTO_BUILD_WANT_DEV_COREDUMP
+	bool
+	default n if DEV_COREDUMP
+	default n if DISABLE_DEV_COREDUMP
+	default y if BPAUTO_WANT_DEV_COREDUMP
+	#h-file linux/devcoredump.h
+	#c-file drivers/base/devcoredump.c

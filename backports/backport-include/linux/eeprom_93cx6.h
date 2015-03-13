@@ -1,0 +1,10 @@
+#ifndef _COMPAT_LINUX_EEPROM_93CX6_H
+#define _COMPAT_LINUX_EEPROM_93CX6_H 1
+
+#include_next <linux/eeprom_93cx6.h>
+
+#ifndef PCI_EEPROM_WIDTH_93C86
+#define PCI_EEPROM_WIDTH_93C86	8
+#endif /* PCI_EEPROM_WIDTH_93C86 */
+
+#endif	/* _COMPAT_LINUX_EEPROM_93CX6_H */
