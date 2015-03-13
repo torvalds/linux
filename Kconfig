@@ -9,3 +9,4 @@ config SRCARCH
 	option env="SRCARCH"
 
 source "arch/$SRCARCH/Kconfig"
+source "backports/Kconfig"
