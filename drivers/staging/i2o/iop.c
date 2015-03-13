@@ -1096,7 +1096,8 @@ int i2o_iop_add(struct i2o_controller *c)
 {
 	int rc;
 
-	if ((rc = device_add(&c->device))) {
+	rc = device_add(&c->device);
+	if (rc) {
 		osm_err("%s: could not add controller\n", c->name);
 		goto iop_reset;
 	}
@@ -1105,24 +1106,28 @@ int i2o_iop_add(struct i2o_controller *c)
 	osm_info("%s: This may take a few minutes if there are many devices\n",
 		 c->name);
 
-	if ((rc = i2o_iop_activate(c))) {
+	rc = i2o_iop_activate(c);
+	if (rc) {
 		osm_err("%s: could not activate controller\n", c->name);
 		goto device_del;
 	}
 
 	osm_debug("%s: building sys table...\n", c->name);
 
-	if ((rc = i2o_systab_build()))
+	rc = i2o_systab_build();
+	if (rc)
 		goto device_del;
 
 	osm_debug("%s: online controller...\n", c->name);
 
-	if ((rc = i2o_iop_online(c)))
+	rc = i2o_iop_online(c);
+	if (rc)
 		goto device_del;
 
 	osm_debug("%s: getting LCT...\n", c->name);
 
-	if ((rc = i2o_exec_lct_get(c)))
+	rc = i2o_exec_lct_get(c);
+	if (rc)
 		goto device_del;
 
 	list_add(&c->list, &i2o_controllers);
@@ -1192,13 +1197,16 @@ static int __init i2o_iop_init(void)
 
 	printk(KERN_INFO OSM_DESCRIPTION " v" OSM_VERSION "\n");
 
-	if ((rc = i2o_driver_init()))
+	rc = i2o_driver_init();
+	if (rc)
 		goto exit;
 
-	if ((rc = i2o_exec_init()))
+	rc = i2o_exec_init();
+	if (rc)
 		goto driver_exit;
 
-	if ((rc = i2o_pci_init()))
+	rc = i2o_pci_init();
+	if (rc)
 		goto exec_exit;
 
 	return 0;
