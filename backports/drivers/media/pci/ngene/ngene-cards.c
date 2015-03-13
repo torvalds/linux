@@ -798,7 +798,11 @@ static void ngene_resume(struct pci_dev *dev)
 	printk(KERN_INFO DEVICE_NAME ": resume\n");
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 static const struct pci_error_handlers ngene_errors = {
+#else
+static struct pci_error_handlers ngene_errors = {
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0) */
 	.error_detected = ngene_error_detected,
 	.link_reset = ngene_link_reset,
 	.slot_reset = ngene_slot_reset,
