@@ -223,6 +223,7 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 	input_sync(dev);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 static int hidp_get_raw_report(struct hid_device *hid,
 		unsigned char report_number,
 		unsigned char *data, size_t count,
@@ -395,6 +396,7 @@ static int hidp_raw_request(struct hid_device *hid, unsigned char reportnum,
 		return -EIO;
 	}
 }
+#endif
 
 static void hidp_idle_timeout(unsigned long arg)
 {
@@ -724,8 +726,10 @@ static struct hid_ll_driver hidp_hid_driver = {
 	.stop = hidp_stop,
 	.open  = hidp_open,
 	.close = hidp_close,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 	.raw_request = hidp_raw_request,
 	.output_report = hidp_output_report,
+#endif
 };
 
 /* This function sets up the hid device. It does not add it
