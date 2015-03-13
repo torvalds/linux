@@ -2598,8 +2598,6 @@ unsigned int OnDeAuth(_adapter *padapter, union recv_frame *precv_frame)
 
 	reason = le16_to_cpu(*(unsigned short *)(pframe + WLAN_HDR_A3_LEN));
 
-	DBG_871X("%s Reason code(%d)\n", __FUNCTION__,reason);
-
 	rtw_lock_rx_suspend_timeout(8000);
 
 #ifdef CONFIG_AP_MODE
@@ -2613,8 +2611,8 @@ unsigned int OnDeAuth(_adapter *padapter, union recv_frame *precv_frame)
 		//rtw_free_stainfo(padapter, psta);
 		//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		
 
-		DBG_871X_LEVEL(_drv_always_, "ap recv deauth reason code(%d) sta:%pM\n",
-			       	reason, GetAddr2Ptr(pframe));
+		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" reason=%u, ta=%pM\n"
+			, FUNC_ADPT_ARG(padapter), reason, GetAddr2Ptr(pframe));
 
 		psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));	
 		if(psta)
@@ -2659,12 +2657,12 @@ unsigned int OnDeAuth(_adapter *padapter, union recv_frame *precv_frame)
 			}
 		}
 
-		DBG_871X_LEVEL(_drv_always_, "sta recv deauth reason code(%d) sta:%pM, ignore = %d\n",
-			       	reason, GetAddr3Ptr(pframe), ignore_received_deauth);
-		
+		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" reason=%u, ta=%pM, ignore=%d\n"
+			, FUNC_ADPT_ARG(padapter), reason, GetAddr2Ptr(pframe), ignore_received_deauth);
+
 		if ( 0 == ignore_received_deauth )
 		{
-			receive_disconnect(padapter, GetAddr3Ptr(pframe) ,reason);
+			receive_disconnect(padapter, GetAddr2Ptr(pframe), reason);
 		}
 	}	
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = _FALSE;
@@ -2697,8 +2695,6 @@ unsigned int OnDisassoc(_adapter *padapter, union recv_frame *precv_frame)
 
 	reason = le16_to_cpu(*(unsigned short *)(pframe + WLAN_HDR_A3_LEN));
 
-        DBG_871X("%s Reason code(%d)\n", __FUNCTION__,reason);
-
 	rtw_lock_rx_suspend_timeout(8000);
 	
 #ifdef CONFIG_AP_MODE
@@ -2712,8 +2708,8 @@ unsigned int OnDisassoc(_adapter *padapter, union recv_frame *precv_frame)
 		//rtw_free_stainfo(padapter, psta);
 		//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		
 
-		DBG_871X_LEVEL(_drv_always_, "ap recv disassoc reason code(%d) sta:%pM\n",
-				reason, GetAddr2Ptr(pframe));
+		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" reason=%u, ta=%pM\n"
+			, FUNC_ADPT_ARG(padapter), reason, GetAddr2Ptr(pframe));
 
 		psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));	
 		if(psta)
@@ -2738,10 +2734,10 @@ unsigned int OnDisassoc(_adapter *padapter, union recv_frame *precv_frame)
 	else
 #endif
 	{
-		DBG_871X_LEVEL(_drv_always_, "sta recv disassoc reason code(%d) sta:%pM\n",
-				reason, GetAddr3Ptr(pframe));
-		
-		receive_disconnect(padapter, GetAddr3Ptr(pframe), reason);
+		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" reason=%u, ta=%pM\n"
+			, FUNC_ADPT_ARG(padapter), reason, GetAddr2Ptr(pframe));
+
+		receive_disconnect(padapter, GetAddr2Ptr(pframe), reason);
 	}	
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = _FALSE;
 	return _SUCCESS;
@@ -9588,18 +9584,25 @@ void site_survey(_adapter *padapter)
 		//val8 |= 0x0f;
 		//rtw_hal_set_hwreg(padapter, HW_VAR_TXPAUSE, (u8 *)(&val8));
 #if defined(CONFIG_STA_MODE_SCAN_UNDER_AP_MODE) || defined(CONFIG_ATMEL_RC_PATCH)
-		if((padapter->pbuddy_adapter->mlmeextpriv.mlmext_info.state&0x03) == WIFI_FW_AP_STATE)
-		{
-			if( pmlmeinfo->scan_cnt == RTW_SCAN_NUM_OF_CH )
-			{
-				pmlmeinfo->scan_cnt = 0;
-				survey_channel = pbuddy_mlmeext->cur_channel;
-				stay_buddy_ch = 1;
-			}
-			else 
-			{
-				if( pmlmeinfo->scan_cnt == 0 )
+		if ((padapter->pbuddy_adapter->mlmeextpriv.mlmext_info.state&0x03) == WIFI_FW_AP_STATE) {
+			if (pmlmeinfo->scan_cnt == RTW_SCAN_NUM_OF_CH) {
+				if (pmlmeinfo->backop_cnt == 0)
+					stay_buddy_ch = 1;
+				else if (pmlmeinfo->backop_cnt == RTW_STAY_AP_CH_MILLISECOND)
 					stay_buddy_ch = 2;
+
+				if (stay_buddy_ch == 2) {
+					pmlmeinfo->scan_cnt = 1;
+					pmlmeinfo->backop_cnt = 0;
+				} else if (stay_buddy_ch == 1) {
+					pmlmeinfo->backop_cnt++;
+					survey_channel = pbuddy_mlmeext->cur_channel;
+				} else {
+					pmlmeinfo->backop_cnt++;
+					set_survey_timer(pmlmeext, pmlmeext->chan_scan_time);
+					return;	
+				}
+			} else {
 				pmlmeinfo->scan_cnt++;
 			}
 		}
@@ -9684,26 +9687,14 @@ void site_survey(_adapter *padapter)
 		// assume home channel is 6, channel switch sequence will be 
 		//	1,2-6-3,4-6-5,6-6-7,8-6-9,10-6-11,12-6-13,14
 		//if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)==_TRUE)
-
-		if( stay_buddy_ch == 1 ){
-			channel_scan_time_ms = pmlmeext->chan_scan_time * RTW_STAY_AP_CH_MILLISECOND;			
-		}
-		else {
-			if( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
-				channel_scan_time_ms = 20;
-			else
-				channel_scan_time_ms = 40
-		}
-#elif defined(CONFIG_STA_MODE_SCAN_UNDER_AP_MODE)
-		if( stay_buddy_ch == 1 )
-			channel_scan_time_ms = pmlmeext->chan_scan_time * RTW_STAY_AP_CH_MILLISECOND ;
-		else		
-			channel_scan_time_ms = pmlmeext->chan_scan_time;
+		if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE)
+			set_survey_timer(pmlmeext, 20);
+		else
+			set_survey_timer(pmlmeext, 40);
 #else
-			channel_scan_time_ms = pmlmeext->chan_scan_time;
+		set_survey_timer(pmlmeext, pmlmeext->chan_scan_time);
 #endif
 
-		set_survey_timer(pmlmeext, channel_scan_time_ms);
 #if defined(CONFIG_SIGNAL_DISPLAY_DBM) && defined(CONFIG_BACKGROUND_NOISE_MONITOR)
 		{
 			struct noise_info info;
@@ -9789,6 +9780,7 @@ void site_survey(_adapter *padapter)
 
 #if defined(CONFIG_STA_MODE_SCAN_UNDER_AP_MODE) || defined(CONFIG_ATMEL_RC_PATCH) 
 			pmlmeinfo->scan_cnt = 0;
+			pmlmeinfo->backop_cnt = 0;
 #endif
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
@@ -10390,7 +10382,6 @@ unsigned int receive_disconnect(_adapter *padapter, unsigned char *MacAddr, unsi
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 
-	//check A3
 	if (!(_rtw_memcmp(MacAddr, get_my_bssid(&pmlmeinfo->network), ETH_ALEN)))
 		return _SUCCESS;
 
@@ -11892,7 +11883,8 @@ void survey_timer_hdl(_adapter *padapter)
 		if(pmlmeext->sitesurvey_res.state ==  SCAN_PROCESS)
 		{
 #if defined(CONFIG_STA_MODE_SCAN_UNDER_AP_MODE) || defined(CONFIG_ATMEL_RC_PATCH) 
-			if( padapter->mlmeextpriv.mlmext_info.scan_cnt != RTW_SCAN_NUM_OF_CH )
+			if (padapter->mlmeextpriv.mlmext_info.scan_cnt != RTW_SCAN_NUM_OF_CH
+				|| padapter->mlmeextpriv.mlmext_info.backop_cnt == RTW_STAY_AP_CH_MILLISECOND)
 #endif
 				pmlmeext->sitesurvey_res.channel_idx++;
 		}
@@ -12610,6 +12602,106 @@ u8 disconnect_hdl(_adapter *padapter, unsigned char *pbuf)
 	return 	H2C_SUCCESS;
 }
 
+u8 rtw_scan_sparse(_adapter *adapter, struct rtw_ieee80211_channel *ch, u8 ch_num)
+{
+/* interval larger than this is treated as backgroud scan */
+#ifndef RTW_SCAN_SPARSE_BG_INTERVAL_MS
+#define RTW_SCAN_SPARSE_BG_INTERVAL_MS 12000
+#endif
+
+#ifndef RTW_SCAN_SPARSE_CH_NUM_MIRACAST
+#define RTW_SCAN_SPARSE_CH_NUM_MIRACAST 1
+#endif
+#ifndef RTW_SCAN_SPARSE_CH_NUM_BG
+#define RTW_SCAN_SPARSE_CH_NUM_BG 4
+#endif
+
+#define SCAN_SPARSE_CH_NUM_INVALID 255
+
+	static u8 token = 255;
+	u32 interval;
+	bool busy_traffic = _FALSE;
+	bool miracast_enabled = _FALSE;
+	bool bg_scan = _FALSE;
+	u8 max_allow_ch = SCAN_SPARSE_CH_NUM_INVALID;
+	u8 scan_division_num;
+	u8 ret_num = ch_num;
+	struct registry_priv *regsty = dvobj_to_regsty(adapter_to_dvobj(adapter));
+	struct mlme_ext_priv *mlmeext = &adapter->mlmeextpriv;
+
+	if (regsty->wifi_spec)
+		goto exit;
+
+	/* assume ch_num > 6 is normal scan */
+	if (ch_num <= 6)
+		goto exit;
+
+	if (mlmeext->last_scan_time == 0)
+		mlmeext->last_scan_time = rtw_get_current_time();
+
+	interval = rtw_get_passing_time_ms(mlmeext->last_scan_time);
+
+	if (adapter->mlmepriv.LinkDetectInfo.bBusyTraffic == _TRUE
+		#ifdef CONFIG_CONCURRENT_MODE
+		|| (adapter->pbuddy_adapter && adapter->pbuddy_adapter->mlmepriv.LinkDetectInfo.bBusyTraffic == _TRUE)
+		#endif
+	)
+			busy_traffic = _TRUE;
+
+	#ifdef CONFIG_WFD
+	if (is_miracast_enabled(adapter->wfd_info.stack_wfd_mode)
+		#ifdef CONFIG_CONCURRENT_MODE
+		|| (adapter->pbuddy_adapter && is_miracast_enabled(adapter->pbuddy_adapter->wfd_info.stack_wfd_mode))
+		#endif
+	)
+		miracast_enabled = _TRUE;
+	#endif
+
+	if (interval > RTW_SCAN_SPARSE_BG_INTERVAL_MS)
+		bg_scan = _TRUE;
+
+	/* max_allow_ch by conditions*/
+
+	#if RTW_SCAN_SPARSE_MIRACAST
+	if (miracast_enabled == _TRUE && busy_traffic == _TRUE)
+		max_allow_ch = rtw_min(max_allow_ch, RTW_SCAN_SPARSE_CH_NUM_MIRACAST);
+	#endif
+
+	#if RTW_SCAN_SPARSE_BG
+	if (bg_scan == _TRUE)
+		max_allow_ch = rtw_min(max_allow_ch, RTW_SCAN_SPARSE_CH_NUM_BG);
+	#endif
+
+
+	if (max_allow_ch != SCAN_SPARSE_CH_NUM_INVALID) {
+		int i;
+		int k = 0;
+
+		scan_division_num = (ch_num / max_allow_ch) + ((ch_num % max_allow_ch)?1:0);
+		token = (token + 1) % scan_division_num;
+		
+		if (0)
+			DBG_871X("scan_division_num:%u, token:%u\n", scan_division_num, token);
+		
+		for (i = 0; i < ch_num; i++) {
+			if (ch[i].hw_value && (i % scan_division_num) == token
+			) {
+				if (i != k)
+					_rtw_memcpy(&ch[k], &ch[i], sizeof(struct rtw_ieee80211_channel));
+				k++;
+			}
+		}
+
+		_rtw_memset(&ch[k], 0, sizeof(struct rtw_ieee80211_channel));
+
+		ret_num = k;
+		mlmeext->last_scan_time = rtw_get_current_time();
+	}
+
+exit:
+	return ret_num;
+}
+
 int rtw_scan_ch_decision(_adapter *padapter, struct rtw_ieee80211_channel *out,
 	u32 out_num, struct rtw_ieee80211_channel *in, u32 in_num)
 {
@@ -12675,49 +12767,8 @@ int rtw_scan_ch_decision(_adapter *padapter, struct rtw_ieee80211_channel *out,
 		}
 	}
 
-#ifdef CONFIG_SCAN_SPARSE //partial scan, ASUS RK3188 use the feature
-	/* assume j>6 is normal scan */
-	if ((j > 6) && (padapter->registrypriv.wifi_spec != 1))
-	{
-		static u8 token = 0;
-		u32 interval;
-
-		if (pmlmeext->last_scan_time == 0)
-			pmlmeext->last_scan_time = rtw_get_current_time();
-
-		interval = rtw_get_passing_time_ms(pmlmeext->last_scan_time);
-		if ((interval > ALLOW_SCAN_INTERVAL)
-#if 0 // Miracast can't do AP scan
-			|| (padapter->mlmepriv.LinkDetectInfo.bBusyTraffic == _TRUE)
-#ifdef CONFIG_CONCURRENT_MODE
-			|| (padapter->pbuddy_adapter
-				&& (padapter->pbuddy_adapter->mlmepriv.LinkDetectInfo.bBusyTraffic == _TRUE))
-#endif // CONFIG_CONCURRENT_MODE
-#endif
-			)
-		{
-			// modify scan plan
-			int k = 0;
-			_rtw_memset(in, 0, sizeof(struct rtw_ieee80211_channel)*in_num);
-			_rtw_memcpy(in, out, sizeof(struct rtw_ieee80211_channel)*j);
-			_rtw_memset(out, 0, sizeof(struct rtw_ieee80211_channel)*j);
-
-			for (i=0;i<j;i++) {
-				if (in[i].hw_value && (i%SCAN_DIVISION_NUM) == token) {
-					_rtw_memcpy(&out[k], &in[i], sizeof(struct rtw_ieee80211_channel));
-					k++;
-				}
-				if(k>=out_num)
-					break;
-			}
-
-			j = k;
-			token  = (token+1)%SCAN_DIVISION_NUM;
-		}
-
-		pmlmeext->last_scan_time = rtw_get_current_time();
-	}
-#endif //CONFIG_SCAN_SPARSE
+	/* scan_sparse */
+	j = rtw_scan_sparse(padapter, out, j);
 
 	return j;
 }
@@ -14159,7 +14210,23 @@ int rtw_chk_start_clnt_join(_adapter *padapter, u8 *ch, u8 *bw, u8 *offset)
 	struct mlme_ext_priv *pbuddy_mlmeext;
 	struct mlme_ext_info	*pbuddy_pmlmeinfo;
 	struct mlme_priv *pbuddy_mlmepriv;
+#endif
 
+	if (!ch || !bw || !offset) {
+		connect_allow = _FALSE;
+		rtw_warn_on(1);
+		goto exit;
+	}
+
+	if (cur_ch == 0) {
+		connect_allow = _FALSE;
+		DBG_871X_LEVEL(_drv_err_, FUNC_ADPT_FMT" cur_ch:%u\n"
+			, FUNC_ADPT_ARG(padapter), cur_ch);
+		rtw_warn_on(1);
+		goto exit;
+	}
+
+#ifdef CONFIG_CONCURRENT_MODE
 	if (!rtw_buddy_adapter_up(padapter)) {
 		goto exit;
 	}
@@ -14292,15 +14359,8 @@ int rtw_chk_start_clnt_join(_adapter *padapter, u8 *ch, u8 *bw, u8 *offset)
 			rtw_free_assoc_resources(pbuddy_adapter, 1);
 		}
 	}	
-
-exit:
 #endif /* CONFIG_CONCURRENT_MODE */
-
-	if (!ch || !bw || !offset) {
-		rtw_warn_on(1);
-		connect_allow = _FALSE;
-	}
-
+exit:
 	if (connect_allow == _TRUE) {
 		DBG_871X("start_join_set_ch_bw: ch=%d, bwmode=%d, ch_offset=%d\n", cur_ch, cur_bw, cur_ch_offset);
 		*ch = cur_ch;

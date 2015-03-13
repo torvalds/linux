@@ -1432,20 +1432,17 @@ static struct recv_buf* sd_recv_rxfifo(PADAPTER padapter, u32 size)
 		SIZE_PTR alignment=0;
 
 		precvbuf->pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-
-		if(precvbuf->pskb)
-		{
-			precvbuf->pskb->dev = padapter->pnetdev;
-
-			tmpaddr = (SIZE_PTR)precvbuf->pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
-			skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
-		}
-
 		if (precvbuf->pskb == NULL) {
 			DBG_871X("%s: alloc_skb fail! read=%d\n", __FUNCTION__, readsize);
+			rtw_enqueue_recvbuf(precvbuf, &precvpriv->free_recv_buf_queue);
 			return NULL;
 		}
+
+		precvbuf->pskb->dev = padapter->pnetdev;
+
+		tmpaddr = (SIZE_PTR)precvbuf->pskb->data;
+		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
+		skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 	}
 
 	//3 3. read data from rxfifo
@@ -1454,9 +1451,9 @@ static struct recv_buf* sd_recv_rxfifo(PADAPTER padapter, u32 size)
 	ret = sdio_read_port(&padapter->iopriv.intf, WLAN_RX0FF_DEVICE_ID, readsize, preadbuf);
 	if (ret == _FAIL) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("%s: read port FAIL!\n", __FUNCTION__));
+		rtw_enqueue_recvbuf(precvbuf, &precvpriv->free_recv_buf_queue);
 		return NULL;
 	}
-
 
 	//3 4. init recvbuf
 	precvbuf->len = size;
@@ -1682,7 +1679,7 @@ void sd_int_dpc(PADAPTER padapter)
 				else
 				{
 					alloc_fail_time++;
-					DBG_871X("precvbuf is Null for %d times because alloc memory failed\n", alloc_fail_time);
+					DBG_871X("%s: recv fail!(time=%d)\n", __func__, alloc_fail_time);
 					if (alloc_fail_time >= 10)
 						break;
 				}
@@ -1699,9 +1696,8 @@ void sd_int_dpc(PADAPTER padapter)
 				break;
 		} while (1);
 
-		if(alloc_fail_time==10)
-			DBG_871X("exit because alloc memory failed more than 10 times \n");
-
+		if (alloc_fail_time == 10)
+			DBG_871X("%s: exit because recv failed more than 10 times!\n", __func__);
 	}
 }
 

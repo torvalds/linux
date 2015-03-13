@@ -1,6 +1,9 @@
-//Generated at 2012-10-23 20:11:08
-/*
- *  Copyright (c) 2011 Espressif System
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  */
 

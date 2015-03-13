@@ -4,7 +4,7 @@
  *
  * $Copyright Open 2005 Broadcom Corporation$
  *
- * $Id: sbsdpcmdev.h 336848 2012-06-05 11:28:07Z $
+ * $Id: sbsdpcmdev.h 416730 2013-08-06 09:33:19Z $
  */
 
 #ifndef	_sbsdpcmdev_h_
@@ -272,6 +272,10 @@ typedef volatile struct {
 /* HW frame tag */
 #define SDPCM_FRAMETAG_LEN	4	/* HW frametag: 2 bytes len, 2 bytes check val */
 
+#if !defined(NDISVER) || (NDISVER < 0x0630)
 #define SDPCM_HWEXT_LEN	8
+#else
+#define SDPCM_HWEXT_LEN	0
+#endif /* !defined(NDISVER) || (NDISVER < 0x0630) */
 
 #endif	/* _sbsdpcmdev_h_ */

@@ -318,6 +318,26 @@ int proc_get_rx_info(struct seq_file *m, void *v)
 	return 0;
 }	
 
+int proc_get_wifi_spec(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	
+	DBG_871X_SEL_NL(m,"wifi_spec=%d\n",pregpriv->wifi_spec);
+	return 0;
+}
+
+static int proc_get_mac_qinfo(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+
+	rtw_hal_get_hwreg(adapter, HW_VAR_DUMP_MAC_QUEUE_INFO, (u8 *)m);
+
+	return 0;
+}
+
 static int proc_get_cam(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
@@ -415,10 +435,12 @@ const struct rtw_proc_hdl adapter_proc_hdls [] = {
 	{"adapter_state", proc_get_adapter_state, NULL},
 	{"trx_info", proc_get_trx_info, NULL},
 	{"rate_ctl", proc_get_rate_ctl, proc_set_rate_ctl},
+	{"mac_qinfo", proc_get_mac_qinfo, NULL},
 	{"cam", proc_get_cam, proc_set_cam},
 	{"cam_cache", proc_get_cam_cache, NULL},
 	{"suspend_info", proc_get_suspend_resume_info, NULL},
 	{"rx_info", proc_get_rx_info,NULL},
+	{"wifi_spec",proc_get_wifi_spec,NULL},
 
 #ifdef CONFIG_LAYER2_ROAMING
 	{"roam_flags", proc_get_roam_flags, proc_set_roam_flags},
@@ -626,23 +648,18 @@ ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, si
 	char tmp[32];
 	u32 TH_L2H_ini;
 	s8 TH_EDCCA_HL_diff;
-	u32 IGI_Base;
-	int ForceEDCCA;
-	u8 AdapEn_RSSI;
-	u8 IGI_LowerBound;
 
 	if (count < 1)
 		return -EFAULT;
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 
-		int num = sscanf(tmp, "%x %hhd %x %d %hhu %hhu",
-			&TH_L2H_ini, &TH_EDCCA_HL_diff, &IGI_Base, &ForceEDCCA, &AdapEn_RSSI, &IGI_LowerBound);
+		int num = sscanf(tmp, "%x %hhd",	&TH_L2H_ini, &TH_EDCCA_HL_diff);
 
-		if (num != 6)
+		if (num != 2)
 			return count;
 
-		rtw_odm_adaptivity_parm_set(padapter, (s8)TH_L2H_ini, TH_EDCCA_HL_diff, (s8)IGI_Base, (bool)ForceEDCCA, AdapEn_RSSI, IGI_LowerBound);
+		rtw_odm_adaptivity_parm_set(padapter, (s8)TH_L2H_ini, TH_EDCCA_HL_diff);
 	}
 	
 	return count;

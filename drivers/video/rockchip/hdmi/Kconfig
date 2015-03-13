@@ -3,13 +3,13 @@ menuconfig RK_HDMI
        depends on FB_ROCKCHIP || DRM_ROCKCHIP
        select FB_MODE_HELPERS
 
-if RK_HDMI
-source "drivers/video/rockchip/hdmi/chips/Kconfig"
-endif
+source "drivers/video/rockchip/hdmi/rockchip-hdmiv1/Kconfig"
+source "drivers/video/rockchip/hdmi/rockchip-hdmiv2/Kconfig"
 
 config RK_HDMI_DEBUG
-	bool "Rockchip HDMI Debugging"
+		bool "Rockchip HDMI Debugging"
         depends on RK_HDMI
         default n
-	help
-	  Enableds verbose debugging the the HDMI drivers
+		help
+		  Enableds verbose debugging the the HDMI drivers
+

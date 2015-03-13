@@ -26,5 +26,11 @@ typedef struct camsys_soc_priv_s {
 extern camsys_soc_priv_t* camsys_soc_get(void);
 extern int camsys_soc_init(void);
 extern int camsys_soc_deinit(void);
+
+extern unsigned long rk_grf_base;
+extern unsigned long rk_cru_base;
+extern unsigned long rk_isp_base;
+extern unsigned int CHIP_TYPE;
+
 #endif
 

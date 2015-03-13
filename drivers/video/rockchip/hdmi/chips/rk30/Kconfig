@@ -1,1 +1,0 @@
-source "drivers/video/rockchip/hdmi/chips/rk30/hdcp/Kconfig"

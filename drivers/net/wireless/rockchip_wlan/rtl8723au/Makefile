@@ -637,7 +637,7 @@ endif
 ARCH := arm
 CROSS_COMPILE := /usr/src/release_fae_version/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
 KSRC := /usr/src/release_fae_version/kernel25_A7_281x
-MODULE_NAME := wlan
+MODULE_NAME := 8723au
 endif
 
 ifeq ($(CONFIG_PLATFORM_ARM_RK3066), y)

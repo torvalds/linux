@@ -285,6 +285,13 @@ static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
 		}
 	}
 
+	WARN((urb->actual_length > urb->transfer_buffer_length &&
+	      usb_pipein(urb->pipe)),
+	      "DWC_OTG Transfer buffer length less than actual buffer length"
+	      "actual_length %d , buffer_length %d urb->complete %pF\n",
+	      urb->actual_length, urb->transfer_buffer_length,
+	      urb->complete);
+
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
 		int i;
 

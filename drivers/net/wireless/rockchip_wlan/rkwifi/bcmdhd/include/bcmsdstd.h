@@ -3,7 +3,7 @@
  *
  * $ Copyright Open Broadcom Corporation $
  *
- * $Id: bcmsdstd.h 343301 2012-07-06 13:07:32Z $
+ * $Id: bcmsdstd.h 455390 2014-02-13 22:14:56Z $
  */
 #ifndef	_BCM_SD_STD_H
 #define	_BCM_SD_STD_H
@@ -75,8 +75,10 @@ extern void sdstd_osfree(sdioh_info_t *sd);
 
 
 #ifdef BCMSDIOH_TXGLOM
-/* Setting the MAX limit to 10 */
-#define SDIOH_MAXGLOM_SIZE	10
+/* Total glom pkt can not exceed 64K
+ * need one more slot for glom padding packet
+ */
+#define SDIOH_MAXGLOM_SIZE	(40+1)
 
 typedef struct glom_buf {
 	uint32 count;				/* Total number of pkts queued */
@@ -102,29 +104,30 @@ struct sdioh_info {
 	uint		target_dev;		/* Target device ID */
 	uint16		intmask;		/* Current active interrupts */
 	void		*sdos_info;		/* Pointer to per-OS private data */
+	void		*bcmsdh;		/* handler to upper layer stack (bcmsdh) */
 
 	uint32		controller_type;	/* Host controller type */
 	uint8		version;		/* Host Controller Spec Compliance Version */
-	uint 		irq;			/* Client irq */
-	int 		intrcount;		/* Client interrupts */
-	int 		local_intrcount;	/* Controller interrupts */
-	bool 		host_init_done;		/* Controller initted */
-	bool 		card_init_done;		/* Client SDIO interface initted */
-	bool 		polled_mode;		/* polling for command completion */
+	uint		irq;			/* Client irq */
+	int		intrcount;		/* Client interrupts */
+	int		local_intrcount;	/* Controller interrupts */
+	bool		host_init_done;		/* Controller initted */
+	bool		card_init_done;		/* Client SDIO interface initted */
+	bool		polled_mode;		/* polling for command completion */
 
-	bool 		sd_blockmode;		/* sd_blockmode == FALSE => 64 Byte Cmd 53s. */
+	bool		sd_blockmode;		/* sd_blockmode == FALSE => 64 Byte Cmd 53s. */
 						/*  Must be on for sd_multiblock to be effective */
-	bool 		use_client_ints;	/* If this is false, make sure to restore */
+	bool		use_client_ints;	/* If this is false, make sure to restore */
 						/*  polling hack in wl_linux.c:wl_timer() */
-	int 		adapter_slot;		/* Maybe dealing with multiple slots/controllers */
-	int 		sd_mode;		/* SD1/SD4/SPI */
-	int 		client_block_size[SDIOD_MAX_IOFUNCS];		/* Blocksize */
-	uint32 		data_xfer_count;	/* Current transfer */
-	uint16 		card_rca;		/* Current Address */
+	int		adapter_slot;		/* Maybe dealing with multiple slots/controllers */
+	int		sd_mode;		/* SD1/SD4/SPI */
+	int		client_block_size[SDIOD_MAX_IOFUNCS];		/* Blocksize */
+	uint32		data_xfer_count;	/* Current transfer */
+	uint16		card_rca;		/* Current Address */
 	int8		sd_dma_mode;		/* DMA Mode (PIO, SDMA, ... ADMA2) on CMD53 */
-	uint8 		num_funcs;		/* Supported funcs on client */
-	uint32 		com_cis_ptr;
-	uint32 		func_cis_ptr[SDIOD_MAX_IOFUNCS];
+	uint8		num_funcs;		/* Supported funcs on client */
+	uint32		com_cis_ptr;
+	uint32		func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	void		*dma_buf;		/* DMA Buffer virtual address */
 	ulong		dma_phys;		/* DMA Buffer physical address */
 	void		*adma2_dscr_buf;	/* ADMA2 Descriptor Buffer virtual address */
@@ -182,6 +185,13 @@ struct sdioh_info {
 #define CHECK_TUNING_PRE_DATA	1
 #define CHECK_TUNING_POST_DATA	2
 
+
+#ifdef DHD_DEBUG
+#define SD_DHD_DISABLE_PERIODIC_TUNING 0x01
+#define SD_DHD_ENABLE_PERIODIC_TUNING  0x00
+#endif
+
+
 /************************************************************
  * Internal interfaces: per-port references into bcmsdstd.c
  */
@@ -209,8 +219,8 @@ extern void sdstd_spinbits(sdioh_info_t *sd, uint16 norm, uint16 err);
  */
 
 /* Register mapping routines */
-extern uint32 *sdstd_reg_map(osl_t *osh, int32 addr, int size);
-extern void sdstd_reg_unmap(osl_t *osh, int32 addr, int size);
+extern uint32 *sdstd_reg_map(osl_t *osh, ulong addr, int size);
+extern void sdstd_reg_unmap(osl_t *osh, ulong addr, int size);
 
 /* Interrupt (de)registration routines */
 extern int sdstd_register_irq(sdioh_info_t *sd, uint irq);
@@ -220,6 +230,10 @@ extern void sdstd_free_irq(uint irq, sdioh_info_t *sd);
 extern void sdstd_lock(sdioh_info_t *sd);
 extern void sdstd_unlock(sdioh_info_t *sd);
 extern void sdstd_waitlockfree(sdioh_info_t *sd);
+
+/* OS-specific wrappers for safe concurrent register access */
+extern void sdstd_os_lock_irqsave(sdioh_info_t *sd, ulong* flags);
+extern void sdstd_os_unlock_irqrestore(sdioh_info_t *sd, ulong* flags);
 
 /* OS-specific wait-for-interrupt-or-status */
 extern int sdstd_waitbits(sdioh_info_t *sd, uint16 norm, uint16 err, bool yield, uint16 *bits);
@@ -243,4 +257,8 @@ extern void sdstd_3_start_tuning(sdioh_info_t *sd);
 extern void sdstd_3_osinit_tuning(sdioh_info_t *sd);
 extern void sdstd_3_osclean_tuning(sdioh_info_t *sd);
 
+extern void sdstd_enable_disable_periodic_timer(sdioh_info_t * sd, uint val);
+
+extern sdioh_info_t *sdioh_attach(osl_t *osh, void *bar0, uint irq);
+extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd);
 #endif /* _BCM_SD_STD_H */

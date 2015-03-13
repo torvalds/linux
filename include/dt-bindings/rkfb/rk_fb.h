@@ -6,6 +6,9 @@
 #define PRMRY		1		/*primary display device*/
 #define EXTEND		2		/*extend display device*/
 
+#define DISPLAY_SOURCE_LCDC0	0
+#define DISPLAY_SOURCE_LCDC1	1
+
 #define NO_DUAL		0
 #define ONE_DUAL	1
 #define DUAL		2

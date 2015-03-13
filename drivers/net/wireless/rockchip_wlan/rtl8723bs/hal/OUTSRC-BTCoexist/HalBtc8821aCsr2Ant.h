@@ -51,7 +51,7 @@ typedef struct _COEX_DM_8821A_CSR_2ANT{
 	BOOLEAN		bPreIgnoreWlanAct;
 	u1Byte		prePsTdma;
 	u1Byte		curPsTdma;
-	u1Byte		psTdmaPara[5];
+	u1Byte		psTdmaPara[6];
 	u1Byte		psTdmaDuAdjType;
 	BOOLEAN		bResetTdmaAdjust;
 	BOOLEAN		bPrePsTdmaOn;
@@ -83,6 +83,26 @@ typedef struct _COEX_DM_8821A_CSR_2ANT{
 	u1Byte		curVal0x6cc;
 	BOOLEAN		bLimitedDig;
 
+	u4Byte		preRaMask;
+	u4Byte		curRaMask;
+
+	u1Byte curAmpduNumType;
+	u1Byte preAmpduNumType;
+	u2Byte backupAmpduMaxNum;
+
+	u1Byte curAmpduTimeType;
+	u1Byte preAmpduTimeType;
+	u1Byte backupAmpduMaxTime;
+
+	u1Byte 		curArfrType;
+	u1Byte 		preArfrType;
+	u4Byte		backupArfrCnt1;
+	u4Byte		backupArfrCnt2;
+
+	u1Byte		curRetryLimitType;
+	u1Byte		preRetryLimitType;
+	u2Byte		backupRetryLimit;
+
 	// algorithm related
 	u1Byte		preAlgorithm;
 	u1Byte		curAlgorithm;
@@ -94,6 +114,7 @@ typedef struct _COEX_STA_8821A_CSR_2ANT{
 	BOOLEAN					bBtLinkExist;
 	BOOLEAN					bScoExist;
 	BOOLEAN					bA2dpExist;
+	BOOLEAN					bSlave;
 	BOOLEAN					bHidExist;
 	BOOLEAN					bPanExist;
 

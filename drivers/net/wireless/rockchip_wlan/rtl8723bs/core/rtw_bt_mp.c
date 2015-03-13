@@ -107,10 +107,6 @@ mptbt_CheckC2hFrame(
 	return c2hStatus;
 }
 
-#if defined(CONFIG_RTL8723A)
-extern s32 FillH2CCmd(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
-#endif
-
 BT_CTRL_STATUS
 mptbt_SendH2c(
 	PADAPTER	Adapter,
@@ -140,7 +136,7 @@ mptbt_SendH2c(
 			pMptCtx->MptBtC2hEvent = _FALSE;
 
 #if defined(CONFIG_RTL8723A)
-			FillH2CCmd(Adapter, 70, h2cCmdLen, (pu1Byte)pH2c);
+			rtw_hal_fill_h2c_cmd(Adapter, 70, h2cCmdLen, (pu1Byte)pH2c);
 #elif defined(CONFIG_RTL8723B)
 			rtl8723b_set_FwBtMpOper_cmd(Adapter, pH2c->opCode, pH2c->opCodeVer, pH2c->reqNum, pH2c->buf);
 #endif

@@ -1,10 +1,15 @@
-/*
- * Copyright (c) 2010 -2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  *   file operation in kernel space
  *
  */
-
+#include <linux/device.h>
+#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/kernel.h>
@@ -395,6 +400,82 @@ failed:
 	return ret;
 }
 
+#if (defined(CONFIG_DEBUG_FS) && defined(DEBUGFS_BOOTMODE)) || defined(ESP_CLASS)
+static inline int is_le(void)
+{
+	u16 n = 0x0001;
+	return ((u8 *)&n)[0] == 1? 1 : 0;
+}
+
+static inline int conv_b2l_u32(u32 n)
+{
+	u8 *p = (u8 *)&n;
+
+	return (u32)*p + (((u32)*(p+1))<<8) + (((u32)*(p+2))<<16) + (((u32)*(p+3))<<24);
+}
+
+static void fcctest_set(u8 *buf, int size)
+{
+	u32 mode = 0;
+	struct fcc_mode *fm; 
+
+	if (buf == NULL)
+		return;
+
+#if defined(CONFIG_DEBUG_FS) && defined(DEBUGFS_BOOTMODE)
+	mode = dbgfs_get_bootmode_var(DBGFS_FCC_MODE);
+#endif
+#ifdef ESP_CLASS
+	if (mode == 0)
+		mode = sif_get_fccmode();
+	else if (sif_get_fccmode() != 0)
+		mode = sif_get_fccmode();
+#endif
+	if (!is_le())/* big endian */
+		mode = conv_b2l_u32(mode);
+
+	fm = (struct fcc_mode *)&mode;	
+
+	esp_dbg(ESP_DBG_TRACE, "%s mode 0x%08x id 0x%02x", __func__, mode, fm->id);
+
+	if (fm->id == 0 || fm->id >= FCC_MODE_MAX)
+		return;
+
+	switch (fm->id) {
+		case FCC_MODE_SELFTEST:
+			esp_dbg(ESP_SHOW, "selftest");
+			buf[79] = 0x1;
+			break;
+		case FCC_MODE_CONT_TX:
+			esp_dbg(ESP_SHOW, "continue tx");
+			buf[80] = 0x1;
+			buf[82] = fm->u.fcc_cont_tx.channel;
+			buf[83] = fm->u.fcc_cont_tx.rate_offset;		
+			buf[81] = 0x1;
+			buf[78] = 0x1;
+	
+			if((buf[75]|buf[76]|buf[77]) == 0){
+                        	buf[75] = 0x93;
+                        	buf[76] = 0x43;
+                        	buf[77] = 0x00;
+			}
+			break;
+		case FCC_MODE_NORM_TX:
+			esp_dbg(ESP_SHOW, "normal tx");
+			buf[80] = 0x1;
+			buf[82] = fm->u.fcc_norm_tx.channel;
+			buf[83] = fm->u.fcc_norm_tx.rate_offset;
+			break;
+		case FCC_MODE_SDIO_NOISE:
+			esp_dbg(ESP_SHOW, "sdio noise");
+			buf[79] = 0x2;
+			break;
+		default:
+			esp_dbg(ESP_DBG_ERROR, "not support the fccmode id");
+	}
+}
+#endif
+
 void fix_init_data(u8 *init_data_buf, int buf_size)
 {
 	int i;
@@ -407,4 +488,208 @@ void fix_init_data(u8 *init_data_buf, int buf_size)
 		}
         }
 
+#if (defined(CONFIG_DEBUG_FS) && defined(DEBUGFS_BOOTMODE)) || defined(ESP_CLASS)
+	fcctest_set(init_data_buf, buf_size);
+#endif
 }
+
+#ifdef ESP_CLASS
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+static ssize_t nor_show(struct class *cls, struct class_attribute *attr, char *ubuf)
+#else
+static ssize_t nor_show(struct class *cls, char *ubuf)
+#endif
+{
+    int count = 0;
+
+    count = sprintf(ubuf, "0x%08x\n", sif_get_esp_run());
+    return count;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+static ssize_t nor_store(struct class *cls, struct class_attribute *attr, const char *ubuf, size_t count)
+#else
+static ssize_t nor_store(struct class *cls, const char *ubuf, size_t count)
+#endif
+{
+	int ret;
+	unsigned long var;
+
+	if (ubuf[0] == '0' && (ubuf[1] == 'x' || ubuf[1] == 'X'))
+		ret = strict_strtoul(ubuf, 16, &var);
+	else 
+		ret = strict_strtoul(ubuf, 10, &var);
+
+	if (ret) {
+		esp_dbg(ESP_DBG_ERROR, "invalid input");
+		return count;
+	}
+
+	switch (var) {
+	case 0:
+		if (sif_get_esp_run() != 0)
+			esp_common_exit();
+		else {
+			esp_dbg(ESP_DBG_ERROR, "%s already down", __func__);
+			return -EBUSY;
+		}
+		break;
+	case 1:
+		if (sif_get_esp_run() == 0) esp_common_init();
+		else {
+			esp_dbg(ESP_DBG_ERROR, "%s already up!", __func__);
+			return -EBUSY;
+		}
+		break;
+	case 2:
+		if (sif_get_esp_run() == 0) {
+			sif_record_ate_config(0);
+			sif_record_fccmode(0);
+			esp_dbg(ESP_SHOW, "%s reset all the boot mode", __func__);
+		} else {
+			esp_dbg(ESP_DBG_ERROR, "%s must down pre!", __func__);
+			return -EBUSY;
+		}
+		break;
+	default:
+		esp_dbg(ESP_DBG_ERROR, "%s unspec cmd", __func__);
+		break;
+	}
+
+	return count;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+static ssize_t ate_show(struct class *cls, struct class_attribute *attr, char *ubuf)
+#else
+static ssize_t ate_show(struct class *cls, char *ubuf)
+#endif
+{
+    int count = 0;
+
+    count = sprintf(ubuf, "0x%08x\n", sif_get_ate_config());
+    return count;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+static ssize_t ate_store(struct class *cls, struct class_attribute *attr, const char *ubuf, size_t count)
+#else
+static ssize_t ate_store(struct class *cls, const char *ubuf, size_t count)
+#endif
+{
+	int ret;
+	unsigned long var;
+
+	if (ubuf[0] == '0' && (ubuf[1] == 'x' || ubuf[1] == 'X'))
+		ret = strict_strtoul(ubuf, 16, &var);
+	else 
+		ret = strict_strtoul(ubuf, 10, &var);
+
+	if (ret) {
+		esp_dbg(ESP_DBG_ERROR, "invalid input");
+		return count;
+	}
+
+	if (sif_get_esp_run() != 0) {
+		esp_dbg(ESP_DBG_ERROR, "%s set ate mode must after close driver ", __func__);
+		return -EBUSY;
+	}
+	sif_record_ate_config((int)var);
+
+	return count;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+static ssize_t fcc_show(struct class *cls, struct class_attribute *attr, char *ubuf)
+#else
+static ssize_t fcc_show(struct class *cls, char *ubuf)
+#endif
+{
+    int count = 0;
+
+    count = sprintf(ubuf, "0x%08x\n", sif_get_fccmode());
+    return count;
+}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+static ssize_t fcc_store(struct class *cls, struct class_attribute *attr, const char *ubuf, size_t count)
+#else
+static ssize_t fcc_store(struct class *cls, const char *ubuf, size_t count)
+#endif
+{
+	int ret;
+	unsigned long var;
+
+	if (ubuf[0] == '0' && (ubuf[1] == 'x' || ubuf[1] == 'X'))
+		ret = strict_strtoul(ubuf, 16, &var);
+	else 
+		ret = strict_strtoul(ubuf, 10, &var);
+
+	if (ret) {
+		esp_dbg(ESP_DBG_ERROR, "invalid input");
+		return count;
+	}
+
+	if (sif_get_esp_run() != 0) {
+		esp_dbg(ESP_DBG_ERROR, "%s set ate mode must after close driver ", __func__);
+		return -EBUSY;
+	}
+	sif_record_fccmode((u32)var);
+
+	return count;
+}
+
+
+static struct class *esp_class = NULL;
+static CLASS_ATTR(normode, 0664, nor_show, nor_store);
+static CLASS_ATTR(atemode, 0664, ate_show, ate_store);
+static CLASS_ATTR(fccmode, 0664, fcc_show, fcc_store);
+
+int esp_class_init(void)
+{
+	int ret;
+
+	esp_dbg(ESP_DBG_TRACE, "esp_class init\n");
+
+	esp_class = class_create(THIS_MODULE, "esp_boot");
+	if (IS_ERR(esp_class))
+	{
+		esp_dbg(ESP_DBG_ERROR, "esp_class create failed.\n");
+		return -ENOENT;
+	}
+	ret =  class_create_file(esp_class, &class_attr_normode);
+	if (ret) {
+    		class_destroy(esp_class);
+		return ret;
+	}
+
+	ret =  class_create_file(esp_class, &class_attr_atemode);
+	if (ret) {
+    		class_remove_file(esp_class, &class_attr_normode);
+    		class_destroy(esp_class);
+		return ret;
+	}
+
+	ret =  class_create_file(esp_class, &class_attr_fccmode);
+	if (ret) {
+    		class_remove_file(esp_class, &class_attr_atemode);
+    		class_remove_file(esp_class, &class_attr_normode);
+    		class_destroy(esp_class);
+	}
+
+	return 0;
+}
+
+void esp_class_deinit(void)
+{
+    class_remove_file(esp_class, &class_attr_fccmode);
+    class_remove_file(esp_class, &class_attr_fccmode);
+    class_remove_file(esp_class, &class_attr_atemode);
+    class_remove_file(esp_class, &class_attr_normode);
+    class_destroy(esp_class);
+
+    esp_class = NULL;
+}
+
+#endif /* ESP_CLASS */

@@ -30,6 +30,10 @@
 //	Increase the scanning timeout because of increasing the SURVEY_TO value.
 
 #define 	SCANNING_TIMEOUT 	8000
+#ifdef CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
+#define		CONC_SCANNING_TIMEOUT_SINGLE_BAND 10000
+#define		CONC_SCANNING_TIMEOUT_DUAL_BAND 15000
+#endif //CONFIG_STA_MODE_SCAN_UNDER_AP_MODE
 
 #ifdef PALTFORM_OS_WINCE
 #define	SCANQUEUE_LIFETIME 12000000 // unit:us
@@ -187,6 +191,16 @@ struct tx_invite_resp_info{
 	u8					token;	//	Used to record the dialog token of p2p invitation request frame.
 };
 
+#define MIRACAST_DISABLED 0
+#define MIRACAST_SOURCE 1
+#define MIRACAST_SINK 2
+#define MIRACAST_INVALID 3
+
+#define is_miracast_enabled(mode) \
+	(mode == MIRACAST_SOURCE || mode == MIRACAST_SINK)
+
+const char *get_miracast_mode_str(int mode);
+
 #ifdef CONFIG_WFD
 
 struct wifi_display_info{
@@ -208,7 +222,7 @@ struct wifi_display_info{
 													//	0 -> WFD Source Device
 													//	1 -> WFD Primary Sink Device
 	enum	SCAN_RESULT_TYPE	scan_result_type;	//	Used when P2P is enable. This parameter will impact the scan result.
-
+	u8 stack_wfd_mode;
 };
 #endif //CONFIG_WFD
 
@@ -253,7 +267,8 @@ struct cfg80211_wifidirect_info{
 	u8						restore_channel;
 	struct ieee80211_channel	remain_on_ch_channel;
 	enum nl80211_channel_type	remain_on_ch_type;
-	u64						remain_on_ch_cookie;
+	ATOMIC_T ro_ch_cookie_gen;
+	u64 remain_on_ch_cookie;
 	bool not_indic_ro_ch_exp;
 	bool is_ro_ch;
 	u32 last_ro_ch_time; /* this will be updated at the beginning and end of ro_ch */

@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2011-2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  * esp debug
  */
@@ -17,6 +21,33 @@
 #include <linux/debugfs.h>
 #include <asm/uaccess.h>
 
+#if defined(CONFIG_DEBUG_FS) && defined(DEBUGFS_BOOTMODE)
+
+#define NAME_LEN_MAX 12
+
+typedef enum DBGFS_BOOTMODE_ID {
+	DBGFS_FCC_MODE = 0,
+	DBGFS_ATE_MODE,
+	DBGFS_NOR_MODE,
+	DBGFS_MODE_MAX,
+}DBGFS_BOOTMODE_ID_t;
+
+struct dbgfs_bootmode_item {
+	char name[NAME_LEN_MAX];
+	DBGFS_BOOTMODE_ID_t id;
+	u32 var;
+	void *priv_data;
+	int (*r_cb)(void *data);
+	int (*w_cb)(void *data);
+};
+
+u32 dbgfs_get_bootmode_var(DBGFS_BOOTMODE_ID_t id);
+struct dbgfs_bootmode_item *dbgfs_get_bootmode_di(DBGFS_BOOTMODE_ID_t id);
+void dbgfs_bootmode_init(void);
+void dbgfs_fcctest_set(u8 *buf, int size);
+#endif
+
+
 typedef enum esp_type {
         ESP_BOOL,
         ESP_U8,
@@ -25,11 +56,12 @@ typedef enum esp_type {
         ESP_U64
 } esp_type;
 
+
 struct dentry *esp_dump_var(const char *name, struct dentry *parent, void *value, esp_type type);
 
 struct dentry *esp_dump_array(const char *name, struct dentry *parent, struct debugfs_blob_wrapper *blob);
 
-struct dentry *esp_dump(const char *name, struct dentry *parent, void *data, int size);
+struct dentry *esp_dump(const char *name, struct dentry *parent, void *data, int size, struct file_operations *fops);
 
 struct dentry *esp_debugfs_add_sub_dir(const char *name);
 

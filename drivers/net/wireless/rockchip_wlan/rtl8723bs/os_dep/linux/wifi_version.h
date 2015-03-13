@@ -7,7 +7,7 @@
 /*
  * Marvell MV8686 driver version.
  */
-#define RTL8723BS_DRV_VERSION "4.00.WFD"
+#define RTL8723BS_DRV_VERSION "4.39.WFD"
 
 #endif /* WIFI_VERSION_H */
 

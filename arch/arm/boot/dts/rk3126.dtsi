@@ -8,6 +8,19 @@
 	clocks = <&dummy>;
 };
 
+
+&aclk_vio0_pre_div {
+	rockchip,flags = <CLK_SET_RATE_PARENT_IN_ORDER>;
+};
+
+&aclk_vio1_pre_div {
+        rockchip,flags = <CLK_SET_RATE_PARENT_IN_ORDER>;
+};
+
+&hclk_vio_pre_div {
+        rockchip,flags = <CLK_SET_RATE_PARENT_IN_ORDER>;
+};
+
 &rockchip_clocks_init {
 	rockchip,clocks-init-parent =
 		<&clk_core &clk_apll>, <&aclk_cpu &clk_gpll>,
@@ -15,8 +28,7 @@
 		<&clk_uart2_pll &clk_gpll>, <&clk_i2s_2ch_pll &clk_gpll>,
 		<&clk_i2s_8ch_pll &clk_gpll>, <&clk_spdif_pll &clk_gpll>,
 		<&clk_vepu &clk_gpll>, <&clk_vdpu &clk_gpll>,
-		<&clk_hevc_core &clk_gpll>, <&aclk_vio0_pre &clk_gpll>,
-		<&aclk_vio1_pre &clk_gpll>, <&hclk_vio_pre &clk_gpll>,
+		<&clk_hevc_core &clk_gpll>,
 		<&sclk_lcdc0 &clk_cpll>, <&clk_gpu &clk_gpll>,
 		<&clk_cif_pll &clk_gpll>, <&dclk_ebc &clk_gpll>,
 		<&clk_emmc &clk_gpll>, <&clk_sdio &clk_gpll>,

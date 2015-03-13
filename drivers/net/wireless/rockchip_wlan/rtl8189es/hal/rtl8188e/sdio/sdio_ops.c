@@ -1251,7 +1251,7 @@ void InitInterrupt8188ESdio(PADAPTER padapter)
 								SDIO_HIMR_BCNERLY_INT_MSK			|
 #endif //CONFIG_EXT_CLK
 //								SDIO_HIMR_C2HCMD_MSK				|
-#ifdef CONFIG_LPS_LCLK
+#if defined(CONFIG_LPS_LCLK) && !defined(CONFIG_DETECT_CPWM_BY_POLLING)
 								SDIO_HIMR_CPWM1_MSK				|
 								SDIO_HIMR_CPWM2_MSK				|
 #endif
@@ -1465,6 +1465,7 @@ static void sd_recv_loopback(PADAPTER padapter, u32 size)
 static struct recv_buf* sd_recv_rxfifo(PADAPTER padapter, u32 size)
 {
 	u32 readsize, ret;
+	u32 max_recvbuf_sz = 0;
 	u8 *preadbuf;
 	struct recv_priv *precvpriv;
 	struct recv_buf	*precvbuf;
@@ -1487,7 +1488,11 @@ static struct recv_buf* sd_recv_rxfifo(PADAPTER padapter, u32 size)
 
 		DBG_871X("%s: alloc_skb for rx buffer\n", __FUNCTION__);
 
-		precvbuf->pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+		rtw_hal_get_def_var(padapter, HAL_DEF_MAX_RECVBUF_SZ, &max_recvbuf_sz);
+		if (max_recvbuf_sz == 0)
+			max_recvbuf_sz = MAX_RECVBUF_SZ;
+
+		precvbuf->pskb = rtw_skb_alloc(max_recvbuf_sz + RECVBUFF_ALIGN_SZ);
 
 		if(precvbuf->pskb)
 		{

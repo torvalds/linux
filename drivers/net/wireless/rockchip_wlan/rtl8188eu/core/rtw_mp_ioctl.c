@@ -1990,9 +1990,9 @@ NDIS_STATUS oid_rt_pro_dele_sta_info_hdl(struct oid_par_priv *poid_par_priv)
 
 	psta = rtw_get_stainfo(&Adapter->stapriv, macaddr);
 	if (psta != NULL) {
-		_enter_critical(&(Adapter->stapriv.sta_hash_lock), &irqL);
+		//_enter_critical(&(Adapter->stapriv.sta_hash_lock), &irqL);
 		rtw_free_stainfo(Adapter, psta);
-		_exit_critical(&(Adapter->stapriv.sta_hash_lock), &irqL);
+		//_exit_critical(&(Adapter->stapriv.sta_hash_lock), &irqL);
 	}
 
 	return status;

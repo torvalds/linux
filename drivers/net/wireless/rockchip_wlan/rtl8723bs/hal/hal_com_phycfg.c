@@ -2410,7 +2410,9 @@ Hal_ChannelPlanToRegulation(
 	IN	u16				ChannelPlan
 	)
 {
-	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
+	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(Adapter);
+	DM_ODM_T *odm = &pHalData->odmpriv;
+
 	pHalData->Regulation2_4G = TXPWR_LMT_WW;
 	pHalData->Regulation5G = TXPWR_LMT_WW;
 
@@ -2570,15 +2572,13 @@ Hal_ChannelPlanToRegulation(
 		default:
 			break;
 	}
+
+	DBG_871X("%s ChannelPlan:0x%02x,Regulation(2_4G/5G):0x%02x,0x%02x\n",
+		__FUNCTION__,ChannelPlan,pHalData->Regulation2_4G,pHalData->Regulation5G);
+
 }
 
 #ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-
-extern char *rtw_phy_file_path;
-char	file_path[PATH_LENGTH_MAX];
-
-#define GetLineFromBuffer(buffer)	 strsep(&buffer, "\n")
-
 int
 phy_ConfigMACWithParaFile(
 	IN	PADAPTER	Adapter,

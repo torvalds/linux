@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/list.h>
+#include <dt-bindings/rkfb/rk_fb.h>
 
 struct rk_display_device;
 
@@ -18,6 +19,21 @@ enum rk_display_priority {
 enum {
 	DISPLAY_SCALE_X = 0,
 	DISPLAY_SCALE_Y
+};
+
+enum rk_display_property {
+	DISPLAY_MAIN = 0,
+	DISPLAY_AUX
+};
+
+
+/* HDMI mode list*/
+struct display_modelist {
+	struct list_head	list;
+	struct fb_videomode	mode;
+	unsigned int		vic;
+	unsigned int		format_3d;
+	unsigned int		detail_3d;
 };
 
 /* This structure defines all the properties of a Display. */
@@ -40,6 +56,10 @@ struct rk_display_ops {
 		       struct fb_videomode *mode);
 	int (*setscale)(struct rk_display_device *, int, int);
 	int (*getscale)(struct rk_display_device *, int);
+	int (*get3dmode)(struct rk_display_device *);
+	int (*set3dmode)(struct rk_display_device *, int);
+	int (*getcolor)(struct rk_display_device *, char *);
+	int (*setcolor)(struct rk_display_device *, const char *, int);
 	int (*setdebug)(struct rk_display_device *, int);
 	int (*getedidaudioinfo)(struct rk_display_device *,
 				char *audioinfo, int len);
@@ -59,6 +79,7 @@ struct rk_display_device {
 	int idx;
 	struct rk_display_ops *ops;
 	int priority;
+	int property;
 	struct list_head list;
 };
 
@@ -74,6 +95,8 @@ void rk_display_device_unregister(struct rk_display_device *dev);
 void rk_display_device_enable(struct rk_display_device *ddev);
 void rk_display_device_enable_other(struct rk_display_device *ddev);
 void rk_display_device_disable_other(struct rk_display_device *ddev);
-void rk_display_device_select(int priority);
+void rk_display_device_select(int property, int priority);
 
+int display_add_videomode(const struct fb_videomode *mode,
+			  struct list_head *head);
 #endif

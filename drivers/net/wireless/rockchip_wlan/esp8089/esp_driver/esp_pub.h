@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2011-2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  *   wlan device header file
  */
@@ -44,6 +48,17 @@ struct esp_tx_tid {
 	u16 ssn;
 };
 
+enum sta_state {
+	ESP_STA_STATE_NORM,
+	ESP_STA_STATE_WAIT,
+	ESP_STA_STATE_LOST,
+};
+	
+
+#define ESP_LOSS_COUNT_MAX	5
+#define ESP_ND_TIME_REMAIN_MAX	11   /* 12*500ms 6000ms (12-1)*/
+#define ESP_ND_TIME_REMAIN_MIN	0    /* immediate */
+#define ESP_ND_TIMER_INTERVAL	500  /* 500ms */
 #define WME_NUM_TID 16
 struct esp_node {
         struct esp_tx_tid tid[WME_NUM_TID];
@@ -57,6 +72,9 @@ struct esp_node {
 #endif
 	u8 ifidx;
 	u8 index;
+	atomic_t loss_count;
+	atomic_t time_remain;
+	atomic_t sta_state;
 };
 
 #define WME_AC_BE 2
@@ -78,6 +96,7 @@ struct esp_vif {
 	u32 beacon_interval;
 	bool ap_up;
 	struct timer_list beacon_timer;
+	struct timer_list nulldata_timer; /* gc use this, too */
 };
 
 /* WLAN related, mostly... */
@@ -176,6 +195,8 @@ struct esp_pub {
 
         //u8 bssid[ETH_ALEN];
         u8 mac_addr[ETH_ALEN];
+	u8 master_addr[ETH_ALEN];
+	u8 master_ifidx;
 
         u32 rx_filter;
         unsigned long scan_permit;
@@ -222,6 +243,8 @@ struct esp_node * esp_get_node_by_addr(struct esp_pub * epub, const u8 *addr);
 struct esp_node * esp_get_node_by_index(struct esp_pub * epub, u8 index);
 int esp_get_empty_rxampdu(struct esp_pub * epub, const u8 *addr, u8 tid);
 int esp_get_exist_rxampdu(struct esp_pub * epub, const u8 *addr, u8 tid);
+
+void esp_sendup_deauth(struct esp_pub *epub, u8 *sta_addr);
 
 #ifdef TEST_MODE
 int test_init_netlink(struct esp_sip *sip);

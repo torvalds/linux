@@ -757,6 +757,7 @@ struct dvobj_priv
 
 #define dvobj_to_pwrctl(dvobj) (&(dvobj->pwrctl_priv))
 #define pwrctl_to_dvobj(pwrctl) container_of(pwrctl, struct dvobj_priv, pwrctl_priv)
+#define dvobj_to_regsty(dvobj) (&(dvobj->if1->registrypriv))
 #define dvobj_to_macidctl(dvobj) (&(dvobj->macid_ctl))
 
 #ifdef PLATFORM_LINUX

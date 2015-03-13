@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wl_iw.h 291086 2011-10-21 01:17:24Z $
+ * $Id: wl_iw.h 488316 2014-06-30 15:22:21Z $
  */
 
 #ifndef _wl_iw_h_
@@ -37,7 +37,7 @@
 #define TXPOWER_SET_CMD			"TXPOWER"
 
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
-#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MACSTR "%02X:%02X:%02X:%02X:%02X:%02X"
 
 /* Structure to keep global parameters */
 typedef struct wl_iw_extra_params {

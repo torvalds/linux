@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wl_iw.c 396420 2013-04-12 06:55:45Z $
+ * $Id: wl_iw.c 467328 2014-04-03 01:23:40Z $
  */
 
 #if defined(USE_IW)
@@ -24,7 +24,29 @@ typedef const struct si_pub	si_t;
 #include <wlioctl.h>
 
 
-#include <wl_dbg.h>
+/* message levels */
+#define WL_ERROR_LEVEL	0x0001
+#define WL_SCAN_LEVEL	0x0002
+#define WL_ASSOC_LEVEL	0x0004
+#define WL_INFORM_LEVEL	0x0008
+#define WL_WSEC_LEVEL	0x0010
+#define WL_PNO_LEVEL	0x0020
+#define WL_COEX_LEVEL	0x0040
+#define WL_SOFTAP_LEVEL	0x0080
+#define WL_TRACE_LEVEL	0x0100
+
+uint iw_msg_level = WL_ERROR_LEVEL;
+
+#define WL_ERROR(x)		do {if (iw_msg_level & WL_ERROR_LEVEL) printf x;} while (0)
+#define WL_SCAN(x)		do {if (iw_msg_level & WL_SCAN_LEVEL) printf x;} while (0)
+#define WL_ASSOC(x)		do {if (iw_msg_level & WL_ASSOC_LEVEL) printf x;} while (0)
+#define WL_INFORM(x)	do {if (iw_msg_level & WL_INFORM_LEVEL) printf x;} while (0)
+#define WL_WSEC(x)		do {if (iw_msg_level & WL_WSEC_LEVEL) printf x;} while (0)
+#define WL_PNO(x)		do {if (iw_msg_level & WL_PNO_LEVEL) printf x;} while (0)
+#define WL_COEX(x)		do {if (iw_msg_level & WL_COEX_LEVEL) printf x;} while (0)
+#define WL_SOFTAP(x)	do {if (iw_msg_level & WL_SOFTAP_LEVEL) printf x;} while (0)
+#define WL_TRACE(x)		do {if (iw_msg_level & WL_TRACE_LEVEL) printf x;} while (0)
+
 #include <wl_iw.h>
 
 #ifdef BCMWAPI_WPI
@@ -90,17 +112,15 @@ tsk_ctl_t ap_eth_ctl;  /* apsta AP netdev waiter thread */
 extern bool wl_iw_conn_status_str(uint32 event_type, uint32 status,
 	uint32 reason, char* stringBuf, uint buflen);
 
-uint iw_msg_level = WL_ERROR_VAL;
-
 #define MAX_WLIW_IOCTL_LEN 1024
 
 /* IOCTL swapping mode for Big Endian host with Little Endian dongle.  Default to off */
-#define htod32(i) i
-#define htod16(i) i
-#define dtoh32(i) i
-#define dtoh16(i) i
-#define htodchanspec(i) i
-#define dtohchanspec(i) i
+#define htod32(i) (i)
+#define htod16(i) (i)
+#define dtoh32(i) (i)
+#define dtoh16(i) (i)
+#define htodchanspec(i) (i)
+#define dtohchanspec(i) (i)
 
 extern struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
 extern int dhd_wait_pend8021x(struct net_device *dev);
@@ -112,7 +132,10 @@ extern int dhd_wait_pend8021x(struct net_device *dev);
 
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-#define DAEMONIZE(a)
+#define DAEMONIZE(a)	do { \
+		allow_signal(SIGKILL);	\
+		allow_signal(SIGTERM);	\
+	} while (0)
 #elif ((LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0)) && \
 	(LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)))
 #define DAEMONIZE(a) daemonize(a); \
@@ -147,6 +170,9 @@ typedef struct iscan_info {
 	iscan_buf_t * list_cur;
 
 	/* Thread to work on iscan */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+	struct task_struct *kthread;
+#endif
 	long sysioc_pid;
 	struct semaphore sysioc_sem;
 	struct completion sysioc_exited;
@@ -220,13 +246,6 @@ dev_wlc_ioctl(
 
 	strcpy(ifr.ifr_name, dev->name);
 	ifr.ifr_data = (caddr_t) &ioc;
-
-#ifndef LINUX_HYBRID
-	/* Causes an extraneous 'up'.  If specific ioctls are failing due
-	   to device down, then we can investigate those ioctls.
-	*/
-	dev_open(dev);
-#endif
 
 	fs = get_fs();
 	set_fs(get_ds());
@@ -439,6 +458,9 @@ wl_iw_set_pm(
 	error = dev_wlc_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm));
 	return error;
 }
+
+#if WIRELESS_EXT > 17
+#endif /* WIRELESS_EXT > 17 */
 #endif /* WIRELESS_EXT > 12 */
 
 int
@@ -1235,7 +1257,7 @@ wl_iw_iscan_set_scan(
 	wlc_ssid_t ssid;
 	iscan_info_t *iscan = g_iscan;
 
-	WL_TRACE(("%s: SIOCSIWSCAN\n", dev->name));
+	WL_TRACE(("%s: SIOCSIWSCAN iscan=%p\n", dev->name, iscan));
 
 	/* use backup if our thread is not successful */
 	if ((!iscan) || (iscan->sysioc_pid < 0)) {
@@ -1376,6 +1398,17 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 		uint8 *ptr = ((uint8 *)bi) + sizeof(wl_bss_info_t);
 		int ptr_len = bi->ie_length;
 
+		/* OSEN IE */
+		if ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_VS_ID)) &&
+			ie->len > WFA_OUI_LEN + 1 &&
+			!bcmp((const void *)&ie->data[0], (const void *)WFA_OUI, WFA_OUI_LEN) &&
+			ie->data[WFA_OUI_LEN] == WFA_OUI_TYPE_OSEN) {
+			iwe.cmd = IWEVGENIE;
+			iwe.u.data.length = ie->len + 2;
+			event = IWE_STREAM_ADD_POINT(info, event, end, &iwe, (char *)ie);
+		}
+		ptr = ((uint8 *)bi) + sizeof(wl_bss_info_t);
+
 		if ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_RSN_ID))) {
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = ie->len + 2;
@@ -1465,7 +1498,7 @@ wl_iw_get_scan(
 	char *event = extra, *end = extra + dwrq->length, *value;
 	uint buflen = dwrq->length;
 
-	WL_TRACE(("%s: SIOCGIWSCAN\n", dev->name));
+	WL_TRACE(("%s: %s SIOCGIWSCAN\n", __FUNCTION__, dev->name));
 
 	if (!extra)
 		return -EINVAL;
@@ -1522,8 +1555,9 @@ wl_iw_get_scan(
 
 		/* Channel */
 		iwe.cmd = SIOCGIWFREQ;
+
 		iwe.u.freq.m = wf_channel2mhz(CHSPEC_CHANNEL(bi->chanspec),
-			CHSPEC_CHANNEL(bi->chanspec) <= CH_MAX_2G_CHANNEL ?
+			(CHSPEC_IS2G(bi->chanspec)) ?
 			WF_CHAN_FACTOR_2_4_G : WF_CHAN_FACTOR_5_G);
 		iwe.u.freq.e = 6;
 		event = IWE_STREAM_ADD_EVENT(info, event, end, &iwe, IW_EV_FREQ_LEN);
@@ -1587,7 +1621,7 @@ wl_iw_iscan_get_scan(
 	iscan_info_t *iscan = g_iscan;
 	iscan_buf_t * p_buf;
 
-	WL_TRACE(("%s: SIOCGIWSCAN\n", dev->name));
+	WL_TRACE(("%s: %s SIOCGIWSCAN\n", __FUNCTION__, dev->name));
 
 	if (!extra)
 		return -EINVAL;
@@ -1645,8 +1679,9 @@ wl_iw_iscan_get_scan(
 
 		/* Channel */
 		iwe.cmd = SIOCGIWFREQ;
+
 		iwe.u.freq.m = wf_channel2mhz(CHSPEC_CHANNEL(bi->chanspec),
-			CHSPEC_CHANNEL(bi->chanspec) <= CH_MAX_2G_CHANNEL ?
+			(CHSPEC_IS2G(bi->chanspec)) ?
 			WF_CHAN_FACTOR_2_4_G : WF_CHAN_FACTOR_5_G);
 		iwe.u.freq.e = 6;
 		event = IWE_STREAM_ADD_EVENT(info, event, end, &iwe, IW_EV_FREQ_LEN);
@@ -2533,6 +2568,7 @@ wl_iw_set_encodeext(
 }
 
 
+#if WIRELESS_EXT > 17
 struct {
 	pmkid_list_t pmkids;
 	pmkid_t foo[MAXPMKID-1];
@@ -2619,6 +2655,7 @@ wl_iw_set_pmksa(
 	dev_wlc_bufvar_set(dev, "pmkid_info", (char *)&pmkid_list, sizeof(pmkid_list));
 	return 0;
 }
+#endif /* WIRELESS_EXT > 17 */
 
 static int
 wl_iw_get_encodeext(
@@ -3048,6 +3085,8 @@ enum {
 	WL_IW_SET_LEDDC = SIOCIWFIRSTPRIV,
 	WL_IW_SET_VLANMODE,
 	WL_IW_SET_PM,
+#if WIRELESS_EXT > 17
+#endif /* WIRELESS_EXT > 17 */
 	WL_IW_SET_LAST
 };
 
@@ -3055,6 +3094,8 @@ static iw_handler wl_iw_priv_handler[] = {
 	wl_iw_set_leddc,
 	wl_iw_set_vlanmode,
 	wl_iw_set_pm,
+#if WIRELESS_EXT > 17
+#endif /* WIRELESS_EXT > 17 */
 	NULL
 };
 
@@ -3077,6 +3118,8 @@ static struct iw_priv_args wl_iw_priv_args[] = {
 		0,
 		"set_pm"
 	},
+#if WIRELESS_EXT > 17
+#endif /* WIRELESS_EXT > 17 */
 	{ 0, 0, 0, { 0 } }
 };
 
@@ -3759,6 +3802,8 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 {
 	iscan_info_t *iscan = NULL;
 
+	WL_TRACE(("%s: iscan=%p\n", __FUNCTION__, iscan));
+
 	if (!dev)
 		return 0;
 
@@ -3766,6 +3811,9 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 	if (!iscan)
 		return -ENOMEM;
 	memset(iscan, 0, sizeof(iscan_info_t));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+	iscan->kthread = NULL;
+#endif
 	iscan->sysioc_pid = -1;
 	/* we only care about main interface so save a global here */
 	g_iscan = iscan;
@@ -3781,7 +3829,12 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 
 	sema_init(&iscan->sysioc_sem, 0);
 	init_completion(&iscan->sysioc_exited);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
+	iscan->kthread = kthread_run(_iscan_sysioc_thread, iscan, "iscan_sysioc");
+	iscan->sysioc_pid = iscan->kthread->pid;
+#else
 	iscan->sysioc_pid = kernel_thread(_iscan_sysioc_thread, iscan, 0);
+#endif
 	if (iscan->sysioc_pid < 0)
 		return -ENOMEM;
 	return 0;

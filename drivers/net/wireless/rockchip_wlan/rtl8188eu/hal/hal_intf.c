@@ -702,32 +702,42 @@ s32 rtw_hal_is_disable_sw_channel_plan(PADAPTER padapter)
 	return GET_HAL_DATA(padapter)->bDisableSWChannelPlan;
 }
 
-s32 rtw_hal_macid_sleep(PADAPTER padapter, u32 macid)
+s32 rtw_hal_macid_sleep(PADAPTER padapter, u8 macid)
 {
 	u8 support;
-
 
 	support = _FALSE;
 	rtw_hal_get_def_var(padapter, HAL_DEF_MACID_SLEEP, &support);
 	if (_FALSE == support)
 		return _FAIL;
 
-	rtw_hal_set_hwreg(padapter, HW_VAR_MACID_SLEEP, (u8*)&macid);
+	if (macid >= 32) {
+		DBG_871X_LEVEL(_drv_err_, FUNC_ADPT_FMT": Invalid macid(%u)\n",
+			FUNC_ADPT_ARG(padapter), macid);
+		return _FAIL;
+	}
+
+	rtw_hal_set_hwreg(padapter, HW_VAR_MACID_SLEEP, &macid);
 
 	return _SUCCESS;
 }
 
-s32 rtw_hal_macid_wakeup(PADAPTER padapter, u32 macid)
+s32 rtw_hal_macid_wakeup(PADAPTER padapter, u8 macid)
 {
 	u8 support;
-
 
 	support = _FALSE;
 	rtw_hal_get_def_var(padapter, HAL_DEF_MACID_SLEEP, &support);
 	if (_FALSE == support)
 		return _FAIL;
 
-	rtw_hal_set_hwreg(padapter, HW_VAR_MACID_WAKEUP, (u8*)&macid);
+	if (macid >= 32) {
+		DBG_871X_LEVEL(_drv_err_, FUNC_ADPT_FMT": Invalid macid(%u)\n",
+			FUNC_ADPT_ARG(padapter), macid);
+		return _FAIL;
+	}
+
+	rtw_hal_set_hwreg(padapter, HW_VAR_MACID_WAKEUP, &macid);
 
 	return _SUCCESS;
 }

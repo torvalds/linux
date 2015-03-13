@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2011-2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  * esp debug interface
  *  - debugfs
@@ -8,14 +12,15 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <net/mac80211.h>
 #include "sip2_common.h"
 
 #include "esp_debug.h"
+#include "esp_sif.h"
 
-#if defined(CONFIG_DEBUG_FS) && defined(DEBUG_FS)
-
+#ifdef CONFIG_DEBUG_FS
 static struct dentry *esp_debugfs_root = NULL;
 
 static int esp_debugfs_open(struct inode *inode, struct file *filp)
@@ -129,7 +134,7 @@ Fail:
         return NULL;
 }
 
-struct dentry *esp_dump(const char *name, struct dentry *parent, void *data, int size) {
+struct dentry *esp_dump(const char *name, struct dentry *parent, void *data, int size, struct file_operations *fops) {
         struct dentry *rc;
         umode_t mode = 0644;
 
@@ -139,7 +144,10 @@ struct dentry *esp_dump(const char *name, struct dentry *parent, void *data, int
         if(!parent)
                 parent = esp_debugfs_root;
 
-        rc = debugfs_create_file(name, mode, parent, data, &esp_debugfs_fops);
+	if (fops == NULL)
+        	rc = debugfs_create_file(name, mode, parent, data, &esp_debugfs_fops); /* default */
+	else
+        	rc = debugfs_create_file(name, mode, parent, data, fops);
 
         if (!rc)
                 goto Fail;
@@ -176,7 +184,7 @@ int esp_debugfs_init(void)
         esp_dbg(ESP_DBG, "esp debugfs init\n");
         esp_debugfs_root = debugfs_create_dir("esp_debug", NULL);
 
-        if (!esp_debugfs_root || IS_ERR_OR_NULL(esp_debugfs_root)) {
+        if (!esp_debugfs_root || IS_ERR(esp_debugfs_root)) {
                 return -ENOENT;
         }
 
@@ -192,6 +200,233 @@ void esp_debugfs_exit(void)
         return;
 }
 
+#ifdef DEBUGFS_BOOTMODE
+static int fcc_w_cb(void *data)
+{
+	esp_dbg(ESP_DBG_TRACE, "%s callback", __func__);
+	if (sif_get_esp_run() != 0) {
+		esp_dbg(ESP_DBG_ERROR, "%s set fcc mode must after close driver ", __func__);
+		return -EBUSY;
+	}
+	return 0;
+}
+
+static int ate_r_cb(void *data)
+{
+	esp_dbg(ESP_DBG_TRACE, "%s callback", __func__);
+	
+	((struct dbgfs_bootmode_item *)data)->var = sif_get_ate_config();
+	
+	return 0;
+}
+
+
+static int ate_w_cb(void *data)
+{
+	int var = ((struct dbgfs_bootmode_item *)data)->var;
+
+	esp_dbg(ESP_DBG_TRACE, "%s callback", __func__);
+	if (sif_get_esp_run() != 0) {
+		esp_dbg(ESP_DBG_ERROR, "%s set ate mode must after close driver ", __func__);
+		return -EBUSY;
+	}
+	sif_record_ate_config(var);
+	return 0;
+}
+
+static int nor_r_cb(void *data)
+{
+	esp_dbg(ESP_DBG_TRACE, "%s callback", __func__);
+	
+	((struct dbgfs_bootmode_item *)data)->var = sif_get_esp_run();
+	
+	return 0;
+}
+
+
+static int nor_w_cb(void *data)
+{
+	int var;
+
+	esp_dbg(ESP_DBG_TRACE, "%s callback", __func__);
+	var = ((struct dbgfs_bootmode_item *)data)->var;
+	switch (var) {
+	case 0:
+		if (sif_get_esp_run() != 0)
+			esp_common_exit();
+		else {
+			esp_dbg(ESP_DBG_ERROR, "%s already down", __func__);
+			return -EBUSY;
+		}
+		break;
+	case 1:
+		if (sif_get_esp_run() == 0)
+			esp_common_init();
+		else {
+			esp_dbg(ESP_DBG_ERROR, "%s already up!", __func__);
+			return -EBUSY;
+		}
+		break;
+	case 2:
+		if (sif_get_esp_run() == 0) {
+			int i;
+			struct dbgfs_bootmode_item *di = ((struct dbgfs_bootmode_item *)data) - DBGFS_NOR_MODE;
+			for (i = 0; i < DBGFS_MODE_MAX; i++) {
+				if (i == DBGFS_NOR_MODE)
+					continue;
+				di[i].var = 0;
+				if (di[i].w_cb)
+					di[i].w_cb(&di[i]);
+			}
+
+			esp_dbg(ESP_SHOW, "%s reset all the boot mode", __func__);
+		} else {
+			esp_dbg(ESP_DBG_ERROR, "%s must down pre!", __func__);
+			return -EBUSY;
+		}
+		break;
+	default:
+		esp_dbg(ESP_DBG_ERROR, "%s unspec cmd", __func__);
+		break;
+	}
+
+	return 0;
+}
+
+static struct dbgfs_bootmode_item di[DBGFS_MODE_MAX] = {
+	{"fccmode", DBGFS_FCC_MODE, 0, NULL, NULL, fcc_w_cb},
+	{"atemode", DBGFS_ATE_MODE, 0, NULL, ate_r_cb, ate_w_cb},
+	{"normode", DBGFS_NOR_MODE, 0, NULL, nor_r_cb, nor_w_cb},
+};
+
+static int debugfs_bootmode_open(struct inode *inode, struct file *filp)
+{
+	int i;
+	for (i = 0; i < DBGFS_MODE_MAX; i++) {
+		if (strncmp(filp->f_dentry->d_name.name, di[i].name, sizeof(NAME_LEN_MAX)) == 0) {
+			filp->private_data = &di[i];
+			return 0;
+		}
+	}
+        filp->private_data = inode->i_private;
+        return 0;
+}
+
+static u8 called_flag[DBGFS_MODE_MAX] = {0, 0, 0};
+
+static ssize_t debugfs_bootmode_read(struct file *filp, char __user *userbuf,
+                                size_t count, loff_t *ppos)
+{
+	int ret;
+	int id;
+	char tmpbuf[32+1];
+	
+	if (*ppos >= 32)
+                return 0;
+        if (*ppos + count > 32)
+                count = 32 - *ppos;
+
+	id = ((struct dbgfs_bootmode_item*)filp->private_data)->id;
+	if (called_flag[id] == 0 && di[id].r_cb) {
+		di[id].r_cb(&di[id]);
+		called_flag[id] = 1;
+	}
+
+	snprintf(tmpbuf, sizeof(tmpbuf), "0x%08x\n", di[id].var);
+		
+	ret = simple_read_from_buffer(userbuf, count, ppos, tmpbuf + *ppos, strlen(tmpbuf + *ppos));
+	if (ret == 0)
+		called_flag[id] = 0;
+
+	esp_dbg(ESP_DBG_TRACE, "%s 0x%x, ret %d, count %zu, pos %d", __func__, di[id].var, ret, count, *(int *)ppos);
+	return ret;
+}
+
+static ssize_t debugfs_bootmode_write(struct file *filp, const char __user *userbuf,
+                                 size_t count, loff_t *ppos)
+{
+	int id;
+	int ret;
+	u32 org_var;
+	char tmpbuf[32+1];
+
+        if (*ppos >= 32)
+                return 0;
+        if (*ppos + count > 32)
+                count = 32 - *ppos;
+
+        if (copy_from_user(tmpbuf, userbuf, count))
+                return -EFAULT;
+
+	if (tmpbuf[count-1] == '\n')
+		tmpbuf[count-1] = '\0';
+	else
+		tmpbuf[count] = '\0';
+
+	id = ((struct dbgfs_bootmode_item*)filp->private_data)->id;
+
+	org_var = di[id].var;
+
+	if (tmpbuf[0] == '0' && (tmpbuf[1] == 'x' || tmpbuf[1] == 'X'))
+		ret = strict_strtoul(tmpbuf, 16, (unsigned long *)&di[id].var);
+	else 
+		ret = strict_strtoul(tmpbuf, 16, (unsigned long *)&di[id].var);
+
+	if (ret) {
+		esp_dbg(ESP_DBG_ERROR, "invalid input");
+		return count;
+	}
+
+	if (di[id].w_cb) {
+		ret = di[id].w_cb(&di[id]);
+		if (ret)
+			di[id].var = org_var;
+	}
+
+	esp_dbg(ESP_DBG_TRACE, "%s 0x%x", __func__, di[id].var);
+        return count;
+}
+
+struct file_operations debugfs_bootmode_fops = {
+        .owner = THIS_MODULE,
+        .open = debugfs_bootmode_open,
+        .read = debugfs_bootmode_read,
+        .write = debugfs_bootmode_write,
+};
+
+u32 dbgfs_get_bootmode_var(DBGFS_BOOTMODE_ID_t id)
+{
+	if (id >= DBGFS_MODE_MAX)
+		return 0xffffffff;
+	
+	return di[id].var;
+}
+
+struct dbgfs_bootmode_item *dbgfs_get_bootmode_di(DBGFS_BOOTMODE_ID_t id)
+{
+	if (id >= DBGFS_MODE_MAX)
+		return NULL;
+	
+	return &di[id];
+}
+
+
+void dbgfs_bootmode_init(void)
+{
+	int id;
+	struct dentry *de;
+
+        if(!esp_debugfs_root)
+                return;
+
+	for (id = 0; id < DBGFS_MODE_MAX; id++) {
+		de = esp_dump(di[id].name, NULL, &di[id].var, 32, &debugfs_bootmode_fops);
+		if (de == NULL) 
+			esp_dbg(ESP_DBG_ERROR, "dbgfs bootmode init error, continue!");
+	}
+}
+
+#endif /* DEBUGFS_BOOTMODE */
 #else
 
 inline struct dentry *esp_dump_var(const char *name, struct dentry *parent, void *value, esp_type type) {
@@ -202,7 +437,7 @@ inline struct dentry *esp_dump_array(const char *name, struct dentry *parent, st
         return NULL;
 }
 
-inline struct dentry *esp_dump(const char *name, struct dentry *parent, void *data, int size) {
+inline struct dentry *esp_dump(const char *name, struct dentry *parent, void *data, int size, struct file_operations *fops) {
         return NULL;
 }
 

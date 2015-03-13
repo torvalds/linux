@@ -741,7 +741,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	clk_enable(i2c->clk);
 	if (i2c->check_idle) {
 		int state, retry = 10;
-		while (retry--) {
+		while (retry) {
 			state = rockchip_i2c_check_idle(i2c);
 			if (state == I2C_IDLE)
 				break;
@@ -749,6 +749,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 				mdelay(10);
 			else
 				msleep(10);
+			retry--;
 		}
 		if (retry == 0) {
 			dev_err(i2c->dev, "i2c is not in idle(state = %d)\n", state);

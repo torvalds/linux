@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2009 - 2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  */
 
 #include "linux/types.h"
@@ -108,7 +112,7 @@ bool esp_wmac_rxsec_error(u8 error)
         return (error >= RX_SECOV_ERR && error <= RX_SECFIFO_TIMEOUT) || (error >= RX_WEPICV_ERR && error <= RX_WAPIMIC_ERR);
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 int esp_cipher2alg(int cipher)
 {
         if (cipher == WLAN_CIPHER_SUITE_TKIP)

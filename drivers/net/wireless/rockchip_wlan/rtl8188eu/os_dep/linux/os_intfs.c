@@ -320,6 +320,22 @@ uint rtw_hiq_filter = CONFIG_RTW_HIQ_FILTER;
 module_param(rtw_hiq_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_hiq_filter, "0:allow all, 1:allow special, 2:deny all");
 
+uint rtw_adaptivity_en = CONFIG_RTW_ADAPTIVITY_EN;
+module_param(rtw_adaptivity_en, uint, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_en, "0:disable, 1:enable");
+
+uint rtw_adaptivity_mode = CONFIG_RTW_ADAPTIVITY_MODE;
+module_param(rtw_adaptivity_mode, uint, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_mode, "0:normal, 1:carrier sense");
+
+uint rtw_adaptivity_dml = CONFIG_RTW_ADAPTIVITY_DML;
+module_param(rtw_adaptivity_dml, uint, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_dml, "0:disable, 1:enable");
+
+uint rtw_adaptivity_dc_backoff = CONFIG_RTW_ADAPTIVITY_DC_BACKOFF;
+module_param(rtw_adaptivity_dc_backoff, uint, 0644);
+MODULE_PARM_DESC(rtw_adaptivity_dc_backoff, "DC backoff for Adaptivity");
+
 #if defined(CONFIG_CALIBRATE_TX_POWER_BY_REGULATORY) //eFuse: Regulatory selection=1
 int rtw_tx_pwr_lmt_enable = 1;
 int rtw_tx_pwr_by_rate = 1;
@@ -533,6 +549,12 @@ _func_enter_;
 	registry_par->qos_opt_enable = (u8)rtw_qos_opt_enable;
 
 	registry_par->hiq_filter = (u8)rtw_hiq_filter;
+
+	registry_par->adaptivity_en = (u8)rtw_adaptivity_en;
+	registry_par->adaptivity_mode = (u8)rtw_adaptivity_mode;
+	registry_par->adaptivity_dml = (u8)rtw_adaptivity_dml;
+	registry_par->adaptivity_dc_backoff = (u8)rtw_adaptivity_dc_backoff;
+
 _func_exit_;
 
 	return status;
@@ -606,7 +628,14 @@ unsigned int rtw_classify8021d(struct sk_buff *skb)
 	return dscp >> 5;
 }
 
-static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb)
+static u16 rtw_select_queue(struct net_device *dev, struct sk_buff *skb
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0)
+	, void *accel_priv
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)
+	, select_queue_fallback_t fallback
+#endif
+)
 {
 	_adapter	*padapter = rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -651,9 +680,13 @@ u16 rtw_recv_select_queue(struct sk_buff *skb)
 
 #endif
 
-static int rtw_ndev_notifier_call(struct notifier_block * nb, unsigned long state, void *ndev)
+static int rtw_ndev_notifier_call(struct notifier_block * nb, unsigned long state, void *ptr)
 {
-	struct net_device *dev = ndev;
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(3,11,0))
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+#else
+	struct net_device *dev = ptr;
+#endif
 
 #if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,29))
 	if (dev->netdev_ops->ndo_do_ioctl != rtw_ioctl)
@@ -1447,11 +1480,7 @@ int _netdev_vir_if_open(struct net_device *pnetdev)
 
 	_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 2000);
 
-	if(!rtw_netif_queue_stopped(pnetdev))
-		rtw_netif_start_queue(pnetdev);
-	else
-		rtw_netif_wake_queue(pnetdev);
-
+	rtw_netif_wake_queue(pnetdev);
 
 	DBG_871X(FUNC_NDEV_FMT" exit\n", FUNC_NDEV_ARG(pnetdev));
 	return 0;
@@ -1492,8 +1521,7 @@ static int netdev_vir_if_close(struct net_device *pnetdev)
 
 	if(pnetdev)
 	{
-		if (!rtw_netif_queue_stopped(pnetdev))
-			rtw_netif_stop_queue(pnetdev);
+		rtw_netif_stop_queue(pnetdev);
 	}
 
 #ifdef CONFIG_IOCTL_CFG80211
@@ -1810,10 +1838,7 @@ int _netdev_if2_open(struct net_device *pnetdev)
 	// secondary interface shares the timer with primary interface.
 	//_set_timer(&padapter->mlmepriv.dynamic_chk_timer, 2000);
 
-	if(!rtw_netif_queue_stopped(pnetdev))
-		rtw_netif_start_queue(pnetdev);
-	else
-		rtw_netif_wake_queue(pnetdev);
+	rtw_netif_wake_queue(pnetdev);
 
 	DBG_871X("-871x_drv - if2_open, bup=%d\n", padapter->bup);
 	return 0;
@@ -1854,8 +1879,7 @@ static int netdev_if2_close(struct net_device *pnetdev)
 
 	if(pnetdev)
 	{
-		if (!rtw_netif_queue_stopped(pnetdev))
-			rtw_netif_stop_queue(pnetdev);
+		rtw_netif_stop_queue(pnetdev);
 	}
 
 #ifdef CONFIG_P2P
@@ -2259,10 +2283,7 @@ int _netdev_open(struct net_device *pnetdev)
 #endif 
 
 	//netif_carrier_on(pnetdev);//call this func when rtw_joinbss_event_callback return success
-	if(!rtw_netif_queue_stopped(pnetdev))
-		rtw_netif_start_queue(pnetdev);
-	else
-		rtw_netif_wake_queue(pnetdev);
+	rtw_netif_wake_queue(pnetdev);
 
 #ifdef CONFIG_BR_EXT
 	netdev_br_init(pnetdev);
@@ -2576,8 +2597,7 @@ static int netdev_close(struct net_device *pnetdev)
 		//s1.
 		if(pnetdev)
 		{
-			if (!rtw_netif_queue_stopped(pnetdev))
-				rtw_netif_stop_queue(pnetdev);
+			rtw_netif_stop_queue(pnetdev);
 		}
 
 #ifndef CONFIG_ANDROID
@@ -3322,10 +3342,7 @@ _func_enter_;
 
 		// start netif queue
 		if (pnetdev) {
-			if(!rtw_netif_queue_stopped(pnetdev))
-				rtw_netif_start_queue(pnetdev);
-			else 
-				rtw_netif_wake_queue(pnetdev);
+			rtw_netif_wake_queue(pnetdev);
 		}
 	}
 	else{
@@ -3538,20 +3555,14 @@ _func_enter_;
 	if (rtw_buddy_adapter_up(padapter)) {			
 		pbuddy_netdev = padapter->pbuddy_adapter->pnetdev;			
 		if(pbuddy_netdev){
-			if (!rtw_netif_queue_stopped(pbuddy_netdev))
-				rtw_netif_start_queue(pbuddy_netdev);
-			else
-				rtw_netif_wake_queue(pbuddy_netdev);
+			rtw_netif_wake_queue(pbuddy_netdev);
 		}
 	}
 #endif
 	
 	// start netif queue
 	if (pnetdev) {
-		if(!rtw_netif_queue_stopped(pnetdev))
-			rtw_netif_start_queue(pnetdev);
-		else 
-			rtw_netif_wake_queue(pnetdev);
+		rtw_netif_wake_queue(pnetdev);
 	}
 
 	if( padapter->pid[1]!=0) {

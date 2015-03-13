@@ -23,9 +23,10 @@ static void usb20otg_hw_init(void)
 static void usb20otg_phy_suspend(void *pdata, int suspend)
 {
 	struct dwc_otg_platform_data *usbpdata = pdata;
+
 	if (suspend) {
 		/* enable soft control */
-		writel(UOC_HIWORD_UPDATE(0x55, 0x7f, 0),
+		writel(UOC_HIWORD_UPDATE(0x1d1, 0x1ff, 0),
 		       RK_GRF_VIRT + RK312X_GRF_UOC0_CON0);
 		usbpdata->phy_status = 1;
 	} else {
@@ -198,7 +199,21 @@ static void usb20otg_power_enable(int enable)
 			gpio_set_value(control_usb->otg_gpios->gpio, 1);
 	}
 }
-
+static void usb20otg_phy_power_down(int power_down)
+{
+	if (power_down == PHY_POWER_DOWN) {
+		if (control_usb->linestate_wakeup) {
+			/* enable otg0_linestate irq */
+			writel(UOC_HIWORD_UPDATE(0x3, 0x3, 14),
+			       RK_GRF_VIRT + RK312X_GRF_UOC1_CON5);
+			/* enable otg1_linestate irq */
+			writel(UOC_HIWORD_UPDATE(0x3, 0x3, 12),
+			       RK_GRF_VIRT + RK312X_GRF_UOC0_CON0);
+		}
+	} else if (power_down == PHY_POWER_UP) {
+		;
+	}
+}
 struct dwc_otg_platform_data usb20otg_pdata_rk3126 = {
 	.phyclk = NULL,
 	.ahbclk = NULL,
@@ -213,6 +228,7 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3126 = {
 	.power_enable = usb20otg_power_enable,
 	.dwc_otg_uart_mode = dwc_otg_uart_mode,
 	.bc_detect_cb = rk_battery_charger_detect_cb,
+	.phy_power_down = usb20otg_phy_power_down,
 };
 #endif
 
@@ -540,6 +556,53 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/********** Handler for linestate irq **********/
+static irqreturn_t otg0_linestate_irq_handler(int irq, void *dev_id)
+{
+	/*
+	 * Here is a chip hwrdware bug, when disable/enable
+	 * linestate irq bit the state machine will not reset
+	 * So here have to add a delay to wait the linestate filter
+	 * timer run out (linestate filter time had been set to 100us)
+	 */
+	udelay(200);
+
+	/* clear and disable irq */
+	writel(UOC_HIWORD_UPDATE(0x2, 0x3, 12),
+	       RK_GRF_VIRT + RK312X_GRF_UOC0_CON0);
+
+
+	if (control_usb->usb_irq_wakeup) {
+		wake_lock_timeout(&control_usb->usb_wakelock,
+				  WAKE_LOCK_TIMEOUT);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t otg1_linestate_irq_handler(int irq, void *dev_id)
+{
+	/*
+	 * Here is a chip hwrdware bug, when disable/enable
+	 * linestate irq bit the state machine will not reset
+	 * So here have to add a delay to wait the linestate filter
+	 * timer run out (linestate filter time had been set to 100us)
+	 */
+	udelay(200);
+
+	/* clear and disable irq */
+	writel(UOC_HIWORD_UPDATE(0x2, 0x3, 14),
+	       RK_GRF_VIRT + RK312X_GRF_UOC1_CON5);
+
+
+	if (control_usb->usb_irq_wakeup) {
+		wake_lock_timeout(&control_usb->usb_wakelock,
+				  WAKE_LOCK_TIMEOUT);
+	}
+
+	return IRQ_HANDLED;
+}
+
 /************* register usb detection irqs **************/
 static int otg_irq_detect_init(struct platform_device *pdev)
 {
@@ -552,7 +615,7 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 		INIT_DELAYED_WORK(&control_usb->usb_det_wakeup_work, do_wakeup);
 	}
 
-	/*register otg_bvalid irq */
+	/* register otg_bvalid irq */
 	irq = platform_get_irq_byname(pdev, "otg_bvalid");
 	if ((irq > 0) && control_usb->usb_irq_wakeup) {
 		ret = request_irq(irq, bvalid_irq_handler,
@@ -565,7 +628,41 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 			       RK_GRF_VIRT + RK312X_GRF_UOC0_CON0);
 		}
 	}
-	return ret;
+
+	if (!control_usb->linestate_wakeup)
+		return 0;
+
+	/* Set otg0&1_linestate_filter time to 100us */
+	writel(UOC_HIWORD_UPDATE(0x0, 0xf, 6), RK_GRF_VIRT + 0x1a0);
+
+	/* Register otg0_linestate irq */
+	irq = platform_get_irq_byname(pdev, "otg0_linestate");
+	if (irq > 0) {
+		ret = request_irq(irq, otg0_linestate_irq_handler,
+				  0, "otg0_linestate", NULL);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
+		} else {
+			/* Clear otg0_linestate irq  */
+			writel(UOC_HIWORD_UPDATE(0x2, 0x3, 12),
+			       RK_GRF_VIRT + RK312X_GRF_UOC0_CON0);
+		}
+	}
+
+	/* Register otg1_linestate irq */
+	irq = platform_get_irq_byname(pdev, "otg1_linestate");
+	if (irq > 0) {
+		ret = request_irq(irq, otg1_linestate_irq_handler,
+				  0, "otg1_linestate", NULL);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "request_irq %d failed!\n", irq);
+		} else {
+			/* Clear otg1_linestate irq  */
+			writel(UOC_HIWORD_UPDATE(0x2, 0x3, 14),
+			       RK_GRF_VIRT + RK312X_GRF_UOC1_CON5);
+		}
+	}
+	return 0;
 }
 
 /********** end of rk3126 usb detections **********/
@@ -588,6 +685,8 @@ static int rk_usb_control_probe(struct platform_device *pdev)
 							   "rockchip,remote_wakeup");
 	control_usb->usb_irq_wakeup = of_property_read_bool(np,
 							    "rockchip,usb_irq_wakeup");
+	control_usb->linestate_wakeup = of_property_read_bool(np,
+							      "rockchip,linestate_wakeup");
 
 	INIT_DELAYED_WORK(&control_usb->usb_charger_det_work,
 			  usb_battery_charger_detect_work);

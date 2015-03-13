@@ -1,6 +1,11 @@
 #include "camsys_soc_priv.h"
 #include "camsys_mipicsi_phy.h"
 
+unsigned int CHIP_TYPE;
+unsigned long rk_grf_base;
+unsigned long rk_cru_base;
+unsigned long rk_isp_base;
+
 static int camsys_mipiphy_clkin_cb(void *ptr, unsigned int on)
 {
     camsys_mipiphy_clk_t *clk;
@@ -81,8 +86,13 @@ static int camsys_mipiphy_remove_cb(struct platform_device *pdev)
             }
         }
     }
+	if(CHIP_TYPE == 3368){
+		if(camsys_dev->csiphy_reg != NULL){
+			kfree(camsys_dev->csiphy_reg);
+			camsys_dev->csiphy_reg = NULL;
+		}
+	}
 
-    
     return 0;
 }
 int camsys_mipiphy_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
@@ -95,7 +105,20 @@ int camsys_mipiphy_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_d
     struct clk* clk;
     camsys_mipiphy_clk_t *phyclk;
     int err,i;
+	struct device_node *node;
+	const char *compatible = NULL;
 
+	err = of_property_read_string(dev->of_node->parent,"compatible",&compatible);	
+    if (err < 0) {
+        camsys_err("get compatible failed!");
+    } else {
+        camsys_trace(1, "compatible is %s\n",compatible);
+    }
+	if(strstr(compatible, "rk3368"))
+		CHIP_TYPE = 3368;
+	else if(strstr(compatible, "rk3288"))
+		CHIP_TYPE = 3288;
+	
     err = of_property_read_u32(dev->of_node,"rockchip,isp,mipiphy",&mipiphy_cnt);
     if (err < 0) {
         camsys_err("get property(rockchip,isp,mipiphy) failed!");
@@ -122,7 +145,7 @@ int camsys_mipiphy_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_d
             if (meminfo == NULL) {                
                 camsys_err("malloc camsys_meminfo_t for mipiphy%d failed!",i);                
             } else {
-                meminfo->vir_base = (unsigned int)ioremap(phyreg[0],phyreg[1]);
+                meminfo->vir_base = (unsigned long)ioremap(phyreg[0],phyreg[1]);
                 if (!meminfo->vir_base){
                     camsys_err("%s ioremap %s failed",dev_name(&pdev->dev), str);                    
                 } else {
@@ -156,7 +179,7 @@ int camsys_mipiphy_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_d
         camsys_dev->mipiphy[i].remove = camsys_mipiphy_remove_cb;
 
         if (meminfo != NULL) {
-            camsys_trace(1,"%s mipi phy%d probe success(reg_phy: 0x%x  reg_vir: 0x%x  size: 0x%x)",
+            camsys_trace(1,"%s mipi phy%d probe success(reg_phy: 0x%lx  reg_vir: 0x%lx  size: 0x%x)",
                 dev_name(&pdev->dev), i,meminfo->phy_base,meminfo->vir_base, meminfo->size);
         } else {
             camsys_trace(1,"%s mipi phy%d probe success(reg_phy: 0x%x  reg_vir: 0x%x  size: 0x%x)",
@@ -164,7 +187,33 @@ int camsys_mipiphy_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_d
         }
 
     }   
-    
+
+	if(CHIP_TYPE == 3368){
+		camsys_dev->csiphy_reg = kzalloc(sizeof(camsys_meminfo_t),GFP_KERNEL);
+	    if (camsys_dev->csiphy_reg == NULL) {                
+		    camsys_err("malloc camsys_meminfo_t for csiphy_reg failed!"); 
+		}
+		if (of_property_read_u32_array(dev->of_node,"rockchip,isp,csiphy,reg",phyreg,2) == 0) {
+			camsys_dev->csiphy_reg->vir_base = (unsigned long)ioremap(phyreg[0],phyreg[1]);
+	        if (!camsys_dev->csiphy_reg->vir_base){
+		        camsys_err("%s ioremap %s failed",dev_name(&pdev->dev), "rockchip,isp,csiphy,reg");                    
+	        } else {
+	        camsys_trace(1,"csiphy vir addr=0x%lx",camsys_dev->csiphy_reg->vir_base);
+		        strlcpy(camsys_dev->csiphy_reg->name, "Csi-DPHY",sizeof(camsys_dev->csiphy_reg->name));
+		        camsys_dev->csiphy_reg->phy_base = phyreg[0];
+		        camsys_dev->csiphy_reg->size = phyreg[1];
+	    	}
+		}
+		//get cru base
+	    node = of_parse_phandle(dev->of_node, "rockchip,cru", 0);
+	    rk_cru_base = (unsigned long)of_iomap(node, 0);
+		camsys_trace(1,"rk_cru_base=0x%lx",rk_cru_base);
+		//get grf base
+	    node = of_parse_phandle(dev->of_node, "rockchip,grf", 0);
+	    rk_grf_base = (unsigned long)of_iomap(node, 0);
+		camsys_trace(1,"rk_grf_base=0x%lx",rk_grf_base);
+	}
+	
     return 0;
 
 fail:

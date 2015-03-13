@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2010 - 2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  * main routine
  */
@@ -74,12 +78,6 @@ int esp_pub_init_all(struct esp_pub *epub)
 			printk(KERN_ERR "%s sip alloc failed\n", __func__);
 			return -ENOMEM;
 		}
-
-		esp_dump_var("esp_msg_level", NULL, &esp_msg_level, ESP_U32);
-
-#ifdef ESP_ANDROID_LOGGER
-		esp_dump_var("log_off", NULL, &log_off, ESP_U32);
-#endif /* ESP_ANDROID_LOGGER */
 	} else {
 		atomic_set(&epub->sip->state, SIP_PREPARE_BOOT);
 		atomic_set(&epub->sip->tx_credits, 0);
@@ -173,6 +171,7 @@ struct esp_fw_blk_hdr {
 static int esp_download_fw(struct esp_pub * epub)
 {
 #ifndef HAS_FW
+	char * esp_fw_name = NULL;
         const struct firmware *fw_entry;
 #endif /* !HAS_FW */
         u8 * fw_buf = NULL;
@@ -186,9 +185,9 @@ static int esp_download_fw(struct esp_pub * epub)
 #ifndef HAS_FW
 
         if(sif_get_ate_config() == 1) {
-		char * esp_fw_name = ESP_FW_NAME3;
+		esp_fw_name = ESP_FW_NAME3;
 	} else {
-		char * esp_fw_name = epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT ? ESP_FW_NAME1 : ESP_FW_NAME2;
+		esp_fw_name = epub->sdio_state == ESP_SDIO_STATE_FIRST_INIT ? ESP_FW_NAME1 : ESP_FW_NAME2;
 	}
         ret = esp_request_firmware(&fw_entry, esp_fw_name, epub->dev);
 

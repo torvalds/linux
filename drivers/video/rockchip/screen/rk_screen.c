@@ -2,7 +2,7 @@
 #include <linux/rk_fb.h>
 #include <linux/device.h>
 #include "lcd.h"
-#include "../hdmi/rk_hdmi.h"
+#include "../hdmi/rockchip-hdmi.h"
 
 static struct rk_screen *rk_screen;
 int  rk_fb_get_prmry_screen(struct rk_screen *screen)

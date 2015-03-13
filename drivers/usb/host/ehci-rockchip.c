@@ -214,8 +214,11 @@ static DEVICE_ATTR(debug_ehci, S_IRUGO, debug_show, NULL);
 static int test_sq(struct ehci_hcd *ehci)
 {
 	u32 portc = readl(&ehci->regs->port_status);
+	struct rk_ehci_hcd *rk_ehci = (struct rk_ehci_hcd *)ehci->priv;
 
 	if ((portc & PORT_PE) && !(portc & PORT_SUSPEND)) {
+		/* At first del usb connect detect timer */
+		del_timer_sync(&rk_ehci->connect_detect_timer);
 		writel(PORT_TEST_PKT, &ehci->regs->port_status);
 		EHCI_PRINT("Start packet test\n");
 		return 0;
@@ -478,7 +481,7 @@ static int __init ehci_rk_init(void)
 	ehci_init_driver(&rk_ehci_hc_driver, &rk_overrides);
 
 	/*
-	 * Work-around: RK3288 do not support OHCI controller, so our
+	 * Walk around: RK3288 do not support OHCI controller, so our
 	 * vendor-spec ehci driver has to prevent handing off this port to
 	 * OHCI by standard ehci-hub driver, put PORT_OWNER back to 0 manually.
 	 */

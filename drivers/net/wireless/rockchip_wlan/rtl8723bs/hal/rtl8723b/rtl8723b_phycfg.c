@@ -498,6 +498,10 @@ s32 PHY_MACConfig8723B(PADAPTER Adapter)
 #endif//CONFIG_EMBEDDED_FWIMG
 	}
 
+#ifdef CONFIG_GPIO_WAKEUP
+	rtw_clear_hostwakeupgpio(Adapter);
+#endif // CONFIG_GPIO_WAKEUP
+
 	return rtStatus;
 }
 
@@ -794,10 +798,14 @@ PHY_BBConfig8723B(
 	RegVal = rtw_read16(Adapter, REG_SYS_FUNC_EN);
 	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal|BIT13|BIT0|BIT1));
 
+	// switch ant to BT
 #ifdef CONFIG_USB_HCI
 	rtw_write32(Adapter, 0x948, 0x0);	// USB use Antenna S0
 #else
-	rtw_write32(Adapter, 0x948, 0x280);	// Others use Antenna S1
+	if (pHalData->ant_path == ODM_RF_PATH_A)
+		rtw_write32(Adapter, 0x948, 0x280);
+	else
+		rtw_write32(Adapter, 0x948, 0x0);
 #endif
 
 	rtw_write8(Adapter, REG_RF_CTRL, RF_EN|RF_RSTB|RF_SDMRSTB);

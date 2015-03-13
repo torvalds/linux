@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2011-2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  *     MAC80211 support module
  */
@@ -25,15 +29,24 @@
 #include "esp_wl.h"
 #include "esp_utils.h"
 #include <linux/rfkill-wlan.h>
-
+#include "esp_mac80211.h"
 #define ESP_IEEE80211_DBG esp_dbg
 
 #define GET_NEXT_SEQ(seq) (((seq) +1) & 0x0fff)
 
-#ifdef P2P_CONCURRENT
+extern void reset_signal_count(void);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
+static void beacon_tim_init(void);
+static u8 beacon_tim_save(u8 this_tim);
+static bool beacon_tim_alter(struct sk_buff *beacon);
+#endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)) && defined(P2P_CONCURRENT)
 static u8 esp_mac_addr[ETH_ALEN * 2];
 #endif
 static u8 getaddr_index(u8 * addr, struct esp_pub *epub);
+static int dup_addr_by_index(u8 *addr, struct esp_pub *epub, u8 index);
 
 static
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
@@ -65,7 +78,9 @@ esp_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 			if(!(tx_info->flags & IEEE80211_TX_CTL_AMPDU)) {
 				u8 tidno = ieee80211_get_qos_ctl(wh)[0] & IEEE80211_QOS_CTL_TID_MASK;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
-				struct esp_node * node = esp_get_node_by_addr(epub, wh->addr1);
+				struct ieee80211_sta *sta = control->sta;
+				struct esp_node * node = (struct esp_node *)sta->drv_priv;
+				if(sta->ht_cap.ht_supported)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
 				struct ieee80211_sta *sta = tx_info->control.sta;
 				struct esp_node * node = (struct esp_node *)sta->drv_priv;
@@ -93,12 +108,7 @@ esp_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 #endif
 
 	sip_tx_data_pkt_enqueue(epub, skb);
-	if (epub)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
-		ieee80211_queue_work(hw, &epub->tx_work);
-#else
-		queue_work(hw->workqueue,&epub->tx_work);    
-#endif
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39))
 	return NETDEV_TX_OK;
 #endif /*2.6.39*/
@@ -178,6 +188,172 @@ static int esp_op_resume(struct ieee80211_hw *hw)
 }
 #endif //CONFIG_PM
 #endif
+
+void esp_sendup_deauth(struct esp_pub *epub, u8 *sta_addr)
+{
+ 	struct sk_buff *skb;
+	struct esp_80211_deauth *deauth;
+
+	esp_dbg(ESP_DBG_TRACE, "%s", __func__);
+
+       	skb = __dev_alloc_skb(sizeof(struct esp_80211_deauth), GFP_KERNEL);
+	if (!skb)
+		return;
+	
+	skb_put(skb, sizeof(struct esp_80211_deauth));
+
+	deauth = (struct esp_80211_deauth *)skb->data;
+	deauth->hdr.frame_control = 0x00c0; /* deauth  */
+	deauth->hdr.duration_id = 0x003c; /* 60ms */
+	memcpy(deauth->hdr.addr1, epub->master_addr, ETH_ALEN); /* dst */
+	memcpy(deauth->hdr.addr2, sta_addr, ETH_ALEN); /* src */
+	memcpy(deauth->hdr.addr3, epub->master_addr, ETH_ALEN); /* bssid */
+	deauth->hdr.seq_ctrl = 0x0000;
+	deauth->reason_code = 0x0003; /* sta leaving */
+
+#ifndef RX_SENDUP_SYNC
+	skb_queue_tail(&epub->rxq, skb);
+	queue_work(epub->esp_wkq, &sip->epub->sendup_work);
+#else
+	local_bh_disable();
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
+	ieee80211_rx(epub->hw, skb);
+#else
+	ieee80211_rx(epub->hw, skb ,(struct ieee80211_rx_status *)skb->cb);
+#endif
+	local_bh_enable();
+#endif /* RX_SENDUP_SYNC */
+}
+
+static void esp_send_nulldata(struct esp_pub *epub, struct esp_vif *evif, struct esp_node *enode)
+{
+ 	struct sk_buff *skb;
+	struct esp_80211_nulldata *nulldata;
+	struct ieee80211_vif *vif = container_of((void *)evif, struct ieee80211_vif, drv_priv);
+
+	esp_dbg(ESP_DBG_TRACE, "%s enter, enode %d", __func__, enode->index);
+
+	skb = dev_alloc_skb(epub->hw->extra_tx_headroom+ sizeof(*nulldata));
+	if (!skb)
+		return;
+
+	skb_reserve(skb, epub->hw->extra_tx_headroom);
+	skb_put(skb, sizeof(*nulldata));
+	nulldata = (struct esp_80211_nulldata *)skb->data;
+	memset(nulldata, 0x00, sizeof(*nulldata));	
+
+	nulldata->hdr.frame_control = 0x0248; /* null data , FROM DS 1 */
+	nulldata->hdr.duration_id = 0x003c; /* 60ms */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+	memcpy(nulldata->hdr.addr1, enode->sta->addr, ETH_ALEN); /* dst */
+#else
+	memcpy(nulldata->hdr.addr1, enode->addr, ETH_ALEN); /* dst */
+#endif
+	memcpy(nulldata->hdr.addr2, epub->master_addr, ETH_ALEN); /* bssid */
+	memcpy(nulldata->hdr.addr3, epub->master_addr, ETH_ALEN); /* src */
+	nulldata->hdr.seq_ctrl = 0x0000;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+#endif
+	IEEE80211_SKB_CB(skb)->control.vif = vif;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)) && (LINUX_VERSION_CODE < KERNEL_VERSION(3, 8, 0))
+	IEEE80211_SKB_CB(skb)->control.sta = enode->sta;
+#endif
+	IEEE80211_SKB_CB(skb)->control.hw_key = NULL;
+	sip_tx_data_pkt_enqueue(epub, skb);
+}
+
+static void esp_send_nulldata_alarm(unsigned long data)
+{
+	u8 tim = 0;
+	u8 index;
+	u32 map;
+	struct esp_node *enode;
+	struct esp_vif *evif = (struct esp_vif *)data;
+	struct esp_pub *epub = evif->epub;
+	
+	esp_dbg(ESP_DBG_TRACE, "%s enter", __func__);
+	map = epub->enodes_map;
+	while (map != 0) {
+		index = ffs(map) - 1;
+		if (index > ESP_PUB_MAX_STA)
+			break;
+		enode = esp_get_node_by_index(epub, index);
+		if (enode && enode->ifidx == epub->master_ifidx) {
+			if (atomic_read(&enode->sta_state) == ESP_STA_STATE_NORM) {
+				if (atomic_dec_and_test(&enode->time_remain)) {
+					atomic_set(&enode->sta_state, ESP_STA_STATE_WAIT);
+					esp_send_nulldata(epub, evif, enode);
+				} else if (atomic_read(&enode->time_remain) == 1) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+					tim |= (1<<enode->sta->aid);
+#else
+					tim |= (1<<enode->aid);
+#endif
+				}
+			} else if (atomic_read(&enode->sta_state) == ESP_STA_STATE_WAIT) {
+				atomic_inc(&enode->loss_count);
+				if (atomic_read(&enode->loss_count) <= ESP_LOSS_COUNT_MAX) {
+					atomic_set(&enode->sta_state, ESP_STA_STATE_WAIT);
+					esp_send_nulldata(epub, evif, enode);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+					tim |= (1<<enode->sta->aid);
+#else
+					tim |= (1<<enode->aid);
+#endif
+				} else {
+					atomic_set(&enode->sta_state, ESP_STA_STATE_LOST);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+					esp_sendup_deauth(epub, enode->sta->addr);
+#else
+					esp_sendup_deauth(epub, enode->addr);
+#endif
+				}
+			}
+		}
+		map &= ~(1<<index);
+	}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
+	if (tim) {
+		beacon_tim_save(tim);
+		esp_dbg(ESP_DBG_TRACE, "tim 0x%02x", tim);
+	}
+#endif
+
+	mod_timer(&evif->nulldata_timer, jiffies + msecs_to_jiffies(ESP_ND_TIMER_INTERVAL));
+	
+}
+
+void esp_sta_gc_conn_monitor_open(struct esp_pub *epub, struct esp_vif *evif)
+{
+	if (epub == NULL || evif == NULL)
+		return;
+
+	esp_dbg(ESP_DBG_TRACE, "master_ifidx %d\n", epub->master_ifidx);
+
+	dup_addr_by_index(epub->master_addr, epub, evif->index);
+	epub->master_ifidx =  evif->index;
+
+	init_timer(&evif->nulldata_timer);
+	evif->nulldata_timer.expires = jiffies + msecs_to_jiffies(1000);
+        evif->nulldata_timer.data = (unsigned long) evif;
+        evif->nulldata_timer.function = esp_send_nulldata_alarm;
+        add_timer(&evif->nulldata_timer);
+}
+
+void esp_sta_gc_conn_monitor_close(struct esp_pub *epub, struct esp_vif *evif)
+{
+	if (epub == NULL || evif == NULL)
+		return;
+
+	esp_dbg(ESP_DBG_TRACE, "%s enter", __func__);
+
+        del_timer_sync(&evif->nulldata_timer);
+	memset(epub->master_addr, 0x00, ETH_ALEN);
+	epub->master_ifidx = ESP_PUB_MAX_VIF;
+}
+
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34))
 static int esp_op_add_interface(struct ieee80211_hw *hw,
@@ -346,6 +522,7 @@ static void esp_op_remove_interface(struct ieee80211_hw *hw,
 		evif->beacon_interval = 0;
 		del_timer_sync(&evif->beacon_timer);
 		evif->ap_up = false;
+		esp_sta_gc_conn_monitor_close(epub, evif);
 	}
 	epub->vif = NULL;
 	evif->epub = NULL;
@@ -357,24 +534,30 @@ static void esp_op_remove_interface(struct ieee80211_hw *hw,
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
-#define BEACON_TIM_SAVE_MAX 20
+#define BEACON_TIM_SAVE_MAX 12
 u8 beacon_tim_saved[BEACON_TIM_SAVE_MAX];
 int beacon_tim_count;
+spinlock_t tim_lock;
 static void beacon_tim_init(void)
 {
 	memset(beacon_tim_saved, BEACON_TIM_SAVE_MAX, 0);
 	beacon_tim_count = 0;
+	spin_lock_init(&tim_lock);
 }
 
 static u8 beacon_tim_save(u8 this_tim)
 {
 	u8 all_tim = 0;
 	int i;
+
+	spin_lock(&tim_lock);
 	beacon_tim_saved[beacon_tim_count] = this_tim;
 	if(++beacon_tim_count >= BEACON_TIM_SAVE_MAX)
 		beacon_tim_count = 0;
 	for(i = 0; i < BEACON_TIM_SAVE_MAX; i++)
 		all_tim |= beacon_tim_saved[i];
+	spin_unlock(&tim_lock);
+
 	return all_tim;
 }
 
@@ -395,8 +578,8 @@ static bool beacon_tim_alter(struct sk_buff *beacon)
         p = mgmt->u.beacon.variable;
 
         while (remain_len > 0) {
-                len = *(++p);
                 if (*p == WLAN_EID_TIM) {       // tim field
+                	len = *(++p);
                         tim_end = p + len;
 			tim_count = *(++p);
 			p += 2;
@@ -408,8 +591,10 @@ static bool beacon_tim_alter(struct sk_buff *beacon)
 				*p = beacon_tim_save(*p);
 			}
                         return tim_count == 0;
-                }
-                p += (len + 1);
+                } else {
+               		len = *(++p);
+                	p += (len + 1);
+		}
                 remain_len -= (2 + len);
         }
 
@@ -662,6 +847,7 @@ static void esp_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (info->enable_beacon && evif->ap_up != true) {
 				evif->beacon_interval = info->beacon_int;
 				init_beacon_timer(vif);
+				esp_sta_gc_conn_monitor_open(epub, evif);
 				sip_send_bss_info_update(epub, evif, (u8*)info->bssid, 2);
 				evif->ap_up = true;
 			} else if (!info->enable_beacon && evif->ap_up &&
@@ -674,6 +860,7 @@ static void esp_op_bss_info_changed(struct ieee80211_hw *hw,
 				ESP_IEEE80211_DBG(ESP_DBG_TRACE, " %s AP disable beacon, interval is %d\n", __func__, info->beacon_int);
 				evif->beacon_interval = 0;
 				del_timer_sync(&evif->beacon_timer);
+				esp_sta_gc_conn_monitor_close(epub, evif);
 				sip_send_bss_info_update(epub, evif, (u8*)info->bssid, 2);
 				evif->ap_up = false;
 			}
@@ -1012,6 +1199,9 @@ static int esp_node_attach(struct ieee80211_hw *hw, u8 ifidx, const u8 *addr)
 #endif
 		node->ifidx = ifidx;
 		node->index = i;
+		atomic_set(&node->loss_count, 0);
+		atomic_set(&node->time_remain, ESP_ND_TIME_REMAIN_MAX);
+		atomic_set(&node->sta_state, ESP_STA_STATE_NORM);
 
 		for(tidno = 0, tid = &node->tid[tidno]; tidno < WME_NUM_TID; tidno++) {
                 tid->ssn = 0;
@@ -1178,6 +1368,10 @@ static int esp_op_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif, co
 #endif
 	struct esp_vif *evif = (struct esp_vif *)vif->drv_priv;
 	int index;
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		reset_signal_count();
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 28))
 	ESP_IEEE80211_DBG(ESP_DBG_OP, "%s enter, addr %pM\n", __func__, addr);
    	index = esp_node_attach(hw, evif->index, addr);
@@ -1248,7 +1442,7 @@ static void esp_op_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif
         ESP_IEEE80211_DBG(ESP_DBG_TRACE, "%s enter \n", __func__);
 
         switch (cmd) {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
         case STA_NOTIFY_ADD:
             ESP_IEEE80211_DBG(ESP_DBG_ERROR, "%s cmd add\n", __func__);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
@@ -1936,6 +2130,9 @@ struct esp_pub * esp_pub_alloc_mac80211(struct device *dev)
                 ret = -ENOMEM;
                 return ERR_PTR(ret);
         }
+
+	epub->master_ifidx = ESP_PUB_MAX_VIF;
+
         epub->scan_permit_valid = false;
         INIT_DELAYED_WORK(&epub->scan_timeout_work, hw_scan_timeout_report);
 
@@ -2085,6 +2282,7 @@ esp_pub_init_mac80211(struct esp_pub *epub)
                     IEEE80211_HW_HAS_RATE_CONTROL |
 #endif /* >= 2.6.33 */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
+                    IEEE80211_HW_MFP_CAPABLE |
                     IEEE80211_HW_SUPPORTS_PS |
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
@@ -2138,7 +2336,7 @@ esp_pub_init_mac80211(struct esp_pub *epub)
         /*add to support 11n*/
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
         epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_cap.ht_supported = true;
-        epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_cap.cap = 0x116C;//IEEE80211_HT_CAP_RX_STBC; //IEEE80211_HT_CAP_SGI_20;
+        epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_cap.cap = 0x112C;//IEEE80211_HT_CAP_RX_STBC; //IEEE80211_HT_CAP_SGI_20;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
         epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K;
         epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
@@ -2153,7 +2351,7 @@ esp_pub_init_mac80211(struct esp_pub *epub)
         //epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 #else
         epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_info.ht_supported = true;
-        epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_info.cap = 0x116C;//IEEE80211_HT_CAP_RX_STBC; //IEEE80211_HT_CAP_SGI_20;
+        epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_info.cap = 0x112C;//IEEE80211_HT_CAP_RX_STBC; //IEEE80211_HT_CAP_SGI_20;
         epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_info.ampdu_factor = 1;//IEEE80211_HT_MAX_AMPDU_16K;
         epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_info.ampdu_density = 0;//IEEE80211_HT_MPDU_DENSITY_NONE;
         memset(&epub->wl.sbands[IEEE80211_BAND_2GHZ].ht_info.supp_mcs_set, 0,
@@ -2195,15 +2393,15 @@ esp_pub_init_mac80211(struct esp_pub *epub)
 int
 esp_register_mac80211(struct esp_pub *epub)
 {
-	int ret = 0;
+        int ret = 0;
 	u8 mac[ETH_ALEN];
-#ifdef P2P_CONCURRENT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)) && defined(P2P_CONCURRENT)
 	u8 *wlan_addr;
 	u8 *p2p_addr;
 	int idx;
 #endif
 
-	esp_pub_init_mac80211(epub);
+        esp_pub_init_mac80211(epub);
 
 	printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", epub->mac_addr[0], epub->mac_addr[1],
           epub->mac_addr[2], epub->mac_addr[3], epub->mac_addr[4], epub->mac_addr[5]);
@@ -2215,7 +2413,7 @@ esp_register_mac80211(struct esp_pub *epub)
 		memcpy(epub->mac_addr, mac, ETH_ALEN);
 	}
 
-#ifdef P2P_CONCURRENT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)) && defined(P2P_CONCURRENT)
 	epub->hw->wiphy->addresses = (struct mac_address *)esp_mac_addr;
 	memcpy(&epub->hw->wiphy->addresses[0], epub->mac_addr, ETH_ALEN);
 	memcpy(&epub->hw->wiphy->addresses[1], epub->mac_addr, ETH_ALEN);
@@ -2225,7 +2423,7 @@ esp_register_mac80211(struct esp_pub *epub)
 	for (idx = 0; idx < 64; idx++) {
                 p2p_addr[0] = wlan_addr[0] | 0x02;
                 p2p_addr[0] ^= idx << 2;
-                if (strncmp(p2p_addr, wlan_addr, 6) != 0)
+                if (memcmp(p2p_addr, wlan_addr, ETH_ALEN) != 0)
                         break;
         }
 
@@ -2265,7 +2463,7 @@ esp_register_mac80211(struct esp_pub *epub)
 
 static u8 getaddr_index(u8 * addr, struct esp_pub *epub)
 {
-#ifdef P2P_CONCURRENT
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)) && defined(P2P_CONCURRENT)
 	int i;
 	for(i = 0; i < ESP_PUB_MAX_VIF; i++)
 		if(memcmp(addr, (u8 *)&epub->hw->wiphy->addresses[i], ETH_ALEN) == 0)
@@ -2274,5 +2472,25 @@ static u8 getaddr_index(u8 * addr, struct esp_pub *epub)
 #else
 	return 0;
 #endif
+}
+
+static int dup_addr_by_index(u8 *addr, struct esp_pub *epub, u8 index)
+{
+	if (addr == NULL)
+		return -EINVAL;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)) && defined(P2P_CONCURRENT)
+	if (index >= ESP_PUB_MAX_VIF || index < 0) {
+		memcpy(addr, epub->mac_addr, ETH_ALEN);
+		return -ERANGE;
+	}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+	memcpy(addr, &epub->hw->wiphy->addresses[index], ETH_ALEN);
+#else
+	memcpy(addr, epub->mac_addr, ETH_ALEN);
+#endif /* kernel version */
+#else
+	memcpy(addr, epub->mac_addr, ETH_ALEN);
+#endif
+	return 0;
 }
 

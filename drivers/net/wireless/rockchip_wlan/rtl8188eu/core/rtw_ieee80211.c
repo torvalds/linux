@@ -932,41 +932,45 @@ u8 *rtw_get_wps_ie_from_scan_queue(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps
 u8 *rtw_get_wps_ie(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
 {
 	uint cnt;
-	u8 *wpsie_ptr=NULL;
-	u8 eid, wps_oui[4]={0x0,0x50,0xf2,0x04};
+	u8 *wpsie_ptr = NULL;
+	u8 eid, wps_oui[4] = {0x00, 0x50, 0xf2, 0x04};
 
-	if(wps_ielen)
+	if (wps_ielen)
 		*wps_ielen = 0;
 
-	if(!in_ie || in_len<=0)
+	if (!in_ie) {
+		rtw_warn_on(1);
+		return wpsie_ptr;
+	}
+
+	if (in_len <= 0)
 		return wpsie_ptr;
 
 	cnt = 0;
 
-	while(cnt<in_len)
-	{
+	while (cnt + 1 + 4 < in_len) {
 		eid = in_ie[cnt];
 
-		if((eid==_WPA_IE_ID_)&&(_rtw_memcmp(&in_ie[cnt+2], wps_oui, 4)==_TRUE))
-		{
-			wpsie_ptr = &in_ie[cnt];
+		if (cnt + 1 + 4 >= MAX_IE_SZ) {
+			rtw_warn_on(1);
+			return NULL;
+		}
 
-			if(wps_ie)
-				_rtw_memcpy(wps_ie, &in_ie[cnt], in_ie[cnt+1]+2);
-			
-			if(wps_ielen)
-				*wps_ielen = in_ie[cnt+1]+2;
-			
-			cnt+=in_ie[cnt+1]+2;
+		if (eid == WLAN_EID_VENDOR_SPECIFIC && _rtw_memcmp(&in_ie[cnt + 2], wps_oui, 4) == _TRUE) {
+			wpsie_ptr = in_ie + cnt;
+
+			if (wps_ie)
+				_rtw_memcpy(wps_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
+
+			if (wps_ielen)
+				*wps_ielen = in_ie[cnt + 1] + 2;
 
 			break;
+		} else {
+			cnt += in_ie[cnt + 1] + 2;
 		}
-		else
-		{
-			cnt+=in_ie[cnt+1]+2; //goto next	
-		}		
 
-	}	
+	}
 
 	return wpsie_ptr;
 }
@@ -1379,23 +1383,23 @@ void rtw_macaddr_cfg(u8 *mac_addr)
         }
     }
 
-    if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
-         (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
-        ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
-         (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
-    {
-        mac[0] = 0x00;
-        mac[1] = 0xe0;
-        mac[2] = 0x4c;
-        mac[3] = 0x87;
-        mac[4] = 0x00;
-        mac[5] = 0x00;
-        // use default mac addresss
-        _rtw_memcpy(mac_addr, mac, ETH_ALEN);
-        DBG_871X("MAC Address from efuse error, assign default one !!!\n");
-    }
+	if (((mac[0]==0xff) &&(mac[1]==0xff) && (mac[2]==0xff) &&
+	     (mac[3]==0xff) && (mac[4]==0xff) &&(mac[5]==0xff)) ||
+	    ((mac[0]==0x0) && (mac[1]==0x0) && (mac[2]==0x0) &&
+	     (mac[3]==0x0) && (mac[4]==0x0) &&(mac[5]==0x0)))
+	{
+		mac[0] = 0x00;
+		mac[1] = 0xe0;
+		mac[2] = 0x4c;
+		mac[3] = 0x87;
+		mac[4] = 0x00;
+		mac[5] = 0x00;
+		// use default mac addresss
+		_rtw_memcpy(mac_addr, mac, ETH_ALEN);
+		DBG_871X("MAC Address from efuse error, assign default one !!!\n");
+	}	
 
-    DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
+	DBG_871X("rtw_macaddr_cfg MAC Address  = "MAC_FMT"\n", MAC_ARG(mac_addr));
 }
 
 void dump_ies(u8 *buf, u32 buf_len)
@@ -1572,47 +1576,48 @@ u8 *rtw_get_p2p_ie_from_scan_queue(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_
  */
 u8 *rtw_get_p2p_ie(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen)
 {
-	uint cnt = 0;
-	u8 *p2p_ie_ptr;
-	u8 eid, p2p_oui[4]={0x50,0x6F,0x9A,0x09};
+	uint cnt;
+	u8 *p2p_ie_ptr = NULL;
+	u8 eid, p2p_oui[4] = {0x50, 0x6F, 0x9A, 0x09};
 
-	if ( p2p_ielen != NULL )
+	if (p2p_ielen)
 		*p2p_ielen = 0;
 
-	while(cnt<in_len)
-	{
-		eid = in_ie[cnt];
-		if ((in_len < 0) || (cnt > MAX_IE_SZ)) {
-			rtw_dump_stack();
-			return NULL;
-		}		
-		if( ( eid == _VENDOR_SPECIFIC_IE_ ) && ( _rtw_memcmp( &in_ie[cnt+2], p2p_oui, 4) == _TRUE ) )
-		{
-			p2p_ie_ptr = in_ie + cnt;
-		
-			if ( p2p_ie != NULL )
-			{
-				_rtw_memcpy( p2p_ie, &in_ie[ cnt ], in_ie[ cnt + 1 ] + 2 );
-			}
+	if (!in_ie || in_len < 0) {
+		rtw_warn_on(1);
+		return p2p_ie_ptr;
+	}
 
-			if ( p2p_ielen != NULL )
-			{
-				*p2p_ielen = in_ie[ cnt + 1 ] + 2;
-			}
-			
-			return p2p_ie_ptr;
+	if (in_len <= 0)
+		return p2p_ie_ptr;
+
+	cnt = 0;
+
+	while (cnt + 1 + 4 < in_len) {
+		eid = in_ie[cnt];
+
+		if (cnt + 1 + 4 >= MAX_IE_SZ) {
+			rtw_warn_on(1);
+			return NULL;
+		}
+
+		if (eid == WLAN_EID_VENDOR_SPECIFIC && _rtw_memcmp(&in_ie[cnt + 2], p2p_oui, 4) == _TRUE) {
+			p2p_ie_ptr = in_ie + cnt;
+
+			if (p2p_ie)
+				_rtw_memcpy(p2p_ie, &in_ie[cnt], in_ie[cnt + 1] + 2);
+
+			if (p2p_ielen)
+				*p2p_ielen = in_ie[cnt + 1] + 2;
 
 			break;
+		} else {
+			cnt += in_ie[cnt + 1] + 2;
 		}
-		else
-		{
-			cnt += in_ie[ cnt + 1 ] +2; //goto next	
-		}		
-		
-	}	
 
-	return NULL;
+	}
 
+	return p2p_ie_ptr;
 }
 
 /**

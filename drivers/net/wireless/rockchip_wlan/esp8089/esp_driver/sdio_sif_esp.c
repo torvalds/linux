@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2010 -2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  *   sdio serial i/f driver
  *    - sdio device control routines
@@ -31,9 +35,6 @@
 #ifdef USE_EXT_GPIO
 #include "esp_ext.h"
 #endif /* USE_EXT_GPIO */
-
-static int /*__init */ esp_sdio_init(void);
-static void /* __exit */ esp_sdio_exit(void);
 
 
 #define ESP_DMA_IBUFSZ   2048
@@ -784,24 +785,14 @@ static struct sdio_driver esp_sdio_dummy_driver = {
                 .remove = esp_sdio_dummy_remove,
 };
 
-static int /*__init */ esp_sdio_init(void) 
+int esp_sdio_init(void) 
 {
 #define ESP_WAIT_UP_TIME_MS 11000
         int err;
-        u64 ver;
         int retry = 3;
         bool powerup = false;
-        int edf_ret = 0;
 
         esp_dbg(ESP_DBG_TRACE, "%s \n", __func__);
-
-#ifdef DRIVER_VER
-        ver = DRIVER_VER;
-        esp_dbg(ESP_SHOW, "\n*****%s %s EAGLE DRIVER VER:%llx*****\n\n", __DATE__, __TIME__, ver);
-#endif
-        edf_ret = esp_debugfs_init();
-
-	request_init_conf();
 
         esp_wakelock_init();
         esp_wake_lock();
@@ -886,11 +877,9 @@ _fail:
         return err;
 }
 
-static void /*__exit*/ esp_sdio_exit(void) 
+void esp_sdio_exit(void) 
 {
 	esp_dbg(ESP_SHOW, "%s \n", __func__);
-
-	esp_debugfs_exit();
 	
         esp_unregister_early_suspend();
 

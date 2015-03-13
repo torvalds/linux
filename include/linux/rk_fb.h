@@ -196,8 +196,10 @@ enum {
 	HAL_PIXEL_FORMAT_YCrCb_420_SP_10	= 0x24, //YUV444_1obit
 
 	HAL_PIXEL_FORMAT_YCrCb_444 = 0x25,	//yuv444
-	
-
+	HAL_PIXEL_FORMAT_FBDC_RGB565	= 0x26,
+	HAL_PIXEL_FORMAT_FBDC_U8U8U8U8	= 0x27, /*ARGB888*/
+	HAL_PIXEL_FORMAT_FBDC_U8U8U8	= 0x28, /*RGBP888*/
+	HAL_PIXEL_FORMAT_FBDC_RGBA888	= 0x29, /*ABGR888*/
 };
 
 //display data format
@@ -213,7 +215,12 @@ enum data_format {
 	ABGR888,
 	YUV420_A = 10,
 	YUV422_A,
-	YUV444_A,	
+	YUV444_A,
+	YUV420_NV21,
+	FBDC_RGB_565 = 0x26,
+	FBDC_ARGB_888,
+	FBDC_RGBX_888,
+	FBDC_ABGR_888,
 };
 
 enum
@@ -315,6 +322,7 @@ struct rk_lcdc_win_area {
 	enum data_format format;
 	u8 fmt_cfg;
 	u8 swap_rb;
+	u8 swap_uv;
 	u32 y_offset;		/*yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx*/
 	u32 c_offset;		/*cb cr offset--->LCDC_WINx_CBR_MSTx*/
 	u16 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/
@@ -515,6 +523,7 @@ struct rk_fb_reg_area_data {
 	u32 c_offset;		/*cb cr offset--->LCDC_WINx_CBR_MSTx*/
 	u32 y_vir_stride;
 	u32 uv_vir_stride;
+	u32 buff_len;
 	u16 xpos;		/*start point in panel  --->LCDC_WINx_DSP_ST*/
 	u16 ypos;
 	u16 xsize;		/* display window width/height  -->LCDC_WINx_DSP_INFO*/

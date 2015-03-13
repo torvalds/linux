@@ -1,3 +1,11 @@
+/* Copyright (c) 2014 - 2015 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ *
+ */
 #ifndef _ESP_MEM_H_
 #define _ESP_MEM_H_
 
@@ -38,7 +46,7 @@ void esp_pre_free_sip_skb_arr(void);
 u8 *esp_pre_alloc_tx_aggr_buf(void);
 void esp_pre_free_tx_aggr_buf(void);
 
-struct sk_buff *esp_get_sip_skb(int size);
+struct sk_buff *esp_get_sip_skb(int size, gfp_t type);
 void esp_put_sip_skb(struct sk_buff **skb);
 u8* esp_get_tx_aggr_buf(void);
 void esp_put_tx_aggr_buf(u8 **p);

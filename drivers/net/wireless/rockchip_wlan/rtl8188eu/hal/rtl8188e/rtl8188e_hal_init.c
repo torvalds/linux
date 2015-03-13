@@ -3950,12 +3950,147 @@ _func_enter_;
 		rtw_write8(adapter, REG_RESP_SIFS_OFDM+1, val[0]);
 	}
 		break;
+
+	case HW_VAR_MACID_SLEEP:
+	{
+		u32 reg_macid_sleep;
+		u8 bit_shift;
+		u8 id = *(u8*)val;
+		u32 val32;
+	
+		if (id < 32){
+			reg_macid_sleep = REG_MACID_PAUSE_0;
+			bit_shift = id;
+		} else if (id < 64) {
+			reg_macid_sleep = REG_MACID_PAUSE_1;
+			bit_shift = id-32;
+		} else {
+			rtw_warn_on(1);
+			break;
+		}
+	
+		val32 = rtw_read32(adapter, reg_macid_sleep);
+		DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_SLEEP] macid=%d, org reg_0x%03x=0x%08X\n",
+			FUNC_ADPT_ARG(adapter), id, reg_macid_sleep, val32);
+	
+		if (val32 & BIT(bit_shift))
+			break;
+	
+		val32 |= BIT(bit_shift);
+		rtw_write32(adapter, reg_macid_sleep, val32);
+	}
+		break;
+	
+	case HW_VAR_MACID_WAKEUP:
+	{
+		u32 reg_macid_sleep;
+		u8 bit_shift;
+		u8 id = *(u8*)val;
+		u32 val32;
+	
+		if (id < 32){
+			reg_macid_sleep = REG_MACID_PAUSE_0;
+			bit_shift = id;
+		} else if (id < 64) {
+			reg_macid_sleep = REG_MACID_PAUSE_1;
+			bit_shift = id-32;
+		} else {
+			rtw_warn_on(1);
+			break;
+		}
+	
+		val32 = rtw_read32(adapter, reg_macid_sleep);
+		DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_WAKEUP] macid=%d, org reg_0x%03x=0x%08X\n",
+			FUNC_ADPT_ARG(adapter), id, reg_macid_sleep, val32);
+	
+		if (!(val32 & BIT(bit_shift)))
+			break;
+	
+		val32 &= ~BIT(bit_shift);
+		rtw_write32(adapter, reg_macid_sleep, val32);
+	}
+		break;
+
 	default:
 		SetHwReg(adapter, variable, val);
 		break;
 	}
 
 _func_exit_;
+}
+
+struct qinfo_88e {
+	u32 head:8;
+	u32 pkt_num:8;
+	u32 tail:8;
+	u32 ac:2;
+	u32 macid:6;
+};
+
+struct bcn_qinfo_88e {
+	u16 head:8;
+	u16 pkt_num:8;
+};
+
+void dump_qinfo_88e(void *sel, struct qinfo_88e *info, const char *tag)
+{
+	//if (info->pkt_num)
+	DBG_871X_SEL_NL(sel, "%shead:0x%02x, tail:0x%02x, pkt_num:%u, macid:%u, ac:%u\n"
+		, tag ? tag : "", info->head, info->tail, info->pkt_num, info->macid, info->ac
+	);
+}
+
+void dump_bcn_qinfo_88e(void *sel, struct bcn_qinfo_88e *info, const char *tag)
+{
+	//if (info->pkt_num)
+	DBG_871X_SEL_NL(sel, "%shead:0x%02x, pkt_num:%u\n"
+		, tag ? tag : "", info->head, info->pkt_num
+	);
+}
+
+void dump_mac_qinfo_88e(void *sel, _adapter *adapter)
+{
+	u32 q0_info;
+	u32 q1_info;
+	u32 q2_info;
+	u32 q3_info;
+	/*
+	u32 q4_info;
+	u32 q5_info;
+	u32 q6_info;
+	u32 q7_info;
+	*/
+	u32 mg_q_info;
+	u32 hi_q_info;
+	u16 bcn_q_info;
+
+	q0_info = rtw_read32(adapter, REG_Q0_INFO);
+	q1_info = rtw_read32(adapter, REG_Q1_INFO);
+	q2_info = rtw_read32(adapter, REG_Q2_INFO);
+	q3_info = rtw_read32(adapter, REG_Q3_INFO);
+	/*
+	q4_info = rtw_read32(adapter, REG_Q4_INFO);
+	q5_info = rtw_read32(adapter, REG_Q5_INFO);
+	q6_info = rtw_read32(adapter, REG_Q6_INFO);
+	q7_info = rtw_read32(adapter, REG_Q7_INFO);
+	*/
+	mg_q_info = rtw_read32(adapter, REG_MGQ_INFO);
+	hi_q_info = rtw_read32(adapter, REG_HGQ_INFO);
+	bcn_q_info = rtw_read16(adapter, REG_BCNQ_INFO);
+
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&q0_info, "Q0 ");
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&q1_info, "Q1 ");
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&q2_info, "Q2 ");
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&q3_info, "Q3 ");
+	/*
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&q4_info, "Q4 ");
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&q5_info, "Q5 ");
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&q6_info, "Q6 ");
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&q7_info, "Q7 ");
+	*/
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&mg_q_info, "MG ");
+	dump_qinfo_88e(sel, (struct qinfo_88e *)&hi_q_info, "HI ");
+	dump_bcn_qinfo_88e(sel, (struct bcn_qinfo_88e *)&bcn_q_info, "BCN ");
 }
 
 void GetHwReg8188E(_adapter *adapter, u8 variable, u8 *val)
@@ -3968,11 +4103,38 @@ _func_enter_;
 	case HW_VAR_SYS_CLKR:
 		*val = rtw_read8(adapter, REG_SYS_CLKR);
 		break;
+	case HW_VAR_DUMP_MAC_QUEUE_INFO:
+		dump_mac_qinfo_88e(val, adapter);
+		break;
 	default:
 		GetHwReg(adapter, variable, val);
 		break;
 	}
 
 _func_exit_;
+}
+
+u8
+GetHalDefVar8188E(
+	IN	PADAPTER				Adapter,
+	IN	HAL_DEF_VARIABLE		eVariable,
+	IN	PVOID					pValue
+	)
+{
+	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);	
+	u8			bResult = _SUCCESS;
+
+	switch(eVariable)
+	{
+		case HAL_DEF_MACID_SLEEP:
+			*(u8*)pValue = _TRUE; // support macid sleep
+			break;
+
+		default:
+			bResult = GetHalDefVar(Adapter, eVariable, pValue);
+			break;
+	}
+
+	return bResult;
 }
 

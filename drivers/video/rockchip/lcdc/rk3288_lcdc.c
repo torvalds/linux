@@ -767,12 +767,13 @@ static int rk3288_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv,int win_id)
 
 	if(win->state == 1){
 		mask =  m_WIN0_EN | m_WIN0_DATA_FMT | m_WIN0_FMT_10 |
-			m_WIN0_LB_MODE | m_WIN0_RB_SWAP;
+			m_WIN0_LB_MODE | m_WIN0_RB_SWAP | m_WIN0_UV_SWAP;
 		val  =  v_WIN0_EN(win->state) |
 			v_WIN0_DATA_FMT(win->area[0].fmt_cfg) |
 			v_WIN0_FMT_10(win->fmt_10) | 
 			v_WIN0_LB_MODE(win->win_lb_mode) | 
-			v_WIN0_RB_SWAP(win->area[0].swap_rb);
+			v_WIN0_RB_SWAP(win->area[0].swap_rb) |
+			v_WIN0_UV_SWAP(win->area[0].swap_uv);
 		lcdc_msk_reg(lcdc_dev, WIN0_CTRL0+off, mask,val);	
 	
 		mask =	m_WIN0_BIC_COE_SEL |
@@ -1408,6 +1409,7 @@ static int rk3288_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		rockchip_set_system_status(sys_status);
 		rk3288_lcdc_pre_init(dev_drv);
 		rk3288_lcdc_clk_enable(lcdc_dev);
+		rk3288_lcdc_enable_irq(dev_drv);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (!dev_drv->mmu_dev) {
@@ -2042,7 +2044,7 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 			struct rk_screen *screen, struct rk_lcdc_win *win)
 {
 	u32 xact,yact,xvir, yvir,xpos, ypos;
-	u8 fmt_cfg = 0, swap_rb;
+	u8 fmt_cfg = 0, swap_rb, swap_uv = 0;
 	char fmt[9] = "NULL";
 
 	xpos = win->area[0].xpos + screen->mode.left_margin + screen->mode.hsync_len;
@@ -2083,6 +2085,12 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
+		case YUV420_NV21:
+			fmt_cfg = 4;
+			swap_rb = 0;
+			swap_uv = 1;
+			win->fmt_10 = 0;
+			break;	
 		case YUV444:	
 			fmt_cfg = 6;
 			swap_rb = 0;
@@ -2111,6 +2119,7 @@ static int win0_set_par(struct lcdc_device *lcdc_dev,
 		win->area[0].swap_rb = swap_rb;
 		win->area[0].dsp_stx = xpos;
 		win->area[0].dsp_sty = ypos;
+		win->area[0].swap_uv = swap_uv;
 		xact = win->area[0].xact;
 		yact = win->area[0].yact;
 		xvir = win->area[0].xvir;
@@ -2131,7 +2140,7 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 			struct rk_screen *screen, struct rk_lcdc_win *win)
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u8 fmt_cfg = 0, swap_rb;
+	u8 fmt_cfg = 0, swap_rb, swap_uv = 0;
 	char fmt[9] = "NULL";
 
 	xpos = win->area[0].xpos + screen->mode.left_margin + screen->mode.hsync_len;
@@ -2172,6 +2181,12 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 			swap_rb = 0;
 			win->fmt_10 = 0;
 			break;
+		case YUV420_NV21:
+			fmt_cfg = 4;
+			swap_rb = 0;
+			swap_uv = 1;
+			win->fmt_10 = 0;
+			break;
 		case YUV444:
 			fmt_cfg = 6;
 			swap_rb = 0;
@@ -2201,6 +2216,7 @@ static int win1_set_par(struct lcdc_device *lcdc_dev,
 		win->area[0].swap_rb = swap_rb;
 		win->area[0].dsp_stx = xpos;
 		win->area[0].dsp_sty = ypos;
+		win->area[0].swap_uv = swap_uv;
 		xact = win->area[0].xact;
 		yact = win->area[0].yact;
 		xvir = win->area[0].xvir;
@@ -2266,6 +2282,16 @@ static int win2_set_par(struct lcdc_device *lcdc_dev,
 					screen->mode.upper_margin +
 					screen->mode.vsync_len;
 			}
+			if ((win->area[i].xact != win->area[i].xsize) ||
+			    (win->area[i].yact != win->area[i].ysize)) {
+                                pr_err("win[%d]->area[%d],not support scale\n",
+                                        win->id, i);
+                                pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
+                                        win->area[i].xact,win->area[i].yact,
+                                        win->area[i].xsize,win->area[i].ysize);
+                                win->area[i].xsize = win->area[i].xact;
+                                win->area[i].ysize = win->area[i].yact;
+			}
 		}
 	}
 	rk3288_win_2_3_reg_update(&lcdc_dev->driver,2);
@@ -2323,6 +2349,16 @@ static int win3_set_par(struct lcdc_device *lcdc_dev,
 					screen->mode.upper_margin +
 					screen->mode.vsync_len;
 			}
+		}
+		if ((win->area[i].xact != win->area[i].xsize) ||
+		    (win->area[i].yact != win->area[i].ysize)) {
+                        pr_err("win[%d]->area[%d],not support scale\n",
+                                win->id, i);
+                        pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
+                                win->area[i].xact,win->area[i].yact,
+                                win->area[i].xsize,win->area[i].ysize);
+                        win->area[i].xsize = win->area[i].xact;
+                        win->area[i].ysize = win->area[i].yact;
 		}
 	}
 	rk3288_win_2_3_reg_update(&lcdc_dev->driver,3);
@@ -2521,7 +2557,23 @@ static int rk3288_lcdc_blank(struct rk_lcdc_driver *dev_drv,
 
 static int rk3288_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv, int win_id)
 {
-	return 0;
+        struct lcdc_device *lcdc_dev =
+                container_of(dev_drv, struct lcdc_device, driver);
+        int win_status = 0;
+        if (win_id == 0)
+                win_status = lcdc_read_bit(lcdc_dev, WIN0_CTRL0, m_WIN0_EN);
+        else if (win_id == 1)
+                win_status = lcdc_read_bit(lcdc_dev, WIN1_CTRL0, m_WIN1_EN);
+        else if (win_id == 2)
+                win_status = lcdc_read_bit(lcdc_dev, WIN2_CTRL0, m_WIN2_EN);
+        else if (win_id == 3)
+                win_status = lcdc_read_bit(lcdc_dev, WIN3_CTRL0, m_WIN3_EN);
+        else if (win_id == 4)
+                win_status = lcdc_read_bit(lcdc_dev, HWC_CTRL0, m_HWC_EN);
+        else
+                pr_err("!!!%s,win_id :%d,unsupport!!!\n",__func__,win_id);
+
+        return win_status;
 }
 
 /*overlay will be do at regupdate*/

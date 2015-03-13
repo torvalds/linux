@@ -514,7 +514,9 @@ static int rockchip_i2s_resume_noirq(struct device *dev)
 #ifdef CLK_SET_lATER
 static void set_clk_later_work(struct work_struct *work)
 {
-	struct rk30_i2s_info *i2s = rk30_i2s;
+	struct rk30_i2s_info *i2s = container_of(work, struct rk30_i2s_info,
+						 clk_delayed_work.work);
+
 	clk_set_rate(i2s->i2s_clk, 11289600);
 	if(!IS_ERR(i2s->i2s_mclk) )
 		clk_set_rate(i2s->i2s_mclk, 11289600);
@@ -724,7 +726,18 @@ static struct platform_driver rockchip_i2s_driver = {
 		.pm	= &rockchip_i2s_pm_ops,
 	},
 };
-module_platform_driver(rockchip_i2s_driver);
+
+static int __init rockchip_i2s_init(void)
+{
+	return platform_driver_register(&rockchip_i2s_driver);
+}
+subsys_initcall_sync(rockchip_i2s_init);
+
+static void __exit rockchip_i2s_exit(void)
+{
+	platform_driver_unregister(&rockchip_i2s_driver);
+}
+module_exit(rockchip_i2s_exit);
 
 /* Module information */
 MODULE_AUTHOR("rockchip");

@@ -37,6 +37,10 @@
 #include <linux/skbuff.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/fb.h>
+#include <linux/rockchip/grf.h>
+#include <linux/rockchip/common.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -97,14 +101,52 @@ static char wifi_chip_type_string[64];
 int get_wifi_chip_type(void)
 {
     int type;
-    if (strcmp(wifi_chip_type_string, "bcmwifi") == 0) {
-        type = WIFI_BCMWIFI;
-    } else if (strcmp(wifi_chip_type_string, "rtkwifi") == 0) {
-        type = WIFI_RTKWIFI;
+    if (strcmp(wifi_chip_type_string, "ap6210") == 0) {
+        type = WIFI_AP6210;
+    } else if (strcmp(wifi_chip_type_string, "ap6212") == 0) {
+        type = WIFI_AP6212;
+    } else if (strcmp(wifi_chip_type_string, "rk901") == 0) {
+        type = WIFI_RK901;    
+    } else if (strcmp(wifi_chip_type_string, "rk903") == 0) {
+        type = WIFI_RK903;  
+    } else if (strcmp(wifi_chip_type_string, "ap6181") == 0) {
+        type = WIFI_AP6181;
+    } else if (strcmp(wifi_chip_type_string, "ap6234") == 0) {
+        type = WIFI_AP6234;                            
+    } else if (strcmp(wifi_chip_type_string, "ap6330") == 0) {
+        type = WIFI_AP6330;
+    } else if (strcmp(wifi_chip_type_string, "ap6335") == 0) {
+        type = WIFI_AP6335;
+    } else if (strcmp(wifi_chip_type_string, "ap6354") == 0) {
+        type = WIFI_AP6354;
+    } else if (strcmp(wifi_chip_type_string, "ap6441") == 0) {
+        type = WIFI_AP6441;
+    } else if (strcmp(wifi_chip_type_string, "ap6476") == 0) {
+        type = WIFI_AP6476;    
+    } else if (strcmp(wifi_chip_type_string, "ap6493") == 0) {
+        type = WIFI_AP6493;                    
+    } else if (strcmp(wifi_chip_type_string, "rtl8188eu") == 0) {
+        type = WIFI_RTL8188EU;
+    } else if (strcmp(wifi_chip_type_string, "rtl8192du") == 0) {
+        type = WIFI_RTL8192DU;
+    } else if (strcmp(wifi_chip_type_string, "rtl8723as") == 0) {
+        type = WIFI_RTL8723AS;        
+    } else if (strcmp(wifi_chip_type_string, "rtl8723bs_vq0") == 0) {
+        type = WIFI_RTL8723BS_VQ0;        
+    } else if (strcmp(wifi_chip_type_string, "rtl8723bs") == 0) {
+        type = WIFI_RTL8723BS;
+    } else if (strcmp(wifi_chip_type_string, "rtl8723au") == 0) {
+        type = WIFI_RTL8723AU;        
+    } else if (strcmp(wifi_chip_type_string, "rtl8723bu") == 0) {
+        type = WIFI_RTL8723BU;
+    } else if (strcmp(wifi_chip_type_string, "rtl8189es") == 0) {
+        type = WIFI_RTL8189ES;
+    } else if (strcmp(wifi_chip_type_string, "rtl8812au") == 0) {
+        type = WIFI_RTL8812AU;                        
     } else if (strcmp(wifi_chip_type_string, "esp8089") == 0) {
         type = WIFI_ESP8089;
     } else {
-        type = TYPE_MAX;
+        type = WIFI_AP6210;
     }
     return type;
 }
@@ -116,7 +158,7 @@ EXPORT_SYMBOL(get_wifi_chip_type);
  * 
  **********************************************************/
 #ifdef CONFIG_RKWIFI
-#define BCM_STATIC_MEMORY_SUPPORT 1
+#define BCM_STATIC_MEMORY_SUPPORT 0
 #else
 #define BCM_STATIC_MEMORY_SUPPORT 0
 #endif
@@ -450,7 +492,8 @@ int rockchip_wifi_set_carddetect(int val)
 	chip = get_wifi_chip_type();
 
 	/*  irq_type : 0, oob; 1, cap-sdio-irq */
-	if (chip == WIFI_BCMWIFI)
+	if (!strncmp(wifi_chip_type_string, "ap", 2) ||
+		!strncmp(wifi_chip_type_string, "rk", 2))
 		irq_type = 0;
 	else
 		irq_type = 1;
@@ -573,6 +616,7 @@ void *rockchip_wifi_country_code(char *ccode)
 EXPORT_SYMBOL(rockchip_wifi_country_code);
 /**************************************************************************/
 
+#define RK3368_GRF_IO_VSEL 0x900
 static int rockchip_wifi_voltage_select(void)
 {
     struct rfkill_wlan_data *mrfkill = g_rfkill;
@@ -582,17 +626,35 @@ static int rockchip_wifi_voltage_select(void)
         LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
         return -1;
     }
+
     voltage = mrfkill->pdata->sdio_vol;
-    if (voltage > 2700 && voltage < 3500) {
-        writel_relaxed(0x00100000, RK_GRF_VIRT+0x380); //3.3
-        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
-    } else if (voltage  > 1500 && voltage < 1950) {
-        writel_relaxed(0x00100010, RK_GRF_VIRT+0x380); //1.8
-        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
-    } else {
-        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
-        return -1;
-    }
+    if (cpu_is_rk3288()) {
+	    if (voltage > 2700 && voltage < 3500) {
+	        writel_relaxed(0x00100000, RK_GRF_VIRT+0x380); //3.3
+	        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
+	    } else if (voltage  > 1500 && voltage < 1950) {
+	        writel_relaxed(0x00100010, RK_GRF_VIRT+0x380); //1.8
+	        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
+	    } else {
+	        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
+	        return -1;
+	    }
+	} else if(cpu_is_rk3036() || cpu_is_rk312x()) {
+	} else { // rk3368
+#ifdef CONFIG_MFD_SYSCON
+	    if (voltage > 2700 && voltage < 3500) {
+	        regmap_write(mrfkill->pdata->grf, RK3368_GRF_IO_VSEL, ((1<<3)<<16)|(0<<3)); //3.3
+	        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
+	    } else if (voltage  > 1500 && voltage < 1950) {
+	        regmap_write(mrfkill->pdata->grf, RK3368_GRF_IO_VSEL, ((1<<3)<<16)|(1<<3)); //1.8
+	        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
+	    } else
+#endif
+            {
+	        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
+	        return -1;
+	    }
+	}
 
     return 0;
 }
@@ -627,12 +689,21 @@ static int wlan_platdata_parse_dt(struct device *dev,
 
     memset(data, 0, sizeof(*data));
 
+#ifdef CONFIG_MFD_SYSCON
+    data->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+    if (IS_ERR(data->grf)) {
+            LOG("can't find rockchip,grf property\n");
+            return -1;
+    }
+#endif
+
     ret = of_property_read_string(node, "wifi_chip_type", &strings);
     if (ret) {
         LOG("%s: Can not read wifi_chip_type, set default to rkwifi.\n", __func__);
         strcpy(wifi_chip_type_string, "rkwifi");
+    } else {
+        strcpy(wifi_chip_type_string, strings);
     }
-    strcpy(wifi_chip_type_string, strings);
     LOG("%s: wifi_chip_type = %s\n", __func__, wifi_chip_type_string);
 
 	if(cpu_is_rk3036() || cpu_is_rk312x()){
@@ -642,7 +713,7 @@ static int wlan_platdata_parse_dt(struct device *dev,
 			return -1;
 		}
 		data->sdio_vol = value;*/
-	}else{
+	}else {
 		ret = of_property_read_u32(node, "sdio_vref", &value);
 		if (ret < 0) {
 			LOG("%s: Can't get sdio vref.", __func__);

@@ -71,9 +71,9 @@ void free_mlme_ap_info(_adapter *padapter)
 
 	//free bc/mc sta_info
 	psta = rtw_get_bcmc_stainfo(padapter);	
-	_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		
+	//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 	rtw_free_stainfo(padapter, psta);
-	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+	//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 	
 
 	_rtw_spinlock_free(&pmlmepriv->bcn_update_lock);
@@ -405,9 +405,9 @@ void	expire_timeout_chk(_adapter *padapter)
 				
 				_exit_critical_bh(&pstapriv->auth_list_lock, &irqL);
 				
-				_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);	
+				//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 				rtw_free_stainfo(padapter, psta);
-				_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);	
+				//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 				
 				_enter_critical_bh(&pstapriv->auth_list_lock, &irqL);
 			}	
@@ -1720,7 +1720,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len)
 	if(p && ie_len>0)
 	{
 		u8 rf_type=0;
-		u8 max_rx_ampdu_factor=0;
+		u32 max_rx_ampdu_factor=0;
 		struct rtw_ieee80211_ht_cap *pht_cap = (struct rtw_ieee80211_ht_cap *)(p+2);
 
 		pHT_caps_ie=p;
@@ -2912,9 +2912,9 @@ u8 ap_free_sta(_adapter *padapter, struct sta_info *psta, bool active, u16 reaso
 
 	beacon_updated = bss_cap_update_on_sta_leave(padapter, psta);
 
-	_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);					
+	//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 	rtw_free_stainfo(padapter, psta);
-	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+	//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 	
 
 	return beacon_updated;
@@ -3244,9 +3244,9 @@ void stop_ap_mode(_adapter *padapter)
 	rtw_free_all_stainfo(padapter);
 	
 	psta = rtw_get_bcmc_stainfo(padapter);
-	_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);		
+	//_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 	rtw_free_stainfo(padapter, psta);
-	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
+	//_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 	
 	rtw_init_bcmc_stainfo(padapter);	
 

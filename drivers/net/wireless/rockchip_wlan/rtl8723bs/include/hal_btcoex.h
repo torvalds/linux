@@ -30,6 +30,7 @@ typedef struct _BT_COEXIST
 	u8 btTotalAntNum;
 	u8 btChipType;
 	u8 bInitlized;
+	u8 btAntisolation;
 } BT_COEXIST, *PBT_COEXIST;
 
 void DBG_BT_INFO(u8 *dbgmsg);
@@ -45,6 +46,7 @@ void hal_btcoex_SetSingleAntPath(PADAPTER padapter, u8 singleAntPath);
 
 u8 hal_btcoex_Initialize(PADAPTER padapter);
 void hal_btcoex_PowerOnSetting(PADAPTER padapter);
+void hal_btcoex_PreLoadFirmware(PADAPTER padapter);
 void hal_btcoex_InitHwConfig(PADAPTER padapter, u8 bWifiOnly);
 
 void hal_btcoex_IpsNotify(PADAPTER padapter, u8 type);
@@ -76,6 +78,10 @@ void hal_btcoex_SetDBG(PADAPTER, u32 *pDbgModule);
 u32 hal_btcoex_GetDBG(PADAPTER, u8 *pStrBuf, u32 bufSize);
 u8 hal_btcoex_IncreaseScanDeviceNum(PADAPTER);
 u8 hal_btcoex_IsBtLinkExist(PADAPTER);
-
+void hal_btcoex_SetAntIsolationType(PADAPTER padapter, u8 anttype);
+#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
+int hal_btcoex_AntIsolationConfig_ParaFile(IN PADAPTER	Adapter,IN char* pFileName);
+int hal_btcoex_ParseAntIsolationConfigFile(PADAPTER Adapter, char*	buffer);
+#endif // CONFIG_LOAD_PHY_PARA_FROM_FILE
 #endif // !__HAL_BTCOEX_H__
 

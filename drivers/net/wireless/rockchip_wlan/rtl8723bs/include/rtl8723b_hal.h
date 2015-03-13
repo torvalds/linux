@@ -82,14 +82,6 @@ typedef struct _RT_FIRMWARE {
 	u8			szFwBuffer[FW_8723B_SIZE];
 #endif
 	u32			ulFwLength;
-
-#ifdef CONFIG_EMBEDDED_FWIMG
-	u8*			szBTFwBuffer;
-	u8			myBTFwBuffer[FW_8723B_SIZE];
-#else
-	u8			szBTFwBuffer[FW_8723B_SIZE];
-#endif
-	u32			ulBTFwLength;
 } RT_FIRMWARE_8723B, *PRT_FIRMWARE_8723B;
 
 //
@@ -132,8 +124,14 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 #define PAGE_SIZE_TX_8723B			128
 #define PAGE_SIZE_RX_8723B			8
 
-#define RX_DMA_SIZE_8723B			0x4000	// 16K
+#define TX_DMA_SIZE_8723B			0x8000	// 32K(TX)
+#define RX_DMA_SIZE_8723B			0x4000	// 16K(RX)
+
+#ifdef CONFIG_FW_C2H_DEBUG 
+#define RX_DMA_RESERVED_SIZE_8723B	0x100	// 256B, reserved for c2h debug message
+#else
 #define RX_DMA_RESERVED_SIZE_8723B	0x80	// 128B, reserved for tx report
+#endif
 #define RX_DMA_BOUNDARY_8723B		(RX_DMA_SIZE_8723B - RX_DMA_RESERVED_SIZE_8723B - 1)
 
 
@@ -152,7 +150,6 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 #undef BCNQ1_PAGE_NUM_8723B
 #define BCNQ1_PAGE_NUM_8723B		0x00 // 0x04
 #endif
-#define MAX_RX_DMA_BUFFER_SIZE_8723B	0x2800	// RX 10K
 
 //For WoWLan , more reserved page
 //ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, PNO: 6
@@ -164,7 +161,7 @@ typedef struct _RT_8723B_FIRMWARE_HDR
 
 #ifdef CONFIG_PNO_SUPPORT
 #undef WOWLAN_PAGE_NUM_8723B
-#define WOWLAN_PAGE_NUM_8723B	0x0d
+#define WOWLAN_PAGE_NUM_8723B	0x15
 #endif
 
 #ifdef CONFIG_AP_WOWLAN
@@ -231,6 +228,10 @@ typedef enum _C2H_EVT
 	C2H_8723B_BT_INFO = 9,
 	C2H_HW_INFO_EXCH = 10,
 	C2H_8723B_BT_MP_INFO = 11,
+	C2H_8723B_P2P_RPORT = 0x16,
+#ifdef CONFIG_FW_C2H_DEBUG
+	C2H_8723B_FW_DEBUG = 0xff,
+#endif //CONFIG_FW_C2H_DEBUG
 	MAX_C2HEVENT
 } C2H_EVT;
 
@@ -284,13 +285,16 @@ VOID Hal_EfuseParsePackageType_8723B(PADAPTER pAdapter,u8* hwinfo,BOOLEAN AutoLo
 VOID Hal_EfuseParseVoltage_8723B(PADAPTER pAdapter,u8* hwinfo,BOOLEAN 	AutoLoadFail); 
 
 #ifdef CONFIG_C2H_PACKET_EN
-void C2HPacketHandler_8723B(PADAPTER padapter, u8 *pbuffer, u16 length);
+void rtl8723b_c2h_packet_handler(PADAPTER padapter, u8 *pbuf, u16 length);
 #endif
 
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc);
 void SetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
+#ifdef CONFIG_C2H_PACKET_EN
+void SetHwRegWithBuf8723B(PADAPTER padapter, u8 variable, u8 *pbuf, int len);
+#endif // CONFIG_C2H_PACKET_EN
 u8 SetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
 u8 GetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
 
@@ -313,13 +317,12 @@ void rtl8723bs_cancle_checkbthang_workqueue(_adapter * adapter);
 void rtl8723bs_hal_check_bt_hang(_adapter * adapter);
 #endif
 
-#ifdef CONFIG_GPIO_WAKEUP
-void HalSetOutPutGPIO(PADAPTER padapter, u8 index, u8 OutPutValue);
-#endif
-
 int FirmwareDownloadBT(IN PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 
 void CCX_FwC2HTxRpt_8723b(PADAPTER padapter, u8 *pdata, u8 len);
+#ifdef CONFIG_FW_C2H_DEBUG
+void Debug_FwC2H_8723b(PADAPTER padapter, u8 *pdata, u8 len);
+#endif //CONFIG_FW_C2H_DEBUG
 s32 c2h_id_filter_ccx_8723b(u8 *buf);
 s32 c2h_handler_8723b(PADAPTER padapter, u8 *pC2hEvent);
 u8 MRateToHwRate8723B(u8  rate);

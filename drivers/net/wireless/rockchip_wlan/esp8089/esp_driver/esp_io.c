@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2009 - 2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *   IO interface 
  *    - sdio/spi common i/f driver
  *    - target sdio hal
@@ -163,7 +167,7 @@ int sif_read_reg_window(struct esp_pub *epub, unsigned int reg_addr, u8 *value)
 
 	p_tbuf[0] = 0x80 | (reg_addr & 0x1f);
 
-	ret = esp_common_write_with_addr(epub, SLC_HOST_WIN_CMD, p_tbuf, 1, ESP_SIF_NOSYNC);
+	ret = esp_common_write_with_addr(epub, SLC_HOST_WIN_CMD, p_tbuf, 4, ESP_SIF_NOSYNC);
 
 	if(ret == 0)
 	{
@@ -197,7 +201,7 @@ int sif_write_reg_window(struct esp_pub *epub, unsigned int reg_addr,u8 *value)
     	memcpy(p_tbuf,value,4);
     	p_tbuf[4] = 0xc0 |(reg_addr & 0x1f);
 
-    	ret = esp_common_write_with_addr(epub, SLC_HOST_CONF_W5, p_tbuf, 5, ESP_SIF_NOSYNC);
+    	ret = esp_common_write_with_addr(epub, SLC_HOST_CONF_W5, p_tbuf, 8, ESP_SIF_NOSYNC);
 
 	kfree(p_tbuf);
     	return ret;
@@ -216,7 +220,7 @@ int sif_ack_target_read_err(struct esp_pub *epub)
 	return ret;
 }
 
-int sif_had_io_enable(struct esp_pub *epub)
+int sif_hda_io_enable(struct esp_pub *epub)
 {
         u32 *p_tbuf = NULL;
 	int ret;
@@ -232,13 +236,13 @@ int sif_had_io_enable(struct esp_pub *epub)
 		goto _err;
 	
 	*p_tbuf = 0x30;
-	ret = esp_common_write_with_addr((epub), SLC_HOST_CONF_W4 + 1, (u8 *)p_tbuf, 1,  ESP_SIF_NOSYNC);
+	ret = esp_common_writebyte_with_addr((epub), SLC_HOST_CONF_W4 + 1, (u8)*p_tbuf,  ESP_SIF_NOSYNC);
 
 	if(ret)
 		goto _err;
 	//set w3 0
 	*p_tbuf = 0x1;
-	ret = esp_common_write_with_addr((epub), SLC_HOST_CONF_W3, (u8 *)p_tbuf, 1,  ESP_SIF_NOSYNC);
+	ret = esp_common_writebyte_with_addr((epub), SLC_HOST_CONF_W3, (u8)*p_tbuf,  ESP_SIF_NOSYNC);
 
 _err:
 	kfree(p_tbuf);
@@ -648,4 +652,28 @@ int sif_get_wakeup_gpio_config(void)
 	return wakeup_gpio;
 }
 
+#ifdef ESP_CLASS
+static int fcc_mode  = 0;
+void sif_record_fccmode(int value)
+{
+	fcc_mode = value;
+}
 
+int sif_get_fccmode(void)
+{
+	return fcc_mode;
+}
+#endif
+
+#if (defined(CONFIG_DEBUG_FS) && defined(DEBUGFS_BOOTMODE)) || defined(ESP_CLASS)
+static int esp_run = 0;
+void sif_record_esp_run(int value)
+{
+	esp_run = value;
+}
+
+int sif_get_esp_run(void)
+{
+	return esp_run;
+}
+#endif

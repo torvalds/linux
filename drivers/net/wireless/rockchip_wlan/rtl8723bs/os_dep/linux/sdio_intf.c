@@ -26,6 +26,15 @@
 #error "CONFIG_SDIO_HCI shall be on!\n"
 #endif
 
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+#ifdef CONFIG_ACPI
+#include <linux/acpi.h>
+#include <linux/acpi_gpio.h>
+#include "rtw_android.h"
+#endif
+static int wlan_en_gpio = -1;
+#endif //CONFIG_PLATFORM_INTEL_BYT
+
 #ifndef dev_to_sdio_func
 #define dev_to_sdio_func(d)     container_of(d, struct sdio_func, dev)
 #endif
@@ -45,20 +54,28 @@ static const struct sdio_device_id sdio_ids[] =
 #ifdef CONFIG_RTL8188E
 	{ SDIO_DEVICE(0x024c, 0x8179),.driver_data = RTL8188E},
 #endif //CONFIG_RTL8188E
+
 #ifdef CONFIG_RTL8821A
 	{ SDIO_DEVICE(0x024c, 0x8821),.driver_data = RTL8821},
-#endif //CONFIG_RTL8188E
+#endif //CONFIG_RTL8821A
+
+#ifdef CONFIG_RTL8192E
+	{ SDIO_DEVICE(0x024c, 0x818B),.driver_data = RTL8192E},
+#endif //CONFIG_RTL8192E
 
 #if defined(RTW_ENABLE_WIFI_CONTROL_FUNC) /* temporarily add this to accept all sdio wlan id */
 	{ SDIO_DEVICE_CLASS(SDIO_CLASS_WLAN) },
 #endif
-//	{ /* end: all zeroes */				},
+	{ /* end: all zeroes */				},
 };
+
+MODULE_DEVICE_TABLE(sdio, sdio_ids);
 
 static int rtw_drv_init(struct sdio_func *func, const struct sdio_device_id *id);
 static void rtw_dev_remove(struct sdio_func *func);
 static int rtw_sdio_resume(struct device *dev);
 static int rtw_sdio_suspend(struct device *dev);
+extern void rtw_dev_unload(PADAPTER padapter);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)) 
 static const struct dev_pm_ops rtw_sdio_pm_ops = {
@@ -87,7 +104,6 @@ static struct sdio_drv_priv sdio_drvpriv = {
 static void sd_sync_int_hdl(struct sdio_func *func)
 {
 	struct dvobj_priv *psdpriv;
-
 
 	psdpriv = sdio_get_drvdata(func);
 
@@ -157,6 +173,7 @@ void sdio_free_irq(struct dvobj_priv *dvobj)
 
 #ifdef CONFIG_GPIO_WAKEUP
 extern unsigned int oob_irq;
+extern unsigned int oob_gpio;
 static irqreturn_t gpio_hostwakeup_irq_thread(int irq, void *data)
 {
 	PADAPTER padapter = (PADAPTER)data;
@@ -178,6 +195,9 @@ static u8 gpio_hostwakeup_alloc_irq(PADAPTER padapter)
 		DBG_871X("oob_irq ZERO!\n");
 		return _FAIL;
 	}
+
+	DBG_871X("%s : oob_irq = %d\n", __func__, oob_irq);
+	
 	/* dont set it IRQF_TRIGGER_LOW, or wowlan */
 	/* power is high after suspend */
 	/* and failing can prevent can not sleep issue if */
@@ -201,6 +221,8 @@ static u8 gpio_hostwakeup_alloc_irq(PADAPTER padapter)
 
 static void gpio_hostwakeup_free_irq(PADAPTER padapter)
 {
+	wifi_free_gpio(oob_gpio);
+
 	if (oob_irq == 0)
 		return;
 		
@@ -364,6 +386,15 @@ static void rtw_decide_chip_type_by_device_id(PADAPTER padapter, const struct sd
 		DBG_871X("CHIP TYPE: RTL8821A\n");
 	}
 #endif
+
+#if defined(CONFIG_RTL8192E)
+	if (padapter->chip_type == RTL8192E) {
+		padapter->HardwareType = HARDWARE_TYPE_RTL8192E;
+		DBG_871X("CHIP TYPE: RTL8192E\n");
+	}
+#endif
+
+
 }
 
 void rtw_set_hal_ops(PADAPTER padapter)
@@ -391,6 +422,13 @@ void rtw_set_hal_ops(PADAPTER padapter)
 		rtl8821as_set_hal_ops(padapter);
 	}
 #endif
+
+#if defined(CONFIG_RTL8192E)
+	if(padapter->chip_type == RTL8192E){
+		rtl8192es_set_hal_ops(padapter);
+	}
+#endif
+
 }
 
 static void sd_intf_start(PADAPTER padapter)
@@ -620,6 +658,43 @@ static int rtw_drv_init(
 	PADAPTER if1 = NULL, if2 = NULL;
 	struct dvobj_priv *dvobj;
 
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+
+#ifdef CONFIG_ACPI
+        acpi_handle handle;
+        struct acpi_device *adev;
+#endif
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_GPIO_WAKEUP)
+	handle = ACPI_HANDLE(&func->dev);
+
+	if (handle) {
+		/* Dont try to do acpi pm for the wifi module */
+		if (!handle || acpi_bus_get_device(handle, &adev))
+			DBG_871X("Could not get acpi pointer!\n");
+		else {
+			adev->flags.power_manageable = 0;
+			DBG_871X("Disabling ACPI power management support!\n");
+		}
+		oob_gpio = acpi_get_gpio_by_index(&func->dev, 0, NULL);
+		DBG_871X("rtw_drv_init: ACPI_HANDLE found oob_gpio %d!\n", oob_gpio);
+		wifi_configure_gpio();
+	}
+	else
+		DBG_871X("rtw_drv_init: ACPI_HANDLE NOT found!\n");
+#endif
+
+#if defined(CONFIG_ACPI)
+	if (&func->dev && ACPI_HANDLE(&func->dev)) {
+		wlan_en_gpio = acpi_get_gpio_by_index(&func->dev, 1, NULL);
+		DBG_871X("rtw_drv_init: ACPI_HANDLE found wlan_en %d!\n", wlan_en_gpio);
+	}
+	else
+		DBG_871X("rtw_drv_init: ACPI_HANDLE NOT found!\n");
+#endif
+#endif //CONFIG_PLATFORM_INTEL_BYT
+
+
 	RT_TRACE(_module_hci_intfs_c_, _drv_info_,
 		("+rtw_drv_init: vendor=0x%04x device=0x%04x class=0x%02x\n",
 		func->vendor, func->device, func->class));
@@ -845,7 +920,11 @@ static int rtw_sdio_resume(struct device *dev)
 	}
 	else
 	{
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+		if(0)
+#else
 		if(pwrpriv->wowlan_mode || pwrpriv->wowlan_ap_mode)
+#endif
 		{
 			rtw_resume_lock_suspend();			
 			ret = rtw_resume_process(padapter);
@@ -876,7 +955,7 @@ static int rtw_sdio_resume(struct device *dev)
 
 }
 
-static int rtw_drv_entry(void)
+static int  rtw_drv_entry(void)
 {
 	int ret = 0;
 
@@ -910,8 +989,9 @@ static int rtw_drv_entry(void)
 		goto poweroff;
 	}
 
+#ifndef CONFIG_PLATFORM_INTEL_BYT
 	rtw_android_wifictrl_func_add();
-
+#endif //!CONFIG_PLATFORM_INTEL_BYT
 	goto exit;
 
 poweroff:
@@ -922,7 +1002,7 @@ exit:
 	return ret;
 }
 
-static void rtw_drv_halt(void)
+static void  rtw_drv_halt(void)
 {
 	DBG_871X_LEVEL(_drv_always_, "module exit start\n");
 
@@ -943,10 +1023,28 @@ static void rtw_drv_halt(void)
 	rtw_mstat_dump(RTW_DBGDUMP);
 }
 
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+int rtw_sdio_set_power(int on)
+{
+
+	if(wlan_en_gpio >= 0){
+		if(on)
+			gpio_set_value(wlan_en_gpio,1);
+		else
+			gpio_set_value(wlan_en_gpio,0);
+	}
+
+	return 0;
+}
+#endif //CONFIG_PLATFORM_INTEL_BYT
+
 #include "wifi_version.h"
 
 extern int rockchip_wifi_power(int on);
 extern int rockchip_wifi_set_carddetect(int val);
+
+
+
 
 int rockchip_wifi_init_module_rtkwifi(void)
 {
@@ -957,7 +1055,7 @@ int rockchip_wifi_init_module_rtkwifi(void)
     printk("Realtek 8723BS SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", RTL8723BS_DRV_VERSION);
 
     rockchip_wifi_power(1);
-    rockchip_wifi_set_carddetect(1);    
+    rockchip_wifi_set_carddetect(1);
     return rtw_drv_entry();
 }
 
@@ -975,8 +1073,13 @@ void rockchip_wifi_exit_module_rtkwifi(void)
     rockchip_wifi_power(0);
 }
 
+#ifdef CONFIG_RTL8723BS
 EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
 EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
+#else
+module_init(rockchip_wifi_init_module_rtkwifi);
+module_exit(rockchip_wifi_exit_module_rtkwifi);
+#endif
 //module_init(rtw_drv_entry);
 //module_exit(rtw_drv_halt);
 

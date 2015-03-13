@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: siutils_priv.h 385510 2013-02-15 21:02:07Z $
+ * $Id: siutils_priv.h 474902 2014-05-02 18:31:33Z $
  */
 
 #ifndef	_siutils_priv_h_
@@ -33,6 +33,35 @@ typedef struct gpioh_item {
 	struct gpioh_item	*next;
 } gpioh_item_t;
 
+
+#define SI_GPIO_MAX		16
+
+typedef struct gci_gpio_item {
+	void			*arg;
+	uint8			gci_gpio;
+	uint8			status;
+	gci_gpio_handler_t	handler;
+	struct gci_gpio_item	*next;
+} gci_gpio_item_t;
+
+
+typedef struct si_cores_info {
+	void	*regs[SI_MAXCORES];	/* other regs va */
+
+	uint	coreid[SI_MAXCORES];	/* id of each core */
+	uint32	coresba[SI_MAXCORES];	/* backplane address of each core */
+	void	*regs2[SI_MAXCORES];	/* va of each core second register set (usbh20) */
+	uint32	coresba2[SI_MAXCORES];	/* address of each core second register set (usbh20) */
+	uint32	coresba_size[SI_MAXCORES]; /* backplane address space size */
+	uint32	coresba2_size[SI_MAXCORES]; /* second address space size */
+
+	void	*wrappers[SI_MAXCORES];	/* other cores wrapper va */
+	uint32	wrapba[SI_MAXCORES];	/* address of controlling wrapper */
+
+	uint32	cia[SI_MAXCORES];	/* erom cia entry for each core */
+	uint32	cib[SI_MAXCORES];	/* erom cia entry for each core */
+} si_cores_info_t;
+
 /* misc si info needed by some of the routines */
 typedef struct si_info {
 	struct si_pub pub;		/* back plane public state (must be first field) */
@@ -56,27 +85,21 @@ typedef struct si_info {
 	uint varsz;
 
 	void	*curmap;		/* current regs va */
-	void	*regs[SI_MAXCORES];	/* other regs va */
 
 	uint	curidx;			/* current core index */
 	uint	numcores;		/* # discovered cores */
-	uint	coreid[SI_MAXCORES];	/* id of each core */
-	uint32	coresba[SI_MAXCORES];	/* backplane address of each core */
-	void	*regs2[SI_MAXCORES];	/* va of each core second register set (usbh20) */
-	uint32	coresba2[SI_MAXCORES];	/* address of each core second register set (usbh20) */
-	uint32	coresba_size[SI_MAXCORES]; /* backplane address space size */
-	uint32	coresba2_size[SI_MAXCORES]; /* second address space size */
 
 	void	*curwrap;		/* current wrapper va */
-	void	*wrappers[SI_MAXCORES];	/* other cores wrapper va */
-	uint32	wrapba[SI_MAXCORES];	/* address of controlling wrapper */
 
-	uint32	cia[SI_MAXCORES];	/* erom cia entry for each core */
-	uint32	cib[SI_MAXCORES];	/* erom cia entry for each core */
 	uint32	oob_router;		/* oob router registers for axi */
+
+	void *cores_info;
+	gci_gpio_item_t	*gci_gpio_head;	/* gci gpio interrupts head */
+	uint	chipnew;		/* new chip number */
 } si_info_t;
 
-#define	SI_INFO(sih)	(si_info_t *)(uintptr)sih
+
+#define	SI_INFO(sih)	((si_info_t *)(uintptr)sih)
 
 #define	GOODCOREADDR(x, b) (((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \
 		ISALIGNED((x), SI_CORE_SIZE))
@@ -111,10 +134,10 @@ typedef struct si_info {
  * after core switching to avoid invalid register accesss inside ISR.
  */
 #define INTR_OFF(si, intr_val) \
-	if ((si)->intrsoff_fn && (si)->coreid[(si)->curidx] == (si)->dev_coreid) {	\
+	if ((si)->intrsoff_fn && (cores_info)->coreid[(si)->curidx] == (si)->dev_coreid) {	\
 		intr_val = (*(si)->intrsoff_fn)((si)->intr_arg); }
 #define INTR_RESTORE(si, intr_val) \
-	if ((si)->intrsrestore_fn && (si)->coreid[(si)->curidx] == (si)->dev_coreid) {	\
+	if ((si)->intrsrestore_fn && (cores_info)->coreid[(si)->curidx] == (si)->dev_coreid) {	\
 		(*(si)->intrsrestore_fn)((si)->intr_arg, intr_val); }
 
 /* dynamic clock control defines */
@@ -152,6 +175,7 @@ extern void sb_setint(si_t *sih, int siflag);
 extern uint sb_corevendor(si_t *sih);
 extern uint sb_corerev(si_t *sih);
 extern uint sb_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val);
+extern uint32 *sb_corereg_addr(si_t *sih, uint coreidx, uint regoff);
 extern bool sb_iscoreup(si_t *sih);
 extern void *sb_setcoreidx(si_t *sih, uint coreidx);
 extern uint32 sb_core_cflags(si_t *sih, uint32 mask, uint32 val);
@@ -170,6 +194,9 @@ extern uint32 sb_set_initiator_to(si_t *sih, uint32 to, uint idx);
 
 extern bool sb_taclear(si_t *sih, bool details);
 
+#if defined(BCMDBG_PHYDUMP)
+extern void sb_dumpregs(si_t *sih, struct bcmstrbuf *b);
+#endif 
 
 /* Wake-on-wireless-LAN (WOWL) */
 extern bool sb_pci_pmecap(si_t *sih);
@@ -191,6 +218,7 @@ extern void ai_setint(si_t *sih, int siflag);
 extern uint ai_coreidx(si_t *sih);
 extern uint ai_corevendor(si_t *sih);
 extern uint ai_corerev(si_t *sih);
+extern uint32 *ai_corereg_addr(si_t *sih, uint coreidx, uint regoff);
 extern bool ai_iscoreup(si_t *sih);
 extern void *ai_setcoreidx(si_t *sih, uint coreidx);
 extern uint32 ai_core_cflags(si_t *sih, uint32 mask, uint32 val);
@@ -198,13 +226,20 @@ extern void ai_core_cflags_wo(si_t *sih, uint32 mask, uint32 val);
 extern uint32 ai_core_sflags(si_t *sih, uint32 mask, uint32 val);
 extern uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val);
 extern void ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
+extern void ai_d11rsdb_core_reset(si_t *sih, uint32 bits,
+	uint32 resetbits, void *p, void *s);
 extern void ai_core_disable(si_t *sih, uint32 bits);
+extern void ai_d11rsdb_core_disable(const si_info_t *sii, uint32 bits,
+	aidmp_t *pmacai, aidmp_t *smacai);
 extern int ai_numaddrspaces(si_t *sih);
 extern uint32 ai_addrspace(si_t *sih, uint asidx);
 extern uint32 ai_addrspacesize(si_t *sih, uint asidx);
 extern void ai_coreaddrspaceX(si_t *sih, uint asidx, uint32 *addr, uint32 *size);
 extern uint ai_wrap_reg(si_t *sih, uint32 offset, uint32 mask, uint32 val);
 
+#if defined(BCMDBG_PHYDUMP)
+extern void ai_dumpregs(si_t *sih, struct bcmstrbuf *b);
+#endif 
 
 
 #define ub_scan(a, b, c) do {} while (0)
