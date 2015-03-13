@@ -104,7 +104,8 @@ static int i2c_opal_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		req.buffer_ra = cpu_to_be64(__pa(msgs[0].buf));
 		break;
 	case 2:
-		req.type = OPAL_I2C_SM_READ;
+		req.type = (msgs[1].flags & I2C_M_RD) ?
+			OPAL_I2C_SM_READ : OPAL_I2C_SM_WRITE;
 		req.addr = cpu_to_be16(msgs[0].addr);
 		req.subaddr_sz = msgs[0].len;
 		for (i = 0; i < msgs[0].len; i++)
@@ -199,13 +200,12 @@ static const struct i2c_algorithm i2c_opal_algo = {
 	.functionality	= i2c_opal_func,
 };
 
-/* For two messages, we basically support only simple
- * smbus transactions of a write plus a read. We might
- * want to allow also two writes but we'd have to bounce
- * the data into a single buffer.
+/*
+ * For two messages, we basically support simple smbus transactions of a
+ * write-then-anything.
  */
 static struct i2c_adapter_quirks i2c_opal_quirks = {
-	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
+	.flags = I2C_AQ_COMB | I2C_AQ_COMB_WRITE_FIRST | I2C_AQ_COMB_SAME_ADDR,
 	.max_comb_1st_msg_len = 4,
 };
 
