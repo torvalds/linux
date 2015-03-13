@@ -111,7 +111,7 @@ enum ath5k_debug_level {
 	ATH5K_DEBUG_ANY		= 0xffffffff
 };
 
-#ifdef CONFIG_ATH5K_DEBUG
+#ifdef CONFIG_BACKPORT_ATH5K_DEBUG
 
 #define ATH5K_DBG(_sc, _m, _fmt, ...) do { \
 	if (unlikely((_sc)->debug.level & (_m) && net_ratelimit())) \
@@ -160,6 +160,6 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah) {}
 static inline void
 ath5k_debug_printtxbuf(struct ath5k_hw *ah, struct ath5k_buf *bf) {}
 
-#endif /* ifdef CONFIG_ATH5K_DEBUG */
+#endif /* ifdef CONFIG_BACKPORT_ATH5K_DEBUG */
 
 #endif /* ifndef _ATH5K_DEBUG_H */

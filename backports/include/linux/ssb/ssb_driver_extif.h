@@ -157,7 +157,7 @@
 					 / (SSB_EXTIF_WATCHDOG_CLK / 1000))
 
 
-#ifdef CONFIG_SSB_DRIVER_EXTIF
+#ifdef CONFIG_BACKPORT_SSB_DRIVER_EXTIF
 
 struct ssb_extif {
 	struct ssb_device *dev;
@@ -184,13 +184,13 @@ u32 ssb_extif_gpio_outen(struct ssb_extif *extif, u32 mask, u32 value);
 u32 ssb_extif_gpio_polarity(struct ssb_extif *extif, u32 mask, u32 value);
 u32 ssb_extif_gpio_intmask(struct ssb_extif *extif, u32 mask, u32 value);
 
-#ifdef CONFIG_SSB_SERIAL
+#ifdef CONFIG_BACKPORT_SSB_SERIAL
 extern int ssb_extif_serial_init(struct ssb_extif *extif,
 				 struct ssb_serial_port *ports);
-#endif /* CONFIG_SSB_SERIAL */
+#endif /* CONFIG_BACKPORT_SSB_SERIAL */
 
 
-#else /* CONFIG_SSB_DRIVER_EXTIF */
+#else /* CONFIG_BACKPORT_SSB_DRIVER_EXTIF */
 /* extif disabled */
 
 struct ssb_extif {
@@ -247,13 +247,13 @@ static inline u32 ssb_extif_gpio_intmask(struct ssb_extif *extif, u32 mask,
 	return 0;
 }
 
-#ifdef CONFIG_SSB_SERIAL
+#ifdef CONFIG_BACKPORT_SSB_SERIAL
 static inline int ssb_extif_serial_init(struct ssb_extif *extif,
 					struct ssb_serial_port *ports)
 {
 	return 0;
 }
-#endif /* CONFIG_SSB_SERIAL */
+#endif /* CONFIG_BACKPORT_SSB_SERIAL */
 
-#endif /* CONFIG_SSB_DRIVER_EXTIF */
+#endif /* CONFIG_BACKPORT_SSB_DRIVER_EXTIF */
 #endif /* LINUX_SSB_EXTIFCORE_H_ */

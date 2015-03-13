@@ -55,13 +55,13 @@ MODULE_DESCRIPTION("A driver for the Zoltrix Radio Plus.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1.99");
 
-#ifndef CONFIG_RADIO_ZOLTRIX_PORT
-#define CONFIG_RADIO_ZOLTRIX_PORT -1
+#ifndef CONFIG_BACKPORT_RADIO_ZOLTRIX_PORT
+#define CONFIG_BACKPORT_RADIO_ZOLTRIX_PORT -1
 #endif
 
 #define ZOLTRIX_MAX 2
 
-static int io[ZOLTRIX_MAX] = { [0] = CONFIG_RADIO_ZOLTRIX_PORT,
+static int io[ZOLTRIX_MAX] = { [0] = CONFIG_BACKPORT_RADIO_ZOLTRIX_PORT,
 			       [1 ... (ZOLTRIX_MAX - 1)] = -1 };
 static int radio_nr[ZOLTRIX_MAX] = { [0 ... (ZOLTRIX_MAX - 1)] = -1 };
 

@@ -87,7 +87,7 @@ struct il3945_rs_sta {
 	u8 start_rate;
 	struct timer_list rate_scale_flush;
 	struct il3945_rate_scale_data win[RATE_COUNT_3945];
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_stats_table_file;
 #endif
 
@@ -586,7 +586,7 @@ struct il3945_tfd {
 	u8 __pad[28];
 } __packed;
 
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUGFS
 extern const struct il_debugfs_ops il3945_debugfs_ops;
 #endif
 

@@ -141,7 +141,7 @@ struct stb0899_config {
 	int (*tuner_set_rfsiggain)(struct dvb_frontend *fe, u32 rf_gain);
 };
 
-#if IS_ENABLED(CONFIG_DVB_STB0899)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_STB0899)
 
 extern struct dvb_frontend *stb0899_attach(struct stb0899_config *config,
 					   struct i2c_adapter *i2c);
@@ -155,7 +155,7 @@ static inline struct dvb_frontend *stb0899_attach(struct stb0899_config *config,
 	return NULL;
 }
 
-#endif //CONFIG_DVB_STB0899
+#endif //CONFIG_BACKPORT_DVB_STB0899
 
 
 #endif

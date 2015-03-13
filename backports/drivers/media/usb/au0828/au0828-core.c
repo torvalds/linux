@@ -135,7 +135,7 @@ static void au0828_usb_release(struct au0828_dev *dev)
 	kfree(dev);
 }
 
-#ifdef CONFIG_VIDEO_AU0828_V4L2
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_V4L2
 static void au0828_usb_v4l2_release(struct v4l2_device *v4l2_dev)
 {
 	struct au0828_dev *dev =
@@ -169,7 +169,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	mutex_lock(&dev->mutex);
 	dev->usbdev = NULL;
 	mutex_unlock(&dev->mutex);
-#ifdef CONFIG_VIDEO_AU0828_V4L2
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_V4L2
 	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED) {
 		au0828_analog_unregister(dev);
 		v4l2_device_disconnect(&dev->v4l2_dev);
@@ -223,7 +223,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	dev->usbdev = usbdev;
 	dev->boardnr = id->driver_info;
 
-#ifdef CONFIG_VIDEO_AU0828_V4L2
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_V4L2
 	dev->v4l2_dev.release = au0828_usb_v4l2_release;
 
 	/* Create the v4l2_device */
@@ -259,7 +259,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	/* Setup */
 	au0828_card_setup(dev);
 
-#ifdef CONFIG_VIDEO_AU0828_V4L2
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_V4L2
 	/* Analog TV */
 	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED)
 		au0828_analog_register(dev, interface);

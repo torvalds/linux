@@ -207,7 +207,7 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_addr);
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 {
 	static const unsigned short radio_addrs[] = {
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_TEA5761)
+#if IS_ENABLED(CONFIG_BACKPORT_MEDIA_TUNER_TEA5761)
 		0x10,
 #endif
 		0x60,

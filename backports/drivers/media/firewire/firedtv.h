@@ -155,7 +155,7 @@ int fdtv_start_iso(struct firedtv *fdtv);
 void fdtv_stop_iso(struct firedtv *fdtv);
 
 /* firedtv-rc.c */
-#ifdef CONFIG_DVB_FIREDTV_INPUT
+#ifdef CONFIG_BACKPORT_DVB_FIREDTV_INPUT
 int fdtv_register_rc(struct firedtv *fdtv, struct device *dev);
 void fdtv_unregister_rc(struct firedtv *fdtv);
 void fdtv_handle_rc(struct firedtv *fdtv, unsigned int code);

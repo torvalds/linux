@@ -41,7 +41,7 @@ struct ves1820_config
 	u8 selagc:1;
 };
 
-#if IS_ENABLED(CONFIG_DVB_VES1820)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_VES1820)
 extern struct dvb_frontend* ves1820_attach(const struct ves1820_config* config,
 					   struct i2c_adapter* i2c, u8 pwm);
 #else
@@ -51,6 +51,6 @@ static inline struct dvb_frontend* ves1820_attach(const struct ves1820_config* c
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_VES1820
+#endif // CONFIG_BACKPORT_DVB_VES1820
 
 #endif // VES1820_H

@@ -330,7 +330,7 @@ static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += 8;
 
 	if (ccmp_replay_check(pn, key->rx_pn)) {
-#ifdef CONFIG_LIB80211_DEBUG
+#ifdef CONFIG_BACKPORT_LIB80211_DEBUG
 		net_dbg_ratelimited("CCMP: replay detected: STA=%pM previous PN %02x%02x%02x%02x%02x%02x received PN %02x%02x%02x%02x%02x%02x\n",
 				    hdr->addr2,
 				    key->rx_pn[0], key->rx_pn[1], key->rx_pn[2],

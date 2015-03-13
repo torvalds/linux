@@ -310,7 +310,7 @@ u32 bcma_chipco_gpio_pulldown(struct bcma_drv_cc *cc, u32 mask, u32 value)
 	return res;
 }
 
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BACKPORT_BCMA_DRIVER_MIPS
 void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 {
 	unsigned int irq;
@@ -355,4 +355,4 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 		ports[i].reg_shift = 0;
 	}
 }
-#endif /* CONFIG_BCMA_DRIVER_MIPS */
+#endif /* CONFIG_BACKPORT_BCMA_DRIVER_MIPS */

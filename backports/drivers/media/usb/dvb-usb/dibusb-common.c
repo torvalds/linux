@@ -242,7 +242,7 @@ static struct dibx000_agc_config dib3000p_panasonic_agc_config = {
 	.agc2_slope2 = 0x1e,
 };
 
-#if IS_ENABLED(CONFIG_DVB_DIB3000MC)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_DIB3000MC)
 
 static struct dib3000mc_config mod3000p_dib3000p_config = {
 	&dib3000p_panasonic_agc_config,

@@ -650,10 +650,10 @@ u32 ssb_chipco_gpio_polarity(struct ssb_chipcommon *cc, u32 mask, u32 value);
 u32 ssb_chipco_gpio_pullup(struct ssb_chipcommon *cc, u32 mask, u32 value);
 u32 ssb_chipco_gpio_pulldown(struct ssb_chipcommon *cc, u32 mask, u32 value);
 
-#ifdef CONFIG_SSB_SERIAL
+#ifdef CONFIG_BACKPORT_SSB_SERIAL
 extern int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 				  struct ssb_serial_port *ports);
-#endif /* CONFIG_SSB_SERIAL */
+#endif /* CONFIG_BACKPORT_SSB_SERIAL */
 
 /* PMU support */
 extern void ssb_pmu_init(struct ssb_chipcommon *cc);

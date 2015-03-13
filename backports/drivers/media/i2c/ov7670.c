@@ -1449,7 +1449,7 @@ static const struct v4l2_ctrl_ops ov7670_ctrl_ops = {
 	.g_volatile_ctrl = ov7670_g_volatile_ctrl,
 };
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int ov7670_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	unsigned char val = 0;
@@ -1473,7 +1473,7 @@ static int ov7670_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regis
 static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 	.reset = ov7670_reset,
 	.init = ov7670_init,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = ov7670_g_register,
 	.s_register = ov7670_s_register,
 #endif

@@ -548,7 +548,7 @@ static int mt9m032_s_stream(struct v4l2_subdev *subdev, int streaming)
  * V4L2 subdev core operations
  */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int mt9m032_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
 {
@@ -673,7 +673,7 @@ static struct v4l2_ctrl_ops mt9m032_ctrl_ops = {
 /* -------------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops mt9m032_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = mt9m032_g_register,
 	.s_register = mt9m032_s_register,
 #endif

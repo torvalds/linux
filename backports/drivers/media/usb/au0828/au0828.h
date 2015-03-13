@@ -211,12 +211,12 @@ struct au0828_dev {
 	struct au0828_dvb		dvb;
 	struct work_struct              restart_streaming;
 
-#ifdef CONFIG_VIDEO_AU0828_V4L2
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_V4L2
 	/* Analog */
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler v4l2_ctrl_hdl;
 #endif
-#ifdef CONFIG_VIDEO_AU0828_RC
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_RC
 	struct au0828_rc *ir;
 #endif
 
@@ -313,7 +313,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 			   struct usb_interface *interface);
 int au0828_analog_stream_disable(struct au0828_dev *d);
 void au0828_analog_unregister(struct au0828_dev *dev);
-#ifdef CONFIG_VIDEO_AU0828_V4L2
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_V4L2
 void au0828_v4l2_suspend(struct au0828_dev *dev);
 void au0828_v4l2_resume(struct au0828_dev *dev);
 #else
@@ -337,7 +337,7 @@ extern struct videobuf_queue_ops au0828_vbi_qops;
 	} while (0)
 
 /* au0828-input.c */
-#ifdef CONFIG_VIDEO_AU0828_RC
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_RC
 extern int au0828_rc_register(struct au0828_dev *dev);
 extern void au0828_rc_unregister(struct au0828_dev *dev);
 extern int au0828_rc_suspend(struct au0828_dev *dev);

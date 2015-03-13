@@ -204,7 +204,7 @@ struct b43_phy {
 	/* Most hardware context information is stored in the standard-
 	 * specific data structures pointed to by the pointers below.
 	 * Only one of them is valid (the currently enabled PHY). */
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_BACKPORT_B43_DEBUG
 	/* No union for debug build to force NULL derefs in buggy code. */
 	struct {
 #else
@@ -270,7 +270,7 @@ struct b43_phy {
 	/* PHY TX errors counter. */
 	atomic_t txerr_cnt;
 
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_BACKPORT_B43_DEBUG
 	/* PHY registers locked (w.r.t. firmware) */
 	bool phy_locked;
 	/* Radio registers locked (w.r.t. firmware) */

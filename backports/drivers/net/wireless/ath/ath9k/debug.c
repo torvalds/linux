@@ -81,7 +81,7 @@ static int ath9k_debugfs_release_buf(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_ATH_DEBUG
+#ifdef CONFIG_BACKPORT_ATH_DEBUG
 
 static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -225,7 +225,7 @@ static const struct file_operations fops_ani = {
 	.llseek = default_llseek,
 };
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 
 static ssize_t read_file_bt_ant_diversity(struct file *file,
 					  char __user *user_buf,
@@ -985,7 +985,7 @@ static const struct file_operations fops_dump_nfcal = {
 	.release = single_release,
 };
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 static ssize_t read_file_btcoex(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
@@ -1020,7 +1020,7 @@ static const struct file_operations fops_btcoex = {
 };
 #endif
 
-#ifdef CONFIG_ATH9K_DYNACK
+#ifdef CONFIG_BACKPORT_ATH9K_DYNACK
 static ssize_t read_file_ackto(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
@@ -1243,7 +1243,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 	if (!sc->debug.debugfs_phy)
 		return -ENOMEM;
 
-#ifdef CONFIG_ATH_DEBUG
+#ifdef CONFIG_BACKPORT_ATH_DEBUG
 	debugfs_create_file("debug", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
 			    sc, &fops_debug);
 #endif
@@ -1306,14 +1306,14 @@ int ath9k_init_debug(struct ath_hw *ah)
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
 	debugfs_create_file("antenna_diversity", S_IRUSR,
 			    sc->debug.debugfs_phy, sc, &fops_antenna_diversity);
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 	debugfs_create_file("bt_ant_diversity", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
 	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
 #endif
 
-#ifdef CONFIG_ATH9K_DYNACK
+#ifdef CONFIG_BACKPORT_ATH9K_DYNACK
 	debugfs_create_file("ack_to", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
 			    sc, &fops_ackto);
 #endif

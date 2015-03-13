@@ -37,7 +37,7 @@ struct or51211_config
 	void (*sleep)(struct dvb_frontend * fe);
 };
 
-#if IS_ENABLED(CONFIG_DVB_OR51211)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_OR51211)
 extern struct dvb_frontend* or51211_attach(const struct or51211_config* config,
 					   struct i2c_adapter* i2c);
 #else
@@ -47,7 +47,7 @@ static inline struct dvb_frontend* or51211_attach(const struct or51211_config* c
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_OR51211
+#endif // CONFIG_BACKPORT_DVB_OR51211
 
 #endif // OR51211_H
 

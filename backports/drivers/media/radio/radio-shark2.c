@@ -36,7 +36,7 @@
 #include "radio-tea5777.h"
 
 #if defined(CONFIG_LEDS_CLASS) || \
-    (defined(CONFIG_LEDS_CLASS_MODULE) && defined(CONFIG_RADIO_SHARK2_MODULE))
+    (defined(CONFIG_LEDS_CLASS_MODULE) && defined(CONFIG_BACKPORT_RADIO_SHARK2_MODULE))
 #define SHARK_USE_LEDS 1
 #endif
 

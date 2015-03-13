@@ -1712,7 +1712,7 @@ static void bt8xx_dst_release(struct dvb_frontend *fe)
 	struct dst_state *state = fe->demodulator_priv;
 	if (state->dst_ca) {
 		dvb_unregister_device(state->dst_ca);
-#ifdef CONFIG_MEDIA_ATTACH
+#ifdef CONFIG_BACKPORT_MEDIA_ATTACH
 		symbol_put(dst_ca_attach);
 #endif
 	}

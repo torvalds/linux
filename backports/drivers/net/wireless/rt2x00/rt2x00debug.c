@@ -380,7 +380,7 @@ static const struct file_operations rt2x00debug_fop_queue_stats = {
 	.llseek		= default_llseek,
 };
 
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_CRYPTO
 static ssize_t rt2x00debug_read_crypto_stats(struct file *file,
 					     char __user *buf,
 					     size_t length,
@@ -747,7 +747,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 	    debugfs_create_file("queue", S_IRUSR, intf->queue_folder,
 				intf, &rt2x00debug_fop_queue_stats);
 
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_CRYPTO
 	if (rt2x00_has_cap_hw_crypto(rt2x00dev))
 		intf->crypto_stats_entry =
 		    debugfs_create_file("crypto", S_IRUGO, intf->queue_folder,
@@ -770,7 +770,7 @@ void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
 
 	skb_queue_purge(&intf->frame_dump_skbqueue);
 
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_CRYPTO
 	debugfs_remove(intf->crypto_stats_entry);
 #endif
 	debugfs_remove(intf->queue_stats_entry);

@@ -33,7 +33,7 @@ void __brcms_err(struct device *dev, const char *fmt, ...);
 __printf(2, 3)
 void __brcms_crit(struct device *dev, const char *fmt, ...);
 
-#if defined(CONFIG_BRCMDBG) || defined(CONFIG_BRCM_TRACING)
+#if defined(CONFIG_BACKPORT_BRCMDBG) || defined(CONFIG_BACKPORT_BRCM_TRACING)
 __printf(4, 5)
 void __brcms_dbg(struct device *dev, u32 level, const char *func,
 		 const char *fmt, ...);

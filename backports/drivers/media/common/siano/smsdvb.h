@@ -103,7 +103,7 @@ struct RECEPTION_STATISTICS_PER_SLICES_S {
 };
 
 /* From smsdvb-debugfs.c */
-#ifdef CONFIG_SMS_SIANO_DEBUGFS
+#ifdef CONFIG_BACKPORT_SMS_SIANO_DEBUGFS
 
 int smsdvb_debugfs_create(struct smsdvb_client_t *client);
 void smsdvb_debugfs_release(struct smsdvb_client_t *client);

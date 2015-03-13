@@ -11,6 +11,6 @@ rtl8821ae-objs :=		\
 		trx.o		\
 
 
-obj-$(CONFIG_RTL8821AE) += rtl8821ae.o
+obj-$(CONFIG_BACKPORT_RTL8821AE) += rtl8821ae.o
 
 ccflags-y += -D__CHECK_ENDIAN__

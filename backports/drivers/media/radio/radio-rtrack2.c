@@ -29,13 +29,13 @@ MODULE_DESCRIPTION("A driver for the RadioTrack II radio card.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1.99");
 
-#ifndef CONFIG_RADIO_RTRACK2_PORT
-#define CONFIG_RADIO_RTRACK2_PORT -1
+#ifndef CONFIG_BACKPORT_RADIO_RTRACK2_PORT
+#define CONFIG_BACKPORT_RADIO_RTRACK2_PORT -1
 #endif
 
 #define RTRACK2_MAX 2
 
-static int io[RTRACK2_MAX] = { [0] = CONFIG_RADIO_RTRACK2_PORT,
+static int io[RTRACK2_MAX] = { [0] = CONFIG_BACKPORT_RADIO_RTRACK2_PORT,
 			      [1 ... (RTRACK2_MAX - 1)] = -1 };
 static int radio_nr[RTRACK2_MAX] = { [0 ... (RTRACK2_MAX - 1)] = -1 };
 

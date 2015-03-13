@@ -19,7 +19,7 @@
 #define ATH9K_DFS_H
 #include "../dfs_pattern_detector.h"
 
-#if defined(CONFIG_ATH9K_DFS_CERTIFIED)
+#if defined(CONFIG_BACKPORT_ATH9K_DFS_CERTIFIED)
 /**
  * ath9k_dfs_process_phyerr - process radar PHY error
  * @sc: ath_softc

@@ -19,7 +19,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_bss *bss;
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_BACKPORT_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
@@ -47,7 +47,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 
 	nl80211_send_ibss_bssid(wiphy_to_rdev(wdev->wiphy), dev, bssid,
 				GFP_KERNEL);
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_BACKPORT_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
 	memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
@@ -121,7 +121,7 @@ static int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 	wdev->ibss_fixed = params->channel_fixed;
 	wdev->ibss_dfs_possible = params->userspace_handles_dfs;
 	wdev->chandef = params->chandef;
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_BACKPORT_CFG80211_WEXT
 	wdev->wext.ibss.chandef = params->chandef;
 #endif
 	err = rdev_join_ibss(rdev, dev, params);
@@ -182,7 +182,7 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 	wdev->current_bss = NULL;
 	wdev->ssid_len = 0;
 	memset(&wdev->chandef, 0, sizeof(wdev->chandef));
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_BACKPORT_CFG80211_WEXT
 	if (!nowext)
 		wdev->wext.ibss.ssid_len = 0;
 #endif
@@ -231,7 +231,7 @@ int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_BACKPORT_CFG80211_WEXT
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev)
 {

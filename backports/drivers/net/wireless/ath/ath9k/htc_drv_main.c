@@ -1003,7 +1003,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&priv->fatal_work);
 	cancel_work_sync(&priv->ps_work);
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 	cancel_work_sync(&priv->led_work);
 #endif
 	ath9k_htc_stop_ani(priv);
@@ -1869,7 +1869,7 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.get_stats	    = ath9k_htc_get_stats,
 	.get_antenna	    = ath9k_htc_get_antenna,
 
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH9K_HTC_DEBUGFS
 	.get_et_sset_count  = ath9k_htc_get_et_sset_count,
 	.get_et_stats       = ath9k_htc_get_et_stats,
 	.get_et_strings     = ath9k_htc_get_et_strings,

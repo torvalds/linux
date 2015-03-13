@@ -614,7 +614,7 @@ struct iw_statistics *get_wireless_stats(struct net_device *dev)
 		return dev->wireless_handlers->get_wireless_stats(dev);
 #endif
 
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_BACKPORT_CFG80211_WEXT
 	if (dev->ieee80211_ptr &&
 	    dev->ieee80211_ptr->wiphy &&
 	    dev->ieee80211_ptr->wiphy->wext &&
@@ -654,7 +654,7 @@ static iw_handler get_handler(struct net_device *dev, unsigned int cmd)
 	unsigned int	index;		/* *MUST* be unsigned */
 	const struct iw_handler_def *handlers = NULL;
 
-#ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_BACKPORT_CFG80211_WEXT
 	if (dev->ieee80211_ptr && dev->ieee80211_ptr->wiphy)
 		handlers = dev->ieee80211_ptr->wiphy->wext;
 #endif

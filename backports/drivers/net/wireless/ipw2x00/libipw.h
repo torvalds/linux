@@ -60,7 +60,7 @@
 
 /* debug macros */
 
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 extern u32 libipw_debug_level;
 #define LIBIPW_DEBUG(level, fmt, args...) \
 do { if (libipw_debug_level & (level)) \
@@ -68,7 +68,7 @@ do { if (libipw_debug_level & (level)) \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 #else
 #define LIBIPW_DEBUG(level, fmt, args...) do {} while (0)
-#endif				/* CONFIG_LIBIPW_DEBUG */
+#endif				/* CONFIG_BACKPORT_LIBIPW_DEBUG */
 
 /*
  * To use the debug system:
@@ -92,7 +92,7 @@ do { if (libipw_debug_level & (level)) \
  * you simply need to add your entry to the libipw_debug_level array.
  *
  * If you do not see debug_level in /proc/net/ieee80211 then you do not have
- * CONFIG_LIBIPW_DEBUG defined in your kernel configuration
+ * CONFIG_BACKPORT_LIBIPW_DEBUG defined in your kernel configuration
  *
  */
 

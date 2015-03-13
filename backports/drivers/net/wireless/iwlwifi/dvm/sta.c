@@ -178,7 +178,7 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 	if (!ctx->ht.enabled || !ctx->ht.is_40mhz)
 		return false;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	if (priv->disable_ht40)
 		return false;
 #endif
@@ -800,7 +800,7 @@ void iwl_dealloc_bcast_stations(struct iwl_priv *priv)
 	spin_unlock_bh(&priv->sta_lock);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 static void iwl_dump_lq_cmd(struct iwl_priv *priv,
 			   struct iwl_link_quality_cmd *lq)
 {

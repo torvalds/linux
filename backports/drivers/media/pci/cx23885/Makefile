@@ -4,12 +4,12 @@ cx23885-objs	:= cx23885-cards.o cx23885-video.o cx23885-vbi.o \
 		    cx23888-ir.o netup-init.o cimax2.o netup-eeprom.o \
 		    cx23885-f300.o cx23885-alsa.o
 
-obj-$(CONFIG_VIDEO_CX23885) += cx23885.o
-obj-$(CONFIG_MEDIA_ALTERA_CI) += altera-ci.o
+obj-$(CONFIG_BACKPORT_VIDEO_CX23885) += cx23885.o
+obj-$(CONFIG_BACKPORT_MEDIA_ALTERA_CI) += altera-ci.o
 
-ccflags-y += -Idrivers/media/i2c
-ccflags-y += -Idrivers/media/tuners
-ccflags-y += -Idrivers/media/dvb-core
-ccflags-y += -Idrivers/media/dvb-frontends
+ccflags-y += -I$(backport_srctree)/drivers/media/i2c
+ccflags-y += -I$(backport_srctree)/drivers/media/tuners
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-core
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-frontends
 
 ccflags-y += $(extra-cflags-y) $(extra-cflags-m)

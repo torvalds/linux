@@ -24,7 +24,7 @@
 
 #include <linux/kconfig.h>
 
-#if IS_ENABLED(CONFIG_DVB_ZL10039)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_ZL10039)
 struct dvb_frontend *zl10039_attach(struct dvb_frontend *fe,
 					u8 i2c_addr,
 					struct i2c_adapter *i2c);
@@ -36,6 +36,6 @@ static inline struct dvb_frontend *zl10039_attach(struct dvb_frontend *fe,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_ZL10039 */
+#endif /* CONFIG_BACKPORT_DVB_ZL10039 */
 
 #endif /* ZL10039_H */

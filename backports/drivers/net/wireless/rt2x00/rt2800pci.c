@@ -392,9 +392,9 @@ static const struct rt2x00_ops rt2800pci_ops = {
 	.lib			= &rt2800pci_rt2x00_ops,
 	.drv			= &rt2800pci_rt2800_ops,
 	.hw			= &rt2800pci_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS
 	.debugfs		= &rt2800_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS */
 };
 
 /*
@@ -417,13 +417,13 @@ static const struct pci_device_id rt2800pci_device_table[] = {
 	{ PCI_DEVICE(0x1432, 0x7768) },
 	{ PCI_DEVICE(0x1462, 0x891a) },
 	{ PCI_DEVICE(0x1a3b, 0x1059) },
-#ifdef CONFIG_RT2800PCI_RT3290
+#ifdef CONFIG_BACKPORT_RT2800PCI_RT3290
 	{ PCI_DEVICE(0x1814, 0x3290) },
 #endif
-#ifdef CONFIG_RT2800PCI_RT33XX
+#ifdef CONFIG_BACKPORT_RT2800PCI_RT33XX
 	{ PCI_DEVICE(0x1814, 0x3390) },
 #endif
-#ifdef CONFIG_RT2800PCI_RT35XX
+#ifdef CONFIG_BACKPORT_RT2800PCI_RT35XX
 	{ PCI_DEVICE(0x1432, 0x7711) },
 	{ PCI_DEVICE(0x1432, 0x7722) },
 	{ PCI_DEVICE(0x1814, 0x3060) },
@@ -433,7 +433,7 @@ static const struct pci_device_id rt2800pci_device_table[] = {
 	{ PCI_DEVICE(0x1814, 0x3593) },
 	{ PCI_DEVICE(0x1814, 0x359f) },
 #endif
-#ifdef CONFIG_RT2800PCI_RT53XX
+#ifdef CONFIG_BACKPORT_RT2800PCI_RT53XX
 	{ PCI_DEVICE(0x1814, 0x5360) },
 	{ PCI_DEVICE(0x1814, 0x5362) },
 	{ PCI_DEVICE(0x1814, 0x5390) },

@@ -525,7 +525,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic)
 			mvm->nvm_sections[section].data = temp;
 			mvm->nvm_sections[section].length = ret;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 			switch (section) {
 			case NVM_SECTION_TYPE_SW:
 				mvm->nvm_sw_blob.data = temp;

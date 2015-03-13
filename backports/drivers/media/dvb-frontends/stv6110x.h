@@ -53,7 +53,7 @@ struct stv6110x_devctl {
 };
 
 
-#if IS_ENABLED(CONFIG_DVB_STV6110x)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_STV6110x)
 
 extern struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 					       const struct stv6110x_config *config,
@@ -68,6 +68,6 @@ static inline struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 	return NULL;
 }
 
-#endif /* CONFIG_DVB_STV6110x */
+#endif /* CONFIG_BACKPORT_DVB_STV6110x */
 
 #endif /* __STV6110x_H */

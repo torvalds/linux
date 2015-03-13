@@ -115,7 +115,7 @@ struct sd_desc {
 	cam_streamparm_op set_streamparm;
 	cam_format_op try_fmt;
 	cam_frmsize_op enum_framesizes;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	cam_set_reg_op set_register;
 	cam_get_reg_op get_register;
 	cam_chip_info_op get_chip_info;

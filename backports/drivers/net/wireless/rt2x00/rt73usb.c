@@ -146,7 +146,7 @@ static void rt73usb_rf_write(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS
 static const struct rt2x00debug rt73usb_rt2x00debug = {
 	.owner	= THIS_MODULE,
 	.csr	= {
@@ -179,7 +179,7 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 		.word_count	= RF_SIZE / sizeof(u32),
 	},
 };
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS */
 
 static int rt73usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
@@ -189,7 +189,7 @@ static int rt73usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	return rt2x00_get_field32(reg, MAC_CSR13_VAL7);
 }
 
-#ifdef CONFIG_RT2X00_LIB_LEDS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_LEDS
 static void rt73usb_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
@@ -256,7 +256,7 @@ static void rt73usb_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt73usb_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT2X00_LIB_LEDS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -1923,7 +1923,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led settings, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT2X00_LIB_LEDS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 
 	rt73usb_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
@@ -1956,7 +1956,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_READY_A,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_RDY_A));
-#endif /* CONFIG_RT2X00_LIB_LEDS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_LEDS */
 
 	return 0;
 }
@@ -2401,9 +2401,9 @@ static const struct rt2x00_ops rt73usb_ops = {
 	.queue_init		= rt73usb_queue_init,
 	.lib			= &rt73usb_rt2x00_ops,
 	.hw			= &rt73usb_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS
 	.debugfs		= &rt73usb_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS */
 };
 
 /*

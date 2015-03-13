@@ -1242,7 +1242,7 @@ struct ieee80211_vif {
 
 	u32 driver_flags;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	struct dentry *debugfs_dir;
 #endif
 
@@ -1252,7 +1252,7 @@ struct ieee80211_vif {
 
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
-#ifdef CONFIG_MAC80211_MESH
+#ifdef CONFIG_BACKPORT_MAC80211_MESH
 	return vif->type == NL80211_IFTYPE_MESH_POINT;
 #endif
 	return false;
@@ -2667,7 +2667,7 @@ enum ieee80211_reconfig_type {
  *
  * @sta_add_debugfs: Drivers can use this callback to add debugfs files
  *	when a station is added to mac80211's station list. This callback
- *	and @sta_remove_debugfs should be within a CONFIG_MAC80211_DEBUGFS
+ *	and @sta_remove_debugfs should be within a CONFIG_BACKPORT_MAC80211_DEBUGFS
  *	conditional. This callback can sleep.
  *
  * @sta_remove_debugfs: Remove the debugfs files which were added using
@@ -3048,7 +3048,7 @@ struct ieee80211_ops {
 		       struct ieee80211_sta *sta);
 	int (*sta_remove)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta);
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	void (*sta_add_debugfs)(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta,
@@ -3095,7 +3095,7 @@ struct ieee80211_ops {
 		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
 	void (*set_coverage_class)(struct ieee80211_hw *hw, s16 coverage_class);
-#ifdef CONFIG_NL80211_TESTMODE
+#ifdef CONFIG_BACKPORT_NL80211_TESTMODE
 	int (*testmode_cmd)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    void *data, int len);
 	int (*testmode_dump)(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -3285,7 +3285,7 @@ enum ieee80211_tpt_led_trigger_flags {
 	IEEE80211_TPT_LEDTRIG_FL_CONNECTED	= BIT(2),
 };
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
 char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
 char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
@@ -3309,7 +3309,7 @@ char *__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
  */
 static inline char *ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
 {
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 	return __ieee80211_get_tx_led_name(hw);
 #else
 	return NULL;
@@ -3330,7 +3330,7 @@ static inline char *ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
  */
 static inline char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
 {
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 	return __ieee80211_get_rx_led_name(hw);
 #else
 	return NULL;
@@ -3351,7 +3351,7 @@ static inline char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
  */
 static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 {
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 	return __ieee80211_get_assoc_led_name(hw);
 #else
 	return NULL;
@@ -3372,7 +3372,7 @@ static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
  */
 static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 {
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 	return __ieee80211_get_radio_led_name(hw);
 #else
 	return NULL;
@@ -3396,7 +3396,7 @@ ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw, unsigned int flags,
 				 const struct ieee80211_tpt_blink *blink_table,
 				 unsigned int blink_table_len)
 {
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 	return __ieee80211_create_tpt_led_trigger(hw, flags, blink_table,
 						  blink_table_len);
 #else

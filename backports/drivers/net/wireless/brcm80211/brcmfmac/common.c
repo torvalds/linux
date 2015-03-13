@@ -153,7 +153,7 @@ done:
 	return err;
 }
 
-#if defined(CONFIG_BRCM_TRACING) || defined(CONFIG_BRCMDBG)
+#if defined(CONFIG_BACKPORT_BRCM_TRACING) || defined(CONFIG_BACKPORT_BRCMDBG)
 void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 {
 	struct va_format vaf = {

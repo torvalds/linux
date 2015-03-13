@@ -30,7 +30,7 @@
 #include "bus.h"
 
 /* BCMA */
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 static int b43_bus_bcma_bus_may_powerdown(struct b43_bus_dev *dev)
 {
 	return 0; /* bcma_bus_may_powerdown(dev->bdev->bus); */
@@ -132,10 +132,10 @@ struct b43_bus_dev *b43_bus_dev_bcma_init(struct bcma_device *core)
 
 	return dev;
 }
-#endif /* CONFIG_B43_BCMA */
+#endif /* CONFIG_BACKPORT_B43_BCMA */
 
 /* SSB */
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 static int b43_bus_ssb_bus_may_powerdown(struct b43_bus_dev *dev)
 {
 	return ssb_bus_may_powerdown(dev->sdev->bus);
@@ -231,16 +231,16 @@ struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 
 	return dev;
 }
-#endif /* CONFIG_B43_SSB */
+#endif /* CONFIG_BACKPORT_B43_SSB */
 
 void *b43_bus_get_wldev(struct b43_bus_dev *dev)
 {
 	switch (dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 	case B43_BUS_BCMA:
 		return bcma_get_drvdata(dev->bdev);
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	case B43_BUS_SSB:
 		return ssb_get_drvdata(dev->sdev);
 #endif
@@ -251,12 +251,12 @@ void *b43_bus_get_wldev(struct b43_bus_dev *dev)
 void b43_bus_set_wldev(struct b43_bus_dev *dev, void *wldev)
 {
 	switch (dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 	case B43_BUS_BCMA:
 		bcma_set_drvdata(dev->bdev, wldev);
 		break;
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	case B43_BUS_SSB:
 		ssb_set_drvdata(dev->sdev, wldev);
 		break;

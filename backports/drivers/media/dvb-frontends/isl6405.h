@@ -55,7 +55,7 @@
 #define ISL6405_ENT2	0x20
 #define ISL6405_ISEL2	0x40
 
-#if IS_ENABLED(CONFIG_DVB_ISL6405)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_ISL6405)
 /* override_set and override_clear control which system register bits (above)
  * to always set & clear
  */
@@ -69,6 +69,6 @@ static inline struct dvb_frontend *isl6405_attach(struct dvb_frontend *fe,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_ISL6405 */
+#endif /* CONFIG_BACKPORT_DVB_ISL6405 */
 
 #endif

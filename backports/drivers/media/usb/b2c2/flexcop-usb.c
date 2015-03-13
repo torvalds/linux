@@ -13,7 +13,7 @@
 #define DRIVER_AUTHOR "Patrick Boettcher <patrick.boettcher@desy.de>"
 
 /* debug */
-#ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
+#ifdef CONFIG_BACKPORT_DVB_B2C2_FLEXCOP_DEBUG
 #define dprintk(level,args...) \
 	do { if ((debug & level)) printk(args); } while (0)
 

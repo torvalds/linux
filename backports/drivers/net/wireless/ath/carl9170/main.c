@@ -432,9 +432,9 @@ static void carl9170_cancel_worker(struct ar9170 *ar)
 {
 	cancel_delayed_work_sync(&ar->stat_work);
 	cancel_delayed_work_sync(&ar->tx_janitor);
-#ifdef CONFIG_CARL9170_LEDS
+#ifdef CONFIG_BACKPORT_CARL9170_LEDS
 	cancel_delayed_work_sync(&ar->led_work);
-#endif /* CONFIG_CARL9170_LEDS */
+#endif /* CONFIG_BACKPORT_CARL9170_LEDS */
 	cancel_work_sync(&ar->ps_work);
 	cancel_work_sync(&ar->ping_work);
 	cancel_work_sync(&ar->ampdu_work);
@@ -1505,7 +1505,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 	return 0;
 }
 
-#ifdef CONFIG_CARL9170_WPC
+#ifdef CONFIG_BACKPORT_CARL9170_WPC
 static int carl9170_register_wps_button(struct ar9170 *ar)
 {
 	struct input_dev *input;
@@ -1540,9 +1540,9 @@ static int carl9170_register_wps_button(struct ar9170 *ar)
 	ar->wps.pbc = input;
 	return 0;
 }
-#endif /* CONFIG_CARL9170_WPC */
+#endif /* CONFIG_BACKPORT_CARL9170_WPC */
 
-#ifdef CONFIG_CARL9170_HWRNG
+#ifdef CONFIG_BACKPORT_CARL9170_HWRNG
 static int carl9170_rng_get(struct ar9170 *ar)
 {
 
@@ -1643,7 +1643,7 @@ static int carl9170_register_hwrng(struct ar9170 *ar)
 
 	return 0;
 }
-#endif /* CONFIG_CARL9170_HWRNG */
+#endif /* CONFIG_BACKPORT_CARL9170_HWRNG */
 
 static int carl9170_op_get_survey(struct ieee80211_hw *hw, int idx,
 				struct survey_info *survey)
@@ -2025,31 +2025,31 @@ int carl9170_register(struct ar9170 *ar)
 	if (!ath_is_world_regd(regulatory))
 		regulatory_hint(ar->hw->wiphy, regulatory->alpha2);
 
-#ifdef CONFIG_CARL9170_DEBUGFS
+#ifdef CONFIG_BACKPORT_CARL9170_DEBUGFS
 	carl9170_debugfs_register(ar);
-#endif /* CONFIG_CARL9170_DEBUGFS */
+#endif /* CONFIG_BACKPORT_CARL9170_DEBUGFS */
 
 	err = carl9170_led_init(ar);
 	if (err)
 		goto err_unreg;
 
-#ifdef CONFIG_CARL9170_LEDS
+#ifdef CONFIG_BACKPORT_CARL9170_LEDS
 	err = carl9170_led_register(ar);
 	if (err)
 		goto err_unreg;
-#endif /* CONFIG_CARL9170_LEDS */
+#endif /* CONFIG_BACKPORT_CARL9170_LEDS */
 
-#ifdef CONFIG_CARL9170_WPC
+#ifdef CONFIG_BACKPORT_CARL9170_WPC
 	err = carl9170_register_wps_button(ar);
 	if (err)
 		goto err_unreg;
-#endif /* CONFIG_CARL9170_WPC */
+#endif /* CONFIG_BACKPORT_CARL9170_WPC */
 
-#ifdef CONFIG_CARL9170_HWRNG
+#ifdef CONFIG_BACKPORT_CARL9170_HWRNG
 	err = carl9170_register_hwrng(ar);
 	if (err)
 		goto err_unreg;
-#endif /* CONFIG_CARL9170_HWRNG */
+#endif /* CONFIG_BACKPORT_CARL9170_HWRNG */
 
 	dev_info(&ar->udev->dev, "Atheros AR9170 is registered as '%s'\n",
 		 wiphy_name(ar->hw->wiphy));
@@ -2068,24 +2068,24 @@ void carl9170_unregister(struct ar9170 *ar)
 
 	ar->registered = false;
 
-#ifdef CONFIG_CARL9170_LEDS
+#ifdef CONFIG_BACKPORT_CARL9170_LEDS
 	carl9170_led_unregister(ar);
-#endif /* CONFIG_CARL9170_LEDS */
+#endif /* CONFIG_BACKPORT_CARL9170_LEDS */
 
-#ifdef CONFIG_CARL9170_DEBUGFS
+#ifdef CONFIG_BACKPORT_CARL9170_DEBUGFS
 	carl9170_debugfs_unregister(ar);
-#endif /* CONFIG_CARL9170_DEBUGFS */
+#endif /* CONFIG_BACKPORT_CARL9170_DEBUGFS */
 
-#ifdef CONFIG_CARL9170_WPC
+#ifdef CONFIG_BACKPORT_CARL9170_WPC
 	if (ar->wps.pbc) {
 		input_unregister_device(ar->wps.pbc);
 		ar->wps.pbc = NULL;
 	}
-#endif /* CONFIG_CARL9170_WPC */
+#endif /* CONFIG_BACKPORT_CARL9170_WPC */
 
-#ifdef CONFIG_CARL9170_HWRNG
+#ifdef CONFIG_BACKPORT_CARL9170_HWRNG
 	carl9170_unregister_hwrng(ar);
-#endif /* CONFIG_CARL9170_HWRNG */
+#endif /* CONFIG_BACKPORT_CARL9170_HWRNG */
 
 	carl9170_cancel_worker(ar);
 	cancel_work_sync(&ar->restart_work);

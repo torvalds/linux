@@ -17,7 +17,7 @@ struct sp887x_config
 	int (*request_firmware)(struct dvb_frontend* fe, const struct firmware **fw, char* name);
 };
 
-#if IS_ENABLED(CONFIG_DVB_SP887X)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_SP887X)
 extern struct dvb_frontend* sp887x_attach(const struct sp887x_config* config,
 					  struct i2c_adapter* i2c);
 #else
@@ -27,6 +27,6 @@ static inline struct dvb_frontend* sp887x_attach(const struct sp887x_config* con
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_SP887X
+#endif // CONFIG_BACKPORT_DVB_SP887X
 
 #endif // SP887X_H

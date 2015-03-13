@@ -245,7 +245,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_2GHZ			= BIT(11),
 	ATH9K_HW_CAP_5GHZ			= BIT(12),
 	ATH9K_HW_CAP_APM			= BIT(13),
-#ifdef CONFIG_ATH9K_PCOEM
+#ifdef CONFIG_BACKPORT_ATH9K_PCOEM
 	ATH9K_HW_CAP_RTT			= BIT(14),
 	ATH9K_HW_CAP_MCI			= BIT(15),
 	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(16),
@@ -714,7 +714,7 @@ struct ath_hw_ops {
 	void (*tx99_stop)(struct ath_hw *ah);
 	void (*tx99_set_txpower)(struct ath_hw *ah, u8 power);
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 	void (*set_bt_ant_diversity)(struct ath_hw *hw, bool enable);
 #endif
 };
@@ -855,7 +855,7 @@ struct ath_hw {
 	u32 ani_skip_count;
 	struct ar5416AniState ani;
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex_hw btcoex_hw;
 #endif
 
@@ -929,7 +929,7 @@ struct ath_hw {
 	/* Enterprise mode cap */
 	u32 ent_mode;
 
-#ifdef CONFIG_ATH9K_WOW
+#ifdef CONFIG_BACKPORT_ATH9K_WOW
 	u32 wow_event_mask;
 #endif
 	bool is_clk_25mhz;
@@ -1110,7 +1110,7 @@ void ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us);
 void ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us);
 void ath9k_hw_setslottime(struct ath_hw *ah, u32 us);
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
 {
 	return ah->btcoex_hw.enabled;
@@ -1144,10 +1144,10 @@ ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 {
 	return ATH_BTCOEX_CFG_NONE;
 }
-#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
+#endif /* CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT */
 
 
-#ifdef CONFIG_ATH9K_WOW
+#ifdef CONFIG_BACKPORT_ATH9K_WOW
 const char *ath9k_hw_wow_event_to_string(u32 wow_event);
 void ath9k_hw_wow_apply_pattern(struct ath_hw *ah, u8 *user_pattern,
 				u8 *user_mask, int pattern_count,

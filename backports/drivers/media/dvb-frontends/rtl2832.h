@@ -50,7 +50,7 @@ struct rtl2832_config {
 	u8 tuner;
 };
 
-#if IS_ENABLED(CONFIG_DVB_RTL2832)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_RTL2832)
 struct dvb_frontend *rtl2832_attach(
 	const struct rtl2832_config *cfg,
 	struct i2c_adapter *i2c

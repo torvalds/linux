@@ -707,7 +707,7 @@ static inline int vdp_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 #define ADV7604_REG(page, offset)	(((page) << 8) | (offset))
 #define ADV7604_REG_SEQ_TERM		0xffff
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int adv7604_read_reg(struct v4l2_subdev *sd, unsigned int reg)
 {
 	struct adv7604_state *state = to_state(sd);
@@ -853,7 +853,7 @@ static inline bool is_digital_input(struct v4l2_subdev *sd)
 
 /* ----------------------------------------------------------------------- */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static void adv7604_inv_register(struct v4l2_subdev *sd)
 {
 	v4l2_info(sd, "0x000-0x0ff: IO Map\n");
@@ -2362,7 +2362,7 @@ static const struct v4l2_ctrl_ops adv7604_ctrl_ops = {
 static const struct v4l2_subdev_core_ops adv7604_core_ops = {
 	.log_status = adv7604_log_status,
 	.interrupt_service_routine = adv7604_isr,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = adv7604_g_register,
 	.s_register = adv7604_s_register,
 #endif

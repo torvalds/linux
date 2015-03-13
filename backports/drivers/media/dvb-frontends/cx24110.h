@@ -46,7 +46,7 @@ static inline int cx24110_pll_write(struct dvb_frontend *fe, u32 val)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_DVB_CX24110)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_CX24110)
 extern struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,
 					   struct i2c_adapter* i2c);
 #else
@@ -56,6 +56,6 @@ static inline struct dvb_frontend* cx24110_attach(const struct cx24110_config* c
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_CX24110
+#endif // CONFIG_BACKPORT_DVB_CX24110
 
 #endif // CX24110_H

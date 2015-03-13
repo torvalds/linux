@@ -201,7 +201,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 	}
 
 	if (!(cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK))) {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 		/* set advanced pm flag with no uapsd ACs to enable ps-poll */
 		if (mvmvif->dbgfs_pm.use_ps_poll)
 			cmd->flags |=
@@ -398,7 +398,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	if (iwl_mvm_power_allow_uapsd(mvm, vif))
 		iwl_mvm_power_configure_uapsd(mvm, vif, cmd);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_KEEP_ALIVE)
 		cmd->keep_alive_seconds =
 			cpu_to_le16(mvmvif->dbgfs_pm.keep_alive_seconds);
@@ -441,7 +441,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 		else
 			cmd->flags &= cpu_to_le16(flag);
 	}
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
+#endif /* CONFIG_BACKPORT_IWLWIFI_DEBUGFS */
 }
 
 static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
@@ -451,7 +451,7 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	iwl_mvm_power_log(mvm, &cmd);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	memcpy(&iwl_mvm_vif_from_mac80211(vif)->mac_pwr_cmd, &cmd, sizeof(cmd));
 #endif
 
@@ -471,7 +471,7 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 	if (mvm->ps_disabled)
 		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_CAM_MSK);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	if ((mvm->cur_ucode == IWL_UCODE_WOWLAN) ? mvm->disable_power_off_d3 :
 	    mvm->disable_power_off)
 		cmd.flags &=
@@ -682,7 +682,7 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 	}
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif, char *buf,
 				 int bufsz)
@@ -1004,7 +1004,7 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 		}
 	}
 	iwl_mvm_power_log(mvm, &cmd);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	memcpy(&mvmvif->mac_pwr_cmd, &cmd, sizeof(cmd));
 #endif
 	ret = iwl_mvm_send_cmd_pdu(mvm, MAC_PM_POWER_TABLE, flags,

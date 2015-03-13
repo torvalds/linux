@@ -1125,7 +1125,7 @@ struct ipw_fw_error {	 /* XXX */
 	u8 payload[0];
 } __packed;
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 
 enum ipw_prom_filter {
 	IPW_PROM_CTL_HEADER_ONLY = (1 << 0),
@@ -1149,7 +1149,7 @@ struct ipw_prom_priv {
 };
 #endif
 
-#if defined(CONFIG_IPW2200_RADIOTAP) || defined(CONFIG_IPW2200_PROMISCUOUS)
+#if defined(CONFIG_BACKPORT_IPW2200_RADIOTAP) || defined(CONFIG_BACKPORT_IPW2200_PROMISCUOUS)
 /* Magic struct that slots into the radiotap header -- no reason
  * to build this manually element by element, we can write it much
  * more efficiently than we can parse it. ORDER MATTERS HERE
@@ -1183,7 +1183,7 @@ struct ipw_priv {
 	struct pci_dev *pci_dev;
 	struct net_device *net_dev;
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 	/* Promiscuous mode */
 	struct ipw_prom_priv *prom_priv;
 	struct net_device *prom_net_dev;
@@ -1399,14 +1399,14 @@ do { if (ipw_debug_level & (level)) \
   printk(KERN_DEBUG DRV_NAME": %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 
-#ifdef CONFIG_IPW2200_DEBUG
+#ifdef CONFIG_BACKPORT_IPW2200_DEBUG
 #define IPW_LL_DEBUG(level, fmt, args...) \
 do { if (ipw_debug_level & (level)) \
   printk(KERN_DEBUG DRV_NAME": %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 #else
 #define IPW_LL_DEBUG(level, fmt, args...) do {} while (0)
-#endif				/* CONFIG_IPW2200_DEBUG */
+#endif				/* CONFIG_BACKPORT_IPW2200_DEBUG */
 
 /*
  * To use the debug system;
@@ -1430,7 +1430,7 @@ do { if (ipw_debug_level & (level)) \
  * you simply need to add your entry to the ipw_debug_levels array.
  *
  * If you do not see debug_level in /proc/net/ipw then you do not have
- * CONFIG_IPW2200_DEBUG defined in your kernel configuration
+ * CONFIG_BACKPORT_IPW2200_DEBUG defined in your kernel configuration
  *
  */
 

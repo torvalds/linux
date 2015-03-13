@@ -95,7 +95,7 @@ static int cs5345_s_ctrl(struct v4l2_ctrl *ctrl)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int cs5345_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->size = 1;
@@ -139,7 +139,7 @@ static const struct v4l2_subdev_core_ops cs5345_core_ops = {
 	.s_ctrl = v4l2_subdev_s_ctrl,
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = cs5345_g_register,
 	.s_register = cs5345_s_register,
 #endif

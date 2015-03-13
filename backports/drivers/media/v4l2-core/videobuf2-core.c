@@ -39,7 +39,7 @@ module_param(debug, int, 0644);
 			pr_info("vb2: %s: " fmt, __func__, ## arg); \
 	} while (0)
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 
 /*
  * If advanced debugging is on, then count how often each op is called
@@ -473,7 +473,7 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 	/* Release video buffer memory */
 	__vb2_free_mem(q, buffers);
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	/*
 	 * Check that all the calls were balances during the life-time of this
 	 * queue. If not (or if the debug level is 1 or up), then dump the
@@ -1191,7 +1191,7 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 		    state != VB2_BUF_STATE_QUEUED))
 		state = VB2_BUF_STATE_ERROR;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	/*
 	 * Although this is not a callback, it still does have to balance
 	 * with the buf_queue op. So update this counter manually.

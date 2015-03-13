@@ -1551,7 +1551,7 @@ static void set_quality(struct gspca_dev *gspca_dev, s32 val)
 	reg_w1(gspca_dev, 0x10e0, sd->fmt);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 			struct v4l2_dbg_register *reg)
 {
@@ -2320,7 +2320,7 @@ static const struct sd_desc sd_desc = {
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
 	.dq_callback = sd_dqcallback,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.set_register = sd_dbg_s_register,
 	.get_register = sd_dbg_g_register,
 	.get_chip_info = sd_chip_info,

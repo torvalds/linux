@@ -41,7 +41,7 @@ struct v4l2_device {
 	   Note: dev might be NULL if there is no parent device
 	   as is the case with e.g. ISA devices. */
 	struct device *dev;
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	struct media_device *mdev;
 #endif
 	/* used to keep track of the registered subdevs */

@@ -1160,7 +1160,7 @@ error:
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_ENABLED(CONFIG_BACKPORT_RC_CORE)
 struct af9015_rc_setup {
 	unsigned int id;
 	char *rc_codes;

@@ -236,7 +236,7 @@ static inline void ath9k_skb_queue_complete(struct hif_device_usb *hif_dev,
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue(queue)) != NULL) {
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH9K_HTC_DEBUGFS
 		int ln = skb->len;
 #endif
 		ath9k_htc_txcompletion_cb(hif_dev->htc_handle,

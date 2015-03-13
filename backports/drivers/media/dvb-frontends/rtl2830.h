@@ -60,7 +60,7 @@ struct rtl2830_config {
 	u8 agc_targ_val;
 };
 
-#if IS_ENABLED(CONFIG_DVB_RTL2830)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_RTL2830)
 extern struct dvb_frontend *rtl2830_attach(
 	const struct rtl2830_config *config,
 	struct i2c_adapter *i2c

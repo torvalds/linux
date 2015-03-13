@@ -1,6 +1,6 @@
 # Makefile for OMAP3 ISP driver
 
-ccflags-$(CONFIG_VIDEO_OMAP3_DEBUG) += -DDEBUG
+ccflags-$(CONFIG_BACKPORT_VIDEO_OMAP3_DEBUG) += -DDEBUG
 
 omap3-isp-objs += \
 	isp.o ispvideo.o \
@@ -8,4 +8,4 @@ omap3-isp-objs += \
 	ispccdc.o isppreview.o ispresizer.o \
 	ispstat.o isph3a_aewb.o isph3a_af.o isphist.o
 
-obj-$(CONFIG_VIDEO_OMAP3) += omap3-isp.o
+obj-$(CONFIG_BACKPORT_VIDEO_OMAP3) += omap3-isp.o

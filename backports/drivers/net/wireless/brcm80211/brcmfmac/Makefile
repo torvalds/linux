@@ -16,12 +16,12 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ccflags-y += \
-	-Idrivers/net/wireless/brcm80211/brcmfmac	\
-	-Idrivers/net/wireless/brcm80211/include
+	-I$(backport_srctree)/drivers/net/wireless/brcm80211/brcmfmac	\
+	-I$(backport_srctree)/drivers/net/wireless/brcm80211/include
 
 ccflags-y += -D__CHECK_ENDIAN__
 
-obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
+obj-$(CONFIG_BACKPORT_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += \
 		cfg80211.o \
 		chip.o \
@@ -36,22 +36,22 @@ brcmfmac-objs += \
 		feature.o \
 		btcoex.o \
 		vendor.o
-brcmfmac-$(CONFIG_BRCMFMAC_PROTO_BCDC) += \
+brcmfmac-$(CONFIG_BACKPORT_BRCMFMAC_PROTO_BCDC) += \
 		bcdc.o
-brcmfmac-$(CONFIG_BRCMFMAC_PROTO_MSGBUF) += \
+brcmfmac-$(CONFIG_BACKPORT_BRCMFMAC_PROTO_MSGBUF) += \
 		commonring.o \
 		flowring.o \
 		msgbuf.o
-brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
+brcmfmac-$(CONFIG_BACKPORT_BRCMFMAC_SDIO) += \
 		sdio.o \
 		bcmsdh.o
-brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
+brcmfmac-$(CONFIG_BACKPORT_BRCMFMAC_USB) += \
 		usb.o
-brcmfmac-$(CONFIG_BRCMFMAC_PCIE) += \
+brcmfmac-$(CONFIG_BACKPORT_BRCMFMAC_PCIE) += \
 		pcie.o
-brcmfmac-$(CONFIG_BRCMDBG) += \
+brcmfmac-$(CONFIG_BACKPORT_BRCMDBG) += \
 		debug.o
-brcmfmac-$(CONFIG_BRCM_TRACING) += \
+brcmfmac-$(CONFIG_BACKPORT_BRCM_TRACING) += \
 		tracepoint.o
 brcmfmac-$(CONFIG_OF) += \
 		of.o

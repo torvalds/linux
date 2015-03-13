@@ -57,7 +57,7 @@ struct tda10023_config {
 	u16 deltaf;
 };
 
-#if IS_ENABLED(CONFIG_DVB_TDA10021)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_TDA10021)
 extern struct dvb_frontend* tda10021_attach(const struct tda1002x_config* config,
 					    struct i2c_adapter* i2c, u8 pwm);
 #else
@@ -67,9 +67,9 @@ static inline struct dvb_frontend* tda10021_attach(const struct tda1002x_config*
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_TDA10021
+#endif // CONFIG_BACKPORT_DVB_TDA10021
 
-#if IS_ENABLED(CONFIG_DVB_TDA10023)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_TDA10023)
 extern struct dvb_frontend *tda10023_attach(
 	const struct tda10023_config *config,
 	struct i2c_adapter *i2c, u8 pwm);
@@ -81,6 +81,6 @@ static inline struct dvb_frontend *tda10023_attach(
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_TDA10023
+#endif // CONFIG_BACKPORT_DVB_TDA10023
 
 #endif // TDA1002x_H

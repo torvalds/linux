@@ -44,13 +44,13 @@ MODULE_DESCRIPTION("A driver for the RadioTrack/RadioReveal radio card.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
 
-#ifndef CONFIG_RADIO_RTRACK_PORT
-#define CONFIG_RADIO_RTRACK_PORT -1
+#ifndef CONFIG_BACKPORT_RADIO_RTRACK_PORT
+#define CONFIG_BACKPORT_RADIO_RTRACK_PORT -1
 #endif
 
 #define RTRACK_MAX 2
 
-static int io[RTRACK_MAX] = { [0] = CONFIG_RADIO_RTRACK_PORT,
+static int io[RTRACK_MAX] = { [0] = CONFIG_BACKPORT_RADIO_RTRACK_PORT,
 			      [1 ... (RTRACK_MAX - 1)] = -1 };
 static int radio_nr[RTRACK_MAX]	= { [0 ... (RTRACK_MAX - 1)] = -1 };
 

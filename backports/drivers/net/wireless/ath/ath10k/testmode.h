@@ -16,7 +16,7 @@
 
 #include "core.h"
 
-#ifdef CONFIG_NL80211_TESTMODE
+#ifdef CONFIG_BACKPORT_NL80211_TESTMODE
 
 void ath10k_testmode_destroy(struct ath10k *ar);
 

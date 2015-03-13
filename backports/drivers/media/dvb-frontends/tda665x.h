@@ -31,7 +31,7 @@ struct tda665x_config {
 	u32	ref_divider;
 };
 
-#if IS_ENABLED(CONFIG_DVB_TDA665x)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_TDA665x)
 
 extern struct dvb_frontend *tda665x_attach(struct dvb_frontend *fe,
 					   const struct tda665x_config *config,
@@ -47,6 +47,6 @@ static inline struct dvb_frontend *tda665x_attach(struct dvb_frontend *fe,
 	return NULL;
 }
 
-#endif /* CONFIG_DVB_TDA665x */
+#endif /* CONFIG_BACKPORT_DVB_TDA665x */
 
 #endif /* __TDA665x_H */

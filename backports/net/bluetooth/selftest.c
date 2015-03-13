@@ -28,7 +28,7 @@
 #include "smp.h"
 #include "selftest.h"
 
-#if IS_ENABLED(CONFIG_BT_SELFTEST_ECDH)
+#if IS_ENABLED(CONFIG_BACKPORT_BT_SELFTEST_ECDH)
 
 static const u8 priv_a_1[32] __initconst = {
 	0xbd, 0x1a, 0x3c, 0xcd, 0xa6, 0xb8, 0x99, 0x58,
@@ -216,12 +216,12 @@ done:
 	return err;
 }
 
-#if IS_MODULE(CONFIG_BT)
+#if IS_MODULE(CONFIG_BACKPORT_BT)
 
-/* This is run when CONFIG_BT_SELFTEST=y and CONFIG_BT=m and is just a
+/* This is run when CONFIG_BACKPORT_BT_SELFTEST=y and CONFIG_BACKPORT_BT=m and is just a
  * wrapper to allow running this at module init.
  *
- * If CONFIG_BT_SELFTEST=n, then this code is not compiled at all.
+ * If CONFIG_BACKPORT_BT_SELFTEST=n, then this code is not compiled at all.
  */
 int __init bt_selftest(void)
 {
@@ -230,10 +230,10 @@ int __init bt_selftest(void)
 
 #else
 
-/* This is run when CONFIG_BT_SELFTEST=y and CONFIG_BT=y and is run
+/* This is run when CONFIG_BACKPORT_BT_SELFTEST=y and CONFIG_BACKPORT_BT=y and is run
  * via late_initcall() as last item in the initialization sequence.
  *
- * If CONFIG_BT_SELFTEST=n, then this code is not compiled at all.
+ * If CONFIG_BACKPORT_BT_SELFTEST=n, then this code is not compiled at all.
  */
 static int __init bt_selftest_init(void)
 {

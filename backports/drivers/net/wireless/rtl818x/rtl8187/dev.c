@@ -30,7 +30,7 @@
 
 #include "rtl8187.h"
 #include "rtl8225.h"
-#ifdef CONFIG_RTL8187_LEDS
+#ifdef CONFIG_BACKPORT_RTL8187_LEDS
 #include "leds.h"
 #endif
 #include "rfkill.h"
@@ -1634,7 +1634,7 @@ static int rtl8187_probe(struct usb_interface *intf,
 		   mac_addr, chip_name, priv->asic_rev, priv->rf->name,
 		   priv->rfkill_mask);
 
-#ifdef CONFIG_RTL8187_LEDS
+#ifdef CONFIG_BACKPORT_RTL8187_LEDS
 	eeprom_93cx6_read(&eeprom, 0x3F, &reg);
 	reg &= 0xFF;
 	rtl8187_leds_init(dev, reg);
@@ -1660,7 +1660,7 @@ static void rtl8187_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
-#ifdef CONFIG_RTL8187_LEDS
+#ifdef CONFIG_BACKPORT_RTL8187_LEDS
 	rtl8187_leds_exit(dev);
 #endif
 	rtl8187_rfkill_exit(dev);

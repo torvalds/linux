@@ -131,7 +131,7 @@ struct tea5764_write_regs {
 	__be16 rdsbbl;				/* PAUSEDET & RDSBBL */
 } __attribute__ ((packed));
 
-#ifdef CONFIG_RADIO_TEA5764_XTAL
+#ifdef CONFIG_BACKPORT_RADIO_TEA5764_XTAL
 #define RADIO_TEA5764_XTAL 1
 #else
 #define RADIO_TEA5764_XTAL 0

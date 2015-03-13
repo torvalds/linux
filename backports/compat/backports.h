@@ -3,7 +3,7 @@
 
 #include <linux/version.h>
 
-#ifdef CPTCFG_BPAUTO_BUILD_CRYPTO_CCM
+#ifdef CONFIG_BACKPORT_BPAUTO_BUILD_CRYPTO_CCM
 int crypto_ccm_module_init(void);
 void crypto_ccm_module_exit(void);
 #else
@@ -13,7 +13,7 @@ static inline void crypto_ccm_module_exit(void)
 {}
 #endif
 
-#ifdef CPTCFG_BPAUTO_BUILD_WANT_DEV_COREDUMP
+#ifdef CONFIG_BACKPORT_BPAUTO_BUILD_WANT_DEV_COREDUMP
 int devcoredump_init(void);
 void devcoredump_exit(void);
 #else

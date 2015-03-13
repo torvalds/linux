@@ -67,7 +67,7 @@ struct lg2160_config {
 	enum lg_chip_type lg_chip;
 };
 
-#if IS_ENABLED(CONFIG_DVB_LG2160)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_LG2160)
 extern
 struct dvb_frontend *lg2160_attach(const struct lg2160_config *config,
 				     struct i2c_adapter *i2c_adap);
@@ -79,6 +79,6 @@ struct dvb_frontend *lg2160_attach(const struct lg2160_config *config,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_LG2160 */
+#endif /* CONFIG_BACKPORT_DVB_LG2160 */
 
 #endif /* _LG2160_H_ */

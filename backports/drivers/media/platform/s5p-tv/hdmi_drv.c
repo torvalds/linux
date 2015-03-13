@@ -13,7 +13,7 @@
 
 #define pr_fmt(fmt) "s5p-tv (hdmi_drv): " fmt
 
-#ifdef CONFIG_VIDEO_SAMSUNG_S5P_HDMI_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_SAMSUNG_S5P_HDMI_DEBUG
 #define DEBUG
 #endif
 

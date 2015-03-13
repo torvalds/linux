@@ -39,7 +39,7 @@
 #include "r820t.h"
 
 
-#ifdef CONFIG_MEDIA_ATTACH
+#ifdef CONFIG_BACKPORT_MEDIA_ATTACH
 #define dvb_attach_sdr(FUNCTION, ARGS...) ({ \
 	void *__r = NULL; \
 	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \
@@ -1346,7 +1346,7 @@ err:
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_ENABLED(CONFIG_BACKPORT_RC_CORE)
 static int rtl2831u_rc_query(struct dvb_usb_device *d)
 {
 	int ret, i;

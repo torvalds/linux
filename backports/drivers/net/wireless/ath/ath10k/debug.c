@@ -136,11 +136,11 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    ath10k_cal_mode_str(ar->cal_mode),
 		    ar->max_num_stations);
 	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d testmode %d\n",
-		    config_enabled(CONFIG_ATH10K_DEBUG),
-		    config_enabled(CONFIG_ATH10K_DEBUGFS),
-		    config_enabled(CONFIG_ATH10K_TRACING),
-		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
-		    config_enabled(CONFIG_NL80211_TESTMODE));
+		    config_enabled(CONFIG_BACKPORT_ATH10K_DEBUG),
+		    config_enabled(CONFIG_BACKPORT_ATH10K_DEBUGFS),
+		    config_enabled(CONFIG_BACKPORT_ATH10K_TRACING),
+		    config_enabled(CONFIG_BACKPORT_ATH10K_DFS_CERTIFIED),
+		    config_enabled(CONFIG_BACKPORT_NL80211_TESTMODE));
 }
 EXPORT_SYMBOL(ath10k_print_driver_info);
 
@@ -175,7 +175,7 @@ void ath10k_warn(struct ath10k *ar, const char *fmt, ...)
 }
 EXPORT_SYMBOL(ath10k_warn);
 
-#ifdef CONFIG_ATH10K_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH10K_DEBUGFS
 
 static ssize_t ath10k_read_wmi_services(struct file *file,
 					char __user *user_buf,
@@ -1958,7 +1958,7 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("nf_cal_period", S_IRUSR | S_IWUSR,
 			    ar->debug.debugfs_phy, ar, &fops_nf_cal_period);
 
-	if (config_enabled(CONFIG_ATH10K_DFS_CERTIFIED)) {
+	if (config_enabled(CONFIG_BACKPORT_ATH10K_DFS_CERTIFIED)) {
 		debugfs_create_file("dfs_simulate_radar", S_IWUSR,
 				    ar->debug.debugfs_phy, ar,
 				    &fops_simulate_radar);
@@ -1983,9 +1983,9 @@ void ath10k_debug_unregister(struct ath10k *ar)
 	cancel_delayed_work_sync(&ar->debug.htt_stats_dwork);
 }
 
-#endif /* CONFIG_ATH10K_DEBUGFS */
+#endif /* CONFIG_BACKPORT_ATH10K_DEBUGFS */
 
-#ifdef CONFIG_ATH10K_DEBUG
+#ifdef CONFIG_BACKPORT_ATH10K_DEBUG
 void ath10k_dbg(struct ath10k *ar, enum ath10k_debug_mask mask,
 		const char *fmt, ...)
 {
@@ -2039,4 +2039,4 @@ void ath10k_dbg_dump(struct ath10k *ar,
 }
 EXPORT_SYMBOL(ath10k_dbg_dump);
 
-#endif /* CONFIG_ATH10K_DEBUG */
+#endif /* CONFIG_BACKPORT_ATH10K_DEBUG */

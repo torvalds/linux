@@ -42,7 +42,7 @@ struct isl6423_config {
 	u8 mod_extern;
 };
 
-#if IS_ENABLED(CONFIG_DVB_ISL6423)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_ISL6423)
 
 
 extern struct dvb_frontend *isl6423_attach(struct dvb_frontend *fe,
@@ -58,6 +58,6 @@ static inline struct dvb_frontend *isl6423_attach(struct dvb_frontend *fe,
 	return NULL;
 }
 
-#endif /* CONFIG_DVB_ISL6423 */
+#endif /* CONFIG_BACKPORT_DVB_ISL6423 */
 
 #endif /* __ISL_6423_H */

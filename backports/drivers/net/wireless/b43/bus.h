@@ -2,10 +2,10 @@
 #define B43_BUS_H_
 
 enum b43_bus_type {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 	B43_BUS_BCMA,
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	B43_BUS_SSB,
 #endif
 };
@@ -55,7 +55,7 @@ struct b43_bus_dev {
 
 static inline bool b43_bus_host_is_pcmcia(struct b43_bus_dev *dev)
 {
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	return (dev->bus_type == B43_BUS_SSB &&
 		dev->sdev->bus->bustype == SSB_BUSTYPE_PCMCIA);
 #else
@@ -65,11 +65,11 @@ static inline bool b43_bus_host_is_pcmcia(struct b43_bus_dev *dev)
 
 static inline bool b43_bus_host_is_pci(struct b43_bus_dev *dev)
 {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 	if (dev->bus_type == B43_BUS_BCMA)
 		return (dev->bdev->bus->hosttype == BCMA_HOSTTYPE_PCI);
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	if (dev->bus_type == B43_BUS_SSB)
 		return (dev->sdev->bus->bustype == SSB_BUSTYPE_PCI);
 #endif
@@ -78,7 +78,7 @@ static inline bool b43_bus_host_is_pci(struct b43_bus_dev *dev)
 
 static inline bool b43_bus_host_is_sdio(struct b43_bus_dev *dev)
 {
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	return (dev->bus_type == B43_BUS_SSB &&
 		dev->sdev->bus->bustype == SSB_BUSTYPE_SDIO);
 #else

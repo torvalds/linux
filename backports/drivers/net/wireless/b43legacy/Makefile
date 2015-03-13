@@ -8,12 +8,12 @@ b43legacy-y				+= xmit.o
 # b43 RFKILL button support
 b43legacy-y				+= rfkill.o
 # b43legacy LED support
-b43legacy-$(CONFIG_B43LEGACY_LEDS)	+= leds.o
+b43legacy-$(CONFIG_BACKPORT_B43LEGACY_LEDS)	+= leds.o
 # b43legacy debugging
-b43legacy-$(CONFIG_B43LEGACY_DEBUG)	+= debugfs.o
+b43legacy-$(CONFIG_BACKPORT_B43LEGACY_DEBUG)	+= debugfs.o
 # b43legacy DMA and PIO
-b43legacy-$(CONFIG_B43LEGACY_DMA)	+= dma.o
-b43legacy-$(CONFIG_B43LEGACY_PIO)	+= pio.o
+b43legacy-$(CONFIG_BACKPORT_B43LEGACY_DMA)	+= dma.o
+b43legacy-$(CONFIG_BACKPORT_B43LEGACY_PIO)	+= pio.o
 
-obj-$(CONFIG_B43LEGACY)			+= b43legacy.o
+obj-$(CONFIG_BACKPORT_B43LEGACY)			+= b43legacy.o
 

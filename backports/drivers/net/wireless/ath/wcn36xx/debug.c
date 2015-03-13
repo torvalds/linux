@@ -22,7 +22,7 @@
 #include "debug.h"
 #include "pmc.h"
 
-#ifdef CONFIG_WCN36XX_DEBUGFS
+#ifdef CONFIG_BACKPORT_WCN36XX_DEBUGFS
 
 static ssize_t read_file_bool_bmps(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -178,4 +178,4 @@ void wcn36xx_debugfs_exit(struct wcn36xx *wcn)
 	debugfs_remove_recursive(dfs->rootdir);
 }
 
-#endif /* CONFIG_WCN36XX_DEBUGFS */
+#endif /* CONFIG_BACKPORT_WCN36XX_DEBUGFS */

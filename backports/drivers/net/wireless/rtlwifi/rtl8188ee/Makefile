@@ -10,6 +10,6 @@ rtl8188ee-objs :=		\
 		table.o		\
 		trx.o
 
-obj-$(CONFIG_RTL8188EE) += rtl8188ee.o
+obj-$(CONFIG_BACKPORT_RTL8188EE) += rtl8188ee.o
 
-ccflags-y += -Idrivers/net/wireless/rtlwifi -D__CHECK_ENDIAN__
+ccflags-y += -I$(backport_srctree)/drivers/net/wireless/rtlwifi -D__CHECK_ENDIAN__

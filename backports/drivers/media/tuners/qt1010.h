@@ -36,7 +36,7 @@ struct qt1010_config {
  * @param cfg  tuner hw based configuration
  * @return fe  pointer on success, NULL on failure
  */
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_QT1010)
+#if IS_ENABLED(CONFIG_BACKPORT_MEDIA_TUNER_QT1010)
 extern struct dvb_frontend *qt1010_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
 					  struct qt1010_config *cfg);
@@ -48,6 +48,6 @@ static inline struct dvb_frontend *qt1010_attach(struct dvb_frontend *fe,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_MEDIA_TUNER_QT1010
+#endif // CONFIG_BACKPORT_MEDIA_TUNER_QT1010
 
 #endif

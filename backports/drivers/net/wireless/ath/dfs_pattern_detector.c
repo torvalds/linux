@@ -342,7 +342,7 @@ dfs_pattern_detector_init(struct ath_common *common,
 {
 	struct dfs_pattern_detector *dpd;
 
-	if (!config_enabled(CONFIG_CFG80211_CERTIFICATION_ONUS))
+	if (!config_enabled(CONFIG_BACKPORT_CFG80211_CERTIFICATION_ONUS))
 		return NULL;
 
 	dpd = kmalloc(sizeof(*dpd), GFP_KERNEL);

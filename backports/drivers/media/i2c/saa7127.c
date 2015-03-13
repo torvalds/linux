@@ -662,7 +662,7 @@ static int saa7127_s_vbi_data(struct v4l2_subdev *sd, const struct v4l2_sliced_v
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int saa7127_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = saa7127_read(sd, reg->reg & 0xff);
@@ -696,7 +696,7 @@ static int saa7127_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops saa7127_core_ops = {
 	.log_status = saa7127_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = saa7127_g_register,
 	.s_register = saa7127_s_register,
 #endif

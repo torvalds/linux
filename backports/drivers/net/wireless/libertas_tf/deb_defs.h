@@ -11,7 +11,7 @@
 
 #include <linux/spinlock.h>
 
-#ifdef CONFIG_LIBERTAS_THINFIRM_DEBUG
+#ifdef CONFIG_BACKPORT_LIBERTAS_THINFIRM_DEBUG
 #define DEBUG
 #define PROC_DEBUG
 #endif

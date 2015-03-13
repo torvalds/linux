@@ -73,7 +73,7 @@ struct tda10048_config {
 	u8 pll_n;
 };
 
-#if IS_ENABLED(CONFIG_DVB_TDA10048)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_TDA10048)
 extern struct dvb_frontend *tda10048_attach(
 	const struct tda10048_config *config,
 	struct i2c_adapter *i2c);
@@ -85,6 +85,6 @@ static inline struct dvb_frontend *tda10048_attach(
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_TDA10048 */
+#endif /* CONFIG_BACKPORT_DVB_TDA10048 */
 
 #endif /* TDA10048_H */

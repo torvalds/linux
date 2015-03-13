@@ -378,7 +378,7 @@ static const struct v4l2_ctrl_ops adv7511_ctrl_ops = {
 
 /* ---------------------------- CORE OPS ------------------------------------------- */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static void adv7511_inv_register(struct v4l2_subdev *sd)
 {
 	v4l2_info(sd, "0x000-0x0ff: Main Map\n");
@@ -604,7 +604,7 @@ static int adv7511_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 static const struct v4l2_subdev_core_ops adv7511_core_ops = {
 	.log_status = adv7511_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = adv7511_g_register,
 	.s_register = adv7511_s_register,
 #endif

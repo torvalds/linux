@@ -976,7 +976,7 @@ extern void cx231xx_417_unregister(struct cx231xx *dev);
 
 /* cx23885-input.c                                             */
 
-#if defined(CONFIG_VIDEO_CX231XX_RC)
+#if defined(CONFIG_BACKPORT_VIDEO_CX231XX_RC)
 int cx231xx_ir_init(struct cx231xx *dev);
 void cx231xx_ir_exit(struct cx231xx *dev);
 #else

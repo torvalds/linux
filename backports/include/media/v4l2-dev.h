@@ -85,7 +85,7 @@ struct v4l2_file_operations {
 
 struct video_device
 {
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	struct media_entity entity;
 #endif
 	/* device ops */

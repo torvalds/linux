@@ -74,7 +74,7 @@ struct lgdt3305_config {
 	enum lgdt_demod_chip_type demod_chip;
 };
 
-#if IS_ENABLED(CONFIG_DVB_LGDT3305)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_LGDT3305)
 extern
 struct dvb_frontend *lgdt3305_attach(const struct lgdt3305_config *config,
 				     struct i2c_adapter *i2c_adap);
@@ -86,6 +86,6 @@ struct dvb_frontend *lgdt3305_attach(const struct lgdt3305_config *config,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_LGDT3305 */
+#endif /* CONFIG_BACKPORT_DVB_LGDT3305 */
 
 #endif /* _LGDT3305_H_ */

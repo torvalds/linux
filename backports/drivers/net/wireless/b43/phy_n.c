@@ -6006,13 +6006,13 @@ static void b43_nphy_superswitch_init(struct b43_wldev *dev, bool init)
 		b43_phy_write(dev, B43_NPHY_GPIO_HIOEN, 0);
 
 		switch (dev->dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 		case B43_BUS_BCMA:
 			bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc,
 						 0xFC00, 0xFC00);
 			break;
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 		case B43_BUS_SSB:
 			ssb_chipco_gpio_control(&dev->dev->sdev->bus->chipco,
 						0xFC00, 0xFC00);
@@ -6053,13 +6053,13 @@ static int b43_phy_initn(struct b43_wldev *dev)
 	   (sprom->boardflags_lo & B43_BFL_EXTLNA) &&
 	   (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)) {
 		switch (dev->dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 		case B43_BUS_BCMA:
 			bcma_cc_set32(&dev->dev->bdev->bus->drv_cc,
 				      BCMA_CC_CHIPCTL, 0x40);
 			break;
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 		case B43_BUS_SSB:
 			chipco_set32(&dev->dev->sdev->bus->chipco,
 				     SSB_CHIPCO_CHIPCTL, 0x40);
@@ -6266,13 +6266,13 @@ static void b43_chantab_phy_upload(struct b43_wldev *dev,
 static void b43_nphy_pmu_spur_avoid(struct b43_wldev *dev, bool avoid)
 {
 	switch (dev->dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 	case B43_BUS_BCMA:
 		bcma_pmu_spuravoid_pllupdate(&dev->dev->bdev->bus->drv_cc,
 					     avoid);
 		break;
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	case B43_BUS_SSB:
 		ssb_pmu_spuravoid_pllupdate(&dev->dev->sdev->bus->chipco,
 					    avoid);
@@ -6520,7 +6520,7 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 		if (dev->phy.rev >= 2 &&
 		    (sprom->boardflags2_lo & B43_BFL2_TXPWRCTRL_EN)) {
 			nphy->txpwrctrl = true;
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 			if (dev->dev->bus_type == B43_BUS_SSB &&
 			    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI) {
 				struct pci_dev *pdev =

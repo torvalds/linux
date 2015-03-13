@@ -44,7 +44,7 @@
 
 extern struct ieee80211_ops ath9k_htc_ops;
 extern int htc_modparam_nohwcrypt;
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 extern int ath9k_htc_led_blink;
 #endif
 
@@ -324,7 +324,7 @@ static inline struct ath9k_htc_tx_ctl *HTC_SKB_CB(struct sk_buff *skb)
 	return (struct ath9k_htc_tx_ctl *) &tx_info->driver_data;
 }
 
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH9K_HTC_DEBUGFS
 
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
 #define TX_STAT_ADD(c, a) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c += a)
@@ -385,7 +385,7 @@ static inline void ath9k_htc_err_stat_rx(struct ath9k_htc_priv *priv,
 {
 }
 
-#endif /* CONFIG_ATH9K_HTC_DEBUGFS */
+#endif /* CONFIG_BACKPORT_ATH9K_HTC_DEBUGFS */
 
 #define ATH_LED_PIN_DEF             1
 #define ATH_LED_PIN_9287            10
@@ -424,7 +424,7 @@ struct ath_btcoex {
 	u32 btscan_no_stomp;
 };
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product);
 void ath9k_htc_start_btcoex(struct ath9k_htc_priv *priv);
 void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv);
@@ -438,7 +438,7 @@ static inline void ath9k_htc_start_btcoex(struct ath9k_htc_priv *priv)
 static inline void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 {
 }
-#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
+#endif /* CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT */
 
 #define OP_BT_PRIORITY_DETECTED    BIT(3)
 #define OP_BT_SCAN                 BIT(4)
@@ -505,7 +505,7 @@ struct ath9k_htc_priv {
 	bool ps_enabled;
 	bool ps_idle;
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 	enum led_brightness brightness;
 	bool led_registered;
 	char led_name[32];
@@ -516,13 +516,13 @@ struct ath9k_htc_priv {
 	int cabq;
 	int hwq_map[IEEE80211_NUM_ACS];
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex btcoex;
 #endif
 
 	struct delayed_work coex_period_work;
 	struct delayed_work duty_cycle_work;
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH9K_HTC_DEBUGFS
 	struct ath9k_debug debug;
 #endif
 	struct mutex mutex;
@@ -597,7 +597,7 @@ void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);
 
 struct base_eep_header *ath9k_htc_get_eeprom_base(struct ath9k_htc_priv *priv);
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 void ath9k_configure_leds(struct ath9k_htc_priv *priv);
 void ath9k_init_leds(struct ath9k_htc_priv *priv);
 void ath9k_deinit_leds(struct ath9k_htc_priv *priv);
@@ -627,7 +627,7 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug);
 void ath9k_htc_suspend(struct htc_target *htc_handle);
 int ath9k_htc_resume(struct htc_target *htc_handle);
 #endif
-#ifdef CONFIG_ATH9K_HTC_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH9K_HTC_DEBUGFS
 int ath9k_htc_init_debug(struct ath_hw *ah);
 void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv);
 #else
@@ -635,6 +635,6 @@ static inline int ath9k_htc_init_debug(struct ath_hw *ah) { return 0; };
 static inline void ath9k_htc_deinit_debug(struct ath9k_htc_priv *priv)
 {
 }
-#endif /* CONFIG_ATH9K_HTC_DEBUGFS */
+#endif /* CONFIG_BACKPORT_ATH9K_HTC_DEBUGFS */
 
 #endif /* HTC_H */

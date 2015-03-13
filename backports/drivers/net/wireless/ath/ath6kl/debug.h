@@ -59,7 +59,7 @@ enum ath6kl_war {
 	ATH6KL_WAR_INVALID_RATE,
 };
 
-#ifdef CONFIG_ATH6KL_DEBUG
+#ifdef CONFIG_BACKPORT_ATH6KL_DEBUG
 
 void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...);
 void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,

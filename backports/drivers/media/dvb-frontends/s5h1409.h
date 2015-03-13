@@ -67,7 +67,7 @@ struct s5h1409_config {
 	u8 hvr1600_opt;
 };
 
-#if IS_ENABLED(CONFIG_DVB_S5H1409)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_S5H1409)
 extern struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 					   struct i2c_adapter *i2c);
 #else
@@ -78,7 +78,7 @@ static inline struct dvb_frontend *s5h1409_attach(
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_S5H1409 */
+#endif /* CONFIG_BACKPORT_DVB_S5H1409 */
 
 #endif /* __S5H1409_H__ */
 

@@ -153,7 +153,7 @@ static int upd64031a_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int upd64031a_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = upd64031a_read(sd, reg->reg & 0xff);
@@ -172,7 +172,7 @@ static int upd64031a_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_re
 
 static const struct v4l2_subdev_core_ops upd64031a_core_ops = {
 	.log_status = upd64031a_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = upd64031a_g_register,
 	.s_register = upd64031a_s_register,
 #endif

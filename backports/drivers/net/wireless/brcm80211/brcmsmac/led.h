@@ -22,7 +22,7 @@ struct brcms_led {
 	bool active_low;
 };
 
-#ifdef CONFIG_BCMA_DRIVER_GPIO
+#ifdef CONFIG_BACKPORT_BCMA_DRIVER_GPIO
 void brcms_led_unregister(struct brcms_info *wl);
 int brcms_led_register(struct brcms_info *wl);
 #else

@@ -36,7 +36,7 @@
 #define DRIVER_NAME "B2C2 FlexcopII/II(b)/III digital TV receiver chip"
 #define DRIVER_AUTHOR "Patrick Boettcher <patrick.boettcher@desy.de"
 
-#ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
+#ifdef CONFIG_BACKPORT_DVB_B2C2_FLEXCOP_DEBUG
 #define DEBSTATUS ""
 #else
 #define DEBSTATUS " (debugging is not enabled)"

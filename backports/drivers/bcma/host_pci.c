@@ -76,7 +76,7 @@ static void bcma_host_pci_write32(struct bcma_device *core, u16 offset,
 	iowrite32(value, core->bus->mmio + offset);
 }
 
-#ifdef CONFIG_BCMA_BLOCKIO
+#ifdef CONFIG_BACKPORT_BCMA_BLOCKIO
 static void bcma_host_pci_block_read(struct bcma_device *core, void *buffer,
 				     size_t count, u16 offset, u8 reg_width)
 {
@@ -147,7 +147,7 @@ static const struct bcma_host_ops bcma_host_pci_ops = {
 	.write8		= bcma_host_pci_write8,
 	.write16	= bcma_host_pci_write16,
 	.write32	= bcma_host_pci_write32,
-#ifdef CONFIG_BCMA_BLOCKIO
+#ifdef CONFIG_BACKPORT_BCMA_BLOCKIO
 	.block_read	= bcma_host_pci_block_read,
 	.block_write	= bcma_host_pci_block_write,
 #endif

@@ -20,7 +20,7 @@
 /*	 LED functions		*/
 /********************************/
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 static void ath_led_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness)
 {
@@ -124,7 +124,7 @@ void ath_start_rfkill_poll(struct ath_softc *sc)
 		wiphy_rfkill_start_polling(sc->hw->wiphy);
 }
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 
 /******************/
 /*     BTCOEX     */
@@ -502,4 +502,4 @@ int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 size)
 		return ath9k_dump_legacy_btcoex(sc, buf, size);
 }
 
-#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
+#endif /* CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT */

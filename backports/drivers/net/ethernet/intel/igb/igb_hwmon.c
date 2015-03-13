@@ -34,7 +34,7 @@
 #include <linux/hwmon.h>
 #include <linux/pci.h>
 
-#ifdef CONFIG_IGB_HWMON
+#ifdef CONFIG_BACKPORT_IGB_HWMON
 static struct i2c_board_info i350_sensor_info = {
 	I2C_BOARD_INFO("i350bb", (0Xf8 >> 1)),
 };

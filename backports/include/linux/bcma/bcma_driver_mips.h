@@ -39,7 +39,7 @@ struct bcma_drv_mips {
 	u8 early_setup_done:1;
 };
 
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BACKPORT_BCMA_DRIVER_MIPS
 extern void bcma_core_mips_init(struct bcma_drv_mips *mcore);
 extern void bcma_core_mips_early_init(struct bcma_drv_mips *mcore);
 

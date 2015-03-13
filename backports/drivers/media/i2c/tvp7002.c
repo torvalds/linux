@@ -709,7 +709,7 @@ static int tvp7002_query_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 /*
  * tvp7002_g_register() - Get the value of a register
  * @sd: ptr to v4l2_subdev struct
@@ -912,7 +912,7 @@ static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 	.s_ctrl = v4l2_subdev_s_ctrl,
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = tvp7002_g_register,
 	.s_register = tvp7002_s_register,
 #endif
@@ -1064,7 +1064,7 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 	timings = device->current_timings->timings;
 	error = tvp7002_s_dv_timings(sd, &timings);
 
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	device->pad.flags = MEDIA_PAD_FL_SOURCE;
 	device->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	device->sd.entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
@@ -1092,7 +1092,7 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 
 error:
 	v4l2_ctrl_handler_free(&device->hdl);
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	media_entity_cleanup(&device->sd.entity);
 #endif
 	return error;
@@ -1113,7 +1113,7 @@ static int tvp7002_remove(struct i2c_client *c)
 	v4l2_dbg(1, debug, sd, "Removing tvp7002 adapter"
 				"on address 0x%x\n", c->addr);
 	v4l2_async_unregister_subdev(&device->sd);
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	media_entity_cleanup(&device->sd.entity);
 #endif
 	v4l2_device_unregister_subdev(sd);

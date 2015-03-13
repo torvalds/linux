@@ -45,7 +45,7 @@ struct ir_t {
 	u32 controller;
 };
 
-#ifdef CONFIG_SMS_SIANO_RC
+#ifdef CONFIG_BACKPORT_SMS_SIANO_RC
 int sms_ir_init(struct smscore_device_t *coredev);
 void sms_ir_exit(struct smscore_device_t *coredev);
 void sms_ir_event(struct smscore_device_t *coredev,

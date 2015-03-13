@@ -1,4 +1,4 @@
-obj-$(CONFIG_MAC80211) += mac80211.o
+obj-$(CONFIG_BACKPORT_MAC80211) += mac80211.o
 
 # mac80211 objects
 mac80211-y := \
@@ -30,14 +30,14 @@ mac80211-y := \
 	tdls.o \
 	ocb.o
 
-mac80211-$(CONFIG_MAC80211_LEDS) += led.o
-mac80211-$(CONFIG_MAC80211_DEBUGFS) += \
+mac80211-$(CONFIG_BACKPORT_MAC80211_LEDS) += led.o
+mac80211-$(CONFIG_BACKPORT_MAC80211_DEBUGFS) += \
 	debugfs.o \
 	debugfs_sta.o \
 	debugfs_netdev.o \
 	debugfs_key.o
 
-mac80211-$(CONFIG_MAC80211_MESH) += \
+mac80211-$(CONFIG_BACKPORT_MAC80211_MESH) += \
 	mesh.o \
 	mesh_pathtbl.o \
 	mesh_plink.o \
@@ -50,12 +50,12 @@ mac80211-$(CONFIG_PM) += pm.o
 CFLAGS_trace.o := -I$(src)
 
 rc80211_minstrel-y := rc80211_minstrel.o
-rc80211_minstrel-$(CONFIG_MAC80211_DEBUGFS) += rc80211_minstrel_debugfs.o
+rc80211_minstrel-$(CONFIG_BACKPORT_MAC80211_DEBUGFS) += rc80211_minstrel_debugfs.o
 
 rc80211_minstrel_ht-y := rc80211_minstrel_ht.o
-rc80211_minstrel_ht-$(CONFIG_MAC80211_DEBUGFS) += rc80211_minstrel_ht_debugfs.o
+rc80211_minstrel_ht-$(CONFIG_BACKPORT_MAC80211_DEBUGFS) += rc80211_minstrel_ht_debugfs.o
 
-mac80211-$(CONFIG_MAC80211_RC_MINSTREL) += $(rc80211_minstrel-y)
-mac80211-$(CONFIG_MAC80211_RC_MINSTREL_HT) += $(rc80211_minstrel_ht-y)
+mac80211-$(CONFIG_BACKPORT_MAC80211_RC_MINSTREL) += $(rc80211_minstrel-y)
+mac80211-$(CONFIG_BACKPORT_MAC80211_RC_MINSTREL_HT) += $(rc80211_minstrel_ht-y)
 
 ccflags-y += -D__CHECK_ENDIAN__ -DDEBUG

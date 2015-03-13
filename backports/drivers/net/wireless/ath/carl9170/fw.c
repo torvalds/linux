@@ -356,10 +356,10 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 				BIT(NL80211_IFTYPE_AP) |
 				BIT(NL80211_IFTYPE_P2P_GO);
 
-#ifdef CONFIG_MAC80211_MESH
+#ifdef CONFIG_BACKPORT_MAC80211_MESH
 			if_comb_types |=
 				BIT(NL80211_IFTYPE_MESH_POINT);
-#endif /* CONFIG_MAC80211_MESH */
+#endif /* CONFIG_BACKPORT_MAC80211_MESH */
 		}
 	}
 

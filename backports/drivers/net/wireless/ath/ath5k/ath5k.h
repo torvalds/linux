@@ -1269,9 +1269,9 @@ struct ath5k_hw {
 	s8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
 	enum nl80211_iftype	opmode;
 
-#ifdef CONFIG_ATH5K_DEBUG
+#ifdef CONFIG_BACKPORT_ATH5K_DEBUG
 	struct ath5k_dbg_info	debug;		/* debug info */
-#endif /* CONFIG_ATH5K_DEBUG */
+#endif /* CONFIG_BACKPORT_ATH5K_DEBUG */
 
 	struct ath5k_buf	*bufptr;	/* allocated buffer ptr */
 	struct ath5k_desc	*desc;		/* TX/RX descriptors */
@@ -1647,7 +1647,7 @@ static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
 	return &(ath5k_hw_common(ah)->regulatory);
 }
 
-#ifdef CONFIG_ATH5K_AHB
+#ifdef CONFIG_BACKPORT_ATH5K_AHB
 #define AR5K_AR2315_PCI_BASE	((void __iomem *)0xb0100000)
 
 static inline void __iomem *ath5k_ahb_reg(struct ath5k_hw *ah, u16 reg)

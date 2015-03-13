@@ -443,7 +443,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	const struct fw_img *img;
 #endif
 
@@ -486,7 +486,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		goto out_unlock;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	img = &priv->fw->img[IWL_UCODE_WOWLAN];
 	if (!priv->wowlan_sram)
 		priv->wowlan_sram =

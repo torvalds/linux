@@ -156,7 +156,7 @@ void ath_mci_cleanup(struct ath_softc *sc);
 void ath_mci_intr(struct ath_softc *sc);
 void ath9k_mci_update_rssi(struct ath_softc *sc);
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 void ath_mci_enable(struct ath_softc *sc);
 void ath9k_mci_update_wlan_channels(struct ath_softc *sc, bool allow_all);
 void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
@@ -173,6 +173,6 @@ static inline void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
 					 bool concur_tx)
 {
 }
-#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
+#endif /* CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT */
 
 #endif /* MCI_H*/

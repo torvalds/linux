@@ -30,7 +30,7 @@ struct vp3054_i2c_state {
 };
 
 /* ----------------------------------------------------------------------- */
-#if IS_ENABLED(CONFIG_VIDEO_CX88_VP3054)
+#if IS_ENABLED(CONFIG_BACKPORT_VIDEO_CX88_VP3054)
 int  vp3054_i2c_probe(struct cx8802_dev *dev);
 void vp3054_i2c_remove(struct cx8802_dev *dev);
 #else

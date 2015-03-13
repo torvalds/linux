@@ -292,7 +292,7 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 	       priv->lib->bt_params->advanced_bt_coexist;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status);
 const char *iwl_get_agg_tx_fail_reason(u16 status);
 #else
@@ -399,7 +399,7 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 
 int iwl_alive_start(struct iwl_priv *priv);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     enum iwl_rxon_context_id ctxid);
 #else
@@ -450,7 +450,7 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 	iwl_trans_set_pmi(priv->trans, state);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir);
 #else
 static inline int iwl_dbgfs_register(struct iwl_priv *priv,
@@ -458,9 +458,9 @@ static inline int iwl_dbgfs_register(struct iwl_priv *priv,
 {
 	return 0;
 }
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
+#endif /* CONFIG_BACKPORT_IWLWIFI_DEBUGFS */
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 #define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
 do {									\
 	if (!iwl_is_rfkill((m)))					\
@@ -478,7 +478,7 @@ do {									\
 	else								\
 		__iwl_err((m)->dev, true, true, fmt, ##args);	\
 } while (0)
-#endif				/* CONFIG_IWLWIFI_DEBUG */
+#endif				/* CONFIG_BACKPORT_IWLWIFI_DEBUG */
 
 extern const char *const iwl_dvm_cmd_strings[REPLY_MAX];
 

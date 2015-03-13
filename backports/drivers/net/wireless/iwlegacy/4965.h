@@ -117,7 +117,7 @@ int il4965_manage_ibss_station(struct il_priv *il, struct ieee80211_vif *vif,
 /* hcmd */
 int il4965_send_beacon_cmd(struct il_priv *il);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 const char *il4965_get_tx_fail_reason(u32 status);
 #else
 static inline const char *
@@ -930,7 +930,7 @@ void il4965_init_sensitivity(struct il_priv *il);
 void il4965_reset_run_time_calib(struct il_priv *il);
 
 /* Debug */
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUGFS
 extern const struct il_debugfs_ops il4965_debugfs_ops;
 #endif
 

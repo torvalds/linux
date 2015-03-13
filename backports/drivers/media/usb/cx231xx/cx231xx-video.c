@@ -1226,7 +1226,7 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 	return rc;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 
 int cx231xx_g_chip_info(struct file *file, void *fh,
 			struct v4l2_dbg_chip_info *chip)
@@ -2000,7 +2000,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_tuner                = cx231xx_s_tuner,
 	.vidioc_g_frequency            = cx231xx_g_frequency,
 	.vidioc_s_frequency            = cx231xx_s_frequency,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.vidioc_g_chip_info            = cx231xx_g_chip_info,
 	.vidioc_g_register             = cx231xx_g_register,
 	.vidioc_s_register             = cx231xx_s_register,
@@ -2032,7 +2032,7 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_tuner     = radio_s_tuner,
 	.vidioc_g_frequency = cx231xx_g_frequency,
 	.vidioc_s_frequency = cx231xx_s_frequency,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.vidioc_g_chip_info = cx231xx_g_chip_info,
 	.vidioc_g_register  = cx231xx_g_register,
 	.vidioc_s_register  = cx231xx_s_register,

@@ -1124,7 +1124,7 @@ err:
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_ENABLED(CONFIG_BACKPORT_RC_CORE)
 static int anysee_rc_query(struct dvb_usb_device *d)
 {
 	u8 buf[] = {CMD_GET_IR_CODE};

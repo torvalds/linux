@@ -217,7 +217,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 
 void au0828_card_analog_fe_setup(struct au0828_dev *dev)
 {
-#ifdef CONFIG_VIDEO_AU0828_V4L2
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_V4L2
 	struct tuner_setup tun_setup;
 	struct v4l2_subdev *sd;
 	unsigned int mode_mask = T_ANALOG_TV;

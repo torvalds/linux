@@ -80,7 +80,7 @@ struct lgs8gxx_config {
 	u8 tuner_address;
 };
 
-#if IS_ENABLED(CONFIG_DVB_LGS8GXX)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_LGS8GXX)
 extern struct dvb_frontend *lgs8gxx_attach(const struct lgs8gxx_config *config,
 					   struct i2c_adapter *i2c);
 #else
@@ -90,6 +90,6 @@ struct dvb_frontend *lgs8gxx_attach(const struct lgs8gxx_config *config,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_LGS8GXX */
+#endif /* CONFIG_BACKPORT_DVB_LGS8GXX */
 
 #endif /* __LGS8GXX_H__ */

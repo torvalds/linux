@@ -165,10 +165,10 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
  *      we don't catch these faulty IDs (namely 'Cypress FX1 USB controller') that
  *      have been left on the device. If you don't have such a device but an Artec
  *      device that's supposed to work with this driver but is not detected by it,
- *      free to enable CONFIG_DVB_USB_DIBUSB_MB_FAULTY via your kernel config.
+ *      free to enable CONFIG_BACKPORT_DVB_USB_DIBUSB_MB_FAULTY via your kernel config.
  */
 
-#ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
+#ifdef CONFIG_BACKPORT_DVB_USB_DIBUSB_MB_FAULTY
 /* 30 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
 #endif
 
@@ -315,7 +315,7 @@ static struct dvb_usb_device_properties dibusb1_1_an2235_properties = {
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 
-#ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
+#ifdef CONFIG_BACKPORT_DVB_USB_DIBUSB_MB_FAULTY
 	.num_device_descs = 2,
 #else
 	.num_device_descs = 1,
@@ -325,7 +325,7 @@ static struct dvb_usb_device_properties dibusb1_1_an2235_properties = {
 			{ &dibusb_dib3000mb_table[21], NULL },
 			{ &dibusb_dib3000mb_table[22], NULL },
 		},
-#ifdef CONFIG_DVB_USB_DIBUSB_MB_FAULTY
+#ifdef CONFIG_BACKPORT_DVB_USB_DIBUSB_MB_FAULTY
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
 			{ &dibusb_dib3000mb_table[30], NULL },
 			{ NULL },

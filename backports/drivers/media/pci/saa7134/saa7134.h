@@ -44,7 +44,7 @@
 #include <media/videobuf2-dma-sg.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
-#if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
+#if IS_ENABLED(CONFIG_BACKPORT_VIDEO_SAA7134_DVB)
 #include <media/videobuf2-dvb.h>
 #endif
 #include "tda8290.h"
@@ -650,7 +650,7 @@ struct saa7134_dev {
 	/* I2C keyboard data */
 	struct IR_i2c_init_data    init_data;
 
-#if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
+#if IS_ENABLED(CONFIG_BACKPORT_VIDEO_SAA7134_DVB)
 	/* SAA7134_MPEG_DVB only */
 	struct vb2_dvb_frontends frontends;
 	int (*original_demod_sleep)(struct dvb_frontend *fe);
@@ -880,7 +880,7 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status);
 /* ----------------------------------------------------------- */
 /* saa7134-input.c                                             */
 
-#if defined(CONFIG_VIDEO_SAA7134_RC)
+#if defined(CONFIG_BACKPORT_VIDEO_SAA7134_RC)
 int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);

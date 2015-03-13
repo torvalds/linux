@@ -38,7 +38,7 @@ static int ath9k_ps_enable;
 module_param_named(ps_enable, ath9k_ps_enable, int, 0444);
 MODULE_PARM_DESC(ps_enable, "Enable WLAN PowerSave");
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 int ath9k_htc_led_blink = 1;
 module_param_named(blink, ath9k_htc_led_blink, int, 0444);
 MODULE_PARM_DESC(blink, "Enable LED blink on activity");
@@ -573,7 +573,7 @@ static const struct ieee80211_iface_limit if_limits[] = {
 	{ .max = 2,	.types = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_P2P_CLIENT) },
 	{ .max = 2,	.types = BIT(NL80211_IFTYPE_AP) |
-#ifdef CONFIG_MAC80211_MESH
+#ifdef CONFIG_BACKPORT_MAC80211_MESH
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
 				 BIT(NL80211_IFTYPE_P2P_GO) },
@@ -731,7 +731,7 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 		goto err_rx;
 
 	ath9k_hw_disable(priv->ah);
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 	/* must be initialized before ieee80211_register_hw */
 	priv->led_cdev.default_trigger = ieee80211_create_tpt_led_trigger(priv->hw,
 		IEEE80211_TPT_LEDTRIG_FL_RADIO, ath9k_htc_tpt_blink,

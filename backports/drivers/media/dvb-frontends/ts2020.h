@@ -31,7 +31,7 @@ struct ts2020_config {
 	u32 frequency_div;
 };
 
-#if IS_ENABLED(CONFIG_DVB_TS2020)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_TS2020)
 
 extern struct dvb_frontend *ts2020_attach(
 	struct dvb_frontend *fe,

@@ -3141,7 +3141,7 @@ void smp_unregister(struct hci_dev *hdev)
 	}
 }
 
-#if IS_ENABLED(CONFIG_BT_SELFTEST_SMP)
+#if IS_ENABLED(CONFIG_BACKPORT_BT_SELFTEST_SMP)
 
 static int __init test_ah(struct crypto_blkcipher *tfm_aes)
 {

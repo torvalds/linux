@@ -21,8 +21,8 @@ mantis-objs	:=	mantis_cards.o	\
 hopper-objs	:=	hopper_cards.o	\
 			hopper_vp3028.o
 
-obj-$(CONFIG_MANTIS_CORE)	+= mantis_core.o
-obj-$(CONFIG_DVB_MANTIS)	+= mantis.o
-obj-$(CONFIG_DVB_HOPPER)	+= hopper.o
+obj-$(CONFIG_BACKPORT_MANTIS_CORE)	+= mantis_core.o
+obj-$(CONFIG_BACKPORT_DVB_MANTIS)	+= mantis.o
+obj-$(CONFIG_BACKPORT_DVB_HOPPER)	+= hopper.o
 
-ccflags-y += -Idrivers/media/dvb-core/ -Idrivers/media/dvb-frontends/
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-core/ -I$(backport_srctree)/drivers/media/dvb-frontends/

@@ -216,7 +216,7 @@ struct rsi_hw {
 	struct device *device;
 	u8 sc_nvifs;
 
-#ifdef CONFIG_RSI_DEBUGFS
+#ifdef CONFIG_BACKPORT_RSI_DEBUGFS
 	struct rsi_debugfs *dfsentry;
 	u8 num_debugfs_entries;
 #endif

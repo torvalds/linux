@@ -700,7 +700,7 @@ struct ieee80211_if_mesh {
 	int meshconf_offset;
 };
 
-#ifdef CONFIG_MAC80211_MESH
+#ifdef CONFIG_BACKPORT_MAC80211_MESH
 #define IEEE80211_IFSTA_MESH_CTR_INC(msh, name)	\
 	do { (msh)->mshstats.name++; } while (0)
 #else
@@ -897,7 +897,7 @@ struct ieee80211_sub_if_data {
 		u32 mntr_flags;
 	} u;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	struct {
 		struct dentry *subdir_stations;
 		struct dentry *default_unicast_key;
@@ -1016,7 +1016,7 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASONS,
 };
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 struct tpt_led_trigger {
 	struct led_trigger trig;
 	char name[32];
@@ -1275,7 +1275,7 @@ struct ieee80211_local {
 	u32 dot11MulticastReceivedFrameCount;
 	u32 dot11TransmittedFrameCount;
 
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_BACKPORT_MAC80211_LEDS
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
 	int tx_led_counter, rx_led_counter;
 #endif
@@ -1285,7 +1285,7 @@ struct ieee80211_local {
 	     assoc_led_name[32], radio_led_name[32];
 #endif
 
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUG_COUNTERS
 	/* TX/RX handler statistics */
 	unsigned int tx_handlers_drop;
 	unsigned int tx_handlers_queued;
@@ -1306,9 +1306,9 @@ struct ieee80211_local {
 	unsigned int rx_handlers_fragments;
 	unsigned int tx_status_drop;
 #define I802_DEBUG_INC(c) (c)++
-#else /* CONFIG_MAC80211_DEBUG_COUNTERS */
+#else /* CONFIG_BACKPORT_MAC80211_DEBUG_COUNTERS */
 #define I802_DEBUG_INC(c) do { } while (0)
-#endif /* CONFIG_MAC80211_DEBUG_COUNTERS */
+#endif /* CONFIG_BACKPORT_MAC80211_DEBUG_COUNTERS */
 
 
 	int total_ps_buffered; /* total number of all buffered unicast and
@@ -1341,7 +1341,7 @@ struct ieee80211_local {
 
 	struct work_struct restart_work;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	struct local_debugfsdentries {
 		struct dentry *rcdir;
 		struct dentry *keys;
@@ -2028,7 +2028,7 @@ void ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
 
 extern const struct ethtool_ops ieee80211_ethtool_ops;
 
-#ifdef CONFIG_MAC80211_NOINLINE
+#ifdef CONFIG_BACKPORT_MAC80211_NOINLINE
 #define debug_noinline noinline
 #else
 #define debug_noinline

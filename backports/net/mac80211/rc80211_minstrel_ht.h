@@ -15,7 +15,7 @@
  */
 #define MINSTREL_MAX_STREAMS		3
 #define MINSTREL_HT_STREAM_GROUPS	4 /* BW(=2) * SGI(=2) */
-#ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
+#ifdef CONFIG_BACKPORT_MAC80211_RC_MINSTREL_VHT
 #define MINSTREL_VHT_STREAM_GROUPS	6 /* BW(=3) * SGI(=2) */
 #else
 #define MINSTREL_VHT_STREAM_GROUPS	0
@@ -34,7 +34,7 @@
 #define MINSTREL_CCK_GROUP	(MINSTREL_HT_GROUP_0 + MINSTREL_HT_GROUPS_NB)
 #define MINSTREL_VHT_GROUP_0	(MINSTREL_CCK_GROUP + 1)
 
-#ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
+#ifdef CONFIG_BACKPORT_MAC80211_RC_MINSTREL_VHT
 #define MCS_GROUP_RATES		10
 #else
 #define MCS_GROUP_RATES		8
@@ -110,7 +110,7 @@ struct minstrel_ht_sta_priv {
 		struct minstrel_ht_sta ht;
 		struct minstrel_sta_info legacy;
 	};
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	struct dentry *dbg_stats;
 #endif
 	void *ratelist;

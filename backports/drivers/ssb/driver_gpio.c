@@ -27,7 +27,7 @@ static struct ssb_bus *ssb_gpio_get_bus(struct gpio_chip *chip)
 	return container_of(chip, struct ssb_bus, gpio);
 }
 
-#if IS_ENABLED(CONFIG_SSB_EMBEDDED)
+#if IS_ENABLED(CONFIG_BACKPORT_SSB_EMBEDDED)
 static int ssb_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 {
 	struct ssb_bus *bus = ssb_gpio_get_bus(chip);
@@ -98,7 +98,7 @@ static void ssb_gpio_chipco_free(struct gpio_chip *chip, unsigned gpio)
 	ssb_chipco_gpio_pullup(&bus->chipco, 1 << gpio, 0);
 }
 
-#if IS_ENABLED(CONFIG_SSB_EMBEDDED)
+#if IS_ENABLED(CONFIG_BACKPORT_SSB_EMBEDDED)
 static void ssb_gpio_irq_chipco_mask(struct irq_data *d)
 {
 	struct ssb_bus *bus = irq_data_get_irq_chip_data(d);
@@ -230,7 +230,7 @@ static int ssb_gpio_chipco_init(struct ssb_bus *bus)
 	chip->set		= ssb_gpio_chipco_set_value;
 	chip->direction_input	= ssb_gpio_chipco_direction_input;
 	chip->direction_output	= ssb_gpio_chipco_direction_output;
-#if IS_ENABLED(CONFIG_SSB_EMBEDDED)
+#if IS_ENABLED(CONFIG_BACKPORT_SSB_EMBEDDED)
 	chip->to_irq		= ssb_gpio_to_irq;
 #endif
 	chip->ngpio		= 16;
@@ -259,7 +259,7 @@ static int ssb_gpio_chipco_init(struct ssb_bus *bus)
  * EXTIF
  **************************************************/
 
-#ifdef CONFIG_SSB_DRIVER_EXTIF
+#ifdef CONFIG_BACKPORT_SSB_DRIVER_EXTIF
 
 static int ssb_gpio_extif_get_value(struct gpio_chip *chip, unsigned gpio)
 {
@@ -295,7 +295,7 @@ static int ssb_gpio_extif_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SSB_EMBEDDED)
+#if IS_ENABLED(CONFIG_BACKPORT_SSB_EMBEDDED)
 static void ssb_gpio_irq_extif_mask(struct irq_data *d)
 {
 	struct ssb_bus *bus = irq_data_get_irq_chip_data(d);
@@ -423,7 +423,7 @@ static int ssb_gpio_extif_init(struct ssb_bus *bus)
 	chip->set		= ssb_gpio_extif_set_value;
 	chip->direction_input	= ssb_gpio_extif_direction_input;
 	chip->direction_output	= ssb_gpio_extif_direction_output;
-#if IS_ENABLED(CONFIG_SSB_EMBEDDED)
+#if IS_ENABLED(CONFIG_BACKPORT_SSB_EMBEDDED)
 	chip->to_irq		= ssb_gpio_to_irq;
 #endif
 	chip->ngpio		= 5;

@@ -360,7 +360,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int cx18_g_register(struct file *file, void *fh,
 				struct v4l2_dbg_register *reg)
 {
@@ -1103,7 +1103,7 @@ static const struct v4l2_ioctl_ops cx18_ioctl_ops = {
 	.vidioc_try_fmt_vbi_cap         = cx18_try_fmt_vbi_cap,
 	.vidioc_try_fmt_sliced_vbi_cap  = cx18_try_fmt_sliced_vbi_cap,
 	.vidioc_g_sliced_vbi_cap        = cx18_g_sliced_vbi_cap,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.vidioc_g_register              = cx18_g_register,
 	.vidioc_s_register              = cx18_s_register,
 #endif

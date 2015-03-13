@@ -1,6 +1,6 @@
-obj-pvrusb2-sysfs-$(CONFIG_VIDEO_PVRUSB2_SYSFS) := pvrusb2-sysfs.o
-obj-pvrusb2-debugifc-$(CONFIG_VIDEO_PVRUSB2_DEBUGIFC) := pvrusb2-debugifc.o
-obj-pvrusb2-dvb-$(CONFIG_VIDEO_PVRUSB2_DVB) := pvrusb2-dvb.o
+obj-pvrusb2-sysfs-$(CONFIG_BACKPORT_VIDEO_PVRUSB2_SYSFS) := pvrusb2-sysfs.o
+obj-pvrusb2-debugifc-$(CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC) := pvrusb2-debugifc.o
+obj-pvrusb2-dvb-$(CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB) := pvrusb2-dvb.o
 
 pvrusb2-objs	:= pvrusb2-i2c-core.o \
 		   pvrusb2-audio.o \
@@ -14,9 +14,9 @@ pvrusb2-objs	:= pvrusb2-i2c-core.o \
 		   $(obj-pvrusb2-dvb-y) \
 		   $(obj-pvrusb2-sysfs-y) $(obj-pvrusb2-debugifc-y)
 
-obj-$(CONFIG_VIDEO_PVRUSB2) += pvrusb2.o
+obj-$(CONFIG_BACKPORT_VIDEO_PVRUSB2) += pvrusb2.o
 
-ccflags-y += -Idrivers/media/i2c
-ccflags-y += -Idrivers/media/tuners
-ccflags-y += -Idrivers/media/dvb-core
-ccflags-y += -Idrivers/media/dvb-frontends
+ccflags-y += -I$(backport_srctree)/drivers/media/i2c
+ccflags-y += -I$(backport_srctree)/drivers/media/tuners
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-core
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-frontends

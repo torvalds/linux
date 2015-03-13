@@ -43,31 +43,31 @@
 #define VK
 #endif
 
-#ifdef CONFIG_IPW2200_DEBUG
+#ifdef CONFIG_BACKPORT_IPW2200_DEBUG
 #define VD "d"
 #else
 #define VD
 #endif
 
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 #define VM "m"
 #else
 #define VM
 #endif
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 #define VP "p"
 #else
 #define VP
 #endif
 
-#ifdef CONFIG_IPW2200_RADIOTAP
+#ifdef CONFIG_BACKPORT_IPW2200_RADIOTAP
 #define VR "r"
 #else
 #define VR
 #endif
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 #define VQ "q"
 #else
 #define VQ
@@ -85,7 +85,7 @@ MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("ipw2200-ibss.fw");
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 MODULE_FIRMWARE("ipw2200-sniffer.fw");
 #endif
 MODULE_FIRMWARE("ipw2200-bss.fw");
@@ -108,7 +108,7 @@ static const char ipw_modes[] = {
 };
 static int antenna = CFG_SYS_ANTENNA_BOTH;
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 static int rtap_iface = 0;     /* def: 0 -- do not create rtap interface */
 #endif
 
@@ -140,7 +140,7 @@ static struct ieee80211_rate ipw2200_rates[] = {
 	(((x) == 14) ? 2484 : ((x) * 5) + 2407) : \
 	((x) + 1000) * 5)
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 static int qos_enable = 0;
 static int qos_burst_enable = 0;
 static int qos_no_ack_mask = 0;
@@ -204,7 +204,7 @@ static int ipw_send_qos_params_command(struct ipw_priv *priv, struct libipw_qos_
 				       *qos_param);
 static int ipw_send_qos_info_command(struct ipw_priv *priv, struct libipw_qos_information_element
 				     *qos_param);
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
 static struct iw_statistics *ipw_get_wireless_stats(struct net_device *dev);
 static void ipw_remove_current_network(struct ipw_priv *priv);
@@ -1382,7 +1382,7 @@ static ssize_t show_cmd_log(struct device *d,
 
 static DEVICE_ATTR(cmd_log, S_IRUGO, show_cmd_log, NULL);
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 static void ipw_prom_free(struct ipw_priv *priv);
 static int ipw_prom_alloc(struct ipw_priv *priv);
 static ssize_t store_rtap_iface(struct device *d,
@@ -3508,7 +3508,7 @@ static int ipw_load(struct ipw_priv *priv)
 	case IW_MODE_ADHOC:
 		name = "ipw2200-ibss.fw";
 		break;
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	case IW_MODE_MONITOR:
 		name = "ipw2200-sniffer.fw";
 		break;
@@ -4020,7 +4020,7 @@ static void ipw_system_config(struct work_struct *work)
 	struct ipw_priv *priv =
 		container_of(work, struct ipw_priv, system_config);
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 	if (priv->prom_net_dev && netif_running(priv->prom_net_dev)) {
 		priv->sys_config.accept_all_data_frames = 1;
 		priv->sys_config.accept_non_directed_frames = 1;
@@ -4539,7 +4539,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 					priv->status |= STATUS_ASSOCIATED;
 					schedule_work(&priv->system_config);
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 #define IPW_GET_PACKET_STYPE(x) WLAN_FC_GET_STYPE( \
 			 le16_to_cpu(((struct ieee80211_hdr *)(x))->frame_control))
 					if ((priv->status & STATUS_AUTH) &&
@@ -4788,14 +4788,14 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 			priv->ieee->scans++;
 
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 			if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
 				priv->status |= STATUS_SCAN_FORCED;
 				schedule_delayed_work(&priv->request_scan, 0);
 				break;
 			}
 			priv->status &= ~STATUS_SCAN_FORCED;
-#endif				/* CONFIG_IPW2200_MONITOR */
+#endif				/* CONFIG_BACKPORT_IPW2200_MONITOR */
 
 			/* Do queued direct scans first */
 			if (priv->status & STATUS_DIRECT_SCAN_PENDING)
@@ -6355,7 +6355,7 @@ static int ipw_request_scan_helper(struct ipw_priv *priv, int type, int direct)
 		cpu_to_le16(ipw_passive_dwell_time(priv));
 	scan.dwell_time[IPW_SCAN_ACTIVE_DIRECT_SCAN] = cpu_to_le16(20);
 
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
 		u8 channel;
 		u8 band = 0;
@@ -6392,7 +6392,7 @@ static int ipw_request_scan_helper(struct ipw_priv *priv, int type, int direct)
 		scan.dwell_time[IPW_SCAN_PASSIVE_FULL_DWELL_SCAN] =
 			cpu_to_le16(2000);
 	} else {
-#endif				/* CONFIG_IPW2200_MONITOR */
+#endif				/* CONFIG_BACKPORT_IPW2200_MONITOR */
 		/* Honor direct scans first, otherwise if we are roaming make
 		 * this a direct scan for the current network.  Finally,
 		 * ensure that every other scan is a fast channel hop scan */
@@ -6422,7 +6422,7 @@ static int ipw_request_scan_helper(struct ipw_priv *priv, int type, int direct)
 			scan_type = IPW_SCAN_ACTIVE_BROADCAST_SCAN;
 
 		ipw_add_scan_channels(priv, &scan, scan_type);
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	}
 #endif
 
@@ -6832,7 +6832,7 @@ static int ipw_wx_set_mlme(struct net_device *dev,
 	return 0;
 }
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 
 /* QoS */
 /*
@@ -7291,7 +7291,7 @@ static int ipw_send_qos_info_command(struct ipw_priv *priv, struct libipw_qos_in
 				qos_param);
 }
 
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
 static int ipw_associate_network(struct ipw_priv *priv,
 				 struct libipw_network *network,
@@ -7454,7 +7454,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 
 	priv->assoc_network = network;
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 	ipw_qos_association(priv, network);
 #endif
 
@@ -7747,7 +7747,7 @@ static void ipw_handle_data_packet(struct ipw_priv *priv,
 	}
 }
 
-#ifdef CONFIG_IPW2200_RADIOTAP
+#ifdef CONFIG_BACKPORT_IPW2200_RADIOTAP
 static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 					   struct ipw_rx_mem_buffer *rxb,
 					   struct libipw_rx_stats *stats)
@@ -7905,7 +7905,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 }
 #endif
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 #define libipw_is_probe_response(fc) \
    ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT && \
     (fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP )
@@ -8338,14 +8338,14 @@ static void ipw_rx(struct ipw_priv *priv)
 
 				priv->rx_packets++;
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 	if (priv->prom_net_dev && netif_running(priv->prom_net_dev))
 		ipw_handle_promiscuous_rx(priv, rxb, &stats);
 #endif
 
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 				if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
-#ifdef CONFIG_IPW2200_RADIOTAP
+#ifdef CONFIG_BACKPORT_IPW2200_RADIOTAP
 
                 ipw_handle_data_packet_monitor(priv,
 					       rxb,
@@ -8521,10 +8521,10 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 		IPW_DEBUG_INFO("Bind to static channel %d\n", default_channel);
 		/* TODO: Validate that provided channel is in range */
 	}
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 	ipw_qos_init(priv, qos_enable, qos_burst_enable,
 		     burst_duration_CCK, burst_duration_OFDM);
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
 	switch (network_mode) {
 	case 1:
@@ -8532,10 +8532,10 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 		priv->net_dev->type = ARPHRD_ETHER;
 
 		break;
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	case 2:
 		priv->ieee->iw_mode = IW_MODE_MONITOR;
-#ifdef CONFIG_IPW2200_RADIOTAP
+#ifdef CONFIG_BACKPORT_IPW2200_RADIOTAP
 		priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 #else
 		priv->net_dev->type = ARPHRD_IEEE80211;
@@ -8637,7 +8637,7 @@ static int ipw_set_channel(struct ipw_priv *priv, u8 channel)
 	IPW_DEBUG_INFO("Setting channel to %i\n", (int)channel);
 	priv->channel = channel;
 
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
 		int i;
 		if (priv->status & STATUS_SCANNING) {
@@ -8657,7 +8657,7 @@ static int ipw_set_channel(struct ipw_priv *priv, u8 channel)
 
 		return 0;
 	}
-#endif				/* CONFIG_IPW2200_MONITOR */
+#endif				/* CONFIG_BACKPORT_IPW2200_MONITOR */
 
 	/* Network configuration changed -- force [re]association */
 	IPW_DEBUG_ASSOC("[re]association triggered due to channel change.\n");
@@ -8765,7 +8765,7 @@ static int ipw_wx_set_mode(struct net_device *dev,
 	IPW_DEBUG_WX("Set MODE: %d\n", wrqu->mode);
 
 	switch (wrqu->mode) {
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	case IW_MODE_MONITOR:
 #endif
 	case IW_MODE_ADHOC:
@@ -8784,17 +8784,17 @@ static int ipw_wx_set_mode(struct net_device *dev,
 
 	ipw_sw_reset(priv, 0);
 
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	if (priv->ieee->iw_mode == IW_MODE_MONITOR)
 		priv->net_dev->type = ARPHRD_ETHER;
 
 	if (wrqu->mode == IW_MODE_MONITOR)
-#ifdef CONFIG_IPW2200_RADIOTAP
+#ifdef CONFIG_BACKPORT_IPW2200_RADIOTAP
 		priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 #else
 		priv->net_dev->type = ARPHRD_IEEE80211;
 #endif
-#endif				/* CONFIG_IPW2200_MONITOR */
+#endif				/* CONFIG_BACKPORT_IPW2200_MONITOR */
 
 	/* Free the existing firmware and reset the fw_loaded
 	 * flag so ipw_load() will bring in the new firmware */
@@ -9814,7 +9814,7 @@ static int ipw_wx_get_preamble(struct net_device *dev,
 	return 0;
 }
 
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 static int ipw_wx_set_monitor(struct net_device *dev,
 			      struct iw_request_info *info,
 			      union iwreq_data *wrqu, char *extra)
@@ -9826,7 +9826,7 @@ static int ipw_wx_set_monitor(struct net_device *dev,
 	IPW_DEBUG_WX("SET MONITOR: %d %d\n", enable, parms[1]);
 	if (enable) {
 		if (priv->ieee->iw_mode != IW_MODE_MONITOR) {
-#ifdef CONFIG_IPW2200_RADIOTAP
+#ifdef CONFIG_BACKPORT_IPW2200_RADIOTAP
 			priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 #else
 			priv->net_dev->type = ARPHRD_IEEE80211;
@@ -9847,7 +9847,7 @@ static int ipw_wx_set_monitor(struct net_device *dev,
 	return 0;
 }
 
-#endif				/* CONFIG_IPW2200_MONITOR */
+#endif				/* CONFIG_BACKPORT_IPW2200_MONITOR */
 
 static int ipw_wx_reset(struct net_device *dev,
 			struct iw_request_info *info,
@@ -9956,7 +9956,7 @@ enum {
 	IPW_PRIV_GET_PREAMBLE,
 	IPW_PRIV_RESET,
 	IPW_PRIV_SW_RESET,
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	IPW_PRIV_SET_MONITOR,
 #endif
 };
@@ -9992,11 +9992,11 @@ static struct iw_priv_args ipw_priv_args[] = {
 	{
 	 IPW_PRIV_SW_RESET,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 0, 0, "sw_reset"},
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	{
 	 IPW_PRIV_SET_MONITOR,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 2, 0, "monitor"},
-#endif				/* CONFIG_IPW2200_MONITOR */
+#endif				/* CONFIG_BACKPORT_IPW2200_MONITOR */
 };
 
 static iw_handler ipw_priv_handler[] = {
@@ -10008,7 +10008,7 @@ static iw_handler ipw_priv_handler[] = {
 	ipw_wx_get_preamble,
 	ipw_wx_reset,
 	ipw_wx_sw_reset,
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 	ipw_wx_set_monitor,
 #endif
 };
@@ -10121,7 +10121,7 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 	    txb->fragments[0]->data;
 	int i = 0;
 	struct tfd_frame *tfd;
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 	int tx_id = ipw_get_tx_queue_number(priv, pri);
 	struct clx2_tx_queue *txq = &priv->txq[tx_id];
 #else
@@ -10229,10 +10229,10 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 		/* No hardware encryption */
 		tfd->u.data.tx_flags |= DCT_FLAG_NO_WEP;
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 	if (fc & IEEE80211_STYPE_QOS_DATA)
 		ipw_qos_set_tx_queue_command(priv, pri, &(tfd->u.data));
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
 	/* payload */
 	tfd->u.data.num_chunks = cpu_to_le32(min((u8) (NUM_TFD_CHUNKS - 2),
@@ -10310,12 +10310,12 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct libipw_txb *txb,
 static int ipw_net_is_queue_full(struct net_device *dev, int pri)
 {
 	struct ipw_priv *priv = libipw_priv(dev);
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 	int tx_id = ipw_get_tx_queue_number(priv, pri);
 	struct clx2_tx_queue *txq = &priv->txq[tx_id];
 #else
 	struct clx2_tx_queue *txq = &priv->txq[0];
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
 	if (ipw_tx_queue_space(&txq->q) < txq->q.high_mark)
 		return 1;
@@ -10323,7 +10323,7 @@ static int ipw_net_is_queue_full(struct net_device *dev, int pri)
 	return 0;
 }
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 				      struct libipw_txb *txb)
 {
@@ -10415,7 +10415,7 @@ static netdev_tx_t ipw_net_hard_start_xmit(struct libipw_txb *txb,
 	IPW_DEBUG_TX("dev->xmit(%d bytes)\n", txb->payload_size);
 	spin_lock_irqsave(&priv->lock, flags);
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 	if (rtap_iface && netif_running(priv->prom_net_dev))
 		ipw_handle_promiscuous_tx(priv, txb);
 #endif
@@ -10702,9 +10702,9 @@ static int ipw_setup_deferred_work(struct ipw_priv *priv)
 	INIT_DELAYED_WORK(&priv->led_act_off, ipw_bg_led_activity_off);
 	INIT_WORK(&priv->merge_networks, ipw_merge_adhoc_network);
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 	INIT_WORK(&priv->qos_activate, ipw_bg_qos_activate);
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 		     ipw_irq_tasklet, (unsigned long)priv);
@@ -10850,7 +10850,7 @@ static int ipw_config(struct ipw_priv *priv)
 			    |= CFG_BT_COEXISTENCE_OOB;
 	}
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 	if (priv->prom_net_dev && netif_running(priv->prom_net_dev)) {
 		priv->sys_config.accept_all_data_frames = 1;
 		priv->sys_config.accept_non_directed_frames = 1;
@@ -10876,10 +10876,10 @@ static int ipw_config(struct ipw_priv *priv)
 		if (ipw_send_rts_threshold(priv, priv->rts_threshold))
 			goto error;
 	}
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 	IPW_DEBUG_QOS("QoS: call ipw_qos_activate\n");
 	ipw_qos_activate(priv, NULL);
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
 	if (ipw_set_random_seed(priv))
 		goto error;
@@ -11498,7 +11498,7 @@ static struct attribute *ipw_sysfs_entries[] = {
 	&dev_attr_speed_scan.attr,
 	&dev_attr_net_stats.attr,
 	&dev_attr_channels.attr,
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 	&dev_attr_rtap_iface.attr,
 	&dev_attr_rtap_filter.attr,
 #endif
@@ -11510,7 +11510,7 @@ static struct attribute_group ipw_attribute_group = {
 	.attrs = ipw_sysfs_entries,
 };
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 static int ipw_prom_open(struct net_device *dev)
 {
 	struct ipw_prom_priv *prom_priv = libipw_priv(dev);
@@ -11714,12 +11714,12 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 	priv->ieee->set_security = shim__set_security;
 	priv->ieee->is_queue_full = ipw_net_is_queue_full;
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 	priv->ieee->is_qos_active = ipw_is_qos_active;
 	priv->ieee->handle_probe_response = ipw_handle_beacon;
 	priv->ieee->handle_beacon = ipw_handle_probe_response;
 	priv->ieee->handle_assoc_response = ipw_handle_assoc_response;
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
 	priv->ieee->perfect_rssi = -20;
 	priv->ieee->worst_rssi = -85;
@@ -11757,7 +11757,7 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 		goto out_unregister_wiphy;
 	}
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 	if (rtap_iface) {
 	        err = ipw_prom_alloc(priv);
 		if (err) {
@@ -11862,7 +11862,7 @@ static void ipw_pci_remove(struct pci_dev *pdev)
 	kfree(priv->error);
 	priv->error = NULL;
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 	ipw_prom_free(priv);
 #endif
 
@@ -12012,12 +12012,12 @@ MODULE_PARM_DESC(debug, "debug output mask");
 module_param_named(channel, default_channel, int, 0444);
 MODULE_PARM_DESC(channel, "channel to limit associate to (default 0 [ANY])");
 
-#ifdef CONFIG_IPW2200_PROMISCUOUS
+#ifdef CONFIG_BACKPORT_IPW2200_PROMISCUOUS
 module_param(rtap_iface, int, 0444);
 MODULE_PARM_DESC(rtap_iface, "create the rtap interface (1 - create, default 0)");
 #endif
 
-#ifdef CONFIG_IPW2200_QOS
+#ifdef CONFIG_BACKPORT_IPW2200_QOS
 module_param(qos_enable, int, 0444);
 MODULE_PARM_DESC(qos_enable, "enable all QoS functionalitis");
 
@@ -12032,9 +12032,9 @@ MODULE_PARM_DESC(burst_duration_CCK, "set CCK burst value");
 
 module_param(burst_duration_OFDM, int, 0444);
 MODULE_PARM_DESC(burst_duration_OFDM, "set OFDM burst value");
-#endif				/* CONFIG_IPW2200_QOS */
+#endif				/* CONFIG_BACKPORT_IPW2200_QOS */
 
-#ifdef CONFIG_IPW2200_MONITOR
+#ifdef CONFIG_BACKPORT_IPW2200_MONITOR
 module_param_named(mode, network_mode, int, 0444);
 MODULE_PARM_DESC(mode, "network mode (0=BSS,1=IBSS,2=Monitor)");
 #else

@@ -1106,7 +1106,7 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 }
 EXPORT_SYMBOL_GPL(rt2800_clear_beacon);
 
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS
 const struct rt2x00debug rt2800_rt2x00debug = {
 	.owner	= THIS_MODULE,
 	.csr	= {
@@ -1150,7 +1150,7 @@ const struct rt2x00debug rt2800_rt2x00debug = {
 	},
 };
 EXPORT_SYMBOL_GPL(rt2800_rt2x00debug);
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS */
 
 int rt2800_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
@@ -1166,7 +1166,7 @@ int rt2800_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_rfkill_poll);
 
-#ifdef CONFIG_RT2X00_LIB_LEDS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_LEDS
 static void rt2800_brightness_set(struct led_classdev *led_cdev,
 				  enum led_brightness brightness)
 {
@@ -1235,7 +1235,7 @@ static void rt2800_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.brightness_set = rt2800_brightness_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT2X00_LIB_LEDS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -7187,13 +7187,13 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led settings, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT2X00_LIB_LEDS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_LEDS
 	rt2800_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
 	rt2800_init_led(rt2x00dev, &rt2x00dev->led_assoc, LED_TYPE_ASSOC);
 	rt2800_init_led(rt2x00dev, &rt2x00dev->led_qual, LED_TYPE_QUALITY);
 
 	rt2x00dev->led_mcu_reg = eeprom;
-#endif /* CONFIG_RT2X00_LIB_LEDS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_LEDS */
 
 	/*
 	 * Check if support EIRP tx power limit feature.

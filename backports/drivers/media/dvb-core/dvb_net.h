@@ -32,7 +32,7 @@
 
 #define DVB_NET_DEVICES_MAX 10
 
-#ifdef CONFIG_DVB_NET
+#ifdef CONFIG_BACKPORT_DVB_NET
 
 struct dvb_net {
 	struct dvb_device *dvbdev;
@@ -62,6 +62,6 @@ static inline int dvb_net_init(struct dvb_adapter *adap,
 	return 0;
 }
 
-#endif /* ifdef CONFIG_DVB_NET */
+#endif /* ifdef CONFIG_BACKPORT_DVB_NET */
 
 #endif

@@ -17,7 +17,7 @@
 #include "linux/device.h"
 #include "wil_platform.h"
 
-#ifdef CONFIG_WIL6210_PLATFORM_MSM
+#ifdef CONFIG_BACKPORT_WIL6210_PLATFORM_MSM
 #include "wil_platform_msm.h"
 #endif
 
@@ -37,7 +37,7 @@ void *wil_platform_init(struct device *dev, struct wil_platform_ops *ops)
 		return NULL;
 	}
 
-#ifdef CONFIG_WIL6210_PLATFORM_MSM
+#ifdef CONFIG_BACKPORT_WIL6210_PLATFORM_MSM
 	handle = wil_platform_msm_init(dev, ops);
 	if (handle)
 		return handle;

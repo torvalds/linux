@@ -425,7 +425,7 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 		goto fail_thread;
 	}
 
-#ifdef CONFIG_RSI_DEBUGFS
+#ifdef CONFIG_BACKPORT_RSI_DEBUGFS
 	/* In USB, one less than the MAX_DEBUGFS_ENTRIES entries is required */
 	adapter->num_debugfs_entries = (MAX_DEBUGFS_ENTRIES - 1);
 #endif

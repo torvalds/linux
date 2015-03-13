@@ -148,7 +148,7 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq);
  */
 
 /* This macro allows us to probe dynamically, avoiding static links */
-#ifdef CONFIG_MEDIA_ATTACH
+#ifdef CONFIG_BACKPORT_MEDIA_ATTACH
 #define tuner_symbol_probe(FUNCTION, ARGS...) ({ \
 	int __r = -EINVAL; \
 	typeof(&FUNCTION) __a = symbol_request(FUNCTION); \

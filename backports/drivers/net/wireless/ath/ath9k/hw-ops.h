@@ -100,7 +100,7 @@ static inline void ath9k_hw_tx99_set_txpower(struct ath_hw *ah, u8 power)
 		ath9k_hw_ops(ah)->tx99_set_txpower(ah, power);
 }
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 
 static inline void ath9k_hw_set_bt_ant_diversity(struct ath_hw *ah, bool enable)
 {

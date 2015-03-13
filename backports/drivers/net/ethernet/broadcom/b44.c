@@ -104,7 +104,7 @@ module_param(b44_debug, int, 0);
 MODULE_PARM_DESC(b44_debug, "B44 bitmapped debugging message enable value");
 
 
-#ifdef CONFIG_B44_PCI
+#ifdef CONFIG_BACKPORT_B44_PCI
 static const struct pci_device_id b44_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_BCM4401) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_BCM4401B0) },
@@ -117,7 +117,7 @@ static struct pci_driver b44_pci_driver = {
 	.name		= DRV_MODULE_NAME,
 	.id_table	= b44_pci_tbl,
 };
-#endif /* CONFIG_B44_PCI */
+#endif /* CONFIG_BACKPORT_B44_PCI */
 
 static const struct ssb_device_id b44_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_ETHERNET, SSB_ANY_REV),
@@ -1600,7 +1600,7 @@ static void b44_setup_pseudo_magicp(struct b44 *bp)
 
 }
 
-#ifdef CONFIG_B44_PCI
+#ifdef CONFIG_BACKPORT_B44_PCI
 static void b44_setup_wol_pci(struct b44 *bp)
 {
 	u16 val;
@@ -1613,7 +1613,7 @@ static void b44_setup_wol_pci(struct b44 *bp)
 }
 #else
 static inline void b44_setup_wol_pci(struct b44 *bp) { }
-#endif /* CONFIG_B44_PCI */
+#endif /* CONFIG_BACKPORT_B44_PCI */
 
 static void b44_setup_wol(struct b44 *bp)
 {
@@ -2572,7 +2572,7 @@ static struct ssb_driver b44_ssb_driver = {
 static inline int __init b44_pci_init(void)
 {
 	int err = 0;
-#ifdef CONFIG_B44_PCI
+#ifdef CONFIG_BACKPORT_B44_PCI
 	err = ssb_pcihost_register(&b44_pci_driver);
 #endif
 	return err;
@@ -2580,7 +2580,7 @@ static inline int __init b44_pci_init(void)
 
 static inline void b44_pci_exit(void)
 {
-#ifdef CONFIG_B44_PCI
+#ifdef CONFIG_BACKPORT_B44_PCI
 	ssb_pcihost_unregister(&b44_pci_driver);
 #endif
 }

@@ -55,7 +55,7 @@ __printf(2, 3) void ath10k_err(struct ath10k *ar, const char *fmt, ...);
 __printf(2, 3) void ath10k_warn(struct ath10k *ar, const char *fmt, ...);
 void ath10k_print_driver_info(struct ath10k *ar);
 
-#ifdef CONFIG_ATH10K_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH10K_DEBUGFS
 int ath10k_debug_start(struct ath10k *ar);
 void ath10k_debug_stop(struct ath10k *ar);
 int ath10k_debug_create(struct ath10k *ar);
@@ -128,9 +128,9 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 #define ath10k_debug_get_et_sset_count NULL
 #define ath10k_debug_get_et_stats NULL
 
-#endif /* CONFIG_ATH10K_DEBUGFS */
+#endif /* CONFIG_BACKPORT_ATH10K_DEBUGFS */
 
-#ifdef CONFIG_ATH10K_DEBUG
+#ifdef CONFIG_BACKPORT_ATH10K_DEBUG
 __printf(3, 4) void ath10k_dbg(struct ath10k *ar,
 			       enum ath10k_debug_mask mask,
 			       const char *fmt, ...);
@@ -138,7 +138,7 @@ void ath10k_dbg_dump(struct ath10k *ar,
 		     enum ath10k_debug_mask mask,
 		     const char *msg, const char *prefix,
 		     const void *buf, size_t len);
-#else /* CONFIG_ATH10K_DEBUG */
+#else /* CONFIG_BACKPORT_ATH10K_DEBUG */
 
 static inline int ath10k_dbg(struct ath10k *ar,
 			     enum ath10k_debug_mask dbg_mask,
@@ -153,5 +153,5 @@ static inline void ath10k_dbg_dump(struct ath10k *ar,
 				   const void *buf, size_t len)
 {
 }
-#endif /* CONFIG_ATH10K_DEBUG */
+#endif /* CONFIG_BACKPORT_ATH10K_DEBUG */
 #endif /* _DEBUG_H_ */

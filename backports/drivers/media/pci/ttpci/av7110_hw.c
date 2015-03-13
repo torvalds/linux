@@ -704,7 +704,7 @@ int av7110_diseqc_send(struct av7110 *av7110, int len, u8 *msg, unsigned long bu
 }
 
 
-#ifdef CONFIG_DVB_AV7110_OSD
+#ifdef CONFIG_BACKPORT_DVB_AV7110_OSD
 
 static inline int SetColorBlend(struct av7110 *av7110, u8 windownr)
 {
@@ -1220,4 +1220,4 @@ int av7110_osd_capability(struct av7110 *av7110, osd_cap_t *cap)
 		return -EINVAL;
 	}
 }
-#endif /* CONFIG_DVB_AV7110_OSD */
+#endif /* CONFIG_BACKPORT_DVB_AV7110_OSD */

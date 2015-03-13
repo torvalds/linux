@@ -234,10 +234,10 @@ struct wcn36xx {
 
 	struct sk_buff		*tx_ack_skb;
 
-#ifdef CONFIG_WCN36XX_DEBUGFS
+#ifdef CONFIG_BACKPORT_WCN36XX_DEBUGFS
 	/* Debug file system entry */
 	struct wcn36xx_dfs_entry    dfs;
-#endif /* CONFIG_WCN36XX_DEBUGFS */
+#endif /* CONFIG_BACKPORT_WCN36XX_DEBUGFS */
 
 };
 

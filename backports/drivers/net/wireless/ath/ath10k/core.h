@@ -605,7 +605,7 @@ struct ath10k {
 
 	struct dfs_pattern_detector *dfs_detector;
 
-#ifdef CONFIG_ATH10K_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH10K_DEBUGFS
 	struct ath10k_debug debug;
 #endif
 

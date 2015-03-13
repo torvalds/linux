@@ -11,9 +11,9 @@ NOSTDINC_FLAGS := \
 	-I$(M)/include/uapi \
 	-include $(M)/backport-include/backport/backport.h \
 	$(call backport-cc-disable-warning, unused-but-set-variable) \
-	-DCPTCFG_VERSION=\"$(BACKPORTS_VERSION)\" \
-	-DCPTCFG_KERNEL_VERSION=\"$(BACKPORTED_KERNEL_VERSION)\" \
-	-DCPTCFG_KERNEL_NAME=\"$(BACKPORTED_KERNEL_NAME)\" \
+	-DCONFIG_BACKPORT_VERSION=\"$(BACKPORTS_VERSION)\" \
+	-DCONFIG_BACKPORT_KERNEL_VERSION=\"$(BACKPORTED_KERNEL_VERSION)\" \
+	-DCONFIG_BACKPORT_KERNEL_NAME=\"$(BACKPORTED_KERNEL_NAME)\" \
 	$(BACKPORTS_GIT_TRACKER_DEF) \
 	$(CFLAGS)
 
@@ -33,24 +33,24 @@ endif
 
 obj-y += compat/
 
-obj-$(CPTCFG_CFG80211) += net/wireless/
-obj-$(CPTCFG_MAC80211) += net/mac80211/
-obj-$(CPTCFG_WLAN) += drivers/net/wireless/
-obj-$(CPTCFG_BT) += net/bluetooth/
-obj-$(CPTCFG_BT) += drivers/bluetooth/
-obj-$(CPTCFG_SSB) += drivers/ssb/
-obj-$(CPTCFG_BCMA) += drivers/bcma/
-obj-$(CPTCFG_ETHERNET) += drivers/net/ethernet/
-obj-$(CPTCFG_USB_NET_RNDIS_WLAN) += drivers/net/usb/
-obj-$(CPTCFG_NFC) += net/nfc/
-obj-$(CPTCFG_NFC) += drivers/nfc/
-obj-$(CPTCFG_MEDIA_SUPPORT) += drivers/media/
+obj-$(CONFIG_BACKPORT_CFG80211) += net/wireless/
+obj-$(CONFIG_BACKPORT_MAC80211) += net/mac80211/
+obj-$(CONFIG_BACKPORT_WLAN) += drivers/net/wireless/
+obj-$(CONFIG_BACKPORT_BT) += net/bluetooth/
+obj-$(CONFIG_BACKPORT_BT) += drivers/bluetooth/
+obj-$(CONFIG_BACKPORT_SSB) += drivers/ssb/
+obj-$(CONFIG_BACKPORT_BCMA) += drivers/bcma/
+obj-$(CONFIG_BACKPORT_ETHERNET) += drivers/net/ethernet/
+obj-$(CONFIG_BACKPORT_USB_NET_RNDIS_WLAN) += drivers/net/usb/
+obj-$(CONFIG_BACKPORT_NFC) += net/nfc/
+obj-$(CONFIG_BACKPORT_NFC) += drivers/nfc/
+obj-$(CONFIG_BACKPORT_MEDIA_SUPPORT) += drivers/media/
 
-obj-$(CPTCFG_6LOWPAN) += net/6lowpan/
-obj-$(CPTCFG_IEEE802154) += net/ieee802154/
-obj-$(CPTCFG_BT) += net/ieee802154/
-obj-$(CPTCFG_MAC802154) += net/mac802154/
-obj-$(CPTCFG_IEEE802154) += drivers/net/ieee802154/
+obj-$(CONFIG_BACKPORT_6LOWPAN) += net/6lowpan/
+obj-$(CONFIG_BACKPORT_IEEE802154) += net/ieee802154/
+obj-$(CONFIG_BACKPORT_BT) += net/ieee802154/
+obj-$(CONFIG_BACKPORT_MAC802154) += net/mac802154/
+obj-$(CONFIG_BACKPORT_IEEE802154) += drivers/net/ieee802154/
 
-obj-$(CPTCFG_USB_WDM) += drivers/usb/class/
-obj-$(CPTCFG_USB_USBNET) += drivers/net/usb/
+obj-$(CONFIG_BACKPORT_USB_WDM) += drivers/usb/class/
+obj-$(CONFIG_BACKPORT_USB_USBNET) += drivers/net/usb/

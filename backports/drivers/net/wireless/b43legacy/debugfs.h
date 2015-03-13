@@ -14,7 +14,7 @@ enum b43legacy_dyndbg { /* Dynamic debugging features */
 };
 
 
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_B43LEGACY_DEBUG
 
 struct dentry;
 
@@ -62,7 +62,7 @@ void b43legacy_debugfs_remove_device(struct b43legacy_wldev *dev);
 void b43legacy_debugfs_log_txstat(struct b43legacy_wldev *dev,
 				  const struct b43legacy_txstatus *status);
 
-#else /* CONFIG_B43LEGACY_DEBUG*/
+#else /* CONFIG_BACKPORT_B43LEGACY_DEBUG*/
 
 static inline
 int b43legacy_debug(struct b43legacy_wldev *dev,
@@ -84,6 +84,6 @@ void b43legacy_debugfs_log_txstat(struct b43legacy_wldev *dev,
 				  const struct b43legacy_txstatus *status)
 				  { }
 
-#endif /* CONFIG_B43LEGACY_DEBUG*/
+#endif /* CONFIG_BACKPORT_B43LEGACY_DEBUG*/
 
 #endif /* B43legacy_DEBUGFS_H_ */

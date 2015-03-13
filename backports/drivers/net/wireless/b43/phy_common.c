@@ -46,27 +46,27 @@ int b43_phy_allocate(struct b43_wldev *dev)
 
 	switch (phy->type) {
 	case B43_PHYTYPE_G:
-#ifdef CONFIG_B43_PHY_G
+#ifdef CONFIG_BACKPORT_B43_PHY_G
 		phy->ops = &b43_phyops_g;
 #endif
 		break;
 	case B43_PHYTYPE_N:
-#ifdef CONFIG_B43_PHY_N
+#ifdef CONFIG_BACKPORT_B43_PHY_N
 		phy->ops = &b43_phyops_n;
 #endif
 		break;
 	case B43_PHYTYPE_LP:
-#ifdef CONFIG_B43_PHY_LP
+#ifdef CONFIG_BACKPORT_B43_PHY_LP
 		phy->ops = &b43_phyops_lp;
 #endif
 		break;
 	case B43_PHYTYPE_HT:
-#ifdef CONFIG_B43_PHY_HT
+#ifdef CONFIG_BACKPORT_B43_PHY_HT
 		phy->ops = &b43_phyops_ht;
 #endif
 		break;
 	case B43_PHYTYPE_LCN:
-#ifdef CONFIG_B43_PHY_LCN
+#ifdef CONFIG_BACKPORT_B43_PHY_LCN
 		phy->ops = &b43_phyops_lcn;
 #endif
 		break;
@@ -341,7 +341,7 @@ void b43_phy_put_into_reset(struct b43_wldev *dev)
 	u32 tmp;
 
 	switch (dev->dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 	case B43_BUS_BCMA:
 		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		tmp &= ~B43_BCMA_IOCTL_GMODE;
@@ -356,7 +356,7 @@ void b43_phy_put_into_reset(struct b43_wldev *dev)
 		udelay(1);
 		break;
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	case B43_BUS_SSB:
 		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
 		tmp &= ~B43_TMSLOW_GMODE;
@@ -380,7 +380,7 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev)
 	u32 tmp;
 
 	switch (dev->dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 	case B43_BUS_BCMA:
 		/* Unset reset bit (with forcing clock) */
 		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
@@ -398,7 +398,7 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev)
 		udelay(1);
 		break;
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	case B43_BUS_SSB:
 		/* Unset reset bit (with forcing clock) */
 		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
@@ -575,7 +575,7 @@ void b43_phy_force_clock(struct b43_wldev *dev, bool force)
 		dev->phy.type != B43_PHYTYPE_HT);
 
 	switch (dev->dev->bus_type) {
-#ifdef CONFIG_B43_BCMA
+#ifdef CONFIG_BACKPORT_B43_BCMA
 	case B43_BUS_BCMA:
 		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		if (force)
@@ -585,7 +585,7 @@ void b43_phy_force_clock(struct b43_wldev *dev, bool force)
 		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
 		break;
 #endif
-#ifdef CONFIG_B43_SSB
+#ifdef CONFIG_BACKPORT_B43_SSB
 	case B43_BUS_SSB:
 		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
 		if (force)

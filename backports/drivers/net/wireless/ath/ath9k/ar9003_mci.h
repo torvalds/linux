@@ -262,7 +262,7 @@ void ar9003_mci_send_wlan_channels(struct ath_hw *ah);
  * These functions are used by ath9k_hw.
  */
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 
 void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep);
 void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable);
@@ -330,6 +330,6 @@ static inline u16 ar9003_mci_get_max_txpower(struct ath_hw *ah, u8 ctlmode)
 {
 	return -1;
 }
-#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
+#endif /* CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT */
 
 #endif

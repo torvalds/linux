@@ -119,8 +119,8 @@ struct m88ds3103_config {
  * Using own I2C adapter we can workaround that.
  */
 
-#if defined(CONFIG_DVB_M88DS3103) || \
-		(defined(CONFIG_DVB_M88DS3103_MODULE) && defined(MODULE))
+#if defined(CONFIG_BACKPORT_DVB_M88DS3103) || \
+		(defined(CONFIG_BACKPORT_DVB_M88DS3103_MODULE) && defined(MODULE))
 extern struct dvb_frontend *m88ds3103_attach(
 		const struct m88ds3103_config *config,
 		struct i2c_adapter *i2c,

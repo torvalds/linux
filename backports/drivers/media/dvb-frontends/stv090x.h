@@ -107,7 +107,7 @@ struct stv090x_config {
 			u8 xor_value);
 };
 
-#if IS_ENABLED(CONFIG_DVB_STV090x)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_STV090x)
 
 struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
 				    struct i2c_adapter *i2c,
@@ -123,6 +123,6 @@ static inline struct dvb_frontend *stv090x_attach(const struct stv090x_config *c
 	return NULL;
 }
 
-#endif /* CONFIG_DVB_STV090x */
+#endif /* CONFIG_BACKPORT_DVB_STV090x */
 
 #endif /* __STV090x_H */

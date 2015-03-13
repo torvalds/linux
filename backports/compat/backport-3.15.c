@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <net/net_namespace.h>
 
-#if IS_ENABLED(CPTCFG_IEEE802154_6LOWPAN)
+#if IS_ENABLED(CONFIG_BACKPORT_IEEE802154_6LOWPAN)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,15,0)
 /* the above kernel dependency is set to match the dependencies file */
 struct netns_ieee802154_lowpan ieee802154_lowpan;
@@ -27,7 +27,7 @@ struct netns_ieee802154_lowpan *net_ieee802154_lowpan(struct net *net)
 }
 EXPORT_SYMBOL_GPL(net_ieee802154_lowpan);
 #endif
-#endif /* CPTCFG_IEEE802154_6LOWPAN */
+#endif /* CONFIG_BACKPORT_IEEE802154_6LOWPAN */
 
 /**
  * devm_kstrdup - Allocate resource managed space and

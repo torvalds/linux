@@ -248,7 +248,7 @@ struct v4l2_ioctl_ops {
 					const struct v4l2_hw_freq_seek *a);
 
 	/* Debugging ioctls */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	int (*vidioc_g_register)       (struct file *file, void *fh,
 					struct v4l2_dbg_register *reg);
 	int (*vidioc_s_register)       (struct file *file, void *fh,

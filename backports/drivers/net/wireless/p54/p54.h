@@ -14,9 +14,9 @@
 #ifndef P54_H
 #define P54_H
 
-#ifdef CONFIG_P54_LEDS
+#ifdef CONFIG_BACKPORT_P54_LEDS
 #include <linux/leds.h>
-#endif /* CONFIG_P54_LEDS */
+#endif /* CONFIG_BACKPORT_P54_LEDS */
 
 #define ISL38XX_DEV_FIRMWARE_ADDR 0x20000
 
@@ -142,7 +142,7 @@ enum fw_state {
 	FW_STATE_RESETTING,
 };
 
-#ifdef CONFIG_P54_LEDS
+#ifdef CONFIG_BACKPORT_P54_LEDS
 
 #define P54_LED_MAX_NAME_LEN 31
 
@@ -156,7 +156,7 @@ struct p54_led_dev {
 	unsigned int registered;
 };
 
-#endif /* CONFIG_P54_LEDS */
+#endif /* CONFIG_BACKPORT_P54_LEDS */
 
 struct p54_tx_queue_stats {
 	unsigned int len;
@@ -249,10 +249,10 @@ struct p54_common {
 	unsigned long *used_rxkeys;
 
 	/* LED management */
-#ifdef CONFIG_P54_LEDS
+#ifdef CONFIG_BACKPORT_P54_LEDS
 	struct p54_led_dev leds[4];
 	struct delayed_work led_work;
-#endif /* CONFIG_P54_LEDS */
+#endif /* CONFIG_BACKPORT_P54_LEDS */
 	u16 softled_state;		/* bit field of glowing LEDs */
 
 	/* statistics */

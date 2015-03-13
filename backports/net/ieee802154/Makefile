@@ -1,5 +1,5 @@
-obj-$(CONFIG_IEEE802154) += ieee802154.o
-obj-$(CONFIG_IEEE802154_SOCKET) += ieee802154_socket.o
+obj-$(CONFIG_BACKPORT_IEEE802154) += ieee802154.o
+obj-$(CONFIG_BACKPORT_IEEE802154_SOCKET) += ieee802154_socket.o
 obj-y += 6lowpan/
 
 ieee802154-y := netlink.o nl-mac.o nl-phy.o nl_policy.o core.o \

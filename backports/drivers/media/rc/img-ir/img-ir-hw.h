@@ -188,7 +188,7 @@ struct img_ir_reg_timings {
 
 struct img_ir_priv;
 
-#ifdef CONFIG_IR_IMG_HW
+#ifdef CONFIG_BACKPORT_IR_IMG_HW
 
 enum img_ir_mode {
 	IMG_IR_M_NORMAL,
@@ -276,6 +276,6 @@ static inline void img_ir_remove_hw(struct img_ir_priv *priv)
 #define img_ir_suspend NULL
 #define img_ir_resume NULL
 
-#endif /* CONFIG_IR_IMG_HW */
+#endif /* CONFIG_BACKPORT_IR_IMG_HW */
 
 #endif /* _IMG_IR_HW_H_ */

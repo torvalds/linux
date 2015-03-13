@@ -12,7 +12,7 @@
 extern int b2c2_flexcop_debug;
 
 /* debug */
-#ifdef CONFIG_DVB_B2C2_FLEXCOP_DEBUG
+#ifdef CONFIG_BACKPORT_DVB_B2C2_FLEXCOP_DEBUG
 #define dprintk(level,args...) \
 	do { if ((b2c2_flexcop_debug & level)) printk(args); } while (0)
 #else

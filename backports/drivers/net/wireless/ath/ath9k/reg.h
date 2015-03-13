@@ -893,7 +893,7 @@
 	(AR_SREV_9330((_ah)) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9330_12))
 
-#ifdef CONFIG_ATH9K_PCOEM
+#ifdef CONFIG_BACKPORT_ATH9K_PCOEM
 #define AR_SREV_9462(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9462))
 #define AR_SREV_9485(_ah) \

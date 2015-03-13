@@ -32,7 +32,7 @@
 
 
 
-#ifdef CONFIG_B43LEGACY_PIO
+#ifdef CONFIG_BACKPORT_B43LEGACY_PIO
 
 
 struct b43legacy_pioqueue;
@@ -111,7 +111,7 @@ void b43legacy_pio_tx_resume(struct b43legacy_pioqueue *queue);
 void b43legacy_pio_freeze_txqueues(struct b43legacy_wldev *dev);
 void b43legacy_pio_thaw_txqueues(struct b43legacy_wldev *dev);
 
-#else /* CONFIG_B43LEGACY_PIO */
+#else /* CONFIG_BACKPORT_B43LEGACY_PIO */
 
 static inline
 int b43legacy_pio_init(struct b43legacy_wldev *dev)
@@ -154,5 +154,5 @@ void b43legacy_pio_thaw_txqueues(struct b43legacy_wldev *dev)
 {
 }
 
-#endif /* CONFIG_B43LEGACY_PIO */
+#endif /* CONFIG_BACKPORT_B43LEGACY_PIO */
 #endif /* B43legacy_PIO_H_ */

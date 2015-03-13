@@ -17,7 +17,7 @@
 #ifndef AR9003_RTT_H
 #define AR9003_RTT_H
 
-#ifdef CONFIG_ATH9K_PCOEM
+#ifdef CONFIG_BACKPORT_ATH9K_PCOEM
 void ar9003_hw_rtt_enable(struct ath_hw *ah);
 void ar9003_hw_rtt_disable(struct ath_hw *ah);
 void ar9003_hw_rtt_set_mask(struct ath_hw *ah, u32 rtt_mask);

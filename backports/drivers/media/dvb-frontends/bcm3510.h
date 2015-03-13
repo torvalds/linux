@@ -34,7 +34,7 @@ struct bcm3510_config
 	int (*request_firmware)(struct dvb_frontend* fe, const struct firmware **fw, char* name);
 };
 
-#if IS_ENABLED(CONFIG_DVB_BCM3510)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_BCM3510)
 extern struct dvb_frontend* bcm3510_attach(const struct bcm3510_config* config,
 					   struct i2c_adapter* i2c);
 #else
@@ -44,6 +44,6 @@ static inline struct dvb_frontend* bcm3510_attach(const struct bcm3510_config* c
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_BCM3510
+#endif // CONFIG_BACKPORT_DVB_BCM3510
 
 #endif

@@ -103,7 +103,7 @@ struct af9013_config {
 	u8 gpio[4];
 };
 
-#if IS_ENABLED(CONFIG_DVB_AF9013)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_AF9013)
 extern struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 	struct i2c_adapter *i2c);
 #else
@@ -113,6 +113,6 @@ const struct af9013_config *config, struct i2c_adapter *i2c)
 	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_AF9013 */
+#endif /* CONFIG_BACKPORT_DVB_AF9013 */
 
 #endif /* AF9013_H */

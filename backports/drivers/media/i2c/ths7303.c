@@ -217,7 +217,7 @@ static const struct v4l2_subdev_video_ops ths7303_video_ops = {
 	.s_dv_timings   = ths7303_s_dv_timings,
 };
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 
 static int ths7303_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
@@ -315,7 +315,7 @@ static int ths7303_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops ths7303_core_ops = {
 	.log_status = ths7303_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = ths7303_g_register,
 	.s_register = ths7303_s_register,
 #endif

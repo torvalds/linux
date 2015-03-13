@@ -195,7 +195,7 @@ static struct i2c_algorithm dvbsky_i2c_algo = {
 	.functionality = dvbsky_i2c_func,
 };
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_ENABLED(CONFIG_BACKPORT_RC_CORE)
 static int dvbsky_rc_query(struct dvb_usb_device *d)
 {
 	u32 code = 0xffff, scancode;

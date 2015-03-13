@@ -36,7 +36,7 @@
 #include <media/tea575x.h>
 
 #if defined(CONFIG_LEDS_CLASS) || \
-    (defined(CONFIG_LEDS_CLASS_MODULE) && defined(CONFIG_RADIO_SHARK_MODULE))
+    (defined(CONFIG_LEDS_CLASS_MODULE) && defined(CONFIG_BACKPORT_RADIO_SHARK_MODULE))
 #define SHARK_USE_LEDS 1
 #endif
 

@@ -293,7 +293,7 @@ out:
 	return val;
 }
 
-#ifdef CONFIG_SSB_BLOCKIO
+#ifdef CONFIG_BACKPORT_SSB_BLOCKIO
 static void ssb_sdio_block_read(struct ssb_device *dev, void *buffer,
 				  size_t count, u16 offset, u8 reg_width)
 {
@@ -338,7 +338,7 @@ err_out:
 out:
 	sdio_release_host(bus->host_sdio);
 }
-#endif /* CONFIG_SSB_BLOCKIO */
+#endif /* CONFIG_BACKPORT_SSB_BLOCKIO */
 
 static void ssb_sdio_write8(struct ssb_device *dev, u16 offset, u8 val)
 {
@@ -400,7 +400,7 @@ out:
 	sdio_release_host(bus->host_sdio);
 }
 
-#ifdef CONFIG_SSB_BLOCKIO
+#ifdef CONFIG_BACKPORT_SSB_BLOCKIO
 static void ssb_sdio_block_write(struct ssb_device *dev, const void *buffer,
 				   size_t count, u16 offset, u8 reg_width)
 {
@@ -446,7 +446,7 @@ out:
 	sdio_release_host(bus->host_sdio);
 }
 
-#endif /* CONFIG_SSB_BLOCKIO */
+#endif /* CONFIG_BACKPORT_SSB_BLOCKIO */
 
 /* Not "static", as it's used in main.c */
 const struct ssb_bus_ops ssb_sdio_ops = {
@@ -456,7 +456,7 @@ const struct ssb_bus_ops ssb_sdio_ops = {
 	.write8		= ssb_sdio_write8,
 	.write16	= ssb_sdio_write16,
 	.write32	= ssb_sdio_write32,
-#ifdef CONFIG_SSB_BLOCKIO
+#ifdef CONFIG_BACKPORT_SSB_BLOCKIO
 	.block_read	= ssb_sdio_block_read,
 	.block_write	= ssb_sdio_block_write,
 #endif

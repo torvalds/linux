@@ -78,7 +78,7 @@ static int m52790_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int m52790_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct m52790_state *state = to_state(sd);
@@ -118,7 +118,7 @@ static int m52790_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops m52790_core_ops = {
 	.log_status = m52790_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = m52790_g_register,
 	.s_register = m52790_s_register,
 #endif

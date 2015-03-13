@@ -50,7 +50,7 @@ void pcicore_write16(struct ssb_pcicore *pc, u16 offset, u16 value)
  * Code for hostmode operation.
  **************************************************/
 
-#ifdef CONFIG_SSB_PCICORE_HOSTMODE
+#ifdef CONFIG_BACKPORT_SSB_PCICORE_HOSTMODE
 
 #include <asm/paccess.h>
 /* Probe a 32bit value on the bus and catch bus exceptions.
@@ -406,7 +406,7 @@ static int pcicore_is_in_hostmode(struct ssb_pcicore *pc)
 
 	return !mips_busprobe32(tmp, (bus->mmio + (pc->dev->core_index * SSB_CORE_SIZE)));
 }
-#endif /* CONFIG_SSB_PCICORE_HOSTMODE */
+#endif /* CONFIG_BACKPORT_SSB_PCICORE_HOSTMODE */
 
 /**************************************************
  * Workarounds.
@@ -542,11 +542,11 @@ void ssb_pcicore_init(struct ssb_pcicore *pc)
 	if (!ssb_device_is_enabled(dev))
 		ssb_device_enable(dev, 0);
 
-#ifdef CONFIG_SSB_PCICORE_HOSTMODE
+#ifdef CONFIG_BACKPORT_SSB_PCICORE_HOSTMODE
 	pc->hostmode = pcicore_is_in_hostmode(pc);
 	if (pc->hostmode)
 		ssb_pcicore_init_hostmode(pc);
-#endif /* CONFIG_SSB_PCICORE_HOSTMODE */
+#endif /* CONFIG_BACKPORT_SSB_PCICORE_HOSTMODE */
 	if (!pc->hostmode)
 		ssb_pcicore_init_clientmode(pc);
 }

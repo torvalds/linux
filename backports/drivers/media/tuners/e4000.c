@@ -267,7 +267,7 @@ static int e4000_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_BACKPORT_VIDEO_V4L2)
 static int e4000_set_lna_gain(struct dvb_frontend *fe)
 {
 	struct e4000 *s = fe->tuner_priv;
@@ -519,7 +519,7 @@ static int e4000_probe(struct i2c_client *client,
 	if (ret)
 		goto err;
 
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_BACKPORT_VIDEO_V4L2)
 	/* Register controls */
 	v4l2_ctrl_handler_init(&s->hdl, 9);
 	s->bandwidth_auto = v4l2_ctrl_new_std(&s->hdl, &e4000_ctrl_ops,
@@ -581,7 +581,7 @@ static int e4000_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-#if IS_ENABLED(CONFIG_VIDEO_V4L2)
+#if IS_ENABLED(CONFIG_BACKPORT_VIDEO_V4L2)
 	v4l2_ctrl_handler_free(&s->hdl);
 #endif
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));

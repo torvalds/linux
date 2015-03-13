@@ -1152,7 +1152,7 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	sd = &decoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &tvp514x_ops);
 
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	decoder->pad.flags = MEDIA_PAD_FL_SOURCE;
 	decoder->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	decoder->sd.entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
@@ -1189,7 +1189,7 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 done:
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&decoder->hdl);
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 		media_entity_cleanup(&decoder->sd.entity);
 #endif
 	}
@@ -1210,7 +1210,7 @@ static int tvp514x_remove(struct i2c_client *client)
 
 	v4l2_async_unregister_subdev(&decoder->sd);
 	v4l2_device_unregister_subdev(sd);
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	media_entity_cleanup(&decoder->sd.entity);
 #endif
 	v4l2_ctrl_handler_free(&decoder->hdl);

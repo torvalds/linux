@@ -14,7 +14,7 @@
 
 struct img_ir_priv;
 
-#ifdef CONFIG_IR_IMG_RAW
+#ifdef CONFIG_BACKPORT_IR_IMG_RAW
 
 /**
  * struct img_ir_priv_raw - Private driver data for raw decoder.
@@ -60,6 +60,6 @@ static inline void img_ir_remove_raw(struct img_ir_priv *priv)
 {
 }
 
-#endif /* CONFIG_IR_IMG_RAW */
+#endif /* CONFIG_BACKPORT_IR_IMG_RAW */
 
 #endif /* _IMG_IR_RAW_H_ */

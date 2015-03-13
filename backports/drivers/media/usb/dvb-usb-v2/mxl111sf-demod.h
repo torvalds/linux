@@ -32,7 +32,7 @@ struct mxl111sf_demod_config {
 			    struct mxl111sf_reg_ctrl_info *ctrl_reg_info);
 };
 
-#if IS_ENABLED(CONFIG_DVB_USB_MXL111SF)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_USB_MXL111SF)
 extern
 struct dvb_frontend *mxl111sf_demod_attach(struct mxl111sf_state *mxl_state,
 					   struct mxl111sf_demod_config *cfg);
@@ -44,7 +44,7 @@ struct dvb_frontend *mxl111sf_demod_attach(struct mxl111sf_state *mxl_state,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_USB_MXL111SF */
+#endif /* CONFIG_BACKPORT_DVB_USB_MXL111SF */
 
 #endif /* __MXL111SF_DEMOD_H__ */
 

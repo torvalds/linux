@@ -86,7 +86,7 @@ static void upd64083_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 
 /* ------------------------------------------------------------------------ */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static u8 upd64083_read(struct v4l2_subdev *sd, u8 reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -118,7 +118,7 @@ static int upd64083_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int upd64083_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = upd64083_read(sd, reg->reg & 0xff);
@@ -149,7 +149,7 @@ static int upd64083_log_status(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_core_ops upd64083_core_ops = {
 	.log_status = upd64083_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = upd64083_g_register,
 	.s_register = upd64083_s_register,
 #endif

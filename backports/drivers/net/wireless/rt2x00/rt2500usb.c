@@ -224,7 +224,7 @@ static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
 	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS
 static void _rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 				     const unsigned int offset,
 				     u32 *value)
@@ -271,7 +271,7 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 		.word_count	= RF_SIZE / sizeof(u32),
 	},
 };
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS */
 
 static int rt2500usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
@@ -281,7 +281,7 @@ static int rt2500usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	return rt2x00_get_field16(reg, MAC_CSR19_VAL7);
 }
 
-#ifdef CONFIG_RT2X00_LIB_LEDS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_LEDS
 static void rt2500usb_brightness_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)
 {
@@ -326,7 +326,7 @@ static void rt2500usb_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt2500usb_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT2X00_LIB_LEDS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -1500,7 +1500,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led mode, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT2X00_LIB_LEDS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_LEDS
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
 
 	rt2500usb_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
@@ -1509,7 +1509,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    value == LED_MODE_ASUS)
 		rt2500usb_init_led(rt2x00dev, &rt2x00dev->led_qual,
 				   LED_TYPE_ACTIVITY);
-#endif /* CONFIG_RT2X00_LIB_LEDS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_LEDS */
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
@@ -1916,9 +1916,9 @@ static const struct rt2x00_ops rt2500usb_ops = {
 	.queue_init		= rt2500usb_queue_init,
 	.lib			= &rt2500usb_rt2x00_ops,
 	.hw			= &rt2500usb_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS
 	.debugfs		= &rt2500usb_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS */
 };
 
 /*

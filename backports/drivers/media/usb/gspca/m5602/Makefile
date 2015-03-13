@@ -1,4 +1,4 @@
-obj-$(CONFIG_USB_M5602) += gspca_m5602.o
+obj-$(CONFIG_BACKPORT_USB_M5602) += gspca_m5602.o
 
 gspca_m5602-objs := m5602_core.o \
 		    m5602_ov9650.o \
@@ -8,4 +8,4 @@ gspca_m5602-objs := m5602_core.o \
 		    m5602_s5k83a.o \
 		    m5602_s5k4aa.o
 
-ccflags-y += -I$(srctree)/drivers/media/usb/gspca
+ccflags-y += -I$(backport_srctree)/drivers/media/usb/gspca

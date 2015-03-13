@@ -2726,7 +2726,7 @@ static const u8 e1000_emc_therm_limit[4] = {
 	E1000_EMC_DIODE3_THERM_LIMIT
 };
 
-#ifdef CONFIG_IGB_HWMON
+#ifdef CONFIG_BACKPORT_IGB_HWMON
 /**
  *  igb_get_thermal_sensor_data_generic - Gathers thermal sensor data
  *  @hw: pointer to hardware structure
@@ -2854,7 +2854,7 @@ static struct e1000_mac_operations e1000_mac_ops_82575 = {
 	.rar_set              = igb_rar_set,
 	.read_mac_addr        = igb_read_mac_addr_82575,
 	.get_speed_and_duplex = igb_get_link_up_info_82575,
-#ifdef CONFIG_IGB_HWMON
+#ifdef CONFIG_BACKPORT_IGB_HWMON
 	.get_thermal_sensor_data = igb_get_thermal_sensor_data_generic,
 	.init_thermal_sensor_thresh = igb_init_thermal_sensor_thresh_generic,
 #endif

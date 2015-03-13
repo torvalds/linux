@@ -96,7 +96,7 @@ struct b43legacy_dmadesc32 {
 
 
 
-#ifdef CONFIG_B43LEGACY_DMA
+#ifdef CONFIG_BACKPORT_B43LEGACY_DMA
 
 
 struct sk_buff;
@@ -154,12 +154,12 @@ struct b43legacy_dmaring {
 	 * This is the mac80211 "queue" value. */
 	u8 queue_prio;
 	struct b43legacy_wldev *dev;
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_B43LEGACY_DEBUG
 	/* Maximum number of used slots. */
 	int max_used_slots;
 	/* Last time we injected a ring overflow. */
 	unsigned long last_injected_overflow;
-#endif /* CONFIG_B43LEGACY_DEBUG*/
+#endif /* CONFIG_BACKPORT_B43LEGACY_DEBUG*/
 };
 
 
@@ -191,7 +191,7 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 
 void b43legacy_dma_rx(struct b43legacy_dmaring *ring);
 
-#else /* CONFIG_B43LEGACY_DMA */
+#else /* CONFIG_BACKPORT_B43LEGACY_DMA */
 
 
 static inline
@@ -227,5 +227,5 @@ void b43legacy_dma_tx_resume(struct b43legacy_wldev *dev)
 {
 }
 
-#endif /* CONFIG_B43LEGACY_DMA */
+#endif /* CONFIG_BACKPORT_B43LEGACY_DMA */
 #endif /* B43legacy_DMA_H_ */

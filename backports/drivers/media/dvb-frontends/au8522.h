@@ -61,7 +61,7 @@ struct au8522_config {
 	enum au8522_if_freq qam_if;
 };
 
-#if IS_ENABLED(CONFIG_DVB_AU8522_DTV)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_AU8522_DTV)
 extern struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 					  struct i2c_adapter *i2c);
 #else
@@ -72,7 +72,7 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_AU8522 */
+#endif /* CONFIG_BACKPORT_DVB_AU8522 */
 
 /* Other modes may need to be added later */
 enum au8522_video_input {

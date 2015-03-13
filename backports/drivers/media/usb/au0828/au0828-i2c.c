@@ -387,7 +387,7 @@ int au0828_i2c_register(struct au0828_dev *dev)
 
 	dev->i2c_adap.algo = &dev->i2c_algo;
 	dev->i2c_adap.algo_data = dev;
-#ifdef CONFIG_VIDEO_AU0828_V4L2
+#ifdef CONFIG_BACKPORT_VIDEO_AU0828_V4L2
 	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 #else
 	i2c_set_adapdata(&dev->i2c_adap, dev);

@@ -23,18 +23,18 @@
 #include "pvrusb2-sysfs.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-debug.h"
-#ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC
 #include "pvrusb2-debugifc.h"
-#endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
+#endif /* CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC */
 
 #define pvr2_sysfs_trace(...) pvr2_trace(PVR2_TRACE_SYSFS,__VA_ARGS__)
 
 struct pvr2_sysfs {
 	struct pvr2_channel channel;
 	struct device *class_dev;
-#ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC
 	struct pvr2_sysfs_debugifc *debugifc;
-#endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
+#endif /* CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC */
 	struct pvr2_sysfs_ctl_item *item_first;
 	struct pvr2_sysfs_ctl_item *item_last;
 	struct device_attribute attr_v4l_minor_number;
@@ -51,14 +51,14 @@ struct pvr2_sysfs {
 	int hdw_desc_created_ok;
 };
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC
 struct pvr2_sysfs_debugifc {
 	struct device_attribute attr_debugcmd;
 	struct device_attribute attr_debuginfo;
 	int debugcmd_created_ok;
 	int debuginfo_created_ok;
 };
-#endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
+#endif /* CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC */
 
 struct pvr2_sysfs_ctl_item {
 	struct device_attribute attr_name;
@@ -417,7 +417,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cip->created_ok = !0;
 }
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC
 static ssize_t debuginfo_show(struct device *, struct device_attribute *,
 			      char *);
 static ssize_t debugcmd_show(struct device *, struct device_attribute *,
@@ -475,7 +475,7 @@ static void pvr2_sysfs_tear_down_debugifc(struct pvr2_sysfs *sfp)
 	kfree(sfp->debugifc);
 	sfp->debugifc = NULL;
 }
-#endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
+#endif /* CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC */
 
 
 static void pvr2_sysfs_add_controls(struct pvr2_sysfs *sfp)
@@ -522,9 +522,9 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 {
 	struct device *dev;
 	if (!sfp->class_dev) return;
-#ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC
 	pvr2_sysfs_tear_down_debugifc(sfp);
-#endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
+#endif /* CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC */
 	pvr2_sysfs_tear_down_controls(sfp);
 	if (sfp->hdw_desc_created_ok) {
 		device_remove_file(sfp->class_dev,
@@ -750,9 +750,9 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	}
 
 	pvr2_sysfs_add_controls(sfp);
-#ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC
 	pvr2_sysfs_add_debugifc(sfp);
-#endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
+#endif /* CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC */
 }
 
 
@@ -811,7 +811,7 @@ void pvr2_sysfs_class_destroy(struct pvr2_sysfs_class *clp)
 }
 
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC
 static ssize_t debuginfo_show(struct device *class_dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -847,7 +847,7 @@ static ssize_t debugcmd_store(struct device *class_dev,
 	if (ret < 0) return ret;
 	return count;
 }
-#endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
+#endif /* CONFIG_BACKPORT_VIDEO_PVRUSB2_DEBUGIFC */
 
 
 /*

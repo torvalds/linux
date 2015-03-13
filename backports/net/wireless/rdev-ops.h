@@ -561,7 +561,7 @@ static inline void rdev_rfkill_poll(struct cfg80211_registered_device *rdev)
 }
 
 
-#ifdef CONFIG_NL80211_TESTMODE
+#ifdef CONFIG_BACKPORT_NL80211_TESTMODE
 static inline int rdev_testmode_cmd(struct cfg80211_registered_device *rdev,
 				    struct wireless_dev *wdev,
 				    void *data, int len)

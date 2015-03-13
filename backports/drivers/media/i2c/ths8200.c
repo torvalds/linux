@@ -110,7 +110,7 @@ ths8200_write_and_or(struct v4l2_subdev *sd, u8 reg,
 	ths8200_write(sd, reg, (ths8200_read(sd, reg) & clr_mask) | val_mask);
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 
 static int ths8200_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
@@ -169,7 +169,7 @@ static int ths8200_s_power(struct v4l2_subdev *sd, int on)
 static const struct v4l2_subdev_core_ops ths8200_core_ops = {
 	.log_status = ths8200_log_status,
 	.s_power = ths8200_s_power,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = ths8200_g_register,
 	.s_register = ths8200_s_register,
 #endif

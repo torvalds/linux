@@ -50,7 +50,7 @@ static const char * const dnames[] = {
 	"net", "osd"
 };
 
-#ifdef CONFIG_DVB_DYNAMIC_MINORS
+#ifdef CONFIG_BACKPORT_DVB_DYNAMIC_MINORS
 #define MAX_DVB_MINORS		256
 #define DVB_MAX_IDS		MAX_DVB_MINORS
 #else
@@ -228,7 +228,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	list_add_tail (&dvbdev->list_head, &adap->device_list);
 
 	down_write(&minor_rwsem);
-#ifdef CONFIG_DVB_DYNAMIC_MINORS
+#ifdef CONFIG_BACKPORT_DVB_DYNAMIC_MINORS
 	for (minor = 0; minor < MAX_DVB_MINORS; minor++)
 		if (dvb_minors[minor] == NULL)
 			break;

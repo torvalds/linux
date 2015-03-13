@@ -1949,7 +1949,7 @@ static int v4l_log_status(const struct v4l2_ioctl_ops *ops,
 static int v4l_dbg_g_register(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	struct v4l2_dbg_register *p = arg;
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_subdev *sd;
@@ -1977,7 +1977,7 @@ static int v4l_dbg_g_register(const struct v4l2_ioctl_ops *ops,
 static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	const struct v4l2_dbg_register *p = arg;
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_subdev *sd;
@@ -2005,7 +2005,7 @@ static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 static int v4l_dbg_g_chip_info(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_dbg_chip_info *p = arg;
 	struct v4l2_subdev *sd;

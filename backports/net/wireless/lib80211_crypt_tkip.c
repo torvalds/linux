@@ -448,7 +448,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += TKIP_HDR_LEN;
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
-#ifdef CONFIG_LIB80211_DEBUG
+#ifdef CONFIG_BACKPORT_LIB80211_DEBUG
 		net_dbg_ratelimited("TKIP: replay detected: STA=%pM previous TSC %08x%04x received TSC %08x%04x\n",
 				    hdr->addr2, tkey->rx_iv32, tkey->rx_iv16,
 				    iv32, iv16);
@@ -484,7 +484,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			 * it needs to be recalculated for the next packet. */
 			tkey->rx_phase1_done = 0;
 		}
-#ifdef CONFIG_LIB80211_DEBUG
+#ifdef CONFIG_BACKPORT_LIB80211_DEBUG
 		net_dbg_ratelimited("TKIP: ICV error detected: STA=%pM\n",
 				    hdr->addr2);
 #endif

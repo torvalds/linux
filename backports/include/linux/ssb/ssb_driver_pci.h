@@ -6,7 +6,7 @@
 struct pci_dev;
 
 
-#ifdef CONFIG_SSB_DRIVER_PCICORE
+#ifdef CONFIG_BACKPORT_SSB_DRIVER_PCICORE
 
 /* PCI core registers. */
 #define SSB_PCICORE_CTL			0x0000	/* PCI Control */
@@ -97,7 +97,7 @@ int ssb_pcicore_plat_dev_init(struct pci_dev *d);
 int ssb_pcicore_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 
 
-#else /* CONFIG_SSB_DRIVER_PCICORE */
+#else /* CONFIG_BACKPORT_SSB_DRIVER_PCICORE */
 
 
 struct ssb_pcicore {
@@ -126,5 +126,5 @@ int ssb_pcicore_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return -ENODEV;
 }
 
-#endif /* CONFIG_SSB_DRIVER_PCICORE */
+#endif /* CONFIG_BACKPORT_SSB_DRIVER_PCICORE */
 #endif /* LINUX_SSB_PCICORE_H_ */

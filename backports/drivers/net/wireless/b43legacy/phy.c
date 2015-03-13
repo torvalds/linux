@@ -180,7 +180,7 @@ static void b43legacy_phy_init_pctl(struct b43legacy_wldev *dev)
 	}
 	if (phy->savedpctlreg != 0xFFFF)
 		return;
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_B43LEGACY_DEBUG
 	if (phy->manual_txpower_control)
 		return;
 #endif
@@ -1294,7 +1294,7 @@ void b43legacy_lo_write(struct b43legacy_wldev *dev,
 	value = (u8)(pair->low);
 	value |= ((u8)(pair->high)) << 8;
 
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_B43LEGACY_DEBUG
 	/* Sanity check. */
 	if (pair->low < -8 || pair->low > 8 ||
 	    pair->high < -8 || pair->high > 8) {
@@ -1709,7 +1709,7 @@ void b43legacy_phy_lo_g_measure(struct b43legacy_wldev *dev)
 	}
 	b43legacy_radio_selectchannel(dev, oldchannel, 1);
 
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_B43LEGACY_DEBUG
 	{
 		/* Sanity check for all lopairs. */
 		for (i = 0; i < B43legacy_LO_COUNT; i++) {
@@ -1722,7 +1722,7 @@ void b43legacy_phy_lo_g_measure(struct b43legacy_wldev *dev)
 				       tmp_control->low, tmp_control->high, i);
 		}
 	}
-#endif /* CONFIG_B43LEGACY_DEBUG */
+#endif /* CONFIG_BACKPORT_B43LEGACY_DEBUG */
 }
 
 static
@@ -1797,7 +1797,7 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 	if ((dev->dev->bus->boardinfo.type == 0x0416) &&
 	    is_bcm_board_vendor(dev))
 		return;
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_B43LEGACY_DEBUG
 	if (phy->manual_txpower_control)
 		return;
 #endif

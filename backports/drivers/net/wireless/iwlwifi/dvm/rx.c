@@ -191,7 +191,7 @@ static int iwlagn_rx_pm_sleep_notif(struct iwl_priv *priv,
 				  struct iwl_rx_cmd_buffer *rxb,
 				  struct iwl_device_cmd *cmd)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_sleep_notification *sleep = (void *)pkt->data;
 	IWL_DEBUG_RX(priv, "sleep mode: %d, src: %d\n",
@@ -218,7 +218,7 @@ static int iwlagn_rx_beacon_notif(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwlagn_beacon_notif *beacon = (void *)pkt->data;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 	u16 status = le16_to_cpu(beacon->beacon_notify_hdr.status.status);
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
@@ -382,7 +382,7 @@ static void iwlagn_rx_calc_noise(struct iwl_priv *priv)
 			last_rx_noise);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 /*
  *  based on the assumption of all statistics counter are in DWORD
  *  FIXME: This function is for debugging, do not deal with
@@ -483,7 +483,7 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 		tx = &stats->tx;
 		bt_activity = &stats->general.activity;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 		/* handle this exception directly */
 		priv->statistics.num_bt_kills = stats->rx.general.num_bt_kills;
 		le32_add_cpu(&priv->statistics.accum_num_bt_kills,
@@ -524,7 +524,7 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 	memcpy(&priv->statistics.rx_ofdm_ht, rx_ofdm_ht, sizeof(*rx_ofdm_ht));
 	memcpy(&priv->statistics.rx_cck, rx_cck, sizeof(*rx_cck));
 	memcpy(&priv->statistics.tx, tx, sizeof(*tx));
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	if (bt_activity)
 		memcpy(&priv->statistics.bt_activity, bt_activity,
 			sizeof(*bt_activity));
@@ -562,7 +562,7 @@ static int iwlagn_rx_reply_statistics(struct iwl_priv *priv,
 	struct iwl_notif_statistics *stats = (void *)pkt->data;
 
 	if (le32_to_cpu(stats->flag) & UCODE_STATISTICS_CLEAR_MSK) {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 		memset(&priv->accum_stats, 0,
 			sizeof(priv->accum_stats));
 		memset(&priv->delta_stats, 0,

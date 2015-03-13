@@ -39,7 +39,7 @@ struct altera_ci_config {
 	int (*fpga_rw) (void *dev, int ad_rg, int val, int rw);
 };
 
-#if IS_ENABLED(CONFIG_MEDIA_ALTERA_CI)
+#if IS_ENABLED(CONFIG_BACKPORT_MEDIA_ALTERA_CI)
 
 extern int altera_ci_init(struct altera_ci_config *config, int ci_nr);
 extern void altera_ci_release(void *dev, int ci_nr);
@@ -92,6 +92,6 @@ static inline int altera_pid_feed_control(void *dev, int filt_nr,
 	return 0;
 }
 
-#endif /* CONFIG_MEDIA_ALTERA_CI */
+#endif /* CONFIG_BACKPORT_MEDIA_ALTERA_CI */
 
 #endif /* __ALTERA_CI_H */

@@ -207,7 +207,7 @@ void ssb_iounmap(struct ssb_bus *bus)
 		iounmap(bus->mmio);
 		break;
 	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_BACKPORT_SSB_PCIHOST
 		pci_iounmap(bus->host_pci, bus->mmio);
 #else
 		SSB_BUG_ON(1); /* Can't reach this code. */
@@ -233,7 +233,7 @@ static void __iomem *ssb_ioremap(struct ssb_bus *bus,
 		mmio = ioremap(baseaddr, SSB_CORE_SIZE);
 		break;
 	case SSB_BUSTYPE_PCI:
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_BACKPORT_SSB_PCIHOST
 		mmio = pci_iomap(bus->host_pci, 0, ~0UL);
 #else
 		SSB_BUG_ON(1); /* Can't reach this code. */
@@ -255,7 +255,7 @@ static int we_support_multiple_80211_cores(struct ssb_bus *bus)
 	 * pins on the second core. Be careful and reject them here.
 	 */
 
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_BACKPORT_SSB_PCIHOST
 	if (bus->bustype == SSB_BUSTYPE_PCI) {
 		if (bus->host_pci->vendor == PCI_VENDOR_ID_BROADCOM &&
 		    ((bus->host_pci->device == 0x4313) ||
@@ -264,7 +264,7 @@ static int we_support_multiple_80211_cores(struct ssb_bus *bus)
 		     (bus->host_pci->device == 0x4324)))
 			return 1;
 	}
-#endif /* CONFIG_SSB_PCIHOST */
+#endif /* CONFIG_BACKPORT_SSB_PCIHOST */
 	return 0;
 }
 
@@ -372,13 +372,13 @@ int ssb_bus_scan(struct ssb_bus *bus,
 			}
 			break;
 		case SSB_DEV_EXTIF:
-#ifdef CONFIG_SSB_DRIVER_EXTIF
+#ifdef CONFIG_BACKPORT_SSB_DRIVER_EXTIF
 			if (bus->extif.dev) {
 				ssb_warn("WARNING: Multiple EXTIFs found\n");
 				break;
 			}
 			bus->extif.dev = dev;
-#endif /* CONFIG_SSB_DRIVER_EXTIF */
+#endif /* CONFIG_BACKPORT_SSB_DRIVER_EXTIF */
 			break;
 		case SSB_DEV_CHIPCOMMON:
 			if (bus->chipco.dev) {
@@ -389,17 +389,17 @@ int ssb_bus_scan(struct ssb_bus *bus,
 			break;
 		case SSB_DEV_MIPS:
 		case SSB_DEV_MIPS_3302:
-#ifdef CONFIG_SSB_DRIVER_MIPS
+#ifdef CONFIG_BACKPORT_SSB_DRIVER_MIPS
 			if (bus->mipscore.dev) {
 				ssb_warn("WARNING: Multiple MIPS cores found\n");
 				break;
 			}
 			bus->mipscore.dev = dev;
-#endif /* CONFIG_SSB_DRIVER_MIPS */
+#endif /* CONFIG_BACKPORT_SSB_DRIVER_MIPS */
 			break;
 		case SSB_DEV_PCI:
 		case SSB_DEV_PCIE:
-#ifdef CONFIG_SSB_DRIVER_PCICORE
+#ifdef CONFIG_BACKPORT_SSB_DRIVER_PCICORE
 			if (bus->bustype == SSB_BUSTYPE_PCI) {
 				/* Ignore PCI cores on PCI-E cards.
 				 * Ignore PCI-E cores on PCI cards. */
@@ -416,7 +416,7 @@ int ssb_bus_scan(struct ssb_bus *bus,
 				break;
 			}
 			bus->pcicore.dev = dev;
-#endif /* CONFIG_SSB_DRIVER_PCICORE */
+#endif /* CONFIG_BACKPORT_SSB_DRIVER_PCICORE */
 			break;
 		case SSB_DEV_ETHERNET:
 			if (bus->bustype == SSB_BUSTYPE_PCI) {

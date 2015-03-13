@@ -50,7 +50,7 @@
 #include <linux/aer.h>
 #include <linux/prefetch.h>
 #include <linux/pm_runtime.h>
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 #include <linux/dca.h>
 #endif
 #include <linux/i2c.h>
@@ -145,10 +145,10 @@ static irqreturn_t igb_intr(int irq, void *);
 static irqreturn_t igb_intr_msi(int irq, void *);
 static irqreturn_t igb_msix_other(int irq, void *);
 static irqreturn_t igb_msix_ring(int irq, void *);
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 static void igb_update_dca(struct igb_q_vector *);
 static void igb_setup_dca(struct igb_adapter *);
-#endif /* CONFIG_IGB_DCA */
+#endif /* CONFIG_BACKPORT_IGB_DCA */
 static int igb_poll(struct napi_struct *, int);
 static bool igb_clean_tx_irq(struct igb_q_vector *);
 static bool igb_clean_rx_irq(struct igb_q_vector *, int);
@@ -213,7 +213,7 @@ static void igb_shutdown(struct pci_dev *);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0)
 static int igb_pci_sriov_configure(struct pci_dev *dev, int num_vfs);
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0) */
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 static int igb_notify_dca(struct notifier_block *, unsigned long, void *);
 static struct notifier_block dca_notifier = {
 	.notifier_call	= igb_notify_dca,
@@ -696,7 +696,7 @@ static int __init igb_init_module(void)
 	       igb_driver_string, igb_driver_version);
 	pr_info("%s\n", igb_copyright);
 
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 	dca_register_notify(&dca_notifier);
 #endif
 	ret = pci_register_driver(&igb_driver);
@@ -713,7 +713,7 @@ module_init(igb_init_module);
  **/
 static void __exit igb_exit_module(void)
 {
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 	dca_unregister_notify(&dca_notifier);
 #endif
 	pci_unregister_driver(&igb_driver);
@@ -1837,7 +1837,7 @@ void igb_down(struct igb_adapter *adapter)
 		igb_reset(adapter);
 	igb_clean_all_tx_rings(adapter);
 	igb_clean_all_rx_rings(adapter);
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 
 	/* since we reset the hardware DCA settings were cleared */
 	igb_setup_dca(adapter);
@@ -2017,7 +2017,7 @@ void igb_reset(struct igb_adapter *adapter)
 		igb_force_mac_fc(hw);
 
 	igb_init_dmac(adapter, pba);
-#ifdef CONFIG_IGB_HWMON
+#ifdef CONFIG_BACKPORT_IGB_HWMON
 	/* Re-initialize the thermal sensor on i350 devices. */
 	if (!test_bit(__IGB_DOWN, &adapter->state)) {
 		if (mac->type == e1000_i350 && hw->bus.func == 0) {
@@ -2574,7 +2574,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
 
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 	if (dca_add_requester(&pdev->dev) == 0) {
 		adapter->flags |= IGB_FLAG_DCA_ENABLED;
 		dev_info(&pdev->dev, "DCA enabled\n");
@@ -2582,7 +2582,7 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 #endif
-#ifdef CONFIG_IGB_HWMON
+#ifdef CONFIG_BACKPORT_IGB_HWMON
 	/* Initialize the thermal sensor on i350 devices. */
 	if (hw->mac.type == e1000_i350 && hw->bus.func == 0) {
 		u16 ets_word;
@@ -2816,7 +2816,7 @@ static void igb_remove(struct pci_dev *pdev)
 	struct e1000_hw *hw = &adapter->hw;
 
 	pm_runtime_get_noresume(&pdev->dev);
-#ifdef CONFIG_IGB_HWMON
+#ifdef CONFIG_BACKPORT_IGB_HWMON
 	igb_sysfs_exit(adapter);
 #endif
 	igb_remove_i2c(adapter);
@@ -2831,7 +2831,7 @@ static void igb_remove(struct pci_dev *pdev)
 	cancel_work_sync(&adapter->reset_task);
 	cancel_work_sync(&adapter->watchdog_task);
 
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED) {
 		dev_info(&pdev->dev, "DCA disabled\n");
 		dca_remove_requester(&pdev->dev);
@@ -5561,7 +5561,7 @@ static irqreturn_t igb_msix_ring(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 static void igb_update_tx_dca(struct igb_adapter *adapter,
 			      struct igb_ring *tx_ring,
 			      int cpu)
@@ -5685,7 +5685,7 @@ static int igb_notify_dca(struct notifier_block *nb, unsigned long event,
 
 	return ret_val ? NOTIFY_BAD : NOTIFY_DONE;
 }
-#endif /* CONFIG_IGB_DCA */
+#endif /* CONFIG_BACKPORT_IGB_DCA */
 
 #ifdef CONFIG_PCI_IOV
 static int igb_vf_configure(struct igb_adapter *adapter, int vf)
@@ -6392,7 +6392,7 @@ static int igb_poll(struct napi_struct *napi, int budget)
 						     napi);
 	bool clean_complete = true;
 
-#ifdef CONFIG_IGB_DCA
+#ifdef CONFIG_BACKPORT_IGB_DCA
 	if (q_vector->adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_dca(q_vector);
 #endif

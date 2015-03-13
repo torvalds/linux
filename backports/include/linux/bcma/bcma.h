@@ -45,7 +45,7 @@ struct bcma_host_ops {
 	void (*write8)(struct bcma_device *core, u16 offset, u8 value);
 	void (*write16)(struct bcma_device *core, u16 offset, u16 value);
 	void (*write32)(struct bcma_device *core, u16 offset, u32 value);
-#ifdef CONFIG_BCMA_BLOCKIO
+#ifdef CONFIG_BACKPORT_BCMA_BLOCKIO
 	void (*block_read)(struct bcma_device *core, void *buffer,
 			   size_t count, u16 offset, u8 reg_width);
 	void (*block_write)(struct bcma_device *core, const void *buffer,
@@ -375,7 +375,7 @@ void bcma_write32(struct bcma_device *core, u16 offset, u32 value)
 {
 	core->bus->ops->write32(core, offset, value);
 }
-#ifdef CONFIG_BCMA_BLOCKIO
+#ifdef CONFIG_BACKPORT_BCMA_BLOCKIO
 static inline void bcma_block_read(struct bcma_device *core, void *buffer,
 				   size_t count, u16 offset, u8 reg_width)
 {

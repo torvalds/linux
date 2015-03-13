@@ -60,7 +60,7 @@
 #include "regdb.h"
 #include "nl80211.h"
 
-#ifdef CONFIG_CFG80211_REG_DEBUG
+#ifdef CONFIG_BACKPORT_CFG80211_REG_DEBUG
 #define REG_DBG_PRINT(format, args...)			\
 	printk(KERN_DEBUG pr_fmt(format), ##args)
 #else
@@ -449,7 +449,7 @@ reg_copy_regd(const struct ieee80211_regdomain *src_regd)
 	return regd;
 }
 
-#ifdef CONFIG_CFG80211_INTERNAL_REGDB
+#ifdef CONFIG_BACKPORT_CFG80211_INTERNAL_REGDB
 struct reg_regdb_search_request {
 	char alpha2[2];
 	struct list_head list;
@@ -523,7 +523,7 @@ static void reg_regdb_size_check(void)
 #else
 static inline void reg_regdb_size_check(void) {}
 static inline void reg_regdb_query(const char *alpha2) {}
-#endif /* CONFIG_CFG80211_INTERNAL_REGDB */
+#endif /* CONFIG_BACKPORT_CFG80211_INTERNAL_REGDB */
 
 /*
  * This lets us keep regulatory code which is updated on a regulatory
@@ -1058,7 +1058,7 @@ const char *reg_initiator_name(enum nl80211_reg_initiator initiator)
 }
 EXPORT_SYMBOL(reg_initiator_name);
 
-#ifdef CONFIG_CFG80211_REG_DEBUG
+#ifdef CONFIG_BACKPORT_CFG80211_REG_DEBUG
 static void chan_reg_rule_print_dbg(const struct ieee80211_regdomain *regd,
 				    struct ieee80211_channel *chan,
 				    const struct ieee80211_reg_rule *reg_rule)
@@ -1260,7 +1260,7 @@ bool reg_last_request_cell_base(void)
 	return reg_request_cell_base(get_last_request());
 }
 
-#ifdef CONFIG_CFG80211_REG_CELLULAR_HINTS
+#ifdef CONFIG_BACKPORT_CFG80211_REG_CELLULAR_HINTS
 /* Core specific check */
 static enum reg_request_treatment
 reg_ignore_cell_hint(struct regulatory_request *pending_request)

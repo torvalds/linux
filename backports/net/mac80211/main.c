@@ -893,7 +893,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		local->int_scan_req->rates[band] = (u32) -1;
 	}
 
-#ifndef CONFIG_MAC80211_MESH
+#ifndef CONFIG_BACKPORT_MAC80211_MESH
 	/* mesh depends on Kconfig, but drivers should set it if they want */
 	local->hw.wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MESH_POINT);
 #endif

@@ -105,7 +105,7 @@ static DECLARE_BITMAP(devnode_nums[VFL_TYPE_MAX], VIDEO_NUM_DEVICES);
 /* Note: these utility functions all assume that vfl_type is in the range
    [0, VFL_TYPE_MAX-1]. */
 
-#ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
+#ifdef CONFIG_BACKPORT_VIDEO_FIXED_MINOR_RANGES
 /* Return the bitmap corresponding to vfl_type. */
 static inline unsigned long *devnode_bits(int vfl_type)
 {
@@ -198,7 +198,7 @@ static void v4l2_device_release(struct device *cd)
 
 	mutex_unlock(&videodev_lock);
 
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	if (v4l2_dev->mdev &&
 	    vdev->vfl_type != VFL_TYPE_SUBDEV)
 		media_device_unregister_entity(&vdev->entity);
@@ -594,7 +594,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_G_FREQUENCY, vidioc_g_frequency);
 	SET_VALID_IOCTL(ops, VIDIOC_S_FREQUENCY, vidioc_s_frequency);
 	SET_VALID_IOCTL(ops, VIDIOC_LOG_STATUS, vidioc_log_status);
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	set_bit(_IOC_NR(VIDIOC_DBG_G_CHIP_INFO), valid_ioctls);
 	set_bit(_IOC_NR(VIDIOC_DBG_G_REGISTER), valid_ioctls);
 	set_bit(_IOC_NR(VIDIOC_DBG_S_REGISTER), valid_ioctls);
@@ -843,7 +843,7 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 		vdev->prio = &vdev->v4l2_dev->prio;
 
 	/* Part 2: find a free minor, device node number and device index. */
-#ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
+#ifdef CONFIG_BACKPORT_VIDEO_FIXED_MINOR_RANGES
 	/* Keep the ranges for the first four types for historical
 	 * reasons.
 	 * Newer devices (not yet in place) should use the range
@@ -879,7 +879,7 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 		mutex_unlock(&videodev_lock);
 		return -ENFILE;
 	}
-#ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
+#ifdef CONFIG_BACKPORT_VIDEO_FIXED_MINOR_RANGES
 	/* 1-on-1 mapping of device node number to minor number */
 	i = nr;
 #else
@@ -944,7 +944,7 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	/* Increase v4l2_device refcount */
 	v4l2_device_get(vdev->v4l2_dev);
 
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	/* Part 5: Register the entity. */
 	if (vdev->v4l2_dev->mdev &&
 	    vdev->vfl_type != VFL_TYPE_SUBDEV) {

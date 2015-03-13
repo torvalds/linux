@@ -31,7 +31,7 @@ obj-$(CONFIG_ROSE)		+= rose/
 obj-$(CONFIG_AX25)		+= ax25/
 obj-$(CONFIG_CAN)		+= can/
 obj-$(CONFIG_IRDA)		+= irda/
-obj-$(CONFIG_BT)		+= bluetooth/
+obj-$(CONFIG_BACKPORT_BT)		+= bluetooth/
 obj-$(CONFIG_SUNRPC)		+= sunrpc/
 obj-$(CONFIG_AF_RXRPC)		+= rxrpc/
 obj-$(CONFIG_ATM)		+= atm/
@@ -45,7 +45,7 @@ obj-$(CONFIG_IP_DCCP)		+= dccp/
 obj-$(CONFIG_IP_SCTP)		+= sctp/
 obj-$(CONFIG_RDS)		+= rds/
 obj-$(CONFIG_WIRELESS)		+= wireless/
-obj-$(CONFIG_MAC80211)		+= mac80211/
+obj-$(CONFIG_BACKPORT_MAC80211)		+= mac80211/
 obj-$(CONFIG_TIPC)		+= tipc/
 obj-$(CONFIG_NETLABEL)		+= netlabel/
 obj-$(CONFIG_IUCV)		+= iucv/
@@ -55,9 +55,9 @@ obj-$(CONFIG_CAIF)		+= caif/
 ifneq ($(CONFIG_DCB),)
 obj-y				+= dcb/
 endif
-obj-$(CONFIG_6LOWPAN)		+= 6lowpan/
-obj-$(CONFIG_IEEE802154)	+= ieee802154/
-obj-$(CONFIG_MAC802154)		+= mac802154/
+obj-$(CONFIG_BACKPORT_6LOWPAN)		+= 6lowpan/
+obj-$(CONFIG_BACKPORT_IEEE802154)	+= ieee802154/
+obj-$(CONFIG_BACKPORT_MAC802154)		+= mac802154/
 
 ifeq ($(CONFIG_NET),y)
 obj-$(CONFIG_SYSCTL)		+= sysctl_net.o
@@ -66,7 +66,7 @@ obj-$(CONFIG_WIMAX)		+= wimax/
 obj-$(CONFIG_DNS_RESOLVER)	+= dns_resolver/
 obj-$(CONFIG_CEPH_LIB)		+= ceph/
 obj-$(CONFIG_BATMAN_ADV)	+= batman-adv/
-obj-$(CONFIG_NFC)		+= nfc/
+obj-$(CONFIG_BACKPORT_NFC)		+= nfc/
 obj-$(CONFIG_OPENVSWITCH)	+= openvswitch/
 obj-$(CONFIG_VSOCKETS)	+= vmw_vsock/
 obj-$(CONFIG_NET_MPLS_GSO)	+= mpls/

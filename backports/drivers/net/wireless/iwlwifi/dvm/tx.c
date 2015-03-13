@@ -303,7 +303,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 
 	fc = hdr->frame_control;
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 	if (ieee80211_is_auth(fc))
 		IWL_DEBUG_TX(priv, "Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
@@ -844,7 +844,7 @@ static void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 	r->idx = iwlagn_hwrate_to_mac80211_idx(rate_n_flags, info->band);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status)
 {
 #define TX_STATUS_FAIL(x) case TX_STATUS_FAIL_ ## x: return #x
@@ -882,7 +882,7 @@ const char *iwl_get_tx_fail_reason(u32 status)
 #undef TX_STATUS_FAIL
 #undef TX_STATUS_POSTPONE
 }
-#endif /* CONFIG_IWLWIFI_DEBUG */
+#endif /* CONFIG_BACKPORT_IWLWIFI_DEBUG */
 
 static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
 {
@@ -998,7 +998,7 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 	}
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 #define AGG_TX_STATE_FAIL(x) case AGG_TX_STATE_ ## x: return #x
 
 const char *iwl_get_agg_tx_fail_reason(u16 status)
@@ -1023,7 +1023,7 @@ const char *iwl_get_agg_tx_fail_reason(u16 status)
 
 	return "UNKNOWN";
 }
-#endif /* CONFIG_IWLWIFI_DEBUG */
+#endif /* CONFIG_BACKPORT_IWLWIFI_DEBUG */
 
 static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
 {

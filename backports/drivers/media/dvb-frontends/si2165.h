@@ -45,7 +45,7 @@ struct si2165_config {
 	bool inversion;
 };
 
-#if IS_ENABLED(CONFIG_DVB_SI2165)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_SI2165)
 struct dvb_frontend *si2165_attach(
 	const struct si2165_config *config,
 	struct i2c_adapter *i2c);
@@ -57,6 +57,6 @@ static inline struct dvb_frontend *si2165_attach(
 	pr_warn("%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_SI2165 */
+#endif /* CONFIG_BACKPORT_DVB_SI2165 */
 
 #endif /* _DVB_SI2165_H */

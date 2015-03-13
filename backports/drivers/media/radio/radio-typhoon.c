@@ -45,20 +45,20 @@ MODULE_DESCRIPTION("A driver for the Typhoon radio card (a.k.a. EcoRadio).");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1.99");
 
-#ifndef CONFIG_RADIO_TYPHOON_PORT
-#define CONFIG_RADIO_TYPHOON_PORT -1
+#ifndef CONFIG_BACKPORT_RADIO_TYPHOON_PORT
+#define CONFIG_BACKPORT_RADIO_TYPHOON_PORT -1
 #endif
 
-#ifndef CONFIG_RADIO_TYPHOON_MUTEFREQ
-#define CONFIG_RADIO_TYPHOON_MUTEFREQ 87000
+#ifndef CONFIG_BACKPORT_RADIO_TYPHOON_MUTEFREQ
+#define CONFIG_BACKPORT_RADIO_TYPHOON_MUTEFREQ 87000
 #endif
 
 #define TYPHOON_MAX 2
 
-static int io[TYPHOON_MAX] = { [0] = CONFIG_RADIO_TYPHOON_PORT,
+static int io[TYPHOON_MAX] = { [0] = CONFIG_BACKPORT_RADIO_TYPHOON_PORT,
 			      [1 ... (TYPHOON_MAX - 1)] = -1 };
 static int radio_nr[TYPHOON_MAX]	= { [0 ... (TYPHOON_MAX - 1)] = -1 };
-static unsigned long mutefreq = CONFIG_RADIO_TYPHOON_MUTEFREQ;
+static unsigned long mutefreq = CONFIG_BACKPORT_RADIO_TYPHOON_MUTEFREQ;
 
 module_param_array(io, int, NULL, 0444);
 MODULE_PARM_DESC(io, "I/O addresses of the Typhoon card (0x316 or 0x336)");

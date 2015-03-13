@@ -61,7 +61,7 @@ struct atbm8830_config {
 	u8 agc_hold_loop;
 };
 
-#if IS_ENABLED(CONFIG_DVB_ATBM8830)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_ATBM8830)
 extern struct dvb_frontend *atbm8830_attach(const struct atbm8830_config *config,
 		struct i2c_adapter *i2c);
 #else
@@ -71,6 +71,6 @@ struct dvb_frontend *atbm8830_attach(const struct atbm8830_config *config,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_ATBM8830 */
+#endif /* CONFIG_BACKPORT_DVB_ATBM8830 */
 
 #endif /* __ATBM8830_H__ */

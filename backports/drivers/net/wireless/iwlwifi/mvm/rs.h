@@ -324,7 +324,7 @@ struct iwl_lq_sta {
 
 	/* persistent fields - initialized only once - keep last! */
 	struct lq_sta_pers {
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 		u32 dbg_fixed_rate;
 		u8 dbg_fixed_txp_reduction;
 #endif

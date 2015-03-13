@@ -37,7 +37,7 @@ static inline u32 extif_write32_masked(struct ssb_extif *extif, u16 offset,
 	return value;
 }
 
-#ifdef CONFIG_SSB_SERIAL
+#ifdef CONFIG_BACKPORT_SSB_SERIAL
 static bool serial_exists(u8 *regs)
 {
 	u8 save_mcr, msr = 0;
@@ -81,7 +81,7 @@ int ssb_extif_serial_init(struct ssb_extif *extif, struct ssb_serial_port *ports
 	}
 	return nr_ports;
 }
-#endif /* CONFIG_SSB_SERIAL */
+#endif /* CONFIG_BACKPORT_SSB_SERIAL */
 
 void ssb_extif_timing_init(struct ssb_extif *extif, unsigned long ns)
 {

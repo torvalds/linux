@@ -58,7 +58,7 @@ struct xc5000_config {
  * it's passed back to a bridge during tuner_callback().
  */
 
-#if IS_ENABLED(CONFIG_MEDIA_TUNER_XC5000)
+#if IS_ENABLED(CONFIG_BACKPORT_MEDIA_TUNER_XC5000)
 extern struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
 					  const struct xc5000_config *cfg);

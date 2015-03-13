@@ -79,7 +79,7 @@ struct ath_dynack {
 	struct ath_dyn_txbuf st_rbf;
 };
 
-#if defined(CONFIG_ATH9K_DYNACK)
+#if defined(CONFIG_BACKPORT_ATH9K_DYNACK)
 void ath_dynack_reset(struct ath_hw *ah);
 void ath_dynack_node_init(struct ath_hw *ah, struct ath_node *an);
 void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an);

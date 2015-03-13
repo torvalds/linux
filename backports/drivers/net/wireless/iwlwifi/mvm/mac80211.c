@@ -136,7 +136,7 @@ static const struct wiphy_wowlan_tcp_support iwl_mvm_wowlan_tcp_support = {
 };
 #endif
 
-#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+#ifdef CONFIG_BACKPORT_IWLWIFI_BCAST_FILTERING
 /*
  * Use the reserved field to indicate magic values.
  * these values will only be used internally by the driver,
@@ -482,7 +482,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 #endif
 
-#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+#ifdef CONFIG_BACKPORT_IWLWIFI_BCAST_FILTERING
 	/* assign default bcast filtering configuration */
 	mvm->bcast_filters = iwl_mvm_default_bcast_filters;
 #endif
@@ -1476,7 +1476,7 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
-#ifdef CONFIG_NL80211_TESTMODE
+#ifdef CONFIG_BACKPORT_NL80211_TESTMODE
 		if (vif == mvm->noa_vif) {
 			mvm->noa_vif = NULL;
 			mvm->noa_duration = 0;
@@ -1616,7 +1616,7 @@ out:
 	*total_flags = 0;
 }
 
-#ifdef CONFIG_IWLWIFI_BCAST_FILTERING
+#ifdef CONFIG_BACKPORT_IWLWIFI_BCAST_FILTERING
 struct iwl_bcast_iter_data {
 	struct iwl_mvm *mvm;
 	struct iwl_bcast_filter_cmd *cmd;
@@ -1729,7 +1729,7 @@ bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
 	cmd->max_bcast_filters = ARRAY_SIZE(cmd->filters);
 	cmd->max_macs = ARRAY_SIZE(cmd->macs);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	/* use debugfs filters/macs if override is configured */
 	if (mvm->dbgfs_bcast_filtering.override) {
 		memcpy(cmd->filters, &mvm->dbgfs_bcast_filtering.cmd.filters,
@@ -3335,7 +3335,7 @@ static int iwl_mvm_set_tim(struct ieee80211_hw *hw,
 	return iwl_mvm_mac_ctxt_beacon_changed(mvm, mvm_sta->vif);
 }
 
-#ifdef CONFIG_NL80211_TESTMODE
+#ifdef CONFIG_BACKPORT_NL80211_TESTMODE
 static const struct nla_policy iwl_mvm_tm_policy[IWL_MVM_TM_ATTR_MAX + 1] = {
 	[IWL_MVM_TM_ATTR_CMD] = { .type = NLA_U32 },
 	[IWL_MVM_TM_ATTR_NOA_DURATION] = { .type = NLA_U32 },

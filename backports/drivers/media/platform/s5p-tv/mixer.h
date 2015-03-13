@@ -14,7 +14,7 @@
 #ifndef SAMSUNG_MIXER_H
 #define SAMSUNG_MIXER_H
 
-#ifdef CONFIG_VIDEO_SAMSUNG_S5P_MIXER_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_SAMSUNG_S5P_MIXER_DEBUG
 	#define DEBUG
 #endif
 
@@ -333,7 +333,7 @@ void mxr_get_mbus_fmt(struct mxr_device *mdev,
 #define mxr_warn(mdev, fmt, ...) dev_warn(mdev->dev, fmt, ##__VA_ARGS__)
 #define mxr_info(mdev, fmt, ...) dev_info(mdev->dev, fmt, ##__VA_ARGS__)
 
-#ifdef CONFIG_VIDEO_SAMSUNG_S5P_MIXER_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_SAMSUNG_S5P_MIXER_DEBUG
 	#define mxr_dbg(mdev, fmt, ...)  dev_dbg(mdev->dev, fmt, ##__VA_ARGS__)
 #else
 	#define mxr_dbg(mdev, fmt, ...)  do { (void) mdev; } while (0)

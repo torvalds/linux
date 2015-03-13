@@ -1121,7 +1121,7 @@ static int rj54n1_s_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int rj54n1_g_register(struct v4l2_subdev *sd,
 			     struct v4l2_dbg_register *reg)
 {
@@ -1210,7 +1210,7 @@ static const struct v4l2_ctrl_ops rj54n1_ctrl_ops = {
 };
 
 static struct v4l2_subdev_core_ops rj54n1_subdev_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register	= rj54n1_g_register,
 	.s_register	= rj54n1_s_register,
 #endif

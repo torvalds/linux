@@ -33,13 +33,13 @@ MODULE_VERSION("0.1.99");
 
 /* acceptable ports: 0x350 (JP3 shorted), 0x358 (JP3 open) */
 
-#ifndef CONFIG_RADIO_TRUST_PORT
-#define CONFIG_RADIO_TRUST_PORT -1
+#ifndef CONFIG_BACKPORT_RADIO_TRUST_PORT
+#define CONFIG_BACKPORT_RADIO_TRUST_PORT -1
 #endif
 
 #define TRUST_MAX 2
 
-static int io[TRUST_MAX] = { [0] = CONFIG_RADIO_TRUST_PORT,
+static int io[TRUST_MAX] = { [0] = CONFIG_BACKPORT_RADIO_TRUST_PORT,
 			      [1 ... (TRUST_MAX - 1)] = -1 };
 static int radio_nr[TRUST_MAX] = { [0 ... (TRUST_MAX - 1)] = -1 };
 

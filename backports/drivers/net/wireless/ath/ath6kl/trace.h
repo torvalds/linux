@@ -21,7 +21,7 @@ static inline unsigned int ath6kl_get_wmi_id(void *buf, size_t buf_len)
 #define _ATH6KL_TRACE_H
 
 /* create empty functions when tracing is disabled */
-#if !defined(CONFIG_ATH6KL_TRACING)
+#if !defined(CONFIG_BACKPORT_ATH6KL_TRACING)
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
 static inline void trace_ ## name(proto) {}
@@ -30,7 +30,7 @@ static inline void trace_ ## name(proto) {}
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(evt_class, name, proto, ...) \
 static inline void trace_ ## name(proto) {}
-#endif /* !CONFIG_ATH6KL_TRACING || __CHECKER__ */
+#endif /* !CONFIG_BACKPORT_ATH6KL_TRACING || __CHECKER__ */
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM ath6kl

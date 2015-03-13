@@ -330,7 +330,7 @@ enum {
 #ifdef assert
 # undef assert
 #endif
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_B43LEGACY_DEBUG
 # define B43legacy_WARN_ON(x)	WARN_ON(x)
 # define B43legacy_BUG_ON(expr)						\
 	do {								\
@@ -603,7 +603,7 @@ struct b43legacy_wl {
 	/* Stats about the wireless interface */
 	struct ieee80211_low_level_stats ieee_stats;
 
-#ifdef CONFIG_B43LEGACY_HWRNG
+#ifdef CONFIG_BACKPORT_B43LEGACY_HWRNG
 	struct hwrng rng;
 	u8 rng_initialized;
 	char rng_name[30 + 1];
@@ -743,7 +743,7 @@ struct b43legacy_wldev {
 	struct list_head list;
 
 	/* Debugging stuff follows. */
-#ifdef CONFIG_B43LEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_B43LEGACY_DEBUG
 	struct b43legacy_dfsentry *dfsentry;
 #endif
 };
@@ -758,19 +758,19 @@ struct b43legacy_wl *hw_to_b43legacy_wl(struct ieee80211_hw *hw)
 /* Helper function, which returns a boolean.
  * TRUE, if PIO is used; FALSE, if DMA is used.
  */
-#if defined(CONFIG_B43LEGACY_DMA) && defined(CONFIG_B43LEGACY_PIO)
+#if defined(CONFIG_BACKPORT_B43LEGACY_DMA) && defined(CONFIG_BACKPORT_B43LEGACY_PIO)
 static inline
 int b43legacy_using_pio(struct b43legacy_wldev *dev)
 {
 	return dev->__using_pio;
 }
-#elif defined(CONFIG_B43LEGACY_DMA)
+#elif defined(CONFIG_BACKPORT_B43LEGACY_DMA)
 static inline
 int b43legacy_using_pio(struct b43legacy_wldev *dev)
 {
 	return 0;
 }
-#elif defined(CONFIG_B43LEGACY_PIO)
+#elif defined(CONFIG_BACKPORT_B43LEGACY_PIO)
 static inline
 int b43legacy_using_pio(struct b43legacy_wldev *dev)
 {

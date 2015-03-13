@@ -19,7 +19,7 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
-#ifndef CONFIG_BRCM_TRACING
+#ifndef CONFIG_BACKPORT_BRCM_TRACING
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
@@ -32,7 +32,7 @@ static inline void trace_ ## name(proto) {}
 #define DEFINE_EVENT(evt_class, name, proto, ...) \
 static inline void trace_ ## name(proto) {}
 
-#endif /* CONFIG_BRCM_TRACING */
+#endif /* CONFIG_BACKPORT_BRCM_TRACING */
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM	brcmfmac
@@ -138,7 +138,7 @@ TRACE_EVENT(brcmf_sdpcm_hdr,
 		  __entry->len, ((u8 *)__get_dynamic_array(hdr))[4])
 );
 
-#ifdef CONFIG_BRCM_TRACING
+#ifdef CONFIG_BACKPORT_BRCM_TRACING
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
@@ -147,6 +147,6 @@ TRACE_EVENT(brcmf_sdpcm_hdr,
 
 #include <trace/define_trace.h>
 
-#endif /* CONFIG_BRCM_TRACING */
+#endif /* CONFIG_BACKPORT_BRCM_TRACING */
 
 #endif /* BRCMF_TRACEPOINT_H_ */

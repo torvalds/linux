@@ -701,7 +701,7 @@ il_dbgfs_interrupt_read(struct file *file, char __user *user_buf, size_t count,
 			      "\tLast Restarting Code:  0x%X\n",
 			      il->isr_stats.err_code);
 	}
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "Frame transmitted:\t\t %u\n",
 		      il->isr_stats.sch);

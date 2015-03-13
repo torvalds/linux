@@ -5,12 +5,12 @@ ivtv-objs	:= ivtv-routing.o ivtv-cards.o ivtv-controls.o \
 		   ivtv-vbi.o ivtv-yuv.o
 ivtv-alsa-objs := ivtv-alsa-main.o ivtv-alsa-pcm.o
 
-obj-$(CONFIG_VIDEO_IVTV) += ivtv.o
-obj-$(CONFIG_VIDEO_IVTV_ALSA) += ivtv-alsa.o
-obj-$(CONFIG_VIDEO_FB_IVTV) += ivtvfb.o
+obj-$(CONFIG_BACKPORT_VIDEO_IVTV) += ivtv.o
+obj-$(CONFIG_BACKPORT_VIDEO_IVTV_ALSA) += ivtv-alsa.o
+obj-$(CONFIG_BACKPORT_VIDEO_FB_IVTV) += ivtvfb.o
 
-ccflags-y += -I$(srctree)/drivers/media/i2c
-ccflags-y += -I$(srctree)/drivers/media/tuners
-ccflags-y += -I$(srctree)/drivers/media/dvb-core
-ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
+ccflags-y += -I$(backport_srctree)/drivers/media/i2c
+ccflags-y += -I$(backport_srctree)/drivers/media/tuners
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-core
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-frontends
 

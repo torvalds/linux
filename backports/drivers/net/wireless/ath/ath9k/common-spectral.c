@@ -241,7 +241,7 @@ void ath9k_cmn_spectral_scan_trigger(struct ath_common *common,
 	struct ath_hw *ah = spec_priv->ah;
 	u32 rxfilter;
 
-	if (config_enabled(CONFIG_ATH9K_TX99))
+	if (config_enabled(CONFIG_BACKPORT_ATH9K_TX99))
 		return;
 
 	if (!ath9k_hw_ops(ah)->spectral_scan_trigger) {
@@ -316,7 +316,7 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 	char buf[32];
 	ssize_t len;
 
-	if (config_enabled(CONFIG_ATH9K_TX99))
+	if (config_enabled(CONFIG_BACKPORT_ATH9K_TX99))
 		return -EOPNOTSUPP;
 
 	len = min(count, sizeof(buf) - 1);
@@ -586,7 +586,7 @@ static struct rchan_callbacks rfs_spec_scan_cb = {
 
 void ath9k_cmn_spectral_deinit_debug(struct ath_spec_scan_priv *spec_priv)
 {
-	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && spec_priv->rfs_chan_spec_scan) {
+	if (config_enabled(CONFIG_BACKPORT_ATH9K_DEBUGFS) && spec_priv->rfs_chan_spec_scan) {
 		relay_close(spec_priv->rfs_chan_spec_scan);
 		spec_priv->rfs_chan_spec_scan = NULL;
 	}

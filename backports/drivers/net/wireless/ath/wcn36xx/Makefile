@@ -1,4 +1,4 @@
-obj-$(CONFIG_WCN36XX) := wcn36xx.o
+obj-$(CONFIG_BACKPORT_WCN36XX) := wcn36xx.o
 wcn36xx-y +=   main.o \
                dxe.o \
                txrx.o \

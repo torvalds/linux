@@ -1,3 +1,3 @@
-obj-$(CONFIG_DVB_DM1105) += dm1105.o
+obj-$(CONFIG_BACKPORT_DVB_DM1105) += dm1105.o
 
-ccflags-y += -Idrivers/media/dvb-core/ -Idrivers/media/dvb-frontends
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-core/ -I$(backport_srctree)/drivers/media/dvb-frontends

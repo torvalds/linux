@@ -262,7 +262,7 @@ int determine_fw_capabilities(struct orinoco_private *priv,
 	if (fw_name)
 		dev_info(dev, "Firmware determined as %s\n", fw_name);
 
-#ifndef CONFIG_HERMES_PRISM
+#ifndef CONFIG_BACKPORT_HERMES_PRISM
 	if (priv->firmware_type == FIRMWARE_TYPE_INTERSIL) {
 		dev_err(dev, "Support for Prism chipset is not enabled\n");
 		return -ENODEV;

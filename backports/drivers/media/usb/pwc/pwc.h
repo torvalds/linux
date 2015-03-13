@@ -41,7 +41,7 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
-#ifdef CONFIG_USB_PWC_INPUT_EVDEV
+#ifdef CONFIG_BACKPORT_USB_PWC_INPUT_EVDEV
 #include <linux/input.h>
 #endif
 #include "pwc-dec1.h"
@@ -75,7 +75,7 @@
 #define PWC_DEBUG_TRACE(fmt, args...) PWC_DEBUG(TRACE, fmt, ##args)
 
 
-#ifdef CONFIG_USB_PWC_DEBUG
+#ifdef CONFIG_BACKPORT_USB_PWC_DEBUG
 
 #define PWC_DEBUG_LEVEL	(PWC_DEBUG_LEVEL_MODULE)
 
@@ -89,7 +89,7 @@
 #define PWC_INFO(fmt, args...) printk(KERN_INFO PFX fmt, ##args)
 #define PWC_TRACE(fmt, args...) PWC_DEBUG(TRACE, fmt, ##args)
 
-#else /* if ! CONFIG_USB_PWC_DEBUG */
+#else /* if ! CONFIG_BACKPORT_USB_PWC_DEBUG */
 
 #define PWC_ERROR(fmt, args...) printk(KERN_ERR PFX fmt, ##args)
 #define PWC_WARNING(fmt, args...) printk(KERN_WARNING PFX fmt, ##args)
@@ -285,7 +285,7 @@ struct pwc_device
 	int image_mask;				/* supported sizes */
 	int width, height;			/* current resolution */
 
-#ifdef CONFIG_USB_PWC_INPUT_EVDEV
+#ifdef CONFIG_BACKPORT_USB_PWC_INPUT_EVDEV
 	struct input_dev *button_dev;	/* webcam snapshot button input */
 	char button_phys[64];
 #endif
@@ -350,7 +350,7 @@ struct pwc_device
 };
 
 /* Global variables */
-#ifdef CONFIG_USB_PWC_DEBUG
+#ifdef CONFIG_BACKPORT_USB_PWC_DEBUG
 extern int pwc_trace;
 #endif
 

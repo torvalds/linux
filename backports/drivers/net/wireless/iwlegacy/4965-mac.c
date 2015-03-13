@@ -64,7 +64,7 @@
  */
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi 4965 driver for Linux"
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 #define VD "d"
 #else
 #define VD
@@ -1219,7 +1219,7 @@ int
 il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 {
 	int i;
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	int pos = 0;
 	size_t bufsz = 0;
 #endif
@@ -1234,7 +1234,7 @@ il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 		FH49_TSSR_TX_STATUS_REG,
 		FH49_TSSR_TX_ERROR_REG
 	};
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	if (display) {
 		bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
 		*buf = kmalloc(bufsz, GFP_KERNEL);
@@ -1322,7 +1322,7 @@ il4965_rx_calc_noise(struct il_priv *il)
 		bcn_silence_b, bcn_silence_c, last_rx_noise);
 }
 
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUGFS
 /*
  *  based on the assumption of all stats counter are in DWORD
  *  FIXME: This function is for debugging, do not deal with
@@ -1383,7 +1383,7 @@ il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	      pkt->u.stats.general.common.temperature) ||
 	     ((il->_4965.stats.flag & STATS_REPLY_FLG_HT40_MODE_MSK) !=
 	      (pkt->u.stats.flag & STATS_REPLY_FLG_HT40_MODE_MSK)));
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUGFS
 	il4965_accumulative_stats(il, (__le32 *) &pkt->u.stats);
 #endif
 
@@ -1415,7 +1415,7 @@ il4965_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATS_CLEAR_MSK) {
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUGFS
 		memset(&il->_4965.accum_stats, 0,
 		       sizeof(struct il_notif_stats));
 		memset(&il->_4965.delta_stats, 0,
@@ -1690,7 +1690,7 @@ il4965_tx_skb(struct il_priv *il,
 
 	fc = hdr->frame_control;
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	if (ieee80211_is_auth(fc))
 		D_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
@@ -2996,7 +2996,7 @@ il4965_hdl_compressed_ba(struct il_priv *il, struct il_rx_buf *rxb)
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 const char *
 il4965_get_tx_fail_reason(u32 status)
 {
@@ -3034,7 +3034,7 @@ il4965_get_tx_fail_reason(u32 status)
 #undef TX_STATUS_FAIL
 #undef TX_STATUS_POSTPONE
 }
-#endif /* CONFIG_IWLEGACY_DEBUG */
+#endif /* CONFIG_BACKPORT_IWLEGACY_DEBUG */
 
 static struct il_link_quality_cmd *
 il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
@@ -4092,7 +4092,7 @@ il4965_hdl_beacon(struct il_priv *il, struct il_rx_buf *rxb)
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il4965_beacon_notif *beacon =
 	    (struct il4965_beacon_notif *)pkt->u.raw;
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	u8 rate = il4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
 
 	D_RX("beacon status %x retries %d iss %d tsf:0x%.8x%.8x rate %d\n",
@@ -4367,7 +4367,7 @@ il4965_irq_tasklet(struct il_priv *il)
 	u32 inta_fh;
 	unsigned long flags;
 	u32 i;
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	u32 inta_mask;
 #endif
 
@@ -4385,7 +4385,7 @@ il4965_irq_tasklet(struct il_priv *il)
 	inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
 	_il_wr(il, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & IL_DL_ISR) {
 		/* just for debug */
 		inta_mask = _il_rd(il, CSR_INT_MASK);
@@ -4419,7 +4419,7 @@ il4965_irq_tasklet(struct il_priv *il)
 
 		return;
 	}
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & (IL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD) {
@@ -4534,7 +4534,7 @@ il4965_irq_tasklet(struct il_priv *il)
 	else if (handled & CSR_INT_BIT_RF_KILL)
 		il_enable_rfkill_int(il);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & (IL_DL_ISR)) {
 		inta = _il_rd(il, CSR_INT);
 		inta_mask = _il_rd(il, CSR_INT_MASK);
@@ -4551,7 +4551,7 @@ il4965_irq_tasklet(struct il_priv *il)
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 
 /*
  * The following adds a new attribute to the sysfs representation
@@ -4592,7 +4592,7 @@ il4965_store_debug_level(struct device *d, struct device_attribute *attr,
 static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO, il4965_show_debug_level,
 		   il4965_store_debug_level);
 
-#endif /* CONFIG_IWLEGACY_DEBUG */
+#endif /* CONFIG_BACKPORT_IWLEGACY_DEBUG */
 
 static ssize_t
 il4965_show_temperature(struct device *d, struct device_attribute *attr,
@@ -4646,7 +4646,7 @@ static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, il4965_show_tx_power,
 static struct attribute *il_sysfs_entries[] = {
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 	&dev_attr_debug_level.attr,
 #endif
 	NULL
@@ -6515,7 +6515,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
 	il->ops = &il4965_ops;
-#ifdef CONFIG_IWLEGACY_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUGFS
 	il->debugfs_ops = &il4965_debugfs_ops;
 #endif
 	il->pci_dev = pdev;
@@ -6848,7 +6848,7 @@ il4965_exit(void)
 module_exit(il4965_exit);
 module_init(il4965_init);
 
-#ifdef CONFIG_IWLEGACY_DEBUG
+#ifdef CONFIG_BACKPORT_IWLEGACY_DEBUG
 module_param_named(debug, il_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif

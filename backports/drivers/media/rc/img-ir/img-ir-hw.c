@@ -27,19 +27,19 @@ static DEFINE_SPINLOCK(img_ir_decoders_lock);
 
 static bool img_ir_decoders_preprocessed;
 static struct img_ir_decoder *img_ir_decoders[] = {
-#ifdef CONFIG_IR_IMG_NEC
+#ifdef CONFIG_BACKPORT_IR_IMG_NEC
 	&img_ir_nec,
 #endif
-#ifdef CONFIG_IR_IMG_JVC
+#ifdef CONFIG_BACKPORT_IR_IMG_JVC
 	&img_ir_jvc,
 #endif
-#ifdef CONFIG_IR_IMG_SONY
+#ifdef CONFIG_BACKPORT_IR_IMG_SONY
 	&img_ir_sony,
 #endif
-#ifdef CONFIG_IR_IMG_SHARP
+#ifdef CONFIG_BACKPORT_IR_IMG_SHARP
 	&img_ir_sharp,
 #endif
-#ifdef CONFIG_IR_IMG_SANYO
+#ifdef CONFIG_BACKPORT_IR_IMG_SANYO
 	&img_ir_sanyo,
 #endif
 	NULL

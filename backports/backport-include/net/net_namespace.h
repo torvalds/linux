@@ -3,7 +3,7 @@
 
 #include_next <net/net_namespace.h>
 
-#if IS_ENABLED(CPTCFG_IEEE802154_6LOWPAN)
+#if IS_ENABLED(CONFIG_BACKPORT_IEEE802154_6LOWPAN)
 #include <linux/version.h>
 #include <net/netns/ieee802154_6lowpan.h>
 
@@ -22,6 +22,6 @@ net_ieee802154_lowpan(struct net *net)
 	return &net->ieee802154_lowpan;
 }
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3,15,0) */
-#endif /* CPTCFG_IEEE802154_6LOWPAN */
+#endif /* CONFIG_BACKPORT_IEEE802154_6LOWPAN */
 
 #endif	/* _COMPAT_NET_NET_NAMESPACE_H */

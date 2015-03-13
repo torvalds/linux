@@ -432,7 +432,7 @@ int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_set_tim);
 
-#ifdef CONFIG_RT2X00_LIB_CRYPTO
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_CRYPTO
 static void memcpy_tkip(struct rt2x00lib_crypto *crypto, u8 *key, u8 key_len)
 {
 	if (key_len > NL80211_TKIP_DATA_OFFSET_ENCR_KEY)
@@ -533,7 +533,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return set_key(rt2x00dev, &crypto, key);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_set_key);
-#endif /* CONFIG_RT2X00_LIB_CRYPTO */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_CRYPTO */
 
 int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta)

@@ -32,7 +32,7 @@ pvr2_device_desc structures.
 /* This is needed in order to pull in tuner type ids... */
 #include <linux/i2c.h>
 #include <media/tuner.h>
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 #include "pvrusb2-hdw-internal.h"
 #include "lgdt330x.h"
 #include "s5h1409.h"
@@ -184,7 +184,7 @@ static const struct pvr2_device_desc pvr2_device_av400 = {
 /*------------------------------------------------------------------------*/
 /* OnAir Creator */
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 static struct lgdt330x_config pvr2_lgdt3303_config = {
 	.demod_address       = 0x0e,
 	.demod_chip          = LGDT3303,
@@ -235,7 +235,7 @@ static const struct pvr2_device_desc pvr2_device_onair_creator = {
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_ONAIR,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
 		.default_std_mask = V4L2_STD_NTSC_M,
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_onair_creator_fe_props,
 #endif
 };
@@ -245,7 +245,7 @@ static const struct pvr2_device_desc pvr2_device_onair_creator = {
 /*------------------------------------------------------------------------*/
 /* OnAir USB 2.0 */
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 static struct lgdt330x_config pvr2_lgdt3302_config = {
 	.demod_address       = 0x0e,
 	.demod_chip          = LGDT3302,
@@ -295,7 +295,7 @@ static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_ONAIR,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
 		.default_std_mask = V4L2_STD_NTSC_M,
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_onair_usb2_fe_props,
 #endif
 };
@@ -305,7 +305,7 @@ static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 /*------------------------------------------------------------------------*/
 /* Hauppauge PVR-USB2 Model 73xxx */
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 static struct tda10048_config hauppauge_tda10048_config = {
 	.demod_address  = 0x10 >> 1,
 	.output_mode    = TDA10048_PARALLEL_OUTPUT,
@@ -393,7 +393,7 @@ static const struct pvr2_device_desc pvr2_device_73xxx = {
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_HAUPPAUGE,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
 		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_73xxx_dvb_props,
 #endif
 };
@@ -403,7 +403,7 @@ static const struct pvr2_device_desc pvr2_device_73xxx = {
 /*------------------------------------------------------------------------*/
 /* Hauppauge PVR-USB2 Model 75xxx */
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 static struct s5h1409_config pvr2_s5h1409_config = {
 	.demod_address = 0x32 >> 1,
 	.output_mode   = S5H1409_PARALLEL_OUTPUT,
@@ -501,7 +501,7 @@ static const struct pvr2_device_desc pvr2_device_750xx = {
 		.default_std_mask = V4L2_STD_NTSC_M,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
 		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_750xx_dvb_props,
 #endif
 };
@@ -524,7 +524,7 @@ static const struct pvr2_device_desc pvr2_device_751xx = {
 		.default_std_mask = V4L2_STD_NTSC_M,
 		.led_scheme = PVR2_LED_SCHEME_HAUPPAUGE,
 		.ir_scheme = PVR2_IR_SCHEME_ZILOG,
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 		.dvb_props = &pvr2_751xx_dvb_props,
 #endif
 };

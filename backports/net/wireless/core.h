@@ -478,7 +478,7 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 
 #define CFG80211_MAX_NUM_DIFFERENT_CHANNELS 10
 
-#ifdef CONFIG_CFG80211_DEVELOPER_WARNINGS
+#ifdef CONFIG_BACKPORT_CFG80211_DEVELOPER_WARNINGS
 #define CFG80211_DEV_WARN_ON(cond)	WARN_ON(cond)
 #else
 /*

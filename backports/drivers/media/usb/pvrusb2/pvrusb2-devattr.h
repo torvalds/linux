@@ -22,7 +22,7 @@
 
 #include <linux/mod_devicetable.h>
 #include <linux/videodev2.h>
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 #include "pvrusb2-dvb.h"
 #endif
 
@@ -106,7 +106,7 @@ struct pvr2_device_desc {
 	   was initialized from internal ROM. */
 	struct pvr2_string_table fx2_firmware;
 
-#ifdef CONFIG_VIDEO_PVRUSB2_DVB
+#ifdef CONFIG_BACKPORT_VIDEO_PVRUSB2_DVB
 	/* callback functions to handle attachment of digital tuner & demod */
 	const struct pvr2_dvb_props *dvb_props;
 

@@ -2137,7 +2137,7 @@ struct v4l2_create_buffers {
 #define VIDIOC_TRY_ENCODER_CMD  _IOWR('V', 78, struct v4l2_encoder_cmd)
 
 /* Experimental, meant for debugging, testing and internal use.
-   Only implemented if CONFIG_VIDEO_ADV_DEBUG is defined.
+   Only implemented if CONFIG_BACKPORT_VIDEO_ADV_DEBUG is defined.
    You must be root to use these ioctls. Never use these in applications! */
 #define	VIDIOC_DBG_S_REGISTER 	 _IOW('V', 79, struct v4l2_dbg_register)
 #define	VIDIOC_DBG_G_REGISTER 	_IOWR('V', 80, struct v4l2_dbg_register)

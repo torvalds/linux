@@ -800,7 +800,7 @@ static int ov9740_s_power(struct v4l2_subdev *sd, int on)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int ov9740_get_register(struct v4l2_subdev *sd,
 			       struct v4l2_dbg_register *reg)
 {
@@ -914,7 +914,7 @@ static struct v4l2_subdev_video_ops ov9740_video_ops = {
 
 static struct v4l2_subdev_core_ops ov9740_core_ops = {
 	.s_power		= ov9740_s_power,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register		= ov9740_get_register,
 	.s_register		= ov9740_set_register,
 #endif

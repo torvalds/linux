@@ -492,7 +492,7 @@ static inline void __iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans,
 {
 	u32 v;
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 	WARN_ON_ONCE(value & ~mask);
 #endif
 

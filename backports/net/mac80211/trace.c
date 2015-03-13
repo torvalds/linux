@@ -9,7 +9,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-#ifdef CONFIG_MAC80211_MESSAGE_TRACING
+#ifdef CONFIG_BACKPORT_MAC80211_MESSAGE_TRACING
 void __sdata_info(const char *fmt, ...)
 {
 	struct va_format vaf = {

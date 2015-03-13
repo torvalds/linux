@@ -24,7 +24,7 @@
 #include "txrx.h"
 
 /* create empty functions when tracing is disabled */
-#if !defined(CONFIG_WIL6210_TRACING) || defined(__CHECKER__)
+#if !defined(CONFIG_BACKPORT_WIL6210_TRACING) || defined(__CHECKER__)
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
@@ -34,7 +34,7 @@ static inline void trace_ ## name(proto) {}
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(evt_class, name, proto, ...) \
 static inline void trace_ ## name(proto) {}
-#endif /* !CONFIG_WIL6210_TRACING || defined(__CHECKER__) */
+#endif /* !CONFIG_BACKPORT_WIL6210_TRACING || defined(__CHECKER__) */
 
 DECLARE_EVENT_CLASS(wil6210_wmi,
 	TP_PROTO(struct wil6210_mbox_hdr_wmi *wmi, void *buf, u16 buf_len),
@@ -227,7 +227,7 @@ TRACE_EVENT(wil6210_tx_done,
 
 #endif /* WIL6210_TRACE_H || TRACE_HEADER_MULTI_READ*/
 
-#if defined(CONFIG_WIL6210_TRACING) && !defined(__CHECKER__)
+#if defined(CONFIG_BACKPORT_WIL6210_TRACING) && !defined(__CHECKER__)
 /* we don't want to use include/trace/events */
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
@@ -236,4 +236,4 @@ TRACE_EVENT(wil6210_tx_done,
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
-#endif /* defined(CONFIG_WIL6210_TRACING) && !defined(__CHECKER__) */
+#endif /* defined(CONFIG_BACKPORT_WIL6210_TRACING) && !defined(__CHECKER__) */

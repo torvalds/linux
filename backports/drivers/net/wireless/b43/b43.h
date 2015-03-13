@@ -18,7 +18,7 @@
 #include "phy_common.h"
 
 
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_BACKPORT_B43_DEBUG
 # define B43_DEBUG	1
 #else
 # define B43_DEBUG	0
@@ -882,7 +882,7 @@ struct b43_wldev {
 	struct list_head list;
 
 	/* Debugging stuff follows. */
-#ifdef CONFIG_B43_DEBUG
+#ifdef CONFIG_BACKPORT_B43_DEBUG
 	struct b43_dfsentry *dfsentry;
 	unsigned int irq_count;
 	unsigned int irq_bit_count[32];
@@ -926,11 +926,11 @@ struct b43_wl {
 	/* Stats about the wireless interface */
 	struct ieee80211_low_level_stats ieee_stats;
 
-#ifdef CONFIG_B43_HWRNG
+#ifdef CONFIG_BACKPORT_B43_HWRNG
 	struct hwrng rng;
 	bool rng_initialized;
 	char rng_name[30 + 1];
-#endif /* CONFIG_B43_HWRNG */
+#endif /* CONFIG_BACKPORT_B43_HWRNG */
 
 	bool radiotap_enabled;
 	bool radio_enabled;

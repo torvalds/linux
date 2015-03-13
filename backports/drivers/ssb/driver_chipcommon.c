@@ -597,7 +597,7 @@ u32 ssb_chipco_gpio_pulldown(struct ssb_chipcommon *cc, u32 mask, u32 value)
 	return res;
 }
 
-#ifdef CONFIG_SSB_SERIAL
+#ifdef CONFIG_BACKPORT_SSB_SERIAL
 int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 			   struct ssb_serial_port *ports)
 {
@@ -694,4 +694,4 @@ int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 
 	return nr_ports;
 }
-#endif /* CONFIG_SSB_SERIAL */
+#endif /* CONFIG_BACKPORT_SSB_SERIAL */

@@ -1759,7 +1759,7 @@ err:
 }
 
 
-#if IS_ENABLED(CONFIG_RC_CORE)
+#if IS_ENABLED(CONFIG_BACKPORT_RC_CORE)
 static int af9035_rc_query(struct dvb_usb_device *d)
 {
 	int ret;

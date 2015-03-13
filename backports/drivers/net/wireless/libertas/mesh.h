@@ -11,7 +11,7 @@
 #include "host.h"
 #include "dev.h"
 
-#ifdef CONFIG_LIBERTAS_MESH
+#ifdef CONFIG_BACKPORT_LIBERTAS_MESH
 
 struct net_device;
 

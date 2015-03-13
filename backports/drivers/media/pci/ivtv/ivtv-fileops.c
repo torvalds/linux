@@ -956,7 +956,7 @@ static int ivtv_open(struct file *filp)
 		return -ENXIO;
 	}
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	/* Unless ivtv_fw_debug is set, error out if firmware dead. */
 	if (ivtv_fw_debug) {
 		IVTV_WARN("Opening %s with dead firmware lockout disabled\n",

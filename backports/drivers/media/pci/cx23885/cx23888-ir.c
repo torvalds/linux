@@ -1078,7 +1078,7 @@ static int cx23888_ir_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int cx23888_ir_g_register(struct v4l2_subdev *sd,
 				 struct v4l2_dbg_register *reg)
 {
@@ -1111,7 +1111,7 @@ static int cx23888_ir_s_register(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_core_ops cx23888_ir_core_ops = {
 	.log_status = cx23888_ir_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = cx23888_ir_g_register,
 	.s_register = cx23888_ir_s_register,
 #endif

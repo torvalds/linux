@@ -138,7 +138,7 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 					 struct iwl_time_quota_cmd *cmd)
 {
-#ifdef CONFIG_NL80211_TESTMODE
+#ifdef CONFIG_BACKPORT_NL80211_TESTMODE
 	struct iwl_mvm_vif *mvmvif;
 	int i, phy_id = -1, beacon_int = 0;
 

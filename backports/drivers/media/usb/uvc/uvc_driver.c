@@ -1647,7 +1647,7 @@ static void uvc_delete(struct uvc_device *dev)
 
 	if (dev->vdev.dev)
 		v4l2_device_unregister(&dev->vdev);
-#ifdef CONFIG_MEDIA_CONTROLLER
+#ifdef CONFIG_BACKPORT_MEDIA_CONTROLLER
 	if (media_devnode_is_registered(&dev->mdev.devnode))
 		media_device_unregister(&dev->mdev);
 #endif
@@ -1661,7 +1661,7 @@ static void uvc_delete(struct uvc_device *dev)
 	list_for_each_safe(p, n, &dev->entities) {
 		struct uvc_entity *entity;
 		entity = list_entry(p, struct uvc_entity, list);
-#ifdef CONFIG_MEDIA_CONTROLLER
+#ifdef CONFIG_BACKPORT_MEDIA_CONTROLLER
 		uvc_mc_cleanup_entity(entity);
 #endif
 		if (entity->vdev) {
@@ -1838,7 +1838,7 @@ static int uvc_register_chains(struct uvc_device *dev)
 		if (ret < 0)
 			return ret;
 
-#ifdef CONFIG_MEDIA_CONTROLLER
+#ifdef CONFIG_BACKPORT_MEDIA_CONTROLLER
 		ret = uvc_mc_register_entities(chain);
 		if (ret < 0) {
 			uvc_printk(KERN_INFO, "Failed to register entites "
@@ -1915,7 +1915,7 @@ static int uvc_probe(struct usb_interface *intf,
 	}
 
 	/* Register the media and V4L2 devices. */
-#ifdef CONFIG_MEDIA_CONTROLLER
+#ifdef CONFIG_BACKPORT_MEDIA_CONTROLLER
 	dev->mdev.dev = &intf->dev;
 	strlcpy(dev->mdev.model, dev->name, sizeof(dev->mdev.model));
 	if (udev->serial)

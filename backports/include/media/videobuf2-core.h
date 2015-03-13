@@ -213,7 +213,7 @@ struct vb2_buffer {
 
 	struct vb2_plane	planes[VIDEO_MAX_PLANES];
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	/*
 	 * Counters for how often these buffer-related ops are
 	 * called. Used to check for unbalanced ops.
@@ -437,7 +437,7 @@ struct vb2_queue {
 	struct vb2_fileio_data		*fileio;
 	struct vb2_threadio_data	*threadio;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	/*
 	 * Counters for how often these queue-related ops are
 	 * called. Used to check for unbalanced ops.

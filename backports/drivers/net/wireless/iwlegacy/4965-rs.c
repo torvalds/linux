@@ -147,7 +147,7 @@ static void il4965_rs_fill_link_cmd(struct il_priv *il,
 static void il4965_rs_stay_in_table(struct il_lq_sta *lq_sta,
 				    bool force_search);
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 static void il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta,
 				    u32 *rate_n_flags, int idx);
 #else
@@ -2366,7 +2366,7 @@ il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 		lq_sta->last_txrate_idx += IL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	lq_sta->dbg_fixed_rate = 0;
 #endif
 
@@ -2516,7 +2516,7 @@ il4965_rs_free_sta(void *il_r, struct ieee80211_sta *sta, void *il_sta)
 	D_RATE("leave\n");
 }
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 
 static void
 il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
@@ -2816,7 +2816,7 @@ static const struct rate_control_ops rs_4965_ops = {
 	.free = il4965_rs_free,
 	.alloc_sta = il4965_rs_alloc_sta,
 	.free_sta = il4965_rs_free_sta,
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	.add_sta_debugfs = il4965_rs_add_debugfs,
 	.remove_sta_debugfs = il4965_rs_remove_debugfs,
 #endif

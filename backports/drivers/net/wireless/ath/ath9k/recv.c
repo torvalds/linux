@@ -377,7 +377,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u32 rfilt;
 
-	if (config_enabled(CONFIG_ATH9K_TX99))
+	if (config_enabled(CONFIG_BACKPORT_ATH9K_TX99))
 		return 0;
 
 	rfilt = ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
@@ -551,7 +551,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		ath_dbg(common, PS,
 			"Reconfigure beacon timers based on synchronized timestamp\n");
 
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+#ifdef CONFIG_BACKPORT_ATH9K_CHANNEL_CONTEXT
 		if (ath9k_is_chanctx_enabled()) {
 			if (sc->cur_chan == &sc->offchannel.chan)
 				skip_beacon = true;
@@ -924,7 +924,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	rx_status->antenna = rx_stats->rs_antenna;
 	rx_status->flag |= RX_FLAG_MACTIME_END;
 
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+#ifdef CONFIG_BACKPORT_ATH9K_BTCOEX_SUPPORT
 	if (ieee80211_is_data_present(hdr->frame_control) &&
 	    !ieee80211_is_qos_nullfunc(hdr->frame_control))
 		sc->rx.num_pkts++;

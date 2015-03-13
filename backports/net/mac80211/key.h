@@ -103,7 +103,7 @@ struct ieee80211_key {
 	/* number of times this key has been used */
 	int tx_rx_count;
 
-#ifdef CONFIG_MAC80211_DEBUGFS
+#ifdef CONFIG_BACKPORT_MAC80211_DEBUGFS
 	struct {
 		struct dentry *stalink;
 		struct dentry *dir;

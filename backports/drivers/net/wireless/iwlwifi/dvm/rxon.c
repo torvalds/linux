@@ -908,7 +908,7 @@ static int iwl_full_rxon_required(struct iwl_priv *priv,
 	return 0;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 			     enum iwl_rxon_context_id ctxid)
 {

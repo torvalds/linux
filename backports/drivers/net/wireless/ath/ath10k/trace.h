@@ -32,7 +32,7 @@ static inline u32 ath10k_frm_hdr_len(const void *buf)
 #define _TRACE_H_
 
 /* create empty functions when tracing is disabled */
-#if !defined(CONFIG_ATH10K_TRACING)
+#if !defined(CONFIG_BACKPORT_ATH10K_TRACING)
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
 static inline void trace_ ## name(proto) {}
@@ -41,7 +41,7 @@ static inline void trace_ ## name(proto) {}
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(evt_class, name, proto, ...) \
 static inline void trace_ ## name(proto) {}
-#endif /* !CONFIG_ATH10K_TRACING || __CHECKER__ */
+#endif /* !CONFIG_BACKPORT_ATH10K_TRACING || __CHECKER__ */
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM ath10k

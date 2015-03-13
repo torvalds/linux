@@ -163,7 +163,7 @@ static void rt2500pci_eepromregister_write(struct eeprom_93cx6 *eeprom)
 	rt2x00mmio_register_write(rt2x00dev, CSR21, reg);
 }
 
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS
 static const struct rt2x00debug rt2500pci_rt2x00debug = {
 	.owner	= THIS_MODULE,
 	.csr	= {
@@ -196,7 +196,7 @@ static const struct rt2x00debug rt2500pci_rt2x00debug = {
 		.word_count	= RF_SIZE / sizeof(u32),
 	},
 };
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS */
 
 static int rt2500pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
@@ -206,7 +206,7 @@ static int rt2500pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	return rt2x00_get_field32(reg, GPIOCSR_VAL0);
 }
 
-#ifdef CONFIG_RT2X00_LIB_LEDS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_LEDS
 static void rt2500pci_brightness_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)
 {
@@ -251,7 +251,7 @@ static void rt2500pci_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt2500pci_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT2X00_LIB_LEDS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -1667,7 +1667,7 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led mode, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT2X00_LIB_LEDS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_LEDS
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
 
 	rt2500pci_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
@@ -1676,7 +1676,7 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    value == LED_MODE_ASUS)
 		rt2500pci_init_led(rt2x00dev, &rt2x00dev->led_qual,
 				   LED_TYPE_ACTIVITY);
-#endif /* CONFIG_RT2X00_LIB_LEDS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_LEDS */
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
@@ -2112,9 +2112,9 @@ static const struct rt2x00_ops rt2500pci_ops = {
 	.queue_init		= rt2500pci_queue_init,
 	.lib			= &rt2500pci_rt2x00_ops,
 	.hw			= &rt2500pci_mac80211_ops,
-#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+#ifdef CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS
 	.debugfs		= &rt2500pci_rt2x00debug,
-#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+#endif /* CONFIG_BACKPORT_RT2X00_LIB_DEBUGFS */
 };
 
 /*

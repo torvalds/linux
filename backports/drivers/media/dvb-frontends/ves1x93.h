@@ -40,7 +40,7 @@ struct ves1x93_config
 	u8 invert_pwm:1;
 };
 
-#if IS_ENABLED(CONFIG_DVB_VES1X93)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_VES1X93)
 extern struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* config,
 					   struct i2c_adapter* i2c);
 #else
@@ -50,6 +50,6 @@ static inline struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* c
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_VES1X93
+#endif // CONFIG_BACKPORT_DVB_VES1X93
 
 #endif // VES1X93_H

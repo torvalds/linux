@@ -62,7 +62,7 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_CARL9170_LEDS
+#ifdef CONFIG_BACKPORT_CARL9170_LEDS
 static void carl9170_led_update(struct work_struct *work)
 {
 	struct ar9170 *ar = container_of(work, struct ar9170, led_work.work);
@@ -187,4 +187,4 @@ fail:
 	return err;
 }
 
-#endif /* CONFIG_CARL9170_LEDS */
+#endif /* CONFIG_BACKPORT_CARL9170_LEDS */

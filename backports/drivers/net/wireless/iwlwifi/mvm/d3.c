@@ -1104,7 +1104,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	if (mvm->d3_wake_sysassert)
 		d3_cfg_cmd_data.wakeup_flags |=
 			cpu_to_le32(IWL_WAKEUP_D3_CONFIG_FW_ERROR);
@@ -1114,7 +1114,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
 	if (ret)
 		goto out;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	len = iwl_rx_packet_payload_len(d3_cfg_cmd.resp_pkt);
 	if (len >= sizeof(u32)) {
 		mvm->d3_test_pme_ptr =
@@ -1819,7 +1819,7 @@ out:
 
 static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)
 {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 	const struct fw_img *img = &mvm->fw->img[IWL_UCODE_WOWLAN];
 	u32 len = img->sec[IWL_UCODE_SECTION_DATA].len;
 	u32 offs = img->sec[IWL_UCODE_SECTION_DATA].offset;
@@ -1878,7 +1878,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		iwl_mvm_query_netdetect_reasons(mvm, vif);
 	} else {
 		keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 		if (keep)
 			mvm->keep_vif = vif;
 #endif
@@ -1932,7 +1932,7 @@ void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 	device_set_wakeup_enable(mvm->trans->dev, enabled);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUGFS
 static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 {
 	struct iwl_mvm *mvm = inode->i_private;

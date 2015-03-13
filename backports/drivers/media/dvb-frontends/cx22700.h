@@ -31,7 +31,7 @@ struct cx22700_config
 	u8 demod_address;
 };
 
-#if IS_ENABLED(CONFIG_DVB_CX22700)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_CX22700)
 extern struct dvb_frontend* cx22700_attach(const struct cx22700_config* config,
 					   struct i2c_adapter* i2c);
 #else
@@ -41,6 +41,6 @@ static inline struct dvb_frontend* cx22700_attach(const struct cx22700_config* c
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_CX22700
+#endif // CONFIG_BACKPORT_DVB_CX22700
 
 #endif // CX22700_H

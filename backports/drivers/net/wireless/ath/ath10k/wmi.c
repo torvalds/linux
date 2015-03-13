@@ -2458,7 +2458,7 @@ void ath10k_wmi_event_dfs(struct ath10k *ar,
 		   __le32_to_cpu(phyerr->tsf_timestamp), tsf, buf_len);
 
 	/* Skip event if DFS disabled */
-	if (!config_enabled(CONFIG_ATH10K_DFS_CERTIFIED))
+	if (!config_enabled(CONFIG_BACKPORT_ATH10K_DFS_CERTIFIED))
 		return;
 
 	ATH10K_DFS_STAT_INC(ar, pulses_total);

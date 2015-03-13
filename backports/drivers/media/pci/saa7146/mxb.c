@@ -664,7 +664,7 @@ static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *
 	return -EINVAL;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
@@ -714,7 +714,7 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.vid_ops.vidioc_enumaudio = vidioc_enumaudio;
 	vv_data.vid_ops.vidioc_g_audio = vidioc_g_audio;
 	vv_data.vid_ops.vidioc_s_audio = vidioc_s_audio;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	vv_data.vid_ops.vidioc_g_register = vidioc_g_register;
 	vv_data.vid_ops.vidioc_s_register = vidioc_s_register;
 #endif

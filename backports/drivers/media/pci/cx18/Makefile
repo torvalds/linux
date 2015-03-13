@@ -5,9 +5,9 @@ cx18-objs    := cx18-driver.o cx18-cards.o cx18-i2c.o cx18-firmware.o cx18-gpio.
 	cx18-dvb.o cx18-io.o
 cx18-alsa-objs := cx18-alsa-main.o cx18-alsa-pcm.o
 
-obj-$(CONFIG_VIDEO_CX18) += cx18.o
-obj-$(CONFIG_VIDEO_CX18_ALSA) += cx18-alsa.o
+obj-$(CONFIG_BACKPORT_VIDEO_CX18) += cx18.o
+obj-$(CONFIG_BACKPORT_VIDEO_CX18_ALSA) += cx18-alsa.o
 
-ccflags-y += -Idrivers/media/dvb-core
-ccflags-y += -Idrivers/media/dvb-frontends
-ccflags-y += -Idrivers/media/tuners
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-core
+ccflags-y += -I$(backport_srctree)/drivers/media/dvb-frontends
+ccflags-y += -I$(backport_srctree)/drivers/media/tuners

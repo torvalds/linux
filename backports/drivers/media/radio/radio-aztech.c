@@ -34,13 +34,13 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
 
 /* acceptable ports: 0x350 (JP3 shorted), 0x358 (JP3 open) */
-#ifndef CONFIG_RADIO_AZTECH_PORT
-#define CONFIG_RADIO_AZTECH_PORT -1
+#ifndef CONFIG_BACKPORT_RADIO_AZTECH_PORT
+#define CONFIG_BACKPORT_RADIO_AZTECH_PORT -1
 #endif
 
 #define AZTECH_MAX 2
 
-static int io[AZTECH_MAX] = { [0] = CONFIG_RADIO_AZTECH_PORT,
+static int io[AZTECH_MAX] = { [0] = CONFIG_BACKPORT_RADIO_AZTECH_PORT,
 			      [1 ... (AZTECH_MAX - 1)] = -1 };
 static int radio_nr[AZTECH_MAX]	= { [0 ... (AZTECH_MAX - 1)] = -1 };
 static const int radio_wait_time = 1000;

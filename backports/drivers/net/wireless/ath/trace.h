@@ -23,12 +23,12 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM ath
 
-#if !defined(CONFIG_ATH_TRACEPOINTS)
+#if !defined(CONFIG_BACKPORT_ATH_TRACEPOINTS)
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) static inline void trace_ ## name(proto) {}
 
-#endif /* CONFIG_ATH_TRACEPOINTS */
+#endif /* CONFIG_BACKPORT_ATH_TRACEPOINTS */
 
 TRACE_EVENT(ath_log,
 

@@ -532,7 +532,7 @@ struct uvc_device {
 	atomic_t nmappings;
 
 	/* Video control interface */
-#ifdef CONFIG_MEDIA_CONTROLLER
+#ifdef CONFIG_BACKPORT_MEDIA_CONTROLLER
 	struct media_device mdev;
 #endif
 	struct v4l2_device vdev;

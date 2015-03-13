@@ -35,7 +35,7 @@
  * @param has_loopthrough Set to 1 if the card has a loopthrough RF connector.
  * @return FE pointer on success, NULL on failure.
  */
-#if IS_ENABLED(CONFIG_DVB_TDA826X)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_TDA826X)
 extern struct dvb_frontend* tda826x_attach(struct dvb_frontend *fe, int addr,
 					   struct i2c_adapter *i2c,
 					   int has_loopthrough);
@@ -48,6 +48,6 @@ static inline struct dvb_frontend* tda826x_attach(struct dvb_frontend *fe,
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_DVB_TDA826X
+#endif // CONFIG_BACKPORT_DVB_TDA826X
 
 #endif // __DVB_TDA826X_H__

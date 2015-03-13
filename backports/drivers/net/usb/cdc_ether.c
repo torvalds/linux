@@ -31,7 +31,7 @@
 #include <linux/usb/usbnet.h>
 
 
-#if IS_ENABLED(CONFIG_USB_NET_RNDIS_HOST)
+#if IS_ENABLED(CONFIG_BACKPORT_USB_NET_RNDIS_HOST)
 
 static int is_rndis(struct usb_interface_descriptor *desc)
 {

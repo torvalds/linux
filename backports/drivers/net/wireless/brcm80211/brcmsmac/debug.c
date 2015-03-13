@@ -249,7 +249,7 @@ __brcms_fn(warn)
 __brcms_fn(err)
 __brcms_fn(crit)
 
-#if defined(CONFIG_BRCMDBG) || defined(CONFIG_BRCM_TRACING)
+#if defined(CONFIG_BACKPORT_BRCMDBG) || defined(CONFIG_BACKPORT_BRCM_TRACING)
 void __brcms_dbg(struct device *dev, u32 level, const char *func,
 		 const char *fmt, ...)
 {
@@ -260,7 +260,7 @@ void __brcms_dbg(struct device *dev, u32 level, const char *func,
 
 	va_start(args, fmt);
 	vaf.va = &args;
-#ifdef CONFIG_BRCMDBG
+#ifdef CONFIG_BACKPORT_BRCMDBG
 	if ((brcm_msg_level & level) && net_ratelimit())
 		dev_err(dev, "%s %pV", func, &vaf);
 #endif

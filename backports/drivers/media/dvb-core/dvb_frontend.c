@@ -2682,7 +2682,7 @@ int dvb_unregister_frontend(struct dvb_frontend* fe)
 }
 EXPORT_SYMBOL(dvb_unregister_frontend);
 
-#ifdef CONFIG_MEDIA_ATTACH
+#ifdef CONFIG_BACKPORT_MEDIA_ATTACH
 void dvb_frontend_detach(struct dvb_frontend* fe)
 {
 	void *ptr;

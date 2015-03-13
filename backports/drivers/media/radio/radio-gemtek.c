@@ -48,18 +48,18 @@ MODULE_VERSION("1.0.0");
  * Module params.
  */
 
-#ifndef CONFIG_RADIO_GEMTEK_PORT
-#define CONFIG_RADIO_GEMTEK_PORT -1
+#ifndef CONFIG_BACKPORT_RADIO_GEMTEK_PORT
+#define CONFIG_BACKPORT_RADIO_GEMTEK_PORT -1
 #endif
-#ifndef CONFIG_RADIO_GEMTEK_PROBE
-#define CONFIG_RADIO_GEMTEK_PROBE 1
+#ifndef CONFIG_BACKPORT_RADIO_GEMTEK_PROBE
+#define CONFIG_BACKPORT_RADIO_GEMTEK_PROBE 1
 #endif
 
 #define GEMTEK_MAX 4
 
-static bool probe = CONFIG_RADIO_GEMTEK_PROBE;
+static bool probe = CONFIG_BACKPORT_RADIO_GEMTEK_PROBE;
 static bool hardmute;
-static int io[GEMTEK_MAX] = { [0] = CONFIG_RADIO_GEMTEK_PORT,
+static int io[GEMTEK_MAX] = { [0] = CONFIG_BACKPORT_RADIO_GEMTEK_PORT,
 			      [1 ... (GEMTEK_MAX - 1)] = -1 };
 static int radio_nr[GEMTEK_MAX]	= { [0 ... (GEMTEK_MAX - 1)] = -1 };
 

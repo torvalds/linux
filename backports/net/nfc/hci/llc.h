@@ -55,7 +55,7 @@ void nfc_llc_unregister(const char *name);
 
 int nfc_llc_nop_register(void);
 
-#if defined(CONFIG_NFC_SHDLC)
+#if defined(CONFIG_BACKPORT_NFC_SHDLC)
 int nfc_llc_shdlc_register(void);
 #else
 static inline int nfc_llc_shdlc_register(void)

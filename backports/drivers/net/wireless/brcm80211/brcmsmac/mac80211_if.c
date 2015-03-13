@@ -103,7 +103,7 @@ static struct bcma_device_id brcms_coreid_table[] = {
 };
 MODULE_DEVICE_TABLE(bcma, brcms_coreid_table);
 
-#if defined(CONFIG_BRCMDBG)
+#if defined(CONFIG_BACKPORT_BRCMDBG)
 /*
  * Module parameter for setting the debug message level. Available
  * flags are specified by the BRCM_DL_* macros in

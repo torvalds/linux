@@ -53,7 +53,7 @@ struct ath_dfs_stats {
 	u32 radar_detected;
 };
 
-#if defined(CONFIG_ATH9K_DFS_DEBUGFS)
+#if defined(CONFIG_BACKPORT_ATH9K_DFS_DEBUGFS)
 
 #define DFS_STAT_INC(sc, c) (sc->debug.stats.dfs_stats.c++)
 void ath9k_dfs_init_debug(struct ath_softc *sc);
@@ -65,6 +65,6 @@ extern struct ath_dfs_pool_stats global_dfs_pool_stats;
 #define DFS_STAT_INC(sc, c) do { } while (0)
 static inline void ath9k_dfs_init_debug(struct ath_softc *sc) { }
 
-#endif /* CONFIG_ATH9K_DFS_DEBUGFS */
+#endif /* CONFIG_BACKPORT_ATH9K_DFS_DEBUGFS */
 
 #endif /* ATH9K_DFS_DEBUG_H */

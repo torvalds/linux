@@ -52,7 +52,7 @@
 #include <linux/usb/cdc.h>
 #include <linux/usb/cdc_ncm.h>
 
-#if IS_ENABLED(CONFIG_USB_NET_CDC_MBIM)
+#if IS_ENABLED(CONFIG_BACKPORT_USB_NET_CDC_MBIM)
 static bool prefer_mbim = true;
 #else
 static bool prefer_mbim;

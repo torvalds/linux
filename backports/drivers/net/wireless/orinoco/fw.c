@@ -79,7 +79,7 @@ static const char *validate_fw(const struct orinoco_fw_header *hdr, size_t len)
 	return NULL;
 }
 
-#if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_BACKPORT_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
 static inline const struct firmware *
 orinoco_cached_fw_get(struct orinoco_private *priv, bool primary)
 {
@@ -353,7 +353,7 @@ int orinoco_download(struct orinoco_private *priv)
 	return err;
 }
 
-#if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_BACKPORT_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
 void orinoco_cache_fw(struct orinoco_private *priv, int ap)
 {
 	const struct firmware *fw_entry = NULL;

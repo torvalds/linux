@@ -1,1 +1,1 @@
-obj-$(CONFIG_USB_AIRSPY)              += airspy.o
+obj-$(CONFIG_BACKPORT_USB_AIRSPY)              += airspy.o

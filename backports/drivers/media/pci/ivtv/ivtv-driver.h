@@ -121,7 +121,7 @@
 
 /* debugging */
 extern int ivtv_debug;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 extern int ivtv_fw_debug;
 #endif
 

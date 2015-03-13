@@ -846,7 +846,7 @@ struct ath6kl {
 		bool enable;
 	} fw_recovery;
 
-#ifdef CONFIG_ATH6KL_DEBUG
+#ifdef CONFIG_BACKPORT_ATH6KL_DEBUG
 	struct {
 		struct sk_buff_head fwlog_queue;
 		struct completion fwlog_completion;
@@ -868,7 +868,7 @@ struct ath6kl {
 		u8 keepalive;
 		u8 disc_timeout;
 	} debug;
-#endif /* CONFIG_ATH6KL_DEBUG */
+#endif /* CONFIG_BACKPORT_ATH6KL_DEBUG */
 };
 
 static inline struct ath6kl *ath6kl_priv(struct net_device *dev)

@@ -119,7 +119,7 @@ struct rtl8187_priv {
 	struct usb_anchor anchored;
 	struct delayed_work work;
 	struct ieee80211_hw *dev;
-#ifdef CONFIG_RTL8187_LEDS
+#ifdef CONFIG_BACKPORT_RTL8187_LEDS
 	struct rtl8187_led led_radio;
 	struct rtl8187_led led_tx;
 	struct rtl8187_led led_rx;

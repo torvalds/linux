@@ -37,7 +37,7 @@
 /* for config struct */
 #include "rtl2832.h"
 
-#if IS_ENABLED(CONFIG_DVB_RTL2832_SDR)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_RTL2832_SDR)
 extern struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, const struct rtl2832_config *cfg,
 	struct v4l2_subdev *sd);

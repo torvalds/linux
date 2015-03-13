@@ -335,7 +335,7 @@ static const struct v4l2_ctrl_ops ad9389b_ctrl_ops = {
 
 /* ---------------------------- CORE OPS ------------------------------------------- */
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int ad9389b_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = ad9389b_rd(sd, reg->reg & 0xff);
@@ -563,7 +563,7 @@ static int ad9389b_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 static const struct v4l2_subdev_core_ops ad9389b_core_ops = {
 	.log_status = ad9389b_log_status,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = ad9389b_g_register,
 	.s_register = ad9389b_s_register,
 #endif

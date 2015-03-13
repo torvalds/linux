@@ -109,7 +109,7 @@ const struct ethtool_ops lbs_ethtool_ops = {
 	.get_drvinfo = lbs_ethtool_get_drvinfo,
 	.get_eeprom =  lbs_ethtool_get_eeprom,
 	.get_eeprom_len = lbs_ethtool_get_eeprom_len,
-#ifdef CONFIG_LIBERTAS_MESH
+#ifdef CONFIG_BACKPORT_LIBERTAS_MESH
 	.get_sset_count = lbs_mesh_ethtool_get_sset_count,
 	.get_ethtool_stats = lbs_mesh_ethtool_get_stats,
 	.get_strings = lbs_mesh_ethtool_get_strings,

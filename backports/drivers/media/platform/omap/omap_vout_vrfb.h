@@ -12,7 +12,7 @@
 #ifndef OMAP_VOUT_VRFB_H
 #define OMAP_VOUT_VRFB_H
 
-#ifdef CONFIG_VIDEO_OMAP2_VOUT_VRFB
+#ifdef CONFIG_BACKPORT_VIDEO_OMAP2_VOUT_VRFB
 void omap_vout_free_vrfb_buffers(struct omap_vout_device *vout);
 int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 			u32 static_vrfb_allocation);

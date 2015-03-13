@@ -22,7 +22,7 @@
 /* --------------------------------------------------------------------------
  * Input device
  */
-#ifdef CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV
+#ifdef CONFIG_BACKPORT_USB_VIDEO_CLASS_INPUT_EVDEV
 static int uvc_input_init(struct uvc_device *dev)
 {
 	struct input_dev *input;
@@ -73,7 +73,7 @@ static void uvc_input_report_key(struct uvc_device *dev, unsigned int code,
 #define uvc_input_init(dev)
 #define uvc_input_cleanup(dev)
 #define uvc_input_report_key(dev, code, value)
-#endif /* CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV */
+#endif /* CONFIG_BACKPORT_USB_VIDEO_CLASS_INPUT_EVDEV */
 
 /* --------------------------------------------------------------------------
  * Status interrupt endpoint

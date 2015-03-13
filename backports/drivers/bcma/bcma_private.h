@@ -42,10 +42,10 @@ int bcma_bus_scan(struct bcma_bus *bus);
 int bcma_sprom_get(struct bcma_bus *bus);
 
 /* driver_chipcommon.c */
-#ifdef CONFIG_BCMA_DRIVER_MIPS
+#ifdef CONFIG_BACKPORT_BCMA_DRIVER_MIPS
 void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
 extern struct platform_device bcma_pflash_dev;
-#endif /* CONFIG_BCMA_DRIVER_MIPS */
+#endif /* CONFIG_BACKPORT_BCMA_DRIVER_MIPS */
 
 /* driver_chipcommon_b.c */
 int bcma_core_chipcommon_b_init(struct bcma_drv_cc_b *ccb);
@@ -55,7 +55,7 @@ void bcma_core_chipcommon_b_free(struct bcma_drv_cc_b *ccb);
 u32 bcma_pmu_get_alp_clock(struct bcma_drv_cc *cc);
 u32 bcma_pmu_get_cpu_clock(struct bcma_drv_cc *cc);
 
-#ifdef CONFIG_BCMA_SFLASH
+#ifdef CONFIG_BACKPORT_BCMA_SFLASH
 /* driver_chipcommon_sflash.c */
 int bcma_sflash_init(struct bcma_drv_cc *cc);
 extern struct platform_device bcma_sflash_dev;
@@ -65,9 +65,9 @@ static inline int bcma_sflash_init(struct bcma_drv_cc *cc)
 	bcma_err(cc->core->bus, "Serial flash not supported\n");
 	return 0;
 }
-#endif /* CONFIG_BCMA_SFLASH */
+#endif /* CONFIG_BACKPORT_BCMA_SFLASH */
 
-#ifdef CONFIG_BCMA_NFLASH
+#ifdef CONFIG_BACKPORT_BCMA_NFLASH
 /* driver_chipcommon_nflash.c */
 int bcma_nflash_init(struct bcma_drv_cc *cc);
 extern struct platform_device bcma_nflash_dev;
@@ -77,16 +77,16 @@ static inline int bcma_nflash_init(struct bcma_drv_cc *cc)
 	bcma_err(cc->core->bus, "NAND flash not supported\n");
 	return 0;
 }
-#endif /* CONFIG_BCMA_NFLASH */
+#endif /* CONFIG_BACKPORT_BCMA_NFLASH */
 
-#ifdef CONFIG_BCMA_HOST_PCI
+#ifdef CONFIG_BACKPORT_BCMA_HOST_PCI
 /* host_pci.c */
 extern int __init bcma_host_pci_init(void);
 extern void __exit bcma_host_pci_exit(void);
-#endif /* CONFIG_BCMA_HOST_PCI */
+#endif /* CONFIG_BACKPORT_BCMA_HOST_PCI */
 
 /* host_soc.c */
-#if defined(CONFIG_BCMA_HOST_SOC) && defined(CONFIG_OF)
+#if defined(CONFIG_BACKPORT_BCMA_HOST_SOC) && defined(CONFIG_OF)
 extern int __init bcma_host_soc_register_driver(void);
 extern void __exit bcma_host_soc_unregister_driver(void);
 #else
@@ -97,19 +97,19 @@ static inline int __init bcma_host_soc_register_driver(void)
 static inline void __exit bcma_host_soc_unregister_driver(void)
 {
 }
-#endif /* CONFIG_BCMA_HOST_SOC && CONFIG_OF */
+#endif /* CONFIG_BACKPORT_BCMA_HOST_SOC && CONFIG_OF */
 
 /* driver_pci.c */
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
 
 extern int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc);
 
-#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+#ifdef CONFIG_BACKPORT_BCMA_DRIVER_PCI_HOSTMODE
 bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc);
 void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
-#endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
+#endif /* CONFIG_BACKPORT_BCMA_DRIVER_PCI_HOSTMODE */
 
-#ifdef CONFIG_BCMA_DRIVER_GPIO
+#ifdef CONFIG_BACKPORT_BCMA_DRIVER_GPIO
 /* driver_gpio.c */
 int bcma_gpio_init(struct bcma_drv_cc *cc);
 int bcma_gpio_unregister(struct bcma_drv_cc *cc);
@@ -122,6 +122,6 @@ static inline int bcma_gpio_unregister(struct bcma_drv_cc *cc)
 {
 	return 0;
 }
-#endif /* CONFIG_BCMA_DRIVER_GPIO */
+#endif /* CONFIG_BACKPORT_BCMA_DRIVER_GPIO */
 
 #endif

@@ -321,7 +321,7 @@ struct iwl_cfg {
 /*
  * This list declares the config structures for all devices.
  */
-#if IS_ENABLED(CONFIG_IWLDVM)
+#if IS_ENABLED(CONFIG_BACKPORT_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
 extern const struct iwl_cfg iwl5100_agn_cfg;
 extern const struct iwl_cfg iwl5350_agn_cfg;
@@ -364,8 +364,8 @@ extern const struct iwl_cfg iwl6035_2agn_sff_cfg;
 extern const struct iwl_cfg iwl105_bgn_cfg;
 extern const struct iwl_cfg iwl105_bgn_d_cfg;
 extern const struct iwl_cfg iwl135_bgn_cfg;
-#endif /* CONFIG_IWLDVM */
-#if IS_ENABLED(CONFIG_IWLMVM)
+#endif /* CONFIG_BACKPORT_IWLDVM */
+#if IS_ENABLED(CONFIG_BACKPORT_IWLMVM)
 extern const struct iwl_cfg iwl7260_2ac_cfg;
 extern const struct iwl_cfg iwl7260_2ac_cfg_high_temp;
 extern const struct iwl_cfg iwl7260_2n_cfg;
@@ -385,6 +385,6 @@ extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
 extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
-#endif /* CONFIG_IWLMVM */
+#endif /* CONFIG_BACKPORT_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */

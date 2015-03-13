@@ -26,7 +26,7 @@
 #include "dvb-usb-ids.h"
 
 /* debug */
-#ifdef CONFIG_DVB_USB_DEBUG
+#ifdef CONFIG_BACKPORT_DVB_USB_DEBUG
 #define dprintk(var,level,args...) \
 	    do { if ((var & level)) { printk(args); } } while (0)
 

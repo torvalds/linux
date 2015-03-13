@@ -43,7 +43,7 @@ struct stv0288_config {
 	int (*set_ts_params)(struct dvb_frontend *fe, int is_punctured);
 };
 
-#if IS_ENABLED(CONFIG_DVB_STV0288)
+#if IS_ENABLED(CONFIG_BACKPORT_DVB_STV0288)
 extern struct dvb_frontend *stv0288_attach(const struct stv0288_config *config,
 					   struct i2c_adapter *i2c);
 #else
@@ -53,7 +53,7 @@ static inline struct dvb_frontend *stv0288_attach(const struct stv0288_config *c
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif /* CONFIG_DVB_STV0288 */
+#endif /* CONFIG_BACKPORT_DVB_STV0288 */
 
 static inline int stv0288_writereg(struct dvb_frontend *fe, u8 reg, u8 val)
 {

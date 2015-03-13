@@ -1077,7 +1077,7 @@ static int libipw_parse_qos_info_param_IE(struct libipw_info_element
 	return rc;
 }
 
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 #define MFIE_STRING(x) case WLAN_EID_ ##x: return #x
 
 static const char *get_info_element_string(u16 id)
@@ -1121,7 +1121,7 @@ static int libipw_parse_info_param(struct libipw_info_element
 				      struct libipw_network *network)
 {
 	u8 i;
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 	char rates_str[64];
 	char *p;
 #endif
@@ -1156,14 +1156,14 @@ static int libipw_parse_info_param(struct libipw_info_element
 			break;
 
 		case WLAN_EID_SUPP_RATES:
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 			p = rates_str;
 #endif
 			network->rates_len = min(info_element->len,
 						 MAX_RATES_LENGTH);
 			for (i = 0; i < network->rates_len; i++) {
 				network->rates[i] = info_element->data[i];
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
 					      network->rates[i]);
@@ -1183,14 +1183,14 @@ static int libipw_parse_info_param(struct libipw_info_element
 			break;
 
 		case WLAN_EID_EXT_SUPP_RATES:
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 			p = rates_str;
 #endif
 			network->rates_ex_len = min(info_element->len,
 						    MAX_RATES_EX_LENGTH);
 			for (i = 0; i < network->rates_ex_len; i++) {
 				network->rates_ex[i] = info_element->data[i];
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 				p += snprintf(p, sizeof(rates_str) -
 					      (p - rates_str), "%02X ",
 					      network->rates_ex[i]);
@@ -1539,7 +1539,7 @@ static void libipw_process_probe_response(struct libipw_device
 	struct libipw_network network = { };
 	struct libipw_network *target;
 	struct libipw_network *oldest = NULL;
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 	struct libipw_info_element *info_element = beacon->info_element;
 #endif
 	unsigned long flags;
@@ -1611,7 +1611,7 @@ static void libipw_process_probe_response(struct libipw_device
 			list_del(ieee->network_free_list.next);
 		}
 
-#ifdef CONFIG_LIBIPW_DEBUG
+#ifdef CONFIG_BACKPORT_LIBIPW_DEBUG
 		LIBIPW_DEBUG_SCAN("Adding '%*pE' (%pM) via %s.\n",
 				  network.ssid_len, network.ssid,
 				  network.bssid,

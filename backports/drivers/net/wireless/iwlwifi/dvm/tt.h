@@ -105,7 +105,7 @@ struct iwl_tt_mgmt {
 	bool advanced_tt;
 	u8 tt_power_mode;
 	bool ct_kill_toggle;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_BACKPORT_IWLWIFI_DEBUG
 	s32 tt_previous_temp;
 #endif
 	struct iwl_tt_restriction *restriction;

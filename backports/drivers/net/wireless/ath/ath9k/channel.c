@@ -144,7 +144,7 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 	ath_set_channel(sc);
 }
 
-#ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
+#ifdef CONFIG_BACKPORT_ATH9K_CHANNEL_CONTEXT
 
 /*************/
 /* Utilities */
@@ -1603,4 +1603,4 @@ void ath9k_deinit_p2p(struct ath_softc *sc)
 		ath_gen_timer_free(sc->sc_ah, sc->p2p_ps_timer);
 }
 
-#endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
+#endif /* CONFIG_BACKPORT_ATH9K_CHANNEL_CONTEXT */

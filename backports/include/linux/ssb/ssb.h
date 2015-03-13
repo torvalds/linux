@@ -204,7 +204,7 @@ struct ssb_bus_ops {
 	void (*write8)(struct ssb_device *dev, u16 offset, u8 value);
 	void (*write16)(struct ssb_device *dev, u16 offset, u16 value);
 	void (*write32)(struct ssb_device *dev, u16 offset, u32 value);
-#ifdef CONFIG_SSB_BLOCKIO
+#ifdef CONFIG_BACKPORT_SSB_BLOCKIO
 	void (*block_read)(struct ssb_device *dev, void *buffer,
 			   size_t count, u16 offset, u8 reg_width);
 	void (*block_write)(struct ssb_device *dev, const void *buffer,
@@ -440,7 +440,7 @@ struct ssb_bus {
 	/* See enum ssb_quirks */
 	unsigned int quirks;
 
-#ifdef CONFIG_SSB_SPROM
+#ifdef CONFIG_BACKPORT_SSB_SPROM
 	/* Mutex to protect the SPROM writing. */
 	struct mutex sprom_mutex;
 #endif
@@ -480,19 +480,19 @@ struct ssb_bus {
 	/* If the board has a cardbus slot, this is set to true. */
 	bool has_cardbus_slot;
 
-#ifdef CONFIG_SSB_EMBEDDED
+#ifdef CONFIG_BACKPORT_SSB_EMBEDDED
 	/* Lock for GPIO register access. */
 	spinlock_t gpio_lock;
 	struct platform_device *watchdog;
 #endif /* EMBEDDED */
-#ifdef CONFIG_SSB_DRIVER_GPIO
+#ifdef CONFIG_BACKPORT_SSB_DRIVER_GPIO
 	struct gpio_chip gpio;
 	struct irq_domain *irq_domain;
 #endif /* DRIVER_GPIO */
 
 	/* Internal-only stuff follows. Do not touch. */
 	struct list_head list;
-#ifdef CONFIG_SSB_DEBUG
+#ifdef CONFIG_BACKPORT_SSB_DEBUG
 	/* Is the bus already powered up? */
 	bool powered_up;
 	int power_warn_count;
@@ -525,20 +525,20 @@ typedef int (*ssb_invariants_func_t)(struct ssb_bus *bus,
 extern int ssb_bus_ssbbus_register(struct ssb_bus *bus,
 				   unsigned long baseaddr,
 				   ssb_invariants_func_t get_invariants);
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_BACKPORT_SSB_PCIHOST
 extern int ssb_bus_pcibus_register(struct ssb_bus *bus,
 				   struct pci_dev *host_pci);
-#endif /* CONFIG_SSB_PCIHOST */
-#ifdef CONFIG_SSB_PCMCIAHOST
+#endif /* CONFIG_BACKPORT_SSB_PCIHOST */
+#ifdef CONFIG_BACKPORT_SSB_PCMCIAHOST
 extern int ssb_bus_pcmciabus_register(struct ssb_bus *bus,
 				      struct pcmcia_device *pcmcia_dev,
 				      unsigned long baseaddr);
-#endif /* CONFIG_SSB_PCMCIAHOST */
-#ifdef CONFIG_SSB_SDIOHOST
+#endif /* CONFIG_BACKPORT_SSB_PCMCIAHOST */
+#ifdef CONFIG_BACKPORT_SSB_SDIOHOST
 extern int ssb_bus_sdiobus_register(struct ssb_bus *bus,
 				    struct sdio_func *sdio_func,
 				    unsigned int quirks);
-#endif /* CONFIG_SSB_SDIOHOST */
+#endif /* CONFIG_BACKPORT_SSB_SDIOHOST */
 
 
 extern void ssb_bus_unregister(struct ssb_bus *bus);
@@ -595,7 +595,7 @@ static inline void ssb_write32(struct ssb_device *dev, u16 offset, u32 value)
 {
 	dev->ops->write32(dev, offset, value);
 }
-#ifdef CONFIG_SSB_BLOCKIO
+#ifdef CONFIG_BACKPORT_SSB_BLOCKIO
 static inline void ssb_block_read(struct ssb_device *dev, void *buffer,
 				  size_t count, u16 offset, u8 reg_width)
 {
@@ -607,7 +607,7 @@ static inline void ssb_block_write(struct ssb_device *dev, const void *buffer,
 {
 	dev->ops->block_write(dev, buffer, count, offset, reg_width);
 }
-#endif /* CONFIG_SSB_BLOCKIO */
+#endif /* CONFIG_BACKPORT_SSB_BLOCKIO */
 
 
 /* The SSB DMA API. Use this API for any DMA operation on the device.
@@ -622,13 +622,13 @@ extern u32 ssb_dma_translation(struct ssb_device *dev);
 
 static inline void __cold __ssb_dma_not_implemented(struct ssb_device *dev)
 {
-#ifdef CONFIG_SSB_DEBUG
+#ifdef CONFIG_BACKPORT_SSB_DEBUG
 	printk(KERN_ERR "SSB: BUG! Calling DMA API for "
 	       "unsupported bustype %d\n", dev->bus->bustype);
 #endif /* DEBUG */
 }
 
-#ifdef CONFIG_SSB_PCIHOST
+#ifdef CONFIG_BACKPORT_SSB_PCIHOST
 /* PCI-host wrapper driver */
 extern int ssb_pcihost_register(struct pci_driver *driver);
 static inline void ssb_pcihost_unregister(struct pci_driver *driver)
@@ -651,7 +651,7 @@ static inline
 void ssb_pcihost_set_power_state(struct ssb_device *sdev, pci_power_t state)
 {
 }
-#endif /* CONFIG_SSB_PCIHOST */
+#endif /* CONFIG_BACKPORT_SSB_PCIHOST */
 
 
 /* If a driver is shutdown or suspended, call this to signal
@@ -673,9 +673,9 @@ extern u32 ssb_admatch_size(u32 adm);
 /* PCI device mapping and fixup routines.
  * Called from the architecture pcibios init code.
  * These are only available on SSB_EMBEDDED configurations. */
-#ifdef CONFIG_SSB_EMBEDDED
+#ifdef CONFIG_BACKPORT_SSB_EMBEDDED
 int ssb_pcibios_plat_dev_init(struct pci_dev *dev);
 int ssb_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
-#endif /* CONFIG_SSB_EMBEDDED */
+#endif /* CONFIG_BACKPORT_SSB_EMBEDDED */
 
 #endif /* LINUX_SSB_H_ */

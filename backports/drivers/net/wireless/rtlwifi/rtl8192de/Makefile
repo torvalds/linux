@@ -9,6 +9,6 @@ rtl8192de-objs :=		\
 		table.o		\
 		trx.o
 
-obj-$(CONFIG_RTL8192DE) += rtl8192de.o
+obj-$(CONFIG_BACKPORT_RTL8192DE) += rtl8192de.o
 
 ccflags-y += -D__CHECK_ENDIAN__

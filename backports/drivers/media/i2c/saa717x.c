@@ -974,7 +974,7 @@ static int saa717x_s_video_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 static int saa717x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	reg->val = saa717x_read(sd, reg->reg);
@@ -1194,7 +1194,7 @@ static const struct v4l2_ctrl_ops saa717x_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops saa717x_core_ops = {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	.g_register = saa717x_g_register,
 	.s_register = saa717x_s_register,
 #endif

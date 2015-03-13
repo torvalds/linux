@@ -34,7 +34,7 @@
 
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 {
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+#if defined(CONFIG_BACKPORT_VIDEO_V4L2_SUBDEV_API)
 	fh->pad = kzalloc(sizeof(*fh->pad) * sd->entity.num_pads, GFP_KERNEL);
 	if (fh->pad == NULL)
 		return -ENOMEM;
@@ -44,7 +44,7 @@ static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 
 static void subdev_fh_free(struct v4l2_subdev_fh *fh)
 {
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+#if defined(CONFIG_BACKPORT_VIDEO_V4L2_SUBDEV_API)
 	kfree(fh->pad);
 	fh->pad = NULL;
 #endif
@@ -55,7 +55,7 @@ static int subdev_open(struct file *file)
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 	struct v4l2_subdev_fh *subdev_fh;
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	struct media_entity *entity = NULL;
 #endif
 	int ret;
@@ -73,7 +73,7 @@ static int subdev_open(struct file *file)
 	v4l2_fh_init(&subdev_fh->vfh, vdev);
 	v4l2_fh_add(&subdev_fh->vfh);
 	file->private_data = &subdev_fh->vfh;
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	if (sd->v4l2_dev->mdev) {
 		entity = media_entity_get(&sd->entity);
 		if (!entity) {
@@ -92,7 +92,7 @@ static int subdev_open(struct file *file)
 	return 0;
 
 err:
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	if (entity)
 		media_entity_put(entity);
 #endif
@@ -113,7 +113,7 @@ static int subdev_close(struct file *file)
 
 	if (sd->internal_ops && sd->internal_ops->close)
 		sd->internal_ops->close(sd, subdev_fh);
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	if (sd->v4l2_dev->mdev)
 		media_entity_put(&sd->entity);
 #endif
@@ -126,7 +126,7 @@ static int subdev_close(struct file *file)
 	return 0;
 }
 
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+#if defined(CONFIG_BACKPORT_VIDEO_V4L2_SUBDEV_API)
 static int check_format(struct v4l2_subdev *sd,
 			struct v4l2_subdev_format *format)
 {
@@ -182,7 +182,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 	struct v4l2_fh *vfh = file->private_data;
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+#if defined(CONFIG_BACKPORT_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 	int rval;
 #endif
@@ -224,7 +224,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_UNSUBSCRIBE_EVENT:
 		return v4l2_subdev_call(sd, core, unsubscribe_event, vfh, arg);
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef CONFIG_BACKPORT_VIDEO_ADV_DEBUG
 	case VIDIOC_DBG_G_REGISTER:
 	{
 		struct v4l2_dbg_register *p = arg;
@@ -254,7 +254,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return ret;
 	}
 
-#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+#if defined(CONFIG_BACKPORT_VIDEO_V4L2_SUBDEV_API)
 	case VIDIOC_SUBDEV_G_FMT: {
 		struct v4l2_subdev_format *format = arg;
 
@@ -495,7 +495,7 @@ const struct v4l2_file_operations v4l2_subdev_fops = {
 	.poll = subdev_poll,
 };
 
-#ifdef CONFIG_MEDIA_CONTROLLER
+#ifdef CONFIG_BACKPORT_MEDIA_CONTROLLER
 int v4l2_subdev_link_validate_default(struct v4l2_subdev *sd,
 				      struct media_link *link,
 				      struct v4l2_subdev_format *source_fmt,
@@ -566,7 +566,7 @@ int v4l2_subdev_link_validate(struct media_link *link)
 		sink, link, &source_fmt, &sink_fmt);
 }
 EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate);
-#endif /* CONFIG_MEDIA_CONTROLLER */
+#endif /* CONFIG_BACKPORT_MEDIA_CONTROLLER */
 
 void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 {
@@ -579,7 +579,7 @@ void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 	sd->grp_id = 0;
 	sd->dev_priv = NULL;
 	sd->host_priv = NULL;
-#if defined(CONFIG_MEDIA_CONTROLLER)
+#if defined(CONFIG_BACKPORT_MEDIA_CONTROLLER)
 	sd->entity.name = sd->name;
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 #endif

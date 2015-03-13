@@ -44,7 +44,7 @@ enum ath10k_spectral_mode {
 	SPECTRAL_MANUAL,
 };
 
-#ifdef CONFIG_ATH10K_DEBUGFS
+#ifdef CONFIG_BACKPORT_ATH10K_DEBUGFS
 
 int ath10k_spectral_process_fft(struct ath10k *ar,
 				const struct wmi_phyerr *phyerr,
@@ -85,6 +85,6 @@ static inline void ath10k_spectral_destroy(struct ath10k *ar)
 {
 }
 
-#endif /* CONFIG_ATH10K_DEBUGFS */
+#endif /* CONFIG_BACKPORT_ATH10K_DEBUGFS */
 
 #endif /* SPECTRAL_H */

@@ -47,12 +47,12 @@
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include <linux/usb.h>
-#ifdef CONFIG_CARL9170_LEDS
+#ifdef CONFIG_BACKPORT_CARL9170_LEDS
 #include <linux/leds.h>
-#endif /* CONFIG_CARL9170_LEDS */
-#ifdef CONFIG_CARL9170_WPC
+#endif /* CONFIG_BACKPORT_CARL9170_LEDS */
+#ifdef CONFIG_BACKPORT_CARL9170_WPC
 #include <linux/input.h>
-#endif /* CONFIG_CARL9170_WPC */
+#endif /* CONFIG_BACKPORT_CARL9170_WPC */
 #include "eeprom.h"
 #include "wlan.h"
 #include "hw.h"
@@ -60,9 +60,9 @@
 #include "fwcmd.h"
 #include "../regd.h"
 
-#ifdef CONFIG_CARL9170_DEBUGFS
+#ifdef CONFIG_BACKPORT_CARL9170_DEBUGFS
 #include "debug.h"
-#endif /* CONFIG_CARL9170_DEBUGFS */
+#endif /* CONFIG_BACKPORT_CARL9170_DEBUGFS */
 
 #define CARL9170FW_NAME	"carl9170-1.fw"
 
@@ -191,7 +191,7 @@ enum carl9170_device_features {
 	CARL9170_ONE_LED		= BIT(1),
 };
 
-#ifdef CONFIG_CARL9170_LEDS
+#ifdef CONFIG_BACKPORT_CARL9170_LEDS
 struct ar9170;
 
 struct carl9170_led {
@@ -202,7 +202,7 @@ struct carl9170_led {
 	bool last_state;
 	bool registered;
 };
-#endif /* CONFIG_CARL9170_LEDS */
+#endif /* CONFIG_BACKPORT_CARL9170_LEDS */
 
 enum carl9170_restart_reasons {
 	CARL9170_RR_NO_REASON = 0,
@@ -354,11 +354,11 @@ struct ar9170 {
 	u8 power_2G_ht20[8];
 	u8 power_2G_ht40[8];
 
-#ifdef CONFIG_CARL9170_LEDS
+#ifdef CONFIG_BACKPORT_CARL9170_LEDS
 	/* LED */
 	struct delayed_work led_work;
 	struct carl9170_led leds[AR9170_NUM_LEDS];
-#endif /* CONFIG_CARL9170_LEDS */
+#endif /* CONFIG_BACKPORT_CARL9170_LEDS */
 
 	/* qos queue settings */
 	spinlock_t tx_stats_lock;
@@ -425,19 +425,19 @@ struct ar9170 {
 	struct list_head bar_list[__AR9170_NUM_TXQ];
 	spinlock_t bar_list_lock[__AR9170_NUM_TXQ];
 
-#ifdef CONFIG_CARL9170_WPC
+#ifdef CONFIG_BACKPORT_CARL9170_WPC
 	struct {
 		bool pbc_state;
 		struct input_dev *pbc;
 		char name[32];
 		char phys[32];
 	} wps;
-#endif /* CONFIG_CARL9170_WPC */
+#endif /* CONFIG_BACKPORT_CARL9170_WPC */
 
-#ifdef CONFIG_CARL9170_DEBUGFS
+#ifdef CONFIG_BACKPORT_CARL9170_DEBUGFS
 	struct carl9170_debug debug;
 	struct dentry *debug_dir;
-#endif /* CONFIG_CARL9170_DEBUGFS */
+#endif /* CONFIG_BACKPORT_CARL9170_DEBUGFS */
 
 	/* PSM */
 	struct work_struct ps_work;
@@ -451,7 +451,7 @@ struct ar9170 {
 		bool state;
 	} ps;
 
-#ifdef CONFIG_CARL9170_HWRNG
+#ifdef CONFIG_BACKPORT_CARL9170_HWRNG
 # define CARL9170_HWRNG_CACHE_SIZE	CARL9170_MAX_CMD_PAYLOAD_LEN
 	struct {
 		struct hwrng rng;
@@ -460,7 +460,7 @@ struct ar9170 {
 		u16 cache[CARL9170_HWRNG_CACHE_SIZE / sizeof(u16)];
 		unsigned int cache_idx;
 	} rng;
-#endif /* CONFIG_CARL9170_HWRNG */
+#endif /* CONFIG_BACKPORT_CARL9170_HWRNG */
 };
 
 enum carl9170_ps_off_override_reasons {
@@ -588,10 +588,10 @@ int carl9170_tx_put_skb(struct sk_buff *skb);
 int carl9170_update_beacon(struct ar9170 *ar, const bool submit);
 
 /* LEDs */
-#ifdef CONFIG_CARL9170_LEDS
+#ifdef CONFIG_BACKPORT_CARL9170_LEDS
 int carl9170_led_register(struct ar9170 *ar);
 void carl9170_led_unregister(struct ar9170 *ar);
-#endif /* CONFIG_CARL9170_LEDS */
+#endif /* CONFIG_BACKPORT_CARL9170_LEDS */
 int carl9170_led_init(struct ar9170 *ar);
 int carl9170_led_set_state(struct ar9170 *ar, const u32 led_state);
 

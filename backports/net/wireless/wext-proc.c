@@ -39,7 +39,7 @@ static void wireless_seq_printf_stats(struct seq_file *seq,
 		if (dev->wireless_handlers)
 			stats = &nullstats;
 #endif
-#ifdef CONFIG_CFG80211
+#ifdef CONFIG_BACKPORT_CFG80211
 		if (dev->ieee80211_ptr)
 			stats = &nullstats;
 #endif

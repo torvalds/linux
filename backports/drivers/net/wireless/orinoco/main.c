@@ -1968,7 +1968,7 @@ EXPORT_SYMBOL(orinoco_interrupt);
 /********************************************************************/
 /* Power management                                                 */
 /********************************************************************/
-#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_HERMES_CACHE_FW_ON_INIT)
+#if defined(CONFIG_PM_SLEEP) && !defined(CONFIG_BACKPORT_HERMES_CACHE_FW_ON_INIT)
 static int orinoco_pm_notifier(struct notifier_block *notifier,
 			       unsigned long pm_event,
 			       void *unused)
@@ -2053,7 +2053,7 @@ int orinoco_init(struct orinoco_private *priv)
 	}
 
 	if (priv->do_fw_download) {
-#ifdef CONFIG_HERMES_CACHE_FW_ON_INIT
+#ifdef CONFIG_BACKPORT_HERMES_CACHE_FW_ON_INIT
 		orinoco_cache_fw(priv, 0);
 #endif
 
@@ -2224,7 +2224,7 @@ struct orinoco_private
 
 	priv->last_linkstatus = 0xffff;
 
-#if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
+#if defined(CONFIG_BACKPORT_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
 	priv->cached_pri_fw = NULL;
 	priv->cached_fw = NULL;
 #endif

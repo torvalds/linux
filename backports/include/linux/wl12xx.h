@@ -66,7 +66,7 @@ struct wl12xx_platform_data {
 /* Platform does not support level trigger interrupts */
 #define WL12XX_PLATFORM_QUIRK_EDGE_IRQ	BIT(0)
 
-#ifdef CONFIG_WILINK_PLATFORM_DATA
+#ifdef CONFIG_BACKPORT_WILINK_PLATFORM_DATA
 
 int wl12xx_set_platform_data(const struct wl12xx_platform_data *data);
 
