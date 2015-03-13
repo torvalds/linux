@@ -57,6 +57,44 @@
 
 unsigned long ftrace_plt;
 
+static inline void ftrace_generate_orig_insn(struct ftrace_insn *insn)
+{
+#ifdef CC_USING_HOTPATCH
+	/* brcl 0,0 */
+	insn->opc = 0xc004;
+	insn->disp = 0;
+#else
+	/* stg r14,8(r15) */
+	insn->opc = 0xe3e0;
+	insn->disp = 0xf0080024;
+#endif
+}
+
+static inline int is_kprobe_on_ftrace(struct ftrace_insn *insn)
+{
+#ifdef CONFIG_KPROBES
+	if (insn->opc == BREAKPOINT_INSTRUCTION)
+		return 1;
+#endif
+	return 0;
+}
+
+static inline void ftrace_generate_kprobe_nop_insn(struct ftrace_insn *insn)
+{
+#ifdef CONFIG_KPROBES
+	insn->opc = BREAKPOINT_INSTRUCTION;
+	insn->disp = KPROBE_ON_FTRACE_NOP;
+#endif
+}
+
+static inline void ftrace_generate_kprobe_call_insn(struct ftrace_insn *insn)
+{
+#ifdef CONFIG_KPROBES
+	insn->opc = BREAKPOINT_INSTRUCTION;
+	insn->disp = KPROBE_ON_FTRACE_CALL;
+#endif
+}
+
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
@@ -72,16 +110,9 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		return -EFAULT;
 	if (addr == MCOUNT_ADDR) {
 		/* Initial code replacement */
-#ifdef CC_USING_HOTPATCH
-		/* We expect to see brcl 0,0 */
-		ftrace_generate_nop_insn(&orig);
-#else
-		/* We expect to see stg r14,8(r15) */
-		orig.opc = 0xe3e0;
-		orig.disp = 0xf0080024;
-#endif
+		ftrace_generate_orig_insn(&orig);
 		ftrace_generate_nop_insn(&new);
-	} else if (old.opc == BREAKPOINT_INSTRUCTION) {
+	} else if (is_kprobe_on_ftrace(&old)) {
 		/*
 		 * If we find a breakpoint instruction, a kprobe has been
 		 * placed at the beginning of the function. We write the
@@ -89,9 +120,8 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		 * bytes of the original instruction so that the kprobes
 		 * handler can execute a nop, if it reaches this breakpoint.
 		 */
-		new.opc = orig.opc = BREAKPOINT_INSTRUCTION;
-		orig.disp = KPROBE_ON_FTRACE_CALL;
-		new.disp = KPROBE_ON_FTRACE_NOP;
+		ftrace_generate_kprobe_call_insn(&orig);
+		ftrace_generate_kprobe_nop_insn(&new);
 	} else {
 		/* Replace ftrace call with a nop. */
 		ftrace_generate_call_insn(&orig, rec->ip);
@@ -111,7 +141,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	if (probe_kernel_read(&old, (void *) rec->ip, sizeof(old)))
 		return -EFAULT;
-	if (old.opc == BREAKPOINT_INSTRUCTION) {
+	if (is_kprobe_on_ftrace(&old)) {
 		/*
 		 * If we find a breakpoint instruction, a kprobe has been
 		 * placed at the beginning of the function. We write the
@@ -119,9 +149,8 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		 * bytes of the original instruction so that the kprobes
 		 * handler can execute a brasl if it reaches this breakpoint.
 		 */
-		new.opc = orig.opc = BREAKPOINT_INSTRUCTION;
-		orig.disp = KPROBE_ON_FTRACE_NOP;
-		new.disp = KPROBE_ON_FTRACE_CALL;
+		ftrace_generate_kprobe_nop_insn(&orig);
+		ftrace_generate_kprobe_call_insn(&new);
 	} else {
 		/* Replace nop with an ftrace call. */
 		ftrace_generate_nop_insn(&orig);
