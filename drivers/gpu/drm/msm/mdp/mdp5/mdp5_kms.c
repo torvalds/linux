@@ -161,6 +161,44 @@ int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	return 0;
 }
 
+static int construct_encoder(struct mdp5_kms *mdp5_kms,
+		enum mdp5_intf_type intf_type, int intf_num)
+{
+	struct drm_device *dev = mdp5_kms->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct drm_encoder *encoder;
+	struct mdp5_interface intf = {
+			.num	= intf_num,
+			.type	= intf_type,
+			.mode	= MDP5_INTF_MODE_NONE,
+	};
+	int ret = 0;
+
+	encoder = mdp5_encoder_init(dev, &intf);
+	if (IS_ERR(encoder)) {
+		ret = PTR_ERR(encoder);
+		dev_err(dev->dev, "failed to construct encoder: %d\n", ret);
+		return ret;
+	}
+
+	encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
+	priv->encoders[priv->num_encoders++] = encoder;
+
+	if (intf_type == INTF_HDMI) {
+		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+		if (ret)
+			dev_err(dev->dev, "failed to init HDMI: %d\n", ret);
+
+	} else if (intf_type == INTF_eDP) {
+		/* Construct bridge/connector for eDP: */
+		ret = msm_edp_modeset_init(priv->edp, dev, encoder);
+		if (ret)
+			dev_err(dev->dev, "failed to init eDP: %d\n", ret);
+	}
+
+	return ret;
+}
+
 static int modeset_init(struct mdp5_kms *mdp5_kms)
 {
 	static const enum mdp5_pipe crtcs[] = {
@@ -171,7 +209,6 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	};
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
-	struct drm_encoder *encoder;
 	const struct mdp5_cfg_hw *hw_cfg;
 	int i, ret;
 
@@ -222,56 +259,29 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		}
 	}
 
-	if (priv->hdmi) {
-		struct mdp5_interface intf = {
-				.num	= 3,
-				.type	= INTF_HDMI,
-				.mode	= MDP5_INTF_MODE_NONE,
-		};
+	/* Construct external display interfaces' encoders: */
+	for (i = 0; i < ARRAY_SIZE(hw_cfg->intfs); i++) {
+		enum mdp5_intf_type intf_type = hw_cfg->intfs[i];
 
-		/* Construct encoder for HDMI: */
-		encoder = mdp5_encoder_init(dev, &intf);
-		if (IS_ERR(encoder)) {
-			dev_err(dev->dev, "failed to construct encoder\n");
-			ret = PTR_ERR(encoder);
-			goto fail;
+		switch (intf_type) {
+		case INTF_DISABLED:
+			break;
+		case INTF_eDP:
+			if (priv->edp)
+				ret = construct_encoder(mdp5_kms, INTF_eDP, i);
+			break;
+		case INTF_HDMI:
+			if (priv->hdmi)
+				ret = construct_encoder(mdp5_kms, INTF_HDMI, i);
+			break;
+		default:
+			dev_err(dev->dev, "unknown intf: %d\n", intf_type);
+			ret = -EINVAL;
+			break;
 		}
 
-		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;;
-		priv->encoders[priv->num_encoders++] = encoder;
-
-		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
-		if (ret) {
-			dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+		if (ret)
 			goto fail;
-		}
-	}
-
-	if (priv->edp) {
-		struct mdp5_interface intf = {
-				.num	= 0,
-				.type	= INTF_eDP,
-				.mode	= MDP5_INTF_MODE_NONE,
-		};
-
-		/* Construct encoder for eDP: */
-		encoder = mdp5_encoder_init(dev, &intf);
-		if (IS_ERR(encoder)) {
-			dev_err(dev->dev, "failed to construct eDP encoder\n");
-			ret = PTR_ERR(encoder);
-			goto fail;
-		}
-
-		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
-		priv->encoders[priv->num_encoders++] = encoder;
-
-		/* Construct bridge/connector for eDP: */
-		ret = msm_edp_modeset_init(priv->edp, dev, encoder);
-		if (ret) {
-			dev_err(dev->dev, "failed to initialize eDP: %d\n",
-									ret);
-			goto fail;
-		}
 	}
 
 	return 0;
@@ -415,8 +425,12 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 	 * we don't disable):
 	 */
 	mdp5_enable(mdp5_kms);
-	for (i = 0; i < config->hw->intf.count; i++)
+	for (i = 0; i < MDP5_INTF_NUM_MAX; i++) {
+		if (!config->hw->intf.base[i] ||
+				mdp5_cfg_intf_is_virtual(config->hw->intfs[i]))
+			continue;
 		mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(i), 0);
+	}
 	mdp5_disable(mdp5_kms);
 	mdelay(16);
 

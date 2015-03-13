@@ -62,6 +62,10 @@ const struct mdp5_cfg_hw msm8x74_config = {
 		.count = 4,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00 },
 	},
+	.intfs = {
+		[0] = INTF_eDP,
+		[3] = INTF_HDMI,
+	},
 	.max_clk = 200000000,
 };
 
@@ -110,6 +114,10 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.intf = {
 		.count = 5,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00, 0x12d00 },
+	},
+	.intfs = {
+		[0] = INTF_eDP,
+		[3] = INTF_HDMI,
 	},
 	.max_clk = 320000000,
 };

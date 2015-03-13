@@ -56,6 +56,8 @@ struct mdp5_smp_block {
 	int reserved[MAX_CLIENTS];	/* # of MMBs allocated per client */
 };
 
+#define MDP5_INTF_NUM_MAX	5
+
 struct mdp5_cfg_hw {
 	char  *name;
 
@@ -68,6 +70,8 @@ struct mdp5_cfg_hw {
 	struct mdp5_sub_block dspp;
 	struct mdp5_sub_block ad;
 	struct mdp5_sub_block intf;
+
+	u32 intfs[MDP5_INTF_NUM_MAX]; /* array of enum mdp5_intf_type */
 
 	uint32_t max_clk;
 };
