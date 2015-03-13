@@ -1476,7 +1476,11 @@ static const struct file_operations ddb_fops = {
 	.open           = ddb_open,
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
 static char *ddb_devnode(struct device *device, umode_t *mode)
+#else
+static char *ddb_devnode(struct device *device, mode_t *mode)
+#endif
 {
 	struct ddb *dev = dev_get_drvdata(device);
 
