@@ -6102,7 +6102,7 @@ static int set_external_config(struct sock *sk, struct hci_dev *hdev,
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED) == is_configured(hdev)) {
 		mgmt_index_removed(hdev);
 
-		if (test_and_change_bit(HCI_UNCONFIGURED, &hdev->dev_flags)) {
+		if (hci_dev_test_and_change_flag(hdev, HCI_UNCONFIGURED)) {
 			hci_dev_set_flag(hdev, HCI_CONFIG);
 			hci_dev_set_flag(hdev, HCI_AUTO_OFF);
 
