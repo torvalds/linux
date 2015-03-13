@@ -33,6 +33,16 @@
  * requested by the client (in mdp5_crtc_mode_set()).
  */
 
+struct op_mode {
+	struct mdp5_interface intf;
+	/*
+	 * TODO: add a state variable to control the pipeline
+	 *
+	 * eg: WB interface needs both buffer addresses to be committed +
+	 * output buffers ready to be written into, before we can START.
+	 */
+};
+
 struct mdp5_ctl {
 	struct mdp5_ctl_manager *ctlm;
 
@@ -41,8 +51,8 @@ struct mdp5_ctl {
 	/* whether this CTL has been allocated or not: */
 	bool busy;
 
-	/* memory output connection (@see mdp5_ctl_mode): */
-	u32 mode;
+	/* Operation Mode Configuration for the Pipeline */
+	struct op_mode pipeline;
 
 	/* REG_MDP5_CTL_*(<id>) registers access info + lock: */
 	spinlock_t hw_lock;
@@ -94,19 +104,81 @@ u32 ctl_read(struct mdp5_ctl *ctl, u32 reg)
 	return mdp5_read(mdp5_kms, reg);
 }
 
-
-int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, int intf)
+static void set_display_intf(struct mdp5_kms *mdp5_kms,
+		struct mdp5_interface *intf)
 {
 	unsigned long flags;
-	static const enum mdp5_intfnum intfnum[] = {
-			INTF0, INTF1, INTF2, INTF3,
-	};
+	u32 intf_sel;
+
+	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
+	intf_sel = mdp5_read(mdp5_kms, REG_MDP5_DISP_INTF_SEL);
+
+	switch (intf->num) {
+	case 0:
+		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF0__MASK;
+		intf_sel |= MDP5_DISP_INTF_SEL_INTF0(intf->type);
+		break;
+	case 1:
+		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF1__MASK;
+		intf_sel |= MDP5_DISP_INTF_SEL_INTF1(intf->type);
+		break;
+	case 2:
+		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF2__MASK;
+		intf_sel |= MDP5_DISP_INTF_SEL_INTF2(intf->type);
+		break;
+	case 3:
+		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF3__MASK;
+		intf_sel |= MDP5_DISP_INTF_SEL_INTF3(intf->type);
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, intf_sel);
+	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
+}
+
+static void set_ctl_op(struct mdp5_ctl *ctl, struct mdp5_interface *intf)
+{
+	unsigned long flags;
+	u32 ctl_op = 0;
+
+	if (!mdp5_cfg_intf_is_virtual(intf->type))
+		ctl_op |= MDP5_CTL_OP_INTF_NUM(INTF0 + intf->num);
+
+	switch (intf->type) {
+	case INTF_DSI:
+		if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+			ctl_op |= MDP5_CTL_OP_CMD_MODE;
+		break;
+
+	case INTF_WB:
+		if (intf->mode == MDP5_INTF_WB_MODE_LINE)
+			ctl_op |= MDP5_CTL_OP_MODE(MODE_WB_2_LINE);
+		break;
+
+	default:
+		break;
+	}
 
 	spin_lock_irqsave(&ctl->hw_lock, flags);
-	ctl_write(ctl, REG_MDP5_CTL_OP(ctl->id),
-			MDP5_CTL_OP_MODE(ctl->mode) |
-			MDP5_CTL_OP_INTF_NUM(intfnum[intf]));
+	ctl_write(ctl, REG_MDP5_CTL_OP(ctl->id), ctl_op);
 	spin_unlock_irqrestore(&ctl->hw_lock, flags);
+}
+
+int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, struct mdp5_interface *intf)
+{
+	struct mdp5_ctl_manager *ctl_mgr = ctl->ctlm;
+	struct mdp5_kms *mdp5_kms = get_kms(ctl_mgr);
+
+	memcpy(&ctl->pipeline.intf, intf, sizeof(*intf));
+
+	/* Virtual interfaces need not set a display intf (e.g.: Writeback) */
+	if (!mdp5_cfg_intf_is_virtual(intf->type))
+		set_display_intf(mdp5_kms, intf);
+
+	set_ctl_op(ctl, intf);
 
 	return 0;
 }
@@ -303,7 +375,6 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 		}
 		ctl->ctlm = ctl_mgr;
 		ctl->id = c;
-		ctl->mode = MODE_NONE;
 		ctl->reg_offset = ctl_cfg->base[c];
 		ctl->flush_mask = MDP5_CTL_FLUSH_CTL;
 		ctl->busy = false;

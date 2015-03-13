@@ -26,9 +26,6 @@
 #include "mdp5_ctl.h"
 #include "mdp5_smp.h"
 
-/* temporary compat for enum name change: */
-#define mdp5_intf mdp5_intf_type
-
 struct mdp5_kms {
 	struct mdp_kms base;
 
@@ -97,6 +94,24 @@ struct mdp5_plane_state {
 #define to_mdp5_plane_state(x) \
 		container_of(x, struct mdp5_plane_state, base)
 
+enum mdp5_intf_mode {
+	MDP5_INTF_MODE_NONE = 0,
+
+	/* Modes used for DSI interface (INTF_DSI type): */
+	MDP5_INTF_DSI_MODE_VIDEO,
+	MDP5_INTF_DSI_MODE_COMMAND,
+
+	/* Modes used for WB interface (INTF_WB type):  */
+	MDP5_INTF_WB_MODE_BLOCK,
+	MDP5_INTF_WB_MODE_LINE,
+};
+
+struct mdp5_interface {
+	int num; /* display interface number */
+	enum mdp5_intf_type type;
+	enum mdp5_intf_mode mode;
+};
+
 static inline void mdp5_write(struct mdp5_kms *mdp5_kms, u32 reg, u32 data)
 {
 	msm_writel(data, mdp5_kms->mmio + reg);
@@ -133,9 +148,9 @@ static inline int pipe2nclients(enum mdp5_pipe pipe)
 	}
 }
 
-static inline uint32_t intf2err(int intf)
+static inline uint32_t intf2err(int intf_num)
 {
-	switch (intf) {
+	switch (intf_num) {
 	case 0:  return MDP5_IRQ_INTF0_UNDER_RUN;
 	case 1:  return MDP5_IRQ_INTF1_UNDER_RUN;
 	case 2:  return MDP5_IRQ_INTF2_UNDER_RUN;
@@ -144,9 +159,24 @@ static inline uint32_t intf2err(int intf)
 	}
 }
 
-static inline uint32_t intf2vblank(int intf)
+static inline uint32_t intf2vblank(int lm, struct mdp5_interface *intf)
 {
-	switch (intf) {
+#define GET_PING_PONG_ID(layer_mixer)	((layer_mixer == 5) ? 3 : layer_mixer)
+
+	/*
+	 * In case of DSI Command Mode, the Ping Pong's read pointer IRQ
+	 * acts as a Vblank signal. The Ping Pong buffer used is bound to
+	 * layer mixer.
+	 */
+
+	if ((intf->type == INTF_DSI) &&
+			(intf->mode == MDP5_INTF_DSI_MODE_COMMAND))
+		return MDP5_IRQ_PING_PONG_0_RD_PTR << GET_PING_PONG_ID(lm);
+
+	if (intf->type == INTF_WB)
+		return MDP5_IRQ_WB_2_DONE;
+
+	switch (intf->num) {
 	case 0:  return MDP5_IRQ_INTF0_VSYNC;
 	case 1:  return MDP5_IRQ_INTF1_VSYNC;
 	case 2:  return MDP5_IRQ_INTF2_VSYNC;
@@ -201,12 +231,11 @@ uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc);
 
 int mdp5_crtc_get_lm(struct drm_crtc *crtc);
 void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file);
-void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
-		enum mdp5_intf intf_id);
+void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf);
 struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, int id);
 
-struct drm_encoder *mdp5_encoder_init(struct drm_device *dev, int intf,
-		enum mdp5_intf intf_id);
+struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
+		struct mdp5_interface *intf);
 
 #endif /* __MDP5_KMS_H__ */

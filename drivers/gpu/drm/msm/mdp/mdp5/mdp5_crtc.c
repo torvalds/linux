@@ -611,48 +611,17 @@ void mdp5_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
 }
 
 /* set interface for routing crtc->encoder: */
-void mdp5_crtc_set_intf(struct drm_crtc *crtc, int intf,
-		enum mdp5_intf intf_id)
+void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
-	uint32_t intf_sel;
-	unsigned long flags;
+	int lm = mdp5_crtc_get_lm(crtc);
 
 	/* now that we know what irq's we want: */
-	mdp5_crtc->err.irqmask = intf2err(intf);
-	mdp5_crtc->vblank.irqmask = intf2vblank(intf);
+	mdp5_crtc->err.irqmask = intf2err(intf->num);
+	mdp5_crtc->vblank.irqmask = intf2vblank(lm, intf);
 	mdp_irq_update(&mdp5_kms->base);
 
-	spin_lock_irqsave(&mdp5_kms->resource_lock, flags);
-	intf_sel = mdp5_read(mdp5_kms, REG_MDP5_DISP_INTF_SEL);
-
-	switch (intf) {
-	case 0:
-		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF0__MASK;
-		intf_sel |= MDP5_DISP_INTF_SEL_INTF0(intf_id);
-		break;
-	case 1:
-		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF1__MASK;
-		intf_sel |= MDP5_DISP_INTF_SEL_INTF1(intf_id);
-		break;
-	case 2:
-		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF2__MASK;
-		intf_sel |= MDP5_DISP_INTF_SEL_INTF2(intf_id);
-		break;
-	case 3:
-		intf_sel &= ~MDP5_DISP_INTF_SEL_INTF3__MASK;
-		intf_sel |= MDP5_DISP_INTF_SEL_INTF3(intf_id);
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	mdp5_write(mdp5_kms, REG_MDP5_DISP_INTF_SEL, intf_sel);
-	spin_unlock_irqrestore(&mdp5_kms->resource_lock, flags);
-
-	DBG("%s: intf_sel=%08x", mdp5_crtc->name, intf_sel);
 	mdp5_ctl_set_intf(mdp5_crtc->ctl, intf);
 }
 

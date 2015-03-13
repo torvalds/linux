@@ -84,6 +84,10 @@ const struct mdp5_cfg_hw *mdp5_cfg_get_hw_config(struct mdp5_cfg_handler *cfg_hn
 struct mdp5_cfg *mdp5_cfg_get_config(struct mdp5_cfg_handler *cfg_hnd);
 int mdp5_cfg_get_hw_rev(struct mdp5_cfg_handler *cfg_hnd);
 
+#define mdp5_cfg_intf_is_virtual(intf_type) ({	\
+	typeof(intf_type) __val = (intf_type);	\
+	(__val) >= INTF_VIRTUAL ? true : false; })
+
 struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 		uint32_t major, uint32_t minor);
 void mdp5_cfg_destroy(struct mdp5_cfg_handler *cfg_hnd);

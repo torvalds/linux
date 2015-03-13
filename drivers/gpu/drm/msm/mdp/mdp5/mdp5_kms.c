@@ -223,8 +223,14 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	}
 
 	if (priv->hdmi) {
+		struct mdp5_interface intf = {
+				.num	= 3,
+				.type	= INTF_HDMI,
+				.mode	= MDP5_INTF_MODE_NONE,
+		};
+
 		/* Construct encoder for HDMI: */
-		encoder = mdp5_encoder_init(dev, 3, INTF_HDMI);
+		encoder = mdp5_encoder_init(dev, &intf);
 		if (IS_ERR(encoder)) {
 			dev_err(dev->dev, "failed to construct encoder\n");
 			ret = PTR_ERR(encoder);
@@ -242,8 +248,14 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	}
 
 	if (priv->edp) {
+		struct mdp5_interface intf = {
+				.num	= 0,
+				.type	= INTF_eDP,
+				.mode	= MDP5_INTF_MODE_NONE,
+		};
+
 		/* Construct encoder for eDP: */
-		encoder = mdp5_encoder_init(dev, 0, INTF_eDP);
+		encoder = mdp5_encoder_init(dev, &intf);
 		if (IS_ERR(encoder)) {
 			dev_err(dev->dev, "failed to construct eDP encoder\n");
 			ret = PTR_ERR(encoder);
