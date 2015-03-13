@@ -26,6 +26,9 @@
 #include "mdp5_ctl.h"
 #include "mdp5_smp.h"
 
+/* temporary compat for enum name change: */
+#define mdp5_intf mdp5_intf_type
+
 struct mdp5_kms {
 	struct mdp_kms base;
 

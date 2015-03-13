@@ -8,7 +8,7 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp5.xml            (  27229 bytes, from 2015-02-10 17:00:41)
+- /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp5.xml            (  27094 bytes, from 2015-01-23 16:27:31)
 - /local/mnt2/workspace2/sviau/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2014-06-02 18:31:15)
 - /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp_common.xml      (   2357 bytes, from 2015-01-23 16:20:19)
 
@@ -37,11 +37,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 
-enum mdp5_intf {
+enum mdp5_intf_type {
+	INTF_DISABLED = 0,
 	INTF_DSI = 1,
 	INTF_HDMI = 3,
 	INTF_LCDC = 5,
 	INTF_eDP = 9,
+	INTF_VIRTUAL = 100,
+	INTF_WB = 101,
 };
 
 enum mdp5_intfnum {
@@ -67,11 +70,11 @@ enum mdp5_pipe {
 
 enum mdp5_ctl_mode {
 	MODE_NONE = 0,
-	MODE_ROT0 = 1,
-	MODE_ROT1 = 2,
-	MODE_WB0 = 3,
-	MODE_WB1 = 4,
-	MODE_WFD = 5,
+	MODE_WB_0_BLOCK = 1,
+	MODE_WB_1_BLOCK = 2,
+	MODE_WB_0_LINE = 3,
+	MODE_WB_1_LINE = 4,
+	MODE_WB_2_LINE = 5,
 };
 
 enum mdp5_pack_3d {
@@ -144,30 +147,25 @@ enum mdp5_data_format {
 	DATA_FORMAT_YUV = 1,
 };
 
-#define MDP5_IRQ_INTF0_WB_ROT_COMP				0x00000001
-#define MDP5_IRQ_INTF1_WB_ROT_COMP				0x00000002
-#define MDP5_IRQ_INTF2_WB_ROT_COMP				0x00000004
-#define MDP5_IRQ_INTF3_WB_ROT_COMP				0x00000008
-#define MDP5_IRQ_INTF0_WB_WFD					0x00000010
-#define MDP5_IRQ_INTF1_WB_WFD					0x00000020
-#define MDP5_IRQ_INTF2_WB_WFD					0x00000040
-#define MDP5_IRQ_INTF3_WB_WFD					0x00000080
-#define MDP5_IRQ_INTF0_PING_PONG_COMP				0x00000100
-#define MDP5_IRQ_INTF1_PING_PONG_COMP				0x00000200
-#define MDP5_IRQ_INTF2_PING_PONG_COMP				0x00000400
-#define MDP5_IRQ_INTF3_PING_PONG_COMP				0x00000800
-#define MDP5_IRQ_INTF0_PING_PONG_RD_PTR				0x00001000
-#define MDP5_IRQ_INTF1_PING_PONG_RD_PTR				0x00002000
-#define MDP5_IRQ_INTF2_PING_PONG_RD_PTR				0x00004000
-#define MDP5_IRQ_INTF3_PING_PONG_RD_PTR				0x00008000
-#define MDP5_IRQ_INTF0_PING_PONG_WR_PTR				0x00010000
-#define MDP5_IRQ_INTF1_PING_PONG_WR_PTR				0x00020000
-#define MDP5_IRQ_INTF2_PING_PONG_WR_PTR				0x00040000
-#define MDP5_IRQ_INTF3_PING_PONG_WR_PTR				0x00080000
-#define MDP5_IRQ_INTF0_PING_PONG_AUTO_REF			0x00100000
-#define MDP5_IRQ_INTF1_PING_PONG_AUTO_REF			0x00200000
-#define MDP5_IRQ_INTF2_PING_PONG_AUTO_REF			0x00400000
-#define MDP5_IRQ_INTF3_PING_PONG_AUTO_REF			0x00800000
+#define MDP5_IRQ_WB_0_DONE					0x00000001
+#define MDP5_IRQ_WB_1_DONE					0x00000002
+#define MDP5_IRQ_WB_2_DONE					0x00000010
+#define MDP5_IRQ_PING_PONG_0_DONE				0x00000100
+#define MDP5_IRQ_PING_PONG_1_DONE				0x00000200
+#define MDP5_IRQ_PING_PONG_2_DONE				0x00000400
+#define MDP5_IRQ_PING_PONG_3_DONE				0x00000800
+#define MDP5_IRQ_PING_PONG_0_RD_PTR				0x00001000
+#define MDP5_IRQ_PING_PONG_1_RD_PTR				0x00002000
+#define MDP5_IRQ_PING_PONG_2_RD_PTR				0x00004000
+#define MDP5_IRQ_PING_PONG_3_RD_PTR				0x00008000
+#define MDP5_IRQ_PING_PONG_0_WR_PTR				0x00010000
+#define MDP5_IRQ_PING_PONG_1_WR_PTR				0x00020000
+#define MDP5_IRQ_PING_PONG_2_WR_PTR				0x00040000
+#define MDP5_IRQ_PING_PONG_3_WR_PTR				0x00080000
+#define MDP5_IRQ_PING_PONG_0_AUTO_REF				0x00100000
+#define MDP5_IRQ_PING_PONG_1_AUTO_REF				0x00200000
+#define MDP5_IRQ_PING_PONG_2_AUTO_REF				0x00400000
+#define MDP5_IRQ_PING_PONG_3_AUTO_REF				0x00800000
 #define MDP5_IRQ_INTF0_UNDER_RUN				0x01000000
 #define MDP5_IRQ_INTF0_VSYNC					0x02000000
 #define MDP5_IRQ_INTF1_UNDER_RUN				0x04000000
@@ -202,25 +200,25 @@ static inline uint32_t MDP5_MDP_VERSION_MAJOR(uint32_t val)
 #define REG_MDP5_DISP_INTF_SEL					0x00000104
 #define MDP5_DISP_INTF_SEL_INTF0__MASK				0x000000ff
 #define MDP5_DISP_INTF_SEL_INTF0__SHIFT				0
-static inline uint32_t MDP5_DISP_INTF_SEL_INTF0(enum mdp5_intf val)
+static inline uint32_t MDP5_DISP_INTF_SEL_INTF0(enum mdp5_intf_type val)
 {
 	return ((val) << MDP5_DISP_INTF_SEL_INTF0__SHIFT) & MDP5_DISP_INTF_SEL_INTF0__MASK;
 }
 #define MDP5_DISP_INTF_SEL_INTF1__MASK				0x0000ff00
 #define MDP5_DISP_INTF_SEL_INTF1__SHIFT				8
-static inline uint32_t MDP5_DISP_INTF_SEL_INTF1(enum mdp5_intf val)
+static inline uint32_t MDP5_DISP_INTF_SEL_INTF1(enum mdp5_intf_type val)
 {
 	return ((val) << MDP5_DISP_INTF_SEL_INTF1__SHIFT) & MDP5_DISP_INTF_SEL_INTF1__MASK;
 }
 #define MDP5_DISP_INTF_SEL_INTF2__MASK				0x00ff0000
 #define MDP5_DISP_INTF_SEL_INTF2__SHIFT				16
-static inline uint32_t MDP5_DISP_INTF_SEL_INTF2(enum mdp5_intf val)
+static inline uint32_t MDP5_DISP_INTF_SEL_INTF2(enum mdp5_intf_type val)
 {
 	return ((val) << MDP5_DISP_INTF_SEL_INTF2__SHIFT) & MDP5_DISP_INTF_SEL_INTF2__MASK;
 }
 #define MDP5_DISP_INTF_SEL_INTF3__MASK				0xff000000
 #define MDP5_DISP_INTF_SEL_INTF3__SHIFT				24
-static inline uint32_t MDP5_DISP_INTF_SEL_INTF3(enum mdp5_intf val)
+static inline uint32_t MDP5_DISP_INTF_SEL_INTF3(enum mdp5_intf_type val)
 {
 	return ((val) << MDP5_DISP_INTF_SEL_INTF3__SHIFT) & MDP5_DISP_INTF_SEL_INTF3__MASK;
 }
