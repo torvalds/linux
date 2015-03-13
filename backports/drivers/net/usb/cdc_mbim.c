@@ -301,6 +301,7 @@ error:
 	return NULL;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0)
 /* Some devices are known to send Neigbor Solicitation messages and
  * require Neigbor Advertisement replies.  The IPv6 core will not
  * respond since IFF_NOARP is set, so we must handle them ourselves.
@@ -361,6 +362,7 @@ static bool is_neigh_solicit(u8 *buf, size_t len)
 		msg->icmph.icmp6_code == 0 &&
 		msg->icmph.icmp6_type == NDISC_NEIGHBOUR_SOLICITATION);
 }
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0) */
 
 
 static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_t len, u16 tci)
@@ -377,8 +379,10 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 			proto = htons(ETH_P_IP);
 			break;
 		case 0x60:
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0)
 			if (is_neigh_solicit(buf, len))
 				do_neigh_solicit(dev, buf, tci);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0) */
 			proto = htons(ETH_P_IPV6);
 			break;
 		default:
