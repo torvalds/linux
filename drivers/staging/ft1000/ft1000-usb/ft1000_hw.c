@@ -451,16 +451,15 @@ static int ft1000_reset_card(struct net_device *dev)
 	struct ft1000_usb *ft1000dev = info->priv;
 	u16 tempword;
 	struct prov_record *ptr;
+	struct prov_record *tmp;
 
 	ft1000dev->fCondResetPend = true;
 	info->CardReady = 0;
 	ft1000dev->fProvComplete = false;
 
 	/* Make sure we free any memory reserve for provisioning */
-	while (list_empty(&info->prov_list) == 0) {
+	list_for_each_entry_safe(ptr, tmp, &info->prov_list, list) {
 		pr_debug("deleting provisioning record\n");
-		ptr =
-			list_entry(info->prov_list.next, struct prov_record, list);
 		list_del(&ptr->list);
 		kfree(ptr->pprov_data);
 		kfree(ptr);

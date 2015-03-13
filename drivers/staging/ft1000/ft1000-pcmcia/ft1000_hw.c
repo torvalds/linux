@@ -364,6 +364,7 @@ static int ft1000_reset_card(struct net_device *dev)
 	int i;
 	unsigned long flags;
 	struct prov_record *ptr;
+	struct prov_record *tmp;
 
 	info->CardReady = 0;
 	info->ProgConStat = 0;
@@ -373,9 +374,8 @@ static int ft1000_reset_card(struct net_device *dev)
 	/* del_timer(&poll_timer); */
 
 	/* Make sure we free any memory reserve for provisioning */
-	while (list_empty(&info->prov_list) == 0) {
+	list_for_each_entry_safe(ptr, tmp, &info->prov_list, list) {
 		pr_debug("deleting provisioning record\n");
-		ptr = list_entry(info->prov_list.next, struct prov_record, list);
 		list_del(&ptr->list);
 		kfree(ptr->pprov_data);
 		kfree(ptr);
@@ -1973,6 +1973,7 @@ void stop_ft1000_card(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	struct prov_record *ptr;
+	struct prov_record *tmp;
 	/* int cnt; */
 
 	info->CardReady = 0;
@@ -1981,8 +1982,7 @@ void stop_ft1000_card(struct net_device *dev)
 	ft1000_disable_interrupts(dev);
 
 	/* Make sure we free any memory reserve for provisioning */
-	while (list_empty(&info->prov_list) == 0) {
-		ptr = list_entry(info->prov_list.next, struct prov_record, list);
+	list_for_each_entry_safe(ptr, tmp, &info->prov_list, list) {
 		list_del(&ptr->list);
 		kfree(ptr->pprov_data);
 		kfree(ptr);

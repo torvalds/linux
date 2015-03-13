@@ -742,6 +742,7 @@ static int ft1000_release(struct inode *inode, struct file *file)
 	struct ft1000_usb *ft1000dev;
 	int i;
 	struct dpram_blk *pdpram_blk;
+	struct dpram_blk *tmp;
 
 	dev = file->private_data;
 	info = netdev_priv(dev);
@@ -763,9 +764,8 @@ static int ft1000_release(struct inode *inode, struct file *file)
 	if (i == MAX_NUM_APP)
 		return 0;
 
-	while (list_empty(&ft1000dev->app_info[i].app_sqlist) == 0) {
+	list_for_each_entry_safe(pdpram_blk, tmp, &ft1000dev->app_info[i].app_sqlist, list) {
 		pr_debug("Remove and free memory queue up on slow queue\n");
-		pdpram_blk = list_entry(ft1000dev->app_info[i].app_sqlist.next, struct dpram_blk, list);
 		list_del(&pdpram_blk->list);
 		ft1000_free_buffer(pdpram_blk, &freercvpool);
 	}
