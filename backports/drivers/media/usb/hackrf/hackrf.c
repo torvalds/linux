@@ -22,6 +22,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
+#include <linux/mm.h>
 
 /* HackRF USB API commands (from HackRF Library) */
 enum {
