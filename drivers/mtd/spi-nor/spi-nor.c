@@ -369,16 +369,12 @@ erase_err:
 	return ret;
 }
 
-static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+static int stm_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	struct mtd_info *mtd = nor->mtd;
 	uint32_t offset = ofs;
 	uint8_t status_old, status_new;
 	int ret = 0;
-
-	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_LOCK);
-	if (ret)
-		return ret;
 
 	status_old = read_sr(nor);
 
@@ -402,25 +398,17 @@ static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 				(status_old & (SR_BP2 | SR_BP1 | SR_BP0))) {
 		write_enable(nor);
 		ret = write_sr(nor, status_new);
-		if (ret)
-			goto err;
 	}
 
-err:
-	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_LOCK);
 	return ret;
 }
 
-static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+static int stm_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 {
-	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	struct mtd_info *mtd = nor->mtd;
 	uint32_t offset = ofs;
 	uint8_t status_old, status_new;
 	int ret = 0;
-
-	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_UNLOCK);
-	if (ret)
-		return ret;
 
 	status_old = read_sr(nor);
 
@@ -444,12 +432,38 @@ static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 				(status_old & (SR_BP2 | SR_BP1 | SR_BP0))) {
 		write_enable(nor);
 		ret = write_sr(nor, status_new);
-		if (ret)
-			goto err;
 	}
 
-err:
+	return ret;
+}
+
+static int spi_nor_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
+	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	int ret;
+
+	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_LOCK);
+	if (ret)
+		return ret;
+
+	ret = nor->flash_lock(nor, ofs, len);
+
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_UNLOCK);
+	return ret;
+}
+
+static int spi_nor_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
+	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	int ret;
+
+	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_UNLOCK);
+	if (ret)
+		return ret;
+
+	ret = nor->flash_unlock(nor, ofs, len);
+
+	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_LOCK);
 	return ret;
 }
 
@@ -1045,6 +1059,11 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 
 	/* nor protection support for STmicro chips */
 	if (JEDEC_MFR(info) == CFI_MFR_ST) {
+		nor->flash_lock = stm_lock;
+		nor->flash_unlock = stm_unlock;
+	}
+
+	if (nor->flash_lock && nor->flash_unlock) {
 		mtd->_lock = spi_nor_lock;
 		mtd->_unlock = spi_nor_unlock;
 	}
