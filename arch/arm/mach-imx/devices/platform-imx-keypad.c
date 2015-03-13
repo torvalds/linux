@@ -21,11 +21,6 @@ const struct imx_imx_keypad_data imx21_imx_keypad_data __initconst =
 	imx_imx_keypad_data_entry_single(MX21, SZ_16);
 #endif /* ifdef CONFIG_SOC_IMX21 */
 
-#ifdef CONFIG_SOC_IMX25
-const struct imx_imx_keypad_data imx25_imx_keypad_data __initconst =
-	imx_imx_keypad_data_entry_single(MX25, SZ_16K);
-#endif /* ifdef CONFIG_SOC_IMX25 */
-
 #ifdef CONFIG_SOC_IMX27
 const struct imx_imx_keypad_data imx27_imx_keypad_data __initconst =
 	imx_imx_keypad_data_entry_single(MX27, SZ_16);
