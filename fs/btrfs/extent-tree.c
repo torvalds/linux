@@ -5110,7 +5110,11 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
 
 	spin_lock(&BTRFS_I(inode)->lock);
-	BTRFS_I(inode)->outstanding_extents++;
+	nr_extents = (unsigned)div64_u64(num_bytes +
+					 BTRFS_MAX_EXTENT_SIZE - 1,
+					 BTRFS_MAX_EXTENT_SIZE);
+	BTRFS_I(inode)->outstanding_extents += nr_extents;
+	nr_extents = 0;
 
 	if (BTRFS_I(inode)->outstanding_extents >
 	    BTRFS_I(inode)->reserved_extents)
