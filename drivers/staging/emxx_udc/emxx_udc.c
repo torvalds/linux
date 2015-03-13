@@ -2229,8 +2229,7 @@ static int _nbu2ss_nuke(struct nbu2ss_udc *udc,
 		return 0;
 
 	/* called with irqs blocked */
-	while (!list_empty(&ep->queue)) {
-		req = list_entry(ep->queue.next, struct nbu2ss_req, queue);
+	list_for_each_entry(req, &ep->queue, queue) {
 		_nbu2ss_ep_done(ep, req, status);
 	}
 
