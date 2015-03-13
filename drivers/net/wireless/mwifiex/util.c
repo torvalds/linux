@@ -632,7 +632,7 @@ void mwifiex_hist_data_reset(struct mwifiex_private *priv)
 		atomic_set(&phist_data->sig_str[ix], 0);
 }
 
-void *mwifiex_alloc_rx_buf(int rx_len, gfp_t flags)
+void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags)
 {
 	struct sk_buff *skb;
 	int buf_len, pad;
@@ -653,4 +653,4 @@ void *mwifiex_alloc_rx_buf(int rx_len, gfp_t flags)
 
 	return skb;
 }
-EXPORT_SYMBOL_GPL(mwifiex_alloc_rx_buf);
+EXPORT_SYMBOL_GPL(mwifiex_alloc_dma_align_buf);
