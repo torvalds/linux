@@ -97,6 +97,9 @@ struct tcpm_hash_bucket {
 	struct tcp_metrics_block __rcu	*chain;
 };
 
+static struct tcpm_hash_bucket	*tcp_metrics_hash __read_mostly;
+static unsigned int		tcp_metrics_hash_log __read_mostly;
+
 static DEFINE_SPINLOCK(tcp_metrics_lock);
 
 static void tcpm_suck_dst(struct tcp_metrics_block *tm,
@@ -177,7 +180,7 @@ static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 	if (unlikely(reclaim)) {
 		struct tcp_metrics_block *oldest;
 
-		oldest = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain);
+		oldest = rcu_dereference(tcp_metrics_hash[hash].chain);
 		for (tm = rcu_dereference(oldest->tcpm_next); tm;
 		     tm = rcu_dereference(tm->tcpm_next)) {
 			if (time_before(tm->tcpm_stamp, oldest->tcpm_stamp))
@@ -196,8 +199,8 @@ static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 	tcpm_suck_dst(tm, dst, true);
 
 	if (likely(!reclaim)) {
-		tm->tcpm_next = net->ipv4.tcp_metrics_hash[hash].chain;
-		rcu_assign_pointer(net->ipv4.tcp_metrics_hash[hash].chain, tm);
+		tm->tcpm_next = tcp_metrics_hash[hash].chain;
+		rcu_assign_pointer(tcp_metrics_hash[hash].chain, tm);
 	}
 
 out_unlock:
@@ -221,7 +224,7 @@ static struct tcp_metrics_block *__tcp_get_metrics(const struct inetpeer_addr *s
 	struct tcp_metrics_block *tm;
 	int depth = 0;
 
-	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
+	for (tm = rcu_dereference(tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
 		if (addr_same(&tm->tcpm_saddr, saddr) &&
 		    addr_same(&tm->tcpm_daddr, daddr) &&
@@ -261,9 +264,9 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 
 	net = dev_net(dst->dev);
 	hash ^= net_hash_mix(net);
-	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
+	hash = hash_32(hash, tcp_metrics_hash_log);
 
-	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
+	for (tm = rcu_dereference(tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
 		if (addr_same(&tm->tcpm_saddr, &saddr) &&
 		    addr_same(&tm->tcpm_daddr, &daddr) &&
@@ -310,9 +313,9 @@ static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock 
 
 	net = twsk_net(tw);
 	hash ^= net_hash_mix(net);
-	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
+	hash = hash_32(hash, tcp_metrics_hash_log);
 
-	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
+	for (tm = rcu_dereference(tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
 		if (addr_same(&tm->tcpm_saddr, &saddr) &&
 		    addr_same(&tm->tcpm_daddr, &daddr) &&
@@ -360,7 +363,7 @@ static struct tcp_metrics_block *tcp_get_metrics(struct sock *sk,
 
 	net = dev_net(dst->dev);
 	hash ^= net_hash_mix(net);
-	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
+	hash = hash_32(hash, tcp_metrics_hash_log);
 
 	tm = __tcp_get_metrics(&saddr, &daddr, net, hash);
 	if (tm == TCP_METRICS_RECLAIM_PTR)
@@ -911,13 +914,13 @@ static int tcp_metrics_nl_dump(struct sk_buff *skb,
 			       struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
-	unsigned int max_rows = 1U << net->ipv4.tcp_metrics_hash_log;
+	unsigned int max_rows = 1U << tcp_metrics_hash_log;
 	unsigned int row, s_row = cb->args[0];
 	int s_col = cb->args[1], col = s_col;
 
 	for (row = s_row; row < max_rows; row++, s_col = 0) {
 		struct tcp_metrics_block *tm;
-		struct tcpm_hash_bucket *hb = net->ipv4.tcp_metrics_hash + row;
+		struct tcpm_hash_bucket *hb = tcp_metrics_hash + row;
 
 		rcu_read_lock();
 		for (col = 0, tm = rcu_dereference(hb->chain); tm;
@@ -1010,10 +1013,10 @@ static int tcp_metrics_nl_cmd_get(struct sk_buff *skb, struct genl_info *info)
 		goto nla_put_failure;
 
 	hash ^= net_hash_mix(net);
-	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
+	hash = hash_32(hash, tcp_metrics_hash_log);
 	ret = -ESRCH;
 	rcu_read_lock();
-	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
+	for (tm = rcu_dereference(tcp_metrics_hash[hash].chain); tm;
 	     tm = rcu_dereference(tm->tcpm_next)) {
 		if (addr_same(&tm->tcpm_daddr, &daddr) &&
 		    (!src || addr_same(&tm->tcpm_saddr, &saddr)) &&
@@ -1045,8 +1048,8 @@ out_free:
 
 static void tcp_metrics_flush_all(struct net *net)
 {
-	unsigned int max_rows = 1U << net->ipv4.tcp_metrics_hash_log;
-	struct tcpm_hash_bucket *hb = net->ipv4.tcp_metrics_hash;
+	unsigned int max_rows = 1U << tcp_metrics_hash_log;
+	struct tcpm_hash_bucket *hb = tcp_metrics_hash;
 	struct tcp_metrics_block *tm;
 	unsigned int row;
 
@@ -1090,8 +1093,8 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 		src = false;
 
 	hash ^= net_hash_mix(net);
-	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
-	hb = net->ipv4.tcp_metrics_hash + hash;
+	hash = hash_32(hash, tcp_metrics_hash_log);
+	hb = tcp_metrics_hash + hash;
 	pp = &hb->chain;
 	spin_lock_bh(&tcp_metrics_lock);
 	for (tm = deref_locked_genl(*pp); tm; tm = deref_locked_genl(*pp)) {
@@ -1147,6 +1150,9 @@ static int __net_init tcp_net_metrics_init(struct net *net)
 	size_t size;
 	unsigned int slots;
 
+	if (!net_eq(net, &init_net))
+		return 0;
+
 	slots = tcpmhash_entries;
 	if (!slots) {
 		if (totalram_pages >= 128 * 1024)
@@ -1155,14 +1161,14 @@ static int __net_init tcp_net_metrics_init(struct net *net)
 			slots = 8 * 1024;
 	}
 
-	net->ipv4.tcp_metrics_hash_log = order_base_2(slots);
-	size = sizeof(struct tcpm_hash_bucket) << net->ipv4.tcp_metrics_hash_log;
+	tcp_metrics_hash_log = order_base_2(slots);
+	size = sizeof(struct tcpm_hash_bucket) << tcp_metrics_hash_log;
 
-	net->ipv4.tcp_metrics_hash = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
-	if (!net->ipv4.tcp_metrics_hash)
-		net->ipv4.tcp_metrics_hash = vzalloc(size);
+	tcp_metrics_hash = kzalloc(size, GFP_KERNEL | __GFP_NOWARN);
+	if (!tcp_metrics_hash)
+		tcp_metrics_hash = vzalloc(size);
 
-	if (!net->ipv4.tcp_metrics_hash)
+	if (!tcp_metrics_hash)
 		return -ENOMEM;
 
 	return 0;
@@ -1170,19 +1176,7 @@ static int __net_init tcp_net_metrics_init(struct net *net)
 
 static void __net_exit tcp_net_metrics_exit(struct net *net)
 {
-	unsigned int i;
-
-	for (i = 0; i < (1U << net->ipv4.tcp_metrics_hash_log) ; i++) {
-		struct tcp_metrics_block *tm, *next;
-
-		tm = rcu_dereference_protected(net->ipv4.tcp_metrics_hash[i].chain, 1);
-		while (tm) {
-			next = rcu_dereference_protected(tm->tcpm_next, 1);
-			kfree(tm);
-			tm = next;
-		}
-	}
-	kvfree(net->ipv4.tcp_metrics_hash);
+	tcp_metrics_flush_all(net);
 }
 
 static __net_initdata struct pernet_operations tcp_net_metrics_ops = {
