@@ -2352,6 +2352,7 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 static int igb_get_ts_info(struct net_device *dev,
 			   struct ethtool_ts_info *info)
 {
@@ -2407,6 +2408,7 @@ static int igb_get_ts_info(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 
 static int igb_get_rss_hash_opts(struct igb_adapter *adapter,
 				 struct ethtool_rxnfc *cmd)
@@ -3042,7 +3044,9 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_ethtool_stats	= igb_get_ethtool_stats,
 	.get_coalesce		= igb_get_coalesce,
 	.set_coalesce		= igb_set_coalesce,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 	.get_ts_info		= igb_get_ts_info,
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 	.get_rxnfc		= igb_get_rxnfc,
 	.set_rxnfc		= igb_set_rxnfc,
 	.get_eee		= igb_get_eee,
