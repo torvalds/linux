@@ -93,7 +93,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		return -EMSGSIZE;
 
 	r = nlmsg_data(nlh);
-	BUG_ON(sk->sk_state == TCP_TIME_WAIT);
+	BUG_ON((1 << sk->sk_state) & (TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV));
 
 	r->idiag_family = sk->sk_family;
 	r->idiag_state = sk->sk_state;
