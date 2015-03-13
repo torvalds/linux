@@ -25,7 +25,6 @@
 #include <linux/tty.h>	  /* To pick up the various tty structs/defines */
 #include <linux/interrupt.h>	/* For irqreturn_t type */
 
-#include "dgnc_types.h"		/* Additional types needed by the Digi header files */
 #include "digi.h"		/* Digi specific ioctl header */
 #include "dgnc_kcompat.h"	/* Kernel 2.4/2.6 compat includes */
 #include "dgnc_sysfs.h"		/* Support for SYSFS */
@@ -206,8 +205,8 @@ struct dgnc_board {
 	struct tty_driver	PrintDriver;
 	char		PrintName[200];
 
-	uint		dgnc_Major_Serial_Registered;
-	uint		dgnc_Major_TransparentPrint_Registered;
+	bool		dgnc_Major_Serial_Registered;
+	bool		dgnc_Major_TransparentPrint_Registered;
 
 	uint		dgnc_Serial_Major;
 	uint		dgnc_TransparentPrint_Major;

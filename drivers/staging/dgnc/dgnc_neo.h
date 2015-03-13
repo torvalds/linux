@@ -16,7 +16,6 @@
 #ifndef __DGNC_NEO_H
 #define __DGNC_NEO_H
 
-#include "dgnc_types.h"
 #include "dgnc_driver.h"
 
 /************************************************************************

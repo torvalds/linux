@@ -16,9 +16,6 @@
 #ifndef __DGNC_CLS_H
 #define __DGNC_CLS_H
 
-#include "dgnc_types.h"
-
-
 /************************************************************************
  * Per channel/port Classic UART structure				*
  ************************************************************************
