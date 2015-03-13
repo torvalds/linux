@@ -869,7 +869,11 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned l
 
 static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0))
 	struct ktermios *new = &tty->termios;
+#else
+	struct ktermios *new = tty->termios;
+#endif
 	int old_baud_rate = tty_termios_baud_rate(old);
 	int new_baud_rate = tty_termios_baud_rate(new);
 
