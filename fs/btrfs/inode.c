@@ -1592,7 +1592,12 @@ static void btrfs_merge_extent_hook(struct inode *inode,
 		return;
 
 	old_size = other->end - other->start + 1;
-	new_size = old_size + (new->end - new->start + 1);
+	if (old_size < (new->end - new->start + 1))
+		old_size = (new->end - new->start + 1);
+	if (new->start > other->start)
+		new_size = new->end - other->start + 1;
+	else
+		new_size = other->end - new->start + 1;
 
 	/* we're not bigger than the max, unreserve the space and go */
 	if (new_size <= BTRFS_MAX_EXTENT_SIZE) {
