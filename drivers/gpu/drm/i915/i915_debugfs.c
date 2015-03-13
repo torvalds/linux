@@ -2308,7 +2308,7 @@ static int i915_sink_crc(struct seq_file *m, void *data)
 	u8 crc[6];
 
 	drm_modeset_lock_all(dev);
-	for_each_intel_encoder(dev, connector) {
+	for_each_intel_connector(dev, connector) {
 
 		if (connector->base.dpms != DRM_MODE_DPMS_ON)
 			continue;
