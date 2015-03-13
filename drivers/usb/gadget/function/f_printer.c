@@ -1307,6 +1307,7 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
 		kfree(opts);
 		if (idr_is_empty(&printer_ida.idr))
 			gprinter_cleanup();
+		goto unlock;
 	}
 	config_group_init_type_name(&opts->func_inst.group, "",
 				    &printer_func_type);
