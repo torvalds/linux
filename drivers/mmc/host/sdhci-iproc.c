@@ -97,7 +97,7 @@ static inline void sdhci_iproc_writel(struct sdhci_host *host, u32 val, int reg)
 static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_iproc_host *iproc_host = pltfm_host->priv;
+	struct sdhci_iproc_host *iproc_host = sdhci_pltfm_priv(pltfm_host);
 	u32 word_shift = REG_OFFSET_IN_BITS(reg);
 	u32 mask = 0xffff << word_shift;
 	u32 oldval, newval;
