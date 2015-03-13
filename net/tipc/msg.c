@@ -165,6 +165,9 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	}
 
 	if (fragid == LAST_FRAGMENT) {
+		TIPC_SKB_CB(head)->validated = false;
+		if (unlikely(!tipc_msg_validate(head)))
+			goto err;
 		*buf = head;
 		TIPC_SKB_CB(head)->tail = NULL;
 		*headbuf = NULL;
@@ -172,7 +175,6 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	}
 	*buf = NULL;
 	return 0;
-
 err:
 	pr_warn_ratelimited("Unable to build fragment list\n");
 	kfree_skb(*buf);
@@ -378,10 +380,14 @@ bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu)
  */
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 {
-	struct tipc_msg *msg = buf_msg(skb);
+	struct tipc_msg *msg;
 	int imsz;
-	struct tipc_msg *imsg = (struct tipc_msg *)(msg_data(msg) + *pos);
+	struct tipc_msg *imsg;
 
+	if (unlikely(skb_linearize(skb)))
+		return false;
+	msg = buf_msg(skb);
+	imsg = (struct tipc_msg *)(msg_data(msg) + *pos);
 	/* Is there space left for shortest possible message? */
 	if (*pos > (msg_data_sz(msg) - SHORT_H_SIZE))
 		goto none;
@@ -463,11 +469,11 @@ bool tipc_msg_reverse(u32 own_addr,  struct sk_buff *buf, u32 *dnode,
 
 	if (skb_linearize(buf))
 		goto exit;
+	msg = buf_msg(buf);
 	if (msg_dest_droppable(msg))
 		goto exit;
 	if (msg_errcode(msg))
 		goto exit;
-
 	memcpy(&ohdr, msg, msg_hdr_sz(msg));
 	imp = min_t(uint, imp + 1, TIPC_CRITICAL_IMPORTANCE);
 	if (msg_isdata(msg))

@@ -1075,13 +1075,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		if (unlikely(!tipc_msg_validate(skb)))
 			goto discard;
 
-		/* Ensure message data is a single contiguous unit */
-		if (unlikely(skb_linearize(skb)))
-			goto discard;
-
 		/* Handle arrival of a non-unicast link message */
 		msg = buf_msg(skb);
-
 		if (unlikely(msg_non_seq(msg))) {
 			if (msg_user(msg) ==  LINK_CONFIG)
 				tipc_disc_rcv(net, skb, b_ptr);
