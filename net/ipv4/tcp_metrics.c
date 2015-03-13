@@ -1175,16 +1175,10 @@ void __init tcp_metrics_init(void)
 
 	ret = register_pernet_subsys(&tcp_net_metrics_ops);
 	if (ret < 0)
-		goto cleanup;
+		panic("Could not allocate the tcp_metrics hash table\n");
+
 	ret = genl_register_family_with_ops(&tcp_metrics_nl_family,
 					    tcp_metrics_nl_ops);
 	if (ret < 0)
-		goto cleanup_subsys;
-	return;
-
-cleanup_subsys:
-	unregister_pernet_subsys(&tcp_net_metrics_ops);
-
-cleanup:
-	return;
+		panic("Could not register tcp_metrics generic netlink\n");
 }
