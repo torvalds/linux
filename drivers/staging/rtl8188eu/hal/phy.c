@@ -60,7 +60,7 @@ void phy_set_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask, u32 data)
 	if (bitmask != bMaskDWord) { /* if not "double word" write */
 		original_value = usb_read32(adapt, regaddr);
 		bit_shift = cal_bit_shift(bitmask);
-		data = ((original_value & (~bitmask)) | (data << bit_shift));
+		data = (original_value & (~bitmask)) | (data << bit_shift);
 	}
 
 	usb_write32(adapt, regaddr, data);
@@ -143,7 +143,7 @@ void phy_set_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
 	if (bit_mask != bRFRegOffsetMask) {
 		original_value = rf_serial_read(adapt, rf_path, reg_addr);
 		bit_shift =  cal_bit_shift(bit_mask);
-		data = ((original_value & (~bit_mask)) | (data << bit_shift));
+		data = (original_value & (~bit_mask)) | (data << bit_shift);
 	}
 
 	rf_serial_write(adapt, rf_path, reg_addr, data);
@@ -393,12 +393,12 @@ void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
 
 		if (dm_odm->BbSwingIdxOfdm <= dm_odm->BbSwingIdxOfdmBase) {
 			*direction = 1;
-			pwr_value = (dm_odm->BbSwingIdxOfdmBase -
-				     dm_odm->BbSwingIdxOfdm);
+			pwr_value = dm_odm->BbSwingIdxOfdmBase -
+				     dm_odm->BbSwingIdxOfdm;
 		} else {
 			*direction = 2;
-			pwr_value = (dm_odm->BbSwingIdxOfdm -
-				     dm_odm->BbSwingIdxOfdmBase);
+			pwr_value = dm_odm->BbSwingIdxOfdm -
+				     dm_odm->BbSwingIdxOfdmBase;
 		}
 
 	} else if (type == 1) { /* For CCK adjust. */
@@ -408,12 +408,12 @@ void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
 
 		if (dm_odm->BbSwingIdxCck <= dm_odm->BbSwingIdxCckBase) {
 			*direction = 1;
-			pwr_value = (dm_odm->BbSwingIdxCckBase -
-				     dm_odm->BbSwingIdxCck);
+			pwr_value = dm_odm->BbSwingIdxCckBase -
+				     dm_odm->BbSwingIdxCck;
 		} else {
 			*direction = 2;
-			pwr_value = (dm_odm->BbSwingIdxCck -
-				     dm_odm->BbSwingIdxCckBase);
+			pwr_value = dm_odm->BbSwingIdxCck -
+				     dm_odm->BbSwingIdxCckBase;
 		}
 
 	}

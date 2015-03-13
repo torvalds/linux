@@ -462,14 +462,14 @@ void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
 	for (j = 5; j >= 0; j--) {
 		switch (j) {
 		case 0:
-			val = (ctrl | (mac[0] << 16) | (mac[1] << 24));
+			val = ctrl | (mac[0] << 16) | (mac[1] << 24);
 			break;
 		case 1:
-			val = (mac[2] | (mac[3] << 8) | (mac[4] << 16) | (mac[5] << 24));
+			val = mac[2] | (mac[3] << 8) | (mac[4] << 16) | (mac[5] << 24);
 			break;
 		default:
 			i = (j - 2) << 2;
-			val = (key[i] | (key[i+1] << 8) | (key[i+2] << 16) | (key[i+3] << 24));
+			val = key[i] | (key[i+1] << 8) | (key[i+2] << 16) | (key[i+3] << 24);
 			break;
 		}
 
@@ -564,7 +564,7 @@ void WMMOnAssocRsp(struct adapter *padapter)
 		/* AIFS = AIFSN * slot time + SIFS - r2t phy delay */
 		AIFS = (pmlmeinfo->WMM_param.ac_param[i].ACI_AIFSN & 0x0f) * pmlmeinfo->slotTime + aSifsTime;
 
-		ECWMin = (pmlmeinfo->WMM_param.ac_param[i].CW & 0x0f);
+		ECWMin = pmlmeinfo->WMM_param.ac_param[i].CW & 0x0f;
 		ECWMax = (pmlmeinfo->WMM_param.ac_param[i].CW & 0xf0) >> 4;
 		TXOP = le16_to_cpu(pmlmeinfo->WMM_param.ac_param[i].TXOP_limit);
 
@@ -741,14 +741,14 @@ void HT_caps_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 		} else {
 			/* modify from  fw by Thomas 2010/11/17 */
 			if ((pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3) > (pIE->data[i] & 0x3))
-				max_AMPDU_len = (pIE->data[i] & 0x3);
+				max_AMPDU_len = pIE->data[i] & 0x3;
 			else
-				max_AMPDU_len = (pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3);
+				max_AMPDU_len = pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x3;
 
 			if ((pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c) > (pIE->data[i] & 0x1c))
-				min_MPDU_spacing = (pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c);
+				min_MPDU_spacing = pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para & 0x1c;
 			else
-				min_MPDU_spacing = (pIE->data[i] & 0x1c);
+				min_MPDU_spacing = pIE->data[i] & 0x1c;
 
 			pmlmeinfo->HT_caps.u.HT_cap_element.AMPDU_para = max_AMPDU_len | min_MPDU_spacing;
 		}
@@ -1256,7 +1256,7 @@ unsigned int update_MSC_rate(struct HT_caps_element *pHT_caps)
 {
 	unsigned int mask = 0;
 
-	mask = ((pHT_caps->u.HT_cap_element.MCS_rate[0] << 12) | (pHT_caps->u.HT_cap_element.MCS_rate[1] << 20));
+	mask = (pHT_caps->u.HT_cap_element.MCS_rate[0] << 12) | (pHT_caps->u.HT_cap_element.MCS_rate[1] << 20);
 
 	return mask;
 }

@@ -150,12 +150,12 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 				continue;
 			} else {
 				offset = ((rtemp8 & 0xF0) >> 1) | u1temp;
-				wren = (rtemp8 & 0x0F);
+				wren = rtemp8 & 0x0F;
 				eFuse_Addr++;
 			}
 		} else {
-			offset = ((rtemp8 >> 4) & 0x0f);
-			wren = (rtemp8 & 0x0f);
+			offset = (rtemp8 >> 4) & 0x0f;
+			wren = rtemp8 & 0x0f;
 		}
 
 		if (offset < EFUSE_MAX_SECTION_88E) {

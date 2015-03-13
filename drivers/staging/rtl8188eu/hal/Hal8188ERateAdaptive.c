@@ -619,7 +619,7 @@ u8 ODM_RA_GetDecisionRate_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 
 	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
 		return 0;
-	DecisionRate = (dm_odm->RAInfo[macid].DecisionRate);
+	DecisionRate = dm_odm->RAInfo[macid].DecisionRate;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 		(" macid =%d DecisionRate = 0x%x\n", macid, DecisionRate));
 	return DecisionRate;
@@ -631,7 +631,7 @@ u8 ODM_RA_GetHwPwrStatus_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 
 	if ((NULL == dm_odm) || (macid >= ASSOCIATE_ENTRY_NUM))
 		return 0;
-	PTStage = (dm_odm->RAInfo[macid].PTStage);
+	PTStage = dm_odm->RAInfo[macid].PTStage;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 		     ("macid =%d PTStage = 0x%x\n", macid, PTStage));
 	return PTStage;

@@ -1639,7 +1639,7 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 			break;
 		case RTW_WLAN_ACTION_ADDBA_RESP: /* ADDBA response */
 			status = get_unaligned_le16(&frame_body[3]);
-			tid = ((frame_body[5] >> 2) & 0x7);
+			tid = (frame_body[5] >> 2) & 0x7;
 			if (status == 0) {	/* successful */
 				DBG_88E("agg_enable for TID=%d\n", tid);
 				psta->htpriv.agg_enable_bitmap |= 1 << tid;
@@ -2491,7 +2491,7 @@ void issue_auth(struct adapter *padapter, struct sta_info *psta, unsigned short 
 
 		/* setting IV for auth seq #3 */
 		if ((pmlmeinfo->auth_seq == 3) && (pmlmeinfo->state & WIFI_FW_AUTH_STATE) && (use_shared_key == 1)) {
-			val32 = ((pmlmeinfo->iv++) | (pmlmeinfo->key_index << 30));
+			val32 = (pmlmeinfo->iv++) | (pmlmeinfo->key_index << 30);
 			le_tmp32 = cpu_to_le32(val32);
 			pframe = rtw_set_fixed_ie(pframe, 4, (unsigned char *)&le_tmp32, &(pattrib->pktlen));
 
@@ -3331,7 +3331,7 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 			} while (pmlmeinfo->dialogToken == 0);
 			pframe = rtw_set_fixed_ie(pframe, 1, &(pmlmeinfo->dialogToken), &(pattrib->pktlen));
 
-			BA_para_set = (0x1002 | ((status & 0xf) << 2)); /* immediate ack & 64 buffer size */
+			BA_para_set = 0x1002 | ((status & 0xf) << 2); /* immediate ack & 64 buffer size */
 			le_tmp = cpu_to_le16(BA_para_set);
 			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)(&(le_tmp)), &(pattrib->pktlen));
 
@@ -4247,7 +4247,7 @@ void report_survey_event(struct adapter *padapter,
 	if (pcmd_obj == NULL)
 		return;
 
-	cmdsz = (sizeof(struct survey_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct survey_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (pevtcmd == NULL) {
 		kfree(pcmd_obj);
@@ -4299,7 +4299,7 @@ void report_surveydone_event(struct adapter *padapter)
 	if (pcmd_obj == NULL)
 		return;
 
-	cmdsz = (sizeof(struct surveydone_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct surveydone_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_KERNEL);
 	if (pevtcmd == NULL) {
 		kfree(pcmd_obj);
@@ -4345,7 +4345,7 @@ void report_join_res(struct adapter *padapter, int res)
 	if (pcmd_obj == NULL)
 		return;
 
-	cmdsz = (sizeof(struct joinbss_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct joinbss_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_ATOMIC);
 	if (pevtcmd == NULL) {
 		kfree(pcmd_obj);
@@ -4398,7 +4398,7 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsi
 	if (pcmd_obj == NULL)
 		return;
 
-	cmdsz = (sizeof(struct stadel_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct stadel_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_KERNEL);
 	if (pevtcmd == NULL) {
 		kfree(pcmd_obj);
@@ -4428,7 +4428,7 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsi
 	if (psta)
 		mac_id = (int)psta->mac_id;
 	else
-		mac_id = (-1);
+		mac_id = -1;
 
 	pdel_sta_evt->mac_id = mac_id;
 
@@ -4453,7 +4453,7 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int 
 	if (pcmd_obj == NULL)
 		return;
 
-	cmdsz = (sizeof(struct stassoc_event) + sizeof(struct C2HEvent_Header));
+	cmdsz = sizeof(struct stassoc_event) + sizeof(struct C2HEvent_Header);
 	pevtcmd = kzalloc(cmdsz, GFP_KERNEL);
 	if (pevtcmd == NULL) {
 		kfree(pcmd_obj);
@@ -5356,7 +5356,7 @@ u8 set_stakey_hdl(struct adapter *padapter, u8 *pbuf)
 
 		psta = rtw_get_stainfo(pstapriv, pparm->addr);
 		if (psta) {
-			ctrl = (BIT(15) | ((pparm->algorithm) << 2));
+			ctrl = BIT(15) | ((pparm->algorithm) << 2);
 
 			DBG_88E("r871x_set_stakey_hdl(): enc_algorithm=%d\n", pparm->algorithm);
 
@@ -5365,7 +5365,7 @@ u8 set_stakey_hdl(struct adapter *padapter, u8 *pbuf)
 				return H2C_REJECTED;
 			}
 
-			cam_id = (psta->mac_id + 3);/* 0~3 for default key, cmd_id = macid + 3, macid = aid+1; */
+			cam_id = psta->mac_id + 3;/* 0~3 for default key, cmd_id = macid + 3, macid = aid+1; */
 
 			DBG_88E("Write CAM, mac_addr =%x:%x:%x:%x:%x:%x, cam_entry=%d\n", pparm->addr[0],
 				pparm->addr[1], pparm->addr[2], pparm->addr[3], pparm->addr[4],

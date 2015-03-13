@@ -2163,7 +2163,7 @@ void rtw_signal_stat_timer_hdl(unsigned long data)
 
 		/* update value of signal_strength, rssi, signal_qual */
 		if (check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == false) {
-			tmp_s = (avg_signal_strength+(_alpha-1)*recvpriv->signal_strength);
+			tmp_s = avg_signal_strength+(_alpha-1)*recvpriv->signal_strength;
 			if (tmp_s % _alpha)
 				tmp_s = tmp_s/_alpha + 1;
 			else
@@ -2171,7 +2171,7 @@ void rtw_signal_stat_timer_hdl(unsigned long data)
 			if (tmp_s > 100)
 				tmp_s = 100;
 
-			tmp_q = (avg_signal_qual+(_alpha-1)*recvpriv->signal_qual);
+			tmp_q = avg_signal_qual+(_alpha-1)*recvpriv->signal_qual;
 			if (tmp_q % _alpha)
 				tmp_q = tmp_q/_alpha + 1;
 			else
