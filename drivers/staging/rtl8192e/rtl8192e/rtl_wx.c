@@ -67,7 +67,7 @@ static int r8192_wx_set_rate(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -87,7 +87,7 @@ static int r8192_wx_set_rts(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -115,7 +115,7 @@ static int r8192_wx_set_power(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true) {
+	if (priv->bHwRadioOff) {
 		RT_TRACE(COMP_ERR, "%s():Hw is Radio Off, we can't set "
 			 "Power,return\n", __func__);
 		return 0;
@@ -145,7 +145,7 @@ static int r8192_wx_set_rawtx(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -308,7 +308,7 @@ static int r8192_wx_set_debugflag(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 c = *extra;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	printk(KERN_INFO "=====>%s(), *extra:%x, debugflag:%x\n", __func__,
@@ -329,7 +329,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	enum rt_rf_power_state rtState;
 	int ret;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 	rtState = priv->rtllib->eRFPowerState;
 	down(&priv->wx_sem);
@@ -470,7 +470,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			return 0;
 	}
 
-	if (priv->bHwRadioOff == true) {
+	if (priv->bHwRadioOff) {
 		printk(KERN_INFO "================>%s(): hwradio off\n",
 		       __func__);
 		return 0;
@@ -552,7 +552,7 @@ static int r8192_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	if (!priv->up)
 		return -ENETDOWN;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 
@@ -572,7 +572,7 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int ret;
 
-	if (priv->bHwRadioOff == true) {
+	if (priv->bHwRadioOff) {
 		printk(KERN_INFO "=========>%s():hw radio off,or Rf state is "
 		       "eRfOff, return\n", __func__);
 		return 0;
@@ -638,7 +638,7 @@ static int r8192_wx_set_freq(struct net_device *dev, struct iw_request_info *a,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -665,7 +665,7 @@ static int r8192_wx_set_frag(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	if (wrqu->frag.disabled)
@@ -704,7 +704,7 @@ static int r8192_wx_set_wap(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -754,7 +754,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 			     {0x00, 0x00, 0x00, 0x00, 0x00, 0x03} };
 	int i;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	if (!priv->up)
@@ -843,7 +843,7 @@ static int r8192_wx_set_scan_type(struct net_device *dev,
 	int *parms = (int *)p;
 	int mode = parms[0];
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	priv->rtllib->active_scan = mode;
@@ -861,7 +861,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int err = 0;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -944,7 +944,7 @@ static int r8192_wx_set_sens(struct net_device *dev,
 
 	short err = 0;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -971,7 +971,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1052,7 +1052,7 @@ static int r8192_wx_set_auth(struct net_device *dev,
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1070,7 +1070,7 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1087,7 +1087,7 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
