@@ -18,6 +18,7 @@
 #include <linux/debugfs.h>
 
 #include <net/ipv6.h>
+#include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 
