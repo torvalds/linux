@@ -16,7 +16,6 @@
 		ti,model = "cm-t35";
 
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 	};
 };
 
