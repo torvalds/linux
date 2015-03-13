@@ -1540,6 +1540,14 @@ static void intel_mid_set_termios(struct uart_port *p,
 
 	serial8250_do_set_termios(p, termios, old);
 }
+
+static void intel_mid_set_termios_38_4M(struct uart_port *p,
+					struct ktermios *termios,
+					struct ktermios *old)
+{
+	intel_mid_set_termios(p, termios, old, 38400000);
+}
+
 static void intel_mid_set_termios_50M(struct uart_port *p,
 				      struct ktermios *termios,
 				      struct ktermios *old)
@@ -1632,6 +1640,27 @@ static int pnw_serial_setup(struct serial_private *priv,
 	dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(PCI_SLOT(pdev->devfn), 3));
 
 	port->port.set_termios = intel_mid_set_termios_50M;
+
+	return intel_mid_serial_setup(priv, board, port, idx, index, dma_dev);
+}
+
+#define PCI_DEVICE_ID_INTEL_TNG_UART	0x1191
+
+static int tng_serial_setup(struct serial_private *priv,
+			    const struct pciserial_board *board,
+			    struct uart_8250_port *port, int idx)
+{
+	struct pci_dev *pdev = priv->dev;
+	struct pci_dev *dma_dev;
+	int index = PCI_FUNC(pdev->devfn);
+
+	/* Currently no support for HSU port0 */
+	if (index-- == 0)
+		return -ENODEV;
+
+	dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(5, 0));
+
+	port->port.set_termios = intel_mid_set_termios_38_4M;
 
 	return intel_mid_serial_setup(priv, board, port, idx, index, dma_dev);
 }
@@ -2111,6 +2140,13 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= pnw_serial_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_TNG_UART,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= tng_serial_setup,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
@@ -2990,6 +3026,7 @@ enum pci_board_num_t {
 	pbn_ce4100_1_115200,
 	pbn_byt,
 	pbn_pnw,
+	pbn_tng,
 	pbn_qrk,
 	pbn_omegapci,
 	pbn_NETMOS9900_2s_115200,
@@ -3760,6 +3797,11 @@ static struct pciserial_board pci_boards[] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,
 		.base_baud	= 115200,
+	},
+	[pbn_tng] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 1,
+		.base_baud	= 1843200,
 	},
 	[pbn_qrk] = {
 		.flags		= FL_BASE0,
@@ -5505,6 +5547,13 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PNW_UART3,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_pnw},
+
+	/*
+	 * Intel Tangier
+	 */
+	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_TNG_UART,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_tng},
 
 	/*
 	 * Intel Quark x1000
