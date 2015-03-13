@@ -2747,6 +2747,7 @@ static int igb_set_eee(struct net_device *netdev,
 }
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0) */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 static int igb_get_module_info(struct net_device *netdev,
 			       struct ethtool_modinfo *modinfo)
 {
@@ -2827,6 +2828,7 @@ static int igb_get_module_eeprom(struct net_device *netdev,
 
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 
 static int igb_ethtool_begin(struct net_device *netdev)
 {
@@ -3055,8 +3057,10 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_eee		= igb_get_eee,
 	.set_eee		= igb_set_eee,
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0) */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 	.get_module_info	= igb_get_module_info,
 	.get_module_eeprom	= igb_get_module_eeprom,
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 	.get_rxfh_indir_size	= igb_get_rxfh_indir_size,
 	.get_rxfh		= igb_get_rxfh,
 	.set_rxfh		= igb_set_rxfh,
