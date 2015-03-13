@@ -1276,6 +1276,9 @@ struct ieee80211_local {
 	u32 dot11TransmittedFrameCount;
 
 #ifdef CONFIG_MAC80211_LEDS
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0)
+	int tx_led_counter, rx_led_counter;
+#endif
 	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
 	struct tpt_led_trigger *tpt_led_trigger;
 	char tx_led_name[32], rx_led_name[32],
