@@ -1,0 +1,55 @@
+menuconfig IEEE802154_DRIVERS
+	tristate "IEEE 802.15.4 drivers"
+	depends on NETDEVICES && IEEE802154
+	default y
+	---help---
+	  Say Y here to get to see options for IEEE 802.15.4 Low-Rate
+	  Wireless Personal Area Network device drivers. This option alone
+	  does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled.
+
+config IEEE802154_FAKELB
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "IEEE 802.15.4 loopback driver"
+	---help---
+	  Say Y here to enable the fake driver that can emulate a net
+	  of several interconnected radio devices.
+
+	  This driver can also be built as a module. To do so say M here.
+	  The module will be called 'fakelb'.
+
+config IEEE802154_AT86RF230
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "AT86RF230/231/233/212 transceiver driver"
+	depends on SPI
+	select REGMAP_SPI
+	---help---
+	  Say Y here to enable the at86rf230/231/233/212 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'at86rf230'.
+
+config IEEE802154_MRF24J40
+	tristate "Microchip MRF24J40 transceiver driver"
+	depends on IEEE802154_DRIVERS && MAC802154
+	depends on SPI
+	---help---
+	  Say Y here to enable the MRF24J20 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'mrf24j40'.
+
+config IEEE802154_CC2520
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "CC2520 transceiver driver"
+	depends on SPI
+	---help---
+	  Say Y here to enable the CC2520 SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'cc2520'.

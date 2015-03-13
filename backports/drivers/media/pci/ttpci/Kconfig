@@ -1,0 +1,158 @@
+config DVB_AV7110_IR
+	bool
+
+config DVB_AV7110
+	tristate "AV7110 cards"
+	depends on DVB_CORE && PCI && I2C
+	select TTPCI_EEPROM
+	select VIDEO_SAA7146_VV
+	select DVB_AV7110_IR if INPUT_EVDEV=y || INPUT_EVDEV=DVB_AV7110
+	depends on VIDEO_DEV	# dependencies of VIDEO_SAA7146_VV
+	select DVB_VES1820 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_VES1X93 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA8083 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_SP8870 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0297 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_L64781 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Support for SAA7146 and AV7110 based DVB cards as produced
+	  by Fujitsu-Siemens, Technotrend, Hauppauge and others.
+
+	  This driver only supports the fullfeatured cards with
+	  onboard MPEG2 decoder.
+
+	  This driver needs an external firmware. Please use the script
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware av7110" to
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
+
+	  Alternatively, you can download the file and use the kernel's
+	  EXTRA_FIRMWARE configuration option to build it into your
+	  kernel image by adding the filename to the EXTRA_FIRMWARE
+	  configuration option string.
+
+	  Say Y if you own such a card and want to use it.
+
+config DVB_AV7110_OSD
+	bool "AV7110 OSD support"
+	depends on DVB_AV7110
+	default y if DVB_AV7110=y || DVB_AV7110=m
+	help
+	  The AV7110 firmware provides some code to generate an OnScreenDisplay
+	  on the video output. This is kind of nonstandard and not guaranteed to
+	  be maintained.
+
+	  Anyway, some popular DVB software like VDR uses this OSD to render
+	  its menus, so say Y if you want to use this software.
+
+	  All other people say N.
+
+config DVB_BUDGET_CORE
+	tristate "SAA7146 DVB cards (aka Budget, Nova-PCI)"
+	depends on DVB_CORE && PCI && I2C
+	select VIDEO_SAA7146
+	select TTPCI_EEPROM
+	help
+	  Support for simple SAA7146 based DVB cards
+	  (so called Budget- or Nova-PCI cards) without onboard
+	  MPEG2 decoder.
+
+config DVB_BUDGET
+	tristate "Budget cards"
+	depends on DVB_BUDGET_CORE && I2C
+	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_VES1X93 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_VES1820 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_L64781 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA8083 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_S5H1420 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10086 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA826X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA1004X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_ISL6423 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV090x if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV6110x if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Support for simple SAA7146 based DVB cards (so called Budget-
+	  or Nova-PCI cards) without onboard MPEG2 decoder, and without
+	  analog inputs or an onboard Common Interface connector.
+
+	  Say Y if you own such a card and want to use it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called budget.
+
+config DVB_BUDGET_CI
+	tristate "Budget cards with onboard CI connector"
+	depends on DVB_BUDGET_CORE && I2C
+	select DVB_STV0297 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA1004X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STB0899 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STB6100 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LNBP21 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0288 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STB6000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10023 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_TDA827X if MEDIA_SUBDRV_AUTOSELECT
+	depends on RC_CORE
+	help
+	  Support for simple SAA7146 based DVB cards
+	  (so called Budget- or Nova-PCI cards) without onboard
+	  MPEG2 decoder, but with onboard Common Interface connector.
+
+	  Note: The Common Interface is not yet supported by this driver
+	  due to lack of information from the vendor.
+
+	  Say Y if you own such a card and want to use it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called budget-ci.
+
+config DVB_BUDGET_AV
+	tristate "Budget cards with analog video inputs"
+	depends on DVB_BUDGET_CORE && I2C
+	select VIDEO_SAA7146_VV
+	depends on VIDEO_DEV	# dependencies of VIDEO_SAA7146_VV
+	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA1004X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10021 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA10023 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STB0899 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA8261 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TUA6100 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Support for simple SAA7146 based DVB cards
+	  (so called Budget- or Nova-PCI cards) without onboard
+	  MPEG2 decoder, but with one or more analog video inputs.
+
+	  Say Y if you own such a card and want to use it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called budget-av.
+
+config DVB_BUDGET_PATCH
+	tristate "AV7110 cards with Budget Patch"
+	depends on DVB_BUDGET_CORE && I2C
+	depends on DVB_AV7110
+	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_VES1X93 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TDA8083 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Support for Budget Patch (full TS) modification on
+	  SAA7146+AV7110 based cards (DVB-S cards). This
+	  driver doesn't use onboard MPEG2 decoder. The
+	  card is driven in Budget-only mode. Card is
+	  required to have loaded firmware to tune properly.
+	  Firmware can be loaded by insertion and removal of
+	  standard AV7110 driver prior to loading this
+	  driver.
+
+	  Say Y if you own such a card and want to use it.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called budget-patch.

@@ -1,0 +1,98 @@
+#
+# Generic video config states
+#
+
+# Enable the V4L2 core and API
+config VIDEO_V4L2
+	tristate
+	depends on (I2C || I2C=n) && VIDEO_DEV
+	default (I2C || I2C=n) && VIDEO_DEV
+
+config VIDEO_ADV_DEBUG
+	bool "Enable advanced debug functionality on V4L2 drivers"
+	default n
+	---help---
+	  Say Y here to enable advanced debugging functionality on some
+	  V4L devices.
+	  In doubt, say N.
+
+config VIDEO_FIXED_MINOR_RANGES
+	bool "Enable old-style fixed minor ranges on drivers/video devices"
+	default n
+	---help---
+	  Say Y here to enable the old-style fixed-range minor assignments.
+	  Only useful if you rely on the old behavior and use mknod instead of udev.
+
+	  When in doubt, say N.
+
+config VIDEO_PCI_SKELETON
+	tristate "Skeleton PCI V4L2 driver"
+	depends on PCI && BUILD_DOCSRC
+	depends on VIDEO_V4L2 && VIDEOBUF2_CORE
+	depends on VIDEOBUF2_MEMOPS && VIDEOBUF2_DMA_CONTIG
+	---help---
+	  Enable build of the skeleton PCI driver, used as a reference
+	  when developing new drivers.
+
+# Used by drivers that need tuner.ko
+config VIDEO_TUNER
+	tristate
+	depends on MEDIA_TUNER
+
+# Used by drivers that need v4l2-mem2mem.ko
+config V4L2_MEM2MEM_DEV
+        tristate
+        depends on VIDEOBUF2_CORE
+
+# Used by drivers that need Videobuf modules
+config VIDEOBUF_GEN
+	tristate
+
+config VIDEOBUF_DMA_SG
+	tristate
+	depends on HAS_DMA
+	select VIDEOBUF_GEN
+
+config VIDEOBUF_VMALLOC
+	tristate
+	select VIDEOBUF_GEN
+
+config VIDEOBUF_DMA_CONTIG
+	tristate
+	depends on HAS_DMA
+	select VIDEOBUF_GEN
+
+config VIDEOBUF_DVB
+	tristate
+	select VIDEOBUF_GEN
+
+# Used by drivers that need Videobuf2 modules
+config VIDEOBUF2_CORE
+	select DMA_SHARED_BUFFER
+	tristate
+
+config VIDEOBUF2_MEMOPS
+	tristate
+
+config VIDEOBUF2_DMA_CONTIG
+	tristate
+	depends on HAS_DMA
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	select DMA_SHARED_BUFFER
+
+config VIDEOBUF2_VMALLOC
+	tristate
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	select DMA_SHARED_BUFFER
+
+config VIDEOBUF2_DMA_SG
+	tristate
+	#depends on HAS_DMA
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+
+config VIDEOBUF2_DVB
+	tristate
+	select VIDEOBUF2_CORE

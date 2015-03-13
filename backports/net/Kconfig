@@ -1,0 +1,379 @@
+#
+# Network configuration
+#
+
+menuconfig NET
+	bool "Networking support"
+	select NLATTR
+	select GENERIC_NET_UTILS
+	select BPF
+	---help---
+	  Unless you really know what you are doing, you should say Y here.
+	  The reason is that some programs need kernel networking support even
+	  when running on a stand-alone machine that isn't connected to any
+	  other computer.
+	  
+	  If you are upgrading from an older kernel, you
+	  should consider updating your networking tools too because changes
+	  in the kernel and the tools often go hand in hand. The tools are
+	  contained in the package net-tools, the location and version number
+	  of which are given in <file:Documentation/Changes>.
+
+	  For a general introduction to Linux networking, it is highly
+	  recommended to read the NET-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+if NET
+
+config WANT_COMPAT_NETLINK_MESSAGES
+	bool
+	help
+	  This option can be selected by other options that need compat
+	  netlink messages.
+
+config COMPAT_NETLINK_MESSAGES
+	def_bool y
+	depends on COMPAT
+	depends on WEXT_CORE || WANT_COMPAT_NETLINK_MESSAGES
+	help
+	  This option makes it possible to send different netlink messages
+	  to tasks depending on whether the task is a compat task or not. To
+	  achieve this, you need to set skb_shinfo(skb)->frag_list to the
+	  compat skb before sending the skb, the netlink code will sort out
+	  which message to actually pass to the task.
+
+	  Newly written code should NEVER need this option but do
+	  compat-independent messages instead!
+
+menu "Networking options"
+
+source "net/packet/Kconfig"
+source "net/unix/Kconfig"
+source "net/xfrm/Kconfig"
+source "net/iucv/Kconfig"
+
+config INET
+	bool "TCP/IP networking"
+	select CRYPTO
+	select CRYPTO_AES
+	---help---
+	  These are the protocols used on the Internet and on most local
+	  Ethernets. It is highly recommended to say Y here (this will enlarge
+	  your kernel by about 400 KB), since some programs (e.g. the X window
+	  system) use TCP/IP even if your machine is not connected to any
+	  other computer. You will get the so-called loopback device which
+	  allows you to ping yourself (great fun, that!).
+
+	  For an excellent introduction to Linux networking, please read the
+	  Linux Networking HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  If you say Y here and also to "/proc file system support" and
+	  "Sysctl support" below, you can change various aspects of the
+	  behavior of the TCP/IP code by writing to the (virtual) files in
+	  /proc/sys/net/ipv4/*; the options are explained in the file
+	  <file:Documentation/networking/ip-sysctl.txt>.
+
+	  Short answer: say Y.
+
+if INET
+source "net/ipv4/Kconfig"
+source "net/ipv6/Kconfig"
+source "net/netlabel/Kconfig"
+
+endif # if INET
+
+config NETWORK_SECMARK
+	bool "Security Marking"
+	help
+	  This enables security marking of network packets, similar
+	  to nfmark, but designated for security purposes.
+	  If you are unsure how to answer this question, answer N.
+
+config NET_PTP_CLASSIFY
+	def_bool n
+
+config NETWORK_PHY_TIMESTAMPING
+	bool "Timestamping in PHY devices"
+	select NET_PTP_CLASSIFY
+	help
+	  This allows timestamping of network packets by PHYs with
+	  hardware timestamping capabilities. This option adds some
+	  overhead in the transmit and receive paths.
+
+	  If you are unsure how to answer this question, answer N.
+
+menuconfig NETFILTER
+	bool "Network packet filtering framework (Netfilter)"
+	---help---
+	  Netfilter is a framework for filtering and mangling network packets
+	  that pass through your Linux box.
+
+	  The most common use of packet filtering is to run your Linux box as
+	  a firewall protecting a local network from the Internet. The type of
+	  firewall provided by this kernel support is called a "packet
+	  filter", which means that it can reject individual network packets
+	  based on type, source, destination etc. The other kind of firewall,
+	  a "proxy-based" one, is more secure but more intrusive and more
+	  bothersome to set up; it inspects the network traffic much more
+	  closely, modifies it and has knowledge about the higher level
+	  protocols, which a packet filter lacks. Moreover, proxy-based
+	  firewalls often require changes to the programs running on the local
+	  clients. Proxy-based firewalls don't need support by the kernel, but
+	  they are often combined with a packet filter, which only works if
+	  you say Y here.
+
+	  You should also say Y here if you intend to use your Linux box as
+	  the gateway to the Internet for a local network of machines without
+	  globally valid IP addresses. This is called "masquerading": if one
+	  of the computers on your local network wants to send something to
+	  the outside, your box can "masquerade" as that computer, i.e. it
+	  forwards the traffic to the intended outside destination, but
+	  modifies the packets to make it look like they came from the
+	  firewall box itself. It works both ways: if the outside host
+	  replies, the Linux box will silently forward the traffic to the
+	  correct local computer. This way, the computers on your local net
+	  are completely invisible to the outside world, even though they can
+	  reach the outside and can receive replies. It is even possible to
+	  run globally visible servers from within a masqueraded local network
+	  using a mechanism called portforwarding. Masquerading is also often
+	  called NAT (Network Address Translation).
+
+	  Another use of Netfilter is in transparent proxying: if a machine on
+	  the local network tries to connect to an outside host, your Linux
+	  box can transparently forward the traffic to a local server,
+	  typically a caching proxy server.
+
+	  Yet another use of Netfilter is building a bridging firewall. Using
+	  a bridge with Network packet filtering enabled makes iptables "see"
+	  the bridged traffic. For filtering on the lower network and Ethernet
+	  protocols over the bridge, use ebtables (under bridge netfilter
+	  configuration).
+
+	  Various modules exist for netfilter which replace the previous
+	  masquerading (ipmasqadm), packet filtering (ipchains), transparent
+	  proxying, and portforwarding mechanisms. Please see
+	  <file:Documentation/Changes> under "iptables" for the location of
+	  these packages.
+
+if NETFILTER
+
+config NETFILTER_DEBUG
+	bool "Network packet filtering debugging"
+	depends on NETFILTER
+	help
+	  You can say Y here if you want to get additional messages useful in
+	  debugging the netfilter code.
+
+config NETFILTER_ADVANCED
+	bool "Advanced netfilter configuration"
+	depends on NETFILTER
+	default y
+	help
+	  If you say Y here you can select between all the netfilter modules.
+	  If you say N the more unusual ones will not be shown and the
+	  basic ones needed by most people will default to 'M'.
+
+	  If unsure, say Y.
+
+config BRIDGE_NETFILTER
+	tristate "Bridged IP/ARP packets filtering"
+	depends on BRIDGE
+	depends on NETFILTER && INET
+	depends on NETFILTER_ADVANCED
+	default m
+	---help---
+	  Enabling this option will let arptables resp. iptables see bridged
+	  ARP resp. IP traffic. If you want a bridging firewall, you probably
+	  want this option enabled.
+	  Enabling or disabling this option doesn't enable or disable
+	  ebtables.
+
+	  If unsure, say N.
+
+source "net/netfilter/Kconfig"
+source "net/ipv4/netfilter/Kconfig"
+source "net/ipv6/netfilter/Kconfig"
+source "net/decnet/netfilter/Kconfig"
+source "net/bridge/netfilter/Kconfig"
+
+endif
+
+source "net/dccp/Kconfig"
+source "net/sctp/Kconfig"
+source "net/rds/Kconfig"
+source "net/tipc/Kconfig"
+source "net/atm/Kconfig"
+source "net/l2tp/Kconfig"
+source "net/802/Kconfig"
+source "net/bridge/Kconfig"
+source "net/dsa/Kconfig"
+source "net/8021q/Kconfig"
+source "net/decnet/Kconfig"
+source "net/llc/Kconfig"
+source "net/ipx/Kconfig"
+source "drivers/net/appletalk/Kconfig"
+source "net/x25/Kconfig"
+source "net/lapb/Kconfig"
+source "net/phonet/Kconfig"
+source "net/6lowpan/Kconfig"
+source "net/ieee802154/Kconfig"
+source "net/mac802154/Kconfig"
+source "net/sched/Kconfig"
+source "net/dcb/Kconfig"
+source "net/dns_resolver/Kconfig"
+source "net/batman-adv/Kconfig"
+source "net/openvswitch/Kconfig"
+source "net/vmw_vsock/Kconfig"
+source "net/netlink/Kconfig"
+source "net/mpls/Kconfig"
+source "net/hsr/Kconfig"
+source "net/switchdev/Kconfig"
+
+config RPS
+	bool
+	depends on SMP && SYSFS
+	default y
+
+config RFS_ACCEL
+	bool
+	depends on RPS
+	select CPU_RMAP
+	default y
+
+config XPS
+	bool
+	depends on SMP
+	default y
+
+config CGROUP_NET_PRIO
+	bool "Network priority cgroup"
+	depends on CGROUPS
+	---help---
+	  Cgroup subsystem for use in assigning processes to network priorities on
+	  a per-interface basis.
+
+config CGROUP_NET_CLASSID
+	bool "Network classid cgroup"
+	depends on CGROUPS
+	---help---
+	  Cgroup subsystem for use as general purpose socket classid marker that is
+	  being used in cls_cgroup and for netfilter matching.
+
+config NET_RX_BUSY_POLL
+	bool
+	default y
+
+config BQL
+	bool
+	depends on SYSFS
+	select DQL
+	default y
+
+config BPF_JIT
+	bool "enable BPF Just In Time compiler"
+	depends on HAVE_BPF_JIT
+	depends on MODULES
+	---help---
+	  Berkeley Packet Filter filtering capabilities are normally handled
+	  by an interpreter. This option allows kernel to generate a native
+	  code when filter is loaded in memory. This should speedup
+	  packet sniffing (libpcap/tcpdump). Note : Admin should enable
+	  this feature changing /proc/sys/net/core/bpf_jit_enable
+
+config NET_FLOW_LIMIT
+	bool
+	depends on RPS
+	default y
+	---help---
+	  The network stack has to drop packets when a receive processing CPU's
+	  backlog reaches netdev_max_backlog. If a few out of many active flows
+	  generate the vast majority of load, drop their traffic earlier to
+	  maintain capacity for the other flows. This feature provides servers
+	  with many clients some protection against DoS by a single (spoofed)
+	  flow that greatly exceeds average workload.
+
+menu "Network testing"
+
+config NET_PKTGEN
+	tristate "Packet Generator (USE WITH CAUTION)"
+	depends on INET && PROC_FS
+	---help---
+	  This module will inject preconfigured packets, at a configurable
+	  rate, out of a given interface.  It is used for network interface
+	  stress testing and performance analysis.  If you don't understand
+	  what was just said, you don't need it: say N.
+
+	  Documentation on how to use the packet generator can be found
+	  at <file:Documentation/networking/pktgen.txt>.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called pktgen.
+
+config NET_TCPPROBE
+	tristate "TCP connection probing"
+	depends on INET && PROC_FS && KPROBES
+	---help---
+	This module allows for capturing the changes to TCP connection
+	state in response to incoming packets. It is used for debugging
+	TCP congestion avoidance modules. If you don't understand
+	what was just said, you don't need it: say N.
+
+	Documentation on how to use TCP connection probing can be found
+	at:
+	
+	  http://www.linuxfoundation.org/collaborate/workgroups/networking/tcpprobe
+
+	To compile this code as a module, choose M here: the
+	module will be called tcp_probe.
+
+config NET_DROP_MONITOR
+	tristate "Network packet drop alerting service"
+	depends on INET && TRACEPOINTS
+	---help---
+	This feature provides an alerting service to userspace in the
+	event that packets are discarded in the network stack.  Alerts
+	are broadcast via netlink socket to any listening user space
+	process.  If you don't need network drop alerts, or if you are ok
+	just checking the various proc files and other utilities for
+	drop statistics, say N here.
+
+endmenu
+
+endmenu
+
+source "net/ax25/Kconfig"
+source "net/can/Kconfig"
+source "net/irda/Kconfig"
+source "net/bluetooth/Kconfig"
+source "net/rxrpc/Kconfig"
+
+config FIB_RULES
+	bool
+
+menuconfig WIRELESS
+	bool "Wireless"
+	depends on !S390
+	default y
+
+if WIRELESS
+
+source "net/wireless/Kconfig"
+source "net/mac80211/Kconfig"
+
+endif # WIRELESS
+
+source "net/wimax/Kconfig"
+
+source "net/rfkill/Kconfig"
+source "net/9p/Kconfig"
+source "net/caif/Kconfig"
+source "net/ceph/Kconfig"
+source "net/nfc/Kconfig"
+
+
+endif   # if NET
+
+# Used by archs to tell that they support BPF_JIT
+config HAVE_BPF_JIT
+	bool

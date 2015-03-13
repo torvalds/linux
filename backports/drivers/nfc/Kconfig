@@ -1,0 +1,76 @@
+#
+# Near Field Communication (NFC) devices
+#
+
+menu "Near Field Communication (NFC) devices"
+	depends on NFC
+
+config NFC_PN533
+	tristate "NXP PN533 USB driver"
+	depends on USB
+	help
+	  NXP PN533 USB driver.
+	  This driver provides support for NFC NXP PN533 devices.
+
+	  Say Y here to compile support for PN533 devices into the
+	  kernel or say M to compile it as module (pn533).
+
+config NFC_WILINK
+	tristate "Texas Instruments NFC WiLink driver"
+	depends on TI_ST && NFC_NCI
+	help
+	  This enables the NFC driver for Texas Instrument's BT/FM/GPS/NFC
+	  combo devices. This makes use of shared transport line discipline
+	  core driver to communicate with the NFC core of the combo chip.
+
+	  Say Y here to compile support for Texas Instrument's NFC WiLink driver
+	  into the kernel or say M to compile it as module.
+
+config NFC_TRF7970A
+	tristate "Texas Instruments TRF7970a NFC driver"
+	depends on SPI && NFC_DIGITAL
+	help
+	  This option enables the NFC driver for Texas Instruments' TRF7970a
+	  device. Such device supports 5 different protocols: ISO14443A,
+	  ISO14443B, FeLiCa, ISO15693 and ISO18000-3.
+
+	  Say Y here to compile support for TRF7970a into the kernel or
+	  say M  to compile it as a module. The module will be called
+	  trf7970a.ko.
+
+config NFC_MEI_PHY
+	tristate "MEI bus NFC device support"
+	depends on INTEL_MEI && NFC_HCI
+	help
+	  This adds support to use an mei bus nfc device. Select this if you
+	  will use an HCI NFC driver for an NFC chip connected behind an
+	  Intel's Management Engine chip.
+
+	  If unsure, say N.
+
+config NFC_SIM
+	tristate "NFC hardware simulator driver"
+	help
+	  This driver declares two virtual NFC devices supporting NFC-DEP
+	  protocol. An LLCP connection can be established between them and
+	  all packets sent from one device is sent back to the other, acting as
+	  loopback devices.
+
+	  If unsure, say N.
+
+config NFC_PORT100
+	tristate "Sony NFC Port-100 Series USB device support"
+	depends on USB
+	depends on NFC_DIGITAL
+	help
+	  This adds support for Sony Port-100 chip based USB devices such as the
+	  RC-S380 dongle.
+
+	  If unsure, say N.
+
+source "drivers/nfc/pn544/Kconfig"
+source "drivers/nfc/microread/Kconfig"
+source "drivers/nfc/nfcmrvl/Kconfig"
+source "drivers/nfc/st21nfca/Kconfig"
+source "drivers/nfc/st21nfcb/Kconfig"
+endmenu

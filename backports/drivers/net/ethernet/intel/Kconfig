@@ -1,0 +1,345 @@
+#
+# Intel network device configuration
+#
+
+config NET_VENDOR_INTEL
+	bool "Intel devices"
+	default y
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Intel cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_INTEL
+
+config E100
+	tristate "Intel(R) PRO/100+ support"
+	depends on PCI
+	select MII
+	---help---
+	  This driver supports Intel(R) PRO/100 family of adapters.
+	  To verify that your adapter is supported, find the board ID number
+	  on the adapter. Look for a label that has a barcode and a number
+	  in the format 123456-001 (six digits hyphen three digits).
+
+	  Use the above information and the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  to identify the adapter.
+
+	  For the latest Intel PRO/100 network driver for Linux, see:
+
+	  <http://www.intel.com/p/en_US/support/highlights/network/pro100plus>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/e100.txt>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called e100.
+
+config E1000
+	tristate "Intel(R) PRO/1000 Gigabit Ethernet support"
+	depends on PCI
+	---help---
+	  This driver supports Intel(R) PRO/1000 gigabit ethernet family of
+	  adapters.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/e1000.txt>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called e1000.
+
+config E1000E
+	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
+	depends on PCI && (!SPARC32 || BROKEN)
+	select CRC32
+	select PTP_1588_CLOCK
+	---help---
+	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
+	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
+	  use the regular e1000 driver For more information on how to
+	  identify your adapter, go to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called e1000e.
+
+config IGB
+	tristate "Intel(R) 82575/82576 PCI-Express Gigabit Ethernet support"
+	depends on PCI
+	select PTP_1588_CLOCK
+	select I2C
+	select I2C_ALGOBIT
+	---help---
+	  This driver supports Intel(R) 82575/82576 gigabit ethernet family of
+	  adapters.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/e1000.txt>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called igb.
+
+config IGB_HWMON
+	bool "Intel(R) PCI-Express Gigabit adapters HWMON support"
+	default y
+	depends on IGB && HWMON && !(IGB=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose thermal sensor data on Intel devices.
+
+	  Some of our devices contain thermal sensors, both external and internal.
+	  This data is available via the hwmon sysfs interface and exposes
+	  the onboard sensors.
+
+config IGB_DCA
+	bool "Direct Cache Access (DCA) Support"
+	default y
+	depends on IGB && DCA && !(IGB=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
+
+config IGBVF
+	tristate "Intel(R) 82576 Virtual Function Ethernet support"
+	depends on PCI
+	---help---
+	  This driver supports Intel(R) 82576 virtual functions.  For more
+	  information on how to identify your adapter, go to the Adapter &
+	  Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/e1000.txt>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called igbvf.
+
+config IXGB
+	tristate "Intel(R) PRO/10GbE support"
+	depends on PCI
+	---help---
+	  This driver supports Intel(R) PRO/10GbE family of adapters for
+	  PCI-X type cards. For PCI-E type cards, use the "ixgbe" driver
+	  instead. For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/ixgb.txt>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ixgb.
+
+config IXGBE
+	tristate "Intel(R) 10GbE PCI Express adapters support"
+	depends on PCI
+	select MDIO
+	select PTP_1588_CLOCK
+	---help---
+	  This driver supports Intel(R) 10GbE PCI Express family of
+	  adapters.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ixgbe.
+
+config IXGBE_HWMON
+	bool "Intel(R) 10GbE PCI Express adapters HWMON support"
+	default y
+	depends on IXGBE && HWMON && !(IXGBE=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor data on some of
+	  our cards, via a hwmon sysfs interface.
+
+config IXGBE_DCA
+	bool "Direct Cache Access (DCA) Support"
+	default y
+	depends on IXGBE && DCA && !(IXGBE=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
+
+config IXGBE_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default n
+	depends on IXGBE && DCB
+	---help---
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver.
+
+	  If unsure, say N.
+
+config IXGBEVF
+	tristate "Intel(R) 10GbE PCI Express Virtual Function Ethernet support"
+	depends on PCI_MSI
+	---help---
+	  This driver supports Intel(R) PCI Express virtual functions for the
+	  Intel(R) ixgbe driver.  For more information on how to identify your
+	  adapter, go to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/sb/CS-008441.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/ixgbevf.txt>.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ixgbevf.  MSI-X interrupt support is required
+	  for this driver to work correctly.
+
+config I40E
+	tristate "Intel(R) Ethernet Controller XL710 Family support"
+	select PTP_1588_CLOCK
+	depends on PCI
+	---help---
+	  This driver supports Intel(R) Ethernet Controller XL710 Family of
+	  devices.  For more information on how to identify your adapter, go
+	  to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called i40e.
+
+config I40E_VXLAN
+	bool "Virtual eXtensible Local Area Network Support"
+	default n
+	depends on I40E && VXLAN && !(I40E=y && VXLAN=m)
+	---help---
+	  This allows one to create VXLAN virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  Say Y here if you want to use Virtual eXtensible Local Area Network
+	  (VXLAN) in the driver.
+
+config I40E_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default n
+	depends on I40E && DCB
+	---help---
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver.
+
+	  If unsure, say N.
+
+config I40E_FCOE
+	bool "Fibre Channel over Ethernet (FCoE)"
+	default n
+	depends on I40E && DCB && FCOE
+	---help---
+	  Say Y here if you want to use Fibre Channel over Ethernet (FCoE)
+	  in the driver. This will create new netdev for exclusive FCoE
+	  use with XL710 FCoE offloads enabled.
+
+	  If unsure, say N.
+
+config I40EVF
+	tristate "Intel(R) XL710 X710 Virtual Function Ethernet support"
+	depends on PCI_MSI
+	---help---
+	  This driver supports Intel(R) XL710 and X710 virtual functions.
+	  For more information on how to identify your adapter, go to the
+	  Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/sb/CS-008441.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called i40evf.  MSI-X interrupt support is required
+	  for this driver to work correctly.
+
+config FM10K
+	tristate "Intel(R) FM10000 Ethernet Switch Host Interface Support"
+	default n
+	depends on PCI_MSI
+	select PTP_1588_CLOCK
+	---help---
+	  This driver supports Intel(R) FM10000 Ethernet Switch Host
+	  Interface.  For more information on how to identify your adapter,
+	  go to the Adapter & Driver ID Guide at:
+
+	  <http://support.intel.com/support/network/sb/CS-008441.htm>
+
+	  For general information and support, go to the Intel support
+	  website at:
+
+	  <http://support.intel.com>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called fm10k.  MSI-X interrupt support is required
+
+config FM10K_VXLAN
+	bool "Virtual eXtensible Local Area Network Support"
+	default n
+	depends on FM10K && VXLAN && !(FM10K=y && VXLAN=m)
+	---help---
+	  This allows one to create VXLAN virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  Say Y here if you want to use Virtual eXtensible Local Area Network
+	  (VXLAN) in the driver.
+
+endif # NET_VENDOR_INTEL

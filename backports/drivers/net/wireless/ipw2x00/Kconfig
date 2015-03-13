@@ -1,0 +1,198 @@
+#
+# Intel Centrino wireless drivers
+#
+
+config IPW2100
+	tristate "Intel PRO/Wireless 2100 Network Connection"
+	depends on PCI && CFG80211
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+	select FW_LOADER
+	select LIB80211
+	select LIBIPW
+	---help---
+          A driver for the Intel PRO/Wireless 2100 Network 
+	  Connection 802.11b wireless network adapter.
+
+          See <file:Documentation/networking/README.ipw2100> for information on
+          the capabilities currently enabled in this driver and for tips
+          for debugging issues and problems.
+
+	  In order to use this driver, you will need a firmware image for it.
+          You can obtain the firmware from
+	  <http://ipw2100.sf.net/>.  Once you have the firmware image, you 
+	  will need to place it in /lib/firmware.
+
+          You will also very likely need the Wireless Tools in order to
+          configure your card:
+
+          <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+
+          It is recommended that you compile this driver as a module (M)
+          rather than built-in (Y). This driver requires firmware at device
+          initialization time, and when built-in this typically happens
+          before the filesystem is accessible (hence firmware will be
+          unavailable and initialization will fail). If you do choose to build
+          this driver into your kernel image, you can avoid this problem by
+          including the firmware and a firmware loader in an initramfs.
+ 
+config IPW2100_MONITOR
+        bool "Enable promiscuous mode"
+        depends on IPW2100
+        ---help---
+	  Enables promiscuous/monitor mode support for the ipw2100 driver.
+	  With this feature compiled into the driver, you can switch to 
+	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
+	  mode, no packets can be sent.
+
+config IPW2100_DEBUG
+	bool "Enable full debugging output in IPW2100 module."
+	depends on IPW2100
+	---help---
+	  This option will enable debug tracing output for the IPW2100.  
+
+	  This will result in the kernel module being ~60k larger.  You can 
+	  control which debug output is sent to the kernel log by setting the 
+	  value in 
+
+	  /sys/bus/pci/drivers/ipw2100/debug_level
+
+	  This entry will only exist if this option is enabled.
+
+	  If you are not trying to debug or develop the IPW2100 driver, you 
+	  most likely want to say N here.
+
+config IPW2200
+	tristate "Intel PRO/Wireless 2200BG and 2915ABG Network Connection"
+	depends on PCI && CFG80211
+	select CFG80211_WEXT
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select WEXT_PRIV
+	select FW_LOADER
+	select LIB80211
+	select LIBIPW
+	---help---
+          A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
+	  Connection adapters. 
+
+          See <file:Documentation/networking/README.ipw2200> for 
+	  information on the capabilities currently enabled in this 
+	  driver and for tips for debugging issues and problems.
+
+	  In order to use this driver, you will need a firmware image for it.
+          You can obtain the firmware from
+	  <http://ipw2200.sf.net/>.  See the above referenced README.ipw2200 
+	  for information on where to install the firmware images.
+
+          You will also very likely need the Wireless Tools in order to
+          configure your card:
+
+          <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.
+
+          It is recommended that you compile this driver as a module (M)
+          rather than built-in (Y). This driver requires firmware at device
+          initialization time, and when built-in this typically happens
+          before the filesystem is accessible (hence firmware will be
+          unavailable and initialization will fail). If you do choose to build
+          this driver into your kernel image, you can avoid this problem by
+          including the firmware and a firmware loader in an initramfs.
+
+config IPW2200_MONITOR
+        bool "Enable promiscuous mode"
+        depends on IPW2200
+        ---help---
+	  Enables promiscuous/monitor mode support for the ipw2200 driver.
+	  With this feature compiled into the driver, you can switch to 
+	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
+	  mode, no packets can be sent.
+
+config IPW2200_RADIOTAP
+	bool "Enable radiotap format 802.11 raw packet support"
+	depends on IPW2200_MONITOR
+
+config IPW2200_PROMISCUOUS
+	bool "Enable creation of a RF radiotap promiscuous interface"
+	depends on IPW2200_MONITOR
+	select IPW2200_RADIOTAP
+	---help---
+          Enables the creation of a second interface prefixed 'rtap'. 
+          This second interface will provide every received in radiotap
+	  format.
+
+          This is useful for performing wireless network analysis while
+          maintaining an active association.
+
+          Example usage:
+
+            % modprobe ipw2200 rtap_iface=1
+            % ifconfig rtap0 up
+            % tethereal -i rtap0
+
+          If you do not specify 'rtap_iface=1' as a module parameter then 
+          the rtap interface will not be created and you will need to turn 
+          it on via sysfs:
+	
+            % echo 1 > /sys/bus/pci/drivers/ipw2200/*/rtap_iface
+
+config IPW2200_QOS
+        bool "Enable QoS support"
+        depends on IPW2200
+
+config IPW2200_DEBUG
+	bool "Enable full debugging output in IPW2200 module."
+	depends on IPW2200
+	---help---
+	  This option will enable low level debug tracing output for IPW2200.
+
+	  Note, normal debug code is already compiled in. This low level
+	  debug option enables debug on hot paths (e.g Tx, Rx, ISR) and
+	  will result in the kernel module being ~70 larger.  Most users
+	  will typically not need this high verbosity debug information.
+
+	  If you are not sure, say N here.
+
+config LIBIPW
+	tristate
+	depends on PCI && CFG80211
+	select WIRELESS_EXT
+	select WEXT_SPY
+	select CRYPTO
+	select CRYPTO_ARC4
+	select CRYPTO_ECB
+	select CRYPTO_AES
+	select CRYPTO_MICHAEL_MIC
+	select CRYPTO_ECB
+	select CRC32
+	select LIB80211
+	select LIB80211_CRYPT_WEP
+	select LIB80211_CRYPT_TKIP
+	select LIB80211_CRYPT_CCMP
+	---help---
+	This option enables the hardware independent IEEE 802.11
+	networking stack.  This component is deprecated in favor of the
+	mac80211 component.
+
+config LIBIPW_DEBUG
+	bool "Full debugging output for the LIBIPW component"
+	depends on LIBIPW
+	---help---
+	  This option will enable debug tracing output for the
+	  libipw component.
+
+	  This will result in the kernel module being ~70k larger.  You
+	  can control which debug output is sent to the kernel log by
+	  setting the value in
+
+	  /proc/net/ieee80211/debug_level
+
+	  For example:
+
+	  % echo 0x00000FFO > /proc/net/ieee80211/debug_level
+
+	  For a list of values you can assign to debug_level, you
+	  can look at the bit mask values in ieee80211.h
+
+	  If you are not trying to debug or develop the libipw
+	  component, you most likely want to say N here.
