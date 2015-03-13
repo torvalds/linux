@@ -19,9 +19,6 @@ struct pci_bus;
 struct device;
 
 struct hw_pci {
-#ifdef CONFIG_PCI_DOMAINS
-	int		domain;
-#endif
 #ifdef CONFIG_PCI_MSI
 	struct msi_controller *msi_ctrl;
 #endif
@@ -45,9 +42,6 @@ struct hw_pci {
  * Per-controller structure
  */
 struct pci_sys_data {
-#ifdef CONFIG_PCI_DOMAINS
-	int		domain;
-#endif
 #ifdef CONFIG_PCI_MSI
 	struct msi_controller *msi_ctrl;
 #endif

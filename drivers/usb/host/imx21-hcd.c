@@ -1482,9 +1482,8 @@ static int get_hub_descriptor(struct usb_hcd *hcd,
 	desc->bDescLength = 9;
 	desc->bPwrOn2PwrGood = 0;
 	desc->wHubCharacteristics = (__force __u16) cpu_to_le16(
-		0x0002 |	/* No power switching */
-		0x0010 |	/* No over current protection */
-		0);
+		HUB_CHAR_NO_LPSM |	/* No power switching */
+		HUB_CHAR_NO_OCPM);	/* No over current protection */
 
 	desc->u.hs.DeviceRemovable[0] = 1 << 1;
 	desc->u.hs.DeviceRemovable[1] = ~0;

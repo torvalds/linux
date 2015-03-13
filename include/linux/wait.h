@@ -267,6 +267,21 @@ do {									\
 	__wait_event(wq, condition);					\
 } while (0)
 
+#define __io_wait_event(wq, condition)					\
+	(void)___wait_event(wq, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
+			    io_schedule())
+
+/*
+ * io_wait_event() -- like wait_event() but with io_schedule()
+ */
+#define io_wait_event(wq, condition)					\
+do {									\
+	might_sleep();							\
+	if (condition)							\
+		break;							\
+	__io_wait_event(wq, condition);					\
+} while (0)
+
 #define __wait_event_freezable(wq, condition)				\
 	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
 			    schedule(); try_to_freeze())

@@ -32,6 +32,9 @@ The default mode depends on the status of the instruction in the
 architecture. Deprecated instructions should default to emulation
 while obsolete instructions must be undefined by default.
 
+Note: Instruction emulation may not be possible in all cases. See
+individual instruction notes for further information.
+
 Supported legacy instructions
 -----------------------------
 * SWP{B}
@@ -43,3 +46,12 @@ Default: Undef (0)
 Node: /proc/sys/abi/cp15_barrier
 Status: Deprecated
 Default: Emulate (1)
+
+* SETEND
+Node: /proc/sys/abi/setend
+Status: Deprecated
+Default: Emulate (1)*
+Note: All the cpus on the system must have mixed endian support at EL0
+for this feature to be enabled. If a new CPU - which doesn't support mixed
+endian - is hotplugged in after this feature has been enabled, there could
+be unexpected results in the application.

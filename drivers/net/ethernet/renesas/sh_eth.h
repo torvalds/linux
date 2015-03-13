@@ -459,21 +459,21 @@ struct sh_eth_cpu_data {
 
 	/* mandatory initialize value */
 	int register_type;
-	unsigned long eesipr_value;
+	u32 eesipr_value;
 
 	/* optional initialize value */
-	unsigned long ecsr_value;
-	unsigned long ecsipr_value;
-	unsigned long fdr_value;
-	unsigned long fcftr_value;
-	unsigned long rpadir_value;
+	u32 ecsr_value;
+	u32 ecsipr_value;
+	u32 fdr_value;
+	u32 fcftr_value;
+	u32 rpadir_value;
 
 	/* interrupt checking mask */
-	unsigned long tx_check;
-	unsigned long eesr_err_check;
+	u32 tx_check;
+	u32 eesr_err_check;
 
 	/* Error mask */
-	unsigned long trscer_err_mask;
+	u32 trscer_err_mask;
 
 	/* hardware features */
 	unsigned long irq_flags; /* IRQ configuration flags */
@@ -543,7 +543,7 @@ static inline void sh_eth_soft_swap(char *src, int len)
 #endif
 }
 
-static inline void sh_eth_write(struct net_device *ndev, unsigned long data,
+static inline void sh_eth_write(struct net_device *ndev, u32 data,
 				int enum_index)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -551,8 +551,7 @@ static inline void sh_eth_write(struct net_device *ndev, unsigned long data,
 	iowrite32(data, mdp->addr + mdp->reg_offset[enum_index]);
 }
 
-static inline unsigned long sh_eth_read(struct net_device *ndev,
-					int enum_index)
+static inline u32 sh_eth_read(struct net_device *ndev, int enum_index)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
@@ -565,14 +564,13 @@ static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
 	return mdp->tsu_addr + mdp->reg_offset[enum_index];
 }
 
-static inline void sh_eth_tsu_write(struct sh_eth_private *mdp,
-				unsigned long data, int enum_index)
+static inline void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
+				    int enum_index)
 {
 	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }
 
-static inline unsigned long sh_eth_tsu_read(struct sh_eth_private *mdp,
-					int enum_index)
+static inline u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 {
 	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }

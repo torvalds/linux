@@ -68,7 +68,6 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 				len = ETH_ALEN;
 
 			if (len != -1) {
-				sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
 				sinfo.assoc_req_ies = &event->data[len];
 				len = (u8 *)sinfo.assoc_req_ies -
 				      (u8 *)&event->frame_control;
@@ -132,6 +131,8 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "AP EVENT: event id: %#x\n", eventcause);
 		memcpy(priv->netdev->dev_addr, adapter->event_body + 2,
 		       ETH_ALEN);
+		if (priv->hist_data)
+			mwifiex_hist_data_reset(priv);
 		break;
 	case EVENT_UAP_MIC_COUNTERMEASURES:
 		/* For future development */
@@ -176,6 +177,53 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 	case EVENT_TX_STATUS_REPORT:
 		dev_dbg(adapter->dev, "event: TX_STATUS Report\n");
 		mwifiex_parse_tx_status_event(priv, adapter->event_body);
+		break;
+	case EVENT_PS_SLEEP:
+		dev_dbg(adapter->dev, "info: EVENT: SLEEP\n");
+
+		adapter->ps_state = PS_STATE_PRE_SLEEP;
+
+		mwifiex_check_ps_cond(adapter);
+		break;
+
+	case EVENT_PS_AWAKE:
+		dev_dbg(adapter->dev, "info: EVENT: AWAKE\n");
+		if (!adapter->pps_uapsd_mode &&
+		    priv->media_connected && adapter->sleep_period.period) {
+				adapter->pps_uapsd_mode = true;
+				dev_dbg(adapter->dev,
+					"event: PPS/UAPSD mode activated\n");
+		}
+		adapter->tx_lock_flag = false;
+		if (adapter->pps_uapsd_mode && adapter->gen_null_pkt) {
+			if (mwifiex_check_last_packet_indication(priv)) {
+				if (adapter->data_sent) {
+					adapter->ps_state = PS_STATE_AWAKE;
+					adapter->pm_wakeup_card_req = false;
+					adapter->pm_wakeup_fw_try = false;
+					break;
+				}
+				if (!mwifiex_send_null_packet
+					(priv,
+					 MWIFIEX_TxPD_POWER_MGMT_NULL_PACKET |
+					 MWIFIEX_TxPD_POWER_MGMT_LAST_PACKET))
+						adapter->ps_state =
+							PS_STATE_SLEEP;
+					return 0;
+			}
+		}
+		adapter->ps_state = PS_STATE_AWAKE;
+		adapter->pm_wakeup_card_req = false;
+		adapter->pm_wakeup_fw_try = false;
+		break;
+
+	case EVENT_CHANNEL_REPORT_RDY:
+		dev_dbg(adapter->dev, "event: Channel Report\n");
+		mwifiex_11h_handle_chanrpt_ready(priv, adapter->event_skb);
+		break;
+	case EVENT_RADAR_DETECTED:
+		dev_dbg(adapter->dev, "event: Radar detected\n");
+		mwifiex_11h_handle_radar_detected(priv, adapter->event_skb);
 		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",

@@ -12,13 +12,20 @@
 struct ovl_entry;
 
 enum ovl_path_type {
-	OVL_PATH_PURE_UPPER,
-	OVL_PATH_UPPER,
-	OVL_PATH_MERGE,
-	OVL_PATH_LOWER,
+	__OVL_PATH_PURE		= (1 << 0),
+	__OVL_PATH_UPPER	= (1 << 1),
+	__OVL_PATH_MERGE	= (1 << 2),
 };
 
-extern const char *ovl_opaque_xattr;
+#define OVL_TYPE_UPPER(type)	((type) & __OVL_PATH_UPPER)
+#define OVL_TYPE_MERGE(type)	((type) & __OVL_PATH_MERGE)
+#define OVL_TYPE_PURE_UPPER(type) ((type) & __OVL_PATH_PURE)
+#define OVL_TYPE_MERGE_OR_LOWER(type) \
+	(OVL_TYPE_MERGE(type) || !OVL_TYPE_UPPER(type))
+
+#define OVL_XATTR_PRE_NAME "trusted.overlay."
+#define OVL_XATTR_PRE_LEN  16
+#define OVL_XATTR_OPAQUE   OVL_XATTR_PRE_NAME"opaque"
 
 static inline int ovl_do_rmdir(struct inode *dir, struct dentry *dentry)
 {
@@ -130,6 +137,7 @@ void ovl_dentry_version_inc(struct dentry *dentry);
 void ovl_path_upper(struct dentry *dentry, struct path *path);
 void ovl_path_lower(struct dentry *dentry, struct path *path);
 enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
+int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);

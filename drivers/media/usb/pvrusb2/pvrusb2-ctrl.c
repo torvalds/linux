@@ -596,14 +596,3 @@ int pvr2_ctrl_value_to_sym(struct pvr2_ctrl *cptr,
 	} while(0); LOCK_GIVE(cptr->hdw->big_lock);
 	return ret;
 }
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

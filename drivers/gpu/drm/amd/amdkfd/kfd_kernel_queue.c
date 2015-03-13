@@ -56,8 +56,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	switch (type) {
 	case KFD_QUEUE_TYPE_DIQ:
 	case KFD_QUEUE_TYPE_HIQ:
-		kq->mqd = dev->dqm->get_mqd_manager(dev->dqm,
-						KFD_MQD_TYPE_CIK_HIQ);
+		kq->mqd = dev->dqm->ops.get_mqd_manager(dev->dqm,
+						KFD_MQD_TYPE_HIQ);
 		break;
 	default:
 		BUG();
@@ -72,23 +72,19 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	if (prop.doorbell_ptr == NULL)
 		goto err_get_kernel_doorbell;
 
-	retval = kfd2kgd->allocate_mem(dev->kgd,
-					queue_size,
-					PAGE_SIZE,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &kq->pq);
-
+	retval = kfd_gtt_sa_allocate(dev, queue_size, &kq->pq);
 	if (retval != 0)
 		goto err_pq_allocate_vidmem;
 
 	kq->pq_kernel_addr = kq->pq->cpu_ptr;
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
 
-	retval = kfd2kgd->allocate_mem(dev->kgd,
-					sizeof(*kq->rptr_kernel),
-					32,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &kq->rptr_mem);
+	retval = kq->ops_asic_specific.initialize(kq, dev, type, queue_size);
+	if (retval == false)
+		goto err_eop_allocate_vidmem;
+
+	retval = kfd_gtt_sa_allocate(dev, sizeof(*kq->rptr_kernel),
+					&kq->rptr_mem);
 
 	if (retval != 0)
 		goto err_rptr_allocate_vidmem;
@@ -96,11 +92,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->rptr_kernel = kq->rptr_mem->cpu_ptr;
 	kq->rptr_gpu_addr = kq->rptr_mem->gpu_addr;
 
-	retval = kfd2kgd->allocate_mem(dev->kgd,
-					sizeof(*kq->wptr_kernel),
-					32,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &kq->wptr_mem);
+	retval = kfd_gtt_sa_allocate(dev, sizeof(*kq->wptr_kernel),
+					&kq->wptr_mem);
 
 	if (retval != 0)
 		goto err_wptr_allocate_vidmem;
@@ -121,6 +114,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	prop.queue_address = kq->pq_gpu_addr;
 	prop.read_ptr = (uint32_t *) kq->rptr_gpu_addr;
 	prop.write_ptr = (uint32_t *) kq->wptr_gpu_addr;
+	prop.eop_ring_buffer_address = kq->eop_gpu_addr;
+	prop.eop_ring_buffer_size = PAGE_SIZE;
 
 	if (init_queue(&kq->queue, prop) != 0)
 		goto err_init_queue;
@@ -145,11 +140,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	} else {
 		/* allocate fence for DIQ */
 
-		retval = kfd2kgd->allocate_mem(dev->kgd,
-					sizeof(uint32_t),
-					32,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &kq->fence_mem_obj);
+		retval = kfd_gtt_sa_allocate(dev, sizeof(uint32_t),
+						&kq->fence_mem_obj);
 
 		if (retval != 0)
 			goto err_alloc_fence;
@@ -165,11 +157,13 @@ err_alloc_fence:
 err_init_mqd:
 	uninit_queue(kq->queue);
 err_init_queue:
-	kfd2kgd->free_mem(dev->kgd, (struct kgd_mem *) kq->wptr_mem);
+	kfd_gtt_sa_free(dev, kq->wptr_mem);
 err_wptr_allocate_vidmem:
-	kfd2kgd->free_mem(dev->kgd, (struct kgd_mem *) kq->rptr_mem);
+	kfd_gtt_sa_free(dev, kq->rptr_mem);
 err_rptr_allocate_vidmem:
-	kfd2kgd->free_mem(dev->kgd, (struct kgd_mem *) kq->pq);
+	kfd_gtt_sa_free(dev, kq->eop_mem);
+err_eop_allocate_vidmem:
+	kfd_gtt_sa_free(dev, kq->pq);
 err_pq_allocate_vidmem:
 	pr_err("kfd: error init pq\n");
 	kfd_release_kernel_doorbell(dev, prop.doorbell_ptr);
@@ -190,10 +184,13 @@ static void uninitialize(struct kernel_queue *kq)
 					QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS,
 					kq->queue->pipe,
 					kq->queue->queue);
+	else if (kq->queue->properties.type == KFD_QUEUE_TYPE_DIQ)
+		kfd_gtt_sa_free(kq->dev, kq->fence_mem_obj);
 
-	kfd2kgd->free_mem(kq->dev->kgd, (struct kgd_mem *) kq->rptr_mem);
-	kfd2kgd->free_mem(kq->dev->kgd, (struct kgd_mem *) kq->wptr_mem);
-	kfd2kgd->free_mem(kq->dev->kgd, (struct kgd_mem *) kq->pq);
+	kfd_gtt_sa_free(kq->dev, kq->rptr_mem);
+	kfd_gtt_sa_free(kq->dev, kq->wptr_mem);
+	kq->ops_asic_specific.uninitialize(kq);
+	kfd_gtt_sa_free(kq->dev, kq->pq);
 	kfd_release_kernel_doorbell(kq->dev,
 					kq->queue->properties.doorbell_ptr);
 	uninit_queue(kq->queue);
@@ -265,28 +262,6 @@ static void submit_packet(struct kernel_queue *kq)
 				kq->pending_wptr);
 }
 
-static int sync_with_hw(struct kernel_queue *kq, unsigned long timeout_ms)
-{
-	unsigned long org_timeout_ms;
-
-	BUG_ON(!kq);
-
-	org_timeout_ms = timeout_ms;
-	timeout_ms += jiffies * 1000 / HZ;
-	while (*kq->wptr_kernel != *kq->rptr_kernel) {
-		if (time_after(jiffies * 1000 / HZ, timeout_ms)) {
-			pr_err("kfd: kernel_queue %s timeout expired %lu\n",
-				__func__, org_timeout_ms);
-			pr_err("kfd: wptr: %d rptr: %d\n",
-				*kq->wptr_kernel, *kq->rptr_kernel);
-			return -ETIME;
-		}
-		schedule();
-	}
-
-	return 0;
-}
-
 static void rollback_packet(struct kernel_queue *kq)
 {
 	BUG_ON(!kq);
@@ -304,14 +279,23 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	if (!kq)
 		return NULL;
 
-	kq->initialize = initialize;
-	kq->uninitialize = uninitialize;
-	kq->acquire_packet_buffer = acquire_packet_buffer;
-	kq->submit_packet = submit_packet;
-	kq->sync_with_hw = sync_with_hw;
-	kq->rollback_packet = rollback_packet;
+	kq->ops.initialize = initialize;
+	kq->ops.uninitialize = uninitialize;
+	kq->ops.acquire_packet_buffer = acquire_packet_buffer;
+	kq->ops.submit_packet = submit_packet;
+	kq->ops.rollback_packet = rollback_packet;
 
-	if (kq->initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE) == false) {
+	switch (dev->device_info->asic_family) {
+	case CHIP_CARRIZO:
+		kernel_queue_init_vi(&kq->ops_asic_specific);
+		break;
+
+	case CHIP_KAVERI:
+		kernel_queue_init_cik(&kq->ops_asic_specific);
+		break;
+	}
+
+	if (kq->ops.initialize(kq, dev, type, KFD_KERNEL_QUEUE_SIZE) == false) {
 		pr_err("kfd: failed to init kernel queue\n");
 		kfree(kq);
 		return NULL;
@@ -323,7 +307,7 @@ void kernel_queue_uninit(struct kernel_queue *kq)
 {
 	BUG_ON(!kq);
 
-	kq->uninitialize(kq);
+	kq->ops.uninitialize(kq);
 	kfree(kq);
 }
 
@@ -335,19 +319,18 @@ static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
 
 	BUG_ON(!dev);
 
-	pr_debug("kfd: starting kernel queue test\n");
+	pr_err("kfd: starting kernel queue test\n");
 
 	kq = kernel_queue_init(dev, KFD_QUEUE_TYPE_HIQ);
 	BUG_ON(!kq);
 
-	retval = kq->acquire_packet_buffer(kq, 5, &buffer);
+	retval = kq->ops.acquire_packet_buffer(kq, 5, &buffer);
 	BUG_ON(retval != 0);
 	for (i = 0; i < 5; i++)
 		buffer[i] = kq->nop_packet;
-	kq->submit_packet(kq);
-	kq->sync_with_hw(kq, 1000);
+	kq->ops.submit_packet(kq);
 
-	pr_debug("kfd: ending kernel queue test\n");
+	pr_err("kfd: ending kernel queue test\n");
 }
 
 

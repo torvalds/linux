@@ -91,42 +91,6 @@ int seq_buf_printf(struct seq_buf *s, const char *fmt, ...)
 	return ret;
 }
 
-/**
- * seq_buf_bitmask - write a bitmask array in its ASCII representation
- * @s:		seq_buf descriptor
- * @maskp:	points to an array of unsigned longs that represent a bitmask
- * @nmaskbits:	The number of bits that are valid in @maskp
- *
- * Writes a ASCII representation of a bitmask string into @s.
- *
- * Returns zero on success, -1 on overflow.
- */
-int seq_buf_bitmask(struct seq_buf *s, const unsigned long *maskp,
-		    int nmaskbits)
-{
-	unsigned int len = seq_buf_buffer_left(s);
-	int ret;
-
-	WARN_ON(s->size == 0);
-
-	/*
-	 * Note, because bitmap_scnprintf() only returns the number of bytes
-	 * written and not the number that would be written, we use the last
-	 * byte of the buffer to let us know if we overflowed. There's a small
-	 * chance that the bitmap could have fit exactly inside the buffer, but
-	 * it's not that critical if that does happen.
-	 */
-	if (len > 1) {
-		ret = bitmap_scnprintf(s->buffer + s->len, len, maskp, nmaskbits);
-		if (ret < len) {
-			s->len += ret;
-			return 0;
-		}
-	}
-	seq_buf_set_overflow(s);
-	return -1;
-}
-
 #ifdef CONFIG_BINARY_PRINTF
 /**
  * seq_buf_bprintf - Write the printf string from binary arguments

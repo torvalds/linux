@@ -17,7 +17,6 @@
  * License.
  *
  */
-#include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include "tpm.h"
@@ -54,16 +53,15 @@ static void timeout_work(struct work_struct *work)
 
 static int tpm_open(struct inode *inode, struct file *file)
 {
-	struct miscdevice *misc = file->private_data;
-	struct tpm_chip *chip = container_of(misc, struct tpm_chip,
-					     vendor.miscdev);
+	struct tpm_chip *chip =
+		container_of(inode->i_cdev, struct tpm_chip, cdev);
 	struct file_priv *priv;
 
 	/* It's assured that the chip will be opened just once,
 	 * by the check of is_open variable, which is protected
 	 * by driver_lock. */
 	if (test_and_set_bit(0, &chip->is_open)) {
-		dev_dbg(chip->dev, "Another process owns this TPM\n");
+		dev_dbg(chip->pdev, "Another process owns this TPM\n");
 		return -EBUSY;
 	}
 
@@ -81,7 +79,7 @@ static int tpm_open(struct inode *inode, struct file *file)
 	INIT_WORK(&priv->work, timeout_work);
 
 	file->private_data = priv;
-	get_device(chip->dev);
+	get_device(chip->pdev);
 	return 0;
 }
 
@@ -168,12 +166,12 @@ static int tpm_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 	atomic_set(&priv->data_pending, 0);
 	clear_bit(0, &priv->chip->is_open);
-	put_device(priv->chip->dev);
+	put_device(priv->chip->pdev);
 	kfree(priv);
 	return 0;
 }
 
-static const struct file_operations tpm_fops = {
+const struct file_operations tpm_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.open = tpm_open,
@@ -182,32 +180,4 @@ static const struct file_operations tpm_fops = {
 	.release = tpm_release,
 };
 
-int tpm_dev_add_device(struct tpm_chip *chip)
-{
-	int rc;
 
-	chip->vendor.miscdev.fops = &tpm_fops;
-	if (chip->dev_num == 0)
-		chip->vendor.miscdev.minor = TPM_MINOR;
-	else
-		chip->vendor.miscdev.minor = MISC_DYNAMIC_MINOR;
-
-	chip->vendor.miscdev.name = chip->devname;
-	chip->vendor.miscdev.parent = chip->dev;
-
-	rc = misc_register(&chip->vendor.miscdev);
-	if (rc) {
-		chip->vendor.miscdev.name = NULL;
-		dev_err(chip->dev,
-			"unable to misc_register %s, minor %d err=%d\n",
-			chip->vendor.miscdev.name,
-			chip->vendor.miscdev.minor, rc);
-	}
-	return rc;
-}
-
-void tpm_dev_del_device(struct tpm_chip *chip)
-{
-	if (chip->vendor.miscdev.name)
-		misc_deregister(&chip->vendor.miscdev);
-}

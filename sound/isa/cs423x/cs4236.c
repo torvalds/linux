@@ -382,7 +382,6 @@ static int snd_cs423x_card_new(struct device *pdev, int dev,
 static int snd_cs423x_probe(struct snd_card *card, int dev)
 {
 	struct snd_card_cs4236 *acard;
-	struct snd_pcm *pcm;
 	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
 	int err;
@@ -404,7 +403,7 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 	acard->chip = chip;
 	if (chip->hardware & WSS_HW_CS4236B_MASK) {
 
-		err = snd_cs4236_pcm(chip, 0, &pcm);
+		err = snd_cs4236_pcm(chip, 0);
 		if (err < 0)
 			return err;
 
@@ -412,7 +411,7 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 		if (err < 0)
 			return err;
 	} else {
-		err = snd_wss_pcm(chip, 0, &pcm);
+		err = snd_wss_pcm(chip, 0);
 		if (err < 0)
 			return err;
 
@@ -420,17 +419,17 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 		if (err < 0)
 			return err;
 	}
-	strcpy(card->driver, pcm->name);
-	strcpy(card->shortname, pcm->name);
+	strcpy(card->driver, chip->pcm->name);
+	strcpy(card->shortname, chip->pcm->name);
 	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i",
-		pcm->name,
+		chip->pcm->name,
 		chip->port,
 		irq[dev],
 		dma1[dev]);
 	if (dma2[dev] >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", dma2[dev]);
 
-	err = snd_wss_timer(chip, 0, NULL);
+	err = snd_wss_timer(chip, 0);
 	if (err < 0)
 		return err;
 

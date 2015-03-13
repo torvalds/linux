@@ -564,7 +564,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 		dev->index[n++] = &f[i];
 	}
 
-	input_mt_assign_slots(input, dev->slots, dev->pos, n);
+	input_mt_assign_slots(input, dev->slots, dev->pos, n, 0);
 
 	for (i = 0; i < n; i++)
 		report_finger_data(input, dev->slots[i],

@@ -58,6 +58,7 @@ enum sst_algo_ops {
 #define SST_BLOCK_TIMEOUT	1000
 
 #define FW_SIGNATURE_SIZE	4
+#define FW_NAME_SIZE		32
 
 /* stream states */
 enum sst_stream_states {
@@ -426,7 +427,7 @@ struct intel_sst_drv {
 	 * Holder for firmware name. Due to async call it needs to be
 	 * persistent till worker thread gets called
 	 */
-	char firmware_name[20];
+	char firmware_name[FW_NAME_SIZE];
 };
 
 /* misc definitions */

@@ -1,9 +1,10 @@
 Intel(R) Management Engine (ME) Client bus API
-===============================================
+==============================================
 
 
 Rationale
 =========
+
 MEI misc character device is useful for dedicated applications to send and receive
 data to the many FW appliance found in Intel's ME from the user space.
 However for some of the ME functionalities it make sense to leverage existing software
@@ -17,7 +18,8 @@ the existing code.
 
 
 MEI CL bus API
-===========
+==============
+
 A driver implementation for an MEI Client is very similar to existing bus
 based device drivers. The driver registers itself as an MEI CL bus driver through
 the mei_cl_driver structure:
@@ -55,6 +57,7 @@ received buffers.
 
 Example
 =======
+
 As a theoretical example let's pretend the ME comes with a "contact" NFC IP.
 The driver init and exit routines for this device would look like:
 
@@ -69,11 +72,11 @@ static struct mei_cl_device_id contact_mei_cl_tbl[] = {
 MODULE_DEVICE_TABLE(mei_cl, contact_mei_cl_tbl);
 
 static struct mei_cl_driver contact_driver = {
-       .id_table = contact_mei_tbl,
-       .name = CONTACT_DRIVER_NAME,
+	.id_table = contact_mei_tbl,
+	.name = CONTACT_DRIVER_NAME,
 
-       .probe = contact_probe,
-       .remove = contact_remove,
+	.probe = contact_probe,
+	.remove = contact_remove,
 };
 
 static int contact_init(void)
@@ -109,7 +112,7 @@ int contact_probe(struct mei_cl_device *dev, struct mei_cl_device_id *id)
 	mei_cl_register_event_cb(dev, contact_event_cb, contact);
 
 	return 0;
- }
+}
 
 In the probe routine the driver first enable the MEI device and then registers
 an ME bus event handler which is as close as it can get to registering a

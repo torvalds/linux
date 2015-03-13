@@ -34,6 +34,8 @@ Required Properties for Clock Controller:
 	- "samsung,exynos7-clock-peris"
 	- "samsung,exynos7-clock-fsys0"
 	- "samsung,exynos7-clock-fsys1"
+	- "samsung,exynos7-clock-mscl"
+	- "samsung,exynos7-clock-aud"
 
  - reg: physical base address of the controller and the length of
 	memory mapped region.
@@ -53,6 +55,7 @@ Input clocks for top0 clock controller:
 	- dout_sclk_bus1_pll
 	- dout_sclk_cc_pll
 	- dout_sclk_mfc_pll
+	- dout_sclk_aud_pll
 
 Input clocks for top1 clock controller:
 	- fin_pll
@@ -76,6 +79,14 @@ Input clocks for peric1 clock controller:
 	- sclk_uart1
 	- sclk_uart2
 	- sclk_uart3
+	- sclk_spi0
+	- sclk_spi1
+	- sclk_spi2
+	- sclk_spi3
+	- sclk_spi4
+	- sclk_i2s1
+	- sclk_pcm1
+	- sclk_spdif
 
 Input clocks for peris clock controller:
 	- fin_pll
@@ -91,3 +102,7 @@ Input clocks for fsys1 clock controller:
 	- dout_aclk_fsys1_200
 	- dout_sclk_mmc0
 	- dout_sclk_mmc1
+
+Input clocks for aud clock controller:
+	- fin_pll
+	- fout_aud_pll

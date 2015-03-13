@@ -139,7 +139,6 @@ void svc_rdma_put_context(struct svc_rdma_op_ctxt *ctxt, int free_pages)
 	struct svcxprt_rdma *xprt;
 	int i;
 
-	BUG_ON(!ctxt);
 	xprt = ctxt->xprt;
 	if (free_pages)
 		for (i = 0; i < ctxt->count; i++)
@@ -339,12 +338,14 @@ static void process_context(struct svcxprt_rdma *xprt,
 
 	switch (ctxt->wr_op) {
 	case IB_WR_SEND:
-		BUG_ON(ctxt->frmr);
+		if (ctxt->frmr)
+			pr_err("svcrdma: SEND: ctxt->frmr != NULL\n");
 		svc_rdma_put_context(ctxt, 1);
 		break;
 
 	case IB_WR_RDMA_WRITE:
-		BUG_ON(ctxt->frmr);
+		if (ctxt->frmr)
+			pr_err("svcrdma: WRITE: ctxt->frmr != NULL\n");
 		svc_rdma_put_context(ctxt, 0);
 		break;
 
@@ -353,19 +354,21 @@ static void process_context(struct svcxprt_rdma *xprt,
 		svc_rdma_put_frmr(xprt, ctxt->frmr);
 		if (test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags)) {
 			struct svc_rdma_op_ctxt *read_hdr = ctxt->read_hdr;
-			BUG_ON(!read_hdr);
-			spin_lock_bh(&xprt->sc_rq_dto_lock);
-			set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
-			list_add_tail(&read_hdr->dto_q,
-				      &xprt->sc_read_complete_q);
-			spin_unlock_bh(&xprt->sc_rq_dto_lock);
+			if (read_hdr) {
+				spin_lock_bh(&xprt->sc_rq_dto_lock);
+				set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
+				list_add_tail(&read_hdr->dto_q,
+					      &xprt->sc_read_complete_q);
+				spin_unlock_bh(&xprt->sc_rq_dto_lock);
+			} else {
+				pr_err("svcrdma: ctxt->read_hdr == NULL\n");
+			}
 			svc_xprt_enqueue(&xprt->sc_xprt);
 		}
 		svc_rdma_put_context(ctxt, 0);
 		break;
 
 	default:
-		BUG_ON(1);
 		printk(KERN_ERR "svcrdma: unexpected completion type, "
 		       "opcode=%d\n",
 		       ctxt->wr_op);
@@ -513,7 +516,10 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 	buflen = 0;
 	ctxt->direction = DMA_FROM_DEVICE;
 	for (sge_no = 0; buflen < xprt->sc_max_req_size; sge_no++) {
-		BUG_ON(sge_no >= xprt->sc_max_sge);
+		if (sge_no >= xprt->sc_max_sge) {
+			pr_err("svcrdma: Too many sges (%d)\n", sge_no);
+			goto err_put_ctxt;
+		}
 		page = svc_rdma_get_page();
 		ctxt->pages[sge_no] = page;
 		pa = ib_dma_map_page(xprt->sc_cm_id->device,
@@ -687,7 +693,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 {
 	struct rdma_cm_id *listen_id;
 	struct svcxprt_rdma *cma_xprt;
-	struct svc_xprt *xprt;
 	int ret;
 
 	dprintk("svcrdma: Creating RDMA socket\n");
@@ -698,7 +703,6 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 	cma_xprt = rdma_create_xprt(serv, 1);
 	if (!cma_xprt)
 		return ERR_PTR(-ENOMEM);
-	xprt = &cma_xprt->sc_xprt;
 
 	listen_id = rdma_create_id(rdma_listen_handler, cma_xprt, RDMA_PS_TCP,
 				   IB_QPT_RC);
@@ -822,7 +826,7 @@ void svc_rdma_put_frmr(struct svcxprt_rdma *rdma,
 	if (frmr) {
 		frmr_unmap_dma(rdma, frmr);
 		spin_lock_bh(&rdma->sc_frmr_q_lock);
-		BUG_ON(!list_empty(&frmr->frmr_list));
+		WARN_ON_ONCE(!list_empty(&frmr->frmr_list));
 		list_add(&frmr->frmr_list, &rdma->sc_frmr_q);
 		spin_unlock_bh(&rdma->sc_frmr_q_lock);
 	}
@@ -970,10 +974,12 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 * NB:	iWARP requires remote write access for the data sink
 	 *	of an RDMA_READ. IB does not.
 	 */
+	newxprt->sc_reader = rdma_read_chunk_lcl;
 	if (devattr.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) {
 		newxprt->sc_frmr_pg_list_len =
 			devattr.max_fast_reg_page_list_len;
 		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_FAST_REG;
+		newxprt->sc_reader = rdma_read_chunk_frmr;
 	}
 
 	/*
@@ -1125,7 +1131,9 @@ static void __svc_rdma_free(struct work_struct *work)
 	dprintk("svcrdma: svc_rdma_free(%p)\n", rdma);
 
 	/* We should only be called from kref_put */
-	BUG_ON(atomic_read(&rdma->sc_xprt.xpt_ref.refcount) != 0);
+	if (atomic_read(&rdma->sc_xprt.xpt_ref.refcount) != 0)
+		pr_err("svcrdma: sc_xprt still in use? (%d)\n",
+		       atomic_read(&rdma->sc_xprt.xpt_ref.refcount));
 
 	/*
 	 * Destroy queued, but not processed read completions. Note
@@ -1153,8 +1161,12 @@ static void __svc_rdma_free(struct work_struct *work)
 	}
 
 	/* Warn if we leaked a resource or under-referenced */
-	WARN_ON(atomic_read(&rdma->sc_ctxt_used) != 0);
-	WARN_ON(atomic_read(&rdma->sc_dma_used) != 0);
+	if (atomic_read(&rdma->sc_ctxt_used) != 0)
+		pr_err("svcrdma: ctxt still in use? (%d)\n",
+		       atomic_read(&rdma->sc_ctxt_used));
+	if (atomic_read(&rdma->sc_dma_used) != 0)
+		pr_err("svcrdma: dma still in use? (%d)\n",
+		       atomic_read(&rdma->sc_dma_used));
 
 	/* De-allocate fastreg mr */
 	rdma_dealloc_frmr_q(rdma);
@@ -1254,7 +1266,6 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 	if (test_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags))
 		return -ENOTCONN;
 
-	BUG_ON(wr->send_flags != IB_SEND_SIGNALED);
 	wr_count = 1;
 	for (n_wr = wr->next; n_wr; n_wr = n_wr->next)
 		wr_count++;

@@ -218,7 +218,8 @@ static inline void hub_descriptor(struct usb_hub_descriptor *desc)
 	memset(desc, 0, sizeof(*desc));
 	desc->bDescriptorType = 0x29;
 	desc->bDescLength = 9;
-	desc->wHubCharacteristics = (__constant_cpu_to_le16(0x0001));
+	desc->wHubCharacteristics = __constant_cpu_to_le16(
+		HUB_CHAR_INDV_PORT_LPSM | HUB_CHAR_COMMON_OCPM);
 	desc->bNbrPorts = VHCI_NPORTS;
 	desc->u.hs.DeviceRemovable[0] = 0xff;
 	desc->u.hs.DeviceRemovable[1] = 0xff;

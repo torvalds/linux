@@ -36,10 +36,20 @@
 
 /* Complete data exchange transaction and forward skb to nfc core */
 void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
-				int err)
+				__u8 conn_id, int err)
 {
-	data_exchange_cb_t cb = ndev->data_exchange_cb;
-	void *cb_context = ndev->data_exchange_cb_context;
+	struct nci_conn_info    *conn_info;
+	data_exchange_cb_t cb;
+	void *cb_context;
+
+	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
+	if (!conn_info) {
+		kfree_skb(skb);
+		goto exit;
+	}
+
+	cb = conn_info->data_exchange_cb;
+	cb_context = conn_info->data_exchange_cb_context;
 
 	pr_debug("len %d, err %d\n", skb ? skb->len : 0, err);
 
@@ -48,9 +58,6 @@ void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
 	clear_bit(NCI_DATA_EXCHANGE_TO, &ndev->flags);
 
 	if (cb) {
-		ndev->data_exchange_cb = NULL;
-		ndev->data_exchange_cb_context = NULL;
-
 		/* forward skb to nfc core */
 		cb(cb_context, skb, err);
 	} else if (skb) {
@@ -60,6 +67,7 @@ void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
 		kfree_skb(skb);
 	}
 
+exit:
 	clear_bit(NCI_DATA_EXCHANGE, &ndev->flags);
 }
 
@@ -85,6 +93,7 @@ static inline void nci_push_data_hdr(struct nci_dev *ndev,
 static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 				   __u8 conn_id,
 				   struct sk_buff *skb) {
+	struct nci_conn_info    *conn_info;
 	int total_len = skb->len;
 	unsigned char *data = skb->data;
 	unsigned long flags;
@@ -95,11 +104,17 @@ static int nci_queue_tx_data_frags(struct nci_dev *ndev,
 
 	pr_debug("conn_id 0x%x, total_len %d\n", conn_id, total_len);
 
+	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
+	if (!conn_info) {
+		rc = -EPROTO;
+		goto free_exit;
+	}
+
 	__skb_queue_head_init(&frags_q);
 
 	while (total_len) {
 		frag_len =
-			min_t(int, total_len, ndev->max_data_pkt_payload_size);
+			min_t(int, total_len, conn_info->max_pkt_payload_len);
 
 		skb_frag = nci_skb_alloc(ndev,
 					 (NCI_DATA_HDR_SIZE + frag_len),
@@ -151,12 +166,19 @@ exit:
 /* Send NCI data */
 int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb)
 {
+	struct nci_conn_info    *conn_info;
 	int rc = 0;
 
 	pr_debug("conn_id 0x%x, plen %d\n", conn_id, skb->len);
 
+	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
+	if (!conn_info) {
+		rc = -EPROTO;
+		goto free_exit;
+	}
+
 	/* check if the packet need to be fragmented */
-	if (skb->len <= ndev->max_data_pkt_payload_size) {
+	if (skb->len <= conn_info->max_pkt_payload_len) {
 		/* no need to fragment packet */
 		nci_push_data_hdr(ndev, conn_id, skb, NCI_PBF_LAST);
 
@@ -170,6 +192,7 @@ int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb)
 		}
 	}
 
+	ndev->cur_conn_id = conn_id;
 	queue_work(ndev->tx_wq, &ndev->tx_work);
 
 	goto exit;
@@ -185,7 +208,7 @@ exit:
 
 static void nci_add_rx_data_frag(struct nci_dev *ndev,
 				 struct sk_buff *skb,
-				 __u8 pbf, __u8 status)
+				 __u8 pbf, __u8 conn_id, __u8 status)
 {
 	int reassembly_len;
 	int err = 0;
@@ -229,16 +252,13 @@ static void nci_add_rx_data_frag(struct nci_dev *ndev,
 	}
 
 exit:
-	if (ndev->nfc_dev->rf_mode == NFC_RF_INITIATOR) {
-		nci_data_exchange_complete(ndev, skb, err);
-	} else if (ndev->nfc_dev->rf_mode == NFC_RF_TARGET) {
+	if (ndev->nfc_dev->rf_mode == NFC_RF_TARGET) {
 		/* Data received in Target mode, forward to nfc core */
 		err = nfc_tm_data_received(ndev->nfc_dev, skb);
 		if (err)
 			pr_err("unable to handle received data\n");
 	} else {
-		pr_err("rf mode unknown\n");
-		kfree_skb(skb);
+		nci_data_exchange_complete(ndev, skb, conn_id, err);
 	}
 }
 
@@ -247,6 +267,8 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 {
 	__u8 pbf = nci_pbf(skb->data);
 	__u8 status = 0;
+	__u8 conn_id = nci_conn_id(skb->data);
+	struct nci_conn_info    *conn_info;
 
 	pr_debug("len %d\n", skb->len);
 
@@ -254,6 +276,10 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		 nci_pbf(skb->data),
 		 nci_conn_id(skb->data),
 		 nci_plen(skb->data));
+
+	conn_info = nci_get_conn_info_by_conn_id(ndev, nci_conn_id(skb->data));
+	if (!conn_info)
+		return;
 
 	/* strip the nci data header */
 	skb_pull(skb, NCI_DATA_HDR_SIZE);
@@ -268,5 +294,5 @@ void nci_rx_data_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		skb_trim(skb, (skb->len - 1));
 	}
 
-	nci_add_rx_data_frag(ndev, skb, pbf, nci_to_errno(status));
+	nci_add_rx_data_frag(ndev, skb, pbf, conn_id, nci_to_errno(status));
 }

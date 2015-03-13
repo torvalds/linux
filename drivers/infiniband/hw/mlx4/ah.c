@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 #include <linux/inet.h>
 #include <linux/string.h>
+#include <linux/mlx4/driver.h>
 
 #include "mlx4_ib.h"
 

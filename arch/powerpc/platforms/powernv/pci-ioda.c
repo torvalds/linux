@@ -75,6 +75,28 @@ static void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 #define pe_info(pe, fmt, ...)					\
 	pe_level_printk(pe, KERN_INFO, fmt, ##__VA_ARGS__)
 
+static bool pnv_iommu_bypass_disabled __read_mostly;
+
+static int __init iommu_setup(char *str)
+{
+	if (!str)
+		return -EINVAL;
+
+	while (*str) {
+		if (!strncmp(str, "nobypass", 8)) {
+			pnv_iommu_bypass_disabled = true;
+			pr_info("PowerNV: IOMMU bypass window disabled.\n");
+			break;
+		}
+		str += strcspn(str, ",");
+		if (*str == ',')
+			str++;
+	}
+
+	return 0;
+}
+early_param("iommu", iommu_setup);
+
 /*
  * stdcix is only supposed to be used in hypervisor real mode as per
  * the architecture spec
@@ -356,6 +378,9 @@ static void __init pnv_ioda_parse_m64_window(struct pnv_phb *phb)
 	phb->ioda.m64_size = resource_size(res);
 	phb->ioda.m64_segsize = phb->ioda.m64_size / phb->ioda.total_pe;
 	phb->ioda.m64_base = pci_addr;
+
+	pr_info(" MEM64 0x%016llx..0x%016llx -> 0x%016llx\n",
+			res->start, res->end, pci_addr);
 
 	/* Use last M64 BAR to cover M64 window */
 	phb->ioda.m64_bar_idx = 15;
@@ -1348,7 +1373,9 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 		pnv_ioda_setup_bus_dma(pe, pe->pbus, true);
 
 	/* Also create a bypass window */
-	pnv_pci_ioda2_setup_bypass_pe(phb, pe);
+	if (!pnv_iommu_bypass_disabled)
+		pnv_pci_ioda2_setup_bypass_pe(phb, pe);
+
 	return;
 fail:
 	if (pe->tce32_seg >= 0)
@@ -1460,15 +1487,15 @@ static void set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
 
 #ifdef CONFIG_CXL_BASE
 
-struct device_node *pnv_pci_to_phb_node(struct pci_dev *dev)
+struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 
-	return hose->dn;
+	return of_node_get(hose->dn);
 }
-EXPORT_SYMBOL(pnv_pci_to_phb_node);
+EXPORT_SYMBOL(pnv_pci_get_phb_node);
 
-int pnv_phb_to_cxl(struct pci_dev *dev)
+int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -1481,13 +1508,13 @@ int pnv_phb_to_cxl(struct pci_dev *dev)
 
 	pe_info(pe, "Switching PHB to CXL\n");
 
-	rc = opal_pci_set_phb_cxl_mode(phb->opal_id, 1, pe->pe_number);
+	rc = opal_pci_set_phb_cxl_mode(phb->opal_id, mode, pe->pe_number);
 	if (rc)
 		dev_err(&dev->dev, "opal_pci_set_phb_cxl_mode failed: %i\n", rc);
 
 	return rc;
 }
-EXPORT_SYMBOL(pnv_phb_to_cxl);
+EXPORT_SYMBOL(pnv_phb_to_cxl_mode);
 
 /* Find PHB for cxl dev and allocate MSI hwirqs?
  * Returns the absolute hardware IRQ number

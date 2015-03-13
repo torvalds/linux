@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/stringify.h>
 
-#ifndef CONFIG_CPU_MIPSR2
+#if !defined(CONFIG_CPU_MIPSR2) && !defined(CONFIG_CPU_MIPSR6)
 
 /*
  * For cli() we have to insert nops to make sure that the new value

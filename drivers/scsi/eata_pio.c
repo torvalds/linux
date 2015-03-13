@@ -102,7 +102,7 @@ static int eata_pio_show_info(struct seq_file *m, struct Scsi_Host *shost)
 		   shost->host_no, SD(shost)->name);
 	seq_printf(m, "Firmware revision: v%s\n",
 		   SD(shost)->revision);
-	seq_printf(m, "IO: PIO\n");
+	seq_puts(m, "IO: PIO\n");
 	seq_printf(m, "Base IO : %#.4x\n", (u32) shost->base);
 	seq_printf(m, "Host Bus: %s\n",
 		   (SD(shost)->bustype == 'P')?"PCI ":

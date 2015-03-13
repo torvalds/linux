@@ -116,23 +116,6 @@ int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 }
 EXPORT_SYMBOL(nfc_hci_send_event);
 
-int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
-			  const u8 *param, size_t param_len)
-{
-	u8 pipe;
-
-	pr_debug("\n");
-
-	pipe = hdev->gate2pipe[gate];
-	if (pipe == NFC_HCI_INVALID_PIPE)
-		return -EADDRNOTAVAIL;
-
-	return nfc_hci_hcp_message_tx(hdev, pipe, NFC_HCI_HCP_RESPONSE,
-				      response, param, param_len, NULL, NULL,
-				      0);
-}
-EXPORT_SYMBOL(nfc_hci_send_response);
-
 /*
  * Execute an hci command sent to gate.
  * skb will contain response data if success. skb can be NULL if you are not
@@ -331,7 +314,7 @@ int nfc_hci_disconnect_all_gates(struct nfc_hci_dev *hdev)
 	if (r < 0)
 		return r;
 
-	memset(hdev->gate2pipe, NFC_HCI_INVALID_PIPE, sizeof(hdev->gate2pipe));
+	nfc_hci_reset_pipes(hdev);
 
 	return 0;
 }
@@ -345,7 +328,7 @@ int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate,
 
 	pr_debug("\n");
 
-	if (hdev->gate2pipe[dest_gate] == NFC_HCI_DO_NOT_CREATE_PIPE)
+	if (pipe == NFC_HCI_DO_NOT_CREATE_PIPE)
 		return 0;
 
 	if (hdev->gate2pipe[dest_gate] != NFC_HCI_INVALID_PIPE)
@@ -380,6 +363,8 @@ open_pipe:
 		return r;
 	}
 
+	hdev->pipes[pipe].gate = dest_gate;
+	hdev->pipes[pipe].dest_host = dest_host;
 	hdev->gate2pipe[dest_gate] = pipe;
 
 	return 0;

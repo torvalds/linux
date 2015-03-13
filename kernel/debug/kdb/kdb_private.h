@@ -196,7 +196,9 @@ extern int kdb_main_loop(kdb_reason_t, kdb_reason_t,
 
 /* Miscellaneous functions and data areas */
 extern int kdb_grepping_flag;
+#define KDB_GREPPING_FLAG_SEARCH 0x8000
 extern char kdb_grep_string[];
+#define KDB_GREP_STRLEN 256
 extern int kdb_grep_leading;
 extern int kdb_grep_trailing;
 extern char *kdb_cmds[];
@@ -209,7 +211,7 @@ extern void kdb_ps1(const struct task_struct *p);
 extern void kdb_print_nameval(const char *name, unsigned long val);
 extern void kdb_send_sig_info(struct task_struct *p, struct siginfo *info);
 extern void kdb_meminfo_proc_show(void);
-extern char *kdb_getstr(char *, size_t, char *);
+extern char *kdb_getstr(char *, size_t, const char *);
 extern void kdb_gdb_state_pass(char *buf);
 
 /* Defines for kdb_symbol_print */

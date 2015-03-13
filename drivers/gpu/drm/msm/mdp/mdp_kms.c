@@ -34,7 +34,7 @@ static void update_irq(struct mdp_kms *mdp_kms)
 	struct mdp_irq *irq;
 	uint32_t irqmask = mdp_kms->vblank_mask;
 
-	BUG_ON(!spin_is_locked(&list_lock));
+	assert_spin_locked(&list_lock);
 
 	list_for_each_entry(irq, &mdp_kms->irq_list, node)
 		irqmask |= irq->irqmask;

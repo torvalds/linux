@@ -21,7 +21,7 @@
 
 #include <sound/core.h>
 #include <sound/hwdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "emux_voice.h"
 
 

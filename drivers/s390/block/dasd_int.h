@@ -651,7 +651,7 @@ dasd_check_blocksize(int bsize)
 #define DASD_PROFILE_GLOBAL_ONLY 2
 
 extern debug_info_t *dasd_debug_area;
-extern struct dasd_profile_info dasd_global_profile_data;
+extern struct dasd_profile dasd_global_profile;
 extern unsigned int dasd_global_profile_level;
 extern const struct block_device_operations dasd_device_operations;
 
@@ -728,7 +728,6 @@ int dasd_device_is_ro(struct dasd_device *);
 void dasd_profile_reset(struct dasd_profile *);
 int dasd_profile_on(struct dasd_profile *);
 void dasd_profile_off(struct dasd_profile *);
-void dasd_global_profile_reset(void);
 char *dasd_get_user_string(const char __user *, size_t);
 
 /* externals in dasd_devmap.c */

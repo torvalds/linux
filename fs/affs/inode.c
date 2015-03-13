@@ -13,8 +13,6 @@
 #include <linux/gfp.h>
 #include "affs.h"
 
-extern const struct inode_operations affs_symlink_inode_operations;
-
 struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct affs_sb_info	*sbi = AFFS_SB(sb);
@@ -348,9 +346,8 @@ affs_add_entry(struct inode *dir, struct inode *inode, struct dentry *dentry, s3
 	u32 block = 0;
 	int retval;
 
-	pr_debug("%s(dir=%u, inode=%u, \"%pd\", type=%d)\n",
-		 __func__, (u32)dir->i_ino,
-	         (u32)inode->i_ino, dentry, type);
+	pr_debug("%s(dir=%lu, inode=%lu, \"%pd\", type=%d)\n", __func__,
+		 dir->i_ino, inode->i_ino, dentry, type);
 
 	retval = -EIO;
 	bh = affs_bread(sb, inode->i_ino);

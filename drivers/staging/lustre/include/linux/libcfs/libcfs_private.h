@@ -458,14 +458,6 @@ struct libcfs_device_userstate {
 	struct page   *ldu_memhog_root_page;
 };
 
-/* what used to be in portals_lib.h */
-#ifndef MIN
-# define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-#ifndef MAX
-# define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
-
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 
 static inline int cfs_size_round4(int val)

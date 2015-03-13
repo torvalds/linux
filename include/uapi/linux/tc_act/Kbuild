@@ -8,3 +8,5 @@ header-y += tc_nat.h
 header-y += tc_pedit.h
 header-y += tc_skbedit.h
 header-y += tc_vlan.h
+header-y += tc_bpf.h
+header-y += tc_connmark.h

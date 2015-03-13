@@ -105,8 +105,8 @@ static inline u64 name##_readq(struct bcm_sf2_priv *priv, u32 off)	\
 {									\
 	u32 indir, dir;							\
 	spin_lock(&priv->indir_lock);					\
-	indir = reg_readl(priv, REG_DIR_DATA_READ);			\
 	dir = __raw_readl(priv->name + off);				\
+	indir = reg_readl(priv, REG_DIR_DATA_READ);			\
 	spin_unlock(&priv->indir_lock);					\
 	return (u64)indir << 32 | dir;					\
 }									\

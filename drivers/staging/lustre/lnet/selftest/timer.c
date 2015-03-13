@@ -57,7 +57,7 @@
 #define STTIMER_SLOT(t)	       (&stt_data.stt_hash[(((t) >> STTIMER_MINPOLL) & \
 						    (STTIMER_NSLOTS - 1))])
 
-struct st_timer_data {
+static struct st_timer_data {
 	spinlock_t	 stt_lock;
 	/* start time of the slot processed previously */
 	unsigned long       stt_prev_slot;

@@ -37,7 +37,7 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
-#include <asm/mach/irda.h>
+#include <linux/platform_data/irda-sa11x0.h>
 #include <asm/mach/map.h>
 #include <mach/assabet.h>
 #include <linux/platform_data/mfd-mcp-sa11x0.h>

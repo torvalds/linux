@@ -762,7 +762,7 @@ static inline void early_init_dt_check_for_initrd(unsigned long node)
 #ifdef CONFIG_SERIAL_EARLYCON
 extern struct of_device_id __earlycon_of_table[];
 
-int __init early_init_dt_scan_chosen_serial(void)
+static int __init early_init_dt_scan_chosen_serial(void)
 {
 	int offset;
 	const char *p;

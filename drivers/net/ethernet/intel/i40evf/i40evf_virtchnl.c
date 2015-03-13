@@ -715,14 +715,14 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		}
 		return;
 	}
-	if (v_opcode != adapter->current_op)
-		dev_info(&adapter->pdev->dev, "Pending op is %d, received %d\n",
-			 adapter->current_op, v_opcode);
 	if (v_retval) {
 		dev_err(&adapter->pdev->dev, "%s: PF returned error %d to our request %d\n",
 			__func__, v_retval, v_opcode);
 	}
 	switch (v_opcode) {
+	case I40E_VIRTCHNL_OP_VERSION:
+		/* no action, but also not an error */
+		break;
 	case I40E_VIRTCHNL_OP_GET_STATS: {
 		struct i40e_eth_stats *stats =
 			(struct i40e_eth_stats *)msg;

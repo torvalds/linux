@@ -86,7 +86,7 @@ static inline void xfs_dqflock(xfs_dquot_t *dqp)
 	wait_for_completion(&dqp->q_flush);
 }
 
-static inline int xfs_dqflock_nowait(xfs_dquot_t *dqp)
+static inline bool xfs_dqflock_nowait(xfs_dquot_t *dqp)
 {
 	return try_wait_for_completion(&dqp->q_flush);
 }

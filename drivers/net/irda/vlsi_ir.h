@@ -723,7 +723,7 @@ typedef struct vlsi_irda_dev {
 	void			*virtaddr;
 	struct vlsi_ring	*tx_ring, *rx_ring;
 
-	struct timeval		last_rx;
+	ktime_t			last_rx;
 
 	spinlock_t		lock;
 	struct mutex		mtx;

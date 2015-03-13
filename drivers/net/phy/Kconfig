@@ -26,7 +26,7 @@ config AMD_PHY
 
 config AMD_XGBE_PHY
 	tristate "Driver for the AMD 10GbE (amd-xgbe) PHYs"
-	depends on OF && HAS_IOMEM
+	depends on (OF || ACPI) && HAS_IOMEM
 	---help---
 	  Currently supports the AMD 10GbE PHY
 

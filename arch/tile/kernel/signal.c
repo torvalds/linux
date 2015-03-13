@@ -48,7 +48,7 @@ int restore_sigcontext(struct pt_regs *regs,
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	/*
 	 * Enforce that sigcontext is like pt_regs, and doesn't mess

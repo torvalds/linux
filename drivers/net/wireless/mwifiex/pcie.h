@@ -206,6 +206,7 @@ struct mwifiex_pcie_device {
 	u16 blksz_fw_dl;
 	u16 tx_buf_size;
 	bool supports_fw_dump;
+	bool can_ext_scan;
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
@@ -214,6 +215,7 @@ static const struct mwifiex_pcie_device mwifiex_pcie8766 = {
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K,
 	.supports_fw_dump = false,
+	.can_ext_scan = true,
 };
 
 static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
@@ -222,6 +224,7 @@ static const struct mwifiex_pcie_device mwifiex_pcie8897 = {
 	.blksz_fw_dl = MWIFIEX_PCIE_BLOCK_SIZE_FW_DNLD,
 	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
 	.supports_fw_dump = true,
+	.can_ext_scan = true,
 };
 
 struct mwifiex_evt_buf_desc {

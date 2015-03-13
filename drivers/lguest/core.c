@@ -208,6 +208,14 @@ void __lgwrite(struct lg_cpu *cpu, unsigned long addr, const void *b,
  */
 int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 {
+	/* If the launcher asked for a register with LHREQ_GETREG */
+	if (cpu->reg_read) {
+		if (put_user(*cpu->reg_read, user))
+			return -EFAULT;
+		cpu->reg_read = NULL;
+		return sizeof(*cpu->reg_read);
+	}
+
 	/* We stop running once the Guest is dead. */
 	while (!cpu->lg->dead) {
 		unsigned int irq;
@@ -217,21 +225,12 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		if (cpu->hcall)
 			do_hypercalls(cpu);
 
-		/*
-		 * It's possible the Guest did a NOTIFY hypercall to the
-		 * Launcher.
-		 */
-		if (cpu->pending_notify) {
-			/*
-			 * Does it just needs to write to a registered
-			 * eventfd (ie. the appropriate virtqueue thread)?
-			 */
-			if (!send_notify_to_eventfd(cpu)) {
-				/* OK, we tell the main Launcher. */
-				if (put_user(cpu->pending_notify, user))
-					return -EFAULT;
-				return sizeof(cpu->pending_notify);
-			}
+		/* Do we have to tell the Launcher about a trap? */
+		if (cpu->pending.trap) {
+			if (copy_to_user(user, &cpu->pending,
+					 sizeof(cpu->pending)))
+				return -EFAULT;
+			return sizeof(cpu->pending);
 		}
 
 		/*

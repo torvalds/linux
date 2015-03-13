@@ -94,7 +94,7 @@ static int clkgena_divmux_enable(struct clk_hw *hw)
 	unsigned long timeout;
 	int ret = 0;
 
-	mux_hw->clk = hw->clk;
+	__clk_hw_set_clk(mux_hw, hw);
 
 	ret = clk_mux_ops.set_parent(mux_hw, genamux->muxsel);
 	if (ret)
@@ -116,7 +116,7 @@ static void clkgena_divmux_disable(struct clk_hw *hw)
 	struct clkgena_divmux *genamux = to_clkgena_divmux(hw);
 	struct clk_hw *mux_hw = &genamux->mux.hw;
 
-	mux_hw->clk = hw->clk;
+	__clk_hw_set_clk(mux_hw, hw);
 
 	clk_mux_ops.set_parent(mux_hw, CKGAX_CLKOPSRC_SWITCH_OFF);
 }
@@ -126,7 +126,7 @@ static int clkgena_divmux_is_enabled(struct clk_hw *hw)
 	struct clkgena_divmux *genamux = to_clkgena_divmux(hw);
 	struct clk_hw *mux_hw = &genamux->mux.hw;
 
-	mux_hw->clk = hw->clk;
+	__clk_hw_set_clk(mux_hw, hw);
 
 	return (s8)clk_mux_ops.get_parent(mux_hw) > 0;
 }
@@ -136,7 +136,7 @@ u8 clkgena_divmux_get_parent(struct clk_hw *hw)
 	struct clkgena_divmux *genamux = to_clkgena_divmux(hw);
 	struct clk_hw *mux_hw = &genamux->mux.hw;
 
-	mux_hw->clk = hw->clk;
+	__clk_hw_set_clk(mux_hw, hw);
 
 	genamux->muxsel = clk_mux_ops.get_parent(mux_hw);
 	if ((s8)genamux->muxsel < 0) {
@@ -174,7 +174,7 @@ unsigned long clkgena_divmux_recalc_rate(struct clk_hw *hw,
 	struct clkgena_divmux *genamux = to_clkgena_divmux(hw);
 	struct clk_hw *div_hw = &genamux->div[genamux->muxsel].hw;
 
-	div_hw->clk = hw->clk;
+	__clk_hw_set_clk(div_hw, hw);
 
 	return clk_divider_ops.recalc_rate(div_hw, parent_rate);
 }
@@ -185,7 +185,7 @@ static int clkgena_divmux_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clkgena_divmux *genamux = to_clkgena_divmux(hw);
 	struct clk_hw *div_hw = &genamux->div[genamux->muxsel].hw;
 
-	div_hw->clk = hw->clk;
+	__clk_hw_set_clk(div_hw, hw);
 
 	return clk_divider_ops.set_rate(div_hw, rate, parent_rate);
 }
@@ -196,7 +196,7 @@ static long clkgena_divmux_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct clkgena_divmux *genamux = to_clkgena_divmux(hw);
 	struct clk_hw *div_hw = &genamux->div[genamux->muxsel].hw;
 
-	div_hw->clk = hw->clk;
+	__clk_hw_set_clk(div_hw, hw);
 
 	return clk_divider_ops.round_rate(div_hw, rate, prate);
 }

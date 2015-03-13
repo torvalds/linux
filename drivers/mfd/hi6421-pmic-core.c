@@ -35,7 +35,7 @@ static const struct mfd_cell hi6421_devs[] = {
 	{ .name = "hi6421-regulator", },
 };
 
-static struct regmap_config hi6421_regmap_config = {
+static const struct regmap_config hi6421_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 8,

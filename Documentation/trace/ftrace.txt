@@ -1740,7 +1740,7 @@ no pid
      yum-updatesd-3111  [003]  1637.254683: lock_hrtimer_base <-hrtimer_try_to_cancel
      yum-updatesd-3111  [003]  1637.254685: fget_light <-do_sys_poll
      yum-updatesd-3111  [003]  1637.254686: pipe_poll <-do_sys_poll
-# echo -1 > set_ftrace_pid
+# echo > set_ftrace_pid
 # cat trace |head
  # tracer: function
  #

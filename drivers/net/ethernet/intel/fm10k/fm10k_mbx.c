@@ -1194,12 +1194,11 @@ static s32 fm10k_mbx_process_disconnect(struct fm10k_hw *hw,
 {
 	const enum fm10k_mbx_state state = mbx->state;
 	const u32 *hdr = &mbx->mbx_hdr;
-	u16 head, tail;
+	u16 head;
 	s32 err;
 
-	/* we will need to pull all of the fields for verification */
+	/* we will need to pull the header field for verification */
 	head = FM10K_MSG_HDR_FIELD_GET(*hdr, HEAD);
-	tail = FM10K_MSG_HDR_FIELD_GET(*hdr, TAIL);
 
 	/* We should not be receiving disconnect if Rx is incomplete */
 	if (mbx->pushed)

@@ -33,8 +33,6 @@
 #include <linux/of_net.h>
 #include <linux/of_device.h>
 #include <linux/if_vlan.h>
-#include <linux/mfd/syscon.h>
-#include <linux/regmap.h>
 
 #include <linux/pinctrl/consumer.h>
 
@@ -761,17 +759,25 @@ requeue:
 		dev_kfree_skb_any(new_skb);
 }
 
-static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
+static irqreturn_t cpsw_tx_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
-	int value = irq - priv->irqs_table[0];
 
-	/* NOTICE: Ending IRQ here. The trick with the 'value' variable above
-	 * is to make sure we will always write the correct value to the EOI
-	 * register. Namely 0 for RX_THRESH Interrupt, 1 for RX Interrupt, 2
-	 * for TX Interrupt and 3 for MISC Interrupt.
-	 */
-	cpdma_ctlr_eoi(priv->dma, value);
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_TX);
+	cpdma_chan_process(priv->txch, 128);
+
+	priv = cpsw_get_slave_priv(priv, 1);
+	if (priv)
+		cpdma_chan_process(priv->txch, 128);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t cpsw_rx_interrupt(int irq, void *dev_id)
+{
+	struct cpsw_priv *priv = dev_id;
+
+	cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
 
 	cpsw_intr_disable(priv);
 	if (priv->irq_enabled == true) {
@@ -1097,7 +1103,7 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 	cpsw_ale_add_mcast(priv->ale, priv->ndev->broadcast,
 			   port_mask, ALE_VLAN, slave->port_vlan, 0);
 	cpsw_ale_add_ucast(priv->ale, priv->mac_addr,
-		priv->host_port, ALE_VLAN, slave->port_vlan);
+		priv->host_port, ALE_VLAN | ALE_SECURE, slave->port_vlan);
 }
 
 static void soft_reset_slave(struct cpsw_slave *slave)
@@ -1624,7 +1630,8 @@ static void cpsw_ndo_poll_controller(struct net_device *ndev)
 
 	cpsw_intr_disable(priv);
 	cpdma_ctlr_int_ctrl(priv->dma, false);
-	cpsw_interrupt(ndev->irq, priv);
+	cpsw_rx_interrupt(priv->irqs_table[0], priv);
+	cpsw_tx_interrupt(priv->irqs_table[1], priv);
 	cpdma_ctlr_int_ctrl(priv->dma, true);
 	cpsw_intr_enable(priv);
 }
@@ -1927,36 +1934,6 @@ static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
 	slave->port_vlan = data->dual_emac_res_vlan;
 }
 
-#define AM33XX_CTRL_MAC_LO_REG(id) (0x630 + 0x8 * id)
-#define AM33XX_CTRL_MAC_HI_REG(id) (0x630 + 0x8 * id + 0x4)
-
-static int cpsw_am33xx_cm_get_macid(struct device *dev, int slave,
-		u8 *mac_addr)
-{
-	u32 macid_lo;
-	u32 macid_hi;
-	struct regmap *syscon;
-
-	syscon = syscon_regmap_lookup_by_phandle(dev->of_node, "syscon");
-	if (IS_ERR(syscon)) {
-		if (PTR_ERR(syscon) == -ENODEV)
-			return 0;
-		return PTR_ERR(syscon);
-	}
-
-	regmap_read(syscon, AM33XX_CTRL_MAC_LO_REG(slave), &macid_lo);
-	regmap_read(syscon, AM33XX_CTRL_MAC_HI_REG(slave), &macid_hi);
-
-	mac_addr[5] = (macid_lo >> 8) & 0xff;
-	mac_addr[4] = macid_lo & 0xff;
-	mac_addr[3] = (macid_hi >> 24) & 0xff;
-	mac_addr[2] = (macid_hi >> 16) & 0xff;
-	mac_addr[1] = (macid_hi >> 8) & 0xff;
-	mac_addr[0] = macid_hi & 0xff;
-
-	return 0;
-}
-
 static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			 struct platform_device *pdev)
 {
@@ -2081,7 +2058,8 @@ no_phy_slave:
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
 		} else {
 			if (of_machine_is_compatible("ti,am33xx")) {
-				ret = cpsw_am33xx_cm_get_macid(&pdev->dev, i,
+				ret = cpsw_am33xx_cm_get_macid(&pdev->dev,
+							0x630, i,
 							slave_data->mac_addr);
 				if (ret)
 					return ret;
@@ -2192,7 +2170,8 @@ static int cpsw_probe(struct platform_device *pdev)
 	void __iomem			*ss_regs;
 	struct resource			*res, *ss_res;
 	u32 slave_offset, sliver_offset, slave_size;
-	int ret = 0, i, k = 0;
+	int ret = 0, i;
+	int irq;
 
 	ndev = alloc_etherdev(sizeof(struct cpsw_priv));
 	if (!ndev) {
@@ -2374,31 +2353,47 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_dma_ret;
 	}
 
-	ndev->irq = platform_get_irq(pdev, 0);
+	ndev->irq = platform_get_irq(pdev, 1);
 	if (ndev->irq < 0) {
 		dev_err(priv->dev, "error getting irq resource\n");
 		ret = -ENOENT;
 		goto clean_ale_ret;
 	}
 
-	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ, k))) {
-		if (k >= ARRAY_SIZE(priv->irqs_table)) {
-			ret = -EINVAL;
-			goto clean_ale_ret;
-		}
+	/* Grab RX and TX IRQs. Note that we also have RX_THRESHOLD and
+	 * MISC IRQs which are always kept disabled with this driver so
+	 * we will not request them.
+	 *
+	 * If anyone wants to implement support for those, make sure to
+	 * first request and append them to irqs_table array.
+	 */
 
-		ret = devm_request_irq(&pdev->dev, res->start, cpsw_interrupt,
-				       0, dev_name(&pdev->dev), priv);
-		if (ret < 0) {
-			dev_err(priv->dev, "error attaching irq (%d)\n", ret);
-			goto clean_ale_ret;
-		}
+	/* RX IRQ */
+	irq = platform_get_irq(pdev, 1);
+	if (irq < 0)
+		goto clean_ale_ret;
 
-		priv->irqs_table[k] = res->start;
-		k++;
+	priv->irqs_table[0] = irq;
+	ret = devm_request_irq(&pdev->dev, irq, cpsw_rx_interrupt,
+			       0, dev_name(&pdev->dev), priv);
+	if (ret < 0) {
+		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
+		goto clean_ale_ret;
 	}
 
-	priv->num_irqs = k;
+	/* TX IRQ */
+	irq = platform_get_irq(pdev, 2);
+	if (irq < 0)
+		goto clean_ale_ret;
+
+	priv->irqs_table[1] = irq;
+	ret = devm_request_irq(&pdev->dev, irq, cpsw_tx_interrupt,
+			       0, dev_name(&pdev->dev), priv);
+	if (ret < 0) {
+		dev_err(priv->dev, "error attaching irq (%d)\n", ret);
+		goto clean_ale_ret;
+	}
+	priv->num_irqs = 2;
 
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
@@ -2471,6 +2466,7 @@ static int cpsw_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int cpsw_suspend(struct device *dev)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
@@ -2523,11 +2519,9 @@ static int cpsw_resume(struct device *dev)
 	}
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops cpsw_pm_ops = {
-	.suspend	= cpsw_suspend,
-	.resume		= cpsw_resume,
-};
+static SIMPLE_DEV_PM_OPS(cpsw_pm_ops, cpsw_suspend, cpsw_resume);
 
 static const struct of_device_id cpsw_of_mtable[] = {
 	{ .compatible = "ti,cpsw", },

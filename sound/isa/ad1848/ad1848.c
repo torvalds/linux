@@ -88,7 +88,6 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 {
 	struct snd_card *card;
 	struct snd_wss *chip;
-	struct snd_pcm *pcm;
 	int error;
 
 	error = snd_card_new(dev, index[n], id[n], THIS_MODULE, 0, &card);
@@ -103,7 +102,7 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 
 	card->private_data = chip;
 
-	error = snd_wss_pcm(chip, 0, &pcm);
+	error = snd_wss_pcm(chip, 0);
 	if (error < 0)
 		goto out;
 
@@ -112,10 +111,10 @@ static int snd_ad1848_probe(struct device *dev, unsigned int n)
 		goto out;
 
 	strcpy(card->driver, "AD1848");
-	strcpy(card->shortname, pcm->name);
+	strcpy(card->shortname, chip->pcm->name);
 
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",
-		pcm->name, chip->port, irq[n], dma1[n]);
+		chip->pcm->name, chip->port, irq[n], dma1[n]);
 	if (thinkpad[n])
 		strcat(card->longname, " [Thinkpad]");
 

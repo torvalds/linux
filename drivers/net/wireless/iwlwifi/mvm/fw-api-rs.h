@@ -308,6 +308,42 @@ enum {
 #define LQ_FLAG_DYNAMIC_BW_POS          6
 #define LQ_FLAG_DYNAMIC_BW_MSK          (1 << LQ_FLAG_DYNAMIC_BW_POS)
 
+/* Single Stream Tx Parameters (lq_cmd->ss_params)
+ * Flags to control a smart FW decision about whether BFER/STBC/SISO will be
+ * used for single stream Tx.
+ */
+
+/* Bit 0-1: Max STBC streams allowed. Can be 0-3.
+ * (0) - No STBC allowed
+ * (1) - 2x1 STBC allowed (HT/VHT)
+ * (2) - 4x2 STBC allowed (HT/VHT)
+ * (3) - 3x2 STBC allowed (HT only)
+ * All our chips are at most 2 antennas so only (1) is valid for now.
+ */
+#define LQ_SS_STBC_ALLOWED_POS          0
+#define LQ_SS_STBC_ALLOWED_MSK		(3 << LQ_SS_STBC_ALLOWED_MSK)
+
+/* 2x1 STBC is allowed */
+#define LQ_SS_STBC_1SS_ALLOWED		(1 << LQ_SS_STBC_ALLOWED_POS)
+
+/* Bit 2: Beamformer (VHT only) is allowed */
+#define LQ_SS_BFER_ALLOWED_POS		2
+#define LQ_SS_BFER_ALLOWED		(1 << LQ_SS_BFER_ALLOWED_POS)
+
+/* Bit 3: Force BFER or STBC for testing
+ * If this is set:
+ * If BFER is allowed then force the ucode to choose BFER else
+ * If STBC is allowed then force the ucode to choose STBC over SISO
+ */
+#define LQ_SS_FORCE_POS			3
+#define LQ_SS_FORCE			(1 << LQ_SS_FORCE_POS)
+
+/* Bit 31: ss_params field is valid. Used for FW backward compatibility
+ * with other drivers which don't support the ss_params API yet
+ */
+#define LQ_SS_PARAMS_VALID_POS		31
+#define LQ_SS_PARAMS_VALID		(1 << LQ_SS_PARAMS_VALID_POS)
+
 /**
  * struct iwl_lq_cmd - link quality command
  * @sta_id: station to update
@@ -330,7 +366,7 @@ enum {
  *	2 - 0x3f: maximal number of frames (up to 3f == 63)
  * @rs_table: array of rates for each TX try, each is rate_n_flags,
  *	meaning it is a combination of RATE_MCS_* and IWL_RATE_*_PLCP
- * @bf_params: beam forming params, currently not used
+ * @ss_params: single stream features. declare whether STBC or BFER are allowed.
  */
 struct iwl_lq_cmd {
 	u8 sta_id;
@@ -348,6 +384,6 @@ struct iwl_lq_cmd {
 	u8 agg_frame_cnt_limit;
 	__le32 reserved2;
 	__le32 rs_table[LQ_MAX_RETRY_NUM];
-	__le32 bf_params;
+	__le32 ss_params;
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
 #endif /* __fw_api_rs_h__ */

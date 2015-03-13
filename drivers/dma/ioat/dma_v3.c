@@ -214,6 +214,11 @@ static bool is_bwd_ioat(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD1:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD3:
+	/* even though not Atom, BDX-DE has same DMA silicon */
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE0:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE1:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE2:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE3:
 		return true;
 	default:
 		return false;
@@ -225,6 +230,10 @@ static bool is_bwd_noraid(struct pci_dev *pdev)
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD3:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE0:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE1:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE2:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE3:
 		return true;
 	default:
 		return false;
@@ -489,6 +498,7 @@ static void ioat3_eh(struct ioat2_dma_chan *ioat)
 	struct ioat_chan_common *chan = &ioat->base;
 	struct pci_dev *pdev = to_pdev(chan);
 	struct ioat_dma_descriptor *hw;
+	struct dma_async_tx_descriptor *tx;
 	u64 phys_complete;
 	struct ioat_ring_ent *desc;
 	u32 err_handled = 0;
@@ -534,6 +544,16 @@ static void ioat3_eh(struct ioat2_dma_chan *ioat)
 		dev_err(to_dev(chan), "%s: fatal error (%x:%x)\n",
 			__func__, chanerr, err_handled);
 		BUG();
+	} else { /* cleanup the faulty descriptor */
+		tx = &desc->txd;
+		if (tx->cookie) {
+			dma_cookie_complete(tx);
+			dma_descriptor_unmap(tx);
+			if (tx->callback) {
+				tx->callback(tx->callback_param);
+				tx->callback = NULL;
+			}
+		}
 	}
 
 	writel(chanerr, chan->reg_base + IOAT_CHANERR_OFFSET);
@@ -1300,7 +1320,8 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
+	if (tmo == 0 ||
+	    dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test xor timed out\n");
 		err = -ENODEV;
 		goto dma_unmap;
@@ -1366,7 +1387,8 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
+	if (tmo == 0 ||
+	    dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test validate timed out\n");
 		err = -ENODEV;
 		goto dma_unmap;
@@ -1418,7 +1440,8 @@ static int ioat_xor_val_self_test(struct ioatdma_device *device)
 
 	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
+	if (tmo == 0 ||
+	    dma->device_tx_status(dma_chan, cookie, NULL) != DMA_COMPLETE) {
 		dev_err(dev, "Self-test 2nd validate timed out\n");
 		err = -ENODEV;
 		goto dma_unmap;

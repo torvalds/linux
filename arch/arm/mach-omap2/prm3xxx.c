@@ -674,7 +674,7 @@ int __init omap3xxx_prm_init(void)
 	return prm_register(&omap3xxx_prm_ll_data);
 }
 
-static struct of_device_id omap3_prm_dt_match_table[] = {
+static const struct of_device_id omap3_prm_dt_match_table[] = {
 	{ .compatible = "ti,omap3-prm" },
 	{ }
 };
