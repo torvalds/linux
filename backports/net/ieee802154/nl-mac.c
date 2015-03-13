@@ -424,7 +424,8 @@ int ieee802154_list_iface(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		goto out_dev;
 
-	rc = ieee802154_nl_fill_iface(msg, info->snd_portid, info->snd_seq,
+	rc = ieee802154_nl_fill_iface(msg, genl_info_snd_portid(info),
+				      info->snd_seq,
 				      0, dev);
 	if (rc < 0)
 		goto out_free;
@@ -457,7 +458,7 @@ int ieee802154_dump_iface(struct sk_buff *skb, struct netlink_callback *cb)
 		    dev->mtu != IEEE802154_MTU)
 			goto cont;
 
-		if (ieee802154_nl_fill_iface(skb, NETLINK_CB(cb->skb).portid,
+		if (ieee802154_nl_fill_iface(skb, NETLINK_CB_PORTID(cb->skb),
 					     cb->nlh->nlmsg_seq,
 					     NLM_F_MULTI, dev) < 0)
 			break;
@@ -799,7 +800,7 @@ ieee802154_llsec_dump_table(struct sk_buff *skb, struct netlink_callback *cb,
 		data.s_idx = cb->args[1];
 		data.s_idx2 = cb->args[2];
 		data.dev = dev;
-		data.portid = NETLINK_CB(cb->skb).portid;
+		data.portid = NETLINK_CB_PORTID(cb->skb);
 		data.nlmsg_seq = cb->nlh->nlmsg_seq;
 
 		data.ops->llsec->lock_table(dev);

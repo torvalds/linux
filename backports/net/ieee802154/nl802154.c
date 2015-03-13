@@ -392,7 +392,7 @@ nl802154_dump_wpan_phy(struct sk_buff *skb, struct netlink_callback *cb)
 		ret = nl802154_send_wpan_phy(rdev,
 					     NL802154_CMD_NEW_WPAN_PHY,
 					     skb,
-					     NETLINK_CB(cb->skb).portid,
+					     NETLINK_CB_PORTID(cb->skb),
 					     cb->nlh->nlmsg_seq, NLM_F_MULTI);
 		if (ret < 0) {
 			if ((ret == -ENOBUFS || ret == -EMSGSIZE) &&
@@ -429,7 +429,7 @@ static int nl802154_get_wpan_phy(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 
 	if (nl802154_send_wpan_phy(rdev, NL802154_CMD_NEW_WPAN_PHY, msg,
-				   info->snd_portid, info->snd_seq, 0) < 0) {
+				   genl_info_snd_portid(info), info->snd_seq, 0) < 0) {
 		nlmsg_free(msg);
 		return -ENOBUFS;
 	}
@@ -522,7 +522,7 @@ nl802154_dump_interface(struct sk_buff *skb, struct netlink_callback *cb)
 				if_idx++;
 				continue;
 			}
-			if (nl802154_send_iface(skb, NETLINK_CB(cb->skb).portid,
+			if (nl802154_send_iface(skb, NETLINK_CB_PORTID(cb->skb),
 						cb->nlh->nlmsg_seq, NLM_F_MULTI,
 						rdev, wpan_dev) < 0) {
 				goto out;
@@ -551,7 +551,7 @@ static int nl802154_get_interface(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		return -ENOMEM;
 
-	if (nl802154_send_iface(msg, info->snd_portid, info->snd_seq, 0,
+	if (nl802154_send_iface(msg, genl_info_snd_portid(info), info->snd_seq, 0,
 				rdev, wdev) < 0) {
 		nlmsg_free(msg);
 		return -ENOBUFS;

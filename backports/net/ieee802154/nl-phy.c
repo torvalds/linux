@@ -103,7 +103,8 @@ int ieee802154_list_phy(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		goto out_dev;
 
-	rc = ieee802154_nl_fill_phy(msg, info->snd_portid, info->snd_seq,
+	rc = ieee802154_nl_fill_phy(msg, genl_info_snd_portid(info),
+				    info->snd_seq,
 				    0, phy);
 	if (rc < 0)
 		goto out_free;
@@ -135,7 +136,7 @@ static int ieee802154_dump_phy_iter(struct wpan_phy *phy, void *_data)
 		return 0;
 
 	rc = ieee802154_nl_fill_phy(data->skb,
-				    NETLINK_CB(data->cb->skb).portid,
+				    NETLINK_CB_PORTID(data->cb->skb),
 				    data->cb->nlh->nlmsg_seq,
 				    NLM_F_MULTI,
 				    phy);
