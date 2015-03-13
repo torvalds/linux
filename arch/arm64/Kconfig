@@ -470,6 +470,10 @@ config HOTPLUG_CPU
 
 source kernel/Kconfig.preempt
 
+config UP_LATE_INIT
+       def_bool y
+       depends on !SMP
+
 config HZ
 	int
 	default 100

@@ -207,6 +207,18 @@ static void __init smp_build_mpidr_hash(void)
 }
 #endif
 
+void __init do_post_cpus_up_work(void)
+{
+	apply_alternatives_all();
+}
+
+#ifdef CONFIG_UP_LATE_INIT
+void __init up_late_init(void)
+{
+	do_post_cpus_up_work();
+}
+#endif /* CONFIG_UP_LATE_INIT */
+
 static void __init setup_processor(void)
 {
 	struct cpu_info *cpu_info;
