@@ -139,7 +139,7 @@ config USB_ISP1301
 
 config USB_MSM_OTG
 	tristate "Qualcomm on-chip USB OTG controller support"
-	depends on (USB || USB_GADGET) && (ARCH_MSM || ARCH_QCOM || COMPILE_TEST)
+	depends on (USB || USB_GADGET) && (ARCH_QCOM || COMPILE_TEST)
 	depends on RESET_CONTROLLER
 	select USB_PHY
 	help
