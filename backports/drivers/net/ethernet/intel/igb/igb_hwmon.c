@@ -173,7 +173,9 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 {
 	struct hwmon_buff *igb_hwmon;
 	struct i2c_client *client;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
 	struct device *hwmon_dev;
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0) */
 	unsigned int i;
 	int rc = 0;
 
@@ -230,6 +232,7 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	igb_hwmon->groups[0] = &igb_hwmon->group;
 	igb_hwmon->group.attrs = igb_hwmon->attrs;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
 	hwmon_dev = devm_hwmon_device_register_with_groups(&adapter->pdev->dev,
 							   client->name,
 							   igb_hwmon,
@@ -242,6 +245,7 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	goto exit;
 
 err:
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0) */
 	igb_sysfs_del_adapter(adapter);
 exit:
 	return rc;
