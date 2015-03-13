@@ -734,8 +734,6 @@ static void tcp_v6_init_req(struct request_sock *req, struct sock *sk,
 	ireq->ir_v6_rmt_addr = ipv6_hdr(skb)->saddr;
 	ireq->ir_v6_loc_addr = ipv6_hdr(skb)->daddr;
 
-	ireq->ir_iif = sk->sk_bound_dev_if;
-
 	/* So that link locals have meaning */
 	if (!sk->sk_bound_dev_if &&
 	    ipv6_addr_type(&ireq->ir_v6_rmt_addr) & IPV6_ADDR_LINKLOCAL)

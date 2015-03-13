@@ -349,6 +349,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	write_pnet(&ireq->ireq_net, sock_net(sk));
 	ireq->ireq_family = AF_INET;
 
+	ireq->ir_iif = sk->sk_bound_dev_if;
+
 	/* We throwed the options of the initial SYN away, so we hope
 	 * the ACK carries the same options again (see RFC1122 4.2.3.8)
 	 */

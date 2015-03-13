@@ -733,7 +733,7 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 	r->idiag_timer = 1;
 	r->idiag_retrans = req->num_retrans;
 
-	r->id.idiag_if = sk->sk_bound_dev_if;
+	r->id.idiag_if = ireq->ir_iif;
 
 	BUILD_BUG_ON(offsetof(struct inet_request_sock, ir_cookie) !=
 		     offsetof(struct sock, sk_cookie));
