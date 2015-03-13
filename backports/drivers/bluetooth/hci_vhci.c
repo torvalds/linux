@@ -159,6 +159,7 @@ static int vhci_create_device(struct vhci_data *data, __u8 opcode)
 	return 0;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0)
 static inline ssize_t vhci_get_user(struct vhci_data *data,
 				    struct iov_iter *from)
 {
@@ -166,6 +167,17 @@ static inline ssize_t vhci_get_user(struct vhci_data *data,
 	struct sk_buff *skb;
 	__u8 pkt_type, opcode;
 	int ret;
+#else
+static inline ssize_t vhci_get_user(struct vhci_data *data,
+				    const struct iovec *iov,
+				    unsigned long count)
+{
+	size_t len = iov_length(iov, count);
+	struct sk_buff *skb;
+	__u8 pkt_type, opcode;
+	unsigned long i;
+	int ret;
+#endif
 
 	if (len < 2 || len > HCI_MAX_FRAME_SIZE)
 		return -EINVAL;
@@ -174,10 +186,20 @@ static inline ssize_t vhci_get_user(struct vhci_data *data,
 	if (!skb)
 		return -ENOMEM;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0)
 	if (copy_from_iter(skb_put(skb, len), len, from) != len) {
 		kfree_skb(skb);
 		return -EFAULT;
 	}
+#else
+	for (i = 0; i < count; i++) {
+		if (copy_from_user(skb_put(skb, iov[i].iov_len),
+				   iov[i].iov_base, iov[i].iov_len)) {
+			kfree_skb(skb);
+			return -EFAULT;
+		}
+	}
+#endif
 
 	pkt_type = *((__u8 *) skb->data);
 	skb_pull(skb, 1);
@@ -289,12 +311,21 @@ static ssize_t vhci_read(struct file *file,
 	return ret;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0)
 static ssize_t vhci_write(struct kiocb *iocb, struct iov_iter *from)
+#else
+static ssize_t vhci_write(struct kiocb *iocb, const struct iovec *iov,
+			  unsigned long count, loff_t pos)
+#endif
 {
 	struct file *file = iocb->ki_filp;
 	struct vhci_data *data = file->private_data;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0)
 	return vhci_get_user(data, from);
+#else
+	return vhci_get_user(data, iov, count);
+#endif
 }
 
 static unsigned int vhci_poll(struct file *file, poll_table *wait)
@@ -359,7 +390,11 @@ static int vhci_release(struct inode *inode, struct file *file)
 static const struct file_operations vhci_fops = {
 	.owner		= THIS_MODULE,
 	.read		= vhci_read,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0)
 	.write_iter	= vhci_write,
+#else
+	.aio_write	= vhci_write,
+#endif
 	.poll		= vhci_poll,
 	.open		= vhci_open,
 	.release	= vhci_release,
