@@ -356,19 +356,6 @@ config ARCH_VERSATILE
 	help
 	  This enables support for ARM Ltd Versatile board.
 
-config ARCH_AT91
-	bool "Atmel AT91"
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
-	select IRQ_DOMAIN
-	select PINCTRL
-	select PINCTRL_AT91
-	select SOC_BUS
-	select USE_OF
-	help
-	  This enables support for systems based on Atmel
-	  AT91RM9200, AT91SAM9 and SAMA5 processors.
-
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
 	select ARCH_REQUIRE_GPIOLIB

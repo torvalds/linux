@@ -1,55 +1,14 @@
-if ARCH_AT91
-
-config HAVE_AT91_UTMI
-	bool
-
-config HAVE_AT91_USB_CLK
-	bool
-
-config COMMON_CLK_AT91
-	bool
-	select COMMON_CLK
-
-config HAVE_AT91_SMD
-	bool
-
-config HAVE_AT91_H32MX
-	bool
-
-config SOC_SAMA5
-	bool
-	select ATMEL_AIC5_IRQ
+menuconfig ARCH_AT91
+	bool "Atmel SoCs"
+	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLK_AT91
-	select CPU_V7
-	select GENERIC_CLOCKEVENTS
-	select MEMORY
-	select ATMEL_SDRAMC
-	select SRAM if PM
+	select PINCTRL
+	select PINCTRL_AT91
+	select SOC_BUS
 
-menu "Atmel AT91 System-on-Chip"
-
-choice
-
-	prompt "Core type"
-
-config SOC_SAM_V4_V5
-	bool "ARM9 AT91SAM9/AT91RM9200"
-	help
-	  Select this if you are using one of Atmel's AT91SAM9 or
-	  AT91RM9200 SoC.
-
-config SOC_SAM_V7
-	bool "Cortex A5"
-	help
-	  Select this if you are using one of Atmel's SAMA5D3 SoC.
-
-endchoice
-
-comment "Atmel AT91 Processor"
-
-if SOC_SAM_V7
+if ARCH_AT91
 config SOC_SAMA5D3
-	bool "SAMA5D3 family"
+	bool "SAMA5D3 family" if ARCH_MULTI_V7
 	select SOC_SAMA5
 	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
@@ -60,9 +19,8 @@ config SOC_SAMA5D3
 	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35, SAMA5D36.
 
 config SOC_SAMA5D4
-	bool "SAMA5D4 family"
+	bool "SAMA5D4 family" if ARCH_MULTI_V7
 	select SOC_SAMA5
-	select CLKSRC_MMIO
 	select CACHE_L2X0
 	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
@@ -71,32 +29,30 @@ config SOC_SAMA5D4
 	select HAVE_AT91_H32MX
 	help
 	  Select this if you are using one of Atmel's SAMA5D4 family SoC.
-endif
 
-if SOC_SAM_V4_V5
 config SOC_AT91RM9200
-	bool "AT91RM9200"
+	bool "AT91RM9200" if ARCH_MULTI_V4T
 	select ATMEL_AIC_IRQ
 	select ATMEL_ST
-	select COMMON_CLK_AT91
 	select CPU_ARM920T
-	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_USB_CLK
 	select MIGHT_HAVE_PCI
+	select SOC_SAM_V4_V5
 	select SRAM if PM
+	help
+	  Select this if you are using Atmel's AT91RM9200 SoC.
 
 config SOC_AT91SAM9
-	bool "AT91SAM9"
+	bool "AT91SAM9" if ARCH_MULTI_V5
 	select ATMEL_AIC_IRQ
 	select ATMEL_SDRAMC
-	select COMMON_CLK_AT91
 	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
 	select HAVE_AT91_UTMI
 	select HAVE_FB_ATMEL
 	select MEMORY
+	select SOC_SAM_V4_V5
 	select SRAM if PM
 	help
 	  Select this if you are using one of those Atmel SoC:
@@ -116,17 +72,46 @@ config SOC_AT91SAM9
 	    AT91SAM9X25
 	    AT91SAM9X35
 	    AT91SAM9XE
-endif # SOC_SAM_V4_V5
 
-comment "AT91 Feature Selections"
+config HAVE_AT91_UTMI
+	bool
+
+config HAVE_AT91_USB_CLK
+	bool
+
+config COMMON_CLK_AT91
+	bool
+	select COMMON_CLK
+
+config HAVE_AT91_SMD
+	bool
+
+config HAVE_AT91_H32MX
+	bool
+
+config SOC_SAM_V4_V5
+	bool
+
+config SOC_SAM_V7
+	bool
+
+config SOC_SAMA5
+	bool
+	select ATMEL_AIC5_IRQ
+	select ATMEL_SDRAMC
+	select MEMORY
+	select SOC_SAM_V7
+	select SRAM if PM
+
+comment "Atmel SoCs Feature Selections"
 
 config AT91_TIMER_HZ
-       int "Kernel HZ (jiffies per second)"
-       range 32 1024
-       depends on ARCH_AT91
-       default "128" if SOC_AT91RM9200
-       default "100"
-       help
+	int "Kernel HZ (jiffies per second)"
+	range 32 1024
+	depends on ARCH_AT91
+	default "128" if SOC_AT91RM9200
+	default "100"
+	help
 	  On AT91rm9200 chips where you're using a system clock derived
 	  from the 32768 Hz hardware clock, this tick rate should divide
 	  it exactly: use a power-of-two value, such as 128 or 256, to
@@ -135,7 +120,5 @@ config AT91_TIMER_HZ
 	  On AT91sam926x chips, or otherwise when using a higher precision
 	  system clock (of at least several MHz), rounding is less of a
 	  problem so it can be safer to use a decimal values like 100.
-
-endmenu
 
 endif
