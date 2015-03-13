@@ -32,10 +32,17 @@
 #include <asm/fncpy.h>
 #include <asm/cacheflush.h>
 
-#include <mach/hardware.h>
-
 #include "generic.h"
 #include "pm.h"
+
+/*
+ * FIXME: this is needed to communicate between the pinctrl driver and
+ * the PM implementation in the machine. Possibly part of the PM
+ * implementation should be moved down into the pinctrl driver and get
+ * called as part of the generic suspend/resume path.
+ */
+extern void at91_pinctrl_gpio_suspend(void);
+extern void at91_pinctrl_gpio_resume(void);
 
 static struct {
 	unsigned long uhp_udp_mask;
