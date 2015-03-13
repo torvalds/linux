@@ -161,8 +161,8 @@ static unsigned int init_lirc_timer(void)
 			     || (now.tv_sec == tv.tv_sec
 				 && now.tv_usec < tv.tv_usec)));
 
-	timeelapsed = ((now.tv_sec + 1 - tv.tv_sec)*1000000
-		     + (now.tv_usec - tv.tv_usec));
+	timeelapsed = (now.tv_sec + 1 - tv.tv_sec)*1000000
+		     + (now.tv_usec - tv.tv_usec);
 	if (count >= 1000 && timeelapsed > 0) {
 		if (default_timer == 0) {
 			/* autodetect timer */
