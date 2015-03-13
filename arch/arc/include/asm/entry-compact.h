@@ -181,8 +181,6 @@
 	/* ARC700 doesn't provide auto-stack switching */
 	SWITCH_TO_KERNEL_STK
 
-	lr	r9, [ecr]
-	st      r9, [sp, 8]    /* ECR */
 	st      r0, [sp, 4]    /* orig_r0, needed only for sys calls */
 
 	/* Restore r9 used to code the early prologue */
@@ -198,6 +196,9 @@
 	PUSHAX	lp_end
 	PUSHAX	lp_start
 	PUSHAX	erbta
+
+	lr	r9, [ecr]
+	st      r9, [sp, PT_event]    /* EV_Trap expects r9 to have ECR */
 .endm
 
 /*--------------------------------------------------------------
