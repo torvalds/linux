@@ -772,6 +772,7 @@ struct mwifiex_adapter {
 	bool rx_processing;
 	bool delay_main_work;
 	bool rx_locked;
+	bool main_locked;
 	struct mwifiex_bss_prio_tbl bss_prio_tbl[MWIFIEX_MAX_BSS_NUM];
 	/* spin lock for init/shutdown */
 	spinlock_t mwifiex_lock;

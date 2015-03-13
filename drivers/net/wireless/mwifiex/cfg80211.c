@@ -717,6 +717,9 @@ mwifiex_cfg80211_init_p2p_go(struct mwifiex_private *priv)
 
 static int mwifiex_deinit_priv_params(struct mwifiex_private *priv)
 {
+	struct mwifiex_adapter *adapter = priv->adapter;
+	unsigned long flags;
+
 	priv->mgmt_frame_mask = 0;
 	if (mwifiex_send_cmd(priv, HostCmd_CMD_MGMT_FRAME_REG,
 			     HostCmd_ACT_GEN_SET, 0,
@@ -727,6 +730,25 @@ static int mwifiex_deinit_priv_params(struct mwifiex_private *priv)
 	}
 
 	mwifiex_deauthenticate(priv, NULL);
+
+	spin_lock_irqsave(&adapter->main_proc_lock, flags);
+	adapter->main_locked = true;
+	if (adapter->mwifiex_processing) {
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+		flush_workqueue(adapter->workqueue);
+	} else {
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+	}
+
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	adapter->rx_locked = true;
+	if (adapter->rx_processing) {
+		spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+		flush_workqueue(adapter->rx_workqueue);
+	} else {
+	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
+	}
+
 	mwifiex_free_priv(priv);
 	priv->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 	priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
@@ -740,6 +762,9 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 			     struct net_device *dev,
 			     enum nl80211_iftype type)
 {
+	struct mwifiex_adapter *adapter = priv->adapter;
+	unsigned long flags;
+
 	mwifiex_init_priv(priv);
 
 	priv->bss_mode = type;
@@ -769,6 +794,14 @@ mwifiex_init_new_priv_params(struct mwifiex_private *priv,
 			dev->name, type);
 		return -EOPNOTSUPP;
 	}
+
+	spin_lock_irqsave(&adapter->main_proc_lock, flags);
+	adapter->main_locked = false;
+	spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
+
+	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
+	adapter->rx_locked = false;
+	spin_unlock_irqrestore(&adapter->rx_proc_lock, flags);
 
 	return 0;
 }
