@@ -178,8 +178,10 @@ static int igb_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac);
 static int igb_ndo_set_vf_vlan(struct net_device *netdev,
 			       int vf, u16 vlan, u8 qos);
 static int igb_ndo_set_vf_bw(struct net_device *, int, int, int);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0)
 static int igb_ndo_set_vf_spoofchk(struct net_device *netdev, int vf,
 				   bool setting);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) */
 static int igb_ndo_get_vf_config(struct net_device *netdev, int vf,
 				 struct ifla_vf_info *ivi);
 static void igb_check_vf_rate_limit(struct igb_adapter *);
@@ -2100,7 +2102,9 @@ static const struct net_device_ops igb_netdev_ops = {
 	.ndo_set_vf_mac		= igb_ndo_set_vf_mac,
 	.ndo_set_vf_vlan	= igb_ndo_set_vf_vlan,
 	.ndo_set_vf_rate	= igb_ndo_set_vf_bw,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0)
 	.ndo_set_vf_spoofchk	= igb_ndo_set_vf_spoofchk,
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) */
 	.ndo_get_vf_config	= igb_ndo_get_vf_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= igb_netpoll,
@@ -7918,6 +7922,7 @@ static int igb_ndo_set_vf_bw(struct net_device *netdev, int vf,
 	return 0;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0)
 static int igb_ndo_set_vf_spoofchk(struct net_device *netdev, int vf,
 				   bool setting)
 {
@@ -7944,6 +7949,7 @@ static int igb_ndo_set_vf_spoofchk(struct net_device *netdev, int vf,
 	adapter->vf_data[vf].spoofchk_enabled = setting;
 	return 0;
 }
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) */
 
 static int igb_ndo_get_vf_config(struct net_device *netdev,
 				 int vf, struct ifla_vf_info *ivi)
@@ -7957,7 +7963,9 @@ static int igb_ndo_get_vf_config(struct net_device *netdev,
 	ivi->min_tx_rate = 0;
 	ivi->vlan = adapter->vf_data[vf].pf_vlan;
 	ivi->qos = adapter->vf_data[vf].pf_qos;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0)
 	ivi->spoofchk = adapter->vf_data[vf].spoofchk_enabled;
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) */
 	return 0;
 }
 
