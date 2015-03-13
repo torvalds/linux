@@ -1295,9 +1295,9 @@ static int ft1000_parse_dpram_msg(struct net_device *dev)
 					  2) >> 8) & 0xff;
 			} else {
 				portid =
-					(ft1000_read_dpram_mag_16
+					ft1000_read_dpram_mag_16
 					 (dev, FT1000_MAG_PORT_ID,
-					  FT1000_MAG_PORT_ID_INDX) & 0xff);
+					  FT1000_MAG_PORT_ID_INDX) & 0xff;
 			}
 			pr_debug("DSP_QID = 0x%x\n", portid);
 

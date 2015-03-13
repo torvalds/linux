@@ -301,7 +301,7 @@ static int ft1000_open(struct inode *inode, struct file *file)
 	struct ft1000_usb *dev = (struct ft1000_usb *)inode->i_private;
 	int i, num;
 
-	num = (MINOR(inode->i_rdev) & 0xf);
+	num = MINOR(inode->i_rdev) & 0xf;
 	pr_debug("minor number=%d\n", num);
 
 	info = file->private_data = netdev_priv(dev->net);

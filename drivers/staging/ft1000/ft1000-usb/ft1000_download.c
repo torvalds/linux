@@ -368,8 +368,8 @@ static u16 hdr_checksum(struct pseudo_hdr *pHdr)
 	u16   chksum;
 
 
-	chksum = ((((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
-		    usPtr[4]) ^ usPtr[5]) ^ usPtr[6]);
+	chksum = (((((usPtr[0] ^ usPtr[1]) ^ usPtr[2]) ^ usPtr[3]) ^
+		    usPtr[4]) ^ usPtr[5]) ^ usPtr[6];
 
 	return chksum;
 }
