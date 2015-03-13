@@ -509,6 +509,7 @@ struct bcmgenet_hw_params {
 	u8		bp_in_en_shift;
 	u32		bp_in_mask;
 	u8		hfb_filter_cnt;
+	u8		hfb_filter_size;
 	u8		qtag_mask;
 	u16		tbuf_offset;
 	u32		hfb_offset;
