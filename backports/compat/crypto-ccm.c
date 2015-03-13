@@ -13,13 +13,44 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
+#include <crypto/algapi.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 
-#include "internal.h"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+/* consider properly backporting this? */
+static int crypto_memneq(const void *a, const void *b, size_t size)
+{
+	unsigned long neq = 0;
+
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	while (size >= sizeof(unsigned long)) {
+		neq |= *(unsigned long *)a ^ *(unsigned long *)b;
+		/* OPTIMIZER_HIDE_VAR(neq); */
+		barrier();
+		a += sizeof(unsigned long);
+		b += sizeof(unsigned long);
+		size -= sizeof(unsigned long);
+	}
+#endif /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
+	while (size > 0) {
+		neq |= *(unsigned char *)a ^ *(unsigned char *)b;
+		/* OPTIMIZER_HIDE_VAR(neq); */
+		barrier();
+		a += 1;
+		b += 1;
+		size -= 1;
+	}
+	return neq != 0UL ? 1 : 0;
+}
+#endif
+
+/* from internal.h */
+struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask);
 
 struct ccm_instance_ctx {
 	struct crypto_skcipher_spawn ctr;
@@ -841,7 +872,7 @@ static struct crypto_template crypto_rfc4309_tmpl = {
 	.module = THIS_MODULE,
 };
 
-static int __init crypto_ccm_module_init(void)
+int __init crypto_ccm_module_init(void)
 {
 	int err;
 
@@ -867,18 +898,9 @@ out_undo_base:
 	goto out;
 }
 
-static void __exit crypto_ccm_module_exit(void)
+void __exit crypto_ccm_module_exit(void)
 {
 	crypto_unregister_template(&crypto_rfc4309_tmpl);
 	crypto_unregister_template(&crypto_ccm_tmpl);
 	crypto_unregister_template(&crypto_ccm_base_tmpl);
 }
-
-module_init(crypto_ccm_module_init);
-module_exit(crypto_ccm_module_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Counter with CBC MAC");
-MODULE_ALIAS_CRYPTO("ccm_base");
-MODULE_ALIAS_CRYPTO("rfc4309");
-MODULE_ALIAS_CRYPTO("ccm");
