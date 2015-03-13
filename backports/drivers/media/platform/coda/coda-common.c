@@ -831,7 +831,9 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
 
 	.vidioc_qbuf		= coda_qbuf,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
+#endif
 	.vidioc_dqbuf		= coda_dqbuf,
 	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
 

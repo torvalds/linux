@@ -86,7 +86,9 @@ struct vb2_mem_ops {
 				  enum dma_data_direction dma_dir,
 				  gfp_t gfp_flags);
 	void		(*put)(void *buf_priv);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 	struct dma_buf *(*get_dmabuf)(void *buf_priv, unsigned long flags);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 
 	void		*(*get_userptr)(void *alloc_ctx, unsigned long vaddr,
 					unsigned long size,
@@ -96,12 +98,14 @@ struct vb2_mem_ops {
 	void		(*prepare)(void *buf_priv);
 	void		(*finish)(void *buf_priv);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 	void		*(*attach_dmabuf)(void *alloc_ctx, struct dma_buf *dbuf,
 					  unsigned long size,
 					  enum dma_data_direction dma_dir);
 	void		(*detach_dmabuf)(void *buf_priv);
 	int		(*map_dmabuf)(void *buf_priv);
 	void		(*unmap_dmabuf)(void *buf_priv);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 
 	void		*(*vaddr)(void *buf_priv);
 	void		*(*cookie)(void *buf_priv);
@@ -465,7 +469,9 @@ void vb2_queue_release(struct vb2_queue *q);
 void vb2_queue_error(struct vb2_queue *q);
 
 int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking);
 
 int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type);
@@ -630,8 +636,10 @@ int vb2_ioctl_qbuf(struct file *file, void *priv, struct v4l2_buffer *p);
 int vb2_ioctl_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p);
 int vb2_ioctl_streamon(struct file *file, void *priv, enum v4l2_buf_type i);
 int vb2_ioctl_streamoff(struct file *file, void *priv, enum v4l2_buf_type i);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 int vb2_ioctl_expbuf(struct file *file, void *priv,
 	struct v4l2_exportbuffer *p);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 
 /* struct v4l2_file_operations helpers */
 

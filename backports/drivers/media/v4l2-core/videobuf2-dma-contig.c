@@ -98,8 +98,10 @@ static void *vb2_dc_vaddr(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 	if (!buf->vaddr && buf->db_attach)
 		buf->vaddr = dma_buf_vmap(buf->db_attach->dmabuf);
+#endif
 
 	return buf->vaddr;
 }
@@ -272,6 +274,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 }
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0)) */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 /*********************************************/
 /*         DMABUF ops for exporters          */
 /*********************************************/
@@ -465,6 +468,7 @@ static struct dma_buf *vb2_dc_get_dmabuf(void *buf_priv, unsigned long flags)
 
 	return dbuf;
 }
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 
 /*********************************************/
 /*       callbacks for USERPTR buffers       */
@@ -767,6 +771,7 @@ fail_buf:
 	return ERR_PTR(ret);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 /*********************************************/
 /*       callbacks for DMABUF buffers        */
 /*********************************************/
@@ -877,6 +882,7 @@ static void *vb2_dc_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf,
 
 	return buf;
 }
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 
 /*********************************************/
 /*       DMA CONTIG exported functions       */
@@ -885,7 +891,9 @@ static void *vb2_dc_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf,
 const struct vb2_mem_ops vb2_dma_contig_memops = {
 	.alloc		= vb2_dc_alloc,
 	.put		= vb2_dc_put,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 	.get_dmabuf	= vb2_dc_get_dmabuf,
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 	.cookie		= vb2_dc_cookie,
 	.vaddr		= vb2_dc_vaddr,
 	.mmap		= vb2_dc_mmap,
@@ -893,10 +901,12 @@ const struct vb2_mem_ops vb2_dma_contig_memops = {
 	.put_userptr	= vb2_dc_put_userptr,
 	.prepare	= vb2_dc_prepare,
 	.finish		= vb2_dc_finish,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 	.map_dmabuf	= vb2_dc_map_dmabuf,
 	.unmap_dmabuf	= vb2_dc_unmap_dmabuf,
 	.attach_dmabuf	= vb2_dc_attach_dmabuf,
 	.detach_dmabuf	= vb2_dc_detach_dmabuf,
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 	.num_users	= vb2_dc_num_users,
 };
 EXPORT_SYMBOL_GPL(vb2_dma_contig_memops);

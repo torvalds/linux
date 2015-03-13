@@ -440,6 +440,7 @@ int v4l2_m2m_create_bufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_create_bufs);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 /**
  * v4l2_m2m_expbuf() - export a source or destination buffer, depending on
  * the type
@@ -453,6 +454,7 @@ int v4l2_m2m_expbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	return vb2_expbuf(vq, eb);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_expbuf);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 /**
  * v4l2_m2m_streamon() - turn on streaming for a video queue
  */
@@ -803,6 +805,7 @@ int v4l2_m2m_ioctl_dqbuf(struct file *file, void *priv,
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_dqbuf);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
 int v4l2_m2m_ioctl_expbuf(struct file *file, void *priv,
 				struct v4l2_exportbuffer *eb)
 {
@@ -811,6 +814,7 @@ int v4l2_m2m_ioctl_expbuf(struct file *file, void *priv,
 	return v4l2_m2m_expbuf(file, fh->m2m_ctx, eb);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_expbuf);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0) */
 
 int v4l2_m2m_ioctl_streamon(struct file *file, void *priv,
 				enum v4l2_buf_type type)
