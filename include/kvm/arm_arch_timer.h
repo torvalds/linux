@@ -67,4 +67,6 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu);
 u64 kvm_arm_timer_get_reg(struct kvm_vcpu *, u64 regid);
 int kvm_arm_timer_set_reg(struct kvm_vcpu *, u64 regid, u64 value);
 
+bool kvm_timer_should_fire(struct kvm_vcpu *vcpu);
+
 #endif
