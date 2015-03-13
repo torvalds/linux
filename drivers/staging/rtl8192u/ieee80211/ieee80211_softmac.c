@@ -2115,7 +2115,6 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 		break;
 	default:
 		return -1;
-		break;
 	}
 
 	//dev_kfree_skb_any(skb);
