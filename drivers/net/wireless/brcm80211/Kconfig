@@ -6,7 +6,6 @@ config BRCMSMAC
 	depends on MAC80211
 	depends on BCMA
 	select BRCMUTIL
-	select FW_LOADER
 	select CRC_CCITT
 	select CRC8
 	select CORDIC
