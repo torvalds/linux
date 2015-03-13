@@ -659,7 +659,9 @@ static void bt_set_lockdep_class_one(struct net_device *dev,
 static int bt_dev_init(struct net_device *dev)
 {
 	netdev_for_each_tx_queue(dev, bt_set_lockdep_class_one, NULL);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 	dev->qdisc_tx_busylock = &bt_tx_busylock;
+#endif
 
 	return 0;
 }
