@@ -978,7 +978,11 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 	new_sk->sk_state = LLCP_CONNECTED;
 
 	/* Wake the listening processes */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 	parent->sk_data_ready(parent);
+#else
+	parent->sk_data_ready(parent, 0);
+#endif
 
 	/* Send CC */
 	nfc_llcp_send_cc(new_sock);

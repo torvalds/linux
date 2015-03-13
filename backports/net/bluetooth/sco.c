@@ -1047,7 +1047,11 @@ static void sco_conn_ready(struct sco_conn *conn)
 			sk->sk_state = BT_CONNECTED;
 
 		/* Wake up parent */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 		parent->sk_data_ready(parent);
+#else
+		parent->sk_data_ready(parent, 0);
+#endif
 
 		bh_unlock_sock(parent);
 

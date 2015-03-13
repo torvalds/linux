@@ -1291,7 +1291,11 @@ static void l2cap_sock_teardown_cb(struct l2cap_chan *chan, int err)
 
 		if (parent) {
 			bt_accept_unlink(sk);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 			parent->sk_data_ready(parent);
+#else
+			parent->sk_data_ready(parent, 0);
+#endif
 		} else {
 			sk->sk_state_change(sk);
 		}
@@ -1356,8 +1360,13 @@ static void l2cap_sock_ready_cb(struct l2cap_chan *chan)
 	sk->sk_state = BT_CONNECTED;
 	sk->sk_state_change(sk);
 
-	if (parent)
+	if (parent) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 		parent->sk_data_ready(parent);
+#else
+		parent->sk_data_ready(parent, 0);
+#endif
+	}
 
 	release_sock(sk);
 }
@@ -1369,8 +1378,13 @@ static void l2cap_sock_defer_cb(struct l2cap_chan *chan)
 	lock_sock(sk);
 
 	parent = bt_sk(sk)->parent;
-	if (parent)
+	if (parent) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 		parent->sk_data_ready(parent);
+#else
+		parent->sk_data_ready(parent, 0);
+#endif
+	}
 
 	release_sock(sk);
 }

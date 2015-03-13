@@ -194,6 +194,10 @@ static void rfcomm_l2data_ready(struct sock *sk)
 	rfcomm_schedule();
 }
 
+static void backport_rfcomm_l2data_ready(struct sock *sk, int unused) {
+	rfcomm_l2data_ready(sk);
+}
+
 static int rfcomm_l2sock_create(struct socket **sock)
 {
 	int err;
@@ -203,7 +207,11 @@ static int rfcomm_l2sock_create(struct socket **sock)
 	err = sock_create_kern(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP, sock);
 	if (!err) {
 		struct sock *sk = (*sock)->sk;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 		sk->sk_data_ready   = rfcomm_l2data_ready;
+#else
+		sk->sk_data_ready = backport_rfcomm_l2data_ready;
+#endif
 		sk->sk_state_change = rfcomm_l2state_change;
 	}
 	return err;
@@ -1944,7 +1952,11 @@ static void rfcomm_accept_connection(struct rfcomm_session *s)
 		return;
 
 	/* Set our callbacks */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 	nsock->sk->sk_data_ready   = rfcomm_l2data_ready;
+#else
+	nsock->sk->sk_data_ready = backport_rfcomm_l2data_ready;
+#endif
 	nsock->sk->sk_state_change = rfcomm_l2state_change;
 
 	s = rfcomm_session_add(nsock, BT_OPEN);
