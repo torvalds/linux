@@ -13,6 +13,7 @@ menuconfig BACKPORT_USB_NET_DRIVERS
 if BACKPORT_USB_NET_DRIVERS
 
 config BACKPORT_USB_CATC
+	depends on n
 	tristate "USB CATC NetMate-based Ethernet device support"
 	depends on !USB_CATC
 	depends on CRC32
@@ -33,6 +34,7 @@ config BACKPORT_USB_CATC
 	  module will be called catc.
 
 config BACKPORT_USB_KAWETH
+	depends on n
 	tristate "USB KLSI KL5USB101-based ethernet device support"
 	depends on !USB_KAWETH
 	---help---
@@ -73,6 +75,7 @@ config BACKPORT_USB_KAWETH
 	  module will be called kaweth.
 
 config BACKPORT_USB_PEGASUS
+	depends on n
 	tristate "USB Pegasus/Pegasus-II based ethernet device support"
 	depends on !USB_PEGASUS
 	depends on MII
@@ -89,6 +92,7 @@ config BACKPORT_USB_PEGASUS
 	  module will be called pegasus.
 
 config BACKPORT_USB_RTL8150
+	depends on n
 	tristate "USB RTL8150 based ethernet device support"
 	depends on !USB_RTL8150
 	depends on MII
@@ -101,6 +105,7 @@ config BACKPORT_USB_RTL8150
 	  module will be called rtl8150.
 
 config BACKPORT_USB_RTL8152
+	depends on n
 	tristate "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 	depends on !USB_RTL8152
 	depends on MII
@@ -148,6 +153,7 @@ config BACKPORT_USB_USBNET
 	  module will be called usbnet.
 
 config BACKPORT_USB_NET_AX8817X
+	depends on n
 	tristate "ASIX AX88xxx Based USB 2.0 Ethernet Adapters"
 	depends on !USB_NET_AX8817X
 	depends on BACKPORT_USB_USBNET
@@ -177,6 +183,7 @@ config BACKPORT_USB_NET_AX8817X
 	  what other networking devices you have in use.
 
 config BACKPORT_USB_NET_AX88179_178A
+	depends on n
 	tristate "ASIX AX88179/178A USB 3.0/2.0 to Gigabit Ethernet"
 	depends on !USB_NET_AX88179_178A
 	depends on BACKPORT_USB_USBNET
@@ -225,6 +232,7 @@ config BACKPORT_USB_NET_CDCETHER
 	  name is used instead.
 
 config BACKPORT_USB_NET_CDC_EEM
+	depends on n
 	tristate "CDC EEM support"
 	depends on !USB_NET_CDC_EEM
 	depends on BACKPORT_USB_USBNET
@@ -260,6 +268,7 @@ config BACKPORT_USB_NET_CDC_NCM
 	    * Ericsson F5521gw Mobile Broadband Module
 
 config BACKPORT_USB_NET_HUAWEI_CDC_NCM
+	depends on n
 	tristate "Huawei NCM embedded AT channel support"
 	depends on !USB_NET_HUAWEI_CDC_NCM
 	depends on BACKPORT_USB_USBNET
@@ -295,6 +304,7 @@ config BACKPORT_USB_NET_CDC_MBIM
 	  module will be called cdc_mbim.
 
 config BACKPORT_USB_NET_DM9601
+	depends on n
 	tristate "Davicom DM96xx based USB 10/100 ethernet devices"
 	depends on !USB_NET_DM9601
 	depends on BACKPORT_USB_USBNET
@@ -304,6 +314,7 @@ config BACKPORT_USB_NET_DM9601
 	  based USB 10/100 Ethernet adapters.
 
 config BACKPORT_USB_NET_SR9700
+	depends on n
 	tristate "CoreChip-sz SR9700 based USB 1.1 10/100 ethernet devices"
 	depends on !USB_NET_SR9700
 	depends on BACKPORT_USB_USBNET
@@ -313,6 +324,7 @@ config BACKPORT_USB_NET_SR9700
 	  10/100 Ethernet adapters.
 
 config BACKPORT_USB_NET_SR9800
+	depends on n
 	tristate "CoreChip-sz SR9800 based USB 2.0 10/100 ethernet devices"
 	depends on !USB_NET_SR9800
 	depends on BACKPORT_USB_USBNET
@@ -329,6 +341,7 @@ config BACKPORT_USB_NET_SR9800
 	  module will be called sr9800.
 
 config BACKPORT_USB_NET_SMSC75XX
+	depends on n
 	tristate "SMSC LAN75XX based USB 2.0 gigabit ethernet devices"
 	depends on !USB_NET_SMSC75XX
 	depends on BACKPORT_USB_USBNET
@@ -340,6 +353,7 @@ config BACKPORT_USB_NET_SMSC75XX
 	  Gigabit Ethernet adapters.
 
 config BACKPORT_USB_NET_SMSC95XX
+	depends on n
 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
 	depends on !USB_NET_SMSC95XX
 	depends on BACKPORT_USB_USBNET
@@ -351,6 +365,7 @@ config BACKPORT_USB_NET_SMSC95XX
 	  10/100 Ethernet adapters.
 
 config BACKPORT_USB_NET_GL620A
+	depends on n
 	tristate "GeneSys GL620USB-A based cables"
 	depends on !USB_NET_GL620A
 	depends on BACKPORT_USB_USBNET
@@ -361,6 +376,7 @@ config BACKPORT_USB_NET_GL620A
 	  Note that the half-duplex "GL620USB" is not supported.
 
 config BACKPORT_USB_NET_NET1080
+	depends on n
 	tristate "NetChip 1080 based cables (Laplink, ...)"
 	depends on !USB_NET_NET1080
 	default y
@@ -371,6 +387,7 @@ config BACKPORT_USB_NET_NET1080
 	  optionally with LEDs that indicate traffic
 
 config BACKPORT_USB_NET_PLUSB
+	depends on n
 	tristate "Prolific PL-2301/2302/25A1 based cables"
 	depends on !USB_NET_PLUSB
 	# if the handshake/init/reset problems, from original 'plusb',
@@ -381,6 +398,7 @@ config BACKPORT_USB_NET_PLUSB
 	  with one of these chips.
 
 config BACKPORT_USB_NET_MCS7830
+	depends on n
 	tristate "MosChip MCS7830 based Ethernet adapters"
 	depends on !USB_NET_MCS7830
 	depends on BACKPORT_USB_USBNET
@@ -406,6 +424,7 @@ config BACKPORT_USB_NET_RNDIS_HOST
 	  (and for) Microsoft; it isn't an "Open" ecosystem or market.
 
 config BACKPORT_USB_NET_CDC_SUBSET
+	depends on n
 	tristate "Simple USB Network Links (CDC Ethernet subset)"
 	depends on !USB_NET_CDC_SUBSET
 	depends on BACKPORT_USB_USBNET
@@ -483,6 +502,7 @@ config BACKPORT_USB_KC2190
 	  with one of these chips.
 
 config BACKPORT_USB_NET_ZAURUS
+	depends on n
 	tristate "Sharp Zaurus (stock ROMs) and compatible"
 	depends on !USB_NET_ZAURUS
 	depends on BACKPORT_USB_USBNET
@@ -502,6 +522,7 @@ config BACKPORT_USB_NET_ZAURUS
 	  some cases CDC MDLM) protocol, not "g_ether".
 
 config BACKPORT_USB_NET_CX82310_ETH
+	depends on n
 	tristate "Conexant CX82310 USB ethernet port"
 	depends on !USB_NET_CX82310_ETH
 	depends on BACKPORT_USB_USBNET
@@ -511,6 +532,7 @@ config BACKPORT_USB_NET_CX82310_ETH
 	  it will not work with ADSL modems (use cxacru driver instead).
 
 config BACKPORT_USB_NET_KALMIA
+	depends on n
 	tristate "Samsung Kalmia based LTE USB modem"
 	depends on !USB_NET_KALMIA
 	depends on BACKPORT_USB_USBNET
@@ -545,6 +567,7 @@ config BACKPORT_USB_NET_QMI_WWAN
 	  module will be called qmi_wwan.
 
 config BACKPORT_USB_HSO
+	depends on n
 	tristate "Option USB High Speed Mobile Devices"
 	depends on !USB_HSO
 	depends on USB && RFKILL && TTY
@@ -557,6 +580,7 @@ config BACKPORT_USB_HSO
 	  module will be called hso.
 
 config BACKPORT_USB_NET_INT51X1
+	depends on n
 	tristate "Intellon PLC based usb adapter"
 	depends on !USB_NET_INT51X1
 	depends on BACKPORT_USB_USBNET
@@ -566,6 +590,7 @@ config BACKPORT_USB_NET_INT51X1
 	  INT51x1/INT5200 chip, like the "devolo dLan duo".
 
 config BACKPORT_USB_CDC_PHONET
+	depends on n
 	tristate "CDC Phonet support"
 	depends on !USB_CDC_PHONET
 	depends on PHONET
@@ -575,6 +600,7 @@ config BACKPORT_USB_CDC_PHONET
 	  "PC suite" USB profile.
 
 config BACKPORT_USB_IPHETH
+	depends on n
 	tristate "Apple iPhone USB Ethernet driver"
 	depends on !USB_IPHETH
 	default n
@@ -598,6 +624,7 @@ config BACKPORT_USB_SIERRA_NET
 	  module will be called sierra_net.
 
 config BACKPORT_USB_VL600
+	depends on n
 	tristate "LG VL600 modem dongle"
 	depends on !USB_VL600
 	depends on BACKPORT_USB_NET_CDCETHER && TTY

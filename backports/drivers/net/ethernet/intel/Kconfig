@@ -19,6 +19,7 @@ config BACKPORT_NET_VENDOR_INTEL
 if BACKPORT_NET_VENDOR_INTEL
 
 config BACKPORT_E100
+	depends on n
 	tristate "Intel(R) PRO/100+ support"
 	depends on !E100
 	depends on PCI
@@ -46,6 +47,7 @@ config BACKPORT_E100
 	  will be called e100.
 
 config BACKPORT_E1000
+	depends on n
 	tristate "Intel(R) PRO/1000 Gigabit Ethernet support"
 	depends on !E1000
 	depends on PCI
@@ -68,6 +70,7 @@ config BACKPORT_E1000
 	  will be called e1000.
 
 config BACKPORT_E1000E
+	depends on n
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
 	depends on !E1000E
 	depends on PCI && (!SPARC32 || BROKEN)
@@ -137,6 +140,7 @@ config BACKPORT_IGB_DCA
 	  is used, with the intent of lessening the impact of cache misses.
 
 config BACKPORT_IGBVF
+	depends on n
 	tristate "Intel(R) 82576 Virtual Function Ethernet support"
 	depends on !IGBVF
 	depends on PCI
@@ -159,6 +163,7 @@ config BACKPORT_IGBVF
 	  will be called igbvf.
 
 config BACKPORT_IXGB
+	depends on n
 	tristate "Intel(R) PRO/10GbE support"
 	depends on !IXGB
 	depends on PCI
@@ -182,6 +187,7 @@ config BACKPORT_IXGB
 	  will be called ixgb.
 
 config BACKPORT_IXGBE
+	depends on n
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on !IXGBE
 	depends on PCI
@@ -233,6 +239,7 @@ config BACKPORT_IXGBE_DCB
 	  If unsure, say N.
 
 config BACKPORT_IXGBEVF
+	depends on n
 	tristate "Intel(R) 10GbE PCI Express Virtual Function Ethernet support"
 	depends on !IXGBEVF
 	depends on PCI_MSI
@@ -256,6 +263,7 @@ config BACKPORT_IXGBEVF
 	  for this driver to work correctly.
 
 config BACKPORT_I40E
+	depends on n
 	tristate "Intel(R) Ethernet Controller XL710 Family support"
 	depends on !I40E
 	depends on PTP_1588_CLOCK
@@ -311,6 +319,7 @@ config BACKPORT_I40E_FCOE
 	  If unsure, say N.
 
 config BACKPORT_I40EVF
+	depends on n
 	tristate "Intel(R) XL710 X710 Virtual Function Ethernet support"
 	depends on !I40EVF
 	depends on PCI_MSI
@@ -331,6 +340,7 @@ config BACKPORT_I40EVF
 	  for this driver to work correctly.
 
 config BACKPORT_FM10K
+	depends on n
 	tristate "Intel(R) FM10000 Ethernet Switch Host Interface Support"
 	depends on !FM10K
 	default n

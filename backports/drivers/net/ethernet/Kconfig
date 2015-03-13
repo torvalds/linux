@@ -42,6 +42,7 @@ source "$BACKPORT_DIR/drivers/net/ethernet/broadcom/Kconfig"
 #source "drivers/net/ethernet/cisco/Kconfig"
 
 config BACKPORT_CX_ECAT
+	depends on n
 	tristate "Beckhoff CX5020 EtherCAT master support"
 	depends on !CX_ECAT
 	depends on PCI
@@ -57,6 +58,7 @@ config BACKPORT_CX_ECAT
 #source "drivers/net/ethernet/davicom/Kconfig"
 
 config BACKPORT_DNET
+	depends on n
 	tristate "Dave ethernet support (DNET)"
 	depends on !DNET
 	depends on HAS_IOMEM
@@ -84,6 +86,7 @@ source "$BACKPORT_DIR/drivers/net/ethernet/intel/Kconfig"
 #source "drivers/net/ethernet/icplus/Kconfig"
 
 config BACKPORT_JME
+	depends on n
 	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
 	depends on !JME
 	depends on PCI
@@ -97,6 +100,7 @@ config BACKPORT_JME
 	  will be called jme.
 
 config BACKPORT_KORINA
+	depends on n
 	tristate "Korina (IDT RC32434) Ethernet support"
 	depends on !KORINA
 	depends on MIKROTIK_RB532
@@ -105,6 +109,7 @@ config BACKPORT_KORINA
 	  based system say Y. Otherwise say N.
 
 config BACKPORT_LANTIQ_ETOP
+	depends on n
 	tristate "Lantiq SoC ETOP driver"
 	depends on !LANTIQ_ETOP
 	depends on SOC_TYPE_XWAY
@@ -119,6 +124,7 @@ config BACKPORT_LANTIQ_ETOP
 #source "drivers/net/ethernet/myricom/Kconfig"
 
 config BACKPORT_FEALNX
+	depends on n
 	tristate "Myson MTD-8xx PCI Ethernet support"
 	depends on !FEALNX
 	depends on PCI
@@ -132,6 +138,7 @@ config BACKPORT_FEALNX
 #source "drivers/net/ethernet/8390/Kconfig"
 
 config BACKPORT_NET_NETX
+	depends on n
 	tristate "NetX Ethernet support"
 	depends on !NET_NETX
 	depends on MII
@@ -149,6 +156,7 @@ config BACKPORT_NET_NETX
 #source "drivers/net/ethernet/oki-semi/Kconfig"
 
 config BACKPORT_ETHOC
+	depends on n
 	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
 	depends on !ETHOC
 	depends on HAS_IOMEM && HAS_DMA

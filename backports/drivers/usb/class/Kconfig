@@ -4,6 +4,7 @@
 comment "USB Device Class drivers"
 
 config BACKPORT_USB_ACM
+	depends on n
 	tristate "USB Modem (CDC ACM) support"
 	depends on !USB_ACM
 	depends on TTY
@@ -20,6 +21,7 @@ config BACKPORT_USB_ACM
 	  module will be called cdc-acm.
 
 config BACKPORT_USB_PRINTER
+	depends on n
 	tristate "USB Printer support"
 	depends on !USB_PRINTER
 	help
@@ -41,6 +43,7 @@ config BACKPORT_USB_WDM
 	  module will be called cdc-wdm.
 
 config BACKPORT_USB_TMC
+	depends on n
 	tristate "USB Test and Measurement Class support"
 	depends on !USB_TMC
 	help

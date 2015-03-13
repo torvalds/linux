@@ -19,6 +19,7 @@ menuconfig BACKPORT_WLAN
 if BACKPORT_WLAN
 
 config BACKPORT_PCMCIA_RAYCS
+	depends on n
 	tristate "Aviator/Raytheon 2.4GHz wireless support"
 	depends on !PCMCIA_RAYCS
 	depends on PCMCIA
@@ -57,6 +58,7 @@ config BACKPORT_LIBERTAS_THINFIRM_USB
 	  A driver for Marvell Libertas 8388 USB devices using thinfirm.
 
 config BACKPORT_AIRO
+	depends on n
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
 	depends on !AIRO
 	depends on BACKPORT_CFG80211 && ISA_DMA_API && (PCI || BROKEN)
@@ -78,6 +80,7 @@ config BACKPORT_AIRO
 	  The driver can be compiled as a module and will be named "airo".
 
 config BACKPORT_ATMEL
+	depends on n
       tristate "Atmel at76c50x chipset  802.11b support"
 	depends on !ATMEL
       depends on BACKPORT_CFG80211 && (PCI || PCMCIA)
@@ -97,6 +100,7 @@ config BACKPORT_ATMEL
         <http://www.thekelleys.org.uk/atmel>
 
 config BACKPORT_PCI_ATMEL
+	depends on n
       tristate "Atmel at76c506 PCI cards"
 	depends on !PCI_ATMEL
       depends on BACKPORT_ATMEL && PCI
@@ -105,6 +109,7 @@ config BACKPORT_PCI_ATMEL
         Atmel at76c506 chip.
 
 config BACKPORT_PCMCIA_ATMEL
+	depends on n
 	tristate "Atmel at76c502/at76c504 PCMCIA cards"
 	depends on !PCMCIA_ATMEL
 	depends on BACKPORT_ATMEL && PCMCIA
@@ -125,6 +130,7 @@ config BACKPORT_AT76C50X_USB
           at76c505 or at76c505a chips.
 
 config BACKPORT_AIRO_CS
+	depends on n
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
 	depends on !AIRO_CS
 	depends on BACKPORT_CFG80211 && PCMCIA && (BROKEN || !M32R)
@@ -148,6 +154,7 @@ config BACKPORT_AIRO_CS
 	  Cisco Linux utilities can be used to configure the card.
 
 config BACKPORT_PCMCIA_WL3501
+	depends on n
 	tristate "Planet WL3501 PCMCIA cards"
 	depends on !PCMCIA_WL3501
 	depends on BACKPORT_CFG80211 && PCMCIA
@@ -159,6 +166,7 @@ config BACKPORT_PCMCIA_WL3501
 	  micro support for ethtool.
 
 config BACKPORT_PRISM54
+	depends on n
 	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus (DEPRECATED)'
 	depends on !PRISM54
 	depends on PCI
@@ -180,6 +188,7 @@ config BACKPORT_PRISM54
 	  When built as module you get the module prism54
 
 config BACKPORT_USB_ZD1201
+	depends on n
 	tristate "USB ZD1201 based Wireless device support"
 	depends on !USB_ZD1201
 	depends on BACKPORT_CFG80211 && USB
