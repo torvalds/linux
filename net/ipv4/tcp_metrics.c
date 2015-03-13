@@ -1051,18 +1051,19 @@ static void tcp_metrics_flush_all(struct net *net)
 	unsigned int row;
 
 	for (row = 0; row < max_rows; row++, hb++) {
+		struct tcp_metrics_block __rcu **pp;
 		spin_lock_bh(&tcp_metrics_lock);
-		tm = deref_locked_genl(hb->chain);
-		if (tm)
-			hb->chain = NULL;
-		spin_unlock_bh(&tcp_metrics_lock);
-		while (tm) {
-			struct tcp_metrics_block *next;
-
-			next = deref_genl(tm->tcpm_next);
-			kfree_rcu(tm, rcu_head);
-			tm = next;
+		pp = &hb->chain;
+		for (tm = deref_locked_genl(*pp); tm;
+		     tm = deref_locked_genl(*pp)) {
+			if (net_eq(tm_net(tm), net)) {
+				*pp = tm->tcpm_next;
+				kfree_rcu(tm, rcu_head);
+			} else {
+				pp = &tm->tcpm_next;
+			}
 		}
+		spin_unlock_bh(&tcp_metrics_lock);
 	}
 }
 
