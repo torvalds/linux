@@ -32,7 +32,6 @@
 #include <asm/fncpy.h>
 #include <asm/cacheflush.h>
 
-#include <mach/cpu.h>
 #include <mach/hardware.h>
 
 #include "generic.h"
