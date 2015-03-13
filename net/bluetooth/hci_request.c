@@ -383,7 +383,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	 * and a static address has been configured, then use that
 	 * address instead of the public BR/EDR address.
 	 */
-	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
+	if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
 	    !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
 	    (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
 	     bacmp(&hdev->static_addr, BDADDR_ANY))) {

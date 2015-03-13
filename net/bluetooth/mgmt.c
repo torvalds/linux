@@ -659,7 +659,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	 * with BR/EDR disabled, the existence of the static address will
 	 * be evaluated.
 	 */
-	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
+	if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
 	    !hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) ||
 	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
 		if (bacmp(&hdev->static_addr, BDADDR_ANY))

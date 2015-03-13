@@ -1679,7 +1679,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (conn->hcon->type == ACL_LINK) {
 		/* We must have a BR/EDR SC link */
 		if (!test_bit(HCI_CONN_AES_CCM, &conn->hcon->flags) &&
-		    !test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
+		    !hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 			return SMP_CROSS_TRANSP_NOT_ALLOWED;
 
 		set_bit(SMP_FLAG_SC, &smp->flags);
@@ -2749,7 +2749,7 @@ static void bredr_pairing(struct l2cap_chan *chan)
 
 	/* BR/EDR must use Secure Connections for SMP */
 	if (!test_bit(HCI_CONN_AES_CCM, &hcon->flags) &&
-	    !test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
+	    !hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 		return;
 
 	/* If our LE support is not enabled don't do anything */
@@ -3003,7 +3003,7 @@ static ssize_t force_bredr_smp_read(struct file *file,
 	struct hci_dev *hdev = file->private_data;
 	char buf[3];
 
-	buf[0] = test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags) ? 'Y': 'N';
+	buf[0] = hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP) ? 'Y': 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
@@ -3025,7 +3025,7 @@ static ssize_t force_bredr_smp_write(struct file *file,
 	if (strtobool(buf, &enable))
 		return -EINVAL;
 
-	if (enable == test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
+	if (enable == hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 		return -EALREADY;
 
 	if (enable) {
@@ -3044,7 +3044,7 @@ static ssize_t force_bredr_smp_write(struct file *file,
 		smp_del_chan(chan);
 	}
 
-	change_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags);
+	hci_dev_change_flag(hdev, HCI_FORCE_BREDR_SMP);
 
 	return count;
 }

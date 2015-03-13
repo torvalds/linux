@@ -353,7 +353,6 @@ struct hci_dev {
 
 	struct rfkill		*rfkill;
 
-	unsigned long		dbg_flags;
 	DECLARE_BITMAP(dev_flags, __HCI_NUM_FLAGS);
 
 	struct delayed_work	le_scan_disable;
