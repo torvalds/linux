@@ -5,7 +5,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 
-#ifdef CONFIG_DEV_COREDUMP
+#ifdef CPTCFG_BPAUTO_WANT_DEV_COREDUMP
 void dev_coredumpv(struct device *dev, const void *data, size_t datalen,
 		   gfp_t gfp);
 
@@ -30,6 +30,6 @@ dev_coredumpm(struct device *dev, struct module *owner,
 {
 	free(data);
 }
-#endif /* CONFIG_DEV_COREDUMP */
+#endif /* CPTCFG_BPAUTO_WANT_DEV_COREDUMP */
 
 #endif /* __DEVCOREDUMP_H */

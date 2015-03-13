@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/workqueue.h>
+#include "backports.h"
 
 static struct class devcd_class;
 
@@ -38,6 +39,10 @@ static bool devcd_disabled;
 
 /* if data isn't read by userspace after 5 minutes then delete it */
 #define DEVCD_TIMEOUT	(HZ * 60 * 5)
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+static struct bin_attribute devcd_attr_data;
+#endif
 
 struct devcd_entry {
 	struct device devcd_dev;
@@ -68,8 +73,7 @@ static void devcd_dev_release(struct device *dev)
 	 * a struct device to know when it goes away?
 	 */
 	if (devcd->failing_dev->kobj.sd)
-		sysfs_delete_link(&devcd->failing_dev->kobj, &dev->kobj,
-				  "devcoredump");
+		sysfs_remove_link(&devcd->failing_dev->kobj, "devcoredump");
 
 	put_device(devcd->failing_dev);
 	kfree(devcd);
@@ -81,6 +85,9 @@ static void devcd_del(struct work_struct *wk)
 
 	devcd = container_of(wk, struct devcd_entry, del_wk.work);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+	device_remove_bin_file(&devcd->devcd_dev, &devcd_attr_data);
+#endif
 	device_del(&devcd->devcd_dev);
 	put_device(&devcd->devcd_dev);
 }
@@ -114,6 +121,7 @@ static struct bin_attribute devcd_attr_data = {
 	.write = devcd_data_write,
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 static struct bin_attribute *devcd_dev_bin_attrs[] = {
 	&devcd_attr_data, NULL,
 };
@@ -125,6 +133,7 @@ static const struct attribute_group devcd_dev_group = {
 static const struct attribute_group *devcd_dev_groups[] = {
 	&devcd_dev_group, NULL,
 };
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0) */
 
 static int devcd_free(struct device *dev, void *data)
 {
@@ -169,7 +178,9 @@ static struct class devcd_class = {
 	.name		= "devcoredump",
 	.owner		= THIS_MODULE,
 	.dev_release	= devcd_dev_release,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 	.dev_groups	= devcd_dev_groups,
+#endif
 	.class_attrs	= devcd_class_attrs,
 };
 
@@ -270,6 +281,11 @@ void dev_coredumpm(struct device *dev, struct module *owner,
 	if (device_add(&devcd->devcd_dev))
 		goto put_device;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+	if (device_create_bin_file(&devcd->devcd_dev, &devcd_attr_data))
+		goto put_device;
+#endif
+
 	if (sysfs_create_link(&devcd->devcd_dev.kobj, &dev->kobj,
 			      "failing_device"))
 		/* nothing - symlink will be missing */;
@@ -291,15 +307,13 @@ void dev_coredumpm(struct device *dev, struct module *owner,
 }
 EXPORT_SYMBOL_GPL(dev_coredumpm);
 
-static int __init devcoredump_init(void)
+int __init devcoredump_init(void)
 {
 	return class_register(&devcd_class);
 }
-__initcall(devcoredump_init);
 
-static void __exit devcoredump_exit(void)
+void __exit devcoredump_exit(void)
 {
 	class_for_each_device(&devcd_class, NULL, NULL, devcd_free);
 	class_unregister(&devcd_class);
 }
-__exitcall(devcoredump_exit);
