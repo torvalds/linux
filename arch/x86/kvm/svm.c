@@ -2906,7 +2906,8 @@ static int rdpmc_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
-bool check_selective_cr0_intercepted(struct vcpu_svm *svm, unsigned long val)
+static bool check_selective_cr0_intercepted(struct vcpu_svm *svm,
+					    unsigned long val)
 {
 	unsigned long cr0 = svm->vcpu.arch.cr0;
 	bool ret = false;
