@@ -54,8 +54,6 @@ struct netns_ipv4 {
 	struct sock		*mc_autojoin_sk;
 
 	struct inet_peer_base	*peers;
-	struct tcpm_hash_bucket	*tcp_metrics_hash;
-	unsigned int		tcp_metrics_hash_log;
 	struct sock  * __percpu	*tcp_sk;
 	struct netns_frags	frags;
 #ifdef CONFIG_NETFILTER
