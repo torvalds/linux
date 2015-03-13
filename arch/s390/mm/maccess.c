@@ -1,7 +1,7 @@
 /*
  * Access kernel memory without faulting -- s390 specific implementation.
  *
- * Copyright IBM Corp. 2009
+ * Copyright IBM Corp. 2009, 2015
  *
  *   Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
  *
@@ -18,28 +18,25 @@
 
 static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
 {
-	unsigned long count, aligned;
-	int offset, mask;
-	int rc = -EFAULT;
+	unsigned long aligned, offset, count;
+	char tmp[8];
 
-	aligned = (unsigned long) dst & ~3UL;
-	offset = (unsigned long) dst & 3;
-	count = min_t(unsigned long, 4 - offset, size);
-	mask = (0xf << (4 - count)) & 0xf;
-	mask >>= offset;
+	aligned = (unsigned long) dst & ~7UL;
+	offset = (unsigned long) dst & 7UL;
+	size = min(8UL - offset, size);
+	count = size - 1;
 	asm volatile(
 		"	bras	1,0f\n"
-		"	icm	0,0,0(%3)\n"
-		"0:	l	0,0(%1)\n"
-		"	lra	%1,0(%1)\n"
-		"1:	ex	%2,0(1)\n"
-		"2:	stura	0,%1\n"
-		"	la	%0,0\n"
-		"3:\n"
-		EX_TABLE(0b,3b) EX_TABLE(1b,3b) EX_TABLE(2b,3b)
-		: "+d" (rc), "+a" (aligned)
-		: "a" (mask), "a" (src) : "cc", "memory", "0", "1");
-	return rc ? rc : count;
+		"	mvc	0(1,%4),0(%5)\n"
+		"0:	mvc	0(8,%3),0(%0)\n"
+		"	ex	%1,0(1)\n"
+		"	lg	%1,0(%3)\n"
+		"	lra	%0,0(%0)\n"
+		"	sturg	%1,%0\n"
+		: "+&a" (aligned), "+&a" (count), "=m" (tmp)
+		: "a" (&tmp), "a" (&tmp[offset]), "a" (src)
+		: "cc", "memory", "1");
+	return size;
 }
 
 /*
@@ -50,8 +47,8 @@ static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t siz
  *
  * This function writes to kernel memory bypassing DAT and possible page table
  * write protection. It writes to the destination using the sturg instruction.
- * Therefore we have a read-modify-write sequence: the function reads four
- * bytes from destination at a four byte boundary, modifies the bytes
+ * Therefore we have a read-modify-write sequence: the function reads eight
+ * bytes from destination at an eight byte boundary, modifies the bytes
  * requested and writes the result back in a loop.
  *
  * Note: this means that this function may not be called concurrently on
@@ -60,12 +57,10 @@ static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t siz
  */
 void notrace s390_kernel_write(void *dst, const void *src, size_t size)
 {
-	long copied = 0;
+	long copied;
 
 	while (size) {
 		copied = s390_kernel_write_odd(dst, src, size);
-		if (copied < 0)
-			break;
 		dst += copied;
 		src += copied;
 		size -= copied;
