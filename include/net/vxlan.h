@@ -91,6 +91,7 @@ struct vxlanhdr {
 
 #define VXLAN_N_VID     (1u << 24)
 #define VXLAN_VID_MASK  (VXLAN_N_VID - 1)
+#define VXLAN_VNI_MASK  (VXLAN_VID_MASK << 8)
 #define VXLAN_HLEN (sizeof(struct udphdr) + sizeof(struct vxlanhdr))
 
 struct vxlan_metadata {
