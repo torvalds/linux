@@ -55,7 +55,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	rate = intel_dp_max_link_rate(intel_dp);
 
-	if (intel_dp->num_supported_rates) {
+	if (intel_dp->num_sink_rates) {
 		intel_dp->link_bw = 0;
 		intel_dp->rate_select = intel_dp_rate_select(intel_dp, rate);
 	} else {

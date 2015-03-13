@@ -1135,9 +1135,9 @@ hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config, int link_bw)
 static int
 intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 {
-	if (intel_dp->num_supported_rates) {
-		*sink_rates = intel_dp->supported_rates;
-		return intel_dp->num_supported_rates;
+	if (intel_dp->num_sink_rates) {
+		*sink_rates = intel_dp->sink_rates;
+		return intel_dp->num_sink_rates;
 	}
 
 	*sink_rates = default_rates;
@@ -1203,7 +1203,7 @@ intel_dp_set_clock(struct intel_encoder *encoder,
 
 static int intersect_rates(const int *source_rates, int source_len,
 			   const int *sink_rates, int sink_len,
-			   int *supported_rates)
+			   int *common_rates)
 {
 	int i = 0, j = 0, k = 0;
 
@@ -1211,7 +1211,7 @@ static int intersect_rates(const int *source_rates, int source_len,
 		if (source_rates[i] == sink_rates[j]) {
 			if (WARN_ON(k >= DP_MAX_SUPPORTED_RATES))
 				return k;
-			supported_rates[k] = source_rates[i];
+			common_rates[k] = source_rates[i];
 			++k;
 			++i;
 			++j;
@@ -1224,8 +1224,8 @@ static int intersect_rates(const int *source_rates, int source_len,
 	return k;
 }
 
-static int intel_supported_rates(struct intel_dp *intel_dp,
-				 int *supported_rates)
+static int intel_dp_common_rates(struct intel_dp *intel_dp,
+				 int *common_rates)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	const int *source_rates, *sink_rates;
@@ -1236,7 +1236,7 @@ static int intel_supported_rates(struct intel_dp *intel_dp,
 
 	return intersect_rates(source_rates, source_len,
 			       sink_rates, sink_len,
-			       supported_rates);
+			       common_rates);
 }
 
 static void snprintf_int_array(char *str, size_t len,
@@ -1259,8 +1259,8 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	const int *source_rates, *sink_rates;
-	int source_len, sink_len, supported_len;
-	int supported_rates[DP_MAX_SUPPORTED_RATES];
+	int source_len, sink_len, common_len;
+	int common_rates[DP_MAX_SUPPORTED_RATES];
 	char str[128]; /* FIXME: too big for stack? */
 
 	if ((drm_debug & DRM_UT_KMS) == 0)
@@ -1274,9 +1274,9 @@ static void intel_dp_print_rates(struct intel_dp *intel_dp)
 	snprintf_int_array(str, sizeof(str), sink_rates, sink_len);
 	DRM_DEBUG_KMS("sink rates: %s\n", str);
 
-	supported_len = intel_supported_rates(intel_dp, supported_rates);
-	snprintf_int_array(str, sizeof(str), supported_rates, supported_len);
-	DRM_DEBUG_KMS("supported rates: %s\n", str);
+	common_len = intel_dp_common_rates(intel_dp, common_rates);
+	snprintf_int_array(str, sizeof(str), common_rates, common_len);
+	DRM_DEBUG_KMS("common rates: %s\n", str);
 }
 
 static int rate_to_index(int find, const int *rates)
@@ -1296,7 +1296,7 @@ intel_dp_max_link_rate(struct intel_dp *intel_dp)
 	int rates[DP_MAX_SUPPORTED_RATES] = {};
 	int len;
 
-	len = intel_supported_rates(intel_dp, rates);
+	len = intel_dp_common_rates(intel_dp, rates);
 	if (WARN_ON(len <= 0))
 		return 162000;
 
@@ -1305,7 +1305,7 @@ intel_dp_max_link_rate(struct intel_dp *intel_dp)
 
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate)
 {
-	return rate_to_index(rate, intel_dp->supported_rates);
+	return rate_to_index(rate, intel_dp->sink_rates);
 }
 
 bool
@@ -1327,15 +1327,15 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	int max_clock;
 	int bpp, mode_rate;
 	int link_avail, link_clock;
-	int supported_rates[DP_MAX_SUPPORTED_RATES] = {};
-	int supported_len;
+	int common_rates[DP_MAX_SUPPORTED_RATES] = {};
+	int common_len;
 
-	supported_len = intel_supported_rates(intel_dp, supported_rates);
+	common_len = intel_dp_common_rates(intel_dp, common_rates);
 
 	/* No common link rates between source and sink */
-	WARN_ON(supported_len <= 0);
+	WARN_ON(common_len <= 0);
 
-	max_clock = supported_len - 1;
+	max_clock = common_len - 1;
 
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
@@ -1360,7 +1360,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("DP link computation with max lane count %i "
 		      "max bw %d pixel clock %iKHz\n",
-		      max_lane_count, supported_rates[max_clock],
+		      max_lane_count, common_rates[max_clock],
 		      adjusted_mode->crtc_clock);
 
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
@@ -1393,7 +1393,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 				lane_count <= max_lane_count;
 				lane_count <<= 1) {
 
-				link_clock = supported_rates[clock];
+				link_clock = common_rates[clock];
 				link_avail = intel_dp_max_data_rate(link_clock,
 								    lane_count);
 
@@ -1424,18 +1424,18 @@ found:
 
 	intel_dp->lane_count = lane_count;
 
-	if (intel_dp->num_supported_rates) {
+	if (intel_dp->num_sink_rates) {
 		intel_dp->link_bw = 0;
 		intel_dp->rate_select =
-			intel_dp_rate_select(intel_dp, supported_rates[clock]);
+			intel_dp_rate_select(intel_dp, common_rates[clock]);
 	} else {
 		intel_dp->link_bw =
-			drm_dp_link_rate_to_bw_code(supported_rates[clock]);
+			drm_dp_link_rate_to_bw_code(common_rates[clock]);
 		intel_dp->rate_select = 0;
 	}
 
 	pipe_config->pipe_bpp = bpp;
-	pipe_config->port_clock = supported_rates[clock];
+	pipe_config->port_clock = common_rates[clock];
 
 	DRM_DEBUG_KMS("DP link bw %02x lane count %d clock %d bpp %d\n",
 		      intel_dp->link_bw, intel_dp->lane_count,
@@ -1458,7 +1458,7 @@ found:
 	}
 
 	if (IS_SKYLAKE(dev) && is_edp(intel_dp))
-		skl_edp_set_pll_config(pipe_config, supported_rates[clock]);
+		skl_edp_set_pll_config(pipe_config, common_rates[clock]);
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hsw_dp_set_ddi_pll_sel(pipe_config, intel_dp->link_bw);
 	else
@@ -3545,7 +3545,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 		link_config[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_BW_SET, link_config, 2);
-	if (intel_dp->num_supported_rates)
+	if (intel_dp->num_sink_rates)
 		drm_dp_dpcd_write(&intel_dp->aux, DP_LINK_RATE_SET,
 				&intel_dp->rate_select, 1);
 
@@ -3797,23 +3797,23 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	    (intel_dp->dpcd[DP_EDP_CONFIGURATION_CAP] &	DP_DPCD_DISPLAY_CONTROL_CAPABLE) &&
 	    (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_EDP_DPCD_REV, &rev, 1) == 1) &&
 	    (rev >= 0x03)) { /* eDp v1.4 or higher */
-		__le16 supported_rates[DP_MAX_SUPPORTED_RATES];
+		__le16 sink_rates[DP_MAX_SUPPORTED_RATES];
 		int i;
 
 		intel_dp_dpcd_read_wake(&intel_dp->aux,
 				DP_SUPPORTED_LINK_RATES,
-				supported_rates,
-				sizeof(supported_rates));
+				sink_rates,
+				sizeof(sink_rates));
 
-		for (i = 0; i < ARRAY_SIZE(supported_rates); i++) {
-			int val = le16_to_cpu(supported_rates[i]);
+		for (i = 0; i < ARRAY_SIZE(sink_rates); i++) {
+			int val = le16_to_cpu(sink_rates[i]);
 
 			if (val == 0)
 				break;
 
-			intel_dp->supported_rates[i] = val * 200;
+			intel_dp->sink_rates[i] = val * 200;
 		}
-		intel_dp->num_supported_rates = i;
+		intel_dp->num_sink_rates = i;
 	}
 
 	intel_dp_print_rates(intel_dp);
