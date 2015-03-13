@@ -1541,7 +1541,7 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 		 if (c->x86 == 0x15 &&
 		     (c->x86_model >= 0x10 && c->x86_model <= 0x1f)) {
 			 int i;
-			 u64 val, hwcr;
+			 u64 hwcr;
 			 bool need_toggle;
 			 u32 msrs[] = {
 				0x00000413, /* MC4_MISC0 */
@@ -1556,15 +1556,9 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 			 if (need_toggle)
 				 wrmsrl(MSR_K7_HWCR, hwcr | BIT(18));
 
-			 for (i = 0; i < ARRAY_SIZE(msrs); i++) {
-				 rdmsrl(msrs[i], val);
-
-				 /* CntP bit set? */
-				 if (val & BIT_64(62)) {
-					val &= ~BIT_64(62);
-					wrmsrl(msrs[i], val);
-				 }
-			 }
+			 /* Clear CntP bit safely */
+			 for (i = 0; i < ARRAY_SIZE(msrs); i++)
+				 msr_clear_bit(msrs[i], 62);
 
 			 /* restore old settings */
 			 if (need_toggle)
