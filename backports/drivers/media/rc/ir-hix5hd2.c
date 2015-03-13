@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <media/rc-core.h>
+#include <linux/of.h>
 
 /* Allow the driver to compile on all architectures */
 #ifndef writel_relaxed
