@@ -420,10 +420,6 @@ use_default_name:
 	INIT_WORK(&rdev->sched_scan_results_wk, __cfg80211_sched_scan_results);
 	INIT_DELAYED_WORK(&rdev->dfs_update_channels_wk,
 			  cfg80211_dfs_channels_update_work);
-#ifdef CONFIG_CFG80211_WEXT
-	rdev->wiphy.wext = &cfg80211_wext_handler;
-#endif
-
 	device_initialize(&rdev->wiphy.dev);
 	rdev->wiphy.dev.class = &ieee80211_class;
 	rdev->wiphy.dev.platform_data = rdev;
@@ -1017,6 +1013,15 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		}
 		wdev->netdev = dev;
 #ifdef CONFIG_CFG80211_WEXT
+#ifdef CONFIG_WIRELESS_EXT
+		if (!dev->wireless_handlers)
+			dev->wireless_handlers = &cfg80211_wext_handler;
+#else
+		printk_once(KERN_WARNING "cfg80211: wext will not work because "
+			    "kernel was compiled with CONFIG_WIRELESS_EXT=n. "
+			    "Tools using wext interface, like iwconfig will "
+			    "not work.\n");
+#endif
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
