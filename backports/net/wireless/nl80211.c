@@ -1802,6 +1802,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 						 cb->nlh->nlmsg_seq,
 						 NLM_F_MULTI, state);
 			if (ret < 0) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0)
 				/*
 				 * If sending the wiphy data didn't fit (ENOBUFS
 				 * or EMSGSIZE returned), this SKB is still
@@ -1823,6 +1824,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 					rtnl_unlock();
 					return 1;
 				}
+#endif
 				idx--;
 				break;
 			}
