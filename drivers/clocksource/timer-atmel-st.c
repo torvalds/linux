@@ -29,15 +29,12 @@
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
 
-#include <asm/mach/time.h>
-
-#include <mach/hardware.h>
-
 static unsigned long last_crtr;
 static u32 irqmask;
 static struct clock_event_device clkevt;
 static struct regmap *regmap_st;
 
+#define AT91_SLOW_CLOCK		32768
 #define RM9200_TIMER_LATCH	((AT91_SLOW_CLOCK + HZ/2) / HZ)
 
 /*
@@ -95,13 +92,6 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 	/* this irq is shared ... */
 	return IRQ_NONE;
 }
-
-static struct irqaction at91rm9200_timer_irq = {
-	.name		= "at91_tick",
-	.flags		= IRQF_SHARED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= at91rm9200_timer_interrupt,
-	.irq		= NR_IRQS_LEGACY + AT91_ID_SYS,
-};
 
 static cycle_t read_clk32k(struct clocksource *cs)
 {
@@ -193,6 +183,7 @@ static struct clock_event_device clkevt = {
 static void __init atmel_st_timer_init(struct device_node *node)
 {
 	unsigned int val;
+	int irq, ret;
 
 	regmap_st = syscon_node_to_regmap(node);
 	if (IS_ERR(regmap_st))
@@ -204,12 +195,16 @@ static void __init atmel_st_timer_init(struct device_node *node)
 	regmap_read(regmap_st, AT91_ST_SR, &val);
 
 	/* Get the interrupts property */
-	at91rm9200_timer_irq.irq  = irq_of_parse_and_map(node, 0);
-	if (!at91rm9200_timer_irq.irq)
+	irq  = irq_of_parse_and_map(node, 0);
+	if (!irq)
 		panic(pr_fmt("Unable to get IRQ from DT\n"));
 
 	/* Make IRQs happen for the system timer */
-	setup_irq(at91rm9200_timer_irq.irq, &at91rm9200_timer_irq);
+	ret = request_irq(irq, at91rm9200_timer_interrupt,
+			  IRQF_SHARED | IRQF_TIMER | IRQF_IRQPOLL,
+			  "at91_tick", regmap_st);
+	if (ret)
+		panic(pr_fmt("Unable to setup IRQ\n"));
 
 	/* The 32KiHz "Slow Clock" (tick every 30517.58 nanoseconds) is used
 	 * directly for the clocksource and all clockevents, after adjusting
