@@ -161,7 +161,7 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		op_data->op_lease_handle = och->och_lease_handle;
 		op_data->op_attr.ia_valid |= ATTR_SIZE | ATTR_BLOCKS;
 	}
-	epoch_close = (op_data->op_flags & MF_EPOCH_CLOSE);
+	epoch_close = op_data->op_flags & MF_EPOCH_CLOSE;
 	rc = md_close(md_exp, op_data, och->och_mod, &req);
 	if (rc == -EAGAIN) {
 		/* This close must have the epoch closed. */

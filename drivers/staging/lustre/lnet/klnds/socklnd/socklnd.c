@@ -722,7 +722,7 @@ ksocknal_match_peerip(ksock_interface_t *iface, __u32 *ips, int nips)
 		if (ips[i] == 0)
 			continue;
 
-		this_xor = (ips[i] ^ iface->ksni_ipaddr);
+		this_xor = ips[i] ^ iface->ksni_ipaddr;
 		this_netmatch = ((this_xor & iface->ksni_netmask) == 0) ? 1 : 0;
 
 		if (!(best < 0 ||
@@ -809,7 +809,7 @@ ksocknal_select_ips(ksock_peer_t *peer, __u32 *peerips, int n_peerips)
 					continue;
 
 				k = ksocknal_match_peerip(iface, peerips, n_peerips);
-				xor = (ip ^ peerips[k]);
+				xor = ip ^ peerips[k];
 				this_netmatch = ((xor & iface->ksni_netmask) == 0) ? 1 : 0;
 
 				if (!(best_iface == NULL ||

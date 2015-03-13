@@ -206,7 +206,7 @@ static int proc_max_dirty_pages_in_mb(struct ctl_table *table, int write,
 			CERROR("Refusing to set max dirty pages to %u, which is more than 90%% of available RAM; setting to %lu\n",
 			       obd_max_dirty_pages,
 			       ((totalram_pages / 10) * 9));
-			obd_max_dirty_pages = ((totalram_pages / 10) * 9);
+			obd_max_dirty_pages = (totalram_pages / 10) * 9;
 		} else if (obd_max_dirty_pages < 4 << (20 - PAGE_CACHE_SHIFT)) {
 			obd_max_dirty_pages = 4 << (20 - PAGE_CACHE_SHIFT);
 		}

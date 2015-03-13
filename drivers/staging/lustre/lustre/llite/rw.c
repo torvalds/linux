@@ -750,7 +750,7 @@ int ll_readahead(const struct lu_env *env, struct cl_io *io,
 		/* Note: we only trim the RPC, instead of extending the RPC
 		 * to the boundary, so to avoid reading too much pages during
 		 * random reading. */
-		rpc_boundary = ((end + 1) & (~(PTLRPC_MAX_BRW_PAGES - 1)));
+		rpc_boundary = (end + 1) & (~(PTLRPC_MAX_BRW_PAGES - 1));
 		if (rpc_boundary > 0)
 			rpc_boundary--;
 

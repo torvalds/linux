@@ -307,7 +307,7 @@ int ldlm_blocking_ast_nocheck(struct ldlm_lock *lock)
 	int do_ast;
 
 	lock->l_flags |= LDLM_FL_CBPENDING;
-	do_ast = (!lock->l_readers && !lock->l_writers);
+	do_ast = !lock->l_readers && !lock->l_writers;
 	unlock_res_and_lock(lock);
 
 	if (do_ast) {

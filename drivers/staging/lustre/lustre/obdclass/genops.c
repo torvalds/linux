@@ -1221,7 +1221,7 @@ int class_connected_export(struct obd_export *exp)
 	if (exp) {
 		int connected;
 		spin_lock(&exp->exp_lock);
-		connected = (exp->exp_conn_cnt > 0);
+		connected = exp->exp_conn_cnt > 0;
 		spin_unlock(&exp->exp_lock);
 		return connected;
 	}

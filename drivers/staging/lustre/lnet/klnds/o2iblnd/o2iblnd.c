@@ -2972,7 +2972,7 @@ kiblnd_start_schedulers(struct kib_sched_info *sched)
 	} else {
 		LASSERT(sched->ibs_nthreads <= sched->ibs_nthreads_max);
 		/* increase one thread if there is new interface */
-		nthrs = (sched->ibs_nthreads < sched->ibs_nthreads_max);
+		nthrs = sched->ibs_nthreads < sched->ibs_nthreads_max;
 	}
 
 	for (i = 0; i < nthrs; i++) {

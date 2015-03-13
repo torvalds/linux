@@ -152,7 +152,7 @@ void ldlm_handle_bl_callback(struct ldlm_namespace *ns,
 	if (lock->l_flags & LDLM_FL_CANCEL_ON_BLOCK)
 		lock->l_flags |= LDLM_FL_CANCEL;
 
-	do_ast = (!lock->l_readers && !lock->l_writers);
+	do_ast = !lock->l_readers && !lock->l_writers;
 	unlock_res_and_lock(lock);
 
 	if (do_ast) {

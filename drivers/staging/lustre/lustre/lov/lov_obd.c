@@ -1667,8 +1667,8 @@ static int fiemap_calc_last_stripe(struct lov_stripe_md *lsm, u64 fm_start,
 	int i, j;
 
 	if (fm_end - fm_start > lsm->lsm_stripe_size * lsm->lsm_stripe_count) {
-		last_stripe = (start_stripe < 1 ? lsm->lsm_stripe_count - 1 :
-							      start_stripe - 1);
+		last_stripe = start_stripe < 1 ? lsm->lsm_stripe_count - 1 :
+							      start_stripe - 1;
 		*stripe_count = lsm->lsm_stripe_count;
 	} else {
 		for (j = 0, i = start_stripe; j < lsm->lsm_stripe_count;
