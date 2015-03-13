@@ -442,7 +442,9 @@ struct igb_adapter {
 	u32 tx_hwtstamp_timeouts;
 	u32 rx_hwtstamp_cleared;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
 	struct ptp_pin_desc sdp_config[IGB_N_SDP];
+#endif
 	struct {
 		struct timespec start;
 		struct timespec period;
