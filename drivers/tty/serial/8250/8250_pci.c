@@ -21,6 +21,7 @@
 #include <linux/serial_core.h>
 #include <linux/8250_pci.h>
 #include <linux/bitops.h>
+#include <linux/rational.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -1393,8 +1394,13 @@ byt_set_termios(struct uart_port *p, struct ktermios *termios,
 		struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
-	unsigned int m, n;
+	unsigned long fref = 100000000, fuart = baud * 16;
+	unsigned long w = BIT(15) - 1;
+	unsigned long m, n;
 	u32 reg;
+
+	/* Get Fuart closer to Fref */
+	fuart *= rounddown_pow_of_two(fref / fuart);
 
 	/*
 	 * For baud rates 0.5M, 1M, 1.5M, 2M, 2.5M, 3M, 3.5M and 4M the
@@ -1402,36 +1408,8 @@ byt_set_termios(struct uart_port *p, struct ktermios *termios,
 	 *
 	 * uartclk = (m / n) * 100 MHz, where m <= n
 	 */
-	switch (baud) {
-	case 500000:
-	case 1000000:
-	case 2000000:
-	case 4000000:
-		m = 64;
-		n = 100;
-		p->uartclk = 64000000;
-		break;
-	case 3500000:
-		m = 56;
-		n = 100;
-		p->uartclk = 56000000;
-		break;
-	case 1500000:
-	case 3000000:
-		m = 48;
-		n = 100;
-		p->uartclk = 48000000;
-		break;
-	case 2500000:
-		m = 40;
-		n = 100;
-		p->uartclk = 40000000;
-		break;
-	default:
-		m = 2304;
-		n = 3125;
-		p->uartclk = 73728000;
-	}
+	rational_best_approximation(fuart, fref, w, w, &m, &n);
+	p->uartclk = fuart;
 
 	/* Reset the clock */
 	reg = (m << BYT_PRV_CLK_M_VAL_SHIFT) | (n << BYT_PRV_CLK_N_VAL_SHIFT);
