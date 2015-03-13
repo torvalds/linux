@@ -428,6 +428,36 @@ config DEFAULT_MEM_SIZE
 
 	  If unsure, leave the default value here.
 
+config XTFPGA_LCD
+	bool "Enable XTFPGA LCD driver"
+	depends on XTENSA_PLATFORM_XTFPGA
+	default n
+	help
+	  There's a 2x16 LCD on most of XTFPGA boards, kernel may output
+	  progress messages there during bootup/shutdown. It may be useful
+	  during board bringup.
+
+	  If unsure, say N.
+
+config XTFPGA_LCD_BASE_ADDR
+	hex "XTFPGA LCD base address"
+	depends on XTFPGA_LCD
+	default "0x0d0c0000"
+	help
+	  Base address of the LCD controller inside KIO region.
+	  Different boards from XTFPGA family have LCD controller at different
+	  addresses. Please consult prototyping user guide for your board for
+	  the correct address. Wrong address here may lead to hardware lockup.
+
+config XTFPGA_LCD_8BIT_ACCESS
+	bool "Use 8-bit access to XTFPGA LCD"
+	depends on XTFPGA_LCD
+	default n
+	help
+	  LCD may be connected with 4- or 8-bit interface, 8-bit access may
+	  only be used with 8-bit interface. Please consult prototyping user
+	  guide for your board for the correct interface width.
+
 endmenu
 
 menu "Executable file formats"
