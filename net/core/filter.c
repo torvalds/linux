@@ -150,10 +150,43 @@ static u64 __get_random_u32(u64 ctx, u64 a, u64 x, u64 r4, u64 r5)
 	return prandom_u32();
 }
 
+static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
+			      struct bpf_insn *insn_buf)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	switch (skb_field) {
+	case SKF_AD_MARK:
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
+
+		*insn++ = BPF_LDX_MEM(BPF_W, dst_reg, src_reg,
+				      offsetof(struct sk_buff, mark));
+		break;
+
+	case SKF_AD_PKTTYPE:
+		*insn++ = BPF_LDX_MEM(BPF_B, dst_reg, src_reg, PKT_TYPE_OFFSET());
+		*insn++ = BPF_ALU32_IMM(BPF_AND, dst_reg, PKT_TYPE_MAX);
+#ifdef __BIG_ENDIAN_BITFIELD
+		*insn++ = BPF_ALU32_IMM(BPF_RSH, dst_reg, 5);
+#endif
+		break;
+
+	case SKF_AD_QUEUE:
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, queue_mapping) != 2);
+
+		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
+				      offsetof(struct sk_buff, queue_mapping));
+		break;
+	}
+
+	return insn - insn_buf;
+}
+
 static bool convert_bpf_extensions(struct sock_filter *fp,
 				   struct bpf_insn **insnp)
 {
 	struct bpf_insn *insn = *insnp;
+	u32 cnt;
 
 	switch (fp->k) {
 	case SKF_AD_OFF + SKF_AD_PROTOCOL:
@@ -167,13 +200,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_PKTTYPE:
-		*insn++ = BPF_LDX_MEM(BPF_B, BPF_REG_A, BPF_REG_CTX,
-				      PKT_TYPE_OFFSET());
-		*insn = BPF_ALU32_IMM(BPF_AND, BPF_REG_A, PKT_TYPE_MAX);
-#ifdef __BIG_ENDIAN_BITFIELD
-		insn++;
-                *insn = BPF_ALU32_IMM(BPF_RSH, BPF_REG_A, 5);
-#endif
+		cnt = convert_skb_access(SKF_AD_PKTTYPE, BPF_REG_A, BPF_REG_CTX, insn);
+		insn += cnt - 1;
 		break;
 
 	case SKF_AD_OFF + SKF_AD_IFINDEX:
@@ -197,10 +225,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_MARK:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, mark) != 4);
-
-		*insn = BPF_LDX_MEM(BPF_W, BPF_REG_A, BPF_REG_CTX,
-				    offsetof(struct sk_buff, mark));
+		cnt = convert_skb_access(SKF_AD_MARK, BPF_REG_A, BPF_REG_CTX, insn);
+		insn += cnt - 1;
 		break;
 
 	case SKF_AD_OFF + SKF_AD_RXHASH:
@@ -211,10 +237,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_QUEUE:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, queue_mapping) != 2);
-
-		*insn = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
-				    offsetof(struct sk_buff, queue_mapping));
+		cnt = convert_skb_access(SKF_AD_QUEUE, BPF_REG_A, BPF_REG_CTX, insn);
+		insn += cnt - 1;
 		break;
 
 	case SKF_AD_OFF + SKF_AD_VLAN_TAG:
@@ -1151,13 +1175,55 @@ sk_filter_func_proto(enum bpf_func_id func_id)
 static bool sk_filter_is_valid_access(int off, int size,
 				      enum bpf_access_type type)
 {
-	/* skb fields cannot be accessed yet */
-	return false;
+	/* only read is allowed */
+	if (type != BPF_READ)
+		return false;
+
+	/* check bounds */
+	if (off < 0 || off >= sizeof(struct __sk_buff))
+		return false;
+
+	/* disallow misaligned access */
+	if (off % size != 0)
+		return false;
+
+	/* all __sk_buff fields are __u32 */
+	if (size != 4)
+		return false;
+
+	return true;
+}
+
+static u32 sk_filter_convert_ctx_access(int dst_reg, int src_reg, int ctx_off,
+					struct bpf_insn *insn_buf)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	switch (ctx_off) {
+	case offsetof(struct __sk_buff, len):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
+
+		*insn++ = BPF_LDX_MEM(BPF_W, dst_reg, src_reg,
+				      offsetof(struct sk_buff, len));
+		break;
+
+	case offsetof(struct __sk_buff, mark):
+		return convert_skb_access(SKF_AD_MARK, dst_reg, src_reg, insn);
+
+	case offsetof(struct __sk_buff, pkt_type):
+		return convert_skb_access(SKF_AD_PKTTYPE, dst_reg, src_reg, insn);
+
+	case offsetof(struct __sk_buff, queue_mapping):
+		return convert_skb_access(SKF_AD_QUEUE, dst_reg, src_reg, insn);
+	}
+
+	return insn - insn_buf;
 }
 
 static const struct bpf_verifier_ops sk_filter_ops = {
 	.get_func_proto = sk_filter_func_proto,
 	.is_valid_access = sk_filter_is_valid_access,
+	.convert_ctx_access = sk_filter_convert_ctx_access,
 };
 
 static struct bpf_prog_type_list sk_filter_type __read_mostly = {

@@ -519,7 +519,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 		goto free_prog;
 
 	/* run eBPF verifier */
-	err = bpf_check(prog, attr);
+	err = bpf_check(&prog, attr);
 	if (err < 0)
 		goto free_used_maps;
 
