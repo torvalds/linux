@@ -1,0 +1,176 @@
+config BACKPORT_KERNEL_3_11
+    def_bool y
+config BACKPORT_KERNEL_3_12
+    def_bool y
+config BACKPORT_KERNEL_3_13
+    def_bool y
+config BACKPORT_KERNEL_3_14
+    def_bool y
+config BACKPORT_KERNEL_3_15
+    def_bool y
+config BACKPORT_KERNEL_3_16
+    def_bool y
+config BACKPORT_KERNEL_3_17
+    def_bool y
+config BACKPORT_KERNEL_3_18
+    def_bool y
+config BACKPORT_KERNEL_3_19
+    def_bool y
+config BACKPORT_KERNEL_3_20
+    def_bool y
+config BACKPORT_KERNEL_3_21
+    def_bool y
+config BACKPORT_KERNEL_3_22
+    def_bool y
+config BACKPORT_KERNEL_3_23
+    def_bool y
+config BACKPORT_KERNEL_3_24
+    def_bool y
+config BACKPORT_KERNEL_3_25
+    def_bool y
+config BACKPORT_KERNEL_3_26
+    def_bool y
+config BACKPORT_KERNEL_3_27
+    def_bool y
+config BACKPORT_KERNEL_3_28
+    def_bool y
+config BACKPORT_KERNEL_3_29
+    def_bool y
+config BACKPORT_KERNEL_3_30
+    def_bool y
+config BACKPORT_KERNEL_3_31
+    def_bool y
+config BACKPORT_KERNEL_3_32
+    def_bool y
+config BACKPORT_KERNEL_3_33
+    def_bool y
+config BACKPORT_KERNEL_3_34
+    def_bool y
+config BACKPORT_KERNEL_3_35
+    def_bool y
+config BACKPORT_KERNEL_3_36
+    def_bool y
+config BACKPORT_KERNEL_3_37
+    def_bool y
+config BACKPORT_KERNEL_3_38
+    def_bool y
+config BACKPORT_KERNEL_3_39
+    def_bool y
+config BACKPORT_KERNEL_3_40
+    def_bool y
+config BACKPORT_KERNEL_3_41
+    def_bool y
+config BACKPORT_KERNEL_3_42
+    def_bool y
+config BACKPORT_KERNEL_3_43
+    def_bool y
+config BACKPORT_KERNEL_3_44
+    def_bool y
+config BACKPORT_KERNEL_3_45
+    def_bool y
+config BACKPORT_KERNEL_3_46
+    def_bool y
+config BACKPORT_KERNEL_3_47
+    def_bool y
+config BACKPORT_KERNEL_3_48
+    def_bool y
+config BACKPORT_KERNEL_3_49
+    def_bool y
+config BACKPORT_KERNEL_3_50
+    def_bool y
+config BACKPORT_KERNEL_3_51
+    def_bool y
+config BACKPORT_KERNEL_3_52
+    def_bool y
+config BACKPORT_KERNEL_3_53
+    def_bool y
+config BACKPORT_KERNEL_3_54
+    def_bool y
+config BACKPORT_KERNEL_3_55
+    def_bool y
+config BACKPORT_KERNEL_3_56
+    def_bool y
+config BACKPORT_KERNEL_3_57
+    def_bool y
+config BACKPORT_KERNEL_3_58
+    def_bool y
+config BACKPORT_KERNEL_3_59
+    def_bool y
+config BACKPORT_KERNEL_3_60
+    def_bool y
+config BACKPORT_KERNEL_3_61
+    def_bool y
+config BACKPORT_KERNEL_3_62
+    def_bool y
+config BACKPORT_KERNEL_3_63
+    def_bool y
+config BACKPORT_KERNEL_3_64
+    def_bool y
+config BACKPORT_KERNEL_3_65
+    def_bool y
+config BACKPORT_KERNEL_3_66
+    def_bool y
+config BACKPORT_KERNEL_3_67
+    def_bool y
+config BACKPORT_KERNEL_3_68
+    def_bool y
+config BACKPORT_KERNEL_3_69
+    def_bool y
+config BACKPORT_KERNEL_3_70
+    def_bool y
+config BACKPORT_KERNEL_3_71
+    def_bool y
+config BACKPORT_KERNEL_3_72
+    def_bool y
+config BACKPORT_KERNEL_3_73
+    def_bool y
+config BACKPORT_KERNEL_3_74
+    def_bool y
+config BACKPORT_KERNEL_3_75
+    def_bool y
+config BACKPORT_KERNEL_3_76
+    def_bool y
+config BACKPORT_KERNEL_3_77
+    def_bool y
+config BACKPORT_KERNEL_3_78
+    def_bool y
+config BACKPORT_KERNEL_3_79
+    def_bool y
+config BACKPORT_KERNEL_3_80
+    def_bool y
+config BACKPORT_KERNEL_3_81
+    def_bool y
+config BACKPORT_KERNEL_3_82
+    def_bool y
+config BACKPORT_KERNEL_3_83
+    def_bool y
+config BACKPORT_KERNEL_3_84
+    def_bool y
+config BACKPORT_KERNEL_3_85
+    def_bool y
+config BACKPORT_KERNEL_3_86
+    def_bool y
+config BACKPORT_KERNEL_3_87
+    def_bool y
+config BACKPORT_KERNEL_3_88
+    def_bool y
+config BACKPORT_KERNEL_3_89
+    def_bool y
+config BACKPORT_KERNEL_3_90
+    def_bool y
+config BACKPORT_KERNEL_3_91
+    def_bool y
+config BACKPORT_KERNEL_3_92
+    def_bool y
+config BACKPORT_KERNEL_3_93
+    def_bool y
+config BACKPORT_KERNEL_3_94
+    def_bool y
+config BACKPORT_KERNEL_3_95
+    def_bool y
+config BACKPORT_KERNEL_3_96
+    def_bool y
+config BACKPORT_KERNEL_3_97
+    def_bool y
+config BACKPORT_KERNEL_3_98
+    def_bool y
