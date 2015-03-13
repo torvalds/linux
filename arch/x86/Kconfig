@@ -1742,14 +1742,11 @@ config KEXEC_VERIFY_SIG
 	depends on KEXEC_FILE
 	---help---
 	  This option makes kernel signature verification mandatory for
-	  kexec_file_load() syscall. If kernel is signature can not be
-	  verified, kexec_file_load() will fail.
+	  the kexec_file_load() syscall.
 
-	  This option enforces signature verification at generic level.
-	  One needs to enable signature verification for type of kernel
-	  image being loaded to make sure it works. For example, enable
-	  bzImage signature verification option to be able to load and
-	  verify signatures of bzImage. Otherwise kernel loading will fail.
+	  In addition to that option, you need to enable signature
+	  verification for the corresponding kernel image type being
+	  loaded in order for this to work.
 
 config KEXEC_BZIMAGE_VERIFY_SIG
 	bool "Enable bzImage signature verification support"
