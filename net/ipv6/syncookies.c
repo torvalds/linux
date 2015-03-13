@@ -196,6 +196,8 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	treq = tcp_rsk(req);
 	treq->listener = NULL;
+	write_pnet(&ireq->ireq_net, sock_net(sk));
+	ireq->ireq_family = AF_INET6;
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto out_free;
