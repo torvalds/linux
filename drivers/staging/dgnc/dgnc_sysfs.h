@@ -16,9 +16,8 @@
 #ifndef __DGNC_SYSFS_H
 #define __DGNC_SYSFS_H
 
-#include "dgnc_driver.h"
-
 #include <linux/device.h>
+#include "dgnc_driver.h"
 
 struct dgnc_board;
 struct channel_t;
@@ -37,7 +36,5 @@ extern int dgnc_tty_class_destroy(void);
 
 extern void dgnc_create_tty_sysfs(struct un_t *un, struct device *c);
 extern void dgnc_remove_tty_sysfs(struct device *c);
-
-
 
 #endif
