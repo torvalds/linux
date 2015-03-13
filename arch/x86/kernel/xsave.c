@@ -680,8 +680,6 @@ void xsave_init(void)
 
 static inline void __init eager_fpu_init_bp(void)
 {
-	current->thread.fpu.state =
-	    alloc_bootmem_align(xstate_size, __alignof__(struct xsave_struct));
 	if (!init_xstate_buf)
 		setup_init_fpu_buf();
 }
