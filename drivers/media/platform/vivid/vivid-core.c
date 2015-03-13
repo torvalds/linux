@@ -619,6 +619,22 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	Initialization and module stuff
    ------------------------------------------------------------------*/
 
+static void vivid_dev_release(struct v4l2_device *v4l2_dev)
+{
+	struct vivid_dev *dev = container_of(v4l2_dev, struct vivid_dev, v4l2_dev);
+
+	vivid_free_controls(dev);
+	v4l2_device_unregister(&dev->v4l2_dev);
+	vfree(dev->scaled_line);
+	vfree(dev->blended_line);
+	vfree(dev->edid);
+	vfree(dev->bitmap_cap);
+	vfree(dev->bitmap_out);
+	tpg_free(&dev->tpg);
+	kfree(dev->query_dv_timings_qmenu);
+	kfree(dev);
+}
+
 static int vivid_create_instance(struct platform_device *pdev, int inst)
 {
 	static const struct v4l2_dv_timings def_dv_timings =
@@ -648,8 +664,11 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
 			"%s-%03d", VIVID_MODULE_NAME, inst);
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
-	if (ret)
-		goto free_dev;
+	if (ret) {
+		kfree(dev);
+		return ret;
+	}
+	dev->v4l2_dev.release = vivid_dev_release;
 
 	/* start detecting feature set */
 
@@ -1257,15 +1276,8 @@ unreg_dev:
 	video_unregister_device(&dev->vbi_cap_dev);
 	video_unregister_device(&dev->vid_out_dev);
 	video_unregister_device(&dev->vid_cap_dev);
-	vivid_free_controls(dev);
-	v4l2_device_unregister(&dev->v4l2_dev);
 free_dev:
-	vfree(dev->scaled_line);
-	vfree(dev->blended_line);
-	vfree(dev->edid);
-	tpg_free(&dev->tpg);
-	kfree(dev->query_dv_timings_qmenu);
-	kfree(dev);
+	v4l2_device_put(&dev->v4l2_dev);
 	return ret;
 }
 
@@ -1359,16 +1371,7 @@ static int vivid_remove(struct platform_device *pdev)
 			unregister_framebuffer(&dev->fb_info);
 			vivid_fb_release_buffers(dev);
 		}
-		v4l2_device_unregister(&dev->v4l2_dev);
-		vivid_free_controls(dev);
-		vfree(dev->scaled_line);
-		vfree(dev->blended_line);
-		vfree(dev->edid);
-		vfree(dev->bitmap_cap);
-		vfree(dev->bitmap_out);
-		tpg_free(&dev->tpg);
-		kfree(dev->query_dv_timings_qmenu);
-		kfree(dev);
+		v4l2_device_put(&dev->v4l2_dev);
 		vivid_devs[i] = NULL;
 	}
 	return 0;
