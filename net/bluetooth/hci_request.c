@@ -307,7 +307,7 @@ static void set_random_addr(struct hci_request *req, bdaddr_t *rpa)
 	if (hci_dev_test_flag(hdev, HCI_LE_ADV) ||
 	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
 		BT_DBG("Deferring random address update");
-		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
 		return;
 	}
 

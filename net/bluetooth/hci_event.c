@@ -70,7 +70,7 @@ static void hci_cc_periodic_inq(struct hci_dev *hdev, struct sk_buff *skb)
 	if (status)
 		return;
 
-	set_bit(HCI_PERIODIC_INQ, &hdev->dev_flags);
+	hci_dev_set_flag(hdev, HCI_PERIODIC_INQ);
 }
 
 static void hci_cc_exit_periodic_inq(struct hci_dev *hdev, struct sk_buff *skb)
@@ -501,7 +501,7 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 		mgmt_ssp_enable_complete(hdev, sent->mode, status);
 	else if (!status) {
 		if (sent->mode)
-			set_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+			hci_dev_set_flag(hdev, HCI_SSP_ENABLED);
 		else
 			clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
 	}
@@ -531,7 +531,7 @@ static void hci_cc_write_sc_support(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (!hci_dev_test_flag(hdev, HCI_MGMT) && !status) {
 		if (sent->support)
-			set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+			hci_dev_set_flag(hdev, HCI_SC_ENABLED);
 		else
 			clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
 	}
@@ -1109,7 +1109,7 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (*sent) {
 		struct hci_conn *conn;
 
-		set_bit(HCI_LE_ADV, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_LE_ADV);
 
 		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
 		if (conn)
@@ -1192,7 +1192,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 
 	switch (cp->enable) {
 	case LE_SCAN_ENABLE:
-		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_LE_SCAN);
 		if (hdev->le_scan_type == LE_SCAN_ACTIVE)
 			clear_pending_adv_report(hdev);
 		break;
@@ -1388,7 +1388,7 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 
 	if (sent->le) {
 		hdev->features[1][0] |= LMP_HOST_LE;
-		set_bit(HCI_LE_ENABLED, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_LE_ENABLED);
 	} else {
 		hdev->features[1][0] &= ~LMP_HOST_LE;
 		clear_bit(HCI_LE_ENABLED, &hdev->dev_flags);
@@ -2608,7 +2608,7 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 * whenever the encryption procedure fails.
 	 */
 	if (ev->status && conn->type == LE_LINK)
-		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
 
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 

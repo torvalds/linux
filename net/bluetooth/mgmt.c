@@ -1163,7 +1163,7 @@ static void rpa_expired(struct work_struct *work)
 
 	BT_DBG("");
 
-	set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+	hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
 
 	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING))
 		return;
@@ -1723,7 +1723,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	/* Limited discoverable mode */
 	if (cp->val == 0x02)
-		set_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_LIMITED_DISCOVERABLE);
 	else
 		clear_bit(HCI_LIMITED_DISCOVERABLE, &hdev->dev_flags);
 
@@ -1874,7 +1874,7 @@ static int set_connectable_update_settings(struct hci_dev *hdev,
 		changed = true;
 
 	if (val) {
-		set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_CONNECTABLE);
 	} else {
 		clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 		clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
@@ -4410,7 +4410,7 @@ static void set_advertising_complete(struct hci_dev *hdev, u8 status,
 	}
 
 	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
-		set_bit(HCI_ADVERTISING, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_ADVERTISING);
 	else
 		clear_bit(HCI_ADVERTISING, &hdev->dev_flags);
 
@@ -4467,8 +4467,7 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 			changed = !test_and_set_bit(HCI_ADVERTISING,
 						    &hdev->dev_flags);
 			if (cp->val == 0x02)
-				set_bit(HCI_ADVERTISING_CONNECTABLE,
-					&hdev->dev_flags);
+				hci_dev_set_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 			else
 				clear_bit(HCI_ADVERTISING_CONNECTABLE,
 					  &hdev->dev_flags);
@@ -4505,7 +4504,7 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_req_init(&req, hdev);
 
 	if (cp->val == 0x02)
-		set_bit(HCI_ADVERTISING_CONNECTABLE, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_ADVERTISING_CONNECTABLE);
 	else
 		clear_bit(HCI_ADVERTISING_CONNECTABLE, &hdev->dev_flags);
 
@@ -4644,7 +4643,7 @@ static void fast_connectable_complete(struct hci_dev *hdev, u8 status,
 		struct mgmt_mode *cp = cmd->param;
 
 		if (cp->val)
-			set_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
+			hci_dev_set_flag(hdev, HCI_FAST_CONNECTABLE);
 		else
 			clear_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
 
@@ -4846,7 +4845,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	/* We need to flip the bit already here so that update_adv_data
 	 * generates the correct flags.
 	 */
-	set_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+	hci_dev_set_flag(hdev, HCI_BREDR_ENABLED);
 
 	hci_req_init(&req, hdev);
 
@@ -4894,12 +4893,12 @@ static void sc_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
 		break;
 	case 0x01:
-		set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_SC_ENABLED);
 		clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
 		break;
 	case 0x02:
-		set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
-		set_bit(HCI_SC_ONLY, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_SC_ENABLED);
+		hci_dev_set_flag(hdev, HCI_SC_ONLY);
 		break;
 	}
 
@@ -4948,7 +4947,7 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 			changed = !test_and_set_bit(HCI_SC_ENABLED,
 						    &hdev->dev_flags);
 			if (cp->val == 0x02)
-				set_bit(HCI_SC_ONLY, &hdev->dev_flags);
+				hci_dev_set_flag(hdev, HCI_SC_ONLY);
 			else
 				clear_bit(HCI_SC_ONLY, &hdev->dev_flags);
 		} else {
@@ -5074,12 +5073,12 @@ static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 	/* If user space supports this command it is also expected to
 	 * handle IRKs. Therefore, set the HCI_RPA_RESOLVING flag.
 	 */
-	set_bit(HCI_RPA_RESOLVING, &hdev->dev_flags);
+	hci_dev_set_flag(hdev, HCI_RPA_RESOLVING);
 
 	if (cp->privacy) {
 		changed = !test_and_set_bit(HCI_PRIVACY, &hdev->dev_flags);
 		memcpy(hdev->irk, cp->irk, sizeof(hdev->irk));
-		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
 	} else {
 		changed = test_and_clear_bit(HCI_PRIVACY, &hdev->dev_flags);
 		memset(hdev->irk, 0, sizeof(hdev->irk));
@@ -5172,7 +5171,7 @@ static int load_irks(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 			    BDADDR_ANY);
 	}
 
-	set_bit(HCI_RPA_RESOLVING, &hdev->dev_flags);
+	hci_dev_set_flag(hdev, HCI_RPA_RESOLVING);
 
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_LOAD_IRKS, 0, NULL, 0);
 
@@ -6106,8 +6105,8 @@ static int set_external_config(struct sock *sk, struct hci_dev *hdev,
 		mgmt_index_removed(hdev);
 
 		if (test_and_change_bit(HCI_UNCONFIGURED, &hdev->dev_flags)) {
-			set_bit(HCI_CONFIG, &hdev->dev_flags);
-			set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+			hci_dev_set_flag(hdev, HCI_CONFIG);
+			hci_dev_set_flag(hdev, HCI_AUTO_OFF);
 
 			queue_work(hdev->req_workqueue, &hdev->power_on);
 		} else {
@@ -6162,8 +6161,8 @@ static int set_public_address(struct sock *sk, struct hci_dev *hdev,
 
 		clear_bit(HCI_UNCONFIGURED, &hdev->dev_flags);
 
-		set_bit(HCI_CONFIG, &hdev->dev_flags);
-		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_CONFIG);
+		hci_dev_set_flag(hdev, HCI_AUTO_OFF);
 
 		queue_work(hdev->req_workqueue, &hdev->power_on);
 	}
