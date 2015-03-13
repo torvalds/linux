@@ -175,7 +175,11 @@ that only one external action is invoked at a time.
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2100 Network Driver"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2006 Intel Corporation"
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0))
+static struct pm_qos_request_list ipw2100_pm_qos_req;
+#else
 static struct pm_qos_request ipw2100_pm_qos_req;
+#endif
 
 /* Debugging stuff */
 #ifdef CONFIG_IPW2100_DEBUG
