@@ -275,6 +275,16 @@ static int __init imx_gpc_init(struct device_node *node,
  */
 OF_DECLARE_2(irqchip, imx_gpc, "fsl,imx6q-gpc", imx_gpc_init);
 
+void __init imx_gpc_check_dt(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpc");
+	if (WARN_ON(!np ||
+		    !of_find_property(np, "interrupt-controller", NULL)))
+		pr_warn("Outdated DT detected, system is about to crash!!!\n");
+}
+
 #ifdef CONFIG_PM_GENERIC_DOMAINS
 
 static void _imx6q_pm_pu_power_off(struct generic_pm_domain *genpd)
