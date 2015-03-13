@@ -159,6 +159,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 	int tid;
 	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &resp->params.add_ba_rsp;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tbl;
+	struct mwifiex_ra_list_tbl *ra_list;
 	u16 block_ack_param_set = le16_to_cpu(add_ba_rsp->block_ack_param_set);
 
 	add_ba_rsp->ssn = cpu_to_le16((le16_to_cpu(add_ba_rsp->ssn))
@@ -166,7 +167,13 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 
 	tid = (block_ack_param_set & IEEE80211_ADDBA_PARAM_TID_MASK)
 	       >> BLOCKACKPARAM_TID_POS;
+	ra_list = mwifiex_wmm_get_ralist_node(priv, tid, add_ba_rsp->
+		peer_mac_addr);
 	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
+		if (ra_list) {
+			ra_list->ba_status = BA_SETUP_NONE;
+			ra_list->amsdu_in_ampdu = false;
+		}
 		mwifiex_del_ba_tbl(priv, tid, add_ba_rsp->peer_mac_addr,
 				   TYPE_DELBA_SENT, true);
 		if (add_ba_rsp->add_rsp_result != BA_RESULT_TIMEOUT)
@@ -185,6 +192,10 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			tx_ba_tbl->amsdu = true;
 		else
 			tx_ba_tbl->amsdu = false;
+		if (ra_list) {
+			ra_list->amsdu_in_ampdu = tx_ba_tbl->amsdu;
+			ra_list->ba_status = BA_SETUP_COMPLETE;
+		}
 	} else {
 		dev_err(priv->adapter->dev, "BA stream not created\n");
 	}
@@ -515,6 +526,7 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 			   enum mwifiex_ba_status ba_status)
 {
 	struct mwifiex_tx_ba_stream_tbl *new_node;
+	struct mwifiex_ra_list_tbl *ra_list;
 	unsigned long flags;
 
 	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
@@ -522,7 +534,11 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 				   GFP_ATOMIC);
 		if (!new_node)
 			return;
-
+		ra_list = mwifiex_wmm_get_ralist_node(priv, tid, ra);
+		if (ra_list) {
+			ra_list->ba_status = ba_status;
+			ra_list->amsdu_in_ampdu = false;
+		}
 		INIT_LIST_HEAD(&new_node->list);
 
 		new_node->tid = tid;

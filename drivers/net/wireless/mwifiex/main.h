@@ -211,6 +211,12 @@ struct mwifiex_tx_aggr {
 	u8 amsdu;
 };
 
+enum mwifiex_ba_status {
+	BA_SETUP_NONE = 0,
+	BA_SETUP_INPROGRESS,
+	BA_SETUP_COMPLETE
+};
+
 struct mwifiex_ra_list_tbl {
 	struct list_head list;
 	struct sk_buff_head skb_head;
@@ -219,6 +225,8 @@ struct mwifiex_ra_list_tbl {
 	u16 max_amsdu;
 	u16 ba_pkt_count;
 	u8 ba_packet_thr;
+	enum mwifiex_ba_status ba_status;
+	u8 amsdu_in_ampdu;
 	u16 total_pkt_count;
 	bool tdls_link;
 };
@@ -602,11 +610,6 @@ struct mwifiex_private {
 	struct mwifiex_11h_intf_state state_11h;
 };
 
-enum mwifiex_ba_status {
-	BA_SETUP_NONE = 0,
-	BA_SETUP_INPROGRESS,
-	BA_SETUP_COMPLETE
-};
 
 struct mwifiex_tx_ba_stream_tbl {
 	struct list_head list;
