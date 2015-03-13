@@ -1130,11 +1130,6 @@ static int bcmgenet_xmit_single(struct net_device *dev,
 
 	dmadesc_set(priv, tx_cb_ptr->bd_addr, mapping, length_status);
 
-	/* Decrement total BD count and advance our write pointer */
-	ring->free_bds -= 1;
-	ring->prod_index += 1;
-	ring->prod_index &= DMA_P_INDEX_MASK;
-
 	return 0;
 }
 
@@ -1172,11 +1167,6 @@ static int bcmgenet_xmit_frag(struct net_device *dev,
 	dmadesc_set(priv, tx_cb_ptr->bd_addr, mapping,
 		    (frag->size << DMA_BUFLENGTH_SHIFT) | dma_desc_flags |
 		    (priv->hw_params->qtag_mask << DMA_TX_QTAG_SHIFT));
-
-
-	ring->free_bds -= 1;
-	ring->prod_index += 1;
-	ring->prod_index &= DMA_P_INDEX_MASK;
 
 	return 0;
 }
@@ -1321,15 +1311,18 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb_tx_timestamp(skb);
 
-	/* we kept a software copy of how much we should advance the TDMA
-	 * producer index, now write it down to the hardware
-	 */
-	bcmgenet_tdma_ring_writel(priv, ring->index,
-				  ring->prod_index, TDMA_PROD_INDEX);
+	/* Decrement total BD count and advance our write pointer */
+	ring->free_bds -= nr_frags + 1;
+	ring->prod_index += nr_frags + 1;
+	ring->prod_index &= DMA_P_INDEX_MASK;
 
 	if (ring->free_bds <= (MAX_SKB_FRAGS + 1))
 		netif_tx_stop_queue(txq);
 
+	if (!skb->xmit_more || netif_xmit_stopped(txq))
+		/* Packets are ready, update producer index */
+		bcmgenet_tdma_ring_writel(priv, ring->index,
+					  ring->prod_index, TDMA_PROD_INDEX);
 out:
 	spin_unlock_irqrestore(&ring->lock, flags);
 
