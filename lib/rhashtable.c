@@ -606,8 +606,8 @@ void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
 	rcu_read_lock();
 
 	tbl = rht_dereference_rcu(ht->tbl, ht);
-	hash = key_hashfn(ht, tbl, key);
 restart:
+	hash = key_hashfn(ht, tbl, key);
 	rht_for_each_rcu(he, tbl, hash) {
 		if (!compare(rht_obj(ht, he), arg))
 			continue;
