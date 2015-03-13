@@ -35,6 +35,7 @@
  */
 
 #include "core.h"
+#include "subscr.h"
 #include "link.h"
 #include "bcast.h"
 #include "socket.h"
@@ -305,12 +306,10 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 	msg_set_session(msg, (tn->random & 0xffff));
 	msg_set_bearer_id(msg, b_ptr->identity);
 	strcpy((char *)msg_data(msg), if_name);
-
-	l_ptr->priority = b_ptr->priority;
-	tipc_link_set_queue_limits(l_ptr, b_ptr->window);
-
 	l_ptr->net_plane = b_ptr->net_plane;
 	link_init_max_pkt(l_ptr);
+	l_ptr->priority = b_ptr->priority;
+	tipc_link_set_queue_limits(l_ptr, b_ptr->window);
 
 	l_ptr->next_out_no = 1;
 	__skb_queue_head_init(&l_ptr->transmq);
@@ -708,7 +707,7 @@ static int tipc_link_cong(struct tipc_link *link, struct sk_buff_head *list)
 {
 	struct sk_buff *skb = skb_peek(list);
 	struct tipc_msg *msg = buf_msg(skb);
-	uint imp = tipc_msg_tot_importance(msg);
+	int imp = msg_importance(msg);
 	u32 oport = msg_tot_origport(msg);
 
 	if (unlikely(imp > TIPC_CRITICAL_IMPORTANCE)) {
@@ -745,7 +744,7 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 {
 	struct tipc_msg *msg = buf_msg(skb_peek(list));
 	unsigned int maxwin = link->window;
-	uint imp = tipc_msg_tot_importance(msg);
+	unsigned int imp = msg_importance(msg);
 	uint mtu = link->max_pkt;
 	uint ack = mod(link->next_in_no - 1);
 	uint seqno = link->next_out_no;
@@ -755,7 +754,7 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 	struct sk_buff_head *backlogq = &link->backlogq;
 	struct sk_buff *skb, *tmp;
 
-	/* Match queue limits against msg importance: */
+	/* Match queue limit against msg importance: */
 	if (unlikely(skb_queue_len(backlogq) >= link->queue_limit[imp]))
 		return tipc_link_cong(link, list);
 
@@ -1811,25 +1810,16 @@ static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tol)
 	l_ptr->abort_limit = tol / (jiffies_to_msecs(l_ptr->cont_intv) / 4);
 }
 
-void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window)
+void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
 {
-	l_ptr->window = window;
+	int max_bulk = TIPC_MAX_PUBLICATIONS / (l->max_pkt / ITEM_SIZE);
 
-	/* Data messages from this node, inclusive FIRST_FRAGM */
-	l_ptr->queue_limit[TIPC_LOW_IMPORTANCE] = window;
-	l_ptr->queue_limit[TIPC_MEDIUM_IMPORTANCE] = (window / 3) * 4;
-	l_ptr->queue_limit[TIPC_HIGH_IMPORTANCE] = (window / 3) * 5;
-	l_ptr->queue_limit[TIPC_CRITICAL_IMPORTANCE] = (window / 3) * 6;
-	/* Transiting data messages,inclusive FIRST_FRAGM */
-	l_ptr->queue_limit[TIPC_LOW_IMPORTANCE + 4] = 300;
-	l_ptr->queue_limit[TIPC_MEDIUM_IMPORTANCE + 4] = 600;
-	l_ptr->queue_limit[TIPC_HIGH_IMPORTANCE + 4] = 900;
-	l_ptr->queue_limit[TIPC_CRITICAL_IMPORTANCE + 4] = 1200;
-	l_ptr->queue_limit[CONN_MANAGER] = 1200;
-	l_ptr->queue_limit[CHANGEOVER_PROTOCOL] = 2500;
-	l_ptr->queue_limit[NAME_DISTRIBUTOR] = 3000;
-	/* FRAGMENT and LAST_FRAGMENT packets */
-	l_ptr->queue_limit[MSG_FRAGMENTER] = 4000;
+	l->window = win;
+	l->queue_limit[TIPC_LOW_IMPORTANCE]      = win / 2;
+	l->queue_limit[TIPC_MEDIUM_IMPORTANCE]   = win;
+	l->queue_limit[TIPC_HIGH_IMPORTANCE]     = win / 2 * 3;
+	l->queue_limit[TIPC_CRITICAL_IMPORTANCE] = win * 2;
+	l->queue_limit[TIPC_SYSTEM_IMPORTANCE]   = max_bulk;
 }
 
 /* tipc_link_find_owner - locate owner node of link by link's name

@@ -383,7 +383,6 @@ int tipc_bclink_xmit(struct net *net, struct sk_buff_head *list)
 		__skb_queue_purge(list);
 		return -EHOSTUNREACH;
 	}
-
 	/* Broadcast to all nodes */
 	if (likely(bclink)) {
 		tipc_bclink_lock(net);

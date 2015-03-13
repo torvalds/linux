@@ -272,6 +272,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		      FIRST_FRAGMENT, INT_H_SIZE, msg_destnode(mhdr));
 	msg_set_size(&pkthdr, pktmax);
 	msg_set_fragm_no(&pkthdr, pktno);
+	msg_set_importance(&pkthdr, msg_importance(mhdr));
 
 	/* Prepare first fragment */
 	skb = tipc_buf_acquire(pktmax);
@@ -467,7 +468,6 @@ bool tipc_msg_reverse(u32 own_addr,  struct sk_buff *buf, u32 *dnode,
 		      int err)
 {
 	struct tipc_msg *msg = buf_msg(buf);
-	uint imp = msg_importance(msg);
 	struct tipc_msg ohdr;
 	uint rdsz = min_t(uint, msg_data_sz(msg), MAX_FORWARD_SIZE);
 
@@ -479,9 +479,6 @@ bool tipc_msg_reverse(u32 own_addr,  struct sk_buff *buf, u32 *dnode,
 	if (msg_errcode(msg))
 		goto exit;
 	memcpy(&ohdr, msg, msg_hdr_sz(msg));
-	imp = min_t(uint, imp + 1, TIPC_CRITICAL_IMPORTANCE);
-	if (msg_isdata(msg))
-		msg_set_importance(msg, imp);
 	msg_set_errcode(msg, err);
 	msg_set_origport(msg, msg_destport(&ohdr));
 	msg_set_destport(msg, msg_origport(&ohdr));

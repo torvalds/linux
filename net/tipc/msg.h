@@ -54,6 +54,8 @@ struct plist;
  * - TIPC_HIGH_IMPORTANCE
  * - TIPC_CRITICAL_IMPORTANCE
  */
+#define TIPC_SYSTEM_IMPORTANCE	4
+
 
 /*
  * Payload message types
@@ -62,6 +64,19 @@ struct plist;
 #define TIPC_MCAST_MSG		1
 #define TIPC_NAMED_MSG		2
 #define TIPC_DIRECT_MSG		3
+
+/*
+ * Internal message users
+ */
+#define  BCAST_PROTOCOL       5
+#define  MSG_BUNDLER          6
+#define  LINK_PROTOCOL        7
+#define  CONN_MANAGER         8
+#define  CHANGEOVER_PROTOCOL  10
+#define  NAME_DISTRIBUTOR     11
+#define  MSG_FRAGMENTER       12
+#define  LINK_CONFIG          13
+#define  SOCK_WAKEUP          14       /* pseudo user */
 
 /*
  * Message header sizes
@@ -168,16 +183,6 @@ static inline u32 msg_isdata(struct tipc_msg *m)
 static inline void msg_set_user(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 0, 25, 0xf, n);
-}
-
-static inline u32 msg_importance(struct tipc_msg *m)
-{
-	return msg_bits(m, 0, 25, 0xf);
-}
-
-static inline void msg_set_importance(struct tipc_msg *m, u32 i)
-{
-	msg_set_user(m, i);
 }
 
 static inline u32 msg_hdr_sz(struct tipc_msg *m)
@@ -336,6 +341,25 @@ static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
 /*
  * Words 3-10
  */
+static inline u32 msg_importance(struct tipc_msg *m)
+{
+	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
+		return msg_bits(m, 5, 13, 0x7);
+	if (likely(msg_isdata(m) && !msg_errcode(m)))
+		return msg_user(m);
+	return TIPC_SYSTEM_IMPORTANCE;
+}
+
+static inline void msg_set_importance(struct tipc_msg *m, u32 i)
+{
+	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
+		msg_set_bits(m, 5, 13, 0x7, i);
+	else if (likely(i < TIPC_SYSTEM_IMPORTANCE))
+		msg_set_user(m, i);
+	else
+		pr_warn("Trying to set illegal importance in message\n");
+}
+
 static inline u32 msg_prevnode(struct tipc_msg *m)
 {
 	return msg_word(m, 3);
@@ -456,20 +480,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 /*
  * Constants and routines used to read and write TIPC internal message headers
  */
-
-/*
- * Internal message users
- */
-#define  BCAST_PROTOCOL       5
-#define  MSG_BUNDLER          6
-#define  LINK_PROTOCOL        7
-#define  CONN_MANAGER         8
-#define  ROUTE_DISTRIBUTOR    9		/* obsoleted */
-#define  CHANGEOVER_PROTOCOL  10
-#define  NAME_DISTRIBUTOR     11
-#define  MSG_FRAGMENTER       12
-#define  LINK_CONFIG          13
-#define  SOCK_WAKEUP          14       /* pseudo user */
 
 /*
  *  Connection management protocol message types
@@ -741,13 +751,6 @@ static inline u32 msg_link_tolerance(struct tipc_msg *m)
 static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 9, 0, 0xffff, n);
-}
-
-static inline u32 tipc_msg_tot_importance(struct tipc_msg *m)
-{
-	if ((msg_user(m) == MSG_FRAGMENTER) && (msg_type(m) == FIRST_FRAGMENT))
-		return msg_importance(msg_get_wrapped(m));
-	return msg_importance(m);
 }
 
 static inline u32 msg_tot_origport(struct tipc_msg *m)
