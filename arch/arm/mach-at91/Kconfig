@@ -103,22 +103,4 @@ config SOC_SAMA5
 	select SOC_SAM_V7
 	select SRAM if PM
 
-comment "Atmel SoCs Feature Selections"
-
-config AT91_TIMER_HZ
-	int "Kernel HZ (jiffies per second)"
-	range 32 1024
-	depends on ARCH_AT91
-	default "128" if SOC_AT91RM9200
-	default "100"
-	help
-	  On AT91rm9200 chips where you're using a system clock derived
-	  from the 32768 Hz hardware clock, this tick rate should divide
-	  it exactly: use a power-of-two value, such as 128 or 256, to
-	  reduce timing errors caused by rounding.
-
-	  On AT91sam926x chips, or otherwise when using a higher precision
-	  system clock (of at least several MHz), rounding is less of a
-	  problem so it can be safer to use a decimal values like 100.
-
 endif
