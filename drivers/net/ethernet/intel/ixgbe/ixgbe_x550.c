@@ -1347,8 +1347,8 @@ mac_reset_top:
  *  @enable: enable or disable switch for Ethertype anti-spoofing
  *  @vf: Virtual Function pool - VF Pool to set for Ethertype anti-spoofing
  **/
-void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw, bool enable,
-					    int vf)
+static void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw,
+						   bool enable, int vf)
 {
 	int vf_target_reg = vf >> 3;
 	int vf_target_shift = vf % 8 + IXGBE_SPOOF_ETHERTYPEAS_SHIFT;
