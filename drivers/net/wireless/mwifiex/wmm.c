@@ -1174,6 +1174,14 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 
 	skb = skb_dequeue(&ptr->skb_head);
 
+	if (adapter->data_sent || adapter->tx_lock_flag) {
+		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
+				       ra_list_flags);
+		skb_queue_tail(&adapter->tx_data_q, skb);
+		atomic_inc(&adapter->tx_queued);
+		return;
+	}
+
 	if (!skb_queue_empty(&ptr->skb_head))
 		skb_next = skb_peek(&ptr->skb_head);
 	else
@@ -1324,11 +1332,16 @@ void
 mwifiex_wmm_process_tx(struct mwifiex_adapter *adapter)
 {
 	do {
-		/* Check if busy */
-		if (adapter->data_sent || adapter->tx_lock_flag)
-			break;
-
 		if (mwifiex_dequeue_tx_packet(adapter))
 			break;
+		if (adapter->iface_type != MWIFIEX_SDIO) {
+			if (adapter->data_sent ||
+			    adapter->tx_lock_flag)
+				break;
+		} else {
+			if (atomic_read(&adapter->tx_queued) >=
+			    MWIFIEX_MAX_PKTS_TXQ)
+				break;
+		}
 	} while (!mwifiex_wmm_lists_empty(adapter));
 }

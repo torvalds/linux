@@ -481,6 +481,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->rx_proc_lock);
 
 	skb_queue_head_init(&adapter->rx_data_q);
+	skb_queue_head_init(&adapter->tx_data_q);
 
 	for (i = 0; i < adapter->priv_num; ++i) {
 		INIT_LIST_HEAD(&adapter->bss_prio_tbl[i].bss_prio_head);
@@ -687,6 +688,10 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 			mwifiex_delete_bss_prio_tbl(priv);
 		}
 	}
+
+	atomic_set(&adapter->tx_queued, 0);
+	while ((skb = skb_dequeue(&adapter->tx_data_q)))
+		mwifiex_write_data_complete(adapter, skb, 0, 0);
 
 	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 

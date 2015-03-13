@@ -170,7 +170,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct sk_buff *skb_aggr, *skb_src;
 	struct mwifiex_txinfo *tx_info_aggr, *tx_info_src;
-	int pad = 0, ret;
+	int pad = 0, aggr_num = 0, ret;
 	struct mwifiex_tx_param tx_param;
 	struct txpd *ptx_pd = NULL;
 	struct timeval tv;
@@ -184,7 +184,8 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	}
 
 	tx_info_src = MWIFIEX_SKB_TXCB(skb_src);
-	skb_aggr = dev_alloc_skb(adapter->tx_buf_size);
+	skb_aggr = mwifiex_alloc_dma_align_buf(adapter->tx_buf_size,
+					       GFP_ATOMIC | GFP_DMA);
 	if (!skb_aggr) {
 		dev_err(adapter->dev, "%s: alloc skb_aggr\n", __func__);
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
@@ -200,6 +201,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 	if (tx_info_src->flags & MWIFIEX_BUF_FLAG_TDLS_PKT)
 		tx_info_aggr->flags |= MWIFIEX_BUF_FLAG_TDLS_PKT;
+	tx_info_aggr->flags |= MWIFIEX_BUF_FLAG_AGGR_PKT;
 	skb_aggr->priority = skb_src->priority;
 
 	do_gettimeofday(&tv);
@@ -211,11 +213,9 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 			break;
 
 		skb_src = skb_dequeue(&pra_list->skb_head);
-
 		pra_list->total_pkt_count--;
-
 		atomic_dec(&priv->wmm.tx_pkts_queued);
-
+		aggr_num++;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 		mwifiex_11n_form_amsdu_pkt(skb_aggr, skb_src, &pad);
@@ -251,6 +251,12 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		ptx_pd = (struct txpd *)skb_aggr->data;
 
 	skb_push(skb_aggr, headroom);
+	tx_info_aggr->aggr_num = aggr_num * 2;
+	if (adapter->data_sent || adapter->tx_lock_flag) {
+		atomic_add(aggr_num * 2, &adapter->tx_queued);
+		skb_queue_tail(&adapter->tx_data_q, skb_aggr);
+		return 0;
+	}
 
 	if (adapter->iface_type == MWIFIEX_USB) {
 		adapter->data_sent = true;

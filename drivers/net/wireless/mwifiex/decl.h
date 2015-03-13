@@ -83,6 +83,7 @@
 #define MWIFIEX_BUF_FLAG_TDLS_PKT	   BIT(2)
 #define MWIFIEX_BUF_FLAG_EAPOL_TX_STATUS   BIT(3)
 #define MWIFIEX_BUF_FLAG_ACTION_TX_STATUS  BIT(4)
+#define MWIFIEX_BUF_FLAG_AGGR_PKT          BIT(5)
 
 #define MWIFIEX_BRIDGED_PKTS_THR_HIGH      1024
 #define MWIFIEX_BRIDGED_PKTS_THR_LOW        128
@@ -179,6 +180,7 @@ struct mwifiex_txinfo {
 	u8 flags;
 	u8 bss_num;
 	u8 bss_type;
+	u8 aggr_num;
 	u32 pkt_len;
 	u8 ack_frame_id;
 	u64 cookie;

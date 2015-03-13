@@ -92,6 +92,12 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 	else
 		head_ptr = mwifiex_process_sta_txpd(priv, skb);
 
+	if ((adapter->data_sent || adapter->tx_lock_flag) && head_ptr) {
+		skb_queue_tail(&adapter->tx_data_q, skb);
+		atomic_inc(&adapter->tx_queued);
+		return 0;
+	}
+
 	if (head_ptr) {
 		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
 			local_tx_pd = (struct txpd *)(head_ptr + hroom);
@@ -142,6 +148,123 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 	return ret;
 }
 
+static int mwifiex_host_to_card(struct mwifiex_adapter *adapter,
+				struct sk_buff *skb,
+				struct mwifiex_tx_param *tx_param)
+{
+	struct txpd *local_tx_pd = NULL;
+	u8 *head_ptr = skb->data;
+	int ret = 0;
+	struct mwifiex_private *priv;
+	struct mwifiex_txinfo *tx_info;
+
+	tx_info = MWIFIEX_SKB_TXCB(skb);
+	priv = mwifiex_get_priv_by_id(adapter, tx_info->bss_num,
+				      tx_info->bss_type);
+	if (!priv) {
+		dev_err(adapter->dev, "data: priv not found. Drop TX packet\n");
+		adapter->dbg.num_tx_host_to_card_failure++;
+		mwifiex_write_data_complete(adapter, skb, 0, 0);
+		return ret;
+	}
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) {
+		if (adapter->iface_type == MWIFIEX_USB)
+			local_tx_pd = (struct txpd *)head_ptr;
+		else
+			local_tx_pd = (struct txpd *) (head_ptr +
+				INTF_HEADER_LEN);
+	}
+
+	if (adapter->iface_type == MWIFIEX_USB) {
+		adapter->data_sent = true;
+		ret = adapter->if_ops.host_to_card(adapter,
+						   MWIFIEX_USB_EP_DATA,
+						   skb, NULL);
+	} else {
+		ret = adapter->if_ops.host_to_card(adapter,
+						   MWIFIEX_TYPE_DATA,
+						   skb, tx_param);
+	}
+	switch (ret) {
+	case -ENOSR:
+		dev_err(adapter->dev, "data: -ENOSR is returned\n");
+		break;
+	case -EBUSY:
+		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
+		    (adapter->pps_uapsd_mode) &&
+		    (adapter->tx_lock_flag)) {
+			priv->adapter->tx_lock_flag = false;
+			if (local_tx_pd)
+				local_tx_pd->flags = 0;
+		}
+		skb_queue_head(&adapter->tx_data_q, skb);
+		if (tx_info->flags & MWIFIEX_BUF_FLAG_AGGR_PKT)
+			atomic_add(tx_info->aggr_num, &adapter->tx_queued);
+		else
+			atomic_inc(&adapter->tx_queued);
+		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
+		break;
+	case -1:
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
+		dev_err(adapter->dev, "mwifiex_write_data_async failed: 0x%X\n",
+			ret);
+		adapter->dbg.num_tx_host_to_card_failure++;
+		mwifiex_write_data_complete(adapter, skb, 0, ret);
+		break;
+	case -EINPROGRESS:
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
+		break;
+	case 0:
+		mwifiex_write_data_complete(adapter, skb, 0, ret);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+static int
+mwifiex_dequeue_tx_queue(struct mwifiex_adapter *adapter)
+{
+	struct sk_buff *skb, *skb_next;
+	struct mwifiex_txinfo *tx_info;
+	struct mwifiex_tx_param tx_param;
+
+	skb = skb_dequeue(&adapter->tx_data_q);
+	if (!skb)
+		return -1;
+
+	tx_info = MWIFIEX_SKB_TXCB(skb);
+	if (tx_info->flags & MWIFIEX_BUF_FLAG_AGGR_PKT)
+		atomic_sub(tx_info->aggr_num, &adapter->tx_queued);
+	else
+		atomic_dec(&adapter->tx_queued);
+
+	if (!skb_queue_empty(&adapter->tx_data_q))
+		skb_next = skb_peek(&adapter->tx_data_q);
+	else
+		skb_next = NULL;
+	tx_param.next_pkt_len = ((skb_next) ? skb_next->len : 0);
+	if (!tx_param.next_pkt_len) {
+		if (!mwifiex_wmm_lists_empty(adapter))
+			tx_param.next_pkt_len = 1;
+	}
+	return mwifiex_host_to_card(adapter, skb, &tx_param);
+}
+
+void
+mwifiex_process_tx_queue(struct mwifiex_adapter *adapter)
+{
+	do {
+		if (adapter->data_sent || adapter->tx_lock_flag)
+			break;
+		if (mwifiex_dequeue_tx_queue(adapter))
+			break;
+	} while (!skb_queue_empty(&adapter->tx_data_q));
+}
+
 /*
  * Packet send completion callback handler.
  *
@@ -181,6 +304,8 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 
 	if (tx_info->flags & MWIFIEX_BUF_FLAG_BRIDGED_PKT)
 		atomic_dec_return(&adapter->pending_bridged_pkts);
+		if (tx_info->flags & MWIFIEX_BUF_FLAG_AGGR_PKT)
+			goto done;
 
 	if (aggr)
 		/* For skb_aggr, do not wake up tx queue */
