@@ -291,6 +291,14 @@ struct vivid_fmt vivid_formats[] = {
 		.buffers = 1,
 	},
 	{
+		.name     = "BGR666",
+		.fourcc   = V4L2_PIX_FMT_BGR666, /* bbbbbbgg ggggrrrr rrxxxxxx */
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
 		.name     = "RGB32 (LE)",
 		.fourcc   = V4L2_PIX_FMT_RGB32, /* xrgb */
 		.vdownsampling = { 1 },
