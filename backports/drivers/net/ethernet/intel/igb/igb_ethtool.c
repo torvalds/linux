@@ -2452,8 +2452,13 @@ static int igb_get_rss_hash_opts(struct igb_adapter *adapter,
 	return 0;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0)
 static int igb_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			 u32 *rule_locs)
+#else
+static int igb_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			 void *rule_locs)
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0) */
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
 	int ret = -EOPNOTSUPP;
