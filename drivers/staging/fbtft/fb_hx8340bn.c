@@ -47,8 +47,6 @@ MODULE_PARM_DESC(emulate, "Force emulation in 9-bit mode");
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	/* BTL221722-276L startup sequence, from datasheet */
@@ -110,9 +108,6 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	write_reg(par, FBTFT_CASET, 0x00, xs, 0x00, xe);
 	write_reg(par, FBTFT_RASET, 0x00, ys, 0x00, ye);
 	write_reg(par, FBTFT_RAMWR);
@@ -120,8 +115,6 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* MADCTL - Memory data access control */
 	/* RGB/BGR can be set with H/W pin SRGB and MADCTL BGR bit */
 #define MY (1 << 7)
@@ -161,8 +154,6 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 		0b1111, 0b1111, 0b11111, 0b1111, 0b1111, 0b1111, 0b11111,
 		0b111, 0b111, 0b111, 0b111, 0b111, 0b111, 0b0, 0b0 };
 	int i, j;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* apply mask */
 	for (i = 0; i < par->gamma.num_curves; i++)
