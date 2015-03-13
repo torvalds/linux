@@ -22,13 +22,9 @@ Required properties:
 - reg-names		: A list which must include the following entries:
 				* "lpass-lpaif"
 
-Required subnodes:
+Optional properties:
 
-- qcom,adsp		: Audio DSP sub-node
-
-Optional Audio DSP subnode properties:
-
-- status		: "disabled" indicates the adsp is not available.
+- qcom,adsp		: Phandle for the audio DSP node
 
 Example:
 
@@ -43,7 +39,5 @@ lpass@28100000 {
 	pinctrl-1 = <&mi2s_idle>;
 	reg = <0x28100000 0x10000>;
 	reg-names = "lpass-lpaif";
-	qcom,adsp {
-		status = "disabled";
-	};
+	qcom,adsp = <&adsp>;
 };
