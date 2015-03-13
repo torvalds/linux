@@ -1043,7 +1043,7 @@ out_free:
 
 #define deref_genl(p)	rcu_dereference_protected(p, lockdep_genl_is_held())
 
-static int tcp_metrics_flush_all(struct net *net)
+static void tcp_metrics_flush_all(struct net *net)
 {
 	unsigned int max_rows = 1U << net->ipv4.tcp_metrics_hash_log;
 	struct tcpm_hash_bucket *hb = net->ipv4.tcp_metrics_hash;
@@ -1064,7 +1064,6 @@ static int tcp_metrics_flush_all(struct net *net)
 			tm = next;
 		}
 	}
-	return 0;
 }
 
 static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
@@ -1081,8 +1080,10 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	ret = parse_nl_addr(info, &daddr, &hash, 1);
 	if (ret < 0)
 		return ret;
-	if (ret > 0)
-		return tcp_metrics_flush_all(net);
+	if (ret > 0) {
+		tcp_metrics_flush_all(net);
+		return 0;
+	}
 	ret = parse_nl_saddr(info, &saddr);
 	if (ret < 0)
 		src = false;
