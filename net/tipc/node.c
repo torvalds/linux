@@ -111,7 +111,7 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	INIT_LIST_HEAD(&n_ptr->list);
 	INIT_LIST_HEAD(&n_ptr->publ_list);
 	INIT_LIST_HEAD(&n_ptr->conn_sks);
-	__skb_queue_head_init(&n_ptr->bclink.deferred_queue);
+	__skb_queue_head_init(&n_ptr->bclink.deferdq);
 	hlist_add_head_rcu(&n_ptr->hash, &tn->node_htable[tipc_hashfn(addr)]);
 	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
 		if (n_ptr->addr < temp_node->addr)
@@ -354,7 +354,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 
 	/* Flush broadcast link info associated with lost node */
 	if (n_ptr->bclink.recv_permitted) {
-		__skb_queue_purge(&n_ptr->bclink.deferred_queue);
+		__skb_queue_purge(&n_ptr->bclink.deferdq);
 
 		if (n_ptr->bclink.reasm_buf) {
 			kfree_skb(n_ptr->bclink.reasm_buf);

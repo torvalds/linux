@@ -84,7 +84,7 @@ struct tipc_node_bclink {
 	u32 last_sent;
 	u32 oos_state;
 	u32 deferred_size;
-	struct sk_buff_head deferred_queue;
+	struct sk_buff_head deferdq;
 	struct sk_buff *reasm_buf;
 	int inputq_map;
 	bool recv_permitted;
