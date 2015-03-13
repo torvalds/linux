@@ -193,7 +193,7 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 		dev_dbg(adapter->dev, "info: recv_length=%d, status=%d\n",
 			recv_length, status);
 		if (status == -EINPROGRESS) {
-			queue_work(adapter->workqueue, &adapter->main_work);
+			mwifiex_queue_main_work(adapter);
 
 			/* urb for data_ep is re-submitted now;
 			 * urb for cmd_ep will be re-submitted in callback
@@ -262,7 +262,7 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 					    urb->status ? -1 : 0);
 	}
 
-	queue_work(adapter->workqueue, &adapter->main_work);
+	mwifiex_queue_main_work(adapter);
 
 	return;
 }
