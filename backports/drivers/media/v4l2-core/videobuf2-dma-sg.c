@@ -109,7 +109,9 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size,
 	int num_pages;
 	DEFINE_DMA_ATTRS(attrs);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+#endif
 
 	if (WARN_ON(alloc_ctx == NULL))
 		return NULL;
@@ -184,7 +186,9 @@ static void vb2_dma_sg_put(void *buf_priv)
 	if (atomic_dec_and_test(&buf->refcount)) {
 		DEFINE_DMA_ATTRS(attrs);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 		dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+#endif
 		dprintk(1, "%s: Freeing buffer of %d pages\n", __func__,
 			buf->num_pages);
 		dma_unmap_sg_attrs(buf->dev, sgt->sgl, sgt->nents,
@@ -241,7 +245,9 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	struct sg_table *sgt;
 	DEFINE_DMA_ATTRS(attrs);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+#endif
 
 	buf = kzalloc(sizeof *buf, GFP_KERNEL);
 	if (!buf)
@@ -347,7 +353,9 @@ static void vb2_dma_sg_put_userptr(void *buf_priv)
 	int i = buf->num_pages;
 	DEFINE_DMA_ATTRS(attrs);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+#endif
 
 	dprintk(1, "%s: Releasing userspace buffer of %d pages\n",
 	       __func__, buf->num_pages);

@@ -564,7 +564,9 @@ static void vb2_dc_put_userptr(void *buf_priv)
 	if (sgt) {
 		DEFINE_DMA_ATTRS(attrs);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 		dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+#endif
 		/*
 		 * No need to sync to CPU, it's already synced to the CPU
 		 * since the finish() memop will have been called before this.
@@ -629,7 +631,9 @@ static void *vb2_dc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	unsigned long dma_align = dma_get_cache_alignment();
 	DEFINE_DMA_ATTRS(attrs);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
 	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+#endif
 
 	/* Only cache aligned DMA transfers are reliable */
 	if (!IS_ALIGNED(vaddr | size, dma_align)) {
