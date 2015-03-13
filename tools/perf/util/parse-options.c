@@ -37,6 +37,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 {
 	const char *s, *arg = NULL;
 	const int unset = flags & OPT_UNSET;
+	int err;
 
 	if (unset && p->opt)
 		return opterror(opt, "takes no value", flags);
@@ -114,13 +115,29 @@ static int get_value(struct parse_opt_ctx_t *p,
 		return 0;
 
 	case OPTION_STRING:
+		err = 0;
 		if (unset)
 			*(const char **)opt->value = NULL;
 		else if (opt->flags & PARSE_OPT_OPTARG && !p->opt)
 			*(const char **)opt->value = (const char *)opt->defval;
 		else
-			return get_arg(p, opt, flags, (const char **)opt->value);
-		return 0;
+			err = get_arg(p, opt, flags, (const char **)opt->value);
+
+		/* PARSE_OPT_NOEMPTY: Allow NULL but disallow empty string. */
+		if (opt->flags & PARSE_OPT_NOEMPTY) {
+			const char *val = *(const char **)opt->value;
+
+			if (!val)
+				return err;
+
+			/* Similar to unset if we are given an empty string. */
+			if (val[0] == '\0') {
+				*(const char **)opt->value = NULL;
+				return 0;
+			}
+		}
+
+		return err;
 
 	case OPTION_CALLBACK:
 		if (unset)
