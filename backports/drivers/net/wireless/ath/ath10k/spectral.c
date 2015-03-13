@@ -469,7 +469,11 @@ static const struct file_operations fops_spectral_bins = {
 
 static struct dentry *create_buf_file_handler(const char *filename,
 					      struct dentry *parent,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0))
 					      umode_t mode,
+#else
+					      int mode,
+#endif
 					      struct rchan_buf *buf,
 					      int *is_global)
 {
