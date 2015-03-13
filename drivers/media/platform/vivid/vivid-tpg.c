@@ -123,7 +123,7 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w)
 	tpg->max_line_width = max_w;
 	for (pat = 0; pat < TPG_MAX_PAT_LINES; pat++) {
 		for (plane = 0; plane < TPG_MAX_PLANES; plane++) {
-			unsigned pixelsz = plane ? 1 : 4;
+			unsigned pixelsz = plane ? 2 : 4;
 
 			tpg->lines[pat][plane] = vzalloc(max_w * 2 * pixelsz);
 			if (!tpg->lines[pat][plane])
@@ -136,7 +136,7 @@ int tpg_alloc(struct tpg_data *tpg, unsigned max_w)
 		}
 	}
 	for (plane = 0; plane < TPG_MAX_PLANES; plane++) {
-		unsigned pixelsz = plane ? 1 : 4;
+		unsigned pixelsz = plane ? 2 : 4;
 
 		tpg->contrast_line[plane] = vzalloc(max_w * pixelsz);
 		if (!tpg->contrast_line[plane])
@@ -255,6 +255,13 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->planes = 2;
 		tpg->is_yuv = true;
 		break;
+	case V4L2_PIX_FMT_NV24:
+	case V4L2_PIX_FMT_NV42:
+		tpg->vdownsampling[1] = 1;
+		tpg->hdownsampling[1] = 1;
+		tpg->planes = 2;
+		tpg->is_yuv = true;
+		break;
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YVYU:
@@ -321,6 +328,11 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 		tpg->twopixelsize[0] = 2;
 		tpg->twopixelsize[1] = 2;
 		tpg->twopixelsize[2] = 2;
+		break;
+	case V4L2_PIX_FMT_NV24:
+	case V4L2_PIX_FMT_NV42:
+		tpg->twopixelsize[0] = 2;
+		tpg->twopixelsize[1] = 4;
 		break;
 	}
 	return true;
@@ -824,6 +836,18 @@ static void gen_twopix(struct tpg_data *tpg,
 		}
 		buf[1][0] = b_v;
 		buf[1][1] = g_u;
+		break;
+
+	case V4L2_PIX_FMT_NV24:
+		buf[0][offset] = r_y;
+		buf[1][2 * offset] = g_u;
+		buf[1][2 * offset + 1] = b_v;
+		break;
+
+	case V4L2_PIX_FMT_NV42:
+		buf[0][offset] = r_y;
+		buf[1][2 * offset] = b_v;
+		buf[1][2 * offset + 1] = g_u;
 		break;
 
 	case V4L2_PIX_FMT_YUYV:
