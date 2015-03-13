@@ -720,7 +720,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
-		if (test_and_set_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		if (hci_dev_test_and_set_flag(hdev, HCI_USER_CHANNEL)) {
 			err = -EUSERS;
 			hci_dev_put(hdev);
 			goto done;
