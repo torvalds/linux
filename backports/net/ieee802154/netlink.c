@@ -97,7 +97,7 @@ int ieee802154_nl_reply(struct sk_buff *msg, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
-static const struct genl_ops ieee8021154_ops[] = {
+static __genl_const struct genl_ops ieee8021154_ops[] = {
 	/* see nl-phy.c */
 	IEEE802154_DUMP(IEEE802154_LIST_PHY, ieee802154_list_phy,
 			ieee802154_dump_phy),
@@ -134,7 +134,7 @@ static const struct genl_ops ieee8021154_ops[] = {
 		      ieee802154_llsec_del_seclevel),
 };
 
-static const struct genl_multicast_group ieee802154_mcgrps[] = {
+static __genl_const struct genl_multicast_group ieee802154_mcgrps[] = {
 	[IEEE802154_COORD_MCGRP] = { .name = IEEE802154_MCAST_COORD_NAME, },
 	[IEEE802154_BEACON_MCGRP] = { .name = IEEE802154_MCAST_BEACON_NAME, },
 };
