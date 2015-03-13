@@ -3811,8 +3811,6 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			      Clock_and_FOUT_Register);
 		return 1;
 
-		break;
-
 	case INSN_CONFIG_BIDIRECTIONAL_DATA:
 
 		if (devpriv->serial_interval_ns == 0)
