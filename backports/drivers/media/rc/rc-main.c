@@ -761,7 +761,11 @@ static void ir_close(struct input_dev *idev)
 }
 
 /* class for /sys/class/rc */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,3,0)
 static char *rc_devnode(struct device *dev, umode_t *mode)
+#else
+static char *rc_devnode(struct device *dev, mode_t *mode)
+#endif
 {
 	return kasprintf(GFP_KERNEL, "rc/%s", dev_name(dev));
 }
