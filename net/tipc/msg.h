@@ -510,7 +510,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 #define DSC_REQ_MSG		0
 #define DSC_RESP_MSG		1
 
-
 /*
  * Word 1
  */
@@ -532,6 +531,16 @@ static inline u32 msg_node_sig(struct tipc_msg *m)
 static inline void msg_set_node_sig(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 0, 0xffff, n);
+}
+
+static inline u32 msg_node_capabilities(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 15, 0x1fff);
+}
+
+static inline void msg_set_node_capabilities(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 1, 15, 0x1fff, n);
 }
 
 

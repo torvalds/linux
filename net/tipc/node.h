@@ -106,6 +106,7 @@ struct tipc_node_bclink {
  * @list: links to adjacent nodes in sorted list of cluster's nodes
  * @working_links: number of working links to node (both active and standby)
  * @link_cnt: number of links to node
+ * @capabilities: bitmap, indicating peer node's functional capabilities
  * @signature: node instance identifier
  * @link_id: local and remote bearer ids of changing link, if any
  * @publ_list: list of publications
@@ -125,7 +126,8 @@ struct tipc_node {
 	struct tipc_node_bclink bclink;
 	struct list_head list;
 	int link_cnt;
-	int working_links;
+	u16 working_links;
+	u16 capabilities;
 	u32 signature;
 	u32 link_id;
 	struct list_head publ_list;
