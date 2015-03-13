@@ -1048,7 +1048,8 @@ new_symbol:
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
 	if (nr > 0) {
-		symbols__fixup_duplicate(&dso->symbols[map->type]);
+		if (!symbol_conf.allow_aliases)
+			symbols__fixup_duplicate(&dso->symbols[map->type]);
 		symbols__fixup_end(&dso->symbols[map->type]);
 		if (kmap) {
 			/*

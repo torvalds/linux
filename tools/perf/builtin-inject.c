@@ -53,6 +53,13 @@ static int perf_event__repipe_synth(struct perf_tool *tool,
 	return 0;
 }
 
+static int perf_event__repipe_oe_synth(struct perf_tool *tool,
+				       union perf_event *event,
+				       struct ordered_events *oe __maybe_unused)
+{
+	return perf_event__repipe_synth(tool, event);
+}
+
 static int perf_event__repipe_op2_synth(struct perf_tool *tool,
 					union perf_event *event,
 					struct perf_session *session
@@ -359,8 +366,6 @@ static int __cmd_inject(struct perf_inject *inject)
 	} else if (inject->sched_stat) {
 		struct perf_evsel *evsel;
 
-		inject->tool.ordered_events = true;
-
 		evlist__for_each(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);
 
@@ -379,7 +384,7 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (!file_out->is_pipe)
 		lseek(fd, session->header.data_offset, SEEK_SET);
 
-	ret = perf_session__process_events(session, &inject->tool);
+	ret = perf_session__process_events(session);
 
 	if (!file_out->is_pipe) {
 		if (inject->build_ids)
@@ -408,7 +413,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.unthrottle	= perf_event__repipe,
 			.attr		= perf_event__repipe_attr,
 			.tracing_data	= perf_event__repipe_op2_synth,
-			.finished_round	= perf_event__repipe_op2_synth,
+			.finished_round	= perf_event__repipe_oe_synth,
 			.build_id	= perf_event__repipe_op2_synth,
 			.id_index	= perf_event__repipe_op2_synth,
 		},
@@ -457,6 +462,8 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 		perror("failed to create output file");
 		return -1;
 	}
+
+	inject.tool.ordered_events = inject.sched_stat;
 
 	file.path = inject.input_name;
 	inject.session = perf_session__new(&file, true, &inject.tool);

@@ -225,7 +225,7 @@ static int process_buildids(struct record *rec)
 	 */
 	symbol_conf.ignore_vmlinux_buildid = true;
 
-	return perf_session__process_events(session, &rec->tool);
+	return perf_session__process_events(session);
 }
 
 static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
@@ -343,7 +343,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 
-	session = perf_session__new(file, false, NULL);
+	session = perf_session__new(file, false, tool);
 	if (session == NULL) {
 		pr_err("Perf session creation failed.\n");
 		return -1;

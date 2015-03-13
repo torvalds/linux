@@ -800,7 +800,7 @@ static int __cmd_script(struct perf_script *script)
 		script->tool.mmap2 = process_mmap2_event;
 	}
 
-	ret = perf_session__process_events(script->session, &script->tool);
+	ret = perf_session__process_events(script->session);
 
 	if (debug_mode)
 		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);

@@ -141,7 +141,7 @@ static int report_raw_events(struct perf_mem *mem)
 
 	printf("# PID, TID, IP, ADDR, LOCAL WEIGHT, DSRC, SYMBOL\n");
 
-	err = perf_session__process_events(session, &mem->tool);
+	err = perf_session__process_events(session);
 	if (err)
 		return err;
 

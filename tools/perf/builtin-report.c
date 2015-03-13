@@ -482,7 +482,7 @@ static int __cmd_report(struct report *rep)
 	if (ret)
 		return ret;
 
-	ret = perf_session__process_events(session, &rep->tool);
+	ret = perf_session__process_events(session);
 	if (ret)
 		return ret;
 

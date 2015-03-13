@@ -206,7 +206,6 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 		err = thread__set_comm(thread, comm, timestamp);
 		if (err)
 			return err;
-		thread->comm_set = true;
 	}
 
 	thread->ppid = parent->tid;

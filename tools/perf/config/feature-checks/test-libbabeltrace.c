@@ -1,5 +1,6 @@
 
 #include <babeltrace/ctf-writer/writer.h>
+#include <babeltrace/ctf-ir/stream-class.h>
 
 int main(void)
 {

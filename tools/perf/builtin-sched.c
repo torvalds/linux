@@ -1467,7 +1467,7 @@ static int perf_sched__read_events(struct perf_sched *sched)
 		goto out_delete;
 
 	if (perf_session__has_traces(session, "record -R")) {
-		int err = perf_session__process_events(session, &sched->tool);
+		int err = perf_session__process_events(session);
 		if (err) {
 			pr_err("Failed to process events, error %d", err);
 			goto out_delete;
