@@ -86,7 +86,12 @@ static struct attribute *video_device_attrs[] = {
 	&dev_attr_index.attr,
 	NULL,
 };
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 ATTRIBUTE_GROUPS(video_device);
+#else
+#define BP_ATTR_GRP_STRUCT device_attribute
+ATTRIBUTE_GROUPS_BACKPORT(video_device);
+#endif
 
 /*
  *	Active devices
@@ -221,7 +226,11 @@ static void v4l2_device_release(struct device *cd)
 
 static struct class video_class = {
 	.name = VIDEO_NAME,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 	.dev_groups = video_device_groups,
+#else
+	.dev_attrs = video_device_dev_attrs,
+#endif
 };
 
 struct video_device *video_devdata(struct file *file)
@@ -1008,6 +1017,7 @@ static int __init videodev_init(void)
 		return ret;
 	}
 
+	init_video_device_attrs();
 	ret = class_register(&video_class);
 	if (ret < 0) {
 		unregister_chrdev_region(dev, VIDEO_NUM_DEVICES);

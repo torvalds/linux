@@ -71,7 +71,12 @@ static struct attribute *ieee80211_attrs[] = {
 	&dev_attr_name.attr,
 	NULL,
 };
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 ATTRIBUTE_GROUPS(ieee80211);
+#else
+#define BP_ATTR_GRP_STRUCT device_attribute
+ATTRIBUTE_GROUPS_BACKPORT(ieee80211);
+#endif
 
 static void wiphy_dev_release(struct device *dev)
 {
@@ -149,7 +154,11 @@ struct class ieee80211_class = {
 	.name = "ieee80211",
 	.owner = THIS_MODULE,
 	.dev_release = wiphy_dev_release,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 	.dev_groups = ieee80211_groups,
+#else
+	.dev_attrs = ieee80211_dev_attrs,
+#endif
 	.dev_uevent = wiphy_uevent,
 #ifdef CONFIG_PM
 	.suspend = wiphy_suspend,
@@ -161,6 +170,7 @@ struct class ieee80211_class = {
 
 int wiphy_sysfs_init(void)
 {
+	init_ieee80211_attrs();
 	return class_register(&ieee80211_class);
 }
 

@@ -109,16 +109,26 @@ static struct attribute *pmib_attrs[] = {
 	&dev_attr_cca_mode.attr,
 	NULL,
 };
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 ATTRIBUTE_GROUPS(pmib);
+#else
+#define BP_ATTR_GRP_STRUCT device_attribute
+ATTRIBUTE_GROUPS_BACKPORT(pmib);
+#endif
 
 struct class wpan_phy_class = {
 	.name = "ieee802154",
 	.dev_release = wpan_phy_release,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
 	.dev_groups = pmib_groups,
+#else
+	.dev_attrs = pmib_dev_attrs,
+#endif
 };
 
 int wpan_phy_sysfs_init(void)
 {
+	init_pmib_attrs();
 	return class_register(&wpan_phy_class);
 }
 
