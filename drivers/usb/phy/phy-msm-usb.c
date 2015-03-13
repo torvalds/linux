@@ -263,9 +263,7 @@ static int msm_otg_link_clk_reset(struct msm_otg *motg, bool assert)
 {
 	int ret;
 
-	if (motg->pdata->link_clk_reset)
-		ret = motg->pdata->link_clk_reset(motg->clk, assert);
-	else if (assert)
+	if (assert)
 		ret = reset_control_assert(motg->link_rst);
 	else
 		ret = reset_control_deassert(motg->link_rst);
@@ -281,9 +279,7 @@ static int msm_otg_phy_clk_reset(struct msm_otg *motg)
 {
 	int ret = 0;
 
-	if (motg->pdata->phy_clk_reset)
-		ret = motg->pdata->phy_clk_reset(motg->phy_reset_clk);
-	else if (motg->phy_rst)
+	if (motg->phy_rst)
 		ret = reset_control_reset(motg->phy_rst);
 
 	if (ret)
@@ -1550,16 +1546,6 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	phy = &motg->phy;
 	phy->dev = &pdev->dev;
-
-	if (motg->pdata->phy_clk_reset) {
-		motg->phy_reset_clk = devm_clk_get(&pdev->dev,
-					   np ? "phy" : "usb_phy_clk");
-
-		if (IS_ERR(motg->phy_reset_clk)) {
-			dev_err(&pdev->dev, "failed to get usb_phy_clk\n");
-			return PTR_ERR(motg->phy_reset_clk);
-		}
-	}
 
 	motg->clk = devm_clk_get(&pdev->dev, np ? "core" : "usb_hs_clk");
 	if (IS_ERR(motg->clk)) {
