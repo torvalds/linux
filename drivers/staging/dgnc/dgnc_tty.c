@@ -39,7 +39,6 @@
 #include "dgnc_types.h"
 #include "dgnc_neo.h"
 #include "dgnc_cls.h"
-#include "dpacompat.h"
 #include "dgnc_sysfs.h"
 #include "dgnc_utils.h"
 

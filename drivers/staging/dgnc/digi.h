@@ -44,6 +44,11 @@
 #define DIGI_SETA	(('e'<<8) | 95)		/* Set params		*/
 #define DIGI_SETAW	(('e'<<8) | 96)		/* Drain & set params	*/
 #define DIGI_SETAF	(('e'<<8) | 97)		/* Drain, flush & set params */
+#define DIGI_GET_NI_INFO (('d'<<8) | 250) /* Non-intelligent state info */
+#define DIGI_LOOPBACK (('d'<<8) | 252) /*
+					* Enable/disable UART
+					* internal loopback
+					*/
 #define DIGI_FAST	0x0002		/* Fast baud rates		*/
 #define RTSPACE		0x0004		/* RTS input flow control	*/
 #define CTSPACE		0x0008		/* CTS output flow control	*/
@@ -138,5 +143,36 @@ struct digi_getcounter {
 #define EV_IPU		0x0010		/* !<Input paused unconditionally by user */
 #define EV_IPS		0x0020		/* !<Input paused by high/low water marks */
 #define EV_TXB		0x0040		/* !<Transmit break pending */
+
+/*
+ * This structure holds data needed for the intelligent <--> nonintelligent
+ * DPA translation
+ */
+struct ni_info {
+	int board;
+	int channel;
+	int dtr;
+	int rts;
+	int cts;
+	int dsr;
+	int ri;
+	int dcd;
+	int curtx;
+	int currx;
+	unsigned short iflag;
+	unsigned short oflag;
+	unsigned short cflag;
+	unsigned short lflag;
+	unsigned int mstat;
+	unsigned char hflow;
+	unsigned char xmit_stopped;
+	unsigned char recv_stopped;
+	unsigned int baud;
+};
+
+#define T_CLASSIC 0002
+#define T_PCIBUS 0400
+#define T_NEO_EXPRESS 0001
+#define T_NEO 0000
 
 #endif /* DIGI_H */

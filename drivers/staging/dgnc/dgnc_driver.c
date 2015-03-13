@@ -21,7 +21,6 @@
 #include <linux/sched.h>
 #include "dgnc_driver.h"
 #include "dgnc_pci.h"
-#include "dpacompat.h"
 #include "dgnc_mgmt.h"
 #include "dgnc_tty.h"
 #include "dgnc_cls.h"

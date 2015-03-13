@@ -32,7 +32,6 @@
 #include "dgnc_pci.h"
 #include "dgnc_kcompat.h"	/* Kernel 2.4/2.6 compat includes */
 #include "dgnc_mgmt.h"
-#include "dpacompat.h"
 
 
 /* Our "in use" variables, to enforce 1 open only */
