@@ -828,7 +828,7 @@ static unsigned long sha1_mb_flusher(struct mcryptd_alg_cstate *cstate)
 	while (!list_empty(&cstate->work_list)) {
 		rctx = list_entry(cstate->work_list.next,
 				struct mcryptd_hash_request_ctx, waiter);
-		if time_before(cur_time, rctx->tag.expire)
+		if (time_before(cur_time, rctx->tag.expire))
 			break;
 		kernel_fpu_begin();
 		sha_ctx = (struct sha1_hash_ctx *) sha1_ctx_mgr_flush(cstate->mgr);
