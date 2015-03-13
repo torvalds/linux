@@ -4802,9 +4802,10 @@ static u32 igb_tx_cmd_type(struct sk_buff *skb, u32 tx_flags)
 	cmd_type |= IGB_SET_FLAG(tx_flags, IGB_TX_FLAGS_TSTAMP,
 				 (E1000_ADVTXD_MAC_TSTAMP));
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0)
 	/* insert frame checksum */
 	cmd_type ^= IGB_SET_FLAG(skb->no_fcs, 1, E1000_ADVTXD_DCMD_IFCS);
-
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0) */
 	return cmd_type;
 }
 
