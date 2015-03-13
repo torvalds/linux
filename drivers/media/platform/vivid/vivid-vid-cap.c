@@ -1689,18 +1689,14 @@ int vidioc_enum_frameintervals(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (!vivid_is_webcam(dev)) {
-		static const struct v4l2_fract step = { 1, 1 };
-
 		if (fival->index)
 			return -EINVAL;
 		if (fival->width < MIN_WIDTH || fival->width > MAX_WIDTH * MAX_ZOOM)
 			return -EINVAL;
 		if (fival->height < MIN_HEIGHT || fival->height > MAX_HEIGHT * MAX_ZOOM)
 			return -EINVAL;
-		fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
-		fival->stepwise.min = tpf_min;
-		fival->stepwise.max = tpf_max;
-		fival->stepwise.step = step;
+		fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+		fival->discrete = dev->timeperframe_vid_cap;
 		return 0;
 	}
 
