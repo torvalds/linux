@@ -1523,7 +1523,11 @@ static void alx_pci_error_resume(struct pci_dev *pdev)
 	rtnl_unlock();
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
 static const struct pci_error_handlers alx_err_handlers = {
+#else
+static struct pci_error_handlers alx_err_handlers = {
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0) */
 	.error_detected = alx_pci_error_detected,
 	.slot_reset     = alx_pci_error_slot_reset,
 	.resume         = alx_pci_error_resume,
