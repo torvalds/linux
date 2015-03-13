@@ -399,7 +399,12 @@ static struct attribute *ssb_device_attrs[] = {
 	&dev_attr_irq.attr,
 	NULL,
 };
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0)
 ATTRIBUTE_GROUPS(ssb_device);
+#else
+#define BP_ATTR_GRP_STRUCT device_attribute
+ATTRIBUTE_GROUPS_BACKPORT(ssb_device);
+#endif
 
 static struct bus_type ssb_bustype = {
 	.name		= "ssb",
@@ -410,7 +415,11 @@ static struct bus_type ssb_bustype = {
 	.suspend	= ssb_device_suspend,
 	.resume		= ssb_device_resume,
 	.uevent		= ssb_device_uevent,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,12,0)
 	.dev_groups	= ssb_device_groups,
+#else
+	.dev_attrs = ssb_device_dev_attrs,
+#endif
 };
 
 static void ssb_buses_lock(void)
@@ -1461,6 +1470,7 @@ static int __init ssb_modinit(void)
 
 	/* See the comment at the ssb_is_early_boot definition */
 	ssb_is_early_boot = 0;
+	init_ssb_device_attrs();
 	err = bus_register(&ssb_bustype);
 	if (err)
 		return err;
