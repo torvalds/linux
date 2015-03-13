@@ -26,7 +26,7 @@
 #include <linux/wait.h>
 #include <linux/timer.h>
 #include <linux/ieee80211.h>
-#include <uapi/linux/if_arp.h>
+#include <linux/if_arp.h>
 #include <net/mac80211.h>
 
 
