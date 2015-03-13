@@ -3067,6 +3067,8 @@ struct ixgbe_mac_operations {
 	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8);
 	s32 (*get_thermal_sensor_data)(struct ixgbe_hw *);
 	s32 (*init_thermal_sensor_thresh)(struct ixgbe_hw *hw);
+	void (*disable_rx)(struct ixgbe_hw *hw);
+	void (*enable_rx)(struct ixgbe_hw *hw);
 	void (*set_ethertype_anti_spoofing)(struct ixgbe_hw *, bool, int);
 
 	/* DMA Coalescing */
@@ -3137,6 +3139,7 @@ struct ixgbe_mac_info {
 	u8                              flags;
 	u8				san_mac_rar_index;
 	struct ixgbe_thermal_sensor_data  thermal_sensor_data;
+	bool				set_lben;
 };
 
 struct ixgbe_phy_info {

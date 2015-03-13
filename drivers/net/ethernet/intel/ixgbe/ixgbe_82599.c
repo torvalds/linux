@@ -1977,7 +1977,10 @@ static s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
 	 */
 	hw->mac.ops.disable_rx_buff(hw);
 
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, regval);
+	if (regval & IXGBE_RXCTRL_RXEN)
+		hw->mac.ops.enable_rx(hw);
+	else
+		hw->mac.ops.disable_rx(hw);
 
 	hw->mac.ops.enable_rx_buff(hw);
 
@@ -2336,6 +2339,8 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.init_thermal_sensor_thresh = &ixgbe_init_thermal_sensor_thresh_generic,
 	.prot_autoc_read	= &prot_autoc_read_82599,
 	.prot_autoc_write	= &prot_autoc_write_82599,
+	.enable_rx		= &ixgbe_enable_rx_generic,
+	.disable_rx		= &ixgbe_disable_rx_generic,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {

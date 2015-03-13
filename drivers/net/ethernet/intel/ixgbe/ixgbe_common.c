@@ -703,7 +703,7 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	hw->adapter_stopped = true;
 
 	/* Disable the receive unit */
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, 0);
+	hw->mac.ops.disable_rx(hw);
 
 	/* Clear interrupt mask to stop interrupts from being generated */
 	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK);
@@ -2639,7 +2639,10 @@ s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval)
 {
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, regval);
+	if (regval & IXGBE_RXCTRL_RXEN)
+		hw->mac.ops.enable_rx(hw);
+	else
+		hw->mac.ops.disable_rx(hw);
 
 	return 0;
 }
@@ -3850,3 +3853,44 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
 	return 0;
 }
 
+void ixgbe_disable_rx_generic(struct ixgbe_hw *hw)
+{
+	u32 rxctrl;
+
+	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
+	if (rxctrl & IXGBE_RXCTRL_RXEN) {
+		if (hw->mac.type != ixgbe_mac_82598EB) {
+			u32 pfdtxgswc;
+
+			pfdtxgswc = IXGBE_READ_REG(hw, IXGBE_PFDTXGSWC);
+			if (pfdtxgswc & IXGBE_PFDTXGSWC_VT_LBEN) {
+				pfdtxgswc &= ~IXGBE_PFDTXGSWC_VT_LBEN;
+				IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
+				hw->mac.set_lben = true;
+			} else {
+				hw->mac.set_lben = false;
+			}
+		}
+		rxctrl &= ~IXGBE_RXCTRL_RXEN;
+		IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl);
+	}
+}
+
+void ixgbe_enable_rx_generic(struct ixgbe_hw *hw)
+{
+	u32 rxctrl;
+
+	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
+	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, (rxctrl | IXGBE_RXCTRL_RXEN));
+
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		if (hw->mac.set_lben) {
+			u32 pfdtxgswc;
+
+			pfdtxgswc = IXGBE_READ_REG(hw, IXGBE_PFDTXGSWC);
+			pfdtxgswc |= IXGBE_PFDTXGSWC_VT_LBEN;
+			IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
+			hw->mac.set_lben = false;
+		}
+	}
+}

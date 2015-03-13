@@ -3705,8 +3705,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	u32 rxctrl, rfctl;
 
 	/* disable receives while setting up the descriptors */
-	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl & ~IXGBE_RXCTRL_RXEN);
+	hw->mac.ops.disable_rx(hw);
 
 	ixgbe_setup_psrtype(adapter);
 	ixgbe_setup_rdrxctl(adapter);
@@ -3731,6 +3730,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		ixgbe_configure_rx_ring(adapter, adapter->rx_ring[i]);
 
+	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	/* disable drop enable for 82598 parts */
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		rxctrl |= IXGBE_RXCTRL_DMBYPS;
@@ -5014,7 +5014,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *upper;
 	struct list_head *iter;
-	u32 rxctrl;
 	int i;
 
 	/* signal that we are down to the interrupt handler */
@@ -5022,8 +5021,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 		return; /* do nothing if already down */
 
 	/* disable receives */
-	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl & ~IXGBE_RXCTRL_RXEN);
+	hw->mac.ops.disable_rx(hw);
 
 	/* disable all enabled rx queues */
 	for (i = 0; i < adapter->num_rx_queues; i++)
