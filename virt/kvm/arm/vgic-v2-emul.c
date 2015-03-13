@@ -107,6 +107,22 @@ static bool handle_mmio_clear_pending_reg(struct kvm_vcpu *vcpu,
 					     vcpu->vcpu_id);
 }
 
+static bool handle_mmio_set_active_reg(struct kvm_vcpu *vcpu,
+				       struct kvm_exit_mmio *mmio,
+				       phys_addr_t offset)
+{
+	return vgic_handle_set_active_reg(vcpu->kvm, mmio, offset,
+					  vcpu->vcpu_id);
+}
+
+static bool handle_mmio_clear_active_reg(struct kvm_vcpu *vcpu,
+					 struct kvm_exit_mmio *mmio,
+					 phys_addr_t offset)
+{
+	return vgic_handle_clear_active_reg(vcpu->kvm, mmio, offset,
+					    vcpu->vcpu_id);
+}
+
 static bool handle_mmio_priority_reg(struct kvm_vcpu *vcpu,
 				     struct kvm_exit_mmio *mmio,
 				     phys_addr_t offset)
@@ -344,13 +360,13 @@ static const struct kvm_mmio_range vgic_dist_ranges[] = {
 		.base		= GIC_DIST_ACTIVE_SET,
 		.len		= VGIC_MAX_IRQS / 8,
 		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_raz_wi,
+		.handle_mmio	= handle_mmio_set_active_reg,
 	},
 	{
 		.base		= GIC_DIST_ACTIVE_CLEAR,
 		.len		= VGIC_MAX_IRQS / 8,
 		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_raz_wi,
+		.handle_mmio	= handle_mmio_clear_active_reg,
 	},
 	{
 		.base		= GIC_DIST_PRI,

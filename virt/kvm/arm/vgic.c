@@ -264,6 +264,13 @@ static int vgic_irq_is_queued(struct kvm_vcpu *vcpu, int irq)
 	return vgic_bitmap_get_irq_val(&dist->irq_queued, vcpu->vcpu_id, irq);
 }
 
+static int vgic_irq_is_active(struct kvm_vcpu *vcpu, int irq)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	return vgic_bitmap_get_irq_val(&dist->irq_active, vcpu->vcpu_id, irq);
+}
+
 static void vgic_irq_set_queued(struct kvm_vcpu *vcpu, int irq)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
@@ -276,6 +283,20 @@ static void vgic_irq_clear_queued(struct kvm_vcpu *vcpu, int irq)
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 
 	vgic_bitmap_set_irq_val(&dist->irq_queued, vcpu->vcpu_id, irq, 0);
+}
+
+static void vgic_irq_set_active(struct kvm_vcpu *vcpu, int irq)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	vgic_bitmap_set_irq_val(&dist->irq_active, vcpu->vcpu_id, irq, 1);
+}
+
+static void vgic_irq_clear_active(struct kvm_vcpu *vcpu, int irq)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	vgic_bitmap_set_irq_val(&dist->irq_active, vcpu->vcpu_id, irq, 0);
 }
 
 static int vgic_dist_irq_get_level(struct kvm_vcpu *vcpu, int irq)
@@ -521,6 +542,44 @@ bool vgic_handle_clear_pending_reg(struct kvm *kvm,
 	return false;
 }
 
+bool vgic_handle_set_active_reg(struct kvm *kvm,
+				struct kvm_exit_mmio *mmio,
+				phys_addr_t offset, int vcpu_id)
+{
+	u32 *reg;
+	struct vgic_dist *dist = &kvm->arch.vgic;
+
+	reg = vgic_bitmap_get_reg(&dist->irq_active, vcpu_id, offset);
+	vgic_reg_access(mmio, reg, offset,
+			ACCESS_READ_VALUE | ACCESS_WRITE_SETBIT);
+
+	if (mmio->is_write) {
+		vgic_update_state(kvm);
+		return true;
+	}
+
+	return false;
+}
+
+bool vgic_handle_clear_active_reg(struct kvm *kvm,
+				  struct kvm_exit_mmio *mmio,
+				  phys_addr_t offset, int vcpu_id)
+{
+	u32 *reg;
+	struct vgic_dist *dist = &kvm->arch.vgic;
+
+	reg = vgic_bitmap_get_reg(&dist->irq_active, vcpu_id, offset);
+	vgic_reg_access(mmio, reg, offset,
+			ACCESS_READ_VALUE | ACCESS_WRITE_CLEARBIT);
+
+	if (mmio->is_write) {
+		vgic_update_state(kvm);
+		return true;
+	}
+
+	return false;
+}
+
 static u32 vgic_cfg_expand(u16 val)
 {
 	u32 res = 0;
@@ -589,16 +648,12 @@ bool vgic_handle_cfg_reg(u32 *reg, struct kvm_exit_mmio *mmio,
 }
 
 /**
- * vgic_unqueue_irqs - move pending IRQs from LRs to the distributor
+ * vgic_unqueue_irqs - move pending/active IRQs from LRs to the distributor
  * @vgic_cpu: Pointer to the vgic_cpu struct holding the LRs
  *
- * Move any pending IRQs that have already been assigned to LRs back to the
+ * Move any IRQs that have already been assigned to LRs back to the
  * emulated distributor state so that the complete emulated state can be read
  * from the main emulation structures without investigating the LRs.
- *
- * Note that IRQs in the active state in the LRs get their pending state moved
- * to the distributor but the active state stays in the LRs, because we don't
- * track the active state on the distributor side.
  */
 void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 {
@@ -614,12 +669,22 @@ void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 		 * 01: pending
 		 * 10: active
 		 * 11: pending and active
-		 *
-		 * If the LR holds only an active interrupt (not pending) then
-		 * just leave it alone.
 		 */
-		if ((lr.state & LR_STATE_MASK) == LR_STATE_ACTIVE)
-			continue;
+		BUG_ON(!(lr.state & LR_STATE_MASK));
+
+		/* Reestablish SGI source for pending and active IRQs */
+		if (lr.irq < VGIC_NR_SGIS)
+			add_sgi_source(vcpu, lr.irq, lr.source);
+
+		/*
+		 * If the LR holds an active (10) or a pending and active (11)
+		 * interrupt then move the active state to the
+		 * distributor tracking bit.
+		 */
+		if (lr.state & LR_STATE_ACTIVE) {
+			vgic_irq_set_active(vcpu, lr.irq);
+			lr.state &= ~LR_STATE_ACTIVE;
+		}
 
 		/*
 		 * Reestablish the pending state on the distributor and the
@@ -627,21 +692,19 @@ void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 		 * is fine, then we are only setting a few bits that were
 		 * already set.
 		 */
-		vgic_dist_irq_set_pending(vcpu, lr.irq);
-		if (lr.irq < VGIC_NR_SGIS)
-			add_sgi_source(vcpu, lr.irq, lr.source);
-		lr.state &= ~LR_STATE_PENDING;
+		if (lr.state & LR_STATE_PENDING) {
+			vgic_dist_irq_set_pending(vcpu, lr.irq);
+			lr.state &= ~LR_STATE_PENDING;
+		}
+
 		vgic_set_lr(vcpu, i, lr);
 
 		/*
-		 * If there's no state left on the LR (it could still be
-		 * active), then the LR does not hold any useful info and can
-		 * be marked as free for other use.
+		 * Mark the LR as free for other use.
 		 */
-		if (!(lr.state & LR_STATE_MASK)) {
-			vgic_retire_lr(i, lr.irq, vcpu);
-			vgic_irq_clear_queued(vcpu, lr.irq);
-		}
+		BUG_ON(lr.state & LR_STATE_MASK);
+		vgic_retire_lr(i, lr.irq, vcpu);
+		vgic_irq_clear_queued(vcpu, lr.irq);
 
 		/* Finally update the VGIC state. */
 		vgic_update_state(vcpu->kvm);
@@ -805,6 +868,36 @@ static int vgic_nr_shared_irqs(struct vgic_dist *dist)
 	return dist->nr_irqs - VGIC_NR_PRIVATE_IRQS;
 }
 
+static int compute_active_for_cpu(struct kvm_vcpu *vcpu)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	unsigned long *active, *enabled, *act_percpu, *act_shared;
+	unsigned long active_private, active_shared;
+	int nr_shared = vgic_nr_shared_irqs(dist);
+	int vcpu_id;
+
+	vcpu_id = vcpu->vcpu_id;
+	act_percpu = vcpu->arch.vgic_cpu.active_percpu;
+	act_shared = vcpu->arch.vgic_cpu.active_shared;
+
+	active = vgic_bitmap_get_cpu_map(&dist->irq_active, vcpu_id);
+	enabled = vgic_bitmap_get_cpu_map(&dist->irq_enabled, vcpu_id);
+	bitmap_and(act_percpu, active, enabled, VGIC_NR_PRIVATE_IRQS);
+
+	active = vgic_bitmap_get_shared_map(&dist->irq_active);
+	enabled = vgic_bitmap_get_shared_map(&dist->irq_enabled);
+	bitmap_and(act_shared, active, enabled, nr_shared);
+	bitmap_and(act_shared, act_shared,
+		   vgic_bitmap_get_shared_map(&dist->irq_spi_target[vcpu_id]),
+		   nr_shared);
+
+	active_private = find_first_bit(act_percpu, VGIC_NR_PRIVATE_IRQS);
+	active_shared = find_first_bit(act_shared, nr_shared);
+
+	return (active_private < VGIC_NR_PRIVATE_IRQS ||
+		active_shared < nr_shared);
+}
+
 static int compute_pending_for_cpu(struct kvm_vcpu *vcpu)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
@@ -836,7 +929,7 @@ static int compute_pending_for_cpu(struct kvm_vcpu *vcpu)
 
 /*
  * Update the interrupt state and determine which CPUs have pending
- * interrupts. Must be called with distributor lock held.
+ * or active interrupts. Must be called with distributor lock held.
  */
 void vgic_update_state(struct kvm *kvm)
 {
@@ -850,10 +943,13 @@ void vgic_update_state(struct kvm *kvm)
 	}
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
-		if (compute_pending_for_cpu(vcpu)) {
-			pr_debug("CPU%d has pending interrupts\n", c);
+		if (compute_pending_for_cpu(vcpu))
 			set_bit(c, dist->irq_pending_on_cpu);
-		}
+
+		if (compute_active_for_cpu(vcpu))
+			set_bit(c, dist->irq_active_on_cpu);
+		else
+			clear_bit(c, dist->irq_active_on_cpu);
 	}
 }
 
@@ -953,7 +1049,12 @@ static void vgic_retire_disabled_irqs(struct kvm_vcpu *vcpu)
 static void vgic_queue_irq_to_lr(struct kvm_vcpu *vcpu, int irq,
 				 int lr_nr, struct vgic_lr vlr)
 {
-	if (vgic_dist_irq_is_pending(vcpu, irq)) {
+	if (vgic_irq_is_active(vcpu, irq)) {
+		vlr.state |= LR_STATE_ACTIVE;
+		kvm_debug("Set active, clear distributor: 0x%x\n", vlr.state);
+		vgic_irq_clear_active(vcpu, irq);
+		vgic_update_state(vcpu->kvm);
+	} else if (vgic_dist_irq_is_pending(vcpu, irq)) {
 		vlr.state |= LR_STATE_PENDING;
 		kvm_debug("Set pending: 0x%x\n", vlr.state);
 	}
@@ -1041,38 +1142,48 @@ static void __kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	unsigned long *pa_percpu, *pa_shared;
 	int i, vcpu_id;
 	int overflow = 0;
+	int nr_shared = vgic_nr_shared_irqs(dist);
 
 	vcpu_id = vcpu->vcpu_id;
 
+	pa_percpu = vcpu->arch.vgic_cpu.pend_act_percpu;
+	pa_shared = vcpu->arch.vgic_cpu.pend_act_shared;
+
+	bitmap_or(pa_percpu, vgic_cpu->pending_percpu, vgic_cpu->active_percpu,
+		  VGIC_NR_PRIVATE_IRQS);
+	bitmap_or(pa_shared, vgic_cpu->pending_shared, vgic_cpu->active_shared,
+		  nr_shared);
 	/*
 	 * We may not have any pending interrupt, or the interrupts
 	 * may have been serviced from another vcpu. In all cases,
 	 * move along.
 	 */
-	if (!kvm_vgic_vcpu_pending_irq(vcpu)) {
-		pr_debug("CPU%d has no pending interrupt\n", vcpu_id);
+	if (!kvm_vgic_vcpu_pending_irq(vcpu) && !kvm_vgic_vcpu_active_irq(vcpu))
 		goto epilog;
-	}
 
 	/* SGIs */
-	for_each_set_bit(i, vgic_cpu->pending_percpu, VGIC_NR_SGIS) {
+	for_each_set_bit(i, pa_percpu, VGIC_NR_SGIS) {
 		if (!queue_sgi(vcpu, i))
 			overflow = 1;
 	}
 
 	/* PPIs */
-	for_each_set_bit_from(i, vgic_cpu->pending_percpu, VGIC_NR_PRIVATE_IRQS) {
+	for_each_set_bit_from(i, pa_percpu, VGIC_NR_PRIVATE_IRQS) {
 		if (!vgic_queue_hwirq(vcpu, i))
 			overflow = 1;
 	}
 
 	/* SPIs */
-	for_each_set_bit(i, vgic_cpu->pending_shared, vgic_nr_shared_irqs(dist)) {
+	for_each_set_bit(i, pa_shared, nr_shared) {
 		if (!vgic_queue_hwirq(vcpu, i + VGIC_NR_PRIVATE_IRQS))
 			overflow = 1;
 	}
+
+
+
 
 epilog:
 	if (overflow) {
@@ -1228,6 +1339,17 @@ int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu)
 
 	return test_bit(vcpu->vcpu_id, dist->irq_pending_on_cpu);
 }
+
+int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu)
+{
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return 0;
+
+	return test_bit(vcpu->vcpu_id, dist->irq_active_on_cpu);
+}
+
 
 void vgic_kick_vcpus(struct kvm *kvm)
 {
@@ -1401,8 +1523,12 @@ void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
 	kfree(vgic_cpu->pending_shared);
+	kfree(vgic_cpu->active_shared);
+	kfree(vgic_cpu->pend_act_shared);
 	kfree(vgic_cpu->vgic_irq_lr_map);
 	vgic_cpu->pending_shared = NULL;
+	vgic_cpu->active_shared = NULL;
+	vgic_cpu->pend_act_shared = NULL;
 	vgic_cpu->vgic_irq_lr_map = NULL;
 }
 
@@ -1412,9 +1538,14 @@ static int vgic_vcpu_init_maps(struct kvm_vcpu *vcpu, int nr_irqs)
 
 	int sz = (nr_irqs - VGIC_NR_PRIVATE_IRQS) / 8;
 	vgic_cpu->pending_shared = kzalloc(sz, GFP_KERNEL);
+	vgic_cpu->active_shared = kzalloc(sz, GFP_KERNEL);
+	vgic_cpu->pend_act_shared = kzalloc(sz, GFP_KERNEL);
 	vgic_cpu->vgic_irq_lr_map = kmalloc(nr_irqs, GFP_KERNEL);
 
-	if (!vgic_cpu->pending_shared || !vgic_cpu->vgic_irq_lr_map) {
+	if (!vgic_cpu->pending_shared
+		|| !vgic_cpu->active_shared
+		|| !vgic_cpu->pend_act_shared
+		|| !vgic_cpu->vgic_irq_lr_map) {
 		kvm_vgic_vcpu_destroy(vcpu);
 		return -ENOMEM;
 	}
@@ -1467,10 +1598,12 @@ void kvm_vgic_destroy(struct kvm *kvm)
 	kfree(dist->irq_spi_mpidr);
 	kfree(dist->irq_spi_target);
 	kfree(dist->irq_pending_on_cpu);
+	kfree(dist->irq_active_on_cpu);
 	dist->irq_sgi_sources = NULL;
 	dist->irq_spi_cpu = NULL;
 	dist->irq_spi_target = NULL;
 	dist->irq_pending_on_cpu = NULL;
+	dist->irq_active_on_cpu = NULL;
 	dist->nr_cpus = 0;
 }
 
@@ -1506,6 +1639,7 @@ int vgic_init(struct kvm *kvm)
 	ret |= vgic_init_bitmap(&dist->irq_pending, nr_cpus, nr_irqs);
 	ret |= vgic_init_bitmap(&dist->irq_soft_pend, nr_cpus, nr_irqs);
 	ret |= vgic_init_bitmap(&dist->irq_queued, nr_cpus, nr_irqs);
+	ret |= vgic_init_bitmap(&dist->irq_active, nr_cpus, nr_irqs);
 	ret |= vgic_init_bitmap(&dist->irq_cfg, nr_cpus, nr_irqs);
 	ret |= vgic_init_bytemap(&dist->irq_priority, nr_cpus, nr_irqs);
 
@@ -1518,10 +1652,13 @@ int vgic_init(struct kvm *kvm)
 				       GFP_KERNEL);
 	dist->irq_pending_on_cpu = kzalloc(BITS_TO_LONGS(nr_cpus) * sizeof(long),
 					   GFP_KERNEL);
+	dist->irq_active_on_cpu = kzalloc(BITS_TO_LONGS(nr_cpus) * sizeof(long),
+					   GFP_KERNEL);
 	if (!dist->irq_sgi_sources ||
 	    !dist->irq_spi_cpu ||
 	    !dist->irq_spi_target ||
-	    !dist->irq_pending_on_cpu) {
+	    !dist->irq_pending_on_cpu ||
+	    !dist->irq_active_on_cpu) {
 		ret = -ENOMEM;
 		goto out;
 	}

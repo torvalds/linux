@@ -195,6 +195,9 @@ struct vgic_dist {
 	/* Level-triggered interrupt queued on VCPU interface */
 	struct vgic_bitmap	irq_queued;
 
+	/* Interrupt was active when unqueue from VCPU interface */
+	struct vgic_bitmap	irq_active;
+
 	/* Interrupt priority. Not used yet. */
 	struct vgic_bytemap	irq_priority;
 
@@ -235,6 +238,9 @@ struct vgic_dist {
 	/* Bitmap indicating which CPU has something pending */
 	unsigned long		*irq_pending_on_cpu;
 
+	/* Bitmap indicating which CPU has active IRQs */
+	unsigned long		*irq_active_on_cpu;
+
 	struct vgic_vm_ops	vm_ops;
 };
 
@@ -266,9 +272,15 @@ struct vgic_cpu {
 	/* per IRQ to LR mapping */
 	u8		*vgic_irq_lr_map;
 
-	/* Pending interrupts on this VCPU */
+	/* Pending/active/both interrupts on this VCPU */
 	DECLARE_BITMAP(	pending_percpu, VGIC_NR_PRIVATE_IRQS);
+	DECLARE_BITMAP(	active_percpu, VGIC_NR_PRIVATE_IRQS);
+	DECLARE_BITMAP(	pend_act_percpu, VGIC_NR_PRIVATE_IRQS);
+
+	/* Pending/active/both shared interrupts, dynamically sized */
 	unsigned long	*pending_shared;
+	unsigned long   *active_shared;
+	unsigned long   *pend_act_shared;
 
 	/* Bitmap of used/free list registers */
 	DECLARE_BITMAP(	lr_used, VGIC_V2_MAX_LRS);
@@ -306,6 +318,7 @@ int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
 			bool level);
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
+int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu);
 bool vgic_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		      struct kvm_exit_mmio *mmio);
 

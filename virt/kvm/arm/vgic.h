@@ -107,6 +107,14 @@ bool vgic_handle_set_pending_reg(struct kvm *kvm, struct kvm_exit_mmio *mmio,
 bool vgic_handle_clear_pending_reg(struct kvm *kvm, struct kvm_exit_mmio *mmio,
 				   phys_addr_t offset, int vcpu_id);
 
+bool vgic_handle_set_active_reg(struct kvm *kvm,
+				struct kvm_exit_mmio *mmio,
+				phys_addr_t offset, int vcpu_id);
+
+bool vgic_handle_clear_active_reg(struct kvm *kvm,
+				  struct kvm_exit_mmio *mmio,
+				  phys_addr_t offset, int vcpu_id);
+
 bool vgic_handle_cfg_reg(u32 *reg, struct kvm_exit_mmio *mmio,
 			 phys_addr_t offset);
 
