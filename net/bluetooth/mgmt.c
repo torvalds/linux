@@ -1674,7 +1674,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 		 * and so no need to check HCI_LIMITED_DISCOVERABLE.
 		 */
 		if (!!cp->val != hci_dev_test_flag(hdev, HCI_DISCOVERABLE)) {
-			change_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+			hci_dev_change_flag(hdev, HCI_DISCOVERABLE);
 			changed = true;
 		}
 
@@ -2046,7 +2046,7 @@ static int set_link_security(struct sock *sk, struct hci_dev *hdev, void *data,
 		bool changed = false;
 
 		if (!!cp->val != hci_dev_test_flag(hdev, HCI_LINK_SECURITY)) {
-			change_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
+			hci_dev_change_flag(hdev, HCI_LINK_SECURITY);
 			changed = true;
 		}
 
@@ -2301,7 +2301,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		bool changed = false;
 
 		if (val != hci_dev_test_flag(hdev, HCI_LE_ENABLED)) {
-			change_bit(HCI_LE_ENABLED, &hdev->dev_flags);
+			hci_dev_change_flag(hdev, HCI_LE_ENABLED);
 			changed = true;
 		}
 
@@ -4689,7 +4689,7 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 	}
 
 	if (!hdev_is_powered(hdev)) {
-		change_bit(HCI_FAST_CONNECTABLE, &hdev->dev_flags);
+		hci_dev_change_flag(hdev, HCI_FAST_CONNECTABLE);
 		err = send_settings_rsp(sk, MGMT_OP_SET_FAST_CONNECTABLE,
 					hdev);
 		new_settings(hdev, sk);
@@ -4789,7 +4789,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 			hci_dev_clear_flag(hdev, HCI_HS_ENABLED);
 		}
 
-		change_bit(HCI_BREDR_ENABLED, &hdev->dev_flags);
+		hci_dev_change_flag(hdev, HCI_BREDR_ENABLED);
 
 		err = send_settings_rsp(sk, MGMT_OP_SET_BREDR, hdev);
 		if (err < 0)

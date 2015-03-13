@@ -504,6 +504,7 @@ extern struct mutex hci_cb_list_lock;
 
 #define hci_dev_set_flag(hdev, nr)    set_bit((nr), &(hdev)->dev_flags)
 #define hci_dev_clear_flag(hdev, nr)  clear_bit((nr), &(hdev)->dev_flags)
+#define hci_dev_change_flag(hdev, nr) change_bit((nr), &(hdev)->dev_flags)
 #define hci_dev_test_flag(hdev, nr)   test_bit((nr), &(hdev)->dev_flags)
 
 /* ----- HCI interface to upper protocols ----- */
