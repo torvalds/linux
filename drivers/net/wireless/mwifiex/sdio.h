@@ -573,9 +573,9 @@ mp_tx_aggr_port_limit_reached(struct sdio_mmc_card *card)
 
 /* Prepare to copy current packet from card to SDIO Rx aggregation buffer */
 static inline void mp_rx_aggr_setup(struct sdio_mmc_card *card,
-				    struct sk_buff *skb, u8 port)
+				    u16 rx_len, u8 port)
 {
-	card->mpa_rx.buf_len += skb->len;
+	card->mpa_rx.buf_len += rx_len;
 
 	if (!card->mpa_rx.pkt_cnt)
 		card->mpa_rx.start_port = port;
@@ -588,8 +588,8 @@ static inline void mp_rx_aggr_setup(struct sdio_mmc_card *card,
 		else
 			card->mpa_rx.ports |= 1 << (card->mpa_rx.pkt_cnt + 1);
 	}
-	card->mpa_rx.skb_arr[card->mpa_rx.pkt_cnt] = skb;
-	card->mpa_rx.len_arr[card->mpa_rx.pkt_cnt] = skb->len;
+	card->mpa_rx.skb_arr[card->mpa_rx.pkt_cnt] = NULL;
+	card->mpa_rx.len_arr[card->mpa_rx.pkt_cnt] = rx_len;
 	card->mpa_rx.pkt_cnt++;
 }
 #endif /* _MWIFIEX_SDIO_H */
