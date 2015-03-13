@@ -1223,11 +1223,6 @@ static ssize_t f_printer_opts_q_len_store(struct f_printer_opts *opts,
 	if (ret)
 		goto end;
 
-	if (num > 65535) {
-		ret = -EINVAL;
-		goto end;
-	}
-
 	opts->q_len = (unsigned)num;
 	ret = len;
 end:
