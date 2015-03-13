@@ -1,7 +1,7 @@
 /*
  * net/tipc/link.c: TIPC link code
  *
- * Copyright (c) 1996-2007, 2012-2014, Ericsson AB
+ * Copyright (c) 1996-2007, 2012-2015, Ericsson AB
  * Copyright (c) 2004-2007, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -1117,7 +1117,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		ackd = msg_ack(msg);
 
 		/* Release acked messages */
-		if (n_ptr->bclink.recv_permitted)
+		if (likely(n_ptr->bclink.recv_permitted))
 			tipc_bclink_acknowledge(n_ptr, msg_bcast_ack(msg));
 
 		released = 0;
@@ -1712,45 +1712,24 @@ void tipc_link_dup_queue_xmit(struct tipc_link *l_ptr,
 	}
 }
 
-/**
- * buf_extract - extracts embedded TIPC message from another message
- * @skb: encapsulating message buffer
- * @from_pos: offset to extract from
- *
- * Returns a new message buffer containing an embedded message.  The
- * encapsulating buffer is left unchanged.
- */
-static struct sk_buff *buf_extract(struct sk_buff *skb, u32 from_pos)
-{
-	struct tipc_msg *msg = (struct tipc_msg *)(skb->data + from_pos);
-	u32 size = msg_size(msg);
-	struct sk_buff *eb;
-
-	eb = tipc_buf_acquire(size);
-	if (eb)
-		skb_copy_to_linear_data(eb, msg, size);
-	return eb;
-}
-
 /* tipc_link_dup_rcv(): Receive a tunnelled DUPLICATE_MSG packet.
  * Owner node is locked.
  */
-static void tipc_link_dup_rcv(struct tipc_link *l_ptr,
-			      struct sk_buff *t_buf)
+static void tipc_link_dup_rcv(struct tipc_link *link,
+			      struct sk_buff *skb)
 {
-	struct sk_buff *buf;
+	struct sk_buff *iskb;
+	int pos = 0;
 
-	if (!tipc_link_is_up(l_ptr))
+	if (!tipc_link_is_up(link))
 		return;
 
-	buf = buf_extract(t_buf, INT_H_SIZE);
-	if (buf == NULL) {
+	if (!tipc_msg_extract(skb, &iskb, &pos)) {
 		pr_warn("%sfailed to extract inner dup pkt\n", link_co_err);
 		return;
 	}
-
-	/* Add buffer to deferred queue, if applicable: */
-	link_handle_out_of_seq_msg(l_ptr, buf);
+	/* Append buffer to deferred queue, if applicable: */
+	link_handle_out_of_seq_msg(link, iskb);
 }
 
 /*  tipc_link_failover_rcv(): Receive a tunnelled ORIGINAL_MSG packet
@@ -1762,6 +1741,7 @@ static struct sk_buff *tipc_link_failover_rcv(struct tipc_link *l_ptr,
 	struct tipc_msg *t_msg = buf_msg(t_buf);
 	struct sk_buff *buf = NULL;
 	struct tipc_msg *msg;
+	int pos = 0;
 
 	if (tipc_link_is_up(l_ptr))
 		tipc_link_reset(l_ptr);
@@ -1773,8 +1753,7 @@ static struct sk_buff *tipc_link_failover_rcv(struct tipc_link *l_ptr,
 	/* Should there be an inner packet? */
 	if (l_ptr->exp_msg_count) {
 		l_ptr->exp_msg_count--;
-		buf = buf_extract(t_buf, INT_H_SIZE);
-		if (buf == NULL) {
+		if (!tipc_msg_extract(t_buf, &buf, &pos)) {
 			pr_warn("%sno inner failover pkt\n", link_co_err);
 			goto exit;
 		}

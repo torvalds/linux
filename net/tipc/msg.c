@@ -372,38 +372,40 @@ bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu)
 
 /**
  *  tipc_msg_extract(): extract bundled inner packet from buffer
- *  @skb: linear outer buffer, to be extracted from.
+ *  @skb: buffer to be extracted from.
  *  @iskb: extracted inner buffer, to be returned
- *  @pos: position of msg to be extracted. Returns with pointer of next msg
+ *  @pos: position in outer message of msg to be extracted.
+ *        Returns position of next msg
  *  Consumes outer buffer when last packet extracted
  *  Returns true when when there is an extracted buffer, otherwise false
  */
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 {
 	struct tipc_msg *msg;
-	int imsz;
-	struct tipc_msg *imsg;
+	int imsz, offset;
 
+	*iskb = NULL;
 	if (unlikely(skb_linearize(skb)))
-		return false;
-	msg = buf_msg(skb);
-	imsg = (struct tipc_msg *)(msg_data(msg) + *pos);
-	/* Is there space left for shortest possible message? */
-	if (*pos > (msg_data_sz(msg) - SHORT_H_SIZE))
 		goto none;
-	imsz = msg_size(imsg);
 
-	/* Is there space left for current message ? */
-	if ((*pos + imsz) > msg_data_sz(msg))
+	msg = buf_msg(skb);
+	offset = msg_hdr_sz(msg) + *pos;
+	if (unlikely(offset > (msg_size(msg) - MIN_H_SIZE)))
 		goto none;
-	*iskb = tipc_buf_acquire(imsz);
-	if (!*iskb)
+
+	*iskb = skb_clone(skb, GFP_ATOMIC);
+	if (unlikely(!*iskb))
 		goto none;
-	skb_copy_to_linear_data(*iskb, imsg, imsz);
+	skb_pull(*iskb, offset);
+	imsz = msg_size(buf_msg(*iskb));
+	skb_trim(*iskb, imsz);
+	if (unlikely(!tipc_msg_validate(*iskb)))
+		goto none;
 	*pos += align(imsz);
 	return true;
 none:
 	kfree_skb(skb);
+	kfree_skb(*iskb);
 	*iskb = NULL;
 	return false;
 }
