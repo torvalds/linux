@@ -613,8 +613,8 @@ static int tsl2x7x_als_calibrate(struct iio_dev *indio_dev)
 		return lux_val;
 	}
 
-	gain_trim_val =  (((chip->tsl2x7x_settings.als_cal_target)
-			* chip->tsl2x7x_settings.als_gain_trim) / lux_val);
+	gain_trim_val =  ((chip->tsl2x7x_settings.als_cal_target)
+			* chip->tsl2x7x_settings.als_gain_trim) / lux_val;
 	if ((gain_trim_val < 250) || (gain_trim_val > 4000))
 		return -ERANGE;
 

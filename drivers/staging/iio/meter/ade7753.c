@@ -411,7 +411,7 @@ static ssize_t ade7753_write_frequency(struct device *dev,
 
 	mutex_lock(&indio_dev->mlock);
 
-	t = (27900 / val);
+	t = 27900 / val;
 	if (t > 0)
 		t--;
 
