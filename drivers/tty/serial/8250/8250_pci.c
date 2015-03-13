@@ -1506,59 +1506,49 @@ byt_serial_setup(struct serial_private *priv,
 
 #define INTEL_MID_UART_PS		0x30
 #define INTEL_MID_UART_MUL		0x34
+#define INTEL_MID_UART_DIV		0x38
 
+static void intel_mid_set_termios(struct uart_port *p,
+				  struct ktermios *termios,
+				  struct ktermios *old,
+				  unsigned long fref)
+{
+	unsigned int baud = tty_termios_baud_rate(termios);
+	unsigned short ps = 16;
+	unsigned long fuart = baud * ps;
+	unsigned long w = BIT(24) - 1;
+	unsigned long mul, div;
+
+	if (fref < fuart) {
+		/* Find prescaler value that satisfies Fuart < Fref */
+		if (fref > baud)
+			ps = fref / baud;	/* baud rate too high */
+		else
+			ps = 1;			/* PLL case */
+		fuart = baud * ps;
+	} else {
+		/* Get Fuart closer to Fref */
+		fuart *= rounddown_pow_of_two(fref / fuart);
+	}
+
+	rational_best_approximation(fuart, fref, w, w, &mul, &div);
+	p->uartclk = fuart * 16 / ps;		/* core uses ps = 16 always */
+
+	writel(ps, p->membase + INTEL_MID_UART_PS);		/* set PS */
+	writel(mul, p->membase + INTEL_MID_UART_MUL);		/* set MUL */
+	writel(div, p->membase + INTEL_MID_UART_DIV);
+
+	serial8250_do_set_termios(p, termios, old);
+}
 static void intel_mid_set_termios_50M(struct uart_port *p,
 				      struct ktermios *termios,
 				      struct ktermios *old)
 {
-	unsigned int baud = tty_termios_baud_rate(termios);
-	u32 ps, mul;
-
 	/*
 	 * The uart clk is 50Mhz, and the baud rate come from:
 	 *      baud = 50M * MUL / (DIV * PS * DLAB)
-	 *
-	 * For those basic low baud rate we can get the direct
-	 * scalar from 2746800, like 115200 = 2746800/24. For those
-	 * higher baud rate, we handle them case by case, mainly by
-	 * adjusting the MUL/PS registers, and DIV register is kept
-	 * as default value 0x3d09 to make things simple.
 	 */
-
-	ps = 0x10;
-
-	switch (baud) {
-	case 500000:
-	case 1000000:
-	case 1500000:
-	case 3000000:
-		mul = 0x3a98;
-		p->uartclk = 48000000;
-		break;
-	case 2000000:
-	case 4000000:
-		mul = 0x2710;
-		ps = 0x08;
-		p->uartclk = 64000000;
-		break;
-	case 2500000:
-		mul = 0x30d4;
-		p->uartclk = 40000000;
-		break;
-	case 3500000:
-		mul = 0x3345;
-		ps = 0x0c;
-		p->uartclk = 56000000;
-		break;
-	default:
-		mul = 0x2400;
-		p->uartclk = 29491200;
-	}
-
-	writel(ps, p->membase + INTEL_MID_UART_PS);		/* set PS */
-	writel(mul, p->membase + INTEL_MID_UART_MUL);		/* set MUL */
-
-	serial8250_do_set_termios(p, termios, old);
+	intel_mid_set_termios(p, termios, old, 50000000);
 }
 
 static bool intel_mid_dma_filter(struct dma_chan *chan, void *param)
