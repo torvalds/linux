@@ -302,20 +302,20 @@ static inline void buffer_filled(struct au0828_dev *dev,
 				 struct au0828_dmaqueue *dma_q,
 				 struct au0828_buffer *buf)
 {
-	struct vb2_buffer vb = buf->vb;
-	struct vb2_queue *q = vb.vb2_queue;
+	struct vb2_buffer *vb = &buf->vb;
+	struct vb2_queue *q = vb->vb2_queue;
 
 	/* Advice that buffer was filled */
 	au0828_isocdbg("[%p/%d] wakeup\n", buf, buf->top_field);
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		vb.v4l2_buf.sequence = dev->frame_count++;
+		vb->v4l2_buf.sequence = dev->frame_count++;
 	else
-		vb.v4l2_buf.sequence = dev->vbi_frame_count++;
+		vb->v4l2_buf.sequence = dev->vbi_frame_count++;
 
-	vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
-	v4l2_get_timestamp(&vb.v4l2_buf.timestamp);
-	vb2_buffer_done(&vb, VB2_BUF_STATE_DONE);
+	vb->v4l2_buf.field = V4L2_FIELD_INTERLACED;
+	v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
+	vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 }
 
 /*
