@@ -6,10 +6,10 @@ config BACKPORT_IPW2100
 	tristate "Intel PRO/Wireless 2100 Network Connection"
 	depends on !IPW2100
 	depends on PCI && BACKPORT_CFG80211
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	select FW_LOADER
+	depends on WIRELESS_EXT
+	depends on WEXT_SPY
+	depends on WEXT_PRIV
+	depends on FW_LOADER
 	select BACKPORT_LIB80211
 	select BACKPORT_LIBIPW
 	---help---
@@ -71,10 +71,10 @@ config BACKPORT_IPW2200
 	depends on !IPW2200
 	depends on PCI && BACKPORT_CFG80211
 	select BACKPORT_CFG80211_WEXT
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	select FW_LOADER
+	depends on WIRELESS_EXT
+	depends on WEXT_SPY
+	depends on WEXT_PRIV
+	depends on FW_LOADER
 	select BACKPORT_LIB80211
 	select BACKPORT_LIBIPW
 	---help---
@@ -166,15 +166,15 @@ config BACKPORT_LIBIPW
 	tristate
 	depends on !LIBIPW
 	depends on PCI && BACKPORT_CFG80211
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select CRYPTO
-	select CRYPTO_ARC4
-	select CRYPTO_ECB
-	select CRYPTO_AES
-	select CRYPTO_MICHAEL_MIC
-	select CRYPTO_ECB
-	select CRC32
+	depends on WIRELESS_EXT
+	depends on WEXT_SPY
+	depends on CRYPTO
+	depends on CRYPTO_ARC4
+	depends on CRYPTO_ECB
+	depends on CRYPTO_AES
+	depends on CRYPTO_MICHAEL_MIC
+	depends on CRYPTO_ECB
+	depends on CRC32
 	select BACKPORT_LIB80211
 	select BACKPORT_LIB80211_CRYPT_WEP
 	select BACKPORT_LIB80211_CRYPT_TKIP

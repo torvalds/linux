@@ -598,7 +598,7 @@ config BACKPORT_VIDEO_MT9V032
 	depends on !VIDEO_MT9V032
 	depends on I2C && VIDEO_V4L2 && BACKPORT_VIDEO_V4L2_SUBDEV_API
 	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
-	select REGMAP_I2C
+	depends on REGMAP_I2C
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Micron
 	  MT9V032 752x480 CMOS sensor.
@@ -690,7 +690,7 @@ config BACKPORT_VIDEO_LM3560
 	depends on !VIDEO_LM3560
 	depends on I2C && VIDEO_V4L2 && BACKPORT_MEDIA_CONTROLLER
 	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
-	select REGMAP_I2C
+	depends on REGMAP_I2C
 	---help---
 	  This is a driver for the lm3560 dual flash controllers. It controls
 	  flash, torch LEDs.
@@ -700,7 +700,7 @@ config BACKPORT_VIDEO_LM3646
 	depends on !VIDEO_LM3646
 	depends on I2C && VIDEO_V4L2 && BACKPORT_MEDIA_CONTROLLER
 	depends on BACKPORT_MEDIA_CAMERA_SUPPORT
-	select REGMAP_I2C
+	depends on REGMAP_I2C
 	---help---
 	  This is a driver for the lm3646 dual flash controllers. It controls
 	  flash, torch LEDs.
@@ -738,7 +738,7 @@ config BACKPORT_VIDEO_SAA6752HS
 	tristate "Philips SAA6752HS MPEG-2 Audio/Video Encoder"
 	depends on !VIDEO_SAA6752HS
 	depends on BACKPORT_VIDEO_V4L2 && I2C
-	select CRC32
+	depends on CRC32
 	---help---
 	  Support for the Philips SAA6752HS MPEG-2 video and MPEG-audio/AC-3
 	  audio encoder with multiplexer.

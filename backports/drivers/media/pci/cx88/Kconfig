@@ -2,7 +2,7 @@ config BACKPORT_VIDEO_CX88
 	tristate "Conexant 2388x (bt878 successor) support"
 	depends on !VIDEO_CX88
 	depends on BACKPORT_VIDEO_DEV && PCI && I2C && RC_CORE
-	select I2C_ALGOBIT
+	depends on I2C_ALGOBIT
 	select BACKPORT_VIDEOBUF2_DMA_SG
 	select BACKPORT_VIDEO_TUNER
 	select BACKPORT_VIDEO_TVEEPROM
@@ -18,7 +18,7 @@ config BACKPORT_VIDEO_CX88_ALSA
 	tristate "Conexant 2388x DMA audio support"
 	depends on !VIDEO_CX88_ALSA
 	depends on BACKPORT_VIDEO_CX88 && SND
-	select SND_PCM
+	depends on SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on
 	  Conexant 2388x based TV cards using ALSA.

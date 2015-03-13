@@ -2,7 +2,7 @@ config BACKPORT_NFC_PN544
 	tristate "NXP PN544 NFC driver"
 	depends on !NFC_PN544
 	depends on BACKPORT_NFC_HCI
-	select CRC_CCITT
+	depends on CRC_CCITT
 	default n
 	---help---
 	  NXP PN544 core driver.

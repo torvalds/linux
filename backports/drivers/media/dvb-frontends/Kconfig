@@ -846,7 +846,7 @@ config BACKPORT_DVB_LGS8GXX
 	tristate "Legend Silicon LGS8913/LGS8GL5/LGS8GXX DMB-TH demodulator"
 	depends on !DVB_LGS8GXX
 	depends on BACKPORT_DVB_CORE && I2C
-	select FW_LOADER
+	depends on FW_LOADER
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.

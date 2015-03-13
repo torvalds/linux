@@ -5,7 +5,7 @@ config BACKPORT_VIDEO_SAA7134
 	select BACKPORT_VIDEOBUF2_DMA_SG
 	select BACKPORT_VIDEO_TUNER
 	select BACKPORT_VIDEO_TVEEPROM
-	select CRC32
+	depends on CRC32
 	select VIDEO_SAA6588 if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
 	select VIDEO_SAA6752HS if BACKPORT_MEDIA_SUBDRV_AUTOSELECT
 	---help---
@@ -19,7 +19,7 @@ config BACKPORT_VIDEO_SAA7134_ALSA
 	tristate "Philips SAA7134 DMA audio support"
 	depends on !VIDEO_SAA7134_ALSA
 	depends on BACKPORT_VIDEO_SAA7134 && SND
-	select SND_PCM
+	depends on SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio in
 	  Philips SAA713x based TV cards using ALSA

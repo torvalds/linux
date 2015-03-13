@@ -2,7 +2,7 @@ config BACKPORT_NFC_MICROREAD
 	tristate "Inside Secure microread NFC driver"
 	depends on !NFC_MICROREAD
 	depends on BACKPORT_NFC_HCI
-	select CRC_CCITT
+	depends on CRC_CCITT
 	default n
 	---help---
 	  This module contains the main code for Inside Secure microread

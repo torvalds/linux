@@ -27,7 +27,7 @@ config BACKPORT_IEEE802154_AT86RF230
 	depends on !IEEE802154_AT86RF230
 	tristate "AT86RF230/231/233/212 transceiver driver"
 	depends on SPI
-	select REGMAP_SPI
+	depends on REGMAP_SPI
 	---help---
 	  Say Y here to enable the at86rf230/231/233/212 SPI 802.15.4 wireless
 	  controller.

@@ -2,7 +2,7 @@ config BACKPORT_VIDEO_CX18
 	tristate "Conexant cx23418 MPEG encoder support"
 	depends on !VIDEO_CX18
 	depends on VIDEO_V4L2 && BACKPORT_DVB_CORE && PCI && I2C
-	select I2C_ALGOBIT
+	depends on I2C_ALGOBIT
 	select BACKPORT_VIDEOBUF_VMALLOC
 	depends on BACKPORT_RC_CORE
 	select BACKPORT_VIDEO_TUNER
@@ -28,7 +28,7 @@ config BACKPORT_VIDEO_CX18_ALSA
 	tristate "Conexant 23418 DMA audio support"
 	depends on !VIDEO_CX18_ALSA
 	depends on BACKPORT_VIDEO_CX18 && SND
-	select SND_PCM
+	depends on SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on
 	  Conexant 23418 based TV cards using ALSA.

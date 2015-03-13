@@ -3,8 +3,8 @@ config BACKPORT_CARL9170
 	depends on !CARL9170
 	depends on USB && BACKPORT_MAC80211
 	select BACKPORT_ATH_COMMON
-	select FW_LOADER
-	select CRC32
+	depends on FW_LOADER
+	depends on CRC32
 	help
 	  This is another driver for the Atheros "otus" 802.11n USB devices.
 
@@ -21,8 +21,8 @@ config BACKPORT_CARL9170_LEDS
 	depends on !CARL9170_LEDS
 	depends on BACKPORT_CARL9170
 	select BACKPORT_MAC80211_LEDS
-	select LEDS_CLASS
-	select NEW_LEDS
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
 	default y
 	help
 	  This option is necessary, if you want your device' LEDs to blink

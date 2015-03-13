@@ -4,9 +4,9 @@ config BACKPORT_ATH5K
 	depends on (PCI || ATH25) && BACKPORT_MAC80211
 	select BACKPORT_ATH_COMMON
 	select BACKPORT_MAC80211_LEDS
-	select LEDS_CLASS
-	select NEW_LEDS
-	select AVERAGE
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
+	depends on AVERAGE
 	select BACKPORT_ATH5K_AHB if ATH25
 	select BACKPORT_ATH5K_PCI if !ATH25
 	---help---

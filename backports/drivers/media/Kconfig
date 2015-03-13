@@ -137,7 +137,7 @@ config BACKPORT_DVB_CORE
 	depends on BACKPORT_MEDIA_SUPPORT
 	depends on BACKPORT_MEDIA_DIGITAL_TV_SUPPORT
 	default y
-	select CRC32
+	depends on CRC32
 
 config BACKPORT_DVB_NET
 	bool "DVB Network Support"
@@ -193,8 +193,8 @@ config BACKPORT_MEDIA_SUBDRV_AUTOSELECT
 	depends on !MEDIA_SUBDRV_AUTOSELECT
 	depends on MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT || BACKPORT_MEDIA_CAMERA_SUPPORT || MEDIA_SDR_SUPPORT
 	depends on HAS_IOMEM
-	select I2C
-	select I2C_MUX
+	depends on I2C
+	depends on I2C_MUX
 	default y
 	help
 	  By default, a media driver auto-selects all possible ancillary

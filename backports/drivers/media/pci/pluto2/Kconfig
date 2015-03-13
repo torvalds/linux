@@ -2,7 +2,7 @@ config BACKPORT_DVB_PLUTO2
 	tristate "Pluto2 cards"
 	depends on !DVB_PLUTO2
 	depends on BACKPORT_DVB_CORE && PCI && I2C
-	select I2C_ALGOBIT
+	depends on I2C_ALGOBIT
 	select BACKPORT_DVB_TDA1004X
 	help
 	  Support for PCI cards based on the Pluto2 FPGA like the Satelco

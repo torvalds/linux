@@ -22,7 +22,7 @@ config BACKPORT_VIDEO_S5P_FIMC
 	depends on HAS_DMA
 	select BACKPORT_VIDEOBUF2_DMA_CONTIG
 	select BACKPORT_V4L2_MEM2MEM_DEV
-	select MFD_SYSCON
+	depends on MFD_SYSCON
 	select BACKPORT_VIDEO_EXYNOS4_IS_COMMON
 	help
 	  This is a V4L2 driver for Samsung S5P and EXYNOS4 SoC camera host
@@ -35,7 +35,7 @@ config BACKPORT_VIDEO_S5P_MIPI_CSIS
 	tristate "S5P/EXYNOS MIPI-CSI2 receiver (MIPI-CSIS) driver"
 	depends on !VIDEO_S5P_MIPI_CSIS
 	depends on REGULATOR
-	select GENERIC_PHY
+	depends on GENERIC_PHY
 	help
 	  This is a V4L2 driver for Samsung S5P and EXYNOS4 SoC MIPI-CSI2
 	  receiver (MIPI-CSIS) devices.
@@ -66,7 +66,7 @@ config BACKPORT_VIDEO_EXYNOS4_FIMC_IS
 	depends on HAS_DMA
 	select BACKPORT_VIDEOBUF2_DMA_CONTIG
 	depends on OF
-	select FW_LOADER
+	depends on FW_LOADER
 	help
 	  This is a V4L2 driver for Samsung EXYNOS4x12 SoC series
 	  FIMC-IS (Imaging Subsystem).

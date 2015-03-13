@@ -24,8 +24,8 @@ config BACKPORT_B44
 	depends on !B44
 	depends on BACKPORT_SSB_POSSIBLE && HAS_DMA
 	select BACKPORT_SSB
-	select MII
-	select PHYLIB
+	depends on MII
+	depends on PHYLIB
 	---help---
 	  If you have a network (Ethernet) controller of this type, say Y
 	  or M and read the Ethernet-HOWTO, available from
@@ -60,8 +60,8 @@ config BACKPORT_BCM63XX_ENET
 	tristate "Broadcom 63xx internal mac support"
 	depends on !BCM63XX_ENET
 	depends on BCM63XX
-	select MII
-	select PHYLIB
+	depends on MII
+	depends on PHYLIB
 	help
 	  This driver supports the ethernet MACs in the Broadcom 63xx
 	  MIPS chipset family (BCM63XX).
@@ -69,10 +69,10 @@ config BACKPORT_BCM63XX_ENET
 config BACKPORT_BCMGENET
 	tristate "Broadcom GENET internal MAC support"
 	depends on !BCMGENET
-	select MII
-	select PHYLIB
-	select FIXED_PHY
-	select BCM7XXX_PHY
+	depends on MII
+	depends on PHYLIB
+	depends on FIXED_PHY
+	depends on BCM7XXX_PHY
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.
@@ -81,8 +81,8 @@ config BACKPORT_BNX2
 	tristate "QLogic NetXtremeII support"
 	depends on !BNX2
 	depends on PCI
-	select CRC32
-	select FW_LOADER
+	depends on CRC32
+	depends on FW_LOADER
 	---help---
 	  This driver supports QLogic NetXtremeII gigabit Ethernet cards.
 
@@ -94,7 +94,7 @@ config BACKPORT_CNIC
 	depends on !CNIC
 	depends on PCI && (IPV6 || IPV6=n)
 	select BACKPORT_BNX2
-	select UIO
+	depends on UIO
 	---help---
 	  This driver supports offload features of QLogic NetXtremeII
 	  gigabit Ethernet cards.
@@ -106,7 +106,7 @@ config BACKPORT_SB1250_MAC
 	tristate "SB1250 Gigabit Ethernet support"
 	depends on !SB1250_MAC
 	depends on SIBYTE_SB1xxx_SOC
-	select PHYLIB
+	depends on PHYLIB
 	---help---
 	  This driver supports Gigabit Ethernet interfaces based on the
 	  Broadcom SiByte family of System-On-a-Chip parts.  They include
@@ -120,9 +120,9 @@ config BACKPORT_TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on !TIGON3
 	depends on PCI
-	select PHYLIB
-	select HWMON
-	select PTP_1588_CLOCK
+	depends on PHYLIB
+	depends on HWMON
+	depends on PTP_1588_CLOCK
 	---help---
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
@@ -133,10 +133,10 @@ config BACKPORT_BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on !BNX2X
 	depends on PCI
-	select PTP_1588_CLOCK
-	select FW_LOADER
-	select ZLIB_INFLATE
-	select LIBCRC32C
+	depends on PTP_1588_CLOCK
+	depends on FW_LOADER
+	depends on ZLIB_INFLATE
+	depends on LIBCRC32C
 	select BACKPORT_MDIO
 	---help---
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
@@ -157,7 +157,7 @@ config BACKPORT_BGMAC
 	tristate "BCMA bus GBit core support"
 	depends on !BGMAC
 	depends on BACKPORT_BCMA_HOST_SOC && HAS_DMA && BCM47XX
-	select PHYLIB
+	depends on PHYLIB
 	---help---
 	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BACKPORT_BCMA bus.
 	  They can be found on BCM47xx SoCs and provide gigabit ethernet.
@@ -168,9 +168,9 @@ config BACKPORT_SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
 	depends on !SYSTEMPORT
 	depends on OF
-	select MII
-	select PHYLIB
-	select FIXED_PHY
+	depends on MII
+	depends on PHYLIB
+	depends on FIXED_PHY
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset using an internal

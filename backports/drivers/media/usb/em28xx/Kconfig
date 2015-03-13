@@ -24,7 +24,7 @@ config BACKPORT_VIDEO_EM28XX_V4L2
 config BACKPORT_VIDEO_EM28XX_ALSA
 	depends on VIDEO_EM28XX && SND
 	depends on !VIDEO_EM28XX_ALSA
-	select SND_PCM
+	depends on SND_PCM
 	tristate "Empia EM28xx ALSA audio module"
 	---help---
 	  This is an ALSA driver for some Empia 28xx based TV cards.

@@ -2,7 +2,7 @@ config BACKPORT_VIDEO_IVTV
 	tristate "Conexant cx23416/cx23415 MPEG encoder/decoder support"
 	depends on !VIDEO_IVTV
 	depends on BACKPORT_VIDEO_V4L2 && PCI && I2C
-	select I2C_ALGOBIT
+	depends on I2C_ALGOBIT
 	depends on BACKPORT_RC_CORE
 	select BACKPORT_VIDEO_TUNER
 	select BACKPORT_VIDEO_TVEEPROM
@@ -33,7 +33,7 @@ config BACKPORT_VIDEO_IVTV_ALSA
 	tristate "Conexant cx23415/cx23416 ALSA interface for PCM audio capture"
 	depends on !VIDEO_IVTV_ALSA
 	depends on BACKPORT_VIDEO_IVTV && SND
-	select SND_PCM
+	depends on SND_PCM
 	---help---
 	  This driver provides an ALSA interface as another method for user
 	  applications to obtain PCM audio data from Conexant cx23415/cx23416
@@ -50,9 +50,9 @@ config BACKPORT_VIDEO_FB_IVTV
 	tristate "Conexant cx23415 framebuffer support"
 	depends on !VIDEO_FB_IVTV
 	depends on BACKPORT_VIDEO_IVTV && FB
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	depends on FB_CFB_FILLRECT
+	depends on FB_CFB_COPYAREA
+	depends on FB_CFB_IMAGEBLIT
 	---help---
 	  This is a framebuffer driver for the Conexant cx23415 MPEG
 	  encoder/decoder.

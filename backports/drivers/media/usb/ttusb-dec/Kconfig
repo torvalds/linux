@@ -2,7 +2,7 @@ config BACKPORT_DVB_TTUSB_DEC
 	tristate "Technotrend/Hauppauge USB DEC devices"
 	depends on !DVB_TTUSB_DEC
 	depends on BACKPORT_DVB_CORE && USB && INPUT && PCI
-	select CRC32
+	depends on CRC32
 	help
 	  Support for external USB adapters designed by Technotrend and
 	  produced by Hauppauge, shipped under the brand name 'DEC2000-t'

@@ -17,7 +17,7 @@ config BACKPORT_VIDEO_MMP_CAMERA
 	depends on ARCH_MMP && I2C && BACKPORT_VIDEO_V4L2
 	depends on HAS_DMA
 	select BACKPORT_VIDEO_OV7670
-	select I2C_GPIO
+	depends on I2C_GPIO
 	select BACKPORT_VIDEOBUF2_DMA_SG
 	---help---
 	  This is a Video4Linux2 driver for the integrated camera

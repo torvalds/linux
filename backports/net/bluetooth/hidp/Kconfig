@@ -2,7 +2,7 @@ config BACKPORT_BT_HIDP
 	tristate "HIDP protocol support"
 	depends on !BT_HIDP
 	depends on BACKPORT_BT_BREDR && INPUT
-	select HID
+	depends on HID
 	help
 	  HIDP (Human Interface Device Protocol) is a transport layer
 	  for HID reports.  HIDP is required for the Bluetooth Human

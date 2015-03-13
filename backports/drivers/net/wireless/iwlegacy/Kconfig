@@ -1,10 +1,10 @@
 config BACKPORT_IWLEGACY
 	tristate
 	depends on !IWLEGACY
-	select FW_LOADER
-	select NEW_LEDS
-	select LEDS_CLASS
-	select LEDS_TRIGGERS
+	depends on FW_LOADER
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	depends on LEDS_TRIGGERS
 	select BACKPORT_MAC80211_LEDS
 
 config BACKPORT_IWL4965

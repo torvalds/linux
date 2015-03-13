@@ -13,7 +13,7 @@ config BACKPORT_NFC_NCI
 config BACKPORT_NFC_NCI_SPI
 	depends on NFC_NCI && SPI
 	depends on !NFC_NCI_SPI
-	select CRC_CCITT
+	depends on CRC_CCITT
 	bool "NCI over SPI protocol support"
 	default n
 	help

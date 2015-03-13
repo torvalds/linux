@@ -2,7 +2,7 @@ config BACKPORT_BT_BNEP
 	tristate "BNEP protocol support"
 	depends on !BT_BNEP
 	depends on BACKPORT_BT_BREDR
-	select CRC32
+	depends on CRC32
 	help
 	  BNEP (Bluetooth Network Encapsulation Protocol) is Ethernet
 	  emulation layer on top of Bluetooth.  BNEP is required for

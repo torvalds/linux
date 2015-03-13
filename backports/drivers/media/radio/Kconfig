@@ -37,7 +37,7 @@ config BACKPORT_RADIO_SI476X
 	depends on I2C && BACKPORT_VIDEO_V4L2
 	depends on MFD_SI476X_CORE
 	depends on SND_SOC
-	select SND_SOC_SI476X
+	depends on SND_SOC_SI476X
 	---help---
 	  Choose Y here if you have this FM radio chip.
 
@@ -231,9 +231,9 @@ config BACKPORT_RADIO_WL1273
 	tristate "Texas Instruments WL1273 I2C FM Radio"
 	depends on !RADIO_WL1273
 	depends on I2C && BACKPORT_VIDEO_V4L2
-	select MFD_CORE
-	select MFD_WL1273_CORE
-	select FW_LOADER
+	depends on MFD_CORE
+	depends on MFD_WL1273_CORE
+	depends on FW_LOADER
 	---help---
 	  Choose Y here if you have this FM radio chip.
 
@@ -405,8 +405,8 @@ config BACKPORT_RADIO_MIROPCM20
 	tristate "miroSOUND PCM20 radio"
 	depends on !RADIO_MIROPCM20
 	depends on ISA && ISA_DMA_API && BACKPORT_VIDEO_V4L2 && SND
-	select SND_ISA
-	select SND_MIRO
+	depends on SND_ISA
+	depends on SND_MIRO
 	---help---
 	  Choose Y here if you have this FM radio card. You also need to enable
 	  the ALSA sound system. This choice automatically selects the ALSA

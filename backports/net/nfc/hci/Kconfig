@@ -11,7 +11,7 @@ config BACKPORT_NFC_HCI
 config BACKPORT_NFC_SHDLC
 	depends on NFC_HCI
 	depends on !NFC_SHDLC
-	select CRC_CCITT
+	depends on CRC_CCITT
 	bool "SHDLC link layer for HCI based BACKPORT_NFC drivers"
 	default n
 	---help---

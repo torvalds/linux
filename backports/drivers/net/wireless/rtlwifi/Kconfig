@@ -55,7 +55,7 @@ config BACKPORT_RTL8723AE
 	select BACKPORT_RTLWIFI
 	select BACKPORT_RTLWIFI_PCI
 	select BACKPORT_RTL8723_COMMON
-	select RTLBTCOEXIST
+	depends on RTLBTCOEXIST
 	---help---
 	This is the driver for Realtek BACKPORT_RTL8723AE 802.11n PCIe
 	wireless network adapters.
@@ -69,7 +69,7 @@ config BACKPORT_RTL8723BE
 	select BACKPORT_RTLWIFI
 	select BACKPORT_RTLWIFI_PCI
 	select BACKPORT_RTL8723_COMMON
-	select RTLBTCOEXIST
+	depends on RTLBTCOEXIST
 	---help---
 	This is the driver for Realtek BACKPORT_RTL8723BE 802.11n PCIe
 	wireless network adapters.
@@ -94,7 +94,7 @@ config BACKPORT_RTL8192EE
 	depends on PCI
 	select BACKPORT_RTLWIFI
 	select BACKPORT_RTLWIFI_PCI
-	select RTLBTCOEXIST
+	depends on RTLBTCOEXIST
 	---help---
 	This is the driver for Realtek BACKPORT_RTL8192EE 802.11n PCIe
 	wireless network adapters.
@@ -107,7 +107,7 @@ config BACKPORT_RTL8821AE
 	depends on PCI
 	select BACKPORT_RTLWIFI
 	select BACKPORT_RTLWIFI_PCI
-	select RTLBTCOEXIST
+	depends on RTLBTCOEXIST
 	---help---
 	This is the driver for Realtek RTL8i821AE/RTL8812AE 802.11av PCIe
 	wireless network adapters.
@@ -130,7 +130,7 @@ config BACKPORT_RTL8192CU
 config BACKPORT_RTLWIFI
 	tristate
 	depends on !RTLWIFI
-	select FW_LOADER
+	depends on FW_LOADER
 
 config BACKPORT_RTLWIFI_PCI
 	tristate

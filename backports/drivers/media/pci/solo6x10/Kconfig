@@ -3,13 +3,13 @@ config BACKPORT_VIDEO_SOLO6X10
 	depends on !VIDEO_SOLO6X10
 	depends on PCI && BACKPORT_VIDEO_DEV && SND && I2C
 	depends on HAS_DMA
-	select BITREVERSE
-	select FONT_SUPPORT
-	select FONT_8x16
+	depends on BITREVERSE
+	depends on FONT_SUPPORT
+	depends on FONT_8x16
 	select BACKPORT_VIDEOBUF2_DMA_SG
 	select BACKPORT_VIDEOBUF2_DMA_CONTIG
-	select SND_PCM
-	select FONT_8x16
+	depends on SND_PCM
+	depends on FONT_8x16
 	---help---
 	  This driver supports the Bluecherry H.264 and MPEG-4 hardware
 	  compression capture cards and other Softlogic-based ones.

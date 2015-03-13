@@ -2,8 +2,8 @@ config BACKPORT_VIDEO_CX23885
 	tristate "Conexant cx23885 (2388x successor) support"
 	depends on !VIDEO_CX23885
 	depends on DVB_CORE && BACKPORT_VIDEO_DEV && PCI && I2C && INPUT && SND
-	select SND_PCM
-	select I2C_ALGOBIT
+	depends on SND_PCM
+	depends on I2C_ALGOBIT
 	select BACKPORT_VIDEO_TUNER
 	select BACKPORT_VIDEO_TVEEPROM
 	depends on BACKPORT_RC_CORE
@@ -54,7 +54,7 @@ config BACKPORT_MEDIA_ALTERA_CI
 	tristate "Altera FPGA based CI module"
 	depends on !MEDIA_ALTERA_CI
 	depends on VIDEO_CX23885 && BACKPORT_DVB_CORE
-	select ALTERA_STAPL
+	depends on ALTERA_STAPL
 	---help---
 	  An Altera FPGA CI module for NetUP Dual DVB-T/C RF CI card.
 

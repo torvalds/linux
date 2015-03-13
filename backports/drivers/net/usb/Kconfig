@@ -15,7 +15,7 @@ if BACKPORT_USB_NET_DRIVERS
 config BACKPORT_USB_CATC
 	tristate "USB CATC NetMate-based Ethernet device support"
 	depends on !USB_CATC
-	select CRC32
+	depends on CRC32
 	---help---
 	  Say Y if you want to use one of the following 10Mbps USB Ethernet
 	  device based on the EL1210A chip. Supported devices are:
@@ -75,7 +75,7 @@ config BACKPORT_USB_KAWETH
 config BACKPORT_USB_PEGASUS
 	tristate "USB Pegasus/Pegasus-II based ethernet device support"
 	depends on !USB_PEGASUS
-	select MII
+	depends on MII
 	---help---
 	  Say Y here if you know you have Pegasus or Pegasus-II based adapter.
 	  If in doubt then look at <file:drivers/net/usb/pegasus.h> for the
@@ -91,7 +91,7 @@ config BACKPORT_USB_PEGASUS
 config BACKPORT_USB_RTL8150
 	tristate "USB RTL8150 based ethernet device support"
 	depends on !USB_RTL8150
-	select MII
+	depends on MII
 	help
 	  Say Y here if you have RTL8150 based usb-ethernet adapter.
 	  Send me <petkan@users.sourceforge.net> any comments you may have.
@@ -103,7 +103,7 @@ config BACKPORT_USB_RTL8150
 config BACKPORT_USB_RTL8152
 	tristate "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 	depends on !USB_RTL8152
-	select MII
+	depends on MII
 	help
 	  This option adds support for Realtek RTL8152 based USB 2.0
 	  10/100 Ethernet adapters and RTL8153 based USB 3.0 10/100/1000
@@ -115,7 +115,7 @@ config BACKPORT_USB_RTL8152
 config BACKPORT_USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
 	depends on !USB_USBNET
-	select MII
+	depends on MII
 	---help---
 	  This driver supports several kinds of network links over USB,
 	  with "minidrivers" built around a common network driver core
@@ -151,8 +151,8 @@ config BACKPORT_USB_NET_AX8817X
 	tristate "ASIX AX88xxx Based USB 2.0 Ethernet Adapters"
 	depends on !USB_NET_AX8817X
 	depends on BACKPORT_USB_USBNET
-	select CRC32
-	select PHYLIB
+	depends on CRC32
+	depends on PHYLIB
 	default y
 	help
 	  This option adds support for ASIX AX88xxx based USB 2.0
@@ -180,8 +180,8 @@ config BACKPORT_USB_NET_AX88179_178A
 	tristate "ASIX AX88179/178A USB 3.0/2.0 to Gigabit Ethernet"
 	depends on !USB_NET_AX88179_178A
 	depends on BACKPORT_USB_USBNET
-	select CRC32
-	select PHYLIB
+	depends on CRC32
+	depends on PHYLIB
 	default y
 	help
 	  This option adds support for ASIX AX88179 based USB 3.0/2.0
@@ -298,7 +298,7 @@ config BACKPORT_USB_NET_DM9601
 	tristate "Davicom DM96xx based USB 10/100 ethernet devices"
 	depends on !USB_NET_DM9601
 	depends on BACKPORT_USB_USBNET
-	select CRC32
+	depends on CRC32
 	help
 	  This option adds support for Davicom DM9601/DM9620/DM9621A
 	  based USB 10/100 Ethernet adapters.
@@ -307,7 +307,7 @@ config BACKPORT_USB_NET_SR9700
 	tristate "CoreChip-sz SR9700 based USB 1.1 10/100 ethernet devices"
 	depends on !USB_NET_SR9700
 	depends on BACKPORT_USB_USBNET
-	select CRC32
+	depends on CRC32
 	help
 	  This option adds support for CoreChip-sz SR9700 based USB 1.1
 	  10/100 Ethernet adapters.
@@ -316,7 +316,7 @@ config BACKPORT_USB_NET_SR9800
 	tristate "CoreChip-sz SR9800 based USB 2.0 10/100 ethernet devices"
 	depends on !USB_NET_SR9800
 	depends on BACKPORT_USB_USBNET
-	select CRC32
+	depends on CRC32
 	---help---
 	  Say Y if you want to use one of the following 100Mbps USB Ethernet
 	  device based on the CoreChip-sz SR9800 chip.
@@ -332,9 +332,9 @@ config BACKPORT_USB_NET_SMSC75XX
 	tristate "SMSC LAN75XX based USB 2.0 gigabit ethernet devices"
 	depends on !USB_NET_SMSC75XX
 	depends on BACKPORT_USB_USBNET
-	select BITREVERSE
-	select CRC16
-	select CRC32
+	depends on BITREVERSE
+	depends on CRC16
+	depends on CRC32
 	help
 	  This option adds support for SMSC LAN75XX based USB 2.0
 	  Gigabit Ethernet adapters.
@@ -343,9 +343,9 @@ config BACKPORT_USB_NET_SMSC95XX
 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
 	depends on !USB_NET_SMSC95XX
 	depends on BACKPORT_USB_USBNET
-	select BITREVERSE
-	select CRC16
-	select CRC32
+	depends on BITREVERSE
+	depends on CRC16
+	depends on CRC32
 	help
 	  This option adds support for SMSC LAN95XX based USB 2.0
 	  10/100 Ethernet adapters.
@@ -487,7 +487,7 @@ config BACKPORT_USB_NET_ZAURUS
 	depends on !USB_NET_ZAURUS
 	depends on BACKPORT_USB_USBNET
 	select BACKPORT_USB_NET_CDCETHER
-	select CRC32
+	depends on CRC32
 	default y
 	help
 	  Choose this option to support the usb networking links used by

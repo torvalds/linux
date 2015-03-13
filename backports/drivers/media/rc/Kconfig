@@ -42,7 +42,7 @@ config BACKPORT_IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
 	depends on !IR_NEC_DECODER
 	depends on BACKPORT_RC_CORE
-	select BITREVERSE
+	depends on BITREVERSE
 	default y
 
 	---help---
@@ -53,7 +53,7 @@ config BACKPORT_IR_RC5_DECODER
 	tristate "Enable IR raw decoder for the RC-5 protocol"
 	depends on !IR_RC5_DECODER
 	depends on BACKPORT_RC_CORE
-	select BITREVERSE
+	depends on BITREVERSE
 	default y
 
 	---help---
@@ -64,7 +64,7 @@ config BACKPORT_IR_RC6_DECODER
 	tristate "Enable IR raw decoder for the RC6 protocol"
 	depends on !IR_RC6_DECODER
 	depends on BACKPORT_RC_CORE
-	select BITREVERSE
+	depends on BITREVERSE
 	default y
 
 	---help---
@@ -75,7 +75,7 @@ config BACKPORT_IR_JVC_DECODER
 	tristate "Enable IR raw decoder for the JVC protocol"
 	depends on !IR_JVC_DECODER
 	depends on BACKPORT_RC_CORE
-	select BITREVERSE
+	depends on BITREVERSE
 	default y
 
 	---help---
@@ -86,7 +86,7 @@ config BACKPORT_IR_SONY_DECODER
 	tristate "Enable IR raw decoder for the Sony protocol"
 	depends on !IR_SONY_DECODER
 	depends on BACKPORT_RC_CORE
-	select BITREVERSE
+	depends on BITREVERSE
 	default y
 
 	---help---
@@ -118,7 +118,7 @@ config BACKPORT_IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
 	depends on !IR_MCE_KBD_DECODER
 	depends on BACKPORT_RC_CORE
-	select BITREVERSE
+	depends on BITREVERSE
 	default y
 
 	---help---
@@ -130,7 +130,7 @@ config BACKPORT_IR_XMP_DECODER
 	tristate "Enable IR raw decoder for the XMP protocol"
 	depends on !IR_XMP_DECODER
 	depends on BACKPORT_RC_CORE
-	select BITREVERSE
+	depends on BITREVERSE
 	default y
 
 	---help---
@@ -150,7 +150,7 @@ config BACKPORT_RC_ATI_REMOTE
 	depends on !RC_ATI_REMOTE
 	depends on USB_ARCH_HAS_HCD
 	depends on BACKPORT_RC_CORE
-	select USB
+	depends on USB
 	help
 	   Say Y here if you want to use an X10 based USB remote control.
 	   These are RF remotes with USB receivers.
@@ -196,7 +196,7 @@ config BACKPORT_IR_IMON
 	depends on !IR_IMON
 	depends on USB_ARCH_HAS_HCD
 	depends on BACKPORT_RC_CORE
-	select USB
+	depends on USB
 	---help---
 	   Say Y here if you want to use a SoundGraph iMON (aka Antec Veris)
 	   IR Receiver and/or LCD/VFD/VGA display.
@@ -209,7 +209,7 @@ config BACKPORT_IR_MCEUSB
 	depends on !IR_MCEUSB
 	depends on USB_ARCH_HAS_HCD
 	depends on BACKPORT_RC_CORE
-	select USB
+	depends on USB
 	---help---
 	   Say Y here if you want to use a Windows Media Center Edition
 	   eHome Infrared Transceiver.
@@ -275,9 +275,9 @@ config BACKPORT_IR_REDRAT3
 	depends on !IR_REDRAT3
 	depends on USB_ARCH_HAS_HCD
 	depends on BACKPORT_RC_CORE
-	select NEW_LEDS
-	select LEDS_CLASS
-	select USB
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	depends on USB
 	---help---
 	   Say Y here if you want to use a RedRat3 Infrared Transceiver.
 
@@ -289,7 +289,7 @@ config BACKPORT_IR_STREAMZAP
 	depends on !IR_STREAMZAP
 	depends on USB_ARCH_HAS_HCD
 	depends on BACKPORT_RC_CORE
-	select USB
+	depends on USB
 	---help---
 	   Say Y here if you want to use a Streamzap PC Remote
 	   Infrared Receiver.
@@ -302,9 +302,9 @@ config BACKPORT_IR_WINBOND_CIR
 	depends on !IR_WINBOND_CIR
 	depends on X86 && PNP
 	depends on BACKPORT_RC_CORE
-	select NEW_LEDS
-	select LEDS_CLASS
-	select BITREVERSE
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	depends on BITREVERSE
 	---help---
 	   Say Y here if you want to use the IR remote functionality found
 	   in some Winbond SuperI/O chips. Currently only the WPCD376I
@@ -319,7 +319,7 @@ config BACKPORT_IR_IGORPLUGUSB
 	depends on !IR_IGORPLUGUSB
 	depends on USB_ARCH_HAS_HCD
 	depends on BACKPORT_RC_CORE
-	select USB
+	depends on USB
 	---help---
 	   Say Y here if you want to use the IgorPlug-USB IR Receiver by
 	   Igor Cesko. This device is included on the Fit-PC2.
@@ -335,7 +335,7 @@ config BACKPORT_IR_IGUANA
 	depends on !IR_IGUANA
 	depends on USB_ARCH_HAS_HCD
 	depends on BACKPORT_RC_CORE
-	select USB
+	depends on USB
 	---help---
 	   Say Y here if you want to use the IguanaWorks USB IR Transceiver.
 	   Both infrared receive and send are supported. If you want to
@@ -352,9 +352,9 @@ config BACKPORT_IR_TTUSBIR
 	depends on !IR_TTUSBIR
 	depends on USB_ARCH_HAS_HCD
 	depends on BACKPORT_RC_CORE
-	select USB
-	select NEW_LEDS
-	select LEDS_CLASS
+	depends on USB
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
 	---help---
 	   Say Y here if you want to use the TechnoTrend USB IR Receiver. The
 	   driver can control the led.

@@ -19,7 +19,7 @@ config BACKPORT_VIDEO_TM6000_ALSA
 	tristate "TV Master TM5600/6000/6010 audio support"
 	depends on !VIDEO_TM6000_ALSA
 	depends on BACKPORT_VIDEO_TM6000 && SND
-	select SND_PCM
+	depends on SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio for
 	  TM5600/TM6000/TM6010 USB Devices.

@@ -2,8 +2,8 @@ config BACKPORT_P54_COMMON
 	tristate "Softmac Prism54 support"
 	depends on !P54_COMMON
 	depends on BACKPORT_MAC80211
-	select FW_LOADER
-	select CRC_CCITT
+	depends on FW_LOADER
+	depends on CRC_CCITT
 	---help---
 	  This is common code for isl38xx/stlc45xx based modules.
 	  This module does nothing by itself - the USB/PCI/SPI front-ends
@@ -18,7 +18,7 @@ config BACKPORT_P54_USB
 	tristate "Prism54 USB support"
 	depends on !P54_USB
 	depends on BACKPORT_P54_COMMON && USB
-	select CRC32
+	depends on CRC32
 	---help---
 	  This driver is for USB isl38xx based wireless cards.
 

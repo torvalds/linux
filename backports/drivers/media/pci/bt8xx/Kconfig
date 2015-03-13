@@ -2,8 +2,8 @@ config BACKPORT_VIDEO_BT848
 	tristate "BT848 Video For Linux"
 	depends on !VIDEO_BT848
 	depends on BACKPORT_VIDEO_DEV && PCI && I2C && VIDEO_V4L2
-	select I2C_ALGOBIT
-	select VIDEO_BTCX
+	depends on I2C_ALGOBIT
+	depends on VIDEO_BTCX
 	select BACKPORT_VIDEOBUF_DMA_SG
 	depends on BACKPORT_RC_CORE
 	select BACKPORT_VIDEO_TUNER

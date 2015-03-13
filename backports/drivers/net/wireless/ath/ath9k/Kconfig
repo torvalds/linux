@@ -5,8 +5,8 @@ config BACKPORT_ATH9K_COMMON
 	tristate
 	depends on !ATH9K_COMMON
 	select BACKPORT_ATH_COMMON
-	select DEBUG_FS
-	select RELAY
+	depends on DEBUG_FS
+	depends on RELAY
 config BACKPORT_ATH9K_DFS_DEBUGFS
 	def_bool y
 	depends on !ATH9K_DFS_DEBUGFS
@@ -27,8 +27,8 @@ config BACKPORT_ATH9K
 	depends on BACKPORT_MAC80211 && HAS_DMA
 	select BACKPORT_ATH9K_HW
 	select BACKPORT_MAC80211_LEDS
-	select LEDS_CLASS
-	select NEW_LEDS
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
 	select BACKPORT_ATH9K_COMMON
 	---help---
 	  This module adds support for wireless adapters based on
@@ -68,7 +68,7 @@ config BACKPORT_ATH9K_DEBUGFS
 	depends on !ATH9K_DEBUGFS
 	depends on BACKPORT_ATH9K && DEBUG_FS
 	select BACKPORT_MAC80211_DEBUGFS
-	select RELAY
+	depends on RELAY
 	---help---
 	  Say Y, if you need access to ath9k's statistics for
 	  interrupts, rate control, etc.
@@ -177,8 +177,8 @@ config BACKPORT_ATH9K_HTC
        depends on USB && BACKPORT_MAC80211
        select BACKPORT_ATH9K_HW
        select BACKPORT_MAC80211_LEDS
-       select LEDS_CLASS
-       select NEW_LEDS
+       depends on LEDS_CLASS
+       depends on NEW_LEDS
        select BACKPORT_ATH9K_COMMON
        ---help---
 	 Support for Atheros HTC based cards.

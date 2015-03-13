@@ -2,8 +2,8 @@ config BACKPORT_VIDEO_CX25821
 	tristate "Conexant cx25821 support"
 	depends on !VIDEO_CX25821
 	depends on BACKPORT_VIDEO_DEV && PCI && I2C
-	select I2C_ALGOBIT
-	select VIDEO_BTCX
+	depends on I2C_ALGOBIT
+	depends on VIDEO_BTCX
 	select BACKPORT_VIDEOBUF_DMA_SG
 	---help---
 	  This is a video4linux driver for Conexant 25821 based
@@ -16,7 +16,7 @@ config BACKPORT_VIDEO_CX25821_ALSA
 	tristate "Conexant 25821 DMA audio support"
 	depends on !VIDEO_CX25821_ALSA
 	depends on BACKPORT_VIDEO_CX25821 && SND
-	select SND_PCM
+	depends on SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on
 	  Conexant 25821 based capture cards using ALSA.

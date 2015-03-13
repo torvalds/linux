@@ -2,8 +2,8 @@ config BACKPORT_VIDEO_SAA7164
 	tristate "NXP SAA7164 support"
 	depends on !VIDEO_SAA7164
 	depends on DVB_CORE && BACKPORT_VIDEO_DEV && PCI && I2C
-	select I2C_ALGOBIT
-	select FW_LOADER
+	depends on I2C_ALGOBIT
+	depends on FW_LOADER
 	select BACKPORT_VIDEO_TUNER
 	select BACKPORT_VIDEO_TVEEPROM
 	select BACKPORT_VIDEOBUF_DVB

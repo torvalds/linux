@@ -2,7 +2,7 @@ config BACKPORT_NFC_ST21NFCA
 	tristate "STMicroelectronics ST21NFCA NFC driver"
 	depends on !NFC_ST21NFCA
 	depends on BACKPORT_NFC_HCI
-	select CRC_CCITT
+	depends on CRC_CCITT
 	default n
 	---help---
 	  STMicroelectronics ST21NFCA core driver. It implements the chipset

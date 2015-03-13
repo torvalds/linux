@@ -2,10 +2,10 @@ config BACKPORT_LIBERTAS
 	tristate "Marvell 8xxx Libertas WLAN driver support"
 	depends on !LIBERTAS
 	depends on BACKPORT_CFG80211
-	select WIRELESS_EXT
-	select WEXT_SPY
+	depends on WIRELESS_EXT
+	depends on WEXT_SPY
 	select BACKPORT_LIB80211
-	select FW_LOADER
+	depends on FW_LOADER
 	---help---
 	  A library for Marvell Libertas 8xxx devices.
 

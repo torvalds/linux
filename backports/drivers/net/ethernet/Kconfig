@@ -60,7 +60,7 @@ config BACKPORT_DNET
 	tristate "Dave ethernet support (DNET)"
 	depends on !DNET
 	depends on HAS_IOMEM
-	select PHYLIB
+	depends on PHYLIB
 	---help---
 	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
 	  Say Y to include support for the BACKPORT_DNET chip.
@@ -87,8 +87,8 @@ config BACKPORT_JME
 	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
 	depends on !JME
 	depends on PCI
-	select CRC32
-	select MII
+	depends on CRC32
+	depends on MII
 	---help---
 	  This driver supports the PCI-Express gigabit ethernet adapters
 	  based on JMicron JMC250 chipset.
@@ -122,8 +122,8 @@ config BACKPORT_FEALNX
 	tristate "Myson MTD-8xx PCI Ethernet support"
 	depends on !FEALNX
 	depends on PCI
-	select CRC32
-	select MII
+	depends on CRC32
+	depends on MII
 	---help---
 	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet
 	  cards. <http://www.myson.com.tw/>
@@ -134,7 +134,7 @@ config BACKPORT_FEALNX
 config BACKPORT_NET_NETX
 	tristate "NetX Ethernet support"
 	depends on !NET_NETX
-	select MII
+	depends on MII
 	depends on ARCH_NETX
 	---help---
 	  This is support for the Hilscher netX builtin Ethernet ports
@@ -152,10 +152,10 @@ config BACKPORT_ETHOC
 	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
 	depends on !ETHOC
 	depends on HAS_IOMEM && HAS_DMA
-	select MII
-	select PHYLIB
-	select CRC32
-	select BITREVERSE
+	depends on MII
+	depends on PHYLIB
+	depends on CRC32
+	depends on BITREVERSE
 	---help---
 	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
 

@@ -24,7 +24,7 @@ config BACKPORT_RT2400PCI
 	depends on PCI
 	select BACKPORT_RT2X00_LIB_MMIO
 	select BACKPORT_RT2X00_LIB_PCI
-	select EEPROM_93CX6
+	depends on EEPROM_93CX6
 	---help---
 	  This adds support for rt2400 wireless chipset family.
 	  Supported chips: RT2460.
@@ -37,7 +37,7 @@ config BACKPORT_RT2500PCI
 	depends on PCI
 	select BACKPORT_RT2X00_LIB_MMIO
 	select BACKPORT_RT2X00_LIB_PCI
-	select EEPROM_93CX6
+	depends on EEPROM_93CX6
 	---help---
 	  This adds support for rt2500 wireless chipset family.
 	  Supported chips: RT2560.
@@ -52,8 +52,8 @@ config BACKPORT_RT61PCI
 	select BACKPORT_RT2X00_LIB_MMIO
 	select BACKPORT_RT2X00_LIB_FIRMWARE
 	select BACKPORT_RT2X00_LIB_CRYPTO
-	select CRC_ITU_T
-	select EEPROM_93CX6
+	depends on CRC_ITU_T
+	depends on EEPROM_93CX6
 	---help---
 	  This adds support for rt2501 wireless chipset family.
 	  Supported chips: RT2561, RT2561S & RT2661.
@@ -70,8 +70,8 @@ config BACKPORT_RT2800PCI
 	select BACKPORT_RT2X00_LIB_PCI
 	select BACKPORT_RT2X00_LIB_FIRMWARE
 	select BACKPORT_RT2X00_LIB_CRYPTO
-	select CRC_CCITT
-	select EEPROM_93CX6
+	depends on CRC_CCITT
+	depends on EEPROM_93CX6
 	---help---
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
 	  Supported chips: RT2760, RT2790, RT2860, RT2880, RT2890, RT3052,
@@ -138,7 +138,7 @@ config BACKPORT_RT73USB
 	select BACKPORT_RT2X00_LIB_USB
 	select BACKPORT_RT2X00_LIB_FIRMWARE
 	select BACKPORT_RT2X00_LIB_CRYPTO
-	select CRC_ITU_T
+	depends on CRC_ITU_T
 	---help---
 	  This adds support for rt2501 wireless chipset family.
 	  Supported chips: RT2571W, RT2573 & RT2671.
@@ -153,7 +153,7 @@ config BACKPORT_RT2800USB
 	select BACKPORT_RT2X00_LIB_USB
 	select BACKPORT_RT2X00_LIB_FIRMWARE
 	select BACKPORT_RT2X00_LIB_CRYPTO
-	select CRC_CCITT
+	depends on CRC_CCITT
 	---help---
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
 	  Supported chips: RT2770, RT2870 & RT3070, RT3071 & RT3072
@@ -266,12 +266,12 @@ config BACKPORT_RT2X00_LIB_USB
 config BACKPORT_RT2X00_LIB
 	tristate
 	depends on !RT2X00_LIB
-	select AVERAGE
+	depends on AVERAGE
 
 config BACKPORT_RT2X00_LIB_FIRMWARE
 	bool
 	depends on !RT2X00_LIB_FIRMWARE
-	select FW_LOADER
+	depends on FW_LOADER
 
 config BACKPORT_RT2X00_LIB_CRYPTO
 	bool

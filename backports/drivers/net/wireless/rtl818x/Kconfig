@@ -5,7 +5,7 @@ config BACKPORT_RTL8180
 	tristate "Realtek 8180/8185/8187SE PCI support"
 	depends on !RTL8180
 	depends on BACKPORT_MAC80211 && PCI
-	select EEPROM_93CX6
+	depends on EEPROM_93CX6
 	---help---
 	  This is a driver for BACKPORT_RTL8180, RTL8185 and RTL8187SE based cards.
 	  These are PCI based chips found in cards such as:
@@ -62,7 +62,7 @@ config BACKPORT_RTL8187
 	tristate "Realtek 8187 and 8187B USB support"
 	depends on !RTL8187
 	depends on BACKPORT_MAC80211 && USB
-	select EEPROM_93CX6
+	depends on EEPROM_93CX6
 	---help---
 	  This is a driver for BACKPORT_RTL8187 and BACKPORT_RTL8187B based cards.
 	  These are USB based chips found in devices such as:

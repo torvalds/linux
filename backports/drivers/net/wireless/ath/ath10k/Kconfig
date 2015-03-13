@@ -29,7 +29,7 @@ config BACKPORT_ATH10K_DEBUGFS
 	bool "Atheros ath10k debugfs support"
 	depends on !ATH10K_DEBUGFS
 	depends on BACKPORT_ATH10K && DEBUG_FS
-	select RELAY
+	depends on RELAY
 	---help---
 	  Enabled debugfs support
 

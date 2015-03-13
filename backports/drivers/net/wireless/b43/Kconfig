@@ -4,7 +4,7 @@ config BACKPORT_B43
 	depends on (BCMA_POSSIBLE || SSB_POSSIBLE) && BACKPORT_MAC80211 && HAS_DMA
 	select BCMA if BACKPORT_B43_BCMA
 	select SSB if BACKPORT_B43_SSB
-	select FW_LOADER
+	depends on FW_LOADER
 	---help---
 	  b43 is a driver for the Broadcom 43xx series wireless devices.
 
@@ -68,7 +68,7 @@ config BACKPORT_B43_PCI_AUTOSELECT
 	depends on !B43_PCI_AUTOSELECT
 	depends on BACKPORT_B43 && SSB_PCIHOST_POSSIBLE
 	select BACKPORT_SSB_PCIHOST
-	select SSB_B43_PCI_BRIDGE
+	depends on SSB_B43_PCI_BRIDGE
 	default y
 
 # Auto-select BACKPORT_SSB PCICORE driver, if possible

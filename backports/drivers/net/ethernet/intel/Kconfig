@@ -22,7 +22,7 @@ config BACKPORT_E100
 	tristate "Intel(R) PRO/100+ support"
 	depends on !E100
 	depends on PCI
-	select MII
+	depends on MII
 	---help---
 	  This driver supports Intel(R) PRO/100 family of adapters.
 	  To verify that your adapter is supported, find the board ID number
@@ -71,8 +71,8 @@ config BACKPORT_E1000E
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
 	depends on !E1000E
 	depends on PCI && (!SPARC32 || BROKEN)
-	select CRC32
-	select PTP_1588_CLOCK
+	depends on CRC32
+	depends on PTP_1588_CLOCK
 	---help---
 	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
 	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
@@ -93,9 +93,9 @@ config BACKPORT_IGB
 	tristate "Intel(R) 82575/82576 PCI-Express Gigabit Ethernet support"
 	depends on !IGB
 	depends on PCI
-	select PTP_1588_CLOCK
-	select I2C
-	select I2C_ALGOBIT
+	depends on PTP_1588_CLOCK
+	depends on I2C
+	depends on I2C_ALGOBIT
 	---help---
 	  This driver supports Intel(R) 82575/82576 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -186,7 +186,7 @@ config BACKPORT_IXGBE
 	depends on !IXGBE
 	depends on PCI
 	select BACKPORT_MDIO
-	select PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -258,7 +258,7 @@ config BACKPORT_IXGBEVF
 config BACKPORT_I40E
 	tristate "Intel(R) Ethernet Controller XL710 Family support"
 	depends on !I40E
-	select PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK
 	depends on PCI
 	---help---
 	  This driver supports Intel(R) Ethernet Controller XL710 Family of
@@ -335,7 +335,7 @@ config BACKPORT_FM10K
 	depends on !FM10K
 	default n
 	depends on PCI_MSI
-	select PTP_1588_CLOCK
+	depends on PTP_1588_CLOCK
 	---help---
 	  This driver supports Intel(R) FM10000 Ethernet Switch Host
 	  Interface.  For more information on how to identify your adapter,

@@ -18,8 +18,8 @@ menuconfig BACKPORT_NFC
 config BACKPORT_NFC_DIGITAL
 	depends on NFC
 	depends on !NFC_DIGITAL
-	select CRC_CCITT
-	select CRC_ITU_T
+	depends on CRC_CCITT
+	depends on CRC_ITU_T
 	tristate "NFC Digital Protocol stack support"
 	default n
 	help

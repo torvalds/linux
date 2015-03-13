@@ -7,7 +7,7 @@ menuconfig BACKPORT_WLAN
 	depends on !WLAN
 	depends on !S390
 	depends on NET
-	select WIRELESS
+	depends on WIRELESS
 	default y
 	---help---
 	  This section contains all the pre 802.11 and 802.11 wireless
@@ -22,9 +22,9 @@ config BACKPORT_PCMCIA_RAYCS
 	tristate "Aviator/Raytheon 2.4GHz wireless support"
 	depends on !PCMCIA_RAYCS
 	depends on PCMCIA
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
+	depends on WIRELESS_EXT
+	depends on WEXT_SPY
+	depends on WEXT_PRIV
 	---help---
 	  Say Y here if you intend to attach an Aviator/Raytheon PCMCIA
 	  (PC-card) wireless Ethernet networking card to your computer.
@@ -38,7 +38,7 @@ config BACKPORT_LIBERTAS_THINFIRM
 	tristate "Marvell 8xxx Libertas WLAN driver support with thin firmware"
 	depends on !LIBERTAS_THINFIRM
 	depends on BACKPORT_MAC80211
-	select FW_LOADER
+	depends on FW_LOADER
 	---help---
 	  A library for Marvell Libertas 8xxx devices using thinfirm.
 
@@ -60,10 +60,10 @@ config BACKPORT_AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
 	depends on !AIRO
 	depends on BACKPORT_CFG80211 && ISA_DMA_API && (PCI || BROKEN)
-	select WIRELESS_EXT
-	select CRYPTO
-	select WEXT_SPY
-	select WEXT_PRIV
+	depends on WIRELESS_EXT
+	depends on CRYPTO
+	depends on WEXT_SPY
+	depends on WEXT_PRIV
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet ISA and
 	  PCI 802.11 wireless cards.
@@ -81,10 +81,10 @@ config BACKPORT_ATMEL
       tristate "Atmel at76c50x chipset  802.11b support"
 	depends on !ATMEL
       depends on BACKPORT_CFG80211 && (PCI || PCMCIA)
-      select WIRELESS_EXT
-      select WEXT_PRIV
-      select FW_LOADER
-      select CRC32
+      depends on WIRELESS_EXT
+      depends on WEXT_PRIV
+      depends on FW_LOADER
+      depends on CRC32
        ---help---
         A driver 802.11b wireless cards based on the Atmel fast-vnet
         chips. This driver supports standard Linux wireless extensions.
@@ -108,9 +108,9 @@ config BACKPORT_PCMCIA_ATMEL
 	tristate "Atmel at76c502/at76c504 PCMCIA cards"
 	depends on !PCMCIA_ATMEL
 	depends on BACKPORT_ATMEL && PCMCIA
-	select WIRELESS_EXT
-	select FW_LOADER
-	select CRC32
+	depends on WIRELESS_EXT
+	depends on FW_LOADER
+	depends on CRC32
 	---help---
 	  Enable support for PCMCIA cards containing the
 	  Atmel at76c502 and at76c504 chips.
@@ -119,7 +119,7 @@ config BACKPORT_AT76C50X_USB
         tristate "Atmel at76c503/at76c505/at76c505a USB cards"
 	depends on !AT76C50X_USB
         depends on BACKPORT_MAC80211 && USB
-        select FW_LOADER
+        depends on FW_LOADER
         ---help---
           Enable support for USB Wireless devices using Atmel at76c503,
           at76c505 or at76c505a chips.
@@ -128,11 +128,11 @@ config BACKPORT_AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
 	depends on !AIRO_CS
 	depends on BACKPORT_CFG80211 && PCMCIA && (BROKEN || !M32R)
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	select CRYPTO
-	select CRYPTO_AES
+	depends on WIRELESS_EXT
+	depends on WEXT_SPY
+	depends on WEXT_PRIV
+	depends on CRYPTO
+	depends on CRYPTO_AES
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet PCMCIA
 	  802.11 wireless cards.  This driver is the same as the Aironet
@@ -151,8 +151,8 @@ config BACKPORT_PCMCIA_WL3501
 	tristate "Planet WL3501 PCMCIA cards"
 	depends on !PCMCIA_WL3501
 	depends on BACKPORT_CFG80211 && PCMCIA
-	select WIRELESS_EXT
-	select WEXT_SPY
+	depends on WIRELESS_EXT
+	depends on WEXT_SPY
 	help
 	  A driver for WL3501 PCMCIA 802.11 wireless cards made by Planet.
 	  It has basic support for Linux wireless extensions and initial
@@ -162,10 +162,10 @@ config BACKPORT_PRISM54
 	tristate 'Intersil Prism GT/Duette/Indigo PCI/Cardbus (DEPRECATED)'
 	depends on !PRISM54
 	depends on PCI
-	select WIRELESS_EXT
-	select WEXT_SPY
-	select WEXT_PRIV
-	select FW_LOADER
+	depends on WIRELESS_EXT
+	depends on WEXT_SPY
+	depends on WEXT_PRIV
+	depends on FW_LOADER
 	---help---
 	  This enables support for FullMAC PCI/Cardbus prism54 devices. This
 	  driver is now deprecated in favor for the SoftMAC driver, p54pci.
@@ -183,9 +183,9 @@ config BACKPORT_USB_ZD1201
 	tristate "USB ZD1201 based Wireless device support"
 	depends on !USB_ZD1201
 	depends on BACKPORT_CFG80211 && USB
-	select WIRELESS_EXT
-	select WEXT_PRIV
-	select FW_LOADER
+	depends on WIRELESS_EXT
+	depends on WEXT_PRIV
+	depends on FW_LOADER
 	---help---
 	  Say Y if you want to use wireless LAN adapters based on the ZyDAS
 	  ZD1201 chip.
@@ -235,8 +235,8 @@ config BACKPORT_ADM8211
 	tristate "ADMtek ADM8211 support"
 	depends on !ADM8211
 	depends on BACKPORT_MAC80211 && PCI
-	select CRC32
-	select EEPROM_93CX6
+	depends on CRC32
+	depends on EEPROM_93CX6
 	---help---
 	  This driver is for BACKPORT_ADM8211A, BACKPORT_ADM8211B, and BACKPORT_ADM8211C based cards.
 	  These are PCI/mini-PCI/Cardbus 802.11b chips found in cards such as:

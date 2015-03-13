@@ -3,7 +3,7 @@ config BACKPORT_AR5523
 	depends on !AR5523
        depends on BACKPORT_MAC80211 && USB
        select BACKPORT_ATH_COMMON
-       select FW_LOADER
+       depends on FW_LOADER
        ---help---
          This module add support for BACKPORT_AR5523 based USB dongles such as D-Link
          DWL-G132, Netgear WPN111 and many more.

@@ -11,8 +11,8 @@ config BACKPORT_BRCMSMAC
 	select NEW_LEDS if BACKPORT_BCMA_DRIVER_GPIO
 	select LEDS_CLASS if BACKPORT_BCMA_DRIVER_GPIO
 	select BACKPORT_BRCMUTIL
-	select FW_LOADER
-	select CORDIC
+	depends on FW_LOADER
+	depends on CORDIC
 	---help---
 	  This module adds support for PCIe wireless adapters based on Broadcom
 	  IEEE802.11n SoftMAC chipsets. It also has BACKPORT_WLAN led support, which will
@@ -44,7 +44,7 @@ config BACKPORT_BRCMFMAC_SDIO
 	depends on (MMC = y || MMC = BACKPORT_BRCMFMAC)
 	depends on BACKPORT_BRCMFMAC
 	select BACKPORT_BRCMFMAC_PROTO_BCDC
-	select FW_LOADER
+	depends on FW_LOADER
 	default y
 	---help---
 	  This option enables the SDIO bus interface support for Broadcom
@@ -57,7 +57,7 @@ config BACKPORT_BRCMFMAC_USB
 	depends on (USB = y || USB = BACKPORT_BRCMFMAC)
 	depends on BACKPORT_BRCMFMAC
 	select BACKPORT_BRCMFMAC_PROTO_BCDC
-	select FW_LOADER
+	depends on FW_LOADER
 	---help---
 	  This option enables the USB bus interface support for Broadcom
 	  IEEE802.11n embedded FullMAC BACKPORT_WLAN driver. Say Y if you want to
@@ -70,7 +70,7 @@ config BACKPORT_BRCMFMAC_PCIE
 	depends on PCI
 	depends on HAS_DMA
 	select BACKPORT_BRCMFMAC_PROTO_MSGBUF
-	select FW_LOADER
+	depends on FW_LOADER
 	---help---
 	  This option enables the PCIE bus interface support for Broadcom
 	  IEEE802.11ac embedded FullMAC BACKPORT_WLAN driver. Say Y if you want to

@@ -7,13 +7,13 @@ menuconfig BACKPORT_BT
 	depends on !BT
 	depends on NET && !S390
 	depends on RFKILL || !RFKILL
-	select CRC16
-	select CRYPTO
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_AES
-	select CRYPTO_CMAC
-	select CRYPTO_ECB
-	select CRYPTO_SHA256
+	depends on CRC16
+	depends on CRYPTO
+	depends on CRYPTO_BLKCIPHER
+	depends on CRYPTO_AES
+	depends on CRYPTO_CMAC
+	depends on CRYPTO_ECB
+	depends on CRYPTO_SHA256
 	help
 	  Bluetooth is low-cost, low-power, short-range wireless technology.
 	  It was designed as a replacement for cables and other short-range
