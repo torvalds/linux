@@ -55,6 +55,7 @@ enum {
 enum ahci_imx_type {
 	AHCI_IMX53,
 	AHCI_IMX6Q,
+	AHCI_IMX6QP,
 };
 
 struct imx_ahci_priv {
@@ -233,7 +234,7 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 	if (ret < 0)
 		goto disable_regulator;
 
-	if (imxpriv->type == AHCI_IMX6Q) {
+	if (imxpriv->type == AHCI_IMX6Q || imxpriv->type == AHCI_IMX6QP) {
 		/*
 		 * set PHY Paremeters, two steps to configure the GPR13,
 		 * one write for rest of parameters, mask of first write
@@ -257,12 +258,26 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 				   IMX6Q_GPR13_SATA_MPLL_CLK_EN);
 
 		usleep_range(100, 200);
+	}
 
+
+	if (imxpriv->type == AHCI_IMX6Q) {
 		ret = imx_sata_phy_reset(hpriv);
-		if (ret) {
-			dev_err(dev, "failed to reset phy: %d\n", ret);
-			goto disable_clk;
-		}
+	} else if (imxpriv->type == AHCI_IMX6QP) {
+		/* 6qp adds the sata reset mechanism, use it for 6qp sata */
+		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR5,
+				   BIT(10), 0);
+
+		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR5,
+				   BIT(11), 0);
+		udelay(50);
+		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR5,
+				   BIT(11), BIT(11));
+	}
+
+	if (ret) {
+		dev_err(dev, "failed to reset phy: %d\n", ret);
+		goto disable_clk;
 	}
 
 	usleep_range(1000, 2000);
@@ -284,7 +299,11 @@ static void imx_sata_disable(struct ahci_host_priv *hpriv)
 	if (imxpriv->no_device)
 		return;
 
-	if (imxpriv->type == AHCI_IMX6Q) {
+	if (imxpriv->type == AHCI_IMX6QP)
+		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR5,
+				   BIT(10), BIT(10));
+
+	if (imxpriv->type == AHCI_IMX6Q || imxpriv->type == AHCI_IMX6QP) {
 		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR13,
 				   IMX6Q_GPR13_SATA_MPLL_CLK_EN,
 				   !IMX6Q_GPR13_SATA_MPLL_CLK_EN);
@@ -338,7 +357,7 @@ static int ahci_imx_softreset(struct ata_link *link, unsigned int *class,
 
 	if (imxpriv->type == AHCI_IMX53)
 		ret = ahci_pmp_retry_srst_ops.softreset(link, class, deadline);
-	else if (imxpriv->type == AHCI_IMX6Q)
+	else if (imxpriv->type == AHCI_IMX6Q || imxpriv->type == AHCI_IMX6QP)
 		ret = ahci_ops.softreset(link, class, deadline);
 
 	return ret;
@@ -361,6 +380,7 @@ static const struct ata_port_info ahci_imx_port_info = {
 static const struct of_device_id imx_ahci_of_match[] = {
 	{ .compatible = "fsl,imx53-ahci", .data = (void *)AHCI_IMX53 },
 	{ .compatible = "fsl,imx6q-ahci", .data = (void *)AHCI_IMX6Q },
+	{ .compatible = "fsl,imx6qp-ahci", .data = (void *)AHCI_IMX6QP },
 	{},
 };
 MODULE_DEVICE_TABLE(of, imx_ahci_of_match);
@@ -568,7 +588,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 		return PTR_ERR(imxpriv->ahb_clk);
 	}
 
-	if (imxpriv->type == AHCI_IMX6Q) {
+	if (imxpriv->type == AHCI_IMX6Q || imxpriv->type == AHCI_IMX6QP) {
 		u32 reg_value;
 
 		imxpriv->gpr = syscon_regmap_lookup_by_compatible(
