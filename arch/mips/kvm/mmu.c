@@ -237,7 +237,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	unsigned long asid_mask = cpu_asid_mask(&cpu_data[cpu]);
 	unsigned long flags;
-	int newasid = 0;
 
 	kvm_debug("%s: vcpu %p, cpu: %d\n", __func__, vcpu, cpu);
 
@@ -250,7 +249,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		kvm_get_new_mmu_context(&vcpu->arch.guest_kernel_mm, cpu, vcpu);
 		vcpu->arch.guest_kernel_asid[cpu] =
 		    vcpu->arch.guest_kernel_mm.context.asid[cpu];
-		newasid++;
 
 		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
 			  cpu_context(cpu, current->mm));
@@ -263,7 +261,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		kvm_get_new_mmu_context(&vcpu->arch.guest_user_mm, cpu, vcpu);
 		vcpu->arch.guest_user_asid[cpu] =
 		    vcpu->arch.guest_user_mm.context.asid[cpu];
-		newasid++;
 
 		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
 			  cpu_context(cpu, current->mm));
@@ -282,35 +279,18 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		kvm_mips_migrate_count(vcpu);
 	}
 
-	if (!newasid) {
-		/*
-		 * If we preempted while the guest was executing, then reload
-		 * the pre-empted ASID
-		 */
-		if (current->flags & PF_VCPU) {
-			write_c0_entryhi(vcpu->arch.
-					 preempt_entryhi & asid_mask);
-			ehb();
-		}
-	} else {
-		/* New ASIDs were allocated for the VM */
-
-		/*
-		 * Were we in guest context? If so then the pre-empted ASID is
-		 * no longer valid, we need to set it to what it should be based
-		 * on the mode of the Guest (Kernel/User)
-		 */
-		if (current->flags & PF_VCPU) {
-			if (KVM_GUEST_KERNEL_MODE(vcpu))
-				write_c0_entryhi(vcpu->arch.
-						 guest_kernel_asid[cpu] &
-						 asid_mask);
-			else
-				write_c0_entryhi(vcpu->arch.
-						 guest_user_asid[cpu] &
-						 asid_mask);
-			ehb();
-		}
+	/*
+	 * If we preempted while the guest was executing, then reload the ASID
+	 * based on the mode of the Guest (Kernel/User)
+	 */
+	if (current->flags & PF_VCPU) {
+		if (KVM_GUEST_KERNEL_MODE(vcpu))
+			write_c0_entryhi(vcpu->arch.guest_kernel_asid[cpu] &
+					 asid_mask);
+		else
+			write_c0_entryhi(vcpu->arch.guest_user_asid[cpu] &
+					 asid_mask);
+		ehb();
 	}
 
 	/* restore guest state to registers */
@@ -329,8 +309,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	local_irq_save(flags);
 
 	cpu = smp_processor_id();
-
-	vcpu->arch.preempt_entryhi = read_c0_entryhi();
 	vcpu->arch.last_sched_cpu = cpu;
 
 	/* save guest state in registers */
