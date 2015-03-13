@@ -1671,6 +1671,25 @@ mwifiex_cmd_tdls_oper(struct mwifiex_private *priv,
 
 	return 0;
 }
+
+/* This function prepares command of sdio rx aggr info. */
+static int mwifiex_cmd_sdio_rx_aggr_cfg(struct host_cmd_ds_command *cmd,
+					u16 cmd_action, void *data_buf)
+{
+	struct host_cmd_sdio_sp_rx_aggr_cfg *cfg =
+					&cmd->params.sdio_rx_aggr_cfg;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_SDIO_SP_RX_AGGR_CFG);
+	cmd->size =
+		cpu_to_le16(sizeof(struct host_cmd_sdio_sp_rx_aggr_cfg) +
+			    S_DS_GEN);
+	cfg->action = cmd_action;
+	if (cmd_action == HostCmd_ACT_GEN_SET)
+		cfg->enable = *(u8 *)data_buf;
+
+	return 0;
+}
+
 /*
  * This function prepares the commands before sending them to the firmware.
  *
@@ -1908,6 +1927,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		ret = mwifiex_cmd_issue_chan_report_request(priv, cmd_ptr,
 							    data_buf);
 		break;
+	case HostCmd_CMD_SDIO_SP_RX_AGGR_CFG:
+		ret = mwifiex_cmd_sdio_rx_aggr_cfg(cmd_ptr, cmd_action,
+						   data_buf);
+		break;
 	default:
 		dev_err(priv->adapter->dev,
 			"PREP_CMD: unknown cmd- %#x\n", cmd_no);
@@ -1947,6 +1970,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 	struct mwifiex_ds_auto_ds auto_ds;
 	enum state_11d_t state_11d;
 	struct mwifiex_ds_11n_tx_cfg tx_cfg;
+	u8 sdio_sp_rx_aggr_enable;
 
 	if (first_sta) {
 		if (priv->adapter->iface_type == MWIFIEX_PCIE) {
@@ -1989,6 +2013,22 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta, bool init)
 				       HostCmd_ACT_GEN_GET, 0, NULL, true);
 		if (ret)
 			return -1;
+
+		/** Set SDIO Single Port RX Aggr Info */
+		if (priv->adapter->iface_type == MWIFIEX_SDIO &&
+		    ISSUPP_SDIO_SPA_ENABLED(priv->adapter->fw_cap_info)) {
+			sdio_sp_rx_aggr_enable = true;
+			ret = mwifiex_send_cmd(priv,
+					       HostCmd_CMD_SDIO_SP_RX_AGGR_CFG,
+					       HostCmd_ACT_GEN_SET, 0,
+					       &sdio_sp_rx_aggr_enable,
+					       true);
+			if (ret) {
+				dev_err(priv->adapter->dev,
+					"error while enabling SP aggregation..disable it");
+				adapter->sdio_rx_aggr_enable = false;
+			}
+		}
 
 		/* Reconfigure tx buf size */
 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,

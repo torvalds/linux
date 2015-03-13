@@ -1043,6 +1043,59 @@ static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 }
 
 /*
+ * This function decode sdio aggreation pkt.
+ *
+ * Based on the the data block size and pkt_len,
+ * skb data will be decoded to few packets.
+ */
+static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
+				    struct sk_buff *skb)
+{
+	u32 total_pkt_len, pkt_len;
+	struct sk_buff *skb_deaggr;
+	u32 pkt_type;
+	u16 blk_size;
+	u8 blk_num;
+	u8 *data;
+
+	data = skb->data;
+	total_pkt_len = skb->len;
+
+	while (total_pkt_len >= (SDIO_HEADER_OFFSET + INTF_HEADER_LEN)) {
+		if (total_pkt_len < adapter->sdio_rx_block_size)
+			break;
+		blk_num = *(data + BLOCK_NUMBER_OFFSET);
+		blk_size = adapter->sdio_rx_block_size * blk_num;
+		if (blk_size > total_pkt_len) {
+			dev_err(adapter->dev, "%s: error in pkt,\t"
+				"blk_num=%d, blk_size=%d, total_pkt_len=%d\n",
+				__func__, blk_num, blk_size, total_pkt_len);
+			break;
+		}
+		pkt_len = le16_to_cpu(*(__le16 *)(data + SDIO_HEADER_OFFSET));
+		pkt_type = le16_to_cpu(*(__le16 *)(data + SDIO_HEADER_OFFSET +
+					 2));
+		if ((pkt_len + SDIO_HEADER_OFFSET) > blk_size) {
+			dev_err(adapter->dev, "%s: error in pkt,\t"
+				"pkt_len=%d, blk_size=%d\n",
+				__func__, pkt_len, blk_size);
+			break;
+		}
+		skb_deaggr = mwifiex_alloc_dma_align_buf(pkt_len,
+							 GFP_KERNEL | GFP_DMA);
+		if (!skb_deaggr)
+			break;
+		skb_put(skb_deaggr, pkt_len);
+		memcpy(skb_deaggr->data, data + SDIO_HEADER_OFFSET, pkt_len);
+		skb_pull(skb_deaggr, INTF_HEADER_LEN);
+
+		mwifiex_handle_rx_packet(adapter, skb_deaggr);
+		data += blk_size;
+		total_pkt_len -= blk_size;
+	}
+}
+
+/*
  * This function decodes a received packet.
  *
  * Based on the type, the packet is treated as either a data, or
@@ -1055,11 +1108,28 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 	u8 *cmd_buf;
 	__le16 *curr_ptr = (__le16 *)skb->data;
 	u16 pkt_len = le16_to_cpu(*curr_ptr);
+	struct mwifiex_rxinfo *rx_info;
 
-	skb_trim(skb, pkt_len);
-	skb_pull(skb, INTF_HEADER_LEN);
+	if (upld_typ != MWIFIEX_TYPE_AGGR_DATA) {
+		skb_trim(skb, pkt_len);
+		skb_pull(skb, INTF_HEADER_LEN);
+	}
 
 	switch (upld_typ) {
+	case MWIFIEX_TYPE_AGGR_DATA:
+		dev_dbg(adapter->dev, "info: --- Rx: Aggr Data packet ---\n");
+		rx_info = MWIFIEX_SKB_RXCB(skb);
+		rx_info->buf_type = MWIFIEX_TYPE_AGGR_DATA;
+		if (adapter->rx_work_enabled) {
+			skb_queue_tail(&adapter->rx_data_q, skb);
+			atomic_inc(&adapter->rx_pending);
+			adapter->data_received = true;
+		} else {
+			mwifiex_deaggr_sdio_pkt(adapter, skb);
+			dev_kfree_skb_any(skb);
+		}
+		break;
+
 	case MWIFIEX_TYPE_DATA:
 		dev_dbg(adapter->dev, "info: --- Rx: Data packet ---\n");
 		if (adapter->rx_work_enabled) {
@@ -1247,8 +1317,10 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 			/* copy pkt to deaggr buf */
 			skb_deaggr = card->mpa_rx.skb_arr[pind];
 
-			if ((pkt_type == MWIFIEX_TYPE_DATA) && (pkt_len <=
-					 card->mpa_rx.len_arr[pind])) {
+			if ((pkt_type == MWIFIEX_TYPE_DATA ||
+			     (pkt_type == MWIFIEX_TYPE_AGGR_DATA &&
+			      adapter->sdio_rx_aggr_enable)) &&
+			    (pkt_len <= card->mpa_rx.len_arr[pind])) {
 
 				memcpy(skb_deaggr->data, curr_ptr, pkt_len);
 
@@ -1258,8 +1330,10 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 				mwifiex_decode_rx_packet(adapter, skb_deaggr,
 							 pkt_type);
 			} else {
-				dev_err(adapter->dev, "wrong aggr pkt:"
-					" type=%d len=%d max_len=%d\n",
+				dev_err(adapter->dev, "wrong aggr pkt:\t"
+					"sdio_single_port_rx_aggr=%d\t"
+					"type=%d len=%d max_len=%d\n",
+					adapter->sdio_rx_aggr_enable,
 					pkt_type, pkt_len,
 					card->mpa_rx.len_arr[pind]);
 				dev_kfree_skb_any(skb_deaggr);
@@ -1278,6 +1352,13 @@ rx_curr_single:
 					      skb->data, skb->len,
 					      adapter->ioport + port))
 			goto error;
+		if (!adapter->sdio_rx_aggr_enable &&
+		    pkt_type == MWIFIEX_TYPE_AGGR_DATA) {
+			dev_err(adapter->dev, "Wrong pkt type %d\t"
+				"Current SDIO RX Aggr not enabled\n",
+				pkt_type);
+			goto error;
+		}
 
 		mwifiex_decode_rx_packet(adapter, skb, pkt_type);
 	}
@@ -1452,7 +1533,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 				 1) / MWIFIEX_SDIO_BLOCK_SIZE;
 			if (rx_len <= INTF_HEADER_LEN ||
 			    (rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE) >
-			     MWIFIEX_RX_DATA_BUF_SIZE) {
+			     card->mpa_rx.buf_size) {
 				dev_err(adapter->dev, "invalid rx_len=%d\n",
 					rx_len);
 				return -1;
@@ -1742,6 +1823,7 @@ static int mwifiex_alloc_sdio_mpa_buffers(struct mwifiex_adapter *adapter,
 				   u32 mpa_tx_buf_size, u32 mpa_rx_buf_size)
 {
 	struct sdio_mmc_card *card = adapter->card;
+	u32 rx_buf_size;
 	int ret = 0;
 
 	card->mpa_tx.buf = kzalloc(mpa_tx_buf_size, GFP_KERNEL);
@@ -1752,13 +1834,15 @@ static int mwifiex_alloc_sdio_mpa_buffers(struct mwifiex_adapter *adapter,
 
 	card->mpa_tx.buf_size = mpa_tx_buf_size;
 
-	card->mpa_rx.buf = kzalloc(mpa_rx_buf_size, GFP_KERNEL);
+	rx_buf_size = max_t(u32, mpa_rx_buf_size,
+			    (u32)SDIO_MAX_AGGR_BUF_SIZE);
+	card->mpa_rx.buf = kzalloc(rx_buf_size, GFP_KERNEL);
 	if (!card->mpa_rx.buf) {
 		ret = -1;
 		goto error;
 	}
 
-	card->mpa_rx.buf_size = mpa_rx_buf_size;
+	card->mpa_rx.buf_size = rx_buf_size;
 
 error:
 	if (ret) {
@@ -2298,6 +2382,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.iface_work = mwifiex_sdio_work,
 	.fw_dump = mwifiex_sdio_fw_dump,
 	.reg_dump = mwifiex_sdio_reg_dump,
+	.deaggr_pkt = mwifiex_deaggr_sdio_pkt,
 };
 
 /*

@@ -163,6 +163,7 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 {
 	unsigned long flags;
 	struct sk_buff *skb;
+	struct mwifiex_rxinfo *rx_info;
 
 	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 	if (adapter->rx_processing || adapter->rx_locked) {
@@ -184,7 +185,14 @@ static int mwifiex_process_rx(struct mwifiex_adapter *adapter)
 			adapter->delay_main_work = false;
 			mwifiex_queue_main_work(adapter);
 		}
-		mwifiex_handle_rx_packet(adapter, skb);
+		rx_info = MWIFIEX_SKB_RXCB(skb);
+		if (rx_info->buf_type == MWIFIEX_TYPE_AGGR_DATA) {
+			if (adapter->if_ops.deaggr_pkt)
+				adapter->if_ops.deaggr_pkt(adapter, skb);
+			dev_kfree_skb_any(skb);
+		} else {
+			mwifiex_handle_rx_packet(adapter, skb);
+		}
 	}
 	spin_lock_irqsave(&adapter->rx_proc_lock, flags);
 	adapter->rx_processing = false;
