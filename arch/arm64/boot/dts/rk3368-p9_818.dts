@@ -546,7 +546,7 @@
 		};
 
 		rk818_dcdc2_reg: regulator@1 {
-			regulator-name= "vdd_gpu";/*vcc gpu*/
+			regulator-name= "vdd_logic";/*vcc gpu*/
 			regulator-min-microvolt = <700000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <0x2>;
