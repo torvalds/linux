@@ -45,13 +45,13 @@ config BT_BREDR
 	depends on BT
 	default y
 
-source "net/bluetooth/rfcomm/Kconfig"
+source "$BACKPORT_DIR/net/bluetooth/rfcomm/Kconfig"
 
-source "net/bluetooth/bnep/Kconfig"
+source "$BACKPORT_DIR/net/bluetooth/bnep/Kconfig"
 
-source "net/bluetooth/cmtp/Kconfig"
+source "$BACKPORT_DIR/net/bluetooth/cmtp/Kconfig"
 
-source "net/bluetooth/hidp/Kconfig"
+source "$BACKPORT_DIR/net/bluetooth/hidp/Kconfig"
 
 config BT_LE
 	bool "Bluetooth Low Energy (LE) features"
@@ -91,4 +91,4 @@ config BT_SELFTEST_SMP
 	  Run test cases for SMP cryptographic functionality, including both
 	  legacy SMP as well as the Secure Connections features.
 
-source "drivers/bluetooth/Kconfig"
+source "$BACKPORT_DIR/drivers/bluetooth/Kconfig"

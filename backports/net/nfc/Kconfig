@@ -28,7 +28,7 @@ config NFC_DIGITAL
 	  To compile this support as a module, choose M here: the module will
 	  be called nfc_digital.
 
-source "net/nfc/nci/Kconfig"
-source "net/nfc/hci/Kconfig"
+source "$BACKPORT_DIR/net/nfc/nci/Kconfig"
+source "$BACKPORT_DIR/net/nfc/hci/Kconfig"
 
-source "drivers/nfc/Kconfig"
+source "$BACKPORT_DIR/drivers/nfc/Kconfig"

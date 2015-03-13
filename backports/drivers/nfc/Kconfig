@@ -68,9 +68,9 @@ config NFC_PORT100
 
 	  If unsure, say N.
 
-source "drivers/nfc/pn544/Kconfig"
-source "drivers/nfc/microread/Kconfig"
-source "drivers/nfc/nfcmrvl/Kconfig"
-source "drivers/nfc/st21nfca/Kconfig"
-source "drivers/nfc/st21nfcb/Kconfig"
+source "$BACKPORT_DIR/drivers/nfc/pn544/Kconfig"
+source "$BACKPORT_DIR/drivers/nfc/microread/Kconfig"
+source "$BACKPORT_DIR/drivers/nfc/nfcmrvl/Kconfig"
+source "$BACKPORT_DIR/drivers/nfc/st21nfca/Kconfig"
+source "$BACKPORT_DIR/drivers/nfc/st21nfcb/Kconfig"
 endmenu

@@ -362,7 +362,7 @@ config VIDEO_SAA717X
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa717x.
 
-source "drivers/media/i2c/cx25840/Kconfig"
+source "$BACKPORT_DIR/drivers/media/i2c/cx25840/Kconfig"
 
 comment "Video encoders"
 
@@ -561,7 +561,7 @@ config VIDEO_NOON010PC30
 	---help---
 	  This driver supports NOON010PC30 CIF camera from Siliconfile
 
-source "drivers/media/i2c/m5mols/Kconfig"
+source "$BACKPORT_DIR/drivers/media/i2c/m5mols/Kconfig"
 
 config VIDEO_S5K6AA
 	tristate "Samsung S5K6AAFX sensor support"
@@ -593,7 +593,7 @@ config VIDEO_S5K5BAF
 	  This is a V4L2 sensor-level driver for Samsung S5K5BAF 2M
 	  camera sensor with an embedded SoC image signal processor.
 
-source "drivers/media/i2c/smiapp/Kconfig"
+source "$BACKPORT_DIR/drivers/media/i2c/smiapp/Kconfig"
 
 config VIDEO_S5C73M3
 	tristate "Samsung S5C73M3 sensor support"
@@ -700,7 +700,7 @@ endmenu
 menu "Sensors used on soc_camera driver"
 
 if SOC_CAMERA
-	source "drivers/media/i2c/soc_camera/Kconfig"
+source "$BACKPORT_DIR/drivers/media/i2c/soc_camera/Kconfig"
 endif
 
 endmenu

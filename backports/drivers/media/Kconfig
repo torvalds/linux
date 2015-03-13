@@ -114,7 +114,7 @@ config VIDEO_V4L2_SUBDEV_API
 
 	  This API is mostly used by camera interfaces in embedded platforms.
 
-source "drivers/media/v4l2-core/Kconfig"
+source "$BACKPORT_DIR/drivers/media/v4l2-core/Kconfig"
 
 #
 # DVB Core
@@ -147,27 +147,27 @@ config TTPCI_EEPROM
 	depends on I2C
 	default n
 
-source "drivers/media/dvb-core/Kconfig"
+source "$BACKPORT_DIR/drivers/media/dvb-core/Kconfig"
 
 comment "Media drivers"
-source "drivers/media/rc/Kconfig"
+source "$BACKPORT_DIR/drivers/media/rc/Kconfig"
 
 #
 # V4L platform/mem2mem drivers
 #
 
-source "drivers/media/usb/Kconfig"
-source "drivers/media/pci/Kconfig"
-source "drivers/media/platform/Kconfig"
-source "drivers/media/mmc/Kconfig"
-source "drivers/media/radio/Kconfig"
+source "$BACKPORT_DIR/drivers/media/usb/Kconfig"
+source "$BACKPORT_DIR/drivers/media/pci/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/Kconfig"
+source "$BACKPORT_DIR/drivers/media/mmc/Kconfig"
+source "$BACKPORT_DIR/drivers/media/radio/Kconfig"
 
 comment "Supported FireWire (IEEE 1394) Adapters"
 	depends on DVB_CORE && FIREWIRE
-source "drivers/media/firewire/Kconfig"
+source "$BACKPORT_DIR/drivers/media/firewire/Kconfig"
 
 # Common driver options
-source "drivers/media/common/Kconfig"
+source "$BACKPORT_DIR/drivers/media/common/Kconfig"
 
 comment "Media ancillary drivers (tuners, sensors, i2c, frontends)"
 
@@ -204,8 +204,8 @@ config MEDIA_ATTACH
 	depends on MODULES
 	default MODULES
 
-source "drivers/media/i2c/Kconfig"
-source "drivers/media/tuners/Kconfig"
-source "drivers/media/dvb-frontends/Kconfig"
+source "$BACKPORT_DIR/drivers/media/i2c/Kconfig"
+source "$BACKPORT_DIR/drivers/media/tuners/Kconfig"
+source "$BACKPORT_DIR/drivers/media/dvb-frontends/Kconfig"
 
 endif # MEDIA_SUPPORT

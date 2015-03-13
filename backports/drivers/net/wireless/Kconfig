@@ -214,7 +214,7 @@ config USB_NET_RNDIS_WLAN
 
 	  If you choose to build a module, it'll be called rndis_wlan.
 
-source "drivers/net/wireless/rtl818x/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/rtl818x/Kconfig"
 
 config ADM8211
 	tristate "ADMtek ADM8211 support"
@@ -265,23 +265,23 @@ config MWL8K
 	  To compile this driver as a module, choose M here: the module
 	  will be called mwl8k.  If unsure, say N.
 
-source "drivers/net/wireless/ath/Kconfig"
-source "drivers/net/wireless/b43/Kconfig"
-source "drivers/net/wireless/b43legacy/Kconfig"
-source "drivers/net/wireless/brcm80211/Kconfig"
-source "drivers/net/wireless/hostap/Kconfig"
-source "drivers/net/wireless/ipw2x00/Kconfig"
-source "drivers/net/wireless/iwlwifi/Kconfig"
-source "drivers/net/wireless/iwlegacy/Kconfig"
-source "drivers/net/wireless/libertas/Kconfig"
-source "drivers/net/wireless/orinoco/Kconfig"
-source "drivers/net/wireless/p54/Kconfig"
-source "drivers/net/wireless/rt2x00/Kconfig"
-source "drivers/net/wireless/rtlwifi/Kconfig"
-source "drivers/net/wireless/ti/Kconfig"
-source "drivers/net/wireless/zd1211rw/Kconfig"
-source "drivers/net/wireless/mwifiex/Kconfig"
-source "drivers/net/wireless/cw1200/Kconfig"
-source "drivers/net/wireless/rsi/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/ath/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/b43/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/b43legacy/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/brcm80211/Kconfig"
+#source "drivers/net/wireless/hostap/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/ipw2x00/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/iwlwifi/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/iwlegacy/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/libertas/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/orinoco/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/p54/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/rt2x00/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/rtlwifi/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/ti/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/zd1211rw/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/mwifiex/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/cw1200/Kconfig"
+source "$BACKPORT_DIR/drivers/net/wireless/rsi/Kconfig"
 
 endif # WLAN

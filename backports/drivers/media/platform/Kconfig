@@ -11,7 +11,7 @@ menuconfig V4L_PLATFORM_DRIVERS
 
 if V4L_PLATFORM_DRIVERS
 
-source "drivers/media/platform/marvell-ccic/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/marvell-ccic/Kconfig"
 
 config VIDEO_VIA_CAMERA
 	tristate "VIAFB camera controller support"
@@ -27,11 +27,11 @@ config VIDEO_VIA_CAMERA
 # Platform multimedia device configuration
 #
 
-source "drivers/media/platform/davinci/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/davinci/Kconfig"
 
-source "drivers/media/platform/omap/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/omap/Kconfig"
 
-source "drivers/media/platform/blackfin/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/blackfin/Kconfig"
 
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
@@ -115,9 +115,9 @@ config VIDEO_S3C_CAMIF
 	  To compile this driver as a module, choose M here: the module
 	  will be called s3c-camif.
 
-source "drivers/media/platform/soc_camera/Kconfig"
-source "drivers/media/platform/exynos4-is/Kconfig"
-source "drivers/media/platform/s5p-tv/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/soc_camera/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/exynos4-is/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/s5p-tv/Kconfig"
 
 endif # V4L_PLATFORM_DRIVERS
 
@@ -257,7 +257,7 @@ menuconfig V4L_TEST_DRIVERS
 
 if V4L_TEST_DRIVERS
 
-source "drivers/media/platform/vivid/Kconfig"
+source "$BACKPORT_DIR/drivers/media/platform/vivid/Kconfig"
 
 config VIDEO_VIM2M
 	tristate "Virtual Memory-to-Memory Driver"

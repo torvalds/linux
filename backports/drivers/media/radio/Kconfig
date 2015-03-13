@@ -19,13 +19,13 @@ config RADIO_SI470X
 	bool "Silicon Labs Si470x FM Radio Receiver support"
 	depends on VIDEO_V4L2
 
-source "drivers/media/radio/si470x/Kconfig"
+source "$BACKPORT_DIR/drivers/media/radio/si470x/Kconfig"
 
 config RADIO_SI4713
 	tristate "Silicon Labs Si4713 FM Radio with RDS Transmitter support"
 	depends on VIDEO_V4L2
 
-source "drivers/media/radio/si4713/Kconfig"
+source "$BACKPORT_DIR/drivers/media/radio/si4713/Kconfig"
 
 config RADIO_SI476X
 	tristate "Silicon Laboratories Si476x I2C FM Radio"
@@ -227,7 +227,7 @@ config RADIO_WL1273
 	  module will be called radio-wl1273.
 
 # TI's ST based wl128x FM radio
-source "drivers/media/radio/wl128x/Kconfig"
+source "$BACKPORT_DIR/drivers/media/radio/wl128x/Kconfig"
 
 #
 # ISA drivers configuration

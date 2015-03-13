@@ -4,7 +4,7 @@ config RC_CORE
 	depends on INPUT
 	default y
 
-source "drivers/media/rc/keymaps/Kconfig"
+source "$BACKPORT_DIR/drivers/media/rc/keymaps/Kconfig"
 
 menuconfig RC_DECODERS
         bool "Remote controller decoders"
@@ -343,7 +343,7 @@ config IR_RX51
 	   The driver uses omap DM timers for generating the carrier
 	   wave and pulses.
 
-source "drivers/media/rc/img-ir/Kconfig"
+source "$BACKPORT_DIR/drivers/media/rc/img-ir/Kconfig"
 
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"
