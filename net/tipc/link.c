@@ -1117,7 +1117,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		ackd = msg_ack(msg);
 
 		/* Release acked messages */
-		if (likely(n_ptr->bclink.recv_permitted))
+		if (unlikely(n_ptr->bclink.acked != msg_bcast_ack(msg)))
 			tipc_bclink_acknowledge(n_ptr, msg_bcast_ack(msg));
 
 		released = 0;

@@ -215,7 +215,11 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 	struct net *net = n_ptr->net;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
+	if (unlikely(!n_ptr->bclink.recv_permitted))
+		return;
+
 	tipc_bclink_lock(net);
+
 	/* Bail out if tx queue is empty (no clean up is required) */
 	skb = skb_peek(&tn->bcl->outqueue);
 	if (!skb)
