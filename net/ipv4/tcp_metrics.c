@@ -252,6 +252,7 @@ static struct tcp_metrics_block *__tcp_get_metrics_req(struct request_sock *req,
 	}
 
 	net = dev_net(dst->dev);
+	hash ^= net_hash_mix(net);
 	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
@@ -299,6 +300,7 @@ static struct tcp_metrics_block *__tcp_get_metrics_tw(struct inet_timewait_sock 
 		return NULL;
 
 	net = twsk_net(tw);
+	hash ^= net_hash_mix(net);
 	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 
 	for (tm = rcu_dereference(net->ipv4.tcp_metrics_hash[hash].chain); tm;
@@ -347,6 +349,7 @@ static struct tcp_metrics_block *tcp_get_metrics(struct sock *sk,
 		return NULL;
 
 	net = dev_net(dst->dev);
+	hash ^= net_hash_mix(net);
 	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 
 	tm = __tcp_get_metrics(&saddr, &daddr, net, hash);
@@ -994,6 +997,7 @@ static int tcp_metrics_nl_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	if (!reply)
 		goto nla_put_failure;
 
+	hash ^= net_hash_mix(net);
 	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 	ret = -ESRCH;
 	rcu_read_lock();
@@ -1070,6 +1074,7 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	if (ret < 0)
 		src = false;
 
+	hash ^= net_hash_mix(net);
 	hash = hash_32(hash, net->ipv4.tcp_metrics_hash_log);
 	hb = net->ipv4.tcp_metrics_hash + hash;
 	pp = &hb->chain;
