@@ -28,3 +28,8 @@ compat-$(CPTCFG_KERNEL_3_19) += backport-3.19.o
 
 compat-$(CPTCFG_BPAUTO_BUILD_CRYPTO_CCM) += crypto-ccm.o
 compat-$(CPTCFG_BPAUTO_BUILD_DMA_SHARED_HELPERS) += dma-shared-helpers.o
+compat-$(CONFIG_BACKPORT_BPAUTO_BUILD_WANT_DEV_COREDUMP) += drivers-base-devcoredump.o
+compat-$(CONFIG_BACKPORT_BPAUTO_BUILD_AVERAGE) += lib-average.o
+cordic-objs += lib-cordic.o
+obj-$(CONFIG_BACKPORT_BPAUTO_BUILD_CORDIC) += cordic.o
+compat-$(CONFIG_BACKPORT_BPAUTO_BUILD_CRYPTO_CCM) += crypto-ccm.o

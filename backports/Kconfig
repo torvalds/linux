@@ -4,26 +4,26 @@ config BACKPORT_INTEGRATE
 
 config BACKPORT_DIR
 	string
-	default "%%BACKPORT_DIR%%"
+	default "backports/"
 
 config BACKPORT_VERSION
 	string
-	default "%%BACKPORTS_VERSION%%"
+	default "backports-20150129-0-gdd4a670"
 
 config BACKPORT_KERNEL_VERSION
 	string
-	default "%%BACKPORTED_KERNEL_VERSION%%"
+	default "next-20150129-0-g828f79f"
 
 config BACKPORT_KERNEL_NAME
 	string
-	default "%%BACKPORTED_KERNEL_NAME%%"
+	default "Linux"
 
 menuconfig BACKPORT_LINUX
-	bool "Backport %%BACKPORTED_KERNEL_NAME%% %%BACKPORTED_KERNEL_VERSION%% (backports %%BACKPORTS_VERSION%%)"
+	bool "Backport Linux next-20150129-0-g828f79f (backports backports-20150129-0-gdd4a670)"
 	default n
 	---help---
 	  Enabling this will let give you the opportunity to use features and
-	  drivers backported from %%BACKPORTED_KERNEL_NAME%% %%BACKPORTED_KERNEL_VERSION%%
+	  drivers backported from Linux next-20150129-0-g828f79f
 	  on the kernel your are using. This is experimental and you should
 	  say no unless you'd like to help test things or want to help debug
 	  this should we run into any issues.
