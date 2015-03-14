@@ -203,7 +203,7 @@
 };
 
 &usbphy1 {
-	vbus-supply = <&reg_usb1_vbus>;
+	phy-supply = <&reg_usb1_vbus>;
 	status = "okay";
 };
 
@@ -212,6 +212,6 @@
 };
 
 &usbphy3 {
-	vbus-supply = <&reg_usb3_vbus>;
+	phy-supply = <&reg_usb3_vbus>;
 	status = "okay";
 };
