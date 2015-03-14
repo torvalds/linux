@@ -384,6 +384,38 @@ struct vivid_fmt vivid_formats[] = {
 		.alpha_mask = 0xff000000,
 	},
 	{
+		.name     = "Bayer BG/GR",
+		.fourcc   = V4L2_PIX_FMT_SBGGR8, /* Bayer BG/GR */
+		.vdownsampling = { 1 },
+		.bit_depth = { 8 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.name     = "Bayer GB/RG",
+		.fourcc   = V4L2_PIX_FMT_SGBRG8, /* Bayer GB/RG */
+		.vdownsampling = { 1 },
+		.bit_depth = { 8 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.name     = "Bayer GR/BG",
+		.fourcc   = V4L2_PIX_FMT_SGRBG8, /* Bayer GR/BG */
+		.vdownsampling = { 1 },
+		.bit_depth = { 8 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.name     = "Bayer RG/GB",
+		.fourcc   = V4L2_PIX_FMT_SRGGB8, /* Bayer RG/GB */
+		.vdownsampling = { 1 },
+		.bit_depth = { 8 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
 		.name     = "4:2:2, biplanar, YUV",
 		.fourcc   = V4L2_PIX_FMT_NV16M,
 		.vdownsampling = { 1, 1 },

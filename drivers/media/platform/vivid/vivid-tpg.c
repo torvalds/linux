@@ -181,6 +181,7 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	tpg->planes = 1;
 	tpg->buffers = 1;
 	tpg->recalc_colors = true;
+	tpg->interleaved = false;
 	tpg->vdownsampling[0] = 1;
 	tpg->hdownsampling[0] = 1;
 	tpg->hmask[0] = ~0;
@@ -188,6 +189,15 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	tpg->hmask[2] = ~0;
 
 	switch (fourcc) {
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SRGGB8:
+		tpg->interleaved = true;
+		tpg->vdownsampling[1] = 1;
+		tpg->hdownsampling[1] = 1;
+		tpg->planes = 2;
+		/* fall through */
 	case V4L2_PIX_FMT_RGB332:
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_RGB565X:
@@ -326,13 +336,14 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_NV21:
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
-		tpg->twopixelsize[0] = 2;
-		tpg->twopixelsize[1] = 2;
-		break;
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SRGGB8:
 		tpg->twopixelsize[0] = 2;
 		tpg->twopixelsize[1] = 2;
 		break;
@@ -1011,6 +1022,35 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[0][offset + 2] = r_y;
 		buf[0][offset + 3] = alpha;
 		break;
+	case V4L2_PIX_FMT_SBGGR8:
+		buf[0][offset] = odd ? g_u : b_v;
+		buf[1][offset] = odd ? r_y : g_u;
+		break;
+	case V4L2_PIX_FMT_SGBRG8:
+		buf[0][offset] = odd ? b_v : g_u;
+		buf[1][offset] = odd ? g_u : r_y;
+		break;
+	case V4L2_PIX_FMT_SGRBG8:
+		buf[0][offset] = odd ? r_y : g_u;
+		buf[1][offset] = odd ? g_u : b_v;
+		break;
+	case V4L2_PIX_FMT_SRGGB8:
+		buf[0][offset] = odd ? g_u : r_y;
+		buf[1][offset] = odd ? b_v : g_u;
+		break;
+	}
+}
+
+unsigned tpg_g_interleaved_plane(const struct tpg_data *tpg, unsigned buf_line)
+{
+	switch (tpg->fourcc) {
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SRGGB8:
+		return buf_line & 1;
+	default:
+		return 0;
 	}
 }
 
@@ -1614,6 +1654,8 @@ void tpg_calc_text_basep(struct tpg_data *tpg,
 		basep[p][1] += h * stride / 2;
 	else if (tpg->field == V4L2_FIELD_SEQ_BT)
 		basep[p][0] += h * stride / 2;
+	if (p == 0 && tpg->interleaved)
+		tpg_calc_text_basep(tpg, basep, 1, vbuf);
 }
 
 static int tpg_pattern_avg(const struct tpg_data *tpg,
@@ -1990,6 +2032,13 @@ void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std,
 			src_y++;
 		}
 
+		/*
+		 * For line-interleaved formats determine the 'plane'
+		 * based on the buffer line.
+		 */
+		if (tpg_g_interleaved(tpg))
+			p = tpg_g_interleaved_plane(tpg, buf_line);
+
 		if (tpg->vdownsampling[p] > 1) {
 			/*
 			 * When doing vertical downsampling the field setting
@@ -2036,7 +2085,7 @@ void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std, unsigned p, u8 *vbuf)
 		return;
 	}
 
-	for (i = 0; i < tpg->planes; i++) {
+	for (i = 0; i < tpg_g_planes(tpg); i++) {
 		tpg_fill_plane_buffer(tpg, std, i, vbuf + offset);
 		offset += tpg_calc_plane_size(tpg, i);
 	}

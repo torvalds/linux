@@ -140,6 +140,7 @@ struct tpg_data {
 	unsigned			real_rgb_range;
 	unsigned			buffers;
 	unsigned			planes;
+	bool				interleaved;
 	u8				vdownsampling[TPG_MAX_PLANES];
 	u8				hdownsampling[TPG_MAX_PLANES];
 	/*
@@ -197,6 +198,7 @@ void tpg_gen_text(const struct tpg_data *tpg,
 		u8 *basep[TPG_MAX_PLANES][2], int y, int x, char *text);
 void tpg_calc_text_basep(struct tpg_data *tpg,
 		u8 *basep[TPG_MAX_PLANES][2], unsigned p, u8 *vbuf);
+unsigned tpg_g_interleaved_plane(const struct tpg_data *tpg, unsigned buf_line);
 void tpg_fill_plane_buffer(struct tpg_data *tpg, v4l2_std_id std,
 			   unsigned p, u8 *vbuf);
 void tpg_fillbuffer(struct tpg_data *tpg, v4l2_std_id std,
@@ -346,7 +348,12 @@ static inline unsigned tpg_g_buffers(const struct tpg_data *tpg)
 
 static inline unsigned tpg_g_planes(const struct tpg_data *tpg)
 {
-	return tpg->planes;
+	return tpg->interleaved ? 1 : tpg->planes;
+}
+
+static inline bool tpg_g_interleaved(const struct tpg_data *tpg)
+{
+	return tpg->interleaved;
 }
 
 static inline unsigned tpg_g_twopixelsize(const struct tpg_data *tpg, unsigned plane)
@@ -386,7 +393,7 @@ static inline void tpg_s_bytesperline(struct tpg_data *tpg, unsigned plane, unsi
 		return;
 	}
 
-	for (p = 0; p < tpg->planes; p++) {
+	for (p = 0; p < tpg_g_planes(tpg); p++) {
 		unsigned plane_w = bpl * tpg->twopixelsize[p] / tpg->twopixelsize[0];
 
 		tpg->bytesperline[p] = plane_w / tpg->hdownsampling[p];
@@ -401,7 +408,7 @@ static inline unsigned tpg_g_line_width(const struct tpg_data *tpg, unsigned pla
 
 	if (tpg->buffers > 1)
 		return tpg_g_bytesperline(tpg, plane);
-	for (p = 0; p < tpg->planes; p++) {
+	for (p = 0; p < tpg_g_planes(tpg); p++) {
 		unsigned plane_w = tpg_g_bytesperline(tpg, p);
 
 		w += plane_w / tpg->vdownsampling[p];
@@ -417,7 +424,7 @@ static inline unsigned tpg_calc_line_width(const struct tpg_data *tpg,
 
 	if (tpg->buffers > 1)
 		return bpl;
-	for (p = 0; p < tpg->planes; p++) {
+	for (p = 0; p < tpg_g_planes(tpg); p++) {
 		unsigned plane_w = bpl * tpg->twopixelsize[p] / tpg->twopixelsize[0];
 
 		plane_w /= tpg->hdownsampling[p];
@@ -428,7 +435,7 @@ static inline unsigned tpg_calc_line_width(const struct tpg_data *tpg,
 
 static inline unsigned tpg_calc_plane_size(const struct tpg_data *tpg, unsigned plane)
 {
-	if (plane >= tpg->planes)
+	if (plane >= tpg_g_planes(tpg))
 		return 0;
 
 	return tpg_g_bytesperline(tpg, plane) * tpg->buf_height /
