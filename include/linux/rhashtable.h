@@ -49,6 +49,7 @@ struct rhash_head {
 /**
  * struct bucket_table - Table of hash buckets
  * @size: Number of hash buckets
+ * @rehash: Current bucket being rehashed
  * @hash_rnd: Random seed to fold into hash
  * @shift: Current size (1 << shift)
  * @locks_mask: Mask to apply before accessing locks[]
@@ -58,7 +59,8 @@ struct rhash_head {
  * @buckets: size * hash buckets
  */
 struct bucket_table {
-	size_t			size;
+	unsigned int		size;
+	unsigned int		rehash;
 	u32			hash_rnd;
 	u32			shift;
 	unsigned int		locks_mask;

@@ -260,6 +260,7 @@ static void rhashtable_rehash_chain(struct rhashtable *ht, unsigned old_hash)
 	spin_lock_bh(old_bucket_lock);
 	while (!rhashtable_rehash_one(ht, old_hash))
 		;
+	old_tbl->rehash++;
 	spin_unlock_bh(old_bucket_lock);
 }
 
