@@ -1461,7 +1461,7 @@ overlay_rop3_store(struct device *dev, struct device_attribute *attr,
 	unsigned int rop3;
 	char *endp;
 
-	rop3 = !!simple_strtoul(buf, &endp, 10);
+	rop3 = simple_strtoul(buf, &endp, 10);
 	if (isspace(*endp))
 		endp++;
 
