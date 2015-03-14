@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
+  Copyright(c) 1999 - 2015 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -51,7 +50,8 @@
 #define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 
 /* wrapper around a pointer to a socket buffer,
- * so a DMA handle can be stored along with the buffer */
+ * so a DMA handle can be stored along with the buffer
+ */
 struct ixgbevf_tx_buffer {
 	union ixgbe_adv_tx_desc *next_to_watch;
 	unsigned long time_stamp;
@@ -132,9 +132,10 @@ struct ixgbevf_ring {
 	u8 __iomem *tail;
 	struct sk_buff *skb;
 
-	u16 reg_idx; /* holds the special value that gets the hardware register
-		      * offset associated with this ring, which is different
-		      * for DCB and RSS modes */
+	/* holds the special value that gets the hardware register offset
+	 * associated with this ring, which is different for DCB and RSS modes
+	 */
+	u16 reg_idx;
 	int queue_index; /* needed for multiqueue queue management */
 };
 
@@ -143,21 +144,21 @@ struct ixgbevf_ring {
 
 #define MAX_RX_QUEUES IXGBE_VF_MAX_RX_QUEUES
 #define MAX_TX_QUEUES IXGBE_VF_MAX_TX_QUEUES
-#define IXGBEVF_MAX_RSS_QUEUES 2
+#define IXGBEVF_MAX_RSS_QUEUES	2
 
-#define IXGBEVF_DEFAULT_TXD   1024
-#define IXGBEVF_DEFAULT_RXD   512
-#define IXGBEVF_MAX_TXD       4096
-#define IXGBEVF_MIN_TXD       64
-#define IXGBEVF_MAX_RXD       4096
-#define IXGBEVF_MIN_RXD       64
+#define IXGBEVF_DEFAULT_TXD	1024
+#define IXGBEVF_DEFAULT_RXD	512
+#define IXGBEVF_MAX_TXD		4096
+#define IXGBEVF_MIN_TXD		64
+#define IXGBEVF_MAX_RXD		4096
+#define IXGBEVF_MIN_RXD		64
 
 /* Supported Rx Buffer Sizes */
-#define IXGBEVF_RXBUFFER_256   256    /* Used for packet split */
-#define IXGBEVF_RXBUFFER_2048  2048
+#define IXGBEVF_RXBUFFER_256	256    /* Used for packet split */
+#define IXGBEVF_RXBUFFER_2048	2048
 
-#define IXGBEVF_RX_HDR_SIZE IXGBEVF_RXBUFFER_256
-#define IXGBEVF_RX_BUFSZ    IXGBEVF_RXBUFFER_2048
+#define IXGBEVF_RX_HDR_SIZE	IXGBEVF_RXBUFFER_256
+#define IXGBEVF_RX_BUFSZ	IXGBEVF_RXBUFFER_2048
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
@@ -186,10 +187,11 @@ struct ixgbevf_ring_container {
  */
 struct ixgbevf_q_vector {
 	struct ixgbevf_adapter *adapter;
-	u16 v_idx;		/* index of q_vector within array, also used for
-				 * finding the bit in EICR and friends that
-				 * represents the vector for this ring */
-	u16 itr;		/* Interrupt throttle rate written to EITR */
+	/* index of q_vector within array, also used for finding the bit in
+	 * EICR and friends that represents the vector for this ring
+	 */
+	u16 v_idx;
+	u16 itr; /* Interrupt throttle rate written to EITR */
 	struct napi_struct napi;
 	struct ixgbevf_ring_container rx, tx;
 	char name[IFNAMSIZ + 9];
@@ -199,19 +201,21 @@ struct ixgbevf_q_vector {
 #define IXGBEVF_QV_STATE_NAPI		1    /* NAPI owns this QV */
 #define IXGBEVF_QV_STATE_POLL		2    /* poll owns this QV */
 #define IXGBEVF_QV_STATE_DISABLED	4    /* QV is disabled */
-#define IXGBEVF_QV_OWNED (IXGBEVF_QV_STATE_NAPI | IXGBEVF_QV_STATE_POLL)
-#define IXGBEVF_QV_LOCKED (IXGBEVF_QV_OWNED | IXGBEVF_QV_STATE_DISABLED)
+#define IXGBEVF_QV_OWNED	(IXGBEVF_QV_STATE_NAPI | IXGBEVF_QV_STATE_POLL)
+#define IXGBEVF_QV_LOCKED	(IXGBEVF_QV_OWNED | IXGBEVF_QV_STATE_DISABLED)
 #define IXGBEVF_QV_STATE_NAPI_YIELD	8    /* NAPI yielded this QV */
 #define IXGBEVF_QV_STATE_POLL_YIELD	16   /* poll yielded this QV */
-#define IXGBEVF_QV_YIELD (IXGBEVF_QV_STATE_NAPI_YIELD | IXGBEVF_QV_STATE_POLL_YIELD)
-#define IXGBEVF_QV_USER_PEND (IXGBEVF_QV_STATE_POLL | IXGBEVF_QV_STATE_POLL_YIELD)
+#define IXGBEVF_QV_YIELD	(IXGBEVF_QV_STATE_NAPI_YIELD | \
+				 IXGBEVF_QV_STATE_POLL_YIELD)
+#define IXGBEVF_QV_USER_PEND	(IXGBEVF_QV_STATE_POLL | \
+				 IXGBEVF_QV_STATE_POLL_YIELD)
 	spinlock_t lock;
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 };
+
 #ifdef CONFIG_NET_RX_BUSY_POLL
 static inline void ixgbevf_qv_init_lock(struct ixgbevf_q_vector *q_vector)
 {
-
 	spin_lock_init(&q_vector->lock);
 	q_vector->state = IXGBEVF_QV_STATE_IDLE;
 }
@@ -220,6 +224,7 @@ static inline void ixgbevf_qv_init_lock(struct ixgbevf_q_vector *q_vector)
 static inline bool ixgbevf_qv_lock_napi(struct ixgbevf_q_vector *q_vector)
 {
 	int rc = true;
+
 	spin_lock_bh(&q_vector->lock);
 	if (q_vector->state & IXGBEVF_QV_LOCKED) {
 		WARN_ON(q_vector->state & IXGBEVF_QV_STATE_NAPI);
@@ -240,6 +245,7 @@ static inline bool ixgbevf_qv_lock_napi(struct ixgbevf_q_vector *q_vector)
 static inline bool ixgbevf_qv_unlock_napi(struct ixgbevf_q_vector *q_vector)
 {
 	int rc = false;
+
 	spin_lock_bh(&q_vector->lock);
 	WARN_ON(q_vector->state & (IXGBEVF_QV_STATE_POLL |
 				   IXGBEVF_QV_STATE_NAPI_YIELD));
@@ -256,6 +262,7 @@ static inline bool ixgbevf_qv_unlock_napi(struct ixgbevf_q_vector *q_vector)
 static inline bool ixgbevf_qv_lock_poll(struct ixgbevf_q_vector *q_vector)
 {
 	int rc = true;
+
 	spin_lock_bh(&q_vector->lock);
 	if ((q_vector->state & IXGBEVF_QV_LOCKED)) {
 		q_vector->state |= IXGBEVF_QV_STATE_POLL_YIELD;
@@ -275,6 +282,7 @@ static inline bool ixgbevf_qv_lock_poll(struct ixgbevf_q_vector *q_vector)
 static inline bool ixgbevf_qv_unlock_poll(struct ixgbevf_q_vector *q_vector)
 {
 	int rc = false;
+
 	spin_lock_bh(&q_vector->lock);
 	WARN_ON(q_vector->state & (IXGBEVF_QV_STATE_NAPI));
 
@@ -297,6 +305,7 @@ static inline bool ixgbevf_qv_busy_polling(struct ixgbevf_q_vector *q_vector)
 static inline bool ixgbevf_qv_disable(struct ixgbevf_q_vector *q_vector)
 {
 	int rc = true;
+
 	spin_lock_bh(&q_vector->lock);
 	if (q_vector->state & IXGBEVF_QV_OWNED)
 		rc = false;
@@ -307,8 +316,7 @@ static inline bool ixgbevf_qv_disable(struct ixgbevf_q_vector *q_vector)
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
-/*
- * microsecond values for various ITR rates shifted by 2 to fit itr register
+/* microsecond values for various ITR rates shifted by 2 to fit itr register
  * with the first 3 bits reserved 0
  */
 #define IXGBE_MIN_RSC_ITR	24
@@ -345,22 +353,22 @@ static inline void ixgbevf_write_tail(struct ixgbevf_ring *ring, u32 value)
 	writel(value, ring->tail);
 }
 
-#define IXGBEVF_RX_DESC(R, i)	    \
+#define IXGBEVF_RX_DESC(R, i)	\
 	(&(((union ixgbe_adv_rx_desc *)((R)->desc))[i]))
-#define IXGBEVF_TX_DESC(R, i)	    \
+#define IXGBEVF_TX_DESC(R, i)	\
 	(&(((union ixgbe_adv_tx_desc *)((R)->desc))[i]))
-#define IXGBEVF_TX_CTXTDESC(R, i)	    \
+#define IXGBEVF_TX_CTXTDESC(R, i)	\
 	(&(((struct ixgbe_adv_tx_context_desc *)((R)->desc))[i]))
 
 #define IXGBE_MAX_JUMBO_FRAME_SIZE	9728 /* Maximum Supported Size 9.5KB */
 
-#define OTHER_VECTOR 1
-#define NON_Q_VECTORS (OTHER_VECTOR)
+#define OTHER_VECTOR	1
+#define NON_Q_VECTORS	(OTHER_VECTOR)
 
-#define MAX_MSIX_Q_VECTORS 2
+#define MAX_MSIX_Q_VECTORS	2
 
-#define MIN_MSIX_Q_VECTORS 1
-#define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
+#define MIN_MSIX_Q_VECTORS	1
+#define MIN_MSIX_COUNT		(MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
 
 /* board specific private data structure */
 struct ixgbevf_adapter {

@@ -1637,9 +1637,7 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 	/* shut down the DMA engines now so they can be reinitialized later */
 
 	/* first Rx */
-	reg_ctl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
-	reg_ctl &= ~IXGBE_RXCTRL_RXEN;
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, reg_ctl);
+	hw->mac.ops.disable_rx(hw);
 	ixgbe_disable_rx_queue(adapter, rx_ring);
 
 	/* now Tx */
@@ -1670,6 +1668,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_ring *tx_ring = &adapter->test_tx_ring;
 	struct ixgbe_ring *rx_ring = &adapter->test_rx_ring;
+	struct ixgbe_hw *hw = &adapter->hw;
 	u32 rctl, reg_data;
 	int ret_val;
 	int err;
@@ -1713,13 +1712,15 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		goto err_nomem;
 	}
 
-	rctl = IXGBE_READ_REG(&adapter->hw, IXGBE_RXCTRL);
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_RXCTRL, rctl & ~IXGBE_RXCTRL_RXEN);
+	hw->mac.ops.disable_rx(hw);
 
 	ixgbe_configure_rx_ring(adapter, rx_ring);
 
-	rctl |= IXGBE_RXCTRL_RXEN | IXGBE_RXCTRL_DMBYPS;
+	rctl = IXGBE_READ_REG(&adapter->hw, IXGBE_RXCTRL);
+	rctl |= IXGBE_RXCTRL_DMBYPS;
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_RXCTRL, rctl);
+
+	hw->mac.ops.enable_rx(hw);
 
 	return 0;
 

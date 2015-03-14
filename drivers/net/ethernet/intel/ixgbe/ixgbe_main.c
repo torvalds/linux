@@ -1619,14 +1619,10 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 static void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
 			 struct sk_buff *skb)
 {
-	struct ixgbe_adapter *adapter = q_vector->adapter;
-
 	if (ixgbe_qv_busy_polling(q_vector))
 		netif_receive_skb(skb);
-	else if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
-		napi_gro_receive(&q_vector->napi, skb);
 	else
-		netif_rx(skb);
+		napi_gro_receive(&q_vector->napi, skb);
 }
 
 /**
@@ -3705,8 +3701,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	u32 rxctrl, rfctl;
 
 	/* disable receives while setting up the descriptors */
-	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl & ~IXGBE_RXCTRL_RXEN);
+	hw->mac.ops.disable_rx(hw);
 
 	ixgbe_setup_psrtype(adapter);
 	ixgbe_setup_rdrxctl(adapter);
@@ -3731,6 +3726,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		ixgbe_configure_rx_ring(adapter, adapter->rx_ring[i]);
 
+	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	/* disable drop enable for 82598 parts */
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		rxctrl |= IXGBE_RXCTRL_DMBYPS;
@@ -5014,7 +5010,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *upper;
 	struct list_head *iter;
-	u32 rxctrl;
 	int i;
 
 	/* signal that we are down to the interrupt handler */
@@ -5022,8 +5017,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 		return; /* do nothing if already down */
 
 	/* disable receives */
-	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl & ~IXGBE_RXCTRL_RXEN);
+	hw->mac.ops.disable_rx(hw);
 
 	/* disable all enabled rx queues */
 	for (i = 0; i < adapter->num_rx_queues; i++)
@@ -6174,7 +6168,6 @@ static void ixgbe_check_hang_subtask(struct ixgbe_adapter *adapter)
 
 	/* Cause software interrupt to ensure rings are cleaned */
 	ixgbe_irq_rearm_queues(adapter, eics);
-
 }
 
 /**
@@ -7507,14 +7500,9 @@ static void ixgbe_netpoll(struct net_device *netdev)
 	if (test_bit(__IXGBE_DOWN, &adapter->state))
 		return;
 
-	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
-	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-		for (i = 0; i < adapter->num_q_vectors; i++)
-			ixgbe_msix_clean_rings(0, adapter->q_vector[i]);
-	} else {
-		ixgbe_intr(adapter->pdev->irq, netdev);
-	}
-	adapter->flags &= ~IXGBE_FLAG_IN_NETPOLL;
+	/* loop through and schedule all active queues */
+	for (i = 0; i < adapter->num_q_vectors; i++)
+		ixgbe_msix_clean_rings(0, adapter->q_vector[i]);
 }
 
 #endif
