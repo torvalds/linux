@@ -678,16 +678,12 @@ void xsave_init(void)
 	this_func();
 }
 
-static inline void __init eager_fpu_init_bp(void)
+/*
+ * setup_init_fpu_buf() is __init and it is OK to call it here because
+ * init_xstate_buf will be unset only once during boot.
+ */
+void __init_refok eager_fpu_init(void)
 {
-	if (!init_xstate_buf)
-		setup_init_fpu_buf();
-}
-
-void eager_fpu_init(void)
-{
-	static __refdata void (*boot_func)(void) = eager_fpu_init_bp;
-
 	WARN_ON(used_math());
 	current_thread_info()->status = 0;
 
@@ -699,10 +695,8 @@ void eager_fpu_init(void)
 		return;
 	}
 
-	if (boot_func) {
-		boot_func();
-		boot_func = NULL;
-	}
+	if (!init_xstate_buf)
+		setup_init_fpu_buf();
 }
 
 /*
