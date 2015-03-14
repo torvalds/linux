@@ -27,7 +27,7 @@
 
 static unsigned int ad9834_calc_freqreg(unsigned long mclk, unsigned long fout)
 {
-	unsigned long long freqreg = (u64)fout * (u64)(1 << AD9834_FREQ_BITS);
+	unsigned long long freqreg = (u64)fout * (u64)BIT(AD9834_FREQ_BITS);
 
 	do_div(freqreg, mclk);
 	return freqreg;
@@ -55,7 +55,7 @@ static int ad9834_write_frequency(struct ad9834_state *st,
 static int ad9834_write_phase(struct ad9834_state *st,
 				  unsigned long addr, unsigned long phase)
 {
-	if (phase > (1 << AD9834_PHASE_BITS))
+	if (phase > BIT(AD9834_PHASE_BITS))
 		return -EINVAL;
 	st->data = cpu_to_be16(addr | phase);
 

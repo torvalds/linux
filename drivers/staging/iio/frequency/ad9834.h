@@ -10,31 +10,31 @@
 
 /* Registers */
 
-#define AD9834_REG_CMD		(0 << 14)
-#define AD9834_REG_FREQ0	(1 << 14)
-#define AD9834_REG_FREQ1	(2 << 14)
-#define AD9834_REG_PHASE0	(6 << 13)
-#define AD9834_REG_PHASE1	(7 << 13)
+#define AD9834_REG_CMD		0
+#define AD9834_REG_FREQ0	BIT(14)
+#define AD9834_REG_FREQ1	BIT(15)
+#define AD9834_REG_PHASE0	(BIT(15) | BIT(14))
+#define AD9834_REG_PHASE1	(BIT(15) | BIT(14) | BIT(13))
 
 /* Command Control Bits */
 
-#define AD9834_B28		(1 << 13)
-#define AD9834_HLB		(1 << 12)
-#define AD9834_FSEL		(1 << 11)
-#define AD9834_PSEL		(1 << 10)
-#define AD9834_PIN_SW		(1 << 9)
-#define AD9834_RESET		(1 << 8)
-#define AD9834_SLEEP1		(1 << 7)
-#define AD9834_SLEEP12		(1 << 6)
-#define AD9834_OPBITEN		(1 << 5)
-#define AD9834_SIGN_PIB		(1 << 4)
-#define AD9834_DIV2		(1 << 3)
-#define AD9834_MODE		(1 << 1)
+#define AD9834_B28		BIT(13)
+#define AD9834_HLB		BIT(12)
+#define AD9834_FSEL		BIT(11)
+#define AD9834_PSEL		BIT(10)
+#define AD9834_PIN_SW		BIT(9)
+#define AD9834_RESET		BIT(8)
+#define AD9834_SLEEP1		BIT(7)
+#define AD9834_SLEEP12		BIT(6)
+#define AD9834_OPBITEN		BIT(5)
+#define AD9834_SIGN_PIB		BIT(4)
+#define AD9834_DIV2		BIT(3)
+#define AD9834_MODE		BIT(1)
 
 #define AD9834_FREQ_BITS	28
 #define AD9834_PHASE_BITS	12
 
-#define RES_MASK(bits)	((1 << (bits)) - 1)
+#define RES_MASK(bits)	(BIT(bits) - 1)
 
 /**
  * struct ad9834_state - driver instance specific data
