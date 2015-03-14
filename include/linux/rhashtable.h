@@ -54,6 +54,7 @@ struct rhash_head {
  * @locks_mask: Mask to apply before accessing locks[]
  * @locks: Array of spinlocks protecting individual buckets
  * @walkers: List of active walkers
+ * @rcu: RCU structure for freeing the table
  * @buckets: size * hash buckets
  */
 struct bucket_table {
@@ -63,6 +64,7 @@ struct bucket_table {
 	unsigned int		locks_mask;
 	spinlock_t		*locks;
 	struct list_head	walkers;
+	struct rcu_head		rcu;
 
 	struct rhash_head __rcu	*buckets[] ____cacheline_aligned_in_smp;
 };

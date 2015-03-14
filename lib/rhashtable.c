@@ -141,6 +141,11 @@ static void bucket_table_free(const struct bucket_table *tbl)
 	kvfree(tbl);
 }
 
+static void bucket_table_free_rcu(struct rcu_head *head)
+{
+	bucket_table_free(container_of(head, struct bucket_table, rcu));
+}
+
 static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 					       size_t nbuckets)
 {
@@ -288,9 +293,7 @@ static void rhashtable_rehash(struct rhashtable *ht,
 	 * table, and thus no references to the old table will
 	 * remain.
 	 */
-	synchronize_rcu();
-
-	bucket_table_free(old_tbl);
+	call_rcu(&old_tbl->rcu, bucket_table_free_rcu);
 }
 
 /**
