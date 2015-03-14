@@ -53,6 +53,7 @@ struct rhash_head {
  * @shift: Current size (1 << shift)
  * @locks_mask: Mask to apply before accessing locks[]
  * @locks: Array of spinlocks protecting individual buckets
+ * @walkers: List of active walkers
  * @buckets: size * hash buckets
  */
 struct bucket_table {
@@ -61,6 +62,7 @@ struct bucket_table {
 	u32			shift;
 	unsigned int		locks_mask;
 	spinlock_t		*locks;
+	struct list_head	walkers;
 
 	struct rhash_head __rcu	*buckets[] ____cacheline_aligned_in_smp;
 };
@@ -104,7 +106,6 @@ struct rhashtable_params {
  * @p: Configuration parameters
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
- * @walkers: List of active walkers
  * @being_destroyed: True if table is set up for destruction
  */
 struct rhashtable {
@@ -115,17 +116,16 @@ struct rhashtable {
 	struct rhashtable_params	p;
 	struct work_struct		run_work;
 	struct mutex                    mutex;
-	struct list_head		walkers;
 };
 
 /**
  * struct rhashtable_walker - Hash table walker
  * @list: List entry on list of walkers
- * @resize: Resize event occured
+ * @tbl: The table that we were walking over
  */
 struct rhashtable_walker {
 	struct list_head list;
-	bool resize;
+	struct bucket_table *tbl;
 };
 
 /**
