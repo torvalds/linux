@@ -512,6 +512,14 @@ exit:
 
 }
 
+u8 ar9003_aic_cal_reset(struct ath_hw *ah)
+{
+	struct ath9k_hw_aic *aic = &ah->btcoex_hw.aic;
+
+	aic->aic_cal_state = AIC_CAL_STATE_IDLE;
+	return aic->aic_cal_state;
+}
+
 u8 ar9003_aic_calibration_single(struct ath_hw *ah)
 {
 	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
