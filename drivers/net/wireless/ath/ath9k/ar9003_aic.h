@@ -53,6 +53,7 @@ struct ath_aic_out_info {
 	struct ath_aic_sram_info sram;
 };
 
+u8 ar9003_aic_start_normal(struct ath_hw *ah);
 u8 ar9003_aic_cal_reset(struct ath_hw *ah);
 u8 ar9003_aic_calibration_single(struct ath_hw *ah);
 

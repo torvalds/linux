@@ -1363,6 +1363,10 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 		value = (!mci->unhalt_bt_gpm && mci->need_flush_btinfo) ? 1 : 0;
 		mci->need_flush_btinfo = false;
 		break;
+	case MCI_STATE_AIC_START:
+		if (ath9k_hw_is_aic_enabled(ah))
+			ar9003_aic_start_normal(ah);
+		break;
 	case MCI_STATE_AIC_CAL_RESET:
 		if (ath9k_hw_is_aic_enabled(ah))
 			value = ar9003_aic_cal_reset(ah);
