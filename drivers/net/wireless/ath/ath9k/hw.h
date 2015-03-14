@@ -653,6 +653,10 @@ struct ath_hw_private_ops {
 
 	/* ANI */
 	void (*ani_cache_ini_regs)(struct ath_hw *ah);
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+	bool (*is_aic_enabled)(struct ath_hw *ah);
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 };
 
 /**
@@ -1112,6 +1116,8 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 
 int ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
+
+void ar9003_hw_attach_aic_ops(struct ath_hw *ah);
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
 
