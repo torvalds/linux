@@ -786,6 +786,10 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 		mcam_reg_write_mask(cam, REG_CTRL0,
 			C0_DF_RGB | C0_RGBF_565 | C0_RGB5_BGGR, C0_DF_MASK);
 		break;
+	case V4L2_PIX_FMT_SBGGR8:
+		mcam_reg_write_mask(cam, REG_CTRL0,
+			C0_DF_RGB | C0_RGB5_GRBG, C0_DF_MASK);
+		break;
 	default:
 		cam_err(cam, "camera: unknown format: %#x\n", fmt->pixelformat);
 		break;
