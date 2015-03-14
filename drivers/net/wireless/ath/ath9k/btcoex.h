@@ -44,6 +44,9 @@
 
 #define AR9300_NUM_BT_WEIGHTS   4
 #define AR9300_NUM_WLAN_WEIGHTS 4
+
+#define ATH_AIC_MAX_BT_CHANNEL  79
+
 /* Defines the BT AR_BT_COEX_WGHT used */
 enum ath_stomp_type {
 	ATH_BTCOEX_STOMP_ALL,
@@ -91,6 +94,14 @@ struct ath9k_hw_mci {
 	u8 stomp_ftp;
 	bool concur_tx;
 	u32 last_recovery;
+};
+
+struct ath9k_hw_aic {
+	bool aic_enabled;
+	u8 aic_cal_state;
+	u8 aic_caled_chan;
+	u32 aic_sram[ATH_AIC_MAX_BT_CHANNEL];
+	u32 aic_cal_start_time;
 };
 
 struct ath_btcoex_hw {
