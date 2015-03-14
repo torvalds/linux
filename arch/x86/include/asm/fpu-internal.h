@@ -378,17 +378,6 @@ static inline void __thread_fpu_begin(struct task_struct *tsk)
 	__thread_set_has_fpu(tsk);
 }
 
-static inline void __drop_fpu(struct task_struct *tsk)
-{
-	if (__thread_has_fpu(tsk)) {
-		/* Ignore delayed exceptions from user space */
-		asm volatile("1: fwait\n"
-			     "2:\n"
-			     _ASM_EXTABLE(1b, 2b));
-		__thread_fpu_end(tsk);
-	}
-}
-
 static inline void drop_fpu(struct task_struct *tsk)
 {
 	/*
@@ -396,7 +385,15 @@ static inline void drop_fpu(struct task_struct *tsk)
 	 */
 	preempt_disable();
 	tsk->thread.fpu_counter = 0;
-	__drop_fpu(tsk);
+
+	if (__thread_has_fpu(tsk)) {
+		/* Ignore delayed exceptions from user space */
+		asm volatile("1: fwait\n"
+			     "2:\n"
+			     _ASM_EXTABLE(1b, 2b));
+		__thread_fpu_end(tsk);
+	}
+
 	clear_stopped_child_used_math(tsk);
 	preempt_enable();
 }
