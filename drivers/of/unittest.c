@@ -228,8 +228,9 @@ static void __init of_selftest_check_tree_linkage(void)
 	child_count = of_selftest_check_node_linkage(of_root);
 
 	selftest(child_count > 0, "Device node data structure is corrupted\n");
-	selftest(child_count == allnode_count, "allnodes list size (%i) doesn't match"
-		 "sibling lists size (%i)\n", allnode_count, child_count);
+	selftest(child_count == allnode_count,
+		 "allnodes list size (%i) doesn't match sibling lists size (%i)\n",
+		 allnode_count, child_count);
 	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
 }
 
