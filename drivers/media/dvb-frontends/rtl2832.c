@@ -1240,7 +1240,7 @@ static int rtl2832_probe(struct i2c_client *client,
 	dev->regmap_config.max_register = 5 * 0x100,
 	dev->regmap_config.ranges = regmap_range_cfg,
 	dev->regmap_config.num_ranges = ARRAY_SIZE(regmap_range_cfg),
-	dev->regmap_config.cache_type = REGCACHE_RBTREE,
+	dev->regmap_config.cache_type = REGCACHE_NONE,
 	dev->regmap = regmap_init(&client->dev, &regmap_bus, client,
 				  &dev->regmap_config);
 	if (IS_ERR(dev->regmap)) {
