@@ -142,7 +142,7 @@ static void bucket_table_free(const struct bucket_table *tbl)
 }
 
 static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
-					       size_t nbuckets, u32 hash_rnd)
+					       size_t nbuckets)
 {
 	struct bucket_table *tbl = NULL;
 	size_t size;
@@ -158,7 +158,6 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 
 	tbl->size = nbuckets;
 	tbl->shift = ilog2(nbuckets);
-	tbl->hash_rnd = hash_rnd;
 
 	if (alloc_bucket_locks(ht, tbl) < 0) {
 		bucket_table_free(tbl);
@@ -166,6 +165,8 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 	}
 
 	INIT_LIST_HEAD(&tbl->walkers);
+
+	get_random_bytes(&tbl->hash_rnd, sizeof(tbl->hash_rnd));
 
 	for (i = 0; i < nbuckets; i++)
 		INIT_RHT_NULLS_HEAD(tbl->buckets[i], ht, i);
@@ -264,8 +265,6 @@ static void rhashtable_rehash(struct rhashtable *ht,
 	struct rhashtable_walker *walker;
 	unsigned old_hash;
 
-	get_random_bytes(&new_tbl->hash_rnd, sizeof(new_tbl->hash_rnd));
-
 	/* Make insertions go into the new, empty table right away. Deletions
 	 * and lookups will be attempted in both tables until we synchronize.
 	 * The synchronize_rcu() guarantees for the new table to be picked up
@@ -315,7 +314,7 @@ int rhashtable_expand(struct rhashtable *ht)
 
 	ASSERT_RHT_MUTEX(ht);
 
-	new_tbl = bucket_table_alloc(ht, old_tbl->size * 2, old_tbl->hash_rnd);
+	new_tbl = bucket_table_alloc(ht, old_tbl->size * 2);
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
@@ -346,7 +345,7 @@ int rhashtable_shrink(struct rhashtable *ht)
 
 	ASSERT_RHT_MUTEX(ht);
 
-	new_tbl = bucket_table_alloc(ht, old_tbl->size / 2, old_tbl->hash_rnd);
+	new_tbl = bucket_table_alloc(ht, old_tbl->size / 2);
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
@@ -926,7 +925,6 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 {
 	struct bucket_table *tbl;
 	size_t size;
-	u32 hash_rnd;
 
 	size = HASH_DEFAULT_SIZE;
 
@@ -952,9 +950,7 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	else
 		ht->p.locks_mul = BUCKET_LOCKS_PER_CPU;
 
-	get_random_bytes(&hash_rnd, sizeof(hash_rnd));
-
-	tbl = bucket_table_alloc(ht, size, hash_rnd);
+	tbl = bucket_table_alloc(ht, size);
 	if (tbl == NULL)
 		return -ENOMEM;
 
