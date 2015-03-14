@@ -33,11 +33,6 @@
 /* Base bits plus 1 bit for nulls marker */
 #define HASH_RESERVED_SPACE	(RHT_BASE_BITS + 1)
 
-enum {
-	RHT_LOCK_NORMAL,
-	RHT_LOCK_NESTED,
-};
-
 /* The bucket lock is selected based on the hash and protects mutations
  * on a group of hash buckets.
  *
@@ -231,7 +226,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
 
 	new_bucket_lock = bucket_lock(new_tbl, new_hash);
 
-	spin_lock_nested(new_bucket_lock, RHT_LOCK_NESTED);
+	spin_lock_nested(new_bucket_lock, SINGLE_DEPTH_NESTING);
 	head = rht_dereference_bucket(new_tbl->buckets[new_hash],
 				      new_tbl, new_hash);
 
@@ -405,7 +400,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	tbl = rht_dereference_rcu(ht->future_tbl, ht);
 	if (tbl != old_tbl) {
 		hash = head_hashfn(ht, tbl, obj);
-		spin_lock_nested(bucket_lock(tbl, hash), RHT_LOCK_NESTED);
+		spin_lock_nested(bucket_lock(tbl, hash), SINGLE_DEPTH_NESTING);
 	}
 
 	if (compare &&
