@@ -124,7 +124,8 @@ struct tipc_stats {
  * @max_pkt: current maximum packet size for this link
  * @max_pkt_target: desired maximum packet size for this link
  * @max_pkt_probes: # of probes based on current (max_pkt, max_pkt_target)
- * @outqueue: outbound message queue
+ * @transmitq: queue for sent, non-acked messages
+ * @backlogq: queue for messages waiting to be sent
  * @next_out_no: next sequence number to use for outbound messages
  * @last_retransmitted: sequence number of most recently retransmitted message
  * @stale_count: # of identical retransmit requests made by peer
@@ -177,20 +178,21 @@ struct tipc_link {
 	u32 max_pkt_probes;
 
 	/* Sending */
-	struct sk_buff_head outqueue;
+	struct sk_buff_head transmq;
+	struct sk_buff_head backlogq;
 	u32 next_out_no;
+	u32 window;
 	u32 last_retransmitted;
 	u32 stale_count;
 
 	/* Reception */
 	u32 next_in_no;
-	struct sk_buff_head deferred_queue;
-	u32 unacked_window;
+	u32 rcv_unacked;
+	struct sk_buff_head deferdq;
 	struct sk_buff_head inputq;
 	struct sk_buff_head namedq;
 
 	/* Congestion handling */
-	struct sk_buff *next_out;
 	struct sk_buff_head wakeupq;
 
 	/* Fragmentation/reassembly */
@@ -300,11 +302,6 @@ static inline int link_reset_unknown(struct tipc_link *l_ptr)
 static inline int link_reset_reset(struct tipc_link *l_ptr)
 {
 	return l_ptr->state == RESET_RESET;
-}
-
-static inline int link_congested(struct tipc_link *l_ptr)
-{
-	return skb_queue_len(&l_ptr->outqueue) >= l_ptr->queue_limit[0];
 }
 
 #endif

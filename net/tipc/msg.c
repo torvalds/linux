@@ -1,7 +1,7 @@
 /*
  * net/tipc/msg.c: TIPC message header routines
  *
- * Copyright (c) 2000-2006, 2014, Ericsson AB
+ * Copyright (c) 2000-2006, 2014-2015, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -165,6 +165,9 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	}
 
 	if (fragid == LAST_FRAGMENT) {
+		TIPC_SKB_CB(head)->validated = false;
+		if (unlikely(!tipc_msg_validate(head)))
+			goto err;
 		*buf = head;
 		TIPC_SKB_CB(head)->tail = NULL;
 		*headbuf = NULL;
@@ -172,7 +175,6 @@ int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
 	}
 	*buf = NULL;
 	return 0;
-
 err:
 	pr_warn_ratelimited("Unable to build fragment list\n");
 	kfree_skb(*buf);
@@ -181,6 +183,48 @@ err:
 	return 0;
 }
 
+/* tipc_msg_validate - validate basic format of received message
+ *
+ * This routine ensures a TIPC message has an acceptable header, and at least
+ * as much data as the header indicates it should.  The routine also ensures
+ * that the entire message header is stored in the main fragment of the message
+ * buffer, to simplify future access to message header fields.
+ *
+ * Note: Having extra info present in the message header or data areas is OK.
+ * TIPC will ignore the excess, under the assumption that it is optional info
+ * introduced by a later release of the protocol.
+ */
+bool tipc_msg_validate(struct sk_buff *skb)
+{
+	struct tipc_msg *msg;
+	int msz, hsz;
+
+	if (unlikely(TIPC_SKB_CB(skb)->validated))
+		return true;
+	if (unlikely(!pskb_may_pull(skb, MIN_H_SIZE)))
+		return false;
+
+	hsz = msg_hdr_sz(buf_msg(skb));
+	if (unlikely(hsz < MIN_H_SIZE) || (hsz > MAX_H_SIZE))
+		return false;
+	if (unlikely(!pskb_may_pull(skb, hsz)))
+		return false;
+
+	msg = buf_msg(skb);
+	if (unlikely(msg_version(msg) != TIPC_VERSION))
+		return false;
+
+	msz = msg_size(msg);
+	if (unlikely(msz < hsz))
+		return false;
+	if (unlikely((msz - hsz) > TIPC_MAX_USER_MSG_SIZE))
+		return false;
+	if (unlikely(skb->len < msz))
+		return false;
+
+	TIPC_SKB_CB(skb)->validated = true;
+	return true;
+}
 
 /**
  * tipc_msg_build - create buffer chain containing specified header and data
@@ -228,6 +272,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		      FIRST_FRAGMENT, INT_H_SIZE, msg_destnode(mhdr));
 	msg_set_size(&pkthdr, pktmax);
 	msg_set_fragm_no(&pkthdr, pktno);
+	msg_set_importance(&pkthdr, msg_importance(mhdr));
 
 	/* Prepare first fragment */
 	skb = tipc_buf_acquire(pktmax);
@@ -286,32 +331,35 @@ error:
 
 /**
  * tipc_msg_bundle(): Append contents of a buffer to tail of an existing one
- * @list: the buffer chain of the existing buffer ("bundle")
+ * @bskb: the buffer to append to ("bundle")
  * @skb:  buffer to be appended
  * @mtu:  max allowable size for the bundle buffer
  * Consumes buffer if successful
  * Returns true if bundling could be performed, otherwise false
  */
-bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu)
+bool tipc_msg_bundle(struct sk_buff *bskb, struct sk_buff *skb, u32 mtu)
 {
-	struct sk_buff *bskb = skb_peek_tail(list);
-	struct tipc_msg *bmsg = buf_msg(bskb);
+	struct tipc_msg *bmsg;
 	struct tipc_msg *msg = buf_msg(skb);
-	unsigned int bsz = msg_size(bmsg);
+	unsigned int bsz;
 	unsigned int msz = msg_size(msg);
-	u32 start = align(bsz);
+	u32 start, pad;
 	u32 max = mtu - INT_H_SIZE;
-	u32 pad = start - bsz;
 
 	if (likely(msg_user(msg) == MSG_FRAGMENTER))
 		return false;
+	if (!bskb)
+		return false;
+	bmsg = buf_msg(bskb);
+	bsz = msg_size(bmsg);
+	start = align(bsz);
+	pad = start - bsz;
+
 	if (unlikely(msg_user(msg) == CHANGEOVER_PROTOCOL))
 		return false;
 	if (unlikely(msg_user(msg) == BCAST_PROTOCOL))
 		return false;
 	if (likely(msg_user(bmsg) != MSG_BUNDLER))
-		return false;
-	if (likely(!TIPC_SKB_CB(bskb)->bundling))
 		return false;
 	if (unlikely(skb_tailroom(bskb) < (pad + msz)))
 		return false;
@@ -328,34 +376,40 @@ bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu)
 
 /**
  *  tipc_msg_extract(): extract bundled inner packet from buffer
- *  @skb: linear outer buffer, to be extracted from.
+ *  @skb: buffer to be extracted from.
  *  @iskb: extracted inner buffer, to be returned
- *  @pos: position of msg to be extracted. Returns with pointer of next msg
+ *  @pos: position in outer message of msg to be extracted.
+ *        Returns position of next msg
  *  Consumes outer buffer when last packet extracted
  *  Returns true when when there is an extracted buffer, otherwise false
  */
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 {
-	struct tipc_msg *msg = buf_msg(skb);
-	int imsz;
-	struct tipc_msg *imsg = (struct tipc_msg *)(msg_data(msg) + *pos);
+	struct tipc_msg *msg;
+	int imsz, offset;
 
-	/* Is there space left for shortest possible message? */
-	if (*pos > (msg_data_sz(msg) - SHORT_H_SIZE))
+	*iskb = NULL;
+	if (unlikely(skb_linearize(skb)))
 		goto none;
-	imsz = msg_size(imsg);
 
-	/* Is there space left for current message ? */
-	if ((*pos + imsz) > msg_data_sz(msg))
+	msg = buf_msg(skb);
+	offset = msg_hdr_sz(msg) + *pos;
+	if (unlikely(offset > (msg_size(msg) - MIN_H_SIZE)))
 		goto none;
-	*iskb = tipc_buf_acquire(imsz);
-	if (!*iskb)
+
+	*iskb = skb_clone(skb, GFP_ATOMIC);
+	if (unlikely(!*iskb))
 		goto none;
-	skb_copy_to_linear_data(*iskb, imsg, imsz);
+	skb_pull(*iskb, offset);
+	imsz = msg_size(buf_msg(*iskb));
+	skb_trim(*iskb, imsz);
+	if (unlikely(!tipc_msg_validate(*iskb)))
+		goto none;
 	*pos += align(imsz);
 	return true;
 none:
 	kfree_skb(skb);
+	kfree_skb(*iskb);
 	*iskb = NULL;
 	return false;
 }
@@ -369,12 +423,11 @@ none:
  * Replaces buffer if successful
  * Returns true if success, otherwise false
  */
-bool tipc_msg_make_bundle(struct sk_buff_head *list,
-			  struct sk_buff *skb, u32 mtu, u32 dnode)
+bool tipc_msg_make_bundle(struct sk_buff **skb, u32 mtu, u32 dnode)
 {
 	struct sk_buff *bskb;
 	struct tipc_msg *bmsg;
-	struct tipc_msg *msg = buf_msg(skb);
+	struct tipc_msg *msg = buf_msg(*skb);
 	u32 msz = msg_size(msg);
 	u32 max = mtu - INT_H_SIZE;
 
@@ -398,9 +451,9 @@ bool tipc_msg_make_bundle(struct sk_buff_head *list,
 	msg_set_seqno(bmsg, msg_seqno(msg));
 	msg_set_ack(bmsg, msg_ack(msg));
 	msg_set_bcast_ack(bmsg, msg_bcast_ack(msg));
-	TIPC_SKB_CB(bskb)->bundling = true;
-	__skb_queue_tail(list, bskb);
-	return tipc_msg_bundle(list, skb, mtu);
+	tipc_msg_bundle(bskb, *skb, mtu);
+	*skb = bskb;
+	return true;
 }
 
 /**
@@ -415,21 +468,17 @@ bool tipc_msg_reverse(u32 own_addr,  struct sk_buff *buf, u32 *dnode,
 		      int err)
 {
 	struct tipc_msg *msg = buf_msg(buf);
-	uint imp = msg_importance(msg);
 	struct tipc_msg ohdr;
 	uint rdsz = min_t(uint, msg_data_sz(msg), MAX_FORWARD_SIZE);
 
 	if (skb_linearize(buf))
 		goto exit;
+	msg = buf_msg(buf);
 	if (msg_dest_droppable(msg))
 		goto exit;
 	if (msg_errcode(msg))
 		goto exit;
-
 	memcpy(&ohdr, msg, msg_hdr_sz(msg));
-	imp = min_t(uint, imp + 1, TIPC_CRITICAL_IMPORTANCE);
-	if (msg_isdata(msg))
-		msg_set_importance(msg, imp);
 	msg_set_errcode(msg, err);
 	msg_set_origport(msg, msg_destport(&ohdr));
 	msg_set_destport(msg, msg_origport(&ohdr));
