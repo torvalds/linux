@@ -1017,6 +1017,9 @@ int ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	if (en_int)
 		ar9003_mci_enable_interrupt(ah);
 
+	if (ath9k_hw_is_aic_enabled(ah))
+		ar9003_aic_start_normal(ah);
+
 	return 0;
 }
 
