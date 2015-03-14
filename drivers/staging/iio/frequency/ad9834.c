@@ -111,9 +111,9 @@ static ssize_t ad9834_write(struct device *dev,
 		break;
 	case AD9834_FSEL:
 	case AD9834_PSEL:
-		if (val == 0)
+		if (val == 0) {
 			st->control &= ~(this_attr->address | AD9834_PIN_SW);
-		else if (val == 1) {
+		} else if (val == 1) {
 			st->control |= this_attr->address;
 			st->control &= ~AD9834_PIN_SW;
 		} else {
