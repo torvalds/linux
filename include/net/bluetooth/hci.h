@@ -179,15 +179,6 @@ enum {
 	HCI_RESET,
 };
 
-/* BR/EDR and/or LE controller flags: the flags defined here should represent
- * states configured via debugfs for debugging and testing purposes only.
- */
-enum {
-	HCI_DUT_MODE,
-	HCI_FORCE_BREDR_SMP,
-	HCI_FORCE_STATIC_ADDR,
-};
-
 /*
  * BR/EDR and/or LE controller flags: the flags defined here should represent
  * states from the controller.
@@ -217,6 +208,7 @@ enum {
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
 	HCI_ADVERTISING,
+	HCI_ADVERTISING_CONNECTABLE,
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
 	HCI_LIMITED_DISCOVERABLE,
@@ -225,13 +217,13 @@ enum {
 	HCI_FAST_CONNECTABLE,
 	HCI_BREDR_ENABLED,
 	HCI_LE_SCAN_INTERRUPTED,
-};
 
-/* A mask for the flags that are supposed to remain when a reset happens
- * or the HCI device is closed.
- */
-#define HCI_PERSISTENT_MASK (BIT(HCI_LE_SCAN) | BIT(HCI_PERIODIC_INQ) | \
-			      BIT(HCI_FAST_CONNECTABLE) | BIT(HCI_LE_ADV))
+	HCI_DUT_MODE,
+	HCI_FORCE_BREDR_SMP,
+	HCI_FORCE_STATIC_ADDR,
+
+	__HCI_NUM_FLAGS,
+};
 
 /* HCI timeouts */
 #define HCI_DISCONN_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */

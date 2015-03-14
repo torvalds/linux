@@ -25,6 +25,9 @@
 #include "sysfs.h"
 #include "core.h"
 
+/* name for sysfs, %d is appended */
+#define PHY_NAME "phy"
+
 /* RCU-protected (and RTNL for writers) */
 LIST_HEAD(cfg802154_rdev_list);
 int cfg802154_rdev_list_generation;
@@ -122,7 +125,7 @@ wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
 
 	INIT_LIST_HEAD(&rdev->wpan_dev_list);
 	device_initialize(&rdev->wpan_phy.dev);
-	dev_set_name(&rdev->wpan_phy.dev, "wpan-phy%d", rdev->wpan_phy_idx);
+	dev_set_name(&rdev->wpan_phy.dev, PHY_NAME "%d", rdev->wpan_phy_idx);
 
 	rdev->wpan_phy.dev.class = &wpan_phy_class;
 	rdev->wpan_phy.dev.platform_data = rdev;

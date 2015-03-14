@@ -52,6 +52,7 @@ static struct usb_driver btusb_driver;
 #define BTUSB_SWAVE		0x1000
 #define BTUSB_INTEL_NEW		0x2000
 #define BTUSB_AMP		0x4000
+#define BTUSB_QCA_ROME		0x8000
 
 static const struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth USB device */
@@ -213,6 +214,10 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0489, 0xe036), .driver_info = BTUSB_ATH3012 },
 	{ USB_DEVICE(0x0489, 0xe03c), .driver_info = BTUSB_ATH3012 },
 
+	/* QCA ROME chipset */
+	{ USB_DEVICE(0x0cf3, 0xe300), .driver_info = BTUSB_QCA_ROME},
+	{ USB_DEVICE(0x0cf3, 0xe360), .driver_info = BTUSB_QCA_ROME},
+
 	/* Broadcom BCM2035 */
 	{ USB_DEVICE(0x0a5c, 0x2009), .driver_info = BTUSB_BCM92035 },
 	{ USB_DEVICE(0x0a5c, 0x200a), .driver_info = BTUSB_WRONG_SCO_MTU },
@@ -338,6 +343,8 @@ struct btusb_data {
 
 	int (*recv_event)(struct hci_dev *hdev, struct sk_buff *skb);
 	int (*recv_bulk)(struct btusb_data *data, void *buffer, int count);
+
+	int (*setup_on_usb)(struct hci_dev *hdev);
 };
 
 static inline void btusb_free_frags(struct btusb_data *data)
@@ -879,6 +886,15 @@ static int btusb_open(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
+	/* Patching USB firmware files prior to starting any URBs of HCI path
+	 * It is more safe to use USB bulk channel for downloading USB patch
+	 */
+	if (data->setup_on_usb) {
+		err = data->setup_on_usb(hdev);
+		if (err <0)
+			return err;
+	}
+
 	err = usb_autopm_get_interface(data->intf);
 	if (err < 0)
 		return err;
@@ -1254,6 +1270,28 @@ static void btusb_waker(struct work_struct *work)
 	usb_autopm_put_interface(data->intf);
 }
 
+static struct sk_buff *btusb_read_local_version(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
+	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
+			     HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION failed (%ld)",
+		       hdev->name, PTR_ERR(skb));
+		return skb;
+	}
+
+	if (skb->len != sizeof(struct hci_rp_read_local_version)) {
+		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION event length mismatch",
+		       hdev->name);
+		kfree_skb(skb);
+		return ERR_PTR(-EIO);
+	}
+
+	return skb;
+}
+
 static int btusb_setup_bcm92035(struct hci_dev *hdev)
 {
 	struct sk_buff *skb;
@@ -1278,12 +1316,9 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		BT_ERR("Reading local version failed (%ld)", -PTR_ERR(skb));
+	skb = btusb_read_local_version(hdev);
+	if (IS_ERR(skb))
 		return -PTR_ERR(skb);
-	}
 
 	rp = (struct hci_rp_read_local_version *)skb->data;
 
@@ -2414,21 +2449,9 @@ static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 	kfree_skb(skb);
 
 	/* Read Local Version Info */
-	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		ret = PTR_ERR(skb);
-		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION failed (%ld)",
-		       hdev->name, ret);
-		return ret;
-	}
-
-	if (skb->len != sizeof(*ver)) {
-		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION event length mismatch",
-		       hdev->name);
-		kfree_skb(skb);
-		return -EIO;
-	}
+	skb = btusb_read_local_version(hdev);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
 
 	ver = (struct hci_rp_read_local_version *)skb->data;
 	rev = le16_to_cpu(ver->hci_rev);
@@ -2516,20 +2539,9 @@ reset_fw:
 	kfree_skb(skb);
 
 	/* Read Local Version Info */
-	skb = __hci_cmd_sync(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL,
-			     HCI_INIT_TIMEOUT);
+	skb = btusb_read_local_version(hdev);
 	if (IS_ERR(skb)) {
 		ret = PTR_ERR(skb);
-		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION failed (%ld)",
-		       hdev->name, ret);
-		goto done;
-	}
-
-	if (skb->len != sizeof(*ver)) {
-		BT_ERR("%s: HCI_OP_READ_LOCAL_VERSION event length mismatch",
-		       hdev->name);
-		kfree_skb(skb);
-		ret = -EIO;
 		goto done;
 	}
 
@@ -2624,6 +2636,258 @@ static int btusb_set_bdaddr_ath3012(struct hci_dev *hdev,
 		return ret;
 	}
 	kfree_skb(skb);
+
+	return 0;
+}
+
+#define QCA_DFU_PACKET_LEN	4096
+
+#define QCA_GET_TARGET_VERSION	0x09
+#define QCA_CHECK_STATUS	0x05
+#define QCA_DFU_DOWNLOAD	0x01
+
+#define QCA_SYSCFG_UPDATED	0x40
+#define QCA_PATCH_UPDATED	0x80
+#define QCA_DFU_TIMEOUT		3000
+
+struct qca_version {
+	__le32	rom_version;
+	__le32	patch_version;
+	__le32	ram_version;
+	__le32	ref_clock;
+	__u8	reserved[4];
+} __packed;
+
+struct qca_rampatch_version {
+	__le16	rom_version;
+	__le16	patch_version;
+} __packed;
+
+struct qca_device_info {
+	u32	rom_version;
+	u8	rampatch_hdr;	/* length of header in rampatch */
+	u8	nvm_hdr;	/* length of header in NVM */
+	u8	ver_offset;	/* offset of version structure in rampatch */
+};
+
+static const struct qca_device_info qca_devices_table[] = {
+	{ 0x00000100, 20, 4, 10 }, /* Rome 1.0 */
+	{ 0x00000101, 20, 4, 10 }, /* Rome 1.1 */
+	{ 0x00000201, 28, 4, 18 }, /* Rome 2.1 */
+	{ 0x00000300, 28, 4, 18 }, /* Rome 3.0 */
+	{ 0x00000302, 28, 4, 18 }, /* Rome 3.2 */
+};
+
+static int btusb_qca_send_vendor_req(struct hci_dev *hdev, u8 request,
+				     void *data, u16 size)
+{
+	struct btusb_data *btdata = hci_get_drvdata(hdev);
+	struct usb_device *udev = btdata->udev;
+	int pipe, err;
+	u8 *buf;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* Found some of USB hosts have IOT issues with ours so that we should
+	 * not wait until HCI layer is ready.
+	 */
+	pipe = usb_rcvctrlpipe(udev, 0);
+	err = usb_control_msg(udev, pipe, request, USB_TYPE_VENDOR | USB_DIR_IN,
+			      0, 0, buf, size, USB_CTRL_SET_TIMEOUT);
+	if (err < 0) {
+		BT_ERR("%s: Failed to access otp area (%d)", hdev->name, err);
+		goto done;
+	}
+
+	memcpy(data, buf, size);
+
+done:
+	kfree(buf);
+
+	return err;
+}
+
+static int btusb_setup_qca_download_fw(struct hci_dev *hdev,
+				       const struct firmware *firmware,
+				       size_t hdr_size)
+{
+	struct btusb_data *btdata = hci_get_drvdata(hdev);
+	struct usb_device *udev = btdata->udev;
+	size_t count, size, sent = 0;
+	int pipe, len, err;
+	u8 *buf;
+
+	buf = kmalloc(QCA_DFU_PACKET_LEN, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	count = firmware->size;
+
+	size = min_t(size_t, count, hdr_size);
+	memcpy(buf, firmware->data, size);
+
+	/* USB patches should go down to controller through USB path
+	 * because binary format fits to go down through USB channel.
+	 * USB control path is for patching headers and USB bulk is for
+	 * patch body.
+	 */
+	pipe = usb_sndctrlpipe(udev, 0);
+	err = usb_control_msg(udev, pipe, QCA_DFU_DOWNLOAD, USB_TYPE_VENDOR,
+			      0, 0, buf, size, USB_CTRL_SET_TIMEOUT);
+	if (err < 0) {
+		BT_ERR("%s: Failed to send headers (%d)", hdev->name, err);
+		goto done;
+	}
+
+	sent += size;
+	count -= size;
+
+	while (count) {
+		size = min_t(size_t, count, QCA_DFU_PACKET_LEN);
+
+		memcpy(buf, firmware->data + sent, size);
+
+		pipe = usb_sndbulkpipe(udev, 0x02);
+		err = usb_bulk_msg(udev, pipe, buf, size, &len,
+				   QCA_DFU_TIMEOUT);
+		if (err < 0) {
+			BT_ERR("%s: Failed to send body at %zd of %zd (%d)",
+			       hdev->name, sent, firmware->size, err);
+			break;
+		}
+
+		if (size != len) {
+			BT_ERR("%s: Failed to get bulk buffer", hdev->name);
+			err = -EILSEQ;
+			break;
+		}
+
+		sent  += size;
+		count -= size;
+	}
+
+done:
+	kfree(buf);
+	return err;
+}
+
+static int btusb_setup_qca_load_rampatch(struct hci_dev *hdev,
+					 struct qca_version *ver,
+					 const struct qca_device_info *info)
+{
+	struct qca_rampatch_version *rver;
+	const struct firmware *fw;
+	u32 ver_rom, ver_patch;
+	u16 rver_rom, rver_patch;
+	char fwname[64];
+	int err;
+
+	ver_rom = le32_to_cpu(ver->rom_version);
+	ver_patch = le32_to_cpu(ver->patch_version);
+
+	snprintf(fwname, sizeof(fwname), "qca/rampatch_usb_%08x.bin", ver_rom);
+
+	err = request_firmware(&fw, fwname, &hdev->dev);
+	if (err) {
+		BT_ERR("%s: failed to request rampatch file: %s (%d)",
+		       hdev->name, fwname, err);
+		return err;
+	}
+
+	BT_INFO("%s: using rampatch file: %s", hdev->name, fwname);
+
+	rver = (struct qca_rampatch_version *)(fw->data + info->ver_offset);
+	rver_rom = le16_to_cpu(rver->rom_version);
+	rver_patch = le16_to_cpu(rver->patch_version);
+
+	BT_INFO("%s: QCA: patch rome 0x%x build 0x%x, firmware rome 0x%x "
+		"build 0x%x", hdev->name, rver_rom, rver_patch, ver_rom,
+		ver_patch);
+
+	if (rver_rom != ver_rom || rver_patch <= ver_patch) {
+		BT_ERR("%s: rampatch file version did not match with firmware",
+		       hdev->name);
+		err = -EINVAL;
+		goto done;
+	}
+
+	err = btusb_setup_qca_download_fw(hdev, fw, info->rampatch_hdr);
+
+done:
+	release_firmware(fw);
+
+	return err;
+}
+
+static int btusb_setup_qca_load_nvm(struct hci_dev *hdev,
+				    struct qca_version *ver,
+				    const struct qca_device_info *info)
+{
+	const struct firmware *fw;
+	char fwname[64];
+	int err;
+
+	snprintf(fwname, sizeof(fwname), "qca/nvm_usb_%08x.bin",
+		 le32_to_cpu(ver->rom_version));
+
+	err = request_firmware(&fw, fwname, &hdev->dev);
+	if (err) {
+		BT_ERR("%s: failed to request NVM file: %s (%d)",
+		       hdev->name, fwname, err);
+		return err;
+	}
+
+	BT_INFO("%s: using NVM file: %s", hdev->name, fwname);
+
+	err = btusb_setup_qca_download_fw(hdev, fw, info->nvm_hdr);
+
+	release_firmware(fw);
+
+	return err;
+}
+
+static int btusb_setup_qca(struct hci_dev *hdev)
+{
+	const struct qca_device_info *info = NULL;
+	struct qca_version ver;
+	u32 ver_rom;
+	u8 status;
+	int i, err;
+
+	err = btusb_qca_send_vendor_req(hdev, QCA_GET_TARGET_VERSION, &ver,
+				        sizeof(ver));
+	if (err < 0)
+		return err;
+
+	ver_rom = le32_to_cpu(ver.rom_version);
+	for (i = 0; i < ARRAY_SIZE(qca_devices_table); i++) {
+		if (ver_rom == qca_devices_table[i].rom_version)
+			info = &qca_devices_table[i];
+	}
+	if (!info) {
+		BT_ERR("%s: don't support firmware rome 0x%x", hdev->name,
+		       ver_rom);
+		return -ENODEV;
+	}
+
+	err = btusb_qca_send_vendor_req(hdev, QCA_CHECK_STATUS, &status,
+					sizeof(status));
+	if (err < 0)
+		return err;
+
+	if (!(status & QCA_PATCH_UPDATED)) {
+		err = btusb_setup_qca_load_rampatch(hdev, &ver, info);
+		if (err < 0)
+			return err;
+	}
+
+	if (!(status & QCA_SYSCFG_UPDATED)) {
+		err = btusb_setup_qca_load_nvm(hdev, &ver, info);
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }
@@ -2779,6 +3043,11 @@ static int btusb_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_ATH3012) {
 		hdev->set_bdaddr = btusb_set_bdaddr_ath3012;
 		set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+	}
+
+	if (id->driver_info & BTUSB_QCA_ROME) {
+		data->setup_on_usb = btusb_setup_qca;
+		hdev->set_bdaddr = btusb_set_bdaddr_ath3012;
 	}
 
 	if (id->driver_info & BTUSB_AMP) {

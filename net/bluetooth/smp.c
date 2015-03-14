@@ -52,7 +52,7 @@
 
 #define SMP_TIMEOUT	msecs_to_jiffies(30000)
 
-#define AUTH_REQ_MASK(dev)	(test_bit(HCI_SC_ENABLED, &(dev)->dev_flags) ? \
+#define AUTH_REQ_MASK(dev)	(hci_dev_test_flag(dev, HCI_SC_ENABLED) ? \
 				 0x1f : 0x07)
 #define KEY_DIST_MASK		0x07
 
@@ -589,7 +589,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 	struct hci_dev *hdev = hcon->hdev;
 	u8 local_dist = 0, remote_dist = 0, oob_flag = SMP_OOB_NOT_PRESENT;
 
-	if (test_bit(HCI_BONDABLE, &conn->hcon->hdev->dev_flags)) {
+	if (hci_dev_test_flag(hdev, HCI_BONDABLE)) {
 		local_dist = SMP_DIST_ENC_KEY | SMP_DIST_SIGN;
 		remote_dist = SMP_DIST_ENC_KEY | SMP_DIST_SIGN;
 		authreq |= SMP_AUTH_BONDING;
@@ -597,18 +597,18 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 		authreq &= ~SMP_AUTH_BONDING;
 	}
 
-	if (test_bit(HCI_RPA_RESOLVING, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_RPA_RESOLVING))
 		remote_dist |= SMP_DIST_ID_KEY;
 
-	if (test_bit(HCI_PRIVACY, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_PRIVACY))
 		local_dist |= SMP_DIST_ID_KEY;
 
-	if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags) &&
+	if (hci_dev_test_flag(hdev, HCI_SC_ENABLED) &&
 	    (authreq & SMP_AUTH_SC)) {
 		struct oob_data *oob_data;
 		u8 bdaddr_type;
 
-		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+		if (hci_dev_test_flag(hdev, HCI_SSP_ENABLED)) {
 			local_dist |= SMP_DIST_LINK_KEY;
 			remote_dist |= SMP_DIST_LINK_KEY;
 		}
@@ -692,7 +692,7 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 	 * support hasn't been explicitly enabled.
 	 */
 	if (smp->ltk && smp->ltk->type == SMP_LTK_P256_DEBUG &&
-	    !test_bit(HCI_KEEP_DEBUG_KEYS, &hcon->hdev->dev_flags)) {
+	    !hci_dev_test_flag(hcon->hdev, HCI_KEEP_DEBUG_KEYS)) {
 		list_del_rcu(&smp->ltk->list);
 		kfree_rcu(smp->ltk, rcu);
 		smp->ltk = NULL;
@@ -1052,7 +1052,7 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 			/* Don't keep debug keys around if the relevant
 			 * flag is not set.
 			 */
-			if (!test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags) &&
+			if (!hci_dev_test_flag(hdev, HCI_KEEP_DEBUG_KEYS) &&
 			    key->type == HCI_LK_DEBUG_COMBINATION) {
 				list_del_rcu(&key->list);
 				kfree_rcu(key, rcu);
@@ -1604,15 +1604,15 @@ static void build_bredr_pairing_cmd(struct smp_chan *smp,
 	struct hci_dev *hdev = conn->hcon->hdev;
 	u8 local_dist = 0, remote_dist = 0;
 
-	if (test_bit(HCI_BONDABLE, &hdev->dev_flags)) {
+	if (hci_dev_test_flag(hdev, HCI_BONDABLE)) {
 		local_dist = SMP_DIST_ENC_KEY | SMP_DIST_SIGN;
 		remote_dist = SMP_DIST_ENC_KEY | SMP_DIST_SIGN;
 	}
 
-	if (test_bit(HCI_RPA_RESOLVING, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_RPA_RESOLVING))
 		remote_dist |= SMP_DIST_ID_KEY;
 
-	if (test_bit(HCI_PRIVACY, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_PRIVACY))
 		local_dist |= SMP_DIST_ID_KEY;
 
 	if (!rsp) {
@@ -1664,11 +1664,11 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	/* We didn't start the pairing, so match remote */
 	auth = req->auth_req & AUTH_REQ_MASK(hdev);
 
-	if (!test_bit(HCI_BONDABLE, &hdev->dev_flags) &&
+	if (!hci_dev_test_flag(hdev, HCI_BONDABLE) &&
 	    (auth & SMP_AUTH_BONDING))
 		return SMP_PAIRING_NOTSUPP;
 
-	if (test_bit(HCI_SC_ONLY, &hdev->dev_flags) && !(auth & SMP_AUTH_SC))
+	if (hci_dev_test_flag(hdev, HCI_SC_ONLY) && !(auth & SMP_AUTH_SC))
 		return SMP_AUTH_REQUIREMENTS;
 
 	smp->preq[0] = SMP_CMD_PAIRING_REQ;
@@ -1679,7 +1679,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (conn->hcon->type == ACL_LINK) {
 		/* We must have a BR/EDR SC link */
 		if (!test_bit(HCI_CONN_AES_CCM, &conn->hcon->flags) &&
-		    !test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
+		    !hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 			return SMP_CROSS_TRANSP_NOT_ALLOWED;
 
 		set_bit(SMP_FLAG_SC, &smp->flags);
@@ -1743,9 +1743,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		smp->remote_key_dist &= ~SMP_SC_NO_DIST;
 		/* Wait for Public Key from Initiating Device */
 		return 0;
-	} else {
-		SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
 	}
+
+	SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
 
 	/* Request setup of TK */
 	ret = tk_request(conn, 0, auth, rsp.io_capability, req->io_capability);
@@ -1761,7 +1761,7 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 
 	BT_DBG("");
 
-	if (test_bit(HCI_USE_DEBUG_KEYS, &hdev->dev_flags)) {
+	if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS)) {
 		BT_DBG("Using debug keys");
 		memcpy(smp->local_pk, debug_pk, 64);
 		memcpy(smp->local_sk, debug_sk, 32);
@@ -1816,7 +1816,7 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	auth = rsp->auth_req & AUTH_REQ_MASK(hdev);
 
-	if (test_bit(HCI_SC_ONLY, &hdev->dev_flags) && !(auth & SMP_AUTH_SC))
+	if (hci_dev_test_flag(hdev, HCI_SC_ONLY) && !(auth & SMP_AUTH_SC))
 		return SMP_AUTH_REQUIREMENTS;
 
 	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
@@ -1926,8 +1926,8 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (test_bit(SMP_FLAG_TK_VALID, &smp->flags))
 		return smp_confirm(smp);
-	else
-		set_bit(SMP_FLAG_CFM_PENDING, &smp->flags);
+
+	set_bit(SMP_FLAG_CFM_PENDING, &smp->flags);
 
 	return 0;
 }
@@ -2086,7 +2086,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	auth = rp->auth_req & AUTH_REQ_MASK(hdev);
 
-	if (test_bit(HCI_SC_ONLY, &hdev->dev_flags) && !(auth & SMP_AUTH_SC))
+	if (hci_dev_test_flag(hdev, HCI_SC_ONLY) && !(auth & SMP_AUTH_SC))
 		return SMP_AUTH_REQUIREMENTS;
 
 	if (hcon->io_capability == HCI_IO_NO_INPUT_OUTPUT)
@@ -2107,7 +2107,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (!smp)
 		return SMP_UNSPECIFIED;
 
-	if (!test_bit(HCI_BONDABLE, &hcon->hdev->dev_flags) &&
+	if (!hci_dev_test_flag(hdev, HCI_BONDABLE) &&
 	    (auth & SMP_AUTH_BONDING))
 		return SMP_PAIRING_NOTSUPP;
 
@@ -2141,7 +2141,7 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 
 	chan = conn->smp;
 
-	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags))
+	if (!hci_dev_test_flag(hcon->hdev, HCI_LE_ENABLED))
 		return 1;
 
 	if (smp_sufficient_security(hcon, sec_level, SMP_USE_LTK))
@@ -2170,7 +2170,7 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 
 	authreq = seclevel_to_authreq(sec_level);
 
-	if (test_bit(HCI_SC_ENABLED, &hcon->hdev->dev_flags))
+	if (hci_dev_test_flag(hcon->hdev, HCI_SC_ENABLED))
 		authreq |= SMP_AUTH_SC;
 
 	/* Require MITM if IO Capability allows or the security level
@@ -2606,7 +2606,7 @@ static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 	if (skb->len < 1)
 		return -EILSEQ;
 
-	if (!test_bit(HCI_LE_ENABLED, &hcon->hdev->dev_flags)) {
+	if (!hci_dev_test_flag(hcon->hdev, HCI_LE_ENABLED)) {
 		reason = SMP_PAIRING_NOTSUPP;
 		goto done;
 	}
@@ -2744,16 +2744,16 @@ static void bredr_pairing(struct l2cap_chan *chan)
 		return;
 
 	/* Secure Connections support must be enabled */
-	if (!test_bit(HCI_SC_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_SC_ENABLED))
 		return;
 
 	/* BR/EDR must use Secure Connections for SMP */
 	if (!test_bit(HCI_CONN_AES_CCM, &hcon->flags) &&
-	    !test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
+	    !hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 		return;
 
 	/* If our LE support is not enabled don't do anything */
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
 	/* Don't bother if remote LE support is not enabled */
@@ -3003,7 +3003,7 @@ static ssize_t force_bredr_smp_read(struct file *file,
 	struct hci_dev *hdev = file->private_data;
 	char buf[3];
 
-	buf[0] = test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags) ? 'Y': 'N';
+	buf[0] = hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP) ? 'Y': 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
@@ -3025,7 +3025,7 @@ static ssize_t force_bredr_smp_write(struct file *file,
 	if (strtobool(buf, &enable))
 		return -EINVAL;
 
-	if (enable == test_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags))
+	if (enable == hci_dev_test_flag(hdev, HCI_FORCE_BREDR_SMP))
 		return -EALREADY;
 
 	if (enable) {
@@ -3044,7 +3044,7 @@ static ssize_t force_bredr_smp_write(struct file *file,
 		smp_del_chan(chan);
 	}
 
-	change_bit(HCI_FORCE_BREDR_SMP, &hdev->dbg_flags);
+	hci_dev_change_flag(hdev, HCI_FORCE_BREDR_SMP);
 
 	return count;
 }

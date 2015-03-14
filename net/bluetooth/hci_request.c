@@ -270,7 +270,7 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	 * and 0x01 (whitelist enabled) use the new filter policies
 	 * 0x02 (no whitelist) and 0x03 (whitelist enabled).
 	 */
-	if (test_bit(HCI_PRIVACY, &hdev->dev_flags) &&
+	if (hci_dev_test_flag(hdev, HCI_PRIVACY) &&
 	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
 		filter_policy |= 0x02;
 
@@ -304,10 +304,10 @@ static void set_random_addr(struct hci_request *req, bdaddr_t *rpa)
 	 * In this kind of scenario skip the update and let the random
 	 * address be updated at the next cycle.
 	 */
-	if (test_bit(HCI_LE_ADV, &hdev->dev_flags) ||
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV) ||
 	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
 		BT_DBG("Deferring random address update");
-		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
+		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
 		return;
 	}
 
@@ -324,12 +324,12 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	 * current RPA has expired or there is something else than
 	 * the current RPA in use, then generate a new one.
 	 */
-	if (test_bit(HCI_PRIVACY, &hdev->dev_flags)) {
+	if (hci_dev_test_flag(hdev, HCI_PRIVACY)) {
 		int to;
 
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
 
-		if (!test_and_clear_bit(HCI_RPA_EXPIRED, &hdev->dev_flags) &&
+		if (!hci_dev_test_and_clear_flag(hdev, HCI_RPA_EXPIRED) &&
 		    !bacmp(&hdev->random_addr, &hdev->rpa))
 			return 0;
 
@@ -383,9 +383,9 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	 * and a static address has been configured, then use that
 	 * address instead of the public BR/EDR address.
 	 */
-	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
+	if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
 	    !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
-	    (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags) &&
+	    (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
 	     bacmp(&hdev->static_addr, BDADDR_ANY))) {
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
 		if (bacmp(&hdev->static_addr, &hdev->random_addr))
@@ -425,7 +425,7 @@ void __hci_update_page_scan(struct hci_request *req)
 	struct hci_dev *hdev = req->hdev;
 	u8 scan;
 
-	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 		return;
 
 	if (!hdev_is_powered(hdev))
@@ -434,7 +434,7 @@ void __hci_update_page_scan(struct hci_request *req)
 	if (mgmt_powering_down(hdev))
 		return;
 
-	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
+	if (hci_dev_test_flag(hdev, HCI_CONNECTABLE) ||
 	    disconnected_whitelist_entries(hdev))
 		scan = SCAN_PAGE;
 	else
@@ -443,7 +443,7 @@ void __hci_update_page_scan(struct hci_request *req)
 	if (test_bit(HCI_PSCAN, &hdev->flags) == !!(scan & SCAN_PAGE))
 		return;
 
-	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+	if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
 		scan |= SCAN_INQUIRY;
 
 	hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
@@ -471,14 +471,14 @@ void __hci_update_background_scan(struct hci_request *req)
 
 	if (!test_bit(HCI_UP, &hdev->flags) ||
 	    test_bit(HCI_INIT, &hdev->flags) ||
-	    test_bit(HCI_SETUP, &hdev->dev_flags) ||
-	    test_bit(HCI_CONFIG, &hdev->dev_flags) ||
-	    test_bit(HCI_AUTO_OFF, &hdev->dev_flags) ||
-	    test_bit(HCI_UNREGISTER, &hdev->dev_flags))
+	    hci_dev_test_flag(hdev, HCI_SETUP) ||
+	    hci_dev_test_flag(hdev, HCI_CONFIG) ||
+	    hci_dev_test_flag(hdev, HCI_AUTO_OFF) ||
+	    hci_dev_test_flag(hdev, HCI_UNREGISTER))
 		return;
 
 	/* No point in doing scanning if LE support hasn't been enabled */
-	if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
 	/* If discovery is active don't interfere with it */
@@ -502,7 +502,7 @@ void __hci_update_background_scan(struct hci_request *req)
 		 */
 
 		/* If controller is not scanning we are done. */
-		if (!test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
 			return;
 
 		hci_req_add_le_scan_disable(req);
@@ -524,7 +524,7 @@ void __hci_update_background_scan(struct hci_request *req)
 		/* If controller is currently scanning, we stop it to ensure we
 		 * don't miss any advertising (due to duplicates filter).
 		 */
-		if (test_bit(HCI_LE_SCAN, &hdev->dev_flags))
+		if (hci_dev_test_flag(hdev, HCI_LE_SCAN))
 			hci_req_add_le_scan_disable(req);
 
 		hci_req_add_le_passive_scan(req);
