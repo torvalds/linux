@@ -680,7 +680,7 @@ static void __init of_selftest_parse_interrupts_extended(void)
 	of_node_put(np);
 }
 
-static struct of_device_id match_node_table[] = {
+static const struct of_device_id match_node_table[] = {
 	{ .data = "A", .name = "name0", }, /* Name alone is lowest priority */
 	{ .data = "B", .type = "type1", }, /* followed by type alone */
 
@@ -754,7 +754,7 @@ static void __init of_selftest_platform_populate(void)
 	int irq, rc;
 	struct device_node *np, *child, *grandchild;
 	struct platform_device *pdev;
-	struct of_device_id match[] = {
+	const struct of_device_id match[] = {
 		{ .compatible = "test-device", },
 		{}
 	};
@@ -953,7 +953,7 @@ static int selftest_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id selftest_match[] = {
+static const struct of_device_id selftest_match[] = {
 	{ .compatible = "selftest", },
 	{},
 };
@@ -1545,7 +1545,7 @@ static int selftest_i2c_bus_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id selftest_i2c_bus_match[] = {
+static const struct of_device_id selftest_i2c_bus_match[] = {
 	{ .compatible = "selftest-i2c-bus", },
 	{},
 };
