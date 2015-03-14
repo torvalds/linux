@@ -220,7 +220,7 @@ static int ad9832_probe(struct spi_device *spi)
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (indio_dev == NULL) {
+	if (!indio_dev) {
 		ret = -ENOMEM;
 		goto error_disable_reg;
 	}
