@@ -162,7 +162,7 @@ static void ar9003_aic_gain_table(struct ath_hw *ah)
 	}
 }
 
-static void ar9003_aic_cal_start(struct ath_hw *ah, u8 min_valid_count)
+static u8 ar9003_aic_cal_start(struct ath_hw *ah, u8 min_valid_count)
 {
 	struct ath9k_hw_aic *aic = &ah->btcoex_hw.aic;
 	int i;
@@ -257,6 +257,8 @@ static void ar9003_aic_cal_start(struct ath_hw *ah, u8 min_valid_count)
 
 	aic->aic_caled_chan = 0;
 	aic->aic_cal_state = AIC_CAL_STATE_STARTED;
+
+	return aic->aic_cal_state;
 }
 
 static bool ar9003_aic_cal_post_process(struct ath_hw *ah)
@@ -513,6 +515,28 @@ exit:
 
 }
 
+u8 ar9003_aic_calibration(struct ath_hw *ah)
+{
+	struct ath9k_hw_aic *aic = &ah->btcoex_hw.aic;
+	u8 cal_ret = AIC_CAL_STATE_ERROR;
+
+	switch (aic->aic_cal_state) {
+	case AIC_CAL_STATE_IDLE:
+		cal_ret = ar9003_aic_cal_start(ah, 1);
+		break;
+	case AIC_CAL_STATE_STARTED:
+		cal_ret = ar9003_aic_cal_continue(ah, false);
+		break;
+	case AIC_CAL_STATE_DONE:
+		cal_ret = AIC_CAL_STATE_DONE;
+		break;
+	default:
+		break;
+	}
+
+	return cal_ret;
+}
+
 u8 ar9003_aic_start_normal(struct ath_hw *ah)
 {
 	struct ath9k_hw_aic *aic = &ah->btcoex_hw.aic;
@@ -561,7 +585,7 @@ u8 ar9003_aic_calibration_single(struct ath_hw *ah)
 
 	num_chan = MS(mci_hw->config, ATH_MCI_CONFIG_AIC_CAL_NUM_CHAN);
 
-	ar9003_aic_cal_start(ah, num_chan);
+	(void) ar9003_aic_cal_start(ah, num_chan);
 	cal_ret = ar9003_aic_cal_continue(ah, true);
 
 	return cal_ret;
