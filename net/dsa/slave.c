@@ -675,7 +675,8 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 		 * want to bind this device using the slave MII bus created by
 		 * DSA to make that happen.
 		 */
-		if (ret >= 0 && (ds->phys_mii_mask & (1 << ret))) {
+		if (!phy_is_fixed && ret >= 0 &&
+		    (ds->phys_mii_mask & (1 << ret))) {
 			ret = dsa_slave_phy_connect(p, slave_dev, ret);
 			if (ret)
 				return ret;
