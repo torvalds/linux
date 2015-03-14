@@ -165,6 +165,7 @@ enum bpf_func_id {
 	BPF_FUNC_map_lookup_elem, /* void *map_lookup_elem(&map, &key) */
 	BPF_FUNC_map_update_elem, /* int map_update_elem(&map, &key, &value, flags) */
 	BPF_FUNC_map_delete_elem, /* int map_delete_elem(&map, &key) */
+	BPF_FUNC_get_prandom_u32, /* u32 prandom_u32(void) */
 	__BPF_FUNC_MAX_ID,
 };
 
