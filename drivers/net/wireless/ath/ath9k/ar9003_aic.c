@@ -40,6 +40,12 @@ static bool ar9003_hw_is_aic_enabled(struct ath_hw *ah)
 {
 	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
 
+	/*
+	 * Disable AIC for now, until we have all the
+	 * HW code and the driver-layer support ready.
+	 */
+	return false;
+
 	if (mci_hw->config & ATH_MCI_CONFIG_DISABLE_AIC)
 		return false;
 

@@ -1364,7 +1364,8 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 		mci->need_flush_btinfo = false;
 		break;
 	case MCI_STATE_AIC_CAL_SINGLE:
-		value = ar9003_aic_calibration_single(ah);
+		if (ath9k_hw_is_aic_enabled(ah))
+			value = ar9003_aic_calibration_single(ah);
 		break;
 	default:
 		break;
