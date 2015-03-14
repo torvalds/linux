@@ -12,6 +12,7 @@
 #include <linux/bpf.h>
 #include <linux/rcupdate.h>
 #include <linux/random.h>
+#include <linux/smp.h>
 
 /* If kernel subsystem is allowing eBPF programs to call this function,
  * inside its own verifier_ops->get_func_proto() callback it should return
@@ -96,6 +97,17 @@ static u64 bpf_get_prandom_u32(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 
 const struct bpf_func_proto bpf_get_prandom_u32_proto = {
 	.func		= bpf_get_prandom_u32,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+
+static u64 bpf_get_smp_processor_id(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+{
+	return raw_smp_processor_id();
+}
+
+const struct bpf_func_proto bpf_get_smp_processor_id_proto = {
+	.func		= bpf_get_smp_processor_id,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 };
