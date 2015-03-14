@@ -56,6 +56,7 @@ struct rhash_head {
  * @locks: Array of spinlocks protecting individual buckets
  * @walkers: List of active walkers
  * @rcu: RCU structure for freeing the table
+ * @future_tbl: Table under construction during rehashing
  * @buckets: size * hash buckets
  */
 struct bucket_table {
@@ -67,6 +68,8 @@ struct bucket_table {
 	spinlock_t		*locks;
 	struct list_head	walkers;
 	struct rcu_head		rcu;
+
+	struct bucket_table __rcu *future_tbl;
 
 	struct rhash_head __rcu	*buckets[] ____cacheline_aligned_in_smp;
 };
@@ -105,7 +108,6 @@ struct rhashtable_params {
 /**
  * struct rhashtable - Hash table handle
  * @tbl: Bucket table
- * @future_tbl: Table under construction during expansion/shrinking
  * @nelems: Number of elements in table
  * @p: Configuration parameters
  * @run_work: Deferred worker to expand/shrink asynchronously
@@ -114,7 +116,6 @@ struct rhashtable_params {
  */
 struct rhashtable {
 	struct bucket_table __rcu	*tbl;
-	struct bucket_table __rcu       *future_tbl;
 	atomic_t			nelems;
 	bool                            being_destroyed;
 	struct rhashtable_params	p;
