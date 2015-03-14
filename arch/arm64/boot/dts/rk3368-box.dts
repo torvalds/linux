@@ -587,6 +587,10 @@
 	rockchip,uboot-logo-on = <0>;
 };
 
+&disp_timings {
+	native-mode = <&timing1>;
+};
+
 &rk_screen {
 	display-timings = <&disp_timings>;
 };
