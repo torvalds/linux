@@ -304,7 +304,7 @@ long swI2CWriteByte(unsigned char data)
     if (i<0xff)
         return 0;
     else
-        return (-1);
+        return -1;
 }
 
 /*
@@ -408,10 +408,10 @@ long swI2CInit(
 
     /* Return 0 if the GPIO pins to be used is out of range. The range is only from [0..63] */
     if ((i2cClkGPIO > 31) || (i2cDataGPIO > 31))
-        return (-1);
+        return -1;
 
     if (getChipType() == SM750LE)
-        return( swI2CInit_SM750LE(i2cClkGPIO, i2cDataGPIO) );
+        return swI2CInit_SM750LE(i2cClkGPIO, i2cDataGPIO);
 
     /* Initialize the GPIO pin for the i2c Clock Register */
     g_i2cClkGPIOMuxReg = GPIO_MUX;

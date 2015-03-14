@@ -633,7 +633,7 @@ unsigned int formatPllReg(pll_value_t *pPLL)
       | FIELD_VALUE(0, PANEL_PLL_CTRL, N,      pPLL->N)
       | FIELD_VALUE(0, PANEL_PLL_CTRL, M,      pPLL->M);
 
-    return(ulPllReg);
+    return ulPllReg;
 }
 
 
