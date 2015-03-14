@@ -30,6 +30,7 @@
 #include "../cam.h"
 #include "../ps.h"
 #include "../pci.h"
+#include "../pwrseqcmd.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
