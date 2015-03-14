@@ -878,6 +878,10 @@ static int __init selftest_data_add(void)
 {
 	void *selftest_data;
 	struct device_node *selftest_data_node, *np;
+	/*
+	 * __dtb_testcases_begin[] and __dtb_testcases_end[] are magically
+	 * created by cmd_dt_S_dtb in scripts/Makefile.lib
+	 */
 	extern uint8_t __dtb_testcases_begin[];
 	extern uint8_t __dtb_testcases_end[];
 	const int size = __dtb_testcases_end - __dtb_testcases_begin;
