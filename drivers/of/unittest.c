@@ -782,12 +782,14 @@ static void __init of_selftest_platform_populate(void)
 	irq = platform_get_irq(pdev, 0);
 	selftest(irq < 0 && irq != -EPROBE_DEFER, "device parsing error failed - %d\n", irq);
 
-	if (selftest(np = of_find_node_by_path("/testcase-data/platform-tests"),
-		     "No testcase data in device tree\n"));
+	np = of_find_node_by_path("/testcase-data/platform-tests");
+	selftest(np, "No testcase data in device tree\n");
+	if (!np)
 		return;
 
-	if (selftest(!(rc = device_register(&test_bus)),
-		     "testbus registration failed; rc=%i\n", rc));
+	rc = device_register(&test_bus);
+	selftest(!rc, "testbus registration failed; rc=%i\n", rc);
+	if (rc)
 		return;
 
 	for_each_child_of_node(np, child) {
