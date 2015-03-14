@@ -126,6 +126,9 @@ struct phy_control *am335x_get_phy_control(struct device *dev)
 		return NULL;
 
 	dev = bus_find_device(&platform_bus_type, NULL, node, match);
+	if (!dev)
+		return NULL;
+
 	ctrl_usb = dev_get_drvdata(dev);
 	if (!ctrl_usb)
 		return NULL;
