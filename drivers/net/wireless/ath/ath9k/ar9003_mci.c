@@ -19,6 +19,7 @@
 #include "hw-ops.h"
 #include "ar9003_phy.h"
 #include "ar9003_mci.h"
+#include "ar9003_aic.h"
 
 static void ar9003_mci_reset_req_wakeup(struct ath_hw *ah)
 {
@@ -1361,6 +1362,9 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 	case MCI_STATE_NEED_FLUSH_BT_INFO:
 		value = (!mci->unhalt_bt_gpm && mci->need_flush_btinfo) ? 1 : 0;
 		mci->need_flush_btinfo = false;
+		break;
+	case MCI_STATE_AIC_CAL_SINGLE:
+		value = ar9003_aic_calibration_single(ah);
 		break;
 	default:
 		break;

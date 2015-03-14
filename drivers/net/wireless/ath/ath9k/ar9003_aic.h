@@ -31,6 +31,13 @@
 #define ATH_AIC_BT_JUPITER_CTRL         0x66820
 #define ATH_AIC_BT_AIC_ENABLE           0x02
 
+enum aic_cal_state {
+	AIC_CAL_STATE_IDLE = 0,
+	AIC_CAL_STATE_STARTED,
+	AIC_CAL_STATE_DONE,
+	AIC_CAL_STATE_ERROR
+};
+
 struct ath_aic_sram_info {
 	bool valid:1;
 	bool vga_quad_sign:1;
@@ -45,5 +52,7 @@ struct ath_aic_out_info {
 	int16_t quad_path_gain_lin;
 	struct ath_aic_sram_info sram;
 };
+
+u8 ar9003_aic_calibration_single(struct ath_hw *ah);
 
 #endif /* AR9003_AIC_H */

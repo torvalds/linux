@@ -107,6 +107,7 @@ struct ath9k_hw_aic {
 struct ath_btcoex_hw {
 	enum ath_btcoex_scheme scheme;
 	struct ath9k_hw_mci mci;
+	struct ath9k_hw_aic aic;
 	bool enabled;
 	u8 wlanactive_gpio;
 	u8 btactive_gpio;
