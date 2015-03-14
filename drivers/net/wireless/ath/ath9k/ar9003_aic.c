@@ -18,6 +18,7 @@
 #include "hw-ops.h"
 #include "ar9003_mci.h"
 #include "ar9003_aic.h"
+#include "reg_aic.h"
 
 static bool ar9003_hw_is_aic_enabled(struct ath_hw *ah)
 {
