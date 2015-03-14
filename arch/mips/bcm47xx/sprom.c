@@ -836,6 +836,38 @@ static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 #endif
 
 #if defined(CONFIG_BCM47XX_BCMA)
+/*
+ * Having many NVRAM entries for PCI devices led to repeating prefixes like
+ * pci/1/1/ all the time and wasting flash space. So at some point Broadcom
+ * decided to introduce prefixes like 0: 1: 2: etc.
+ * If we find e.g. devpath0=pci/2/1 or devpath0=pci/2/1/ we should use 0:
+ * instead of pci/2/1/.
+ */
+static void bcm47xx_sprom_apply_prefix_alias(char *prefix, size_t prefix_size)
+{
+	size_t prefix_len = strlen(prefix);
+	size_t short_len = prefix_len - 1;
+	char nvram_var[10];
+	char buf[20];
+	int i;
+
+	/* Passed prefix has to end with a slash */
+	if (prefix_len <= 0 || prefix[prefix_len - 1] != '/')
+		return;
+
+	for (i = 0; i < 3; i++) {
+		if (snprintf(nvram_var, sizeof(nvram_var), "devpath%d", i) <= 0)
+			continue;
+		if (bcm47xx_nvram_getenv(nvram_var, buf, sizeof(buf)) < 0)
+			continue;
+		if (!strcmp(buf, prefix) ||
+		    (short_len && strlen(buf) == short_len && !strncmp(buf, prefix, short_len))) {
+			snprintf(prefix, prefix_size, "%d:", i);
+			return;
+		}
+	}
+}
+
 static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 {
 	char prefix[10];
@@ -847,6 +879,7 @@ static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
+		bcm47xx_sprom_apply_prefix_alias(prefix, sizeof(prefix));
 		bcm47xx_fill_sprom(out, prefix, false);
 		return 0;
 	case BCMA_HOSTTYPE_SOC:
