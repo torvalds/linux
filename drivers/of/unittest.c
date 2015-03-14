@@ -295,6 +295,7 @@ static void __init of_selftest_parse_phandle_with_args(void)
 
 	for (i = 0; i < 8; i++) {
 		bool passed = true;
+
 		rc = of_parse_phandle_with_args(np, "phandle-list",
 						"#phandle-cells", i, &args);
 
@@ -554,6 +555,7 @@ static void __init of_selftest_parse_interrupts(void)
 
 	for (i = 0; i < 4; i++) {
 		bool passed = true;
+
 		args.args_count = 0;
 		rc = of_irq_parse_one(np, i, &args);
 
@@ -574,6 +576,7 @@ static void __init of_selftest_parse_interrupts(void)
 
 	for (i = 0; i < 4; i++) {
 		bool passed = true;
+
 		args.args_count = 0;
 		rc = of_irq_parse_one(np, i, &args);
 
@@ -626,6 +629,7 @@ static void __init of_selftest_parse_interrupts_extended(void)
 
 	for (i = 0; i < 7; i++) {
 		bool passed = true;
+
 		rc = of_irq_parse_one(np, i, &args);
 
 		/* Test the values from tests-phandle.dtsi */
@@ -918,6 +922,7 @@ static int __init selftest_data_add(void)
 	np = selftest_data_node->child;
 	while (np) {
 		struct device_node *next = np->sibling;
+
 		np->parent = of_root;
 		attach_node_and_children(np);
 		np = next;
