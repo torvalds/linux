@@ -86,6 +86,10 @@
 #define RK312X_PMU_SYS_REG2			0x40
 #define RK312X_PMU_SYS_REG3			0x44
 
+#define RK3368_PMU_PWRDN_CON		0x0c
+#define RK3368_PMU_PWRDN_ST		0x10
+#define RK3368_PMU_IDLE_REQ		0x3c
+#define RK3368_PMU_IDLE_ST		0x40
 
 enum pmu_power_domain {
 	PD_BCPU,
@@ -102,6 +106,8 @@ enum pmu_power_domain {
 	PD_SCU,
 	PD_VIDEO,
 	PD_VIO,
+	PD_GPU_0,
+	PD_GPU_1,
 };
 
 enum pmu_idle_req {

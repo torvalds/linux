@@ -88,6 +88,9 @@
 #define CLK_PD_SCU 		11
 #define CLK_PD_VIDEO 		12
 #define CLK_PD_VIO		13
+#define CLK_PD_GPU_0		14
+#define CLK_PD_GPU_1		15
+
 #define CLK_PD_VIRT		255
 
 /* reset flag */
