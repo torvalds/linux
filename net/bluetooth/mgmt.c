@@ -96,6 +96,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_EXTERNAL_CONFIG,
 	MGMT_OP_SET_PUBLIC_ADDRESS,
 	MGMT_OP_START_SERVICE_DISCOVERY,
+	MGMT_OP_READ_EXT_INDEX_LIST,
 };
 
 static const u16 mgmt_events[] = {
@@ -512,6 +513,82 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 
 	err = mgmt_cmd_complete(sk, MGMT_INDEX_NONE,
 				MGMT_OP_READ_UNCONF_INDEX_LIST, 0, rp, rp_len);
+
+	kfree(rp);
+
+	return err;
+}
+
+static int read_ext_index_list(struct sock *sk, struct hci_dev *hdev,
+			       void *data, u16 data_len)
+{
+	struct mgmt_rp_read_ext_index_list *rp;
+	struct hci_dev *d;
+	size_t rp_len;
+	u16 count;
+	int err;
+
+	BT_DBG("sock %p", sk);
+
+	read_lock(&hci_dev_list_lock);
+
+	count = 0;
+	list_for_each_entry(d, &hci_dev_list, list) {
+		if (d->dev_type == HCI_BREDR || d->dev_type == HCI_AMP)
+			count++;
+	}
+
+	rp_len = sizeof(*rp) + (sizeof(rp->entry[0]) * count);
+	rp = kmalloc(rp_len, GFP_ATOMIC);
+	if (!rp) {
+		read_unlock(&hci_dev_list_lock);
+		return -ENOMEM;
+	}
+
+	count = 0;
+	list_for_each_entry(d, &hci_dev_list, list) {
+		if (hci_dev_test_flag(d, HCI_SETUP) ||
+		    hci_dev_test_flag(d, HCI_CONFIG) ||
+		    hci_dev_test_flag(d, HCI_USER_CHANNEL))
+			continue;
+
+		/* Devices marked as raw-only are neither configured
+		 * nor unconfigured controllers.
+		 */
+		if (test_bit(HCI_QUIRK_RAW_DEVICE, &d->quirks))
+			continue;
+
+		if (d->dev_type == HCI_BREDR) {
+			if (hci_dev_test_flag(d, HCI_UNCONFIGURED))
+				rp->entry[count].type = 0x01;
+			else
+				rp->entry[count].type = 0x00;
+		} else if (d->dev_type == HCI_AMP) {
+			rp->entry[count].type = 0x02;
+		} else {
+			continue;
+		}
+
+		rp->entry[count].bus = d->bus;
+		rp->entry[count++].index = cpu_to_le16(d->id);
+		BT_DBG("Added hci%u", d->id);
+	}
+
+	rp->num_controllers = cpu_to_le16(count);
+	rp_len = sizeof(*rp) + (sizeof(rp->entry[0]) * count);
+
+	read_unlock(&hci_dev_list_lock);
+
+	/* If this command is called at least once, then all the
+	 * default index and unconfigured index events are disabled
+	 * and from now on only extended index events are used.
+	 */
+	hci_sock_set_flag(sk, HCI_MGMT_EXT_INDEX_EVENTS);
+	hci_sock_clear_flag(sk, HCI_MGMT_INDEX_EVENTS);
+	hci_sock_clear_flag(sk, HCI_MGMT_UNCONF_INDEX_EVENTS);
+
+	err = mgmt_cmd_complete(sk, MGMT_INDEX_NONE,
+				MGMT_OP_READ_EXT_INDEX_LIST, 0, rp, rp_len);
 
 	kfree(rp);
 
@@ -6264,6 +6341,9 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 						HCI_MGMT_UNCONFIGURED },
 	{ start_service_discovery, MGMT_START_SERVICE_DISCOVERY_SIZE,
 						HCI_MGMT_VAR_LEN },
+	{ NULL },
+	{ read_ext_index_list,     MGMT_READ_EXT_INDEX_LIST_SIZE,
+						HCI_MGMT_NO_HDEV },
 };
 
 int mgmt_control(struct hci_mgmt_chan *chan, struct sock *sk,
