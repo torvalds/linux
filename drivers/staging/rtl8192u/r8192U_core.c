@@ -827,7 +827,6 @@ void rtl8192_rtx_disable(struct net_device *dev)
 		netdev_warn(dev, "skb_queue not empty\n");
 
 	skb_queue_purge(&priv->skb_queue);
-	return;
 }
 
 inline u16 ieeerate2rtlrate(int rate)
@@ -966,8 +965,6 @@ static void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, 
 	ret = rtl8192_tx(dev, skb);
 
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
-
-	return;
 }
 
 /* This is a rough attempt to TX a frame
@@ -2067,7 +2064,6 @@ static void rtl8192_refresh_supportrate(struct r8192_priv *priv)
 		memcpy(ieee->Regdot11HTOperationalRateSet, ieee->RegHTSuppRateSet, 16);
 	else
 		memset(ieee->Regdot11HTOperationalRateSet, 0, 16);
-	return;
 }
 
 static u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
@@ -2507,7 +2503,6 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	//we need init DIG RATR table here again.
 
 	RT_TRACE(COMP_EPROM, "<===========%s()\n", __func__);
-	return;
 }
 
 static short rtl8192_get_channel_map(struct net_device *dev)
