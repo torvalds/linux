@@ -46,28 +46,31 @@ static int ath10k_thermal_get_active_vifs(struct ath10k *ar,
 	return count;
 }
 
-static int ath10k_thermal_get_max_dutycycle(struct thermal_cooling_device *cdev,
-					    unsigned long *state)
+static int
+ath10k_thermal_get_max_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long *state)
 {
-	*state = ATH10K_QUIET_DUTY_CYCLE_MAX;
+	*state = ATH10K_THERMAL_THROTTLE_MAX;
 
 	return 0;
 }
 
-static int ath10k_thermal_get_cur_dutycycle(struct thermal_cooling_device *cdev,
-					    unsigned long *state)
+static int
+ath10k_thermal_get_cur_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long *state)
 {
 	struct ath10k *ar = cdev->devdata;
 
 	mutex_lock(&ar->conf_mutex);
-	*state = ar->thermal.duty_cycle;
+	*state = ar->thermal.throttle_state;
 	mutex_unlock(&ar->conf_mutex);
 
 	return 0;
 }
 
-static int ath10k_thermal_set_cur_dutycycle(struct thermal_cooling_device *cdev,
-					    unsigned long duty_cycle)
+static int
+ath10k_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long throttle_state)
 {
 	struct ath10k *ar = cdev->devdata;
 	u32 period, duration, enabled;
@@ -79,9 +82,9 @@ static int ath10k_thermal_set_cur_dutycycle(struct thermal_cooling_device *cdev,
 		goto out;
 	}
 
-	if (duty_cycle > ATH10K_QUIET_DUTY_CYCLE_MAX) {
-		ath10k_warn(ar, "duty cycle %ld is exceeding the limit %d\n",
-			    duty_cycle, ATH10K_QUIET_DUTY_CYCLE_MAX);
+	if (throttle_state > ATH10K_THERMAL_THROTTLE_MAX) {
+		ath10k_warn(ar, "throttle state %ld is exceeding the limit %d\n",
+			    throttle_state, ATH10K_THERMAL_THROTTLE_MAX);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -97,7 +100,7 @@ static int ath10k_thermal_set_cur_dutycycle(struct thermal_cooling_device *cdev,
 		goto out;
 	}
 	period = ar->thermal.quiet_period;
-	duration = (period * duty_cycle) / 100;
+	duration = (period * throttle_state) / 100;
 	enabled = duration ? 1 : 0;
 
 	ret = ath10k_wmi_pdev_set_quiet_mode(ar, period, duration,
@@ -108,16 +111,16 @@ static int ath10k_thermal_set_cur_dutycycle(struct thermal_cooling_device *cdev,
 			    period, duration, enabled, ret);
 		goto out;
 	}
-	ar->thermal.duty_cycle = duty_cycle;
+	ar->thermal.throttle_state = throttle_state;
 out:
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
 
 static struct thermal_cooling_device_ops ath10k_thermal_ops = {
-	.get_max_state = ath10k_thermal_get_max_dutycycle,
-	.get_cur_state = ath10k_thermal_get_cur_dutycycle,
-	.set_cur_state = ath10k_thermal_set_cur_dutycycle,
+	.get_max_state = ath10k_thermal_get_max_throttle_state,
+	.get_cur_state = ath10k_thermal_get_cur_throttle_state,
+	.set_cur_state = ath10k_thermal_set_cur_throttle_state,
 };
 
 static ssize_t ath10k_thermal_show_temp(struct device *dev,
