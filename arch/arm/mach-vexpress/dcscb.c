@@ -54,7 +54,7 @@ static int dcscb_power_up(unsigned int cpu, unsigned int cluster)
 	unsigned int all_mask;
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	if (cpu >= 4 || cluster >= 2)
+	if (cluster >= 2 || !(cpumask & dcscb_allcpus_mask[cluster]))
 		return -EINVAL;
 
 	all_mask = dcscb_allcpus_mask[cluster];
@@ -105,7 +105,7 @@ static void dcscb_power_down(void)
 	cpumask = (1 << cpu);
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cpu >= 4 || cluster >= 2);
+	BUG_ON(cluster >= 2 || !(cpumask & dcscb_allcpus_mask[cluster]));
 
 	all_mask = dcscb_allcpus_mask[cluster];
 
@@ -189,7 +189,7 @@ static void __init dcscb_usage_count_init(void)
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
-	BUG_ON(cpu >= 4 || cluster >= 2);
+	BUG_ON(cluster >= 2 || !((1 << cpu) & dcscb_allcpus_mask[cluster]));
 	dcscb_use_count[cpu][cluster] = 1;
 }
 
