@@ -1310,15 +1310,10 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 					tmpvpcidev->scsi.max.cmd_per_lun);
 		} else {
 			str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-					"[%d:%d] VNic:%02x:%02x:%02x:%02x:%02x:%02x num_rcv_bufs:%d mtu:%d",
+					"[%d:%d] VNic:%pM num_rcv_bufs:%d mtu:%d",
 					tmpvpcidev->bus_no,
 					tmpvpcidev->device_no,
-					tmpvpcidev->net.mac_addr[0],
-					tmpvpcidev->net.mac_addr[1],
-					tmpvpcidev->net.mac_addr[2],
-					tmpvpcidev->net.mac_addr[3],
-					tmpvpcidev->net.mac_addr[4],
-					tmpvpcidev->net.mac_addr[5],
+					tmpvpcidev->net.mac_addr,
 					tmpvpcidev->net.num_rcv_bufs,
 					tmpvpcidev->net.mtu);
 		}
