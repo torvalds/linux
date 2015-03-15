@@ -715,7 +715,7 @@ static int max77843_init_muic_regmap(struct max77843 *max77843)
 	if (!max77843->i2c_muic) {
 		dev_err(&max77843->i2c->dev,
 				"Cannot allocate I2C device for MUIC\n");
-		return PTR_ERR(max77843->i2c_muic);
+		return -ENOMEM;
 	}
 
 	i2c_set_clientdata(max77843->i2c_muic, max77843);
