@@ -724,6 +724,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 		/* we just started MAC, wait for FW ready */
 		rc = wil_wait_for_fw_ready(wil);
+		if (rc == 0) /* check FW is responsive */
+			rc = wmi_echo(wil);
 	}
 
 	return rc;
