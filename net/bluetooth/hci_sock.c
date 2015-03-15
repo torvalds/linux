@@ -60,6 +60,11 @@ void hci_sock_clear_flag(struct sock *sk, int nr)
 	clear_bit(nr, &hci_pi(sk)->flags);
 }
 
+int hci_sock_test_flag(struct sock *sk, int nr)
+{
+	return test_bit(nr, &hci_pi(sk)->flags);
+}
+
 static inline int hci_test_bit(int nr, const void *addr)
 {
 	return *((const __u32 *) addr + (nr >> 5)) & ((__u32) 1 << (nr & 31));
@@ -211,7 +216,7 @@ void hci_send_to_channel(unsigned short channel, struct sk_buff *skb,
 		struct sk_buff *nskb;
 
 		/* Ignore socket without the flag set */
-		if (!test_bit(flag, &hci_pi(sk)->flags))
+		if (!hci_sock_test_flag(sk, flag))
 			continue;
 
 		/* Skip the original socket */
