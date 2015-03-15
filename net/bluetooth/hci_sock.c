@@ -808,10 +808,15 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 * socket when binding keeps this functionality. They
 		 * however might be cleared later and then sending of these
 		 * events will be disabled, but that is then intentional.
+		 *
+		 * This also enables generic events that are safe to be
+		 * received by untrusted users. Example for such events
+		 * are changes to settings, class of device, name etc.
 		 */
 		if (haddr.hci_channel == HCI_CHANNEL_CONTROL) {
 			hci_sock_set_flag(sk, HCI_MGMT_INDEX_EVENTS);
 			hci_sock_set_flag(sk, HCI_MGMT_UNCONF_INDEX_EVENTS);
+			hci_sock_set_flag(sk, HCI_MGMT_GENERIC_EVENTS);
 		}
 		break;
 	}
