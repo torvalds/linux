@@ -199,7 +199,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 
 /* Send frame to sockets with specific channel */
 void hci_send_to_channel(unsigned short channel, struct sk_buff *skb,
-			 struct sock *skip_sk)
+			 int flag, struct sock *skip_sk)
 {
 	struct sock *sk;
 
@@ -209,42 +209,13 @@ void hci_send_to_channel(unsigned short channel, struct sk_buff *skb,
 
 	sk_for_each(sk, &hci_sk_list.head) {
 		struct sk_buff *nskb;
+
+		/* Ignore socket without the flag set */
+		if (!test_bit(flag, &hci_pi(sk)->flags))
+			continue;
 
 		/* Skip the original socket */
 		if (sk == skip_sk)
-			continue;
-
-		if (sk->sk_state != BT_BOUND)
-			continue;
-
-		if (hci_pi(sk)->channel != channel)
-			continue;
-
-		nskb = skb_clone(skb, GFP_ATOMIC);
-		if (!nskb)
-			continue;
-
-		if (sock_queue_rcv_skb(sk, nskb))
-			kfree_skb(nskb);
-	}
-
-	read_unlock(&hci_sk_list.lock);
-}
-
-/* Send frame to sockets with specific channel flag set */
-void hci_send_to_flagged_channel(unsigned short channel, struct sk_buff *skb,
-				 int flag)
-{
-	struct sock *sk;
-
-	BT_DBG("channel %u len %d", channel, skb->len);
-
-	read_lock(&hci_sk_list.lock);
-
-	sk_for_each(sk, &hci_sk_list.head) {
-		struct sk_buff *nskb;
-
-		if (!test_bit(flag, &hci_pi(sk)->flags))
 			continue;
 
 		if (sk->sk_state != BT_BOUND)
@@ -310,7 +281,8 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 	hdr->index = cpu_to_le16(hdev->id);
 	hdr->len = cpu_to_le16(skb->len);
 
-	hci_send_to_channel(HCI_CHANNEL_MONITOR, skb_copy, NULL);
+	hci_send_to_channel(HCI_CHANNEL_MONITOR, skb_copy,
+			    HCI_SOCK_TRUSTED, NULL);
 	kfree_skb(skb_copy);
 }
 
@@ -417,7 +389,8 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event)
 
 		skb = create_monitor_event(hdev, event);
 		if (skb) {
-			hci_send_to_channel(HCI_CHANNEL_MONITOR, skb, NULL);
+			hci_send_to_channel(HCI_CHANNEL_MONITOR, skb,
+					    HCI_SOCK_TRUSTED, NULL);
 			kfree_skb(skb);
 		}
 	}

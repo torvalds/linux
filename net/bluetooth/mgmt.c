@@ -224,7 +224,7 @@ static u8 mgmt_status(u8 hci_status)
 
 static int mgmt_send_event(u16 event, struct hci_dev *hdev,
 			   unsigned short channel, void *data, u16 data_len,
-			   struct sock *skip_sk)
+			   int flag, struct sock *skip_sk)
 {
 	struct sk_buff *skb;
 	struct mgmt_hdr *hdr;
@@ -247,44 +247,24 @@ static int mgmt_send_event(u16 event, struct hci_dev *hdev,
 	/* Time stamp */
 	__net_timestamp(skb);
 
-	hci_send_to_channel(channel, skb, skip_sk);
+	hci_send_to_channel(channel, skb, flag, skip_sk);
 	kfree_skb(skb);
 
 	return 0;
 }
 
-static int mgmt_index_event(u16 event, struct hci_dev *hdev,
-			    void *data, u16 data_len, int flag)
+static int mgmt_index_event(u16 event, struct hci_dev *hdev, void *data,
+			    u16 len, int flag)
 {
-	struct sk_buff *skb;
-	struct mgmt_hdr *hdr;
-
-	skb = alloc_skb(sizeof(*hdr) + data_len, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-
-	hdr = (void *) skb_put(skb, sizeof(*hdr));
-	hdr->opcode = cpu_to_le16(event);
-	hdr->index = cpu_to_le16(hdev->id);
-	hdr->len = cpu_to_le16(data_len);
-
-	if (data)
-		memcpy(skb_put(skb, data_len), data, data_len);
-
-	/* Time stamp */
-	__net_timestamp(skb);
-
-	hci_send_to_flagged_channel(HCI_CHANNEL_CONTROL, skb, flag);
-	kfree_skb(skb);
-
-	return 0;
+	return mgmt_send_event(event, hdev, HCI_CHANNEL_CONTROL, data, len,
+			       flag, NULL);
 }
 
 static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 len,
 		      struct sock *skip_sk)
 {
 	return mgmt_send_event(event, hdev, HCI_CHANNEL_CONTROL, data, len,
-			       skip_sk);
+			       HCI_SOCK_TRUSTED, skip_sk);
 }
 
 static int mgmt_cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
