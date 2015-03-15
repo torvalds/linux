@@ -369,6 +369,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	u16 dmalen;
 	u8 ftype;
 	int cid;
+	int i = (int)vring->swhead;
 	struct wil_net_stats *stats;
 
 	BUILD_BUG_ON(sizeof(struct vring_rx_desc) > sizeof(skb->cb));
@@ -376,24 +377,28 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	if (unlikely(wil_vring_is_empty(vring)))
 		return NULL;
 
-	_d = &vring->va[vring->swhead].rx;
+	_d = &vring->va[i].rx;
 	if (unlikely(!(_d->dma.status & RX_DMA_STATUS_DU))) {
 		/* it is not error, we just reached end of Rx done area */
 		return NULL;
 	}
 
-	skb = vring->ctx[vring->swhead].skb;
+	skb = vring->ctx[i].skb;
+	vring->ctx[i].skb = NULL;
+	wil_vring_advance_head(vring, 1);
+	if (!skb) {
+		wil_err(wil, "No Rx skb at [%d]\n", i);
+		return NULL;
+	}
 	d = wil_skb_rxdesc(skb);
 	*d = *_d;
 	pa = wil_desc_addr(&d->dma.addr);
-	vring->ctx[vring->swhead].skb = NULL;
-	wil_vring_advance_head(vring, 1);
 
 	dma_unmap_single(dev, pa, sz, DMA_FROM_DEVICE);
 	dmalen = le16_to_cpu(d->dma.length);
 
-	trace_wil6210_rx(vring->swhead, d);
-	wil_dbg_txrx(wil, "Rx[%3d] : %d bytes\n", vring->swhead, dmalen);
+	trace_wil6210_rx(i, d);
+	wil_dbg_txrx(wil, "Rx[%3d] : %d bytes\n", i, dmalen);
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
 
