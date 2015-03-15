@@ -795,16 +795,13 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
-		if (!capable(CAP_NET_ADMIN)) {
-			err = -EPERM;
-			goto done;
-		}
-
-		/* Since the access to control channels is currently
-		 * restricted to CAP_NET_ADMIN capabilities, every
-		 * socket is implicitly trusted.
+		/* Users with CAP_NET_ADMIN capabilities are allowed
+		 * access to all management commands and events. For
+		 * untrusted users the interface is restricted and
+		 * also only untrusted events are sent.
 		 */
-		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
+		if (capable(CAP_NET_ADMIN))
+			hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
 		/* At the moment the index and unconfigured index events
 		 * are enabled unconditionally. Setting them on each
