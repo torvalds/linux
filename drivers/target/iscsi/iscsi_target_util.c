@@ -1283,9 +1283,8 @@ static int iscsit_do_rx_data(
 	iov_iter_kvec(&msg.msg_iter, READ | ITER_KVEC,
 		      count->iov, count->iov_count, data);
 
-	while (total_rx < data) {
-		rx_loop = sock_recvmsg(conn->sock, &msg,
-				      (data - total_rx), MSG_WAITALL);
+	while (msg_data_left(&msg)) {
+		rx_loop = sock_recvmsg(conn->sock, &msg, MSG_WAITALL);
 		if (rx_loop <= 0) {
 			pr_debug("rx_loop: %d total_rx: %d\n",
 				rx_loop, total_rx);
