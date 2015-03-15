@@ -758,7 +758,7 @@ inline int udf_prealloc_blocks(struct super_block *sb,
 			       uint32_t block_count)
 {
 	struct udf_part_map *map = &UDF_SB(sb)->s_partmaps[partition];
-	sector_t allocated;
+	int allocated;
 
 	if (map->s_partition_flags & UDF_PART_FLAG_UNALLOC_BITMAP)
 		allocated = udf_bitmap_prealloc_blocks(sb,
