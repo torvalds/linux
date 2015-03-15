@@ -456,6 +456,8 @@ enum {
 #define EIR_SSP_HASH_C		0x0E /* Simple Pairing Hash C */
 #define EIR_SSP_RAND_R		0x0F /* Simple Pairing Randomizer R */
 #define EIR_DEVICE_ID		0x10 /* device ID */
+#define EIR_LE_BDADDR		0x1B /* LE Bluetooth device address */
+#define EIR_LE_ROLE		0x1C /* LE role */
 
 /* Low Energy Advertising Flags */
 #define LE_AD_LIMITED		0x01 /* Limited Discoverable */
