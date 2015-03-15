@@ -68,6 +68,7 @@ MODULE_PARM_DESC(mtu_max, " Max MTU value.");
 
 static uint rx_ring_order = WIL_RX_RING_SIZE_ORDER_DEFAULT;
 static uint tx_ring_order = WIL_TX_RING_SIZE_ORDER_DEFAULT;
+static uint bcast_ring_order = WIL_BCAST_RING_SIZE_ORDER_DEFAULT;
 
 static int ring_order_set(const char *val, const struct kernel_param *kp)
 {
@@ -216,6 +217,7 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
+		wil_bcast_fini(wil);
 		netif_tx_stop_all_queues(ndev);
 		netif_carrier_off(ndev);
 
@@ -360,6 +362,35 @@ static int wil_find_free_vring(struct wil6210_priv *wil)
 	return -EINVAL;
 }
 
+int wil_bcast_init(struct wil6210_priv *wil)
+{
+	int ri = wil->bcast_vring, rc;
+
+	if ((ri >= 0) && wil->vring_tx[ri].va)
+		return 0;
+
+	ri = wil_find_free_vring(wil);
+	if (ri < 0)
+		return ri;
+
+	rc = wil_vring_init_bcast(wil, ri, 1 << bcast_ring_order);
+	if (rc == 0)
+		wil->bcast_vring = ri;
+
+	return rc;
+}
+
+void wil_bcast_fini(struct wil6210_priv *wil)
+{
+	int ri = wil->bcast_vring;
+
+	if (ri < 0)
+		return;
+
+	wil->bcast_vring = -1;
+	wil_vring_fini_tx(wil, ri);
+}
+
 static void wil_connect_worker(struct work_struct *work)
 {
 	int rc;
@@ -407,6 +438,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	init_completion(&wil->wmi_call);
 
 	wil->pending_connect_cid = -1;
+	wil->bcast_vring = -1;
 	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
 	setup_timer(&wil->scan_timer, wil_scan_timer_fn, (ulong)wil);
 
@@ -656,6 +688,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
+	wil_bcast_fini(wil);
 
 	/* prevent NAPI from being scheduled */
 	bitmap_zero(wil->status, wil_status_last);
