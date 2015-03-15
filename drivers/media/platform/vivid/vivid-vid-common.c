@@ -694,6 +694,9 @@ int vivid_vid_adjust_sel(unsigned flags, struct v4l2_rect *r)
 	unsigned w = r->width;
 	unsigned h = r->height;
 
+	/* sanitize w and h in case someone passes ~0 as the value */
+	w &= 0xffff;
+	h &= 0xffff;
 	if (!(flags & V4L2_SEL_FLAG_LE)) {
 		w++;
 		h++;
@@ -718,8 +721,9 @@ int vivid_vid_adjust_sel(unsigned flags, struct v4l2_rect *r)
 		r->top = 0;
 	if (r->left < 0)
 		r->left = 0;
-	r->left &= ~1;
-	r->top &= ~1;
+	/* sanitize left and top in case someone passes ~0 as the value */
+	r->left &= 0xfffe;
+	r->top &= 0xfffe;
 	if (r->left + w > MAX_WIDTH)
 		r->left = MAX_WIDTH - w;
 	if (r->top + h > MAX_HEIGHT)
