@@ -1237,8 +1237,8 @@ nfsd4_getdeviceinfo(struct svc_rqst *rqstp,
 		nfserr = ops->proc_getdeviceinfo(exp->ex_path.mnt->mnt_sb, gdp);
 
 	gdp->gd_notify_types &= ops->notify_types;
-	exp_put(exp);
 out:
+	exp_put(exp);
 	return nfserr;
 }
 
