@@ -247,6 +247,7 @@ static void parse_options(char *options)
 
 static int pstore_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	parse_options(data);
 
 	return 0;

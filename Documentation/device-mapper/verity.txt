@@ -10,7 +10,7 @@ Construction Parameters
     <version> <dev> <hash_dev>
     <data_block_size> <hash_block_size>
     <num_data_blocks> <hash_start_block>
-    <algorithm> <digest> <salt>
+    <algorithm> <digest> <salt> <mode>
 
 <version>
     This is the type of the on-disk hash format.
@@ -61,6 +61,16 @@ Construction Parameters
 
 <salt>
     The hexadecimal encoding of the salt value.
+
+<mode>
+    Optional. The mode of operation.
+
+    0 is the normal mode of operation where a corrupted block will result in an
+      I/O error.
+
+    1 is logging mode where corrupted blocks are logged and a uevent is sent to
+      notify user space.
+
 
 Theory of operation
 ===================
