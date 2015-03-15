@@ -1199,7 +1199,7 @@ static int r820t_read_gain(struct r820t_priv *priv)
 	if (rc < 0)
 		return rc;
 
-	return ((data[3] & 0x0f) << 1) + ((data[3] & 0xf0) >> 4);
+	return ((data[3] & 0x08) << 1) + ((data[3] & 0xf0) >> 4);
 }
 
 #if 0
