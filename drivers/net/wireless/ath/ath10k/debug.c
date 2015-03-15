@@ -1991,6 +1991,49 @@ static const struct file_operations fops_pktlog_filter = {
 	.open = simple_open
 };
 
+static ssize_t ath10k_write_quiet_period(struct file *file,
+					 const char __user *ubuf,
+					 size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 period;
+
+	if (kstrtouint_from_user(ubuf, count, 0, &period))
+		return -EINVAL;
+
+	if (period < ATH10K_QUIET_PERIOD_MIN) {
+		ath10k_warn(ar, "Quiet period %u can not be lesser than 25ms\n",
+			    period);
+		return -EINVAL;
+	}
+	mutex_lock(&ar->conf_mutex);
+	ar->thermal.quiet_period = period;
+	mutex_unlock(&ar->conf_mutex);
+
+	return count;
+}
+
+static ssize_t ath10k_read_quiet_period(struct file *file, char __user *ubuf,
+					size_t count, loff_t *ppos)
+{
+	char buf[32];
+	struct ath10k *ar = file->private_data;
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len, "%d\n",
+			ar->thermal.quiet_period);
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_quiet_period = {
+	.read = ath10k_read_quiet_period,
+	.write = ath10k_write_quiet_period,
+	.open = simple_open
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
@@ -2087,6 +2130,9 @@ int ath10k_debug_register(struct ath10k *ar)
 
 	debugfs_create_file("pktlog_filter", S_IRUGO | S_IWUSR,
 			    ar->debug.debugfs_phy, ar, &fops_pktlog_filter);
+
+	debugfs_create_file("quiet_period", S_IRUGO | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_quiet_period);
 
 	return 0;
 }

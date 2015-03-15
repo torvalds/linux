@@ -96,8 +96,7 @@ static int ath10k_thermal_set_cur_dutycycle(struct thermal_cooling_device *cdev,
 		ret = -ENETDOWN;
 		goto out;
 	}
-	period = max(ATH10K_QUIET_PERIOD_MIN,
-		     (ATH10K_QUIET_PERIOD_DEFAULT / num_bss));
+	period = ar->thermal.quiet_period;
 	duration = (period * duty_cycle) / 100;
 	enabled = duration ? 1 : 0;
 
@@ -207,6 +206,7 @@ int ath10k_thermal_register(struct ath10k *ar)
 	}
 
 	ar->thermal.cdev = cdev;
+	ar->thermal.quiet_period = ATH10K_QUIET_PERIOD_DEFAULT;
 
 	/* Do not register hwmon device when temperature reading is not
 	 * supported by firmware

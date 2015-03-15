@@ -29,6 +29,7 @@ struct ath10k_thermal {
 
 	/* protected by conf_mutex */
 	u32 duty_cycle;
+	u32 quiet_period;
 	/* temperature value in Celcius degree
 	 * protected by data_lock
 	 */
