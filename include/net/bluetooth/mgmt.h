@@ -506,6 +506,17 @@ struct mgmt_cp_start_service_discovery {
 } __packed;
 #define MGMT_START_SERVICE_DISCOVERY_SIZE 4
 
+#define MGMT_OP_READ_LOCAL_OOB_EXT_DATA	0x003B
+struct mgmt_cp_read_local_oob_ext_data {
+	__u8 type;
+} __packed;
+#define MGMT_READ_LOCAL_OOB_EXT_DATA_SIZE 1
+struct mgmt_rp_read_local_oob_ext_data {
+	__u8    type;
+	__le16	eir_len;
+	__u8	eir[0];
+} __packed;
+
 #define MGMT_OP_READ_EXT_INDEX_LIST	0x003C
 #define MGMT_READ_EXT_INDEX_LIST_SIZE	0
 struct mgmt_rp_read_ext_index_list {

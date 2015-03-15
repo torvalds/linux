@@ -96,6 +96,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_EXTERNAL_CONFIG,
 	MGMT_OP_SET_PUBLIC_ADDRESS,
 	MGMT_OP_START_SERVICE_DISCOVERY,
+	MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
 	MGMT_OP_READ_EXT_INDEX_LIST,
 	MGMT_OP_READ_ADV_FEATURES,
 };
@@ -6266,6 +6267,114 @@ static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type, u8 *data,
 	return eir_len;
 }
 
+static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
+				   void *data, u16 data_len)
+{
+	struct mgmt_cp_read_local_oob_ext_data *cp = data;
+	struct mgmt_rp_read_local_oob_ext_data *rp;
+	size_t rp_len;
+	u16 eir_len;
+	u8 status, flags, role, addr[7];
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	if (!hdev_is_powered(hdev))
+		return mgmt_cmd_complete(sk, hdev->id,
+					 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
+					 MGMT_STATUS_NOT_POWERED,
+					 &cp->type, sizeof(cp->type));
+
+	switch (cp->type) {
+	case BIT(BDADDR_BREDR):
+		status = mgmt_bredr_support(hdev);
+		if (status)
+			return mgmt_cmd_complete(sk, hdev->id,
+						 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
+						 status, &cp->type,
+						 sizeof(cp->type));
+		eir_len = 5;
+		break;
+	case (BIT(BDADDR_LE_PUBLIC) | BIT(BDADDR_LE_RANDOM)):
+		status = mgmt_le_support(hdev);
+		if (status)
+			return mgmt_cmd_complete(sk, hdev->id,
+						 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
+						 status, &cp->type,
+						 sizeof(cp->type));
+		eir_len = 15;
+		break;
+	default:
+		return mgmt_cmd_complete(sk, hdev->id,
+					 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
+					 MGMT_STATUS_INVALID_PARAMS,
+					 &cp->type, sizeof(cp->type));
+	}
+
+	hci_dev_lock(hdev);
+
+	rp_len = sizeof(*rp) + eir_len;
+	rp = kmalloc(rp_len, GFP_ATOMIC);
+	if (!rp) {
+		hci_dev_unlock(hdev);
+		return -ENOMEM;
+	}
+
+	eir_len = 0;
+	switch (cp->type) {
+	case BIT(BDADDR_BREDR):
+		eir_len = eir_append_data(rp->eir, eir_len, EIR_CLASS_OF_DEV,
+					  hdev->dev_class, 3);
+		break;
+	case (BIT(BDADDR_LE_PUBLIC) | BIT(BDADDR_LE_RANDOM)):
+		if (hci_dev_test_flag(hdev, HCI_PRIVACY)) {
+			memcpy(addr, &hdev->rpa, 6);
+			addr[6] = 0x01;
+		} else if (hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR) ||
+			   !bacmp(&hdev->bdaddr, BDADDR_ANY) ||
+			   (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED) &&
+			    bacmp(&hdev->static_addr, BDADDR_ANY))) {
+			memcpy(addr, &hdev->static_addr, 6);
+			addr[6] = 0x01;
+		} else {
+			memcpy(addr, &hdev->bdaddr, 6);
+			addr[6] = 0x00;
+		}
+
+		eir_len = eir_append_data(rp->eir, eir_len, EIR_LE_BDADDR,
+					  addr, sizeof(addr));
+
+		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
+			role = 0x02;
+		else
+			role = 0x01;
+
+		eir_len = eir_append_data(rp->eir, eir_len, EIR_LE_ROLE,
+					  &role, sizeof(role));
+
+		flags = get_adv_discov_flags(hdev);
+
+		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+			flags |= LE_AD_NO_BREDR;
+
+		eir_len = eir_append_data(rp->eir, eir_len, EIR_FLAGS,
+					  &flags, sizeof(flags));
+		break;
+	}
+
+	rp->type = cp->type;
+	rp->eir_len = cpu_to_le16(eir_len);
+
+	hci_dev_unlock(hdev);
+
+	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
+				MGMT_STATUS_SUCCESS, rp, rp_len);
+
+	kfree(rp);
+
+	return err;
+}
+
 static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 			     void *data, u16 data_len)
 {
@@ -6379,7 +6488,7 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 						HCI_MGMT_UNCONFIGURED },
 	{ start_service_discovery, MGMT_START_SERVICE_DISCOVERY_SIZE,
 						HCI_MGMT_VAR_LEN },
-	{ NULL },
+	{ read_local_oob_ext_data, MGMT_READ_LOCAL_OOB_EXT_DATA_SIZE },
 	{ read_ext_index_list,     MGMT_READ_EXT_INDEX_LIST_SIZE,
 						HCI_MGMT_NO_HDEV |
 						HCI_MGMT_UNTRUSTED },
