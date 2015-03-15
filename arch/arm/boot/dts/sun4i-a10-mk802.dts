@@ -53,6 +53,14 @@
 / {
 	model = "MK802";
 	compatible = "allwinner,mk802", "allwinner,sun4i-a10";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
 &ehci0 {

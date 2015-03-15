@@ -54,6 +54,14 @@
 	model = "MK802-A10s";
 	compatible = "allwinner,a10s-mk802", "allwinner,sun5i-a10s";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";

@@ -58,6 +58,14 @@
 	model = "Miniand Hackberry";
 	compatible = "miniand,hackberry", "allwinner,sun4i-a10";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	reg_emac_3v3: emac-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "emac-3v3";

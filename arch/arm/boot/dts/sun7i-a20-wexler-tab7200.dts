@@ -57,6 +57,14 @@
 / {
 	model = "Wexler TAB7200";
 	compatible = "wexler,tab7200", "allwinner,sun7i-a20";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
 &cpu0 {

@@ -58,8 +58,12 @@
 	model = "Allwinner A31 APP4 EVB1 Evaluation Board";
 	compatible = "allwinner,app4-evb1", "allwinner,sun6i-a31";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
 	};
 };
 

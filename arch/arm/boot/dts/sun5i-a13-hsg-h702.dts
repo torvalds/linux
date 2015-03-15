@@ -59,6 +59,10 @@
 	aliases {
 		serial0 = &uart1;
 	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
 &cpu0 {

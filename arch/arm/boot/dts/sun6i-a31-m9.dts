@@ -56,8 +56,12 @@
 	model = "Mele M9 / A1000G Quad top set box";
 	compatible = "mele,m9", "allwinner,sun6i-a31";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
 	};
 
 	leds {

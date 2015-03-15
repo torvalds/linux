@@ -53,6 +53,14 @@
 / {
 	model = "CSQ CS908 top set box";
 	compatible = "csq,cs908", "allwinner,sun6i-a31s";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
 &ehci0 {

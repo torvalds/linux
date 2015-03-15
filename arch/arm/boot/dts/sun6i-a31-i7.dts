@@ -56,8 +56,12 @@
 	model = "Mele I7 Quad top set box";
 	compatible = "mele,i7", "allwinner,sun6i-a31";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
 	};
 
 	leds {

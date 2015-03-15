@@ -55,6 +55,16 @@
 	model = "LeMaker Banana Pro";
 	compatible = "lemaker,bananapro", "allwinner,sun7i-a20";
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart2;
+		serial2 = &uart7;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";

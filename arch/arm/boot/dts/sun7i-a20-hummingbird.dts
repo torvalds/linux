@@ -67,6 +67,10 @@
 		serial4 = &uart5;
 	};
 
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
 	reg_mmc3_vdd: mmc3_vdd {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";

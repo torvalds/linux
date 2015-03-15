@@ -58,8 +58,12 @@
 	model = "WITS A31 Colombus Evaluation Board";
 	compatible = "wits,colombus", "allwinner,sun6i-a31";
 
+	aliases {
+		serial0 = &uart0;
+	};
+
 	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
+		stdout-path = "serial0:115200n8";
 	};
 };
 
