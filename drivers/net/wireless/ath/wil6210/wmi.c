@@ -1109,6 +1109,11 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring)
 		 */
 		cmd.l3_l4_ctrl |= (1 << L3_L4_CTRL_TCPIP_CHECKSUM_EN_POS);
 	}
+
+	if (rx_align_2)
+		cmd.l2_802_3_offload_ctrl |=
+				L2_802_3_OFFLOAD_CTRL_SNAP_KEEP_MSK;
+
 	/* typical time for secure PCP is 840ms */
 	rc = wmi_call(wil, WMI_CFG_RX_CHAIN_CMDID, &cmd, sizeof(cmd),
 		      WMI_CFG_RX_CHAIN_DONE_EVENTID, &evt, sizeof(evt), 2000);

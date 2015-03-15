@@ -33,6 +33,15 @@ module_param(rtap_include_phy_info, bool, S_IRUGO);
 MODULE_PARM_DESC(rtap_include_phy_info,
 		 " Include PHY info in the radiotap header, default - no");
 
+bool rx_align_2;
+module_param(rx_align_2, bool, S_IRUGO);
+MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - no");
+
+static inline uint wil_rx_snaplen(void)
+{
+	return rx_align_2 ? 6 : 0;
+}
+
 static inline int wil_vring_is_empty(struct vring *vring)
 {
 	return vring->swhead == vring->swtail;
@@ -209,7 +218,7 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 			       u32 i, int headroom)
 {
 	struct device *dev = wil_to_dev(wil);
-	unsigned int sz = mtu_max + ETH_HLEN;
+	unsigned int sz = mtu_max + ETH_HLEN + wil_rx_snaplen();
 	struct vring_rx_desc dd, *d = &dd;
 	volatile struct vring_rx_desc *_d = &vring->va[i].rx;
 	dma_addr_t pa;
@@ -365,7 +374,8 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	struct vring_rx_desc *d;
 	struct sk_buff *skb;
 	dma_addr_t pa;
-	unsigned int sz = mtu_max + ETH_HLEN;
+	unsigned int snaplen = wil_rx_snaplen();
+	unsigned int sz = mtu_max + ETH_HLEN + snaplen;
 	u16 dmalen;
 	u8 ftype;
 	int cid;
@@ -438,7 +448,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 		return NULL;
 	}
 
-	if (unlikely(skb->len < ETH_HLEN)) {
+	if (unlikely(skb->len < ETH_HLEN + snaplen)) {
 		wil_err(wil, "Short frame, len = %d\n", skb->len);
 		/* TODO: process it (i.e. BAR) */
 		kfree_skb(skb);
@@ -458,6 +468,17 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 		 * mis-calculates TCP checksum - if it should be 0x0,
 		 * it writes 0xffff in violation of RFC 1624
 		 */
+	}
+
+	if (snaplen) {
+		/* Packet layout
+		 * +-------+-------+---------+------------+------+
+		 * | SA(6) | DA(6) | SNAP(6) | ETHTYPE(2) | DATA |
+		 * +-------+-------+---------+------------+------+
+		 * Need to remove SNAP, shifting SA and DA forward
+		 */
+		memmove(skb->data + snaplen, skb->data, 2 * ETH_ALEN);
+		skb_pull(skb, snaplen);
 	}
 
 	return skb;
