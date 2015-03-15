@@ -880,6 +880,12 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 		return 0;
 	}
 
+	/* If this function is used for SC -> legacy fallback we
+	 * can only recover the just-works case.
+	 */
+	if (test_bit(SMP_FLAG_SC, &smp->flags))
+		return -EINVAL;
+
 	/* Not Just Works/Confirm results in MITM Authentication */
 	if (smp->method != JUST_CFM) {
 		set_bit(SMP_FLAG_MITM_AUTH, &smp->flags);
@@ -1806,6 +1812,13 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	clear_bit(SMP_FLAG_INITIATOR, &smp->flags);
 
+	/* Strictly speaking we shouldn't allow Pairing Confirm for the
+	 * SC case, however some implementations incorrectly copy RFU auth
+	 * req bits from our security request, which may create a false
+	 * positive SC enablement.
+	 */
+	SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
+
 	if (test_bit(SMP_FLAG_SC, &smp->flags)) {
 		SMP_ALLOW_CMD(smp, SMP_CMD_PUBLIC_KEY);
 		/* Clear bits which are generated but not distributed */
@@ -1813,8 +1826,6 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		/* Wait for Public Key from Initiating Device */
 		return 0;
 	}
-
-	SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
 
 	/* Request setup of TK */
 	ret = tk_request(conn, 0, auth, rsp.io_capability, req->io_capability);
@@ -1981,10 +1992,6 @@ static u8 sc_check_confirm(struct smp_chan *smp)
 
 	BT_DBG("");
 
-	/* Public Key exchange must happen before any other steps */
-	if (!test_bit(SMP_FLAG_REMOTE_PK, &smp->flags))
-		return SMP_UNSPECIFIED;
-
 	if (smp->method == REQ_PASSKEY || smp->method == DSP_PASSKEY)
 		return sc_passkey_round(smp, SMP_CMD_PAIRING_CONFIRM);
 
@@ -1993,6 +2000,47 @@ static u8 sc_check_confirm(struct smp_chan *smp)
 			     smp->prnd);
 		SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_RANDOM);
 	}
+
+	return 0;
+}
+
+/* Work-around for some implementations that incorrectly copy RFU bits
+ * from our security request and thereby create the impression that
+ * we're doing SC when in fact the remote doesn't support it.
+ */
+static int fixup_sc_false_positive(struct smp_chan *smp)
+{
+	struct l2cap_conn *conn = smp->conn;
+	struct hci_conn *hcon = conn->hcon;
+	struct hci_dev *hdev = hcon->hdev;
+	struct smp_cmd_pairing *req, *rsp;
+	u8 auth;
+
+	/* The issue is only observed when we're in slave role */
+	if (hcon->out)
+		return SMP_UNSPECIFIED;
+
+	if (hci_dev_test_flag(hdev, HCI_SC_ONLY)) {
+		BT_ERR("Refusing SMP SC -> legacy fallback in SC-only mode");
+		return SMP_UNSPECIFIED;
+	}
+
+	BT_ERR("Trying to fall back to legacy SMP");
+
+	req = (void *) &smp->preq[1];
+	rsp = (void *) &smp->prsp[1];
+
+	/* Rebuild key dist flags which may have been cleared for SC */
+	smp->remote_key_dist = (req->init_key_dist & rsp->resp_key_dist);
+
+	auth = req->auth_req & AUTH_REQ_MASK(hdev);
+
+	if (tk_request(conn, 0, auth, rsp->io_capability, req->io_capability)) {
+		BT_ERR("Failed to fall back to legacy SMP");
+		return SMP_UNSPECIFIED;
+	}
+
+	clear_bit(SMP_FLAG_SC, &smp->flags);
 
 	return 0;
 }
@@ -2010,8 +2058,19 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 	memcpy(smp->pcnf, skb->data, sizeof(smp->pcnf));
 	skb_pull(skb, sizeof(smp->pcnf));
 
-	if (test_bit(SMP_FLAG_SC, &smp->flags))
-		return sc_check_confirm(smp);
+	if (test_bit(SMP_FLAG_SC, &smp->flags)) {
+		int ret;
+
+		/* Public Key exchange must happen before any other steps */
+		if (test_bit(SMP_FLAG_REMOTE_PK, &smp->flags))
+			return sc_check_confirm(smp);
+
+		BT_ERR("Unexpected SMP Pairing Confirm");
+
+		ret = fixup_sc_false_positive(smp);
+		if (ret)
+			return ret;
+	}
 
 	if (conn->hcon->out) {
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(smp->prnd),
