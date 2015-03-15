@@ -1285,6 +1285,8 @@ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode);
 void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb);
 void hci_send_to_channel(unsigned short channel, struct sk_buff *skb,
 			 struct sock *skip_sk);
+void hci_send_to_flagged_channel(unsigned short channel, struct sk_buff *skb,
+				 int flag);
 void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb);
 
 void hci_sock_dev_event(struct hci_dev *hdev, int event);
