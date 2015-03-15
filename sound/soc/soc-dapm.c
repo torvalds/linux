@@ -473,16 +473,6 @@ struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_dapm);
 
-/**
- * snd_soc_dapm_kcontrol_codec() - Returns the codec associated to a kcontrol
- * @kcontrol: The kcontrol
- */
-struct snd_soc_codec *snd_soc_dapm_kcontrol_codec(struct snd_kcontrol *kcontrol)
-{
-	return snd_soc_dapm_to_codec(snd_soc_dapm_kcontrol_dapm(kcontrol));
-}
-EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_codec);
-
 static void dapm_reset(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_widget *w;
