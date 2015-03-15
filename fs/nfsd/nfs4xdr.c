@@ -2020,7 +2020,7 @@ static __be32 nfsd4_encode_path(struct xdr_stream *xdr,
 	 * dentries/path components in an array.
 	 */
 	for (;;) {
-		if (cur.dentry == root->dentry && cur.mnt == root->mnt)
+		if (path_equal(&cur, root))
 			break;
 		if (cur.dentry == cur.mnt->mnt_root) {
 			if (follow_up(&cur))
