@@ -258,6 +258,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 	int ret, len, remaining;
 	const struct firmware *fw = NULL;
 	u8 *fw_file = MN88472_FIRMWARE;
+	unsigned int csum;
 
 	dev_dbg(&client->dev, "\n");
 
@@ -302,6 +303,20 @@ static int mn88472_init(struct dvb_frontend *fe)
 			goto firmware_release;
 		}
 	}
+
+	/* parity check of firmware */
+	ret = regmap_read(dev->regmap[0], 0xf8, &csum);
+	if (ret) {
+		dev_err(&client->dev,
+				"parity reg read failed=%d\n", ret);
+		goto err;
+	}
+	if (csum & 0x10) {
+		dev_err(&client->dev,
+				"firmware parity check failed=0x%x\n", csum);
+		goto err;
+	}
+	dev_err(&client->dev, "firmware parity check succeeded=0x%x\n", csum);
 
 	ret = regmap_write(dev->regmap[0], 0xf5, 0x00);
 	if (ret)
