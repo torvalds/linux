@@ -1611,7 +1611,7 @@ static int rtl2832u_get_rc_config(struct dvb_usb_device *d,
 	rc->allowed_protos = RC_BIT_ALL;
 	rc->driver_type = RC_DRIVER_IR_RAW;
 	rc->query = rtl2832u_rc_query;
-	rc->interval = 400;
+	rc->interval = 200;
 
 	return 0;
 }
