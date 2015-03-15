@@ -6251,12 +6251,16 @@ unlock:
 static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ NULL }, /* 0x0000 (no command) */
 	{ read_version,            MGMT_READ_VERSION_SIZE,
-						HCI_MGMT_NO_HDEV },
+						HCI_MGMT_NO_HDEV |
+						HCI_MGMT_UNTRUSTED },
 	{ read_commands,           MGMT_READ_COMMANDS_SIZE,
-						HCI_MGMT_NO_HDEV },
+						HCI_MGMT_NO_HDEV |
+						HCI_MGMT_UNTRUSTED },
 	{ read_index_list,         MGMT_READ_INDEX_LIST_SIZE,
-						HCI_MGMT_NO_HDEV },
-	{ read_controller_info,    MGMT_READ_INFO_SIZE,                 0 },
+						HCI_MGMT_NO_HDEV |
+						HCI_MGMT_UNTRUSTED },
+	{ read_controller_info,    MGMT_READ_INFO_SIZE,
+						HCI_MGMT_UNTRUSTED },
 	{ set_powered,             MGMT_SETTING_SIZE,                   0 },
 	{ set_discoverable,        MGMT_SET_DISCOVERABLE_SIZE,          0 },
 	{ set_connectable,         MGMT_SETTING_SIZE,                   0 },
@@ -6312,9 +6316,11 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ load_conn_param,         MGMT_LOAD_CONN_PARAM_SIZE,
 						HCI_MGMT_VAR_LEN },
 	{ read_unconf_index_list,  MGMT_READ_UNCONF_INDEX_LIST_SIZE,
-						HCI_MGMT_NO_HDEV },
+						HCI_MGMT_NO_HDEV |
+						HCI_MGMT_UNTRUSTED },
 	{ read_config_info,        MGMT_READ_CONFIG_INFO_SIZE,
-						HCI_MGMT_UNCONFIGURED },
+						HCI_MGMT_UNCONFIGURED |
+						HCI_MGMT_UNTRUSTED },
 	{ set_external_config,     MGMT_SET_EXTERNAL_CONFIG_SIZE,
 						HCI_MGMT_UNCONFIGURED },
 	{ set_public_address,      MGMT_SET_PUBLIC_ADDRESS_SIZE,
@@ -6323,7 +6329,8 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 						HCI_MGMT_VAR_LEN },
 	{ NULL },
 	{ read_ext_index_list,     MGMT_READ_EXT_INDEX_LIST_SIZE,
-						HCI_MGMT_NO_HDEV },
+						HCI_MGMT_NO_HDEV |
+						HCI_MGMT_UNTRUSTED },
 };
 
 int mgmt_control(struct hci_mgmt_chan *chan, struct sock *sk,
