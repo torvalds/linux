@@ -70,7 +70,6 @@ enum wmi_command_id {
 	WMI_SET_UCODE_IDLE_CMDID	= 0x0813,
 	WMI_SET_WORK_MODE_CMDID		= 0x0815,
 	WMI_LO_LEAKAGE_CALIB_CMDID	= 0x0816,
-	WMI_MARLON_R_ACTIVATE_CMDID	= 0x0817,
 	WMI_MARLON_R_READ_CMDID		= 0x0818,
 	WMI_MARLON_R_WRITE_CMDID	= 0x0819,
 	WMI_MARLON_R_TXRX_SEL_CMDID	= 0x081a,
@@ -80,6 +79,7 @@ enum wmi_command_id {
 	WMI_RF_RX_TEST_CMDID		= 0x081e,
 	WMI_CFG_RX_CHAIN_CMDID		= 0x0820,
 	WMI_VRING_CFG_CMDID		= 0x0821,
+	WMI_BCAST_VRING_CFG_CMDID	= 0x0822,
 	WMI_VRING_BA_EN_CMDID		= 0x0823,
 	WMI_VRING_BA_DIS_CMDID		= 0x0824,
 	WMI_RCP_ADDBA_RESP_CMDID	= 0x0825,
@@ -99,6 +99,7 @@ enum wmi_command_id {
 	WMI_BF_TXSS_MGMT_CMDID		= 0x0837,
 	WMI_BF_SM_MGMT_CMDID		= 0x0838,
 	WMI_BF_RXSS_MGMT_CMDID		= 0x0839,
+	WMI_BF_TRIG_CMDID		= 0x083A,
 	WMI_SET_SECTORS_CMDID		= 0x0849,
 	WMI_MAINTAIN_PAUSE_CMDID	= 0x0850,
 	WMI_MAINTAIN_RESUME_CMDID	= 0x0851,
@@ -596,6 +597,22 @@ struct wmi_vring_cfg_cmd {
 } __packed;
 
 /*
+ * WMI_BCAST_VRING_CFG_CMDID
+ */
+struct wmi_bcast_vring_cfg {
+	struct wmi_sw_ring_cfg tx_sw_ring;
+	u8 ringid;				/* 0-23 vrings */
+	u8 encap_trans_type;
+	u8 ds_cfg;				/* 802.3 DS cfg */
+	u8 nwifi_ds_trans_type;
+} __packed;
+
+struct wmi_bcast_vring_cfg_cmd {
+	__le32 action;
+	struct wmi_bcast_vring_cfg vring_cfg;
+} __packed;
+
+/*
  * WMI_VRING_BA_EN_CMDID
  */
 struct wmi_vring_ba_en_cmd {
@@ -844,7 +861,6 @@ enum wmi_event_id {
 	WMI_IQ_RX_CALIB_DONE_EVENTID		= 0x1812,
 	WMI_SET_WORK_MODE_DONE_EVENTID		= 0x1815,
 	WMI_LO_LEAKAGE_CALIB_DONE_EVENTID	= 0x1816,
-	WMI_MARLON_R_ACTIVATE_DONE_EVENTID	= 0x1817,
 	WMI_MARLON_R_READ_DONE_EVENTID		= 0x1818,
 	WMI_MARLON_R_WRITE_DONE_EVENTID		= 0x1819,
 	WMI_MARLON_R_TXRX_SEL_DONE_EVENTID	= 0x181a,
