@@ -466,7 +466,7 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 
 	/* FIXME FW can transmit only ucast frames to peer */
 	/* FIXME real ring_id instead of hard coded 0 */
-	memcpy(wil->sta[evt->cid].addr, evt->bssid, ETH_ALEN);
+	ether_addr_copy(wil->sta[evt->cid].addr, evt->bssid);
 	wil->sta[evt->cid].status = wil_sta_conn_pending;
 
 	wil->pending_connect_cid = evt->cid;
@@ -524,8 +524,8 @@ static void wmi_evt_eapol_rx(struct wil6210_priv *wil, int id,
 	}
 
 	eth = (struct ethhdr *)skb_put(skb, ETH_HLEN);
-	memcpy(eth->h_dest, ndev->dev_addr, ETH_ALEN);
-	memcpy(eth->h_source, evt->src_mac, ETH_ALEN);
+	ether_addr_copy(eth->h_dest, ndev->dev_addr);
+	ether_addr_copy(eth->h_source, evt->src_mac);
 	eth->h_proto = cpu_to_be16(ETH_P_PAE);
 	memcpy(skb_put(skb, eapol_len), evt->eapol, eapol_len);
 	skb->protocol = eth_type_trans(skb, ndev);
@@ -851,7 +851,7 @@ int wmi_set_mac_address(struct wil6210_priv *wil, void *addr)
 {
 	struct wmi_set_mac_address_cmd cmd;
 
-	memcpy(cmd.mac, addr, ETH_ALEN);
+	ether_addr_copy(cmd.mac, addr);
 
 	wil_dbg_wmi(wil, "Set MAC %pM\n", addr);
 
@@ -1162,7 +1162,8 @@ int wmi_disconnect_sta(struct wil6210_priv *wil, const u8 *mac, u16 reason)
 	struct wmi_disconnect_sta_cmd cmd = {
 		.disconnect_reason = cpu_to_le16(reason),
 	};
-	memcpy(cmd.dst_mac, mac, ETH_ALEN);
+
+	ether_addr_copy(cmd.dst_mac, mac);
 
 	wil_dbg_wmi(wil, "%s(%pM, reason %d)\n", __func__, mac, reason);
 
