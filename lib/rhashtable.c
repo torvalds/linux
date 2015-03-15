@@ -854,10 +854,8 @@ void rhashtable_walk_stop(struct rhashtable_iter *iter)
 	struct rhashtable *ht;
 	struct bucket_table *tbl = iter->walker->tbl;
 
-	rcu_read_unlock();
-
 	if (!tbl)
-		return;
+		goto out;
 
 	ht = iter->ht;
 
@@ -869,6 +867,9 @@ void rhashtable_walk_stop(struct rhashtable_iter *iter)
 	mutex_unlock(&ht->mutex);
 
 	iter->p = NULL;
+
+out:
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(rhashtable_walk_stop);
 
