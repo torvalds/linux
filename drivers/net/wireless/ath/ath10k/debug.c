@@ -2008,6 +2008,7 @@ static ssize_t ath10k_write_quiet_period(struct file *file,
 	}
 	mutex_lock(&ar->conf_mutex);
 	ar->thermal.quiet_period = period;
+	ath10k_thermal_set_throttling(ar);
 	mutex_unlock(&ar->conf_mutex);
 
 	return count;

@@ -3157,6 +3157,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	ath10k_regd_update(ar);
 
 	ath10k_spectral_start(ar);
+	ath10k_thermal_set_throttling(ar);
 
 	mutex_unlock(&ar->conf_mutex);
 	return 0;
