@@ -682,7 +682,7 @@ static int max77843_muic_set_debounce_time(struct max77843_muic_info *info,
 		enum max77843_muic_adc_debounce_time time)
 {
 	struct max77843 *max77843 = info->max77843;
-	unsigned int ret;
+	int ret;
 
 	switch (time) {
 	case MAX77843_DEBOUNCE_TIME_5MS:
