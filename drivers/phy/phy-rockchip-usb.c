@@ -61,8 +61,6 @@ static int rockchip_usb_phy_power_off(struct phy *_phy)
 		return ret;
 
 	clk_disable_unprepare(phy->clk);
-	if (ret)
-		return ret;
 
 	return 0;
 }
@@ -78,8 +76,10 @@ static int rockchip_usb_phy_power_on(struct phy *_phy)
 
 	/* Power up usb phy analog blocks by set siddq 0 */
 	ret = rockchip_usb_phy_power(phy, 0);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(phy->clk);
 		return ret;
+	}
 
 	return 0;
 }

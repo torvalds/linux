@@ -1704,7 +1704,6 @@ static int xgene_phy_probe(struct platform_device *pdev)
 	for (i = 0; i < MAX_LANE; i++)
 		ctx->sata_param.speed[i] = 2; /* Default to Gen3 */
 
-	ctx->dev = &pdev->dev;
 	platform_set_drvdata(pdev, ctx);
 
 	ctx->phy = devm_phy_create(ctx->dev, NULL, &xgene_phy_ops);

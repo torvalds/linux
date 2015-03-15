@@ -296,9 +296,10 @@ static int omap_usb2_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev,
 				 "found usb_otg_ss_refclk960m, please fix DTS\n");
 		}
-	} else {
-		clk_prepare(phy->optclk);
 	}
+
+	if (!IS_ERR(phy->optclk))
+		clk_prepare(phy->optclk);
 
 	usb_add_phy_dev(&phy->phy);
 
@@ -383,7 +384,7 @@ static struct platform_driver omap_usb2_driver = {
 
 module_platform_driver(omap_usb2_driver);
 
-MODULE_ALIAS("platform: omap_usb2");
+MODULE_ALIAS("platform:omap_usb2");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("OMAP USB2 phy driver");
 MODULE_LICENSE("GPL v2");
