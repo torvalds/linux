@@ -264,7 +264,7 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 
 		if ((bits & (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_PERM)) &&
 		    inode->i_sb->s_root != NULL &&
-		    is_root_inode(inode))
+		    !is_root_inode(inode))
 			ll_invalidate_aliases(inode);
 
 		iput(inode);
@@ -481,6 +481,7 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	struct lookup_intent lookup_it = { .it_op = IT_LOOKUP };
 	struct dentry *save = dentry, *retval;
 	struct ptlrpc_request *req = NULL;
+	struct inode *inode;
 	struct md_op_data *op_data;
 	__u32 opc;
 	int rc;
@@ -539,12 +540,13 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 		goto out;
 	}
 
-	if ((it->it_op & IT_OPEN) && dentry->d_inode &&
-	    !S_ISREG(dentry->d_inode->i_mode) &&
-	    !S_ISDIR(dentry->d_inode->i_mode)) {
-		ll_release_openhandle(dentry->d_inode, it);
+	inode = dentry->d_inode;
+	if ((it->it_op & IT_OPEN) && inode &&
+	    !S_ISREG(inode->i_mode) &&
+	    !S_ISDIR(inode->i_mode)) {
+		ll_release_openhandle(inode, it);
 	}
-	ll_lookup_finish_locks(it, dentry);
+	ll_lookup_finish_locks(it, inode);
 
 	if (dentry == save)
 		retval = NULL;

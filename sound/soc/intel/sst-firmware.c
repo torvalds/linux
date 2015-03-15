@@ -497,6 +497,7 @@ struct sst_module *sst_module_new(struct sst_fw *sst_fw,
 	sst_module->sst_fw = sst_fw;
 	sst_module->scratch_size = template->scratch_size;
 	sst_module->persistent_size = template->persistent_size;
+	sst_module->entry = template->entry;
 
 	INIT_LIST_HEAD(&sst_module->block_list);
 	INIT_LIST_HEAD(&sst_module->runtime_list);
@@ -706,6 +707,7 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 	struct list_head *block_list)
 {
 	struct sst_mem_block *block, *tmp;
+	struct sst_block_allocator ba_tmp = *ba;
 	u32 end = ba->offset + ba->size, block_end;
 	int err;
 
@@ -730,9 +732,9 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 		if (ba->offset >= block->offset && ba->offset < block_end) {
 
 			/* align ba to block boundary */
-			ba->size -= block_end - ba->offset;
-			ba->offset = block_end;
-			err = block_alloc_contiguous(dsp, ba, block_list);
+			ba_tmp.size -= block_end - ba->offset;
+			ba_tmp.offset = block_end;
+			err = block_alloc_contiguous(dsp, &ba_tmp, block_list);
 			if (err < 0)
 				return -ENOMEM;
 
@@ -763,10 +765,14 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 		/* does block span more than 1 section */
 		if (ba->offset >= block->offset && ba->offset < block_end) {
 
+			/* add block */
+			list_move(&block->list, &dsp->used_block_list);
+			list_add(&block->module_list, block_list);
 			/* align ba to block boundary */
-			ba->offset = block->offset;
+			ba_tmp.size -= block_end - ba->offset;
+			ba_tmp.offset = block_end;
 
-			err = block_alloc_contiguous(dsp, ba, block_list);
+			err = block_alloc_contiguous(dsp, &ba_tmp, block_list);
 			if (err < 0)
 				return -ENOMEM;
 
@@ -785,6 +791,7 @@ int sst_module_alloc_blocks(struct sst_module *module)
 	struct sst_block_allocator ba;
 	int ret;
 
+	memset(&ba, 0, sizeof(ba));
 	ba.size = module->size;
 	ba.type = module->type;
 	ba.offset = module->offset;
@@ -858,6 +865,7 @@ int sst_module_runtime_alloc_blocks(struct sst_module_runtime *runtime,
 	if (module->persistent_size == 0)
 		return 0;
 
+	memset(&ba, 0, sizeof(ba));
 	ba.size = module->persistent_size;
 	ba.type = SST_MEM_DRAM;
 

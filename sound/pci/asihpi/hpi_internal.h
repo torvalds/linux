@@ -1367,9 +1367,9 @@ struct hpi_control_cache_single {
 struct hpi_control_cache_pad {
 	struct hpi_control_cache_info i;
 	u32 field_valid_flags;
-	u8 c_channel[8];
-	u8 c_artist[40];
-	u8 c_title[40];
+	u8 c_channel[40];
+	u8 c_artist[100];
+	u8 c_title[100];
 	u8 c_comment[200];
 	u32 pTY;
 	u32 pI;

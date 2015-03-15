@@ -546,7 +546,7 @@ static bool _rtl92de_llt_table_init(struct ieee80211_hw *hw)
 		txpktbuf_bndy = 246;
 		value8 = 0;
 		value32 = 0x80bf0d29;
-	} else if (rtlpriv->rtlhal.macphymode != SINGLEMAC_SINGLEPHY) {
+	} else {
 		maxPage = 127;
 		txpktbuf_bndy = 123;
 		value8 = 0;

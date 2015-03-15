@@ -20,7 +20,7 @@
 #include "vsp1_bru.h"
 #include "vsp1_rwpf.h"
 
-#define BRU_MIN_SIZE				4U
+#define BRU_MIN_SIZE				1U
 #define BRU_MAX_SIZE				8190U
 
 /* -----------------------------------------------------------------------------

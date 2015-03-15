@@ -3,8 +3,12 @@
 
 #define ARCH_SUPPORTS_FTRACE_OPS 1
 
+#ifdef CC_USING_HOTPATCH
+#define MCOUNT_INSN_SIZE	6
+#else
 #define MCOUNT_INSN_SIZE	24
 #define MCOUNT_RETURN_FIXUP	18
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -37,17 +41,28 @@ struct ftrace_insn {
 static inline void ftrace_generate_nop_insn(struct ftrace_insn *insn)
 {
 #ifdef CONFIG_FUNCTION_TRACER
+#ifdef CC_USING_HOTPATCH
+	/* brcl 0,0 */
+	insn->opc = 0xc004;
+	insn->disp = 0;
+#else
 	/* jg .+24 */
 	insn->opc = 0xc0f4;
 	insn->disp = MCOUNT_INSN_SIZE / 2;
+#endif
 #endif
 }
 
 static inline int is_ftrace_nop(struct ftrace_insn *insn)
 {
 #ifdef CONFIG_FUNCTION_TRACER
+#ifdef CC_USING_HOTPATCH
+	if (insn->disp == 0)
+		return 1;
+#else
 	if (insn->disp == MCOUNT_INSN_SIZE / 2)
 		return 1;
+#endif
 #endif
 	return 0;
 }

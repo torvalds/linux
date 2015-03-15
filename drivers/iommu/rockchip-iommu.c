@@ -1009,14 +1009,20 @@ static struct platform_driver rk_iommu_driver = {
 	.remove = rk_iommu_remove,
 	.driver = {
 		   .name = "rk_iommu",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(rk_iommu_dt_ids),
 	},
 };
 
 static int __init rk_iommu_init(void)
 {
+	struct device_node *np;
 	int ret;
+
+	np = of_find_matching_node(NULL, rk_iommu_dt_ids);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
 
 	ret = bus_set_iommu(&platform_bus_type, &rk_iommu_ops);
 	if (ret)

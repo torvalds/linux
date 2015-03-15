@@ -43,7 +43,7 @@ uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
 	[_PAGE_CACHE_MODE_WT]		= _PAGE_PCD,
 	[_PAGE_CACHE_MODE_WP]		= _PAGE_PCD,
 };
-EXPORT_SYMBOL_GPL(__cachemode2pte_tbl);
+EXPORT_SYMBOL(__cachemode2pte_tbl);
 uint8_t __pte2cachemode_tbl[8] = {
 	[__pte2cm_idx(0)] = _PAGE_CACHE_MODE_WB,
 	[__pte2cm_idx(_PAGE_PWT)] = _PAGE_CACHE_MODE_WC,
@@ -54,7 +54,7 @@ uint8_t __pte2cachemode_tbl[8] = {
 	[__pte2cm_idx(_PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
 	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC,
 };
-EXPORT_SYMBOL_GPL(__pte2cachemode_tbl);
+EXPORT_SYMBOL(__pte2cachemode_tbl);
 
 static unsigned long __initdata pgt_buf_start;
 static unsigned long __initdata pgt_buf_end;
@@ -173,11 +173,11 @@ static void __init probe_page_size_mask(void)
 
 	/* Enable PSE if available */
 	if (cpu_has_pse)
-		set_in_cr4(X86_CR4_PSE);
+		cr4_set_bits_and_update_boot(X86_CR4_PSE);
 
 	/* Enable PGE if available */
 	if (cpu_has_pge) {
-		set_in_cr4(X86_CR4_PGE);
+		cr4_set_bits_and_update_boot(X86_CR4_PGE);
 		__supported_pte_mask |= _PAGE_GLOBAL;
 	}
 }
@@ -236,6 +236,31 @@ static void __init_refok adjust_range_page_size_mask(struct map_range *mr,
 				mr[i].page_size_mask |= 1<<PG_LEVEL_1G;
 		}
 	}
+}
+
+static const char *page_size_string(struct map_range *mr)
+{
+	static const char str_1g[] = "1G";
+	static const char str_2m[] = "2M";
+	static const char str_4m[] = "4M";
+	static const char str_4k[] = "4k";
+
+	if (mr->page_size_mask & (1<<PG_LEVEL_1G))
+		return str_1g;
+	/*
+	 * 32-bit without PAE has a 4M large page size.
+	 * PG_LEVEL_2M is misnamed, but we can at least
+	 * print out the right size in the string.
+	 */
+	if (IS_ENABLED(CONFIG_X86_32) &&
+	    !IS_ENABLED(CONFIG_X86_PAE) &&
+	    mr->page_size_mask & (1<<PG_LEVEL_2M))
+		return str_4m;
+
+	if (mr->page_size_mask & (1<<PG_LEVEL_2M))
+		return str_2m;
+
+	return str_4k;
 }
 
 static int __meminit split_mem_range(struct map_range *mr, int nr_range,
@@ -333,8 +358,7 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	for (i = 0; i < nr_range; i++)
 		printk(KERN_DEBUG " [mem %#010lx-%#010lx] page %s\n",
 				mr[i].start, mr[i].end - 1,
-			(mr[i].page_size_mask & (1<<PG_LEVEL_1G))?"1G":(
-			 (mr[i].page_size_mask & (1<<PG_LEVEL_2M))?"2M":"4k"));
+				page_size_string(&mr[i]));
 
 	return nr_range;
 }
@@ -438,20 +462,20 @@ static unsigned long __init init_range_memory_mapping(
 static unsigned long __init get_new_step_size(unsigned long step_size)
 {
 	/*
-	 * Explain why we shift by 5 and why we don't have to worry about
-	 * 'step_size << 5' overflowing:
-	 *
-	 * initial mapped size is PMD_SIZE (2M).
+	 * Initial mapped size is PMD_SIZE (2M).
 	 * We can not set step_size to be PUD_SIZE (1G) yet.
 	 * In worse case, when we cross the 1G boundary, and
 	 * PG_LEVEL_2M is not set, we will need 1+1+512 pages (2M + 8k)
-	 * to map 1G range with PTE. Use 5 as shift for now.
+	 * to map 1G range with PTE. Hence we use one less than the
+	 * difference of page table level shifts.
 	 *
-	 * Don't need to worry about overflow, on 32bit, when step_size
-	 * is 0, round_down() returns 0 for start, and that turns it
-	 * into 0x100000000ULL.
+	 * Don't need to worry about overflow in the top-down case, on 32bit,
+	 * when step_size is 0, round_down() returns 0 for start, and that
+	 * turns it into 0x100000000ULL.
+	 * In the bottom-up case, round_up(x, 0) returns 0 though too, which
+	 * needs to be taken into consideration by the code below.
 	 */
-	return step_size << 5;
+	return step_size << (PMD_SHIFT - PAGE_SHIFT - 1);
 }
 
 /**
@@ -471,7 +495,6 @@ static void __init memory_map_top_down(unsigned long map_start,
 	unsigned long step_size;
 	unsigned long addr;
 	unsigned long mapped_ram_size = 0;
-	unsigned long new_mapped_ram_size;
 
 	/* xen has big range in reserved near end of ram, skip it at first.*/
 	addr = memblock_find_in_range(map_start, map_end, PMD_SIZE, PMD_SIZE);
@@ -496,14 +519,12 @@ static void __init memory_map_top_down(unsigned long map_start,
 				start = map_start;
 		} else
 			start = map_start;
-		new_mapped_ram_size = init_range_memory_mapping(start,
+		mapped_ram_size += init_range_memory_mapping(start,
 							last_start);
 		last_start = start;
 		min_pfn_mapped = last_start >> PAGE_SHIFT;
-		/* only increase step_size after big range get mapped */
-		if (new_mapped_ram_size > mapped_ram_size)
+		if (mapped_ram_size >= step_size)
 			step_size = get_new_step_size(step_size);
-		mapped_ram_size += new_mapped_ram_size;
 	}
 
 	if (real_end < map_end)
@@ -524,7 +545,7 @@ static void __init memory_map_top_down(unsigned long map_start,
 static void __init memory_map_bottom_up(unsigned long map_start,
 					unsigned long map_end)
 {
-	unsigned long next, new_mapped_ram_size, start;
+	unsigned long next, start;
 	unsigned long mapped_ram_size = 0;
 	/* step_size need to be small so pgt_buf from BRK could cover it */
 	unsigned long step_size = PMD_SIZE;
@@ -539,19 +560,19 @@ static void __init memory_map_bottom_up(unsigned long map_start,
 	 * for page table.
 	 */
 	while (start < map_end) {
-		if (map_end - start > step_size) {
+		if (step_size && map_end - start > step_size) {
 			next = round_up(start + 1, step_size);
 			if (next > map_end)
 				next = map_end;
-		} else
+		} else {
 			next = map_end;
+		}
 
-		new_mapped_ram_size = init_range_memory_mapping(start, next);
+		mapped_ram_size += init_range_memory_mapping(start, next);
 		start = next;
 
-		if (new_mapped_ram_size > mapped_ram_size)
+		if (mapped_ram_size >= step_size)
 			step_size = get_new_step_size(step_size);
-		mapped_ram_size += new_mapped_ram_size;
 	}
 }
 
@@ -611,7 +632,7 @@ void __init init_mem_mapping(void)
  *
  *
  * On x86, access has to be given to the first megabyte of ram because that area
- * contains bios code and data regions used by X and dosemu and similar apps.
+ * contains BIOS code and data regions used by X and dosemu and similar apps.
  * Access has to be given to non-kernel-ram areas as well, these contain the PCI
  * mmio resources as well as potential bios/acpi data regions.
  */
@@ -715,6 +736,15 @@ void __init zone_sizes_init(void)
 
 	free_area_init_nodes(max_zone_pfns);
 }
+
+DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
+#ifdef CONFIG_SMP
+	.active_mm = &init_mm,
+	.state = 0,
+#endif
+	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
+};
+EXPORT_SYMBOL_GPL(cpu_tlbstate);
 
 void update_cache_mode_entry(unsigned entry, enum page_cache_mode cache)
 {

@@ -9169,7 +9169,7 @@ static void bnx2x_disable_ptp(struct bnx2x *bp)
 }
 
 /* Called during unload, to stop PTP-related stuff */
-void bnx2x_stop_ptp(struct bnx2x *bp)
+static void bnx2x_stop_ptp(struct bnx2x *bp)
 {
 	/* Cancel PTP work queue. Should be done after the Tx queues are
 	 * drained to prevent additional scheduling.
@@ -12553,9 +12553,11 @@ static int bnx2x_get_phys_port_id(struct net_device *netdev,
 	return 0;
 }
 
-static bool bnx2x_gso_check(struct sk_buff *skb, struct net_device *dev)
+static netdev_features_t bnx2x_features_check(struct sk_buff *skb,
+					      struct net_device *dev,
+					      netdev_features_t features)
 {
-	return vxlan_gso_check(skb);
+	return vxlan_features_check(skb, features);
 }
 
 static const struct net_device_ops bnx2x_netdev_ops = {
@@ -12589,7 +12591,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id	= bnx2x_get_phys_port_id,
 	.ndo_set_vf_link_state	= bnx2x_set_vf_link_state,
-	.ndo_gso_check		= bnx2x_gso_check,
+	.ndo_features_check	= bnx2x_features_check,
 };
 
 static int bnx2x_set_coherency_mask(struct bnx2x *bp)
@@ -12719,6 +12721,9 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	/* clean indirect addresses */
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
 			       PCICFG_VENDOR_ID_OFFSET);
+
+	/* Set PCIe reset type to fundamental for EEH recovery */
+	pdev->needs_freset = 1;
 
 	/* AER (Advanced Error reporting) configuration */
 	rc = pci_enable_pcie_error_reporting(pdev);
@@ -13256,7 +13261,7 @@ static int bnx2x_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 		return -EFAULT;
 	}
 
-	DP(BNX2X_MSG_PTP, "Configrued val = %d, period = %d\n", best_val,
+	DP(BNX2X_MSG_PTP, "Configured val = %d, period = %d\n", best_val,
 	   best_period);
 
 	return 0;
@@ -13265,14 +13270,10 @@ static int bnx2x_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 static int bnx2x_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
-	u64 now;
 
 	DP(BNX2X_MSG_PTP, "PTP adjtime called, delta = %llx\n", delta);
 
-	now = timecounter_read(&bp->timecounter);
-	now += delta;
-	/* Re-init the timecounter */
-	timecounter_init(&bp->timecounter, &bp->cyclecounter, now);
+	timecounter_adjtime(&bp->timecounter, delta);
 
 	return 0;
 }
@@ -13320,7 +13321,7 @@ static int bnx2x_ptp_enable(struct ptp_clock_info *ptp,
 	return -ENOTSUPP;
 }
 
-void bnx2x_register_phc(struct bnx2x *bp)
+static void bnx2x_register_phc(struct bnx2x *bp)
 {
 	/* Fill the ptp_clock_info struct and register PTP clock*/
 	bp->ptp_clock_info.owner = THIS_MODULE;
@@ -14612,7 +14613,7 @@ static void bnx2x_init_cyclecounter(struct bnx2x *bp)
 {
 	memset(&bp->cyclecounter, 0, sizeof(bp->cyclecounter));
 	bp->cyclecounter.read = bnx2x_cyclecounter_read;
-	bp->cyclecounter.mask = CLOCKSOURCE_MASK(64);
+	bp->cyclecounter.mask = CYCLECOUNTER_MASK(64);
 	bp->cyclecounter.shift = 1;
 	bp->cyclecounter.mult = 1;
 }
@@ -14637,7 +14638,7 @@ static int bnx2x_send_reset_timesync_ramrod(struct bnx2x *bp)
 	return bnx2x_func_state_change(bp, &func_params);
 }
 
-int bnx2x_enable_ptp_packets(struct bnx2x *bp)
+static int bnx2x_enable_ptp_packets(struct bnx2x *bp)
 {
 	struct bnx2x_queue_state_params q_params;
 	int rc, i;
@@ -14784,7 +14785,7 @@ static int bnx2x_hwtstamp_ioctl(struct bnx2x *bp, struct ifreq *ifr)
 		-EFAULT : 0;
 }
 
-/* Configrues HW for PTP */
+/* Configures HW for PTP */
 static int bnx2x_configure_ptp(struct bnx2x *bp)
 {
 	int rc, port = BP_PORT(bp);

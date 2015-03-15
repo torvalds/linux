@@ -1,6 +1,6 @@
 /*
  *  comedi/drivers/das08.c
- *  comedi driver for common DAS08 support (used by ISA/PCI/PCMCIA drivers)
+ *  comedi module for common DAS08 support (used by ISA/PCI/PCMCIA drivers)
  *
  *  COMEDI - Linux Control and Measurement Device Interface
  *  Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -16,21 +16,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- */
-
-/*
- * Driver: das08
- * Description: DAS-08 compatible boards
- * Devices: various, see das08_isa, das08_cs, and das08_pci drivers
- * Author: Warren Jasper, ds, Frank Hess
- * Updated: Fri, 31 Aug 2012 19:19:06 +0100
- * Status: works
- *
- * This driver is used by the das08_isa, das08_cs, and das08_pci
- * drivers to provide the common support for the DAS-08 hardware.
- *
- * The driver doesn't support asynchronous commands, since the
- * cheap das08 hardware doesn't really support them.
  */
 
 #include <linux/module.h>

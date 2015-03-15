@@ -252,10 +252,6 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	const struct iphdr *tnl_params;
 
-	skb = gre_handle_offloads(skb, !!(tunnel->parms.o_flags&TUNNEL_CSUM));
-	if (IS_ERR(skb))
-		goto out;
-
 	if (dev->header_ops) {
 		/* Need space for new headers */
 		if (skb_cow_head(skb, dev->needed_headroom -
@@ -268,12 +264,17 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 		 * to gre header.
 		 */
 		skb_pull(skb, tunnel->hlen + sizeof(struct iphdr));
+		skb_reset_mac_header(skb);
 	} else {
 		if (skb_cow_head(skb, dev->needed_headroom))
 			goto free_skb;
 
 		tnl_params = &tunnel->parms.iph;
 	}
+
+	skb = gre_handle_offloads(skb, !!(tunnel->parms.o_flags&TUNNEL_CSUM));
+	if (IS_ERR(skb))
+		goto out;
 
 	__gre_xmit(skb, dev, tnl_params, skb->protocol);
 
@@ -658,12 +659,12 @@ static bool ipgre_netlink_encap_parms(struct nlattr *data[],
 
 	if (data[IFLA_GRE_ENCAP_SPORT]) {
 		ret = true;
-		ipencap->sport = nla_get_u16(data[IFLA_GRE_ENCAP_SPORT]);
+		ipencap->sport = nla_get_be16(data[IFLA_GRE_ENCAP_SPORT]);
 	}
 
 	if (data[IFLA_GRE_ENCAP_DPORT]) {
 		ret = true;
-		ipencap->dport = nla_get_u16(data[IFLA_GRE_ENCAP_DPORT]);
+		ipencap->dport = nla_get_be16(data[IFLA_GRE_ENCAP_DPORT]);
 	}
 
 	return ret;
@@ -672,6 +673,7 @@ static bool ipgre_netlink_encap_parms(struct nlattr *data[],
 static int gre_tap_init(struct net_device *dev)
 {
 	__gre_tunnel_init(dev);
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	return ip_tunnel_init(dev);
 }
@@ -784,10 +786,10 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (nla_put_u16(skb, IFLA_GRE_ENCAP_TYPE,
 			t->encap.type) ||
-	    nla_put_u16(skb, IFLA_GRE_ENCAP_SPORT,
-			t->encap.sport) ||
-	    nla_put_u16(skb, IFLA_GRE_ENCAP_DPORT,
-			t->encap.dport) ||
+	    nla_put_be16(skb, IFLA_GRE_ENCAP_SPORT,
+			 t->encap.sport) ||
+	    nla_put_be16(skb, IFLA_GRE_ENCAP_DPORT,
+			 t->encap.dport) ||
 	    nla_put_u16(skb, IFLA_GRE_ENCAP_FLAGS,
 			t->encap.flags))
 		goto nla_put_failure;
@@ -827,6 +829,7 @@ static struct rtnl_link_ops ipgre_link_ops __read_mostly = {
 	.dellink	= ip_tunnel_dellink,
 	.get_size	= ipgre_get_size,
 	.fill_info	= ipgre_fill_info,
+	.get_link_net	= ip_tunnel_get_link_net,
 };
 
 static struct rtnl_link_ops ipgre_tap_ops __read_mostly = {
@@ -841,6 +844,7 @@ static struct rtnl_link_ops ipgre_tap_ops __read_mostly = {
 	.dellink	= ip_tunnel_dellink,
 	.get_size	= ipgre_get_size,
 	.fill_info	= ipgre_fill_info,
+	.get_link_net	= ip_tunnel_get_link_net,
 };
 
 static int __net_init ipgre_tap_init_net(struct net *net)

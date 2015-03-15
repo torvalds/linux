@@ -30,6 +30,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/pm_runtime.h>
 
@@ -40,7 +41,9 @@
 #define INTC_IRQPIN_REG_SOURCE 2 /* INTREQnn */
 #define INTC_IRQPIN_REG_MASK 3 /* INTMSKnn */
 #define INTC_IRQPIN_REG_CLEAR 4 /* INTMSKCLRnn */
-#define INTC_IRQPIN_REG_NR 5
+#define INTC_IRQPIN_REG_NR_MANDATORY 5
+#define INTC_IRQPIN_REG_IRLM 5 /* ICR0 with IRLM bit (optional) */
+#define INTC_IRQPIN_REG_NR 6
 
 /* INTC external IRQ PIN hardware register access:
  *
@@ -80,6 +83,10 @@ struct intc_irqpin_priv {
 	struct clk *clk;
 	bool shared_irqs;
 	u8 shared_irq_mask;
+};
+
+struct intc_irqpin_irlm_config {
+	unsigned int irlm_bit;
 };
 
 static unsigned long intc_irqpin_read32(void __iomem *iomem)
@@ -345,10 +352,23 @@ static struct irq_domain_ops intc_irqpin_irq_domain_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
+static const struct intc_irqpin_irlm_config intc_irqpin_irlm_r8a7779 = {
+	.irlm_bit = 23, /* ICR0.IRLM0 */
+};
+
+static const struct of_device_id intc_irqpin_dt_ids[] = {
+	{ .compatible = "renesas,intc-irqpin", },
+	{ .compatible = "renesas,intc-irqpin-r8a7779",
+	  .data = &intc_irqpin_irlm_r8a7779 },
+	{},
+};
+MODULE_DEVICE_TABLE(of, intc_irqpin_dt_ids);
+
 static int intc_irqpin_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct renesas_intc_irqpin_config *pdata = dev->platform_data;
+	const struct of_device_id *of_id;
 	struct intc_irqpin_priv *p;
 	struct intc_irqpin_iomem *i;
 	struct resource *io[INTC_IRQPIN_REG_NR];
@@ -391,10 +411,11 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
-	/* get hold of manadatory IOMEM */
+	/* get hold of register banks */
+	memset(io, 0, sizeof(io));
 	for (k = 0; k < INTC_IRQPIN_REG_NR; k++) {
 		io[k] = platform_get_resource(pdev, IORESOURCE_MEM, k);
-		if (!io[k]) {
+		if (!io[k] && k < INTC_IRQPIN_REG_NR_MANDATORY) {
 			dev_err(dev, "not enough IOMEM resources\n");
 			ret = -EINVAL;
 			goto err0;
@@ -422,6 +443,10 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 	for (k = 0; k < INTC_IRQPIN_REG_NR; k++) {
 		i = &p->iomem[k];
 
+		/* handle optional registers */
+		if (!io[k])
+			continue;
+
 		switch (resource_size(io[k])) {
 		case 1:
 			i->width = 8;
@@ -446,6 +471,19 @@ static int intc_irqpin_probe(struct platform_device *pdev)
 			ret = -ENXIO;
 			goto err0;
 		}
+	}
+
+	/* configure "individual IRQ mode" where needed */
+	of_id = of_match_device(intc_irqpin_dt_ids, dev);
+	if (of_id && of_id->data) {
+		const struct intc_irqpin_irlm_config *irlm_config = of_id->data;
+
+		if (io[INTC_IRQPIN_REG_IRLM])
+			intc_irqpin_read_modify_write(p, INTC_IRQPIN_REG_IRLM,
+						      irlm_config->irlm_bit,
+						      1, 1);
+		else
+			dev_warn(dev, "unable to select IRLM mode\n");
 	}
 
 	/* mask all interrupts using priority */
@@ -549,12 +587,6 @@ static int intc_irqpin_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
-
-static const struct of_device_id intc_irqpin_dt_ids[] = {
-	{ .compatible = "renesas,intc-irqpin", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, intc_irqpin_dt_ids);
 
 static struct platform_driver intc_irqpin_device_driver = {
 	.probe		= intc_irqpin_probe,

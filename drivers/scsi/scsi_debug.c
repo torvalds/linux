@@ -80,6 +80,8 @@ static const char *scsi_debug_version_date = "20141022";
 #define INVALID_FIELD_IN_PARAM_LIST 0x26
 #define UA_RESET_ASC 0x29
 #define UA_CHANGED_ASC 0x2a
+#define TARGET_CHANGED_ASC 0x3f
+#define LUNS_CHANGED_ASCQ 0x0e
 #define INSUFF_RES_ASC 0x55
 #define INSUFF_RES_ASCQ 0x3
 #define POWER_ON_RESET_ASCQ 0x0
@@ -91,6 +93,8 @@ static const char *scsi_debug_version_date = "20141022";
 #define THRESHOLD_EXCEEDED 0x5d
 #define LOW_POWER_COND_ON 0x5e
 #define MISCOMPARE_VERIFY_ASC 0x1d
+#define MICROCODE_CHANGED_ASCQ 0x1	/* with TARGET_CHANGED_ASC */
+#define MICROCODE_CHANGED_WO_RESET_ASCQ 0x16
 
 /* Additional Sense Code Qualifier (ASCQ) */
 #define ACK_NAK_TO 0x3
@@ -128,7 +132,6 @@ static const char *scsi_debug_version_date = "20141022";
 #define DEF_REMOVABLE false
 #define DEF_SCSI_LEVEL   6    /* INQUIRY, byte2 [6->SPC-4] */
 #define DEF_SECTOR_SIZE 512
-#define DEF_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
 #define DEF_UNMAP_ALIGNMENT 0
 #define DEF_UNMAP_GRANULARITY 1
 #define DEF_UNMAP_MAX_BLOCKS 0xFFFFFFFF
@@ -181,7 +184,10 @@ static const char *scsi_debug_version_date = "20141022";
 #define SDEBUG_UA_BUS_RESET 1
 #define SDEBUG_UA_MODE_CHANGED 2
 #define SDEBUG_UA_CAPACITY_CHANGED 3
-#define SDEBUG_NUM_UAS 4
+#define SDEBUG_UA_LUNS_CHANGED 4
+#define SDEBUG_UA_MICROCODE_CHANGED 5	/* simulate firmware change */
+#define SDEBUG_UA_MICROCODE_CHANGED_WO_RESET 6
+#define SDEBUG_NUM_UAS 7
 
 /* for check_readiness() */
 #define UAS_ONLY 1	/* check for UAs only */
@@ -327,6 +333,7 @@ static int resp_write_same_10(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_write_same_16(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_xdwriteread_10(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_comp_write(struct scsi_cmnd *, struct sdebug_dev_info *);
+static int resp_write_buffer(struct scsi_cmnd *, struct sdebug_dev_info *);
 
 struct opcode_info_t {
 	u8 num_attached;	/* 0 if this is it (i.e. a leaf); use 0xff
@@ -481,8 +488,9 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEMENT + 1] = {
 	{0, 0x53, 0, F_D_IN | F_D_OUT | FF_DIRECT_IO, resp_xdwriteread_10,
 	    NULL, {10,  0xff, 0xff, 0xff, 0xff, 0xff, 0x1f, 0xff, 0xff, 0xc7,
 		   0, 0, 0, 0, 0, 0} },
-	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL, /* WRITE_BUFFER */
-	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
+	{0, 0x3b, 0, F_D_OUT_MAYBE, resp_write_buffer, NULL,
+	    {10,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc7, 0, 0,
+	     0, 0, 0, 0} },			/* WRITE_BUFFER */
 	{1, 0x41, 0, F_D_OUT_MAYBE | FF_DIRECT_IO, resp_write_same_10,
 	    write_same_iarr, {10,  0xff, 0xff, 0xff, 0xff, 0xff, 0x1f, 0xff,
 			      0xff, 0xc7, 0, 0, 0, 0, 0, 0} },
@@ -783,6 +791,22 @@ static int scsi_debug_ioctl(struct scsi_device *dev, int cmd, void __user *arg)
 	/* return -ENOTTY; // correct return but upsets fdisk */
 }
 
+static void clear_luns_changed_on_target(struct sdebug_dev_info *devip)
+{
+	struct sdebug_host_info *sdhp;
+	struct sdebug_dev_info *dp;
+
+	spin_lock(&sdebug_host_list_lock);
+	list_for_each_entry(sdhp, &sdebug_host_list, host_list) {
+		list_for_each_entry(dp, &sdhp->dev_info_list, dev_list) {
+			if ((devip->sdbg_host == dp->sdbg_host) &&
+			    (devip->target == dp->target))
+				clear_bit(SDEBUG_UA_LUNS_CHANGED, dp->uas_bm);
+		}
+	}
+	spin_unlock(&sdebug_host_list_lock);
+}
+
 static int check_readiness(struct scsi_cmnd *SCpnt, int uas_only,
 			   struct sdebug_dev_info * devip)
 {
@@ -817,6 +841,37 @@ static int check_readiness(struct scsi_cmnd *SCpnt, int uas_only,
 					UA_CHANGED_ASC, CAPACITY_CHANGED_ASCQ);
 			if (debug)
 				cp = "capacity data changed";
+			break;
+		case SDEBUG_UA_MICROCODE_CHANGED:
+			mk_sense_buffer(SCpnt, UNIT_ATTENTION,
+				 TARGET_CHANGED_ASC, MICROCODE_CHANGED_ASCQ);
+			if (debug)
+				cp = "microcode has been changed";
+			break;
+		case SDEBUG_UA_MICROCODE_CHANGED_WO_RESET:
+			mk_sense_buffer(SCpnt, UNIT_ATTENTION,
+					TARGET_CHANGED_ASC,
+					MICROCODE_CHANGED_WO_RESET_ASCQ);
+			if (debug)
+				cp = "microcode has been changed without reset";
+			break;
+		case SDEBUG_UA_LUNS_CHANGED:
+			/*
+			 * SPC-3 behavior is to report a UNIT ATTENTION with
+			 * ASC/ASCQ REPORTED LUNS DATA HAS CHANGED on every LUN
+			 * on the target, until a REPORT LUNS command is
+			 * received.  SPC-4 behavior is to report it only once.
+			 * NOTE:  scsi_debug_scsi_level does not use the same
+			 * values as struct scsi_device->scsi_level.
+			 */
+			if (scsi_debug_scsi_level >= 6)	/* SPC-4 and above */
+				clear_luns_changed_on_target(devip);
+			mk_sense_buffer(SCpnt, UNIT_ATTENTION,
+					TARGET_CHANGED_ASC,
+					LUNS_CHANGED_ASCQ);
+			if (debug)
+				cp = "reported luns data has changed";
+			break;
 		default:
 			pr_warn("%s: unexpected unit attention code=%d\n",
 				__func__, k);
@@ -1623,7 +1678,7 @@ resp_rsup_opcodes(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	req_opcode = cmd[3];
 	req_sa = get_unaligned_be16(cmd + 4);
 	alloc_len = get_unaligned_be32(cmd + 6);
-	if (alloc_len < 4 && alloc_len > 0xffff) {
+	if (alloc_len < 4 || alloc_len > 0xffff) {
 		mk_sense_invalid_fld(scp, SDEB_IN_CDB, 6, -1);
 		return check_condition_result;
 	}
@@ -1631,7 +1686,7 @@ resp_rsup_opcodes(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		a_len = 8192;
 	else
 		a_len = alloc_len;
-	arr = kzalloc((a_len < 256) ? 320 : a_len + 64, GFP_KERNEL);
+	arr = kzalloc((a_len < 256) ? 320 : a_len + 64, GFP_ATOMIC);
 	if (NULL == arr) {
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
 				INSUFF_RES_ASCQ);
@@ -3033,6 +3088,55 @@ resp_write_same_16(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	return resp_write_same(scp, lba, num, ei_lba, unmap, ndob);
 }
 
+/* Note the mode field is in the same position as the (lower) service action
+ * field. For the Report supported operation codes command, SPC-4 suggests
+ * each mode of this command should be reported separately; for future. */
+static int
+resp_write_buffer(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
+{
+	u8 *cmd = scp->cmnd;
+	struct scsi_device *sdp = scp->device;
+	struct sdebug_dev_info *dp;
+	u8 mode;
+
+	mode = cmd[1] & 0x1f;
+	switch (mode) {
+	case 0x4:	/* download microcode (MC) and activate (ACT) */
+		/* set UAs on this device only */
+		set_bit(SDEBUG_UA_BUS_RESET, devip->uas_bm);
+		set_bit(SDEBUG_UA_MICROCODE_CHANGED, devip->uas_bm);
+		break;
+	case 0x5:	/* download MC, save and ACT */
+		set_bit(SDEBUG_UA_MICROCODE_CHANGED_WO_RESET, devip->uas_bm);
+		break;
+	case 0x6:	/* download MC with offsets and ACT */
+		/* set UAs on most devices (LUs) in this target */
+		list_for_each_entry(dp,
+				    &devip->sdbg_host->dev_info_list,
+				    dev_list)
+			if (dp->target == sdp->id) {
+				set_bit(SDEBUG_UA_BUS_RESET, dp->uas_bm);
+				if (devip != dp)
+					set_bit(SDEBUG_UA_MICROCODE_CHANGED,
+						dp->uas_bm);
+			}
+		break;
+	case 0x7:	/* download MC with offsets, save, and ACT */
+		/* set UA on all devices (LUs) in this target */
+		list_for_each_entry(dp,
+				    &devip->sdbg_host->dev_info_list,
+				    dev_list)
+			if (dp->target == sdp->id)
+				set_bit(SDEBUG_UA_MICROCODE_CHANGED_WO_RESET,
+					dp->uas_bm);
+		break;
+	default:
+		/* do nothing for this command for other mode values */
+		break;
+	}
+	return 0;
+}
+
 static int
 resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 {
@@ -3045,18 +3149,12 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	u8 num;
 	unsigned long iflags;
 	int ret;
+	int retval = 0;
 
-	lba = get_unaligned_be32(cmd + 2);
+	lba = get_unaligned_be64(cmd + 2);
 	num = cmd[13];		/* 1 to a maximum of 255 logical blocks */
 	if (0 == num)
 		return 0;	/* degenerate case, not an error */
-	dnum = 2 * num;
-	arr = kzalloc(dnum * lb_size, GFP_ATOMIC);
-	if (NULL == arr) {
-		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
-				INSUFF_RES_ASCQ);
-		return check_condition_result;
-	}
 	if (scsi_debug_dif == SD_DIF_TYPE2_PROTECTION &&
 	    (cmd[1] & 0xe0)) {
 		mk_sense_invalid_opcode(scp);
@@ -3079,6 +3177,13 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INVALID_FIELD_IN_CDB, 0);
 		return check_condition_result;
 	}
+	dnum = 2 * num;
+	arr = kzalloc(dnum * lb_size, GFP_ATOMIC);
+	if (NULL == arr) {
+		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
+				INSUFF_RES_ASCQ);
+		return check_condition_result;
+	}
 
 	write_lock_irqsave(&atomic_rw, iflags);
 
@@ -3089,24 +3194,24 @@ resp_comp_write(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	ret = do_device_access(scp, 0, dnum, true);
 	fake_storep = fake_storep_hold;
 	if (ret == -1) {
-		write_unlock_irqrestore(&atomic_rw, iflags);
-		kfree(arr);
-		return DID_ERROR << 16;
+		retval = DID_ERROR << 16;
+		goto cleanup;
 	} else if ((ret < (dnum * lb_size)) &&
 		 (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts))
 		sdev_printk(KERN_INFO, scp->device, "%s: compare_write: cdb "
 			    "indicated=%u, IO sent=%d bytes\n", my_name,
 			    dnum * lb_size, ret);
 	if (!comp_write_worker(lba, num, arr)) {
-		write_unlock_irqrestore(&atomic_rw, iflags);
-		kfree(arr);
 		mk_sense_buffer(scp, MISCOMPARE, MISCOMPARE_VERIFY_ASC, 0);
-		return check_condition_result;
+		retval = check_condition_result;
+		goto cleanup;
 	}
 	if (scsi_debug_lbp())
 		map_region(lba, num);
+cleanup:
 	write_unlock_irqrestore(&atomic_rw, iflags);
-	return 0;
+	kfree(arr);
+	return retval;
 }
 
 struct unmap_block_desc {
@@ -3228,6 +3333,7 @@ static int resp_report_luns(struct scsi_cmnd * scp,
 	unsigned char arr[SDEBUG_RLUN_ARR_SZ];
 	unsigned char * max_addr;
 
+	clear_luns_changed_on_target(devip);
 	alloc_len = cmd[9] + (cmd[8] << 8) + (cmd[7] << 16) + (cmd[6] << 24);
 	shortish = (alloc_len < 4);
 	if (shortish || (select_report > 2)) {
@@ -4368,10 +4474,27 @@ static ssize_t max_luns_store(struct device_driver *ddp, const char *buf,
 			      size_t count)
 {
         int n;
+	bool changed;
 
 	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n >= 0)) {
+		changed = (scsi_debug_max_luns != n);
 		scsi_debug_max_luns = n;
 		sdebug_max_tgts_luns();
+		if (changed && (scsi_debug_scsi_level >= 5)) {	/* >= SPC-3 */
+			struct sdebug_host_info *sdhp;
+			struct sdebug_dev_info *dp;
+
+			spin_lock(&sdebug_host_list_lock);
+			list_for_each_entry(sdhp, &sdebug_host_list,
+					    host_list) {
+				list_for_each_entry(dp, &sdhp->dev_info_list,
+						    dev_list) {
+					set_bit(SDEBUG_UA_LUNS_CHANGED,
+						dp->uas_bm);
+				}
+			}
+			spin_unlock(&sdebug_host_list_lock);
+		}
 		return count;
 	}
 	return -EINVAL;
@@ -4438,6 +4561,7 @@ static ssize_t virtual_gb_store(struct device_driver *ddp, const char *buf,
 			struct sdebug_host_info *sdhp;
 			struct sdebug_dev_info *dp;
 
+			spin_lock(&sdebug_host_list_lock);
 			list_for_each_entry(sdhp, &sdebug_host_list,
 					    host_list) {
 				list_for_each_entry(dp, &sdhp->dev_info_list,
@@ -4446,6 +4570,7 @@ static ssize_t virtual_gb_store(struct device_driver *ddp, const char *buf,
 						dp->uas_bm);
 				}
 			}
+			spin_unlock(&sdebug_host_list_lock);
 		}
 		return count;
 	}
@@ -4533,10 +4658,10 @@ static ssize_t map_show(struct device_driver *ddp, char *buf)
 		return scnprintf(buf, PAGE_SIZE, "0-%u\n",
 				 sdebug_store_sectors);
 
-	count = bitmap_scnlistprintf(buf, PAGE_SIZE, map_storep, map_size);
-
+	count = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
+			  (int)map_size, map_storep);
 	buf[count++] = '\n';
-	buf[count++] = 0;
+	buf[count] = '\0';
 
 	return count;
 }
@@ -4988,32 +5113,6 @@ sdebug_change_qdepth(struct scsi_device *sdev, int qdepth)
 }
 
 static int
-sdebug_change_qtype(struct scsi_device *sdev, int qtype)
-{
-	qtype = scsi_change_queue_type(sdev, qtype);
-	if (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts) {
-		const char *cp;
-
-		switch (qtype) {
-		case 0:
-			cp = "untagged";
-			break;
-		case MSG_SIMPLE_TAG:
-			cp = "simple tags";
-			break;
-		case MSG_ORDERED_TAG:
-			cp = "ordered tags";
-			break;
-		default:
-			cp = "unknown";
-			break;
-		}
-		sdev_printk(KERN_INFO, sdev, "%s: to %s\n", __func__, cp);
-	}
-	return qtype;
-}
-
-static int
 check_inject(struct scsi_cmnd *scp)
 {
 	struct sdebug_scmd_extra_t *ep = scsi_cmd_priv(scp);
@@ -5212,7 +5311,6 @@ static struct scsi_host_template sdebug_driver_template = {
 	.ioctl =		scsi_debug_ioctl,
 	.queuecommand =		sdebug_queuecommand_lock_or_not,
 	.change_queue_depth =	sdebug_change_qdepth,
-	.change_queue_type =	sdebug_change_qtype,
 	.eh_abort_handler =	scsi_debug_abort,
 	.eh_device_reset_handler = scsi_debug_device_reset,
 	.eh_target_reset_handler = scsi_debug_target_reset,

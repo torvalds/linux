@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,7 +68,7 @@ int debugfs_valid_mountpoint(const char *debugfs)
 
 	if (statfs(debugfs, &st_fs) < 0)
 		return -ENOENT;
-	else if (st_fs.f_type != (long) DEBUGFS_MAGIC)
+	else if ((long)st_fs.f_type != (long)DEBUGFS_MAGIC)
 		return -ENOENT;
 
 	return 0;
@@ -97,4 +98,46 @@ char *debugfs_mount(const char *mountpoint)
 	strncpy(debugfs_mountpoint, mountpoint, sizeof(debugfs_mountpoint));
 out:
 	return debugfs_mountpoint;
+}
+
+int debugfs__strerror_open(int err, char *buf, size_t size, const char *filename)
+{
+	char sbuf[128];
+
+	switch (err) {
+	case ENOENT:
+		if (debugfs_found) {
+			snprintf(buf, size,
+				 "Error:\tFile %s/%s not found.\n"
+				 "Hint:\tPerhaps this kernel misses some CONFIG_ setting to enable this feature?.\n",
+				 debugfs_mountpoint, filename);
+			break;
+		}
+		snprintf(buf, size, "%s",
+			 "Error:\tUnable to find debugfs\n"
+			 "Hint:\tWas your kernel compiled with debugfs support?\n"
+			 "Hint:\tIs the debugfs filesystem mounted?\n"
+			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
+		break;
+	case EACCES:
+		snprintf(buf, size,
+			 "Error:\tNo permissions to read %s/%s\n"
+			 "Hint:\tTry 'sudo mount -o remount,mode=755 %s'\n",
+			 debugfs_mountpoint, filename, debugfs_mountpoint);
+		break;
+	default:
+		snprintf(buf, size, "%s", strerror_r(err, sbuf, sizeof(sbuf)));
+		break;
+	}
+
+	return 0;
+}
+
+int debugfs__strerror_open_tp(int err, char *buf, size_t size, const char *sys, const char *name)
+{
+	char path[PATH_MAX];
+
+	snprintf(path, PATH_MAX, "tracing/events/%s/%s", sys, name ?: "*");
+
+	return debugfs__strerror_open(err, buf, size, path);
 }

@@ -55,7 +55,7 @@ static struct tracefiled_ctl trace_tctl;
 struct mutex cfs_trace_thread_mutex;
 static int thread_running = 0;
 
-atomic_t cfs_tage_allocated = ATOMIC_INIT(0);
+static atomic_t cfs_tage_allocated = ATOMIC_INIT(0);
 
 static void put_pages_on_tcd_daemon_list(struct page_collection *pc,
 					 struct cfs_trace_cpu_data *tcd);
@@ -1037,6 +1037,7 @@ static int tracefiled(void *arg)
 				       tage->used, rc);
 				put_pages_back(&pc);
 				__LASSERT(list_empty(&pc.pc_pages));
+				break;
 			}
 		}
 		MMSPACE_CLOSE;

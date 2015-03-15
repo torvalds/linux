@@ -39,7 +39,6 @@ struct virtrng_info {
 	bool hwrng_removed;
 };
 
-
 static void random_recv_done(struct virtqueue *vq)
 {
 	struct virtrng_info *vi = vq->vdev->priv;

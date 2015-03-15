@@ -36,6 +36,9 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sizes.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
+#include <linux/of.h>
 
 #include <video/omapdss.h>
 
@@ -117,6 +120,9 @@ static struct {
 	const struct dispc_features *feat;
 
 	bool is_enabled;
+
+	struct regmap *syscon_pol;
+	u32 syscon_pol_offset;
 } dispc;
 
 enum omap_color_component {
@@ -2958,6 +2964,25 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 		FLD_VAL(vsync_level, 12, 12);
 
 	dispc_write_reg(DISPC_POL_FREQ(channel), l);
+
+	if (dispc.syscon_pol) {
+		const int shifts[] = {
+			[OMAP_DSS_CHANNEL_LCD] = 0,
+			[OMAP_DSS_CHANNEL_LCD2] = 1,
+			[OMAP_DSS_CHANNEL_LCD3] = 2,
+		};
+
+		u32 mask, val;
+
+		mask = (1 << 0) | (1 << 3) | (1 << 6);
+		val = (rf << 0) | (ipc << 3) | (onoff << 6);
+
+		mask <<= 16 + shifts[channel];
+		val <<= 16 + shifts[channel];
+
+		regmap_update_bits(dispc.syscon_pol, dispc.syscon_pol_offset,
+			mask, val);
+	}
 }
 
 /* change name to mode? */
@@ -3037,10 +3062,16 @@ unsigned long dispc_fclk_rate(void)
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 		pll = dss_pll_find("dsi0");
+		if (!pll)
+			pll = dss_pll_find("video0");
+
 		r = pll->cinfo.clkout[0];
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
 		pll = dss_pll_find("dsi1");
+		if (!pll)
+			pll = dss_pll_find("video1");
+
 		r = pll->cinfo.clkout[0];
 		break;
 	default:
@@ -3069,10 +3100,16 @@ unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 			break;
 		case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
 			pll = dss_pll_find("dsi0");
+			if (!pll)
+				pll = dss_pll_find("video0");
+
 			r = pll->cinfo.clkout[0];
 			break;
 		case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
 			pll = dss_pll_find("dsi1");
+			if (!pll)
+				pll = dss_pll_find("video1");
+
 			r = pll->cinfo.clkout[0];
 			break;
 		default:
@@ -3668,6 +3705,7 @@ static int __init dispc_init_features(struct platform_device *pdev)
 		break;
 
 	case OMAPDSS_VER_OMAP5:
+	case OMAPDSS_VER_DRA7xx:
 		src = &omap54xx_dispc_feats;
 		break;
 
@@ -3728,6 +3766,7 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 	u32 rev;
 	int r = 0;
 	struct resource *dispc_mem;
+	struct device_node *np = pdev->dev.of_node;
 
 	dispc.pdev = pdev;
 
@@ -3752,6 +3791,20 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 	if (dispc.irq < 0) {
 		DSSERR("platform_get_irq failed\n");
 		return -ENODEV;
+	}
+
+	if (np && of_property_read_bool(np, "syscon-pol")) {
+		dispc.syscon_pol = syscon_regmap_lookup_by_phandle(np, "syscon-pol");
+		if (IS_ERR(dispc.syscon_pol)) {
+			dev_err(&pdev->dev, "failed to get syscon-pol regmap\n");
+			return PTR_ERR(dispc.syscon_pol);
+		}
+
+		if (of_property_read_u32_index(np, "syscon-pol", 1,
+				&dispc.syscon_pol_offset)) {
+			dev_err(&pdev->dev, "failed to get syscon-pol offset\n");
+			return -EINVAL;
+		}
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -3832,6 +3885,7 @@ static const struct of_device_id dispc_of_match[] = {
 	{ .compatible = "ti,omap3-dispc", },
 	{ .compatible = "ti,omap4-dispc", },
 	{ .compatible = "ti,omap5-dispc", },
+	{ .compatible = "ti,dra7-dispc", },
 	{},
 };
 

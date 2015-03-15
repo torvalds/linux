@@ -337,7 +337,7 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 {
 	struct spi_qup *controller = spi_master_get_devdata(spi->master);
-	u32 config, iomode, mode;
+	u32 config, iomode, mode, control;
 	int ret, n_words, w_size;
 
 	if (spi->mode & SPI_LOOP && xfer->len > controller->in_fifo_sz) {
@@ -391,6 +391,15 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 	iomode |= (mode << QUP_IO_M_INPUT_MODE_MASK_SHIFT);
 
 	writel_relaxed(iomode, controller->base + QUP_IO_M_MODES);
+
+	control = readl_relaxed(controller->base + SPI_IO_CONTROL);
+
+	if (spi->mode & SPI_CPOL)
+		control |= SPI_IO_C_CLK_IDLE_HIGH;
+	else
+		control &= ~SPI_IO_C_CLK_IDLE_HIGH;
+
+	writel_relaxed(control, controller->base + SPI_IO_CONTROL);
 
 	config = readl_relaxed(controller->base + SPI_CONFIG);
 
@@ -646,7 +655,7 @@ error:
 	return ret;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int spi_qup_pm_suspend_runtime(struct device *device)
 {
 	struct spi_master *master = dev_get_drvdata(device);
@@ -672,7 +681,7 @@ static int spi_qup_pm_resume_runtime(struct device *device)
 	writel_relaxed(config, controller->base + QUP_CONFIG);
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
 static int spi_qup_suspend(struct device *device)

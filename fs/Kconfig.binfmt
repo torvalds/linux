@@ -149,13 +149,6 @@ config BINFMT_EM86
 	  later load the module when you want to use a Linux/Intel binary. The
 	  module will be called binfmt_em86. If unsure, say Y.
 
-config BINFMT_SOM
-	tristate "Kernel support for SOM binaries"
-	depends on PARISC && HPUX
-	help
-	  SOM is a binary executable format inherited from HP/UX.  Say
-	  Y here to be able to load and execute SOM binaries directly.
-
 config BINFMT_MISC
 	tristate "Kernel support for MISC binaries"
 	---help---

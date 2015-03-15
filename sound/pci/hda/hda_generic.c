@@ -692,7 +692,23 @@ static void init_amp(struct hda_codec *codec, hda_nid_t nid, int dir, int idx)
 {
 	unsigned int caps = query_amp_caps(codec, nid, dir);
 	int val = get_amp_val_to_activate(codec, nid, dir, caps, false);
-	snd_hda_codec_amp_init_stereo(codec, nid, dir, idx, 0xff, val);
+
+	if (get_wcaps(codec, nid) & AC_WCAP_STEREO)
+		snd_hda_codec_amp_init_stereo(codec, nid, dir, idx, 0xff, val);
+	else
+		snd_hda_codec_amp_init(codec, nid, 0, dir, idx, 0xff, val);
+}
+
+/* update the amp, doing in stereo or mono depending on NID */
+static int update_amp(struct hda_codec *codec, hda_nid_t nid, int dir, int idx,
+		      unsigned int mask, unsigned int val)
+{
+	if (get_wcaps(codec, nid) & AC_WCAP_STEREO)
+		return snd_hda_codec_amp_stereo(codec, nid, dir, idx,
+						mask, val);
+	else
+		return snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
+						mask, val);
 }
 
 /* calculate amp value mask we can modify;
@@ -732,7 +748,7 @@ static void activate_amp(struct hda_codec *codec, hda_nid_t nid, int dir,
 		return;
 
 	val &= mask;
-	snd_hda_codec_amp_stereo(codec, nid, dir, idx, mask, val);
+	update_amp(codec, nid, dir, idx, mask, val);
 }
 
 static void activate_amp_out(struct hda_codec *codec, struct nid_path *path,
@@ -3218,12 +3234,13 @@ static int create_input_ctls(struct hda_codec *codec)
 	}
 
 	/* add stereo mix when explicitly enabled via hint */
-	if (mixer && spec->add_stereo_mix_input &&
-	    snd_hda_get_bool_hint(codec, "add_stereo_mix_input") > 0) {
+	if (mixer && spec->add_stereo_mix_input == HDA_HINT_STEREO_MIX_ENABLE) {
 		err = parse_capture_source(codec, mixer, CFG_IDX_MIX, num_adcs,
 					   "Stereo Mix", 0);
 		if (err < 0)
 			return err;
+		else
+			spec->suppress_auto_mic = 1;
 	}
 
 	return 0;
@@ -4423,13 +4440,11 @@ static void mute_all_mixer_nid(struct hda_codec *codec, hda_nid_t mix)
 	has_amp = nid_has_mute(codec, mix, HDA_INPUT);
 	for (i = 0; i < nums; i++) {
 		if (has_amp)
-			snd_hda_codec_amp_stereo(codec, mix,
-						 HDA_INPUT, i,
-						 0xff, HDA_AMP_MUTE);
+			update_amp(codec, mix, HDA_INPUT, i,
+				   0xff, HDA_AMP_MUTE);
 		else if (nid_has_volume(codec, conn[i], HDA_OUTPUT))
-			snd_hda_codec_amp_stereo(codec, conn[i],
-						 HDA_OUTPUT, 0,
-						 0xff, HDA_AMP_MUTE);
+			update_amp(codec, conn[i], HDA_OUTPUT, 0,
+				   0xff, HDA_AMP_MUTE);
 	}
 }
 
@@ -4542,9 +4557,8 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 
 	/* add stereo mix if available and not enabled yet */
 	if (!spec->auto_mic && spec->mixer_nid &&
-	    spec->add_stereo_mix_input &&
-	    spec->input_mux.num_items > 1 &&
-	    snd_hda_get_bool_hint(codec, "add_stereo_mix_input") < 0) {
+	    spec->add_stereo_mix_input == HDA_HINT_STEREO_MIX_AUTO &&
+	    spec->input_mux.num_items > 1) {
 		err = parse_capture_source(codec, spec->mixer_nid,
 					   CFG_IDX_MIX, spec->num_all_adcs,
 					   "Stereo Mix", 0);

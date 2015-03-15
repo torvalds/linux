@@ -162,8 +162,8 @@ static int __hpp__sort(struct hist_entry *a, struct hist_entry *b,
 		return ret;
 
 	nr_members = evsel->nr_members;
-	fields_a = calloc(sizeof(*fields_a), nr_members);
-	fields_b = calloc(sizeof(*fields_b), nr_members);
+	fields_a = calloc(nr_members, sizeof(*fields_a));
+	fields_b = calloc(nr_members, sizeof(*fields_b));
 
 	if (!fields_a || !fields_b)
 		goto out;
@@ -203,6 +203,9 @@ static int __hpp__sort_acc(struct hist_entry *a, struct hist_entry *b,
 		ret = field_cmp(get_field(a), get_field(b));
 		if (ret)
 			return ret;
+
+		if (a->thread != b->thread || !symbol_conf.use_callchain)
+			return 0;
 
 		ret = b->callchain->max_depth - a->callchain->max_depth;
 	}
@@ -282,7 +285,8 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 }
 
 #define __HPP_SORT_FN(_type, _field)						\
-static int64_t hpp__sort_##_type(struct hist_entry *a, struct hist_entry *b)	\
+static int64_t hpp__sort_##_type(struct perf_hpp_fmt *fmt __maybe_unused, 	\
+				 struct hist_entry *a, struct hist_entry *b) 	\
 {										\
 	return __hpp__sort(a, b, he_get_##_field);				\
 }
@@ -309,7 +313,8 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 }
 
 #define __HPP_SORT_ACC_FN(_type, _field)					\
-static int64_t hpp__sort_##_type(struct hist_entry *a, struct hist_entry *b)	\
+static int64_t hpp__sort_##_type(struct perf_hpp_fmt *fmt __maybe_unused, 	\
+				 struct hist_entry *a, struct hist_entry *b) 	\
 {										\
 	return __hpp__sort_acc(a, b, he_get_acc_##_field);			\
 }
@@ -328,7 +333,8 @@ static int hpp__entry_##_type(struct perf_hpp_fmt *fmt,				\
 }
 
 #define __HPP_SORT_RAW_FN(_type, _field)					\
-static int64_t hpp__sort_##_type(struct hist_entry *a, struct hist_entry *b)	\
+static int64_t hpp__sort_##_type(struct perf_hpp_fmt *fmt __maybe_unused, 	\
+				 struct hist_entry *a, struct hist_entry *b) 	\
 {										\
 	return __hpp__sort(a, b, he_get_raw_##_field);				\
 }
@@ -358,7 +364,8 @@ HPP_PERCENT_ACC_FNS(overhead_acc, period)
 HPP_RAW_FNS(samples, nr_events)
 HPP_RAW_FNS(period, period)
 
-static int64_t hpp__nop_cmp(struct hist_entry *a __maybe_unused,
+static int64_t hpp__nop_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
+			    struct hist_entry *a __maybe_unused,
 			    struct hist_entry *b __maybe_unused)
 {
 	return 0;

@@ -1070,6 +1070,9 @@ static void dlm_move_reco_locks_to_list(struct dlm_ctxt *dlm,
 					     dead_node, dlm->name);
 					list_del_init(&lock->list);
 					dlm_lock_put(lock);
+					/* Can't schedule DLM_UNLOCK_FREE_LOCK
+					 * - do manually */
+					dlm_lock_put(lock);
 					break;
 				}
 			}
@@ -2023,11 +2026,8 @@ leave:
 	dlm_lockres_drop_inflight_ref(dlm, res);
 	spin_unlock(&res->spinlock);
 
-	if (ret < 0) {
+	if (ret < 0)
 		mlog_errno(ret);
-		if (newlock)
-			dlm_lock_put(newlock);
-	}
 
 	return ret;
 }
@@ -2348,6 +2348,10 @@ static void dlm_do_local_recovery_cleanup(struct dlm_ctxt *dlm, u8 dead_node)
 						     "node %u (%s)!\n",
 						     dead_node, dlm->name);
 						list_del_init(&lock->list);
+						dlm_lock_put(lock);
+						/* Can't schedule
+						 * DLM_UNLOCK_FREE_LOCK
+						 * - do manually */
 						dlm_lock_put(lock);
 						break;
 					}

@@ -651,14 +651,12 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	struct io_ctl io_ctl;
 	struct btrfs_key key;
 	struct btrfs_free_space *e, *n;
-	struct list_head bitmaps;
+	LIST_HEAD(bitmaps);
 	u64 num_entries;
 	u64 num_bitmaps;
 	u64 generation;
 	u8 type;
 	int ret = 0;
-
-	INIT_LIST_HEAD(&bitmaps);
 
 	/* Nothing in the space cache, goodbye */
 	if (!i_size_read(inode))
@@ -1243,6 +1241,7 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct inode *inode;
 	int ret = 0;
+	enum btrfs_disk_cache_state dcs = BTRFS_DC_WRITTEN;
 
 	root = root->fs_info->tree_root;
 
@@ -1266,9 +1265,7 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 	ret = __btrfs_write_out_cache(root, inode, ctl, block_group, trans,
 				      path, block_group->key.objectid);
 	if (ret) {
-		spin_lock(&block_group->lock);
-		block_group->disk_cache_state = BTRFS_DC_ERROR;
-		spin_unlock(&block_group->lock);
+		dcs = BTRFS_DC_ERROR;
 		ret = 0;
 #ifdef DEBUG
 		btrfs_err(root->fs_info,
@@ -1277,6 +1274,9 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 #endif
 	}
 
+	spin_lock(&block_group->lock);
+	block_group->disk_cache_state = dcs;
+	spin_unlock(&block_group->lock);
 	iput(inode);
 	return ret;
 }
@@ -2903,7 +2903,6 @@ int btrfs_find_space_cluster(struct btrfs_root *root,
 	trace_btrfs_find_cluster(block_group, offset, bytes, empty_size,
 				 min_bytes);
 
-	INIT_LIST_HEAD(&bitmaps);
 	ret = setup_cluster_no_bitmap(block_group, cluster, &bitmaps, offset,
 				      bytes + empty_size,
 				      cont1_bytes, min_bytes);
@@ -2966,8 +2965,8 @@ static int do_trimming(struct btrfs_block_group_cache *block_group,
 	spin_unlock(&block_group->lock);
 	spin_unlock(&space_info->lock);
 
-	ret = btrfs_error_discard_extent(fs_info->extent_root,
-					 start, bytes, &trimmed);
+	ret = btrfs_discard_extent(fs_info->extent_root,
+				   start, bytes, &trimmed);
 	if (!ret)
 		*total_trimmed += trimmed;
 
@@ -3185,16 +3184,18 @@ out:
 
 		spin_unlock(&block_group->lock);
 
+		lock_chunks(block_group->fs_info->chunk_root);
 		em_tree = &block_group->fs_info->mapping_tree.map_tree;
 		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, block_group->key.objectid,
 					   1);
 		BUG_ON(!em); /* logic error, can't happen */
+		/*
+		 * remove_extent_mapping() will delete us from the pinned_chunks
+		 * list, which is protected by the chunk mutex.
+		 */
 		remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
-
-		lock_chunks(block_group->fs_info->chunk_root);
-		list_del_init(&em->list);
 		unlock_chunks(block_group->fs_info->chunk_root);
 
 		/* once for us and once for the tree */

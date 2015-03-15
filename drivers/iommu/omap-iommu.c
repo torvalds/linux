@@ -1126,7 +1126,7 @@ static int omap_iommu_map(struct iommu_domain *domain, unsigned long da,
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "mapping da 0x%lx to pa 0x%x size 0x%x\n", da, pa, bytes);
+	dev_dbg(dev, "mapping da 0x%lx to pa %pa size 0x%x\n", da, &pa, bytes);
 
 	iotlb_init_entry(&e, da, pa, omap_pgsz);
 
@@ -1376,6 +1376,13 @@ static int __init omap_iommu_init(void)
 	struct kmem_cache *p;
 	const unsigned long flags = SLAB_HWCACHE_ALIGN;
 	size_t align = 1 << 10; /* L2 pagetable alignement */
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, omap_iommu_of_match);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
 
 	p = kmem_cache_create("iopte_cache", IOPTE_TABLE_SIZE, align, flags,
 			      iopte_cachep_ctor);

@@ -68,7 +68,7 @@ static DEVICE_ATTR_RO(name)
 MASTER_SHOW(current_channel, "%d");
 MASTER_SHOW(current_page, "%d");
 MASTER_SHOW(transmit_power, "%d +- 1 dB");
-MASTER_SHOW(cca_mode, "%d");
+MASTER_SHOW_COMPLEX(cca_mode, "%d", phy->cca.mode);
 
 static ssize_t channels_supported_show(struct device *dev,
 				       struct device_attribute *attr,

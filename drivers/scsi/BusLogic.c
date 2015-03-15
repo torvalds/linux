@@ -3485,7 +3485,7 @@ static int blogic_show_info(struct seq_file *m, struct Scsi_Host *shost)
 	seq_printf(m, "\n\
 Current Driver Queue Depth:	%d\n\
 Currently Allocated CCBs:	%d\n", adapter->drvr_qdepth, adapter->alloc_ccbs);
-	seq_printf(m, "\n\n\
+	seq_puts(m, "\n\n\
 			   DATA TRANSFER STATISTICS\n\
 \n\
 Target	Tagged Queuing	Queue Depth  Active  Attempted	Completed\n\
@@ -3500,7 +3500,7 @@ Target	Tagged Queuing	Queue Depth  Active  Attempted	Completed\n\
 		seq_printf(m,
 				  "	    %3d       %3u    %9u	%9u\n", adapter->qdepth[tgt], adapter->active_cmds[tgt], tgt_stats[tgt].cmds_tried, tgt_stats[tgt].cmds_complete);
 	}
-	seq_printf(m, "\n\
+	seq_puts(m, "\n\
 Target  Read Commands  Write Commands   Total Bytes Read    Total Bytes Written\n\
 ======  =============  ==============  ===================  ===================\n");
 	for (tgt = 0; tgt < adapter->maxdev; tgt++) {
@@ -3517,7 +3517,7 @@ Target  Read Commands  Write Commands   Total Bytes Read    Total Bytes Written\
 		else
 			seq_printf(m, "	     %9u\n", tgt_stats[tgt].byteswritten.units);
 	}
-	seq_printf(m, "\n\
+	seq_puts(m, "\n\
 Target  Command    0-1KB      1-2KB      2-4KB      4-8KB     8-16KB\n\
 ======  =======  =========  =========  =========  =========  =========\n");
 	for (tgt = 0; tgt < adapter->maxdev; tgt++) {
@@ -3533,7 +3533,7 @@ Target  Command    0-1KB      1-2KB      2-4KB      4-8KB     8-16KB\n\
 			    tgt_stats[tgt].write_sz_buckets[0],
 			    tgt_stats[tgt].write_sz_buckets[1], tgt_stats[tgt].write_sz_buckets[2], tgt_stats[tgt].write_sz_buckets[3], tgt_stats[tgt].write_sz_buckets[4]);
 	}
-	seq_printf(m, "\n\
+	seq_puts(m, "\n\
 Target  Command   16-32KB    32-64KB   64-128KB   128-256KB   256KB+\n\
 ======  =======  =========  =========  =========  =========  =========\n");
 	for (tgt = 0; tgt < adapter->maxdev; tgt++) {
@@ -3549,7 +3549,7 @@ Target  Command   16-32KB    32-64KB   64-128KB   128-256KB   256KB+\n\
 			    tgt_stats[tgt].write_sz_buckets[5],
 			    tgt_stats[tgt].write_sz_buckets[6], tgt_stats[tgt].write_sz_buckets[7], tgt_stats[tgt].write_sz_buckets[8], tgt_stats[tgt].write_sz_buckets[9]);
 	}
-	seq_printf(m, "\n\n\
+	seq_puts(m, "\n\n\
 			   ERROR RECOVERY STATISTICS\n\
 \n\
 	  Command Aborts      Bus Device Resets	  Host Adapter Resets\n\

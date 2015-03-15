@@ -655,7 +655,7 @@ static struct scarlett_device_info s6i6_info = {
 		.names = NULL
 	},
 
-	.num_controls = 0,
+	.num_controls = 9,
 	.controls = {
 		{ .num = 0, .type = SCARLETT_OUTPUTS, .name = "Monitor" },
 		{ .num = 1, .type = SCARLETT_OUTPUTS, .name = "Headphone" },

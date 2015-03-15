@@ -24,6 +24,7 @@ void page_table_free_rcu(struct mmu_gather *, unsigned long *, unsigned long);
 
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned long key, bool nq);
+unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
 
 static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 {

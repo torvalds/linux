@@ -120,6 +120,7 @@ static int queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
 		sizes[0] = VBI_LINE_NTSC_COUNT * VBI_LINE_LENGTH * 2;
 	else
 		sizes[0] = VBI_LINE_PAL_COUNT * VBI_LINE_LENGTH * 2;
+	alloc_ctxs[0] = dev->alloc_ctx;
 	return 0;
 }
 
@@ -131,7 +132,6 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	unsigned int lines;
 	unsigned int size;
-	int rc;
 
 	if (dev->core->tvnorm & V4L2_STD_525_60)
 		lines = VBI_LINE_NTSC_COUNT;
@@ -141,10 +141,6 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	if (vb2_plane_size(vb, 0) < size)
 		return -EINVAL;
 	vb2_set_plane_payload(vb, 0, size);
-
-	rc = dma_map_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
-	if (!rc)
-		return -EIO;
 
 	cx88_risc_buffer(dev->pci, &buf->risc, sgt->sgl,
 			 0, VBI_LINE_LENGTH * lines,
@@ -157,14 +153,11 @@ static void buffer_finish(struct vb2_buffer *vb)
 {
 	struct cx8800_dev *dev = vb->vb2_queue->drv_priv;
 	struct cx88_buffer *buf = container_of(vb, struct cx88_buffer, vb);
-	struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 	struct cx88_riscmem *risc = &buf->risc;
 
 	if (risc->cpu)
 		pci_free_consistent(dev->pci, risc->size, risc->cpu, risc->dma);
 	memset(risc, 0, sizeof(*risc));
-
-	dma_unmap_sg(&dev->pci->dev, sgt->sgl, sgt->nents, DMA_FROM_DEVICE);
 }
 
 static void buffer_queue(struct vb2_buffer *vb)

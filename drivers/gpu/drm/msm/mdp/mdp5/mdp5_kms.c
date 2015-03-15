@@ -68,6 +68,18 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	return 0;
 }
 
+static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+{
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	mdp5_enable(mdp5_kms);
+}
+
+static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+{
+	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
+	mdp5_disable(mdp5_kms);
+}
+
 static long mdp5_round_pixclk(struct msm_kms *kms, unsigned long rate,
 		struct drm_encoder *encoder)
 {
@@ -115,6 +127,8 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.irq             = mdp5_irq,
 		.enable_vblank   = mdp5_enable_vblank,
 		.disable_vblank  = mdp5_disable_vblank,
+		.prepare_commit  = mdp5_prepare_commit,
+		.complete_commit = mdp5_complete_commit,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.preclose        = mdp5_preclose,
@@ -208,32 +222,42 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		}
 	}
 
-	/* Construct encoder for HDMI: */
-	encoder = mdp5_encoder_init(dev, 3, INTF_HDMI);
-	if (IS_ERR(encoder)) {
-		dev_err(dev->dev, "failed to construct encoder\n");
-		ret = PTR_ERR(encoder);
-		goto fail;
-	}
-
-	/* NOTE: the vsync and error irq's are actually associated with
-	 * the INTF/encoder.. the easiest way to deal with this (ie. what
-	 * we do now) is assume a fixed relationship between crtc's and
-	 * encoders.  I'm not sure if there is ever a need to more freely
-	 * assign crtcs to encoders, but if there is then we need to take
-	 * care of error and vblank irq's that the crtc has registered,
-	 * and also update user-requested vblank_mask.
-	 */
-	encoder->possible_crtcs = BIT(0);
-	mdp5_crtc_set_intf(priv->crtcs[0], 3, INTF_HDMI);
-
-	priv->encoders[priv->num_encoders++] = encoder;
-
-	/* Construct bridge/connector for HDMI: */
 	if (priv->hdmi) {
+		/* Construct encoder for HDMI: */
+		encoder = mdp5_encoder_init(dev, 3, INTF_HDMI);
+		if (IS_ERR(encoder)) {
+			dev_err(dev->dev, "failed to construct encoder\n");
+			ret = PTR_ERR(encoder);
+			goto fail;
+		}
+
+		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;;
+		priv->encoders[priv->num_encoders++] = encoder;
+
 		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
 		if (ret) {
 			dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+			goto fail;
+		}
+	}
+
+	if (priv->edp) {
+		/* Construct encoder for eDP: */
+		encoder = mdp5_encoder_init(dev, 0, INTF_eDP);
+		if (IS_ERR(encoder)) {
+			dev_err(dev->dev, "failed to construct eDP encoder\n");
+			ret = PTR_ERR(encoder);
+			goto fail;
+		}
+
+		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
+		priv->encoders[priv->num_encoders++] = encoder;
+
+		/* Construct bridge/connector for eDP: */
+		ret = msm_edp_modeset_init(priv->edp, dev, encoder);
+		if (ret) {
+			dev_err(dev->dev, "failed to initialize eDP: %d\n",
+									ret);
 			goto fail;
 		}
 	}

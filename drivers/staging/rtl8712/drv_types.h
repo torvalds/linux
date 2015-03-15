@@ -129,8 +129,8 @@ struct dvobj_priv {
 	struct _adapter *padapter;
 	u32 nr_endpoint;
 	u8   ishighspeed;
-	uint(*inirp_init)(struct _adapter *adapter);
-	uint(*inirp_deinit)(struct _adapter *adapter);
+	uint (*inirp_init)(struct _adapter *adapter);
+	uint (*inirp_deinit)(struct _adapter *adapter);
 	struct usb_device *pusbdev;
 };
 
@@ -166,7 +166,7 @@ struct _adapter {
 	 pid_t evtThread;
 	struct task_struct *xmitThread;
 	pid_t recvThread;
-	uint(*dvobj_init)(struct _adapter *adapter);
+	uint (*dvobj_init)(struct _adapter *adapter);
 	void (*dvobj_deinit)(struct _adapter *adapter);
 	struct net_device *pnetdev;
 	int bup;

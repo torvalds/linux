@@ -390,6 +390,7 @@ int rockchip_drm_encoder_get_mux_id(struct device_node *node,
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(rockchip_drm_encoder_get_mux_id);
 
 static int compare_of(struct device *dev, void *data)
 {

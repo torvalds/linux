@@ -1131,19 +1131,19 @@ static int usbg_submit_command(struct f_uas *fu,
 
 	switch (cmd_iu->prio_attr & 0x7) {
 	case UAS_HEAD_TAG:
-		cmd->prio_attr = MSG_HEAD_TAG;
+		cmd->prio_attr = TCM_HEAD_TAG;
 		break;
 	case UAS_ORDERED_TAG:
-		cmd->prio_attr = MSG_ORDERED_TAG;
+		cmd->prio_attr = TCM_ORDERED_TAG;
 		break;
 	case UAS_ACA:
-		cmd->prio_attr = MSG_ACA_TAG;
+		cmd->prio_attr = TCM_ACA_TAG;
 		break;
 	default:
 		pr_debug_once("Unsupported prio_attr: %02x.\n",
 				cmd_iu->prio_attr);
 	case UAS_SIMPLE_TAG:
-		cmd->prio_attr = MSG_SIMPLE_TAG;
+		cmd->prio_attr = TCM_SIMPLE_TAG;
 		break;
 	}
 
@@ -1240,7 +1240,7 @@ static int bot_submit_command(struct f_uas *fu,
 		goto err;
 	}
 
-	cmd->prio_attr = MSG_SIMPLE_TAG;
+	cmd->prio_attr = TCM_SIMPLE_TAG;
 	se_cmd = &cmd->se_cmd;
 	cmd->unpacked_lun = cbw->Lun;
 	cmd->is_read = cbw->Flags & US_BULK_FLAG_IN ? 1 : 0;

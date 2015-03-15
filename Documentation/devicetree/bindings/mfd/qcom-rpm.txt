@@ -1,0 +1,70 @@
+Qualcomm Resource Power Manager (RPM)
+
+This driver is used to interface with the Resource Power Manager (RPM) found in
+various Qualcomm platforms. The RPM allows each component in the system to vote
+for state of the system resources, such as clocks, regulators and bus
+frequencies.
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,rpm-apq8064"
+		    "qcom,rpm-msm8660"
+		    "qcom,rpm-msm8960"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: base address and size of the RPM's message ram
+
+- interrupts:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: three entries specifying the RPM's:
+		    1. acknowledgement interrupt
+		    2. error interrupt
+		    3. wakeup interrupt
+
+- interrupt-names:
+	Usage: required
+	Value type: <string-array>
+	Definition: must be the three strings "ack", "err" and "wakeup", in order
+
+- #address-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: must be 1
+
+- #size-cells:
+	Usage: required
+	Value type: <u32>
+	Definition: must be 0
+
+- qcom,ipc:
+	Usage: required
+	Value type: <prop-encoded-array>
+
+	Definition: three entries specifying the outgoing ipc bit used for
+		    signaling the RPM:
+		    - phandle to a syscon node representing the apcs registers
+		    - u32 representing offset to the register within the syscon
+		    - u32 representing the ipc bit within the register
+
+
+= EXAMPLE
+
+	#include <dt-bindings/mfd/qcom-rpm.h>
+
+	rpm@108000 {
+		compatible = "qcom,rpm-msm8960";
+		reg = <0x108000 0x1000>;
+		qcom,ipc = <&apcs 0x8 2>;
+
+		interrupts = <0 19 0>, <0 21 0>, <0 22 0>;
+		interrupt-names = "ack", "err", "wakeup";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+

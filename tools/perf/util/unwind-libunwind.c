@@ -185,6 +185,28 @@ static u64 elf_section_offset(int fd, const char *name)
 	return offset;
 }
 
+#ifndef NO_LIBUNWIND_DEBUG_FRAME
+static int elf_is_exec(int fd, const char *name)
+{
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	int retval = 0;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		return 0;
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto out;
+
+	retval = (ehdr.e_type == ET_EXEC);
+
+out:
+	elf_end(elf);
+	pr_debug("unwind: elf_is_exec(%s): %d\n", name, retval);
+	return retval;
+}
+#endif
+
 struct table_entry {
 	u32 start_ip_offset;
 	u32 fde_offset;
@@ -244,14 +266,17 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct machine *machine,
 				     u64 *fde_count)
 {
 	int ret = -EINVAL, fd;
-	u64 offset;
+	u64 offset = dso->data.frame_offset;
 
-	fd = dso__data_fd(dso, machine);
-	if (fd < 0)
-		return -EINVAL;
+	if (offset == 0) {
+		fd = dso__data_fd(dso, machine);
+		if (fd < 0)
+			return -EINVAL;
 
-	/* Check the .eh_frame section for unwinding info */
-	offset = elf_section_offset(fd, ".eh_frame_hdr");
+		/* Check the .eh_frame section for unwinding info */
+		offset = elf_section_offset(fd, ".eh_frame_hdr");
+		dso->data.frame_offset = offset;
+	}
 
 	if (offset)
 		ret = unwind_spec_ehframe(dso, machine, offset,
@@ -265,14 +290,20 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct machine *machine,
 static int read_unwind_spec_debug_frame(struct dso *dso,
 					struct machine *machine, u64 *offset)
 {
-	int fd = dso__data_fd(dso, machine);
+	int fd;
+	u64 ofs = dso->data.frame_offset;
 
-	if (fd < 0)
-		return -EINVAL;
+	if (ofs == 0) {
+		fd = dso__data_fd(dso, machine);
+		if (fd < 0)
+			return -EINVAL;
 
-	/* Check the .debug_frame section for unwinding info */
-	*offset = elf_section_offset(fd, ".debug_frame");
+		/* Check the .debug_frame section for unwinding info */
+		ofs = elf_section_offset(fd, ".debug_frame");
+		dso->data.frame_offset = ofs;
+	}
 
+	*offset = ofs;
 	if (*offset)
 		return 0;
 
@@ -322,8 +353,12 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
 	/* Check the .debug_frame section for unwinding info */
 	if (!read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
+		int fd = dso__data_fd(map->dso, ui->machine);
+		int is_exec = elf_is_exec(fd, map->dso->name);
+		unw_word_t base = is_exec ? 0 : map->start;
+
 		memset(&di, 0, sizeof(di));
-		if (dwarf_find_debug_frame(0, &di, ip, 0, map->dso->name,
+		if (dwarf_find_debug_frame(0, &di, ip, base, map->dso->name,
 					   map->start, map->end))
 			return dwarf_search_unwind_table(as, ip, &di, pi,
 							 need_unwind_info, arg);

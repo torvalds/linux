@@ -136,11 +136,12 @@ static void __detach_handler (struct kref *kref)
 	struct scsi_device_handler *scsi_dh = scsi_dh_data->scsi_dh;
 	struct scsi_device *sdev = scsi_dh_data->sdev;
 
+	scsi_dh->detach(sdev);
+
 	spin_lock_irq(sdev->request_queue->queue_lock);
 	sdev->scsi_dh_data = NULL;
 	spin_unlock_irq(sdev->request_queue->queue_lock);
 
-	scsi_dh->detach(sdev);
 	sdev_printk(KERN_NOTICE, sdev, "%s: Detached\n", scsi_dh->name);
 	module_put(scsi_dh->module);
 }

@@ -120,7 +120,7 @@
 		};
 	};
 
-	cci@10d20000 {
+	cci: cci@10d20000 {
 		compatible = "arm,cci-400";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -178,7 +178,7 @@
 		interrupts = <0 96 0>;
 		clocks = <&clock CLK_MFC>;
 		clock-names = "mfc";
-		samsung,power-domain = <&mfc_pd>;
+		power-domains = <&mfc_pd>;
 	};
 
 	mmc_0: mmc@12200000 {
@@ -250,11 +250,13 @@
 	gsc_pd: power-domain@10044000 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044000 0x20>;
+		#power-domain-cells = <0>;
 	};
 
 	isp_pd: power-domain@10044020 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044020 0x20>;
+		#power-domain-cells = <0>;
 	};
 
 	mfc_pd: power-domain@10044060 {
@@ -263,11 +265,27 @@
 		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_SW_ACLK333>,
 			<&clock CLK_MOUT_USER_ACLK333>;
 		clock-names = "oscclk", "pclk0", "clk0";
+		#power-domain-cells = <0>;
 	};
 
 	msc_pd: power-domain@10044120 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044120 0x20>;
+		#power-domain-cells = <0>;
+	};
+
+	disp_pd: power-domain@100440C0 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x100440C0 0x20>;
+		#power-domain-cells = <0>;
+		clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MOUT_SW_ACLK200>,
+			 <&clock CLK_MOUT_USER_ACLK200_DISP1>,
+			 <&clock CLK_MOUT_SW_ACLK300>,
+			 <&clock CLK_MOUT_USER_ACLK300_DISP1>,
+			 <&clock CLK_MOUT_SW_ACLK400>,
+			 <&clock CLK_MOUT_USER_ACLK400_DISP1>;
+		clock-names = "oscclk", "pclk0", "clk0",
+			      "pclk1", "clk1", "pclk2", "clk2";
 	};
 
 	pinctrl_0: pinctrl@13400000 {
@@ -503,8 +521,8 @@
 	};
 
 	dp_phy: video-phy@10040728 {
-		compatible = "samsung,exynos5250-dp-video-phy";
-		reg = <0x10040728 4>;
+		compatible = "samsung,exynos5420-dp-video-phy";
+		samsung,pmu-syscon = <&pmu_system_controller>;
 		#phy-cells = <0>;
 	};
 
@@ -537,6 +555,7 @@
 	fimd: fimd@14400000 {
 		clocks = <&clock CLK_SCLK_FIMD1>, <&clock CLK_FIMD1>;
 		clock-names = "sclk_fimd", "fimd";
+		power-domains = <&disp_pd>;
 	};
 
 	adc: adc@12D10000 {
@@ -710,6 +729,7 @@
 		phy = <&hdmiphy>;
 		samsung,syscon-phandle = <&pmu_system_controller>;
 		status = "disabled";
+		power-domains = <&disp_pd>;
 	};
 
 	hdmiphy: hdmiphy@145D0000 {
@@ -722,6 +742,7 @@
 		interrupts = <0 94 0>;
 		clocks = <&clock CLK_MIXER>, <&clock CLK_SCLK_HDMI>;
 		clock-names = "mixer", "sclk_hdmi";
+		power-domains = <&disp_pd>;
 	};
 
 	gsc_0: video-scaler@13e00000 {
@@ -730,7 +751,7 @@
 		interrupts = <0 85 0>;
 		clocks = <&clock CLK_GSCL0>;
 		clock-names = "gscl";
-		samsung,power-domain = <&gsc_pd>;
+		power-domains = <&gsc_pd>;
 	};
 
 	gsc_1: video-scaler@13e10000 {
@@ -739,7 +760,7 @@
 		interrupts = <0 86 0>;
 		clocks = <&clock CLK_GSCL1>;
 		clock-names = "gscl";
-		samsung,power-domain = <&gsc_pd>;
+		power-domains = <&gsc_pd>;
 	};
 
 	pmu_system_controller: system-controller@10040000 {

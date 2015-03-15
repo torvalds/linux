@@ -567,7 +567,8 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 {
 	void __iomem *base;
 	u32 control;
-	u32 fminterval;
+	u32 fminterval = 0;
+	bool no_fminterval = false;
 	int cnt;
 
 	if (!mmio_resource_enabled(pdev, 0))
@@ -576,6 +577,13 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	base = pci_ioremap_bar(pdev, 0);
 	if (base == NULL)
 		return;
+
+	/*
+	 * ULi M5237 OHCI controller locks the whole system when accessing
+	 * the OHCI_FMINTERVAL offset.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_AL && pdev->device == 0x5237)
+		no_fminterval = true;
 
 	control = readl(base + OHCI_CONTROL);
 
@@ -595,9 +603,9 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 			msleep(10);
 		}
 		if (wait_time <= 0)
-			dev_warn(&pdev->dev, "OHCI: BIOS handoff failed"
-					" (BIOS bug?) %08x\n",
-					readl(base + OHCI_CONTROL));
+			dev_warn(&pdev->dev,
+				 "OHCI: BIOS handoff failed (BIOS bug?) %08x\n",
+				 readl(base + OHCI_CONTROL));
 	}
 #endif
 
@@ -615,7 +623,9 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	}
 
 	/* software reset of the controller, preserving HcFmInterval */
-	fminterval = readl(base + OHCI_FMINTERVAL);
+	if (!no_fminterval)
+		fminterval = readl(base + OHCI_FMINTERVAL);
+
 	writel(OHCI_HCR, base + OHCI_CMDSTATUS);
 
 	/* reset requires max 10 us delay */
@@ -624,7 +634,9 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 			break;
 		udelay(1);
 	}
-	writel(fminterval, base + OHCI_FMINTERVAL);
+
+	if (!no_fminterval)
+		writel(fminterval, base + OHCI_FMINTERVAL);
 
 	/* Now the controller is safely in SUSPEND and nothing can wake it up */
 	iounmap(base);
@@ -721,8 +733,9 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 		 * and hope nothing goes too wrong
 		 */
 		if (try_handoff)
-			dev_warn(&pdev->dev, "EHCI: BIOS handoff failed"
-				 " (BIOS bug?) %08x\n", cap);
+			dev_warn(&pdev->dev,
+				 "EHCI: BIOS handoff failed (BIOS bug?) %08x\n",
+				 cap);
 		pci_write_config_byte(pdev, offset + 2, 0);
 	}
 
@@ -769,8 +782,9 @@ static void quirk_usb_disable_ehci(struct pci_dev *pdev)
 		case 0: /* Illegal reserved cap, set cap=0 so we exit */
 			cap = 0; /* then fallthrough... */
 		default:
-			dev_warn(&pdev->dev, "EHCI: unrecognized capability "
-				 "%02x\n", cap & 0xff);
+			dev_warn(&pdev->dev,
+				 "EHCI: unrecognized capability %02x\n",
+				 cap & 0xff);
 		}
 		offset = (cap >> 8) & 0xff;
 	}
@@ -881,8 +895,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	 */
 	if (!IS_ENABLED(CONFIG_USB_XHCI_HCD)) {
 		dev_warn(&xhci_pdev->dev,
-				"CONFIG_USB_XHCI_HCD is turned off, "
-				"defaulting to EHCI.\n");
+			 "CONFIG_USB_XHCI_HCD is turned off, defaulting to EHCI.\n");
 		dev_warn(&xhci_pdev->dev,
 				"USB 3.0 devices will work at USB 2.0 speeds.\n");
 		usb_disable_xhci_ports(xhci_pdev);
@@ -907,8 +920,9 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 
 	pci_read_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
 			&ports_available);
-	dev_dbg(&xhci_pdev->dev, "USB 3.0 ports that are now enabled "
-			"under xHCI: 0x%x\n", ports_available);
+	dev_dbg(&xhci_pdev->dev,
+		"USB 3.0 ports that are now enabled under xHCI: 0x%x\n",
+		ports_available);
 
 	/* Read XUSB2PRM, xHCI USB 2.0 Port Routing Mask Register
 	 * Indicate the USB 2.0 ports to be controlled by the xHCI host.
@@ -929,8 +943,9 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 
 	pci_read_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
 			&ports_available);
-	dev_dbg(&xhci_pdev->dev, "USB 2.0 ports that are now switched over "
-			"to xHCI: 0x%x\n", ports_available);
+	dev_dbg(&xhci_pdev->dev,
+		"USB 2.0 ports that are now switched over to xHCI: 0x%x\n",
+		ports_available);
 }
 EXPORT_SYMBOL_GPL(usb_enable_intel_xhci_ports);
 
@@ -998,8 +1013,9 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 
 		/* Assume a buggy BIOS and take HC ownership anyway */
 		if (timeout) {
-			dev_warn(&pdev->dev, "xHCI BIOS handoff failed"
-					" (BIOS bug ?) %08x\n", val);
+			dev_warn(&pdev->dev,
+				 "xHCI BIOS handoff failed (BIOS bug ?) %08x\n",
+				 val);
 			writel(val & ~XHCI_HC_BIOS_OWNED, base + ext_cap_offset);
 		}
 	}
@@ -1027,8 +1043,8 @@ hc_init:
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-				"xHCI HW not ready after 5 sec (HC bug?) "
-				"status = 0x%x\n", val);
+			 "xHCI HW not ready after 5 sec (HC bug?) status = 0x%x\n",
+			 val);
 	}
 
 	/* Send the halt and disable interrupts command */
@@ -1042,8 +1058,8 @@ hc_init:
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-				"xHCI HW did not halt within %d usec "
-				"status = 0x%x\n", XHCI_MAX_HALT_USEC, val);
+			 "xHCI HW did not halt within %d usec status = 0x%x\n",
+			 XHCI_MAX_HALT_USEC, val);
 	}
 
 	iounmap(base);
@@ -1063,8 +1079,8 @@ static void quirk_usb_early_handoff(struct pci_dev *pdev)
 		return;
 
 	if (pci_enable_device(pdev) < 0) {
-		dev_warn(&pdev->dev, "Can't enable PCI device, "
-				"BIOS handoff failed.\n");
+		dev_warn(&pdev->dev,
+			 "Can't enable PCI device, BIOS handoff failed.\n");
 		return;
 	}
 	if (pdev->class == PCI_CLASS_SERIAL_USB_UHCI)

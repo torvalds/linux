@@ -181,7 +181,8 @@ static int pnp_dock_thread(void *unused)
 			break;
 		default:
 			pnpbios_print_status("pnp_dock_thread", status);
-			continue;
+			printk(KERN_WARNING "PnPBIOS: disabling dock monitoring.\n");
+			complete_and_exit(&unload_sem, 0);
 		}
 		if (d != docked) {
 			if (pnp_dock_event(d, &now) == 0) {

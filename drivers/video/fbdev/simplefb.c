@@ -402,7 +402,7 @@ static int __init simplefb_init(void)
 	if (ret)
 		return ret;
 
-	if (IS_ENABLED(CONFIG_OF) && of_chosen) {
+	if (IS_ENABLED(CONFIG_OF_ADDRESS) && of_chosen) {
 		for_each_child_of_node(of_chosen, np) {
 			if (of_device_is_compatible(np, "simple-framebuffer"))
 				of_platform_device_create(np, NULL, NULL);

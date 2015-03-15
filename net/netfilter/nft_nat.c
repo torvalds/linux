@@ -65,10 +65,10 @@ static void nft_nat_eval(const struct nft_expr *expr,
 	}
 
 	if (priv->sreg_proto_min) {
-		range.min_proto.all = (__force __be16)
-					data[priv->sreg_proto_min].data[0];
-		range.max_proto.all = (__force __be16)
-					data[priv->sreg_proto_max].data[0];
+		range.min_proto.all =
+			*(__be16 *)&data[priv->sreg_proto_min].data[0];
+		range.max_proto.all =
+			*(__be16 *)&data[priv->sreg_proto_max].data[0];
 		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
@@ -88,16 +88,39 @@ static const struct nla_policy nft_nat_policy[NFTA_NAT_MAX + 1] = {
 	[NFTA_NAT_FLAGS]	 = { .type = NLA_U32 },
 };
 
+static int nft_nat_validate(const struct nft_ctx *ctx,
+			    const struct nft_expr *expr,
+			    const struct nft_data **data)
+{
+	struct nft_nat *priv = nft_expr_priv(expr);
+	int err;
+
+	err = nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
+	if (err < 0)
+		return err;
+
+	switch (priv->type) {
+	case NFT_NAT_SNAT:
+		err = nft_chain_validate_hooks(ctx->chain,
+					       (1 << NF_INET_POST_ROUTING) |
+					       (1 << NF_INET_LOCAL_IN));
+		break;
+	case NFT_NAT_DNAT:
+		err = nft_chain_validate_hooks(ctx->chain,
+					       (1 << NF_INET_PRE_ROUTING) |
+					       (1 << NF_INET_LOCAL_OUT));
+		break;
+	}
+
+	return err;
+}
+
 static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 			const struct nlattr * const tb[])
 {
 	struct nft_nat *priv = nft_expr_priv(expr);
 	u32 family;
 	int err;
-
-	err = nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
-	if (err < 0)
-		return err;
 
 	if (tb[NFTA_NAT_TYPE] == NULL ||
 	    (tb[NFTA_NAT_REG_ADDR_MIN] == NULL &&
@@ -114,6 +137,10 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	default:
 		return -EINVAL;
 	}
+
+	err = nft_nat_validate(ctx, expr, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[NFTA_NAT_FAMILY] == NULL)
 		return -EINVAL;
@@ -217,13 +244,6 @@ static int nft_nat_dump(struct sk_buff *skb, const struct nft_expr *expr)
 
 nla_put_failure:
 	return -1;
-}
-
-static int nft_nat_validate(const struct nft_ctx *ctx,
-			    const struct nft_expr *expr,
-			    const struct nft_data **data)
-{
-	return nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
 }
 
 static struct nft_expr_type nft_nat_type;

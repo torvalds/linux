@@ -17,9 +17,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/usb.h>
 
-#include "comedidev.h"
+#include "comedi_usb.h"
 
 /**
  * comedi_to_usb_interface() - comedi_device pointer to usb_interface pointer.

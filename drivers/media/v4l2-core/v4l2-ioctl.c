@@ -1017,6 +1017,12 @@ static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 	ret = ops->vidioc_querycap(file, fh, cap);
 
 	cap->capabilities |= V4L2_CAP_EXT_PIX_FORMAT;
+	/*
+	 * Drivers MUST fill in device_caps, so check for this and
+	 * warn if it was forgotten.
+	 */
+	WARN_ON(!(cap->capabilities & V4L2_CAP_DEVICE_CAPS) ||
+		!cap->device_caps);
 	cap->device_caps |= V4L2_CAP_EXT_PIX_FORMAT;
 
 	return ret;
@@ -2333,7 +2339,7 @@ static long __video_do_ioctl(struct file *file,
 	const struct v4l2_ioctl_info *info;
 	void *fh = file->private_data;
 	struct v4l2_fh *vfh = NULL;
-	int debug = vfd->debug;
+	int dev_debug = vfd->dev_debug;
 	long ret = -ENOTTY;
 
 	if (ops == NULL) {
@@ -2382,11 +2388,15 @@ static long __video_do_ioctl(struct file *file,
 	}
 
 done:
-	if (debug) {
+	if (dev_debug & (V4L2_DEV_DEBUG_IOCTL | V4L2_DEV_DEBUG_IOCTL_ARG)) {
+		if (!(dev_debug & V4L2_DEV_DEBUG_STREAMING) &&
+		    (cmd == VIDIOC_QBUF || cmd == VIDIOC_DQBUF))
+			return ret;
+
 		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
 		if (ret < 0)
 			pr_cont(": error %ld", ret);
-		if (debug == V4L2_DEBUG_IOCTL)
+		if (!(dev_debug & V4L2_DEV_DEBUG_IOCTL_ARG))
 			pr_cont("\n");
 		else if (_IOC_DIR(cmd) == _IOC_NONE)
 			info->debug(arg, write_only);

@@ -2579,6 +2579,18 @@ fields changed from _s32 to _u32.
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.19</title>
+      <orderedlist>
+	<listitem>
+	  <para>Rewrote Colorspace chapter, added new &v4l2-ycbcr-encoding;
+and &v4l2-quantization; fields to &v4l2-pix-format;, &v4l2-pix-format-mplane;
+and &v4l2-mbus-framefmt;.
+	  </para>
+	</listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 

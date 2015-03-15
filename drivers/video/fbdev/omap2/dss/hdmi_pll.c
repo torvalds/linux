@@ -104,6 +104,8 @@ static int hdmi_pll_enable(struct dss_pll *dsspll)
 	struct hdmi_wp_data *wp = pll->wp;
 	u16 r = 0;
 
+	dss_ctrl_pll_enable(DSS_PLL_HDMI, true);
+
 	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
 	if (r)
 		return r;
@@ -117,6 +119,8 @@ static void hdmi_pll_disable(struct dss_pll *dsspll)
 	struct hdmi_wp_data *wp = pll->wp;
 
 	hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
+
+	dss_ctrl_pll_enable(DSS_PLL_HDMI, false);
 }
 
 static const struct dss_pll_ops dsi_pll_ops = {
@@ -132,7 +136,6 @@ static const struct dss_pll_hw dss_omap4_hdmi_pll_hw = {
 	.mX_max = 127,
 	.fint_min = 500000,
 	.fint_max = 2500000,
-	.clkdco_max = 1800000000,
 
 	.clkdco_min = 500000000,
 	.clkdco_low = 1000000000,
@@ -156,7 +159,6 @@ static const struct dss_pll_hw dss_omap5_hdmi_pll_hw = {
 	.mX_max = 127,
 	.fint_min = 620000,
 	.fint_max = 2500000,
-	.clkdco_max = 1800000000,
 
 	.clkdco_min = 750000000,
 	.clkdco_low = 1500000000,
@@ -187,6 +189,7 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 	}
 
 	pll->name = "hdmi";
+	pll->id = DSS_PLL_HDMI;
 	pll->base = hpll->base;
 	pll->clkin = clk;
 
@@ -198,6 +201,7 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 		break;
 
 	case OMAPDSS_VER_OMAP5:
+	case OMAPDSS_VER_DRA7xx:
 		pll->hw = &dss_omap5_hdmi_pll_hw;
 		break;
 

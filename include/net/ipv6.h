@@ -671,6 +671,7 @@ static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_add
 	return __ipv6_addr_diff(a1, a2, sizeof(struct in6_addr));
 }
 
+void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt);
 void ipv6_proxy_select_ident(struct sk_buff *skb);
 
 int ip6_dst_hoplimit(struct dst_entry *dst);
@@ -708,7 +709,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 					__be32 flowlabel, bool autolabel)
 {
 	if (!flowlabel && (autolabel || net->ipv6.sysctl.auto_flowlabels)) {
-		__be32 hash;
+		u32 hash;
 
 		hash = skb_get_hash(skb);
 
@@ -718,7 +719,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 		 */
 		hash ^= hash >> 12;
 
-		flowlabel = hash & IPV6_FLOWLABEL_MASK;
+		flowlabel = (__force __be32)hash & IPV6_FLOWLABEL_MASK;
 	}
 
 	return flowlabel;
@@ -787,6 +788,25 @@ int ip6_append_data(struct sock *sk,
 int ip6_push_pending_frames(struct sock *sk);
 
 void ip6_flush_pending_frames(struct sock *sk);
+
+int ip6_send_skb(struct sk_buff *skb);
+
+struct sk_buff *__ip6_make_skb(struct sock *sk, struct sk_buff_head *queue,
+			       struct inet_cork_full *cork,
+			       struct inet6_cork *v6_cork);
+struct sk_buff *ip6_make_skb(struct sock *sk,
+			     int getfrag(void *from, char *to, int offset,
+					 int len, int odd, struct sk_buff *skb),
+			     void *from, int length, int transhdrlen,
+			     int hlimit, int tclass, struct ipv6_txoptions *opt,
+			     struct flowi6 *fl6, struct rt6_info *rt,
+			     unsigned int flags, int dontfrag);
+
+static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
+{
+	return __ip6_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork,
+			      &inet6_sk(sk)->cork);
+}
 
 int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi6 *fl6);
 struct dst_entry *ip6_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,

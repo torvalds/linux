@@ -32,7 +32,8 @@ config CS89x0
 	  will be called cs89x0.
 
 config CS89x0_PLATFORM
-	bool "CS89x0 platform driver support"
+	bool "CS89x0 platform driver support" if HAS_IOPORT_MAP
+	default !HAS_IOPORT_MAP
 	depends on CS89x0
 	help
 	  Say Y to compile the cs89x0 driver as a platform driver. This

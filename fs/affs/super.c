@@ -432,39 +432,39 @@ got_root:
 		sb->s_flags |= MS_RDONLY;
 	}
 	switch (chksum) {
-		case MUFS_FS:
-		case MUFS_INTLFFS:
-		case MUFS_DCFFS:
-			sbi->s_flags |= SF_MUFS;
-			/* fall thru */
-		case FS_INTLFFS:
-		case FS_DCFFS:
-			sbi->s_flags |= SF_INTL;
-			break;
-		case MUFS_FFS:
-			sbi->s_flags |= SF_MUFS;
-			break;
-		case FS_FFS:
-			break;
-		case MUFS_OFS:
-			sbi->s_flags |= SF_MUFS;
-			/* fall thru */
-		case FS_OFS:
-			sbi->s_flags |= SF_OFS;
-			sb->s_flags |= MS_NOEXEC;
-			break;
-		case MUFS_DCOFS:
-		case MUFS_INTLOFS:
-			sbi->s_flags |= SF_MUFS;
-		case FS_DCOFS:
-		case FS_INTLOFS:
-			sbi->s_flags |= SF_INTL | SF_OFS;
-			sb->s_flags |= MS_NOEXEC;
-			break;
-		default:
-			pr_err("Unknown filesystem on device %s: %08X\n",
-			       sb->s_id, chksum);
-			return -EINVAL;
+	case MUFS_FS:
+	case MUFS_INTLFFS:
+	case MUFS_DCFFS:
+		sbi->s_flags |= SF_MUFS;
+		/* fall thru */
+	case FS_INTLFFS:
+	case FS_DCFFS:
+		sbi->s_flags |= SF_INTL;
+		break;
+	case MUFS_FFS:
+		sbi->s_flags |= SF_MUFS;
+		break;
+	case FS_FFS:
+		break;
+	case MUFS_OFS:
+		sbi->s_flags |= SF_MUFS;
+		/* fall thru */
+	case FS_OFS:
+		sbi->s_flags |= SF_OFS;
+		sb->s_flags |= MS_NOEXEC;
+		break;
+	case MUFS_DCOFS:
+	case MUFS_INTLOFS:
+		sbi->s_flags |= SF_MUFS;
+	case FS_DCOFS:
+	case FS_INTLOFS:
+		sbi->s_flags |= SF_INTL | SF_OFS;
+		sb->s_flags |= MS_NOEXEC;
+		break;
+	default:
+		pr_err("Unknown filesystem on device %s: %08X\n",
+		       sb->s_id, chksum);
+		return -EINVAL;
 	}
 
 	if (mount_flags & SF_VERBOSE) {
@@ -584,7 +584,7 @@ affs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail  = free;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
-	buf->f_namelen = 30;
+	buf->f_namelen = AFFSNAMEMAX;
 	return 0;
 }
 
@@ -602,6 +602,7 @@ static void affs_kill_sb(struct super_block *sb)
 		affs_free_bitmap(sb);
 		affs_brelse(sbi->s_root_bh);
 		kfree(sbi->s_prefix);
+		mutex_destroy(&sbi->s_bmlock);
 		kfree(sbi);
 	}
 }

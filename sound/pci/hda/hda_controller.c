@@ -657,6 +657,9 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		azx_writel(chip, SSYNC, azx_readl(chip, SSYNC) & ~sbits);
 	if (start) {
 		azx_timecounter_init(substream, 0, 0);
+		snd_pcm_gettime(substream->runtime, &substream->runtime->trigger_tstamp);
+		substream->runtime->trigger_tstamp_latched = true;
+
 		if (nsync > 1) {
 			cycle_t cycle_last;
 
@@ -939,7 +942,8 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 					      chip->card->dev,
 					      size, MAX_PREALLOC_SIZE);
 	/* link to codec */
-	pcm->dev = &codec->dev;
+	for (s = 0; s < 2; s++)
+		pcm->streams[s].dev.parent = &codec->dev;
 	return 0;
 }
 
@@ -957,7 +961,6 @@ static int azx_alloc_cmd_io(struct azx *chip)
 		dev_err(chip->card->dev, "cannot allocate CORB/RIRB\n");
 	return err;
 }
-EXPORT_SYMBOL_GPL(azx_alloc_cmd_io);
 
 static void azx_init_cmd_io(struct azx *chip)
 {
@@ -1022,7 +1025,6 @@ static void azx_init_cmd_io(struct azx *chip)
 	azx_writeb(chip, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
 	spin_unlock_irq(&chip->reg_lock);
 }
-EXPORT_SYMBOL_GPL(azx_init_cmd_io);
 
 static void azx_free_cmd_io(struct azx *chip)
 {
@@ -1032,7 +1034,6 @@ static void azx_free_cmd_io(struct azx *chip)
 	azx_writeb(chip, CORBCTL, 0);
 	spin_unlock_irq(&chip->reg_lock);
 }
-EXPORT_SYMBOL_GPL(azx_free_cmd_io);
 
 static unsigned int azx_command_addr(u32 cmd)
 {
@@ -1163,7 +1164,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		}
 	}
 
-	if (!bus->no_response_fallback)
+	if (bus->no_response_fallback)
 		return -1;
 
 	if (!chip->polling_mode && chip->poll_count < 2) {
@@ -1312,7 +1313,6 @@ static int azx_send_cmd(struct hda_bus *bus, unsigned int val)
 	else
 		return azx_corb_send_cmd(bus, val);
 }
-EXPORT_SYMBOL_GPL(azx_send_cmd);
 
 /* get a response */
 static unsigned int azx_get_response(struct hda_bus *bus,
@@ -1326,7 +1326,6 @@ static unsigned int azx_get_response(struct hda_bus *bus,
 	else
 		return azx_rirb_get_response(bus, addr);
 }
-EXPORT_SYMBOL_GPL(azx_get_response);
 
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 /*
@@ -1676,7 +1675,7 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	u8 sd_status;
 	int i;
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 	if (chip->driver_caps & AZX_DCAPS_PM_RUNTIME)
 		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
@@ -1922,10 +1921,18 @@ int azx_mixer_create(struct azx *chip)
 EXPORT_SYMBOL_GPL(azx_mixer_create);
 
 
+static bool is_input_stream(struct azx *chip, unsigned char index)
+{
+	return (index >= chip->capture_index_offset &&
+		index < chip->capture_index_offset + chip->capture_streams);
+}
+
 /* initialize SD streams */
 int azx_init_stream(struct azx *chip)
 {
 	int i;
+	int in_stream_tag = 0;
+	int out_stream_tag = 0;
 
 	/* initialize each stream (aka device)
 	 * assign the starting bdl address to each stream (device)
@@ -1938,9 +1945,21 @@ int azx_init_stream(struct azx *chip)
 		azx_dev->sd_addr = chip->remap_addr + (0x20 * i + 0x80);
 		/* int mask: SDI0=0x01, SDI1=0x02, ... SDO3=0x80 */
 		azx_dev->sd_int_sta_mask = 1 << i;
-		/* stream tag: must be non-zero and unique */
 		azx_dev->index = i;
-		azx_dev->stream_tag = i + 1;
+
+		/* stream tag must be unique throughout
+		 * the stream direction group,
+		 * valid values 1...15
+		 * use separate stream tag if the flag
+		 * AZX_DCAPS_SEPARATE_STREAM_TAG is used
+		 */
+		if (chip->driver_caps & AZX_DCAPS_SEPARATE_STREAM_TAG)
+			azx_dev->stream_tag =
+				is_input_stream(chip, i) ?
+				++in_stream_tag :
+				++out_stream_tag;
+		else
+			azx_dev->stream_tag = i + 1;
 	}
 
 	return 0;
@@ -1973,4 +1992,4 @@ void azx_notifier_unregister(struct azx *chip)
 EXPORT_SYMBOL_GPL(azx_notifier_unregister);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Common HDA driver funcitons");
+MODULE_DESCRIPTION("Common HDA driver functions");

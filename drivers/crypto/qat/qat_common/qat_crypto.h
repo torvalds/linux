@@ -72,12 +72,24 @@ struct qat_crypto_request_buffs {
 	struct qat_alg_buf_list *blout;
 	dma_addr_t bloutp;
 	size_t sz;
+	size_t sz_out;
 };
+
+struct qat_crypto_request;
 
 struct qat_crypto_request {
 	struct icp_qat_fw_la_bulk_req req;
-	struct qat_alg_session_ctx *ctx;
-	struct aead_request *areq;
+	union {
+		struct qat_alg_aead_ctx *aead_ctx;
+		struct qat_alg_ablkcipher_ctx *ablkcipher_ctx;
+	};
+	union {
+		struct aead_request *aead_req;
+		struct ablkcipher_request *ablkcipher_req;
+	};
 	struct qat_crypto_request_buffs buf;
+	void (*cb)(struct icp_qat_fw_la_resp *resp,
+		   struct qat_crypto_request *req);
 };
+
 #endif

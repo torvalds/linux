@@ -299,14 +299,15 @@ int kfd_init_apertures(struct kfd_process *process)
 	struct kfd_dev *dev;
 	struct kfd_process_device *pdd;
 
-	mutex_lock(&process->mutex);
-
 	/*Iterating over all devices*/
 	while ((dev = kfd_topology_enum_kfd_devices(id)) != NULL &&
 		id < NUM_OF_SUPPORTED_GPUS) {
 
-		pdd = kfd_get_process_device_data(dev, process, 1);
-
+		pdd = kfd_create_process_device_data(dev, process);
+		if (pdd == NULL) {
+			pr_err("Failed to create process device data\n");
+			return -1;
+		}
 		/*
 		 * For 64 bit process aperture will be statically reserved in
 		 * the x86_64 non canonical process address space
@@ -347,8 +348,6 @@ int kfd_init_apertures(struct kfd_process *process)
 
 		id++;
 	}
-
-	mutex_unlock(&process->mutex);
 
 	return 0;
 }

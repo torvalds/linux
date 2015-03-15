@@ -18,12 +18,19 @@ config CLKBLD_I8253
 config CLKSRC_MMIO
 	bool
 
+config DIGICOLOR_TIMER
+	bool
+
 config DW_APB_TIMER
 	bool
 
 config DW_APB_TIMER_OF
 	bool
 	select DW_APB_TIMER
+	select CLKSRC_OF
+
+config ROCKCHIP_TIMER
+	bool
 	select CLKSRC_OF
 
 config ARMADA_370_XP_TIMER
@@ -47,11 +54,19 @@ config SUN5I_HSTIMER
 	select CLKSRC_MMIO
 	bool
 
+config TEGRA_TIMER
+	bool
+
 config VT8500_TIMER
 	bool
 
 config CADENCE_TTC_TIMER
 	bool
+
+config ASM9260_TIMER
+	bool
+	select CLKSRC_MMIO
+	select CLKSRC_OF
 
 config CLKSRC_NOMADIK_MTU
 	bool
@@ -229,4 +244,10 @@ config CLKSRC_MIPS_GIC
 	depends on MIPS_GIC
 	select CLKSRC_OF
 
+config CLKSRC_PXA
+	def_bool y if ARCH_PXA || ARCH_SA1100
+	select CLKSRC_OF if USE_OF
+	help
+	  This enables OST0 support available on PXA and SA-11x0
+	  platforms.
 endmenu

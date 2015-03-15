@@ -155,8 +155,7 @@ static inline void scsi_netlink_exit(void) {}
 /* scsi_pm.c */
 #ifdef CONFIG_PM
 extern const struct dev_pm_ops scsi_bus_pm_ops;
-#endif
-#ifdef CONFIG_PM_RUNTIME
+
 extern void scsi_autopm_get_target(struct scsi_target *);
 extern void scsi_autopm_put_target(struct scsi_target *);
 extern int scsi_autopm_get_host(struct Scsi_Host *);
@@ -166,7 +165,7 @@ static inline void scsi_autopm_get_target(struct scsi_target *t) {}
 static inline void scsi_autopm_put_target(struct scsi_target *t) {}
 static inline int scsi_autopm_get_host(struct Scsi_Host *h) { return 0; }
 static inline void scsi_autopm_put_host(struct Scsi_Host *h) {}
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 extern struct async_domain scsi_sd_pm_domain;
 extern struct async_domain scsi_sd_probe_domain;

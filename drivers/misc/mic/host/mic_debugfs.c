@@ -326,21 +326,27 @@ static int mic_vdev_info_show(struct seq_file *s, void *unused)
 			}
 			avail = vrh->vring.avail;
 			seq_printf(s, "avail flags 0x%x idx %d\n",
-				   avail->flags, avail->idx & (num - 1));
+				   vringh16_to_cpu(vrh, avail->flags),
+				   vringh16_to_cpu(vrh, avail->idx) & (num - 1));
 			seq_printf(s, "avail flags 0x%x idx %d\n",
-				   avail->flags, avail->idx);
+				   vringh16_to_cpu(vrh, avail->flags),
+				   vringh16_to_cpu(vrh, avail->idx));
 			for (j = 0; j < num; j++)
 				seq_printf(s, "avail ring[%d] %d\n",
 					   j, avail->ring[j]);
 			used = vrh->vring.used;
 			seq_printf(s, "used flags 0x%x idx %d\n",
-				   used->flags, used->idx & (num - 1));
+				   vringh16_to_cpu(vrh, used->flags),
+				   vringh16_to_cpu(vrh, used->idx) & (num - 1));
 			seq_printf(s, "used flags 0x%x idx %d\n",
-				   used->flags, used->idx);
+				   vringh16_to_cpu(vrh, used->flags),
+				   vringh16_to_cpu(vrh, used->idx));
 			for (j = 0; j < num; j++)
 				seq_printf(s, "used ring[%d] id %d len %d\n",
-					   j, used->ring[j].id,
-					   used->ring[j].len);
+					   j, vringh32_to_cpu(vrh,
+							      used->ring[j].id),
+					   vringh32_to_cpu(vrh,
+							   used->ring[j].len));
 		}
 	}
 	mutex_unlock(&mdev->mic_mutex);

@@ -78,7 +78,7 @@ static inline int local_sid_setup_one(struct id *entry)
 
 	sid = __this_cpu_inc_return(pcpu_last_used_sid);
 	if (sid < NUM_TIDS) {
-		__this_cpu_write(pcpu_sids)entry[sid], entry);
+		__this_cpu_write(pcpu_sids.entry[sid], entry);
 		entry->val = sid;
 		entry->pentry = this_cpu_ptr(&pcpu_sids.entry[sid]);
 		ret = sid;
@@ -297,14 +297,6 @@ void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr)
 {
 	/* Recalc shadow pid since MSR changes */
 	kvmppc_e500_recalc_shadow_pid(to_e500(vcpu));
-}
-
-void kvmppc_core_load_host_debugstate(struct kvm_vcpu *vcpu)
-{
-}
-
-void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu)
-{
 }
 
 static void kvmppc_core_vcpu_load_e500(struct kvm_vcpu *vcpu, int cpu)

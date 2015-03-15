@@ -676,6 +676,7 @@ struct omap_hwmod {
 	spinlock_t			_lock;
 	struct list_head		node;
 	struct omap_hwmod_ocp_if	*_mpu_port;
+	unsigned int			(*xlate_irq)(unsigned int);
 	u16				flags;
 	u8				mpu_rt_idx;
 	u8				response_lat;
@@ -702,13 +703,6 @@ int omap_hwmod_shutdown(struct omap_hwmod *oh);
 
 int omap_hwmod_assert_hardreset(struct omap_hwmod *oh, const char *name);
 int omap_hwmod_deassert_hardreset(struct omap_hwmod *oh, const char *name);
-int omap_hwmod_read_hardreset(struct omap_hwmod *oh, const char *name);
-
-int omap_hwmod_enable_clocks(struct omap_hwmod *oh);
-int omap_hwmod_disable_clocks(struct omap_hwmod *oh);
-
-int omap_hwmod_reset(struct omap_hwmod *oh);
-void omap_hwmod_ocp_barrier(struct omap_hwmod *oh);
 
 void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs);
 u32 omap_hwmod_read(struct omap_hwmod *oh, u16 reg_offs);
@@ -723,11 +717,6 @@ int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
 struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh);
 void __iomem *omap_hwmod_get_mpu_rt_va(struct omap_hwmod *oh);
 
-int omap_hwmod_add_initiator_dep(struct omap_hwmod *oh,
-				 struct omap_hwmod *init_oh);
-int omap_hwmod_del_initiator_dep(struct omap_hwmod *oh,
-				 struct omap_hwmod *init_oh);
-
 int omap_hwmod_enable_wakeup(struct omap_hwmod *oh);
 int omap_hwmod_disable_wakeup(struct omap_hwmod *oh);
 
@@ -738,10 +727,6 @@ int omap_hwmod_for_each_by_class(const char *classname,
 
 int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state);
 int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh);
-
-int omap_hwmod_no_setup_reset(struct omap_hwmod *oh);
-
-int omap_hwmod_pad_route_irq(struct omap_hwmod *oh, int pad_idx, int irq_idx);
 
 extern void __init omap_hwmod_init(void);
 
@@ -763,6 +748,7 @@ extern int omap3xxx_hwmod_init(void);
 extern int omap44xx_hwmod_init(void);
 extern int omap54xx_hwmod_init(void);
 extern int am33xx_hwmod_init(void);
+extern int ti81xx_hwmod_init(void);
 extern int dra7xx_hwmod_init(void);
 int am43xx_hwmod_init(void);
 

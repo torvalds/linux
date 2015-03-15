@@ -39,6 +39,7 @@
 #include "t4vf_defs.h"
 
 #include "../cxgb4/t4_regs.h"
+#include "../cxgb4/t4_values.h"
 #include "../cxgb4/t4fw_api.h"
 
 /*
@@ -137,9 +138,9 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	 * Loop trying to get ownership of the mailbox.  Return an error
 	 * if we can't gain ownership.
 	 */
-	v = MBOWNER_GET(t4_read_reg(adapter, mbox_ctl));
+	v = MBOWNER_G(t4_read_reg(adapter, mbox_ctl));
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
-		v = MBOWNER_GET(t4_read_reg(adapter, mbox_ctl));
+		v = MBOWNER_G(t4_read_reg(adapter, mbox_ctl));
 	if (v != MBOX_OWNER_DRV)
 		return v == MBOX_OWNER_FW ? -EBUSY : -ETIMEDOUT;
 
@@ -161,7 +162,7 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	t4_read_reg(adapter, mbox_data);         /* flush write */
 
 	t4_write_reg(adapter, mbox_ctl,
-		     MBMSGVALID | MBOWNER(MBOX_OWNER_FW));
+		     MBMSGVALID_F | MBOWNER_V(MBOX_OWNER_FW));
 	t4_read_reg(adapter, mbox_ctl);          /* flush write */
 
 	/*
@@ -183,14 +184,14 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 		 * If we're the owner, see if this is the reply we wanted.
 		 */
 		v = t4_read_reg(adapter, mbox_ctl);
-		if (MBOWNER_GET(v) == MBOX_OWNER_DRV) {
+		if (MBOWNER_G(v) == MBOX_OWNER_DRV) {
 			/*
 			 * If the Message Valid bit isn't on, revoke ownership
 			 * of the mailbox and continue waiting for our reply.
 			 */
-			if ((v & MBMSGVALID) == 0) {
+			if ((v & MBMSGVALID_F) == 0) {
 				t4_write_reg(adapter, mbox_ctl,
-					     MBOWNER(MBOX_OWNER_NONE));
+					     MBOWNER_V(MBOX_OWNER_NONE));
 				continue;
 			}
 
@@ -216,7 +217,7 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 					 & FW_CMD_REQUEST_F) != 0);
 			}
 			t4_write_reg(adapter, mbox_ctl,
-				     MBOWNER(MBOX_OWNER_NONE));
+				     MBOWNER_V(MBOX_OWNER_NONE));
 			return -FW_CMD_RETVAL_G(v);
 		}
 	}
@@ -245,6 +246,10 @@ static int hash_mac_addr(const u8 *addr)
 	return a & 0x3f;
 }
 
+#define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
+		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
+
 /**
  *	init_link_config - initialize a link's SW state
  *	@lc: structure holding the link state
@@ -259,8 +264,8 @@ static void init_link_config(struct link_config *lc, unsigned int caps)
 	lc->requested_speed = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
-	if (lc->supported & SUPPORTED_Autoneg) {
-		lc->advertising = lc->supported;
+	if (lc->supported & FW_PORT_CAP_ANEG) {
+		lc->advertising = lc->supported & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
 		lc->requested_fc |= PAUSE_AUTONEG;
 	} else {
@@ -280,7 +285,6 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 	struct fw_vi_cmd vi_cmd, vi_rpl;
 	struct fw_port_cmd port_cmd, port_rpl;
 	int v;
-	u32 word;
 
 	/*
 	 * Execute a VI Read command to get our Virtual Interface information
@@ -319,19 +323,13 @@ int t4vf_port_init(struct adapter *adapter, int pidx)
 	if (v)
 		return v;
 
-	v = 0;
-	word = be16_to_cpu(port_rpl.u.info.pcap);
-	if (word & FW_PORT_CAP_SPEED_100M)
-		v |= SUPPORTED_100baseT_Full;
-	if (word & FW_PORT_CAP_SPEED_1G)
-		v |= SUPPORTED_1000baseT_Full;
-	if (word & FW_PORT_CAP_SPEED_10G)
-		v |= SUPPORTED_10000baseT_Full;
-	if (word & FW_PORT_CAP_SPEED_40G)
-		v |= SUPPORTED_40000baseSR4_Full;
-	if (word & FW_PORT_CAP_ANEG)
-		v |= SUPPORTED_Autoneg;
-	init_link_config(&pi->link_cfg, v);
+	v = be32_to_cpu(port_rpl.u.info.lstatus_to_modtype);
+	pi->mdio_addr = (v & FW_PORT_CMD_MDIOCAP_F) ?
+			FW_PORT_CMD_MDIOADDR_G(v) : -1;
+	pi->port_type = FW_PORT_CMD_PTYPE_G(v);
+	pi->mod_type = FW_PORT_MOD_TYPE_NA;
+
+	init_link_config(&pi->link_cfg, be16_to_cpu(port_rpl.u.info.pcap));
 
 	return 0;
 }
@@ -533,19 +531,19 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	int v;
 
 	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_CONTROL));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_CONTROL_A));
 	params[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_HOST_PAGE_SIZE));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_HOST_PAGE_SIZE_A));
 	params[2] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE0));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE0_A));
 	params[3] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE1));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_FL_BUFFER_SIZE1_A));
 	params[4] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_0_AND_1));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_0_AND_1_A));
 	params[5] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_2_AND_3));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_2_AND_3_A));
 	params[6] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_4_AND_5));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_TIMER_VALUE_4_AND_5_A));
 	v = t4vf_query_params(adapter, 7, params, vals);
 	if (v)
 		return v;
@@ -581,9 +579,9 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	}
 
 	params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_INGRESS_RX_THRESHOLD));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_INGRESS_RX_THRESHOLD_A));
 	params[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
-		     FW_PARAMS_PARAM_XYZ_V(SGE_CONM_CTRL));
+		     FW_PARAMS_PARAM_XYZ_V(SGE_CONM_CTRL_A));
 	v = t4vf_query_params(adapter, 2, params, vals);
 	if (v)
 		return v;
@@ -620,8 +618,8 @@ int t4vf_get_sge_params(struct adapter *adapter)
 		 * the driver can just use it.
 		 */
 		whoami = t4_read_reg(adapter,
-				     T4VF_PL_BASE_ADDR + A_PL_VF_WHOAMI);
-		pf = SOURCEPF_GET(whoami);
+				     T4VF_PL_BASE_ADDR + PL_VF_WHOAMI_A);
+		pf = SOURCEPF_G(whoami);
 
 		s_hps = (HOSTPAGESIZEPF0_S +
 			 (HOSTPAGESIZEPF1_S - HOSTPAGESIZEPF0_S) * pf);
@@ -633,10 +631,10 @@ int t4vf_get_sge_params(struct adapter *adapter)
 			 (QUEUESPERPAGEPF1_S - QUEUESPERPAGEPF0_S) * pf);
 		sge_params->sge_vf_eq_qpp =
 			((sge_params->sge_egress_queues_per_page >> s_qpp)
-			 & QUEUESPERPAGEPF0_MASK);
+			 & QUEUESPERPAGEPF0_M);
 		sge_params->sge_vf_iq_qpp =
 			((sge_params->sge_ingress_queues_per_page >> s_qpp)
-			 & QUEUESPERPAGEPF0_MASK);
+			 & QUEUESPERPAGEPF0_M);
 	}
 
 	return 0;
@@ -1491,7 +1489,7 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 		 */
 		const struct fw_port_cmd *port_cmd =
 			(const struct fw_port_cmd *)rpl;
-		u32 word;
+		u32 stat, mod;
 		int action, port_id, link_ok, speed, fc, pidx;
 
 		/*
@@ -1509,21 +1507,21 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 		port_id = FW_PORT_CMD_PORTID_G(
 			be32_to_cpu(port_cmd->op_to_portid));
 
-		word = be32_to_cpu(port_cmd->u.info.lstatus_to_modtype);
-		link_ok = (word & FW_PORT_CMD_LSTATUS_F) != 0;
+		stat = be32_to_cpu(port_cmd->u.info.lstatus_to_modtype);
+		link_ok = (stat & FW_PORT_CMD_LSTATUS_F) != 0;
 		speed = 0;
 		fc = 0;
-		if (word & FW_PORT_CMD_RXPAUSE_F)
+		if (stat & FW_PORT_CMD_RXPAUSE_F)
 			fc |= PAUSE_RX;
-		if (word & FW_PORT_CMD_TXPAUSE_F)
+		if (stat & FW_PORT_CMD_TXPAUSE_F)
 			fc |= PAUSE_TX;
-		if (word & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
+		if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
 			speed = 100;
-		else if (word & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
 			speed = 1000;
-		else if (word & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
 			speed = 10000;
-		else if (word & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
 			speed = 40000;
 
 		/*
@@ -1540,12 +1538,21 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 				continue;
 
 			lc = &pi->link_cfg;
+
+			mod = FW_PORT_CMD_MODTYPE_G(stat);
+			if (mod != pi->mod_type) {
+				pi->mod_type = mod;
+				t4vf_os_portmod_changed(adapter, pidx);
+			}
+
 			if (link_ok != lc->link_ok || speed != lc->speed ||
 			    fc != lc->fc) {
 				/* something changed */
 				lc->link_ok = link_ok;
 				lc->speed = speed;
 				lc->fc = fc;
+				lc->supported =
+					be16_to_cpu(port_cmd->u.info.pcap);
 				t4vf_os_link_changed(adapter, pidx, link_ok);
 			}
 		}
@@ -1586,7 +1593,7 @@ int t4vf_prep_adapter(struct adapter *adapter)
 		break;
 
 	case CHELSIO_T5:
-		chipid = G_REV(t4_read_reg(adapter, A_PL_VF_REV));
+		chipid = REV_G(t4_read_reg(adapter, PL_VF_REV_A));
 		adapter->params.chip |= CHELSIO_CHIP_CODE(CHELSIO_T5, chipid);
 		break;
 	}

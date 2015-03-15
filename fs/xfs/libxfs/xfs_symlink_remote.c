@@ -178,6 +178,8 @@ xfs_symlink_local_to_remote(
 	struct xfs_mount	*mp = ip->i_mount;
 	char			*buf;
 
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SYMLINK_BUF);
+
 	if (!xfs_sb_version_hascrc(&mp->m_sb)) {
 		bp->b_ops = NULL;
 		memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);

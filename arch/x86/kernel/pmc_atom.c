@@ -25,8 +25,6 @@
 
 #include <asm/pmc_atom.h>
 
-#define	DRIVER_NAME	KBUILD_MODNAME
-
 struct pmc_dev {
 	u32 base_addr;
 	void __iomem *regmap;
@@ -38,12 +36,12 @@ struct pmc_dev {
 static struct pmc_dev pmc_device;
 static u32 acpi_base_addr;
 
-struct pmc_dev_map {
+struct pmc_bit_map {
 	const char *name;
 	u32 bit_mask;
 };
 
-static const struct pmc_dev_map dev_map[] = {
+static const struct pmc_bit_map dev_map[] = {
 	{"0  - LPSS1_F0_DMA",		BIT_LPSS1_F0_DMA},
 	{"1  - LPSS1_F1_PWM1",		BIT_LPSS1_F1_PWM1},
 	{"2  - LPSS1_F2_PWM2",		BIT_LPSS1_F2_PWM2},
@@ -80,6 +78,27 @@ static const struct pmc_dev_map dev_map[] = {
 	{"33 - OTG_SS_PHY",		BIT_OTG_SS_PHY},
 	{"34 - USH_SS_PHY",		BIT_USH_SS_PHY},
 	{"35 - DFX",			BIT_DFX},
+};
+
+static const struct pmc_bit_map pss_map[] = {
+	{"0  - GBE",			PMC_PSS_BIT_GBE},
+	{"1  - SATA",			PMC_PSS_BIT_SATA},
+	{"2  - HDA",			PMC_PSS_BIT_HDA},
+	{"3  - SEC",			PMC_PSS_BIT_SEC},
+	{"4  - PCIE",			PMC_PSS_BIT_PCIE},
+	{"5  - LPSS",			PMC_PSS_BIT_LPSS},
+	{"6  - LPE",			PMC_PSS_BIT_LPE},
+	{"7  - DFX",			PMC_PSS_BIT_DFX},
+	{"8  - USH_CTRL",		PMC_PSS_BIT_USH_CTRL},
+	{"9  - USH_SUS",		PMC_PSS_BIT_USH_SUS},
+	{"10 - USH_VCCS",		PMC_PSS_BIT_USH_VCCS},
+	{"11 - USH_VCCA",		PMC_PSS_BIT_USH_VCCA},
+	{"12 - OTG_CTRL",		PMC_PSS_BIT_OTG_CTRL},
+	{"13 - OTG_VCCS",		PMC_PSS_BIT_OTG_VCCS},
+	{"14 - OTG_VCCA_CLK",		PMC_PSS_BIT_OTG_VCCA_CLK},
+	{"15 - OTG_VCCA",		PMC_PSS_BIT_OTG_VCCA},
+	{"16 - USB",			PMC_PSS_BIT_USB},
+	{"17 - USB_SUS",		PMC_PSS_BIT_USB_SUS},
 };
 
 static inline u32 pmc_reg_read(struct pmc_dev *pmc, int reg_offset)
@@ -169,6 +188,32 @@ static const struct file_operations pmc_dev_state_ops = {
 	.release	= single_release,
 };
 
+static int pmc_pss_state_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmc = s->private;
+	u32 pss = pmc_reg_read(pmc, PMC_PSS);
+	int pss_index;
+
+	for (pss_index = 0; pss_index < ARRAY_SIZE(pss_map); pss_index++) {
+		seq_printf(s, "Island: %-32s\tState: %s\n",
+			pss_map[pss_index].name,
+			pss_map[pss_index].bit_mask & pss ? "Off" : "On");
+	}
+	return 0;
+}
+
+static int pmc_pss_state_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pmc_pss_state_show, inode->i_private);
+}
+
+static const struct file_operations pmc_pss_state_ops = {
+	.open		= pmc_pss_state_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int pmc_sleep_tmr_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmc = s->private;
@@ -202,11 +247,7 @@ static const struct file_operations pmc_sleep_tmr_ops = {
 
 static void pmc_dbgfs_unregister(struct pmc_dev *pmc)
 {
-	if (!pmc->dbgfs_dir)
-		return;
-
 	debugfs_remove_recursive(pmc->dbgfs_dir);
-	pmc->dbgfs_dir = NULL;
 }
 
 static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
@@ -217,19 +258,29 @@ static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
 	if (!dir)
 		return -ENOMEM;
 
+	pmc->dbgfs_dir = dir;
+
 	f = debugfs_create_file("dev_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_dev_state_ops);
 	if (!f) {
-		dev_err(&pdev->dev, "dev_states register failed\n");
+		dev_err(&pdev->dev, "dev_state register failed\n");
 		goto err;
 	}
+
+	f = debugfs_create_file("pss_state", S_IFREG | S_IRUGO,
+				dir, pmc, &pmc_pss_state_ops);
+	if (!f) {
+		dev_err(&pdev->dev, "pss_state register failed\n");
+		goto err;
+	}
+
 	f = debugfs_create_file("sleep_state", S_IFREG | S_IRUGO,
 				dir, pmc, &pmc_sleep_tmr_ops);
 	if (!f) {
 		dev_err(&pdev->dev, "sleep_state register failed\n");
 		goto err;
 	}
-	pmc->dbgfs_dir = dir;
+
 	return 0;
 err:
 	pmc_dbgfs_unregister(pmc);
@@ -292,7 +343,6 @@ MODULE_DEVICE_TABLE(pci, pmc_pci_ids);
 
 static int __init pmc_atom_init(void)
 {
-	int err = -ENODEV;
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *ent;
 
@@ -306,14 +356,11 @@ static int __init pmc_atom_init(void)
 	 */
 	for_each_pci_dev(pdev) {
 		ent = pci_match_id(pmc_pci_ids, pdev);
-		if (ent) {
-			err = pmc_setup_dev(pdev);
-			goto out;
-		}
+		if (ent)
+			return pmc_setup_dev(pdev);
 	}
 	/* Device not found. */
-out:
-	return err;
+	return -ENODEV;
 }
 
 module_init(pmc_atom_init);

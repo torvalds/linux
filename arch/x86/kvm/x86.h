@@ -147,6 +147,7 @@ static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
 
 void kvm_before_handle_nmi(struct kvm_vcpu *vcpu);
 void kvm_after_handle_nmi(struct kvm_vcpu *vcpu);
+void kvm_set_pending_timer(struct kvm_vcpu *vcpu);
 int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip);
 
 void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr);
@@ -162,12 +163,15 @@ int kvm_write_guest_virt_system(struct x86_emulate_ctxt *ctxt,
 bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data);
 
 #define KVM_SUPPORTED_XCR0     (XSTATE_FP | XSTATE_SSE | XSTATE_YMM \
-				| XSTATE_BNDREGS | XSTATE_BNDCSR)
+				| XSTATE_BNDREGS | XSTATE_BNDCSR \
+				| XSTATE_AVX512)
 extern u64 host_xcr0;
 
 extern u64 kvm_supported_xcr0(void);
 
 extern unsigned int min_timer_period_us;
+
+extern unsigned int lapic_timer_advance_ns;
 
 extern struct static_key kvm_no_apic_vcpu;
 #endif

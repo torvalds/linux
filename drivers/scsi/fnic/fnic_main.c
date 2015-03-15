@@ -111,7 +111,6 @@ static struct scsi_host_template fnic_host_template = {
 	.eh_host_reset_handler = fnic_host_reset,
 	.slave_alloc = fnic_slave_alloc,
 	.change_queue_depth = scsi_change_queue_depth,
-	.change_queue_type = scsi_change_queue_type,
 	.this_id = -1,
 	.cmd_per_lun = 3,
 	.can_queue = FNIC_DFLT_IO_REQ,

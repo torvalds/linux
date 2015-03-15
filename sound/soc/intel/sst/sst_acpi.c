@@ -43,11 +43,11 @@
 #include "sst.h"
 
 struct sst_machines {
-	char codec_id[32];
+	char *codec_id;
 	char board[32];
 	char machine[32];
 	void (*machine_quirk)(void);
-	char firmware[32];
+	char firmware[FW_NAME_SIZE];
 	struct sst_platform_info *pdata;
 
 };
@@ -245,7 +245,7 @@ static struct sst_machines *sst_acpi_find_machine(
 	return NULL;
 }
 
-int sst_acpi_probe(struct platform_device *pdev)
+static int sst_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret = 0;
@@ -277,16 +277,16 @@ int sst_acpi_probe(struct platform_device *pdev)
 	dev_dbg(dev, "ACPI device id: %x\n", dev_id);
 
 	plat_dev = platform_device_register_data(dev, mach->pdata->platform, -1, NULL, 0);
-	if (plat_dev == NULL) {
+	if (IS_ERR(plat_dev)) {
 		dev_err(dev, "Failed to create machine device: %s\n", mach->pdata->platform);
-		return -ENODEV;
+		return PTR_ERR(plat_dev);
 	}
 
 	/* Create platform device for sst machine driver */
 	mdev = platform_device_register_data(dev, mach->machine, -1, NULL, 0);
-	if (mdev == NULL) {
+	if (IS_ERR(mdev)) {
 		dev_err(dev, "Failed to create machine device: %s\n", mach->machine);
-		return -ENODEV;
+		return PTR_ERR(mdev);
 	}
 
 	ret = sst_alloc_drv_context(&ctx, dev, dev_id);
@@ -332,7 +332,7 @@ do_sst_cleanup:
 * This function is called by OS when a device is unloaded
 * This frees the interrupt etc
 */
-int sst_acpi_remove(struct platform_device *pdev)
+static int sst_acpi_remove(struct platform_device *pdev)
 {
 	struct intel_sst_drv *ctx;
 
@@ -343,14 +343,16 @@ int sst_acpi_remove(struct platform_device *pdev)
 }
 
 static struct sst_machines sst_acpi_bytcr[] = {
-	{"10EC5640", "T100", "bytt100_rt5640", NULL, "fw_sst_0f28.bin",
+	{"10EC5640", "T100", "bytt100_rt5640", NULL, "intel/fw_sst_0f28.bin",
 						&byt_rvp_platform_data },
 	{},
 };
 
 /* Cherryview-based platforms: CherryTrail and Braswell */
 static struct sst_machines sst_acpi_chv[] = {
-	{"10EC5670", "cht-bsw", "cht-bsw-rt5672", NULL, "fw_sst_22a8.bin",
+	{"10EC5670", "cht-bsw", "cht-bsw-rt5672", NULL, "intel/fw_sst_22a8.bin",
+						&chv_platform_data },
+	{"10EC5645", "cht-bsw", "cht-bsw-rt5645", NULL, "intel/fw_sst_22a8.bin",
 						&chv_platform_data },
 	{},
 };
@@ -366,7 +368,6 @@ MODULE_DEVICE_TABLE(acpi, sst_acpi_ids);
 static struct platform_driver sst_acpi_driver = {
 	.driver = {
 		.name			= "intel_sst_acpi",
-		.owner			= THIS_MODULE,
 		.acpi_match_table	= ACPI_PTR(sst_acpi_ids),
 		.pm			= &intel_sst_pm,
 	},

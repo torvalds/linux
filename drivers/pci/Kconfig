@@ -67,7 +67,7 @@ config XEN_PCIDEV_FRONTEND
 config HT_IRQ
 	bool "Interrupts on hypertransport devices"
 	default y
-	depends on PCI && X86_LOCAL_APIC && X86_IO_APIC
+	depends on PCI && X86_LOCAL_APIC
 	help
 	   This allows native hypertransport devices to use interrupts.
 
@@ -109,13 +109,6 @@ config PCI_PASID
 	  driver for it into your kernel.
 
 	  If unsure, say N.
-
-config PCI_IOAPIC
-	bool "PCI IO-APIC hotplug support" if X86
-	depends on PCI
-	depends on ACPI
-	depends on X86_IO_APIC
-	default !X86
 
 config PCI_LABEL
 	def_bool y if (DMI || ACPI)

@@ -32,12 +32,14 @@
 static int
 check_smb2_hdr(struct smb2_hdr *hdr, __u64 mid)
 {
+	__u64 wire_mid = le64_to_cpu(hdr->MessageId);
+
 	/*
 	 * Make sure that this really is an SMB, that it is a response,
 	 * and that the message ids match.
 	 */
 	if ((*(__le32 *)hdr->ProtocolId == SMB2_PROTO_NUMBER) &&
-	    (mid == hdr->MessageId)) {
+	    (mid == wire_mid)) {
 		if (hdr->Flags & SMB2_FLAGS_SERVER_TO_REDIR)
 			return 0;
 		else {
@@ -51,11 +53,11 @@ check_smb2_hdr(struct smb2_hdr *hdr, __u64 mid)
 		if (*(__le32 *)hdr->ProtocolId != SMB2_PROTO_NUMBER)
 			cifs_dbg(VFS, "Bad protocol string signature header %x\n",
 				 *(unsigned int *) hdr->ProtocolId);
-		if (mid != hdr->MessageId)
+		if (mid != wire_mid)
 			cifs_dbg(VFS, "Mids do not match: %llu and %llu\n",
-				 mid, hdr->MessageId);
+				 mid, wire_mid);
 	}
-	cifs_dbg(VFS, "Bad SMB detected. The Mid=%llu\n", hdr->MessageId);
+	cifs_dbg(VFS, "Bad SMB detected. The Mid=%llu\n", wire_mid);
 	return 1;
 }
 
@@ -95,7 +97,7 @@ smb2_check_message(char *buf, unsigned int length)
 {
 	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
 	struct smb2_pdu *pdu = (struct smb2_pdu *)hdr;
-	__u64 mid = hdr->MessageId;
+	__u64 mid = le64_to_cpu(hdr->MessageId);
 	__u32 len = get_rfc1002_length(buf);
 	__u32 clc_len;  /* calculated length */
 	int command;

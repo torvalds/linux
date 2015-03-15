@@ -337,7 +337,7 @@ int raw_rcv(struct sock *sk, struct sk_buff *skb)
 }
 
 static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
-			   void *from, size_t length,
+			   struct msghdr *msg, size_t length,
 			   struct rtable **rtp,
 			   unsigned int flags)
 {
@@ -382,7 +382,7 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 
 	skb->transport_header = skb->network_header;
 	err = -EFAULT;
-	if (memcpy_fromiovecend((void *)iph, from, 0, length))
+	if (memcpy_from_msg(iph, msg, length))
 		goto error_free;
 
 	iphlen = iph->ihl * 4;
@@ -625,8 +625,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 back_from_confirm:
 
 	if (inet->hdrincl)
-		/* XXX: stripping const */
-		err = raw_send_hdrinc(sk, &fl4, (struct iovec *)msg->msg_iter.iov, len,
+		err = raw_send_hdrinc(sk, &fl4, msg, len,
 				      &rt, msg->msg_flags);
 
 	 else {

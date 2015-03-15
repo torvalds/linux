@@ -32,6 +32,7 @@
 #include "phy_common.h"
 #include "../pci.h"
 #include "../base.h"
+#include "../core.h"
 
 #define BT_RSSI_STATE_NORMAL_POWER	BIT_OFFSET_LEN_MASK_32(0, 1)
 #define BT_RSSI_STATE_AMDPU_OFF		BIT_OFFSET_LEN_MASK_32(1, 1)
@@ -193,36 +194,6 @@ void dm_savepowerindex(struct ieee80211_hw *hw)
 	}
 }
 EXPORT_SYMBOL_GPL(dm_savepowerindex);
-
-static void rtl92c_dm_diginit(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
-
-	dm_digtable->dig_enable_flag = true;
-	dm_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
-	dm_digtable->cur_igvalue = 0x20;
-	dm_digtable->pre_igvalue = 0x0;
-	dm_digtable->cursta_cstate = DIG_STA_DISCONNECT;
-	dm_digtable->presta_cstate = DIG_STA_DISCONNECT;
-	dm_digtable->curmultista_cstate = DIG_MULTISTA_DISCONNECT;
-	dm_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
-	dm_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
-	dm_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
-	dm_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
-	dm_digtable->rx_gain_max = DM_DIG_MAX;
-	dm_digtable->rx_gain_min = DM_DIG_MIN;
-	dm_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
-	dm_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
-	dm_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
-	dm_digtable->pre_cck_pd_state = CCK_PD_STAGE_MAX;
-	dm_digtable->cur_cck_pd_state = CCK_PD_STAGE_LowRssi;
-
-	dm_digtable->forbidden_igi = DM_DIG_MIN;
-	dm_digtable->large_fa_hit = 0;
-	dm_digtable->recover_cnt = 0;
-	dm_digtable->dig_dynamic_min  = 0x25;
-}
 
 static u8 rtl92c_dm_initial_gain_min_pwdb(struct ieee80211_hw *hw)
 {
@@ -507,27 +478,27 @@ static void rtl92c_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 		if (dm_digtable->rssi_val_min > 100)
 			dm_digtable->rssi_val_min = 100;
 
-		if (dm_digtable->pre_cck_pd_state == CCK_PD_STAGE_LowRssi) {
+		if (dm_digtable->pre_cck_pd_state == CCK_PD_STAGE_LOWRSSI) {
 			if (dm_digtable->rssi_val_min <= 25)
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_LowRssi;
+				    CCK_PD_STAGE_LOWRSSI;
 			else
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_HighRssi;
+				    CCK_PD_STAGE_HIGHRSSI;
 		} else {
 			if (dm_digtable->rssi_val_min <= 20)
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_LowRssi;
+				    CCK_PD_STAGE_LOWRSSI;
 			else
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_HighRssi;
+				    CCK_PD_STAGE_HIGHRSSI;
 		}
 	} else {
 		dm_digtable->cur_cck_pd_state = CCK_PD_STAGE_MAX;
 	}
 
 	if (dm_digtable->pre_cck_pd_state != dm_digtable->cur_cck_pd_state) {
-		if ((dm_digtable->cur_cck_pd_state == CCK_PD_STAGE_LowRssi) ||
+		if ((dm_digtable->cur_cck_pd_state == CCK_PD_STAGE_LOWRSSI) ||
 		    (dm_digtable->cur_cck_pd_state == CCK_PD_STAGE_MAX))
 			rtl_set_bbreg(hw, RCCK0_CCA, MASKBYTE2, 0x83);
 		else
@@ -1374,7 +1345,7 @@ void rtl92c_dm_init(struct ieee80211_hw *hw)
 	rtlpriv->dm.undec_sm_pwdb = -1;
 	rtlpriv->dm.undec_sm_cck = -1;
 	rtlpriv->dm.dm_initialgain_enable = true;
-	rtl92c_dm_diginit(hw);
+	rtl_dm_diginit(hw, 0x20);
 
 	rtlpriv->dm.dm_flag |= HAL_DM_HIPWR_DISABLE;
 	rtl92c_dm_init_dynamic_txpower(hw);

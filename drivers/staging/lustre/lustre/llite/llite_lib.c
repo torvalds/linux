@@ -665,48 +665,6 @@ int ll_get_default_cookiesize(struct ll_sb_info *sbi, int *lmmsize)
 	return rc;
 }
 
-static void ll_dump_inode(struct inode *inode)
-{
-	struct ll_d_hlist_node *tmp;
-	int dentry_count = 0;
-
-	LASSERT(inode != NULL);
-
-	ll_d_hlist_for_each(tmp, &inode->i_dentry)
-		dentry_count++;
-
-	CERROR("inode %p dump: dev=%s ino=%lu mode=%o count=%u, %d dentries\n",
-	       inode, ll_i2mdexp(inode)->exp_obd->obd_name, inode->i_ino,
-	       inode->i_mode, atomic_read(&inode->i_count), dentry_count);
-}
-
-void lustre_dump_dentry(struct dentry *dentry, int recur)
-{
-	struct list_head *tmp;
-	int subdirs = 0;
-
-	LASSERT(dentry != NULL);
-
-	list_for_each(tmp, &dentry->d_subdirs)
-		subdirs++;
-
-	CERROR("dentry %p dump: name=%pd parent=%pd (%p), inode=%p, count=%u, flags=0x%x, fsdata=%p, %d subdirs\n",
-	       dentry, dentry, dentry->d_parent, dentry->d_parent,
-	       dentry->d_inode, d_count(dentry),
-	       dentry->d_flags, dentry->d_fsdata, subdirs);
-	if (dentry->d_inode != NULL)
-		ll_dump_inode(dentry->d_inode);
-
-	if (recur == 0)
-		return;
-
-	list_for_each(tmp, &dentry->d_subdirs) {
-		struct dentry *d = list_entry(tmp, struct dentry, d_child);
-
-		lustre_dump_dentry(d, recur - 1);
-	}
-}
-
 static void client_common_put_super(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -987,7 +945,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	if (err)
 		goto out_free;
 	lsi->lsi_flags |= LSI_BDI_INITIALIZED;
-	lsi->lsi_bdi.capabilities = BDI_CAP_MAP_COPY;
+	lsi->lsi_bdi.capabilities = 0;
 	err = ll_bdi_register(&lsi->lsi_bdi);
 	if (err)
 		goto out_free;
@@ -1812,10 +1770,6 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 
 	/* OIDEBUG(inode); */
 
-	/* initializing backing dev info. */
-	inode->i_mapping->backing_dev_info = &s2lsi(inode->i_sb)->lsi_bdi;
-
-
 	if (S_ISREG(inode->i_mode)) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
 
@@ -2372,21 +2326,6 @@ char *ll_get_fsname(struct super_block *sb, char *buf, int buflen)
 	return buf;
 }
 
-static char *ll_d_path(struct dentry *dentry, char *buf, int bufsize)
-{
-	char *path = NULL;
-
-	struct path p;
-
-	p.dentry = dentry;
-	p.mnt = current->fs->root.mnt;
-	path_get(&p);
-	path = d_path(&p, buf, bufsize);
-	path_put(&p);
-
-	return path;
-}
-
 void ll_dirty_page_discard_warn(struct page *page, int ioret)
 {
 	char *buf, *path = NULL;
@@ -2398,7 +2337,7 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 	if (buf != NULL) {
 		dentry = d_find_alias(page->mapping->host);
 		if (dentry != NULL)
-			path = ll_d_path(dentry, buf, PAGE_SIZE);
+			path = dentry_path_raw(dentry, buf, PAGE_SIZE);
 	}
 
 	CDEBUG(D_WARNING,

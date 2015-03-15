@@ -31,7 +31,6 @@
 
 #include "i915_drv.h"
 #include "intel_drv.h"
-#include <drm/i915_powerwell.h>
 
 /**
  * DOC: runtime pm
@@ -49,8 +48,6 @@
  * abstract power domains. It then maps those to the actual power wells
  * present for a given platform.
  */
-
-static struct i915_power_domains *hsw_pwr;
 
 #define for_each_power_well(i, power_well, domain_mask, power_domains)	\
 	for (i = 0;							\
@@ -118,7 +115,7 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_display_power_is_enabled - unlocked check for a power domain
+ * intel_display_power_is_enabled - check for a power domain
  * @dev_priv: i915 device instance
  * @domain: power domain to check
  *
@@ -615,29 +612,6 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 		vlv_power_sequencer_reset(dev_priv);
 }
 
-static void check_power_well_state(struct drm_i915_private *dev_priv,
-				   struct i915_power_well *power_well)
-{
-	bool enabled = power_well->ops->is_enabled(dev_priv, power_well);
-
-	if (power_well->always_on || !i915.disable_power_well) {
-		if (!enabled)
-			goto mismatch;
-
-		return;
-	}
-
-	if (enabled != (power_well->count > 0))
-		goto mismatch;
-
-	return;
-
-mismatch:
-	WARN(1, "state mismatch for '%s' (always_on %d hw state %d use-count %d disable_power_well %d\n",
-		  power_well->name, power_well->always_on, enabled,
-		  power_well->count, i915.disable_power_well);
-}
-
 /**
  * intel_display_power_get - grab a power domain reference
  * @dev_priv: i915 device instance
@@ -669,8 +643,6 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 			power_well->ops->enable(dev_priv, power_well);
 			power_well->hw_enabled = true;
 		}
-
-		check_power_well_state(dev_priv, power_well);
 	}
 
 	power_domains->domain_use_count[domain]++;
@@ -709,8 +681,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 			power_well->hw_enabled = false;
 			power_well->ops->disable(dev_priv, power_well);
 		}
-
-		check_power_well_state(dev_priv, power_well);
 	}
 
 	mutex_unlock(&power_domains->lock);
@@ -733,6 +703,10 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |		\
 	BIT(POWER_DOMAIN_PORT_CRT) |			\
 	BIT(POWER_DOMAIN_PLLS) |			\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_AUX_B) |			\
+	BIT(POWER_DOMAIN_AUX_C) |			\
+	BIT(POWER_DOMAIN_AUX_D) |			\
 	BIT(POWER_DOMAIN_INIT))
 #define HSW_DISPLAY_POWER_DOMAINS (				\
 	(POWER_DOMAIN_MASK & ~HSW_ALWAYS_ON_POWER_DOMAINS) |	\
@@ -754,24 +728,30 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_C_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_CRT) |		\
+	BIT(POWER_DOMAIN_AUX_B) |		\
+	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_B_LANES_01_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_B_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_B) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_B_LANES_23_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_B) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define CHV_PIPE_A_POWER_DOMAINS (	\
@@ -791,20 +771,25 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_B) |		\
+	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define CHV_DPIO_CMN_D_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_D) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_D) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 #define CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_AUX_D) |		\
 	BIT(POWER_DOMAIN_INIT))
 
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
@@ -1098,10 +1083,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_HASWELL(dev_priv->dev)) {
 		set_power_wells(power_domains, hsw_power_wells);
-		hsw_pwr = power_domains;
 	} else if (IS_BROADWELL(dev_priv->dev)) {
 		set_power_wells(power_domains, bdw_power_wells);
-		hsw_pwr = power_domains;
 	} else if (IS_CHERRYVIEW(dev_priv->dev)) {
 		set_power_wells(power_domains, chv_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv->dev)) {
@@ -1145,8 +1128,6 @@ void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 	 * the power well is not enabled, so just enable it in case
 	 * we're going to unload/reload. */
 	intel_display_set_init_power(dev_priv, true);
-
-	hsw_pwr = NULL;
 }
 
 static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
@@ -1355,52 +1336,3 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	pm_runtime_put_autosuspend(device);
 }
 
-/* Display audio driver power well request */
-int i915_request_power_well(void)
-{
-	struct drm_i915_private *dev_priv;
-
-	if (!hsw_pwr)
-		return -ENODEV;
-
-	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
-				power_domains);
-	intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(i915_request_power_well);
-
-/* Display audio driver power well release */
-int i915_release_power_well(void)
-{
-	struct drm_i915_private *dev_priv;
-
-	if (!hsw_pwr)
-		return -ENODEV;
-
-	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
-				power_domains);
-	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(i915_release_power_well);
-
-/*
- * Private interface for the audio driver to get CDCLK in kHz.
- *
- * Caller must request power well using i915_request_power_well() prior to
- * making the call.
- */
-int i915_get_cdclk_freq(void)
-{
-	struct drm_i915_private *dev_priv;
-
-	if (!hsw_pwr)
-		return -ENODEV;
-
-	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
-				power_domains);
-
-	return intel_ddi_get_cdclk_freq(dev_priv);
-}
-EXPORT_SYMBOL_GPL(i915_get_cdclk_freq);

@@ -20,7 +20,7 @@
 
 struct a2l_data {
 	const char 	*input;
-	unsigned long 	addr;
+	u64	 	addr;
 
 	bool 		found;
 	const char 	*filename;
@@ -147,7 +147,7 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 	free(a2l);
 }
 
-static int addr2line(const char *dso_name, unsigned long addr,
+static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line, struct dso *dso)
 {
 	int ret = 0;
@@ -193,7 +193,7 @@ void dso__free_a2l(struct dso *dso)
 
 #else /* HAVE_LIBBFD_SUPPORT */
 
-static int addr2line(const char *dso_name, unsigned long addr,
+static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line_nr,
 		     struct dso *dso __maybe_unused)
 {
@@ -252,7 +252,7 @@ void dso__free_a2l(struct dso *dso __maybe_unused)
  */
 #define A2L_FAIL_LIMIT 123
 
-char *get_srcline(struct dso *dso, unsigned long addr, struct symbol *sym,
+char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 		  bool show_sym)
 {
 	char *file = NULL;
@@ -293,10 +293,10 @@ out:
 		dso__free_a2l(dso);
 	}
 	if (sym) {
-		if (asprintf(&srcline, "%s+%ld", show_sym ? sym->name : "",
+		if (asprintf(&srcline, "%s+%" PRIu64, show_sym ? sym->name : "",
 					addr - sym->start) < 0)
 			return SRCLINE_UNKNOWN;
-	} else if (asprintf(&srcline, "%s[%lx]", dso->short_name, addr) < 0)
+	} else if (asprintf(&srcline, "%s[%" PRIx64 "]", dso->short_name, addr) < 0)
 		return SRCLINE_UNKNOWN;
 	return srcline;
 }

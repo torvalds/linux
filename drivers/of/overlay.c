@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/idr.h>
 
 #include "of_private.h"
 
@@ -85,7 +86,7 @@ static int of_overlay_apply_single_device_node(struct of_overlay *ov,
 		struct device_node *target, struct device_node *child)
 {
 	const char *cname;
-	struct device_node *tchild, *grandchild;
+	struct device_node *tchild;
 	int ret = 0;
 
 	cname = kbasename(child->full_name);
@@ -114,17 +115,6 @@ static int of_overlay_apply_single_device_node(struct of_overlay *ov,
 		ret = of_overlay_apply_one(ov, tchild, child);
 		if (ret)
 			return ret;
-
-		/* The properties are already copied, now do the child nodes */
-		for_each_child_of_node(child, grandchild) {
-			ret = of_overlay_apply_single_device_node(ov, tchild, grandchild);
-			if (ret) {
-				pr_err("%s: Failed to apply single node @%s/%s\n",
-					__func__, tchild->full_name,
-					grandchild->name);
-				return ret;
-			}
-		}
 	}
 
 	return ret;

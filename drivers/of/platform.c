@@ -188,7 +188,7 @@ static void of_dma_configure(struct device *dev)
 		size = dev->coherent_dma_mask;
 	} else {
 		offset = PFN_DOWN(paddr - dma_addr);
-		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", dev->dma_pfn_offset);
+		dev_dbg(dev, "dma_pfn_offset(%#08lx)\n", offset);
 	}
 	dev->dma_pfn_offset = offset;
 
@@ -526,6 +526,7 @@ static int of_platform_device_destroy(struct device *dev, void *data)
 		amba_device_unregister(to_amba_device(dev));
 #endif
 
+	of_dma_deconfigure(dev);
 	of_node_clear_flag(dev->of_node, OF_POPULATED);
 	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
 	return 0;
@@ -566,6 +567,10 @@ static int of_platform_notify(struct notifier_block *nb,
 		if (!of_node_check_flag(rd->dn->parent, OF_POPULATED_BUS))
 			return NOTIFY_OK;	/* not for us */
 
+		/* already populated? (driver using of_populate manually) */
+		if (of_node_check_flag(rd->dn, OF_POPULATED))
+			return NOTIFY_OK;
+
 		/* pdev_parent may be NULL when no bus platform device */
 		pdev_parent = of_find_device_by_node(rd->dn->parent);
 		pdev = of_platform_device_create(rd->dn, NULL,
@@ -581,6 +586,11 @@ static int of_platform_notify(struct notifier_block *nb,
 		break;
 
 	case OF_RECONFIG_CHANGE_REMOVE:
+
+		/* already depopulated? */
+		if (!of_node_check_flag(rd->dn, OF_POPULATED))
+			return NOTIFY_OK;
+
 		/* find our device by node */
 		pdev = of_find_device_by_node(rd->dn);
 		if (pdev == NULL)

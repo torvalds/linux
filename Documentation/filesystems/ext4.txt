@@ -386,6 +386,10 @@ max_dir_size_kb=n	This limits the size of directories so that any
 i_version		Enable 64-bit inode version support. This option is
 			off by default.
 
+dax			Use direct access (no page cache).  See
+			Documentation/filesystems/dax.txt.  Note that
+			this option is incompatible with data=journal.
+
 Data Mode
 =========
 There are 3 different data modes:

@@ -1169,6 +1169,19 @@ void kv_dpm_enable_bapm(struct radeon_device *rdev, bool enable)
 	}
 }
 
+static void kv_enable_thermal_int(struct radeon_device *rdev, bool enable)
+{
+	u32 thermal_int;
+
+	thermal_int = RREG32_SMC(CG_THERMAL_INT_CTRL);
+	if (enable)
+		thermal_int |= THERM_INTH_MASK | THERM_INTL_MASK;
+	else
+		thermal_int &= ~(THERM_INTH_MASK | THERM_INTL_MASK);
+	WREG32_SMC(CG_THERMAL_INT_CTRL, thermal_int);
+
+}
+
 int kv_dpm_enable(struct radeon_device *rdev)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
@@ -1280,8 +1293,7 @@ int kv_dpm_late_enable(struct radeon_device *rdev)
 			DRM_ERROR("kv_set_thermal_temperature_range failed\n");
 			return ret;
 		}
-		rdev->irq.dpm_thermal = true;
-		radeon_irq_set(rdev);
+		kv_enable_thermal_int(rdev, true);
 	}
 
 	/* powerdown unused blocks for now */
@@ -1312,6 +1324,7 @@ void kv_dpm_disable(struct radeon_device *rdev)
 	kv_stop_dpm(rdev);
 	kv_enable_ulv(rdev, false);
 	kv_reset_am(rdev);
+	kv_enable_thermal_int(rdev, false);
 
 	kv_update_current_ps(rdev, rdev->pm.dpm.boot_ps);
 }
@@ -1925,6 +1938,7 @@ void kv_dpm_setup_asic(struct radeon_device *rdev)
 	kv_init_sclk_t(rdev);
 }
 
+#if 0
 void kv_dpm_reset_asic(struct radeon_device *rdev)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
@@ -1945,6 +1959,7 @@ void kv_dpm_reset_asic(struct radeon_device *rdev)
 		kv_set_enabled_level(rdev, pi->graphics_boot_level);
 	}
 }
+#endif
 
 //XXX use sumo_dpm_display_configuration_changed
 
@@ -2745,13 +2760,11 @@ int kv_dpm_init(struct radeon_device *rdev)
 	pi->enable_auto_thermal_throttling = true;
 	pi->disable_nb_ps3_in_battery = false;
 	if (radeon_bapm == -1) {
-		/* There are stability issues reported on with
-		 * bapm enabled on an asrock system.
-		 */
-		if (rdev->pdev->subsystem_vendor == 0x1849)
-			pi->bapm_enable = false;
-		else
+		/* only enable bapm on KB, ML by default */
+		if (rdev->family == CHIP_KABINI || rdev->family == CHIP_MULLINS)
 			pi->bapm_enable = true;
+		else
+			pi->bapm_enable = false;
 	} else if (radeon_bapm == 0) {
 		pi->bapm_enable = false;
 	} else {

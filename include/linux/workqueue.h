@@ -70,7 +70,8 @@ enum {
 	/* data contains off-queue information when !WORK_STRUCT_PWQ */
 	WORK_OFFQ_FLAG_BASE	= WORK_STRUCT_COLOR_SHIFT,
 
-	WORK_OFFQ_CANCELING	= (1 << WORK_OFFQ_FLAG_BASE),
+	__WORK_OFFQ_CANCELING	= WORK_OFFQ_FLAG_BASE,
+	WORK_OFFQ_CANCELING	= (1 << __WORK_OFFQ_CANCELING),
 
 	/*
 	 * When a work item is off queue, its high bits point to the last
@@ -220,14 +221,10 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 #endif
 
 #define INIT_WORK(_work, _func)						\
-	do {								\
-		__INIT_WORK((_work), (_func), 0);			\
-	} while (0)
+	__INIT_WORK((_work), (_func), 0)
 
 #define INIT_WORK_ONSTACK(_work, _func)					\
-	do {								\
-		__INIT_WORK((_work), (_func), 1);			\
-	} while (0)
+	__INIT_WORK((_work), (_func), 1)
 
 #define __INIT_DELAYED_WORK(_work, _func, _tflags)			\
 	do {								\

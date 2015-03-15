@@ -906,4 +906,6 @@ int fuse_write_inode(struct inode *inode, struct writeback_control *wbc);
 int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 		    struct file *file);
 
+void fuse_set_initialized(struct fuse_conn *fc);
+
 #endif /* _FS_FUSE_I_H */

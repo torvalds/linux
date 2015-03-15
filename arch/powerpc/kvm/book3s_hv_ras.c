@@ -138,8 +138,5 @@ out:
 
 long kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
 {
-	if (cpu_has_feature(CPU_FTR_ARCH_206))
-		return kvmppc_realmode_mc_power7(vcpu);
-
-	return 0;
+	return kvmppc_realmode_mc_power7(vcpu);
 }

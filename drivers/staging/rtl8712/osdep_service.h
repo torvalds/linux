@@ -71,7 +71,7 @@ static inline void _init_timer(struct timer_list *ptimer,
 
 static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
 {
-	mod_timer(ptimer, (jiffies+(delay_time*HZ/1000)));
+	mod_timer(ptimer, (jiffies+msecs_to_jiffies(delay_time)));
 }
 
 static inline void _cancel_timer(struct timer_list *ptimer, u8 *bcancelled)
@@ -101,12 +101,9 @@ static inline void sleep_schedulable(int ms)
 {
 	u32 delta;
 
-	delta = (ms * HZ) / 1000;/*(ms)*/
-	if (delta == 0)
-		delta = 1;/* 1 ms */
+	delta = msecs_to_jiffies(ms);/*(ms)*/
 	set_current_state(TASK_INTERRUPTIBLE);
-	if (schedule_timeout(delta) != 0)
-		return;
+	schedule_timeout(delta);
 }
 
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)

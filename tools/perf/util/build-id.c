@@ -410,21 +410,18 @@ int perf_session__cache_build_ids(struct perf_session *session)
 {
 	struct rb_node *nd;
 	int ret;
-	char debugdir[PATH_MAX];
 
 	if (no_buildid_cache)
 		return 0;
 
-	snprintf(debugdir, sizeof(debugdir), "%s", buildid_dir);
-
-	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
+	if (mkdir(buildid_dir, 0755) != 0 && errno != EEXIST)
 		return -1;
 
-	ret = machine__cache_build_ids(&session->machines.host, debugdir);
+	ret = machine__cache_build_ids(&session->machines.host, buildid_dir);
 
 	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret |= machine__cache_build_ids(pos, debugdir);
+		ret |= machine__cache_build_ids(pos, buildid_dir);
 	}
 	return ret ? -1 : 0;
 }

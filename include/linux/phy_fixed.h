@@ -11,7 +11,7 @@ struct fixed_phy_status {
 
 struct device_node;
 
-#ifdef CONFIG_FIXED_PHY
+#if IS_ENABLED(CONFIG_FIXED_PHY)
 extern int fixed_phy_add(unsigned int irq, int phy_id,
 			 struct fixed_phy_status *status);
 extern struct phy_device *fixed_phy_register(unsigned int irq,

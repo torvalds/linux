@@ -12,15 +12,31 @@ config VIRTIO_PCI
 	depends on PCI
 	select VIRTIO
 	---help---
-	  This drivers provides support for virtio based paravirtual device
+	  This driver provides support for virtio based paravirtual device
 	  drivers over PCI.  This requires that your VMM has appropriate PCI
 	  virtio backends.  Most QEMU based VMMs should support these devices
 	  (like KVM or Xen).
 
-	  Currently, the ABI is not considered stable so there is no guarantee
-	  that this version of the driver will work with your VMM.
-
 	  If unsure, say M.
+
+config VIRTIO_PCI_LEGACY
+	bool "Support for legacy virtio draft 0.9.X and older devices"
+	default y
+	depends on VIRTIO_PCI
+	---help---
+          Virtio PCI Card 0.9.X Draft (circa 2014) and older device support.
+
+	  This option enables building a transitional driver, supporting
+	  both devices conforming to Virtio 1 specification, and legacy devices.
+	  If disabled, you get a slightly smaller, non-transitional driver,
+	  with no legacy compatibility.
+
+          So look out into your driveway.  Do you have a flying car?  If
+          so, you can happily disable this option and virtio will not
+          break.  Otherwise, leave it set.  Unless you're testing what
+          life will be like in The Future.
+
+	  If unsure, say Y.
 
 config VIRTIO_BALLOON
 	tristate "Virtio balloon driver"

@@ -1,8 +1,4 @@
 
-header-y += arch-v10/
-header-y += arch-v32/
-
-
 generic-y += barrier.h
 generic-y += clkdev.h
 generic-y += cputime.h

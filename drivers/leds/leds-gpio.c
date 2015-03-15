@@ -187,6 +187,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		led.gpiod = devm_get_gpiod_from_child(dev, child);
 		if (IS_ERR(led.gpiod)) {
 			fwnode_handle_put(child);
+			ret = PTR_ERR(led.gpiod);
 			goto err;
 		}
 
@@ -203,7 +204,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		fwnode_property_read_string(child, "linux,default-trigger",
 					    &led.default_trigger);
 
-		if (!fwnode_property_read_string(child, "linux,default_state",
+		if (!fwnode_property_read_string(child, "default-state",
 						 &state)) {
 			if (!strcmp(state, "keep"))
 				led.default_state = LEDS_GPIO_DEFSTATE_KEEP;
@@ -229,7 +230,7 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 err:
 	for (count = priv->num_leds - 2; count >= 0; count--)
 		delete_gpio_led(&priv->leds[count]);
-	return ERR_PTR(-ENODEV);
+	return ERR_PTR(ret);
 }
 
 static const struct of_device_id of_gpio_leds_match[] = {

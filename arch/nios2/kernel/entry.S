@@ -121,7 +121,11 @@ trap_table:
 	.word	instruction_trap	/* 27 */
 	.word	instruction_trap	/* 28 */
 	.word	instruction_trap	/* 29 */
-	.word	instruction_trap	/* 30 */
+#ifdef CONFIG_KGDB
+	.word	handle_kgdb_breakpoint	/* 30 KGDB breakpoint */
+#else
+	.word	instruction_trap		/* 30 */
+#endif
 	.word	handle_breakpoint	/* 31 */
 
 .text
@@ -365,30 +369,14 @@ ENTRY(ret_from_interrupt)
 	GET_THREAD_INFO	r1
 	ldw	r4, TI_PREEMPT_COUNT(r1)
 	bne	r4, r0, restore_all
-
-need_resched:
 	ldw	r4, TI_FLAGS(r1)		/* ? Need resched set */
 	BTBZ	r10, r4, TIF_NEED_RESCHED, restore_all
 	ldw	r4, PT_ESTATUS(sp)	/* ? Interrupts off */
 	andi	r10, r4, ESTATUS_EPIE
 	beq	r10, r0, restore_all
-	movia	r4, PREEMPT_ACTIVE
-	stw	r4, TI_PREEMPT_COUNT(r1)
-	rdctl	r10, status		/* enable intrs again */
-	ori	r10, r10 ,STATUS_PIE
-	wrctl	status, r10
-	PUSH	r1
-	call	schedule
-	POP	r1
-	mov	r4, r0
-	stw	r4, TI_PREEMPT_COUNT(r1)
-	rdctl	r10, status		/* disable intrs */
-	andi	r10, r10, %lo(~STATUS_PIE)
-	wrctl	status, r10
-	br	need_resched
-#else
-	br	restore_all
+	call	preempt_schedule_irq
 #endif
+	br	restore_all
 
 /***********************************************************************
  * A few syscall wrappers
@@ -460,6 +448,12 @@ handle_illegal:
 handle_diverror:
 	call	handle_diverror_c
 	br	ret_from_exception
+
+#ifdef CONFIG_KGDB
+handle_kgdb_breakpoint:
+	call	kgdb_breakpoint_c
+	br	ret_from_exception
+#endif
 
 /*
  * Beware - when entering resume, prev (the current task) is

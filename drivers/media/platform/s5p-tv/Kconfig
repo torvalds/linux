@@ -8,7 +8,7 @@
 
 config VIDEO_SAMSUNG_S5P_TV
 	bool "Samsung TV driver for S5P platform"
-	depends on PM_RUNTIME
+	depends on PM
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	default n
 	---help---

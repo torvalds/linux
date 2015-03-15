@@ -19,14 +19,6 @@
 
 #include "virtio_pci_common.h"
 
-/* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */
-static const struct pci_device_id virtio_pci_id_table[] = {
-	{ PCI_DEVICE(0x1af4, PCI_ANY_ID) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, virtio_pci_id_table);
-
 /* virtio config->get_features() implementation */
 static u64 vp_get_features(struct virtio_device *vdev)
 {
@@ -220,11 +212,9 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 };
 
 /* the PCI probing function */
-static int virtio_pci_probe(struct pci_dev *pci_dev,
-			    const struct pci_device_id *id)
+int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
 {
-	struct virtio_pci_device *vp_dev;
-	int err;
+	struct pci_dev *pci_dev = vp_dev->pci_dev;
 
 	/* We only own devices >= 0x1000 and <= 0x103f: leave the rest. */
 	if (pci_dev->device < 0x1000 || pci_dev->device > 0x103f)
@@ -236,40 +226,11 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 		return -ENODEV;
 	}
 
-	/* allocate our structure and fill it out */
-	vp_dev = kzalloc(sizeof(struct virtio_pci_device), GFP_KERNEL);
-	if (vp_dev == NULL)
+	vp_dev->ioaddr = pci_iomap(pci_dev, 0, 0);
+	if (!vp_dev->ioaddr)
 		return -ENOMEM;
 
-	vp_dev->vdev.dev.parent = &pci_dev->dev;
-	vp_dev->vdev.dev.release = virtio_pci_release_dev;
-	vp_dev->vdev.config = &virtio_pci_config_ops;
-	vp_dev->pci_dev = pci_dev;
-	INIT_LIST_HEAD(&vp_dev->virtqueues);
-	spin_lock_init(&vp_dev->lock);
-
-	/* Disable MSI/MSIX to bring device to a known good state. */
-	pci_msi_off(pci_dev);
-
-	/* enable the device */
-	err = pci_enable_device(pci_dev);
-	if (err)
-		goto out;
-
-	err = pci_request_regions(pci_dev, "virtio-pci");
-	if (err)
-		goto out_enable_device;
-
-	vp_dev->ioaddr = pci_iomap(pci_dev, 0, 0);
-	if (vp_dev->ioaddr == NULL) {
-		err = -ENOMEM;
-		goto out_req_regions;
-	}
-
 	vp_dev->isr = vp_dev->ioaddr + VIRTIO_PCI_ISR;
-
-	pci_set_drvdata(pci_dev, vp_dev);
-	pci_set_master(pci_dev);
 
 	/* we use the subsystem vendor/device id as the virtio vendor/device
 	 * id.  this allows us to use the same PCI vendor/device id for all
@@ -278,49 +239,18 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 	vp_dev->vdev.id.vendor = pci_dev->subsystem_vendor;
 	vp_dev->vdev.id.device = pci_dev->subsystem_device;
 
+	vp_dev->vdev.config = &virtio_pci_config_ops;
+
 	vp_dev->config_vector = vp_config_vector;
 	vp_dev->setup_vq = setup_vq;
 	vp_dev->del_vq = del_vq;
 
-	/* finally register the virtio device */
-	err = register_virtio_device(&vp_dev->vdev);
-	if (err)
-		goto out_set_drvdata;
-
 	return 0;
-
-out_set_drvdata:
-	pci_iounmap(pci_dev, vp_dev->ioaddr);
-out_req_regions:
-	pci_release_regions(pci_dev);
-out_enable_device:
-	pci_disable_device(pci_dev);
-out:
-	kfree(vp_dev);
-	return err;
 }
 
-static void virtio_pci_remove(struct pci_dev *pci_dev)
+void virtio_pci_legacy_remove(struct virtio_pci_device *vp_dev)
 {
-	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
+	struct pci_dev *pci_dev = vp_dev->pci_dev;
 
-	unregister_virtio_device(&vp_dev->vdev);
-
-	vp_del_vqs(&vp_dev->vdev);
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
-	pci_release_regions(pci_dev);
-	pci_disable_device(pci_dev);
-	kfree(vp_dev);
 }
-
-static struct pci_driver virtio_pci_driver = {
-	.name		= "virtio-pci",
-	.id_table	= virtio_pci_id_table,
-	.probe		= virtio_pci_probe,
-	.remove		= virtio_pci_remove,
-#ifdef CONFIG_PM_SLEEP
-	.driver.pm	= &virtio_pci_pm_ops,
-#endif
-};
-
-module_pci_driver(virtio_pci_driver);

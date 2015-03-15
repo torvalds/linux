@@ -92,7 +92,7 @@ nvif_notify_func(struct nvif_notify *notify, bool keep)
 {
 	int ret = notify->func(notify);
 	if (ret == NVIF_NOTIFY_KEEP ||
-	    !test_and_clear_bit(NVKM_NOTIFY_USER, &notify->flags)) {
+	    !test_and_clear_bit(NVIF_NOTIFY_USER, &notify->flags)) {
 		if (!keep)
 			atomic_dec(&notify->putcnt);
 		else

@@ -125,7 +125,7 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = &dev->subdevices[i];
-			if (s->runflags & SRF_FREE_SPRIV)
+			if (s->runflags & COMEDI_SRF_FREE_SPRIV)
 				kfree(s->private);
 			comedi_free_subdevice_minor(s);
 			if (s->async) {

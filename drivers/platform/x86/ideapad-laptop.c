@@ -729,8 +729,7 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 
 static void ideapad_backlight_exit(struct ideapad_private *priv)
 {
-	if (priv->blightdev)
-		backlight_device_unregister(priv->blightdev);
+	backlight_device_unregister(priv->blightdev);
 	priv->blightdev = NULL;
 }
 

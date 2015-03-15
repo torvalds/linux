@@ -905,11 +905,9 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 	    !tomoyo_get_realpath(&buf2, path2))
 		goto out;
 	switch (operation) {
-		struct dentry *dentry;
 	case TOMOYO_TYPE_RENAME:
 	case TOMOYO_TYPE_LINK:
-		dentry = path1->dentry;
-		if (!dentry->d_inode || !S_ISDIR(dentry->d_inode->i_mode))
+		if (!d_is_dir(path1->dentry))
 			break;
 		/* fall through */
 	case TOMOYO_TYPE_PIVOT_ROOT:

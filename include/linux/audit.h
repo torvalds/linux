@@ -46,7 +46,7 @@ struct audit_tree;
 struct sk_buff;
 
 struct audit_krule {
-	int			vers_ops;
+	u32			pflags;
 	u32			flags;
 	u32			listnr;
 	u32			action;
@@ -63,6 +63,9 @@ struct audit_krule {
 	struct list_head	list;	/* for AUDIT_LIST* purposes only */
 	u64			prio;
 };
+
+/* Flag to indicate legacy AUDIT_LOGINUID unset usage */
+#define AUDIT_LOGINUID_LEGACY		0x1
 
 struct audit_field {
 	u32				type;
@@ -124,7 +127,6 @@ extern void __audit_syscall_entry(int major, unsigned long a0, unsigned long a1,
 extern void __audit_syscall_exit(int ret_success, long ret_value);
 extern struct filename *__audit_reusename(const __user char *uptr);
 extern void __audit_getname(struct filename *name);
-extern void audit_putname(struct filename *name);
 
 #define AUDIT_INODE_PARENT	1	/* dentry represents the parent */
 #define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
@@ -348,8 +350,6 @@ static inline struct filename *audit_reusename(const __user char *name)
 	return NULL;
 }
 static inline void audit_getname(struct filename *name)
-{ }
-static inline void audit_putname(struct filename *name)
 { }
 static inline void __audit_inode(struct filename *name,
 					const struct dentry *dentry,

@@ -124,17 +124,6 @@ out_skb_err:
 	return err;
 }
 
-u8 nfc_hci_pipe2gate(struct nfc_hci_dev *hdev, u8 pipe)
-{
-	int gate;
-
-	for (gate = 0; gate < NFC_HCI_MAX_GATES; gate++)
-		if (hdev->gate2pipe[gate] == pipe)
-			return gate;
-
-	return 0xff;
-}
-
 /*
  * Receive hcp message for pipe, with type and cmd.
  * skb contains optional message data only.

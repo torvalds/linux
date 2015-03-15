@@ -147,6 +147,7 @@ struct mlx4_func_cap {
 	u32	qp0_proxy_qpn;
 	u32	qp1_tunnel_qpn;
 	u32	qp1_proxy_qpn;
+	u32	reserved_lkey;
 	u8	physical_port;
 	u8	port_flags;
 	u8	flags1;
@@ -224,6 +225,7 @@ struct mlx4_set_ib_param {
 	u32 cap_mask;
 };
 
+void mlx4_dev_cap_dump(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap);
 int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap);
 int mlx4_QUERY_PORT(struct mlx4_dev *dev, int port, struct mlx4_port_cap *port_cap);
 int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,

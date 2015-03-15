@@ -686,14 +686,24 @@ int qxl_fbdev_init(struct qxl_device *qdev)
 	ret = drm_fb_helper_init(qdev->ddev, &qfbdev->helper,
 				 qxl_num_crtc /* num_crtc - QXL supports just 1 */,
 				 QXLFB_CONN_LIMIT);
-	if (ret) {
-		kfree(qfbdev);
-		return ret;
-	}
+	if (ret)
+		goto free;
 
-	drm_fb_helper_single_add_all_connectors(&qfbdev->helper);
-	drm_fb_helper_initial_config(&qfbdev->helper, bpp_sel);
+	ret = drm_fb_helper_single_add_all_connectors(&qfbdev->helper);
+	if (ret)
+		goto fini;
+
+	ret = drm_fb_helper_initial_config(&qfbdev->helper, bpp_sel);
+	if (ret)
+		goto fini;
+
 	return 0;
+
+fini:
+	drm_fb_helper_fini(&qfbdev->helper);
+free:
+	kfree(qfbdev);
+	return ret;
 }
 
 void qxl_fbdev_fini(struct qxl_device *qdev)

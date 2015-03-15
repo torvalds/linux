@@ -7,11 +7,15 @@ that can be used in conjunction with compiler changes to check memory
 references, for those references whose compile-time normal intentions are
 usurped at runtime due to buffer overflow or underflow.
 
+You can tell if your CPU supports MPX by looking in /proc/cpuinfo:
+
+	cat /proc/cpuinfo  | grep ' mpx '
+
 For more information, please refer to Intel(R) Architecture Instruction
 Set Extensions Programming Reference, Chapter 9: Intel(R) Memory Protection
 Extensions.
 
-Note: Currently no hardware with MPX ISA is available but it is always
+Note: As of December 2014, no hardware with MPX is available but it is
 possible to use SDE (Intel(R) Software Development Emulator) instead, which
 can be downloaded from
 http://software.intel.com/en-us/articles/intel-software-development-emulator
@@ -30,9 +34,15 @@ is how we expect the compiler, application and kernel to work together.
    instrumentation as well as some setup code called early after the app
    starts. New instruction prefixes are noops for old CPUs.
 2) That setup code allocates (virtual) space for the "bounds directory",
-   points the "bndcfgu" register to the directory and notifies the kernel
-   (via the new prctl(PR_MPX_ENABLE_MANAGEMENT)) that the app will be using
-   MPX.
+   points the "bndcfgu" register to the directory (must also set the valid
+   bit) and notifies the kernel (via the new prctl(PR_MPX_ENABLE_MANAGEMENT))
+   that the app will be using MPX.  The app must be careful not to access
+   the bounds tables between the time when it populates "bndcfgu" and
+   when it calls the prctl().  This might be hard to guarantee if the app
+   is compiled with MPX.  You can add "__attribute__((bnd_legacy))" to
+   the function to disable MPX instrumentation to help guarantee this.
+   Also be careful not to call out to any other code which might be
+   MPX-instrumented.
 3) The kernel detects that the CPU has MPX, allows the new prctl() to
    succeed, and notes the location of the bounds directory. Userspace is
    expected to keep the bounds directory at that locationWe note it

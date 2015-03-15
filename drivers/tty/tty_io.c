@@ -1028,8 +1028,8 @@ EXPORT_SYMBOL(start_tty);
 /* We limit tty time update visibility to every 8 seconds or so. */
 static void tty_update_time(struct timespec *time)
 {
-	unsigned long sec = get_seconds() & ~7;
-	if ((long)(sec - time->tv_sec) > 0)
+	unsigned long sec = get_seconds();
+	if (abs(sec - time->tv_sec) & ~7)
 		time->tv_sec = sec;
 }
 
@@ -1463,6 +1463,9 @@ static int tty_reopen(struct tty_struct *tty)
 	if (driver->type == TTY_DRIVER_TYPE_PTY &&
 	    driver->subtype == PTY_TYPE_MASTER)
 		return -EIO;
+
+	if (test_bit(TTY_EXCLUSIVE, &tty->flags) && !capable(CAP_SYS_ADMIN))
+		return -EBUSY;
 
 	tty->count++;
 
@@ -2105,10 +2108,6 @@ retry_open:
 	else
 		retval = -ENODEV;
 	filp->f_flags = saved_flags;
-
-	if (!retval && test_bit(TTY_EXCLUSIVE, &tty->flags) &&
-						!capable(CAP_SYS_ADMIN))
-		retval = -EBUSY;
 
 	if (retval) {
 #ifdef TTY_DEBUG_HANGUP

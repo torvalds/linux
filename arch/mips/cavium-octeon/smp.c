@@ -240,9 +240,7 @@ static int octeon_cpu_disable(void)
 
 	set_cpu_online(cpu, false);
 	cpu_clear(cpu, cpu_callin_map);
-	local_irq_disable();
 	octeon_fixup_irqs();
-	local_irq_enable();
 
 	flush_cache_all();
 	local_flush_tlb_all();

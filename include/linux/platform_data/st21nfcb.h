@@ -19,8 +19,6 @@
 #ifndef _ST21NFCB_NCI_H_
 #define _ST21NFCB_NCI_H_
 
-#include <linux/i2c.h>
-
 #define ST21NFCB_NCI_DRIVER_NAME "st21nfcb_nci"
 
 struct st21nfcb_nfc_platform_data {
@@ -28,4 +26,4 @@ struct st21nfcb_nfc_platform_data {
 	unsigned int irq_polarity;
 };
 
-#endif /* _ST21NFCA_HCI_H_ */
+#endif /* _ST21NFCB_NCI_H_ */

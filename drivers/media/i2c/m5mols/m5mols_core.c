@@ -125,9 +125,9 @@ static u32 m5mols_swap_byte(u8 *data, u8 length)
 	if (length == 1)
 		return *data;
 	else if (length == 2)
-		return be16_to_cpu(*((u16 *)data));
+		return be16_to_cpu(*((__be16 *)data));
 	else
-		return be32_to_cpu(*((u32 *)data));
+		return be32_to_cpu(*((__be32 *)data));
 }
 
 /**
@@ -453,11 +453,6 @@ static int m5mols_get_version(struct v4l2_subdev *sd)
 		if (ret)
 			return ret;
 	}
-
-	ver->fw = be16_to_cpu(ver->fw);
-	ver->hw = be16_to_cpu(ver->hw);
-	ver->param = be16_to_cpu(ver->param);
-	ver->awb = be16_to_cpu(ver->awb);
 
 	v4l2_info(sd, "Manufacturer\t[%s]\n",
 			is_manufacturer(info, REG_SAMSUNG_ELECTRO) ?

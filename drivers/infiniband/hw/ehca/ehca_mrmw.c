@@ -399,7 +399,7 @@ reg_user_mr_fallback:
 	pginfo.num_kpages = num_kpages;
 	pginfo.num_hwpages = num_hwpages;
 	pginfo.u.usr.region = e_mr->umem;
-	pginfo.next_hwpage = e_mr->umem->offset / hwpage_size;
+	pginfo.next_hwpage = ib_umem_offset(e_mr->umem) / hwpage_size;
 	pginfo.u.usr.next_sg = pginfo.u.usr.region->sg_head.sgl;
 	ret = ehca_reg_mr(shca, e_mr, (u64 *)virt, length, mr_access_flags,
 			  e_pd, &pginfo, &e_mr->ib.ib_mr.lkey,

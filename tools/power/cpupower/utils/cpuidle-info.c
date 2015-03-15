@@ -22,13 +22,13 @@
 
 static void cpuidle_cpu_output(unsigned int cpu, int verbose)
 {
-	int idlestates, idlestate;
+	unsigned int idlestates, idlestate;
 	char *tmp;
 
 	printf(_ ("Analyzing CPU %d:\n"), cpu);
 
 	idlestates = sysfs_get_idlestate_count(cpu);
-	if (idlestates < 1) {
+	if (idlestates == 0) {
 		printf(_("CPU %u: No idle states\n"), cpu);
 		return;
 	}
@@ -100,10 +100,10 @@ static void cpuidle_general_output(void)
 static void proc_cpuidle_cpu_output(unsigned int cpu)
 {
 	long max_allowed_cstate = 2000000000;
-	int cstate, cstates;
+	unsigned int cstate, cstates;
 
 	cstates = sysfs_get_idlestate_count(cpu);
-	if (cstates < 1) {
+	if (cstates == 0) {
 		printf(_("CPU %u: No C-states info\n"), cpu);
 		return;
 	}

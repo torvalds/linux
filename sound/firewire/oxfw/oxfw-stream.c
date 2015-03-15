@@ -61,7 +61,8 @@ static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
 	u8 **formats;
 	struct snd_oxfw_stream_formation formation;
 	enum avc_general_plug_dir dir;
-	unsigned int i, err, len;
+	unsigned int len;
+	int i, err;
 
 	if (s == &oxfw->tx_stream) {
 		formats = oxfw->tx_stream_formats;
@@ -170,9 +171,10 @@ static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream,
 	}
 
 	/* Wait first packet */
-	err = amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT);
-	if (err < 0)
+	if (!amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT)) {
 		stop_stream(oxfw, stream);
+		err = -ETIMEDOUT;
+	}
 end:
 	return err;
 }
@@ -336,6 +338,10 @@ void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
 	stop_stream(oxfw, stream);
 }
 
+/*
+ * This function should be called before starting the stream or after stopping
+ * the streams.
+ */
 void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
 				     struct amdtp_stream *stream)
 {
@@ -345,8 +351,6 @@ void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
 		conn = &oxfw->out_conn;
 	else
 		conn = &oxfw->in_conn;
-
-	stop_stream(oxfw, stream);
 
 	amdtp_stream_destroy(stream);
 	cmp_connection_destroy(conn);

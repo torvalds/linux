@@ -191,6 +191,39 @@ static ssize_t pmdown_time_set(struct device *dev,
 
 static DEVICE_ATTR(pmdown_time, 0644, pmdown_time_show, pmdown_time_set);
 
+static struct attribute *soc_dev_attrs[] = {
+	&dev_attr_codec_reg.attr,
+	&dev_attr_pmdown_time.attr,
+	NULL
+};
+
+static umode_t soc_dev_attr_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct snd_soc_pcm_runtime *rtd = dev_get_drvdata(dev);
+
+	if (attr == &dev_attr_pmdown_time.attr)
+		return attr->mode; /* always visible */
+	return rtd->codec ? attr->mode : 0; /* enabled only with codec */
+}
+
+static const struct attribute_group soc_dapm_dev_group = {
+	.attrs = soc_dapm_dev_attrs,
+	.is_visible = soc_dev_attr_is_visible,
+};
+
+static const struct attribute_group soc_dev_roup = {
+	.attrs = soc_dev_attrs,
+	.is_visible = soc_dev_attr_is_visible,
+};
+
+static const struct attribute_group *soc_dev_attr_groups[] = {
+	&soc_dapm_dev_group,
+	&soc_dev_roup,
+	NULL
+};
+
 #ifdef CONFIG_DEBUG_FS
 static ssize_t codec_reg_read_file(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -949,8 +982,6 @@ static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 
 	/* unregister the rtd device */
 	if (rtd->dev_registered) {
-		device_remove_file(rtd->dev, &dev_attr_pmdown_time);
-		device_remove_file(rtd->dev, &dev_attr_codec_reg);
 		device_unregister(rtd->dev);
 		rtd->dev_registered = 0;
 	}
@@ -1120,6 +1151,7 @@ static int soc_post_component_init(struct snd_soc_pcm_runtime *rtd,
 	device_initialize(rtd->dev);
 	rtd->dev->parent = rtd->card->dev;
 	rtd->dev->release = rtd_release;
+	rtd->dev->groups = soc_dev_attr_groups;
 	dev_set_name(rtd->dev, "%s", name);
 	dev_set_drvdata(rtd->dev, rtd);
 	mutex_init(&rtd->pcm_mutex);
@@ -1136,23 +1168,6 @@ static int soc_post_component_init(struct snd_soc_pcm_runtime *rtd,
 		return ret;
 	}
 	rtd->dev_registered = 1;
-
-	if (rtd->codec) {
-		/* add DAPM sysfs entries for this codec */
-		ret = snd_soc_dapm_sys_add(rtd->dev);
-		if (ret < 0)
-			dev_err(rtd->dev,
-				"ASoC: failed to add codec dapm sysfs entries: %d\n",
-				ret);
-
-		/* add codec sysfs entries */
-		ret = device_create_file(rtd->dev, &dev_attr_codec_reg);
-		if (ret < 0)
-			dev_err(rtd->dev,
-				"ASoC: failed to add codec sysfs files: %d\n",
-				ret);
-	}
-
 	return 0;
 }
 
@@ -1308,11 +1323,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	}
 #endif
 
-	ret = device_create_file(rtd->dev, &dev_attr_pmdown_time);
-	if (ret < 0)
-		dev_warn(rtd->dev, "ASoC: failed to add pmdown_time sysfs: %d\n",
-			ret);
-
 	if (cpu_dai->driver->compress_dai) {
 		/*create compress_device"*/
 		ret = soc_new_compress(rtd, num);
@@ -1427,11 +1437,76 @@ static int snd_soc_init_codec_cache(struct snd_soc_codec *codec)
 	return 0;
 }
 
+/**
+ * snd_soc_runtime_set_dai_fmt() - Change DAI link format for a ASoC runtime
+ * @rtd: The runtime for which the DAI link format should be changed
+ * @dai_fmt: The new DAI link format
+ *
+ * This function updates the DAI link format for all DAIs connected to the DAI
+ * link for the specified runtime.
+ *
+ * Note: For setups with a static format set the dai_fmt field in the
+ * corresponding snd_dai_link struct instead of using this function.
+ *
+ * Returns 0 on success, otherwise a negative error code.
+ */
+int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
+	unsigned int dai_fmt)
+{
+	struct snd_soc_dai **codec_dais = rtd->codec_dais;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < rtd->num_codecs; i++) {
+		struct snd_soc_dai *codec_dai = codec_dais[i];
+
+		ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
+		if (ret != 0 && ret != -ENOTSUPP) {
+			dev_warn(codec_dai->dev,
+				 "ASoC: Failed to set DAI format: %d\n", ret);
+			return ret;
+		}
+	}
+
+	/* Flip the polarity for the "CPU" end of a CODEC<->CODEC link */
+	if (cpu_dai->codec) {
+		unsigned int inv_dai_fmt;
+
+		inv_dai_fmt = dai_fmt & ~SND_SOC_DAIFMT_MASTER_MASK;
+		switch (dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+		case SND_SOC_DAIFMT_CBM_CFM:
+			inv_dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+			break;
+		case SND_SOC_DAIFMT_CBM_CFS:
+			inv_dai_fmt |= SND_SOC_DAIFMT_CBS_CFM;
+			break;
+		case SND_SOC_DAIFMT_CBS_CFM:
+			inv_dai_fmt |= SND_SOC_DAIFMT_CBM_CFS;
+			break;
+		case SND_SOC_DAIFMT_CBS_CFS:
+			inv_dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
+			break;
+		}
+
+		dai_fmt = inv_dai_fmt;
+	}
+
+	ret = snd_soc_dai_set_fmt(cpu_dai, dai_fmt);
+	if (ret != 0 && ret != -ENOTSUPP) {
+		dev_warn(cpu_dai->dev,
+			 "ASoC: Failed to set DAI format: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_runtime_set_dai_fmt);
+
 static int snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct snd_soc_codec *codec;
-	struct snd_soc_dai_link *dai_link;
-	int ret, i, order, dai_fmt;
+	int ret, i, order;
 
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
 
@@ -1542,60 +1617,9 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 					card->num_dapm_routes);
 
 	for (i = 0; i < card->num_links; i++) {
-		struct snd_soc_pcm_runtime *rtd = &card->rtd[i];
-		dai_link = &card->dai_link[i];
-		dai_fmt = dai_link->dai_fmt;
-
-		if (dai_fmt) {
-			struct snd_soc_dai **codec_dais = rtd->codec_dais;
-			int j;
-
-			for (j = 0; j < rtd->num_codecs; j++) {
-				struct snd_soc_dai *codec_dai = codec_dais[j];
-
-				ret = snd_soc_dai_set_fmt(codec_dai, dai_fmt);
-				if (ret != 0 && ret != -ENOTSUPP)
-					dev_warn(codec_dai->dev,
-						 "ASoC: Failed to set DAI format: %d\n",
-						 ret);
-			}
-		}
-
-		/* If this is a regular CPU link there will be a platform */
-		if (dai_fmt &&
-		    (dai_link->platform_name || dai_link->platform_of_node)) {
-			ret = snd_soc_dai_set_fmt(card->rtd[i].cpu_dai,
-						  dai_fmt);
-			if (ret != 0 && ret != -ENOTSUPP)
-				dev_warn(card->rtd[i].cpu_dai->dev,
-					 "ASoC: Failed to set DAI format: %d\n",
-					 ret);
-		} else if (dai_fmt) {
-			/* Flip the polarity for the "CPU" end */
-			dai_fmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
-			switch (dai_link->dai_fmt &
-				SND_SOC_DAIFMT_MASTER_MASK) {
-			case SND_SOC_DAIFMT_CBM_CFM:
-				dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
-				break;
-			case SND_SOC_DAIFMT_CBM_CFS:
-				dai_fmt |= SND_SOC_DAIFMT_CBS_CFM;
-				break;
-			case SND_SOC_DAIFMT_CBS_CFM:
-				dai_fmt |= SND_SOC_DAIFMT_CBM_CFS;
-				break;
-			case SND_SOC_DAIFMT_CBS_CFS:
-				dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
-				break;
-			}
-
-			ret = snd_soc_dai_set_fmt(card->rtd[i].cpu_dai,
-						  dai_fmt);
-			if (ret != 0 && ret != -ENOTSUPP)
-				dev_warn(card->rtd[i].cpu_dai->dev,
-					 "ASoC: Failed to set DAI format: %d\n",
-					 ret);
-		}
+		if (card->dai_link[i].dai_fmt)
+			snd_soc_runtime_set_dai_fmt(&card->rtd[i],
+				card->dai_link[i].dai_fmt);
 	}
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
@@ -1625,9 +1649,6 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 			goto probe_aux_dev_err;
 		}
 	}
-
-	if (card->fully_routed)
-		snd_soc_dapm_auto_nc_pins(card);
 
 	snd_soc_dapm_new_widgets(card);
 
@@ -2119,15 +2140,27 @@ static int snd_soc_xlate_tdm_slot_mask(unsigned int slots,
 }
 
 /**
- * snd_soc_dai_set_tdm_slot - configure DAI TDM.
- * @dai: DAI
+ * snd_soc_dai_set_tdm_slot() - Configures a DAI for TDM operation
+ * @dai: The DAI to configure
  * @tx_mask: bitmask representing active TX slots.
  * @rx_mask: bitmask representing active RX slots.
  * @slots: Number of slots in use.
  * @slot_width: Width in bits for each slot.
  *
- * Configures a DAI for TDM operation. Both mask and slots are codec and DAI
- * specific.
+ * This function configures the specified DAI for TDM operation. @slot contains
+ * the total number of slots of the TDM stream and @slot_with the width of each
+ * slot in bit clock cycles. @tx_mask and @rx_mask are bitmasks specifying the
+ * active slots of the TDM stream for the specified DAI, i.e. which slots the
+ * DAI should write to or read from. If a bit is set the corresponding slot is
+ * active, if a bit is cleared the corresponding slot is inactive. Bit 0 maps to
+ * the first slot, bit 1 to the second slot and so on. The first active slot
+ * maps to the first channel of the DAI, the second active slot to the second
+ * channel and so on.
+ *
+ * TDM mode can be disabled by passing 0 for @slots. In this case @tx_mask,
+ * @rx_mask and @slot_width will be ignored.
+ *
+ * Returns 0 on success, a negative error code otherwise.
  */
 int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
@@ -2386,8 +2419,8 @@ int snd_soc_unregister_card(struct snd_soc_card *card)
 		card->instantiated = false;
 		snd_soc_dapm_shutdown(card);
 		soc_cleanup_card_resources(card);
+		dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
 	}
-	dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
 
 	return 0;
 }
@@ -3230,7 +3263,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname)
 {
 	struct device_node *np = card->dev->of_node;
-	int num_routes, old_routes;
+	int num_routes;
 	struct snd_soc_dapm_route *routes;
 	int i, ret;
 
@@ -3248,9 +3281,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	old_routes = card->num_dapm_routes;
-	routes = devm_kzalloc(card->dev,
-			      (old_routes + num_routes) * sizeof(*routes),
+	routes = devm_kzalloc(card->dev, num_routes * sizeof(*routes),
 			      GFP_KERNEL);
 	if (!routes) {
 		dev_err(card->dev,
@@ -3258,11 +3289,9 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	memcpy(routes, card->dapm_routes, old_routes * sizeof(*routes));
-
 	for (i = 0; i < num_routes; i++) {
 		ret = of_property_read_string_index(np, propname,
-			2 * i, &routes[old_routes + i].sink);
+			2 * i, &routes[i].sink);
 		if (ret) {
 			dev_err(card->dev,
 				"ASoC: Property '%s' index %d could not be read: %d\n",
@@ -3270,7 +3299,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 			return -EINVAL;
 		}
 		ret = of_property_read_string_index(np, propname,
-			(2 * i) + 1, &routes[old_routes + i].source);
+			(2 * i) + 1, &routes[i].source);
 		if (ret) {
 			dev_err(card->dev,
 				"ASoC: Property '%s' index %d could not be read: %d\n",
@@ -3279,7 +3308,7 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 		}
 	}
 
-	card->num_dapm_routes += num_routes;
+	card->num_dapm_routes = num_routes;
 	card->dapm_routes = routes;
 
 	return 0;

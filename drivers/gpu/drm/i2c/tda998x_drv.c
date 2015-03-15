@@ -32,6 +32,8 @@
 struct tda998x_priv {
 	struct i2c_client *cec;
 	struct i2c_client *hdmi;
+	struct mutex mutex;
+	struct delayed_work dwork;
 	uint16_t rev;
 	uint8_t current_page;
 	int dpms;
@@ -402,9 +404,10 @@ reg_read_range(struct tda998x_priv *priv, uint16_t reg, char *buf, int cnt)
 	uint8_t addr = REG2ADDR(reg);
 	int ret;
 
+	mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = i2c_master_send(client, &addr, sizeof(addr));
 	if (ret < 0)
@@ -414,10 +417,12 @@ reg_read_range(struct tda998x_priv *priv, uint16_t reg, char *buf, int cnt)
 	if (ret < 0)
 		goto fail;
 
-	return ret;
+	goto out;
 
 fail:
 	dev_err(&client->dev, "Error %d reading from 0x%x\n", ret, reg);
+out:
+	mutex_unlock(&priv->mutex);
 	return ret;
 }
 
@@ -431,13 +436,16 @@ reg_write_range(struct tda998x_priv *priv, uint16_t reg, uint8_t *p, int cnt)
 	buf[0] = REG2ADDR(reg);
 	memcpy(&buf[1], p, cnt);
 
+	mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
-		return;
+		goto out;
 
 	ret = i2c_master_send(client, buf, cnt + 1);
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
+out:
+	mutex_unlock(&priv->mutex);
 }
 
 static int
@@ -459,13 +467,16 @@ reg_write(struct tda998x_priv *priv, uint16_t reg, uint8_t val)
 	uint8_t buf[] = {REG2ADDR(reg), val};
 	int ret;
 
+	mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
-		return;
+		goto out;
 
 	ret = i2c_master_send(client, buf, sizeof(buf));
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
+out:
+	mutex_unlock(&priv->mutex);
 }
 
 static void
@@ -475,13 +486,16 @@ reg_write16(struct tda998x_priv *priv, uint16_t reg, uint16_t val)
 	uint8_t buf[] = {REG2ADDR(reg), val >> 8, val};
 	int ret;
 
+	mutex_lock(&priv->mutex);
 	ret = set_page(priv, reg);
 	if (ret < 0)
-		return;
+		goto out;
 
 	ret = i2c_master_send(client, buf, sizeof(buf));
 	if (ret < 0)
 		dev_err(&client->dev, "Error %d writing to 0x%x\n", ret, reg);
+out:
+	mutex_unlock(&priv->mutex);
 }
 
 static void
@@ -536,6 +550,17 @@ tda998x_reset(struct tda998x_priv *priv)
 	reg_write(priv, REG_MUX_VP_VIP_OUT, 0x24);
 }
 
+/* handle HDMI connect/disconnect */
+static void tda998x_hpd(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct tda998x_priv *priv =
+			container_of(dwork, struct tda998x_priv, dwork);
+
+	if (priv->encoder && priv->encoder->dev)
+		drm_kms_helper_hotplug_event(priv->encoder->dev);
+}
+
 /*
  * only 2 interrupts may occur: screen plug/unplug and EDID read
  */
@@ -559,8 +584,7 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 		priv->wq_edid_wait = 0;
 		wake_up(&priv->wq_edid);
 	} else if (cec != 0) {			/* HPD change */
-		if (priv->encoder && priv->encoder->dev)
-			drm_helper_hpd_irq_event(priv->encoder->dev);
+		schedule_delayed_work(&priv->dwork, HZ/10);
 	}
 	return IRQ_HANDLED;
 }
@@ -1170,8 +1194,10 @@ static void tda998x_destroy(struct tda998x_priv *priv)
 	/* disable all IRQs and free the IRQ handler */
 	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
 	reg_clear(priv, REG_INT_FLAGS_2, INT_FLAGS_2_EDID_BLK_RD);
-	if (priv->hdmi->irq)
+	if (priv->hdmi->irq) {
 		free_irq(priv->hdmi->irq, priv);
+		cancel_delayed_work_sync(&priv->dwork);
+	}
 
 	i2c_unregister_device(priv->cec);
 }
@@ -1255,6 +1281,7 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	struct device_node *np = client->dev.of_node;
 	u32 video;
 	int rev_lo, rev_hi, ret;
+	unsigned short cec_addr;
 
 	priv->vip_cntrl_0 = VIP_CNTRL_0_SWAP_A(2) | VIP_CNTRL_0_SWAP_B(3);
 	priv->vip_cntrl_1 = VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1);
@@ -1262,11 +1289,15 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 
 	priv->current_page = 0xff;
 	priv->hdmi = client;
-	priv->cec = i2c_new_dummy(client->adapter, 0x34);
+	/* CEC I2C address bound to TDA998x I2C addr by configuration pins */
+	cec_addr = 0x34 + (client->addr & 0x03);
+	priv->cec = i2c_new_dummy(client->adapter, cec_addr);
 	if (!priv->cec)
 		return -ENODEV;
 
 	priv->dpms = DRM_MODE_DPMS_OFF;
+
+	mutex_init(&priv->mutex);	/* protect the page access */
 
 	/* wake up the device: */
 	cec_write(priv, REG_CEC_ENAMODS,
@@ -1323,8 +1354,9 @@ static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
 	if (client->irq) {
 		int irqf_trigger;
 
-		/* init read EDID waitqueue */
+		/* init read EDID waitqueue and HDP work */
 		init_waitqueue_head(&priv->wq_edid);
+		INIT_DELAYED_WORK(&priv->dwork, tda998x_hpd);
 
 		/* clear pending interrupts */
 		reg_read(priv, REG_INT_FLAGS_0);

@@ -267,7 +267,6 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	handle_t *handle;
 	ext4_lblk_t orig_blk_offset, donor_blk_offset;
 	unsigned long blocksize = orig_inode->i_sb->s_blocksize;
-	unsigned int w_flags = 0;
 	unsigned int tmp_data_size, data_size, replaced_size;
 	int err2, jblocks, retries = 0;
 	int replaced_count = 0;
@@ -287,9 +286,6 @@ again:
 		*err = PTR_ERR(handle);
 		return 0;
 	}
-
-	if (segment_eq(get_fs(), KERNEL_DS))
-		w_flags |= AOP_FLAG_UNINTERRUPTIBLE;
 
 	orig_blk_offset = orig_page_offset * blocks_per_page +
 		data_offset_in_page;

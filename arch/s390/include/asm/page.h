@@ -37,16 +37,7 @@ static inline void storage_key_init_range(unsigned long start, unsigned long end
 #endif
 }
 
-static inline void clear_page(void *page)
-{
-	register unsigned long reg1 asm ("1") = 0;
-	register void *reg2 asm ("2") = page;
-	register unsigned long reg3 asm ("3") = 4096;
-	asm volatile(
-		"	mvcl	2,0"
-		: "+d" (reg2), "+d" (reg3) : "d" (reg1)
-		: "memory", "cc");
-}
+#define clear_page(page)	memset((page), 0, PAGE_SIZE)
 
 /*
  * copy_page uses the mvcl instruction with 0xb0 padding byte in order to

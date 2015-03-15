@@ -625,7 +625,7 @@ int vivid_vid_out_g_selection(struct file *file, void *priv,
 		sel->r = dev->fmt_out_rect;
 		break;
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-		if (!dev->has_compose_out)
+		if (!dev->has_crop_out)
 			return -EINVAL;
 		sel->r = vivid_max_rect;
 		break;

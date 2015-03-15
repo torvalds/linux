@@ -94,30 +94,7 @@ extern void trace_call_function_single_interrupt(void);
 #define trace_kvm_posted_intr_ipi kvm_posted_intr_ipi
 #endif /* CONFIG_TRACING */
 
-/* IOAPIC */
-#define IO_APIC_IRQ(x) (((x) >= NR_IRQS_LEGACY) || ((1<<(x)) & io_apic_irqs))
-extern unsigned long io_apic_irqs;
-
-extern void setup_IO_APIC(void);
-extern void disable_IO_APIC(void);
-
-struct io_apic_irq_attr {
-	int ioapic;
-	int ioapic_pin;
-	int trigger;
-	int polarity;
-};
-
-static inline void set_io_apic_irq_attr(struct io_apic_irq_attr *irq_attr,
-					int ioapic, int ioapic_pin,
-					int trigger, int polarity)
-{
-	irq_attr->ioapic	= ioapic;
-	irq_attr->ioapic_pin	= ioapic_pin;
-	irq_attr->trigger	= trigger;
-	irq_attr->polarity	= polarity;
-}
-
+#ifdef CONFIG_IRQ_REMAP
 /* Intel specific interrupt remapping information */
 struct irq_2_iommu {
 	struct intel_iommu *iommu;
@@ -131,14 +108,12 @@ struct irq_2_irte {
 	u16 devid; /* Device ID for IRTE table */
 	u16 index; /* Index into IRTE table*/
 };
+#endif	/* CONFIG_IRQ_REMAP */
 
-/*
- * This is performance-critical, we want to do it O(1)
- *
- * Most irqs are mapped 1:1 with pins.
- */
+#ifdef	CONFIG_X86_LOCAL_APIC
+struct irq_data;
+
 struct irq_cfg {
-	struct irq_pin_list	*irq_2_pin;
 	cpumask_var_t		domain;
 	cpumask_var_t		old_domain;
 	u8			vector;
@@ -150,18 +125,39 @@ struct irq_cfg {
 		struct irq_2_irte  irq_2_irte;
 	};
 #endif
+	union {
+#ifdef CONFIG_X86_IO_APIC
+		struct {
+			struct list_head	irq_2_pin;
+		};
+#endif
+	};
 };
 
+extern struct irq_cfg *irq_cfg(unsigned int irq);
+extern struct irq_cfg *irqd_cfg(struct irq_data *irq_data);
+extern struct irq_cfg *alloc_irq_and_cfg_at(unsigned int at, int node);
+extern void lock_vector_lock(void);
+extern void unlock_vector_lock(void);
 extern int assign_irq_vector(int, struct irq_cfg *, const struct cpumask *);
+extern void clear_irq_vector(int irq, struct irq_cfg *cfg);
+extern void setup_vector_irq(int cpu);
+#ifdef CONFIG_SMP
 extern void send_cleanup_vector(struct irq_cfg *);
+extern void irq_complete_move(struct irq_cfg *cfg);
+#else
+static inline void send_cleanup_vector(struct irq_cfg *c) { }
+static inline void irq_complete_move(struct irq_cfg *c) { }
+#endif
 
-struct irq_data;
-int __ioapic_set_affinity(struct irq_data *, const struct cpumask *,
-			  unsigned int *dest_id);
-extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin, struct io_apic_irq_attr *irq_attr);
-extern void setup_ioapic_dest(void);
-
-extern void enable_IO_APIC(void);
+extern int apic_retrigger_irq(struct irq_data *data);
+extern void apic_ack_edge(struct irq_data *data);
+extern int apic_set_affinity(struct irq_data *data, const struct cpumask *mask,
+			     unsigned int *dest_id);
+#else	/*  CONFIG_X86_LOCAL_APIC */
+static inline void lock_vector_lock(void) {}
+static inline void unlock_vector_lock(void) {}
+#endif	/* CONFIG_X86_LOCAL_APIC */
 
 /* Statistics */
 extern atomic_t irq_err_count;
@@ -185,7 +181,8 @@ extern __visible void smp_call_function_single_interrupt(struct pt_regs *);
 extern __visible void smp_invalidate_interrupt(struct pt_regs *);
 #endif
 
-extern void (*__initconst interrupt[NR_VECTORS-FIRST_EXTERNAL_VECTOR])(void);
+extern void (*__initconst interrupt[FIRST_SYSTEM_VECTOR
+				    - FIRST_EXTERNAL_VECTOR])(void);
 #ifdef CONFIG_TRACING
 #define trace_interrupt interrupt
 #endif
@@ -195,17 +192,6 @@ extern void (*__initconst interrupt[NR_VECTORS-FIRST_EXTERNAL_VECTOR])(void);
 
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
-extern void setup_vector_irq(int cpu);
-
-#ifdef CONFIG_X86_IO_APIC
-extern void lock_vector_lock(void);
-extern void unlock_vector_lock(void);
-extern void __setup_vector_irq(int cpu);
-#else
-static inline void lock_vector_lock(void) {}
-static inline void unlock_vector_lock(void) {}
-static inline void __setup_vector_irq(int cpu) {}
-#endif
 
 #endif /* !ASSEMBLY_ */
 

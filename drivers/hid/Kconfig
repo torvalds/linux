@@ -27,7 +27,8 @@ if HID
 
 config HID_BATTERY_STRENGTH
 	bool "Battery level reporting for HID devices"
-	depends on HID && POWER_SUPPLY && HID = POWER_SUPPLY
+	depends on HID
+	select POWER_SUPPLY
 	default n
 	---help---
 	This option adds support of reporting battery strength (for HID devices
@@ -145,6 +146,16 @@ config HID_BELKIN
 	default !EXPERT
 	---help---
 	Support for Belkin Flip KVM and Wireless keyboard.
+
+config HID_BETOP_FF
+	tristate "Betop Production Inc. force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you want to enable force feedback support for devices by
+	BETOP Production Ltd.
+	Currently the following devices are known to be supported:
+	 - BETOP 2185 PC & BFM MODE
 
 config HID_CHERRY
 	tristate "Cherry Cymotion keyboard" if EXPERT
@@ -388,7 +399,7 @@ config HID_LOGITECH_HIDPP
 	Say Y if you want support for Logitech devices relying on the HID++
 	specification. Such devices are the various Logitech Touchpads (T650,
 	T651, TK820), some mice (Zone Touch mouse), or even keyboards (Solar
-	Keayboard).
+	Keyboard).
 
 config LOGITECH_FF
 	bool "Logitech force feedback support"

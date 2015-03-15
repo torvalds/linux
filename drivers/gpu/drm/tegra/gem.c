@@ -92,36 +92,6 @@ static const struct host1x_bo_ops tegra_bo_ops = {
 	.kunmap = tegra_bo_kunmap,
 };
 
-/*
- * A generic iommu_map_sg() function is being reviewed and will hopefully be
- * merged soon. At that point this function can be dropped in favour of the
- * one provided by the IOMMU API.
- */
-static ssize_t __iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
-			      struct scatterlist *sg, unsigned int nents,
-			      int prot)
-{
-	struct scatterlist *s;
-	size_t offset = 0;
-	unsigned int i;
-	int err;
-
-	for_each_sg(sg, s, nents, i) {
-		phys_addr_t phys = page_to_phys(sg_page(s));
-		size_t length = s->offset + s->length;
-
-		err = iommu_map(domain, iova + offset, phys, length, prot);
-		if (err < 0) {
-			iommu_unmap(domain, iova, offset);
-			return err;
-		}
-
-		offset += length;
-	}
-
-	return offset;
-}
-
 static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 {
 	int prot = IOMMU_READ | IOMMU_WRITE;
@@ -144,8 +114,8 @@ static int tegra_bo_iommu_map(struct tegra_drm *tegra, struct tegra_bo *bo)
 
 	bo->paddr = bo->mm->start;
 
-	err = __iommu_map_sg(tegra->domain, bo->paddr, bo->sgt->sgl,
-			     bo->sgt->nents, prot);
+	err = iommu_map_sg(tegra->domain, bo->paddr, bo->sgt->sgl,
+			   bo->sgt->nents, prot);
 	if (err < 0) {
 		dev_err(tegra->drm->dev, "failed to map buffer: %zd\n", err);
 		goto remove;
@@ -216,32 +186,57 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 	}
 }
 
-static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo,
-			      size_t size)
+static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
 {
+	struct scatterlist *s;
+	struct sg_table *sgt;
+	unsigned int i;
+
 	bo->pages = drm_gem_get_pages(&bo->gem);
 	if (IS_ERR(bo->pages))
 		return PTR_ERR(bo->pages);
 
-	bo->num_pages = size >> PAGE_SHIFT;
+	bo->num_pages = bo->gem.size >> PAGE_SHIFT;
 
-	bo->sgt = drm_prime_pages_to_sg(bo->pages, bo->num_pages);
-	if (IS_ERR(bo->sgt)) {
-		drm_gem_put_pages(&bo->gem, bo->pages, false, false);
-		return PTR_ERR(bo->sgt);
-	}
+	sgt = drm_prime_pages_to_sg(bo->pages, bo->num_pages);
+	if (IS_ERR(sgt))
+		goto put_pages;
+
+	/*
+	 * Fake up the SG table so that dma_map_sg() can be used to flush the
+	 * pages associated with it. Note that this relies on the fact that
+	 * the DMA API doesn't hook into IOMMU on Tegra, therefore mapping is
+	 * only cache maintenance.
+	 *
+	 * TODO: Replace this by drm_clflash_sg() once it can be implemented
+	 * without relying on symbols that are not exported.
+	 */
+	for_each_sg(sgt->sgl, s, sgt->nents, i)
+		sg_dma_address(s) = sg_phys(s);
+
+	if (dma_map_sg(drm->dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE) == 0)
+		goto release_sgt;
+
+	bo->sgt = sgt;
 
 	return 0;
+
+release_sgt:
+	sg_free_table(sgt);
+	kfree(sgt);
+	sgt = ERR_PTR(-ENOMEM);
+put_pages:
+	drm_gem_put_pages(&bo->gem, bo->pages, false, false);
+	return PTR_ERR(sgt);
 }
 
-static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo,
-			  size_t size)
+static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo)
 {
 	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
 	if (tegra->domain) {
-		err = tegra_bo_get_pages(drm, bo, size);
+		err = tegra_bo_get_pages(drm, bo);
 		if (err < 0)
 			return err;
 
@@ -251,6 +246,8 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo,
 			return err;
 		}
 	} else {
+		size_t size = bo->gem.size;
+
 		bo->vaddr = dma_alloc_writecombine(drm->dev, size, &bo->paddr,
 						   GFP_KERNEL | __GFP_NOWARN);
 		if (!bo->vaddr) {
@@ -274,7 +271,7 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, size_t size,
 	if (IS_ERR(bo))
 		return bo;
 
-	err = tegra_bo_alloc(drm, bo, size);
+	err = tegra_bo_alloc(drm, bo);
 	if (err < 0)
 		goto release;
 

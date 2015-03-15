@@ -97,7 +97,7 @@ module_param_named(pi_enable, iser_pi_enable, bool, 0644);
 MODULE_PARM_DESC(pi_enable, "Enable T10-PI offload support (default:disabled)");
 
 module_param_named(pi_guard, iser_pi_guard, int, 0644);
-MODULE_PARM_DESC(pi_guard, "T10-PI guard_type, 0:CRC|1:IP_CSUM (default:IP_CSUM)");
+MODULE_PARM_DESC(pi_guard, "T10-PI guard_type [deprecated]");
 
 static struct workqueue_struct *release_wq;
 struct iser_global ig;
@@ -164,18 +164,42 @@ iscsi_iser_pdu_alloc(struct iscsi_task *task, uint8_t opcode)
 	return 0;
 }
 
-int iser_initialize_task_headers(struct iscsi_task *task,
-						struct iser_tx_desc *tx_desc)
+/**
+ * iser_initialize_task_headers() - Initialize task headers
+ * @task:       iscsi task
+ * @tx_desc:    iser tx descriptor
+ *
+ * Notes:
+ * This routine may race with iser teardown flow for scsi
+ * error handling TMFs. So for TMF we should acquire the
+ * state mutex to avoid dereferencing the IB device which
+ * may have already been terminated.
+ */
+int
+iser_initialize_task_headers(struct iscsi_task *task,
+			     struct iser_tx_desc *tx_desc)
 {
-	struct iser_conn       *iser_conn   = task->conn->dd_data;
+	struct iser_conn *iser_conn = task->conn->dd_data;
 	struct iser_device *device = iser_conn->ib_conn.device;
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	u64 dma_addr;
+	const bool mgmt_task = !task->sc && !in_interrupt();
+	int ret = 0;
+
+	if (unlikely(mgmt_task))
+		mutex_lock(&iser_conn->state_mutex);
+
+	if (unlikely(iser_conn->state != ISER_CONN_UP)) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	dma_addr = ib_dma_map_single(device->ib_device, (void *)tx_desc,
 				ISER_HEADERS_LEN, DMA_TO_DEVICE);
-	if (ib_dma_mapping_error(device->ib_device, dma_addr))
-		return -ENOMEM;
+	if (ib_dma_mapping_error(device->ib_device, dma_addr)) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	tx_desc->dma_addr = dma_addr;
 	tx_desc->tx_sg[0].addr   = tx_desc->dma_addr;
@@ -183,7 +207,11 @@ int iser_initialize_task_headers(struct iscsi_task *task,
 	tx_desc->tx_sg[0].lkey   = device->mr->lkey;
 
 	iser_task->iser_conn = iser_conn;
-	return 0;
+out:
+	if (unlikely(mgmt_task))
+		mutex_unlock(&iser_conn->state_mutex);
+
+	return ret;
 }
 
 /**
@@ -199,9 +227,14 @@ static int
 iscsi_iser_task_init(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
+	int ret;
 
-	if (iser_initialize_task_headers(task, &iser_task->desc))
-			return -ENOMEM;
+	ret = iser_initialize_task_headers(task, &iser_task->desc);
+	if (ret) {
+		iser_err("Failed to init task %p, err = %d\n",
+			 iser_task, ret);
+		return ret;
+	}
 
 	/* mgmt task */
 	if (!task->sc)
@@ -508,8 +541,8 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	 */
 	if (iser_conn) {
 		mutex_lock(&iser_conn->state_mutex);
-		iscsi_conn_stop(cls_conn, flag);
 		iser_conn_terminate(iser_conn);
+		iscsi_conn_stop(cls_conn, flag);
 
 		/* unbind */
 		iser_conn->iscsi_conn = NULL;
@@ -541,12 +574,13 @@ iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 static inline unsigned int
 iser_dif_prot_caps(int prot_caps)
 {
-	return ((prot_caps & IB_PROT_T10DIF_TYPE_1) ? SHOST_DIF_TYPE1_PROTECTION |
-						      SHOST_DIX_TYPE1_PROTECTION : 0) |
-	       ((prot_caps & IB_PROT_T10DIF_TYPE_2) ? SHOST_DIF_TYPE2_PROTECTION |
-						      SHOST_DIX_TYPE2_PROTECTION : 0) |
-	       ((prot_caps & IB_PROT_T10DIF_TYPE_3) ? SHOST_DIF_TYPE3_PROTECTION |
-						      SHOST_DIX_TYPE3_PROTECTION : 0);
+	return ((prot_caps & IB_PROT_T10DIF_TYPE_1) ?
+		SHOST_DIF_TYPE1_PROTECTION | SHOST_DIX_TYPE0_PROTECTION |
+		SHOST_DIX_TYPE1_PROTECTION : 0) |
+	       ((prot_caps & IB_PROT_T10DIF_TYPE_2) ?
+		SHOST_DIF_TYPE2_PROTECTION | SHOST_DIX_TYPE2_PROTECTION : 0) |
+	       ((prot_caps & IB_PROT_T10DIF_TYPE_3) ?
+		SHOST_DIF_TYPE3_PROTECTION | SHOST_DIX_TYPE3_PROTECTION : 0);
 }
 
 /**
@@ -569,6 +603,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct Scsi_Host *shost;
 	struct iser_conn *iser_conn = NULL;
 	struct ib_conn *ib_conn;
+	u16 max_cmds;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 0);
 	if (!shost)
@@ -586,26 +621,41 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	 */
 	if (ep) {
 		iser_conn = ep->dd_data;
+		max_cmds = iser_conn->max_cmds;
+
+		mutex_lock(&iser_conn->state_mutex);
+		if (iser_conn->state != ISER_CONN_UP) {
+			iser_err("iser conn %p already started teardown\n",
+				 iser_conn);
+			mutex_unlock(&iser_conn->state_mutex);
+			goto free_host;
+		}
+
 		ib_conn = &iser_conn->ib_conn;
 		if (ib_conn->pi_support) {
 			u32 sig_caps = ib_conn->device->dev_attr.sig_prot_cap;
 
 			scsi_host_set_prot(shost, iser_dif_prot_caps(sig_caps));
-			if (iser_pi_guard)
-				scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP);
-			else
-				scsi_host_set_guard(shost, SHOST_DIX_GUARD_CRC);
+			scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP |
+						   SHOST_DIX_GUARD_CRC);
 		}
+
+		if (iscsi_host_add(shost,
+				   ib_conn->device->ib_device->dma_device)) {
+			mutex_unlock(&iser_conn->state_mutex);
+			goto free_host;
+		}
+		mutex_unlock(&iser_conn->state_mutex);
+	} else {
+		max_cmds = ISER_DEF_XMIT_CMDS_MAX;
+		if (iscsi_host_add(shost, NULL))
+			goto free_host;
 	}
 
-	if (iscsi_host_add(shost, ep ?
-			   ib_conn->device->ib_device->dma_device : NULL))
-		goto free_host;
-
-	if (cmds_max > ISER_DEF_XMIT_CMDS_MAX) {
+	if (cmds_max > max_cmds) {
 		iser_info("cmds_max changed from %u to %u\n",
-			  cmds_max, ISER_DEF_XMIT_CMDS_MAX);
-		cmds_max = ISER_DEF_XMIT_CMDS_MAX;
+			  cmds_max, max_cmds);
+		cmds_max = max_cmds;
 	}
 
 	cls_session = iscsi_session_setup(&iscsi_iser_transport, shost,

@@ -1,6 +1,6 @@
 #include <linux/module.h>
 #include <linux/list.h>
-#include "../../../drivers/target/iscsi/iscsi_target_core.h"
+#include "iscsi_target_core.h"
 
 struct iscsit_transport {
 #define ISCSIT_TRANSPORT_NAME	16

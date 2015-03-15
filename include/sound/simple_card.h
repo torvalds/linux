@@ -20,6 +20,7 @@ struct asoc_simple_dai {
 	unsigned int sysclk;
 	int slots;
 	int slot_width;
+	struct clk *clk;
 };
 
 struct asoc_simple_card_info {

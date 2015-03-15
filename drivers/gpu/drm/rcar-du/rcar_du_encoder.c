@@ -46,6 +46,9 @@ static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
 
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc, mode);
 }
@@ -190,35 +193,42 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	}
 
 	if (type == RCAR_DU_ENCODER_HDMI) {
-		if (renc->lvds) {
-			dev_err(rcdu->dev,
-				"Chaining LVDS and HDMI encoders not supported\n");
-			return -EINVAL;
-		}
-
 		ret = rcar_du_hdmienc_init(rcdu, renc, enc_node);
 		if (ret < 0)
-			return ret;
+			goto done;
 	} else {
 		ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
 				       encoder_type);
 		if (ret < 0)
-			return ret;
+			goto done;
 
 		drm_encoder_helper_add(encoder, &encoder_helper_funcs);
 	}
 
 	switch (encoder_type) {
 	case DRM_MODE_ENCODER_LVDS:
-		return rcar_du_lvds_connector_init(rcdu, renc, con_node);
+		ret = rcar_du_lvds_connector_init(rcdu, renc, con_node);
+		break;
 
 	case DRM_MODE_ENCODER_DAC:
-		return rcar_du_vga_connector_init(rcdu, renc);
+		ret = rcar_du_vga_connector_init(rcdu, renc);
+		break;
 
 	case DRM_MODE_ENCODER_TMDS:
-		return rcar_du_hdmi_connector_init(rcdu, renc);
+		ret = rcar_du_hdmi_connector_init(rcdu, renc);
+		break;
 
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+
+done:
+	if (ret < 0) {
+		if (encoder->name)
+			encoder->funcs->destroy(encoder);
+		devm_kfree(rcdu->dev, renc);
+	}
+
+	return ret;
 }

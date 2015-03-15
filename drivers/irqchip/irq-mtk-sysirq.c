@@ -23,8 +23,6 @@
 
 #include "irqchip.h"
 
-#define MT6577_SYS_INTPOL_NUM	(224)
-
 struct mtk_sysirq_chip_data {
 	spinlock_t lock;
 	void __iomem *intpol_base;
@@ -124,7 +122,8 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 {
 	struct irq_domain *domain, *domain_parent;
 	struct mtk_sysirq_chip_data *chip_data;
-	int ret = 0;
+	int ret, size, intpol_num;
+	struct resource res;
 
 	domain_parent = irq_find_host(parent);
 	if (!domain_parent) {
@@ -132,19 +131,24 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 		return -EINVAL;
 	}
 
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret)
+		return ret;
+
 	chip_data = kzalloc(sizeof(*chip_data), GFP_KERNEL);
 	if (!chip_data)
 		return -ENOMEM;
 
-	chip_data->intpol_base = of_io_request_and_map(node, 0, "intpol");
+	size = resource_size(&res);
+	intpol_num = size * 8;
+	chip_data->intpol_base = ioremap(res.start, size);
 	if (!chip_data->intpol_base) {
 		pr_err("mtk_sysirq: unable to map sysirq register\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(chip_data->intpol_base);
 		goto out_free;
 	}
 
-	domain = irq_domain_add_hierarchy(domain_parent, 0,
-					  MT6577_SYS_INTPOL_NUM, node,
+	domain = irq_domain_add_hierarchy(domain_parent, 0, intpol_num, node,
 					  &sysirq_domain_ops, chip_data);
 	if (!domain) {
 		ret = -ENOMEM;

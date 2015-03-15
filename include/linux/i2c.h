@@ -130,8 +130,6 @@ extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
  * @shutdown: Callback for device shutdown
- * @suspend: Callback for device suspend
- * @resume: Callback for device resume
  * @alert: Alert callback, for example for the SMBus alert protocol
  * @command: Callback for bus-wide signaling (optional)
  * @driver: Device driver model driver
@@ -174,8 +172,6 @@ struct i2c_driver {
 
 	/* driver model interfaces that don't relate to enumeration  */
 	void (*shutdown)(struct i2c_client *);
-	int (*suspend)(struct i2c_client *, pm_message_t mesg);
-	int (*resume)(struct i2c_client *);
 
 	/* Alert callback, for example for the SMBus alert protocol.
 	 * The format and meaning of the data value depends on the protocol.
@@ -228,7 +224,9 @@ struct i2c_client {
 	struct device dev;		/* the device structure		*/
 	int irq;			/* irq issued by device		*/
 	struct list_head detected;
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
 	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/
+#endif
 };
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
 
@@ -253,6 +251,7 @@ static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
 
 /* I2C slave support */
 
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
 enum i2c_slave_event {
 	I2C_SLAVE_REQ_READ_START,
 	I2C_SLAVE_REQ_READ_END,
@@ -269,6 +268,7 @@ static inline int i2c_slave_event(struct i2c_client *client,
 {
 	return client->slave_cb(client, event, val);
 }
+#endif
 
 /**
  * struct i2c_board_info - template for device creation
@@ -404,8 +404,10 @@ struct i2c_algorithm {
 	/* To determine what the adapter supports */
 	u32 (*functionality) (struct i2c_adapter *);
 
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
 	int (*reg_slave)(struct i2c_client *client);
 	int (*unreg_slave)(struct i2c_client *client);
+#endif
 };
 
 /**

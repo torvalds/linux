@@ -208,7 +208,7 @@ static int tvc_probe_pdata(struct platform_device *pdev)
 	ddata->in = in;
 
 	ddata->connector_type = pdata->connector_type;
-	ddata->invert_polarity = ddata->invert_polarity;
+	ddata->invert_polarity = pdata->invert_polarity;
 
 	dssdev = &ddata->dssdev;
 	dssdev->name = pdata->name;

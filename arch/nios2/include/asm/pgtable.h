@@ -24,7 +24,7 @@
 #include <asm/pgtable-bits.h>
 #include <asm-generic/pgtable-nopmd.h>
 
-#define FIRST_USER_ADDRESS	0
+#define FIRST_USER_ADDRESS	0UL
 
 #define VMALLOC_START		CONFIG_NIOS2_KERNEL_MMU_REGION_BASE
 #define VMALLOC_END		(CONFIG_NIOS2_KERNEL_REGION_BASE - 1)
@@ -112,8 +112,6 @@ static inline int pte_dirty(pte_t pte)		\
 	{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		\
 	{ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)		\
-	{ return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_special(pte_t pte)	{ return 0; }
 
 #define pgprot_noncached pgprot_noncached
@@ -272,8 +270,7 @@ static inline void pte_clear(struct mm_struct *mm,
 		__FILE__, __LINE__, pgd_val(e))
 
 /*
- * Encode and decode a swap entry (must be !pte_none(pte) && !pte_present(pte)
- * && !pte_file(pte)):
+ * Encode and decode a swap entry (must be !pte_none(pte) && !pte_present(pte):
  *
  * 31 30 29 28 27 26 25 24 23 22 21 20 19 18 ...  1  0
  *  0  0  0  0 type.  0  0  0  0  0  0 offset.........
@@ -289,11 +286,6 @@ static inline void pte_clear(struct mm_struct *mm,
 						 | ((off) & 0xfffff) })
 #define __swp_entry_to_pte(swp)	((pte_t) { (swp).val })
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
-
-/* Encode and decode a nonlinear file mapping entry */
-#define PTE_FILE_MAX_BITS	25
-#define pte_to_pgoff(pte)	(pte_val(pte) & 0x1ffffff)
-#define pgoff_to_pte(off)	__pte(((off) & 0x1ffffff) | _PAGE_FILE)
 
 #define kern_addr_valid(addr)		(1)
 

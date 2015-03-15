@@ -679,9 +679,11 @@ static i40e_status i40e_nvmupd_state_writing(struct i40e_hw *hw,
 {
 	i40e_status status;
 	enum i40e_nvmupd_cmd upd_cmd;
+	bool retry_attempt = false;
 
 	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, errno);
 
+retry:
 	switch (upd_cmd) {
 	case I40E_NVMUPD_WRITE_CON:
 		status = i40e_nvmupd_nvm_write(hw, cmd, bytes, errno);
@@ -725,6 +727,39 @@ static i40e_status i40e_nvmupd_state_writing(struct i40e_hw *hw,
 		*errno = -ESRCH;
 		break;
 	}
+
+	/* In some circumstances, a multi-write transaction takes longer
+	 * than the default 3 minute timeout on the write semaphore.  If
+	 * the write failed with an EBUSY status, this is likely the problem,
+	 * so here we try to reacquire the semaphore then retry the write.
+	 * We only do one retry, then give up.
+	 */
+	if (status && (hw->aq.asq_last_status == I40E_AQ_RC_EBUSY) &&
+	    !retry_attempt) {
+		i40e_status old_status = status;
+		u32 old_asq_status = hw->aq.asq_last_status;
+		u32 gtime;
+
+		gtime = rd32(hw, I40E_GLVFGEN_TIMER);
+		if (gtime >= hw->nvm.hw_semaphore_timeout) {
+			i40e_debug(hw, I40E_DEBUG_ALL,
+				   "NVMUPD: write semaphore expired (%d >= %lld), retrying\n",
+				   gtime, hw->nvm.hw_semaphore_timeout);
+			i40e_release_nvm(hw);
+			status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
+			if (status) {
+				i40e_debug(hw, I40E_DEBUG_ALL,
+					   "NVMUPD: write semaphore reacquire failed aq_err = %d\n",
+					   hw->aq.asq_last_status);
+				status = old_status;
+				hw->aq.asq_last_status = old_asq_status;
+			} else {
+				retry_attempt = true;
+				goto retry;
+			}
+		}
+	}
+
 	return status;
 }
 

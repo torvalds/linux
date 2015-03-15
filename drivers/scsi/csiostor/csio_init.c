@@ -113,12 +113,9 @@ static const struct file_operations csio_mem_debugfs_fops = {
 void csio_add_debugfs_mem(struct csio_hw *hw, const char *name,
 				 unsigned int idx, unsigned int size_mb)
 {
-	struct dentry *de;
-
-	de = debugfs_create_file(name, S_IRUSR, hw->debugfs_root,
-				 (void *)hw + idx, &csio_mem_debugfs_fops);
-	if (de && de->d_inode)
-		de->d_inode->i_size = size_mb << 20;
+	debugfs_create_file_size(name, S_IRUSR, hw->debugfs_root,
+				 (void *)hw + idx, &csio_mem_debugfs_fops,
+				 size_mb << 20);
 }
 
 static int csio_setup_debugfs(struct csio_hw *hw)
@@ -1176,9 +1173,8 @@ static struct pci_error_handlers csio_err_handler = {
  */
 #define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
 	static struct pci_device_id csio_pci_tbl[] = {
-/* Define for iSCSI uses PF5, FCoE uses PF6 */
-#define CH_PCI_DEVICE_ID_FUNCTION	0x5
-#define CH_PCI_DEVICE_ID_FUNCTION2	0x6
+/* Define for FCoE uses PF6 */
+#define CH_PCI_DEVICE_ID_FUNCTION	0x6
 
 #define CH_PCI_ID_TABLE_ENTRY(devid) \
 		{ PCI_VDEVICE(CHELSIO, (devid)), 0 }
@@ -1256,5 +1252,4 @@ MODULE_DESCRIPTION(CSIO_DRV_DESC);
 MODULE_LICENSE(CSIO_DRV_LICENSE);
 MODULE_DEVICE_TABLE(pci, csio_pci_tbl);
 MODULE_VERSION(CSIO_DRV_VERSION);
-MODULE_FIRMWARE(FW_FNAME_T4);
 MODULE_FIRMWARE(FW_FNAME_T5);

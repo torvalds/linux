@@ -26,6 +26,16 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	extcon_usb1: extcon_usb1 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pcf_gpio_21 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	extcon_usb2: extcon_usb2 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pcf_gpio_21 2 GPIO_ACTIVE_HIGH>;
+	};
+
 	vtt_fixed: fixedregulator-vtt {
 		compatible = "regulator-fixed";
 		regulator-name = "vtt_fixed";
@@ -391,6 +401,19 @@
 			};
 		};
 	};
+
+	pcf_gpio_21: gpio@21 {
+		compatible = "ti,pcf8575";
+		reg = <0x21>;
+		lines-initial-states = <0x1408>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
 };
 
 &i2c2 {
@@ -499,23 +522,23 @@
 		};
 		partition@5 {
 			label = "QSPI.u-boot-spl-os";
-			reg = <0x00140000 0x00010000>;
+			reg = <0x00140000 0x00080000>;
 		};
 		partition@6 {
 			label = "QSPI.u-boot-env";
-			reg = <0x00150000 0x00010000>;
+			reg = <0x001c0000 0x00010000>;
 		};
 		partition@7 {
 			label = "QSPI.u-boot-env.backup1";
-			reg = <0x00160000 0x0010000>;
+			reg = <0x001d0000 0x0010000>;
 		};
 		partition@8 {
 			label = "QSPI.kernel";
-			reg = <0x00170000 0x0800000>;
+			reg = <0x001e0000 0x0800000>;
 		};
 		partition@9 {
 			label = "QSPI.file-system";
-			reg = <0x00970000 0x01690000>;
+			reg = <0x009e0000 0x01620000>;
 		};
 	};
 };

@@ -19,6 +19,14 @@
 
 #include "virtio_pci_common.h"
 
+static bool force_legacy = false;
+
+#if IS_ENABLED(CONFIG_VIRTIO_PCI_LEGACY)
+module_param(force_legacy, bool, 0444);
+MODULE_PARM_DESC(force_legacy,
+		 "Force legacy mode for transitional virtio 1 devices");
+#endif
+
 /* wait for pending irq handlers */
 void vp_synchronize_vectors(struct virtio_device *vdev)
 {
@@ -282,6 +290,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 
 	vp_free_vectors(vdev);
 	kfree(vp_dev->vqs);
+	vp_dev->vqs = NULL;
 }
 
 static int vp_try_to_find_vqs(struct virtio_device *vdev, unsigned nvqs,
@@ -421,15 +430,6 @@ int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
 	return 0;
 }
 
-void virtio_pci_release_dev(struct device *_d)
-{
-	/*
-	 * No need for a release method as we allocate/free
-	 * all devices together with the pci devices.
-	 * Provide an empty one to avoid getting a warning from core.
-	 */
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int virtio_pci_freeze(struct device *dev)
 {
@@ -458,7 +458,126 @@ static int virtio_pci_restore(struct device *dev)
 	return virtio_device_restore(&vp_dev->vdev);
 }
 
-const struct dev_pm_ops virtio_pci_pm_ops = {
+static const struct dev_pm_ops virtio_pci_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(virtio_pci_freeze, virtio_pci_restore)
 };
 #endif
+
+
+/* Qumranet donated their vendor ID for devices 0x1000 thru 0x10FF. */
+static const struct pci_device_id virtio_pci_id_table[] = {
+	{ PCI_DEVICE(0x1af4, PCI_ANY_ID) },
+	{ 0 }
+};
+
+MODULE_DEVICE_TABLE(pci, virtio_pci_id_table);
+
+static void virtio_pci_release_dev(struct device *_d)
+{
+	struct virtio_device *vdev = dev_to_virtio(_d);
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+
+	/* As struct device is a kobject, it's not safe to
+	 * free the memory (including the reference counter itself)
+	 * until it's release callback. */
+	kfree(vp_dev);
+}
+
+static int virtio_pci_probe(struct pci_dev *pci_dev,
+			    const struct pci_device_id *id)
+{
+	struct virtio_pci_device *vp_dev;
+	int rc;
+
+	/* allocate our structure and fill it out */
+	vp_dev = kzalloc(sizeof(struct virtio_pci_device), GFP_KERNEL);
+	if (!vp_dev)
+		return -ENOMEM;
+
+	pci_set_drvdata(pci_dev, vp_dev);
+	vp_dev->vdev.dev.parent = &pci_dev->dev;
+	vp_dev->vdev.dev.release = virtio_pci_release_dev;
+	vp_dev->pci_dev = pci_dev;
+	INIT_LIST_HEAD(&vp_dev->virtqueues);
+	spin_lock_init(&vp_dev->lock);
+
+	/* Disable MSI/MSIX to bring device to a known good state. */
+	pci_msi_off(pci_dev);
+
+	/* enable the device */
+	rc = pci_enable_device(pci_dev);
+	if (rc)
+		goto err_enable_device;
+
+	rc = pci_request_regions(pci_dev, "virtio-pci");
+	if (rc)
+		goto err_request_regions;
+
+	if (force_legacy) {
+		rc = virtio_pci_legacy_probe(vp_dev);
+		/* Also try modern mode if we can't map BAR0 (no IO space). */
+		if (rc == -ENODEV || rc == -ENOMEM)
+			rc = virtio_pci_modern_probe(vp_dev);
+		if (rc)
+			goto err_probe;
+	} else {
+		rc = virtio_pci_modern_probe(vp_dev);
+		if (rc == -ENODEV)
+			rc = virtio_pci_legacy_probe(vp_dev);
+		if (rc)
+			goto err_probe;
+	}
+
+	pci_set_master(pci_dev);
+
+	rc = register_virtio_device(&vp_dev->vdev);
+	if (rc)
+		goto err_register;
+
+	return 0;
+
+err_register:
+	if (vp_dev->ioaddr)
+	     virtio_pci_legacy_remove(vp_dev);
+	else
+	     virtio_pci_modern_remove(vp_dev);
+err_probe:
+	pci_release_regions(pci_dev);
+err_request_regions:
+	pci_disable_device(pci_dev);
+err_enable_device:
+	kfree(vp_dev);
+	return rc;
+}
+
+static void virtio_pci_remove(struct pci_dev *pci_dev)
+{
+	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
+
+	unregister_virtio_device(&vp_dev->vdev);
+
+	if (vp_dev->ioaddr)
+		virtio_pci_legacy_remove(vp_dev);
+	else
+		virtio_pci_modern_remove(vp_dev);
+
+	pci_release_regions(pci_dev);
+	pci_disable_device(pci_dev);
+}
+
+static struct pci_driver virtio_pci_driver = {
+	.name		= "virtio-pci",
+	.id_table	= virtio_pci_id_table,
+	.probe		= virtio_pci_probe,
+	.remove		= virtio_pci_remove,
+#ifdef CONFIG_PM_SLEEP
+	.driver.pm	= &virtio_pci_pm_ops,
+#endif
+};
+
+module_pci_driver(virtio_pci_driver);
+
+MODULE_AUTHOR("Anthony Liguori <aliguori@us.ibm.com>");
+MODULE_DESCRIPTION("virtio-pci");
+MODULE_LICENSE("GPL");
+MODULE_VERSION("1");

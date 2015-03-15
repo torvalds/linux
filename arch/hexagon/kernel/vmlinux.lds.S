@@ -1,7 +1,7 @@
 /*
  * Linker script for Hexagon kernel
  *
- * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -59,7 +59,7 @@ SECTIONS
 	INIT_DATA_SECTION(PAGE_SIZE)
 
 	_sdata = .;
-		RW_DATA_SECTION(32,PAGE_SIZE,PAGE_SIZE)
+		RW_DATA_SECTION(32,PAGE_SIZE,_THREAD_SIZE)
 		RO_DATA_SECTION(PAGE_SIZE)
 	_edata = .;
 

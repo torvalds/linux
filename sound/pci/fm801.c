@@ -2,8 +2,6 @@
  *  The driver for the ForteMedia FM801 based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *
- *  Support FM only card by Andy Shevchenko <andy@smile.org.ua>
- *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; either version 2 of the License, or
@@ -13,10 +11,6 @@
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
 
@@ -704,13 +698,11 @@ static struct snd_pcm_ops snd_fm801_capture_ops = {
 	.pointer =	snd_fm801_capture_pointer,
 };
 
-static int snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pcm **rpcm)
+static int snd_fm801_pcm(struct fm801 *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
 
-	if (rpcm)
-		*rpcm = NULL;
 	if ((err = snd_pcm_new(chip->card, "FM801", device, 1, 1, &pcm)) < 0)
 		return err;
 
@@ -726,16 +718,10 @@ static int snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pcm **rpcm)
 					      snd_dma_pci_data(chip->pci),
 					      chip->multichannel ? 128*1024 : 64*1024, 128*1024);
 
-	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 				     snd_pcm_alt_chmaps,
 				     chip->multichannel ? 6 : 2, 0,
 				     NULL);
-	if (err < 0)
-		return err;
-
-	if (rpcm)
-		*rpcm = pcm;
-	return 0;
 }
 
 /*
@@ -1186,12 +1172,6 @@ static int snd_fm801_free(struct fm801 *chip)
 		v4l2_device_unregister(&chip->v4l2_dev);
 	}
 #endif
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
-	pci_release_regions(chip->pci);
-	pci_disable_device(chip->pci);
-
-	kfree(chip);
 	return 0;
 }
 
@@ -1214,28 +1194,23 @@ static int snd_fm801_create(struct snd_card *card,
 	};
 
 	*rchip = NULL;
-	if ((err = pci_enable_device(pci)) < 0)
+	if ((err = pcim_enable_device(pci)) < 0)
 		return err;
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL) {
-		pci_disable_device(pci);
+	chip = devm_kzalloc(&pci->dev, sizeof(*chip), GFP_KERNEL);
+	if (chip == NULL)
 		return -ENOMEM;
-	}
 	spin_lock_init(&chip->reg_lock);
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
 	chip->tea575x_tuner = tea575x_tuner;
-	if ((err = pci_request_regions(pci, "FM801")) < 0) {
-		kfree(chip);
-		pci_disable_device(pci);
+	if ((err = pci_request_regions(pci, "FM801")) < 0)
 		return err;
-	}
 	chip->port = pci_resource_start(pci, 0);
 	if ((tea575x_tuner & TUNER_ONLY) == 0) {
-		if (request_irq(pci->irq, snd_fm801_interrupt, IRQF_SHARED,
-				KBUILD_MODNAME, chip)) {
-			dev_err(card->dev, "unable to grab IRQ %d\n", chip->irq);
+		if (devm_request_irq(&pci->dev, pci->irq, snd_fm801_interrupt,
+				IRQF_SHARED, KBUILD_MODNAME, chip)) {
+			dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
 			snd_fm801_free(chip);
 			return -EBUSY;
 		}
@@ -1249,12 +1224,6 @@ static int snd_fm801_create(struct snd_card *card,
 	snd_fm801_chip_init(chip, 0);
 	/* init might set tuner access method */
 	tea575x_tuner = chip->tea575x_tuner;
-
-	if (chip->irq >= 0 && (tea575x_tuner & TUNER_ONLY)) {
-		pci_clear_master(pci);
-		free_irq(chip->irq, chip);
-		chip->irq = -1;
-	}
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_fm801_free(chip);
@@ -1340,7 +1309,7 @@ static int snd_card_fm801_probe(struct pci_dev *pci,
 	if (chip->tea575x_tuner & TUNER_ONLY)
 		goto __fm801_tuner_only;
 
-	if ((err = snd_fm801_pcm(chip, 0, NULL)) < 0) {
+	if ((err = snd_fm801_pcm(chip, 0)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -1392,7 +1361,6 @@ static unsigned char saved_regs[] = {
 
 static int snd_fm801_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct fm801 *chip = card->private_data;
 	int i;
@@ -1404,28 +1372,14 @@ static int snd_fm801_suspend(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
 		chip->saved_regs[i] = inw(chip->port + saved_regs[i]);
 	/* FIXME: tea575x suspend */
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int snd_fm801_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct fm801 *chip = card->private_data;
 	int i;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	snd_fm801_chip_init(chip, 1);
 	snd_ac97_resume(chip->ac97);

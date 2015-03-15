@@ -653,8 +653,11 @@ enum iwl_scan_channel_flags {
 };
 
 /* iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
- * @flags: enum iwl_scan_channel_flgs
- * @non_ebs_ratio: how many regular scan iteration before EBS
+ * @flags: enum iwl_scan_channel_flags
+ * @non_ebs_ratio: defines the ratio of number of scan iterations where EBS is
+ *	involved.
+ *	1 - EBS is disabled.
+ *	2 - every second scan will be full scan(and so on).
  */
 struct iwl_scan_channel_opt {
 	__le16 flags;
@@ -672,6 +675,7 @@ struct iwl_scan_channel_opt {
  * @IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED: all passive scans will be fragmented
  * @IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED: insert WFA vendor-specific TPC report
  *	and DS parameter set IEs into probe requests.
+ * @IWL_MVM_LMAC_SCAN_FLAG_MATCH: Send match found notification on matches
  */
 enum iwl_mvm_lmac_scan_flags {
 	IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL		= BIT(0),
@@ -681,6 +685,7 @@ enum iwl_mvm_lmac_scan_flags {
 	IWL_MVM_LMAC_SCAN_FLAG_MULTIPLE_SSIDS	= BIT(4),
 	IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED	= BIT(5),
 	IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED	= BIT(6),
+	IWL_MVM_LMAC_SCAN_FLAG_MATCH		= BIT(9),
 };
 
 enum iwl_scan_priority {

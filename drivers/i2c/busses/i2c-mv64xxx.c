@@ -30,12 +30,12 @@
 #define MV64XXX_I2C_BAUD_DIV_N(val)			(val & 0x7)
 #define MV64XXX_I2C_BAUD_DIV_M(val)			((val & 0xf) << 3)
 
-#define	MV64XXX_I2C_REG_CONTROL_ACK			0x00000004
-#define	MV64XXX_I2C_REG_CONTROL_IFLG			0x00000008
-#define	MV64XXX_I2C_REG_CONTROL_STOP			0x00000010
-#define	MV64XXX_I2C_REG_CONTROL_START			0x00000020
-#define	MV64XXX_I2C_REG_CONTROL_TWSIEN			0x00000040
-#define	MV64XXX_I2C_REG_CONTROL_INTEN			0x00000080
+#define	MV64XXX_I2C_REG_CONTROL_ACK			BIT(2)
+#define	MV64XXX_I2C_REG_CONTROL_IFLG			BIT(3)
+#define	MV64XXX_I2C_REG_CONTROL_STOP			BIT(4)
+#define	MV64XXX_I2C_REG_CONTROL_START			BIT(5)
+#define	MV64XXX_I2C_REG_CONTROL_TWSIEN			BIT(6)
+#define	MV64XXX_I2C_REG_CONTROL_INTEN			BIT(7)
 
 /* Ctlr status values */
 #define	MV64XXX_I2C_STATUS_BUS_ERR			0x00
@@ -68,19 +68,17 @@
 #define	MV64XXX_I2C_REG_BRIDGE_TIMING			0xe0
 
 /* Bridge Control values */
-#define	MV64XXX_I2C_BRIDGE_CONTROL_WR			0x00000001
-#define	MV64XXX_I2C_BRIDGE_CONTROL_RD			0x00000002
+#define	MV64XXX_I2C_BRIDGE_CONTROL_WR			BIT(0)
+#define	MV64XXX_I2C_BRIDGE_CONTROL_RD			BIT(1)
 #define	MV64XXX_I2C_BRIDGE_CONTROL_ADDR_SHIFT		2
-#define	MV64XXX_I2C_BRIDGE_CONTROL_ADDR_EXT		0x00001000
+#define	MV64XXX_I2C_BRIDGE_CONTROL_ADDR_EXT		BIT(12)
 #define	MV64XXX_I2C_BRIDGE_CONTROL_TX_SIZE_SHIFT	13
 #define	MV64XXX_I2C_BRIDGE_CONTROL_RX_SIZE_SHIFT	16
-#define	MV64XXX_I2C_BRIDGE_CONTROL_ENABLE		0x00080000
+#define	MV64XXX_I2C_BRIDGE_CONTROL_ENABLE		BIT(19)
+#define	MV64XXX_I2C_BRIDGE_CONTROL_REPEATED_START	BIT(20)
 
 /* Bridge Status values */
-#define	MV64XXX_I2C_BRIDGE_STATUS_ERROR			0x00000001
-#define	MV64XXX_I2C_STATUS_OFFLOAD_ERROR		0xf0000001
-#define	MV64XXX_I2C_STATUS_OFFLOAD_OK			0xf0000000
-
+#define	MV64XXX_I2C_BRIDGE_STATUS_ERROR			BIT(0)
 
 /* Driver states */
 enum {
@@ -99,14 +97,12 @@ enum {
 	MV64XXX_I2C_ACTION_INVALID,
 	MV64XXX_I2C_ACTION_CONTINUE,
 	MV64XXX_I2C_ACTION_SEND_RESTART,
-	MV64XXX_I2C_ACTION_OFFLOAD_RESTART,
 	MV64XXX_I2C_ACTION_SEND_ADDR_1,
 	MV64XXX_I2C_ACTION_SEND_ADDR_2,
 	MV64XXX_I2C_ACTION_SEND_DATA,
 	MV64XXX_I2C_ACTION_RCV_DATA,
 	MV64XXX_I2C_ACTION_RCV_DATA_STOP,
 	MV64XXX_I2C_ACTION_SEND_STOP,
-	MV64XXX_I2C_ACTION_OFFLOAD_SEND_STOP,
 };
 
 struct mv64xxx_i2c_regs {
@@ -193,75 +189,6 @@ mv64xxx_i2c_prepare_for_io(struct mv64xxx_i2c_data *drv_data,
 	}
 }
 
-static int mv64xxx_i2c_offload_msg(struct mv64xxx_i2c_data *drv_data)
-{
-	unsigned long data_reg_hi = 0;
-	unsigned long data_reg_lo = 0;
-	unsigned long ctrl_reg;
-	struct i2c_msg *msg = drv_data->msgs;
-
-	if (!drv_data->offload_enabled)
-		return -EOPNOTSUPP;
-
-	/* Only regular transactions can be offloaded */
-	if ((msg->flags & ~(I2C_M_TEN | I2C_M_RD)) != 0)
-		return -EINVAL;
-
-	/* Only 1-8 byte transfers can be offloaded */
-	if (msg->len < 1 || msg->len > 8)
-		return -EINVAL;
-
-	/* Build transaction */
-	ctrl_reg = MV64XXX_I2C_BRIDGE_CONTROL_ENABLE |
-		   (msg->addr << MV64XXX_I2C_BRIDGE_CONTROL_ADDR_SHIFT);
-
-	if ((msg->flags & I2C_M_TEN) != 0)
-		ctrl_reg |=  MV64XXX_I2C_BRIDGE_CONTROL_ADDR_EXT;
-
-	if ((msg->flags & I2C_M_RD) == 0) {
-		u8 local_buf[8] = { 0 };
-
-		memcpy(local_buf, msg->buf, msg->len);
-		data_reg_lo = cpu_to_le32(*((u32 *)local_buf));
-		data_reg_hi = cpu_to_le32(*((u32 *)(local_buf+4)));
-
-		ctrl_reg |= MV64XXX_I2C_BRIDGE_CONTROL_WR |
-		    (msg->len - 1) << MV64XXX_I2C_BRIDGE_CONTROL_TX_SIZE_SHIFT;
-
-		writel(data_reg_lo,
-			drv_data->reg_base + MV64XXX_I2C_REG_TX_DATA_LO);
-		writel(data_reg_hi,
-			drv_data->reg_base + MV64XXX_I2C_REG_TX_DATA_HI);
-
-	} else {
-		ctrl_reg |= MV64XXX_I2C_BRIDGE_CONTROL_RD |
-		    (msg->len - 1) << MV64XXX_I2C_BRIDGE_CONTROL_RX_SIZE_SHIFT;
-	}
-
-	/* Execute transaction */
-	writel(ctrl_reg, drv_data->reg_base + MV64XXX_I2C_REG_BRIDGE_CONTROL);
-
-	return 0;
-}
-
-static void
-mv64xxx_i2c_update_offload_data(struct mv64xxx_i2c_data *drv_data)
-{
-	struct i2c_msg *msg = drv_data->msg;
-
-	if (msg->flags & I2C_M_RD) {
-		u32 data_reg_lo = readl(drv_data->reg_base +
-				MV64XXX_I2C_REG_RX_DATA_LO);
-		u32 data_reg_hi = readl(drv_data->reg_base +
-				MV64XXX_I2C_REG_RX_DATA_HI);
-		u8 local_buf[8] = { 0 };
-
-		*((u32 *)local_buf) = le32_to_cpu(data_reg_lo);
-		*((u32 *)(local_buf+4)) = le32_to_cpu(data_reg_hi);
-		memcpy(msg->buf, local_buf, msg->len);
-	}
-
-}
 /*
  *****************************************************************************
  *
@@ -389,16 +316,6 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 		drv_data->rc = -ENXIO;
 		break;
 
-	case MV64XXX_I2C_STATUS_OFFLOAD_OK:
-		if (drv_data->send_stop || drv_data->aborting) {
-			drv_data->action = MV64XXX_I2C_ACTION_OFFLOAD_SEND_STOP;
-			drv_data->state = MV64XXX_I2C_STATE_IDLE;
-		} else {
-			drv_data->action = MV64XXX_I2C_ACTION_OFFLOAD_RESTART;
-			drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_RESTART;
-		}
-		break;
-
 	default:
 		dev_err(&drv_data->adapter.dev,
 			"mv64xxx_i2c_fsm: Ctlr Error -- state: 0x%x, "
@@ -419,25 +336,15 @@ static void mv64xxx_i2c_send_start(struct mv64xxx_i2c_data *drv_data)
 	drv_data->aborting = 0;
 	drv_data->rc = 0;
 
-	/* Can we offload this msg ? */
-	if (mv64xxx_i2c_offload_msg(drv_data) < 0) {
-		/* No, switch to standard path */
-		mv64xxx_i2c_prepare_for_io(drv_data, drv_data->msgs);
-		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_START,
-			drv_data->reg_base + drv_data->reg_offsets.control);
-	}
+	mv64xxx_i2c_prepare_for_io(drv_data, drv_data->msgs);
+	writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_START,
+	       drv_data->reg_base + drv_data->reg_offsets.control);
 }
 
 static void
 mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 {
 	switch(drv_data->action) {
-	case MV64XXX_I2C_ACTION_OFFLOAD_RESTART:
-		mv64xxx_i2c_update_offload_data(drv_data);
-		writel(0, drv_data->reg_base +	MV64XXX_I2C_REG_BRIDGE_CONTROL);
-		writel(0, drv_data->reg_base +
-			MV64XXX_I2C_REG_BRIDGE_INTR_CAUSE);
-		/* FALLTHRU */
 	case MV64XXX_I2C_ACTION_SEND_RESTART:
 		/* We should only get here if we have further messages */
 		BUG_ON(drv_data->num_msgs == 0);
@@ -518,16 +425,71 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		drv_data->block = 0;
 		wake_up(&drv_data->waitq);
 		break;
-
-	case MV64XXX_I2C_ACTION_OFFLOAD_SEND_STOP:
-		mv64xxx_i2c_update_offload_data(drv_data);
-		writel(0, drv_data->reg_base +	MV64XXX_I2C_REG_BRIDGE_CONTROL);
-		writel(0, drv_data->reg_base +
-			MV64XXX_I2C_REG_BRIDGE_INTR_CAUSE);
-		drv_data->block = 0;
-		wake_up(&drv_data->waitq);
-		break;
 	}
+}
+
+static void
+mv64xxx_i2c_read_offload_rx_data(struct mv64xxx_i2c_data *drv_data,
+				 struct i2c_msg *msg)
+{
+	u32 buf[2];
+
+	buf[0] = readl(drv_data->reg_base + MV64XXX_I2C_REG_RX_DATA_LO);
+	buf[1] = readl(drv_data->reg_base + MV64XXX_I2C_REG_RX_DATA_HI);
+
+	memcpy(msg->buf, buf, msg->len);
+}
+
+static int
+mv64xxx_i2c_intr_offload(struct mv64xxx_i2c_data *drv_data)
+{
+	u32 cause, status;
+
+	cause = readl(drv_data->reg_base +
+		      MV64XXX_I2C_REG_BRIDGE_INTR_CAUSE);
+	if (!cause)
+		return IRQ_NONE;
+
+	status = readl(drv_data->reg_base +
+		       MV64XXX_I2C_REG_BRIDGE_STATUS);
+
+	if (status & MV64XXX_I2C_BRIDGE_STATUS_ERROR) {
+		drv_data->rc = -EIO;
+		goto out;
+	}
+
+	drv_data->rc = 0;
+
+	/*
+	 * Transaction is a one message read transaction, read data
+	 * for this message.
+	 */
+	if (drv_data->num_msgs == 1 && drv_data->msgs[0].flags & I2C_M_RD) {
+		mv64xxx_i2c_read_offload_rx_data(drv_data, drv_data->msgs);
+		drv_data->msgs++;
+		drv_data->num_msgs--;
+	}
+	/*
+	 * Transaction is a two messages write/read transaction, read
+	 * data for the second (read) message.
+	 */
+	else if (drv_data->num_msgs == 2 &&
+		 !(drv_data->msgs[0].flags & I2C_M_RD) &&
+		 drv_data->msgs[1].flags & I2C_M_RD) {
+		mv64xxx_i2c_read_offload_rx_data(drv_data, drv_data->msgs + 1);
+		drv_data->msgs += 2;
+		drv_data->num_msgs -= 2;
+	}
+
+out:
+	writel(0, drv_data->reg_base +	MV64XXX_I2C_REG_BRIDGE_CONTROL);
+	writel(0, drv_data->reg_base +
+	       MV64XXX_I2C_REG_BRIDGE_INTR_CAUSE);
+	drv_data->block = 0;
+
+	wake_up(&drv_data->waitq);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t
@@ -540,20 +502,9 @@ mv64xxx_i2c_intr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&drv_data->lock, flags);
 
-	if (drv_data->offload_enabled) {
-		while (readl(drv_data->reg_base +
-				MV64XXX_I2C_REG_BRIDGE_INTR_CAUSE)) {
-			int reg_status = readl(drv_data->reg_base +
-					MV64XXX_I2C_REG_BRIDGE_STATUS);
-			if (reg_status & MV64XXX_I2C_BRIDGE_STATUS_ERROR)
-				status = MV64XXX_I2C_STATUS_OFFLOAD_ERROR;
-			else
-				status = MV64XXX_I2C_STATUS_OFFLOAD_OK;
-			mv64xxx_i2c_fsm(drv_data, status);
-			mv64xxx_i2c_do_action(drv_data);
-			rc = IRQ_HANDLED;
-		}
-	}
+	if (drv_data->offload_enabled)
+		rc = mv64xxx_i2c_intr_offload(drv_data);
+
 	while (readl(drv_data->reg_base + drv_data->reg_offsets.control) &
 						MV64XXX_I2C_REG_CONTROL_IFLG) {
 		status = readl(drv_data->reg_base + drv_data->reg_offsets.status);
@@ -635,6 +586,117 @@ mv64xxx_i2c_execute_msg(struct mv64xxx_i2c_data *drv_data, struct i2c_msg *msg,
 	return drv_data->rc;
 }
 
+static void
+mv64xxx_i2c_prepare_tx(struct mv64xxx_i2c_data *drv_data)
+{
+	struct i2c_msg *msg = drv_data->msgs;
+	u32 buf[2];
+
+	memcpy(buf, msg->buf, msg->len);
+
+	writel(buf[0], drv_data->reg_base + MV64XXX_I2C_REG_TX_DATA_LO);
+	writel(buf[1], drv_data->reg_base + MV64XXX_I2C_REG_TX_DATA_HI);
+}
+
+static int
+mv64xxx_i2c_offload_xfer(struct mv64xxx_i2c_data *drv_data)
+{
+	struct i2c_msg *msgs = drv_data->msgs;
+	int num = drv_data->num_msgs;
+	unsigned long ctrl_reg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&drv_data->lock, flags);
+
+	/* Build transaction */
+	ctrl_reg = MV64XXX_I2C_BRIDGE_CONTROL_ENABLE |
+		(msgs[0].addr << MV64XXX_I2C_BRIDGE_CONTROL_ADDR_SHIFT);
+
+	if (msgs[0].flags & I2C_M_TEN)
+		ctrl_reg |= MV64XXX_I2C_BRIDGE_CONTROL_ADDR_EXT;
+
+	/* Single write message transaction */
+	if (num == 1 && !(msgs[0].flags & I2C_M_RD)) {
+		size_t len = msgs[0].len - 1;
+
+		ctrl_reg |= MV64XXX_I2C_BRIDGE_CONTROL_WR |
+			(len << MV64XXX_I2C_BRIDGE_CONTROL_TX_SIZE_SHIFT);
+		mv64xxx_i2c_prepare_tx(drv_data);
+	}
+	/* Single read message transaction */
+	else if (num == 1 && msgs[0].flags & I2C_M_RD) {
+		size_t len = msgs[0].len - 1;
+
+		ctrl_reg |= MV64XXX_I2C_BRIDGE_CONTROL_RD |
+			(len << MV64XXX_I2C_BRIDGE_CONTROL_RX_SIZE_SHIFT);
+	}
+	/*
+	 * Transaction with one write and one read message. This is
+	 * guaranteed by the mv64xx_i2c_can_offload() checks.
+	 */
+	else if (num == 2) {
+		size_t lentx = msgs[0].len - 1;
+		size_t lenrx = msgs[1].len - 1;
+
+		ctrl_reg |=
+			MV64XXX_I2C_BRIDGE_CONTROL_RD |
+			MV64XXX_I2C_BRIDGE_CONTROL_WR |
+			(lentx << MV64XXX_I2C_BRIDGE_CONTROL_TX_SIZE_SHIFT) |
+			(lenrx << MV64XXX_I2C_BRIDGE_CONTROL_RX_SIZE_SHIFT) |
+			MV64XXX_I2C_BRIDGE_CONTROL_REPEATED_START;
+		mv64xxx_i2c_prepare_tx(drv_data);
+	}
+
+	/* Execute transaction */
+	drv_data->block = 1;
+	writel(ctrl_reg, drv_data->reg_base + MV64XXX_I2C_REG_BRIDGE_CONTROL);
+	spin_unlock_irqrestore(&drv_data->lock, flags);
+
+	mv64xxx_i2c_wait_for_completion(drv_data);
+
+	return drv_data->rc;
+}
+
+static bool
+mv64xxx_i2c_valid_offload_sz(struct i2c_msg *msg)
+{
+	return msg->len <= 8 && msg->len >= 1;
+}
+
+static bool
+mv64xxx_i2c_can_offload(struct mv64xxx_i2c_data *drv_data)
+{
+	struct i2c_msg *msgs = drv_data->msgs;
+	int num = drv_data->num_msgs;
+
+	return false;
+
+	if (!drv_data->offload_enabled)
+		return false;
+
+	/*
+	 * We can offload a transaction consisting of a single
+	 * message, as long as the message has a length between 1 and
+	 * 8 bytes.
+	 */
+	if (num == 1 && mv64xxx_i2c_valid_offload_sz(msgs))
+		return true;
+
+	/*
+	 * We can offload a transaction consisting of two messages, if
+	 * the first is a write and a second is a read, and both have
+	 * a length between 1 and 8 bytes.
+	 */
+	if (num == 2 &&
+	    mv64xxx_i2c_valid_offload_sz(msgs) &&
+	    mv64xxx_i2c_valid_offload_sz(msgs + 1) &&
+	    !(msgs[0].flags & I2C_M_RD) &&
+	    msgs[1].flags & I2C_M_RD)
+		return true;
+
+	return false;
+}
+
 /*
  *****************************************************************************
  *
@@ -658,7 +720,11 @@ mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	drv_data->msgs = msgs;
 	drv_data->num_msgs = num;
 
-	rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[0], num == 1);
+	if (mv64xxx_i2c_can_offload(drv_data))
+		rc = mv64xxx_i2c_offload_xfer(drv_data);
+	else
+		rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[0], num == 1);
+
 	if (rc < 0)
 		ret = rc;
 

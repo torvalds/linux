@@ -764,17 +764,17 @@ static void atmel_spi_pdc_next_xfer(struct spi_master *master,
 			(unsigned long long)xfer->rx_dma);
 	}
 
-	/* REVISIT: We're waiting for ENDRX before we start the next
+	/* REVISIT: We're waiting for RXBUFF before we start the next
 	 * transfer because we need to handle some difficult timing
-	 * issues otherwise. If we wait for ENDTX in one transfer and
-	 * then starts waiting for ENDRX in the next, it's difficult
-	 * to tell the difference between the ENDRX interrupt we're
-	 * actually waiting for and the ENDRX interrupt of the
+	 * issues otherwise. If we wait for TXBUFE in one transfer and
+	 * then starts waiting for RXBUFF in the next, it's difficult
+	 * to tell the difference between the RXBUFF interrupt we're
+	 * actually waiting for and the RXBUFF interrupt of the
 	 * previous transfer.
 	 *
 	 * It should be doable, though. Just not now...
 	 */
-	spi_writel(as, IER, SPI_BIT(ENDRX) | SPI_BIT(OVRES));
+	spi_writel(as, IER, SPI_BIT(RXBUFF) | SPI_BIT(OVRES));
 	spi_writel(as, PTCR, SPI_BIT(TXTEN) | SPI_BIT(RXTEN));
 }
 
@@ -1046,6 +1046,7 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 	struct atmel_spi_device	*asd;
 	int			timeout;
 	int			ret;
+	unsigned long		dma_timeout;
 
 	as = spi_master_get_devdata(master);
 
@@ -1103,15 +1104,12 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 
 		/* interrupts are disabled, so free the lock for schedule */
 		atmel_spi_unlock(as);
-		ret = wait_for_completion_timeout(&as->xfer_completion,
-							SPI_DMA_TIMEOUT);
+		dma_timeout = wait_for_completion_timeout(&as->xfer_completion,
+							  SPI_DMA_TIMEOUT);
 		atmel_spi_lock(as);
-		if (WARN_ON(ret == 0)) {
-			dev_err(&spi->dev,
-				"spi trasfer timeout, err %d\n", ret);
+		if (WARN_ON(dma_timeout == 0)) {
+			dev_err(&spi->dev, "spi transfer timeout\n");
 			as->done_status = -EIO;
-		} else {
-			ret = 0;
 		}
 
 		if (as->done_status)

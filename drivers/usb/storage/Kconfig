@@ -41,7 +41,7 @@ config USB_STORAGE_REALTEK
 
 config REALTEK_AUTOPM
 	bool "Realtek Card Reader autosuspend support"
-	depends on USB_STORAGE_REALTEK && PM_RUNTIME
+	depends on USB_STORAGE_REALTEK && PM
 	default y
 
 config USB_STORAGE_DATAFAB

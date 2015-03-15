@@ -52,6 +52,7 @@
 #include <linux/dmi.h>
 #include <linux/kthread.h>
 #include <linux/acpi.h>
+#include <linux/ctype.h>
 
 #define PFX "ipmi_ssif: "
 #define DEVICE_NAME "ipmi_ssif"
@@ -968,7 +969,8 @@ static void sender(void                *send_info,
 
 		do_gettimeofday(&t);
 		pr_info("**Enqueue %02x %02x: %ld.%6.6ld\n",
-		       msg->data[0], msg->data[1], t.tv_sec, t.tv_usec);
+		       msg->data[0], msg->data[1],
+		       (long) t.tv_sec, (long) t.tv_usec);
 	}
 }
 
@@ -1095,8 +1097,6 @@ static int ssif_remove(struct i2c_client *client)
 	if (!ssif_info)
 		return 0;
 
-	i2c_set_clientdata(client, NULL);
-
 	/*
 	 * After this point, we won't deliver anything asychronously
 	 * to the message handler.  We can unregister ourself.
@@ -1196,7 +1196,9 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 static int smi_type_proc_show(struct seq_file *m, void *v)
 {
-	return seq_puts(m, "ssif\n");
+	seq_puts(m, "ssif\n");
+
+	return seq_has_overflowed(m);
 }
 
 static int smi_type_proc_open(struct inode *inode, struct file *file)

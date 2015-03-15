@@ -245,11 +245,6 @@ exit:
 	return res;
 }
 
-void rtw_cmd_clr_isr23a(struct	cmd_priv *pcmdpriv)
-{
-	pcmdpriv->cmd_done_cnt++;
-}
-
 void rtw_free_cmd_obj23a(struct cmd_obj *pcmd)
 {
 
@@ -848,62 +843,6 @@ int rtw_dynamic_chk_wk_cmd23a(struct rtw_adapter *padapter)
 
 	res = rtw_enqueue_cmd23a(pcmdpriv, ph2c);
 exit:
-
-	return res;
-}
-
-/*
- * This is only ever called from on_action_spct23a_ch_switch () which isn't
- * called from anywhere itself
- */
-int rtw_set_ch_cmd23a(struct rtw_adapter *padapter, u8 ch, u8 bw, u8 ch_offset,
-		      u8 enqueue)
-{
-	struct cmd_obj *pcmdobj;
-	struct set_ch_parm *set_ch_parm;
-	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-	int res = _SUCCESS;
-
-	DBG_8723A("%s(%s): ch:%u, bw:%u, ch_offset:%u\n", __func__,
-		  padapter->pnetdev->name, ch, bw, ch_offset);
-
-	/* check input parameter */
-
-	/* prepare cmd parameter */
-	set_ch_parm = kzalloc(sizeof(*set_ch_parm), GFP_KERNEL);
-	if (!set_ch_parm) {
-		res = _FAIL;
-		goto exit;
-	}
-	set_ch_parm->ch = ch;
-	set_ch_parm->bw = bw;
-	set_ch_parm->ch_offset = ch_offset;
-
-	if (enqueue) {
-		/* need enqueue, prepare cmd_obj and enqueue */
-		pcmdobj = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
-		if (!pcmdobj) {
-			kfree(set_ch_parm);
-			res = _FAIL;
-			goto exit;
-		}
-
-		init_h2fwcmd_w_parm_no_rsp(pcmdobj, set_ch_parm,
-					   GEN_CMD_CODE(_SetChannel));
-		res = rtw_enqueue_cmd23a(pcmdpriv, pcmdobj);
-	} else {
-		/* no need to enqueue, do the cmd hdl directly and
-		   free cmd parameter */
-		if (H2C_SUCCESS != set_ch_hdl23a(padapter, (u8 *)set_ch_parm))
-			res = _FAIL;
-
-		kfree(set_ch_parm);
-	}
-
-	/* do something based on res... */
-exit:
-
-	DBG_8723A("%s(%s): res:%u\n", __func__, padapter->pnetdev->name, res);
 
 	return res;
 }

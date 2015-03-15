@@ -230,7 +230,7 @@ struct adapter_params {
 
 static inline bool is_10g_port(const struct link_config *lc)
 {
-	return (lc->supported & SUPPORTED_10000baseT_Full) != 0;
+	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0;
 }
 
 static inline bool is_x_10g_port(const struct link_config *lc)

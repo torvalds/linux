@@ -50,22 +50,58 @@
 #define DCAMR_UNSET  0xFFFFFFFF  /* doomsday - 1 sec */
 
 #define DCR       0x10           /* Control Reg */
+#define DCR_TDCHL (1 << 30)      /* Tamper-detect configuration hard lock */
+#define DCR_TDCSL (1 << 29)      /* Tamper-detect configuration soft lock */
+#define DCR_KSSL  (1 << 27)      /* Key-select soft lock */
+#define DCR_MCHL  (1 << 20)      /* Monotonic-counter hard lock */
+#define DCR_MCSL  (1 << 19)      /* Monotonic-counter soft lock */
+#define DCR_TCHL  (1 << 18)      /* Timer-counter hard lock */
+#define DCR_TCSL  (1 << 17)      /* Timer-counter soft lock */
+#define DCR_FSHL  (1 << 16)      /* Failure state hard lock */
 #define DCR_TCE   (1 << 3)       /* Time Counter Enable */
+#define DCR_MCE   (1 << 2)       /* Monotonic Counter Enable */
 
 #define DSR       0x14           /* Status Reg */
-#define DSR_WBF   (1 << 10)      /* Write Busy Flag */
-#define DSR_WNF   (1 << 9)       /* Write Next Flag */
-#define DSR_WCF   (1 << 8)       /* Write Complete Flag */
+#define DSR_WTD   (1 << 23)      /* Wire-mesh tamper detected */
+#define DSR_ETBD  (1 << 22)      /* External tamper B detected */
+#define DSR_ETAD  (1 << 21)      /* External tamper A detected */
+#define DSR_EBD   (1 << 20)      /* External boot detected */
+#define DSR_SAD   (1 << 19)      /* SCC alarm detected */
+#define DSR_TTD   (1 << 18)      /* Temperatur tamper detected */
+#define DSR_CTD   (1 << 17)      /* Clock tamper detected */
+#define DSR_VTD   (1 << 16)      /* Voltage tamper detected */
+#define DSR_WBF   (1 << 10)      /* Write Busy Flag (synchronous) */
+#define DSR_WNF   (1 << 9)       /* Write Next Flag (synchronous) */
+#define DSR_WCF   (1 << 8)       /* Write Complete Flag (synchronous)*/
 #define DSR_WEF   (1 << 7)       /* Write Error Flag */
 #define DSR_CAF   (1 << 4)       /* Clock Alarm Flag */
+#define DSR_MCO   (1 << 3)       /* monotonic counter overflow */
+#define DSR_TCO   (1 << 2)       /* time counter overflow */
 #define DSR_NVF   (1 << 1)       /* Non-Valid Flag */
 #define DSR_SVF   (1 << 0)       /* Security Violation Flag */
 
-#define DIER      0x18           /* Interrupt Enable Reg */
+#define DIER      0x18           /* Interrupt Enable Reg (synchronous) */
 #define DIER_WNIE (1 << 9)       /* Write Next Interrupt Enable */
 #define DIER_WCIE (1 << 8)       /* Write Complete Interrupt Enable */
 #define DIER_WEIE (1 << 7)       /* Write Error Interrupt Enable */
 #define DIER_CAIE (1 << 4)       /* Clock Alarm Interrupt Enable */
+#define DIER_SVIE (1 << 0)       /* Security-violation Interrupt Enable */
+
+#define DMCR      0x1c           /* DryIce Monotonic Counter Reg */
+
+#define DTCR      0x28           /* DryIce Tamper Configuration Reg */
+#define DTCR_MOE  (1 << 9)       /* monotonic overflow enabled */
+#define DTCR_TOE  (1 << 8)       /* time overflow enabled */
+#define DTCR_WTE  (1 << 7)       /* wire-mesh tamper enabled */
+#define DTCR_ETBE (1 << 6)       /* external B tamper enabled */
+#define DTCR_ETAE (1 << 5)       /* external A tamper enabled */
+#define DTCR_EBE  (1 << 4)       /* external boot tamper enabled */
+#define DTCR_SAIE (1 << 3)       /* SCC enabled */
+#define DTCR_TTE  (1 << 2)       /* temperature tamper enabled */
+#define DTCR_CTE  (1 << 1)       /* clock tamper enabled */
+#define DTCR_VTE  (1 << 0)       /* voltage tamper enabled */
+
+#define DGPR      0x3c           /* DryIce General Purpose Reg */
 
 /**
  * struct imxdi_dev - private imxdi rtc data
@@ -313,7 +349,7 @@ static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
 	dier = __raw_readl(imxdi->ioaddr + DIER);
 
 	/* handle write complete and write error cases */
-	if ((dier & DIER_WCIE)) {
+	if (dier & DIER_WCIE) {
 		/*If the write wait queue is empty then there is no pending
 		  operations. It means the interrupt is for DryIce -Security.
 		  IRQ must be returned as none.*/
@@ -322,7 +358,7 @@ static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
 
 		/* DSR_WCF clears itself on DSR read */
 		dsr = __raw_readl(imxdi->ioaddr + DSR);
-		if ((dsr & (DSR_WCF | DSR_WEF))) {
+		if (dsr & (DSR_WCF | DSR_WEF)) {
 			/* mask the interrupt */
 			di_int_disable(imxdi, DIER_WCIE);
 
@@ -335,7 +371,7 @@ static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
 	}
 
 	/* handle the alarm case */
-	if ((dier & DIER_CAIE)) {
+	if (dier & DIER_CAIE) {
 		/* DSR_WCF clears itself on DSR read */
 		dsr = __raw_readl(imxdi->ioaddr + DSR);
 		if (dsr & DSR_CAF) {

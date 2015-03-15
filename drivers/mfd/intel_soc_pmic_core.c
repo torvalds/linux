@@ -64,6 +64,9 @@ static int intel_soc_pmic_i2c_probe(struct i2c_client *i2c,
 	config = (struct intel_soc_pmic_config *)id->driver_data;
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
+	if (!pmic)
+		return -ENOMEM;
+
 	dev_set_drvdata(dev, pmic);
 
 	pmic->regmap = devm_regmap_init_i2c(i2c, config->regmap_config);

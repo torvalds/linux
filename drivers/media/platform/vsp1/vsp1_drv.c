@@ -40,7 +40,7 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int i;
 
-	for (i = 0; i < vsp1->pdata->wpf_count; ++i) {
+	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
 		struct vsp1_rwpf *wpf = vsp1->wpf[i];
 		struct vsp1_pipeline *pipe;
 		u32 status;
@@ -181,7 +181,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 	list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
 
-	if (vsp1->pdata->features & VSP1_HAS_LIF) {
+	if (vsp1->pdata.features & VSP1_HAS_LIF) {
 		vsp1->lif = vsp1_lif_create(vsp1);
 		if (IS_ERR(vsp1->lif)) {
 			ret = PTR_ERR(vsp1->lif);
@@ -191,7 +191,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&vsp1->lif->entity.list_dev, &vsp1->entities);
 	}
 
-	if (vsp1->pdata->features & VSP1_HAS_LUT) {
+	if (vsp1->pdata.features & VSP1_HAS_LUT) {
 		vsp1->lut = vsp1_lut_create(vsp1);
 		if (IS_ERR(vsp1->lut)) {
 			ret = PTR_ERR(vsp1->lut);
@@ -201,7 +201,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&vsp1->lut->entity.list_dev, &vsp1->entities);
 	}
 
-	for (i = 0; i < vsp1->pdata->rpf_count; ++i) {
+	for (i = 0; i < vsp1->pdata.rpf_count; ++i) {
 		struct vsp1_rwpf *rpf;
 
 		rpf = vsp1_rpf_create(vsp1, i);
@@ -214,7 +214,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&rpf->entity.list_dev, &vsp1->entities);
 	}
 
-	if (vsp1->pdata->features & VSP1_HAS_SRU) {
+	if (vsp1->pdata.features & VSP1_HAS_SRU) {
 		vsp1->sru = vsp1_sru_create(vsp1);
 		if (IS_ERR(vsp1->sru)) {
 			ret = PTR_ERR(vsp1->sru);
@@ -224,7 +224,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&vsp1->sru->entity.list_dev, &vsp1->entities);
 	}
 
-	for (i = 0; i < vsp1->pdata->uds_count; ++i) {
+	for (i = 0; i < vsp1->pdata.uds_count; ++i) {
 		struct vsp1_uds *uds;
 
 		uds = vsp1_uds_create(vsp1, i);
@@ -237,7 +237,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&uds->entity.list_dev, &vsp1->entities);
 	}
 
-	for (i = 0; i < vsp1->pdata->wpf_count; ++i) {
+	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
 		struct vsp1_rwpf *wpf;
 
 		wpf = vsp1_wpf_create(vsp1, i);
@@ -261,7 +261,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 			goto done;
 	}
 
-	if (vsp1->pdata->features & VSP1_HAS_LIF) {
+	if (vsp1->pdata.features & VSP1_HAS_LIF) {
 		ret = media_entity_create_link(
 			&vsp1->wpf[0]->entity.subdev.entity, RWPF_PAD_SOURCE,
 			&vsp1->lif->entity.subdev.entity, LIF_PAD_SINK, 0);
@@ -294,7 +294,7 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	/* Reset any channel that might be running. */
 	status = vsp1_read(vsp1, VI6_STATUS);
 
-	for (i = 0; i < vsp1->pdata->wpf_count; ++i) {
+	for (i = 0; i < vsp1->pdata.wpf_count; ++i) {
 		unsigned int timeout;
 
 		if (!(status & VI6_STATUS_SYS_ACT(i)))
@@ -318,10 +318,10 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 	vsp1_write(vsp1, VI6_CLK_DCSWT, (8 << VI6_CLK_DCSWT_CSTPW_SHIFT) |
 		   (8 << VI6_CLK_DCSWT_CSTRW_SHIFT));
 
-	for (i = 0; i < vsp1->pdata->rpf_count; ++i)
+	for (i = 0; i < vsp1->pdata.rpf_count; ++i)
 		vsp1_write(vsp1, VI6_DPR_RPF_ROUTE(i), VI6_DPR_NODE_UNUSED);
 
-	for (i = 0; i < vsp1->pdata->uds_count; ++i)
+	for (i = 0; i < vsp1->pdata.uds_count; ++i)
 		vsp1_write(vsp1, VI6_DPR_UDS_ROUTE(i), VI6_DPR_NODE_UNUSED);
 
 	vsp1_write(vsp1, VI6_DPR_SRU_ROUTE, VI6_DPR_NODE_UNUSED);
@@ -428,47 +428,10 @@ static const struct dev_pm_ops vsp1_pm_ops = {
  * Platform Driver
  */
 
-static int vsp1_validate_platform_data(struct platform_device *pdev,
-				       struct vsp1_platform_data *pdata)
+static int vsp1_parse_dt(struct vsp1_device *vsp1)
 {
-	if (pdata == NULL) {
-		dev_err(&pdev->dev, "missing platform data\n");
-		return -EINVAL;
-	}
-
-	if (pdata->rpf_count <= 0 || pdata->rpf_count > VSP1_MAX_RPF) {
-		dev_err(&pdev->dev, "invalid number of RPF (%u)\n",
-			pdata->rpf_count);
-		return -EINVAL;
-	}
-
-	if (pdata->uds_count <= 0 || pdata->uds_count > VSP1_MAX_UDS) {
-		dev_err(&pdev->dev, "invalid number of UDS (%u)\n",
-			pdata->uds_count);
-		return -EINVAL;
-	}
-
-	if (pdata->wpf_count <= 0 || pdata->wpf_count > VSP1_MAX_WPF) {
-		dev_err(&pdev->dev, "invalid number of WPF (%u)\n",
-			pdata->wpf_count);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static struct vsp1_platform_data *
-vsp1_get_platform_data(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct vsp1_platform_data *pdata;
-
-	if (!IS_ENABLED(CONFIG_OF) || np == NULL)
-		return pdev->dev.platform_data;
-
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (pdata == NULL)
-		return NULL;
+	struct device_node *np = vsp1->dev->of_node;
+	struct vsp1_platform_data *pdata = &vsp1->pdata;
 
 	if (of_property_read_bool(np, "renesas,has-lif"))
 		pdata->features |= VSP1_HAS_LIF;
@@ -481,7 +444,25 @@ vsp1_get_platform_data(struct platform_device *pdev)
 	of_property_read_u32(np, "renesas,#uds", &pdata->uds_count);
 	of_property_read_u32(np, "renesas,#wpf", &pdata->wpf_count);
 
-	return pdata;
+	if (pdata->rpf_count <= 0 || pdata->rpf_count > VSP1_MAX_RPF) {
+		dev_err(vsp1->dev, "invalid number of RPF (%u)\n",
+			pdata->rpf_count);
+		return -EINVAL;
+	}
+
+	if (pdata->uds_count <= 0 || pdata->uds_count > VSP1_MAX_UDS) {
+		dev_err(vsp1->dev, "invalid number of UDS (%u)\n",
+			pdata->uds_count);
+		return -EINVAL;
+	}
+
+	if (pdata->wpf_count <= 0 || pdata->wpf_count > VSP1_MAX_WPF) {
+		dev_err(vsp1->dev, "invalid number of WPF (%u)\n",
+			pdata->wpf_count);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int vsp1_probe(struct platform_device *pdev)
@@ -499,11 +480,7 @@ static int vsp1_probe(struct platform_device *pdev)
 	mutex_init(&vsp1->lock);
 	INIT_LIST_HEAD(&vsp1->entities);
 
-	vsp1->pdata = vsp1_get_platform_data(pdev);
-	if (vsp1->pdata == NULL)
-		return -ENODEV;
-
-	ret = vsp1_validate_platform_data(pdev, vsp1->pdata);
+	ret = vsp1_parse_dt(vsp1);
 	if (ret < 0)
 		return ret;
 

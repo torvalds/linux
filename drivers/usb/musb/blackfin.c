@@ -63,7 +63,7 @@ static void bfin_writew(void __iomem *addr, unsigned offset, u16 data)
 	bfin_write16(addr + offset, data);
 }
 
-static void binf_writel(void __iomem *addr, unsigned offset, u32 data)
+static void bfin_writel(void __iomem *addr, unsigned offset, u32 data)
 {
 	bfin_write16(addr + offset, (u16)data);
 }
@@ -608,7 +608,7 @@ static SIMPLE_DEV_PM_OPS(bfin_pm_ops, bfin_suspend, bfin_resume);
 
 static struct platform_driver bfin_driver = {
 	.probe		= bfin_probe,
-	.remove		= __exit_p(bfin_remove),
+	.remove		= bfin_remove,
 	.driver		= {
 		.name	= "musb-blackfin",
 		.pm	= &bfin_pm_ops,

@@ -20,6 +20,8 @@
 #include <linux/ieee802154.h>
 #include <linux/skbuff.h>
 
+#include <net/cfg802154.h>
+
 /* General MAC frame format:
  *  2 bytes: Frame Control
  *  1 byte:  Sequence Number
@@ -212,7 +214,8 @@ struct ieee802154_ops {
 					    unsigned long changed);
 	int		(*set_txpower)(struct ieee802154_hw *hw, int db);
 	int		(*set_lbt)(struct ieee802154_hw *hw, bool on);
-	int		(*set_cca_mode)(struct ieee802154_hw *hw, u8 mode);
+	int		(*set_cca_mode)(struct ieee802154_hw *hw,
+					const struct wpan_phy_cca *cca);
 	int		(*set_cca_ed_level)(struct ieee802154_hw *hw,
 					    s32 level);
 	int		(*set_csma_params)(struct ieee802154_hw *hw,

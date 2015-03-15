@@ -174,13 +174,21 @@ void vnt_init_bands(struct vnt_private *priv)
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
+bool set_channel(void *pDeviceHandler, struct ieee80211_channel *ch)
 {
 	struct vnt_private *pDevice = pDeviceHandler;
 	bool bResult = true;
 
-	if (pDevice->byCurrentCh == uConnectionChannel)
+	if (pDevice->byCurrentCh == ch->hw_value)
 		return bResult;
+
+	/* Set VGA to max sensitivity */
+	if (pDevice->bUpdateBBVGA &&
+	    pDevice->byBBVGACurrent != pDevice->abyBBVGA[0]) {
+		pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
+
+		BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
+	}
 
 	/* clear NAV */
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MACCR, MACCR_CLRNAV);
@@ -189,19 +197,23 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 
 	if (pDevice->byRFType == RF_AIROHA7230)
 		RFbAL7230SelectChannelPostProcess(pDevice, pDevice->byCurrentCh,
-						  (unsigned char)uConnectionChannel);
+						  ch->hw_value);
 
-	pDevice->byCurrentCh = (unsigned char)uConnectionChannel;
+	pDevice->byCurrentCh = ch->hw_value;
 	bResult &= RFbSelectChannel(pDevice, pDevice->byRFType,
-				    (unsigned char)uConnectionChannel);
+				    ch->hw_value);
 
 	/* Init Synthesizer Table */
 	if (pDevice->bEnablePSMode)
-		RFvWriteWakeProgSyn(pDevice, pDevice->byRFType, uConnectionChannel);
+		RFvWriteWakeProgSyn(pDevice, pDevice->byRFType, ch->hw_value);
 
 	BBvSoftwareReset(pDevice);
 
 	if (pDevice->byLocalID > REV_ID_VT3253_B1) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&pDevice->lock, flags);
+
 		/* set HW default power register */
 		MACvSelectPage1(pDevice->PortOffset);
 		RFbSetPower(pDevice, RATE_1M, pDevice->byCurrentCh);
@@ -209,6 +221,8 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 		RFbSetPower(pDevice, RATE_6M, pDevice->byCurrentCh);
 		VNSvOutPortB(pDevice->PortOffset + MAC_REG_PWROFDM, pDevice->byCurPwr);
 		MACvSelectPage0(pDevice->PortOffset);
+
+		spin_unlock_irqrestore(&pDevice->lock, flags);
 	}
 
 	if (pDevice->byBBType == BB_TYPE_11B)

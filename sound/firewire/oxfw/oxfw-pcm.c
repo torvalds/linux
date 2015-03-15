@@ -19,7 +19,7 @@ static int hw_rule_rate(struct snd_pcm_hw_params *params,
 		.min = UINT_MAX, .max = 0, .integer = 1
 	};
 	struct snd_oxfw_stream_formation formation;
-	unsigned int i, err;
+	int i, err;
 
 	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
 		if (formats[i] == NULL)
@@ -47,7 +47,7 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 	const struct snd_interval *r =
 		hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_oxfw_stream_formation formation;
-	unsigned int i, j, err;
+	int i, j, err;
 	unsigned int count, list[SND_OXFW_STREAM_FORMAT_ENTRIES] = {0};
 
 	count = 0;
@@ -80,7 +80,7 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 static void limit_channels_and_rates(struct snd_pcm_hardware *hw, u8 **formats)
 {
 	struct snd_oxfw_stream_formation formation;
-	unsigned int i, err;
+	int i, err;
 
 	hw->channels_min = UINT_MAX;
 	hw->channels_max = 0;

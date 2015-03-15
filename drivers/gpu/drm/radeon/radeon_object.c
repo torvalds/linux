@@ -238,6 +238,18 @@ int radeon_bo_create(struct radeon_device *rdev,
 	 * See https://bugs.freedesktop.org/show_bug.cgi?id=84627
 	 */
 	bo->flags &= ~RADEON_GEM_GTT_WC;
+#elif defined(CONFIG_X86) && !defined(CONFIG_X86_PAT)
+	/* Don't try to enable write-combining when it can't work, or things
+	 * may be slow
+	 * See https://bugs.freedesktop.org/show_bug.cgi?id=88758
+	 */
+
+#warning Please enable CONFIG_MTRR and CONFIG_X86_PAT for better performance \
+	 thanks to write-combining
+
+	DRM_INFO_ONCE("Please enable CONFIG_MTRR and CONFIG_X86_PAT for "
+		      "better performance thanks to write-combining\n");
+	bo->flags &= ~RADEON_GEM_GTT_WC;
 #endif
 
 	radeon_ttm_placement_from_domain(bo, domain);
@@ -529,9 +541,6 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			u32 current_domain =
 				radeon_mem_type_to_domain(bo->tbo.mem.mem_type);
 
-			WARN_ONCE(bo->gem_base.dumb,
-				  "GPU use of dumb buffer is illegal.\n");
-
 			/* Check if this buffer will be moved and don't move it
 			 * if we have moved too many buffers for this IB already.
 			 *
@@ -577,12 +586,6 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 	}
 
 	return 0;
-}
-
-int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
-			     struct vm_area_struct *vma)
-{
-	return ttm_fbdev_mmap(vma, &bo->tbo);
 }
 
 int radeon_bo_get_surface_reg(struct radeon_bo *bo)

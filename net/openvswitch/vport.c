@@ -480,7 +480,8 @@ void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	stats = this_cpu_ptr(vport->percpu_stats);
 	u64_stats_update_begin(&stats->syncp);
 	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
+	stats->rx_bytes += skb->len +
+			   (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
 	u64_stats_update_end(&stats->syncp);
 
 	OVS_CB(skb)->input_vport = vport;
@@ -519,10 +520,9 @@ int ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 		u64_stats_update_end(&stats->syncp);
 	} else if (sent < 0) {
 		ovs_vport_record_error(vport, VPORT_E_TX_ERROR);
-		kfree_skb(skb);
-	} else
+	} else {
 		ovs_vport_record_error(vport, VPORT_E_TX_DROPPED);
-
+	}
 	return sent;
 }
 
@@ -595,14 +595,7 @@ int ovs_tunnel_get_egress_info(struct ovs_tunnel_info *egress_tun_info,
 	 * The process may need to be changed if the corresponding process
 	 * in vports ops changed.
 	 */
-	memset(&fl, 0, sizeof(fl));
-	fl.daddr = tun_key->ipv4_dst;
-	fl.saddr = tun_key->ipv4_src;
-	fl.flowi4_tos = RT_TOS(tun_key->ipv4_tos);
-	fl.flowi4_mark = skb_mark;
-	fl.flowi4_proto = ipproto;
-
-	rt = ip_route_output_key(net, &fl);
+	rt = ovs_tunnel_route_lookup(net, tun_key, skb_mark, &fl, ipproto);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 

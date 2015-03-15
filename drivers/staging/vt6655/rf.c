@@ -651,7 +651,8 @@ bool RFbInit(
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType, unsigned char byChannel)
+bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType,
+		      u16 byChannel)
 {
 	bool bResult = true;
 
@@ -687,7 +688,8 @@ bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType, unsigned
  * Return Value: None.
  *
  */
-bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType, unsigned int uChannel)
+bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
+			 u16 uChannel)
 {
 	void __iomem *dwIoBase = priv->PortOffset;
 	int   ii;
@@ -767,13 +769,12 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType, unsig
 bool RFbSetPower(
 	struct vnt_private *priv,
 	unsigned int uRATE,
-	unsigned int uCH
+	u16 uCH
 )
 {
 	bool bResult = true;
 	unsigned char byPwr = 0;
 	unsigned char byDec = 0;
-	unsigned char byPwrdBm = 0;
 
 	if (priv->dwDiagRefCount != 0)
 		return true;
@@ -786,8 +787,10 @@ bool RFbSetPower(
 	case RATE_2M:
 	case RATE_5M:
 	case RATE_11M:
+		if (uCH > CB_MAX_CHANNEL_24G)
+			return false;
+
 		byPwr = priv->abyCCKPwrTbl[uCH];
-		byPwrdBm = priv->abyCCKDefaultPwr[uCH];
 		break;
 	case RATE_6M:
 	case RATE_9M:
@@ -801,15 +804,6 @@ bool RFbSetPower(
 		if (byDec >= priv->byMaxPwrLevel)
 			byDec = priv->byMaxPwrLevel-1;
 
-		if (priv->byRFType == RF_UW2452) {
-			byPwrdBm = byDec - byPwr;
-			byPwrdBm /= 3;
-		} else {
-			byPwrdBm = byDec - byPwr;
-			byPwrdBm >>= 1;
-		}
-
-		byPwrdBm += priv->abyOFDMDefaultPwr[uCH];
 		byPwr = byDec;
 		break;
 	case RATE_24M:
@@ -817,7 +811,6 @@ bool RFbSetPower(
 	case RATE_48M:
 	case RATE_54M:
 		byPwr = priv->abyOFDMPwrTbl[uCH];
-		byPwrdBm = priv->abyOFDMDefaultPwr[uCH];
 		break;
 	}
 
@@ -937,8 +930,8 @@ RFvRSSITodBm(
 /* Post processing for the 11b/g and 11a.
  * for save time on changing Reg2,3,5,7,10,12,15 */
 bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
-				       unsigned char byOldChannel,
-				       unsigned char byNewChannel)
+				       u16 byOldChannel,
+				       u16 byNewChannel)
 {
 	bool bResult;
 

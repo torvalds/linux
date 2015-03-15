@@ -496,10 +496,10 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 
 	for (band = 0; (band < IEEE80211_NUM_BANDS) ; band++) {
 
-		if (!priv->wdev->wiphy->bands[band])
+		if (!priv->wdev.wiphy->bands[band])
 			continue;
 
-		sband = priv->wdev->wiphy->bands[band];
+		sband = priv->wdev.wiphy->bands[band];
 
 		for (i = 0; (i < sband->n_channels) ; i++) {
 			ch = &sband->channels[i];
@@ -1429,6 +1429,12 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 		return -EBUSY;
 	}
 
+	if (adapter->surprise_removed || adapter->is_cmd_timedout) {
+		dev_err(adapter->dev,
+			"Ignore scan. Card removed or firmware in bad state\n");
+		return -EFAULT;
+	}
+
 	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 	adapter->scan_processing = true;
 	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
@@ -1727,10 +1733,10 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 
 		freq = cfp ? cfp->freq : 0;
 
-		chan = ieee80211_get_channel(priv->wdev->wiphy, freq);
+		chan = ieee80211_get_channel(priv->wdev.wiphy, freq);
 
 		if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
-			bss = cfg80211_inform_bss(priv->wdev->wiphy,
+			bss = cfg80211_inform_bss(priv->wdev.wiphy,
 					    chan, CFG80211_BSS_FTYPE_UNKNOWN,
 					    bssid, timestamp,
 					    cap_info_bitmap, beacon_period,
@@ -1742,7 +1748,7 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 			    !memcmp(bssid, priv->curr_bss_params.bss_descriptor
 				    .mac_address, ETH_ALEN))
 				mwifiex_update_curr_bss_params(priv, bss);
-			cfg80211_put_bss(priv->wdev->wiphy, bss);
+			cfg80211_put_bss(priv->wdev.wiphy, bss);
 		}
 	} else {
 		dev_dbg(adapter->dev, "missing BSS channel IE\n");

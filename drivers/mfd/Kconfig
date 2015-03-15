@@ -195,6 +195,18 @@ config MFD_DA9063
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_DA9150
+	tristate "Dialog Semiconductor DA9150 Charger Fuel-Gauge chip"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  This adds support for the DA9150 integrated charger and fuel-gauge
+	  chip. This driver provides common support for accessing the device.
+	  Additional drivers must be enabled in order to use the specific
+	  features of the device.
+
 config MFD_DLN2
 	tristate "Diolan DLN2 support"
 	select MFD_CORE
@@ -417,6 +429,7 @@ config MFD_MAX14577
 config MFD_MAX77686
 	bool "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C=y
+	depends on OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -589,6 +602,20 @@ config MFD_PM8921_CORE
 	  Say M here if you want to include support for PM8921 chip as a module.
 	  This will build a module called "pm8921-core".
 
+config MFD_QCOM_RPM
+	tristate "Qualcomm Resource Power Manager (RPM)"
+	depends on ARCH_QCOM && OF
+	help
+	  If you say yes to this option, support will be included for the
+	  Resource Power Manager system found in the Qualcomm 8660, 8960 and
+	  8064 based devices.
+
+	  This is required to access many regulators, clocks and bus
+	  frequencies controlled by the RPM on these devices.
+
+	  Say M here if you want to include support for the Qualcomm RPM as a
+	  module. This will build a module called "qcom_rpm".
+
 config MFD_SPMI_PMIC
 	tristate "Qualcomm SPMI PMICs"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -622,6 +649,18 @@ config MFD_RTSX_PCI
 	  rts5229, rtl8411, etc. Realtek card reader supports access to many
 	  types of memory cards, such as Memory Stick, Memory Stick Pro,
 	  Secure Digital and MultiMediaCard.
+
+config MFD_RT5033
+	tristate "Richtek RT5033 Power Management IC"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  This driver provides for the Richtek RT5033 Power Management IC,
+	  which includes the I2C driver and the Core APIs. This driver provides
+	  common support for accessing the device. The device supports multiple
+	  sub-devices like charger, fuel gauge, flash LED, current source,
+	  LDO and Buck.
 
 config MFD_RTSX_USB
 	tristate "Realtek USB card reader"

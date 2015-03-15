@@ -21,7 +21,7 @@
 static const struct bcma_device_id bgmac_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_4706_MAC_GBIT, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_MAC_GBIT, BCMA_ANY_REV, BCMA_ANY_CLASS),
-	BCMA_CORETABLE_END
+	{},
 };
 MODULE_DEVICE_TABLE(bcma, bgmac_bcma_tbl);
 
@@ -302,9 +302,6 @@ static int bgmac_dma_rx_skb_for_slot(struct bgmac *bgmac,
 	slot->skb = skb;
 	slot->dma_addr = dma_addr;
 
-	if (slot->dma_addr & 0xC0000000)
-		bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
-
 	return 0;
 }
 
@@ -505,8 +502,6 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 				  ring->mmio_base);
 			goto err_dma_free;
 		}
-		if (ring->dma_base & 0xC0000000)
-			bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
 
 		ring->unaligned = bgmac_dma_unaligned(bgmac, ring,
 						      BGMAC_DMA_RING_TX);
@@ -536,8 +531,6 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 			err = -ENOMEM;
 			goto err_dma_free;
 		}
-		if (ring->dma_base & 0xC0000000)
-			bgmac_warn(bgmac, "DMA address using 0xC0000000 bit(s), it may need translation trick\n");
 
 		ring->unaligned = bgmac_dma_unaligned(bgmac, ring,
 						      BGMAC_DMA_RING_RX);
@@ -1167,10 +1160,10 @@ static int bgmac_poll(struct napi_struct *napi, int weight)
 		bgmac->int_status = 0;
 	}
 
-	if (handled < weight)
+	if (handled < weight) {
 		napi_complete(napi);
-
-	bgmac_chip_intrs_on(bgmac);
+		bgmac_chip_intrs_on(bgmac);
+	}
 
 	return handled;
 }
@@ -1412,6 +1405,7 @@ static void bgmac_mii_unregister(struct bgmac *bgmac)
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipattach */
 static int bgmac_probe(struct bcma_device *core)
 {
+	struct bcma_chipinfo *ci = &core->bus->chipinfo;
 	struct net_device *net_dev;
 	struct bgmac *bgmac;
 	struct ssb_sprom *sprom = &core->bus->sprom;
@@ -1474,8 +1468,8 @@ static int bgmac_probe(struct bcma_device *core)
 	bgmac_chip_reset(bgmac);
 
 	/* For Northstar, we have to take all GMAC core out of reset */
-	if (core->id.id == BCMA_CHIP_ID_BCM4707 ||
-	    core->id.id == BCMA_CHIP_ID_BCM53018) {
+	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
+	    ci->id == BCMA_CHIP_ID_BCM53018) {
 		struct bcma_device *ns_core;
 		int ns_gmac;
 
@@ -1515,6 +1509,8 @@ static int bgmac_probe(struct bcma_device *core)
 	if (core->bus->sprom.boardflags_lo & BGMAC_BFL_ENETADM)
 		bgmac_warn(bgmac, "Support for ADMtek ethernet switch not implemented\n");
 
+	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
+
 	err = bgmac_mii_register(bgmac);
 	if (err) {
 		bgmac_err(bgmac, "Cannot register MDIO\n");
@@ -1528,8 +1524,6 @@ static int bgmac_probe(struct bcma_device *core)
 	}
 
 	netif_carrier_off(net_dev);
-
-	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
 
 	return 0;
 
@@ -1549,9 +1543,9 @@ static void bgmac_remove(struct bcma_device *core)
 {
 	struct bgmac *bgmac = bcma_get_drvdata(core);
 
-	netif_napi_del(&bgmac->napi);
 	unregister_netdev(bgmac->net_dev);
 	bgmac_mii_unregister(bgmac);
+	netif_napi_del(&bgmac->napi);
 	bgmac_dma_free(bgmac);
 	bcma_set_drvdata(core, NULL);
 	free_netdev(bgmac->net_dev);

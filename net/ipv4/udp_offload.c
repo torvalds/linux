@@ -339,7 +339,8 @@ unflush:
 	skb_gro_pull(skb, sizeof(struct udphdr)); /* pull encapsulating udp header */
 	skb_gro_postpull_rcsum(skb, uh, sizeof(struct udphdr));
 	NAPI_GRO_CB(skb)->proto = uo_priv->offload->ipproto;
-	pp = uo_priv->offload->callbacks.gro_receive(head, skb);
+	pp = uo_priv->offload->callbacks.gro_receive(head, skb,
+						     uo_priv->offload);
 
 out_unlock:
 	rcu_read_unlock();
@@ -395,10 +396,19 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff)
 
 	if (uo_priv != NULL) {
 		NAPI_GRO_CB(skb)->proto = uo_priv->offload->ipproto;
-		err = uo_priv->offload->callbacks.gro_complete(skb, nhoff + sizeof(struct udphdr));
+		err = uo_priv->offload->callbacks.gro_complete(skb,
+				nhoff + sizeof(struct udphdr),
+				uo_priv->offload);
 	}
 
 	rcu_read_unlock();
+
+	if (skb->remcsum_offload)
+		skb_shinfo(skb)->gso_type |= SKB_GSO_TUNNEL_REMCSUM;
+
+	skb->encapsulation = 1;
+	skb_set_inner_mac_header(skb, nhoff + sizeof(struct udphdr));
+
 	return err;
 }
 
@@ -407,9 +417,13 @@ static int udp4_gro_complete(struct sk_buff *skb, int nhoff)
 	const struct iphdr *iph = ip_hdr(skb);
 	struct udphdr *uh = (struct udphdr *)(skb->data + nhoff);
 
-	if (uh->check)
+	if (uh->check) {
+		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL_CSUM;
 		uh->check = ~udp_v4_check(skb->len - nhoff, iph->saddr,
 					  iph->daddr, 0);
+	} else {
+		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
+	}
 
 	return udp_gro_complete(skb, nhoff);
 }

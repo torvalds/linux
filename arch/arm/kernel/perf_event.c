@@ -116,8 +116,14 @@ int armpmu_event_set_period(struct perf_event *event)
 		ret = 1;
 	}
 
-	if (left > (s64)armpmu->max_period)
-		left = armpmu->max_period;
+	/*
+	 * Limit the maximum period to prevent the counter value
+	 * from overtaking the one we are about to program. In
+	 * effect we are reducing max_period to account for
+	 * interrupt latency (and we are being very conservative).
+	 */
+	if (left > (armpmu->max_period >> 1))
+		left = armpmu->max_period >> 1;
 
 	local64_set(&hwc->prev_count, (u64)-left);
 
@@ -484,7 +490,7 @@ static void armpmu_disable(struct pmu *pmu)
 	armpmu->stop(armpmu);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int armpmu_runtime_resume(struct device *dev)
 {
 	struct arm_pmu_platdata *plat = dev_get_platdata(dev);

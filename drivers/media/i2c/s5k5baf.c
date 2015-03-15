@@ -353,7 +353,7 @@ static struct v4l2_rect s5k5baf_cis_rect = {
  *
  */
 static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
-			    size_t count, const u16 *data)
+			    size_t count, const __le16 *data)
 {
 	struct s5k5baf_fw *f;
 	u16 *d, i, *end;
@@ -421,6 +421,7 @@ static u16 s5k5baf_i2c_read(struct s5k5baf *state, u16 addr)
 {
 	struct i2c_client *c = v4l2_get_subdevdata(&state->sd);
 	__be16 w, r;
+	u16 res;
 	struct i2c_msg msg[] = {
 		{ .addr = c->addr, .flags = 0,
 		  .len = 2, .buf = (u8 *)&w },
@@ -434,15 +435,15 @@ static u16 s5k5baf_i2c_read(struct s5k5baf *state, u16 addr)
 
 	w = cpu_to_be16(addr);
 	ret = i2c_transfer(c->adapter, msg, 2);
-	r = be16_to_cpu(r);
+	res = be16_to_cpu(r);
 
-	v4l2_dbg(3, debug, c, "i2c_read: 0x%04x : 0x%04x\n", addr, r);
+	v4l2_dbg(3, debug, c, "i2c_read: 0x%04x : 0x%04x\n", addr, res);
 
 	if (ret != 2) {
 		v4l2_err(c, "i2c_read: error during transfer (%d)\n", ret);
 		state->error = ret;
 	}
-	return r;
+	return res;
 }
 
 static void s5k5baf_i2c_write(struct s5k5baf *state, u16 addr, u16 val)
@@ -1037,7 +1038,7 @@ static int s5k5baf_load_setfile(struct s5k5baf *state)
 	}
 
 	ret = s5k5baf_fw_parse(&c->dev, &state->fw, fw->size / 2,
-			       (u16 *)fw->data);
+			       (__le16 *)fw->data);
 
 	release_firmware(fw);
 
@@ -1793,7 +1794,7 @@ static const struct v4l2_subdev_ops s5k5baf_subdev_ops = {
 
 static int s5k5baf_configure_gpios(struct s5k5baf *state)
 {
-	static const char const *name[] = { "S5K5BAF_STBY", "S5K5BAF_RST" };
+	static const char * const name[] = { "S5K5BAF_STBY", "S5K5BAF_RST" };
 	struct i2c_client *c = v4l2_get_subdevdata(&state->sd);
 	struct s5k5baf_gpio *g = state->gpios;
 	int ret, i;

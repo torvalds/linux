@@ -168,7 +168,7 @@ do {									\
 	const __typeof__(*(ptr)) __user *__gu_ptr = (ptr);		\
 	unsigned long __gu_val;						\
 	__get_user_common(__gu_val, sizeof(*(ptr)), __gu_ptr, __gu_err);\
-	(x) = (__typeof__(x))__gu_val;					\
+	(x) = (__force __typeof__(x))__gu_val;				\
 	__gu_err;							\
 	})
 
@@ -180,7 +180,7 @@ do {									\
 	if (access_ok(VERIFY_READ,  __gu_ptr, sizeof(*__gu_ptr)))	\
 		__get_user_common(__gu_val, sizeof(*__gu_ptr),		\
 			__gu_ptr, __gu_err);				\
-	(x) = (__typeof__(x))__gu_val;					\
+	(x) = (__force __typeof__(x))__gu_val;				\
 	__gu_err;							\
 })
 

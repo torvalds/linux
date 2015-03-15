@@ -723,7 +723,7 @@ end:
 	return;
 }
 
-static void tegra_dma_terminate_all(struct dma_chan *dc)
+static int tegra_dma_terminate_all(struct dma_chan *dc)
 {
 	struct tegra_dma_channel *tdc = to_tegra_dma_chan(dc);
 	struct tegra_dma_sg_req *sgreq;
@@ -736,7 +736,7 @@ static void tegra_dma_terminate_all(struct dma_chan *dc)
 	spin_lock_irqsave(&tdc->lock, flags);
 	if (list_empty(&tdc->pending_sg_req)) {
 		spin_unlock_irqrestore(&tdc->lock, flags);
-		return;
+		return 0;
 	}
 
 	if (!tdc->busy)
@@ -777,6 +777,7 @@ skip_dma_stop:
 		dma_desc->cb_count = 0;
 	}
 	spin_unlock_irqrestore(&tdc->lock, flags);
+	return 0;
 }
 
 static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
@@ -825,25 +826,6 @@ static enum dma_status tegra_dma_tx_status(struct dma_chan *dc,
 	dev_dbg(tdc2dev(tdc), "cookie %d does not found\n", cookie);
 	spin_unlock_irqrestore(&tdc->lock, flags);
 	return ret;
-}
-
-static int tegra_dma_device_control(struct dma_chan *dc, enum dma_ctrl_cmd cmd,
-			unsigned long arg)
-{
-	switch (cmd) {
-	case DMA_SLAVE_CONFIG:
-		return tegra_dma_slave_config(dc,
-				(struct dma_slave_config *)arg);
-
-	case DMA_TERMINATE_ALL:
-		tegra_dma_terminate_all(dc);
-		return 0;
-
-	default:
-		break;
-	}
-
-	return -ENXIO;
 }
 
 static inline int get_bus_width(struct tegra_dma_channel *tdc,
@@ -1443,7 +1425,23 @@ static int tegra_dma_probe(struct platform_device *pdev)
 					tegra_dma_free_chan_resources;
 	tdma->dma_dev.device_prep_slave_sg = tegra_dma_prep_slave_sg;
 	tdma->dma_dev.device_prep_dma_cyclic = tegra_dma_prep_dma_cyclic;
-	tdma->dma_dev.device_control = tegra_dma_device_control;
+	tdma->dma_dev.src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) |
+		BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |
+		BIT(DMA_SLAVE_BUSWIDTH_4_BYTES) |
+		BIT(DMA_SLAVE_BUSWIDTH_8_BYTES);
+	tdma->dma_dev.dst_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) |
+		BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |
+		BIT(DMA_SLAVE_BUSWIDTH_4_BYTES) |
+		BIT(DMA_SLAVE_BUSWIDTH_8_BYTES);
+	tdma->dma_dev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	/*
+	 * XXX The hardware appears to support
+	 * DMA_RESIDUE_GRANULARITY_BURST-level reporting, but it's
+	 * only used by this driver during tegra_dma_terminate_all()
+	 */
+	tdma->dma_dev.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
+	tdma->dma_dev.device_config = tegra_dma_slave_config;
+	tdma->dma_dev.device_terminate_all = tegra_dma_terminate_all;
 	tdma->dma_dev.device_tx_status = tegra_dma_tx_status;
 	tdma->dma_dev.device_issue_pending = tegra_dma_issue_pending;
 

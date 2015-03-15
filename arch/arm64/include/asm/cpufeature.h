@@ -52,6 +52,8 @@ static inline void cpus_set_cap(unsigned int num)
 }
 
 void check_local_cpu_errata(void);
+bool cpu_supports_mixed_endian_el0(void);
+bool system_supports_mixed_endian_el0(void);
 
 #endif /* __ASSEMBLY__ */
 

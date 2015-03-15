@@ -50,6 +50,8 @@ enum {
 	STMPE_IDX_GPEDR_MSB,
 	STMPE_IDX_GPRER_LSB,
 	STMPE_IDX_GPFER_LSB,
+	STMPE_IDX_GPPUR_LSB,
+	STMPE_IDX_GPPDR_LSB,
 	STMPE_IDX_GPAFR_U_MSB,
 	STMPE_IDX_IEGPIOR_LSB,
 	STMPE_IDX_ISGPIOR_LSB,
@@ -113,39 +115,7 @@ extern int stmpe_set_altfunc(struct stmpe *stmpe, u32 pins,
 extern int stmpe_enable(struct stmpe *stmpe, unsigned int blocks);
 extern int stmpe_disable(struct stmpe *stmpe, unsigned int blocks);
 
-struct matrix_keymap_data;
-
-/**
- * struct stmpe_keypad_platform_data - STMPE keypad platform data
- * @keymap_data: key map table and size
- * @debounce_ms: debounce interval, in ms.  Maximum is
- *		 %STMPE_KEYPAD_MAX_DEBOUNCE.
- * @scan_count: number of key scanning cycles to confirm key data.
- *		Maximum is %STMPE_KEYPAD_MAX_SCAN_COUNT.
- * @no_autorepeat: disable key autorepeat
- */
-struct stmpe_keypad_platform_data {
-	const struct matrix_keymap_data *keymap_data;
-	unsigned int debounce_ms;
-	unsigned int scan_count;
-	bool no_autorepeat;
-};
-
 #define STMPE_GPIO_NOREQ_811_TOUCH	(0xf0)
-
-/**
- * struct stmpe_gpio_platform_data - STMPE GPIO platform data
- * @norequest_mask: bitmask specifying which GPIOs should _not_ be
- *		    requestable due to different usage (e.g. touch, keypad)
- *		    STMPE_GPIO_NOREQ_* macros can be used here.
- * @setup: board specific setup callback.
- * @remove: board specific remove callback
- */
-struct stmpe_gpio_platform_data {
-	unsigned norequest_mask;
-	void (*setup)(struct stmpe *stmpe, unsigned gpio_base);
-	void (*remove)(struct stmpe *stmpe, unsigned gpio_base);
-};
 
 /**
  * struct stmpe_ts_platform_data - stmpe811 touch screen controller platform
@@ -198,8 +168,6 @@ struct stmpe_ts_platform_data {
  * @irq_over_gpio: true if gpio is used to get irq
  * @irq_gpio: gpio number over which irq will be requested (significant only if
  *	      irq_over_gpio is true)
- * @gpio: GPIO-specific platform data
- * @keypad: keypad-specific platform data
  * @ts: touchscreen-specific platform data
  */
 struct stmpe_platform_data {
@@ -211,8 +179,6 @@ struct stmpe_platform_data {
 	int irq_gpio;
 	int autosleep_timeout;
 
-	struct stmpe_gpio_platform_data *gpio;
-	struct stmpe_keypad_platform_data *keypad;
 	struct stmpe_ts_platform_data *ts;
 };
 

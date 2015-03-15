@@ -351,7 +351,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * Remove L2 padding which was added during
 	 */
-	if (test_bit(REQUIRE_L2PAD, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_L2PAD))
 		rt2x00queue_remove_l2pad(entry->skb, header_length);
 
 	/*
@@ -460,7 +460,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * send the status report back.
 	 */
 	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211)) {
-		if (test_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags))
+		if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_TASKLET_CONTEXT))
 			ieee80211_tx_status(rt2x00dev->hw, entry->skb);
 		else
 			ieee80211_tx_status_ni(rt2x00dev->hw, entry->skb);
@@ -1056,9 +1056,9 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Take TX headroom required for alignment into account.
 	 */
-	if (test_bit(REQUIRE_L2PAD, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_L2PAD))
 		rt2x00dev->hw->extra_tx_headroom += RT2X00_L2PAD_SIZE;
-	else if (test_bit(REQUIRE_DMA, &rt2x00dev->cap_flags))
+	else if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DMA))
 		rt2x00dev->hw->extra_tx_headroom += RT2X00_ALIGN_SIZE;
 
 	/*
@@ -1069,7 +1069,7 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Allocate tx status FIFO for driver use.
 	 */
-	if (test_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags)) {
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_TXSTATUS_FIFO)) {
 		/*
 		 * Allocate the txstatus fifo. In the worst case the tx
 		 * status fifo has to hold the tx status of all entries
@@ -1131,7 +1131,7 @@ static void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Stop rfkill polling.
 	 */
-	if (test_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DELAYED_RFKILL))
 		rt2x00rfkill_unregister(rt2x00dev);
 
 	/*
@@ -1173,7 +1173,7 @@ static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Start rfkill polling.
 	 */
-	if (test_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DELAYED_RFKILL))
 		rt2x00rfkill_register(rt2x00dev);
 
 	return 0;
@@ -1389,7 +1389,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Start rfkill polling.
 	 */
-	if (!test_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags))
+	if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DELAYED_RFKILL))
 		rt2x00rfkill_register(rt2x00dev);
 
 	return 0;
@@ -1408,7 +1408,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Stop rfkill polling.
 	 */
-	if (!test_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags))
+	if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_DELAYED_RFKILL))
 		rt2x00rfkill_unregister(rt2x00dev);
 
 	/*

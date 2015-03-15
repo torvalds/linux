@@ -59,7 +59,7 @@ config NET_DSA_BCM_SF2
 	depends on HAS_IOMEM
 	select NET_DSA
 	select NET_DSA_TAG_BRCM
-	select FIXED_PHY if NET_DSA_BCM_SF2=y
+	select FIXED_PHY
 	select BCM7XXX_PHY
 	select MDIO_BCM_UNIMAC
 	---help---

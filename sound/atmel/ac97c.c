@@ -22,6 +22,9 @@
 #include <linux/gpio.h>
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/of_device.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -34,10 +37,10 @@
 #include <linux/platform_data/dma-dw.h>
 #include <linux/dma/dw.h>
 
+#ifdef CONFIG_AVR32
 #include <mach/cpu.h>
-
-#ifdef CONFIG_ARCH_AT91
-#include <mach/hardware.h>
+#else
+#define cpu_is_at32ap7000() 0
 #endif
 
 #include "ac97c.h"
@@ -902,6 +905,40 @@ static void atmel_ac97c_reset(struct atmel_ac97c *chip)
 	}
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id atmel_ac97c_dt_ids[] = {
+	{ .compatible = "atmel,at91sam9263-ac97c", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, atmel_ac97c_dt_ids);
+
+static struct ac97c_platform_data *atmel_ac97c_probe_dt(struct device *dev)
+{
+	struct ac97c_platform_data *pdata;
+	struct device_node *node = dev->of_node;
+	const struct of_device_id *match;
+
+	if (!node) {
+		dev_err(dev, "Device does not have associated DT data\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	pdata->reset_pin = of_get_named_gpio(dev->of_node, "ac97-gpios", 2);
+
+	return pdata;
+}
+#else
+static struct ac97c_platform_data *atmel_ac97c_probe_dt(struct device *dev)
+{
+	dev_err(dev, "no platform data defined\n");
+	return ERR_PTR(-ENXIO);
+}
+#endif
+
 static int atmel_ac97c_probe(struct platform_device *pdev)
 {
 	struct snd_card			*card;
@@ -922,10 +959,11 @@ static int atmel_ac97c_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_dbg(&pdev->dev, "no platform data\n");
-		return -ENXIO;
+		pdata = atmel_ac97c_probe_dt(&pdev->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -1204,6 +1242,7 @@ static struct platform_driver atmel_ac97c_driver = {
 	.driver		= {
 		.name	= "atmel_ac97c",
 		.pm	= ATMEL_AC97C_PM_OPS,
+		.of_match_table = of_match_ptr(atmel_ac97c_dt_ids),
 	},
 };
 module_platform_driver(atmel_ac97c_driver);

@@ -606,7 +606,7 @@ void xdr_truncate_encode(struct xdr_stream *xdr, size_t len)
 	struct kvec *head = buf->head;
 	struct kvec *tail = buf->tail;
 	int fraglen;
-	int new, old;
+	int new;
 
 	if (len > buf->len) {
 		WARN_ON_ONCE(1);
@@ -629,8 +629,8 @@ void xdr_truncate_encode(struct xdr_stream *xdr, size_t len)
 	buf->len -= fraglen;
 
 	new = buf->page_base + buf->page_len;
-	old = new + fraglen;
-	xdr->page_ptr -= (old >> PAGE_SHIFT) - (new >> PAGE_SHIFT);
+
+	xdr->page_ptr = buf->pages + (new >> PAGE_SHIFT);
 
 	if (buf->page_len) {
 		xdr->p = page_address(*xdr->page_ptr);

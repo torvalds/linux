@@ -114,8 +114,8 @@ static inline __be32 check_pseudo_root(struct svc_rqst *rqstp,
 	 * We're exposing only the directories and symlinks that have to be
 	 * traversed on the way to real exports:
 	 */
-	if (unlikely(!S_ISDIR(dentry->d_inode->i_mode) &&
-		     !S_ISLNK(dentry->d_inode->i_mode)))
+	if (unlikely(!d_is_dir(dentry) &&
+		     !d_is_symlink(dentry)))
 		return nfserr_stale;
 	/*
 	 * A pseudoroot export gives permission to access only one
@@ -259,7 +259,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		goto out;
 	}
 
-	if (S_ISDIR(dentry->d_inode->i_mode) &&
+	if (d_is_dir(dentry) &&
 			(dentry->d_flags & DCACHE_DISCONNECTED)) {
 		printk("nfsd: find_fh_dentry returned a DISCONNECTED directory: %pd2\n",
 				dentry);
@@ -414,7 +414,7 @@ static inline void _fh_update_old(struct dentry *dentry,
 {
 	fh->ofh_ino = ino_t_to_u32(dentry->d_inode->i_ino);
 	fh->ofh_generation = dentry->d_inode->i_generation;
-	if (S_ISDIR(dentry->d_inode->i_mode) ||
+	if (d_is_dir(dentry) ||
 	    (exp->ex_flags & NFSEXP_NOSUBTREECHECK))
 		fh->ofh_dirino = 0;
 }

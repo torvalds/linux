@@ -1581,6 +1581,10 @@ iso_stream_schedule (
 	else
 		next = (now + 2 + 7) & ~0x07;	/* full frame cache */
 
+	/* If needed, initialize last_iso_frame so that this URB will be seen */
+	if (ehci->isoc_count == 0)
+		ehci->last_iso_frame = now >> 3;
+
 	/*
 	 * Use ehci->last_iso_frame as the base.  There can't be any
 	 * TDs scheduled for earlier than that.
@@ -1600,11 +1604,11 @@ iso_stream_schedule (
 	 */
 	now2 = (now - base) & (mod - 1);
 
-	/* Is the schedule already full? */
+	/* Is the schedule about to wrap around? */
 	if (unlikely(!empty && start < period)) {
-		ehci_dbg(ehci, "iso sched full %p (%u-%u < %u mod %u)\n",
+		ehci_dbg(ehci, "request %p would overflow (%u-%u < %u mod %u)\n",
 				urb, stream->next_uframe, base, period, mod);
-		status = -ENOSPC;
+		status = -EFBIG;
 		goto fail;
 	}
 
@@ -1671,10 +1675,6 @@ iso_stream_schedule (
 	urb->start_frame = start & (mod - 1);
 	if (!stream->highspeed)
 		urb->start_frame >>= 3;
-
-	/* Make sure scan_isoc() sees these */
-	if (ehci->isoc_count == 0)
-		ehci->last_iso_frame = now >> 3;
 	return status;
 
  fail:

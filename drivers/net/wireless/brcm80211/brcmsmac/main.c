@@ -316,7 +316,7 @@ static const u16 xmtfifo_sz[][NFIFO] = {
 static const char * const fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 #else
-static const char fifo_names[6][0];
+static const char fifo_names[6][1];
 #endif
 
 #ifdef DEBUG

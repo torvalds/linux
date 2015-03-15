@@ -143,6 +143,7 @@ void drm_err(const char *format, ...);
 #define DRIVER_MODESET     0x2000
 #define DRIVER_PRIME       0x4000
 #define DRIVER_RENDER      0x8000
+#define DRIVER_ATOMIC      0x10000
 
 /***********************************************************************/
 /** \name Macros to make printk easier */
@@ -283,6 +284,8 @@ struct drm_file {
 	 * in the plane list
 	 */
 	unsigned universal_planes:1;
+	/* true if client understands atomic properties */
+	unsigned atomic:1;
 
 	struct pid *pid;
 	kuid_t uid;
@@ -744,8 +747,6 @@ struct drm_device {
 
 	/** \name Context support */
 	/*@{ */
-	bool irq_enabled;		/**< True if irq handler is enabled */
-	int irq;
 
 	__volatile__ long context_flag;	/**< Context swapping flag */
 	int last_context;		/**< Last current context */
@@ -753,6 +754,8 @@ struct drm_device {
 
 	/** \name VBLANK IRQ support */
 	/*@{ */
+	bool irq_enabled;
+	int irq;
 
 	/*
 	 * At load time, disabling the vblank interrupt won't be allowed since
@@ -901,11 +904,15 @@ extern int drm_vblank_init(struct drm_device *dev, int num_crtcs);
 extern int drm_wait_vblank(struct drm_device *dev, void *data,
 			   struct drm_file *filp);
 extern u32 drm_vblank_count(struct drm_device *dev, int crtc);
+extern u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
 extern u32 drm_vblank_count_and_time(struct drm_device *dev, int crtc,
 				     struct timeval *vblanktime);
 extern void drm_send_vblank_event(struct drm_device *dev, int crtc,
 				     struct drm_pending_vblank_event *e);
+extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
+				       struct drm_pending_vblank_event *e);
 extern bool drm_handle_vblank(struct drm_device *dev, int crtc);
+extern bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
 extern int drm_vblank_get(struct drm_device *dev, int crtc);
 extern void drm_vblank_put(struct drm_device *dev, int crtc);
 extern int drm_crtc_vblank_get(struct drm_crtc *crtc);
@@ -950,6 +957,7 @@ extern void drm_master_put(struct drm_master **master);
 extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
+extern bool drm_atomic;
 
 				/* Debugfs support */
 #if defined(CONFIG_DEBUG_FS)

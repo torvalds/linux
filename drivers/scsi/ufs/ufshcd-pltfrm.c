@@ -261,12 +261,7 @@ static int ufshcd_pltfrm_resume(struct device *dev)
 {
 	return ufshcd_system_resume(dev_get_drvdata(dev));
 }
-#else
-#define ufshcd_pltfrm_suspend	NULL
-#define ufshcd_pltfrm_resume	NULL
-#endif
 
-#ifdef CONFIG_PM_RUNTIME
 static int ufshcd_pltfrm_runtime_suspend(struct device *dev)
 {
 	return ufshcd_runtime_suspend(dev_get_drvdata(dev));
@@ -279,11 +274,13 @@ static int ufshcd_pltfrm_runtime_idle(struct device *dev)
 {
 	return ufshcd_runtime_idle(dev_get_drvdata(dev));
 }
-#else /* !CONFIG_PM_RUNTIME */
+#else /* !CONFIG_PM */
+#define ufshcd_pltfrm_suspend	NULL
+#define ufshcd_pltfrm_resume	NULL
 #define ufshcd_pltfrm_runtime_suspend	NULL
 #define ufshcd_pltfrm_runtime_resume	NULL
 #define ufshcd_pltfrm_runtime_idle	NULL
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 static void ufshcd_pltfrm_shutdown(struct platform_device *pdev)
 {

@@ -676,7 +676,7 @@ static int calcu_signature(struct ceph_x_authorizer *au,
 	int ret;
 	char tmp_enc[40];
 	__le32 tmp[5] = {
-		16u, msg->hdr.crc, msg->footer.front_crc,
+		cpu_to_le32(16), msg->hdr.crc, msg->footer.front_crc,
 		msg->footer.middle_crc, msg->footer.data_crc,
 	};
 	ret = ceph_x_encrypt(&au->session_key, &tmp, sizeof(tmp),

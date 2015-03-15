@@ -62,12 +62,13 @@ config DRM_TTM
 
 config DRM_GEM_CMA_HELPER
 	bool
-	depends on DRM
+	depends on DRM && HAVE_DMA_ATTRS
 	help
 	  Choose this if you need the GEM CMA helper functions
 
 config DRM_KMS_CMA_HELPER
 	bool
+	depends on DRM && HAVE_DMA_ATTRS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_FB_HELPER
 	select FB_SYS_FILLRECT
@@ -110,7 +111,6 @@ config DRM_RADEON
 	select HWMON
 	select BACKLIGHT_CLASS_DEVICE
 	select INTERVAL_TREE
-	select MMU_NOTIFIER
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to
@@ -182,6 +182,8 @@ source "drivers/gpu/drm/mgag200/Kconfig"
 source "drivers/gpu/drm/cirrus/Kconfig"
 
 source "drivers/gpu/drm/armada/Kconfig"
+
+source "drivers/gpu/drm/atmel-hlcdc/Kconfig"
 
 source "drivers/gpu/drm/rcar-du/Kconfig"
 

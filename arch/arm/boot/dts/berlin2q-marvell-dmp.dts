@@ -65,6 +65,8 @@
 };
 
 &sdhci2 {
+	broken-cd;
+	bus-width = <8>;
 	non-removable;
 	status = "okay";
 };

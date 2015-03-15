@@ -322,11 +322,12 @@ static int gmap_alloc_table(struct gmap *gmap, unsigned long *table,
 static unsigned long __gmap_segment_gaddr(unsigned long *entry)
 {
 	struct page *page;
-	unsigned long offset;
+	unsigned long offset, mask;
 
 	offset = (unsigned long) entry / sizeof(unsigned long);
 	offset = (offset & (PTRS_PER_PMD - 1)) * PMD_SIZE;
-	page = pmd_to_page((pmd_t *) entry);
+	mask = ~(PTRS_PER_PMD * sizeof(pmd_t) - 1);
+	page = virt_to_page((void *)((unsigned long) entry & mask));
 	return page->index + offset;
 }
 
@@ -526,7 +527,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		table += (gaddr >> 53) & 0x7ff;
 		if ((*table & _REGION_ENTRY_INVALID) &&
 		    gmap_alloc_table(gmap, table, _REGION2_ENTRY_EMPTY,
-				     gaddr & 0xffe0000000000000))
+				     gaddr & 0xffe0000000000000UL))
 			return -ENOMEM;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 	}
@@ -534,7 +535,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		table += (gaddr >> 42) & 0x7ff;
 		if ((*table & _REGION_ENTRY_INVALID) &&
 		    gmap_alloc_table(gmap, table, _REGION3_ENTRY_EMPTY,
-				     gaddr & 0xfffffc0000000000))
+				     gaddr & 0xfffffc0000000000UL))
 			return -ENOMEM;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 	}
@@ -542,7 +543,7 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 		table += (gaddr >> 31) & 0x7ff;
 		if ((*table & _REGION_ENTRY_INVALID) &&
 		    gmap_alloc_table(gmap, table, _SEGMENT_ENTRY_EMPTY,
-				     gaddr & 0xffffffff80000000))
+				     gaddr & 0xffffffff80000000UL))
 			return -ENOMEM;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
 	}
@@ -844,7 +845,7 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 
 	down_read(&mm->mmap_sem);
 retry:
-	ptep = get_locked_pte(current->mm, addr, &ptl);
+	ptep = get_locked_pte(mm, addr, &ptl);
 	if (unlikely(!ptep)) {
 		up_read(&mm->mmap_sem);
 		return -EFAULT;
@@ -887,6 +888,45 @@ retry:
 	return 0;
 }
 EXPORT_SYMBOL(set_guest_storage_key);
+
+unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr)
+{
+	spinlock_t *ptl;
+	pgste_t pgste;
+	pte_t *ptep;
+	uint64_t physaddr;
+	unsigned long key = 0;
+
+	down_read(&mm->mmap_sem);
+	ptep = get_locked_pte(mm, addr, &ptl);
+	if (unlikely(!ptep)) {
+		up_read(&mm->mmap_sem);
+		return -EFAULT;
+	}
+	pgste = pgste_get_lock(ptep);
+
+	if (pte_val(*ptep) & _PAGE_INVALID) {
+		key |= (pgste_val(pgste) & PGSTE_ACC_BITS) >> 56;
+		key |= (pgste_val(pgste) & PGSTE_FP_BIT) >> 56;
+		key |= (pgste_val(pgste) & PGSTE_GR_BIT) >> 48;
+		key |= (pgste_val(pgste) & PGSTE_GC_BIT) >> 48;
+	} else {
+		physaddr = pte_val(*ptep) & PAGE_MASK;
+		key = page_get_storage_key(physaddr);
+
+		/* Reflect guest's logical view, not physical */
+		if (pgste_val(pgste) & PGSTE_GR_BIT)
+			key |= _PAGE_REFERENCED;
+		if (pgste_val(pgste) & PGSTE_GC_BIT)
+			key |= _PAGE_CHANGED;
+	}
+
+	pgste_set_unlock(ptep, pgste);
+	pte_unmap_unlock(ptep, ptl);
+	up_read(&mm->mmap_sem);
+	return key;
+}
+EXPORT_SYMBOL(get_guest_storage_key);
 
 #else /* CONFIG_PGSTE */
 

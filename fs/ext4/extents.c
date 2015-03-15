@@ -5166,8 +5166,8 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 	/* fallback to generic here if not in extents fmt */
 	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
-		return __generic_block_fiemap(inode, fieinfo, start, len,
-					      ext4_get_block);
+		return generic_block_fiemap(inode, fieinfo, start, len,
+			ext4_get_block);
 
 	if (fiemap_check_flags(fieinfo, EXT4_FIEMAP_FLAGS))
 		return -EBADR;

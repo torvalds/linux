@@ -514,6 +514,9 @@ const struct ip_tunnel_encap_ops __rcu *
 int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *ops,
 			    unsigned int num)
 {
+	if (num >= MAX_IPTUN_ENCAP_OPS)
+		return -ERANGE;
+
 	return !cmpxchg((const struct ip_tunnel_encap_ops **)
 			&iptun_encaps[num],
 			NULL, ops) ? 0 : -1;
@@ -524,6 +527,9 @@ int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *ops,
 			    unsigned int num)
 {
 	int ret;
+
+	if (num >= MAX_IPTUN_ENCAP_OPS)
+		return -ERANGE;
 
 	ret = (cmpxchg((const struct ip_tunnel_encap_ops **)
 		       &iptun_encaps[num],
@@ -566,6 +572,9 @@ int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
 
 	if (t->encap.type == TUNNEL_ENCAP_NONE)
 		return 0;
+
+	if (t->encap.type >= MAX_IPTUN_ENCAP_OPS)
+		return -EINVAL;
 
 	rcu_read_lock();
 	ops = rcu_dereference(iptun_encaps[t->encap.type]);
@@ -962,6 +971,14 @@ void ip_tunnel_dellink(struct net_device *dev, struct list_head *head)
 	}
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_dellink);
+
+struct net *ip_tunnel_get_link_net(const struct net_device *dev)
+{
+	struct ip_tunnel *tunnel = netdev_priv(dev);
+
+	return tunnel->net;
+}
+EXPORT_SYMBOL(ip_tunnel_get_link_net);
 
 int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 				  struct rtnl_link_ops *ops, char *devname)

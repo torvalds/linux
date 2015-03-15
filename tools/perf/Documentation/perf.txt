@@ -18,6 +18,10 @@ OPTIONS
 	  --debug verbose   # sets verbose = 1
 	  --debug verbose=2 # sets verbose = 2
 
+--buildid-dir::
+	Setup buildid cache directory. It has higher priority than
+	buildid.dir config file option.
+
 DESCRIPTION
 -----------
 Performance counters for Linux are a new kernel-based subsystem

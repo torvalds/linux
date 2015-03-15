@@ -2,9 +2,6 @@
 # Makefile for the video capture/playback device drivers.
 #
 
-obj-$(CONFIG_VIDEO_VINO) += indycam.o
-obj-$(CONFIG_VIDEO_VINO) += vino.o
-
 obj-$(CONFIG_VIDEO_TIMBERDALE)	+= timblogiw.o
 obj-$(CONFIG_VIDEO_M32R_AR_M64278) += arv.o
 
@@ -48,5 +45,7 @@ obj-$(CONFIG_SOC_CAMERA)		+= soc_camera/
 obj-$(CONFIG_VIDEO_RENESAS_VSP1)	+= vsp1/
 
 obj-y	+= omap/
+
+obj-$(CONFIG_VIDEO_AM437X_VPFE)		+= am437x/
 
 ccflags-y += -I$(srctree)/drivers/media/i2c

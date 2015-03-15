@@ -157,6 +157,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_CMD";
 	case MLX5_EVENT_TYPE_PAGE_REQUEST:
 		return "MLX5_EVENT_TYPE_PAGE_REQUEST";
+	case MLX5_EVENT_TYPE_PAGE_FAULT:
+		return "MLX5_EVENT_TYPE_PAGE_FAULT";
 	default:
 		return "Unrecognized event";
 	}
@@ -279,6 +281,11 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			}
 			break;
 
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+		case MLX5_EVENT_TYPE_PAGE_FAULT:
+			mlx5_eq_pagefault(dev, eqe);
+			break;
+#endif
 
 		default:
 			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
@@ -446,7 +453,11 @@ void mlx5_eq_cleanup(struct mlx5_core_dev *dev)
 int mlx5_start_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	u32 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
+
+	if (dev->caps.gen.flags & MLX5_DEV_CAP_FLAG_ON_DMND_PG)
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PAGE_FAULT);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
@@ -459,7 +470,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	mlx5_cmd_use_events(dev);
 
 	err = mlx5_create_map_eq(dev, &table->async_eq, MLX5_EQ_VEC_ASYNC,
-				 MLX5_NUM_ASYNC_EQE, MLX5_ASYNC_EVENT_MASK,
+				 MLX5_NUM_ASYNC_EQE, async_event_mask,
 				 "mlx5_async_eq", &dev->priv.uuari.uars[0]);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);

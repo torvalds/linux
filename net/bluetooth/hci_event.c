@@ -30,9 +30,14 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
 
+#include "hci_request.h"
+#include "hci_debugfs.h"
 #include "a2mp.h"
 #include "amp.h"
 #include "smp.h"
+
+#define ZERO_KEY "\x00\x00\x00\x00\x00\x00\x00\x00" \
+		 "\x00\x00\x00\x00\x00\x00\x00\x00"
 
 /* Handle HCI Event packets */
 
@@ -195,7 +200,8 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 	/* Reset all non-persistent flags */
 	hdev->dev_flags &= ~HCI_PERSISTENT_MASK;
 
-	hdev->discovery.state = DISCOVERY_STOPPED;
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+
 	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
 	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
 
@@ -210,6 +216,40 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 	hdev->ssp_debug_mode = 0;
 
 	hci_bdaddr_list_clear(&hdev->le_white_list);
+}
+
+static void hci_cc_read_stored_link_key(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_rp_read_stored_link_key *rp = (void *)skb->data;
+	struct hci_cp_read_stored_link_key *sent;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_READ_STORED_LINK_KEY);
+	if (!sent)
+		return;
+
+	if (!rp->status && sent->read_all == 0x01) {
+		hdev->stored_max_keys = rp->max_keys;
+		hdev->stored_num_keys = rp->num_keys;
+	}
+}
+
+static void hci_cc_delete_stored_link_key(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_rp_delete_stored_link_key *rp = (void *)skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	if (rp->num_keys <= hdev->stored_num_keys)
+		hdev->stored_num_keys -= rp->num_keys;
+	else
+		hdev->stored_num_keys = 0;
 }
 
 static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
@@ -242,7 +282,8 @@ static void hci_cc_read_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 	if (rp->status)
 		return;
 
-	if (test_bit(HCI_SETUP, &hdev->dev_flags))
+	if (test_bit(HCI_SETUP, &hdev->dev_flags) ||
+	    test_bit(HCI_CONFIG, &hdev->dev_flags))
 		memcpy(hdev->dev_name, rp->name, HCI_MAX_NAME_LENGTH);
 }
 
@@ -257,6 +298,8 @@ static void hci_cc_write_auth_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!sent)
 		return;
 
+	hci_dev_lock(hdev);
+
 	if (!status) {
 		__u8 param = *((__u8 *) sent);
 
@@ -268,6 +311,8 @@ static void hci_cc_write_auth_enable(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_auth_enable_complete(hdev, status);
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_write_encrypt_mode(struct hci_dev *hdev, struct sk_buff *skb)
@@ -443,6 +488,8 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!sent)
 		return;
 
+	hci_dev_lock(hdev);
+
 	if (!status) {
 		if (sent->mode)
 			hdev->features[1][0] |= LMP_HOST_SSP;
@@ -458,6 +505,8 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 		else
 			clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
 	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_write_sc_support(struct hci_dev *hdev, struct sk_buff *skb)
@@ -471,6 +520,8 @@ static void hci_cc_write_sc_support(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!sent)
 		return;
 
+	hci_dev_lock(hdev);
+
 	if (!status) {
 		if (sent->support)
 			hdev->features[1][0] |= LMP_HOST_SC;
@@ -478,14 +529,14 @@ static void hci_cc_write_sc_support(struct hci_dev *hdev, struct sk_buff *skb)
 			hdev->features[1][0] &= ~LMP_HOST_SC;
 	}
 
-	if (test_bit(HCI_MGMT, &hdev->dev_flags))
-		mgmt_sc_enable_complete(hdev, sent->support, status);
-	else if (!status) {
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags) && !status) {
 		if (sent->support)
 			set_bit(HCI_SC_ENABLED, &hdev->dev_flags);
 		else
 			clear_bit(HCI_SC_ENABLED, &hdev->dev_flags);
 	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
@@ -497,7 +548,8 @@ static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
 	if (rp->status)
 		return;
 
-	if (test_bit(HCI_SETUP, &hdev->dev_flags)) {
+	if (test_bit(HCI_SETUP, &hdev->dev_flags) ||
+	    test_bit(HCI_CONFIG, &hdev->dev_flags)) {
 		hdev->hci_ver = rp->hci_ver;
 		hdev->hci_rev = __le16_to_cpu(rp->hci_rev);
 		hdev->lmp_ver = rp->lmp_ver;
@@ -516,7 +568,8 @@ static void hci_cc_read_local_commands(struct hci_dev *hdev,
 	if (rp->status)
 		return;
 
-	if (test_bit(HCI_SETUP, &hdev->dev_flags))
+	if (test_bit(HCI_SETUP, &hdev->dev_flags) ||
+	    test_bit(HCI_CONFIG, &hdev->dev_flags))
 		memcpy(hdev->commands, rp->commands, sizeof(hdev->commands));
 }
 
@@ -1135,6 +1188,8 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	if (!cp)
 		return;
 
+	hci_dev_lock(hdev);
+
 	switch (cp->enable) {
 	case LE_SCAN_ENABLE:
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
@@ -1184,6 +1239,8 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		BT_ERR("Used reserved LE_Scan_Enable param %d", cp->enable);
 		break;
 	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_le_read_white_list_size(struct hci_dev *hdev,
@@ -1263,6 +1320,55 @@ static void hci_cc_le_read_supported_states(struct hci_dev *hdev,
 	memcpy(hdev->le_states, rp->le_states, 8);
 }
 
+static void hci_cc_le_read_def_data_len(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_rp_le_read_def_data_len *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hdev->le_def_tx_len = le16_to_cpu(rp->tx_len);
+	hdev->le_def_tx_time = le16_to_cpu(rp->tx_time);
+}
+
+static void hci_cc_le_write_def_data_len(struct hci_dev *hdev,
+					 struct sk_buff *skb)
+{
+	struct hci_cp_le_write_def_data_len *sent;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_WRITE_DEF_DATA_LEN);
+	if (!sent)
+		return;
+
+	hdev->le_def_tx_len = le16_to_cpu(sent->tx_len);
+	hdev->le_def_tx_time = le16_to_cpu(sent->tx_time);
+}
+
+static void hci_cc_le_read_max_data_len(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_rp_le_read_max_data_len *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hdev->le_max_tx_len = le16_to_cpu(rp->tx_len);
+	hdev->le_max_tx_time = le16_to_cpu(rp->tx_time);
+	hdev->le_max_rx_len = le16_to_cpu(rp->rx_len);
+	hdev->le_max_rx_time = le16_to_cpu(rp->rx_time);
+}
+
 static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 					   struct sk_buff *skb)
 {
@@ -1278,6 +1384,8 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 	if (!sent)
 		return;
 
+	hci_dev_lock(hdev);
+
 	if (sent->le) {
 		hdev->features[1][0] |= LMP_HOST_LE;
 		set_bit(HCI_LE_ENABLED, &hdev->dev_flags);
@@ -1291,6 +1399,8 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 		hdev->features[1][0] |= LMP_HOST_LE_BREDR;
 	else
 		hdev->features[1][0] &= ~LMP_HOST_LE_BREDR;
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_set_adv_param(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1377,6 +1487,21 @@ static void hci_cc_read_tx_power(struct hci_dev *hdev, struct sk_buff *skb)
 
 unlock:
 	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_write_ssp_debug_mode(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	u8 status = *((u8 *) skb->data);
+	u8 *mode;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	mode = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE);
+	if (mode)
+		hdev->ssp_debug_mode = *mode;
 }
 
 static void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
@@ -2092,6 +2217,7 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		} else
 			conn->state = BT_CONNECTED;
 
+		hci_debugfs_create_conn(conn);
 		hci_conn_add_sysfs(conn);
 
 		if (test_bit(HCI_AUTH, &hdev->flags))
@@ -2107,7 +2233,7 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			hci_send_cmd(hdev, HCI_OP_READ_REMOTE_FEATURES,
 				     sizeof(cp), &cp);
 
-			hci_update_page_scan(hdev, NULL);
+			hci_update_page_scan(hdev);
 		}
 
 		/* Set packet type for incoming connection */
@@ -2174,7 +2300,12 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 	}
 
-	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
+	/* Require HCI_CONNECTABLE or a whitelist entry to accept the
+	 * connection. These features are only touched through mgmt so
+	 * only do the checks if HCI_MGMT is set.
+	 */
+	if (test_bit(HCI_MGMT, &hdev->dev_flags) &&
+	    !test_bit(HCI_CONNECTABLE, &hdev->dev_flags) &&
 	    !hci_bdaddr_list_lookup(&hdev->whitelist, &ev->bdaddr,
 				    BDADDR_BREDR)) {
 		    hci_reject_conn(hdev, &ev->bdaddr);
@@ -2288,7 +2419,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		if (test_bit(HCI_CONN_FLUSH_KEY, &conn->flags))
 			hci_remove_link_key(hdev, &conn->dst);
 
-		hci_update_page_scan(hdev, NULL);
+		hci_update_page_scan(hdev);
 	}
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
@@ -2555,7 +2686,8 @@ static void hci_remote_features_evt(struct hci_dev *hdev,
 	if (conn->state != BT_CONFIG)
 		goto unlock;
 
-	if (!ev->status && lmp_ssp_capable(hdev) && lmp_ssp_capable(conn)) {
+	if (!ev->status && lmp_ext_feat_capable(hdev) &&
+	    lmp_ext_feat_capable(conn)) {
 		struct hci_cp_read_remote_ext_features cp;
 		cp.handle = ev->handle;
 		cp.page = 0x01;
@@ -2632,6 +2764,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_RESET:
 		hci_cc_reset(hdev, skb);
+		break;
+
+	case HCI_OP_READ_STORED_LINK_KEY:
+		hci_cc_read_stored_link_key(hdev, skb);
+		break;
+
+	case HCI_OP_DELETE_STORED_LINK_KEY:
+		hci_cc_delete_stored_link_key(hdev, skb);
 		break;
 
 	case HCI_OP_WRITE_LOCAL_NAME:
@@ -2826,6 +2966,18 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_cc_le_read_supported_states(hdev, skb);
 		break;
 
+	case HCI_OP_LE_READ_DEF_DATA_LEN:
+		hci_cc_le_read_def_data_len(hdev, skb);
+		break;
+
+	case HCI_OP_LE_WRITE_DEF_DATA_LEN:
+		hci_cc_le_write_def_data_len(hdev, skb);
+		break;
+
+	case HCI_OP_LE_READ_MAX_DATA_LEN:
+		hci_cc_le_read_max_data_len(hdev, skb);
+		break;
+
 	case HCI_OP_WRITE_LE_HOST_SUPPORTED:
 		hci_cc_write_le_host_supported(hdev, skb);
 		break;
@@ -2844,6 +2996,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_READ_TX_POWER:
 		hci_cc_read_tx_power(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_SSP_DEBUG_MODE:
+		hci_cc_write_ssp_debug_mode(hdev, skb);
 		break;
 
 	default:
@@ -2964,7 +3120,9 @@ static void hci_hardware_error_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_hardware_error *ev = (void *) skb->data;
 
-	BT_ERR("%s hardware error 0x%2.2x", hdev->name, ev->code);
+	hdev->hw_error_code = ev->code;
+
+	queue_work(hdev->req_workqueue, &hdev->error_reset);
 }
 
 static void hci_role_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3556,6 +3714,7 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 		conn->handle = __le16_to_cpu(ev->handle);
 		conn->state  = BT_CONNECTED;
 
+		hci_debugfs_create_conn(conn);
 		hci_conn_add_sysfs(conn);
 		break;
 
@@ -3722,6 +3881,52 @@ static u8 hci_get_auth_req(struct hci_conn *conn)
 	return (conn->remote_auth & ~0x01) | (conn->auth_type & 0x01);
 }
 
+static u8 bredr_oob_data_present(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct oob_data *data;
+
+	data = hci_find_remote_oob_data(hdev, &conn->dst, BDADDR_BREDR);
+	if (!data)
+		return 0x00;
+
+	if (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)) {
+		if (bredr_sc_enabled(hdev)) {
+			/* When Secure Connections is enabled, then just
+			 * return the present value stored with the OOB
+			 * data. The stored value contains the right present
+			 * information. However it can only be trusted when
+			 * not in Secure Connection Only mode.
+			 */
+			if (!test_bit(HCI_SC_ONLY, &hdev->dev_flags))
+				return data->present;
+
+			/* When Secure Connections Only mode is enabled, then
+			 * the P-256 values are required. If they are not
+			 * available, then do not declare that OOB data is
+			 * present.
+			 */
+			if (!memcmp(data->rand256, ZERO_KEY, 16) ||
+			    !memcmp(data->hash256, ZERO_KEY, 16))
+				return 0x00;
+
+			return 0x02;
+		}
+
+		/* When Secure Connections is not enabled or actually
+		 * not supported by the hardware, then check that if
+		 * P-192 data values are present.
+		 */
+		if (!memcmp(data->rand192, ZERO_KEY, 16) ||
+		    !memcmp(data->hash192, ZERO_KEY, 16))
+			return 0x00;
+
+		return 0x01;
+	}
+
+	return 0x00;
+}
+
 static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_io_capa_request *ev = (void *) skb->data;
@@ -3773,12 +3978,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->auth_type &= HCI_AT_NO_BONDING_MITM;
 
 		cp.authentication = conn->auth_type;
-
-		if (hci_find_remote_oob_data(hdev, &conn->dst, BDADDR_BREDR) &&
-		    (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)))
-			cp.oob_data = 0x01;
-		else
-			cp.oob_data = 0x00;
+		cp.oob_data = bredr_oob_data_present(conn);
 
 		hci_send_cmd(hdev, HCI_OP_IO_CAPABILITY_REPLY,
 			     sizeof(cp), &cp);
@@ -4030,33 +4230,39 @@ static void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 		goto unlock;
 
 	data = hci_find_remote_oob_data(hdev, &ev->bdaddr, BDADDR_BREDR);
-	if (data) {
-		if (bredr_sc_enabled(hdev)) {
-			struct hci_cp_remote_oob_ext_data_reply cp;
-
-			bacpy(&cp.bdaddr, &ev->bdaddr);
-			memcpy(cp.hash192, data->hash192, sizeof(cp.hash192));
-			memcpy(cp.rand192, data->rand192, sizeof(cp.rand192));
-			memcpy(cp.hash256, data->hash256, sizeof(cp.hash256));
-			memcpy(cp.rand256, data->rand256, sizeof(cp.rand256));
-
-			hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_EXT_DATA_REPLY,
-				     sizeof(cp), &cp);
-		} else {
-			struct hci_cp_remote_oob_data_reply cp;
-
-			bacpy(&cp.bdaddr, &ev->bdaddr);
-			memcpy(cp.hash, data->hash192, sizeof(cp.hash));
-			memcpy(cp.rand, data->rand192, sizeof(cp.rand));
-
-			hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_REPLY,
-				     sizeof(cp), &cp);
-		}
-	} else {
+	if (!data) {
 		struct hci_cp_remote_oob_data_neg_reply cp;
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
 		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_NEG_REPLY,
+			     sizeof(cp), &cp);
+		goto unlock;
+	}
+
+	if (bredr_sc_enabled(hdev)) {
+		struct hci_cp_remote_oob_ext_data_reply cp;
+
+		bacpy(&cp.bdaddr, &ev->bdaddr);
+		if (test_bit(HCI_SC_ONLY, &hdev->dev_flags)) {
+			memset(cp.hash192, 0, sizeof(cp.hash192));
+			memset(cp.rand192, 0, sizeof(cp.rand192));
+		} else {
+			memcpy(cp.hash192, data->hash192, sizeof(cp.hash192));
+			memcpy(cp.rand192, data->rand192, sizeof(cp.rand192));
+		}
+		memcpy(cp.hash256, data->hash256, sizeof(cp.hash256));
+		memcpy(cp.rand256, data->rand256, sizeof(cp.rand256));
+
+		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_EXT_DATA_REPLY,
+			     sizeof(cp), &cp);
+	} else {
+		struct hci_cp_remote_oob_data_reply cp;
+
+		bacpy(&cp.bdaddr, &ev->bdaddr);
+		memcpy(cp.hash, data->hash192, sizeof(cp.hash));
+		memcpy(cp.rand, data->rand192, sizeof(cp.rand));
+
+		hci_send_cmd(hdev, HCI_OP_REMOTE_OOB_DATA_REPLY,
 			     sizeof(cp), &cp);
 	}
 
@@ -4096,6 +4302,7 @@ static void hci_phy_link_complete_evt(struct hci_dev *hdev,
 	hcon->disc_timeout = HCI_DISCONN_TIMEOUT;
 	hci_conn_drop(hcon);
 
+	hci_debugfs_create_conn(hcon);
 	hci_conn_add_sysfs(hcon);
 
 	amp_physical_cfm(bredr_hcon, hcon);
@@ -4302,6 +4509,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	conn->le_conn_latency = le16_to_cpu(ev->latency);
 	conn->le_supv_timeout = le16_to_cpu(ev->supervision_timeout);
 
+	hci_debugfs_create_conn(conn);
 	hci_conn_add_sysfs(conn);
 
 	hci_proto_connect_cfm(conn, ev->status);

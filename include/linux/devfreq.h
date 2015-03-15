@@ -188,7 +188,7 @@ extern struct devfreq *devm_devfreq_add_device(struct device *dev,
 extern void devm_devfreq_remove_device(struct device *dev,
 				  struct devfreq *devfreq);
 
-/* Supposed to be called by PM_SLEEP/PM_RUNTIME callbacks */
+/* Supposed to be called by PM callbacks */
 extern int devfreq_suspend_device(struct devfreq *devfreq);
 extern int devfreq_resume_device(struct devfreq *devfreq);
 

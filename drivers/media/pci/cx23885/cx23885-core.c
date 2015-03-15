@@ -2049,10 +2049,10 @@ static void cx23885_finidev(struct pci_dev *pci_dev)
 
 	cx23885_shutdown(dev);
 
-	pci_disable_device(pci_dev);
-
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
+
+	pci_disable_device(pci_dev);
 
 	cx23885_dev_unregister(dev);
 	vb2_dma_sg_cleanup_ctx(dev->alloc_ctx);

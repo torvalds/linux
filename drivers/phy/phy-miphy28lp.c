@@ -194,6 +194,14 @@
 #define MIPHY_SATA_BANK_NB	3
 #define MIPHY_PCIE_BANK_NB	2
 
+enum {
+	SYSCFG_CTRL,
+	SYSCFG_STATUS,
+	SYSCFG_PCI,
+	SYSCFG_SATA,
+	SYSCFG_REG_MAX,
+};
+
 struct miphy28lp_phy {
 	struct phy *phy;
 	struct miphy28lp_dev *phydev;
@@ -211,10 +219,7 @@ struct miphy28lp_phy {
 	u32 sata_gen;
 
 	/* Sysconfig registers offsets needed to configure the device */
-	u32 syscfg_miphy_ctrl;
-	u32 syscfg_miphy_status;
-	u32 syscfg_pci;
-	u32 syscfg_sata;
+	u32 syscfg_reg[SYSCFG_REG_MAX];
 	u8 type;
 };
 
@@ -834,12 +839,12 @@ static int miphy_osc_is_ready(struct miphy28lp_phy *miphy_phy)
 	if (!miphy_phy->osc_rdy)
 		return 0;
 
-	if (!miphy_phy->syscfg_miphy_status)
+	if (!miphy_phy->syscfg_reg[SYSCFG_STATUS])
 		return -EINVAL;
 
 	do {
-		regmap_read(miphy_dev->regmap, miphy_phy->syscfg_miphy_status,
-			    &val);
+		regmap_read(miphy_dev->regmap,
+				miphy_phy->syscfg_reg[SYSCFG_STATUS], &val);
 
 		if ((val & MIPHY_OSC_RDY) != MIPHY_OSC_RDY)
 			cpu_relax();
@@ -888,7 +893,7 @@ static int miphy28lp_setup(struct miphy28lp_phy *miphy_phy, u32 miphy_val)
 	int err;
 	struct miphy28lp_dev *miphy_dev = miphy_phy->phydev;
 
-	if (!miphy_phy->syscfg_miphy_ctrl)
+	if (!miphy_phy->syscfg_reg[SYSCFG_CTRL])
 		return -EINVAL;
 
 	err = reset_control_assert(miphy_phy->miphy_rst);
@@ -900,7 +905,8 @@ static int miphy28lp_setup(struct miphy28lp_phy *miphy_phy, u32 miphy_val)
 	if (miphy_phy->osc_force_ext)
 		miphy_val |= MIPHY_OSC_FORCE_EXT;
 
-	regmap_update_bits(miphy_dev->regmap, miphy_phy->syscfg_miphy_ctrl,
+	regmap_update_bits(miphy_dev->regmap,
+			   miphy_phy->syscfg_reg[SYSCFG_CTRL],
 			   MIPHY_CTRL_MASK, miphy_val);
 
 	err = reset_control_deassert(miphy_phy->miphy_rst);
@@ -917,8 +923,9 @@ static int miphy28lp_init_sata(struct miphy28lp_phy *miphy_phy)
 	struct miphy28lp_dev *miphy_dev = miphy_phy->phydev;
 	int err, sata_conf = SATA_CTRL_SELECT_SATA;
 
-	if ((!miphy_phy->syscfg_sata) || (!miphy_phy->syscfg_pci)
-		|| (!miphy_phy->base))
+	if ((!miphy_phy->syscfg_reg[SYSCFG_SATA]) ||
+			(!miphy_phy->syscfg_reg[SYSCFG_PCI]) ||
+			(!miphy_phy->base))
 		return -EINVAL;
 
 	dev_info(miphy_dev->dev, "sata-up mode, addr 0x%p\n", miphy_phy->base);
@@ -926,10 +933,11 @@ static int miphy28lp_init_sata(struct miphy28lp_phy *miphy_phy)
 	/* Configure the glue-logic */
 	sata_conf |= ((miphy_phy->sata_gen - SATA_GEN1) << SATA_SPDMODE);
 
-	regmap_update_bits(miphy_dev->regmap, miphy_phy->syscfg_sata,
+	regmap_update_bits(miphy_dev->regmap,
+			   miphy_phy->syscfg_reg[SYSCFG_SATA],
 			   SATA_CTRL_MASK, sata_conf);
 
-	regmap_update_bits(miphy_dev->regmap, miphy_phy->syscfg_pci,
+	regmap_update_bits(miphy_dev->regmap, miphy_phy->syscfg_reg[SYSCFG_PCI],
 			   PCIE_CTRL_MASK, SATA_CTRL_SELECT_PCIE);
 
 	/* MiPHY path and clocking init */
@@ -951,17 +959,19 @@ static int miphy28lp_init_pcie(struct miphy28lp_phy *miphy_phy)
 	struct miphy28lp_dev *miphy_dev = miphy_phy->phydev;
 	int err;
 
-	if ((!miphy_phy->syscfg_sata) || (!miphy_phy->syscfg_pci)
+	if ((!miphy_phy->syscfg_reg[SYSCFG_SATA]) ||
+			(!miphy_phy->syscfg_reg[SYSCFG_PCI])
 		|| (!miphy_phy->base) || (!miphy_phy->pipebase))
 		return -EINVAL;
 
 	dev_info(miphy_dev->dev, "pcie-up mode, addr 0x%p\n", miphy_phy->base);
 
 	/* Configure the glue-logic */
-	regmap_update_bits(miphy_dev->regmap, miphy_phy->syscfg_sata,
+	regmap_update_bits(miphy_dev->regmap,
+			   miphy_phy->syscfg_reg[SYSCFG_SATA],
 			   SATA_CTRL_MASK, SATA_CTRL_SELECT_PCIE);
 
-	regmap_update_bits(miphy_dev->regmap, miphy_phy->syscfg_pci,
+	regmap_update_bits(miphy_dev->regmap, miphy_phy->syscfg_reg[SYSCFG_PCI],
 			   PCIE_CTRL_MASK, SYSCFG_PCIE_PCIE_VAL);
 
 	/* MiPHY path and clocking init */
@@ -1050,7 +1060,8 @@ static int miphy28lp_init(struct phy *phy)
 		ret = miphy28lp_init_usb3(miphy_phy);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
 
 	mutex_unlock(&miphy_dev->miphy_mutex);
@@ -1155,7 +1166,8 @@ static int miphy28lp_probe_resets(struct device_node *node,
 static int miphy28lp_of_probe(struct device_node *np,
 			      struct miphy28lp_phy *miphy_phy)
 {
-	struct resource res;
+	int i;
+	u32 ctrlreg;
 
 	miphy_phy->osc_force_ext =
 		of_property_read_bool(np, "st,osc-force-ext");
@@ -1174,18 +1186,10 @@ static int miphy28lp_of_probe(struct device_node *np,
 	if (!miphy_phy->sata_gen)
 		miphy_phy->sata_gen = SATA_GEN1;
 
-	if (!miphy28lp_get_resource_byname(np, "miphy-ctrl-glue", &res))
-		miphy_phy->syscfg_miphy_ctrl = res.start;
-
-	if (!miphy28lp_get_resource_byname(np, "miphy-status-glue", &res))
-		miphy_phy->syscfg_miphy_status = res.start;
-
-	if (!miphy28lp_get_resource_byname(np, "pcie-glue", &res))
-		miphy_phy->syscfg_pci = res.start;
-
-	if (!miphy28lp_get_resource_byname(np, "sata-glue", &res))
-		miphy_phy->syscfg_sata = res.start;
-
+	for (i = 0; i < SYSCFG_REG_MAX; i++) {
+		if (!of_property_read_u32_index(np, "st,syscfg", i, &ctrlreg))
+			miphy_phy->syscfg_reg[i] = ctrlreg;
+	}
 
 	return 0;
 }

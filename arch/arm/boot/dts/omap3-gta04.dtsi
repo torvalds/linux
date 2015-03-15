@@ -83,6 +83,41 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	};
+
+	tv0: connector@1 {
+		compatible = "svideo-connector";
+		label = "tv";
+
+		port {
+			tv_connector_in: endpoint {
+				remote-endpoint = <&opa_out>;
+			};
+		};
+	};
+
+	tv_amp: opa362 {
+		compatible = "ti,opa362";
+		enable-gpios = <&gpio1 23 0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				opa_in: endpoint@0 {
+					remote-endpoint = <&venc_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				opa_out: endpoint@0 {
+					remote-endpoint = <&tv_connector_in>;
+				};
+			};
+		};
+	};
 };
 
 &omap3_pmx_core {
@@ -202,11 +237,18 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
-	};
 
-	twl_audio: audio {
-		compatible = "ti,twl4030-audio";
-		codec {
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			ti,enable-vibra = <1>;
+			codec {
+				ti,ramp_delay_value = <3>;
+			};
+		};
+
+		twl_power: power {
+			compatible = "ti,twl4030-power";
+			ti,use_poweroff;
 		};
 	};
 };
@@ -222,15 +264,23 @@
 		compatible = "bosch,bmp085";
 		reg = <0x77>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <17 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <17 IRQ_TYPE_EDGE_RISING>; /* GPIO_113 */
 	};
 
 	/* accelerometer */
 	bma180@41 {
 		compatible = "bosch,bma180";
 		reg = <0x41>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <19 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <19 IRQ_TYPE_LEVEL_HIGH>; /* GPIO_115 */
+	};
+
+	/* gyroscope */
+	itg3200@68 {
+		compatible = "invensense,itg3200";
+		reg = <0x68>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <24 0>; /* GPIO_56 */
 	};
 
 	/* leds */
@@ -281,7 +331,7 @@
 		compatible = "ti,tsc2007";
 		reg = <0x48>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>; /* GPIO_160 */
 		gpios = <&gpio6 0 GPIO_ACTIVE_LOW>;
 		ti,x-plate-ohms = <600>;
 	};
@@ -320,9 +370,14 @@
 	vmmc-supply = <&vaux4>;
 	bus-width = <4>;
 	ti,non-removable;
+	cap-power-off-card;
 };
 
 &mmc3 {
+	status = "disabled";
+};
+
+&twl_keypad {
 	status = "disabled";
 };
 
@@ -342,8 +397,8 @@
 };
 
 &charger {
-	bb_uvolt = <3200000>;
-	bb_uamp = <150>;
+	ti,bb-uvolt = <3200000>;
+	ti,bb-uamp = <150>;
 };
 
 /* spare */
@@ -377,21 +432,31 @@
 	regulator-max-microvolt = <3150000>;
 };
 
-/* Needed to power the DPI pins */
-&vpll2 {
-	regulator-always-on;
-};
-
 &dss {
 	pinctrl-names = "default";
 	pinctrl-0 = < &dss_dpi_pins >;
 
 	status = "okay";
+	vdds_dsi-supply = <&vpll2>;
 
 	port {
 		dpi_out: endpoint {
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
+		};
+	};
+};
+
+&venc {
+	status = "okay";
+
+	vdda-supply = <&vdac>;
+
+	port {
+		venc_out: endpoint {
+			remote-endpoint = <&opa_in>;
+			ti,channels = <2>;
+			ti,invert-polarity;
 		};
 	};
 };
@@ -448,4 +513,8 @@
 			reg = <0x680000 0xf980000>;
 		};
 	};
+};
+
+&mcbsp2 {
+	status = "okay";
 };
