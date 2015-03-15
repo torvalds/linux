@@ -627,6 +627,7 @@ struct uclogic_drvdata {
 	__u8 *rdesc;
 	unsigned int rsize;
 	bool invert_pen_inrange;
+	bool ignore_pen_usage;
 };
 
 static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
@@ -719,16 +720,12 @@ static int uclogic_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	struct usb_interface *intf;
+	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 
-	if (hdev->product == USB_DEVICE_ID_HUION_TABLET) {
-		intf = to_usb_interface(hdev->dev.parent);
-
-		/* discard the unused pen interface */
-		if ((intf->cur_altsetting->desc.bInterfaceNumber != 0) &&
-		    (field->application == HID_DG_PEN))
-			return -1;
-	}
+	/* discard the unused pen interface */
+	if ((drvdata->ignore_pen_usage) &&
+	    (field->application == HID_DG_PEN))
+		return -1;
 
 	/* let hid-core decide what to do */
 	return 0;
@@ -908,6 +905,8 @@ static int uclogic_probe(struct hid_device *hdev,
 				return rc;
 			}
 			drvdata->invert_pen_inrange = true;
+		} else {
+			drvdata->ignore_pen_usage = true;
 		}
 		break;
 	}
