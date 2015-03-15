@@ -258,7 +258,7 @@ static int mn88472_init(struct dvb_frontend *fe)
 	int ret, len, remaining;
 	const struct firmware *fw = NULL;
 	u8 *fw_file = MN88472_FIRMWARE;
-	unsigned int csum;
+	unsigned int tmp;
 
 	dev_dbg(&client->dev, "\n");
 
@@ -273,6 +273,17 @@ static int mn88472_init(struct dvb_frontend *fe)
 	ret = regmap_bulk_write(dev->regmap[2], 0x0b, "\x00\x00", 2);
 	if (ret)
 		goto err;
+
+	/* check if firmware is already running */
+	ret = regmap_read(dev->regmap[0], 0xf5, &tmp);
+	if (ret)
+		goto err;
+
+	if (!(tmp & 0x1)) {
+		dev_info(&client->dev, "firmware already running\n");
+		dev->warm = true;
+		return 0;
+	}
 
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &client->dev);
@@ -305,18 +316,18 @@ static int mn88472_init(struct dvb_frontend *fe)
 	}
 
 	/* parity check of firmware */
-	ret = regmap_read(dev->regmap[0], 0xf8, &csum);
+	ret = regmap_read(dev->regmap[0], 0xf8, &tmp);
 	if (ret) {
 		dev_err(&client->dev,
 				"parity reg read failed=%d\n", ret);
 		goto err;
 	}
-	if (csum & 0x10) {
+	if (tmp & 0x10) {
 		dev_err(&client->dev,
-				"firmware parity check failed=0x%x\n", csum);
+				"firmware parity check failed=0x%x\n", tmp);
 		goto err;
 	}
-	dev_err(&client->dev, "firmware parity check succeeded=0x%x\n", csum);
+	dev_err(&client->dev, "firmware parity check succeeded=0x%x\n", tmp);
 
 	ret = regmap_write(dev->regmap[0], 0xf5, 0x00);
 	if (ret)
