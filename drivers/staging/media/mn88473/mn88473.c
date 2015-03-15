@@ -196,8 +196,19 @@ static int mn88473_init(struct dvb_frontend *fe)
 
 	dev_dbg(&client->dev, "\n");
 
-	if (dev->warm)
+	/* set cold state by default */
+	dev->warm = false;
+
+	/* check if firmware is already running */
+	ret = regmap_read(dev->regmap[0], 0xf5, &tmp);
+	if (ret)
+		goto err;
+
+	if (!(tmp & 0x1)) {
+		dev_info(&client->dev, "firmware already running\n");
+		dev->warm = true;
 		return 0;
+	}
 
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &client->dev);
