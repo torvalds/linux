@@ -97,6 +97,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_SET_PUBLIC_ADDRESS,
 	MGMT_OP_START_SERVICE_DISCOVERY,
 	MGMT_OP_READ_EXT_INDEX_LIST,
+	MGMT_OP_READ_ADV_FEATURES,
 };
 
 static const u16 mgmt_events[] = {
@@ -6254,6 +6255,40 @@ unlock:
 	return err;
 }
 
+static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
+			     void *data, u16 data_len)
+{
+	struct mgmt_rp_read_adv_features *rp;
+	size_t rp_len;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	rp_len = sizeof(*rp);
+	rp = kmalloc(rp_len, GFP_ATOMIC);
+	if (!rp) {
+		hci_dev_unlock(hdev);
+		return -ENOMEM;
+	}
+
+	rp->supported_flags = cpu_to_le32(0);
+	rp->max_adv_data_len = 31;
+	rp->max_scan_rsp_len = 31;
+	rp->max_instances = 0;
+	rp->num_instances = 0;
+
+	hci_dev_unlock(hdev);
+
+	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_ADV_FEATURES,
+				MGMT_STATUS_SUCCESS, rp, rp_len);
+
+	kfree(rp);
+
+	return err;
+}
+
 static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ NULL }, /* 0x0000 (no command) */
 	{ read_version,            MGMT_READ_VERSION_SIZE,
@@ -6337,6 +6372,7 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 	{ read_ext_index_list,     MGMT_READ_EXT_INDEX_LIST_SIZE,
 						HCI_MGMT_NO_HDEV |
 						HCI_MGMT_UNTRUSTED },
+	{ read_adv_features,       MGMT_READ_ADV_FEATURES_SIZE },
 };
 
 int mgmt_control(struct hci_mgmt_chan *chan, struct sock *sk,

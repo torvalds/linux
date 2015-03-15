@@ -517,6 +517,17 @@ struct mgmt_rp_read_ext_index_list {
 	} entry[0];
 } __packed;
 
+#define MGMT_OP_READ_ADV_FEATURES	0x0003D
+#define MGMT_READ_ADV_FEATURES_SIZE	0
+struct mgmt_rp_read_adv_features {
+	__le32 supported_flags;
+	__u8   max_adv_data_len;
+	__u8   max_scan_rsp_len;
+	__u8   max_instances;
+	__u8   num_instances;
+	__u8   instance[0];
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;
