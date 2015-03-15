@@ -262,7 +262,7 @@ static void omap4_rng_cleanup(struct omap_rng_dev *priv)
 
 	val = omap_rng_read(priv, RNG_CONTROL_REG);
 	val &= ~RNG_CONTROL_ENABLE_TRNG_MASK;
-	omap_rng_write(priv, RNG_CONFIG_REG, val);
+	omap_rng_write(priv, RNG_CONTROL_REG, val);
 }
 
 static irqreturn_t omap4_rng_irq(int irq, void *dev_id)
