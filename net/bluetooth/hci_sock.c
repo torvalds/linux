@@ -796,6 +796,11 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
+		/* The monitor interface is restricted to CAP_NET_RAW
+		 * capabilities and with that implicitly trusted.
+		 */
+		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
+
 		send_monitor_replay(sk);
 
 		atomic_inc(&monitor_promisc);
@@ -816,6 +821,12 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			err = -EPERM;
 			goto done;
 		}
+
+		/* Since the access to control channels is currently
+		 * restricted to CAP_NET_ADMIN capabilities, every
+		 * socket is implicitly trusted.
+		 */
+		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
 		/* At the moment the index and unconfigured index events
 		 * are enabled unconditionally. Setting them on each
