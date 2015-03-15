@@ -817,6 +817,16 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
+		/* At the moment the index and unconfigured index events
+		 * are enabled unconditionally. Setting them on each
+		 * socket when binding keeps this functionality. They
+		 * however might be cleared later and then sending of these
+		 * events will be disabled, but that is then intentional.
+		 */
+		if (haddr.hci_channel == HCI_CHANNEL_CONTROL) {
+			hci_sock_set_flag(sk, HCI_MGMT_INDEX_EVENTS);
+			hci_sock_set_flag(sk, HCI_MGMT_UNCONF_INDEX_EVENTS);
+		}
 		break;
 	}
 

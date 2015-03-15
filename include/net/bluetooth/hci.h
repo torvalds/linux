@@ -179,6 +179,12 @@ enum {
 	HCI_RESET,
 };
 
+/* HCI socket flags */
+enum {
+	HCI_MGMT_INDEX_EVENTS,
+	HCI_MGMT_UNCONF_INDEX_EVENTS,
+};
+
 /*
  * BR/EDR and/or LE controller flags: the flags defined here should represent
  * states from the controller.

@@ -250,6 +250,33 @@ static int mgmt_send_event(u16 event, struct hci_dev *hdev,
 	return 0;
 }
 
+static int mgmt_index_event(u16 event, struct hci_dev *hdev,
+			    void *data, u16 data_len, int flag)
+{
+	struct sk_buff *skb;
+	struct mgmt_hdr *hdr;
+
+	skb = alloc_skb(sizeof(*hdr) + data_len, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(event);
+	hdr->index = cpu_to_le16(hdev->id);
+	hdr->len = cpu_to_le16(data_len);
+
+	if (data)
+		memcpy(skb_put(skb, data_len), data, data_len);
+
+	/* Time stamp */
+	__net_timestamp(skb);
+
+	hci_send_to_flagged_channel(HCI_CHANNEL_CONTROL, skb, flag);
+	kfree_skb(skb);
+
+	return 0;
+}
+
 static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 len,
 		      struct sock *skip_sk)
 {
@@ -6343,34 +6370,43 @@ done:
 
 void mgmt_index_added(struct hci_dev *hdev)
 {
-	if (hdev->dev_type != HCI_BREDR)
-		return;
 
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		return;
 
-	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
-		mgmt_event(MGMT_EV_UNCONF_INDEX_ADDED, hdev, NULL, 0, NULL);
-	else
-		mgmt_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0, NULL);
+	switch (hdev->dev_type) {
+	case HCI_BREDR:
+		if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
+			mgmt_index_event(MGMT_EV_UNCONF_INDEX_ADDED, hdev,
+					 NULL, 0, HCI_MGMT_UNCONF_INDEX_EVENTS);
+		} else {
+			mgmt_index_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0,
+					 HCI_MGMT_INDEX_EVENTS);
+		}
+		break;
+	}
 }
 
 void mgmt_index_removed(struct hci_dev *hdev)
 {
 	u8 status = MGMT_STATUS_INVALID_INDEX;
 
-	if (hdev->dev_type != HCI_BREDR)
-		return;
-
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		return;
 
-	mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &status);
+	switch (hdev->dev_type) {
+	case HCI_BREDR:
+		mgmt_pending_foreach(0, hdev, cmd_complete_rsp, &status);
 
-	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
-		mgmt_event(MGMT_EV_UNCONF_INDEX_REMOVED, hdev, NULL, 0, NULL);
-	else
-		mgmt_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0, NULL);
+		if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
+			mgmt_index_event(MGMT_EV_UNCONF_INDEX_REMOVED, hdev,
+					 NULL, 0, HCI_MGMT_UNCONF_INDEX_EVENTS);
+		} else {
+			mgmt_index_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0,
+					 HCI_MGMT_INDEX_EVENTS);
+		}
+		break;
+	}
 }
 
 /* This function requires the caller holds hdev->lock */
