@@ -17,6 +17,8 @@
 
 #include "bcma_private.h"
 
+#define BCMA_GPIO_MAX_PINS	32
+
 static inline struct bcma_drv_cc *bcma_gpio_get_cc(struct gpio_chip *chip)
 {
 	return container_of(chip, struct bcma_drv_cc, gpio);
@@ -204,6 +206,7 @@ static void bcma_gpio_irq_domain_exit(struct bcma_drv_cc *cc)
 
 int bcma_gpio_init(struct bcma_drv_cc *cc)
 {
+	struct bcma_bus *bus = cc->core->bus;
 	struct gpio_chip *chip = &cc->gpio;
 	int err;
 
@@ -222,7 +225,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
 		chip->of_node	= cc->core->dev.of_node;
 #endif
-	switch (cc->core->bus->chipinfo.id) {
+	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM5357:
 	case BCMA_CHIP_ID_BCM53572:
 		chip->ngpio	= 32;
@@ -231,13 +234,17 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 		chip->ngpio	= 16;
 	}
 
-	/* There is just one SoC in one device and its GPIO addresses should be
-	 * deterministic to address them more easily. The other buses could get
-	 * a random base number. */
-	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
-		chip->base		= 0;
-	else
-		chip->base		= -1;
+	/*
+	 * On MIPS we register GPIO devices (LEDs, buttons) using absolute GPIO
+	 * pin numbers. We don't have Device Tree there and we can't really use
+	 * relative (per chip) numbers.
+	 * So let's use predictable base for BCM47XX and "random" for all other.
+	 */
+#if IS_BUILTIN(CONFIG_BCM47XX)
+	chip->base		= bus->num * BCMA_GPIO_MAX_PINS;
+#else
+	chip->base		= -1;
+#endif
 
 	err = bcma_gpio_irq_domain_init(cc);
 	if (err)
