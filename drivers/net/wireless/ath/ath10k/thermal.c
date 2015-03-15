@@ -50,7 +50,6 @@ ath10k_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 				      unsigned long throttle_state)
 {
 	struct ath10k *ar = cdev->devdata;
-	int ret = 0;
 
 	if (throttle_state > ATH10K_THERMAL_THROTTLE_MAX) {
 		ath10k_warn(ar, "throttle state %ld is exceeding the limit %d\n",
@@ -59,16 +58,9 @@ ath10k_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 	}
 	mutex_lock(&ar->conf_mutex);
 	ar->thermal.throttle_state = throttle_state;
-
-	if (ar->state != ATH10K_STATE_ON) {
-		ret = -ENETDOWN;
-		goto out;
-	}
-
 	ath10k_thermal_set_throttling(ar);
-out:
 	mutex_unlock(&ar->conf_mutex);
-	return ret;
+	return 0;
 }
 
 static struct thermal_cooling_device_ops ath10k_thermal_ops = {
@@ -146,6 +138,9 @@ void ath10k_thermal_set_throttling(struct ath10k *ar)
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON)
+		return;
 
 	period = ar->thermal.quiet_period;
 	duration = (period * ar->thermal.throttle_state) / 100;
