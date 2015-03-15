@@ -47,7 +47,18 @@ struct hci_pinfo {
 	struct hci_filter filter;
 	__u32             cmsg_mask;
 	unsigned short    channel;
+	unsigned long     flags;
 };
+
+void hci_sock_set_flag(struct sock *sk, int nr)
+{
+	set_bit(nr, &hci_pi(sk)->flags);
+}
+
+void hci_sock_clear_flag(struct sock *sk, int nr)
+{
+	clear_bit(nr, &hci_pi(sk)->flags);
+}
 
 static inline int hci_test_bit(int nr, const void *addr)
 {
