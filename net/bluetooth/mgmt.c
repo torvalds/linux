@@ -128,6 +128,8 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_UNCONF_INDEX_ADDED,
 	MGMT_EV_UNCONF_INDEX_REMOVED,
 	MGMT_EV_NEW_CONFIG_OPTIONS,
+	MGMT_EV_EXT_INDEX_ADDED,
+	MGMT_EV_EXT_INDEX_REMOVED,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -6370,6 +6372,7 @@ done:
 
 void mgmt_index_added(struct hci_dev *hdev)
 {
+	struct mgmt_ev_ext_index ev;
 
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		return;
@@ -6379,16 +6382,29 @@ void mgmt_index_added(struct hci_dev *hdev)
 		if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
 			mgmt_index_event(MGMT_EV_UNCONF_INDEX_ADDED, hdev,
 					 NULL, 0, HCI_MGMT_UNCONF_INDEX_EVENTS);
+			ev.type = 0x01;
 		} else {
 			mgmt_index_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0,
 					 HCI_MGMT_INDEX_EVENTS);
+			ev.type = 0x00;
 		}
 		break;
+	case HCI_AMP:
+		ev.type = 0x02;
+		break;
+	default:
+		return;
 	}
+
+	ev.bus = hdev->bus;
+
+	mgmt_index_event(MGMT_EV_EXT_INDEX_ADDED, hdev, &ev, sizeof(ev),
+			 HCI_MGMT_EXT_INDEX_EVENTS);
 }
 
 void mgmt_index_removed(struct hci_dev *hdev)
 {
+	struct mgmt_ev_ext_index ev;
 	u8 status = MGMT_STATUS_INVALID_INDEX;
 
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
@@ -6401,12 +6417,24 @@ void mgmt_index_removed(struct hci_dev *hdev)
 		if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
 			mgmt_index_event(MGMT_EV_UNCONF_INDEX_REMOVED, hdev,
 					 NULL, 0, HCI_MGMT_UNCONF_INDEX_EVENTS);
+			ev.type = 0x01;
 		} else {
 			mgmt_index_event(MGMT_EV_INDEX_REMOVED, hdev, NULL, 0,
 					 HCI_MGMT_INDEX_EVENTS);
+			ev.type = 0x00;
 		}
 		break;
+	case HCI_AMP:
+		ev.type = 0x02;
+		break;
+	default:
+		return;
 	}
+
+	ev.bus = hdev->bus;
+
+	mgmt_index_event(MGMT_EV_EXT_INDEX_REMOVED, hdev, &ev, sizeof(ev),
+			 HCI_MGMT_EXT_INDEX_EVENTS);
 }
 
 /* This function requires the caller holds hdev->lock */

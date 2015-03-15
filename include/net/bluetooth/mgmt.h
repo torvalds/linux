@@ -692,3 +692,12 @@ struct mgmt_ev_new_conn_param {
 #define MGMT_EV_UNCONF_INDEX_REMOVED	0x001e
 
 #define MGMT_EV_NEW_CONFIG_OPTIONS	0x001f
+
+struct mgmt_ev_ext_index {
+	__u8 type;
+	__u8 bus;
+} __packed;
+
+#define MGMT_EV_EXT_INDEX_ADDED		0x0020
+
+#define MGMT_EV_EXT_INDEX_REMOVED	0x0021
