@@ -1842,8 +1842,8 @@ struct v4l2_mpeg_vbi_fmt_ivtv {
  */
 struct v4l2_plane_pix_format {
 	__u32		sizeimage;
-	__u16		bytesperline;
-	__u16		reserved[7];
+	__u32		bytesperline;
+	__u16		reserved[6];
 } __attribute__ ((packed));
 
 /**
