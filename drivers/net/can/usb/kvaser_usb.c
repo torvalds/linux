@@ -596,8 +596,8 @@ static int kvaser_usb_wait_msg(const struct kvaser_usb *dev, u8 id,
 			 * for further details.
 			 */
 			if (tmp->len == 0) {
-				pos = round_up(pos,
-					       dev->bulk_in->wMaxPacketSize);
+				pos = round_up(pos, le16_to_cpu(dev->bulk_in->
+								wMaxPacketSize));
 				continue;
 			}
 
@@ -1337,7 +1337,8 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 		 * number of events in case of a heavy rx load on the bus.
 		 */
 		if (msg->len == 0) {
-			pos = round_up(pos, dev->bulk_in->wMaxPacketSize);
+			pos = round_up(pos, le16_to_cpu(dev->bulk_in->
+							wMaxPacketSize));
 			continue;
 		}
 
