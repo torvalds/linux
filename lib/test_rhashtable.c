@@ -80,7 +80,7 @@ static void test_bucket_stats(struct rhashtable *ht, bool quiet)
 		rcu_cnt = cnt = 0;
 
 		if (!quiet)
-			pr_info(" [%#4x/%zu]", i, tbl->size);
+			pr_info(" [%#4x/%u]", i, tbl->size);
 
 		rht_for_each_entry_rcu(obj, pos, tbl, i, node) {
 			cnt++;
