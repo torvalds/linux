@@ -152,6 +152,9 @@ static void tcpm_check_stamp(struct tcp_metrics_block *tm, struct dst_entry *dst
 #define TCP_METRICS_RECLAIM_DEPTH	5
 #define TCP_METRICS_RECLAIM_PTR		(struct tcp_metrics_block *) 0x1UL
 
+#define deref_locked(p)	\
+	rcu_dereference_protected(p, lockdep_is_held(&tcp_metrics_lock))
+
 static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 					  struct inetpeer_addr *saddr,
 					  struct inetpeer_addr *daddr,
@@ -180,9 +183,9 @@ static struct tcp_metrics_block *tcpm_new(struct dst_entry *dst,
 	if (unlikely(reclaim)) {
 		struct tcp_metrics_block *oldest;
 
-		oldest = rcu_dereference(tcp_metrics_hash[hash].chain);
-		for (tm = rcu_dereference(oldest->tcpm_next); tm;
-		     tm = rcu_dereference(tm->tcpm_next)) {
+		oldest = deref_locked(tcp_metrics_hash[hash].chain);
+		for (tm = deref_locked(oldest->tcpm_next); tm;
+		     tm = deref_locked(tm->tcpm_next)) {
 			if (time_before(tm->tcpm_stamp, oldest->tcpm_stamp))
 				oldest = tm;
 		}
@@ -1040,12 +1043,6 @@ out_free:
 	return ret;
 }
 
-#define deref_locked_genl(p)	\
-	rcu_dereference_protected(p, lockdep_genl_is_held() && \
-				     lockdep_is_held(&tcp_metrics_lock))
-
-#define deref_genl(p)	rcu_dereference_protected(p, lockdep_genl_is_held())
-
 static void tcp_metrics_flush_all(struct net *net)
 {
 	unsigned int max_rows = 1U << tcp_metrics_hash_log;
@@ -1057,8 +1054,7 @@ static void tcp_metrics_flush_all(struct net *net)
 		struct tcp_metrics_block __rcu **pp;
 		spin_lock_bh(&tcp_metrics_lock);
 		pp = &hb->chain;
-		for (tm = deref_locked_genl(*pp); tm;
-		     tm = deref_locked_genl(*pp)) {
+		for (tm = deref_locked(*pp); tm; tm = deref_locked(*pp)) {
 			if (net_eq(tm_net(tm), net)) {
 				*pp = tm->tcpm_next;
 				kfree_rcu(tm, rcu_head);
@@ -1097,7 +1093,7 @@ static int tcp_metrics_nl_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	hb = tcp_metrics_hash + hash;
 	pp = &hb->chain;
 	spin_lock_bh(&tcp_metrics_lock);
-	for (tm = deref_locked_genl(*pp); tm; tm = deref_locked_genl(*pp)) {
+	for (tm = deref_locked(*pp); tm; tm = deref_locked(*pp)) {
 		if (addr_same(&tm->tcpm_daddr, &daddr) &&
 		    (!src || addr_same(&tm->tcpm_saddr, &saddr)) &&
 		    net_eq(tm_net(tm), net)) {
