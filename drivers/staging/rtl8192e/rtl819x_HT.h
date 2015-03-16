@@ -343,16 +343,6 @@ struct false_alarm_stats {
 extern u8 MCS_FILTER_ALL[16];
 extern u8 MCS_FILTER_1SS[16];
 
-#define PICK_RATE(_nLegacyRate, _nMcsRate)	\
-		((_nMcsRate == 0) ? (_nLegacyRate&0x7f) : (_nMcsRate))
-#define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
-
-#define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)	\
-			(((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ? \
-			(LegacyRate) : (PICK_RATE(LegacyRate, HTRate)))
-
-
-
 #define	RATE_ADPT_1SS_MASK		0xFF
 #define	RATE_ADPT_2SS_MASK		0xF0
 #define	RATE_ADPT_MCS32_MASK		0x01

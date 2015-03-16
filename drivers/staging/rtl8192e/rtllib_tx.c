@@ -550,6 +550,17 @@ static int wme_downgrade_ac(struct sk_buff *skb)
 	}
 }
 
+static u8 rtllib_current_rate(struct rtllib_device *ieee)
+{
+	if (ieee->mode & IEEE_MODE_MASK)
+		return ieee->rate;
+
+	if (ieee->HTCurrentOperaRate)
+		return ieee->HTCurrentOperaRate;
+	else
+		return ieee->rate & 0x7F;
+}
+
 int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)
@@ -904,8 +915,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			if (tcb_desc->bMulticast ||  tcb_desc->bBroadcast)
 				tcb_desc->data_rate = ieee->basic_rate;
 			else
-				tcb_desc->data_rate = CURRENT_RATE(ieee->mode,
-					ieee->rate, ieee->HTCurrentOperaRate);
+				tcb_desc->data_rate = rtllib_current_rate(ieee);
 
 			if (bdhcp) {
 				if (ieee->pHTInfo->IOTAction &
