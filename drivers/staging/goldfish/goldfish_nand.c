@@ -330,7 +330,7 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 	mtd->priv = nand;
 
 	name = devm_kzalloc(&pdev->dev, name_len + 1, GFP_KERNEL);
-	if (name == NULL)
+	if (!name)
 		return -ENOMEM;
 	mtd->name = name;
 
@@ -383,7 +383,7 @@ static int goldfish_nand_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	base = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
-	if (base == NULL)
+	if (!base)
 		return -ENOMEM;
 
 	version = readl(base + NAND_VERSION);
@@ -399,7 +399,7 @@ static int goldfish_nand_probe(struct platform_device *pdev)
 
 	nand = devm_kzalloc(&pdev->dev, sizeof(*nand) +
 				sizeof(struct mtd_info) * num_dev, GFP_KERNEL);
-	if (nand == NULL)
+	if (!nand)
 		return -ENOMEM;
 
 	mutex_init(&nand->lock);

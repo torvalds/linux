@@ -273,7 +273,7 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	dma_addr_t buf_addr;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (data == NULL)
+	if (!data)
 		return -ENOMEM;
 	spin_lock_init(&data->lock);
 	init_waitqueue_head(&data->wait);
