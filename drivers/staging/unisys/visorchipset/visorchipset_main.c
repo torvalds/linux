@@ -1207,31 +1207,28 @@ static void
 my_device_changestate(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong busNo = cmd->device_change_state.bus_no;
-	ulong devNo = cmd->device_change_state.dev_no;
+	ulong bus_no = cmd->device_change_state.bus_no;
+	ulong dev_no = cmd->device_change_state.dev_no;
 	struct spar_segment_state state = cmd->device_change_state.state;
-	struct visorchipset_device_info *pDevInfo = NULL;
+	struct visorchipset_device_info *dev_info = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	pDevInfo = finddevice(&dev_info_list, busNo, devNo);
-	if (!pDevInfo) {
-		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, devNo, busNo,
+	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
+	if (!dev_info) {
+		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
-		goto Away;
-	}
-	if (pDevInfo->state.created == 0) {
-		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, devNo, busNo,
+	} else if (dev_info->state.created == 0) {
+		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 	}
-Away:
-	if ((rc >= CONTROLVM_RESP_SUCCESS) && pDevInfo)
-		device_epilog(busNo, devNo, state, CONTROLVM_DEVICE_CHANGESTATE,
-			      &inmsg->hdr, rc,
+	if ((rc >= CONTROLVM_RESP_SUCCESS) && dev_info)
+		device_epilog(bus_no, dev_no, state,
+			      CONTROLVM_DEVICE_CHANGESTATE, &inmsg->hdr, rc,
 			      inmsg->hdr.flags.response_expected == 1,
 			      FOR_VISORBUS(
-					pDevInfo->chan_info.channel_type_uuid));
+					dev_info->chan_info.channel_type_uuid));
 }
 
 static void
