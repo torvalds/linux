@@ -110,13 +110,13 @@ struct __packed pcan_ufd_led {
 	u8	unused[5];
 };
 
-/* Extended usage of uCAN commands CMD_RX_FRAME_xxxABLE for PCAN-USB Pro FD */
+/* Extended usage of uCAN commands CMD_xxx_xx_OPTION for PCAN-USB Pro FD */
 #define PCAN_UFD_FLTEXT_CALIBRATION	0x8000
 
-struct __packed pcan_ufd_filter_ext {
+struct __packed pcan_ufd_options {
 	__le16	opcode_channel;
 
-	__le16	ext_mask;
+	__le16	ucan_mask;
 	u16	unused;
 	__le16	usb_mask;
 };
@@ -321,21 +321,21 @@ static int pcan_usb_fd_set_filter_std(struct peak_usb_device *dev, int idx,
 	return pcan_usb_fd_send_cmd(dev, cmd);
 }
 
-/* set/unset notifications filter:
+/* set/unset options
  *
- *	onoff	sets(1)/unset(0) notifications
- *	mask	each bit defines a kind of notification to set/unset
+ *	onoff	set(1)/unset(0) options
+ *	mask	each bit defines a kind of options to set/unset
  */
-static int pcan_usb_fd_set_filter_ext(struct peak_usb_device *dev,
-				      bool onoff, u16 ext_mask, u16 usb_mask)
+static int pcan_usb_fd_set_options(struct peak_usb_device *dev,
+				   bool onoff, u16 ucan_mask, u16 usb_mask)
 {
-	struct pcan_ufd_filter_ext *cmd = pcan_usb_fd_cmd_buffer(dev);
+	struct pcan_ufd_options *cmd = pcan_usb_fd_cmd_buffer(dev);
 
 	cmd->opcode_channel = pucan_cmd_opcode_channel(dev,
-					(onoff) ? PUCAN_CMD_RX_FRAME_ENABLE :
-						  PUCAN_CMD_RX_FRAME_DISABLE);
+					(onoff) ? PUCAN_CMD_SET_EN_OPTION :
+						  PUCAN_CMD_CLR_DIS_OPTION);
 
-	cmd->ext_mask = cpu_to_le16(ext_mask);
+	cmd->ucan_mask = cpu_to_le16(ucan_mask);
 	cmd->usb_mask = cpu_to_le16(usb_mask);
 
 	/* send the command */
@@ -770,9 +770,9 @@ static int pcan_usb_fd_start(struct peak_usb_device *dev)
 				       &pcan_usb_pro_fd);
 
 		/* enable USB calibration messages */
-		err = pcan_usb_fd_set_filter_ext(dev, 1,
-						 PUCAN_FLTEXT_ERROR,
-						 PCAN_UFD_FLTEXT_CALIBRATION);
+		err = pcan_usb_fd_set_options(dev, 1,
+					      PUCAN_OPTION_ERROR,
+					      PCAN_UFD_FLTEXT_CALIBRATION);
 	}
 
 	pdev->usb_if->dev_opened_count++;
@@ -806,9 +806,9 @@ static int pcan_usb_fd_stop(struct peak_usb_device *dev)
 
 	/* turn off special msgs for that interface if no other dev opened */
 	if (pdev->usb_if->dev_opened_count == 1)
-		pcan_usb_fd_set_filter_ext(dev, 0,
-					   PUCAN_FLTEXT_ERROR,
-					   PCAN_UFD_FLTEXT_CALIBRATION);
+		pcan_usb_fd_set_options(dev, 0,
+					PUCAN_OPTION_ERROR,
+					PCAN_UFD_FLTEXT_CALIBRATION);
 	pdev->usb_if->dev_opened_count--;
 
 	return 0;
@@ -937,9 +937,9 @@ static void pcan_usb_fd_exit(struct peak_usb_device *dev)
 	if (dev->ctrl_idx == 0) {
 		/* turn off calibration message if any device were opened */
 		if (pdev->usb_if->dev_opened_count > 0)
-			pcan_usb_fd_set_filter_ext(dev, 0,
-						   PUCAN_FLTEXT_ERROR,
-						   PCAN_UFD_FLTEXT_CALIBRATION);
+			pcan_usb_fd_set_options(dev, 0,
+						PUCAN_OPTION_ERROR,
+						PCAN_UFD_FLTEXT_CALIBRATION);
 
 		/* tell USB adapter that the driver is being unloaded */
 		pcan_usb_fd_drv_loaded(dev, 0);
