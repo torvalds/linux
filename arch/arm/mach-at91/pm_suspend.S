@@ -13,7 +13,6 @@
  */
 #include <linux/linkage.h>
 #include <linux/clk/at91_pmc.h>
-#include <mach/at91_ramc.h>
 #include "pm.h"
 
 #define	SRAMC_SELF_FRESH_ACTIVE		0x01
