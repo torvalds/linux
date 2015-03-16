@@ -281,7 +281,7 @@ destroy_bus(struct controlvm_message *msg, char *buf)
 
 	/* verify that this bus has no devices. */
 	for (i = 0; i < bus->device_count; i++) {
-		if (bus->device[i] != NULL) {
+		if (bus->device[i]) {
 			read_unlock(&bus_list_lock);
 			return CONTROLVM_RESP_ERROR_BUS_DEVICE_ATTACHED;
 		}
@@ -964,7 +964,7 @@ uislib_cache_alloc(struct kmem_cache *cur_pool, char *fn, int ln)
 	*/
 	void *p = kmem_cache_alloc(cur_pool, GFP_ATOMIC | __GFP_NORETRY);
 
-	if (p == NULL)
+	if (!p)
 		return NULL;
 	return p;
 }
@@ -973,7 +973,7 @@ EXPORT_SYMBOL_GPL(uislib_cache_alloc);
 void
 uislib_cache_free(struct kmem_cache *cur_pool, void *p, char *fn, int ln)
 {
-	if (p == NULL)
+	if (!p)
 		return;
 	kmem_cache_free(cur_pool, p);
 }
@@ -1052,10 +1052,10 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	int remaining_bytes = PROC_READ_BUFFER_SIZE;
 
 /* *start = buf; */
-	if (debug_buf == NULL) {
+	if (!debug_buf) {
 		debug_buf = vmalloc(PROC_READ_BUFFER_SIZE);
 
-		if (debug_buf == NULL)
+		if (!debug_buf)
 			return -ENOMEM;
 	}
 
@@ -1158,7 +1158,7 @@ static int process_incoming(void *v)
 				* Reschedule work to occur as soon as
 				* possible. */
 				idle_cycles = 0;
-				if (new_tail == NULL) {
+				if (!new_tail) {
 					dev->first_busy_cnt++;
 					if (!
 					    (list_is_last
@@ -1174,7 +1174,7 @@ static int process_incoming(void *v)
 			if (kthread_should_stop())
 				break;
 		}
-		if (new_tail != NULL) {
+		if (new_tail) {
 			tot_moved_to_tail_cnt++;
 			list_move_tail(new_tail, &poll_dev_chan);
 		}
