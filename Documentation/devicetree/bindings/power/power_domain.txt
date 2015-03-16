@@ -48,7 +48,7 @@ Example 2:
 		#power-domain-cells = <1>;
 	};
 
-	child: power-controller@12340000 {
+	child: power-controller@12341000 {
 		compatible = "foo,power-controller";
 		reg = <0x12341000 0x1000>;
 		power-domains = <&parent 0>;
