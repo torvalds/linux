@@ -901,6 +901,8 @@ static int gs_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
 	init_usb_anchor(&dev->rx_submitted);
 
 	atomic_set(&dev->active_channels, 0);
