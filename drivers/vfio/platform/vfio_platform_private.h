@@ -34,6 +34,7 @@ struct vfio_platform_region {
 	u32			type;
 #define VFIO_PLATFORM_REGION_TYPE_MMIO	1
 #define VFIO_PLATFORM_REGION_TYPE_PIO	2
+	void __iomem		*ioaddr;
 };
 
 struct vfio_platform_device {

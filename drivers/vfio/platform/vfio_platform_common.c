@@ -51,6 +51,10 @@ static int vfio_platform_regions_init(struct vfio_platform_device *vdev)
 		switch (resource_type(res)) {
 		case IORESOURCE_MEM:
 			vdev->regions[i].type = VFIO_PLATFORM_REGION_TYPE_MMIO;
+			vdev->regions[i].flags |= VFIO_REGION_INFO_FLAG_READ;
+			if (!(res->flags & IORESOURCE_READONLY))
+				vdev->regions[i].flags |=
+					VFIO_REGION_INFO_FLAG_WRITE;
 			break;
 		case IORESOURCE_IO:
 			vdev->regions[i].type = VFIO_PLATFORM_REGION_TYPE_PIO;
@@ -70,6 +74,11 @@ err:
 
 static void vfio_platform_regions_cleanup(struct vfio_platform_device *vdev)
 {
+	int i;
+
+	for (i = 0; i < vdev->num_regions; i++)
+		iounmap(vdev->regions[i].ioaddr);
+
 	vdev->num_regions = 0;
 	kfree(vdev->regions);
 }
@@ -172,15 +181,156 @@ static long vfio_platform_ioctl(void *device_data,
 	return -ENOTTY;
 }
 
+static ssize_t vfio_platform_read_mmio(struct vfio_platform_region reg,
+				       char __user *buf, size_t count,
+				       loff_t off)
+{
+	unsigned int done = 0;
+
+	if (!reg.ioaddr) {
+		reg.ioaddr =
+			ioremap_nocache(reg.addr, reg.size);
+
+		if (!reg.ioaddr)
+			return -ENOMEM;
+	}
+
+	while (count) {
+		size_t filled;
+
+		if (count >= 4 && !(off % 4)) {
+			u32 val;
+
+			val = ioread32(reg.ioaddr + off);
+			if (copy_to_user(buf, &val, 4))
+				goto err;
+
+			filled = 4;
+		} else if (count >= 2 && !(off % 2)) {
+			u16 val;
+
+			val = ioread16(reg.ioaddr + off);
+			if (copy_to_user(buf, &val, 2))
+				goto err;
+
+			filled = 2;
+		} else {
+			u8 val;
+
+			val = ioread8(reg.ioaddr + off);
+			if (copy_to_user(buf, &val, 1))
+				goto err;
+
+			filled = 1;
+		}
+
+
+		count -= filled;
+		done += filled;
+		off += filled;
+		buf += filled;
+	}
+
+	return done;
+err:
+	return -EFAULT;
+}
+
 static ssize_t vfio_platform_read(void *device_data, char __user *buf,
 				  size_t count, loff_t *ppos)
 {
+	struct vfio_platform_device *vdev = device_data;
+	unsigned int index = VFIO_PLATFORM_OFFSET_TO_INDEX(*ppos);
+	loff_t off = *ppos & VFIO_PLATFORM_OFFSET_MASK;
+
+	if (index >= vdev->num_regions)
+		return -EINVAL;
+
+	if (!(vdev->regions[index].flags & VFIO_REGION_INFO_FLAG_READ))
+		return -EINVAL;
+
+	if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_MMIO)
+		return vfio_platform_read_mmio(vdev->regions[index],
+							buf, count, off);
+	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
+		return -EINVAL; /* not implemented */
+
 	return -EINVAL;
+}
+
+static ssize_t vfio_platform_write_mmio(struct vfio_platform_region reg,
+					const char __user *buf, size_t count,
+					loff_t off)
+{
+	unsigned int done = 0;
+
+	if (!reg.ioaddr) {
+		reg.ioaddr =
+			ioremap_nocache(reg.addr, reg.size);
+
+		if (!reg.ioaddr)
+			return -ENOMEM;
+	}
+
+	while (count) {
+		size_t filled;
+
+		if (count >= 4 && !(off % 4)) {
+			u32 val;
+
+			if (copy_from_user(&val, buf, 4))
+				goto err;
+			iowrite32(val, reg.ioaddr + off);
+
+			filled = 4;
+		} else if (count >= 2 && !(off % 2)) {
+			u16 val;
+
+			if (copy_from_user(&val, buf, 2))
+				goto err;
+			iowrite16(val, reg.ioaddr + off);
+
+			filled = 2;
+		} else {
+			u8 val;
+
+			if (copy_from_user(&val, buf, 1))
+				goto err;
+			iowrite8(val, reg.ioaddr + off);
+
+			filled = 1;
+		}
+
+		count -= filled;
+		done += filled;
+		off += filled;
+		buf += filled;
+	}
+
+	return done;
+err:
+	return -EFAULT;
 }
 
 static ssize_t vfio_platform_write(void *device_data, const char __user *buf,
 				   size_t count, loff_t *ppos)
 {
+	struct vfio_platform_device *vdev = device_data;
+	unsigned int index = VFIO_PLATFORM_OFFSET_TO_INDEX(*ppos);
+	loff_t off = *ppos & VFIO_PLATFORM_OFFSET_MASK;
+
+	if (index >= vdev->num_regions)
+		return -EINVAL;
+
+	if (!(vdev->regions[index].flags & VFIO_REGION_INFO_FLAG_WRITE))
+		return -EINVAL;
+
+	if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_MMIO)
+		return vfio_platform_write_mmio(vdev->regions[index],
+							buf, count, off);
+	else if (vdev->regions[index].type & VFIO_PLATFORM_REGION_TYPE_PIO)
+		return -EINVAL; /* not implemented */
+
 	return -EINVAL;
 }
 
