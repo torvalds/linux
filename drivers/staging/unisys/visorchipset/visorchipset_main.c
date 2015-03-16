@@ -49,7 +49,7 @@
 */
 #define MIN_IDLE_SECONDS 10
 static ulong poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-static ulong Most_recent_message_jiffies;	/* when we got our last
+static ulong most_recent_message_jiffies;	/* when we got our last
 						 * controlvm message */
 static inline char *
 NONULLSTR(char *s)
@@ -1856,7 +1856,7 @@ controlvm_periodic_work(struct work_struct *work)
 
 	handle_command_failed = FALSE;
 	while (gotACommand && (!handle_command_failed)) {
-		Most_recent_message_jiffies = jiffies;
+		most_recent_message_jiffies = jiffies;
 		if (handle_command(inmsg,
 				   visorchannel_get_physaddr
 				   (ControlVm_channel)))
@@ -1880,7 +1880,7 @@ controlvm_periodic_work(struct work_struct *work)
 Away:
 
 	if (time_after(jiffies,
-		       Most_recent_message_jiffies + (HZ * MIN_IDLE_SECONDS))) {
+		       most_recent_message_jiffies + (HZ * MIN_IDLE_SECONDS))) {
 		/* it's been longer than MIN_IDLE_SECONDS since we
 		* processed our last controlvm message; slow down the
 		* polling
@@ -2263,7 +2263,7 @@ visorchipset_init(void)
 			rc = -ENOMEM;
 			goto Away;
 		}
-		Most_recent_message_jiffies = jiffies;
+		most_recent_message_jiffies = jiffies;
 		poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 		rc = queue_delayed_work(Periodic_controlvm_workqueue,
 					&Periodic_controlvm_work, poll_jiffies);
