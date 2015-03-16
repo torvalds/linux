@@ -3123,6 +3123,12 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 			goto rxh_next;  \
 	} while (0);
 
+	/* Lock here to avoid hitting all of the data used in the RX
+	 * path (e.g. key data, station data, ...) concurrently when
+	 * a frame is released from the reorder buffer due to timeout
+	 * from the timer, potentially concurrently with RX from the
+	 * driver.
+	 */
 	spin_lock_bh(&rx->local->rx_path_lock);
 
 	while ((skb = __skb_dequeue(frames))) {
