@@ -333,13 +333,13 @@ static struct platform_device visorchipset_platform_device = {
 };
 
 /* Function prototypes */
-static void controlvm_respond(struct controlvm_message_header *msgHdr,
+static void controlvm_respond(struct controlvm_message_header *msg_hdr,
 			      int response);
 static void controlvm_respond_chipset_init(
-		struct controlvm_message_header *msgHdr, int response,
+		struct controlvm_message_header *msg_hdr, int response,
 		enum ultra_chipset_feature features);
 static void controlvm_respond_physdev_changestate(
-		struct controlvm_message_header *msgHdr, int response,
+		struct controlvm_message_header *msg_hdr, int response,
 		struct spar_segment_state state);
 
 static ssize_t toolaction_show(struct device *dev,
@@ -645,10 +645,10 @@ cleanup:
 
 static void
 controlvm_init_response(struct controlvm_message *msg,
-			struct controlvm_message_header *msgHdr, int response)
+			struct controlvm_message_header *msg_hdr, int response)
 {
 	memset(msg, 0, sizeof(struct controlvm_message));
-	memcpy(&msg->hdr, msgHdr, sizeof(struct controlvm_message_header));
+	memcpy(&msg->hdr, msg_hdr, sizeof(struct controlvm_message_header));
 	msg->hdr.payload_bytes = 0;
 	msg->hdr.payload_vm_offset = 0;
 	msg->hdr.payload_max_bytes = 0;
@@ -659,14 +659,14 @@ controlvm_init_response(struct controlvm_message *msg,
 }
 
 static void
-controlvm_respond(struct controlvm_message_header *msgHdr, int response)
+controlvm_respond(struct controlvm_message_header *msg_hdr, int response)
 {
 	struct controlvm_message outmsg;
 
-	controlvm_init_response(&outmsg, msgHdr, response);
+	controlvm_init_response(&outmsg, msg_hdr, response);
 	/* For DiagPool channel DEVICE_CHANGESTATE, we need to send
 	* back the deviceChangeState structure in the packet. */
-	if (msgHdr->id == CONTROLVM_DEVICE_CHANGESTATE &&
+	if (msg_hdr->id == CONTROLVM_DEVICE_CHANGESTATE &&
 	    g_devicechangestate_packet.device_change_state.bus_no ==
 	    g_diagpool_bus_no &&
 	    g_devicechangestate_packet.device_change_state.dev_no ==
@@ -682,13 +682,13 @@ controlvm_respond(struct controlvm_message_header *msgHdr, int response)
 }
 
 static void
-controlvm_respond_chipset_init(struct controlvm_message_header *msgHdr,
+controlvm_respond_chipset_init(struct controlvm_message_header *msg_hdr,
 			       int response,
 			       enum ultra_chipset_feature features)
 {
 	struct controlvm_message outmsg;
 
-	controlvm_init_response(&outmsg, msgHdr, response);
+	controlvm_init_response(&outmsg, msg_hdr, response);
 	outmsg.cmd.init_chipset.features = features;
 	if (!visorchannel_signalinsert(controlvm_channel,
 				       CONTROLVM_QUEUE_REQUEST, &outmsg)) {
@@ -697,12 +697,12 @@ controlvm_respond_chipset_init(struct controlvm_message_header *msgHdr,
 }
 
 static void controlvm_respond_physdev_changestate(
-		struct controlvm_message_header *msgHdr, int response,
+		struct controlvm_message_header *msg_hdr, int response,
 		struct spar_segment_state state)
 {
 	struct controlvm_message outmsg;
 
-	controlvm_init_response(&outmsg, msgHdr, response);
+	controlvm_init_response(&outmsg, msg_hdr, response);
 	outmsg.cmd.device_change_state.state = state;
 	outmsg.cmd.device_change_state.flags.phys_device = 1;
 	if (!visorchannel_signalinsert(controlvm_channel,
