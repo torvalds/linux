@@ -31,7 +31,7 @@
 #define MAX_CONTROLVM_PAYLOAD_BYTES (1024*128)
 static ulong controlvm_payload_bytes_buffered;
 
-struct PARSER_CONTEXT_Tag {
+struct parser_context {
 	ulong allocbytes;
 	ulong param_bytes;
 	u8 *curr;
@@ -40,13 +40,13 @@ struct PARSER_CONTEXT_Tag {
 	char data[0];
 };
 
-static PARSER_CONTEXT *
+static struct parser_context *
 parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 		 BOOL hasStandardPayloadHeader, BOOL *tryAgain)
 {
-	int allocbytes = sizeof(PARSER_CONTEXT) + bytes;
-	PARSER_CONTEXT *rc = NULL;
-	PARSER_CONTEXT *ctx = NULL;
+	int allocbytes = sizeof(struct parser_context) + bytes;
+	struct parser_context *rc = NULL;
+	struct parser_context *ctx = NULL;
 	struct memregion *rgn = NULL;
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
@@ -134,7 +134,7 @@ Away:
 	return rc;
 }
 
-PARSER_CONTEXT *
+struct parser_context *
 parser_init(u64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
 {
 	return parser_init_guts(addr, bytes, isLocal, TRUE, tryAgain);
@@ -145,7 +145,7 @@ parser_init(u64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
  * structures.  Afterwards, you can call parser_simpleString_get() or
  * parser_byteStream_get() to obtain the data.
  */
-PARSER_CONTEXT *
+struct parser_context *
 parser_init_byteStream(u64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
 {
 	return parser_init_guts(addr, bytes, isLocal, FALSE, tryAgain);
@@ -154,7 +154,7 @@ parser_init_byteStream(u64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
 /* Obtain '\0'-terminated copy of string in payload area.
  */
 char *
-parser_simpleString_get(PARSER_CONTEXT *ctx)
+parser_simpleString_get(struct parser_context *ctx)
 {
 	if (!ctx->byte_stream)
 		return NULL;
@@ -166,7 +166,7 @@ parser_simpleString_get(PARSER_CONTEXT *ctx)
 /* Obtain a copy of the buffer in the payload area.
  */
 void *
-parser_byteStream_get(PARSER_CONTEXT *ctx, ulong *nbytes)
+parser_byteStream_get(struct parser_context *ctx, ulong *nbytes)
 {
 	if (!ctx->byte_stream)
 		return NULL;
@@ -176,7 +176,7 @@ parser_byteStream_get(PARSER_CONTEXT *ctx, ulong *nbytes)
 }
 
 uuid_le
-parser_id_get(PARSER_CONTEXT *ctx)
+parser_id_get(struct parser_context *ctx)
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
@@ -187,7 +187,7 @@ parser_id_get(PARSER_CONTEXT *ctx)
 }
 
 void
-parser_param_start(PARSER_CONTEXT *ctx, PARSER_WHICH_STRING which_string)
+parser_param_start(struct parser_context *ctx, PARSER_WHICH_STRING which_string)
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
@@ -220,7 +220,7 @@ Away:
 }
 
 void
-parser_done(PARSER_CONTEXT *ctx)
+parser_done(struct parser_context *ctx)
 {
 	if (!ctx)
 		return;
@@ -263,7 +263,7 @@ string_length_no_trail(char *s, int len)
  *    parameter
  */
 void *
-parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
+parser_param_get(struct parser_context *ctx, char *nam, int namesize)
 {
 	u8 *pscan, *pnam = nam;
 	ulong nscan;
@@ -398,7 +398,7 @@ parser_param_get(PARSER_CONTEXT *ctx, char *nam, int namesize)
 }
 
 void *
-parser_string_get(PARSER_CONTEXT *ctx)
+parser_string_get(struct parser_context *ctx)
 {
 	u8 *pscan;
 	ulong nscan;

@@ -144,7 +144,7 @@ static const char Putfile_buffer_list_pool_name[] =
  */
 struct putfile_buffer_entry {
 	struct list_head next;	/* putfile_buffer_entry list */
-	PARSER_CONTEXT *parser_ctx; /* points to buffer containing input data */
+	struct parser_context *parser_ctx; /* points to input data buffer */
 };
 
 /* List of struct putfile_request *, via next_putfile_request member.
@@ -159,7 +159,7 @@ static LIST_HEAD(Putfile_request_list);
  */
 struct putfile_active_buffer {
 	/* a payload from a controlvm message, containing a file data buffer */
-	PARSER_CONTEXT *parser_ctx;
+	struct parser_context *parser_ctx;
 	/* points within data area of parser_ctx to next byte of data */
 	u8 *pnext;
 	/* # bytes left from <pnext> to the end of this data buffer */
@@ -1134,7 +1134,8 @@ Away:
 }
 
 static void
-bus_configure(struct controlvm_message *inmsg, PARSER_CONTEXT *parser_ctx)
+bus_configure(struct controlvm_message *inmsg,
+	      struct parser_context *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->configure_bus.bus_no;
@@ -1697,7 +1698,7 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 	struct controlvm_message_packet *cmd = &inmsg.cmd;
 	u64 parametersAddr = 0;
 	u32 parametersBytes = 0;
-	PARSER_CONTEXT *parser_ctx = NULL;
+	struct parser_context *parser_ctx = NULL;
 	BOOL isLocalAddr = FALSE;
 	struct controlvm_message ackmsg;
 
