@@ -591,27 +591,8 @@ static void tpm_inf_pnp_remove(struct pnp_dev *dev)
 	}
 }
 
-static int tpm_inf_pnp_suspend(struct pnp_dev *dev, pm_message_t pm_state)
-{
-	struct tpm_chip *chip = pnp_get_drvdata(dev);
-	int rc;
-	if (chip) {
-		u8 savestate[] = {
-			0, 193,	/* TPM_TAG_RQU_COMMAND */
-			0, 0, 0, 10,	/* blob length (in bytes) */
-			0, 0, 0, 152	/* TPM_ORD_SaveState */
-		};
-		dev_info(&dev->dev, "saving TPM state\n");
-		rc = tpm_inf_send(chip, savestate, sizeof(savestate));
-		if (rc < 0) {
-			dev_err(&dev->dev, "error while saving TPM state\n");
-			return rc;
-		}
-	}
-	return 0;
-}
-
-static int tpm_inf_pnp_resume(struct pnp_dev *dev)
+#ifdef CONFIG_PM_SLEEP
+static int tpm_inf_resume(struct device *dev)
 {
 	/* Re-configure TPM after suspending */
 	tpm_config_out(ENABLE_REGISTER_PAIR, TPM_INF_ADDR);
@@ -625,16 +606,19 @@ static int tpm_inf_pnp_resume(struct pnp_dev *dev)
 	tpm_config_out(DISABLE_REGISTER_PAIR, TPM_INF_ADDR);
 	/* disable RESET, LP and IRQC */
 	tpm_data_out(RESET_LP_IRQC_DISABLE, CMD);
-	return tpm_pm_resume(&dev->dev);
+	return tpm_pm_resume(dev);
 }
+#endif
+static SIMPLE_DEV_PM_OPS(tpm_inf_pm, tpm_pm_suspend, tpm_inf_resume);
 
 static struct pnp_driver tpm_inf_pnp_driver = {
 	.name = "tpm_inf_pnp",
 	.id_table = tpm_inf_pnp_tbl,
 	.probe = tpm_inf_pnp_probe,
-	.suspend = tpm_inf_pnp_suspend,
-	.resume = tpm_inf_pnp_resume,
-	.remove = tpm_inf_pnp_remove
+	.remove = tpm_inf_pnp_remove,
+	.driver = {
+		.pm = &tpm_inf_pm,
+	}
 };
 
 static int __init init_inf(void)
