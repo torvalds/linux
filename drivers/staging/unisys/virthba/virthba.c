@@ -258,7 +258,7 @@ add_scsipending_entry(struct virthba_info *vhbainfo, char cmdtype, void *new)
 
 	spin_lock_irqsave(&vhbainfo->privlock, flags);
 	insert_location = vhbainfo->nextinsert;
-	while (vhbainfo->pending[insert_location].sent != NULL) {
+	while (vhbainfo->pending[insert_location].sent) {
 		insert_location = (insert_location + 1) % MAX_PENDING_REQUESTS;
 		if (insert_location == (int)vhbainfo->nextinsert) {
 			spin_unlock_irqrestore(&vhbainfo->privlock, flags);
@@ -403,7 +403,7 @@ virthba_isr(int irq, void *dev_id)
 	u64 mask;
 	unsigned long long rc1;
 
-	if (virthbainfo == NULL)
+	if (!virthbainfo)
 		return IRQ_NONE;
 	virthbainfo->interrupts_rcvd++;
 	channel_header = virthbainfo->chinfo.queueinfo->chan;
@@ -458,7 +458,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	 */
 	scsihost = scsi_host_alloc(&virthba_driver_template,
 				   sizeof(struct virthba_info));
-	if (scsihost == NULL)
+	if (!scsihost)
 		return -ENODEV;
 
 	scsihost->this_id = UIS_MAGIC_VHBA;
@@ -499,7 +499,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	virthbainfo = (struct virthba_info *)scsihost->hostdata;
 	memset(virthbainfo, 0, sizeof(struct virthba_info));
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (virthbas_open[i].virthbainfo == NULL) {
+		if (!virthbas_open[i].virthbainfo) {
 			virthbas_open[i].virthbainfo = virthbainfo;
 			break;
 		}
@@ -607,7 +607,7 @@ forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 		return FAILED;
 
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-	if (cmdrsp == NULL)
+	if (!cmdrsp)
 		return FAILED;  /* reject */
 
 	init_waitqueue_head(&notifyevent);
@@ -660,8 +660,8 @@ forward_taskmgmt_command(enum task_mgmt_types tasktype,
 		return FAILED;
 
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-	if (cmdrsp == NULL)
-		return FAILED;  /* reject */
+	if (!cmdrsp)
+		return FAILED;	/* reject */
 
 	init_waitqueue_head(&notifyevent);
 
@@ -821,7 +821,7 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	if (virthbainfo->serverdown || virthbainfo->serverchangingstate)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	cmdrsp = kzalloc(SIZEOF_CMDRSP, GFP_ATOMIC);
-	if (cmdrsp == NULL)
+	if (!cmdrsp)
 		return 1;	/* reject the command */
 
 	/* now saving everything we need from scsi_cmd into cmdrsp
@@ -1183,7 +1183,7 @@ process_incoming_rsps(void *v)
 	UIS_DAEMONIZE("vhba_incoming");
 	/* alloc once and reuse */
 	cmdrsp = kmalloc(SZ, GFP_ATOMIC);
-	if (cmdrsp == NULL) {
+	if (!cmdrsp) {
 		complete_and_exit(&dc->threadinfo.has_stopped, 0);
 		return 0;
 	}
@@ -1226,7 +1226,7 @@ static ssize_t info_debugfs_read(struct file *file,
 		return -ENOMEM;
 
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (virthbas_open[i].virthbainfo == NULL)
+		if (!virthbas_open[i].virthbainfo)
 			continue;
 
 		virthbainfo = virthbas_open[i].virthbainfo;
@@ -1286,7 +1286,7 @@ static ssize_t enable_ints_write(struct file *file, const char __user *buffer,
 
 	/* set all counts to new_value usually 0 */
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (virthbas_open[i].virthbainfo != NULL) {
+		if (virthbas_open[i].virthbainfo) {
 			virthbainfo = virthbas_open[i].virthbainfo;
 			features_addr =
 				&virthbainfo->chinfo.queueinfo->chan->features;
@@ -1442,11 +1442,11 @@ virthba_parse_options(char *line)
 	char *next = line;
 
 	POSTCODE_LINUX_2(VHBA_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
-	if (line == NULL || !*line)
+	if (!line || !*line)
 		return;
-	while ((line = next) != NULL) {
+	while ((line = next)) {
 		next = strchr(line, ' ');
-		if (next != NULL)
+		if (next)
 			*next++ = 0;
 		virthba_parse_line(line);
 	}
@@ -1490,7 +1490,7 @@ virthba_mod_init(void)
 		/* Initialize the serverdown workqueue */
 		virthba_serverdown_workqueue =
 		    create_singlethread_workqueue("virthba_serverdown");
-		if (virthba_serverdown_workqueue == NULL) {
+		if (!virthba_serverdown_workqueue) {
 			POSTCODE_LINUX_2(VHBA_CREATE_FAILURE_PC,
 					 POSTCODE_SEVERITY_ERR);
 			error = -1;
