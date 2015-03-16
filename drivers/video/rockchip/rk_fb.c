@@ -99,6 +99,8 @@ int rk_fb_trsm_ops_register(struct rk_fb_trsm_ops *ops, int type)
 	case SCREEN_RGB:
 	case SCREEN_LVDS:
 	case SCREEN_DUAL_LVDS:
+	case SCREEN_LVDS_10BIT:
+	case SCREEN_DUAL_LVDS_10BIT:
 		trsm_lvds_ops = ops;
 		break;
 	case SCREEN_EDP:
@@ -123,6 +125,8 @@ struct rk_fb_trsm_ops *rk_fb_trsm_ops_get(int type)
 	case SCREEN_RGB:
 	case SCREEN_LVDS:
 	case SCREEN_DUAL_LVDS:
+	case SCREEN_LVDS_10BIT:
+	case SCREEN_DUAL_LVDS_10BIT:
 		ops = trsm_lvds_ops;
 		break;
 	case SCREEN_EDP:

@@ -36,11 +36,15 @@
 #define SCREEN_DUAL_MIPI   8
 #define SCREEN_EDP         9
 #define SCREEN_TVOUT_TEST  10
+#define SCREEN_LVDS_10BIT	 11
+#define SCREEN_DUAL_LVDS_10BIT   12
 
 #define LVDS_8BIT_1     0
 #define LVDS_8BIT_2     1
 #define LVDS_8BIT_3     2
 #define LVDS_6BIT       3
+#define LVDS_10BIT_1    4
+#define LVDS_10BIT_2    5
 
 #define NO_MIRROR	0
 #define X_MIRROR    	1
@@ -103,6 +107,49 @@ Y	TX11   	G7		G1		GND		GND
 	TX17   	B7		B1		GND		GND
 	TX23   	RSVD		RSVD		RSVD		RSVD
 ----------------------------------------------------------------------
+
+ *          	LVDS_10BIT_1    LVDS_10BIT_2
+----------------------------------------------------------------------
+	TX0	R0		R4
+	TX1	R1		R5
+	TX2	R2		R6
+Y	TX3	R3		R7
+0	TX4	R4		R8
+	TX6	R5		R9
+	TX7	G0		G4
+----------------------------------------------------------------------
+	TX8	G1		G5
+	TX9	G2		G6
+Y	TX12   	G3		G7
+1	TX13   	G4		G8
+	TX14   	G5		G9
+	TX15   	B0		B4
+	TX18   	B1		B5
+----------------------------------------------------------------------
+	TX19	B2		B6
+	TX20   	B3		B7
+	TX21   	B4		B8
+Y	TX22   	B5		B9
+2	TX24   	HSYNC		HSYNC
+        TX25	VSYNC		VSYNC
+	TX26	ENABLE		ENABLE
+----------------------------------------------------------------------
+	TX27	R6		R2
+	TX5	R7		R3
+	TX10   	G6		G2
+Y	TX11   	G7		G3
+3	TX16   	B6		B2
+	TX17   	B7		B3
+	TX23   	GND		GND
+----------------------------------------------------------------------
+	TX27	R8		R0
+	TX5	R9		R1
+	TX10   	G8		G0
+Y	TX11   	G9		G1
+4	TX16   	B8		B0
+	TX17   	B9		B1
+	TX23   	GND		GND
+------------------------------------------------------------------------
 */
 
 #endif
