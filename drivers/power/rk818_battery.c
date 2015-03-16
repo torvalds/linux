@@ -41,10 +41,21 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 
 
 #define DEFAULT_BAT_RES		135
+#define DEFAULT_VLMT		4200
+#define DEFAULT_ILMT		2000
+#define DEFAULT_ICUR		1600
+
 #define INTERPOLATE_MAX				1000
 #define MAX_INT 						0x7FFF
 #define TIME_10MIN_SEC				600
 
+#define CHG_VOL_SHIFT	4
+#define CHG_ILIM_SHIFT	0
+#define CHG_ICUR_SHIFT	0
+
+int CHG_V_LMT[] = {4050, 4100, 4150, 4200, 4300, 4350};
+int CHG_I_CUR[] = {1000, 1200, 1400, 1600, 1800, 2000, 2250, 2400, 2600, 2800, 3000};
+int CHG_I_LMT[] = {450, 800, 850, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000};
 struct battery_info {
 	struct device 		*dev;
 	struct cell_state	cell;
@@ -167,6 +178,9 @@ struct battery_info {
 	int 	debug_finish_real_soc;
 	int	debug_finish_temp_soc;
 	int	chrg_min[10];
+	int 	chg_v_lmt;
+	int 	chg_i_lmt;
+	int 	chg_i_cur;
 };
 
 struct battery_info *g_battery;
@@ -1524,12 +1538,47 @@ static void set_charge_current(struct battery_info *di, int charge_current)
 	battery_write(di->rk818, USB_CTRL_REG, &usb_ctrl_reg, 1);
 }
 
+static void fg_match_param(struct battery_info *di, int chg_vol, int chg_ilim, int chg_cur)
+{
+	int i;
+
+	di->chg_v_lmt = CHRG_VOL4200;
+	di->chg_i_lmt = ILIM_1750MA;
+	di->chg_i_cur = CHRG_CUR1400mA;
+	
+	for (i=0; i<ARRAY_SIZE(CHG_V_LMT); i++){
+		if (chg_vol < CHG_V_LMT[i])
+			break;
+		else
+			di->chg_v_lmt = (i << CHG_VOL_SHIFT);
+	}
+
+	for (i=0; i<ARRAY_SIZE(CHG_I_LMT); i++){
+		if (chg_ilim < CHG_I_LMT[i])
+			break;
+		else
+			di->chg_i_lmt = (i << CHG_ILIM_SHIFT);
+	}
+
+	for (i=0; i<ARRAY_SIZE(CHG_I_CUR); i++){
+		if (chg_cur < CHG_I_CUR[i])
+			break;
+		else
+			di->chg_i_cur = (i << CHG_ICUR_SHIFT);
+	}
+	DBG("vol = 0x%x, i_lim = 0x%x, cur=0x%x\n",
+		di->chg_v_lmt, di->chg_i_lmt, di->chg_i_cur);
+}
+
 static void rk_battery_charger_init(struct  battery_info *di)
 {
 	u8 chrg_ctrl_reg1, usb_ctrl_reg, chrg_ctrl_reg2, chrg_ctrl_reg3;
 	u8 sup_sts_reg;
 
-	DBG("%s  start\n", __func__);
+	int chg_vol = di->rk818->battery_data->max_charger_voltagemV;
+	int chg_cur = di->rk818->battery_data->max_charger_currentmA;
+	int chg_ilim = di->rk818->battery_data->max_charger_ilimitmA;
+	fg_match_param(di, chg_vol, chg_ilim, chg_cur);
 	battery_read(di->rk818, USB_CTRL_REG, &usb_ctrl_reg, 1);
 	battery_read(di->rk818, CHRG_CTRL_REG1, &chrg_ctrl_reg1, 1);
 	battery_read(di->rk818, CHRG_CTRL_REG2, &chrg_ctrl_reg2, 1);
@@ -1541,10 +1590,10 @@ static void rk_battery_charger_init(struct  battery_info *di)
 #ifdef SUPPORT_USB_CHARGE
 	usb_ctrl_reg |= (ILIM_450MA);
 #else
-	usb_ctrl_reg |= (ILIM_3000MA);
+	usb_ctrl_reg |= (di->chg_i_lmt);
 #endif
 	chrg_ctrl_reg1 &= (0x00);
-	chrg_ctrl_reg1 |= (CHRG_EN) | (CHRG_VOL4200 | CHRG_CUR1400mA);
+	chrg_ctrl_reg1 |= (CHRG_EN) | (di->chg_v_lmt | di->chg_i_cur);
 
 	chrg_ctrl_reg3 |= CHRG_TERM_DIG_SIGNAL;/* digital finish mode*/
 	chrg_ctrl_reg2 &= ~(0xc0);
@@ -1669,9 +1718,9 @@ static void  zero_get_soc(struct   battery_info *di)
 	di->voltage_old = voltage;
 	currentnow = _get_average_current(di);
 
-	dead_voltage = 3400 + abs32_int(currentnow)*200/1000;
+	dead_voltage = 3400 + abs32_int(currentnow)*(di->bat_res+65)/1000;
 	/* 65 mo power-path mos */
-	ocv_voltage = voltage + abs32_int(currentnow)*(200 - 65)/1000;
+	ocv_voltage = voltage + abs32_int(currentnow)*di->bat_res/1000;
 	DBG("ZERO: dead_voltage(shtd) = %d, ocv_voltage(now) = %d\n",
 			dead_voltage, ocv_voltage);
 
@@ -1836,7 +1885,7 @@ out:
 static int estimate_bat_ocv_vol(struct battery_info *di)
 {
 	return (di->voltage -
-				(DEFAULT_BAT_RES * di->current_avg) / 1000);
+				(di->bat_res * di->current_avg) / 1000);
 }
 
 static int estimate_bat_ocv_soc(struct battery_info *di)
@@ -1953,7 +2002,7 @@ static void dump_debug_info(struct battery_info *di)
 	    get_relax_voltage(di),
 	    di->voltage, di->current_avg,
 	    di->fcc, di->remain_capacity, _get_OCV_voltage(di),
-	    di->est_ocv_vol, di->est_ocv_soc, DEFAULT_BAT_RES,
+	    di->est_ocv_vol, di->est_ocv_soc, di->bat_res,
 	    di->real_soc, _get_soc(di),
 	    di->ac_online, di->usb_online, di->status,
 	    di->debug_finish_real_soc, di->debug_finish_temp_soc,
@@ -2406,7 +2455,7 @@ static int  get_charging_status_type(struct battery_info *di)
 	}
 
 	if (di->ac_online == 1)
-		set_charge_current(di, ILIM_3000MA);
+		set_charge_current(di, di->chg_i_lmt);
 	else
 		set_charge_current(di, ILIM_450MA);
 	return otg_status;
@@ -2436,7 +2485,7 @@ static void battery_poweron_status_init(struct battery_info *di)
 		di->usb_online = 0;
 		di->ac_online = 1;
 		di->status = POWER_SUPPLY_STATUS_CHARGING;
-		set_charge_current(di, ILIM_3000MA);
+		set_charge_current(di, di->chg_i_lmt);
 		DBG("++++++++ILIM_1000MA++++++\n");
 	}
 	DBG(" CHARGE: SUPPORT_USB_CHARGE. charge_status = %d\n", otg_status);
@@ -2858,6 +2907,7 @@ static void battery_info_init(struct battery_info *di, struct rk818 *chip)
 	di->q_err = 0;
 	di->q_shtd = 0;
 	di->odd_capacity = 0;
+	di->bat_res = di->rk818->battery_data->sense_resistor_mohm;
 	for (i=0; i<10; i++)
 		di->chrg_min[i] = -1;
 
@@ -2941,14 +2991,28 @@ static int rk_battery_parse_dt(struct rk818 *rk818, struct device *dev)
 	ret = of_property_read_u32(regs, "max_charge_currentmA", &out_value);
 	if (ret < 0) {
 		dev_err(dev, "max_charge_currentmA not found!\n");
-		return ret;
+		out_value = DEFAULT_ICUR;
 	}
 	data->max_charger_currentmA = out_value;
+
+	ret = of_property_read_u32(regs, "max_charge_ilimitmA", &out_value);
+	if (ret < 0) {
+		dev_err(dev, "max_charger_ilimitmA not found!\n");
+		out_value = DEFAULT_ILMT;
+	}
+	data->max_charger_ilimitmA = out_value;
+
+	ret = of_property_read_u32(regs, "bat_res", &out_value);
+	if (ret < 0) {
+		dev_err(dev, "bat_res not found!\n");
+		out_value = DEFAULT_BAT_RES;
+	}
+	data->sense_resistor_mohm = out_value;
 
 	ret = of_property_read_u32(regs, "max_charge_voltagemV", &out_value);
 	if (ret < 0) {
 		dev_err(dev, "max_charge_voltagemV not found!\n");
-		return ret;
+		out_value = DEFAULT_VLMT;
 	}
 	data->max_charger_voltagemV = out_value;
 
@@ -2987,6 +3051,8 @@ static int rk_battery_parse_dt(struct rk818 *rk818, struct device *dev)
 	rk818->battery_data = data;
 
 	DBG("\n--------- the battery OCV TABLE dump:\n");
+	DBG("bat_res :%d\n", data->sense_resistor_mohm);
+	DBG("max_charge_ilimitmA :%d\n", data->max_charger_ilimitmA);
 	DBG("max_charge_currentmA :%d\n", data->max_charger_currentmA);
 	DBG("max_charge_voltagemV :%d\n", data->max_charger_voltagemV);
 	DBG("design_capacity :%d\n", cell_cfg->design_capacity);

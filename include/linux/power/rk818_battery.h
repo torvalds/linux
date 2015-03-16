@@ -587,7 +587,7 @@ struct battery_platform_data {
 	unsigned int  ocv_size;
 
 	unsigned int monitoring_interval;
-
+	unsigned int max_charger_ilimitmA;
 	unsigned int max_charger_currentmA;
 	unsigned int max_charger_voltagemV;
 	unsigned int termination_currentmA;
