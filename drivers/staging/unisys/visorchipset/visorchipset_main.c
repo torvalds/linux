@@ -238,7 +238,7 @@ static struct visorchipset_busdev_responders busdev_responders = {
 };
 
 /* info for /dev/visorchipset */
-static dev_t MajorDev = -1; /**< indicates major num for device */
+static dev_t major_dev = -1; /**< indicates major num for device */
 
 /* prototypes for attributes */
 static ssize_t toolaction_show(struct device *dev,
@@ -2172,8 +2172,8 @@ visorchipset_init(void)
 		return -ENODEV;
 	}
 
-	MajorDev = MKDEV(visorchipset_major, 0);
-	rc = visorchipset_file_init(MajorDev, &controlvm_channel);
+	major_dev = MKDEV(visorchipset_major, 0);
+	rc = visorchipset_file_init(major_dev, &controlvm_channel);
 	if (rc < 0) {
 		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
 		goto cleanup;
@@ -2222,7 +2222,7 @@ visorchipset_init(void)
 		}
 	}
 
-	Visorchipset_platform_device.dev.devt = MajorDev;
+	Visorchipset_platform_device.dev.devt = major_dev;
 	if (platform_device_register(&Visorchipset_platform_device) < 0) {
 		POSTCODE_LINUX_2(DEVICE_REGISTER_FAILURE_PC, DIAG_SEVERITY_ERR);
 		rc = -1;
