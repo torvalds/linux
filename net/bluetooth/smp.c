@@ -74,6 +74,12 @@ enum {
 };
 
 struct smp_dev {
+	/* Secure Connections OOB data */
+	u8			local_pk[64];
+	u8			local_sk[32];
+	u8			local_rr[16];
+	bool			debug_key;
+
 	struct crypto_blkcipher	*tfm_aes;
 	struct crypto_hash	*tfm_cmac;
 };
@@ -522,6 +528,53 @@ int smp_generate_rpa(struct hci_dev *hdev, const u8 irk[16], bdaddr_t *rpa)
 		return err;
 
 	BT_DBG("RPA %pMR", rpa);
+
+	return 0;
+}
+
+int smp_generate_oob(struct hci_dev *hdev, u8 hash[16], u8 rand[16])
+{
+	struct l2cap_chan *chan = hdev->smp_data;
+	struct smp_dev *smp;
+	int err;
+
+	if (!chan || !chan->data)
+		return -EOPNOTSUPP;
+
+	smp = chan->data;
+
+	if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS)) {
+		BT_DBG("Using debug keys");
+		memcpy(smp->local_pk, debug_pk, 64);
+		memcpy(smp->local_sk, debug_sk, 32);
+		smp->debug_key = true;
+	} else {
+		while (true) {
+			/* Generate local key pair for Secure Connections */
+			if (!ecc_make_key(smp->local_pk, smp->local_sk))
+				return -EIO;
+
+			/* This is unlikely, but we need to check that
+			 * we didn't accidentially generate a debug key.
+			 */
+			if (memcmp(smp->local_sk, debug_sk, 32))
+				break;
+		}
+		smp->debug_key = false;
+	}
+
+	SMP_DBG("OOB Public Key X: %32phN", smp->local_pk);
+	SMP_DBG("OOB Public Key Y: %32phN", smp->local_pk + 32);
+	SMP_DBG("OOB Private Key:  %32phN", smp->local_sk);
+
+	get_random_bytes(smp->local_rr, 16);
+
+	err = smp_f4(smp->tfm_cmac, smp->local_pk, smp->local_pk,
+		     smp->local_rr, 0, hash);
+	if (err < 0)
+		return err;
+
+	memcpy(rand, smp->local_rr, 16);
 
 	return 0;
 }
