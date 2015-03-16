@@ -749,11 +749,6 @@ unlock:
 	return ret;
 }
 
-static int s3c24xx_dma_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void s3c24xx_dma_free_chan_resources(struct dma_chan *chan)
 {
 	/* Ensure all queued descriptors are freed */
@@ -1290,8 +1285,6 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_MEMCPY, s3cdma->memcpy.cap_mask);
 	dma_cap_set(DMA_PRIVATE, s3cdma->memcpy.cap_mask);
 	s3cdma->memcpy.dev = &pdev->dev;
-	s3cdma->memcpy.device_alloc_chan_resources =
-					s3c24xx_dma_alloc_chan_resources;
 	s3cdma->memcpy.device_free_chan_resources =
 					s3c24xx_dma_free_chan_resources;
 	s3cdma->memcpy.device_prep_dma_memcpy = s3c24xx_dma_prep_memcpy;
@@ -1305,8 +1298,6 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, s3cdma->slave.cap_mask);
 	dma_cap_set(DMA_PRIVATE, s3cdma->slave.cap_mask);
 	s3cdma->slave.dev = &pdev->dev;
-	s3cdma->slave.device_alloc_chan_resources =
-					s3c24xx_dma_alloc_chan_resources;
 	s3cdma->slave.device_free_chan_resources =
 					s3c24xx_dma_free_chan_resources;
 	s3cdma->slave.device_tx_status = s3c24xx_dma_tx_status;
