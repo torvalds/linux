@@ -4131,49 +4131,6 @@ static int rocker_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				       rocker_port->brport_flags, mask);
 }
 
-static int rocker_port_switch_parent_id_get(struct net_device *dev,
-					    struct netdev_phys_item_id *psid)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	struct rocker *rocker = rocker_port->rocker;
-
-	psid->id_len = sizeof(rocker->hw.id);
-	memcpy(&psid->id, &rocker->hw.id, psid->id_len);
-	return 0;
-}
-
-static int rocker_port_switch_port_stp_update(struct net_device *dev, u8 state)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-
-	return rocker_port_stp_update(rocker_port, state);
-}
-
-static int rocker_port_switch_fib_ipv4_add(struct net_device *dev,
-					   __be32 dst, int dst_len,
-					   struct fib_info *fi,
-					   u8 tos, u8 type,
-					   u32 nlflags, u32 tb_id)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	int flags = 0;
-
-	return rocker_port_fib_ipv4(rocker_port, dst, dst_len,
-				    fi, tb_id, flags);
-}
-
-static int rocker_port_switch_fib_ipv4_del(struct net_device *dev,
-					   __be32 dst, int dst_len,
-					   struct fib_info *fi,
-					   u8 tos, u8 type, u32 tb_id)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	int flags = ROCKER_OP_FLAG_REMOVE;
-
-	return rocker_port_fib_ipv4(rocker_port, dst, dst_len,
-				    fi, tb_id, flags);
-}
-
 static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_open			= rocker_port_open,
 	.ndo_stop			= rocker_port_stop,
@@ -4186,10 +4143,60 @@ static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_fdb_dump			= rocker_port_fdb_dump,
 	.ndo_bridge_setlink		= rocker_port_bridge_setlink,
 	.ndo_bridge_getlink		= rocker_port_bridge_getlink,
-	.ndo_switch_parent_id_get	= rocker_port_switch_parent_id_get,
-	.ndo_switch_port_stp_update	= rocker_port_switch_port_stp_update,
-	.ndo_switch_fib_ipv4_add	= rocker_port_switch_fib_ipv4_add,
-	.ndo_switch_fib_ipv4_del	= rocker_port_switch_fib_ipv4_del,
+};
+
+/********************
+ * swdev interface
+ ********************/
+
+static int rocker_port_swdev_parent_id_get(struct net_device *dev,
+					   struct netdev_phys_item_id *psid)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	struct rocker *rocker = rocker_port->rocker;
+
+	psid->id_len = sizeof(rocker->hw.id);
+	memcpy(&psid->id, &rocker->hw.id, psid->id_len);
+	return 0;
+}
+
+static int rocker_port_swdev_port_stp_update(struct net_device *dev, u8 state)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+
+	return rocker_port_stp_update(rocker_port, state);
+}
+
+static int rocker_port_swdev_fib_ipv4_add(struct net_device *dev,
+					  __be32 dst, int dst_len,
+					  struct fib_info *fi,
+					  u8 tos, u8 type,
+					  u32 nlflags, u32 tb_id)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	int flags = 0;
+
+	return rocker_port_fib_ipv4(rocker_port, dst, dst_len,
+				    fi, tb_id, flags);
+}
+
+static int rocker_port_swdev_fib_ipv4_del(struct net_device *dev,
+					  __be32 dst, int dst_len,
+					  struct fib_info *fi,
+					  u8 tos, u8 type, u32 tb_id)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	int flags = ROCKER_OP_FLAG_REMOVE;
+
+	return rocker_port_fib_ipv4(rocker_port, dst, dst_len,
+				    fi, tb_id, flags);
+}
+
+static const struct swdev_ops rocker_port_swdev_ops = {
+	.swdev_parent_id_get		= rocker_port_swdev_parent_id_get,
+	.swdev_port_stp_update		= rocker_port_swdev_port_stp_update,
+	.swdev_fib_ipv4_add		= rocker_port_swdev_fib_ipv4_add,
+	.swdev_fib_ipv4_del		= rocker_port_swdev_fib_ipv4_del,
 };
 
 /********************
@@ -4544,6 +4551,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_port_dev_addr_init(rocker, rocker_port);
 	dev->netdev_ops = &rocker_port_netdev_ops;
 	dev->ethtool_ops = &rocker_port_ethtool_ops;
+	dev->swdev_ops = &rocker_port_swdev_ops;
 	netif_napi_add(dev, &rocker_port->napi_tx, rocker_port_poll_tx,
 		       NAPI_POLL_WEIGHT);
 	netif_napi_add(dev, &rocker_port->napi_rx, rocker_port_poll_rx,

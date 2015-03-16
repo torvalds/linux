@@ -16,6 +16,7 @@
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include <net/rtnetlink.h>
+#include <net/switchdev.h>
 #include <linux/if_bridge.h>
 #include "dsa_priv.h"
 
@@ -572,8 +573,11 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_set_rx_mode	= dsa_slave_set_rx_mode,
 	.ndo_set_mac_address	= dsa_slave_set_mac_address,
 	.ndo_do_ioctl		= dsa_slave_ioctl,
-	.ndo_switch_parent_id_get = dsa_slave_parent_id_get,
-	.ndo_switch_port_stp_update = dsa_slave_stp_update,
+};
+
+static const struct swdev_ops dsa_slave_swdev_ops = {
+	.swdev_parent_id_get = dsa_slave_parent_id_get,
+	.swdev_port_stp_update = dsa_slave_stp_update,
 };
 
 static void dsa_slave_adjust_link(struct net_device *dev)
@@ -755,6 +759,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->tx_queue_len = 0;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
+	slave_dev->swdev_ops = &dsa_slave_swdev_ops;
 
 	SET_NETDEV_DEV(slave_dev, parent);
 	slave_dev->dev.of_node = ds->pd->port_dn[port];
