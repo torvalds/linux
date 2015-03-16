@@ -131,8 +131,8 @@ static BOOL controlvm_pending_msg_valid = FALSE;
 /* Pool of struct putfile_buffer_entry, for keeping track of pending (incoming)
  * TRANSMIT_FILE PutFile payloads.
  */
-static struct kmem_cache *Putfile_buffer_list_pool;
-static const char Putfile_buffer_list_pool_name[] =
+static struct kmem_cache *putfile_buffer_list_pool;
+static const char putfile_buffer_list_pool_name[] =
 	"controlvm_putfile_buffer_list_pool";
 
 /* This identifies a data buffer that has been received via a controlvm messages
@@ -147,7 +147,7 @@ struct putfile_buffer_entry {
  * Each entry in this list identifies an outstanding TRANSMIT_FILE
  * conversation.
  */
-static LIST_HEAD(Putfile_request_list);
+static LIST_HEAD(putfile_request_list);
 
 /* This describes a buffer and its current state of transfer (e.g., how many
  * bytes have already been supplied as putfile data, and how many bytes are
@@ -2185,11 +2185,11 @@ visorchipset_init(void)
 
 	memset(&g_del_dump_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
-	Putfile_buffer_list_pool =
-	    kmem_cache_create(Putfile_buffer_list_pool_name,
+	putfile_buffer_list_pool =
+	    kmem_cache_create(putfile_buffer_list_pool_name,
 			      sizeof(struct putfile_buffer_entry),
 			      0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!Putfile_buffer_list_pool) {
+	if (!putfile_buffer_list_pool) {
 		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
 		rc = -1;
 		goto cleanup;
@@ -2252,9 +2252,9 @@ visorchipset_exit(void)
 		periodic_controlvm_workqueue = NULL;
 		destroy_controlvm_payload_info(&controlvm_payload_info);
 	}
-	if (Putfile_buffer_list_pool) {
-		kmem_cache_destroy(Putfile_buffer_list_pool);
-		Putfile_buffer_list_pool = NULL;
+	if (putfile_buffer_list_pool) {
+		kmem_cache_destroy(putfile_buffer_list_pool);
+		putfile_buffer_list_pool = NULL;
 	}
 
 	cleanup_controlvm_structures();
