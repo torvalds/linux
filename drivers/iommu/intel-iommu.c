@@ -684,7 +684,7 @@ static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devf
 	if (dev_is_pci(dev)) {
 		pdev = to_pci_dev(dev);
 		segment = pci_domain_nr(pdev->bus);
-	} else if (ACPI_COMPANION(dev))
+	} else if (has_acpi_companion(dev))
 		dev = &ACPI_COMPANION(dev)->dev;
 
 	rcu_read_lock();
