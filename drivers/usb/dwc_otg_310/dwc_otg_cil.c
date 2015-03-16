@@ -2262,9 +2262,9 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *core_if)
 				    DWC_READ_REG32(&core_if->
 						   dev_if->out_ep_regs[i]->
 						   doepint);
-				if (j == 100000) {
+				if (j++ >= 10000) {
 					DWC_ERROR
-					    ("EPDIS was not set during 10s\n");
+					    ("EPDIS was not set during 1s\n");
 					break;
 				}
 			} while (!doepint.b.epdisabled);
