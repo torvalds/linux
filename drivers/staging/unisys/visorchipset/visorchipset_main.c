@@ -106,20 +106,19 @@ static struct controlvm_payload_info {
 	u32 bytes;		/* number of bytes in payload pool */
 } controlvm_payload_info;
 
-struct livedump_info {
-	struct controlvm_message_header Dumpcapture_header;
-	struct controlvm_message_header Gettextdump_header;
-	struct controlvm_message_header Dumpcomplete_header;
-	BOOL Gettextdump_outstanding;
+/* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
+ * CONTROLVM_DUMP_GETTEXTDUMP / CONTROLVM_DUMP_COMPLETE conversation.
+ */
+static struct livedump_info {
+	struct controlvm_message_header dumpcapture_header;
+	struct controlvm_message_header gettextdump_header;
+	struct controlvm_message_header dumpcomplete_header;
+	BOOL gettextdump_outstanding;
 	u32 crc32;
 	ulong length;
 	atomic_t buffers_in_use;
 	ulong destination;
-};
-/* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
- * CONTROLVM_DUMP_GETTEXTDUMP / CONTROLVM_DUMP_COMPLETE conversation.
- */
-static struct livedump_info LiveDump_info;
+} livedump_info;
 
 /* The following globals are used to handle the scenario where we are unable to
  * offload the payload from a controlvm message due to memory requirements.  In
@@ -2193,8 +2192,8 @@ visorchipset_init(void)
 	memset(&BusDev_Server_Notifiers, 0, sizeof(BusDev_Server_Notifiers));
 	memset(&BusDev_Client_Notifiers, 0, sizeof(BusDev_Client_Notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
-	memset(&LiveDump_info, 0, sizeof(LiveDump_info));
-	atomic_set(&LiveDump_info.buffers_in_use, 0);
+	memset(&livedump_info, 0, sizeof(livedump_info));
+	atomic_set(&livedump_info.buffers_in_use, 0);
 
 	if (visorchipset_testvnic) {
 		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, x, DIAG_SEVERITY_ERR);
