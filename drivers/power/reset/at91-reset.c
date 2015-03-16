@@ -152,14 +152,14 @@ static void __init at91_reset_status(struct platform_device *pdev)
 	pr_info("AT91: Starting after %s\n", reason);
 }
 
-static struct of_device_id at91_ramc_of_match[] = {
+static const struct of_device_id at91_ramc_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-sdramc", },
 	{ .compatible = "atmel,at91sam9g45-ddramc", },
 	{ .compatible = "atmel,sama5d3-ddramc", },
 	{ /* sentinel */ }
 };
 
-static struct of_device_id at91_reset_of_match[] = {
+static const struct of_device_id at91_reset_of_match[] = {
 	{ .compatible = "atmel,at91sam9260-rstc", .data = at91sam9260_restart },
 	{ .compatible = "atmel,at91sam9g45-rstc", .data = at91sam9g45_restart },
 	{ /* sentinel */ }

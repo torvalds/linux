@@ -1484,7 +1484,7 @@ static int cm_init_thermal_data(struct charger_manager *cm,
 	return ret;
 }
 
-static struct of_device_id charger_manager_match[] = {
+static const struct of_device_id charger_manager_match[] = {
 	{
 		.compatible = "charger-manager",
 	},

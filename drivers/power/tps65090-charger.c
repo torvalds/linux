@@ -349,7 +349,7 @@ static int tps65090_charger_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id of_tps65090_charger_match[] = {
+static const struct of_device_id of_tps65090_charger_match[] = {
 	{ .compatible = "ti,tps65090-charger", },
 	{ /* end */ }
 };

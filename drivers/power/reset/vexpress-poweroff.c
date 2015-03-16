@@ -80,7 +80,7 @@ DEVICE_ATTR(active, S_IRUGO | S_IWUSR, vexpress_reset_active_show,
 
 enum vexpress_reset_func { FUNC_RESET, FUNC_SHUTDOWN, FUNC_REBOOT };
 
-static struct of_device_id vexpress_reset_of_match[] = {
+static const struct of_device_id vexpress_reset_of_match[] = {
 	{
 		.compatible = "arm,vexpress-reset",
 		.data = (void *)FUNC_RESET,
