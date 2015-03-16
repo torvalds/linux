@@ -45,6 +45,22 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define DEFAULT_ILMT		2000
 #define DEFAULT_ICUR		1600
 
+#define DSOC_DISCHRG_FAST_DEC_SEC	120	/*seconds*/
+#define DSOC_DISCHRG_FAST_EER_RANGE	25
+#define DSOC_CHRG_FAST_CALIB_CURR_MAX	400	/*mA*/
+#define DSOC_CHRG_FAST_INC_SEC		120	/*seconds*/
+#define DSOC_CHRG_FAST_EER_RANGE	25
+#define DSOC_CHRG_EMU_CURR		1000
+#define DSOC_CHG_TERM_CURR		500
+
+/*realtime RSOC calib param*/
+#define RSOC_DISCHG_ERR_LOWER	40
+#define RSOC_DISCHG_ERR_UPPER	50
+#define RSOC_ERR_CHCK_CNT	15
+#define RSOC_COMPS		20	/*compensation*/
+#define RSOC_CALIB_CURR_MAX	900	/*mA*/
+#define RSOC_CALIB_DISCHGR_TIME	3	/*min*/
+
 #define INTERPOLATE_MAX				1000
 #define MAX_INT 						0x7FFF
 #define TIME_10MIN_SEC				600
@@ -84,6 +100,9 @@ struct battery_info {
 	int				pcb_ioffset;
 	bool				pcb_ioffset_updated;
 	unsigned long	 	queue_work_cnt;
+	u32				term_chg_cnt;
+	u32				emu_chg_cnt;
+
 	uint16_t			warnning_voltage;
 
 	int				design_capacity;
@@ -100,6 +119,8 @@ struct battery_info {
 
 	int 				est_ocv_vol;
 	int 				est_ocv_soc;
+	u8				err_chck_cnt;
+	int				err_soc_sum;
 	int 				bat_res_update_cnt;
 	int				soc_counter;
 
@@ -306,7 +327,6 @@ static int _get_realtime_capacity(struct battery_info *di);
 static void power_on_save(struct   battery_info *di, int voltage);
 static void  _capacity_init(struct battery_info *di, u32 capacity);
 static void battery_poweron_status_init(struct battery_info *di);
-static void power_on_save(struct   battery_info *di, int voltage);
 static void flatzone_voltage_init(struct battery_info *di);
 static int _get_FCC_capacity(struct battery_info *di);
 static void  _save_FCC_capacity(struct battery_info *di, u32 capacity);
@@ -392,11 +412,42 @@ static ssize_t bat_soc_read(struct device *dev, struct device_attribute *attr, c
 	return sprintf(buf, "%d", di->real_soc);
 }
 
+static ssize_t bat_soc_write(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int val;
+	int ret;
+	struct battery_info *di = g_battery;
+
+	ret = sscanf(buf, "%d", &val);
+	di->real_soc = val;
+
+	return count;
+}
 static ssize_t bat_temp_soc_read(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct battery_info *di = g_battery;
 
 	return sprintf(buf, "%d", di->temp_soc);
+}
+
+static ssize_t bat_temp_soc_write(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int val;
+	int ret;
+	u32 capacity;
+	struct battery_info *di = g_battery;
+
+	ret = sscanf(buf, "%d", &val);
+	capacity = di->fcc*val/100;
+	_capacity_init(di, capacity);
+	di->temp_soc = _get_soc(di);
+	di->remain_capacity = _get_realtime_capacity(di);
+
+	return count;
 }
 
 static ssize_t bat_voltage_read(struct device *dev, struct device_attribute *attr, char *buf)
@@ -424,8 +475,8 @@ static struct device_attribute rk818_bat_attr[] = {
 	__ATTR(state, 0664, bat_state_read, NULL),
 	__ATTR(regs, 0664, bat_reg_read, NULL),
 	__ATTR(fcc, 0664, bat_fcc_read, NULL),
-	__ATTR(soc, 0664, bat_soc_read, NULL),
-	__ATTR(temp_soc, 0664, bat_temp_soc_read, NULL),
+	__ATTR(soc, 0664, bat_soc_read, bat_soc_write),
+	__ATTR(temp_soc, 0664, bat_temp_soc_read, bat_temp_soc_write),
 	__ATTR(voltage, 0664, bat_voltage_read, NULL),
 	__ATTR(avr_current, 0664, bat_avr_current_read, NULL),
 	__ATTR(remain_capacity, 0664, bat_remain_capacity_read, NULL),
@@ -1436,7 +1487,7 @@ static int _rsoc_init(struct  battery_info *di)
 			DBG("<%s>Not first pwron, real_remain_cap = %d, ocv-remain_cp=%d\n", __func__, remain_capacity, di->temp_nac);
 
 			/* if plugin, make sure current shtd_time different from last_shtd_time.*/
-			if (((otg_status != 0) && (curr_shtd_time > 0) && (last_shtd_time != curr_shtd_time)) || ((curr_shtd_time > 0) && (otg_status == 0))) {
+			if (last_shtd_time != curr_shtd_time) {
 
 				if (curr_shtd_time > 30) {
 					remain_capacity = di->temp_nac;
@@ -1676,11 +1727,11 @@ static void  fg_init(struct battery_info *di)
 	DBG("<%s> :\n"
 	    "nac = %d , remain_capacity = %d\n"
 	    "OCV_voltage = %d, voltage = %d\n"
-	    "SOC = %d, fcc = %d\n",
+	    "SOC = %d, fcc = %d\n, current=%d",
 	    __func__,
 	    di->nac, di->remain_capacity,
 	    di->voltage_ocv, di->voltage,
-	    di->real_soc, di->fcc);
+	    di->real_soc, di->fcc, di->current_avg);
 }
 
 
@@ -1898,17 +1949,139 @@ static int estimate_bat_ocv_soc(struct battery_info *di)
 
 	return ocv_soc;
 }
+
+static void rsoc_dischrg_calib(struct battery_info *di)
+{
+	int ocv_soc = di->est_ocv_soc;
+	int ocv_volt = di->est_ocv_vol;
+	int temp_soc = _get_soc(di);
+	int max_volt = di->rk818->battery_data->max_charger_voltagemV;
+
+	if (ocv_volt > max_volt)
+		goto out;
+
+	if (di->discharge_min >= RSOC_CALIB_DISCHGR_TIME) {
+		if ((ocv_soc-temp_soc >= RSOC_DISCHG_ERR_LOWER) ||
+			(di->temp_soc == 0) ||
+			(temp_soc-ocv_soc >= RSOC_DISCHG_ERR_UPPER)) {
+
+			di->err_chck_cnt++;
+			di->err_soc_sum += ocv_soc;
+		} else
+			goto out;
+
+		DBG("<%s>. rsoc err_chck_cnt = %d\n",
+		__func__, di->err_chck_cnt);
+		DBG("<%s>. rsoc err_soc_sum = %d\n",
+		__func__, di->err_soc_sum);
+
+		if (di->err_chck_cnt >= RSOC_ERR_CHCK_CNT) {
+
+			ocv_soc = di->err_soc_sum / RSOC_ERR_CHCK_CNT;
+			if (temp_soc-ocv_soc >= RSOC_DISCHG_ERR_UPPER)
+				ocv_soc += RSOC_COMPS;
+
+			di->temp_nac = ocv_soc * di->fcc / 100;
+			_capacity_init(di, di->temp_nac);
+			di->temp_soc = _get_soc(di);
+			di->remain_capacity = _get_realtime_capacity(di);
+			di->err_soc_sum = 0;
+			di->err_chck_cnt = 0;
+			DBG("<%s>. update: rsoc = %d\n", __func__, ocv_soc);
+		}
+	 } else {
+out:
+		di->err_chck_cnt = 0;
+		di->err_soc_sum = 0;
+	}
+
+}
+
+static void rsoc_realtime_calib(struct battery_info *di)
+{
+	u8 status = di->status;
+
+	if ((status == POWER_SUPPLY_STATUS_CHARGING) ||
+		(status == POWER_SUPPLY_STATUS_FULL)) {
+
+		if ((di->current_avg < -10) &&
+			(di->charge_status != CHARGE_FINISH))
+			rsoc_dischrg_calib(di);
+		/*
+		else
+			rsoc_chrg_calib(di);
+		*/
+
+	} else if (status == POWER_SUPPLY_STATUS_DISCHARGING) {
+		rsoc_dischrg_calib(di);
+	}
+}
+
+static bool do_ac_charger_emulator(struct battery_info *di)
+{
+	int delta_soc = di->temp_soc - di->real_soc;
+	u32 soc_time;
+
+	if ((di->charge_status != CHARGE_FINISH)
+		&& (di->ac_online)
+		&& (delta_soc >= DSOC_CHRG_FAST_EER_RANGE)){
+		
+		soc_time = di->fcc*3600/100/(abs_int(DSOC_CHRG_EMU_CURR));
+		di->emu_chg_cnt++;
+		if  (di->emu_chg_cnt > soc_time) {
+			di->real_soc++;
+			di->emu_chg_cnt = 0;
+		}
+		DBG("<%s>. soc_time=%d, emu_cnt=%d\n", 
+		__func__, soc_time, di->emu_chg_cnt);
+
+		return true;
+	}
+
+	return false;
+}
+
+static bool do_term_chrg_cali(struct battery_info *di)
+{
+	u32 soc_time;
+
+	if (di->ac_online &&
+	    (di->real_soc >= 90)&& 
+	    (di->current_avg > 600)){
+
+		soc_time = di->fcc*3600/100/(abs32_int(DSOC_CHG_TERM_CURR));
+		di->term_chg_cnt++;
+		if  (di->term_chg_cnt > soc_time) {
+			di->real_soc++;
+			di->term_chg_cnt = 0;
+		}
+		DBG("<%s>. soc_time=%d, term_cnt=%d\n", 
+		__func__, soc_time, di->term_chg_cnt);
+
+		return true;
+	}
+	
+	return false;
+}
+
 static void voltage_to_soc_discharge_smooth(struct battery_info *di)
 {
 	int voltage;
 	int now_current, soc_time = -1;
 	int volt_to_soc;
+	int delta_soc = di->real_soc - di->temp_soc;
 
 	voltage = di->voltage;
 	now_current = di->current_avg;
 	if (now_current == 0)
 		now_current = 1;
-	soc_time = di->fcc*3600/100/(abs_int(now_current));
+
+	if (delta_soc > DSOC_DISCHRG_FAST_EER_RANGE){
+		soc_time = DSOC_DISCHRG_FAST_DEC_SEC;
+		DBG("<%s>. dsoc decrease fast! delta_soc = %d\n",
+			__func__, delta_soc);
+	} else 
+		soc_time = di->fcc*3600/100/(abs_int(now_current));
 	_voltage_to_capacity(di, 3800);
 	volt_to_soc = di->temp_soc;
 	di->temp_soc = _get_soc(di);
@@ -1924,7 +2097,7 @@ static void voltage_to_soc_discharge_smooth(struct battery_info *di)
 	} else if (di->temp_soc > di->real_soc) {
 		DBG("<%s>. di->temp_soc > di->real_soc\n", __func__);
 		di->vol_smooth_time++;
-		if (di->vol_smooth_time > soc_time*3) {
+		if (di->vol_smooth_time > soc_time*3/2) {
 			di->real_soc--;
 			di->vol_smooth_time = 0;
 		}
@@ -1936,7 +2109,7 @@ static void voltage_to_soc_discharge_smooth(struct battery_info *di)
 			di->real_soc = di->temp_soc;
 		} else {
 			di->vol_smooth_time++;
-			if (di->vol_smooth_time > soc_time/3) {
+			if (di->vol_smooth_time > soc_time*3/4) {
 				di->real_soc--;
 				di->vol_smooth_time  = 0;
 			}
@@ -2046,7 +2219,8 @@ static void wait_charge_finish_signal(struct battery_info *di)
 
 static void charge_finish_routine(struct battery_info *di)
 {
-	if (di->charge_status == CHARGE_FINISH) {
+	if ((di->charge_status == CHARGE_FINISH)&&
+		(di->finish_min >= 1)) {
 		_capacity_init(di, di->fcc);
 		zero_current_calibration(di);
 
@@ -2067,23 +2241,24 @@ static void voltage_to_soc_charge_smooth(struct battery_info *di)
 	int now_current, soc_time;
 
 	reset_zero_var(di);
+	/*calibrate: aim to match finish signal*/
+	if (do_term_chrg_cali(di))
+		return;
+
+	/*calibrate: aim to calib error*/
+	di->term_chg_cnt = 0;
+	if (do_ac_charger_emulator(di))
+		return;
+
+	di->emu_chg_cnt = 0;
 	now_current = _get_average_current(di);
 	if (now_current == 0)
 		now_current = 1;
+
 	soc_time = di->fcc*3600/100/(abs_int(now_current));   /* 1%  time; */
 	di->temp_soc = _get_soc(di);
 
 	DBG("<%s>. di->temp_soc = %d, di->real_soc = %d\n", __func__, di->temp_soc, di->real_soc);
-	/*
-	if ((di->temp_soc >= 85)&&(di->real_soc >= 85)){
-		di->charge_smooth_time++;
-
-		if  (di->charge_smooth_time > soc_time/3) {
-			di->real_soc++;
-			di->charge_smooth_time  = 0;
-		}
-		di->charge_smooth_status = true;
-	}*/
 
 	if (di->real_soc == di->temp_soc) {
 		DBG("<%s>. di->temp_soc == di->real_soc\n", __func__);
@@ -2094,7 +2269,7 @@ static void voltage_to_soc_charge_smooth(struct battery_info *di)
 		if (di->temp_soc < di->real_soc + 1) {
 			DBG("<%s>. di->temp_soc < di->real_soc\n", __func__);
 			di->charge_smooth_time++;
-			if  (di->charge_smooth_time > soc_time*2) {
+			if  (di->charge_smooth_time > soc_time*3/2) {
 				di->real_soc++;
 				di->charge_smooth_time  = 0;
 			}
@@ -2104,7 +2279,7 @@ static void voltage_to_soc_charge_smooth(struct battery_info *di)
 		else if (di->temp_soc > di->real_soc + 1) {
 			DBG("<%s>. di->temp_soc > di->real_soc\n", __func__);
 			di->charge_smooth_time++;
-			if  (di->charge_smooth_time > soc_time/3) {
+			if  (di->charge_smooth_time > soc_time*3/4) {
 				di->real_soc++;
 				di->charge_smooth_time  = 0;
 			}
@@ -2114,7 +2289,7 @@ static void voltage_to_soc_charge_smooth(struct battery_info *di)
 			DBG("<%s>. di->temp_soc == di->real_soc + 1\n", __func__);
 			if (di->charge_smooth_status) {
 				di->charge_smooth_time++;
-				if (di->charge_smooth_time > soc_time/3) {
+				if (di->charge_smooth_time > soc_time*3/4) {
 					di->real_soc = di->temp_soc;
 					di->charge_smooth_time  = 0;
 					di->charge_smooth_status = false;
@@ -2553,6 +2728,29 @@ static void check_battery_status(struct battery_info *di)
 #endif
 }
 
+static void last_check_report(struct battery_info *di)
+{
+/* high load: current < 0 with charger in.
+ * System will not shutdown when dsoc=0% with charging state(ac_online), 
+ * which will cause over discharge, so oppose status. 
+ */
+	static u32 time;
+
+	if ((di->real_soc == 0) && (di->status == POWER_SUPPLY_STATUS_CHARGING)
+		&& di->current_avg < 0){
+		if (get_seconds() - time > 60){
+			di->status = POWER_SUPPLY_STATUS_DISCHARGING;
+			di->ac_online = 0;
+			di->usb_online = 0;
+		}
+		DBG("dsoc=0, time=%ld\n", get_seconds() - time);
+		DBG("status=%d, ac_online=%d, usb_online=%d\n", 
+		di->status, di->ac_online, di->usb_online);
+
+	} else
+		time = get_seconds();
+}
+
 static void report_power_supply_changed(struct battery_info *di)
 {
 	static u32 old_soc;
@@ -2669,7 +2867,8 @@ static void rk_battery_work(struct work_struct *work)
 
 	rk_battery_display_smooth(di);
 	update_battery_info(di);
-
+	rsoc_realtime_calib(di);
+	last_check_report(di);
 	report_power_supply_changed(di);
 	_copy_soc(di, di->real_soc);
 	_save_remain_capacity(di, di->remain_capacity);
@@ -2908,6 +3107,9 @@ static void battery_info_init(struct battery_info *di, struct rk818 *chip)
 	di->q_shtd = 0;
 	di->odd_capacity = 0;
 	di->bat_res = di->rk818->battery_data->sense_resistor_mohm;
+	di->term_chg_cnt = 0;
+	di->emu_chg_cnt = 0;
+
 	for (i=0; i<10; i++)
 		di->chrg_min[i] = -1;
 
