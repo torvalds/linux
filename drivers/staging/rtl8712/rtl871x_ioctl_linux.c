@@ -185,7 +185,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 	/* AP MAC address */
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(iwe.u.ap_addr.sa_data, pnetwork->network.MacAddress, ETH_ALEN);
+	ether_addr_copy(iwe.u.ap_addr.sa_data, pnetwork->network.MacAddress);
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_ADDR_LEN);
 	/* Add the ESSID */
 	iwe.cmd = SIOCGIWESSID;
@@ -1117,7 +1117,7 @@ static int r8711_wx_get_wap(struct net_device *dev,
 	wrqu->ap_addr.sa_family = ARPHRD_ETHER;
 	if (check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE |
 				     WIFI_AP_STATE))
-		memcpy(wrqu->ap_addr.sa_data, pcur_bss->MacAddress, ETH_ALEN);
+		ether_addr_copy(wrqu->ap_addr.sa_data, pcur_bss->MacAddress);
 	else
 		eth_zero_addr(wrqu->ap_addr.sa_data);
 	return 0;
