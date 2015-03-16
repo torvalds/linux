@@ -346,27 +346,27 @@ static ssize_t toolaction_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	u8 toolAction;
+	u8 tool_action;
 
 	visorchannel_read(controlvm_channel,
 		offsetof(struct spar_controlvm_channel_protocol,
-			   tool_action), &toolAction, sizeof(u8));
-	return scnprintf(buf, PAGE_SIZE, "%u\n", toolAction);
+			   tool_action), &tool_action, sizeof(u8));
+	return scnprintf(buf, PAGE_SIZE, "%u\n", tool_action);
 }
 
 static ssize_t toolaction_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	u8 toolAction;
+	u8 tool_action;
 	int ret;
 
-	if (kstrtou8(buf, 10, &toolAction) != 0)
+	if (kstrtou8(buf, 10, &tool_action) != 0)
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
 		offsetof(struct spar_controlvm_channel_protocol, tool_action),
-		&toolAction, sizeof(u8));
+		&tool_action, sizeof(u8));
 
 	if (ret)
 		return ret;
