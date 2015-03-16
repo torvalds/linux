@@ -103,6 +103,9 @@ struct bpf_verifier_ops {
 	 * with 'type' (read or write) is allowed
 	 */
 	bool (*is_valid_access)(int off, int size, enum bpf_access_type type);
+
+	u32 (*convert_ctx_access)(int dst_reg, int src_reg, int ctx_off,
+				  struct bpf_insn *insn);
 };
 
 struct bpf_prog_type_list {
@@ -133,7 +136,7 @@ struct bpf_map *bpf_map_get(struct fd f);
 void bpf_map_put(struct bpf_map *map);
 
 /* verify correctness of eBPF program */
-int bpf_check(struct bpf_prog *fp, union bpf_attr *attr);
+int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
 #else
 static inline void bpf_register_prog_type(struct bpf_prog_type_list *tl)
 {

@@ -170,4 +170,14 @@ enum bpf_func_id {
 	__BPF_FUNC_MAX_ID,
 };
 
+/* user accessible mirror of in-kernel sk_buff.
+ * new fields can only be added to the end of this structure
+ */
+struct __sk_buff {
+	__u32 len;
+	__u32 pkt_type;
+	__u32 mark;
+	__u32 queue_mapping;
+};
+
 #endif /* _UAPI__LINUX_BPF_H__ */
