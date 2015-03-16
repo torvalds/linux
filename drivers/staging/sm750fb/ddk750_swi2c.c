@@ -220,7 +220,7 @@ static void swI2CAck(void)
 /*
  *  This function sends the start command to the slave device
  */
-void swI2CStart(void)
+static void swI2CStart(void)
 {
     /* Start I2C */
     swI2CSDA(1);
@@ -231,7 +231,7 @@ void swI2CStart(void)
 /*
  *  This function sends the stop command to the slave device
  */
-void swI2CStop(void)
+static void swI2CStop(void)
 {
     /* Stop the I2C */
     swI2CSCL(1);
@@ -249,7 +249,7 @@ void swI2CStop(void)
  *       0   - Success
  *      -1   - Fail to write byte
  */
-long swI2CWriteByte(unsigned char data)
+static long swI2CWriteByte(unsigned char data)
 {
     unsigned char value = data;
     int i;
@@ -317,7 +317,7 @@ long swI2CWriteByte(unsigned char data)
  *  Return Value:
  *      One byte data read from the Slave device
  */
-unsigned char swI2CReadByte(unsigned char ack)
+static unsigned char swI2CReadByte(unsigned char ack)
 {
     int i;
     unsigned char data = 0;
@@ -358,10 +358,8 @@ unsigned char swI2CReadByte(unsigned char ack)
  *      -1   - Fail to initialize the i2c
  *       0   - Success
  */
-long swI2CInit_SM750LE(
-    unsigned char i2cClkGPIO,
-    unsigned char i2cDataGPIO
-)
+static long swI2CInit_SM750LE(unsigned char i2cClkGPIO,
+			      unsigned char i2cDataGPIO)
 {
     int i;
 
