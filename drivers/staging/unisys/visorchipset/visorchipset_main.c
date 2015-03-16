@@ -1078,22 +1078,17 @@ static void
 bus_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong busNo = cmd->destroy_bus.bus_no;
-	struct visorchipset_bus_info *pBusInfo;
+	ulong bus_no = cmd->destroy_bus.bus_no;
+	struct visorchipset_bus_info *bus_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	pBusInfo = findbus(&bus_info_list, busNo);
-	if (!pBusInfo) {
+	bus_info = findbus(&bus_info_list, bus_no);
+	if (!bus_info)
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
-		goto Away;
-	}
-	if (pBusInfo->state.created == 0) {
+	else if (bus_info->state.created == 0)
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
-		goto Away;
-	}
 
-Away:
-	bus_epilog(busNo, CONTROLVM_BUS_DESTROY, &inmsg->hdr,
+	bus_epilog(bus_no, CONTROLVM_BUS_DESTROY, &inmsg->hdr,
 		   rc, inmsg->hdr.flags.response_expected == 1);
 }
 
