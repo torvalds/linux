@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Find Kconfig identifiers that are referenced but not defined."""
+"""Find Kconfig symbols that are referenced but not defined."""
 
 # (c) 2014-2015 Valentin Rothberg <Valentin.Rothberg@lip6.fr>
 # (c) 2014 Stefan Hengelein <stefan.hengelein@fau.de>
@@ -10,7 +10,9 @@
 
 import os
 import re
+import sys
 from subprocess import Popen, PIPE, STDOUT
+from optparse import OptionParser
 
 
 # regex expressions
@@ -32,16 +34,140 @@ REGEX_KCONFIG_HELP = re.compile(r"^\s+(help|---help---)\s*$")
 REGEX_FILTER_FEATURES = re.compile(r"[A-Za-z0-9]$")
 
 
+def parse_options():
+    """The user interface of this module."""
+    usage = "%prog [options]\n\n"                                              \
+            "Run this tool to detect Kconfig symbols that are referenced but " \
+            "not defined in\nKconfig.  The output of this tool has the "       \
+            "format \'Undefined symbol\\tFile list\'\n\n"                      \
+            "If no option is specified, %prog will default to check your\n"    \
+            "current tree.  Please note that specifying commits will "         \
+            "\'git reset --hard\'\nyour current tree!  You may save "          \
+            "uncommitted changes to avoid losing data."
+
+    parser = OptionParser(usage=usage)
+
+    parser.add_option('-c', '--commit', dest='commit', action='store',
+                      default="",
+                      help="Check if the specified commit (hash) introduces "
+                           "undefined Kconfig symbols.")
+
+    parser.add_option('-d', '--diff', dest='diff', action='store',
+                      default="",
+                      help="Diff undefined symbols between two commits.  The "
+                           "input format bases on Git log's "
+                           "\'commmit1..commit2\'.")
+
+    parser.add_option('', '--force', dest='force', action='store_true',
+                      default=False,
+                      help="Reset current Git tree even when it's dirty.")
+
+    (opts, _) = parser.parse_args()
+
+    if opts.commit and opts.diff:
+        sys.exit("Please specify only one option at once.")
+
+    if opts.diff and not re.match(r"^[\w\-\.]+\.\.[\w\-\.]+$", opts.diff):
+        sys.exit("Please specify valid input in the following format: "
+                 "\'commmit1..commit2\'")
+
+    if opts.commit or opts.diff:
+        if not opts.force and tree_is_dirty():
+            sys.exit("The current Git tree is dirty (see 'git status').  "
+                     "Running this script may\ndelete important data since it "
+                     "calls 'git reset --hard' for some performance\nreasons. "
+                     " Please run this script in a clean Git tree or pass "
+                     "'--force' if you\nwant to ignore this warning and "
+                     "continue.")
+
+    return opts
+
+
 def main():
     """Main function of this module."""
+    opts = parse_options()
+
+    if opts.commit or opts.diff:
+        head = get_head()
+
+        # get commit range
+        commit_a = None
+        commit_b = None
+        if opts.commit:
+            commit_a = opts.commit + "~"
+            commit_b = opts.commit
+        elif opts.diff:
+            split = opts.diff.split("..")
+            commit_a = split[0]
+            commit_b = split[1]
+            undefined_a = {}
+            undefined_b = {}
+
+        # get undefined items before the commit
+        execute("git reset --hard %s" % commit_a)
+        undefined_a = check_symbols()
+
+        # get undefined items for the commit
+        execute("git reset --hard %s" % commit_b)
+        undefined_b = check_symbols()
+
+        # report cases that are present for the commit but not before
+        for feature in undefined_b:
+            # feature has not been undefined before
+            if not feature in undefined_a:
+                files = undefined_b.get(feature)
+                print "%s\t%s" % (feature, ", ".join(files))
+            # check if there are new files that reference the undefined feature
+            else:
+                files = undefined_b.get(feature) - undefined_a.get(feature)
+                if files:
+                    print "%s\t%s" % (feature, ", ".join(files))
+
+        # reset to head
+        execute("git reset --hard %s" % head)
+
+    # default to check the entire tree
+    else:
+        undefined = check_symbols()
+        for feature in undefined:
+            files = undefined.get(feature)
+
+
+def execute(cmd):
+    """Execute %cmd and return stdout.  Exit in case of error."""
+    pop = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True)
+    (stdout, _) = pop.communicate()  # wait until finished
+    if pop.returncode != 0:
+        sys.exit(stdout)
+    return stdout
+
+
+def tree_is_dirty():
+    """Return true if the current working tree is dirty (i.e., if any file has
+    been added, deleted, modified, renamed or copied but not committed)."""
+    stdout = execute("git status --porcelain")
+    for line in stdout:
+        if re.findall(r"[URMADC]{1}", line[:2]):
+            return True
+    return False
+
+
+def get_head():
+    """Return commit hash of current HEAD."""
+    stdout = execute("git rev-parse HEAD")
+    return stdout.strip('\n')
+
+
+def check_symbols():
+    """Find undefined Kconfig symbols and return a dict with the symbol as key
+    and a list of referencing files as value."""
     source_files = []
     kconfig_files = []
     defined_features = set()
     referenced_features = dict()  # {feature: [files]}
 
     # use 'git ls-files' to get the worklist
-    pop = Popen("git ls-files", stdout=PIPE, stderr=STDOUT, shell=True)
-    (stdout, _) = pop.communicate()  # wait until finished
+    stdout = execute("git ls-files")
     if len(stdout) > 0 and stdout[-1] == "\n":
         stdout = stdout[:-1]
 
@@ -62,7 +188,7 @@ def main():
     for kfile in kconfig_files:
         parse_kconfig_file(kfile, defined_features, referenced_features)
 
-    print "Undefined symbol used\tFile list"
+    undefined = {}  # {feature: [files]}
     for feature in sorted(referenced_features):
         # filter some false positives
         if feature == "FOO" or feature == "BAR" or \
@@ -73,8 +199,8 @@ def main():
                 # avoid false positives for kernel modules
                 if feature[:-len("_MODULE")] in defined_features:
                     continue
-            files = referenced_features.get(feature)
-            print "%s\t%s" % (feature, ", ".join(files))
+            undefined[feature] = referenced_features.get(feature)
+    return undefined
 
 
 def parse_source_file(sfile, referenced_features):
