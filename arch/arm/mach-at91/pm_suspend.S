@@ -216,7 +216,7 @@ ENTRY(at91_sramc_self_refresh)
 
 	/* Active SDRAM self-refresh mode */
 	mov	r3, #1
-	str	r3, [r2, #AT91RM9200_SDRAMC_SRR]
+	str	r3, [r2, #AT91_MC_SDRAMC_SRR]
 	b	exit_sramc_sf
 
 ddrc_sf:
