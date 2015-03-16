@@ -4006,8 +4006,6 @@ static void hci_io_capa_reply_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn->remote_cap = ev->capability;
 	conn->remote_auth = ev->authentication;
-	if (ev->oob_data)
-		set_bit(HCI_CONN_REMOTE_OOB, &conn->flags);
 
 unlock:
 	hci_dev_unlock(hdev);
