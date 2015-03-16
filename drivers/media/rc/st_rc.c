@@ -381,7 +381,7 @@ static int st_rc_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(st_rc_pm_ops, st_rc_suspend, st_rc_resume);
 
 #ifdef CONFIG_OF
-static struct of_device_id st_rc_match[] = {
+static const struct of_device_id st_rc_match[] = {
 	{ .compatible = "st,comms-irb", },
 	{},
 };

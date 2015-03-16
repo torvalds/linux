@@ -319,7 +319,7 @@ static int hix5hd2_ir_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(hix5hd2_ir_pm_ops, hix5hd2_ir_suspend,
 			 hix5hd2_ir_resume);
 
-static struct of_device_id hix5hd2_ir_table[] = {
+static const struct of_device_id hix5hd2_ir_table[] = {
 	{ .compatible = "hisilicon,hix5hd2-ir", },
 	{},
 };

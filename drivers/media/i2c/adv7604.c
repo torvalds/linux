@@ -2642,14 +2642,14 @@ static const struct adv76xx_chip_info adv76xx_chip_info[] = {
 	},
 };
 
-static struct i2c_device_id adv76xx_i2c_id[] = {
+static const struct i2c_device_id adv76xx_i2c_id[] = {
 	{ "adv7604", (kernel_ulong_t)&adv76xx_chip_info[ADV7604] },
 	{ "adv7611", (kernel_ulong_t)&adv76xx_chip_info[ADV7611] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adv76xx_i2c_id);
 
-static struct of_device_id adv76xx_of_id[] __maybe_unused = {
+static const struct of_device_id adv76xx_of_id[] __maybe_unused = {
 	{ .compatible = "adi,adv7611", .data = &adv76xx_chip_info[ADV7611] },
 	{ }
 };

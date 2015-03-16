@@ -59,7 +59,7 @@ static int gpio_ir_recv_get_devtree_pdata(struct device *dev,
 	return 0;
 }
 
-static struct of_device_id gpio_ir_recv_of_match[] = {
+static const struct of_device_id gpio_ir_recv_of_match[] = {
 	{ .compatible = "gpio-ir-receiver", },
 	{ },
 };
