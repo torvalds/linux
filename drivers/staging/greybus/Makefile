@@ -14,6 +14,7 @@ gb-phy-y :=	gpb.o		\
 		uart.o	\
 		pwm.o	\
 		gpio.o	\
+		hid.o	\
 		i2c.o	\
 		spi.o	\
 		usb.o
