@@ -84,8 +84,8 @@ static struct controlvm_message_packet g_devicechangestate_packet;
  */
 #define FOR_VISORHACKBUS(channel_type_guid) \
 	(((uuid_le_cmp(channel_type_guid,\
-		       spar_vnic_channel_protocol_uuid) == 0)\
-	|| (uuid_le_cmp(channel_type_guid,\
+		       spar_vnic_channel_protocol_uuid) == 0) ||\
+	(uuid_le_cmp(channel_type_guid,\
 			spar_vhba_channel_protocol_uuid) == 0)))
 #define FOR_VISORBUS(channel_type_guid) (!(FOR_VISORHACKBUS(channel_type_guid)))
 
@@ -705,10 +705,10 @@ controlvm_respond(struct controlvm_message_header *msgHdr, int response)
 	controlvm_init_response(&outmsg, msgHdr, response);
 	/* For DiagPool channel DEVICE_CHANGESTATE, we need to send
 	* back the deviceChangeState structure in the packet. */
-	if (msgHdr->id == CONTROLVM_DEVICE_CHANGESTATE
-	    && g_devicechangestate_packet.device_change_state.bus_no ==
-	    g_diagpool_bus_no
-	    && g_devicechangestate_packet.device_change_state.dev_no ==
+	if (msgHdr->id == CONTROLVM_DEVICE_CHANGESTATE &&
+	    g_devicechangestate_packet.device_change_state.bus_no ==
+	    g_diagpool_bus_no &&
+	    g_devicechangestate_packet.device_change_state.dev_no ==
 	    g_diagpool_dev_no)
 		outmsg.cmd = g_devicechangestate_packet;
 	if (outmsg.hdr.flags.test_message == 1)
@@ -1030,8 +1030,8 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 				/* this is lite pause where channel is
 				 * still valid just 'pause' of it
 				 */
-				if (busNo == g_diagpool_bus_no
-				    && devNo == g_diagpool_dev_no) {
+				if (busNo == g_diagpool_bus_no &&
+				    devNo == g_diagpool_dev_no) {
 					/* this will trigger the
 					 * diag_shutdown.sh script in
 					 * the visorchipset hotplug */
@@ -1828,8 +1828,8 @@ controlvm_periodic_work(struct work_struct *work)
 	/* Check events to determine if response to CHIPSET_READY
 	 * should be sent
 	 */
-	if (visorchipset_holdchipsetready
-	    && (g_chipset_msg_hdr.id != CONTROLVM_INVALID)) {
+	if (visorchipset_holdchipsetready &&
+	    (g_chipset_msg_hdr.id != CONTROLVM_INVALID)) {
 		if (check_chipset_events() == 1) {
 			controlvm_respond(&g_chipset_msg_hdr, 0);
 			clear_chipset_events();
