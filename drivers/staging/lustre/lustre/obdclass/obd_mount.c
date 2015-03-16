@@ -645,10 +645,10 @@ int lustre_put_lsi(struct super_block *sb)
 }
 
 /*** SERVER NAME ***
- * <FSNAME><SEPERATOR><TYPE><INDEX>
+ * <FSNAME><SEPARATOR><TYPE><INDEX>
  * FSNAME is between 1 and 8 characters (inclusive).
  *	Excluded characters are '/' and ':'
- * SEPERATOR is either ':' or '-'
+ * SEPARATOR is either ':' or '-'
  * TYPE: "OST", "MDT", etc.
  * INDEX: Hex representation of the index
  */

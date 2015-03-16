@@ -727,7 +727,7 @@ static int ll_max_easize_seq_show(struct seq_file *m, void *v)
 }
 LPROC_SEQ_FOPS_RO(ll_max_easize);
 
-static int ll_defult_easize_seq_show(struct seq_file *m, void *v)
+static int ll_default_easize_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -741,7 +741,7 @@ static int ll_defult_easize_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "%u\n", ealen);
 	return 0;
 }
-LPROC_SEQ_FOPS_RO(ll_defult_easize);
+LPROC_SEQ_FOPS_RO(ll_default_easize);
 
 static int ll_max_cookiesize_seq_show(struct seq_file *m, void *v)
 {
@@ -759,7 +759,7 @@ static int ll_max_cookiesize_seq_show(struct seq_file *m, void *v)
 }
 LPROC_SEQ_FOPS_RO(ll_max_cookiesize);
 
-static int ll_defult_cookiesize_seq_show(struct seq_file *m, void *v)
+static int ll_default_cookiesize_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block *sb = m->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
@@ -773,7 +773,7 @@ static int ll_defult_cookiesize_seq_show(struct seq_file *m, void *v)
 	seq_printf(m, "%u\n", cookielen);
 	return 0;
 }
-LPROC_SEQ_FOPS_RO(ll_defult_cookiesize);
+LPROC_SEQ_FOPS_RO(ll_default_cookiesize);
 
 static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 {
@@ -862,9 +862,9 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
 	{ "lazystatfs",       &ll_lazystatfs_fops, NULL },
 	{ "max_easize",       &ll_max_easize_fops, NULL, 0 },
-	{ "default_easize",   &ll_defult_easize_fops, NULL, 0 },
+	{ "default_easize",   &ll_default_easize_fops, NULL, 0 },
 	{ "max_cookiesize",   &ll_max_cookiesize_fops, NULL, 0 },
-	{ "default_cookiesize", &ll_defult_cookiesize_fops, NULL, 0 },
+	{ "default_cookiesize", &ll_default_cookiesize_fops, NULL, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
 	{ "xattr_cache",      &ll_xattr_cache_fops, NULL, 0 },
 	{ NULL }
