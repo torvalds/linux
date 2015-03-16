@@ -3041,6 +3041,10 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	u8 *pos;
 	bool reassoc;
 	struct cfg80211_bss *bss;
+	struct ieee80211_event event = {
+		.type = MLME_EVENT,
+		.u.mlme.data = ASSOC_EVENT,
+	};
 
 	sdata_assert_lock(sdata);
 
@@ -3092,6 +3096,9 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		sdata_info(sdata, "%pM denied association (code=%d)\n",
 			   mgmt->sa, status_code);
 		ieee80211_destroy_assoc_data(sdata, false);
+		event.u.mlme.status = MLME_DENIED;
+		event.u.mlme.reason = status_code;
+		drv_event_callback(sdata->local, sdata, &event);
 	} else {
 		if (!ieee80211_assoc_success(sdata, bss, mgmt, len)) {
 			/* oops -- internal error -- send timeout for now */
@@ -3099,6 +3106,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			cfg80211_assoc_timeout(sdata->dev, bss);
 			return;
 		}
+		event.u.mlme.status = MLME_SUCCESS;
+		drv_event_callback(sdata->local, sdata, &event);
 		sdata_info(sdata, "associated\n");
 
 		/*
@@ -3835,9 +3844,15 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 		if ((ifmgd->assoc_data->need_beacon && !ifmgd->have_beacon) ||
 		    ieee80211_do_assoc(sdata)) {
 			struct cfg80211_bss *bss = ifmgd->assoc_data->bss;
+			struct ieee80211_event event = {
+				.type = MLME_EVENT,
+				.u.mlme.data = ASSOC_EVENT,
+				.u.mlme.status = MLME_TIMEOUT,
+			};
 
 			ieee80211_destroy_assoc_data(sdata, false);
 			cfg80211_assoc_timeout(sdata->dev, bss);
+			drv_event_callback(sdata->local, sdata, &event);
 		}
 	} else if (ifmgd->assoc_data && ifmgd->assoc_data->timeout_started)
 		run_again(sdata, ifmgd->assoc_data->timeout);
