@@ -234,20 +234,19 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 
 	mutex_lock(&vfio.group_lock);
 
-	minor = vfio_alloc_group_minor(group);
-	if (minor < 0) {
-		vfio_group_unlock_and_free(group);
-		return ERR_PTR(minor);
-	}
-
 	/* Did we race creating this group? */
 	list_for_each_entry(tmp, &vfio.group_list, vfio_next) {
 		if (tmp->iommu_group == iommu_group) {
 			vfio_group_get(tmp);
-			vfio_free_group_minor(minor);
 			vfio_group_unlock_and_free(group);
 			return tmp;
 		}
+	}
+
+	minor = vfio_alloc_group_minor(group);
+	if (minor < 0) {
+		vfio_group_unlock_and_free(group);
+		return ERR_PTR(minor);
 	}
 
 	dev = device_create(vfio.class, NULL,
