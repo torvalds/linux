@@ -27,6 +27,11 @@
 #define VFIO_PLATFORM_INDEX_TO_OFFSET(index)	\
 	((u64)(index) << VFIO_PLATFORM_OFFSET_SHIFT)
 
+struct vfio_platform_irq {
+	u32			flags;
+	u32			count;
+};
+
 struct vfio_platform_region {
 	u64			addr;
 	resource_size_t		size;
@@ -40,6 +45,8 @@ struct vfio_platform_region {
 struct vfio_platform_device {
 	struct vfio_platform_region	*regions;
 	u32				num_regions;
+	struct vfio_platform_irq	*irqs;
+	u32				num_irqs;
 	int				refcnt;
 
 	/*
@@ -58,5 +65,8 @@ extern int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 				      struct device *dev);
 extern struct vfio_platform_device *vfio_platform_remove_common
 				     (struct device *dev);
+
+extern int vfio_platform_irq_init(struct vfio_platform_device *vdev);
+extern void vfio_platform_irq_cleanup(struct vfio_platform_device *vdev);
 
 #endif /* VFIO_PLATFORM_PRIVATE_H */
