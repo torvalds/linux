@@ -212,8 +212,8 @@ struct parahotplug_request {
 	struct controlvm_message msg;
 };
 
-static LIST_HEAD(Parahotplug_request_list);
-static DEFINE_SPINLOCK(Parahotplug_request_list_lock);	/* lock for above */
+static LIST_HEAD(parahotplug_request_list);
+static DEFINE_SPINLOCK(parahotplug_request_list_lock);	/* lock for above */
 static void parahotplug_process_list(void);
 
 /* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
@@ -1530,9 +1530,9 @@ parahotplug_process_list(void)
 	struct list_head *pos = NULL;
 	struct list_head *tmp = NULL;
 
-	spin_lock(&Parahotplug_request_list_lock);
+	spin_lock(&parahotplug_request_list_lock);
 
-	list_for_each_safe(pos, tmp, &Parahotplug_request_list) {
+	list_for_each_safe(pos, tmp, &parahotplug_request_list) {
 		struct parahotplug_request *req =
 		    list_entry(pos, struct parahotplug_request, list);
 
@@ -1548,7 +1548,7 @@ parahotplug_process_list(void)
 		parahotplug_request_destroy(req);
 	}
 
-	spin_unlock(&Parahotplug_request_list_lock);
+	spin_unlock(&parahotplug_request_list_lock);
 }
 
 /*
@@ -1562,10 +1562,10 @@ parahotplug_request_complete(int id, u16 active)
 	struct list_head *pos = NULL;
 	struct list_head *tmp = NULL;
 
-	spin_lock(&Parahotplug_request_list_lock);
+	spin_lock(&parahotplug_request_list_lock);
 
 	/* Look for a request matching "id". */
-	list_for_each_safe(pos, tmp, &Parahotplug_request_list) {
+	list_for_each_safe(pos, tmp, &parahotplug_request_list) {
 		struct parahotplug_request *req =
 		    list_entry(pos, struct parahotplug_request, list);
 		if (req->id == id) {
@@ -1573,7 +1573,7 @@ parahotplug_request_complete(int id, u16 active)
 			 * respond.
 			 */
 			list_del(pos);
-			spin_unlock(&Parahotplug_request_list_lock);
+			spin_unlock(&parahotplug_request_list_lock);
 			req->msg.cmd.device_change_state.state.active = active;
 			if (req->msg.hdr.flags.response_expected)
 				controlvm_respond_physdev_changestate(
@@ -1584,7 +1584,7 @@ parahotplug_request_complete(int id, u16 active)
 		}
 	}
 
-	spin_unlock(&Parahotplug_request_list_lock);
+	spin_unlock(&parahotplug_request_list_lock);
 	return -1;
 }
 
@@ -1622,9 +1622,9 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 		* won't get responded to until the script has
 		* indicated it's done.
 		*/
-		spin_lock(&Parahotplug_request_list_lock);
-		list_add_tail(&req->list, &Parahotplug_request_list);
-		spin_unlock(&Parahotplug_request_list_lock);
+		spin_lock(&parahotplug_request_list_lock);
+		list_add_tail(&req->list, &parahotplug_request_list);
+		spin_unlock(&parahotplug_request_list_lock);
 
 		parahotplug_request_kickoff(req);
 	}
