@@ -1235,26 +1235,23 @@ static void
 my_device_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong busNo = cmd->destroy_device.bus_no;
-	ulong devNo = cmd->destroy_device.dev_no;
-	struct visorchipset_device_info *pDevInfo = NULL;
+	ulong bus_no = cmd->destroy_device.bus_no;
+	ulong dev_no = cmd->destroy_device.dev_no;
+	struct visorchipset_device_info *dev_info = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	pDevInfo = finddevice(&dev_info_list, busNo, devNo);
-	if (!pDevInfo) {
+	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
+	if (!dev_info)
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
-		goto Away;
-	}
-	if (pDevInfo->state.created == 0)
+	else if (dev_info->state.created == 0)
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
 
-Away:
-	if ((rc >= CONTROLVM_RESP_SUCCESS) && pDevInfo)
-		device_epilog(busNo, devNo, segment_state_running,
+	if ((rc >= CONTROLVM_RESP_SUCCESS) && dev_info)
+		device_epilog(bus_no, dev_no, segment_state_running,
 			      CONTROLVM_DEVICE_DESTROY, &inmsg->hdr, rc,
 			      inmsg->hdr.flags.response_expected == 1,
 			      FOR_VISORBUS(
-					pDevInfo->chan_info.channel_type_uuid));
+					dev_info->chan_info.channel_type_uuid));
 }
 
 /* When provided with the physical address of the controlvm channel
