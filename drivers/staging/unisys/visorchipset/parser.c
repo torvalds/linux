@@ -41,8 +41,8 @@ struct parser_context {
 };
 
 static struct parser_context *
-parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
-		 BOOL hasStandardPayloadHeader, BOOL *tryAgain)
+parser_init_guts(u64 addr, u32 bytes, BOOL local,
+		 BOOL standard_payload_header, BOOL *retry)
 {
 	int allocbytes = sizeof(struct parser_context) + bytes;
 	struct parser_context *rc = NULL;
@@ -50,26 +50,26 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 	struct memregion *rgn = NULL;
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (tryAgain)
-		*tryAgain = FALSE;
-	if (!hasStandardPayloadHeader)
+	if (retry)
+		*retry = FALSE;
+	if (!standard_payload_header)
 		/* alloc and 0 extra byte to ensure payload is
 		 * '\0'-terminated
 		 */
 		allocbytes++;
 	if ((controlvm_payload_bytes_buffered + bytes)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
-		if (tryAgain)
-			*tryAgain = TRUE;
+		if (retry)
+			*retry = TRUE;
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 	ctx = kzalloc(allocbytes, GFP_KERNEL|__GFP_NORETRY);
-	if (ctx == NULL) {
-		if (tryAgain)
-			*tryAgain = TRUE;
+	if (!ctx) {
+		if (retry)
+			*retry = TRUE;
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 
 	ctx->allocbytes = allocbytes;
@@ -77,12 +77,12 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 	ctx->curr = NULL;
 	ctx->bytes_remaining = 0;
 	ctx->byte_stream = FALSE;
-	if (isLocal) {
+	if (local) {
 		void *p;
 
 		if (addr > virt_to_phys(high_memory - 1)) {
 			rc = NULL;
-			goto Away;
+			goto cleanup;
 		}
 		p = __va((ulong) (addr));
 		memcpy(ctx->data, p, bytes);
@@ -90,42 +90,42 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 		rgn = visor_memregion_create(addr, bytes);
 		if (!rgn) {
 			rc = NULL;
-			goto Away;
+			goto cleanup;
 		}
 		if (visor_memregion_read(rgn, 0, ctx->data, bytes) < 0) {
 			rc = NULL;
-			goto Away;
+			goto cleanup;
 		}
 	}
-	if (!hasStandardPayloadHeader) {
+	if (!standard_payload_header) {
 		ctx->byte_stream = TRUE;
 		rc = ctx;
-		goto Away;
+		goto cleanup;
 	}
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	if (phdr->total_length != bytes) {
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 	if (phdr->total_length < phdr->header_length) {
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 	if (phdr->header_length <
 	    sizeof(struct spar_controlvm_parameters_header)) {
 		rc = NULL;
-		goto Away;
+		goto cleanup;
 	}
 
 	rc = ctx;
-Away:
+cleanup:
 	if (rgn) {
 		visor_memregion_destroy(rgn);
 		rgn = NULL;
 	}
-	if (rc)
+	if (rc) {
 		controlvm_payload_bytes_buffered += ctx->param_bytes;
-	else {
+	} else {
 		if (ctx) {
 			parser_done(ctx);
 			ctx = NULL;
