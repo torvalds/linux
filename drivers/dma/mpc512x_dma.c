@@ -1068,7 +1068,7 @@ static int mpc_dma_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc_dma_match[] = {
+static const struct of_device_id mpc_dma_match[] = {
 	{ .compatible = "fsl,mpc5121-dma", },
 	{ .compatible = "fsl,mpc8308-dma", },
 	{},

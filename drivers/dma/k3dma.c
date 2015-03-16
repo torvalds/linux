@@ -654,7 +654,7 @@ static void k3_dma_free_desc(struct virt_dma_desc *vd)
 	kfree(ds);
 }
 
-static struct of_device_id k3_pdma_dt_ids[] = {
+static const struct of_device_id k3_pdma_dt_ids[] = {
 	{ .compatible = "hisilicon,k3-dma-1.0", },
 	{}
 };

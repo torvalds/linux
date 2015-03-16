@@ -1245,7 +1245,7 @@ static int mv_xor_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id mv_xor_dt_ids[] = {
+static const struct of_device_id mv_xor_dt_ids[] = {
        { .compatible = "marvell,orion-xor", },
        {},
 };

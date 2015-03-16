@@ -970,7 +970,7 @@ static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev, int idx, int irq)
 	return 0;
 }
 
-static struct of_device_id mmp_pdma_dt_ids[] = {
+static const struct of_device_id mmp_pdma_dt_ids[] = {
 	{ .compatible = "marvell,pdma-1.0", },
 	{}
 };

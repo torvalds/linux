@@ -594,7 +594,7 @@ struct dma_chan *mmp_tdma_xlate(struct of_phandle_args *dma_spec,
 	return dma_request_channel(mask, mmp_tdma_filter_fn, &param);
 }
 
-static struct of_device_id mmp_tdma_dt_ids[] = {
+static const struct of_device_id mmp_tdma_dt_ids[] = {
 	{ .compatible = "marvell,adma-1.0", .data = (void *)MMP_AUD_TDMA},
 	{ .compatible = "marvell,pxa910-squ", .data = (void *)PXA910_SQU},
 	{}
