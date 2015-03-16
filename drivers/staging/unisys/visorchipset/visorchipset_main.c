@@ -621,7 +621,7 @@ chipset_init(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_2(CHIPSET_INIT_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (chipset_inited) {
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
-		goto Away;
+		goto cleanup;
 	}
 	chipset_inited = 1;
 	POSTCODE_LINUX_2(CHIPSET_INIT_EXIT_PC, POSTCODE_SEVERITY_INFO);
@@ -636,7 +636,7 @@ chipset_init(struct controlvm_message *inmsg)
 	 * features-aware driver. */
 	features |= ULTRA_CHIPSET_FEATURE_REPLY;
 
-Away:
+cleanup:
 	if (rc < 0)
 		cleanup_controlvm_structures();
 	if (inmsg->hdr.flags.response_expected)
