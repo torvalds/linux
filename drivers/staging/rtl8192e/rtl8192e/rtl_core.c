@@ -476,7 +476,7 @@ void rtl8192_tx_timeout(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	schedule_work(&priv->reset_wq);
-	printk(KERN_INFO "TXTIMEOUT");
+	netdev_info(dev, "TXTIMEOUT");
 }
 
 void rtl8192_irq_enable(struct net_device *dev)
@@ -1211,8 +1211,8 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->AcmControl = 0;
 	priv->pFirmware = vzalloc(sizeof(struct rt_firmware));
 	if (!priv->pFirmware)
-		printk(KERN_ERR
-		       "rtl8192e: Unable to allocate space for firmware\n");
+		netdev_err(dev,
+			   "rtl8192e: Unable to allocate space for firmware\n");
 
 	skb_queue_head_init(&priv->rx_queue);
 	skb_queue_head_init(&priv->skb_queue);
@@ -1284,8 +1284,8 @@ static short rtl8192_get_channel_map(struct net_device *dev)
 	}
 
 	if (priv->ChannelPlan >= COUNTRY_CODE_MAX) {
-		printk(KERN_INFO
-		       "rtl819x_init:Error channel plan! Set to default.\n");
+		netdev_info(dev,
+			    "rtl819x_init:Error channel plan! Set to default.\n");
 		priv->ChannelPlan = COUNTRY_CODE_FCC;
 	}
 	RT_TRACE(COMP_INIT, "Channel plan is %d\n", priv->ChannelPlan);
@@ -1329,7 +1329,7 @@ static short rtl8192_init(struct net_device *dev)
 	rtl8192_irq_disable(dev);
 	if (request_irq(dev->irq, rtl8192_interrupt, IRQF_SHARED,
 	    dev->name, dev)) {
-		printk(KERN_ERR "Error allocating IRQ %d", dev->irq);
+		netdev_err(dev, "Error allocating IRQ %d", dev->irq);
 		return -1;
 	} else {
 		priv->irq = dev->irq;
@@ -1337,7 +1337,7 @@ static short rtl8192_init(struct net_device *dev)
 	}
 
 	if (rtl8192_pci_initdescring(dev) != 0) {
-		printk(KERN_ERR "Endopoints initialization failed");
+		netdev_err(dev, "Endopoints initialization failed");
 		free_irq(dev->irq, dev);
 		return -1;
 	}
@@ -1357,7 +1357,7 @@ short rtl8192_is_tx_queue_empty(struct net_device *dev)
 		if ((i == TXCMD_QUEUE) || (i == HCCA_QUEUE))
 			continue;
 		if (skb_queue_len(&(&priv->tx_ring[i])->queue) > 0) {
-			printk(KERN_INFO "===>tx queue is not empty:%d, %d\n",
+			netdev_info(dev, "===>tx queue is not empty:%d, %d\n",
 			       i, skb_queue_len(&(&priv->tx_ring[i])->queue));
 			return 0;
 		}
@@ -1406,10 +1406,10 @@ static enum reset_type rtl819x_TxCheckStuck(struct net_device *dev)
 			tcb_desc->nStuckCount++;
 			bCheckFwTxCnt = true;
 			if (tcb_desc->nStuckCount > 1)
-				printk(KERN_INFO
-				       "%s: QueueID=%d tcb_desc->nStuckCount=%d\n",
-				       __func__, QueueID,
-				       tcb_desc->nStuckCount);
+				netdev_info(dev,
+					    "%s: QueueID=%d tcb_desc->nStuckCount=%d\n",
+					    __func__, QueueID,
+					    tcb_desc->nStuckCount);
 		}
 	}
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
@@ -1456,13 +1456,13 @@ static enum reset_type rtl819x_ifcheck_resetornot(struct net_device *dev)
 
 	if (TxResetType == RESET_TYPE_NORMAL ||
 	    RxResetType == RESET_TYPE_NORMAL) {
-		printk(KERN_INFO "%s(): TxResetType is %d, RxResetType is %d\n",
-		       __func__, TxResetType, RxResetType);
+		netdev_info(dev, "%s(): TxResetType is %d, RxResetType is %d\n",
+			    __func__, TxResetType, RxResetType);
 		return RESET_TYPE_NORMAL;
 	} else if (TxResetType == RESET_TYPE_SILENT ||
 		   RxResetType == RESET_TYPE_SILENT) {
-		printk(KERN_INFO "%s(): TxResetType is %d, RxResetType is %d\n",
-		       __func__, TxResetType, RxResetType);
+		netdev_info(dev, "%s(): TxResetType is %d, RxResetType is %d\n",
+			    __func__, TxResetType, RxResetType);
 		return RESET_TYPE_SILENT;
 	} else {
 		return RESET_TYPE_NORESET;
@@ -1534,7 +1534,7 @@ RESET_START:
 
 		if (ieee->state == RTLLIB_LINKED) {
 			SEM_DOWN_IEEE_WX(&ieee->wx_sem);
-			printk(KERN_INFO "ieee->state is RTLLIB_LINKED\n");
+			netdev_info(dev, "ieee->state is RTLLIB_LINKED\n");
 			rtllib_stop_send_beacons(priv->rtllib);
 			del_timer_sync(&ieee->associate_timer);
 			cancel_delayed_work(&ieee->associate_retry_wq);
@@ -1542,7 +1542,7 @@ RESET_START:
 			netif_carrier_off(dev);
 			SEM_UP_IEEE_WX(&ieee->wx_sem);
 		} else {
-			printk(KERN_INFO "ieee->state is NOT LINKED\n");
+			netdev_info(dev, "ieee->state is NOT LINKED\n");
 			rtllib_softmac_stop_protocol(priv->rtllib, 0 , true);
 		}
 
@@ -1741,9 +1741,9 @@ void	rtl819x_watchdog_wqcallback(void *data)
 			if (ieee->eRFPowerState == eRfOff)
 				RT_TRACE(COMP_ERR, "========>%s()\n", __func__);
 
-			printk(KERN_INFO
-			       "===>%s(): AP is power off, chan:%d, connect another one\n",
-			       __func__, priv->chan);
+			netdev_info(dev,
+				    "===>%s(): AP is power off, chan:%d, connect another one\n",
+				    __func__, priv->chan);
 
 			ieee->state = RTLLIB_ASSOCIATING;
 
@@ -2875,7 +2875,8 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
-			printk(KERN_INFO "Unable to obtain 32bit DMA for consistent allocations\n");
+			dev_info(&pdev->dev,
+				 "Unable to obtain 32bit DMA for consistent allocations\n");
 			goto err_pci_disable;
 		}
 	}
@@ -2908,7 +2909,8 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 		goto err_rel_rtllib;
 	}
 
-	printk(KERN_INFO "Memory mapped space start: 0x%08lx\n", pmem_start);
+	dev_info(&pdev->dev, "Memory mapped space start: 0x%08lx\n",
+		 pmem_start);
 	if (!request_mem_region(pmem_start, pmem_len, DRV_NAME)) {
 		RT_TRACE(COMP_ERR, "request_mem_region failed!");
 		goto err_rel_rtllib;
@@ -3010,7 +3012,7 @@ static void rtl8192_pci_disconnect(struct pci_dev *pdev)
 			rtl8192_free_tx_ring(dev, i);
 
 		if (priv->irq) {
-			printk(KERN_INFO "Freeing irq %d\n", dev->irq);
+			dev_info(&pdev->dev, "Freeing irq %d\n", dev->irq);
 			free_irq(dev->irq, dev);
 			priv->irq = 0;
 		}
@@ -3084,8 +3086,8 @@ bool NicIFDisableNIC(struct net_device *dev)
 
 static int __init rtl8192_pci_module_init(void)
 {
-	printk(KERN_INFO "\nLinux kernel driver for RTL8192E WLAN cards\n");
-	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan Driver\n");
+	pr_info("\nLinux kernel driver for RTL8192E WLAN cards\n");
+	pr_info("Copyright (c) 2007-2008, Realsil Wlan Driver\n");
 
 	if (0 != pci_register_driver(&rtl8192_pci_driver)) {
 		DMESG("No device found");

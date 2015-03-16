@@ -106,8 +106,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (skb_headroom(skb) < 4 || skb_tailroom(skb) < 4 ||
 	    skb->len < hdr_len){
-		printk(KERN_ERR
-		       "Error!!! headroom=%d tailroom=%d skblen=%d hdr_len=%d\n",
+		pr_err("Error!!! headroom=%d tailroom=%d skblen=%d hdr_len=%d\n",
 		       skb_headroom(skb), skb_tailroom(skb), skb->len, hdr_len);
 		return -1;
 	}

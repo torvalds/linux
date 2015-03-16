@@ -65,31 +65,32 @@ bool rtl8192_pci_findadapter(struct pci_dev *pdev, struct net_device *dev)
 	if (DeviceID == 0x8172) {
 		switch (RevisionID) {
 		case HAL_HW_PCI_REVISION_ID_8192PCIE:
-			printk(KERN_INFO
-			       "Adapter(8192 PCI-E) is found - DeviceID=%x\n",
-			       DeviceID);
+			dev_info(&pdev->dev,
+				 "Adapter(8192 PCI-E) is found - DeviceID=%x\n",
+				 DeviceID);
 			priv->card_8192 = NIC_8192E;
 			break;
 		case HAL_HW_PCI_REVISION_ID_8192SE:
-			printk(KERN_INFO
-			       "Adapter(8192SE) is found - DeviceID=%x\n",
-			       DeviceID);
+			dev_info(&pdev->dev,
+				 "Adapter(8192SE) is found - DeviceID=%x\n",
+				 DeviceID);
 			priv->card_8192 = NIC_8192SE;
 			break;
 		default:
-			printk(KERN_INFO "UNKNOWN nic type(%4x:%4x)\n",
-			       pdev->vendor, pdev->device);
+			dev_info(&pdev->dev,
+				 "UNKNOWN nic type(%4x:%4x)\n",
+				 pdev->vendor, pdev->device);
 			priv->card_8192 = NIC_UNKNOWN;
 			return false;
 		}
 	}
 
 	if (priv->ops->nic_type != priv->card_8192) {
-		printk(KERN_INFO
-		       "Detect info(%x) and hardware info(%x) not match!\n",
-		       priv->ops->nic_type, priv->card_8192);
-		printk(KERN_INFO
-		       "Please select proper driver before install!!!!\n");
+		dev_info(&pdev->dev,
+			 "Detect info(%x) and hardware info(%x) not match!\n",
+			 priv->ops->nic_type, priv->card_8192);
+		dev_info(&pdev->dev,
+			 "Please select proper driver before install!!!!\n");
 		return false;
 	}
 

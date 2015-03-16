@@ -100,14 +100,14 @@ void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
 
 	if ((time - jiffies) <= msecs_to_jiffies(MIN_SLEEP_TIME)) {
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
-		printk(KERN_INFO "too short to sleep::%lld < %ld\n",
-		       time - jiffies, msecs_to_jiffies(MIN_SLEEP_TIME));
+		netdev_info(dev, "too short to sleep::%lld < %ld\n",
+			    time - jiffies, msecs_to_jiffies(MIN_SLEEP_TIME));
 		return;
 	}
 
 	if ((time - jiffies) > msecs_to_jiffies(MAX_SLEEP_TIME)) {
-		printk(KERN_INFO "========>too long to sleep:%lld > %ld\n",
-		       time - jiffies,  msecs_to_jiffies(MAX_SLEEP_TIME));
+		netdev_info(dev, "========>too long to sleep:%lld > %ld\n",
+			    time - jiffies, msecs_to_jiffies(MAX_SLEEP_TIME));
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
 		return;
 	}
@@ -203,8 +203,8 @@ void rtllib_ips_leave_wq(struct net_device *dev)
 					 __func__);
 				return;
 			} else {
-				printk(KERN_INFO "=========>%s(): IPSLeave\n",
-				       __func__);
+				netdev_info(dev, "=========>%s(): IPSLeave\n",
+					    __func__);
 				queue_work_rsl(priv->rtllib->wq,
 					       &priv->rtllib->ips_leave_wq);
 			}

@@ -224,8 +224,8 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 			break;
 
 		default:
-			printk(KERN_INFO "SetHwReg8185(): invalid ACI: %d !\n",
-			       eACI);
+			netdev_info(dev, "SetHwReg8185(): invalid ACI: %d !\n",
+				    eACI);
 			break;
 		}
 		priv->rtllib->SetHwRegHandler(dev, HW_VAR_ACM_CTRL,

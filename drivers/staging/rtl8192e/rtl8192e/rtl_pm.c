@@ -29,14 +29,14 @@ int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32	ulRegRead;
 
-	printk(KERN_INFO "============> r8192E suspend call.\n");
+	netdev_info(dev, "============> r8192E suspend call.\n");
 	del_timer_sync(&priv->gpio_polling_timer);
 	cancel_delayed_work(&priv->gpio_change_rf_wq);
 	priv->polling_timer_on = 0;
 
 	if (!netif_running(dev)) {
-		printk(KERN_INFO
-		       "RTL819XE:UI is open out of suspend function\n");
+		netdev_info(dev,
+			    "RTL819XE:UI is open out of suspend function\n");
 		goto out_pci_suspend;
 	}
 
@@ -57,7 +57,7 @@ int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
 		write_nic_byte(dev, MacBlkCtrl, 0xa);
 	}
 out_pci_suspend:
-	printk("r8192E support WOL call??????????????????????\n");
+	netdev_info(dev, "r8192E support WOL call??????????????????????\n");
 	if (priv->rtllib->bSupportRemoteWakeUp)
 		RT_TRACE(COMP_POWER,
 			 "r8192E support WOL call!!!!!!!!!!!!!!!!!!.\n");
@@ -79,14 +79,13 @@ int rtl8192E_resume(struct pci_dev *pdev)
 	int err;
 	u32 val;
 
-	printk(KERN_INFO "================>r8192E resume call.\n");
+	netdev_info(dev, "================>r8192E resume call.\n");
 
 	pci_set_power_state(pdev, PCI_D0);
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
-		       dev->name);
+		netdev_err(dev, "pci_enable_device failed on resume\n");
 		return err;
 	}
 	pci_restore_state(pdev);
@@ -101,8 +100,8 @@ int rtl8192E_resume(struct pci_dev *pdev)
 		check_rfctrl_gpio_timer((unsigned long)dev);
 
 	if (!netif_running(dev)) {
-		printk(KERN_INFO
-		       "RTL819XE:UI is open out of resume function\n");
+		netdev_info(dev,
+			    "RTL819XE:UI is open out of resume function\n");
 		goto out;
 	}
 

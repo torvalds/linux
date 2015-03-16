@@ -768,8 +768,8 @@ do {								\
 #define RTLLIB_DL_TRACE	   (1<<29)
 #define RTLLIB_DL_DATA	   (1<<30)
 #define RTLLIB_DL_ERR	   (1<<31)
-#define RTLLIB_ERROR(f, a...) printk(KERN_ERR "rtllib: " f, ## a)
-#define RTLLIB_WARNING(f, a...) printk(KERN_WARNING "rtllib: " f, ## a)
+#define RTLLIB_ERROR(f, a...) pr_err("rtllib: " f, ## a)
+#define RTLLIB_WARNING(f, a...) pr_warn("rtllib: " f, ## a)
 #define RTLLIB_DEBUG_INFO(f, a...)   RTLLIB_DEBUG(RTLLIB_DL_INFO, f, ## a)
 
 #define RTLLIB_DEBUG_WX(f, a...)     RTLLIB_DEBUG(RTLLIB_DL_WX, f, ## a)

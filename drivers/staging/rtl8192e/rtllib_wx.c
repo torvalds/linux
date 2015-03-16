@@ -389,9 +389,9 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			kfree(new_crypt);
 			new_crypt = NULL;
 
-			netdev_warn(dev, "%s: could not initialize WEP: "
-			       "load module rtllib_crypt_wep\n",
-			       dev->name);
+			netdev_warn(dev,
+				    "%s: could not initialize WEP: load module rtllib_crypt_wep\n",
+				    dev->name);
 			return -EOPNOTSUPP;
 		}
 		*crypt = new_crypt;

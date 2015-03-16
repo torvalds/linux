@@ -1420,7 +1420,8 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 		TM_Trigger = 1;
 		return;
 	} else {
-	    printk(KERN_INFO "===============>Schedule TxPowerTrackingWorkItem\n");
+		netdev_info(dev,
+			    "===============>Schedule TxPowerTrackingWorkItem\n");
 
 		queue_delayed_work_rsl(priv->priv_wq, &priv->txpower_tracking_wq, 0);
 		TM_Trigger = 0;
@@ -2131,10 +2132,10 @@ static void dm_check_edca_turbo(struct net_device *dev)
 		static int wb_tmp;
 
 		if (wb_tmp == 0) {
-			printk(KERN_INFO
-			       "%s():iot peer is %s, bssid: %pM\n", __func__,
-			       peername[pHTInfo->IOTPeer],
-			       priv->rtllib->current_network.bssid);
+			netdev_info(dev,
+				    "%s():iot peer is %s, bssid: %pM\n",
+				    __func__, peername[pHTInfo->IOTPeer],
+				    priv->rtllib->current_network.bssid);
 			wb_tmp = 1;
 		}
 	}

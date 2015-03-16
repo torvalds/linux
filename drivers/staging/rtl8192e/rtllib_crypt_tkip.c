@@ -505,7 +505,7 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 *key, u8 *hdr,
 	struct scatterlist sg[2];
 
 	if (tfm_michael == NULL) {
-		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
+		pr_warn("michael_mic: tfm_michael == NULL\n");
 		return -1;
 	}
 	sg_init_table(sg, 2);
@@ -631,7 +631,7 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		printk(KERN_DEBUG "%d\n",
 		       memcmp(mic, skb->data + skb->len - 8, 8) != 0);
 		if (skb->dev) {
-			printk(KERN_INFO "skb->dev != NULL\n");
+			pr_info("skb->dev != NULL\n");
 			rtllib_michael_mic_failure(skb->dev, hdr, keyidx);
 		}
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;

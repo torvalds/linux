@@ -466,7 +466,7 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr)
 {
 	struct ts_common_info *pTS, *pTmpTS;
 
-	printk(KERN_INFO "===========>RemovePeerTS, %pM\n", Addr);
+	netdev_info(ieee->dev, "===========>RemovePeerTS, %pM\n", Addr);
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List) {
 		if (memcmp(pTS->Addr, Addr, 6) == 0) {
@@ -478,7 +478,8 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr)
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Admit_List, List) {
 		if (memcmp(pTS->Addr, Addr, 6) == 0) {
-			printk(KERN_INFO "====>remove Tx_TS_admin_list\n");
+			netdev_info(ieee->dev,
+				    "====>remove Tx_TS_admin_list\n");
 			RemoveTsEntry(ieee, pTS, TX_DIR);
 			list_del_init(&pTS->List);
 			list_add_tail(&pTS->List, &ieee->Tx_TS_Unused_List);
