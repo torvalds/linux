@@ -173,9 +173,9 @@ static const struct resource mmcif0_resources[] __initconst = {
 };
 
 /* SDHI0 */
-static const struct sh_mobile_sdhi_info sdhi0_pdata __initconst = {
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
+static const struct tmio_mmc_data sdhi0_pdata __initconst = {
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 };
 
 static const struct resource sdhi0_resources[] __initconst = {
@@ -184,9 +184,9 @@ static const struct resource sdhi0_resources[] __initconst = {
 };
 
 /* SDHI1 */
-static const struct sh_mobile_sdhi_info sdhi1_pdata __initconst = {
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+static const struct tmio_mmc_data sdhi1_pdata __initconst = {
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_WRPROTECT_DISABLE,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_NEEDS_POLL,
 };
 

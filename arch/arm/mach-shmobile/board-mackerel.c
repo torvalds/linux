@@ -972,11 +972,11 @@ static struct platform_device nand_flash_device = {
 };
 
 /* SDHI0 */
-static struct sh_mobile_sdhi_info sdhi0_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.tmio_flags	= TMIO_MMC_USE_GPIO_CD,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
+static struct tmio_mmc_data sdhi0_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
+	.flags		= TMIO_MMC_USE_GPIO_CD,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
 	.cd_gpio	= 172,
 };
 
@@ -1011,11 +1011,11 @@ static struct platform_device sdhi0_device = {
 /* SDHI1 */
 
 /* GPIO 41 can trigger IRQ8, but it is used by USBHS1, we have to poll */
-static struct sh_mobile_sdhi_info sdhi1_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
-	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_USE_GPIO_CD,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+static struct tmio_mmc_data sdhi1_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI1_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI1_RX,
+	.flags		= TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_USE_GPIO_CD,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_NEEDS_POLL,
 	.cd_gpio	= 41,
 };
@@ -1054,11 +1054,11 @@ static struct platform_device sdhi1_device = {
  * The card detect pin of the top SD/MMC slot (CN23) is active low and is
  * connected to GPIO SCIFB_SCK of SH7372 (GPIO 162).
  */
-static struct sh_mobile_sdhi_info sdhi2_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
-	.tmio_flags	= TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_USE_GPIO_CD,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+static struct tmio_mmc_data sdhi2_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI2_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI2_RX,
+	.flags		= TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_USE_GPIO_CD,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_NEEDS_POLL,
 	.cd_gpio	= 162,
 };
