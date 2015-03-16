@@ -245,8 +245,7 @@ static int fat_write_end(struct file *file, struct address_space *mapping,
 	return err;
 }
 
-static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
-			     struct iov_iter *iter,
+static ssize_t fat_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			     loff_t offset)
 {
 	struct file *file = iocb->ki_filp;

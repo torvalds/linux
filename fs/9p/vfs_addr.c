@@ -230,7 +230,6 @@ static int v9fs_launder_page(struct page *page)
 
 /**
  * v9fs_direct_IO - 9P address space operation for direct I/O
- * @rw: direction (read or write)
  * @iocb: target I/O control block
  * @iov: array of vectors that define I/O buffer
  * @pos: offset in file to begin the operation
@@ -248,7 +247,7 @@ static int v9fs_launder_page(struct page *page)
  *
  */
 static ssize_t
-v9fs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
+v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
 	ssize_t n;

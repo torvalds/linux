@@ -240,7 +240,6 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
 
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
- * @rw: direction (read or write)
  * @iocb: target I/O control block
  * @iov: array of vectors that define I/O buffer
  * @pos: offset in file to begin the operation
@@ -251,7 +250,7 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
  * shunt off direct read and write requests before the VFS gets them,
  * so this method is only ever called for swap.
  */
-ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
+ssize_t nfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 {
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 

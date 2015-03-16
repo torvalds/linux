@@ -359,8 +359,8 @@ static ssize_t ll_direct_IO_26_seg(const struct lu_env *env, struct cl_io *io,
  * up to 22MB for 128kB kmalloc and up to 682MB for 4MB kmalloc. */
 #define MAX_DIO_SIZE ((MAX_MALLOC / sizeof(struct brw_page) * PAGE_CACHE_SIZE) & \
 		      ~(DT_MAX_BRW_SIZE - 1))
-static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
-			       struct iov_iter *iter, loff_t file_offset)
+static ssize_t ll_direct_IO_26(struct kiocb *iocb, struct iov_iter *iter,
+			       loff_t file_offset)
 {
 	struct lu_env *env;
 	struct cl_io *io;

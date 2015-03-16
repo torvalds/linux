@@ -389,8 +389,7 @@ static void affs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static ssize_t
-affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
-	       loff_t offset)
+affs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
