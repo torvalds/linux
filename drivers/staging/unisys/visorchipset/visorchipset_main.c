@@ -65,8 +65,8 @@ static int clientregistered;
 #define MAX_CHIPSET_EVENTS 2
 static u8 chipset_events[MAX_CHIPSET_EVENTS] = { 0, 0 };
 
-static struct delayed_work Periodic_controlvm_work;
-static struct workqueue_struct *Periodic_controlvm_workqueue;
+static struct delayed_work periodic_controlvm_work;
+static struct workqueue_struct *periodic_controlvm_workqueue;
 static DEFINE_SEMAPHORE(NotifierLock);
 
 static struct controlvm_message_header g_DiagMsgHdr;
@@ -1892,8 +1892,8 @@ Away:
 			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 	}
 
-	queue_delayed_work(Periodic_controlvm_workqueue,
-			   &Periodic_controlvm_work, poll_jiffies);
+	queue_delayed_work(periodic_controlvm_workqueue,
+			   &periodic_controlvm_work, poll_jiffies);
 }
 
 static void
@@ -1997,8 +1997,8 @@ Away:
 
 	poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
 
-	queue_delayed_work(Periodic_controlvm_workqueue,
-			   &Periodic_controlvm_work, poll_jiffies);
+	queue_delayed_work(periodic_controlvm_workqueue,
+			   &periodic_controlvm_work, poll_jiffies);
 }
 
 static void
@@ -2249,15 +2249,15 @@ visorchipset_init(void)
 	if (!visorchipset_disable_controlvm) {
 		/* if booting in a crash kernel */
 		if (visorchipset_crash_kernel)
-			INIT_DELAYED_WORK(&Periodic_controlvm_work,
+			INIT_DELAYED_WORK(&periodic_controlvm_work,
 					  setup_crash_devices_work_queue);
 		else
-			INIT_DELAYED_WORK(&Periodic_controlvm_work,
+			INIT_DELAYED_WORK(&periodic_controlvm_work,
 					  controlvm_periodic_work);
-		Periodic_controlvm_workqueue =
+		periodic_controlvm_workqueue =
 		    create_singlethread_workqueue("visorchipset_controlvm");
 
-		if (Periodic_controlvm_workqueue == NULL) {
+		if (periodic_controlvm_workqueue == NULL) {
 			POSTCODE_LINUX_2(CREATE_WORKQUEUE_FAILED_PC,
 					 DIAG_SEVERITY_ERR);
 			rc = -ENOMEM;
@@ -2265,8 +2265,8 @@ visorchipset_init(void)
 		}
 		most_recent_message_jiffies = jiffies;
 		poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-		rc = queue_delayed_work(Periodic_controlvm_workqueue,
-					&Periodic_controlvm_work, poll_jiffies);
+		rc = queue_delayed_work(periodic_controlvm_workqueue,
+					&periodic_controlvm_work, poll_jiffies);
 		if (rc < 0) {
 			POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC,
 					 DIAG_SEVERITY_ERR);
@@ -2299,10 +2299,10 @@ visorchipset_exit(void)
 	if (visorchipset_disable_controlvm) {
 		;
 	} else {
-		cancel_delayed_work(&Periodic_controlvm_work);
-		flush_workqueue(Periodic_controlvm_workqueue);
-		destroy_workqueue(Periodic_controlvm_workqueue);
-		Periodic_controlvm_workqueue = NULL;
+		cancel_delayed_work(&periodic_controlvm_work);
+		flush_workqueue(periodic_controlvm_workqueue);
+		destroy_workqueue(periodic_controlvm_workqueue);
+		periodic_controlvm_workqueue = NULL;
 		destroy_controlvm_payload_info(&ControlVm_payload_info);
 	}
 	Test_Vnic_channel = NULL;
