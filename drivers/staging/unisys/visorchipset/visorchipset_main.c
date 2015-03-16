@@ -2150,7 +2150,7 @@ visorchipset_init(void)
 	if (visorchipset_testvnic) {
 		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, x, DIAG_SEVERITY_ERR);
 		rc = x;
-		goto Away;
+		goto cleanup;
 	}
 
 	addr = controlvm_get_channel_address();
@@ -2176,7 +2176,7 @@ visorchipset_init(void)
 	rc = visorchipset_file_init(MajorDev, &controlvm_channel);
 	if (rc < 0) {
 		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
-		goto Away;
+		goto cleanup;
 	}
 
 	memset(&g_diag_msg_hdr, 0, sizeof(struct controlvm_message_header));
@@ -2192,7 +2192,7 @@ visorchipset_init(void)
 	if (!Putfile_buffer_list_pool) {
 		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
 		rc = -1;
-		goto Away;
+		goto cleanup;
 	}
 	if (!visorchipset_disable_controlvm) {
 		/* if booting in a crash kernel */
@@ -2209,7 +2209,7 @@ visorchipset_init(void)
 			POSTCODE_LINUX_2(CREATE_WORKQUEUE_FAILED_PC,
 					 DIAG_SEVERITY_ERR);
 			rc = -ENOMEM;
-			goto Away;
+			goto cleanup;
 		}
 		most_recent_message_jiffies = jiffies;
 		poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
@@ -2218,7 +2218,7 @@ visorchipset_init(void)
 		if (rc < 0) {
 			POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC,
 					 DIAG_SEVERITY_ERR);
-			goto Away;
+			goto cleanup;
 		}
 	}
 
@@ -2226,11 +2226,11 @@ visorchipset_init(void)
 	if (platform_device_register(&Visorchipset_platform_device) < 0) {
 		POSTCODE_LINUX_2(DEVICE_REGISTER_FAILURE_PC, DIAG_SEVERITY_ERR);
 		rc = -1;
-		goto Away;
+		goto cleanup;
 	}
 	POSTCODE_LINUX_2(CHIPSET_INIT_SUCCESS_PC, POSTCODE_SEVERITY_INFO);
 	rc = 0;
-Away:
+cleanup:
 	if (rc) {
 		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, rc,
 				 POSTCODE_SEVERITY_ERR);
