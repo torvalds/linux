@@ -344,7 +344,10 @@ struct qc_dqblk {
 	int d_rt_spc_warns;	/* # warnings issued wrt RT space */
 };
 
-/* Field specifiers for ->set_dqblk() in struct qc_dqblk */
+/*
+ * Field specifiers for ->set_dqblk() in struct qc_dqblk and also for
+ * ->set_info() in struct qc_info
+ */
 #define	QC_INO_SOFT	(1<<0)
 #define	QC_INO_HARD	(1<<1)
 #define	QC_SPC_SOFT	(1<<2)
@@ -365,6 +368,51 @@ struct qc_dqblk {
 #define	QC_INO_COUNT	(1<<13)
 #define	QC_RT_SPACE	(1<<14)
 #define QC_ACCT_MASK (QC_SPACE | QC_INO_COUNT | QC_RT_SPACE)
+#define QC_FLAGS	(1<<15)
+
+#define QCI_SYSFILE		(1 << 0)	/* Quota file is hidden from userspace */
+#define QCI_ROOT_SQUASH		(1 << 1)	/* Root squash turned on */
+#define QCI_ACCT_ENABLED	(1 << 2)	/* Quota accounting enabled */
+#define QCI_LIMITS_ENFORCED	(1 << 3)	/* Quota limits enforced */
+
+/* Structures for communicating via ->get_state */
+struct qc_type_state {
+	unsigned int flags;		/* Flags QCI_* */
+	unsigned int spc_timelimit;	/* Time after which space softlimit is
+					 * enforced */
+	unsigned int ino_timelimit;	/* Ditto for inode softlimit */
+	unsigned int rt_spc_timelimit;	/* Ditto for real-time space */
+	unsigned int spc_warnlimit;	/* Limit for number of space warnings */
+	unsigned int ino_warnlimit;	/* Ditto for inodes */
+	unsigned int rt_spc_warnlimit;	/* Ditto for real-time space */
+	unsigned long long ino;		/* Inode number of quota file */
+	blkcnt_t blocks;		/* Number of 512-byte blocks in the file */
+	blkcnt_t nextents;		/* Number of extents in the file */
+};
+
+struct qc_state {
+	unsigned int s_incoredqs;	/* Number of dquots in core */
+	/*
+	 * Per quota type information. The array should really have
+	 * max(MAXQUOTAS, XQM_MAXQUOTAS) entries. BUILD_BUG_ON in
+	 * quota_getinfo() makes sure XQM_MAXQUOTAS is large enough.  Once VFS
+	 * supports project quotas, this can be changed to MAXQUOTAS
+	 */
+	struct qc_type_state s_state[XQM_MAXQUOTAS];
+};
+
+/* Structure for communicating via ->set_info */
+struct qc_info {
+	int i_fieldmask;	/* mask of fields to change in ->set_info() */
+	unsigned int i_flags;		/* Flags QCI_* */
+	unsigned int i_spc_timelimit;	/* Time after which space softlimit is
+					 * enforced */
+	unsigned int i_ino_timelimit;	/* Ditto for inode softlimit */
+	unsigned int i_rt_spc_timelimit;/* Ditto for real-time space */
+	unsigned int i_spc_warnlimit;	/* Limit for number of space warnings */
+	unsigned int i_ino_warnlimit;	/* Limit for number of inode warnings */
+	unsigned int i_rt_spc_warnlimit;	/* Ditto for real-time space */
+};
 
 /* Operations handling requests from userspace */
 struct quotactl_ops {
@@ -373,12 +421,10 @@ struct quotactl_ops {
 	int (*quota_enable)(struct super_block *, unsigned int);
 	int (*quota_disable)(struct super_block *, unsigned int);
 	int (*quota_sync)(struct super_block *, int);
-	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
-	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
+	int (*set_info)(struct super_block *, int, struct qc_info *);
 	int (*get_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
 	int (*set_dqblk)(struct super_block *, struct kqid, struct qc_dqblk *);
-	int (*get_xstate)(struct super_block *, struct fs_quota_stat *);
-	int (*get_xstatev)(struct super_block *, struct fs_quota_statv *);
+	int (*get_state)(struct super_block *, struct qc_state *);
 	int (*rm_xquota)(struct super_block *, unsigned int);
 };
 

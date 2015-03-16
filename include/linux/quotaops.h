@@ -95,8 +95,8 @@ int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
 int dquot_quota_off(struct super_block *sb, int type);
 int dquot_writeback_dquots(struct super_block *sb, int type);
 int dquot_quota_sync(struct super_block *sb, int type);
-int dquot_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
-int dquot_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
+int dquot_get_state(struct super_block *sb, struct qc_state *state);
+int dquot_set_dqinfo(struct super_block *sb, int type, struct qc_info *ii);
 int dquot_get_dqblk(struct super_block *sb, struct kqid id,
 		struct qc_dqblk *di);
 int dquot_set_dqblk(struct super_block *sb, struct kqid id,
