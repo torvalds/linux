@@ -1884,23 +1884,11 @@ static const struct hda_codec_preset snd_hda_preset_via[] = {
 
 MODULE_ALIAS("snd-hda-codec-id:1106*");
 
-static struct hda_codec_preset_list via_list = {
+static struct hda_codec_driver via_driver = {
 	.preset = snd_hda_preset_via,
-	.owner = THIS_MODULE,
 };
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA HD-audio codec");
 
-static int __init patch_via_init(void)
-{
-	return snd_hda_add_codec_preset(&via_list);
-}
-
-static void __exit patch_via_exit(void)
-{
-	snd_hda_delete_codec_preset(&via_list);
-}
-
-module_init(patch_via_init)
-module_exit(patch_via_exit)
+module_hda_codec_driver(via_driver);

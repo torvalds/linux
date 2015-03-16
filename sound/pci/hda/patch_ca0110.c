@@ -98,20 +98,8 @@ MODULE_ALIAS("snd-hda-codec-id:1102000d");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Creative CA0110-IBG HD-audio codec");
 
-static struct hda_codec_preset_list ca0110_list = {
+static struct hda_codec_driver ca0110_driver = {
 	.preset = snd_hda_preset_ca0110,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_ca0110_init(void)
-{
-	return snd_hda_add_codec_preset(&ca0110_list);
-}
-
-static void __exit patch_ca0110_exit(void)
-{
-	snd_hda_delete_codec_preset(&ca0110_list);
-}
-
-module_init(patch_ca0110_init)
-module_exit(patch_ca0110_exit)
+module_hda_codec_driver(ca0110_driver);

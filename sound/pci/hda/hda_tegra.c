@@ -81,7 +81,7 @@ module_param(power_save, bint, 0644);
 MODULE_PARM_DESC(power_save,
 		 "Automatic power-saving timeout (in seconds, 0 = disable).");
 #else
-static int power_save = 0;
+#define power_save	0
 #endif
 
 /*
@@ -249,14 +249,9 @@ static int hda_tegra_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
-	struct azx_pcm *p;
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	list_for_each_entry(p, &chip->pcm_list, list)
-		snd_pcm_suspend_all(p->pcm);
-	if (chip->initialized)
-		snd_hda_suspend(chip->bus);
 
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
@@ -277,7 +272,6 @@ static int hda_tegra_resume(struct device *dev)
 
 	azx_init_chip(chip, 1);
 
-	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
 	return 0;
@@ -341,17 +335,6 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 	hda_tegra_init(hda);
 
 	return 0;
-}
-
-/*
- * The codecs were powered up in snd_hda_codec_new().
- * Now all initialization done, so turn them down if possible
- */
-static void power_down_all_codecs(struct azx *chip)
-{
-	struct hda_codec *codec;
-	list_for_each_entry(codec, &chip->bus->codec_list, list)
-		snd_hda_power_down(codec);
 }
 
 static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
@@ -502,7 +485,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	/* create codec instances */
-	err = azx_bus_create(chip, NULL, &power_save);
+	err = azx_bus_create(chip, NULL);
 	if (err < 0)
 		goto out_free;
 
@@ -529,8 +512,8 @@ static int hda_tegra_probe(struct platform_device *pdev)
 		goto out_free;
 
 	chip->running = 1;
-	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
+	snd_hda_set_power_save(chip->bus, power_save * 1000);
 
 	return 0;
 

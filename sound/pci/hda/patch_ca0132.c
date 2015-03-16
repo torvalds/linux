@@ -4702,20 +4702,8 @@ MODULE_ALIAS("snd-hda-codec-id:11020011");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Creative Sound Core3D codec");
 
-static struct hda_codec_preset_list ca0132_list = {
+static struct hda_codec_driver ca0132_driver = {
 	.preset = snd_hda_preset_ca0132,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_ca0132_init(void)
-{
-	return snd_hda_add_codec_preset(&ca0132_list);
-}
-
-static void __exit patch_ca0132_exit(void)
-{
-	snd_hda_delete_codec_preset(&ca0132_list);
-}
-
-module_init(patch_ca0132_init)
-module_exit(patch_ca0132_exit)
+module_hda_codec_driver(ca0132_driver);

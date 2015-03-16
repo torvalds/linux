@@ -3301,15 +3301,6 @@ static int patch_via_hdmi(struct hda_codec *codec)
 }
 
 /*
- * called from hda_codec.c for generic HDMI support
- */
-int snd_hda_parse_hdmi_codec(struct hda_codec *codec)
-{
-	return patch_generic_hdmi(codec);
-}
-EXPORT_SYMBOL_GPL(snd_hda_parse_hdmi_codec);
-
-/*
  * patch entries
  */
 static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
@@ -3373,6 +3364,8 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x80862882, .name = "Valleyview2 HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862883, .name = "Braswell HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x808629fb, .name = "Crestline HDMI",	.patch = patch_generic_hdmi },
+/* special ID for generic HDMI */
+{ .id = HDA_CODEC_ID_GENERIC_HDMI, .patch = patch_generic_hdmi },
 {} /* terminator */
 };
 
@@ -3442,20 +3435,8 @@ MODULE_ALIAS("snd-hda-codec-intelhdmi");
 MODULE_ALIAS("snd-hda-codec-nvhdmi");
 MODULE_ALIAS("snd-hda-codec-atihdmi");
 
-static struct hda_codec_preset_list intel_list = {
+static struct hda_codec_driver hdmi_driver = {
 	.preset = snd_hda_preset_hdmi,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_hdmi_init(void)
-{
-	return snd_hda_add_codec_preset(&intel_list);
-}
-
-static void __exit patch_hdmi_exit(void)
-{
-	snd_hda_delete_codec_preset(&intel_list);
-}
-
-module_init(patch_hdmi_init)
-module_exit(patch_hdmi_exit)
+module_hda_codec_driver(hdmi_driver);

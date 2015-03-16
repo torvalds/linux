@@ -116,9 +116,6 @@ int snd_hda_create_hwdep(struct hda_codec *codec)
 	hwdep->ops.ioctl_compat = hda_hwdep_ioctl_compat;
 #endif
 
-	/* link to codec */
-	hwdep->dev.parent = &codec->dev;
-
 	/* for sysfs */
 	hwdep->dev.groups = snd_hda_dev_attr_groups;
 	dev_set_drvdata(&hwdep->dev, codec);

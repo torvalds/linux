@@ -5524,13 +5524,11 @@ static const struct hda_codec_ops generic_patch_ops = {
 #endif
 };
 
-/**
+/*
  * snd_hda_parse_generic_codec - Generic codec parser
  * @codec: the HDA codec
- *
- * This should be called from the HDA codec core.
  */
-int snd_hda_parse_generic_codec(struct hda_codec *codec)
+static int snd_hda_parse_generic_codec(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec;
 	int err;
@@ -5556,7 +5554,17 @@ error:
 	snd_hda_gen_free(codec);
 	return err;
 }
-EXPORT_SYMBOL_GPL(snd_hda_parse_generic_codec);
+
+static const struct hda_codec_preset snd_hda_preset_generic[] = {
+	{ .id = HDA_CODEC_ID_GENERIC, .patch = snd_hda_parse_generic_codec },
+	{} /* terminator */
+};
+
+static struct hda_codec_driver generic_driver = {
+	.preset = snd_hda_preset_generic,
+};
+
+module_hda_codec_driver(generic_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic HD-audio codec parser");

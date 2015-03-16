@@ -83,10 +83,6 @@ struct hda_bus_ops {
 			  struct hda_pcm *pcm);
 	/* reset bus for retry verb */
 	void (*bus_reset)(struct hda_bus *bus);
-#ifdef CONFIG_PM
-	/* notify power-up/down from codec to controller */
-	void (*pm_notify)(struct hda_bus *bus, bool power_up);
-#endif
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 	/* prepare DSP transfer */
 	int (*load_dsp_prepare)(struct hda_bus *bus, unsigned int format,
@@ -122,7 +118,6 @@ struct hda_bus {
 	void *private_data;
 	struct pci_dev *pci;
 	const char *modelname;
-	int *power_save;
 	struct hda_bus_ops ops;
 
 	/* codec linked list */
@@ -151,10 +146,10 @@ struct hda_bus {
 	unsigned int rirb_error:1;	/* error in codec communication */
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
-	unsigned int power_keep_link_on:1; /* don't power off HDA link */
 	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
+	unsigned long codec_powered;	/* bit flags of powered codecs */
 };
 
 /*
@@ -174,15 +169,22 @@ struct hda_codec_preset {
 	int (*patch)(struct hda_codec *codec);
 };
 	
-struct hda_codec_preset_list {
+#define HDA_CODEC_ID_GENERIC_HDMI	0x00000101
+#define HDA_CODEC_ID_GENERIC		0x00000201
+
+struct hda_codec_driver {
+	struct device_driver driver;
 	const struct hda_codec_preset *preset;
-	struct module *owner;
-	struct list_head list;
 };
 
-/* initial hook */
-int snd_hda_add_codec_preset(struct hda_codec_preset_list *preset);
-int snd_hda_delete_codec_preset(struct hda_codec_preset_list *preset);
+int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
+			       struct module *owner);
+#define hda_codec_driver_register(drv) \
+	__hda_codec_driver_register(drv, KBUILD_MODNAME, THIS_MODULE)
+void hda_codec_driver_unregister(struct hda_codec_driver *drv);
+#define module_hda_codec_driver(drv) \
+	module_driver(drv, hda_codec_driver_register, \
+		      hda_codec_driver_unregister)
 
 /* ops set by the preset patch */
 struct hda_codec_ops {
@@ -286,11 +288,10 @@ struct hda_codec {
 	u32 vendor_id;
 	u32 subsystem_id;
 	u32 revision_id;
+	u32 probe_id; /* overridden id for probing */
 
 	/* detected preset */
 	const struct hda_codec_preset *preset;
-	struct module *owner;
-	int (*parser)(struct hda_codec *codec);
 	const char *vendor_name;	/* codec vendor name */
 	const char *chip_name;		/* codec chip name */
 	const char *modelname;	/* model name for preset */
@@ -366,17 +367,11 @@ struct hda_codec {
 	unsigned int dp_mst:1; /* support DP1.2 Multi-stream transport */
 	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
 #ifdef CONFIG_PM
-	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
-	unsigned int pm_up_notified:1;	/* PM notified to controller */
-	unsigned int in_pm:1;		/* suspend/resume being performed */
-	int power_transition;	/* power-state in transition */
-	int power_count;	/* current (global) power refcount */
-	struct delayed_work power_work; /* delayed task for powerdown */
+	atomic_t in_pm;		/* suspend/resume being performed */
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
-	spinlock_t power_lock;
 #endif
 
 	/* filter the requested power state per nid */
@@ -407,6 +402,11 @@ struct hda_codec {
 	/* additional init verbs */
 	struct snd_array verbs;
 };
+
+#define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, dev)
+#define hda_codec_dev(_dev)	(&(_dev)->dev)
+
+extern struct bus_type snd_hda_bus_type;
 
 /* direction */
 enum {
@@ -556,14 +556,12 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 
 int snd_hda_lock_devices(struct hda_bus *bus);
 void snd_hda_unlock_devices(struct hda_bus *bus);
+void snd_hda_bus_reset(struct hda_bus *bus);
 
 /*
  * power management
  */
-#ifdef CONFIG_PM
-int snd_hda_suspend(struct hda_bus *bus);
-int snd_hda_resume(struct hda_bus *bus);
-#endif
+extern const struct dev_pm_ops hda_codec_driver_pm;
 
 static inline
 int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
@@ -586,63 +584,15 @@ const char *snd_hda_get_jack_location(u32 cfg);
  * power saving
  */
 #ifdef CONFIG_PM
-void snd_hda_power_save(struct hda_codec *codec, int delta, bool d3wait);
+void snd_hda_power_up(struct hda_codec *codec);
+void snd_hda_power_down(struct hda_codec *codec);
+void snd_hda_set_power_save(struct hda_bus *bus, int delay);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
-static inline void snd_hda_power_save(struct hda_codec *codec, int delta,
-				      bool d3wait) {}
+static inline void snd_hda_power_up(struct hda_codec *codec) {}
+static inline void snd_hda_power_down(struct hda_codec *codec) {}
+static inline void snd_hda_set_power_save(struct hda_bus *bus, int delay) {}
 #endif
-
-/**
- * snd_hda_power_up - Power-up the codec
- * @codec: HD-audio codec
- *
- * Increment the power-up counter and power up the hardware really when
- * not turned on yet.
- */
-static inline void snd_hda_power_up(struct hda_codec *codec)
-{
-	snd_hda_power_save(codec, 1, false);
-}
-
-/**
- * snd_hda_power_up_d3wait - Power-up the codec after waiting for any pending
- *   D3 transition to complete.  This differs from snd_hda_power_up() when
- *   power_transition == -1.  snd_hda_power_up sees this case as a nop,
- *   snd_hda_power_up_d3wait waits for the D3 transition to complete then powers
- *   back up.
- * @codec: HD-audio codec
- *
- * Cancel any power down operation hapenning on the work queue, then power up.
- */
-static inline void snd_hda_power_up_d3wait(struct hda_codec *codec)
-{
-	snd_hda_power_save(codec, 1, true);
-}
-
-/**
- * snd_hda_power_down - Power-down the codec
- * @codec: HD-audio codec
- *
- * Decrement the power-up counter and schedules the power-off work if
- * the counter rearches to zero.
- */
-static inline void snd_hda_power_down(struct hda_codec *codec)
-{
-	snd_hda_power_save(codec, -1, false);
-}
-
-/**
- * snd_hda_power_sync - Synchronize the power-save status
- * @codec: HD-audio codec
- *
- * Synchronize the actual power state with the power account;
- * called when power_save parameter is changed
- */
-static inline void snd_hda_power_sync(struct hda_codec *codec)
-{
-	snd_hda_power_save(codec, 0, false);
-}
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 /*

@@ -1194,20 +1194,8 @@ MODULE_ALIAS("snd-hda-codec-id:11d4*");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Analog Devices HD-audio codec");
 
-static struct hda_codec_preset_list analog_list = {
+static struct hda_codec_driver analog_driver = {
 	.preset = snd_hda_preset_analog,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_analog_init(void)
-{
-	return snd_hda_add_codec_preset(&analog_list);
-}
-
-static void __exit patch_analog_exit(void)
-{
-	snd_hda_delete_codec_preset(&analog_list);
-}
-
-module_init(patch_analog_init)
-module_exit(patch_analog_exit)
+module_hda_codec_driver(analog_driver);

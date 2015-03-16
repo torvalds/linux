@@ -1018,20 +1018,8 @@ MODULE_ALIAS("snd-hda-codec-id:14f151d7");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");
 
-static struct hda_codec_preset_list conexant_list = {
+static struct hda_codec_driver conexant_driver = {
 	.preset = snd_hda_preset_conexant,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_conexant_init(void)
-{
-	return snd_hda_add_codec_preset(&conexant_list);
-}
-
-static void __exit patch_conexant_exit(void)
-{
-	snd_hda_delete_codec_preset(&conexant_list);
-}
-
-module_init(patch_conexant_init)
-module_exit(patch_conexant_exit)
+module_hda_codec_driver(conexant_driver);
