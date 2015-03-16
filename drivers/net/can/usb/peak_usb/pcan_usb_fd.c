@@ -251,6 +251,27 @@ static int pcan_usb_fd_build_restart_cmd(struct peak_usb_device *dev, u8 *buf)
 	/* moves the pointer forward */
 	pc += sizeof(struct pucan_wr_err_cnt);
 
+	/* add command to switch from ISO to non-ISO mode, if fw allows it */
+	if (dev->can.ctrlmode_supported & CAN_CTRLMODE_FD_NON_ISO) {
+		struct pucan_options *puo = (struct pucan_options *)pc;
+
+		puo->opcode_channel =
+			(dev->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO) ?
+			pucan_cmd_opcode_channel(dev,
+						 PUCAN_CMD_CLR_DIS_OPTION) :
+			pucan_cmd_opcode_channel(dev, PUCAN_CMD_SET_EN_OPTION);
+
+		puo->options = cpu_to_le16(PUCAN_OPTION_CANDFDISO);
+
+		/* to be sure that no other extended bits will be taken into
+		 * account
+		 */
+		puo->unused = 0;
+
+		/* moves the pointer forward */
+		pc += sizeof(struct pucan_options);
+	}
+
 	/* next, go back to operational mode */
 	cmd = (struct pucan_command *)pc;
 	cmd->opcode_channel = pucan_cmd_opcode_channel(dev,
@@ -860,8 +881,14 @@ static int pcan_usb_fd_init(struct peak_usb_device *dev)
 			 pdev->usb_if->fw_info.fw_version[2],
 			 dev->adapter->ctrl_count);
 
-		/* the currently supported hw is non-ISO */
-		dev->can.ctrlmode = CAN_CTRLMODE_FD_NON_ISO;
+		/* check for ability to switch between ISO/non-ISO modes */
+		if (pdev->usb_if->fw_info.fw_version[0] >= 2) {
+			/* firmware >= 2.x supports ISO/non-ISO switching */
+			dev->can.ctrlmode_supported |= CAN_CTRLMODE_FD_NON_ISO;
+		} else {
+			/* firmware < 2.x only supports fixed(!) non-ISO */
+			dev->can.ctrlmode |= CAN_CTRLMODE_FD_NON_ISO;
+		}
 
 		/* tell the hardware the can driver is running */
 		err = pcan_usb_fd_drv_loaded(dev, 1);

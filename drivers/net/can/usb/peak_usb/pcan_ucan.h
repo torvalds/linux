@@ -104,6 +104,7 @@ struct __packed pucan_wr_err_cnt {
 /* uCAN SET_EN/CLR_DIS _OPTION command fields */
 #define PUCAN_OPTION_ERROR		0x0001
 #define PUCAN_OPTION_BUSLOAD		0x0002
+#define PUCAN_OPTION_CANDFDISO		0x0004
 
 struct __packed pucan_options {
 	__le16	opcode_channel;
