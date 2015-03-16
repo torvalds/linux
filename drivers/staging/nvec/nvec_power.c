@@ -378,7 +378,7 @@ static int nvec_power_probe(struct platform_device *pdev)
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 
 	power = devm_kzalloc(&pdev->dev, sizeof(struct nvec_power), GFP_NOWAIT);
-	if (power == NULL)
+	if (!power)
 		return -ENOMEM;
 
 	dev_set_drvdata(&pdev->dev, power);

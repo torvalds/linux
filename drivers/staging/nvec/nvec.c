@@ -803,7 +803,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	}
 
 	nvec = devm_kzalloc(&pdev->dev, sizeof(struct nvec_chip), GFP_KERNEL);
-	if (nvec == NULL)
+	if (!nvec)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, nvec);
