@@ -693,9 +693,10 @@ retry:
 			ret = dax_do_io(rw, iocb, inode, iter, offset,
 					ext4_get_block, NULL, 0);
 		else
-			ret = __blockdev_direct_IO(rw, iocb, inode,
-					inode->i_sb->s_bdev, iter, offset,
-					ext4_get_block, NULL, NULL, 0);
+			ret = __blockdev_direct_IO(iocb, inode,
+						   inode->i_sb->s_bdev, iter,
+						   offset, ext4_get_block, NULL,
+						   NULL, 0);
 		inode_dio_done(inode);
 	} else {
 locked:
@@ -703,8 +704,8 @@ locked:
 			ret = dax_do_io(rw, iocb, inode, iter, offset,
 					ext4_get_block, NULL, DIO_LOCKING);
 		else
-			ret = blockdev_direct_IO(rw, iocb, inode, iter,
-					offset, ext4_get_block);
+			ret = blockdev_direct_IO(iocb, inode, iter, offset,
+						 ext4_get_block);
 
 		if (unlikely((rw & WRITE) && ret < 0)) {
 			loff_t isize = i_size_read(inode);

@@ -8174,10 +8174,10 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 		wakeup = false;
 	}
 
-	ret = __blockdev_direct_IO(rw, iocb, inode,
-			BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
-			iter, offset, btrfs_get_blocks_direct, NULL,
-			btrfs_submit_direct, flags);
+	ret = __blockdev_direct_IO(iocb, inode,
+				   BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
+				   iter, offset, btrfs_get_blocks_direct, NULL,
+				   btrfs_submit_direct, flags);
 	if (rw & WRITE) {
 		current->journal_info = NULL;
 		if (ret < 0 && ret != -EIOCBQUEUED)

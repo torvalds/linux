@@ -405,7 +405,7 @@ affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 			return 0;
 	}
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, affs_get_block);
+	ret = blockdev_direct_IO(iocb, inode, iter, offset, affs_get_block);
 	if (ret < 0 && (rw & WRITE))
 		affs_write_failed(mapping, offset + count);
 	return ret;

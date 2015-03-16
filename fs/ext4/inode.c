@@ -3037,7 +3037,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 		ret = dax_do_io(rw, iocb, inode, iter, offset, get_block_func,
 				ext4_end_io_dio, dio_flags);
 	else
-		ret = __blockdev_direct_IO(rw, iocb, inode,
+		ret = __blockdev_direct_IO(iocb, inode,
 					   inode->i_sb->s_bdev, iter, offset,
 					   get_block_func,
 					   ext4_end_io_dio, NULL, dio_flags);

@@ -1504,14 +1504,13 @@ xfs_vm_direct_IO(
 	struct block_device	*bdev = xfs_find_bdev_for_inode(inode);
 
 	if (rw & WRITE) {
-		return __blockdev_direct_IO(rw, iocb, inode, bdev, iter,
-					    offset, xfs_get_blocks_direct,
+		return __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
+					    xfs_get_blocks_direct,
 					    xfs_end_io_direct_write, NULL,
 					    DIO_ASYNC_EXTEND);
 	}
-	return __blockdev_direct_IO(rw, iocb, inode, bdev, iter,
-				    offset, xfs_get_blocks_direct,
-				    NULL, NULL, 0);
+	return __blockdev_direct_IO(iocb, inode, bdev, iter, offset,
+				    xfs_get_blocks_direct, NULL, NULL, 0);
 }
 
 /*

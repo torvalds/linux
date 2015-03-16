@@ -3286,7 +3286,7 @@ static ssize_t reiserfs_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset,
+	ret = blockdev_direct_IO(iocb, inode, iter, offset,
 				 reiserfs_get_blocks_direct_io);
 
 	/*

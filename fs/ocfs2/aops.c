@@ -738,10 +738,9 @@ static ssize_t ocfs2_direct_IO_write(struct kiocb *iocb,
 		di_bh = NULL;
 	}
 
-	written = __blockdev_direct_IO(WRITE, iocb, inode, inode->i_sb->s_bdev,
-			iter, offset,
-			ocfs2_direct_IO_get_blocks,
-			ocfs2_dio_end_io, NULL, 0);
+	written = __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev, iter,
+				       offset, ocfs2_direct_IO_get_blocks,
+				       ocfs2_dio_end_io, NULL, 0);
 	if (unlikely(written < 0)) {
 		loff_t i_size = i_size_read(inode);
 
@@ -844,11 +843,10 @@ static ssize_t ocfs2_direct_IO(int rw,
 		return 0;
 
 	if (rw == READ)
-		return __blockdev_direct_IO(rw, iocb, inode,
-				    inode->i_sb->s_bdev,
-				    iter, offset,
-				    ocfs2_direct_IO_get_blocks,
-				    ocfs2_dio_end_io, NULL, 0);
+		return __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev,
+					    iter, offset,
+					    ocfs2_direct_IO_get_blocks,
+					    ocfs2_dio_end_io, NULL, 0);
 	else
 		return ocfs2_direct_IO_write(iocb, iter, offset);
 }
