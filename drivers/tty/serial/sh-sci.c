@@ -1991,18 +1991,40 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	/*
-	 * Calculate delay for 1.5 DMA buffers: see
-	 * drivers/serial/serial_core.c::uart_update_timeout(). With 10 bits
-	 * (CS8), 250Hz, 115200 baud and 64 bytes FIFO, the above function
+	 * Calculate delay for 2 DMA buffers (4 FIFO).
+	 * See drivers/serial/serial_core.c::uart_update_timeout(). With 10
+	 * bits (CS8), 250Hz, 115200 baud and 64 bytes FIFO, the above function
 	 * calculates 1 jiffie for the data plus 5 jiffies for the "slop(e)."
-	 * Then below we calculate 3 jiffies (12ms) for 1.5 DMA buffers (3 FIFO
-	 * sizes), but it has been found out experimentally, that this is not
-	 * enough: the driver too often needlessly runs on a DMA timeout. 20ms
-	 * as a minimum seem to work perfectly.
+	 * Then below we calculate 5 jiffies (20ms) for 2 DMA buffers (4 FIFO
+	 * sizes), but when performing a faster transfer, value obtained by
+	 * this formula is may not enough. Therefore, if value is smaller than
+	 * 20msec, this sets 20msec as timeout of DMA.
 	 */
 	if (s->chan_rx) {
-		s->rx_timeout = (port->timeout - HZ / 50) * s->buf_len_rx * 3 /
-			port->fifosize / 2;
+		unsigned int bits;
+
+		/* byte size and parity */
+		switch (termios->c_cflag & CSIZE) {
+		case CS5:
+			bits = 7;
+			break;
+		case CS6:
+			bits = 8;
+			break;
+		case CS7:
+			bits = 9;
+			break;
+		default:
+			bits = 10;
+			break;
+		}
+
+		if (termios->c_cflag & CSTOPB)
+			bits++;
+		if (termios->c_cflag & PARENB)
+			bits++;
+		s->rx_timeout = DIV_ROUND_UP((s->buf_len_rx * 2 * bits * HZ) /
+					     (baud / 10), 10);
 		dev_dbg(port->dev, "DMA Rx t-out %ums, tty t-out %u jiffies\n",
 			s->rx_timeout * 1000 / HZ, port->timeout);
 		if (s->rx_timeout < msecs_to_jiffies(20))
