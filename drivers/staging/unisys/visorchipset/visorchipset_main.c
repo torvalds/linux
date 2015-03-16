@@ -441,27 +441,27 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	u32 textId;
+	u32 text_id;
 
 	visorchannel_read(controlvm_channel, offsetof(
 		struct spar_controlvm_channel_protocol, installation_text_id),
-		&textId, sizeof(u32));
-	return scnprintf(buf, PAGE_SIZE, "%i\n", textId);
+		&text_id, sizeof(u32));
+	return scnprintf(buf, PAGE_SIZE, "%i\n", text_id);
 }
 
 static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	u32 textId;
+	u32 text_id;
 	int ret;
 
-	if (kstrtou32(buf, 10, &textId) != 0)
+	if (kstrtou32(buf, 10, &text_id) != 0)
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
 			offsetof(struct spar_controlvm_channel_protocol,
 				installation_text_id),
-			&textId, sizeof(u32));
+			&text_id, sizeof(u32));
 	if (ret)
 		return ret;
 	return count;
