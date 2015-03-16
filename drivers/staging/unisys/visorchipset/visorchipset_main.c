@@ -77,7 +77,7 @@ static const uuid_le spar_diag_pool_channel_protocol_uuid =
 /* 0xffffff is an invalid Bus/Device number */
 static ulong g_diagpool_bus_no = 0xffffff;
 static ulong g_diagpool_dev_no = 0xffffff;
-static struct controlvm_message_packet g_DeviceChangeStatePacket;
+static struct controlvm_message_packet g_devicechangestate_packet;
 
 /* Only VNIC and VHBA channels are sent to visorclientbus (aka
  * "visorhackbus")
@@ -706,11 +706,11 @@ controlvm_respond(struct controlvm_message_header *msgHdr, int response)
 	/* For DiagPool channel DEVICE_CHANGESTATE, we need to send
 	* back the deviceChangeState structure in the packet. */
 	if (msgHdr->id == CONTROLVM_DEVICE_CHANGESTATE
-	    && g_DeviceChangeStatePacket.device_change_state.bus_no ==
+	    && g_devicechangestate_packet.device_change_state.bus_no ==
 	    g_diagpool_bus_no
-	    && g_DeviceChangeStatePacket.device_change_state.dev_no ==
+	    && g_devicechangestate_packet.device_change_state.dev_no ==
 	    g_diagpool_dev_no)
-		outmsg.cmd = g_DeviceChangeStatePacket;
+		outmsg.cmd = g_devicechangestate_packet;
 	if (outmsg.hdr.flags.test_message == 1)
 		return;
 
@@ -1756,7 +1756,7 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 			/* when sending back the response to Command */
 			my_device_changestate(&inmsg);
 			g_diag_msg_hdr = inmsg.hdr;
-			g_DeviceChangeStatePacket = inmsg.cmd;
+			g_devicechangestate_packet = inmsg.cmd;
 			break;
 		}
 		break;
