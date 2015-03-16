@@ -1623,17 +1623,17 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 			if (bi->from.sym != NULL &&
 			    !bi->from.map->dso->annotate_warned &&
-				asprintf(&options[nr_options], "Annotate %s",
-					 bi->from.sym->name) > 0)
+			    asprintf(&options[nr_options], "Annotate %s", bi->from.sym->name) > 0) {
 				annotate_f = nr_options++;
+			}
 
 			if (bi->to.sym != NULL &&
 			    !bi->to.map->dso->annotate_warned &&
 			    (bi->to.sym != bi->from.sym ||
 			     bi->to.map->dso != bi->from.map->dso) &&
-				asprintf(&options[nr_options], "Annotate %s",
-					 bi->to.sym->name) > 0)
+			    asprintf(&options[nr_options], "Annotate %s", bi->to.sym->name) > 0) {
 				annotate_t = nr_options++;
+			}
 		} else {
 			if (browser->selection->sym != NULL &&
 			    !browser->selection->map->dso->annotate_warned) {
@@ -1643,8 +1643,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 				if (notes->src &&
 				    asprintf(&options[nr_options], "Annotate %s",
-						 browser->selection->sym->name) > 0)
+						 browser->selection->sym->name) > 0) {
 					annotate = nr_options++;
+				}
 			}
 		}
 skip_annotation:
