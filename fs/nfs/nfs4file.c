@@ -158,14 +158,9 @@ static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t 
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&inode->i_mutex);
 	if (mode & FALLOC_FL_PUNCH_HOLE)
-		ret = nfs42_proc_deallocate(filep, offset, len);
-	else
-		ret = nfs42_proc_allocate(filep, offset, len);
-	mutex_unlock(&inode->i_mutex);
-
-	return ret;
+		return nfs42_proc_deallocate(filep, offset, len);
+	return nfs42_proc_allocate(filep, offset, len);
 }
 #endif /* CONFIG_NFS_V4_2 */
 
