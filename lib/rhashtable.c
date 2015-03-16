@@ -511,28 +511,25 @@ static bool __rhashtable_remove(struct rhashtable *ht,
  */
 bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *obj)
 {
-	struct bucket_table *tbl, *old_tbl;
+	struct bucket_table *tbl;
 	bool ret;
 
 	rcu_read_lock();
 
-	old_tbl = rht_dereference_rcu(ht->tbl, ht);
-	ret = __rhashtable_remove(ht, old_tbl, obj);
+	tbl = rht_dereference_rcu(ht->tbl, ht);
 
 	/* Because we have already taken (and released) the bucket
 	 * lock in old_tbl, if we find that future_tbl is not yet
 	 * visible then that guarantees the entry to still be in
-	 * old_tbl if it exists.
+	 * the old tbl if it exists.
 	 */
-	tbl = rht_dereference_rcu(old_tbl->future_tbl, ht) ?: old_tbl;
-	if (!ret && old_tbl != tbl)
-		ret = __rhashtable_remove(ht, tbl, obj);
+	while (!(ret = __rhashtable_remove(ht, tbl, obj)) &&
+	       (tbl = rht_dereference_rcu(tbl->future_tbl, ht)))
+		;
 
 	if (ret) {
-		bool no_resize_running = tbl == old_tbl;
-
 		atomic_dec(&ht->nelems);
-		if (no_resize_running && rht_shrink_below_30(ht, tbl))
+		if (rht_shrink_below_30(ht, tbl))
 			schedule_work(&ht->run_work);
 	}
 
@@ -854,10 +851,8 @@ void rhashtable_walk_stop(struct rhashtable_iter *iter)
 	struct rhashtable *ht;
 	struct bucket_table *tbl = iter->walker->tbl;
 
-	rcu_read_unlock();
-
 	if (!tbl)
-		return;
+		goto out;
 
 	ht = iter->ht;
 
@@ -869,6 +864,9 @@ void rhashtable_walk_stop(struct rhashtable_iter *iter)
 	mutex_unlock(&ht->mutex);
 
 	iter->p = NULL;
+
+out:
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(rhashtable_walk_stop);
 
