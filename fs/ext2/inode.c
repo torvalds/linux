@@ -861,8 +861,8 @@ ext2_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	ssize_t ret;
 
 	if (IS_DAX(inode))
-		ret = dax_do_io(rw, iocb, inode, iter, offset, ext2_get_block,
-				NULL, DIO_LOCKING);
+		ret = dax_do_io(iocb, inode, iter, offset, ext2_get_block, NULL,
+				DIO_LOCKING);
 	else
 		ret = blockdev_direct_IO(iocb, inode, iter, offset,
 					 ext2_get_block);
