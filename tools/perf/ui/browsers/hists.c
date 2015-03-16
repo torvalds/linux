@@ -1612,19 +1612,22 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (!sort__has_sym)
 			goto add_exit_option;
 
+		if (browser->selection == NULL)
+			goto skip_annotation;
+
 		if (sort__mode == SORT_MODE__BRANCH) {
 			bi = browser->he_selection->branch_info;
-			if (browser->selection != NULL &&
-			    bi &&
-			    bi->from.sym != NULL &&
+
+			if (bi == NULL)
+				goto skip_annotation;
+
+			if (bi->from.sym != NULL &&
 			    !bi->from.map->dso->annotate_warned &&
 				asprintf(&options[nr_options], "Annotate %s",
 					 bi->from.sym->name) > 0)
 				annotate_f = nr_options++;
 
-			if (browser->selection != NULL &&
-			    bi &&
-			    bi->to.sym != NULL &&
+			if (bi->to.sym != NULL &&
 			    !bi->to.map->dso->annotate_warned &&
 			    (bi->to.sym != bi->from.sym ||
 			     bi->to.map->dso != bi->from.map->dso) &&
@@ -1632,8 +1635,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					 bi->to.sym->name) > 0)
 				annotate_t = nr_options++;
 		} else {
-			if (browser->selection != NULL &&
-			    browser->selection->sym != NULL &&
+			if (browser->selection->sym != NULL &&
 			    !browser->selection->map->dso->annotate_warned) {
 				struct annotation *notes;
 
@@ -1645,7 +1647,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					annotate = nr_options++;
 			}
 		}
-
+skip_annotation:
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
 			     (browser->hists->thread_filter ? "out of" : "into"),
