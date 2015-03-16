@@ -1686,11 +1686,6 @@ enum rtllib_state {
 #define RTLLIB_52GHZ_MAX_CHANNEL 165
 #define RTLLIB_52GHZ_CHANNELS (RTLLIB_52GHZ_MAX_CHANNEL - \
 				  RTLLIB_52GHZ_MIN_CHANNEL + 1)
-#ifndef eqMacAddr
-#define eqMacAddr(a, b)					\
-	(((a)[0] == (b)[0] && (a)[1] == (b)[1] && (a)[2] == (b)[2] &&	\
-	(a)[3] == (b)[3] && (a)[4] == (b)[4] && (a)[5] == (b)[5]) ? 1 : 0)
-#endif
 struct tx_pending {
 	int frag;
 	struct rtllib_txb *txb;
