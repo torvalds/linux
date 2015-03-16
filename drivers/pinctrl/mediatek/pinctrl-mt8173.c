@@ -428,7 +428,9 @@ static int mt8173_pinctrl_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id mt8173_pctrl_match[] = {
-	{ .compatible = "mediatek,mt8173-pinctrl", },
+	{
+		.compatible = "mediatek,mt8173-pinctrl",
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mt8173_pctrl_match);
