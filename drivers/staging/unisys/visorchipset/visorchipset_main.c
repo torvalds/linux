@@ -467,7 +467,6 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-
 static ssize_t remaining_steps_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -1895,7 +1894,6 @@ Away:
 static void
 setup_crash_devices_work_queue(struct work_struct *work)
 {
-
 	struct controlvm_message localCrashCreateBusMsg;
 	struct controlvm_message localCrashCreateDevMsg;
 	struct controlvm_message msg;
@@ -2024,7 +2022,6 @@ device_destroy_response(ulong busNo, ulong devNo, int response)
 void
 visorchipset_device_pause_response(ulong bus_no, ulong dev_no, int response)
 {
-
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     bus_no, dev_no, response,
 				     segment_state_standby);
@@ -2268,7 +2265,6 @@ visorchipset_init(void)
 					 DIAG_SEVERITY_ERR);
 			goto Away;
 		}
-
 	}
 
 	Visorchipset_platform_device.dev.devt = MajorDev;
