@@ -1269,26 +1269,26 @@ initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
 
 	if (!info) {
 		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
-		goto Away;
+		goto cleanup;
 	}
 	memset(info, 0, sizeof(struct controlvm_payload_info));
 	if ((offset == 0) || (bytes == 0)) {
 		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
-		goto Away;
+		goto cleanup;
 	}
 	payload = ioremap_cache(phys_addr + offset, bytes);
 	if (!payload) {
 		rc = -CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
-		goto Away;
+		goto cleanup;
 	}
 
 	info->offset = offset;
 	info->bytes = bytes;
 	info->ptr = payload;
 
-Away:
+cleanup:
 	if (rc < 0) {
-		if (payload != NULL) {
+		if (payload) {
 			iounmap(payload);
 			payload = NULL;
 		}
