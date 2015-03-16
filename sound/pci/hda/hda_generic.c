@@ -5137,6 +5137,33 @@ static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
 	strlcat(str, sfx, len);
 }
 
+/* copy PCM stream info from @default_str, and override non-NULL entries
+ * from @spec_str and @nid
+ */
+static void setup_pcm_stream(struct hda_pcm_stream *str,
+			     const struct hda_pcm_stream *default_str,
+			     const struct hda_pcm_stream *spec_str,
+			     hda_nid_t nid)
+{
+	*str = *default_str;
+	if (nid)
+		str->nid = nid;
+	if (spec_str) {
+		if (spec_str->substreams)
+			str->substreams = spec_str->substreams;
+		if (spec_str->channels_min)
+			str->channels_min = spec_str->channels_min;
+		if (spec_str->channels_max)
+			str->channels_max = spec_str->channels_max;
+		if (spec_str->rates)
+			str->rates = spec_str->rates;
+		if (spec_str->formats)
+			str->formats = spec_str->formats;
+		if (spec_str->maxbps)
+			str->maxbps = spec_str->maxbps;
+	}
+}
+
 /**
  * snd_hda_gen_build_pcms - build PCM streams based on the parsed results
  * @codec: the HDA codec
@@ -5147,7 +5174,6 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct hda_pcm *info;
-	const struct hda_pcm_stream *p;
 	bool have_multi_adcs;
 
 	if (spec->no_analog)
@@ -5162,11 +5188,10 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	spec->pcm_rec[0] = info;
 
 	if (spec->multiout.num_dacs > 0) {
-		p = spec->stream_analog_playback;
-		if (!p)
-			p = &pcm_analog_playback;
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *p;
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dac_nids[0];
+		setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_PLAYBACK],
+				 &pcm_analog_playback,
+				 spec->stream_analog_playback,
+				 spec->multiout.dac_nids[0]);
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
 			spec->multiout.max_channels;
 		if (spec->autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT &&
@@ -5175,15 +5200,11 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 				snd_pcm_2_1_chmaps;
 	}
 	if (spec->num_adc_nids) {
-		p = spec->stream_analog_capture;
-		if (!p) {
-			if (spec->dyn_adc_switch)
-				p = &dyn_adc_pcm_analog_capture;
-			else
-				p = &pcm_analog_capture;
-		}
-		info->stream[SNDRV_PCM_STREAM_CAPTURE] = *p;
-		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
+		setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_CAPTURE],
+				 (spec->dyn_adc_switch ?
+				  &dyn_adc_pcm_analog_capture : &pcm_analog_capture),
+				 spec->stream_analog_capture,
+				 spec->adc_nids[0]);
 	}
 
  skip_analog:
@@ -5202,20 +5223,16 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 			info->pcm_type = spec->dig_out_type;
 		else
 			info->pcm_type = HDA_PCM_TYPE_SPDIF;
-		if (spec->multiout.dig_out_nid) {
-			p = spec->stream_digital_playback;
-			if (!p)
-				p = &pcm_digital_playback;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *p;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dig_out_nid;
-		}
-		if (spec->dig_in_nid) {
-			p = spec->stream_digital_capture;
-			if (!p)
-				p = &pcm_digital_capture;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *p;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in_nid;
-		}
+		if (spec->multiout.dig_out_nid)
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_PLAYBACK],
+					 &pcm_digital_playback,
+					 spec->stream_digital_playback,
+					 spec->multiout.dig_out_nid);
+		if (spec->dig_in_nid)
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_CAPTURE],
+					 &pcm_digital_capture,
+					 spec->stream_digital_capture,
+					 spec->dig_in_nid);
 	}
 
 	if (spec->no_analog)
@@ -5236,31 +5253,24 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 		if (!info)
 			return -ENOMEM;
 		spec->pcm_rec[2] = info;
-		if (spec->alt_dac_nid) {
-			p = spec->stream_analog_alt_playback;
-			if (!p)
-				p = &pcm_analog_alt_playback;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *p;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
-				spec->alt_dac_nid;
-		} else {
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
-				pcm_null_stream;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = 0;
-		}
+		if (spec->alt_dac_nid)
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_PLAYBACK],
+					 &pcm_analog_alt_playback,
+					 spec->stream_analog_alt_playback,
+					 spec->alt_dac_nid);
+		else
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_PLAYBACK],
+					 &pcm_null_stream, NULL, 0);
 		if (have_multi_adcs) {
-			p = spec->stream_analog_alt_capture;
-			if (!p)
-				p = &pcm_analog_alt_capture;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *p;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid =
-				spec->adc_nids[1];
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_CAPTURE],
+					 &pcm_analog_alt_capture,
+					 spec->stream_analog_alt_capture,
+					 spec->adc_nids[1]);
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams =
 				spec->num_adc_nids - 1;
 		} else {
-			info->stream[SNDRV_PCM_STREAM_CAPTURE] =
-				pcm_null_stream;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = 0;
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_CAPTURE],
+					 &pcm_null_stream, NULL, 0);
 		}
 	}
 
