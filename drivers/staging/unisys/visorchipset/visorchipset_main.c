@@ -470,29 +470,29 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 static ssize_t remaining_steps_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	u16 remainingSteps;
+	u16 remaining_steps;
 
 	visorchannel_read(controlvm_channel,
 		offsetof(struct spar_controlvm_channel_protocol,
 			installation_remaining_steps),
-		&remainingSteps,
+		&remaining_steps,
 		sizeof(u16));
-	return scnprintf(buf, PAGE_SIZE, "%hu\n", remainingSteps);
+	return scnprintf(buf, PAGE_SIZE, "%hu\n", remaining_steps);
 }
 
 static ssize_t remaining_steps_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	u16 remainingSteps;
+	u16 remaining_steps;
 	int ret;
 
-	if (kstrtou16(buf, 10, &remainingSteps) != 0)
+	if (kstrtou16(buf, 10, &remaining_steps) != 0)
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
 			offsetof(struct spar_controlvm_channel_protocol,
 				installation_remaining_steps),
-			&remainingSteps, sizeof(u16));
+			&remaining_steps, sizeof(u16));
 	if (ret)
 		return ret;
 	return count;
