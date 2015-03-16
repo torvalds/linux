@@ -860,22 +860,23 @@ device_responder(enum controlvm_id cmd_id, ulong bus_no, ulong dev_no,
 }
 
 static void
-bus_epilog(u32 busNo,
-	   u32 cmd, struct controlvm_message_header *msgHdr,
-	   int response, BOOL needResponse)
+bus_epilog(u32 bus_no,
+	   u32 cmd, struct controlvm_message_header *msg_hdr,
+	   int response, BOOL need_response)
 {
 	BOOL notified = FALSE;
 
-	struct visorchipset_bus_info *pBusInfo = findbus(&bus_info_list, busNo);
+	struct visorchipset_bus_info *bus_info = findbus(&bus_info_list,
+							 bus_no);
 
-	if (!pBusInfo)
+	if (!bus_info)
 		return;
 
-	if (needResponse) {
-		memcpy(&pBusInfo->pending_msg_hdr, msgHdr,
+	if (need_response) {
+		memcpy(&bus_info->pending_msg_hdr, msg_hdr,
 		       sizeof(struct controlvm_message_header));
 	} else
-		pBusInfo->pending_msg_hdr.id = CONTROLVM_INVALID;
+		bus_info->pending_msg_hdr.id = CONTROLVM_INVALID;
 
 	down(&notifier_lock);
 	if (response == CONTROLVM_RESP_SUCCESS) {
@@ -892,23 +893,23 @@ bus_epilog(u32 busNo,
 			* - BusDev_Client can handle ONLY client
 			* devices */
 			if (BusDev_Server_Notifiers.bus_create) {
-				(*BusDev_Server_Notifiers.bus_create) (busNo);
+				(*BusDev_Server_Notifiers.bus_create) (bus_no);
 				notified = TRUE;
 			}
-			if ((!pBusInfo->flags.server) /*client */ &&
+			if ((!bus_info->flags.server) /*client */ &&
 			    BusDev_Client_Notifiers.bus_create) {
-				(*BusDev_Client_Notifiers.bus_create) (busNo);
+				(*BusDev_Client_Notifiers.bus_create) (bus_no);
 				notified = TRUE;
 			}
 			break;
 		case CONTROLVM_BUS_DESTROY:
 			if (BusDev_Server_Notifiers.bus_destroy) {
-				(*BusDev_Server_Notifiers.bus_destroy) (busNo);
+				(*BusDev_Server_Notifiers.bus_destroy) (bus_no);
 				notified = TRUE;
 			}
-			if ((!pBusInfo->flags.server) /*client */ &&
+			if ((!bus_info->flags.server) /*client */ &&
 			    BusDev_Client_Notifiers.bus_destroy) {
-				(*BusDev_Client_Notifiers.bus_destroy) (busNo);
+				(*BusDev_Client_Notifiers.bus_destroy) (bus_no);
 				notified = TRUE;
 			}
 			break;
@@ -921,44 +922,44 @@ bus_epilog(u32 busNo,
 		 */
 		;
 	else
-		bus_responder(cmd, busNo, response);
+		bus_responder(cmd, bus_no, response);
 	up(&notifier_lock);
 }
 
 static void
-device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
-	      struct controlvm_message_header *msgHdr, int response,
-	      BOOL needResponse, BOOL for_visorbus)
+device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
+	      struct controlvm_message_header *msg_hdr, int response,
+	      BOOL need_response, BOOL for_visorbus)
 {
 	struct visorchipset_busdev_notifiers *notifiers = NULL;
 	BOOL notified = FALSE;
 
-	struct visorchipset_device_info *pDevInfo =
-		finddevice(&dev_info_list, busNo, devNo);
+	struct visorchipset_device_info *dev_info =
+		finddevice(&dev_info_list, bus_no, dev_no);
 	char *envp[] = {
 		"SPARSP_DIAGPOOL_PAUSED_STATE = 1",
 		NULL
 	};
 
-	if (!pDevInfo)
+	if (!dev_info)
 		return;
 
 	if (for_visorbus)
 		notifiers = &BusDev_Server_Notifiers;
 	else
 		notifiers = &BusDev_Client_Notifiers;
-	if (needResponse) {
-		memcpy(&pDevInfo->pending_msg_hdr, msgHdr,
+	if (need_response) {
+		memcpy(&dev_info->pending_msg_hdr, msg_hdr,
 		       sizeof(struct controlvm_message_header));
 	} else
-		pDevInfo->pending_msg_hdr.id = CONTROLVM_INVALID;
+		dev_info->pending_msg_hdr.id = CONTROLVM_INVALID;
 
 	down(&notifier_lock);
 	if (response >= 0) {
 		switch (cmd) {
 		case CONTROLVM_DEVICE_CREATE:
 			if (notifiers->device_create) {
-				(*notifiers->device_create) (busNo, devNo);
+				(*notifiers->device_create) (bus_no, dev_no);
 				notified = TRUE;
 			}
 			break;
@@ -968,8 +969,8 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 			    state.operating ==
 				segment_state_running.operating) {
 				if (notifiers->device_resume) {
-					(*notifiers->device_resume) (busNo,
-								     devNo);
+					(*notifiers->device_resume) (bus_no,
+								     dev_no);
 					notified = TRUE;
 				}
 			}
@@ -981,8 +982,8 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 				 * where server is lost
 				 */
 				if (notifiers->device_pause) {
-					(*notifiers->device_pause) (busNo,
-								    devNo);
+					(*notifiers->device_pause) (bus_no,
+								    dev_no);
 					notified = TRUE;
 				}
 			} else if (state.alive == segment_state_paused.alive &&
@@ -991,8 +992,8 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 				/* this is lite pause where channel is
 				 * still valid just 'pause' of it
 				 */
-				if (busNo == g_diagpool_bus_no &&
-				    devNo == g_diagpool_dev_no) {
+				if (bus_no == g_diagpool_bus_no &&
+				    dev_no == g_diagpool_dev_no) {
 					/* this will trigger the
 					 * diag_shutdown.sh script in
 					 * the visorchipset hotplug */
@@ -1004,7 +1005,7 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 			break;
 		case CONTROLVM_DEVICE_DESTROY:
 			if (notifiers->device_destroy) {
-				(*notifiers->device_destroy) (busNo, devNo);
+				(*notifiers->device_destroy) (bus_no, dev_no);
 				notified = TRUE;
 			}
 			break;
@@ -1017,7 +1018,7 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 		 */
 		;
 	else
-		device_responder(cmd, busNo, devNo, response);
+		device_responder(cmd, bus_no, dev_no, response);
 	up(&notifier_lock);
 }
 
