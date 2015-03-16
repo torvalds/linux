@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= setup.o
+obj-y		:= soc.o
 
 obj-$(CONFIG_SOC_AT91SAM9)	+= sam9_smc.o
 
