@@ -6388,7 +6388,7 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
-				MGMT_STATUS_SUCCESS, rp, rp_len);
+				MGMT_STATUS_SUCCESS, rp, sizeof(*rp) + eir_len);
 
 done:
 	kfree(rp);
