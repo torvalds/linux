@@ -67,7 +67,7 @@ static u8 chipset_events[MAX_CHIPSET_EVENTS] = { 0, 0 };
 
 static struct delayed_work periodic_controlvm_work;
 static struct workqueue_struct *periodic_controlvm_workqueue;
-static DEFINE_SEMAPHORE(NotifierLock);
+static DEFINE_SEMAPHORE(notifier_lock);
 
 static struct controlvm_message_header g_diag_msg_hdr;
 static struct controlvm_message_header g_chipset_msg_hdr;
@@ -587,7 +587,7 @@ visorchipset_register_busdev_server(
 			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driver_info)
 {
-	down(&NotifierLock);
+	down(&notifier_lock);
 	if (notifiers == NULL) {
 		memset(&BusDev_Server_Notifiers, 0,
 		       sizeof(BusDev_Server_Notifiers));
@@ -602,7 +602,7 @@ visorchipset_register_busdev_server(
 		bus_device_info_init(driver_info, "chipset", "visorchipset",
 				   VERSION, NULL);
 
-	up(&NotifierLock);
+	up(&notifier_lock);
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_server);
 
@@ -612,7 +612,7 @@ visorchipset_register_busdev_client(
 			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driver_info)
 {
-	down(&NotifierLock);
+	down(&notifier_lock);
 	if (notifiers == NULL) {
 		memset(&BusDev_Client_Notifiers, 0,
 		       sizeof(BusDev_Client_Notifiers));
@@ -626,7 +626,7 @@ visorchipset_register_busdev_client(
 	if (driver_info)
 		bus_device_info_init(driver_info, "chipset(bolts)",
 				     "visorchipset", VERSION, NULL);
-	up(&NotifierLock);
+	up(&notifier_lock);
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_client);
 
@@ -915,7 +915,7 @@ bus_epilog(u32 busNo,
 	} else
 		pBusInfo->pending_msg_hdr.id = CONTROLVM_INVALID;
 
-	down(&NotifierLock);
+	down(&notifier_lock);
 	if (response == CONTROLVM_RESP_SUCCESS) {
 		switch (cmd) {
 		case CONTROLVM_BUS_CREATE:
@@ -960,7 +960,7 @@ bus_epilog(u32 busNo,
 		;
 	else
 		bus_responder(cmd, busNo, response);
-	up(&NotifierLock);
+	up(&notifier_lock);
 }
 
 static void
@@ -991,7 +991,7 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 	} else
 		pDevInfo->pending_msg_hdr.id = CONTROLVM_INVALID;
 
-	down(&NotifierLock);
+	down(&notifier_lock);
 	if (response >= 0) {
 		switch (cmd) {
 		case CONTROLVM_DEVICE_CREATE:
@@ -1056,7 +1056,7 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 		;
 	else
 		device_responder(cmd, busNo, devNo, response);
-	up(&NotifierLock);
+	up(&notifier_lock);
 }
 
 static void
