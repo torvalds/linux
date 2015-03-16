@@ -301,14 +301,41 @@ enum ieee80211_bss_change {
 #define IEEE80211_BSS_ARP_ADDR_LIST_LEN 4
 
 /**
- * enum ieee80211_rssi_event - RSSI threshold event
- * An indicator for when RSSI goes below/above a certain threshold.
- * @RSSI_EVENT_HIGH: AP's rssi crossed the high threshold set by the driver.
- * @RSSI_EVENT_LOW: AP's rssi crossed the low threshold set by the driver.
+ * enum ieee80211_event_type - event to be notified to the low level driver
+ * @RSSI_EVENT: AP's rssi crossed the a threshold set by the driver.
  */
-enum ieee80211_rssi_event {
+enum ieee80211_event_type {
+	RSSI_EVENT,
+};
+
+/**
+ * enum ieee80211_rssi_event_data - relevant when event type is %RSSI_EVENT
+ * @RSSI_EVENT_HIGH: AP's rssi went below the threshold set by the driver.
+ * @RSSI_EVENT_LOW: AP's rssi went above the threshold set by the driver.
+ */
+enum ieee80211_rssi_event_data {
 	RSSI_EVENT_HIGH,
 	RSSI_EVENT_LOW,
+};
+
+/**
+ * enum ieee80211_rssi_event - data attached to an %RSSI_EVENT
+ * @data: See &enum ieee80211_rssi_event_data
+ */
+struct ieee80211_rssi_event {
+	enum ieee80211_rssi_event_data data;
+};
+
+/**
+ * struct ieee80211_event - event to be sent to the driver
+ * @type The event itself. See &enum ieee80211_event_type.
+ * @rssi: relevant if &type is %RSSI_EVENT
+ */
+struct ieee80211_event {
+	enum ieee80211_event_type type;
+	union {
+		struct ieee80211_rssi_event rssi;
+	} u;
 };
 
 /**
@@ -2862,8 +2889,9 @@ enum ieee80211_reconfig_type {
  * @set_bitrate_mask: Set a mask of rates to be used for rate control selection
  *	when transmitting a frame. Currently only legacy rates are handled.
  *	The callback can sleep.
- * @rssi_callback: Notify driver when the average RSSI goes above/below
- *	thresholds that were registered previously. The callback can sleep.
+ * @event_callback: Notify driver about any event in mac80211. See
+ *	&enum ieee80211_event_type for the different types.
+ *	The callback can sleep.
  *
  * @release_buffered_frames: Release buffered frames according to the given
  *	parameters. In the case where the driver buffers some frames for
@@ -3159,9 +3187,9 @@ struct ieee80211_ops {
 	bool (*tx_frames_pending)(struct ieee80211_hw *hw);
 	int (*set_bitrate_mask)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				const struct cfg80211_bitrate_mask *mask);
-	void (*rssi_callback)(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      enum ieee80211_rssi_event rssi_event);
+	void (*event_callback)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       const struct ieee80211_event *event);
 
 	void (*allow_buffered_frames)(struct ieee80211_hw *hw,
 				      struct ieee80211_sta *sta,
