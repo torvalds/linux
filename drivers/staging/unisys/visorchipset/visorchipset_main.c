@@ -550,7 +550,7 @@ visorchipset_register_busdev_server(
 			struct ultra_vbus_deviceinfo *driver_info)
 {
 	down(&notifier_lock);
-	if (notifiers == NULL) {
+	if (!notifiers) {
 		memset(&BusDev_Server_Notifiers, 0,
 		       sizeof(BusDev_Server_Notifiers));
 		serverregistered = 0;	/* clear flag */
@@ -575,7 +575,7 @@ visorchipset_register_busdev_client(
 			struct ultra_vbus_deviceinfo *driver_info)
 {
 	down(&notifier_lock);
-	if (notifiers == NULL) {
+	if (!notifiers) {
 		memset(&BusDev_Client_Notifiers, 0,
 		       sizeof(BusDev_Client_Notifiers));
 		clientregistered = 0;	/* clear flag */
@@ -1038,7 +1038,7 @@ bus_create(struct controlvm_message *inmsg)
 		goto Away;
 	}
 	pBusInfo = kzalloc(sizeof(struct visorchipset_bus_info), GFP_KERNEL);
-	if (pBusInfo == NULL) {
+	if (!pBusInfo) {
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
@@ -1172,7 +1172,7 @@ my_device_create(struct controlvm_message *inmsg)
 		goto Away;
 	}
 	pDevInfo = kzalloc(sizeof(struct visorchipset_device_info), GFP_KERNEL);
-	if (pDevInfo == NULL) {
+	if (!pDevInfo) {
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
@@ -1282,7 +1282,7 @@ initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
 	u8 __iomem *payload = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	if (info == NULL) {
+	if (!info) {
 		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
 		goto Away;
 	}
@@ -1292,7 +1292,7 @@ initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
 		goto Away;
 	}
 	payload = ioremap_cache(phys_addr + offset, bytes);
-	if (payload == NULL) {
+	if (!payload) {
 		rc = -CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
 		goto Away;
 	}
@@ -1486,7 +1486,7 @@ parahotplug_request_create(struct controlvm_message *msg)
 	struct parahotplug_request *req;
 
 	req = kmalloc(sizeof(*req), GFP_KERNEL|__GFP_NORETRY);
-	if (req == NULL)
+	if (!req)
 		return NULL;
 
 	req->id = parahotplug_next_id();
@@ -1611,7 +1611,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 
 	req = parahotplug_request_create(inmsg);
 
-	if (req == NULL)
+	if (!req)
 		return;
 
 	if (inmsg->cmd.device_change_state.state.active) {
@@ -1745,7 +1745,7 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 		break;
 	}
 
-	if (parser_ctx != NULL) {
+	if (parser_ctx) {
 		parser_done(parser_ctx);
 		parser_ctx = NULL;
 	}
@@ -2217,7 +2217,7 @@ visorchipset_init(void)
 		periodic_controlvm_workqueue =
 		    create_singlethread_workqueue("visorchipset_controlvm");
 
-		if (periodic_controlvm_workqueue == NULL) {
+		if (!periodic_controlvm_workqueue) {
 			POSTCODE_LINUX_2(CREATE_WORKQUEUE_FAILED_PC,
 					 DIAG_SEVERITY_ERR);
 			rc = -ENOMEM;
