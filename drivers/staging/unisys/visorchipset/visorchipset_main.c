@@ -791,7 +791,7 @@ bus_responder(enum controlvm_id cmd_id, ulong bus_no, int response)
 
 	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
 		return;		/* no controlvm response needed */
-	if (p->pending_msg_hdr.id != (u32) cmd_id)
+	if (p->pending_msg_hdr.id != (u32)cmd_id)
 		return;
 	controlvm_respond(&p->pending_msg_hdr, response);
 	p->pending_msg_hdr.id = CONTROLVM_INVALID;
@@ -850,7 +850,7 @@ device_responder(enum controlvm_id cmd_id, ulong bus_no, ulong dev_no,
 	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
 		return;		/* no controlvm response needed */
 
-	if (p->pending_msg_hdr.id != (u32) cmd_id)
+	if (p->pending_msg_hdr.id != (u32)cmd_id)
 		return;
 
 	controlvm_respond(&p->pending_msg_hdr, response);
