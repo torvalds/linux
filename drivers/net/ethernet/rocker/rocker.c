@@ -2955,10 +2955,15 @@ static int rocker_port_vlan_flood_group(struct rocker_port *rocker_port,
 	struct rocker_port *p;
 	struct rocker *rocker = rocker_port->rocker;
 	u32 group_id = ROCKER_GROUP_L2_FLOOD(vlan_id, 0);
-	u32 group_ids[ROCKER_FP_PORTS_MAX];
+	u32 *group_ids;
 	u8 group_count = 0;
-	int err;
+	int err = 0;
 	int i;
+
+	group_ids = kcalloc(rocker->port_count, sizeof(u32),
+			    rocker_op_flags_gfp(flags));
+	if (!group_ids)
+		return -ENOMEM;
 
 	/* Adjust the flood group for this VLAN.  The flood group
 	 * references an L2 interface group for each port in this
@@ -2977,7 +2982,7 @@ static int rocker_port_vlan_flood_group(struct rocker_port *rocker_port,
 
 	/* If there are no bridged ports in this VLAN, we're done */
 	if (group_count == 0)
-		return 0;
+		goto no_ports_in_vlan;
 
 	err = rocker_group_l2_flood(rocker_port, flags, vlan_id,
 				    group_count, group_ids,
@@ -2986,6 +2991,8 @@ static int rocker_port_vlan_flood_group(struct rocker_port *rocker_port,
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN l2 flood group\n", err);
 
+no_ports_in_vlan:
+	kfree(group_ids);
 	return err;
 }
 
