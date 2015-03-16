@@ -674,7 +674,7 @@ source "fs/Kconfig.binfmt"
 
 config COMPAT
 	bool "Kernel support for 32-bit EL0"
-	depends on !ARM64_64K_PAGES
+	depends on !ARM64_64K_PAGES || EXPERT
 	select COMPAT_BINFMT_ELF
 	select HAVE_UID16
 	select OLD_SIGSUSPEND3
@@ -684,6 +684,10 @@ config COMPAT
 	  kernel at EL1. AArch32-specific components such as system calls,
 	  the user helper functions, VFP support and the ptrace interface are
 	  handled appropriately by the kernel.
+
+	  If you also enabled CONFIG_ARM64_64K_PAGES, please be aware that you
+	  will only be able to execute AArch32 binaries that were compiled with
+	  64k aligned segments.
 
 	  If you want to execute 32-bit userspace applications, say Y.
 
