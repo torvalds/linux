@@ -278,8 +278,12 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		r = 0;
 		break;
 	case KVM_CAP_S390_VECTOR_REGISTERS:
-		kvm->arch.use_vectors = MACHINE_HAS_VX;
-		r = MACHINE_HAS_VX ? 0 : -EINVAL;
+		if (MACHINE_HAS_VX) {
+			set_kvm_facility(kvm->arch.model.fac->mask, 129);
+			set_kvm_facility(kvm->arch.model.fac->list, 129);
+			r = 0;
+		} else
+			r = -EINVAL;
 		break;
 	case KVM_CAP_S390_USER_STSI:
 		kvm->arch.user_stsi = 1;
@@ -1084,7 +1088,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	kvm->arch.css_support = 0;
 	kvm->arch.use_irqchip = 0;
-	kvm->arch.use_vectors = 0;
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
@@ -1186,12 +1189,12 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	save_fp_ctl(&vcpu->arch.host_fpregs.fpc);
-	if (vcpu->kvm->arch.use_vectors)
+	if (test_kvm_facility(vcpu->kvm, 129))
 		save_vx_regs((__vector128 *)&vcpu->arch.host_vregs->vrs);
 	else
 		save_fp_regs(vcpu->arch.host_fpregs.fprs);
 	save_access_regs(vcpu->arch.host_acrs);
-	if (vcpu->kvm->arch.use_vectors) {
+	if (test_kvm_facility(vcpu->kvm, 129)) {
 		restore_fp_ctl(&vcpu->run->s.regs.fpc);
 		restore_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
 	} else {
@@ -1207,7 +1210,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	gmap_disable(vcpu->arch.gmap);
-	if (vcpu->kvm->arch.use_vectors) {
+	if (test_kvm_facility(vcpu->kvm, 129)) {
 		save_fp_ctl(&vcpu->run->s.regs.fpc);
 		save_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
 	} else {
@@ -1216,7 +1219,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	}
 	save_access_regs(vcpu->run->s.regs.acrs);
 	restore_fp_ctl(&vcpu->arch.host_fpregs.fpc);
-	if (vcpu->kvm->arch.use_vectors)
+	if (test_kvm_facility(vcpu->kvm, 129))
 		restore_vx_regs((__vector128 *)&vcpu->arch.host_vregs->vrs);
 	else
 		restore_fp_regs(vcpu->arch.host_fpregs.fprs);
@@ -1316,7 +1319,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->eca |= 1;
 	if (sclp_has_sigpif())
 		vcpu->arch.sie_block->eca |= 0x10000000U;
-	if (vcpu->kvm->arch.use_vectors) {
+	if (test_kvm_facility(vcpu->kvm, 129)) {
 		vcpu->arch.sie_block->eca |= 0x00020000;
 		vcpu->arch.sie_block->ecd |= 0x20000000;
 	}

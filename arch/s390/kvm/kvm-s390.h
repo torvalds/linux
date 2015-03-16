@@ -149,6 +149,17 @@ static inline int test_kvm_facility(struct kvm *kvm, unsigned long nr)
 		__test_facility(nr, kvm->arch.model.fac->list);
 }
 
+static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)
+{
+	unsigned char *ptr;
+
+	if (nr >= MAX_FACILITY_BIT)
+		return -EINVAL;
+	ptr = (unsigned char *) fac_list + (nr >> 3);
+	*ptr |= (0x80UL >> (nr & 7));
+	return 0;
+}
+
 /* are cpu states controlled by user space */
 static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 {
