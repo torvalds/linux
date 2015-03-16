@@ -104,7 +104,7 @@ TRACE_EVENT(gfs2_glock_state_change,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev		= gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->glnum		= gl->gl_name.ln_number;
 		__entry->gltype		= gl->gl_name.ln_type;
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
@@ -140,7 +140,7 @@ TRACE_EVENT(gfs2_glock_put,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev		= gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->gltype		= gl->gl_name.ln_type;
 		__entry->glnum		= gl->gl_name.ln_number;
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
@@ -174,7 +174,7 @@ TRACE_EVENT(gfs2_demote_rq,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev		= gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->gltype		= gl->gl_name.ln_type;
 		__entry->glnum		= gl->gl_name.ln_number;
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
@@ -209,7 +209,7 @@ TRACE_EVENT(gfs2_promote,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= gh->gh_gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev	= gh->gh_gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->glnum	= gh->gh_gl->gl_name.ln_number;
 		__entry->gltype	= gh->gh_gl->gl_name.ln_type;
 		__entry->first	= first;
@@ -239,7 +239,7 @@ TRACE_EVENT(gfs2_glock_queue,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= gh->gh_gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev	= gh->gh_gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->glnum	= gh->gh_gl->gl_name.ln_number;
 		__entry->gltype	= gh->gh_gl->gl_name.ln_type;
 		__entry->queue	= queue;
@@ -278,7 +278,7 @@ TRACE_EVENT(gfs2_glock_lock_time,
 	),
 
 	TP_fast_assign(
-		__entry->dev            = gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev            = gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->glnum          = gl->gl_name.ln_number;
 		__entry->gltype         = gl->gl_name.ln_type;
 		__entry->status		= gl->gl_lksb.sb_status;
@@ -333,7 +333,7 @@ TRACE_EVENT(gfs2_pin,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= bd->bd_gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev		= bd->bd_gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->pin		= pin;
 		__entry->len		= bd->bd_bh->b_size;
 		__entry->block		= bd->bd_bh->b_blocknr;
@@ -449,7 +449,7 @@ TRACE_EVENT(gfs2_bmap,
 	),
 
 	TP_fast_assign(
-		__entry->dev            = ip->i_gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev            = ip->i_gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->lblock		= lblock;
 		__entry->pblock		= buffer_mapped(bh) ?  bh->b_blocknr : 0;
 		__entry->inum		= ip->i_no_addr;
@@ -489,7 +489,7 @@ TRACE_EVENT(gfs2_block_alloc,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= rgd->rd_gl->gl_sbd->sd_vfs->s_dev;
+		__entry->dev		= rgd->rd_gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->start		= block;
 		__entry->inum		= ip->i_no_addr;
 		__entry->len		= len;

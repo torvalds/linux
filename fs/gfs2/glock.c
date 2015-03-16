@@ -119,7 +119,7 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
 
 void gfs2_glock_free(struct gfs2_glock *gl)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
 	call_rcu(&gl->gl_rcu, gfs2_glock_dealloc);
 	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
@@ -192,7 +192,7 @@ static void gfs2_glock_remove_from_lru(struct gfs2_glock *gl)
 
 void gfs2_glock_put(struct gfs2_glock *gl)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct address_space *mapping = gfs2_glock2aspace(gl);
 
 	if (lockref_put_or_lock(&gl->gl_lockref))
@@ -220,7 +220,6 @@ void gfs2_glock_put(struct gfs2_glock *gl)
  */
 
 static struct gfs2_glock *search_bucket(unsigned int hash,
-					const struct gfs2_sbd *sdp,
 					const struct lm_lockname *name)
 {
 	struct gfs2_glock *gl;
@@ -228,8 +227,6 @@ static struct gfs2_glock *search_bucket(unsigned int hash,
 
 	hlist_bl_for_each_entry_rcu(gl, h, &gl_hash_table[hash], gl_list) {
 		if (!lm_name_equal(&gl->gl_name, name))
-			continue;
-		if (gl->gl_sbd != sdp)
 			continue;
 		if (lockref_get_not_dead(&gl->gl_lockref))
 			return gl;
@@ -506,7 +503,7 @@ __releases(&gl->gl_spin)
 __acquires(&gl->gl_spin)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	unsigned int lck_flags = gh ? gh->gh_flags : 0;
 	int ret;
 
@@ -628,7 +625,7 @@ out_unlock:
 static void delete_work_func(struct work_struct *work)
 {
 	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_delete);
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_inode *ip;
 	struct inode *inode;
 	u64 no_addr = gl->gl_name.ln_number;
@@ -704,14 +701,16 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 		   struct gfs2_glock **glp)
 {
 	struct super_block *s = sdp->sd_vfs;
-	struct lm_lockname name = { .ln_number = number, .ln_type = glops->go_type };
+	struct lm_lockname name = { .ln_number = number,
+				    .ln_type = glops->go_type,
+				    .ln_sbd = sdp };
 	struct gfs2_glock *gl, *tmp;
 	unsigned int hash = gl_hash(sdp, &name);
 	struct address_space *mapping;
 	struct kmem_cache *cachep;
 
 	rcu_read_lock();
-	gl = search_bucket(hash, sdp, &name);
+	gl = search_bucket(hash, &name);
 	rcu_read_unlock();
 
 	*glp = gl;
@@ -739,7 +738,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	}
 
 	atomic_inc(&sdp->sd_glock_disposal);
-	gl->gl_sbd = sdp;
 	gl->gl_flags = 0;
 	gl->gl_name = name;
 	gl->gl_lockref.count = 1;
@@ -772,7 +770,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	}
 
 	spin_lock_bucket(hash);
-	tmp = search_bucket(hash, sdp, &name);
+	tmp = search_bucket(hash, &name);
 	if (tmp) {
 		spin_unlock_bucket(hash);
 		kfree(gl->gl_lksb.sb_lvbptr);
@@ -928,7 +926,7 @@ __releases(&gl->gl_spin)
 __acquires(&gl->gl_spin)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct list_head *insert_pt = NULL;
 	struct gfs2_holder *gh2;
 	int try_futile = 0;
@@ -1006,7 +1004,7 @@ trap_recursive:
 int gfs2_glock_nq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	int error = 0;
 
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
@@ -1313,7 +1311,7 @@ static int gfs2_should_freeze(const struct gfs2_glock *gl)
 
 void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
 {
-	struct lm_lockstruct *ls = &gl->gl_sbd->sd_lockstruct;
+	struct lm_lockstruct *ls = &gl->gl_name.ln_sbd->sd_lockstruct;
 
 	spin_lock(&gl->gl_spin);
 	gl->gl_reply = ret;
@@ -1471,7 +1469,7 @@ static void examine_bucket(glock_examiner examiner, const struct gfs2_sbd *sdp,
 
 	rcu_read_lock();
 	hlist_bl_for_each_entry_rcu(gl, pos, head, gl_list) {
-		if ((gl->gl_sbd == sdp) && lockref_get_not_dead(&gl->gl_lockref))
+		if ((gl->gl_name.ln_sbd == sdp) && lockref_get_not_dead(&gl->gl_lockref))
 			examiner(gl);
 	}
 	rcu_read_unlock();
@@ -1569,7 +1567,7 @@ void gfs2_glock_finish_truncate(struct gfs2_inode *ip)
 	int ret;
 
 	ret = gfs2_truncatei_resume(ip);
-	gfs2_assert_withdraw(gl->gl_sbd, ret == 0);
+	gfs2_assert_withdraw(gl->gl_name.ln_sbd, ret == 0);
 
 	spin_lock(&gl->gl_spin);
 	clear_bit(GLF_LOCK, &gl->gl_flags);
@@ -1872,7 +1870,7 @@ static int gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
 			gi->nhash = 0;
 		}
 	/* Skip entries for other sb and dead entries */
-	} while (gi->sdp != gi->gl->gl_sbd ||
+	} while (gi->sdp != gi->gl->gl_name.ln_sbd ||
 		 __lockref_is_dead(&gi->gl->gl_lockref));
 
 	return 0;
