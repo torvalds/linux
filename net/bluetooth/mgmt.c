@@ -6274,7 +6274,7 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 	struct mgmt_rp_read_local_oob_ext_data *rp;
 	size_t rp_len;
 	u16 eir_len;
-	u8 status, flags, role, addr[7];
+	u8 status, flags, role, addr[7], hash[16], rand[16];
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -6302,7 +6302,7 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 						 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
 						 status, &cp->type,
 						 sizeof(cp->type));
-		eir_len = 15;
+		eir_len = 9 + 3 + 18 + 18 + 3;
 		break;
 	default:
 		return mgmt_cmd_complete(sk, hdev->id,
@@ -6327,6 +6327,15 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 					  hdev->dev_class, 3);
 		break;
 	case (BIT(BDADDR_LE_PUBLIC) | BIT(BDADDR_LE_RANDOM)):
+		if (smp_generate_oob(hdev, hash, rand) < 0) {
+			hci_dev_unlock(hdev);
+			err = mgmt_cmd_complete(sk, hdev->id,
+					 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
+					 MGMT_STATUS_FAILED,
+					 &cp->type, sizeof(cp->type));
+			goto done;
+		}
+
 		if (hci_dev_test_flag(hdev, HCI_PRIVACY)) {
 			memcpy(addr, &hdev->rpa, 6);
 			addr[6] = 0x01;
@@ -6352,6 +6361,12 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 		eir_len = eir_append_data(rp->eir, eir_len, EIR_LE_ROLE,
 					  &role, sizeof(role));
 
+		eir_len = eir_append_data(rp->eir, eir_len, EIR_LE_SC_CONFIRM,
+					  hash, sizeof(hash));
+
+		eir_len = eir_append_data(rp->eir, eir_len, EIR_LE_SC_RANDOM,
+					  rand, sizeof(rand));
+
 		flags = get_adv_discov_flags(hdev);
 
 		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
@@ -6370,6 +6385,7 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
 				MGMT_STATUS_SUCCESS, rp, rp_len);
 
+done:
 	kfree(rp);
 
 	return err;
