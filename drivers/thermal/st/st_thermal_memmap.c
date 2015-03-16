@@ -174,7 +174,7 @@ const struct st_thermal_compat_data st_407_cdata = {
 	.crit_temp		= 120,
 };
 
-static struct of_device_id st_mmap_thermal_of_match[] = {
+static const struct of_device_id st_mmap_thermal_of_match[] = {
 	{ .compatible = "st,stih416-mpe-thermal", .data = &st_416mpe_cdata },
 	{ .compatible = "st,stih407-thermal",     .data = &st_407_cdata },
 	{ /* sentinel */ }

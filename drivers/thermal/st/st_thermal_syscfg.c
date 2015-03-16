@@ -143,7 +143,7 @@ const struct st_thermal_compat_data st_127_cdata = {
 	.crit_temp		= 120,
 };
 
-static struct of_device_id st_syscfg_thermal_of_match[] = {
+static const struct of_device_id st_syscfg_thermal_of_match[] = {
 	{ .compatible = "st,stih415-sas-thermal", .data = &st_415sas_cdata },
 	{ .compatible = "st,stih415-mpe-thermal", .data = &st_415mpe_cdata },
 	{ .compatible = "st,stih416-sas-thermal", .data = &st_416sas_cdata },
