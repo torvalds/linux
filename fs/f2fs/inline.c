@@ -54,13 +54,6 @@ bool truncate_inline_inode(struct page *ipage, u64 from)
 {
 	void *addr;
 
-	/*
-	 * we should never truncate inline data past max inline data size,
-	 * because we always convert inline inode to normal one before
-	 * truncating real data if new size is past max inline data size.
-	 */
-	f2fs_bug_on(F2FS_P_SB(ipage), from > MAX_INLINE_DATA);
-
 	if (from >= MAX_INLINE_DATA)
 		return false;
 
