@@ -135,9 +135,9 @@ cleanup:
 }
 
 struct parser_context *
-parser_init(u64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
+parser_init(u64 addr, u32 bytes, BOOL local, BOOL *retry)
 {
-	return parser_init_guts(addr, bytes, isLocal, TRUE, tryAgain);
+	return parser_init_guts(addr, bytes, local, TRUE, retry);
 }
 
 /* Call this instead of parser_init() if the payload area consists of just
