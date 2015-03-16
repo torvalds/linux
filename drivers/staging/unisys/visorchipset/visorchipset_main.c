@@ -768,60 +768,60 @@ visorchipset_save_message(struct controlvm_message *msg,
 EXPORT_SYMBOL_GPL(visorchipset_save_message);
 
 static void
-bus_responder(enum controlvm_id cmdId, ulong busNo, int response)
+bus_responder(enum controlvm_id cmd_id, ulong bus_no, int response)
 {
 	struct visorchipset_bus_info *p = NULL;
 	BOOL need_clear = FALSE;
 
-	p = findbus(&bus_info_list, busNo);
+	p = findbus(&bus_info_list, bus_no);
 	if (!p)
 		return;
 
 	if (response < 0) {
-		if ((cmdId == CONTROLVM_BUS_CREATE) &&
+		if ((cmd_id == CONTROLVM_BUS_CREATE) &&
 		    (response != (-CONTROLVM_RESP_ERROR_ALREADY_DONE)))
 			/* undo the row we just created... */
-			delbusdevices(&dev_info_list, busNo);
+			delbusdevices(&dev_info_list, bus_no);
 	} else {
-		if (cmdId == CONTROLVM_BUS_CREATE)
+		if (cmd_id == CONTROLVM_BUS_CREATE)
 			p->state.created = 1;
-		if (cmdId == CONTROLVM_BUS_DESTROY)
+		if (cmd_id == CONTROLVM_BUS_DESTROY)
 			need_clear = TRUE;
 	}
 
 	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
 		return;		/* no controlvm response needed */
-	if (p->pending_msg_hdr.id != (u32) cmdId)
+	if (p->pending_msg_hdr.id != (u32) cmd_id)
 		return;
 	controlvm_respond(&p->pending_msg_hdr, response);
 	p->pending_msg_hdr.id = CONTROLVM_INVALID;
 	if (need_clear) {
 		bus_info_clear(p);
-		delbusdevices(&dev_info_list, busNo);
+		delbusdevices(&dev_info_list, bus_no);
 	}
 }
 
 static void
-device_changestate_responder(enum controlvm_id cmdId,
-			     ulong busNo, ulong devNo, int response,
-			     struct spar_segment_state responseState)
+device_changestate_responder(enum controlvm_id cmd_id,
+			     ulong bus_no, ulong dev_no, int response,
+			     struct spar_segment_state response_state)
 {
 	struct visorchipset_device_info *p = NULL;
 	struct controlvm_message outmsg;
 
-	p = finddevice(&dev_info_list, busNo, devNo);
+	p = finddevice(&dev_info_list, bus_no, dev_no);
 	if (!p)
 		return;
 	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
 		return;		/* no controlvm response needed */
-	if (p->pending_msg_hdr.id != cmdId)
+	if (p->pending_msg_hdr.id != cmd_id)
 		return;
 
 	controlvm_init_response(&outmsg, &p->pending_msg_hdr, response);
 
-	outmsg.cmd.device_change_state.bus_no = busNo;
-	outmsg.cmd.device_change_state.dev_no = devNo;
-	outmsg.cmd.device_change_state.state = responseState;
+	outmsg.cmd.device_change_state.bus_no = bus_no;
+	outmsg.cmd.device_change_state.dev_no = dev_no;
+	outmsg.cmd.device_change_state.state = response_state;
 
 	if (!visorchannel_signalinsert(controlvm_channel,
 				       CONTROLVM_QUEUE_REQUEST, &outmsg))
@@ -831,26 +831,26 @@ device_changestate_responder(enum controlvm_id cmdId,
 }
 
 static void
-device_responder(enum controlvm_id cmdId, ulong busNo, ulong devNo,
+device_responder(enum controlvm_id cmd_id, ulong bus_no, ulong dev_no,
 		 int response)
 {
 	struct visorchipset_device_info *p = NULL;
 	BOOL need_clear = FALSE;
 
-	p = finddevice(&dev_info_list, busNo, devNo);
+	p = finddevice(&dev_info_list, bus_no, dev_no);
 	if (!p)
 		return;
 	if (response >= 0) {
-		if (cmdId == CONTROLVM_DEVICE_CREATE)
+		if (cmd_id == CONTROLVM_DEVICE_CREATE)
 			p->state.created = 1;
-		if (cmdId == CONTROLVM_DEVICE_DESTROY)
+		if (cmd_id == CONTROLVM_DEVICE_DESTROY)
 			need_clear = TRUE;
 	}
 
 	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
 		return;		/* no controlvm response needed */
 
-	if (p->pending_msg_hdr.id != (u32) cmdId)
+	if (p->pending_msg_hdr.id != (u32) cmd_id)
 		return;
 
 	controlvm_respond(&p->pending_msg_hdr, response);
