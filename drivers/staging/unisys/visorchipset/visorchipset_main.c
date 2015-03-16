@@ -377,14 +377,14 @@ static ssize_t boottotool_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct efi_spar_indication efiSparIndication;
+	struct efi_spar_indication efi_spar_indication;
 
 	visorchannel_read(controlvm_channel,
 		offsetof(struct spar_controlvm_channel_protocol,
-			efi_spar_ind), &efiSparIndication,
+			efi_spar_ind), &efi_spar_indication,
 		sizeof(struct efi_spar_indication));
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			efiSparIndication.boot_to_tool);
+			efi_spar_indication.boot_to_tool);
 }
 
 static ssize_t boottotool_store(struct device *dev,
@@ -392,16 +392,16 @@ static ssize_t boottotool_store(struct device *dev,
 				const char *buf, size_t count)
 {
 	int val, ret;
-	struct efi_spar_indication efiSparIndication;
+	struct efi_spar_indication efi_spar_indication;
 
 	if (kstrtoint(buf, 10, &val) != 0)
 		return -EINVAL;
 
-	efiSparIndication.boot_to_tool = val;
+	efi_spar_indication.boot_to_tool = val;
 	ret = visorchannel_write(controlvm_channel,
 			offsetof(struct spar_controlvm_channel_protocol,
 				efi_spar_ind),
-			&(efiSparIndication),
+			&(efi_spar_indication),
 		sizeof(struct efi_spar_indication));
 
 	if (ret)
