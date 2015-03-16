@@ -1097,44 +1097,39 @@ bus_configure(struct controlvm_message *inmsg,
 	      struct parser_context *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong busNo = cmd->configure_bus.bus_no;
-	struct visorchipset_bus_info *pBusInfo = NULL;
+	ulong bus_no = cmd->configure_bus.bus_no;
+	struct visorchipset_bus_info *bus_info = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	char s[99];
 
-	busNo = cmd->configure_bus.bus_no;
-	POSTCODE_LINUX_3(BUS_CONFIGURE_ENTRY_PC, busNo, POSTCODE_SEVERITY_INFO);
+	bus_no = cmd->configure_bus.bus_no;
+	POSTCODE_LINUX_3(BUS_CONFIGURE_ENTRY_PC, bus_no,
+			 POSTCODE_SEVERITY_INFO);
 
-	pBusInfo = findbus(&bus_info_list, busNo);
-	if (!pBusInfo) {
-		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
+	bus_info = findbus(&bus_info_list, bus_no);
+	if (!bus_info) {
+		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
-		goto Away;
-	}
-	if (pBusInfo->state.created == 0) {
-		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
+	} else if (bus_info->state.created == 0) {
+		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
-		goto Away;
-	}
-	/* TBD - add this check to other commands also... */
-	if (pBusInfo->pending_msg_hdr.id != CONTROLVM_INVALID) {
-		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
+	} else if (bus_info->pending_msg_hdr.id != CONTROLVM_INVALID) {
+		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
-		goto Away;
+	} else {
+		bus_info->partition_handle = cmd->configure_bus.guest_handle;
+		bus_info->partition_uuid = parser_id_get(parser_ctx);
+		parser_param_start(parser_ctx, PARSERSTRING_NAME);
+		bus_info->name = parser_string_get(parser_ctx);
+
+		visorchannel_uuid_id(&bus_info->partition_uuid, s);
+		POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, bus_no,
+				 POSTCODE_SEVERITY_INFO);
 	}
-
-	pBusInfo->partition_handle = cmd->configure_bus.guest_handle;
-	pBusInfo->partition_uuid = parser_id_get(parser_ctx);
-	parser_param_start(parser_ctx, PARSERSTRING_NAME);
-	pBusInfo->name = parser_string_get(parser_ctx);
-
-	visorchannel_uuid_id(&pBusInfo->partition_uuid, s);
-	POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, busNo, POSTCODE_SEVERITY_INFO);
-Away:
-	bus_epilog(busNo, CONTROLVM_BUS_CONFIGURE, &inmsg->hdr,
+	bus_epilog(bus_no, CONTROLVM_BUS_CONFIGURE, &inmsg->hdr,
 		   rc, inmsg->hdr.flags.response_expected == 1);
 }
 
