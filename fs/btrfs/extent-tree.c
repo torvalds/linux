@@ -5285,6 +5285,9 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 	if (dropped > 0)
 		to_free += btrfs_calc_trans_metadata_size(root, dropped);
 
+	if (btrfs_test_is_dummy_root(root))
+		return;
+
 	trace_btrfs_space_reservation(root->fs_info, "delalloc",
 				      btrfs_ino(inode), to_free, 0);
 	if (root->fs_info->quota_enabled) {
