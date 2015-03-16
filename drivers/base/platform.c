@@ -454,7 +454,7 @@ struct platform_device *platform_device_register_full(
 		goto err_alloc;
 
 	pdev->dev.parent = pdevinfo->parent;
-	ACPI_COMPANION_SET(&pdev->dev, pdevinfo->acpi_node.companion);
+	pdev->dev.fwnode = pdevinfo->fwnode;
 
 	if (pdevinfo->dma_mask) {
 		/*

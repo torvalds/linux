@@ -53,8 +53,9 @@ static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 	return adev ? adev->handle : NULL;
 }
 
-#define ACPI_COMPANION(dev)		((dev)->acpi_node.companion)
-#define ACPI_COMPANION_SET(dev, adev)	ACPI_COMPANION(dev) = (adev)
+#define ACPI_COMPANION(dev)		acpi_node((dev)->fwnode)
+#define ACPI_COMPANION_SET(dev, adev)	(dev)->fwnode = (adev) ? \
+	acpi_fwnode_handle(adev) : NULL
 #define ACPI_HANDLE(dev)		acpi_device_handle(ACPI_COMPANION(dev))
 
 static inline void acpi_preset_companion(struct device *dev,

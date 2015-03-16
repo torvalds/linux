@@ -278,7 +278,7 @@ static inline int i2c_slave_event(struct i2c_client *client,
  * @platform_data: stored in i2c_client.dev.platform_data
  * @archdata: copied into i2c_client.dev.archdata
  * @of_node: pointer to OpenFirmware device node
- * @acpi_node: ACPI device node
+ * @fwnode: device node supplied by the platform firmware
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
@@ -299,7 +299,7 @@ struct i2c_board_info {
 	void		*platform_data;
 	struct dev_archdata	*archdata;
 	struct device_node *of_node;
-	struct acpi_dev_node acpi_node;
+	struct fwnode_handle *fwnode;
 	int		irq;
 };
 
