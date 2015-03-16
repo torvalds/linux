@@ -222,13 +222,13 @@ static void parahotplug_process_list(void);
 static struct visorchipset_busdev_notifiers busdev_server_notifiers;
 static struct visorchipset_busdev_notifiers busdev_client_notifiers;
 
-static void bus_create_response(ulong busNo, int response);
-static void bus_destroy_response(ulong busNo, int response);
-static void device_create_response(ulong busNo, ulong devNo, int response);
-static void device_destroy_response(ulong busNo, ulong devNo, int response);
-static void device_resume_response(ulong busNo, ulong devNo, int response);
+static void bus_create_response(ulong bus_no, int response);
+static void bus_destroy_response(ulong bus_no, int response);
+static void device_create_response(ulong bus_no, ulong dev_no, int response);
+static void device_destroy_response(ulong bus_no, ulong dev_no, int response);
+static void device_resume_response(ulong bus_no, ulong dev_no, int response);
 
-static struct visorchipset_busdev_responders BusDev_Responders = {
+static struct visorchipset_busdev_responders busdev_responders = {
 	.bus_create = bus_create_response,
 	.bus_destroy = bus_destroy_response,
 	.device_create = device_create_response,
@@ -559,7 +559,7 @@ visorchipset_register_busdev_server(
 		serverregistered = 1;	/* set flag */
 	}
 	if (responders)
-		*responders = BusDev_Responders;
+		*responders = busdev_responders;
 	if (driver_info)
 		bus_device_info_init(driver_info, "chipset", "visorchipset",
 				   VERSION, NULL);
@@ -584,7 +584,7 @@ visorchipset_register_busdev_client(
 		clientregistered = 1;	/* set flag */
 	}
 	if (responders)
-		*responders = BusDev_Responders;
+		*responders = busdev_responders;
 	if (driver_info)
 		bus_device_info_init(driver_info, "chipset(bolts)",
 				     "visorchipset", VERSION, NULL);
@@ -1951,27 +1951,27 @@ cleanup:
 }
 
 static void
-bus_create_response(ulong busNo, int response)
+bus_create_response(ulong bus_no, int response)
 {
-	bus_responder(CONTROLVM_BUS_CREATE, busNo, response);
+	bus_responder(CONTROLVM_BUS_CREATE, bus_no, response);
 }
 
 static void
-bus_destroy_response(ulong busNo, int response)
+bus_destroy_response(ulong bus_no, int response)
 {
-	bus_responder(CONTROLVM_BUS_DESTROY, busNo, response);
+	bus_responder(CONTROLVM_BUS_DESTROY, bus_no, response);
 }
 
 static void
-device_create_response(ulong busNo, ulong devNo, int response)
+device_create_response(ulong bus_no, ulong dev_no, int response)
 {
-	device_responder(CONTROLVM_DEVICE_CREATE, busNo, devNo, response);
+	device_responder(CONTROLVM_DEVICE_CREATE, bus_no, dev_no, response);
 }
 
 static void
-device_destroy_response(ulong busNo, ulong devNo, int response)
+device_destroy_response(ulong bus_no, ulong dev_no, int response)
 {
-	device_responder(CONTROLVM_DEVICE_DESTROY, busNo, devNo, response);
+	device_responder(CONTROLVM_DEVICE_DESTROY, bus_no, dev_no, response);
 }
 
 void
@@ -1984,10 +1984,10 @@ visorchipset_device_pause_response(ulong bus_no, ulong dev_no, int response)
 EXPORT_SYMBOL_GPL(visorchipset_device_pause_response);
 
 static void
-device_resume_response(ulong busNo, ulong devNo, int response)
+device_resume_response(ulong bus_no, ulong dev_no, int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
-				     busNo, devNo, response,
+				     bus_no, dev_no, response,
 				     segment_state_running);
 }
 
