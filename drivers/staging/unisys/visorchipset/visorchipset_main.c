@@ -326,7 +326,7 @@ static const struct attribute_group *visorchipset_dev_groups[] = {
 };
 
 /* /sys/devices/platform/visorchipset */
-static struct platform_device Visorchipset_platform_device = {
+static struct platform_device visorchipset_platform_device = {
 	.name = "visorchipset",
 	.id = -1,
 	.dev.groups = visorchipset_dev_groups,
@@ -1000,7 +1000,7 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 					 * diag_shutdown.sh script in
 					 * the visorchipset hotplug */
 					kobject_uevent_env
-					    (&Visorchipset_platform_device.dev.
+					    (&visorchipset_platform_device.dev.
 					     kobj, KOBJ_ONLINE, envp);
 				}
 			}
@@ -1340,7 +1340,7 @@ initialize_controlvm_payload(void)
 int
 visorchipset_chipset_ready(void)
 {
-	kobject_uevent(&Visorchipset_platform_device.dev.kobj, KOBJ_ONLINE);
+	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_ONLINE);
 	return CONTROLVM_RESP_SUCCESS;
 }
 EXPORT_SYMBOL_GPL(visorchipset_chipset_ready);
@@ -1352,7 +1352,7 @@ visorchipset_chipset_selftest(void)
 	char *envp[] = { env_selftest, NULL };
 
 	sprintf(env_selftest, "SPARSP_SELFTEST=%d", 1);
-	kobject_uevent_env(&Visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
+	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
 			   envp);
 	return CONTROLVM_RESP_SUCCESS;
 }
@@ -1364,7 +1364,7 @@ EXPORT_SYMBOL_GPL(visorchipset_chipset_selftest);
 int
 visorchipset_chipset_notready(void)
 {
-	kobject_uevent(&Visorchipset_platform_device.dev.kobj, KOBJ_OFFLINE);
+	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_OFFLINE);
 	return CONTROLVM_RESP_SUCCESS;
 }
 EXPORT_SYMBOL_GPL(visorchipset_chipset_notready);
@@ -1516,7 +1516,7 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 	sprintf(env_func, "SPAR_PARAHOTPLUG_FUNCTION=%d",
 		cmd->device_change_state.dev_no & 0x7);
 
-	kobject_uevent_env(&Visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
+	kobject_uevent_env(&visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
 			   envp);
 }
 
@@ -2222,8 +2222,8 @@ visorchipset_init(void)
 		}
 	}
 
-	Visorchipset_platform_device.dev.devt = major_dev;
-	if (platform_device_register(&Visorchipset_platform_device) < 0) {
+	visorchipset_platform_device.dev.devt = major_dev;
+	if (platform_device_register(&visorchipset_platform_device) < 0) {
 		POSTCODE_LINUX_2(DEVICE_REGISTER_FAILURE_PC, DIAG_SEVERITY_ERR);
 		rc = -1;
 		goto cleanup;
