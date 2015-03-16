@@ -18,7 +18,29 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 
+#define VFIO_PLATFORM_OFFSET_SHIFT   40
+#define VFIO_PLATFORM_OFFSET_MASK (((u64)(1) << VFIO_PLATFORM_OFFSET_SHIFT) - 1)
+
+#define VFIO_PLATFORM_OFFSET_TO_INDEX(off)	\
+	(off >> VFIO_PLATFORM_OFFSET_SHIFT)
+
+#define VFIO_PLATFORM_INDEX_TO_OFFSET(index)	\
+	((u64)(index) << VFIO_PLATFORM_OFFSET_SHIFT)
+
+struct vfio_platform_region {
+	u64			addr;
+	resource_size_t		size;
+	u32			flags;
+	u32			type;
+#define VFIO_PLATFORM_REGION_TYPE_MMIO	1
+#define VFIO_PLATFORM_REGION_TYPE_PIO	2
+};
+
 struct vfio_platform_device {
+	struct vfio_platform_region	*regions;
+	u32				num_regions;
+	int				refcnt;
+
 	/*
 	 * These fields should be filled by the bus specific binder
 	 */

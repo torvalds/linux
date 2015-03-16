@@ -23,17 +23,97 @@
 
 #include "vfio_platform_private.h"
 
+static DEFINE_MUTEX(driver_lock);
+
+static int vfio_platform_regions_init(struct vfio_platform_device *vdev)
+{
+	int cnt = 0, i;
+
+	while (vdev->get_resource(vdev, cnt))
+		cnt++;
+
+	vdev->regions = kcalloc(cnt, sizeof(struct vfio_platform_region),
+				GFP_KERNEL);
+	if (!vdev->regions)
+		return -ENOMEM;
+
+	for (i = 0; i < cnt;  i++) {
+		struct resource *res =
+			vdev->get_resource(vdev, i);
+
+		if (!res)
+			goto err;
+
+		vdev->regions[i].addr = res->start;
+		vdev->regions[i].size = resource_size(res);
+		vdev->regions[i].flags = 0;
+
+		switch (resource_type(res)) {
+		case IORESOURCE_MEM:
+			vdev->regions[i].type = VFIO_PLATFORM_REGION_TYPE_MMIO;
+			break;
+		case IORESOURCE_IO:
+			vdev->regions[i].type = VFIO_PLATFORM_REGION_TYPE_PIO;
+			break;
+		default:
+			goto err;
+		}
+	}
+
+	vdev->num_regions = cnt;
+
+	return 0;
+err:
+	kfree(vdev->regions);
+	return -EINVAL;
+}
+
+static void vfio_platform_regions_cleanup(struct vfio_platform_device *vdev)
+{
+	vdev->num_regions = 0;
+	kfree(vdev->regions);
+}
+
 static void vfio_platform_release(void *device_data)
 {
+	struct vfio_platform_device *vdev = device_data;
+
+	mutex_lock(&driver_lock);
+
+	if (!(--vdev->refcnt)) {
+		vfio_platform_regions_cleanup(vdev);
+	}
+
+	mutex_unlock(&driver_lock);
+
 	module_put(THIS_MODULE);
 }
 
 static int vfio_platform_open(void *device_data)
 {
+	struct vfio_platform_device *vdev = device_data;
+	int ret;
+
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
+	mutex_lock(&driver_lock);
+
+	if (!vdev->refcnt) {
+		ret = vfio_platform_regions_init(vdev);
+		if (ret)
+			goto err_reg;
+	}
+
+	vdev->refcnt++;
+
+	mutex_unlock(&driver_lock);
 	return 0;
+
+err_reg:
+	mutex_unlock(&driver_lock);
+	module_put(THIS_MODULE);
+	return ret;
 }
 
 static long vfio_platform_ioctl(void *device_data,
@@ -54,15 +134,33 @@ static long vfio_platform_ioctl(void *device_data,
 			return -EINVAL;
 
 		info.flags = vdev->flags;
-		info.num_regions = 0;
+		info.num_regions = vdev->num_regions;
 		info.num_irqs = 0;
 
 		return copy_to_user((void __user *)arg, &info, minsz);
 
-	} else if (cmd == VFIO_DEVICE_GET_REGION_INFO)
-		return -EINVAL;
+	} else if (cmd == VFIO_DEVICE_GET_REGION_INFO) {
+		struct vfio_region_info info;
 
-	else if (cmd == VFIO_DEVICE_GET_IRQ_INFO)
+		minsz = offsetofend(struct vfio_region_info, offset);
+
+		if (copy_from_user(&info, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		if (info.argsz < minsz)
+			return -EINVAL;
+
+		if (info.index >= vdev->num_regions)
+			return -EINVAL;
+
+		/* map offset to the physical address  */
+		info.offset = VFIO_PLATFORM_INDEX_TO_OFFSET(info.index);
+		info.size = vdev->regions[info.index].size;
+		info.flags = vdev->regions[info.index].flags;
+
+		return copy_to_user((void __user *)arg, &info, minsz);
+
+	} else if (cmd == VFIO_DEVICE_GET_IRQ_INFO)
 		return -EINVAL;
 
 	else if (cmd == VFIO_DEVICE_SET_IRQS)
