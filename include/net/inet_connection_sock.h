@@ -275,6 +275,11 @@ static inline void inet_csk_reqsk_queue_add(struct sock *sk,
 					    struct sock *child)
 {
 	reqsk_queue_add(&inet_csk(sk)->icsk_accept_queue, req, sk, child);
+	/* before letting lookups find us, make sure all req fields
+	 * are committed to memory.
+	 */
+	smp_wmb();
+	atomic_set(&req->rsk_refcnt, 1);
 }
 
 void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
