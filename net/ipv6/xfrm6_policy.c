@@ -200,6 +200,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 #if IS_ENABLED(CONFIG_IPV6_MIP6)
 		case IPPROTO_MH:
+			offset += ipv6_optlen(exthdr);
 			if (!onlyproto && pskb_may_pull(skb, nh + offset + 3 - skb->data)) {
 				struct ip6_mh *mh;
 

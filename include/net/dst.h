@@ -481,6 +481,7 @@ void dst_init(void);
 enum {
 	XFRM_LOOKUP_ICMP = 1 << 0,
 	XFRM_LOOKUP_QUEUE = 1 << 1,
+	XFRM_LOOKUP_KEEP_DST_REF = 1 << 2,
 };
 
 struct flowi;
