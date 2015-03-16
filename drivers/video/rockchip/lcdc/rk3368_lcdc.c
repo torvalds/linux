@@ -2273,6 +2273,7 @@ static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 		break;
 	case YUV420:
 	case YUV420_A:
+	case YUV420_NV21:
 		cbcr_srcW = srcW / 2;
 		cbcr_dstW = dstW;
 		cbcr_srcH = srcH / 2;
@@ -2329,6 +2330,7 @@ static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 	/*line buffer mode */
 	if ((win->area[0].format == YUV422) ||
 	    (win->area[0].format == YUV420) ||
+	    (win->area[0].format == YUV420_NV21) ||
 	    (win->area[0].format == YUV422_A) ||
 	    (win->area[0].format == YUV420_A)) {
 		if (win->cbr_hor_scl_mode == SCALE_DOWN) {
