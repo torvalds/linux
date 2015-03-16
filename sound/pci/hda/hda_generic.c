@@ -642,13 +642,30 @@ static int get_amp_val_to_activate(struct hda_codec *codec, hda_nid_t nid,
 	return val;
 }
 
+/* is this a stereo widget or a stereo-to-mono mix? */
+static bool is_stereo_amps(struct hda_codec *codec, hda_nid_t nid, int dir)
+{
+	unsigned int wcaps = get_wcaps(codec, nid);
+	hda_nid_t conn;
+
+	if (wcaps & AC_WCAP_STEREO)
+		return true;
+	if (dir != HDA_INPUT || get_wcaps_type(wcaps) != AC_WID_AUD_MIX)
+		return false;
+	if (snd_hda_get_num_conns(codec, nid) != 1)
+		return false;
+	if (snd_hda_get_connections(codec, nid, &conn, 1) < 0)
+		return false;
+	return !!(get_wcaps(codec, conn) & AC_WCAP_STEREO);
+}
+
 /* initialize the amp value (only at the first time) */
 static void init_amp(struct hda_codec *codec, hda_nid_t nid, int dir, int idx)
 {
 	unsigned int caps = query_amp_caps(codec, nid, dir);
 	int val = get_amp_val_to_activate(codec, nid, dir, caps, false);
 
-	if (get_wcaps(codec, nid) & AC_WCAP_STEREO)
+	if (is_stereo_amps(codec, nid, dir))
 		snd_hda_codec_amp_init_stereo(codec, nid, dir, idx, 0xff, val);
 	else
 		snd_hda_codec_amp_init(codec, nid, 0, dir, idx, 0xff, val);
@@ -658,7 +675,7 @@ static void init_amp(struct hda_codec *codec, hda_nid_t nid, int dir, int idx)
 static int update_amp(struct hda_codec *codec, hda_nid_t nid, int dir, int idx,
 		      unsigned int mask, unsigned int val)
 {
-	if (get_wcaps(codec, nid) & AC_WCAP_STEREO)
+	if (is_stereo_amps(codec, nid, dir))
 		return snd_hda_codec_amp_stereo(codec, nid, dir, idx,
 						mask, val);
 	else
