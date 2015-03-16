@@ -29,7 +29,7 @@
  * incoming payloads.  This serves as a throttling mechanism.
  */
 #define MAX_CONTROLVM_PAYLOAD_BYTES (1024*128)
-static ulong Controlvm_Payload_Bytes_Buffered;
+static ulong controlvm_payload_bytes_buffered;
 
 struct PARSER_CONTEXT_Tag {
 	ulong allocbytes;
@@ -57,7 +57,7 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 		 * '\0'-terminated
 		 */
 		allocbytes++;
-	if ((Controlvm_Payload_Bytes_Buffered + bytes)
+	if ((controlvm_payload_bytes_buffered + bytes)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
 		if (tryAgain)
 			*tryAgain = TRUE;
@@ -124,7 +124,7 @@ Away:
 		rgn = NULL;
 	}
 	if (rc)
-		Controlvm_Payload_Bytes_Buffered += ctx->param_bytes;
+		controlvm_payload_bytes_buffered += ctx->param_bytes;
 	else {
 		if (ctx) {
 			parser_done(ctx);
@@ -224,7 +224,7 @@ parser_done(PARSER_CONTEXT *ctx)
 {
 	if (!ctx)
 		return;
-	Controlvm_Payload_Bytes_Buffered -= ctx->param_bytes;
+	controlvm_payload_bytes_buffered -= ctx->param_bytes;
 	kfree(ctx);
 }
 
