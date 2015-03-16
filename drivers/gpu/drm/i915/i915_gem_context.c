@@ -569,6 +569,56 @@ mi_set_context(struct intel_engine_cs *ring,
 	return ret;
 }
 
+static inline bool should_skip_switch(struct intel_engine_cs *ring,
+				      struct intel_context *from,
+				      struct intel_context *to)
+{
+	if (from == to && !to->remap_slice)
+		return true;
+
+	return false;
+}
+
+static bool
+needs_pd_load_pre(struct intel_engine_cs *ring, struct intel_context *to)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	if (!to->ppgtt)
+		return false;
+
+	if (INTEL_INFO(ring->dev)->gen < 8)
+		return true;
+
+	if (ring != &dev_priv->ring[RCS])
+		return true;
+
+	return false;
+}
+
+static bool
+needs_pd_load_post(struct intel_engine_cs *ring, struct intel_context *to)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	if (!to->ppgtt)
+		return false;
+
+	if (!IS_GEN8(ring->dev))
+		return false;
+
+	if (ring != &dev_priv->ring[RCS])
+		return false;
+
+	if (!to->legacy_hw_ctx.initialized)
+		return true;
+
+	if (i915_gem_context_is_default(to))
+		return true;
+
+	return false;
+}
+
 static int do_switch(struct intel_engine_cs *ring,
 		     struct intel_context *to)
 {
@@ -584,7 +634,7 @@ static int do_switch(struct intel_engine_cs *ring,
 		BUG_ON(!i915_gem_obj_is_pinned(from->legacy_hw_ctx.rcs_state));
 	}
 
-	if (from == to && !to->remap_slice)
+	if (should_skip_switch(ring, from, to))
 		return 0;
 
 	/* Trying to pin first makes error handling easier. */
@@ -602,7 +652,14 @@ static int do_switch(struct intel_engine_cs *ring,
 	 */
 	from = ring->last_context;
 
-	if (to->ppgtt) {
+	/* We should never emit switch_mm more than once */
+	WARN_ON(needs_pd_load_pre(ring, to) && needs_pd_load_post(ring, to));
+
+	if (needs_pd_load_pre(ring, to)) {
+		/* Older GENs and non render rings still want the load first,
+		 * "PP_DCLV followed by PP_DIR_BASE register through Load
+		 * Register Immediate commands in Ring Buffer before submitting
+		 * a context."*/
 		trace_switch_mm(ring, to);
 		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
 		if (ret)
@@ -643,6 +700,20 @@ static int do_switch(struct intel_engine_cs *ring,
 	ret = mi_set_context(ring, to, hw_flags);
 	if (ret)
 		goto unpin_out;
+
+	if (needs_pd_load_post(ring, to)) {
+		trace_switch_mm(ring, to);
+		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
+		/* The hardware context switch is emitted, but we haven't
+		 * actually changed the state - so it's probably safe to bail
+		 * here. Still, let the user know something dangerous has
+		 * happened.
+		 */
+		if (ret) {
+			DRM_ERROR("Failed to change address space on context switch\n");
+			goto unpin_out;
+		}
+	}
 
 	for (i = 0; i < MAX_L3_SLICES; i++) {
 		if (!(to->remap_slice & (1<<i)))
