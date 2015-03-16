@@ -114,6 +114,7 @@ static void pcibios_scanbus(struct pci_controller *hose)
 			pci_bus_size_bridges(bus);
 			pci_bus_assign_resources(bus);
 		}
+		pci_bus_add_devices(bus);
 	}
 }
 
