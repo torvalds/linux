@@ -125,8 +125,8 @@ static struct livedump_info {
  * this scenario, we simply stash the controlvm message, then attempt to
  * process it again the next time controlvm_periodic_work() runs.
  */
-static struct controlvm_message ControlVm_Pending_Msg;
-static BOOL ControlVm_Pending_Msg_Valid = FALSE;
+static struct controlvm_message controlvm_pending_msg;
+static BOOL controlvm_pending_msg_valid = FALSE;
 
 /* Pool of struct putfile_buffer_entry, for keeping track of pending (incoming)
  * TRANSMIT_FILE PutFile payloads.
@@ -1791,13 +1791,13 @@ controlvm_periodic_work(struct work_struct *work)
 					 &inmsg))
 		;
 	if (!got_command) {
-		if (ControlVm_Pending_Msg_Valid) {
+		if (controlvm_pending_msg_valid) {
 			/* we throttled processing of a prior
 			* msg, so try to process it again
 			* rather than reading a new one
 			*/
-			inmsg = ControlVm_Pending_Msg;
-			ControlVm_Pending_Msg_Valid = FALSE;
+			inmsg = controlvm_pending_msg;
+			controlvm_pending_msg_valid = FALSE;
 			got_command = true;
 		} else {
 			got_command = read_controlvm_event(&inmsg);
@@ -1819,8 +1819,8 @@ controlvm_periodic_work(struct work_struct *work)
 			* reprocess it on our next loop
 			*/
 			handle_command_failed = TRUE;
-			ControlVm_Pending_Msg = inmsg;
-			ControlVm_Pending_Msg_Valid = TRUE;
+			controlvm_pending_msg = inmsg;
+			controlvm_pending_msg_valid = TRUE;
 		}
 	}
 
