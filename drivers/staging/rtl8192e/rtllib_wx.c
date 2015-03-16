@@ -425,8 +425,6 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			netdev_info(ieee->dev, "Setting key %d to all zero.\n",
 					   key);
 
-			RTLLIB_DEBUG_WX("Setting key %d to all zero.\n",
-					   key);
 			memset(sec.keys[key], 0, 13);
 			(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
 					       (*crypt)->priv);
@@ -607,8 +605,6 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		RTLLIB_DEBUG_WX("%s: unknown crypto alg %d\n",
-				   dev->name, ext->alg);
 		netdev_info(dev, "========>unknown crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -640,7 +636,6 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 	if (ext->key_len > 0 && (*crypt)->ops->set_key &&
 	    (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
 				   (*crypt)->priv) < 0) {
-		RTLLIB_DEBUG_WX("%s: key setting failed\n", dev->name);
 		netdev_info(dev, "key setting failed\n");
 		ret = -EINVAL;
 		goto done;
