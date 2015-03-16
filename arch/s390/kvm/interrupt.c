@@ -17,6 +17,7 @@
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
+#include <linux/vmalloc.h>
 #include <asm/asm-offsets.h>
 #include <asm/dis.h>
 #include <asm/uaccess.h>
@@ -1477,61 +1478,66 @@ void kvm_s390_clear_float_irqs(struct kvm *kvm)
 	spin_unlock(&fi->lock);
 }
 
-static inline int copy_irq_to_user(struct kvm_s390_interrupt_info *inti,
-				   u8 *addr)
+static void inti_to_irq(struct kvm_s390_interrupt_info *inti,
+		       struct kvm_s390_irq *irq)
 {
-	struct kvm_s390_irq __user *uptr = (struct kvm_s390_irq __user *) addr;
-	struct kvm_s390_irq irq = {0};
-
-	irq.type = inti->type;
+	irq->type = inti->type;
 	switch (inti->type) {
 	case KVM_S390_INT_PFAULT_INIT:
 	case KVM_S390_INT_PFAULT_DONE:
 	case KVM_S390_INT_VIRTIO:
 	case KVM_S390_INT_SERVICE:
-		irq.u.ext = inti->ext;
+		irq->u.ext = inti->ext;
 		break;
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
-		irq.u.io = inti->io;
+		irq->u.io = inti->io;
 		break;
 	case KVM_S390_MCHK:
-		irq.u.mchk = inti->mchk;
+		irq->u.mchk = inti->mchk;
 		break;
-	default:
-		return -EINVAL;
 	}
-
-	if (copy_to_user(uptr, &irq, sizeof(irq)))
-		return -EFAULT;
-
-	return 0;
 }
 
-static int get_all_floating_irqs(struct kvm *kvm, __u8 *buf, __u64 len)
+static int get_all_floating_irqs(struct kvm *kvm, u8 __user *usrbuf, u64 len)
 {
 	struct kvm_s390_interrupt_info *inti;
 	struct kvm_s390_float_interrupt *fi;
+	struct kvm_s390_irq *buf;
+	int max_irqs;
 	int ret = 0;
 	int n = 0;
 
+	if (len > KVM_S390_FLIC_MAX_BUFFER || len == 0)
+		return -EINVAL;
+
+	/*
+	 * We are already using -ENOMEM to signal
+	 * userspace it may retry with a bigger buffer,
+	 * so we need to use something else for this case
+	 */
+	buf = vzalloc(len);
+	if (!buf)
+		return -ENOBUFS;
+
+	max_irqs = len / sizeof(struct kvm_s390_irq);
+
 	fi = &kvm->arch.float_int;
 	spin_lock(&fi->lock);
-
 	list_for_each_entry(inti, &fi->list, list) {
-		if (len < sizeof(struct kvm_s390_irq)) {
+		if (n == max_irqs) {
 			/* signal userspace to try again */
 			ret = -ENOMEM;
 			break;
 		}
-		ret = copy_irq_to_user(inti, buf);
-		if (ret)
-			break;
-		buf += sizeof(struct kvm_s390_irq);
-		len -= sizeof(struct kvm_s390_irq);
+		inti_to_irq(inti, &buf[n]);
 		n++;
 	}
-
 	spin_unlock(&fi->lock);
+	if (!ret && n > 0) {
+		if (copy_to_user(usrbuf, buf, sizeof(struct kvm_s390_irq) * n))
+			ret = -EFAULT;
+	}
+	vfree(buf);
 
 	return ret < 0 ? ret : n;
 }
@@ -1542,7 +1548,7 @@ static int flic_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 
 	switch (attr->group) {
 	case KVM_DEV_FLIC_GET_ALL_IRQS:
-		r = get_all_floating_irqs(dev->kvm, (u8 *) attr->addr,
+		r = get_all_floating_irqs(dev->kvm, (u8 __user *) attr->addr,
 					  attr->attr);
 		break;
 	default:

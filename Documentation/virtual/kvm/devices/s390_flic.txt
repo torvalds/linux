@@ -27,6 +27,9 @@ Groups:
     Copies all floating interrupts into a buffer provided by userspace.
     When the buffer is too small it returns -ENOMEM, which is the indication
     for userspace to try again with a bigger buffer.
+    -ENOBUFS is returned when the allocation of a kernelspace buffer has
+    failed.
+    -EFAULT is returned when copying data to userspace failed.
     All interrupts remain pending, i.e. are not deleted from the list of
     currently pending interrupts.
     attr->addr contains the userspace address of the buffer into which all
