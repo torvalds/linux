@@ -78,7 +78,7 @@ enum chnl_op {
 };
 
 #define CHHLOP_IN_PROGRESS(_pHTInfo)	\
-		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? true : false
+		(((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? true : false)
 
 /*
 union ht_capability {
@@ -385,8 +385,8 @@ extern u8 MCS_FILTER_1SS[16];
 #define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
 
 #define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)	\
-			((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ? \
-			(LegacyRate) : (PICK_RATE(LegacyRate, HTRate))
+			(((WirelessMode & (LEGACY_WIRELESS_MODE)) != 0) ? \
+			(LegacyRate) : (PICK_RATE(LegacyRate, HTRate)))
 
 
 
