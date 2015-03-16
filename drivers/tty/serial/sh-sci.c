@@ -844,14 +844,32 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	struct sci_port *s = to_sci_port(port);
 	struct plat_sci_reg *reg;
-	int copied = 0;
+	int copied = 0, offset;
+	u16 status, bit;
 
-	reg = sci_getreg(port, SCLSR);
+	switch (port->type) {
+	case PORT_SCIF:
+	case PORT_HSCIF:
+		offset = SCLSR;
+		break;
+	case PORT_SCIFA:
+	case PORT_SCIFB:
+		offset = SCxSR;
+		break;
+	default:
+		return 0;
+	}
+
+	reg = sci_getreg(port, offset);
 	if (!reg->size)
 		return 0;
 
-	if ((serial_port_in(port, SCLSR) & (1 << s->overrun_bit))) {
-		serial_port_out(port, SCLSR, 0);
+	status = serial_port_in(port, offset);
+	bit = 1 << s->overrun_bit;
+
+	if (status & bit) {
+		status &= ~bit;
+		serial_port_out(port, offset, status);
 
 		port->icount.overrun++;
 
@@ -996,16 +1014,24 @@ static inline unsigned long port_rx_irq_mask(struct uart_port *port)
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
-	unsigned short ssr_status, scr_status, err_enabled;
-	unsigned short slr_status = 0;
+	unsigned short ssr_status, scr_status, err_enabled, orer_status = 0;
 	struct uart_port *port = ptr;
 	struct sci_port *s = to_sci_port(port);
 	irqreturn_t ret = IRQ_NONE;
 
 	ssr_status = serial_port_in(port, SCxSR);
 	scr_status = serial_port_in(port, SCSCR);
-	if (port->type == PORT_SCIF || port->type == PORT_HSCIF)
-		slr_status = serial_port_in(port, SCLSR);
+	switch (port->type) {
+	case PORT_SCIF:
+	case PORT_HSCIF:
+		orer_status = serial_port_in(port, SCLSR);
+		break;
+	case PORT_SCIFA:
+	case PORT_SCIFB:
+		orer_status = ssr_status;
+		break;
+	}
+
 	err_enabled = scr_status & port_rx_irq_mask(port);
 
 	/* Tx Interrupt */
@@ -1033,10 +1059,8 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 		ret = sci_br_interrupt(irq, ptr);
 
 	/* Overrun Interrupt */
-	if (port->type == PORT_SCIF || port->type == PORT_HSCIF) {
-		if (slr_status & 0x01)
-			sci_handle_fifo_overrun(port);
-	}
+	if (orer_status & (1 << s->overrun_bit))
+		sci_handle_fifo_overrun(port);
 
 	return ret;
 }
