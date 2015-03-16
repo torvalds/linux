@@ -1849,21 +1849,21 @@ cleanup:
 static void
 setup_crash_devices_work_queue(struct work_struct *work)
 {
-	struct controlvm_message localCrashCreateBusMsg;
-	struct controlvm_message localCrashCreateDevMsg;
+	struct controlvm_message local_crash_bus_msg;
+	struct controlvm_message local_crash_dev_msg;
 	struct controlvm_message msg;
-	u32 localSavedCrashMsgOffset;
-	u16 localSavedCrashMsgCount;
+	u32 local_crash_msg_offset;
+	u16 local_crash_msg_count;
 
 	/* make sure visorbus server is registered for controlvm callbacks */
 	if (visorchipset_serverregwait && !serverregistered)
-		goto Away;
+		goto cleanup;
 
 	/* make sure visorclientbus server is regsitered for controlvm
 	 * callbacks
 	 */
 	if (visorchipset_clientregwait && !clientregistered)
-		goto Away;
+		goto cleanup;
 
 	POSTCODE_LINUX_2(CRASH_DEV_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 
@@ -1878,15 +1878,15 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	if (visorchannel_read(controlvm_channel,
 			      offsetof(struct spar_controlvm_channel_protocol,
 				       saved_crash_message_count),
-			      &localSavedCrashMsgCount, sizeof(u16)) < 0) {
+			      &local_crash_msg_count, sizeof(u16)) < 0) {
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
 		return;
 	}
 
-	if (localSavedCrashMsgCount != CONTROLVM_CRASHMSG_MAX) {
+	if (local_crash_msg_count != CONTROLVM_CRASHMSG_MAX) {
 		POSTCODE_LINUX_3(CRASH_DEV_COUNT_FAILURE_PC,
-				 localSavedCrashMsgCount,
+				 local_crash_msg_count,
 				 POSTCODE_SEVERITY_ERR);
 		return;
 	}
@@ -1895,7 +1895,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	if (visorchannel_read(controlvm_channel,
 			      offsetof(struct spar_controlvm_channel_protocol,
 				       saved_crash_message_offset),
-			      &localSavedCrashMsgOffset, sizeof(u32)) < 0) {
+			      &local_crash_msg_offset, sizeof(u32)) < 0) {
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
 		return;
@@ -1903,8 +1903,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 	/* read create device message for storage bus offset */
 	if (visorchannel_read(controlvm_channel,
-			      localSavedCrashMsgOffset,
-			      &localCrashCreateBusMsg,
+			      local_crash_msg_offset,
+			      &local_crash_bus_msg,
 			      sizeof(struct controlvm_message)) < 0) {
 		POSTCODE_LINUX_2(CRASH_DEV_RD_BUS_FAIULRE_PC,
 				 POSTCODE_SEVERITY_ERR);
@@ -1913,9 +1913,9 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 	/* read create device message for storage device */
 	if (visorchannel_read(controlvm_channel,
-			      localSavedCrashMsgOffset +
+			      local_crash_msg_offset +
 			      sizeof(struct controlvm_message),
-			      &localCrashCreateDevMsg,
+			      &local_crash_dev_msg,
 			      sizeof(struct controlvm_message)) < 0) {
 		POSTCODE_LINUX_2(CRASH_DEV_RD_DEV_FAIULRE_PC,
 				 POSTCODE_SEVERITY_ERR);
@@ -1923,8 +1923,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse IOVM create bus message */
-	if (localCrashCreateBusMsg.cmd.create_bus.channel_addr != 0) {
-		bus_create(&localCrashCreateBusMsg);
+	if (local_crash_bus_msg.cmd.create_bus.channel_addr != 0) {
+		bus_create(&local_crash_bus_msg);
 	} else {
 		POSTCODE_LINUX_2(CRASH_DEV_BUS_NULL_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
@@ -1932,8 +1932,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse create device message for storage device */
-	if (localCrashCreateDevMsg.cmd.create_device.channel_addr != 0) {
-		my_device_create(&localCrashCreateDevMsg);
+	if (local_crash_dev_msg.cmd.create_device.channel_addr != 0) {
+		my_device_create(&local_crash_dev_msg);
 	} else {
 		POSTCODE_LINUX_2(CRASH_DEV_DEV_NULL_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
@@ -1942,7 +1942,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	POSTCODE_LINUX_2(CRASH_DEV_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	return;
 
-Away:
+cleanup:
 
 	poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
 
