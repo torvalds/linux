@@ -1181,7 +1181,7 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 
 	if (rxb == NULL) {
 		printk(KERN_INFO "%s: rxb is NULL!!\n", __func__);
-		return ;
+		return;
 	}
 
 	for (i = 0; i < rxb->nr_subframes; i++) {

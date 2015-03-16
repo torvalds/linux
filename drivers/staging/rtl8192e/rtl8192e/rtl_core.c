@@ -2987,7 +2987,7 @@ err_pci_disable:
 static void rtl8192_pci_disconnect(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
-	struct r8192_priv *priv ;
+	struct r8192_priv *priv;
 	u32 i;
 
 	if (dev) {

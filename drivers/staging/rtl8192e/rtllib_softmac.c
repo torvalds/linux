@@ -1476,7 +1476,7 @@ static void rtllib_associate_step1(struct rtllib_device *ieee, u8 *daddr)
 	if (!skb)
 		rtllib_associate_abort(ieee);
 	else {
-		ieee->state = RTLLIB_ASSOCIATING_AUTHENTICATING ;
+		ieee->state = RTLLIB_ASSOCIATING_AUTHENTICATING;
 		RTLLIB_DEBUG_MGMT("Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
 		if (!timer_pending(&ieee->associate_timer)) {

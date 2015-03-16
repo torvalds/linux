@@ -50,7 +50,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 	do {
 		if ((buffer_len - frag_offset) > frag_threshold) {
-			frag_length = frag_threshold ;
+			frag_length = frag_threshold;
 			bLastIniPkt = 0;
 
 		} else {

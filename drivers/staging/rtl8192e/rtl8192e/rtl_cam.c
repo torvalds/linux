@@ -115,7 +115,7 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 			if (priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) {
 				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",
 					__func__);
-				return ;
+				return;
 			} else {
 				down(&priv->rtllib->ips_sem);
 				IPSLeave(dev);

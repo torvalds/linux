@@ -2255,7 +2255,7 @@ struct rtllib_device {
 	short raw_tx;
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
 	short queue_stop;
-	short scanning_continue ;
+	short scanning_continue;
 	short proto_started;
 	short proto_stoppping;
 
@@ -2883,7 +2883,7 @@ extern void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
 extern u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 			      u8 *pMCSFilter);
 extern u8 MCS_FILTER_ALL[];
-extern u16 MCS_DATA_RATE[2][2][77] ;
+extern u16 MCS_DATA_RATE[2][2][77];
 extern u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame);
 extern void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo);
 extern bool IsHTHalfNmodeAPs(struct rtllib_device *ieee);
