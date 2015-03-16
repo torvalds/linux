@@ -1649,7 +1649,6 @@ struct rtllib_network {
 	struct list_head list;
 };
 
-#if 1
 enum rtllib_state {
 
 	/* the card is not linked at all */
@@ -1687,17 +1686,6 @@ enum rtllib_state {
 	 */
 	RTLLIB_LINKED_SCANNING,
 };
-#else
-enum rtllib_state {
-	RTLLIB_UNINITIALIZED = 0,
-	RTLLIB_INITIALIZED,
-	RTLLIB_ASSOCIATING,
-	RTLLIB_ASSOCIATED,
-	RTLLIB_AUTHENTICATING,
-	RTLLIB_AUTHENTICATED,
-	RTLLIB_SHUTDOWN
-};
-#endif
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
