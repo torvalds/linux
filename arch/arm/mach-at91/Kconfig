@@ -24,7 +24,7 @@ config SOC_SAMA5
 	select GENERIC_CLOCKEVENTS
 	select MEMORY
 	select ATMEL_SDRAMC
-	select PHYLIB if NETDEVICES
+	select SRAM if PM
 
 menu "Atmel AT91 System-on-Chip"
 
@@ -81,6 +81,7 @@ config SOC_AT91RM9200
 	select CPU_ARM920T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_USB_CLK
+	select SRAM if PM
 
 config SOC_AT91SAM9
 	bool "AT91SAM9"
@@ -94,6 +95,7 @@ config SOC_AT91SAM9
 	select HAVE_AT91_UTMI
 	select HAVE_FB_ATMEL
 	select MEMORY
+	select SRAM if PM
 	help
 	  Select this if you are using one of those Atmel SoC:
 	    AT91SAM9260
@@ -115,20 +117,6 @@ config SOC_AT91SAM9
 endif # SOC_SAM_V4_V5
 
 comment "AT91 Feature Selections"
-
-config AT91_SLOW_CLOCK
-	bool "Suspend-to-RAM disables main oscillator"
-	select SRAM
-	depends on SUSPEND
-	help
-	  Select this if you want Suspend-to-RAM to save the most power
-	  possible (without powering off the CPU) by disabling the PLLs
-	  and main oscillator so that only the 32 KiHz clock is available.
-
-	  When only that slow-clock is available, some peripherals lose
-	  functionality.  Many can't issue wakeup events unless faster
-	  clocks are available.  Some lose their operating state and
-	  need to be completely re-initialized.
 
 config AT91_TIMER_HZ
        int "Kernel HZ (jiffies per second)"
