@@ -36,11 +36,12 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] = {
 
 /*------------------------Define global variable-----------------------------*/
 /* Debug variable ? */
-dig_t	dm_digtable;
+struct dig dm_digtable;
 /* Store current software write register content for MAC PHY. */
 u8		dm_shadow[16][256] = { {0} };
 /* For Dynamic Rx Path Selection by Signal Strength */
-DRxPathSel	DM_RxPathSelTable;
+struct DRxPathSel DM_RxPathSelTable;
+
 /*------------------------Define global variable-----------------------------*/
 
 

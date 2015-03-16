@@ -67,7 +67,7 @@
 
 /*------------------------------Define structure----------------------------*/
 /* 2007/10/04 MH Define upper and lower threshold of DIG enable or disable. */
-typedef struct _dynamic_initial_gain_threshold_ {
+struct dig {
 	u8		dig_enable_flag;
 	u8		dig_algorithm;
 	u8		dbg_mode;
@@ -98,7 +98,7 @@ typedef struct _dynamic_initial_gain_threshold_ {
 	bool		initialgain_lowerbound_state;
 
 	long		rssi_val;
-} dig_t;
+};
 
 typedef enum tag_dynamic_init_gain_state_definition {
 	DM_STA_DIG_OFF = 0,
@@ -163,7 +163,7 @@ typedef enum tag_dig_cck_cs_ratio_state_definition {
 	DIG_CS_RATIO_HIGHER = 1,
 	DIG_CS_MAX
 } dm_dig_cs_ratio_e;
-typedef struct _Dynamic_Rx_Path_Selection_ {
+struct DRxPathSel {
 	u8		Enable;
 	u8		DbgMode;
 	u8		cck_method;
@@ -177,7 +177,7 @@ typedef struct _Dynamic_Rx_Path_Selection_ {
 	u8		rf_rssi[4];
 	u8		rf_enable_rssi_th[4];
 	long		cck_pwdb_sta[4];
-} DRxPathSel;
+};
 
 typedef enum tag_CCK_Rx_Path_Method_Definition {
 	CCK_Rx_Version_1 = 0,
@@ -200,9 +200,9 @@ typedef struct tag_Tx_Config_Cmd_Format {
 
 
 /*------------------------Export global variable----------------------------*/
-extern dig_t dm_digtable;
+extern struct dig dm_digtable;
 extern u8 dm_shadow[16][256];
-extern DRxPathSel DM_RxPathSelTable;
+extern struct DRxPathSel DM_RxPathSelTable;
 /*------------------------Export global variable----------------------------*/
 
 
