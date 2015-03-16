@@ -719,7 +719,6 @@ struct ca0132_spec {
 	unsigned int num_inputs;
 	hda_nid_t shared_mic_nid;
 	hda_nid_t shared_out_nid;
-	struct hda_pcm pcm_rec[5]; /* PCM information */
 
 	/* chip access */
 	struct mutex chipio_mutex; /* chip access mutex */
@@ -4036,12 +4035,11 @@ static struct hda_pcm_stream ca0132_pcm_digital_capture = {
 static int ca0132_build_pcms(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
-	struct hda_pcm *info = spec->pcm_rec;
+	struct hda_pcm *info;
 
-	codec->pcm_info = info;
-	codec->num_pcms = 0;
-
-	info->name = "CA0132 Analog";
+	info = snd_hda_codec_pcm_new(codec, "CA0132 Analog");
+	if (!info)
+		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = ca0132_pcm_analog_playback;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dacs[0];
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
@@ -4049,27 +4047,27 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
-	codec->num_pcms++;
 
-	info++;
-	info->name = "CA0132 Analog Mic-In2";
+	info = snd_hda_codec_pcm_new(codec, "CA0132 Analog Mic-In2");
+	if (!info)
+		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[1];
-	codec->num_pcms++;
 
-	info++;
-	info->name = "CA0132 What U Hear";
+	info = snd_hda_codec_pcm_new(codec, "CA0132 What U Hear");
+	if (!info)
+		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0132_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[2];
-	codec->num_pcms++;
 
 	if (!spec->dig_out && !spec->dig_in)
 		return 0;
 
-	info++;
-	info->name = "CA0132 Digital";
+	info = snd_hda_codec_pcm_new(codec, "CA0132 Digital");
+	if (!info)
+		return -ENOMEM;
 	info->pcm_type = HDA_PCM_TYPE_SPDIF;
 	if (spec->dig_out) {
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
@@ -4081,7 +4079,6 @@ static int ca0132_build_pcms(struct hda_codec *codec)
 			ca0132_pcm_digital_capture;
 		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in;
 	}
-	codec->num_pcms++;
 
 	return 0;
 }
@@ -4352,7 +4349,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 	const struct dsp_image_seg *dsp_os_image;
 	const struct firmware *fw_entry;
 
-	if (request_firmware(&fw_entry, EFX_FILE, codec->bus->card->dev) != 0)
+	if (request_firmware(&fw_entry, EFX_FILE, codec->card->dev) != 0)
 		return false;
 
 	dsp_os_image = (struct dsp_image_seg *)(fw_entry->data);
@@ -4413,8 +4410,7 @@ static void hp_callback(struct hda_codec *codec, struct hda_jack_callback *cb)
 	 * state machine run.
 	 */
 	cancel_delayed_work_sync(&spec->unsol_hp_work);
-	queue_delayed_work(codec->bus->workq, &spec->unsol_hp_work,
-			   msecs_to_jiffies(500));
+	schedule_delayed_work(&spec->unsol_hp_work, msecs_to_jiffies(500));
 	cb->tbl->block_report = 1;
 }
 

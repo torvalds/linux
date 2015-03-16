@@ -160,7 +160,7 @@ static int snd_hda_do_attach(struct hda_beep *beep)
 	input_dev->name = "HDA Digital PCBeep";
 	input_dev->phys = beep->phys;
 	input_dev->id.bustype = BUS_PCI;
-	input_dev->dev.parent = &codec->bus->card->card_dev;
+	input_dev->dev.parent = &codec->card->card_dev;
 
 	input_dev->id.vendor = codec->vendor_id >> 16;
 	input_dev->id.product = codec->vendor_id & 0xffff;
@@ -224,7 +224,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	if (beep == NULL)
 		return -ENOMEM;
 	snprintf(beep->phys, sizeof(beep->phys),
-		"card%d/codec#%d/beep0", codec->bus->card->number, codec->addr);
+		"card%d/codec#%d/beep0", codec->card->number, codec->addr);
 	/* enable linear scale */
 	snd_hda_codec_write_cache(codec, nid, 0,
 		AC_VERB_SET_DIGI_CONVERT_2, 0x01);

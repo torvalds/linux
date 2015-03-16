@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/reboot.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include "hda_controller.h"
@@ -416,9 +415,11 @@ static int azx_pcm_close(struct snd_pcm_substream *substream)
 	azx_dev->running = 0;
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	azx_release_device(azx_dev);
-	hinfo->ops.close(hinfo, apcm->codec, substream);
+	if (hinfo->ops.close)
+		hinfo->ops.close(hinfo, apcm->codec, substream);
 	snd_hda_power_down(apcm->codec);
 	mutex_unlock(&chip->open_mutex);
+	snd_hda_codec_pcm_put(apcm->info);
 	return 0;
 }
 
@@ -805,11 +806,12 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	int err;
 	int buff_step;
 
+	snd_hda_codec_pcm_get(apcm->info);
 	mutex_lock(&chip->open_mutex);
 	azx_dev = azx_assign_device(chip, substream);
 	if (azx_dev == NULL) {
-		mutex_unlock(&chip->open_mutex);
-		return -EBUSY;
+		err = -EBUSY;
+		goto unlock;
 	}
 	runtime->hw = azx_pcm_hw;
 	runtime->hw.channels_min = hinfo->channels_min;
@@ -844,12 +846,13 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				   buff_step);
 	snd_hda_power_up(apcm->codec);
-	err = hinfo->ops.open(hinfo, apcm->codec, substream);
+	if (hinfo->ops.open)
+		err = hinfo->ops.open(hinfo, apcm->codec, substream);
+	else
+		err = -ENODEV;
 	if (err < 0) {
 		azx_release_device(azx_dev);
-		snd_hda_power_down(apcm->codec);
-		mutex_unlock(&chip->open_mutex);
-		return err;
+		goto powerdown;
 	}
 	snd_pcm_limit_hw_rates(runtime);
 	/* sanity check */
@@ -858,10 +861,10 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	    snd_BUG_ON(!runtime->hw.formats) ||
 	    snd_BUG_ON(!runtime->hw.rates)) {
 		azx_release_device(azx_dev);
-		hinfo->ops.close(hinfo, apcm->codec, substream);
-		snd_hda_power_down(apcm->codec);
-		mutex_unlock(&chip->open_mutex);
-		return -EINVAL;
+		if (hinfo->ops.close)
+			hinfo->ops.close(hinfo, apcm->codec, substream);
+		err = -EINVAL;
+		goto powerdown;
 	}
 
 	/* disable LINK_ATIME timestamps for capture streams
@@ -880,6 +883,13 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_pcm_set_sync(substream);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
+
+ powerdown:
+	snd_hda_power_down(apcm->codec);
+ unlock:
+	mutex_unlock(&chip->open_mutex);
+	snd_hda_codec_pcm_put(apcm->info);
+	return err;
 }
 
 static int azx_pcm_mmap(struct snd_pcm_substream *substream,
@@ -974,14 +984,9 @@ static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
  */
 static int azx_alloc_cmd_io(struct azx *chip)
 {
-	int err;
-
 	/* single page (at least 4096 bytes) must suffice for both ringbuffes */
-	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
-					 PAGE_SIZE, &chip->rb);
-	if (err < 0)
-		dev_err(chip->card->dev, "cannot allocate CORB/RIRB\n");
-	return err;
+	return chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
+					  PAGE_SIZE, &chip->rb);
 }
 
 static void azx_init_cmd_io(struct azx *chip)
@@ -1467,7 +1472,6 @@ static void azx_load_dsp_cleanup(struct hda_bus *bus,
 int azx_alloc_stream_pages(struct azx *chip)
 {
 	int i, err;
-	struct snd_card *card = chip->card;
 
 	for (i = 0; i < chip->num_streams; i++) {
 		dsp_lock_init(&chip->azx_dev[i]);
@@ -1475,18 +1479,14 @@ int azx_alloc_stream_pages(struct azx *chip)
 		err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
 						 BDL_SIZE,
 						 &chip->azx_dev[i].bdl);
-		if (err < 0) {
-			dev_err(card->dev, "cannot allocate BDL\n");
+		if (err < 0)
 			return -ENOMEM;
-		}
 	}
 	/* allocate memory for the position buffer */
 	err = chip->ops->dma_alloc_pages(chip, SNDRV_DMA_TYPE_DEV,
 					 chip->num_streams * 8, &chip->posbuf);
-	if (err < 0) {
-		dev_err(card->dev, "cannot allocate posbuf\n");
+	if (err < 0)
 		return -ENOMEM;
-	}
 
 	/* allocate CORB/RIRB */
 	err = azx_alloc_cmd_io(chip);
@@ -1893,7 +1893,7 @@ int azx_probe_codecs(struct azx *chip, unsigned int max_slots)
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
-			err = snd_hda_codec_new(bus, c, &codec);
+			err = snd_hda_codec_new(bus, bus->card, c, &codec);
 			if (err < 0)
 				continue;
 			codec->jackpoll_interval = get_jackpoll_interval(chip);
@@ -1965,31 +1965,6 @@ int azx_init_stream(struct azx *chip)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(azx_init_stream);
-
-/*
- * reboot notifier for hang-up problem at power-down
- */
-static int azx_halt(struct notifier_block *nb, unsigned long event, void *buf)
-{
-	struct azx *chip = container_of(nb, struct azx, reboot_notifier);
-	snd_hda_bus_reboot_notify(chip->bus);
-	azx_stop_chip(chip);
-	return NOTIFY_OK;
-}
-
-void azx_notifier_register(struct azx *chip)
-{
-	chip->reboot_notifier.notifier_call = azx_halt;
-	register_reboot_notifier(&chip->reboot_notifier);
-}
-EXPORT_SYMBOL_GPL(azx_notifier_register);
-
-void azx_notifier_unregister(struct azx *chip)
-{
-	if (chip->reboot_notifier.notifier_call)
-		unregister_reboot_notifier(&chip->reboot_notifier);
-}
-EXPORT_SYMBOL_GPL(azx_notifier_unregister);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Common HDA driver functions");

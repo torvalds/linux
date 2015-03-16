@@ -21,6 +21,7 @@
 #ifndef __SOUND_HDA_CODEC_H
 #define __SOUND_HDA_CODEC_H
 
+#include <linux/kref.h>
 #include <sound/info.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -131,8 +132,6 @@ struct hda_bus {
 
 	/* unsolicited event queue */
 	struct hda_bus_unsolicited unsol;
-	char workq_name[16];
-	struct workqueue_struct *workq;	/* common workqueue for codecs */
 
 	/* assigned PCMs */
 	DECLARE_BITMAP(pcm_dev_bits, SNDRV_PCM_DEVICES);
@@ -268,12 +267,17 @@ struct hda_pcm {
 	int device;		/* device number to assign */
 	struct snd_pcm *pcm;	/* assigned PCM instance */
 	bool own_chmap;		/* codec driver provides own channel maps */
+	/* private: */
+	struct hda_codec *codec;
+	struct kref kref;
+	struct list_head list;
 };
 
 /* codec information */
 struct hda_codec {
 	struct device dev;
 	struct hda_bus *bus;
+	struct snd_card *card;
 	unsigned int addr;	/* codec addr*/
 	struct list_head list;	/* list point */
 
@@ -300,8 +304,7 @@ struct hda_codec {
 	struct hda_codec_ops patch_ops;
 
 	/* PCM to create, set by patch_ops.build_pcms callback */
-	unsigned int num_pcms;
-	struct hda_pcm *pcm_info;
+	struct list_head pcm_list_head;
 
 	/* codec specific info */
 	void *spec;
@@ -345,6 +348,7 @@ struct hda_codec {
 #endif
 
 	/* misc flags */
+	unsigned int in_freeing:1; /* being released */
 	unsigned int spdif_status_reset :1; /* needs to toggle SPDIF for each
 					     * status change
 					     * (e.g. Realtek codecs)
@@ -420,8 +424,8 @@ enum {
  * constructors
  */
 int snd_hda_bus_new(struct snd_card *card, struct hda_bus **busp);
-int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
-		      struct hda_codec **codecp);
+int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
+		      unsigned int codec_addr, struct hda_codec **codecp);
 int snd_hda_codec_configure(struct hda_codec *codec);
 int snd_hda_codec_update_widgets(struct hda_codec *codec);
 
@@ -510,14 +514,23 @@ void snd_hda_spdif_ctls_assign(struct hda_codec *codec, int idx, hda_nid_t nid);
 /*
  * Mixer
  */
-int snd_hda_build_controls(struct hda_bus *bus);
 int snd_hda_codec_build_controls(struct hda_codec *codec);
 
 /*
  * PCM
  */
-int snd_hda_build_pcms(struct hda_bus *bus);
+int snd_hda_codec_parse_pcms(struct hda_codec *codec);
 int snd_hda_codec_build_pcms(struct hda_codec *codec);
+
+__printf(2, 3)
+struct hda_pcm *snd_hda_codec_pcm_new(struct hda_codec *codec,
+				      const char *fmt, ...);
+
+static inline void snd_hda_codec_pcm_get(struct hda_pcm *pcm)
+{
+	kref_get(&pcm->kref);
+}
+void snd_hda_codec_pcm_put(struct hda_pcm *pcm);
 
 int snd_hda_codec_prepare(struct hda_codec *codec,
 			  struct hda_pcm_stream *hinfo,
@@ -550,7 +563,6 @@ extern const struct snd_pcm_chmap_elem snd_pcm_2_1_chmaps[];
  * Misc
  */
 void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
-void snd_hda_bus_reboot_notify(struct hda_bus *bus);
 void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 				    unsigned int power_state);
 

@@ -5850,7 +5850,7 @@ static void alc_fixup_bass_chmap(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_BUILD) {
 		struct alc_spec *spec = codec->spec;
-		spec->gen.pcm_rec[0].stream[0].chmap = asus_pcm_2_1_chmaps;
+		spec->gen.pcm_rec[0]->stream[0].chmap = asus_pcm_2_1_chmaps;
 	}
 }
 

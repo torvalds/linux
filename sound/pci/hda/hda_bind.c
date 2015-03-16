@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/export.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -106,16 +107,28 @@ static int hda_codec_driver_probe(struct device *dev)
 	}
 
 	err = codec->preset->patch(codec);
-	if (err < 0) {
-		module_put(owner);
-		goto error;
+	if (err < 0)
+		goto error_module;
+
+	err = snd_hda_codec_build_pcms(codec);
+	if (err < 0)
+		goto error_module;
+	err = snd_hda_codec_build_controls(codec);
+	if (err < 0)
+		goto error_module;
+	if (codec->card->registered) {
+		err = snd_card_register(codec->card);
+		if (err < 0)
+			goto error_module;
 	}
 
 	return 0;
 
+ error_module:
+	module_put(owner);
+
  error:
-	codec->preset = NULL;
-	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
+	snd_hda_codec_cleanup_for_unbind(codec);
 	return err;
 }
 
@@ -125,10 +138,17 @@ static int hda_codec_driver_remove(struct device *dev)
 
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
-	codec->preset = NULL;
-	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
+	snd_hda_codec_cleanup_for_unbind(codec);
 	module_put(dev->driver->owner);
 	return 0;
+}
+
+static void hda_codec_driver_shutdown(struct device *dev)
+{
+	struct hda_codec *codec = dev_to_hda_codec(dev);
+
+	if (!pm_runtime_suspended(dev) && codec->patch_ops.reboot_notify)
+		codec->patch_ops.reboot_notify(codec);
 }
 
 int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
@@ -139,6 +159,7 @@ int __hda_codec_driver_register(struct hda_codec_driver *drv, const char *name,
 	drv->driver.bus = &snd_hda_bus_type;
 	drv->driver.probe = hda_codec_driver_probe;
 	drv->driver.remove = hda_codec_driver_remove;
+	drv->driver.shutdown = hda_codec_driver_shutdown;
 	drv->driver.pm = &hda_codec_driver_pm;
 	return driver_register(&drv->driver);
 }
@@ -287,9 +308,9 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	}
 
 	/* audio codec should override the mixer name */
-	if (codec->afg || !*codec->bus->card->mixername)
-		snprintf(codec->bus->card->mixername,
-			 sizeof(codec->bus->card->mixername),
+	if (codec->afg || !*codec->card->mixername)
+		snprintf(codec->card->mixername,
+			 sizeof(codec->card->mixername),
 			 "%s %s", codec->vendor_name, codec->chip_name);
 	return 0;
 

@@ -362,9 +362,6 @@ struct azx {
 	/* for debugging */
 	unsigned int last_cmd[AZX_MAX_CODECS];
 
-	/* reboot notifier (for mysterious hangup problem at power-down) */
-	struct notifier_block reboot_notifier;
-
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 	struct azx_dev saved_azx_dev;
 #endif
@@ -436,8 +433,5 @@ int azx_bus_create(struct azx *chip, const char *model);
 int azx_probe_codecs(struct azx *chip, unsigned int max_slots);
 int azx_codec_configure(struct azx *chip);
 int azx_init_stream(struct azx *chip);
-
-void azx_notifier_register(struct azx *chip);
-void azx_notifier_unregister(struct azx *chip);
 
 #endif /* __SOUND_HDA_CONTROLLER_H */

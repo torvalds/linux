@@ -4675,7 +4675,7 @@ int snd_hda_gen_build_controls(struct hda_codec *codec)
 		err = snd_hda_create_dig_out_ctls(codec,
 						  spec->multiout.dig_out_nid,
 						  spec->multiout.dig_out_nid,
-						  spec->pcm_rec[1].pcm_type);
+						  spec->pcm_rec[1]->pcm_type);
 		if (err < 0)
 			return err;
 		if (!spec->no_analog) {
@@ -5146,12 +5146,9 @@ static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
 int snd_hda_gen_build_pcms(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	struct hda_pcm *info = spec->pcm_rec;
+	struct hda_pcm *info;
 	const struct hda_pcm_stream *p;
 	bool have_multi_adcs;
-
-	codec->num_pcms = 1;
-	codec->pcm_info = info;
 
 	if (spec->no_analog)
 		goto skip_analog;
@@ -5159,7 +5156,10 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	fill_pcm_stream_name(spec->stream_name_analog,
 			     sizeof(spec->stream_name_analog),
 			     " Analog", codec->chip_name);
-	info->name = spec->stream_name_analog;
+	info = snd_hda_codec_pcm_new(codec, "%s", spec->stream_name_analog);
+	if (!info)
+		return -ENOMEM;
+	spec->pcm_rec[0] = info;
 
 	if (spec->multiout.num_dacs > 0) {
 		p = spec->stream_analog_playback;
@@ -5192,10 +5192,12 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 		fill_pcm_stream_name(spec->stream_name_digital,
 				     sizeof(spec->stream_name_digital),
 				     " Digital", codec->chip_name);
-		codec->num_pcms = 2;
+		info = snd_hda_codec_pcm_new(codec, "%s",
+					     spec->stream_name_digital);
+		if (!info)
+			return -ENOMEM;
 		codec->slave_dig_outs = spec->multiout.slave_dig_outs;
-		info = spec->pcm_rec + 1;
-		info->name = spec->stream_name_digital;
+		spec->pcm_rec[1] = info;
 		if (spec->dig_out_type)
 			info->pcm_type = spec->dig_out_type;
 		else
@@ -5229,9 +5231,11 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 		fill_pcm_stream_name(spec->stream_name_alt_analog,
 				     sizeof(spec->stream_name_alt_analog),
 			     " Alt Analog", codec->chip_name);
-		codec->num_pcms = 3;
-		info = spec->pcm_rec + 2;
-		info->name = spec->stream_name_alt_analog;
+		info = snd_hda_codec_pcm_new(codec, "%s",
+					     spec->stream_name_alt_analog);
+		if (!info)
+			return -ENOMEM;
+		spec->pcm_rec[2] = info;
 		if (spec->alt_dac_nid) {
 			p = spec->stream_analog_alt_playback;
 			if (!p)

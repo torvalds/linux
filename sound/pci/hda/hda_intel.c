@@ -528,10 +528,10 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 	if (ok == 1) {
 		azx_dev->irq_pending = 0;
 		return ok;
-	} else if (ok == 0 && chip->bus && chip->bus->workq) {
+	} else if (ok == 0) {
 		/* bogus IRQ, process it later */
 		azx_dev->irq_pending = 1;
-		queue_work(chip->bus->workq, &hda->irq_pending_work);
+		schedule_work(&hda->irq_pending_work);
 	}
 	return 0;
 }
@@ -893,8 +893,8 @@ static int azx_runtime_resume(struct device *dev)
 	if (status && bus) {
 		list_for_each_entry(codec, &bus->codec_list, list)
 			if (status & (1 << codec->addr))
-				queue_delayed_work(codec->bus->workq,
-						   &codec->jackpoll_work, codec->jackpoll_interval);
+				schedule_delayed_work(&codec->jackpoll_work,
+						      codec->jackpoll_interval);
 	}
 
 	/* disable controller Wake Up event*/
@@ -1065,8 +1065,6 @@ static int azx_free(struct azx *chip)
 		pm_runtime_get_noresume(&pci->dev);
 
 	azx_del_card_list(chip);
-
-	azx_notifier_unregister(chip);
 
 	hda->init_failed = 1; /* to be sure */
 	complete_all(&hda->probe_wait);
@@ -1383,7 +1381,6 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	hda = kzalloc(sizeof(*hda), GFP_KERNEL);
 	if (!hda) {
-		dev_err(card->dev, "Cannot allocate hda\n");
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
@@ -1564,10 +1561,8 @@ static int azx_first_init(struct azx *chip)
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
 	chip->azx_dev = kcalloc(chip->num_streams, sizeof(*chip->azx_dev),
 				GFP_KERNEL);
-	if (!chip->azx_dev) {
-		dev_err(card->dev, "cannot malloc azx_dev\n");
+	if (!chip->azx_dev)
 		return -ENOMEM;
-	}
 
 	err = azx_alloc_stream_pages(chip);
 	if (err < 0)
@@ -1898,22 +1893,11 @@ static int azx_probe_continue(struct azx *chip)
 			goto out_free;
 	}
 
-	/* create PCM streams */
-	err = snd_hda_build_pcms(chip->bus);
-	if (err < 0)
-		goto out_free;
-
-	/* create mixer controls */
-	err = snd_hda_build_controls(chip->bus);
-	if (err < 0)
-		goto out_free;
-
 	err = snd_card_register(chip->card);
 	if (err < 0)
 		goto out_free;
 
 	chip->running = 1;
-	azx_notifier_register(chip);
 	azx_add_card_list(chip);
 	snd_hda_set_power_save(chip->bus, power_save * 1000);
 	if (azx_has_pm_runtime(chip) || hda->use_vga_switcheroo)
@@ -1932,6 +1916,18 @@ static void azx_remove(struct pci_dev *pci)
 
 	if (card)
 		snd_card_free(card);
+}
+
+static void azx_shutdown(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct azx *chip;
+
+	if (!card)
+		return;
+	chip = card->private_data;
+	if (chip && chip->running)
+		azx_stop_chip(chip);
 }
 
 /* PCI IDs */
@@ -2156,6 +2152,7 @@ static struct pci_driver azx_driver = {
 	.id_table = azx_ids,
 	.probe = azx_probe,
 	.remove = azx_remove,
+	.shutdown = azx_shutdown,
 	.driver = {
 		.pm = AZX_PM_OPS,
 	},
