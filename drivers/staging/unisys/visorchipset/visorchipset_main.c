@@ -499,7 +499,7 @@ static ssize_t remaining_steps_store(struct device *dev,
 }
 
 static void
-busInfo_clear(void *v)
+bus_info_clear(void *v)
 {
 	struct visorchipset_bus_info *p = (struct visorchipset_bus_info *) (v);
 
@@ -518,7 +518,7 @@ busInfo_clear(void *v)
 }
 
 static void
-devInfo_clear(void *v)
+dev_info_clear(void *v)
 {
 	struct visorchipset_device_info *p =
 			(struct visorchipset_device_info *)(v);
@@ -603,13 +603,13 @@ cleanup_controlvm_structures(void)
 	struct visorchipset_device_info *di, *tmp_di;
 
 	list_for_each_entry_safe(bi, tmp_bi, &bus_info_list, entry) {
-		busInfo_clear(bi);
+		bus_info_clear(bi);
 		list_del(&bi->entry);
 		kfree(bi);
 	}
 
 	list_for_each_entry_safe(di, tmp_di, &dev_info_list, entry) {
-		devInfo_clear(di);
+		dev_info_clear(di);
 		list_del(&di->entry);
 		kfree(di);
 	}
@@ -800,7 +800,7 @@ bus_responder(enum controlvm_id cmdId, ulong busNo, int response)
 	controlvm_respond(&p->pending_msg_hdr, response);
 	p->pending_msg_hdr.id = CONTROLVM_INVALID;
 	if (need_clear) {
-		busInfo_clear(p);
+		bus_info_clear(p);
 		delbusdevices(&dev_info_list, busNo);
 	}
 }
@@ -860,7 +860,7 @@ device_responder(enum controlvm_id cmdId, ulong busNo, ulong devNo,
 	controlvm_respond(&p->pending_msg_hdr, response);
 	p->pending_msg_hdr.id = CONTROLVM_INVALID;
 	if (need_clear)
-		devInfo_clear(p);
+		dev_info_clear(p);
 }
 
 static void
