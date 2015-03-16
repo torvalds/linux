@@ -715,22 +715,22 @@ void
 visorchipset_save_message(struct controlvm_message *msg,
 			  enum crash_obj_type type)
 {
-	u32 localSavedCrashMsgOffset;
-	u16 localSavedCrashMsgCount;
+	u32 crash_msg_offset;
+	u16 crash_msg_count;
 
 	/* get saved message count */
 	if (visorchannel_read(controlvm_channel,
 			      offsetof(struct spar_controlvm_channel_protocol,
 				       saved_crash_message_count),
-			      &localSavedCrashMsgCount, sizeof(u16)) < 0) {
+			      &crash_msg_count, sizeof(u16)) < 0) {
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
 		return;
 	}
 
-	if (localSavedCrashMsgCount != CONTROLVM_CRASHMSG_MAX) {
+	if (crash_msg_count != CONTROLVM_CRASHMSG_MAX) {
 		POSTCODE_LINUX_3(CRASH_DEV_COUNT_FAILURE_PC,
-				 localSavedCrashMsgCount,
+				 crash_msg_count,
 				 POSTCODE_SEVERITY_ERR);
 		return;
 	}
@@ -739,7 +739,7 @@ visorchipset_save_message(struct controlvm_message *msg,
 	if (visorchannel_read(controlvm_channel,
 			      offsetof(struct spar_controlvm_channel_protocol,
 				       saved_crash_message_offset),
-			      &localSavedCrashMsgOffset, sizeof(u32)) < 0) {
+			      &crash_msg_offset, sizeof(u32)) < 0) {
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
 		return;
@@ -747,7 +747,7 @@ visorchipset_save_message(struct controlvm_message *msg,
 
 	if (type == CRASH_BUS) {
 		if (visorchannel_write(controlvm_channel,
-				       localSavedCrashMsgOffset,
+				       crash_msg_offset,
 				       msg,
 				       sizeof(struct controlvm_message)) < 0) {
 			POSTCODE_LINUX_2(SAVE_MSG_BUS_FAILURE_PC,
@@ -756,7 +756,7 @@ visorchipset_save_message(struct controlvm_message *msg,
 		}
 	} else {
 		if (visorchannel_write(controlvm_channel,
-				       localSavedCrashMsgOffset +
+				       crash_msg_offset +
 				       sizeof(struct controlvm_message), msg,
 				       sizeof(struct controlvm_message)) < 0) {
 			POSTCODE_LINUX_2(SAVE_MSG_DEV_FAILURE_PC,
