@@ -3885,7 +3885,7 @@ static int octeon_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id octeon_usb_match[] = {
+static const struct of_device_id octeon_usb_match[] = {
 	{
 		.compatible = "cavium,octeon-5750-usbc",
 	},
