@@ -58,7 +58,7 @@ static void hsu_dma_chan_start(struct hsu_dma_chan *hsuc)
 {
 	struct dma_slave_config *config = &hsuc->config;
 	struct hsu_dma_desc *desc = hsuc->desc;
-	u32 bsr, mtsr;
+	u32 bsr = 0, mtsr = 0;	/* to shut the compiler up */
 	u32 dcr = HSU_CH_DCR_CHSOE | HSU_CH_DCR_CHEI;
 	unsigned int i, count;
 
@@ -68,9 +68,6 @@ static void hsu_dma_chan_start(struct hsu_dma_chan *hsuc)
 	} else if (hsuc->direction == DMA_DEV_TO_MEM) {
 		bsr = config->src_maxburst;
 		mtsr = config->src_addr_width;
-	} else {
-		/* Not supported direction */
-		return;
 	}
 
 	hsu_chan_disable(hsuc);
@@ -243,7 +240,7 @@ static struct dma_async_tx_descriptor *hsu_dma_prep_slave_sg(
 
 	desc->nents = sg_len;
 	desc->direction = direction;
-	desc->active = 0;
+	/* desc->active = 0 by kzalloc */
 	desc->status = DMA_IN_PROGRESS;
 
 	return vchan_tx_prep(&hsuc->vchan, &desc->vdesc, flags);
@@ -396,11 +393,6 @@ static int hsu_dma_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
-static int hsu_dma_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void hsu_dma_free_chan_resources(struct dma_chan *chan)
 {
 	vchan_free_chan_resources(to_virt_chan(chan));
@@ -453,7 +445,6 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 	dma_cap_set(DMA_SLAVE, hsu->dma.cap_mask);
 	dma_cap_set(DMA_PRIVATE, hsu->dma.cap_mask);
 
-	hsu->dma.device_alloc_chan_resources = hsu_dma_alloc_chan_resources;
 	hsu->dma.device_free_chan_resources = hsu_dma_free_chan_resources;
 
 	hsu->dma.device_prep_slave_sg = hsu_dma_prep_slave_sg;
