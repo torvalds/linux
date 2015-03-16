@@ -735,3 +735,10 @@ struct mgmt_ev_ext_index {
 #define MGMT_EV_EXT_INDEX_ADDED		0x0020
 
 #define MGMT_EV_EXT_INDEX_REMOVED	0x0021
+
+#define MGMT_EV_LOCAL_OOB_DATA_UPDATED	0x0022
+struct mgmt_ev_local_oob_data_updated {
+	__u8    type;
+	__le16	eir_len;
+	__u8	eir[0];
+} __packed;

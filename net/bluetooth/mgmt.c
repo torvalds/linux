@@ -133,6 +133,7 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_NEW_CONFIG_OPTIONS,
 	MGMT_EV_EXT_INDEX_ADDED,
 	MGMT_EV_EXT_INDEX_REMOVED,
+	MGMT_EV_LOCAL_OOB_DATA_UPDATED,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -260,6 +261,13 @@ static int mgmt_index_event(u16 event, struct hci_dev *hdev, void *data,
 {
 	return mgmt_send_event(event, hdev, HCI_CHANNEL_CONTROL, data, len,
 			       flag, NULL);
+}
+
+static int mgmt_limited_event(u16 event, struct hci_dev *hdev, void *data,
+			      u16 len, int flag, struct sock *skip_sk)
+{
+	return mgmt_send_event(event, hdev, HCI_CHANNEL_CONTROL, data, len,
+			       flag, skip_sk);
 }
 
 static int mgmt_generic_event(u16 event, struct hci_dev *hdev, void *data,
@@ -6387,8 +6395,16 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 
 	hci_dev_unlock(hdev);
 
+	hci_sock_set_flag(sk, HCI_MGMT_OOB_DATA_EVENTS);
+
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
 				MGMT_STATUS_SUCCESS, rp, sizeof(*rp) + eir_len);
+	if (err < 0)
+		goto done;
+
+	err = mgmt_limited_event(MGMT_EV_LOCAL_OOB_DATA_UPDATED, hdev,
+				 rp, sizeof(*rp) + eir_len,
+				 HCI_MGMT_OOB_DATA_EVENTS, sk);
 
 done:
 	kfree(rp);
