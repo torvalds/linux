@@ -875,8 +875,9 @@ bus_epilog(u32 bus_no,
 	if (need_response) {
 		memcpy(&bus_info->pending_msg_hdr, msg_hdr,
 		       sizeof(struct controlvm_message_header));
-	} else
+	} else {
 		bus_info->pending_msg_hdr.id = CONTROLVM_INVALID;
+	}
 
 	down(&notifier_lock);
 	if (response == CONTROLVM_RESP_SUCCESS) {
@@ -951,8 +952,9 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 	if (need_response) {
 		memcpy(&dev_info->pending_msg_hdr, msg_hdr,
 		       sizeof(struct controlvm_message_header));
-	} else
+	} else {
 		dev_info->pending_msg_hdr.id = CONTROLVM_INVALID;
+	}
 
 	down(&notifier_lock);
 	if (response >= 0) {
@@ -1257,9 +1259,8 @@ my_device_destroy(struct controlvm_message *inmsg)
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 		goto Away;
 	}
-	if (pDevInfo->state.created == 0) {
+	if (pDevInfo->state.created == 0)
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
-	}
 
 Away:
 	if ((rc >= CONTROLVM_RESP_SUCCESS) && pDevInfo)
@@ -1813,8 +1814,9 @@ controlvm_periodic_work(struct work_struct *work)
 			inmsg = ControlVm_Pending_Msg;
 			ControlVm_Pending_Msg_Valid = FALSE;
 			gotACommand = TRUE;
-		} else
+		} else {
 			gotACommand = read_controlvm_event(&inmsg);
+		}
 	}
 
 	handle_command_failed = FALSE;
@@ -1936,18 +1938,18 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse IOVM create bus message */
-	if (localCrashCreateBusMsg.cmd.create_bus.channel_addr != 0)
+	if (localCrashCreateBusMsg.cmd.create_bus.channel_addr != 0) {
 		bus_create(&localCrashCreateBusMsg);
-	else {
+	} else {
 		POSTCODE_LINUX_2(CRASH_DEV_BUS_NULL_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
 		return;
 	}
 
 	/* reuse create device message for storage device */
-	if (localCrashCreateDevMsg.cmd.create_device.channel_addr != 0)
+	if (localCrashCreateDevMsg.cmd.create_device.channel_addr != 0) {
 		my_device_create(&localCrashCreateDevMsg);
-	else {
+	} else {
 		POSTCODE_LINUX_2(CRASH_DEV_DEV_NULL_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
 		return;
