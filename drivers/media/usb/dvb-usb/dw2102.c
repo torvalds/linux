@@ -112,11 +112,8 @@
 		"Please see linux/Documentation/dvb/ for more details " \
 		"on firmware-problems."
 
-struct su3000_state {
+struct dw2102_state {
 	u8 initialized;
-};
-
-struct s6x0_state {
 	int (*old_set_voltage)(struct dvb_frontend *f, fe_sec_voltage_t v);
 };
 
@@ -887,7 +884,7 @@ static int su3000_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 static int su3000_power_ctrl(struct dvb_usb_device *d, int i)
 {
-	struct su3000_state *state = (struct su3000_state *)d->priv;
+	struct dw2102_state *state = (struct dw2102_state *)d->priv;
 	u8 obuf[] = {0xde, 0};
 
 	info("%s: %d, initialized %d\n", __func__, i, state->initialized);
@@ -973,7 +970,7 @@ static int s660_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	struct dvb_usb_adapter *d =
 		(struct dvb_usb_adapter *)(fe->dvb->priv);
-	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
+	struct dw2102_state *st = (struct dw2102_state *)d->dev->priv;
 
 	dw210x_set_voltage(fe, voltage);
 	if (st->old_set_voltage)
@@ -1295,7 +1292,7 @@ static int stv0288_frontend_attach(struct dvb_usb_adapter *d)
 
 static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 {
-	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
+	struct dw2102_state *st = d->dev->priv;
 	u8 obuf[] = {7, 1};
 
 	d->fe_adap[0].fe = dvb_attach(ds3000_attach, &s660_ds3000_config,
@@ -1857,7 +1854,7 @@ static struct dvb_usb_device_properties dw3101_properties = {
 static struct dvb_usb_device_properties s6x0_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
-	.size_of_priv = sizeof(struct s6x0_state),
+	.size_of_priv = sizeof(struct dw2102_state),
 	.firmware = S630_FIRMWARE,
 	.no_reconnect = 1,
 
@@ -1950,7 +1947,7 @@ static struct dvb_usb_device_description d632 = {
 static struct dvb_usb_device_properties su3000_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
-	.size_of_priv = sizeof(struct su3000_state),
+	.size_of_priv = sizeof(struct dw2102_state),
 	.power_ctrl = su3000_power_ctrl,
 	.num_adapters = 1,
 	.identify_state	= su3000_identify_state,
@@ -2015,7 +2012,7 @@ static struct dvb_usb_device_properties su3000_properties = {
 static struct dvb_usb_device_properties t220_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
-	.size_of_priv = sizeof(struct su3000_state),
+	.size_of_priv = sizeof(struct dw2102_state),
 	.power_ctrl = su3000_power_ctrl,
 	.num_adapters = 1,
 	.identify_state	= su3000_identify_state,
