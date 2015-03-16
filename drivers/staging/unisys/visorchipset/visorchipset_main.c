@@ -1754,24 +1754,24 @@ static void
 controlvm_periodic_work(struct work_struct *work)
 {
 	struct controlvm_message inmsg;
-	BOOL gotACommand = FALSE;
+	BOOL got_command = FALSE;
 	BOOL handle_command_failed = FALSE;
-	static u64 Poll_Count;
+	static u64 poll_count;
 
 	/* make sure visorbus server is registered for controlvm callbacks */
 	if (visorchipset_serverregwait && !serverregistered)
-		goto Away;
+		goto cleanup;
 	/* make sure visorclientbus server is regsitered for controlvm
 	 * callbacks
 	 */
 	if (visorchipset_clientregwait && !clientregistered)
-		goto Away;
+		goto cleanup;
 
-	Poll_Count++;
-	if (Poll_Count >= 250)
+	poll_count++;
+	if (poll_count >= 250)
 		;	/* keep going */
 	else
-		goto Away;
+		goto cleanup;
 
 	/* Check events to determine if response to CHIPSET_READY
 	 * should be sent
@@ -1790,7 +1790,7 @@ controlvm_periodic_work(struct work_struct *work)
 					 CONTROLVM_QUEUE_RESPONSE,
 					 &inmsg))
 		;
-	if (!gotACommand) {
+	if (!got_command) {
 		if (ControlVm_Pending_Msg_Valid) {
 			/* we throttled processing of a prior
 			* msg, so try to process it again
@@ -1798,19 +1798,19 @@ controlvm_periodic_work(struct work_struct *work)
 			*/
 			inmsg = ControlVm_Pending_Msg;
 			ControlVm_Pending_Msg_Valid = FALSE;
-			gotACommand = TRUE;
+			got_command = true;
 		} else {
-			gotACommand = read_controlvm_event(&inmsg);
+			got_command = read_controlvm_event(&inmsg);
 		}
 	}
 
 	handle_command_failed = FALSE;
-	while (gotACommand && (!handle_command_failed)) {
+	while (got_command && (!handle_command_failed)) {
 		most_recent_message_jiffies = jiffies;
 		if (handle_command(inmsg,
 				   visorchannel_get_physaddr
 				   (controlvm_channel)))
-			gotACommand = read_controlvm_event(&inmsg);
+			got_command = read_controlvm_event(&inmsg);
 		else {
 			/* this is a scenario where throttling
 			* is required, but probably NOT an
@@ -1827,7 +1827,7 @@ controlvm_periodic_work(struct work_struct *work)
 	/* parahotplug_worker */
 	parahotplug_process_list();
 
-Away:
+cleanup:
 
 	if (time_after(jiffies,
 		       most_recent_message_jiffies + (HZ * MIN_IDLE_SECONDS))) {
