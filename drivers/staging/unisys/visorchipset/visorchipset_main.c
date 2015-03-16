@@ -1310,13 +1310,13 @@ static void
 initialize_controlvm_payload(void)
 {
 	HOSTADDRESS phys_addr = visorchannel_get_physaddr(controlvm_channel);
-	u64 payloadOffset = 0;
-	u32 payloadBytes = 0;
+	u64 payload_offset = 0;
+	u32 payload_bytes = 0;
 
 	if (visorchannel_read(controlvm_channel,
 			      offsetof(struct spar_controlvm_channel_protocol,
 				       request_payload_offset),
-			      &payloadOffset, sizeof(payloadOffset)) < 0) {
+			      &payload_offset, sizeof(payload_offset)) < 0) {
 		POSTCODE_LINUX_2(CONTROLVM_INIT_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
 		return;
@@ -1324,13 +1324,13 @@ initialize_controlvm_payload(void)
 	if (visorchannel_read(controlvm_channel,
 			      offsetof(struct spar_controlvm_channel_protocol,
 				       request_payload_bytes),
-			      &payloadBytes, sizeof(payloadBytes)) < 0) {
+			      &payload_bytes, sizeof(payload_bytes)) < 0) {
 		POSTCODE_LINUX_2(CONTROLVM_INIT_FAILURE_PC,
 				 POSTCODE_SEVERITY_ERR);
 		return;
 	}
 	initialize_controlvm_payload_info(phys_addr,
-					  payloadOffset, payloadBytes,
+					  payload_offset, payload_bytes,
 					  &controlvm_payload_info);
 }
 
