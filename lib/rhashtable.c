@@ -384,14 +384,16 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	struct rhash_head *head;
 	bool no_resize_running;
 	unsigned hash;
+	spinlock_t *old_lock;
 	bool success = true;
 
 	rcu_read_lock();
 
 	old_tbl = rht_dereference_rcu(ht->tbl, ht);
 	hash = head_hashfn(ht, old_tbl, obj);
+	old_lock = bucket_lock(old_tbl, hash);
 
-	spin_lock_bh(bucket_lock(old_tbl, hash));
+	spin_lock_bh(old_lock);
 
 	/* Because we have already taken the bucket lock in old_tbl,
 	 * if we find that future_tbl is not yet visible then that
@@ -428,13 +430,10 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 		schedule_work(&ht->run_work);
 
 exit:
-	if (tbl != old_tbl) {
-		hash = head_hashfn(ht, tbl, obj);
+	if (tbl != old_tbl)
 		spin_unlock(bucket_lock(tbl, hash));
-	}
 
-	hash = head_hashfn(ht, old_tbl, obj);
-	spin_unlock_bh(bucket_lock(old_tbl, hash));
+	spin_unlock_bh(old_lock);
 
 	rcu_read_unlock();
 
