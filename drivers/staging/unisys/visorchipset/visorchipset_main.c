@@ -98,15 +98,13 @@ static LIST_HEAD(dev_info_list);
 
 static struct visorchannel *controlvm_channel;
 
-struct controlvm_payload_info {
+/* Manages the request payload in the controlvm channel */
+static struct controlvm_payload_info {
 	u8 __iomem *ptr;	/* pointer to base address of payload pool */
 	u64 offset;		/* offset from beginning of controlvm
 				 * channel to beginning of payload * pool */
 	u32 bytes;		/* number of bytes in payload pool */
-};
-
-/* Manages the request payload in the controlvm channel */
-static struct controlvm_payload_info ControlVm_payload_info;
+} controlvm_payload_info;
 
 struct livedump_info {
 	struct controlvm_message_header Dumpcapture_header;
@@ -1383,7 +1381,7 @@ initialize_controlvm_payload(void)
 	}
 	initialize_controlvm_payload_info(phys_addr,
 					  payloadOffset, payloadBytes,
-					  &ControlVm_payload_info);
+					  &controlvm_payload_info);
 }
 
 /*  Send ACTION=online for DEVPATH=/sys/devices/platform/visorchipset.
@@ -2194,7 +2192,7 @@ visorchipset_init(void)
 
 	memset(&BusDev_Server_Notifiers, 0, sizeof(BusDev_Server_Notifiers));
 	memset(&BusDev_Client_Notifiers, 0, sizeof(BusDev_Client_Notifiers));
-	memset(&ControlVm_payload_info, 0, sizeof(ControlVm_payload_info));
+	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
 	memset(&LiveDump_info, 0, sizeof(LiveDump_info));
 	atomic_set(&LiveDump_info.buffers_in_use, 0);
 
@@ -2302,7 +2300,7 @@ visorchipset_exit(void)
 		flush_workqueue(periodic_controlvm_workqueue);
 		destroy_workqueue(periodic_controlvm_workqueue);
 		periodic_controlvm_workqueue = NULL;
-		destroy_controlvm_payload_info(&ControlVm_payload_info);
+		destroy_controlvm_payload_info(&controlvm_payload_info);
 	}
 	if (Putfile_buffer_list_pool) {
 		kmem_cache_destroy(Putfile_buffer_list_pool);
