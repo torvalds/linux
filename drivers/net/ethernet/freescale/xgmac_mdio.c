@@ -79,7 +79,7 @@ static int xgmac_wait_until_done(struct device *dev,
 
 	/* Wait till the MDIO write is complete */
 	timeout = TIMEOUT;
-	while ((ioread32be(&regs->mdio_data) & MDIO_DATA_BSY) && timeout) {
+	while ((ioread32be(&regs->mdio_stat) & MDIO_STAT_BSY) && timeout) {
 		cpu_relax();
 		timeout--;
 	}
