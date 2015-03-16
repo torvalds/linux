@@ -95,7 +95,8 @@ struct smp_chan {
 	u8		rrnd[16]; /* SMP Pairing Random (remote) */
 	u8		pcnf[16]; /* SMP Pairing Confirm */
 	u8		tk[16]; /* SMP Temporary Key */
-	u8		rr[16];
+	u8		rr[16]; /* Remote OOB ra/rb value */
+	u8		lr[16]; /* Local OOB ra/rb value */
 	u8		enc_key_size;
 	u8		remote_key_dist;
 	bdaddr_t	id_addr;
@@ -1830,7 +1831,7 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 
 		memcpy(smp->local_pk, smp_dev->local_pk, 64);
 		memcpy(smp->local_sk, smp_dev->local_sk, 32);
-		memcpy(smp->rr, smp_dev->local_rr, 16);
+		memcpy(smp->lr, smp_dev->local_rr, 16);
 
 		if (smp_dev->debug_key)
 			set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
@@ -2634,6 +2635,8 @@ static int smp_cmd_dhkey_check(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (smp->method == REQ_PASSKEY || smp->method == DSP_PASSKEY)
 		put_unaligned_le32(hcon->passkey_notify, r);
+	else if (smp->method == REQ_OOB)
+		memcpy(r, smp->lr, 16);
 
 	err = smp_f6(smp->tfm_cmac, smp->mackey, smp->rrnd, smp->prnd, r,
 		     io_cap, remote_addr, local_addr, e);
