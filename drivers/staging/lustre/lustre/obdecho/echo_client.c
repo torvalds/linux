@@ -1029,7 +1029,7 @@ static int cl_echo_object_put(struct echo_object *eco)
 
 static int cl_echo_enqueue0(struct lu_env *env, struct echo_object *eco,
 			    u64 start, u64 end, int mode,
-			    __u64 *cookie , __u32 enqflags)
+			    __u64 *cookie, __u32 enqflags)
 {
 	struct cl_io *io;
 	struct cl_lock *lck;
@@ -1274,11 +1274,11 @@ echo_copyout_lsm(struct lov_stripe_md *lsm, void *_ulsm, int ulsm_nob)
 	if (nob > ulsm_nob)
 		return -EINVAL;
 
-	if(copy_to_user (ulsm, lsm, sizeof(*ulsm)))
+	if (copy_to_user(ulsm, lsm, sizeof(*ulsm)))
 		return -EFAULT;
 
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
-		if(copy_to_user (ulsm->lsm_oinfo[i], lsm->lsm_oinfo[i],
+		if (copy_to_user(ulsm->lsm_oinfo[i], lsm->lsm_oinfo[i],
 				      sizeof(lsm->lsm_oinfo[0])))
 			return -EFAULT;
 	}
@@ -1292,10 +1292,10 @@ echo_copyin_lsm(struct echo_device *ed, struct lov_stripe_md *lsm,
 	struct echo_client_obd *ec = ed->ed_ec;
 	int		     i;
 
-	if(ulsm_nob < sizeof (*lsm))
+	if (ulsm_nob < sizeof(*lsm))
 		return -EINVAL;
 
-	if(copy_from_user (lsm, ulsm, sizeof (*lsm)))
+	if (copy_from_user(lsm, ulsm, sizeof(*lsm)))
 		return -EFAULT;
 
 	if (lsm->lsm_stripe_count > ec->ec_nstripes ||
@@ -1328,7 +1328,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	if ((oa->o_valid & OBD_MD_FLID) == 0 && /* no obj id */
 	    (on_target ||		       /* set_stripe */
 	     ec->ec_nstripes != 0)) {	   /* LOV */
-		CERROR ("No valid oid\n");
+		CERROR("No valid oid\n");
 		return -EINVAL;
 	}
 
@@ -1341,7 +1341,7 @@ static int echo_create_object(const struct lu_env *env, struct echo_device *ed,
 	if (ulsm != NULL) {
 		int i, idx;
 
-		rc = echo_copyin_lsm (ed, lsm, ulsm, ulsm_nob);
+		rc = echo_copyin_lsm(ed, lsm, ulsm, ulsm_nob);
 		if (rc != 0)
 			goto failed;
 
@@ -1417,7 +1417,7 @@ static int echo_get_object(struct echo_object **ecop, struct echo_device *ed,
 
 	if ((oa->o_valid & OBD_MD_FLID) == 0 || ostid_id(&oa->o_oi) == 0) {
 		/* disallow use of object id 0 */
-		CERROR ("No valid oid\n");
+		CERROR("No valid oid\n");
 		return -EINVAL;
 	}
 
@@ -1467,7 +1467,7 @@ echo_get_stripe_off_id(struct lov_stripe_md *lsm, u64 *offp, u64 *idp)
 	width = stripe_size * stripe_count;
 
 	/* woffset = offset within a width; offset = whole number of widths */
-	woffset = do_div (offset, width);
+	woffset = do_div(offset, width);
 
 	stripe_index = woffset / stripe_size;
 
@@ -1525,13 +1525,13 @@ static int echo_client_page_debug_check(struct lov_stripe_md *lsm,
 	for (rc = delta = 0; delta < PAGE_CACHE_SIZE; delta += OBD_ECHO_BLOCK_SIZE) {
 		stripe_off = offset + delta;
 		stripe_id = id;
-		echo_get_stripe_off_id (lsm, &stripe_off, &stripe_id);
+		echo_get_stripe_off_id(lsm, &stripe_off, &stripe_id);
 
 		rc2 = block_debug_check("test_brw",
 					addr + delta, OBD_ECHO_BLOCK_SIZE,
 					stripe_off, stripe_id);
 		if (rc2 != 0) {
-			CERROR ("Error in echo object %#llx\n", id);
+			CERROR("Error in echo object %#llx\n", id);
 			rc = rc2;
 		}
 	}
@@ -1591,7 +1591,7 @@ static int echo_client_kbrw(struct echo_device *ed, int rw, struct obdo *oa,
 	     i < npages;
 	     i++, pgp++, off += PAGE_CACHE_SIZE) {
 
-		LASSERT (pgp->pg == NULL);      /* for cleanup */
+		LASSERT(pgp->pg == NULL);      /* for cleanup */
 
 		rc = -ENOMEM;
 		OBD_PAGE_ALLOC(pgp->pg, gfp_mask);
@@ -1821,7 +1821,7 @@ echo_client_enqueue(struct obd_export *exp, struct obdo *oa,
 	    (nob & (~CFS_PAGE_MASK)) != 0)
 		return -EINVAL;
 
-	rc = echo_get_object (&eco, ed, oa);
+	rc = echo_get_object(&eco, ed, oa);
 	if (rc != 0)
 		return rc;
 
@@ -2003,7 +2003,7 @@ echo_client_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		goto out;
 
 	default:
-		CERROR ("echo_ioctl(): unrecognised ioctl %#x\n", cmd);
+		CERROR("echo_ioctl(): unrecognised ioctl %#x\n", cmd);
 		rc = -ENOTTY;
 		goto out;
 	}
@@ -2045,8 +2045,8 @@ static int echo_client_setup(const struct lu_env *env,
 	}
 
 	spin_lock_init(&ec->ec_lock);
-	INIT_LIST_HEAD (&ec->ec_objects);
-	INIT_LIST_HEAD (&ec->ec_locks);
+	INIT_LIST_HEAD(&ec->ec_objects);
+	INIT_LIST_HEAD(&ec->ec_locks);
 	ec->ec_unique = 0;
 	ec->ec_nstripes = 0;
 
