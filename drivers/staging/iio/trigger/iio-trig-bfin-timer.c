@@ -183,7 +183,7 @@ static int iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 	int ret;
 
 	st = devm_kzalloc(&pdev->dev, sizeof(*st), GFP_KERNEL);
-	if (st == NULL)
+	if (!st)
 		return -ENOMEM;
 
 	st->irq = platform_get_irq(pdev, 0);
