@@ -1735,6 +1735,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	memcpy(&smp->preq[1], req, sizeof(*req));
 	skb_pull(skb, sizeof(*req));
 
+	if (req->oob_flag == SMP_OOB_PRESENT)
+		set_bit(SMP_FLAG_LOCAL_OOB, &smp->flags);
+
 	/* SMP over BR/EDR requires special treatment */
 	if (conn->hcon->type == ACL_LINK) {
 		/* We must have a BR/EDR SC link */
@@ -1898,6 +1901,9 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	if (hci_dev_test_flag(hdev, HCI_SC_ONLY) && !(auth & SMP_AUTH_SC))
 		return SMP_AUTH_REQUIREMENTS;
+
+	if (rsp->oob_flag == SMP_OOB_PRESENT)
+		set_bit(SMP_FLAG_LOCAL_OOB, &smp->flags);
 
 	smp->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&smp->prsp[1], rsp, sizeof(*rsp));
