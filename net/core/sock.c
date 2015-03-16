@@ -1661,21 +1661,6 @@ void sock_efree(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_efree);
 
-#ifdef CONFIG_INET
-void sock_edemux(struct sk_buff *skb)
-{
-	struct sock *sk = skb->sk;
-
-	if (sk->sk_state == TCP_TIME_WAIT)
-		inet_twsk_put(inet_twsk(sk));
-	else if (sk->sk_state == TCP_NEW_SYN_RECV)
-		reqsk_put(inet_reqsk(sk));
-	else
-		sock_put(sk);
-}
-EXPORT_SYMBOL(sock_edemux);
-#endif
-
 kuid_t sock_i_uid(struct sock *sk)
 {
 	kuid_t uid;
