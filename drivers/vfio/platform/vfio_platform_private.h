@@ -30,6 +30,7 @@
 struct vfio_platform_irq {
 	u32			flags;
 	u32			count;
+	int			hwirq;
 };
 
 struct vfio_platform_region {
@@ -48,6 +49,7 @@ struct vfio_platform_device {
 	struct vfio_platform_irq	*irqs;
 	u32				num_irqs;
 	int				refcnt;
+	struct mutex			igate;
 
 	/*
 	 * These fields should be filled by the bus specific binder
@@ -68,5 +70,10 @@ extern struct vfio_platform_device *vfio_platform_remove_common
 
 extern int vfio_platform_irq_init(struct vfio_platform_device *vdev);
 extern void vfio_platform_irq_cleanup(struct vfio_platform_device *vdev);
+
+extern int vfio_platform_set_irqs_ioctl(struct vfio_platform_device *vdev,
+					uint32_t flags, unsigned index,
+					unsigned start, unsigned count,
+					void *data);
 
 #endif /* VFIO_PLATFORM_PRIVATE_H */
