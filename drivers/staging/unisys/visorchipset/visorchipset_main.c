@@ -75,8 +75,8 @@ static struct controlvm_message_header g_del_dump_msg_hdr;
 static const uuid_le spar_diag_pool_channel_protocol_uuid =
 	SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID;
 /* 0xffffff is an invalid Bus/Device number */
-static ulong g_diagpoolBusNo = 0xffffff;
-static ulong g_diagpoolDevNo = 0xffffff;
+static ulong g_diagpool_bus_no = 0xffffff;
+static ulong g_diagpool_dev_no = 0xffffff;
 static struct controlvm_message_packet g_DeviceChangeStatePacket;
 
 /* Only VNIC and VHBA channels are sent to visorclientbus (aka
@@ -707,9 +707,9 @@ controlvm_respond(struct controlvm_message_header *msgHdr, int response)
 	* back the deviceChangeState structure in the packet. */
 	if (msgHdr->id == CONTROLVM_DEVICE_CHANGESTATE
 	    && g_DeviceChangeStatePacket.device_change_state.bus_no ==
-	    g_diagpoolBusNo
+	    g_diagpool_bus_no
 	    && g_DeviceChangeStatePacket.device_change_state.dev_no ==
-	    g_diagpoolDevNo)
+	    g_diagpool_dev_no)
 		outmsg.cmd = g_DeviceChangeStatePacket;
 	if (outmsg.hdr.flags.test_message == 1)
 		return;
@@ -1030,8 +1030,8 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 				/* this is lite pause where channel is
 				 * still valid just 'pause' of it
 				 */
-				if (busNo == g_diagpoolBusNo
-				    && devNo == g_diagpoolDevNo) {
+				if (busNo == g_diagpool_bus_no
+				    && devNo == g_diagpool_dev_no) {
 					/* this will trigger the
 					 * diag_shutdown.sh script in
 					 * the visorchipset hotplug */
@@ -1241,8 +1241,8 @@ Away:
 	/* get the bus and devNo for DiagPool channel */
 	if (pDevInfo &&
 	    is_diagpool_channel(pDevInfo->chan_info.channel_type_uuid)) {
-		g_diagpoolBusNo = busNo;
-		g_diagpoolDevNo = devNo;
+		g_diagpool_bus_no = busNo;
+		g_diagpool_dev_no = devNo;
 	}
 	device_epilog(busNo, devNo, segment_state_running,
 		      CONTROLVM_DEVICE_CREATE, &inmsg->hdr, rc,
