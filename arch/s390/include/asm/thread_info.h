@@ -61,6 +61,8 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *) S390_lowcore.thread_info;
 }
 
+void arch_release_task_struct(struct task_struct *tsk);
+
 #define THREAD_SIZE_ORDER THREAD_ORDER
 
 #endif
