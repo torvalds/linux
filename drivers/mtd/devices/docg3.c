@@ -2117,7 +2117,7 @@ static int docg3_release(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id docg3_dt_ids[] = {
+static const struct of_device_id docg3_dt_ids[] = {
 	{ .compatible = "m-systems,diskonchip-g3" },
 	{}
 };
