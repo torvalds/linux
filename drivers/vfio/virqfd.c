@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 
 static struct workqueue_struct *vfio_irqfd_cleanup_wq;
-DEFINE_SPINLOCK(virqfd_lock);
+static DEFINE_SPINLOCK(virqfd_lock);
 
 int __init vfio_virqfd_init(void)
 {
