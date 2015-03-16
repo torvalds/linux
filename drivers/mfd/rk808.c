@@ -246,7 +246,7 @@ static int rk808_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct of_device_id rk808_of_match[] = {
+static const struct of_device_id rk808_of_match[] = {
 	{ .compatible = "rockchip,rk808" },
 	{ },
 };
