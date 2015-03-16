@@ -32,7 +32,7 @@
 #include <asm/pgalloc.h>
 
 unsigned long mmap_rnd_mask;
-unsigned long mmap_align_mask;
+static unsigned long mmap_align_mask;
 
 static unsigned long stack_maxrandom_size(void)
 {
