@@ -1735,6 +1735,10 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	memcpy(&smp->preq[1], req, sizeof(*req));
 	skb_pull(skb, sizeof(*req));
 
+	/* If the remote side's OOB flag is set it means it has
+	 * successfully received our local OOB data - therefore set the
+	 * flag to indicate that local OOB is in use.
+	 */
 	if (req->oob_flag == SMP_OOB_PRESENT)
 		set_bit(SMP_FLAG_LOCAL_OOB, &smp->flags);
 
@@ -1902,6 +1906,10 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (hci_dev_test_flag(hdev, HCI_SC_ONLY) && !(auth & SMP_AUTH_SC))
 		return SMP_AUTH_REQUIREMENTS;
 
+	/* If the remote side's OOB flag is set it means it has
+	 * successfully received our local OOB data - therefore set the
+	 * flag to indicate that local OOB is in use.
+	 */
 	if (rsp->oob_flag == SMP_OOB_PRESENT)
 		set_bit(SMP_FLAG_LOCAL_OOB, &smp->flags);
 
