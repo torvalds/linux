@@ -2844,7 +2844,7 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 			/*
 			 * If the tracing is enabled, go ahead and enable the record.
 			 *
-			 * The reason not to enable the record immediatelly is the
+			 * The reason not to enable the record imediatelly is the
 			 * inherent check of ftrace_make_nop/ftrace_make_call for
 			 * correct previous instructions.  Making first the NOP
 			 * conversion puts the module to the correct state, thus
