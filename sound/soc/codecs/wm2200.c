@@ -1554,7 +1554,6 @@ static int wm2200_probe(struct snd_soc_codec *codec)
 	int ret;
 
 	wm2200->codec = codec;
-	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 
 	ret = snd_soc_add_codec_controls(codec, wm_adsp1_fw_controls, 2);
 	if (ret != 0)
