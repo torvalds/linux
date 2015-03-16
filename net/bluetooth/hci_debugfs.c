@@ -166,7 +166,7 @@ static int remote_oob_show(struct seq_file *f, void *ptr)
 		seq_printf(f, "%pMR (type %u) %u %*phN %*phN %*phN %*phN\n",
 			   &data->bdaddr, data->bdaddr_type, data->present,
 			   16, data->hash192, 16, data->rand192,
-			   16, data->hash256, 19, data->rand256);
+			   16, data->hash256, 16, data->rand256);
 	}
 	hci_dev_unlock(hdev);
 
