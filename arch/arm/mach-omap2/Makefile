@@ -256,8 +256,6 @@ obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51-video.o
 obj-$(CONFIG_MACH_CM_T35)		+= board-cm-t35.o
 obj-$(CONFIG_MACH_TOUCHBOOK)		+= board-omap3touchbook.o
 
-obj-$(CONFIG_MACH_SBC3530)		+= board-omap3stalker.o
-
 # Platform specific device init code
 
 omap-flash-$(CONFIG_MTD_NAND_OMAP2)	:= board-flash.o

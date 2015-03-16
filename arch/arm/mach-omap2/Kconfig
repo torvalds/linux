@@ -260,12 +260,6 @@ config MACH_CM_T35
 config MACH_CM_T3730
        bool
 
-config MACH_SBC3530
-	bool "OMAP3 SBC STALKER board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CUS
-
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"
 	depends on ARCH_OMAP3
