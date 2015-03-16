@@ -165,7 +165,6 @@ static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t 
 		ret = nfs42_proc_allocate(filep, offset, len);
 	mutex_unlock(&inode->i_mutex);
 
-	nfs_zap_caches(inode);
 	return ret;
 }
 #endif /* CONFIG_NFS_V4_2 */
