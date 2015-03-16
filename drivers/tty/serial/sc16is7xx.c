@@ -1120,6 +1120,9 @@ static int sc16is7xx_probe(struct device *dev,
 	if (!ret)
 		return 0;
 
+	for (i = 0; i < s->uart.nr; i++)
+		uart_remove_one_port(&s->uart, &s->p[i].port);
+
 	mutex_destroy(&s->mutex);
 
 #ifdef CONFIG_GPIOLIB
