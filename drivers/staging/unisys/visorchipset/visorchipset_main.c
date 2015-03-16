@@ -219,8 +219,8 @@ static void parahotplug_process_list(void);
 /* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
  * CONTROLVM_REPORTEVENT.
  */
-static struct visorchipset_busdev_notifiers BusDev_Server_Notifiers;
-static struct visorchipset_busdev_notifiers BusDev_Client_Notifiers;
+static struct visorchipset_busdev_notifiers busdev_server_notifiers;
+static struct visorchipset_busdev_notifiers busdev_client_notifiers;
 
 static void bus_create_response(ulong busNo, int response);
 static void bus_destroy_response(ulong busNo, int response);
@@ -551,11 +551,11 @@ visorchipset_register_busdev_server(
 {
 	down(&notifier_lock);
 	if (!notifiers) {
-		memset(&BusDev_Server_Notifiers, 0,
-		       sizeof(BusDev_Server_Notifiers));
+		memset(&busdev_server_notifiers, 0,
+		       sizeof(busdev_server_notifiers));
 		serverregistered = 0;	/* clear flag */
 	} else {
-		BusDev_Server_Notifiers = *notifiers;
+		busdev_server_notifiers = *notifiers;
 		serverregistered = 1;	/* set flag */
 	}
 	if (responders)
@@ -576,11 +576,11 @@ visorchipset_register_busdev_client(
 {
 	down(&notifier_lock);
 	if (!notifiers) {
-		memset(&BusDev_Client_Notifiers, 0,
-		       sizeof(BusDev_Client_Notifiers));
+		memset(&busdev_client_notifiers, 0,
+		       sizeof(busdev_client_notifiers));
 		clientregistered = 0;	/* clear flag */
 	} else {
-		BusDev_Client_Notifiers = *notifiers;
+		busdev_client_notifiers = *notifiers;
 		clientregistered = 1;	/* set flag */
 	}
 	if (responders)
@@ -893,24 +893,24 @@ bus_epilog(u32 bus_no,
 			* either server or client devices
 			* - BusDev_Client can handle ONLY client
 			* devices */
-			if (BusDev_Server_Notifiers.bus_create) {
-				(*BusDev_Server_Notifiers.bus_create) (bus_no);
+			if (busdev_server_notifiers.bus_create) {
+				(*busdev_server_notifiers.bus_create) (bus_no);
 				notified = TRUE;
 			}
 			if ((!bus_info->flags.server) /*client */ &&
-			    BusDev_Client_Notifiers.bus_create) {
-				(*BusDev_Client_Notifiers.bus_create) (bus_no);
+			    busdev_client_notifiers.bus_create) {
+				(*busdev_client_notifiers.bus_create) (bus_no);
 				notified = TRUE;
 			}
 			break;
 		case CONTROLVM_BUS_DESTROY:
-			if (BusDev_Server_Notifiers.bus_destroy) {
-				(*BusDev_Server_Notifiers.bus_destroy) (bus_no);
+			if (busdev_server_notifiers.bus_destroy) {
+				(*busdev_server_notifiers.bus_destroy) (bus_no);
 				notified = TRUE;
 			}
 			if ((!bus_info->flags.server) /*client */ &&
-			    BusDev_Client_Notifiers.bus_destroy) {
-				(*BusDev_Client_Notifiers.bus_destroy) (bus_no);
+			    busdev_client_notifiers.bus_destroy) {
+				(*busdev_client_notifiers.bus_destroy) (bus_no);
 				notified = TRUE;
 			}
 			break;
@@ -946,9 +946,9 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 		return;
 
 	if (for_visorbus)
-		notifiers = &BusDev_Server_Notifiers;
+		notifiers = &busdev_server_notifiers;
 	else
-		notifiers = &BusDev_Client_Notifiers;
+		notifiers = &busdev_client_notifiers;
 	if (need_response) {
 		memcpy(&dev_info->pending_msg_hdr, msg_hdr,
 		       sizeof(struct controlvm_message_header));
@@ -2141,8 +2141,8 @@ visorchipset_init(void)
 	if (!unisys_spar_platform)
 		return -ENODEV;
 
-	memset(&BusDev_Server_Notifiers, 0, sizeof(BusDev_Server_Notifiers));
-	memset(&BusDev_Client_Notifiers, 0, sizeof(BusDev_Client_Notifiers));
+	memset(&busdev_server_notifiers, 0, sizeof(busdev_server_notifiers));
+	memset(&busdev_client_notifiers, 0, sizeof(busdev_client_notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
 	memset(&livedump_info, 0, sizeof(livedump_info));
 	atomic_set(&livedump_info.buffers_in_use, 0);
