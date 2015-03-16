@@ -69,9 +69,9 @@ static struct delayed_work periodic_controlvm_work;
 static struct workqueue_struct *periodic_controlvm_workqueue;
 static DEFINE_SEMAPHORE(NotifierLock);
 
-static struct controlvm_message_header g_DiagMsgHdr;
-static struct controlvm_message_header g_ChipSetMsgHdr;
-static struct controlvm_message_header g_DelDumpMsgHdr;
+static struct controlvm_message_header g_diag_msg_hdr;
+static struct controlvm_message_header g_chipset_msg_hdr;
+static struct controlvm_message_header g_del_dump_msg_hdr;
 static const uuid_le UltraDiagPoolChannelProtocolGuid =
 	SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID;
 /* 0xffffff is an invalid Bus/Device number */
@@ -1435,7 +1435,7 @@ chipset_ready(struct controlvm_message_header *msgHdr)
 		/* Send CHIPSET_READY response when all modules have been loaded
 		 * and disks mounted for the partition
 		 */
-		g_ChipSetMsgHdr = *msgHdr;
+		g_chipset_msg_hdr = *msgHdr;
 	}
 }
 
@@ -1754,7 +1754,7 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 			/* save the hdr and cmd structures for later use */
 			/* when sending back the response to Command */
 			my_device_changestate(&inmsg);
-			g_DiagMsgHdr = inmsg.hdr;
+			g_diag_msg_hdr = inmsg.hdr;
 			g_DeviceChangeStatePacket = inmsg.cmd;
 			break;
 		}
@@ -1828,11 +1828,11 @@ controlvm_periodic_work(struct work_struct *work)
 	 * should be sent
 	 */
 	if (visorchipset_holdchipsetready
-	    && (g_ChipSetMsgHdr.id != CONTROLVM_INVALID)) {
+	    && (g_chipset_msg_hdr.id != CONTROLVM_INVALID)) {
 		if (check_chipset_events() == 1) {
-			controlvm_respond(&g_ChipSetMsgHdr, 0);
+			controlvm_respond(&g_chipset_msg_hdr, 0);
 			clear_chipset_events();
-			memset(&g_ChipSetMsgHdr, 0,
+			memset(&g_chipset_msg_hdr, 0,
 			       sizeof(struct controlvm_message_header));
 		}
 	}
@@ -2231,11 +2231,11 @@ visorchipset_init(void)
 		goto Away;
 	}
 
-	memset(&g_DiagMsgHdr, 0, sizeof(struct controlvm_message_header));
+	memset(&g_diag_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
-	memset(&g_ChipSetMsgHdr, 0, sizeof(struct controlvm_message_header));
+	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
-	memset(&g_DelDumpMsgHdr, 0, sizeof(struct controlvm_message_header));
+	memset(&g_del_dump_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
 	Putfile_buffer_list_pool =
 	    kmem_cache_create(Putfile_buffer_list_pool_name,
@@ -2313,11 +2313,11 @@ visorchipset_exit(void)
 
 	cleanup_controlvm_structures();
 
-	memset(&g_DiagMsgHdr, 0, sizeof(struct controlvm_message_header));
+	memset(&g_diag_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
-	memset(&g_ChipSetMsgHdr, 0, sizeof(struct controlvm_message_header));
+	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
-	memset(&g_DelDumpMsgHdr, 0, sizeof(struct controlvm_message_header));
+	memset(&g_del_dump_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
 	visorchannel_destroy(ControlVm_channel);
 
