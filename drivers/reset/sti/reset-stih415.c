@@ -89,7 +89,7 @@ static struct syscfg_reset_controller_data stih415_softreset_controller = {
 	.channels = stih415_softresets,
 };
 
-static struct of_device_id stih415_reset_match[] = {
+static const struct of_device_id stih415_reset_match[] = {
 	{ .compatible = "st,stih415-powerdown",
 	  .data = &stih415_powerdown_controller, },
 	{ .compatible = "st,stih415-softreset",
