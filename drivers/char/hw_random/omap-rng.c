@@ -236,7 +236,7 @@ static int omap4_rng_init(struct omap_rng_dev *priv)
 	u32 val;
 
 	/* Return if RNG is already running. */
-	if (omap_rng_read(priv, RNG_CONFIG_REG) & RNG_CONTROL_ENABLE_TRNG_MASK)
+	if (omap_rng_read(priv, RNG_CONTROL_REG) & RNG_CONTROL_ENABLE_TRNG_MASK)
 		return 0;
 
 	val = RNG_CONFIG_MIN_REFIL_CYCLES << RNG_CONFIG_MIN_REFIL_CYCLES_SHIFT;
