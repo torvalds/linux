@@ -498,35 +498,6 @@ static ssize_t remaining_steps_store(struct device *dev,
 	return count;
 }
 
-#if 0
-static void
-testUnicode(void)
-{
-	wchar_t unicodeString[] = { 'a', 'b', 'c', 0 };
-	char s[sizeof(unicodeString) * NLS_MAX_CHARSET_SIZE];
-	wchar_t unicode2[99];
-
-	/* NOTE: Either due to a bug, or feature I don't understand, the
-	 *       kernel utf8_mbstowcs() and utf_wcstombs() do NOT copy the
-	 *       trailed NUL byte!!   REALLY!!!!!    Arrrrgggghhhhh
-	 */
-
-	LOGINF("sizeof(wchar_t) = %d", sizeof(wchar_t));
-	LOGINF("utf8_wcstombs=%d",
-	       chrs = utf8_wcstombs(s, unicodeString, sizeof(s)));
-	if (chrs >= 0)
-		s[chrs] = '\0';	/* GRRRRRRRR */
-	LOGINF("s='%s'", s);
-	LOGINF("utf8_mbstowcs=%d", chrs = utf8_mbstowcs(unicode2, s, 100));
-	if (chrs >= 0)
-		unicode2[chrs] = 0;	/* GRRRRRRRR */
-	if (memcmp(unicodeString, unicode2, sizeof(unicodeString)) == 0)
-		LOGINF("strings match... good");
-	else
-		LOGINF("strings did not match!!");
-}
-#endif
-
 static void
 busInfo_clear(void *v)
 {
