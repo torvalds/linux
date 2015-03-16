@@ -255,6 +255,11 @@ static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops
 		ireq->opt = NULL;
 		atomic64_set(&ireq->ir_cookie, 0);
 		ireq->ireq_state = TCP_NEW_SYN_RECV;
+
+		/* Following is temporary. It is coupled with debugging
+		 * helpers in reqsk_put() & reqsk_free()
+		 */
+		atomic_set(&ireq->ireq_refcnt, 0);
 	}
 
 	return req;

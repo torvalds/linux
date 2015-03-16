@@ -103,7 +103,7 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 			while ((req = lopt->syn_table[i]) != NULL) {
 				lopt->syn_table[i] = req->dl_next;
 				lopt->qlen--;
-				reqsk_free(req);
+				reqsk_put(req);
 			}
 		}
 	}
@@ -180,7 +180,7 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 		 */
 		spin_unlock_bh(&fastopenq->lock);
 		sock_put(lsk);
-		reqsk_free(req);
+		reqsk_put(req);
 		return;
 	}
 	/* Wait for 60secs before removing a req that has triggered RST.

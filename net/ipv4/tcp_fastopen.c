@@ -253,7 +253,7 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 		fastopenq->rskq_rst_head = req1->dl_next;
 		fastopenq->qlen--;
 		spin_unlock(&fastopenq->lock);
-		reqsk_free(req1);
+		reqsk_put(req1);
 	}
 	return true;
 }
