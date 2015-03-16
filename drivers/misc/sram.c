@@ -205,7 +205,7 @@ static int sram_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id sram_dt_ids[] = {
+static const struct of_device_id sram_dt_ids[] = {
 	{ .compatible = "mmio-sram" },
 	{}
 };

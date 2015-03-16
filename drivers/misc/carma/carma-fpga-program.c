@@ -1142,7 +1142,7 @@ out_return:
 	return ret;
 }
 
-static struct of_device_id fpga_of_match[] = {
+static const struct of_device_id fpga_of_match[] = {
 	{ .compatible = "carma,fpga-programmer", },
 	{},
 };
