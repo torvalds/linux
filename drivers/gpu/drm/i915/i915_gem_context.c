@@ -609,7 +609,8 @@ needs_pd_load_pre(struct intel_engine_cs *ring, struct intel_context *to)
 }
 
 static bool
-needs_pd_load_post(struct intel_engine_cs *ring, struct intel_context *to)
+needs_pd_load_post(struct intel_engine_cs *ring, struct intel_context *to,
+		u32 hw_flags)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
@@ -622,7 +623,7 @@ needs_pd_load_post(struct intel_engine_cs *ring, struct intel_context *to)
 	if (ring != &dev_priv->ring[RCS])
 		return false;
 
-	if (to->ppgtt->pd_dirty_rings)
+	if (hw_flags & MI_RESTORE_INHIBIT)
 		return true;
 
 	return false;
@@ -660,9 +661,6 @@ static int do_switch(struct intel_engine_cs *ring,
 	 * switches to the default context. Hence we need to reload from here.
 	 */
 	from = ring->last_context;
-
-	/* We should never emit switch_mm more than once */
-	WARN_ON(needs_pd_load_pre(ring, to) && needs_pd_load_post(ring, to));
 
 	if (needs_pd_load_pre(ring, to)) {
 		/* Older GENs and non render rings still want the load first,
@@ -706,16 +704,28 @@ static int do_switch(struct intel_engine_cs *ring,
 			goto unpin_out;
 	}
 
-	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
+	if (!to->legacy_hw_ctx.initialized) {
 		hw_flags |= MI_RESTORE_INHIBIT;
-	else if (to->ppgtt && test_and_clear_bit(ring->id, &to->ppgtt->pd_dirty_rings))
+		/* NB: If we inhibit the restore, the context is not allowed to
+		 * die because future work may end up depending on valid address
+		 * space. This means we must enforce that a page table load
+		 * occur when this occurs. */
+	} else if (to->ppgtt &&
+			test_and_clear_bit(ring->id, &to->ppgtt->pd_dirty_rings))
 		hw_flags |= MI_FORCE_RESTORE;
+
+	/* We should never emit switch_mm more than once */
+	WARN_ON(needs_pd_load_pre(ring, to) &&
+			needs_pd_load_post(ring, to, hw_flags));
 
 	ret = mi_set_context(ring, to, hw_flags);
 	if (ret)
 		goto unpin_out;
 
-	if (needs_pd_load_post(ring, to)) {
+	/* GEN8 does *not* require an explicit reload if the PDPs have been
+	 * setup, and we do not wish to move them.
+	 */
+	if (needs_pd_load_post(ring, to, hw_flags)) {
 		trace_switch_mm(ring, to);
 		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
 		/* The hardware context switch is emitted, but we haven't
@@ -766,7 +776,7 @@ static int do_switch(struct intel_engine_cs *ring,
 		i915_gem_context_unreference(from);
 	}
 
-	uninitialized = !to->legacy_hw_ctx.initialized && from == NULL;
+	uninitialized = !to->legacy_hw_ctx.initialized;
 	to->legacy_hw_ctx.initialized = true;
 
 done:
