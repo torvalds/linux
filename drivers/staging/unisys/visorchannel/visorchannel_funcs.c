@@ -58,7 +58,7 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	void *rc = NULL;
 
 	p = kmalloc(sizeof(*p), GFP_KERNEL|__GFP_NORETRY);
-	if (p == NULL) {
+	if (!p) {
 		rc = NULL;
 		goto cleanup;
 	}
@@ -68,7 +68,7 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	spin_lock_init(&p->remove_lock);
 
 	/* prepare chan_hdr (abstraction to read/write channel memory) */
-	if (parent == NULL)
+	if (!parent)
 		p->memregion =
 		    visor_memregion_create(physaddr,
 					   sizeof(struct channel_header));
@@ -76,7 +76,7 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 		p->memregion =
 		    visor_memregion_create_overlapped(parent->memregion,
 				off, sizeof(struct channel_header));
-	if (p->memregion == NULL) {
+	if (!p->memregion) {
 		rc = NULL;
 		goto cleanup;
 	}
@@ -101,8 +101,8 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	rc = p;
 cleanup:
 
-	if (rc == NULL) {
-		if (p != NULL) {
+	if (!rc) {
+		if (!p) {
 			visorchannel_destroy(p);
 			p = NULL;
 		}
@@ -150,9 +150,9 @@ EXPORT_SYMBOL_GPL(visorchannel_create_overlapped_with_lock);
 void
 visorchannel_destroy(struct visorchannel *channel)
 {
-	if (channel == NULL)
+	if (!channel)
 		return;
-	if (channel->memregion != NULL) {
+	if (channel->memregion) {
 		visor_memregion_destroy(channel->memregion);
 		channel->memregion = NULL;
 	}
@@ -252,7 +252,7 @@ visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
 	int written = 0;
 	u8 *buf = vmalloc(bufsize);
 
-	if (buf == NULL)
+	if (!buf)
 		goto cleanup;
 
 	memset(buf, ch, bufsize);
@@ -274,7 +274,7 @@ visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
 	rc = 0;
 
 cleanup:
-	if (buf != NULL) {
+	if (buf) {
 		vfree(buf);
 		buf = NULL;
 	}
@@ -560,11 +560,10 @@ visorchannel_debug(struct visorchannel *channel, int num_queues,
 	int i = 0;
 	int errcode = 0;
 
-	if (channel == NULL)
+	if (!channel)
 		return;
-
 	memregion = channel->memregion;
-	if (memregion == NULL)
+	if (!memregion)
 		return;
 
 	addr = visor_memregion_get_physaddr(memregion);
