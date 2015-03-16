@@ -242,45 +242,51 @@ static dev_t major_dev = -1; /**< indicates major num for device */
 
 /* prototypes for attributes */
 static ssize_t toolaction_show(struct device *dev,
-	struct device_attribute *attr, char *buf);
+			       struct device_attribute *attr, char *buf);
 static ssize_t toolaction_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count);
+				struct device_attribute *attr,
+				const char *buf, size_t count);
 static DEVICE_ATTR_RW(toolaction);
 
 static ssize_t boottotool_show(struct device *dev,
-	struct device_attribute *attr, char *buf);
+			       struct device_attribute *attr, char *buf);
 static ssize_t boottotool_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count);
+				struct device_attribute *attr, const char *buf,
+				size_t count);
 static DEVICE_ATTR_RW(boottotool);
 
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
-	char *buf);
+			  char *buf);
 static ssize_t error_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count);
+			   const char *buf, size_t count);
 static DEVICE_ATTR_RW(error);
 
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
-	char *buf);
+			   char *buf);
 static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count);
+			    const char *buf, size_t count);
 static DEVICE_ATTR_RW(textid);
 
 static ssize_t remaining_steps_show(struct device *dev,
-	struct device_attribute *attr, char *buf);
+				    struct device_attribute *attr, char *buf);
 static ssize_t remaining_steps_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count);
+				     struct device_attribute *attr,
+				     const char *buf, size_t count);
 static DEVICE_ATTR_RW(remaining_steps);
 
 static ssize_t chipsetready_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count);
+				  struct device_attribute *attr,
+				  const char *buf, size_t count);
 static DEVICE_ATTR_WO(chipsetready);
 
 static ssize_t devicedisabled_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count);
+				    struct device_attribute *attr,
+				    const char *buf, size_t count);
 static DEVICE_ATTR_WO(devicedisabled);
 
 static ssize_t deviceenabled_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count);
+				   struct device_attribute *attr,
+				   const char *buf, size_t count);
 static DEVICE_ATTR_WO(deviceenabled);
 
 static struct attribute *visorchipset_install_attrs[] = {
@@ -350,7 +356,7 @@ static ssize_t toolaction_show(struct device *dev,
 
 	visorchannel_read(controlvm_channel,
 		offsetof(struct spar_controlvm_channel_protocol,
-			   tool_action), &tool_action, sizeof(u8));
+			 tool_action), &tool_action, sizeof(u8));
 	return scnprintf(buf, PAGE_SIZE, "%u\n", tool_action);
 }
 
@@ -365,7 +371,8 @@ static ssize_t toolaction_store(struct device *dev,
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
-		offsetof(struct spar_controlvm_channel_protocol, tool_action),
+		offsetof(struct spar_controlvm_channel_protocol,
+			 tool_action),
 		&tool_action, sizeof(u8));
 
 	if (ret)
@@ -380,11 +387,11 @@ static ssize_t boottotool_show(struct device *dev,
 	struct efi_spar_indication efi_spar_indication;
 
 	visorchannel_read(controlvm_channel,
-		offsetof(struct spar_controlvm_channel_protocol,
-			efi_spar_ind), &efi_spar_indication,
-		sizeof(struct efi_spar_indication));
+			  offsetof(struct spar_controlvm_channel_protocol,
+				   efi_spar_ind), &efi_spar_indication,
+			  sizeof(struct efi_spar_indication));
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			efi_spar_indication.boot_to_tool);
+			 efi_spar_indication.boot_to_tool);
 }
 
 static ssize_t boottotool_store(struct device *dev,
@@ -400,9 +407,8 @@ static ssize_t boottotool_store(struct device *dev,
 	efi_spar_indication.boot_to_tool = val;
 	ret = visorchannel_write(controlvm_channel,
 			offsetof(struct spar_controlvm_channel_protocol,
-				efi_spar_ind),
-			&(efi_spar_indication),
-		sizeof(struct efi_spar_indication));
+				 efi_spar_ind), &(efi_spar_indication),
+				 sizeof(struct efi_spar_indication));
 
 	if (ret)
 		return ret;
@@ -410,18 +416,19 @@ static ssize_t boottotool_store(struct device *dev,
 }
 
 static ssize_t error_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			  char *buf)
 {
 	u32 error;
 
-	visorchannel_read(controlvm_channel, offsetof(
-		struct spar_controlvm_channel_protocol, installation_error),
-		&error, sizeof(u32));
+	visorchannel_read(controlvm_channel,
+			  offsetof(struct spar_controlvm_channel_protocol,
+				   installation_error),
+			  &error, sizeof(u32));
 	return scnprintf(buf, PAGE_SIZE, "%i\n", error);
 }
 
 static ssize_t error_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+			   const char *buf, size_t count)
 {
 	u32 error;
 	int ret;
@@ -430,27 +437,28 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
-			offsetof(struct spar_controlvm_channel_protocol,
-				installation_error),
-			&error, sizeof(u32));
+		offsetof(struct spar_controlvm_channel_protocol,
+			 installation_error),
+		&error, sizeof(u32));
 	if (ret)
 		return ret;
 	return count;
 }
 
 static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+			   char *buf)
 {
 	u32 text_id;
 
-	visorchannel_read(controlvm_channel, offsetof(
-		struct spar_controlvm_channel_protocol, installation_text_id),
-		&text_id, sizeof(u32));
+	visorchannel_read(controlvm_channel,
+			  offsetof(struct spar_controlvm_channel_protocol,
+				   installation_text_id),
+			  &text_id, sizeof(u32));
 	return scnprintf(buf, PAGE_SIZE, "%i\n", text_id);
 }
 
 static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+			    const char *buf, size_t count)
 {
 	u32 text_id;
 	int ret;
@@ -459,29 +467,29 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
-			offsetof(struct spar_controlvm_channel_protocol,
-				installation_text_id),
-			&text_id, sizeof(u32));
+		offsetof(struct spar_controlvm_channel_protocol,
+			 installation_text_id),
+		&text_id, sizeof(u32));
 	if (ret)
 		return ret;
 	return count;
 }
 
 static ssize_t remaining_steps_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr, char *buf)
 {
 	u16 remaining_steps;
 
 	visorchannel_read(controlvm_channel,
-		offsetof(struct spar_controlvm_channel_protocol,
-			installation_remaining_steps),
-		&remaining_steps,
-		sizeof(u16));
+			  offsetof(struct spar_controlvm_channel_protocol,
+				   installation_remaining_steps),
+			  &remaining_steps, sizeof(u16));
 	return scnprintf(buf, PAGE_SIZE, "%hu\n", remaining_steps);
 }
 
 static ssize_t remaining_steps_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
 {
 	u16 remaining_steps;
 	int ret;
@@ -490,9 +498,9 @@ static ssize_t remaining_steps_store(struct device *dev,
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
-			offsetof(struct spar_controlvm_channel_protocol,
-				installation_remaining_steps),
-			&remaining_steps, sizeof(u16));
+		offsetof(struct spar_controlvm_channel_protocol,
+			 installation_remaining_steps),
+		&remaining_steps, sizeof(u16));
 	if (ret)
 		return ret;
 	return count;
@@ -562,7 +570,7 @@ visorchipset_register_busdev_server(
 		*responders = busdev_responders;
 	if (driver_info)
 		bus_device_info_init(driver_info, "chipset", "visorchipset",
-				   VERSION, NULL);
+				     VERSION, NULL);
 
 	up(&notifier_lock);
 }
@@ -1613,8 +1621,8 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 		*/
 		parahotplug_request_kickoff(req);
 		controlvm_respond_physdev_changestate(&inmsg->hdr,
-				CONTROLVM_RESP_SUCCESS, inmsg->cmd.
-				device_change_state.state);
+			CONTROLVM_RESP_SUCCESS,
+			inmsg->cmd.device_change_state.state);
 		parahotplug_request_destroy(req);
 	} else {
 		/* For disable messages, add the request to the
@@ -2083,7 +2091,8 @@ visorchipset_cache_free(struct kmem_cache *pool, void *p, char *fn, int ln)
 }
 
 static ssize_t chipsetready_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
 	char msgtype[64];
 
@@ -2105,7 +2114,8 @@ static ssize_t chipsetready_store(struct device *dev,
  * and then passed back when the device has been removed.
  */
 static ssize_t devicedisabled_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	uint id;
 
@@ -2121,7 +2131,8 @@ static ssize_t devicedisabled_store(struct device *dev,
  * and then passed back when the device has been brought back up.
  */
 static ssize_t deviceenabled_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	uint id;
 
