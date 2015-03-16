@@ -348,8 +348,9 @@ C_ENTRY(_user_exception):
  * The LP register should point to the location where the called function
  * should return.  [note that MAKE_SYS_CALL uses label 1] */
 	/* See if the system call number is valid */
+	blti	r12, 5f
 	addi	r11, r12, -__NR_syscalls;
-	bgei	r11,5f;
+	bgei	r11, 5f;
 	/* Figure out which function to use for this system call.  */
 	/* Note Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12;			/* convert num -> ptr */
@@ -375,7 +376,7 @@ C_ENTRY(_user_exception):
 
 	/* The syscall number is invalid, return an error.  */
 5:
-	rtsd	r15, 8;		/* looks like a normal subroutine return */
+	braid	ret_from_trap
 	addi	r3, r0, -ENOSYS;
 
 /* Entry point used to return from a syscall/trap */
@@ -411,7 +412,7 @@ C_ENTRY(ret_from_trap):
 	bri	1b
 
 	/* Maybe handle a signal */
-5:	
+5:
 	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME;
 	beqi	r11, 4f;		/* Signals to handle, handle them */
 

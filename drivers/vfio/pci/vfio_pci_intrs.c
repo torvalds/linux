@@ -868,12 +868,14 @@ int vfio_pci_set_irqs_ioctl(struct vfio_pci_device *vdev, uint32_t flags,
 				func = vfio_pci_set_err_trigger;
 			break;
 		}
+		break;
 	case VFIO_PCI_REQ_IRQ_INDEX:
 		switch (flags & VFIO_IRQ_SET_ACTION_TYPE_MASK) {
 		case VFIO_IRQ_SET_ACTION_TRIGGER:
 			func = vfio_pci_set_req_trigger;
 			break;
 		}
+		break;
 	}
 
 	if (!func)

@@ -1907,6 +1907,7 @@ static void nilfs_segctor_drop_written_files(struct nilfs_sc_info *sci,
 					     struct the_nilfs *nilfs)
 {
 	struct nilfs_inode_info *ii, *n;
+	int during_mount = !(sci->sc_super->s_flags & MS_ACTIVE);
 	int defer_iput = false;
 
 	spin_lock(&nilfs->ns_inode_lock);
@@ -1919,10 +1920,10 @@ static void nilfs_segctor_drop_written_files(struct nilfs_sc_info *sci,
 		brelse(ii->i_bh);
 		ii->i_bh = NULL;
 		list_del_init(&ii->i_dirty);
-		if (!ii->vfs_inode.i_nlink) {
+		if (!ii->vfs_inode.i_nlink || during_mount) {
 			/*
-			 * Defer calling iput() to avoid a deadlock
-			 * over I_SYNC flag for inodes with i_nlink == 0
+			 * Defer calling iput() to avoid deadlocks if
+			 * i_nlink == 0 or mount is not yet finished.
 			 */
 			list_add_tail(&ii->i_dirty, &sci->sc_iput_queue);
 			defer_iput = true;

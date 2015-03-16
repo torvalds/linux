@@ -464,10 +464,11 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	/* Clean up all queues, except inputq: */
 	__skb_queue_purge(&l_ptr->outqueue);
 	__skb_queue_purge(&l_ptr->deferred_queue);
-	skb_queue_splice_init(&l_ptr->wakeupq, &l_ptr->inputq);
-	if (!skb_queue_empty(&l_ptr->inputq))
+	if (!owner->inputq)
+		owner->inputq = &l_ptr->inputq;
+	skb_queue_splice_init(&l_ptr->wakeupq, owner->inputq);
+	if (!skb_queue_empty(owner->inputq))
 		owner->action_flags |= TIPC_MSG_EVT;
-	owner->inputq = &l_ptr->inputq;
 	l_ptr->next_out = NULL;
 	l_ptr->unacked_window = 0;
 	l_ptr->checkpoint = 1;

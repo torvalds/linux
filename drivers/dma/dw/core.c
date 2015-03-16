@@ -626,7 +626,7 @@ static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 	dev_vdbg(dw->dma.dev, "%s: status=0x%x\n", __func__, status);
 
 	/* Check if we have any interrupt from the DMAC */
-	if (!status)
+	if (!status || !dw->in_use)
 		return IRQ_NONE;
 
 	/*

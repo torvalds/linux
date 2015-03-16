@@ -351,7 +351,7 @@
 
 /* Bitfields in MID */
 #define MACB_IDNUM_OFFSET			16
-#define MACB_IDNUM_SIZE				16
+#define MACB_IDNUM_SIZE				12
 #define MACB_REV_OFFSET				0
 #define MACB_REV_SIZE				16
 

@@ -22,9 +22,9 @@
 struct ibmvtpm_crq {
 	u8 valid;
 	u8 msg;
-	u16 len;
-	u32 data;
-	u64 reserved;
+	__be16 len;
+	__be32 data;
+	__be64 reserved;
 } __attribute__((packed, aligned(8)));
 
 struct ibmvtpm_crq_queue {

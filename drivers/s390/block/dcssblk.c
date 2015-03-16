@@ -547,7 +547,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	 * parse input
 	 */
 	num_of_segments = 0;
-	for (i = 0; ((buf[i] != '\0') && (buf[i] != '\n') && i < count); i++) {
+	for (i = 0; (i < count && (buf[i] != '\0') && (buf[i] != '\n')); i++) {
 		for (j = i; (buf[j] != ':') &&
 			(buf[j] != '\0') &&
 			(buf[j] != '\n') &&

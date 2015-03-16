@@ -124,7 +124,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct ibmvtpm_dev *ibmvtpm;
 	struct ibmvtpm_crq crq;
-	u64 *word = (u64 *) &crq;
+	__be64 *word = (__be64 *)&crq;
 	int rc;
 
 	ibmvtpm = (struct ibmvtpm_dev *)TPM_VPRIV(chip);
@@ -145,11 +145,11 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	memcpy((void *)ibmvtpm->rtce_buf, (void *)buf, count);
 	crq.valid = (u8)IBMVTPM_VALID_CMD;
 	crq.msg = (u8)VTPM_TPM_COMMAND;
-	crq.len = (u16)count;
-	crq.data = ibmvtpm->rtce_dma_handle;
+	crq.len = cpu_to_be16(count);
+	crq.data = cpu_to_be32(ibmvtpm->rtce_dma_handle);
 
-	rc = ibmvtpm_send_crq(ibmvtpm->vdev, cpu_to_be64(word[0]),
-			      cpu_to_be64(word[1]));
+	rc = ibmvtpm_send_crq(ibmvtpm->vdev, be64_to_cpu(word[0]),
+			      be64_to_cpu(word[1]));
 	if (rc != H_SUCCESS) {
 		dev_err(ibmvtpm->dev, "tpm_ibmvtpm_send failed rc=%d\n", rc);
 		rc = 0;

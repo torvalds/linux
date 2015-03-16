@@ -51,7 +51,10 @@ static int change_memory_common(unsigned long addr, int numpages,
 		WARN_ON_ONCE(1);
 	}
 
-	if (!is_module_address(start) || !is_module_address(end - 1))
+	if (start < MODULES_VADDR || start >= MODULES_END)
+		return -EINVAL;
+
+	if (end < MODULES_VADDR || end >= MODULES_END)
 		return -EINVAL;
 
 	data.set_mask = set_mask;

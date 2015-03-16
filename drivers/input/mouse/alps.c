@@ -2605,8 +2605,10 @@ int alps_detect(struct psmouse *psmouse, bool set_properties)
 		return -ENOMEM;
 
 	error = alps_identify(psmouse, priv);
-	if (error)
+	if (error) {
+		kfree(priv);
 		return error;
+	}
 
 	if (set_properties) {
 		psmouse->vendor = "ALPS";
