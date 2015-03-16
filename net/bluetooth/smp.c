@@ -685,6 +685,8 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 			oob_flag = SMP_OOB_PRESENT;
 			memcpy(smp->rr, oob_data->rand256, 16);
 			memcpy(smp->pcnf, oob_data->hash256, 16);
+			SMP_DBG("OOB Remote Confirmation: %16phN", smp->pcnf);
+			SMP_DBG("OOB Remote Random: %16phN", smp->rr);
 		}
 
 	} else {
