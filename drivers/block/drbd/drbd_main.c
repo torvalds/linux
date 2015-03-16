@@ -1794,15 +1794,6 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 		drbd_update_congested(connection);
 	}
 	do {
-		/* STRANGE
-		 * tcp_sendmsg does _not_ use its size parameter at all ?
-		 *
-		 * -EAGAIN on timeout, -EINTR on signal.
-		 */
-/* THINK
- * do we need to block DRBD_SIG if sock == &meta.socket ??
- * otherwise wake_asender() might interrupt some send_*Ack !
- */
 		rv = kernel_sendmsg(sock, &msg, &iov, 1, size);
 		if (rv == -EAGAIN) {
 			if (we_should_drop_the_connection(connection, sock))
@@ -2821,6 +2812,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 			goto out_idr_remove_from_resource;
 		}
 		kref_get(&connection->kref);
+		INIT_WORK(&peer_device->send_acks_work, drbd_send_acks_wf);
 	}
 
 	if (init_submitter(device)) {

@@ -1258,8 +1258,8 @@ static void conn_reconfig_done(struct drbd_connection *connection)
 		connection->cstate == C_STANDALONE;
 	spin_unlock_irq(&connection->resource->req_lock);
 	if (stop_threads) {
-		/* asender is implicitly stopped by receiver
-		 * in conn_disconnect() */
+		/* ack_receiver thread and ack_sender workqueue are implicitly
+		 * stopped by receiver in conn_disconnect() */
 		drbd_thread_stop(&connection->receiver);
 		drbd_thread_stop(&connection->worker);
 	}

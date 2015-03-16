@@ -77,13 +77,6 @@ extern int fault_devs;
 extern char usermode_helper[];
 
 
-/* I don't remember why XCPU ...
- * This is used to wake the asender,
- * and to interrupt sending the sending task
- * on disconnect.
- */
-#define DRBD_SIG SIGXCPU
-
 /* This is used to stop/restart our threads.
  * Cannot use SIGTERM nor SIGKILL, since these
  * are sent out by init on runlevel changes
@@ -647,8 +640,7 @@ extern struct fifo_buffer *fifo_alloc(int fifo_size);
 enum {
 	NET_CONGESTED,		/* The data socket is congested */
 	RESOLVE_CONFLICTS,	/* Set on one node, cleared on the peer! */
-	SEND_PING,		/* whether asender should send a ping asap */
-	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
+	SEND_PING,
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */
 	CONN_WD_ST_CHG_REQ,	/* A cluster wide state change on the connection is active */
 	CONN_WD_ST_CHG_OKAY,
@@ -755,6 +747,7 @@ struct drbd_connection {
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread ack_receiver;
+	struct workqueue_struct *ack_sender;
 
 	/* cached pointers,
 	 * so we can look up the oldest pending requests more quickly.
@@ -823,6 +816,7 @@ struct drbd_peer_device {
 	struct list_head peer_devices;
 	struct drbd_device *device;
 	struct drbd_connection *connection;
+	struct work_struct send_acks_work;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_peer_dev;
 #endif
@@ -1558,6 +1552,8 @@ extern void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req);
 /* drbd_receiver.c */
 extern int drbd_receiver(struct drbd_thread *thi);
 extern int drbd_ack_receiver(struct drbd_thread *thi);
+extern void drbd_send_ping_wf(struct work_struct *ws);
+extern void drbd_send_acks_wf(struct work_struct *ws);
 extern bool drbd_rs_c_min_rate_throttle(struct drbd_device *device);
 extern bool drbd_rs_should_slow_down(struct drbd_device *device, sector_t sector,
 		bool throttle_if_app_is_waiting);
@@ -1968,16 +1964,21 @@ drbd_device_post_work(struct drbd_device *device, int work_bit)
 
 extern void drbd_flush_workqueue(struct drbd_work_queue *work_queue);
 
-static inline void wake_asender(struct drbd_connection *connection)
+/* To get the ack_receiver out of the blocking network stack,
+ * so it can change its sk_rcvtimeo from idle- to ping-timeout,
+ * and send a ping, we need to send a signal.
+ * Which signal we send is irrelevant. */
+static inline void wake_ack_receiver(struct drbd_connection *connection)
 {
-	if (test_bit(SIGNAL_ASENDER, &connection->flags))
-		force_sig(DRBD_SIG, connection->ack_receiver.task);
+	struct task_struct *task = connection->ack_receiver.task;
+	if (task && get_t_state(&connection->ack_receiver) == RUNNING)
+		force_sig(SIGXCPU, task);
 }
 
 static inline void request_ping(struct drbd_connection *connection)
 {
 	set_bit(SEND_PING, &connection->flags);
-	wake_asender(connection);
+	wake_ack_receiver(connection);
 }
 
 extern void *conn_prepare_command(struct drbd_connection *, struct drbd_socket *);

@@ -113,6 +113,7 @@ void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(l
 	unsigned long flags = 0;
 	struct drbd_peer_device *peer_device = peer_req->peer_device;
 	struct drbd_device *device = peer_device->device;
+	struct drbd_connection *connection = peer_device->connection;
 	struct drbd_interval i;
 	int do_wake;
 	u64 block_id;
@@ -145,6 +146,12 @@ void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(l
 	 * ((peer_req->flags & (EE_WAS_ERROR|EE_IS_TRIM)) == EE_WAS_ERROR) */
 	if (peer_req->flags & EE_WAS_ERROR)
 		__drbd_chk_io_error(device, DRBD_WRITE_ERROR);
+
+	if (connection->cstate >= C_WF_REPORT_PARAMS) {
+		kref_get(&device->kref); /* put is in drbd_send_acks_wf() */
+		if (!queue_work(connection->ack_sender, &peer_device->send_acks_work))
+			kref_put(&device->kref, drbd_destroy_device);
+	}
 	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 	if (block_id == ID_SYNCER)
@@ -156,7 +163,6 @@ void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(l
 	if (do_al_complete_io)
 		drbd_al_complete_io(device, &i);
 
-	wake_asender(peer_device->connection);
 	put_ldev(device);
 }
 
