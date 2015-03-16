@@ -749,7 +749,7 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 	dev = alloc_netdev(sizeof(*nic), "wm%d", NET_NAME_UNKNOWN,
 			   ether_setup);
 
-	if (dev == NULL) {
+	if (!dev) {
 		pr_err("alloc_etherdev failed\n");
 		return -ENOMEM;
 	}
