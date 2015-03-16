@@ -114,6 +114,7 @@
 
 struct dw2102_state {
 	u8 initialized;
+	struct i2c_client *i2c_client_tuner;
 	int (*old_set_voltage)(struct dvb_frontend *f, fe_sec_voltage_t v);
 };
 
@@ -2138,10 +2139,26 @@ static int dw2102_probe(struct usb_interface *intf,
 	return -ENODEV;
 }
 
+static void dw2102_disconnect(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	struct dw2102_state *st = (struct dw2102_state *)d->priv;
+	struct i2c_client *client;
+
+	/* remove I2C client for tuner */
+	client = st->i2c_client_tuner;
+	if (client) {
+		module_put(client->dev.driver->owner);
+		i2c_unregister_device(client);
+	}
+
+	dvb_usb_device_exit(intf);
+}
+
 static struct usb_driver dw2102_driver = {
 	.name = "dw2102",
 	.probe = dw2102_probe,
-	.disconnect = dvb_usb_device_exit,
+	.disconnect = dw2102_disconnect,
 	.id_table = dw2102_table,
 };
 
