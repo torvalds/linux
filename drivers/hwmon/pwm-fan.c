@@ -322,7 +322,7 @@ static int pwm_fan_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pwm_fan_pm, pwm_fan_suspend, pwm_fan_resume);
 
-static struct of_device_id of_pwm_fan_match[] = {
+static const struct of_device_id of_pwm_fan_match[] = {
 	{ .compatible = "pwm-fan", },
 	{},
 };
