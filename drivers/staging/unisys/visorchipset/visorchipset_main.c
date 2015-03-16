@@ -1645,34 +1645,34 @@ static BOOL
 handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 {
 	struct controlvm_message_packet *cmd = &inmsg.cmd;
-	u64 parametersAddr = 0;
-	u32 parametersBytes = 0;
+	u64 parm_addr = 0;
+	u32 parm_bytes = 0;
 	struct parser_context *parser_ctx = NULL;
-	BOOL isLocalAddr = FALSE;
+	bool local_addr = false;
 	struct controlvm_message ackmsg;
 
 	/* create parsing context if necessary */
-	isLocalAddr = (inmsg.hdr.flags.test_message == 1);
+	local_addr = (inmsg.hdr.flags.test_message == 1);
 	if (channel_addr == 0)
 		return TRUE;
-	parametersAddr = channel_addr + inmsg.hdr.payload_vm_offset;
-	parametersBytes = inmsg.hdr.payload_bytes;
+	parm_addr = channel_addr + inmsg.hdr.payload_vm_offset;
+	parm_bytes = inmsg.hdr.payload_bytes;
 
 	/* Parameter and channel addresses within test messages actually lie
 	 * within our OS-controlled memory.  We need to know that, because it
 	 * makes a difference in how we compute the virtual address.
 	 */
-	if (parametersAddr != 0 && parametersBytes != 0) {
+	if (parm_addr != 0 && parm_bytes != 0) {
 		BOOL retry = FALSE;
 
 		parser_ctx =
-		    parser_init_byte_stream(parametersAddr, parametersBytes,
-					   isLocalAddr, &retry);
+		    parser_init_byte_stream(parm_addr, parm_bytes,
+					    local_addr, &retry);
 		if (!parser_ctx && retry)
 			return FALSE;
 	}
 
-	if (!isLocalAddr) {
+	if (!local_addr) {
 		controlvm_init_response(&ackmsg, &inmsg.hdr,
 					CONTROLVM_RESP_SUCCESS);
 		if (controlvm_channel)
@@ -1728,7 +1728,7 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 	default:
 		if (inmsg.hdr.flags.response_expected)
 			controlvm_respond(&inmsg.hdr,
-					  -CONTROLVM_RESP_ERROR_MESSAGE_ID_UNKNOWN);
+				-CONTROLVM_RESP_ERROR_MESSAGE_ID_UNKNOWN);
 		break;
 	}
 
