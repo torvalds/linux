@@ -2259,7 +2259,17 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 			transferred = 0;
 		residual += desc->bytes_requested - transferred;
 		if (desc->txd.cookie == cookie) {
-			ret = desc->status;
+			switch (desc->status) {
+			case DONE:
+				ret = DMA_COMPLETE;
+				break;
+			case PREP:
+			case BUSY:
+				ret = DMA_IN_PROGRESS;
+				break;
+			default:
+				WARN_ON(1);
+			}
 			break;
 		}
 		if (desc->last)
