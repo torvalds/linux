@@ -165,14 +165,13 @@ parser_simpleString_get(struct parser_context *ctx)
 
 /* Obtain a copy of the buffer in the payload area.
  */
-void *
-parser_byteStream_get(struct parser_context *ctx, ulong *nbytes)
+void *parser_byte_stream_get(struct parser_context *ctx, ulong *nbytes)
 {
 	if (!ctx->byte_stream)
 		return NULL;
 	if (nbytes)
 		*nbytes = ctx->param_bytes;
-	return (void *) ctx->data;
+	return (void *)ctx->data;
 }
 
 uuid_le

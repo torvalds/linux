@@ -40,7 +40,7 @@ void *parser_param_get(struct parser_context *ctx, char *nam, int namesize);
 void *parser_string_get(struct parser_context *ctx);
 uuid_le parser_id_get(struct parser_context *ctx);
 char *parser_simpleString_get(struct parser_context *ctx);
-void *parser_byteStream_get(struct parser_context *ctx, ulong *nbytes);
+void *parser_byte_stream_get(struct parser_context *ctx, ulong *nbytes);
 void parser_done(struct parser_context *ctx);
 
 #endif
