@@ -1505,7 +1505,7 @@ static void palmas_dt_to_pdata(struct device *dev,
 	pdata->ldo6_vibrator = of_property_read_bool(node, "ti,ldo6-vibrator");
 }
 
-static struct of_device_id of_palmas_match_tbl[] = {
+static const struct of_device_id of_palmas_match_tbl[] = {
 	{
 		.compatible = "ti,palmas-pmic",
 		.data = &palmas_ddata,
