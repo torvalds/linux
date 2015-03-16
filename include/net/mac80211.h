@@ -332,10 +332,14 @@ struct ieee80211_rssi_event {
  * enum ieee80211_mlme_event_data - relevant when event type is %MLME_EVENT
  * @AUTH_EVENT: the MLME operation is authentication
  * @ASSOC_EVENT: the MLME operation is association
+ * @DEAUTH_RX_EVENT: deauth received..
+ * @DEAUTH_TX_EVENT: deauth sent.
  */
 enum ieee80211_mlme_event_data {
 	AUTH_EVENT,
 	ASSOC_EVENT,
+	DEAUTH_RX_EVENT,
+	DEAUTH_TX_EVENT,
 };
 
 /**
