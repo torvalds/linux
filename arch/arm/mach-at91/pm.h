@@ -15,6 +15,10 @@
 
 #include <mach/at91_ramc.h>
 
+#define AT91_MEMCTRL_MC		0
+#define AT91_MEMCTRL_SDRAMC	1
+#define AT91_MEMCTRL_DDRSDR	2
+
 #define	AT91_PM_MEMTYPE_MASK	0x0f
 
 #define	AT91_PM_MODE_OFFSET	4
