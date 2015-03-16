@@ -1299,7 +1299,7 @@ cleanup:
 static void
 destroy_controlvm_payload_info(struct controlvm_payload_info *info)
 {
-	if (info->ptr != NULL) {
+	if (info->ptr) {
 		iounmap(info->ptr);
 		info->ptr = NULL;
 	}
