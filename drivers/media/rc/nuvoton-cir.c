@@ -1219,16 +1219,6 @@ static struct pnp_driver nvt_driver = {
 	.shutdown	= nvt_shutdown,
 };
 
-static int __init nvt_init(void)
-{
-	return pnp_register_driver(&nvt_driver);
-}
-
-static void __exit nvt_exit(void)
-{
-	pnp_unregister_driver(&nvt_driver);
-}
-
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging output");
 
@@ -1238,5 +1228,4 @@ MODULE_DESCRIPTION("Nuvoton W83667HG-A & W83677HG-I CIR driver");
 MODULE_AUTHOR("Jarod Wilson <jarod@redhat.com>");
 MODULE_LICENSE("GPL");
 
-module_init(nvt_init);
-module_exit(nvt_exit);
+module_pnp_driver(nvt_driver);
