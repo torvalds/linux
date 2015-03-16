@@ -176,7 +176,7 @@ static struct platform_device_id mxs_auart_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, mxs_auart_devtype);
 
-static struct of_device_id mxs_auart_dt_ids[] = {
+static const struct of_device_id mxs_auart_dt_ids[] = {
 	{
 		.compatible = "fsl,imx28-auart",
 		.data = &mxs_auart_devtype[IMX28_AUART]
