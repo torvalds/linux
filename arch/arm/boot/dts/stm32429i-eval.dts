@@ -64,6 +64,23 @@
 	aliases {
 		serial0 = &usart1;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		green {
+			gpios = <&gpiog 6 1>;
+			linux,default-trigger = "heartbeat";
+		};
+		orange {
+			gpios = <&gpiog 7 1>;
+		};
+		red {
+			gpios = <&gpiog 10 1>;
+		};
+		blue {
+			gpios = <&gpiog 12 1>;
+		};
+	};
 };
 
 &clk_hse {
