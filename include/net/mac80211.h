@@ -303,9 +303,11 @@ enum ieee80211_bss_change {
 /**
  * enum ieee80211_event_type - event to be notified to the low level driver
  * @RSSI_EVENT: AP's rssi crossed the a threshold set by the driver.
+ * @MLME_EVENT: event related to MLME
  */
 enum ieee80211_event_type {
 	RSSI_EVENT,
+	MLME_EVENT,
 };
 
 /**
@@ -327,14 +329,48 @@ struct ieee80211_rssi_event {
 };
 
 /**
+ * enum ieee80211_mlme_event_data - relevant when event type is %MLME_EVENT
+ * @AUTH_EVENT: the MLME operation is authentication
+ */
+enum ieee80211_mlme_event_data {
+	AUTH_EVENT,
+};
+
+/**
+ * enum ieee80211_mlme_event_status - relevant when event type is %MLME_EVENT
+ * @MLME_SUCCESS: the MLME operation completed successfully.
+ * @MLME_DENIED: the MLME operation was denied by the peer.
+ * @MLME_TIMEOUT: the MLME operation timed out.
+ */
+enum ieee80211_mlme_event_status {
+	MLME_SUCCESS,
+	MLME_DENIED,
+	MLME_TIMEOUT,
+};
+
+/**
+ * enum ieee80211_mlme_event - data attached to an %MLME_EVENT
+ * @data: See &enum ieee80211_mlme_event_data
+ * @status: See &enum ieee80211_mlme_event_status
+ * @reason: the reason code if applicable
+ */
+struct ieee80211_mlme_event {
+	enum ieee80211_mlme_event_data data;
+	enum ieee80211_mlme_event_status status;
+	u16 reason;
+};
+
+/**
  * struct ieee80211_event - event to be sent to the driver
  * @type The event itself. See &enum ieee80211_event_type.
  * @rssi: relevant if &type is %RSSI_EVENT
+ * @mlme: relevant if &type is %AUTH_EVENT
  */
 struct ieee80211_event {
 	enum ieee80211_event_type type;
 	union {
 		struct ieee80211_rssi_event rssi;
+		struct ieee80211_mlme_event mlme;
 	} u;
 };
 
