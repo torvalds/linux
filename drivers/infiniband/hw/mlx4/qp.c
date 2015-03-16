@@ -566,6 +566,10 @@ static int alloc_proxy_bufs(struct ib_device *dev, struct mlx4_ib_qp *qp)
 			ib_dma_map_single(dev, qp->sqp_proxy_rcv[i].addr,
 					  sizeof (struct mlx4_ib_proxy_sqp_hdr),
 					  DMA_FROM_DEVICE);
+		if (ib_dma_mapping_error(dev, qp->sqp_proxy_rcv[i].map)) {
+			kfree(qp->sqp_proxy_rcv[i].addr);
+			goto err;
+		}
 	}
 	return 0;
 
