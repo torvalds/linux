@@ -128,20 +128,8 @@ static struct pnp_driver isapnp_driver = {
 	.remove		= isapnp_remove_one,
 };
 
-static int __init isapnp_init(void)
-{
-	return pnp_register_driver(&isapnp_driver);
-}
-
-static void __exit isapnp_exit(void)
-{
-	pnp_unregister_driver(&isapnp_driver);
-}
-
+module_pnp_driver(isapnp_driver);
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for ISA PnP ATA");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(isapnp_init);
-module_exit(isapnp_exit);
