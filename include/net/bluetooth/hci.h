@@ -458,6 +458,8 @@ enum {
 #define EIR_DEVICE_ID		0x10 /* device ID */
 #define EIR_LE_BDADDR		0x1B /* LE Bluetooth device address */
 #define EIR_LE_ROLE		0x1C /* LE role */
+#define EIR_LE_SC_CONFIRM	0x22 /* LE SC Confirmation Value */
+#define EIR_LE_SC_RANDOM	0x23 /* LE SC Random Value */
 
 /* Low Energy Advertising Flags */
 #define LE_AD_LIMITED		0x01 /* Limited Discoverable */
