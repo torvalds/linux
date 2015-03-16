@@ -1370,42 +1370,42 @@ visorchipset_chipset_notready(void)
 EXPORT_SYMBOL_GPL(visorchipset_chipset_notready);
 
 static void
-chipset_ready(struct controlvm_message_header *msgHdr)
+chipset_ready(struct controlvm_message_header *msg_hdr)
 {
 	int rc = visorchipset_chipset_ready();
 
 	if (rc != CONTROLVM_RESP_SUCCESS)
 		rc = -rc;
-	if (msgHdr->flags.response_expected && !visorchipset_holdchipsetready)
-		controlvm_respond(msgHdr, rc);
-	if (msgHdr->flags.response_expected && visorchipset_holdchipsetready) {
+	if (msg_hdr->flags.response_expected && !visorchipset_holdchipsetready)
+		controlvm_respond(msg_hdr, rc);
+	if (msg_hdr->flags.response_expected && visorchipset_holdchipsetready) {
 		/* Send CHIPSET_READY response when all modules have been loaded
 		 * and disks mounted for the partition
 		 */
-		g_chipset_msg_hdr = *msgHdr;
+		g_chipset_msg_hdr = *msg_hdr;
 	}
 }
 
 static void
-chipset_selftest(struct controlvm_message_header *msgHdr)
+chipset_selftest(struct controlvm_message_header *msg_hdr)
 {
 	int rc = visorchipset_chipset_selftest();
 
 	if (rc != CONTROLVM_RESP_SUCCESS)
 		rc = -rc;
-	if (msgHdr->flags.response_expected)
-		controlvm_respond(msgHdr, rc);
+	if (msg_hdr->flags.response_expected)
+		controlvm_respond(msg_hdr, rc);
 }
 
 static void
-chipset_notready(struct controlvm_message_header *msgHdr)
+chipset_notready(struct controlvm_message_header *msg_hdr)
 {
 	int rc = visorchipset_chipset_notready();
 
 	if (rc != CONTROLVM_RESP_SUCCESS)
 		rc = -rc;
-	if (msgHdr->flags.response_expected)
-		controlvm_respond(msgHdr, rc);
+	if (msg_hdr->flags.response_expected)
+		controlvm_respond(msg_hdr, rc);
 }
 
 /* This is your "one-stop" shop for grabbing the next message from the
