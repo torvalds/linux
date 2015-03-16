@@ -126,10 +126,10 @@ static void virqfd_inject(struct work_struct *work)
 		virqfd->thread(virqfd->vdev, virqfd->data);
 }
 
-static int virqfd_enable(struct vfio_pci_device *vdev,
-			 int (*handler)(struct vfio_pci_device *, void *),
-			 void (*thread)(struct vfio_pci_device *, void *),
-			 void *data, struct virqfd **pvirqfd, int fd)
+int vfio_virqfd_enable(struct vfio_pci_device *vdev,
+		       int (*handler)(struct vfio_pci_device *, void *),
+		       void (*thread)(struct vfio_pci_device *, void *),
+		       void *data, struct virqfd **pvirqfd, int fd)
 {
 	struct fd irqfd;
 	struct eventfd_ctx *ctx;
@@ -215,9 +215,9 @@ err_fd:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(vfio_virqfd_enable);
 
-static void virqfd_disable(struct vfio_pci_device *vdev,
-			   struct virqfd **pvirqfd)
+void vfio_virqfd_disable(struct vfio_pci_device *vdev, struct virqfd **pvirqfd)
 {
 	unsigned long flags;
 
@@ -237,6 +237,7 @@ static void virqfd_disable(struct vfio_pci_device *vdev,
 	 */
 	flush_workqueue(vfio_irqfd_cleanup_wq);
 }
+EXPORT_SYMBOL_GPL(vfio_virqfd_disable);
 
 /*
  * INTx
@@ -440,8 +441,8 @@ static int vfio_intx_set_signal(struct vfio_pci_device *vdev, int fd)
 static void vfio_intx_disable(struct vfio_pci_device *vdev)
 {
 	vfio_intx_set_signal(vdev, -1);
-	virqfd_disable(vdev, &vdev->ctx[0].unmask);
-	virqfd_disable(vdev, &vdev->ctx[0].mask);
+	vfio_virqfd_disable(vdev, &vdev->ctx[0].unmask);
+	vfio_virqfd_disable(vdev, &vdev->ctx[0].mask);
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	vdev->num_ctx = 0;
 	kfree(vdev->ctx);
@@ -605,8 +606,8 @@ static void vfio_msi_disable(struct vfio_pci_device *vdev, bool msix)
 	vfio_msi_set_block(vdev, 0, vdev->num_ctx, NULL, msix);
 
 	for (i = 0; i < vdev->num_ctx; i++) {
-		virqfd_disable(vdev, &vdev->ctx[i].unmask);
-		virqfd_disable(vdev, &vdev->ctx[i].mask);
+		vfio_virqfd_disable(vdev, &vdev->ctx[i].unmask);
+		vfio_virqfd_disable(vdev, &vdev->ctx[i].mask);
 	}
 
 	if (msix) {
@@ -639,11 +640,12 @@ static int vfio_pci_set_intx_unmask(struct vfio_pci_device *vdev,
 	} else if (flags & VFIO_IRQ_SET_DATA_EVENTFD) {
 		int32_t fd = *(int32_t *)data;
 		if (fd >= 0)
-			return virqfd_enable(vdev, vfio_pci_intx_unmask_handler,
-					     vfio_send_intx_eventfd, NULL,
-					     &vdev->ctx[0].unmask, fd);
+			return vfio_virqfd_enable(vdev,
+						  vfio_pci_intx_unmask_handler,
+						  vfio_send_intx_eventfd, NULL,
+						  &vdev->ctx[0].unmask, fd);
 
-		virqfd_disable(vdev, &vdev->ctx[0].unmask);
+		vfio_virqfd_disable(vdev, &vdev->ctx[0].unmask);
 	}
 
 	return 0;
