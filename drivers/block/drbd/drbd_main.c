@@ -1436,8 +1436,8 @@ static int we_should_drop_the_connection(struct drbd_connection *connection, str
 	/* long elapsed = (long)(jiffies - device->last_received); */
 
 	drop_it =   connection->meta.socket == sock
-		|| !connection->asender.task
-		|| get_t_state(&connection->asender) != RUNNING
+		|| !connection->ack_receiver.task
+		|| get_t_state(&connection->ack_receiver) != RUNNING
 		|| connection->cstate < C_WF_REPORT_PARAMS;
 
 	if (drop_it)
@@ -2564,7 +2564,7 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 		cpumask_copy(resource->cpu_mask, new_cpu_mask);
 		for_each_connection_rcu(connection, resource) {
 			connection->receiver.reset_cpu_mask = 1;
-			connection->asender.reset_cpu_mask = 1;
+			connection->ack_receiver.reset_cpu_mask = 1;
 			connection->worker.reset_cpu_mask = 1;
 		}
 	}
@@ -2653,8 +2653,8 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	connection->receiver.connection = connection;
 	drbd_thread_init(resource, &connection->worker, drbd_worker, "worker");
 	connection->worker.connection = connection;
-	drbd_thread_init(resource, &connection->asender, drbd_asender, "asender");
-	connection->asender.connection = connection;
+	drbd_thread_init(resource, &connection->ack_receiver, drbd_ack_receiver, "ack_recv");
+	connection->ack_receiver.connection = connection;
 
 	kref_init(&connection->kref);
 

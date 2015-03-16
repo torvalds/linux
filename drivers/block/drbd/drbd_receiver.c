@@ -1099,7 +1099,7 @@ randomize:
 		return 0;
 	}
 
-	drbd_thread_start(&connection->asender);
+	drbd_thread_start(&connection->ack_receiver);
 
 	mutex_lock(&connection->resource->conf_update);
 	/* The discard_my_data flag is a single-shot modifier to the next
@@ -4656,7 +4656,7 @@ static void conn_disconnect(struct drbd_connection *connection)
 	conn_request_state(connection, NS(conn, C_NETWORK_FAILURE), CS_HARD);
 
 	/* asender does not clean up anything. it must not interfere, either */
-	drbd_thread_stop(&connection->asender);
+	drbd_thread_stop(&connection->ack_receiver);
 	drbd_free_sock(connection);
 
 	rcu_read_lock();
@@ -5487,7 +5487,7 @@ static struct asender_cmd asender_tbl[] = {
 	[P_RETRY_WRITE]	    = { sizeof(struct p_block_ack), got_BlockAck },
 };
 
-int drbd_asender(struct drbd_thread *thi)
+int drbd_ack_receiver(struct drbd_thread *thi)
 {
 	struct drbd_connection *connection = thi->connection;
 	struct asender_cmd *cmd = NULL;
