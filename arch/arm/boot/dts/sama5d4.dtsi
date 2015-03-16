@@ -66,6 +66,7 @@
 		gpio4 = &pioE;
 		tcb0 = &tcb0;
 		tcb1 = &tcb1;
+		i2c0 = &i2c0;
 		i2c2 = &i2c2;
 	};
 	cpus {
@@ -259,7 +260,7 @@
 			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
 			reg = <0x00600000 0x100000>;
 			interrupts = <46 IRQ_TYPE_LEVEL_HIGH 2>;
-			clocks = <&usb>, <&uhphs_clk>, <&uhpck>;
+			clocks = <&utmi>, <&uhphs_clk>, <&uhpck>;
 			clock-names = "usb_clk", "ehci_clk", "uhpck";
 			status = "disabled";
 		};
@@ -461,8 +462,8 @@
 
 					lcdck: lcdck {
 						#clock-cells = <0>;
-						reg = <4>;
-						clocks = <&smd>;
+						reg = <3>;
+						clocks = <&mck>;
 					};
 
 					smdck: smdck {
@@ -770,7 +771,7 @@
 						reg = <50>;
 					};
 
-					lcd_clk: lcd_clk {
+					lcdc_clk: lcdc_clk {
 						#clock-cells = <0>;
 						reg = <51>;
 					};

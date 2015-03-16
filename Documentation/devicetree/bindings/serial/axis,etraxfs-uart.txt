@@ -1,0 +1,19 @@
+ETRAX FS UART
+
+Required properties:
+- compatible : "axis,etraxfs-uart"
+- reg: offset and length of the register set for the device.
+- interrupts: device interrupt
+
+Optional properties:
+- {dtr,dsr,ri,cd}-gpios: specify a GPIO for DTR/DSR/RI/CD
+  line respectively.
+
+Example:
+
+serial@b00260000 {
+	compatible = "axis,etraxfs-uart";
+	reg = <0xb0026000 0x1000>;
+	interrupts = <68>;
+	status = "disabled";
+};

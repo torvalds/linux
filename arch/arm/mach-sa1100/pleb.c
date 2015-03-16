@@ -54,7 +54,7 @@ static struct platform_device smc91x_device = {
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
 	.dev = {
-		.platform_data  = &smc91c_platdata,
+		.platform_data  = &smc91x_platdata,
 	},
 };
 

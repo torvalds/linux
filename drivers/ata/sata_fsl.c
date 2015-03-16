@@ -869,6 +869,8 @@ try_offline_again:
 	 */
 	ata_msleep(ap, 1);
 
+	sata_set_spd(link);
+
 	/*
 	 * Now, bring the host controller online again, this can take time
 	 * as PHY reset and communication establishment, 1st D2H FIS and

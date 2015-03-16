@@ -67,6 +67,11 @@ extern unsigned long empty_zero_page;
  */
 #define pgtable_cache_init()   do { } while (0)
 
+/*
+ * c6x is !MMU, so define the simpliest implementation
+ */
+#define pgprot_writecombine pgprot_noncached
+
 #include <asm-generic/pgtable.h>
 
 #endif /* _ASM_C6X_PGTABLE_H */

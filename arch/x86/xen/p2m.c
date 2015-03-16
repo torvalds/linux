@@ -563,7 +563,7 @@ static bool alloc_p2m(unsigned long pfn)
 		if (p2m_pfn == PFN_DOWN(__pa(p2m_missing)))
 			p2m_init(p2m);
 		else
-			p2m_init_identity(p2m, pfn);
+			p2m_init_identity(p2m, pfn & ~(P2M_PER_PAGE - 1));
 
 		spin_lock_irqsave(&p2m_update_lock, flags);
 

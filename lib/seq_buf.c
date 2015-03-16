@@ -61,7 +61,7 @@ int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args)
 
 	if (s->len < s->size) {
 		len = vsnprintf(s->buffer + s->len, s->size - s->len, fmt, args);
-		if (seq_buf_can_fit(s, len)) {
+		if (s->len + len < s->size) {
 			s->len += len;
 			return 0;
 		}
@@ -118,7 +118,7 @@ int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
 
 	if (s->len < s->size) {
 		ret = bstr_printf(s->buffer + s->len, len, fmt, binary);
-		if (seq_buf_can_fit(s, ret)) {
+		if (s->len + ret < s->size) {
 			s->len += ret;
 			return 0;
 		}
