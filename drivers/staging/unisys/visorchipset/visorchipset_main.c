@@ -48,7 +48,7 @@
 * message, we switch back to fast polling mode.
 */
 #define MIN_IDLE_SECONDS 10
-static ulong Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+static ulong poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 static ulong Most_recent_message_jiffies;	/* when we got our last
 						 * controlvm message */
 static inline char *
@@ -1884,17 +1884,15 @@ Away:
 		* processed our last controlvm message; slow down the
 		* polling
 		*/
-		if (Poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_SLOW) {
-			Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
-		}
+		if (poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_SLOW)
+			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
 	} else {
-		if (Poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_FAST) {
-			Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-		}
+		if (poll_jiffies != POLLJIFFIES_CONTROLVMCHANNEL_FAST)
+			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 	}
 
 	queue_delayed_work(Periodic_controlvm_workqueue,
-			   &Periodic_controlvm_work, Poll_jiffies);
+			   &Periodic_controlvm_work, poll_jiffies);
 }
 
 static void
@@ -1996,10 +1994,10 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 Away:
 
-	Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
+	poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
 
 	queue_delayed_work(Periodic_controlvm_workqueue,
-			   &Periodic_controlvm_work, Poll_jiffies);
+			   &Periodic_controlvm_work, poll_jiffies);
 }
 
 static void
@@ -2265,9 +2263,9 @@ visorchipset_init(void)
 			goto Away;
 		}
 		Most_recent_message_jiffies = jiffies;
-		Poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+		poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 		rc = queue_delayed_work(Periodic_controlvm_workqueue,
-					&Periodic_controlvm_work, Poll_jiffies);
+					&Periodic_controlvm_work, poll_jiffies);
 		if (rc < 0) {
 			POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC,
 					 DIAG_SEVERITY_ERR);
