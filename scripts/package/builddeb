@@ -166,6 +166,12 @@ if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
 			# then add a link to those
 			$OBJCOPY --add-gnu-debuglink=$dbg_dir/usr/lib/debug/$module $tmpdir/$module
 		done
+
+		# resign stripped modules
+		MODULE_SIG_ALL="$(grep -s '^CONFIG_MODULE_SIG_ALL=y' $KCONFIG_CONFIG || true)"
+		if [ -n "$MODULE_SIG_ALL" ]; then
+			INSTALL_MOD_PATH="$tmpdir" $MAKE KBUILD_SRC= modules_sign
+		fi
 	fi
 fi
 
