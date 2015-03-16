@@ -36,13 +36,13 @@
 
 struct drm_i915_file_private;
 
-typedef uint32_t gen6_gtt_pte_t;
-typedef uint64_t gen8_gtt_pte_t;
-typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
+typedef uint32_t gen6_pte_t;
+typedef uint64_t gen8_pte_t;
+typedef uint64_t gen8_pde_t;
 
 #define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
 
-#define I915_PPGTT_PT_ENTRIES		(PAGE_SIZE / sizeof(gen6_gtt_pte_t))
+
 /* gen6-hsw has bit 11-4 for physical addr bit 39-32 */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
@@ -51,8 +51,13 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define GEN6_PTE_UNCACHED		(1 << 1)
 #define GEN6_PTE_VALID			(1 << 0)
 
-#define GEN6_PPGTT_PD_ENTRIES		512
-#define GEN6_PD_SIZE			(GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE)
+#define I915_PTES(pte_len)		(PAGE_SIZE / (pte_len))
+#define I915_PTE_MASK(pte_len)		(I915_PTES(pte_len) - 1)
+#define I915_PDES			512
+#define I915_PDE_MASK			(I915_PDES - 1)
+
+#define GEN6_PTES			I915_PTES(sizeof(gen6_pte_t))
+#define GEN6_PD_SIZE		        (I915_PDES * PAGE_SIZE)
 #define GEN6_PD_ALIGN			(PAGE_SIZE * 16)
 #define GEN6_PDE_VALID			(1 << 0)
 
@@ -89,8 +94,7 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define GEN8_PTE_SHIFT			12
 #define GEN8_PTE_MASK			0x1ff
 #define GEN8_LEGACY_PDPES		4
-#define GEN8_PTES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_gtt_pte_t))
-#define GEN8_PDES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_ppgtt_pde_t))
+#define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
 
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
@@ -199,7 +203,7 @@ struct i915_page_directory_entry {
 		dma_addr_t daddr;
 	};
 
-	struct i915_page_table_entry *page_table[GEN6_PPGTT_PD_ENTRIES]; /* PDEs */
+	struct i915_page_table_entry *page_table[I915_PDES]; /* PDEs */
 };
 
 struct i915_page_directory_pointer_entry {
@@ -243,9 +247,9 @@ struct i915_address_space {
 	struct list_head inactive_list;
 
 	/* FIXME: Need a more generic return type */
-	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
-				     enum i915_cache_level level,
-				     bool valid, u32 flags); /* Create a valid PTE */
+	gen6_pte_t (*pte_encode)(dma_addr_t addr,
+				 enum i915_cache_level level,
+				 bool valid, u32 flags); /* Create a valid PTE */
 	void (*clear_range)(struct i915_address_space *vm,
 			    uint64_t start,
 			    uint64_t length,
