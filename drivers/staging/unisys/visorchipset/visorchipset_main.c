@@ -1028,50 +1028,49 @@ static void
 bus_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong busNo = cmd->create_bus.bus_no;
+	ulong bus_no = cmd->create_bus.bus_no;
 	int rc = CONTROLVM_RESP_SUCCESS;
-	struct visorchipset_bus_info *pBusInfo = NULL;
+	struct visorchipset_bus_info *bus_info = NULL;
 
-
-	pBusInfo = findbus(&bus_info_list, busNo);
-	if (pBusInfo && (pBusInfo->state.created == 1)) {
-		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
+	bus_info = findbus(&bus_info_list, bus_no);
+	if (bus_info && (bus_info->state.created == 1)) {
+		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
-		goto Away;
+		goto cleanup;
 	}
-	pBusInfo = kzalloc(sizeof(struct visorchipset_bus_info), GFP_KERNEL);
-	if (!pBusInfo) {
-		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
+	bus_info = kzalloc(sizeof(*bus_info), GFP_KERNEL);
+	if (!bus_info) {
+		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
-		goto Away;
+		goto cleanup;
 	}
 
-	INIT_LIST_HEAD(&pBusInfo->entry);
-	pBusInfo->bus_no = busNo;
-	pBusInfo->dev_no = cmd->create_bus.dev_count;
+	INIT_LIST_HEAD(&bus_info->entry);
+	bus_info->bus_no = bus_no;
+	bus_info->dev_no = cmd->create_bus.dev_count;
 
-	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, busNo, POSTCODE_SEVERITY_INFO);
+	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
 	if (inmsg->hdr.flags.test_message == 1)
-		pBusInfo->chan_info.addr_type = ADDRTYPE_LOCALTEST;
+		bus_info->chan_info.addr_type = ADDRTYPE_LOCALTEST;
 	else
-		pBusInfo->chan_info.addr_type = ADDRTYPE_LOCALPHYSICAL;
+		bus_info->chan_info.addr_type = ADDRTYPE_LOCALPHYSICAL;
 
-	pBusInfo->flags.server = inmsg->hdr.flags.server;
-	pBusInfo->chan_info.channel_addr = cmd->create_bus.channel_addr;
-	pBusInfo->chan_info.n_channel_bytes = cmd->create_bus.channel_bytes;
-	pBusInfo->chan_info.channel_type_uuid =
+	bus_info->flags.server = inmsg->hdr.flags.server;
+	bus_info->chan_info.channel_addr = cmd->create_bus.channel_addr;
+	bus_info->chan_info.n_channel_bytes = cmd->create_bus.channel_bytes;
+	bus_info->chan_info.channel_type_uuid =
 			cmd->create_bus.bus_data_type_uuid;
-	pBusInfo->chan_info.channel_inst_uuid = cmd->create_bus.bus_inst_uuid;
+	bus_info->chan_info.channel_inst_uuid = cmd->create_bus.bus_inst_uuid;
 
-	list_add(&pBusInfo->entry, &bus_info_list);
+	list_add(&bus_info->entry, &bus_info_list);
 
-	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, busNo, POSTCODE_SEVERITY_INFO);
+	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
-Away:
-	bus_epilog(busNo, CONTROLVM_BUS_CREATE, &inmsg->hdr,
+cleanup:
+	bus_epilog(bus_no, CONTROLVM_BUS_CREATE, &inmsg->hdr,
 		   rc, inmsg->hdr.flags.response_expected == 1);
 }
 
