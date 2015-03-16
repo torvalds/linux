@@ -604,8 +604,8 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		if (ieee->iw_mode == IW_MODE_MONITOR) {
 			txb = rtllib_alloc_txb(1, skb->len, GFP_ATOMIC);
 			if (unlikely(!txb)) {
-				printk(KERN_WARNING "%s: Could not allocate "
-				       "TXB\n",
+				printk(KERN_WARNING
+				       "%s: Could not allocate TXB\n",
 				ieee->dev->name);
 				goto failed;
 			}
@@ -636,8 +636,8 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 					}
 				}
 			} else if (ETH_P_ARP == ether_type) {
-				printk(KERN_INFO "=================>DHCP "
-				       "Protocol start tx ARP pkt!!\n");
+				printk(KERN_INFO
+				       "=================>DHCP Protocol start tx ARP pkt!!\n");
 				bdhcp = true;
 				ieee->LPSDelayCnt =
 					 ieee->current_network.tim.tim_count;

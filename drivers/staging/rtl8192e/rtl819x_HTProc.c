@@ -294,8 +294,8 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	struct ht_capab_ele *pCapELE = NULL;
 
 	if ((posHTCap == NULL) || (pHT == NULL)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "posHTCap or pHTInfo can't be "
-			     "null in HTConstructCapabilityElement()\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "posHTCap or pHTInfo can't be null in HTConstructCapabilityElement()\n");
 		return;
 	}
 	memset(posHTCap, 0, *len);
@@ -331,9 +331,9 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	pCapELE->LSigTxopProtect = 0;
 
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "TX HT cap/info ele BW=%d MaxAMSDUSize:%d "
-		     "DssCCk:%d\n", pCapELE->ChlWidth, pCapELE->MaxAMSDUSize,
-		     pCapELE->DssCCk);
+	RTLLIB_DEBUG(RTLLIB_DL_HT,
+		     "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n",
+		     pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
 
 	if (IsEncrypt) {
 		pCapELE->MPDUDensity	= 7;
@@ -376,8 +376,8 @@ void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
 	struct ht_info_ele *pHTInfoEle = (struct ht_info_ele *)posHTInfo;
 
 	if ((posHTInfo == NULL) || (pHTInfoEle == NULL)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "posHTInfo or pHTInfoEle can't be "
-			     "null in HTConstructInfoElement()\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "posHTInfo or pHTInfoEle can't be null in HTConstructInfoElement()\n");
 		return;
 	}
 
@@ -416,8 +416,8 @@ void HTConstructRT2RTAggElement(struct rtllib_device *ieee, u8 *posRT2RTAgg,
 				u8 *len)
 {
 	if (posRT2RTAgg == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "posRT2RTAgg can't be null in "
-			     "HTConstructRT2RTAggElement()\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "posRT2RTAgg can't be null in HTConstructRT2RTAggElement()\n");
 		return;
 	}
 	memset(posRT2RTAgg, 0, *len);
@@ -440,8 +440,8 @@ static u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
 	u8 i;
 
 	if (pOperateMCS == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pOperateMCS can't be null"
-			     " in HT_PickMCSRate()\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "pOperateMCS can't be null in HT_PickMCSRate()\n");
 		return false;
 	}
 
@@ -475,8 +475,8 @@ u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 	u8		availableMcsRate[16];
 
 	if (pMCSRateSet == NULL || pMCSFilter == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pMCSRateSet or pMCSFilter can't "
-			     "be null in HTGetHighestMCSRate()\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "pMCSRateSet or pMCSFilter can't be null in HTGetHighestMCSRate()\n");
 		return false;
 	}
 	for (i = 0; i < 16; i++)
@@ -541,8 +541,8 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	static u8 EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};
 
 	if (pHTInfo->bCurrentHTSupport == false) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "<=== HTOnAssocRsp(): "
-			     "HT_DISABLE\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "<=== HTOnAssocRsp(): HT_DISABLE\n");
 		return;
 	}
 	RTLLIB_DEBUG(RTLLIB_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");
@@ -843,8 +843,8 @@ u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame)
 {
 	if (ieee->pHTInfo->bCurrentHTSupport) {
 		if ((IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1) {
-			RTLLIB_DEBUG(RTLLIB_DL_HT, "HT CONTROL FILED "
-				     "EXIST!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_HT,
+				     "HT CONTROL FILED EXIST!!\n");
 			return true;
 		}
 	}

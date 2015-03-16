@@ -35,8 +35,8 @@ int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
 	priv->polling_timer_on = 0;
 
 	if (!netif_running(dev)) {
-		printk(KERN_INFO "RTL819XE:UI is open out of suspend "
-		       "function\n");
+		printk(KERN_INFO
+		       "RTL819XE:UI is open out of suspend function\n");
 		goto out_pci_suspend;
 	}
 
@@ -59,8 +59,8 @@ int rtl8192E_suspend(struct pci_dev *pdev, pm_message_t state)
 out_pci_suspend:
 	printk("r8192E support WOL call??????????????????????\n");
 	if (priv->rtllib->bSupportRemoteWakeUp)
-		RT_TRACE(COMP_POWER, "r8192E support WOL call!!!!!!!"
-			 "!!!!!!!!!!!.\n");
+		RT_TRACE(COMP_POWER,
+			 "r8192E support WOL call!!!!!!!!!!!!!!!!!!.\n");
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state),
@@ -101,8 +101,8 @@ int rtl8192E_resume(struct pci_dev *pdev)
 		check_rfctrl_gpio_timer((unsigned long)dev);
 
 	if (!netif_running(dev)) {
-		printk(KERN_INFO "RTL819XE:UI is open out of resume "
-		       "function\n");
+		printk(KERN_INFO
+		       "RTL819XE:UI is open out of resume function\n");
 		goto out;
 	}
 

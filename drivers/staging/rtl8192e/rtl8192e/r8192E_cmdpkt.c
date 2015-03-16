@@ -332,44 +332,44 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 
 		switch (element_id) {
 		case RX_TX_FEEDBACK:
-			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():"
-				 "RX_TX_FEEDBACK\n");
+			RT_TRACE(COMP_CMDPKT,
+				 "---->cmpk_message_handle_rx():RX_TX_FEEDBACK\n");
 			cmpk_handle_tx_feedback(dev, pcmd_buff);
 			cmd_length = CMPK_RX_TX_FB_SIZE;
 			break;
 		case RX_INTERRUPT_STATUS:
-			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():"
-				 "RX_INTERRUPT_STATUS\n");
+			RT_TRACE(COMP_CMDPKT,
+				 "---->cmpk_message_handle_rx():RX_INTERRUPT_STATUS\n");
 			cmpk_handle_interrupt_status(dev, pcmd_buff);
 			cmd_length = sizeof(struct cmpk_intr_sta);
 			break;
 		case BOTH_QUERY_CONFIG:
-			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():"
-				 "BOTH_QUERY_CONFIG\n");
+			RT_TRACE(COMP_CMDPKT,
+				 "---->cmpk_message_handle_rx():BOTH_QUERY_CONFIG\n");
 			cmpk_handle_query_config_rx(dev, pcmd_buff);
 			cmd_length = CMPK_BOTH_QUERY_CONFIG_SIZE;
 			break;
 		case RX_TX_STATUS:
-			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():"
-				 "RX_TX_STATUS\n");
+			RT_TRACE(COMP_CMDPKT,
+				 "---->cmpk_message_handle_rx():RX_TX_STATUS\n");
 			cmpk_handle_tx_status(dev, pcmd_buff);
 			cmd_length = CMPK_RX_TX_STS_SIZE;
 			break;
 		case RX_TX_PER_PKT_FEEDBACK:
-			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():"
-				 "RX_TX_PER_PKT_FEEDBACK\n");
+			RT_TRACE(COMP_CMDPKT,
+				 "---->cmpk_message_handle_rx():RX_TX_PER_PKT_FEEDBACK\n");
 			cmd_length = CMPK_RX_TX_FB_SIZE;
 			break;
 		case RX_TX_RATE_HISTORY:
-			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():"
-				 "RX_TX_HISTORY\n");
+			RT_TRACE(COMP_CMDPKT,
+				 "---->cmpk_message_handle_rx():RX_TX_HISTORY\n");
 			cmpk_handle_tx_rate_history(dev, pcmd_buff);
 			cmd_length = CMPK_TX_RAHIS_SIZE;
 			break;
 		default:
 
-			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():"
-				 "unknown CMD Element\n");
+			RT_TRACE(COMP_CMDPKT,
+				 "---->cmpk_message_handle_rx():unknown CMD Element\n");
 			return 1;
 		}
 

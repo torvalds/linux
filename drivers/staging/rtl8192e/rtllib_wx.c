@@ -282,8 +282,7 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 			ev = rtl819x_translate_scan(ieee, ev, stop, network,
 						    info);
 		else
-			RTLLIB_DEBUG_SCAN("Not showing network '%s ("
-				" %pM)' due to age (%lums).\n",
+			RTLLIB_DEBUG_SCAN("Not showing network '%s ( %pM)' due to age (%lums).\n",
 				escape_essid(network->ssid,
 					     network->ssid_len),
 				network->bssid,
@@ -437,8 +436,8 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 
 		/* No key data - just set the default TX key index */
 		if (key_provided) {
-			RTLLIB_DEBUG_WX(
-				"Setting key %d to default Tx key.\n", key);
+			RTLLIB_DEBUG_WX("Setting key %d to default Tx key.\n",
+					key);
 			ieee->crypt_info.tx_keyidx = key;
 			sec.active_key = key;
 			sec.flags |= SEC_ACTIVE_KEY;

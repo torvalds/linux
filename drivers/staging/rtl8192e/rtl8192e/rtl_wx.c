@@ -116,8 +116,9 @@ static int r8192_wx_set_power(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (priv->bHwRadioOff) {
-		RT_TRACE(COMP_ERR, "%s():Hw is Radio Off, we can't set "
-			 "Power,return\n", __func__);
+		RT_TRACE(COMP_ERR,
+			 "%s():Hw is Radio Off, we can't set Power,return\n",
+			 __func__);
 		return 0;
 	}
 	down(&priv->wx_sem);
@@ -256,8 +257,9 @@ static int r8192se_wx_set_radio(struct net_device *dev,
 
 	printk(KERN_INFO "%s(): set radio ! extra is %d\n", __func__, *extra);
 	if ((*extra != 0) && (*extra != 1)) {
-		RT_TRACE(COMP_ERR, "%s(): set radio an err value,must 0(radio "
-			 "off) or 1(radio on)\n", __func__);
+		RT_TRACE(COMP_ERR,
+			 "%s(): set radio an err value,must 0(radio off) or 1(radio on)\n",
+			 __func__);
 		up(&priv->wx_sem);
 		return -1;
 	}
@@ -293,8 +295,9 @@ static int r8192se_wx_set_force_lps(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	printk(KERN_INFO "%s(): force LPS ! extra is %d (1 is open 0 is "
-	       "close)\n", __func__, *extra);
+	printk(KERN_INFO
+	       "%s(): force LPS ! extra is %d (1 is open 0 is close)\n",
+	       __func__, *extra);
 	priv->force_lps = *extra;
 	up(&priv->wx_sem);
 	return 0;
@@ -344,8 +347,9 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 					up(&priv->wx_sem);
 					return -1;
 				} else {
-					printk(KERN_INFO "=========>%s(): "
-					       "IPSLeave\n", __func__);
+					printk(KERN_INFO
+					       "=========>%s(): IPSLeave\n",
+					       __func__);
 					down(&priv->rtllib->ips_sem);
 					IPSLeave(dev);
 					up(&priv->rtllib->ips_sem);
@@ -500,13 +504,15 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			if (rtState == eRfOff) {
 				if (priv->rtllib->RfOffReason >
 				    RF_CHANGE_BY_IPS) {
-					RT_TRACE(COMP_ERR, "%s(): RF is "
-						 "OFF.\n", __func__);
+					RT_TRACE(COMP_ERR,
+						 "%s(): RF is OFF.\n",
+						 __func__);
 					up(&priv->wx_sem);
 					return -1;
 				} else {
-					RT_TRACE(COMP_PS, "=========>%s(): "
-						 "IPSLeave\n", __func__);
+					RT_TRACE(COMP_PS,
+						 "=========>%s(): IPSLeave\n",
+						 __func__);
 					down(&priv->rtllib->ips_sem);
 					IPSLeave(dev);
 					up(&priv->rtllib->ips_sem);
@@ -573,8 +579,9 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	int ret;
 
 	if (priv->bHwRadioOff) {
-		printk(KERN_INFO "=========>%s():hw radio off,or Rf state is "
-		       "eRfOff, return\n", __func__);
+		printk(KERN_INFO
+		       "=========>%s():hw radio off,or Rf state is eRfOff, return\n",
+		       __func__);
 		return 0;
 	}
 	down(&priv->wx_sem);

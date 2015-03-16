@@ -86,9 +86,9 @@ void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	RT_TRACE(COMP_DBG, "===========>%s():EntryNo is %d,KeyIndex is "
-		 "%d,KeyType is %d,is_mesh is %d\n", __func__, EntryNo,
-		 KeyIndex, KeyType, is_mesh);
+	RT_TRACE(COMP_DBG,
+		 "===========>%s():EntryNo is %d,KeyIndex is %d,KeyType is %d,is_mesh is %d\n",
+		 __func__, EntryNo, KeyIndex, KeyType, is_mesh);
 	if (!is_mesh) {
 		ieee->swcamtable[EntryNo].bused = true;
 		ieee->swcamtable[EntryNo].key_index = KeyIndex;
@@ -127,9 +127,9 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	if (EntryNo >= TOTAL_CAM_ENTRY)
 		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
 
-	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d,"
-		 "KeyType:%d, MacAddr %pM\n", dev, EntryNo, KeyIndex,
-		 KeyType, MacAddr);
+	RT_TRACE(COMP_SEC,
+		 "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d,KeyType:%d, MacAddr %pM\n",
+		 dev, EntryNo, KeyIndex, KeyType, MacAddr);
 
 	if (DefaultKey)
 		usConfig |= BIT15 | (KeyType<<2);
@@ -244,8 +244,8 @@ void CamRestoreAllEntry(struct net_device *dev)
 				       (u32 *)(&priv->rtllib->swcamtable[0].key_buf[0])
 				     );
 			} else {
-				RT_TRACE(COMP_ERR, "===>%s():ERR!! ADHOC TKIP "
-					 ",but 0 entry is have no data\n",
+				RT_TRACE(COMP_ERR,
+					 "===>%s():ERR!! ADHOC TKIP ,but 0 entry is have no data\n",
 					 __func__);
 				return;
 			}
@@ -268,8 +268,8 @@ void CamRestoreAllEntry(struct net_device *dev)
 					CAM_CONST_ADDR[0], 0,
 					(u32 *)(&priv->rtllib->swcamtable[0].key_buf[0]));
 			} else {
-				RT_TRACE(COMP_ERR, "===>%s():ERR!! ADHOC CCMP ,"
-					 "but 0 entry is have no data\n",
+				RT_TRACE(COMP_ERR,
+					 "===>%s():ERR!! ADHOC CCMP ,but 0 entry is have no data\n",
 					 __func__);
 				return;
 			}

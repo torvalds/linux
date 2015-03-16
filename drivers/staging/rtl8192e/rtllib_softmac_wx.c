@@ -575,8 +575,9 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 	if ((!ieee->sta_wake_up) ||
 	    (!ieee->enter_sleep_state) ||
 	    (!ieee->ps_is_queue_empty)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "%s(): PS mode is tried to be use "
-			     "but driver missed a callback\n\n", __func__);
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "%s(): PS mode is tried to be use but driver missed a callback\n\n",
+			     __func__);
 		return -1;
 	}
 

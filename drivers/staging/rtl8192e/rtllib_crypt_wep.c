@@ -44,15 +44,13 @@ static void *prism2_wep_init(int keyidx)
 
 	priv->tx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm)) {
-		pr_debug("rtllib_crypt_wep: could not allocate "
-		       "crypto API arc4\n");
+		pr_debug("rtllib_crypt_wep: could not allocate crypto API arc4\n");
 		priv->tx_tfm = NULL;
 		goto fail;
 	}
 	priv->rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm)) {
-		pr_debug("rtllib_crypt_wep: could not allocate "
-		       "crypto API arc4\n");
+		pr_debug("rtllib_crypt_wep: could not allocate crypto API arc4\n");
 		priv->rx_tfm = NULL;
 		goto fail;
 	}
@@ -108,9 +106,9 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (skb_headroom(skb) < 4 || skb_tailroom(skb) < 4 ||
 	    skb->len < hdr_len){
-		printk(KERN_ERR "Error!!! headroom=%d tailroom=%d skblen=%d"
-		       " hdr_len=%d\n", skb_headroom(skb), skb_tailroom(skb),
-		       skb->len, hdr_len);
+		printk(KERN_ERR
+		       "Error!!! headroom=%d tailroom=%d skblen=%d hdr_len=%d\n",
+		       skb_headroom(skb), skb_tailroom(skb), skb->len, hdr_len);
 		return -1;
 	}
 	len = skb->len - hdr_len;

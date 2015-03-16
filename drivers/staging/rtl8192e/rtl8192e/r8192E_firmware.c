@@ -83,8 +83,8 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		if (!priv->rtllib->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
 		    (!skb_queue_empty(&priv->rtllib->skb_waitQ[tcb_desc->queue_index])) ||
 		    (priv->rtllib->queue_stop)) {
-			RT_TRACE(COMP_FIRMWARE, "===================> tx "
-				 "full!\n");
+			RT_TRACE(COMP_FIRMWARE,
+				 "===================> tx full!\n");
 			skb_queue_tail(&priv->rtllib->skb_waitQ
 					[tcb_desc->queue_index], skb);
 		} else {
@@ -196,8 +196,8 @@ static bool firmware_check_ready(struct net_device *dev,
 		if (rt_status)
 			pfirmware->firmware_status = FW_STATUS_3_TURNON_CPU;
 		else
-			RT_TRACE(COMP_FIRMWARE, "CPUcheck_maincodeok_turnon"
-				 "CPU fail!\n");
+			RT_TRACE(COMP_FIRMWARE,
+				 "CPUcheck_maincodeok_turnonCPU fail!\n");
 
 		break;
 
@@ -209,8 +209,9 @@ static bool firmware_check_ready(struct net_device *dev,
 		if (rt_status)
 			pfirmware->firmware_status = FW_STATUS_5_READY;
 		else
-			RT_TRACE(COMP_FIRMWARE, "CPUcheck_firmware_ready fail"
-				 "(%d)!\n", rt_status);
+			RT_TRACE(COMP_FIRMWARE,
+				 "CPUcheck_firmware_ready fail(%d)!\n",
+				 rt_status);
 
 		break;
 	default:
@@ -245,8 +246,8 @@ bool init_firmware(struct net_device *dev)
 		rst_opt = OPT_FIRMWARE_RESET;
 		starting_state = FW_INIT_STEP2_DATA;
 	} else {
-		RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined"
-			 " firmware state\n");
+		RT_TRACE(COMP_FIRMWARE,
+			 "PlatformInitFirmware: undefined firmware state\n");
 	}
 
 	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA;
@@ -265,14 +266,14 @@ bool init_firmware(struct net_device *dev)
 						      fw_name[init_step],
 						      &priv->pdev->dev);
 				if (rc < 0) {
-					RT_TRACE(COMP_FIRMWARE, "request firmware fail!\n");
+					RT_TRACE(COMP_FIRMWARE,
+						 "request firmware fail!\n");
 					goto download_firmware_fail;
 				}
 				if (fw_entry->size >
 				    sizeof(pfirmware->firmware_buf[init_step])) {
-					RT_TRACE(COMP_FIRMWARE, "img file size "
-						 "exceed the container struct "
-						 "buffer fail!\n");
+					RT_TRACE(COMP_FIRMWARE,
+						 "img file size exceed the container struct buffer fail!\n");
 					goto download_firmware_fail;
 				}
 

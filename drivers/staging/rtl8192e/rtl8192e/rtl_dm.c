@@ -757,8 +757,8 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 		for (i = 0; i < CCK_Table_length; i++) {
 			if (TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
 				priv->CCK_index = (u8) i;
-				RT_TRACE(COMP_POWER_TRACKING, "Initial reg0x%x"
-					 " = 0x%x, CCK_index = 0x%x\n",
+				RT_TRACE(COMP_POWER_TRACKING,
+					 "Initial reg0x%x = 0x%x, CCK_index = 0x%x\n",
 					 rCCK0_TxFilter1, TempCCk,
 					 priv->CCK_index);
 				break;
@@ -803,8 +803,8 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 
 	priv->Record_CCK_20Mindex = tmpCCK20Mindex;
 	priv->Record_CCK_40Mindex = tmpCCK40Mindex;
-	RT_TRACE(COMP_POWER_TRACKING, "Record_CCK_20Mindex / Record_CCK_40"
-		 "Mindex = %d / %d.\n",
+	RT_TRACE(COMP_POWER_TRACKING,
+		 "Record_CCK_20Mindex / Record_CCK_40Mindex = %d / %d.\n",
 		 priv->Record_CCK_20Mindex, priv->Record_CCK_40Mindex);
 
 	if (priv->rtllib->current_network.channel == 14 &&
@@ -2131,8 +2131,8 @@ static void dm_check_edca_turbo(struct net_device *dev)
 		static int wb_tmp;
 
 		if (wb_tmp == 0) {
-			printk(KERN_INFO "%s():iot peer is %s, bssid:"
-			       " %pM\n", __func__,
+			printk(KERN_INFO
+			       "%s():iot peer is %s, bssid: %pM\n", __func__,
 			       peername[pHTInfo->IOTPeer],
 			       priv->rtllib->current_network.bssid);
 			wb_tmp = 1;
@@ -2638,9 +2638,10 @@ void dm_fsync_timer_callback(unsigned long data)
 		}
 		priv->rate_record = rate_count;
 		priv->rateCountDiffRecord = rate_count_diff;
-		RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rate"
-			 "Countdiff %d bSwitchFsync %d\n", priv->rate_record,
-			 rate_count, rate_count_diff, priv->bswitch_fsync);
+		RT_TRACE(COMP_HALDM,
+			 "rateRecord %d rateCount %d, rateCountdiff %d bSwitchFsync %d\n",
+			 priv->rate_record, rate_count, rate_count_diff,
+			 priv->bswitch_fsync);
 		if (priv->undecorated_smoothed_pwdb >
 		    priv->rtllib->fsync_rssi_threshold &&
 		    bSwitchFromCountDiff) {
@@ -2685,9 +2686,10 @@ void dm_fsync_timer_callback(unsigned long data)
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	}
 	RT_TRACE(COMP_HALDM, "ContinueDiffCount %d\n", priv->ContinueDiffCount);
-	RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rateCountdiff %d "
-		 "bSwitchFsync %d\n", priv->rate_record, rate_count,
-		 rate_count_diff, priv->bswitch_fsync);
+	RT_TRACE(COMP_HALDM,
+		 "rateRecord %d rateCount %d, rateCountdiff %d bSwitchFsync %d\n",
+		 priv->rate_record, rate_count, rate_count_diff,
+		 priv->bswitch_fsync);
 }
 
 static void dm_StartHWFsync(struct net_device *dev)
@@ -2778,12 +2780,14 @@ void dm_check_fsync(struct net_device *dev)
 	static u8 reg_c38_State = RegC38_Default;
 	static u32 reset_cnt;
 
-	RT_TRACE(COMP_HALDM, "RSSI %d TimeInterval %d MultipleTimeInterval "
-		 "%d\n", priv->rtllib->fsync_rssi_threshold,
+	RT_TRACE(COMP_HALDM,
+		 "RSSI %d TimeInterval %d MultipleTimeInterval %d\n",
+		 priv->rtllib->fsync_rssi_threshold,
 		 priv->rtllib->fsync_time_interval,
 		 priv->rtllib->fsync_multiple_timeinterval);
-	RT_TRACE(COMP_HALDM, "RateBitmap 0x%x FirstDiffRateThreshold %d Second"
-		 "DiffRateThreshold %d\n", priv->rtllib->fsync_rate_bitmap,
+	RT_TRACE(COMP_HALDM,
+		 "RateBitmap 0x%x FirstDiffRateThreshold %d SecondDiffRateThreshold %d\n",
+		 priv->rtllib->fsync_rate_bitmap,
 		 priv->rtllib->fsync_firstdiff_ratethreshold,
 		 priv->rtllib->fsync_seconddiff_ratethreshold);
 

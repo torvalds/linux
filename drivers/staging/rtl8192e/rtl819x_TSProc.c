@@ -58,9 +58,9 @@ static void RxPktPendingTimeout(unsigned long data)
 					pRxTs->RxIndicateSeq =
 					      (pRxTs->RxIndicateSeq + 1) % 4096;
 
-				RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate"
-					     " SeqNum: %d\n", __func__,
-					     pReorderEntry->SeqNum);
+				RTLLIB_DEBUG(RTLLIB_DL_REORDER,
+					     "%s(): Indicate SeqNum: %d\n",
+					     __func__, pReorderEntry->SeqNum);
 				ieee->stats_IndicateArray[index] =
 							 pReorderEntry->prxb;
 				index++;
@@ -78,8 +78,8 @@ static void RxPktPendingTimeout(unsigned long data)
 		pRxTs->RxTimeoutIndicateSeq = 0xffff;
 
 		if (index > REORDER_WIN_SIZE) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket():"
-				     " Rx Reorder struct buffer full!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_ERR,
+				     "RxReorderIndicatePacket(): Rx Reorder struct buffer full!!\n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock),
 					       flags);
 			return;
@@ -104,8 +104,8 @@ static void TsAddBaProcess(unsigned long data)
 				     TxTsRecord[num]);
 
 	TsInitAddBA(ieee, pTxTs, BA_POLICY_IMMEDIATE, false);
-	RTLLIB_DEBUG(RTLLIB_DL_BA, "TsAddBaProcess(): ADDBA Req is "
-		     "started!!\n");
+	RTLLIB_DEBUG(RTLLIB_DL_BA,
+		     "TsAddBaProcess(): ADDBA Req is started!!\n");
 }
 
 static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
@@ -313,16 +313,17 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	u8	UP = 0;
 
 	if (is_multicast_ether_addr(Addr)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR! get TS for Broadcast or "
-			     "Multicast\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "ERR! get TS for Broadcast or Multicast\n");
 		return false;
 	}
 	if (ieee->current_network.qos_data.supported == 0) {
 		UP = 0;
 	} else {
 		if (!IsACValid(TID)) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR! in %s(), TID(%d) is "
-				     "not valid\n", __func__, TID);
+			RTLLIB_DEBUG(RTLLIB_DL_ERR,
+				     "ERR! in %s(), TID(%d) is not valid\n",
+				     __func__, TID);
 			return false;
 		}
 
@@ -351,8 +352,8 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		return true;
 	} else {
 		if (!bAddNewTs) {
-			RTLLIB_DEBUG(RTLLIB_DL_TS, "add new TS failed"
-				     "(tid:%d)\n", UP);
+			RTLLIB_DEBUG(RTLLIB_DL_TS,
+				     "add new TS failed(tid:%d)\n", UP);
 			return false;
 		} else {
 			union tspec_body TSpec;
@@ -390,10 +391,9 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 					ResetRxTsEntry(tmp);
 				}
 
-				RTLLIB_DEBUG(RTLLIB_DL_TS, "to init current TS"
-					     ", UP:%d, Dir:%d, addr: %pM"
-					     " ppTs=%p\n", UP, Dir,
-					      Addr, *ppTS);
+				RTLLIB_DEBUG(RTLLIB_DL_TS,
+					     "to init current TS, UP:%d, Dir:%d, addr: %pM ppTs=%p\n",
+					     UP, Dir, Addr, *ppTS);
 				pTSInfo->field.ucTrafficType = 0;
 				pTSInfo->field.ucTSID = UP;
 				pTSInfo->field.ucDirection = Dir;
@@ -410,10 +410,9 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 
 				return true;
 			} else {
-				RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR!!in function "
-					     "%s() There is not enough dir=%d"
-					     "(0=up down=1) TS record to be "
-					     "used!!", __func__, Dir);
+				RTLLIB_DEBUG(RTLLIB_DL_ERR,
+					     "ERR!!in function %s() There is not enough dir=%d(0=up down=1) TS record to be used!!",
+					     __func__, Dir);
 				return false;
 			}
 		}
@@ -438,8 +437,8 @@ static void RemoveTsEntry(struct rtllib_device *ieee, struct ts_common_info *pTs
 			pRxReorderEntry = (struct rx_reorder_entry *)
 					list_entry(pRxTS->RxPendingPktList.prev,
 					struct rx_reorder_entry, List);
-			RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Delete SeqNum "
-				     "%d!\n", __func__,
+			RTLLIB_DEBUG(RTLLIB_DL_REORDER,
+				     "%s(): Delete SeqNum %d!\n", __func__,
 				     pRxReorderEntry->SeqNum);
 			list_del_init(&pRxReorderEntry->List);
 			{
@@ -539,13 +538,13 @@ void TsStartAddBaProcess(struct rtllib_device *ieee, struct tx_ts_record *pTxTS)
 		pTxTS->bAddBaReqInProgress = true;
 
 		if (pTxTS->bAddBaReqDelayed) {
-			RTLLIB_DEBUG(RTLLIB_DL_BA, "TsStartAddBaProcess(): "
-				     "Delayed Start ADDBA after 60 sec!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_BA,
+				     "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies +
 				  msecs_to_jiffies(TS_ADDBA_DELAY));
 		} else {
-			RTLLIB_DEBUG(RTLLIB_DL_BA, "TsStartAddBaProcess(): "
-				     "Immediately Start ADDBA now!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_BA,
+				     "TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies+10);
 		}
 	} else

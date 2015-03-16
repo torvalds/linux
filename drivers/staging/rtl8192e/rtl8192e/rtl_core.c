@@ -326,8 +326,8 @@ bool MgntActSet_RF_State(struct net_device *dev,
 	u16			RFWaitCounter = 0;
 	unsigned long flag;
 
-	RT_TRACE((COMP_PS | COMP_RF), "===>MgntActSet_RF_State(): "
-		 "StateToSet(%d)\n", StateToSet);
+	RT_TRACE((COMP_PS | COMP_RF),
+		 "===>MgntActSet_RF_State(): StateToSet(%d)\n", StateToSet);
 
 	ProtectOrNot = false;
 
@@ -338,22 +338,19 @@ bool MgntActSet_RF_State(struct net_device *dev,
 			if (priv->RFChangeInProgress) {
 				spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 				RT_TRACE((COMP_PS | COMP_RF),
-					 "MgntActSet_RF_State(): RF Change in "
-					 "progress! Wait to set..StateToSet"
-					 "(%d).\n", StateToSet);
+					 "MgntActSet_RF_State(): RF Change in progress! Wait to set..StateToSet(%d).\n",
+					 StateToSet);
 
 				while (priv->RFChangeInProgress) {
 					RFWaitCounter++;
 					RT_TRACE((COMP_PS | COMP_RF),
-						 "MgntActSet_RF_State(): Wait 1"
-						 " ms (%d times)...\n",
+						 "MgntActSet_RF_State(): Wait 1 ms (%d times)...\n",
 						 RFWaitCounter);
 					mdelay(1);
 
 					if (RFWaitCounter > 100) {
-						RT_TRACE(COMP_ERR, "MgntActSet_"
-							 "RF_State(): Wait too "
-							 "logn to set RF\n");
+						RT_TRACE(COMP_ERR,
+							 "MgntActSet_RF_State(): Wait too logn to set RF\n");
 						return false;
 					}
 				}
@@ -383,9 +380,8 @@ bool MgntActSet_RF_State(struct net_device *dev,
 			    ChangeSource >= RF_CHANGE_BY_HW)
 				bConnectBySSID = true;
 		} else {
-			RT_TRACE((COMP_PS | COMP_RF), "MgntActSet_RF_State - "
-				 "eRfon reject pMgntInfo->RfOffReason= 0x%x,"
-				 " ChangeSource=0x%X\n",
+			RT_TRACE((COMP_PS | COMP_RF),
+				 "MgntActSet_RF_State - eRfon reject pMgntInfo->RfOffReason= 0x%x, ChangeSource=0x%X\n",
 				  priv->rtllib->RfOffReason, ChangeSource);
 	}
 
@@ -421,8 +417,8 @@ bool MgntActSet_RF_State(struct net_device *dev,
 	}
 
 	if (bActionAllowed) {
-		RT_TRACE((COMP_PS | COMP_RF), "MgntActSet_RF_State(): Action is"
-			 " allowed.... StateToSet(%d), RfOffReason(%#X)\n",
+		RT_TRACE((COMP_PS | COMP_RF),
+			 "MgntActSet_RF_State(): Action is allowed.... StateToSet(%d), RfOffReason(%#X)\n",
 			 StateToSet, priv->rtllib->RfOffReason);
 		PHY_SetRFPowerState(dev, StateToSet);
 		if (StateToSet == eRfOn) {
@@ -434,10 +430,9 @@ bool MgntActSet_RF_State(struct net_device *dev,
 			}
 		}
 	} else {
-		RT_TRACE((COMP_PS | COMP_RF), "MgntActSet_RF_State(): "
-			 "Action is rejected.... StateToSet(%d), ChangeSource"
-			 "(%#X), RfOffReason(%#X)\n", StateToSet, ChangeSource,
-			 priv->rtllib->RfOffReason);
+		RT_TRACE((COMP_PS | COMP_RF),
+			 "MgntActSet_RF_State(): Action is rejected.... StateToSet(%d), ChangeSource(%#X), RfOffReason(%#X)\n",
+			 StateToSet, ChangeSource, priv->rtllib->RfOffReason);
 	}
 
 	if (!ProtectOrNot) {
@@ -460,9 +455,9 @@ static short rtl8192_get_nic_desc_num(struct net_device *dev, int prio)
 	* between the tail and the head
 	*/
 	if ((prio == MGNT_QUEUE) && (skb_queue_len(&ring->queue) > 10))
-		RT_TRACE(COMP_DBG, "-----[%d]---------ring->idx=%d "
-			 "queue_len=%d---------\n", prio, ring->idx,
-			 skb_queue_len(&ring->queue));
+		RT_TRACE(COMP_DBG,
+			 "-----[%d]---------ring->idx=%d queue_len=%d---------\n",
+			 prio, ring->idx, skb_queue_len(&ring->queue));
 	return skb_queue_len(&ring->queue);
 }
 
@@ -526,8 +521,9 @@ void rtl8192_update_cap(struct net_device *dev, u16 cap)
 		if (priv->dot11CurrentPreambleMode != PREAMBLE_SHORT) {
 			ShortPreamble = true;
 			priv->dot11CurrentPreambleMode = PREAMBLE_SHORT;
-			RT_TRACE(COMP_DBG, "%s(): WLAN_CAPABILITY_SHORT_"
-				 "PREAMBLE\n", __func__);
+			RT_TRACE(COMP_DBG,
+				 "%s(): WLAN_CAPABILITY_SHORT_PREAMBLE\n",
+				 __func__);
 			priv->rtllib->SetHwRegHandler(dev, HW_VAR_ACK_PREAMBLE,
 					(unsigned char *)&ShortPreamble);
 		}
@@ -535,8 +531,9 @@ void rtl8192_update_cap(struct net_device *dev, u16 cap)
 		if (priv->dot11CurrentPreambleMode != PREAMBLE_LONG) {
 			ShortPreamble = false;
 			priv->dot11CurrentPreambleMode = PREAMBLE_LONG;
-			RT_TRACE(COMP_DBG, "%s(): WLAN_CAPABILITY_LONG_"
-				 "PREAMBLE\n", __func__);
+			RT_TRACE(COMP_DBG,
+				 "%s(): WLAN_CAPABILITY_LONG_PREAMBLE\n",
+				 __func__);
 			priv->rtllib->SetHwRegHandler(dev, HW_VAR_ACK_PREAMBLE,
 					      (unsigned char *)&ShortPreamble);
 		}
@@ -597,8 +594,8 @@ static void rtl8192_qos_activate(void *data)
 	mutex_lock(&priv->mutex);
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		goto success;
-	RT_TRACE(COMP_QOS, "qos active process with associate response "
-		 "received\n");
+	RT_TRACE(COMP_QOS,
+		 "qos active process with associate response received\n");
 
 	for (i = 0; i <  QOS_QUEUE_NUM; i++)
 		priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM, (u8 *)(&i));
@@ -634,8 +631,8 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 				network->qos_data.param_count;
 	priv->rtllib->wmm_acm = network->qos_data.wmm_acm;
 			queue_work_rsl(priv->priv_wq, &priv->qos_activate);
-			RT_TRACE(COMP_QOS, "QoS parameters change call "
-					"qos_activate\n");
+			RT_TRACE(COMP_QOS,
+				 "QoS parameters change call qos_activate\n");
 		}
 	} else {
 		memcpy(&priv->rtllib->current_network.qos_data.parameters,
@@ -643,8 +640,8 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 
 		if ((network->qos_data.active == 1) && (active_network == 1)) {
 			queue_work_rsl(priv->priv_wq, &priv->qos_activate);
-			RT_TRACE(COMP_QOS, "QoS was disabled call qos_"
-				 "activate\n");
+			RT_TRACE(COMP_QOS,
+				 "QoS was disabled call qos_activate\n");
 		}
 		network->qos_data.active = 0;
 		network->qos_data.supported = 0;
@@ -909,8 +906,9 @@ void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 		} else if ((bSupportMode & WIRELESS_MODE_B)) {
 			wireless_mode = WIRELESS_MODE_B;
 		} else {
-			RT_TRACE(COMP_ERR, "%s(), No valid wireless mode "
-				 "supported (%x)!!!\n", __func__, bSupportMode);
+			RT_TRACE(COMP_ERR,
+				 "%s(), No valid wireless mode supported (%x)!!!\n",
+				 __func__, bSupportMode);
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
@@ -1025,8 +1023,9 @@ static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 			spin_lock_irqsave(&priv->rf_ps_lock, flags);
 			break;
 		}
-		RT_TRACE(COMP_DBG, "===>%s():RF is in progress, need to wait "
-			 "until rf change is done.\n", __func__);
+		RT_TRACE(COMP_DBG,
+			 "===>%s():RF is in progress, need to wait until rf change is done.\n",
+			 __func__);
 		mdelay(1);
 		RFInProgressTimeOut++;
 		spin_lock_irqsave(&priv->rf_ps_lock, flags);
@@ -1212,8 +1211,8 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->AcmControl = 0;
 	priv->pFirmware = vzalloc(sizeof(struct rt_firmware));
 	if (!priv->pFirmware)
-		printk(KERN_ERR "rtl8192e: Unable to allocate space "
-		       "for firmware\n");
+		printk(KERN_ERR
+		       "rtl8192e: Unable to allocate space for firmware\n");
 
 	skb_queue_head_init(&priv->rx_queue);
 	skb_queue_head_init(&priv->skb_queue);
@@ -1278,14 +1277,15 @@ static short rtl8192_get_channel_map(struct net_device *dev)
 
 	if ((priv->rf_chip != RF_8225) && (priv->rf_chip != RF_8256)
 			&& (priv->rf_chip != RF_6052)) {
-		RT_TRACE(COMP_ERR, "%s: unknown rf chip, can't set channel "
-			 "map\n", __func__);
+		RT_TRACE(COMP_ERR,
+			 "%s: unknown rf chip, can't set channel map\n",
+			 __func__);
 		return -1;
 	}
 
 	if (priv->ChannelPlan >= COUNTRY_CODE_MAX) {
-		printk(KERN_INFO "rtl819x_init:Error channel plan! Set to "
-		       "default.\n");
+		printk(KERN_INFO
+		       "rtl819x_init:Error channel plan! Set to default.\n");
 		priv->ChannelPlan = COUNTRY_CODE_FCC;
 	}
 	RT_TRACE(COMP_INIT, "Channel plan is %d\n", priv->ChannelPlan);
@@ -1406,8 +1406,9 @@ static enum reset_type rtl819x_TxCheckStuck(struct net_device *dev)
 			tcb_desc->nStuckCount++;
 			bCheckFwTxCnt = true;
 			if (tcb_desc->nStuckCount > 1)
-				printk(KERN_INFO "%s: QueueID=%d tcb_desc->n"
-				       "StuckCount=%d\n", __func__, QueueID,
+				printk(KERN_INFO
+				       "%s: QueueID=%d tcb_desc->nStuckCount=%d\n",
+				       __func__, QueueID,
 				       tcb_desc->nStuckCount);
 		}
 	}
@@ -1415,8 +1416,8 @@ static enum reset_type rtl819x_TxCheckStuck(struct net_device *dev)
 
 	if (bCheckFwTxCnt) {
 		if (priv->ops->TxCheckStuckHandler(dev)) {
-			RT_TRACE(COMP_RESET, "TxCheckStuck(): Fw indicates no"
-				 " Tx condition!\n");
+			RT_TRACE(COMP_RESET,
+				 "TxCheckStuck(): Fw indicates no Tx condition!\n");
 			return RESET_TYPE_SILENT;
 		}
 	}
@@ -1507,8 +1508,9 @@ RESET_START:
 			LeisurePSLeave(dev);
 
 		if (priv->up) {
-			RT_TRACE(COMP_ERR, "%s():the driver is not up! "
-				 "return\n", __func__);
+			RT_TRACE(COMP_ERR,
+				 "%s():the driver is not up! return\n",
+				 __func__);
 			up(&priv->wx_sem);
 			return;
 		}
@@ -1517,8 +1519,9 @@ RESET_START:
 		RT_TRACE(COMP_RESET, "%s():======>start to down the driver\n",
 			  __func__);
 		mdelay(1000);
-		RT_TRACE(COMP_RESET, "%s():111111111111111111111111======>start"
-			 " to down the driver\n", __func__);
+		RT_TRACE(COMP_RESET,
+			 "%s():111111111111111111111111======>start to down the driver\n",
+			 __func__);
 
 		if (!netif_queue_stopped(dev))
 			netif_stop_queue(dev);
@@ -1546,22 +1549,24 @@ RESET_START:
 		dm_backup_dynamic_mechanism_state(dev);
 
 		up(&priv->wx_sem);
-		RT_TRACE(COMP_RESET, "%s():<==========down process is "
-			 "finished\n", __func__);
+		RT_TRACE(COMP_RESET,
+			 "%s():<==========down process is finished\n",
+			 __func__);
 
 		RT_TRACE(COMP_RESET, "%s():<===========up process start\n",
 			 __func__);
 		reset_status = _rtl8192_up(dev, true);
 
-		RT_TRACE(COMP_RESET, "%s():<===========up process is "
-			 "finished\n", __func__);
+		RT_TRACE(COMP_RESET,
+			 "%s():<===========up process is finished\n", __func__);
 		if (reset_status == -1) {
 			if (reset_times < 3) {
 				reset_times++;
 				goto RESET_START;
 			} else {
-				RT_TRACE(COMP_ERR, " ERR!!! %s():  Reset "
-					 "Failed!!\n", __func__);
+				RT_TRACE(COMP_ERR,
+					 " ERR!!! %s():  Reset Failed!!\n",
+					 __func__);
 			}
 		}
 
@@ -1670,8 +1675,8 @@ void	rtl819x_watchdog_wqcallback(void *data)
 			if ((ieee->PowerSaveControl.ReturnPoint ==
 			     IPS_CALLBACK_NONE) &&
 			     (!ieee->bNetPromiscuousMode)) {
-				RT_TRACE(COMP_PS, "====================>haha: "
-					 "IPSEnter()\n");
+				RT_TRACE(COMP_PS,
+					 "====================>haha: IPSEnter()\n");
 				IPSEnter(dev);
 			}
 		}
@@ -1736,8 +1741,9 @@ void	rtl819x_watchdog_wqcallback(void *data)
 			if (ieee->eRFPowerState == eRfOff)
 				RT_TRACE(COMP_ERR, "========>%s()\n", __func__);
 
-			printk(KERN_INFO "===>%s(): AP is power off, chan:%d,"
-			       " connect another one\n", __func__, priv->chan);
+			printk(KERN_INFO
+			       "===>%s(): AP is power off, chan:%d, connect another one\n",
+			       __func__, priv->chan);
 
 			ieee->state = RTLLIB_ASSOCIATING;
 
@@ -2007,9 +2013,9 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	u32 fwinfo_size = 0;
 
 	if (priv->bdisable_nic) {
-		RT_TRACE(COMP_ERR, "%s: ERR!! Nic is disabled! Can't tx packet"
-			 " len=%d qidx=%d!!!\n", __func__, skb->len,
-			 tcb_desc->queue_index);
+		RT_TRACE(COMP_ERR,
+			 "%s: ERR!! Nic is disabled! Can't tx packet len=%d qidx=%d!!!\n",
+			 __func__, skb->len, tcb_desc->queue_index);
 		return skb->len;
 	}
 
@@ -2046,8 +2052,8 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 
 	pdesc = &ring->desc[idx];
 	if ((pdesc->OWN == 1) && (tcb_desc->queue_index != BEACON_QUEUE)) {
-		RT_TRACE(COMP_ERR, "No more TX desc@%d, ring->idx = %d, idx = "
-			 "%d, skblen = 0x%x queuelen=%d",
+		RT_TRACE(COMP_ERR,
+			 "No more TX desc@%d, ring->idx = %d, idx = %d, skblen = 0x%x queuelen=%d",
 			 tcb_desc->queue_index, ring->idx, idx, skb->len,
 			 skb_queue_len(&ring->queue));
 		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
@@ -2940,8 +2946,8 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 	dev->watchdog_timeo = HZ * 3;
 
 	if (dev_alloc_name(dev, ifname) < 0) {
-		RT_TRACE(COMP_INIT, "Oops: devname already taken! Trying "
-			 "wlan%%d...\n");
+		RT_TRACE(COMP_INIT,
+			 "Oops: devname already taken! Trying wlan%%d...\n");
 			dev_alloc_name(dev, ifname);
 	}
 
