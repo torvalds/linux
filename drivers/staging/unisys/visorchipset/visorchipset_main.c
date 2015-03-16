@@ -1717,7 +1717,7 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 		BOOL retry = FALSE;
 
 		parser_ctx =
-		    parser_init_byteStream(parametersAddr, parametersBytes,
+		    parser_init_byte_stream(parametersAddr, parametersBytes,
 					   isLocalAddr, &retry);
 		if (!parser_ctx && retry)
 			return FALSE;

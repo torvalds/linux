@@ -146,9 +146,9 @@ parser_init(u64 addr, u32 bytes, BOOL local, BOOL *retry)
  * parser_byteStream_get() to obtain the data.
  */
 struct parser_context *
-parser_init_byteStream(u64 addr, u32 bytes, BOOL isLocal, BOOL *tryAgain)
+parser_init_byte_stream(u64 addr, u32 bytes, BOOL local, BOOL *retry)
 {
-	return parser_init_guts(addr, bytes, isLocal, FALSE, tryAgain);
+	return parser_init_guts(addr, bytes, local, FALSE, retry);
 }
 
 /* Obtain '\0'-terminated copy of string in payload area.
