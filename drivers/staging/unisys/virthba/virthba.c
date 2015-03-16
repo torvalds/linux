@@ -555,13 +555,13 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		virthbainfo->interrupt_vector = -1;
 		POSTCODE_LINUX_2(VHBA_PROBE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 	} else {
-		u64 __iomem *Features_addr =
+		u64 __iomem *features_addr =
 		    &virthbainfo->chinfo.queueinfo->chan->features;
 		mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
 			 ULTRA_IO_DRIVER_DISABLES_INTS);
-		uisqueue_interlocked_and(Features_addr, mask);
+		uisqueue_interlocked_and(features_addr, mask);
 		mask = ULTRA_IO_DRIVER_ENABLES_INTS;
-		uisqueue_interlocked_or(Features_addr, mask);
+		uisqueue_interlocked_or(features_addr, mask);
 		rsltq_wait_usecs = 4000000;
 	}
 
