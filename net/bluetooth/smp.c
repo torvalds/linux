@@ -2515,6 +2515,16 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	memcpy(smp->remote_pk, key, 64);
 
+	if (test_bit(SMP_FLAG_REMOTE_OOB, &smp->flags)) {
+		err = smp_f4(smp->tfm_cmac, smp->remote_pk, smp->remote_pk,
+			     smp->rr, 0, cfm.confirm_val);
+		if (err)
+			return SMP_UNSPECIFIED;
+
+		if (memcmp(cfm.confirm_val, smp->pcnf, 16))
+			return SMP_CONFIRM_FAILED;
+	}
+
 	/* Non-initiating device sends its public key after receiving
 	 * the key from the initiating device.
 	 */
@@ -2560,16 +2570,6 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 			return SMP_UNSPECIFIED;
 		SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
 		return sc_passkey_round(smp, SMP_CMD_PUBLIC_KEY);
-	}
-
-	if (test_bit(SMP_FLAG_REMOTE_OOB, &smp->flags)) {
-		err = smp_f4(smp->tfm_cmac, smp->remote_pk, smp->remote_pk,
-			     smp->rr, 0, cfm.confirm_val);
-		if (err)
-			return SMP_UNSPECIFIED;
-
-		if (memcmp(cfm.confirm_val, smp->pcnf, 16))
-			return SMP_CONFIRM_FAILED;
 	}
 
 	if (smp->method == REQ_OOB) {
