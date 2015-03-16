@@ -1137,70 +1137,70 @@ static void
 my_device_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong busNo = cmd->create_device.bus_no;
-	ulong devNo = cmd->create_device.dev_no;
-	struct visorchipset_device_info *pDevInfo = NULL;
-	struct visorchipset_bus_info *pBusInfo = NULL;
+	ulong bus_no = cmd->create_device.bus_no;
+	ulong dev_no = cmd->create_device.dev_no;
+	struct visorchipset_device_info *dev_info = NULL;
+	struct visorchipset_bus_info *bus_info = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	pDevInfo = finddevice(&dev_info_list, busNo, devNo);
-	if (pDevInfo && (pDevInfo->state.created == 1)) {
-		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
+	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
+	if (dev_info && (dev_info->state.created == 1)) {
+		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
-		goto Away;
+		goto cleanup;
 	}
-	pBusInfo = findbus(&bus_info_list, busNo);
-	if (!pBusInfo) {
-		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
+	bus_info = findbus(&bus_info_list, bus_no);
+	if (!bus_info) {
+		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
-		goto Away;
+		goto cleanup;
 	}
-	if (pBusInfo->state.created == 0) {
-		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
+	if (bus_info->state.created == 0) {
+		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
-		goto Away;
+		goto cleanup;
 	}
-	pDevInfo = kzalloc(sizeof(struct visorchipset_device_info), GFP_KERNEL);
-	if (!pDevInfo) {
-		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
+	dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
+	if (!dev_info) {
+		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
-		goto Away;
+		goto cleanup;
 	}
 
-	INIT_LIST_HEAD(&pDevInfo->entry);
-	pDevInfo->bus_no = busNo;
-	pDevInfo->dev_no = devNo;
-	pDevInfo->dev_inst_uuid = cmd->create_device.dev_inst_uuid;
-	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, devNo, busNo,
+	INIT_LIST_HEAD(&dev_info->entry);
+	dev_info->bus_no = bus_no;
+	dev_info->dev_no = dev_no;
+	dev_info->dev_inst_uuid = cmd->create_device.dev_inst_uuid;
+	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
 	if (inmsg->hdr.flags.test_message == 1)
-		pDevInfo->chan_info.addr_type = ADDRTYPE_LOCALTEST;
+		dev_info->chan_info.addr_type = ADDRTYPE_LOCALTEST;
 	else
-		pDevInfo->chan_info.addr_type = ADDRTYPE_LOCALPHYSICAL;
-	pDevInfo->chan_info.channel_addr = cmd->create_device.channel_addr;
-	pDevInfo->chan_info.n_channel_bytes = cmd->create_device.channel_bytes;
-	pDevInfo->chan_info.channel_type_uuid =
+		dev_info->chan_info.addr_type = ADDRTYPE_LOCALPHYSICAL;
+	dev_info->chan_info.channel_addr = cmd->create_device.channel_addr;
+	dev_info->chan_info.n_channel_bytes = cmd->create_device.channel_bytes;
+	dev_info->chan_info.channel_type_uuid =
 			cmd->create_device.data_type_uuid;
-	pDevInfo->chan_info.intr = cmd->create_device.intr;
-	list_add(&pDevInfo->entry, &dev_info_list);
-	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, devNo, busNo,
+	dev_info->chan_info.intr = cmd->create_device.intr;
+	list_add(&dev_info->entry, &dev_info_list);
+	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
-Away:
+cleanup:
 	/* get the bus and devNo for DiagPool channel */
-	if (pDevInfo &&
-	    is_diagpool_channel(pDevInfo->chan_info.channel_type_uuid)) {
-		g_diagpool_bus_no = busNo;
-		g_diagpool_dev_no = devNo;
+	if (dev_info &&
+	    is_diagpool_channel(dev_info->chan_info.channel_type_uuid)) {
+		g_diagpool_bus_no = bus_no;
+		g_diagpool_dev_no = dev_no;
 	}
-	device_epilog(busNo, devNo, segment_state_running,
+	device_epilog(bus_no, dev_no, segment_state_running,
 		      CONTROLVM_DEVICE_CREATE, &inmsg->hdr, rc,
 		      inmsg->hdr.flags.response_expected == 1,
-		      FOR_VISORBUS(pDevInfo->chan_info.channel_type_uuid));
+		      FOR_VISORBUS(dev_info->chan_info.channel_type_uuid));
 }
 
 static void
