@@ -67,8 +67,9 @@
  * i915_ggtt_view_type and struct i915_ggtt_view.
  *
  * A new flavour of core GEM functions which work with GGTT bound objects were
- * added with the _view suffix. They take the struct i915_ggtt_view parameter
- * encapsulating all metadata required to implement a view.
+ * added with the _ggtt_ infix, and sometimes with _view postfix to avoid
+ * renaming  in large amounts of code. They take the struct i915_ggtt_view
+ * parameter encapsulating all metadata required to implement a view.
  *
  * As a helper for callers which are only interested in the normal view,
  * globally const i915_ggtt_view_normal singleton instance exists. All old core
@@ -1726,10 +1727,14 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	struct drm_device *dev = vma->vm->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
+	struct sg_table *pages = obj->pages;
 
 	/* Currently applicable only to VLV */
 	if (obj->gt_ro)
 		flags |= PTE_READ_ONLY;
+
+	if (i915_is_ggtt(vma->vm))
+		pages = vma->ggtt_view.pages;
 
 	/* If there is no aliasing PPGTT, or the caller needs a global mapping,
 	 * or we have a global mapping already but the cacheability flags have
@@ -1745,7 +1750,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
 		if (!(vma->bound & GLOBAL_BIND) ||
 		    (cache_level != obj->cache_level)) {
-			vma->vm->insert_entries(vma->vm, vma->ggtt_view.pages,
+			vma->vm->insert_entries(vma->vm, pages,
 						vma->node.start,
 						cache_level, flags);
 			vma->bound |= GLOBAL_BIND;
@@ -1756,8 +1761,7 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	    (!(vma->bound & LOCAL_BIND) ||
 	     (cache_level != obj->cache_level))) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
-		appgtt->base.insert_entries(&appgtt->base,
-					    vma->ggtt_view.pages,
+		appgtt->base.insert_entries(&appgtt->base, pages,
 					    vma->node.start,
 					    cache_level, flags);
 		vma->bound |= LOCAL_BIND;
@@ -2331,23 +2335,28 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	return 0;
 }
 
-static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
-					      struct i915_address_space *vm,
-					      const struct i915_ggtt_view *view)
+static struct i915_vma *
+__i915_gem_vma_create(struct drm_i915_gem_object *obj,
+		      struct i915_address_space *vm,
+		      const struct i915_ggtt_view *ggtt_view)
 {
 	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
+
+	if (WARN_ON(i915_is_ggtt(vm) != !!ggtt_view))
+		return ERR_PTR(-EINVAL);
 
 	INIT_LIST_HEAD(&vma->vma_link);
 	INIT_LIST_HEAD(&vma->mm_list);
 	INIT_LIST_HEAD(&vma->exec_list);
 	vma->vm = vm;
 	vma->obj = obj;
-	vma->ggtt_view = *view;
 
 	if (INTEL_INFO(vm->dev)->gen >= 6) {
 		if (i915_is_ggtt(vm)) {
+			vma->ggtt_view = *ggtt_view;
+
 			vma->unbind_vma = ggtt_unbind_vma;
 			vma->bind_vma = ggtt_bind_vma;
 		} else {
@@ -2356,6 +2365,7 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 		}
 	} else {
 		BUG_ON(!i915_is_ggtt(vm));
+		vma->ggtt_view = *ggtt_view;
 		vma->unbind_vma = i915_ggtt_unbind_vma;
 		vma->bind_vma = i915_ggtt_bind_vma;
 	}
@@ -2368,21 +2378,44 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 }
 
 struct i915_vma *
-i915_gem_obj_lookup_or_create_vma_view(struct drm_i915_gem_object *obj,
-				       struct i915_address_space *vm,
-				       const struct i915_ggtt_view *view)
+i915_gem_obj_lookup_or_create_vma(struct drm_i915_gem_object *obj,
+				  struct i915_address_space *vm)
 {
 	struct i915_vma *vma;
 
-	vma = i915_gem_obj_to_vma_view(obj, vm, view);
+	vma = i915_gem_obj_to_vma(obj, vm);
 	if (!vma)
-		vma = __i915_gem_vma_create(obj, vm, view);
+		vma = __i915_gem_vma_create(obj, vm,
+					    i915_is_ggtt(vm) ? &i915_ggtt_view_normal : NULL);
 
 	return vma;
 }
 
+struct i915_vma *
+i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
+				       const struct i915_ggtt_view *view)
+{
+	struct i915_address_space *ggtt = i915_obj_to_ggtt(obj);
+	struct i915_vma *vma;
+
+	if (WARN_ON(!view))
+		return ERR_PTR(-EINVAL);
+
+	vma = i915_gem_obj_to_ggtt_view(obj, view);
+
+	if (IS_ERR(vma))
+		return vma;
+
+	if (!vma)
+		vma = __i915_gem_vma_create(obj, ggtt, view);
+
+	return vma;
+
+}
+
+
 static inline
-int i915_get_vma_pages(struct i915_vma *vma)
+int i915_get_ggtt_vma_pages(struct i915_vma *vma)
 {
 	if (vma->ggtt_view.pages)
 		return 0;
@@ -2394,7 +2427,7 @@ int i915_get_vma_pages(struct i915_vma *vma)
 			  vma->ggtt_view.type);
 
 	if (!vma->ggtt_view.pages) {
-		DRM_ERROR("Failed to get pages for VMA view type %u!\n",
+		DRM_ERROR("Failed to get pages for GGTT view type %u!\n",
 			  vma->ggtt_view.type);
 		return -EINVAL;
 	}
@@ -2415,10 +2448,12 @@ int i915_get_vma_pages(struct i915_vma *vma)
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags)
 {
-	int ret = i915_get_vma_pages(vma);
+	if (i915_is_ggtt(vma->vm)) {
+		int ret = i915_get_ggtt_vma_pages(vma);
 
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	vma->bind_vma(vma, cache_level, flags);
 
