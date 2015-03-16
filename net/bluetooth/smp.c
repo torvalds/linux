@@ -2543,7 +2543,7 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 	}
 
 	SMP_DBG("Remote Public Key X: %32phN", smp->remote_pk);
-	SMP_DBG("Remote Public Key Y: %32phN", &smp->remote_pk[32]);
+	SMP_DBG("Remote Public Key Y: %32phN", smp->remote_pk + 32);
 
 	if (!ecdh_shared_secret(smp->remote_pk, smp->local_sk, smp->dhkey))
 		return SMP_UNSPECIFIED;
