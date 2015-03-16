@@ -22,6 +22,7 @@
 #include <linux/ktime.h>
 #include <linux/percpu.h>
 #include <linux/lockref.h>
+#include <linux/rhashtable.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -342,7 +343,6 @@ struct gfs2_glock {
 		     gl_req:2,		/* State in last dlm request */
 		     gl_reply:8;	/* Last reply from the dlm */
 
-	unsigned int gl_hash;
 	unsigned long gl_demote_time; /* time of first demote request */
 	long gl_hold_time;
 	struct list_head gl_holders;
@@ -368,7 +368,7 @@ struct gfs2_glock {
 			loff_t end;
 		} gl_vm;
 	};
-	struct rcu_head gl_rcu;
+	struct rhash_head gl_node;
 };
 
 #define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
