@@ -39,7 +39,7 @@ static void __init r8a7791_smp_prepare_cpus(unsigned int max_cpus)
 				       r8a7791_apmu_config,
 				       ARRAY_SIZE(r8a7791_apmu_config));
 
-	r8a7791_pm_init();
+	rcar_gen2_pm_init();
 }
 
 static int r8a7791_smp_boot_secondary(unsigned int cpu,
