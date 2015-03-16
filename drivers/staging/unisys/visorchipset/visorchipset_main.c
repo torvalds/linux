@@ -503,10 +503,6 @@ bus_info_clear(void *v)
 {
 	struct visorchipset_bus_info *p = (struct visorchipset_bus_info *) (v);
 
-	if (p->proc_object) {
-		visor_proc_DestroyObject(p->proc_object);
-		p->proc_object = NULL;
-	}
 	kfree(p->name);
 	p->name = NULL;
 
