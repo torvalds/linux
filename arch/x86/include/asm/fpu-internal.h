@@ -406,7 +406,11 @@ static inline void restore_init_xstate(void)
 		fxrstor_checking(&init_xstate_buf->i387);
 }
 
-static inline void drop_init_fpu(struct task_struct *tsk)
+/*
+ * Reset the FPU state in the eager case and drop it in the lazy case (later use
+ * will reinit it).
+ */
+static inline void fpu_reset_state(struct task_struct *tsk)
 {
 	if (!use_eager_fpu())
 		drop_fpu(tsk);
@@ -480,7 +484,7 @@ static inline void switch_fpu_finish(struct task_struct *new, fpu_switch_t fpu)
 {
 	if (fpu.preload) {
 		if (unlikely(restore_fpu_checking(new)))
-			drop_init_fpu(new);
+			fpu_reset_state(new);
 	}
 }
 

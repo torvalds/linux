@@ -108,7 +108,7 @@ void __kernel_fpu_end(void)
 
 	if (__thread_has_fpu(me)) {
 		if (WARN_ON(restore_fpu_checking(me)))
-			drop_init_fpu(me);
+			fpu_reset_state(me);
 	} else if (!use_eager_fpu()) {
 		stts();
 	}

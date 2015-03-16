@@ -342,7 +342,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			 config_enabled(CONFIG_IA32_EMULATION));
 
 	if (!buf) {
-		drop_init_fpu(tsk);
+		fpu_reset_state(tsk);
 		return 0;
 	}
 
@@ -416,7 +416,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		user_fpu_begin();
 		if (restore_user_xstate(buf_fx, xstate_bv, fx_only)) {
-			drop_init_fpu(tsk);
+			fpu_reset_state(tsk);
 			return -1;
 		}
 	}

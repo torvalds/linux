@@ -863,7 +863,7 @@ void math_state_restore(void)
 	kernel_fpu_disable();
 	__thread_fpu_begin(tsk);
 	if (unlikely(restore_fpu_checking(tsk))) {
-		drop_init_fpu(tsk);
+		fpu_reset_state(tsk);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
 	} else {
 		tsk->thread.fpu_counter++;
