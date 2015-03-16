@@ -146,7 +146,7 @@ static struct hb_mc_settings mw_settings = {
 	.int_offset = MW_DDR_ECC_INT_BASE,
 };
 
-static struct of_device_id hb_ddr_ctrl_of_match[] = {
+static const struct of_device_id hb_ddr_ctrl_of_match[] = {
 	{ .compatible = "calxeda,hb-ddr-ctrl",		.data = &hb_settings },
 	{ .compatible = "calxeda,ecx-2000-ddr-ctrl",	.data = &mw_settings },
 	{},
