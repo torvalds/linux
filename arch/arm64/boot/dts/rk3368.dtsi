@@ -565,6 +565,7 @@
 			/*PD_CORE*/
 			<&clk_cs>,
 			<&clkin_trace>,
+			<&aclk_cci>,
 
 			/*PD_BUS*/
 			<&aclk_bus>,

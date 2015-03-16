@@ -10,7 +10,7 @@
 
 / {
 	chosen {
-		bootargs = "earlyprintk=uart8250-32bit,0xff690000 clk_ignore_unused";
+		bootargs = "earlyprintk=uart8250-32bit,0xff690000";
 	};
 
 	wireless-wlan {
