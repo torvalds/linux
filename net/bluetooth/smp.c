@@ -75,6 +75,7 @@ enum {
 
 struct smp_dev {
 	struct crypto_blkcipher	*tfm_aes;
+	struct crypto_hash	*tfm_cmac;
 };
 
 struct smp_chan {
@@ -2936,6 +2937,7 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 	struct l2cap_chan *chan;
 	struct smp_dev *smp;
 	struct crypto_blkcipher *tfm_aes;
+	struct crypto_hash *tfm_cmac;
 
 	if (cid == L2CAP_CID_SMP_BREDR) {
 		smp = NULL;
@@ -2953,12 +2955,22 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 		return ERR_CAST(tfm_aes);
 	}
 
+	tfm_cmac = crypto_alloc_hash("cmac(aes)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm_cmac)) {
+		BT_ERR("Unable to create CMAC crypto context");
+		crypto_free_blkcipher(tfm_aes);
+		kzfree(smp);
+		return ERR_CAST(tfm_cmac);
+	}
+
 	smp->tfm_aes = tfm_aes;
+	smp->tfm_cmac = tfm_cmac;
 
 create_chan:
 	chan = l2cap_chan_create();
 	if (!chan) {
 		crypto_free_blkcipher(smp->tfm_aes);
+		crypto_free_hash(smp->tfm_cmac);
 		kzfree(smp);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -3005,6 +3017,8 @@ static void smp_del_chan(struct l2cap_chan *chan)
 		chan->data = NULL;
 		if (smp->tfm_aes)
 			crypto_free_blkcipher(smp->tfm_aes);
+		if (smp->tfm_cmac)
+			crypto_free_hash(smp->tfm_cmac);
 		kzfree(smp);
 	}
 
