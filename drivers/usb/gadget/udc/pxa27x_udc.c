@@ -2387,7 +2387,7 @@ static struct pxa_udc memory = {
 };
 
 #if defined(CONFIG_OF)
-static struct of_device_id udc_pxa_dt_ids[] = {
+static const struct of_device_id udc_pxa_dt_ids[] = {
 	{ .compatible = "marvell,pxa270-udc" },
 	{}
 };
