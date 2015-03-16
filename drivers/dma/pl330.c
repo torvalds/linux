@@ -2162,7 +2162,7 @@ static int pl330_terminate_all(struct dma_chan *chan)
  * DMA transfer again. This pause feature was implemented to
  * allow safely read residue before channel termination.
  */
-int pl330_pause(struct dma_chan *chan)
+static int pl330_pause(struct dma_chan *chan)
 {
 	struct dma_pl330_chan *pch = to_pchan(chan);
 	struct pl330_dmac *pl330 = pch->dmac;
@@ -2203,8 +2203,8 @@ static void pl330_free_chan_resources(struct dma_chan *chan)
 	pm_runtime_put_autosuspend(pch->dmac->ddma.dev);
 }
 
-int pl330_get_current_xferred_count(struct dma_pl330_chan *pch,
-		struct dma_pl330_desc *desc)
+static int pl330_get_current_xferred_count(struct dma_pl330_chan *pch,
+					   struct dma_pl330_desc *desc)
 {
 	struct pl330_thread *thrd = pch->thread;
 	struct pl330_dmac *pl330 = pch->dmac;
