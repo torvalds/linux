@@ -1048,7 +1048,6 @@ static int rt286_probe(struct snd_soc_codec *codec)
 	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
 
 	rt286->codec = codec;
-	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 
 	if (rt286->i2c->irq) {
 		regmap_update_bits(rt286->regmap,
