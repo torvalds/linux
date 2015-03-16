@@ -2562,7 +2562,7 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 		return sc_passkey_round(smp, SMP_CMD_PUBLIC_KEY);
 	}
 
-	if (smp->method == REQ_OOB) {
+	if (test_bit(SMP_FLAG_REMOTE_OOB, &smp->flags)) {
 		err = smp_f4(smp->tfm_cmac, smp->remote_pk, smp->remote_pk,
 			     smp->rr, 0, cfm.confirm_val);
 		if (err)
@@ -2570,7 +2570,9 @@ static int smp_cmd_public_key(struct l2cap_conn *conn, struct sk_buff *skb)
 
 		if (memcmp(cfm.confirm_val, smp->pcnf, 16))
 			return SMP_CONFIRM_FAILED;
+	}
 
+	if (smp->method == REQ_OOB) {
 		if (hcon->out)
 			smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM,
 				     sizeof(smp->prnd), smp->prnd);
