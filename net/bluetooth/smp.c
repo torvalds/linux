@@ -1819,6 +1819,25 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 
 	BT_DBG("");
 
+	if (test_bit(SMP_FLAG_OOB, &smp->flags)) {
+		struct l2cap_chan *chan = hdev->smp_data;
+		struct smp_dev *smp_dev;
+
+		if (!chan || !chan->data)
+			return SMP_UNSPECIFIED;
+
+		smp_dev = chan->data;
+
+		memcpy(smp->local_pk, smp_dev->local_pk, 64);
+		memcpy(smp->local_sk, smp_dev->local_sk, 32);
+		memcpy(smp->rr, smp_dev->local_rr, 16);
+
+		if (smp_dev->debug_key)
+			set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
+
+		goto done;
+	}
+
 	if (hci_dev_test_flag(hdev, HCI_USE_DEBUG_KEYS)) {
 		BT_DBG("Using debug keys");
 		memcpy(smp->local_pk, debug_pk, 64);
@@ -1838,6 +1857,7 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 		}
 	}
 
+done:
 	SMP_DBG("Local Public Key X: %32phN", smp->local_pk);
 	SMP_DBG("Local Public Key Y: %32phN", &smp->local_pk[32]);
 	SMP_DBG("Local Private Key:  %32phN", smp->local_sk);
