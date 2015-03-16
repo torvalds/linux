@@ -303,6 +303,41 @@ static void ft1000_disable_interrupts(struct net_device *dev)
 }
 
 /*---------------------------------------------------------------------------
+  Function:	ft1000_read_dsp_timer
+  Description:	This function reads the DSP timer and stores its value in the
+		DSP_TIME field of the ft1000_info struct passed as argument
+  Input:
+  dev    - device structure
+  info   - ft1000_info structure
+  Output:
+  None.
+
+  -------------------------------------------------------------------------*/
+static void ft1000_read_dsp_timer(struct net_device *dev,
+				  struct ft1000_info *info)
+{
+	if (info->AsicID == ELECTRABUZZ_ID) {
+		info->DSP_TIME[0] = ft1000_read_dpram(dev, FT1000_DSP_TIMER0);
+		info->DSP_TIME[1] = ft1000_read_dpram(dev, FT1000_DSP_TIMER1);
+		info->DSP_TIME[2] = ft1000_read_dpram(dev, FT1000_DSP_TIMER2);
+		info->DSP_TIME[3] = ft1000_read_dpram(dev, FT1000_DSP_TIMER3);
+	} else {
+		info->DSP_TIME[0] =
+			ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER0,
+						 FT1000_MAG_DSP_TIMER0_INDX);
+		info->DSP_TIME[1] =
+			ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER1,
+						 FT1000_MAG_DSP_TIMER1_INDX);
+		info->DSP_TIME[2] =
+			ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER2,
+						 FT1000_MAG_DSP_TIMER2_INDX);
+		info->DSP_TIME[3] =
+			ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER3,
+						 FT1000_MAG_DSP_TIMER3_INDX);
+	}
+}
+
+/*---------------------------------------------------------------------------
 
   Function:   ft1000_reset_asic
   Description: This function will call the Card Service function to reset the
@@ -581,33 +616,7 @@ static void ft1000_hbchk(u_long data)
 		}
 		if (tempword != ho) {
 			pr_info("heartbeat failed - no ho detected\n");
-			if (info->AsicID == ELECTRABUZZ_ID) {
-				info->DSP_TIME[0] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER0);
-				info->DSP_TIME[1] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER1);
-				info->DSP_TIME[2] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER2);
-				info->DSP_TIME[3] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER3);
-			} else {
-				info->DSP_TIME[0] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER0,
-								 FT1000_MAG_DSP_TIMER0_INDX);
-				info->DSP_TIME[1] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER1,
-								 FT1000_MAG_DSP_TIMER1_INDX);
-				info->DSP_TIME[2] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER2,
-								 FT1000_MAG_DSP_TIMER2_INDX);
-				info->DSP_TIME[3] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER3,
-								 FT1000_MAG_DSP_TIMER3_INDX);
-			}
+			ft1000_read_dsp_timer(dev, info);
 			info->DrvErrNum = DSP_HB_INFO;
 			if (ft1000_reset_card(dev) == 0) {
 				pr_info("Hardware Failure Detected - PC Card disabled\n");
@@ -628,33 +637,7 @@ static void ft1000_hbchk(u_long data)
 
 		if (tempword & FT1000_DB_HB) {
 			pr_info("heartbeat doorbell not clear by firmware\n");
-			if (info->AsicID == ELECTRABUZZ_ID) {
-				info->DSP_TIME[0] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER0);
-				info->DSP_TIME[1] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER1);
-				info->DSP_TIME[2] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER2);
-				info->DSP_TIME[3] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER3);
-			} else {
-				info->DSP_TIME[0] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER0,
-								 FT1000_MAG_DSP_TIMER0_INDX);
-				info->DSP_TIME[1] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER1,
-								 FT1000_MAG_DSP_TIMER1_INDX);
-				info->DSP_TIME[2] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER2,
-								 FT1000_MAG_DSP_TIMER2_INDX);
-				info->DSP_TIME[3] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER3,
-								 FT1000_MAG_DSP_TIMER3_INDX);
-			}
+			ft1000_read_dsp_timer(dev, info);
 			info->DrvErrNum = DSP_HB_INFO;
 			if (ft1000_reset_card(dev) == 0) {
 				pr_info("Hardware Failure Detected - PC Card disabled\n");
@@ -704,33 +687,7 @@ static void ft1000_hbchk(u_long data)
 
 		if (tempword != hi) {
 			pr_info("heartbeat failed - cannot write hi into DPRAM\n");
-			if (info->AsicID == ELECTRABUZZ_ID) {
-				info->DSP_TIME[0] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER0);
-				info->DSP_TIME[1] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER1);
-				info->DSP_TIME[2] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER2);
-				info->DSP_TIME[3] =
-					ft1000_read_dpram(dev, FT1000_DSP_TIMER3);
-			} else {
-				info->DSP_TIME[0] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER0,
-								 FT1000_MAG_DSP_TIMER0_INDX);
-				info->DSP_TIME[1] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER1,
-								 FT1000_MAG_DSP_TIMER1_INDX);
-				info->DSP_TIME[2] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER2,
-								 FT1000_MAG_DSP_TIMER2_INDX);
-				info->DSP_TIME[3] =
-					ft1000_read_dpram_mag_16(dev,
-								 FT1000_MAG_DSP_TIMER3,
-								 FT1000_MAG_DSP_TIMER3_INDX);
-			}
+			ft1000_read_dsp_timer(dev, info);
 			info->DrvErrNum = DSP_HB_INFO;
 			if (ft1000_reset_card(dev) == 0) {
 				pr_info("Hardware Failure Detected - PC Card disabled\n");
@@ -1324,29 +1281,7 @@ static int ft1000_parse_dpram_msg(struct net_device *dev)
 
 	if (doorbell & FT1000_DB_COND_RESET) {
 		/* Reset ASIC and DSP */
-		if (info->AsicID == ELECTRABUZZ_ID) {
-			info->DSP_TIME[0] =
-				ft1000_read_dpram(dev, FT1000_DSP_TIMER0);
-			info->DSP_TIME[1] =
-				ft1000_read_dpram(dev, FT1000_DSP_TIMER1);
-			info->DSP_TIME[2] =
-				ft1000_read_dpram(dev, FT1000_DSP_TIMER2);
-			info->DSP_TIME[3] =
-				ft1000_read_dpram(dev, FT1000_DSP_TIMER3);
-		} else {
-			info->DSP_TIME[0] =
-				ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER0,
-							 FT1000_MAG_DSP_TIMER0_INDX);
-			info->DSP_TIME[1] =
-				ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER1,
-							 FT1000_MAG_DSP_TIMER1_INDX);
-			info->DSP_TIME[2] =
-				ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER2,
-							 FT1000_MAG_DSP_TIMER2_INDX);
-			info->DSP_TIME[3] =
-				ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER3,
-							 FT1000_MAG_DSP_TIMER3_INDX);
-		}
+		ft1000_read_dsp_timer(dev, info);
 		info->DrvErrNum = DSP_CONDRESET_INFO;
 		pr_debug("DSP conditional reset requested\n");
 		ft1000_reset_card(dev);
@@ -1387,29 +1322,7 @@ static void ft1000_flush_fifo(struct net_device *dev, u16 DrvErrNum)
 	u16 tempword;
 
 	if (pcmcia->PktIntfErr > MAX_PH_ERR) {
-		if (info->AsicID == ELECTRABUZZ_ID) {
-			info->DSP_TIME[0] =
-				ft1000_read_dpram(dev, FT1000_DSP_TIMER0);
-			info->DSP_TIME[1] =
-				ft1000_read_dpram(dev, FT1000_DSP_TIMER1);
-			info->DSP_TIME[2] =
-				ft1000_read_dpram(dev, FT1000_DSP_TIMER2);
-			info->DSP_TIME[3] =
-				ft1000_read_dpram(dev, FT1000_DSP_TIMER3);
-		} else {
-			info->DSP_TIME[0] =
-				ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER0,
-							 FT1000_MAG_DSP_TIMER0_INDX);
-			info->DSP_TIME[1] =
-				ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER1,
-							 FT1000_MAG_DSP_TIMER1_INDX);
-			info->DSP_TIME[2] =
-				ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER2,
-							 FT1000_MAG_DSP_TIMER2_INDX);
-			info->DSP_TIME[3] =
-				ft1000_read_dpram_mag_16(dev, FT1000_MAG_DSP_TIMER3,
-							 FT1000_MAG_DSP_TIMER3_INDX);
-		}
+		ft1000_read_dsp_timer(dev, info);
 		info->DrvErrNum = DrvErrNum;
 		ft1000_reset_card(dev);
 		return;
@@ -1434,37 +1347,7 @@ static void ft1000_flush_fifo(struct net_device *dev, u16 DrvErrNum)
 		 * We must reset to recover.
 		 */
 		if ((i > 2048) || (tempword == 0)) {
-			if (info->AsicID == ELECTRABUZZ_ID) {
-				info->DSP_TIME[0] =
-					ft1000_read_dpram(dev,
-							  FT1000_DSP_TIMER0);
-				info->DSP_TIME[1] =
-					ft1000_read_dpram(dev,
-							  FT1000_DSP_TIMER1);
-				info->DSP_TIME[2] =
-					ft1000_read_dpram(dev,
-							  FT1000_DSP_TIMER2);
-				info->DSP_TIME[3] =
-					ft1000_read_dpram(dev,
-							  FT1000_DSP_TIMER3);
-			} else {
-				info->DSP_TIME[0] =
-					ft1000_read_dpram_mag_16(dev,
-						FT1000_MAG_DSP_TIMER0,
-						FT1000_MAG_DSP_TIMER0_INDX);
-				info->DSP_TIME[1] =
-					ft1000_read_dpram_mag_16(dev,
-						FT1000_MAG_DSP_TIMER1,
-						FT1000_MAG_DSP_TIMER1_INDX);
-				info->DSP_TIME[2] =
-					ft1000_read_dpram_mag_16(dev,
-						FT1000_MAG_DSP_TIMER2,
-						FT1000_MAG_DSP_TIMER2_INDX);
-				info->DSP_TIME[3] =
-					ft1000_read_dpram_mag_16(dev,
-						FT1000_MAG_DSP_TIMER3,
-						FT1000_MAG_DSP_TIMER3_INDX);
-			}
+			ft1000_read_dsp_timer(dev, info);
 			if (tempword == 0) {
 				/*
 				 * Let's check if ASIC reads are still ok by
