@@ -2800,11 +2800,11 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	inode = file->f_mapping->host;
 	i_size = i_size_read(inode);
 
-	if ((rw == READ) && (offset > i_size))
+	if ((iov_iter_rw(iter) == READ) && (offset > i_size))
 		return 0;
 
 	/* optimization for short read */
-	if (async_dio && rw != WRITE && offset + count > i_size) {
+	if (async_dio && iov_iter_rw(iter) != WRITE && offset + count > i_size) {
 		if (offset >= i_size)
 			return 0;
 		count = min_t(loff_t, count, fuse_round_up(i_size - offset));
@@ -2819,7 +2819,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	io->bytes = -1;
 	io->size = 0;
 	io->offset = offset;
-	io->write = (rw == WRITE);
+	io->write = (iov_iter_rw(iter) == WRITE);
 	io->err = 0;
 	io->file = file;
 	/*
@@ -2834,13 +2834,14 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	 * to wait on real async I/O requests, so we must submit this request
 	 * synchronously.
 	 */
-	if (!is_sync_kiocb(iocb) && (offset + count > i_size) && rw == WRITE)
+	if (!is_sync_kiocb(iocb) && (offset + count > i_size) &&
+	    iov_iter_rw(iter) == WRITE)
 		io->async = false;
 
 	if (io->async && is_sync_kiocb(iocb))
 		io->done = &wait;
 
-	if (rw == WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		ret = generic_write_checks(file, &pos, &count, 0);
 		if (!ret) {
 			iov_iter_truncate(iter, count);
@@ -2865,7 +2866,7 @@ fuse_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 
 	kfree(io);
 
-	if (rw == WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		if (ret > 0)
 			fuse_write_update_size(inode, pos);
 		else if (ret < 0 && offset + count > i_size)

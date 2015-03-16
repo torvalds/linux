@@ -8081,7 +8081,7 @@ free_ordered:
 	bio_endio(dio_bio, ret);
 }
 
-static ssize_t check_direct_IO(struct btrfs_root *root, int rw, struct kiocb *iocb,
+static ssize_t check_direct_IO(struct btrfs_root *root, struct kiocb *iocb,
 			const struct iov_iter *iter, loff_t offset)
 {
 	int seg;
@@ -8096,7 +8096,7 @@ static ssize_t check_direct_IO(struct btrfs_root *root, int rw, struct kiocb *io
 		goto out;
 
 	/* If this is a write we don't need to check anymore */
-	if (rw & WRITE)
+	if (iov_iter_rw(iter) == WRITE)
 		return 0;
 	/*
 	 * Check to make sure we don't have duplicate iov_base's in this
@@ -8126,7 +8126,7 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	bool relock = false;
 	ssize_t ret;
 
-	if (check_direct_IO(BTRFS_I(inode)->root, rw, iocb, iter, offset))
+	if (check_direct_IO(BTRFS_I(inode)->root, iocb, iter, offset))
 		return 0;
 
 	atomic_inc(&inode->i_dio_count);
@@ -8144,7 +8144,7 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 		filemap_fdatawrite_range(inode->i_mapping, offset,
 					 offset + count - 1);
 
-	if (rw & WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		/*
 		 * If the write DIO is beyond the EOF, we need update
 		 * the isize, but it is protected by i_mutex. So we can
@@ -8178,7 +8178,7 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 				   BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
 				   iter, offset, btrfs_get_blocks_direct, NULL,
 				   btrfs_submit_direct, flags);
-	if (rw & WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		current->journal_info = NULL;
 		if (ret < 0 && ret != -EIOCBQUEUED)
 			btrfs_delalloc_release_space(inode, count);

@@ -398,7 +398,7 @@ affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	if (rw == WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		loff_t size = offset + count;
 
 		if (AFFS_I(inode)->mmu_private < size)
@@ -406,7 +406,7 @@ affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	}
 
 	ret = blockdev_direct_IO(iocb, inode, iter, offset, affs_get_block);
-	if (ret < 0 && (rw & WRITE))
+	if (ret < 0 && iov_iter_rw(iter) == WRITE)
 		affs_write_failed(mapping, offset + count);
 	return ret;
 }

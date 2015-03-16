@@ -314,7 +314,7 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	ssize_t size;
 
-	if (rw == WRITE)
+	if (iov_iter_rw(iter) == WRITE)
 		return 0;
 
 	/* Needs synchronization with the cleaner */
@@ -324,7 +324,7 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	 * In case of error extending write may have instantiated a few
 	 * blocks outside i_size. Trim these off again.
 	 */
-	if (unlikely((rw & WRITE) && size < 0)) {
+	if (unlikely(iov_iter_rw(iter) == WRITE && size < 0)) {
 		loff_t isize = i_size_read(inode);
 		loff_t end = offset + count;
 

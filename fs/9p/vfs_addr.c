@@ -253,7 +253,7 @@ v9fs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 	struct file *file = iocb->ki_filp;
 	ssize_t n;
 	int err = 0;
-	if (rw & WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		n = p9_client_write(file->private_data, pos, iter, &err);
 		if (n) {
 			struct inode *inode = file_inode(file);

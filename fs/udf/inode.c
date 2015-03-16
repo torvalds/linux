@@ -226,7 +226,7 @@ static ssize_t udf_direct_IO(int rw, struct kiocb *iocb,
 	ssize_t ret;
 
 	ret = blockdev_direct_IO(iocb, inode, iter, offset, udf_get_block);
-	if (unlikely(ret < 0 && (rw & WRITE)))
+	if (unlikely(ret < 0 && iov_iter_rw(iter) == WRITE))
 		udf_write_failed(mapping, offset + count);
 	return ret;
 }

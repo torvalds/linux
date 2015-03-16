@@ -1016,13 +1016,12 @@ out:
 /**
  * gfs2_ok_for_dio - check that dio is valid on this file
  * @ip: The inode
- * @rw: READ or WRITE
  * @offset: The offset at which we are reading or writing
  *
  * Returns: 0 (to ignore the i/o request and thus fall back to buffered i/o)
  *          1 (to accept the i/o request)
  */
-static int gfs2_ok_for_dio(struct gfs2_inode *ip, int rw, loff_t offset)
+static int gfs2_ok_for_dio(struct gfs2_inode *ip, loff_t offset)
 {
 	/*
 	 * Should we return an error here? I can't see that O_DIRECT for
@@ -1061,7 +1060,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	rv = gfs2_glock_nq(&gh);
 	if (rv)
 		return rv;
-	rv = gfs2_ok_for_dio(ip, rw, offset);
+	rv = gfs2_ok_for_dio(ip, offset);
 	if (rv != 1)
 		goto out; /* dio not valid, fall back to buffered i/o */
 
@@ -1091,7 +1090,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 		rv = filemap_write_and_wait_range(mapping, lstart, end);
 		if (rv)
 			goto out;
-		if (rw == WRITE)
+		if (iov_iter_rw(iter) == WRITE)
 			truncate_inode_pages_range(mapping, lstart, end);
 	}
 

@@ -842,7 +842,7 @@ static ssize_t ocfs2_direct_IO(int rw,
 	if (i_size_read(inode) <= offset && !full_coherency)
 		return 0;
 
-	if (rw == READ)
+	if (iov_iter_rw(iter) == READ)
 		return __blockdev_direct_IO(iocb, inode, inode->i_sb->s_bdev,
 					    iter, offset,
 					    ocfs2_direct_IO_get_blocks,

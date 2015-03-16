@@ -2952,8 +2952,8 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
  * if the machine crashes during the write.
  *
  */
-static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
-			      struct iov_iter *iter, loff_t offset)
+static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+				  loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -2966,8 +2966,8 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	ext4_io_end_t *io_end = NULL;
 
 	/* Use the old path for reads and writes beyond i_size. */
-	if (rw != WRITE || final_size > inode->i_size)
-		return ext4_ind_direct_IO(rw, iocb, iter, offset);
+	if (iov_iter_rw(iter) != WRITE || final_size > inode->i_size)
+		return ext4_ind_direct_IO(iocb, iter, offset);
 
 	BUG_ON(iocb->private == NULL);
 
@@ -2976,7 +2976,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	 * conversion. This also disallows race between truncate() and
 	 * overwrite DIO as i_dio_count needs to be incremented under i_mutex.
 	 */
-	if (rw == WRITE)
+	if (iov_iter_rw(iter) == WRITE)
 		atomic_inc(&inode->i_dio_count);
 
 	/* If we do a overwrite dio, i_mutex locking can be released */
@@ -3078,7 +3078,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	}
 
 retake_lock:
-	if (rw == WRITE)
+	if (iov_iter_rw(iter) == WRITE)
 		inode_dio_done(inode);
 	/* take i_mutex locking again if we do a ovewrite dio */
 	if (overwrite) {
@@ -3107,12 +3107,12 @@ static ssize_t ext4_direct_IO(int rw, struct kiocb *iocb,
 	if (ext4_has_inline_data(inode))
 		return 0;
 
-	trace_ext4_direct_IO_enter(inode, offset, count, rw);
+	trace_ext4_direct_IO_enter(inode, offset, count, iov_iter_rw(iter));
 	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
-		ret = ext4_ext_direct_IO(rw, iocb, iter, offset);
+		ret = ext4_ext_direct_IO(iocb, iter, offset);
 	else
-		ret = ext4_ind_direct_IO(rw, iocb, iter, offset);
-	trace_ext4_direct_IO_exit(inode, offset, count, rw, ret);
+		ret = ext4_ind_direct_IO(iocb, iter, offset);
+	trace_ext4_direct_IO_exit(inode, offset, count, iov_iter_rw(iter), ret);
 	return ret;
 }
 

@@ -866,7 +866,7 @@ ext2_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	else
 		ret = blockdev_direct_IO(iocb, inode, iter, offset,
 					 ext2_get_block);
-	if (ret < 0 && (rw & WRITE))
+	if (ret < 0 && iov_iter_rw(iter) == WRITE)
 		ext2_write_failed(mapping, offset + count);
 	return ret;
 }
