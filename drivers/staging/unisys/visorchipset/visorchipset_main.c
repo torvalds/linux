@@ -1535,15 +1535,17 @@ parahotplug_process_list(void)
 	list_for_each_safe(pos, tmp, &Parahotplug_request_list) {
 		struct parahotplug_request *req =
 		    list_entry(pos, struct parahotplug_request, list);
-		if (time_after_eq(jiffies, req->expiration)) {
-			list_del(pos);
-			if (req->msg.hdr.flags.response_expected)
-				controlvm_respond_physdev_changestate(
-					&req->msg.hdr,
-					CONTROLVM_RESP_ERROR_DEVICE_UDEV_TIMEOUT,
-					req->msg.cmd.device_change_state.state);
-			parahotplug_request_destroy(req);
-		}
+
+		if (!time_after_eq(jiffies, req->expiration))
+			continue;
+
+		list_del(pos);
+		if (req->msg.hdr.flags.response_expected)
+			controlvm_respond_physdev_changestate(
+				&req->msg.hdr,
+				CONTROLVM_RESP_ERROR_DEVICE_UDEV_TIMEOUT,
+				req->msg.cmd.device_change_state.state);
+		parahotplug_request_destroy(req);
 	}
 
 	spin_unlock(&Parahotplug_request_list_lock);
@@ -1621,7 +1623,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 		* indicated it's done.
 		*/
 		spin_lock(&Parahotplug_request_list_lock);
-		list_add_tail(&(req->list), &Parahotplug_request_list);
+		list_add_tail(&req->list, &Parahotplug_request_list);
 		spin_unlock(&Parahotplug_request_list_lock);
 
 		parahotplug_request_kickoff(req);
