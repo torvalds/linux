@@ -6327,12 +6327,13 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 					  hdev->dev_class, 3);
 		break;
 	case (BIT(BDADDR_LE_PUBLIC) | BIT(BDADDR_LE_RANDOM)):
-		if (smp_generate_oob(hdev, hash, rand) < 0) {
+		if (hci_dev_test_flag(hdev, HCI_SC_ENABLED) &&
+		    smp_generate_oob(hdev, hash, rand) < 0) {
 			hci_dev_unlock(hdev);
 			err = mgmt_cmd_complete(sk, hdev->id,
-					 MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
-					 MGMT_STATUS_FAILED,
-					 &cp->type, sizeof(cp->type));
+						MGMT_OP_READ_LOCAL_OOB_EXT_DATA,
+						MGMT_STATUS_FAILED,
+						&cp->type, sizeof(cp->type));
 			goto done;
 		}
 
@@ -6361,11 +6362,15 @@ static int read_local_oob_ext_data(struct sock *sk, struct hci_dev *hdev,
 		eir_len = eir_append_data(rp->eir, eir_len, EIR_LE_ROLE,
 					  &role, sizeof(role));
 
-		eir_len = eir_append_data(rp->eir, eir_len, EIR_LE_SC_CONFIRM,
-					  hash, sizeof(hash));
+		if (hci_dev_test_flag(hdev, HCI_SC_ENABLED)) {
+			eir_len = eir_append_data(rp->eir, eir_len,
+						  EIR_LE_SC_CONFIRM,
+						  hash, sizeof(hash));
 
-		eir_len = eir_append_data(rp->eir, eir_len, EIR_LE_SC_RANDOM,
-					  rand, sizeof(rand));
+			eir_len = eir_append_data(rp->eir, eir_len,
+						  EIR_LE_SC_RANDOM,
+						  rand, sizeof(rand));
+		}
 
 		flags = get_adv_discov_flags(hdev);
 
