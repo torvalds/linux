@@ -175,12 +175,6 @@ config MACH_OMAP3_BEAGLE
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_DEVKIT8000
-	bool "DEVKIT8000 board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CUS
-
 config MACH_OMAP_LDP
 	bool "OMAP3 LDP board"
 	depends on ARCH_OMAP3
