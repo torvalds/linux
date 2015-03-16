@@ -809,7 +809,7 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 
 	/* add a Virtual Device */
 	virtpcidev = kzalloc(sizeof(*virtpcidev), GFP_ATOMIC);
-	if (virtpcidev == NULL) {
+	if (!virtpcidev) {
 		POSTCODE_LINUX_2(MALLOC_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		return 0;
 	}
@@ -1076,8 +1076,8 @@ static int virtpci_device_del(struct device *parentbus,
 	/* see if we are to delete all - NOTE: all implies we have a
 	 * valid parentbus
 	 */
-	all = ((devtype == VIRTHBA_TYPE) && (wwnn == NULL)) ||
-	    ((devtype == VIRTNIC_TYPE) && (macaddr == NULL));
+	all = ((devtype == VIRTHBA_TYPE) && (!wwnn)) ||
+	    ((devtype == VIRTNIC_TYPE) && (!macaddr));
 
 	/* find all the vhba or vnic or both in virtpci device list
 	* keep list of ones we are deleting so we can call
@@ -1206,9 +1206,8 @@ int virtpci_register_driver(struct virtpci_driver *drv)
 {
 	int result = 0;
 
-	if (drv->id_table == NULL)
+	if (!drv->id_table)
 		return 1;
-
 	/* initialize core driver fields needed to call driver_register */
 	drv->core_driver.name = drv->name;	/* name of driver in sysfs */
 	drv->core_driver.bus = &virtpci_bus_type;	/* type of bus this
