@@ -1859,7 +1859,7 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 
 done:
 	SMP_DBG("Local Public Key X: %32phN", smp->local_pk);
-	SMP_DBG("Local Public Key Y: %32phN", &smp->local_pk[32]);
+	SMP_DBG("Local Public Key Y: %32phN", smp->local_pk + 32);
 	SMP_DBG("Local Private Key:  %32phN", smp->local_sk);
 
 	smp_send_cmd(smp->conn, SMP_CMD_PUBLIC_KEY, 64, smp->local_pk);
