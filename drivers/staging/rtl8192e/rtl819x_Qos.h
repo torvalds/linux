@@ -338,18 +338,6 @@ struct sta_qos {
 };
 
 #define QBSS_LOAD_SIZE				5
-#define GET_QBSS_LOAD_STA_COUNT(__pStart)	\
-		ReadEF2Byte(__pStart)
-#define SET_QBSS_LOAD_STA_COUNT(__pStart, __Value)	\
-		WriteEF2Byte(__pStart, __Value)
-#define GET_QBSS_LOAD_CHNL_UTILIZATION(__pStart)	\
-		ReadEF1Byte((u8 *)(__pStart) + 2)
-#define SET_QBSS_LOAD_CHNL_UTILIZATION(__pStart, __Value)	\
-		WriteEF1Byte((u8 *)(__pStart) + 2, __Value)
-#define GET_QBSS_LOAD_AVAILABLE_CAPACITY(__pStart)	\
-		ReadEF2Byte((u8 *)(__pStart) + 3)
-#define SET_QBSS_LOAD_AVAILABLE_CAPACITY(__pStart, __Value) \
-		WriteEF2Byte((u8 *)(__pStart) + 3, __Value)
 
 struct bss_qos {
 	QOS_MODE bdQoSMode;
@@ -364,10 +352,6 @@ struct bss_qos {
 	u8 QBssLoad[QBSS_LOAD_SIZE];
 	bool bQBssLoadValid;
 };
-
-#define sQoSCtlLng	2
-#define QOS_CTRL_LEN(_QosMode)	((_QosMode > QOS_DISABLE) ? sQoSCtlLng : 0)
-
 
 #define IsACValid(ac)		((ac >= 0 && ac <= 7) ? true : false)
 

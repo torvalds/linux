@@ -77,9 +77,6 @@ enum chnl_op {
 	CHNLOP_SWCHNL = 3,
 };
 
-#define CHHLOP_IN_PROGRESS(_pHTInfo)	\
-		(((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? true : false)
-
 enum ht_action {
 	ACT_RECOMMAND_WIDTH		= 0,
 	ACT_MIMO_PWR_SAVE		= 1,

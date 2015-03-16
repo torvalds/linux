@@ -482,9 +482,6 @@ enum rt_op_mode {
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
 #define MAX_IE_LEN  0xff
-#define RT_ASSERT_RET(_Exp) do {} while (0)
-#define RT_ASSERT_RET_VALUE(_Exp, Ret)		\
-	do {} while (0)
 
 struct ieee_param {
 	u32 cmd;

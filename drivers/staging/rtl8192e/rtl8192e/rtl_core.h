@@ -100,10 +100,6 @@
 
 #define IS_ADAPTER_SENDS_BEACON(dev) 0
 
-#define IS_UNDER_11N_AES_MODE(_rtllib)		\
-	((_rtllib->pHTInfo->bCurrentHTSupport == true) && \
-	(_rtllib->pairwise_key_type == KEY_TYPE_CCMP))
-
 #define HAL_MEMORY_MAPPED_IO_RANGE_8190PCI	0x1000
 #define HAL_HW_PCI_REVISION_ID_8190PCI			0x00
 #define HAL_MEMORY_MAPPED_IO_RANGE_8192PCIE	0x4000
