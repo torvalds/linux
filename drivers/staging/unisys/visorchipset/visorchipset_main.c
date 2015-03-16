@@ -108,8 +108,6 @@ struct controlvm_payload_info {
 /* Manages the request payload in the controlvm channel */
 static struct controlvm_payload_info ControlVm_payload_info;
 
-static struct channel_header *Test_Vnic_channel;
-
 struct livedump_info {
 	struct controlvm_message_header Dumpcapture_header;
 	struct controlvm_message_header Gettextdump_header;
@@ -2306,7 +2304,6 @@ visorchipset_exit(void)
 		periodic_controlvm_workqueue = NULL;
 		destroy_controlvm_payload_info(&ControlVm_payload_info);
 	}
-	Test_Vnic_channel = NULL;
 	if (Putfile_buffer_list_pool) {
 		kmem_cache_destroy(Putfile_buffer_list_pool);
 		Putfile_buffer_list_pool = NULL;
