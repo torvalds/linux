@@ -1470,7 +1470,7 @@ parahotplug_request_create(struct controlvm_message *msg)
 {
 	struct parahotplug_request *req;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL|__GFP_NORETRY);
+	req = kmalloc(sizeof(*req), GFP_KERNEL | __GFP_NORETRY);
 	if (!req)
 		return NULL;
 
