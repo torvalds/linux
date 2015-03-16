@@ -154,6 +154,7 @@ config POWER_RESET_SYSCON
 config POWER_RESET_RMOBILE
 	tristate "Renesas R-Mobile reset driver"
 	depends on ARCH_RMOBILE || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Reboot support for Renesas R-Mobile and SH-Mobile SoCs.
 
