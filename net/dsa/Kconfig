@@ -6,9 +6,8 @@ config HAVE_NET_DSA
 
 config NET_DSA
 	tristate
-	depends on HAVE_NET_DSA
+	depends on HAVE_NET_DSA && NET_SWITCHDEV
 	select PHYLIB
-	select NET_SWITCHDEV
 
 if NET_DSA
 
