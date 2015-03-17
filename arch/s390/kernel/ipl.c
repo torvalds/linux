@@ -1675,9 +1675,7 @@ static ssize_t on_reboot_store(struct kobject *kobj,
 {
 	return set_trigger(buf, &on_reboot_trigger, len);
 }
-
-static struct kobj_attribute on_reboot_attr =
-	__ATTR(on_reboot, 0644, on_reboot_show, on_reboot_store);
+static struct kobj_attribute on_reboot_attr = __ATTR_RW(on_reboot);
 
 static void do_machine_restart(char *__unused)
 {
@@ -1703,9 +1701,7 @@ static ssize_t on_panic_store(struct kobject *kobj,
 {
 	return set_trigger(buf, &on_panic_trigger, len);
 }
-
-static struct kobj_attribute on_panic_attr =
-	__ATTR(on_panic, 0644, on_panic_show, on_panic_store);
+static struct kobj_attribute on_panic_attr = __ATTR_RW(on_panic);
 
 static void do_panic(void)
 {
@@ -1731,9 +1727,7 @@ static ssize_t on_restart_store(struct kobject *kobj,
 {
 	return set_trigger(buf, &on_restart_trigger, len);
 }
-
-static struct kobj_attribute on_restart_attr =
-	__ATTR(on_restart, 0644, on_restart_show, on_restart_store);
+static struct kobj_attribute on_restart_attr = __ATTR_RW(on_restart);
 
 static void __do_restart(void *ignore)
 {
@@ -1770,10 +1764,7 @@ static ssize_t on_halt_store(struct kobject *kobj,
 {
 	return set_trigger(buf, &on_halt_trigger, len);
 }
-
-static struct kobj_attribute on_halt_attr =
-	__ATTR(on_halt, 0644, on_halt_show, on_halt_store);
-
+static struct kobj_attribute on_halt_attr = __ATTR_RW(on_halt);
 
 static void do_machine_halt(void)
 {
@@ -1799,10 +1790,7 @@ static ssize_t on_poff_store(struct kobject *kobj,
 {
 	return set_trigger(buf, &on_poff_trigger, len);
 }
-
-static struct kobj_attribute on_poff_attr =
-	__ATTR(on_poff, 0644, on_poff_show, on_poff_store);
-
+static struct kobj_attribute on_poff_attr = __ATTR_RW(on_poff);
 
 static void do_machine_power_off(void)
 {
@@ -1812,26 +1800,27 @@ static void do_machine_power_off(void)
 }
 void (*_machine_power_off)(void) = do_machine_power_off;
 
+static struct attribute *shutdown_action_attrs[] = {
+	&on_restart_attr.attr,
+	&on_reboot_attr.attr,
+	&on_panic_attr.attr,
+	&on_halt_attr.attr,
+	&on_poff_attr.attr,
+	NULL,
+};
+
+static struct attribute_group shutdown_action_attr_group = {
+	.attrs = shutdown_action_attrs,
+};
+
 static void __init shutdown_triggers_init(void)
 {
 	shutdown_actions_kset = kset_create_and_add("shutdown_actions", NULL,
 						    firmware_kobj);
 	if (!shutdown_actions_kset)
 		goto fail;
-	if (sysfs_create_file(&shutdown_actions_kset->kobj,
-			      &on_reboot_attr.attr))
-		goto fail;
-	if (sysfs_create_file(&shutdown_actions_kset->kobj,
-			      &on_panic_attr.attr))
-		goto fail;
-	if (sysfs_create_file(&shutdown_actions_kset->kobj,
-			      &on_halt_attr.attr))
-		goto fail;
-	if (sysfs_create_file(&shutdown_actions_kset->kobj,
-			      &on_poff_attr.attr))
-		goto fail;
-	if (sysfs_create_file(&shutdown_actions_kset->kobj,
-			      &on_restart_attr.attr))
+	if (sysfs_create_group(&shutdown_actions_kset->kobj,
+			       &shutdown_action_attr_group))
 		goto fail;
 	return;
 fail:
