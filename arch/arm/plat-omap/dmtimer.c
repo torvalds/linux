@@ -799,6 +799,7 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 	const struct dmtimer_platform_data *pdata;
+	int ret;
 
 	match = of_match_device(of_match_ptr(omap_timer_match), dev);
 	pdata = match ? match->data : dev->platform_data;
@@ -860,7 +861,12 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	}
 
 	if (!timer->reserved) {
-		pm_runtime_get_sync(dev);
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0) {
+			dev_err(dev, "%s: pm_runtime_get_sync failed!\n",
+				__func__);
+			goto err_get_sync;
+		}
 		__omap_dm_timer_init_regs(timer);
 		pm_runtime_put(dev);
 	}
@@ -873,6 +879,11 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	dev_dbg(dev, "Device Probed.\n");
 
 	return 0;
+
+err_get_sync:
+	pm_runtime_put_noidle(dev);
+	pm_runtime_disable(dev);
+	return ret;
 }
 
 /**
