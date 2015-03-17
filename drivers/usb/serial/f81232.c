@@ -47,7 +47,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 struct f81232_private {
 	spinlock_t lock;
 	u8 line_control;
-	u8 line_status;
+	u8 modem_status;
 };
 
 static void f81232_update_line_status(struct usb_serial_port *port,
@@ -113,8 +113,8 @@ static void f81232_process_read_urb(struct urb *urb)
 
 	/* update line status */
 	spin_lock_irqsave(&priv->lock, flags);
-	line_status = priv->line_status;
-	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
+	line_status = priv->modem_status;
+	priv->modem_status &= ~UART_STATE_TRANSIENT_MASK;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (!urb->actual_length)
@@ -241,7 +241,7 @@ static void f81232_dtr_rts(struct usb_serial_port *port, int on)
 static int f81232_carrier_raised(struct usb_serial_port *port)
 {
 	struct f81232_private *priv = usb_get_serial_port_data(port);
-	if (priv->line_status & UART_DCD)
+	if (priv->modem_status & UART_DCD)
 		return 1;
 	return 0;
 }
