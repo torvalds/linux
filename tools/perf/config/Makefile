@@ -666,7 +666,7 @@ ifeq (${IS_64_BIT}, 1)
       NO_PERF_READ_VDSO32 := 1
     endif
   endif
-  ifneq (${IS_X86_64}, 1)
+  ifneq ($(ARCH), x86)
     NO_PERF_READ_VDSOX32 := 1
   endif
   ifndef NO_PERF_READ_VDSOX32
@@ -727,7 +727,7 @@ sysconfdir = $(prefix)/etc
 ETC_PERFCONFIG = etc/perfconfig
 endif
 ifndef lib
-ifeq ($(IS_X86_64),1)
+ifeq ($(ARCH)$(IS_64_BIT), x861)
 lib = lib64
 else
 lib = lib
