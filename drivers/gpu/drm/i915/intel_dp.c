@@ -951,7 +951,7 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	case DP_AUX_NATIVE_WRITE:
 	case DP_AUX_I2C_WRITE:
 		txsize = msg->size ? HEADER_SIZE + msg->size : BARE_ADDRESS_SIZE;
-		rxsize = 1;
+		rxsize = 2; /* 0 or 1 data bytes */
 
 		if (WARN_ON(txsize > 20))
 			return -E2BIG;
@@ -962,8 +962,13 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 		if (ret > 0) {
 			msg->reply = rxbuf[0] >> 4;
 
-			/* Return payload size. */
-			ret = msg->size;
+			if (ret > 1) {
+				/* Number of bytes written in a short write. */
+				ret = clamp_t(int, rxbuf[1], 0, msg->size);
+			} else {
+				/* Return payload size. */
+				ret = msg->size;
+			}
 		}
 		break;
 
