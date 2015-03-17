@@ -603,7 +603,7 @@ static void kill_node(Node *e)
 	write_unlock(&entries_lock);
 
 	if (dentry) {
-		drop_nlink(dentry->d_inode);
+		drop_nlink(d_inode(dentry));
 		d_drop(dentry);
 		dput(dentry);
 		simple_release_fs(&bm_mnt, &entry_count);
@@ -650,11 +650,11 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 	case 3:
 		/* Delete this handler. */
 		root = dget(file->f_path.dentry->d_sb->s_root);
-		mutex_lock(&root->d_inode->i_mutex);
+		mutex_lock(&d_inode(root)->i_mutex);
 
 		kill_node(e);
 
-		mutex_unlock(&root->d_inode->i_mutex);
+		mutex_unlock(&d_inode(root)->i_mutex);
 		dput(root);
 		break;
 	default:
@@ -687,14 +687,14 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		return PTR_ERR(e);
 
 	root = dget(sb->s_root);
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 	dentry = lookup_one_len(e->name, root, strlen(e->name));
 	err = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out;
 
 	err = -EEXIST;
-	if (dentry->d_inode)
+	if (d_really_is_positive(dentry))
 		goto out2;
 
 	inode = bm_get_inode(sb, S_IFREG | 0644);
@@ -723,7 +723,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 out2:
 	dput(dentry);
 out:
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 	dput(root);
 
 	if (err) {
@@ -766,12 +766,12 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 	case 3:
 		/* Delete all handlers. */
 		root = dget(file->f_path.dentry->d_sb->s_root);
-		mutex_lock(&root->d_inode->i_mutex);
+		mutex_lock(&d_inode(root)->i_mutex);
 
 		while (!list_empty(&entries))
 			kill_node(list_entry(entries.next, Node, list));
 
-		mutex_unlock(&root->d_inode->i_mutex);
+		mutex_unlock(&d_inode(root)->i_mutex);
 		dput(root);
 		break;
 	default:
