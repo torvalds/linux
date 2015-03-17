@@ -592,13 +592,12 @@ static int flexcan_poll_state(struct net_device *dev, u32 reg_esr)
 		rx_state = unlikely(reg_esr & FLEXCAN_ESR_RX_WRN) ?
 			   CAN_STATE_ERROR_WARNING : CAN_STATE_ERROR_ACTIVE;
 		new_state = max(tx_state, rx_state);
-	} else if (unlikely(flt == FLEXCAN_ESR_FLT_CONF_PASSIVE)) {
+	} else {
 		__flexcan_get_berr_counter(dev, &bec);
-		new_state = CAN_STATE_ERROR_PASSIVE;
+		new_state = flt == FLEXCAN_ESR_FLT_CONF_PASSIVE ?
+			    CAN_STATE_ERROR_PASSIVE : CAN_STATE_BUS_OFF;
 		rx_state = bec.rxerr >= bec.txerr ? new_state : 0;
 		tx_state = bec.rxerr <= bec.txerr ? new_state : 0;
-	} else {
-		new_state = CAN_STATE_BUS_OFF;
 	}
 
 	/* state hasn't changed */
