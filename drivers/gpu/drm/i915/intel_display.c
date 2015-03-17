@@ -786,6 +786,16 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
 			       unsigned int best_error_ppm,
 			       unsigned int *error_ppm)
 {
+	/*
+	 * For CHV ignore the error and consider only the P value.
+	 * Prefer a bigger P value based on HW requirements.
+	 */
+	if (IS_CHERRYVIEW(dev)) {
+		*error_ppm = 0;
+
+		return calculated_clock->p > best_clock->p;
+	}
+
 	if (WARN_ON_ONCE(!target_freq))
 		return false;
 
@@ -864,11 +874,13 @@ chv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 		   intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->base.dev;
+	unsigned int best_error_ppm;
 	intel_clock_t clock;
 	uint64_t m2;
 	int found = false;
 
 	memset(best_clock, 0, sizeof(*best_clock));
+	best_error_ppm = 1000000;
 
 	/*
 	 * Based on hardware doc, the n always set to 1, and m1 always
@@ -882,6 +894,7 @@ chv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 		for (clock.p2 = limit->p2.p2_fast;
 				clock.p2 >= limit->p2.p2_slow;
 				clock.p2 -= clock.p2 > 10 ? 2 : 1) {
+			unsigned int error_ppm;
 
 			clock.p = clock.p1 * clock.p2;
 
@@ -898,12 +911,13 @@ chv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 			if (!intel_PLL_is_valid(dev, limit, &clock))
 				continue;
 
-			/* based on hardware requirement, prefer bigger p
-			 */
-			if (clock.p > best_clock->p) {
-				*best_clock = clock;
-				found = true;
-			}
+			if (!vlv_PLL_is_optimal(dev, target, &clock, best_clock,
+						best_error_ppm, &error_ppm))
+				continue;
+
+			*best_clock = clock;
+			best_error_ppm = error_ppm;
+			found = true;
 		}
 	}
 
