@@ -53,6 +53,7 @@
 /* generic defines to abstract from the different register layouts */
 #define MXC_INT_RR	(1 << 0) /* Receive data ready interrupt */
 #define MXC_INT_TE	(1 << 1) /* Transmit FIFO empty interrupt */
+#define MXC_INT_TCEN    (1 << 7)   /* Transfer complete */
 
 /* The maximum  bytes that a sdma BD can transfer.*/
 #define MAX_SDMA_BD_BYTES  (1 << 15)
@@ -232,6 +233,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 #define MX51_ECSPI_INT		0x10
 #define MX51_ECSPI_INT_TEEN		(1 <<  0)
 #define MX51_ECSPI_INT_RREN		(1 <<  3)
+#define MX51_ECSPI_INT_TCEN             (1 << 7)
 
 #define MX51_ECSPI_DMA      0x14
 #define MX51_ECSPI_DMA_TX_WML_OFFSET	0
@@ -295,6 +297,9 @@ static void __maybe_unused mx51_ecspi_intctrl(struct spi_imx_data *spi_imx, int 
 
 	if (enable & MXC_INT_RR)
 		val |= MX51_ECSPI_INT_RREN;
+
+	if (enable & MXC_INT_TCEN)
+		val |= MX51_ECSPI_INT_TCEN;
 
 	writel(val, spi_imx->base + MX51_ECSPI_INT);
 }
@@ -908,6 +913,27 @@ static void spi_imx_dma_tx_callback(void *cookie)
 	complete(&spi_imx->dma_tx_completion);
 }
 
+static void spi_imx_tail_pio_set(struct spi_imx_data *spi_imx, int left)
+{
+
+	switch (spi_imx->rx_config.src_addr_width) {
+	case DMA_SLAVE_BUSWIDTH_1_BYTE:
+		spi_imx->rx = spi_imx_buf_rx_u8;
+		break;
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
+		spi_imx->rx = spi_imx_buf_rx_u16;
+		break;
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
+		spi_imx->rx = spi_imx_buf_rx_u32;
+		break;
+	default:
+		spi_imx->rx = spi_imx_buf_rx_u8;
+		break;
+	}
+
+	spi_imx->txfifo = left / spi_imx->tx_config.dst_addr_width;
+}
+
 static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 				struct spi_transfer *transfer)
 {
@@ -980,12 +1006,22 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 			dmaengine_terminate_all(master->dma_rx);
 		} else if (left) {
 			/* read the tail data by PIO */
-			void *tmpbuf = transfer->rx_buf + transfer->len - left;
+			dma_sync_sg_for_cpu(master->dma_rx->device->dev,
+					    &rx->sgl[rx->nents - 1], 1,
+					    DMA_FROM_DEVICE);
+			spi_imx->rx_buf = transfer->rx_buf
+						+ (transfer->len - left);
+			spi_imx_tail_pio_set(spi_imx, left);
+			reinit_completion(&spi_imx->xfer_done);
 
-			while (readl(spi_imx->base + MX51_ECSPI_STAT) & 0x8) {
-				*(char *)tmpbuf =
-					readl(spi_imx->base + MXC_CSPIRXDATA);
-				tmpbuf++;
+			spi_imx->devtype_data->intctrl(spi_imx, MXC_INT_TCEN);
+
+			ret = wait_for_completion_timeout(&spi_imx->xfer_done,
+						IMX_DMA_TIMEOUT(transfer->len));
+			if (!ret) {
+				pr_warn("%s %s: I/O Error in RX tail\n",
+					dev_driver_string(&master->dev),
+					dev_name(&master->dev));
 			}
 		}
 	}
