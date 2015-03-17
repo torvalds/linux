@@ -1038,21 +1038,31 @@ static inline bool pnv_eeh_cfg_blocked(struct device_node *dn)
 static int pnv_eeh_read_config(struct device_node *dn,
 			       int where, int size, u32 *val)
 {
+	struct pci_dn *pdn = PCI_DN(dn);
+
+	if (!pdn)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
 	if (pnv_eeh_cfg_blocked(dn)) {
 		*val = 0xFFFFFFFF;
 		return PCIBIOS_SET_FAILED;
 	}
 
-	return pnv_pci_cfg_read(dn, where, size, val);
+	return pnv_pci_cfg_read(pdn, where, size, val);
 }
 
 static int pnv_eeh_write_config(struct device_node *dn,
 				int where, int size, u32 val)
 {
+	struct pci_dn *pdn = PCI_DN(dn);
+
+	if (!pdn)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
 	if (pnv_eeh_cfg_blocked(dn))
 		return PCIBIOS_SET_FAILED;
 
-	return pnv_pci_cfg_write(dn, where, size, val);
+	return pnv_pci_cfg_write(pdn, where, size, val);
 }
 
 static void pnv_eeh_dump_hub_diag_common(struct OpalIoP7IOCErrorData *data)
