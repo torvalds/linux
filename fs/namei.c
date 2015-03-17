@@ -3077,7 +3077,7 @@ finish_open:
 	error = -ENOTDIR;
 	if ((nd->flags & LOOKUP_DIRECTORY) && !d_can_lookup(nd->path.dentry))
 		goto out;
-	if (!S_ISREG(nd->inode->i_mode))
+	if (!d_is_reg(nd->path.dentry))
 		will_truncate = false;
 
 	if (will_truncate) {
