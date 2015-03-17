@@ -2001,10 +2001,10 @@ retry:
 	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
 	list_for_each_entry(tmp_connector, &config->connector_list, head) {
-		if (connector->state->crtc != crtc)
+		if (tmp_connector->state->crtc != crtc)
 			continue;
 
-		if (connector->dpms == DRM_MODE_DPMS_ON) {
+		if (tmp_connector->dpms == DRM_MODE_DPMS_ON) {
 			active = true;
 			break;
 		}
