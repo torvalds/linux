@@ -307,7 +307,7 @@ static int xgmac_mdio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id xgmac_mdio_match[] = {
+static const struct of_device_id xgmac_mdio_match[] = {
 	{
 		.compatible = "fsl,fman-xmdio",
 	},
