@@ -2981,7 +2981,7 @@ static int emac_remove(struct platform_device *ofdev)
 }
 
 /* XXX Features in here should be replaced by properties... */
-static struct of_device_id emac_match[] =
+static const struct of_device_id emac_match[] =
 {
 	{
 		.type		= "network",

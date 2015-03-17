@@ -295,7 +295,7 @@ static int zmii_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id zmii_match[] =
+static const struct of_device_id zmii_match[] =
 {
 	{
 		.compatible	= "ibm,zmii",
