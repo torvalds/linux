@@ -1305,6 +1305,7 @@ struct hci_mgmt_chan {
 	unsigned short channel;
 	size_t handler_count;
 	const struct hci_mgmt_handler *handlers;
+	void (*hdev_init) (struct sock *sk, struct hci_dev *hdev);
 };
 
 int hci_mgmt_chan_register(struct hci_mgmt_chan *c);

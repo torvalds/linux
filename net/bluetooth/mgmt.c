@@ -6493,8 +6493,8 @@ int mgmt_control(struct hci_mgmt_chan *chan, struct sock *sk,
 		goto done;
 	}
 
-	if (hdev)
-		mgmt_init_hdev(sk, hdev);
+	if (hdev && chan->hdev_init)
+		chan->hdev_init(sk, hdev);
 
 	cp = buf + sizeof(*hdr);
 
@@ -7706,6 +7706,7 @@ static struct hci_mgmt_chan chan = {
 	.channel	= HCI_CHANNEL_CONTROL,
 	.handler_count	= ARRAY_SIZE(mgmt_handlers),
 	.handlers	= mgmt_handlers,
+	.hdev_init	= mgmt_init_hdev,
 };
 
 int mgmt_init(void)
