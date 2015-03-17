@@ -806,21 +806,6 @@ static void acpi_sleep_hibernate_setup(void)
 static inline void acpi_sleep_hibernate_setup(void) {}
 #endif /* !CONFIG_HIBERNATION */
 
-int acpi_suspend(u32 acpi_state)
-{
-	suspend_state_t states[] = {
-		[1] = PM_SUSPEND_STANDBY,
-		[3] = PM_SUSPEND_MEM,
-		[5] = PM_SUSPEND_MAX
-	};
-
-	if (acpi_state < 6 && states[acpi_state])
-		return pm_suspend(states[acpi_state]);
-	if (acpi_state == 4)
-		return hibernate();
-	return -EINVAL;
-}
-
 static void acpi_power_off_prepare(void)
 {
 	/* Prepare to power off the system */
