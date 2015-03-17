@@ -107,7 +107,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 unsigned long kvm_s390_fac_list_mask[] = {
 	0xff82fffbf4fc2000UL,
 	0x005c000000000000UL,
-	0x4000000000000000UL,
 };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
