@@ -103,15 +103,14 @@ static const struct kgd2kfd_calls *kgd2kfd;
 bool radeon_kfd_init(void)
 {
 #if defined(CONFIG_HSA_AMD_MODULE)
-	bool (*kgd2kfd_init_p)(unsigned, const struct kfd2kgd_calls*,
-				const struct kgd2kfd_calls**);
+	bool (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
 
 	kgd2kfd_init_p = symbol_request(kgd2kfd_init);
 
 	if (kgd2kfd_init_p == NULL)
 		return false;
 
-	if (!kgd2kfd_init_p(KFD_INTERFACE_VERSION, &kfd2kgd, &kgd2kfd)) {
+	if (!kgd2kfd_init_p(KFD_INTERFACE_VERSION, &kgd2kfd)) {
 		symbol_put(kgd2kfd_init);
 		kgd2kfd = NULL;
 
@@ -120,7 +119,7 @@ bool radeon_kfd_init(void)
 
 	return true;
 #elif defined(CONFIG_HSA_AMD)
-	if (!kgd2kfd_init(KFD_INTERFACE_VERSION, &kfd2kgd, &kgd2kfd)) {
+	if (!kgd2kfd_init(KFD_INTERFACE_VERSION, &kgd2kfd)) {
 		kgd2kfd = NULL;
 
 		return false;
@@ -143,7 +142,8 @@ void radeon_kfd_fini(void)
 void radeon_kfd_device_probe(struct radeon_device *rdev)
 {
 	if (kgd2kfd)
-		rdev->kfd = kgd2kfd->probe((struct kgd_dev *)rdev, rdev->pdev);
+		rdev->kfd = kgd2kfd->probe((struct kgd_dev *)rdev,
+			rdev->pdev, &kfd2kgd);
 }
 
 void radeon_kfd_device_init(struct radeon_device *rdev)

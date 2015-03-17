@@ -442,7 +442,8 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 		return -EINVAL;
 
 	/* Reading GPU clock counter from KGD */
-	args->gpu_clock_counter = kfd2kgd->get_gpu_clock_counter(dev->kgd);
+	args->gpu_clock_counter =
+		dev->kfd2kgd->get_gpu_clock_counter(dev->kgd);
 
 	/* No access to rdtsc. Using raw monotonic time */
 	getrawmonotonic64(&time);

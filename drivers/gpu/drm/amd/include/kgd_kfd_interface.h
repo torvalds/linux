@@ -77,37 +77,6 @@ struct kgd2kfd_shared_resources {
 };
 
 /**
- * struct kgd2kfd_calls
- *
- * @exit: Notifies amdkfd that kgd module is unloaded
- *
- * @probe: Notifies amdkfd about a probe done on a device in the kgd driver.
- *
- * @device_init: Initialize the newly probed device (if it is a device that
- * amdkfd supports)
- *
- * @device_exit: Notifies amdkfd about a removal of a kgd device
- *
- * @suspend: Notifies amdkfd about a suspend action done to a kgd device
- *
- * @resume: Notifies amdkfd about a resume action done to a kgd device
- *
- * This structure contains function callback pointers so the kgd driver
- * will notify to the amdkfd about certain status changes.
- *
- */
-struct kgd2kfd_calls {
-	void (*exit)(void);
-	struct kfd_dev* (*probe)(struct kgd_dev *kgd, struct pci_dev *pdev);
-	bool (*device_init)(struct kfd_dev *kfd,
-			const struct kgd2kfd_shared_resources *gpu_resources);
-	void (*device_exit)(struct kfd_dev *kfd);
-	void (*interrupt)(struct kfd_dev *kfd, const void *ih_ring_entry);
-	void (*suspend)(struct kfd_dev *kfd);
-	int (*resume)(struct kfd_dev *kfd);
-};
-
-/**
  * struct kfd2kgd_calls
  *
  * @init_gtt_mem_allocation: Allocate a buffer on the gart aperture.
@@ -196,8 +165,39 @@ struct kfd2kgd_calls {
 				enum kgd_engine_type type);
 };
 
+/**
+ * struct kgd2kfd_calls
+ *
+ * @exit: Notifies amdkfd that kgd module is unloaded
+ *
+ * @probe: Notifies amdkfd about a probe done on a device in the kgd driver.
+ *
+ * @device_init: Initialize the newly probed device (if it is a device that
+ * amdkfd supports)
+ *
+ * @device_exit: Notifies amdkfd about a removal of a kgd device
+ *
+ * @suspend: Notifies amdkfd about a suspend action done to a kgd device
+ *
+ * @resume: Notifies amdkfd about a resume action done to a kgd device
+ *
+ * This structure contains function callback pointers so the kgd driver
+ * will notify to the amdkfd about certain status changes.
+ *
+ */
+struct kgd2kfd_calls {
+	void (*exit)(void);
+	struct kfd_dev* (*probe)(struct kgd_dev *kgd, struct pci_dev *pdev,
+		const struct kfd2kgd_calls *f2g);
+	bool (*device_init)(struct kfd_dev *kfd,
+			const struct kgd2kfd_shared_resources *gpu_resources);
+	void (*device_exit)(struct kfd_dev *kfd);
+	void (*interrupt)(struct kfd_dev *kfd, const void *ih_ring_entry);
+	void (*suspend)(struct kfd_dev *kfd);
+	int (*resume)(struct kfd_dev *kfd);
+};
+
 bool kgd2kfd_init(unsigned interface_version,
-		const struct kfd2kgd_calls *f2g,
 		const struct kgd2kfd_calls **g2f);
 
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */
