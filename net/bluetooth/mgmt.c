@@ -1408,9 +1408,10 @@ static bool hci_stop_discovery(struct hci_request *req)
 
 	switch (hdev->discovery.state) {
 	case DISCOVERY_FINDING:
-		if (test_bit(HCI_INQUIRY, &hdev->flags)) {
+		if (test_bit(HCI_INQUIRY, &hdev->flags))
 			hci_req_add(req, HCI_OP_INQUIRY_CANCEL, 0, NULL);
-		} else {
+
+		if (hci_dev_test_flag(hdev, HCI_LE_SCAN)) {
 			cancel_delayed_work(&hdev->le_scan_disable);
 			hci_req_add_le_scan_disable(req);
 		}
@@ -4019,6 +4020,22 @@ static bool trigger_discovery(struct hci_request *req, u8 *status)
 		break;
 
 	case DISCOV_TYPE_INTERLEAVED:
+		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+			     &hdev->quirks)) {
+			/* During simultaneous discovery, we double LE scan
+			 * interval. We must leave some time for the controller
+			 * to do BR/EDR inquiry.
+			 */
+			if (!trigger_le_scan(req, DISCOV_LE_SCAN_INT * 2,
+					     status))
+				return false;
+
+			if (!trigger_bredr_inquiry(req, status))
+				return false;
+
+			return true;
+		}
+
 		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
 			*status = MGMT_STATUS_NOT_SUPPORTED;
 			return false;
@@ -4072,7 +4089,18 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status,
 		timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
 		break;
 	case DISCOV_TYPE_INTERLEAVED:
-		timeout = msecs_to_jiffies(hdev->discov_interleaved_timeout);
+		 /* When running simultaneous discovery, the LE scanning time
+		 * should occupy the whole discovery time sine BR/EDR inquiry
+		 * and LE scanning are scheduled by the controller.
+		 *
+		 * For interleaving discovery in comparison, BR/EDR inquiry
+		 * and LE scanning are done sequentially with separate
+		 * timeouts.
+		 */
+		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks))
+			timeout = msecs_to_jiffies(DISCOV_LE_TIMEOUT);
+		else
+			timeout = msecs_to_jiffies(hdev->discov_interleaved_timeout);
 		break;
 	case DISCOV_TYPE_BREDR:
 		timeout = 0;

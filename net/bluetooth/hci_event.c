@@ -2126,7 +2126,16 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		goto unlock;
 
 	if (list_empty(&discov->resolve)) {
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		/* When BR/EDR inquiry is active and no LE scanning is in
+		 * progress, then change discovery state to indicate completion.
+		 *
+		 * When running LE scanning and BR/EDR inquiry simultaneously
+		 * and the LE scan already finished, then change the discovery
+		 * state to indicate completion.
+		 */
+		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
+		    !test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks))
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 		goto unlock;
 	}
 
@@ -2135,7 +2144,16 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		e->name_state = NAME_PENDING;
 		hci_discovery_set_state(hdev, DISCOVERY_RESOLVING);
 	} else {
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		/* When BR/EDR inquiry is active and no LE scanning is in
+		 * progress, then change discovery state to indicate completion.
+		 *
+		 * When running LE scanning and BR/EDR inquiry simultaneously
+		 * and the LE scan already finished, then change the discovery
+		 * state to indicate completion.
+		 */
+		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
+		    !test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks))
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 	}
 
 unlock:
