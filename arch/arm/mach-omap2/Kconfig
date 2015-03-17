@@ -219,12 +219,6 @@ config MACH_OMAP3_PANDORA
 	select OMAP_PACKAGE_CBB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
-config MACH_TOUCHBOOK
-	bool "OMAP3 Touch Book"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_NOKIA_N810
        bool
 
