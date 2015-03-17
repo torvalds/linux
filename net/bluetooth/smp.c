@@ -3124,9 +3124,11 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 create_chan:
 	chan = l2cap_chan_create();
 	if (!chan) {
-		crypto_free_blkcipher(smp->tfm_aes);
-		crypto_free_hash(smp->tfm_cmac);
-		kzfree(smp);
+		if (smp) {
+			crypto_free_blkcipher(smp->tfm_aes);
+			crypto_free_hash(smp->tfm_cmac);
+			kzfree(smp);
+		}
 		return ERR_PTR(-ENOMEM);
 	}
 
