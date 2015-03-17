@@ -5846,7 +5846,7 @@ trace_create_cpu_file(const char *name, umode_t mode, struct dentry *parent,
 	struct dentry *ret = trace_create_file(name, mode, parent, data, fops);
 
 	if (ret) /* See tracing_get_cpu() */
-		ret->d_inode->i_cdev = (void *)(cpu + 1);
+		d_inode(ret)->i_cdev = (void *)(cpu + 1);
 	return ret;
 }
 
@@ -6420,7 +6420,7 @@ static int instance_rmdir(struct inode *inode, struct dentry *dentry)
 		return -ENOENT;
 
 	/* The caller did a dget() on dentry */
-	mutex_unlock(&dentry->d_inode->i_mutex);
+	mutex_unlock(&d_inode(dentry)->i_mutex);
 
 	/*
 	 * The inode mutex is locked, but debugfs_create_dir() will also
@@ -6435,7 +6435,7 @@ static int instance_rmdir(struct inode *inode, struct dentry *dentry)
 	ret = instance_delete(dentry->d_iname);
 
 	mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
-	mutex_lock(&dentry->d_inode->i_mutex);
+	mutex_lock(&d_inode(dentry)->i_mutex);
 
 	return ret;
 }
@@ -6453,7 +6453,7 @@ static __init void create_trace_instances(struct dentry *d_tracer)
 		return;
 
 	/* Hijack the dir inode operations, to allow mkdir */
-	trace_instance_dir->d_inode->i_op = &instance_dir_inode_operations;
+	d_inode(trace_instance_dir)->i_op = &instance_dir_inode_operations;
 }
 
 static void
