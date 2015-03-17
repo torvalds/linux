@@ -1577,7 +1577,7 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 			}
                         msleep(10);
                         if (gpio_val == gpio_get_value(gpio_cd)) {
-                                gpio_cd = gpio_get_value(gpio_cd) == 0 ? 1 : 0;
+                                gpio_cd = (gpio_val == 0 ? 1 : 0);
                                 if (gpio_cd == 0) {
                                         irq_set_irq_type(irq, IRQF_TRIGGER_LOW | IRQF_ONESHOT);
 					/* Enable force_jtag wihtout card in slot, ONLY for NCD-package */
@@ -3007,11 +3007,11 @@ static void dw_mci_work_routine_card(struct work_struct *work)
                 if (!(IS_ERR(host->pins_udbg)) && !(IS_ERR(host->pins_default))) {
                          if (present) {
                                 if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-                                        dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
+                                        dev_err(host->dev, "%s: Default pinctrl setting failed!\n",
                                                 mmc_hostname(host->mmc));
                          } else {
                                 if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
-                                        dev_err(host->dev, "%s: Default pinctrl setting failed!\n",
+                                        dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
                                                 mmc_hostname(host->mmc));
                         }
                 }
@@ -3468,6 +3468,14 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
                         goto err_pm_notifier;
                 }
         }
+
+	if (host->cid == DW_MCI_TYPE_RK3368) {
+		if (IS_ERR(host->grf))
+			pr_err("rk_sdmmc: dts couldn't find grf regmap for 3368\n");
+		else
+			/* Disable force_jtag */
+			regmap_write(host->grf, 0x43c, (1<<13)<<16 | (0 << 13));
+	}
 
         /* We assume only low-level chip use gpio_cd */
         if ((soc_is_rk3126() || soc_is_rk3126b() || soc_is_rk3036()) &&
@@ -4141,6 +4149,8 @@ EXPORT_SYMBOL(dw_mci_remove);
 extern int get_wifi_chip_type(void);
 int dw_mci_suspend(struct dw_mci *host)
 {
+	int present = dw_mci_get_cd(mmc);
+
 	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
 		(get_wifi_chip_type() == WIFI_ESP8089 || get_wifi_chip_type() > WIFI_AP6XXX_SERIES))
 		return 0;
@@ -4151,9 +4161,12 @@ int dw_mci_suspend(struct dw_mci *host)
         /*only for sdmmc controller*/
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 disable_irq(host->irq);
-                if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
-                        MMC_DBG_ERR_FUNC(host->mmc, "Idle pinctrl setting failed! [%s]",
-                                                mmc_hostname(host->mmc));
+		if (present) {
+			if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc,
+					"Idle pinctrl setting failed! [%s]",
+					mmc_hostname(host->mmc));
+		}
 
                 mci_writel(host, RINTSTS, 0xFFFFFFFF);
                 mci_writel(host, INTMASK, 0x00);
@@ -4171,19 +4184,19 @@ EXPORT_SYMBOL(dw_mci_suspend);
 
 int dw_mci_resume(struct dw_mci *host)
 {
-	int i, ret, retry_cnt = 0;
+	int i, ret;
 	u32 regs;
-        struct dw_mci_slot *slot;
+	struct dw_mci_slot *slot;
+	int present = dw_mci_get_cd(mmc);
 
-	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
-		(get_wifi_chip_type() == WIFI_ESP8089 || get_wifi_chip_type() > WIFI_AP6XXX_SERIES))
+	if ((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
+		(get_wifi_chip_type() == WIFI_ESP8089 ||
+			get_wifi_chip_type() > WIFI_AP6XXX_SERIES))
 		return 0;
 
-
-    
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) {
                 slot = mmc_priv(host->mmc);
-                if(!test_bit(DW_MMC_CARD_PRESENT, &slot->flags))
+                if (!test_bit(DW_MMC_CARD_PRESENT, &slot->flags))
 			return 0;
         }
 
@@ -4194,9 +4207,29 @@ int dw_mci_resume(struct dw_mci *host)
                         disable_irq_wake(host->mmc->slot.cd_irq);
                         mmc_gpio_free_cd(host->mmc);
                 }
-		if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-                        MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
-                                                mmc_hostname(host->mmc));
+
+		if (!present) {
+			if (!IS_ERR(host->pins_udbg)) {
+				if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+					MMC_DBG_ERR_FUNC(host->mmc,
+						"Idle pinctrl setting failed! [%s]",
+						mmc_hostname(host->mmc));
+				if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
+					MMC_DBG_ERR_FUNC(host->mmc,
+						"%s: Udbg pinctrl setting failed! [%s]",
+						mmc_hostname(host->mmc));
+			} else {
+				if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+					MMC_DBG_ERR_FUNC(host->mmc,
+						"Default pinctrl setting failed! [%s]",
+						mmc_hostname(host->mmc));
+			}
+		} else {
+			if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+				MMC_DBG_ERR_FUNC(host->mmc,
+					"Default pinctrl setting failed! [%s]",
+					mmc_hostname(host->mmc));
+		}
 
 		/* Disable jtag*/
 		if(cpu_is_rk3288())
@@ -4206,8 +4239,6 @@ int dw_mci_resume(struct dw_mci *host)
                 else if(cpu_is_rk312x())
                         /* RK3036_GRF_SOC_CON0 is compatible with rk312x, tmp setting */
                         grf_writel(((1 << 8) << 16) | (0 << 8), RK3036_GRF_SOC_CON0);
-		else if(host->cid == DW_MCI_TYPE_RK3368)
-			regmap_write(host->grf, 0x43c, ((1 << 13) << 16) | (0 << 13));
 	}
 	if(host->vmmc){
 		ret = regulator_enable(host->vmmc);
@@ -4244,7 +4275,7 @@ int dw_mci_resume(struct dw_mci *host)
 	mci_writel(host, INTMASK, regs);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 	/*only for sdmmc controller*/
-	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)&& (!retry_cnt)){
+	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)){
 		enable_irq(host->irq);	
 	}   
 
