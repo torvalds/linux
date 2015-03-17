@@ -68,7 +68,7 @@ struct gb_serial_line_coding {
 #define GB_SERIAL_SPACE_PARITY		4
 
 	__u8	data;
-} __attribute__ ((packed));
+};
 
 struct gb_uart_set_line_coding_request {
 	struct gb_serial_line_coding	line_coding;
