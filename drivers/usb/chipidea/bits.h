@@ -61,6 +61,10 @@
 /* Set non-zero value for internal TT Hub address representation */
 #define TTCTRL_TTHA		(0x7fUL << 24)
 
+/* BURSTSIZE */
+#define RX_BURST_MASK		0xff
+#define TX_BURST_MASK		0xff00
+
 /* PORTSC */
 #define PORTSC_CCS            BIT(0)
 #define PORTSC_CSC            BIT(1)
