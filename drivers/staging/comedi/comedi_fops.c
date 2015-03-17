@@ -2700,7 +2700,8 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
 		comedi_dev_put(dev);
-		pr_err("ran out of minor numbers for board device files\n");
+		dev_err(hardware_device,
+			"ran out of minor numbers for board device files\n");
 		return ERR_PTR(-EBUSY);
 	}
 	dev->minor = i;
@@ -2753,7 +2754,8 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 	}
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	if (i == COMEDI_NUM_SUBDEVICE_MINORS) {
-		pr_err("ran out of minor numbers for subdevice files\n");
+		dev_err(dev->class_dev,
+			"ran out of minor numbers for subdevice files\n");
 		return -EBUSY;
 	}
 	i += COMEDI_NUM_BOARD_MINORS;
