@@ -882,12 +882,15 @@ static u8 *create_uuid128_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 	return ptr;
 }
 
-static struct mgmt_pending_cmd *mgmt_pending_find(u16 opcode,
+static struct mgmt_pending_cmd *mgmt_pending_find(unsigned short channel,
+						  u16 opcode,
 						  struct hci_dev *hdev)
 {
 	struct mgmt_pending_cmd *cmd;
 
 	list_for_each_entry(cmd, &hdev->mgmt_pending, list) {
+		if (hci_sock_get_channel(cmd->sk) != channel)
+			continue;
 		if (cmd->opcode == opcode)
 			return cmd;
 	}
@@ -895,7 +898,13 @@ static struct mgmt_pending_cmd *mgmt_pending_find(u16 opcode,
 	return NULL;
 }
 
-static struct mgmt_pending_cmd *mgmt_pending_find_data(u16 opcode,
+static struct mgmt_pending_cmd *pending_find(u16 opcode, struct hci_dev *hdev)
+{
+	return mgmt_pending_find(HCI_CHANNEL_CONTROL, opcode, hdev);
+}
+
+static struct mgmt_pending_cmd *mgmt_pending_find_data(unsigned short channel,
+						       u16 opcode,
 						       struct hci_dev *hdev,
 						       const void *data)
 {
@@ -909,6 +918,13 @@ static struct mgmt_pending_cmd *mgmt_pending_find_data(u16 opcode,
 	}
 
 	return NULL;
+}
+
+static struct mgmt_pending_cmd *pending_find_data(u16 opcode,
+						  struct hci_dev *hdev,
+						  const void *data)
+{
+	return mgmt_pending_find_data(HCI_CHANNEL_CONTROL, opcode, hdev, data);
 }
 
 static u8 create_scan_rsp_data(struct hci_dev *hdev, u8 *ptr)
@@ -969,7 +985,7 @@ static u8 get_adv_discov_flags(struct hci_dev *hdev)
 	/* If there's a pending mgmt command the flags will not yet have
 	 * their final values, so check for this first.
 	 */
-	cmd = mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev);
+	cmd = pending_find(MGMT_OP_SET_DISCOVERABLE, hdev);
 	if (cmd) {
 		struct mgmt_mode *cp = cmd->param;
 		if (cp->val == 0x01)
@@ -1177,7 +1193,7 @@ static bool get_connectable(struct hci_dev *hdev)
 	/* If there's a pending mgmt command the flag will not yet have
 	 * it's final value, so check for this first.
 	 */
-	cmd = mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
+	cmd = pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
 	if (cmd) {
 		struct mgmt_mode *cp = cmd->param;
 		return cp->val;
@@ -1517,7 +1533,7 @@ static int set_powered(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_dev_lock(hdev);
 
-	if (mgmt_pending_find(MGMT_OP_SET_POWERED, hdev)) {
+	if (pending_find(MGMT_OP_SET_POWERED, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_POWERED,
 				      MGMT_STATUS_BUSY);
 		goto failed;
@@ -1669,7 +1685,7 @@ static void set_discoverable_complete(struct hci_dev *hdev, u8 status,
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev);
+	cmd = pending_find(MGMT_OP_SET_DISCOVERABLE, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -1754,8 +1770,8 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev) ||
-	    mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev)) {
+	if (pending_find(MGMT_OP_SET_DISCOVERABLE, hdev) ||
+	    pending_find(MGMT_OP_SET_CONNECTABLE, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
 				      MGMT_STATUS_BUSY);
 		goto failed;
@@ -1926,7 +1942,7 @@ static void set_connectable_complete(struct hci_dev *hdev, u8 status,
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
+	cmd = pending_find(MGMT_OP_SET_CONNECTABLE, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -2021,8 +2037,8 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_DISCOVERABLE, hdev) ||
-	    mgmt_pending_find(MGMT_OP_SET_CONNECTABLE, hdev)) {
+	if (pending_find(MGMT_OP_SET_DISCOVERABLE, hdev) ||
+	    pending_find(MGMT_OP_SET_CONNECTABLE, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_CONNECTABLE,
 				      MGMT_STATUS_BUSY);
 		goto failed;
@@ -2161,7 +2177,7 @@ static int set_link_security(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_LINK_SECURITY, hdev)) {
+	if (pending_find(MGMT_OP_SET_LINK_SECURITY, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_LINK_SECURITY,
 				      MGMT_STATUS_BUSY);
 		goto failed;
@@ -2240,7 +2256,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_SSP, hdev)) {
+	if (pending_find(MGMT_OP_SET_SSP, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
 				      MGMT_STATUS_BUSY);
 		goto failed;
@@ -2299,7 +2315,7 @@ static int set_hs(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	if (mgmt_pending_find(MGMT_OP_SET_SSP, hdev)) {
+	if (pending_find(MGMT_OP_SET_SSP, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_HS,
 				      MGMT_STATUS_BUSY);
 		goto unlock;
@@ -2421,8 +2437,8 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto unlock;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_LE, hdev) ||
-	    mgmt_pending_find(MGMT_OP_SET_ADVERTISING, hdev)) {
+	if (pending_find(MGMT_OP_SET_LE, hdev) ||
+	    pending_find(MGMT_OP_SET_ADVERTISING, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
 				      MGMT_STATUS_BUSY);
 		goto unlock;
@@ -2506,7 +2522,7 @@ static void mgmt_class_complete(struct hci_dev *hdev, u16 mgmt_op, u8 status)
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(mgmt_op, hdev);
+	cmd = pending_find(mgmt_op, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -3000,7 +3016,7 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_DISCONNECT, hdev)) {
+	if (pending_find(MGMT_OP_DISCONNECT, hdev)) {
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_DISCONNECT,
 					MGMT_STATUS_BUSY, &rp, sizeof(rp));
 		goto failed;
@@ -3464,7 +3480,7 @@ static int cancel_pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	cmd = mgmt_pending_find(MGMT_OP_PAIR_DEVICE, hdev);
+	cmd = pending_find(MGMT_OP_PAIR_DEVICE, hdev);
 	if (!cmd) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_CANCEL_PAIR_DEVICE,
 				      MGMT_STATUS_INVALID_PARAMS);
@@ -3642,7 +3658,7 @@ static void set_name_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_LOCAL_NAME, hdev);
+	cmd = pending_find(MGMT_OP_SET_LOCAL_NAME, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -3752,7 +3768,7 @@ static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev)) {
+	if (pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
 				      MGMT_STATUS_BUSY);
 		goto unlock;
@@ -4065,9 +4081,9 @@ static void start_discovery_complete(struct hci_dev *hdev, u8 status,
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_START_DISCOVERY, hdev);
+	cmd = pending_find(MGMT_OP_START_DISCOVERY, hdev);
 	if (!cmd)
-		cmd = mgmt_pending_find(MGMT_OP_START_SERVICE_DISCOVERY, hdev);
+		cmd = pending_find(MGMT_OP_START_SERVICE_DISCOVERY, hdev);
 
 	if (cmd) {
 		cmd->cmd_complete(cmd, mgmt_status(status));
@@ -4322,7 +4338,7 @@ static void stop_discovery_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
+	cmd = pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
 	if (cmd) {
 		cmd->cmd_complete(cmd, mgmt_status(status));
 		mgmt_pending_remove(cmd);
@@ -4631,8 +4647,8 @@ static int set_advertising(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_ADVERTISING, hdev) ||
-	    mgmt_pending_find(MGMT_OP_SET_LE, hdev)) {
+	if (pending_find(MGMT_OP_SET_ADVERTISING, hdev) ||
+	    pending_find(MGMT_OP_SET_LE, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_ADVERTISING,
 				      MGMT_STATUS_BUSY);
 		goto unlock;
@@ -4775,7 +4791,7 @@ static void fast_connectable_complete(struct hci_dev *hdev, u8 status,
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_FAST_CONNECTABLE, hdev);
+	cmd = pending_find(MGMT_OP_SET_FAST_CONNECTABLE, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -4821,7 +4837,7 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (mgmt_pending_find(MGMT_OP_SET_FAST_CONNECTABLE, hdev)) {
+	if (pending_find(MGMT_OP_SET_FAST_CONNECTABLE, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
 				      MGMT_STATUS_BUSY);
 		goto unlock;
@@ -4873,7 +4889,7 @@ static void set_bredr_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_BREDR, hdev);
+	cmd = pending_find(MGMT_OP_SET_BREDR, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -4973,7 +4989,7 @@ static int set_bredr(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		}
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_BREDR, hdev)) {
+	if (pending_find(MGMT_OP_SET_BREDR, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_BREDR,
 				      MGMT_STATUS_BUSY);
 		goto unlock;
@@ -5018,7 +5034,7 @@ static void sc_enable_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_SECURE_CONN, hdev);
+	cmd = pending_find(MGMT_OP_SET_SECURE_CONN, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -5109,7 +5125,7 @@ static int set_secure_conn(struct sock *sk, struct hci_dev *hdev,
 		goto failed;
 	}
 
-	if (mgmt_pending_find(MGMT_OP_SET_SECURE_CONN, hdev)) {
+	if (pending_find(MGMT_OP_SET_SECURE_CONN, hdev)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_SECURE_CONN,
 				      MGMT_STATUS_BUSY);
 		goto failed;
@@ -5502,7 +5518,7 @@ static void conn_info_refresh_complete(struct hci_dev *hdev, u8 hci_status,
 		goto unlock;
 	}
 
-	cmd = mgmt_pending_find_data(MGMT_OP_GET_CONN_INFO, hdev, conn);
+	cmd = pending_find_data(MGMT_OP_GET_CONN_INFO, hdev, conn);
 	if (!cmd)
 		goto unlock;
 
@@ -5555,7 +5571,7 @@ static int get_conn_info(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	if (mgmt_pending_find_data(MGMT_OP_GET_CONN_INFO, hdev, conn)) {
+	if (pending_find_data(MGMT_OP_GET_CONN_INFO, hdev, conn)) {
 		err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_GET_CONN_INFO,
 					MGMT_STATUS_BUSY, &rp, sizeof(rp));
 		goto unlock;
@@ -5691,7 +5707,7 @@ static void get_clock_info_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 		conn = NULL;
 	}
 
-	cmd = mgmt_pending_find_data(MGMT_OP_GET_CLOCK_INFO, hdev, conn);
+	cmd = pending_find_data(MGMT_OP_GET_CLOCK_INFO, hdev, conn);
 	if (!cmd)
 		goto unlock;
 
@@ -5857,7 +5873,7 @@ static void add_device_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_ADD_DEVICE, hdev);
+	cmd = pending_find(MGMT_OP_ADD_DEVICE, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -5980,7 +5996,7 @@ static void remove_device_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 
 	hci_dev_lock(hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_REMOVE_DEVICE, hdev);
+	cmd = pending_find(MGMT_OP_REMOVE_DEVICE, hdev);
 	if (!cmd)
 		goto unlock;
 
@@ -6937,7 +6953,7 @@ void mgmt_set_powered_failed(struct hci_dev *hdev, int err)
 	struct mgmt_pending_cmd *cmd;
 	u8 status;
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_POWERED, hdev);
+	cmd = pending_find(MGMT_OP_SET_POWERED, hdev);
 	if (!cmd)
 		return;
 
@@ -7202,7 +7218,7 @@ bool mgmt_powering_down(struct hci_dev *hdev)
 	struct mgmt_pending_cmd *cmd;
 	struct mgmt_mode *cp;
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_POWERED, hdev);
+	cmd = pending_find(MGMT_OP_SET_POWERED, hdev);
 	if (!cmd)
 		return false;
 
@@ -7259,7 +7275,7 @@ void mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	mgmt_pending_foreach(MGMT_OP_UNPAIR_DEVICE, hdev, unpair_device_rsp,
 			     hdev);
 
-	cmd = mgmt_pending_find(MGMT_OP_DISCONNECT, hdev);
+	cmd = pending_find(MGMT_OP_DISCONNECT, hdev);
 	if (!cmd)
 		return;
 
@@ -7311,7 +7327,7 @@ void mgmt_pin_code_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 {
 	struct mgmt_pending_cmd *cmd;
 
-	cmd = mgmt_pending_find(MGMT_OP_PIN_CODE_REPLY, hdev);
+	cmd = pending_find(MGMT_OP_PIN_CODE_REPLY, hdev);
 	if (!cmd)
 		return;
 
@@ -7324,7 +7340,7 @@ void mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 {
 	struct mgmt_pending_cmd *cmd;
 
-	cmd = mgmt_pending_find(MGMT_OP_PIN_CODE_NEG_REPLY, hdev);
+	cmd = pending_find(MGMT_OP_PIN_CODE_NEG_REPLY, hdev);
 	if (!cmd)
 		return;
 
@@ -7369,7 +7385,7 @@ static int user_pairing_resp_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 {
 	struct mgmt_pending_cmd *cmd;
 
-	cmd = mgmt_pending_find(opcode, hdev);
+	cmd = pending_find(opcode, hdev);
 	if (!cmd)
 		return -ENOENT;
 
@@ -7580,14 +7596,14 @@ void mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 	memcpy(ev.name, name, HCI_MAX_NAME_LENGTH);
 	memcpy(ev.short_name, hdev->short_name, HCI_MAX_SHORT_NAME_LENGTH);
 
-	cmd = mgmt_pending_find(MGMT_OP_SET_LOCAL_NAME, hdev);
+	cmd = pending_find(MGMT_OP_SET_LOCAL_NAME, hdev);
 	if (!cmd) {
 		memcpy(hdev->dev_name, name, sizeof(hdev->dev_name));
 
 		/* If this is a HCI command related to powering on the
 		 * HCI dev don't send any mgmt signals.
 		 */
-		if (mgmt_pending_find(MGMT_OP_SET_POWERED, hdev))
+		if (pending_find(MGMT_OP_SET_POWERED, hdev))
 			return;
 	}
 
@@ -7603,7 +7619,7 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 
 	BT_DBG("%s status %u", hdev->name, status);
 
-	cmd = mgmt_pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev);
+	cmd = pending_find(MGMT_OP_READ_LOCAL_OOB_DATA, hdev);
 	if (!cmd)
 		return;
 
