@@ -19,7 +19,7 @@
 #include <linux/serial.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
@@ -46,7 +46,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define UART_CTS			0x80
 
 struct f81232_private {
-	spinlock_t lock;
+	struct mutex lock;
 	u8 line_control;
 	u8 modem_status;
 };
@@ -231,17 +231,16 @@ static void f81232_close(struct usb_serial_port *port)
 static void f81232_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct f81232_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
 	u8 control;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	mutex_lock(&priv->lock);
 	/* Change DTR and RTS */
 	if (on)
 		priv->line_control |= (CONTROL_DTR | CONTROL_RTS);
 	else
 		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
 	control = priv->line_control;
-	spin_unlock_irqrestore(&priv->lock, flags);
+	mutex_unlock(&priv->lock);
 	set_control_lines(port->serial->dev, control);
 }
 
@@ -285,7 +284,7 @@ static int f81232_port_probe(struct usb_serial_port *port)
 	if (!priv)
 		return -ENOMEM;
 
-	spin_lock_init(&priv->lock);
+	mutex_init(&priv->lock);
 
 	usb_set_serial_port_data(port, priv);
 
