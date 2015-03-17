@@ -182,24 +182,21 @@ EXPORT_SYMBOL_GPL(diag308);
 
 /* SYSFS */
 
-#define DEFINE_IPL_ATTR_RO(_prefix, _name, _format, _value)		\
+#define IPL_ATTR_SHOW_FN(_prefix, _name, _format, args...)		\
 static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		char *page)						\
 {									\
-	return sprintf(page, _format, _value);				\
-}									\
+	return snprintf(page, PAGE_SIZE, _format, ##args);		\
+}
+
+#define DEFINE_IPL_ATTR_RO(_prefix, _name, _format, _value)		\
+IPL_ATTR_SHOW_FN(_prefix, _name, _format, _value)			\
 static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
-	__ATTR(_name, S_IRUGO, sys_##_prefix##_##_name##_show, NULL);
+	__ATTR(_name, S_IRUGO, sys_##_prefix##_##_name##_show, NULL)
 
 #define DEFINE_IPL_ATTR_RW(_prefix, _name, _fmt_out, _fmt_in, _value)	\
-static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
-		struct kobj_attribute *attr,				\
-		char *page)						\
-{									\
-	return sprintf(page, _fmt_out,					\
-			(unsigned long long) _value);			\
-}									\
+IPL_ATTR_SHOW_FN(_prefix, _name, _fmt_out, (unsigned long long) _value)	\
 static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		const char *buf, size_t len)				\
@@ -213,15 +210,10 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name,(S_IRUGO | S_IWUSR),				\
 			sys_##_prefix##_##_name##_show,			\
-			sys_##_prefix##_##_name##_store);
+			sys_##_prefix##_##_name##_store)
 
 #define DEFINE_IPL_ATTR_STR_RW(_prefix, _name, _fmt_out, _fmt_in, _value)\
-static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
-		struct kobj_attribute *attr,				\
-		char *page)						\
-{									\
-	return sprintf(page, _fmt_out, _value);				\
-}									\
+IPL_ATTR_SHOW_FN(_prefix, _name, _fmt_out, _value)			\
 static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		const char *buf, size_t len)				\
@@ -233,7 +225,7 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name,(S_IRUGO | S_IWUSR),				\
 			sys_##_prefix##_##_name##_show,			\
-			sys_##_prefix##_##_name##_store);
+			sys_##_prefix##_##_name##_store)
 
 static void make_attrs_ro(struct attribute **attrs)
 {
