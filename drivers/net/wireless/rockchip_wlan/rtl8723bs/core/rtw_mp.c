@@ -25,7 +25,7 @@
 #include <sys/unistd.h>		/* for RFHIGHPID */
 #endif
 
-#include "../hal/OUTSRC/odm_precomp.h"		
+#include "../hal/OUTSRC/phydm_precomp.h"		
 #if defined(CONFIG_RTL8723A) || defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8821A)
 #include <rtw_bt_mp.h>
 #endif
@@ -292,7 +292,7 @@ s32 init_mp_priv(PADAPTER padapter)
 	pmppriv->tx.stop = 1;
 	pmppriv->bSetTxPower=0;		//for  manually set tx power
 	pmppriv->bTxBufCkFail=_FALSE;
-	pmppriv->pktInterval=1;
+	pmppriv->pktInterval=0;
 	
 	mp_init_xmit_attrib(&pmppriv->tx, padapter);
 
@@ -423,7 +423,7 @@ void mpt_InitHWConfig(PADAPTER Adapter)
 
 #define PHY_IQCalibrate(_Adapter, b)	\
 		IS_HARDWARE_TYPE_8812(_Adapter) ? PHY_IQCalibrate_8812A(_Adapter, b) : \
-		IS_HARDWARE_TYPE_8821(_Adapter) ? PHY_IQCalibrate_8821A(_Adapter, b) : \
+		IS_HARDWARE_TYPE_8821(_Adapter) ? PHY_IQCalibrate_8821A(&(GET_HAL_DATA(_Adapter)->odmpriv), b) : \
 		PHY_IQCalibrate_default(_Adapter, b)
 
 #define PHY_LCCalibrate(_Adapter)	\
@@ -449,16 +449,12 @@ static void PHY_IQCalibrate(PADAPTER padapter, u8 bReCovery)
 	u8 b2ant;	//false:1ant, true:2-ant
 	u8 RF_Path;	//0:S1, 1:S0
 
-
 	pHalData = GET_HAL_DATA(padapter);
 	b2ant = pHalData->EEPROMBluetoothAntNum==Ant_x2?_TRUE:_FALSE;
-	RF_Path = 0;
-#ifdef CONFIG_USB_HCI
-	RF_Path = 1;
-#endif
 
-	PHY_IQCalibrate_8723B(padapter, bReCovery, _FALSE, b2ant, RF_Path);
+	PHY_IQCalibrate_8723B(padapter, bReCovery, _FALSE, b2ant, pHalData->ant_path);
 }
+
 
 #define PHY_LCCalibrate(a)	PHY_LCCalibrate_8723B(&(GET_HAL_DATA(a)->odmpriv))
 #define PHY_SetRFPathSwitch(a,b)	PHY_SetRFPathSwitch_8723B(a,b)
@@ -798,7 +794,7 @@ u32 mp_join(PADAPTER padapter,u8 mode)
 		res = _FAIL;
 		goto end_of_mp_start_test;
 	}
-
+	set_fwstate(pmlmepriv,WIFI_ADHOC_MASTER_STATE);
 	//3 3. join psudo AdHoc
 	tgt_network->join_res = 1;
 	tgt_network->aid = psta->aid = 1;
@@ -806,6 +802,7 @@ u32 mp_join(PADAPTER padapter,u8 mode)
 
 	rtw_indicate_connect(padapter);
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+	set_fwstate(pmlmepriv,_FW_LINKED);
 
 end_of_mp_start_test:
 
@@ -1268,7 +1265,7 @@ static thread_return mp_xmit_packet_thread(thread_context context)
 				goto exit;
 			}
 			else {
-				rtw_usleep_os(100);
+				rtw_usleep_os(10);
 				continue;
 			}
 		}
@@ -1469,7 +1466,14 @@ void fill_tx_desc_8192e(PADAPTER padapter)
 	offset = TXDESC_SIZE + OFFSET_SZ;		
 	
 	SET_TX_DESC_OFFSET_92E(pDesc, offset);
+
+	#if defined(CONFIG_PCI_HCI) //8192EE
+	SET_TX_DESC_OFFSET_92E(pDesc, offset+8); //work around
+	SET_TX_DESC_PKT_OFFSET_92E(pDesc, 0); /* 8192EE pkt_offset is 0 */
+	#else //8192EU 8192ES
+	SET_TX_DESC_OFFSET_92E(pDesc, offset);
 	SET_TX_DESC_PKT_OFFSET_92E(pDesc, 1);
+	#endif
 		
 	if (bmcast) {
 		SET_TX_DESC_BMC_92E(pDesc, 1);
@@ -1483,7 +1487,8 @@ void fill_tx_desc_8192e(PADAPTER padapter)
 	//SET_TX_DESC_QUEUE_SEL_8812(pDesc,  QSLT_MGNT);
 		
 	if (!pattrib->qos_en) {
-		SET_TX_DESC_HWSEQ_SEL_92E(pDesc, 1); // Hw set sequence number
+		SET_TX_DESC_EN_HWSEQ_92E(pDesc, 1);// Hw set sequence number
+		SET_TX_DESC_HWSEQ_SEL_92E(pDesc, pattrib->hw_ssn_sel);
 	} else {
 		SET_TX_DESC_SEQ_92E(pDesc, pattrib->seqnum);
 	}
@@ -1507,34 +1512,33 @@ void fill_tx_desc_8192e(PADAPTER padapter)
 #if defined(CONFIG_RTL8723B)
 void fill_tx_desc_8723b(PADAPTER padapter)
 {
-
 	struct mp_priv *pmp_priv = &padapter->mppriv;
 	struct pkt_attrib *pattrib = &(pmp_priv->tx.attrib);
-	PTXDESC_8723B ptxdesc = (PTXDESC_8723B)&(pmp_priv->tx.desc);
-	u8 descRate;
-	
-	ptxdesc->bk = 1;
-	ptxdesc->macid = pattrib->mac_id;
-	ptxdesc->qsel = pattrib->qsel;
+	u8 *ptxdesc = pmp_priv->tx.desc;
 
-	ptxdesc->rate_id = pattrib->raid;
-	ptxdesc->seq = pattrib->seqnum;
-	ptxdesc->en_hwseq = 1;
-	ptxdesc->userate = 1;
-	ptxdesc->disdatafb = 1;
+	SET_TX_DESC_AGG_BREAK_8723B(ptxdesc, 1);
+	SET_TX_DESC_MACID_8723B(ptxdesc, pattrib->mac_id);
+	SET_TX_DESC_QUEUE_SEL_8723B(ptxdesc, pattrib->qsel);
 
-	if( pmp_priv->preamble ){
-		if (pmp_priv->rateidx <=  MPT_RATE_54M)
-			ptxdesc->data_short = 1;
+	SET_TX_DESC_RATE_ID_8723B(ptxdesc, pattrib->raid);
+	SET_TX_DESC_SEQ_8723B(ptxdesc, pattrib->seqnum);
+	SET_TX_DESC_HWSEQ_EN_8723B(ptxdesc, 1);
+	SET_TX_DESC_USE_RATE_8723B(ptxdesc, 1);
+	SET_TX_DESC_DISABLE_FB_8723B(ptxdesc, 1);
+
+	if (pmp_priv->preamble)
+		if (pmp_priv->rateidx <=  MPT_RATE_54M) {
+			SET_TX_DESC_DATA_SHORT_8723B(ptxdesc, 1);
+		}
+
+	if (pmp_priv->bandwidth == CHANNEL_WIDTH_40) {
+		SET_TX_DESC_DATA_BW_8723B(ptxdesc, 1);
 	}
-	if (pmp_priv->bandwidth == CHANNEL_WIDTH_40)
-		ptxdesc->data_bw = 1;
 
-	ptxdesc->datarate = pmp_priv->rateidx;
+	SET_TX_DESC_TX_RATE_8723B(ptxdesc, pmp_priv->rateidx);
 
-	ptxdesc->data_ratefb_lmt = 0x1F;
-	ptxdesc->rts_ratefb_lmt = 0xF;
-
+	SET_TX_DESC_DATA_RATE_FB_LIMIT_8723B(ptxdesc, 0x1F);
+	SET_TX_DESC_RTS_RATE_FB_LIMIT_8723B(ptxdesc, 0xF);
 }
 #endif
 
@@ -1665,16 +1669,18 @@ void SetPacketTx(PADAPTER padapter)
 	if(pmp_priv->TXradomBuffer == NULL)
 	{
 		DBG_871X("mp create random buffer fail!\n");
+		goto exit;
 	}
-	else
-	{
-		for(i=0;i<4096;i++)
-			pmp_priv->TXradomBuffer[i] = rtw_random32() %0xFF;
-	}
+	
+	
+	for(i=0;i<4096;i++)
+		pmp_priv->TXradomBuffer[i] = rtw_random32() %0xFF;
+	
 	//startPlace = (u32)(rtw_random32() % 3450);
 	_rtw_memcpy(ptr, pmp_priv->TXradomBuffer,pkt_end - ptr);
 	//_rtw_memset(ptr, payload, pkt_end - ptr);
 	rtw_mfree(pmp_priv->TXradomBuffer,4096);
+	
 	//3 6. start thread
 #ifdef PLATFORM_LINUX
 	pmp_priv->tx.PktTxThread = kthread_run(mp_xmit_packet_thread, pmp_priv, "RTW_MP_THREAD");
@@ -1694,7 +1700,8 @@ void SetPacketTx(PADAPTER padapter)
 #endif
 
 	Rtw_MPSetMacTxEDCA(padapter);
-
+exit:
+	return;
 }
 
 void SetPacketRx(PADAPTER pAdapter, u8 bStartRx)
@@ -1795,7 +1802,7 @@ static u32 rtw_GetPSDData(PADAPTER pAdapter, u32 point)
 {
 	u32 psd_val=0;
 	
-#if defined(CONFIG_RTL8812A) //MP PSD for 8812A	
+#if defined(CONFIG_RTL8812A)||defined(CONFIG_RTL8821A) //MP PSD for 8812A	
 	u16 psd_reg = 0x910;
 	u16 psd_regL= 0xF44;
 	
@@ -2195,8 +2202,7 @@ mpt_ProQueryCalTxPower_8188E(
 		CurrChannel = 1;
 	}	
 	
-	if( pMptCtx->MptRateIndex >= MPT_RATE_1M &&
-		pMptCtx->MptRateIndex <= MPT_RATE_11M )
+	if(pMptCtx->MptRateIndex <= MPT_RATE_11M )
 	{
 		TxPower = pHalData->Index24G_CCK_Base[rf_path][index];	
 	}
@@ -2240,8 +2246,7 @@ mpt_ProQueryCalTxPower_8188E(
 #endif
 
 	// 2012/11/02 Awk: add power limit mechansim
-	if( pMptCtx->MptRateIndex >= MPT_RATE_1M &&
-		pMptCtx->MptRateIndex <= MPT_RATE_11M )
+	if( pMptCtx->MptRateIndex <= MPT_RATE_11M )
 	{
 		rate = MGN_1M;
 	}
@@ -2272,72 +2277,141 @@ mpt_ProQueryCalTxPower_8188E(
 	return TxPower; 
 }
 
-u8 MptToMgntRate(u32 	MptRateIdx)
+
+u8 
+MptToMgntRate(
+	IN	ULONG	MptRateIdx
+	)
 {
 // Mapped to MGN_XXX defined in MgntGen.h
 	switch (MptRateIdx) 
 	{
 		/* CCK rate. */
-		case	MPT_RATE_1M:			return 2;	
-		case	MPT_RATE_2M:			return 4;	
-		case	MPT_RATE_55M:			return 11;	
-		case	MPT_RATE_11M:			return 22;	
-	
-		/* OFDM rate. */
-		case	MPT_RATE_6M:			return 12;	
-		case	MPT_RATE_9M:			return 18;	
-		case	MPT_RATE_12M:			return 24;	
-		case	MPT_RATE_18M:			return 36;	
-		case	MPT_RATE_24M:			return 48;		
-		case	MPT_RATE_36M:			return 72;	
-		case	MPT_RATE_48M:			return 96;	
-		case	MPT_RATE_54M:			return 108; 
-	
-		/* HT rate. */
-		case	MPT_RATE_MCS0:			return 0x80;
-		case	MPT_RATE_MCS1:			return 0x81;
-		case	MPT_RATE_MCS2:			return 0x82;
-		case	MPT_RATE_MCS3:			return 0x83;
-		case	MPT_RATE_MCS4:			return 0x84;
-		case	MPT_RATE_MCS5:			return 0x85;
-		case	MPT_RATE_MCS6:			return 0x86;
-		case	MPT_RATE_MCS7:			return 0x87;
-		case	MPT_RATE_MCS8:			return 0x88;
-		case	MPT_RATE_MCS9:			return 0x89;
-		case	MPT_RATE_MCS10: 		return 0x8A;
-		case	MPT_RATE_MCS11: 		return 0x8B;
-		case	MPT_RATE_MCS12: 		return 0x8C;
-		case	MPT_RATE_MCS13: 		return 0x8D;
-		case	MPT_RATE_MCS14: 		return 0x8E;
-		case	MPT_RATE_MCS15: 		return 0x8F;
-
-		/* VHT rate. */
-		case	MPT_RATE_VHT1SS_MCS0:	return 0x90;
-		case	MPT_RATE_VHT1SS_MCS1:	return 0x91;
-		case	MPT_RATE_VHT1SS_MCS2:	return 0x92;
-		case	MPT_RATE_VHT1SS_MCS3:	return 0x93;
-		case	MPT_RATE_VHT1SS_MCS4:	return 0x94;
-		case	MPT_RATE_VHT1SS_MCS5:	return 0x95;
-		case	MPT_RATE_VHT1SS_MCS6:	return 0x96;
-		case	MPT_RATE_VHT1SS_MCS7:	return 0x97;
-		case	MPT_RATE_VHT1SS_MCS8:	return 0x98;
-		case	MPT_RATE_VHT1SS_MCS9:	return 0x99;
-		case	MPT_RATE_VHT2SS_MCS0:	return 0x9A;
-		case	MPT_RATE_VHT2SS_MCS1:	return 0x9B;
-		case	MPT_RATE_VHT2SS_MCS2:	return 0x9C;
-		case	MPT_RATE_VHT2SS_MCS3:	return 0x9D;
-		case	MPT_RATE_VHT2SS_MCS4:	return 0x9E;
-		case	MPT_RATE_VHT2SS_MCS5:	return 0x9F;
-		case	MPT_RATE_VHT2SS_MCS6:	return 0xA0;
-		case	MPT_RATE_VHT2SS_MCS7:	return 0xA1;
-		case	MPT_RATE_VHT2SS_MCS8:	return 0xA2;
-		case	MPT_RATE_VHT2SS_MCS9:	return 0xA3;
+		case	MPT_RATE_1M:			return MGN_1M;		
+		case	MPT_RATE_2M:			return MGN_2M;		
+		case	MPT_RATE_55M:			return MGN_5_5M;	
+		case	MPT_RATE_11M:			return MGN_11M; 	
+											   
+		/* OFDM rate. */					   
+		case	MPT_RATE_6M:			return MGN_6M; 
+		case	MPT_RATE_9M:			return MGN_9M; 
+		case	MPT_RATE_12M:			return MGN_12M;
+		case	MPT_RATE_18M:			return MGN_18M;
+		case	MPT_RATE_24M:			return MGN_24M; 	
+		case	MPT_RATE_36M:			return MGN_36M;
+		case	MPT_RATE_48M:			return MGN_48M;
+		case	MPT_RATE_54M:			return MGN_54M;
+											   
+		/* HT rate. */						   
+		case	MPT_RATE_MCS0:			return MGN_MCS0; 
+		case	MPT_RATE_MCS1:			return MGN_MCS1; 
+		case	MPT_RATE_MCS2:			return MGN_MCS2; 
+		case	MPT_RATE_MCS3:			return MGN_MCS3; 
+		case	MPT_RATE_MCS4:			return MGN_MCS4;	
+		case	MPT_RATE_MCS5:			return MGN_MCS5;	
+		case	MPT_RATE_MCS6:			return MGN_MCS6;	
+		case	MPT_RATE_MCS7:			return MGN_MCS7;	
+		case	MPT_RATE_MCS8:			return MGN_MCS8;	
+		case	MPT_RATE_MCS9:			return MGN_MCS9;	
+		case	MPT_RATE_MCS10: 		return MGN_MCS10;	
+		case	MPT_RATE_MCS11: 		return MGN_MCS11;	
+		case	MPT_RATE_MCS12: 		return MGN_MCS12;	
+		case	MPT_RATE_MCS13: 		return MGN_MCS13;	
+		case	MPT_RATE_MCS14: 		return MGN_MCS14;	
+		case	MPT_RATE_MCS15: 		return MGN_MCS15;	
+		case	MPT_RATE_MCS16: 		return MGN_MCS16;
+		case	MPT_RATE_MCS17: 		return MGN_MCS17;
+		case	MPT_RATE_MCS18: 		return MGN_MCS18;
+		case	MPT_RATE_MCS19: 		return MGN_MCS19;
+		case	MPT_RATE_MCS20: 		return MGN_MCS20;
+		case	MPT_RATE_MCS21: 		return MGN_MCS21;
+		case	MPT_RATE_MCS22: 		return MGN_MCS22;
+		case	MPT_RATE_MCS23: 		return MGN_MCS23;
+		case	MPT_RATE_MCS24: 		return MGN_MCS24;
+		case	MPT_RATE_MCS25: 		return MGN_MCS25;
+		case	MPT_RATE_MCS26: 		return MGN_MCS26;
+		case	MPT_RATE_MCS27: 		return MGN_MCS27;
+		case	MPT_RATE_MCS28: 		return MGN_MCS28;
+		case	MPT_RATE_MCS29: 		return MGN_MCS29;
+		case	MPT_RATE_MCS30: 		return MGN_MCS30;
+		case	MPT_RATE_MCS31: 		return MGN_MCS31;
+											   
+		/* VHT rate. */ 					   
+		case	MPT_RATE_VHT1SS_MCS0:	return MGN_VHT1SS_MCS0;
+		case	MPT_RATE_VHT1SS_MCS1:	return MGN_VHT1SS_MCS1;
+		case	MPT_RATE_VHT1SS_MCS2:	return MGN_VHT1SS_MCS2;
+		case	MPT_RATE_VHT1SS_MCS3:	return MGN_VHT1SS_MCS3;
+		case	MPT_RATE_VHT1SS_MCS4:	return MGN_VHT1SS_MCS4;
+		case	MPT_RATE_VHT1SS_MCS5:	return MGN_VHT1SS_MCS5;
+		case	MPT_RATE_VHT1SS_MCS6:	return MGN_VHT1SS_MCS6;
+		case	MPT_RATE_VHT1SS_MCS7:	return MGN_VHT1SS_MCS7;
+		case	MPT_RATE_VHT1SS_MCS8:	return MGN_VHT1SS_MCS8;
+		case	MPT_RATE_VHT1SS_MCS9:	return MGN_VHT1SS_MCS9;
+		case	MPT_RATE_VHT2SS_MCS0:	return MGN_VHT2SS_MCS0; 
+		case	MPT_RATE_VHT2SS_MCS1:	return MGN_VHT2SS_MCS1; 
+		case	MPT_RATE_VHT2SS_MCS2:	return MGN_VHT2SS_MCS2; 
+		case	MPT_RATE_VHT2SS_MCS3:	return MGN_VHT2SS_MCS3; 
+		case	MPT_RATE_VHT2SS_MCS4:	return MGN_VHT2SS_MCS4; 
+		case	MPT_RATE_VHT2SS_MCS5:	return MGN_VHT2SS_MCS5; 
+		case	MPT_RATE_VHT2SS_MCS6:	return MGN_VHT2SS_MCS6; 
+		case	MPT_RATE_VHT2SS_MCS7:	return MGN_VHT2SS_MCS7; 
+		case	MPT_RATE_VHT2SS_MCS8:	return MGN_VHT2SS_MCS8; 
+		case	MPT_RATE_VHT2SS_MCS9:	return MGN_VHT2SS_MCS9; 
+		case	MPT_RATE_VHT3SS_MCS0:	return MGN_VHT3SS_MCS0; 
+		case	MPT_RATE_VHT3SS_MCS1:	return MGN_VHT3SS_MCS1; 
+		case	MPT_RATE_VHT3SS_MCS2:	return MGN_VHT3SS_MCS2; 
+		case	MPT_RATE_VHT3SS_MCS3:	return MGN_VHT3SS_MCS3; 
+		case	MPT_RATE_VHT3SS_MCS4:	return MGN_VHT3SS_MCS4; 
+		case	MPT_RATE_VHT3SS_MCS5:	return MGN_VHT3SS_MCS5; 
+		case	MPT_RATE_VHT3SS_MCS6:	return MGN_VHT3SS_MCS6; 
+		case	MPT_RATE_VHT3SS_MCS7:	return MGN_VHT3SS_MCS7; 
+		case	MPT_RATE_VHT3SS_MCS8:	return MGN_VHT3SS_MCS8; 
+		case	MPT_RATE_VHT3SS_MCS9:	return MGN_VHT3SS_MCS9; 
+		case	MPT_RATE_VHT4SS_MCS0:	return MGN_VHT4SS_MCS0; 
+		case	MPT_RATE_VHT4SS_MCS1:	return MGN_VHT4SS_MCS1; 
+		case	MPT_RATE_VHT4SS_MCS2:	return MGN_VHT4SS_MCS2; 
+		case	MPT_RATE_VHT4SS_MCS3:	return MGN_VHT4SS_MCS3; 
+		case	MPT_RATE_VHT4SS_MCS4:	return MGN_VHT4SS_MCS4; 
+		case	MPT_RATE_VHT4SS_MCS5:	return MGN_VHT4SS_MCS5; 
+		case	MPT_RATE_VHT4SS_MCS6:	return MGN_VHT4SS_MCS6; 
+		case	MPT_RATE_VHT4SS_MCS7:	return MGN_VHT4SS_MCS7; 
+		case	MPT_RATE_VHT4SS_MCS8:	return MGN_VHT4SS_MCS8; 
+		case	MPT_RATE_VHT4SS_MCS9:	return MGN_VHT4SS_MCS9; 
 		
-		case	MPT_RATE_LAST:// fully automatic
-		default:		
-			DBG_8192C("<===MptToMgntRate(), Invalid Rate: %d!!\n", MptRateIdx);
-			return 0x0;
+		case	MPT_RATE_LAST:	// fully automatiMGN_VHT2SS_MCS1;	
+		default:					  
+			DBG_871X("<===MptToMgntRate(), Invalid Rate: %d!!\n", MptRateIdx);
+			return 0x0; 					   
+	}										   
+}											   
+
+u8 rtw_mpRateParseFunc(PADAPTER pAdapter, u8 *targetStr)
+{
+	u16 i=0;
+ 	u8* rateindex_Array[] = { "1M","2M","5.5M","11M","6M","9M","12M","18M","24M","36M","48M","54M",
+ 								"HTMCS0","HTMCS1","HTMCS2","HTMCS3","HTMCS4","HTMCS5","HTMCS6","HTMCS7",
+ 								"HTMCS8","HTMCS9","HTMCS10","HTMCS11","HTMCS12","HTMCS13","HTMCS14","HTMCS15",
+ 								"HTMCS16","HTMCS17","HTMCS18","HTMCS19","HTMCS20","HTMCS21","HTMCS22","HTMCS23",
+ 								"HTMCS24","HTMCS25","HTMCS26","HTMCS27","HTMCS28","HTMCS29","HTMCS30","HTMCS31",
+ 								"VHT1MCS0","VHT1MCS1","VHT1MCS2","VHT1MCS3","VHT1MCS4","VHT1MCS5","VHT1MCS6","VHT1MCS7","VHT1MCS8","VHT1MCS9",
+ 								"VHT2MCS0","VHT2MCS1","VHT2MCS2","VHT2MCS3","VHT2MCS4","VHT2MCS5","VHT2MCS6","VHT2MCS7","VHT2MCS8","VHT2MCS9",
+ 								"VHT3MCS0","VHT3MCS1","VHT3MCS2","VHT3MCS3","VHT3MCS4","VHT3MCS5","VHT3MCS6","VHT3MCS7","VHT3MCS8","VHT3MCS9",
+ 								"VHT4MCS0","VHT4MCS1","VHT4MCS2","VHT4MCS3","VHT4MCS4","VHT4MCS5","VHT4MCS6","VHT4MCS7","VHT4MCS8","VHT4MCS9"};
+
+	for(i=0;i<=83;i++){	
+		if(strcmp(targetStr, rateindex_Array[i]) == 0){
+			DBG_871X("%s , index = %d \n",__func__ ,i);
+			return i;
+		}
 	}
+	
+	printk("%s ,please input a Data RATE String as:",__func__);
+	for(i=0;i<=83;i++){	
+		printk("%s ",rateindex_Array[i]);
+		if(i%10==0)
+			printk("\n");
+	}	
+	return _FAIL;
 }
 
 ULONG mpt_ProQueryCalTxPower(

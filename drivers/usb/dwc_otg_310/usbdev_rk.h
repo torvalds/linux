@@ -36,6 +36,9 @@
 #define PHY_USB_MODE    (0)
 #define PHY_UART_MODE   (1)
 
+#define PHY_POWER_DOWN	(0)
+#define PHY_POWER_UP	(1)
+
 #define USB_STATUS_BVABLID    (1)
 #define USB_STATUS_DPDM       (2)
 #define USB_STATUS_ID         (3)
@@ -95,6 +98,7 @@ struct dwc_otg_platform_data {
 	void (*dwc_otg_uart_mode) (void *pdata, int enter_usb_uart_mode);
 	void (*bc_detect_cb) (int bc_type);
 	int (*get_status) (int id);
+	void (*phy_power_down)(int power_down);
 };
 
 struct rkehci_platform_data {
@@ -135,6 +139,7 @@ struct dwc_otg_control_usb {
 	struct wake_lock usb_wakelock;
 	int remote_wakeup;
 	int usb_irq_wakeup;
+	int linestate_wakeup;
 	int chip_id;
 };
 

@@ -37,154 +37,6 @@ static void freerecvbuf(struct recv_buf *precvbuf)
 	_rtw_spinlock_free(&precvbuf->recvbuf_lock);
 }
 
-static void update_recvframe_attrib(
-	PADAPTER padapter,
-	union recv_frame *precvframe,
-	struct recv_stat *prxstat)
-{
-	struct rx_pkt_attrib	*pattrib;
-	struct recv_stat	report;
-	PRXREPORT prxreport = (PRXREPORT)&report;
-	
-	report.rxdw0 = le32_to_cpu(prxstat->rxdw0);
-	report.rxdw1 = le32_to_cpu(prxstat->rxdw1);
-	report.rxdw2 = le32_to_cpu(prxstat->rxdw2);
-	report.rxdw3 = le32_to_cpu(prxstat->rxdw3);
-	report.rxdw4 = le32_to_cpu(prxstat->rxdw4);
-	report.rxdw5 = le32_to_cpu(prxstat->rxdw5);
-	
-	pattrib = &precvframe->u.hdr.attrib;
-	_rtw_memset(pattrib, 0, sizeof(struct rx_pkt_attrib));
-
-	// update rx report to recv_frame attribute
-	pattrib->pkt_rpt_type = prxreport->c2h_ind?C2H_PACKET:NORMAL_RX;
-//	DBG_871X("%s: pkt_rpt_type=%d\n", __func__, pattrib->pkt_rpt_type);
-
-	if (pattrib->pkt_rpt_type == NORMAL_RX)
-	{
-		// Normal rx packet
-		// update rx report to recv_frame attribute
-		pattrib->pkt_len = (u16)prxreport->pktlen;
-		pattrib->drvinfo_sz = (u8)(prxreport->drvinfosize << 3);
-		pattrib->physt = (u8)prxreport->physt;
-
-		pattrib->crc_err = (u8)prxreport->crc32;
-		pattrib->icv_err = (u8)prxreport->icverr;
-
-		pattrib->bdecrypted = (u8)(prxreport->swdec ? 0 : 1);
-		pattrib->encrypt = (u8)prxreport->security;
-
-		pattrib->qos = (u8)prxreport->qos;
-		pattrib->priority = (u8)prxreport->tid;
-
-		pattrib->amsdu = (u8)prxreport->amsdu;
-
-		pattrib->seq_num = (u16)prxreport->seq;
-		pattrib->frag_num = (u8)prxreport->frag;
-		pattrib->mfrag = (u8)prxreport->mf;
-		pattrib->mdata = (u8)prxreport->md;
-
-		pattrib->data_rate = (u8)prxreport->rx_rate;
-	}
-	else
-	{
-		pattrib->pkt_len = (u16)prxreport->pktlen;
-	}
-}
-
-/*
- * Notice:
- *	Before calling this function,
- *	precvframe->u.hdr.rx_data should be ready!
- */
-void update_recvframe_phyinfo(
-	union recv_frame	*precvframe,
-	struct phy_stat *pphy_status)
-{
-	PADAPTER 			padapter= precvframe->u.hdr.adapter;
-	struct rx_pkt_attrib	*pattrib = &precvframe->u.hdr.attrib;
-	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
-	PODM_PHY_INFO_T 	pPHYInfo = (PODM_PHY_INFO_T)(&pattrib->phy_info);
-
-	u8			*wlanhdr;
-	ODM_PACKET_INFO_T	pkt_info;
-	u8 *sa=NULL;
-	//_irqL		irqL;
-	struct sta_priv *pstapriv;
-	struct sta_info *psta;
-
-	pkt_info.bPacketMatchBSSID =_FALSE;
-	pkt_info.bPacketToSelf = _FALSE;
-	pkt_info.bPacketBeacon = _FALSE;
-
-
-	wlanhdr = get_recvframe_data(precvframe);
-
-	pkt_info.bPacketMatchBSSID = ((!IsFrameTypeCtrl(wlanhdr)) &&
-		!pattrib->icv_err && !pattrib->crc_err &&
-		_rtw_memcmp(get_hdr_bssid(wlanhdr), get_bssid(&padapter->mlmepriv), ETH_ALEN));
-
-	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID && (_rtw_memcmp(get_ra(wlanhdr), myid(&padapter->eeprompriv), ETH_ALEN));
-
-	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID && (GetFrameSubType(wlanhdr) == WIFI_BEACON);
-/*
-	if(pkt_info.bPacketBeacon){
-		if(check_fwstate(&padapter->mlmepriv, WIFI_STATION_STATE) == _TRUE){
-			sa = padapter->mlmepriv.cur_network.network.MacAddress;
-			#if 0
-			{
-				DBG_8192C("==> rx beacon from AP[%02x:%02x:%02x:%02x:%02x:%02x]\n",
-					sa[0],sa[1],sa[2],sa[3],sa[4],sa[5]);
-			}
-			#endif
-		}
-		//to do Ad-hoc
-	}
-	else{
-		sa = get_sa(wlanhdr);
-	}
-*/
-	sa = get_ta(wlanhdr);
-
-	pkt_info.StationID = 0xFF;
-
-	pstapriv = &padapter->stapriv;
-	psta = rtw_get_stainfo(pstapriv, sa);
-	if (psta)
-	{
-      		pkt_info.StationID = psta->mac_id;
-		//DBG_8192C("%s ==> StationID(%d)\n",__FUNCTION__,pkt_info.StationID);
-	}
-	pkt_info.DataRate = pattrib->data_rate;
-
-	//rtl8723b_query_rx_phy_status(precvframe, pphy_status);
-	//_enter_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
-	ODM_PhyStatusQuery(&pHalData->odmpriv,pPHYInfo,(u8 *)pphy_status,&(pkt_info));
-	if(psta) psta->rssi = pattrib->phy_info.RecvSignalPower;
-	//_exit_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
-	precvframe->u.hdr.psta = NULL;
-	if (pkt_info.bPacketMatchBSSID &&
-		(check_fwstate(&padapter->mlmepriv, WIFI_AP_STATE) == _TRUE))
-	{
-		if (psta)
-		{
-			precvframe->u.hdr.psta = psta;
-			rtl8723b_process_phy_info(padapter, precvframe);
-              }
-	}
-	else if (pkt_info.bPacketToSelf || pkt_info.bPacketBeacon)
-	{
-		if (check_fwstate(&padapter->mlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == _TRUE)
-		{
-			if (psta)
-			{
-				precvframe->u.hdr.psta = psta;
-			}
-		}
-		rtl8723b_process_phy_info(padapter, precvframe);
-	}
-}
-
 static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbuf, struct phy_stat *pphy_status)
 {
 	s32 ret=_SUCCESS;
@@ -242,6 +94,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 			{
 				DBG_8192C("pre_recv_entry(): rtw_skb_copy fail , drop frag frame \n");
 				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+				ret = _FAIL;
 				return ret;
 			}
 
@@ -250,6 +103,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 			{
 				DBG_8192C("pre_recv_entry(): rtw_skb_clone fail , drop frame\n");
 				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+				ret = _FAIL;
 				return ret;
 			}
 		}
@@ -269,7 +123,7 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 			recvframe_pull_tail(precvframe_if2, IEEE80211_FCS_LEN);
 
 		if (pattrib->physt)
-			update_recvframe_phyinfo(precvframe_if2, pphy_status);
+			rtl8723b_query_rx_phy_status(precvframe_if2, pphy_status);
 
 		if(rtw_recv_entry(precvframe_if2) != _SUCCESS)
 		{
@@ -277,45 +131,11 @@ static s32 pre_recv_entry(union recv_frame *precvframe, struct recv_buf	*precvbu
 				("recvbuf2recvframe: rtw_recv_entry(precvframe) != _SUCCESS\n"));
 		}
 	}
-
-	if (precvframe->u.hdr.attrib.physt)
-		update_recvframe_phyinfo(precvframe, pphy_status);
-
-	ret = rtw_recv_entry(precvframe);
 #endif
 
 	return ret;
 
 }
-
-#ifdef CONFIG_C2H_PACKET_EN
-static void rtl8723bs_c2h_packet_handler(PADAPTER padapter, u8 *pbuf, u16 length)
-{
-	u8 *tmpBuf=NULL;
-	u8 res = _FALSE;
-
-	if(length == 0)
-		return;
-	
-	//DBG_871X("+%s() length=%d\n", __func__, length);
-
-	tmpBuf = rtw_zmalloc(length);
-	if (tmpBuf == NULL)
-		return;
-
-	_rtw_memcpy(tmpBuf, pbuf, length);
-
-	res = rtw_c2h_packet_wk_cmd(padapter, tmpBuf, length);
-
-	if (res == _FALSE && tmpBuf != NULL)
-			rtw_mfree(tmpBuf, length);
-
-	//DBG_871X("-%s res(%d)\n", __func__, res);
-
-	return;
-}
-#endif
-
 
 #ifdef CONFIG_SDIO_RX_COPY
 static void rtl8723bs_recv_tasklet(void *priv)
@@ -361,7 +181,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 			}
 
 			//rx desc parsing
-			update_recvframe_attrib(padapter, precvframe, (struct recv_stat*)ptr);
+			rtl8723b_query_rx_desc_status(precvframe, ptr);
 
 			pattrib = &precvframe->u.hdr.attrib;
 
@@ -435,7 +255,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 				pkt_copy = rtw_skb_alloc(alloc_sz);
 
-				if(pkt_copy)
+				if (pkt_copy)
 				{
 					pkt_copy->dev = padapter->pnetdev;
 					precvframe->u.hdr.pkt = pkt_copy;
@@ -489,58 +309,42 @@ static void rtl8723bs_recv_tasklet(void *priv)
 					ptr += 4;
 				}
 
-#ifdef CONFIG_C2H_PACKET_EN
-				if(pattrib->pkt_rpt_type == NORMAL_RX)//Normal rx packet
-				{
-#endif
-#ifdef CONFIG_CONCURRENT_MODE
-				if(rtw_buddy_adapter_up(padapter))
-				{
-					if(pre_recv_entry(precvframe, precvbuf, (struct phy_stat*)ptr) != _SUCCESS)
-					{
-						RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
-							("recvbuf2recvframe: recv_entry(precvframe) != _SUCCESS\n"));
+				if (pattrib->pkt_rpt_type == NORMAL_RX) {
+					// skip the rx packet with abnormal length
+					if (pattrib->pkt_len < 14 || pattrib->pkt_len > 8192) {	
+						DBG_8192C("skip abnormal rx packet(%d)\n", pattrib->pkt_len);
+						rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
+						break;
 					}
-				}
-				else
-#endif
-				{
-					if (pattrib->physt)
-						update_recvframe_phyinfo(precvframe, (struct phy_stat*)ptr);
 
-					if (rtw_recv_entry(precvframe) != _SUCCESS)
+#ifdef CONFIG_CONCURRENT_MODE
+					if (rtw_buddy_adapter_up(padapter))
 					{
+						if (pre_recv_entry(precvframe, precvbuf, (struct phy_stat*)ptr) != _SUCCESS) {
+							DBG_8192C(FUNC_ADPT_FMT ": pre_recv_entry(precvframe) != _SUCCESS\n",
+								FUNC_ADPT_ARG(padapter->pbuddy_adapter));
+						}
+					}
+#endif
+					if (pattrib->physt)
+						rtl8723b_query_rx_phy_status(precvframe, (struct phy_stat*)ptr);
+
+					if (rtw_recv_entry(precvframe) != _SUCCESS) {
 						RT_TRACE(_module_rtl871x_recv_c_, _drv_dump_, ("%s: rtw_recv_entry(precvframe) != _SUCCESS\n",__FUNCTION__));
 					}
 				}
+				else {
 #ifdef CONFIG_C2H_PACKET_EN
-				}
-				else if(pattrib->pkt_rpt_type == C2H_PACKET)
-				{
-					C2H_EVT_HDR 	C2hEvent;
-					
-					u16 len_c2h = pattrib->pkt_len;
-					u8 *pbuf_c2h = precvframe->u.hdr.rx_data;
-					u8 *pdata_c2h;				
-
-					C2hEvent.CmdID = pbuf_c2h[0];
-					C2hEvent.CmdSeq = pbuf_c2h[1];
-					C2hEvent.CmdLen = (len_c2h -2);
-					pdata_c2h = pbuf_c2h+2;
-
-					if(C2hEvent.CmdID == C2H_CCX_TX_RPT)
-					{
-						CCX_FwC2HTxRpt_8723b(padapter, pdata_c2h, C2hEvent.CmdLen);
+					if (pattrib->pkt_rpt_type == C2H_PACKET) {
+						rtl8723b_c2h_packet_handler(padapter, precvframe->u.hdr.rx_data, pattrib->pkt_len);
 					}
-					else
-					{
-						rtl8723bs_c2h_packet_handler(padapter, precvframe->u.hdr.rx_data, pattrib->pkt_len);
+					else {
+						DBG_8192C("%s: [WARNNING] RX type(%d) not be handled!\n",
+							__FUNCTION__, pattrib->pkt_rpt_type);
 					}
-					
+#endif
 					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
-					
 				}
-#endif				
 			}
 
 			pkt_offset = _RND8(pkt_offset);
@@ -598,7 +402,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 			phdr = &precvframe->u.hdr;
 			pattrib = &phdr->attrib;
 
-			update_recvframe_attrib(padapter, precvframe, (struct recv_stat*)ptr);
+			rtl8723b_query_rx_desc_status(precvframe, ptr);
 
 #if 0
 			{
@@ -666,9 +470,8 @@ static void rtl8723bs_recv_tasklet(void *priv)
 			else
 			{
 				ppkt = rtw_skb_clone(precvbuf->pskb);
-				if (ppkt == NULL)
-				{
-					RT_TRACE(_module_rtl871x_recv_c_, _drv_crit_, ("rtl8723bs_recv_tasklet: no enough memory to allocate SKB!\n"));
+				if (ppkt == NULL) {
+					DBG_8192C("%s: no enough memory to allocate SKB!\n", __FUNCTION__);
 					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 					rtw_enqueue_recvbuf_to_head(precvbuf, &precvpriv->recv_buf_pending_queue);
 
@@ -698,40 +501,40 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 				// update drv info
 				if (pHalData->ReceiveConfig & RCR_APP_BA_SSN) {
-//					rtl8723s_update_bassn(padapter, pdrvinfo);
+					//rtl8723s_update_bassn(padapter, pdrvinfo);
 					ptr += 4;
 				}
 
-				if(pattrib->pkt_rpt_type == NORMAL_RX)//Normal rx packet
-				{
+				if (pattrib->pkt_rpt_type == NORMAL_RX) {
 #ifdef CONFIG_CONCURRENT_MODE
-				if(rtw_buddy_adapter_up(padapter))
-				{
-					if(pre_recv_entry(precvframe, precvbuf, (struct phy_stat*)ptr) != _SUCCESS)
+					if (rtw_buddy_adapter_up(padapter))
 					{
-						RT_TRACE(_module_rtl871x_recv_c_,_drv_err_,
-							("recvbuf2recvframe: recv_entry(precvframe) != _SUCCESS\n"));
+						if (pre_recv_entry(precvframe, precvbuf, (struct phy_stat*)ptr) != _SUCCESS) {
+							DBG_8192C(FUNC_ADPT_FMT ": pre_recv_entry(precvframe) != _SUCCESS\n",
+								FUNC_ADPT_ARG(padapter->pbuddy_adapter));
+						}
 					}
-				}
-				else
 #endif
-				{
 					if (pattrib->physt)
-						update_recvframe_phyinfo(precvframe, (struct phy_stat*)ptr);
+						rtl8723b_query_rx_phy_status(precvframe, (struct phy_stat*)ptr);
 
 					if (rtw_recv_entry(precvframe) != _SUCCESS)
 					{
-							RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("rtl8723bs_recv_tasklet: rtw_recv_entry(precvframe) != _SUCCESS\n"));
+						RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("rtl8723bs_recv_tasklet: rtw_recv_entry(precvframe) != _SUCCESS\n"));
 					}
 				}
-			}
+				else {
 #ifdef CONFIG_C2H_PACKET_EN
-				else if(pattrib->pkt_rpt_type == C2H_PACKET)
-				{
-					rtl8723bs_c2h_packet_handler(padapter, precvframe->u.hdr.rx_data, pattrib->pkt_len);
+					if (pattrib->pkt_rpt_type == C2H_PACKET) {
+						rtl8723b_c2h_packet_handler(padapter, precvframe->u.hdr.rx_data, pattrib->pkt_len);
+					}
+					else {
+						DBG_8192C("%s: [WARNNING] RX type(%d) not be handled!\n",
+							__FUNCTION__, pattrib->pkt_rpt_type);
+					}
+#endif
 					rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 				}
-#endif				
 			}
 
 			pkt_offset = _RND8(pkt_offset);

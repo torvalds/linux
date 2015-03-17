@@ -189,6 +189,17 @@ typedef enum _FIRMWARE_SOURCE {
 	FW_SOURCE_HEADER_FILE = 1,		//from header file
 } FIRMWARE_SOURCE, *PFIRMWARE_SOURCE;
 
+//
+// Queue Select Value in TxDesc
+//
+#define QSLT_BK							0x2//0x01
+#define QSLT_BE							0x0
+#define QSLT_VI							0x5//0x4
+#define QSLT_VO							0x7//0x6
+#define QSLT_BEACON						0x10
+#define QSLT_HIGH						0x11
+#define QSLT_MGNT						0x12
+#define QSLT_CMD						0x13
 
 // BK, BE, VI, VO, HCCA, MANAGEMENT, COMMAND, HIGH, BEACON.
 //#define MAX_TX_QUEUE		9
@@ -339,6 +350,8 @@ int check_phy_efuse_macaddr_info_valid(PADAPTER padapter);
 void rtw_bb_rf_gain_offset(_adapter *padapter);
 #endif //CONFIG_RF_GAIN_OFFSET
 
+void dm_DynamicUsbTxAgg(_adapter *padapter, u8 from_timer);
+u8 rtw_hal_busagg_qsel_check(_adapter *padapter,u8 pre_qsel,u8 next_qsel);
 void GetHalODMVar(	
 	PADAPTER				Adapter,
 	HAL_ODM_VARIABLE		eVariable,
@@ -358,6 +371,22 @@ struct noise_info
 	u32 	max_time;//ms	
 	u8		chan;
 };
+#endif
+
+#ifdef CONFIG_GPIO_API
+u8 rtw_hal_get_gpio(_adapter* adapter, u8 gpio_num);
+int rtw_hal_set_gpio_output_value(_adapter* adapter, u8 gpio_num, BOOLEAN isHigh);
+int rtw_hal_config_gpio(_adapter* adapter, u8 gpio_num, BOOLEAN isOutput);
+#endif
+
+#ifdef CONFIG_GPIO_WAKEUP
+void rtw_clear_hostwakeupgpio(PADAPTER padapter);
+#endif
+
+#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
+extern char *rtw_phy_file_path;
+extern char file_path[PATH_LENGTH_MAX];
+#define GetLineFromBuffer(buffer)   strsep(&buffer, "\n")
 #endif
 
 #endif //__HAL_COMMON_H__

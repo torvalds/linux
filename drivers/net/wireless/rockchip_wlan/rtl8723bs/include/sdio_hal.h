@@ -44,5 +44,9 @@ void rtl8723bs_set_hal_ops(PADAPTER padapter);
 void rtl8821as_set_hal_ops(PADAPTER padapter);
 #endif
 
+#ifdef CONFIG_RTL8192E
+void rtl8192es_set_hal_ops(PADAPTER padapter);
+#endif
+
 #endif //__SDIO_HAL_H__
 

@@ -463,6 +463,11 @@ _func_enter_;
 	if (psta == NULL)
 		goto exit;
 
+	_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL0);
+	rtw_list_delete(&psta->hash_list);
+	RT_TRACE(_module_rtl871x_sta_mgt_c_,_drv_err_,("\n free number_%d stainfo  with hwaddr = 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x  \n",pstapriv->asoc_sta_count , psta->hwaddr[0], psta->hwaddr[1], psta->hwaddr[2],psta->hwaddr[3],psta->hwaddr[4],psta->hwaddr[5]));
+	pstapriv->asoc_sta_count --;
+	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL0);
 
 	_enter_critical_bh(&psta->lock, &irqL0);
 	psta->state &= ~_FW_LINKED;
@@ -525,11 +530,6 @@ _func_enter_;
 	rtw_os_wake_queue_at_free_stainfo(padapter, pending_qcnt);
 
 	_exit_critical_bh(&pxmitpriv->lock, &irqL0);
-	
-	rtw_list_delete(&psta->hash_list);
-	RT_TRACE(_module_rtl871x_sta_mgt_c_,_drv_err_,("\n free number_%d stainfo  with hwaddr = 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x  \n",pstapriv->asoc_sta_count , psta->hwaddr[0], psta->hwaddr[1], psta->hwaddr[2],psta->hwaddr[3],psta->hwaddr[4],psta->hwaddr[5]));
-	pstapriv->asoc_sta_count --;
-	
 	
 	// re-init sta_info; 20061114 // will be init in alloc_stainfo
 	//_rtw_init_sta_xmit_priv(&psta->sta_xmitpriv);
@@ -637,7 +637,9 @@ _func_enter_;
 	 _rtw_spinlock_free(&psta->lock);
 
 	//_enter_critical_bh(&(pfree_sta_queue->lock), &irqL0);
+	_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL0);
 	rtw_list_insert_tail(&psta->list, get_list_head(pfree_sta_queue));
+	_exit_critical_bh(&(pstapriv->sta_hash_lock), &irqL0);
 	//_exit_critical_bh(&(pfree_sta_queue->lock), &irqL0);
 
 exit:
@@ -657,6 +659,9 @@ void rtw_free_all_stainfo(_adapter *padapter)
 	struct sta_info *psta = NULL;
 	struct	sta_priv *pstapriv = &padapter->stapriv;
 	struct sta_info* pbcmc_stainfo =rtw_get_bcmc_stainfo( padapter);
+	u8 free_sta_num = 0;
+	char free_sta_list[NUM_STA];
+	int stainfo_offset;
 	
 _func_enter_;	
 
@@ -676,13 +681,25 @@ _func_enter_;
 
 			plist = get_next(plist);
 
-			if(pbcmc_stainfo!=psta)					
-				rtw_free_stainfo(padapter , psta);
-			
+			if(pbcmc_stainfo!=psta)
+			{
+				rtw_list_delete(&psta->hash_list);
+				//rtw_free_stainfo(padapter , psta);
+				stainfo_offset = rtw_stainfo_offset(pstapriv, psta);
+				if (stainfo_offset_valid(stainfo_offset)) {
+					free_sta_list[free_sta_num++] = stainfo_offset;
+				}
+			}
 		}
 	}
 	
 	_exit_critical_bh(&pstapriv->sta_hash_lock, &irqL);
+
+	for (index = 0; index < free_sta_num; free_sta_num++) 
+	{
+		psta = rtw_get_stainfo_by_offset(pstapriv, free_sta_list[index]);
+		rtw_free_stainfo(padapter , psta);
+	}
 	
 exit:	
 	

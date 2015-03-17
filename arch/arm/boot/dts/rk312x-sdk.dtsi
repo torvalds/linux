@@ -615,6 +615,9 @@
                 sleep_exit_current = <130>;
                 support_uboot_chrg = <0>;
         };
+        test-power{
+		status = "okay";
+	};
 
 };
 

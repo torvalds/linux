@@ -30,6 +30,7 @@
 
 void rtw_btcoex_Initialize(PADAPTER);
 void rtw_btcoex_PowerOnSetting(PADAPTER padapter);
+void rtw_btcoex_PreLoadFirmware(PADAPTER padapter);
 void rtw_btcoex_HAL_Initialize(PADAPTER padapter, u8 bWifiOnly);
 void rtw_btcoex_IpsNotify(PADAPTER, u8 type);
 void rtw_btcoex_LpsNotify(PADAPTER, u8 type);

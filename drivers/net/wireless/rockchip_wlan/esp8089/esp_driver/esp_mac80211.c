@@ -1,5 +1,9 @@
-/*
- * Copyright (c) 2011-2014 Espressif System.
+/* Copyright (c) 2008 -2014 Espressif System.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
  *
  *     MAC80211 support module
  */
@@ -2389,7 +2393,7 @@ esp_pub_init_mac80211(struct esp_pub *epub)
 int
 esp_register_mac80211(struct esp_pub *epub)
 {
-	int ret = 0;
+        int ret = 0;
 	u8 mac[ETH_ALEN];
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35)) && defined(P2P_CONCURRENT)
 	u8 *wlan_addr;
@@ -2397,7 +2401,7 @@ esp_register_mac80211(struct esp_pub *epub)
 	int idx;
 #endif
 
-	esp_pub_init_mac80211(epub);
+        esp_pub_init_mac80211(epub);
 
 	printk("Wifi Efuse Mac => %02x:%02x:%02x:%02x:%02x:%02x\n", epub->mac_addr[0], epub->mac_addr[1],
           epub->mac_addr[2], epub->mac_addr[3], epub->mac_addr[4], epub->mac_addr[5]);

@@ -371,24 +371,13 @@ static int ehci_rk_probe(struct platform_device *pdev)
 
 	rk_ehci->ehci = ehci;
 	rk_ehci->pldata = pldata;
-	rk_ehci->host_enabled = 2;
-	rk_ehci->host_setenable = 2;
+	rk_ehci->host_enabled = -1;
+	rk_ehci->host_setenable = -1;
 	rk_ehci->connect_detect_timer.function = rk_ehci_hcd_connect_detect;
 	rk_ehci->connect_detect_timer.data = (unsigned long)(rk_ehci);
 	init_timer(&rk_ehci->connect_detect_timer);
 	mod_timer(&rk_ehci->connect_detect_timer, jiffies + (HZ << 1));
 	INIT_DELAYED_WORK(&rk_ehci->host_enable_work, rk_ehci_hcd_enable);
-
-	if (pldata->phy_suspend) {
-		if (pldata->phy_status == USB_PHY_ENABLED) {
-			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
-			/* do not disable EHCI clk, otherwise RK3288
-			 * host1(DWC_OTG) can't work normally.
-			 * udelay(3);
-			 * pldata->clock_enable(pldata, 0);
-			 */
-		}
-	}
 
 	EHCI_PRINT("%s ok\n", __func__);
 

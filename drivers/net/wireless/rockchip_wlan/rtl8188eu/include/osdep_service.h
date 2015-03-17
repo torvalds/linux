@@ -474,6 +474,8 @@ __inline static u32 bitshift(u32 bitmask)
 	return i;
 }
 
+#define rtw_min(a, b) ((a>b)?b:a)
+
 #ifndef MAC_FMT
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 #endif

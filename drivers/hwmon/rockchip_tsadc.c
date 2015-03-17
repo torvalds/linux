@@ -277,7 +277,7 @@ static void rockchip_tsadc_auto_mode_set(int chn, int int_temp,
 	
 	msleep(10);
 	tsadc_writel(0, TSADC_AUTO_CON);
-	tsadc_writel(1 << (4+chn), TSADC_AUTO_CON);
+	tsadc_writel(3 << (4+chn), TSADC_AUTO_CON);
 	msleep(10);
 	if ((tsadc_readl(TSADC_AUTO_CON) & TSADC_AUTO_STAS_BUSY_MASK) != TSADC_AUTO_STAS_BUSY) {
 		rockchip_tsadc_set_cmpn_int_vale(chn,int_temp);

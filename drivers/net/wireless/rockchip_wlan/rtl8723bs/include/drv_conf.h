@@ -81,6 +81,29 @@
 	#define CONFIG_RTW_HIQ_FILTER 1
 #endif
 
+#ifndef CONFIG_RTW_ADAPTIVITY_EN
+	#define CONFIG_RTW_ADAPTIVITY_EN 0
+#endif
+
+#ifndef CONFIG_RTW_ADAPTIVITY_MODE
+	#define CONFIG_RTW_ADAPTIVITY_MODE 0
+#endif
+
+#ifndef CONFIG_RTW_NHM_EN
+	#define CONFIG_RTW_NHM_EN 0
+#endif
+
+#ifndef CONFIG_RTW_AMPLIFIER_TYPE_2G
+	#define CONFIG_RTW_AMPLIFIER_TYPE_2G 0
+#endif
+
+#ifndef CONFIG_RTW_AMPLIFIER_TYPE_5G
+	#define CONFIG_RTW_AMPLIFIER_TYPE_5G 0
+#endif
+
+#define MACID_NUM_SW_LIMIT 32
+#define CAM_ENTRY_NUM_SW_LIMIT 32
+
 //#include <rtl871x_byteorder.h>
 
 #endif // __DRV_CONF_H__

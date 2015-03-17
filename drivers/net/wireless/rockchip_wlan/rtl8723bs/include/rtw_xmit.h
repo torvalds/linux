@@ -77,7 +77,12 @@
 
 // xmit extension buff defination
 #define MAX_XMIT_EXTBUF_SZ	(1536)
+
+#ifdef CONFIG_SINGLE_XMIT_BUF
+#define NR_XMIT_EXTBUFF	(1)
+#else
 #define NR_XMIT_EXTBUFF	(32)
+#endif
 
 #define MAX_CMDBUF_SZ	(5120)	//(4096)
 
@@ -158,7 +163,7 @@ do{\
 	#ifdef CONFIG_PCI_HCI
 		#define TXDESC_SIZE ((TX_BUFFER_SEG_NUM ==0)?16: ((TX_BUFFER_SEG_NUM ==1)? 32:64) )
 		#define TX_WIFI_INFO_SIZE 40  
-	#else  //USB or SDIO
+	#else  //8192E USB or SDIO
 		#define TXDESC_SIZE 40
 	#endif
 //8192EE_TODO
@@ -192,6 +197,105 @@ do{\
 #endif 
 #define TX_DESC_NEXT_DESC_OFFSET	(TXDESC_SIZE + 8)
 #endif //CONFIG_PCI_HCI
+
+#ifdef CONFIG_WOWLAN
+// The following foramt is 40 bytes tx description.
+// It supports 8192E, 8723B, 8812a.
+// Dword 0
+#define GET_TX_DESC_OWN(__pTxDesc)			LE_BITS_TO_4BYTE(__pTxDesc, 31, 1)
+#define SET_TX_DESC_PKT_SIZE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc, 0, 16, __Value)
+#define SET_TX_DESC_OFFSET(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc, 16, 8, __Value)
+#define SET_TX_DESC_BMC(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc, 24, 1, __Value)
+#define SET_TX_DESC_HTC(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc, 25, 1, __Value)
+#define SET_TX_DESC_LAST_SEG(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc, 26, 1, __Value)
+#define SET_TX_DESC_FIRST_SEG(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc, 27, 1, __Value)
+#define SET_TX_DESC_LINIP(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc, 28, 1, __Value)
+#define SET_TX_DESC_NO_ACM(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc, 29, 1, __Value)
+#define SET_TX_DESC_GF(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc, 30, 1, __Value)
+#define SET_TX_DESC_OWN(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc, 31, 1, __Value)
+// Dword 1
+#define SET_TX_DESC_MACID(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 0, 7, __Value)
+#define SET_TX_DESC_QUEUE_SEL(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 8, 5, __Value)
+#define SET_TX_DESC_RDG_NAV_EXT(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 13, 1, __Value)
+#define SET_TX_DESC_LSIG_TXOP_EN(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 14, 1, __Value)
+#define SET_TX_DESC_PIFS(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 15, 1, __Value)
+#define SET_TX_DESC_RATE_ID(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 16, 5, __Value)
+#define SET_TX_DESC_EN_DESC_ID(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 21, 1, __Value)
+#define SET_TX_DESC_SEC_TYPE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 22, 2, __Value)
+#define SET_TX_DESC_PKT_OFFSET(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 24, 5, __Value)
+// Dword 2
+#define SET_TX_DESC_PAID(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 0,  9, __Value) 
+#define SET_TX_DESC_CCA_RTS(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 10, 2, __Value)
+#define SET_TX_DESC_AGG_ENABLE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 12, 1, __Value)
+#define SET_TX_DESC_RDG_ENABLE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 13, 1, __Value)
+#define SET_TX_DESC_AGG_BREAK(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 16, 1, __Value)
+#define SET_TX_DESC_MORE_FRAG(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 17, 1, __Value)
+#define SET_TX_DESC_RAW(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 18, 1, __Value)
+#define SET_TX_DESC_SPE_RPT(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 19, 1, __Value)
+#define SET_TX_DESC_AMPDU_DENSITY(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 20, 3, __Value)
+#define SET_TX_DESC_BT_INT(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 23, 1, __Value)
+#define SET_TX_DESC_GID(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 24, 6, __Value)
+// Dword 3
+#define SET_TX_DESC_WHEADER_LEN(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 0, 4, __Value)
+#define SET_TX_DESC_CHK_EN(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 4, 1, __Value)
+#define SET_TX_DESC_EARLY_MODE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 5, 1, __Value)
+#define SET_TX_DESC_HWSEQ_SEL(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 6, 2, __Value)
+#define SET_TX_DESC_USE_RATE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 8, 1, __Value)
+#define SET_TX_DESC_DISABLE_RTS_FB(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 9, 1, __Value)
+#define SET_TX_DESC_DISABLE_FB(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 10, 1, __Value)
+#define SET_TX_DESC_CTS2SELF(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 11, 1, __Value)
+#define SET_TX_DESC_RTS_ENABLE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 12, 1, __Value)
+#define SET_TX_DESC_HW_RTS_ENABLE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 13, 1, __Value)
+#define SET_TX_DESC_NAV_USE_HDR(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 15, 1, __Value)
+#define SET_TX_DESC_USE_MAX_LEN(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 16, 1, __Value)
+#define SET_TX_DESC_MAX_AGG_NUM(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 17, 5, __Value)
+#define SET_TX_DESC_NDPA(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 22, 2, __Value)
+#define SET_TX_DESC_AMPDU_MAX_TIME(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 24, 8, __Value)
+// Dword 4
+#define SET_TX_DESC_TX_RATE(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+16, 0, 7, __Value)
+#define SET_TX_DESC_DATA_RATE_FB_LIMIT(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+16, 8, 5, __Value)
+#define SET_TX_DESC_RTS_RATE_FB_LIMIT(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+16, 13, 4, __Value)
+#define SET_TX_DESC_RETRY_LIMIT_ENABLE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+16, 17, 1, __Value)
+#define SET_TX_DESC_DATA_RETRY_LIMIT(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+16, 18, 6, __Value)
+#define SET_TX_DESC_RTS_RATE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+16, 24, 5, __Value)
+// Dword 5
+#define SET_TX_DESC_DATA_SC(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 0, 4, __Value)
+#define SET_TX_DESC_DATA_SHORT(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 4, 1, __Value)
+#define SET_TX_DESC_DATA_BW(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 5, 2, __Value)
+#define SET_TX_DESC_DATA_LDPC(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 7, 1, __Value)
+#define SET_TX_DESC_DATA_STBC(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 8, 2, __Value)
+#define SET_TX_DESC_CTROL_STBC(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 10, 2, __Value)
+#define SET_TX_DESC_RTS_SHORT(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 12, 1, __Value)
+#define SET_TX_DESC_RTS_SC(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+20, 13, 4, __Value)
+// Dword 6
+#define SET_TX_DESC_SW_DEFINE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 0, 12, __Value)
+#define SET_TX_DESC_ANTSEL_A(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 16, 3, __Value)
+#define SET_TX_DESC_ANTSEL_B(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 19, 3, __Value)
+#define SET_TX_DESC_ANTSEL_C(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 22, 3, __Value)
+#define SET_TX_DESC_ANTSEL_D(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 25, 3, __Value)
+// Dword 7
+#ifdef CONFIG_PCI_HCI 
+#define SET_TX_DESC_TX_BUFFER_SIZE(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
+#else
+#define SET_TX_DESC_TX_DESC_CHECKSUM(__pTxDesc, __Value)SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
+#endif
+#define SET_TX_DESC_USB_TXAGG_NUM(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 24, 8, __Value)
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+#define SET_TX_DESC_SDIO_TXSEQ(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 16, 8, __Value)
+#endif
+
+// Dword 8
+#define SET_TX_DESC_HWSEQ_EN(__pTxDesc, __Value)	SET_BITS_TO_LE_4BYTE(__pTxDesc+32, 15, 1, __Value)
+// Dword 9
+#define SET_TX_DESC_SEQ(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+36, 12, 12, __Value)
+// Dword 10
+#define SET_TX_DESC_TX_BUFFER_ADDRESS(__pTxDesc, __Value)SET_BITS_TO_LE_4BYTE(__pTxDesc+40, 0, 32, __Value)
+#define GET_TX_DESC_TX_BUFFER_ADDRESS(__pTxDesc)	LE_BITS_TO_4BYTE(__pTxDesc+40, 0, 32)
+
+// Dword 11
+#define SET_TX_DESC_NEXT_DESC_ADDRESS(__pTxDesc, __Value)SET_BITS_TO_LE_4BYTE(__pTxDesc+48, 0, 32, __Value)
+// 40 bytes tx description end.
+#endif
 
 enum TXDESC_SC{
 	SC_DONT_CARE = 0x00,
@@ -340,6 +444,7 @@ struct pkt_attrib
 	u8	dhcp_pkt;
 	u16	ether_type;
 	u16	seqnum;
+	u8 	hw_ssn_sel;	//for HW_SEQ0,1,2,3
 	u16	pkt_hdrlen;	//the original 802.3 pkt header len
 	u16	hdrlen;		//the WLAN Header Len
 	u32	pktlen;		//the original 802.3 pkt raw_data len (not include ether_hdr data)
@@ -633,6 +738,8 @@ enum cmdbuf_type {
 	CMDBUF_MAX
 };
 
+u8 rtw_get_hwseq_no(_adapter *padapter);
+
 struct	xmit_priv	{
 
 	_lock	lock;
@@ -720,7 +827,7 @@ struct	xmit_priv	{
 #endif
 #endif
 
-#ifdef CONFIG_SDIO_HCI
+#if defined (CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 #ifdef CONFIG_SDIO_TX_TASKLET
 	#ifdef PLATFORM_LINUX
 	struct tasklet_struct xmit_tasklet;
@@ -744,7 +851,7 @@ struct	xmit_priv	{
 	uint free_xmit_extbuf_cnt;
 
 	struct xmit_buf	pcmd_xmitbuf[CMDBUF_MAX];
-
+	u8   hw_ssn_seq_no;//mapping to REG_HW_SEQ 0,1,2,3
 	u16	nqos_ssn;
 	#ifdef CONFIG_TX_EARLY_MODE
 

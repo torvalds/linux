@@ -563,7 +563,7 @@ int dwc_otg_hcd_urb_dequeue(dwc_otg_hcd_t *hcd,
 	dwc_otg_qtd_t *urb_qtd;
 
 	urb_qtd = dwc_otg_urb->qtd;
-	if (((uint32_t) urb_qtd & 0xf0000000) == 0) {
+	if (!urb_qtd) {
 		DWC_PRINTF("%s error: urb_qtd is %p dwc_otg_urb %p!!!\n",
 			   __func__, urb_qtd, dwc_otg_urb);
 		return 0;

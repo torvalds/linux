@@ -61,11 +61,11 @@
 
 	power-led {
 		compatible = "gpio-leds";
-		green {
+		power {
 			gpios = <&gpio0 GPIO_B0 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
-		red {
+		work {
 			gpios = <&gpio0 GPIO_D2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};

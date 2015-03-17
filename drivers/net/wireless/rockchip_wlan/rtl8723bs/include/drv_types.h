@@ -94,6 +94,7 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <hal_intf.h>
 #include <hal_com.h>
 #include <hal_com_led.h>
+#include "../hal/hal_dm.h"
 #include <rtw_qos.h>
 #include <rtw_pwrctrl.h>
 #include <rtw_mlme.h>
@@ -144,10 +145,6 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #ifdef CONFIG_IOL
 #include <rtw_iol.h>
 #endif // CONFIG_IOL
-
-#ifdef CONFIG_IOCTL_CFG80211
-#include "ioctl_cfg80211.h"
-#endif //CONFIG_IOCTL_CFG80211
 
 #include <ip.h>
 #include <if_ether.h>
@@ -253,7 +250,7 @@ struct registry_priv
 	u8	low_power ;
 
 	u8	wifi_spec;// !turbo_mode
-
+	u8	special_rf_path; // 0: 2T2R ,1: only turn on path A 1T1R
 	u8	channel_plan;
 #ifdef CONFIG_BT_COEXIST
 	u8	btcoex;
@@ -327,12 +324,26 @@ struct registry_priv
 	u8 qos_opt_enable;
 
 	u8 hiq_filter;
+	u8 adaptivity_en;
+	u8 adaptivity_mode;
+	u8 nhm_en;
 };
 
 
 //For registry parameters
 #define RGTRY_OFT(field) ((ULONG)FIELD_OFFSET(struct registry_priv,field))
 #define RGTRY_SZ(field)   sizeof(((struct registry_priv*) 0)->field)
+
+#define GetRegAmplifierType2G(_Adapter)	(_Adapter->registrypriv.AmplifierType_2G)
+#define GetRegAmplifierType5G(_Adapter)	(_Adapter->registrypriv.AmplifierType_5G)
+
+#define GetRegTxBBSwing_2G(_Adapter)	(_Adapter->registrypriv.TxBBSwing_2G)
+#define GetRegTxBBSwing_5G(_Adapter)	(_Adapter->registrypriv.TxBBSwing_5G)
+
+#define GetRegbENRFEType(_Adapter)	(_Adapter->registrypriv.bEn_RFE)
+#define GetRegRFEType(_Adapter)	(_Adapter->registrypriv.RFE_Type)
+
+
 #define BSSID_OFT(field) ((ULONG)FIELD_OFFSET(WLAN_BSSID_EX,field))
 #define BSSID_SZ(field)   sizeof(((PWLAN_BSSID_EX) 0)->field)
 
@@ -358,6 +369,8 @@ struct registry_priv
 #define GET_PRIMARY_ADAPTER(padapter) (((_adapter *)padapter)->dvobj->if1)
 #define GET_IFACE_NUMS(padapter) (((_adapter *)padapter)->dvobj->iface_nums)
 #define GET_ADAPTER(padapter, iface_id) (((_adapter *)padapter)->dvobj->padapters[iface_id])
+
+#define GetDefaultAdapter(padapter)	padapter
 
 enum _IFACE_ID {
 	IFACE_ID0, //maping to PRIMARY_ADAPTER
@@ -566,6 +579,28 @@ struct cam_entry_cache {
 	((u8*)(x))[6],((u8*)(x))[7],((u8*)(x))[8],((u8*)(x))[9],((u8*)(x))[10],((u8*)(x))[11], \
 	((u8*)(x))[12],((u8*)(x))[13],((u8*)(x))[14],((u8*)(x))[15]
 
+struct macid_bmp {
+	u32 m0;
+#if (MACID_NUM_SW_LIMIT > 32)
+	u32 m1;
+#endif
+#if (MACID_NUM_SW_LIMIT > 64)
+	u32 m2;
+#endif
+#if (MACID_NUM_SW_LIMIT > 96)
+	u32 m3;
+#endif
+};
+
+struct macid_ctl_t {
+	_lock lock;
+	u8 num;
+	struct macid_bmp used;
+	struct macid_bmp bmc;
+	struct macid_bmp if_g[IFACE_ID_MAX];
+	struct macid_bmp ch_g[2]; /* 2 ch concurrency */
+};
+
 struct dvobj_priv
 {
 	/*-------- below is common data --------*/	
@@ -575,11 +610,6 @@ struct dvobj_priv
 	s32	processing_dev_remove;
 
 	struct debug_priv drv_dbg;
-
-	//for local/global synchronization
-	//
-	_lock	lock;
-	int macid[NUM_STA];
 
 	_mutex hw_init_mutex;
 	_mutex h2c_fwcmd_mutex;
@@ -596,6 +626,8 @@ struct dvobj_priv
 	//padapters[IFACE_ID1] == if2
 	_adapter *padapters[IFACE_ID_MAX];
 	u8 iface_nums; // total number of ifaces used runtime
+
+	struct macid_ctl_t macid_ctl;
 
 	struct cam_ctl_t cam_ctl;
 	struct cam_entry_cache cam_cache[TOTAL_CAM_ENTRY];
@@ -725,6 +757,7 @@ struct dvobj_priv
 
 #define dvobj_to_pwrctl(dvobj) (&(dvobj->pwrctl_priv))
 #define pwrctl_to_dvobj(pwrctl) container_of(pwrctl, struct dvobj_priv, pwrctl_priv)
+#define dvobj_to_macidctl(dvobj) (&(dvobj->macid_ctl))
 
 #ifdef PLATFORM_LINUX
 static struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
@@ -873,7 +906,9 @@ struct _ADAPTER{
 	u8	bDriverIsGoingToUnload;
 	u8	init_adpt_in_progress;
 	u8	bHaltInProgress;
-
+#ifdef CONFIG_GPIO_API	
+	u8	pre_gpio_pin;
+#endif	
 	_thread_hdl_ cmdThread;
 	_thread_hdl_ evtThread;
 	_thread_hdl_ xmitThread;
@@ -1009,11 +1044,13 @@ struct _ADAPTER{
 
 	//for debug purpose
 	u8 fix_rate;
+	u8 data_fb; /* data rate fallback, valid only when fix_rate is not 0xff */
 	u8 driver_vcs_en; //Enable=1, Disable=0 driver control vrtl_carrier_sense for tx
 	u8 driver_vcs_type;//force 0:disable VCS, 1:RTS-CTS, 2:CTS-to-self when vcs_en=1.
 	u8 driver_ampdu_spacing;//driver control AMPDU Density for peer sta's rx
 	u8 driver_rx_ampdu_factor;//0xff: disable drv ctrl, 0:8k, 1:16k, 2:32k, 3:64k;
-
+	u8 fix_ba_rxbuf_bz; /* 0~127, TODO:consider each sta and each TID */
+	u8 driver_rx_ampdu_spacing;  //driver control Rx AMPDU Density 
 	unsigned char     in_cta_test;
 
 #ifdef CONFIG_DBG_COUNTER	
@@ -1076,12 +1113,6 @@ int rtw_dev_pno_set(struct net_device *net, pno_ssid_t* ssid, int num,
 void rtw_dev_pno_debug(struct net_device *net);
 #endif //CONFIG_PNO_SET_DEBUG
 #endif //CONFIG_PNO_SUPPORT
-
-#ifdef CONFIG_GPIO_API
-int rtw_get_gpio(struct net_device *netdev, int gpio_num);
-int rtw_set_gpio_output_value(struct net_device *netdev, int gpio_num, BOOLEAN isHigh);
-int rtw_config_gpio(struct net_device *netdev, int gpio_num, BOOLEAN isOutput);
-#endif
 
 #ifdef CONFIG_WOWLAN
 int rtw_suspend_wow(_adapter *padapter);

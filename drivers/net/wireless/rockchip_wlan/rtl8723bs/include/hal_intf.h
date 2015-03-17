@@ -146,6 +146,8 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_DL_RSVD_PAGE,
 	HW_VAR_MACID_SLEEP,
 	HW_VAR_MACID_WAKEUP,
+	HW_VAR_DUMP_MAC_QUEUE_INFO,
+	HW_VAR_ASIX_IOT,
 }HW_VARIABLES;
 
 typedef enum _HAL_DEF_VARIABLE{
@@ -181,6 +183,7 @@ typedef enum _HAL_DEF_VARIABLE{
 	HAL_DEF_PCI_ASPM_OSC, // Support for ASPM OSC, added by Roger, 2013.03.27.
 	HAL_DEF_MACID_SLEEP, // Support for MACID sleep
 	HAL_DEF_DBG_RX_INFO_DUMP,
+	HAL_DEF_DBG_DIS_PWT, //disable Tx power training or not.
 }HAL_DEF_VARIABLE;
 
 typedef enum _HAL_ODM_VARIABLE{
@@ -188,6 +191,7 @@ typedef enum _HAL_ODM_VARIABLE{
 	HAL_ODM_P2P_STATE,
 	HAL_ODM_WIFI_DISPLAY_STATE,
 	HAL_ODM_NOISE_MONITOR,
+	HAL_ODM_REGULATION,
 }HAL_ODM_VARIABLE;
 
 typedef enum _HAL_INTF_PS_FUNC{
@@ -318,10 +322,16 @@ struct hal_ops {
 	void (*hal_reset_security_engine)(_adapter * adapter);
 	s32 (*c2h_handler)(_adapter *padapter, u8 *c2h_evt);
 	c2h_id_filter c2h_id_filter_ccx;
-
-#ifdef CONFIG_BT_COEXIST
 	s32 (*fill_h2c_cmd)(PADAPTER, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
-#endif // CONFIG_BT_COEXIST
+#if defined(CONFIG_RTL8188E) || defined(CONFIG_RTL8723A) || defined(CONFIG_RTL8723B)
+	void (*hal_cal_txdesc_chksum)(struct tx_desc *ptxdesc);
+#else
+	void (*hal_cal_txdesc_chksum)(u8 *ptxdesc);
+#endif
+#ifdef CONFIG_WOWLAN
+	void (*hal_set_wowlan_fw)(_adapter *adapter, u8 sleep);
+#endif //CONFIG_WOWLAN
+	u8 (*hal_get_tx_buff_rsvd_page_num)(_adapter *adapter, bool wowlan);
 };
 
 typedef	enum _RT_EEPROM_TYPE{
@@ -394,6 +404,9 @@ typedef enum _HARDWARE_TYPE{
 #define IS_HARDWARE_TYPE_8192DU(_Adapter)	(((PADAPTER)_Adapter)->HardwareType==HARDWARE_TYPE_RTL8192DU)
 #define	IS_HARDWARE_TYPE_8192D(_Adapter)			\
 (IS_HARDWARE_TYPE_8192DE(_Adapter) || IS_HARDWARE_TYPE_8192DU(_Adapter))
+
+#define IS_HARDWARE_TYPE_OLDER_THAN_8723A(_Adapter)	\
+(IS_HARDWARE_TYPE_8192D(_Adapter) || IS_HARDWARE_TYPE_8192C(_Adapter))
 
 //
 // RTL8723A Series
@@ -629,12 +642,10 @@ c2h_id_filter rtw_hal_c2h_id_filter_ccx(_adapter *adapter);
 
 s32 rtw_hal_is_disable_sw_channel_plan(PADAPTER padapter);
 
-s32 rtw_hal_macid_sleep(PADAPTER padapter, u32 macid);
-s32 rtw_hal_macid_wakeup(PADAPTER padapter, u32 macid);
+s32 rtw_hal_macid_sleep(PADAPTER padapter, u8 macid);
+s32 rtw_hal_macid_wakeup(PADAPTER padapter, u8 macid);
 
-#ifdef CONFIG_BT_COEXIST
 s32 rtw_hal_fill_h2c_cmd(PADAPTER, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
-#endif // CONFIG_BT_COEXIST
 
 #endif //__HAL_INTF_H__
 
