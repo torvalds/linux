@@ -600,24 +600,32 @@ static int f81232_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
+static int f81232_get_serial_info(struct usb_serial_port *port,
+		unsigned long arg)
+{
+	struct serial_struct ser;
+
+	memset(&ser, 0, sizeof(ser));
+
+	ser.type = PORT_16550A;
+	ser.line = port->minor;
+	ser.port = port->port_number;
+	ser.baud_base = F81232_MAX_BAUDRATE;
+
+	if (copy_to_user((void __user *)arg, &ser, sizeof(ser)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int f81232_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
-	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
 
 	switch (cmd) {
 	case TIOCGSERIAL:
-		memset(&ser, 0, sizeof ser);
-		ser.type = PORT_16654;
-		ser.line = port->minor;
-		ser.port = port->port_number;
-		ser.baud_base = 460800;
-
-		if (copy_to_user((void __user *)arg, &ser, sizeof ser))
-			return -EFAULT;
-
-		return 0;
+		return f81232_get_serial_info(port, arg);
 	default:
 		break;
 	}
