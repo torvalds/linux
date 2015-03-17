@@ -2326,6 +2326,21 @@ again:
 		error = (error || in_width > maxsinglelinewidth * 2 ||
 			(in_width > maxsinglelinewidth && *five_taps) ||
 			!*core_clk || *core_clk > dispc_core_clk_rate());
+
+		if (!error) {
+			/* verify that we're inside the limits of scaler */
+			if (in_width / 4 > out_width)
+					error = 1;
+
+			if (*five_taps) {
+				if (in_height / 4 > out_height)
+					error = 1;
+			} else {
+				if (in_height / 2 > out_height)
+					error = 1;
+			}
+		}
+
 		if (error) {
 			if (*decim_x == *decim_y) {
 				*decim_x = min_factor;
