@@ -408,7 +408,7 @@ static void usb20ehci_phy_suspend(void *pdata, int suspend)
 
 	if (suspend) {
 		/* enable soft control */
-		writel(UOC_HIWORD_UPDATE(0x1d5, 0x1ff, 0),
+		writel(UOC_HIWORD_UPDATE(0x1d1, 0x1ff, 0),
 		       RK_GRF_VIRT + RK312X_GRF_UOC1_CON5);
 		usbpdata->phy_status = 1;
 	} else {
