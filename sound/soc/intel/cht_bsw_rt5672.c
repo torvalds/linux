@@ -22,12 +22,27 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/jack.h>
 #include "../codecs/rt5670.h"
 #include "sst-atom-controls.h"
 
 /* The platform clock #3 outputs 19.2Mhz clock to codec as I2S MCLK */
 #define CHT_PLAT_CLK_3_HZ	19200000
 #define CHT_CODEC_DAI	"rt5670-aif1"
+
+static struct snd_soc_jack cht_bsw_headset;
+
+/* Headset jack detection DAPM pins */
+static struct snd_soc_jack_pin cht_bsw_headset_pins[] = {
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin = "Headphone",
+		.mask = SND_JACK_HEADPHONE,
+	},
+};
 
 static inline struct snd_soc_dai *cht_get_codec_dai(struct snd_soc_card *card)
 {
@@ -178,6 +193,15 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 				| RT5670_AD_MONO_L_FILTER
 				| RT5670_AD_MONO_R_FILTER,
 				RT5670_CLK_SEL_I2S1_ASRC);
+
+        ret = snd_soc_card_jack_new(runtime->card, "Headset",
+                SND_JACK_HEADSET | SND_JACK_BTN_0 |
+                SND_JACK_BTN_1 | SND_JACK_BTN_2, &cht_bsw_headset,
+                cht_bsw_headset_pins, ARRAY_SIZE(cht_bsw_headset_pins));
+        if (ret)
+                return ret;
+
+	rt5670_set_jack_detect(codec, &cht_bsw_headset);
 	return 0;
 }
 
