@@ -43,6 +43,10 @@
 		pinctrl-names = "default";
 	};
 
+	chosen {
+		stdout-path = "serial3:115200n8";
+	};
+
 	fixed-rate-clocks {
 		oscclk {
 			compatible = "samsung,exynos5420-oscclk";
