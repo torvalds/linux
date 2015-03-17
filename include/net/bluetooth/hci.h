@@ -160,6 +160,14 @@ enum {
 	 * during the hdev->setup vendor callback.
 	 */
 	HCI_QUIRK_STRICT_DUPLICATE_FILTER,
+
+	/* When this quirk is set, LE scan and BR/EDR inquiry is done
+	 * simultaneously, otherwise it's interleaved.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
 };
 
 /* HCI device flags */
