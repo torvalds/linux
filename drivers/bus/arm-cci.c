@@ -660,11 +660,20 @@ static void cci_pmu_del(struct perf_event *event, int flags)
 }
 
 static int
-validate_event(struct cci_pmu_hw_events *hw_events,
-	       struct perf_event *event)
+validate_event(struct pmu *cci_pmu,
+               struct cci_pmu_hw_events *hw_events,
+               struct perf_event *event)
 {
 	if (is_software_event(event))
 		return 1;
+
+	/*
+	 * Reject groups spanning multiple HW PMUs (e.g. CPU + CCI). The
+	 * core perf code won't check that the pmu->ctx == leader->ctx
+	 * until after pmu->event_init(event).
+	 */
+	if (event->pmu != cci_pmu)
+		return 0;
 
 	if (event->state < PERF_EVENT_STATE_OFF)
 		return 1;
@@ -687,15 +696,15 @@ validate_group(struct perf_event *event)
 		.used_mask = CPU_BITS_NONE,
 	};
 
-	if (!validate_event(&fake_pmu, leader))
+	if (!validate_event(event->pmu, &fake_pmu, leader))
 		return -EINVAL;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
-		if (!validate_event(&fake_pmu, sibling))
+		if (!validate_event(event->pmu, &fake_pmu, sibling))
 			return -EINVAL;
 	}
 
-	if (!validate_event(&fake_pmu, event))
+	if (!validate_event(event->pmu, &fake_pmu, event))
 		return -EINVAL;
 
 	return 0;
