@@ -79,6 +79,7 @@
 				compatible = "marvell,aurora-system-cache";
 				reg = <0x08000 0x1000>;
 				cache-id-part = <0x100>;
+				cache-level = <2>;
 				cache-unified;
 				wt-override;
 			};
