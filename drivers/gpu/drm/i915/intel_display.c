@@ -776,6 +776,33 @@ g4x_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 	return found;
 }
 
+/*
+ * Check if the calculated PLL configuration is more optimal compared to the
+ * best configuration and error found so far. Return the calculated error.
+ */
+static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
+			       const intel_clock_t *calculated_clock,
+			       const intel_clock_t *best_clock,
+			       unsigned int best_error_ppm,
+			       unsigned int *error_ppm)
+{
+	*error_ppm = div_u64(1000000ULL *
+				abs(target_freq - calculated_clock->dot),
+			     target_freq);
+	/*
+	 * Prefer a better P value over a better (smaller) error if the error
+	 * is small. Ensure this preference for future configurations too by
+	 * setting the error to 0.
+	 */
+	if (*error_ppm < 100 && calculated_clock->p > best_clock->p) {
+		*error_ppm = 0;
+
+		return true;
+	}
+
+	return *error_ppm + 10 < best_error_ppm;
+}
+
 static bool
 vlv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 		   int target, int refclk, intel_clock_t *match_clock,
@@ -800,7 +827,7 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 				clock.p = clock.p1 * clock.p2;
 				/* based on hardware requirement, prefer bigger m1,m2 values */
 				for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) {
-					unsigned int ppm, diff;
+					unsigned int ppm;
 
 					clock.m2 = DIV_ROUND_CLOSEST(target * clock.p * clock.n,
 								     refclk * clock.m1);
@@ -811,20 +838,15 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 								&clock))
 						continue;
 
-					diff = abs(clock.dot - target);
-					ppm = div_u64(1000000ULL * diff, target);
+					if (!vlv_PLL_is_optimal(dev, target,
+								&clock,
+								best_clock,
+								bestppm, &ppm))
+						continue;
 
-					if (ppm < 100 && clock.p > best_clock->p) {
-						bestppm = 0;
-						*best_clock = clock;
-						found = true;
-					}
-
-					if (bestppm >= 10 && ppm < bestppm - 10) {
-						bestppm = ppm;
-						*best_clock = clock;
-						found = true;
-					}
+					*best_clock = clock;
+					bestppm = ppm;
+					found = true;
 				}
 			}
 		}
