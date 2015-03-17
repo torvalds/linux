@@ -43,7 +43,7 @@ struct mpc5xxx_can_data {
 };
 
 #ifdef CONFIG_PPC_MPC52xx
-static struct of_device_id mpc52xx_cdm_ids[] = {
+static const struct of_device_id mpc52xx_cdm_ids[] = {
 	{ .compatible = "fsl,mpc5200-cdm", },
 	{}
 };
