@@ -687,11 +687,10 @@ static int nf_tables_newtable(struct sock *nlsk, struct sk_buff *skb,
 	if (!try_module_get(afi->owner))
 		return -EAFNOSUPPORT;
 
+	err = -ENOMEM;
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
-	if (table == NULL) {
-		module_put(afi->owner);
-		return -ENOMEM;
-	}
+	if (table == NULL)
+		goto err1;
 
 	nla_strlcpy(table->name, name, NFT_TABLE_MAXNAMELEN);
 	INIT_LIST_HEAD(&table->chains);
@@ -700,13 +699,16 @@ static int nf_tables_newtable(struct sock *nlsk, struct sk_buff *skb,
 
 	nft_ctx_init(&ctx, skb, nlh, afi, table, NULL, nla);
 	err = nft_trans_table_add(&ctx, NFT_MSG_NEWTABLE);
-	if (err < 0) {
-		kfree(table);
-		module_put(afi->owner);
-		return err;
-	}
+	if (err < 0)
+		goto err2;
+
 	list_add_tail_rcu(&table->list, &afi->tables);
 	return 0;
+err2:
+	kfree(table);
+err1:
+	module_put(afi->owner);
+	return err;
 }
 
 static int nft_flush_table(struct nft_ctx *ctx)
