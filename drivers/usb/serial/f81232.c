@@ -37,6 +37,8 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define F81232_SET_REGISTER		0x40
 
 #define SERIAL_BASE_ADDRESS			0x0120
+#define INTERRUPT_ENABLE_REGISTER	(0x01 + SERIAL_BASE_ADDRESS)
+#define FIFO_CONTROL_REGISTER		(0x02 + SERIAL_BASE_ADDRESS)
 #define MODEM_CONTROL_REGISTER		(0x04 + SERIAL_BASE_ADDRESS)
 #define MODEM_STATUS_REGISTER		(0x06 + SERIAL_BASE_ADDRESS)
 
@@ -348,6 +350,48 @@ static void f81232_break_ctl(struct tty_struct *tty, int break_state)
 	 */
 }
 
+static int f81232_port_enable(struct usb_serial_port *port)
+{
+	u8 val;
+	int status;
+
+	/* fifo on, trigger8, clear TX/RX*/
+	val = UART_FCR_TRIGGER_8 | UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR |
+			UART_FCR_CLEAR_XMIT;
+
+	status = f81232_set_register(port, FIFO_CONTROL_REGISTER, val);
+	if (status) {
+		dev_err(&port->dev, "%s failed to set FCR: %d\n",
+			__func__, status);
+		return status;
+	}
+
+	/* MSR Interrupt only, LSR will read from Bulk-in odd byte */
+	status = f81232_set_register(port, INTERRUPT_ENABLE_REGISTER,
+			UART_IER_MSI);
+	if (status) {
+		dev_err(&port->dev, "%s failed to set IER: %d\n",
+			__func__, status);
+		return status;
+	}
+
+	return 0;
+}
+
+static int f81232_port_disable(struct usb_serial_port *port)
+{
+	int status;
+
+	status = f81232_set_register(port, INTERRUPT_ENABLE_REGISTER, 0);
+	if (status) {
+		dev_err(&port->dev, "%s failed to set IER: %d\n",
+			__func__, status);
+		return status;
+	}
+
+	return 0;
+}
+
 static void f81232_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
@@ -399,6 +443,10 @@ static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int result;
 
+	result = f81232_port_enable(port);
+	if (result)
+		return result;
+
 	/* Setup termios */
 	if (tty)
 		f81232_set_termios(tty, port, NULL);
@@ -421,6 +469,7 @@ static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void f81232_close(struct usb_serial_port *port)
 {
+	f81232_port_disable(port);
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 }
