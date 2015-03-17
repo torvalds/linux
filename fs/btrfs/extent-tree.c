@@ -79,11 +79,10 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			      u64 num_bytes, int alloc);
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				u64 bytenr, u64 num_bytes, u64 parent,
+				struct btrfs_delayed_ref_node *node, u64 parent,
 				u64 root_objectid, u64 owner_objectid,
 				u64 owner_offset, int refs_to_drop,
-				struct btrfs_delayed_extent_op *extra_op,
-				int no_quota);
+				struct btrfs_delayed_extent_op *extra_op);
 static void __run_delayed_extent_op(struct btrfs_delayed_extent_op *extent_op,
 				    struct extent_buffer *leaf,
 				    struct btrfs_extent_item *ei);
@@ -1967,10 +1966,9 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 
 static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
-				  u64 bytenr, u64 num_bytes,
+				  struct btrfs_delayed_ref_node *node,
 				  u64 parent, u64 root_objectid,
 				  u64 owner, u64 offset, int refs_to_add,
-				  int no_quota,
 				  struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -1978,8 +1976,11 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_extent_item *item;
 	struct btrfs_key key;
+	u64 bytenr = node->bytenr;
+	u64 num_bytes = node->num_bytes;
 	u64 refs;
 	int ret;
+	int no_quota = node->no_quota;
 	enum btrfs_qgroup_operation_type type = BTRFS_QGROUP_OPER_ADD_EXCL;
 
 	path = btrfs_alloc_path();
@@ -2087,17 +2088,15 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 						 ref->objectid, ref->offset,
 						 &ins, node->ref_mod);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
-		ret = __btrfs_inc_extent_ref(trans, root, node->bytenr,
-					     node->num_bytes, parent,
+		ret = __btrfs_inc_extent_ref(trans, root, node, parent,
 					     ref_root, ref->objectid,
 					     ref->offset, node->ref_mod,
-					     node->no_quota, extent_op);
+					     extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
-		ret = __btrfs_free_extent(trans, root, node->bytenr,
-					  node->num_bytes, parent,
+		ret = __btrfs_free_extent(trans, root, node, parent,
 					  ref_root, ref->objectid,
 					  ref->offset, node->ref_mod,
-					  extent_op, node->no_quota);
+					  extent_op);
 	} else {
 		BUG();
 	}
@@ -2255,15 +2254,14 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 						ref->level, &ins,
 						node->no_quota);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
-		ret = __btrfs_inc_extent_ref(trans, root, node->bytenr,
-					     node->num_bytes, parent, ref_root,
-					     ref->level, 0, 1, node->no_quota,
+		ret = __btrfs_inc_extent_ref(trans, root, node,
+					     parent, ref_root,
+					     ref->level, 0, 1,
 					     extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
-		ret = __btrfs_free_extent(trans, root, node->bytenr,
-					  node->num_bytes, parent, ref_root,
-					  ref->level, 0, 1, extent_op,
-					  node->no_quota);
+		ret = __btrfs_free_extent(trans, root, node,
+					  parent, ref_root,
+					  ref->level, 0, 1, extent_op);
 	} else {
 		BUG();
 	}
@@ -6119,11 +6117,10 @@ static void add_pinned_bytes(struct btrfs_fs_info *fs_info, u64 num_bytes,
 
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				u64 bytenr, u64 num_bytes, u64 parent,
+				struct btrfs_delayed_ref_node *node, u64 parent,
 				u64 root_objectid, u64 owner_objectid,
 				u64 owner_offset, int refs_to_drop,
-				struct btrfs_delayed_extent_op *extent_op,
-				int no_quota)
+				struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_key key;
 	struct btrfs_path *path;
@@ -6137,8 +6134,11 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	int extent_slot = 0;
 	int found_extent = 0;
 	int num_to_del = 1;
+	int no_quota = node->no_quota;
 	u32 item_size;
 	u64 refs;
+	u64 bytenr = node->bytenr;
+	u64 num_bytes = node->num_bytes;
 	int last_ref = 0;
 	enum btrfs_qgroup_operation_type type = BTRFS_QGROUP_OPER_SUB_EXCL;
 	bool skinny_metadata = btrfs_fs_incompat(root->fs_info,
