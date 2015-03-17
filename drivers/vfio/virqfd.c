@@ -13,12 +13,17 @@
 #include <linux/vfio.h>
 #include <linux/eventfd.h>
 #include <linux/file.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+
+#define DRIVER_VERSION  "0.1"
+#define DRIVER_AUTHOR   "Alex Williamson <alex.williamson@redhat.com>"
+#define DRIVER_DESC     "IRQFD support for VFIO bus drivers"
 
 static struct workqueue_struct *vfio_irqfd_cleanup_wq;
 static DEFINE_SPINLOCK(virqfd_lock);
 
-int __init vfio_virqfd_init(void)
+static int __init vfio_virqfd_init(void)
 {
 	vfio_irqfd_cleanup_wq =
 		create_singlethread_workqueue("vfio-irqfd-cleanup");
@@ -28,7 +33,7 @@ int __init vfio_virqfd_init(void)
 	return 0;
 }
 
-void vfio_virqfd_exit(void)
+static void __exit vfio_virqfd_exit(void)
 {
 	destroy_workqueue(vfio_irqfd_cleanup_wq);
 }
@@ -211,3 +216,11 @@ void vfio_virqfd_disable(struct virqfd **pvirqfd)
 	flush_workqueue(vfio_irqfd_cleanup_wq);
 }
 EXPORT_SYMBOL_GPL(vfio_virqfd_disable);
+
+module_init(vfio_virqfd_init);
+module_exit(vfio_virqfd_exit);
+
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);

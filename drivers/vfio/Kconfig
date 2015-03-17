@@ -13,6 +13,11 @@ config VFIO_SPAPR_EEH
 	depends on EEH && VFIO_IOMMU_SPAPR_TCE
 	default n
 
+config VFIO_VIRQFD
+	tristate
+	depends on VFIO && EVENTFD
+	default n
+
 menuconfig VFIO
 	tristate "VFIO Non-Privileged userspace driver framework"
 	depends on IOMMU_API
