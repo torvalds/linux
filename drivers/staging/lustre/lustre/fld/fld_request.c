@@ -326,7 +326,6 @@ static int fld_client_proc_init(struct lu_client_fld *fld)
 
 void fld_client_proc_fini(struct lu_client_fld *fld)
 {
-	return;
 }
 #endif
 EXPORT_SYMBOL(fld_client_proc_fini);
