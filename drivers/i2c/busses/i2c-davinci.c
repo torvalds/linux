@@ -304,7 +304,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	struct davinci_i2c_platform_data *pdata = dev->pdata;
 	u32 flag;
 	u16 w;
-	int r;
+	unsigned long time_left;
 
 	/* Introduce a delay, required for some boards (e.g Davinci EVM) */
 	if (pdata->bus_delay)
@@ -368,8 +368,9 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		flag |= DAVINCI_I2C_MDR_STP;
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
 
-	r = wait_for_completion_timeout(&dev->cmd_complete, dev->adapter.timeout);
-	if (r == 0) {
+	time_left = wait_for_completion_timeout(&dev->cmd_complete,
+						dev->adapter.timeout);
+	if (!time_left) {
 		dev_err(dev->dev, "controller timed out\n");
 		davinci_i2c_recover_bus(dev);
 		i2c_davinci_init(dev);
@@ -380,17 +381,13 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		/* This should be 0 if all bytes were transferred
 		 * or dev->cmd_err denotes an error.
 		 */
-		if (r >= 0) {
-			dev_err(dev->dev, "abnormal termination buf_len=%i\n",
-				dev->buf_len);
-			r = -EREMOTEIO;
-		}
+		dev_err(dev->dev, "abnormal termination buf_len=%i\n",
+			dev->buf_len);
 		dev->terminate = 1;
 		wmb();
 		dev->buf_len = 0;
+		return -EREMOTEIO;
 	}
-	if (r < 0)
-		return r;
 
 	/* no error */
 	if (likely(!dev->cmd_err))
