@@ -910,6 +910,8 @@ static int omap_dm_timer_remove(struct platform_device *pdev)
 		}
 	spin_unlock_irqrestore(&dm_timer_lock, flags);
 
+	pm_runtime_disable(&pdev->dev);
+
 	return ret;
 }
 
