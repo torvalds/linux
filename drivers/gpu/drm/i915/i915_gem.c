@@ -4292,7 +4292,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 		return -EINVAL;
 
 	return i915_gem_object_do_pin(obj, i915_obj_to_ggtt(obj), view,
-				      alignment, flags);
+				      alignment, flags | PIN_GLOBAL);
 }
 
 void
