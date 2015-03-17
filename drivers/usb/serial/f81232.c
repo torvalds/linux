@@ -34,8 +34,10 @@ MODULE_DEVICE_TABLE(usb, id_table);
 /* USB Control EP parameter */
 #define F81232_REGISTER_REQUEST	0xa0
 #define F81232_GET_REGISTER		0xc0
+#define F81232_SET_REGISTER		0x40
 
 #define SERIAL_BASE_ADDRESS			0x0120
+#define MODEM_CONTROL_REGISTER		(0x04 + SERIAL_BASE_ADDRESS)
 #define MODEM_STATUS_REGISTER		(0x06 + SERIAL_BASE_ADDRESS)
 
 #define CONTROL_DTR			0x01
@@ -54,7 +56,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 struct f81232_private {
 	struct mutex lock;
-	u8 line_control;
+	u8 modem_control;
 	u8 modem_status;
 	struct work_struct interrupt_work;
 	struct usb_serial_port *port;
@@ -89,6 +91,42 @@ static int f81232_get_register(struct usb_serial_port *port, u16 reg, u8 *val)
 	} else {
 		status = 0;
 		*val = *tmp;
+	}
+
+	kfree(tmp);
+	return status;
+}
+
+static int f81232_set_register(struct usb_serial_port *port, u16 reg, u8 val)
+{
+	int status;
+	u8 *tmp;
+	struct usb_device *dev = port->serial->dev;
+
+	tmp = kmalloc(sizeof(val), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	*tmp = val;
+
+	status = usb_control_msg(dev,
+				usb_sndctrlpipe(dev, 0),
+				F81232_REGISTER_REQUEST,
+				F81232_SET_REGISTER,
+				reg,
+				0,
+				tmp,
+				sizeof(val),
+				USB_CTRL_SET_TIMEOUT);
+	if (status != sizeof(val)) {
+		dev_err(&port->dev, "%s failed status: %d\n", __func__, status);
+
+		if (status < 0)
+			status = usb_translate_errors(status);
+		else
+			status = -EIO;
+	} else {
+		status = 0;
 	}
 
 	kfree(tmp);
@@ -137,6 +175,51 @@ static void f81232_read_msr(struct usb_serial_port *port)
 
 	wake_up_interruptible(&port->port.delta_msr_wait);
 	mutex_unlock(&priv->lock);
+}
+
+static int f81232_set_mctrl(struct usb_serial_port *port,
+					   unsigned int set, unsigned int clear)
+{
+	u8 val;
+	int status;
+	struct f81232_private *priv = usb_get_serial_port_data(port);
+
+	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0)
+		return 0;	/* no change */
+
+	/* 'set' takes precedence over 'clear' */
+	clear &= ~set;
+
+	/* force enable interrupt with OUT2 */
+	mutex_lock(&priv->lock);
+	val = UART_MCR_OUT2 | priv->modem_control;
+
+	if (clear & TIOCM_DTR)
+		val &= ~UART_MCR_DTR;
+
+	if (clear & TIOCM_RTS)
+		val &= ~UART_MCR_RTS;
+
+	if (set & TIOCM_DTR)
+		val |= UART_MCR_DTR;
+
+	if (set & TIOCM_RTS)
+		val |= UART_MCR_RTS;
+
+	dev_dbg(&port->dev, "%s new:%02x old:%02x\n", __func__,
+			val, priv->modem_control);
+
+	status = f81232_set_register(port, MODEM_CONTROL_REGISTER, val);
+	if (status) {
+		dev_err(&port->dev, "%s set MCR status < 0\n", __func__);
+		mutex_unlock(&priv->lock);
+		return status;
+	}
+
+	priv->modem_control = val;
+	mutex_unlock(&priv->lock);
+
+	return 0;
 }
 
 static void f81232_update_line_status(struct usb_serial_port *port,
@@ -254,12 +337,6 @@ static void f81232_process_read_urb(struct urb *urb)
 	tty_flip_buffer_push(&port->port);
 }
 
-static int set_control_lines(struct usb_device *dev, u8 value)
-{
-	/* FIXME - Stubbed out for now */
-	return 0;
-}
-
 static void f81232_break_ctl(struct tty_struct *tty, int break_state)
 {
 	/* FIXME - Stubbed out for now */
@@ -287,15 +364,35 @@ static void f81232_set_termios(struct tty_struct *tty,
 
 static int f81232_tiocmget(struct tty_struct *tty)
 {
-	/* FIXME - Stubbed out for now */
-	return 0;
+	int r;
+	struct usb_serial_port *port = tty->driver_data;
+	struct f81232_private *port_priv = usb_get_serial_port_data(port);
+	u8 mcr, msr;
+
+	/* force get current MSR changed state */
+	f81232_read_msr(port);
+
+	mutex_lock(&port_priv->lock);
+	mcr = port_priv->modem_control;
+	msr = port_priv->modem_status;
+	mutex_unlock(&port_priv->lock);
+
+	r = (mcr & UART_MCR_DTR ? TIOCM_DTR : 0) |
+		(mcr & UART_MCR_RTS ? TIOCM_RTS : 0) |
+		(msr & UART_MSR_CTS ? TIOCM_CTS : 0) |
+		(msr & UART_MSR_DCD ? TIOCM_CAR : 0) |
+		(msr & UART_MSR_RI ? TIOCM_RI : 0) |
+		(msr & UART_MSR_DSR ? TIOCM_DSR : 0);
+
+	return r;
 }
 
 static int f81232_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear)
 {
-	/* FIXME - Stubbed out for now */
-	return 0;
+	struct usb_serial_port *port = tty->driver_data;
+
+	return f81232_set_mctrl(port, set, clear);
 }
 
 static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -330,24 +427,22 @@ static void f81232_close(struct usb_serial_port *port)
 
 static void f81232_dtr_rts(struct usb_serial_port *port, int on)
 {
-	struct f81232_private *priv = usb_get_serial_port_data(port);
-	u8 control;
-
-	mutex_lock(&priv->lock);
-	/* Change DTR and RTS */
 	if (on)
-		priv->line_control |= (CONTROL_DTR | CONTROL_RTS);
+		f81232_set_mctrl(port, TIOCM_DTR | TIOCM_RTS, 0);
 	else
-		priv->line_control &= ~(CONTROL_DTR | CONTROL_RTS);
-	control = priv->line_control;
-	mutex_unlock(&priv->lock);
-	set_control_lines(port->serial->dev, control);
+		f81232_set_mctrl(port, 0, TIOCM_DTR | TIOCM_RTS);
 }
 
 static int f81232_carrier_raised(struct usb_serial_port *port)
 {
+	u8 msr;
 	struct f81232_private *priv = usb_get_serial_port_data(port);
-	if (priv->modem_status & UART_DCD)
+
+	mutex_lock(&priv->lock);
+	msr = priv->modem_status;
+	mutex_unlock(&priv->lock);
+
+	if (msr & UART_MSR_DCD)
 		return 1;
 	return 0;
 }
