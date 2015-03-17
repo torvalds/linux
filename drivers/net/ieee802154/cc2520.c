@@ -738,6 +738,8 @@ static int cc2520_get_platform_data(struct spi_device *spi,
 	pdata->vreg = of_get_named_gpio(np, "vreg-gpio", 0);
 	pdata->reset = of_get_named_gpio(np, "reset-gpio", 0);
 
+	pdata->amplified = of_property_read_bool(np, "amplified");
+
 	return 0;
 }
 
@@ -746,6 +748,11 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 	u8 status = 0, state = 0xff;
 	int ret;
 	int timeout = 100;
+	struct cc2520_platform_data pdata;
+
+	ret = cc2520_get_platform_data(priv->spi, &pdata);
+	if (ret)
+		goto err_ret;
 
 	ret = cc2520_read_register(priv, CC2520_FSMSTAT1, &state);
 	if (ret)
@@ -768,11 +775,47 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 
 	dev_vdbg(&priv->spi->dev, "oscillator brought up\n");
 
-	/* Registers default value: section 28.1 in Datasheet */
-	ret = cc2520_write_register(priv, CC2520_TXPOWER, 0xF7);
-	if (ret)
-		goto err_ret;
+	/* If the CC2520 is connected to a CC2591 amplifier, we must both
+	 * configure GPIOs on the CC2520 to correctly configure the CC2591
+	 * and change a couple settings of the CC2520 to work with the
+	 * amplifier. See section 8 page 17 of TI application note AN065.
+	 * http://www.ti.com/lit/an/swra229a/swra229a.pdf
+	 */
+	if (pdata.amplified) {
+		ret = cc2520_write_register(priv, CC2520_TXPOWER, 0xF9);
+		if (ret)
+			goto err_ret;
 
+		ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x16);
+		if (ret)
+			goto err_ret;
+
+		ret = cc2520_write_register(priv, CC2520_GPIOCTRL0, 0x46);
+		if (ret)
+			goto err_ret;
+
+		ret = cc2520_write_register(priv, CC2520_GPIOCTRL5, 0x47);
+		if (ret)
+			goto err_ret;
+
+		ret = cc2520_write_register(priv, CC2520_GPIOPOLARITY, 0x1e);
+		if (ret)
+			goto err_ret;
+
+		ret = cc2520_write_register(priv, CC2520_TXCTRL, 0xc1);
+		if (ret)
+			goto err_ret;
+	} else {
+		ret = cc2520_write_register(priv, CC2520_TXPOWER, 0xF7);
+		if (ret)
+			goto err_ret;
+
+		ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x11);
+		if (ret)
+			goto err_ret;
+	}
+
+	/* Registers default value: section 28.1 in Datasheet */
 	ret = cc2520_write_register(priv, CC2520_CCACTRL0, 0x1A);
 	if (ret)
 		goto err_ret;
@@ -794,10 +837,6 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 		goto err_ret;
 
 	ret = cc2520_write_register(priv, CC2520_FSCAL1, 0x2b);
-	if (ret)
-		goto err_ret;
-
-	ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x11);
 	if (ret)
 		goto err_ret;
 
