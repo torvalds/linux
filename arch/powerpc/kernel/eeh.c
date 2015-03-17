@@ -164,30 +164,34 @@ __setup("eeh=", eeh_setup);
  */
 static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 {
-	struct device_node *dn = eeh_dev_to_of_node(edev);
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	u32 cfg;
 	int cap, i;
 	int n = 0, l = 0;
 	char buffer[128];
 
-	n += scnprintf(buf+n, len-n, "%s\n", dn->full_name);
-	pr_warn("EEH: of node=%s\n", dn->full_name);
+	n += scnprintf(buf+n, len-n, "%04x:%02x:%02x:%01x\n",
+		       edev->phb->global_number, pdn->busno,
+		       PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
+	pr_warn("EEH: of node=%04x:%02x:%02x:%01x\n",
+		edev->phb->global_number, pdn->busno,
+		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 
-	eeh_ops->read_config(dn, PCI_VENDOR_ID, 4, &cfg);
+	eeh_ops->read_config(pdn, PCI_VENDOR_ID, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "dev/vend:%08x\n", cfg);
 	pr_warn("EEH: PCI device/vendor: %08x\n", cfg);
 
-	eeh_ops->read_config(dn, PCI_COMMAND, 4, &cfg);
+	eeh_ops->read_config(pdn, PCI_COMMAND, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
 	pr_warn("EEH: PCI cmd/status register: %08x\n", cfg);
 
 	/* Gather bridge-specific registers */
 	if (edev->mode & EEH_DEV_BRIDGE) {
-		eeh_ops->read_config(dn, PCI_SEC_STATUS, 2, &cfg);
+		eeh_ops->read_config(pdn, PCI_SEC_STATUS, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "sec stat:%x\n", cfg);
 		pr_warn("EEH: Bridge secondary status: %04x\n", cfg);
 
-		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &cfg);
+		eeh_ops->read_config(pdn, PCI_BRIDGE_CONTROL, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "brdg ctl:%x\n", cfg);
 		pr_warn("EEH: Bridge control: %04x\n", cfg);
 	}
@@ -195,11 +199,11 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	/* Dump out the PCI-X command and status regs */
 	cap = edev->pcix_cap;
 	if (cap) {
-		eeh_ops->read_config(dn, cap, 4, &cfg);
+		eeh_ops->read_config(pdn, cap, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-cmd:%x\n", cfg);
 		pr_warn("EEH: PCI-X cmd: %08x\n", cfg);
 
-		eeh_ops->read_config(dn, cap+4, 4, &cfg);
+		eeh_ops->read_config(pdn, cap+4, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-stat:%x\n", cfg);
 		pr_warn("EEH: PCI-X status: %08x\n", cfg);
 	}
@@ -211,7 +215,7 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 		pr_warn("EEH: PCI-E capabilities and status follow:\n");
 
 		for (i=0; i<=8; i++) {
-			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
+			eeh_ops->read_config(pdn, cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
 
 			if ((i % 4) == 0) {
@@ -238,7 +242,7 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 		pr_warn("EEH: PCI-E AER capability register set follows:\n");
 
 		for (i=0; i<=13; i++) {
-			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
+			eeh_ops->read_config(pdn, cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
 
 			if ((i % 4) == 0) {
@@ -698,7 +702,7 @@ static void *eeh_disable_and_save_dev_state(void *data, void *userdata)
 static void *eeh_restore_dev_state(void *data, void *userdata)
 {
 	struct eeh_dev *edev = data;
-	struct device_node *dn = eeh_dev_to_of_node(edev);
+	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct pci_dev *dev = userdata;
 
@@ -706,8 +710,8 @@ static void *eeh_restore_dev_state(void *data, void *userdata)
 		return NULL;
 
 	/* Apply customization from firmware */
-	if (dn && eeh_ops->restore_config)
-		eeh_ops->restore_config(dn);
+	if (pdn && eeh_ops->restore_config)
+		eeh_ops->restore_config(pdn);
 
 	/* The caller should restore state for the specified device */
 	if (pdev != dev)
@@ -870,15 +874,15 @@ out:
  */
 void eeh_save_bars(struct eeh_dev *edev)
 {
+	struct pci_dn *pdn;
 	int i;
-	struct device_node *dn;
 
-	if (!edev)
+	pdn = eeh_dev_to_pdn(edev);
+	if (!pdn)
 		return;
-	dn = eeh_dev_to_of_node(edev);
 
 	for (i = 0; i < 16; i++)
-		eeh_ops->read_config(dn, i * 4, 4, &edev->config_space[i]);
+		eeh_ops->read_config(pdn, i * 4, 4, &edev->config_space[i]);
 
 	/*
 	 * For PCI bridges including root port, we need enable bus

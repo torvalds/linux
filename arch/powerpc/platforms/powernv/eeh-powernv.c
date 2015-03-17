@@ -842,8 +842,8 @@ out:
 
 static int pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 {
-	struct device_node *dn = pci_device_to_OF_node(dev);
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct pci_dn *pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	int aer = edev ? edev->aer_cap : 0;
 	u32 ctrl;
 
@@ -856,32 +856,32 @@ static int pnv_eeh_bridge_reset(struct pci_dev *dev, int option)
 	case EEH_RESET_HOT:
 		/* Don't report linkDown event */
 		if (aer) {
-			eeh_ops->read_config(dn, aer + PCI_ERR_UNCOR_MASK,
+			eeh_ops->read_config(pdn, aer + PCI_ERR_UNCOR_MASK,
 					     4, &ctrl);
 			ctrl |= PCI_ERR_UNC_SURPDN;
-			eeh_ops->write_config(dn, aer + PCI_ERR_UNCOR_MASK,
+			eeh_ops->write_config(pdn, aer + PCI_ERR_UNCOR_MASK,
 					      4, ctrl);
 		}
 
-		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
+		eeh_ops->read_config(pdn, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
-		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
+		eeh_ops->write_config(pdn, PCI_BRIDGE_CONTROL, 2, ctrl);
 
 		msleep(EEH_PE_RST_HOLD_TIME);
 		break;
 	case EEH_RESET_DEACTIVATE:
-		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &ctrl);
+		eeh_ops->read_config(pdn, PCI_BRIDGE_CONTROL, 2, &ctrl);
 		ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
-		eeh_ops->write_config(dn, PCI_BRIDGE_CONTROL, 2, ctrl);
+		eeh_ops->write_config(pdn, PCI_BRIDGE_CONTROL, 2, ctrl);
 
 		msleep(EEH_PE_RST_SETTLE_TIME);
 
 		/* Continue reporting linkDown event */
 		if (aer) {
-			eeh_ops->read_config(dn, aer + PCI_ERR_UNCOR_MASK,
+			eeh_ops->read_config(pdn, aer + PCI_ERR_UNCOR_MASK,
 					     4, &ctrl);
 			ctrl &= ~PCI_ERR_UNC_SURPDN;
-			eeh_ops->write_config(dn, aer + PCI_ERR_UNCOR_MASK,
+			eeh_ops->write_config(pdn, aer + PCI_ERR_UNCOR_MASK,
 					      4, ctrl);
 		}
 
@@ -1099,9 +1099,9 @@ static int pnv_eeh_err_inject(struct eeh_pe *pe, int type, int func,
 	return 0;
 }
 
-static inline bool pnv_eeh_cfg_blocked(struct device_node *dn)
+static inline bool pnv_eeh_cfg_blocked(struct pci_dn *pdn)
 {
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
 	if (!edev || !edev->pe)
 		return false;
@@ -1112,15 +1112,13 @@ static inline bool pnv_eeh_cfg_blocked(struct device_node *dn)
 	return false;
 }
 
-static int pnv_eeh_read_config(struct device_node *dn,
+static int pnv_eeh_read_config(struct pci_dn *pdn,
 			       int where, int size, u32 *val)
 {
-	struct pci_dn *pdn = PCI_DN(dn);
-
 	if (!pdn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (pnv_eeh_cfg_blocked(dn)) {
+	if (pnv_eeh_cfg_blocked(pdn)) {
 		*val = 0xFFFFFFFF;
 		return PCIBIOS_SET_FAILED;
 	}
@@ -1128,15 +1126,13 @@ static int pnv_eeh_read_config(struct device_node *dn,
 	return pnv_pci_cfg_read(pdn, where, size, val);
 }
 
-static int pnv_eeh_write_config(struct device_node *dn,
+static int pnv_eeh_write_config(struct pci_dn *pdn,
 				int where, int size, u32 val)
 {
-	struct pci_dn *pdn = PCI_DN(dn);
-
 	if (!pdn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (pnv_eeh_cfg_blocked(dn))
+	if (pnv_eeh_cfg_blocked(pdn))
 		return PCIBIOS_SET_FAILED;
 
 	return pnv_pci_cfg_write(pdn, where, size, val);
@@ -1484,9 +1480,9 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 	return ret;
 }
 
-static int pnv_eeh_restore_config(struct device_node *dn)
+static int pnv_eeh_restore_config(struct pci_dn *pdn)
 {
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	struct pnv_phb *phb;
 	s64 ret;
 
