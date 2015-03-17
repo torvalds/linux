@@ -1704,6 +1704,7 @@ retry_popup_menu:
 		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
 			struct hist_entry *he;
 			struct annotation *notes;
+			struct map_symbol ms;
 			int err;
 do_annotate:
 			if (!objdump_path && perf_session_env__lookup_objdump(env))
@@ -1713,25 +1714,21 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			/*
-			 * we stash the branch_info symbol + map into the
-			 * the ms so we don't have to rewrite all the annotation
-			 * code to use branch_info.
-			 * in branch mode, the ms struct is not used
-			 */
 			if (choice == annotate_f) {
-				he->ms.sym = he->branch_info->from.sym;
-				he->ms.map = he->branch_info->from.map;
-			}  else if (choice == annotate_t) {
-				he->ms.sym = he->branch_info->to.sym;
-				he->ms.map = he->branch_info->to.map;
+				ms.map = he->branch_info->from.map;
+				ms.sym = he->branch_info->from.sym;
+			} else if (choice == annotate_t) {
+				ms.map = he->branch_info->to.map;
+				ms.sym = he->branch_info->to.sym;
+			} else {
+				ms = *browser->selection;
 			}
 
-			notes = symbol__annotation(he->ms.sym);
+			notes = symbol__annotation(ms.sym);
 			if (!notes->src)
 				continue;
 
-			err = hist_entry__tui_annotate(he, evsel, hbt);
+			err = map_symbol__tui_annotate(&ms, evsel, hbt);
 			/*
 			 * offer option to annotate the other branch source or target
 			 * (if they exists) when returning from annotate
