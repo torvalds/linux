@@ -207,8 +207,7 @@ struct eeh_ops {
 	char *name;
 	int (*init)(void);
 	int (*post_init)(void);
-	void* (*of_probe)(struct device_node *dn, void *flag);
-	int (*dev_probe)(struct pci_dev *dev, void *flag);
+	void* (*probe)(struct pci_dn *pdn, void *data);
 	int (*set_option)(struct eeh_pe *pe, int option);
 	int (*get_pe_addr)(struct eeh_pe *pe);
 	int (*get_state)(struct eeh_pe *pe, int *state);
@@ -287,8 +286,8 @@ int __exit eeh_ops_unregister(const char *name);
 int eeh_check_failure(const volatile void __iomem *token);
 int eeh_dev_check_failure(struct eeh_dev *edev);
 void eeh_addr_cache_build(void);
-void eeh_add_device_early(struct device_node *);
-void eeh_add_device_tree_early(struct device_node *);
+void eeh_add_device_early(struct pci_dn *);
+void eeh_add_device_tree_early(struct pci_dn *);
 void eeh_add_device_late(struct pci_dev *);
 void eeh_add_device_tree_late(struct pci_bus *);
 void eeh_add_sysfs_files(struct pci_bus *);
@@ -346,9 +345,9 @@ static inline int eeh_check_failure(const volatile void __iomem *token)
 
 static inline void eeh_addr_cache_build(void) { }
 
-static inline void eeh_add_device_early(struct device_node *dn) { }
+static inline void eeh_add_device_early(struct pci_dn *pdn) { }
 
-static inline void eeh_add_device_tree_early(struct device_node *dn) { }
+static inline void eeh_add_device_tree_early(struct pci_dn *pdn) { }
 
 static inline void eeh_add_device_late(struct pci_dev *dev) { }
 

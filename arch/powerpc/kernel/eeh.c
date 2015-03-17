@@ -969,7 +969,7 @@ static struct notifier_block eeh_reboot_nb = {
 int eeh_init(void)
 {
 	struct pci_controller *hose, *tmp;
-	struct device_node *phb;
+	struct pci_dn *pdn;
 	static int cnt = 0;
 	int ret = 0;
 
@@ -1004,20 +1004,9 @@ int eeh_init(void)
 		return ret;
 
 	/* Enable EEH for all adapters */
-	if (eeh_has_flag(EEH_PROBE_MODE_DEVTREE)) {
-		list_for_each_entry_safe(hose, tmp,
-			&hose_list, list_node) {
-			phb = hose->dn;
-			traverse_pci_devices(phb, eeh_ops->of_probe, NULL);
-		}
-	} else if (eeh_has_flag(EEH_PROBE_MODE_DEV)) {
-		list_for_each_entry_safe(hose, tmp,
-			&hose_list, list_node)
-			pci_walk_bus(hose->bus, eeh_ops->dev_probe, NULL);
-	} else {
-		pr_warn("%s: Invalid probe mode %x",
-			__func__, eeh_subsystem_flags);
-		return -EINVAL;
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		pdn = hose->pci_data;
+		traverse_pci_dn(pdn, eeh_ops->probe, NULL);
 	}
 
 	/*
@@ -1043,7 +1032,7 @@ core_initcall_sync(eeh_init);
 
 /**
  * eeh_add_device_early - Enable EEH for the indicated device_node
- * @dn: device node for which to set up EEH
+ * @pdn: PCI device node for which to set up EEH
  *
  * This routine must be used to perform EEH initialization for PCI
  * devices that were added after system boot (e.g. hotplug, dlpar).
@@ -1053,44 +1042,41 @@ core_initcall_sync(eeh_init);
  * on the CEC architecture, type of the device, on earlier boot
  * command-line arguments & etc.
  */
-void eeh_add_device_early(struct device_node *dn)
+void eeh_add_device_early(struct pci_dn *pdn)
 {
 	struct pci_controller *phb;
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
-	/*
-	 * If we're doing EEH probe based on PCI device, we
-	 * would delay the probe until late stage because
-	 * the PCI device isn't available this moment.
-	 */
-	if (!eeh_has_flag(EEH_PROBE_MODE_DEVTREE))
+	if (!edev)
 		return;
-
-	if (!of_node_to_eeh_dev(dn))
-		return;
-	phb = of_node_to_eeh_dev(dn)->phb;
 
 	/* USB Bus children of PCI devices will not have BUID's */
-	if (NULL == phb || 0 == phb->buid)
+	phb = edev->phb;
+	if (NULL == phb ||
+	    (eeh_has_flag(EEH_PROBE_MODE_DEVTREE) && 0 == phb->buid))
 		return;
 
-	eeh_ops->of_probe(dn, NULL);
+	eeh_ops->probe(pdn, NULL);
 }
 
 /**
  * eeh_add_device_tree_early - Enable EEH for the indicated device
- * @dn: device node
+ * @pdn: PCI device node
  *
  * This routine must be used to perform EEH initialization for the
  * indicated PCI device that was added after system boot (e.g.
  * hotplug, dlpar).
  */
-void eeh_add_device_tree_early(struct device_node *dn)
+void eeh_add_device_tree_early(struct pci_dn *pdn)
 {
-	struct device_node *sib;
+	struct pci_dn *n;
 
-	for_each_child_of_node(dn, sib)
-		eeh_add_device_tree_early(sib);
-	eeh_add_device_early(dn);
+	if (!pdn)
+		return;
+
+	list_for_each_entry(n, &pdn->child_list, list)
+		eeh_add_device_tree_early(n);
+	eeh_add_device_early(pdn);
 }
 EXPORT_SYMBOL_GPL(eeh_add_device_tree_early);
 
@@ -1143,13 +1129,6 @@ void eeh_add_device_late(struct pci_dev *dev)
 
 	edev->pdev = dev;
 	dev->dev.archdata.edev = edev;
-
-	/*
-	 * We have to do the EEH probe here because the PCI device
-	 * hasn't been created yet in the early stage.
-	 */
-	if (eeh_has_flag(EEH_PROBE_MODE_DEV))
-		eeh_ops->dev_probe(dev, NULL);
 
 	eeh_addr_cache_insert_dev(dev);
 }

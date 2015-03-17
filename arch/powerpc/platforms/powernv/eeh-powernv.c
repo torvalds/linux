@@ -286,10 +286,82 @@ static int pnv_eeh_post_init(void)
 	return ret;
 }
 
+static int pnv_eeh_cap_start(struct pci_dn *pdn)
+{
+	u32 status;
+
+	if (!pdn)
+		return 0;
+
+	pnv_pci_cfg_read(pdn, PCI_STATUS, 2, &status);
+	if (!(status & PCI_STATUS_CAP_LIST))
+		return 0;
+
+	return PCI_CAPABILITY_LIST;
+}
+
+static int pnv_eeh_find_cap(struct pci_dn *pdn, int cap)
+{
+	int pos = pnv_eeh_cap_start(pdn);
+	int cnt = 48;   /* Maximal number of capabilities */
+	u32 id;
+
+	if (!pos)
+		return 0;
+
+	while (cnt--) {
+		pnv_pci_cfg_read(pdn, pos, 1, &pos);
+		if (pos < 0x40)
+			break;
+
+		pos &= ~3;
+		pnv_pci_cfg_read(pdn, pos + PCI_CAP_LIST_ID, 1, &id);
+		if (id == 0xff)
+			break;
+
+		/* Found */
+		if (id == cap)
+			return pos;
+
+		/* Next one */
+		pos += PCI_CAP_LIST_NEXT;
+	}
+
+	return 0;
+}
+
+static int pnv_eeh_find_ecap(struct pci_dn *pdn, int cap)
+{
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	u32 header;
+	int pos = 256, ttl = (4096 - 256) / 8;
+
+	if (!edev || !edev->pcie_cap)
+		return 0;
+	if (pnv_pci_cfg_read(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
+		return 0;
+	else if (!header)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap && pos)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < 256)
+			break;
+
+		if (pnv_pci_cfg_read(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
+			break;
+	}
+
+	return 0;
+}
+
 /**
- * pnv_eeh_dev_probe - Do probe on PCI device
- * @dev: PCI device
- * @flag: unused
+ * pnv_eeh_probe - Do probe on PCI device
+ * @pdn: PCI device node
+ * @data: unused
  *
  * When EEH module is installed during system boot, all PCI devices
  * are checked one by one to see if it supports EEH. The function
@@ -303,12 +375,12 @@ static int pnv_eeh_post_init(void)
  * was possiblly triggered by EEH core, the binding between EEH device
  * and the PCI device isn't built yet.
  */
-static int pnv_eeh_dev_probe(struct pci_dev *dev, void *flag)
+static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 {
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct pci_controller *hose = pdn->phb;
 	struct pnv_phb *phb = hose->private_data;
-	struct device_node *dn = pci_device_to_OF_node(dev);
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
+	uint32_t pcie_flags;
 	int ret;
 
 	/*
@@ -317,40 +389,42 @@ static int pnv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	 * the root bridge. So it's not reasonable to continue
 	 * the probing.
 	 */
-	if (!dn || !edev || edev->pe)
-		return 0;
+	if (!edev || edev->pe)
+		return NULL;
 
 	/* Skip for PCI-ISA bridge */
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_ISA)
-		return 0;
+	if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
+		return NULL;
 
 	/* Initialize eeh device */
-	edev->class_code = dev->class;
+	edev->class_code = pdn->class_code;
 	edev->mode	&= 0xFFFFFF00;
-	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
+	edev->pcix_cap = pnv_eeh_find_cap(pdn, PCI_CAP_ID_PCIX);
+	edev->pcie_cap = pnv_eeh_find_cap(pdn, PCI_CAP_ID_EXP);
+	edev->aer_cap  = pnv_eeh_find_ecap(pdn, PCI_EXT_CAP_ID_ERR);
+	if ((edev->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		edev->mode |= EEH_DEV_BRIDGE;
-	edev->pcix_cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
-	if (pci_is_pcie(dev)) {
-		edev->pcie_cap = pci_pcie_cap(dev);
-
-		if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
-			edev->mode |= EEH_DEV_ROOT_PORT;
-		else if (pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM)
-			edev->mode |= EEH_DEV_DS_PORT;
-
-		edev->aer_cap = pci_find_ext_capability(dev,
-							PCI_EXT_CAP_ID_ERR);
+		if (edev->pcie_cap) {
+			pnv_pci_cfg_read(pdn, edev->pcie_cap + PCI_EXP_FLAGS,
+					 2, &pcie_flags);
+			pcie_flags = (pcie_flags & PCI_EXP_FLAGS_TYPE) >> 4;
+			if (pcie_flags == PCI_EXP_TYPE_ROOT_PORT)
+				edev->mode |= EEH_DEV_ROOT_PORT;
+			else if (pcie_flags == PCI_EXP_TYPE_DOWNSTREAM)
+				edev->mode |= EEH_DEV_DS_PORT;
+		}
 	}
 
-	edev->config_addr	= ((dev->bus->number << 8) | dev->devfn);
-	edev->pe_config_addr	= phb->bdfn_to_pe(phb, dev->bus, dev->devfn & 0xff);
+	edev->config_addr    = (pdn->busno << 8) | (pdn->devfn);
+	edev->pe_config_addr = phb->ioda.pe_rmap[edev->config_addr];
 
 	/* Create PE */
 	ret = eeh_add_to_parent_pe(edev);
 	if (ret) {
-		pr_warn("%s: Can't add PCI dev %s to parent PE (%d)\n",
-			__func__, pci_name(dev), ret);
-		return ret;
+		pr_warn("%s: Can't add PCI dev %04x:%02x:%02x.%01x to parent PE (%d)\n",
+			__func__, hose->global_number, pdn->busno,
+			PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn), ret);
+		return NULL;
 	}
 
 	/*
@@ -369,8 +443,10 @@ static int pnv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	 * Broadcom Austin 4-ports NICs (14e4:1657)
 	 * Broadcom Shiner 2-ports 10G NICs (14e4:168e)
 	 */
-	if ((dev->vendor == PCI_VENDOR_ID_BROADCOM && dev->device == 0x1657) ||
-	    (dev->vendor == PCI_VENDOR_ID_BROADCOM && dev->device == 0x168e))
+	if ((pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
+	     pdn->device_id == 0x1657) ||
+	    (pdn->vendor_id == PCI_VENDOR_ID_BROADCOM &&
+	     pdn->device_id == 0x168e))
 		edev->pe->state |= EEH_PE_CFG_RESTRICTED;
 
 	/*
@@ -380,7 +456,8 @@ static int pnv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	 * to PE reset.
 	 */
 	if (!edev->pe->bus)
-		edev->pe->bus = dev->bus;
+		edev->pe->bus = pci_find_bus(hose->global_number,
+					     pdn->busno);
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
@@ -391,7 +468,7 @@ static int pnv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	/* Save memory bars */
 	eeh_save_bars(edev);
 
-	return 0;
+	return NULL;
 }
 
 /**
@@ -1432,8 +1509,7 @@ static struct eeh_ops pnv_eeh_ops = {
 	.name                   = "powernv",
 	.init                   = pnv_eeh_init,
 	.post_init              = pnv_eeh_post_init,
-	.of_probe               = NULL,
-	.dev_probe              = pnv_eeh_dev_probe,
+	.probe			= pnv_eeh_probe,
 	.set_option             = pnv_eeh_set_option,
 	.get_pe_addr            = pnv_eeh_get_pe_addr,
 	.get_state              = pnv_eeh_get_state,
