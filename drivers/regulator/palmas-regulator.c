@@ -916,6 +916,9 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			    (id == PALMAS_REG_LDO6))
 				desc->enable_time = 2000;
 		} else {
+			if (!ddata->has_regen3 && id == PALMAS_REG_REGEN3)
+				continue;
+
 			desc->n_voltages = 1;
 			if (reg_init && reg_init->roof_floor)
 				desc->ops = &palmas_ops_ext_control_extreg;
@@ -1398,6 +1401,7 @@ static struct palmas_pmic_driver_data palmas_ddata = {
 	.ldo_begin = PALMAS_REG_LDO1,
 	.ldo_end = PALMAS_REG_LDOUSB,
 	.max_reg = PALMAS_NUM_REGS,
+	.has_regen3 = true,
 	.palmas_regs_info = palmas_generic_regs_info,
 	.palmas_matches = palmas_matches,
 	.sleep_req_info = palma_sleep_req_info,
@@ -1411,6 +1415,7 @@ static struct palmas_pmic_driver_data tps65917_ddata = {
 	.ldo_begin = TPS65917_REG_LDO1,
 	.ldo_end = TPS65917_REG_LDO5,
 	.max_reg = TPS65917_NUM_REGS,
+	.has_regen3 = true,
 	.palmas_regs_info = tps65917_regs_info,
 	.palmas_matches = tps65917_matches,
 	.sleep_req_info = tps65917_sleep_req_info,
@@ -1572,9 +1577,11 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 	if (!pmic)
 		return -ENOMEM;
 
-	if (of_device_is_compatible(node, "ti,tps659038-pmic"))
+	if (of_device_is_compatible(node, "ti,tps659038-pmic")) {
 		palmas_generic_regs_info[PALMAS_REG_REGEN2].ctrl_addr =
 							TPS659038_REGEN2_CTRL;
+		palmas_ddata.has_regen3 = false;
+	}
 
 	pmic->dev = &pdev->dev;
 	pmic->palmas = palmas;
