@@ -1338,6 +1338,26 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 }
 
 /*
+ * ACPI offers an alternative platform interface model that removes
+ * ACPI hardware requirements for platforms that do not implement
+ * the PC Architecture.
+ *
+ * We initialize the Hardware-reduced ACPI model here:
+ */
+static void __init acpi_reduced_hw_init(void)
+{
+	if (acpi_gbl_reduced_hardware) {
+		/*
+		 * Override x86_init functions and bypass legacy pic
+		 * in Hardware-reduced ACPI mode
+		 */
+		x86_init.timers.timer_init	= x86_init_noop;
+		x86_init.irqs.pre_vector_init	= x86_init_noop;
+		legacy_pic			= &null_legacy_pic;
+	}
+}
+
+/*
  * If your system is blacklisted here, but you find that acpi=force
  * works for you, please contact linux-acpi@vger.kernel.org
  */
@@ -1535,6 +1555,11 @@ int __init early_acpi_boot_init(void)
 	 * Process the Multiple APIC Description Table (MADT), if present
 	 */
 	early_acpi_process_madt();
+
+	/*
+	 * Hardware-reduced ACPI mode initialization:
+	 */
+	acpi_reduced_hw_init();
 
 	return 0;
 }
