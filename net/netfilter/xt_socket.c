@@ -129,6 +129,20 @@ xt_socket_get_sock_v4(struct net *net, const u8 protocol,
 	return NULL;
 }
 
+static bool xt_socket_sk_is_transparent(struct sock *sk)
+{
+	switch (sk->sk_state) {
+	case TCP_TIME_WAIT:
+		return inet_twsk(sk)->tw_transparent;
+
+	case TCP_NEW_SYN_RECV:
+		return inet_rsk(inet_reqsk(sk))->no_srccheck;
+
+	default:
+		return inet_sk(sk)->transparent;
+	}
+}
+
 static bool
 socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	     const struct xt_socket_mtinfo1 *info)
@@ -195,16 +209,14 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 		 * unless XT_SOCKET_NOWILDCARD is set
 		 */
 		wildcard = (!(info->flags & XT_SOCKET_NOWILDCARD) &&
-			    sk->sk_state != TCP_TIME_WAIT &&
+			    sk_fullsock(sk) &&
 			    inet_sk(sk)->inet_rcv_saddr == 0);
 
 		/* Ignore non-transparent sockets,
-		   if XT_SOCKET_TRANSPARENT is used */
+		 * if XT_SOCKET_TRANSPARENT is used
+		 */
 		if (info->flags & XT_SOCKET_TRANSPARENT)
-			transparent = ((sk->sk_state != TCP_TIME_WAIT &&
-					inet_sk(sk)->transparent) ||
-				       (sk->sk_state == TCP_TIME_WAIT &&
-					inet_twsk(sk)->tw_transparent));
+			transparent = xt_socket_sk_is_transparent(sk);
 
 		if (sk != skb->sk)
 			sock_gen_put(sk);
@@ -363,16 +375,14 @@ socket_mt6_v1_v2(const struct sk_buff *skb, struct xt_action_param *par)
 		 * unless XT_SOCKET_NOWILDCARD is set
 		 */
 		wildcard = (!(info->flags & XT_SOCKET_NOWILDCARD) &&
-			    sk->sk_state != TCP_TIME_WAIT &&
+			    sk_fullsock(sk) &&
 			    ipv6_addr_any(&sk->sk_v6_rcv_saddr));
 
 		/* Ignore non-transparent sockets,
-		   if XT_SOCKET_TRANSPARENT is used */
+		 * if XT_SOCKET_TRANSPARENT is used
+		 */
 		if (info->flags & XT_SOCKET_TRANSPARENT)
-			transparent = ((sk->sk_state != TCP_TIME_WAIT &&
-					inet_sk(sk)->transparent) ||
-				       (sk->sk_state == TCP_TIME_WAIT &&
-					inet_twsk(sk)->tw_transparent));
+			transparent = xt_socket_sk_is_transparent(sk);
 
 		if (sk != skb->sk)
 			sock_gen_put(sk);
