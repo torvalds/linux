@@ -214,7 +214,7 @@ static ssize_t ad2s1210_store_fclkin(struct device *dev,
 	if (ret)
 		return ret;
 	if (fclkin < AD2S1210_MIN_CLKIN || fclkin > AD2S1210_MAX_CLKIN) {
-		pr_err("ad2s1210: fclkin out of range\n");
+		dev_err(dev, "ad2s1210: fclkin out of range\n");
 		return -EINVAL;
 	}
 
@@ -252,7 +252,8 @@ static ssize_t ad2s1210_store_fexcit(struct device *dev,
 	if (ret < 0)
 		return ret;
 	if (fexcit < AD2S1210_MIN_EXCIT || fexcit > AD2S1210_MAX_EXCIT) {
-		pr_err("ad2s1210: excitation frequency out of range\n");
+		dev_err(dev,
+			"ad2s1210: excitation frequency out of range\n");
 		return -EINVAL;
 	}
 	mutex_lock(&st->lock);
@@ -307,7 +308,8 @@ static ssize_t ad2s1210_store_control(struct device *dev,
 		goto error_ret;
 	if (ret & AD2S1210_MSB_IS_HIGH) {
 		ret = -EIO;
-		pr_err("ad2s1210: write control register fail\n");
+		dev_err(dev,
+			"ad2s1210: write control register fail\n");
 		goto error_ret;
 	}
 	st->resolution
@@ -346,7 +348,7 @@ static ssize_t ad2s1210_store_resolution(struct device *dev,
 
 	ret = kstrtou8(buf, 10, &udata);
 	if (ret || udata < 10 || udata > 16) {
-		pr_err("ad2s1210: resolution out of range\n");
+		dev_err(dev, "ad2s1210: resolution out of range\n");
 		return -EINVAL;
 	}
 	mutex_lock(&st->lock);
@@ -368,7 +370,7 @@ static ssize_t ad2s1210_store_resolution(struct device *dev,
 	data = ret;
 	if (data & AD2S1210_MSB_IS_HIGH) {
 		ret = -EIO;
-		pr_err("ad2s1210: setting resolution fail\n");
+		dev_err(dev, "ad2s1210: setting resolution fail\n");
 		goto error_ret;
 	}
 	st->resolution
