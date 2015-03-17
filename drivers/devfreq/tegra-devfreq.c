@@ -577,8 +577,8 @@ static int tegra_governor_event_handler(struct devfreq *devfreq,
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
-		tegra_actmon_enable_interrupts(tegra);
 		devfreq_monitor_start(devfreq);
+		tegra_actmon_enable_interrupts(tegra);
 		break;
 
 	case DEVFREQ_GOV_STOP:
@@ -592,8 +592,8 @@ static int tegra_governor_event_handler(struct devfreq *devfreq,
 		break;
 
 	case DEVFREQ_GOV_RESUME:
-		tegra_actmon_enable_interrupts(tegra);
 		devfreq_monitor_resume(devfreq);
+		tegra_actmon_enable_interrupts(tegra);
 		break;
 	}
 
