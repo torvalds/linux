@@ -1378,11 +1378,7 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 
 	omap_obj = kzalloc(sizeof(*omap_obj), GFP_KERNEL);
 	if (!omap_obj)
-		goto fail;
-
-	spin_lock(&priv->list_lock);
-	list_add(&omap_obj->mm_list, &priv->obj_list);
-	spin_unlock(&priv->list_lock);
+		return NULL;
 
 	obj = &omap_obj->base;
 
@@ -1392,10 +1388,18 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		 */
 		omap_obj->vaddr =  dma_alloc_writecombine(dev->dev, size,
 				&omap_obj->paddr, GFP_KERNEL);
-		if (omap_obj->vaddr)
-			flags |= OMAP_BO_DMA;
+		if (!omap_obj->vaddr) {
+			kfree(omap_obj);
 
+			return NULL;
+		}
+
+		flags |= OMAP_BO_DMA;
 	}
+
+	spin_lock(&priv->list_lock);
+	list_add(&omap_obj->mm_list, &priv->obj_list);
+	spin_unlock(&priv->list_lock);
 
 	omap_obj->flags = flags;
 
