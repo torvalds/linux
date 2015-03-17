@@ -32,5 +32,6 @@ if BACKPORT_LINUX
 
 source "$BACKPORT_DIR/Kconfig.versions"
 source "$BACKPORT_DIR/Kconfig.sources"
+source "$BACKPORT_DIR/Kconfig.realtek"
 
 endif # BACKPORT_LINUX

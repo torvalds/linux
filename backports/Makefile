@@ -54,3 +54,4 @@ obj-$(CONFIG_BACKPORT_IEEE802154) += drivers/net/ieee802154/
 
 obj-$(CONFIG_BACKPORT_USB_WDM) += drivers/usb/class/
 obj-$(CONFIG_BACKPORT_USB_USBNET) += drivers/net/usb/
+obj-y += drivers/realtek/
