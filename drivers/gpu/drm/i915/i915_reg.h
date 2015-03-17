@@ -5218,9 +5218,11 @@ enum skl_disp_power_wells {
 #define  GEN8_PIPE_VSYNC		(1 << 1)
 #define  GEN8_PIPE_VBLANK		(1 << 0)
 #define  GEN9_PIPE_CURSOR_FAULT		(1 << 11)
+#define  GEN9_PIPE_PLANE4_FAULT		(1 << 10)
 #define  GEN9_PIPE_PLANE3_FAULT		(1 << 9)
 #define  GEN9_PIPE_PLANE2_FAULT		(1 << 8)
 #define  GEN9_PIPE_PLANE1_FAULT		(1 << 7)
+#define  GEN9_PIPE_PLANE4_FLIP_DONE	(1 << 6)
 #define  GEN9_PIPE_PLANE3_FLIP_DONE	(1 << 5)
 #define  GEN9_PIPE_PLANE2_FLIP_DONE	(1 << 4)
 #define  GEN9_PIPE_PLANE1_FLIP_DONE	(1 << 3)
@@ -5231,6 +5233,7 @@ enum skl_disp_power_wells {
 	 GEN8_PIPE_PRIMARY_FAULT)
 #define GEN9_DE_PIPE_IRQ_FAULT_ERRORS \
 	(GEN9_PIPE_CURSOR_FAULT | \
+	 GEN9_PIPE_PLANE4_FAULT | \
 	 GEN9_PIPE_PLANE3_FAULT | \
 	 GEN9_PIPE_PLANE2_FAULT | \
 	 GEN9_PIPE_PLANE1_FAULT)
