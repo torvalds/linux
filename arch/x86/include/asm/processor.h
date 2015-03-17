@@ -493,7 +493,6 @@ struct thread_struct {
 #ifdef CONFIG_X86_32
 	unsigned long		sysenter_cs;
 #else
-	unsigned long		usersp;	/* Copy from PDA */
 	unsigned short		es;
 	unsigned short		ds;
 	unsigned short		fsindex;
