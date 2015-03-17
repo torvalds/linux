@@ -2538,6 +2538,7 @@ static bool ilk_disable_lp_wm(struct drm_device *dev)
  */
 
 #define SKL_DDB_SIZE		896	/* in blocks */
+#define BXT_DDB_SIZE		512
 
 static void
 skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
@@ -2556,7 +2557,10 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 		return;
 	}
 
-	ddb_size = SKL_DDB_SIZE;
+	if (IS_BROXTON(dev))
+		ddb_size = BXT_DDB_SIZE;
+	else
+		ddb_size = SKL_DDB_SIZE;
 
 	ddb_size -= 4; /* 4 blocks for bypass path allocation */
 
