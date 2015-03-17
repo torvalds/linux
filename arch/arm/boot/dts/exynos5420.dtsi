@@ -251,6 +251,8 @@
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044000 0x20>;
 		#power-domain-cells = <0>;
+		clocks = <&clock CLK_GSCL0>, <&clock CLK_GSCL1>;
+		clock-names = "asb0", "asb1";
 	};
 
 	isp_pd: power-domain@10044020 {
