@@ -223,6 +223,12 @@ typedef struct MMU
     uint32_t mmu_flag;     /* [0] mmu enable [1] src_flush [2] dst_flush [3] CMD_flush [4~5] page size*/
 } MMU;
 
+typedef struct MMU_32
+{
+    unsigned char mmu_en;
+    uint32_t base_addr;
+    uint32_t mmu_flag;     /* [0] mmu enable [1] src_flush [2] dst_flush [3] CMD_flush [4~5] page size*/
+} MMU_32;
 
 typedef struct RECT
 {
@@ -268,6 +274,22 @@ typedef struct rga_img_info_t
     unsigned short alpha_swap;
 }
 rga_img_info_t;
+typedef struct rga_img_info_32_t
+{
+    uint32_t yrgb_addr;      /* yrgb    mem addr         */
+    uint32_t uv_addr;        /* cb/cr   mem addr         */
+    uint32_t v_addr;         /* cr      mem addr         */
+    unsigned int format;         //definition by RK_FORMAT
+    unsigned short act_w;
+    unsigned short act_h;
+    unsigned short x_offset;
+    unsigned short y_offset;
+    unsigned short vir_w;
+    unsigned short vir_h;
+    unsigned short endian_mode; //for BPP
+    unsigned short alpha_swap;
+}
+rga_img_info_32_t;
 
 struct rga_req {
     uint8_t render_mode;            /* (enum) process mode sel */
@@ -339,6 +361,56 @@ struct rga_req {
                                     /* ([5]   dst   alpha mode)      */
                                     /* ([6]   alpha output mode sel) 0 src / 1 dst*/
 
+    uint8_t  src_trans_mode;
+};
+struct rga_req_32
+{
+    uint8_t render_mode;            /* (enum) process mode sel */
+    rga_img_info_32_t src;             /* src image info */
+    rga_img_info_32_t dst;             /* dst image info */
+    rga_img_info_32_t pat;             /* patten image info */
+    uint32_t rop_mask_addr;         /* rop4 mask addr */
+    uint32_t LUT_addr;              /* LUT addr */
+    RECT clip;                      /* dst clip window default value is dst_vir */
+                                    /* value from [0, w-1] / [0, h-1]*/
+    int32_t sina;                   /* dst angle  default value 0  16.16 scan from table */
+    int32_t cosa;                   /* dst angle  default value 0  16.16 scan from table */
+    uint16_t alpha_rop_flag;        /* alpha rop process flag           */
+                                    /* ([0] = 1 alpha_rop_enable)       */
+                                    /* ([1] = 1 rop enable)             */
+                                    /* ([2] = 1 fading_enable)          */
+                                    /* ([3] = 1 PD_enable)              */
+                                    /* ([4] = 1 alpha cal_mode_sel)     */
+                                    /* ([5] = 1 dither_enable)          */
+                                    /* ([6] = 1 gradient fill mode sel) */
+                                    /* ([7] = 1 AA_enable)              */
+    uint8_t  scale_mode;            /* 0 nearst / 1 bilnear / 2 bicubic */
+    uint32_t color_key_max;         /* color key max */
+    uint32_t color_key_min;         /* color key min */
+    uint32_t fg_color;              /* foreground color */
+    uint32_t bg_color;              /* background color */
+    COLOR_FILL gr_color;            /* color fill use gradient */
+    line_draw_t line_draw_info;
+    FADING fading;
+    uint8_t PD_mode;                /* porter duff alpha mode sel */
+    uint8_t alpha_global_value;     /* global alpha value */
+    uint16_t rop_code;              /* rop2/3/4 code  scan from rop code table*/
+    uint8_t bsfilter_flag;          /* [2] 0 blur 1 sharp / [1:0] filter_type*/
+    uint8_t palette_mode;           /* (enum) color palatte  0/1bpp, 1/2bpp 2/4bpp 3/8bpp*/
+    uint8_t yuv2rgb_mode;           /* (enum) BT.601 MPEG / BT.601 JPEG / BT.709  */
+    uint8_t endian_mode;            /* 0/big endian 1/little endian*/
+    uint8_t rotate_mode;            /* (enum) rotate mode  */
+                                    /* 0x0,     no rotate  */
+                                    /* 0x1,     rotate     */
+                                    /* 0x2,     x_mirror   */
+                                    /* 0x3,     y_mirror   */
+    uint8_t color_fill_mode;        /* 0 solid color / 1 patten color */
+    MMU_32 mmu_info;                   /* mmu information */
+    uint8_t  alpha_rop_mode;        /* ([0~1] alpha mode)            */
+                                    /* ([2~3] rop   mode)            */
+                                    /* ([4]   zero  mode en)         */
+                                    /* ([5]   dst   alpha mode)      */
+                                    /* ([6]   alpha output mode sel) 0 src / 1 dst*/
     uint8_t  src_trans_mode;
 };
 

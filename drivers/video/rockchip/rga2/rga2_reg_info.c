@@ -1160,5 +1160,190 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
     }
 }
 
+void memcpy_img_info(struct rga_img_info_t *dst, struct rga_img_info_32_t *src)
+{
+    dst->yrgb_addr = src->yrgb_addr;      /* yrgb    mem addr         */
+    dst->uv_addr = src->uv_addr;        /* cb/cr   mem addr         */
+    dst->v_addr = src->v_addr;         /* cr      mem addr         */
+    dst->format = src->format;         //definition by RK_FORMAT
 
+    dst->act_w = src->act_w;
+    dst->act_h = src->act_h;
+    dst->x_offset = src->x_offset;
+    dst->y_offset = src->y_offset;
 
+    dst->vir_w = src->vir_w;
+    dst->vir_h = src->vir_h;
+    dst->endian_mode = src->endian_mode; //for BPP
+    dst->alpha_swap = src->alpha_swap;
+}
+void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
+{
+    u16 alpha_mode_0, alpha_mode_1;
+    if (req_rga->render_mode == 6)
+        req->render_mode = update_palette_table_mode;
+    else if (req_rga->render_mode == 7)
+        req->render_mode = update_patten_buff_mode;
+    else if (req_rga->render_mode == 5)
+        req->render_mode = bitblt_mode;
+    else
+        req->render_mode = req_rga->render_mode;
+    memcpy_img_info(&req->src, &req_rga->src);
+    memcpy_img_info(&req->dst, &req_rga->dst);
+    memcpy_img_info(&req->pat, &req_rga->pat);
+    memcpy_img_info(&req->src1,&req_rga->pat);
+    format_name_convert(&req->src.format, req_rga->src.format);
+    format_name_convert(&req->dst.format, req_rga->dst.format);
+    if(req_rga->rotate_mode == 1) {
+        if(req_rga->sina == 0 && req_rga->cosa == 65536) {
+            req->rotate_mode = 0;
+        }
+        else if (req_rga->sina == 65536 && req_rga->cosa == 0) {
+            req->rotate_mode = 1;
+            req->dst.x_offset = req_rga->dst.x_offset - req_rga->dst.act_h + 1;
+            req->dst.act_w = req_rga->dst.act_h;
+            req->dst.act_h = req_rga->dst.act_w;
+        }
+        else if (req_rga->sina == 0 && req_rga->cosa == -65536) {
+            req->rotate_mode = 2;
+            req->dst.x_offset = req_rga->dst.x_offset - req_rga->dst.act_w + 1;
+            req->dst.y_offset = req_rga->dst.y_offset - req_rga->dst.act_h + 1;
+        }
+        else if (req_rga->sina == -65536 && req_rga->cosa == 0) {
+            req->rotate_mode = 3;
+            req->dst.y_offset = req_rga->dst.y_offset - req_rga->dst.act_w + 1;
+            req->dst.act_w = req_rga->dst.act_h;
+            req->dst.act_h = req_rga->dst.act_w;
+        }
+    }
+    else if (req_rga->rotate_mode == 2)
+    {
+        req->rotate_mode = (1 << 4);
+    }
+    else if (req_rga->rotate_mode == 3)
+    {
+        req->rotate_mode = (2 << 4);
+    }
+    else {
+        req->rotate_mode = 0;
+    }
+    if((req->dst.act_w > 2048) && (req->src.act_h < req->dst.act_h))
+        req->scale_bicu_mode |= (1<<4);
+    req->LUT_addr = req_rga->LUT_addr;
+    req->rop_mask_addr = req_rga->rop_mask_addr;
+    req->bitblt_mode = req_rga->bsfilter_flag;
+    req->src_a_global_val = req_rga->alpha_global_value;
+    req->dst_a_global_val = 0;
+    req->rop_code = req_rga->rop_code;
+    req->rop_mode = 0;
+    req->color_fill_mode = req_rga->color_fill_mode;
+    req->color_key_min   = req_rga->color_key_min;
+    req->color_key_max   = req_rga->color_key_max;
+    req->fg_color = req_rga->fg_color;
+    req->bg_color = req_rga->bg_color;
+    memcpy(&req->gr_color, &req_rga->gr_color, sizeof(req_rga->gr_color));
+    req->palette_mode = req_rga->palette_mode;
+    req->yuv2rgb_mode = req_rga->yuv2rgb_mode + 1;
+    req->endian_mode = req_rga->endian_mode;
+    req->rgb2yuv_mode = 0;
+    req->fading_alpha_value = 0;
+    req->fading_r_value = req_rga->fading.r;
+    req->fading_g_value = req_rga->fading.g;
+    req->fading_b_value = req_rga->fading.b;
+    req->alpha_rop_flag = 0;
+    req->alpha_rop_flag |= (((req_rga->alpha_rop_flag & 1)));           // alpha_rop_enable
+    req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 1) & 1) << 1); // rop_enable
+    req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 2) & 1) << 2); // fading_enable
+    req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 4) & 1) << 3); // alpha_cal_mode_sel
+    req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 5) & 1) << 6); // dst_dither_down
+    req->alpha_rop_flag |= (((req_rga->alpha_rop_flag >> 6) & 1) << 7); // gradient fill mode sel
+    if(((req_rga->alpha_rop_flag) & 1)) {
+        if((req_rga->alpha_rop_flag >> 3) & 1) {
+            switch(req_rga->PD_mode)
+            {
+                case 0: //dst = 0
+                    break;
+                case 1: //dst = src
+                    break;
+                case 2: //dst = dst
+                    break;
+                case 3: //dst = (256*sc + (256 - sa)*dc) >> 8
+                    if((req_rga->alpha_rop_mode & 3) == 0) {
+                        alpha_mode_0 = 0x3818;
+                        alpha_mode_1 = 0x3818;
+                    }
+                    else if ((req_rga->alpha_rop_mode & 3) == 1) {
+                        alpha_mode_0 = 0x381A;
+                        alpha_mode_1 = 0x381A;
+                    }
+                    else if ((req_rga->alpha_rop_mode & 3) == 2) {
+                        alpha_mode_0 = 0x381C;
+                        alpha_mode_1 = 0x381C;
+                    }
+                    else {
+                        alpha_mode_0 = 0x381A;
+                        alpha_mode_1 = 0x381A;
+                    }
+                    req->alpha_mode_0 = alpha_mode_0;
+                    req->alpha_mode_1 = alpha_mode_1;
+                    break;
+                case 4: //dst = (sc*(256-da) + 256*dc) >> 8
+                    break;
+                case 5: //dst = (da*sc) >> 8
+                    break;
+                case 6: //dst = (sa*dc) >> 8
+                    break;
+                case 7: //dst = ((256-da)*sc) >> 8
+                    break;
+                case 8: //dst = ((256-sa)*dc) >> 8
+                    break;
+                case 9: //dst = (da*sc + (256-sa)*dc) >> 8
+                    req->alpha_mode_0 = 0x3848;
+                    req->alpha_mode_1 = 0x3848;
+                    break;
+                case 10://dst = ((256-da)*sc + (sa*dc)) >> 8
+                    break;
+                case 11://dst = ((256-da)*sc + (256-sa)*dc) >> 8;
+                    break;
+                default:
+                    break;
+            }
+        }
+        else {
+            if((req_rga->alpha_rop_mode & 3) == 0) {
+                req->alpha_mode_0 = 0x3848;
+                req->alpha_mode_1 = 0x3848;
+            }
+            else if ((req_rga->alpha_rop_mode & 3) == 1) {
+                req->alpha_mode_0 = 0x483A;
+                req->alpha_mode_1 = 0x483A;
+            }
+            else if ((req_rga->alpha_rop_mode & 3) == 2) {
+                req->alpha_mode_0 = 0x384C;
+                req->alpha_mode_1 = 0x384C;
+            }
+        }
+    }
+    if (req_rga->mmu_info.mmu_en && (req_rga->mmu_info.mmu_flag & 1) == 1) {
+        req->mmu_info.src0_mmu_flag = 1;
+        req->mmu_info.dst_mmu_flag = 1;
+        if (req_rga->mmu_info.mmu_flag >> 31) {
+            req->mmu_info.src0_mmu_flag = ((req_rga->mmu_info.mmu_flag >> 8)  & 1);
+            req->mmu_info.src1_mmu_flag = ((req_rga->mmu_info.mmu_flag >> 9)  & 1);
+            req->mmu_info.dst_mmu_flag  = ((req_rga->mmu_info.mmu_flag >> 10) & 1);
+            req->mmu_info.els_mmu_flag  = ((req_rga->mmu_info.mmu_flag >> 11) & 1);
+        }
+        else {
+            if (req_rga->src.yrgb_addr >= 0xa0000000) {
+               req->mmu_info.src0_mmu_flag = 0;
+               req->src.yrgb_addr = req_rga->src.yrgb_addr - 0x60000000;
+               req->src.uv_addr   = req_rga->src.uv_addr - 0x60000000;
+               req->src.v_addr    = req_rga->src.v_addr - 0x60000000;
+            }
+            if (req_rga->dst.yrgb_addr >= 0xa0000000) {
+               req->mmu_info.dst_mmu_flag = 0;
+               req->dst.yrgb_addr = req_rga->dst.yrgb_addr - 0x60000000;
+            }
+        }
+    }
+}

@@ -928,7 +928,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
     struct rga2_req req;
-    struct rga_req req_rga;
+    struct rga_req_32 req_rga;
 	int ret = 0;
     rga2_session *session;
 
@@ -952,26 +952,26 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 	switch (cmd) {
         case RGA_BLIT_SYNC:
-    		if (unlikely(copy_from_user(&req_rga, compat_ptr((compat_uptr_t)arg), sizeof(struct rga_req))))
+    		if (unlikely(copy_from_user(&req_rga, compat_ptr((compat_uptr_t)arg), sizeof(struct rga_req_32))))
             {
         		ERR("copy_from_user failed\n");
         		ret = -EFAULT;
                 break;
         	}
 
-            RGA_MSG_2_RGA2_MSG(&req_rga, &req);
+            RGA_MSG_2_RGA2_MSG_32(&req_rga, &req);
 
             ret = rga2_blit_sync(session, &req);
             break;
 		case RGA_BLIT_ASYNC:
-    		if (unlikely(copy_from_user(&req_rga, compat_ptr((compat_uptr_t)arg), sizeof(struct rga_req))))
+    		if (unlikely(copy_from_user(&req_rga, compat_ptr((compat_uptr_t)arg), sizeof(struct rga_req_32))))
             {
         		ERR("copy_from_user failed\n");
         		ret = -EFAULT;
                 break;
         	}
 
-            RGA_MSG_2_RGA2_MSG(&req_rga, &req);
+            RGA_MSG_2_RGA2_MSG_32(&req_rga, &req);
 
             if((atomic_read(&rga2_service.total_running) > 8))
             {
