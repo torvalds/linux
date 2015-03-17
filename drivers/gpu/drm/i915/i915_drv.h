@@ -130,7 +130,7 @@ enum transcoder {
  *
  * This value doesn't count the cursor plane.
  */
-#define I915_MAX_PLANES	3
+#define I915_MAX_PLANES	4
 
 enum plane {
 	PLANE_A = 0,
