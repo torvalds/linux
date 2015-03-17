@@ -415,15 +415,9 @@ static ssize_t ipl_parameter_read(struct file *filp, struct kobject *kobj,
 	return memory_read_from_buffer(buf, count, &off, IPL_PARMBLOCK_START,
 					IPL_PARMBLOCK_SIZE);
 }
-
-static struct bin_attribute ipl_parameter_attr = {
-	.attr = {
-		.name = "binary_parameter",
-		.mode = S_IRUGO,
-	},
-	.size = PAGE_SIZE,
-	.read = &ipl_parameter_read,
-};
+static struct bin_attribute ipl_parameter_attr =
+	__BIN_ATTR(binary_parameter, S_IRUGO, ipl_parameter_read, NULL,
+		   PAGE_SIZE);
 
 static ssize_t ipl_scp_data_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *attr, char *buf,
@@ -434,14 +428,13 @@ static ssize_t ipl_scp_data_read(struct file *filp, struct kobject *kobj,
 
 	return memory_read_from_buffer(buf, count, &off, scp_data, size);
 }
+static struct bin_attribute ipl_scp_data_attr =
+	__BIN_ATTR(scp_data, S_IRUGO, ipl_scp_data_read, NULL, PAGE_SIZE);
 
-static struct bin_attribute ipl_scp_data_attr = {
-	.attr = {
-		.name = "scp_data",
-		.mode = S_IRUGO,
-	},
-	.size = PAGE_SIZE,
-	.read = ipl_scp_data_read,
+static struct bin_attribute *ipl_fcp_bin_attrs[] = {
+	&ipl_parameter_attr,
+	&ipl_scp_data_attr,
+	NULL,
 };
 
 /* FCP ipl device attributes */
@@ -484,6 +477,7 @@ static struct attribute *ipl_fcp_attrs[] = {
 
 static struct attribute_group ipl_fcp_attr_group = {
 	.attrs = ipl_fcp_attrs,
+	.bin_attrs = ipl_fcp_bin_attrs,
 };
 
 /* CCW ipl device attributes */
@@ -540,28 +534,6 @@ static struct attribute_group ipl_unknown_attr_group = {
 
 static struct kset *ipl_kset;
 
-static int __init ipl_register_fcp_files(void)
-{
-	int rc;
-
-	rc = sysfs_create_group(&ipl_kset->kobj, &ipl_fcp_attr_group);
-	if (rc)
-		goto out;
-	rc = sysfs_create_bin_file(&ipl_kset->kobj, &ipl_parameter_attr);
-	if (rc)
-		goto out_ipl_parm;
-	rc = sysfs_create_bin_file(&ipl_kset->kobj, &ipl_scp_data_attr);
-	if (!rc)
-		goto out;
-
-	sysfs_remove_bin_file(&ipl_kset->kobj, &ipl_parameter_attr);
-
-out_ipl_parm:
-	sysfs_remove_group(&ipl_kset->kobj, &ipl_fcp_attr_group);
-out:
-	return rc;
-}
-
 static void __ipl_run(void *unused)
 {
 	diag308(DIAG308_IPL, NULL);
@@ -596,7 +568,7 @@ static int __init ipl_init(void)
 		break;
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
-		rc = ipl_register_fcp_files();
+		rc = sysfs_create_group(&ipl_kset->kobj, &ipl_fcp_attr_group);
 		break;
 	case IPL_TYPE_NSS:
 		rc = sysfs_create_group(&ipl_kset->kobj, &ipl_nss_attr_group);
@@ -744,15 +716,13 @@ static ssize_t reipl_fcp_scpdata_write(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
+static struct bin_attribute sys_reipl_fcp_scp_data_attr =
+	__BIN_ATTR(scp_data, (S_IRUGO | S_IWUSR), reipl_fcp_scpdata_read,
+		   reipl_fcp_scpdata_write, PAGE_SIZE);
 
-static struct bin_attribute sys_reipl_fcp_scp_data_attr = {
-	.attr = {
-		.name = "scp_data",
-		.mode = S_IRUGO | S_IWUSR,
-	},
-	.size = PAGE_SIZE,
-	.read = reipl_fcp_scpdata_read,
-	.write = reipl_fcp_scpdata_write,
+static struct bin_attribute *reipl_fcp_bin_attrs[] = {
+	&sys_reipl_fcp_scp_data_attr,
+	NULL,
 };
 
 DEFINE_IPL_ATTR_RW(reipl_fcp, wwpn, "0x%016llx\n", "%llx\n",
@@ -841,6 +811,7 @@ static struct attribute *reipl_fcp_attrs[] = {
 
 static struct attribute_group reipl_fcp_attr_group = {
 	.attrs = reipl_fcp_attrs,
+	.bin_attrs = reipl_fcp_bin_attrs,
 };
 
 /* CCW reipl device attributes */
@@ -1256,15 +1227,6 @@ static int __init reipl_fcp_init(void)
 
 	rc = sysfs_create_group(&reipl_fcp_kset->kobj, &reipl_fcp_attr_group);
 	if (rc) {
-		kset_unregister(reipl_fcp_kset);
-		free_page((unsigned long) reipl_block_fcp);
-		return rc;
-	}
-
-	rc = sysfs_create_bin_file(&reipl_fcp_kset->kobj,
-				   &sys_reipl_fcp_scp_data_attr);
-	if (rc) {
-		sysfs_remove_group(&reipl_fcp_kset->kobj, &reipl_fcp_attr_group);
 		kset_unregister(reipl_fcp_kset);
 		free_page((unsigned long) reipl_block_fcp);
 		return rc;
