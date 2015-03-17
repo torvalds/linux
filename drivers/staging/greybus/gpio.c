@@ -116,7 +116,7 @@ struct gb_gpio_set_value_request {
 
 struct gb_gpio_set_debounce_request {
 	__u8	which;
-	__le16	usec;
+	__le16	usec __packed;
 };
 /* debounce response has no payload */
 
