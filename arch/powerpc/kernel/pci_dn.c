@@ -32,12 +32,108 @@
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
 
+/*
+ * The function is used to find the firmware data of one
+ * specific PCI device, which is attached to the indicated
+ * PCI bus. For VFs, their firmware data is linked to that
+ * one of PF's bridge. For other devices, their firmware
+ * data is linked to that of their bridge.
+ */
+static struct pci_dn *pci_bus_to_pdn(struct pci_bus *bus)
+{
+	struct pci_bus *pbus;
+	struct device_node *dn;
+	struct pci_dn *pdn;
+
+	/*
+	 * We probably have virtual bus which doesn't
+	 * have associated bridge.
+	 */
+	pbus = bus;
+	while (pbus) {
+		if (pci_is_root_bus(pbus) || pbus->self)
+			break;
+
+		pbus = pbus->parent;
+	}
+
+	/*
+	 * Except virtual bus, all PCI buses should
+	 * have device nodes.
+	 */
+	dn = pci_bus_to_OF_node(pbus);
+	pdn = dn ? PCI_DN(dn) : NULL;
+
+	return pdn;
+}
+
+struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
+				    int devfn)
+{
+	struct device_node *dn = NULL;
+	struct pci_dn *parent, *pdn;
+	struct pci_dev *pdev = NULL;
+
+	/* Fast path: fetch from PCI device */
+	list_for_each_entry(pdev, &bus->devices, bus_list) {
+		if (pdev->devfn == devfn) {
+			if (pdev->dev.archdata.pci_data)
+				return pdev->dev.archdata.pci_data;
+
+			dn = pci_device_to_OF_node(pdev);
+			break;
+		}
+	}
+
+	/* Fast path: fetch from device node */
+	pdn = dn ? PCI_DN(dn) : NULL;
+	if (pdn)
+		return pdn;
+
+	/* Slow path: fetch from firmware data hierarchy */
+	parent = pci_bus_to_pdn(bus);
+	if (!parent)
+		return NULL;
+
+	list_for_each_entry(pdn, &parent->child_list, list) {
+		if (pdn->busno == bus->number &&
+                    pdn->devfn == devfn)
+                        return pdn;
+        }
+
+	return NULL;
+}
+
 struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
 {
-	struct device_node *dn = pci_device_to_OF_node(pdev);
-	if (!dn)
+	struct device_node *dn;
+	struct pci_dn *parent, *pdn;
+
+	/* Search device directly */
+	if (pdev->dev.archdata.pci_data)
+		return pdev->dev.archdata.pci_data;
+
+	/* Check device node */
+	dn = pci_device_to_OF_node(pdev);
+	pdn = dn ? PCI_DN(dn) : NULL;
+	if (pdn)
+		return pdn;
+
+	/*
+	 * VFs don't have device nodes. We hook their
+	 * firmware data to PF's bridge.
+	 */
+	parent = pci_bus_to_pdn(pdev->bus);
+	if (!parent)
 		return NULL;
-	return PCI_DN(dn);
+
+	list_for_each_entry(pdn, &parent->child_list, list) {
+		if (pdn->busno == pdev->bus->number &&
+		    pdn->devfn == pdev->devfn)
+			return pdn;
+	}
+
+	return NULL;
 }
 
 /*
@@ -49,6 +145,7 @@ void *update_dn_pci_info(struct device_node *dn, void *data)
 	struct pci_controller *phb = data;
 	const __be32 *type = of_get_property(dn, "ibm,pci-config-space-type", NULL);
 	const __be32 *regs;
+	struct device_node *parent;
 	struct pci_dn *pdn;
 
 	pdn = zalloc_maybe_bootmem(sizeof(*pdn), GFP_KERNEL);
@@ -70,6 +167,15 @@ void *update_dn_pci_info(struct device_node *dn, void *data)
 	}
 
 	pdn->pci_ext_config_space = (type && of_read_number(type, 1) == 1);
+
+	/* Attach to parent node */
+	INIT_LIST_HEAD(&pdn->child_list);
+	INIT_LIST_HEAD(&pdn->list);
+	parent = of_get_parent(dn);
+	pdn->parent = parent ? PCI_DN(parent) : NULL;
+	if (pdn->parent)
+		list_add_tail(&pdn->list, &pdn->parent->child_list);
+
 	return NULL;
 }
 
@@ -147,8 +253,11 @@ void pci_devs_phb_init_dynamic(struct pci_controller *phb)
 	/* PHB nodes themselves must not match */
 	update_dn_pci_info(dn, phb);
 	pdn = dn->data;
-	if (pdn)
+	if (pdn) {
 		pdn->devfn = pdn->busno = -1;
+		pdn->phb = phb;
+		phb->pci_data = pdn;
+	}
 
 	/* Update dn->phb ptrs for new phb and children devices */
 	traverse_pci_devices(dn, update_dn_pci_info, phb);
@@ -171,3 +280,16 @@ void __init pci_devs_phb_init(void)
 	list_for_each_entry_safe(phb, tmp, &hose_list, list_node)
 		pci_devs_phb_init_dynamic(phb);
 }
+
+static void pci_dev_pdn_setup(struct pci_dev *pdev)
+{
+	struct pci_dn *pdn;
+
+	if (pdev->dev.archdata.pci_data)
+		return;
+
+	/* Setup the fast path */
+	pdn = pci_get_pdn(pdev);
+	pdev->dev.archdata.pci_data = pdn;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, pci_dev_pdn_setup);
