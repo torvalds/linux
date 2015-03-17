@@ -1033,7 +1033,7 @@ MODULE_DEVICE_TABLE(acpi, xgene_enet_acpi_match);
 #endif
 
 #ifdef CONFIG_OF
-static struct of_device_id xgene_enet_of_match[] = {
+static const struct of_device_id xgene_enet_of_match[] = {
 	{.compatible = "apm,xgene-enet",},
 	{.compatible = "apm,xgene1-sgenet",},
 	{.compatible = "apm,xgene1-xgenet",},
