@@ -441,7 +441,7 @@ static int cachefiles_attr_changed(struct fscache_object *_object)
 
 	fscache_set_store_limit(&object->fscache, ni_size);
 
-	oi_size = i_size_read(object->backer->d_inode);
+	oi_size = i_size_read(d_backing_inode(object->backer));
 	if (oi_size == ni_size)
 		return 0;
 

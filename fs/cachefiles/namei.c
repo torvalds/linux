@@ -355,7 +355,7 @@ try_again:
 		return -EIO;
 	}
 
-	if (grave->d_inode) {
+	if (d_is_positive(grave)) {
 		unlock_rename(cache->graveyard, dir);
 		dput(grave);
 		grave = NULL;
@@ -415,7 +415,7 @@ int cachefiles_delete_object(struct cachefiles_cache *cache,
 	_enter(",OBJ%x{%p}", object->fscache.debug_id, object->dentry);
 
 	ASSERT(object->dentry);
-	ASSERT(object->dentry->d_inode);
+	ASSERT(d_backing_inode(object->dentry));
 	ASSERT(object->dentry->d_parent);
 
 	dir = dget_parent(object->dentry);
@@ -473,7 +473,7 @@ int cachefiles_walk_to_object(struct cachefiles_object *parent,
 	path.mnt = cache->mnt;
 
 	ASSERT(parent->dentry);
-	ASSERT(parent->dentry->d_inode);
+	ASSERT(d_backing_inode(parent->dentry));
 
 	if (!(d_is_dir(parent->dentry))) {
 		// TODO: convert file to dir
@@ -505,21 +505,21 @@ lookup_again:
 	if (IS_ERR(next))
 		goto lookup_error;
 
-	_debug("next -> %p %s", next, next->d_inode ? "positive" : "negative");
+	_debug("next -> %p %s", next, d_backing_inode(next) ? "positive" : "negative");
 
 	if (!key)
-		object->new = !next->d_inode;
+		object->new = !d_backing_inode(next);
 
 	/* if this element of the path doesn't exist, then the lookup phase
 	 * failed, and we can release any readers in the certain knowledge that
 	 * there's nothing for them to actually read */
-	if (!next->d_inode)
+	if (d_is_negative(next))
 		fscache_object_lookup_negative(&object->fscache);
 
 	/* we need to create the object if it's negative */
 	if (key || object->type == FSCACHE_COOKIE_TYPE_INDEX) {
 		/* index objects and intervening tree levels must be subdirs */
-		if (!next->d_inode) {
+		if (d_is_negative(next)) {
 			ret = cachefiles_has_space(cache, 1, 0);
 			if (ret < 0)
 				goto create_error;
@@ -534,21 +534,21 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 
-			ASSERT(next->d_inode);
+			ASSERT(d_backing_inode(next));
 
 			_debug("mkdir -> %p{%p{ino=%lu}}",
-			       next, next->d_inode, next->d_inode->i_ino);
+			       next, d_backing_inode(next), d_backing_inode(next)->i_ino);
 
 		} else if (!d_can_lookup(next)) {
 			pr_err("inode %lu is not a directory\n",
-			       next->d_inode->i_ino);
+			       d_backing_inode(next)->i_ino);
 			ret = -ENOBUFS;
 			goto error;
 		}
 
 	} else {
 		/* non-index objects start out life as files */
-		if (!next->d_inode) {
+		if (d_is_negative(next)) {
 			ret = cachefiles_has_space(cache, 1, 0);
 			if (ret < 0)
 				goto create_error;
@@ -563,16 +563,16 @@ lookup_again:
 			if (ret < 0)
 				goto create_error;
 
-			ASSERT(next->d_inode);
+			ASSERT(d_backing_inode(next));
 
 			_debug("create -> %p{%p{ino=%lu}}",
-			       next, next->d_inode, next->d_inode->i_ino);
+			       next, d_backing_inode(next), d_backing_inode(next)->i_ino);
 
 		} else if (!d_can_lookup(next) &&
 			   !d_is_reg(next)
 			   ) {
 			pr_err("inode %lu is not a file or directory\n",
-			       next->d_inode->i_ino);
+			       d_backing_inode(next)->i_ino);
 			ret = -ENOBUFS;
 			goto error;
 		}
@@ -646,7 +646,7 @@ lookup_again:
 			const struct address_space_operations *aops;
 
 			ret = -EPERM;
-			aops = object->dentry->d_inode->i_mapping->a_ops;
+			aops = d_backing_inode(object->dentry)->i_mapping->a_ops;
 			if (!aops->bmap)
 				goto check_error;
 
@@ -659,7 +659,7 @@ lookup_again:
 	object->new = 0;
 	fscache_obtained_object(&object->fscache);
 
-	_leave(" = 0 [%lu]", object->dentry->d_inode->i_ino);
+	_leave(" = 0 [%lu]", d_backing_inode(object->dentry)->i_ino);
 	return 0;
 
 create_error:
@@ -731,10 +731,10 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	}
 
 	_debug("subdir -> %p %s",
-	       subdir, subdir->d_inode ? "positive" : "negative");
+	       subdir, d_backing_inode(subdir) ? "positive" : "negative");
 
 	/* we need to create the subdir if it doesn't exist yet */
-	if (!subdir->d_inode) {
+	if (d_is_negative(subdir)) {
 		ret = cachefiles_has_space(cache, 1, 0);
 		if (ret < 0)
 			goto mkdir_error;
@@ -750,18 +750,18 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 		if (ret < 0)
 			goto mkdir_error;
 
-		ASSERT(subdir->d_inode);
+		ASSERT(d_backing_inode(subdir));
 
 		_debug("mkdir -> %p{%p{ino=%lu}}",
 		       subdir,
-		       subdir->d_inode,
-		       subdir->d_inode->i_ino);
+		       d_backing_inode(subdir),
+		       d_backing_inode(subdir)->i_ino);
 	}
 
 	mutex_unlock(&d_inode(dir)->i_mutex);
 
 	/* we need to make sure the subdir is a directory */
-	ASSERT(subdir->d_inode);
+	ASSERT(d_backing_inode(subdir));
 
 	if (!d_can_lookup(subdir)) {
 		pr_err("%s is not a directory\n", dirname);
@@ -770,18 +770,18 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	}
 
 	ret = -EPERM;
-	if (!subdir->d_inode->i_op->setxattr ||
-	    !subdir->d_inode->i_op->getxattr ||
-	    !subdir->d_inode->i_op->lookup ||
-	    !subdir->d_inode->i_op->mkdir ||
-	    !subdir->d_inode->i_op->create ||
-	    (!subdir->d_inode->i_op->rename &&
-	     !subdir->d_inode->i_op->rename2) ||
-	    !subdir->d_inode->i_op->rmdir ||
-	    !subdir->d_inode->i_op->unlink)
+	if (!d_backing_inode(subdir)->i_op->setxattr ||
+	    !d_backing_inode(subdir)->i_op->getxattr ||
+	    !d_backing_inode(subdir)->i_op->lookup ||
+	    !d_backing_inode(subdir)->i_op->mkdir ||
+	    !d_backing_inode(subdir)->i_op->create ||
+	    (!d_backing_inode(subdir)->i_op->rename &&
+	     !d_backing_inode(subdir)->i_op->rename2) ||
+	    !d_backing_inode(subdir)->i_op->rmdir ||
+	    !d_backing_inode(subdir)->i_op->unlink)
 		goto check_error;
 
-	_leave(" = [%lu]", subdir->d_inode->i_ino);
+	_leave(" = [%lu]", d_backing_inode(subdir)->i_ino);
 	return subdir;
 
 check_error:
@@ -836,12 +836,12 @@ static struct dentry *cachefiles_check_active(struct cachefiles_cache *cache,
 		goto lookup_error;
 
 	//_debug("victim -> %p %s",
-	//       victim, victim->d_inode ? "positive" : "negative");
+	//       victim, d_backing_inode(victim) ? "positive" : "negative");
 
 	/* if the object is no longer there then we probably retired the object
 	 * at the netfs's request whilst the cull was in progress
 	 */
-	if (!victim->d_inode) {
+	if (d_is_negative(victim)) {
 		mutex_unlock(&d_inode(dir)->i_mutex);
 		dput(victim);
 		_leave(" = -ENOENT [absent]");
@@ -913,7 +913,7 @@ int cachefiles_cull(struct cachefiles_cache *cache, struct dentry *dir,
 		return PTR_ERR(victim);
 
 	_debug("victim -> %p %s",
-	       victim, victim->d_inode ? "positive" : "negative");
+	       victim, d_backing_inode(victim) ? "positive" : "negative");
 
 	/* okay... the victim is not being used so we can cull it
 	 * - start by marking it as stale
