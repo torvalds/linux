@@ -47,20 +47,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define MODEM_CONTROL_REGISTER		(0x04 + SERIAL_BASE_ADDRESS)
 #define MODEM_STATUS_REGISTER		(0x06 + SERIAL_BASE_ADDRESS)
 
-#define CONTROL_DTR			0x01
-#define CONTROL_RTS			0x02
-
-#define UART_STATE			0x08
-#define UART_STATE_TRANSIENT_MASK	0x74
-#define UART_DCD			0x01
-#define UART_DSR			0x02
-#define UART_BREAK_ERROR		0x04
-#define UART_RING			0x08
-#define UART_FRAME_ERROR		0x10
-#define UART_PARITY_ERROR		0x20
-#define UART_OVERRUN_ERROR		0x40
-#define UART_CTS			0x80
-
 struct f81232_private {
 	struct mutex lock;
 	u8 modem_control;
