@@ -429,7 +429,6 @@
 &mmc_0 {
 	status = "okay";
 	num-slots = <1>;
-	supports-highspeed;
 	broken-cd;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
@@ -437,11 +436,8 @@
 	samsung,dw-mshc-ddr-timing = <1 2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_bus4 &sd0_bus8>;
-
-	slot@0 {
-		reg = <0>;
-		bus-width = <8>;
-	};
+	bus-width = <8>;
+	cap-mmc-highspeed;
 };
 
 /*
@@ -451,7 +447,6 @@
 &mmc_1 {
 	status = "okay";
 	num-slots = <1>;
-	supports-highspeed;
 	broken-cd;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
@@ -459,11 +454,8 @@
 	samsung,dw-mshc-ddr-timing = <1 2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_cd &sd1_bus4>;
-
-	slot@0 {
-		reg = <0>;
-		bus-width = <4>;
-	};
+	bus-width = <4>;
+	cap-sd-highspeed;
 };
 
 &pinctrl_0 {
