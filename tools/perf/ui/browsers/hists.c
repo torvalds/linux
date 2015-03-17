@@ -1731,12 +1731,7 @@ do_annotate:
 			if (!notes->src)
 				continue;
 
-			/*
-			 * Don't let this be freed, say, by hists__decay_entry.
-			 */
-			he->used = true;
 			err = hist_entry__tui_annotate(he, evsel, hbt);
-			he->used = false;
 			/*
 			 * offer option to annotate the other branch source or target
 			 * (if they exists) when returning from annotate

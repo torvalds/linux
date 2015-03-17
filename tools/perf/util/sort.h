@@ -102,7 +102,6 @@ struct hist_entry {
 
 	bool			init_have_children;
 	char			level;
-	bool			used;
 	u8			filtered;
 	char			*srcline;
 	struct symbol		*parent;
