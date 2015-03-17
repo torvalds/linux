@@ -608,7 +608,7 @@ static int gdm_mux_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	rx = &mux_dev->rx;
 
 	if (mux_dev->usb_state != PM_NORMAL) {
-		pr_err("usb suspend - invalid state\n");
+		dev_err(intf->usb_dev, "usb suspend - invalid state\n");
 		return -1;
 	}
 
@@ -637,7 +637,7 @@ static int gdm_mux_resume(struct usb_interface *intf)
 	mux_dev = tty_dev->priv_dev;
 
 	if (mux_dev->usb_state != PM_SUSPEND) {
-		pr_err("usb resume - invalid state\n");
+		dev_err(intf->usb_dev, "usb resume - invalid state\n");
 		return -1;
 	}
 

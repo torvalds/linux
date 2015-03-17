@@ -848,7 +848,7 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	udev->usbdev = usbdev;
 	ret = init_usb(udev);
 	if (ret < 0) {
-		pr_err("init_usb func failed\n");
+		dev_err(intf->usb_dev, "init_usb func failed\n");
 		goto err_init_usb;
 	}
 	udev->intf = intf;
@@ -867,7 +867,7 @@ static int gdm_usb_probe(struct usb_interface *intf,
 
 	ret = request_mac_address(udev);
 	if (ret < 0) {
-		pr_err("request Mac address failed\n");
+		dev_err(intf->usb_dev, "request Mac address failed\n");
 		goto err_mac_address;
 	}
 
@@ -928,7 +928,7 @@ static int gdm_usb_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	udev = phy_dev->priv_dev;
 	rx = &udev->rx;
 	if (udev->usb_state != PM_NORMAL) {
-		pr_err("usb suspend - invalid state\n");
+		dev_err(intf->usb_dev, "usb suspend - invalid state\n");
 		return -1;
 	}
 
@@ -961,7 +961,7 @@ static int gdm_usb_resume(struct usb_interface *intf)
 	rx = &udev->rx;
 
 	if (udev->usb_state != PM_SUSPEND) {
-		pr_err("usb resume - invalid state\n");
+		dev_err(intf->usb_dev, "usb resume - invalid state\n");
 		return -1;
 	}
 	udev->usb_state = PM_NORMAL;
