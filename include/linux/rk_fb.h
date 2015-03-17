@@ -479,7 +479,7 @@ struct rk_lcdc_drv_ops {
 struct rk_fb_area_par {
 	u8  data_format;        /*layer data fmt*/
 	short ion_fd;
-	unsigned long phy_addr;
+	u32 phy_addr;
 	short acq_fence_fd;
 	u16  x_offset;
 	u16  y_offset;
