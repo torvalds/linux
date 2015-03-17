@@ -1216,36 +1216,8 @@ static inline bool tcp_paws_reject(const struct tcp_options_received *rx_opt,
 	return true;
 }
 
-/* Return true if we're currently rate-limiting out-of-window ACKs and
- * thus shouldn't send a dupack right now. We rate-limit dupacks in
- * response to out-of-window SYNs or ACKs to mitigate ACK loops or DoS
- * attacks that send repeated SYNs or ACKs for the same connection. To
- * do this, we do not send a duplicate SYNACK or ACK if the remote
- * endpoint is sending out-of-window SYNs or pure ACKs at a high rate.
- */
-static inline bool tcp_oow_rate_limited(struct net *net,
-					const struct sk_buff *skb,
-					int mib_idx, u32 *last_oow_ack_time)
-{
-	/* Data packets without SYNs are not likely part of an ACK loop. */
-	if ((TCP_SKB_CB(skb)->seq != TCP_SKB_CB(skb)->end_seq) &&
-	    !tcp_hdr(skb)->syn)
-		goto not_rate_limited;
-
-	if (*last_oow_ack_time) {
-		s32 elapsed = (s32)(tcp_time_stamp - *last_oow_ack_time);
-
-		if (0 <= elapsed && elapsed < sysctl_tcp_invalid_ratelimit) {
-			NET_INC_STATS_BH(net, mib_idx);
-			return true;	/* rate-limited: don't send yet! */
-		}
-	}
-
-	*last_oow_ack_time = tcp_time_stamp;
-
-not_rate_limited:
-	return false;	/* not rate-limited: go ahead, send dupack now! */
-}
+bool tcp_oow_rate_limited(struct net *net, const struct sk_buff *skb,
+			  int mib_idx, u32 *last_oow_ack_time);
 
 static inline void tcp_mib_init(struct net *net)
 {
