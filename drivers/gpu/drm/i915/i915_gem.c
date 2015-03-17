@@ -5181,7 +5181,7 @@ i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
 		    i915_ggtt_view_equal(&vma->ggtt_view, view))
 			return vma->node.start;
 
-	WARN(1, "global vma for this object not found.\n");
+	WARN(1, "global vma for this object not found. (view=%u)\n", view->type);
 	return -1;
 }
 
