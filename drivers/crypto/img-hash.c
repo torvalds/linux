@@ -873,7 +873,7 @@ static const struct of_device_id img_hash_match[] = {
 	{ .compatible = "img,hash-accelerator" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, img_hash_match)
+MODULE_DEVICE_TABLE(of, img_hash_match);
 
 static int img_hash_probe(struct platform_device *pdev)
 {
