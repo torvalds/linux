@@ -548,6 +548,14 @@
 	pinctrl-0 = <&usb1_pins>;
 };
 
+&omap_dwc3_1 {
+	extcon = <&extcon_usb1>;
+};
+
+&omap_dwc3_2 {
+	extcon = <&extcon_usb2>;
+};
+
 &usb2 {
 	dr_mode = "peripheral";
 };
