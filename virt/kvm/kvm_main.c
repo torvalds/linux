@@ -1053,9 +1053,11 @@ int kvm_get_dirty_log_protect(struct kvm *kvm,
 		mask = xchg(&dirty_bitmap[i], 0);
 		dirty_bitmap_buffer[i] = mask;
 
-		offset = i * BITS_PER_LONG;
-		kvm_arch_mmu_enable_log_dirty_pt_masked(kvm, memslot, offset,
-								mask);
+		if (mask) {
+			offset = i * BITS_PER_LONG;
+			kvm_arch_mmu_enable_log_dirty_pt_masked(kvm, memslot,
+								offset, mask);
+		}
 	}
 
 	spin_unlock(&kvm->mmu_lock);
