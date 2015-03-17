@@ -15,6 +15,7 @@ Required properties for all the ethernet interfaces:
   - "ring_csr": Descriptor ring control and status register address space
   - "ring_cmd": Descriptor ring command register address space
 - interrupts: Ethernet main interrupt
+- port-id: Port number (0 or 1)
 - clocks: Reference to the clock entry.
 - local-mac-address: MAC address assigned to this device
 - phy-connection-type: Interface type between ethernet device and PHY device
@@ -49,6 +50,7 @@ Example:
 		      <0x0 0X10000000 0x0 0X200>;
 		reg-names = "enet_csr", "ring_csr", "ring_cmd";
 		interrupts = <0x0 0x3c 0x4>;
+		port-id = <0>;
 		clocks = <&menetclk 0>;
 		local-mac-address = [00 01 73 00 00 01];
 		phy-connection-type = "rgmii";
