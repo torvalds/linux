@@ -1693,9 +1693,7 @@ static int pci_fintek_setup(struct serial_private *priv,
 			    struct uart_8250_port *port, int idx)
 {
 	struct pci_dev *pdev = priv->dev;
-	unsigned long base;
 	unsigned long iobase;
-	unsigned long ciobase = 0;
 	u8 config_base;
 	u32 bar_data[3];
 
@@ -1744,11 +1742,6 @@ static int pci_fintek_setup(struct serial_private *priv,
 		return -EINVAL;
 	}
 
-	if (idx < 4) {
-		base = pci_resource_start(priv->dev, 3);
-		ciobase = (int)(base + (0x8 * idx));
-	}
-
 	/* Get the io address dispatch from the BIOS */
 	pci_read_config_dword(pdev, 0x24, &bar_data[0]);
 	pci_read_config_dword(pdev, 0x20, &bar_data[1]);
@@ -1757,8 +1750,8 @@ static int pci_fintek_setup(struct serial_private *priv,
 	/* Calculate Real IO Port */
 	iobase = (bar_data[idx/4] & 0xffffffe0) + (idx % 4) * 8;
 
-	dev_dbg(&pdev->dev, "%s: idx=%d iobase=0x%lx ciobase=0x%lx config_base=0x%2x\n",
-		__func__, idx, iobase, ciobase, config_base);
+	dev_dbg(&pdev->dev, "%s: idx=%d iobase=0x%lx config_base=0x%2x\n",
+		__func__, idx, iobase, config_base);
 
 	/* Enable UART I/O port */
 	pci_write_config_byte(pdev, config_base + 0x00, 0x01);
