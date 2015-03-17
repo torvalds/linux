@@ -241,16 +241,16 @@ GLOBAL(system_call_after_swapgs)
 	movq	%rsp,PER_CPU_VAR(old_rsp)
 	/* kernel_stack is set so that 5 slots (iret frame) are preallocated */
 	movq	PER_CPU_VAR(kernel_stack),%rsp
-	/*
-	 * No need to follow this irqs off/on section - it's straight
-	 * and short:
-	 */
-	ENABLE_INTERRUPTS(CLBR_NONE)
 	ALLOC_PT_GPREGS_ON_STACK 8		/* +8: space for orig_ax */
 	movq	%rcx,RIP(%rsp)
 	movq	PER_CPU_VAR(old_rsp),%rcx
 	movq	%r11,EFLAGS(%rsp)
 	movq	%rcx,RSP(%rsp)
+	/*
+	 * No need to follow this irqs off/on section - it's straight
+	 * and short:
+	 */
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	movq_cfi rax,ORIG_RAX
 	SAVE_C_REGS_EXCEPT_RAX_RCX_R11
 	movq	$-ENOSYS,RAX(%rsp)
