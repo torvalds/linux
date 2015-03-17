@@ -497,10 +497,8 @@ static int tegra_devfreq_target(struct device *dev, unsigned long *freq,
 	rate = dev_pm_opp_get_freq(opp);
 	rcu_read_unlock();
 
-	/* TODO: Once we have per-user clk constraints, set a floor */
-	clk_set_rate(tegra->emc_clock, rate);
-
-	/* TODO: Set voltage as well */
+	clk_set_min_rate(tegra->emc_clock, rate);
+	clk_set_rate(tegra->emc_clock, 0);
 
 	return 0;
 }
@@ -619,7 +617,6 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 	struct tegra_devfreq *tegra;
 	struct tegra_devfreq_device *dev;
 	struct resource *res;
-	unsigned long max_freq;
 	unsigned int i;
 	int irq;
 	int err;
@@ -658,6 +655,8 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	clk_set_rate(tegra->emc_clock, ULONG_MAX);
+
 	tegra->rate_change_nb.notifier_call = tegra_actmon_rate_notify_cb;
 	err = clk_notifier_register(tegra->emc_clock, &tegra->rate_change_nb);
 	if (err) {
@@ -677,11 +676,7 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 
 	reset_control_deassert(tegra->reset);
 
-	max_freq = clk_round_rate(tegra->emc_clock, ULONG_MAX);
-	tegra->max_freq = max_freq / KHZ;
-
-	clk_set_rate(tegra->emc_clock, max_freq);
-
+	tegra->max_freq = clk_round_rate(tegra->emc_clock, ULONG_MAX) / KHZ;
 	tegra->cur_freq = clk_get_rate(tegra->emc_clock) / KHZ;
 
 	actmon_writel(tegra, ACTMON_SAMPLING_PERIOD - 1,
