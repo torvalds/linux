@@ -786,6 +786,9 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
 			       unsigned int best_error_ppm,
 			       unsigned int *error_ppm)
 {
+	if (WARN_ON_ONCE(!target_freq))
+		return false;
+
 	*error_ppm = div_u64(1000000ULL *
 				abs(target_freq - calculated_clock->dot),
 			     target_freq);
