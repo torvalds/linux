@@ -555,7 +555,7 @@ static int smack_sb_copy_data(char *orig, char *smackopts)
 static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	struct dentry *root = sb->s_root;
-	struct inode *inode = root->d_inode;
+	struct inode *inode = d_backing_inode(root);
 	struct superblock_smack *sp = sb->s_security;
 	struct inode_smack *isp;
 	struct smack_known *skp;
@@ -851,15 +851,15 @@ static int smack_inode_link(struct dentry *old_dentry, struct inode *dir,
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, old_dentry);
 
-	isp = smk_of_inode(old_dentry->d_inode);
+	isp = smk_of_inode(d_backing_inode(old_dentry));
 	rc = smk_curacc(isp, MAY_WRITE, &ad);
-	rc = smk_bu_inode(old_dentry->d_inode, MAY_WRITE, rc);
+	rc = smk_bu_inode(d_backing_inode(old_dentry), MAY_WRITE, rc);
 
 	if (rc == 0 && d_is_positive(new_dentry)) {
-		isp = smk_of_inode(new_dentry->d_inode);
+		isp = smk_of_inode(d_backing_inode(new_dentry));
 		smk_ad_setfield_u_fs_path_dentry(&ad, new_dentry);
 		rc = smk_curacc(isp, MAY_WRITE, &ad);
-		rc = smk_bu_inode(new_dentry->d_inode, MAY_WRITE, rc);
+		rc = smk_bu_inode(d_backing_inode(new_dentry), MAY_WRITE, rc);
 	}
 
 	return rc;
@@ -875,7 +875,7 @@ static int smack_inode_link(struct dentry *old_dentry, struct inode *dir,
  */
 static int smack_inode_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *ip = dentry->d_inode;
+	struct inode *ip = d_backing_inode(dentry);
 	struct smk_audit_info ad;
 	int rc;
 
@@ -918,8 +918,8 @@ static int smack_inode_rmdir(struct inode *dir, struct dentry *dentry)
 	/*
 	 * You need write access to the thing you're removing
 	 */
-	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
-	rc = smk_bu_inode(dentry->d_inode, MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
+	rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
 	if (rc == 0) {
 		/*
 		 * You also need write access to the containing directory
@@ -957,15 +957,15 @@ static int smack_inode_rename(struct inode *old_inode,
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, old_dentry);
 
-	isp = smk_of_inode(old_dentry->d_inode);
+	isp = smk_of_inode(d_backing_inode(old_dentry));
 	rc = smk_curacc(isp, MAY_READWRITE, &ad);
-	rc = smk_bu_inode(old_dentry->d_inode, MAY_READWRITE, rc);
+	rc = smk_bu_inode(d_backing_inode(old_dentry), MAY_READWRITE, rc);
 
 	if (rc == 0 && d_is_positive(new_dentry)) {
-		isp = smk_of_inode(new_dentry->d_inode);
+		isp = smk_of_inode(d_backing_inode(new_dentry));
 		smk_ad_setfield_u_fs_path_dentry(&ad, new_dentry);
 		rc = smk_curacc(isp, MAY_READWRITE, &ad);
-		rc = smk_bu_inode(new_dentry->d_inode, MAY_READWRITE, rc);
+		rc = smk_bu_inode(d_backing_inode(new_dentry), MAY_READWRITE, rc);
 	}
 	return rc;
 }
@@ -1022,8 +1022,8 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
-	rc = smk_bu_inode(dentry->d_inode, MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
+	rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
 	return rc;
 }
 
@@ -1037,7 +1037,7 @@ static int smack_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 static int smack_inode_getattr(const struct path *path)
 {
 	struct smk_audit_info ad;
-	struct inode *inode = path->dentry->d_inode;
+	struct inode *inode = d_backing_inode(path->dentry);
 	int rc;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
@@ -1104,8 +1104,8 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
 	if (rc == 0) {
-		rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
-		rc = smk_bu_inode(dentry->d_inode, MAY_WRITE, rc);
+		rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
+		rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
 	}
 
 	return rc;
@@ -1126,7 +1126,7 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 				      const void *value, size_t size, int flags)
 {
 	struct smack_known *skp;
-	struct inode_smack *isp = dentry->d_inode->i_security;
+	struct inode_smack *isp = d_backing_inode(dentry)->i_security;
 
 	if (strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0) {
 		isp->smk_flags |= SMK_INODE_TRANSMUTE;
@@ -1171,8 +1171,8 @@ static int smack_inode_getxattr(struct dentry *dentry, const char *name)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_READ, &ad);
-	rc = smk_bu_inode(dentry->d_inode, MAY_READ, rc);
+	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_READ, &ad);
+	rc = smk_bu_inode(d_backing_inode(dentry), MAY_READ, rc);
 	return rc;
 }
 
@@ -1208,12 +1208,12 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_DENTRY);
 	smk_ad_setfield_u_fs_path_dentry(&ad, dentry);
 
-	rc = smk_curacc(smk_of_inode(dentry->d_inode), MAY_WRITE, &ad);
-	rc = smk_bu_inode(dentry->d_inode, MAY_WRITE, rc);
+	rc = smk_curacc(smk_of_inode(d_backing_inode(dentry)), MAY_WRITE, &ad);
+	rc = smk_bu_inode(d_backing_inode(dentry), MAY_WRITE, rc);
 	if (rc != 0)
 		return rc;
 
-	isp = dentry->d_inode->i_security;
+	isp = d_backing_inode(dentry)->i_security;
 	/*
 	 * Don't do anything special for these.
 	 *	XATTR_NAME_SMACKIPIN
