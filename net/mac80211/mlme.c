@@ -4439,6 +4439,10 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	} else
 		WARN_ON_ONCE(!ether_addr_equal(ifmgd->bssid, cbss->bssid));
 
+	/* Cancel scan to ensure that nothing interferes with connection */
+	if (local->scanning)
+		ieee80211_scan_cancel(local);
+
 	return 0;
 }
 
