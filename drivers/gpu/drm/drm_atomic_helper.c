@@ -346,7 +346,7 @@ needs_modeset(struct drm_crtc_state *state)
 }
 
 /**
- * drm_atomic_helper_check - validate state object for modeset changes
+ * drm_atomic_helper_check_modeset - validate state object for modeset changes
  * @dev: DRM device
  * @state: the driver state object
  *
@@ -461,7 +461,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
 
 /**
- * drm_atomic_helper_check - validate state object for modeset changes
+ * drm_atomic_helper_check_planes - validate state object for planes changes
  * @dev: DRM device
  * @state: the driver state object
  *
@@ -605,7 +605,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		/*
 		 * Each encoder has at most one connector (since we always steal
-		 * it away), so we won't call call disable hooks twice.
+		 * it away), so we won't call disable hooks twice.
 		 */
 		if (encoder->bridge)
 			encoder->bridge->funcs->disable(encoder->bridge);
@@ -757,7 +757,7 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		/*
 		 * Each encoder has at most one connector (since we always steal
-		 * it away), so we won't call call mode_set hooks twice.
+		 * it away), so we won't call mode_set hooks twice.
 		 */
 		if (funcs->mode_set)
 			funcs->mode_set(encoder, mode, adjusted_mode);
@@ -858,7 +858,7 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 
 		/*
 		 * Each encoder has at most one connector (since we always steal
-		 * it away), so we won't call call enable hooks twice.
+		 * it away), so we won't call enable hooks twice.
 		 */
 		if (encoder->bridge)
 			encoder->bridge->funcs->pre_enable(encoder->bridge);
@@ -1025,7 +1025,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
-	 * any modeset locks at all under one conditions: It must be guaranteed
+	 * any modeset locks at all under one condition: It must be guaranteed
 	 * that the asynchronous work has either been cancelled (if the driver
 	 * supports it, which at least requires that the framebuffers get
 	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
