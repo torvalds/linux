@@ -22,6 +22,9 @@ Optional Properties:
 	- pclkN, clkN: Pairs of parent of input clock and input clock to the
 		devices in this power domain. Maximum of 4 pairs (N = 0 to 3)
 		are supported currently.
+	- asbN: Clocks required by asynchronous bridges (ASB) present in
+		the power domain. These clock should be enabled during power
+		domain on/off operations.
 
 Node of a device using power domains must have a power-domains property
 defined with a phandle to respective power domain.
