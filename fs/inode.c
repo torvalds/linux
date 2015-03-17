@@ -1587,7 +1587,7 @@ static int update_time(struct inode *inode, struct timespec *time, int flags)
 void touch_atime(const struct path *path)
 {
 	struct vfsmount *mnt = path->mnt;
-	struct inode *inode = path->dentry->d_inode;
+	struct inode *inode = d_inode(path->dentry);
 	struct timespec now;
 
 	if (inode->i_flags & S_NOATIME)
@@ -1639,7 +1639,7 @@ EXPORT_SYMBOL(touch_atime);
  */
 int should_remove_suid(struct dentry *dentry)
 {
-	umode_t mode = dentry->d_inode->i_mode;
+	umode_t mode = d_inode(dentry)->i_mode;
 	int kill = 0;
 
 	/* suid always must be killed */
@@ -1675,7 +1675,7 @@ static int __remove_suid(struct dentry *dentry, int kill)
 int file_remove_suid(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int killsuid;
 	int killpriv;
 	int error = 0;
