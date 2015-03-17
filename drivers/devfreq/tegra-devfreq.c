@@ -697,6 +697,8 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	platform_set_drvdata(pdev, tegra);
+
 	err = devm_request_threaded_irq(&pdev->dev, irq, actmon_isr,
 					actmon_thread_isr, IRQF_SHARED,
 					"tegra-devfreq", tegra);
@@ -704,8 +706,6 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Interrupt request failed\n");
 		return err;
 	}
-
-	platform_set_drvdata(pdev, tegra);
 
 	tegra_devfreq_profile.initial_freq = clk_get_rate(tegra->emc_clock);
 	tegra->devfreq = devm_devfreq_add_device(&pdev->dev,
