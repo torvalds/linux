@@ -2346,12 +2346,9 @@ static void get_hw_info(struct vpu_subdev_data *data)
 			enc->reg_size = data->reg_size;
 			enc->reserv[0] = enc->reserv[1] = 0;
 		}
-		pservice->auto_freq = soc_is_rk2928g() || soc_is_rk2928l() ||
-			soc_is_rk2926() || soc_is_rk3288() || soc_is_rk3368();
-		if (pservice->auto_freq) {
-			vpu_debug(3, "vpu_service set to auto frequency mode\n");
-			atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
-		}
+		pservice->auto_freq = true;
+		vpu_debug(3, "vpu_service set to auto frequency mode\n");
+		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
 
 		pservice->bug_dec_addr = cpu_is_rk30xx();
 	} else {
