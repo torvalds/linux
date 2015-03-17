@@ -405,6 +405,28 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 	return ret;
 }
 
+
+/**
+ * ci_platform_configure: do controller configure
+ * @ci: the controller
+ *
+ */
+void ci_platform_configure(struct ci_hdrc *ci)
+{
+	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
+		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
+
+	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED) {
+		if (ci->hw_bank.lpm)
+			hw_write(ci, OP_DEVLC, DEVLC_PFSC, DEVLC_PFSC);
+		else
+			hw_write(ci, OP_PORTSC, PORTSC_PFSC, PORTSC_PFSC);
+	}
+
+	if (ci->platdata->flags & CI_HDRC_SET_NON_ZERO_TTHA)
+		hw_write(ci, OP_TTCTRL, TTCTRL_TTHA_MASK, TTCTRL_TTHA);
+}
+
 /**
  * hw_controller_reset: do controller reset
  * @ci: the controller
@@ -449,16 +471,6 @@ int hw_device_reset(struct ci_hdrc *ci)
 		ci->platdata->notify_event(ci,
 			CI_HDRC_CONTROLLER_RESET_EVENT);
 
-	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
-		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
-
-	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED) {
-		if (ci->hw_bank.lpm)
-			hw_write(ci, OP_DEVLC, DEVLC_PFSC, DEVLC_PFSC);
-		else
-			hw_write(ci, OP_PORTSC, PORTSC_PFSC, PORTSC_PFSC);
-	}
-
 	/* USBMODE should be configured step by step */
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_IDLE);
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_DC);
@@ -470,6 +482,8 @@ int hw_device_reset(struct ci_hdrc *ci)
 		pr_err("lpm = %i", ci->hw_bank.lpm);
 		return -ENODEV;
 	}
+
+	ci_platform_configure(ci);
 
 	return 0;
 }
