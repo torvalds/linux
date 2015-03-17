@@ -31,14 +31,19 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
+/* Maximum baudrate for F81232 */
+#define F81232_MAX_BAUDRATE	115200
+
 /* USB Control EP parameter */
 #define F81232_REGISTER_REQUEST	0xa0
 #define F81232_GET_REGISTER		0xc0
 #define F81232_SET_REGISTER		0x40
 
 #define SERIAL_BASE_ADDRESS			0x0120
+#define RECEIVE_BUFFER_REGISTER		(0x00 + SERIAL_BASE_ADDRESS)
 #define INTERRUPT_ENABLE_REGISTER	(0x01 + SERIAL_BASE_ADDRESS)
 #define FIFO_CONTROL_REGISTER		(0x02 + SERIAL_BASE_ADDRESS)
+#define LINE_CONTROL_REGISTER		(0x03 + SERIAL_BASE_ADDRESS)
 #define MODEM_CONTROL_REGISTER		(0x04 + SERIAL_BASE_ADDRESS)
 #define MODEM_STATUS_REGISTER		(0x06 + SERIAL_BASE_ADDRESS)
 
@@ -63,6 +68,11 @@ struct f81232_private {
 	struct work_struct interrupt_work;
 	struct usb_serial_port *port;
 };
+
+static int calc_baud_divisor(speed_t baudrate)
+{
+	return DIV_ROUND_CLOSEST(F81232_MAX_BAUDRATE, baudrate);
+}
 
 static int f81232_get_register(struct usb_serial_port *port, u16 reg, u8 *val)
 {
@@ -350,6 +360,53 @@ static void f81232_break_ctl(struct tty_struct *tty, int break_state)
 	 */
 }
 
+static void f81232_set_baudrate(struct usb_serial_port *port, speed_t baudrate)
+{
+	u8 lcr;
+	int divisor, status = 0;
+
+	divisor = calc_baud_divisor(baudrate);
+
+	status = f81232_get_register(port, LINE_CONTROL_REGISTER,
+			 &lcr); /* get LCR */
+	if (status) {
+		dev_err(&port->dev, "%s failed to get LCR: %d\n",
+			__func__, status);
+		return;
+	}
+
+	status = f81232_set_register(port, LINE_CONTROL_REGISTER,
+			 lcr | UART_LCR_DLAB); /* Enable DLAB */
+	if (status) {
+		dev_err(&port->dev, "%s failed to set DLAB: %d\n",
+			__func__, status);
+		return;
+	}
+
+	status = f81232_set_register(port, RECEIVE_BUFFER_REGISTER,
+			 divisor & 0x00ff); /* low */
+	if (status) {
+		dev_err(&port->dev, "%s failed to set baudrate MSB: %d\n",
+			__func__, status);
+		goto reapply_lcr;
+	}
+
+	status = f81232_set_register(port, INTERRUPT_ENABLE_REGISTER,
+			 (divisor & 0xff00) >> 8); /* high */
+	if (status) {
+		dev_err(&port->dev, "%s failed to set baudrate LSB: %d\n",
+			__func__, status);
+	}
+
+reapply_lcr:
+	status = f81232_set_register(port, LINE_CONTROL_REGISTER,
+			lcr & ~UART_LCR_DLAB);
+	if (status) {
+		dev_err(&port->dev, "%s failed to set DLAB: %d\n",
+			__func__, status);
+	}
+}
+
 static int f81232_port_enable(struct usb_serial_port *port)
 {
 	u8 val;
@@ -395,15 +452,62 @@ static int f81232_port_disable(struct usb_serial_port *port)
 static void f81232_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
-	/* FIXME - Stubbed out for now */
+	u8 new_lcr = 0;
+	int status = 0;
+	speed_t baudrate;
 
 	/* Don't change anything if nothing has changed */
 	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
 		return;
 
-	/* Do the real work here... */
-	if (old_termios)
-		tty_termios_copy_hw(&tty->termios, old_termios);
+	if (C_BAUD(tty) == B0)
+		f81232_set_mctrl(port, 0, TIOCM_DTR | TIOCM_RTS);
+	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
+		f81232_set_mctrl(port, TIOCM_DTR | TIOCM_RTS, 0);
+
+	baudrate = tty_get_baud_rate(tty);
+	if (baudrate > 0) {
+		if (baudrate > F81232_MAX_BAUDRATE) {
+			baudrate = F81232_MAX_BAUDRATE;
+			tty_encode_baud_rate(tty, baudrate, baudrate);
+		}
+		f81232_set_baudrate(port, baudrate);
+	}
+
+	if (C_PARENB(tty)) {
+		new_lcr |= UART_LCR_PARITY;
+
+		if (!C_PARODD(tty))
+			new_lcr |= UART_LCR_EPAR;
+
+		if (C_CMSPAR(tty))
+			new_lcr |= UART_LCR_SPAR;
+	}
+
+	if (C_CSTOPB(tty))
+		new_lcr |= UART_LCR_STOP;
+
+	switch (C_CSIZE(tty)) {
+	case CS5:
+		new_lcr |= UART_LCR_WLEN5;
+		break;
+	case CS6:
+		new_lcr |= UART_LCR_WLEN6;
+		break;
+	case CS7:
+		new_lcr |= UART_LCR_WLEN7;
+		break;
+	default:
+	case CS8:
+		new_lcr |= UART_LCR_WLEN8;
+		break;
+	}
+
+	status = f81232_set_register(port, LINE_CONTROL_REGISTER, new_lcr);
+	if (status) {
+		dev_err(&port->dev, "%s failed to set LCR: %d\n",
+			__func__, status);
+	}
 }
 
 static int f81232_tiocmget(struct tty_struct *tty)
