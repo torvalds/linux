@@ -865,6 +865,7 @@
 				clocks = <&clks IMX6QDL_CLK_USBOH3>;
 				fsl,usbphy = <&usbphy1>;
 				fsl,usbmisc = <&usbmisc 0>;
+				ahb-burst-config = <0x0>;
 				status = "disabled";
 			};
 
@@ -876,6 +877,7 @@
 				fsl,usbphy = <&usbphy2>;
 				fsl,usbmisc = <&usbmisc 1>;
 				dr_mode = "host";
+				ahb-burst-config = <0x0>;
 				status = "disabled";
 			};
 
@@ -886,6 +888,7 @@
 				clocks = <&clks IMX6QDL_CLK_USBOH3>;
 				fsl,usbmisc = <&usbmisc 2>;
 				dr_mode = "host";
+				ahb-burst-config = <0x0>;
 				status = "disabled";
 			};
 
@@ -896,6 +899,7 @@
 				clocks = <&clks IMX6QDL_CLK_USBOH3>;
 				fsl,usbmisc = <&usbmisc 3>;
 				dr_mode = "host";
+				ahb-burst-config = <0x0>;
 				status = "disabled";
 			};
 
