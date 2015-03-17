@@ -15,10 +15,8 @@
  * after an interrupt and after each system call.
  *
  * A note on terminology:
- * - top of stack: Architecture defined interrupt frame from SS to RIP
+ * - iret frame: Architecture defined interrupt frame from SS to RIP
  * at the top of the kernel process stack.
- * - partial stack frame: partially saved registers up to R11.
- * - full stack frame: Like partial stack frame, but all register saved.
  *
  * Some macro usage:
  * - CFI macros are used to generate dwarf2 unwind information for better
@@ -219,7 +217,7 @@ ENDPROC(native_usergs_sysret64)
  * Interrupts are off on entry.
  * Only called from user space.
  *
- * When user can change the frames always force IRET. That is because
+ * When user can change pt_regs->foo always force IRET. That is because
  * it deals with uncanonical addresses better. SYSRET has trouble
  * with them due to bugs in both AMD and Intel CPUs.
  */
@@ -238,6 +236,11 @@ ENTRY(system_call)
 	 */
 GLOBAL(system_call_after_swapgs)
 
+	/*
+	 * We use 'old_rsp' as a scratch register, hence this block must execute
+	 * atomically in the face of possible interrupt-driven task preemption,
+	 * so we can enable interrupts only after we're done with using old_rsp:
+	 */
 	movq	%rsp,PER_CPU_VAR(old_rsp)
 	/* kernel_stack is set so that 5 slots (iret frame) are preallocated */
 	movq	PER_CPU_VAR(kernel_stack),%rsp
@@ -303,7 +306,7 @@ int_ret_from_sys_call_fixup:
 	FIXUP_TOP_OF_STACK %r11
 	jmp int_ret_from_sys_call
 
-	/* Do syscall tracing */
+	/* Do syscall entry tracing */
 tracesys:
 	movq %rsp, %rdi
 	movq $AUDIT_ARCH_X86_64, %rsi
@@ -339,11 +342,11 @@ tracesys_phase2:
 	movq %r10,%rcx	/* fixup for C */
 	call *sys_call_table(,%rax,8)
 	movq %rax,RAX(%rsp)
-	/* Use IRET because user could have changed frame */
+	/* Use IRET because user could have changed pt_regs->foo */
 
 /*
  * Syscall return path ending with IRET.
- * Has correct top of stack, but partial stack frame.
+ * Has correct iret frame.
  */
 GLOBAL(int_ret_from_sys_call)
 	DISABLE_INTERRUPTS(CLBR_NONE)
@@ -374,7 +377,7 @@ int_careful:
 	TRACE_IRQS_OFF
 	jmp int_with_check
 
-	/* handle signals and tracing -- both require a full stack frame */
+	/* handle signals and tracing -- both require a full pt_regs */
 int_very_careful:
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_NONE)
