@@ -159,6 +159,9 @@ struct pci_dn {
 
 	int	busno;			/* pci bus number */
 	int	devfn;			/* pci device and function number */
+	int	vendor_id;		/* Vendor ID */
+	int	device_id;		/* Device ID */
+	int	class_code;		/* Device class code */
 
 	struct  pci_dn *parent;
 	struct  pci_controller *phb;	/* for pci devices */

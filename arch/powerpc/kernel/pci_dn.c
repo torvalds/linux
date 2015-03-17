@@ -166,6 +166,15 @@ void *update_dn_pci_info(struct device_node *dn, void *data)
 		pdn->devfn = (addr >> 8) & 0xff;
 	}
 
+	/* vendor/device IDs and class code */
+	regs = of_get_property(dn, "vendor-id", NULL);
+	pdn->vendor_id = regs ? of_read_number(regs, 1) : 0;
+	regs = of_get_property(dn, "device-id", NULL);
+	pdn->device_id = regs ? of_read_number(regs, 1) : 0;
+	regs = of_get_property(dn, "class-code", NULL);
+	pdn->class_code = regs ? of_read_number(regs, 1) : 0;
+
+	/* Extended config space */
 	pdn->pci_ext_config_space = (type && of_read_number(type, 1) == 1);
 
 	/* Attach to parent node */
@@ -255,6 +264,7 @@ void pci_devs_phb_init_dynamic(struct pci_controller *phb)
 	pdn = dn->data;
 	if (pdn) {
 		pdn->devfn = pdn->busno = -1;
+		pdn->vendor_id = pdn->device_id = pdn->class_code = 0;
 		pdn->phb = phb;
 		phb->pci_data = pdn;
 	}
