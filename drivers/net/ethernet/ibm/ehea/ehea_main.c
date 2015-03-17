@@ -103,7 +103,7 @@ static int ehea_probe_adapter(struct platform_device *dev);
 
 static int ehea_remove(struct platform_device *dev);
 
-static struct of_device_id ehea_module_device_table[] = {
+static const struct of_device_id ehea_module_device_table[] = {
 	{
 		.name = "lhea",
 		.compatible = "IBM,lhea",
@@ -116,7 +116,7 @@ static struct of_device_id ehea_module_device_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ehea_module_device_table);
 
-static struct of_device_id ehea_device_table[] = {
+static const struct of_device_id ehea_device_table[] = {
 	{
 		.name = "lhea",
 		.compatible = "IBM,lhea",

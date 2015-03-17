@@ -148,7 +148,7 @@ static int tah_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id tah_match[] =
+static const struct of_device_id tah_match[] =
 {
 	{
 		.compatible	= "ibm,tah",

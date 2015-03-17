@@ -3594,7 +3594,7 @@ static noinline void gfar_update_link_state(struct gfar_private *priv)
 		phy_print_status(phydev);
 }
 
-static struct of_device_id gfar_match[] =
+static const struct of_device_id gfar_match[] =
 {
 	{
 		.type = "network",

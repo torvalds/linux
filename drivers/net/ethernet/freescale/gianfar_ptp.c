@@ -554,7 +554,7 @@ static int gianfar_ptp_remove(struct platform_device *dev)
 	return 0;
 }
 
-static struct of_device_id match_table[] = {
+static const struct of_device_id match_table[] = {
 	{ .compatible = "fsl,etsec-ptp" },
 	{},
 };
