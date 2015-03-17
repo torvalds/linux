@@ -4149,7 +4149,7 @@ EXPORT_SYMBOL(dw_mci_remove);
 extern int get_wifi_chip_type(void);
 int dw_mci_suspend(struct dw_mci *host)
 {
-	int present = dw_mci_get_cd(mmc);
+	int present = dw_mci_get_cd(host->mmc);
 
 	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
 		(get_wifi_chip_type() == WIFI_ESP8089 || get_wifi_chip_type() > WIFI_AP6XXX_SERIES))
@@ -4187,7 +4187,7 @@ int dw_mci_resume(struct dw_mci *host)
 	int i, ret;
 	u32 regs;
 	struct dw_mci_slot *slot;
-	int present = dw_mci_get_cd(mmc);
+	int present = dw_mci_get_cd(host->mmc);
 
 	if ((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
 		(get_wifi_chip_type() == WIFI_ESP8089 ||
