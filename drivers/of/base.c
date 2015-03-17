@@ -715,13 +715,8 @@ static struct device_node *__of_find_node_by_path(struct device_node *parent,
 {
 	struct device_node *child;
 	int len;
-	const char *end;
 
-	end = strchr(path, ':');
-	if (!end)
-		end = strchrnul(path, '/');
-
-	len = end - path;
+	len = strcspn(path, "/:");
 	if (!len)
 		return NULL;
 
