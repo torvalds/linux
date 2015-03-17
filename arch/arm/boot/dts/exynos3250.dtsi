@@ -172,6 +172,10 @@
 			compatible = "samsung,exynos3250-cmu";
 			reg = <0x10030000 0x20000>;
 			#clock-cells = <1>;
+			assigned-clocks = <&cmu CLK_MOUT_ACLK_400_MCUISP_SUB>,
+					  <&cmu CLK_MOUT_ACLK_266_SUB>;
+			assigned-clock-parents = <&cmu CLK_FIN_PLL>,
+						 <&cmu CLK_FIN_PLL>;
 		};
 
 		cmu_dmc: clock-controller@105C0000 {
