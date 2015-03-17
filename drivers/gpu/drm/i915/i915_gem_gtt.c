@@ -1687,7 +1687,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 
 
 	if (INTEL_INFO(dev)->gen >= 8) {
-		if (IS_CHERRYVIEW(dev))
+		if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
 			chv_setup_private_ppat(dev_priv);
 		else
 			bdw_setup_private_ppat(dev_priv);
@@ -2375,7 +2375,7 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	*gtt_total = (gtt_size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 
-	if (IS_CHERRYVIEW(dev))
+	if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
 		chv_setup_private_ppat(dev_priv);
 	else
 		bdw_setup_private_ppat(dev_priv);
