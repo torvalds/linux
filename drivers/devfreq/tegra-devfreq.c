@@ -618,6 +618,7 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 	struct tegra_devfreq_device *dev;
 	struct resource *res;
 	unsigned int i;
+	unsigned long rate;
 	int irq;
 	int err;
 
@@ -647,12 +648,6 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 	if (IS_ERR(tegra->emc_clock)) {
 		dev_err(&pdev->dev, "Failed to get emc clock\n");
 		return PTR_ERR(tegra->emc_clock);
-	}
-
-	err = of_init_opp_table(&pdev->dev);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to init operating point table\n");
-		return err;
 	}
 
 	clk_set_rate(tegra->emc_clock, ULONG_MAX);
@@ -689,6 +684,11 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		spin_lock_init(&dev->lock);
 
 		tegra_actmon_configure_device(tegra, dev);
+	}
+
+	for (rate = 0; rate <= tegra->max_freq * KHZ; rate++) {
+		rate = clk_round_rate(tegra->emc_clock, rate);
+		dev_pm_opp_add(&pdev->dev, rate, 0);
 	}
 
 	irq = platform_get_irq(pdev, 0);
