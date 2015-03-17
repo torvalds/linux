@@ -916,7 +916,7 @@ setup_root:
 	 * a reference to the dentry.  We will have already gotten a reference
 	 * to the inode in btrfs_fill_super so we're good to go.
 	 */
-	if (!new && sb->s_root->d_inode == inode) {
+	if (!new && d_inode(sb->s_root) == inode) {
 		iput(inode);
 		return dget(sb->s_root);
 	}
@@ -1221,7 +1221,7 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 
 	root = mount_subtree(mnt, subvol_name);
 
-	if (!IS_ERR(root) && !is_subvolume_inode(root->d_inode)) {
+	if (!IS_ERR(root) && !is_subvolume_inode(d_inode(root))) {
 		struct super_block *s = root->d_sb;
 		dput(root);
 		root = ERR_PTR(-EINVAL);
@@ -1886,8 +1886,8 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_fsid.val[0] = be32_to_cpu(fsid[0]) ^ be32_to_cpu(fsid[2]);
 	buf->f_fsid.val[1] = be32_to_cpu(fsid[1]) ^ be32_to_cpu(fsid[3]);
 	/* Mask in the root object ID too, to disambiguate subvols */
-	buf->f_fsid.val[0] ^= BTRFS_I(dentry->d_inode)->root->objectid >> 32;
-	buf->f_fsid.val[1] ^= BTRFS_I(dentry->d_inode)->root->objectid;
+	buf->f_fsid.val[0] ^= BTRFS_I(d_inode(dentry))->root->objectid >> 32;
+	buf->f_fsid.val[1] ^= BTRFS_I(d_inode(dentry))->root->objectid;
 
 	return 0;
 }

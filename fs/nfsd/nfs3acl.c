@@ -39,7 +39,7 @@ static __be32 nfsd3_proc_getacl(struct svc_rqst * rqstp,
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
-	inode = fh->fh_dentry->d_inode;
+	inode = d_inode(fh->fh_dentry);
 
 	if (argp->mask & ~(NFS_ACL|NFS_ACLCNT|NFS_DFACL|NFS_DFACLCNT))
 		RETURN_STATUS(nfserr_inval);
@@ -94,7 +94,7 @@ static __be32 nfsd3_proc_setacl(struct svc_rqst * rqstp,
 	if (nfserr)
 		goto out;
 
-	inode = fh->fh_dentry->d_inode;
+	inode = d_inode(fh->fh_dentry);
 	if (!IS_POSIXACL(inode) || !inode->i_op->set_acl) {
 		error = -EOPNOTSUPP;
 		goto out_errno;
@@ -174,8 +174,8 @@ static int nfs3svc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p,
 	struct dentry *dentry = resp->fh.fh_dentry;
 
 	p = nfs3svc_encode_post_op_attr(rqstp, p, &resp->fh);
-	if (resp->status == 0 && dentry && dentry->d_inode) {
-		struct inode *inode = dentry->d_inode;
+	if (resp->status == 0 && dentry && d_really_is_positive(dentry)) {
+		struct inode *inode = d_inode(dentry);
 		struct kvec *head = rqstp->rq_res.head;
 		unsigned int base;
 		int n;

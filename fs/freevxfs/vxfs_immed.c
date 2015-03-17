@@ -76,7 +76,7 @@ const struct address_space_operations vxfs_immed_aops = {
 static void *
 vxfs_immed_follow_link(struct dentry *dp, struct nameidata *np)
 {
-	struct vxfs_inode_info		*vip = VXFS_INO(dp->d_inode);
+	struct vxfs_inode_info		*vip = VXFS_INO(d_inode(dp));
 	nd_set_link(np, vip->vii_immed.vi_immed);
 	return NULL;
 }

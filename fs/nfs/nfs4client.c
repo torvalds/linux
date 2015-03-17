@@ -1130,7 +1130,7 @@ error:
  */
 static int nfs_probe_destination(struct nfs_server *server)
 {
-	struct inode *inode = server->super->s_root->d_inode;
+	struct inode *inode = d_inode(server->super->s_root);
 	struct nfs_fattr *fattr;
 	int error;
 

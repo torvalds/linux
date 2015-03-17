@@ -2292,7 +2292,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 	if ((bmval[2] & FATTR4_WORD2_SECURITY_LABEL) ||
 			bmval[0] & FATTR4_WORD0_SUPPORTED_ATTRS) {
-		err = security_inode_getsecctx(dentry->d_inode,
+		err = security_inode_getsecctx(d_inode(dentry),
 						&context, &contextlen);
 		contextsupport = (err == 0);
 		if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
@@ -2384,7 +2384,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		p = xdr_reserve_space(xdr, 8);
 		if (!p)
 			goto out_resource;
-		p = encode_change(p, &stat, dentry->d_inode);
+		p = encode_change(p, &stat, d_inode(dentry));
 	}
 	if (bmval0 & FATTR4_WORD0_SIZE) {
 		p = xdr_reserve_space(xdr, 8);
@@ -2807,7 +2807,7 @@ nfsd4_encode_dirent_fattr(struct xdr_stream *xdr, struct nfsd4_readdir *cd,
 	dentry = lookup_one_len(name, cd->rd_fhp->fh_dentry, namlen);
 	if (IS_ERR(dentry))
 		return nfserrno(PTR_ERR(dentry));
-	if (!dentry->d_inode) {
+	if (d_really_is_negative(dentry)) {
 		/*
 		 * nfsd_buffered_readdir drops the i_mutex between
 		 * readdir and calling this callback, leaving a window
@@ -3324,7 +3324,7 @@ static __be32 nfsd4_encode_splice_read(
 	}
 
 	eof = (read->rd_offset + maxcount >=
-	       read->rd_fhp->fh_dentry->d_inode->i_size);
+	       d_inode(read->rd_fhp->fh_dentry)->i_size);
 
 	*(p++) = htonl(eof);
 	*(p++) = htonl(maxcount);
@@ -3401,7 +3401,7 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	xdr_truncate_encode(xdr, starting_len + 8 + ((maxcount+3)&~3));
 
 	eof = (read->rd_offset + maxcount >=
-	       read->rd_fhp->fh_dentry->d_inode->i_size);
+	       d_inode(read->rd_fhp->fh_dentry)->i_size);
 
 	tmp = htonl(eof);
 	write_bytes_to_xdr_buf(xdr->buf, starting_len    , &tmp, 4);

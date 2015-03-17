@@ -4327,9 +4327,9 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 			goto out;
 
 	if (!S_ISDIR(inode->i_mode)) {
-		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
+		if (!parent || d_really_is_negative(parent) || sb != d_inode(parent)->i_sb)
 			goto out;
-		inode = parent->d_inode;
+		inode = d_inode(parent);
 	}
 
 	while (1) {
@@ -4355,7 +4355,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 			break;
 		}
 
-		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
+		if (!parent || d_really_is_negative(parent) || sb != d_inode(parent)->i_sb)
 			break;
 
 		if (IS_ROOT(parent))
@@ -4364,7 +4364,7 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 		parent = dget_parent(parent);
 		dput(old_parent);
 		old_parent = parent;
-		inode = parent->d_inode;
+		inode = d_inode(parent);
 
 	}
 	dput(old_parent);
@@ -4450,10 +4450,10 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	}
 
 	while (1) {
-		if (!parent || !parent->d_inode || sb != parent->d_inode->i_sb)
+		if (!parent || d_really_is_negative(parent) || sb != d_inode(parent)->i_sb)
 			break;
 
-		inode = parent->d_inode;
+		inode = d_inode(parent);
 		if (root != BTRFS_I(inode)->root)
 			break;
 
@@ -4515,7 +4515,7 @@ int btrfs_log_dentry_safe(struct btrfs_trans_handle *trans,
 	struct dentry *parent = dget_parent(dentry);
 	int ret;
 
-	ret = btrfs_log_inode_parent(trans, root, dentry->d_inode, parent,
+	ret = btrfs_log_inode_parent(trans, root, d_inode(dentry), parent,
 				     start, end, 0, ctx);
 	dput(parent);
 

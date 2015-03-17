@@ -717,7 +717,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (ret)
 		goto fail;
 
-	inode = btrfs_lookup_dentry(dentry->d_parent->d_inode, dentry);
+	inode = btrfs_lookup_dentry(d_inode(dentry->d_parent), dentry);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		goto fail;
@@ -761,10 +761,10 @@ static int btrfs_may_delete(struct inode *dir, struct dentry *victim, int isdir)
 {
 	int error;
 
-	if (!victim->d_inode)
+	if (d_really_is_negative(victim))
 		return -ENOENT;
 
-	BUG_ON(victim->d_parent->d_inode != dir);
+	BUG_ON(d_inode(victim->d_parent) != dir);
 	audit_inode_child(dir, victim, AUDIT_TYPE_CHILD_DELETE);
 
 	error = inode_permission(dir, MAY_WRITE | MAY_EXEC);
@@ -772,8 +772,8 @@ static int btrfs_may_delete(struct inode *dir, struct dentry *victim, int isdir)
 		return error;
 	if (IS_APPEND(dir))
 		return -EPERM;
-	if (check_sticky(dir, victim->d_inode) || IS_APPEND(victim->d_inode) ||
-	    IS_IMMUTABLE(victim->d_inode) || IS_SWAPFILE(victim->d_inode))
+	if (check_sticky(dir, d_inode(victim)) || IS_APPEND(d_inode(victim)) ||
+	    IS_IMMUTABLE(d_inode(victim)) || IS_SWAPFILE(d_inode(victim)))
 		return -EPERM;
 	if (isdir) {
 		if (!d_is_dir(victim))
@@ -792,7 +792,7 @@ static int btrfs_may_delete(struct inode *dir, struct dentry *victim, int isdir)
 /* copy of may_create in fs/namei.c() */
 static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
 {
-	if (child->d_inode)
+	if (d_really_is_positive(child))
 		return -EEXIST;
 	if (IS_DEADDIR(dir))
 		return -ENOENT;
@@ -810,7 +810,7 @@ static noinline int btrfs_mksubvol(struct path *parent,
 				   u64 *async_transid, bool readonly,
 				   struct btrfs_qgroup_inherit *inherit)
 {
-	struct inode *dir  = parent->dentry->d_inode;
+	struct inode *dir  = d_inode(parent->dentry);
 	struct dentry *dentry;
 	int error;
 
@@ -824,7 +824,7 @@ static noinline int btrfs_mksubvol(struct path *parent,
 		goto out_unlock;
 
 	error = -EEXIST;
-	if (dentry->d_inode)
+	if (d_really_is_positive(dentry))
 		goto out_dput;
 
 	error = btrfs_may_create(dir, dentry);
@@ -2294,7 +2294,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 {
 	struct dentry *parent = file->f_path.dentry;
 	struct dentry *dentry;
-	struct inode *dir = parent->d_inode;
+	struct inode *dir = d_inode(parent);
 	struct inode *inode;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_root *dest = NULL;
@@ -2333,12 +2333,12 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		goto out_unlock_dir;
 	}
 
-	if (!dentry->d_inode) {
+	if (d_really_is_negative(dentry)) {
 		err = -ENOENT;
 		goto out_dput;
 	}
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	dest = BTRFS_I(inode)->root;
 	if (!capable(CAP_SYS_ADMIN)) {
 		/*

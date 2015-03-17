@@ -110,7 +110,7 @@ int omfs_make_empty(struct inode *inode, struct super_block *sb)
 
 static int omfs_add_link(struct dentry *dentry, struct inode *inode)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	const char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	struct omfs_inode *oi;
@@ -155,7 +155,7 @@ out:
 
 static int omfs_delete_entry(struct dentry *dentry)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	struct inode *dirty;
 	const char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
@@ -237,7 +237,7 @@ static int omfs_dir_is_empty(struct inode *inode)
 
 static int omfs_remove(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int ret;
 
 
@@ -373,8 +373,8 @@ static bool omfs_fill_chain(struct inode *dir, struct dir_context *ctx,
 static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		struct inode *new_dir, struct dentry *new_dentry)
 {
-	struct inode *new_inode = new_dentry->d_inode;
-	struct inode *old_inode = old_dentry->d_inode;
+	struct inode *new_inode = d_inode(new_dentry);
+	struct inode *old_inode = d_inode(old_dentry);
 	int err;
 
 	if (new_inode) {

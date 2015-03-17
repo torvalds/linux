@@ -1547,7 +1547,7 @@ int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	error = inode_change_ok(inode, iattr);

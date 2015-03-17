@@ -3391,7 +3391,7 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 int ceph_encode_dentry_release(void **p, struct dentry *dentry,
 			       int mds, int drop, int unless)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	struct ceph_mds_request_release *rel = *p;
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	int force = 0;

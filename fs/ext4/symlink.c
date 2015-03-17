@@ -25,7 +25,7 @@
 
 static void *ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct ext4_inode_info *ei = EXT4_I(dentry->d_inode);
+	struct ext4_inode_info *ei = EXT4_I(d_inode(dentry));
 	nd_set_link(nd, (char *) ei->i_data);
 	return NULL;
 }

@@ -776,12 +776,12 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_getxattr(dentry, name, value, size);
 
-	return __ceph_getxattr(dentry->d_inode, name, value, size);
+	return __ceph_getxattr(d_inode(dentry), name, value, size);
 }
 
 ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_vxattr *vxattrs = ceph_inode_vxattrs(inode);
 	u32 vir_namelen = 0;
@@ -847,7 +847,7 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 			      const char *value, size_t size, int flags)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_request *req;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
@@ -901,7 +901,7 @@ out:
 int __ceph_setxattr(struct dentry *dentry, const char *name,
 			const void *value, size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ceph_vxattr *vxattr;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int issued;
@@ -995,7 +995,7 @@ out:
 int ceph_setxattr(struct dentry *dentry, const char *name,
 		  const void *value, size_t size, int flags)
 {
-	if (ceph_snap(dentry->d_inode) != CEPH_NOSNAP)
+	if (ceph_snap(d_inode(dentry)) != CEPH_NOSNAP)
 		return -EROFS;
 
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
@@ -1011,7 +1011,7 @@ static int ceph_send_removexattr(struct dentry *dentry, const char *name)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ceph_mds_request *req;
 	int err;
 
@@ -1032,7 +1032,7 @@ static int ceph_send_removexattr(struct dentry *dentry, const char *name)
 
 int __ceph_removexattr(struct dentry *dentry, const char *name)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ceph_vxattr *vxattr;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int issued;
@@ -1098,7 +1098,7 @@ out:
 
 int ceph_removexattr(struct dentry *dentry, const char *name)
 {
-	if (ceph_snap(dentry->d_inode) != CEPH_NOSNAP)
+	if (ceph_snap(d_inode(dentry)) != CEPH_NOSNAP)
 		return -EROFS;
 
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))

@@ -834,7 +834,7 @@ void nilfs_evict_inode(struct inode *inode)
 int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct nilfs_transaction_info ti;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
 	int err;
 

@@ -722,7 +722,7 @@ cifs_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 static void
 cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	cfile->fid.netfid = fid->netfid;
 	cifs_set_oplock_level(cinode, oplock);
 	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);

@@ -1209,7 +1209,7 @@ int ocfs2_drop_inode(struct inode *inode)
  */
 int ocfs2_inode_revalidate(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int status = 0;
 
 	trace_ocfs2_inode_revalidate(inode,

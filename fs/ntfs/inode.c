@@ -2889,7 +2889,7 @@ void ntfs_truncate_vfs(struct inode *vi) {
  */
 int ntfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *vi = dentry->d_inode;
+	struct inode *vi = d_inode(dentry);
 	int err;
 	unsigned int ia_valid = attr->ia_valid;
 

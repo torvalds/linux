@@ -552,7 +552,7 @@ static int udf_delete_entry(struct inode *inode, struct fileIdentDesc *fi,
 static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 {
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc cfi, *fi;
 	int err;
@@ -767,7 +767,7 @@ static int empty_dir(struct inode *dir)
 static int udf_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int retval;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc *fi, cfi;
 	struct kernel_lb_addr tloc;
@@ -809,7 +809,7 @@ out:
 static int udf_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int retval;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc *fi;
 	struct fileIdentDesc cfi;
@@ -999,7 +999,7 @@ out_no_entry:
 static int udf_link(struct dentry *old_dentry, struct inode *dir,
 		    struct dentry *dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	struct udf_fileident_bh fibh;
 	struct fileIdentDesc cfi, *fi;
 	int err;
@@ -1036,8 +1036,8 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 		      struct inode *new_dir, struct dentry *new_dentry)
 {
-	struct inode *old_inode = old_dentry->d_inode;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *old_inode = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 	struct udf_fileident_bh ofibh, nfibh;
 	struct fileIdentDesc *ofi = NULL, *nfi = NULL, *dir_fi = NULL;
 	struct fileIdentDesc ocfi, ncfi;
@@ -1175,7 +1175,7 @@ static struct dentry *udf_get_parent(struct dentry *child)
 	struct fileIdentDesc cfi;
 	struct udf_fileident_bh fibh;
 
-	if (!udf_find_entry(child->d_inode, &dotdot, &fibh, &cfi))
+	if (!udf_find_entry(d_inode(child), &dotdot, &fibh, &cfi))
 		return ERR_PTR(-EACCES);
 
 	if (fibh.sbh != fibh.ebh)
@@ -1183,7 +1183,7 @@ static struct dentry *udf_get_parent(struct dentry *child)
 	brelse(fibh.sbh);
 
 	tloc = lelb_to_cpu(cfi.icb.extLocation);
-	inode = udf_iget(child->d_inode->i_sb, &tloc);
+	inode = udf_iget(d_inode(child)->i_sb, &tloc);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 

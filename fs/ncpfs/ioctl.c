@@ -376,7 +376,7 @@ static long __ncp_ioctl(struct inode *inode, unsigned int cmd, unsigned long arg
 				struct dentry* dentry = inode->i_sb->s_root;
 
 				if (dentry) {
-					struct inode* s_inode = dentry->d_inode;
+					struct inode* s_inode = d_inode(dentry);
 
 					if (s_inode) {
 						sr.volNumber = NCP_FINFO(s_inode)->volNumber;
@@ -384,7 +384,7 @@ static long __ncp_ioctl(struct inode *inode, unsigned int cmd, unsigned long arg
 						sr.namespace = server->name_space[sr.volNumber];
 						result = 0;
 					} else
-						ncp_dbg(1, "s_root->d_inode==NULL\n");
+						ncp_dbg(1, "d_inode(s_root)==NULL\n");
 				} else
 					ncp_dbg(1, "s_root==NULL\n");
 			} else {
@@ -431,7 +431,7 @@ static long __ncp_ioctl(struct inode *inode, unsigned int cmd, unsigned long arg
 				if (result == 0) {
 					dentry = inode->i_sb->s_root;
 					if (dentry) {
-						struct inode* s_inode = dentry->d_inode;
+						struct inode* s_inode = d_inode(dentry);
 
 						if (s_inode) {
 							NCP_FINFO(s_inode)->volNumber = vnum;
@@ -439,7 +439,7 @@ static long __ncp_ioctl(struct inode *inode, unsigned int cmd, unsigned long arg
 							NCP_FINFO(s_inode)->DosDirNum = dosde;
 							server->root_setuped = 1;
 						} else {
-							ncp_dbg(1, "s_root->d_inode==NULL\n");
+							ncp_dbg(1, "d_inode(s_root)==NULL\n");
 							result = -EIO;
 						}
 					} else {

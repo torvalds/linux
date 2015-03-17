@@ -472,7 +472,7 @@ static void *
 befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct super_block *sb = dentry->d_sb;
-	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
+	befs_inode_info *befs_ino = BEFS_I(d_inode(dentry));
 	befs_data_stream *data = &befs_ino->i_data.ds;
 	befs_off_t len = data->size;
 	char *link;
@@ -502,7 +502,7 @@ befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 static void *
 befs_fast_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
+	befs_inode_info *befs_ino = BEFS_I(d_inode(dentry));
 	nd_set_link(nd, befs_ino->i_data.symlink);
 	return NULL;
 }

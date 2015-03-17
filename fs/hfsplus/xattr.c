@@ -574,7 +574,7 @@ static ssize_t hfsplus_listxattr_finder_info(struct dentry *dentry,
 						char *buffer, size_t size)
 {
 	ssize_t res = 0;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hfs_find_data fd;
 	u16 entry_type;
 	u8 folder_finder_info[sizeof(struct DInfo) + sizeof(struct DXInfo)];
@@ -642,7 +642,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	ssize_t err;
 	ssize_t res = 0;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hfs_find_data fd;
 	u16 key_len = 0;
 	struct hfsplus_attr_key attr_key;

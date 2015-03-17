@@ -301,7 +301,7 @@ xfs_vn_link(
 	struct inode	*dir,
 	struct dentry	*dentry)
 {
-	struct inode	*inode = old_dentry->d_inode;
+	struct inode	*inode = d_inode(old_dentry);
 	struct xfs_name	name;
 	int		error;
 
@@ -326,7 +326,7 @@ xfs_vn_unlink(
 
 	xfs_dentry_to_name(&name, dentry, 0);
 
-	error = xfs_remove(XFS_I(dir), &name, XFS_I(dentry->d_inode));
+	error = xfs_remove(XFS_I(dir), &name, XFS_I(d_inode(dentry)));
 	if (error)
 		return error;
 
@@ -384,7 +384,7 @@ xfs_vn_rename(
 	struct dentry	*ndentry,
 	unsigned int	flags)
 {
-	struct inode	*new_inode = ndentry->d_inode;
+	struct inode	*new_inode = d_inode(ndentry);
 	int		omode = 0;
 	struct xfs_name	oname;
 	struct xfs_name	nname;
@@ -394,12 +394,12 @@ xfs_vn_rename(
 
 	/* if we are exchanging files, we need to set i_mode of both files */
 	if (flags & RENAME_EXCHANGE)
-		omode = ndentry->d_inode->i_mode;
+		omode = d_inode(ndentry)->i_mode;
 
 	xfs_dentry_to_name(&oname, odentry, omode);
-	xfs_dentry_to_name(&nname, ndentry, odentry->d_inode->i_mode);
+	xfs_dentry_to_name(&nname, ndentry, d_inode(odentry)->i_mode);
 
-	return xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
+	return xfs_rename(XFS_I(odir), &oname, XFS_I(d_inode(odentry)),
 			  XFS_I(ndir), &nname,
 			  new_inode ? XFS_I(new_inode) : NULL, flags);
 }
@@ -421,7 +421,7 @@ xfs_vn_follow_link(
 	if (!link)
 		goto out_err;
 
-	error = xfs_readlink(XFS_I(dentry->d_inode), link);
+	error = xfs_readlink(XFS_I(d_inode(dentry)), link);
 	if (unlikely(error))
 		goto out_kfree;
 
@@ -441,7 +441,7 @@ xfs_vn_getattr(
 	struct dentry		*dentry,
 	struct kstat		*stat)
 {
-	struct inode		*inode = dentry->d_inode;
+	struct inode		*inode = d_inode(dentry);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 
@@ -968,14 +968,14 @@ xfs_vn_setattr(
 	struct dentry		*dentry,
 	struct iattr		*iattr)
 {
-	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
+	struct xfs_inode	*ip = XFS_I(d_inode(dentry));
 	int			error;
 
 	if (iattr->ia_valid & ATTR_SIZE) {
 		uint		iolock = XFS_IOLOCK_EXCL;
 
 		xfs_ilock(ip, iolock);
-		error = xfs_break_layouts(dentry->d_inode, &iolock);
+		error = xfs_break_layouts(d_inode(dentry), &iolock);
 		if (!error)
 			error = xfs_setattr_size(ip, iattr);
 		xfs_iunlock(ip, iolock);

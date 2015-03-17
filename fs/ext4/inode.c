@@ -4524,7 +4524,7 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
  */
 int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error, rc = 0;
 	int orphan = 0;
 	const unsigned int ia_valid = attr->ia_valid;
@@ -4672,7 +4672,7 @@ int ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct inode *inode;
 	unsigned long long delalloc_blocks;
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	generic_fillattr(inode, stat);
 
 	/*

@@ -179,7 +179,7 @@ ext4_xattr_handler(int name_index)
 /*
  * Inode operation listxattr()
  *
- * dentry->d_inode->i_mutex: don't care
+ * d_inode(dentry)->i_mutex: don't care
  */
 ssize_t
 ext4_listxattr(struct dentry *dentry, char *buffer, size_t size)
@@ -424,7 +424,7 @@ ext4_xattr_list_entries(struct dentry *dentry, struct ext4_xattr_entry *entry,
 static int
 ext4_xattr_block_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct buffer_head *bh = NULL;
 	int error;
 	struct mb_cache *ext4_mb_cache = EXT4_GET_MB_CACHE(inode);
@@ -461,7 +461,7 @@ cleanup:
 static int
 ext4_xattr_ibody_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ext4_xattr_ibody_header *header;
 	struct ext4_inode *raw_inode;
 	struct ext4_iloc iloc;
@@ -502,7 +502,7 @@ ext4_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	int ret, ret2;
 
-	down_read(&EXT4_I(dentry->d_inode)->xattr_sem);
+	down_read(&EXT4_I(d_inode(dentry))->xattr_sem);
 	ret = ret2 = ext4_xattr_ibody_list(dentry, buffer, buffer_size);
 	if (ret < 0)
 		goto errout;
@@ -515,7 +515,7 @@ ext4_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 		goto errout;
 	ret += ret2;
 errout:
-	up_read(&EXT4_I(dentry->d_inode)->xattr_sem);
+	up_read(&EXT4_I(d_inode(dentry))->xattr_sem);
 	return ret;
 }
 

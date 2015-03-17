@@ -960,7 +960,7 @@ static const struct xattr_handler *xprefix_to_handler(int xprefix) {
 
 ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_cache *ic = f->inocache;

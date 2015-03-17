@@ -163,7 +163,7 @@ static int ramfs_nommu_resize(struct inode *inode, loff_t newsize, loff_t size)
  */
 static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	unsigned int old_ia_valid = ia->ia_valid;
 	int ret = 0;
 

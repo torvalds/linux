@@ -1169,7 +1169,7 @@ static int ll_md_setattr(struct dentry *dentry, struct md_op_data *op_data,
 		  struct md_open_data **mod)
 {
 	struct lustre_md md;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ptlrpc_request *request = NULL;
 	int rc, ia_valid;
@@ -1293,7 +1293,7 @@ static int ll_setattr_ost(struct inode *inode, struct iattr *attr)
  */
 int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct md_op_data *op_data = NULL;
 	struct md_open_data *mod = NULL;
@@ -1467,7 +1467,7 @@ out:
 
 int ll_setattr(struct dentry *de, struct iattr *attr)
 {
-	int mode = de->d_inode->i_mode;
+	int mode = d_inode(de)->i_mode;
 
 	if ((attr->ia_valid & (ATTR_CTIME|ATTR_SIZE|ATTR_MODE)) ==
 			      (ATTR_CTIME|ATTR_SIZE|ATTR_MODE))

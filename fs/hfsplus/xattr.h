@@ -24,7 +24,7 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 static inline int hfsplus_setxattr(struct dentry *dentry, const char *name,
 			const void *value, size_t size, int flags)
 {
-	return __hfsplus_setxattr(dentry->d_inode, name, value, size, flags);
+	return __hfsplus_setxattr(d_inode(dentry), name, value, size, flags);
 }
 
 ssize_t __hfsplus_getxattr(struct inode *inode, const char *name,
@@ -35,7 +35,7 @@ static inline ssize_t hfsplus_getxattr(struct dentry *dentry,
 					void *value,
 					size_t size)
 {
-	return __hfsplus_getxattr(dentry->d_inode, name, value, size);
+	return __hfsplus_getxattr(d_inode(dentry), name, value, size);
 }
 
 ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size);

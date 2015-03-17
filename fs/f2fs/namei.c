@@ -150,7 +150,7 @@ out:
 static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	int err;
 
@@ -181,10 +181,10 @@ out:
 struct dentry *f2fs_get_parent(struct dentry *child)
 {
 	struct qstr dotdot = QSTR_INIT("..", 2);
-	unsigned long ino = f2fs_inode_by_name(child->d_inode, &dotdot);
+	unsigned long ino = f2fs_inode_by_name(d_inode(child), &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(f2fs_iget(child->d_inode->i_sb, ino));
+	return d_obtain_alias(f2fs_iget(d_inode(child)->i_sb, ino));
 }
 
 static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
@@ -214,7 +214,7 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct f2fs_dir_entry *de;
 	struct page *page;
 	int err = -ENOENT;
@@ -326,7 +326,7 @@ out_fail:
 
 static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	if (f2fs_empty_dir(inode))
 		return f2fs_unlink(dir, dentry);
 	return -ENOTEMPTY;
@@ -374,8 +374,8 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			struct inode *new_dir, struct dentry *new_dentry)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(old_dir);
-	struct inode *old_inode = old_dentry->d_inode;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *old_inode = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 	struct page *old_dir_page;
 	struct page *old_page, *new_page;
 	struct f2fs_dir_entry *old_dir_entry = NULL;
@@ -501,8 +501,8 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(old_dir);
-	struct inode *old_inode = old_dentry->d_inode;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *old_inode = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 	struct page *old_dir_page, *new_dir_page;
 	struct page *old_page, *new_page;
 	struct f2fs_dir_entry *old_dir_entry = NULL, *new_dir_entry = NULL;

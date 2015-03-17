@@ -295,7 +295,7 @@ struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 
 	if ((name->len == 1 && memcmp(name->name, ".", 1) == 0) ||
 	    (name->len == 2 && memcmp(name->name, "..", 2) == 0 &&
-	     dir == sb->s_root->d_inode)) {
+	     dir == d_inode(sb->s_root))) {
 		igrab(dir);
 		return dir;
 	}
@@ -687,7 +687,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	}
 	gfs2_set_inode_flags(inode);
 
-	if ((GFS2_I(sdp->sd_root_dir->d_inode) == dip) ||
+	if ((GFS2_I(d_inode(sdp->sd_root_dir)) == dip) ||
 	    (dip->i_diskflags & GFS2_DIF_TOPDIR))
 		aflags |= GFS2_AF_ORLOV;
 
@@ -888,7 +888,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 {
 	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder ghs[2];
 	struct buffer_head *dibh;
@@ -1055,7 +1055,7 @@ static int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 static int gfs2_unlink_inode(struct gfs2_inode *dip,
 			     const struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int error;
 
@@ -1091,7 +1091,7 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct gfs2_inode *dip = GFS2_I(dir);
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder ghs[3];
 	struct gfs2_rgrpd *rgd;
@@ -1241,7 +1241,7 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 		return PTR_ERR(d);
 	if (d != NULL)
 		dentry = d;
-	if (dentry->d_inode) {
+	if (d_really_is_positive(dentry)) {
 		if (!(*opened & FILE_OPENED))
 			return finish_no_open(file, d);
 		dput(d);
@@ -1282,7 +1282,7 @@ static int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 			error = -EINVAL;
 			break;
 		}
-		if (dir == sb->s_root->d_inode) {
+		if (dir == d_inode(sb->s_root)) {
 			error = 0;
 			break;
 		}
@@ -1321,7 +1321,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 {
 	struct gfs2_inode *odip = GFS2_I(odir);
 	struct gfs2_inode *ndip = GFS2_I(ndir);
-	struct gfs2_inode *ip = GFS2_I(odentry->d_inode);
+	struct gfs2_inode *ip = GFS2_I(d_inode(odentry));
 	struct gfs2_inode *nip = NULL;
 	struct gfs2_sbd *sdp = GFS2_SB(odir);
 	struct gfs2_holder ghs[5], r_gh = { .gh_gl = NULL, };
@@ -1332,8 +1332,8 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	unsigned int x;
 	int error;
 
-	if (ndentry->d_inode) {
-		nip = GFS2_I(ndentry->d_inode);
+	if (d_really_is_positive(ndentry)) {
+		nip = GFS2_I(d_inode(ndentry));
 		if (ip == nip)
 			return 0;
 	}
@@ -1457,7 +1457,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	/* Check out the dir to be renamed */
 
 	if (dir_rename) {
-		error = gfs2_permission(odentry->d_inode, MAY_WRITE);
+		error = gfs2_permission(d_inode(odentry), MAY_WRITE);
 		if (error)
 			goto out_gunlock;
 	}
@@ -1550,7 +1550,7 @@ out:
 
 static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+	struct gfs2_inode *ip = GFS2_I(d_inode(dentry));
 	struct gfs2_holder i_gh;
 	struct buffer_head *dibh;
 	unsigned int size;
@@ -1740,7 +1740,7 @@ out:
 
 static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder i_gh;
 	int error;
@@ -1796,7 +1796,7 @@ out:
 static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
@@ -1819,7 +1819,7 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 static int gfs2_setxattr(struct dentry *dentry, const char *name,
 			 const void *data, size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int ret;
@@ -1839,7 +1839,7 @@ static int gfs2_setxattr(struct dentry *dentry, const char *name,
 static ssize_t gfs2_getxattr(struct dentry *dentry, const char *name,
 			     void *data, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int ret;
@@ -1860,7 +1860,7 @@ static ssize_t gfs2_getxattr(struct dentry *dentry, const char *name,
 
 static int gfs2_removexattr(struct dentry *dentry, const char *name)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int ret;
