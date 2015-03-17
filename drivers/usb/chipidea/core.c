@@ -438,6 +438,9 @@ void ci_platform_configure(struct ci_hdrc *ci)
 
 	hw_write(ci, OP_USBCMD, 0xff0000, ci->platdata->itc_setting << 16);
 
+	if (ci->platdata->flags & CI_HDRC_OVERRIDE_AHB_BURST)
+		hw_write_id_reg(ci, ID_SBUSCFG, AHBBRST_MASK,
+			ci->platdata->ahb_burst_config);
 }
 
 /**
@@ -644,6 +647,17 @@ static int ci_get_platdata(struct device *dev,
 				"failed to get itc-setting\n");
 			return ret;
 		}
+	}
+
+	if (of_find_property(dev->of_node, "ahb-burst-config", NULL)) {
+		ret = of_property_read_u32(dev->of_node, "ahb-burst-config",
+			&platdata->ahb_burst_config);
+		if (ret) {
+			dev_err(dev,
+				"failed to get ahb-burst-config\n");
+			return ret;
+		}
+		platdata->flags |= CI_HDRC_OVERRIDE_AHB_BURST;
 	}
 
 	return 0;

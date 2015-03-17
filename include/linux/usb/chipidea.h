@@ -33,6 +33,7 @@ struct ci_hdrc_platform_data {
 #define CI_HDRC_FORCE_FULLSPEED		BIT(6)
 #define CI_HDRC_TURN_VBUS_EARLY_ON	BIT(7)
 #define CI_HDRC_SET_NON_ZERO_TTHA	BIT(8)
+#define CI_HDRC_OVERRIDE_AHB_BURST	BIT(9)
 	enum usb_dr_mode	dr_mode;
 #define CI_HDRC_CONTROLLER_RESET_EVENT		0
 #define CI_HDRC_CONTROLLER_STOPPED_EVENT	1
@@ -42,6 +43,7 @@ struct ci_hdrc_platform_data {
 	bool			tpl_support;
 	/* interrupt threshold setting */
 	u32			itc_setting;
+	u32			ahb_burst_config;
 };
 
 /* Default offset of capability registers */
