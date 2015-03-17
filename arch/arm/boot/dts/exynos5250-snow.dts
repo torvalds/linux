@@ -29,6 +29,7 @@
 
 	chosen {
 		bootargs = "console=tty1";
+		stdout-path = "serial3:115200n8";
 	};
 
 	gpio-keys {
