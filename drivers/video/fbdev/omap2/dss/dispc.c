@@ -2338,8 +2338,8 @@ again:
 		}
 	} while (*decim_x <= *x_predecim && *decim_y <= *y_predecim && error);
 
-	if (check_horiz_timing_omap3(pclk, lclk, mgr_timings, pos_x, width,
-				height, out_width, out_height, *five_taps)) {
+	if (check_horiz_timing_omap3(pclk, lclk, mgr_timings, pos_x, in_width,
+				in_height, out_width, out_height, *five_taps)) {
 			DSSERR("horizontal timing too tight\n");
 			return -EINVAL;
 	}
