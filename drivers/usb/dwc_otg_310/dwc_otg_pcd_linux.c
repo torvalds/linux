@@ -1584,11 +1584,13 @@ static void check_id(struct work_struct *work)
 
 	if (last_id != id) {
 		pr_info("[otg id chg] last id %d current id %d\n", last_id, id);
+
+		if (pldata->phy_status == USB_PHY_SUSPEND) {
+			pldata->clock_enable(pldata, 1);
+			pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+		}
+
 		if (!id) { /* Force Host */
-			if (pldata->phy_status == USB_PHY_SUSPEND) {
-				pldata->clock_enable(pldata, 1);
-				pldata->phy_suspend(pldata, USB_PHY_ENABLED);
-	}
 			id_status_change(otg_dev->core_if, id);
 		} else { /* Force Device */
 			id_status_change(otg_dev->core_if, id);
