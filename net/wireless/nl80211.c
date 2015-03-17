@@ -1099,8 +1099,6 @@ static int nl80211_send_wowlan(struct sk_buff *msg,
 	if (large && nl80211_send_wowlan_tcp_caps(rdev, msg))
 		return -ENOBUFS;
 
-	/* TODO: send wowlan net detect */
-
 	nla_nest_end(msg, nl_wowlan);
 
 	return 0;
@@ -8829,6 +8827,9 @@ static int nl80211_send_wowlan_nd(struct sk_buff *msg,
 		return -ENOBUFS;
 
 	if (nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_INTERVAL, req->interval))
+		return -ENOBUFS;
+
+	if (nla_put_u32(msg, NL80211_ATTR_SCHED_SCAN_DELAY, req->delay))
 		return -ENOBUFS;
 
 	freqs = nla_nest_start(msg, NL80211_ATTR_SCAN_FREQUENCIES);
