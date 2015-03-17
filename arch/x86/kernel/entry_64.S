@@ -237,16 +237,16 @@ ENTRY(system_call)
 GLOBAL(system_call_after_swapgs)
 
 	/*
-	 * We use 'old_rsp' as a scratch register, hence this block must execute
+	 * We use 'rsp_scratch' as a scratch register, hence this block must execute
 	 * atomically in the face of possible interrupt-driven task preemption,
-	 * so we can enable interrupts only after we're done with using old_rsp:
+	 * so we can enable interrupts only after we're done with using rsp_scratch:
 	 */
-	movq	%rsp,PER_CPU_VAR(old_rsp)
+	movq	%rsp,PER_CPU_VAR(rsp_scratch)
 	/* kernel_stack is set so that 5 slots (iret frame) are preallocated */
 	movq	PER_CPU_VAR(kernel_stack),%rsp
 	ALLOC_PT_GPREGS_ON_STACK 8		/* +8: space for orig_ax */
 	movq	%rcx,RIP(%rsp)
-	movq	PER_CPU_VAR(old_rsp),%rcx
+	movq	PER_CPU_VAR(rsp_scratch),%rcx
 	movq	%r11,EFLAGS(%rsp)
 	movq	%rcx,RSP(%rsp)
 	/*
@@ -657,7 +657,7 @@ common_interrupt:
 	ASM_CLAC
 	addq $-0x80,(%rsp)		/* Adjust vector to [-256,-1] range */
 	interrupt do_IRQ
-	/* 0(%rsp): old_rsp */
+	/* 0(%rsp): rsp_scratch */
 ret_from_intr:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
