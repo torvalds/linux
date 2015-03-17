@@ -3591,7 +3591,7 @@ static void put_event(struct perf_event *event)
 	ctx = perf_event_ctx_lock_nested(event, SINGLE_DEPTH_NESTING);
 	WARN_ON_ONCE(ctx->parent_ctx);
 	perf_remove_from_context(event, true);
-	mutex_unlock(&ctx->mutex);
+	perf_event_ctx_unlock(event, ctx);
 
 	_free_event(event);
 }
