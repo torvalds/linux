@@ -283,9 +283,11 @@
 			 <&clock CLK_MOUT_SW_ACLK300>,
 			 <&clock CLK_MOUT_USER_ACLK300_DISP1>,
 			 <&clock CLK_MOUT_SW_ACLK400>,
-			 <&clock CLK_MOUT_USER_ACLK400_DISP1>;
+			 <&clock CLK_MOUT_USER_ACLK400_DISP1>,
+			 <&clock CLK_FIMD1>, <&clock CLK_MIXER>;
 		clock-names = "oscclk", "pclk0", "clk0",
-			      "pclk1", "clk1", "pclk2", "clk2";
+			      "pclk1", "clk1", "pclk2", "clk2",
+			      "asb0", "asb1";
 	};
 
 	pinctrl_0: pinctrl@13400000 {
