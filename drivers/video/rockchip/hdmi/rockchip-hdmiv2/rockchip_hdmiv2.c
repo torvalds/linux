@@ -159,8 +159,7 @@ static int rockchip_hdmiv2_clk_enable(struct hdmi_dev *hdmi_dev)
 	    (hdmi_dev->clk_on & HDMI_HDCPCLK_ON))
 		return 0;
 
-	if ((hdmi_dev->clk_on & HDMI_PD_ON) == 0 &&
-	    hdmi_dev->soctype == HDMI_SOC_RK3288) {
+	if ((hdmi_dev->clk_on & HDMI_PD_ON) == 0) {
 		if (hdmi_dev->pd == NULL) {
 			hdmi_dev->pd = devm_clk_get(hdmi_dev->dev, "pd_hdmi");
 			if (IS_ERR(hdmi_dev->pd)) {
