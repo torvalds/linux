@@ -29,8 +29,16 @@
 
 #include <linux/virtio_types.h>
 
-#define VIRTIO_SCSI_CDB_SIZE   32
-#define VIRTIO_SCSI_SENSE_SIZE 96
+/* Default values of the CDB and sense data size configuration fields */
+#define VIRTIO_SCSI_CDB_DEFAULT_SIZE   32
+#define VIRTIO_SCSI_SENSE_DEFAULT_SIZE 96
+
+#ifndef VIRTIO_SCSI_CDB_SIZE
+#define VIRTIO_SCSI_CDB_SIZE VIRTIO_SCSI_CDB_DEFAULT_SIZE
+#endif
+#ifndef VIRTIO_SCSI_SENSE_SIZE
+#define VIRTIO_SCSI_SENSE_SIZE VIRTIO_SCSI_SENSE_DEFAULT_SIZE
+#endif
 
 /* SCSI command request, followed by data-out */
 struct virtio_scsi_cmd_req {
