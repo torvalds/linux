@@ -30,6 +30,7 @@
 struct pci_dev;
 struct pci_bus;
 struct device_node;
+struct pci_dn;
 
 #ifdef CONFIG_EEH
 
@@ -137,6 +138,7 @@ struct eeh_dev {
 	struct list_head list;		/* Form link list in the PE	*/
 	struct pci_controller *phb;	/* Associated PHB		*/
 	struct device_node *dn;		/* Associated device node	*/
+	struct pci_dn *pdn;		/* Associated PCI device node	*/
 	struct pci_dev *pdev;		/* Associated PCI device	*/
 	struct pci_bus *bus;		/* PCI bus for partial hotplug	*/
 };
@@ -144,6 +146,11 @@ struct eeh_dev {
 static inline struct device_node *eeh_dev_to_of_node(struct eeh_dev *edev)
 {
 	return edev ? edev->dn : NULL;
+}
+
+static inline struct pci_dn *eeh_dev_to_pdn(struct eeh_dev *edev)
+{
+	return edev ? edev->pdn : NULL;
 }
 
 static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
@@ -272,7 +279,7 @@ void eeh_pe_restore_bars(struct eeh_pe *pe);
 const char *eeh_pe_loc_get(struct eeh_pe *pe);
 struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);
 
-void *eeh_dev_init(struct device_node *dn, void *data);
+void *eeh_dev_init(struct pci_dn *pdn, void *data);
 void eeh_dev_phb_init_dynamic(struct pci_controller *phb);
 int eeh_init(void);
 int __init eeh_ops_register(struct eeh_ops *ops);
@@ -323,7 +330,7 @@ static inline int eeh_init(void)
 	return 0;
 }
 
-static inline void *eeh_dev_init(struct device_node *dn, void *data)
+static inline void *eeh_dev_init(struct pci_dn *pdn, void *data)
 {
 	return NULL;
 }

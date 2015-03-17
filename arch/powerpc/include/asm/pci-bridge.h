@@ -213,8 +213,14 @@ static inline struct eeh_dev *of_node_to_eeh_dev(struct device_node *dn)
 
 	return PCI_DN(dn)->edev;
 }
+
+static inline struct eeh_dev *pdn_to_eeh_dev(struct pci_dn *pdn)
+{
+	return pdn ? pdn->edev : NULL;
+}
 #else
-#define of_node_to_eeh_dev(x) (NULL)
+#define of_node_to_eeh_dev(x)	(NULL)
+#define pdn_to_eeh_dev(x)	(NULL)
 #endif
 
 /** Find the bus corresponding to the indicated device node */
