@@ -1164,9 +1164,9 @@ static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
 		return ERR_PTR(err);
 
 	/* MTD device number is defined by the major / minor numbers */
-	major = imajor(path.dentry->d_inode);
-	minor = iminor(path.dentry->d_inode);
-	mode = path.dentry->d_inode->i_mode;
+	major = imajor(d_backing_inode(path.dentry));
+	minor = iminor(d_backing_inode(path.dentry));
+	mode = d_backing_inode(path.dentry)->i_mode;
 	path_put(&path);
 	if (major != MTD_CHAR_MAJOR || !S_ISCHR(mode))
 		return ERR_PTR(-EINVAL);
