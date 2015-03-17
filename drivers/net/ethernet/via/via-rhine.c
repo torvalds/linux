@@ -288,7 +288,7 @@ MODULE_DEVICE_TABLE(pci, rhine_pci_tbl);
  * The .data field is currently only used to store quirks
  */
 static u32 vt8500_quirks = rqWOL | rqForceReset | rq6patterns;
-static struct of_device_id rhine_of_tbl[] = {
+static const struct of_device_id rhine_of_tbl[] = {
 	{ .compatible = "via,vt8500-rhine", .data = &vt8500_quirks },
 	{ }	/* terminate list */
 };
