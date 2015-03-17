@@ -127,7 +127,7 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 			    "vibrator%d", vib->minor);
 	if (IS_ERR(dev)) {
 		retval = -EINVAL;
-		goto error;
+		goto err_idr_remove;
 	}
 	vib->dev = dev;
 
@@ -140,12 +140,14 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 	retval = sysfs_create_group(&dev->kobj, vibrator_groups[0]);
 	if (retval) {
 		device_unregister(dev);
-		goto error;
+		goto err_idr_remove;
 	}
 #endif
 
 	return 0;
 
+err_idr_remove:
+	idr_remove(&minors, vib->minor);
 error:
 	kfree(vib);
 	return retval;
