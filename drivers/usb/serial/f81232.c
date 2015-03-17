@@ -31,6 +31,13 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
+/* USB Control EP parameter */
+#define F81232_REGISTER_REQUEST	0xa0
+#define F81232_GET_REGISTER		0xc0
+
+#define SERIAL_BASE_ADDRESS			0x0120
+#define MODEM_STATUS_REGISTER		(0x06 + SERIAL_BASE_ADDRESS)
+
 #define CONTROL_DTR			0x01
 #define CONTROL_RTS			0x02
 
@@ -49,19 +56,112 @@ struct f81232_private {
 	struct mutex lock;
 	u8 line_control;
 	u8 modem_status;
+	struct work_struct interrupt_work;
+	struct usb_serial_port *port;
 };
+
+static int f81232_get_register(struct usb_serial_port *port, u16 reg, u8 *val)
+{
+	int status;
+	u8 *tmp;
+	struct usb_device *dev = port->serial->dev;
+
+	tmp = kmalloc(sizeof(*val), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	status = usb_control_msg(dev,
+				usb_rcvctrlpipe(dev, 0),
+				F81232_REGISTER_REQUEST,
+				F81232_GET_REGISTER,
+				reg,
+				0,
+				tmp,
+				sizeof(*val),
+				USB_CTRL_GET_TIMEOUT);
+	if (status != sizeof(*val)) {
+		dev_err(&port->dev, "%s failed status: %d\n", __func__, status);
+
+		if (status < 0)
+			status = usb_translate_errors(status);
+		else
+			status = -EIO;
+	} else {
+		status = 0;
+		*val = *tmp;
+	}
+
+	kfree(tmp);
+	return status;
+}
+
+static void f81232_read_msr(struct usb_serial_port *port)
+{
+	int status;
+	u8 current_msr;
+	struct tty_struct *tty;
+	struct f81232_private *priv = usb_get_serial_port_data(port);
+
+	mutex_lock(&priv->lock);
+	status = f81232_get_register(port, MODEM_STATUS_REGISTER,
+			&current_msr);
+	if (status) {
+		dev_err(&port->dev, "%s fail, status: %d\n", __func__, status);
+		mutex_unlock(&priv->lock);
+		return;
+	}
+
+	if (!(current_msr & UART_MSR_ANY_DELTA)) {
+		mutex_unlock(&priv->lock);
+		return;
+	}
+
+	priv->modem_status = current_msr;
+
+	if (current_msr & UART_MSR_DCTS)
+		port->icount.cts++;
+	if (current_msr & UART_MSR_DDSR)
+		port->icount.dsr++;
+	if (current_msr & UART_MSR_TERI)
+		port->icount.rng++;
+	if (current_msr & UART_MSR_DDCD) {
+		port->icount.dcd++;
+		tty = tty_port_tty_get(&port->port);
+		if (tty) {
+			usb_serial_handle_dcd_change(port, tty,
+					current_msr & UART_MSR_DCD);
+
+			tty_kref_put(tty);
+		}
+	}
+
+	wake_up_interruptible(&port->port.delta_msr_wait);
+	mutex_unlock(&priv->lock);
+}
 
 static void f81232_update_line_status(struct usb_serial_port *port,
 				      unsigned char *data,
-				      unsigned int actual_length)
+				      size_t actual_length)
 {
-	/*
-	 * FIXME: Update port->icount, and call
-	 *
-	 *		wake_up_interruptible(&port->port.delta_msr_wait);
-	 *
-	 *	  on MSR changes.
-	 */
+	struct f81232_private *priv = usb_get_serial_port_data(port);
+
+	if (!actual_length)
+		return;
+
+	switch (data[0] & 0x07) {
+	case 0x00: /* msr change */
+		dev_dbg(&port->dev, "IIR: MSR Change: %02x\n", data[0]);
+		schedule_work(&priv->interrupt_work);
+		break;
+	case 0x02: /* tx-empty */
+		break;
+	case 0x04: /* rx data available */
+		break;
+	case 0x06: /* lsr change */
+		/* we can forget it. the LSR will read from bulk-in */
+		dev_dbg(&port->dev, "IIR: LSR Change: %02x\n", data[0]);
+		break;
+	}
 }
 
 static void f81232_read_int_callback(struct urb *urb)
@@ -276,6 +376,14 @@ static int f81232_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
+static void  f81232_interrupt_work(struct work_struct *work)
+{
+	struct f81232_private *priv =
+		container_of(work, struct f81232_private, interrupt_work);
+
+	f81232_read_msr(priv->port);
+}
+
 static int f81232_port_probe(struct usb_serial_port *port)
 {
 	struct f81232_private *priv;
@@ -285,10 +393,12 @@ static int f81232_port_probe(struct usb_serial_port *port)
 		return -ENOMEM;
 
 	mutex_init(&priv->lock);
+	INIT_WORK(&priv->interrupt_work,  f81232_interrupt_work);
 
 	usb_set_serial_port_data(port, priv);
 
 	port->port.drain_delay = 256;
+	priv->port = port;
 
 	return 0;
 }
