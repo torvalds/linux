@@ -1534,7 +1534,7 @@ static struct class_attribute tsync_class_attrs[] = {
     __ATTR(pts_video,  S_IRUGO | S_IWUSR | S_IWGRP, show_vpts,    store_vpts),
     __ATTR(pts_audio,  S_IRUGO | S_IWUSR | S_IWGRP, show_apts,    store_apts),
     __ATTR(dobly_av_sync,  S_IRUGO | S_IWUSR | S_IWGRP, dobly_show_sync,    dobly_store_sync),
-    __ATTR(pts_pcrscr, S_IRUGO | S_IWUSR | S_IWGRP, show_pcrscr,  store_pcrscr),
+    __ATTR(pts_pcrscr, 0666, show_pcrscr,  store_pcrscr),
     __ATTR(event,      S_IRUGO | S_IWUSR | S_IWGRP, NULL,         store_event),
     __ATTR(mode,       S_IRUGO | S_IWUSR | S_IWGRP, show_mode,    store_mode),
     __ATTR(enable,     S_IRUGO | S_IWUSR | S_IWGRP, show_enable,  store_enable),

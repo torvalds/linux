@@ -4911,7 +4911,7 @@ static ssize_t show_first_frame_nosync_store(struct class *cla, struct class_att
 }
 static struct class_attribute amvideo_class_attrs[] = {
     __ATTR(axis,
-    S_IRUGO | S_IWUSR | S_IWGRP,
+    0666,
     video_axis_show,
     video_axis_store),
     __ATTR(crop,
@@ -4923,7 +4923,7 @@ static struct class_attribute amvideo_class_attrs[] = {
     video_global_offset_show,
     video_global_offset_store),
     __ATTR(screen_mode,
-    S_IRUGO | S_IWUSR | S_IWGRP,
+    0666,
     video_screen_mode_show,
     video_screen_mode_store),
     __ATTR(blackout_policy,
@@ -4931,7 +4931,7 @@ static struct class_attribute amvideo_class_attrs[] = {
     video_blackout_policy_show,
     video_blackout_policy_store),
     __ATTR(disable_video,
-    S_IRUGO | S_IWUSR | S_IWGRP,
+    0666,
     video_disable_show,
     video_disable_store),
     __ATTR(zoom,

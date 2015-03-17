@@ -1027,7 +1027,7 @@ static struct class_attribute audiodsp_attrs[]={
     __ATTR(codec_fatal_err, S_IRUGO | S_IWUSR | S_IWGRP, codec_fatal_err_show, codec_fatal_err_store),
     __ATTR_RO(swap_buf_ptr),
     __ATTR_RO(dsp_working_status),
-    __ATTR(digital_raw, S_IRUGO | S_IWUSR | S_IWGRP, digital_raw_show, digital_raw_store),
+    __ATTR(digital_raw, 0666, digital_raw_show, digital_raw_store),
      __ATTR(digital_codec, S_IRUGO | S_IWUSR | S_IWGRP, digital_codec_show, digital_codec_store),
     __ATTR(dec_option, S_IRUGO | S_IWUSR, dec_option_show, dec_option_store),
     __ATTR(print_flag, S_IRUGO | S_IWUSR, print_flag_show, print_flag_store),
