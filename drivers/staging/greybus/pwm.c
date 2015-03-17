@@ -56,8 +56,8 @@ struct gb_pwm_deactivate_request {
 
 struct gb_pwm_config_request {
 	__u8	which;
-	__le32	duty;
-	__le32	period;
+	__le32	duty __packed;
+	__le32	period __packed;
 };
 
 struct gb_pwm_polarity_request {
