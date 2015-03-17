@@ -585,7 +585,11 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 
 	info = (struct intel_device_info *)&dev_priv->info;
 
-	if (IS_VALLEYVIEW(dev) || INTEL_INFO(dev)->gen == 9)
+	if (IS_BROXTON(dev)) {
+		info->num_sprites[PIPE_A] = 3;
+		info->num_sprites[PIPE_B] = 3;
+		info->num_sprites[PIPE_C] = 2;
+	} else if (IS_VALLEYVIEW(dev) || INTEL_INFO(dev)->gen == 9)
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
 	else
