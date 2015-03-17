@@ -177,6 +177,35 @@ static u32 convert_skb_access(int skb_field, int dst_reg, int src_reg,
 		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
 				      offsetof(struct sk_buff, queue_mapping));
 		break;
+
+	case SKF_AD_PROTOCOL:
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, protocol) != 2);
+
+		/* dst_reg = *(u16 *) (src_reg + offsetof(protocol)) */
+		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
+				      offsetof(struct sk_buff, protocol));
+		/* dst_reg = ntohs(dst_reg) [emitting a nop or swap16] */
+		*insn++ = BPF_ENDIAN(BPF_FROM_BE, dst_reg, 16);
+		break;
+
+	case SKF_AD_VLAN_TAG:
+	case SKF_AD_VLAN_TAG_PRESENT:
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+		BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
+
+		/* dst_reg = *(u16 *) (src_reg + offsetof(vlan_tci)) */
+		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
+				      offsetof(struct sk_buff, vlan_tci));
+		if (skb_field == SKF_AD_VLAN_TAG) {
+			*insn++ = BPF_ALU32_IMM(BPF_AND, dst_reg,
+						~VLAN_TAG_PRESENT);
+		} else {
+			/* dst_reg >>= 12 */
+			*insn++ = BPF_ALU32_IMM(BPF_RSH, dst_reg, 12);
+			/* dst_reg &= 1 */
+			*insn++ = BPF_ALU32_IMM(BPF_AND, dst_reg, 1);
+		}
+		break;
 	}
 
 	return insn - insn_buf;
@@ -190,13 +219,8 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 
 	switch (fp->k) {
 	case SKF_AD_OFF + SKF_AD_PROTOCOL:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, protocol) != 2);
-
-		/* A = *(u16 *) (CTX + offsetof(protocol)) */
-		*insn++ = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
-				      offsetof(struct sk_buff, protocol));
-		/* A = ntohs(A) [emitting a nop or swap16] */
-		*insn = BPF_ENDIAN(BPF_FROM_BE, BPF_REG_A, 16);
+		cnt = convert_skb_access(SKF_AD_PROTOCOL, BPF_REG_A, BPF_REG_CTX, insn);
+		insn += cnt - 1;
 		break;
 
 	case SKF_AD_OFF + SKF_AD_PKTTYPE:
@@ -242,22 +266,15 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		break;
 
 	case SKF_AD_OFF + SKF_AD_VLAN_TAG:
-	case SKF_AD_OFF + SKF_AD_VLAN_TAG_PRESENT:
-		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
-		BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
+		cnt = convert_skb_access(SKF_AD_VLAN_TAG,
+					 BPF_REG_A, BPF_REG_CTX, insn);
+		insn += cnt - 1;
+		break;
 
-		/* A = *(u16 *) (CTX + offsetof(vlan_tci)) */
-		*insn++ = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
-				      offsetof(struct sk_buff, vlan_tci));
-		if (fp->k == SKF_AD_OFF + SKF_AD_VLAN_TAG) {
-			*insn = BPF_ALU32_IMM(BPF_AND, BPF_REG_A,
-					      ~VLAN_TAG_PRESENT);
-		} else {
-			/* A >>= 12 */
-			*insn++ = BPF_ALU32_IMM(BPF_RSH, BPF_REG_A, 12);
-			/* A &= 1 */
-			*insn = BPF_ALU32_IMM(BPF_AND, BPF_REG_A, 1);
-		}
+	case SKF_AD_OFF + SKF_AD_VLAN_TAG_PRESENT:
+		cnt = convert_skb_access(SKF_AD_VLAN_TAG_PRESENT,
+					 BPF_REG_A, BPF_REG_CTX, insn);
+		insn += cnt - 1;
 		break;
 
 	case SKF_AD_OFF + SKF_AD_PAY_OFFSET:
@@ -1215,6 +1232,17 @@ static u32 sk_filter_convert_ctx_access(int dst_reg, int src_reg, int ctx_off,
 
 	case offsetof(struct __sk_buff, queue_mapping):
 		return convert_skb_access(SKF_AD_QUEUE, dst_reg, src_reg, insn);
+
+	case offsetof(struct __sk_buff, protocol):
+		return convert_skb_access(SKF_AD_PROTOCOL, dst_reg, src_reg, insn);
+
+	case offsetof(struct __sk_buff, vlan_present):
+		return convert_skb_access(SKF_AD_VLAN_TAG_PRESENT,
+					  dst_reg, src_reg, insn);
+
+	case offsetof(struct __sk_buff, vlan_tci):
+		return convert_skb_access(SKF_AD_VLAN_TAG,
+					  dst_reg, src_reg, insn);
 	}
 
 	return insn - insn_buf;
