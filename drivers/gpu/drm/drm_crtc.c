@@ -659,6 +659,9 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
 
+	WARN_ON(primary && primary->type != DRM_PLANE_TYPE_PRIMARY);
+	WARN_ON(cursor && cursor->type != DRM_PLANE_TYPE_CURSOR);
+
 	crtc->dev = dev;
 	crtc->funcs = funcs;
 	crtc->invert_dimensions = false;
