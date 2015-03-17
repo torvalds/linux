@@ -153,14 +153,7 @@ static int host_start(struct ci_hdrc *ci)
 		}
 	}
 
-	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
-		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
-
-	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED)
-		hw_write(ci, OP_PORTSC, PORTSC_PFSC, PORTSC_PFSC);
-
-	if (ci->platdata->flags & CI_HDRC_SET_NON_ZERO_TTHA)
-		hw_write(ci, OP_TTCTRL, TTCTRL_TTHA_MASK, TTCTRL_TTHA);
+	ci_platform_configure(ci);
 
 	return ret;
 
