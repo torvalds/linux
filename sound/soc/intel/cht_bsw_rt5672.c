@@ -267,6 +267,35 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	},
 };
 
+static int cht_suspend_pre(struct snd_soc_card *card)
+{
+	struct snd_soc_codec *codec;
+
+	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
+		if (!strcmp(codec->component.name, "i2c-10EC5670:00")) {
+			dev_dbg(codec->dev, "disabling jack detect before going to suspend.\n");
+			rt5670_jack_suspend(codec);
+			break;
+		}
+	}
+	return 0;
+}
+
+static int cht_resume_post(struct snd_soc_card *card)
+{
+	struct snd_soc_codec *codec;
+
+	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
+		if (!strcmp(codec->component.name, "i2c-10EC5670:00")) {
+			dev_dbg(codec->dev, "enabling jack detect for resume.\n");
+			rt5670_jack_resume(codec);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 /* SoC card */
 static struct snd_soc_card snd_soc_card_cht = {
 	.name = "cherrytrailcraudio",
@@ -278,6 +307,8 @@ static struct snd_soc_card snd_soc_card_cht = {
 	.num_dapm_routes = ARRAY_SIZE(cht_audio_map),
 	.controls = cht_mc_controls,
 	.num_controls = ARRAY_SIZE(cht_mc_controls),
+	.suspend_pre = cht_suspend_pre,
+	.resume_post = cht_resume_post,
 };
 
 static int snd_cht_mc_probe(struct platform_device *pdev)
