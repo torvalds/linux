@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <linux/serial_reg.h>
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1934, 0x0706) },
@@ -104,44 +105,50 @@ exit:
 static void f81232_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct f81232_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
-	char tty_flag = TTY_NORMAL;
-	unsigned long flags;
-	u8 line_status;
-	int i;
+	char tty_flag;
+	unsigned int i;
+	u8 lsr;
 
-	/* update line status */
-	spin_lock_irqsave(&priv->lock, flags);
-	line_status = priv->modem_status;
-	priv->modem_status &= ~UART_STATE_TRANSIENT_MASK;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (!urb->actual_length)
+	/*
+	 * When opening the port we get a 1-byte packet with the current LSR,
+	 * which we discard.
+	 */
+	if ((urb->actual_length < 2) || (urb->actual_length % 2))
 		return;
 
-	/* break takes precedence over parity, */
-	/* which takes precedence over framing errors */
-	if (line_status & UART_BREAK_ERROR)
-		tty_flag = TTY_BREAK;
-	else if (line_status & UART_PARITY_ERROR)
-		tty_flag = TTY_PARITY;
-	else if (line_status & UART_FRAME_ERROR)
-		tty_flag = TTY_FRAME;
-	dev_dbg(&port->dev, "%s - tty_flag = %d\n", __func__, tty_flag);
+	/* bulk-in data: [LSR(1Byte)+DATA(1Byte)][LSR(1Byte)+DATA(1Byte)]... */
 
-	/* overrun is special, not associated with a char */
-	if (line_status & UART_OVERRUN_ERROR)
-		tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
+	for (i = 0; i < urb->actual_length; i += 2) {
+		tty_flag = TTY_NORMAL;
+		lsr = data[i];
 
-	if (port->port.console && port->sysrq) {
-		for (i = 0; i < urb->actual_length; ++i)
-			if (!usb_serial_handle_sysrq_char(port, data[i]))
-				tty_insert_flip_char(&port->port, data[i],
-						tty_flag);
-	} else {
-		tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
-							urb->actual_length);
+		if (lsr & UART_LSR_BRK_ERROR_BITS) {
+			if (lsr & UART_LSR_BI) {
+				tty_flag = TTY_BREAK;
+				port->icount.brk++;
+				usb_serial_handle_break(port);
+			} else if (lsr & UART_LSR_PE) {
+				tty_flag = TTY_PARITY;
+				port->icount.parity++;
+			} else if (lsr & UART_LSR_FE) {
+				tty_flag = TTY_FRAME;
+				port->icount.frame++;
+			}
+
+			if (lsr & UART_LSR_OE) {
+				port->icount.overrun++;
+				tty_insert_flip_char(&port->port, 0,
+						TTY_OVERRUN);
+			}
+		}
+
+		if (port->port.console && port->sysrq) {
+			if (usb_serial_handle_sysrq_char(port, data[i + 1]))
+				continue;
+		}
+
+		tty_insert_flip_char(&port->port, data[i + 1], tty_flag);
 	}
 
 	tty_flip_buffer_push(&port->port);
