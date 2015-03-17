@@ -7239,7 +7239,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	u64 start = iblock << inode->i_blkbits;
 	u64 lockstart, lockend;
 	u64 len = bh_result->b_size;
-	u64 orig_len = len;
+	u64 *outstanding_extents = NULL;
 	int unlock_bits = EXTENT_LOCKED;
 	int ret = 0;
 
@@ -7250,6 +7250,16 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 
 	lockstart = start;
 	lockend = start + len - 1;
+
+	if (current->journal_info) {
+		/*
+		 * Need to pull our outstanding extents and set journal_info to NULL so
+		 * that anything that needs to check if there's a transction doesn't get
+		 * confused.
+		 */
+		outstanding_extents = current->journal_info;
+		current->journal_info = NULL;
+	}
 
 	/*
 	 * If this errors out it's because we couldn't invalidate pagecache for
@@ -7374,11 +7384,20 @@ unlock:
 		if (start + len > i_size_read(inode))
 			i_size_write(inode, start + len);
 
-		if (len < orig_len) {
+		/*
+		 * If we have an outstanding_extents count still set then we're
+		 * within our reservation, otherwise we need to adjust our inode
+		 * counter appropriately.
+		 */
+		if (*outstanding_extents) {
+			(*outstanding_extents)--;
+		} else {
 			spin_lock(&BTRFS_I(inode)->lock);
 			BTRFS_I(inode)->outstanding_extents++;
 			spin_unlock(&BTRFS_I(inode)->lock);
 		}
+
+		current->journal_info = outstanding_extents;
 		btrfs_free_reserved_data_space(inode, len);
 	}
 
@@ -7402,6 +7421,8 @@ unlock:
 unlock_err:
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			 unlock_bits, 1, 0, &cached_state, GFP_NOFS);
+	if (outstanding_extents)
+		current->journal_info = outstanding_extents;
 	return ret;
 }
 
@@ -8101,6 +8122,7 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
+	u64 outstanding_extents = 0;
 	size_t count = 0;
 	int flags = 0;
 	bool wakeup = true;
@@ -8138,6 +8160,16 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 		ret = btrfs_delalloc_reserve_space(inode, count);
 		if (ret)
 			goto out;
+		outstanding_extents = div64_u64(count +
+						BTRFS_MAX_EXTENT_SIZE - 1,
+						BTRFS_MAX_EXTENT_SIZE);
+
+		/*
+		 * We need to know how many extents we reserved so that we can
+		 * do the accounting properly if we go over the number we
+		 * originally calculated.  Abuse current->journal_info for this.
+		 */
+		current->journal_info = &outstanding_extents;
 	} else if (test_bit(BTRFS_INODE_READDIO_NEED_LOCK,
 				     &BTRFS_I(inode)->runtime_flags)) {
 		inode_dio_done(inode);
@@ -8150,6 +8182,7 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 			iter, offset, btrfs_get_blocks_direct, NULL,
 			btrfs_submit_direct, flags);
 	if (rw & WRITE) {
+		current->journal_info = NULL;
 		if (ret < 0 && ret != -EIOCBQUEUED)
 			btrfs_delalloc_release_space(inode, count);
 		else if (ret >= 0 && (size_t)ret < count)
