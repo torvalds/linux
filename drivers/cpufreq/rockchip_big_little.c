@@ -252,13 +252,8 @@ static int cpufreq_bl_init_cpu0(struct cpufreq_policy *policy)
 	if (clk_ddr_dvfs_node)
 		clk_enable_dvfs(clk_ddr_dvfs_node);
 
-	if (big_little == 1) {
-		cluster_cpus_freq_dvfs_init(0, "clk_core_b");
-		cluster_cpus_freq_dvfs_init(1, "clk_core_l");
-	} else {
-		cluster_cpus_freq_dvfs_init(0, "clk_core_l");
-		cluster_cpus_freq_dvfs_init(1, "clk_core_b");
-	}
+	cluster_cpus_freq_dvfs_init(0, "clk_core_b");
+	cluster_cpus_freq_dvfs_init(1, "clk_core_l");
 
 	cpufreq_register_notifier(&notifier_policy_block,
 				  CPUFREQ_POLICY_NOTIFIER);
