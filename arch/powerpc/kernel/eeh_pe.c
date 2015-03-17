@@ -348,9 +348,12 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 
 		/* Put the edev to PE */
 		list_add_tail(&edev->list, &pe->edevs);
-		pr_debug("EEH: Add %s to Bus PE#%x\n",
-			edev->dn->full_name, pe->addr);
-
+		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Bus PE#%x\n",
+			edev->phb->global_number,
+			edev->config_addr >> 8,
+			PCI_SLOT(edev->config_addr & 0xFF),
+			PCI_FUNC(edev->config_addr & 0xFF),
+			pe->addr);
 		return 0;
 	} else if (pe && (pe->type & EEH_PE_INVALID)) {
 		list_add_tail(&edev->list, &pe->edevs);
@@ -366,9 +369,14 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 			parent->type &= ~(EEH_PE_INVALID | EEH_PE_KEEP);
 			parent = parent->parent;
 		}
-		pr_debug("EEH: Add %s to Device PE#%x, Parent PE#%x\n",
-			edev->dn->full_name, pe->addr, pe->parent->addr);
 
+		pr_debug("EEH: Add %04x:%02x:%02x.%01x to Device "
+			 "PE#%x, Parent PE#%x\n",
+			edev->phb->global_number,
+			edev->config_addr >> 8,
+                        PCI_SLOT(edev->config_addr & 0xFF),
+                        PCI_FUNC(edev->config_addr & 0xFF),
+			pe->addr, pe->parent->addr);
 		return 0;
 	}
 
@@ -407,8 +415,13 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	list_add_tail(&pe->child, &parent->child_list);
 	list_add_tail(&edev->list, &pe->edevs);
 	edev->pe = pe;
-	pr_debug("EEH: Add %s to Device PE#%x, Parent PE#%x\n",
-		edev->dn->full_name, pe->addr, pe->parent->addr);
+	pr_debug("EEH: Add %04x:%02x:%02x.%01x to "
+		 "Device PE#%x, Parent PE#%x\n",
+		 edev->phb->global_number,
+		 edev->config_addr >> 8,
+		 PCI_SLOT(edev->config_addr & 0xFF),
+		 PCI_FUNC(edev->config_addr & 0xFF),
+		 pe->addr, pe->parent->addr);
 
 	return 0;
 }
@@ -428,8 +441,11 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 	int cnt;
 
 	if (!edev->pe) {
-		pr_debug("%s: No PE found for EEH device %s\n",
-			 __func__, edev->dn->full_name);
+		pr_debug("%s: No PE found for device %04x:%02x:%02x.%01x\n",
+			 __func__,  edev->phb->global_number,
+			 edev->config_addr >> 8,
+			 PCI_SLOT(edev->config_addr & 0xFF),
+			 PCI_FUNC(edev->config_addr & 0xFF));
 		return -EEXIST;
 	}
 

@@ -29,7 +29,6 @@
 
 struct pci_dev;
 struct pci_bus;
-struct device_node;
 struct pci_dn;
 
 #ifdef CONFIG_EEH
@@ -137,16 +136,10 @@ struct eeh_dev {
 	struct eeh_pe *pe;		/* Associated PE		*/
 	struct list_head list;		/* Form link list in the PE	*/
 	struct pci_controller *phb;	/* Associated PHB		*/
-	struct device_node *dn;		/* Associated device node	*/
 	struct pci_dn *pdn;		/* Associated PCI device node	*/
 	struct pci_dev *pdev;		/* Associated PCI device	*/
 	struct pci_bus *bus;		/* PCI bus for partial hotplug	*/
 };
-
-static inline struct device_node *eeh_dev_to_of_node(struct eeh_dev *edev)
-{
-	return edev ? edev->dn : NULL;
-}
 
 static inline struct pci_dn *eeh_dev_to_pdn(struct eeh_dev *edev)
 {

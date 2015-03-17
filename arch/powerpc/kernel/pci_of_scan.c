@@ -305,7 +305,7 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 	const __be32 *reg;
 	int reglen, devfn;
 #ifdef CONFIG_EEH
-	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	struct eeh_dev *edev = pdn_to_eeh_dev(PCI_DN(dn));
 #endif
 
 	pr_debug("  * %s\n", dn->full_name);

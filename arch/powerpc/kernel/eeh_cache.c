@@ -171,30 +171,27 @@ eeh_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 
 static void __eeh_addr_cache_insert_dev(struct pci_dev *dev)
 {
-	struct device_node *dn;
+	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 	int i;
 
-	dn = pci_device_to_OF_node(dev);
-	if (!dn) {
+	pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
+	if (!pdn) {
 		pr_warn("PCI: no pci dn found for dev=%s\n",
 			pci_name(dev));
 		return;
 	}
 
-	edev = of_node_to_eeh_dev(dn);
+	edev = pdn_to_eeh_dev(pdn);
 	if (!edev) {
-		pr_warn("PCI: no EEH dev found for dn=%s\n",
-			dn->full_name);
+		pr_warn("PCI: no EEH dev found for %s\n",
+			pci_name(dev));
 		return;
 	}
 
 	/* Skip any devices for which EEH is not enabled. */
 	if (!edev->pe) {
-#ifdef DEBUG
-		pr_info("PCI: skip building address cache for=%s - %s\n",
-			pci_name(dev), dn->full_name);
-#endif
+		dev_dbg(&dev->dev, "EEH: Skip building address cache\n");
 		return;
 	}
 
@@ -282,18 +279,18 @@ void eeh_addr_cache_rmv_dev(struct pci_dev *dev)
  */
 void eeh_addr_cache_build(void)
 {
-	struct device_node *dn;
+	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 	struct pci_dev *dev = NULL;
 
 	spin_lock_init(&pci_io_addr_cache_root.piar_lock);
 
 	for_each_pci_dev(dev) {
-		dn = pci_device_to_OF_node(dev);
-		if (!dn)
+		pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
+		if (!pdn)
 			continue;
 
-		edev = of_node_to_eeh_dev(dn);
+		edev = pdn_to_eeh_dev(pdn);
 		if (!edev)
 			continue;
 

@@ -418,11 +418,11 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	int ret;
 	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	unsigned long flags;
-	struct device_node *dn;
+	struct pci_dn *pdn;
 	struct pci_dev *dev;
 	struct eeh_pe *pe, *parent_pe, *phb_pe;
 	int rc = 0;
-	const char *location;
+	const char *location = NULL;
 
 	eeh_stats.total_mmio_ffs++;
 
@@ -433,15 +433,14 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		eeh_stats.no_dn++;
 		return 0;
 	}
-	dn = eeh_dev_to_of_node(edev);
 	dev = eeh_dev_to_pci_dev(edev);
 	pe = eeh_dev_to_pe(edev);
 
 	/* Access to IO BARs might get this far and still not want checking. */
 	if (!pe) {
 		eeh_stats.ignored_check++;
-		pr_debug("EEH: Ignored check for %s %s\n",
-			eeh_pci_name(dev), dn->full_name);
+		pr_debug("EEH: Ignored check for %s\n",
+			eeh_pci_name(dev));
 		return 0;
 	}
 
@@ -477,10 +476,13 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
 		if (pe->check_count % EEH_MAX_FAILS == 0) {
-			location = of_get_property(dn, "ibm,loc-code", NULL);
+			pdn = eeh_dev_to_pdn(edev);
+			if (pdn->node)
+				location = of_get_property(pdn->node, "ibm,loc-code", NULL);
 			printk(KERN_ERR "EEH: %d reads ignored for recovering device at "
 				"location=%s driver=%s pci addr=%s\n",
-				pe->check_count, location,
+				pe->check_count,
+				location ? location : "unknown",
 				eeh_driver_name(dev), eeh_pci_name(dev));
 			printk(KERN_ERR "EEH: Might be infinite loop in %s driver\n",
 				eeh_driver_name(dev));
@@ -1035,7 +1037,7 @@ int eeh_init(void)
 core_initcall_sync(eeh_init);
 
 /**
- * eeh_add_device_early - Enable EEH for the indicated device_node
+ * eeh_add_device_early - Enable EEH for the indicated device node
  * @pdn: PCI device node for which to set up EEH
  *
  * This routine must be used to perform EEH initialization for PCI
@@ -1093,7 +1095,7 @@ EXPORT_SYMBOL_GPL(eeh_add_device_tree_early);
  */
 void eeh_add_device_late(struct pci_dev *dev)
 {
-	struct device_node *dn;
+	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 
 	if (!dev || !eeh_enabled())
@@ -1101,8 +1103,8 @@ void eeh_add_device_late(struct pci_dev *dev)
 
 	pr_debug("EEH: Adding device %s\n", pci_name(dev));
 
-	dn = pci_device_to_OF_node(dev);
-	edev = of_node_to_eeh_dev(dn);
+	pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
+	edev = pdn_to_eeh_dev(pdn);
 	if (edev->pdev == dev) {
 		pr_debug("EEH: Already referenced !\n");
 		return;
