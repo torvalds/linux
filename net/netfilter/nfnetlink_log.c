@@ -539,7 +539,7 @@ __build_packet_message(struct nfnl_log_net *log,
 
 	/* UID */
 	sk = skb->sk;
-	if (sk && sk->sk_state != TCP_TIME_WAIT) {
+	if (sk && sk_fullsock(sk)) {
 		read_lock_bh(&sk->sk_callback_lock);
 		if (sk->sk_socket && sk->sk_socket->file) {
 			struct file *file = sk->sk_socket->file;

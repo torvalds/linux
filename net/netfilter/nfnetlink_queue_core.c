@@ -257,7 +257,7 @@ static int nfqnl_put_sk_uidgid(struct sk_buff *skb, struct sock *sk)
 {
 	const struct cred *cred;
 
-	if (sk->sk_state == TCP_TIME_WAIT)
+	if (!sk_fullsock(sk))
 		return 0;
 
 	read_lock_bh(&sk->sk_callback_lock);

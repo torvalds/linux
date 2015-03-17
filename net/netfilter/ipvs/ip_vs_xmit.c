@@ -209,7 +209,7 @@ static inline void maybe_update_pmtu(int skb_af, struct sk_buff *skb, int mtu)
 	struct sock *sk = skb->sk;
 	struct rtable *ort = skb_rtable(skb);
 
-	if (!skb->dev && sk && sk->sk_state != TCP_TIME_WAIT)
+	if (!skb->dev && sk && sk_fullsock(sk))
 		ort->dst.ops->update_pmtu(&ort->dst, sk, NULL, mtu);
 }
 

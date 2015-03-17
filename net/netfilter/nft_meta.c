@@ -83,7 +83,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*(u16 *)dest->data = out->type;
 		break;
 	case NFT_META_SKUID:
-		if (skb->sk == NULL || skb->sk->sk_state == TCP_TIME_WAIT)
+		if (skb->sk == NULL || !sk_fullsock(skb->sk))
 			goto err;
 
 		read_lock_bh(&skb->sk->sk_callback_lock);
@@ -99,7 +99,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 		break;
 	case NFT_META_SKGID:
-		if (skb->sk == NULL || skb->sk->sk_state == TCP_TIME_WAIT)
+		if (skb->sk == NULL || !sk_fullsock(skb->sk))
 			goto err;
 
 		read_lock_bh(&skb->sk->sk_callback_lock);
