@@ -168,4 +168,5 @@ struct lprocfs_vars fld_client_proc_list[] = {
 	{ "targets", &fld_proc_targets_fops },
 	{ "hash", &fld_proc_hash_fops },
 	{ "cache_flush", &fld_proc_cache_flush_fops },
-	{ NULL }};
+	{ NULL }
+};
