@@ -652,6 +652,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 			}
 			has->ha_end_pfn -= HA_CHUNK;
 			has->covered_end_pfn -=  processed_pfn;
+			mutex_lock(&dm_device.ha_region_mutex);
 			break;
 		}
 
