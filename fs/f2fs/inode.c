@@ -51,6 +51,13 @@ static void __get_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
 	}
 }
 
+static bool __written_first_block(struct f2fs_inode *ri)
+{
+	if (ri->i_addr[0] != NEW_ADDR && ri->i_addr[0] != NULL_ADDR)
+		return true;
+	return false;
+}
+
 static void __set_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
 {
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
@@ -142,6 +149,9 @@ static int do_read_inode(struct inode *inode)
 
 	/* get rdev by using inline_info */
 	__get_inode_rdev(inode, ri);
+
+	if (__written_first_block(ri))
+		set_inode_flag(F2FS_I(inode), FI_FIRST_BLOCK_WRITTEN);
 
 	f2fs_put_page(node_page, 1);
 

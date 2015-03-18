@@ -1232,6 +1232,7 @@ enum {
 	FI_NEED_IPU,		/* used for ipu per file */
 	FI_ATOMIC_FILE,		/* indicate atomic file */
 	FI_VOLATILE_FILE,	/* indicate volatile file */
+	FI_FIRST_BLOCK_WRITTEN,	/* indicate #0 data block was written */
 	FI_DROP_CACHE,		/* drop dirty page cache */
 	FI_DATA_EXIST,		/* indicate data exists */
 };
@@ -1338,6 +1339,11 @@ static inline bool f2fs_is_atomic_file(struct inode *inode)
 static inline bool f2fs_is_volatile_file(struct inode *inode)
 {
 	return is_inode_flag_set(F2FS_I(inode), FI_VOLATILE_FILE);
+}
+
+static inline bool f2fs_is_first_block_written(struct inode *inode)
+{
+	return is_inode_flag_set(F2FS_I(inode), FI_FIRST_BLOCK_WRITTEN);
 }
 
 static inline bool f2fs_is_drop_cache(struct inode *inode)

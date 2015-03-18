@@ -437,6 +437,9 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 		dn->data_blkaddr = NULL_ADDR;
 		f2fs_update_extent_cache(dn);
 		invalidate_blocks(sbi, blkaddr);
+		if (dn->ofs_in_node == 0 && IS_INODE(dn->node_page))
+			clear_inode_flag(F2FS_I(dn->inode),
+						FI_FIRST_BLOCK_WRITTEN);
 		nr_free++;
 	}
 	if (nr_free) {
@@ -1004,6 +1007,9 @@ static int f2fs_ioc_release_volatile_write(struct file *filp)
 
 	if (!f2fs_is_volatile_file(inode))
 		return 0;
+
+	if (!f2fs_is_first_block_written(inode))
+		return truncate_partial_data_page(inode, 0, true);
 
 	punch_hole(inode, 0, F2FS_BLKSIZE);
 	return 0;
