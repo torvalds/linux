@@ -391,14 +391,9 @@ static int dw8250_probe_of(struct uart_port *p,
 static int dw8250_probe_acpi(struct uart_8250_port *up,
 			     struct dw8250_data *data)
 {
-	const struct acpi_device_id *id;
 	struct uart_port *p = &up->port;
 
 	dw8250_setup_port(up);
-
-	id = acpi_match_device(p->dev->driver->acpi_match_table, p->dev);
-	if (!id)
-		return -ENODEV;
 
 	if (!p->uartclk)
 		if (device_property_read_u32(p->dev, "clock-frequency",
