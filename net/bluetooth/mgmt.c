@@ -2209,10 +2209,22 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
 				       MGMT_STATUS_INVALID_PARAMS);
 
-	/* LE-only devices do not allow toggling LE on/off */
-	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+	/* Bluetooth single mode LE only controllers or dual-mode
+	 * controllers configured as LE only devices, do not allow
+	 * switching LE off. These have either LE enabled explicitly
+	 * or BR/EDR has been previously switched off.
+	 *
+	 * When trying to enable an already enabled LE, then gracefully
+	 * send a positive response. Trying to disable it however will
+	 * result into rejection.
+	 */
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
+		if (cp->val == 0x01)
+			return send_settings_rsp(sk, MGMT_OP_SET_LE, hdev);
+
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
 				       MGMT_STATUS_REJECTED);
+	}
 
 	hci_dev_lock(hdev);
 
