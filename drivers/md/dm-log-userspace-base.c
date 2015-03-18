@@ -741,7 +741,6 @@ static int userspace_get_resync_work(struct dm_dirty_log *log, region_t *region)
 static void userspace_set_region_sync(struct dm_dirty_log *log,
 				      region_t region, int in_sync)
 {
-	int r;
 	struct log_c *lc = log->context;
 	struct {
 		region_t r;
@@ -751,12 +750,12 @@ static void userspace_set_region_sync(struct dm_dirty_log *log,
 	pkg.r = region;
 	pkg.i = (int64_t)in_sync;
 
-	r = userspace_do_request(lc, lc->uuid, DM_ULOG_SET_REGION_SYNC,
-				 (char *)&pkg, sizeof(pkg), NULL, NULL);
+	(void) userspace_do_request(lc, lc->uuid, DM_ULOG_SET_REGION_SYNC,
+				    (char *)&pkg, sizeof(pkg), NULL, NULL);
 
 	/*
 	 * It would be nice to be able to report failures.
-	 * However, it is easy emough to detect and resolve.
+	 * However, it is easy enough to detect and resolve.
 	 */
 	return;
 }
