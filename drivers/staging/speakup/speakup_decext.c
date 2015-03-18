@@ -234,18 +234,8 @@ module_param_named(start, synth_decext.startup, short, S_IRUGO);
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init decext_init(void)
-{
-	return synth_add(&synth_decext);
-}
+module_spk_synth(synth_decext);
 
-static void __exit decext_exit(void)
-{
-	synth_remove(&synth_decext);
-}
-
-module_init(decext_init);
-module_exit(decext_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for DECtalk External synthesizers");
