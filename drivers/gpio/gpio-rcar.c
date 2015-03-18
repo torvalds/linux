@@ -413,7 +413,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	ret = gpiochip_irqchip_add(&p->gpio_chip, irq_chip, p->config.irq_base,
+	ret = gpiochip_irqchip_add(gpio_chip, irq_chip, p->config.irq_base,
 				   handle_level_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(dev, "cannot add irqchip\n");
@@ -431,7 +431,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	/* warn in case of mismatch if irq base is specified */
 	if (p->config.irq_base) {
-		ret = irq_find_mapping(p->gpio_chip.irqdomain, 0);
+		ret = irq_find_mapping(gpio_chip->irqdomain, 0);
 		if (p->config.irq_base != ret)
 			dev_warn(dev, "irq base mismatch (%u/%u)\n",
 				 p->config.irq_base, ret);
@@ -447,7 +447,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	return 0;
 
 err1:
-	gpiochip_remove(&p->gpio_chip);
+	gpiochip_remove(gpio_chip);
 err0:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
