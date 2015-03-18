@@ -656,9 +656,9 @@ void dgnc_input(struct channel_t *ch)
 	return;
 
 exit_unlock:
+	spin_unlock_irqrestore(&ch->ch_lock, flags);
 	if (ld)
 		tty_ldisc_deref(ld);
-	spin_unlock_irqrestore(&ch->ch_lock, flags);
 }
 
 
