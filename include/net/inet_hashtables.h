@@ -221,8 +221,8 @@ inet_bind_bucket_create(struct kmem_cache *cachep, struct net *net,
 void inet_bind_bucket_destroy(struct kmem_cache *cachep,
 			      struct inet_bind_bucket *tb);
 
-static inline int inet_bhashfn(struct net *net, const __u16 lport,
-			       const int bhash_size)
+static inline u32 inet_bhashfn(const struct net *net, const __u16 lport,
+			       const u32 bhash_size)
 {
 	return (lport + net_hash_mix(net)) & (bhash_size - 1);
 }
@@ -231,7 +231,7 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 		    const unsigned short snum);
 
 /* These can have wildcards, don't try too hard. */
-static inline int inet_lhashfn(struct net *net, const unsigned short num)
+static inline u32 inet_lhashfn(const struct net *net, const unsigned short num)
 {
 	return (num + net_hash_mix(net)) & (INET_LHTABLE_SIZE - 1);
 }

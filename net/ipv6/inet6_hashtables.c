@@ -23,11 +23,11 @@
 #include <net/secure_seq.h>
 #include <net/ip.h>
 
-static unsigned int inet6_ehashfn(struct net *net,
-				  const struct in6_addr *laddr,
-				  const u16 lport,
-				  const struct in6_addr *faddr,
-				  const __be16 fport)
+static u32 inet6_ehashfn(const struct net *net,
+			 const struct in6_addr *laddr,
+			 const u16 lport,
+			 const struct in6_addr *faddr,
+			 const __be16 fport)
 {
 	static u32 inet6_ehash_secret __read_mostly;
 	static u32 ipv6_hash_secret __read_mostly;
