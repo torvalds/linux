@@ -353,7 +353,7 @@ retry:
 	rc = pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
 				   maxvec, maxvec);
 	/*
-	 * -ENOSPC is the only error code allowed to be analized
+	 * -ENOSPC is the only error code allowed to be analyzed
 	 */
 	if (rc == -ENOSPC) {
 		if (maxvec == 1)
@@ -370,7 +370,7 @@ retry:
 	return rc;
 }
 
-Note how pci_enable_msix_range() return value is analized for a fallback -
+Note how pci_enable_msix_range() return value is analyzed for a fallback -
 any error code other than -ENOSPC indicates a fatal error and should not
 be retried.
 
@@ -486,7 +486,7 @@ during development.
 If your device supports both MSI-X and MSI capabilities, you should use
 the MSI-X facilities in preference to the MSI facilities.  As mentioned
 above, MSI-X supports any number of interrupts between 1 and 2048.
-In constrast, MSI is restricted to a maximum of 32 interrupts (and
+In contrast, MSI is restricted to a maximum of 32 interrupts (and
 must be a power of two).  In addition, the MSI interrupt vectors must
 be allocated consecutively, so the system might not be able to allocate
 as many vectors for MSI as it could for MSI-X.  On some platforms, MSI
