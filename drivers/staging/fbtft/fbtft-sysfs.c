@@ -1,5 +1,5 @@
 #include "fbtft.h"
-
+#include "internal.h"
 
 static int get_next_ulong(char **str_p, unsigned long *val, char *sep, int base)
 {
