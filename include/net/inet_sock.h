@@ -81,7 +81,6 @@ struct inet_request_sock {
 #define ir_cookie		req.__req_common.skc_cookie
 #define ireq_net		req.__req_common.skc_net
 #define ireq_state		req.__req_common.skc_state
-#define ireq_refcnt		req.__req_common.skc_refcnt
 #define ireq_family		req.__req_common.skc_family
 
 	kmemcheck_bitfield_begin(flags);

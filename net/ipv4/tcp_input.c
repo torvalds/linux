@@ -5981,10 +5981,6 @@ struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
 		ireq->ireq_state = TCP_NEW_SYN_RECV;
 		write_pnet(&ireq->ireq_net, sock_net(sk_listener));
 
-		/* Following is temporary. It is coupled with debugging
-		 * helpers in reqsk_put() & reqsk_free()
-		 */
-		atomic_set(&ireq->ireq_refcnt, 0);
 	}
 
 	return req;

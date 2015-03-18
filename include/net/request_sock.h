@@ -77,6 +77,11 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 		req->rsk_ops = ops;
 		sock_hold(sk_listener);
 		req->rsk_listener = sk_listener;
+
+		/* Following is temporary. It is coupled with debugging
+		 * helpers in reqsk_put() & reqsk_free()
+		 */
+		atomic_set(&req->rsk_refcnt, 0);
 	}
 	return req;
 }
@@ -291,6 +296,12 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	req->num_timeout = 0;
 	req->sk = NULL;
 	req->dl_next = lopt->syn_table[hash];
+
+	/* before letting lookups find us, make sure all req fields
+	 * are committed to memory and refcnt initialized.
+	 */
+	smp_wmb();
+	atomic_set(&req->rsk_refcnt, 1);
 
 	write_lock(&queue->syn_wait_lock);
 	lopt->syn_table[hash] = req;
