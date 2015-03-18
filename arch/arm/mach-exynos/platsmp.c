@@ -169,7 +169,7 @@ int exynos_cluster_power_state(int cluster)
 		S5P_CORE_LOCAL_PWR_EN);
 }
 
-void __iomem *cpu_boot_reg_base(void)
+static void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
 		return pmu_base_addr + S5P_INFORM5;
@@ -195,7 +195,7 @@ static inline void __iomem *cpu_boot_reg(int cpu)
  *
  * Currently this is needed only when booting secondary CPU on Exynos3250.
  */
-static void exynos_core_restart(u32 core_id)
+void exynos_core_restart(u32 core_id)
 {
 	u32 val;
 
@@ -247,7 +247,7 @@ static void exynos_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
-static int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr)
+int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr)
 {
 	int ret;
 
@@ -272,7 +272,7 @@ fail:
 	return ret;
 }
 
-static int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr)
+int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr)
 {
 	int ret;
 

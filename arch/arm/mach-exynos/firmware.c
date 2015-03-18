@@ -49,6 +49,7 @@ static int exynos_do_idle(unsigned long mode)
 			     sysram_ns_base_addr + 0x24);
 		__raw_writel(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
 		if (soc_is_exynos3250()) {
+			flush_cache_all();
 			exynos_smc(SMC_CMD_SAVE, OP_TYPE_CORE,
 				   SMC_POWERSTATE_IDLE, 0);
 			exynos_smc(SMC_CMD_SHUTDOWN, OP_TYPE_CLUSTER,
