@@ -28,9 +28,8 @@
 #define GB_HID_TYPE_PWR_ON		0x04
 #define GB_HID_TYPE_PWR_OFF		0x05
 #define GB_HID_TYPE_GET_REPORT		0x06
-#define GB_HID_TYPE_SET_REPORT		0x07	/* Feature or Output, via control pipe */
-#define GB_HID_TYPE_OUTPUT_REPORT	0x08	/* Output report via interrupt pipe */
-#define GB_HID_TYPE_IRQ_EVENT		0x09
+#define GB_HID_TYPE_SET_REPORT		0x07
+#define GB_HID_TYPE_IRQ_EVENT		0x08
 #define GB_HID_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 /* Report type */
@@ -122,21 +121,15 @@ static int gb_hid_get_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 				 &request, sizeof(request), buf, len);
 }
 
-/*
- * @raw: true: use SET_REPORT HID command, false: send plain OUTPUT report.
- *
- * Use SET_REPORT for feature reports or if the device does not support the
- * output plain report.
- */
 static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
-			     unsigned char *buf, int len, int raw)
+			     unsigned char *buf, int len)
 {
 	struct gb_hid_set_report_request *request;
 	struct gb_operation *operation;
 	int ret, size = sizeof(*request) + len - 1;
-	int type = raw ? GB_HID_TYPE_SET_REPORT : GB_HID_TYPE_OUTPUT_REPORT;
 
-	operation = gb_operation_create(ghid->connection, type, size, 0);
+	operation = gb_operation_create(ghid->connection,
+					GB_HID_TYPE_SET_REPORT, size, 0);
 	if (!operation)
 		return -ENOMEM;
 
@@ -271,8 +264,7 @@ static int __gb_hid_get_raw_report(struct hid_device *hid,
 }
 
 static int __gb_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
-				      size_t len, unsigned char report_type,
-				      bool raw)
+				      size_t len, unsigned char report_type)
 {
 	struct gb_hid *ghid = hid->driver_data;
 	int report_id = buf[0];
@@ -286,7 +278,7 @@ static int __gb_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 		len--;
 	}
 
-	ret = gb_hid_set_report(ghid, report_type, report_id, buf, len, raw);
+	ret = gb_hid_set_report(ghid, report_type, report_id, buf, len);
 	if (report_id && ret >= 0)
 		ret++; /* add report_id to the number of transfered bytes */
 
@@ -303,21 +295,13 @@ static int gb_hid_raw_request(struct hid_device *hid, unsigned char reportnum,
 	case HID_REQ_SET_REPORT:
 		if (buf[0] != reportnum)
 			return -EINVAL;
-		return __gb_hid_output_raw_report(hid, buf, len, rtype, true);
+		return __gb_hid_output_raw_report(hid, buf, len, rtype);
 	default:
 		return -EIO;
 	}
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
-static int gb_hid_output_report(struct hid_device *hid, __u8 *buf, size_t len)
-{
-	return __gb_hid_output_raw_report(hid, buf, len, HID_OUTPUT_REPORT,
-					  false);
-}
-
-#else
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,15,0)
 static int gb_hid_get_raw_report(struct hid_device *hid,
 				   unsigned char reportnum, __u8 *buf,
 				   size_t len, unsigned char rtype)
@@ -459,7 +443,6 @@ static struct hid_ll_driver gb_hid_ll_driver = {
 	.close = gb_hid_close,
 	.power = gb_hid_power,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
-	.output_report = gb_hid_output_report,
 	.raw_request = gb_hid_raw_request,
 #endif
 };
