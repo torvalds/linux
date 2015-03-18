@@ -415,7 +415,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 
 			newchannel->state = CHANNEL_OPEN_STATE;
 			channel->num_sc++;
-			if (channel->sc_creation_callback != NULL)
+			if (channel->sc_creation_callback != NULL) {
 				/*
 				 * We need to invoke the sub-channel creation
 				 * callback; invoke this in a seperate work
@@ -427,6 +427,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 					  vmbus_sc_creation_cb);
 				queue_work(newchannel->controlwq,
 					   &newchannel->work);
+			}
 
 			return;
 		}
