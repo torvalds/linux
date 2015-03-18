@@ -13,22 +13,22 @@ CFLAGS := -Wall -O2 -flto -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CUR
 
 export CC CFLAGS
 
-TARGETS = pmu copyloops mm tm primitives stringloops vphn
+SUB_DIRS = pmu copyloops mm tm primitives stringloops vphn
 
 endif
 
-all: $(TARGETS)
+all: $(SUB_DIRS)
 
-$(TARGETS):
+$(SUB_DIRS):
 	$(MAKE) -k -C $@ all
 
 run_tests: all
-	@for TARGET in $(TARGETS); do \
+	@for TARGET in $(SUB_DIRS); do \
 		$(MAKE) -C $$TARGET run_tests; \
 	done;
 
 clean:
-	@for TARGET in $(TARGETS); do \
+	@for TARGET in $(SUB_DIRS); do \
 		$(MAKE) -C $$TARGET clean; \
 	done;
 	rm -f tags
@@ -36,4 +36,4 @@ clean:
 tags:
 	find . -name '*.c' -o -name '*.h' | xargs ctags
 
-.PHONY: all run_tests clean tags $(TARGETS)
+.PHONY: all run_tests clean tags $(SUB_DIRS)
