@@ -435,6 +435,14 @@ config IMG_MDC_DMA
 	help
 	  Enable support for the IMG multi-threaded DMA controller (MDC).
 
+config XGENE_DMA
+	tristate "APM X-Gene DMA support"
+	select DMA_ENGINE
+	select DMA_ENGINE_RAID
+	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+	help
+	  Enable support for the APM X-Gene SoC DMA engine.
+
 config DMA_ENGINE
 	bool
 
