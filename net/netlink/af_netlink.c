@@ -3123,7 +3123,7 @@ static int __init netlink_proto_init(void)
 		.key_offset = offsetof(struct netlink_sock, portid),
 		.key_len = sizeof(u32), /* portid */
 		.hashfn = jhash,
-		.max_shift = 16, /* 64K */
+		.max_size = 65536,
 	};
 
 	if (err != 0)
