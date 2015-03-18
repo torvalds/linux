@@ -287,7 +287,7 @@ static int wl1271_probe(struct sdio_func *func,
 	memset(res, 0x00, sizeof(res));
 
 	res[0].start = pdev_data.pdata->irq;
-	res[0].flags = IORESOURCE_IRQ;
+	res[0].flags = IORESOURCE_IRQ | pdev_data.pdata->irq_trigger;
 	res[0].name = "irq";
 
 	ret = platform_device_add_resources(glue->core, res, ARRAY_SIZE(res));

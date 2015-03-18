@@ -1385,8 +1385,8 @@ static const short da850_wl12xx_pins[] __initconst = {
 
 static struct wl12xx_platform_data da850_wl12xx_wlan_data __initdata = {
 	.irq			= -1,
+	.irq_trigger		= IRQ_TYPE_EDGE_RISING,
 	.board_ref_clock	= WL12XX_REFCLOCK_38,
-	.platform_quirks	= WL12XX_PLATFORM_QUIRK_EDGE_IRQ,
 };
 
 static __init int da850_wl12xx_init(void)

@@ -57,14 +57,11 @@ struct wl1251_platform_data {
 
 struct wl12xx_platform_data {
 	int irq;
+	u32 irq_trigger;
 	int board_ref_clock;
 	int board_tcxo_clock;
-	unsigned long platform_quirks;
 	bool pwr_in_suspend;
 };
-
-/* Platform does not support level trigger interrupts */
-#define WL12XX_PLATFORM_QUIRK_EDGE_IRQ	BIT(0)
 
 #ifdef CONFIG_WILINK_PLATFORM_DATA
 

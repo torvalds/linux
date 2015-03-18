@@ -48,6 +48,7 @@ static void __init __used legacy_init_wl12xx(unsigned ref_clock,
 	wl12xx.board_ref_clock = ref_clock;
 	wl12xx.board_tcxo_clock = tcxo_clock;
 	wl12xx.irq = gpio_to_irq(gpio);
+	wl12xx.irq_trigger = IRQ_TYPE_LEVEL_HIGH;
 
 	res = wl12xx_set_platform_data(&wl12xx);
 	if (res) {
