@@ -489,6 +489,8 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.dmfs_high_rate_qpn_range = MLX4_A0_STEERING_TABLE_SIZE;
 	}
 
+	dev->caps.rl_caps = dev_cap->rl_caps;
+
 	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_RSS_RAW_ETH] =
 		dev->caps.dmfs_high_rate_qpn_range;
 

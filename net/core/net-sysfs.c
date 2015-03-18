@@ -951,6 +951,60 @@ static ssize_t show_trans_timeout(struct netdev_queue *queue,
 	return sprintf(buf, "%lu", trans_timeout);
 }
 
+#ifdef CONFIG_XPS
+static inline unsigned int get_netdev_queue_index(struct netdev_queue *queue)
+{
+	struct net_device *dev = queue->dev;
+	int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++)
+		if (queue == &dev->_tx[i])
+			break;
+
+	BUG_ON(i >= dev->num_tx_queues);
+
+	return i;
+}
+
+static ssize_t show_tx_maxrate(struct netdev_queue *queue,
+			       struct netdev_queue_attribute *attribute,
+			       char *buf)
+{
+	return sprintf(buf, "%lu\n", queue->tx_maxrate);
+}
+
+static ssize_t set_tx_maxrate(struct netdev_queue *queue,
+			      struct netdev_queue_attribute *attribute,
+			      const char *buf, size_t len)
+{
+	struct net_device *dev = queue->dev;
+	int err, index = get_netdev_queue_index(queue);
+	u32 rate = 0;
+
+	err = kstrtou32(buf, 10, &rate);
+	if (err < 0)
+		return err;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	err = -EOPNOTSUPP;
+	if (dev->netdev_ops->ndo_set_tx_maxrate)
+		err = dev->netdev_ops->ndo_set_tx_maxrate(dev, index, rate);
+
+	rtnl_unlock();
+	if (!err) {
+		queue->tx_maxrate = rate;
+		return len;
+	}
+	return err;
+}
+
+static struct netdev_queue_attribute queue_tx_maxrate =
+	__ATTR(tx_maxrate, S_IRUGO | S_IWUSR,
+	       show_tx_maxrate, set_tx_maxrate);
+#endif
+
 static struct netdev_queue_attribute queue_trans_timeout =
 	__ATTR(tx_timeout, S_IRUGO, show_trans_timeout, NULL);
 
@@ -1065,18 +1119,6 @@ static struct attribute_group dql_group = {
 #endif /* CONFIG_BQL */
 
 #ifdef CONFIG_XPS
-static unsigned int get_netdev_queue_index(struct netdev_queue *queue)
-{
-	struct net_device *dev = queue->dev;
-	unsigned int i;
-
-	i = queue - dev->_tx;
-	BUG_ON(i >= dev->num_tx_queues);
-
-	return i;
-}
-
-
 static ssize_t show_xps_map(struct netdev_queue *queue,
 			    struct netdev_queue_attribute *attribute, char *buf)
 {
@@ -1153,6 +1195,7 @@ static struct attribute *netdev_queue_default_attrs[] = {
 	&queue_trans_timeout.attr,
 #ifdef CONFIG_XPS
 	&xps_cpus_attribute.attr,
+	&queue_tx_maxrate.attr,
 #endif
 	NULL
 };

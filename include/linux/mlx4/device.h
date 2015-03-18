@@ -205,6 +205,7 @@ enum {
 	MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT = 1LL << 20,
 	MLX4_DEV_CAP_FLAG2_PORT_REMAP		= 1LL <<  21,
 	MLX4_DEV_CAP_FLAG2_QCN			= 1LL <<  22,
+	MLX4_DEV_CAP_FLAG2_QP_RATE_LIMIT	= 1LL <<  23
 };
 
 enum {
@@ -450,6 +451,21 @@ enum mlx4_module_id {
 	MLX4_MODULE_ID_QSFP28           = 0x11,
 };
 
+enum { /* rl */
+	MLX4_QP_RATE_LIMIT_NONE		= 0,
+	MLX4_QP_RATE_LIMIT_KBS		= 1,
+	MLX4_QP_RATE_LIMIT_MBS		= 2,
+	MLX4_QP_RATE_LIMIT_GBS		= 3
+};
+
+struct mlx4_rate_limit_caps {
+	u16	num_rates; /* Number of different rates */
+	u8	min_unit;
+	u16	min_val;
+	u8	max_unit;
+	u16	max_val;
+};
+
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
 	return (major << 32) | (minor << 16) | subminor;
@@ -565,6 +581,7 @@ struct mlx4_caps {
 	u32			dmfs_high_rate_qpn_base;
 	u32			dmfs_high_rate_qpn_range;
 	u32			vf_caps;
+	struct mlx4_rate_limit_caps rl_caps;
 };
 
 struct mlx4_buf_list {

@@ -127,6 +127,7 @@ struct mlx4_dev_cap {
 	u32 max_counters;
 	u32 dmfs_high_rate_qpn_base;
 	u32 dmfs_high_rate_qpn_range;
+	struct mlx4_rate_limit_caps rl_caps;
 	struct mlx4_port_cap port_cap[MLX4_MAX_PORTS + 1];
 };
 
