@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_RESUME_TRACE_H
-#define _ASM_X86_RESUME_TRACE_H
+#ifndef _ASM_X86_PM_TRACE_H
+#define _ASM_X86_PM_TRACE_H
 
 #include <asm/asm.h>
 
@@ -14,8 +14,10 @@ do {								\
 			     ".previous"			\
 			     :"=r" (tracedata)			\
 			     : "i" (__LINE__), "i" (__FILE__));	\
-		generate_resume_trace(tracedata, user);		\
+		generate_pm_trace(tracedata, user);		\
 	}							\
 } while (0)
 
-#endif /* _ASM_X86_RESUME_TRACE_H */
+#define TRACE_SUSPEND(user)	TRACE_RESUME(user)
+
+#endif /* _ASM_X86_PM_TRACE_H */
