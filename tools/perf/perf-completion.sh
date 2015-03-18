@@ -137,8 +137,8 @@ __perf_main ()
 			cmds=$($cmd --list-cmds)
 		fi
 		__perfcomp "$cmds" "$cur"
-	# List possible events for -e option
-	elif [[ $prev == "-e" && $prev_skip_opts == @(record|stat|top) ]]; then
+	# List possible events for -e and --event option
+	elif [[ $prev == @("-e"|"--event") && $prev_skip_opts == @(record|stat|top) ]]; then
 		evts=$($cmd list --raw-dump)
 		__perfcomp_colon "$evts" "$cur"
 	else
