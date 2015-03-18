@@ -30,14 +30,24 @@
 #include <linux/module.h>
 #include <linux/platform_data/irq-renesas-irqc.h>
 
-#define IRQC_IRQ_MAX 32 /* maximum 32 interrupts per driver instance */
+#define IRQC_IRQ_MAX	32	/* maximum 32 interrupts per driver instance */
 
-#define IRQC_REQ_STS 0x00
-#define IRQC_EN_STS 0x04
-#define IRQC_EN_SET 0x08
+#define IRQC_REQ_STS	0x00	/* Interrupt Request Status Register */
+#define IRQC_EN_STS	0x04	/* Interrupt Enable Status Register */
+#define IRQC_EN_SET	0x08	/* Interrupt Enable Set Register */
 #define IRQC_INT_CPU_BASE(n) (0x000 + ((n) * 0x10))
-#define DETECT_STATUS 0x100
+				/* SYS-CPU vs. RT-CPU */
+#define DETECT_STATUS	0x100	/* IRQn Detect Status Register */
+#define MONITOR		0x104	/* IRQn Signal Level Monitor Register */
+#define HLVL_STS	0x108	/* IRQn High Level Detect Status Register */
+#define LLVL_STS	0x10c	/* IRQn Low Level Detect Status Register */
+#define S_R_EDGE_STS	0x110	/* IRQn Sync Rising Edge Detect Status Reg. */
+#define S_F_EDGE_STS	0x114	/* IRQn Sync Falling Edge Detect Status Reg. */
+#define A_R_EDGE_STS	0x118	/* IRQn Async Rising Edge Detect Status Reg. */
+#define A_F_EDGE_STS	0x11c	/* IRQn Async Falling Edge Detect Status Reg. */
+#define CHTEN_STS	0x120	/* Chattering Reduction Status Register */
 #define IRQC_CONFIG(n) (0x180 + ((n) * 0x04))
+				/* IRQn Configuration Register */
 
 struct irqc_irq {
 	int hw_irq;
