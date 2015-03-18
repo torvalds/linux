@@ -1112,10 +1112,9 @@ static int ll_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int err;
 
 	CDEBUG(D_VFSTRACE,
-	       "VFS Op:oldname=%pd,src_dir=%lu/%u(%p),newname=%pd,"
-	       "tgt_dir=%lu/%u(%p)\n", old_dentry,
-	       old_dir->i_ino, old_dir->i_generation, old_dir, new_dentry,
-	       new_dir->i_ino, new_dir->i_generation, new_dir);
+	       "VFS Op:oldname=%pd,src_dir=%lu/%u(%p),newname=%pd,tgt_dir=%lu/%u(%p)\n",
+	       old_dentry, old_dir->i_ino, old_dir->i_generation, old_dir,
+	       new_dentry, new_dir->i_ino, new_dir->i_generation, new_dir);
 
 	op_data = ll_prep_md_op_data(NULL, old_dir, new_dir, NULL, 0, 0,
 				     LUSTRE_OPC_ANY, NULL);
