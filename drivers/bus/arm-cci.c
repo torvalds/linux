@@ -81,7 +81,7 @@ static const struct of_device_id arm_cci_matches[] = {
 
 #define CCI_PMU_CNTR_MASK	((1ULL << 32) -1)
 
-#define CCI_PMU_EVENT_MASK		0xff
+#define CCI_PMU_EVENT_MASK		0xffUL
 #define CCI_PMU_EVENT_SOURCE(event)	((event >> 5) & 0x7)
 #define CCI_PMU_EVENT_CODE(event)	(event & 0x1f)
 
@@ -179,11 +179,14 @@ enum cci400_perf_events {
 #define CCI_REV_R1_MASTER_PORT_MIN_EV	0x00
 #define CCI_REV_R1_MASTER_PORT_MAX_EV	0x11
 
-static int pmu_validate_hw_event(u8 hw_event)
+static int pmu_validate_hw_event(unsigned long hw_event)
 {
 	u8 ev_source = CCI_PMU_EVENT_SOURCE(hw_event);
 	u8 ev_code = CCI_PMU_EVENT_CODE(hw_event);
 	int if_type;
+
+	if (hw_event & ~CCI_PMU_EVENT_MASK)
+		return -ENOENT;
 
 	switch (ev_source) {
 	case CCI_PORT_S0:
@@ -258,7 +261,6 @@ static void pmu_enable_counter(int idx)
 
 static void pmu_set_event(int idx, unsigned long event)
 {
-	event &= CCI_PMU_EVENT_MASK;
 	pmu_write_register(event, idx, CCI_PMU_EVT_SEL);
 }
 
@@ -275,7 +277,7 @@ static int pmu_get_event_idx(struct cci_pmu_hw_events *hw, struct perf_event *ev
 {
 	struct cci_pmu *cci_pmu = to_cci_pmu(event->pmu);
 	struct hw_perf_event *hw_event = &event->hw;
-	unsigned long cci_event = hw_event->config_base & CCI_PMU_EVENT_MASK;
+	unsigned long cci_event = hw_event->config_base;
 	int idx;
 
 	if (cci_event == CCI_PMU_CYCLES) {
@@ -296,7 +298,7 @@ static int pmu_get_event_idx(struct cci_pmu_hw_events *hw, struct perf_event *ev
 static int pmu_map_event(struct perf_event *event)
 {
 	int mapping;
-	u8 config = event->attr.config & CCI_PMU_EVENT_MASK;
+	unsigned long config = event->attr.config;
 
 	if (event->attr.type < PERF_TYPE_MAX)
 		return -ENOENT;
