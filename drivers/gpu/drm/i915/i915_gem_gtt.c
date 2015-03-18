@@ -2340,12 +2340,13 @@ __i915_gem_vma_create(struct drm_i915_gem_object *obj,
 		      struct i915_address_space *vm,
 		      const struct i915_ggtt_view *ggtt_view)
 {
-	struct i915_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
-	if (vma == NULL)
-		return ERR_PTR(-ENOMEM);
+	struct i915_vma *vma;
 
 	if (WARN_ON(i915_is_ggtt(vm) != !!ggtt_view))
 		return ERR_PTR(-EINVAL);
+	vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+	if (vma == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&vma->vma_link);
 	INIT_LIST_HEAD(&vma->mm_list);
