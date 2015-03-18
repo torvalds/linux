@@ -651,10 +651,9 @@ static void brcmf_pcie_bus_console_read(struct brcmf_pciedev_info *devinfo)
 			console->log_str[console->log_idx] = ch;
 			console->log_idx++;
 		}
-
 		if (ch == '\n') {
 			console->log_str[console->log_idx] = 0;
-			brcmf_dbg(PCIE, "CONSOLE: %s\n", console->log_str);
+			brcmf_dbg(PCIE, "CONSOLE: %s", console->log_str);
 			console->log_idx = 0;
 		}
 	}
