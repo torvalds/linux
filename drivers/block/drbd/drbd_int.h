@@ -835,6 +835,7 @@ struct drbd_device {
 	struct dentry *debugfs_vol_act_log_extents;
 	struct dentry *debugfs_vol_resync_extents;
 	struct dentry *debugfs_vol_data_gen_id;
+	struct dentry *debugfs_vol_ed_gen_id;
 #endif
 
 	unsigned int vnr;	/* volume number within the connection */
