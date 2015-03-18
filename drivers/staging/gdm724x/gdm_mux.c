@@ -270,7 +270,7 @@ static void gdm_mux_rcv_complete(struct urb *urb)
 
 	if (urb->status) {
 		if (mux_dev->usb_state == PM_NORMAL)
-			pr_err("%s: urb status error %d\n",
+			dev_err(&urb->dev->dev, "%s: urb status error %d\n",
 			       __func__, urb->status);
 		put_rx_struct(rx, r);
 	} else {
@@ -342,7 +342,7 @@ static void gdm_mux_send_complete(struct urb *urb)
 	struct mux_tx *t = urb->context;
 
 	if (urb->status == -ECONNRESET) {
-		pr_info("CONNRESET\n");
+		dev_info(&urb->dev->dev, "CONNRESET\n");
 		free_mux_tx(t);
 		return;
 	}

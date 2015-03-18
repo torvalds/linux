@@ -480,7 +480,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 	} else {
 		if (urb->status && udev->usb_state == PM_NORMAL)
-			pr_err("%s: urb status error %d\n",
+			dev_err(&urb->dev->dev, "%s: urb status error %d\n",
 			       __func__, urb->status);
 
 		put_rx_struct(rx, r);
@@ -557,7 +557,7 @@ static void gdm_usb_send_complete(struct urb *urb)
 	unsigned long flags;
 
 	if (urb->status == -ECONNRESET) {
-		pr_info("CONNRESET\n");
+		dev_info(&urb->dev->dev, "CONNRESET\n");
 		return;
 	}
 
@@ -590,7 +590,8 @@ static int send_tx_packet(struct usb_device *usbdev, struct usb_tx *t, u32 len)
 	ret = usb_submit_urb(t->urb, GFP_ATOMIC);
 
 	if (ret)
-		pr_err("usb_submit_urb failed: %d\n", ret);
+		dev_err(&usbdev->dev, "usb_submit_urb failed: %d\n",
+			ret);
 
 	usb_mark_last_busy(usbdev);
 
