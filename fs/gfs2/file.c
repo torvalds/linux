@@ -765,22 +765,30 @@ out:
 	brelse(dibh);
 	return error;
 }
-
-static void calc_max_reserv(struct gfs2_inode *ip, loff_t max, loff_t *len,
-			    unsigned int *data_blocks, unsigned int *ind_blocks)
+/**
+ * calc_max_reserv() - Reverse of write_calc_reserv. Given a number of
+ *                     blocks, determine how many bytes can be written.
+ * @ip:          The inode in question.
+ * @len:         Max cap of bytes. What we return in *len must be <= this.
+ * @data_blocks: Compute and return the number of data blocks needed
+ * @ind_blocks:  Compute and return the number of indirect blocks needed
+ * @max_blocks:  The total blocks available to work with.
+ *
+ * Returns: void, but @len, @data_blocks and @ind_blocks are filled in.
+ */
+static void calc_max_reserv(struct gfs2_inode *ip, loff_t *len,
+			    unsigned int *data_blocks, unsigned int *ind_blocks,
+			    unsigned int max_blocks)
 {
+	loff_t max = *len;
 	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	unsigned int max_blocks = ip->i_rgd->rd_free_clone;
 	unsigned int tmp, max_data = max_blocks - 3 * (sdp->sd_max_height - 1);
 
 	for (tmp = max_data; tmp > sdp->sd_diptrs;) {
 		tmp = DIV_ROUND_UP(tmp, sdp->sd_inptrs);
 		max_data -= tmp;
 	}
-	/* This calculation isn't the exact reverse of gfs2_write_calc_reserve,
-	   so it might end up with fewer data blocks */
-	if (max_data <= *data_blocks)
-		return;
+
 	*data_blocks = max_data;
 	*ind_blocks = max_blocks - max_data;
 	*len = ((loff_t)max_data - 3) << sdp->sd_sb.sb_bsize_shift;
@@ -797,7 +805,7 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_alloc_parms ap = { .aflags = 0, };
 	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
-	loff_t bytes, max_bytes;
+	loff_t bytes, max_bytes, max_blks = UINT_MAX;
 	int error;
 	const loff_t pos = offset;
 	const loff_t count = len;
@@ -819,6 +827,9 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 
 	gfs2_size_hint(file, offset, len);
 
+	gfs2_write_calc_reserv(ip, PAGE_SIZE, &data_blocks, &ind_blocks);
+	ap.min_target = data_blocks + ind_blocks;
+
 	while (len > 0) {
 		if (len < bytes)
 			bytes = len;
@@ -827,28 +838,41 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 			offset += bytes;
 			continue;
 		}
-retry:
+
+		/* We need to determine how many bytes we can actually
+		 * fallocate without exceeding quota or going over the
+		 * end of the fs. We start off optimistically by assuming
+		 * we can write max_bytes */
+		max_bytes = (len > max_chunk_size) ? max_chunk_size : len;
+
+		/* Since max_bytes is most likely a theoretical max, we
+		 * calculate a more realistic 'bytes' to serve as a good
+		 * starting point for the number of bytes we may be able
+		 * to write */
 		gfs2_write_calc_reserv(ip, bytes, &data_blocks, &ind_blocks);
 		ap.target = data_blocks + ind_blocks;
 
 		error = gfs2_quota_lock_check(ip, &ap);
 		if (error)
 			return error;
+		/* ap.allowed tells us how many blocks quota will allow
+		 * us to write. Check if this reduces max_blks */
+		if (ap.allowed && ap.allowed < max_blks)
+			max_blks = ap.allowed;
+
 		error = gfs2_inplace_reserve(ip, &ap);
-		if (error) {
-			if (error == -ENOSPC && bytes > sdp->sd_sb.sb_bsize) {
-				bytes >>= 1;
-				bytes &= bsize_mask;
-				if (bytes == 0)
-					bytes = sdp->sd_sb.sb_bsize;
-				gfs2_quota_unlock(ip);
-				goto retry;
-			}
+		if (error)
 			goto out_qunlock;
-		}
-		max_bytes = bytes;
-		calc_max_reserv(ip, (len > max_chunk_size)? max_chunk_size: len,
-				&max_bytes, &data_blocks, &ind_blocks);
+
+		/* check if the selected rgrp limits our max_blks further */
+		if (ap.allowed && ap.allowed < max_blks)
+			max_blks = ap.allowed;
+
+		/* Almost done. Calculate bytes that can be written using
+		 * max_blks. We also recompute max_bytes, data_blocks and
+		 * ind_blocks */
+		calc_max_reserv(ip, &max_bytes, &data_blocks,
+				&ind_blocks, max_blks);
 
 		rblocks = RES_DINODE + ind_blocks + RES_STATFS + RES_QUOTA +
 			  RES_RG_HDR + gfs2_rg_blocks(ip, data_blocks + ind_blocks);
