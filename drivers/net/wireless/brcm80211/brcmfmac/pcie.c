@@ -47,8 +47,6 @@ enum brcmf_pcie_state {
 
 #define BRCMF_PCIE_43602_FW_NAME		"brcm/brcmfmac43602-pcie.bin"
 #define BRCMF_PCIE_43602_NVRAM_NAME		"brcm/brcmfmac43602-pcie.txt"
-#define BRCMF_PCIE_4354_FW_NAME			"brcm/brcmfmac4354-pcie.bin"
-#define BRCMF_PCIE_4354_NVRAM_NAME		"brcm/brcmfmac4354-pcie.txt"
 #define BRCMF_PCIE_4356_FW_NAME			"brcm/brcmfmac4356-pcie.bin"
 #define BRCMF_PCIE_4356_NVRAM_NAME		"brcm/brcmfmac4356-pcie.txt"
 #define BRCMF_PCIE_43570_FW_NAME		"brcm/brcmfmac43570-pcie.bin"
@@ -187,8 +185,6 @@ enum brcmf_pcie_state {
 
 MODULE_FIRMWARE(BRCMF_PCIE_43602_FW_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_43602_NVRAM_NAME);
-MODULE_FIRMWARE(BRCMF_PCIE_4354_FW_NAME);
-MODULE_FIRMWARE(BRCMF_PCIE_4354_NVRAM_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_4356_FW_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_4356_NVRAM_NAME);
 MODULE_FIRMWARE(BRCMF_PCIE_43570_FW_NAME);
@@ -1327,10 +1323,6 @@ static int brcmf_pcie_get_fwnames(struct brcmf_pciedev_info *devinfo)
 		fw_name = BRCMF_PCIE_43602_FW_NAME;
 		nvram_name = BRCMF_PCIE_43602_NVRAM_NAME;
 		break;
-	case BRCM_CC_4354_CHIP_ID:
-		fw_name = BRCMF_PCIE_4354_FW_NAME;
-		nvram_name = BRCMF_PCIE_4354_NVRAM_NAME;
-		break;
 	case BRCM_CC_4356_CHIP_ID:
 		fw_name = BRCMF_PCIE_4356_FW_NAME;
 		nvram_name = BRCMF_PCIE_4356_NVRAM_NAME;
@@ -1855,7 +1847,6 @@ cleanup:
 	PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, 0 }
 
 static struct pci_device_id brcmf_pcie_devid_table[] = {
-	BRCMF_PCIE_DEVICE(BRCM_PCIE_4354_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_4356_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43567_DEVICE_ID),
 	BRCMF_PCIE_DEVICE(BRCM_PCIE_43570_DEVICE_ID),
