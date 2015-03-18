@@ -52,6 +52,7 @@ struct request_sock {
 #define rsk_refcnt			__req_common.skc_refcnt
 
 	struct request_sock		*dl_next;
+	struct sock			*rsk_listener;
 	u16				mss;
 	u8				num_retrans; /* number of retransmits */
 	u8				cookie_ts:1; /* syncookie: encode tcpopts in timestamp */
@@ -67,13 +68,21 @@ struct request_sock {
 	u32				peer_secid;
 };
 
-static inline struct request_sock *reqsk_alloc(const struct request_sock_ops *ops)
+static inline struct request_sock *
+reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener)
 {
 	struct request_sock *req = kmem_cache_alloc(ops->slab, GFP_ATOMIC);
 
-	if (req != NULL)
+	if (req) {
 		req->rsk_ops = ops;
+		sock_hold(sk_listener);
+		req->rsk_listener = sk_listener;
 
+		/* Following is temporary. It is coupled with debugging
+		 * helpers in reqsk_put() & reqsk_free()
+		 */
+		atomic_set(&req->rsk_refcnt, 0);
+	}
 	return req;
 }
 
@@ -88,6 +97,8 @@ static inline void reqsk_free(struct request_sock *req)
 	WARN_ON_ONCE(atomic_read(&req->rsk_refcnt) != 0);
 
 	req->rsk_ops->destructor(req);
+	if (req->rsk_listener)
+		sock_put(req->rsk_listener);
 	kmem_cache_free(req->rsk_ops->slab, req);
 }
 
@@ -285,6 +296,12 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	req->num_timeout = 0;
 	req->sk = NULL;
 	req->dl_next = lopt->syn_table[hash];
+
+	/* before letting lookups find us, make sure all req fields
+	 * are committed to memory and refcnt initialized.
+	 */
+	smp_wmb();
+	atomic_set(&req->rsk_refcnt, 1);
 
 	write_lock(&queue->syn_wait_lock);
 	lopt->syn_table[hash] = req;

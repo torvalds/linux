@@ -227,11 +227,12 @@ static struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 	struct sock *child;
 
 	child = icsk->icsk_af_ops->syn_recv_sock(sk, skb, req, dst);
-	if (child)
+	if (child) {
+		atomic_set(&req->rsk_refcnt, 1);
 		inet_csk_reqsk_queue_add(sk, req, child);
-	else
+	} else {
 		reqsk_free(req);
-
+	}
 	return child;
 }
 
@@ -325,7 +326,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 		goto out;
 
 	ret = NULL;
-	req = inet_reqsk_alloc(&tcp_request_sock_ops); /* for safety */
+	req = inet_reqsk_alloc(&tcp_request_sock_ops, sk); /* for safety */
 	if (!req)
 		goto out;
 
@@ -345,8 +346,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
 	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
 	treq->snt_synack	= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsecr : 0;
-	treq->listener		= NULL;
-	write_pnet(&ireq->ireq_net, sock_net(sk));
+	treq->tfo_listener	= false;
 	ireq->ireq_family = AF_INET;
 
 	ireq->ir_iif = sk->sk_bound_dev_if;
@@ -357,7 +357,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	ireq->opt = tcp_v4_save_options(skb);
 
 	if (security_inet_conn_request(sk, skb, req)) {
-		reqsk_put(req);
+		reqsk_free(req);
 		goto out;
 	}
 
@@ -378,7 +378,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	security_req_classify_flow(req, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_key(sock_net(sk), &fl4);
 	if (IS_ERR(rt)) {
-		reqsk_put(req);
+		reqsk_free(req);
 		goto out;
 	}
 

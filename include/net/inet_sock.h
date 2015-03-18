@@ -81,7 +81,6 @@ struct inet_request_sock {
 #define ir_cookie		req.__req_common.skc_cookie
 #define ireq_net		req.__req_common.skc_net
 #define ireq_state		req.__req_common.skc_state
-#define ireq_refcnt		req.__req_common.skc_refcnt
 #define ireq_family		req.__req_common.skc_family
 
 	kmemcheck_bitfield_begin(flags);
@@ -244,25 +243,8 @@ static inline unsigned int __inet_ehashfn(const __be32 laddr,
 			    initval);
 }
 
-static inline struct request_sock *inet_reqsk_alloc(struct request_sock_ops *ops)
-{
-	struct request_sock *req = reqsk_alloc(ops);
-	struct inet_request_sock *ireq = inet_rsk(req);
-
-	if (req != NULL) {
-		kmemcheck_annotate_bitfield(ireq, flags);
-		ireq->opt = NULL;
-		atomic64_set(&ireq->ir_cookie, 0);
-		ireq->ireq_state = TCP_NEW_SYN_RECV;
-
-		/* Following is temporary. It is coupled with debugging
-		 * helpers in reqsk_put() & reqsk_free()
-		 */
-		atomic_set(&ireq->ireq_refcnt, 0);
-	}
-
-	return req;
-}
+struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
+				      struct sock *sk_listener);
 
 static inline __u8 inet_sk_flowi_flags(const struct sock *sk)
 {
