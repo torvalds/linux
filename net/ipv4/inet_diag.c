@@ -742,14 +742,14 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 			if (bc) {
 				/* Note: entry.sport and entry.userlocks are already set */
-				entry_fill_addrs(&entry, (struct sock *)req);
+				entry_fill_addrs(&entry, req_to_sk(req));
 				entry.dport = ntohs(ireq->ir_rmt_port);
 
 				if (!inet_diag_bc_run(bc, &entry))
 					continue;
 			}
 
-			err = inet_req_diag_fill((struct sock *)req, skb,
+			err = inet_req_diag_fill(req_to_sk(req), skb,
 						 NETLINK_CB(cb->skb).portid,
 						 cb->nlh->nlmsg_seq,
 						 NLM_F_MULTI, cb->nlh);
