@@ -41,7 +41,12 @@ static inline void tlb_flush(struct mmu_gather *tlb)
 		flush_tlb_mm(tlb->mm);
 	} else {
 		struct vm_area_struct vma = { .vm_mm = tlb->mm, };
-		flush_tlb_range(&vma, tlb->start, tlb->end);
+		/*
+		 * The intermediate page table levels are already handled by
+		 * the __(pte|pmd|pud)_free_tlb() functions, so last level
+		 * TLBI is sufficient here.
+		 */
+		__flush_tlb_range(&vma, tlb->start, tlb->end, true);
 	}
 }
 
