@@ -36,21 +36,10 @@
 #endif /* CONFIG_X86_PPRO_FENCE */
 #define dma_wmb()	barrier()
 
-#ifdef CONFIG_SMP
-
-#define smp_mb()	mb()
-#define smp_rmb()	dma_rmb()
-#define smp_wmb()	barrier()
-#define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
-
-#else /* CONFIG_SMP */
-
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
 #define smp_wmb()	barrier()
 #define set_mb(var, value) do { var = value; barrier(); } while (0)
-
-#endif /* CONFIG_SMP */
 
 #define read_barrier_depends()		do { } while (0)
 #define smp_read_barrier_depends()	do { } while (0)

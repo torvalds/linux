@@ -66,12 +66,6 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	int index = 0;
 
-#ifdef CONFIG_SMP
-	index = (struct cpuinfo_um *) v - cpu_data;
-	if (!cpu_online(index))
-		return 0;
-#endif
-
 	seq_printf(m, "processor\t: %d\n", index);
 	seq_printf(m, "vendor_id\t: User Mode Linux\n");
 	seq_printf(m, "model name\t: UML\n");
@@ -167,23 +161,6 @@ __uml_setup("debug", no_skas_debug_setup,
 "debug\n"
 "    this flag is not needed to run gdb on UML in skas mode\n\n"
 );
-
-#ifdef CONFIG_SMP
-static int __init uml_ncpus_setup(char *line, int *add)
-{
-	if (!sscanf(line, "%d", &ncpus)) {
-		printf("Couldn't parse [%s]\n", line);
-		return -1;
-	}
-
-	return 0;
-}
-
-__uml_setup("ncpus=", uml_ncpus_setup,
-"ncpus=<# of desired CPUs>\n"
-"    This tells an SMP kernel how many virtual processors to start.\n\n"
-);
-#endif
 
 static int __init Usage(char *line, int *add)
 {
@@ -380,15 +357,3 @@ void __init check_bugs(void)
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 {
 }
-
-#ifdef CONFIG_SMP
-void alternatives_smp_module_add(struct module *mod, char *name,
-				 void *locks, void *locks_end,
-				 void *text,  void *text_end)
-{
-}
-
-void alternatives_smp_module_del(struct module *mod)
-{
-}
-#endif
