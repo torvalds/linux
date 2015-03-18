@@ -2300,7 +2300,7 @@ int __ieee80211_request_smps_ap(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ht_dbg(sdata,
-	       "SMSP %d requested in AP mode, sending Action frame to %d stations\n",
+	       "SMPS %d requested in AP mode, sending Action frame to %d stations\n",
 	       smps_mode, atomic_read(&sdata->u.ap.num_mcast_sta));
 
 	mutex_lock(&sdata->local->sta_mtx);
