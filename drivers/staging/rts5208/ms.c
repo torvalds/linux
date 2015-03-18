@@ -2030,6 +2030,8 @@ static int ms_init_l2p_tbl(struct rtsx_chip *chip)
 
 	reg_addr = PPBUF_BASE2;
 	for (i = 0; i < (((ms_card->total_block >> 9) * 10) + 1); i++) {
+		int block_no;
+
 		retval = rtsx_read_register(chip, reg_addr++, &val1);
 		if (retval != STATUS_SUCCESS)
 			TRACE_GOTO(chip, INIT_FAIL);
@@ -2043,7 +2045,9 @@ static int ms_init_l2p_tbl(struct rtsx_chip *chip)
 			break;
 
 		seg_no = defect_block / 512;
-		ms_card->segment[seg_no].defect_list[ms_card->segment[seg_no].disable_count++] = defect_block;
+
+		block_no = ms_card->segment[seg_no].disable_count++;
+		ms_card->segment[seg_no].defect_list[block_no] = defect_block;
 	}
 
 	for (i = 0; i < ms_card->segment_cnt; i++) {
