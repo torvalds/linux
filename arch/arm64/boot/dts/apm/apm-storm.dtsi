@@ -102,6 +102,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+		dma-ranges = <0x0 0x0 0x0 0x0 0x400 0x0>;
 
 		clocks {
 			#address-cells = <2>;
@@ -351,6 +352,15 @@
 				reg = <0x0 0x1f51c000 0x0 0x1000>;
 				reg-names = "csr-reg";
 				clock-output-names = "pcie4clk";
+			};
+
+			dmaclk: dmaclk@1f27c000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f27c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				clock-output-names = "dmaclk";
 			};
 		};
 
@@ -655,6 +665,22 @@
 			reg = <0x0 0x10520000 0x0 0x100>;
 			interrupts = <0x0 0x41 0x4>;
 			clocks = <&rngpkaclk 0>;
+		};
+
+		dma: dma@1f270000 {
+			compatible = "apm,xgene-storm-dma";
+			device_type = "dma";
+			reg = <0x0 0x1f270000 0x0 0x10000>,
+			      <0x0 0x1f200000 0x0 0x10000>,
+			      <0x0 0x1b008000 0x0 0x2000>,
+			      <0x0 0x1054a000 0x0 0x100>;
+			interrupts = <0x0 0x82 0x4>,
+				     <0x0 0xb8 0x4>,
+				     <0x0 0xb9 0x4>,
+				     <0x0 0xba 0x4>,
+				     <0x0 0xbb 0x4>;
+			dma-coherent;
+			clocks = <&dmaclk 0>;
 		};
 	};
 };
