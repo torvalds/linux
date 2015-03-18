@@ -1034,7 +1034,7 @@ static int ll_rmdir(struct inode *dir, struct dentry *dentry)
 	       dentry, dir->i_ino, dir->i_generation, dir);
 
 	op_data = ll_prep_md_op_data(NULL, dir, NULL,
-				     dentry->d_name.name, 
+				     dentry->d_name.name,
 				     dentry->d_name.len,
 				     S_IFDIR, LUSTRE_OPC_ANY, NULL);
 	if (IS_ERR(op_data))
