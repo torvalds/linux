@@ -83,8 +83,6 @@ struct rhashtable;
  * @key_len: Length of key
  * @key_offset: Offset of key in struct to be hashed
  * @head_offset: Offset of rhash_head in struct to be hashed
- * @max_shift: Maximum number of shifts while expanding
- * @min_shift: Minimum number of shifts while shrinking
  * @max_size: Maximum size while expanding
  * @min_size: Minimum size while shrinking
  * @nulls_base: Base value to generate nulls marker
@@ -97,8 +95,6 @@ struct rhashtable_params {
 	size_t			key_len;
 	size_t			key_offset;
 	size_t			head_offset;
-	size_t			max_shift;
-	size_t			min_shift;
 	unsigned int		max_size;
 	unsigned int		min_size;
 	u32			nulls_base;
