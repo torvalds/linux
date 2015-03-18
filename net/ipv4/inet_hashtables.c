@@ -434,15 +434,13 @@ int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw)
 }
 EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
 
-static void __inet_hash(struct sock *sk)
+int __inet_hash(struct sock *sk, struct inet_timewait_sock *tw)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct inet_listen_hashbucket *ilb;
 
-	if (sk->sk_state != TCP_LISTEN) {
-		__inet_hash_nolisten(sk, NULL);
-		return;
-	}
+	if (sk->sk_state != TCP_LISTEN)
+		return __inet_hash_nolisten(sk, tw);
 
 	WARN_ON(!sk_unhashed(sk));
 	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
@@ -451,13 +449,15 @@ static void __inet_hash(struct sock *sk)
 	__sk_nulls_add_node_rcu(sk, &ilb->head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	spin_unlock(&ilb->lock);
+	return 0;
 }
+EXPORT_SYMBOL(__inet_hash);
 
 void inet_hash(struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
-		__inet_hash(sk);
+		__inet_hash(sk, NULL);
 		local_bh_enable();
 	}
 }

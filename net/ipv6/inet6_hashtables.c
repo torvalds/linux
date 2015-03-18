@@ -42,42 +42,6 @@ u32 inet6_ehashfn(const struct net *net,
 			       inet6_ehash_secret + net_hash_mix(net));
 }
 
-int __inet6_hash(struct sock *sk, struct inet_timewait_sock *tw)
-{
-	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	int twrefcnt = 0;
-
-	WARN_ON(!sk_unhashed(sk));
-
-	if (sk->sk_state == TCP_LISTEN) {
-		struct inet_listen_hashbucket *ilb;
-
-		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
-		spin_lock(&ilb->lock);
-		__sk_nulls_add_node_rcu(sk, &ilb->head);
-		spin_unlock(&ilb->lock);
-	} else {
-		unsigned int hash;
-		struct hlist_nulls_head *list;
-		spinlock_t *lock;
-
-		sk->sk_hash = hash = sk_ehashfn(sk);
-		list = &inet_ehash_bucket(hashinfo, hash)->chain;
-		lock = inet_ehash_lockp(hashinfo, hash);
-		spin_lock(lock);
-		__sk_nulls_add_node_rcu(sk, list);
-		if (tw) {
-			WARN_ON(sk->sk_hash != tw->tw_hash);
-			twrefcnt = inet_twsk_unhash(tw);
-		}
-		spin_unlock(lock);
-	}
-
-	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	return twrefcnt;
-}
-EXPORT_SYMBOL(__inet6_hash);
-
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
  * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM
@@ -306,6 +270,6 @@ int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 		       struct sock *sk)
 {
 	return __inet_hash_connect(death_row, sk, inet6_sk_port_offset(sk),
-			__inet6_check_established, __inet6_hash);
+			__inet6_check_established, __inet_hash_nolisten);
 }
 EXPORT_SYMBOL_GPL(inet6_hash_connect);
