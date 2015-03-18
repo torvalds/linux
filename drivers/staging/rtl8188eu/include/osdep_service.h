@@ -76,11 +76,6 @@ static inline int _enter_critical_mutex(struct mutex *pmutex,
 	return ret;
 }
 
-#define RTW_TIMER_HDL_ARGS void *FunctionContext
-#define RTW_TIMER_HDL_NAME(name) rtw_##name##_timer_hdl
-#define RTW_DECLARE_TIMER_HDL(name) \
-	void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
-
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 {
 	return  netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 0)) &&
