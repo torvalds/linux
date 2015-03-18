@@ -272,6 +272,31 @@ fail:
 	return ret;
 }
 
+static int exynos_get_boot_addr(u32 core_id, unsigned long *boot_addr)
+{
+	int ret;
+
+	/*
+	 * Try to get boot address using firmware first
+	 * and fall back to boot register if it fails.
+	 */
+	ret = call_firmware_op(get_cpu_boot_addr, core_id, boot_addr);
+	if (ret && ret != -ENOSYS)
+		goto fail;
+	if (ret == -ENOSYS) {
+		void __iomem *boot_reg = cpu_boot_reg(core_id);
+
+		if (IS_ERR(boot_reg)) {
+			ret = PTR_ERR(boot_reg);
+			goto fail;
+		}
+		*boot_addr = __raw_readl(boot_reg);
+		ret = 0;
+	}
+fail:
+	return ret;
+}
+
 static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
