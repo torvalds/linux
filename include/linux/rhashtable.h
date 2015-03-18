@@ -51,7 +51,6 @@ struct rhash_head {
  * @size: Number of hash buckets
  * @rehash: Current bucket being rehashed
  * @hash_rnd: Random seed to fold into hash
- * @shift: Current size (1 << shift)
  * @locks_mask: Mask to apply before accessing locks[]
  * @locks: Array of spinlocks protecting individual buckets
  * @walkers: List of active walkers
@@ -63,7 +62,6 @@ struct bucket_table {
 	unsigned int		size;
 	unsigned int		rehash;
 	u32			hash_rnd;
-	u32			shift;
 	unsigned int		locks_mask;
 	spinlock_t		*locks;
 	struct list_head	walkers;
@@ -85,8 +83,8 @@ struct rhashtable;
  * @key_len: Length of key
  * @key_offset: Offset of key in struct to be hashed
  * @head_offset: Offset of rhash_head in struct to be hashed
- * @max_shift: Maximum number of shifts while expanding
- * @min_shift: Minimum number of shifts while shrinking
+ * @max_size: Maximum size while expanding
+ * @min_size: Minimum size while shrinking
  * @nulls_base: Base value to generate nulls marker
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Function to hash key
@@ -97,8 +95,8 @@ struct rhashtable_params {
 	size_t			key_len;
 	size_t			key_offset;
 	size_t			head_offset;
-	size_t			max_shift;
-	size_t			min_shift;
+	unsigned int		max_size;
+	unsigned int		min_size;
 	u32			nulls_base;
 	size_t			locks_mul;
 	rht_hashfn_t		hashfn;

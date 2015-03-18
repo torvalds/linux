@@ -27,7 +27,7 @@
 #include <linux/err.h>
 
 #define HASH_DEFAULT_SIZE	64UL
-#define HASH_MIN_SIZE		4UL
+#define HASH_MIN_SIZE		4U
 #define BUCKET_LOCKS_PER_CPU   128UL
 
 /* Base bits plus 1 bit for nulls marker */
@@ -162,7 +162,6 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 		return NULL;
 
 	tbl->size = nbuckets;
-	tbl->shift = ilog2(nbuckets);
 
 	if (alloc_bucket_locks(ht, tbl) < 0) {
 		bucket_table_free(tbl);
@@ -189,7 +188,7 @@ static bool rht_grow_above_75(const struct rhashtable *ht,
 {
 	/* Expand table when exceeding 75% load */
 	return atomic_read(&ht->nelems) > (tbl->size / 4 * 3) &&
-	       (!ht->p.max_shift || tbl->shift < ht->p.max_shift);
+	       (!ht->p.max_size || tbl->size < ht->p.max_size);
 }
 
 /**
@@ -202,7 +201,7 @@ static bool rht_shrink_below_30(const struct rhashtable *ht,
 {
 	/* Shrink table beneath 30% load */
 	return atomic_read(&ht->nelems) < (tbl->size * 3 / 10) &&
-	       tbl->shift > ht->p.min_shift;
+	       tbl->size > ht->p.min_size;
 }
 
 static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
@@ -874,7 +873,7 @@ EXPORT_SYMBOL_GPL(rhashtable_walk_stop);
 static size_t rounded_hashtable_size(struct rhashtable_params *params)
 {
 	return max(roundup_pow_of_two(params->nelem_hint * 4 / 3),
-		   1UL << params->min_shift);
+		   (unsigned long)params->min_size);
 }
 
 /**
@@ -934,8 +933,7 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	if (params->nulls_base && params->nulls_base < (1U << RHT_BASE_SHIFT))
 		return -EINVAL;
 
-	params->min_shift = max_t(size_t, params->min_shift,
-				  ilog2(HASH_MIN_SIZE));
+	params->min_size = max(params->min_size, HASH_MIN_SIZE);
 
 	if (params->nelem_hint)
 		size = rounded_hashtable_size(params);
