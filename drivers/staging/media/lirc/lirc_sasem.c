@@ -172,7 +172,8 @@ static void delete_context(struct sasem_context *context)
 	kfree(context);
 
 	if (debug)
-		pr_info("%s: context deleted\n", __func__);
+		dev_info(&context->dev->dev, "%s: context deleted\n",
+			 __func__);
 }
 
 static void deregister_from_lirc(struct sasem_context *context)
@@ -182,10 +183,12 @@ static void deregister_from_lirc(struct sasem_context *context)
 
 	retval = lirc_unregister_driver(minor);
 	if (retval)
-		pr_err("%s: unable to deregister from lirc (%d)\n",
+		dev_err(&context->dev->dev,
+			"%s: unable to deregister from lirc (%d)\n",
 		       __func__, retval);
 	else
-		pr_info("Deregistered Sasem driver (minor:%d)\n", minor);
+		dev_info(&context->dev->dev,
+		         "Deregistered Sasem driver (minor:%d)\n", minor);
 
 }
 

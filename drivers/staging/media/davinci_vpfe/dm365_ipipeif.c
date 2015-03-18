@@ -209,7 +209,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	/* Combine all the fields to make CFG1 register of IPIPEIF */
 	tmp = val = get_oneshot_mode(ipipeif->input);
 	if (tmp < 0) {
-		pr_err("ipipeif: links setup required");
+		dev_err(&sd->devnode->dev, "ipipeif: links setup required");
 		return -EINVAL;
 	}
 	val <<= ONESHOT_SHIFT;
