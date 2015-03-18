@@ -488,8 +488,7 @@ EXPORT_SYMBOL_GPL(inet_unhash);
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		struct sock *sk, u32 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
-			struct sock *, __u16, struct inet_timewait_sock **),
-		int (*hash)(struct sock *sk, struct inet_timewait_sock *twp))
+			struct sock *, __u16, struct inet_timewait_sock **))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	const unsigned short snum = inet_sk(sk)->inet_num;
@@ -559,7 +558,7 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->inet_sport = htons(port);
-			twrefcnt += hash(sk, tw);
+			twrefcnt += __inet_hash_nolisten(sk, tw);
 		}
 		if (tw)
 			twrefcnt += inet_twsk_bind_unhash(tw, hinfo);
@@ -581,7 +580,7 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		hash(sk, NULL);
+		__inet_hash_nolisten(sk, NULL);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {
@@ -601,7 +600,7 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 		      struct sock *sk)
 {
 	return __inet_hash_connect(death_row, sk, inet_sk_port_offset(sk),
-			__inet_check_established, __inet_hash_nolisten);
+				   __inet_check_established);
 }
 EXPORT_SYMBOL_GPL(inet_hash_connect);
 
