@@ -1754,8 +1754,9 @@ enum nl80211_commands {
  *	should be contained in the result as the sum of the respective counters
  *	over all channels.
  *
- * @NL80211_ATTR_SCHED_SCAN_DELAY: delay before a scheduled scan (or a
- *	WoWLAN net-detect scan) is started, u32 in seconds.
+ * @NL80211_ATTR_SCHED_SCAN_DELAY: delay before the first cycle of a
+ *	scheduled scan (or a WoWLAN net-detect scan) is started, u32
+ *	in seconds.
 
  * @NL80211_ATTR_REG_INDOOR: flag attribute, if set indicates that the device
  *      is operating in an indoor environment.
