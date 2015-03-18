@@ -750,13 +750,6 @@ ivb_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	I915_WRITE(SPRSURF(pipe), 0);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	/*
-	 * Avoid underruns when disabling the sprite.
-	 * FIXME remove once watermark updates are done properly.
-	 */
-	intel_crtc->atomic.wait_vblank = true;
-	intel_crtc->atomic.update_sprite_watermarks |= (1 << drm_plane_index(plane));
 }
 
 static int
@@ -941,13 +934,6 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 	I915_WRITE(DVSSURF(pipe), 0);
 
 	intel_flush_primary_plane(dev_priv, intel_crtc->plane);
-
-	/*
-	 * Avoid underruns when disabling the sprite.
-	 * FIXME remove once watermark updates are done properly.
-	 */
-	intel_crtc->atomic.wait_vblank = true;
-	intel_crtc->atomic.update_sprite_watermarks |= (1 << drm_plane_index(plane));
 }
 
 /**
@@ -1266,6 +1252,16 @@ finish:
 		    plane->state->fb->modifier[0] !=
 		    state->base.fb->modifier[0])
 			intel_crtc->atomic.update_wm = true;
+
+		if (!state->visible) {
+			/*
+			 * Avoid underruns when disabling the sprite.
+			 * FIXME remove once watermark updates are done properly.
+			 */
+			intel_crtc->atomic.wait_vblank = true;
+			intel_crtc->atomic.update_sprite_watermarks |=
+				(1 << drm_plane_index(plane));
+		}
 	}
 
 	return 0;
