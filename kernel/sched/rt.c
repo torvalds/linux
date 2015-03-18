@@ -6,6 +6,7 @@
 #include "sched.h"
 
 #include <linux/slab.h>
+#include <linux/irq_work.h>
 
 int sched_rr_timeslice = RR_TIMESLICE;
 
@@ -59,6 +60,10 @@ static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 	raw_spin_unlock(&rt_b->rt_runtime_lock);
 }
 
+#ifdef CONFIG_SMP
+static void push_irq_work_func(struct irq_work *work);
+#endif
+
 void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 {
 	struct rt_prio_array *array;
@@ -78,7 +83,14 @@ void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 	rt_rq->rt_nr_migratory = 0;
 	rt_rq->overloaded = 0;
 	plist_head_init(&rt_rq->pushable_tasks);
+
+#ifdef HAVE_RT_PUSH_IPI
+	rt_rq->push_flags = 0;
+	rt_rq->push_cpu = nr_cpu_ids;
+	raw_spin_lock_init(&rt_rq->push_lock);
+	init_irq_work(&rt_rq->push_work, push_irq_work_func);
 #endif
+#endif /* CONFIG_SMP */
 	/* We start is dequeued state, because no RT tasks are queued */
 	rt_rq->rt_queued = 0;
 
@@ -1778,6 +1790,164 @@ static void push_rt_tasks(struct rq *rq)
 		;
 }
 
+#ifdef HAVE_RT_PUSH_IPI
+/*
+ * The search for the next cpu always starts at rq->cpu and ends
+ * when we reach rq->cpu again. It will never return rq->cpu.
+ * This returns the next cpu to check, or nr_cpu_ids if the loop
+ * is complete.
+ *
+ * rq->rt.push_cpu holds the last cpu returned by this function,
+ * or if this is the first instance, it must hold rq->cpu.
+ */
+static int rto_next_cpu(struct rq *rq)
+{
+	int prev_cpu = rq->rt.push_cpu;
+	int cpu;
+
+	cpu = cpumask_next(prev_cpu, rq->rd->rto_mask);
+
+	/*
+	 * If the previous cpu is less than the rq's CPU, then it already
+	 * passed the end of the mask, and has started from the beginning.
+	 * We end if the next CPU is greater or equal to rq's CPU.
+	 */
+	if (prev_cpu < rq->cpu) {
+		if (cpu >= rq->cpu)
+			return nr_cpu_ids;
+
+	} else if (cpu >= nr_cpu_ids) {
+		/*
+		 * We passed the end of the mask, start at the beginning.
+		 * If the result is greater or equal to the rq's CPU, then
+		 * the loop is finished.
+		 */
+		cpu = cpumask_first(rq->rd->rto_mask);
+		if (cpu >= rq->cpu)
+			return nr_cpu_ids;
+	}
+	rq->rt.push_cpu = cpu;
+
+	/* Return cpu to let the caller know if the loop is finished or not */
+	return cpu;
+}
+
+static int find_next_push_cpu(struct rq *rq)
+{
+	struct rq *next_rq;
+	int cpu;
+
+	while (1) {
+		cpu = rto_next_cpu(rq);
+		if (cpu >= nr_cpu_ids)
+			break;
+		next_rq = cpu_rq(cpu);
+
+		/* Make sure the next rq can push to this rq */
+		if (next_rq->rt.highest_prio.next < rq->rt.highest_prio.curr)
+			break;
+	}
+
+	return cpu;
+}
+
+#define RT_PUSH_IPI_EXECUTING		1
+#define RT_PUSH_IPI_RESTART		2
+
+static void tell_cpu_to_push(struct rq *rq)
+{
+	int cpu;
+
+	if (rq->rt.push_flags & RT_PUSH_IPI_EXECUTING) {
+		raw_spin_lock(&rq->rt.push_lock);
+		/* Make sure it's still executing */
+		if (rq->rt.push_flags & RT_PUSH_IPI_EXECUTING) {
+			/*
+			 * Tell the IPI to restart the loop as things have
+			 * changed since it started.
+			 */
+			rq->rt.push_flags |= RT_PUSH_IPI_RESTART;
+			raw_spin_unlock(&rq->rt.push_lock);
+			return;
+		}
+		raw_spin_unlock(&rq->rt.push_lock);
+	}
+
+	/* When here, there's no IPI going around */
+
+	rq->rt.push_cpu = rq->cpu;
+	cpu = find_next_push_cpu(rq);
+	if (cpu >= nr_cpu_ids)
+		return;
+
+	rq->rt.push_flags = RT_PUSH_IPI_EXECUTING;
+
+	irq_work_queue_on(&rq->rt.push_work, cpu);
+}
+
+/* Called from hardirq context */
+static void try_to_push_tasks(void *arg)
+{
+	struct rt_rq *rt_rq = arg;
+	struct rq *rq, *src_rq;
+	int this_cpu;
+	int cpu;
+
+	this_cpu = rt_rq->push_cpu;
+
+	/* Paranoid check */
+	BUG_ON(this_cpu != smp_processor_id());
+
+	rq = cpu_rq(this_cpu);
+	src_rq = rq_of_rt_rq(rt_rq);
+
+again:
+	if (has_pushable_tasks(rq)) {
+		raw_spin_lock(&rq->lock);
+		push_rt_task(rq);
+		raw_spin_unlock(&rq->lock);
+	}
+
+	/* Pass the IPI to the next rt overloaded queue */
+	raw_spin_lock(&rt_rq->push_lock);
+	/*
+	 * If the source queue changed since the IPI went out,
+	 * we need to restart the search from that CPU again.
+	 */
+	if (rt_rq->push_flags & RT_PUSH_IPI_RESTART) {
+		rt_rq->push_flags &= ~RT_PUSH_IPI_RESTART;
+		rt_rq->push_cpu = src_rq->cpu;
+	}
+
+	cpu = find_next_push_cpu(src_rq);
+
+	if (cpu >= nr_cpu_ids)
+		rt_rq->push_flags &= ~RT_PUSH_IPI_EXECUTING;
+	raw_spin_unlock(&rt_rq->push_lock);
+
+	if (cpu >= nr_cpu_ids)
+		return;
+
+	/*
+	 * It is possible that a restart caused this CPU to be
+	 * chosen again. Don't bother with an IPI, just see if we
+	 * have more to push.
+	 */
+	if (unlikely(cpu == rq->cpu))
+		goto again;
+
+	/* Try the next RT overloaded CPU */
+	irq_work_queue_on(&rt_rq->push_work, cpu);
+}
+
+static void push_irq_work_func(struct irq_work *work)
+{
+	struct rt_rq *rt_rq = container_of(work, struct rt_rq, push_work);
+
+	try_to_push_tasks(rt_rq);
+}
+#endif /* HAVE_RT_PUSH_IPI */
+
 static int pull_rt_task(struct rq *this_rq)
 {
 	int this_cpu = this_rq->cpu, ret = 0, cpu;
@@ -1792,6 +1962,13 @@ static int pull_rt_task(struct rq *this_rq)
 	 * see overloaded we must also see the rto_mask bit.
 	 */
 	smp_rmb();
+
+#ifdef HAVE_RT_PUSH_IPI
+	if (sched_feat(RT_PUSH_IPI)) {
+		tell_cpu_to_push(this_rq);
+		return 0;
+	}
+#endif
 
 	for_each_cpu(cpu, this_rq->rd->rto_mask) {
 		if (this_cpu == cpu)
