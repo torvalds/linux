@@ -52,7 +52,7 @@
 			reg = <6>;
 			regulator-compatible = "rk818_ldo3";
 			regulator-always-on;
-			regulator-boot-on;
+			/*regulator-boot-on;*/
 		};
 
 		rk818_ldo4_reg: regulator@7{
