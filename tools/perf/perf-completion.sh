@@ -130,7 +130,7 @@ __perf_main ()
 	# Skip options backward and find the last perf command
 	__perf_prev_skip_opts
 	# List perf subcommands or long options
-	if [ $cword -eq 1 ]; then
+	if [ -z $prev_skip_opts ]; then
 		if [[ $cur == --* ]]; then
 			cmds=$($cmd --list-opts)
 		else
