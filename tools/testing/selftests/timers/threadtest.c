@@ -126,11 +126,13 @@ void *independent_thread(void *arg)
 	return NULL;
 }
 
+#define DEFAULT_THREAD_COUNT 8
+#define DEFAULT_RUNTIME 30
 
 int main(int argc, char **argv)
 {
-	int thread_count = 1, i;
-	time_t start, now, runtime = 60;
+	int thread_count, i;
+	time_t start, now, runtime;
 	char buf[255];
 	pthread_t pth[MAX_THREADS];
 	int opt;
@@ -138,6 +140,8 @@ int main(int argc, char **argv)
 	int ret = 0;
 	void *(*thread)(void *) = shared_thread;
 
+	thread_count = DEFAULT_THREAD_COUNT;
+	runtime = DEFAULT_RUNTIME;
 
 	/* Process arguments */
 	while ((opt = getopt(argc, argv, "t:n:i")) != -1) {
