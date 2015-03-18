@@ -24,6 +24,8 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 
+#include <asm/arm-cci.h>
+
 struct device_node;
 
 #ifdef CONFIG_ARM_CCI

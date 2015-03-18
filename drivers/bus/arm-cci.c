@@ -217,7 +217,9 @@ static int probe_cci_revision(void)
 
 static const struct cci_pmu_model *probe_cci_model(struct platform_device *pdev)
 {
-	return &cci_pmu_models[probe_cci_revision()];
+	if (platform_has_secure_cci_access())
+		return &cci_pmu_models[probe_cci_revision()];
+	return NULL;
 }
 
 static int pmu_is_valid_counter(struct cci_pmu *cci_pmu, int idx)
@@ -882,6 +884,15 @@ static struct cci_pmu_model cci_pmu_models[] = {
 static const struct of_device_id arm_cci_pmu_matches[] = {
 	{
 		.compatible = "arm,cci-400-pmu",
+		.data	= NULL,
+	},
+	{
+		.compatible = "arm,cci-400-pmu,r0",
+		.data	= &cci_pmu_models[CCI_REV_R0],
+	},
+	{
+		.compatible = "arm,cci-400-pmu,r1",
+		.data	= &cci_pmu_models[CCI_REV_R1],
 	},
 	{},
 };
@@ -892,7 +903,11 @@ static inline const struct cci_pmu_model *get_cci_model(struct platform_device *
 							pdev->dev.of_node);
 	if (!match)
 		return NULL;
+	if (match->data)
+		return match->data;
 
+	dev_warn(&pdev->dev, "DEPRECATED compatible property,"
+			 "requires secure access to CCI registers");
 	return probe_cci_model(pdev);
 }
 
