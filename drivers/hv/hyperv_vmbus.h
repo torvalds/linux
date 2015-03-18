@@ -698,7 +698,7 @@ void vmbus_device_unregister(struct hv_device *device_obj);
 /* VmbusChildDeviceDestroy( */
 /* struct hv_device *); */
 
-struct vmbus_channel *relid2channel(u32 relid);
+struct vmbus_channel *relid2channel(u32 relid, bool rescind);
 
 void vmbus_free_channels(void);
 
