@@ -63,12 +63,12 @@ static struct lu_kmem_descr vvp_caches[] = {
 	{
 		.ckd_cache = &vvp_thread_kmem,
 		.ckd_name  = "vvp_thread_kmem",
-		.ckd_size  = sizeof (struct vvp_thread_info),
+		.ckd_size  = sizeof(struct vvp_thread_info),
 	},
 	{
 		.ckd_cache = &vvp_session_kmem,
 		.ckd_name  = "vvp_session_kmem",
-		.ckd_size  = sizeof (struct vvp_session)
+		.ckd_size  = sizeof(struct vvp_session)
 	},
 	{
 		.ckd_cache = NULL
@@ -90,6 +90,7 @@ static void vvp_key_fini(const struct lu_context *ctx,
 			 struct lu_context_key *key, void *data)
 {
 	struct vvp_thread_info *info = data;
+
 	OBD_SLAB_FREE_PTR(info, vvp_thread_kmem);
 }
 
@@ -108,6 +109,7 @@ static void vvp_session_key_fini(const struct lu_context *ctx,
 				 struct lu_context_key *key, void *data)
 {
 	struct vvp_session *session = data;
+
 	OBD_SLAB_FREE_PTR(session, vvp_session_kmem);
 }
 
