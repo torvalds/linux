@@ -151,7 +151,7 @@ int ad2s1210_update_frequency_control_word(struct ad2s1210_state *st)
 
 	fcw = (unsigned char)(st->fexcit * (1 << 15) / st->fclkin);
 	if (fcw < AD2S1210_MIN_FCW || fcw > AD2S1210_MAX_FCW) {
-		pr_err("ad2s1210: FCW out of range\n");
+		dev_err(&st->sdev->dev, "ad2s1210: FCW out of range\n");
 		return -ERANGE;
 	}
 
@@ -317,7 +317,7 @@ static ssize_t ad2s1210_store_control(struct device *dev,
 	if (st->pdata->gpioin) {
 		data = ad2s1210_read_resolution_pin(st);
 		if (data != st->resolution)
-			pr_warn("ad2s1210: resolution settings not match\n");
+			dev_warn(dev, "ad2s1210: resolution settings not match\n");
 	} else
 		ad2s1210_set_resolution_pin(st);
 
@@ -378,7 +378,7 @@ static ssize_t ad2s1210_store_resolution(struct device *dev,
 	if (st->pdata->gpioin) {
 		data = ad2s1210_read_resolution_pin(st);
 		if (data != st->resolution)
-			pr_warn("ad2s1210: resolution settings not match\n");
+			dev_warn(dev, "ad2s1210: resolution settings not match\n");
 	} else
 		ad2s1210_set_resolution_pin(st);
 	ret = len;
