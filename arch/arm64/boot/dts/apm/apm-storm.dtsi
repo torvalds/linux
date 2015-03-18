@@ -186,6 +186,16 @@
 				clock-output-names = "sge0clk";
 			};
 
+			sge1clk: sge1clk@1f21c000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f21c000 0x0 0x1000>;
+				reg-names = "csr-reg";
+				csr-mask = <0xc>;
+				clock-output-names = "sge1clk";
+			};
+
 			xge0clk: xge0clk@1f61c000 {
 				compatible = "apm,xgene-device-clock";
 				#clock-cells = <1>;
@@ -631,6 +641,21 @@
 			interrupts = <0x0 0xA0 0x4>;
 			dma-coherent;
 			clocks = <&sge0clk 0>;
+			local-mac-address = [00 00 00 00 00 00];
+			phy-connection-type = "sgmii";
+		};
+
+		sgenet1: ethernet@1f210030 {
+			compatible = "apm,xgene1-sgenet";
+			status = "disabled";
+			reg = <0x0 0x1f210030 0x0 0xd100>,
+			      <0x0 0x1f200000 0x0 0Xc300>,
+			      <0x0 0x1B000000 0x0 0X8000>;
+			reg-names = "enet_csr", "ring_csr", "ring_cmd";
+			interrupts = <0x0 0xAC 0x4>;
+			port-id = <1>;
+			dma-coherent;
+			clocks = <&sge1clk 0>;
 			local-mac-address = [00 00 00 00 00 00];
 			phy-connection-type = "sgmii";
 		};
