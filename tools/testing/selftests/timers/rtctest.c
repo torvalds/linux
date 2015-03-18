@@ -36,6 +36,7 @@ int main(int argc, char **argv)
 	unsigned long tmp, data;
 	struct rtc_time rtc_tm;
 	const char *rtc = default_rtc;
+	struct timeval start, end, diff;
 
 	switch (argc) {
 	case 2:
@@ -230,12 +231,24 @@ test_PIE:
 		}
 
 		for (i=1; i<21; i++) {
+			gettimeofday(&start, NULL);
 			/* This blocks */
 			retval = read(fd, &data, sizeof(unsigned long));
 			if (retval == -1) {
 				perror("read");
 				exit(errno);
 			}
+			gettimeofday(&end, NULL);
+			timersub(&end, &start, &diff);
+			if (diff.tv_sec > 0 ||
+			    diff.tv_usec > ((1000000L / tmp) * 1.10)) {
+				fprintf(stderr, "\nPIE delta error: %ld.%06ld should be close to 0.%06ld\n",
+				       diff.tv_sec, diff.tv_usec,
+				       (1000000L / tmp));
+				fflush(stdout);
+				exit(-1);
+			}
+
 			fprintf(stderr, " %d",i);
 			fflush(stderr);
 			irqcount++;
