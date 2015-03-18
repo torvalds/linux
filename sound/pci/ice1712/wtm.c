@@ -485,19 +485,19 @@ static int wtm_init(struct snd_ice1712 *ice)
 
 
 static unsigned char wtm_eeprom[] = {
-	0x47,	/*SYSCONF: clock 192KHz, 4ADC, 8DAC */
-	0x80,	/* ACLINK : I2S */
-	0xf8,	/* I2S: vol; 96k, 24bit, 192k */
-	0xc1	/*SPDIF: out-en, spidf ext out*/,
-	0x9f,	/* GPIO_DIR */
-	0xff,	/* GPIO_DIR1 */
-	0x7f,	/* GPIO_DIR2 */
-	0x9f,	/* GPIO_MASK */
-	0xff,	/* GPIO_MASK1 */
-	0x7f,	/* GPIO_MASK2 */
-	0x16,	/* GPIO_STATE */
-	0x80,	/* GPIO_STATE1 */
-	0x00,	/* GPIO_STATE2 */
+	[ICE_EEP2_SYSCONF]      = 0x47, /*SYSCONF: clock 192KHz, 4ADC, 8DAC */
+	[ICE_EEP2_ACLINK]       = 0x80, /* ACLINK : I2S */
+	[ICE_EEP2_I2S]          = 0xf8, /* I2S: vol; 96k, 24bit, 192k */
+	[ICE_EEP2_SPDIF]        = 0xc1, /*SPDIF: out-en, spidf ext out*/
+	[ICE_EEP2_GPIO_DIR]     = 0x9f,
+	[ICE_EEP2_GPIO_DIR1]    = 0xff,
+	[ICE_EEP2_GPIO_DIR2]    = 0x7f,
+	[ICE_EEP2_GPIO_MASK]    = 0x9f,
+	[ICE_EEP2_GPIO_MASK1]   = 0xff,
+	[ICE_EEP2_GPIO_MASK2]   = 0x7f,
+	[ICE_EEP2_GPIO_STATE]   = 0x16,
+	[ICE_EEP2_GPIO_STATE1]  = 0x80,
+	[ICE_EEP2_GPIO_STATE2]  = 0x00,
 };
 
 
