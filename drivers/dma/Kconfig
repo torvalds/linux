@@ -358,6 +358,16 @@ config DMA_JZ4740
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
+config DMA_JZ4780
+	tristate "JZ4780 DMA support"
+	depends on MACH_JZ4780
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  This selects support for the DMA controller in Ingenic JZ4780 SoCs.
+	  If you have a board based on such a SoC and wish to use DMA for
+	  devices which can use the DMA controller, say Y or M here.
+
 config K3_DMA
 	tristate "Hisilicon K3 DMA support"
 	depends on ARCH_HI3xxx
