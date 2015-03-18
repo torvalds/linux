@@ -6004,7 +6004,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		goto drop;
 	}
 
-	req = inet_reqsk_alloc(rsk_ops);
+	req = inet_reqsk_alloc(rsk_ops, sk);
 	if (!req)
 		goto drop;
 
@@ -6020,7 +6020,6 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 
 	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
 	tcp_openreq_init(req, &tmp_opt, skb, sk);
-	write_pnet(&inet_rsk(req)->ireq_net, sock_net(sk));
 
 	/* Note: tcp_v6_init_req() might override ir_iif for link locals */
 	inet_rsk(req)->ir_iif = sk->sk_bound_dev_if;
