@@ -1110,7 +1110,7 @@
 	sound {
 		compatible = "nvidia,tegra-audio-max98090-nyan-big",
 			     "nvidia,tegra-audio-max98090";
-		nvidia,model = "Acer Chromebook 13";
+		nvidia,model = "GoogleNyanBig";
 
 		nvidia,audio-routing =
 			"Headphones", "HPR",
