@@ -14,7 +14,11 @@
 		{ NODE,		"NODE" },				\
 		{ DATA,		"DATA" },				\
 		{ META,		"META" },				\
-		{ META_FLUSH,	"META_FLUSH" })
+		{ META_FLUSH,	"META_FLUSH" },				\
+		{ INMEM,	"INMEM" },				\
+		{ INMEM_DROP,	"INMEM_DROP" },				\
+		{ IPU,		"IN-PLACE" },				\
+		{ OPU,		"OUT-OF-PLACE" })
 
 #define F2FS_BIO_MASK(t)	(t & (READA | WRITE_FLUSH_FUA))
 #define F2FS_BIO_EXTRA_MASK(t)	(t & (REQ_META | REQ_PRIO))
@@ -854,6 +858,13 @@ DEFINE_EVENT(f2fs__page, f2fs_writepage,
 	TP_ARGS(page, type)
 );
 
+DEFINE_EVENT(f2fs__page, f2fs_do_write_data_page,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
+);
+
 DEFINE_EVENT(f2fs__page, f2fs_readpage,
 
 	TP_PROTO(struct page *page, int type),
@@ -869,6 +880,20 @@ DEFINE_EVENT(f2fs__page, f2fs_set_page_dirty,
 );
 
 DEFINE_EVENT(f2fs__page, f2fs_vm_page_mkwrite,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_register_inmem_page,
+
+	TP_PROTO(struct page *page, int type),
+
+	TP_ARGS(page, type)
+);
+
+DEFINE_EVENT(f2fs__page, f2fs_commit_inmem_page,
 
 	TP_PROTO(struct page *page, int type),
 

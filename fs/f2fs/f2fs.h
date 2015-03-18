@@ -556,6 +556,10 @@ enum page_type {
 	META,
 	NR_PAGE_TYPE,
 	META_FLUSH,
+	INMEM,		/* the below types are used by tracepoints only. */
+	INMEM_DROP,
+	IPU,
+	OPU,
 };
 
 struct f2fs_io_info {

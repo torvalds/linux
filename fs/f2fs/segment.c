@@ -205,6 +205,8 @@ retry:
 	list_add_tail(&new->list, &fi->inmem_pages);
 	inc_page_count(F2FS_I_SB(inode), F2FS_INMEM_PAGES);
 	mutex_unlock(&fi->inmem_lock);
+
+	trace_f2fs_register_inmem_page(page, INMEM);
 }
 
 void commit_inmem_pages(struct inode *inode, bool abort)
@@ -238,11 +240,13 @@ void commit_inmem_pages(struct inode *inode, bool abort)
 				f2fs_wait_on_page_writeback(cur->page, DATA);
 				if (clear_page_dirty_for_io(cur->page))
 					inode_dec_dirty_pages(inode);
+				trace_f2fs_commit_inmem_page(cur->page, INMEM);
 				do_write_data_page(cur->page, &fio);
 				submit_bio = true;
 			}
 			f2fs_put_page(cur->page, 1);
 		} else {
+			trace_f2fs_commit_inmem_page(cur->page, INMEM_DROP);
 			put_page(cur->page);
 		}
 		radix_tree_delete(&fi->inmem_root, cur->page->index);
