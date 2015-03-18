@@ -1850,7 +1850,10 @@ static void ip_mc_clear_src(struct ip_mc_list *pmc)
 	pmc->sfcount[MCAST_EXCLUDE] = 1;
 }
 
-int __ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
+/* Join a multicast group
+ */
+
+int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
 {
 	__be32 addr = imr->imr_multiaddr.s_addr;
 	struct ip_mc_socklist *iml, *i;
@@ -1898,20 +1901,6 @@ int __ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
 done:
 	return err;
 }
-EXPORT_SYMBOL(__ip_mc_join_group);
-
-/* Join a multicast group
- */
-int ip_mc_join_group(struct sock *sk, struct ip_mreqn *imr)
-{
-	int ret;
-
-	rtnl_lock();
-	ret = __ip_mc_join_group(sk, imr);
-	rtnl_unlock();
-
-	return ret;
-}
 EXPORT_SYMBOL(ip_mc_join_group);
 
 static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
@@ -1934,7 +1923,7 @@ static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 	return err;
 }
 
-int __ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
+int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_mc_socklist *iml;
@@ -1979,18 +1968,6 @@ int __ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
 out:
 	return ret;
 }
-EXPORT_SYMBOL(__ip_mc_leave_group);
-
-int ip_mc_leave_group(struct sock *sk, struct ip_mreqn *imr)
-{
-	int ret;
-
-	rtnl_lock();
-	ret = __ip_mc_leave_group(sk, imr);
-	rtnl_unlock();
-
-	return ret;
-}
 EXPORT_SYMBOL(ip_mc_leave_group);
 
 int ip_mc_source(int add, int omode, struct sock *sk, struct
@@ -2010,7 +1987,7 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	rtnl_lock();
+	ASSERT_RTNL();
 
 	imr.imr_multiaddr.s_addr = mreqs->imr_multiaddr;
 	imr.imr_address.s_addr = mreqs->imr_interface;
@@ -2124,9 +2101,8 @@ int ip_mc_source(int add, int omode, struct sock *sk, struct
 	ip_mc_add_src(in_dev, &mreqs->imr_multiaddr, omode, 1,
 		&mreqs->imr_sourceaddr, 1);
 done:
-	rtnl_unlock();
 	if (leavegroup)
-		return ip_mc_leave_group(sk, &imr);
+		err = ip_mc_leave_group(sk, &imr);
 	return err;
 }
 
@@ -2148,7 +2124,7 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	    msf->imsf_fmode != MCAST_EXCLUDE)
 		return -EINVAL;
 
-	rtnl_lock();
+	ASSERT_RTNL();
 
 	imr.imr_multiaddr.s_addr = msf->imsf_multiaddr;
 	imr.imr_address.s_addr = msf->imsf_interface;
@@ -2210,7 +2186,6 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 	pmc->sfmode = msf->imsf_fmode;
 	err = 0;
 done:
-	rtnl_unlock();
 	if (leavegroup)
 		err = ip_mc_leave_group(sk, &imr);
 	return err;

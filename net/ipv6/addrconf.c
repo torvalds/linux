@@ -2473,9 +2473,9 @@ static int ipv6_mc_config(struct sock *sk, bool join,
 
 	lock_sock(sk);
 	if (join)
-		ret = __ipv6_sock_mc_join(sk, ifindex, addr);
+		ret = ipv6_sock_mc_join(sk, ifindex, addr);
 	else
-		ret = __ipv6_sock_mc_drop(sk, ifindex, addr);
+		ret = ipv6_sock_mc_drop(sk, ifindex, addr);
 	release_sock(sk);
 
 	return ret;

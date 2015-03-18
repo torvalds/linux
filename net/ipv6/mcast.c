@@ -132,7 +132,7 @@ static int unsolicited_report_interval(struct inet6_dev *idev)
 	return iv > 0 ? iv : 1;
 }
 
-int __ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
+int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct net_device *dev = NULL;
 	struct ipv6_mc_socklist *mc_lst;
@@ -199,24 +199,12 @@ int __ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *add
 
 	return 0;
 }
-EXPORT_SYMBOL(__ipv6_sock_mc_join);
-
-int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
-{
-	int ret;
-
-	rtnl_lock();
-	ret = __ipv6_sock_mc_join(sk, ifindex, addr);
-	rtnl_unlock();
-
-	return ret;
-}
 EXPORT_SYMBOL(ipv6_sock_mc_join);
 
 /*
  *	socket leave on multicast group
  */
-int __ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
+int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc_lst;
@@ -254,18 +242,6 @@ int __ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *add
 	}
 
 	return -EADDRNOTAVAIL;
-}
-EXPORT_SYMBOL(__ipv6_sock_mc_drop);
-
-int ipv6_sock_mc_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
-{
-	int ret;
-
-	rtnl_lock();
-	ret = __ipv6_sock_mc_drop(sk, ifindex, addr);
-	rtnl_unlock();
-
-	return ret;
 }
 EXPORT_SYMBOL(ipv6_sock_mc_drop);
 
@@ -460,7 +436,7 @@ done:
 	read_unlock_bh(&idev->lock);
 	rcu_read_unlock();
 	if (leavegroup)
-		return ipv6_sock_mc_drop(sk, pgsr->gsr_interface, group);
+		err = ipv6_sock_mc_drop(sk, pgsr->gsr_interface, group);
 	return err;
 }
 
