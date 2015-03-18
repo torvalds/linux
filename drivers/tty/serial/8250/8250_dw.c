@@ -374,17 +374,6 @@ static int dw8250_probe_of(struct uart_port *p,
 		data->msr_mask_off |= UART_MSR_TERI;
 	}
 
-	/* clock got configured through clk api, all done */
-	if (p->uartclk)
-		return 0;
-
-	/* try to find out clock frequency from DT as fallback */
-	if (of_property_read_u32(np, "clock-frequency", &val)) {
-		dev_err(p->dev, "clk or clock-frequency not defined\n");
-		return -EINVAL;
-	}
-	p->uartclk = val;
-
 	return 0;
 }
 
@@ -394,11 +383,6 @@ static int dw8250_probe_acpi(struct uart_8250_port *up,
 	struct uart_port *p = &up->port;
 
 	dw8250_setup_port(up);
-
-	if (!p->uartclk)
-		if (device_property_read_u32(p->dev, "clock-frequency",
-					     &p->uartclk))
-			return -EINVAL;
 
 	p->iotype = UPIO_MEM32;
 	p->serial_in = dw8250_serial_in32;
@@ -453,18 +437,30 @@ static int dw8250_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->usr_reg = DW_UART_USR;
+
+	/* Always ask for fixed clock rate from a property. */
+	device_property_read_u32(&pdev->dev, "clock-frequency",
+				 &uart.port.uartclk);
+
+	/* If there is separate baudclk, get the rate from it. */
 	data->clk = devm_clk_get(&pdev->dev, "baudclk");
 	if (IS_ERR(data->clk) && PTR_ERR(data->clk) != -EPROBE_DEFER)
 		data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk) && PTR_ERR(data->clk) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
-	if (!IS_ERR(data->clk)) {
+	if (!IS_ERR_OR_NULL(data->clk)) {
 		err = clk_prepare_enable(data->clk);
 		if (err)
 			dev_warn(&pdev->dev, "could not enable optional baudclk: %d\n",
 				 err);
 		else
 			uart.port.uartclk = clk_get_rate(data->clk);
+	}
+
+	/* If no clock rate is defined, fail. */
+	if (!uart.port.uartclk) {
+		dev_err(&pdev->dev, "clock rate not defined\n");
+		return -EINVAL;
 	}
 
 	data->pclk = devm_clk_get(&pdev->dev, "apb_pclk");
