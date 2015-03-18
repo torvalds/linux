@@ -58,7 +58,7 @@ enum hv_cpuid_function {
 #define HV_X64_MSR_CRASH_P4   0x40000104
 #define HV_X64_MSR_CRASH_CTL  0x40000105
 
-#define HV_CRASH_CTL_CRASH_NOTIFY 0x8000000000000000
+#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
 
 /* Define version of the synthetic interrupt controller. */
 #define HV_SYNIC_VERSION		(1)
