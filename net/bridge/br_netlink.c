@@ -733,6 +733,9 @@ static const struct nla_policy br_policy[IFLA_BR_MAX + 1] = {
 	[IFLA_BR_FORWARD_DELAY]	= { .type = NLA_U32 },
 	[IFLA_BR_HELLO_TIME]	= { .type = NLA_U32 },
 	[IFLA_BR_MAX_AGE]	= { .type = NLA_U32 },
+	[IFLA_BR_AGEING_TIME] = { .type = NLA_U32 },
+	[IFLA_BR_STP_STATE] = { .type = NLA_U32 },
+	[IFLA_BR_PRIORITY] = { .type = NLA_U16 },
 };
 
 static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
@@ -762,6 +765,24 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 			return err;
 	}
 
+	if (data[IFLA_BR_AGEING_TIME]) {
+		u32 ageing_time = nla_get_u32(data[IFLA_BR_AGEING_TIME]);
+
+		br->ageing_time = clock_t_to_jiffies(ageing_time);
+	}
+
+	if (data[IFLA_BR_STP_STATE]) {
+		u32 stp_enabled = nla_get_u32(data[IFLA_BR_STP_STATE]);
+
+		br_stp_set_enabled(br, stp_enabled);
+	}
+
+	if (data[IFLA_BR_PRIORITY]) {
+		u32 priority = nla_get_u16(data[IFLA_BR_PRIORITY]);
+
+		br_stp_set_bridge_priority(br, priority);
+	}
+
 	return 0;
 }
 
@@ -770,6 +791,9 @@ static size_t br_get_size(const struct net_device *brdev)
 	return nla_total_size(sizeof(u32)) +	/* IFLA_BR_FORWARD_DELAY  */
 	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_HELLO_TIME */
 	       nla_total_size(sizeof(u32)) +	/* IFLA_BR_MAX_AGE */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_AGEING_TIME */
+	       nla_total_size(sizeof(u32)) +    /* IFLA_BR_STP_STATE */
+	       nla_total_size(sizeof(u16)) +    /* IFLA_BR_PRIORITY */
 	       0;
 }
 
@@ -779,10 +803,16 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 	u32 forward_delay = jiffies_to_clock_t(br->forward_delay);
 	u32 hello_time = jiffies_to_clock_t(br->hello_time);
 	u32 age_time = jiffies_to_clock_t(br->max_age);
+	u32 ageing_time = jiffies_to_clock_t(br->ageing_time);
+	u32 stp_enabled = br->stp_enabled;
+	u16 priority = (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1];
 
 	if (nla_put_u32(skb, IFLA_BR_FORWARD_DELAY, forward_delay) ||
 	    nla_put_u32(skb, IFLA_BR_HELLO_TIME, hello_time) ||
-	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time))
+	    nla_put_u32(skb, IFLA_BR_MAX_AGE, age_time) ||
+	    nla_put_u32(skb, IFLA_BR_AGEING_TIME, ageing_time) ||
+	    nla_put_u32(skb, IFLA_BR_STP_STATE, stp_enabled) ||
+	    nla_put_u16(skb, IFLA_BR_PRIORITY, priority))
 		return -EMSGSIZE;
 
 	return 0;
