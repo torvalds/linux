@@ -6220,8 +6220,8 @@ enum skl_disp_power_wells {
 
 #define GEN6_GT_GFX_RC6p			0x13810C
 #define GEN6_GT_GFX_RC6pp			0x138110
-#define VLV_RENDER_C0_COUNT_REG		0x138118
-#define VLV_MEDIA_C0_COUNT_REG			0x13811C
+#define VLV_RENDER_C0_COUNT			0x138118
+#define VLV_MEDIA_C0_COUNT			0x13811C
 
 #define GEN6_PCODE_MAILBOX			0x138124
 #define   GEN6_PCODE_READY			(1<<31)

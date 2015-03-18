@@ -1242,6 +1242,8 @@ void intel_disable_gt_powersave(struct drm_device *dev);
 void intel_suspend_gt_powersave(struct drm_device *dev);
 void intel_reset_gt_powersave(struct drm_device *dev);
 void gen6_update_ring_freq(struct drm_device *dev);
+void gen6_rps_busy(struct drm_i915_private *dev_priv);
+void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct drm_i915_private *dev_priv);
 void ilk_wm_get_hw_state(struct drm_device *dev);

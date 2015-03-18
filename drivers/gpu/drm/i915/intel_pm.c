@@ -4041,6 +4041,18 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 }
 
+void gen6_rps_busy(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->rps.hw_lock);
+	if (dev_priv->rps.enabled) {
+		if (dev_priv->pm_rps_events & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED))
+			gen6_rps_reset_ei(dev_priv);
+		I915_WRITE(GEN6_PMINTRMSK,
+			   gen6_rps_pm_mask(dev_priv, dev_priv->rps.cur_freq));
+	}
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
 void gen6_rps_idle(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -4052,15 +4064,21 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.idle_freq);
 		dev_priv->rps.last_adj = 0;
+		I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 void gen6_rps_boost(struct drm_i915_private *dev_priv)
 {
+	u32 val;
+
 	mutex_lock(&dev_priv->rps.hw_lock);
-	if (dev_priv->rps.enabled) {
-		intel_set_rps(dev_priv->dev, dev_priv->rps.max_freq_softlimit);
+	val = dev_priv->rps.max_freq_softlimit;
+	if (dev_priv->rps.enabled &&
+	    dev_priv->mm.busy &&
+	    dev_priv->rps.cur_freq < val) {
+		intel_set_rps(dev_priv->dev, val);
 		dev_priv->rps.last_adj = 0;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);

@@ -9201,6 +9201,8 @@ void intel_mark_busy(struct drm_device *dev)
 
 	intel_runtime_pm_get(dev_priv);
 	i915_update_gfx_val(dev_priv);
+	if (INTEL_INFO(dev)->gen >= 6)
+		gen6_rps_busy(dev_priv);
 	dev_priv->mm.busy = true;
 }
 
