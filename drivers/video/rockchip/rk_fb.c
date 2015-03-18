@@ -2800,8 +2800,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	u32 stride_32bit_2;
 	u16 uv_x_off, uv_y_off, uv_y_act;
 	u8 is_pic_yuv = 0;
-
-	var->pixclock = dev_drv->pixclock;
+	/*var->pixclock = dev_drv->pixclock;*/
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 	if (win_id < 0)
 		return -ENODEV;
@@ -3624,7 +3623,6 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		    (fbi->var.xres_virtual) * (fbi->var.bits_per_pixel >> 3);
 		fbi->var.width = dev_drv->cur_screen->width;
 		fbi->var.height = dev_drv->cur_screen->height;
-		fbi->var.pixclock = dev_drv->pixclock;
 		if (dev_drv->iommu_enabled)
 			fb_ops.fb_mmap = rk_fb_mmap;
 		fbi->fbops = &fb_ops;
@@ -3693,7 +3691,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		u32 dsp_addr;
 		struct fb_info *main_fbi = rk_fb->fb[0];
 		main_fbi->fbops->fb_open(main_fbi, 1);
-
+		main_fbi->var.pixclock = dev_drv->pixclock;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
@@ -3829,9 +3827,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
 #endif
 	} else {
-		struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
-
-		rk_fb_alloc_buffer(extend_fbi);
+                struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
+                extend_fbi->var.pixclock = rk_fb->fb[0]->var.pixclock;
+                rk_fb_alloc_buffer(extend_fbi);
 	}
 #endif
 	return 0;
