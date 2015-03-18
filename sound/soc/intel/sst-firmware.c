@@ -221,8 +221,6 @@ int sst_dsp_dma_get_channel(struct sst_dsp *dsp, int chan_id)
 	dma_cap_mask_t mask;
 	int ret;
 
-	/* The Intel MID DMA engine driver needs the slave config set but
-	 * Synopsis DMA engine driver safely ignores the slave config */
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	dma_cap_set(DMA_MEMCPY, mask);
