@@ -29,3 +29,9 @@ void gb_debugfs_cleanup(void)
 	debugfs_remove_recursive(gb_debug_root);
 	gb_debug_root = NULL;
 }
+
+struct dentry *gb_debugfs_get(void)
+{
+	return gb_debug_root;
+}
+EXPORT_SYMBOL_GPL(gb_debugfs_get);
