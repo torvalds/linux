@@ -1770,6 +1770,40 @@ wl12xx_iface_combinations[] = {
 	},
 };
 
+static const struct wl12xx_clock wl12xx_refclock_table[] = {
+	{ 19200000,	false,	WL12XX_REFCLOCK_19	},
+	{ 26000000,	false,	WL12XX_REFCLOCK_26	},
+	{ 26000000,	true,	WL12XX_REFCLOCK_26_XTAL	},
+	{ 38400000,	false,	WL12XX_REFCLOCK_38	},
+	{ 38400000,	true,	WL12XX_REFCLOCK_38_XTAL	},
+	{ 52000000,	false,	WL12XX_REFCLOCK_52	},
+	{ 0,		false,	0 }
+};
+
+static const struct wl12xx_clock wl12xx_tcxoclock_table[] = {
+	{ 16368000,	true,	WL12XX_TCXOCLOCK_16_368	},
+	{ 16800000,	true,	WL12XX_TCXOCLOCK_16_8	},
+	{ 19200000,	true,	WL12XX_TCXOCLOCK_19_2	},
+	{ 26000000,	true,	WL12XX_TCXOCLOCK_26	},
+	{ 32736000,	true,	WL12XX_TCXOCLOCK_32_736	},
+	{ 33600000,	true,	WL12XX_TCXOCLOCK_33_6	},
+	{ 38400000,	true,	WL12XX_TCXOCLOCK_38_4	},
+	{ 52000000,	true,	WL12XX_TCXOCLOCK_52	},
+	{ 0,		false,	0 }
+};
+
+static int wl12xx_get_clock_idx(const struct wl12xx_clock *table,
+				u32 freq, bool xtal)
+{
+	int i;
+
+	for (i = 0; table[i].freq != 0; i++)
+		if ((table[i].freq == freq) && (table[i].xtal == xtal))
+			return table[i].hw_idx;
+
+	return -EINVAL;
+}
+
 static int wl12xx_setup(struct wl1271 *wl)
 {
 	struct wl12xx_priv *priv = wl->priv;
@@ -1799,7 +1833,17 @@ static int wl12xx_setup(struct wl1271 *wl)
 	wl12xx_conf_init(wl);
 
 	if (!fref_param) {
-		priv->ref_clock = pdata->board_ref_clock;
+		priv->ref_clock = wl12xx_get_clock_idx(wl12xx_refclock_table,
+						       pdata->ref_clock_freq,
+						       pdata->ref_clock_xtal);
+		if (priv->ref_clock < 0) {
+			wl1271_error("Invalid ref_clock frequency (%d Hz, %s)",
+				     pdata->ref_clock_freq,
+				     pdata->ref_clock_xtal ?
+				     "XTAL" : "not XTAL");
+
+			return priv->ref_clock;
+		}
 	} else {
 		if (!strcmp(fref_param, "19.2"))
 			priv->ref_clock = WL12XX_REFCLOCK_19;
@@ -1817,9 +1861,17 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid fref parameter %s", fref_param);
 	}
 
-	if (!tcxo_param) {
-		priv->tcxo_clock = pdata->board_tcxo_clock;
-	} else {
+	if (!tcxo_param && pdata->tcxo_clock_freq) {
+		priv->tcxo_clock = wl12xx_get_clock_idx(wl12xx_tcxoclock_table,
+							pdata->tcxo_clock_freq,
+							true);
+		if (priv->tcxo_clock < 0) {
+			wl1271_error("Invalid tcxo_clock frequency (%d Hz)",
+				     pdata->tcxo_clock_freq);
+
+			return priv->tcxo_clock;
+		}
+	} else if (tcxo_param) {
 		if (!strcmp(tcxo_param, "19.2"))
 			priv->tcxo_clock = WL12XX_TCXOCLOCK_19_2;
 		else if (!strcmp(tcxo_param, "26"))
