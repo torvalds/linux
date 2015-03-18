@@ -83,7 +83,8 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 
 	lli->lli_fid = body->fid1;
 	if (unlikely(!(body->valid & OBD_MD_FLTYPE))) {
-		CERROR("Can not initialize inode " DFID " without object type: valid = %#llx\n",
+		CERROR("Can not initialize inode " DFID
+		       " without object type: valid = %#llx\n",
 		       PFID(&lli->lli_fid), body->valid);
 		return -EINVAL;
 	}
@@ -600,7 +601,8 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	long long lookup_flags = LOOKUP_OPEN;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),file %p,open_flags %x,mode %x opened %d\n",
+	CDEBUG(D_VFSTRACE,
+	       "VFS Op:name=%pd,dir=%lu/%u(%p),file %p,open_flags %x,mode %x opened %d\n",
 	       dentry, dir->i_ino,
 	       dir->i_generation, dir, file, open_flags, mode, *opened);
 
