@@ -460,6 +460,20 @@ static void st_pctl_set_function(struct st_pio_control *pc,
 	regmap_field_write(alt, val);
 }
 
+static unsigned int st_pctl_get_pin_function(struct st_pio_control *pc, int pin)
+{
+	struct regmap_field *alt = pc->alt;
+	unsigned int val;
+	int offset = pin * 4;
+
+	if (!alt)
+		return 0;
+
+	regmap_field_read(alt, &val);
+
+	return (val >> offset) & 0xf;
+}
+
 static unsigned long st_pinconf_delay_to_bit(unsigned int delay,
 	const struct st_pctl_data *data, unsigned long config)
 {
