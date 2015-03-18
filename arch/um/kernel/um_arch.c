@@ -268,7 +268,6 @@ int __init linux_main(int argc, char **argv)
 	unsigned long stack;
 	unsigned int i;
 	int add;
-	char * mode;
 
 	for (i = 1; i < argc; i++) {
 		if ((i == 1) && (argv[i][0] == ' '))
@@ -290,15 +289,6 @@ int __init linux_main(int argc, char **argv)
 
 	/* OS sanity checks that need to happen before the kernel runs */
 	os_early_checks();
-
-	can_do_skas();
-
-	if (proc_mm && ptrace_faultinfo)
-		mode = "SKAS3";
-	else
-		mode = "SKAS0";
-
-	printf("UML running in %s mode\n", mode);
 
 	brk_start = (unsigned long) sbrk(0);
 

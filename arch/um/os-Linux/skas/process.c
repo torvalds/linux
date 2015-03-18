@@ -16,11 +16,9 @@
 #include <kern_util.h>
 #include <mem.h>
 #include <os.h>
-#include <proc_mm.h>
 #include <ptrace_user.h>
 #include <registers.h>
 #include <skas.h>
-#include <skas_ptrace.h>
 #include <sysdep/stub.h>
 
 int is_skas_winch(int pid, int fd, void *data)
@@ -91,50 +89,33 @@ extern unsigned long current_stub_stack(void);
 static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 {
 	int err;
+	unsigned long fpregs[FP_SIZE];
 
-	if (ptrace_faultinfo) {
-		err = ptrace(PTRACE_FAULTINFO, pid, 0, fi);
-		if (err) {
-			printk(UM_KERN_ERR "get_skas_faultinfo - "
-			       "PTRACE_FAULTINFO failed, errno = %d\n", errno);
-			fatal_sigsegv();
-		}
-
-		/* Special handling for i386, which has different structs */
-		if (sizeof(struct ptrace_faultinfo) < sizeof(struct faultinfo))
-			memset((char *)fi + sizeof(struct ptrace_faultinfo), 0,
-			       sizeof(struct faultinfo) -
-			       sizeof(struct ptrace_faultinfo));
+	err = get_fp_registers(pid, fpregs);
+	if (err < 0) {
+		printk(UM_KERN_ERR "save_fp_registers returned %d\n",
+		       err);
+		fatal_sigsegv();
 	}
-	else {
-		unsigned long fpregs[FP_SIZE];
+	err = ptrace(PTRACE_CONT, pid, 0, SIGSEGV);
+	if (err) {
+		printk(UM_KERN_ERR "Failed to continue stub, pid = %d, "
+		       "errno = %d\n", pid, errno);
+		fatal_sigsegv();
+	}
+	wait_stub_done(pid);
 
-		err = get_fp_registers(pid, fpregs);
-		if (err < 0) {
-			printk(UM_KERN_ERR "save_fp_registers returned %d\n",
-			       err);
-			fatal_sigsegv();
-		}
-		err = ptrace(PTRACE_CONT, pid, 0, SIGSEGV);
-		if (err) {
-			printk(UM_KERN_ERR "Failed to continue stub, pid = %d, "
-			       "errno = %d\n", pid, errno);
-			fatal_sigsegv();
-		}
-		wait_stub_done(pid);
+	/*
+	 * faultinfo is prepared by the stub-segv-handler at start of
+	 * the stub stack page. We just have to copy it.
+	 */
+	memcpy(fi, (void *)current_stub_stack(), sizeof(*fi));
 
-		/*
-		 * faultinfo is prepared by the stub-segv-handler at start of
-		 * the stub stack page. We just have to copy it.
-		 */
-		memcpy(fi, (void *)current_stub_stack(), sizeof(*fi));
-
-		err = put_fp_registers(pid, fpregs);
-		if (err < 0) {
-			printk(UM_KERN_ERR "put_fp_registers returned %d\n",
-			       err);
-			fatal_sigsegv();
-		}
+	err = put_fp_registers(pid, fpregs);
+	if (err < 0) {
+		printk(UM_KERN_ERR "put_fp_registers returned %d\n",
+		       err);
+		fatal_sigsegv();
 	}
 }
 
@@ -198,7 +179,8 @@ extern int __syscall_stub_start;
 static int userspace_tramp(void *stack)
 {
 	void *addr;
-	int err;
+	int err, fd;
+	unsigned long long offset;
 
 	ptrace(PTRACE_TRACEME, 0, 0, 0);
 
@@ -211,36 +193,32 @@ static int userspace_tramp(void *stack)
 		exit(1);
 	}
 
-	if (!proc_mm) {
-		/*
-		 * This has a pte, but it can't be mapped in with the usual
-		 * tlb_flush mechanism because this is part of that mechanism
-		 */
-		int fd;
-		unsigned long long offset;
-		fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
-		addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
-			      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
+	/*
+	 * This has a pte, but it can't be mapped in with the usual
+	 * tlb_flush mechanism because this is part of that mechanism
+	 */
+	fd = phys_mapping(to_phys(&__syscall_stub_start), &offset);
+	addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
+		      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
+	if (addr == MAP_FAILED) {
+		printk(UM_KERN_ERR "mapping mmap stub at 0x%lx failed, "
+		       "errno = %d\n", STUB_CODE, errno);
+		exit(1);
+	}
+
+	if (stack != NULL) {
+		fd = phys_mapping(to_phys(stack), &offset);
+		addr = mmap((void *) STUB_DATA,
+			    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
+			    MAP_FIXED | MAP_SHARED, fd, offset);
 		if (addr == MAP_FAILED) {
-			printk(UM_KERN_ERR "mapping mmap stub at 0x%lx failed, "
-			       "errno = %d\n", STUB_CODE, errno);
+			printk(UM_KERN_ERR "mapping segfault stack "
+			       "at 0x%lx failed, errno = %d\n",
+			       STUB_DATA, errno);
 			exit(1);
 		}
-
-		if (stack != NULL) {
-			fd = phys_mapping(to_phys(stack), &offset);
-			addr = mmap((void *) STUB_DATA,
-				    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
-				    MAP_FIXED | MAP_SHARED, fd, offset);
-			if (addr == MAP_FAILED) {
-				printk(UM_KERN_ERR "mapping segfault stack "
-				       "at 0x%lx failed, errno = %d\n",
-				       STUB_DATA, errno);
-				exit(1);
-			}
-		}
 	}
-	if (!ptrace_faultinfo && (stack != NULL)) {
+	if (stack != NULL) {
 		struct sigaction sa;
 
 		unsigned long v = STUB_CODE +
@@ -286,11 +264,7 @@ int start_userspace(unsigned long stub_stack)
 
 	sp = (unsigned long) stack + UM_KERN_PAGE_SIZE - sizeof(void *);
 
-	flags = CLONE_FILES;
-	if (proc_mm)
-		flags |= CLONE_VM;
-	else
-		flags |= SIGCHLD;
+	flags = CLONE_FILES | SIGCHLD;
 
 	pid = clone(userspace_tramp, (void *) sp, flags, (void *) stub_stack);
 	if (pid < 0) {
@@ -413,8 +387,7 @@ void userspace(struct uml_pt_regs *regs)
 
 			switch (sig) {
 			case SIGSEGV:
-				if (PTRACE_FULL_FAULTINFO ||
-				    !ptrace_faultinfo) {
+				if (PTRACE_FULL_FAULTINFO) {
 					get_skas_faultinfo(pid,
 							   &regs->faultinfo);
 					(*sig_info[SIGSEGV])(SIGSEGV, (struct siginfo *)&si,
@@ -571,67 +544,6 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	return err;
 }
 
-/*
- * This is used only, if stub pages are needed, while proc_mm is
- * available. Opening /proc/mm creates a new mm_context, which lacks
- * the stub-pages. Thus, we map them using /proc/mm-fd
- */
-int map_stub_pages(int fd, unsigned long code, unsigned long data,
-		   unsigned long stack)
-{
-	struct proc_mm_op mmop;
-	int n;
-	unsigned long long code_offset;
-	int code_fd = phys_mapping(to_phys((void *) &__syscall_stub_start),
-				   &code_offset);
-
-	mmop = ((struct proc_mm_op) { .op        = MM_MMAP,
-				      .u         =
-				      { .mmap    =
-					{ .addr    = code,
-					  .len     = UM_KERN_PAGE_SIZE,
-					  .prot    = PROT_EXEC,
-					  .flags   = MAP_FIXED | MAP_PRIVATE,
-					  .fd      = code_fd,
-					  .offset  = code_offset
-	} } });
-	CATCH_EINTR(n = write(fd, &mmop, sizeof(mmop)));
-	if (n != sizeof(mmop)) {
-		n = errno;
-		printk(UM_KERN_ERR "mmap args - addr = 0x%lx, fd = %d, "
-		       "offset = %llx\n", code, code_fd,
-		       (unsigned long long) code_offset);
-		printk(UM_KERN_ERR "map_stub_pages : /proc/mm map for code "
-		       "failed, err = %d\n", n);
-		return -n;
-	}
-
-	if (stack) {
-		unsigned long long map_offset;
-		int map_fd = phys_mapping(to_phys((void *)stack), &map_offset);
-		mmop = ((struct proc_mm_op)
-				{ .op        = MM_MMAP,
-				  .u         =
-				  { .mmap    =
-				    { .addr    = data,
-				      .len     = UM_KERN_PAGE_SIZE,
-				      .prot    = PROT_READ | PROT_WRITE,
-				      .flags   = MAP_FIXED | MAP_SHARED,
-				      .fd      = map_fd,
-				      .offset  = map_offset
-		} } });
-		CATCH_EINTR(n = write(fd, &mmop, sizeof(mmop)));
-		if (n != sizeof(mmop)) {
-			n = errno;
-			printk(UM_KERN_ERR "map_stub_pages : /proc/mm map for "
-			       "data failed, err = %d\n", n);
-			return -n;
-		}
-	}
-
-	return 0;
-}
-
 void new_thread(void *stack, jmp_buf *buf, void (*handler)(void))
 {
 	(*buf)[0].JB_IP = (unsigned long) handler;
@@ -728,17 +640,5 @@ void reboot_skas(void)
 
 void __switch_mm(struct mm_id *mm_idp)
 {
-	int err;
-
-	/* FIXME: need cpu pid in __switch_mm */
-	if (proc_mm) {
-		err = ptrace(PTRACE_SWITCH_MM, userspace_pid[0], 0,
-			     mm_idp->u.mm_fd);
-		if (err) {
-			printk(UM_KERN_ERR "__switch_mm - PTRACE_SWITCH_MM "
-			       "failed, errno = %d\n", errno);
-			fatal_sigsegv();
-		}
-	}
-	else userspace_pid[0] = mm_idp->u.pid;
+	userspace_pid[0] = mm_idp->u.pid;
 }
