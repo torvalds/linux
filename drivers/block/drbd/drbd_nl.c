@@ -2920,7 +2920,30 @@ int drbd_adm_resume_io(struct sk_buff *skb, struct genl_info *info)
 	mutex_lock(&adm_ctx.resource->adm_mutex);
 	device = adm_ctx.device;
 	if (test_bit(NEW_CUR_UUID, &device->flags)) {
-		drbd_uuid_new_current(device);
+		if (get_ldev_if_state(device, D_ATTACHING)) {
+			drbd_uuid_new_current(device);
+			put_ldev(device);
+		} else {
+			/* This is effectively a multi-stage "forced down".
+			 * The NEW_CUR_UUID bit is supposedly only set, if we
+			 * lost the replication connection, and are configured
+			 * to freeze IO and wait for some fence-peer handler.
+			 * So we still don't have a replication connection.
+			 * And now we don't have a local disk either.  After
+			 * resume, we will fail all pending and new IO, because
+			 * we don't have any data anymore.  Which means we will
+			 * eventually be able to terminate all users of this
+			 * device, and then take it down.  By bumping the
+			 * "effective" data uuid, we make sure that you really
+			 * need to tear down before you reconfigure, we will
+			 * the refuse to re-connect or re-attach (because no
+			 * matching real data uuid exists).
+			 */
+			u64 val;
+			get_random_bytes(&val, sizeof(u64));
+			drbd_set_ed_uuid(device, val);
+			drbd_warn(device, "Resumed without access to data; please tear down before attempting to re-configure.\n");
+		}
 		clear_bit(NEW_CUR_UUID, &device->flags);
 	}
 	drbd_suspend_io(device);
