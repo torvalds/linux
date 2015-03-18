@@ -611,7 +611,19 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if ((ret == 0) && kick_q && signal)
+	/*
+	 * Signalling the host is conditional on many factors:
+	 * 1. The ring state changed from being empty to non-empty.
+	 *    This is tracked by the variable "signal".
+	 * 2. The variable kick_q tracks if more data will be placed
+	 *    on the ring. We will not signal if more data is
+	 *    to be placed.
+	 *
+	 * If we cannot write to the ring-buffer; signal the host
+	 * even if we may not have written anything. This is a rare
+	 * enough condition that it should not matter.
+	 */
+	if (((ret == 0) && kick_q && signal) || (ret))
 		vmbus_setevent(channel);
 
 	return ret;
@@ -702,7 +714,19 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
 
-	if ((ret == 0) && kick_q && signal)
+	/*
+	 * Signalling the host is conditional on many factors:
+	 * 1. The ring state changed from being empty to non-empty.
+	 *    This is tracked by the variable "signal".
+	 * 2. The variable kick_q tracks if more data will be placed
+	 *    on the ring. We will not signal if more data is
+	 *    to be placed.
+	 *
+	 * If we cannot write to the ring-buffer; signal the host
+	 * even if we may not have written anything. This is a rare
+	 * enough condition that it should not matter.
+	 */
+	if (((ret == 0) && kick_q && signal) || (ret))
 		vmbus_setevent(channel);
 
 	return ret;
