@@ -5970,7 +5970,7 @@ static void tcp_openreq_init(struct request_sock *req,
 struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
 				      struct sock *sk_listener)
 {
-	struct request_sock *req = reqsk_alloc(ops);
+	struct request_sock *req = reqsk_alloc(ops, sk_listener);
 
 	if (req) {
 		struct inet_request_sock *ireq = inet_rsk(req);
