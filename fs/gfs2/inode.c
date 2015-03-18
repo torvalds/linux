@@ -382,7 +382,7 @@ static int alloc_dinode(struct gfs2_inode *ip, u32 flags, unsigned *dblocks)
 	struct gfs2_alloc_parms ap = { .target = *dblocks, .aflags = flags, };
 	int error;
 
-	error = gfs2_quota_lock_check(ip);
+	error = gfs2_quota_lock_check(ip, &ap);
 	if (error)
 		goto out;
 
@@ -525,7 +525,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	int error;
 
 	if (da->nr_blocks) {
-		error = gfs2_quota_lock_check(dip);
+		error = gfs2_quota_lock_check(dip, &ap);
 		if (error)
 			goto fail_quota_locks;
 
@@ -953,7 +953,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 
 	if (da.nr_blocks) {
 		struct gfs2_alloc_parms ap = { .target = da.nr_blocks, };
-		error = gfs2_quota_lock_check(dip);
+		error = gfs2_quota_lock_check(dip, &ap);
 		if (error)
 			goto out_gunlock;
 
@@ -1470,7 +1470,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 
 	if (da.nr_blocks) {
 		struct gfs2_alloc_parms ap = { .target = da.nr_blocks, };
-		error = gfs2_quota_lock_check(ndip);
+		error = gfs2_quota_lock_check(ndip, &ap);
 		if (error)
 			goto out_gunlock;
 
@@ -1669,6 +1669,7 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	kuid_t ouid, nuid;
 	kgid_t ogid, ngid;
 	int error;
+	struct gfs2_alloc_parms ap;
 
 	ouid = inode->i_uid;
 	ogid = inode->i_gid;
@@ -1696,9 +1697,11 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 	if (error)
 		goto out;
 
+	ap.target = gfs2_get_inode_blocks(&ip->i_inode);
+
 	if (!uid_eq(ouid, NO_UID_QUOTA_CHANGE) ||
 	    !gid_eq(ogid, NO_GID_QUOTA_CHANGE)) {
-		error = gfs2_quota_check(ip, nuid, ngid);
+		error = gfs2_quota_check(ip, nuid, ngid, &ap);
 		if (error)
 			goto out_gunlock_q;
 	}
@@ -1713,9 +1716,8 @@ static int setattr_chown(struct inode *inode, struct iattr *attr)
 
 	if (!uid_eq(ouid, NO_UID_QUOTA_CHANGE) ||
 	    !gid_eq(ogid, NO_GID_QUOTA_CHANGE)) {
-		u64 blocks = gfs2_get_inode_blocks(&ip->i_inode);
-		gfs2_quota_change(ip, -blocks, ouid, ogid);
-		gfs2_quota_change(ip, blocks, nuid, ngid);
+		gfs2_quota_change(ip, -ap.target, ouid, ogid);
+		gfs2_quota_change(ip, ap.target, nuid, ngid);
 	}
 
 out_end_trans:

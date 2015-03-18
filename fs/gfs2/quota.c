@@ -1094,7 +1094,8 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
 	return 0;
 }
 
-int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
+int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
+		     struct gfs2_alloc_parms *ap)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qd;
@@ -1117,14 +1118,13 @@ int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 
 		value = (s64)be64_to_cpu(qd->qd_qb.qb_value);
 		spin_lock(&qd_lock);
-		value += qd->qd_change;
+		value += qd->qd_change + ap->target;
 		spin_unlock(&qd_lock);
 
 		if (be64_to_cpu(qd->qd_qb.qb_limit) && (s64)be64_to_cpu(qd->qd_qb.qb_limit) < value) {
 			print_message(qd, "exceeded");
 			quota_send_warning(qd->qd_id,
 					   sdp->sd_vfs->s_dev, QUOTA_NL_BHARDWARN);
-
 			error = -EDQUOT;
 			break;
 		} else if (be64_to_cpu(qd->qd_qb.qb_warn) &&

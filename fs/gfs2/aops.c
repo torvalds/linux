@@ -671,12 +671,12 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 
 	if (alloc_required) {
 		struct gfs2_alloc_parms ap = { .aflags = 0, };
-		error = gfs2_quota_lock_check(ip);
+		requested = data_blocks + ind_blocks;
+		ap.target = requested;
+		error = gfs2_quota_lock_check(ip, &ap);
 		if (error)
 			goto out_unlock;
 
-		requested = data_blocks + ind_blocks;
-		ap.target = requested;
 		error = gfs2_inplace_reserve(ip, &ap);
 		if (error)
 			goto out_qunlock;
