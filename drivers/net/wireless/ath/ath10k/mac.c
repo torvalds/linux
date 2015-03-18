@@ -5482,6 +5482,7 @@ static const struct ieee80211_channel ath10k_5ghz_channels[] = {
 	CHAN5G(132, 5660, 0),
 	CHAN5G(136, 5680, 0),
 	CHAN5G(140, 5700, 0),
+	CHAN5G(144, 5720, 0),
 	CHAN5G(149, 5745, 0),
 	CHAN5G(153, 5765, 0),
 	CHAN5G(157, 5785, 0),
