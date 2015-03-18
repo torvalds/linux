@@ -85,6 +85,8 @@ struct rhashtable;
  * @head_offset: Offset of rhash_head in struct to be hashed
  * @max_shift: Maximum number of shifts while expanding
  * @min_shift: Minimum number of shifts while shrinking
+ * @max_size: Maximum size while expanding
+ * @min_size: Minimum size while shrinking
  * @nulls_base: Base value to generate nulls marker
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Function to hash key
@@ -97,6 +99,8 @@ struct rhashtable_params {
 	size_t			head_offset;
 	size_t			max_shift;
 	size_t			min_shift;
+	unsigned int		max_size;
+	unsigned int		min_size;
 	u32			nulls_base;
 	size_t			locks_mul;
 	rht_hashfn_t		hashfn;
