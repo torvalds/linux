@@ -23,18 +23,6 @@ enum nf_br_hook_priorities {
 #define BRNF_8021Q			0x10
 #define BRNF_PPPoE			0x20
 
-static inline unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
-{
-	switch (skb->protocol) {
-	case __cpu_to_be16(ETH_P_8021Q):
-		return VLAN_HLEN;
-	case __cpu_to_be16(ETH_P_PPP_SES):
-		return PPPOE_SES_HLEN;
-	default:
-		return 0;
-	}
-}
-
 static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 {
 	if (unlikely(skb->nf_bridge->mask & BRNF_PPPoE))
@@ -43,15 +31,6 @@ static inline unsigned int nf_bridge_mtu_reduction(const struct sk_buff *skb)
 }
 
 int br_handle_frame_finish(struct sk_buff *skb);
-
-/* This is called by the IP fragmenting code and it ensures there is
- * enough room for the encapsulating header (if there is one). */
-static inline unsigned int nf_bridge_pad(const struct sk_buff *skb)
-{
-	if (skb->nf_bridge)
-		return nf_bridge_encap_header_len(skb);
-	return 0;
-}
 
 static inline void br_drop_fake_rtable(struct sk_buff *skb)
 {
@@ -62,7 +41,6 @@ static inline void br_drop_fake_rtable(struct sk_buff *skb)
 }
 
 #else
-#define nf_bridge_pad(skb)			(0)
 #define br_drop_fake_rtable(skb)	        do { } while (0)
 #endif /* CONFIG_BRIDGE_NETFILTER */
 
