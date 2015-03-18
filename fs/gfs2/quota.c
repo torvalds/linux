@@ -1094,15 +1094,33 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
 	return 0;
 }
 
+/**
+ * gfs2_quota_check - check if allocating new blocks will exceed quota
+ * @ip:  The inode for which this check is being performed
+ * @uid: The uid to check against
+ * @gid: The gid to check against
+ * @ap:  The allocation parameters. ap->target contains the requested
+ *       blocks. ap->min_target, if set, contains the minimum blks
+ *       requested.
+ *
+ * Returns: 0 on success.
+ *                  min_req = ap->min_target ? ap->min_target : ap->target;
+ *                  quota must allow atleast min_req blks for success and
+ *                  ap->allowed is set to the number of blocks allowed
+ *
+ *          -EDQUOT otherwise, quota violation. ap->allowed is set to number
+ *                  of blocks available.
+ */
 int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
 		     struct gfs2_alloc_parms *ap)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_quota_data *qd;
-	s64 value;
+	s64 value, warn, limit;
 	unsigned int x;
 	int error = 0;
 
+	ap->allowed = UINT_MAX; /* Assume we are permitted a whole lot */
 	if (!test_bit(GIF_QD_LOCKED, &ip->i_flags))
 		return 0;
 
@@ -1116,29 +1134,37 @@ int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
 		      qid_eq(qd->qd_id, make_kqid_gid(gid))))
 			continue;
 
+		warn = (s64)be64_to_cpu(qd->qd_qb.qb_warn);
+		limit = (s64)be64_to_cpu(qd->qd_qb.qb_limit);
 		value = (s64)be64_to_cpu(qd->qd_qb.qb_value);
 		spin_lock(&qd_lock);
-		value += qd->qd_change + ap->target;
+		value += qd->qd_change;
 		spin_unlock(&qd_lock);
 
-		if (be64_to_cpu(qd->qd_qb.qb_limit) && (s64)be64_to_cpu(qd->qd_qb.qb_limit) < value) {
-			print_message(qd, "exceeded");
-			quota_send_warning(qd->qd_id,
-					   sdp->sd_vfs->s_dev, QUOTA_NL_BHARDWARN);
-			error = -EDQUOT;
-			break;
-		} else if (be64_to_cpu(qd->qd_qb.qb_warn) &&
-			   (s64)be64_to_cpu(qd->qd_qb.qb_warn) < value &&
+		if (limit > 0 && (limit - value) < ap->allowed)
+			ap->allowed = limit - value;
+		/* If we can't meet the target */
+		if (limit && limit < (value + (s64)ap->target)) {
+			/* If no min_target specified or we don't meet
+			 * min_target, return -EDQUOT */
+			if (!ap->min_target || ap->min_target > ap->allowed) {
+				print_message(qd, "exceeded");
+				quota_send_warning(qd->qd_id,
+						   sdp->sd_vfs->s_dev,
+						   QUOTA_NL_BHARDWARN);
+				error = -EDQUOT;
+				break;
+			}
+		} else if (warn && warn < value &&
 			   time_after_eq(jiffies, qd->qd_last_warn +
-					 gfs2_tune_get(sdp,
-						gt_quota_warn_period) * HZ)) {
+					 gfs2_tune_get(sdp, gt_quota_warn_period)
+					 * HZ)) {
 			quota_send_warning(qd->qd_id,
 					   sdp->sd_vfs->s_dev, QUOTA_NL_BSOFTWARN);
 			error = print_message(qd, "warning");
 			qd->qd_last_warn = jiffies;
 		}
 	}
-
 	return error;
 }
 
