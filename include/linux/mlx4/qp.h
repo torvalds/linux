@@ -207,14 +207,16 @@ struct mlx4_qp_context {
 	__be32			msn;
 	__be16			rq_wqe_counter;
 	__be16			sq_wqe_counter;
-	u32			reserved3[2];
+	u32			reserved3;
+	__be16			rate_limit_params;
+	__be16			reserved4;
 	__be32			param3;
 	__be32			nummmcpeers_basemkey;
 	u8			log_page_size;
-	u8			reserved4[2];
+	u8			reserved5[2];
 	u8			mtt_base_addr_h;
 	__be32			mtt_base_addr_l;
-	u32			reserved5[10];
+	u32			reserved6[10];
 };
 
 struct mlx4_update_qp_context {
@@ -229,6 +231,7 @@ struct mlx4_update_qp_context {
 enum {
 	MLX4_UPD_QP_MASK_PM_STATE	= 32,
 	MLX4_UPD_QP_MASK_VSD		= 33,
+	MLX4_UPD_QP_MASK_RATE_LIMIT	= 35,
 };
 
 enum {
@@ -428,7 +431,8 @@ struct mlx4_wqe_inline_seg {
 enum mlx4_update_qp_attr {
 	MLX4_UPDATE_QP_SMAC		= 1 << 0,
 	MLX4_UPDATE_QP_VSD		= 1 << 1,
-	MLX4_UPDATE_QP_SUPPORTED_ATTRS	= (1 << 2) - 1
+	MLX4_UPDATE_QP_RATE_LIMIT	= 1 << 2,
+	MLX4_UPDATE_QP_SUPPORTED_ATTRS	= (1 << 3) - 1
 };
 
 enum mlx4_update_qp_params_flags {
@@ -438,6 +442,8 @@ enum mlx4_update_qp_params_flags {
 struct mlx4_update_qp_params {
 	u8	smac_index;
 	u32	flags;
+	u16	rate_unit;
+	u16	rate_val;
 };
 
 int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
