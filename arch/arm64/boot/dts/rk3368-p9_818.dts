@@ -317,14 +317,16 @@
 		status = "okay";
 		compatible = "rockchip,rk818";
 		battery {
-			ocv_table = <3300 3599 3671 3701 3728 3746 3762
-			             3772 3781 3792 3816 3836 3866 3910
-			             3942 3971 4002 4050 4088 4132 4183>;
-			design_capacity = <3914>;
-			design_qmax = <4000>;
+			ocv_table = <3400 3650 3693 3707 3731 3749 3760
+			             3770 3782 3796 3812 3829 3852 3882
+			             3915 3951 3981 4047 4086 4132 4182>;
+			design_capacity = <8650>;
+			design_qmax = <8800>;
 			max_overcharge = <100>;
-			max_charge_currentmA = <1500>;
-			max_charge_voltagemV = <4260>;
+			bat_res = <85>;
+			max_charge_ilimitmA  = <2000>;
+			max_charge_currentmA = <1800>;
+			max_charge_voltagemV = <4200>;
 			max_bat_voltagemV = <4200>;
 			sleep_enter_current = <150>;
 			sleep_exit_current = <180>;
