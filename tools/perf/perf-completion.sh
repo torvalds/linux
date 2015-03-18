@@ -100,6 +100,23 @@ __perfcomp_colon ()
 	__ltrim_colon_completions $cur
 }
 
+__perf_prev_skip_opts ()
+{
+	local i cmd_ cmds_
+
+	let i=cword-1
+	cmds_=$($cmd --list-cmds)
+	prev_skip_opts=()
+	while [ $i -ge 0 ]; do
+		for cmd_ in $cmds_; do
+			if [[ ${words[i]} == $cmd_ ]]; then
+				prev_skip_opts=${words[i]}
+				return
+			fi
+		done
+		((i--))
+	done
+}
 __perf_main ()
 {
 	local cmd
@@ -107,6 +124,8 @@ __perf_main ()
 	cmd=${words[0]}
 	COMPREPLY=()
 
+	# Skip options backward and find the last perf command
+	__perf_prev_skip_opts
 	# List perf subcommands or long options
 	if [ $cword -eq 1 ]; then
 		if [[ $cur == --* ]]; then
@@ -121,8 +140,8 @@ __perf_main ()
 		__perfcomp_colon "$evts" "$cur"
 	else
 		# List subcommands for perf commands
-		if [[ $prev == @(kvm|kmem|mem|lock|sched) ]]; then
-			subcmds=$($cmd $prev --list-cmds)
+		if [[ $prev_skip_opts == @(kvm|kmem|mem|lock|sched) ]]; then
+			subcmds=$($cmd $prev_skip_opts --list-cmds)
 			__perfcomp_colon "$subcmds" "$cur"
 		fi
 		# List long option names
