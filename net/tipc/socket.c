@@ -2286,8 +2286,8 @@ int tipc_sk_rht_init(struct net *net)
 		.key_offset = offsetof(struct tipc_sock, portid),
 		.key_len = sizeof(u32), /* portid */
 		.hashfn = jhash,
-		.max_shift = 20, /* 1M */
-		.min_shift = 8,  /* 256 */
+		.max_size = 1048576,
+		.min_size = 256,
 	};
 
 	return rhashtable_init(&tn->sk_rht, &rht_params);
