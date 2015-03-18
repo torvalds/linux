@@ -485,7 +485,8 @@ static int wtm_init(struct snd_ice1712 *ice)
 
 
 static unsigned char wtm_eeprom[] = {
-	[ICE_EEP2_SYSCONF]      = 0x47, /*SYSCONF: clock 192KHz, 4ADC, 8DAC */
+	[ICE_EEP2_SYSCONF]      = 0x67, /*SYSCONF: clock 192KHz, mpu401,
+							4ADC, 8DAC */
 	[ICE_EEP2_ACLINK]       = 0x80, /* ACLINK : I2S */
 	[ICE_EEP2_I2S]          = 0xf8, /* I2S: vol; 96k, 24bit, 192k */
 	[ICE_EEP2_SPDIF]        = 0xc1, /*SPDIF: out-en, spidf ext out*/
