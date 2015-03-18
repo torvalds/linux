@@ -24,8 +24,6 @@
 
 #include <linux/err.h>
 
-#include <linux/wl12xx.h>
-
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
 #include "../wlcore/io.h"
@@ -1808,7 +1806,6 @@ static int wl12xx_setup(struct wl1271 *wl)
 {
 	struct wl12xx_priv *priv = wl->priv;
 	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&wl->pdev->dev);
-	struct wl12xx_platform_data *pdata = pdev_data->pdata;
 
 	BUILD_BUG_ON(WL12XX_MAX_LINKS > WLCORE_MAX_LINKS);
 	BUILD_BUG_ON(WL12XX_MAX_AP_STATIONS > WL12XX_MAX_LINKS);
@@ -1834,12 +1831,12 @@ static int wl12xx_setup(struct wl1271 *wl)
 
 	if (!fref_param) {
 		priv->ref_clock = wl12xx_get_clock_idx(wl12xx_refclock_table,
-						       pdata->ref_clock_freq,
-						       pdata->ref_clock_xtal);
+						pdev_data->ref_clock_freq,
+						pdev_data->ref_clock_xtal);
 		if (priv->ref_clock < 0) {
 			wl1271_error("Invalid ref_clock frequency (%d Hz, %s)",
-				     pdata->ref_clock_freq,
-				     pdata->ref_clock_xtal ?
+				     pdev_data->ref_clock_freq,
+				     pdev_data->ref_clock_xtal ?
 				     "XTAL" : "not XTAL");
 
 			return priv->ref_clock;
@@ -1861,13 +1858,13 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid fref parameter %s", fref_param);
 	}
 
-	if (!tcxo_param && pdata->tcxo_clock_freq) {
+	if (!tcxo_param && pdev_data->tcxo_clock_freq) {
 		priv->tcxo_clock = wl12xx_get_clock_idx(wl12xx_tcxoclock_table,
-							pdata->tcxo_clock_freq,
-							true);
+						pdev_data->tcxo_clock_freq,
+						true);
 		if (priv->tcxo_clock < 0) {
 			wl1271_error("Invalid tcxo_clock frequency (%d Hz)",
-				     pdata->tcxo_clock_freq);
+				     pdev_data->tcxo_clock_freq);
 
 			return priv->tcxo_clock;
 		}

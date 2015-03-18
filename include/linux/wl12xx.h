@@ -33,38 +33,13 @@ struct wl1251_platform_data {
 	bool use_eeprom;
 };
 
-struct wl12xx_platform_data {
-	int irq;
-	u32 irq_trigger;
-	bool ref_clock_xtal;	/* specify whether the clock is XTAL or not */
-	u32 ref_clock_freq;	/* in Hertz */
-	u32 tcxo_clock_freq;	/* in Hertz, tcxo is always XTAL */
-	bool pwr_in_suspend;
-};
-
 #ifdef CONFIG_WILINK_PLATFORM_DATA
-
-int wl12xx_set_platform_data(const struct wl12xx_platform_data *data);
-
-struct wl12xx_platform_data *wl12xx_get_platform_data(void);
 
 int wl1251_set_platform_data(const struct wl1251_platform_data *data);
 
 struct wl1251_platform_data *wl1251_get_platform_data(void);
 
 #else
-
-static inline
-int wl12xx_set_platform_data(const struct wl12xx_platform_data *data)
-{
-	return -ENOSYS;
-}
-
-static inline
-struct wl12xx_platform_data *wl12xx_get_platform_data(void)
-{
-	return ERR_PTR(-ENODATA);
-}
 
 static inline
 int wl1251_set_platform_data(const struct wl1251_platform_data *data)
