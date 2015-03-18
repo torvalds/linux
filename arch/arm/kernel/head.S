@@ -138,9 +138,9 @@ ENTRY(stext)
 						@ mmu has been enabled
 	adr	lr, BSYM(1f)			@ return (PIC) address
 	mov	r8, r4				@ set TTBR1 to swapper_pg_dir
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	ret	r12				)
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10
+	ret	r12
 1:	b	__enable_mmu
 ENDPROC(stext)
 	.ltorg
@@ -386,10 +386,10 @@ ENTRY(secondary_startup)
 	ldr	r8, [r7, lr]			@ get secondary_data.swapper_pg_dir
 	adr	lr, BSYM(__enable_mmu)		@ return address
 	mov	r13, r12			@ __secondary_switched address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
-						  @ (return control reg)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	ret	r12				)
+	ldr	r12, [r10, #PROCINFO_INITFUNC]
+	add	r12, r12, r10			@ initialise processor
+						@ (return control reg)
+	ret	r12
 ENDPROC(secondary_startup)
 ENDPROC(secondary_startup_arm)
 

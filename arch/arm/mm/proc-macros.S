@@ -331,3 +331,7 @@ ENTRY(\name\()_tlb_fns)
 	.globl	\x
 	.equ	\x, \y
 .endm
+
+.macro	initfn, func, base
+	.long	\func - \base
+.endm

@@ -448,7 +448,7 @@ arm920_crval:
 
 	.align
 
-	.section ".proc.info.init", #alloc, #execinstr
+	.section ".proc.info.init", #alloc
 
 	.type	__arm920_proc_info,#object
 __arm920_proc_info:
@@ -464,7 +464,7 @@ __arm920_proc_info:
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
-	b	__arm920_setup
+	initfn	__arm920_setup, __arm920_proc_info
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB

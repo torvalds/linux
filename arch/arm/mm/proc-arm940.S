@@ -354,14 +354,14 @@ __arm940_setup:
 
 	.align
 
-	.section ".proc.info.init", #alloc, #execinstr
+	.section ".proc.info.init", #alloc
 
 	.type	__arm940_proc_info,#object
 __arm940_proc_info:
 	.long	0x41009400
 	.long	0xff00fff0
 	.long	0
-	b	__arm940_setup
+	initfn	__arm940_setup, __arm940_proc_info
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB
