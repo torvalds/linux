@@ -81,6 +81,7 @@
 	};
 
 	cpus {
+		enable-method = "allwinner,sun8i-a23";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -591,6 +592,11 @@
 				compatible = "allwinner,sun6i-a31-clock-reset";
 				#reset-cells = <1>;
 			};
+		};
+
+		cpucfg@01f01c00 {
+			compatible = "allwinner,sun8i-a23-cpuconfig";
+			reg = <0x01f01c00 0x300>;
 		};
 
 		r_uart: serial@01f02800 {
