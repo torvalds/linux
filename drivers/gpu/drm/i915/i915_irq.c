@@ -1033,7 +1033,6 @@ void gen6_rps_reset_ei(struct drm_i915_private *dev_priv)
 {
 	vlv_c0_read(dev_priv, &dev_priv->rps.down_ei);
 	dev_priv->rps.up_ei = dev_priv->rps.down_ei;
-	dev_priv->rps.ei_interrupt_count = 0;
 }
 
 static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
@@ -1041,22 +1040,12 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 	struct intel_rps_ei now;
 	u32 events = 0;
 
-	if ((pm_iir & GEN6_PM_RP_UP_EI_EXPIRED) == 0)
+	if ((pm_iir & (GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED)) == 0)
 		return 0;
 
 	vlv_c0_read(dev_priv, &now);
 	if (now.cz_clock == 0)
 		return 0;
-
-	/*
-	 * To down throttle, C0 residency should be less than down threshold
-	 * for continous EI intervals. So calculate down EI counters
-	 * once in VLV_INT_COUNT_FOR_DOWN_EI
-	 */
-	if (++dev_priv->rps.ei_interrupt_count >= VLV_INT_COUNT_FOR_DOWN_EI) {
-		pm_iir |= GEN6_PM_RP_DOWN_EI_EXPIRED;
-		dev_priv->rps.ei_interrupt_count = 0;
-	}
 
 	if (pm_iir & GEN6_PM_RP_DOWN_EI_EXPIRED) {
 		if (!vlv_c0_above(dev_priv,
@@ -4254,7 +4243,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	/* Let's track the enabled rps events */
 	if (IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		/* WaGsvRC0ResidencyMethod:vlv */
-		dev_priv->pm_rps_events = GEN6_PM_RP_UP_EI_EXPIRED;
+		dev_priv->pm_rps_events = GEN6_PM_RP_DOWN_EI_EXPIRED | GEN6_PM_RP_UP_EI_EXPIRED;
 	else
 		dev_priv->pm_rps_events = GEN6_PM_RPS_EVENTS;
 

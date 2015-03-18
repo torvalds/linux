@@ -1031,8 +1031,6 @@ struct intel_gen6_power_mgmt {
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
 	u32 cz_freq;
 
-	u32 ei_interrupt_count;
-
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
 
