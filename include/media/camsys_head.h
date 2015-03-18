@@ -27,8 +27,10 @@
          1) add dev_name in struct camsys_devio_name_s;
 *v0.a.0:
          1) support external flash IC
+*v0.b.0:
+		 1) add CamSys_SensorBit0_CifBit4 in enum camsys_cifio_e. 
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,0xa,0)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,0xb,0)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"           
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -184,6 +186,7 @@ typedef enum camsys_fmt_e {
 typedef enum camsys_cifio_e {
     CamSys_SensorBit0_CifBit0 = 0x00,
     CamSys_SensorBit0_CifBit2 = 0x01,
+    CamSys_SensorBit0_CifBit4 = 0x02,
 } camsys_cifio_t;
 
 typedef struct camsys_cifphy_s {
