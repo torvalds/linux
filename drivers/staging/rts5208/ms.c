@@ -2194,7 +2194,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 	struct zone_entry *segment;
 	bool defect_flag;
 	int retval, table_size, disable_cnt, i;
-	u16 start, end, phy_blk, log_blk, tmp_blk;
+	u16 start, end, phy_blk, log_blk, tmp_blk, idx;
 	u8 extra[MS_EXTRA_SIZE], us1, us2;
 
 	dev_dbg(rtsx_dev(chip), "ms_build_l2p_tbl: %d\n", seg_no);
@@ -2305,13 +2305,15 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 			continue;
 		}
 
-		if (segment->l2p_table[log_blk - ms_start_idx[seg_no]] == 0xFFFF) {
-			segment->l2p_table[log_blk - ms_start_idx[seg_no]] = phy_blk;
+		idx = log_blk - ms_start_idx[seg_no];
+
+		if (segment->l2p_table[idx] == 0xFFFF) {
+			segment->l2p_table[idx] = phy_blk;
 			continue;
 		}
 
 		us1 = extra[0] & 0x10;
-		tmp_blk = segment->l2p_table[log_blk - ms_start_idx[seg_no]];
+		tmp_blk = segment->l2p_table[idx];
 		retval = ms_read_extra_data(chip, tmp_blk, 0,
 					extra, MS_EXTRA_SIZE);
 		if (retval != STATUS_SUCCESS)
@@ -2342,7 +2344,8 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 	for (log_blk = ms_start_idx[seg_no];
 	     log_blk < ms_start_idx[seg_no + 1]; log_blk++) {
-		if (segment->l2p_table[log_blk-ms_start_idx[seg_no]] == 0xFFFF) {
+		idx = log_blk - ms_start_idx[seg_no];
+		if (segment->l2p_table[idx] == 0xFFFF) {
 			phy_blk = ms_get_unused_block(chip, seg_no);
 			if (phy_blk == 0xFFFF) {
 				chip->card_wp |= MS_CARD;
@@ -2352,7 +2355,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 			if (retval != STATUS_SUCCESS)
 				TRACE_GOTO(chip, BUILD_FAIL);
 
-			segment->l2p_table[log_blk-ms_start_idx[seg_no]] = phy_blk;
+			segment->l2p_table[idx] = phy_blk;
 			if (seg_no == ms_card->segment_cnt - 1) {
 				if (segment->unused_blk_cnt < 2) {
 					chip->card_wp |= MS_CARD;
