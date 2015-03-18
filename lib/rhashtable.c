@@ -162,7 +162,6 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 		return NULL;
 
 	tbl->size = nbuckets;
-	tbl->shift = ilog2(nbuckets);
 
 	if (alloc_bucket_locks(ht, tbl) < 0) {
 		bucket_table_free(tbl);
@@ -189,7 +188,7 @@ static bool rht_grow_above_75(const struct rhashtable *ht,
 {
 	/* Expand table when exceeding 75% load */
 	return atomic_read(&ht->nelems) > (tbl->size / 4 * 3) &&
-	       (!ht->p.max_shift || tbl->shift < ht->p.max_shift);
+	       (!ht->p.max_shift || tbl->size < (1 << ht->p.max_shift));
 }
 
 /**
@@ -202,7 +201,7 @@ static bool rht_shrink_below_30(const struct rhashtable *ht,
 {
 	/* Shrink table beneath 30% load */
 	return atomic_read(&ht->nelems) < (tbl->size * 3 / 10) &&
-	       tbl->shift > ht->p.min_shift;
+	       tbl->size > (1 << ht->p.min_shift);
 }
 
 static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
