@@ -179,7 +179,8 @@ skip_init:
 	add_early_randomness(rng);
 
 	current_quality = rng->quality ? : default_quality;
-	current_quality &= 1023;
+	if (current_quality > 1024)
+		current_quality = 1024;
 
 	if (current_quality == 0 && hwrng_fill)
 		kthread_stop(hwrng_fill);
