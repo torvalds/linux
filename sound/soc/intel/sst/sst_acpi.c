@@ -309,7 +309,7 @@ int sst_acpi_probe(struct platform_device *pdev)
 	ctx->shim_regs64 = devm_kzalloc(ctx->dev, sizeof(*ctx->shim_regs64),
 					GFP_KERNEL);
 	if (!ctx->shim_regs64) {
-		return -ENOMEM;
+		ret = -ENOMEM;
 		goto do_sst_cleanup;
 	}
 
