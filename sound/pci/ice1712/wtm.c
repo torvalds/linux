@@ -30,11 +30,17 @@
 #include <linux/init.h>
 #include <sound/core.h>
 #include <sound/tlv.h>
+#include <linux/slab.h>
 
 #include "ice1712.h"
 #include "envy24ht.h"
 #include "wtm.h"
 #include "stac946x.h"
+
+struct wtm_spec {
+	/* rate change needs atomic mute/unmute of all dacs*/
+	struct mutex mute_mutex;
+};
 
 
 /*
@@ -69,14 +75,64 @@ static inline unsigned char stac9460_2_get(struct snd_ice1712 *ice, int reg)
 /*
  *	DAC mute control
  */
+static void stac9460_dac_mute_all(struct snd_ice1712 *ice, unsigned char mute,
+				unsigned short int *change_mask)
+{
+	unsigned char new, old;
+	int id, idx, change;
+
+	/*stac9460 1*/
+	for (id = 0; id < 7; id++) {
+		if (*change_mask & (0x01 << id)) {
+			if (id == 0)
+				idx = STAC946X_MASTER_VOLUME;
+			else
+				idx = STAC946X_LF_VOLUME - 1 + id;
+			old = stac9460_get(ice, idx);
+			new = (~mute << 7 & 0x80) | (old & ~0x80);
+			change = (new != old);
+			if (change) {
+				stac9460_put(ice, idx, new);
+				*change_mask = *change_mask | (0x01 << id);
+			} else {
+				*change_mask = *change_mask & ~(0x01 << id);
+			}
+		}
+	}
+
+	/*stac9460 2*/
+	for (id = 0; id < 3; id++) {
+		if (*change_mask & (0x01 << (id + 7))) {
+			if (id == 0)
+				idx = STAC946X_MASTER_VOLUME;
+			else
+				idx = STAC946X_LF_VOLUME - 1 + id;
+			old = stac9460_2_get(ice, idx);
+			new = (~mute << 7 & 0x80) | (old & ~0x80);
+			change = (new != old);
+			if (change) {
+				stac9460_2_put(ice, idx, new);
+				*change_mask = *change_mask | (0x01 << id);
+			} else {
+				*change_mask = *change_mask & ~(0x01 << id);
+			}
+		}
+	}
+}
+
+
+
 #define stac9460_dac_mute_info		snd_ctl_boolean_mono_info
 
 static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	struct wtm_spec *spec = ice->spec;
 	unsigned char val;
 	int idx, id;
+
+	mutex_lock(&spec->mute_mutex);
 
 	if (kcontrol->private_value) {
 		idx = STAC946X_MASTER_VOLUME;
@@ -90,6 +146,8 @@ static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol,
 	else
 		val = stac9460_2_get(ice, idx - 6);
 	ucontrol->value.integer.value[0] = (~val >> 7) & 0x1;
+
+	mutex_unlock(&spec->mute_mutex);
 	return 0;
 }
 
@@ -388,6 +446,44 @@ static int stac9460_mic_sw_put(struct snd_kcontrol *kcontrol,
 }
 
 
+/*
+ * Handler for setting correct codec rate - called when rate change is detected
+ */
+static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
+{
+	unsigned char old, new;
+	unsigned short int changed;
+	struct wtm_spec *spec = ice->spec;
+
+	if (rate == 0)  /* no hint - S/PDIF input is master, simply return */
+		return;
+	else if (rate <= 48000)
+		new = 0x08;     /* 256x, base rate mode */
+	else if (rate <= 96000)
+		new = 0x11;     /* 256x, mid rate mode */
+	else
+		new = 0x12;     /* 128x, high rate mode */
+
+	old = stac9460_get(ice, STAC946X_MASTER_CLOCKING);
+	if (old == new)
+		return;
+	/* change detected, setting master clock, muting first */
+	/* due to possible conflicts with mute controls - mutexing */
+	mutex_lock(&spec->mute_mutex);
+	/* we have to remember current mute status for each DAC */
+	changed = 0xFFFF;
+	stac9460_dac_mute_all(ice, 0, &changed);
+	/*printk(KERN_DEBUG "Rate change: %d, new MC: 0x%02x\n", rate, new);*/
+	stac9460_put(ice, STAC946X_MASTER_CLOCKING, new);
+	stac9460_2_put(ice, STAC946X_MASTER_CLOCKING, new);
+	udelay(10);
+	/* unmuting - only originally unmuted dacs -
+	* i.e. those changed when muting */
+	stac9460_dac_mute_all(ice, 1, &changed);
+	mutex_unlock(&spec->mute_mutex);
+}
+
+
 /*Limits value in dB for fader*/
 static const DECLARE_TLV_DB_SCALE(db_scale_dac, -19125, 75, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
@@ -487,14 +583,24 @@ static int wtm_init(struct snd_ice1712 *ice)
 {
 	static unsigned short stac_inits_wtm[] = {
 		STAC946X_RESET, 0,
+		STAC946X_MASTER_CLOCKING, 0x11,
 		(unsigned short)-1
 	};
 	unsigned short *p;
+	struct wtm_spec *spec;
 
 	/*WTM 192M*/
 	ice->num_total_dacs = 8;
 	ice->num_total_adcs = 4;
 	ice->force_rdma1 = 1;
+
+	/*init mutex for dac mute conflict*/
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
+	mutex_init(&spec->mute_mutex);
+
 
 	/*initialize codec*/
 	p = stac_inits_wtm;
@@ -502,6 +608,7 @@ static int wtm_init(struct snd_ice1712 *ice)
 		stac9460_put(ice, p[0], p[1]);
 		stac9460_2_put(ice, p[0], p[1]);
 	}
+	ice->gpio.set_pro_rate = stac9460_set_rate_val;
 	return 0;
 }
 
