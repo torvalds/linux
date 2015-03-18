@@ -463,7 +463,7 @@ static int wtm_add_controls(struct snd_ice1712 *ice)
 
 static int wtm_init(struct snd_ice1712 *ice)
 {
-	static unsigned short stac_inits_prodigy[] = {
+	static unsigned short stac_inits_wtm[] = {
 		STAC946X_RESET, 0,
 		(unsigned short)-1
 	};
@@ -475,7 +475,7 @@ static int wtm_init(struct snd_ice1712 *ice)
 	ice->force_rdma1 = 1;
 
 	/*initialize codec*/
-	p = stac_inits_prodigy;
+	p = stac_inits_wtm;
 	for (; *p != (unsigned short)-1; p += 2) {
 		stac9460_put(ice, p[0], p[1]);
 		stac9460_2_put(ice, p[0], p[1]);
