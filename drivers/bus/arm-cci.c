@@ -32,6 +32,7 @@
 static void __iomem *cci_ctrl_base;
 static unsigned long cci_ctrl_phys;
 
+#ifdef CONFIG_ARM_CCI400_PORT_CTRL
 struct cci_nb_ports {
 	unsigned int nb_ace;
 	unsigned int nb_ace_lite;
@@ -42,12 +43,19 @@ static const struct cci_nb_ports cci400_ports = {
 	.nb_ace_lite = 3
 };
 
+#define CCI400_PORTS_DATA	(&cci400_ports)
+#else
+#define CCI400_PORTS_DATA	(NULL)
+#endif
+
 static const struct of_device_id arm_cci_matches[] = {
-	{.compatible = "arm,cci-400", .data = &cci400_ports },
+#ifdef CONFIG_ARM_CCI400_COMMON
+	{.compatible = "arm,cci-400", .data = CCI400_PORTS_DATA },
+#endif
 	{},
 };
 
-#ifdef CONFIG_HW_PERF_EVENTS
+#ifdef CONFIG_ARM_CCI400_PMU
 
 #define DRIVER_NAME		"CCI-400"
 #define DRIVER_NAME_PMU		DRIVER_NAME " PMU"
@@ -1022,14 +1030,16 @@ static int __init cci_platform_init(void)
 	return platform_driver_register(&cci_platform_driver);
 }
 
-#else /* !CONFIG_HW_PERF_EVENTS */
+#else /* !CONFIG_ARM_CCI400_PMU */
 
 static int __init cci_platform_init(void)
 {
 	return 0;
 }
 
-#endif /* CONFIG_HW_PERF_EVENTS */
+#endif /* CONFIG_ARM_CCI400_PMU */
+
+#ifdef CONFIG_ARM_CCI400_PORT_CTRL
 
 #define CCI_PORT_CTRL		0x0
 #define CCI_CTRL_STATUS		0xc
@@ -1460,6 +1470,12 @@ static int cci_probe_ports(struct device_node *np)
 
 	return 0;
 }
+#else /* !CONFIG_ARM_CCI400_PORT_CTRL */
+static inline int cci_probe_ports(struct device_node *np)
+{
+	return 0;
+}
+#endif /* CONFIG_ARM_CCI400_PORT_CTRL */
 
 static int cci_probe(void)
 {

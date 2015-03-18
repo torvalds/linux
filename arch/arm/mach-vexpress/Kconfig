@@ -53,7 +53,7 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 config ARCH_VEXPRESS_DCSCB
 	bool "Dual Cluster System Control Block (DCSCB) support"
 	depends on MCPM
-	select ARM_CCI
+	select ARM_CCI400_PORT_CTRL
 	help
 	  Support for the Dual Cluster System Configuration Block (DCSCB).
 	  This is needed to provide CPU and cluster power management
@@ -71,7 +71,7 @@ config ARCH_VEXPRESS_SPC
 config ARCH_VEXPRESS_TC2_PM
 	bool "Versatile Express TC2 power management"
 	depends on MCPM
-	select ARM_CCI
+	select ARM_CCI400_PORT_CTRL
 	select ARCH_VEXPRESS_SPC
 	select ARM_CPU_SUSPEND
 	help
