@@ -455,8 +455,8 @@ config SCHED_SMT
 	  places. If unsure say N here.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-64)"
-	range 2 64
+	int "Maximum number of CPUs (2-4096)"
+	range 2 4096
 	depends on SMP
 	# These have to remain sorted largest to smallest
 	default "64"
