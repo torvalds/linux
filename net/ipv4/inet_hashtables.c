@@ -36,9 +36,18 @@ static u32 inet_ehashfn(const struct net *net, const __be32 laddr,
 			      inet_ehash_secret + net_hash_mix(net));
 }
 
-
+/* This function handles inet_sock, but also timewait and request sockets
+ * for IPv4/IPv6.
+ */
 u32 sk_ehashfn(const struct sock *sk)
 {
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6 &&
+	    !ipv6_addr_v4mapped(&sk->sk_v6_daddr))
+		return inet6_ehashfn(sock_net(sk),
+				     &sk->sk_v6_rcv_saddr, sk->sk_num,
+				     &sk->sk_v6_daddr, sk->sk_dport);
+#endif
 	return inet_ehashfn(sock_net(sk),
 			    sk->sk_rcv_saddr, sk->sk_num,
 			    sk->sk_daddr, sk->sk_dport);

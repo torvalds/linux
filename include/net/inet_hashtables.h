@@ -384,6 +384,25 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 }
 
 u32 sk_ehashfn(const struct sock *sk);
+u32 inet6_ehashfn(const struct net *net,
+		  const struct in6_addr *laddr, const u16 lport,
+		  const struct in6_addr *faddr, const __be16 fport);
+
+static inline void sk_daddr_set(struct sock *sk, __be32 addr)
+{
+	sk->sk_daddr = addr; /* alias of inet_daddr */
+#if IS_ENABLED(CONFIG_IPV6)
+	ipv6_addr_set_v4mapped(addr, &sk->sk_v6_daddr);
+#endif
+}
+
+static inline void sk_rcv_saddr_set(struct sock *sk, __be32 addr)
+{
+	sk->sk_rcv_saddr = addr; /* alias of inet_rcv_saddr */
+#if IS_ENABLED(CONFIG_IPV6)
+	ipv6_addr_set_v4mapped(addr, &sk->sk_v6_rcv_saddr);
+#endif
+}
 
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			struct sock *sk, u32 port_offset,
