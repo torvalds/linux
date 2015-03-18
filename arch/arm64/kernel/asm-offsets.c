@@ -24,7 +24,6 @@
 #include <linux/kvm_host.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
-#include <asm/cputable.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 #include <asm/vdso_datapage.h>
@@ -70,9 +69,6 @@ int main(void)
   DEFINE(VM_EXEC,	       	VM_EXEC);
   BLANK();
   DEFINE(PAGE_SZ,	       	PAGE_SIZE);
-  BLANK();
-  DEFINE(CPU_INFO_SZ,		sizeof(struct cpu_info));
-  DEFINE(CPU_INFO_SETUP,	offsetof(struct cpu_info, cpu_setup));
   BLANK();
   DEFINE(DMA_BIDIRECTIONAL,	DMA_BIDIRECTIONAL);
   DEFINE(DMA_TO_DEVICE,		DMA_TO_DEVICE);
