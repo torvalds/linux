@@ -206,7 +206,6 @@
 #define gpio_chip_to_bank(chip) \
 		container_of(chip, struct st_gpio_bank, gpio_chip)
 
-
 enum st_retime_style {
 	st_retime_style_none,
 	st_retime_style_packed,
@@ -779,6 +778,35 @@ static int st_gpio_direction_output(struct gpio_chip *chip,
 	pinctrl_gpio_direction_output(chip->base + offset);
 
 	return 0;
+}
+
+static int st_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	struct st_gpio_bank *bank = gpio_chip_to_bank(chip);
+	struct st_pio_control pc = bank->pc;
+	unsigned long config;
+	unsigned int direction = 0;
+	unsigned int function;
+	unsigned int value;
+	int i = 0;
+
+	/* Alternate function direction is handled by Pinctrl */
+	function = st_pctl_get_pin_function(&pc, offset);
+	if (function) {
+		st_pinconf_get_direction(&pc, offset, &config);
+		return !ST_PINCONF_UNPACK_OE(config);
+	}
+
+	/*
+	 * GPIO direction is handled differently
+	 * - See st_gpio_direction() above for an explanation
+	 */
+	for (i = 0; i <= 2; i++) {
+		value = readl(bank->base + REG_PIO_PC(i));
+		direction |= ((value >> offset) & 0x1) << i;
+	}
+
+	return (direction == ST_GPIO_DIRECTION_IN);
 }
 
 static int st_gpio_xlate(struct gpio_chip *gc,
@@ -1452,6 +1480,7 @@ static struct gpio_chip st_gpio_template = {
 	.set			= st_gpio_set,
 	.direction_input	= st_gpio_direction_input,
 	.direction_output	= st_gpio_direction_output,
+	.get_direction		= st_gpio_get_direction,
 	.ngpio			= ST_GPIO_PINS_PER_BANK,
 	.of_gpio_n_cells	= 1,
 	.of_xlate		= st_gpio_xlate,
