@@ -210,7 +210,6 @@ static void exynos_core_restart(u32 core_id)
 	val |= S5P_CORE_WAKEUP_FROM_LOCAL_CFG;
 	pmu_raw_writel(val, EXYNOS_ARM_CORE_STATUS(core_id));
 
-	pr_info("CPU%u: Software reset\n", core_id);
 	pmu_raw_writel(EXYNOS_CORE_PO_RESET(core_id), EXYNOS_SWRESET);
 }
 
