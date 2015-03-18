@@ -119,15 +119,18 @@ __perf_main ()
 	elif [[ $prev == "-e" && "${words[1]}" == @(record|stat|top) ]]; then
 		evts=$($cmd list --raw-dump)
 		__perfcomp_colon "$evts" "$cur"
-	# List subcommands for perf commands
-	elif [[ $prev == @(kvm|kmem|mem|lock|sched) ]]; then
-		subcmds=$($cmd $prev --list-cmds)
-		__perfcomp_colon "$subcmds" "$cur"
-	# List long option names
-	elif [[ $cur == --* ]];  then
-		subcmd=${words[1]}
-		opts=$($cmd $subcmd --list-opts)
-		__perfcomp "$opts" "$cur"
+	else
+		# List subcommands for perf commands
+		if [[ $prev == @(kvm|kmem|mem|lock|sched) ]]; then
+			subcmds=$($cmd $prev --list-cmds)
+			__perfcomp_colon "$subcmds" "$cur"
+		fi
+		# List long option names
+		if [[ $cur == --* ]];  then
+			subcmd=${words[1]}
+			opts=$($cmd $subcmd --list-opts)
+			__perfcomp "$opts" "$cur"
+		fi
 	fi
 }
 
