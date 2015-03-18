@@ -339,8 +339,14 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol,
 /*
  * MIC / LINE switch fonction
  */
+static int stac9460_mic_sw_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	static const char * const texts[2] = { "Line In", "Mic" };
 
-#define stac9460_mic_sw_info		snd_ctl_boolean_mono_info
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
+}
+
 
 static int stac9460_mic_sw_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -354,7 +360,7 @@ static int stac9460_mic_sw_get(struct snd_kcontrol *kcontrol,
 		val = stac9460_get(ice, STAC946X_GENERAL_PURPOSE);
 	else
 		val = stac9460_2_get(ice, STAC946X_GENERAL_PURPOSE);
-	ucontrol->value.integer.value[0] = ~val>>7 & 0x1;
+	ucontrol->value.enumerated.item[0] = (val >> 7) & 0x1;
 	return 0;
 }
 
@@ -370,7 +376,7 @@ static int stac9460_mic_sw_put(struct snd_kcontrol *kcontrol,
 		old = stac9460_get(ice, STAC946X_GENERAL_PURPOSE);
 	else
 		old = stac9460_2_get(ice, STAC946X_GENERAL_PURPOSE);
-	new = (~ucontrol->value.integer.value[0] << 7 & 0x80) | (old & ~0x80);
+	new = (ucontrol->value.enumerated.item[0] << 7 & 0x80) | (old & ~0x80);
 	change = (new != old);
 	if (change) {
 		if (id == 0)
@@ -411,7 +417,7 @@ static struct snd_kcontrol_new stac9640_controls[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "MIC/Line switch",
+		.name = "MIC/Line Input Enum",
 		.count = 2,
 		.info = stac9460_mic_sw_info,
 		.get = stac9460_mic_sw_get,
