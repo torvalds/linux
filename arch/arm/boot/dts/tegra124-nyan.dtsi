@@ -378,6 +378,7 @@
 		mmc-pwrseq = <&sdhci0_pwrseq>;
 		vmmc-supply = <&vdd_3v3_lp0>;
 		vqmmc-supply = <&vddio_1v8>;
+		keep-power-in-suspend;
 	};
 
 	sdhci@0,700b0400 { /* SD Card on this bus */
