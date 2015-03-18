@@ -277,9 +277,6 @@ int sst_dma_new(struct sst_dsp *sst)
 	case SST_DMA_TYPE_DW:
 		dma_dev_name = "dw_dmac";
 		break;
-	case SST_DMA_TYPE_MID:
-		dma_dev_name = "Intel MID DMA";
-		break;
 	default:
 		dev_err(sst->dev, "error: invalid DMA engine %d\n",
 			sst->pdata->dma_engine);
