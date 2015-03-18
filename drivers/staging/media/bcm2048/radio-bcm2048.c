@@ -2717,22 +2717,7 @@ static struct i2c_driver bcm2048_i2c_driver = {
 	.id_table	= bcm2048_id,
 };
 
-/*
- *	Module Interface
- */
-static int __init bcm2048_module_init(void)
-{
-	pr_info(BCM2048_DRIVER_DESC "\n");
-
-	return i2c_add_driver(&bcm2048_i2c_driver);
-}
-module_init(bcm2048_module_init);
-
-static void __exit bcm2048_module_exit(void)
-{
-	i2c_del_driver(&bcm2048_i2c_driver);
-}
-module_exit(bcm2048_module_exit);
+module_i2c_driver(bcm2048_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(BCM2048_DRIVER_AUTHOR);
