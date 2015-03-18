@@ -1200,6 +1200,9 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+
+		seq_printf(m, "Idle freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
 	} else if (IS_VALLEYVIEW(dev)) {
 		u32 freq_sts;
 
@@ -1213,6 +1216,9 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 
 		seq_printf(m, "min GPU freq: %d MHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
+
+		seq_printf(m, "idle GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
 
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
