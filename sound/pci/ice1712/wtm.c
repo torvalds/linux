@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <sound/core.h>
+#include <sound/tlv.h>
 
 #include "ice1712.h"
 #include "envy24ht.h"
@@ -380,17 +381,25 @@ static int stac9460_mic_sw_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+
+/*Limits value in dB for fader*/
+static const DECLARE_TLV_DB_SCALE(db_scale_dac, -19125, 75, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
+
 /*
  * Control tabs
  */
 static struct snd_kcontrol_new stac9640_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			    SNDRV_CTL_ELEM_ACCESS_TLV_READ),
 		.name = "Master Playback Switch",
 		.info = stac9460_dac_mute_info,
 		.get = stac9460_dac_mute_get,
 		.put = stac9460_dac_mute_put,
-		.private_value = 1
+		.private_value = 1,
+		.tlv = { .p = db_scale_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -419,11 +428,15 @@ static struct snd_kcontrol_new stac9640_controls[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			    SNDRV_CTL_ELEM_ACCESS_TLV_READ),
+
 		.name = "DAC Volume",
 		.count = 8,
 		.info = stac9460_dac_vol_info,
 		.get = stac9460_dac_vol_get,
 		.put = stac9460_dac_vol_put,
+		.tlv = { .p = db_scale_dac }
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -435,12 +448,15 @@ static struct snd_kcontrol_new stac9640_controls[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			    SNDRV_CTL_ELEM_ACCESS_TLV_READ),
+
 		.name = "ADC Volume",
 		.count = 2,
 		.info = stac9460_adc_vol_info,
 		.get = stac9460_adc_vol_get,
 		.put = stac9460_adc_vol_put,
-
+		.tlv = { .p = db_scale_adc }
 	}
 };
 
