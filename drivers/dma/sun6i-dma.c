@@ -796,11 +796,6 @@ static void sun6i_dma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&vchan->vc.lock, flags);
 }
 
-static int sun6i_dma_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void sun6i_dma_free_chan_resources(struct dma_chan *chan)
 {
 	struct sun6i_dma_dev *sdev = to_sun6i_dma_dev(chan->device);
@@ -957,7 +952,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_SLAVE, sdc->slave.cap_mask);
 
 	INIT_LIST_HEAD(&sdc->slave.channels);
-	sdc->slave.device_alloc_chan_resources	= sun6i_dma_alloc_chan_resources;
 	sdc->slave.device_free_chan_resources	= sun6i_dma_free_chan_resources;
 	sdc->slave.device_tx_status		= sun6i_dma_tx_status;
 	sdc->slave.device_issue_pending		= sun6i_dma_issue_pending;

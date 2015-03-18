@@ -492,11 +492,6 @@ static enum dma_status jz4740_dma_tx_status(struct dma_chan *c,
 	return status;
 }
 
-static int jz4740_dma_alloc_chan_resources(struct dma_chan *c)
-{
-	return 0;
-}
-
 static void jz4740_dma_free_chan_resources(struct dma_chan *c)
 {
 	vchan_free_chan_resources(to_virt_chan(c));
@@ -536,7 +531,6 @@ static int jz4740_dma_probe(struct platform_device *pdev)
 
 	dma_cap_set(DMA_SLAVE, dd->cap_mask);
 	dma_cap_set(DMA_CYCLIC, dd->cap_mask);
-	dd->device_alloc_chan_resources = jz4740_dma_alloc_chan_resources;
 	dd->device_free_chan_resources = jz4740_dma_free_chan_resources;
 	dd->device_tx_status = jz4740_dma_tx_status;
 	dd->device_issue_pending = jz4740_dma_issue_pending;

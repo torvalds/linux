@@ -389,11 +389,6 @@ static void sa11x0_dma_tasklet(unsigned long arg)
 }
 
 
-static int sa11x0_dma_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void sa11x0_dma_free_chan_resources(struct dma_chan *chan)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
@@ -835,7 +830,6 @@ static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 
 	INIT_LIST_HEAD(&dmadev->channels);
 	dmadev->dev = dev;
-	dmadev->device_alloc_chan_resources = sa11x0_dma_alloc_chan_resources;
 	dmadev->device_free_chan_resources = sa11x0_dma_free_chan_resources;
 	dmadev->device_config = sa11x0_dma_device_config;
 	dmadev->device_pause = sa11x0_dma_device_pause;

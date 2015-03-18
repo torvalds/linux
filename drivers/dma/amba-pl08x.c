@@ -1185,11 +1185,6 @@ static void pl08x_free_txd_list(struct pl08x_driver_data *pl08x,
 /*
  * The DMA ENGINE API
  */
-static int pl08x_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void pl08x_free_chan_resources(struct dma_chan *chan)
 {
 	/* Ensure all queued descriptors are freed */
@@ -2056,7 +2051,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	/* Initialize memcpy engine */
 	dma_cap_set(DMA_MEMCPY, pl08x->memcpy.cap_mask);
 	pl08x->memcpy.dev = &adev->dev;
-	pl08x->memcpy.device_alloc_chan_resources = pl08x_alloc_chan_resources;
 	pl08x->memcpy.device_free_chan_resources = pl08x_free_chan_resources;
 	pl08x->memcpy.device_prep_dma_memcpy = pl08x_prep_dma_memcpy;
 	pl08x->memcpy.device_prep_dma_interrupt = pl08x_prep_dma_interrupt;
@@ -2071,7 +2065,6 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	dma_cap_set(DMA_SLAVE, pl08x->slave.cap_mask);
 	dma_cap_set(DMA_CYCLIC, pl08x->slave.cap_mask);
 	pl08x->slave.dev = &adev->dev;
-	pl08x->slave.device_alloc_chan_resources = pl08x_alloc_chan_resources;
 	pl08x->slave.device_free_chan_resources = pl08x_free_chan_resources;
 	pl08x->slave.device_prep_dma_interrupt = pl08x_prep_dma_interrupt;
 	pl08x->slave.device_tx_status = pl08x_dma_tx_status;
