@@ -26,8 +26,6 @@
 struct clk;
 struct reset_control;
 
-void tegra_pmc_restart(enum reboot_mode mode, const char *cmd);
-
 #ifdef CONFIG_PM_SLEEP
 enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void);
 void tegra_pmc_set_suspend_mode(enum tegra_suspend_mode mode);
