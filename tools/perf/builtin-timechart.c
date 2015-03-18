@@ -1958,7 +1958,8 @@ int cmd_timechart(int argc, const char **argv,
 		     parse_time),
 	OPT_END()
 	};
-	const char * const timechart_usage[] = {
+	const char * const timechart_subcommands[] = { "record", NULL };
+	const char *timechart_usage[] = {
 		"perf timechart [<options>] {record}",
 		NULL
 	};
@@ -1976,8 +1977,8 @@ int cmd_timechart(int argc, const char **argv,
 		"perf timechart record [<options>]",
 		NULL
 	};
-	argc = parse_options(argc, argv, timechart_options, timechart_usage,
-			PARSE_OPT_STOP_AT_NON_OPTION);
+	argc = parse_options_subcommand(argc, argv, timechart_options, timechart_subcommands,
+			timechart_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (tchart.power_only && tchart.tasks_only) {
 		pr_err("-P and -T options cannot be used at the same time.\n");

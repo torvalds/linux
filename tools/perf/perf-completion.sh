@@ -143,7 +143,7 @@ __perf_main ()
 		__perfcomp_colon "$evts" "$cur"
 	else
 		# List subcommands for perf commands
-		if [[ $prev_skip_opts == @(kvm|kmem|mem|lock|sched|data|help|script|test) ]]; then
+		if [[ $prev_skip_opts == @(kvm|kmem|mem|lock|sched|data|help|script|test|timechart) ]]; then
 			subcmds=$($cmd $prev_skip_opts --list-cmds)
 			__perfcomp_colon "$subcmds" "$cur"
 		fi
