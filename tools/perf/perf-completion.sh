@@ -47,8 +47,16 @@ __my_reassemble_comp_words_by_ref()
 	done
 }
 
-type _get_comp_words_by_ref &>/dev/null ||
-_get_comp_words_by_ref()
+# Define preload_get_comp_words_by_ref="false", if the function
+# __perf_get_comp_words_by_ref() is required instead.
+preload_get_comp_words_by_ref="true"
+
+if [ $preload_get_comp_words_by_ref = "true" ]; then
+	type _get_comp_words_by_ref &>/dev/null ||
+	preload_get_comp_words_by_ref="false"
+fi
+[ $preload_get_comp_words_by_ref = "true" ] ||
+__perf_get_comp_words_by_ref()
 {
 	local exclude cur_ words_ cword_
 	if [ "$1" = "-n" ]; then
@@ -76,8 +84,16 @@ _get_comp_words_by_ref()
 	done
 }
 
-type __ltrim_colon_completions &>/dev/null ||
-__ltrim_colon_completions()
+# Define preload__ltrim_colon_completions="false", if the function
+# __perf__ltrim_colon_completions() is required instead.
+preload__ltrim_colon_completions="true"
+
+if [ $preload__ltrim_colon_completions = "true" ]; then
+	type __ltrim_colon_completions &>/dev/null ||
+	preload__ltrim_colon_completions="false"
+fi
+[ $preload__ltrim_colon_completions = "true" ] ||
+__perf__ltrim_colon_completions()
 {
 	if [[ "$1" == *:* && "$COMP_WORDBREAKS" == *:* ]]; then
 		# Remove colon-word prefix from COMPREPLY items
@@ -97,7 +113,11 @@ __perfcomp ()
 __perfcomp_colon ()
 {
 	__perfcomp "$1" "$2"
-	__ltrim_colon_completions $cur
+	if [ $preload__ltrim_colon_completions = "true" ]; then
+		__ltrim_colon_completions $cur
+	else
+		__perf__ltrim_colon_completions $cur
+	fi
 }
 
 __perf_prev_skip_opts ()
@@ -226,7 +246,11 @@ type perf &>/dev/null &&
 _perf()
 {
 	local cur words cword prev
-	_get_comp_words_by_ref -n =: cur words cword prev
+	if [ $preload_get_comp_words_by_ref = "true" ]; then
+		_get_comp_words_by_ref -n =: cur words cword prev
+	else
+		__perf_get_comp_words_by_ref -n =: cur words cword prev
+	fi
 	__perf_main
 } &&
 
