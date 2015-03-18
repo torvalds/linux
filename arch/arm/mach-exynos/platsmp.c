@@ -247,6 +247,31 @@ static void exynos_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
+static int exynos_set_boot_addr(u32 core_id, unsigned long boot_addr)
+{
+	int ret;
+
+	/*
+	 * Try to set boot address using firmware first
+	 * and fall back to boot register if it fails.
+	 */
+	ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
+	if (ret && ret != -ENOSYS)
+		goto fail;
+	if (ret == -ENOSYS) {
+		void __iomem *boot_reg = cpu_boot_reg(core_id);
+
+		if (IS_ERR(boot_reg)) {
+			ret = PTR_ERR(boot_reg);
+			goto fail;
+		}
+		__raw_writel(boot_addr, boot_reg);
+		ret = 0;
+	}
+fail:
+	return ret;
+}
+
 static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
@@ -306,22 +331,9 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		boot_addr = virt_to_phys(exynos4_secondary_startup);
 
-		/*
-		 * Try to set boot address using firmware first
-		 * and fall back to boot register if it fails.
-		 */
-		ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
-		if (ret && ret != -ENOSYS)
+		ret = exynos_set_boot_addr(core_id, boot_addr);
+		if (ret)
 			goto fail;
-		if (ret == -ENOSYS) {
-			void __iomem *boot_reg = cpu_boot_reg(core_id);
-
-			if (IS_ERR(boot_reg)) {
-				ret = PTR_ERR(boot_reg);
-				goto fail;
-			}
-			__raw_writel(boot_addr, boot_reg);
-		}
 
 		call_firmware_op(cpu_boot, core_id);
 
@@ -409,16 +421,9 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 		core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 		boot_addr = virt_to_phys(exynos4_secondary_startup);
 
-		ret = call_firmware_op(set_cpu_boot_addr, core_id, boot_addr);
-		if (ret && ret != -ENOSYS)
+		ret = exynos_set_boot_addr(core_id, boot_addr);
+		if (ret)
 			break;
-		if (ret == -ENOSYS) {
-			void __iomem *boot_reg = cpu_boot_reg(core_id);
-
-			if (IS_ERR(boot_reg))
-				break;
-			__raw_writel(boot_addr, boot_reg);
-		}
 	}
 }
 
