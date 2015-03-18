@@ -107,7 +107,7 @@ static struct rsnd_of_data rsnd_of_data_gen2 = {
 	.flags = RSND_GEN2,
 };
 
-static struct of_device_id rsnd_of_match[] = {
+static const struct of_device_id rsnd_of_match[] = {
 	{ .compatible = "renesas,rcar_sound-gen1", .data = &rsnd_of_data_gen1 },
 	{ .compatible = "renesas,rcar_sound-gen2", .data = &rsnd_of_data_gen2 },
 	{},
