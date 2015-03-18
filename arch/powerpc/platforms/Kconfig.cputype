@@ -16,7 +16,7 @@ choice
 	  The most common ones are the desktop and server CPUs (601, 603,
 	  604, 740, 750, 74xx) CPUs from Freescale and IBM, with their
 	  embedded 512x/52xx/82xx/83xx/86xx counterparts.
-	  The other embeeded parts, namely 4xx, 8xx, e200 (55xx) and e500
+	  The other embedded parts, namely 4xx, 8xx, e200 (55xx) and e500
 	  (85xx) each form a family of their own that is not compatible
 	  with the others.
 
