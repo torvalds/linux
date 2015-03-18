@@ -228,7 +228,18 @@ static void apply_ucode_in_initrd(void *ucode, size_t size, bool save_patch)
 	}
 }
 
-void __init load_ucode_amd_bsp(void)
+static bool __init load_builtin_amd_microcode(struct cpio_data *cp, int family)
+{
+	char fw_name[36] = "amd-ucode/microcode_amd.bin";
+
+	if (family >= 0x15)
+		snprintf(fw_name, sizeof(fw_name),
+			 "amd-ucode/microcode_amd_fam%.2xh.bin", family);
+
+	return get_builtin_firmware(cp, fw_name);
+}
+
+void __init load_ucode_amd_bsp(int family)
 {
 	struct cpio_data cp;
 	void **data;
@@ -243,8 +254,10 @@ void __init load_ucode_amd_bsp(void)
 #endif
 
 	cp = find_ucode_in_initrd();
-	if (!cp.data)
-		return;
+	if (!cp.data) {
+		if (!load_builtin_amd_microcode(&cp, family))
+			return;
+	}
 
 	*data = cp.data;
 	*size = cp.size;

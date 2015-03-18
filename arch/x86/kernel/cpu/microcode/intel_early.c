@@ -521,6 +521,23 @@ out:
 EXPORT_SYMBOL_GPL(save_mc_for_early);
 #endif
 
+static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
+{
+	u32 eax = 0x00000001, ebx, ecx = 0, edx;
+	int family, model, stepping;
+	char name[30];
+
+	native_cpuid(&eax, &ebx, &ecx, &edx);
+
+	family   = __x86_family(eax);
+	model    = x86_model(eax);
+	stepping = eax & 0xf;
+
+	sprintf(name, "intel-ucode/%02x-%02x-%02x", family, model, stepping);
+
+	return get_builtin_firmware(cp, name);
+}
+
 static __initdata char ucode_name[] = "kernel/x86/microcode/GenuineIntel.bin";
 static __init enum ucode_state
 scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
@@ -539,8 +556,10 @@ scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
 	cd.size = 0;
 
 	cd = find_cpio_data(p, (void *)start, size, &offset);
-	if (!cd.data)
-		return UCODE_ERROR;
+	if (!cd.data) {
+		if (!load_builtin_intel_microcode(&cd))
+			return UCODE_ERROR;
+	}
 
 	return get_matching_model_microcode(0, start, cd.data, cd.size,
 					    mc_saved_data, initrd, uci);
