@@ -1047,7 +1047,7 @@
 		iommu_enabled = <0>;
 		reg = <0x0 0xff900000 0x0 0x800>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates15 2>, <&clk_gates15 3>;
+		clocks = <&clk_gates16 2>, <&clk_gates16 3>;
 		clock-names = "aclk_iep", "hclk_iep";
 		status = "okay";
 	};
