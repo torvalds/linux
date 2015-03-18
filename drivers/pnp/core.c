@@ -9,6 +9,7 @@
 #include <linux/list.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -19,7 +20,7 @@
 
 static LIST_HEAD(pnp_protocols);
 LIST_HEAD(pnp_global);
-DEFINE_SPINLOCK(pnp_lock);
+DEFINE_MUTEX(pnp_lock);
 
 /*
  * ACPI or PNPBIOS should tell us about all platform devices, so we can
@@ -55,7 +56,7 @@ int pnp_register_protocol(struct pnp_protocol *protocol)
 	INIT_LIST_HEAD(&protocol->devices);
 	INIT_LIST_HEAD(&protocol->cards);
 	nodenum = 0;
-	spin_lock(&pnp_lock);
+	mutex_lock(&pnp_lock);
 
 	/* assign the lowest unused number */
 	list_for_each(pos, &pnp_protocols) {
@@ -67,7 +68,7 @@ int pnp_register_protocol(struct pnp_protocol *protocol)
 	}
 
 	list_add_tail(&protocol->protocol_list, &pnp_protocols);
-	spin_unlock(&pnp_lock);
+	mutex_unlock(&pnp_lock);
 
 	protocol->number = nodenum;
 	dev_set_name(&protocol->dev, "pnp%d", nodenum);
@@ -80,9 +81,9 @@ int pnp_register_protocol(struct pnp_protocol *protocol)
  */
 void pnp_unregister_protocol(struct pnp_protocol *protocol)
 {
-	spin_lock(&pnp_lock);
+	mutex_lock(&pnp_lock);
 	list_del(&protocol->protocol_list);
-	spin_unlock(&pnp_lock);
+	mutex_unlock(&pnp_lock);
 	device_unregister(&protocol->dev);
 }
 
@@ -161,10 +162,10 @@ int __pnp_add_device(struct pnp_dev *dev)
 {
 	pnp_fixup_device(dev);
 	dev->status = PNP_READY;
-	spin_lock(&pnp_lock);
+	mutex_lock(&pnp_lock);
 	list_add_tail(&dev->global_list, &pnp_global);
 	list_add_tail(&dev->protocol_list, &dev->protocol->devices);
-	spin_unlock(&pnp_lock);
+	mutex_unlock(&pnp_lock);
 	if (dev->protocol->can_wakeup)
 		device_set_wakeup_capable(&dev->dev,
 				dev->protocol->can_wakeup(dev));
@@ -203,10 +204,10 @@ int pnp_add_device(struct pnp_dev *dev)
 
 void __pnp_remove_device(struct pnp_dev *dev)
 {
-	spin_lock(&pnp_lock);
+	mutex_lock(&pnp_lock);
 	list_del(&dev->global_list);
 	list_del(&dev->protocol_list);
-	spin_unlock(&pnp_lock);
+	mutex_unlock(&pnp_lock);
 	device_unregister(&dev->dev);
 }
 
