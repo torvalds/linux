@@ -105,9 +105,12 @@ __perf_prev_skip_opts ()
 	local i cmd_ cmds_
 
 	let i=cword-1
-	cmds_=$($cmd --list-cmds)
+	cmds_=$($cmd $1 --list-cmds)
 	prev_skip_opts=()
 	while [ $i -ge 0 ]; do
+		if [[ ${words[i]} == $1 ]]; then
+			return
+		fi
 		for cmd_ in $cmds_; do
 			if [[ ${words[i]} == $cmd_ ]]; then
 				prev_skip_opts=${words[i]}
@@ -146,7 +149,9 @@ __perf_main ()
 		fi
 		# List long option names
 		if [[ $cur == --* ]];  then
-			subcmd=${words[1]}
+			subcmd=$prev_skip_opts
+			__perf_prev_skip_opts $subcmd
+			subcmd=$subcmd" "$prev_skip_opts
 			opts=$($cmd $subcmd --list-opts)
 			__perfcomp "$opts" "$cur"
 		fi
