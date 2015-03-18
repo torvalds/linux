@@ -325,7 +325,7 @@ struct sock *inet_csk_accept(struct sock *sk, int flags, int *err)
 	sk_acceptq_removed(sk);
 	if (sk->sk_protocol == IPPROTO_TCP && queue->fastopenq != NULL) {
 		spin_lock_bh(&queue->fastopenq->lock);
-		if (tcp_rsk(req)->listener) {
+		if (tcp_rsk(req)->tfo_listener) {
 			/* We are still waiting for the final ACK from 3WHS
 			 * so can't free req now. Instead, we set req->sk to
 			 * NULL to signify that the child socket is taken
@@ -817,9 +817,9 @@ void inet_csk_listen_stop(struct sock *sk)
 
 		percpu_counter_inc(sk->sk_prot->orphan_count);
 
-		if (sk->sk_protocol == IPPROTO_TCP && tcp_rsk(req)->listener) {
+		if (sk->sk_protocol == IPPROTO_TCP && tcp_rsk(req)->tfo_listener) {
 			BUG_ON(tcp_sk(child)->fastopen_rsk != req);
-			BUG_ON(sk != tcp_rsk(req)->listener);
+			BUG_ON(sk != req->rsk_listener);
 
 			/* Paranoid, to prevent race condition if
 			 * an inbound pkt destined for child is
@@ -828,7 +828,6 @@ void inet_csk_listen_stop(struct sock *sk)
 			 * tcp_v4_destroy_sock().
 			 */
 			tcp_sk(child)->fastopen_rsk = NULL;
-			sock_put(sk);
 		}
 		inet_csk_destroy_sock(child);
 

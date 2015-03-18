@@ -345,7 +345,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
 	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
 	treq->snt_synack	= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsecr : 0;
-	treq->listener		= NULL;
+	treq->tfo_listener	= false;
 	ireq->ireq_family = AF_INET;
 
 	ireq->ir_iif = sk->sk_bound_dev_if;

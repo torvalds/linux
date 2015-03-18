@@ -6120,7 +6120,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		if (err || want_cookie)
 			goto drop_and_free;
 
-		tcp_rsk(req)->listener = NULL;
+		tcp_rsk(req)->tfo_listener = false;
 		af_ops->queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 	}
 

@@ -153,24 +153,22 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
  * case might also exist in tcp_v4_hnd_req() that will trigger this locking
  * order.
  *
- * When a TFO req is created, it needs to sock_hold its listener to prevent
- * the latter data structure from going away.
- *
- * This function also sets "treq->listener" to NULL and unreference listener
- * socket. treq->listener is used by the listener so it is protected by the
+ * This function also sets "treq->tfo_listener" to false.
+ * treq->tfo_listener is used by the listener so it is protected by the
  * fastopenq->lock in this function.
  */
 void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 			   bool reset)
 {
-	struct sock *lsk = tcp_rsk(req)->listener;
-	struct fastopen_queue *fastopenq =
-	    inet_csk(lsk)->icsk_accept_queue.fastopenq;
+	struct sock *lsk = req->rsk_listener;
+	struct fastopen_queue *fastopenq;
+
+	fastopenq = inet_csk(lsk)->icsk_accept_queue.fastopenq;
 
 	tcp_sk(sk)->fastopen_rsk = NULL;
 	spin_lock_bh(&fastopenq->lock);
 	fastopenq->qlen--;
-	tcp_rsk(req)->listener = NULL;
+	tcp_rsk(req)->tfo_listener = false;
 	if (req->sk)	/* the child socket hasn't been accepted yet */
 		goto out;
 
@@ -179,7 +177,6 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 		 * special RST handling below.
 		 */
 		spin_unlock_bh(&fastopenq->lock);
-		sock_put(lsk);
 		reqsk_put(req);
 		return;
 	}
@@ -201,5 +198,4 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 	fastopenq->qlen++;
 out:
 	spin_unlock_bh(&fastopenq->lock);
-	sock_put(lsk);
 }
