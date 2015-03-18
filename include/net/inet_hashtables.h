@@ -383,6 +383,8 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 				     iph->daddr, dport, inet_iif(skb));
 }
 
+u32 sk_ehashfn(const struct sock *sk);
+
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			struct sock *sk, u32 port_offset,
 			int (*check_established)(struct inet_timewait_death_row *,
