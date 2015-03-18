@@ -398,6 +398,16 @@ static const struct st_pctl_data stih407_flashdata = {
 	.rt = 100,
 };
 
+static struct st_pio_control *st_get_pio_control(
+			struct pinctrl_dev *pctldev, int pin)
+{
+	struct pinctrl_gpio_range *range =
+			 pinctrl_find_gpio_range_from_pin(pctldev, pin);
+	struct st_gpio_bank *bank = gpio_range_to_bank(range);
+
+	return &bank->pc;
+}
+
 /* Low level functions.. */
 static inline int st_gpio_bank(int gpio)
 {
@@ -916,16 +926,6 @@ static int st_pmx_get_groups(struct pinctrl_dev *pctldev,
 	*ngrps = info->functions[selector].ngroups;
 
 	return 0;
-}
-
-static struct st_pio_control *st_get_pio_control(
-			struct pinctrl_dev *pctldev, int pin)
-{
-	struct pinctrl_gpio_range *range =
-			 pinctrl_find_gpio_range_from_pin(pctldev, pin);
-	struct st_gpio_bank *bank = gpio_range_to_bank(range);
-
-	return &bank->pc;
 }
 
 static int st_pmx_set_mux(struct pinctrl_dev *pctldev, unsigned fselector,
