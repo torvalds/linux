@@ -979,6 +979,7 @@ static int ll_unlink(struct inode * dir, struct dentry *dentry)
 	struct ptlrpc_request *request = NULL;
 	struct md_op_data *op_data;
 	int rc;
+
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
 	       dentry, dir->i_ino, dir->i_generation, dir);
 
