@@ -301,11 +301,6 @@ int __init linux_main(int argc, char **argv)
 	if (physmem_size + iomem_size > max_physmem) {
 		highmem = physmem_size + iomem_size - max_physmem;
 		physmem_size -= highmem;
-#ifndef CONFIG_HIGHMEM
-		highmem = 0;
-		printf("CONFIG_HIGHMEM not enabled - physical memory shrunk "
-		       "to %Lu bytes\n", physmem_size);
-#endif
 	}
 
 	high_physmem = uml_physmem + physmem_size;
