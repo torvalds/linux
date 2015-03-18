@@ -90,6 +90,7 @@ static void tipc_clean_outqueues(struct tipc_conn *con);
 static void tipc_conn_kref_release(struct kref *kref)
 {
 	struct tipc_conn *con = container_of(kref, struct tipc_conn, kref);
+	struct sockaddr_tipc *saddr = con->server->saddr;
 	struct socket *sock = con->sock;
 	struct sock *sk;
 
@@ -99,6 +100,8 @@ static void tipc_conn_kref_release(struct kref *kref)
 			__module_get(sock->ops->owner);
 			__module_get(sk->sk_prot_creator->owner);
 		}
+		saddr->scope = -TIPC_NODE_SCOPE;
+		kernel_bind(sock, (struct sockaddr *)saddr, sizeof(*saddr));
 		sk_release_kernel(sk);
 		con->sock = NULL;
 	}
