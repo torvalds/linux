@@ -74,8 +74,13 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
 #ifdef CONFIG_64BIT
 	if(pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
-		/* This is the permanent pmd attached to the pgd;
-		 * cannot free it */
+		/*
+		 * This is the permanent pmd attached to the pgd;
+		 * cannot free it.
+		 * Increment the counter to compensate for the decrement
+		 * done by generic mm code.
+		 */
+		mm_inc_nr_pmds(mm);
 		return;
 #endif
 	free_pages((unsigned long)pmd, PMD_ORDER);
