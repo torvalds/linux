@@ -117,11 +117,12 @@ EXPORT_SYMBOL(cfs_timer_deadline);
 void cfs_enter_debugger(void)
 {
 #if defined(CONFIG_KGDB)
-//	BREAKPOINT();
+	/* BREAKPOINT(); */
 #else
 	/* nothing */
 #endif
 }
+EXPORT_SYMBOL(cfs_enter_debugger);
 
 
 sigset_t
@@ -138,6 +139,7 @@ cfs_block_allsigs(void)
 
 	return old;
 }
+EXPORT_SYMBOL(cfs_block_allsigs);
 
 sigset_t cfs_block_sigs(unsigned long sigs)
 {
@@ -151,6 +153,7 @@ sigset_t cfs_block_sigs(unsigned long sigs)
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	return old;
 }
+EXPORT_SYMBOL(cfs_block_sigs);
 
 /* Block all signals except for the @sigs */
 sigset_t cfs_block_sigsinv(unsigned long sigs)
@@ -166,9 +169,10 @@ sigset_t cfs_block_sigsinv(unsigned long sigs)
 
 	return old;
 }
+EXPORT_SYMBOL(cfs_block_sigsinv);
 
 void
-cfs_restore_sigs (sigset_t old)
+cfs_restore_sigs(sigset_t old)
 {
 	unsigned long  flags;
 
@@ -177,12 +181,14 @@ cfs_restore_sigs (sigset_t old)
 	recalc_sigpending();
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
+EXPORT_SYMBOL(cfs_restore_sigs);
 
 int
 cfs_signal_pending(void)
 {
 	return signal_pending(current);
 }
+EXPORT_SYMBOL(cfs_signal_pending);
 
 void
 cfs_clear_sigpending(void)
@@ -193,25 +199,19 @@ cfs_clear_sigpending(void)
 	clear_tsk_thread_flag(current, TIF_SIGPENDING);
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
+EXPORT_SYMBOL(cfs_clear_sigpending);
 
 int
 libcfs_arch_init(void)
 {
 	return 0;
 }
+EXPORT_SYMBOL(libcfs_arch_init);
 
 void
 libcfs_arch_cleanup(void)
 {
 	return;
 }
-
-EXPORT_SYMBOL(libcfs_arch_init);
 EXPORT_SYMBOL(libcfs_arch_cleanup);
-EXPORT_SYMBOL(cfs_enter_debugger);
-EXPORT_SYMBOL(cfs_block_allsigs);
-EXPORT_SYMBOL(cfs_block_sigs);
-EXPORT_SYMBOL(cfs_block_sigsinv);
-EXPORT_SYMBOL(cfs_restore_sigs);
-EXPORT_SYMBOL(cfs_signal_pending);
-EXPORT_SYMBOL(cfs_clear_sigpending);
+
