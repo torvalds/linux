@@ -71,6 +71,14 @@
 	i2c@0,7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
+
+		trackpad@15 {
+			compatible = "elan,ekth3000";
+			reg = <0x15>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_EDGE_FALLING>;
+			wakeup-source;
+		};
 	};
 
 	i2c@0,7000c500 {
