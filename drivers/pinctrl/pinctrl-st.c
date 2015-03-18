@@ -1058,18 +1058,28 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 {
 	struct st_pio_control *pc;
 	unsigned long config;
+	unsigned int function;
 	int offset = st_gpio_pin(pin_id);
+	char f[16];
 
 	mutex_unlock(&pctldev->mutex);
 	pc = st_get_pio_control(pctldev, pin_id);
 	st_pinconf_get(pctldev, pin_id, &config);
 	mutex_lock(&pctldev->mutex);
-	seq_printf(s, "[OE:%ld,PU:%ld,OD:%ld]\n"
+
+	function = st_pctl_get_pin_function(pc, offset);
+	if (function)
+		snprintf(f, 10, "Alt Fn %d", function);
+	else
+		snprintf(f, 5, "GPIO");
+
+	seq_printf(s, "[OE:%d,PU:%ld,OD:%ld]\t%s\n"
 		"\t\t[retime:%ld,invclk:%ld,clknotdat:%ld,"
 		"de:%ld,rt-clk:%ld,rt-delay:%ld]",
 		!st_gpio_get_direction(&pc_to_bank(pc)->gpio_chip, offset),
 		ST_PINCONF_UNPACK_PU(config),
 		ST_PINCONF_UNPACK_OD(config),
+		f,
 		ST_PINCONF_UNPACK_RT(config),
 		ST_PINCONF_UNPACK_RT_INVERTCLK(config),
 		ST_PINCONF_UNPACK_RT_CLKNOTDATA(config),
