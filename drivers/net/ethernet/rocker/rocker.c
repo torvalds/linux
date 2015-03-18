@@ -30,6 +30,7 @@
 #include <linux/if_vlan.h>
 #include <linux/if_bridge.h>
 #include <linux/bitops.h>
+#include <linux/ctype.h>
 #include <net/switchdev.h>
 #include <net/rtnetlink.h>
 #include <net/ip_fib.h>
@@ -1627,6 +1628,53 @@ rocker_cmd_get_port_settings_macaddr_proc(struct rocker *rocker,
 		return -EINVAL;
 
 	ether_addr_copy(macaddr, rocker_tlv_data(attr));
+	return 0;
+}
+
+struct port_name {
+	char *buf;
+	size_t len;
+};
+
+static int
+rocker_cmd_get_port_settings_phys_name_proc(struct rocker *rocker,
+					    struct rocker_port *rocker_port,
+					    struct rocker_desc_info *desc_info,
+					    void *priv)
+{
+	struct rocker_tlv *info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_MAX + 1];
+	struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
+	struct port_name *name = priv;
+	struct rocker_tlv *attr;
+	size_t i, j, len;
+	char *str;
+
+	rocker_tlv_parse_desc(attrs, ROCKER_TLV_CMD_MAX, desc_info);
+	if (!attrs[ROCKER_TLV_CMD_INFO])
+		return -EIO;
+
+	rocker_tlv_parse_nested(info_attrs, ROCKER_TLV_CMD_PORT_SETTINGS_MAX,
+				attrs[ROCKER_TLV_CMD_INFO]);
+	attr = info_attrs[ROCKER_TLV_CMD_PORT_SETTINGS_PHYS_NAME];
+	if (!attr)
+		return -EIO;
+
+	len = min_t(size_t, rocker_tlv_len(attr), name->len);
+	str = rocker_tlv_data(attr);
+
+	/* make sure name only contains alphanumeric characters */
+	for (i = j = 0; i < len; ++i) {
+		if (isalnum(str[i])) {
+			name->buf[j] = str[i];
+			j++;
+		}
+	}
+
+	if (j == 0)
+		return -EIO;
+
+	name->buf[j] = '\0';
+
 	return 0;
 }
 
@@ -4138,6 +4186,21 @@ static int rocker_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				       rocker_port->brport_flags, mask);
 }
 
+static int rocker_port_get_phys_port_name(struct net_device *dev,
+					  char *buf, size_t len)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	struct port_name name = { .buf = buf, .len = len };
+	int err;
+
+	err = rocker_cmd_exec(rocker_port->rocker, rocker_port,
+			      rocker_cmd_get_port_settings_prep, NULL,
+			      rocker_cmd_get_port_settings_phys_name_proc,
+			      &name, false);
+
+	return err ? -EOPNOTSUPP : 0;
+}
+
 static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_open			= rocker_port_open,
 	.ndo_stop			= rocker_port_stop,
@@ -4150,6 +4213,7 @@ static const struct net_device_ops rocker_port_netdev_ops = {
 	.ndo_fdb_dump			= rocker_port_fdb_dump,
 	.ndo_bridge_setlink		= rocker_port_bridge_setlink,
 	.ndo_bridge_getlink		= rocker_port_bridge_getlink,
+	.ndo_get_phys_port_name		= rocker_port_get_phys_port_name,
 };
 
 /********************
