@@ -1798,3 +1798,94 @@ int request_percpu_irq(unsigned int irq, irq_handler_t handler,
 
 	return retval;
 }
+
+/**
+ *	irq_get_irqchip_state - returns the irqchip state of a interrupt.
+ *	@irq: Interrupt line that is forwarded to a VM
+ *	@which: One of IRQCHIP_STATE_* the caller wants to know about
+ *	@state: a pointer to a boolean where the state is to be storeed
+ *
+ *	This call snapshots the internal irqchip state of an
+ *	interrupt, returning into @state the bit corresponding to
+ *	stage @which
+ *
+ *	This function should be called with preemption disabled if the
+ *	interrupt controller has per-cpu registers.
+ */
+int irq_get_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
+			  bool *state)
+{
+	struct irq_desc *desc;
+	struct irq_data *data;
+	struct irq_chip *chip;
+	unsigned long flags;
+	int err = -EINVAL;
+
+	desc = irq_get_desc_buslock(irq, &flags, 0);
+	if (!desc)
+		return err;
+
+	data = irq_desc_get_irq_data(desc);
+
+	do {
+		chip = irq_data_get_irq_chip(data);
+		if (chip->irq_get_irqchip_state)
+			break;
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+		data = data->parent_data;
+#else
+		data = NULL;
+#endif
+	} while (data);
+
+	if (data)
+		err = chip->irq_get_irqchip_state(data, which, state);
+
+	irq_put_desc_busunlock(desc, flags);
+	return err;
+}
+
+/**
+ *	irq_set_irqchip_state - set the state of a forwarded interrupt.
+ *	@irq: Interrupt line that is forwarded to a VM
+ *	@which: State to be restored (one of IRQCHIP_STATE_*)
+ *	@val: Value corresponding to @which
+ *
+ *	This call sets the internal irqchip state of an interrupt,
+ *	depending on the value of @which.
+ *
+ *	This function should be called with preemption disabled if the
+ *	interrupt controller has per-cpu registers.
+ */
+int irq_set_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
+			  bool val)
+{
+	struct irq_desc *desc;
+	struct irq_data *data;
+	struct irq_chip *chip;
+	unsigned long flags;
+	int err = -EINVAL;
+
+	desc = irq_get_desc_buslock(irq, &flags, 0);
+	if (!desc)
+		return err;
+
+	data = irq_desc_get_irq_data(desc);
+
+	do {
+		chip = irq_data_get_irq_chip(data);
+		if (chip->irq_set_irqchip_state)
+			break;
+#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
+		data = data->parent_data;
+#else
+		data = NULL;
+#endif
+	} while (data);
+
+	if (data)
+		err = chip->irq_set_irqchip_state(data, which, val);
+
+	irq_put_desc_busunlock(desc, flags);
+	return err;
+}
