@@ -120,6 +120,7 @@ __perf_prev_skip_opts ()
 		((i--))
 	done
 }
+
 __perf_main ()
 {
 	local cmd
@@ -137,13 +138,15 @@ __perf_main ()
 			cmds=$($cmd --list-cmds)
 		fi
 		__perfcomp "$cmds" "$cur"
-	# List possible events for -e and --event option
-	elif [[ $prev == @("-e"|"--event") && $prev_skip_opts == @(record|stat|top) ]]; then
+	# List possible events for -e option
+	elif [[ $prev == @("-e"|"--event") &&
+		$prev_skip_opts == @(record|stat|top) ]]; then
 		evts=$($cmd list --raw-dump)
 		__perfcomp_colon "$evts" "$cur"
 	else
 		# List subcommands for perf commands
-		if [[ $prev_skip_opts == @(kvm|kmem|mem|lock|sched|data|help|script|test|timechart) ]]; then
+		if [[ $prev_skip_opts == @(kvm|kmem|mem|lock|sched|
+			|data|help|script|test|timechart|trace) ]]; then
 			subcmds=$($cmd $prev_skip_opts --list-cmds)
 			__perfcomp_colon "$subcmds" "$cur"
 		fi

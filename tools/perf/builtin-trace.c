@@ -2609,7 +2609,7 @@ static void evlist__set_evsel_handler(struct perf_evlist *evlist, void *handler)
 
 int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	const char * const trace_usage[] = {
+	const char *trace_usage[] = {
 		"perf trace [<options>] [<command>]",
 		"perf trace [<options>] -- <command> [<options>]",
 		"perf trace record [<options>] [<command>]",
@@ -2684,6 +2684,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "syscalls", &trace.trace_syscalls, "Trace syscalls"),
 	OPT_END()
 	};
+	const char * const trace_subcommands[] = { "record", NULL };
 	int err;
 	char bf[BUFSIZ];
 
@@ -2699,8 +2700,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out;
 	}
 
-	argc = parse_options(argc, argv, trace_options, trace_usage,
-			     PARSE_OPT_STOP_AT_NON_OPTION);
+	argc = parse_options_subcommand(argc, argv, trace_options, trace_subcommands,
+				 trace_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (trace.trace_pgfaults) {
 		trace.opts.sample_address = true;
