@@ -698,7 +698,7 @@ static int gen8_ppgtt_setup_page_tables(struct i915_hw_ppgtt *ppgtt,
 	return 0;
 }
 
-/**
+/*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
  * with a net effect resembling a 2-level page table in normal x86 terms. Each
  * PDP represents 1GB of memory 4 * 512 * 512 * 4096 = 4GB legacy 32b address
