@@ -206,6 +206,9 @@
 #define gpio_chip_to_bank(chip) \
 		container_of(chip, struct st_gpio_bank, gpio_chip)
 
+#define pc_to_bank(pc) \
+		container_of(pc, struct st_gpio_bank, pc)
+
 enum st_retime_style {
 	st_retime_style_none,
 	st_retime_style_packed,
@@ -1053,15 +1056,18 @@ static int st_pinconf_get(struct pinctrl_dev *pctldev,
 static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 				   struct seq_file *s, unsigned pin_id)
 {
+	struct st_pio_control *pc;
 	unsigned long config;
+	int offset = st_gpio_pin(pin_id);
 
 	mutex_unlock(&pctldev->mutex);
+	pc = st_get_pio_control(pctldev, pin_id);
 	st_pinconf_get(pctldev, pin_id, &config);
 	mutex_lock(&pctldev->mutex);
 	seq_printf(s, "[OE:%ld,PU:%ld,OD:%ld]\n"
 		"\t\t[retime:%ld,invclk:%ld,clknotdat:%ld,"
 		"de:%ld,rt-clk:%ld,rt-delay:%ld]",
-		ST_PINCONF_UNPACK_OE(config),
+		!st_gpio_get_direction(&pc_to_bank(pc)->gpio_chip, offset),
 		ST_PINCONF_UNPACK_PU(config),
 		ST_PINCONF_UNPACK_OD(config),
 		ST_PINCONF_UNPACK_RT(config),
