@@ -1375,7 +1375,7 @@ rx_curr_single:
 	if (f_post_aggr_cur) {
 		dev_dbg(adapter->dev, "info: current packet aggregation\n");
 		/* Curr pkt can be aggregated */
-		mp_rx_aggr_setup(card, skb->len, port);
+		mp_rx_aggr_setup(card, rx_len, port);
 	}
 
 	return 0;
