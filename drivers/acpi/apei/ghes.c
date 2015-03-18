@@ -837,9 +837,8 @@ static void __ghes_panic(struct ghes *ghes)
 
 static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 {
-	struct ghes *ghes, *ghes_global = NULL;
-	int sev, sev_global = -1;
-	int ret = NMI_DONE;
+	struct ghes *ghes;
+	int sev, ret = NMI_DONE;
 
 	raw_spin_lock(&ghes_nmi_lock);
 	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
@@ -847,19 +846,16 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 			ghes_clear_estatus(ghes);
 			continue;
 		}
+
 		sev = ghes_severity(ghes->estatus->error_severity);
-		if (sev > sev_global) {
-			sev_global = sev;
-			ghes_global = ghes;
-		}
+		if (sev >= GHES_SEV_PANIC)
+			__ghes_panic(ghes);
+
 		ret = NMI_HANDLED;
 	}
 
 	if (ret == NMI_DONE)
 		goto out;
-
-	if (sev_global >= GHES_SEV_PANIC)
-		__ghes_panic(ghes_global);
 
 	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
 		if (!(ghes->flags & GHES_TO_CLEAR))
