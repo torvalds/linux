@@ -55,6 +55,7 @@ static struct sensor_group {
 	const char *compatible;
 	struct attribute_group group;
 	u32 attr_count;
+	u32 hwmon_index;
 } sensor_groups[] = {
 	{"fan", "ibm,opal-sensor-cooling-fan"},
 	{"temp", "ibm,opal-sensor-amb-temp"},
@@ -64,6 +65,8 @@ static struct sensor_group {
 
 struct sensor_data {
 	u32 id; /* An opaque id of the firmware for each sensor */
+	u32 hwmon_index;
+	u32 opal_index;
 	enum sensors type;
 	char name[MAX_ATTR_LEN];
 	struct device_attribute dev_attr;
@@ -181,6 +184,19 @@ static int get_sensor_type(struct device_node *np)
 	return MAX_SENSOR_TYPE;
 }
 
+static u32 get_sensor_hwmon_index(struct sensor_data *sdata,
+				  struct sensor_data *sdata_table, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		if (sdata_table[i].opal_index == sdata->opal_index &&
+		    sdata_table[i].type == sdata->type)
+			return sdata_table[i].hwmon_index;
+
+	return ++sensor_groups[sdata->type].hwmon_index;
+}
+
 static int populate_attr_groups(struct platform_device *pdev)
 {
 	struct platform_data *pdata = platform_get_drvdata(pdev);
@@ -270,8 +286,13 @@ static int create_device_attrs(struct platform_device *pdev)
 			goto exit_put_node;
 		}
 
+		sdata[count].opal_index = opal_index;
+		sdata[count].hwmon_index =
+			get_sensor_hwmon_index(&sdata[count], sdata, count);
+
 		snprintf(sdata[count].name, MAX_ATTR_LEN, "%s%d_%s",
-			 sensor_groups[type].name, opal_index, attr_name);
+			 sensor_groups[type].name, sdata[count].hwmon_index,
+			 attr_name);
 
 		sysfs_attr_init(&sdata[count].dev_attr.attr);
 		sdata[count].dev_attr.attr.name = sdata[count].name;
