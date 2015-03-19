@@ -56,6 +56,7 @@ typedef struct camsys_mrv_clk_s {
     struct clk      *cif_clk_out;
     struct clk      *cif_clk_pll;
 	struct clk		*pclk_dphyrx;
+	struct clk		*aclk_rga;
 	
     unsigned int     out_on;
 
