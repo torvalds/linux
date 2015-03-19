@@ -194,8 +194,7 @@ static nokprobe_inline int
 do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		  struct pt_regs *regs,	long error_code)
 {
-#ifdef CONFIG_X86_32
-	if (regs->flags & X86_VM_MASK) {
+	if (v8086_mode(regs)) {
 		/*
 		 * Traps 0, 1, 3, 4, and 5 should be forwarded to vm86.
 		 * On nmi (interrupt 2), do_trap should not be called.
@@ -207,7 +206,7 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		}
 		return -1;
 	}
-#endif
+
 	if (!user_mode_ignore_vm86(regs)) {
 		if (!fixup_exception(regs)) {
 			tsk->thread.error_code = error_code;
@@ -462,13 +461,11 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	prev_state = exception_enter();
 	conditional_sti(regs);
 
-#ifdef CONFIG_X86_32
-	if (regs->flags & X86_VM_MASK) {
+	if (v8086_mode(regs)) {
 		local_irq_enable();
 		handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
 		goto exit;
 	}
-#endif
 
 	tsk = current;
 	if (!user_mode_ignore_vm86(regs)) {
@@ -673,7 +670,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	/* It's safe to allow irq's after DR6 has been saved */
 	preempt_conditional_sti(regs);
 
-	if (regs->flags & X86_VM_MASK) {
+	if (v8086_mode(regs)) {
 		handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code,
 					X86_TRAP_DB);
 		preempt_conditional_cli(regs);
