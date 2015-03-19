@@ -933,14 +933,20 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params)
 	if (params->nulls_base && params->nulls_base < (1U << RHT_BASE_SHIFT))
 		return -EINVAL;
 
-	params->min_size = max(params->min_size, HASH_MIN_SIZE);
-
 	if (params->nelem_hint)
 		size = rounded_hashtable_size(params);
 
 	memset(ht, 0, sizeof(*ht));
 	mutex_init(&ht->mutex);
 	memcpy(&ht->p, params, sizeof(*params));
+
+	if (params->min_size)
+		ht->p.min_size = roundup_pow_of_two(params->min_size);
+
+	if (params->max_size)
+		ht->p.max_size = rounddown_pow_of_two(params->max_size);
+
+	ht->p.min_size = max(params->min_size, HASH_MIN_SIZE);
 
 	if (params->locks_mul)
 		ht->p.locks_mul = roundup_pow_of_two(params->locks_mul);
