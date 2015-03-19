@@ -51,8 +51,6 @@ extern int devmem_is_allowed(unsigned long pagenr);
 extern unsigned long max_low_pfn_mapped;
 extern unsigned long max_pfn_mapped;
 
-extern bool kaslr_enabled;
-
 static inline phys_addr_t get_max_mapped(void)
 {
 	return (phys_addr_t)max_pfn_mapped << PAGE_SHIFT;

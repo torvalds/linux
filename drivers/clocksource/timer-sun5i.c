@@ -178,10 +178,6 @@ static void __init sun5i_timer_init(struct device_node *node)
 
 	ticks_per_jiffy = DIV_ROUND_UP(rate, HZ);
 
-	ret = setup_irq(irq, &sun5i_timer_irq);
-	if (ret)
-		pr_warn("failed to setup irq %d\n", irq);
-
 	/* Enable timer0 interrupt */
 	val = readl(timer_base + TIMER_IRQ_EN_REG);
 	writel(val | TIMER_IRQ_EN(0), timer_base + TIMER_IRQ_EN_REG);
@@ -191,6 +187,10 @@ static void __init sun5i_timer_init(struct device_node *node)
 
 	clockevents_config_and_register(&sun5i_clockevent, rate,
 					TIMER_SYNC_TICKS, 0xffffffff);
+
+	ret = setup_irq(irq, &sun5i_timer_irq);
+	if (ret)
+		pr_warn("failed to setup irq %d\n", irq);
 }
 CLOCKSOURCE_OF_DECLARE(sun5i_a13, "allwinner,sun5i-a13-hstimer",
 		       sun5i_timer_init);
