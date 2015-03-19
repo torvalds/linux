@@ -473,13 +473,6 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 	}
 }
 
-bool kvm_ioapic_handles_vector(struct kvm *kvm, int vector)
-{
-	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-	smp_rmb();
-	return test_bit(vector, ioapic->handled_vectors);
-}
-
 void kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu, int vector, int trigger_mode)
 {
 	struct kvm_ioapic *ioapic = vcpu->kvm->arch.vioapic;
