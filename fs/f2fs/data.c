@@ -394,6 +394,49 @@ static void __detach_extent_node(struct f2fs_sb_info *sbi,
 		et->cached_en = NULL;
 }
 
+static struct extent_tree *__find_extent_tree(struct f2fs_sb_info *sbi,
+							nid_t ino)
+{
+	struct extent_tree *et;
+
+	down_read(&sbi->extent_tree_lock);
+	et = radix_tree_lookup(&sbi->extent_tree_root, ino);
+	if (!et) {
+		up_read(&sbi->extent_tree_lock);
+		return NULL;
+	}
+	atomic_inc(&et->refcount);
+	up_read(&sbi->extent_tree_lock);
+
+	return et;
+}
+
+static struct extent_tree *__grab_extent_tree(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct extent_tree *et;
+	nid_t ino = inode->i_ino;
+
+	down_write(&sbi->extent_tree_lock);
+	et = radix_tree_lookup(&sbi->extent_tree_root, ino);
+	if (!et) {
+		et = f2fs_kmem_cache_alloc(extent_tree_slab, GFP_NOFS);
+		f2fs_radix_tree_insert(&sbi->extent_tree_root, ino, et);
+		memset(et, 0, sizeof(struct extent_tree));
+		et->ino = ino;
+		et->root = RB_ROOT;
+		et->cached_en = NULL;
+		rwlock_init(&et->lock);
+		atomic_set(&et->refcount, 0);
+		et->count = 0;
+		sbi->total_ext_tree++;
+	}
+	atomic_inc(&et->refcount);
+	up_write(&sbi->extent_tree_lock);
+
+	return et;
+}
+
 static struct extent_node *__lookup_extent_tree(struct extent_tree *et,
 							unsigned int fofs)
 {
@@ -538,14 +581,9 @@ static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 
 	trace_f2fs_lookup_extent_tree_start(inode, pgofs);
 
-	down_read(&sbi->extent_tree_lock);
-	et = radix_tree_lookup(&sbi->extent_tree_root, inode->i_ino);
-	if (!et) {
-		up_read(&sbi->extent_tree_lock);
+	et = __find_extent_tree(sbi, inode->i_ino);
+	if (!et)
 		return false;
-	}
-	atomic_inc(&et->refcount);
-	up_read(&sbi->extent_tree_lock);
 
 	read_lock(&et->lock);
 	en = __lookup_extent_tree(et, pgofs);
@@ -570,7 +608,6 @@ static void f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 							block_t blkaddr)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	nid_t ino = inode->i_ino;
 	struct extent_tree *et;
 	struct extent_node *en = NULL, *en1 = NULL, *en2 = NULL, *en3 = NULL;
 	struct extent_node *den = NULL;
@@ -579,22 +616,7 @@ static void f2fs_update_extent_tree(struct inode *inode, pgoff_t fofs,
 
 	trace_f2fs_update_extent_tree(inode, fofs, blkaddr);
 
-	down_write(&sbi->extent_tree_lock);
-	et = radix_tree_lookup(&sbi->extent_tree_root, ino);
-	if (!et) {
-		et = f2fs_kmem_cache_alloc(extent_tree_slab, GFP_NOFS);
-		f2fs_radix_tree_insert(&sbi->extent_tree_root, ino, et);
-		memset(et, 0, sizeof(struct extent_tree));
-		et->ino = ino;
-		et->root = RB_ROOT;
-		et->cached_en = NULL;
-		rwlock_init(&et->lock);
-		atomic_set(&et->refcount, 0);
-		et->count = 0;
-		sbi->total_ext_tree++;
-	}
-	atomic_inc(&et->refcount);
-	up_write(&sbi->extent_tree_lock);
+	et = __grab_extent_tree(inode);
 
 	write_lock(&et->lock);
 
@@ -732,14 +754,9 @@ void f2fs_destroy_extent_tree(struct inode *inode)
 	if (!test_opt(sbi, EXTENT_CACHE))
 		return;
 
-	down_read(&sbi->extent_tree_lock);
-	et = radix_tree_lookup(&sbi->extent_tree_root, inode->i_ino);
-	if (!et) {
-		up_read(&sbi->extent_tree_lock);
+	et = __find_extent_tree(sbi, inode->i_ino);
+	if (!et)
 		goto out;
-	}
-	atomic_inc(&et->refcount);
-	up_read(&sbi->extent_tree_lock);
 
 	/* free all extent info belong to this extent tree */
 	write_lock(&et->lock);
