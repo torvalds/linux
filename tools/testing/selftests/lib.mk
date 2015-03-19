@@ -9,7 +9,7 @@ run_tests: all
 
 define INSTALL_RULE
 	mkdir -p $(INSTALL_PATH)
-	install -t $(INSTALL_PATH) $(TEST_PROGS) $(TEST_FILES)
+	install -t $(INSTALL_PATH) $(TEST_PROGS) $(TEST_PROGS_EXTENDED) $(TEST_FILES)
 endef
 
 install: all
