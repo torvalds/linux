@@ -510,6 +510,9 @@ struct intel_plane {
 	bool can_scale;
 	int max_downscale;
 
+	/* FIXME convert to properties */
+	struct drm_intel_sprite_colorkey ckey;
+
 	/* Since we need to change the watermarks before/after
 	 * enabling/disabling the planes, we need to store the parameters here
 	 * as the other pieces of the struct may not reflect the values we want
@@ -536,10 +539,6 @@ struct intel_plane {
 			   struct intel_plane_state *state);
 	void (*commit_plane)(struct drm_plane *plane,
 			     struct intel_plane_state *state);
-	int (*update_colorkey)(struct drm_plane *plane,
-			       struct drm_intel_sprite_colorkey *key);
-	void (*get_colorkey)(struct drm_plane *plane,
-			     struct drm_intel_sprite_colorkey *key);
 };
 
 struct intel_watermark_params {
