@@ -194,19 +194,8 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
 
-	plane_ctl = I915_READ(PLANE_CTL(pipe, plane));
-
-	/* Mask out pixel format bits in case we change it */
-	plane_ctl &= ~PLANE_CTL_FORMAT_MASK;
-	plane_ctl &= ~PLANE_CTL_ORDER_RGBX;
-	plane_ctl &= ~PLANE_CTL_YUV422_ORDER_MASK;
-	plane_ctl &= ~PLANE_CTL_TILED_MASK;
-	plane_ctl &= ~PLANE_CTL_ALPHA_MASK;
-	plane_ctl &= ~PLANE_CTL_ROTATE_MASK;
-	plane_ctl &= ~PLANE_CTL_KEY_ENABLE_MASK;
-
-	/* Trickle feed has to be enabled */
-	plane_ctl &= ~PLANE_CTL_TRICKLE_FEED_DISABLE;
+	plane_ctl = PLANE_CTL_ENABLE |
+		PLANE_CTL_PIPE_CSC_ENABLE;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_RGB565:
@@ -267,9 +256,6 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	if (drm_plane->state->rotation == BIT(DRM_ROTATE_180))
 		plane_ctl |= PLANE_CTL_ROTATE_180;
 
-	plane_ctl |= PLANE_CTL_ENABLE;
-	plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;
-
 	intel_update_sprite_watermarks(drm_plane, crtc, src_w, src_h,
 				       pixel_size, true,
 				       src_w != crtc_w || src_h != crtc_h);
@@ -312,8 +298,7 @@ skl_disable_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc)
 	const int pipe = intel_plane->pipe;
 	const int plane = intel_plane->plane + 1;
 
-	I915_WRITE(PLANE_CTL(pipe, plane),
-		   I915_READ(PLANE_CTL(pipe, plane)) & ~PLANE_CTL_ENABLE);
+	I915_WRITE(PLANE_CTL(pipe, plane), 0);
 
 	/* Activate double buffered register update */
 	I915_WRITE(PLANE_CTL(pipe, plane), 0);
@@ -381,14 +366,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
 
-	sprctl = I915_READ(SPCNTR(pipe, plane));
-
-	/* Mask out pixel format bits in case we change it */
-	sprctl &= ~SP_PIXFORMAT_MASK;
-	sprctl &= ~SP_YUV_BYTE_ORDER_MASK;
-	sprctl &= ~SP_TILED;
-	sprctl &= ~SP_ROTATE_180;
-	sprctl &= ~SP_SOURCE_KEY;
+	sprctl = SP_ENABLE;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUYV:
@@ -441,8 +419,6 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 
 	if (obj->tiling_mode != I915_TILING_NONE)
 		sprctl |= SP_TILED;
-
-	sprctl |= SP_ENABLE;
 
 	intel_update_sprite_watermarks(dplane, crtc, src_w, src_h,
 				       pixel_size, true,
@@ -513,8 +489,8 @@ vlv_disable_plane(struct drm_plane *dplane, struct drm_crtc *crtc)
 
 	intel_update_primary_plane(intel_crtc);
 
-	I915_WRITE(SPCNTR(pipe, plane), I915_READ(SPCNTR(pipe, plane)) &
-		   ~SP_ENABLE);
+	I915_WRITE(SPCNTR(pipe, plane), 0);
+
 	/* Activate double buffered register update */
 	I915_WRITE(SPSURF(pipe, plane), 0);
 
@@ -543,15 +519,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
 
-	sprctl = I915_READ(SPRCTL(pipe));
-
-	/* Mask out pixel format bits in case we change it */
-	sprctl &= ~SPRITE_PIXFORMAT_MASK;
-	sprctl &= ~SPRITE_RGB_ORDER_RGBX;
-	sprctl &= ~SPRITE_YUV_BYTE_ORDER_MASK;
-	sprctl &= ~SPRITE_TILED;
-	sprctl &= ~SPRITE_ROTATE_180;
-	sprctl &= ~(SPRITE_SOURCE_KEY | SPRITE_DEST_KEY);
+	sprctl = SPRITE_ENABLE;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -589,8 +557,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		sprctl &= ~SPRITE_TRICKLE_FEED_DISABLE;
 	else
 		sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
-
-	sprctl |= SPRITE_ENABLE;
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		sprctl |= SPRITE_PIPE_CSC_ENABLE;
@@ -701,15 +667,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 	const struct drm_intel_sprite_colorkey *key = &intel_plane->ckey;
 
-	dvscntr = I915_READ(DVSCNTR(pipe));
-
-	/* Mask out pixel format bits in case we change it */
-	dvscntr &= ~DVS_PIXFORMAT_MASK;
-	dvscntr &= ~DVS_RGB_ORDER_XBGR;
-	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
-	dvscntr &= ~DVS_TILED;
-	dvscntr &= ~DVS_ROTATE_180;
-	dvscntr &= ~(DVS_SOURCE_KEY | DVS_DEST_KEY);
+	dvscntr = DVS_ENABLE;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -745,7 +703,6 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	if (IS_GEN6(dev))
 		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
-	dvscntr |= DVS_ENABLE;
 
 	intel_update_sprite_watermarks(plane, crtc, src_w, src_h,
 				       pixel_size, true,
@@ -816,9 +773,10 @@ ilk_disable_plane(struct drm_plane *plane, struct drm_crtc *crtc)
 
 	intel_update_primary_plane(intel_crtc);
 
-	I915_WRITE(DVSCNTR(pipe), I915_READ(DVSCNTR(pipe)) & ~DVS_ENABLE);
+	I915_WRITE(DVSCNTR(pipe), 0);
 	/* Disable the scaler */
 	I915_WRITE(DVSSCALE(pipe), 0);
+
 	/* Flush double buffered register updates */
 	I915_WRITE(DVSSURF(pipe), 0);
 
