@@ -942,8 +942,9 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	size_t txsize, rxsize;
 	int ret;
 
-	txbuf[0] = msg->request << 4;
-	txbuf[1] = msg->address >> 8;
+	txbuf[0] = (msg->request << 4) |
+		((msg->address >> 16) & 0xf);
+	txbuf[1] = (msg->address >> 8) & 0xff;
 	txbuf[2] = msg->address & 0xff;
 	txbuf[3] = msg->size - 1;
 
