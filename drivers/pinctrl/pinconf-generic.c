@@ -307,14 +307,16 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (ret < 0) {
 		/* EINVAL=missing, which is fine since it's optional */
 		if (ret != -EINVAL)
-			dev_err(dev, "could not parse property function\n");
+			dev_err(dev, "%s: could not parse property function\n",
+				of_node_full_name(np));
 		function = NULL;
 	}
 
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(dev, "could not parse node property\n");
+		dev_err(dev, "%s: could not parse node property\n",
+			of_node_full_name(np));
 		return ret;
 	}
 
