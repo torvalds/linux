@@ -91,9 +91,10 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 	}
 
 	/* A new SVC communication channel, let's verify a supported version */
-	if ((handshake->version_major != GREYBUS_VERSION_MAJOR) &&
+	if ((handshake->version_major != GREYBUS_VERSION_MAJOR) ||
 	    (handshake->version_minor != GREYBUS_VERSION_MINOR)) {
-		dev_dbg(hd->parent, "received invalid greybus version %d:%d\n",
+		dev_warn(hd->parent,
+			"received invalid greybus version %u.%u\n",
 			handshake->version_major, handshake->version_minor);
 		return;
 	}
