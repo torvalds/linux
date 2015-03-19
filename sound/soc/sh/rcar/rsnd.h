@@ -301,6 +301,7 @@ struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod);
  */
 #define RSND_DAI_NAME_SIZE	16
 struct rsnd_dai_stream {
+	char name[RSND_DAI_NAME_SIZE];
 	struct snd_pcm_substream *substream;
 	struct rsnd_mod *mod[RSND_MOD_MAX];
 	struct rsnd_dai_path_info *info; /* rcar_snd.h */

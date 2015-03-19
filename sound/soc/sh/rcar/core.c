@@ -648,20 +648,28 @@ static int rsnd_dai_probe(struct platform_device *pdev,
 		drv[i].name	= rdai[i].name;
 		drv[i].ops	= &rsnd_soc_dai_ops;
 		if (pmod) {
+			snprintf(rdai[i].playback.name, RSND_DAI_NAME_SIZE,
+				 "DAI%d Playback", i);
+
 			drv[i].playback.rates		= RSND_RATES;
 			drv[i].playback.formats		= RSND_FMTS;
 			drv[i].playback.channels_min	= 2;
 			drv[i].playback.channels_max	= 2;
+			drv[i].playback.stream_name	= rdai[i].playback.name;
 
 			rdai[i].playback.info = &info->dai_info[i].playback;
 			rdai[i].playback.rdai = rdai + i;
 			rsnd_path_init(priv, &rdai[i], &rdai[i].playback);
 		}
 		if (cmod) {
+			snprintf(rdai[i].capture.name, RSND_DAI_NAME_SIZE,
+				 "DAI%d Capture", i);
+
 			drv[i].capture.rates		= RSND_RATES;
 			drv[i].capture.formats		= RSND_FMTS;
 			drv[i].capture.channels_min	= 2;
 			drv[i].capture.channels_max	= 2;
+			drv[i].capture.stream_name	= rdai[i].capture.name;
 
 			rdai[i].capture.info = &info->dai_info[i].capture;
 			rdai[i].capture.rdai = rdai + i;
