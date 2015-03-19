@@ -256,7 +256,7 @@ static void altera_gpio_irq_leveL_high_handler(unsigned int irq,
 	chained_irq_exit(chip, desc);
 }
 
-int altera_gpio_probe(struct platform_device *pdev)
+static int altera_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	int reg, ret;
