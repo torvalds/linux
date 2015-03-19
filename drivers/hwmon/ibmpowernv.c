@@ -44,7 +44,7 @@
  */
 enum sensors {
 	FAN,
-	AMBIENT_TEMP,
+	TEMP,
 	POWER_SUPPLY,
 	POWER_INPUT,
 	MAX_SENSOR_TYPE,
@@ -87,7 +87,7 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *devattr,
 		return ret;
 
 	/* Convert temperature to milli-degrees */
-	if (sdata->type == AMBIENT_TEMP)
+	if (sdata->type == TEMP)
 		x *= 1000;
 	/* Convert power to micro-watts */
 	else if (sdata->type == POWER_INPUT)
@@ -154,7 +154,7 @@ static int create_hwmon_attr_name(struct device *dev, enum sensors type,
 	} else if (!strcmp(attr_suffix, DT_DATA_ATTR_SUFFIX)) {
 		attr_name = "input";
 	} else if (!strcmp(attr_suffix, DT_THRESHOLD_ATTR_SUFFIX)) {
-		if (type == AMBIENT_TEMP)
+		if (type == TEMP)
 			attr_name = "max";
 		else if (type == FAN)
 			attr_name = "min";
