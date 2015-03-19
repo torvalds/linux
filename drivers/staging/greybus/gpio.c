@@ -500,8 +500,6 @@ static void gb_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
 {
-	u32 line_count;
-	size_t size;
 	int ret;
 
 	/* First thing we need to do is check the version */
@@ -514,9 +512,8 @@ static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
 	if (ret)
 		return ret;
 
-	line_count = (u32)ggc->line_max + 1;
-	size = line_count * sizeof(*ggc->lines);
-	ggc->lines = kzalloc(size, GFP_KERNEL);
+	ggc->lines = kcalloc(ggc->line_max + 1, sizeof(*ggc->lines),
+			     GFP_KERNEL);
 	if (!ggc->lines)
 		return -ENOMEM;
 
