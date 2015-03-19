@@ -12091,8 +12091,6 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_rect *src = &state->src;
 
 	crtc = crtc ? crtc : plane->crtc;
@@ -12101,8 +12099,6 @@ intel_commit_primary_plane(struct drm_plane *plane,
 	plane->fb = fb;
 	crtc->x = src->x1 >> 16;
 	crtc->y = src->y1 >> 16;
-
-	intel_plane->obj = obj;
 
 	if (intel_crtc->active) {
 		if (state->visible) {
@@ -12367,7 +12363,6 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	struct drm_crtc *crtc = state->base.crtc;
 	struct drm_device *dev = plane->dev;
 	struct intel_crtc *intel_crtc;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(state->base.fb);
 	uint32_t addr;
 
@@ -12377,8 +12372,6 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 	plane->fb = state->base.fb;
 	crtc->cursor_x = state->base.crtc_x;
 	crtc->cursor_y = state->base.crtc_y;
-
-	intel_plane->obj = obj;
 
 	if (intel_crtc->cursor_bo == obj)
 		goto update;
