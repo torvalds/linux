@@ -204,9 +204,11 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *ggc,
 		return ret;
 
 	direction = response.direction;
-	if (direction && direction != 1)
-		pr_warn("gpio %u direction was %u (should be 0 or 1)\n",
-			which, direction);
+	if (direction && direction != 1) {
+		dev_warn(ggc->chip.dev,
+			 "gpio %u direction was %u (should be 0 or 1)\n",
+			 which, direction);
+	}
 	ggc->lines[which].direction = direction ? 1 : 0;
 	return 0;
 }
@@ -256,9 +258,11 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *ggc,
 		return ret;
 
 	value = response.value;
-	if (value && value != 1)
-		pr_warn("gpio %u value was %u (should be 0 or 1)\n",
-			which, value);
+	if (value && value != 1) {
+		dev_warn(ggc->chip.dev,
+			 "gpio %u value was %u (should be 0 or 1)\n",
+			 which, value);
+	}
 	ggc->lines[which].value = value ? 1 : 0;
 	return 0;
 }
@@ -306,7 +310,7 @@ static void gb_gpio_ack_irq(struct irq_data *d)
 				GB_GPIO_TYPE_IRQ_ACK,
 				&request, sizeof(request), NULL, 0);
 	if (ret)
-		pr_err("irq ack operation failed (%d)\n", ret);
+		dev_err(chip->dev, "failed to ack irq: %d\n", ret);
 }
 
 static void gb_gpio_mask_irq(struct irq_data *d)
@@ -321,7 +325,7 @@ static void gb_gpio_mask_irq(struct irq_data *d)
 				GB_GPIO_TYPE_IRQ_MASK,
 				&request, sizeof(request), NULL, 0);
 	if (ret)
-		pr_err("irq mask operation failed (%d)\n", ret);
+		dev_err(chip->dev, "failed to mask irq: %d\n", ret);
 }
 
 static void gb_gpio_unmask_irq(struct irq_data *d)
@@ -336,7 +340,7 @@ static void gb_gpio_unmask_irq(struct irq_data *d)
 				GB_GPIO_TYPE_IRQ_UNMASK,
 				&request, sizeof(request), NULL, 0);
 	if (ret)
-		pr_err("irq unmask operation failed (%d)\n", ret);
+		dev_err(chip->dev, "failed to unmask irq: %d\n", ret);
 }
 
 static int gb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -360,11 +364,13 @@ static int gb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		ret = gb_operation_sync(ggc->connection,
 					GB_GPIO_TYPE_IRQ_TYPE,
 					&request, sizeof(request), NULL, 0);
-		if (ret)
-			pr_err("irq type operation failed (%d)\n", ret);
+		if (ret) {
+			dev_err(chip->dev, "failed to set irq type: %d\n",
+				ret);
+		}
                 break;
 	default:
-		pr_err("No such irq type %d", type);
+		dev_err(chip->dev, "unsupported irq type: %u\n", type);
 		ret = -EINVAL;
 	}
 
@@ -374,7 +380,7 @@ static int gb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 {
 	struct gb_gpio_controller *ggc;
-	struct gb_connection *connection;
+	struct gb_connection *connection = op->connection;
 	struct gb_message *request;
 	struct gb_gpio_irq_event_request *event;
 	int irq;
@@ -382,17 +388,17 @@ static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 	int ret;
 
 	if (type != GB_GPIO_TYPE_IRQ_EVENT) {
-		pr_err("unsupported unsolicited request\n");
+		dev_err(&connection->dev,
+			"unsupported unsolicited request: %u\n", type);
 		return;
 	}
 
-	connection = op->connection;
 	ggc = connection->private;
 
 	request = op->request;
 	event = request->payload;
 	if (event->which > ggc->line_max) {
-		pr_err("Unsupported hw irq %d\n", event->which);
+		dev_err(ggc->chip.dev, "invalid hw irq: %d\n", event->which);
 		return;
 	}
 	irq = gpio_to_irq(ggc->chip.base + event->which);
@@ -404,8 +410,10 @@ static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 	local_irq_enable();
 
 	ret = gb_operation_response_send(op, 0);
-	if (ret)
-		pr_err("error %d sending response status %d\n", ret, 0);
+	if (ret) {
+		dev_err(ggc->chip.dev,
+			"failed to send response status %d: %d\n", 0, ret);
+	}
 }
 
 static int gb_gpio_request(struct gpio_chip *chip, unsigned offset)
@@ -698,14 +706,15 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 
 	ret = gpiochip_add(gpio);
 	if (ret) {
-		pr_err("Failed to register GPIO\n");
+		dev_err(&connection->dev, "failed to add gpio chip: %d\n",
+			ret);
 		goto err_free_lines;
 	}
 
 	ret = gb_gpio_irqchip_add(gpio, irqc, 0,
 				   handle_simple_irq, IRQ_TYPE_NONE);
 	if (ret) {
-		pr_err("Couldn't add irqchip to Greybus GPIO controller %d\n", ret);
+		dev_err(&connection->dev, "failed to add irq chip: %d\n", ret);
 		goto irqchip_err;
 	}
 
