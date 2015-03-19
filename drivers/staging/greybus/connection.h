@@ -58,8 +58,6 @@ struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 
 void greybus_data_rcvd(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
-__printf(2, 3)
-void gb_connection_err(struct gb_connection *connection, const char *fmt, ...);
 
 void gb_connection_bind_protocol(struct gb_connection *connection);
 

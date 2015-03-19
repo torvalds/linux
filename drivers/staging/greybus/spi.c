@@ -143,9 +143,8 @@ gb_spi_operation_create(struct gb_connection *connection,
 	/* Find number of transfers queued and tx/rx length in the message */
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		if (!xfer->tx_buf && !xfer->rx_buf) {
-			gb_connection_err(connection,
-					  "Bufferless transfer, length %u\n",
-					  xfer->len);
+			dev_err(&connection->dev,
+				"bufferless transfer, length %u\n", xfer->len);
 			return NULL;
 		}
 
@@ -160,8 +159,8 @@ gb_spi_operation_create(struct gb_connection *connection,
 
 	/* Too many transfers ? */
 	if (count > (u32)U16_MAX) {
-		gb_connection_err(connection, "transfer count (%u) too big",
-				  count);
+		dev_err(&connection->dev, "transfer count (%u) too big\n",
+			count);
 		return NULL;
 	}
 
@@ -382,7 +381,7 @@ static int gb_spi_connection_init(struct gb_connection *connection)
 	/* Allocate master with space for data */
 	master = spi_alloc_master(&connection->dev, sizeof(*spi));
 	if (!master) {
-		gb_connection_err(connection, "cannot alloc SPI master\n");
+		dev_err(&connection->dev, "cannot alloc SPI master\n");
 		return -ENOMEM;
 	}
 

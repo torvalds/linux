@@ -178,8 +178,8 @@ gb_i2c_operation_create(struct gb_connection *connection,
 	u32 i;
 
 	if (msg_count > (u32)U16_MAX) {
-		gb_connection_err(connection, "msg_count (%u) too big",
-					msg_count);
+		dev_err(&connection->dev, "msg_count (%u) too big\n",
+			msg_count);
 		return NULL;
 	}
 	op_count = (u16)msg_count;

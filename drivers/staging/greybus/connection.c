@@ -255,25 +255,6 @@ void gb_connection_destroy(struct gb_connection *connection)
 	device_del(&connection->dev);
 }
 
-void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	pr_err("greybus: [%hhu:%hhu:%hu]: %pV\n",
-		connection->bundle->intf->module->module_id,
-		connection->bundle->id,
-		connection->bundle_cport_id, &vaf);
-
-	va_end(args);
-}
-EXPORT_SYMBOL_GPL(gb_connection_err);
-
 int gb_connection_init(struct gb_connection *connection)
 {
 	int ret;

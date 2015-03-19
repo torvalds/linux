@@ -220,7 +220,7 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 		return;
 	}
 
-	gb_connection_err(operation->connection,
+	dev_err(&operation->connection->dev,
 		"unexpected incoming request type 0x%02hhx\n", operation->type);
 	if (gb_operation_result_set(operation, -EPROTONOSUPPORT))
 		queue_work(gb_operation_workqueue, &operation->work);
@@ -793,7 +793,7 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 	operation = gb_operation_create_incoming(connection, operation_id,
 						type, data, size);
 	if (!operation) {
-		gb_connection_err(connection, "can't create operation");
+		dev_err(&connection->dev, "can't create operation\n");
 		return;		/* XXX Respond with pre-allocated ENOMEM */
 	}
 
@@ -830,14 +830,14 @@ static void gb_connection_recv_response(struct gb_connection *connection,
 
 	operation = gb_operation_find(connection, operation_id);
 	if (!operation) {
-		gb_connection_err(connection, "operation not found");
+		dev_err(&connection->dev, "operation not found\n");
 		return;
 	}
 
 	message = operation->response;
 	message_size = sizeof(*message->header) + message->payload_size;
 	if (!errno && size != message_size) {
-		gb_connection_err(connection, "bad message size (%zu != %zu)",
+		dev_err(&connection->dev, "bad message size (%zu != %zu)\n",
 			size, message_size);
 		errno = -EMSGSIZE;
 	}
@@ -865,20 +865,20 @@ void gb_connection_recv(struct gb_connection *connection,
 	u16 operation_id;
 
 	if (connection->state != GB_CONNECTION_STATE_ENABLED) {
-		gb_connection_err(connection, "dropping %zu received bytes",
+		dev_err(&connection->dev, "dropping %zu received bytes\n",
 			size);
 		return;
 	}
 
 	if (size < sizeof(*header)) {
-		gb_connection_err(connection, "message too small");
+		dev_err(&connection->dev, "message too small\n");
 		return;
 	}
 
 	header = data;
 	msg_size = (size_t)le16_to_cpu(header->size);
 	if (msg_size > size) {
-		gb_connection_err(connection, "incomplete message");
+		dev_err(&connection->dev, "incomplete message\n");
 		return;		/* XXX Should still complete operation */
 	}
 
