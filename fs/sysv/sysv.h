@@ -73,7 +73,7 @@ struct sysv_inode_info {
 
 static inline struct sysv_inode_info *SYSV_I(struct inode *inode)
 {
-	return list_entry(inode, struct sysv_inode_info, vfs_inode);
+	return container_of(inode, struct sysv_inode_info, vfs_inode);
 }
 
 static inline struct sysv_sb_info *SYSV_SB(struct super_block *sb)
