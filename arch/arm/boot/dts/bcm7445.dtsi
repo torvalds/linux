@@ -76,7 +76,7 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
-			clock-frequency = <0x4d3f640>;
+			clock-frequency = <81000000>;
 		};
 
 		sun_top_ctrl: syscon@404000 {
