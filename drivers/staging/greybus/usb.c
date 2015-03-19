@@ -140,7 +140,7 @@ static int urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	request->transfer_flags = cpu_to_le32(urb->transfer_flags);
 	request->transfer_buffer_length = cpu_to_le32(urb->transfer_buffer_length);
 	request->interval = cpu_to_le32(urb->interval);
-	request->hcpriv_ep = cpu_to_le64(urb->ep->hcpriv);
+	request->hcpriv_ep = cpu_to_le64((unsigned long)urb->ep->hcpriv);
 	request->number_of_packets = cpu_to_le32(urb->number_of_packets);
 
 	memcpy(request->setup_packet, urb->setup_packet, 8);
@@ -160,7 +160,7 @@ static int urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	int ret;
 
 	urb->ep->hcpriv = NULL;
-	request.hcpriv_ep = cpu_to_le64(urb->hcpriv);
+	request.hcpriv_ep = cpu_to_le64((unsigned long)urb->hcpriv);
 	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_URB_DEQUEUE,
 				&request, sizeof(request), NULL, 0);
 	urb->hcpriv = NULL;
@@ -173,7 +173,7 @@ static void endpoint_disable(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 	struct gb_usb_endpoint_disable_request request;
 	int ret;
 
-	request.hcpriv = cpu_to_le64(ep->hcpriv);
+	request.hcpriv = cpu_to_le64((unsigned long)ep->hcpriv);
 	ret = gb_operation_sync(dev->connection, GB_USB_TYPE_ENDPOINT_DISABLE,
 				&request, sizeof(request), NULL, 0);
 	ep->hcpriv = NULL;
