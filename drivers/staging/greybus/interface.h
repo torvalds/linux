@@ -37,7 +37,7 @@ static inline void gb_interface_set_drvdata(struct gb_interface *intf,
 	dev_set_drvdata(&intf->dev, data);
 }
 
-static inline void * gb_interface__get_drvdata(struct gb_interface *intf)
+static inline void *gb_interface_get_drvdata(struct gb_interface *intf)
 {
 	return dev_get_drvdata(&intf->dev);
 }
