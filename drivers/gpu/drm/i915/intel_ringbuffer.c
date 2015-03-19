@@ -2059,16 +2059,16 @@ static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 {
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	struct drm_i915_gem_request *request;
-	int ret;
+	int ret, new_space;
 
 	if (intel_ring_space(ringbuf) >= n)
 		return 0;
 
 	list_for_each_entry(request, &ring->request_list, list) {
-		if (__intel_ring_space(request->postfix, ringbuf->tail,
-				       ringbuf->size) >= n) {
+		new_space = __intel_ring_space(request->postfix, ringbuf->tail,
+				       ringbuf->size);
+		if (new_space >= n)
 			break;
-		}
 	}
 
 	if (&request->list == &ring->request_list)
@@ -2079,6 +2079,8 @@ static int intel_ring_wait_request(struct intel_engine_cs *ring, int n)
 		return ret;
 
 	i915_gem_retire_requests_ring(ring);
+
+	WARN_ON(intel_ring_space(ringbuf) < new_space);
 
 	return 0;
 }

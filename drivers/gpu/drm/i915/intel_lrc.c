@@ -634,7 +634,7 @@ static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 	struct drm_i915_gem_request *request;
-	int ret;
+	int ret, new_space;
 
 	if (intel_ring_space(ringbuf) >= bytes)
 		return 0;
@@ -650,10 +650,10 @@ static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
 			continue;
 
 		/* Would completion of this request free enough space? */
-		if (__intel_ring_space(request->tail, ringbuf->tail,
-				       ringbuf->size) >= bytes) {
+		new_space = __intel_ring_space(request->postfix, ringbuf->tail,
+				       ringbuf->size);
+		if (new_space >= bytes)
 			break;
-		}
 	}
 
 	if (&request->list == &ring->request_list)
@@ -664,6 +664,8 @@ static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
 		return ret;
 
 	i915_gem_retire_requests_ring(ring);
+
+	WARN_ON(intel_ring_space(ringbuf) < new_space);
 
 	return intel_ring_space(ringbuf) >= bytes ? 0 : -ENOSPC;
 }
