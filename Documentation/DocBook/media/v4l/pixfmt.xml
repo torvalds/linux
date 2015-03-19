@@ -1026,7 +1026,7 @@ The chromaticities of the primary colors and the white reference are:</para>
       	  <term>The luminance (Y') and color difference (Cb and Cr) are obtained with the
 following <constant>V4L2_YCBCR_ENC_BT2020</constant> encoding:</term>
 	  <listitem>
-            <para>Y'&nbsp;=&nbsp;0.2627R'&nbsp;+&nbsp;0.6789G'&nbsp;+&nbsp;0.0593B'</para>
+            <para>Y'&nbsp;=&nbsp;0.2627R'&nbsp;+&nbsp;0.6780G'&nbsp;+&nbsp;0.0593B'</para>
             <para>Cb&nbsp;=&nbsp;-0.1396R'&nbsp;-&nbsp;0.3604G'&nbsp;+&nbsp;0.5B'</para>
             <para>Cr&nbsp;=&nbsp;0.5R'&nbsp;-&nbsp;0.4598G'&nbsp;-&nbsp;0.0402B'</para>
 	  </listitem>
@@ -1040,7 +1040,7 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 	<varlistentry>
       	  <term>Luma:</term>
 	  <listitem>
-            <para>Yc'&nbsp;=&nbsp;(0.2627R&nbsp;+&nbsp;0.6789G&nbsp;+&nbsp;0.0593B)'</para>
+            <para>Yc'&nbsp;=&nbsp;(0.2627R&nbsp;+&nbsp;0.6780G&nbsp;+&nbsp;0.0593B)'</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
@@ -1048,7 +1048,7 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 	<varlistentry>
       	  <term>B'&nbsp;-&nbsp;Yc'&nbsp;&le;&nbsp;0:</term>
 	  <listitem>
-            <para>Cbc&nbsp;=&nbsp;(B'&nbsp;-&nbsp;Y')&nbsp;/&nbsp;1.9404</para>
+            <para>Cbc&nbsp;=&nbsp;(B'&nbsp;-&nbsp;Yc')&nbsp;/&nbsp;1.9404</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
@@ -1056,7 +1056,7 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 	<varlistentry>
       	  <term>B'&nbsp;-&nbsp;Yc'&nbsp;&gt;&nbsp;0:</term>
 	  <listitem>
-            <para>Cbc&nbsp;=&nbsp;(B'&nbsp;-&nbsp;Y')&nbsp;/&nbsp;1.5816</para>
+            <para>Cbc&nbsp;=&nbsp;(B'&nbsp;-&nbsp;Yc')&nbsp;/&nbsp;1.5816</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
