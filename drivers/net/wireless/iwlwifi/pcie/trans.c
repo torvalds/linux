@@ -691,11 +691,15 @@ static int iwl_pcie_rsa_race_bug_wa(struct iwl_trans *trans)
 {
 	u32 val, loop = 1000;
 
-	/* Check the RSA semaphore is accessible - if not, we are in trouble */
+	/*
+	 * Check the RSA semaphore is accessible.
+	 * If the HW isn't locked and the rsa semaphore isn't accessible,
+	 * we are in trouble.
+	 */
 	val = iwl_read_prph(trans, PREG_AUX_BUS_WPROT_0);
 	if (val & (BIT(1) | BIT(17))) {
-		IWL_ERR(trans,
-			"can't access the RSA semaphore it is write protected\n");
+		IWL_INFO(trans,
+			 "can't access the RSA semaphore it is write protected\n");
 		return 0;
 	}
 
