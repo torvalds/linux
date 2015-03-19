@@ -805,8 +805,8 @@
 		 *pinctrl-1 = <&lcdc_gpio>;
 		 */
 		 status = "disabled";
-		 clocks = <&clk_gates16 5>, <&dclk_vop0>, <&clk_gates16 6>, <&clk_npll>;
-		 clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "sclk_pll";
+		 clocks = <&clk_gates16 5>, <&dclk_vop0>, <&clk_gates16 6>, <&clk_npll>, <&pd_vop>;
+		 clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "sclk_pll", "pd_lcdc";
 	};
 
 	adc: adc@ff100000 {
