@@ -641,7 +641,7 @@ static void tx_add_credit(struct xenvif_queue *queue)
 	queue->remaining_credit = min(max_credit, max_burst);
 }
 
-static void tx_credit_callback(unsigned long data)
+void xenvif_tx_credit_callback(unsigned long data)
 {
 	struct xenvif_queue *queue = (struct xenvif_queue *)data;
 	tx_add_credit(queue);
@@ -1169,8 +1169,6 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 	if (size > queue->remaining_credit) {
 		queue->credit_timeout.data     =
 			(unsigned long)queue;
-		queue->credit_timeout.function =
-			tx_credit_callback;
 		mod_timer(&queue->credit_timeout,
 			  next_credit);
 		queue->credit_window_start = next_credit;
