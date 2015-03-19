@@ -137,6 +137,10 @@
 			watchdog@fffffe40 {
 				status = "okay";
 			};
+
+			rtc@fffffeb0 {
+				status = "okay";
+			};
 		};
 
 		nand0: nand@40000000 {
