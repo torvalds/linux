@@ -270,7 +270,6 @@ static void lnet_shuffle_seed(void)
 	do_gettimeofday(&tv);
 	cfs_srand(tv.tv_sec ^ seed[0], tv.tv_usec ^ seed[1]);
 	seeded = 1;
-	return;
 }
 
 /* NB expects LNET_LOCK held */
@@ -355,13 +354,12 @@ lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 		LIBCFS_FREE(route, sizeof(*route));
 		LIBCFS_FREE(rnet, sizeof(*rnet));
 
-		if (rc == -EHOSTUNREACH) { /* gateway is not on a local net */
+		if (rc == -EHOSTUNREACH) /* gateway is not on a local net */
 			return 0;	/* ignore the route entry */
-		} else {
-			CERROR("Error %d creating route %s %d %s\n", rc,
-			       libcfs_net2str(net), hops,
-			       libcfs_nid2str(gateway));
-		}
+		CERROR("Error %d creating route %s %d %s\n", rc,
+		       libcfs_net2str(net), hops,
+		       libcfs_nid2str(gateway));
+
 		return rc;
 	}
 
@@ -607,7 +605,6 @@ lnet_swap_pinginfo(lnet_ping_info_t *info)
 		__swab64s(&stat->ns_nid);
 		__swab32s(&stat->ns_status);
 	}
-	return;
 }
 
 /**
@@ -1011,7 +1008,6 @@ lnet_ping_router_locked(lnet_peer_t *rtr)
 	}
 
 	lnet_peer_decref_locked(rtr);
-	return;
 }
 
 int
@@ -1084,7 +1080,6 @@ lnet_router_checker_stop(void)
 
 	rc = LNetEQFree(the_lnet.ln_rc_eqh);
 	LASSERT(rc == 0);
-	return;
 }
 
 static void
@@ -1582,7 +1577,6 @@ EXPORT_SYMBOL(lnet_notify);
 void
 lnet_get_tunables(void)
 {
-	return;
 }
 
 #else
@@ -1671,7 +1665,6 @@ lnet_router_checker(void)
 	lnet_net_unlock(0);
 
 	running = 0; /* lock only needed for the recursion check */
-	return;
 }
 
 /* NB lnet_peers_start_down depends on me,
