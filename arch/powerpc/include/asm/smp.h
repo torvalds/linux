@@ -125,7 +125,6 @@ extern irqreturn_t smp_ipi_demux(void);
 
 void smp_init_pSeries(void);
 void smp_init_cell(void);
-void smp_init_celleb(void);
 void smp_setup_cpu_maps(void);
 
 extern int __cpu_disable(void);

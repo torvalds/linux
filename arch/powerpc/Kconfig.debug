@@ -193,13 +193,6 @@ config PPC_EARLY_DEBUG_PAS_REALMODE
 	  Select this to enable early debugging for PA Semi.
 	  Output will be on UART0.
 
-config PPC_EARLY_DEBUG_BEAT
-	bool "Beat HV Console"
-	depends on PPC_CELLEB
-	select PPC_UDBG_BEAT
-	help
-	  Select this to enable early debugging for Celleb with Beat.
-
 config PPC_EARLY_DEBUG_44x
 	bool "Early serial debugging for IBM/AMCC 44x CPUs"
 	depends on 44x
