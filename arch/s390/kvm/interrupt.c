@@ -1514,12 +1514,10 @@ void kvm_s390_clear_stop_irq(struct kvm_vcpu *vcpu)
 	spin_unlock(&li->lock);
 }
 
-int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
+static int do_inject_vcpu(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 {
-	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	int rc;
 
-	spin_lock(&li->lock);
 	switch (irq->type) {
 	case KVM_S390_PROGRAM_INT:
 		VCPU_EVENT(vcpu, 3, "inject: program check %d (from user)",
@@ -1559,6 +1557,17 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	default:
 		rc = -EINVAL;
 	}
+
+	return rc;
+}
+
+int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	int rc;
+
+	spin_lock(&li->lock);
+	rc = do_inject_vcpu(vcpu, irq);
 	spin_unlock(&li->lock);
 	if (!rc)
 		kvm_s390_vcpu_wakeup(vcpu);
