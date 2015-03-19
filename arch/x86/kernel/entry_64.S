@@ -258,7 +258,7 @@ GLOBAL(system_call_after_swapgs)
 	SAVE_C_REGS_EXCEPT_RAX_RCX_R11
 	movq	$-ENOSYS,RAX(%rsp)
 	CFI_REL_OFFSET rip,RIP
-	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,SIZEOF_PTREGS)
 	jnz tracesys
 system_call_fastpath:
 #if __SYSCALL_MASK == ~0
@@ -276,7 +276,7 @@ system_call_fastpath:
  * Has incompletely filled pt_regs, iret frame is also incomplete.
  */
 ret_from_sys_call:
-	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,RIP)
+	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,SIZEOF_PTREGS)
 	jnz int_ret_from_sys_call_fixup	/* Go the the slow path */
 
 	LOCKDEP_SYS_EXIT

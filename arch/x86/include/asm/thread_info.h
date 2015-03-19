@@ -207,10 +207,12 @@ static inline unsigned long current_stack_pointer(void)
 	_ASM_SUB $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg ;
 
 /*
- * Same if PER_CPU_VAR(kernel_stack) is, perhaps with some offset, already in
- * a certain register (to be used in assembler memory operands).
+ * ASM operand which evaluates to thread_info address
+ * if it is known that "reg" is exactly "off" bytes below stack top.
+ * Example (fetch thread_info->fieldname):
+ *  mov TI_fieldname+THREAD_INFO(reg, off),%eax
  */
-#define THREAD_INFO(reg, off) KERNEL_STACK_OFFSET+(off)-THREAD_SIZE(reg)
+#define THREAD_INFO(reg, off) ((off)-THREAD_SIZE)(reg)
 
 #endif
 
