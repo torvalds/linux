@@ -2379,7 +2379,7 @@ static netdev_features_t mlx4_en_features_check(struct sk_buff *skb,
 }
 #endif
 
-int mlx4_en_set_tx_maxrate(struct net_device *dev, int queue_index, u32 maxrate)
+static int mlx4_en_set_tx_maxrate(struct net_device *dev, int queue_index, u32 maxrate)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_tx_ring *tx_ring = priv->tx_ring[queue_index];
