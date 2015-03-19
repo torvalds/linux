@@ -477,7 +477,7 @@ static int gb_gpio_get(struct gpio_chip *chip, unsigned offset)
 	ret = gb_gpio_get_value_operation(gb_gpio_controller, which);
 	if (ret)
 		return ret;
-	return (int)gb_gpio_controller->lines[which].value;
+	return gb_gpio_controller->lines[which].value;
 }
 
 static void gb_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
