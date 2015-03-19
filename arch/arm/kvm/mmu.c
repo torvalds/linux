@@ -35,6 +35,7 @@ extern char  __hyp_idmap_text_start[], __hyp_idmap_text_end[];
 
 static pgd_t *boot_hyp_pgd;
 static pgd_t *hyp_pgd;
+static pgd_t *merged_hyp_pgd;
 static DEFINE_MUTEX(kvm_hyp_pgd_mutex);
 
 static unsigned long hyp_idmap_start;
@@ -433,6 +434,11 @@ void free_hyp_pgds(void)
 
 		free_pages((unsigned long)hyp_pgd, hyp_pgd_order);
 		hyp_pgd = NULL;
+	}
+	if (merged_hyp_pgd) {
+		clear_page(merged_hyp_pgd);
+		free_page((unsigned long)merged_hyp_pgd);
+		merged_hyp_pgd = NULL;
 	}
 
 	mutex_unlock(&kvm_hyp_pgd_mutex);
@@ -1473,12 +1479,18 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
 
 phys_addr_t kvm_mmu_get_httbr(void)
 {
-	return virt_to_phys(hyp_pgd);
+	if (__kvm_cpu_uses_extended_idmap())
+		return virt_to_phys(merged_hyp_pgd);
+	else
+		return virt_to_phys(hyp_pgd);
 }
 
 phys_addr_t kvm_mmu_get_boot_httbr(void)
 {
-	return virt_to_phys(boot_hyp_pgd);
+	if (__kvm_cpu_uses_extended_idmap())
+		return virt_to_phys(merged_hyp_pgd);
+	else
+		return virt_to_phys(boot_hyp_pgd);
 }
 
 phys_addr_t kvm_get_idmap_vector(void)
@@ -1519,6 +1531,17 @@ int kvm_mmu_init(void)
 		kvm_err("Failed to idmap %lx-%lx\n",
 			hyp_idmap_start, hyp_idmap_end);
 		goto out;
+	}
+
+	if (__kvm_cpu_uses_extended_idmap()) {
+		merged_hyp_pgd = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+		if (!merged_hyp_pgd) {
+			kvm_err("Failed to allocate extra HYP pgd\n");
+			goto out;
+		}
+		__kvm_extend_hypmap(boot_hyp_pgd, hyp_pgd, merged_hyp_pgd,
+				    hyp_idmap_start);
+		return 0;
 	}
 
 	/* Map the very same page at the trampoline VA */
