@@ -448,10 +448,9 @@ source "drivers/crypto/vmx/Kconfig"
 config CRYPTO_DEV_IMGTEC_HASH
 	depends on MIPS || COMPILE_TEST
 	tristate "Imagination Technologies hardware hash accelerator"
-	select CRYPTO_ALG_API
+	select CRYPTO_ALGAPI
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
-	select CRYPTO_SHA224
 	select CRYPTO_SHA256
 	select CRYPTO_HASH
 	help
