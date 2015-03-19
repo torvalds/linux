@@ -23,10 +23,19 @@
 	VMLINUX_SYMBOL(__idmap_text_start) = .;				\
 	*(.idmap.text)							\
 	VMLINUX_SYMBOL(__idmap_text_end) = .;				\
-	. = ALIGN(32);							\
+	. = ALIGN(1 << LOG2CEIL(__hyp_idmap_size));			\
 	VMLINUX_SYMBOL(__hyp_idmap_text_start) = .;			\
 	*(.hyp.idmap.text)						\
 	VMLINUX_SYMBOL(__hyp_idmap_text_end) = .;
+
+/*
+ * If the HYP idmap .text section is populated, it needs to be positioned
+ * such that it will not cross a page boundary in the final output image.
+ * So align it to the section size rounded up to the next power of 2.
+ * If __hyp_idmap_size is undefined, the section will be empty so define
+ * it as 0 in that case.
+ */
+PROVIDE(__hyp_idmap_size = 0);
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define ARM_CPU_DISCARD(x)
@@ -346,8 +355,11 @@ SECTIONS
  */
 ASSERT((__proc_info_end - __proc_info_begin), "missing CPU support")
 ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")
+
 /*
- * The HYP init code can't be more than a page long.
+ * The HYP init code can't be more than a page long,
+ * and should not cross a page boundary.
  * The above comment applies as well.
  */
-ASSERT(((__hyp_idmap_text_end - __hyp_idmap_text_start) <= PAGE_SIZE), "HYP init code too big")
+ASSERT((__hyp_idmap_text_start & ~PAGE_MASK) + __hyp_idmap_size <= PAGE_SIZE,
+	"HYP init code too big or misaligned")

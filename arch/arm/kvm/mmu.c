@@ -37,7 +37,6 @@ static pgd_t *boot_hyp_pgd;
 static pgd_t *hyp_pgd;
 static DEFINE_MUTEX(kvm_hyp_pgd_mutex);
 
-static void *init_bounce_page;
 static unsigned long hyp_idmap_start;
 static unsigned long hyp_idmap_end;
 static phys_addr_t hyp_idmap_vector;
@@ -404,9 +403,6 @@ void free_boot_hyp_pgd(void)
 
 	if (hyp_pgd)
 		unmap_range(NULL, hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
-
-	free_page((unsigned long)init_bounce_page);
-	init_bounce_page = NULL;
 
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 }
@@ -1498,39 +1494,11 @@ int kvm_mmu_init(void)
 	hyp_idmap_end = kvm_virt_to_phys(__hyp_idmap_text_end);
 	hyp_idmap_vector = kvm_virt_to_phys(__kvm_hyp_init);
 
-	if ((hyp_idmap_start ^ hyp_idmap_end) & PAGE_MASK) {
-		/*
-		 * Our init code is crossing a page boundary. Allocate
-		 * a bounce page, copy the code over and use that.
-		 */
-		size_t len = __hyp_idmap_text_end - __hyp_idmap_text_start;
-		phys_addr_t phys_base;
-
-		init_bounce_page = (void *)__get_free_page(GFP_KERNEL);
-		if (!init_bounce_page) {
-			kvm_err("Couldn't allocate HYP init bounce page\n");
-			err = -ENOMEM;
-			goto out;
-		}
-
-		memcpy(init_bounce_page, __hyp_idmap_text_start, len);
-		/*
-		 * Warning: the code we just copied to the bounce page
-		 * must be flushed to the point of coherency.
-		 * Otherwise, the data may be sitting in L2, and HYP
-		 * mode won't be able to observe it as it runs with
-		 * caches off at that point.
-		 */
-		kvm_flush_dcache_to_poc(init_bounce_page, len);
-
-		phys_base = kvm_virt_to_phys(init_bounce_page);
-		hyp_idmap_vector += phys_base - hyp_idmap_start;
-		hyp_idmap_start = phys_base;
-		hyp_idmap_end = phys_base + len;
-
-		kvm_info("Using HYP init bounce page @%lx\n",
-			 (unsigned long)phys_base);
-	}
+	/*
+	 * We rely on the linker script to ensure at build time that the HYP
+	 * init code does not cross a page boundary.
+	 */
+	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
 	hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
 	boot_hyp_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, hyp_pgd_order);
