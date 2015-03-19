@@ -1126,11 +1126,23 @@ arp_accept - BOOLEAN
 	gratuitous arp frame, the arp table will be updated regardless
 	if this setting is on or off.
 
+mcast_solicit - INTEGER
+	The maximum number of multicast probes in INCOMPLETE state,
+	when the associated hardware address is unknown.  Defaults
+	to 3.
+
+ucast_solicit - INTEGER
+	The maximum number of unicast probes in PROBE state, when
+	the hardware address is being reconfirmed.  Defaults to 3.
 
 app_solicit - INTEGER
 	The maximum number of probes to send to the user space ARP daemon
 	via netlink before dropping back to multicast probes (see
-	mcast_solicit).  Defaults to 0.
+	mcast_resolicit).  Defaults to 0.
+
+mcast_resolicit - INTEGER
+	The maximum number of multicast probes after unicast and
+	app probes in PROBE state.  Defaults to 0.
 
 disable_policy - BOOLEAN
 	Disable IPSEC policy (SPD) for this interface
