@@ -1101,7 +1101,6 @@ static void sparc_pmu_del(struct perf_event *event, int _flags)
 	int i;
 
 	local_irq_save(flags);
-	perf_pmu_disable(event->pmu);
 
 	for (i = 0; i < cpuc->n_events; i++) {
 		if (event == cpuc->event[i]) {
@@ -1127,7 +1126,6 @@ static void sparc_pmu_del(struct perf_event *event, int _flags)
 		}
 	}
 
-	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 }
 
@@ -1361,7 +1359,6 @@ static int sparc_pmu_add(struct perf_event *event, int ef_flags)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	perf_pmu_disable(event->pmu);
 
 	n0 = cpuc->n_events;
 	if (n0 >= sparc_pmu->max_hw_events)
@@ -1394,7 +1391,6 @@ nocheck:
 
 	ret = 0;
 out:
-	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 	return ret;
 }
