@@ -4143,6 +4143,10 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 
 	bound = vma ? vma->bound : 0;
 	if (vma == NULL || !drm_mm_node_allocated(&vma->node)) {
+		/* In true PPGTT, bind has possibly changed PDEs, which
+		 * means we must do a context switch before the GPU can
+		 * accurately read some of the VMAs.
+		 */
 		vma = i915_gem_object_bind_to_vm(obj, vm, ggtt_view, alignment,
 						 flags);
 		if (IS_ERR(vma))

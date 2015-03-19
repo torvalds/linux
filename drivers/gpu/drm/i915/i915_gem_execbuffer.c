@@ -1251,6 +1251,13 @@ i915_gem_ringbuffer_submission(struct drm_device *dev, struct drm_file *file,
 	if (ret)
 		goto error;
 
+	if (ctx->ppgtt)
+		WARN(ctx->ppgtt->pd_dirty_rings & (1<<ring->id),
+			"%s didn't clear reload\n", ring->name);
+	else if (dev_priv->mm.aliasing_ppgtt)
+		WARN(dev_priv->mm.aliasing_ppgtt->pd_dirty_rings &
+			(1<<ring->id), "%s didn't clear reload\n", ring->name);
+
 	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
 	instp_mask = I915_EXEC_CONSTANTS_MASK;
 	switch (instp_mode) {

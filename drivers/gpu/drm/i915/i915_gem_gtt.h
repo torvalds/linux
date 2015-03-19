@@ -300,6 +300,7 @@ struct i915_hw_ppgtt {
 	struct i915_address_space base;
 	struct kref ref;
 	struct drm_mm_node node;
+	unsigned long pd_dirty_rings;
 	unsigned num_pd_entries;
 	unsigned num_pd_pages; /* gen8+ */
 	union {
