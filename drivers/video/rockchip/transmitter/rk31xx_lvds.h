@@ -132,6 +132,7 @@ struct rk_lvds_device {
 	void __iomem  		*regbase;
 	void __iomem		*ctrl_reg;
 	struct regmap		*grf_lvds_base;
+	struct clk    		*pd;  /*power domain*/
 	struct clk    		*pclk;  /*phb clk*/
 	struct clk    		*ctrl_pclk;	/* mipi ctrl pclk*/
 	struct clk    		*ctrl_hclk;	/* mipi ctrl hclk*/
