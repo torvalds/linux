@@ -1385,7 +1385,7 @@ static int __dev_close(struct net_device *dev)
 	return retval;
 }
 
-static int dev_close_many(struct list_head *head)
+int dev_close_many(struct list_head *head, bool unlink)
 {
 	struct net_device *dev, *tmp;
 
@@ -1399,11 +1399,13 @@ static int dev_close_many(struct list_head *head)
 	list_for_each_entry_safe(dev, tmp, head, close_list) {
 		rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING, GFP_KERNEL);
 		call_netdevice_notifiers(NETDEV_DOWN, dev);
-		list_del_init(&dev->close_list);
+		if (unlink)
+			list_del_init(&dev->close_list);
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL(dev_close_many);
 
 /**
  *	dev_close - shutdown an interface.
@@ -1420,7 +1422,7 @@ int dev_close(struct net_device *dev)
 		LIST_HEAD(single);
 
 		list_add(&dev->close_list, &single);
-		dev_close_many(&single);
+		dev_close_many(&single, true);
 		list_del(&single);
 	}
 	return 0;
@@ -5986,7 +5988,7 @@ static void rollback_registered_many(struct list_head *head)
 	/* If device is running, close it first. */
 	list_for_each_entry(dev, head, unreg_list)
 		list_add_tail(&dev->close_list, &close_head);
-	dev_close_many(&close_head);
+	dev_close_many(&close_head, true);
 
 	list_for_each_entry(dev, head, unreg_list) {
 		/* And unlink it from device chain. */
