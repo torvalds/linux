@@ -248,11 +248,14 @@ int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 	struct drm_mode_config *config = &dev->mode_config;
 
 	/* FIXME: Mode prop is missing, which also controls ->enable. */
-	if (property == config->prop_active) {
+	if (property == config->prop_active)
 		state->active = val;
-	} else if (crtc->funcs->atomic_set_property)
+	else if (crtc->funcs->atomic_set_property)
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
-	return -EINVAL;
+	else
+		return -EINVAL;
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_crtc_set_property);
 
