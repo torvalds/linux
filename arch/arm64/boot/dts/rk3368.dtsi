@@ -438,9 +438,9 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0>;
+		pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0 &spi1_cs1>;
 		rockchip,spi-src-clk = <1>;
-		num-cs = <1>;
+		num-cs = <2>;
 		clocks = <&clk_spi1>, <&clk_gates19 5>;
 		clock-names = "spi", "pclk_spi1";
 		//dmas = <&pdma1 13>, <&pdma1 14>;
@@ -1622,6 +1622,9 @@
 			};
 			spi1_tx: spi1-tx {
 				rockchip,pins = <1 GPIO_C1 RK_FUNC_2 &pcfg_pull_up>;
+			};
+			spi1_cs1: spi1-cs1 {
+				rockchip,pins = <3 GPIO_D4 RK_FUNC_2 &pcfg_pull_up>;
 			};
 		};
 
