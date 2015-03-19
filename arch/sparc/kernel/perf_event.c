@@ -792,6 +792,42 @@ static const struct sparc_pmu niagara4_pmu = {
 	.num_pic_regs	= 4,
 };
 
+static void sparc_m7_write_pmc(int idx, u64 val)
+{
+	u64 pcr;
+
+	pcr = pcr_ops->read_pcr(idx);
+	/* ensure ov and ntc are reset */
+	pcr &= ~(PCR_N4_OV | PCR_N4_NTC);
+
+	pcr_ops->write_pic(idx, val & 0xffffffff);
+
+	pcr_ops->write_pcr(idx, pcr);
+}
+
+static const struct sparc_pmu sparc_m7_pmu = {
+	.event_map	= niagara4_event_map,
+	.cache_map	= &niagara4_cache_map,
+	.max_events	= ARRAY_SIZE(niagara4_perfmon_event_map),
+	.read_pmc	= sparc_vt_read_pmc,
+	.write_pmc	= sparc_m7_write_pmc,
+	.upper_shift	= 5,
+	.lower_shift	= 5,
+	.event_mask	= 0x7ff,
+	.user_bit	= PCR_N4_UTRACE,
+	.priv_bit	= PCR_N4_STRACE,
+
+	/* We explicitly don't support hypervisor tracing. */
+	.hv_bit		= 0,
+
+	.irq_bit	= PCR_N4_TOE,
+	.upper_nop	= 0,
+	.lower_nop	= 0,
+	.flags		= 0,
+	.max_hw_events	= 4,
+	.num_pcrs	= 4,
+	.num_pic_regs	= 4,
+};
 static const struct sparc_pmu *sparc_pmu __read_mostly;
 
 static u64 event_encoding(u64 event_id, int idx)
@@ -1656,6 +1692,10 @@ static bool __init supported_pmu(void)
 	if (!strcmp(sparc_pmu_type, "niagara4") ||
 	    !strcmp(sparc_pmu_type, "niagara5")) {
 		sparc_pmu = &niagara4_pmu;
+		return true;
+	}
+	if (!strcmp(sparc_pmu_type, "sparc-m7")) {
+		sparc_pmu = &sparc_m7_pmu;
 		return true;
 	}
 	return false;
