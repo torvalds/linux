@@ -10,7 +10,6 @@
  *
  * */
 
-
 #ifndef HMC5843_CORE_H
 #define HMC5843_CORE_H
 
