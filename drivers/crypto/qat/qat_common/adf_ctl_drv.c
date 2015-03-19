@@ -159,14 +159,16 @@ static int adf_add_key_value_data(struct adf_accel_dev *accel_dev,
 		if (adf_cfg_add_key_value_param(accel_dev, section,
 						key_val->key, (void *)val,
 						key_val->type)) {
-			pr_err("QAT: failed to add keyvalue.\n");
+			dev_err(&GET_DEV(accel_dev),
+				"failed to add hex keyvalue.\n");
 			return -EFAULT;
 		}
 	} else {
 		if (adf_cfg_add_key_value_param(accel_dev, section,
 						key_val->key, key_val->val,
 						key_val->type)) {
-			pr_err("QAT: failed to add keyvalue.\n");
+			dev_err(&GET_DEV(accel_dev),
+				"failed to add keyvalue.\n");
 			return -EFAULT;
 		}
 	}
@@ -185,12 +187,14 @@ static int adf_copy_key_value_data(struct adf_accel_dev *accel_dev,
 	while (section_head) {
 		if (copy_from_user(&section, (void __user *)section_head,
 				   sizeof(*section_head))) {
-			pr_err("QAT: failed to copy section info\n");
+			dev_err(&GET_DEV(accel_dev),
+				"failed to copy section info\n");
 			goto out_err;
 		}
 
 		if (adf_cfg_section_add(accel_dev, section.name)) {
-			pr_err("QAT: failed to add section.\n");
+			dev_err(&GET_DEV(accel_dev),
+				"failed to add section.\n");
 			goto out_err;
 		}
 
@@ -199,7 +203,8 @@ static int adf_copy_key_value_data(struct adf_accel_dev *accel_dev,
 		while (params_head) {
 			if (copy_from_user(&key_val, (void __user *)params_head,
 					   sizeof(key_val))) {
-				pr_err("QAT: Failed to copy keyvalue.\n");
+				dev_err(&GET_DEV(accel_dev),
+					"Failed to copy keyvalue.\n");
 				goto out_err;
 			}
 			if (adf_add_key_value_data(accel_dev, section.name,
@@ -258,8 +263,9 @@ static int adf_ctl_is_device_in_use(int id)
 
 		if (id == dev->accel_id || id == ADF_CFG_ALL_DEVICES) {
 			if (adf_devmgr_in_reset(dev) || adf_dev_in_use(dev)) {
-				pr_info("QAT: device qat_dev%d is busy\n",
-					dev->accel_id);
+				dev_info(&GET_DEV(dev),
+					 "device qat_dev%d is busy\n",
+					 dev->accel_id);
 				return -EBUSY;
 			}
 		}
@@ -280,7 +286,8 @@ static int adf_ctl_stop_devices(uint32_t id)
 				continue;
 
 			if (adf_dev_stop(accel_dev)) {
-				pr_err("QAT: Failed to stop qat_dev%d\n", id);
+				dev_err(&GET_DEV(accel_dev),
+					"Failed to stop qat_dev%d\n", id);
 				ret = -EFAULT;
 			} else {
 				adf_dev_shutdown(accel_dev);
@@ -343,17 +350,20 @@ static int adf_ctl_ioctl_dev_start(struct file *fp, unsigned int cmd,
 	}
 
 	if (!adf_dev_started(accel_dev)) {
-		pr_info("QAT: Starting acceleration device qat_dev%d.\n",
-			ctl_data->device_id);
+		dev_info(&GET_DEV(accel_dev),
+			 "Starting acceleration device qat_dev%d.\n",
+			 ctl_data->device_id);
 		ret = adf_dev_init(accel_dev);
 		if (!ret)
 			ret = adf_dev_start(accel_dev);
 	} else {
-		pr_info("QAT: Acceleration device qat_dev%d already started.\n",
-			ctl_data->device_id);
+		dev_info(&GET_DEV(accel_dev),
+			 "Acceleration device qat_dev%d already started.\n",
+			 ctl_data->device_id);
 	}
 	if (ret) {
-		pr_err("QAT: Failed to start qat_dev%d\n", ctl_data->device_id);
+		dev_err(&GET_DEV(accel_dev), "Failed to start qat_dev%d\n",
+			ctl_data->device_id);
 		adf_dev_stop(accel_dev);
 		adf_dev_shutdown(accel_dev);
 	}
@@ -408,7 +418,7 @@ static int adf_ctl_ioctl_get_status(struct file *fp, unsigned int cmd,
 
 	if (copy_to_user((void __user *)arg, &dev_info,
 			 sizeof(struct adf_dev_status_info))) {
-		pr_err("QAT: failed to copy status.\n");
+		dev_err(&GET_DEV(accel_dev), "failed to copy status.\n");
 		return -EFAULT;
 	}
 	return 0;

@@ -116,7 +116,7 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 		accel_dev = NULL;
 	}
 	if (!accel_dev) {
-		pr_err("QAT: Could not find device on node %d\n", node);
+		pr_err("QAT: Could not find a device on node %d\n", node);
 		accel_dev = adf_devmgr_get_first();
 	}
 	if (!accel_dev || !adf_dev_started(accel_dev))
@@ -137,7 +137,8 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 		if (atomic_add_return(1, &inst_best->refctr) == 1) {
 			if (adf_dev_get(accel_dev)) {
 				atomic_dec(&inst_best->refctr);
-				pr_err("QAT: Could increment dev refctr\n");
+				dev_err(&GET_DEV(accel_dev),
+					"Could not increment dev refctr\n");
 				return NULL;
 			}
 		}

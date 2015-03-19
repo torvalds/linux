@@ -142,7 +142,8 @@ int adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
 						  dev_cfg_data,
 						  &qat_dev_cfg_fops);
 	if (!dev_cfg_data->debug) {
-		pr_err("QAT: Failed to create qat cfg debugfs entry.\n");
+		dev_err(&GET_DEV(accel_dev),
+			"Failed to create qat cfg debugfs entry.\n");
 		kfree(dev_cfg_data);
 		accel_dev->cfg = NULL;
 		return -EFAULT;
@@ -305,7 +306,7 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 		snprintf(key_val->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES,
 			 "0x%lx", (unsigned long)val);
 	} else {
-		pr_err("QAT: Unknown type given.\n");
+		dev_err(&GET_DEV(accel_dev), "Unknown type given.\n");
 		kfree(key_val);
 		return -1;
 	}

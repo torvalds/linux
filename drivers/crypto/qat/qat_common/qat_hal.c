@@ -718,7 +718,7 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 	handle->hal_handle->ae_max_num = max_en_ae_id + 1;
 	/* take all AEs out of reset */
 	if (qat_hal_clr_reset(handle)) {
-		pr_err("QAT: qat_hal_clr_reset error\n");
+		dev_err(&GET_DEV(accel_dev), "qat_hal_clr_reset error\n");
 		goto out_err;
 	}
 	if (qat_hal_clear_gpr(handle))

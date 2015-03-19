@@ -150,7 +150,8 @@ void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 		*arb_map_config = thrd_to_arb_map_sku6;
 		break;
 	default:
-		pr_err("QAT: The configuration doesn't match any SKU");
+		dev_err(&GET_DEV(accel_dev),
+			"The configuration doesn't match any SKU");
 		*arb_map_config = NULL;
 	}
 }
