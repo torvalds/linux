@@ -59,7 +59,7 @@
 #define ADF_RING_SYM_TX "RingSymTx"
 #define ADF_RING_RND_TX "RingNrbgTx"
 #define ADF_RING_ASYM_RX "RingAsymRx"
-#define ADF_RING_SYM_RX "RinSymRx"
+#define ADF_RING_SYM_RX "RingSymRx"
 #define ADF_RING_RND_RX "RingNrbgRx"
 #define ADF_RING_DC_TX "RingTx"
 #define ADF_RING_DC_RX "RingRx"
