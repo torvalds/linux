@@ -51,8 +51,8 @@
 
 #define ATH10K_MAX_NUM_MGMT_PENDING 128
 
-/* number of failed packets */
-#define ATH10K_KICKOUT_THRESHOLD 50
+/* number of failed packets (20 packets with 16 sw reties each) */
+#define ATH10K_KICKOUT_THRESHOLD (20 * 16)
 
 /*
  * Use insanely high numbers to make sure that the firmware implementation
