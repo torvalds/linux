@@ -208,7 +208,7 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, char *str,
 		return -1;
 	}
 #endif
-	if (!user_mode(regs)) {
+	if (!user_mode_ignore_vm86(regs)) {
 		if (!fixup_exception(regs)) {
 			tsk->thread.error_code = error_code;
 			tsk->thread.trap_nr = trapnr;
@@ -471,7 +471,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 #endif
 
 	tsk = current;
-	if (!user_mode(regs)) {
+	if (!user_mode_ignore_vm86(regs)) {
 		if (fixup_exception(regs))
 			goto exit;
 
@@ -688,7 +688,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	 * We already checked v86 mode above, so we can check for kernel mode
 	 * by just checking the CPL of CS.
 	 */
-	if ((dr6 & DR_STEP) && !user_mode(regs)) {
+	if ((dr6 & DR_STEP) && !user_mode_ignore_vm86(regs)) {
 		tsk->thread.debugreg6 &= ~DR_STEP;
 		set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
 		regs->flags &= ~X86_EFLAGS_TF;
