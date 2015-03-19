@@ -960,6 +960,8 @@ out:
 	cpuc->pcr[0] |= cpuc->event[0]->hw.config_base;
 }
 
+static void sparc_pmu_start(struct perf_event *event, int flags);
+
 /* On this PMU each PIC has it's own PCR control register.  */
 static void calculate_multiple_pcrs(struct cpu_hw_events *cpuc)
 {
@@ -972,20 +974,13 @@ static void calculate_multiple_pcrs(struct cpu_hw_events *cpuc)
 		struct perf_event *cp = cpuc->event[i];
 		struct hw_perf_event *hwc = &cp->hw;
 		int idx = hwc->idx;
-		u64 enc;
 
 		if (cpuc->current_idx[i] != PIC_NO_INDEX)
 			continue;
 
-		sparc_perf_event_set_period(cp, hwc, idx);
 		cpuc->current_idx[i] = idx;
 
-		enc = perf_event_get_enc(cpuc->events[i]);
-		cpuc->pcr[idx] &= ~mask_for_index(idx);
-		if (hwc->state & PERF_HES_STOPPED)
-			cpuc->pcr[idx] |= nop_for_index(idx);
-		else
-			cpuc->pcr[idx] |= event_encoding(enc, idx);
+		sparc_pmu_start(cp, PERF_EF_RELOAD);
 	}
 out:
 	for (i = 0; i < cpuc->n_events; i++) {
