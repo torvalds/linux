@@ -513,6 +513,9 @@ nfsd4_return_client_layouts(struct svc_rqst *rqstp,
 
 	spin_lock(&clp->cl_lock);
 	list_for_each_entry_safe(ls, n, &clp->cl_lo_states, ls_perclnt) {
+		if (ls->ls_layout_type != lrp->lr_layout_type)
+			continue;
+
 		if (lrp->lr_return_type == RETURN_FSID &&
 		    !fh_fsid_match(&ls->ls_stid.sc_file->fi_fhandle,
 				   &cstate->current_fh.fh_handle))
