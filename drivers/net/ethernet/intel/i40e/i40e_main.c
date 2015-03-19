@@ -5896,6 +5896,10 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		case i40e_aqc_opc_send_msg_to_peer:
 			dev_info(&pf->pdev->dev, "ARQ: Msg from other pf\n");
 			break;
+		case i40e_aqc_opc_nvm_erase:
+		case i40e_aqc_opc_nvm_update:
+			i40e_debug(&pf->hw, I40E_DEBUG_NVM, "ARQ NVM operation completed\n");
+			break;
 		default:
 			dev_info(&pf->pdev->dev,
 				 "ARQ Error: Unknown event 0x%04x received\n",
