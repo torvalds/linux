@@ -845,8 +845,10 @@ int tipc_link_xmit(struct net *net, struct sk_buff_head *list, u32 dnode,
 	if (link)
 		return rc;
 
-	if (likely(in_own_node(net, dnode)))
-		return tipc_sk_rcv(net, list);
+	if (likely(in_own_node(net, dnode))) {
+		tipc_sk_rcv(net, list);
+		return 0;
+	}
 
 	__skb_queue_purge(list);
 	return rc;
