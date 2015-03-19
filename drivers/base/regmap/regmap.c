@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 
 #define CREATE_TRACE_POINTS
-#include <trace/events/regmap.h>
+#include "trace.h"
 
 #include "internal.h"
 
