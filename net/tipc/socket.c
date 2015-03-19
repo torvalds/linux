@@ -74,6 +74,7 @@
  * @link_cong: non-zero if owner must sleep because of link congestion
  * @sent_unacked: # messages sent by socket, and not yet acked by peer
  * @rcv_unacked: # messages read by user, but not yet acked back to peer
+ * @remote: 'connected' peer for dgram/rdm
  * @node: hash table node
  * @rcu: rcu struct for tipc_sock
  */
@@ -96,6 +97,7 @@ struct tipc_sock {
 	bool link_cong;
 	uint sent_unacked;
 	uint rcv_unacked;
+	struct sockaddr_tipc remote;
 	struct rhash_head node;
 	struct rcu_head rcu;
 };
@@ -854,22 +856,23 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dsz)
 	u32 dnode, dport;
 	struct sk_buff_head *pktchain = &sk->sk_write_queue;
 	struct sk_buff *skb;
-	struct tipc_name_seq *seq = &dest->addr.nameseq;
+	struct tipc_name_seq *seq;
 	struct iov_iter save;
 	u32 mtu;
 	long timeo;
 	int rc;
 
-	if (unlikely(!dest))
-		return -EDESTADDRREQ;
-
-	if (unlikely((m->msg_namelen < sizeof(*dest)) ||
-		     (dest->family != AF_TIPC)))
-		return -EINVAL;
-
 	if (dsz > TIPC_MAX_USER_MSG_SIZE)
 		return -EMSGSIZE;
-
+	if (unlikely(!dest)) {
+		if (tsk->connected && sock->state == SS_READY)
+			dest = &tsk->remote;
+		else
+			return -EDESTADDRREQ;
+	} else if (unlikely(m->msg_namelen < sizeof(*dest)) ||
+		   dest->family != AF_TIPC) {
+		return -EINVAL;
+	}
 	if (unlikely(sock->state != SS_READY)) {
 		if (sock->state == SS_LISTENING)
 			return -EPIPE;
@@ -882,7 +885,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dsz)
 			tsk->conn_instance = dest->addr.name.name.instance;
 		}
 	}
-
+	seq = &dest->addr.nameseq;
 	timeo = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
 
 	if (dest->addrtype == TIPC_ADDR_MCAST) {
@@ -1833,17 +1836,24 @@ static int tipc_connect(struct socket *sock, struct sockaddr *dest,
 			int destlen, int flags)
 {
 	struct sock *sk = sock->sk;
+	struct tipc_sock *tsk = tipc_sk(sk);
 	struct sockaddr_tipc *dst = (struct sockaddr_tipc *)dest;
 	struct msghdr m = {NULL,};
-	long timeout = (flags & O_NONBLOCK) ? 0 : tipc_sk(sk)->conn_timeout;
+	long timeout = (flags & O_NONBLOCK) ? 0 : tsk->conn_timeout;
 	socket_state previous;
-	int res;
+	int res = 0;
 
 	lock_sock(sk);
 
-	/* For now, TIPC does not allow use of connect() with DGRAM/RDM types */
+	/* DGRAM/RDM connect(), just save the destaddr */
 	if (sock->state == SS_READY) {
-		res = -EOPNOTSUPP;
+		if (dst->family == AF_UNSPEC) {
+			memset(&tsk->remote, 0, sizeof(struct sockaddr_tipc));
+			tsk->connected = 0;
+		} else {
+			memcpy(&tsk->remote, dest, destlen);
+			tsk->connected = 1;
+		}
 		goto exit;
 	}
 
@@ -2078,7 +2088,6 @@ restart:
 					     TIPC_CONN_SHUTDOWN))
 				tipc_link_xmit_skb(net, skb, dnode,
 						   tsk->portid);
-			tipc_node_remove_conn(net, dnode, tsk->portid);
 		} else {
 			dnode = tsk_peer_node(tsk);
 
