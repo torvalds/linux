@@ -175,7 +175,7 @@ static int gb_gpio_activate_operation(struct gb_gpio_controller *ggc, u8 which)
 	return ret;
 }
 
-static int gb_gpio_deactivate_operation(struct gb_gpio_controller *ggc,
+static void gb_gpio_deactivate_operation(struct gb_gpio_controller *ggc,
 					u8 which)
 {
 	struct gb_gpio_deactivate_request request;
@@ -186,7 +186,6 @@ static int gb_gpio_deactivate_operation(struct gb_gpio_controller *ggc,
 				 &request, sizeof(request), NULL, 0);
 	if (!ret)
 		ggc->lines[which].active = false;
-	return ret;
 }
 
 static int gb_gpio_get_direction_operation(struct gb_gpio_controller *ggc,
@@ -264,7 +263,7 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *ggc,
 	return 0;
 }
 
-static int gb_gpio_set_value_operation(struct gb_gpio_controller *ggc,
+static void gb_gpio_set_value_operation(struct gb_gpio_controller *ggc,
 					u8 which, bool value_high)
 {
 	struct gb_gpio_set_value_request request;
@@ -278,7 +277,6 @@ static int gb_gpio_set_value_operation(struct gb_gpio_controller *ggc,
 		/* XXX should this set direction to out? */
 		ggc->lines[which].value = request.value;
 	}
-	return ret;
 }
 
 static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *ggc,
@@ -413,22 +411,15 @@ static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 static int gb_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	int ret;
 
-	ret = gb_gpio_activate_operation(ggc, (u8)offset);
-	if (ret)
-		;	/* return ret; */
-	return 0;
+	return gb_gpio_activate_operation(ggc, (u8)offset);
 }
 
 static void gb_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	int ret;
 
-	ret = gb_gpio_deactivate_operation(ggc, (u8)offset);
-	if (ret)
-		;	/* return ret; */
+	gb_gpio_deactivate_operation(ggc, (u8)offset);
 }
 
 static int gb_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
@@ -440,31 +431,24 @@ static int gb_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	which = (u8)offset;
 	ret = gb_gpio_get_direction_operation(ggc, which);
 	if (ret)
-		;	/* return ret; */
+		return ret;
+
 	return ggc->lines[which].direction ? 1 : 0;
 }
 
 static int gb_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	int ret;
 
-	ret = gb_gpio_direction_in_operation(ggc, (u8)offset);
-	if (ret)
-		;	/* return ret; */
-	return 0;
+	return gb_gpio_direction_in_operation(ggc, (u8)offset);
 }
 
 static int gb_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 					int value)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	int ret;
 
-	ret = gb_gpio_direction_out_operation(ggc, (u8)offset, !!value);
-	if (ret)
-		;	/* return ret; */
-	return 0;
+	return gb_gpio_direction_out_operation(ggc, (u8)offset, !!value);
 }
 
 static int gb_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -477,17 +461,15 @@ static int gb_gpio_get(struct gpio_chip *chip, unsigned offset)
 	ret = gb_gpio_get_value_operation(ggc, which);
 	if (ret)
 		return ret;
+
 	return ggc->lines[which].value;
 }
 
 static void gb_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	int ret;
 
-	ret = gb_gpio_set_value_operation(ggc, (u8)offset, !!value);
-	if (ret)
-		;	/* return ret; */
+	gb_gpio_set_value_operation(ggc, (u8)offset, !!value);
 }
 
 static int gb_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
@@ -495,16 +477,12 @@ static int gb_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 {
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 	u16 usec;
-	int ret;
 
 	if (debounce > U16_MAX)
 		return -EINVAL;
 	usec = (u16)debounce;
-	ret = gb_gpio_set_debounce_operation(ggc, (u8)offset, usec);
-	if (ret)
-		;	/* return ret; */
 
-	return 0;	/* XXX */
+	return gb_gpio_set_debounce_operation(ggc, (u8)offset, usec);
 }
 
 static void gb_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
@@ -521,12 +499,13 @@ static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
 	/* First thing we need to do is check the version */
 	ret = get_version(ggc);
 	if (ret)
-		;	/* return ret; */
+		return ret;
 
 	/* Now find out how many lines there are */
 	ret = gb_gpio_line_count_operation(ggc);
 	if (ret)
-		;	/* return ret; */
+		return ret;
+
 	line_count = (u32)ggc->line_max + 1;
 	size = line_count * sizeof(*ggc->lines);
 	ggc->lines = kzalloc(size, GFP_KERNEL);
