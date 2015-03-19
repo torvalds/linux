@@ -487,6 +487,7 @@ void inet_twsk_purge(struct inet_hashinfo *hashinfo,
 	for (slot = 0; slot <= hashinfo->ehash_mask; slot++) {
 		struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
 restart_rcu:
+		cond_resched();
 		rcu_read_lock();
 restart:
 		sk_nulls_for_each_rcu(sk, node, &head->chain) {
