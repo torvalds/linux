@@ -1562,7 +1562,11 @@ nfsd4_decode_layoutget(struct nfsd4_compoundargs *argp,
 	p = xdr_decode_hyper(p, &lgp->lg_seg.offset);
 	p = xdr_decode_hyper(p, &lgp->lg_seg.length);
 	p = xdr_decode_hyper(p, &lgp->lg_minlength);
-	nfsd4_decode_stateid(argp, &lgp->lg_sid);
+
+	status = nfsd4_decode_stateid(argp, &lgp->lg_sid);
+	if (status)
+		return status;
+
 	READ_BUF(4);
 	lgp->lg_maxcount = be32_to_cpup(p++);
 
@@ -1580,7 +1584,11 @@ nfsd4_decode_layoutcommit(struct nfsd4_compoundargs *argp,
 	p = xdr_decode_hyper(p, &lcp->lc_seg.offset);
 	p = xdr_decode_hyper(p, &lcp->lc_seg.length);
 	lcp->lc_reclaim = be32_to_cpup(p++);
-	nfsd4_decode_stateid(argp, &lcp->lc_sid);
+
+	status = nfsd4_decode_stateid(argp, &lcp->lc_sid);
+	if (status)
+		return status;
+
 	READ_BUF(4);
 	lcp->lc_newoffset = be32_to_cpup(p++);
 	if (lcp->lc_newoffset) {
@@ -1628,7 +1636,11 @@ nfsd4_decode_layoutreturn(struct nfsd4_compoundargs *argp,
 		READ_BUF(16);
 		p = xdr_decode_hyper(p, &lrp->lr_seg.offset);
 		p = xdr_decode_hyper(p, &lrp->lr_seg.length);
-		nfsd4_decode_stateid(argp, &lrp->lr_sid);
+
+		status = nfsd4_decode_stateid(argp, &lrp->lr_sid);
+		if (status)
+			return status;
+
 		READ_BUF(4);
 		lrp->lrf_body_len = be32_to_cpup(p++);
 		if (lrp->lrf_body_len > 0) {
