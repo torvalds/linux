@@ -44,6 +44,7 @@
 #define MGMT_STATUS_INVALID_INDEX	0x11
 #define MGMT_STATUS_RFKILLED		0x12
 #define MGMT_STATUS_ALREADY_PAIRED	0x13
+#define MGMT_STATUS_PERMISSION_DENIED	0x14
 
 struct mgmt_hdr {
 	__le16	opcode;
@@ -505,6 +506,39 @@ struct mgmt_cp_start_service_discovery {
 } __packed;
 #define MGMT_START_SERVICE_DISCOVERY_SIZE 4
 
+#define MGMT_OP_READ_LOCAL_OOB_EXT_DATA	0x003B
+struct mgmt_cp_read_local_oob_ext_data {
+	__u8 type;
+} __packed;
+#define MGMT_READ_LOCAL_OOB_EXT_DATA_SIZE 1
+struct mgmt_rp_read_local_oob_ext_data {
+	__u8    type;
+	__le16	eir_len;
+	__u8	eir[0];
+} __packed;
+
+#define MGMT_OP_READ_EXT_INDEX_LIST	0x003C
+#define MGMT_READ_EXT_INDEX_LIST_SIZE	0
+struct mgmt_rp_read_ext_index_list {
+	__le16	num_controllers;
+	struct {
+		__le16 index;
+		__u8   type;
+		__u8   bus;
+	} entry[0];
+} __packed;
+
+#define MGMT_OP_READ_ADV_FEATURES	0x0003D
+#define MGMT_READ_ADV_FEATURES_SIZE	0
+struct mgmt_rp_read_adv_features {
+	__le32 supported_flags;
+	__u8   max_adv_data_len;
+	__u8   max_scan_rsp_len;
+	__u8   max_instances;
+	__u8   num_instances;
+	__u8   instance[0];
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;
@@ -692,3 +726,19 @@ struct mgmt_ev_new_conn_param {
 #define MGMT_EV_UNCONF_INDEX_REMOVED	0x001e
 
 #define MGMT_EV_NEW_CONFIG_OPTIONS	0x001f
+
+struct mgmt_ev_ext_index {
+	__u8 type;
+	__u8 bus;
+} __packed;
+
+#define MGMT_EV_EXT_INDEX_ADDED		0x0020
+
+#define MGMT_EV_EXT_INDEX_REMOVED	0x0021
+
+#define MGMT_EV_LOCAL_OOB_DATA_UPDATED	0x0022
+struct mgmt_ev_local_oob_data_updated {
+	__u8    type;
+	__le16	eir_len;
+	__u8	eir[0];
+} __packed;

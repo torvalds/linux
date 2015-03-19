@@ -596,7 +596,6 @@ enum {
 	HCI_CONN_SC_ENABLED,
 	HCI_CONN_AES_CCM,
 	HCI_CONN_POWER_SAVE,
-	HCI_CONN_REMOTE_OOB,
 	HCI_CONN_FLUSH_KEY,
 	HCI_CONN_ENCRYPT,
 	HCI_CONN_AUTH,
@@ -1284,14 +1283,15 @@ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode);
 /* ----- HCI Sockets ----- */
 void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb);
 void hci_send_to_channel(unsigned short channel, struct sk_buff *skb,
-			 struct sock *skip_sk);
+			 int flag, struct sock *skip_sk);
 void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb);
 
 void hci_sock_dev_event(struct hci_dev *hdev, int event);
 
-#define HCI_MGMT_VAR_LEN	(1 << 0)
-#define HCI_MGMT_NO_HDEV	(1 << 1)
-#define HCI_MGMT_UNCONFIGURED	(1 << 2)
+#define HCI_MGMT_VAR_LEN	BIT(0)
+#define HCI_MGMT_NO_HDEV	BIT(1)
+#define HCI_MGMT_UNTRUSTED	BIT(2)
+#define HCI_MGMT_UNCONFIGURED	BIT(3)
 
 struct hci_mgmt_handler {
 	int (*func) (struct sock *sk, struct hci_dev *hdev, void *data,
@@ -1305,6 +1305,7 @@ struct hci_mgmt_chan {
 	unsigned short channel;
 	size_t handler_count;
 	const struct hci_mgmt_handler *handlers;
+	void (*hdev_init) (struct sock *sk, struct hci_dev *hdev);
 };
 
 int hci_mgmt_chan_register(struct hci_mgmt_chan *c);
@@ -1328,9 +1329,6 @@ void hci_mgmt_chan_unregister(struct hci_mgmt_chan *c);
 #define DISCOV_INTERLEAVED_INQUIRY_LEN	0x04
 #define DISCOV_BREDR_INQUIRY_LEN	0x08
 #define DISCOV_LE_RESTART_DELAY		msecs_to_jiffies(200)	/* msec */
-
-int mgmt_control(struct hci_mgmt_chan *chan, struct sock *sk,
-		 struct msghdr *msg, size_t msglen);
 
 int mgmt_new_settings(struct hci_dev *hdev);
 void mgmt_index_added(struct hci_dev *hdev);

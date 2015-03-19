@@ -325,7 +325,7 @@ at86rf230_read_subreg(struct at86rf230_local *lp,
 	int rc;
 
 	rc = __at86rf230_read(lp, addr, data);
-	if (rc > 0)
+	if (!rc)
 		*data = (*data & mask) >> shift;
 
 	return rc;

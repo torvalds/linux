@@ -2126,7 +2126,16 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		goto unlock;
 
 	if (list_empty(&discov->resolve)) {
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		/* When BR/EDR inquiry is active and no LE scanning is in
+		 * progress, then change discovery state to indicate completion.
+		 *
+		 * When running LE scanning and BR/EDR inquiry simultaneously
+		 * and the LE scan already finished, then change the discovery
+		 * state to indicate completion.
+		 */
+		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
+		    !test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks))
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 		goto unlock;
 	}
 
@@ -2135,7 +2144,16 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		e->name_state = NAME_PENDING;
 		hci_discovery_set_state(hdev, DISCOVERY_RESOLVING);
 	} else {
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		/* When BR/EDR inquiry is active and no LE scanning is in
+		 * progress, then change discovery state to indicate completion.
+		 *
+		 * When running LE scanning and BR/EDR inquiry simultaneously
+		 * and the LE scan already finished, then change the discovery
+		 * state to indicate completion.
+		 */
+		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
+		    !test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks))
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 	}
 
 unlock:
@@ -3889,41 +3907,37 @@ static u8 bredr_oob_data_present(struct hci_conn *conn)
 	if (!data)
 		return 0x00;
 
-	if (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)) {
-		if (bredr_sc_enabled(hdev)) {
-			/* When Secure Connections is enabled, then just
-			 * return the present value stored with the OOB
-			 * data. The stored value contains the right present
-			 * information. However it can only be trusted when
-			 * not in Secure Connection Only mode.
-			 */
-			if (!hci_dev_test_flag(hdev, HCI_SC_ONLY))
-				return data->present;
-
-			/* When Secure Connections Only mode is enabled, then
-			 * the P-256 values are required. If they are not
-			 * available, then do not declare that OOB data is
-			 * present.
-			 */
-			if (!memcmp(data->rand256, ZERO_KEY, 16) ||
-			    !memcmp(data->hash256, ZERO_KEY, 16))
-				return 0x00;
-
-			return 0x02;
-		}
-
-		/* When Secure Connections is not enabled or actually
-		 * not supported by the hardware, then check that if
-		 * P-192 data values are present.
+	if (bredr_sc_enabled(hdev)) {
+		/* When Secure Connections is enabled, then just
+		 * return the present value stored with the OOB
+		 * data. The stored value contains the right present
+		 * information. However it can only be trusted when
+		 * not in Secure Connection Only mode.
 		 */
-		if (!memcmp(data->rand192, ZERO_KEY, 16) ||
-		    !memcmp(data->hash192, ZERO_KEY, 16))
+		if (!hci_dev_test_flag(hdev, HCI_SC_ONLY))
+			return data->present;
+
+		/* When Secure Connections Only mode is enabled, then
+		 * the P-256 values are required. If they are not
+		 * available, then do not declare that OOB data is
+		 * present.
+		 */
+		if (!memcmp(data->rand256, ZERO_KEY, 16) ||
+		    !memcmp(data->hash256, ZERO_KEY, 16))
 			return 0x00;
 
-		return 0x01;
+		return 0x02;
 	}
 
-	return 0x00;
+	/* When Secure Connections is not enabled or actually
+	 * not supported by the hardware, then check that if
+	 * P-192 data values are present.
+	 */
+	if (!memcmp(data->rand192, ZERO_KEY, 16) ||
+	    !memcmp(data->hash192, ZERO_KEY, 16))
+		return 0x00;
+
+	return 0x01;
 }
 
 static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -4010,8 +4024,6 @@ static void hci_io_capa_reply_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn->remote_cap = ev->capability;
 	conn->remote_auth = ev->authentication;
-	if (ev->oob_data)
-		set_bit(HCI_CONN_REMOTE_OOB, &conn->flags);
 
 unlock:
 	hci_dev_unlock(hdev);

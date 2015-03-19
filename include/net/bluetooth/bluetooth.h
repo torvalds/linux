@@ -335,6 +335,11 @@ out:
 
 int bt_to_errno(__u16 code);
 
+void hci_sock_set_flag(struct sock *sk, int nr);
+void hci_sock_clear_flag(struct sock *sk, int nr);
+int hci_sock_test_flag(struct sock *sk, int nr);
+unsigned short hci_sock_get_channel(struct sock *sk);
+
 int hci_sock_init(void);
 void hci_sock_cleanup(void);
 

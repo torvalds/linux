@@ -2902,12 +2902,26 @@ static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status,
 
 		hci_dev_lock(hdev);
 
-		hci_inquiry_cache_flush(hdev);
+		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
+			     &hdev->quirks)) {
+			/* If we were running LE only scan, change discovery
+			 * state. If we were running both LE and BR/EDR inquiry
+			 * simultaneously, and BR/EDR inquiry is already
+			 * finished, stop discovery, otherwise BR/EDR inquiry
+			 * will stop discovery when finished.
+			 */
+			if (!test_bit(HCI_INQUIRY, &hdev->flags))
+				hci_discovery_set_state(hdev,
+							DISCOVERY_STOPPED);
+		} else {
+			hci_inquiry_cache_flush(hdev);
 
-		err = hci_req_run(&req, inquiry_complete);
-		if (err) {
-			BT_ERR("Inquiry request failed: err %d", err);
-			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+			err = hci_req_run(&req, inquiry_complete);
+			if (err) {
+				BT_ERR("Inquiry request failed: err %d", err);
+				hci_discovery_set_state(hdev,
+							DISCOVERY_STOPPED);
+			}
 		}
 
 		hci_dev_unlock(hdev);
