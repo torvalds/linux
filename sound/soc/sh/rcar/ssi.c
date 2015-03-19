@@ -416,11 +416,14 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 		/*
 		 * restart SSI
 		 */
-		rsnd_ssi_stop(mod, priv);
-		rsnd_ssi_start(mod, priv);
-
 		dev_dbg(dev, "%s[%d] restart\n",
 			rsnd_mod_name(mod), rsnd_mod_id(mod));
+
+		rsnd_ssi_stop(mod, priv);
+		if (ssi->err < 1024)
+			rsnd_ssi_start(mod, priv);
+		else
+			dev_warn(dev, "no more SSI restart\n");
 	}
 
 	rsnd_ssi_record_error(ssi, status);
