@@ -126,11 +126,8 @@ ENDPROC(native_usergs_sysret64)
  * manipulation.
  */
 	.macro FIXUP_TOP_OF_STACK tmp offset=0
-	movq $__USER_DS,SS+\offset(%rsp)
-	movq $__USER_CS,CS+\offset(%rsp)
-	movq RIP+\offset(%rsp),\tmp  /* get rip */
-	movq \tmp,RCX+\offset(%rsp)  /* copy it to rcx as sysret would do */
-	movq EFLAGS+\offset(%rsp),\tmp /* ditto for rflags->r11 */
+	/* copy flags to r11 as sysret would do */
+	movq EFLAGS+\offset(%rsp),\tmp
 	movq \tmp,R11+\offset(%rsp)
 	.endm
 
@@ -214,7 +211,6 @@ ENDPROC(native_usergs_sysret64)
  * r9   arg5
  * (note: r12-r15,rbp,rbx are callee-preserved in C ABI)
  *
- * Interrupts are off on entry.
  * Only called from user space.
  *
  * When user can change pt_regs->foo always force IRET. That is because
@@ -228,6 +224,12 @@ ENTRY(system_call)
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
+
+	/*
+	 * Interrupts are off on entry.
+	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
+	 * it is too small to ever cause noticeable irq latency.
+	 */
 	SWAPGS_UNSAFE_STACK
 	/*
 	 * A hypervisor implementation might want to use a label
@@ -236,27 +238,35 @@ ENTRY(system_call)
 	 */
 GLOBAL(system_call_after_swapgs)
 
-	/*
-	 * We use 'rsp_scratch' as a scratch register, hence this block must execute
-	 * atomically in the face of possible interrupt-driven task preemption,
-	 * so we can enable interrupts only after we're done with using rsp_scratch:
-	 */
 	movq	%rsp,PER_CPU_VAR(rsp_scratch)
 	movq	PER_CPU_VAR(kernel_stack),%rsp
-	ALLOC_PT_GPREGS_ON_STACK 6*8 /* 6*8: space for orig_ax and iret frame */
-	movq	%rcx,RIP(%rsp)
-	movq	PER_CPU_VAR(rsp_scratch),%rcx
-	movq	%r11,EFLAGS(%rsp)
-	movq	%rcx,RSP(%rsp)
+
+	/* Construct struct pt_regs on stack */
+	pushq_cfi $__USER_DS			/* pt_regs->ss */
+	pushq_cfi PER_CPU_VAR(rsp_scratch)	/* pt_regs->sp */
 	/*
-	 * No need to follow this irqs off/on section - it's straight
-	 * and short:
+	 * Re-enable interrupts.
+	 * We use 'rsp_scratch' as a scratch space, hence irq-off block above
+	 * must execute atomically in the face of possible interrupt-driven
+	 * task preemption. We must enable interrupts only after we're done
+	 * with using rsp_scratch:
 	 */
 	ENABLE_INTERRUPTS(CLBR_NONE)
-	movq_cfi rax,ORIG_RAX
-	SAVE_C_REGS_EXCEPT_RAX_RCX_R11
-	movq	$-ENOSYS,RAX(%rsp)
-	CFI_REL_OFFSET rip,RIP
+	pushq_cfi	%r11			/* pt_regs->flags */
+	pushq_cfi	$__USER_CS		/* pt_regs->cs */
+	pushq_cfi	%rcx			/* pt_regs->ip */
+	CFI_REL_OFFSET rip,0
+	pushq_cfi_reg	rax			/* pt_regs->orig_ax */
+	pushq_cfi_reg	rdi			/* pt_regs->di */
+	pushq_cfi_reg	rsi			/* pt_regs->si */
+	pushq_cfi_reg	rdx			/* pt_regs->dx */
+	pushq_cfi_reg	rcx			/* pt_regs->cx */
+	pushq_cfi	$-ENOSYS		/* pt_regs->ax */
+	pushq_cfi_reg	r8			/* pt_regs->r8 */
+	pushq_cfi_reg	r9			/* pt_regs->r9 */
+	pushq_cfi_reg	r10			/* pt_regs->r10 */
+	sub	$(7*8),%rsp /* pt_regs->r11,bp,bx,r12-15 not saved */
+
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,SIZEOF_PTREGS)
 	jnz tracesys
 system_call_fastpath:
