@@ -96,6 +96,18 @@
 				     "syscon";
 			reg = <0x452000 0x100>;
 		};
+
+		irq0_intc: interrupt-controller@f040a780 {
+			compatible = "brcm,bcm7120-l2-intc";
+			interrupt-parent = <&gic>;
+			#interrupt-cells = <1>;
+			reg = <0x40a780 0x8>;
+			interrupt-controller;
+			interrupts = <GIC_SPI 0x45 0x0>,
+				     <GIC_SPI 0x43 0x0>;
+			brcm,int-map-mask = <0x25c>, <0x7000000>;
+			brcm,int-fwd-mask = <0x70000>;
+		};
 	};
 
 	smpboot {
