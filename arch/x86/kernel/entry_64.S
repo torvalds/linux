@@ -22,8 +22,6 @@
  * - CFI macros are used to generate dwarf2 unwind information for better
  * backtraces. They don't change any code.
  * - ENTRY/END Define functions in the symbol table.
- * - FIXUP_TOP_OF_STACK/RESTORE_TOP_OF_STACK - Fix up the hardware stack
- * frame that is otherwise undefined after a SYSCALL
  * - TRACE_IRQ_* - Trace hard interrupt state for lock debugging.
  * - idtentry - Define exception entry points.
  */
@@ -117,23 +115,6 @@ ENDPROC(native_usergs_sysret64)
 # define TRACE_IRQS_ON_DEBUG		TRACE_IRQS_ON
 # define TRACE_IRQS_IRETQ_DEBUG		TRACE_IRQS_IRETQ
 #endif
-
-/*
- * C code is not supposed to know that the iret frame is not populated.
- * Every time a C function with an pt_regs argument is called from
- * the SYSCALL based fast path FIXUP_TOP_OF_STACK is needed.
- * RESTORE_TOP_OF_STACK syncs the syscall state after any possible ptregs
- * manipulation.
- */
-	.macro FIXUP_TOP_OF_STACK tmp offset=0
-	/* copy flags to r11 as sysret would do */
-	movq EFLAGS+\offset(%rsp),\tmp
-	movq \tmp,R11+\offset(%rsp)
-	.endm
-
-	.macro RESTORE_TOP_OF_STACK tmp offset=0
-	/* nothing to do */
-	.endm
 
 /*
  * empty frame
@@ -265,7 +246,8 @@ GLOBAL(system_call_after_swapgs)
 	pushq_cfi_reg	r8			/* pt_regs->r8 */
 	pushq_cfi_reg	r9			/* pt_regs->r9 */
 	pushq_cfi_reg	r10			/* pt_regs->r10 */
-	sub	$(7*8),%rsp /* pt_regs->r11,bp,bx,r12-15 not saved */
+	pushq_cfi_reg	r11			/* pt_regs->r11 */
+	sub	$(6*8),%rsp /* pt_regs->bp,bx,r12-15 not saved */
 
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,SIZEOF_PTREGS)
 	jnz tracesys
@@ -312,7 +294,6 @@ ret_from_sys_call:
 	CFI_RESTORE_STATE
 
 int_ret_from_sys_call_fixup:
-	FIXUP_TOP_OF_STACK %r11
 	jmp int_ret_from_sys_call
 
 	/* Do syscall entry tracing */
@@ -328,7 +309,6 @@ tracesys:
 
 tracesys_phase2:
 	SAVE_EXTRA_REGS
-	FIXUP_TOP_OF_STACK %rdi
 	movq %rsp, %rdi
 	movq $AUDIT_ARCH_X86_64, %rsi
 	movq %rax,%rdx
@@ -421,9 +401,7 @@ ENTRY(stub_\func)
 	CFI_STARTPROC
 	DEFAULT_FRAME 0, 8		/* offset 8: return address */
 	SAVE_EXTRA_REGS 8
-	FIXUP_TOP_OF_STACK %r11, 8
 	call sys_\func
-	RESTORE_TOP_OF_STACK %r11, 8
 	ret
 	CFI_ENDPROC
 END(stub_\func)
@@ -438,7 +416,6 @@ ENTRY(stub_execve)
 	addq $8, %rsp
 	DEFAULT_FRAME 0
 	SAVE_EXTRA_REGS
-	FIXUP_TOP_OF_STACK %r11
 	call sys_execve
 	movq %rax,RAX(%rsp)
 	RESTORE_EXTRA_REGS
@@ -451,9 +428,7 @@ ENTRY(stub_execveat)
 	addq $8, %rsp
 	DEFAULT_FRAME 0
 	SAVE_EXTRA_REGS
-	FIXUP_TOP_OF_STACK %r11
 	call sys_execveat
-	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
 	RESTORE_EXTRA_REGS
 	jmp int_ret_from_sys_call
@@ -469,7 +444,6 @@ ENTRY(stub_rt_sigreturn)
 	addq $8, %rsp
 	DEFAULT_FRAME 0
 	SAVE_EXTRA_REGS
-	FIXUP_TOP_OF_STACK %r11
 	call sys_rt_sigreturn
 	movq %rax,RAX(%rsp) # fixme, this could be done at the higher layer
 	RESTORE_EXTRA_REGS
@@ -483,7 +457,6 @@ ENTRY(stub_x32_rt_sigreturn)
 	addq $8, %rsp
 	DEFAULT_FRAME 0
 	SAVE_EXTRA_REGS
-	FIXUP_TOP_OF_STACK %r11
 	call sys32_x32_rt_sigreturn
 	movq %rax,RAX(%rsp) # fixme, this could be done at the higher layer
 	RESTORE_EXTRA_REGS
@@ -496,9 +469,7 @@ ENTRY(stub_x32_execve)
 	addq $8, %rsp
 	DEFAULT_FRAME 0
 	SAVE_EXTRA_REGS
-	FIXUP_TOP_OF_STACK %r11
 	call compat_sys_execve
-	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
 	RESTORE_EXTRA_REGS
 	jmp int_ret_from_sys_call
@@ -510,9 +481,7 @@ ENTRY(stub_x32_execveat)
 	addq $8, %rsp
 	DEFAULT_FRAME 0
 	SAVE_EXTRA_REGS
-	FIXUP_TOP_OF_STACK %r11
 	call compat_sys_execveat
-	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
 	RESTORE_EXTRA_REGS
 	jmp int_ret_from_sys_call
