@@ -114,8 +114,10 @@
 		 1) use of_find_node_by_name to get vpu node instead of of_find_compatible_node
 *v0.0x1c.0:
          1) support rk3368. 
+*v0.0x1d.0:
+         1) enable aclk_rga for rk3368, otherwise, isp reset will cause system halted.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x1c,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x1d,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"

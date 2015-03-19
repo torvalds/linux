@@ -48,6 +48,7 @@
 #include <linux/rfkill-wlan.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/log2.h>
 #include "rk_sdmmc.h"
 #include "rk_sdmmc_dbg.h"
 #include <linux/regulator/rockchip_io_vol_domain.h>
@@ -621,6 +622,7 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 	u32 sg_elems = host->data->sg_len;
 	u32 fifoth_val, mburst;
 	u32 burst_limit = 0;
+	u32 idx, rx_wmark, tx_wmark;
 	int ret = 0;
 
 	/* Set external dma config: burst size, burst width*/
@@ -641,7 +643,18 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 
 	if (mburst > burst_limit) {
 		mburst = burst_limit;
-		fifoth_val = SDMMC_SET_FIFOTH(mszs[3], mszs[3] - 1, (host->fifo_depth) / 2);
+		idx = (ilog2(mburst) > 0) ? (ilog2(mburst) - 1) : 0;
+
+		if (soc_is_rk3126b()) {
+			idx = 0;
+			rx_wmark = (host->fifo_depth) / 2 - 1;
+		} else {
+			rx_wmark = mszs[idx] - 1;
+		}
+
+		tx_wmark = (host->fifo_depth) / 2;
+		fifoth_val = SDMMC_SET_FIFOTH(idx, rx_wmark, tx_wmark);
+
 		mci_writel(host, FIFOTH, fifoth_val);
 	}
 
