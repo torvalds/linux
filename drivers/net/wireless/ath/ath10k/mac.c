@@ -881,11 +881,13 @@ static int ath10k_recalc_rtscts_prot(struct ath10k_vif *arvif)
 
 	vdev_param = ar->wmi.vdev_param->enable_rtscts;
 
-	if (arvif->use_cts_prot || arvif->num_legacy_stations > 0)
-		rts_cts |= SM(WMI_RTSCTS_ENABLED, WMI_RTSCTS_SET);
+	rts_cts |= SM(WMI_RTSCTS_ENABLED, WMI_RTSCTS_SET);
 
 	if (arvif->num_legacy_stations > 0)
 		rts_cts |= SM(WMI_RTSCTS_ACROSS_SW_RETRIES,
+			      WMI_RTSCTS_PROFILE);
+	else
+		rts_cts |= SM(WMI_RTSCTS_FOR_SECOND_RATESERIES,
 			      WMI_RTSCTS_PROFILE);
 
 	return ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
