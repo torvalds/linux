@@ -3161,6 +3161,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto err_core_stop;
 	}
 
+	ar->ani_enabled = true;
+
 	ar->num_started_vdevs = 0;
 	ath10k_regd_update(ar);
 
