@@ -169,7 +169,7 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 	case SVC_HOTPLUG_EVENT:
 		/* Add a new module to the system */
 		if (payload_length < 0x03) {
-			/* Hotplug message is at lest 3 bytes big */
+			/* Hotplug message is at least 3 bytes big */
 			dev_err(hd->parent,
 				"Illegal size of svc hotplug message %d\n",
 				payload_length);
