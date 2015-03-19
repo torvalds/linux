@@ -2055,6 +2055,11 @@ int sst_hsw_launch_param_buf(struct sst_hsw *hsw)
 {
 	int ret, idx;
 
+	if (!sst_hsw_is_module_active(hsw, SST_HSW_MODULE_WAVES)) {
+		dev_dbg(hsw->dev, "module waves is not active\n");
+		return 0;
+	}
+
 	/* put all param lines to DSP through ipc */
 	for (idx = 0; idx < hsw->param_idx_w; idx++) {
 		ret = sst_hsw_module_set_param(hsw,

@@ -399,13 +399,9 @@ static int hsw_waves_param_put(struct snd_kcontrol *kcontrol,
 	if (ret < 0)
 		return ret;
 
-	if (sst_hsw_is_module_loaded(hsw, id)) {
-		if (!sst_hsw_is_module_active(hsw, id))
-			return 0;
-
+	if (sst_hsw_is_module_active(hsw, id))
 		ret = sst_hsw_module_set_param(hsw, id, 0, param_id,
 				param_size, ucontrol->value.bytes.data);
-	}
 	return ret;
 }
 
