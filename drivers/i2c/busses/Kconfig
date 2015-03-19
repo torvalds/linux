@@ -485,6 +485,15 @@ config I2C_DESIGNWARE_BAYTRAIL
 	  the platform firmware controlling it. You should say Y if running on
 	  a BayTrail system using the AXP288.
 
+config I2C_DIGICOLOR
+	tristate "Conexant Digicolor I2C driver"
+	depends on ARCH_DIGICOLOR
+	help
+	  Support for Conexant Digicolor SoCs (CX92755) I2C controller driver.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-digicolor.
+
 config I2C_EFM32
 	tristate "EFM32 I2C controller"
 	depends on ARCH_EFM32 || COMPILE_TEST
