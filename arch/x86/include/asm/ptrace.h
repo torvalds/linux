@@ -113,11 +113,6 @@ static inline int user_mode(struct pt_regs *regs)
 #endif
 }
 
-static inline int user_mode_vm(struct pt_regs *regs)
-{
-	return user_mode(regs);
-}
-
 /*
  * This is the fastest way to check whether regs come from user space.
  * It is unsafe if regs might come from vm86 mode, though -- in vm86
