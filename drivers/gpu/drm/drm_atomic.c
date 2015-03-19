@@ -266,9 +266,17 @@ int drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		const struct drm_crtc_state *state,
 		struct drm_property *property, uint64_t *val)
 {
-	if (crtc->funcs->atomic_get_property)
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (property == config->prop_active)
+		*val = state->active;
+	else if (crtc->funcs->atomic_get_property)
 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
-	return -EINVAL;
+	else
+		return -EINVAL;
+
+	return 0;
 }
 
 /**
