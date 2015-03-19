@@ -92,9 +92,7 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl);
  */
 static inline bool mei_cl_is_connected(struct mei_cl *cl)
 {
-	return  cl->dev &&
-		cl->dev->dev_state == MEI_DEV_ENABLED &&
-		cl->state == MEI_FILE_CONNECTED;
+	return  cl->state == MEI_FILE_CONNECTED;
 }
 static inline bool mei_cl_is_transitioning(struct mei_cl *cl)
 {
