@@ -731,10 +731,13 @@ static void rga_del_running_list_timeout(void)
     while(!list_empty(&rga_service.running))
     {
         reg = list_entry(rga_service.running.next, struct rga_reg, status_link);
-
-        if(reg->MMU_base != NULL)
+        
+        if(reg->MMU_len != 0)
         {
-            kfree(reg->MMU_base);
+            if (rga_mmu_buf.back + reg->MMU_len > 2*rga_mmu_buf.size)
+                rga_mmu_buf.back = reg->MMU_len + rga_mmu_buf.size;
+            else
+                rga_mmu_buf.back += reg->MMU_len;
         }
 
         atomic_sub(1, &reg->session->task_running);
