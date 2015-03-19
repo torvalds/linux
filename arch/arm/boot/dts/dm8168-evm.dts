@@ -38,13 +38,13 @@
 
 	usb0_pins: pinmux_usb0_pins {
 		pinctrl-single,pins = <
-			DM816X_IOPAD(0x0d00, MUX_MODE0)			/* USB0_DRVVBUS */
+			DM816X_IOPAD(0x0d04, MUX_MODE0)			/* USB0_DRVVBUS */
 		>;
 	};
 
-	usb1_pins: pinmux_usb0_pins {
+	usb1_pins: pinmux_usb1_pins {
 		pinctrl-single,pins = <
-			DM816X_IOPAD(0x0d04, MUX_MODE0)			/* USB1_DRVVBUS */
+			DM816X_IOPAD(0x0d08, MUX_MODE0)			/* USB1_DRVVBUS */
 		>;
 	};
 };
