@@ -268,7 +268,7 @@ system_call_fastpath:
  */
 ret_from_sys_call:
 	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,SIZEOF_PTREGS)
-	jnz int_ret_from_sys_call_fixup	/* Go the the slow path */
+	jnz int_ret_from_sys_call	/* Go the slow path */
 
 	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_NONE)
@@ -292,9 +292,6 @@ ret_from_sys_call:
 	USERGS_SYSRET64
 
 	CFI_RESTORE_STATE
-
-int_ret_from_sys_call_fixup:
-	jmp int_ret_from_sys_call
 
 	/* Do syscall entry tracing */
 tracesys:
