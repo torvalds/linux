@@ -611,44 +611,21 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
 	return logical_ring_invalidate_all_caches(ringbuf, ctx);
 }
 
-static int logical_ring_alloc_request(struct intel_engine_cs *ring,
-				      struct intel_context *ctx)
+int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request,
+					    struct intel_context *ctx)
 {
-	struct drm_i915_gem_request *request;
-	struct drm_i915_private *dev_private = ring->dev->dev_private;
 	int ret;
 
-	if (ring->outstanding_lazy_request)
-		return 0;
-
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (request == NULL)
-		return -ENOMEM;
-
-	if (ctx != ring->default_context) {
-		ret = intel_lr_context_pin(ring, ctx);
-		if (ret) {
-			kfree(request);
+	if (ctx != request->ring->default_context) {
+		ret = intel_lr_context_pin(request->ring, ctx);
+		if (ret)
 			return ret;
-		}
 	}
 
-	kref_init(&request->ref);
-	request->ring = ring;
-	request->uniq = dev_private->request_uniq++;
-
-	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
-	if (ret) {
-		intel_lr_context_unpin(ring, ctx);
-		kfree(request);
-		return ret;
-	}
-
-	request->ctx = ctx;
+	request->ringbuf = ctx->engine[request->ring->id].ringbuf;
+	request->ctx     = ctx;
 	i915_gem_context_reference(request->ctx);
-	request->ringbuf = ctx->engine[ring->id].ringbuf;
 
-	ring->outstanding_lazy_request = request;
 	return 0;
 }
 
@@ -840,7 +817,7 @@ static int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
 		return ret;
 
 	/* Preallocate the olr before touching the ring */
-	ret = logical_ring_alloc_request(ring, ctx);
+	ret = i915_gem_request_alloc(ring, ctx);
 	if (ret)
 		return ret;
 

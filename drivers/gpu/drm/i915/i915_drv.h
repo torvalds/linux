@@ -2115,6 +2115,8 @@ struct drm_i915_gem_request {
 
 };
 
+int i915_gem_request_alloc(struct intel_engine_cs *ring,
+			   struct intel_context *ctx);
 void i915_gem_request_free(struct kref *req_ref);
 
 static inline uint32_t

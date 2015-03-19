@@ -2518,6 +2518,43 @@ void i915_gem_request_free(struct kref *req_ref)
 	kfree(req);
 }
 
+int i915_gem_request_alloc(struct intel_engine_cs *ring,
+			   struct intel_context *ctx)
+{
+	int ret;
+	struct drm_i915_gem_request *request;
+	struct drm_i915_private *dev_private = ring->dev->dev_private;
+
+	if (ring->outstanding_lazy_request)
+		return 0;
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL)
+		return -ENOMEM;
+
+	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
+	if (ret) {
+		kfree(request);
+		return ret;
+	}
+
+	kref_init(&request->ref);
+	request->ring = ring;
+	request->uniq = dev_private->request_uniq++;
+
+	if (i915.enable_execlists)
+		ret = intel_logical_ring_alloc_request_extras(request, ctx);
+	else
+		ret = intel_ring_alloc_request_extras(request);
+	if (ret) {
+		kfree(request);
+		return ret;
+	}
+
+	ring->outstanding_lazy_request = request;
+	return 0;
+}
+
 struct drm_i915_gem_request *
 i915_gem_find_active_request(struct intel_engine_cs *ring)
 {
