@@ -67,7 +67,8 @@
 #define BCM2835_SPI_CS_CS_01		0x00000001
 
 #define BCM2835_SPI_TIMEOUT_MS	30000
-#define BCM2835_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_NO_CS)
+#define BCM2835_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA | SPI_CS_HIGH \
+				| SPI_NO_CS | SPI_3WIRE)
 
 #define DRV_NAME	"spi-bcm2835"
 
@@ -162,6 +163,9 @@ static int bcm2835_spi_start_transfer(struct spi_device *spi,
 	} else {
 		cdiv = 0; /* 0 is the slowest we can go */
 	}
+
+	if ((spi->mode & SPI_3WIRE) && (tfr->rx_buf))
+		cs |= BCM2835_SPI_CS_REN;
 
 	if (spi->mode & SPI_CPOL)
 		cs |= BCM2835_SPI_CS_CPOL;
