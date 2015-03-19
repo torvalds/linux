@@ -16,16 +16,16 @@
  * @read:	Read function of @clock
  * @mask:	Bitmask for two's complement subtraction of non 64bit clocks
  * @cycle_last: @clock cycle value at last update
- * @mult:	NTP adjusted multiplier for scaled math conversion
+ * @mult:	(NTP adjusted) multiplier for scaled math conversion
  * @shift:	Shift value for scaled math conversion
  * @xtime_nsec: Shifted (fractional) nano seconds offset for readout
- * @base_mono:  ktime_t (nanoseconds) base time for readout
+ * @base:	ktime_t (nanoseconds) base time for readout
  *
  * This struct has size 56 byte on 64 bit. Together with a seqcount it
  * occupies a single 64byte cache line.
  *
  * The struct is separate from struct timekeeper as it is also used
- * for a fast NMI safe accessor to clock monotonic.
+ * for a fast NMI safe accessors.
  */
 struct tk_read_base {
 	struct clocksource	*clock;
@@ -35,12 +35,12 @@ struct tk_read_base {
 	u32			mult;
 	u32			shift;
 	u64			xtime_nsec;
-	ktime_t			base_mono;
+	ktime_t			base;
 };
 
 /**
  * struct timekeeper - Structure holding internal timekeeping values.
- * @tkr:		The readout base structure
+ * @tkr_mono:		The readout base structure for CLOCK_MONOTONIC
  * @xtime_sec:		Current CLOCK_REALTIME time in seconds
  * @ktime_sec:		Current CLOCK_MONOTONIC time in seconds
  * @wall_to_monotonic:	CLOCK_REALTIME to CLOCK_MONOTONIC offset
@@ -76,7 +76,7 @@ struct tk_read_base {
  * used instead.
  */
 struct timekeeper {
-	struct tk_read_base	tkr;
+	struct tk_read_base	tkr_mono;
 	u64			xtime_sec;
 	unsigned long		ktime_sec;
 	struct timespec64	wall_to_monotonic;
