@@ -152,29 +152,22 @@ static const char *convert_opal_attr_name(enum sensors type,
  * which need to be mapped as fan2_input, temp1_max respectively before
  * populating them inside hwmon device class.
  */
-static int create_hwmon_attr_name(struct device *dev, enum sensors type,
-					 const char *node_name,
-					 char *hwmon_attr_name)
+static const char *parse_opal_node_name(const char *node_name,
+					enum sensors type, u32 *index)
 {
 	char attr_suffix[MAX_ATTR_LEN];
 	const char *attr_name;
-	u32 index;
 	int err;
 
-	err = get_sensor_index_attr(node_name, &index, attr_suffix);
-	if (err) {
-		dev_err(dev, "Sensor device node name '%s' is invalid\n",
-			node_name);
-		return err;
-	}
+	err = get_sensor_index_attr(node_name, index, attr_suffix);
+	if (err)
+		return ERR_PTR(err);
 
 	attr_name = convert_opal_attr_name(type, attr_suffix);
 	if (!attr_name)
-		return -ENOENT;
+		return ERR_PTR(-ENOENT);
 
-	snprintf(hwmon_attr_name, MAX_ATTR_LEN, "%s%d_%s",
-		 sensor_groups[type].name, index, attr_name);
-	return 0;
+	return attr_name;
 }
 
 static int get_sensor_type(struct device_node *np)
@@ -249,6 +242,9 @@ static int create_device_attrs(struct platform_device *pdev)
 	}
 
 	for_each_child_of_node(opal, np) {
+		const char *attr_name;
+		u32 opal_index;
+
 		if (np->name == NULL)
 			continue;
 
@@ -265,10 +261,17 @@ static int create_device_attrs(struct platform_device *pdev)
 
 		sdata[count].id = sensor_id;
 		sdata[count].type = type;
-		err = create_hwmon_attr_name(&pdev->dev, type, np->name,
-					     sdata[count].name);
-		if (err)
+
+		attr_name = parse_opal_node_name(np->name, type, &opal_index);
+		if (IS_ERR(attr_name)) {
+			dev_err(&pdev->dev, "Sensor device node name '%s' is invalid\n",
+				np->name);
+			err = PTR_ERR(attr_name);
 			goto exit_put_node;
+		}
+
+		snprintf(sdata[count].name, MAX_ATTR_LEN, "%s%d_%s",
+			 sensor_groups[type].name, opal_index, attr_name);
 
 		sysfs_attr_init(&sdata[count].dev_attr.attr);
 		sdata[count].dev_attr.attr.name = sdata[count].name;
