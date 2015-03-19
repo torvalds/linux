@@ -965,7 +965,7 @@ int gb_operation_init(void)
 			U16_MAX - sizeof(struct gb_operation_msg_hdr));
 
 	/*
-	 * A message structure with consists of:
+	 * A message structure consists of:
 	 *  - the message structure itself
 	 *  - the headroom set aside for the host device
 	 *  - the message header
