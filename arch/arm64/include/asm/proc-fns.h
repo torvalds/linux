@@ -41,15 +41,6 @@ extern u64 cpu_do_resume(phys_addr_t ptr, u64 idmap_ttbr);
 
 #define cpu_switch_mm(pgd,mm) cpu_do_switch_mm(virt_to_phys(pgd),mm)
 
-#define cpu_get_pgd()					\
-({							\
-	unsigned long pg;				\
-	asm("mrs	%0, ttbr0_el1\n"		\
-	    : "=r" (pg));				\
-	pg &= ~0xffff000000003ffful;			\
-	(pgd_t *)phys_to_virt(pg);			\
-})
-
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* __ASM_PROCFNS_H */
