@@ -122,7 +122,7 @@ static s32 hmc5843_set_mode(struct hmc5843_data *data, u8 operating_mode)
 
 	mutex_lock(&data->lock);
 	ret = regmap_update_bits(data->regmap, HMC5843_MODE_REG,
-			HMC5843_MODE_MASK, operating_mode);
+				 HMC5843_MODE_MASK, operating_mode);
 	mutex_unlock(&data->lock);
 
 	return ret;
@@ -165,7 +165,7 @@ static int hmc5843_read_measurement(struct hmc5843_data *data,
 		return ret;
 	}
 	ret = regmap_bulk_read(data->regmap, HMC5843_DATA_OUT_MSB_REGS,
-			values, sizeof(values));
+			       values, sizeof(values));
 	mutex_unlock(&data->lock);
 	if (ret < 0)
 		return ret;
@@ -198,15 +198,16 @@ static int hmc5843_set_meas_conf(struct hmc5843_data *data, u8 meas_conf)
 
 	mutex_lock(&data->lock);
 	ret = regmap_update_bits(data->regmap, HMC5843_CONFIG_REG_A,
-			HMC5843_MEAS_CONF_MASK, meas_conf);
+				 HMC5843_MEAS_CONF_MASK, meas_conf);
 	mutex_unlock(&data->lock);
 
 	return ret;
 }
 
-static ssize_t hmc5843_show_measurement_configuration(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
+static
+ssize_t hmc5843_show_measurement_configuration(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
 {
 	struct hmc5843_data *data = iio_priv(dev_to_iio_dev(dev));
 	unsigned int val;
@@ -220,10 +221,11 @@ static ssize_t hmc5843_show_measurement_configuration(struct device *dev,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t hmc5843_set_measurement_configuration(struct device *dev,
-						struct device_attribute *attr,
-						const char *buf,
-						size_t count)
+static
+ssize_t hmc5843_set_measurement_configuration(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf,
+					      size_t count)
 {
 	struct hmc5843_data *data = iio_priv(dev_to_iio_dev(dev));
 	unsigned long meas_conf = 0;
@@ -246,8 +248,9 @@ static IIO_DEVICE_ATTR(meas_conf,
 			hmc5843_set_measurement_configuration,
 			0);
 
-static ssize_t hmc5843_show_samp_freq_avail(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static
+ssize_t hmc5843_show_samp_freq_avail(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct hmc5843_data *data = iio_priv(dev_to_iio_dev(dev));
 	size_t len = 0;
@@ -272,20 +275,21 @@ static int hmc5843_set_samp_freq(struct hmc5843_data *data, u8 rate)
 
 	mutex_lock(&data->lock);
 	ret = regmap_update_bits(data->regmap, HMC5843_CONFIG_REG_A,
-			HMC5843_RATE_MASK, rate << HMC5843_RATE_OFFSET);
+				 HMC5843_RATE_MASK,
+				 rate << HMC5843_RATE_OFFSET);
 	mutex_unlock(&data->lock);
 
 	return ret;
 }
 
 static int hmc5843_get_samp_freq_index(struct hmc5843_data *data,
-				   int val, int val2)
+				       int val, int val2)
 {
 	int i;
 
 	for (i = 0; i < data->variant->n_regval_to_samp_freq; i++)
 		if (val == data->variant->regval_to_samp_freq[i][0] &&
-			val2 == data->variant->regval_to_samp_freq[i][1])
+		    val2 == data->variant->regval_to_samp_freq[i][1])
 			return i;
 
 	return -EINVAL;
@@ -297,15 +301,16 @@ static int hmc5843_set_range_gain(struct hmc5843_data *data, u8 range)
 
 	mutex_lock(&data->lock);
 	ret = regmap_update_bits(data->regmap, HMC5843_CONFIG_REG_B,
-			HMC5843_RANGE_GAIN_MASK,
-			range << HMC5843_RANGE_GAIN_OFFSET);
+				 HMC5843_RANGE_GAIN_MASK,
+				 range << HMC5843_RANGE_GAIN_OFFSET);
 	mutex_unlock(&data->lock);
 
 	return ret;
 }
 
 static ssize_t hmc5843_show_scale_avail(struct device *dev,
-				struct device_attribute *attr, char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct hmc5843_data *data = iio_priv(dev_to_iio_dev(dev));
 
@@ -396,7 +401,8 @@ static int hmc5843_write_raw(struct iio_dev *indio_dev,
 }
 
 static int hmc5843_write_raw_get_fmt(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan, long mask)
+				     struct iio_chan_spec const *chan,
+				     long mask)
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -423,14 +429,14 @@ static irqreturn_t hmc5843_trigger_handler(int irq, void *p)
 	}
 
 	ret = regmap_bulk_read(data->regmap, HMC5843_DATA_OUT_MSB_REGS,
-			data->buffer, 3 * sizeof(__be16));
+			       data->buffer, 3 * sizeof(__be16));
 
 	mutex_unlock(&data->lock);
 	if (ret < 0)
 		goto done;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-		iio_get_time_ns());
+					   iio_get_time_ns());
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -526,7 +532,7 @@ static int hmc5843_init(struct hmc5843_data *data)
 	u8 id[3];
 
 	ret = regmap_bulk_read(data->regmap, HMC5843_ID_REG,
-			id, ARRAY_SIZE(id));
+			       id, ARRAY_SIZE(id));
 	if (ret < 0)
 		return ret;
 	if (id[0] != 'H' || id[1] != '4' || id[2] != '3') {
@@ -567,12 +573,12 @@ EXPORT_SYMBOL(hmc5843_common_suspend);
 int hmc5843_common_resume(struct device *dev)
 {
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
-			HMC5843_MODE_SLEEP);
+				HMC5843_MODE_SLEEP);
 }
 EXPORT_SYMBOL(hmc5843_common_resume);
 
 int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
-		enum hmc5843_ids id)
+			 enum hmc5843_ids id)
 {
 	struct hmc5843_data *data;
 	struct iio_dev *indio_dev;
@@ -604,7 +610,7 @@ int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-		hmc5843_trigger_handler, NULL);
+					 hmc5843_trigger_handler, NULL);
 	if (ret < 0)
 		return ret;
 
