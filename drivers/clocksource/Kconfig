@@ -146,6 +146,7 @@ config ATMEL_PIT
 config ATMEL_ST
 	bool
 	select CLKSRC_OF
+	select MFD_SYSCON
 
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
