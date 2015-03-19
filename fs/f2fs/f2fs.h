@@ -1591,6 +1591,7 @@ int f2fs_submit_page_bio(struct f2fs_sb_info *, struct page *,
 						struct f2fs_io_info *);
 void f2fs_submit_page_mbio(struct f2fs_sb_info *, struct page *,
 						struct f2fs_io_info *);
+void set_data_blkaddr(struct dnode_of_data *);
 int reserve_new_block(struct dnode_of_data *);
 int f2fs_reserve_block(struct dnode_of_data *, pgoff_t);
 void f2fs_shrink_extent_tree(struct f2fs_sb_info *, int);

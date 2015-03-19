@@ -200,7 +200,7 @@ alloc_new:
  *  ->node_page
  *    update block addresses in the node page
  */
-static void __set_data_blkaddr(struct dnode_of_data *dn)
+void set_data_blkaddr(struct dnode_of_data *dn)
 {
 	struct f2fs_node *rn;
 	__le32 *addr_array;
@@ -229,7 +229,7 @@ int reserve_new_block(struct dnode_of_data *dn)
 	trace_f2fs_reserve_new_block(dn->inode, dn->nid, dn->ofs_in_node);
 
 	dn->data_blkaddr = NEW_ADDR;
-	__set_data_blkaddr(dn);
+	set_data_blkaddr(dn);
 	mark_inode_dirty(dn->inode);
 	sync_inode_page(dn);
 	return 0;
@@ -784,9 +784,6 @@ void f2fs_update_extent_cache(struct dnode_of_data *dn)
 
 	f2fs_bug_on(F2FS_I_SB(dn->inode), dn->data_blkaddr == NEW_ADDR);
 
-	/* Update the page address in the parent node */
-	__set_data_blkaddr(dn);
-
 	if (is_inode_flag_set(fi, FI_NO_EXTENT))
 		return;
 
@@ -1032,7 +1029,7 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 	allocate_data_block(sbi, NULL, NULL_ADDR, &dn->data_blkaddr, &sum, seg);
 
 	/* direct IO doesn't use extent cache to maximize the performance */
-	__set_data_blkaddr(dn);
+	set_data_blkaddr(dn);
 
 	/* update i_size */
 	fofs = start_bidx_of_node(ofs_of_node(dn->node_page), fi) +
@@ -1290,6 +1287,7 @@ int do_write_data_page(struct page *page, struct f2fs_io_info *fio)
 		trace_f2fs_do_write_data_page(page, IPU);
 	} else {
 		write_data_page(page, &dn, fio);
+		set_data_blkaddr(&dn);
 		f2fs_update_extent_cache(&dn);
 		trace_f2fs_do_write_data_page(page, OPU);
 		set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);

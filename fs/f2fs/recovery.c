@@ -403,6 +403,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			/* write dummy data page */
 			recover_data_page(sbi, NULL, &sum, src, dest);
 			dn.data_blkaddr = dest;
+			set_data_blkaddr(&dn);
 			f2fs_update_extent_cache(&dn);
 			recovered++;
 		}
