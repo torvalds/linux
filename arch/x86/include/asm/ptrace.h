@@ -121,6 +121,23 @@ static inline int user_mode_vm(struct pt_regs *regs)
 #endif
 }
 
+/*
+ * This is the fastest way to check whether regs come from user space.
+ * It is unsafe if regs might come from vm86 mode, though -- in vm86
+ * mode, all bits of CS and SS are completely under the user's control.
+ * The CPU considers vm86 mode to be CPL 3 regardless of CS and SS.
+ *
+ * Do NOT use this function unless you have already ruled out the
+ * possibility that regs came from vm86 mode.
+ *
+ * We check for RPL != 0 instead of RPL == 3 because we don't use rings
+ * 1 or 2 and this is more efficient.
+ */
+static inline int user_mode_ignore_vm86(struct pt_regs *regs)
+{
+	return (regs->cs & SEGMENT_RPL_MASK) != 0;
+}
+
 static inline int v8086_mode(struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_32
