@@ -149,11 +149,13 @@ static void svc_management(struct svc_function_unipro_management *management,
 		ret = gb_bundle_init(intf,
 				management->link_up.interface_id,
 				management->link_up.device_id);
-		if (ret)
+		if (ret) {
 			dev_err(hd->parent,
 				"error %d initializing interface %hhu bundle %hhu\n",
 				ret, management->link_up.module_id,
 				management->link_up.interface_id);
+			return;
+		}
 		break;
 	default:
 		dev_err(hd->parent, "Unhandled UniPro management message\n");
