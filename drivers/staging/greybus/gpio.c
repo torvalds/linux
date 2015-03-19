@@ -543,9 +543,9 @@ static int gb_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 
 	if (offset >= chip->ngpio)
 		return -EINVAL;
-	if (debounce > (unsigned int)U16_MAX)
+	if (debounce > U16_MAX)
 		return -EINVAL;
-	usec = (u8)debounce;
+	usec = (u16)debounce;
 	ret = gb_gpio_set_debounce_operation(gb_gpio_controller, (u8)offset, usec);
 	if (ret)
 		;	/* return ret; */
