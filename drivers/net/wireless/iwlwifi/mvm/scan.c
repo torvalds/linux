@@ -1200,7 +1200,7 @@ static int iwl_mvm_find_scan_uid(struct iwl_mvm *mvm, u32 uid)
 {
 	int i;
 
-	for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++)
+	for (i = 0; i < mvm->max_scans; i++)
 		if (mvm->scan_uid[i] == uid)
 			return i;
 
@@ -1217,7 +1217,7 @@ static bool iwl_mvm_find_scan_type(struct iwl_mvm *mvm,
 {
 	int i;
 
-	for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++)
+	for (i = 0; i < mvm->max_scans; i++)
 		if (mvm->scan_uid[i] & type)
 			return true;
 
@@ -1229,7 +1229,7 @@ static int iwl_mvm_find_first_scan(struct iwl_mvm *mvm,
 {
 	int i;
 
-	for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++)
+	for (i = 0; i < mvm->max_scans; i++)
 		if (mvm->scan_uid[i] & type)
 			return i;
 
@@ -1253,8 +1253,7 @@ static u32 iwl_generate_scan_uid(struct iwl_mvm *mvm,
 		uid = type | (mvm->scan_seq_num <<
 			      IWL_UMAC_SCAN_UID_SEQ_OFFSET);
 		mvm->scan_seq_num++;
-	} while (iwl_mvm_find_scan_uid(mvm, uid) <
-		 IWL_MVM_MAX_SIMULTANEOUS_SCANS);
+	} while (iwl_mvm_find_scan_uid(mvm, uid) < mvm->max_scans);
 
 	IWL_DEBUG_SCAN(mvm, "Generated scan UID %u\n", uid);
 
@@ -1338,7 +1337,7 @@ int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	lockdep_assert_held(&mvm->mutex);
 
 	uid_idx = iwl_mvm_find_free_scan_uid(mvm);
-	if (uid_idx >= IWL_MVM_MAX_SIMULTANEOUS_SCANS)
+	if (uid_idx >= mvm->max_scans)
 		return -EBUSY;
 
 	/* we should have failed registration if scan_cmd was NULL */
@@ -1435,7 +1434,7 @@ int iwl_mvm_sched_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	lockdep_assert_held(&mvm->mutex);
 
 	uid_idx = iwl_mvm_find_free_scan_uid(mvm);
-	if (uid_idx >= IWL_MVM_MAX_SIMULTANEOUS_SCANS)
+	if (uid_idx >= mvm->max_scans)
 		return -EBUSY;
 
 	/* we should have failed registration if scan_cmd was NULL */
@@ -1536,7 +1535,7 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	/*
 	 * Scan uid may be set to zero in case of scan abort request from above.
 	 */
-	if (uid_idx >= IWL_MVM_MAX_SIMULTANEOUS_SCANS)
+	if (uid_idx >= mvm->max_scans)
 		return 0;
 
 	IWL_DEBUG_SCAN(mvm,
@@ -1577,7 +1576,7 @@ static bool iwl_scan_umac_done_check(struct iwl_notif_wait_data *notif_wait,
 	if (WARN_ON(pkt->hdr.cmd != SCAN_COMPLETE_UMAC))
 		return false;
 
-	if (uid_idx >= IWL_MVM_MAX_SIMULTANEOUS_SCANS)
+	if (uid_idx >= scan_done->mvm->max_scans)
 		return false;
 
 	/*
@@ -1626,7 +1625,7 @@ static int iwl_umac_scan_stop(struct iwl_mvm *mvm,
 
 	IWL_DEBUG_SCAN(mvm, "Preparing to stop scan, type %x\n", type);
 
-	for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++) {
+	for (i = 0; i < mvm->max_scans; i++) {
 		if (mvm->scan_uid[i] & type) {
 			int err;
 
@@ -1689,13 +1688,13 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		u32 uid, i;
 
 		uid = iwl_mvm_find_first_scan(mvm, IWL_UMAC_SCAN_UID_REG_SCAN);
-		if (uid < IWL_MVM_MAX_SIMULTANEOUS_SCANS) {
+		if (uid < mvm->max_scans) {
 			ieee80211_scan_completed(mvm->hw, true);
 			mvm->scan_uid[uid] = 0;
 		}
 		uid = iwl_mvm_find_first_scan(mvm,
 					      IWL_UMAC_SCAN_UID_SCHED_SCAN);
-		if (uid < IWL_MVM_MAX_SIMULTANEOUS_SCANS && !mvm->restart_fw) {
+		if (uid < mvm->max_scans && !mvm->restart_fw) {
 			ieee80211_sched_scan_stopped(mvm->hw);
 			mvm->scan_uid[uid] = 0;
 		}
@@ -1704,7 +1703,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		 * UIDs to make sure there's nothing left there and warn if
 		 * any is found.
 		 */
-		for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++) {
+		for (i = 0; i < mvm->max_scans; i++) {
 			if (WARN_ONCE(mvm->scan_uid[i],
 				      "UMAC scan UID %d was not cleaned\n",
 				      mvm->scan_uid[i]))

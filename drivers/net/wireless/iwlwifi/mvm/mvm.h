@@ -661,8 +661,11 @@ struct iwl_mvm {
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 
+	/* max number of simultaneous scans the FW supports */
+	unsigned int max_scans;
+
 	/* UMAC scan tracking */
-	u32 scan_uid[IWL_MVM_MAX_SIMULTANEOUS_SCANS];
+	u32 scan_uid[IWL_MVM_MAX_UMAC_SCANS];
 	u8 scan_seq_num, sched_scan_seq_num;
 
 	/* rx chain antennas set through debugfs for the scan command */

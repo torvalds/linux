@@ -510,6 +510,14 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
 
+	BUILD_BUG_ON(IWL_MVM_MAX_UMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK) ||
+		     IWL_MVM_MAX_LMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK));
+
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		mvm->max_scans = IWL_MVM_MAX_UMAC_SCANS;
+	else
+		mvm->max_scans = IWL_MVM_MAX_LMAC_SCANS;
+
 	if (mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&mvm->nvm_data->bands[IEEE80211_BAND_2GHZ];
@@ -1426,7 +1434,7 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
 		int i;
 
-		for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++) {
+		for (i = 0; i < mvm->max_scans; i++) {
 			if (WARN_ONCE(mvm->scan_uid[i],
 				      "UMAC scan UID %d was not cleaned\n",
 				      mvm->scan_uid[i]))
@@ -2373,6 +2381,46 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 	iwl_mvm_unref(mvm, IWL_MVM_REF_BSS_CHANGED);
 }
 
+static int iwl_mvm_num_scans(struct iwl_mvm *mvm)
+{
+	return hweight32(mvm->scan_status & IWL_MVM_SCAN_MASK);
+}
+
+static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
+{
+	/* This looks a bit arbitrary, but the idea is that if we run
+	 * out of possible simultaneous scans and the userspace is
+	 * trying to run a scan type that is already running, we
+	 * return -EBUSY.  But if the userspace wants to start a
+	 * different type of scan, we stop the opposite type to make
+	 * space for the new request.  The reason is backwards
+	 * compatibility with old wpa_supplicant that wouldn't stop a
+	 * scheduled scan before starting a normal scan.
+	 */
+
+	if (iwl_mvm_num_scans(mvm) < mvm->max_scans)
+		return 0;
+
+	/* Use a switch, even though this is a bitmask, so that more
+	 * than one bits set will fall in default and we will warn.
+	 */
+	switch (type) {
+	case IWL_MVM_SCAN_REGULAR:
+		if (mvm->scan_status & IWL_MVM_SCAN_REGULAR_MASK)
+			return -EBUSY;
+		return iwl_mvm_scan_offload_stop(mvm, true);
+	case IWL_MVM_SCAN_SCHED:
+		if (mvm->scan_status & IWL_MVM_SCAN_SCHED_MASK)
+			return -EBUSY;
+		return iwl_mvm_cancel_scan(mvm);
+	default:
+		WARN_ON(1);
+		break;
+	}
+
+	return -EIO;
+}
+
 static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_scan_request *hw_req)
@@ -2393,17 +2441,9 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (mvm->scan_status & IWL_MVM_SCAN_REGULAR) {
-		ret = -EBUSY;
+	ret = iwl_mvm_check_running_scans(mvm, IWL_MVM_SCAN_REGULAR);
+	if (ret)
 		goto out;
-	}
-
-	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) &&
-	    (mvm->scan_status & IWL_MVM_SCAN_SCHED)) {
-		ret = iwl_mvm_scan_offload_stop(mvm, true);
-		if (ret)
-			goto out;
-	}
 
 	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
 
@@ -2769,17 +2809,9 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
-		ret = -EBUSY;
+	ret = iwl_mvm_check_running_scans(mvm, IWL_MVM_SCAN_SCHED);
+	if (ret)
 		goto out;
-	}
-
-	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) &&
-	    (mvm->scan_status & IWL_MVM_SCAN_REGULAR)) {
-		ret = iwl_mvm_cancel_scan(mvm);
-		if (ret)
-			goto out;
-	}
 
 	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
 	if (ret)
