@@ -70,7 +70,7 @@ void drm_err(const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_ERR "[" DRM_NAME ":%pf] *ERROR* %pV",
+	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV",
 	       __builtin_return_address(0), &vaf);
 
 	va_end(args);

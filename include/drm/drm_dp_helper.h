@@ -42,6 +42,8 @@
  * 1.2 formally includes both eDP and DPI definitions.
  */
 
+#define DP_AUX_MAX_PAYLOAD_BYTES	16
+
 #define DP_AUX_I2C_WRITE		0x0
 #define DP_AUX_I2C_READ			0x1
 #define DP_AUX_I2C_STATUS		0x2
@@ -680,6 +682,9 @@ struct drm_dp_aux_msg {
  * transactions. The drm_dp_aux_register_i2c_bus() function registers an
  * I2C adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
  * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
+ * The I2C adapter uses long transfers by default; if a partial response is
+ * received, the adapter will drop down to the size given by the partial
+ * response for this transaction only.
  *
  * Note that the aux helper code assumes that the .transfer() function
  * only modifies the reply field of the drm_dp_aux_msg structure.  The

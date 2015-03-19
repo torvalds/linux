@@ -1034,23 +1034,45 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	crtc_count = 0;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_display_mode *desired_mode;
-		int x, y;
+		struct drm_mode_set *mode_set;
+		int x, y, j;
+		/* in case of tile group, are we the last tile vert or horiz?
+		 * If no tile group you are always the last one both vertically
+		 * and horizontally
+		 */
+		bool lastv = true, lasth = true;
+
 		desired_mode = fb_helper->crtc_info[i].desired_mode;
+		mode_set = &fb_helper->crtc_info[i].mode_set;
+
+		if (!desired_mode)
+			continue;
+
+		crtc_count++;
+
 		x = fb_helper->crtc_info[i].x;
 		y = fb_helper->crtc_info[i].y;
-		if (desired_mode) {
-			if (gamma_size == 0)
-				gamma_size = fb_helper->crtc_info[i].mode_set.crtc->gamma_size;
-			if (desired_mode->hdisplay + x < sizes.fb_width)
-				sizes.fb_width = desired_mode->hdisplay + x;
-			if (desired_mode->vdisplay + y < sizes.fb_height)
-				sizes.fb_height = desired_mode->vdisplay + y;
-			if (desired_mode->hdisplay + x > sizes.surface_width)
-				sizes.surface_width = desired_mode->hdisplay + x;
-			if (desired_mode->vdisplay + y > sizes.surface_height)
-				sizes.surface_height = desired_mode->vdisplay + y;
-			crtc_count++;
+
+		if (gamma_size == 0)
+			gamma_size = fb_helper->crtc_info[i].mode_set.crtc->gamma_size;
+
+		sizes.surface_width  = max_t(u32, desired_mode->hdisplay + x, sizes.surface_width);
+		sizes.surface_height = max_t(u32, desired_mode->vdisplay + y, sizes.surface_height);
+
+		for (j = 0; j < mode_set->num_connectors; j++) {
+			struct drm_connector *connector = mode_set->connectors[j];
+			if (connector->has_tile) {
+				lasth = (connector->tile_h_loc == (connector->num_h_tile - 1));
+				lastv = (connector->tile_v_loc == (connector->num_v_tile - 1));
+				/* cloning to multiple tiles is just crazy-talk, so: */
+				break;
+			}
 		}
+
+		if (lasth)
+			sizes.fb_width  = min_t(u32, desired_mode->hdisplay + x, sizes.fb_width);
+		if (lastv)
+			sizes.fb_height = min_t(u32, desired_mode->vdisplay + y, sizes.fb_height);
 	}
 
 	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {

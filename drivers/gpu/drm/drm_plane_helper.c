@@ -353,12 +353,13 @@ static struct drm_plane *create_primary_plane(struct drm_device *dev)
 	if (primary == NULL) {
 		DRM_DEBUG_KMS("Failed to allocate primary plane\n");
 		return NULL;
-		/*
-		 * Remove the format_default field from drm_plane when dropping
-		 * this helper.
-		 */
-		primary->format_default = true;
 	}
+
+	/*
+	 * Remove the format_default field from drm_plane when dropping
+	 * this helper.
+	 */
+	primary->format_default = true;
 
 	/* possible_crtc's will be filled in later by crtc_init */
 	ret = drm_universal_plane_init(dev, primary, 0,
