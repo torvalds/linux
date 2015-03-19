@@ -1413,7 +1413,8 @@ int hfa384x_drvr_start(hfa384x_t *hw);
 int hfa384x_drvr_stop(hfa384x_t *hw);
 int
 hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
-		     union p80211_hdr *p80211_hdr, struct p80211_metawep *p80211_wep);
+		     union p80211_hdr *p80211_hdr,
+		     struct p80211_metawep *p80211_wep);
 void hfa384x_tx_timeout(wlandevice_t *wlandev);
 
 int hfa384x_cmd_initialize(hfa384x_t *hw);
