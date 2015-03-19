@@ -278,7 +278,7 @@ int __die(const char *str, struct pt_regs *regs, long err)
 	print_modules();
 	show_regs(regs);
 #ifdef CONFIG_X86_32
-	if (user_mode_vm(regs)) {
+	if (user_mode(regs)) {
 		sp = regs->sp;
 		ss = regs->ss & 0xffff;
 	} else {
@@ -307,7 +307,7 @@ void die(const char *str, struct pt_regs *regs, long err)
 	unsigned long flags = oops_begin();
 	int sig = SIGSEGV;
 
-	if (!user_mode_vm(regs))
+	if (!user_mode(regs))
 		report_bug(regs->ip, regs);
 
 	if (__die(str, regs, err))

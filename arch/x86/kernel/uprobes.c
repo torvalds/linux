@@ -912,7 +912,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val,
 	int ret = NOTIFY_DONE;
 
 	/* We are only interested in userspace traps */
-	if (regs && !user_mode_vm(regs))
+	if (regs && !user_mode(regs))
 		return NOTIFY_DONE;
 
 	switch (val) {

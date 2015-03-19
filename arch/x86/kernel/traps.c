@@ -112,7 +112,7 @@ enum ctx_state ist_enter(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
 
-	if (user_mode_vm(regs)) {
+	if (user_mode(regs)) {
 		/* Other than that, we're just an exception. */
 		prev_state = exception_enter();
 	} else {
@@ -146,7 +146,7 @@ void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
 	/* Must be before exception_exit. */
 	preempt_count_sub(HARDIRQ_OFFSET);
 
-	if (user_mode_vm(regs))
+	if (user_mode(regs))
 		return exception_exit(prev_state);
 	else
 		rcu_nmi_exit();
@@ -158,7 +158,7 @@ void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
  *
  * IST exception handlers normally cannot schedule.  As a special
  * exception, if the exception interrupted userspace code (i.e.
- * user_mode_vm(regs) would return true) and the exception was not
+ * user_mode(regs) would return true) and the exception was not
  * a double fault, it can be safe to schedule.  ist_begin_non_atomic()
  * begins a non-atomic section within an ist_enter()/ist_exit() region.
  * Callers are responsible for enabling interrupts themselves inside
@@ -167,7 +167,7 @@ void ist_exit(struct pt_regs *regs, enum ctx_state prev_state)
  */
 void ist_begin_non_atomic(struct pt_regs *regs)
 {
-	BUG_ON(!user_mode_vm(regs));
+	BUG_ON(!user_mode(regs));
 
 	/*
 	 * Sanity check: we need to be on the normal thread stack.  This
@@ -384,7 +384,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		goto exit;
 	conditional_sti(regs);
 
-	if (!user_mode_vm(regs))
+	if (!user_mode(regs))
 		die("bounds", regs, error_code);
 
 	if (!cpu_feature_enabled(X86_FEATURE_MPX)) {
@@ -587,7 +587,7 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 	/* Copy the remainder of the stack from the current stack. */
 	memmove(new_stack, s, offsetof(struct bad_iret_stack, regs.ip));
 
-	BUG_ON(!user_mode_vm(&new_stack->regs));
+	BUG_ON(!user_mode(&new_stack->regs));
 	return new_stack;
 }
 NOKPROBE_SYMBOL(fixup_bad_iret);
@@ -637,7 +637,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	 * then it's very likely the result of an icebp/int01 trap.
 	 * User wants a sigtrap for that.
 	 */
-	if (!dr6 && user_mode_vm(regs))
+	if (!dr6 && user_mode(regs))
 		user_icebp = 1;
 
 	/* Catch kmemcheck conditions first of all! */
@@ -721,7 +721,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 		return;
 	conditional_sti(regs);
 
-	if (!user_mode_vm(regs))
+	if (!user_mode(regs))
 	{
 		if (!fixup_exception(regs)) {
 			task->thread.error_code = error_code;

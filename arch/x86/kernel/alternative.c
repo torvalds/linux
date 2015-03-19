@@ -715,7 +715,7 @@ int poke_int3_handler(struct pt_regs *regs)
 	if (likely(!bp_patching_in_progress))
 		return 0;
 
-	if (user_mode_vm(regs) || regs->ip != (unsigned long)bp_int3_addr)
+	if (user_mode(regs) || regs->ip != (unsigned long)bp_int3_addr)
 		return 0;
 
 	/* set up the specified breakpoint handler */

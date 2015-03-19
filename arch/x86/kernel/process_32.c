@@ -73,7 +73,7 @@ void __show_regs(struct pt_regs *regs, int all)
 	unsigned long sp;
 	unsigned short ss, gs;
 
-	if (user_mode_vm(regs)) {
+	if (user_mode(regs)) {
 		sp = regs->sp;
 		ss = regs->ss & 0xffff;
 		gs = get_user_gs(regs);

@@ -59,7 +59,7 @@ static nokprobe_inline int kprobes_fault(struct pt_regs *regs)
 	int ret = 0;
 
 	/* kprobe_running() needs smp_processor_id() */
-	if (kprobes_built_in() && !user_mode_vm(regs)) {
+	if (kprobes_built_in() && !user_mode(regs)) {
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, 14))
 			ret = 1;
@@ -1035,7 +1035,7 @@ static inline bool smap_violation(int error_code, struct pt_regs *regs)
 	if (error_code & PF_USER)
 		return false;
 
-	if (!user_mode_vm(regs) && (regs->flags & X86_EFLAGS_AC))
+	if (!user_mode(regs) && (regs->flags & X86_EFLAGS_AC))
 		return false;
 
 	return true;
@@ -1140,7 +1140,7 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
 	 * User-mode registers count as a user access even for any
 	 * potential system fault or CPU buglet:
 	 */
-	if (user_mode_vm(regs)) {
+	if (user_mode(regs)) {
 		local_irq_enable();
 		error_code |= PF_USER;
 		flags |= FAULT_FLAG_USER;
