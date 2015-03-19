@@ -108,13 +108,6 @@ int zynq_slcr_system_restart(struct notifier_block *nb,
 	u32 reboot;
 
 	/*
-	 * Unlock the SLCR then reset the system.
-	 * Note that this seems to require raw i/o
-	 * functions or there's a lockup?
-	 */
-	zynq_slcr_unlock();
-
-	/*
 	 * Clear 0x0F000000 bits of reboot status register to workaround
 	 * the FSBL not loading the bitstream after soft-reboot
 	 * This is a temporary solution until we know more.
