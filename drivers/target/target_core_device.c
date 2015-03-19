@@ -650,6 +650,18 @@ static u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
 	return aligned_max_sectors;
 }
 
+bool se_dev_check_wce(struct se_device *dev)
+{
+	bool wce = false;
+
+	if (dev->transport->get_write_cache)
+		wce = dev->transport->get_write_cache(dev);
+	else if (dev->dev_attrib.emulate_write_cache > 0)
+		wce = true;
+
+	return wce;
+}
+
 int se_dev_set_max_unmap_lba_count(
 	struct se_device *dev,
 	u32 max_unmap_lba_count)
