@@ -56,11 +56,11 @@ static struct regmap_config hmc5843_i2c_regmap_config = {
 		.cache_type = REGCACHE_RBTREE,
 };
 
-static int hmc5843_i2c_probe(struct i2c_client *client,
+static int hmc5843_i2c_probe(struct i2c_client *cli,
 			     const struct i2c_device_id *id)
 {
-	return hmc5843_common_probe(&client->dev,
-			devm_regmap_init_i2c(client, &hmc5843_i2c_regmap_config),
+	return hmc5843_common_probe(&cli->dev,
+			devm_regmap_init_i2c(cli, &hmc5843_i2c_regmap_config),
 			id->driver_data);
 }
 
