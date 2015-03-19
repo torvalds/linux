@@ -728,7 +728,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 
 		dst = map->logical_map[cid];
 
-		if (irq->delivery_mode == APIC_DM_LOWEST) {
+		if (kvm_lowest_prio_delivery(irq)) {
 			int l = -1;
 			for_each_set_bit(i, &bitmap, 16) {
 				if (!dst[i])
