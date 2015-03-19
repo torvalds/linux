@@ -273,14 +273,18 @@ static void gb_gpio_set_value_operation(struct gb_gpio_controller *ggc,
 	struct gb_gpio_set_value_request request;
 	int ret;
 
+	if (ggc->lines[which].direction == 1) {
+		dev_warn(ggc->chip.dev,
+			 "refusing to set value of input gpio %u\n", which);
+		return;
+	}
+
 	request.which = which;
 	request.value = value_high ? 1 : 0;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_SET_VALUE,
 				&request, sizeof(request), NULL, 0);
-	if (!ret) {
-		/* XXX should this set direction to out? */
+	if (!ret)
 		ggc->lines[which].value = request.value;
-	}
 }
 
 static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *ggc,
