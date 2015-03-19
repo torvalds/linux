@@ -4632,8 +4632,12 @@ static int raid5_mergeable_bvec(struct mddev *mddev,
 	unsigned int chunk_sectors = mddev->chunk_sectors;
 	unsigned int bio_sectors = bvm->bi_size >> 9;
 
-	if ((bvm->bi_rw & 1) == WRITE)
-		return biovec->bv_len; /* always allow writes to be mergeable */
+	/*
+	 * always allow writes to be mergeable, read as well if array
+	 * is degraded as we'll go through stripe cache anyway.
+	 */
+	if ((bvm->bi_rw & 1) == WRITE || mddev->degraded)
+		return biovec->bv_len;
 
 	if (mddev->new_chunk_sectors < mddev->chunk_sectors)
 		chunk_sectors = mddev->new_chunk_sectors;
@@ -5110,7 +5114,12 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 
 	md_write_start(mddev, bi);
 
-	if (rw == READ &&
+	/*
+	 * If array is degraded, better not do chunk aligned read because
+	 * later we might have to read it again in order to reconstruct
+	 * data on failed drives.
+	 */
+	if (rw == READ && mddev->degraded == 0 &&
 	     mddev->reshape_position == MaxSector &&
 	     chunk_aligned_read(mddev,bi))
 		return;
