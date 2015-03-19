@@ -301,8 +301,8 @@ skl_disable_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc)
 	I915_WRITE(PLANE_CTL(pipe, plane), 0);
 
 	/* Activate double buffered register update */
-	I915_WRITE(PLANE_CTL(pipe, plane), 0);
-	POSTING_READ(PLANE_CTL(pipe, plane));
+	I915_WRITE(PLANE_SURF(pipe, plane), 0);
+	POSTING_READ(PLANE_SURF(pipe, plane));
 
 	intel_update_sprite_watermarks(drm_plane, crtc, 0, 0, 0, false, false);
 }
