@@ -167,9 +167,6 @@ static int gb_gpio_activate_operation(struct gb_gpio_controller *ggc, u8 which)
 	struct gb_gpio_activate_request request;
 	int ret;
 
-	if (which > ggc->line_max)
-		return -EINVAL;
-
 	request.which = which;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_ACTIVATE,
 				 &request, sizeof(request), NULL, 0);
@@ -183,9 +180,6 @@ static int gb_gpio_deactivate_operation(struct gb_gpio_controller *ggc,
 {
 	struct gb_gpio_deactivate_request request;
 	int ret;
-
-	if (which > ggc->line_max)
-		return -EINVAL;
 
 	request.which = which;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_DEACTIVATE,
@@ -202,9 +196,6 @@ static int gb_gpio_get_direction_operation(struct gb_gpio_controller *ggc,
 	struct gb_gpio_get_direction_response response;
 	int ret;
 	u8 direction;
-
-	if (which > ggc->line_max)
-		return -EINVAL;
 
 	request.which = which;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_GET_DIRECTION,
@@ -227,9 +218,6 @@ static int gb_gpio_direction_in_operation(struct gb_gpio_controller *ggc,
 	struct gb_gpio_direction_in_request request;
 	int ret;
 
-	if (which > ggc->line_max)
-		return -EINVAL;
-
 	request.which = which;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_DIRECTION_IN,
 				&request, sizeof(request), NULL, 0);
@@ -243,9 +231,6 @@ static int gb_gpio_direction_out_operation(struct gb_gpio_controller *ggc,
 {
 	struct gb_gpio_direction_out_request request;
 	int ret;
-
-	if (which > ggc->line_max)
-		return -EINVAL;
 
 	request.which = which;
 	request.value = value_high ? 1 : 0;
@@ -263,9 +248,6 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *ggc,
 	struct gb_gpio_get_value_response response;
 	int ret;
 	u8 value;
-
-	if (which > ggc->line_max)
-		return -EINVAL;
 
 	request.which = which;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_GET_VALUE,
@@ -288,9 +270,6 @@ static int gb_gpio_set_value_operation(struct gb_gpio_controller *ggc,
 	struct gb_gpio_set_value_request request;
 	int ret;
 
-	if (which > ggc->line_max)
-		return -EINVAL;
-
 	request.which = which;
 	request.value = value_high ? 1 : 0;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_SET_VALUE,
@@ -307,9 +286,6 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *ggc,
 {
 	struct gb_gpio_set_debounce_request request;
 	int ret;
-
-	if (which > ggc->line_max)
-		return -EINVAL;
 
 	request.which = which;
 	request.usec = cpu_to_le16(debounce_usec);
