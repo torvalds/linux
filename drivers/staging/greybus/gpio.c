@@ -184,8 +184,13 @@ static void gb_gpio_deactivate_operation(struct gb_gpio_controller *ggc,
 	request.which = which;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_DEACTIVATE,
 				 &request, sizeof(request), NULL, 0);
-	if (!ret)
-		ggc->lines[which].active = false;
+	if (ret) {
+		dev_err(ggc->chip.dev, "failed to deactivate gpio %u\n",
+			which);
+		return;
+	}
+
+	ggc->lines[which].active = false;
 }
 
 static int gb_gpio_get_direction_operation(struct gb_gpio_controller *ggc,
@@ -254,8 +259,11 @@ static int gb_gpio_get_value_operation(struct gb_gpio_controller *ggc,
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_GET_VALUE,
 				&request, sizeof(request),
 				&response, sizeof(response));
-	if (ret)
+	if (ret) {
+		dev_err(ggc->chip.dev, "failed to get value of gpio %u\n",
+			which);
 		return ret;
+	}
 
 	value = response.value;
 	if (value && value != 1) {
@@ -283,8 +291,13 @@ static void gb_gpio_set_value_operation(struct gb_gpio_controller *ggc,
 	request.value = value_high ? 1 : 0;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_SET_VALUE,
 				&request, sizeof(request), NULL, 0);
-	if (!ret)
-		ggc->lines[which].value = request.value;
+	if (ret) {
+		dev_err(ggc->chip.dev, "failed to set value of gpio %u\n",
+			which);
+		return;
+	}
+
+	ggc->lines[which].value = request.value;
 }
 
 static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *ggc,
