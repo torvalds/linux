@@ -245,10 +245,6 @@ struct mic_data {
 };
 
 extern const u32 Te0[256];
-extern const u32 Te1[256];
-extern const u32 Te2[256];
-extern const u32 Te3[256];
-extern const u32 Te4[256];
 extern const u32 Td0[256];
 extern const u32 Td1[256];
 extern const u32 Td2[256];
