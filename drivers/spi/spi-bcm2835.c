@@ -153,8 +153,9 @@ static int bcm2835_spi_start_transfer(struct spi_device *spi,
 	if (spi_hz >= clk_hz / 2) {
 		cdiv = 2; /* clk_hz/2 is the fastest we can go */
 	} else if (spi_hz) {
-		/* CDIV must be a power of two */
-		cdiv = roundup_pow_of_two(DIV_ROUND_UP(clk_hz, spi_hz));
+		/* CDIV must be a multiple of two */
+		cdiv = DIV_ROUND_UP(clk_hz, spi_hz);
+		cdiv += (cdiv % 2);
 
 		if (cdiv >= 65536)
 			cdiv = 0; /* 0 is the slowest we can go */
