@@ -59,6 +59,7 @@ struct tk_fast {
 };
 
 static struct tk_fast tk_fast_mono ____cacheline_aligned;
+static struct tk_fast tk_fast_raw  ____cacheline_aligned;
 
 /* flag for if timekeeping is suspended */
 int __read_mostly timekeeping_suspended;
@@ -434,6 +435,12 @@ u64 ktime_get_mono_fast_ns(void)
 }
 EXPORT_SYMBOL_GPL(ktime_get_mono_fast_ns);
 
+u64 ktime_get_raw_fast_ns(void)
+{
+	return __ktime_get_fast_ns(&tk_fast_raw);
+}
+EXPORT_SYMBOL_GPL(ktime_get_raw_fast_ns);
+
 /* Suspend-time cycles value for halted fast timekeeper. */
 static cycle_t cycles_at_suspend;
 
@@ -461,6 +468,11 @@ static void halt_fast_timekeeper(struct timekeeper *tk)
 	cycles_at_suspend = tkr->read(tkr->clock);
 	tkr_dummy.read = dummy_clock_read;
 	update_fast_timekeeper(&tkr_dummy, &tk_fast_mono);
+
+	tkr = &tk->tkr_raw;
+	memcpy(&tkr_dummy, tkr, sizeof(tkr_dummy));
+	tkr_dummy.read = dummy_clock_read;
+	update_fast_timekeeper(&tkr_dummy, &tk_fast_raw);
 }
 
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL_OLD
@@ -592,6 +604,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 		       sizeof(tk_core.timekeeper));
 
 	update_fast_timekeeper(&tk->tkr_mono, &tk_fast_mono);
+	update_fast_timekeeper(&tk->tkr_raw,  &tk_fast_raw);
 }
 
 /**
