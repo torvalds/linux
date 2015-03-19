@@ -611,6 +611,243 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
 	return logical_ring_invalidate_all_caches(ringbuf, ctx);
 }
 
+static int logical_ring_alloc_request(struct intel_engine_cs *ring,
+				      struct intel_context *ctx)
+{
+	struct drm_i915_gem_request *request;
+	struct drm_i915_private *dev_private = ring->dev->dev_private;
+	int ret;
+
+	if (ring->outstanding_lazy_request)
+		return 0;
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL);
+	if (request == NULL)
+		return -ENOMEM;
+
+	if (ctx != ring->default_context) {
+		ret = intel_lr_context_pin(ring, ctx);
+		if (ret) {
+			kfree(request);
+			return ret;
+		}
+	}
+
+	kref_init(&request->ref);
+	request->ring = ring;
+	request->uniq = dev_private->request_uniq++;
+
+	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
+	if (ret) {
+		intel_lr_context_unpin(ring, ctx);
+		kfree(request);
+		return ret;
+	}
+
+	request->ctx = ctx;
+	i915_gem_context_reference(request->ctx);
+	request->ringbuf = ctx->engine[ring->id].ringbuf;
+
+	ring->outstanding_lazy_request = request;
+	return 0;
+}
+
+static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
+				     int bytes)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct drm_i915_gem_request *request;
+	int ret;
+
+	if (intel_ring_space(ringbuf) >= bytes)
+		return 0;
+
+	list_for_each_entry(request, &ring->request_list, list) {
+		/*
+		 * The request queue is per-engine, so can contain requests
+		 * from multiple ringbuffers. Here, we must ignore any that
+		 * aren't from the ringbuffer we're considering.
+		 */
+		struct intel_context *ctx = request->ctx;
+		if (ctx->engine[ring->id].ringbuf != ringbuf)
+			continue;
+
+		/* Would completion of this request free enough space? */
+		if (__intel_ring_space(request->tail, ringbuf->tail,
+				       ringbuf->size) >= bytes) {
+			break;
+		}
+	}
+
+	if (&request->list == &ring->request_list)
+		return -ENOSPC;
+
+	ret = i915_wait_request(request);
+	if (ret)
+		return ret;
+
+	i915_gem_retire_requests_ring(ring);
+
+	return intel_ring_space(ringbuf) >= bytes ? 0 : -ENOSPC;
+}
+
+/*
+ * intel_logical_ring_advance_and_submit() - advance the tail and submit the workload
+ * @ringbuf: Logical Ringbuffer to advance.
+ *
+ * The tail is updated in our logical ringbuffer struct, not in the actual context. What
+ * really happens during submission is that the context and current tail will be placed
+ * on a queue waiting for the ELSP to be ready to accept a new context submission. At that
+ * point, the tail *inside* the context is updated and the ELSP written to.
+ */
+static void
+intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
+				      struct intel_context *ctx,
+				      struct drm_i915_gem_request *request)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+
+	intel_logical_ring_advance(ringbuf);
+
+	if (intel_ring_stopped(ring))
+		return;
+
+	execlists_context_queue(ring, ctx, ringbuf->tail, request);
+}
+
+static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
+				       struct intel_context *ctx,
+				       int bytes)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long end;
+	int ret;
+
+	ret = logical_ring_wait_request(ringbuf, bytes);
+	if (ret != -ENOSPC)
+		return ret;
+
+	/* Force the context submission in case we have been skipping it */
+	intel_logical_ring_advance_and_submit(ringbuf, ctx, NULL);
+
+	/* With GEM the hangcheck timer should kick us out of the loop,
+	 * leaving it early runs the risk of corrupting GEM state (due
+	 * to running on almost untested codepaths). But on resume
+	 * timers don't work yet, so prevent a complete hang in that
+	 * case by choosing an insanely large timeout. */
+	end = jiffies + 60 * HZ;
+
+	ret = 0;
+	do {
+		if (intel_ring_space(ringbuf) >= bytes)
+			break;
+
+		msleep(1);
+
+		if (dev_priv->mm.interruptible && signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
+		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
+					   dev_priv->mm.interruptible);
+		if (ret)
+			break;
+
+		if (time_after(jiffies, end)) {
+			ret = -EBUSY;
+			break;
+		}
+	} while (1);
+
+	return ret;
+}
+
+static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf,
+				    struct intel_context *ctx)
+{
+	uint32_t __iomem *virt;
+	int rem = ringbuf->size - ringbuf->tail;
+
+	if (ringbuf->space < rem) {
+		int ret = logical_ring_wait_for_space(ringbuf, ctx, rem);
+
+		if (ret)
+			return ret;
+	}
+
+	virt = ringbuf->virtual_start + ringbuf->tail;
+	rem /= 4;
+	while (rem--)
+		iowrite32(MI_NOOP, virt++);
+
+	ringbuf->tail = 0;
+	intel_ring_update_space(ringbuf);
+
+	return 0;
+}
+
+static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
+				struct intel_context *ctx, int bytes)
+{
+	int ret;
+
+	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
+		ret = logical_ring_wrap_buffer(ringbuf, ctx);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	if (unlikely(ringbuf->space < bytes)) {
+		ret = logical_ring_wait_for_space(ringbuf, ctx, bytes);
+		if (unlikely(ret))
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * intel_logical_ring_begin() - prepare the logical ringbuffer to accept some commands
+ *
+ * @ringbuf: Logical ringbuffer.
+ * @num_dwords: number of DWORDs that we plan to write to the ringbuffer.
+ *
+ * The ringbuffer might not be ready to accept the commands right away (maybe it needs to
+ * be wrapped, or wait a bit for the tail to be updated). This function takes care of that
+ * and also preallocates a request (every workload submission is still mediated through
+ * requests, same as it did with legacy ringbuffer submission).
+ *
+ * Return: non-zero if the ringbuffer is not ready to be written to.
+ */
+static int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
+				    struct intel_context *ctx, int num_dwords)
+{
+	struct intel_engine_cs *ring = ringbuf->ring;
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
+				   dev_priv->mm.interruptible);
+	if (ret)
+		return ret;
+
+	ret = logical_ring_prepare(ringbuf, ctx, num_dwords * sizeof(uint32_t));
+	if (ret)
+		return ret;
+
+	/* Preallocate the olr before touching the ring */
+	ret = logical_ring_alloc_request(ring, ctx);
+	if (ret)
+		return ret;
+
+	ringbuf->space -= num_dwords * sizeof(uint32_t);
+	return 0;
+}
+
 /**
  * execlists_submission() - submit a batchbuffer for execution, Execlists style
  * @dev: DRM device.
@@ -787,30 +1024,6 @@ int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
-/*
- * intel_logical_ring_advance_and_submit() - advance the tail and submit the workload
- * @ringbuf: Logical Ringbuffer to advance.
- *
- * The tail is updated in our logical ringbuffer struct, not in the actual context. What
- * really happens during submission is that the context and current tail will be placed
- * on a queue waiting for the ELSP to be ready to accept a new context submission. At that
- * point, the tail *inside* the context is updated and the ELSP written to.
- */
-static void
-intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
-				      struct intel_context *ctx,
-				      struct drm_i915_gem_request *request)
-{
-	struct intel_engine_cs *ring = ringbuf->ring;
-
-	intel_logical_ring_advance(ringbuf);
-
-	if (intel_ring_stopped(ring))
-		return;
-
-	execlists_context_queue(ring, ctx, ringbuf->tail, request);
-}
-
 static int intel_lr_context_pin(struct intel_engine_cs *ring,
 		struct intel_context *ctx)
 {
@@ -853,219 +1066,6 @@ void intel_lr_context_unpin(struct intel_engine_cs *ring,
 			i915_gem_object_ggtt_unpin(ctx_obj);
 		}
 	}
-}
-
-static int logical_ring_alloc_request(struct intel_engine_cs *ring,
-				      struct intel_context *ctx)
-{
-	struct drm_i915_gem_request *request;
-	struct drm_i915_private *dev_private = ring->dev->dev_private;
-	int ret;
-
-	if (ring->outstanding_lazy_request)
-		return 0;
-
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (request == NULL)
-		return -ENOMEM;
-
-	if (ctx != ring->default_context) {
-		ret = intel_lr_context_pin(ring, ctx);
-		if (ret) {
-			kfree(request);
-			return ret;
-		}
-	}
-
-	kref_init(&request->ref);
-	request->ring = ring;
-	request->uniq = dev_private->request_uniq++;
-
-	ret = i915_gem_get_seqno(ring->dev, &request->seqno);
-	if (ret) {
-		intel_lr_context_unpin(ring, ctx);
-		kfree(request);
-		return ret;
-	}
-
-	request->ctx = ctx;
-	i915_gem_context_reference(request->ctx);
-	request->ringbuf = ctx->engine[ring->id].ringbuf;
-
-	ring->outstanding_lazy_request = request;
-	return 0;
-}
-
-static int logical_ring_wait_request(struct intel_ringbuffer *ringbuf,
-				     int bytes)
-{
-	struct intel_engine_cs *ring = ringbuf->ring;
-	struct drm_i915_gem_request *request;
-	int ret;
-
-	if (intel_ring_space(ringbuf) >= bytes)
-		return 0;
-
-	list_for_each_entry(request, &ring->request_list, list) {
-		/*
-		 * The request queue is per-engine, so can contain requests
-		 * from multiple ringbuffers. Here, we must ignore any that
-		 * aren't from the ringbuffer we're considering.
-		 */
-		struct intel_context *ctx = request->ctx;
-		if (ctx->engine[ring->id].ringbuf != ringbuf)
-			continue;
-
-		/* Would completion of this request free enough space? */
-		if (__intel_ring_space(request->tail, ringbuf->tail,
-				       ringbuf->size) >= bytes) {
-			break;
-		}
-	}
-
-	if (&request->list == &ring->request_list)
-		return -ENOSPC;
-
-	ret = i915_wait_request(request);
-	if (ret)
-		return ret;
-
-	i915_gem_retire_requests_ring(ring);
-
-	return intel_ring_space(ringbuf) >= bytes ? 0 : -ENOSPC;
-}
-
-static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
-				       struct intel_context *ctx,
-				       int bytes)
-{
-	struct intel_engine_cs *ring = ringbuf->ring;
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long end;
-	int ret;
-
-	ret = logical_ring_wait_request(ringbuf, bytes);
-	if (ret != -ENOSPC)
-		return ret;
-
-	/* Force the context submission in case we have been skipping it */
-	intel_logical_ring_advance_and_submit(ringbuf, ctx, NULL);
-
-	/* With GEM the hangcheck timer should kick us out of the loop,
-	 * leaving it early runs the risk of corrupting GEM state (due
-	 * to running on almost untested codepaths). But on resume
-	 * timers don't work yet, so prevent a complete hang in that
-	 * case by choosing an insanely large timeout. */
-	end = jiffies + 60 * HZ;
-
-	ret = 0;
-	do {
-		if (intel_ring_space(ringbuf) >= bytes)
-			break;
-
-		msleep(1);
-
-		if (dev_priv->mm.interruptible && signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-
-		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
-					   dev_priv->mm.interruptible);
-		if (ret)
-			break;
-
-		if (time_after(jiffies, end)) {
-			ret = -EBUSY;
-			break;
-		}
-	} while (1);
-
-	return ret;
-}
-
-static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf,
-				    struct intel_context *ctx)
-{
-	uint32_t __iomem *virt;
-	int rem = ringbuf->size - ringbuf->tail;
-
-	if (ringbuf->space < rem) {
-		int ret = logical_ring_wait_for_space(ringbuf, ctx, rem);
-
-		if (ret)
-			return ret;
-	}
-
-	virt = ringbuf->virtual_start + ringbuf->tail;
-	rem /= 4;
-	while (rem--)
-		iowrite32(MI_NOOP, virt++);
-
-	ringbuf->tail = 0;
-	intel_ring_update_space(ringbuf);
-
-	return 0;
-}
-
-static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
-				struct intel_context *ctx, int bytes)
-{
-	int ret;
-
-	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
-		ret = logical_ring_wrap_buffer(ringbuf, ctx);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	if (unlikely(ringbuf->space < bytes)) {
-		ret = logical_ring_wait_for_space(ringbuf, ctx, bytes);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	return 0;
-}
-
-/**
- * intel_logical_ring_begin() - prepare the logical ringbuffer to accept some commands
- *
- * @ringbuf: Logical ringbuffer.
- * @num_dwords: number of DWORDs that we plan to write to the ringbuffer.
- *
- * The ringbuffer might not be ready to accept the commands right away (maybe it needs to
- * be wrapped, or wait a bit for the tail to be updated). This function takes care of that
- * and also preallocates a request (every workload submission is still mediated through
- * requests, same as it did with legacy ringbuffer submission).
- *
- * Return: non-zero if the ringbuffer is not ready to be written to.
- */
-int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
-			     struct intel_context *ctx, int num_dwords)
-{
-	struct intel_engine_cs *ring = ringbuf->ring;
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
-
-	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
-				   dev_priv->mm.interruptible);
-	if (ret)
-		return ret;
-
-	ret = logical_ring_prepare(ringbuf, ctx, num_dwords * sizeof(uint32_t));
-	if (ret)
-		return ret;
-
-	/* Preallocate the olr before touching the ring */
-	ret = logical_ring_alloc_request(ring, ctx);
-	if (ret)
-		return ret;
-
-	ringbuf->space -= num_dwords * sizeof(uint32_t);
-	return 0;
 }
 
 static int intel_logical_ring_workarounds_emit(struct intel_engine_cs *ring,

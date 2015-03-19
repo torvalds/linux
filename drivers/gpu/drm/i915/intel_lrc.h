@@ -63,9 +63,6 @@ static inline void intel_logical_ring_emit(struct intel_ringbuffer *ringbuf,
 	iowrite32(data, ringbuf->virtual_start + ringbuf->tail);
 	ringbuf->tail += 4;
 }
-int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
-			     struct intel_context *ctx,
-			     int num_dwords);
 
 /* Logical Ring Contexts */
 void intel_lr_context_free(struct intel_context *ctx);
