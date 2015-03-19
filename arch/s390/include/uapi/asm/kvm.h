@@ -93,6 +93,14 @@ struct kvm_s390_vm_cpu_machine {
 	__u64 fac_list[256];
 };
 
+#define KVM_S390_VM_CPU_PROCESSOR_FEAT	2
+#define KVM_S390_VM_CPU_MACHINE_FEAT	3
+
+#define KVM_S390_VM_CPU_FEAT_NR_BITS	1024
+struct kvm_s390_vm_cpu_feat {
+	__u64 feat[16];
+};
+
 /* kvm attributes for crypto */
 #define KVM_S390_VM_CRYPTO_ENABLE_AES_KW	0
 #define KVM_S390_VM_CRYPTO_ENABLE_DEA_KW	1

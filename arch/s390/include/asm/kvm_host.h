@@ -658,6 +658,8 @@ struct kvm_arch{
 	struct kvm_s390_cpu_model model;
 	struct kvm_s390_crypto crypto;
 	u64 epoch;
+	/* subset of available cpu features enabled by user space */
+	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)
