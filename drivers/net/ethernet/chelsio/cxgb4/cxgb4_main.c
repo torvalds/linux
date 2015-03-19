@@ -124,7 +124,7 @@ struct filter_entry {
 /* Macros needed to support the PCI Device ID Table ...
  */
 #define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
-	static struct pci_device_id cxgb4_pci_tbl[] = {
+	static const struct pci_device_id cxgb4_pci_tbl[] = {
 #define CH_PCI_DEVICE_ID_FUNCTION 0x4
 
 /* Include PCI Device IDs for both PF4 and PF0-3 so our PCI probe() routine is

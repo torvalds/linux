@@ -60,8 +60,6 @@
  *   -- Used to finish the definition of the PCI ID Table.  Note that we
  *   -- will be adding a trailing semi-colon (";") here.
  */
-#ifdef CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN
-
 #ifndef CH_PCI_DEVICE_ID_FUNCTION
 #error CH_PCI_DEVICE_ID_FUNCTION not defined!
 #endif
@@ -156,7 +154,5 @@ CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN
 	CH_PCI_ID_TABLE_FENTRY(0x5089),	/* Custom T520-CR */
 	CH_PCI_ID_TABLE_FENTRY(0x5090),	/* Custom T540-CR */
 CH_PCI_DEVICE_ID_TABLE_DEFINE_END;
-
-#endif /* CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN */
 
 #endif /* __T4_PCI_ID_TBL_H__ */
