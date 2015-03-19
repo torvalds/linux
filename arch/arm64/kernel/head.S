@@ -383,6 +383,43 @@ __create_page_tables:
 	 */
 	mov	x0, x25				// idmap_pg_dir
 	adrp	x3, KERNEL_START		// __pa(KERNEL_START)
+
+#ifndef CONFIG_ARM64_VA_BITS_48
+#define EXTRA_SHIFT	(PGDIR_SHIFT + PAGE_SHIFT - 3)
+#define EXTRA_PTRS	(1 << (48 - EXTRA_SHIFT))
+
+	/*
+	 * If VA_BITS < 48, it may be too small to allow for an ID mapping to be
+	 * created that covers system RAM if that is located sufficiently high
+	 * in the physical address space. So for the ID map, use an extended
+	 * virtual range in that case, by configuring an additional translation
+	 * level.
+	 * First, we have to verify our assumption that the current value of
+	 * VA_BITS was chosen such that all translation levels are fully
+	 * utilised, and that lowering T0SZ will always result in an additional
+	 * translation level to be configured.
+	 */
+#if VA_BITS != EXTRA_SHIFT
+#error "Mismatch between VA_BITS and page size/number of translation levels"
+#endif
+
+	/*
+	 * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
+	 * entire kernel image can be ID mapped. As T0SZ == (64 - #bits used),
+	 * this number conveniently equals the number of leading zeroes in
+	 * the physical address of KERNEL_END.
+	 */
+	adrp	x5, KERNEL_END
+	clz	x5, x5
+	cmp	x5, TCR_T0SZ(VA_BITS)	// default T0SZ small enough?
+	b.ge	1f			// .. then skip additional level
+
+	str_l	x5, idmap_t0sz, x6
+
+	create_table_entry x0, x3, EXTRA_SHIFT, EXTRA_PTRS, x5, x6
+1:
+#endif
+
 	create_pgd_entry x0, x3, x5, x6
 	mov	x5, x3				// __pa(KERNEL_START)
 	adr_l	x6, KERNEL_END			// __pa(KERNEL_END)
