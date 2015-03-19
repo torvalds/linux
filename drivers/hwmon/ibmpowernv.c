@@ -127,6 +127,25 @@ static int get_sensor_index_attr(const char *name, u32 *index,
 	return 0;
 }
 
+static const char *convert_opal_attr_name(enum sensors type,
+					  const char *opal_attr)
+{
+	const char *attr_name = NULL;
+
+	if (!strcmp(opal_attr, DT_FAULT_ATTR_SUFFIX)) {
+		attr_name = "fault";
+	} else if (!strcmp(opal_attr, DT_DATA_ATTR_SUFFIX)) {
+		attr_name = "input";
+	} else if (!strcmp(opal_attr, DT_THRESHOLD_ATTR_SUFFIX)) {
+		if (type == TEMP)
+			attr_name = "max";
+		else if (type == FAN)
+			attr_name = "min";
+	}
+
+	return attr_name;
+}
+
 /*
  * This function translates the DT node name into the 'hwmon' attribute name.
  * IBMPOWERNV device node appear like cooling-fan#2-data, amb-temp#1-thrs etc.
@@ -138,7 +157,7 @@ static int create_hwmon_attr_name(struct device *dev, enum sensors type,
 					 char *hwmon_attr_name)
 {
 	char attr_suffix[MAX_ATTR_LEN];
-	char *attr_name;
+	const char *attr_name;
 	u32 index;
 	int err;
 
@@ -149,20 +168,9 @@ static int create_hwmon_attr_name(struct device *dev, enum sensors type,
 		return err;
 	}
 
-	if (!strcmp(attr_suffix, DT_FAULT_ATTR_SUFFIX)) {
-		attr_name = "fault";
-	} else if (!strcmp(attr_suffix, DT_DATA_ATTR_SUFFIX)) {
-		attr_name = "input";
-	} else if (!strcmp(attr_suffix, DT_THRESHOLD_ATTR_SUFFIX)) {
-		if (type == TEMP)
-			attr_name = "max";
-		else if (type == FAN)
-			attr_name = "min";
-		else
-			return -ENOENT;
-	} else {
+	attr_name = convert_opal_attr_name(type, attr_suffix);
+	if (!attr_name)
 		return -ENOENT;
-	}
 
 	snprintf(hwmon_attr_name, MAX_ATTR_LEN, "%s%d_%s",
 		 sensor_groups[type].name, index, attr_name);
