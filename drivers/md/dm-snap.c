@@ -1439,8 +1439,6 @@ out:
 		full_bio->bi_end_io = pe->full_bio_end_io;
 		full_bio->bi_private = pe->full_bio_private;
 	}
-	free_pending_exception(pe);
-
 	increment_pending_exceptions_done_count();
 
 	up_write(&s->lock);
@@ -1457,6 +1455,8 @@ out:
 	}
 
 	retry_origin_bios(s, origin_bios);
+
+	free_pending_exception(pe);
 }
 
 static void commit_callback(void *context, int success)

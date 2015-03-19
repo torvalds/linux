@@ -369,12 +369,6 @@ void pm_qos_update_request(struct pm_qos_request *req,
 	}
 
 	cancel_delayed_work_sync(&req->work);
-
-	if (new_value != req->node.prio)
-		pm_qos_update_target(
-			pm_qos_array[req->pm_qos_class]->constraints,
-			&req->node, PM_QOS_UPDATE_REQ, new_value);
-
 	__pm_qos_update_request(req, new_value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);

@@ -562,7 +562,8 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		unsigned long long end_lba;
 
 		end_lba = dev->transport->get_blocks(dev) + 1;
-		if (cmd->t_task_lba + sectors > end_lba) {
+		if (((cmd->t_task_lba + sectors) < cmd->t_task_lba) ||
+		    ((cmd->t_task_lba + sectors) > end_lba)) {
 			pr_err("cmd exceeds last lba %llu "
 				"(lba %llu, sectors %u)\n",
 				end_lba, cmd->t_task_lba, sectors);
