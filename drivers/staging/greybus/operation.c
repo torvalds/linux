@@ -42,11 +42,11 @@ static DEFINE_MUTEX(gb_message_mutex);
  * (0x80) of the operation type field is used to indicate whether
  * the message is a request (clear) or a response (set).
  *
- * Response messages include an additional status byte, which
+ * Response messages include an additional result byte, which
  * communicates the result of the corresponding request.  A zero
- * status value means the operation completed successfully.  Any
+ * result value means the operation completed successfully.  Any
  * other value indicates an error; in this case, the payload of the
- * response message (if any) is ignored.  The status byte must be
+ * response message (if any) is ignored.  The result byte must be
  * zero in the header for a request message.
  *
  * The wire format for all numeric fields in the header is little
