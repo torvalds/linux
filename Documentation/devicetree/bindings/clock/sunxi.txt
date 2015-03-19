@@ -20,6 +20,7 @@ Required properties:
 	"allwinner,sun8i-a23-axi-clk" - for the AXI clock on A23
 	"allwinner,sun4i-a10-axi-gates-clk" - for the AXI gates
 	"allwinner,sun4i-a10-ahb-clk" - for the AHB clock
+	"allwinner,sun5i-a13-ahb-clk" - for the AHB clock on A13
 	"allwinner,sun9i-a80-ahb-clk" - for the AHB bus clocks on A80
 	"allwinner,sun4i-a10-ahb-gates-clk" - for the AHB gates on A10
 	"allwinner,sun5i-a13-ahb-gates-clk" - for the AHB gates on A13

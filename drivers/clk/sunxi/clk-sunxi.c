@@ -482,6 +482,45 @@ static void sun6i_a31_get_pll6_factors(u32 *freq, u32 parent_rate,
 }
 
 /**
+ * sun5i_a13_get_ahb_factors() - calculates m, p factors for AHB
+ * AHB rate is calculated as follows
+ * rate = parent_rate >> p
+ */
+
+static void sun5i_a13_get_ahb_factors(u32 *freq, u32 parent_rate,
+				       u8 *n, u8 *k, u8 *m, u8 *p)
+{
+	u32 div;
+
+	/* divide only */
+	if (parent_rate < *freq)
+		*freq = parent_rate;
+
+	/*
+	 * user manual says valid speed is 8k ~ 276M, but tests show it
+	 * can work at speeds up to 300M, just after reparenting to pll6
+	 */
+	if (*freq < 8000)
+		*freq = 8000;
+	if (*freq > 300000000)
+		*freq = 300000000;
+
+	div = order_base_2(DIV_ROUND_UP(parent_rate, *freq));
+
+	/* p = 0 ~ 3 */
+	if (div > 3)
+		div = 3;
+
+	*freq = parent_rate >> div;
+
+	/* we were called to round the frequency, we can now return */
+	if (p == NULL)
+		return;
+
+	*p = div;
+}
+
+/**
  * sun4i_get_apb1_factors() - calculates m, p factors for APB1
  * APB1 rate is calculated as follows
  * rate = (parent_rate >> p) / (m + 1);
@@ -616,6 +655,11 @@ static struct clk_factors_config sun6i_a31_pll6_config = {
 	.n_start = 1,
 };
 
+static struct clk_factors_config sun5i_a13_ahb_config = {
+	.pshift = 4,
+	.pwidth = 2,
+};
+
 static struct clk_factors_config sun4i_apb1_config = {
 	.mshift = 0,
 	.mwidth = 5,
@@ -674,6 +718,13 @@ static const struct factors_data sun6i_a31_pll6_data __initconst = {
 	.table = &sun6i_a31_pll6_config,
 	.getter = sun6i_a31_get_pll6_factors,
 	.name = "pll6x2",
+};
+
+static const struct factors_data sun5i_a13_ahb_data __initconst = {
+	.mux = 6,
+	.muxmask = BIT(1) | BIT(0),
+	.table = &sun5i_a13_ahb_config,
+	.getter = sun5i_a13_get_ahb_factors,
 };
 
 static const struct factors_data sun4i_apb1_data __initconst = {
@@ -1184,6 +1235,7 @@ static const struct of_device_id clk_factors_match[] __initconst = {
 	{.compatible = "allwinner,sun6i-a31-pll1-clk", .data = &sun6i_a31_pll1_data,},
 	{.compatible = "allwinner,sun8i-a23-pll1-clk", .data = &sun8i_a23_pll1_data,},
 	{.compatible = "allwinner,sun7i-a20-pll4-clk", .data = &sun7i_a20_pll4_data,},
+	{.compatible = "allwinner,sun5i-a13-ahb-clk", .data = &sun5i_a13_ahb_data,},
 	{.compatible = "allwinner,sun4i-a10-apb1-clk", .data = &sun4i_apb1_data,},
 	{.compatible = "allwinner,sun7i-a20-out-clk", .data = &sun7i_a20_out_data,},
 	{}
