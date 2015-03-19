@@ -169,6 +169,17 @@ static int create_hwmon_attr_name(struct device *dev, enum sensors type,
 	return 0;
 }
 
+static int get_sensor_type(struct device_node *np)
+{
+	enum sensors type;
+
+	for (type = 0; type < MAX_SENSOR_TYPE; type++) {
+		if (of_device_is_compatible(np, sensor_groups[type].compatible))
+			return type;
+	}
+	return MAX_SENSOR_TYPE;
+}
+
 static int populate_attr_groups(struct platform_device *pdev)
 {
 	struct platform_data *pdata = platform_get_drvdata(pdev);
@@ -181,12 +192,9 @@ static int populate_attr_groups(struct platform_device *pdev)
 		if (np->name == NULL)
 			continue;
 
-		for (type = 0; type < MAX_SENSOR_TYPE; type++)
-			if (of_device_is_compatible(np,
-					sensor_groups[type].compatible)) {
-				sensor_groups[type].attr_count++;
-				break;
-			}
+		type = get_sensor_type(np);
+		if (type != MAX_SENSOR_TYPE)
+			sensor_groups[type].attr_count++;
 	}
 
 	of_node_put(opal);
@@ -236,11 +244,7 @@ static int create_device_attrs(struct platform_device *pdev)
 		if (np->name == NULL)
 			continue;
 
-		for (type = 0; type < MAX_SENSOR_TYPE; type++)
-			if (of_device_is_compatible(np,
-					sensor_groups[type].compatible))
-				break;
-
+		type = get_sensor_type(np);
 		if (type == MAX_SENSOR_TYPE)
 			continue;
 
