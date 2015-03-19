@@ -225,7 +225,7 @@ ENDPROC(native_usergs_sysret64)
 ENTRY(system_call)
 	CFI_STARTPROC	simple
 	CFI_SIGNAL_FRAME
-	CFI_DEF_CFA	rsp,KERNEL_STACK_OFFSET
+	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
 	SWAPGS_UNSAFE_STACK
@@ -242,9 +242,8 @@ GLOBAL(system_call_after_swapgs)
 	 * so we can enable interrupts only after we're done with using rsp_scratch:
 	 */
 	movq	%rsp,PER_CPU_VAR(rsp_scratch)
-	/* kernel_stack is set so that 5 slots (iret frame) are preallocated */
 	movq	PER_CPU_VAR(kernel_stack),%rsp
-	ALLOC_PT_GPREGS_ON_STACK 8		/* +8: space for orig_ax */
+	ALLOC_PT_GPREGS_ON_STACK 6*8 /* 6*8: space for orig_ax and iret frame */
 	movq	%rcx,RIP(%rsp)
 	movq	PER_CPU_VAR(rsp_scratch),%rcx
 	movq	%r11,EFLAGS(%rsp)

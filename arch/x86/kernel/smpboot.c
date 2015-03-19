@@ -813,8 +813,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	initial_gs = per_cpu_offset(cpu);
 #endif
 	per_cpu(kernel_stack, cpu) =
-		(unsigned long)task_stack_page(idle) -
-		KERNEL_STACK_OFFSET + THREAD_SIZE;
+		(unsigned long)task_stack_page(idle) + THREAD_SIZE;
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
 	stack_start  = idle->thread.sp;

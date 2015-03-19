@@ -308,7 +308,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	load_sp0(tss, next);
 	this_cpu_write(kernel_stack,
 		       (unsigned long)task_stack_page(next_p) +
-		       THREAD_SIZE - KERNEL_STACK_OFFSET);
+		       THREAD_SIZE);
 	this_cpu_write(cpu_current_top_of_stack,
 		       (unsigned long)task_stack_page(next_p) +
 		       THREAD_SIZE);

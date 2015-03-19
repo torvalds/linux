@@ -172,7 +172,6 @@ struct thread_info {
 #define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW)
 
 #define STACK_WARN		(THREAD_SIZE/8)
-#define KERNEL_STACK_OFFSET	(5*(BITS_PER_LONG/8))
 
 /*
  * macros/functions for gaining access to the thread information structure
@@ -201,10 +200,10 @@ static inline unsigned long current_stack_pointer(void)
 
 #else /* !__ASSEMBLY__ */
 
-/* how to get the thread information struct from ASM */
+/* Load thread_info address into "reg" */
 #define GET_THREAD_INFO(reg) \
 	_ASM_MOV PER_CPU_VAR(kernel_stack),reg ; \
-	_ASM_SUB $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg ;
+	_ASM_SUB $(THREAD_SIZE),reg ;
 
 /*
  * ASM operand which evaluates to thread_info address
