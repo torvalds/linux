@@ -89,10 +89,9 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	if (inet->inet_saddr == 0)
 		inet->inet_saddr = fl4->saddr;
-	inet->inet_rcv_saddr = inet->inet_saddr;
-
+	sk_rcv_saddr_set(sk, inet->inet_saddr);
 	inet->inet_dport = usin->sin_port;
-	inet->inet_daddr = daddr;
+	sk_daddr_set(sk, daddr);
 
 	inet_csk(sk)->icsk_ext_hdr_len = 0;
 	if (inet_opt)
@@ -408,8 +407,8 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	newinet		   = inet_sk(newsk);
 	ireq		   = inet_rsk(req);
-	newinet->inet_daddr	= ireq->ir_rmt_addr;
-	newinet->inet_rcv_saddr = ireq->ir_loc_addr;
+	sk_daddr_set(newsk, ireq->ir_rmt_addr);
+	sk_rcv_saddr_set(newsk, ireq->ir_loc_addr);
 	newinet->inet_saddr	= ireq->ir_loc_addr;
 	newinet->inet_opt	= ireq->opt;
 	ireq->opt	   = NULL;
@@ -639,8 +638,8 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		goto drop_and_free;
 
 	ireq = inet_rsk(req);
-	ireq->ir_loc_addr = ip_hdr(skb)->daddr;
-	ireq->ir_rmt_addr = ip_hdr(skb)->saddr;
+	sk_rcv_saddr_set(req_to_sk(req), ip_hdr(skb)->daddr);
+	sk_daddr_set(req_to_sk(req), ip_hdr(skb)->saddr);
 	ireq->ireq_family = AF_INET;
 	ireq->ir_iif = sk->sk_bound_dev_if;
 

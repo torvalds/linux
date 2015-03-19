@@ -24,9 +24,9 @@
 #include <net/secure_seq.h>
 #include <net/ip.h>
 
-static unsigned int inet_ehashfn(struct net *net, const __be32 laddr,
-				 const __u16 lport, const __be32 faddr,
-				 const __be16 fport)
+static u32 inet_ehashfn(const struct net *net, const __be32 laddr,
+			const __u16 lport, const __be32 faddr,
+			const __be16 fport)
 {
 	static u32 inet_ehash_secret __read_mostly;
 
@@ -36,17 +36,21 @@ static unsigned int inet_ehashfn(struct net *net, const __be32 laddr,
 			      inet_ehash_secret + net_hash_mix(net));
 }
 
-
-static unsigned int inet_sk_ehashfn(const struct sock *sk)
+/* This function handles inet_sock, but also timewait and request sockets
+ * for IPv4/IPv6.
+ */
+u32 sk_ehashfn(const struct sock *sk)
 {
-	const struct inet_sock *inet = inet_sk(sk);
-	const __be32 laddr = inet->inet_rcv_saddr;
-	const __u16 lport = inet->inet_num;
-	const __be32 faddr = inet->inet_daddr;
-	const __be16 fport = inet->inet_dport;
-	struct net *net = sock_net(sk);
-
-	return inet_ehashfn(net, laddr, lport, faddr, fport);
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6 &&
+	    !ipv6_addr_v4mapped(&sk->sk_v6_daddr))
+		return inet6_ehashfn(sock_net(sk),
+				     &sk->sk_v6_rcv_saddr, sk->sk_num,
+				     &sk->sk_v6_daddr, sk->sk_dport);
+#endif
+	return inet_ehashfn(sock_net(sk),
+			    sk->sk_rcv_saddr, sk->sk_num,
+			    sk->sk_daddr, sk->sk_dport);
 }
 
 /*
@@ -407,13 +411,13 @@ int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct hlist_nulls_head *list;
-	spinlock_t *lock;
 	struct inet_ehash_bucket *head;
+	spinlock_t *lock;
 	int twrefcnt = 0;
 
 	WARN_ON(!sk_unhashed(sk));
 
-	sk->sk_hash = inet_sk_ehashfn(sk);
+	sk->sk_hash = sk_ehashfn(sk);
 	head = inet_ehash_bucket(hashinfo, sk->sk_hash);
 	list = &head->chain;
 	lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
@@ -430,15 +434,13 @@ int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw)
 }
 EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
 
-static void __inet_hash(struct sock *sk)
+int __inet_hash(struct sock *sk, struct inet_timewait_sock *tw)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 	struct inet_listen_hashbucket *ilb;
 
-	if (sk->sk_state != TCP_LISTEN) {
-		__inet_hash_nolisten(sk, NULL);
-		return;
-	}
+	if (sk->sk_state != TCP_LISTEN)
+		return __inet_hash_nolisten(sk, tw);
 
 	WARN_ON(!sk_unhashed(sk));
 	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
@@ -447,13 +449,15 @@ static void __inet_hash(struct sock *sk)
 	__sk_nulls_add_node_rcu(sk, &ilb->head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	spin_unlock(&ilb->lock);
+	return 0;
 }
+EXPORT_SYMBOL(__inet_hash);
 
 void inet_hash(struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
-		__inet_hash(sk);
+		__inet_hash(sk, NULL);
 		local_bh_enable();
 	}
 }
@@ -484,8 +488,7 @@ EXPORT_SYMBOL_GPL(inet_unhash);
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		struct sock *sk, u32 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
-			struct sock *, __u16, struct inet_timewait_sock **),
-		int (*hash)(struct sock *sk, struct inet_timewait_sock *twp))
+			struct sock *, __u16, struct inet_timewait_sock **))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	const unsigned short snum = inet_sk(sk)->inet_num;
@@ -555,7 +558,7 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->inet_sport = htons(port);
-			twrefcnt += hash(sk, tw);
+			twrefcnt += __inet_hash_nolisten(sk, tw);
 		}
 		if (tw)
 			twrefcnt += inet_twsk_bind_unhash(tw, hinfo);
@@ -577,7 +580,7 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		hash(sk, NULL);
+		__inet_hash_nolisten(sk, NULL);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {
@@ -597,7 +600,7 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 		      struct sock *sk)
 {
 	return __inet_hash_connect(death_row, sk, inet_sk_port_offset(sk),
-			__inet_check_established, __inet_hash_nolisten);
+				   __inet_check_established);
 }
 EXPORT_SYMBOL_GPL(inet_hash_connect);
 

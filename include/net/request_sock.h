@@ -91,6 +91,11 @@ static inline struct request_sock *inet_reqsk(struct sock *sk)
 	return (struct request_sock *)sk;
 }
 
+static inline struct sock *req_to_sk(struct request_sock *req)
+{
+	return (struct sock *)req;
+}
+
 static inline void reqsk_free(struct request_sock *req)
 {
 	/* temporary debugging */

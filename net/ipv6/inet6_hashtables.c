@@ -23,11 +23,9 @@
 #include <net/secure_seq.h>
 #include <net/ip.h>
 
-static unsigned int inet6_ehashfn(struct net *net,
-				  const struct in6_addr *laddr,
-				  const u16 lport,
-				  const struct in6_addr *faddr,
-				  const __be16 fport)
+u32 inet6_ehashfn(const struct net *net,
+		  const struct in6_addr *laddr, const u16 lport,
+		  const struct in6_addr *faddr, const __be16 fport)
 {
 	static u32 inet6_ehash_secret __read_mostly;
 	static u32 ipv6_hash_secret __read_mostly;
@@ -43,54 +41,6 @@ static unsigned int inet6_ehashfn(struct net *net,
 	return __inet6_ehashfn(lhash, lport, fhash, fport,
 			       inet6_ehash_secret + net_hash_mix(net));
 }
-
-static int inet6_sk_ehashfn(const struct sock *sk)
-{
-	const struct inet_sock *inet = inet_sk(sk);
-	const struct in6_addr *laddr = &sk->sk_v6_rcv_saddr;
-	const struct in6_addr *faddr = &sk->sk_v6_daddr;
-	const __u16 lport = inet->inet_num;
-	const __be16 fport = inet->inet_dport;
-	struct net *net = sock_net(sk);
-
-	return inet6_ehashfn(net, laddr, lport, faddr, fport);
-}
-
-int __inet6_hash(struct sock *sk, struct inet_timewait_sock *tw)
-{
-	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	int twrefcnt = 0;
-
-	WARN_ON(!sk_unhashed(sk));
-
-	if (sk->sk_state == TCP_LISTEN) {
-		struct inet_listen_hashbucket *ilb;
-
-		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
-		spin_lock(&ilb->lock);
-		__sk_nulls_add_node_rcu(sk, &ilb->head);
-		spin_unlock(&ilb->lock);
-	} else {
-		unsigned int hash;
-		struct hlist_nulls_head *list;
-		spinlock_t *lock;
-
-		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
-		list = &inet_ehash_bucket(hashinfo, hash)->chain;
-		lock = inet_ehash_lockp(hashinfo, hash);
-		spin_lock(lock);
-		__sk_nulls_add_node_rcu(sk, list);
-		if (tw) {
-			WARN_ON(sk->sk_hash != tw->tw_hash);
-			twrefcnt = inet_twsk_unhash(tw);
-		}
-		spin_unlock(lock);
-	}
-
-	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	return twrefcnt;
-}
-EXPORT_SYMBOL(__inet6_hash);
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
@@ -320,6 +270,6 @@ int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 		       struct sock *sk)
 {
 	return __inet_hash_connect(death_row, sk, inet6_sk_port_offset(sk),
-			__inet6_check_established, __inet6_hash);
+				   __inet6_check_established);
 }
 EXPORT_SYMBOL_GPL(inet6_hash_connect);

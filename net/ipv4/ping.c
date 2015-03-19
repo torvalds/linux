@@ -64,11 +64,11 @@ EXPORT_SYMBOL_GPL(pingv6_ops);
 
 static u16 ping_port_rover;
 
-static inline int ping_hashfn(struct net *net, unsigned int num, unsigned int mask)
+static inline u32 ping_hashfn(const struct net *net, u32 num, u32 mask)
 {
-	int res = (num + net_hash_mix(net)) & mask;
+	u32 res = (num + net_hash_mix(net)) & mask;
 
-	pr_debug("hash(%d) = %d\n", num, res);
+	pr_debug("hash(%u) = %u\n", num, res);
 	return res;
 }
 EXPORT_SYMBOL_GPL(ping_hash);

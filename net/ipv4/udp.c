@@ -318,8 +318,8 @@ static int ipv4_rcv_saddr_equal(const struct sock *sk1, const struct sock *sk2)
 		   inet1->inet_rcv_saddr == inet2->inet_rcv_saddr));
 }
 
-static unsigned int udp4_portaddr_hash(struct net *net, __be32 saddr,
-				       unsigned int port)
+static u32 udp4_portaddr_hash(const struct net *net, __be32 saddr,
+			      unsigned int port)
 {
 	return jhash_1word((__force u32)saddr, net_hash_mix(net)) ^ port;
 }
@@ -421,9 +421,9 @@ static inline int compute_score2(struct sock *sk, struct net *net,
 	return score;
 }
 
-static unsigned int udp_ehashfn(struct net *net, const __be32 laddr,
-				 const __u16 lport, const __be32 faddr,
-				 const __be16 fport)
+static u32 udp_ehashfn(const struct net *net, const __be32 laddr,
+		       const __u16 lport, const __be32 faddr,
+		       const __be16 fport)
 {
 	static u32 udp_ehash_secret __read_mostly;
 
