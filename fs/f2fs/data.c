@@ -572,6 +572,39 @@ static unsigned int __free_extent_tree(struct f2fs_sb_info *sbi,
 	return count - et->count;
 }
 
+static void f2fs_init_extent_tree(struct inode *inode,
+						struct f2fs_extent *i_ext)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct extent_tree *et;
+	struct extent_node *en;
+	struct extent_info ei;
+
+	if (le32_to_cpu(i_ext->len) < F2FS_MIN_EXTENT_LEN)
+		return;
+
+	et = __grab_extent_tree(inode);
+
+	write_lock(&et->lock);
+	if (et->count)
+		goto out;
+
+	set_extent_info(&ei, le32_to_cpu(i_ext->fofs),
+		le32_to_cpu(i_ext->blk), le32_to_cpu(i_ext->len));
+
+	en = __insert_extent_tree(sbi, et, &ei, NULL);
+	if (en) {
+		et->cached_en = en;
+
+		spin_lock(&sbi->extent_lock);
+		list_add_tail(&en->list, &sbi->extent_list);
+		spin_unlock(&sbi->extent_lock);
+	}
+out:
+	write_unlock(&et->lock);
+	atomic_dec(&et->refcount);
+}
+
 static bool f2fs_lookup_extent_tree(struct inode *inode, pgoff_t pgofs,
 							struct extent_info *ei)
 {
@@ -780,6 +813,16 @@ void f2fs_destroy_extent_tree(struct inode *inode)
 out:
 	trace_f2fs_destroy_extent_tree(inode, node_cnt);
 	return;
+}
+
+void f2fs_init_extent_cache(struct inode *inode, struct f2fs_extent *i_ext)
+{
+	if (test_opt(F2FS_I_SB(inode), EXTENT_CACHE))
+		f2fs_init_extent_tree(inode, i_ext);
+
+	write_lock(&F2FS_I(inode)->ext_lock);
+	get_extent_info(&F2FS_I(inode)->ext, *i_ext);
+	write_unlock(&F2FS_I(inode)->ext_lock);
 }
 
 static bool f2fs_lookup_extent_cache(struct inode *inode, pgoff_t pgofs,

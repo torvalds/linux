@@ -137,9 +137,7 @@ static int do_read_inode(struct inode *inode)
 	fi->i_pino = le32_to_cpu(ri->i_pino);
 	fi->i_dir_level = ri->i_dir_level;
 
-	write_lock(&fi->ext_lock);
-	get_extent_info(&fi->ext, ri->i_ext);
-	write_unlock(&fi->ext_lock);
+	f2fs_init_extent_cache(inode, &ri->i_ext);
 
 	get_inline_info(fi, ri);
 
