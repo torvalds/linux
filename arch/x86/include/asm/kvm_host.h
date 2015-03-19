@@ -695,6 +695,7 @@ struct kvm_lapic_irq {
 	u16 trig_mode;
 	u32 shorthand;
 	u32 dest_id;
+	bool msi_redir_hint;
 };
 
 struct kvm_x86_ops {

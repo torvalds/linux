@@ -349,6 +349,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 	irqe.delivery_mode = entry->fields.delivery_mode << 8;
 	irqe.level = 1;
 	irqe.shorthand = 0;
+	irqe.msi_redir_hint = false;
 
 	if (irqe.trig_mode == IOAPIC_EDGE_TRIG)
 		ioapic->irr_delivered |= 1 << irq;

@@ -917,6 +917,7 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 	irq.level = (icr_low & APIC_INT_ASSERT) != 0;
 	irq.trig_mode = icr_low & APIC_INT_LEVELTRIG;
 	irq.shorthand = icr_low & APIC_SHORT_MASK;
+	irq.msi_redir_hint = false;
 	if (apic_x2apic_mode(apic))
 		irq.dest_id = icr_high;
 	else
@@ -926,10 +927,11 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 
 	apic_debug("icr_high 0x%x, icr_low 0x%x, "
 		   "short_hand 0x%x, dest 0x%x, trig_mode 0x%x, level 0x%x, "
-		   "dest_mode 0x%x, delivery_mode 0x%x, vector 0x%x\n",
+		   "dest_mode 0x%x, delivery_mode 0x%x, vector 0x%x, "
+		   "msi_redir_hint 0x%x\n",
 		   icr_high, icr_low, irq.shorthand, irq.dest_id,
 		   irq.trig_mode, irq.level, irq.dest_mode, irq.delivery_mode,
-		   irq.vector);
+		   irq.vector, irq.msi_redir_hint);
 
 	kvm_irq_delivery_to_apic(apic->vcpu->kvm, apic, &irq, NULL);
 }

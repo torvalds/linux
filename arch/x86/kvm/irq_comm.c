@@ -106,9 +106,10 @@ static inline void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 	irq->dest_mode = (1 << MSI_ADDR_DEST_MODE_SHIFT) & e->msi.address_lo;
 	irq->trig_mode = (1 << MSI_DATA_TRIGGER_SHIFT) & e->msi.data;
 	irq->delivery_mode = e->msi.data & 0x700;
+	irq->msi_redir_hint = ((e->msi.address_lo
+		& MSI_ADDR_REDIRECTION_LOWPRI) > 0);
 	irq->level = 1;
 	irq->shorthand = 0;
-	/* TODO Deal with RH bit of MSI message address */
 }
 
 int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
