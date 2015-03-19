@@ -747,7 +747,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 
 	gpio->label = "greybus_gpio";
 	gpio->dev = &connection->dev;
-	gpio->owner = THIS_MODULE;	/* XXX Module get? */
+	gpio->owner = THIS_MODULE;
 
 	gpio->request = gb_gpio_request;
 	gpio->free = gb_gpio_free;
@@ -761,7 +761,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	gpio->to_irq = gb_gpio_to_irq;
 	gpio->base = -1;		/* Allocate base dynamically */
 	gpio->ngpio = gb_gpio_controller->line_max + 1;
-	gpio->can_sleep = true;		/* XXX */
+	gpio->can_sleep = true;
 
 	ret = gpiochip_add(gpio);
 	if (ret) {
