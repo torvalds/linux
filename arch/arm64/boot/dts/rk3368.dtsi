@@ -1191,8 +1191,8 @@
 		compatible = "rockchip,isp";
 		reg = <0x0 0xff910000 0x0 0x10000>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clk_gates17 0>, <&clk_gates16 14>, <&clk_isp>, <&clk_isp>, <&pclk_isp>, <&clk_vip>, <&clk_vip_pll>, <&clk_gates17 4>, <&clk_gates22 11>;
-		clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_cif_out", "clk_cif_pll", "hclk_mipiphy1", "pclk_dphyrx";
+		clocks = <&clk_gates17 0>, <&clk_gates16 14>, <&clk_isp>, <&clk_isp>, <&pclk_isp>, <&clk_vip>, <&clk_vip_pll>, <&clk_gates17 4>, <&clk_gates22 11>,<&clk_gates16 0>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_cif_out", "clk_cif_pll", "hclk_mipiphy1", "pclk_dphyrx", "aclk_rga";
 		pinctrl-names = "default", "isp_dvp8bit2", "isp_dvp10bit", "isp_dvp12bit", "isp_dvp8bit0", "isp_mipi_fl", "isp_mipi_fl_prefl","isp_flash_as_gpio","isp_flash_as_trigger_out";
 		pinctrl-0 = <&cif_clkout>;
 		pinctrl-1 = <&cif_clkout &isp_dvp_d2d9>;
