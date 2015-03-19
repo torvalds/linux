@@ -1601,9 +1601,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	} else
 		exec_start += i915_gem_obj_offset(batch_obj, vm);
 
-	ret = dev_priv->gt.do_execbuf(dev, file, ring, ctx, args,
-				      &eb->vmas, batch_obj, exec_start,
-				      dispatch_flags);
+	ret = dev_priv->gt.execbuf_submit(dev, file, ring, ctx, args,
+					  &eb->vmas, batch_obj, exec_start,
+					  dispatch_flags);
 
 	/*
 	 * FIXME: We crucially rely upon the active tracking for the (ppgtt)

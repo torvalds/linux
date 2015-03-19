@@ -1814,13 +1814,13 @@ struct drm_i915_private {
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
-		int (*do_execbuf)(struct drm_device *dev, struct drm_file *file,
-				  struct intel_engine_cs *ring,
-				  struct intel_context *ctx,
-				  struct drm_i915_gem_execbuffer2 *args,
-				  struct list_head *vmas,
-				  struct drm_i915_gem_object *batch_obj,
-				  u64 exec_start, u32 flags);
+		int (*execbuf_submit)(struct drm_device *dev, struct drm_file *file,
+				      struct intel_engine_cs *ring,
+				      struct intel_context *ctx,
+				      struct drm_i915_gem_execbuffer2 *args,
+				      struct list_head *vmas,
+				      struct drm_i915_gem_object *batch_obj,
+				      u64 exec_start, u32 flags);
 		int (*init_rings)(struct drm_device *dev);
 		void (*cleanup_ring)(struct intel_engine_cs *ring);
 		void (*stop_ring)(struct intel_engine_cs *ring);
