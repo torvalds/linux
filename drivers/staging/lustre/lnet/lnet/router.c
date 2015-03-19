@@ -107,7 +107,8 @@ lnet_peers_start_down(void)
 }
 
 void
-lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive, unsigned long when)
+lnet_notify_locked(lnet_peer_t *lp, int notifylnd, int alive,
+		   unsigned long when)
 {
 	if (time_before(when, lp->lp_timestamp)) { /* out of date information */
 		CDEBUG(D_NET, "Out of date\n");
@@ -1435,13 +1436,15 @@ int
 lnet_rtrpools_alloc(int im_a_router)
 {
 	lnet_rtrbufpool_t *rtrp;
-	int	large_pages = (LNET_MTU + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	int	large_pages;
 	int	small_pages = 1;
 	int	nrb_tiny;
 	int	nrb_small;
 	int	nrb_large;
 	int	rc;
 	int	i;
+
+	large_pages = (LNET_MTU + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 	if (!strcmp(forwarding, "")) {
 		/* not set either way */
