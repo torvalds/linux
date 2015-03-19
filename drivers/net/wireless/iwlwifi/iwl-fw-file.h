@@ -579,6 +579,29 @@ struct iwl_fw_dbg_trigger_low_rssi {
 } __packed;
 
 /**
+ * struct iwl_fw_dbg_trigger_txq_timer - configures the Tx queue's timer
+ * @command_queue: timeout for the command queue in ms
+ * @bss: timeout for the queues of a BSS (except for TDLS queues) in ms
+ * @softap: timeout for the queues of a softAP in ms
+ * @p2p_go: timeout for the queues of a P2P GO in ms
+ * @p2p_client: timeout for the queues of a P2P client in ms
+ * @p2p_device: timeout for the queues of a P2P device in ms
+ * @ibss: timeout for the queues of an IBSS in ms
+ * @tdls: timeout for the queues of a TDLS station in ms
+ */
+struct iwl_fw_dbg_trigger_txq_timer {
+	__le32 command_queue;
+	__le32 bss;
+	__le32 softap;
+	__le32 p2p_go;
+	__le32 p2p_client;
+	__le32 p2p_device;
+	__le32 ibss;
+	__le32 tdls;
+	__le32 reserved[4];
+} __packed;
+
+/**
  * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used

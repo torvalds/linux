@@ -921,3 +921,47 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 
 	return bss_iter_data.vif;
 }
+
+unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    bool tdls, bool cmd_q)
+{
+	struct iwl_fw_dbg_trigger_tlv *trigger;
+	struct iwl_fw_dbg_trigger_txq_timer *txq_timer;
+	unsigned int default_timeout =
+		cmd_q ? IWL_DEF_WD_TIMEOUT : mvm->cfg->base_params->wd_timeout;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS))
+		return iwlmvm_mod_params.tfd_q_hang_detect ?
+			default_timeout : IWL_WATCHDOG_DISABLED;
+
+	trigger = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS);
+	txq_timer = (void *)trigger->data;
+
+	if (tdls)
+		return le32_to_cpu(txq_timer->tdls);
+
+	if (cmd_q)
+		return le32_to_cpu(txq_timer->command_queue);
+
+	if (WARN_ON(!vif))
+		return default_timeout;
+
+	switch (ieee80211_vif_type_p2p(vif)) {
+	case NL80211_IFTYPE_ADHOC:
+		return le32_to_cpu(txq_timer->ibss);
+	case NL80211_IFTYPE_STATION:
+		return le32_to_cpu(txq_timer->bss);
+	case NL80211_IFTYPE_AP:
+		return le32_to_cpu(txq_timer->softap);
+	case NL80211_IFTYPE_P2P_CLIENT:
+		return le32_to_cpu(txq_timer->p2p_client);
+	case NL80211_IFTYPE_P2P_GO:
+		return le32_to_cpu(txq_timer->p2p_go);
+	case NL80211_IFTYPE_P2P_DEVICE:
+		return le32_to_cpu(txq_timer->p2p_device);
+	default:
+		WARN_ON(1);
+		return mvm->cfg->base_params->wd_timeout;
+	}
+}
