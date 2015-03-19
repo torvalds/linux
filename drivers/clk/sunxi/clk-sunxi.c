@@ -1349,6 +1349,7 @@ static void __init sun4i_a10_init_clocks(struct device_node *node)
 CLK_OF_DECLARE(sun4i_a10_clk_init, "allwinner,sun4i-a10", sun4i_a10_init_clocks);
 
 static const char *sun5i_critical_clocks[] __initdata = {
+	"cpu",
 	"pll5_ddr",
 	"ahb_sdram",
 };
