@@ -945,12 +945,15 @@ int gb_operation_sync(struct gb_connection *connection, int type,
 		memcpy(operation->request->payload, request, request_size);
 
 	ret = gb_operation_request_send_sync(operation);
-	if (ret)
-		pr_err("synchronous operation failed (%d)\n", ret);
-	else
-		if (response_size)
+	if (ret) {
+		dev_err(&connection->dev, "synchronous operation failed: %d\n",
+			ret);
+	} else {
+		if (response_size) {
 			memcpy(response, operation->response->payload,
 			       response_size);
+		}
+	}
 	gb_operation_destroy(operation);
 
 	return ret;
