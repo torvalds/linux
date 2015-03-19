@@ -876,7 +876,7 @@ void gb_connection_recv(struct gb_connection *connection,
 	}
 
 	header = data;
-	msg_size = (size_t)le16_to_cpu(header->size);
+	msg_size = le16_to_cpu(header->size);
 	if (msg_size > size) {
 		dev_err(&connection->dev, "incomplete message\n");
 		return;		/* XXX Should still complete operation */
