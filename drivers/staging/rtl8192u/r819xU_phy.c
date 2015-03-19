@@ -898,7 +898,7 @@ void rtl8192_phy_getTxPower(struct net_device *dev)
 	read_nic_byte(dev, rOFDM0_RxDetector3, &priv->framesync);
 	read_nic_byte(dev, rOFDM0_RxDetector2, &tmp);
 	priv->framesyncC34 = tmp;
-	RT_TRACE(COMP_INIT, "Default framesync (0x%x) = 0x%x \n",
+	RT_TRACE(COMP_INIT, "Default framesync (0x%x) = 0x%x\n",
 		rOFDM0_RxDetector3, priv->framesync);
 
 	/* Read SIFS (save the value read fome MACPHY_REG.txt) */
@@ -1742,13 +1742,13 @@ void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 		RT_TRACE(COMP_SCAN, "Scan InitialGainBackup 0xa0a is %x\n",
 			 priv->initgain_backup.cca);
 
-		RT_TRACE(COMP_SCAN, "Write scan initial gain = 0x%x \n",
+		RT_TRACE(COMP_SCAN, "Write scan initial gain = 0x%x\n",
 			 initial_gain);
 		write_nic_byte(dev, rOFDM0_XAAGCCore1, initial_gain);
 		write_nic_byte(dev, rOFDM0_XBAGCCore1, initial_gain);
 		write_nic_byte(dev, rOFDM0_XCAGCCore1, initial_gain);
 		write_nic_byte(dev, rOFDM0_XDAGCCore1, initial_gain);
-		RT_TRACE(COMP_SCAN, "Write scan 0xa0a = 0x%x \n",
+		RT_TRACE(COMP_SCAN, "Write scan 0xa0a = 0x%x\n",
 			 POWER_DETECTION_TH);
 		write_nic_byte(dev, 0xa0a, POWER_DETECTION_TH);
 		break;
@@ -1789,7 +1789,7 @@ void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 			rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x1);
 		break;
 	default:
-		RT_TRACE(COMP_SCAN, "Unknown IG Operation. \n");
+		RT_TRACE(COMP_SCAN, "Unknown IG Operation.\n");
 		break;
 	}
 }
