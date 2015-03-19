@@ -244,6 +244,7 @@ error_bus:
 
 	return retval;
 }
+module_init(gb_init);
 
 static void __exit gb_exit(void)
 {
@@ -252,8 +253,6 @@ static void __exit gb_exit(void)
 	bus_unregister(&greybus_bus_type);
 	gb_debugfs_cleanup();
 }
-
-module_init(gb_init);
 module_exit(gb_exit);
 
 MODULE_LICENSE("GPL");
