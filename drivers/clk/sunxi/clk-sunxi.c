@@ -1312,14 +1312,14 @@ static void __init sunxi_init_clocks(const char *clocks[], int nclocks)
 {
 	unsigned int i;
 
+	/* Register divided output clocks */
+	of_sunxi_table_clock_setup(clk_divs_match, sunxi_divs_clk_setup);
+
 	/* Register factor clocks */
 	of_sunxi_table_clock_setup(clk_factors_match, sunxi_factors_clk_setup);
 
 	/* Register divider clocks */
 	of_sunxi_table_clock_setup(clk_div_match, sunxi_divider_clk_setup);
-
-	/* Register divided output clocks */
-	of_sunxi_table_clock_setup(clk_divs_match, sunxi_divs_clk_setup);
 
 	/* Register mux clocks */
 	of_sunxi_table_clock_setup(clk_mux_match, sunxi_mux_clk_setup);
