@@ -719,6 +719,55 @@ update_extent:
 	atomic_dec(&et->refcount);
 }
 
+void f2fs_preserve_extent_tree(struct inode *inode)
+{
+	struct extent_tree *et;
+	struct extent_info *ext = &F2FS_I(inode)->ext;
+	bool sync = false;
+
+	if (!test_opt(F2FS_I_SB(inode), EXTENT_CACHE))
+		return;
+
+	et = __find_extent_tree(F2FS_I_SB(inode), inode->i_ino);
+	if (!et) {
+		if (ext->len) {
+			ext->len = 0;
+			update_inode_page(inode);
+		}
+		return;
+	}
+
+	read_lock(&et->lock);
+	if (et->count) {
+		struct extent_node *en;
+
+		if (et->cached_en) {
+			en = et->cached_en;
+		} else {
+			struct rb_node *node = rb_first(&et->root);
+
+			if (!node)
+				node = rb_last(&et->root);
+			en = rb_entry(node, struct extent_node, rb_node);
+		}
+
+		if (__is_extent_same(ext, &en->ei))
+			goto out;
+
+		*ext = en->ei;
+		sync = true;
+	} else if (ext->len) {
+		ext->len = 0;
+		sync = true;
+	}
+out:
+	read_unlock(&et->lock);
+	atomic_dec(&et->refcount);
+
+	if (sync)
+		update_inode_page(inode);
+}
+
 void f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 {
 	struct extent_tree *treevec[EXT_TREE_VEC_SIZE];

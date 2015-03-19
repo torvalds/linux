@@ -371,6 +371,13 @@ static inline void set_extent_info(struct extent_info *ei, unsigned int fofs,
 	ei->len = len;
 }
 
+static inline bool __is_extent_same(struct extent_info *ei1,
+						struct extent_info *ei2)
+{
+	return (ei1->fofs == ei2->fofs && ei1->blk == ei2->blk &&
+						ei1->len == ei2->len);
+}
+
 static inline bool __is_extent_mergeable(struct extent_info *back,
 						struct extent_info *front)
 {
@@ -1598,6 +1605,7 @@ void f2fs_shrink_extent_tree(struct f2fs_sb_info *, int);
 void f2fs_destroy_extent_tree(struct inode *);
 void f2fs_init_extent_cache(struct inode *, struct f2fs_extent *);
 void f2fs_update_extent_cache(struct dnode_of_data *);
+void f2fs_preserve_extent_tree(struct inode *);
 struct page *find_data_page(struct inode *, pgoff_t, bool);
 struct page *get_lock_data_page(struct inode *, pgoff_t);
 struct page *get_new_data_page(struct inode *, struct page *, pgoff_t, bool);

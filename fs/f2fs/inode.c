@@ -343,7 +343,12 @@ void f2fs_evict_inode(struct inode *inode)
 no_delete:
 	stat_dec_inline_dir(inode);
 	stat_dec_inline_inode(inode);
+
+	/* update extent info in inode */
+	if (inode->i_nlink)
+		f2fs_preserve_extent_tree(inode);
 	f2fs_destroy_extent_tree(inode);
+
 	invalidate_mapping_pages(NODE_MAPPING(sbi), inode->i_ino, inode->i_ino);
 	if (xnid)
 		invalidate_mapping_pages(NODE_MAPPING(sbi), xnid, xnid);
