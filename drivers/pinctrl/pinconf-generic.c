@@ -283,10 +283,25 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	struct device *dev = pctldev->dev;
 	unsigned long *configs = NULL;
 	unsigned num_configs = 0;
-	unsigned reserve;
+	unsigned reserve, strings_count;
 	struct property *prop;
 	const char *group;
 	const char *subnode_target_type = "pins";
+
+	ret = of_property_count_strings(np, "pins");
+	if (ret < 0) {
+		ret = of_property_count_strings(np, "groups");
+		if (ret < 0)
+			/* skip this node; may contain config child nodes */
+			return 0;
+		if (type == PIN_MAP_TYPE_INVALID)
+			type = PIN_MAP_TYPE_CONFIGS_GROUP;
+		subnode_target_type = "groups";
+	} else {
+		if (type == PIN_MAP_TYPE_INVALID)
+			type = PIN_MAP_TYPE_CONFIGS_PIN;
+	}
+	strings_count = ret;
 
 	ret = of_property_read_string(np, "function", &function);
 	if (ret < 0) {
@@ -309,21 +324,7 @@ int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	if (num_configs)
 		reserve++;
 
-	ret = of_property_count_strings(np, "pins");
-	if (ret < 0) {
-		ret = of_property_count_strings(np, "groups");
-		if (ret < 0) {
-			dev_err(dev, "could not parse property pins/groups\n");
-			goto exit;
-		}
-		if (type == PIN_MAP_TYPE_INVALID)
-			type = PIN_MAP_TYPE_CONFIGS_GROUP;
-		subnode_target_type = "groups";
-	} else {
-		if (type == PIN_MAP_TYPE_INVALID)
-			type = PIN_MAP_TYPE_CONFIGS_PIN;
-	}
-	reserve *= ret;
+	reserve *= strings_count;
 
 	ret = pinctrl_utils_reserve_map(pctldev, map, reserved_maps,
 			num_maps, reserve);
@@ -367,15 +368,22 @@ int pinconf_generic_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*map = NULL;
 	*num_maps = 0;
 
+	ret = pinconf_generic_dt_subnode_to_map(pctldev, np_config, map,
+						&reserved_maps, num_maps, type);
+	if (ret < 0)
+		goto exit;
+
 	for_each_child_of_node(np_config, np) {
 		ret = pinconf_generic_dt_subnode_to_map(pctldev, np, map,
 					&reserved_maps, num_maps, type);
-		if (ret < 0) {
-			pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
-			return ret;
-		}
+		if (ret < 0)
+			goto exit;
 	}
 	return 0;
+
+exit:
+	pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(pinconf_generic_dt_node_to_map);
 
