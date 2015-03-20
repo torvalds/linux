@@ -1,13 +1,13 @@
 /*
  * Resizable, Scalable, Concurrent Hash Table
  *
+ * Copyright (c) 2015 Herbert Xu <herbert@gondor.apana.org.au>
  * Copyright (c) 2014-2015 Thomas Graf <tgraf@suug.ch>
  * Copyright (c) 2008-2014 Patrick McHardy <kaber@trash.net>
  *
- * Based on the following paper:
- * https://www.usenix.org/legacy/event/atc11/tech/final_files/Triplett.pdf
- *
  * Code partially derived from nft_hash
+ * Rewritten with rehash code from br_multicast plus single list
+ * pointer as suggested by Josh Triplett
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,53 +30,11 @@
 #define HASH_MIN_SIZE		4U
 #define BUCKET_LOCKS_PER_CPU   128UL
 
-/* Base bits plus 1 bit for nulls marker */
-#define HASH_RESERVED_SPACE	(RHT_BASE_BITS + 1)
-
-/* The bucket lock is selected based on the hash and protects mutations
- * on a group of hash buckets.
- *
- * A maximum of tbl->size/2 bucket locks is allocated. This ensures that
- * a single lock always covers both buckets which may both contains
- * entries which link to the same bucket of the old table during resizing.
- * This allows to simplify the locking as locking the bucket in both
- * tables during resize always guarantee protection.
- *
- * IMPORTANT: When holding the bucket lock of both the old and new table
- * during expansions and shrinking, the old bucket lock must always be
- * acquired first.
- */
-static spinlock_t *bucket_lock(const struct bucket_table *tbl, u32 hash)
-{
-	return &tbl->locks[hash & tbl->locks_mask];
-}
-
-static void *rht_obj(const struct rhashtable *ht, const struct rhash_head *he)
-{
-	return (void *) he - ht->p.head_offset;
-}
-
-static u32 rht_bucket_index(const struct bucket_table *tbl, u32 hash)
-{
-	return (hash >> HASH_RESERVED_SPACE) & (tbl->size - 1);
-}
-
-static u32 key_hashfn(struct rhashtable *ht, const struct bucket_table *tbl,
-		      const void *key)
-{
-	return rht_bucket_index(tbl, ht->p.hashfn(key, ht->p.key_len,
-						  tbl->hash_rnd));
-}
-
 static u32 head_hashfn(struct rhashtable *ht,
 		       const struct bucket_table *tbl,
 		       const struct rhash_head *he)
 {
-	const char *ptr = rht_obj(ht, he);
-
-	return likely(ht->p.key_len) ?
-	       key_hashfn(ht, tbl, ptr + ht->p.key_offset) :
-	       rht_bucket_index(tbl, ht->p.obj_hashfn(ptr, tbl->hash_rnd));
+	return rht_head_hashfn(ht, tbl, he, ht->p);
 }
 
 #ifdef CONFIG_PROVE_LOCKING
@@ -90,7 +48,7 @@ EXPORT_SYMBOL_GPL(lockdep_rht_mutex_is_held);
 
 int lockdep_rht_bucket_is_held(const struct bucket_table *tbl, u32 hash)
 {
-	spinlock_t *lock = bucket_lock(tbl, hash);
+	spinlock_t *lock = rht_bucket_lock(tbl, hash);
 
 	return (debug_locks) ? lockdep_is_held(lock) : 1;
 }
@@ -178,32 +136,6 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 	return tbl;
 }
 
-/**
- * rht_grow_above_75 - returns true if nelems > 0.75 * table-size
- * @ht:		hash table
- * @tbl:	current table
- */
-static bool rht_grow_above_75(const struct rhashtable *ht,
-			      const struct bucket_table *tbl)
-{
-	/* Expand table when exceeding 75% load */
-	return atomic_read(&ht->nelems) > (tbl->size / 4 * 3) &&
-	       (!ht->p.max_size || tbl->size < ht->p.max_size);
-}
-
-/**
- * rht_shrink_below_30 - returns true if nelems < 0.3 * table-size
- * @ht:		hash table
- * @tbl:	current table
- */
-static bool rht_shrink_below_30(const struct rhashtable *ht,
-				const struct bucket_table *tbl)
-{
-	/* Shrink table beneath 30% load */
-	return atomic_read(&ht->nelems) < (tbl->size * 3 / 10) &&
-	       tbl->size > ht->p.min_size;
-}
-
 static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
@@ -230,7 +162,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
 
 	new_hash = head_hashfn(ht, new_tbl, entry);
 
-	new_bucket_lock = bucket_lock(new_tbl, new_hash);
+	new_bucket_lock = rht_bucket_lock(new_tbl, new_hash);
 
 	spin_lock_nested(new_bucket_lock, SINGLE_DEPTH_NESTING);
 	head = rht_dereference_bucket(new_tbl->buckets[new_hash],
@@ -255,7 +187,7 @@ static void rhashtable_rehash_chain(struct rhashtable *ht, unsigned old_hash)
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
 	spinlock_t *old_bucket_lock;
 
-	old_bucket_lock = bucket_lock(old_tbl, old_hash);
+	old_bucket_lock = rht_bucket_lock(old_tbl, old_hash);
 
 	spin_lock_bh(old_bucket_lock);
 	while (!rhashtable_rehash_one(ht, old_hash))
@@ -376,6 +308,37 @@ unlock:
 	mutex_unlock(&ht->mutex);
 }
 
+int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
+			   struct rhash_head *obj,
+			   struct bucket_table *tbl)
+{
+	struct rhash_head *head;
+	unsigned hash;
+	int err = -EEXIST;
+
+	hash = head_hashfn(ht, tbl, obj);
+	spin_lock_nested(rht_bucket_lock(tbl, hash), SINGLE_DEPTH_NESTING);
+
+	if (key && rhashtable_lookup_fast(ht, key, ht->p))
+		goto exit;
+
+	err = 0;
+
+	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
+
+	RCU_INIT_POINTER(obj->next, head);
+
+	rcu_assign_pointer(tbl->buckets[hash], obj);
+
+	atomic_inc(&ht->nelems);
+
+exit:
+	spin_unlock(rht_bucket_lock(tbl, hash));
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
+
 static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 				bool (*compare)(void *, void *), void *arg)
 {
@@ -390,7 +353,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 
 	old_tbl = rht_dereference_rcu(ht->tbl, ht);
 	hash = head_hashfn(ht, old_tbl, obj);
-	old_lock = bucket_lock(old_tbl, hash);
+	old_lock = rht_bucket_lock(old_tbl, hash);
 
 	spin_lock_bh(old_lock);
 
@@ -403,7 +366,8 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 	tbl = rht_dereference_rcu(old_tbl->future_tbl, ht) ?: old_tbl;
 	if (tbl != old_tbl) {
 		hash = head_hashfn(ht, tbl, obj);
-		spin_lock_nested(bucket_lock(tbl, hash), SINGLE_DEPTH_NESTING);
+		spin_lock_nested(rht_bucket_lock(tbl, hash),
+				 SINGLE_DEPTH_NESTING);
 	}
 
 	if (compare &&
@@ -430,7 +394,7 @@ static bool __rhashtable_insert(struct rhashtable *ht, struct rhash_head *obj,
 
 exit:
 	if (tbl != old_tbl)
-		spin_unlock(bucket_lock(tbl, hash));
+		spin_unlock(rht_bucket_lock(tbl, hash));
 
 	spin_unlock_bh(old_lock);
 
@@ -471,7 +435,7 @@ static bool __rhashtable_remove(struct rhashtable *ht,
 	bool ret = false;
 
 	hash = head_hashfn(ht, tbl, obj);
-	lock = bucket_lock(tbl, hash);
+	lock = rht_bucket_lock(tbl, hash);
 
 	spin_lock_bh(lock);
 
@@ -537,19 +501,6 @@ bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *obj)
 }
 EXPORT_SYMBOL_GPL(rhashtable_remove);
 
-struct rhashtable_compare_arg {
-	struct rhashtable *ht;
-	const void *key;
-};
-
-static bool rhashtable_compare(void *ptr, void *arg)
-{
-	struct rhashtable_compare_arg *x = arg;
-	struct rhashtable *ht = x->ht;
-
-	return !memcmp(ptr + ht->p.key_offset, x->key, ht->p.key_len);
-}
-
 /**
  * rhashtable_lookup - lookup key in hash table
  * @ht:		hash table
@@ -565,14 +516,7 @@ static bool rhashtable_compare(void *ptr, void *arg)
  */
 void *rhashtable_lookup(struct rhashtable *ht, const void *key)
 {
-	struct rhashtable_compare_arg arg = {
-		.ht = ht,
-		.key = key,
-	};
-
-	BUG_ON(!ht->p.key_len);
-
-	return rhashtable_lookup_compare(ht, key, &rhashtable_compare, &arg);
+	return rhashtable_lookup_fast(ht, key, ht->p);
 }
 EXPORT_SYMBOL_GPL(rhashtable_lookup);
 
@@ -591,7 +535,8 @@ EXPORT_SYMBOL_GPL(rhashtable_lookup);
  * Returns the first entry on which the compare function returned true.
  */
 void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
-				bool (*compare)(void *, void *), void *arg)
+				bool (*compare)(void *, void *),
+				void *arg)
 {
 	const struct bucket_table *tbl;
 	struct rhash_head *he;
@@ -601,7 +546,7 @@ void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
 
 	tbl = rht_dereference_rcu(ht->tbl, ht);
 restart:
-	hash = key_hashfn(ht, tbl, key);
+	hash = rht_key_hashfn(ht, tbl, key, ht->p);
 	rht_for_each_rcu(he, tbl, hash) {
 		if (!compare(rht_obj(ht, he), arg))
 			continue;
@@ -643,15 +588,7 @@ EXPORT_SYMBOL_GPL(rhashtable_lookup_compare);
  */
 bool rhashtable_lookup_insert(struct rhashtable *ht, struct rhash_head *obj)
 {
-	struct rhashtable_compare_arg arg = {
-		.ht = ht,
-		.key = rht_obj(ht, obj) + ht->p.key_offset,
-	};
-
-	BUG_ON(!ht->p.key_len);
-
-	return rhashtable_lookup_compare_insert(ht, obj, &rhashtable_compare,
-						&arg);
+	return rhashtable_lookup_insert_fast(ht, obj, ht->p);
 }
 EXPORT_SYMBOL_GPL(rhashtable_lookup_insert);
 
@@ -927,8 +864,8 @@ int rhashtable_init(struct rhashtable *ht,
 
 	size = HASH_DEFAULT_SIZE;
 
-	if ((params->key_len && !params->hashfn) ||
-	    (!params->key_len && !params->obj_hashfn))
+	if ((!(params->key_len && params->hashfn) && !params->obj_hashfn) ||
+	    (params->obj_hashfn && !params->obj_cmpfn))
 		return -EINVAL;
 
 	if (params->nulls_base && params->nulls_base < (1U << RHT_BASE_SHIFT))
