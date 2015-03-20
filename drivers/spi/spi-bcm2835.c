@@ -179,7 +179,7 @@ static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 }
 
 static int bcm2835_spi_start_transfer(struct spi_device *spi,
-		struct spi_transfer *tfr)
+				      struct spi_transfer *tfr)
 {
 	struct bcm2835_spi *bs = spi_master_get_devdata(spi->master);
 	unsigned long spi_hz, clk_hz, cdiv;
@@ -196,8 +196,9 @@ static int bcm2835_spi_start_transfer(struct spi_device *spi,
 
 		if (cdiv >= 65536)
 			cdiv = 0; /* 0 is the slowest we can go */
-	} else
+	} else {
 		cdiv = 0; /* 0 is the slowest we can go */
+	}
 
 	if (spi->mode & SPI_CPOL)
 		cs |= BCM2835_SPI_CS_CPOL;
@@ -231,7 +232,8 @@ static int bcm2835_spi_start_transfer(struct spi_device *spi,
 }
 
 static int bcm2835_spi_finish_transfer(struct spi_device *spi,
-		struct spi_transfer *tfr, bool cs_change)
+				       struct spi_transfer *tfr,
+				       bool cs_change)
 {
 	struct bcm2835_spi *bs = spi_master_get_devdata(spi->master);
 	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
@@ -253,7 +255,7 @@ static int bcm2835_spi_finish_transfer(struct spi_device *spi,
 }
 
 static int bcm2835_spi_transfer_one(struct spi_master *master,
-		struct spi_message *mesg)
+				    struct spi_message *mesg)
 {
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 	struct spi_transfer *tfr;
@@ -267,8 +269,10 @@ static int bcm2835_spi_transfer_one(struct spi_master *master,
 		if (err)
 			goto out;
 
-		timeout = wait_for_completion_timeout(&bs->done,
-				msecs_to_jiffies(BCM2835_SPI_TIMEOUT_MS));
+		timeout = wait_for_completion_timeout(
+			&bs->done,
+			msecs_to_jiffies(BCM2835_SPI_TIMEOUT_MS)
+			);
 		if (!timeout) {
 			err = -ETIMEDOUT;
 			goto out;
@@ -343,7 +347,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	clk_prepare_enable(bs->clk);
 
 	err = devm_request_irq(&pdev->dev, bs->irq, bcm2835_spi_interrupt, 0,
-				dev_name(&pdev->dev), master);
+			       dev_name(&pdev->dev), master);
 	if (err) {
 		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
 		goto out_clk_disable;
