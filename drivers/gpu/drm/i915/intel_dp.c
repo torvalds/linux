@@ -5000,7 +5000,7 @@ static void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate)
 
 	dig_port = dp_to_dig_port(intel_dp);
 	encoder = &dig_port->base;
-	intel_crtc = encoder->new_crtc;
+	intel_crtc = to_intel_crtc(encoder->base.crtc);
 
 	if (!intel_crtc) {
 		DRM_DEBUG_KMS("DRRS: intel_crtc not initialized\n");
