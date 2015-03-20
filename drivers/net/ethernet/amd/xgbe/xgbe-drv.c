@@ -411,11 +411,9 @@ static irqreturn_t xgbe_dma_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static enum hrtimer_restart xgbe_tx_timer(struct hrtimer *timer)
+static void xgbe_tx_timer(unsigned long data)
 {
-	struct xgbe_channel *channel = container_of(timer,
-						    struct xgbe_channel,
-						    tx_timer);
+	struct xgbe_channel *channel = (struct xgbe_channel *)data;
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct napi_struct *napi;
 
@@ -437,8 +435,6 @@ static enum hrtimer_restart xgbe_tx_timer(struct hrtimer *timer)
 	channel->tx_timer_active = 0;
 
 	DBGPR("<--xgbe_tx_timer\n");
-
-	return HRTIMER_NORESTART;
 }
 
 static void xgbe_init_tx_timers(struct xgbe_prv_data *pdata)
@@ -454,9 +450,8 @@ static void xgbe_init_tx_timers(struct xgbe_prv_data *pdata)
 			break;
 
 		DBGPR("  %s adding tx timer\n", channel->name);
-		hrtimer_init(&channel->tx_timer, CLOCK_MONOTONIC,
-			     HRTIMER_MODE_REL);
-		channel->tx_timer.function = xgbe_tx_timer;
+		setup_timer(&channel->tx_timer, xgbe_tx_timer,
+			    (unsigned long)channel);
 	}
 
 	DBGPR("<--xgbe_init_tx_timers\n");
@@ -475,8 +470,7 @@ static void xgbe_stop_tx_timers(struct xgbe_prv_data *pdata)
 			break;
 
 		DBGPR("  %s deleting tx timer\n", channel->name);
-		channel->tx_timer_active = 0;
-		hrtimer_cancel(&channel->tx_timer);
+		del_timer_sync(&channel->tx_timer);
 	}
 
 	DBGPR("<--xgbe_stop_tx_timers\n");
