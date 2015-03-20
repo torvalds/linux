@@ -916,7 +916,7 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	/* Fast path single entry scatterlists. */
 	if (nents == 1) {
 		sg_dma_address(sglist) = ccio_map_single(dev,
-				(void *)sg_virt_addr(sglist), sglist->length,
+				sg_virt(sglist), sglist->length,
 				direction);
 		sg_dma_len(sglist) = sglist->length;
 		return 1;
@@ -983,8 +983,8 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	BUG_ON(!dev);
 	ioc = GET_IOC(dev);
 
-	DBG_RUN_SG("%s() START %d entries,  %08lx,%x\n",
-		__func__, nents, sg_virt_addr(sglist), sglist->length);
+	DBG_RUN_SG("%s() START %d entries, %p,%x\n",
+		__func__, nents, sg_virt(sglist), sglist->length);
 
 #ifdef CCIO_COLLECT_STATS
 	ioc->usg_calls++;

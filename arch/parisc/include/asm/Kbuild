@@ -20,6 +20,7 @@ generic-y += param.h
 generic-y += percpu.h
 generic-y += poll.h
 generic-y += preempt.h
+generic-y += scatterlist.h
 generic-y += seccomp.h
 generic-y += segment.h
 generic-y += topology.h
