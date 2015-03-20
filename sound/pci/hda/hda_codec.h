@@ -371,7 +371,7 @@ struct hda_codec {
 	unsigned int cached_write:1;	/* write only to caches */
 	unsigned int dp_mst:1; /* support DP1.2 Multi-stream transport */
 	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
-	unsigned int power_mgmt:1; /* advanced PM for each widget */
+	unsigned int power_save_node:1; /* advanced PM for each widget */
 #ifdef CONFIG_PM
 	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
 	atomic_t in_pm;		/* suspend/resume being performed */

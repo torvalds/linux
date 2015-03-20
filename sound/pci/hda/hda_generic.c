@@ -140,9 +140,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "single_adc_amp");
 	if (val >= 0)
 		codec->single_adc_amp = !!val;
-	val = snd_hda_get_bool_hint(codec, "power_mgmt");
+	val = snd_hda_get_bool_hint(codec, "power_save_node");
 	if (val >= 0)
-		codec->power_mgmt = !!val;
+		codec->power_save_node = !!val;
 
 	val = snd_hda_get_bool_hint(codec, "auto_mute");
 	if (val >= 0)
@@ -661,7 +661,7 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 		struct nid_path *path = snd_array_elem(&spec->paths, n);
 		if (!path->active)
 			continue;
-		if (codec->power_mgmt) {
+		if (codec->power_save_node) {
 			if (!path->stream_enabled)
 				continue;
 			/* ignore unplugged paths except for DAC/ADC */
@@ -879,8 +879,8 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 		path->active = false;
 
 	/* make sure the widget is powered up */
-	if (enable && (spec->power_down_unused || codec->power_mgmt))
-		path_power_update(codec, path, codec->power_mgmt);
+	if (enable && (spec->power_down_unused || codec->power_save_node))
+		path_power_update(codec, path, codec->power_save_node);
 
 	for (i = path->depth - 1; i >= 0; i--) {
 		hda_nid_t nid = path->path[i];
@@ -905,7 +905,7 @@ static void path_power_down_sync(struct hda_codec *codec, struct nid_path *path)
 {
 	struct hda_gen_spec *spec = codec->spec;
 
-	if (!(spec->power_down_unused || codec->power_mgmt) || path->active)
+	if (!(spec->power_down_unused || codec->power_save_node) || path->active)
 		return;
 	sync_power_state_change(codec, path_power_update(codec, path, true));
 }
@@ -3981,7 +3981,7 @@ static hda_nid_t set_pin_power_jack(struct hda_codec *codec, hda_nid_t pin,
 {
 	bool on;
 
-	if (!codec->power_mgmt)
+	if (!codec->power_save_node)
 		return 0;
 
 	on = snd_hda_jack_detect_state(codec, pin) != HDA_JACK_NOT_PRESENT;
@@ -4038,7 +4038,7 @@ static void add_all_pin_power_ctls(struct hda_codec *codec, bool on)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	if (!codec->power_mgmt)
+	if (!codec->power_save_node)
 		return;
 	add_pin_power_ctls(codec, cfg->line_outs, cfg->line_out_pins, on);
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
@@ -4067,7 +4067,7 @@ static void sync_all_pin_power_ctls(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	if (!codec->power_mgmt)
+	if (!codec->power_save_node)
 		return;
 	sync_pin_power_ctls(codec, cfg->line_outs, cfg->line_out_pins);
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
@@ -4111,7 +4111,7 @@ static int add_fake_beep_paths(struct hda_codec *codec)
 	hda_nid_t nid = spec->beep_nid;
 	int err;
 
-	if (!codec->power_mgmt || !nid)
+	if (!codec->power_save_node || !nid)
 		return 0;
 	err = add_fake_paths(codec, nid, cfg->line_outs, cfg->line_out_pins);
 	if (err < 0)
@@ -4233,7 +4233,7 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 		}
 
 		set_pin_eapd(codec, nid, !mute);
-		if (codec->power_mgmt) {
+		if (codec->power_save_node) {
 			bool on = !mute;
 			if (on)
 				on = snd_hda_jack_detect_state(codec, nid)
@@ -4741,11 +4741,11 @@ static void mute_all_mixer_nid(struct hda_codec *codec, hda_nid_t mix)
  * @nid: audio widget
  * @on: power on/off flag
  *
- * Set this in patch_ops.stream_pm.  Only valid with power_mgmt flag.
+ * Set this in patch_ops.stream_pm.  Only valid with power_save_node flag.
  */
 void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on)
 {
-	if (codec->power_mgmt)
+	if (codec->power_save_node)
 		set_path_power(codec, nid, -1, on);
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_stream_pm);
@@ -4916,14 +4916,14 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
  dig_only:
 	parse_digital(codec);
 
-	if (spec->power_down_unused || codec->power_mgmt)
+	if (spec->power_down_unused || codec->power_save_node)
 		codec->power_filter = snd_hda_gen_path_power_filter;
 
 	if (!spec->no_analog && spec->beep_nid) {
 		err = snd_hda_attach_beep_device(codec, spec->beep_nid);
 		if (err < 0)
 			return err;
-		if (codec->beep && codec->power_mgmt) {
+		if (codec->beep && codec->power_save_node) {
 			err = add_fake_beep_paths(codec);
 			if (err < 0)
 				return err;

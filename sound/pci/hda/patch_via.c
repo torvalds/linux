@@ -133,7 +133,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 	spec->gen.keep_eapd_on = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
 	spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
-	codec->power_mgmt = 1;
+	codec->power_save_node = 1;
 	spec->gen.power_down_unused = 1;
 	return spec;
 }
@@ -236,7 +236,7 @@ static int via_pin_power_ctl_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.enumerated.item[0] = codec->power_mgmt;
+	ucontrol->value.enumerated.item[0] = codec->power_save_node;
 	return 0;
 }
 
@@ -247,9 +247,9 @@ static int via_pin_power_ctl_put(struct snd_kcontrol *kcontrol,
 	struct via_spec *spec = codec->spec;
 	bool val = !!ucontrol->value.enumerated.item[0];
 
-	if (val == codec->power_mgmt)
+	if (val == codec->power_save_node)
 		return 0;
-	codec->power_mgmt = val;
+	codec->power_save_node = val;
 	spec->gen.power_down_unused = val;
 	analog_low_current_mode(codec);
 	return 1;
@@ -295,7 +295,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 	bool enable;
 	unsigned int verb, parm;
 
-	if (!codec->power_mgmt)
+	if (!codec->power_save_node)
 		enable = false;
 	else
 		enable = is_aa_path_mute(codec) && !spec->gen.active_streams;
@@ -517,7 +517,7 @@ static int via_parse_auto_config(struct hda_codec *codec)
 		return err;
 
 	/* disable widget PM at start for compatibility */
-	codec->power_mgmt = 0;
+	codec->power_save_node = 0;
 	spec->gen.power_down_unused = 0;
 	return 0;
 }
