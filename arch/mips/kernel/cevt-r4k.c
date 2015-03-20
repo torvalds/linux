@@ -68,7 +68,7 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 	 * the performance counter interrupt handler anyway.
 	 */
 	if (handle_perf_irq(r2))
-		goto out;
+		return IRQ_HANDLED;
 
 	/*
 	 * The same applies to performance counter interrupts.	But with the
@@ -80,12 +80,11 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 		write_c0_compare(read_c0_compare());
 		cd = &per_cpu(mips_clockevent_device, cpu);
 		cd->event_handler(cd);
-	} else {
-		return IRQ_NONE;
+
+		return IRQ_HANDLED;
 	}
 
-out:
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 struct irqaction c0_compare_irqaction = {
