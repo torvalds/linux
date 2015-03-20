@@ -38,6 +38,16 @@ struct test_obj {
 	struct rhash_head	node;
 };
 
+static const struct rhashtable_params test_rht_params = {
+	.nelem_hint = TEST_HT_SIZE,
+	.head_offset = offsetof(struct test_obj, node),
+	.key_offset = offsetof(struct test_obj, value),
+	.key_len = sizeof(int),
+	.hashfn = jhash,
+	.max_size = 2, /* we expand/shrink manually here */
+	.nulls_base = (3U << RHT_BASE_SHIFT),
+};
+
 static int __init test_rht_lookup(struct rhashtable *ht)
 {
 	unsigned int i;
@@ -47,7 +57,7 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 		bool expected = !(i % 2);
 		u32 key = i;
 
-		obj = rhashtable_lookup(ht, &key);
+		obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 
 		if (expected && !obj) {
 			pr_warn("Test failed: Could not find key %u\n", key);
@@ -133,7 +143,11 @@ static int __init test_rhashtable(struct rhashtable *ht)
 		obj->ptr = TEST_PTR;
 		obj->value = i * 2;
 
-		rhashtable_insert(ht, &obj->node);
+		err = rhashtable_insert_fast(ht, &obj->node, test_rht_params);
+		if (err) {
+			kfree(obj);
+			goto error;
+		}
 	}
 
 	rcu_read_lock();
@@ -173,10 +187,10 @@ static int __init test_rhashtable(struct rhashtable *ht)
 	for (i = 0; i < TEST_ENTRIES; i++) {
 		u32 key = i * 2;
 
-		obj = rhashtable_lookup(ht, &key);
+		obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
 		BUG_ON(!obj);
 
-		rhashtable_remove(ht, &obj->node);
+		rhashtable_remove_fast(ht, &obj->node, test_rht_params);
 		kfree(obj);
 	}
 
@@ -195,20 +209,11 @@ static struct rhashtable ht;
 
 static int __init test_rht_init(void)
 {
-	struct rhashtable_params params = {
-		.nelem_hint = TEST_HT_SIZE,
-		.head_offset = offsetof(struct test_obj, node),
-		.key_offset = offsetof(struct test_obj, value),
-		.key_len = sizeof(int),
-		.hashfn = jhash,
-		.max_size = 2, /* we expand/shrink manually here */
-		.nulls_base = (3U << RHT_BASE_SHIFT),
-	};
 	int err;
 
 	pr_info("Running resizable hashtable tests...\n");
 
-	err = rhashtable_init(&ht, &params);
+	err = rhashtable_init(&ht, &test_rht_params);
 	if (err < 0) {
 		pr_warn("Test failed: Unable to initialize hashtable: %d\n",
 			err);
