@@ -188,7 +188,11 @@ static struct com20020_pci_card_info card_info_10mbit = {
 	.name = "ARC-PCI",
 	.devcount = 1,
 	.chan_map_tbl = {
-		{ 2, 0x00, 0x08 },
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		},
 	},
 	.flags = ARC_CAN_10MBIT,
 };
@@ -197,7 +201,11 @@ static struct com20020_pci_card_info card_info_5mbit = {
 	.name = "ARC-PCI",
 	.devcount = 1,
 	.chan_map_tbl = {
-		{ 2, 0x00, 0x08 },
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		},
 	},
 	.flags = ARC_IS_5MBIT,
 };
@@ -207,7 +215,11 @@ static struct com20020_pci_card_info card_info_sohard = {
 	.devcount = 1,
 	/* SOHARD needs PCI base addr 4 */
 	.chan_map_tbl = {
-		{4, 0x00, 0x08},
+		{
+			.bar = 4,
+			.offset = 0x00,
+			.size = 0x08
+		},
 	},
 	.flags = ARC_CAN_10MBIT,
 };
@@ -216,7 +228,11 @@ static struct com20020_pci_card_info card_info_eae_arc1 = {
 	.name = "EAE PLX-PCI ARC1",
 	.devcount = 1,
 	.chan_map_tbl = {
-		{ 2, 0x00, 0x08 },
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		},
 	},
 	.flags = ARC_CAN_10MBIT,
 };
@@ -225,8 +241,15 @@ static struct com20020_pci_card_info card_info_eae_ma1 = {
 	.name = "EAE PLX-PCI MA1",
 	.devcount = 2,
 	.chan_map_tbl = {
-		{ 2, 0x00, 0x08 },
-		{ 2, 0x08, 0x08 }
+		{
+			.bar = 2,
+			.offset = 0x00,
+			.size = 0x08,
+		}, {
+			.bar = 2,
+			.offset = 0x08,
+			.size = 0x08,
+		}
 	},
 	.flags = ARC_CAN_10MBIT,
 };

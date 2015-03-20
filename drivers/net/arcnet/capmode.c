@@ -230,14 +230,12 @@ free_outskb:
 }
 
 static struct ArcProto capmode_proto = {
-	'r',
-	XMTU,
-	0,
-	rx,
-	build_header,
-	prepare_tx,
-	NULL,
-	ack_tx
+	.suffix		= 'r',
+	.mtu		= XMTU,
+	.rx		= rx,
+	.build_header	= build_header,
+	.prepare_tx	= prepare_tx,
+	.ack_tx		= ack_tx
 };
 
 static void arcnet_cap_init(void)
