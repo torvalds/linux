@@ -291,7 +291,6 @@ static int xgbe_get_settings(struct net_device *netdev,
 		return -ENODEV;
 
 	ret = phy_ethtool_gset(pdata->phydev, cmd);
-	cmd->transceiver = XCVR_EXTERNAL;
 
 	DBGPR("<--xgbe_get_settings\n");
 
@@ -378,18 +377,14 @@ static int xgbe_get_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *ec)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	unsigned int riwt;
 
 	DBGPR("-->xgbe_get_coalesce\n");
 
 	memset(ec, 0, sizeof(struct ethtool_coalesce));
 
-	riwt = pdata->rx_riwt;
-	ec->rx_coalesce_usecs = hw_if->riwt_to_usec(pdata, riwt);
+	ec->rx_coalesce_usecs = pdata->rx_usecs;
 	ec->rx_max_coalesced_frames = pdata->rx_frames;
 
-	ec->tx_coalesce_usecs = pdata->tx_usecs;
 	ec->tx_max_coalesced_frames = pdata->tx_frames;
 
 	DBGPR("<--xgbe_get_coalesce\n");
@@ -403,13 +398,14 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
 	unsigned int rx_frames, rx_riwt, rx_usecs;
-	unsigned int tx_frames, tx_usecs;
+	unsigned int tx_frames;
 
 	DBGPR("-->xgbe_set_coalesce\n");
 
 	/* Check for not supported parameters  */
 	if ((ec->rx_coalesce_usecs_irq) ||
 	    (ec->rx_max_coalesced_frames_irq) ||
+	    (ec->tx_coalesce_usecs) ||
 	    (ec->tx_coalesce_usecs_irq) ||
 	    (ec->tx_max_coalesced_frames_irq) ||
 	    (ec->stats_block_coalesce_usecs) ||
@@ -439,17 +435,17 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	}
 
 	rx_riwt = hw_if->usec_to_riwt(pdata, ec->rx_coalesce_usecs);
+	rx_usecs = ec->rx_coalesce_usecs;
 	rx_frames = ec->rx_max_coalesced_frames;
 
 	/* Use smallest possible value if conversion resulted in zero */
-	if (ec->rx_coalesce_usecs && !rx_riwt)
+	if (rx_usecs && !rx_riwt)
 		rx_riwt = 1;
 
 	/* Check the bounds of values for Rx */
 	if (rx_riwt > XGMAC_MAX_DMA_RIWT) {
-		rx_usecs = hw_if->riwt_to_usec(pdata, XGMAC_MAX_DMA_RIWT);
 		netdev_alert(netdev, "rx-usec is limited to %d usecs\n",
-			     rx_usecs);
+			     hw_if->riwt_to_usec(pdata, XGMAC_MAX_DMA_RIWT));
 		return -EINVAL;
 	}
 	if (rx_frames > pdata->rx_desc_count) {
@@ -458,7 +454,6 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	tx_usecs = ec->tx_coalesce_usecs;
 	tx_frames = ec->tx_max_coalesced_frames;
 
 	/* Check the bounds of values for Tx */
@@ -469,10 +464,10 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	}
 
 	pdata->rx_riwt = rx_riwt;
+	pdata->rx_usecs = rx_usecs;
 	pdata->rx_frames = rx_frames;
 	hw_if->config_rx_coalesce(pdata);
 
-	pdata->tx_usecs = tx_usecs;
 	pdata->tx_frames = tx_frames;
 	hw_if->config_tx_coalesce(pdata);
 

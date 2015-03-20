@@ -222,7 +222,7 @@
 	 ((_idx) & ((_ring)->rdesc_count - 1)))
 
 /* Default coalescing parameters */
-#define XGMAC_INIT_DMA_TX_USECS		50
+#define XGMAC_INIT_DMA_TX_USECS		1000
 #define XGMAC_INIT_DMA_TX_FRAMES	25
 
 #define XGMAC_MAX_DMA_RIWT		0xff
@@ -410,7 +410,7 @@ struct xgbe_channel {
 	unsigned int saved_ier;
 
 	unsigned int tx_timer_active;
-	struct hrtimer tx_timer;
+	struct timer_list tx_timer;
 
 	struct xgbe_ring *tx_ring;
 	struct xgbe_ring *rx_ring;
@@ -632,6 +632,7 @@ struct xgbe_hw_features {
 	unsigned int rx_fifo_size;	/* MTL Receive FIFO Size */
 	unsigned int tx_fifo_size;	/* MTL Transmit FIFO Size */
 	unsigned int adv_ts_hi;		/* Advance Timestamping High Word */
+	unsigned int dma_width;		/* DMA width */
 	unsigned int dcb;		/* DCB Feature */
 	unsigned int sph;		/* Split Header Feature */
 	unsigned int tso;		/* TCP Segmentation Offload */
@@ -715,6 +716,7 @@ struct xgbe_prv_data {
 
 	/* Rx coalescing settings */
 	unsigned int rx_riwt;
+	unsigned int rx_usecs;
 	unsigned int rx_frames;
 
 	/* Current Rx buffer size */

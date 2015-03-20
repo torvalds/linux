@@ -1068,7 +1068,7 @@ static void xgbe_tx_desc_reset(struct xgbe_ring_data *rdata)
 	rdesc->desc3 = 0;
 
 	/* Make sure ownership is written to the descriptor */
-	wmb();
+	dma_wmb();
 }
 
 static void xgbe_tx_desc_init(struct xgbe_channel *channel)
@@ -1124,12 +1124,12 @@ static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
 	 * is written to the descriptor(s) before setting the OWN bit
 	 * for the descriptor
 	 */
-	wmb();
+	dma_wmb();
 
 	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, OWN, 1);
 
 	/* Make sure ownership is written to the descriptor */
-	wmb();
+	dma_wmb();
 }
 
 static void xgbe_rx_desc_init(struct xgbe_channel *channel)
@@ -1358,18 +1358,20 @@ static void xgbe_tx_start_xmit(struct xgbe_channel *channel,
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct xgbe_ring_data *rdata;
 
+	/* Make sure everything is written before the register write */
+	wmb();
+
 	/* Issue a poll command to Tx DMA by writing address
 	 * of next immediate free descriptor */
 	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDTR_LO,
 			  lower_32_bits(rdata->rdesc_dma));
 
-	/* Start the Tx coalescing timer */
+	/* Start the Tx timer */
 	if (pdata->tx_usecs && !channel->tx_timer_active) {
 		channel->tx_timer_active = 1;
-		hrtimer_start(&channel->tx_timer,
-			      ktime_set(0, pdata->tx_usecs * NSEC_PER_USEC),
-			      HRTIMER_MODE_REL);
+		mod_timer(&channel->tx_timer,
+			  jiffies + usecs_to_jiffies(pdata->tx_usecs));
 	}
 
 	ring->tx.xmit_more = 0;
@@ -1565,7 +1567,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	 * is written to the descriptor(s) before setting the OWN bit
 	 * for the first descriptor
 	 */
-	wmb();
+	dma_wmb();
 
 	/* Set OWN bit for the first descriptor */
 	rdata = XGBE_GET_DESC_DATA(ring, start_index);
@@ -1577,7 +1579,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 #endif
 
 	/* Make sure ownership is written to the descriptor */
-	wmb();
+	dma_wmb();
 
 	ring->cur = cur_index + 1;
 	if (!packet->skb->xmit_more ||
@@ -1613,7 +1615,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		return 1;
 
 	/* Make sure descriptor fields are read after reading the OWN bit */
-	rmb();
+	dma_rmb();
 
 #ifdef XGMAC_ENABLE_RX_DESC_DUMP
 	xgbe_dump_rx_desc(ring, rdesc, ring->cur);
@@ -2004,7 +2006,8 @@ static void xgbe_config_tx_fifo_size(struct xgbe_prv_data *pdata)
 	for (i = 0; i < pdata->tx_q_count; i++)
 		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, TQS, fifo_size);
 
-	netdev_notice(pdata->netdev, "%d Tx queues, %d byte fifo per queue\n",
+	netdev_notice(pdata->netdev,
+		      "%d Tx hardware queues, %d byte fifo per queue\n",
 		      pdata->tx_q_count, ((fifo_size + 1) * 256));
 }
 
@@ -2019,7 +2022,8 @@ static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 	for (i = 0; i < pdata->rx_q_count; i++)
 		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RQS, fifo_size);
 
-	netdev_notice(pdata->netdev, "%d Rx queues, %d byte fifo per queue\n",
+	netdev_notice(pdata->netdev,
+		      "%d Rx hardware queues, %d byte fifo per queue\n",
 		      pdata->rx_q_count, ((fifo_size + 1) * 256));
 }
 
