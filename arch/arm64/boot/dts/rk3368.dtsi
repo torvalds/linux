@@ -41,7 +41,7 @@
 			entry-method = "arm,psci";
 			CPU_SLEEP_0: cpu-sleep-0 {
 				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x0000000>;
+				arm,psci-suspend-param = <0x1010000>;
 				entry-latency-us = <10000000>;
 				exit-latency-us = <10000000>;
 				min-residency-us = <25000>;
