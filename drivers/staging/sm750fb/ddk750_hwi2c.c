@@ -60,7 +60,7 @@ void hwI2CClose(void)
 }
 
 
-long hwI2CWaitTXDone(void)
+static long hwI2CWaitTXDone(void)
 {
     unsigned int timeout;
 
@@ -90,7 +90,7 @@ long hwI2CWaitTXDone(void)
  *  Return Value:
  *      Total number of bytes those are actually written.
  */
-unsigned int hwI2CWriteData(
+static unsigned int hwI2CWriteData(
     unsigned char deviceAddress,
     unsigned int length,
     unsigned char *pBuffer
@@ -157,7 +157,7 @@ unsigned int hwI2CWriteData(
  *  Return Value:
  *      Total number of actual bytes read from the slave device
  */
-unsigned int hwI2CReadData(
+static unsigned int hwI2CReadData(
     unsigned char deviceAddress,
     unsigned int length,
     unsigned char *pBuffer
