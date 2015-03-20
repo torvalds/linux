@@ -636,7 +636,7 @@ static int kvmppc_get_yield_count(struct kvm_vcpu *vcpu)
 	spin_lock(&vcpu->arch.vpa_update_lock);
 	lppaca = (struct lppaca *)vcpu->arch.vpa.pinned_addr;
 	if (lppaca)
-		yield_count = lppaca->yield_count;
+		yield_count = be32_to_cpu(lppaca->yield_count);
 	spin_unlock(&vcpu->arch.vpa_update_lock);
 	return yield_count;
 }
