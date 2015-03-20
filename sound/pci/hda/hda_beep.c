@@ -33,28 +33,34 @@ enum {
 	DIGBEEP_HZ_MAX = 12000000,	/* 12 KHz */
 };
 
-static void snd_hda_generate_beep(struct work_struct *work)
+/* generate or stop tone */
+static void generate_tone(struct hda_beep *beep, int tone)
 {
-	struct hda_beep *beep =
-		container_of(work, struct hda_beep, beep_work);
 	struct hda_codec *codec = beep->codec;
-	int tone;
 
-	if (!beep->enabled)
-		return;
-
-	tone = beep->tone;
 	if (tone && !beep->playing) {
 		snd_hda_power_up(codec);
+		if (beep->power_hook)
+			beep->power_hook(beep, true);
 		beep->playing = 1;
 	}
-	/* generate tone */
 	snd_hda_codec_write(codec, beep->nid, 0,
 			    AC_VERB_SET_BEEP_CONTROL, tone);
 	if (!tone && beep->playing) {
 		beep->playing = 0;
+		if (beep->power_hook)
+			beep->power_hook(beep, false);
 		snd_hda_power_down(codec);
 	}
+}
+
+static void snd_hda_generate_beep(struct work_struct *work)
+{
+	struct hda_beep *beep =
+		container_of(work, struct hda_beep, beep_work);
+
+	if (beep->enabled)
+		generate_tone(beep, beep->tone);
 }
 
 /* (non-standard) Linear beep tone calculation for IDT/STAC codecs 
@@ -130,10 +136,7 @@ static void turn_off_beep(struct hda_beep *beep)
 	cancel_work_sync(&beep->beep_work);
 	if (beep->playing) {
 		/* turn off beep */
-		snd_hda_codec_write(beep->codec, beep->nid, 0,
-				    AC_VERB_SET_BEEP_CONTROL, 0);
-		beep->playing = 0;
-		snd_hda_power_down(beep->codec);
+		generate_tone(beep, 0);
 	}
 }
 
