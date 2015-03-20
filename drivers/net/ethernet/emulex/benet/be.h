@@ -354,6 +354,7 @@ struct be_vf_cfg {
 	u16 vlan_tag;
 	u32 tx_rate;
 	u32 plink_tracking;
+	u32 privileges;
 };
 
 enum vf_state {

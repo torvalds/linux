@@ -1918,7 +1918,7 @@ int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
 
 /* Uses sycnhronous mcc */
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
-		       u32 num)
+		       u32 num, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_vlan_config *req;
@@ -1936,6 +1936,7 @@ int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			       OPCODE_COMMON_NTWK_VLAN_CONFIG, sizeof(*req),
 			       wrb, NULL);
+	req->hdr.domain = domain;
 
 	req->interface_id = if_id;
 	req->untagged = BE_IF_FLAGS_UNTAGGED & be_if_cap_flags(adapter) ? 1 : 0;
