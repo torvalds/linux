@@ -18,6 +18,7 @@
 #define _LINUX_RHASHTABLE_H
 
 #include <linux/compiler.h>
+#include <linux/errno.h>
 #include <linux/list_nulls.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
