@@ -66,6 +66,10 @@
 #define BYT_DIR_MASK		(BIT(1) | BIT(2))
 #define BYT_TRIG_MASK		(BIT(26) | BIT(25) | BIT(24))
 
+#define BYT_CONF0_RESTORE_MASK	(BYT_DIRECT_IRQ_EN | BYT_TRIG_MASK | \
+				 BYT_PIN_MUX)
+#define BYT_VAL_RESTORE_MASK	(BYT_DIR_MASK | BYT_LEVEL)
+
 #define BYT_NGPIO_SCORE		102
 #define BYT_NGPIO_NCORE		28
 #define BYT_NGPIO_SUS		44
@@ -134,12 +138,18 @@ static struct pinctrl_gpio_range byt_ranges[] = {
 	},
 };
 
+struct byt_gpio_pin_context {
+	u32 conf0;
+	u32 val;
+};
+
 struct byt_gpio {
 	struct gpio_chip		chip;
 	struct platform_device		*pdev;
 	spinlock_t			lock;
 	void __iomem			*reg_base;
 	struct pinctrl_gpio_range	*range;
+	struct byt_gpio_pin_context	*saved_context;
 };
 
 #define to_byt_gpio(c)	container_of(c, struct byt_gpio, chip)
@@ -158,40 +168,62 @@ static void __iomem *byt_gpio_reg(struct gpio_chip *chip, unsigned offset,
 	return vg->reg_base + reg_offset + reg;
 }
 
-static bool is_special_pin(struct byt_gpio *vg, unsigned offset)
+static void byt_gpio_clear_triggering(struct byt_gpio *vg, unsigned offset)
+{
+	void __iomem *reg = byt_gpio_reg(&vg->chip, offset, BYT_CONF0_REG);
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&vg->lock, flags);
+	value = readl(reg);
+	value &= ~(BYT_TRIG_POS | BYT_TRIG_NEG | BYT_TRIG_LVL);
+	writel(value, reg);
+	spin_unlock_irqrestore(&vg->lock, flags);
+}
+
+static u32 byt_get_gpio_mux(struct byt_gpio *vg, unsigned offset)
 {
 	/* SCORE pin 92-93 */
 	if (!strcmp(vg->range->name, BYT_SCORE_ACPI_UID) &&
 		offset >= 92 && offset <= 93)
-		return true;
+		return 1;
 
 	/* SUS pin 11-21 */
 	if (!strcmp(vg->range->name, BYT_SUS_ACPI_UID) &&
 		offset >= 11 && offset <= 21)
-		return true;
+		return 1;
 
-	return false;
+	return 0;
 }
 
 static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct byt_gpio *vg = to_byt_gpio(chip);
 	void __iomem *reg = byt_gpio_reg(chip, offset, BYT_CONF0_REG);
-	u32 value;
-	bool special;
+	u32 value, gpio_mux;
 
 	/*
 	 * In most cases, func pin mux 000 means GPIO function.
 	 * But, some pins may have func pin mux 001 represents
-	 * GPIO function. Only allow user to export pin with
-	 * func pin mux preset as GPIO function by BIOS/FW.
+	 * GPIO function.
+	 *
+	 * Because there are devices out there where some pins were not
+	 * configured correctly we allow changing the mux value from
+	 * request (but print out warning about that).
 	 */
 	value = readl(reg) & BYT_PIN_MUX;
-	special = is_special_pin(vg, offset);
-	if ((special && value != 1) || (!special && value)) {
-		dev_err(&vg->pdev->dev,
-			"pin %u cannot be used as GPIO.\n", offset);
-		return -EINVAL;
+	gpio_mux = byt_get_gpio_mux(vg, offset);
+	if (WARN_ON(gpio_mux != value)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&vg->lock, flags);
+		value = readl(reg) & ~BYT_PIN_MUX;
+		value |= gpio_mux;
+		writel(value, reg);
+		spin_unlock_irqrestore(&vg->lock, flags);
+
+		dev_warn(&vg->pdev->dev,
+			 "pin %u forcibly re-configured as GPIO\n", offset);
 	}
 
 	pm_runtime_get(&vg->pdev->dev);
@@ -202,14 +234,8 @@ static int byt_gpio_request(struct gpio_chip *chip, unsigned offset)
 static void byt_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	struct byt_gpio *vg = to_byt_gpio(chip);
-	void __iomem *reg = byt_gpio_reg(&vg->chip, offset, BYT_CONF0_REG);
-	u32 value;
 
-	/* clear interrupt triggering */
-	value = readl(reg);
-	value &= ~(BYT_TRIG_POS | BYT_TRIG_NEG | BYT_TRIG_LVL);
-	writel(value, reg);
-
+	byt_gpio_clear_triggering(vg, offset);
 	pm_runtime_put(&vg->pdev->dev);
 }
 
@@ -236,22 +262,12 @@ static int byt_irq_type(struct irq_data *d, unsigned type)
 	value &= ~(BYT_DIRECT_IRQ_EN | BYT_TRIG_POS | BYT_TRIG_NEG |
 		   BYT_TRIG_LVL);
 
-	switch (type) {
-	case IRQ_TYPE_LEVEL_HIGH:
-		value |= BYT_TRIG_LVL;
-	case IRQ_TYPE_EDGE_RISING:
-		value |= BYT_TRIG_POS;
-		break;
-	case IRQ_TYPE_LEVEL_LOW:
-		value |= BYT_TRIG_LVL;
-	case IRQ_TYPE_EDGE_FALLING:
-		value |= BYT_TRIG_NEG;
-		break;
-	case IRQ_TYPE_EDGE_BOTH:
-		value |= (BYT_TRIG_NEG | BYT_TRIG_POS);
-		break;
-	}
 	writel(value, reg);
+
+	if (type & IRQ_TYPE_EDGE_BOTH)
+		__irq_set_handler_locked(d->irq, handle_edge_irq);
+	else if (type & IRQ_TYPE_LEVEL_MASK)
+		__irq_set_handler_locked(d->irq, handle_level_irq);
 
 	spin_unlock_irqrestore(&vg->lock, flags);
 
@@ -410,58 +426,80 @@ static void byt_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	struct irq_data *data = irq_desc_get_irq_data(desc);
 	struct byt_gpio *vg = to_byt_gpio(irq_desc_get_handler_data(desc));
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
-	u32 base, pin, mask;
+	u32 base, pin;
 	void __iomem *reg;
-	u32 pending;
+	unsigned long pending;
 	unsigned virq;
-	int looplimit = 0;
 
 	/* check from GPIO controller which pin triggered the interrupt */
 	for (base = 0; base < vg->chip.ngpio; base += 32) {
-
 		reg = byt_gpio_reg(&vg->chip, base, BYT_INT_STAT_REG);
-
-		while ((pending = readl(reg))) {
-			pin = __ffs(pending);
-			mask = BIT(pin);
-			/* Clear before handling so we can't lose an edge */
-			writel(mask, reg);
-
+		pending = readl(reg);
+		for_each_set_bit(pin, &pending, 32) {
 			virq = irq_find_mapping(vg->chip.irqdomain, base + pin);
 			generic_handle_irq(virq);
-
-			/* In case bios or user sets triggering incorretly a pin
-			 * might remain in "interrupt triggered" state.
-			 */
-			if (looplimit++ > 32) {
-				dev_err(&vg->pdev->dev,
-					"Gpio %d interrupt flood, disabling\n",
-					base + pin);
-
-				reg = byt_gpio_reg(&vg->chip, base + pin,
-						   BYT_CONF0_REG);
-				mask = readl(reg);
-				mask &= ~(BYT_TRIG_NEG | BYT_TRIG_POS |
-					  BYT_TRIG_LVL);
-				writel(mask, reg);
-				mask = readl(reg); /* flush */
-				break;
-			}
 		}
 	}
 	chip->irq_eoi(data);
 }
 
+static void byt_irq_ack(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct byt_gpio *vg = to_byt_gpio(gc);
+	unsigned offset = irqd_to_hwirq(d);
+	void __iomem *reg;
+
+	reg = byt_gpio_reg(&vg->chip, offset, BYT_INT_STAT_REG);
+	writel(BIT(offset % 32), reg);
+}
+
 static void byt_irq_unmask(struct irq_data *d)
 {
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct byt_gpio *vg = to_byt_gpio(gc);
+	unsigned offset = irqd_to_hwirq(d);
+	unsigned long flags;
+	void __iomem *reg;
+	u32 value;
+
+	spin_lock_irqsave(&vg->lock, flags);
+
+	reg = byt_gpio_reg(&vg->chip, offset, BYT_CONF0_REG);
+	value = readl(reg);
+
+	switch (irqd_get_trigger_type(d)) {
+	case IRQ_TYPE_LEVEL_HIGH:
+		value |= BYT_TRIG_LVL;
+	case IRQ_TYPE_EDGE_RISING:
+		value |= BYT_TRIG_POS;
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		value |= BYT_TRIG_LVL;
+	case IRQ_TYPE_EDGE_FALLING:
+		value |= BYT_TRIG_NEG;
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		value |= (BYT_TRIG_NEG | BYT_TRIG_POS);
+		break;
+	}
+
+	writel(value, reg);
+
+	spin_unlock_irqrestore(&vg->lock, flags);
 }
 
 static void byt_irq_mask(struct irq_data *d)
 {
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct byt_gpio *vg = to_byt_gpio(gc);
+
+	byt_gpio_clear_triggering(vg, irqd_to_hwirq(d));
 }
 
 static struct irq_chip byt_irqchip = {
 	.name = "BYT-GPIO",
+	.irq_ack = byt_irq_ack,
 	.irq_mask = byt_irq_mask,
 	.irq_unmask = byt_irq_unmask,
 	.irq_set_type = byt_irq_type,
@@ -472,6 +510,21 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 {
 	void __iomem *reg;
 	u32 base, value;
+	int i;
+
+	/*
+	 * Clear interrupt triggers for all pins that are GPIOs and
+	 * do not use direct IRQ mode. This will prevent spurious
+	 * interrupts from misconfigured pins.
+	 */
+	for (i = 0; i < vg->chip.ngpio; i++) {
+		value = readl(byt_gpio_reg(&vg->chip, i, BYT_CONF0_REG));
+		if ((value & BYT_PIN_MUX) == byt_get_gpio_mux(vg, i) &&
+		    !(value & BYT_DIRECT_IRQ_EN)) {
+			byt_gpio_clear_triggering(vg, i);
+			dev_dbg(&vg->pdev->dev, "disabling GPIO %d\n", i);
+		}
+	}
 
 	/* clear interrupt status trigger registers */
 	for (base = 0; base < vg->chip.ngpio; base += 32) {
@@ -541,6 +594,11 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = false;
 	gc->dev = dev;
 
+#ifdef CONFIG_PM_SLEEP
+	vg->saved_context = devm_kcalloc(&pdev->dev, gc->ngpio,
+				       sizeof(*vg->saved_context), GFP_KERNEL);
+#endif
+
 	ret = gpiochip_add(gc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed adding byt-gpio chip\n");
@@ -569,6 +627,69 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int byt_gpio_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct byt_gpio *vg = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < vg->chip.ngpio; i++) {
+		void __iomem *reg;
+		u32 value;
+
+		reg = byt_gpio_reg(&vg->chip, i, BYT_CONF0_REG);
+		value = readl(reg) & BYT_CONF0_RESTORE_MASK;
+		vg->saved_context[i].conf0 = value;
+
+		reg = byt_gpio_reg(&vg->chip, i, BYT_VAL_REG);
+		value = readl(reg) & BYT_VAL_RESTORE_MASK;
+		vg->saved_context[i].val = value;
+	}
+
+	return 0;
+}
+
+static int byt_gpio_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct byt_gpio *vg = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < vg->chip.ngpio; i++) {
+		void __iomem *reg;
+		u32 value;
+
+		reg = byt_gpio_reg(&vg->chip, i, BYT_CONF0_REG);
+		value = readl(reg);
+		if ((value & BYT_CONF0_RESTORE_MASK) !=
+		     vg->saved_context[i].conf0) {
+			value &= ~BYT_CONF0_RESTORE_MASK;
+			value |= vg->saved_context[i].conf0;
+			writel(value, reg);
+			dev_info(dev, "restored pin %d conf0 %#08x", i, value);
+		}
+
+		reg = byt_gpio_reg(&vg->chip, i, BYT_VAL_REG);
+		value = readl(reg);
+		if ((value & BYT_VAL_RESTORE_MASK) !=
+		     vg->saved_context[i].val) {
+			u32 v;
+
+			v = value & ~BYT_VAL_RESTORE_MASK;
+			v |= vg->saved_context[i].val;
+			if (v != value) {
+				writel(v, reg);
+				dev_dbg(dev, "restored pin %d val %#08x\n",
+					i, v);
+			}
+		}
+	}
+
+	return 0;
+}
+#endif
+
 static int byt_gpio_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -580,8 +701,9 @@ static int byt_gpio_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops byt_gpio_pm_ops = {
-	.runtime_suspend = byt_gpio_runtime_suspend,
-	.runtime_resume = byt_gpio_runtime_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(byt_gpio_suspend, byt_gpio_resume)
+	SET_RUNTIME_PM_OPS(byt_gpio_runtime_suspend, byt_gpio_runtime_resume,
+			   NULL)
 };
 
 static const struct acpi_device_id byt_gpio_acpi_match[] = {
