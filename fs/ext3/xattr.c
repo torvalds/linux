@@ -546,8 +546,7 @@ ext3_xattr_set_entry(struct ext3_xattr_info *i, struct ext3_xattr_search *s)
 		free += EXT3_XATTR_LEN(name_len);
 	}
 	if (i->value) {
-		if (free < EXT3_XATTR_SIZE(i->value_len) ||
-		    free < EXT3_XATTR_LEN(name_len) +
+		if (free < EXT3_XATTR_LEN(name_len) +
 			   EXT3_XATTR_SIZE(i->value_len))
 			return -ENOSPC;
 	}
