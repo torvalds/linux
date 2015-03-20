@@ -4930,8 +4930,9 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc)
 	return mask;
 }
 
-static void modeset_update_crtc_power_domains(struct drm_device *dev)
+static void modeset_update_crtc_power_domains(struct drm_atomic_state *state)
 {
+	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long pipe_domains[I915_MAX_PIPES] = { 0, };
 	struct intel_crtc *crtc;
@@ -4953,7 +4954,7 @@ static void modeset_update_crtc_power_domains(struct drm_device *dev)
 	}
 
 	if (dev_priv->display.modeset_global_resources)
-		dev_priv->display.modeset_global_resources(dev);
+		dev_priv->display.modeset_global_resources(state);
 
 	for_each_intel_crtc(dev, crtc) {
 		enum intel_display_power_domain domain;
@@ -5201,8 +5202,9 @@ static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
 	WARN_ON(I915_READ(GCI_CONTROL) & PFI_CREDIT_RESEND);
 }
 
-static void valleyview_modeset_global_resources(struct drm_device *dev)
+static void valleyview_modeset_global_resources(struct drm_atomic_state *state)
 {
+	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int max_pixclk = intel_mode_max_pixclk(dev_priv);
 	int req_cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
@@ -11506,7 +11508,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * update the the output configuration. */
 	intel_modeset_update_state(dev, prepare_pipes);
 
-	modeset_update_crtc_power_domains(dev);
+	modeset_update_crtc_power_domains(pipe_config->base.state);
 
 	/* Set up the DPLL and any encoders state that needs to adjust or depend
 	 * on the DPLL.
