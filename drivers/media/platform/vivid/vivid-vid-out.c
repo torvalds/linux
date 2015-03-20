@@ -248,7 +248,7 @@ void vivid_update_format_out(struct vivid_dev *dev)
 			dev->field_out = V4L2_FIELD_ALTERNATE;
 		else
 			dev->field_out = V4L2_FIELD_NONE;
-		if (!dev->dvi_d_out && (bt->standards & V4L2_DV_BT_STD_CEA861)) {
+		if (!dev->dvi_d_out && (bt->flags & V4L2_DV_FL_IS_CE_VIDEO)) {
 			if (bt->width == 720 && bt->height <= 576)
 				dev->colorspace_out = V4L2_COLORSPACE_SMPTE170M;
 			else
@@ -411,7 +411,7 @@ int vivid_try_fmt_vid_out(struct file *file, void *priv,
 	mp->quantization = V4L2_QUANTIZATION_DEFAULT;
 	if (vivid_is_svid_out(dev)) {
 		mp->colorspace = V4L2_COLORSPACE_SMPTE170M;
-	} else if (dev->dvi_d_out || !(bt->standards & V4L2_DV_BT_STD_CEA861)) {
+	} else if (dev->dvi_d_out || !(bt->flags & V4L2_DV_FL_IS_CE_VIDEO)) {
 		mp->colorspace = V4L2_COLORSPACE_SRGB;
 		if (dev->dvi_d_out)
 			mp->quantization = V4L2_QUANTIZATION_LIM_RANGE;

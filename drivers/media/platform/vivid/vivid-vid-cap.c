@@ -444,7 +444,7 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 		 */
 		if (keep_controls || !dev->colorspace)
 			break;
-		if (bt->standards & V4L2_DV_BT_STD_CEA861) {
+		if (bt->flags & V4L2_DV_FL_IS_CE_VIDEO) {
 			if (bt->width == 720 && bt->height <= 576)
 				v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 			else
@@ -1358,7 +1358,7 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 			v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 			break;
 		case HDMI:
-			if (bt->standards & V4L2_DV_BT_STD_CEA861) {
+			if (bt->flags & V4L2_DV_FL_IS_CE_VIDEO) {
 				if (dev->src_rect.width == 720 && dev->src_rect.height <= 576)
 					v4l2_ctrl_s_ctrl(dev->colorspace, VIVID_CS_170M);
 				else
