@@ -116,6 +116,7 @@ MODULE_LICENSE("GPL");
 #define HCI_KBD_ILLUMINATION		0x0095
 #define HCI_ECO_MODE			0x0097
 #define HCI_ACCELEROMETER2		0x00a6
+#define HCI_SYSTEM_INFO			0xc000
 #define SCI_PANEL_POWER_ON		0x010d
 #define SCI_ILLUMINATION		0x014e
 #define SCI_USB_SLEEP_CHARGE		0x0150
@@ -133,6 +134,8 @@ MODULE_LICENSE("GPL");
 #define HCI_LCD_BRIGHTNESS_SHIFT	(16-HCI_LCD_BRIGHTNESS_BITS)
 #define HCI_LCD_BRIGHTNESS_LEVELS	(1 << HCI_LCD_BRIGHTNESS_BITS)
 #define HCI_MISC_SHIFT			0x10
+#define HCI_SYSTEM_TYPE1		0x10
+#define HCI_SYSTEM_TYPE2		0x11
 #define HCI_VIDEO_OUT_LCD		0x1
 #define HCI_VIDEO_OUT_CRT		0x2
 #define HCI_VIDEO_OUT_TV		0x4
@@ -1145,6 +1148,28 @@ static int toshiba_usb_three_set(struct toshiba_acpi_dev *dev, u32 state)
 	} else if (result == TOS_INPUT_DATA_ERROR) {
 		return -EIO;
 	}
+
+	return 0;
+}
+
+/* Hotkey Event type */
+static int toshiba_hotkey_event_type_get(struct toshiba_acpi_dev *dev,
+					 u32 *type)
+{
+	u32 val1 = 0x03;
+	u32 val2 = 0;
+	u32 result;
+
+	result = hci_read2(dev, HCI_SYSTEM_INFO, &val1, &val2);
+	if (result == TOS_FAILURE) {
+		pr_err("ACPI call to get System type failed\n");
+		return -EIO;
+	} else if (result == TOS_NOT_SUPPORTED) {
+		pr_info("System type not supported\n");
+		return -ENODEV;
+	}
+
+	*type = val2;
 
 	return 0;
 }
