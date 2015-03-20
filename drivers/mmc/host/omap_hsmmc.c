@@ -427,15 +427,15 @@ static int omap_hsmmc_gpio_init(struct mmc_host *mmc,
 {
 	int ret;
 
-	if (pdata->cover && gpio_is_valid(pdata->switch_pin)) {
-		ret = mmc_gpio_request_cd(mmc, pdata->switch_pin, 0);
+	if (gpio_is_valid(pdata->gpio_cod)) {
+		ret = mmc_gpio_request_cd(mmc, pdata->gpio_cod, 0);
 		if (ret)
 			return ret;
 
 		host->get_cover_state = omap_hsmmc_get_cover_state;
 		mmc_gpio_set_cd_isr(mmc, omap_hsmmc_cover_irq);
-	} else if (!pdata->cover && gpio_is_valid(pdata->switch_pin)) {
-		ret = mmc_gpio_request_cd(mmc, pdata->switch_pin, 0);
+	} else if (gpio_is_valid(pdata->gpio_cd)) {
+		ret = mmc_gpio_request_cd(mmc, pdata->gpio_cd, 0);
 		if (ret)
 			return ret;
 
@@ -1920,7 +1920,8 @@ static struct omap_hsmmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	if (of_find_property(np, "ti,dual-volt", NULL))
 		pdata->controller_flags |= OMAP_HSMMC_SUPPORTS_DUAL_VOLT;
 
-	pdata->switch_pin = -EINVAL;
+	pdata->gpio_cd = -EINVAL;
+	pdata->gpio_cod = -EINVAL;
 	pdata->gpio_wp = -EINVAL;
 
 	if (of_find_property(np, "ti,non-removable", NULL)) {
