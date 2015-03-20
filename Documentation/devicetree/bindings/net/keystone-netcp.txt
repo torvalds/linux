@@ -65,12 +65,30 @@ NetCP device properties: Device specification for NetCP sub-modules.
 1Gb/10Gb (gbe/xgbe) ethernet switch sub-module specifications.
 Required properties:
 - label:	Must be "netcp-gbe" for 1Gb & "netcp-xgbe" for 10Gb.
+- compatible:	Must be one of below:-
+		"ti,netcp-gbe" for 1GbE on NetCP 1.4
+		"ti,netcp-gbe-5" for 1GbE N NetCP 1.5 (N=5)
+		"ti,netcp-gbe-9" for 1GbE N NetCP 1.5 (N=9)
+		"ti,netcp-gbe-2" for 1GbE N NetCP 1.5 (N=2)
+		"ti,netcp-xgbe" for 10 GbE
+
 - reg:		register location and the size for the following register
 		regions in the specified order.
 		- switch subsystem registers
 		- sgmii port3/4 module registers (only for NetCP 1.4)
 		- switch module registers
 		- serdes registers (only for 10G)
+
+		NetCP 1.4 ethss, here is the order
+			index #0 - switch subsystem registers
+			index #1 - sgmii port3/4 module registers
+			index #2 - switch module registers
+
+		NetCP 1.5 ethss 9 port, 5 port and 2 port
+			index #0 - switch subsystem registers
+			index #1 - switch module registers
+			index #2 - serdes registers
+
 - tx-channel:	the navigator packet dma channel name for tx.
 - tx-queue:	the navigator queue number associated with the tx dma channel.
 - interfaces:	specification for each of the switch port to be registered as a
