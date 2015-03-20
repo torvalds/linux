@@ -306,6 +306,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 		if (!between48(seq, dccp_rsk(req)->dreq_iss,
 				    dccp_rsk(req)->dreq_gss)) {
 			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+			reqsk_put(req);
 			goto out;
 		}
 		/*
@@ -315,6 +316,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 		 * errors returned from accept().
 		 */
 		inet_csk_reqsk_queue_drop(sk, req);
+		reqsk_put(req);
 		goto out;
 
 	case DCCP_REQUESTING:
@@ -451,9 +453,11 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	/* Find possible connection requests. */
 	struct request_sock *req = inet_csk_search_req(sk, dh->dccph_sport,
 						       iph->saddr, iph->daddr);
-	if (req)
-		return dccp_check_req(sk, skb, req);
-
+	if (req) {
+		nsk = dccp_check_req(sk, skb, req);
+		reqsk_put(req);
+		return nsk;
+	}
 	nsk = inet_lookup_established(sock_net(sk), &dccp_hashinfo,
 				      iph->saddr, dh->dccph_sport,
 				      iph->daddr, dh->dccph_dport,

@@ -157,7 +157,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		req = inet6_csk_search_req(sk, dh->dccph_dport,
 					   &hdr->daddr, &hdr->saddr,
 					   inet6_iif(skb));
-		if (req == NULL)
+		if (!req)
 			goto out;
 
 		/*
@@ -169,10 +169,12 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!between48(seq, dccp_rsk(req)->dreq_iss,
 				    dccp_rsk(req)->dreq_gss)) {
 			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+			reqsk_put(req);
 			goto out;
 		}
 
 		inet_csk_reqsk_queue_drop(sk, req);
+		reqsk_put(req);
 		goto out;
 
 	case DCCP_REQUESTING:
@@ -322,9 +324,11 @@ static struct sock *dccp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 
 	req = inet6_csk_search_req(sk, dh->dccph_sport, &iph->saddr,
 				   &iph->daddr, inet6_iif(skb));
-	if (req != NULL)
-		return dccp_check_req(sk, skb, req);
-
+	if (req) {
+		nsk = dccp_check_req(sk, skb, req);
+		reqsk_put(req);
+		return nsk;
+	}
 	nsk = __inet6_lookup_established(sock_net(sk), &dccp_hashinfo,
 					 &iph->saddr, dh->dccph_sport,
 					 &iph->daddr, ntohs(dh->dccph_dport),

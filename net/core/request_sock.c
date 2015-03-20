@@ -94,21 +94,26 @@ void reqsk_queue_destroy(struct request_sock_queue *queue)
 	/* make all the listen_opt local to us */
 	struct listen_sock *lopt = reqsk_queue_yank_listen_sk(queue);
 
-	if (lopt->qlen != 0) {
+	if (listen_sock_qlen(lopt) != 0) {
 		unsigned int i;
 
 		for (i = 0; i < lopt->nr_table_entries; i++) {
 			struct request_sock *req;
 
+			write_lock_bh(&queue->syn_wait_lock);
 			while ((req = lopt->syn_table[i]) != NULL) {
 				lopt->syn_table[i] = req->dl_next;
-				lopt->qlen--;
+				atomic_inc(&lopt->qlen_dec);
+				if (del_timer(&req->rsk_timer))
+					reqsk_put(req);
 				reqsk_put(req);
 			}
+			write_unlock_bh(&queue->syn_wait_lock);
 		}
 	}
 
-	WARN_ON(lopt->qlen != 0);
+	if (WARN_ON(listen_sock_qlen(lopt) != 0))
+		pr_err("qlen %u\n", listen_sock_qlen(lopt));
 	kvfree(lopt);
 }
 
@@ -187,7 +192,7 @@ void reqsk_fastopen_remove(struct sock *sk, struct request_sock *req,
 	 *
 	 * For more details see CoNext'11 "TCP Fast Open" paper.
 	 */
-	req->expires = jiffies + 60*HZ;
+	req->rsk_timer.expires = jiffies + 60*HZ;
 	if (fastopenq->rskq_rst_head == NULL)
 		fastopenq->rskq_rst_head = req;
 	else

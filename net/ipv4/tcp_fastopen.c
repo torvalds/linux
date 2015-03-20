@@ -240,7 +240,7 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 		struct request_sock *req1;
 		spin_lock(&fastopenq->lock);
 		req1 = fastopenq->rskq_rst_head;
-		if ((req1 == NULL) || time_after(req1->expires, jiffies)) {
+		if (!req1 || time_after(req1->rsk_timer.expires, jiffies)) {
 			spin_unlock(&fastopenq->lock);
 			NET_INC_STATS_BH(sock_net(sk),
 					 LINUX_MIB_TCPFASTOPENLISTENOVERFLOW);

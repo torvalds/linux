@@ -421,11 +421,13 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 		if (seq != tcp_rsk(req)->snt_isn) {
 			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+			reqsk_put(req);
 			goto out;
 		}
 
 		inet_csk_reqsk_queue_drop(sk, req);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+		reqsk_put(req);
 		goto out;
 
 	case TCP_SYN_SENT:
@@ -988,9 +990,11 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk, struct sk_buff *skb)
 	req = inet6_csk_search_req(sk, th->source,
 				   &ipv6_hdr(skb)->saddr,
 				   &ipv6_hdr(skb)->daddr, tcp_v6_iif(skb));
-	if (req)
-		return tcp_check_req(sk, skb, req, false);
-
+	if (req) {
+		nsk = tcp_check_req(sk, skb, req, false);
+		reqsk_put(req);
+		return nsk;
+	}
 	nsk = __inet6_lookup_established(sock_net(sk), &tcp_hashinfo,
 					 &ipv6_hdr(skb)->saddr, th->source,
 					 &ipv6_hdr(skb)->daddr, ntohs(th->dest),
@@ -1670,7 +1674,7 @@ static void tcp_v6_destroy_sock(struct sock *sk)
 static void get_openreq6(struct seq_file *seq,
 			 struct request_sock *req, int i, kuid_t uid)
 {
-	int ttd = req->expires - jiffies;
+	long ttd = req->rsk_timer.expires - jiffies;
 	const struct in6_addr *src = &inet_rsk(req)->ir_v6_loc_addr;
 	const struct in6_addr *dest = &inet_rsk(req)->ir_v6_rmt_addr;
 

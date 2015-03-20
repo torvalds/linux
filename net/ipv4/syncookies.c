@@ -361,7 +361,6 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 		goto out;
 	}
 
-	req->expires	= 0UL;
 	req->num_retrans = 0;
 
 	/*

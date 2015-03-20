@@ -256,7 +256,7 @@ inet_csk_rto_backoff(const struct inet_connection_sock *icsk,
 
 struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);
 
-struct request_sock *inet_csk_search_req(const struct sock *sk,
+struct request_sock *inet_csk_search_req(struct sock *sk,
 					 const __be16 rport,
 					 const __be32 raddr,
 					 const __be32 laddr);
@@ -282,15 +282,13 @@ void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 static inline void inet_csk_reqsk_queue_removed(struct sock *sk,
 						struct request_sock *req)
 {
-	if (reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req) == 0)
-		inet_csk_delete_keepalive_timer(sk);
+	reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req);
 }
 
 static inline void inet_csk_reqsk_queue_added(struct sock *sk,
 					      const unsigned long timeout)
 {
-	if (reqsk_queue_added(&inet_csk(sk)->icsk_accept_queue) == 0)
-		inet_csk_reset_keepalive_timer(sk, timeout);
+	reqsk_queue_added(&inet_csk(sk)->icsk_accept_queue);
 }
 
 static inline int inet_csk_reqsk_queue_len(const struct sock *sk)
@@ -319,13 +317,8 @@ static inline void inet_csk_reqsk_queue_drop(struct sock *sk,
 {
 	inet_csk_reqsk_queue_unlink(sk, req);
 	inet_csk_reqsk_queue_removed(sk, req);
-	reqsk_free(req);
+	reqsk_put(req);
 }
-
-void inet_csk_reqsk_queue_prune(struct sock *parent,
-				const unsigned long interval,
-				const unsigned long timeout,
-				const unsigned long max_rto);
 
 void inet_csk_destroy_sock(struct sock *sk);
 void inet_csk_prepare_forced_close(struct sock *sk);

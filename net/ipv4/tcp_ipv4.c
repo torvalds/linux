@@ -475,6 +475,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 
 		if (seq != tcp_rsk(req)->snt_isn) {
 			NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+			reqsk_put(req);
 			goto out;
 		}
 
@@ -486,6 +487,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		 */
 		inet_csk_reqsk_queue_drop(sk, req);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
+		reqsk_put(req);
 		goto out;
 
 	case TCP_SYN_SENT:
@@ -1398,8 +1400,11 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	struct sock *nsk;
 
 	req = inet_csk_search_req(sk, th->source, iph->saddr, iph->daddr);
-	if (req)
-		return tcp_check_req(sk, skb, req, false);
+	if (req) {
+		nsk = tcp_check_req(sk, skb, req, false);
+		reqsk_put(req);
+		return nsk;
+	}
 
 	nsk = inet_lookup_established(sock_net(sk), &tcp_hashinfo, iph->saddr,
 			th->source, iph->daddr, th->dest, inet_iif(skb));
@@ -2208,7 +2213,7 @@ static void get_openreq4(const struct request_sock *req,
 			 struct seq_file *f, int i, kuid_t uid)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
-	long delta = req->expires - jiffies;
+	long delta = req->rsk_timer.expires - jiffies;
 
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5u %8d %u %d %pK",

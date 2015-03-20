@@ -629,8 +629,9 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 					  &tcp_rsk(req)->last_oow_ack_time) &&
 
 		    !inet_rtx_syn_ack(sk, req))
-			req->expires = min(TCP_TIMEOUT_INIT << req->num_timeout,
-					   TCP_RTO_MAX) + jiffies;
+			mod_timer_pending(&req->rsk_timer, jiffies +
+				min(TCP_TIMEOUT_INIT << req->num_timeout,
+				    TCP_RTO_MAX));
 		return NULL;
 	}
 
