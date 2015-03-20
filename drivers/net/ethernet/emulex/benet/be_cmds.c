@@ -1902,15 +1902,11 @@ int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
 {
 	int num_eqs, i = 0;
 
-	if (lancer_chip(adapter) && num > 8) {
-		while (num) {
-			num_eqs = min(num, 8);
-			__be_cmd_modify_eqd(adapter, &set_eqd[i], num_eqs);
-			i += num_eqs;
-			num -= num_eqs;
-		}
-	} else {
-		__be_cmd_modify_eqd(adapter, set_eqd, num);
+	while (num) {
+		num_eqs = min(num, 8);
+		__be_cmd_modify_eqd(adapter, &set_eqd[i], num_eqs);
+		i += num_eqs;
+		num -= num_eqs;
 	}
 
 	return 0;
