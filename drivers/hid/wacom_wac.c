@@ -581,12 +581,9 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 	   (features->type == CINTIQ && !(data[1] & 0x40)))
 		return 1;
 
-	if (wacom->shared) {
-		wacom->shared->stylus_in_proximity = true;
-
-		if (wacom->shared->touch_down)
-			return 1;
-	}
+	wacom->shared->stylus_in_proximity = true;
+	if (wacom->shared->touch_down)
+		return 1;
 
 	/* in Range while exiting */
 	if (((data[1] & 0xfe) == 0x20) && wacom->reporting_data) {
@@ -598,8 +595,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
-		if (features->quirks & WACOM_QUIRK_MULTI_INPUT)
-			wacom->shared->stylus_in_proximity = false;
+		wacom->shared->stylus_in_proximity = false;
 		wacom->reporting_data = false;
 
 		/* don't report exit if we don't know the ID */
@@ -2196,12 +2192,6 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 		features->x_max = 1023;
 		features->y_max = 1023;
 	}
-
-	/* these device have multiple inputs */
-	if (features->type >= WIRELESS ||
-	    (features->type >= INTUOS5S && features->type <= INTUOSHT) ||
-	    (features->oVid && features->oPid))
-		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
 
 	/* quirk for bamboo touch with 2 low res touches */
 	if (features->type == BAMBOO_PT &&

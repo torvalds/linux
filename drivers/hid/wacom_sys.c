@@ -1521,19 +1521,17 @@ static int wacom_probe(struct hid_device *hdev,
 	snprintf(wacom_wac->pad_name, sizeof(wacom_wac->pad_name),
 		"%s Pad", features->name);
 
-	if (features->quirks & WACOM_QUIRK_MULTI_INPUT) {
-		/* Append the device type to the name */
-		if (features->device_type != BTN_TOOL_FINGER)
-			strlcat(wacom_wac->name, " Pen", WACOM_NAME_MAX);
-		else if (features->touch_max)
-			strlcat(wacom_wac->name, " Finger", WACOM_NAME_MAX);
-		else
-			strlcat(wacom_wac->name, " Pad", WACOM_NAME_MAX);
+	/* Append the device type to the name */
+	if (features->device_type != BTN_TOOL_FINGER)
+		strlcat(wacom_wac->name, " Pen", WACOM_NAME_MAX);
+	else if (features->touch_max)
+		strlcat(wacom_wac->name, " Finger", WACOM_NAME_MAX);
+	else
+		strlcat(wacom_wac->name, " Pad", WACOM_NAME_MAX);
 
-		error = wacom_add_shared_data(hdev);
-		if (error)
-			goto fail_shared_data;
-	}
+	error = wacom_add_shared_data(hdev);
+	if (error)
+		goto fail_shared_data;
 
 	if (!(features->quirks & WACOM_QUIRK_MONITOR) &&
 	     (features->quirks & WACOM_QUIRK_BATTERY)) {
