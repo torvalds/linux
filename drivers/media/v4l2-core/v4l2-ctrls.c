@@ -1611,6 +1611,10 @@ static int cluster_changed(struct v4l2_ctrl *master)
 
 		if (ctrl == NULL)
 			continue;
+
+		if (ctrl->flags & V4L2_CTRL_FLAG_EXECUTE_ON_WRITE)
+			changed = ctrl_changed = true;
+
 		/*
 		 * Set has_changed to false to avoid generating
 		 * the event V4L2_EVENT_CTRL_CH_VALUE
