@@ -1472,15 +1472,21 @@ static int gbe_open(void *intf_priv, struct net_device *ndev)
 		GBE_MAJOR_VERSION(reg), GBE_MINOR_VERSION(reg),
 		GBE_RTL_VERSION(reg), GBE_IDENT(reg));
 
-	if (gbe_dev->enable_ale)
-		gbe_intf->tx_pipe.dma_psflags = 0;
-	else
-		gbe_intf->tx_pipe.dma_psflags = port_num;
+	/* For 10G use directed to port */
+	if (gbe_dev->ss_version == XGBE_SS_VERSION_10)
+		gbe_intf->tx_pipe.flags = SWITCH_TO_PORT_IN_TAGINFO;
 
-	dev_dbg(gbe_dev->dev, "opened TX channel %s: %p with psflags %d\n",
+	if (gbe_dev->enable_ale)
+		gbe_intf->tx_pipe.switch_to_port = 0;
+	else
+		gbe_intf->tx_pipe.switch_to_port = port_num;
+
+	dev_dbg(gbe_dev->dev,
+		"opened TX channel %s: %p with to port %d, flags %d\n",
 		gbe_intf->tx_pipe.dma_chan_name,
 		gbe_intf->tx_pipe.dma_channel,
-		gbe_intf->tx_pipe.dma_psflags);
+		gbe_intf->tx_pipe.switch_to_port,
+		gbe_intf->tx_pipe.flags);
 
 	gbe_slave_stop(gbe_intf);
 
