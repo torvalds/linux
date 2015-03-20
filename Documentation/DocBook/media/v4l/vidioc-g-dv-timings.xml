@@ -318,10 +318,11 @@ can't generate such frequencies, then the flag will also be cleared.
 	  </row>
 	  <row>
 	    <entry>V4L2_DV_FL_HALF_LINE</entry>
-	    <entry>Specific to interlaced formats: if set, then field 1 (aka the odd field)
-is really one half-line longer and field 2 (aka the even field) is really one half-line
-shorter, so each field has exactly the same number of half-lines. Whether half-lines can be
-detected or used depends on the hardware.
+	    <entry>Specific to interlaced formats: if set, then the vertical frontporch
+of field 1 (aka the odd field) is really one half-line longer and the vertical backporch
+of field 2 (aka the even field) is really one half-line shorter, so each field has exactly
+the same number of half-lines. Whether half-lines can be detected or used depends on
+the hardware.
 	    </entry>
 	  </row>
 	</tbody>
