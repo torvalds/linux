@@ -2130,6 +2130,17 @@ static void genpd_dev_pm_detach(struct device *dev, bool power_off)
 	genpd_queue_power_off_work(pd);
 }
 
+static void genpd_dev_pm_sync(struct device *dev)
+{
+	struct generic_pm_domain *pd;
+
+	pd = dev_to_genpd(dev);
+	if (IS_ERR(pd))
+		return;
+
+	genpd_queue_power_off_work(pd);
+}
+
 /**
  * genpd_dev_pm_attach - Attach a device to its PM domain using DT.
  * @dev: Device to attach.
@@ -2196,6 +2207,7 @@ int genpd_dev_pm_attach(struct device *dev)
 	}
 
 	dev->pm_domain->detach = genpd_dev_pm_detach;
+	dev->pm_domain->sync = genpd_dev_pm_sync;
 	pm_genpd_poweron(pd);
 
 	return 0;
