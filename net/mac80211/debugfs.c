@@ -274,8 +274,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	DEBUGFS_STATS_ADD(tx_handlers_drop, local->tx_handlers_drop);
 	DEBUGFS_STATS_ADD(tx_handlers_queued, local->tx_handlers_queued);
-	DEBUGFS_STATS_ADD(tx_handlers_drop_unencrypted,
-		local->tx_handlers_drop_unencrypted);
 	DEBUGFS_STATS_ADD(tx_handlers_drop_fragment,
 		local->tx_handlers_drop_fragment);
 	DEBUGFS_STATS_ADD(tx_handlers_drop_wep,

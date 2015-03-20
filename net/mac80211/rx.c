@@ -1912,8 +1912,7 @@ static int ieee80211_drop_unencrypted(struct ieee80211_rx_data *rx, __le16 fc)
 	/* Drop unencrypted frames if key is set. */
 	if (unlikely(!ieee80211_has_protected(fc) &&
 		     !ieee80211_is_nullfunc(fc) &&
-		     ieee80211_is_data(fc) &&
-		     (rx->key || rx->sdata->drop_unencrypted)))
+		     ieee80211_is_data(fc) && rx->key))
 		return -EACCES;
 
 	return 0;

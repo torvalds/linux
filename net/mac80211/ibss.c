@@ -249,8 +249,6 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	if (presp)
 		kfree_rcu(presp, rcu_head);
 
-	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
-
 	/* make a copy of the chandef, it could be modified below. */
 	chandef = *req_chandef;
 	chan = chandef.chan;
@@ -1303,8 +1301,6 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 
 	if (ifibss->privacy)
 		capability |= WLAN_CAPABILITY_PRIVACY;
-	else
-		sdata->drop_unencrypted = 0;
 
 	__ieee80211_sta_join_ibss(sdata, bssid, sdata->vif.bss_conf.beacon_int,
 				  &ifibss->chandef, ifibss->basic_rates,

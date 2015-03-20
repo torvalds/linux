@@ -593,23 +593,8 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	else if (!is_multicast_ether_addr(hdr->addr1) &&
 		 (key = rcu_dereference(tx->sdata->default_unicast_key)))
 		tx->key = key;
-	else if (info->flags & IEEE80211_TX_CTL_INJECTED)
+	else
 		tx->key = NULL;
-	else if (!tx->sdata->drop_unencrypted)
-		tx->key = NULL;
-	else if (tx->skb->protocol == tx->sdata->control_port_protocol)
-		tx->key = NULL;
-	else if (ieee80211_is_robust_mgmt_frame(tx->skb) &&
-		 !(ieee80211_is_action(hdr->frame_control) &&
-		   tx->sta && test_sta_flag(tx->sta, WLAN_STA_MFP)))
-		tx->key = NULL;
-	else if (ieee80211_is_mgmt(hdr->frame_control) &&
-		 !ieee80211_is_robust_mgmt_frame(tx->skb))
-		tx->key = NULL;
-	else {
-		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
-		return TX_DROP;
-	}
 
 	if (tx->key) {
 		bool skip_hw = false;

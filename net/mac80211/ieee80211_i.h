@@ -818,8 +818,6 @@ struct ieee80211_sub_if_data {
 
 	unsigned long state;
 
-	int drop_unencrypted;
-
 	char name[IFNAMSIZ];
 
 	/* Fragment table for host-based reassembly */
@@ -1262,7 +1260,6 @@ struct ieee80211_local {
 	/* TX/RX handler statistics */
 	unsigned int tx_handlers_drop;
 	unsigned int tx_handlers_queued;
-	unsigned int tx_handlers_drop_unencrypted;
 	unsigned int tx_handlers_drop_fragment;
 	unsigned int tx_handlers_drop_wep;
 	unsigned int tx_handlers_drop_not_assoc;
