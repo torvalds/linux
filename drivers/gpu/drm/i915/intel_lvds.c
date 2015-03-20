@@ -535,6 +535,7 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.destroy = intel_lvds_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
 
 static const struct drm_encoder_funcs intel_lvds_enc_funcs = {

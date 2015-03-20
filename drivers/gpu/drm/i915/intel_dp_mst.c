@@ -327,6 +327,7 @@ static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.destroy = intel_dp_mst_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
 
 static int intel_dp_mst_get_modes(struct drm_connector *connector)
