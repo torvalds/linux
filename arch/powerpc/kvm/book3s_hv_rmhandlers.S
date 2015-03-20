@@ -1005,6 +1005,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	/* Save HEIR (HV emulation assist reg) in emul_inst
 	   if this is an HEI (HV emulation interrupt, e40) */
 	li	r3,KVM_INST_FETCH_FAILED
+	stw	r3,VCPU_LAST_INST(r9)
 	cmpwi	r12,BOOK3S_INTERRUPT_H_EMUL_ASSIST
 	bne	11f
 	mfspr	r3,SPRN_HEIR
