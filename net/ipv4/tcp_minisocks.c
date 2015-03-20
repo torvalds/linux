@@ -572,7 +572,6 @@ EXPORT_SYMBOL(tcp_create_openreq_child);
 
 struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			   struct request_sock *req,
-			   struct request_sock **prev,
 			   bool fastopen)
 {
 	struct tcp_options_received tmp_opt;
@@ -766,7 +765,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	if (child == NULL)
 		goto listen_overflow;
 
-	inet_csk_reqsk_queue_unlink(sk, req, prev);
+	inet_csk_reqsk_queue_unlink(sk, req);
 	inet_csk_reqsk_queue_removed(sk, req);
 
 	inet_csk_reqsk_queue_add(sk, req, child);
@@ -791,7 +790,7 @@ embryonic_reset:
 		tcp_reset(sk);
 	}
 	if (!fastopen) {
-		inet_csk_reqsk_queue_drop(sk, req, prev);
+		inet_csk_reqsk_queue_drop(sk, req);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_EMBRYONICRSTS);
 	}
 	return NULL;

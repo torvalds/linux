@@ -480,18 +480,17 @@ static inline u32 inet_synq_hash(const __be32 raddr, const __be16 rport,
 #endif
 
 struct request_sock *inet_csk_search_req(const struct sock *sk,
-					 struct request_sock ***prevp,
 					 const __be16 rport, const __be32 raddr,
 					 const __be32 laddr)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	struct request_sock *req, **prev;
+	struct request_sock *req;
 
-	for (prev = &lopt->syn_table[inet_synq_hash(raddr, rport, lopt->hash_rnd,
-						    lopt->nr_table_entries)];
-	     (req = *prev) != NULL;
-	     prev = &req->dl_next) {
+	for (req = lopt->syn_table[inet_synq_hash(raddr, rport, lopt->hash_rnd,
+						  lopt->nr_table_entries)];
+	     req != NULL;
+	     req = req->dl_next) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
 
 		if (ireq->ir_rmt_port == rport &&
@@ -499,7 +498,6 @@ struct request_sock *inet_csk_search_req(const struct sock *sk,
 		    ireq->ir_loc_addr == laddr &&
 		    AF_INET_FAMILY(req->rsk_ops->family)) {
 			WARN_ON(req->sk);
-			*prevp = prev;
 			break;
 		}
 	}
@@ -610,7 +608,10 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 	i = lopt->clock_hand;
 
 	do {
-		reqp=&lopt->syn_table[i];
+		reqp = &lopt->syn_table[i];
+		if (!*reqp)
+			goto next_bucket;
+		write_lock(&queue->syn_wait_lock);
 		while ((req = *reqp) != NULL) {
 			if (time_after_eq(now, req->expires)) {
 				int expire = 0, resend = 0;
@@ -635,14 +636,15 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 				}
 
 				/* Drop this request */
-				inet_csk_reqsk_queue_unlink(parent, req, reqp);
+				*reqp = req->dl_next;
 				reqsk_queue_removed(queue, req);
 				reqsk_put(req);
 				continue;
 			}
 			reqp = &req->dl_next;
 		}
-
+		write_unlock(&queue->syn_wait_lock);
+next_bucket:
 		i = (i + 1) & (lopt->nr_table_entries - 1);
 
 	} while (--budget > 0);

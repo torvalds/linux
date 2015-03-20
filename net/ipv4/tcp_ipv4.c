@@ -458,12 +458,12 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	}
 
 	switch (sk->sk_state) {
-		struct request_sock *req, **prev;
+		struct request_sock *req;
 	case TCP_LISTEN:
 		if (sock_owned_by_user(sk))
 			goto out;
 
-		req = inet_csk_search_req(sk, &prev, th->dest,
+		req = inet_csk_search_req(sk, th->dest,
 					  iph->daddr, iph->saddr);
 		if (!req)
 			goto out;
@@ -484,7 +484,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		 * created socket, and POSIX does not want network
 		 * errors returned from accept().
 		 */
-		inet_csk_reqsk_queue_drop(sk, req, prev);
+		inet_csk_reqsk_queue_drop(sk, req);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 		goto out;
 
@@ -1392,15 +1392,14 @@ EXPORT_SYMBOL(tcp_v4_syn_recv_sock);
 
 static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcphdr *th = tcp_hdr(skb);
+	const struct tcphdr *th = tcp_hdr(skb);
 	const struct iphdr *iph = ip_hdr(skb);
+	struct request_sock *req;
 	struct sock *nsk;
-	struct request_sock **prev;
-	/* Find possible connection requests. */
-	struct request_sock *req = inet_csk_search_req(sk, &prev, th->source,
-						       iph->saddr, iph->daddr);
+
+	req = inet_csk_search_req(sk, th->source, iph->saddr, iph->daddr);
 	if (req)
-		return tcp_check_req(sk, skb, req, prev, false);
+		return tcp_check_req(sk, skb, req, false);
 
 	nsk = inet_lookup_established(sock_net(sk), &tcp_hashinfo, iph->saddr,
 			th->source, iph->daddr, th->dest, inet_iif(skb));

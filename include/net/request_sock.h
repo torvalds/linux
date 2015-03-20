@@ -50,6 +50,7 @@ int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req);
 struct request_sock {
 	struct sock_common		__req_common;
 #define rsk_refcnt			__req_common.skc_refcnt
+#define rsk_hash			__req_common.skc_hash
 
 	struct request_sock		*dl_next;
 	struct sock			*rsk_listener;
@@ -216,11 +217,16 @@ static inline int reqsk_queue_empty(struct request_sock_queue *queue)
 }
 
 static inline void reqsk_queue_unlink(struct request_sock_queue *queue,
-				      struct request_sock *req,
-				      struct request_sock **prev_req)
+				      struct request_sock *req)
 {
+	struct listen_sock *lopt = queue->listen_opt;
+	struct request_sock **prev;
+
 	write_lock(&queue->syn_wait_lock);
-	*prev_req = req->dl_next;
+	prev = &lopt->syn_table[req->rsk_hash];
+	while (*prev != req)
+		prev = &(*prev)->dl_next;
+	*prev = req->dl_next;
 	write_unlock(&queue->syn_wait_lock);
 }
 
@@ -300,7 +306,6 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	req->num_retrans = 0;
 	req->num_timeout = 0;
 	req->sk = NULL;
-	req->dl_next = lopt->syn_table[hash];
 
 	/* before letting lookups find us, make sure all req fields
 	 * are committed to memory and refcnt initialized.
@@ -308,7 +313,9 @@ static inline void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	smp_wmb();
 	atomic_set(&req->rsk_refcnt, 1);
 
+	req->rsk_hash = hash;
 	write_lock(&queue->syn_wait_lock);
+	req->dl_next = lopt->syn_table[hash];
 	lopt->syn_table[hash] = req;
 	write_unlock(&queue->syn_wait_lock);
 }

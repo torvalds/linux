@@ -288,11 +288,11 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 	}
 
 	switch (sk->sk_state) {
-		struct request_sock *req , **prev;
+		struct request_sock *req;
 	case DCCP_LISTEN:
 		if (sock_owned_by_user(sk))
 			goto out;
-		req = inet_csk_search_req(sk, &prev, dh->dccph_dport,
+		req = inet_csk_search_req(sk, dh->dccph_dport,
 					  iph->daddr, iph->saddr);
 		if (!req)
 			goto out;
@@ -314,7 +314,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 		 * created socket, and POSIX does not want network
 		 * errors returned from accept().
 		 */
-		inet_csk_reqsk_queue_drop(sk, req, prev);
+		inet_csk_reqsk_queue_drop(sk, req);
 		goto out;
 
 	case DCCP_REQUESTING:
@@ -448,13 +448,11 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 	const struct iphdr *iph = ip_hdr(skb);
 	struct sock *nsk;
-	struct request_sock **prev;
 	/* Find possible connection requests. */
-	struct request_sock *req = inet_csk_search_req(sk, &prev,
-						       dh->dccph_sport,
+	struct request_sock *req = inet_csk_search_req(sk, dh->dccph_sport,
 						       iph->saddr, iph->daddr);
-	if (req != NULL)
-		return dccp_check_req(sk, skb, req, prev);
+	if (req)
+		return dccp_check_req(sk, skb, req);
 
 	nsk = inet_lookup_established(sock_net(sk), &dccp_hashinfo,
 				      iph->saddr, dh->dccph_sport,

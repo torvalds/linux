@@ -257,7 +257,6 @@ inet_csk_rto_backoff(const struct inet_connection_sock *icsk,
 struct sock *inet_csk_accept(struct sock *sk, int flags, int *err);
 
 struct request_sock *inet_csk_search_req(const struct sock *sk,
-					 struct request_sock ***prevp,
 					 const __be16 rport,
 					 const __be32 raddr,
 					 const __be32 laddr);
@@ -310,17 +309,15 @@ static inline int inet_csk_reqsk_queue_is_full(const struct sock *sk)
 }
 
 static inline void inet_csk_reqsk_queue_unlink(struct sock *sk,
-					       struct request_sock *req,
-					       struct request_sock **prev)
+					       struct request_sock *req)
 {
-	reqsk_queue_unlink(&inet_csk(sk)->icsk_accept_queue, req, prev);
+	reqsk_queue_unlink(&inet_csk(sk)->icsk_accept_queue, req);
 }
 
 static inline void inet_csk_reqsk_queue_drop(struct sock *sk,
-					     struct request_sock *req,
-					     struct request_sock **prev)
+					     struct request_sock *req)
 {
-	inet_csk_reqsk_queue_unlink(sk, req, prev);
+	inet_csk_reqsk_queue_unlink(sk, req);
 	inet_csk_reqsk_queue_removed(sk, req);
 	reqsk_free(req);
 }

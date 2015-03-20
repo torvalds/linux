@@ -403,13 +403,13 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	/* Might be for an request_sock */
 	switch (sk->sk_state) {
-		struct request_sock *req, **prev;
+		struct request_sock *req;
 	case TCP_LISTEN:
 		if (sock_owned_by_user(sk))
 			goto out;
 
 		/* Note : We use inet6_iif() here, not tcp_v6_iif() */
-		req = inet6_csk_search_req(sk, &prev, th->dest, &hdr->daddr,
+		req = inet6_csk_search_req(sk, th->dest, &hdr->daddr,
 					   &hdr->saddr, inet6_iif(skb));
 		if (!req)
 			goto out;
@@ -424,7 +424,7 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			goto out;
 		}
 
-		inet_csk_reqsk_queue_drop(sk, req, prev);
+		inet_csk_reqsk_queue_drop(sk, req);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 		goto out;
 
@@ -980,16 +980,16 @@ static void tcp_v6_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 
 static struct sock *tcp_v6_hnd_req(struct sock *sk, struct sk_buff *skb)
 {
-	struct request_sock *req, **prev;
 	const struct tcphdr *th = tcp_hdr(skb);
+	struct request_sock *req;
 	struct sock *nsk;
 
 	/* Find possible connection requests. */
-	req = inet6_csk_search_req(sk, &prev, th->source,
+	req = inet6_csk_search_req(sk, th->source,
 				   &ipv6_hdr(skb)->saddr,
 				   &ipv6_hdr(skb)->daddr, tcp_v6_iif(skb));
 	if (req)
-		return tcp_check_req(sk, skb, req, prev, false);
+		return tcp_check_req(sk, skb, req, false);
 
 	nsk = __inet6_lookup_established(sock_net(sk), &tcp_hashinfo,
 					 &ipv6_hdr(skb)->saddr, th->source,
