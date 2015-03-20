@@ -132,12 +132,16 @@ static void intel_pmu_lbr_filter(struct cpu_hw_events *cpuc);
  * otherwise it becomes near impossible to get a reliable stack.
  */
 
-static void __intel_pmu_lbr_enable(void)
+static void __intel_pmu_lbr_enable(bool pmi)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	u64 debugctl, lbr_select = 0;
 
-	if (cpuc->lbr_sel) {
+	/*
+	 * No need to reprogram LBR_SELECT in a PMI, as it
+	 * did not change.
+	 */
+	if (cpuc->lbr_sel && !pmi) {
 		lbr_select = cpuc->lbr_sel->config;
 		wrmsrl(MSR_LBR_SELECT, lbr_select);
 	}
@@ -351,12 +355,12 @@ void intel_pmu_lbr_disable(struct perf_event *event)
 	}
 }
 
-void intel_pmu_lbr_enable_all(void)
+void intel_pmu_lbr_enable_all(bool pmi)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	if (cpuc->lbr_users)
-		__intel_pmu_lbr_enable();
+		__intel_pmu_lbr_enable(pmi);
 }
 
 void intel_pmu_lbr_disable_all(void)

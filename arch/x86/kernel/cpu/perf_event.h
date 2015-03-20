@@ -870,7 +870,7 @@ void intel_pmu_lbr_enable(struct perf_event *event);
 
 void intel_pmu_lbr_disable(struct perf_event *event);
 
-void intel_pmu_lbr_enable_all(void);
+void intel_pmu_lbr_enable_all(bool pmi);
 
 void intel_pmu_lbr_disable_all(void);
 
