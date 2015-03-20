@@ -486,8 +486,8 @@ static int lynxfb_resume(struct pci_dev* pdev)
 		par = info->par;
 		crtc = &par->crtc;
 		cursor = &crtc->cursor;
-		memset(cursor->vstart, 0x0, cursor->size);
-		memset(crtc->vScreen,0x0,crtc->vidmem_size);
+		memset_io(cursor->vstart, 0x0, cursor->size);
+		memset_io(crtc->vScreen, 0x0, crtc->vidmem_size);
 		lynxfb_ops_set_par(info);
 		fb_set_suspend(info, 0);
 	}
@@ -498,8 +498,8 @@ static int lynxfb_resume(struct pci_dev* pdev)
 		par = info->par;
 		crtc = &par->crtc;
 		cursor = &crtc->cursor;
-		memset(cursor->vstart, 0x0, cursor->size);
-		memset(crtc->vScreen,0x0,crtc->vidmem_size);
+		memset_io(cursor->vstart, 0x0, cursor->size);
+		memset_io(crtc->vScreen, 0x0, crtc->vidmem_size);
 		lynxfb_ops_set_par(info);
 		fb_set_suspend(info, 0);
 	}
@@ -830,7 +830,7 @@ static int lynxfb_set_fbinfo(struct fb_info* info,int index)
 
 
     crtc->cursor.share = share;
-    memset(crtc->cursor.vstart, 0, crtc->cursor.size);
+	memset_io(crtc->cursor.vstart, 0, crtc->cursor.size);
     if(!g_hwcursor){
         lynxfb_ops.fb_cursor = NULL;
         crtc->cursor.disable(&crtc->cursor);
@@ -1151,7 +1151,7 @@ static int lynxfb_pci_probe(struct pci_dev * pdev,
 	}
 #endif
 
-	memset(share->pvMem,0,share->vidmem_size);
+	memset_io(share->pvMem, 0, share->vidmem_size);
 
 	pr_info("sm%3x mmio address = %p\n",share->devid,share->pvReg);
 
