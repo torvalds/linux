@@ -8909,6 +8909,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	struct drm_framebuffer *fb;
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_atomic_state *state = NULL;
+	struct drm_connector_state *connector_state;
 	int ret, i = -1;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
@@ -8996,6 +8997,15 @@ retry:
 
 	state->acquire_ctx = ctx;
 
+	connector_state = drm_atomic_get_connector_state(state, connector);
+	if (IS_ERR(connector_state)) {
+		ret = PTR_ERR(connector_state);
+		goto fail;
+	}
+
+	connector_state->crtc = crtc;
+	connector_state->best_encoder = &intel_encoder->base;
+
 	if (!mode)
 		mode = &load_detect_mode;
 
@@ -9061,6 +9071,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_atomic_state *state;
+	struct drm_connector_state *connector_state;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, connector->name,
@@ -9068,17 +9079,23 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 
 	if (old->load_detect_temp) {
 		state = drm_atomic_state_alloc(dev);
-		if (!state) {
-			DRM_DEBUG_KMS("can't release load detect pipe\n");
-			return;
-		}
+		if (!state)
+			goto fail;
 
 		state->acquire_ctx = ctx;
+
+		connector_state = drm_atomic_get_connector_state(state, connector);
+		if (IS_ERR(connector_state))
+			goto fail;
 
 		to_intel_connector(connector)->new_encoder = NULL;
 		intel_encoder->new_crtc = NULL;
 		intel_crtc->new_enabled = false;
 		intel_crtc->new_config = NULL;
+
+		connector_state->best_encoder = NULL;
+		connector_state->crtc = NULL;
+
 		intel_set_mode(crtc, NULL, 0, 0, NULL, state);
 
 		drm_atomic_state_free(state);
@@ -9094,6 +9111,11 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 	/* Switch crtc and encoder back off if necessary */
 	if (old->dpms_mode != DRM_MODE_DPMS_ON)
 		connector->funcs->dpms(connector, old->dpms_mode);
+
+	return;
+fail:
+	DRM_DEBUG_KMS("Couldn't release load detect pipe.\n");
+	drm_atomic_state_free(state);
 }
 
 static int i9xx_pll_refclk(struct drm_device *dev,
@@ -11777,9 +11799,11 @@ intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 static int
 intel_modeset_stage_output_state(struct drm_device *dev,
 				 struct drm_mode_set *set,
-				 struct intel_set_config *config)
+				 struct intel_set_config *config,
+				 struct drm_atomic_state *state)
 {
 	struct intel_connector *connector;
+	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
 	int ro;
@@ -11843,6 +11867,14 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 		}
 		connector->new_encoder->new_crtc = to_intel_crtc(new_crtc);
 
+		connector_state =
+			drm_atomic_get_connector_state(state, &connector->base);
+		if (IS_ERR(connector_state))
+			return PTR_ERR(connector_state);
+
+		connector_state->crtc = new_crtc;
+		connector_state->best_encoder = &connector->new_encoder->base;
+
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
 			connector->base.base.id,
 			connector->base.name,
@@ -11875,9 +11907,15 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	}
 	/* Now we've also updated encoder->new_crtc for all encoders. */
 	for_each_intel_connector(dev, connector) {
-		if (connector->new_encoder)
+		connector_state =
+			drm_atomic_get_connector_state(state, &connector->base);
+
+		if (connector->new_encoder) {
 			if (connector->new_encoder != connector->encoder)
 				connector->encoder = connector->new_encoder;
+		} else {
+			connector_state->crtc = NULL;
+		}
 	}
 	for_each_intel_crtc(dev, crtc) {
 		crtc->new_enabled = false;
@@ -11986,7 +12024,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 
-	ret = intel_modeset_stage_output_state(dev, set, config);
+	ret = intel_modeset_stage_output_state(dev, set, config, state);
 	if (ret)
 		goto fail;
 
