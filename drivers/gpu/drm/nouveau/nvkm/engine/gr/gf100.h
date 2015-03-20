@@ -124,6 +124,9 @@ void gf100_gr_dtor(struct nvkm_object *);
 int  gf100_gr_init(struct nvkm_object *);
 void gf100_gr_zbc_init(struct gf100_gr_priv *);
 
+int  gk104_gr_ctor(struct nvkm_object *, struct nvkm_object *,
+		     struct nvkm_oclass *, void *data, u32 size,
+		     struct nvkm_object **);
 int  gk104_gr_init(struct nvkm_object *);
 
 extern struct nvkm_ofuncs gf100_fermi_ofuncs;
