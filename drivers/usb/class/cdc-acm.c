@@ -360,7 +360,7 @@ static void acm_ctrl_irq(struct urb *urb)
 	}
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
-	if (retval)
+	if (retval && retval != -EPERM)
 		dev_err(&acm->control->dev, "%s - usb_submit_urb failed: %d\n",
 							__func__, retval);
 }
