@@ -85,6 +85,20 @@ static inline long try_lock_hpte(__be64 *hpte, unsigned long bits)
 	return old == 0;
 }
 
+static inline void unlock_hpte(__be64 *hpte, unsigned long hpte_v)
+{
+	hpte_v &= ~HPTE_V_HVLOCK;
+	asm volatile(PPC_RELEASE_BARRIER "" : : : "memory");
+	hpte[0] = cpu_to_be64(hpte_v);
+}
+
+/* Without barrier */
+static inline void __unlock_hpte(__be64 *hpte, unsigned long hpte_v)
+{
+	hpte_v &= ~HPTE_V_HVLOCK;
+	hpte[0] = cpu_to_be64(hpte_v);
+}
+
 static inline int __hpte_actual_psize(unsigned int lp, int psize)
 {
 	int i, shift;

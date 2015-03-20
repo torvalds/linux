@@ -338,9 +338,7 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	v = be64_to_cpu(hptep[0]) & ~HPTE_V_HVLOCK;
 	gr = kvm->arch.revmap[index].guest_rpte;
 
-	/* Unlock the HPTE */
-	asm volatile("lwsync" : : : "memory");
-	hptep[0] = cpu_to_be64(v);
+	unlock_hpte(hptep, v);
 	preempt_enable();
 
 	gpte->eaddr = eaddr;
@@ -469,8 +467,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	hpte[0] = be64_to_cpu(hptep[0]) & ~HPTE_V_HVLOCK;
 	hpte[1] = be64_to_cpu(hptep[1]);
 	hpte[2] = r = rev->guest_rpte;
-	asm volatile("lwsync" : : : "memory");
-	hptep[0] = cpu_to_be64(hpte[0]);
+	unlock_hpte(hptep, hpte[0]);
 	preempt_enable();
 
 	if (hpte[0] != vcpu->arch.pgfault_hpte[0] ||
@@ -621,7 +618,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	hptep[1] = cpu_to_be64(r);
 	eieio();
-	hptep[0] = cpu_to_be64(hpte[0]);
+	__unlock_hpte(hptep, hpte[0]);
 	asm volatile("ptesync" : : : "memory");
 	preempt_enable();
 	if (page && hpte_is_writable(r))
@@ -642,7 +639,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return ret;
 
  out_unlock:
-	hptep[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+	__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 	preempt_enable();
 	goto out_put;
 }
@@ -771,7 +768,7 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			}
 		}
 		unlock_rmap(rmapp);
-		hptep[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+		__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 	}
 	return 0;
 }
@@ -857,7 +854,7 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			}
 			ret = 1;
 		}
-		hptep[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+		__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 	} while ((i = j) != head);
 
 	unlock_rmap(rmapp);
@@ -974,8 +971,7 @@ static int kvm_test_clear_dirty_npages(struct kvm *kvm, unsigned long *rmapp)
 
 		/* Now check and modify the HPTE */
 		if (!(hptep[0] & cpu_to_be64(HPTE_V_VALID))) {
-			/* unlock and continue */
-			hptep[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+			__unlock_hpte(hptep, be64_to_cpu(hptep[0]));
 			continue;
 		}
 
@@ -996,9 +992,9 @@ static int kvm_test_clear_dirty_npages(struct kvm *kvm, unsigned long *rmapp)
 				npages_dirty = n;
 			eieio();
 		}
-		v &= ~(HPTE_V_ABSENT | HPTE_V_HVLOCK);
+		v &= ~HPTE_V_ABSENT;
 		v |= HPTE_V_VALID;
-		hptep[0] = cpu_to_be64(v);
+		__unlock_hpte(hptep, v);
 	} while ((i = j) != head);
 
 	unlock_rmap(rmapp);
@@ -1218,8 +1214,7 @@ static long record_hpte(unsigned long flags, __be64 *hptp,
 			r &= ~HPTE_GR_MODIFIED;
 			revp->guest_rpte = r;
 		}
-		asm volatile(PPC_RELEASE_BARRIER "" : : : "memory");
-		hptp[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+		unlock_hpte(hptp, be64_to_cpu(hptp[0]));
 		preempt_enable();
 		if (!(valid == want_valid && (first_pass || dirty)))
 			ok = 0;
