@@ -188,6 +188,16 @@ ieee80211_ibss_build_presp(struct ieee80211_sub_if_data *sdata,
 		 */
 		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
 						 chandef, 0);
+
+		/* add VHT capability and information IEs */
+		if (chandef->width != NL80211_CHAN_WIDTH_20 &&
+		    chandef->width != NL80211_CHAN_WIDTH_40 &&
+		    sband->vht_cap.vht_supported) {
+			pos = ieee80211_ie_build_vht_cap(pos, &sband->vht_cap,
+							 sband->vht_cap.cap);
+			pos = ieee80211_ie_build_vht_oper(pos, &sband->vht_cap,
+							  chandef);
+		}
 	}
 
 	if (local->hw.queues >= IEEE80211_NUM_ACS)
@@ -414,6 +424,11 @@ static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		cfg80211_chandef_create(&chandef, cbss->channel,
 					NL80211_CHAN_WIDTH_20_NOHT);
 		chandef.width = sdata->u.ibss.chandef.width;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+	case NL80211_CHAN_WIDTH_160:
+		chandef = sdata->u.ibss.chandef;
+		chandef.chan = cbss->channel;
 		break;
 	default:
 		/* fall back to 20 MHz for unsupported modes */
@@ -1026,24 +1041,40 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		/* we both use HT */
 		struct ieee80211_ht_cap htcap_ie;
 		struct cfg80211_chan_def chandef;
+		enum ieee80211_sta_rx_bandwidth bw = sta->sta.bandwidth;
 
 		ieee80211_ht_oper_to_chandef(channel,
 					     elems->ht_operation,
 					     &chandef);
 
 		memcpy(&htcap_ie, elems->ht_cap_elem, sizeof(htcap_ie));
-
-		/*
-		 * fall back to HT20 if we don't use or use
-		 * the other extension channel
-		 */
-		if (chandef.center_freq1 != sdata->u.ibss.chandef.center_freq1)
-			htcap_ie.cap_info &=
-				cpu_to_le16(~IEEE80211_HT_CAP_SUP_WIDTH_20_40);
-
 		rates_updated |= ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 								   &htcap_ie,
 								   sta);
+
+		if (elems->vht_operation && elems->vht_cap_elem &&
+		    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_20 &&
+		    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_40) {
+			/* we both use VHT */
+			struct ieee80211_vht_cap cap_ie;
+			struct ieee80211_sta_vht_cap cap = sta->sta.vht_cap;
+
+			ieee80211_vht_oper_to_chandef(channel,
+						      elems->vht_operation,
+						      &chandef);
+			memcpy(&cap_ie, elems->vht_cap_elem, sizeof(cap_ie));
+			ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
+							    &cap_ie, sta);
+			if (memcmp(&cap, &sta->sta.vht_cap, sizeof(cap)))
+				rates_updated |= true;
+		}
+
+		if (bw != sta->sta.bandwidth)
+			rates_updated |= true;
+
+		if (!cfg80211_chandef_compatible(&sdata->u.ibss.chandef,
+						 &chandef))
+			WARN_ON_ONCE(1);
 	}
 
 	if (sta && rates_updated) {
