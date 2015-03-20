@@ -1816,6 +1816,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	bool wme_sta = false, authorized = false, tdls_auth = false;
 	bool tdls_peer = false, tdls_setup_frame = false;
 	bool multicast;
+	bool have_station = false;
 	u16 info_id = 0;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_sub_if_data *ap_sdata;
@@ -1840,6 +1841,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 			hdrlen = 30;
 			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
 			wme_sta = sta->sta.wme;
+			have_station = true;
 		}
 		ap_sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
 					u.ap);
@@ -1956,9 +1958,6 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		if (sdata->wdev.wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) {
 			sta = sta_info_get(sdata, skb->data);
 			if (sta) {
-				authorized = test_sta_flag(sta,
-							WLAN_STA_AUTHORIZED);
-				wme_sta = sta->sta.wme;
 				tdls_peer = test_sta_flag(sta,
 							  WLAN_STA_TDLS_PEER);
 				tdls_auth = test_sta_flag(sta,
@@ -1990,6 +1989,9 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 			memcpy(hdr.addr3, sdata->u.mgd.bssid, ETH_ALEN);
 			hdrlen = 24;
+			have_station = true;
+			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
+			wme_sta = sta->sta.wme;
 		}  else if (sdata->u.mgd.use_4addr &&
 			    cpu_to_be16(ethertype) != sdata->control_port_protocol) {
 			fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS |
@@ -2052,7 +2054,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	 * in AP mode)
 	 */
 	multicast = is_multicast_ether_addr(hdr.addr1);
-	if (!multicast) {
+	if (!multicast && !have_station) {
 		sta = sta_info_get(sdata, hdr.addr1);
 		if (sta) {
 			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
