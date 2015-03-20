@@ -1332,7 +1332,7 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 
 		if (intel_get_load_detect_pipe(connector, &mode, &tmp, &ctx)) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(connector, &tmp);
+			intel_release_load_detect_pipe(connector, &tmp, &ctx);
 			status = type < 0 ?
 				connector_status_disconnected :
 				connector_status_connected;

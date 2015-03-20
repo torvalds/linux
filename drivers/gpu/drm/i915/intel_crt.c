@@ -708,7 +708,7 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 			status = connector_status_connected;
 		else
 			status = intel_crt_load_detect(crt);
-		intel_release_load_detect_pipe(connector, &tmp);
+		intel_release_load_detect_pipe(connector, &tmp, &ctx);
 	} else
 		status = connector_status_unknown;
 

@@ -9038,7 +9038,8 @@ fail_unlock:
 }
 
 void intel_release_load_detect_pipe(struct drm_connector *connector,
-				    struct intel_load_detect_pipe *old)
+				    struct intel_load_detect_pipe *old,
+				    struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_encoder *intel_encoder =
 		intel_attached_encoder(connector);
@@ -13595,7 +13596,7 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 		return;
 
 	if (intel_get_load_detect_pipe(crt, NULL, &load_detect_temp, ctx))
-		intel_release_load_detect_pipe(crt, &load_detect_temp);
+		intel_release_load_detect_pipe(crt, &load_detect_temp, ctx);
 }
 
 static bool
