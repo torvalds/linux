@@ -1,14 +1,13 @@
 /*
  * Resizable, Scalable, Concurrent Hash Table
  *
+ * Copyright (c) 2015 Herbert Xu <herbert@gondor.apana.org.au>
  * Copyright (c) 2014 Thomas Graf <tgraf@suug.ch>
  * Copyright (c) 2008-2014 Patrick McHardy <kaber@trash.net>
  *
- * Based on the following paper by Josh Triplett, Paul E. McKenney
- * and Jonathan Walpole:
- * https://www.usenix.org/legacy/event/atc11/tech/final_files/Triplett.pdf
- *
  * Code partially derived from nft_hash
+ * Rewritten with rehash code from br_multicast plus single list
+ * pointer as suggested by Josh Triplett
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -282,21 +281,9 @@ int rhashtable_init(struct rhashtable *ht,
 int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 			   struct rhash_head *obj,
 			   struct bucket_table *old_tbl);
-void rhashtable_insert(struct rhashtable *ht, struct rhash_head *node);
-bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *node);
 
 int rhashtable_expand(struct rhashtable *ht);
 int rhashtable_shrink(struct rhashtable *ht);
-
-void *rhashtable_lookup(struct rhashtable *ht, const void *key);
-void *rhashtable_lookup_compare(struct rhashtable *ht, const void *key,
-				bool (*compare)(void *, void *), void *arg);
-
-bool rhashtable_lookup_insert(struct rhashtable *ht, struct rhash_head *obj);
-bool rhashtable_lookup_compare_insert(struct rhashtable *ht,
-				      struct rhash_head *obj,
-				      bool (*compare)(void *, void *),
-				      void *arg);
 
 int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter);
 void rhashtable_walk_exit(struct rhashtable_iter *iter);
