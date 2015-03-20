@@ -10217,6 +10217,27 @@ static void intel_modeset_update_staged_output_state(struct drm_device *dev)
 	}
 }
 
+/* Transitional helper to copy current connector/encoder state to
+ * connector->state. This is needed so that code that is partially
+ * converted to atomic does the right thing.
+ */
+static void intel_modeset_update_connector_atomic_state(struct drm_device *dev)
+{
+	struct intel_connector *connector;
+
+	for_each_intel_connector(dev, connector) {
+		if (connector->base.encoder) {
+			connector->base.state->best_encoder =
+				connector->base.encoder;
+			connector->base.state->crtc =
+				connector->base.encoder->crtc;
+		} else {
+			connector->base.state->best_encoder = NULL;
+			connector->base.state->crtc = NULL;
+		}
+	}
+}
+
 /**
  * intel_modeset_commit_output_state
  *
@@ -10240,6 +10261,8 @@ static void intel_modeset_commit_output_state(struct drm_device *dev)
 		crtc->base.state->enable = crtc->new_enabled;
 		crtc->base.enabled = crtc->new_enabled;
 	}
+
+	intel_modeset_update_connector_atomic_state(dev);
 }
 
 static void
@@ -13015,19 +13038,21 @@ static void intel_setup_outputs(struct drm_device *dev)
 	 * testing/debug of the plane operations (and only when a specific
 	 * kernel module option is given), that shouldn't really matter.
 	 *
+	 * We are also relying on these states to convert the legacy mode set
+	 * to use a drm_atomic_state struct. The states are kept consistent
+	 * with actual state, so that it is safe to rely on that instead of
+	 * the staged config.
+	 *
 	 * Once atomic support for crtc's + connectors lands, this loop should
 	 * be removed since we'll be setting up real connector state, which
 	 * will contain Intel-specific properties.
 	 */
-	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
-		list_for_each_entry(connector,
-				    &dev->mode_config.connector_list,
-				    head) {
-			if (!WARN_ON(connector->state)) {
-				connector->state =
-					kzalloc(sizeof(*connector->state),
-						GFP_KERNEL);
-			}
+	list_for_each_entry(connector,
+			    &dev->mode_config.connector_list,
+			    head) {
+		if (!WARN_ON(connector->state)) {
+			connector->state = kzalloc(sizeof(*connector->state),
+						   GFP_KERNEL);
 		}
 	}
 
@@ -14079,6 +14104,8 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		intel_dump_pipe_config(crtc, crtc->config,
 				       "[setup_hw_state]");
 	}
+
+	intel_modeset_update_connector_atomic_state(dev);
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
