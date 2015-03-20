@@ -2011,6 +2011,7 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		/*rockchip_set_system_status(sys_status);*/
 		rk3368_lcdc_pre_init(dev_drv);
 		rk3368_lcdc_clk_enable(lcdc_dev);
+		rk3368_lcdc_enable_irq(dev_drv);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
 			if (!dev_drv->mmu_dev) {
@@ -2035,7 +2036,7 @@ static int rk3368_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		   rk3368_lcdc_mmu_en(dev_drv); */
 		if ((support_uboot_display() && (lcdc_dev->prop == PRMRY))) {
 			rk3368_lcdc_set_dclk(dev_drv, 0);
-			rk3368_lcdc_enable_irq(dev_drv);
+			/*rk3368_lcdc_enable_irq(dev_drv);*/
 		} else {
 			rk3368_load_screen(dev_drv, 1);
 		}
