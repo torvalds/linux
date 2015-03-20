@@ -1542,9 +1542,7 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev)
-	    ||  IS_ERR_OR_NULL(dev->pm_domain)
-	    ||  pd_to_genpd(dev->pm_domain) != genpd)
+	if (!genpd || genpd != pm_genpd_lookup_dev(dev))
 		return -EINVAL;
 
 	/* The above validation also means we have existing domain_data. */
