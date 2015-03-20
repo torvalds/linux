@@ -203,10 +203,10 @@ static u32 mn_to_reg(struct mn *mn, u32 m, u32 n, u32 val)
 	return val;
 }
 
-static void configure_bank(struct clk_dyn_rcg *rcg, const struct freq_tbl *f)
+static int configure_bank(struct clk_dyn_rcg *rcg, const struct freq_tbl *f)
 {
 	u32 ns, md, reg;
-	int bank, new_bank;
+	int bank, new_bank, ret;
 	struct mn *mn;
 	struct pre_div *p;
 	struct src_sel *s;
@@ -218,38 +218,56 @@ static void configure_bank(struct clk_dyn_rcg *rcg, const struct freq_tbl *f)
 
 	enabled = __clk_is_enabled(hw->clk);
 
-	regmap_read(rcg->clkr.regmap, rcg->bank_reg, &reg);
+	ret = regmap_read(rcg->clkr.regmap, rcg->bank_reg, &reg);
+	if (ret)
+		return ret;
 	bank = reg_to_bank(rcg, reg);
 	new_bank = enabled ? !bank : bank;
 
 	ns_reg = rcg->ns_reg[new_bank];
-	regmap_read(rcg->clkr.regmap, ns_reg, &ns);
+	ret = regmap_read(rcg->clkr.regmap, ns_reg, &ns);
+	if (ret)
+		return ret;
 
 	if (banked_mn) {
 		mn = &rcg->mn[new_bank];
 		md_reg = rcg->md_reg[new_bank];
 
 		ns |= BIT(mn->mnctr_reset_bit);
-		regmap_write(rcg->clkr.regmap, ns_reg, ns);
+		ret = regmap_write(rcg->clkr.regmap, ns_reg, ns);
+		if (ret)
+			return ret;
 
-		regmap_read(rcg->clkr.regmap, md_reg, &md);
+		ret = regmap_read(rcg->clkr.regmap, md_reg, &md);
+		if (ret)
+			return ret;
 		md = mn_to_md(mn, f->m, f->n, md);
-		regmap_write(rcg->clkr.regmap, md_reg, md);
-
+		ret = regmap_write(rcg->clkr.regmap, md_reg, md);
+		if (ret)
+			return ret;
 		ns = mn_to_ns(mn, f->m, f->n, ns);
-		regmap_write(rcg->clkr.regmap, ns_reg, ns);
+		ret = regmap_write(rcg->clkr.regmap, ns_reg, ns);
+		if (ret)
+			return ret;
 
 		/* Two NS registers means mode control is in NS register */
 		if (rcg->ns_reg[0] != rcg->ns_reg[1]) {
 			ns = mn_to_reg(mn, f->m, f->n, ns);
-			regmap_write(rcg->clkr.regmap, ns_reg, ns);
+			ret = regmap_write(rcg->clkr.regmap, ns_reg, ns);
+			if (ret)
+				return ret;
 		} else {
 			reg = mn_to_reg(mn, f->m, f->n, reg);
-			regmap_write(rcg->clkr.regmap, rcg->bank_reg, reg);
+			ret = regmap_write(rcg->clkr.regmap, rcg->bank_reg,
+					   reg);
+			if (ret)
+				return ret;
 		}
 
 		ns &= ~BIT(mn->mnctr_reset_bit);
-		regmap_write(rcg->clkr.regmap, ns_reg, ns);
+		ret = regmap_write(rcg->clkr.regmap, ns_reg, ns);
+		if (ret)
+			return ret;
 	}
 
 	if (banked_p) {
@@ -259,13 +277,20 @@ static void configure_bank(struct clk_dyn_rcg *rcg, const struct freq_tbl *f)
 
 	s = &rcg->s[new_bank];
 	ns = src_to_ns(s, s->parent_map[f->src], ns);
-	regmap_write(rcg->clkr.regmap, ns_reg, ns);
+	ret = regmap_write(rcg->clkr.regmap, ns_reg, ns);
+	if (ret)
+		return ret;
 
 	if (enabled) {
-		regmap_read(rcg->clkr.regmap, rcg->bank_reg, &reg);
+		ret = regmap_read(rcg->clkr.regmap, rcg->bank_reg, &reg);
+		if (ret)
+			return ret;
 		reg ^= BIT(rcg->mux_sel_bit);
-		regmap_write(rcg->clkr.regmap, rcg->bank_reg, reg);
+		ret = regmap_write(rcg->clkr.regmap, rcg->bank_reg, reg);
+		if (ret)
+			return ret;
 	}
+	return 0;
 }
 
 static int clk_dyn_rcg_set_parent(struct clk_hw *hw, u8 index)
@@ -292,9 +317,7 @@ static int clk_dyn_rcg_set_parent(struct clk_hw *hw, u8 index)
 		f.pre_div = ns_to_pre_div(&rcg->p[bank], ns) + 1;
 
 	f.src = index;
-	configure_bank(rcg, &f);
-
-	return 0;
+	return configure_bank(rcg, &f);
 }
 
 /*
@@ -567,9 +590,7 @@ static int __clk_dyn_rcg_set_rate(struct clk_hw *hw, unsigned long rate)
 	if (!f)
 		return -EINVAL;
 
-	configure_bank(rcg, f);
-
-	return 0;
+	return configure_bank(rcg, f);
 }
 
 static int clk_dyn_rcg_set_rate(struct clk_hw *hw, unsigned long rate,
