@@ -24,7 +24,7 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
 #include <linux/drbd.h>
@@ -565,21 +565,19 @@ static unsigned long bm_count_bits(struct drbd_bitmap *b)
 	unsigned long *p_addr;
 	unsigned long bits = 0;
 	unsigned long mask = (1UL << (b->bm_bits & BITS_PER_LONG_MASK)) -1;
-	int idx, i, last_word;
+	int idx, last_word;
 
 	/* all but last page */
 	for (idx = 0; idx < b->bm_number_of_pages - 1; idx++) {
 		p_addr = __bm_map_pidx(b, idx);
-		for (i = 0; i < LWPP; i++)
-			bits += hweight_long(p_addr[i]);
+		bits += bitmap_weight(p_addr, BITS_PER_PAGE);
 		__bm_unmap(p_addr);
 		cond_resched();
 	}
 	/* last (or only) page */
 	last_word = ((b->bm_bits - 1) & BITS_PER_PAGE_MASK) >> LN2_BPL;
 	p_addr = __bm_map_pidx(b, idx);
-	for (i = 0; i < last_word; i++)
-		bits += hweight_long(p_addr[i]);
+	bits += bitmap_weight(p_addr, last_word * BITS_PER_LONG);
 	p_addr[last_word] &= cpu_to_lel(mask);
 	bits += hweight_long(p_addr[last_word]);
 	/* 32bit arch, may have an unused padding long */
@@ -1425,6 +1423,9 @@ static inline void bm_set_full_words_within_one_page(struct drbd_bitmap *b,
 	int bits;
 	int changed = 0;
 	unsigned long *paddr = kmap_atomic(b->bm_pages[page_nr]);
+
+	/* I think it is more cache line friendly to hweight_long then set to ~0UL,
+	 * than to first bitmap_weight() all words, then bitmap_fill() all words */
 	for (i = first_word; i < last_word; i++) {
 		bits = hweight_long(paddr[i]);
 		paddr[i] = ~0UL;
@@ -1634,8 +1635,7 @@ int drbd_bm_e_weight(struct drbd_device *device, unsigned long enr)
 		int n = e-s;
 		p_addr = bm_map_pidx(b, bm_word_to_page_idx(b, s));
 		bm = p_addr + MLPP(s);
-		while (n--)
-			count += hweight_long(*bm++);
+		count += bitmap_weight(bm, n * BITS_PER_LONG);
 		bm_unmap(p_addr);
 	} else {
 		drbd_err(device, "start offset (%d) too large in drbd_bm_e_weight\n", s);
