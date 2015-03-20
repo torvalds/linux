@@ -981,7 +981,8 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_sched_scan_start(mvm, vif, nd_config, &mvm->nd_ies);
+	ret = iwl_mvm_sched_scan_start(mvm, vif, nd_config, &mvm->nd_ies,
+				       IWL_MVM_SCAN_NETDETECT);
 	if (ret)
 		return ret;
 

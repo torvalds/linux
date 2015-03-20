@@ -448,14 +448,18 @@ extern const u8 tid_to_mac80211_ac[];
 enum iwl_scan_status {
 	IWL_MVM_SCAN_REGULAR		= BIT(0),
 	IWL_MVM_SCAN_SCHED		= BIT(1),
+	IWL_MVM_SCAN_NETDETECT		= BIT(2),
 
 	IWL_MVM_SCAN_STOPPING_REGULAR	= BIT(8),
 	IWL_MVM_SCAN_STOPPING_SCHED	= BIT(9),
+	IWL_MVM_SCAN_STOPPING_NETDETECT	= BIT(10),
 
 	IWL_MVM_SCAN_REGULAR_MASK	= IWL_MVM_SCAN_REGULAR |
 					  IWL_MVM_SCAN_STOPPING_REGULAR,
 	IWL_MVM_SCAN_SCHED_MASK		= IWL_MVM_SCAN_SCHED |
 					  IWL_MVM_SCAN_STOPPING_SCHED,
+	IWL_MVM_SCAN_NETDETECT_MASK	= IWL_MVM_SCAN_NETDETECT |
+					  IWL_MVM_SCAN_STOPPING_NETDETECT,
 
 	IWL_MVM_SCAN_STOPPING_MASK	= 0xff00,
 	IWL_MVM_SCAN_MASK		= 0x00ff,
@@ -1179,7 +1183,8 @@ int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     struct cfg80211_sched_scan_request *req,
-			     struct ieee80211_scan_ies *ies);
+			     struct ieee80211_scan_ies *ies,
+			     int type);
 int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify);
 int iwl_mvm_rx_scan_offload_results(struct iwl_mvm *mvm,
 				    struct iwl_rx_cmd_buffer *rxb,

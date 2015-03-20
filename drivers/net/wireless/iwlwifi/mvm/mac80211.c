@@ -2743,7 +2743,7 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ret = iwl_mvm_sched_scan_start(mvm, vif, req, ies);
+	ret = iwl_mvm_sched_scan_start(mvm, vif, req, ies, IWL_MVM_SCAN_SCHED);
 
 out:
 	mutex_unlock(&mvm->mutex);
