@@ -2004,7 +2004,8 @@ static void xgbe_config_tx_fifo_size(struct xgbe_prv_data *pdata)
 	for (i = 0; i < pdata->tx_q_count; i++)
 		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_TQOMR, TQS, fifo_size);
 
-	netdev_notice(pdata->netdev, "%d Tx queues, %d byte fifo per queue\n",
+	netdev_notice(pdata->netdev,
+		      "%d Tx hardware queues, %d byte fifo per queue\n",
 		      pdata->tx_q_count, ((fifo_size + 1) * 256));
 }
 
@@ -2019,7 +2020,8 @@ static void xgbe_config_rx_fifo_size(struct xgbe_prv_data *pdata)
 	for (i = 0; i < pdata->rx_q_count; i++)
 		XGMAC_MTL_IOWRITE_BITS(pdata, i, MTL_Q_RQOMR, RQS, fifo_size);
 
-	netdev_notice(pdata->netdev, "%d Rx queues, %d byte fifo per queue\n",
+	netdev_notice(pdata->netdev,
+		      "%d Rx hardware queues, %d byte fifo per queue\n",
 		      pdata->rx_q_count, ((fifo_size + 1) * 256));
 }
 
