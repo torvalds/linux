@@ -425,9 +425,9 @@
 	    <entry><constant>V4L2_EVENT_CTRL_CH_VALUE</constant></entry>
 	    <entry>0x0001</entry>
 	    <entry>This control event was triggered because the value of the control
-		changed. Special case: if a button control is pressed, then this
-		event is sent as well, even though there is not explicit value
-		associated with a button control.</entry>
+		changed. Special cases: Volatile controls do no generate this event;
+		If a control has the <constant>V4L2_CTRL_FLAG_EXECUTE_ON_WRITE</constant>
+		flag set, then this event is sent as well, regardless its value.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_EVENT_CTRL_CH_FLAGS</constant></entry>
