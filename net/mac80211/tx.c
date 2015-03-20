@@ -2052,12 +2052,14 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/*
-	 * There's no need to try to look up the destination
-	 * if it is a multicast address (which can only happen
-	 * in AP mode)
+	 * There's no need to try to look up the destination station
+	 * if it is a multicast address. In mesh, there's no need to
+	 * look up the station at all as it always must be QoS capable
+	 * and mesh mode checks authorization later.
 	 */
 	multicast = is_multicast_ether_addr(hdr.addr1);
-	if (!multicast && !have_station) {
+	if (!multicast && !have_station &&
+	    !ieee80211_vif_is_mesh(&sdata->vif)) {
 		sta = sta_info_get(sdata, hdr.addr1);
 		if (sta) {
 			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
