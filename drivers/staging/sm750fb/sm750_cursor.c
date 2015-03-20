@@ -98,7 +98,7 @@ void hw_cursor_setData(struct lynx_cursor * cursor,
 	int i,j,count,pitch,offset;
 	u8 color,mask,opr;
 	u16 data;
-	u16 * pbuffer,*pstart;
+	void __iomem *pbuffer, *pstart;
 
 	/*  in byte*/
 	pitch = cursor->w >> 3;
@@ -106,11 +106,11 @@ void hw_cursor_setData(struct lynx_cursor * cursor,
 	/* in byte	*/
 	count = pitch * cursor->h;
 
-	/* in ushort */
-	offset = cursor->maxW * 2 / 8 / 2;
+	/* in byte */
+	offset = cursor->maxW * 2 / 8;
 
 	data = 0;
-	pstart = (u16 *)cursor->vstart;
+	pstart = cursor->vstart;
 	pbuffer = pstart;
 
 /*
@@ -161,7 +161,7 @@ void hw_cursor_setData(struct lynx_cursor * cursor,
 			}
 		}
 #endif
-		*pbuffer = data;
+		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
 #if 0
@@ -174,7 +174,7 @@ void hw_cursor_setData(struct lynx_cursor * cursor,
 			pstart += offset;
 			pbuffer = pstart;
 		}else{
-			pbuffer++;
+			pbuffer += sizeof(u16);
 		}
 
 	}
@@ -189,7 +189,7 @@ void hw_cursor_setData2(struct lynx_cursor * cursor,
 	int i,j,count,pitch,offset;
 	u8 color, mask;
 	u16 data;
-	u16 * pbuffer,*pstart;
+	void __iomem *pbuffer, *pstart;
 
 	/*  in byte*/
 	pitch = cursor->w >> 3;
@@ -197,11 +197,11 @@ void hw_cursor_setData2(struct lynx_cursor * cursor,
 	/* in byte	*/
 	count = pitch * cursor->h;
 
-	/* in ushort */
-	offset = cursor->maxW * 2 / 8 / 2;
+	/* in byte */
+	offset = cursor->maxW * 2 / 8;
 
 	data = 0;
-	pstart = (u16 *)cursor->vstart;
+	pstart = cursor->vstart;
 	pbuffer = pstart;
 
 	for(i=0;i<count;i++)
@@ -234,7 +234,7 @@ void hw_cursor_setData2(struct lynx_cursor * cursor,
 				data |= ((color & (1<<j))?1:2)<<(j*2);
 		}
 #endif
-		*pbuffer = data;
+		iowrite16(data, pbuffer);
 
 		/* assume pitch is 1,2,4,8,...*/
 		if(!(i&(pitch-1)))
@@ -244,7 +244,7 @@ void hw_cursor_setData2(struct lynx_cursor * cursor,
 			pstart += offset;
 			pbuffer = pstart;
 		}else{
-			pbuffer++;
+			pbuffer += sizeof(u16);
 		}
 
 	}
