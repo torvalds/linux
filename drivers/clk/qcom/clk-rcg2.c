@@ -69,7 +69,7 @@ static u8 clk_rcg2_get_parent(struct clk_hw *hw)
 
 	ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG, &cfg);
 	if (ret)
-		return ret;
+		goto err;
 
 	cfg &= CFG_SRC_SEL_MASK;
 	cfg >>= CFG_SRC_SEL_SHIFT;
@@ -78,7 +78,10 @@ static u8 clk_rcg2_get_parent(struct clk_hw *hw)
 		if (cfg == rcg->parent_map[i])
 			return i;
 
-	return -EINVAL;
+err:
+	pr_debug("%s: Clock %s has invalid parent, using default.\n",
+		 __func__, __clk_get_name(hw->clk));
+	return 0;
 }
 
 static int update_config(struct clk_rcg2 *rcg)

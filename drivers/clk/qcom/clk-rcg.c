@@ -47,15 +47,20 @@ static u8 clk_rcg_get_parent(struct clk_hw *hw)
 	struct clk_rcg *rcg = to_clk_rcg(hw);
 	int num_parents = __clk_get_num_parents(hw->clk);
 	u32 ns;
-	int i;
+	int i, ret;
 
-	regmap_read(rcg->clkr.regmap, rcg->ns_reg, &ns);
+	ret = regmap_read(rcg->clkr.regmap, rcg->ns_reg, &ns);
+	if (ret)
+		goto err;
 	ns = ns_to_src(&rcg->s, ns);
 	for (i = 0; i < num_parents; i++)
 		if (ns == rcg->s.parent_map[i])
 			return i;
 
-	return -EINVAL;
+err:
+	pr_debug("%s: Clock %s has invalid parent, using default.\n",
+		 __func__, __clk_get_name(hw->clk));
+	return 0;
 }
 
 static int reg_to_bank(struct clk_dyn_rcg *rcg, u32 bank)
@@ -70,21 +75,28 @@ static u8 clk_dyn_rcg_get_parent(struct clk_hw *hw)
 	int num_parents = __clk_get_num_parents(hw->clk);
 	u32 ns, reg;
 	int bank;
-	int i;
+	int i, ret;
 	struct src_sel *s;
 
-	regmap_read(rcg->clkr.regmap, rcg->bank_reg, &reg);
+	ret = regmap_read(rcg->clkr.regmap, rcg->bank_reg, &reg);
+	if (ret)
+		goto err;
 	bank = reg_to_bank(rcg, reg);
 	s = &rcg->s[bank];
 
-	regmap_read(rcg->clkr.regmap, rcg->ns_reg[bank], &ns);
+	ret = regmap_read(rcg->clkr.regmap, rcg->ns_reg[bank], &ns);
+	if (ret)
+		goto err;
 	ns = ns_to_src(s, ns);
 
 	for (i = 0; i < num_parents; i++)
 		if (ns == s->parent_map[i])
 			return i;
 
-	return -EINVAL;
+err:
+	pr_debug("%s: Clock %s has invalid parent, using default.\n",
+		 __func__, __clk_get_name(hw->clk));
+	return 0;
 }
 
 static int clk_rcg_set_parent(struct clk_hw *hw, u8 index)
