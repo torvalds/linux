@@ -374,7 +374,8 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 		if (is_kallsyms) {
 			 if (copyfile("/proc/kallsyms", filename))
 				goto out_free;
-		} else if (link(realname, filename) && copyfile(name, filename))
+		} else if (link(realname, filename) && errno != EEXIST &&
+				copyfile(name, filename))
 			goto out_free;
 	}
 
