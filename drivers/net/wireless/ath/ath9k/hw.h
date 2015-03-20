@@ -1117,8 +1117,6 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 int ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
 
-void ar9003_hw_attach_aic_ops(struct ath_hw *ah);
-
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);
 
 void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
@@ -1129,6 +1127,7 @@ void ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us);
 void ath9k_hw_setslottime(struct ath_hw *ah, u32 us);
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+void ar9003_hw_attach_aic_ops(struct ath_hw *ah);
 static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
 {
 	return ah->btcoex_hw.enabled;
@@ -1146,6 +1145,9 @@ ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 	return ah->btcoex_hw.scheme;
 }
 #else
+static inline void ar9003_hw_attach_aic_ops(struct ath_hw *ah)
+{
+}
 static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
 {
 	return false;
