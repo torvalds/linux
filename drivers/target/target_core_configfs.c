@@ -142,8 +142,8 @@ static struct config_group *target_core_register_fabric(
 
 	tf = target_core_get_fabric(name);
 	if (!tf) {
-		pr_err("target_core_register_fabric() trying autoload for %s\n",
-			name);
+		pr_debug("target_core_register_fabric() trying autoload for %s\n",
+			 name);
 
 		/*
 		 * Below are some hardcoded request_module() calls to automatically
@@ -165,8 +165,8 @@ static struct config_group *target_core_register_fabric(
 			 */
 			ret = request_module("iscsi_target_mod");
 			if (ret < 0) {
-				pr_err("request_module() failed for"
-				       " iscsi_target_mod.ko: %d\n", ret);
+				pr_debug("request_module() failed for"
+				         " iscsi_target_mod.ko: %d\n", ret);
 				return ERR_PTR(-EINVAL);
 			}
 		} else if (!strncmp(name, "loopback", 8)) {
@@ -178,8 +178,8 @@ static struct config_group *target_core_register_fabric(
 			 */
 			ret = request_module("tcm_loop");
 			if (ret < 0) {
-				pr_err("request_module() failed for"
-				       " tcm_loop.ko: %d\n", ret);
+				pr_debug("request_module() failed for"
+				         " tcm_loop.ko: %d\n", ret);
 				return ERR_PTR(-EINVAL);
 			}
 		}
@@ -188,8 +188,8 @@ static struct config_group *target_core_register_fabric(
 	}
 
 	if (!tf) {
-		pr_err("target_core_get_fabric() failed for %s\n",
-		       name);
+		pr_debug("target_core_get_fabric() failed for %s\n",
+		         name);
 		return ERR_PTR(-EINVAL);
 	}
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Located fabric:"
