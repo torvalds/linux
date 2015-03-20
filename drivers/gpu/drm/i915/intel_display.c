@@ -11291,13 +11291,20 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 			     unsigned *prepare_pipes,
 			     unsigned *disable_pipes)
 {
+	struct drm_device *dev = crtc->dev;
 	struct intel_crtc_state *pipe_config = NULL;
+	struct intel_crtc *intel_crtc;
 
 	intel_modeset_affected_pipes(crtc, modeset_pipes,
 				     prepare_pipes, disable_pipes);
 
-	if ((*modeset_pipes) == 0)
-		return NULL;
+	for_each_intel_crtc_masked(dev, *disable_pipes, intel_crtc) {
+		pipe_config = intel_atomic_get_crtc_state(state, intel_crtc);
+		if (IS_ERR(pipe_config))
+			return pipe_config;
+
+		pipe_config->base.enable = false;
+	}
 
 	/*
 	 * Note this needs changes when we start tracking multiple modes
@@ -11305,14 +11312,21 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	 * (i.e. one pipe_config for each crtc) rather than just the one
 	 * for this crtc.
 	 */
-	pipe_config = intel_modeset_pipe_config(crtc, fb, mode, state);
-	if (IS_ERR(pipe_config))
-		return pipe_config;
+	for_each_intel_crtc_masked(dev, *modeset_pipes, intel_crtc) {
+		/* FIXME: For now we still expect modeset_pipes has at most
+		 * one bit set. */
+		if (WARN_ON(&intel_crtc->base != crtc))
+			continue;
 
-	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
-			       "[modeset]");
+		pipe_config = intel_modeset_pipe_config(crtc, fb, mode, state);
+		if (IS_ERR(pipe_config))
+			return pipe_config;
 
-	return pipe_config;
+		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
+				       "[modeset]");
+	}
+
+	return intel_atomic_get_crtc_state(state, to_intel_crtc(crtc));;
 }
 
 static int __intel_set_mode_setup_plls(struct drm_device *dev,
