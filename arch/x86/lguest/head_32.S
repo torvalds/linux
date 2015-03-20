@@ -84,7 +84,7 @@ ENTRY(lg_irq_enable)
 	 * set lguest_data.irq_pending to X86_EFLAGS_IF.  If it's not zero, we
 	 * jump to send_interrupts, otherwise we're done.
 	 */
-	testl $0, lguest_data+LGUEST_DATA_irq_pending
+	cmpl $0, lguest_data+LGUEST_DATA_irq_pending
 	jnz send_interrupts
 	/*
 	 * One cool thing about x86 is that you can do many things without using
