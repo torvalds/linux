@@ -96,6 +96,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 			ret = -ENOMEM;
 			goto out_port;
 		}
+		dev->dev_port = i;
 
 		dev->netdev_ops = &com20020_netdev_ops;
 
