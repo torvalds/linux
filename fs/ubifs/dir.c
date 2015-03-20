@@ -146,12 +146,12 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 	if (c->highest_inum >= INUM_WARN_WATERMARK) {
 		if (c->highest_inum >= INUM_WATERMARK) {
 			spin_unlock(&c->cnt_lock);
-			ubifs_err("out of inode numbers");
+			ubifs_err(c, "out of inode numbers");
 			make_bad_inode(inode);
 			iput(inode);
 			return ERR_PTR(-EINVAL);
 		}
-		ubifs_warn("running out of inode numbers (current %lu, max %d)",
+		ubifs_warn(c, "running out of inode numbers (current %lu, max %d)",
 			   (unsigned long)c->highest_inum, INUM_WATERMARK);
 	}
 
@@ -222,7 +222,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		 * checking.
 		 */
 		err = PTR_ERR(inode);
-		ubifs_err("dead directory entry '%pd', error %d",
+		ubifs_err(c, "dead directory entry '%pd', error %d",
 			  dentry, err);
 		ubifs_ro_mode(c, err);
 		goto out;
@@ -297,7 +297,7 @@ out_inode:
 	iput(inode);
 out_budg:
 	ubifs_release_budget(c, &req);
-	ubifs_err("cannot create regular file, error %d", err);
+	ubifs_err(c, "cannot create regular file, error %d", err);
 	return err;
 }
 
@@ -450,7 +450,7 @@ static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 
 out:
 	if (err != -ENOENT) {
-		ubifs_err("cannot find next direntry, error %d", err);
+		ubifs_err(c, "cannot find next direntry, error %d", err);
 		return err;
 	}
 
@@ -744,7 +744,7 @@ static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
 	err = ubifs_jnl_update(c, dir, &dentry->d_name, inode, 0, 0);
 	if (err) {
-		ubifs_err("cannot create directory, error %d", err);
+		ubifs_err(c, "cannot create directory, error %d", err);
 		goto out_cancel;
 	}
 	mutex_unlock(&dir_ui->ui_mutex);
