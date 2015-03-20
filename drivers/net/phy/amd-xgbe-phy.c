@@ -78,6 +78,7 @@
 #include <linux/bitops.h>
 #include <linux/property.h>
 #include <linux/acpi.h>
+#include <linux/jiffies.h>
 
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -99,6 +100,8 @@ MODULE_DESCRIPTION("AMD 10GbE (amd-xgbe) PHY driver");
 #define XGBE_PHY_SPEED_1000		0
 #define XGBE_PHY_SPEED_2500		1
 #define XGBE_PHY_SPEED_10000		2
+
+#define XGBE_AN_MS_TIMEOUT		500
 
 #define XGBE_AN_INT_CMPLT		0x01
 #define XGBE_AN_INC_LINK		0x02
@@ -434,6 +437,7 @@ struct amd_xgbe_phy_priv {
 	unsigned int an_supported;
 	unsigned int parallel_detect;
 	unsigned int fec_ability;
+	unsigned long an_start;
 
 	unsigned int lpm_ctrl;		/* CTRL1 for resume */
 };
@@ -902,7 +906,22 @@ static enum amd_xgbe_phy_an amd_xgbe_an_page_received(struct phy_device *phydev)
 {
 	struct amd_xgbe_phy_priv *priv = phydev->priv;
 	enum amd_xgbe_phy_rx *state;
+	unsigned long an_timeout;
 	int ret;
+
+	if (!priv->an_start) {
+		priv->an_start = jiffies;
+	} else {
+		an_timeout = priv->an_start +
+			     msecs_to_jiffies(XGBE_AN_MS_TIMEOUT);
+		if (time_after(jiffies, an_timeout)) {
+			/* Auto-negotiation timed out, reset state */
+			priv->kr_state = AMD_XGBE_RX_BPA;
+			priv->kx_state = AMD_XGBE_RX_BPA;
+
+			priv->an_start = jiffies;
+		}
+	}
 
 	state = amd_xgbe_phy_in_kr_mode(phydev) ? &priv->kr_state
 						: &priv->kx_state;
@@ -1078,6 +1097,7 @@ again:
 		priv->an_state = AMD_XGBE_AN_READY;
 		priv->kr_state = AMD_XGBE_RX_BPA;
 		priv->kx_state = AMD_XGBE_RX_BPA;
+		priv->an_start = 0;
 	}
 
 	if (cur_state != priv->an_state)
