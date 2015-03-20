@@ -11,7 +11,7 @@
 
 / {
 	chosen {
-		bootargs = "earlyprintk=uart8250-32bit,0xff690000 clk_ignore_unused";
+		bootargs = "earlyprintk=uart8250-32bit,0xff690000";
 	};
 
 	wireless-wlan {
@@ -270,16 +270,16 @@
 };
 
 &emmc {
-	clock-frequency = <150000000>;
-	clock-freq-min-max = <400000 150000000>;
+	clock-frequency = <100000000>;
+	clock-freq-min-max = <400000 100000000>;
 
 	supports-highspeed;
 	supports-emmc;
 	bootpart-no-access;
 
 	//supports-tSD;
-	supports-DDR_MODE; //you should set the two value in your project. only close in RK3288-SDK board.
-	caps2-mmc-hs200;
+	//supports-DDR_MODE; //you should set the two value in your project. only close in RK3288-SDK board.
+	//caps2-mmc-hs200;
 
 	ignore-pm-notify;
 	keep-power-in-suspend;
@@ -402,6 +402,12 @@
 	pinctrl-0 = <&uart0_xfer &uart0_cts>;
 };
 
+&tsadc {
+       tsadc-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+       //tsadc-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+       status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 	syr827: syr827@40 {
@@ -419,7 +425,7 @@
 			regulator-max-microvolt = <1500000>;
 			regulator-always-on;
 			regulator-boot-on;
-			regulator-initial-mode = <0x2>;
+			regulator-initial-mode = <0x1>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
@@ -444,7 +450,7 @@
 			regulator-max-microvolt = <1500000>;
 			regulator-always-on;
 			regulator-boot-on;
-			regulator-initial-mode = <0x2>;
+			regulator-initial-mode = <0x1>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
@@ -607,9 +613,12 @@
 	rockchip,mirror = <NO_MIRROR>;
 	rockchip,cabc_mode = <0>;
 	rockchip,fb-win-map = <FB_DEFAULT_ORDER>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&lcdc_lcdc>;
+	pinctrl-1 = <&lcdc_gpio>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
-		lcd_en:lcd_en {
+		/*lcd_en:lcd_en {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio0 GPIO_C6 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <10>;
@@ -621,7 +630,7 @@
 			rockchip,delay = <10>;
 		};
 
-		/*lcd_rst:lcd_rst {
+		lcd_rst:lcd_rst {
 			rockchip,power_type = <GPIO>;
 			gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
 			rockchip,delay = <5>;
@@ -706,6 +715,51 @@
 &pwm1 {
         status = "okay";
 };
+
+&clk_core_b_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		216000 950000
+		312000 950000
+		408000 950000
+		600000 975000
+		696000 975000
+		816000 1000000
+		1008000 1100000
+		1200000 1175000
+		1416000 1300000
+		1488000 1325000
+		1512000 1350000
+		>;
+	status = "okay";
+};
+
+&clk_core_l_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		216000 950000
+		312000 950000
+		408000 950000
+		600000 950000
+		696000 975000
+		816000 1050000
+		1008000 1100000
+		1200000 1250000
+		//1300000 1300000
+		>;
+	status = "okay";
+};
+
+&clk_gpu_dvfs_table {
+	operating-points = <
+		/* KHz    uV */
+		200000 1200000
+		300000 1200000
+		400000 1200000
+		600000 1200000
+		>;
+};
+
 &clk_ddr_dvfs_table {
 	operating-points = <
 		/* KHz    uV */
