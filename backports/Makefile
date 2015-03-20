@@ -14,8 +14,7 @@ NOSTDINC_FLAGS := \
 	-DCONFIG_BACKPORT_VERSION=\"$(BACKPORTS_VERSION)\" \
 	-DCONFIG_BACKPORT_KERNEL_VERSION=\"$(BACKPORTED_KERNEL_VERSION)\" \
 	-DCONFIG_BACKPORT_KERNEL_NAME=\"$(BACKPORTED_KERNEL_NAME)\" \
-	$(BACKPORTS_GIT_TRACKER_DEF) \
-	$(CFLAGS)
+	$(BACKPORTS_GIT_TRACKER_DEF)
 
 export backport_srctree = $(M)
 else
@@ -26,8 +25,7 @@ NOSTDINC_FLAGS := \
 	-I$(BACKPORT_DIR)/backport-include/uapi \
 	-I$(BACKPORT_DIR)/include/ \
 	-I$(BACKPORT_DIR)/include/uapi \
-	-include $(BACKPORT_DIR)/backport-include/backport/backport.h \
-	$(CFLAGS)
+	-include $(BACKPORT_DIR)/backport-include/backport/backport.h
 endif
 
 
