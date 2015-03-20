@@ -207,6 +207,9 @@ static int __init gb_init(void)
 {
 	int retval;
 
+	if (greybus_disabled())
+		return -ENODEV;
+
 	BUILD_BUG_ON(HOST_DEV_CPORT_ID_MAX >= (long)CPORT_ID_BAD);
 
 	retval = gb_debugfs_init();
