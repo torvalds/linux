@@ -1075,7 +1075,7 @@ static void set_rgb_quantization_range(struct v4l2_subdev *sd)
 		/* Receiving DVI-D signal
 		 * ADV7604 selects RGB limited range regardless of
 		 * input format (CE/IT) in automatic mode */
-		if (state->timings.bt.standards & V4L2_DV_BT_STD_CEA861) {
+		if (state->timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO) {
 			/* RGB limited range (16-235) */
 			io_write_clr_set(sd, 0x02, 0xf0, 0x00);
 		} else {
@@ -1755,8 +1755,9 @@ static void adv76xx_fill_format(struct adv76xx_state *state,
 	format->width = state->timings.bt.width;
 	format->height = state->timings.bt.height;
 	format->field = V4L2_FIELD_NONE;
+	format->colorspace = V4L2_COLORSPACE_SRGB;
 
-	if (state->timings.bt.standards & V4L2_DV_BT_STD_CEA861)
+	if (state->timings.bt.flags & V4L2_DV_FL_IS_CE_VIDEO)
 		format->colorspace = (state->timings.bt.height <= 576) ?
 			V4L2_COLORSPACE_SMPTE170M : V4L2_COLORSPACE_REC709;
 }
