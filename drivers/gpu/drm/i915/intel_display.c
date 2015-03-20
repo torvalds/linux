@@ -83,7 +83,8 @@ static void ironlake_pch_clock_get(struct intel_crtc *crtc,
 				   struct intel_crtc_state *pipe_config);
 
 static int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
-			  int x, int y, struct drm_framebuffer *old_fb);
+			  int x, int y, struct drm_framebuffer *old_fb,
+			  struct drm_atomic_state *state);
 static int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
 				  struct drm_mode_fb_cmd2 *mode_cmd,
@@ -8907,6 +8908,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 	struct drm_device *dev = encoder->dev;
 	struct drm_framebuffer *fb;
 	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_atomic_state *state = NULL;
 	int ret, i = -1;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
@@ -8988,6 +8990,12 @@ retry:
 	old->load_detect_temp = true;
 	old->release_fb = NULL;
 
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return false;
+
+	state->acquire_ctx = ctx;
+
 	if (!mode)
 		mode = &load_detect_mode;
 
@@ -9010,7 +9018,7 @@ retry:
 		goto fail;
 	}
 
-	if (intel_set_mode(crtc, mode, 0, 0, fb)) {
+	if (intel_set_mode(crtc, mode, 0, 0, fb, state)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
@@ -9029,6 +9037,11 @@ retry:
 	else
 		intel_crtc->new_config = NULL;
 fail_unlock:
+	if (state) {
+		drm_atomic_state_free(state);
+		state = NULL;
+	}
+
 	if (ret == -EDEADLK) {
 		drm_modeset_backoff(ctx);
 		goto retry;
@@ -9041,22 +9054,34 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct intel_load_detect_pipe *old,
 				    struct drm_modeset_acquire_ctx *ctx)
 {
+	struct drm_device *dev = connector->dev;
 	struct intel_encoder *intel_encoder =
 		intel_attached_encoder(connector);
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_atomic_state *state;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, connector->name,
 		      encoder->base.id, encoder->name);
 
 	if (old->load_detect_temp) {
+		state = drm_atomic_state_alloc(dev);
+		if (!state) {
+			DRM_DEBUG_KMS("can't release load detect pipe\n");
+			return;
+		}
+
+		state->acquire_ctx = ctx;
+
 		to_intel_connector(connector)->new_encoder = NULL;
 		intel_encoder->new_crtc = NULL;
 		intel_crtc->new_enabled = false;
 		intel_crtc->new_config = NULL;
-		intel_set_mode(crtc, NULL, 0, 0, NULL);
+		intel_set_mode(crtc, NULL, 0, 0, NULL, state);
+
+		drm_atomic_state_free(state);
 
 		if (old->release_fb) {
 			drm_framebuffer_unregister_private(old->release_fb);
@@ -10449,10 +10474,22 @@ static bool check_digital_port_conflicts(struct drm_device *dev)
 	return true;
 }
 
+static void
+clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
+{
+	struct drm_crtc_state tmp_state;
+
+	/* Clear only the intel specific part of the crtc state */
+	tmp_state = crtc_state->base;
+	memset(crtc_state, 0, sizeof *crtc_state);
+	crtc_state->base = tmp_state;
+}
+
 static struct intel_crtc_state *
 intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
-			  struct drm_display_mode *mode)
+			  struct drm_display_mode *mode,
+			  struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_encoder *encoder;
@@ -10470,9 +10507,11 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		return ERR_PTR(-EINVAL);
 	}
 
-	pipe_config = kzalloc(sizeof(*pipe_config), GFP_KERNEL);
-	if (!pipe_config)
-		return ERR_PTR(-ENOMEM);
+	pipe_config = intel_atomic_get_crtc_state(state, to_intel_crtc(crtc));
+	if (IS_ERR(pipe_config))
+		return pipe_config;
+
+	clear_intel_crtc_state(pipe_config);
 
 	pipe_config->base.crtc = crtc;
 	drm_mode_copy(&pipe_config->base.adjusted_mode, mode);
@@ -10569,7 +10608,6 @@ encoder_retry:
 
 	return pipe_config;
 fail:
-	kfree(pipe_config);
 	return ERR_PTR(ret);
 }
 
@@ -11248,6 +11286,7 @@ static struct intel_crtc_state *
 intel_modeset_compute_config(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
 			     struct drm_framebuffer *fb,
+			     struct drm_atomic_state *state,
 			     unsigned *modeset_pipes,
 			     unsigned *prepare_pipes,
 			     unsigned *disable_pipes)
@@ -11258,7 +11297,7 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 				     prepare_pipes, disable_pipes);
 
 	if ((*modeset_pipes) == 0)
-		goto out;
+		return NULL;
 
 	/*
 	 * Note this needs changes when we start tracking multiple modes
@@ -11266,14 +11305,13 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	 * (i.e. one pipe_config for each crtc) rather than just the one
 	 * for this crtc.
 	 */
-	pipe_config = intel_modeset_pipe_config(crtc, fb, mode);
-	if (IS_ERR(pipe_config)) {
-		goto out;
-	}
+	pipe_config = intel_modeset_pipe_config(crtc, fb, mode, state);
+	if (IS_ERR(pipe_config))
+		return pipe_config;
+
 	intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
 			       "[modeset]");
 
-out:
 	return pipe_config;
 }
 
@@ -11318,12 +11356,19 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *saved_mode;
+	struct intel_crtc_state *crtc_state_copy = NULL;
 	struct intel_crtc *intel_crtc;
 	int ret = 0;
 
 	saved_mode = kmalloc(sizeof(*saved_mode), GFP_KERNEL);
 	if (!saved_mode)
 		return -ENOMEM;
+
+	crtc_state_copy = kmalloc(sizeof(*crtc_state_copy), GFP_KERNEL);
+	if (!crtc_state_copy) {
+		ret = -ENOMEM;
+		goto done;
+	}
 
 	*saved_mode = crtc->mode;
 
@@ -11411,6 +11456,22 @@ done:
 	if (ret && crtc->state->enable)
 		crtc->mode = *saved_mode;
 
+	if (ret == 0 && pipe_config) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+		/* The pipe_config will be freed with the atomic state, so
+		 * make a copy. */
+		memcpy(crtc_state_copy, intel_crtc->config,
+		       sizeof *crtc_state_copy);
+		intel_crtc->config = crtc_state_copy;
+		intel_crtc->base.state = &crtc_state_copy->base;
+
+		if (modeset_pipes)
+			intel_crtc->new_config = intel_crtc->config;
+	} else {
+		kfree(crtc_state_copy);
+	}
+
 	kfree(saved_mode);
 	return ret;
 }
@@ -11436,27 +11497,81 @@ static int intel_set_mode_pipes(struct drm_crtc *crtc,
 
 static int intel_set_mode(struct drm_crtc *crtc,
 			  struct drm_display_mode *mode,
-			  int x, int y, struct drm_framebuffer *fb)
+			  int x, int y, struct drm_framebuffer *fb,
+			  struct drm_atomic_state *state)
 {
 	struct intel_crtc_state *pipe_config;
 	unsigned modeset_pipes, prepare_pipes, disable_pipes;
+	int ret = 0;
 
-	pipe_config = intel_modeset_compute_config(crtc, mode, fb,
+	pipe_config = intel_modeset_compute_config(crtc, mode, fb, state,
 						   &modeset_pipes,
 						   &prepare_pipes,
 						   &disable_pipes);
 
-	if (IS_ERR(pipe_config))
-		return PTR_ERR(pipe_config);
+	if (IS_ERR(pipe_config)) {
+		ret = PTR_ERR(pipe_config);
+		goto out;
+	}
 
-	return intel_set_mode_pipes(crtc, mode, x, y, fb, pipe_config,
-				    modeset_pipes, prepare_pipes,
-				    disable_pipes);
+	ret = intel_set_mode_pipes(crtc, mode, x, y, fb, pipe_config,
+				   modeset_pipes, prepare_pipes,
+				   disable_pipes);
+	if (ret)
+		goto out;
+
+out:
+	return ret;
 }
 
 void intel_crtc_restore_mode(struct drm_crtc *crtc)
 {
-	intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, crtc->primary->fb);
+	struct drm_device *dev = crtc->dev;
+	struct drm_atomic_state *state;
+	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+	struct drm_connector_state *connector_state;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state) {
+		DRM_DEBUG_KMS("[CRTC:%d] mode restore failed, out of memory",
+			      crtc->base.id);
+		return;
+	}
+
+	state->acquire_ctx = dev->mode_config.acquire_ctx;
+
+	/* The force restore path in the HW readout code relies on the staged
+	 * config still keeping the user requested config while the actual
+	 * state has been overwritten by the configuration read from HW. We
+	 * need to copy the staged config to the atomic state, otherwise the
+	 * mode set will just reapply the state the HW is already in. */
+	for_each_intel_encoder(dev, encoder) {
+		if (&encoder->new_crtc->base != crtc)
+			continue;
+
+		for_each_intel_connector(dev, connector) {
+			if (connector->new_encoder != encoder)
+				continue;
+
+			connector_state = drm_atomic_get_connector_state(state, &connector->base);
+			if (IS_ERR(connector_state)) {
+				DRM_DEBUG_KMS("Failed to add [CONNECTOR:%d:%s] to state: %ld\n",
+					      connector->base.base.id,
+					      connector->base.name,
+					      PTR_ERR(connector_state));
+				continue;
+			}
+
+			connector_state->crtc = crtc;
+			connector_state->best_encoder = &encoder->base;
+		}
+	}
+
+	intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, crtc->primary->fb,
+		       state);
+
+	drm_atomic_state_free(state);
 }
 
 #undef for_each_intel_crtc_masked
@@ -11781,6 +11896,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 {
 	struct drm_device *dev;
 	struct drm_mode_set save_set;
+	struct drm_atomic_state *state = NULL;
 	struct intel_set_config *config;
 	struct intel_crtc_state *pipe_config;
 	unsigned modeset_pipes, prepare_pipes, disable_pipes;
@@ -11825,12 +11941,20 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	 * such cases. */
 	intel_set_config_compute_mode_changes(set, config);
 
+	state = drm_atomic_state_alloc(dev);
+	if (!state) {
+		ret = -ENOMEM;
+		goto out_config;
+	}
+
+	state->acquire_ctx = dev->mode_config.acquire_ctx;
+
 	ret = intel_modeset_stage_output_state(dev, set, config);
 	if (ret)
 		goto fail;
 
 	pipe_config = intel_modeset_compute_config(set->crtc, set->mode,
-						   set->fb,
+						   set->fb, state,
 						   &modeset_pipes,
 						   &prepare_pipes,
 						   &disable_pipes);
@@ -11849,10 +11973,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		 * required changes and forcing a mode set.
 		 */
 	}
-
-	/* set_mode will free it in the mode_changed case */
-	if (!config->mode_changed)
-		kfree(pipe_config);
 
 	intel_update_pipe_size(to_intel_crtc(set->crtc));
 
@@ -11899,6 +12019,8 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 fail:
 		intel_set_config_restore_state(dev, config);
 
+		drm_atomic_state_clear(state);
+
 		/*
 		 * HACK: if the pipe was on, but we didn't have a framebuffer,
 		 * force the pipe off to avoid oopsing in the modeset code
@@ -11911,11 +12033,15 @@ fail:
 		/* Try to restore the config */
 		if (config->mode_changed &&
 		    intel_set_mode(save_set.crtc, save_set.mode,
-				   save_set.x, save_set.y, save_set.fb))
+				   save_set.x, save_set.y, save_set.fb,
+				   state))
 			DRM_ERROR("failed to restore config after modeset failure\n");
 	}
 
 out_config:
+	if (state)
+		drm_atomic_state_free(state);
+
 	intel_set_config_free(config);
 	return ret;
 }
@@ -13968,8 +14094,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			struct drm_crtc *crtc =
 				dev_priv->pipe_to_crtc_mapping[pipe];
 
-			intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
-				       crtc->primary->fb);
+			intel_crtc_restore_mode(crtc);
 		}
 	} else {
 		intel_modeset_update_staged_output_state(dev);
