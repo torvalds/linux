@@ -615,6 +615,24 @@ static int dsps_musb_recover(struct musb *musb)
 	return session_restart ? 0 : -EPIPE;
 }
 
+/* Similar to am35x, dm81xx support only 32-bit read operation */
+static void dsps_read_fifo32(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
+{
+	void __iomem *fifo = hw_ep->fifo;
+
+	if (len >= 4) {
+		readsl(fifo, dst, len >> 2);
+		dst += len & ~0x03;
+		len &= 0x03;
+	}
+
+	/* Read any remaining 1 to 3 bytes */
+	if (len > 0) {
+		u32 val = musb_readl(fifo, 0);
+		memcpy(dst, &val, len);
+	}
+}
+
 static struct musb_platform_ops dsps_ops = {
 	.quirks		= MUSB_INDEXED_EP,
 	.init		= dsps_musb_init,
@@ -761,6 +779,9 @@ static int dsps_probe(struct platform_device *pdev)
 	}
 	wrp = match->data;
 
+	if (of_device_is_compatible(pdev->dev.of_node, "ti,musb-dm816"))
+		dsps_ops.read_fifo = dsps_read_fifo32;
+
 	/* allocate glue */
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue)
@@ -837,7 +858,9 @@ static const struct dsps_musb_wrapper am33xx_driver_data = {
 
 static const struct of_device_id musb_dsps_of_match[] = {
 	{ .compatible = "ti,musb-am33xx",
-		.data = (void *) &am33xx_driver_data, },
+		.data = &am33xx_driver_data, },
+	{ .compatible = "ti,musb-dm816",
+		.data = &am33xx_driver_data, },
 	{  },
 };
 MODULE_DEVICE_TABLE(of, musb_dsps_of_match);
