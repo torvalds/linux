@@ -10,7 +10,7 @@ documentation about the individual clock/clockdomain nodes.
 Required properties:
 - compatible:	Must be one of:
 		"ti,am3-prcm"
-		"ti,am3-scrm"
+		"ti,am3-scm"
 		"ti,am4-prcm"
 		"ti,am4-scrm"
 		"ti,omap2-prcm"
