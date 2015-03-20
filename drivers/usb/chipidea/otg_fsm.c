@@ -206,13 +206,13 @@ static struct attribute_group inputs_attr_group = {
 /*
  * Add timer to active timer list
  */
-static void ci_otg_add_timer(struct ci_hdrc *ci, enum ci_otg_fsm_timer_index t)
+static void ci_otg_add_timer(struct ci_hdrc *ci, enum otg_fsm_timer t)
 {
 	struct ci_otg_fsm_timer *tmp_timer;
 	struct ci_otg_fsm_timer *timer = ci->fsm_timer->timer_list[t];
 	struct list_head *active_timers = &ci->fsm_timer->active_timers;
 
-	if (t >= NUM_CI_OTG_FSM_TIMERS)
+	if (t >= NUM_OTG_FSM_TIMERS)
 		return;
 
 	/*
@@ -239,14 +239,14 @@ static void ci_otg_add_timer(struct ci_hdrc *ci, enum ci_otg_fsm_timer_index t)
 /*
  * Remove timer from active timer list
  */
-static void ci_otg_del_timer(struct ci_hdrc *ci, enum ci_otg_fsm_timer_index t)
+static void ci_otg_del_timer(struct ci_hdrc *ci, enum otg_fsm_timer t)
 {
 	struct ci_otg_fsm_timer *tmp_timer, *del_tmp;
 	struct ci_otg_fsm_timer *timer = ci->fsm_timer->timer_list[t];
 	struct list_head *active_timers = &ci->fsm_timer->active_timers;
 	int flag = 0;
 
-	if (t >= NUM_CI_OTG_FSM_TIMERS)
+	if (t >= NUM_OTG_FSM_TIMERS)
 		return;
 
 	list_for_each_entry_safe(tmp_timer, del_tmp, active_timers, list)

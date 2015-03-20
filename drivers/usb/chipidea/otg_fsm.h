@@ -62,17 +62,6 @@
 /* SSEND time before SRP */
 #define TB_SSEND_SRP         (1500)	/* minimum 1.5 sec, section:5.1.2 */
 
-enum ci_otg_fsm_timer_index {
-	/*
-	 * CI specific timers, start from the end
-	 * of standard and auxiliary OTG timers
-	 */
-	B_DATA_PLS = NUM_OTG_FSM_TIMERS,
-	B_SSEND_SRP,
-
-	NUM_CI_OTG_FSM_TIMERS,
-};
-
 struct ci_otg_fsm_timer {
 	unsigned long expires;  /* Number of count increase to timeout */
 	unsigned long count;    /* Tick counter */
@@ -82,7 +71,7 @@ struct ci_otg_fsm_timer {
 };
 
 struct ci_otg_fsm_timer_list {
-	struct ci_otg_fsm_timer *timer_list[NUM_CI_OTG_FSM_TIMERS];
+	struct ci_otg_fsm_timer *timer_list[NUM_OTG_FSM_TIMERS];
 	struct list_head active_timers;
 };
 
