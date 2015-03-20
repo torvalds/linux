@@ -2014,6 +2014,38 @@ process_entry(struct event_format *event __maybe_unused, struct print_arg *arg,
 	return EVENT_ERROR;
 }
 
+static int alloc_and_process_delim(struct event_format *event, char *next_token,
+				   struct print_arg **print_arg)
+{
+	struct print_arg *field;
+	enum event_type type;
+	char *token;
+	int ret = 0;
+
+	field = alloc_arg();
+	if (!field) {
+		do_warning_event(event, "%s: not enough memory!", __func__);
+		errno = ENOMEM;
+		return -1;
+	}
+
+	type = process_arg(event, field, &token);
+
+	if (test_type_token(type, token, EVENT_DELIM, next_token)) {
+		errno = EINVAL;
+		ret = -1;
+		free_arg(field);
+		goto out_free_token;
+	}
+
+	*print_arg = field;
+
+out_free_token:
+	free_token(token);
+
+	return ret;
+}
+
 static char *arg_eval (struct print_arg *arg);
 
 static unsigned long long
@@ -2486,49 +2518,20 @@ out_free:
 static enum event_type
 process_hex(struct event_format *event, struct print_arg *arg, char **tok)
 {
-	struct print_arg *field;
-	enum event_type type;
-	char *token = NULL;
-
 	memset(arg, 0, sizeof(*arg));
 	arg->type = PRINT_HEX;
 
-	field = alloc_arg();
-	if (!field) {
-		do_warning_event(event, "%s: not enough memory!", __func__);
-		goto out_free;
-	}
+	if (alloc_and_process_delim(event, ",", &arg->hex.field))
+		goto out;
 
-	type = process_arg(event, field, &token);
+	if (alloc_and_process_delim(event, ")", &arg->hex.size))
+		goto free_field;
 
-	if (test_type_token(type, token, EVENT_DELIM, ","))
-		goto out_free;
+	return read_token_item(tok);
 
-	arg->hex.field = field;
-
-	free_token(token);
-
-	field = alloc_arg();
-	if (!field) {
-		do_warning_event(event, "%s: not enough memory!", __func__);
-		*tok = NULL;
-		return EVENT_ERROR;
-	}
-
-	type = process_arg(event, field, &token);
-
-	if (test_type_token(type, token, EVENT_DELIM, ")"))
-		goto out_free;
-
-	arg->hex.size = field;
-
-	free_token(token);
-	type = read_token_item(tok);
-	return type;
-
- out_free:
-	free_arg(field);
-	free_token(token);
+free_field:
+	free_arg(arg->hex.field);
+out:
 	*tok = NULL;
 	return EVENT_ERROR;
 }
