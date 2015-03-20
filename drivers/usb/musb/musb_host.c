@@ -595,9 +595,9 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, u8 epnum)
 
 	/* target addr and (for multipoint) hub addr/port */
 	if (musb->is_multipoint) {
-		musb_write_rxfunaddr(musb->mregs, epnum, qh->addr_reg);
-		musb_write_rxhubaddr(musb->mregs, epnum, qh->h_addr_reg);
-		musb_write_rxhubport(musb->mregs, epnum, qh->h_port_reg);
+		musb_write_rxfunaddr(musb, epnum, qh->addr_reg);
+		musb_write_rxhubaddr(musb, epnum, qh->h_addr_reg);
+		musb_write_rxhubport(musb, epnum, qh->h_port_reg);
 	} else
 		musb_writeb(musb->mregs, MUSB_FADDR, qh->addr_reg);
 
@@ -836,9 +836,9 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 
 		/* target addr and (for multipoint) hub addr/port */
 		if (musb->is_multipoint) {
-			musb_write_txfunaddr(mbase, epnum, qh->addr_reg);
-			musb_write_txhubaddr(mbase, epnum, qh->h_addr_reg);
-			musb_write_txhubport(mbase, epnum, qh->h_port_reg);
+			musb_write_txfunaddr(musb, epnum, qh->addr_reg);
+			musb_write_txhubaddr(musb, epnum, qh->h_addr_reg);
+			musb_write_txhubport(musb, epnum, qh->h_port_reg);
 /* FIXME if !epnum, do the same for RX ... */
 		} else
 			musb_writeb(mbase, MUSB_FADDR, qh->addr_reg);

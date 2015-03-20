@@ -67,7 +67,6 @@ struct musb_ep;
 #include "musb_dma.h"
 
 #include "musb_io.h"
-#include "musb_regs.h"
 
 #include "musb_gadget.h"
 #include <linux/usb/hcd.h>
@@ -191,6 +190,7 @@ struct musb_platform_ops {
 	void	(*ep_select)(void __iomem *mbase, u8 epnum);
 	u16	fifo_mode;
 	u32	(*fifo_offset)(u8 epnum);
+	u32	(*busctl_offset)(u8 epnum, u16 offset);
 	u8	(*readb)(const void __iomem *addr, unsigned offset);
 	void	(*writeb)(void __iomem *addr, unsigned offset, u8 data);
 	u16	(*readw)(const void __iomem *addr, unsigned offset);
@@ -443,6 +443,9 @@ struct musb {
 	struct dentry		*debugfs_root;
 #endif
 };
+
+/* This must be included after struct musb is defined */
+#include "musb_regs.h"
 
 static inline struct musb *gadget_to_musb(struct usb_gadget *g)
 {

@@ -251,6 +251,11 @@ static u32 musb_indexed_ep_offset(u8 epnum, u16 offset)
 	return 0x10 + offset;
 }
 
+static u32 musb_default_busctl_offset(u8 epnum, u16 offset)
+{
+	return 0x80 + (0x08 * epnum) + offset;
+}
+
 static u8 musb_default_readb(const void __iomem *addr, unsigned offset)
 {
 	return __raw_readb(addr + offset);
@@ -2052,6 +2057,11 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	else
 		musb->io.fifo_offset = musb_default_fifo_offset;
 
+	if (musb->ops->busctl_offset)
+		musb->io.busctl_offset = musb->ops->busctl_offset;
+	else
+		musb->io.busctl_offset = musb_default_busctl_offset;
+
 	if (musb->ops->readb)
 		musb_readb = musb->ops->readb;
 	if (musb->ops->writeb)
@@ -2332,18 +2342,18 @@ static void musb_save_context(struct musb *musb)
 			musb_readb(epio, MUSB_RXINTERVAL);
 
 		musb->context.index_regs[i].txfunaddr =
-			musb_read_txfunaddr(musb_base, i);
+			musb_read_txfunaddr(musb, i);
 		musb->context.index_regs[i].txhubaddr =
-			musb_read_txhubaddr(musb_base, i);
+			musb_read_txhubaddr(musb, i);
 		musb->context.index_regs[i].txhubport =
-			musb_read_txhubport(musb_base, i);
+			musb_read_txhubport(musb, i);
 
 		musb->context.index_regs[i].rxfunaddr =
-			musb_read_rxfunaddr(musb_base, i);
+			musb_read_rxfunaddr(musb, i);
 		musb->context.index_regs[i].rxhubaddr =
-			musb_read_rxhubaddr(musb_base, i);
+			musb_read_rxhubaddr(musb, i);
 		musb->context.index_regs[i].rxhubport =
-			musb_read_rxhubport(musb_base, i);
+			musb_read_rxhubport(musb, i);
 	}
 }
 
@@ -2411,18 +2421,18 @@ static void musb_restore_context(struct musb *musb)
 		musb_writeb(epio, MUSB_RXINTERVAL,
 
 				musb->context.index_regs[i].rxinterval);
-		musb_write_txfunaddr(musb_base, i,
+		musb_write_txfunaddr(musb, i,
 				musb->context.index_regs[i].txfunaddr);
-		musb_write_txhubaddr(musb_base, i,
+		musb_write_txhubaddr(musb, i,
 				musb->context.index_regs[i].txhubaddr);
-		musb_write_txhubport(musb_base, i,
+		musb_write_txhubport(musb, i,
 				musb->context.index_regs[i].txhubport);
 
-		musb_write_rxfunaddr(musb_base, i,
+		musb_write_rxfunaddr(musb, i,
 				musb->context.index_regs[i].rxfunaddr);
-		musb_write_rxhubaddr(musb_base, i,
+		musb_write_rxhubaddr(musb, i,
 				musb->context.index_regs[i].rxhubaddr);
-		musb_write_rxhubport(musb_base, i,
+		musb_write_rxhubport(musb, i,
 				musb->context.index_regs[i].rxhubport);
 	}
 	musb_writeb(musb_base, MUSB_INDEX, musb->context.index);
