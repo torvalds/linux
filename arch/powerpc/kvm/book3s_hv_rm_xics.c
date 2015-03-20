@@ -227,6 +227,7 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	ics = kvmppc_xics_find_ics(xics, new_irq, &src);
 	if (!ics) {
 		/* Unsafe increment, but this does not need to be accurate */
+		xics->err_noics++;
 		return;
 	}
 	state = &ics->irq_state[src];
@@ -239,6 +240,7 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		icp = kvmppc_xics_find_server(xics->kvm, state->server);
 		if (!icp) {
 			/* Unsafe increment again*/
+			xics->err_noicp++;
 			goto out;
 		}
 	}
@@ -383,6 +385,7 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * separately here as well.
 	 */
 	if (resend) {
+		icp->n_check_resend++;
 		icp_rm_check_resend(xics, icp);
 	}
 }
@@ -500,11 +503,13 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 
 	/* Handle reject in real mode */
 	if (reject && reject != XICS_IPI) {
+		this_icp->n_reject++;
 		icp_rm_deliver_irq(xics, icp, reject);
 	}
 
 	/* Handle resends in real mode */
 	if (resend) {
+		this_icp->n_check_resend++;
 		icp_rm_check_resend(xics, icp);
 	}
 
@@ -566,6 +571,7 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 	 * attempt (see comments in icp_rm_deliver_irq).
 	 */
 	if (reject && reject != XICS_IPI) {
+		icp->n_reject++;
 		icp_rm_deliver_irq(xics, icp, reject);
 	}
  bail:
@@ -616,6 +622,7 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 
 	/* Still asserted, resend it */
 	if (state->asserted) {
+		icp->n_reject++;
 		icp_rm_deliver_irq(xics, icp, irq);
 	}
 

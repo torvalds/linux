@@ -901,6 +901,7 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	unsigned long flags;
 	unsigned long t_rm_kick_vcpu, t_rm_check_resend;
 	unsigned long t_rm_reject, t_rm_notify_eoi;
+	unsigned long t_reject, t_check_resend;
 
 	if (!kvm)
 		return 0;
@@ -909,6 +910,8 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	t_rm_notify_eoi = 0;
 	t_rm_check_resend = 0;
 	t_rm_reject = 0;
+	t_check_resend = 0;
+	t_reject = 0;
 
 	seq_printf(m, "=========\nICP state\n=========\n");
 
@@ -928,12 +931,15 @@ static int xics_debug_show(struct seq_file *m, void *private)
 		t_rm_notify_eoi += icp->n_rm_notify_eoi;
 		t_rm_check_resend += icp->n_rm_check_resend;
 		t_rm_reject += icp->n_rm_reject;
+		t_check_resend += icp->n_check_resend;
+		t_reject += icp->n_reject;
 	}
 
-	seq_puts(m, "ICP Guest Real Mode exit totals: ");
-	seq_printf(m, "\tkick_vcpu=%lu check_resend=%lu reject=%lu notify_eoi=%lu\n",
+	seq_printf(m, "ICP Guest->Host totals: kick_vcpu=%lu check_resend=%lu reject=%lu notify_eoi=%lu\n",
 			t_rm_kick_vcpu, t_rm_check_resend,
 			t_rm_reject, t_rm_notify_eoi);
+	seq_printf(m, "ICP Real Mode totals: check_resend=%lu resend=%lu\n",
+			t_check_resend, t_reject);
 	for (icsid = 0; icsid <= KVMPPC_XICS_MAX_ICS_ID; icsid++) {
 		struct kvmppc_ics *ics = xics->ics[icsid];
 

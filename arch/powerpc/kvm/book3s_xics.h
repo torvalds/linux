@@ -83,6 +83,9 @@ struct kvmppc_icp {
 	unsigned long n_rm_check_resend;
 	unsigned long n_rm_reject;
 	unsigned long n_rm_notify_eoi;
+	/* Counters for handling ICP processing in real mode */
+	unsigned long n_check_resend;
+	unsigned long n_reject;
 
 	/* Debug stuff for real mode */
 	union kvmppc_icp_state rm_dbgstate;
@@ -102,6 +105,8 @@ struct kvmppc_xics {
 	u32 max_icsid;
 	bool real_mode;
 	bool real_mode_dbg;
+	u32 err_noics;
+	u32 err_noicp;
 	struct kvmppc_ics *ics[KVMPPC_XICS_MAX_ICS_ID + 1];
 };
 
