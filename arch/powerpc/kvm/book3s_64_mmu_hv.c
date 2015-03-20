@@ -116,12 +116,12 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
 	long order;
 
 	mutex_lock(&kvm->lock);
-	if (kvm->arch.rma_setup_done) {
-		kvm->arch.rma_setup_done = 0;
-		/* order rma_setup_done vs. vcpus_running */
+	if (kvm->arch.hpte_setup_done) {
+		kvm->arch.hpte_setup_done = 0;
+		/* order hpte_setup_done vs. vcpus_running */
 		smp_mb();
 		if (atomic_read(&kvm->arch.vcpus_running)) {
-			kvm->arch.rma_setup_done = 1;
+			kvm->arch.hpte_setup_done = 1;
 			goto out;
 		}
 	}
@@ -1339,20 +1339,20 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 	unsigned long tmp[2];
 	ssize_t nb;
 	long int err, ret;
-	int rma_setup;
+	int hpte_setup;
 
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
 	/* lock out vcpus from running while we're doing this */
 	mutex_lock(&kvm->lock);
-	rma_setup = kvm->arch.rma_setup_done;
-	if (rma_setup) {
-		kvm->arch.rma_setup_done = 0;	/* temporarily */
-		/* order rma_setup_done vs. vcpus_running */
+	hpte_setup = kvm->arch.hpte_setup_done;
+	if (hpte_setup) {
+		kvm->arch.hpte_setup_done = 0;	/* temporarily */
+		/* order hpte_setup_done vs. vcpus_running */
 		smp_mb();
 		if (atomic_read(&kvm->arch.vcpus_running)) {
-			kvm->arch.rma_setup_done = 1;
+			kvm->arch.hpte_setup_done = 1;
 			mutex_unlock(&kvm->lock);
 			return -EBUSY;
 		}
@@ -1405,7 +1405,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 				       "r=%lx\n", ret, i, v, r);
 				goto out;
 			}
-			if (!rma_setup && is_vrma_hpte(v)) {
+			if (!hpte_setup && is_vrma_hpte(v)) {
 				unsigned long psize = hpte_base_page_size(v, r);
 				unsigned long senc = slb_pgsize_encoding(psize);
 				unsigned long lpcr;
@@ -1414,7 +1414,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 					(VRMA_VSID << SLB_VSID_SHIFT_1T);
 				lpcr = senc << (LPCR_VRMASD_SH - 4);
 				kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
-				rma_setup = 1;
+				hpte_setup = 1;
 			}
 			++i;
 			hptp += 2;
@@ -1430,9 +1430,9 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 	}
 
  out:
-	/* Order HPTE updates vs. rma_setup_done */
+	/* Order HPTE updates vs. hpte_setup_done */
 	smp_wmb();
-	kvm->arch.rma_setup_done = rma_setup;
+	kvm->arch.hpte_setup_done = hpte_setup;
 	mutex_unlock(&kvm->lock);
 
 	if (err)

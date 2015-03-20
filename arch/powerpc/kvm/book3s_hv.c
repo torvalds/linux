@@ -2044,11 +2044,11 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 
 	atomic_inc(&vcpu->kvm->arch.vcpus_running);
-	/* Order vcpus_running vs. rma_setup_done, see kvmppc_alloc_reset_hpt */
+	/* Order vcpus_running vs. hpte_setup_done, see kvmppc_alloc_reset_hpt */
 	smp_mb();
 
 	/* On the first time here, set up HTAB and VRMA */
-	if (!vcpu->kvm->arch.rma_setup_done) {
+	if (!vcpu->kvm->arch.hpte_setup_done) {
 		r = kvmppc_hv_setup_htab_rma(vcpu);
 		if (r)
 			goto out;
@@ -2250,7 +2250,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	int srcu_idx;
 
 	mutex_lock(&kvm->lock);
-	if (kvm->arch.rma_setup_done)
+	if (kvm->arch.hpte_setup_done)
 		goto out;	/* another vcpu beat us to it */
 
 	/* Allocate hashed page table (if not done already) and reset it */
@@ -2301,9 +2301,9 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 
 	kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
 
-	/* Order updates to kvm->arch.lpcr etc. vs. rma_setup_done */
+	/* Order updates to kvm->arch.lpcr etc. vs. hpte_setup_done */
 	smp_wmb();
-	kvm->arch.rma_setup_done = 1;
+	kvm->arch.hpte_setup_done = 1;
 	err = 0;
  out_srcu:
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
