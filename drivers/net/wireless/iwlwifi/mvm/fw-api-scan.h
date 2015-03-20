@@ -464,7 +464,7 @@ enum iwl_scan_priority {
 };
 
 /**
- * iwl_scan_req_unified_lmac - SCAN_REQUEST_CMD_API_S_VER_1
+ * iwl_scan_req_lmac - SCAN_REQUEST_CMD_API_S_VER_1
  * @reserved1: for alignment and future use
  * @channel_num: num of channels to scan
  * @active-dwell: dwell time for active channels
@@ -487,7 +487,7 @@ enum iwl_scan_priority {
  * @channel_opt: channel optimization options, for full and partial scan
  * @data: channel configuration and probe request packet.
  */
-struct iwl_scan_req_unified_lmac {
+struct iwl_scan_req_lmac {
 	/* SCAN_REQUEST_FIXED_PART_API_S_VER_7 */
 	__le32 reserved1;
 	u8 n_channels;

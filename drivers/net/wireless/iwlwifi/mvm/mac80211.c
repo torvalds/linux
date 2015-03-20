@@ -2450,7 +2450,7 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
 		ret = iwl_mvm_scan_umac(mvm, vif, hw_req);
 	else
-		ret = iwl_mvm_unified_scan_lmac(mvm, vif, hw_req);
+		ret = iwl_mvm_scan_lmac(mvm, vif, hw_req);
 
 	if (ret)
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
@@ -2813,9 +2813,7 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 	if (ret)
 		goto out;
 
-	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
-	if (ret)
-		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
+	ret = iwl_mvm_sched_scan_start(mvm, vif, req, ies);
 
 out:
 	mutex_unlock(&mvm->mutex);
