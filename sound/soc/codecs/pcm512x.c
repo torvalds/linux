@@ -576,8 +576,8 @@ static int pcm512x_find_pll_coeff(struct snd_soc_dai *dai,
 
 	/* pllin_rate / P (or here, den) cannot be greater than 20 MHz */
 	if (pllin_rate / den > 20000000 && num < 8) {
-		num *= 20000000 / (pllin_rate / den);
-		den *= 20000000 / (pllin_rate / den);
+		num *= DIV_ROUND_UP(pllin_rate / den, 20000000);
+		den *= DIV_ROUND_UP(pllin_rate / den, 20000000);
 	}
 	dev_dbg(dev, "num / den = %lu / %lu\n", num, den);
 
