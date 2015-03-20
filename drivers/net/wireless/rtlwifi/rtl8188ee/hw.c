@@ -886,7 +886,7 @@ static bool _rtl88ee_init_mac(struct ieee80211_hw *hw)
 
 	rtl_write_word(rtlpriv, REG_CR, 0x2ff);
 	rtl_write_byte(rtlpriv, REG_CR+1, 0x06);
-	rtl_write_byte(rtlpriv, REG_CR+2, 0x00);
+	rtl_write_byte(rtlpriv, MSR, 0x00);
 
 	if (!rtlhal->mac_func_enable) {
 		if (_rtl88ee_llt_table_init(hw) == false) {
@@ -1278,7 +1278,7 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 			 mode);
 	}
 
-	rtl_write_byte(rtlpriv, (MSR), bt_msr | mode);
+	rtl_write_byte(rtlpriv, MSR, bt_msr | mode);
 	rtlpriv->cfg->ops->led_control(hw, ledaction);
 	if (mode == MSR_AP)
 		rtl_write_byte(rtlpriv, REG_BCNTCFG + 1, 0x00);
