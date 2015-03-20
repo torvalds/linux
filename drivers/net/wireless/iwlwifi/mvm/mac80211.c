@@ -80,7 +80,6 @@
 #include "sta.h"
 #include "time-event.h"
 #include "iwl-eeprom-parse.h"
-#include "fw-api-scan.h"
 #include "iwl-phy-db.h"
 #include "testmode.h"
 #include "iwl-fw-error-dump.h"
@@ -2381,81 +2380,21 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 	iwl_mvm_unref(mvm, IWL_MVM_REF_BSS_CHANGED);
 }
 
-static int iwl_mvm_num_scans(struct iwl_mvm *mvm)
-{
-	return hweight32(mvm->scan_status & IWL_MVM_SCAN_MASK);
-}
-
-static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
-{
-	/* This looks a bit arbitrary, but the idea is that if we run
-	 * out of possible simultaneous scans and the userspace is
-	 * trying to run a scan type that is already running, we
-	 * return -EBUSY.  But if the userspace wants to start a
-	 * different type of scan, we stop the opposite type to make
-	 * space for the new request.  The reason is backwards
-	 * compatibility with old wpa_supplicant that wouldn't stop a
-	 * scheduled scan before starting a normal scan.
-	 */
-
-	if (iwl_mvm_num_scans(mvm) < mvm->max_scans)
-		return 0;
-
-	/* Use a switch, even though this is a bitmask, so that more
-	 * than one bits set will fall in default and we will warn.
-	 */
-	switch (type) {
-	case IWL_MVM_SCAN_REGULAR:
-		if (mvm->scan_status & IWL_MVM_SCAN_REGULAR_MASK)
-			return -EBUSY;
-		return iwl_mvm_scan_offload_stop(mvm, true);
-	case IWL_MVM_SCAN_SCHED:
-		if (mvm->scan_status & IWL_MVM_SCAN_SCHED_MASK)
-			return -EBUSY;
-		return iwl_mvm_cancel_scan(mvm);
-	default:
-		WARN_ON(1);
-		break;
-	}
-
-	return -EIO;
-}
-
 static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_scan_request *hw_req)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct cfg80211_scan_request *req = &hw_req->req;
 	int ret;
 
-	if (req->n_channels == 0 ||
-	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
+	if (hw_req->req.n_channels == 0 ||
+	    hw_req->req.n_channels > mvm->fw->ucode_capa.n_scan_channels)
 		return -EINVAL;
 
 	mutex_lock(&mvm->mutex);
-
-	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
-		IWL_ERR(mvm, "scan while LAR regdomain is not set\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
-	ret = iwl_mvm_check_running_scans(mvm, IWL_MVM_SCAN_REGULAR);
-	if (ret)
-		goto out;
-
-	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
-
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
-		ret = iwl_mvm_scan_umac(mvm, vif, hw_req);
-	else
-		ret = iwl_mvm_scan_lmac(mvm, vif, hw_req);
-
-	if (ret)
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
-out:
+	ret = iwl_mvm_reg_scan_start(mvm, vif, &hw_req->req, &hw_req->ies);
 	mutex_unlock(&mvm->mutex);
+
 	return ret;
 }
 
@@ -2794,24 +2733,15 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 					struct ieee80211_scan_ies *ies)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
 	int ret;
 
 	mutex_lock(&mvm->mutex);
-
-	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
-		IWL_ERR(mvm, "sched-scan while LAR regdomain is not set\n");
-		ret = -EBUSY;
-		goto out;
-	}
 
 	if (!vif->bss_conf.idle) {
 		ret = -EBUSY;
 		goto out;
 	}
-
-	ret = iwl_mvm_check_running_scans(mvm, IWL_MVM_SCAN_SCHED);
-	if (ret)
-		goto out;
 
 	ret = iwl_mvm_sched_scan_start(mvm, vif, req, ies);
 

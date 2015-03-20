@@ -1159,6 +1159,9 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, bool force_upload,
 			  struct ieee80211_vif *disabled_vif);
 
 /* Scanning */
+int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   struct cfg80211_scan_request *req,
+			   struct ieee80211_scan_ies *ies);
 int iwl_mvm_scan_size(struct iwl_mvm *mvm);
 int iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
 int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm, bool is_sched_scan);
@@ -1182,18 +1185,8 @@ int iwl_mvm_rx_scan_offload_results(struct iwl_mvm *mvm,
 				    struct iwl_rx_cmd_buffer *rxb,
 				    struct iwl_device_cmd *cmd);
 
-/* LMAC scan */
-int iwl_mvm_scan_lmac(struct iwl_mvm *mvm,
-		      struct ieee80211_vif *vif,
-		      struct ieee80211_scan_request *req);
-
 /* UMAC scan */
 int iwl_mvm_config_scan(struct iwl_mvm *mvm);
-int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-		      struct ieee80211_scan_request *req);
-int iwl_mvm_sched_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			    struct cfg80211_sched_scan_request *req,
-			    struct ieee80211_scan_ies *ies);
 int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb,
 					struct iwl_device_cmd *cmd);
