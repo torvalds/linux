@@ -2507,7 +2507,6 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 					    int max_tevs, const char *target)
 {
 	struct map *map = NULL;
-	struct kmap *kmap = NULL;
 	struct ref_reloc_sym *reloc_sym = NULL;
 	struct symbol *sym;
 	struct probe_trace_event *tev;
@@ -2540,8 +2539,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	}
 
 	if (!pev->uprobes && !pp->retprobe) {
-		kmap = map__kmap(map);
-		reloc_sym = kmap->ref_reloc_sym;
+		reloc_sym = kernel_get_ref_reloc_sym();
 		if (!reloc_sym) {
 			pr_warning("Relocated base symbol is not found!\n");
 			ret = -EINVAL;
