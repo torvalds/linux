@@ -901,6 +901,15 @@ find_root:
 	if (IS_ERR(new_root))
 		return ERR_CAST(new_root);
 
+	if (!(sb->s_flags & MS_RDONLY)) {
+		int ret;
+		down_read(&fs_info->cleanup_work_sem);
+		ret = btrfs_orphan_cleanup(new_root);
+		up_read(&fs_info->cleanup_work_sem);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
 	dir_id = btrfs_root_dirid(&new_root->root_item);
 setup_root:
 	location.objectid = dir_id;
