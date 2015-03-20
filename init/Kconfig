@@ -791,6 +791,19 @@ config RCU_NOCB_CPU_ALL
 
 endchoice
 
+config RCU_EXPEDITE_BOOT
+	bool
+	default n
+	help
+	  This option enables expedited grace periods at boot time,
+	  as if rcu_expedite_gp() had been invoked early in boot.
+	  The corresponding rcu_unexpedite_gp() is invoked from
+	  rcu_end_inkernel_boot(), which is intended to be invoked
+	  at the end of the kernel-only boot sequence, just before
+	  init is exec'ed.
+
+	  Accept the default if unsure.
+
 endmenu # "RCU Subsystem"
 
 config BUILD_BIN2C
