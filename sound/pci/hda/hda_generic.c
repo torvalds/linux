@@ -665,7 +665,7 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 			if (!path->stream_enabled)
 				continue;
 			/* ignore unplugged paths except for DAC/ADC */
-			if (!path->pin_enabled &&
+			if (!(path->pin_enabled || path->pin_fixed) &&
 			    type != AC_WID_AUD_OUT && type != AC_WID_AUD_IN)
 				continue;
 		}
@@ -1607,7 +1607,7 @@ static int check_aamix_out_path(struct hda_codec *codec, int path_idx)
 		return 0;
 	/* print_nid_path(codec, "output-aamix", path); */
 	path->active = false; /* unused as default */
-	path->pin_enabled = true; /* static route */
+	path->pin_fixed = true; /* static route */
 	return snd_hda_get_path_idx(codec, path);
 }
 
@@ -3044,7 +3044,7 @@ static int new_analog_input(struct hda_codec *codec, int input_idx,
 		if (path) {
 			print_nid_path(codec, "loopback-merge", path);
 			path->active = true;
-			path->pin_enabled = true; /* static route */
+			path->pin_fixed = true; /* static route */
 			path->stream_enabled = true; /* no DAC/ADC involved */
 			spec->loopback_merge_path =
 				snd_hda_get_path_idx(codec, path);
@@ -3847,7 +3847,7 @@ static void parse_digital(struct hda_codec *codec)
 			continue;
 		print_nid_path(codec, "digout", path);
 		path->active = true;
-		path->pin_enabled = true; /* no jack detection */
+		path->pin_fixed = true; /* no jack detection */
 		spec->digout_paths[i] = snd_hda_get_path_idx(codec, path);
 		set_pin_target(codec, pin, PIN_OUT, false);
 		if (!nums) {
@@ -3875,7 +3875,7 @@ static void parse_digital(struct hda_codec *codec)
 			if (path) {
 				print_nid_path(codec, "digin", path);
 				path->active = true;
-				path->pin_enabled = true; /* no jack */
+				path->pin_fixed = true; /* no jack */
 				spec->dig_in_nid = dig_nid;
 				spec->digin_path = snd_hda_get_path_idx(codec, path);
 				set_pin_target(codec, pin, PIN_IN, false);
@@ -3959,8 +3959,8 @@ static hda_nid_t set_path_power(struct hda_codec *codec, hda_nid_t nid,
 				path->pin_enabled = pin_state;
 			if (stream_state >= 0)
 				path->stream_enabled = stream_state;
-			if (path->pin_enabled != pin_old ||
-			    path->stream_enabled != stream_old) {
+			if ((!path->pin_fixed && path->pin_enabled != pin_old)
+			    || path->stream_enabled != stream_old) {
 				last = path_power_update(codec, path, true);
 				if (last)
 					changed = last;
@@ -4135,6 +4135,29 @@ static void beep_power_hook(struct hda_beep *beep, bool on)
 {
 	set_path_power(beep->codec, beep->nid, -1, on);
 }
+
+/**
+ * snd_hda_gen_fix_pin_power - Fix the power of the given pin widget to D0
+ * @codec: the HDA codec
+ * @pin: NID of pin to fix
+ */
+int snd_hda_gen_fix_pin_power(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct nid_path *path;
+
+	path = snd_array_new(&spec->paths);
+	if (!path)
+		return -ENOMEM;
+	memset(path, 0, sizeof(*path));
+	path->depth = 1;
+	path->path[0] = pin;
+	path->active = true;
+	path->pin_fixed = true;
+	path->stream_enabled = true;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hda_gen_fix_pin_power);
 
 /*
  * Jack detections for HP auto-mute and mic-switch

@@ -48,6 +48,7 @@ struct nid_path {
 	unsigned int ctls[NID_PATH_NUM_CTLS]; /* NID_PATH_XXX_CTL */
 	bool active:1;		/* activated by driver */
 	bool pin_enabled:1;	/* pins are enabled */
+	bool pin_fixed:1;	/* path with fixed pin */
 	bool stream_enabled:1;	/* stream is active */
 };
 
@@ -343,5 +344,6 @@ unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 					   hda_nid_t nid,
 					   unsigned int power_state);
 void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on);
+int snd_hda_gen_fix_pin_power(struct hda_codec *codec, hda_nid_t pin);
 
 #endif /* __SOUND_HDA_GENERIC_H */

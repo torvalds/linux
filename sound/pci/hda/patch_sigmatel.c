@@ -4225,6 +4225,12 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	if (spec->vref_mute_led_nid) {
+		err = snd_hda_gen_fix_pin_power(codec, spec->vref_mute_led_nid);
+		if (err < 0)
+			return err;
+	}
+
 	/* setup analog beep controls */
 	if (spec->anabeep_nid > 0) {
 		err = stac_auto_create_beep_ctls(codec,
