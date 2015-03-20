@@ -209,10 +209,9 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 err_unref:
 	drm_dev_unref(drm);
 
-	return 0;
-
 power_down:
 	nouveau_platform_power_down(gpu);
+	nouveau_platform_remove_iommu(&pdev->dev, gpu);
 
 	return err;
 }
