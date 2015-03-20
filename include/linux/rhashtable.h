@@ -181,7 +181,8 @@ static inline int lockdep_rht_bucket_is_held(const struct bucket_table *tbl,
 }
 #endif /* CONFIG_PROVE_LOCKING */
 
-int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params);
+int rhashtable_init(struct rhashtable *ht,
+		    const struct rhashtable_params *params);
 
 void rhashtable_insert(struct rhashtable *ht, struct rhash_head *node);
 bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *node);
