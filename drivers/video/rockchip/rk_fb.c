@@ -1495,7 +1495,8 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 		index_buf = area_data->index_buf;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
-			if (rk_fb->disp_policy != DISPLAY_POLICY_BOX)
+			if ((rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
+			     (area_data->ion_handle != NULL))
 				ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client,
 						area_data->ion_handle);
 			freed_addr[freed_index++] = area_data->smem_start;
@@ -1906,6 +1907,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		reg_win_data->reg_area_data[0].smem_start =
 		    win_par->area_par[0].phy_addr;
 		reg_win_data->area_num = 1;
+		reg_win_data->area_buf_num++;
 		fbi->screen_base = phys_to_virt(win_par->area_par[0].phy_addr);
 	}
 
