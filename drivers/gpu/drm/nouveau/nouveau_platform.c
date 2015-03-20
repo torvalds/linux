@@ -152,6 +152,7 @@ static void nouveau_platform_remove_iommu(struct device *dev,
 					  struct nouveau_platform_gpu *gpu)
 {
 	if (gpu->iommu.domain) {
+		nvkm_mm_fini(&gpu->iommu._mm);
 		iommu_detach_device(gpu->iommu.domain, dev);
 		iommu_domain_free(gpu->iommu.domain);
 	}
