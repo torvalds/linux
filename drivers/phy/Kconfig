@@ -35,6 +35,13 @@ config ARMADA375_USBCLUSTER_PHY
 	depends on OF
 	select GENERIC_PHY
 
+config PHY_DM816X_USB
+	tristate "TI dm816x USB PHY driver"
+	depends on ARCH_OMAP2PLUS
+	select GENERIC_PHY
+	help
+	  Enable this for dm816x USB to work.
+
 config PHY_EXYNOS_MIPI_VIDEO
 	tristate "S5P/EXYNOS SoC series MIPI CSI-2/DSI PHY driver"
 	depends on HAS_IOMEM
