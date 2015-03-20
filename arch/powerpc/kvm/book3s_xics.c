@@ -802,14 +802,22 @@ static noinline int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
 	XICS_DBG("XICS_RM: H_%x completing, act: %x state: %lx tgt: %p\n",
 		 hcall, icp->rm_action, icp->rm_dbgstate.raw, icp->rm_dbgtgt);
 
-	if (icp->rm_action & XICS_RM_KICK_VCPU)
+	if (icp->rm_action & XICS_RM_KICK_VCPU) {
+		icp->n_rm_kick_vcpu++;
 		kvmppc_fast_vcpu_kick(icp->rm_kick_target);
-	if (icp->rm_action & XICS_RM_CHECK_RESEND)
+	}
+	if (icp->rm_action & XICS_RM_CHECK_RESEND) {
+		icp->n_rm_check_resend++;
 		icp_check_resend(xics, icp->rm_resend_icp);
-	if (icp->rm_action & XICS_RM_REJECT)
+	}
+	if (icp->rm_action & XICS_RM_REJECT) {
+		icp->n_rm_reject++;
 		icp_deliver_irq(xics, icp, icp->rm_reject);
-	if (icp->rm_action & XICS_RM_NOTIFY_EOI)
+	}
+	if (icp->rm_action & XICS_RM_NOTIFY_EOI) {
+		icp->n_rm_notify_eoi++;
 		kvm_notify_acked_irq(vcpu->kvm, 0, icp->rm_eoied_irq);
+	}
 
 	icp->rm_action = 0;
 
@@ -872,9 +880,16 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	struct kvm *kvm = xics->kvm;
 	struct kvm_vcpu *vcpu;
 	int icsid, i;
+	unsigned long t_rm_kick_vcpu, t_rm_check_resend;
+	unsigned long t_rm_reject, t_rm_notify_eoi;
 
 	if (!kvm)
 		return 0;
+
+	t_rm_kick_vcpu = 0;
+	t_rm_notify_eoi = 0;
+	t_rm_check_resend = 0;
+	t_rm_reject = 0;
 
 	seq_printf(m, "=========\nICP state\n=========\n");
 
@@ -890,8 +905,16 @@ static int xics_debug_show(struct seq_file *m, void *private)
 			   icp->server_num, state.xisr,
 			   state.pending_pri, state.cppr, state.mfrr,
 			   state.out_ee, state.need_resend);
+		t_rm_kick_vcpu += icp->n_rm_kick_vcpu;
+		t_rm_notify_eoi += icp->n_rm_notify_eoi;
+		t_rm_check_resend += icp->n_rm_check_resend;
+		t_rm_reject += icp->n_rm_reject;
 	}
 
+	seq_puts(m, "ICP Guest Real Mode exit totals: ");
+	seq_printf(m, "\tkick_vcpu=%lu check_resend=%lu reject=%lu notify_eoi=%lu\n",
+			t_rm_kick_vcpu, t_rm_check_resend,
+			t_rm_reject, t_rm_notify_eoi);
 	for (icsid = 0; icsid <= KVMPPC_XICS_MAX_ICS_ID; icsid++) {
 		struct kvmppc_ics *ics = xics->ics[icsid];
 

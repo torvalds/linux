@@ -78,6 +78,12 @@ struct kvmppc_icp {
 	u32  rm_reject;
 	u32  rm_eoied_irq;
 
+	/* Counters for each reason we exited real mode */
+	unsigned long n_rm_kick_vcpu;
+	unsigned long n_rm_check_resend;
+	unsigned long n_rm_reject;
+	unsigned long n_rm_notify_eoi;
+
 	/* Debug stuff for real mode */
 	union kvmppc_icp_state rm_dbgstate;
 	struct kvm_vcpu *rm_dbgtgt;
