@@ -155,7 +155,7 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	/* apply mask */
 	for (i = 0; i < par->gamma.num_curves; i++)
 		for (j = 0; j < par->gamma.num_values; j++)
-			CURVE(i, j) &= 0b111111;
+			CURVE(i, j) &= 0x3f;
 
 	for (i = 0; i < par->gamma.num_curves; i++)
 		write_reg(par, 0xE0 + i,

@@ -152,7 +152,7 @@ static struct device_attribute gamma_device_attrs[] = {
 
 void fbtft_expand_debug_value(unsigned long *debug)
 {
-	switch (*debug & 0b111) {
+	switch (*debug & 0x7) {
 	case 1:
 		*debug |= DEBUG_LEVEL_1;
 		break;
