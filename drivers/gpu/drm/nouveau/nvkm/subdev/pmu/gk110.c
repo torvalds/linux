@@ -28,7 +28,7 @@
 
 #include <subdev/timer.h>
 
-static void
+void
 gk110_pmu_pgob(struct nvkm_pmu *pmu, bool enable)
 {
 	static const struct {
