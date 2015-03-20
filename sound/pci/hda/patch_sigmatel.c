@@ -4394,6 +4394,7 @@ static const struct hda_codec_ops stac_patch_ops = {
 #ifdef CONFIG_PM
 	.suspend = stac_suspend,
 #endif
+	.stream_pm = snd_hda_gen_stream_pm,
 	.reboot_notify = stac_shutup,
 };
 
@@ -4487,6 +4488,7 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	codec->power_mgmt = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.mixer_nid = 0x1d;
 	spec->have_spdif_mux = 1;
@@ -4592,6 +4594,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	codec->epss = 0; /* longer delay needed for D3 */
 
 	spec = codec->spec;
+	codec->power_mgmt = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
@@ -4641,6 +4644,7 @@ static int patch_stac92hd95(struct hda_codec *codec)
 	codec->epss = 0; /* longer delay needed for D3 */
 
 	spec = codec->spec;
+	codec->power_mgmt = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
@@ -4682,6 +4686,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	codec->power_mgmt = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;

@@ -140,6 +140,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "single_adc_amp");
 	if (val >= 0)
 		codec->single_adc_amp = !!val;
+	val = snd_hda_get_bool_hint(codec, "power_mgmt");
+	if (val >= 0)
+		codec->power_mgmt = !!val;
 
 	val = snd_hda_get_bool_hint(codec, "auto_mute");
 	if (val >= 0)
@@ -648,12 +651,24 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 			  unsigned int dir, unsigned int idx)
 {
 	struct hda_gen_spec *spec = codec->spec;
+	int type = get_wcaps_type(get_wcaps(codec, nid));
 	int i, n;
+
+	if (nid == codec->afg)
+		return true;
 
 	for (n = 0; n < spec->paths.used; n++) {
 		struct nid_path *path = snd_array_elem(&spec->paths, n);
 		if (!path->active)
 			continue;
+		if (codec->power_mgmt) {
+			if (!path->stream_enabled)
+				continue;
+			/* ignore unplugged paths except for DAC/ADC */
+			if (!path->pin_enabled &&
+			    type != AC_WID_AUD_OUT && type != AC_WID_AUD_IN)
+				continue;
+		}
 		for (i = 0; i < path->depth; i++) {
 			if (path->path[i] == nid) {
 				if (dir == HDA_OUTPUT || path->idx[i] == idx)
@@ -807,6 +822,44 @@ static void activate_amp_in(struct hda_codec *codec, struct nid_path *path,
 	}
 }
 
+/* sync power of each widget in the the given path */
+static hda_nid_t path_power_update(struct hda_codec *codec,
+				   struct nid_path *path,
+				   bool allow_powerdown)
+{
+	hda_nid_t nid, changed = 0;
+	int i, state;
+
+	for (i = 0; i < path->depth; i++) {
+		nid = path->path[i];
+		if (nid == codec->afg)
+			continue;
+		if (!allow_powerdown || is_active_nid_for_any(codec, nid))
+			state = AC_PWRST_D0;
+		else
+			state = AC_PWRST_D3;
+		if (!snd_hda_check_power_state(codec, nid, state)) {
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_POWER_STATE, state);
+			changed = nid;
+			/* here we assume that widget attributes (e.g. amp,
+			 * pinctl connection) don't change with local power
+			 * state change.  If not, need to sync the cache.
+			 */
+		}
+	}
+	return changed;
+}
+
+/* do sync with the last power state change */
+static void sync_power_state_change(struct hda_codec *codec, hda_nid_t nid)
+{
+	if (nid) {
+		msleep(10);
+		snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_POWER_STATE, 0);
+	}
+}
+
 /**
  * snd_hda_activate_path - activate or deactivate the given path
  * @codec: the HDA codec
@@ -825,15 +878,13 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 	if (!enable)
 		path->active = false;
 
+	/* make sure the widget is powered up */
+	if (enable && (spec->power_down_unused || codec->power_mgmt))
+		path_power_update(codec, path, codec->power_mgmt);
+
 	for (i = path->depth - 1; i >= 0; i--) {
 		hda_nid_t nid = path->path[i];
-		if (enable && spec->power_down_unused) {
-			/* make sure the widget is powered up */
-			if (!snd_hda_check_power_state(codec, nid, AC_PWRST_D0))
-				snd_hda_codec_write(codec, nid, 0,
-						    AC_VERB_SET_POWER_STATE,
-						    AC_PWRST_D0);
-		}
+
 		if (enable && path->multi[i])
 			snd_hda_codec_update_cache(codec, nid, 0,
 					    AC_VERB_SET_CONNECT_SEL,
@@ -853,28 +904,10 @@ EXPORT_SYMBOL_GPL(snd_hda_activate_path);
 static void path_power_down_sync(struct hda_codec *codec, struct nid_path *path)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	bool changed = false;
-	int i;
 
-	if (!spec->power_down_unused || path->active)
+	if (!(spec->power_down_unused || codec->power_mgmt) || path->active)
 		return;
-
-	for (i = 0; i < path->depth; i++) {
-		hda_nid_t nid = path->path[i];
-		if (!snd_hda_check_power_state(codec, nid, AC_PWRST_D3) &&
-		    !is_active_nid_for_any(codec, nid)) {
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_POWER_STATE,
-					    AC_PWRST_D3);
-			changed = true;
-		}
-	}
-
-	if (changed) {
-		msleep(10);
-		snd_hda_codec_read(codec, path->path[0], 0,
-				   AC_VERB_GET_POWER_STATE, 0);
-	}
+	sync_power_state_change(codec, path_power_update(codec, path, true));
 }
 
 /* turn on/off EAPD on the given pin */
@@ -1574,6 +1607,7 @@ static int check_aamix_out_path(struct hda_codec *codec, int path_idx)
 		return 0;
 	/* print_nid_path(codec, "output-aamix", path); */
 	path->active = false; /* unused as default */
+	path->pin_enabled = true; /* static route */
 	return snd_hda_get_path_idx(codec, path);
 }
 
@@ -2998,6 +3032,7 @@ static int new_analog_input(struct hda_codec *codec, int input_idx,
 	}
 
 	path->active = true;
+	path->stream_enabled = true; /* no DAC/ADC involved */
 	err = add_loopback_list(spec, mix_nid, idx);
 	if (err < 0)
 		return err;
@@ -3009,6 +3044,8 @@ static int new_analog_input(struct hda_codec *codec, int input_idx,
 		if (path) {
 			print_nid_path(codec, "loopback-merge", path);
 			path->active = true;
+			path->pin_enabled = true; /* static route */
+			path->stream_enabled = true; /* no DAC/ADC involved */
 			spec->loopback_merge_path =
 				snd_hda_get_path_idx(codec, path);
 		}
@@ -3810,6 +3847,7 @@ static void parse_digital(struct hda_codec *codec)
 			continue;
 		print_nid_path(codec, "digout", path);
 		path->active = true;
+		path->pin_enabled = true; /* no jack detection */
 		spec->digout_paths[i] = snd_hda_get_path_idx(codec, path);
 		set_pin_target(codec, pin, PIN_OUT, false);
 		if (!nums) {
@@ -3837,6 +3875,7 @@ static void parse_digital(struct hda_codec *codec)
 			if (path) {
 				print_nid_path(codec, "digin", path);
 				path->active = true;
+				path->pin_enabled = true; /* no jack */
 				spec->dig_in_nid = dig_nid;
 				spec->digin_path = snd_hda_get_path_idx(codec, path);
 				set_pin_target(codec, pin, PIN_IN, false);
@@ -3896,6 +3935,206 @@ static int mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	return 1;
 }
 
+/* power up/down widgets in the all paths that match with the given NID
+ * as terminals (either start- or endpoint)
+ *
+ * returns the last changed NID, or zero if unchanged.
+ */
+static hda_nid_t set_path_power(struct hda_codec *codec, hda_nid_t nid,
+				int pin_state, int stream_state)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	hda_nid_t last, changed = 0;
+	struct nid_path *path;
+	int n;
+
+	for (n = 0; n < spec->paths.used; n++) {
+		path = snd_array_elem(&spec->paths, n);
+		if (path->path[0] == nid ||
+		    path->path[path->depth - 1] == nid) {
+			bool pin_old = path->pin_enabled;
+			bool stream_old = path->stream_enabled;
+
+			if (pin_state >= 0)
+				path->pin_enabled = pin_state;
+			if (stream_state >= 0)
+				path->stream_enabled = stream_state;
+			if (path->pin_enabled != pin_old ||
+			    path->stream_enabled != stream_old) {
+				last = path_power_update(codec, path, true);
+				if (last)
+					changed = last;
+			}
+		}
+	}
+	return changed;
+}
+
+/* power up/down the paths of the given pin according to the jack state;
+ * power = 0/1 : only power up/down if it matches with the jack state,
+ *       < 0   : force power up/down to follow the jack sate
+ *
+ * returns the last changed NID, or zero if unchanged.
+ */
+static hda_nid_t set_pin_power_jack(struct hda_codec *codec, hda_nid_t pin,
+				    int power)
+{
+	bool on;
+
+	if (!codec->power_mgmt)
+		return 0;
+
+	on = snd_hda_jack_detect_state(codec, pin) != HDA_JACK_NOT_PRESENT;
+	if (power >= 0 && on != power)
+		return 0;
+	return set_path_power(codec, pin, on, -1);
+}
+
+static void pin_power_callback(struct hda_codec *codec,
+			       struct hda_jack_callback *jack,
+			       bool on)
+{
+	if (jack && jack->tbl->nid)
+		sync_power_state_change(codec,
+					set_pin_power_jack(codec, jack->tbl->nid, on));
+}
+
+/* callback only doing power up -- called at first */
+static void pin_power_up_callback(struct hda_codec *codec,
+				  struct hda_jack_callback *jack)
+{
+	pin_power_callback(codec, jack, true);
+}
+
+/* callback only doing power down -- called at last */
+static void pin_power_down_callback(struct hda_codec *codec,
+				    struct hda_jack_callback *jack)
+{
+	pin_power_callback(codec, jack, false);
+}
+
+/* set up the power up/down callbacks */
+static void add_pin_power_ctls(struct hda_codec *codec, int num_pins,
+			       const hda_nid_t *pins, bool on)
+{
+	int i;
+	hda_jack_callback_fn cb =
+		on ? pin_power_up_callback : pin_power_down_callback;
+
+	for (i = 0; i < num_pins && pins[i]; i++) {
+		if (is_jack_detectable(codec, pins[i]))
+			snd_hda_jack_detect_enable_callback(codec, pins[i], cb);
+		else
+			set_path_power(codec, pins[i], true, -1);
+	}
+}
+
+/* enabled power callback to each available I/O pin with jack detections;
+ * the digital I/O pins are excluded because of the unreliable detectsion
+ */
+static void add_all_pin_power_ctls(struct hda_codec *codec, bool on)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
+
+	if (!codec->power_mgmt)
+		return;
+	add_pin_power_ctls(codec, cfg->line_outs, cfg->line_out_pins, on);
+	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
+		add_pin_power_ctls(codec, cfg->hp_outs, cfg->hp_pins, on);
+	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
+		add_pin_power_ctls(codec, cfg->speaker_outs, cfg->speaker_pins, on);
+	for (i = 0; i < cfg->num_inputs; i++)
+		add_pin_power_ctls(codec, 1, &cfg->inputs[i].pin, on);
+}
+
+/* sync path power up/down with the jack states of given pins */
+static void sync_pin_power_ctls(struct hda_codec *codec, int num_pins,
+				const hda_nid_t *pins)
+{
+	int i;
+
+	for (i = 0; i < num_pins && pins[i]; i++)
+		if (is_jack_detectable(codec, pins[i]))
+			set_pin_power_jack(codec, pins[i], -1);
+}
+
+/* sync path power up/down with pins; called at init and resume */
+static void sync_all_pin_power_ctls(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
+
+	if (!codec->power_mgmt)
+		return;
+	sync_pin_power_ctls(codec, cfg->line_outs, cfg->line_out_pins);
+	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
+		sync_pin_power_ctls(codec, cfg->hp_outs, cfg->hp_pins);
+	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
+		sync_pin_power_ctls(codec, cfg->speaker_outs, cfg->speaker_pins);
+	for (i = 0; i < cfg->num_inputs; i++)
+		sync_pin_power_ctls(codec, 1, &cfg->inputs[i].pin);
+}
+
+/* add fake paths if not present yet */
+static int add_fake_paths(struct hda_codec *codec, hda_nid_t nid,
+			   int num_pins, const hda_nid_t *pins)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct nid_path *path;
+	int i;
+
+	for (i = 0; i < num_pins; i++) {
+		if (!pins[i])
+			break;
+		if (get_nid_path(codec, nid, pins[i], 0))
+			continue;
+		path = snd_array_new(&spec->paths);
+		if (!path)
+			return -ENOMEM;
+		memset(path, 0, sizeof(*path));
+		path->depth = 2;
+		path->path[0] = nid;
+		path->path[1] = pins[i];
+		path->active = true;
+	}
+	return 0;
+}
+
+/* create fake paths to all outputs from beep */
+static int add_fake_beep_paths(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t nid = spec->beep_nid;
+	int err;
+
+	if (!codec->power_mgmt || !nid)
+		return 0;
+	err = add_fake_paths(codec, nid, cfg->line_outs, cfg->line_out_pins);
+	if (err < 0)
+		return err;
+	if (cfg->line_out_type != AUTO_PIN_HP_OUT) {
+		err = add_fake_paths(codec, nid, cfg->hp_outs, cfg->hp_pins);
+		if (err < 0)
+			return err;
+	}
+	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
+		err = add_fake_paths(codec, nid, cfg->speaker_outs,
+				     cfg->speaker_pins);
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
+/* power up/down beep widget and its output paths */
+static void beep_power_hook(struct hda_beep *beep, bool on)
+{
+	set_path_power(beep->codec, beep->nid, -1, on);
+}
 
 /*
  * Jack detections for HP auto-mute and mic-switch
@@ -3933,6 +4172,10 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 		if (!nid)
 			break;
 
+		oldval = snd_hda_codec_get_pin_target(codec, nid);
+		if (oldval & PIN_IN)
+			continue; /* no mute for inputs */
+
 		if (spec->auto_mute_via_amp) {
 			struct nid_path *path;
 			hda_nid_t mute_nid;
@@ -3947,29 +4190,33 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 				spec->mute_bits |= (1ULL << mute_nid);
 			else
 				spec->mute_bits &= ~(1ULL << mute_nid);
-			set_pin_eapd(codec, nid, !mute);
 			continue;
+		} else {
+			/* don't reset VREF value in case it's controlling
+			 * the amp (see alc861_fixup_asus_amp_vref_0f())
+			 */
+			if (spec->keep_vref_in_automute)
+				val = oldval & ~PIN_HP;
+			else
+				val = 0;
+			if (!mute)
+				val |= oldval;
+			/* here we call update_pin_ctl() so that the pinctl is
+			 * changed without changing the pinctl target value;
+			 * the original target value will be still referred at
+			 * the init / resume again
+			 */
+			update_pin_ctl(codec, nid, val);
 		}
 
-		oldval = snd_hda_codec_get_pin_target(codec, nid);
-		if (oldval & PIN_IN)
-			continue; /* no mute for inputs */
-		/* don't reset VREF value in case it's controlling
-		 * the amp (see alc861_fixup_asus_amp_vref_0f())
-		 */
-		if (spec->keep_vref_in_automute)
-			val = oldval & ~PIN_HP;
-		else
-			val = 0;
-		if (!mute)
-			val |= oldval;
-		/* here we call update_pin_ctl() so that the pinctl is changed
-		 * without changing the pinctl target value;
-		 * the original target value will be still referred at the
-		 * init / resume again
-		 */
-		update_pin_ctl(codec, nid, val);
 		set_pin_eapd(codec, nid, !mute);
+		if (codec->power_mgmt) {
+			bool on = !mute;
+			if (on)
+				on = snd_hda_jack_detect_state(codec, nid)
+					!= HDA_JACK_NOT_PRESENT;
+			set_path_power(codec, nid, on, -1);
+		}
 	}
 }
 
@@ -4466,6 +4713,21 @@ static void mute_all_mixer_nid(struct hda_codec *codec, hda_nid_t mix)
 }
 
 /**
+ * snd_hda_gen_stream_pm - Stream power management callback
+ * @codec: the HDA codec
+ * @nid: audio widget
+ * @on: power on/off flag
+ *
+ * Set this in patch_ops.stream_pm.  Only valid with power_mgmt flag.
+ */
+void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on)
+{
+	if (codec->power_mgmt)
+		set_path_power(codec, nid, -1, on);
+}
+EXPORT_SYMBOL_GPL(snd_hda_gen_stream_pm);
+
+/**
  * snd_hda_gen_parse_auto_config - Parse the given BIOS configuration and
  * set up the hda_gen_spec
  * @codec: the HDA codec
@@ -4549,6 +4811,9 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	if (err < 0)
 		return err;
 
+	/* add power-down pin callbacks at first */
+	add_all_pin_power_ctls(codec, false);
+
 	spec->const_channel_count = spec->ext_channel_count;
 	/* check the multiple speaker and headphone pins */
 	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
@@ -4618,6 +4883,9 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 		}
 	}
 
+	/* add power-up pin callbacks at last */
+	add_all_pin_power_ctls(codec, true);
+
 	/* mute all aamix input initially */
 	if (spec->mixer_nid)
 		mute_all_mixer_nid(codec, spec->mixer_nid);
@@ -4625,13 +4893,19 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
  dig_only:
 	parse_digital(codec);
 
-	if (spec->power_down_unused)
+	if (spec->power_down_unused || codec->power_mgmt)
 		codec->power_filter = snd_hda_gen_path_power_filter;
 
 	if (!spec->no_analog && spec->beep_nid) {
 		err = snd_hda_attach_beep_device(codec, spec->beep_nid);
 		if (err < 0)
 			return err;
+		if (codec->beep && codec->power_mgmt) {
+			err = add_fake_beep_paths(codec);
+			if (err < 0)
+				return err;
+			codec->beep->power_hook = beep_power_hook;
+		}
 	}
 
 	return 1;
@@ -5137,6 +5411,33 @@ static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
 	strlcat(str, sfx, len);
 }
 
+/* copy PCM stream info from @default_str, and override non-NULL entries
+ * from @spec_str and @nid
+ */
+static void setup_pcm_stream(struct hda_pcm_stream *str,
+			     const struct hda_pcm_stream *default_str,
+			     const struct hda_pcm_stream *spec_str,
+			     hda_nid_t nid)
+{
+	*str = *default_str;
+	if (nid)
+		str->nid = nid;
+	if (spec_str) {
+		if (spec_str->substreams)
+			str->substreams = spec_str->substreams;
+		if (spec_str->channels_min)
+			str->channels_min = spec_str->channels_min;
+		if (spec_str->channels_max)
+			str->channels_max = spec_str->channels_max;
+		if (spec_str->rates)
+			str->rates = spec_str->rates;
+		if (spec_str->formats)
+			str->formats = spec_str->formats;
+		if (spec_str->maxbps)
+			str->maxbps = spec_str->maxbps;
+	}
+}
+
 /**
  * snd_hda_gen_build_pcms - build PCM streams based on the parsed results
  * @codec: the HDA codec
@@ -5147,7 +5448,6 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct hda_pcm *info;
-	const struct hda_pcm_stream *p;
 	bool have_multi_adcs;
 
 	if (spec->no_analog)
@@ -5162,11 +5462,10 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	spec->pcm_rec[0] = info;
 
 	if (spec->multiout.num_dacs > 0) {
-		p = spec->stream_analog_playback;
-		if (!p)
-			p = &pcm_analog_playback;
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *p;
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dac_nids[0];
+		setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_PLAYBACK],
+				 &pcm_analog_playback,
+				 spec->stream_analog_playback,
+				 spec->multiout.dac_nids[0]);
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
 			spec->multiout.max_channels;
 		if (spec->autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT &&
@@ -5175,15 +5474,11 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 				snd_pcm_2_1_chmaps;
 	}
 	if (spec->num_adc_nids) {
-		p = spec->stream_analog_capture;
-		if (!p) {
-			if (spec->dyn_adc_switch)
-				p = &dyn_adc_pcm_analog_capture;
-			else
-				p = &pcm_analog_capture;
-		}
-		info->stream[SNDRV_PCM_STREAM_CAPTURE] = *p;
-		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
+		setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_CAPTURE],
+				 (spec->dyn_adc_switch ?
+				  &dyn_adc_pcm_analog_capture : &pcm_analog_capture),
+				 spec->stream_analog_capture,
+				 spec->adc_nids[0]);
 	}
 
  skip_analog:
@@ -5202,20 +5497,16 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 			info->pcm_type = spec->dig_out_type;
 		else
 			info->pcm_type = HDA_PCM_TYPE_SPDIF;
-		if (spec->multiout.dig_out_nid) {
-			p = spec->stream_digital_playback;
-			if (!p)
-				p = &pcm_digital_playback;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *p;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dig_out_nid;
-		}
-		if (spec->dig_in_nid) {
-			p = spec->stream_digital_capture;
-			if (!p)
-				p = &pcm_digital_capture;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *p;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in_nid;
-		}
+		if (spec->multiout.dig_out_nid)
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_PLAYBACK],
+					 &pcm_digital_playback,
+					 spec->stream_digital_playback,
+					 spec->multiout.dig_out_nid);
+		if (spec->dig_in_nid)
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_CAPTURE],
+					 &pcm_digital_capture,
+					 spec->stream_digital_capture,
+					 spec->dig_in_nid);
 	}
 
 	if (spec->no_analog)
@@ -5236,31 +5527,24 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 		if (!info)
 			return -ENOMEM;
 		spec->pcm_rec[2] = info;
-		if (spec->alt_dac_nid) {
-			p = spec->stream_analog_alt_playback;
-			if (!p)
-				p = &pcm_analog_alt_playback;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *p;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
-				spec->alt_dac_nid;
-		} else {
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
-				pcm_null_stream;
-			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = 0;
-		}
+		if (spec->alt_dac_nid)
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_PLAYBACK],
+					 &pcm_analog_alt_playback,
+					 spec->stream_analog_alt_playback,
+					 spec->alt_dac_nid);
+		else
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_PLAYBACK],
+					 &pcm_null_stream, NULL, 0);
 		if (have_multi_adcs) {
-			p = spec->stream_analog_alt_capture;
-			if (!p)
-				p = &pcm_analog_alt_capture;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *p;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid =
-				spec->adc_nids[1];
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_CAPTURE],
+					 &pcm_analog_alt_capture,
+					 spec->stream_analog_alt_capture,
+					 spec->adc_nids[1]);
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams =
 				spec->num_adc_nids - 1;
 		} else {
-			info->stream[SNDRV_PCM_STREAM_CAPTURE] =
-				pcm_null_stream;
-			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = 0;
+			setup_pcm_stream(&info->stream[SNDRV_PCM_STREAM_CAPTURE],
+					 &pcm_null_stream, NULL, 0);
 		}
 	}
 
@@ -5467,6 +5751,8 @@ int snd_hda_gen_init(struct hda_codec *codec)
 	init_digital(codec);
 
 	clear_unsol_on_unused_pins(codec);
+
+	sync_all_pin_power_ctls(codec);
 
 	/* call init functions of standard auto-mute helpers */
 	update_automute_all(codec);
