@@ -173,8 +173,8 @@ static int genpd_power_on(struct generic_pm_domain *genpd)
 	genpd->power_on_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
 	genpd_recalc_cpu_exit_latency(genpd);
-	pr_warn("%s: Power-%s latency exceeded, new value %lld ns\n",
-		genpd->name, "on", elapsed_ns);
+	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
+		 genpd->name, "on", elapsed_ns);
 
 	return ret;
 }
@@ -199,8 +199,8 @@ static int genpd_power_off(struct generic_pm_domain *genpd)
 
 	genpd->power_off_latency_ns = elapsed_ns;
 	genpd->max_off_time_changed = true;
-	pr_warn("%s: Power-%s latency exceeded, new value %lld ns\n",
-		genpd->name, "off", elapsed_ns);
+	pr_debug("%s: Power-%s latency exceeded, new value %lld ns\n",
+		 genpd->name, "off", elapsed_ns);
 
 	return ret;
 }
