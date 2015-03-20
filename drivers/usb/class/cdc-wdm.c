@@ -339,7 +339,7 @@ static ssize_t wdm_write
 	desc->werr = 0;
 	spin_unlock_irq(&desc->iuspin);
 	if (we < 0)
-		return -EIO;
+		return usb_translate_errors(we);
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf) {
