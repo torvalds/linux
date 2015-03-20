@@ -1045,7 +1045,7 @@ static void usb_debugfs_cleanup(void)
 static int __init usb_init(void)
 {
 	int retval;
-	if (nousb) {
+	if (usb_disabled()) {
 		pr_info("%s: USB support disabled\n", usbcore_name);
 		return 0;
 	}
@@ -1102,7 +1102,7 @@ out:
 static void __exit usb_exit(void)
 {
 	/* This will matter if shutdown/reboot does exitcalls. */
-	if (nousb)
+	if (usb_disabled())
 		return;
 
 	usb_deregister_device_driver(&usb_generic_driver);
