@@ -425,6 +425,12 @@ static int __init video_disable_native_backlight(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init video_enable_native_backlight(const struct dmi_system_id *d)
+{
+	use_native_backlight_dmi = NATIVE_BACKLIGHT_ON;
+	return 0;
+}
+
 static struct dmi_system_id video_dmi_table[] __initdata = {
 	/*
 	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
@@ -564,6 +570,17 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "XPS L521X"),
+		},
+	},
+
+	/* Non win8 machines which need native backlight nevertheless */
+	{
+	 /* https://bugzilla.redhat.com/show_bug.cgi?id=1187004 */
+	 .callback = video_enable_native_backlight,
+	 .ident = "Lenovo Ideapad Z570",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "102434U"),
 		},
 	},
 	{}
