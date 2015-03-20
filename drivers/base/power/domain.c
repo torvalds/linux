@@ -68,7 +68,36 @@ static struct generic_pm_domain *pm_genpd_lookup_name(const char *domain_name)
 	return genpd;
 }
 
-struct generic_pm_domain *dev_to_genpd(struct device *dev)
+/*
+ * Get the generic PM domain for a particular struct device.
+ * This validates the struct device pointer, the PM domain pointer,
+ * and checks that the PM domain pointer is a real generic PM domain.
+ * Any failure results in NULL being returned.
+ */
+struct generic_pm_domain *pm_genpd_lookup_dev(struct device *dev)
+{
+	struct generic_pm_domain *genpd = NULL, *gpd;
+
+	if (IS_ERR_OR_NULL(dev) || IS_ERR_OR_NULL(dev->pm_domain))
+		return NULL;
+
+	mutex_lock(&gpd_list_lock);
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
+		if (&gpd->domain == dev->pm_domain) {
+			genpd = gpd;
+			break;
+		}
+	}
+	mutex_unlock(&gpd_list_lock);
+
+	return genpd;
+}
+
+/*
+ * This should only be used where we are certain that the pm_domain
+ * attached to the device is a genpd domain.
+ */
+static struct generic_pm_domain *dev_to_genpd(struct device *dev)
 {
 	if (IS_ERR_OR_NULL(dev->pm_domain))
 		return ERR_PTR(-EINVAL);
@@ -2093,21 +2122,10 @@ EXPORT_SYMBOL_GPL(of_genpd_get_from_provider);
  */
 static void genpd_dev_pm_detach(struct device *dev, bool power_off)
 {
-	struct generic_pm_domain *pd = NULL, *gpd;
+	struct generic_pm_domain *pd;
 	int ret = 0;
 
-	if (!dev->pm_domain)
-		return;
-
-	mutex_lock(&gpd_list_lock);
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
-		if (&gpd->domain == dev->pm_domain) {
-			pd = gpd;
-			break;
-		}
-	}
-	mutex_unlock(&gpd_list_lock);
-
+	pd = pm_genpd_lookup_dev(dev);
 	if (!pd)
 		return;
 
