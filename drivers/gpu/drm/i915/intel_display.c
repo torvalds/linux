@@ -431,25 +431,41 @@ bool intel_pipe_has_type(struct intel_crtc *crtc, enum intel_output_type type)
  * intel_pipe_has_type() but looking at encoder->new_crtc instead of
  * encoder->crtc.
  */
-static bool intel_pipe_will_have_type(struct intel_crtc *crtc, int type)
+static bool intel_pipe_will_have_type(const struct intel_crtc_state *crtc_state,
+				      int type)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
+	int i, num_connectors = 0;
 
-	for_each_intel_encoder(dev, encoder)
-		if (encoder->new_crtc == crtc && encoder->type == type)
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
+			continue;
+
+		connector_state = state->connector_states[i];
+		if (connector_state->crtc != crtc_state->base.crtc)
+			continue;
+
+		num_connectors++;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
+		if (encoder->type == type)
 			return true;
+	}
+
+	WARN_ON(num_connectors == 0);
 
 	return false;
 }
 
-static const intel_limit_t *intel_ironlake_limit(struct intel_crtc *crtc,
-						int refclk)
+static const intel_limit_t *
+intel_ironlake_limit(struct intel_crtc_state *crtc_state, int refclk)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
 	const intel_limit_t *limit;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS)) {
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_is_dual_link_lvds(dev)) {
 			if (refclk == 100000)
 				limit = &intel_limits_ironlake_dual_lvds_100m;
@@ -467,20 +483,21 @@ static const intel_limit_t *intel_ironlake_limit(struct intel_crtc *crtc,
 	return limit;
 }
 
-static const intel_limit_t *intel_g4x_limit(struct intel_crtc *crtc)
+static const intel_limit_t *
+intel_g4x_limit(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
 	const intel_limit_t *limit;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS)) {
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_is_dual_link_lvds(dev))
 			limit = &intel_limits_g4x_dual_channel_lvds;
 		else
 			limit = &intel_limits_g4x_single_channel_lvds;
-	} else if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_HDMI) ||
-		   intel_pipe_will_have_type(crtc, INTEL_OUTPUT_ANALOG)) {
+	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_HDMI) ||
+		   intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
 		limit = &intel_limits_g4x_hdmi;
-	} else if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_SDVO)) {
+	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_SDVO)) {
 		limit = &intel_limits_g4x_sdvo;
 	} else /* The option is for other outputs */
 		limit = &intel_limits_i9xx_sdvo;
@@ -488,17 +505,18 @@ static const intel_limit_t *intel_g4x_limit(struct intel_crtc *crtc)
 	return limit;
 }
 
-static const intel_limit_t *intel_limit(struct intel_crtc *crtc, int refclk)
+static const intel_limit_t *
+intel_limit(struct intel_crtc_state *crtc_state, int refclk)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
 	const intel_limit_t *limit;
 
 	if (HAS_PCH_SPLIT(dev))
-		limit = intel_ironlake_limit(crtc, refclk);
+		limit = intel_ironlake_limit(crtc_state, refclk);
 	else if (IS_G4X(dev)) {
-		limit = intel_g4x_limit(crtc);
+		limit = intel_g4x_limit(crtc_state);
 	} else if (IS_PINEVIEW(dev)) {
-		if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS))
+		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_pineview_lvds;
 		else
 			limit = &intel_limits_pineview_sdvo;
@@ -507,14 +525,14 @@ static const intel_limit_t *intel_limit(struct intel_crtc *crtc, int refclk)
 	} else if (IS_VALLEYVIEW(dev)) {
 		limit = &intel_limits_vlv;
 	} else if (!IS_GEN2(dev)) {
-		if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS))
+		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i9xx_lvds;
 		else
 			limit = &intel_limits_i9xx_sdvo;
 	} else {
-		if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS))
+		if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
 			limit = &intel_limits_i8xx_lvds;
-		else if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_DVO))
+		else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_DVO))
 			limit = &intel_limits_i8xx_dvo;
 		else
 			limit = &intel_limits_i8xx_dac;
@@ -601,15 +619,17 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 }
 
 static bool
-i9xx_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
+i9xx_find_best_dpll(const intel_limit_t *limit,
+		    struct intel_crtc_state *crtc_state,
 		    int target, int refclk, intel_clock_t *match_clock,
 		    intel_clock_t *best_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	intel_clock_t clock;
 	int err = target;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS)) {
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		/*
 		 * For LVDS just rely on its current settings for dual-channel.
 		 * We haven't figured out how to reliably set up different
@@ -662,15 +682,17 @@ i9xx_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 }
 
 static bool
-pnv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
+pnv_find_best_dpll(const intel_limit_t *limit,
+		   struct intel_crtc_state *crtc_state,
 		   int target, int refclk, intel_clock_t *match_clock,
 		   intel_clock_t *best_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	intel_clock_t clock;
 	int err = target;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS)) {
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		/*
 		 * For LVDS just rely on its current settings for dual-channel.
 		 * We haven't figured out how to reliably set up different
@@ -721,10 +743,12 @@ pnv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 }
 
 static bool
-g4x_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
+g4x_find_best_dpll(const intel_limit_t *limit,
+		   struct intel_crtc_state *crtc_state,
 		   int target, int refclk, intel_clock_t *match_clock,
 		   intel_clock_t *best_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	intel_clock_t clock;
 	int max_n;
@@ -733,7 +757,7 @@ g4x_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 	int err_most = (target >> 8) + (target >> 9);
 	found = false;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS)) {
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_is_dual_link_lvds(dev))
 			clock.p2 = limit->p2.p2_fast;
 		else
@@ -818,10 +842,12 @@ static bool vlv_PLL_is_optimal(struct drm_device *dev, int target_freq,
 }
 
 static bool
-vlv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
+vlv_find_best_dpll(const intel_limit_t *limit,
+		   struct intel_crtc_state *crtc_state,
 		   int target, int refclk, intel_clock_t *match_clock,
 		   intel_clock_t *best_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	intel_clock_t clock;
 	unsigned int bestppm = 1000000;
@@ -870,10 +896,12 @@ vlv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
 }
 
 static bool
-chv_find_best_dpll(const intel_limit_t *limit, struct intel_crtc *crtc,
+chv_find_best_dpll(const intel_limit_t *limit,
+		   struct intel_crtc_state *crtc_state,
 		   int target, int refclk, intel_clock_t *match_clock,
 		   intel_clock_t *best_clock)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_device *dev = crtc->base.dev;
 	unsigned int best_error_ppm;
 	intel_clock_t clock;
@@ -5795,7 +5823,7 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	 * - LVDS dual channel mode
 	 * - Double wide pipe
 	 */
-	if ((intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS) &&
+	if ((intel_pipe_will_have_type(pipe_config, INTEL_OUTPUT_LVDS) &&
 	     intel_is_dual_link_lvds(dev)) || pipe_config->double_wide)
 		pipe_config->pipe_src_w &= ~1;
 
@@ -5974,15 +6002,18 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
-static int i9xx_get_refclk(struct intel_crtc *crtc, int num_connectors)
+static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
+			   int num_connectors)
 {
-	struct drm_device *dev = crtc->base.dev;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int refclk;
 
+	WARN_ON(!crtc_state->base.state);
+
 	if (IS_VALLEYVIEW(dev)) {
 		refclk = 100000;
-	} else if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS) &&
+	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
 		refclk = dev_priv->vbt.lvds_ssc_freq;
 		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
@@ -6025,7 +6056,7 @@ static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 	crtc_state->dpll_hw_state.fp0 = fp;
 
 	crtc->lowfreq_avail = false;
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS) &&
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    reduced_clock) {
 		crtc_state->dpll_hw_state.fp1 = fp2;
 		crtc->lowfreq_avail = true;
@@ -6383,6 +6414,7 @@ void vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 	struct intel_crtc *crtc =
 		to_intel_crtc(intel_get_crtc_for_pipe(dev, pipe));
 	struct intel_crtc_state pipe_config = {
+		.base.crtc = &crtc->base,
 		.pixel_multiplier = 1,
 		.dpll = *dpll,
 	};
@@ -6427,12 +6459,12 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 
 	i9xx_update_pll_dividers(crtc, crtc_state, reduced_clock);
 
-	is_sdvo = intel_pipe_will_have_type(crtc, INTEL_OUTPUT_SDVO) ||
-		intel_pipe_will_have_type(crtc, INTEL_OUTPUT_HDMI);
+	is_sdvo = intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_SDVO) ||
+		intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_HDMI);
 
 	dpll = DPLL_VGA_MODE_DIS;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS))
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS))
 		dpll |= DPLLB_MODE_LVDS;
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
@@ -6475,7 +6507,7 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 
 	if (crtc_state->sdvo_tv_clock)
 		dpll |= PLL_REF_INPUT_TVCLKINBC;
-	else if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS) &&
+	else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
@@ -6505,7 +6537,7 @@ static void i8xx_update_pll(struct intel_crtc *crtc,
 
 	dpll = DPLL_VGA_MODE_DIS;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS)) {
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
 	} else {
 		if (clock->p1 == 2)
@@ -6516,10 +6548,10 @@ static void i8xx_update_pll(struct intel_crtc *crtc,
 			dpll |= PLL_P2_DIVIDE_BY_4;
 	}
 
-	if (!IS_I830(dev) && intel_pipe_will_have_type(crtc, INTEL_OUTPUT_DVO))
+	if (!IS_I830(dev) && intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_DVO))
 		dpll |= DPLL_DVO_2X_MODE;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS) &&
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
@@ -6756,7 +6788,7 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 		return 0;
 
 	if (!crtc_state->clock_set) {
-		refclk = i9xx_get_refclk(crtc, num_connectors);
+		refclk = i9xx_get_refclk(crtc_state, num_connectors);
 
 		/*
 		 * Returns a set of divisors for the desired target clock with
@@ -6764,8 +6796,8 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 		 * the clock equation: reflck * (5 * (m1 + 2) + (m2 + 2)) / (n +
 		 * 2) / p1 / p2.
 		 */
-		limit = intel_limit(crtc, refclk);
-		ok = dev_priv->display.find_dpll(limit, crtc,
+		limit = intel_limit(crtc_state, refclk);
+		ok = dev_priv->display.find_dpll(limit, crtc_state,
 						 crtc_state->port_clock,
 						 refclk, NULL, &clock);
 		if (!ok) {
@@ -6781,7 +6813,7 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 			 * we will disable the LVDS downclock feature.
 			 */
 			has_reduced_clock =
-				dev_priv->display.find_dpll(limit, crtc,
+				dev_priv->display.find_dpll(limit, crtc_state,
 							    dev_priv->lvds_downclock,
 							    refclk, &clock,
 							    &reduced_clock);
@@ -7609,12 +7641,11 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int refclk;
 	const intel_limit_t *limit;
 	bool ret, is_lvds = false;
 
-	is_lvds = intel_pipe_will_have_type(intel_crtc, INTEL_OUTPUT_LVDS);
+	is_lvds = intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS);
 
 	refclk = ironlake_get_refclk(crtc);
 
@@ -7623,8 +7654,8 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	 * refclk, or FALSE.  The returned values represent the clock equation:
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
-	limit = intel_limit(intel_crtc, refclk);
-	ret = dev_priv->display.find_dpll(limit, intel_crtc,
+	limit = intel_limit(crtc_state, refclk);
+	ret = dev_priv->display.find_dpll(limit, crtc_state,
 					  crtc_state->port_clock,
 					  refclk, NULL, clock);
 	if (!ret)
@@ -7638,7 +7669,7 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 		 * downclock feature.
 		*/
 		*has_reduced_clock =
-			dev_priv->display.find_dpll(limit, intel_crtc,
+			dev_priv->display.find_dpll(limit, crtc_state,
 						    dev_priv->lvds_downclock,
 						    refclk, clock,
 						    reduced_clock);
