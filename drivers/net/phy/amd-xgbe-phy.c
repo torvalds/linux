@@ -1816,6 +1816,7 @@ static struct phy_driver amd_xgbe_phy_driver[] = {
 		.phy_id_mask		= XGBE_PHY_MASK,
 		.name			= "AMD XGBE PHY",
 		.features		= 0,
+		.flags			= PHY_IS_INTERNAL,
 		.probe			= amd_xgbe_phy_probe,
 		.remove			= amd_xgbe_phy_remove,
 		.soft_reset		= amd_xgbe_phy_soft_reset,

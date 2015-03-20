@@ -291,7 +291,6 @@ static int xgbe_get_settings(struct net_device *netdev,
 		return -ENODEV;
 
 	ret = phy_ethtool_gset(pdata->phydev, cmd);
-	cmd->transceiver = XCVR_EXTERNAL;
 
 	DBGPR("<--xgbe_get_settings\n");
 
