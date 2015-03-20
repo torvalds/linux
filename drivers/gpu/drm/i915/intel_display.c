@@ -10538,8 +10538,11 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct intel_encoder *encoder;
+	struct intel_connector *connector;
+	struct drm_connector_state *connector_state;
 	struct intel_crtc_state *pipe_config;
 	int plane_bpp, ret = -EINVAL;
+	int i;
 	bool retry = true;
 
 	if (!check_encoder_cloning(to_intel_crtc(crtc))) {
@@ -10613,10 +10616,16 @@ encoder_retry:
 	 * adjust it according to limitations or connector properties, and also
 	 * a chance to reject the mode entirely.
 	 */
-	for_each_intel_encoder(dev, encoder) {
-
-		if (&encoder->new_crtc->base != crtc)
+	for (i = 0; i < state->num_connector; i++) {
+		connector = to_intel_connector(state->connectors[i]);
+		if (!connector)
 			continue;
+
+		connector_state = state->connector_states[i];
+		if (connector_state->crtc != crtc)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
 
 		if (!(encoder->compute_config(encoder, pipe_config))) {
 			DRM_DEBUG_KMS("Encoder config failure\n");
@@ -11339,6 +11348,11 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc_state *pipe_config = NULL;
 	struct intel_crtc *intel_crtc;
+	int ret = 0;
+
+	ret = drm_atomic_add_affected_connectors(state, crtc);
+	if (ret)
+		return ERR_PTR(ret);
 
 	intel_modeset_affected_pipes(crtc, modeset_pipes,
 				     prepare_pipes, disable_pipes);
