@@ -36,11 +36,11 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct drm_device *dev = encoder->base.dev;
-	int bpp;
+	struct drm_atomic_state *state;
+	int bpp, i;
 	int lane_count, slots, rate;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	struct intel_connector *found = NULL, *intel_connector;
+	struct intel_connector *found = NULL;
 	int mst_pbn;
 
 	pipe_config->dp_encoder_is_mst = true;
@@ -68,9 +68,14 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	pipe_config->pipe_bpp = 24;
 	pipe_config->port_clock = rate;
 
-	for_each_intel_connector(dev, intel_connector) {
-		if (intel_connector->new_encoder == encoder) {
-			found = intel_connector;
+	state = pipe_config->base.state;
+
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
+			continue;
+
+		if (state->connector_states[i]->best_encoder == &encoder->base) {
+			found = to_intel_connector(state->connectors[i]);
 			break;
 		}
 	}
