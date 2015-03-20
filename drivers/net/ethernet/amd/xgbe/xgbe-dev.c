@@ -1068,7 +1068,7 @@ static void xgbe_tx_desc_reset(struct xgbe_ring_data *rdata)
 	rdesc->desc3 = 0;
 
 	/* Make sure ownership is written to the descriptor */
-	wmb();
+	dma_wmb();
 }
 
 static void xgbe_tx_desc_init(struct xgbe_channel *channel)
@@ -1124,12 +1124,12 @@ static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
 	 * is written to the descriptor(s) before setting the OWN bit
 	 * for the descriptor
 	 */
-	wmb();
+	dma_wmb();
 
 	XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, OWN, 1);
 
 	/* Make sure ownership is written to the descriptor */
-	wmb();
+	dma_wmb();
 }
 
 static void xgbe_rx_desc_init(struct xgbe_channel *channel)
@@ -1358,6 +1358,9 @@ static void xgbe_tx_start_xmit(struct xgbe_channel *channel,
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct xgbe_ring_data *rdata;
 
+	/* Make sure everything is written before the register write */
+	wmb();
+
 	/* Issue a poll command to Tx DMA by writing address
 	 * of next immediate free descriptor */
 	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
@@ -1565,7 +1568,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	 * is written to the descriptor(s) before setting the OWN bit
 	 * for the first descriptor
 	 */
-	wmb();
+	dma_wmb();
 
 	/* Set OWN bit for the first descriptor */
 	rdata = XGBE_GET_DESC_DATA(ring, start_index);
@@ -1577,7 +1580,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 #endif
 
 	/* Make sure ownership is written to the descriptor */
-	wmb();
+	dma_wmb();
 
 	ring->cur = cur_index + 1;
 	if (!packet->skb->xmit_more ||
@@ -1613,7 +1616,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		return 1;
 
 	/* Make sure descriptor fields are read after reading the OWN bit */
-	rmb();
+	dma_rmb();
 
 #ifdef XGMAC_ENABLE_RX_DESC_DUMP
 	xgbe_dump_rx_desc(ring, rdesc, ring->cur);

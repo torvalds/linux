@@ -1800,6 +1800,9 @@ static void xgbe_rx_refresh(struct xgbe_channel *channel)
 		ring->dirty++;
 	}
 
+	/* Make sure everything is written before the register write */
+	wmb();
+
 	/* Update the Rx Tail Pointer Register with address of
 	 * the last cleaned entry */
 	rdata = XGBE_GET_DESC_DATA(ring, ring->dirty - 1);
@@ -1863,7 +1866,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 
 		/* Make sure descriptor fields are read after reading the OWN
 		 * bit */
-		rmb();
+		dma_rmb();
 
 #ifdef XGMAC_ENABLE_TX_DESC_DUMP
 		xgbe_dump_tx_desc(ring, ring->dirty, 1, 0);
