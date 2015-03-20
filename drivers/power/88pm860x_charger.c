@@ -495,7 +495,7 @@ static irqreturn_t pm860x_done_handler(int irq, void *data)
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
 			&val);
 	if (ret)
-		goto out;
+		goto out_psy_put;
 	vbatt = val.intval / 1000;
 	/*
 	 * CHG_DONE interrupt is faster than CHG_DET interrupt when
@@ -506,14 +506,15 @@ static irqreturn_t pm860x_done_handler(int irq, void *data)
 	 */
 	ret = pm860x_reg_read(info->i2c, PM8607_STATUS_2);
 	if (ret < 0)
-		goto out;
+		goto out_psy_put;
 	if (vbatt > CHARGE_THRESHOLD && ret & STATUS2_CHG)
 		power_supply_set_property(psy, POWER_SUPPLY_PROP_CHARGE_FULL,
 				&val);
 
+out_psy_put:
+	power_supply_put(psy);
 out:
 	mutex_unlock(&info->lock);
-	power_supply_put(psy);
 	dev_dbg(info->dev, "%s, Allowed: %d\n", __func__, info->allowed);
 	set_charging_fsm(info);
 
