@@ -6312,8 +6312,8 @@ static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 	}
 
 	rp->supported_flags = cpu_to_le32(0);
-	rp->max_adv_data_len = 31;
-	rp->max_scan_rsp_len = 31;
+	rp->max_adv_data_len = HCI_MAX_AD_LENGTH;
+	rp->max_scan_rsp_len = HCI_MAX_AD_LENGTH;
 	rp->max_instances = 0;
 	rp->num_instances = 0;
 
