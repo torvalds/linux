@@ -129,6 +129,7 @@ MODULE_LICENSE("GPL");
 #define HCI_ACCEL_MASK			0x7fff
 #define HCI_HOTKEY_DISABLE		0x0b
 #define HCI_HOTKEY_ENABLE		0x09
+#define HCI_HOTKEY_SPECIAL_FUNCTIONS	0x10
 #define HCI_LCD_BRIGHTNESS_BITS		3
 #define HCI_LCD_BRIGHTNESS_SHIFT	(16-HCI_LCD_BRIGHTNESS_BITS)
 #define HCI_LCD_BRIGHTNESS_LEVELS	(1 << HCI_LCD_BRIGHTNESS_BITS)
@@ -2335,6 +2336,20 @@ static int toshiba_acpi_enable_hotkeys(struct toshiba_acpi_dev *dev)
 	return 0;
 }
 
+static void toshiba_acpi_enable_special_functions(struct toshiba_acpi_dev *dev)
+{
+	u32 result;
+
+	/*
+	 * Re-activate the hotkeys, but this time, we are using the
+	 * "Special Functions" mode.
+	 */
+	result = hci_write1(dev, HCI_HOTKEY_EVENT,
+			    HCI_HOTKEY_SPECIAL_FUNCTIONS);
+	if (result != TOS_SUCCESS)
+		pr_err("Could not enable the Special Function mode\n");
+}
+
 static bool toshiba_acpi_i8042_filter(unsigned char data, unsigned char str,
 				      struct serio *port)
 {
@@ -2638,6 +2653,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev;
 	const char *hci_method;
+	u32 special_functions;
 	u32 dummy;
 	bool bt_present;
 	int ret = 0;
@@ -2669,7 +2685,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	 * with the new keyboard layout, query for its presence to help
 	 * determine the keymap layout to use.
 	 */
-	ret = toshiba_function_keys_get(dev, &dummy);
+	ret = toshiba_function_keys_get(dev, &special_functions);
 	dev->kbd_function_keys_supported = !ret;
 
 	if (toshiba_acpi_setup_keyboard(dev))
@@ -2760,6 +2776,13 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	ret = get_fan_status(dev, &dummy);
 	dev->fan_supported = !ret;
+
+	/*
+	 * Enable the "Special Functions" mode only if they are
+	 * supported and if they are activated.
+	 */
+	if (dev->kbd_function_keys_supported && special_functions)
+		toshiba_acpi_enable_special_functions(dev);
 
 	ret = sysfs_create_group(&dev->acpi_dev->dev.kobj,
 				 &toshiba_attr_group);
