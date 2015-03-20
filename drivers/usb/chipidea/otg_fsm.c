@@ -320,17 +320,6 @@ static void a_wait_vfall_tmout_func(void *ptr, unsigned long indicator)
 	ci_otg_queue_work(ci);
 }
 
-static void b_ase0_brst_tmout_func(void *ptr, unsigned long indicator)
-{
-	struct ci_hdrc *ci = (struct ci_hdrc *)ptr;
-
-	set_tmout(ci, indicator);
-	if (!hw_read_otgsc(ci, OTGSC_BSV))
-		ci->fsm.b_sess_vld = 0;
-
-	ci_otg_queue_work(ci);
-}
-
 static void b_ssend_srp_tmout_func(void *ptr, unsigned long indicator)
 {
 	struct ci_hdrc *ci = (struct ci_hdrc *)ptr;
@@ -340,18 +329,6 @@ static void b_ssend_srp_tmout_func(void *ptr, unsigned long indicator)
 	/* only vbus fall below B_sess_vld in b_idle state */
 	if (ci->fsm.otg->state == OTG_STATE_B_IDLE)
 		ci_otg_queue_work(ci);
-}
-
-static void b_sess_vld_tmout_func(void *ptr, unsigned long indicator)
-{
-	struct ci_hdrc *ci = (struct ci_hdrc *)ptr;
-
-	/* Check if A detached */
-	if (!(hw_read_otgsc(ci, OTGSC_BSV))) {
-		ci->fsm.b_sess_vld = 0;
-		ci_otg_add_timer(ci, B_SSEND_SRP);
-		ci_otg_queue_work(ci);
-	}
 }
 
 static void b_data_pulse_end(void *ptr, unsigned long indicator)
@@ -405,7 +382,7 @@ static int ci_otg_init_timers(struct ci_hdrc *ci)
 		return -ENOMEM;
 
 	ci->fsm_timer->timer_list[B_ASE0_BRST] =
-		otg_timer_initializer(ci, &b_ase0_brst_tmout_func, TB_ASE0_BRST,
+		otg_timer_initializer(ci, &set_tmout_and_fsm, TB_ASE0_BRST,
 					(unsigned long)&fsm->b_ase0_brst_tmout);
 	if (ci->fsm_timer->timer_list[B_ASE0_BRST] == NULL)
 		return -ENOMEM;
@@ -431,11 +408,6 @@ static int ci_otg_init_timers(struct ci_hdrc *ci)
 	ci->fsm_timer->timer_list[B_DATA_PLS] =
 		otg_timer_initializer(ci, &b_data_pulse_end, TB_DATA_PLS, 0);
 	if (ci->fsm_timer->timer_list[B_DATA_PLS] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[B_SESS_VLD] =	otg_timer_initializer(ci,
-					&b_sess_vld_tmout_func, TB_SESS_VLD, 0);
-	if (ci->fsm_timer->timer_list[B_SESS_VLD] == NULL)
 		return -ENOMEM;
 
 	return 0;
@@ -671,7 +643,6 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 			fsm->a_conn = 0;
 			fsm->b_bus_req = 0;
 			ci_otg_queue_work(ci);
-			ci_otg_add_timer(ci, B_SESS_VLD);
 		}
 		break;
 	case OTG_STATE_A_PERIPHERAL:

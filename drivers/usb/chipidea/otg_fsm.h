@@ -62,8 +62,6 @@
 /* SSEND time before SRP */
 #define TB_SSEND_SRP         (1500)	/* minimum 1.5 sec, section:5.1.2 */
 
-#define TB_SESS_VLD          (1000)
-
 enum ci_otg_fsm_timer_index {
 	/*
 	 * CI specific timers, start from the end
@@ -71,7 +69,6 @@ enum ci_otg_fsm_timer_index {
 	 */
 	B_DATA_PLS = NUM_OTG_FSM_TIMERS,
 	B_SSEND_SRP,
-	B_SESS_VLD,
 
 	NUM_CI_OTG_FSM_TIMERS,
 };
