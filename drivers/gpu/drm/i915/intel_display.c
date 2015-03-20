@@ -10319,8 +10319,9 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 			  struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
+	struct drm_atomic_state *state;
 	struct intel_connector *connector;
-	int bpp;
+	int bpp, i;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_C8:
@@ -10360,10 +10361,15 @@ compute_baseline_pipe_bpp(struct intel_crtc *crtc,
 
 	pipe_config->pipe_bpp = bpp;
 
+	state = pipe_config->base.state;
+
 	/* Clamp display bpp to EDID value */
-	for_each_intel_connector(dev, connector) {
-		if (!connector->new_encoder ||
-		    connector->new_encoder->new_crtc != crtc)
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
+			continue;
+
+		connector = to_intel_connector(state->connectors[i]);
+		if (state->connector_states[i]->crtc != &crtc->base)
 			continue;
 
 		connected_sink_compute_bpp(connector, pipe_config);
