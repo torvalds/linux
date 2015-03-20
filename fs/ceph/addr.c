@@ -1146,6 +1146,10 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 		     inode, page, (int)pos, (int)len);
 
 		r = ceph_update_writeable_page(file, pos, len, page);
+		if (r < 0)
+			page_cache_release(page);
+		else
+			*pagep = page;
 	} while (r == -EAGAIN);
 
 	return r;
