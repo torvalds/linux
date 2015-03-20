@@ -66,7 +66,11 @@ struct btrfs_inode {
 	 */
 	struct btrfs_key location;
 
-	/* Lock for counters */
+	/*
+	 * Lock for counters and all fields used to determine if the inode is in
+	 * the log or not (last_trans, last_sub_trans, last_log_commit,
+	 * logged_trans).
+	 */
 	spinlock_t lock;
 
 	/* the extent_tree has caches of all the extent mappings to disk */
@@ -250,6 +254,9 @@ static inline bool btrfs_is_free_space_inode(struct inode *inode)
 
 static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 {
+	int ret = 0;
+
+	spin_lock(&BTRFS_I(inode)->lock);
 	if (BTRFS_I(inode)->logged_trans == generation &&
 	    BTRFS_I(inode)->last_sub_trans <=
 	    BTRFS_I(inode)->last_log_commit &&
@@ -263,9 +270,10 @@ static inline int btrfs_inode_in_log(struct inode *inode, u64 generation)
 		 */
 		smp_mb();
 		if (list_empty(&BTRFS_I(inode)->extent_tree.modified_extents))
-			return 1;
+			ret = 1;
 	}
-	return 0;
+	spin_unlock(&BTRFS_I(inode)->lock);
+	return ret;
 }
 
 #define BTRFS_DIO_ORIG_BIO_SUBMITTED	0x1
