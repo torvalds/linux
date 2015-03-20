@@ -1544,7 +1544,6 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 #endif
 
 		hw_ep->regs = musb->io.ep_offset(i, 0) + mbase;
-		hw_ep->target_regs = musb_read_target_reg_base(i, mbase);
 		hw_ep->rx_reinit = 1;
 		hw_ep->tx_reinit = 1;
 
@@ -2352,7 +2351,6 @@ static void musb_restore_context(struct musb *musb)
 {
 	int i;
 	void __iomem *musb_base = musb->mregs;
-	void __iomem *ep_target_regs;
 	void __iomem *epio;
 	u8 power;
 
@@ -2420,14 +2418,11 @@ static void musb_restore_context(struct musb *musb)
 		musb_write_txhubport(musb_base, i,
 				musb->context.index_regs[i].txhubport);
 
-		ep_target_regs =
-			musb_read_target_reg_base(i, musb_base);
-
-		musb_write_rxfunaddr(ep_target_regs,
+		musb_write_rxfunaddr(musb_base, i,
 				musb->context.index_regs[i].rxfunaddr);
-		musb_write_rxhubaddr(ep_target_regs,
+		musb_write_rxhubaddr(musb_base, i,
 				musb->context.index_regs[i].rxhubaddr);
-		musb_write_rxhubport(ep_target_regs,
+		musb_write_rxhubport(musb_base, i,
 				musb->context.index_regs[i].rxhubport);
 	}
 	musb_writeb(musb_base, MUSB_INDEX, musb->context.index);

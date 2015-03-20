@@ -555,8 +555,9 @@ musb_host_packet_rx(struct musb *musb, struct urb *urb, u8 epnum, u8 iso_err)
  * the busy/not-empty tests are basically paranoia.
  */
 static void
-musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
+musb_rx_reinit(struct musb *musb, struct musb_qh *qh, u8 epnum)
 {
+	struct musb_hw_ep *ep = musb->endpoints + epnum;
 	u16	csr;
 
 	/* NOTE:  we know the "rx" fifo reinit never triggers for ep0.
@@ -594,10 +595,9 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 
 	/* target addr and (for multipoint) hub addr/port */
 	if (musb->is_multipoint) {
-		musb_write_rxfunaddr(ep->target_regs, qh->addr_reg);
-		musb_write_rxhubaddr(ep->target_regs, qh->h_addr_reg);
-		musb_write_rxhubport(ep->target_regs, qh->h_port_reg);
-
+		musb_write_rxfunaddr(musb->mregs, epnum, qh->addr_reg);
+		musb_write_rxhubaddr(musb->mregs, epnum, qh->h_addr_reg);
+		musb_write_rxhubport(musb->mregs, epnum, qh->h_port_reg);
 	} else
 		musb_writeb(musb->mregs, MUSB_FADDR, qh->addr_reg);
 
@@ -910,7 +910,7 @@ finish:
 		u16	csr;
 
 		if (hw_ep->rx_reinit) {
-			musb_rx_reinit(musb, qh, hw_ep);
+			musb_rx_reinit(musb, qh, epnum);
 
 			/* init new state: toggle and NYET, maybe DMA later */
 			if (usb_gettoggle(urb->dev, qh->epnum, 0))

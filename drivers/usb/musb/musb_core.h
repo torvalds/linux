@@ -250,8 +250,6 @@ struct musb_hw_ep {
 	void __iomem		*fifo_sync_va;
 #endif
 
-	void __iomem		*target_regs;
-
 	/* currently scheduled peripheral endpoint */
 	struct musb_qh		*in_qh;
 	struct musb_qh		*out_qh;
