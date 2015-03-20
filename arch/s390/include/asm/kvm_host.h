@@ -515,15 +515,15 @@ struct s390_io_adapter {
 #define S390_ARCH_FAC_MASK_SIZE_U64 \
 	(S390_ARCH_FAC_MASK_SIZE_BYTE / sizeof(u64))
 
-struct s390_model_fac {
-	/* facilities used in SIE context */
-	__u64 sie[S390_ARCH_FAC_LIST_SIZE_U64];
-	/* subset enabled by kvm */
-	__u64 kvm[S390_ARCH_FAC_LIST_SIZE_U64];
+struct kvm_s390_fac {
+	/* facility list requested by guest */
+	__u64 list[S390_ARCH_FAC_LIST_SIZE_U64];
+	/* facility mask supported by kvm & hosting machine */
+	__u64 mask[S390_ARCH_FAC_LIST_SIZE_U64];
 };
 
 struct kvm_s390_cpu_model {
-	struct s390_model_fac *fac;
+	struct kvm_s390_fac *fac;
 	struct cpuid cpu_id;
 	unsigned short ibc;
 };

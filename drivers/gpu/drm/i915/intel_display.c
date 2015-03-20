@@ -37,6 +37,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -2537,7 +2538,6 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 			break;
 		}
 	}
-
 }
 
 static void i9xx_update_primary_plane(struct drm_crtc *crtc,
@@ -9851,7 +9851,7 @@ void intel_check_page_flip(struct drm_device *dev, int pipe)
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	WARN_ON(!in_irq());
+	WARN_ON(!in_interrupt());
 
 	if (crtc == NULL)
 		return;

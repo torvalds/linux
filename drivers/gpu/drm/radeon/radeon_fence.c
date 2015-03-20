@@ -1030,37 +1030,59 @@ static inline bool radeon_test_signaled(struct radeon_fence *fence)
 	return test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->base.flags);
 }
 
+struct radeon_wait_cb {
+	struct fence_cb base;
+	struct task_struct *task;
+};
+
+static void
+radeon_fence_wait_cb(struct fence *fence, struct fence_cb *cb)
+{
+	struct radeon_wait_cb *wait =
+		container_of(cb, struct radeon_wait_cb, base);
+
+	wake_up_process(wait->task);
+}
+
 static signed long radeon_fence_default_wait(struct fence *f, bool intr,
 					     signed long t)
 {
 	struct radeon_fence *fence = to_radeon_fence(f);
 	struct radeon_device *rdev = fence->rdev;
-	bool signaled;
+	struct radeon_wait_cb cb;
 
-	fence_enable_sw_signaling(&fence->base);
+	cb.task = current;
 
-	/*
-	 * This function has to return -EDEADLK, but cannot hold
-	 * exclusive_lock during the wait because some callers
-	 * may already hold it. This means checking needs_reset without
-	 * lock, and not fiddling with any gpu internals.
-	 *
-	 * The callback installed with fence_enable_sw_signaling will
-	 * run before our wait_event_*timeout call, so we will see
-	 * both the signaled fence and the changes to needs_reset.
-	 */
+	if (fence_add_callback(f, &cb.base, radeon_fence_wait_cb))
+		return t;
 
-	if (intr)
-		t = wait_event_interruptible_timeout(rdev->fence_queue,
-			((signaled = radeon_test_signaled(fence)) ||
-			 rdev->needs_reset), t);
-	else
-		t = wait_event_timeout(rdev->fence_queue,
-			((signaled = radeon_test_signaled(fence)) ||
-			 rdev->needs_reset), t);
+	while (t > 0) {
+		if (intr)
+			set_current_state(TASK_INTERRUPTIBLE);
+		else
+			set_current_state(TASK_UNINTERRUPTIBLE);
 
-	if (t > 0 && !signaled)
-		return -EDEADLK;
+		/*
+		 * radeon_test_signaled must be called after
+		 * set_current_state to prevent a race with wake_up_process
+		 */
+		if (radeon_test_signaled(fence))
+			break;
+
+		if (rdev->needs_reset) {
+			t = -EDEADLK;
+			break;
+		}
+
+		t = schedule_timeout(t);
+
+		if (t > 0 && intr && signal_pending(current))
+			t = -ERESTARTSYS;
+	}
+
+	__set_current_state(TASK_RUNNING);
+	fence_remove_callback(f, &cb.base);
+
 	return t;
 }
 
