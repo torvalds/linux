@@ -14,6 +14,7 @@
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <bcm47xx_nvram.h>
@@ -1330,12 +1331,45 @@ static void bgmac_adjust_link(struct net_device *net_dev)
 	}
 }
 
+static int bgmac_fixed_phy_register(struct bgmac *bgmac)
+{
+	struct fixed_phy_status fphy_status = {
+		.link = 1,
+		.speed = SPEED_1000,
+		.duplex = DUPLEX_FULL,
+	};
+	struct phy_device *phy_dev;
+	int err;
+
+	phy_dev = fixed_phy_register(PHY_POLL, &fphy_status, NULL);
+	if (!phy_dev || IS_ERR(phy_dev)) {
+		bgmac_err(bgmac, "Failed to register fixed PHY device\n");
+		return -ENODEV;
+	}
+
+	err = phy_connect_direct(bgmac->net_dev, phy_dev, bgmac_adjust_link,
+				 PHY_INTERFACE_MODE_MII);
+	if (err) {
+		bgmac_err(bgmac, "Connecting PHY failed\n");
+		return err;
+	}
+
+	bgmac->phy_dev = phy_dev;
+
+	return err;
+}
+
 static int bgmac_mii_register(struct bgmac *bgmac)
 {
+	struct bcma_chipinfo *ci = &bgmac->core->bus->chipinfo;
 	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
 	char bus_id[MII_BUS_ID_SIZE + 3];
 	int i, err = 0;
+
+	if (ci->id == BCMA_CHIP_ID_BCM4707 ||
+	    ci->id == BCMA_CHIP_ID_BCM53018)
+		return bgmac_fixed_phy_register(bgmac);
 
 	mii_bus = mdiobus_alloc();
 	if (!mii_bus)
