@@ -2114,8 +2114,8 @@ static int sdma_suspend(struct device *dev)
 	struct sdma_engine *sdma = platform_get_drvdata(pdev);
 	int i;
 
-	/* Do nothing if not i.MX6SX */
-	if (sdma->drvdata != &sdma_imx6sx)
+	/* Do nothing if not i.MX6SX or i.MX7D*/
+	if (sdma->drvdata != &sdma_imx6sx && sdma->drvdata != &sdma_imx7d)
 		return 0;
 
 	clk_enable(sdma->clk_ipg);
@@ -2146,8 +2146,8 @@ static int sdma_resume(struct device *dev)
 	struct sdma_engine *sdma = platform_get_drvdata(pdev);
 	int i, ret;
 
-	/* Do nothing if not i.MX6SX */
-	if (sdma->drvdata != &sdma_imx6sx)
+	/* Do nothing if not i.MX6SX or i.MX7D*/
+	if (sdma->drvdata != &sdma_imx6sx && sdma->drvdata != &sdma_imx7d)
 		return 0;
 
 	clk_enable(sdma->clk_ipg);
