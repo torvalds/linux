@@ -21,7 +21,7 @@
 static int m88ts2022_cmd(struct m88ts2022_dev *dev, int op, int sleep, u8 reg,
 		u8 mask, u8 val, u8 *reg_val)
 {
-	int ret, i;
+	int ret, i, j;
 	unsigned int utmp;
 	struct m88ts2022_reg_val reg_vals[] = {
 		{0x51, 0x1f - op},
@@ -35,9 +35,9 @@ static int m88ts2022_cmd(struct m88ts2022_dev *dev, int op, int sleep, u8 reg,
 				"i=%d op=%02x reg=%02x mask=%02x val=%02x\n",
 				i, op, reg, mask, val);
 
-		for (i = 0; i < ARRAY_SIZE(reg_vals); i++) {
-			ret = regmap_write(dev->regmap, reg_vals[i].reg,
-					reg_vals[i].val);
+		for (j = 0; j < ARRAY_SIZE(reg_vals); j++) {
+			ret = regmap_write(dev->regmap, reg_vals[j].reg,
+					reg_vals[j].val);
 			if (ret)
 				goto err;
 		}
