@@ -1821,16 +1821,15 @@ static void xgbe_rx_refresh(struct xgbe_channel *channel)
 			  lower_32_bits(rdata->rdesc_dma));
 }
 
-static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
+static struct sk_buff *xgbe_create_skb(struct napi_struct *napi,
 				       struct xgbe_ring_data *rdata,
 				       unsigned int *len)
 {
-	struct net_device *netdev = pdata->netdev;
 	struct sk_buff *skb;
 	u8 *packet;
 	unsigned int copy_len;
 
-	skb = netdev_alloc_skb_ip_align(netdev, rdata->rx.hdr.dma_len);
+	skb = napi_alloc_skb(napi, rdata->rx.hdr.dma_len);
 	if (!skb)
 		return NULL;
 
@@ -2000,7 +1999,7 @@ read_again:
 							rdata->rx.hdr.dma_len,
 							DMA_FROM_DEVICE);
 
-				skb = xgbe_create_skb(pdata, rdata, &put_len);
+				skb = xgbe_create_skb(napi, rdata, &put_len);
 				if (!skb) {
 					error = 1;
 					goto skip_data;
