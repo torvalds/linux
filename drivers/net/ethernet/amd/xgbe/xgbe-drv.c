@@ -702,6 +702,7 @@ void xgbe_init_rx_coalesce(struct xgbe_prv_data *pdata)
 	DBGPR("-->xgbe_init_rx_coalesce\n");
 
 	pdata->rx_riwt = hw_if->usec_to_riwt(pdata, XGMAC_INIT_DMA_RX_USECS);
+	pdata->rx_usecs = XGMAC_INIT_DMA_RX_USECS;
 	pdata->rx_frames = XGMAC_INIT_DMA_RX_FRAMES;
 
 	hw_if->config_rx_coalesce(pdata);
