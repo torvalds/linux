@@ -2387,13 +2387,6 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) &&
-	    (mvm->scan_status & IWL_MVM_SCAN_SCHED)) {
-		ret = iwl_mvm_scan_offload_stop(mvm, true);
-		if (ret)
-			goto out;
-	}
-
 	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
 		IWL_ERR(mvm, "scan while LAR regdomain is not set\n");
 		ret = -EBUSY;
@@ -2403,6 +2396,13 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 	if (mvm->scan_status & IWL_MVM_SCAN_REGULAR) {
 		ret = -EBUSY;
 		goto out;
+	}
+
+	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) &&
+	    (mvm->scan_status & IWL_MVM_SCAN_SCHED)) {
+		ret = iwl_mvm_scan_offload_stop(mvm, true);
+		if (ret)
+			goto out;
 	}
 
 	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
@@ -2758,13 +2758,6 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) &&
-	    (mvm->scan_status & IWL_MVM_SCAN_REGULAR)) {
-		ret = iwl_mvm_cancel_scan(mvm);
-		if (ret)
-			goto out;
-	}
-
 	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
 		IWL_ERR(mvm, "sched-scan while LAR regdomain is not set\n");
 		ret = -EBUSY;
@@ -2779,6 +2772,13 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 	if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
 		ret = -EBUSY;
 		goto out;
+	}
+
+	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) &&
+	    (mvm->scan_status & IWL_MVM_SCAN_REGULAR)) {
+		ret = iwl_mvm_cancel_scan(mvm);
+		if (ret)
+			goto out;
 	}
 
 	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
