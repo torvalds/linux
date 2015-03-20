@@ -61,12 +61,14 @@ static const struct pll_config pll4_config = {
 	.main_output_mask = BIT(23),
 };
 
-#define P_PXO	0
-#define P_PLL4	1
+enum {
+	P_PXO,
+	P_PLL4,
+};
 
-static const u8 lcc_pxo_pll4_map[] = {
-	[P_PXO]		= 0,
-	[P_PLL4]	= 2,
+static const struct parent_map lcc_pxo_pll4_map[] = {
+	{ P_PXO, 0 },
+	{ P_PLL4, 2 }
 };
 
 static const char *lcc_pxo_pll4[] = {

@@ -75,7 +75,7 @@ static u8 clk_rcg2_get_parent(struct clk_hw *hw)
 	cfg >>= CFG_SRC_SEL_SHIFT;
 
 	for (i = 0; i < num_parents; i++)
-		if (cfg == rcg->parent_map[i])
+		if (cfg == rcg->parent_map[i].cfg)
 			return i;
 
 err:
@@ -114,10 +114,10 @@ static int clk_rcg2_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 	int ret;
+	u32 cfg = rcg->parent_map[index].cfg << CFG_SRC_SEL_SHIFT;
 
 	ret = regmap_update_bits(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG,
-				 CFG_SRC_SEL_MASK,
-				 rcg->parent_map[index] << CFG_SRC_SEL_SHIFT);
+				 CFG_SRC_SEL_MASK, cfg);
 	if (ret)
 		return ret;
 
@@ -222,7 +222,11 @@ static long clk_rcg2_determine_rate(struct clk_hw *hw, unsigned long rate,
 static int clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 {
 	u32 cfg, mask;
-	int ret;
+	struct clk_hw *hw = &rcg->clkr.hw;
+	int ret, index = qcom_find_src_index(hw, rcg->parent_map, f->src);
+
+	if (index < 0)
+		return index;
 
 	if (rcg->mnd_width && f->n) {
 		mask = BIT(rcg->mnd_width) - 1;
@@ -245,7 +249,7 @@ static int clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 	mask = BIT(rcg->hid_width) - 1;
 	mask |= CFG_SRC_SEL_MASK | CFG_MODE_MASK;
 	cfg = f->pre_div << CFG_SRC_DIV_SHIFT;
-	cfg |= rcg->parent_map[f->src] << CFG_SRC_SEL_SHIFT;
+	cfg |= rcg->parent_map[index].cfg << CFG_SRC_SEL_SHIFT;
 	if (rcg->mnd_width && f->n && (f->m != f->n))
 		cfg |= CFG_MODE_DUAL_EDGE;
 	ret = regmap_update_bits(rcg->clkr.regmap,

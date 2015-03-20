@@ -26,6 +26,16 @@ struct freq_tbl {
 };
 
 /**
+ * struct parent_map - map table for PLL source select configuration values
+ * @src: source PLL
+ * @cfg: configuration value
+ */
+struct parent_map {
+	u8 src;
+	u8 cfg;
+};
+
+/**
  * struct mn - M/N:D counter
  * @mnctr_en_bit: bit to enable mn counter
  * @mnctr_reset_bit: bit to assert mn counter reset
@@ -65,7 +75,7 @@ struct pre_div {
 struct src_sel {
 	u8		src_sel_shift;
 #define SRC_SEL_MASK	0x7
-	const u8	*parent_map;
+	const struct parent_map	*parent_map;
 };
 
 /**
@@ -151,7 +161,7 @@ struct clk_rcg2 {
 	u32			cmd_rcgr;
 	u8			mnd_width;
 	u8			hid_width;
-	const u8		*parent_map;
+	const struct parent_map	*parent_map;
 	const struct freq_tbl	*freq_tbl;
 	struct clk_regmap	clkr;
 };

@@ -54,7 +54,7 @@ static u8 clk_rcg_get_parent(struct clk_hw *hw)
 		goto err;
 	ns = ns_to_src(&rcg->s, ns);
 	for (i = 0; i < num_parents; i++)
-		if (ns == rcg->s.parent_map[i])
+		if (ns == rcg->s.parent_map[i].cfg)
 			return i;
 
 err:
@@ -90,7 +90,7 @@ static u8 clk_dyn_rcg_get_parent(struct clk_hw *hw)
 	ns = ns_to_src(s, ns);
 
 	for (i = 0; i < num_parents; i++)
-		if (ns == s->parent_map[i])
+		if (ns == s->parent_map[i].cfg)
 			return i;
 
 err:
@@ -105,7 +105,7 @@ static int clk_rcg_set_parent(struct clk_hw *hw, u8 index)
 	u32 ns;
 
 	regmap_read(rcg->clkr.regmap, rcg->ns_reg, &ns);
-	ns = src_to_ns(&rcg->s, rcg->s.parent_map[index], ns);
+	ns = src_to_ns(&rcg->s, rcg->s.parent_map[index].cfg, ns);
 	regmap_write(rcg->clkr.regmap, rcg->ns_reg, ns);
 
 	return 0;
@@ -206,7 +206,7 @@ static u32 mn_to_reg(struct mn *mn, u32 m, u32 n, u32 val)
 static int configure_bank(struct clk_dyn_rcg *rcg, const struct freq_tbl *f)
 {
 	u32 ns, md, reg;
-	int bank, new_bank, ret;
+	int bank, new_bank, ret, index;
 	struct mn *mn;
 	struct pre_div *p;
 	struct src_sel *s;
@@ -276,7 +276,10 @@ static int configure_bank(struct clk_dyn_rcg *rcg, const struct freq_tbl *f)
 	}
 
 	s = &rcg->s[new_bank];
-	ns = src_to_ns(s, s->parent_map[f->src], ns);
+	index = qcom_find_src_index(hw, s->parent_map, f->src);
+	if (index < 0)
+		return index;
+	ns = src_to_ns(s, s->parent_map[index].cfg, ns);
 	ret = regmap_write(rcg->clkr.regmap, ns_reg, ns);
 	if (ret)
 		return ret;
