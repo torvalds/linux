@@ -135,7 +135,7 @@ static void intel_pmu_lbr_filter(struct cpu_hw_events *cpuc);
 static void __intel_pmu_lbr_enable(bool pmi)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	u64 debugctl, lbr_select = 0;
+	u64 debugctl, lbr_select = 0, orig_debugctl;
 
 	/*
 	 * No need to reprogram LBR_SELECT in a PMI, as it
@@ -147,6 +147,7 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	}
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	orig_debugctl = debugctl;
 	debugctl |= DEBUGCTLMSR_LBR;
 	/*
 	 * LBR callstack does not work well with FREEZE_LBRS_ON_PMI.
@@ -155,7 +156,8 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	 */
 	if (!(lbr_select & LBR_CALL_STACK))
 		debugctl |= DEBUGCTLMSR_FREEZE_LBRS_ON_PMI;
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	if (orig_debugctl != debugctl)
+		wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 }
 
 static void __intel_pmu_lbr_disable(void)
