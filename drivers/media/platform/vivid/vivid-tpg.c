@@ -480,9 +480,9 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 		{ COEFF(0.5, 224),    COEFF(-0.445, 224), COEFF(-0.055, 224) },
 	};
 	static const int bt2020[3][3] = {
-		{ COEFF(0.2726, 219),  COEFF(0.6780, 219),  COEFF(0.0593, 219)  },
+		{ COEFF(0.2627, 219),  COEFF(0.6780, 219),  COEFF(0.0593, 219)  },
 		{ COEFF(-0.1396, 224), COEFF(-0.3604, 224), COEFF(0.5, 224)     },
-		{ COEFF(0.5, 224),     COEFF(-0.4629, 224), COEFF(-0.0405, 224) },
+		{ COEFF(0.5, 224),     COEFF(-0.4598, 224), COEFF(-0.0402, 224) },
 	};
 	bool full = tpg->real_quantization == V4L2_QUANTIZATION_FULL_RANGE;
 	unsigned y_offset = full ? 0 : 16;
