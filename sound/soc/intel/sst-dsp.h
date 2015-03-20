@@ -206,6 +206,7 @@ struct sst_pdata {
 	const struct firmware *fw;
 
 	/* DMA */
+	int resindex_dma_base; /* other fields invalid if equals to -1 */
 	u32 dma_base;
 	u32 dma_size;
 	int dma_engine;
