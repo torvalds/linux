@@ -1188,6 +1188,12 @@ struct v4l2_bt_timings {
    exactly the same number of half-lines. Whether half-lines can be detected
    or used depends on the hardware. */
 #define V4L2_DV_FL_HALF_LINE			(1 << 3)
+/* If set, then this is a Consumer Electronics (CE) video format. Such formats
+ * differ from other formats (commonly called IT formats) in that if RGB
+ * encoding is used then by default the RGB values use limited range (i.e.
+ * use the range 16-235) as opposed to 0-255. All formats defined in CEA-861
+ * except for the 640x480 format are CE formats. */
+#define V4L2_DV_FL_IS_CE_VIDEO			(1 << 4)
 
 /* A few useful defines to calculate the total blanking and frame sizes */
 #define V4L2_DV_BT_BLANKING_WIDTH(bt) \
