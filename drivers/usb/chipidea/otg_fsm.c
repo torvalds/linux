@@ -30,22 +30,6 @@
 #include "otg.h"
 #include "otg_fsm.h"
 
-static struct ci_otg_fsm_timer *otg_timer_initializer
-(struct ci_hdrc *ci, void (*function)(void *, unsigned long),
-			unsigned long expires, unsigned long data)
-{
-	struct ci_otg_fsm_timer *timer;
-
-	timer = devm_kzalloc(ci->dev, sizeof(struct ci_otg_fsm_timer),
-								GFP_KERNEL);
-	if (!timer)
-		return NULL;
-	timer->function = function;
-	timer->expires = expires;
-	timer->data = data;
-	return timer;
-}
-
 /* Add for otg: interact with user space app */
 static ssize_t
 get_a_bus_req(struct device *dev, struct device_attribute *attr, char *buf)
@@ -204,36 +188,48 @@ static struct attribute_group inputs_attr_group = {
 };
 
 /*
+ * Keep this list in the same order as timers indexed
+ * by enum otg_fsm_timer in include/linux/usb/otg-fsm.h
+ */
+static unsigned otg_timer_ms[] = {
+	TA_WAIT_VRISE,
+	TA_WAIT_VFALL,
+	TA_WAIT_BCON,
+	TA_AIDL_BDIS,
+	TB_ASE0_BRST,
+	TA_BIDL_ADIS,
+	TB_SE0_SRP,
+	TB_SRP_FAIL,
+	0,
+	TB_DATA_PLS,
+	TB_SSEND_SRP,
+};
+
+/*
  * Add timer to active timer list
  */
 static void ci_otg_add_timer(struct ci_hdrc *ci, enum otg_fsm_timer t)
 {
-	struct ci_otg_fsm_timer *tmp_timer;
-	struct ci_otg_fsm_timer *timer = ci->fsm_timer->timer_list[t];
-	struct list_head *active_timers = &ci->fsm_timer->active_timers;
+	unsigned long flags, timer_sec, timer_nsec;
 
 	if (t >= NUM_OTG_FSM_TIMERS)
 		return;
 
-	/*
-	 * Check if the timer is already in the active list,
-	 * if so update timer count
-	 */
-	list_for_each_entry(tmp_timer, active_timers, list)
-		if (tmp_timer == timer) {
-			timer->count = timer->expires;
-			return;
-		}
-
-	if (list_empty(active_timers))
-		pm_runtime_get(ci->dev);
-
-	timer->count = timer->expires;
-	list_add_tail(&timer->list, active_timers);
-
-	/* Enable 1ms irq */
-	if (!(hw_read_otgsc(ci, OTGSC_1MSIE)))
-		hw_write_otgsc(ci, OTGSC_1MSIE, OTGSC_1MSIE);
+	spin_lock_irqsave(&ci->lock, flags);
+	timer_sec = otg_timer_ms[t] / MSEC_PER_SEC;
+	timer_nsec = (otg_timer_ms[t] % MSEC_PER_SEC) * NSEC_PER_MSEC;
+	ci->hr_timeouts[t] = ktime_add(ktime_get(),
+				ktime_set(timer_sec, timer_nsec));
+	ci->enabled_otg_timer_bits |= (1 << t);
+	if ((ci->next_otg_timer == NUM_OTG_FSM_TIMERS) ||
+			(ci->hr_timeouts[ci->next_otg_timer].tv64 >
+						ci->hr_timeouts[t].tv64)) {
+			ci->next_otg_timer = t;
+			hrtimer_start_range_ns(&ci->otg_fsm_hrtimer,
+					ci->hr_timeouts[t], NSEC_PER_MSEC,
+							HRTIMER_MODE_ABS);
+	}
+	spin_unlock_irqrestore(&ci->lock, flags);
 }
 
 /*
@@ -241,174 +237,178 @@ static void ci_otg_add_timer(struct ci_hdrc *ci, enum otg_fsm_timer t)
  */
 static void ci_otg_del_timer(struct ci_hdrc *ci, enum otg_fsm_timer t)
 {
-	struct ci_otg_fsm_timer *tmp_timer, *del_tmp;
-	struct ci_otg_fsm_timer *timer = ci->fsm_timer->timer_list[t];
-	struct list_head *active_timers = &ci->fsm_timer->active_timers;
-	int flag = 0;
+	unsigned long flags, enabled_timer_bits;
+	enum otg_fsm_timer cur_timer, next_timer = NUM_OTG_FSM_TIMERS;
 
-	if (t >= NUM_OTG_FSM_TIMERS)
+	if ((t >= NUM_OTG_FSM_TIMERS) ||
+			!(ci->enabled_otg_timer_bits & (1 << t)))
 		return;
 
-	list_for_each_entry_safe(tmp_timer, del_tmp, active_timers, list)
-		if (tmp_timer == timer) {
-			list_del(&timer->list);
-			flag = 1;
-		}
-
-	/* Disable 1ms irq if there is no any active timer */
-	if (list_empty(active_timers) && (flag == 1)) {
-		hw_write_otgsc(ci, OTGSC_1MSIE, 0);
-		pm_runtime_put(ci->dev);
-	}
-}
-
-/*
- * Reduce timer count by 1, and find timeout conditions.
- * Called by otg 1ms timer interrupt
- */
-static inline int ci_otg_tick_timer(struct ci_hdrc *ci)
-{
-	struct ci_otg_fsm_timer *tmp_timer, *del_tmp;
-	struct list_head *active_timers = &ci->fsm_timer->active_timers;
-	int expired = 0;
-
-	list_for_each_entry_safe(tmp_timer, del_tmp, active_timers, list) {
-		tmp_timer->count--;
-		/* check if timer expires */
-		if (!tmp_timer->count) {
-			list_del(&tmp_timer->list);
-			tmp_timer->function(ci, tmp_timer->data);
-			expired = 1;
+	spin_lock_irqsave(&ci->lock, flags);
+	ci->enabled_otg_timer_bits &= ~(1 << t);
+	if (ci->next_otg_timer == t) {
+		if (ci->enabled_otg_timer_bits == 0) {
+			/* No enabled timers after delete it */
+			hrtimer_cancel(&ci->otg_fsm_hrtimer);
+			ci->next_otg_timer = NUM_OTG_FSM_TIMERS;
+		} else {
+			/* Find the next timer */
+			enabled_timer_bits = ci->enabled_otg_timer_bits;
+			for_each_set_bit(cur_timer, &enabled_timer_bits,
+							NUM_OTG_FSM_TIMERS) {
+				if ((next_timer == NUM_OTG_FSM_TIMERS) ||
+					(ci->hr_timeouts[next_timer].tv64 <
+					ci->hr_timeouts[cur_timer].tv64))
+					next_timer = cur_timer;
+			}
 		}
 	}
-
-	/* disable 1ms irq if there is no any timer active */
-	if ((expired == 1) && list_empty(active_timers)) {
-		hw_write_otgsc(ci, OTGSC_1MSIE, 0);
-		pm_runtime_put(ci->dev);
+	if (next_timer != NUM_OTG_FSM_TIMERS) {
+		ci->next_otg_timer = next_timer;
+		hrtimer_start_range_ns(&ci->otg_fsm_hrtimer,
+			ci->hr_timeouts[next_timer], NSEC_PER_MSEC,
+							HRTIMER_MODE_ABS);
 	}
-
-	return expired;
+	spin_unlock_irqrestore(&ci->lock, flags);
 }
 
-/* The timeout callback function to set time out bit */
-static void set_tmout(void *ptr, unsigned long indicator)
+/* OTG FSM timer handlers */
+static int a_wait_vrise_tmout(struct ci_hdrc *ci)
 {
-	*(int *)indicator = 1;
+	ci->fsm.a_wait_vrise_tmout = 1;
+	return 0;
 }
 
-static void set_tmout_and_fsm(void *ptr, unsigned long indicator)
+static int a_wait_vfall_tmout(struct ci_hdrc *ci)
 {
-	struct ci_hdrc *ci = (struct ci_hdrc *)ptr;
-
-	set_tmout(ci, indicator);
-
-	ci_otg_queue_work(ci);
+	ci->fsm.a_wait_vfall_tmout = 1;
+	return 0;
 }
 
-static void a_wait_vfall_tmout_func(void *ptr, unsigned long indicator)
+static int a_wait_bcon_tmout(struct ci_hdrc *ci)
 {
-	struct ci_hdrc *ci = (struct ci_hdrc *)ptr;
-
-	set_tmout(ci, indicator);
-	/* Disable port power */
-	hw_write(ci, OP_PORTSC, PORTSC_W1C_BITS | PORTSC_PP, 0);
-	/* Clear existing DP irq */
-	hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
-	/* Enable data pulse irq */
-	hw_write_otgsc(ci, OTGSC_DPIE, OTGSC_DPIE);
-	ci_otg_queue_work(ci);
+	ci->fsm.a_wait_bcon_tmout = 1;
+	return 0;
 }
 
-static void b_ssend_srp_tmout_func(void *ptr, unsigned long indicator)
+static int a_aidl_bdis_tmout(struct ci_hdrc *ci)
 {
-	struct ci_hdrc *ci = (struct ci_hdrc *)ptr;
-
-	set_tmout(ci, indicator);
-
-	/* only vbus fall below B_sess_vld in b_idle state */
-	if (ci->fsm.otg->state == OTG_STATE_B_IDLE)
-		ci_otg_queue_work(ci);
+	ci->fsm.a_aidl_bdis_tmout = 1;
+	return 0;
 }
 
-static void b_data_pulse_end(void *ptr, unsigned long indicator)
+static int b_ase0_brst_tmout(struct ci_hdrc *ci)
 {
-	struct ci_hdrc *ci = (struct ci_hdrc *)ptr;
+	ci->fsm.b_ase0_brst_tmout = 1;
+	return 0;
+}
 
+static int a_bidl_adis_tmout(struct ci_hdrc *ci)
+{
+	ci->fsm.a_bidl_adis_tmout = 1;
+	return 0;
+}
+
+static int b_se0_srp_tmout(struct ci_hdrc *ci)
+{
+	ci->fsm.b_se0_srp = 1;
+	return 0;
+}
+
+static int b_srp_fail_tmout(struct ci_hdrc *ci)
+{
+	ci->fsm.b_srp_done = 1;
+	return 1;
+}
+
+static int b_data_pls_tmout(struct ci_hdrc *ci)
+{
 	ci->fsm.b_srp_done = 1;
 	ci->fsm.b_bus_req = 0;
 	if (ci->fsm.power_up)
 		ci->fsm.power_up = 0;
-
 	hw_write_otgsc(ci, OTGSC_HABA, 0);
+	pm_runtime_put(ci->dev);
+	return 0;
+}
 
-	ci_otg_queue_work(ci);
+static int b_ssend_srp_tmout(struct ci_hdrc *ci)
+{
+	ci->fsm.b_ssend_srp = 1;
+	/* only vbus fall below B_sess_vld in b_idle state */
+	if (ci->fsm.otg->state == OTG_STATE_B_IDLE)
+		return 0;
+	else
+		return 1;
+}
+
+/*
+ * Keep this list in the same order as timers indexed
+ * by enum otg_fsm_timer in include/linux/usb/otg-fsm.h
+ */
+static int (*otg_timer_handlers[])(struct ci_hdrc *) = {
+	a_wait_vrise_tmout,	/* A_WAIT_VRISE */
+	a_wait_vfall_tmout,	/* A_WAIT_VFALL */
+	a_wait_bcon_tmout,	/* A_WAIT_BCON */
+	a_aidl_bdis_tmout,	/* A_AIDL_BDIS */
+	b_ase0_brst_tmout,	/* B_ASE0_BRST */
+	a_bidl_adis_tmout,	/* A_BIDL_ADIS */
+	b_se0_srp_tmout,	/* B_SE0_SRP */
+	b_srp_fail_tmout,	/* B_SRP_FAIL */
+	NULL,			/* A_WAIT_ENUM */
+	b_data_pls_tmout,	/* B_DATA_PLS */
+	b_ssend_srp_tmout,	/* B_SSEND_SRP */
+};
+
+/*
+ * Enable the next nearest enabled timer if have
+ */
+static enum hrtimer_restart ci_otg_hrtimer_func(struct hrtimer *t)
+{
+	struct ci_hdrc *ci = container_of(t, struct ci_hdrc, otg_fsm_hrtimer);
+	ktime_t	now, *timeout;
+	unsigned long   enabled_timer_bits;
+	unsigned long   flags;
+	enum otg_fsm_timer cur_timer, next_timer = NUM_OTG_FSM_TIMERS;
+	int ret = -EINVAL;
+
+	spin_lock_irqsave(&ci->lock, flags);
+	enabled_timer_bits = ci->enabled_otg_timer_bits;
+	ci->next_otg_timer = NUM_OTG_FSM_TIMERS;
+
+	now = ktime_get();
+	for_each_set_bit(cur_timer, &enabled_timer_bits, NUM_OTG_FSM_TIMERS) {
+		if (now.tv64 >= ci->hr_timeouts[cur_timer].tv64) {
+			ci->enabled_otg_timer_bits &= ~(1 << cur_timer);
+			if (otg_timer_handlers[cur_timer])
+				ret = otg_timer_handlers[cur_timer](ci);
+		} else {
+			if ((next_timer == NUM_OTG_FSM_TIMERS) ||
+				(ci->hr_timeouts[cur_timer].tv64 <
+					ci->hr_timeouts[next_timer].tv64))
+				next_timer = cur_timer;
+		}
+	}
+	/* Enable the next nearest timer */
+	if (next_timer < NUM_OTG_FSM_TIMERS) {
+		timeout = &ci->hr_timeouts[next_timer];
+		hrtimer_start_range_ns(&ci->otg_fsm_hrtimer, *timeout,
+					NSEC_PER_MSEC, HRTIMER_MODE_ABS);
+		ci->next_otg_timer = next_timer;
+	}
+	spin_unlock_irqrestore(&ci->lock, flags);
+
+	if (!ret)
+		ci_otg_queue_work(ci);
+
+	return HRTIMER_NORESTART;
 }
 
 /* Initialize timers */
 static int ci_otg_init_timers(struct ci_hdrc *ci)
 {
-	struct otg_fsm *fsm = &ci->fsm;
-
-	/* FSM used timers */
-	ci->fsm_timer->timer_list[A_WAIT_VRISE] =
-		otg_timer_initializer(ci, &set_tmout_and_fsm, TA_WAIT_VRISE,
-			(unsigned long)&fsm->a_wait_vrise_tmout);
-	if (ci->fsm_timer->timer_list[A_WAIT_VRISE] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[A_WAIT_VFALL] =
-		otg_timer_initializer(ci, &a_wait_vfall_tmout_func,
-		TA_WAIT_VFALL, (unsigned long)&fsm->a_wait_vfall_tmout);
-	if (ci->fsm_timer->timer_list[A_WAIT_VFALL] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[A_WAIT_BCON] =
-		otg_timer_initializer(ci, &set_tmout_and_fsm, TA_WAIT_BCON,
-				(unsigned long)&fsm->a_wait_bcon_tmout);
-	if (ci->fsm_timer->timer_list[A_WAIT_BCON] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[A_AIDL_BDIS] =
-		otg_timer_initializer(ci, &set_tmout_and_fsm, TA_AIDL_BDIS,
-				(unsigned long)&fsm->a_aidl_bdis_tmout);
-	if (ci->fsm_timer->timer_list[A_AIDL_BDIS] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[A_BIDL_ADIS] =
-		otg_timer_initializer(ci, &set_tmout_and_fsm, TA_BIDL_ADIS,
-				(unsigned long)&fsm->a_bidl_adis_tmout);
-	if (ci->fsm_timer->timer_list[A_BIDL_ADIS] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[B_ASE0_BRST] =
-		otg_timer_initializer(ci, &set_tmout_and_fsm, TB_ASE0_BRST,
-					(unsigned long)&fsm->b_ase0_brst_tmout);
-	if (ci->fsm_timer->timer_list[B_ASE0_BRST] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[B_SE0_SRP] =
-		otg_timer_initializer(ci, &set_tmout_and_fsm, TB_SE0_SRP,
-					(unsigned long)&fsm->b_se0_srp);
-	if (ci->fsm_timer->timer_list[B_SE0_SRP] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[B_SSEND_SRP] =
-		otg_timer_initializer(ci, &b_ssend_srp_tmout_func, TB_SSEND_SRP,
-					(unsigned long)&fsm->b_ssend_srp);
-	if (ci->fsm_timer->timer_list[B_SSEND_SRP] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[B_SRP_FAIL] =
-		otg_timer_initializer(ci, &set_tmout, TB_SRP_FAIL,
-				(unsigned long)&fsm->b_srp_done);
-	if (ci->fsm_timer->timer_list[B_SRP_FAIL] == NULL)
-		return -ENOMEM;
-
-	ci->fsm_timer->timer_list[B_DATA_PLS] =
-		otg_timer_initializer(ci, &b_data_pulse_end, TB_DATA_PLS, 0);
-	if (ci->fsm_timer->timer_list[B_DATA_PLS] == NULL)
-		return -ENOMEM;
+	hrtimer_init(&ci->otg_fsm_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	ci->otg_fsm_hrtimer.function = ci_otg_hrtimer_func;
 
 	return 0;
 }
@@ -512,6 +512,7 @@ static void ci_otg_start_pulse(struct otg_fsm *fsm)
 	/* Hardware Assistant Data pulse */
 	hw_write_otgsc(ci, OTGSC_HADP, OTGSC_HADP);
 
+	pm_runtime_get(ci->dev);
 	ci_otg_add_timer(ci, B_DATA_PLS);
 }
 
@@ -579,8 +580,15 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 			 * a_idle to a_wait_vrise when power up
 			 */
 			if ((ci->fsm.id) || (ci->id_event) ||
-						(ci->fsm.power_up))
+						(ci->fsm.power_up)) {
 				ci_otg_queue_work(ci);
+			} else {
+				/* Enable data pulse irq */
+				hw_write(ci, OP_PORTSC, PORTSC_W1C_BITS |
+								PORTSC_PP, 0);
+				hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
+				hw_write_otgsc(ci, OTGSC_DPIE, OTGSC_DPIE);
+			}
 			if (ci->id_event)
 				ci->id_event = false;
 		} else if (ci->fsm.otg->state == OTG_STATE_B_IDLE) {
@@ -712,11 +720,7 @@ irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 	fsm->id = (otgsc & OTGSC_ID) ? 1 : 0;
 
 	if (otg_int_src) {
-		if (otg_int_src & OTGSC_1MSIS) {
-			hw_write_otgsc(ci, OTGSC_1MSIS, OTGSC_1MSIS);
-			retval = ci_otg_tick_timer(ci);
-			return IRQ_HANDLED;
-		} else if (otg_int_src & OTGSC_DPIS) {
+		if (otg_int_src & OTGSC_DPIS) {
 			hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
 			fsm->a_srp_det = 1;
 			fsm->a_bus_drop = 0;
@@ -780,17 +784,13 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 
 	mutex_init(&ci->fsm.lock);
 
-	ci->fsm_timer = devm_kzalloc(ci->dev,
-			sizeof(struct ci_otg_fsm_timer_list), GFP_KERNEL);
-	if (!ci->fsm_timer)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&ci->fsm_timer->active_timers);
 	retval = ci_otg_init_timers(ci);
 	if (retval) {
 		dev_err(ci->dev, "Couldn't init OTG timers\n");
 		return retval;
 	}
+	ci->enabled_otg_timer_bits = 0;
+	ci->next_otg_timer = NUM_OTG_FSM_TIMERS;
 
 	retval = sysfs_create_group(&ci->dev->kobj, &inputs_attr_group);
 	if (retval < 0) {

@@ -162,7 +162,10 @@ struct hw_bank {
  * @role: current role
  * @is_otg: if the device is otg-capable
  * @fsm: otg finite state machine
- * @fsm_timer: pointer to timer list of otg fsm
+ * @otg_fsm_hrtimer: hrtimer for otg fsm timers
+ * @hr_timeouts: time out list for active otg fsm timers
+ * @enabled_otg_timer_bits: bits of enabled otg timers
+ * @next_otg_timer: next nearest enabled timer to be expired
  * @work: work for role changing
  * @wq: workqueue thread
  * @qh_pool: allocation pool for queue heads
@@ -205,7 +208,10 @@ struct ci_hdrc {
 	bool				is_otg;
 	struct usb_otg			otg;
 	struct otg_fsm			fsm;
-	struct ci_otg_fsm_timer_list	*fsm_timer;
+	struct hrtimer			otg_fsm_hrtimer;
+	ktime_t				hr_timeouts[NUM_OTG_FSM_TIMERS];
+	unsigned			enabled_otg_timer_bits;
+	enum otg_fsm_timer		next_otg_timer;
 	struct work_struct		work;
 	struct workqueue_struct		*wq;
 

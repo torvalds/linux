@@ -62,19 +62,6 @@
 /* SSEND time before SRP */
 #define TB_SSEND_SRP         (1500)	/* minimum 1.5 sec, section:5.1.2 */
 
-struct ci_otg_fsm_timer {
-	unsigned long expires;  /* Number of count increase to timeout */
-	unsigned long count;    /* Tick counter */
-	void (*function)(void *, unsigned long);        /* Timeout function */
-	unsigned long data;     /* Data passed to function */
-	struct list_head list;
-};
-
-struct ci_otg_fsm_timer_list {
-	struct ci_otg_fsm_timer *timer_list[NUM_OTG_FSM_TIMERS];
-	struct list_head active_timers;
-};
-
 #ifdef CONFIG_USB_OTG_FSM
 
 int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci);
