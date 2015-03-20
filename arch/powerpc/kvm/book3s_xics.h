@@ -90,7 +90,7 @@ struct kvmppc_icp {
 };
 
 struct kvmppc_ics {
-	struct mutex lock;
+	arch_spinlock_t lock;
 	u16 icsid;
 	struct ics_irq_state irq_state[KVMPPC_XICS_IRQ_PER_ICS];
 };

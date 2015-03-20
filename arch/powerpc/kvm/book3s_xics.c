@@ -20,6 +20,7 @@
 #include <asm/xics.h>
 #include <asm/debug.h>
 #include <asm/time.h>
+#include <asm/spinlock.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -39,7 +40,7 @@
  * LOCKING
  * =======
  *
- * Each ICS has a mutex protecting the information about the IRQ
+ * Each ICS has a spin lock protecting the information about the IRQ
  * sources and avoiding simultaneous deliveries if the same interrupt.
  *
  * ICP operations are done via a single compare & swap transaction
@@ -109,7 +110,10 @@ static void ics_check_resend(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
 {
 	int i;
 
-	mutex_lock(&ics->lock);
+	unsigned long flags;
+
+	local_irq_save(flags);
+	arch_spin_lock(&ics->lock);
 
 	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
 		struct ics_irq_state *state = &ics->irq_state[i];
@@ -120,12 +124,15 @@ static void ics_check_resend(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
 		XICS_DBG("resend %#x prio %#x\n", state->number,
 			      state->priority);
 
-		mutex_unlock(&ics->lock);
+		arch_spin_unlock(&ics->lock);
+		local_irq_restore(flags);
 		icp_deliver_irq(xics, icp, state->number);
-		mutex_lock(&ics->lock);
+		local_irq_save(flags);
+		arch_spin_lock(&ics->lock);
 	}
 
-	mutex_unlock(&ics->lock);
+	arch_spin_unlock(&ics->lock);
+	local_irq_restore(flags);
 }
 
 static bool write_xive(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
@@ -133,8 +140,10 @@ static bool write_xive(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
 		       u32 server, u32 priority, u32 saved_priority)
 {
 	bool deliver;
+	unsigned long flags;
 
-	mutex_lock(&ics->lock);
+	local_irq_save(flags);
+	arch_spin_lock(&ics->lock);
 
 	state->server = server;
 	state->priority = priority;
@@ -145,7 +154,8 @@ static bool write_xive(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
 		deliver = true;
 	}
 
-	mutex_unlock(&ics->lock);
+	arch_spin_unlock(&ics->lock);
+	local_irq_restore(flags);
 
 	return deliver;
 }
@@ -186,6 +196,7 @@ int kvmppc_xics_get_xive(struct kvm *kvm, u32 irq, u32 *server, u32 *priority)
 	struct kvmppc_ics *ics;
 	struct ics_irq_state *state;
 	u16 src;
+	unsigned long flags;
 
 	if (!xics)
 		return -ENODEV;
@@ -195,10 +206,12 @@ int kvmppc_xics_get_xive(struct kvm *kvm, u32 irq, u32 *server, u32 *priority)
 		return -EINVAL;
 	state = &ics->irq_state[src];
 
-	mutex_lock(&ics->lock);
+	local_irq_save(flags);
+	arch_spin_lock(&ics->lock);
 	*server = state->server;
 	*priority = state->priority;
-	mutex_unlock(&ics->lock);
+	arch_spin_unlock(&ics->lock);
+	local_irq_restore(flags);
 
 	return 0;
 }
@@ -365,6 +378,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	struct kvmppc_ics *ics;
 	u32 reject;
 	u16 src;
+	unsigned long flags;
 
 	/*
 	 * This is used both for initial delivery of an interrupt and
@@ -391,7 +405,8 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	state = &ics->irq_state[src];
 
 	/* Get a lock on the ICS */
-	mutex_lock(&ics->lock);
+	local_irq_save(flags);
+	arch_spin_lock(&ics->lock);
 
 	/* Get our server */
 	if (!icp || state->server != icp->server_num) {
@@ -434,7 +449,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 *
 	 * Note that if successful, the new delivery might have itself
 	 * rejected an interrupt that was "delivered" before we took the
-	 * icp mutex.
+	 * ics spin lock.
 	 *
 	 * In this case we do the whole sequence all over again for the
 	 * new guy. We cannot assume that the rejected interrupt is less
@@ -448,7 +463,8 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		 * Delivery was successful, did we reject somebody else ?
 		 */
 		if (reject && reject != XICS_IPI) {
-			mutex_unlock(&ics->lock);
+			arch_spin_unlock(&ics->lock);
+			local_irq_restore(flags);
 			new_irq = reject;
 			goto again;
 		}
@@ -468,12 +484,14 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		 */
 		smp_mb();
 		if (!icp->state.need_resend) {
-			mutex_unlock(&ics->lock);
+			arch_spin_unlock(&ics->lock);
+			local_irq_restore(flags);
 			goto again;
 		}
 	}
  out:
-	mutex_unlock(&ics->lock);
+	arch_spin_unlock(&ics->lock);
+	local_irq_restore(flags);
 }
 
 static void icp_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
@@ -880,6 +898,7 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	struct kvm *kvm = xics->kvm;
 	struct kvm_vcpu *vcpu;
 	int icsid, i;
+	unsigned long flags;
 	unsigned long t_rm_kick_vcpu, t_rm_check_resend;
 	unsigned long t_rm_reject, t_rm_notify_eoi;
 
@@ -924,7 +943,8 @@ static int xics_debug_show(struct seq_file *m, void *private)
 		seq_printf(m, "=========\nICS state for ICS 0x%x\n=========\n",
 			   icsid);
 
-		mutex_lock(&ics->lock);
+		local_irq_save(flags);
+		arch_spin_lock(&ics->lock);
 
 		for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
 			struct ics_irq_state *irq = &ics->irq_state[i];
@@ -935,7 +955,8 @@ static int xics_debug_show(struct seq_file *m, void *private)
 				   irq->resend, irq->masked_pending);
 
 		}
-		mutex_unlock(&ics->lock);
+		arch_spin_unlock(&ics->lock);
+		local_irq_restore(flags);
 	}
 	return 0;
 }
@@ -988,7 +1009,6 @@ static struct kvmppc_ics *kvmppc_xics_create_ics(struct kvm *kvm,
 	if (!ics)
 		goto out;
 
-	mutex_init(&ics->lock);
 	ics->icsid = icsid;
 
 	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
@@ -1130,13 +1150,15 @@ static int xics_get_source(struct kvmppc_xics *xics, long irq, u64 addr)
 	u64 __user *ubufp = (u64 __user *) addr;
 	u16 idx;
 	u64 val, prio;
+	unsigned long flags;
 
 	ics = kvmppc_xics_find_ics(xics, irq, &idx);
 	if (!ics)
 		return -ENOENT;
 
 	irqp = &ics->irq_state[idx];
-	mutex_lock(&ics->lock);
+	local_irq_save(flags);
+	arch_spin_lock(&ics->lock);
 	ret = -ENOENT;
 	if (irqp->exists) {
 		val = irqp->server;
@@ -1152,7 +1174,8 @@ static int xics_get_source(struct kvmppc_xics *xics, long irq, u64 addr)
 			val |= KVM_XICS_PENDING;
 		ret = 0;
 	}
-	mutex_unlock(&ics->lock);
+	arch_spin_unlock(&ics->lock);
+	local_irq_restore(flags);
 
 	if (!ret && put_user(val, ubufp))
 		ret = -EFAULT;
@@ -1169,6 +1192,7 @@ static int xics_set_source(struct kvmppc_xics *xics, long irq, u64 addr)
 	u64 val;
 	u8 prio;
 	u32 server;
+	unsigned long flags;
 
 	if (irq < KVMPPC_XICS_FIRST_IRQ || irq >= KVMPPC_XICS_NR_IRQS)
 		return -ENOENT;
@@ -1189,7 +1213,8 @@ static int xics_set_source(struct kvmppc_xics *xics, long irq, u64 addr)
 	    kvmppc_xics_find_server(xics->kvm, server) == NULL)
 		return -EINVAL;
 
-	mutex_lock(&ics->lock);
+	local_irq_save(flags);
+	arch_spin_lock(&ics->lock);
 	irqp->server = server;
 	irqp->saved_priority = prio;
 	if (val & KVM_XICS_MASKED)
@@ -1201,7 +1226,8 @@ static int xics_set_source(struct kvmppc_xics *xics, long irq, u64 addr)
 	if ((val & KVM_XICS_PENDING) && (val & KVM_XICS_LEVEL_SENSITIVE))
 		irqp->asserted = 1;
 	irqp->exists = 1;
-	mutex_unlock(&ics->lock);
+	arch_spin_unlock(&ics->lock);
+	local_irq_restore(flags);
 
 	if (val & KVM_XICS_PENDING)
 		icp_deliver_irq(xics, NULL, irqp->number);
