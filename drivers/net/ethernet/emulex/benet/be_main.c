@@ -2823,14 +2823,12 @@ void be_detect_error(struct be_adapter *adapter)
 			}
 		}
 	} else {
-		pci_read_config_dword(adapter->pdev,
-				      PCICFG_UE_STATUS_LOW, &ue_lo);
-		pci_read_config_dword(adapter->pdev,
-				      PCICFG_UE_STATUS_HIGH, &ue_hi);
-		pci_read_config_dword(adapter->pdev,
-				      PCICFG_UE_STATUS_LOW_MASK, &ue_lo_mask);
-		pci_read_config_dword(adapter->pdev,
-				      PCICFG_UE_STATUS_HI_MASK, &ue_hi_mask);
+		ue_lo = ioread32(adapter->pcicfg + PCICFG_UE_STATUS_LOW);
+		ue_hi = ioread32(adapter->pcicfg + PCICFG_UE_STATUS_HIGH);
+		ue_lo_mask = ioread32(adapter->pcicfg +
+				      PCICFG_UE_STATUS_LOW_MASK);
+		ue_hi_mask = ioread32(adapter->pcicfg +
+				      PCICFG_UE_STATUS_HI_MASK);
 
 		ue_lo = (ue_lo & ~ue_lo_mask);
 		ue_hi = (ue_hi & ~ue_hi_mask);
@@ -4874,24 +4872,37 @@ static int be_roce_map_pci_bars(struct be_adapter *adapter)
 
 static int be_map_pci_bars(struct be_adapter *adapter)
 {
+	struct pci_dev *pdev = adapter->pdev;
 	u8 __iomem *addr;
 
 	if (BEx_chip(adapter) && be_physfn(adapter)) {
-		adapter->csr = pci_iomap(adapter->pdev, 2, 0);
+		adapter->csr = pci_iomap(pdev, 2, 0);
 		if (!adapter->csr)
 			return -ENOMEM;
 	}
 
-	addr = pci_iomap(adapter->pdev, db_bar(adapter), 0);
+	addr = pci_iomap(pdev, db_bar(adapter), 0);
 	if (!addr)
 		goto pci_map_err;
 	adapter->db = addr;
+
+	if (skyhawk_chip(adapter) || BEx_chip(adapter)) {
+		if (be_physfn(adapter)) {
+			/* PCICFG is the 2nd BAR in BE2 */
+			addr = pci_iomap(pdev, BE2_chip(adapter) ? 1 : 0, 0);
+			if (!addr)
+				goto pci_map_err;
+			adapter->pcicfg = addr;
+		} else {
+			adapter->pcicfg = adapter->db + SRIOV_VF_PCICFG_OFFSET;
+		}
+	}
 
 	be_roce_map_pci_bars(adapter);
 	return 0;
 
 pci_map_err:
-	dev_err(&adapter->pdev->dev, "Error in mapping PCI BARs\n");
+	dev_err(&pdev->dev, "Error in mapping PCI BARs\n");
 	be_unmap_pci_bars(adapter);
 	return -ENOMEM;
 }
