@@ -285,7 +285,7 @@ static int inet_req_diag_fill(struct sock *sk, struct sk_buff *skb,
 	BUILD_BUG_ON(offsetof(struct inet_request_sock, ir_cookie) !=
 		     offsetof(struct sock, sk_cookie));
 
-	tmo = inet_reqsk(sk)->expires - jiffies;
+	tmo = inet_reqsk(sk)->rsk_timer.expires - jiffies;
 	r->idiag_expires = (tmo >= 0) ? jiffies_to_msecs(tmo) : 0;
 	r->idiag_rqueue	= 0;
 	r->idiag_wqueue	= 0;
@@ -719,7 +719,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	read_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	lopt = icsk->icsk_accept_queue.listen_opt;
-	if (!lopt || !lopt->qlen)
+	if (!lopt || !listen_sock_qlen(lopt))
 		goto out;
 
 	if (bc) {

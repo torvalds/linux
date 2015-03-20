@@ -23,6 +23,7 @@
 #include <net/route.h>
 #include <net/tcp_states.h>
 #include <net/xfrm.h>
+#include <net/tcp.h>
 
 #ifdef INET_CSK_DEBUG
 const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
@@ -476,33 +477,37 @@ static inline u32 inet_synq_hash(const __be32 raddr, const __be16 rport,
 #if IS_ENABLED(CONFIG_IPV6)
 #define AF_INET_FAMILY(fam) ((fam) == AF_INET)
 #else
-#define AF_INET_FAMILY(fam) 1
+#define AF_INET_FAMILY(fam) true
 #endif
 
-struct request_sock *inet_csk_search_req(const struct sock *sk,
-					 struct request_sock ***prevp,
-					 const __be16 rport, const __be32 raddr,
+/* Note: this is temporary :
+ * req sock will no longer be in listener hash table
+*/
+struct request_sock *inet_csk_search_req(struct sock *sk,
+					 const __be16 rport,
+					 const __be32 raddr,
 					 const __be32 laddr)
 {
-	const struct inet_connection_sock *icsk = inet_csk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	struct request_sock *req, **prev;
+	struct request_sock *req;
+	u32 hash = inet_synq_hash(raddr, rport, lopt->hash_rnd,
+				  lopt->nr_table_entries);
 
-	for (prev = &lopt->syn_table[inet_synq_hash(raddr, rport, lopt->hash_rnd,
-						    lopt->nr_table_entries)];
-	     (req = *prev) != NULL;
-	     prev = &req->dl_next) {
+	write_lock(&icsk->icsk_accept_queue.syn_wait_lock);
+	for (req = lopt->syn_table[hash]; req != NULL; req = req->dl_next) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
 
 		if (ireq->ir_rmt_port == rport &&
 		    ireq->ir_rmt_addr == raddr &&
 		    ireq->ir_loc_addr == laddr &&
 		    AF_INET_FAMILY(req->rsk_ops->family)) {
+			atomic_inc(&req->rsk_refcnt);
 			WARN_ON(req->sk);
-			*prevp = prev;
 			break;
 		}
 	}
+	write_unlock(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	return req;
 }
@@ -558,23 +563,23 @@ int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req)
 }
 EXPORT_SYMBOL(inet_rtx_syn_ack);
 
-void inet_csk_reqsk_queue_prune(struct sock *parent,
-				const unsigned long interval,
-				const unsigned long timeout,
-				const unsigned long max_rto)
+static void reqsk_timer_handler(unsigned long data)
 {
-	struct inet_connection_sock *icsk = inet_csk(parent);
+	struct request_sock *req = (struct request_sock *)data;
+	struct sock *sk_listener = req->rsk_listener;
+	struct inet_connection_sock *icsk = inet_csk(sk_listener);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
 	struct listen_sock *lopt = queue->listen_opt;
-	int max_retries = icsk->icsk_syn_retries ? : sysctl_tcp_synack_retries;
-	int thresh = max_retries;
-	unsigned long now = jiffies;
-	struct request_sock **reqp, *req;
-	int i, budget;
+	int expire = 0, resend = 0;
+	int max_retries, thresh;
 
-	if (lopt == NULL || lopt->qlen == 0)
+	if (sk_listener->sk_state != TCP_LISTEN || !lopt) {
+		reqsk_put(req);
 		return;
+	}
 
+	max_retries = icsk->icsk_syn_retries ? : sysctl_tcp_synack_retries;
+	thresh = max_retries;
 	/* Normally all the openreqs are young and become mature
 	 * (i.e. converted to established socket) for first timeout.
 	 * If synack was not acknowledged for 1 second, it means
@@ -592,67 +597,63 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 	 * embrions; and abort old ones without pity, if old
 	 * ones are about to clog our table.
 	 */
-	if (lopt->qlen>>(lopt->max_qlen_log-1)) {
-		int young = (lopt->qlen_young<<1);
+	if (listen_sock_qlen(lopt) >> (lopt->max_qlen_log - 1)) {
+		int young = listen_sock_young(lopt) << 1;
 
 		while (thresh > 2) {
-			if (lopt->qlen < young)
+			if (listen_sock_qlen(lopt) < young)
 				break;
 			thresh--;
 			young <<= 1;
 		}
 	}
-
 	if (queue->rskq_defer_accept)
 		max_retries = queue->rskq_defer_accept;
+	syn_ack_recalc(req, thresh, max_retries, queue->rskq_defer_accept,
+		       &expire, &resend);
+	req->rsk_ops->syn_ack_timeout(sk_listener, req);
+	if (!expire &&
+	    (!resend ||
+	     !inet_rtx_syn_ack(sk_listener, req) ||
+	     inet_rsk(req)->acked)) {
+		unsigned long timeo;
 
-	budget = 2 * (lopt->nr_table_entries / (timeout / interval));
-	i = lopt->clock_hand;
-
-	do {
-		reqp=&lopt->syn_table[i];
-		while ((req = *reqp) != NULL) {
-			if (time_after_eq(now, req->expires)) {
-				int expire = 0, resend = 0;
-
-				syn_ack_recalc(req, thresh, max_retries,
-					       queue->rskq_defer_accept,
-					       &expire, &resend);
-				req->rsk_ops->syn_ack_timeout(parent, req);
-				if (!expire &&
-				    (!resend ||
-				     !inet_rtx_syn_ack(parent, req) ||
-				     inet_rsk(req)->acked)) {
-					unsigned long timeo;
-
-					if (req->num_timeout++ == 0)
-						lopt->qlen_young--;
-					timeo = min(timeout << req->num_timeout,
-						    max_rto);
-					req->expires = now + timeo;
-					reqp = &req->dl_next;
-					continue;
-				}
-
-				/* Drop this request */
-				inet_csk_reqsk_queue_unlink(parent, req, reqp);
-				reqsk_queue_removed(queue, req);
-				reqsk_put(req);
-				continue;
-			}
-			reqp = &req->dl_next;
-		}
-
-		i = (i + 1) & (lopt->nr_table_entries - 1);
-
-	} while (--budget > 0);
-
-	lopt->clock_hand = i;
-
-	if (lopt->qlen)
-		inet_csk_reset_keepalive_timer(parent, interval);
+		if (req->num_timeout++ == 0)
+			atomic_inc(&lopt->young_dec);
+		timeo = min(TCP_TIMEOUT_INIT << req->num_timeout, TCP_RTO_MAX);
+		mod_timer_pinned(&req->rsk_timer, jiffies + timeo);
+		return;
+	}
+	inet_csk_reqsk_queue_drop(sk_listener, req);
+	reqsk_put(req);
 }
-EXPORT_SYMBOL_GPL(inet_csk_reqsk_queue_prune);
+
+void reqsk_queue_hash_req(struct request_sock_queue *queue,
+			  u32 hash, struct request_sock *req,
+			  unsigned long timeout)
+{
+	struct listen_sock *lopt = queue->listen_opt;
+
+	req->num_retrans = 0;
+	req->num_timeout = 0;
+	req->sk = NULL;
+
+	/* before letting lookups find us, make sure all req fields
+	 * are committed to memory and refcnt initialized.
+	 */
+	smp_wmb();
+	atomic_set(&req->rsk_refcnt, 2);
+	setup_timer(&req->rsk_timer, reqsk_timer_handler, (unsigned long)req);
+	req->rsk_hash = hash;
+
+	write_lock(&queue->syn_wait_lock);
+	req->dl_next = lopt->syn_table[hash];
+	lopt->syn_table[hash] = req;
+	write_unlock(&queue->syn_wait_lock);
+
+	mod_timer_pinned(&req->rsk_timer, jiffies + timeout);
+}
+EXPORT_SYMBOL(reqsk_queue_hash_req);
 
 /**
  *	inet_csk_clone_lock - clone an inet socket, and lock its clone
@@ -787,8 +788,6 @@ void inet_csk_listen_stop(struct sock *sk)
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
 	struct request_sock *acc_req;
 	struct request_sock *req;
-
-	inet_csk_delete_keepalive_timer(sk);
 
 	/* make all the listen_opt local to us */
 	acc_req = reqsk_queue_yank_acceptq(queue);

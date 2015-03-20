@@ -405,8 +405,8 @@ struct sock {
 	rwlock_t		sk_callback_lock;
 	int			sk_err,
 				sk_err_soft;
-	unsigned short		sk_ack_backlog;
-	unsigned short		sk_max_ack_backlog;
+	u32			sk_ack_backlog;
+	u32			sk_max_ack_backlog;
 	__u32			sk_priority;
 #if IS_ENABLED(CONFIG_CGROUP_NET_PRIO)
 	__u32			sk_cgrp_prioidx;

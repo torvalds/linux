@@ -280,8 +280,7 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 				       struct request_sock *req,
 				       struct dst_entry *dst);
 struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
-			    struct request_sock *req,
-			    struct request_sock **prev);
+			    struct request_sock *req);
 
 int dccp_child_process(struct sock *parent, struct sock *child,
 		       struct sk_buff *skb);

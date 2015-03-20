@@ -539,16 +539,6 @@ static void tcp_write_timer(unsigned long data)
 	sock_put(sk);
 }
 
-/*
- *	Timer for listening sockets
- */
-
-static void tcp_synack_timer(struct sock *sk)
-{
-	inet_csk_reqsk_queue_prune(sk, TCP_SYNQ_INTERVAL,
-				   TCP_TIMEOUT_INIT, TCP_RTO_MAX);
-}
-
 void tcp_syn_ack_timeout(struct sock *sk, struct request_sock *req)
 {
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPTIMEOUTS);
@@ -583,7 +573,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	}
 
 	if (sk->sk_state == TCP_LISTEN) {
-		tcp_synack_timer(sk);
+		pr_err("Hmm... keepalive on a LISTEN ???\n");
 		goto out;
 	}
 

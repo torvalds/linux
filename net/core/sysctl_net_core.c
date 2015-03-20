@@ -24,7 +24,6 @@
 
 static int zero = 0;
 static int one = 1;
-static int ushort_max = USHRT_MAX;
 
 static int net_msg_warn;	/* Unused, but still a sysctl */
 
@@ -401,7 +400,6 @@ static struct ctl_table netns_core_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.extra1		= &zero,
-		.extra2		= &ushort_max,
 		.proc_handler	= proc_dointvec_minmax
 	},
 	{ }
