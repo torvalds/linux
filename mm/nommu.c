@@ -62,6 +62,7 @@ void *high_memory;
 EXPORT_SYMBOL(high_memory);
 struct page *mem_map;
 unsigned long max_mapnr;
+EXPORT_SYMBOL(max_mapnr);
 unsigned long highest_memmap_pfn;
 struct percpu_counter vm_committed_as;
 int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */

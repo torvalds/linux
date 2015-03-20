@@ -125,6 +125,19 @@ int clk_set_phase(struct clk *clk, int degrees);
  */
 int clk_get_phase(struct clk *clk);
 
+/**
+ * clk_is_match - check if two clk's point to the same hardware clock
+ * @p: clk compared against q
+ * @q: clk compared against p
+ *
+ * Returns true if the two struct clk pointers both point to the same hardware
+ * clock node. Put differently, returns true if struct clk *p and struct clk *q
+ * share the same struct clk_core object.
+ *
+ * Returns false otherwise. Note that two NULL clks are treated as matching.
+ */
+bool clk_is_match(const struct clk *p, const struct clk *q);
+
 #else
 
 static inline long clk_get_accuracy(struct clk *clk)
@@ -140,6 +153,11 @@ static inline long clk_set_phase(struct clk *clk, int phase)
 static inline long clk_get_phase(struct clk *clk)
 {
 	return -ENOTSUPP;
+}
+
+static inline bool clk_is_match(const struct clk *p, const struct clk *q)
+{
+	return p == q;
 }
 
 #endif

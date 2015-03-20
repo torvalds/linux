@@ -14,6 +14,7 @@
  * Copyright (C) 2015 Valeo S.A.
  */
 
+#include <linux/kernel.h>
 #include <linux/completion.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -584,8 +585,15 @@ static int kvaser_usb_wait_msg(const struct kvaser_usb *dev, u8 id,
 		while (pos <= actual_len - MSG_HEADER_LEN) {
 			tmp = buf + pos;
 
-			if (!tmp->len)
-				break;
+			/* Handle messages crossing the USB endpoint max packet
+			 * size boundary. Check kvaser_usb_read_bulk_callback()
+			 * for further details.
+			 */
+			if (tmp->len == 0) {
+				pos = round_up(pos,
+					       dev->bulk_in->wMaxPacketSize);
+				continue;
+			}
 
 			if (pos + tmp->len > actual_len) {
 				dev_err(dev->udev->dev.parent,
@@ -787,7 +795,6 @@ static int kvaser_usb_simple_msg_async(struct kvaser_usb_net_priv *priv,
 		netdev_err(netdev, "Error transmitting URB\n");
 		usb_unanchor_urb(urb);
 		usb_free_urb(urb);
-		kfree(buf);
 		return err;
 	}
 
@@ -1317,8 +1324,19 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 	while (pos <= urb->actual_length - MSG_HEADER_LEN) {
 		msg = urb->transfer_buffer + pos;
 
-		if (!msg->len)
-			break;
+		/* The Kvaser firmware can only read and write messages that
+		 * does not cross the USB's endpoint wMaxPacketSize boundary.
+		 * If a follow-up command crosses such boundary, firmware puts
+		 * a placeholder zero-length command in its place then aligns
+		 * the real command to the next max packet size.
+		 *
+		 * Handle such cases or we're going to miss a significant
+		 * number of events in case of a heavy rx load on the bus.
+		 */
+		if (msg->len == 0) {
+			pos = round_up(pos, dev->bulk_in->wMaxPacketSize);
+			continue;
+		}
 
 		if (pos + msg->len > urb->actual_length) {
 			dev_err(dev->udev->dev.parent, "Format error\n");
@@ -1326,7 +1344,6 @@ static void kvaser_usb_read_bulk_callback(struct urb *urb)
 		}
 
 		kvaser_usb_handle_message(dev, msg);
-
 		pos += msg->len;
 	}
 
@@ -1615,8 +1632,7 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 	struct urb *urb;
 	void *buf;
 	struct kvaser_msg *msg;
-	int i, err;
-	int ret = NETDEV_TX_OK;
+	int i, err, ret = NETDEV_TX_OK;
 	u8 *msg_tx_can_flags = NULL;		/* GCC */
 
 	if (can_dropped_invalid_skb(netdev, skb))
@@ -1634,7 +1650,7 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 	if (!buf) {
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
-		goto nobufmem;
+		goto freeurb;
 	}
 
 	msg = buf;
@@ -1681,8 +1697,10 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 	/* This should never happen; it implies a flow control bug */
 	if (!context) {
 		netdev_warn(netdev, "cannot find free context\n");
+
+		kfree(buf);
 		ret =  NETDEV_TX_BUSY;
-		goto releasebuf;
+		goto freeurb;
 	}
 
 	context->priv = priv;
@@ -1719,16 +1737,12 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 		else
 			netdev_warn(netdev, "Failed tx_urb %d\n", err);
 
-		goto releasebuf;
+		goto freeurb;
 	}
 
-	usb_free_urb(urb);
+	ret = NETDEV_TX_OK;
 
-	return NETDEV_TX_OK;
-
-releasebuf:
-	kfree(buf);
-nobufmem:
+freeurb:
 	usb_free_urb(urb);
 	return ret;
 }
