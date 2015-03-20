@@ -21,6 +21,7 @@
 #include <asm/cputable.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
+#include <asm/archrandom.h>
 
 #define KVM_CMA_CHUNK_ORDER	18
 
@@ -169,3 +170,17 @@ int kvmppc_hcall_impl_hv_realmode(unsigned long cmd)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvmppc_hcall_impl_hv_realmode);
+
+int kvmppc_hwrng_present(void)
+{
+	return powernv_hwrng_present();
+}
+EXPORT_SYMBOL_GPL(kvmppc_hwrng_present);
+
+long kvmppc_h_random(struct kvm_vcpu *vcpu)
+{
+	if (powernv_get_random_real_mode(&vcpu->arch.gpr[4]))
+		return H_SUCCESS;
+
+	return H_HARDWARE;
+}
