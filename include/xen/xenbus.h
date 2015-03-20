@@ -114,9 +114,9 @@ int __must_check __xenbus_register_backend(struct xenbus_driver *drv,
 					   const char *mod_name);
 
 #define xenbus_register_frontend(drv) \
-	__xenbus_register_frontend(drv, THIS_MODULE, KBUILD_MODNAME);
+	__xenbus_register_frontend(drv, THIS_MODULE, KBUILD_MODNAME)
 #define xenbus_register_backend(drv) \
-	__xenbus_register_backend(drv, THIS_MODULE, KBUILD_MODNAME);
+	__xenbus_register_backend(drv, THIS_MODULE, KBUILD_MODNAME)
 
 void xenbus_unregister_driver(struct xenbus_driver *drv);
 

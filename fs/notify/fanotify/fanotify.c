@@ -143,7 +143,8 @@ static bool fanotify_should_send_event(struct fsnotify_mark *inode_mark,
 	    !(marks_mask & FS_ISDIR & ~marks_ignored_mask))
 		return false;
 
-	if (event_mask & marks_mask & ~marks_ignored_mask)
+	if (event_mask & FAN_ALL_OUTGOING_EVENTS & marks_mask &
+				 ~marks_ignored_mask)
 		return true;
 
 	return false;

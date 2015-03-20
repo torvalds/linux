@@ -2187,28 +2187,28 @@ replay:
 			}
 		}
 		err = rtnl_configure_link(dev, ifm);
-		if (err < 0) {
-			if (ops->newlink) {
-				LIST_HEAD(list_kill);
-
-				ops->dellink(dev, &list_kill);
-				unregister_netdevice_many(&list_kill);
-			} else {
-				unregister_netdevice(dev);
-			}
-			goto out;
-		}
-
+		if (err < 0)
+			goto out_unregister;
 		if (link_net) {
 			err = dev_change_net_namespace(dev, dest_net, ifname);
 			if (err < 0)
-				unregister_netdevice(dev);
+				goto out_unregister;
 		}
 out:
 		if (link_net)
 			put_net(link_net);
 		put_net(dest_net);
 		return err;
+out_unregister:
+		if (ops->newlink) {
+			LIST_HEAD(list_kill);
+
+			ops->dellink(dev, &list_kill);
+			unregister_netdevice_many(&list_kill);
+		} else {
+			unregister_netdevice(dev);
+		}
+		goto out;
 	}
 }
 

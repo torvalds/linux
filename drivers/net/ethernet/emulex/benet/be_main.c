@@ -1261,7 +1261,7 @@ static int be_vid_config(struct be_adapter *adapter)
 	for_each_set_bit(i, adapter->vids, VLAN_N_VID)
 		vids[num++] = cpu_to_le16(i);
 
-	status = be_cmd_vlan_config(adapter, adapter->if_handle, vids, num);
+	status = be_cmd_vlan_config(adapter, adapter->if_handle, vids, num, 0);
 	if (status) {
 		dev_err(dev, "Setting HW VLAN filtering failed\n");
 		/* Set to VLAN promisc mode as setting VLAN filter failed */
@@ -1470,11 +1470,67 @@ static int be_get_vf_config(struct net_device *netdev, int vf,
 	return 0;
 }
 
+static int be_set_vf_tvt(struct be_adapter *adapter, int vf, u16 vlan)
+{
+	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
+	u16 vids[BE_NUM_VLANS_SUPPORTED];
+	int vf_if_id = vf_cfg->if_handle;
+	int status;
+
+	/* Enable Transparent VLAN Tagging */
+	status = be_cmd_set_hsw_config(adapter, vlan, vf + 1, vf_if_id, 0);
+	if (status)
+		return status;
+
+	/* Clear pre-programmed VLAN filters on VF if any, if TVT is enabled */
+	vids[0] = 0;
+	status = be_cmd_vlan_config(adapter, vf_if_id, vids, 1, vf + 1);
+	if (!status)
+		dev_info(&adapter->pdev->dev,
+			 "Cleared guest VLANs on VF%d", vf);
+
+	/* After TVT is enabled, disallow VFs to program VLAN filters */
+	if (vf_cfg->privileges & BE_PRIV_FILTMGMT) {
+		status = be_cmd_set_fn_privileges(adapter, vf_cfg->privileges &
+						  ~BE_PRIV_FILTMGMT, vf + 1);
+		if (!status)
+			vf_cfg->privileges &= ~BE_PRIV_FILTMGMT;
+	}
+	return 0;
+}
+
+static int be_clear_vf_tvt(struct be_adapter *adapter, int vf)
+{
+	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
+	struct device *dev = &adapter->pdev->dev;
+	int status;
+
+	/* Reset Transparent VLAN Tagging. */
+	status = be_cmd_set_hsw_config(adapter, BE_RESET_VLAN_TAG_ID, vf + 1,
+				       vf_cfg->if_handle, 0);
+	if (status)
+		return status;
+
+	/* Allow VFs to program VLAN filtering */
+	if (!(vf_cfg->privileges & BE_PRIV_FILTMGMT)) {
+		status = be_cmd_set_fn_privileges(adapter, vf_cfg->privileges |
+						  BE_PRIV_FILTMGMT, vf + 1);
+		if (!status) {
+			vf_cfg->privileges |= BE_PRIV_FILTMGMT;
+			dev_info(dev, "VF%d: FILTMGMT priv enabled", vf);
+		}
+	}
+
+	dev_info(dev,
+		 "Disable/re-enable i/f in VM to clear Transparent VLAN tag");
+	return 0;
+}
+
 static int be_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
-	int status = 0;
+	int status;
 
 	if (!sriov_enabled(adapter))
 		return -EPERM;
@@ -1484,24 +1540,19 @@ static int be_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 
 	if (vlan || qos) {
 		vlan |= qos << VLAN_PRIO_SHIFT;
-		if (vf_cfg->vlan_tag != vlan)
-			status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
-						       vf_cfg->if_handle, 0);
+		status = be_set_vf_tvt(adapter, vf, vlan);
 	} else {
-		/* Reset Transparent Vlan Tagging. */
-		status = be_cmd_set_hsw_config(adapter, BE_RESET_VLAN_TAG_ID,
-					       vf + 1, vf_cfg->if_handle, 0);
+		status = be_clear_vf_tvt(adapter, vf);
 	}
 
 	if (status) {
 		dev_err(&adapter->pdev->dev,
-			"VLAN %d config on VF %d failed : %#x\n", vlan,
-			vf, status);
+			"VLAN %d config on VF %d failed : %#x\n", vlan, vf,
+			status);
 		return be_cmd_status(status);
 	}
 
 	vf_cfg->vlan_tag = vlan;
-
 	return 0;
 }
 
@@ -2868,14 +2919,12 @@ void be_detect_error(struct be_adapter *adapter)
 			}
 		}
 	} else {
-		pci_read_config_dword(adapter->pdev,
-				      PCICFG_UE_STATUS_LOW, &ue_lo);
-		pci_read_config_dword(adapter->pdev,
-				      PCICFG_UE_STATUS_HIGH, &ue_hi);
-		pci_read_config_dword(adapter->pdev,
-				      PCICFG_UE_STATUS_LOW_MASK, &ue_lo_mask);
-		pci_read_config_dword(adapter->pdev,
-				      PCICFG_UE_STATUS_HI_MASK, &ue_hi_mask);
+		ue_lo = ioread32(adapter->pcicfg + PCICFG_UE_STATUS_LOW);
+		ue_hi = ioread32(adapter->pcicfg + PCICFG_UE_STATUS_HIGH);
+		ue_lo_mask = ioread32(adapter->pcicfg +
+				      PCICFG_UE_STATUS_LOW_MASK);
+		ue_hi_mask = ioread32(adapter->pcicfg +
+				      PCICFG_UE_STATUS_HI_MASK);
 
 		ue_lo = (ue_lo & ~ue_lo_mask);
 		ue_hi = (ue_hi & ~ue_hi_mask);
@@ -3480,7 +3529,6 @@ static int be_if_create(struct be_adapter *adapter, u32 *if_handle,
 			u32 cap_flags, u32 vf)
 {
 	u32 en_flags;
-	int status;
 
 	en_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
 		   BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS |
@@ -3488,10 +3536,7 @@ static int be_if_create(struct be_adapter *adapter, u32 *if_handle,
 
 	en_flags &= cap_flags;
 
-	status = be_cmd_if_create(adapter, cap_flags, en_flags,
-				  if_handle, vf);
-
-	return status;
+	return be_cmd_if_create(adapter, cap_flags, en_flags, if_handle, vf);
 }
 
 static int be_vfs_if_create(struct be_adapter *adapter)
@@ -3510,8 +3555,13 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 			status = be_cmd_get_profile_config(adapter, &res,
 							   RESOURCE_LIMITS,
 							   vf + 1);
-			if (!status)
+			if (!status) {
 				cap_flags = res.if_cap_flags;
+				/* Prevent VFs from enabling VLAN promiscuous
+				 * mode
+				 */
+				cap_flags &= ~BE_IF_FLAGS_VLAN_PROMISCUOUS;
+			}
 		}
 
 		status = be_if_create(adapter, &vf_cfg->if_handle,
@@ -3545,7 +3595,6 @@ static int be_vf_setup(struct be_adapter *adapter)
 	struct device *dev = &adapter->pdev->dev;
 	struct be_vf_cfg *vf_cfg;
 	int status, old_vfs, vf;
-	u32 privileges;
 
 	old_vfs = pci_num_vf(adapter->pdev);
 
@@ -3575,15 +3624,18 @@ static int be_vf_setup(struct be_adapter *adapter)
 
 	for_all_vfs(adapter, vf_cfg, vf) {
 		/* Allow VFs to programs MAC/VLAN filters */
-		status = be_cmd_get_fn_privileges(adapter, &privileges, vf + 1);
-		if (!status && !(privileges & BE_PRIV_FILTMGMT)) {
+		status = be_cmd_get_fn_privileges(adapter, &vf_cfg->privileges,
+						  vf + 1);
+		if (!status && !(vf_cfg->privileges & BE_PRIV_FILTMGMT)) {
 			status = be_cmd_set_fn_privileges(adapter,
-							  privileges |
+							  vf_cfg->privileges |
 							  BE_PRIV_FILTMGMT,
 							  vf + 1);
-			if (!status)
+			if (!status) {
+				vf_cfg->privileges |= BE_PRIV_FILTMGMT;
 				dev_info(dev, "VF%d has FILTMGMT privilege\n",
 					 vf);
+			}
 		}
 
 		/* Allow full available bandwidth */
@@ -5154,6 +5206,7 @@ static int be_roce_map_pci_bars(struct be_adapter *adapter)
 
 static int be_map_pci_bars(struct be_adapter *adapter)
 {
+	struct pci_dev *pdev = adapter->pdev;
 	u8 __iomem *addr;
 	u32 sli_intf;
 
@@ -5163,21 +5216,33 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	adapter->virtfn = (sli_intf & SLI_INTF_FT_MASK) ? 1 : 0;
 
 	if (BEx_chip(adapter) && be_physfn(adapter)) {
-		adapter->csr = pci_iomap(adapter->pdev, 2, 0);
+		adapter->csr = pci_iomap(pdev, 2, 0);
 		if (!adapter->csr)
 			return -ENOMEM;
 	}
 
-	addr = pci_iomap(adapter->pdev, db_bar(adapter), 0);
+	addr = pci_iomap(pdev, db_bar(adapter), 0);
 	if (!addr)
 		goto pci_map_err;
 	adapter->db = addr;
+
+	if (skyhawk_chip(adapter) || BEx_chip(adapter)) {
+		if (be_physfn(adapter)) {
+			/* PCICFG is the 2nd BAR in BE2 */
+			addr = pci_iomap(pdev, BE2_chip(adapter) ? 1 : 0, 0);
+			if (!addr)
+				goto pci_map_err;
+			adapter->pcicfg = addr;
+		} else {
+			adapter->pcicfg = adapter->db + SRIOV_VF_PCICFG_OFFSET;
+		}
+	}
 
 	be_roce_map_pci_bars(adapter);
 	return 0;
 
 pci_map_err:
-	dev_err(&adapter->pdev->dev, "Error in mapping PCI BARs\n");
+	dev_err(&pdev->dev, "Error in mapping PCI BARs\n");
 	be_unmap_pci_bars(adapter);
 	return -ENOMEM;
 }

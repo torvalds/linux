@@ -87,7 +87,7 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		if (!skb) {
 			/* nothing remains on the queue */
 			if (copied &&
-			    (msg->msg_flags & MSG_PEEK || timeo == 0))
+			    (flags & MSG_PEEK || timeo == 0))
 				goto out;
 
 			/* wait for a message to turn up */

@@ -281,7 +281,7 @@ static int caif_seqpkt_recvmsg(struct socket *sock, struct msghdr *m,
 	int copylen;
 
 	ret = -EOPNOTSUPP;
-	if (m->msg_flags&MSG_OOB)
+	if (flags & MSG_OOB)
 		goto read_error;
 
 	skb = skb_recv_datagram(sk, flags, 0 , &ret);
