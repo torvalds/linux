@@ -6765,10 +6765,19 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	bool is_lvds = false, is_dsi = false;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
+	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector_state *connector_state;
+	int i;
 
-	for_each_intel_encoder(dev, encoder) {
-		if (encoder->new_crtc != crtc)
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
 			continue;
+
+		connector_state = state->connector_states[i];
+		if (connector_state->crtc != &crtc->base)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
 
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
@@ -7443,17 +7452,25 @@ void intel_init_pch_refclk(struct drm_device *dev)
 		lpt_init_pch_refclk(dev);
 }
 
-static int ironlake_get_refclk(struct drm_crtc *crtc)
+static int ironlake_get_refclk(struct intel_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc_state->base.crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
-	int num_connectors = 0;
+	int num_connectors = 0, i;
 	bool is_lvds = false;
 
-	for_each_intel_encoder(dev, encoder) {
-		if (encoder->new_crtc != to_intel_crtc(crtc))
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
 			continue;
+
+		connector_state = state->connector_states[i];
+		if (connector_state->crtc != crtc_state->base.crtc)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
 
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
@@ -7647,7 +7664,7 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 
 	is_lvds = intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS);
 
-	refclk = ironlake_get_refclk(crtc);
+	refclk = ironlake_get_refclk(crtc_state);
 
 	/*
 	 * Returns a set of divisors for the desired target clock with the given
@@ -7702,16 +7719,24 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder;
+	struct drm_atomic_state *state = crtc_state->base.state;
+	struct drm_connector_state *connector_state;
+	struct intel_encoder *encoder;
 	uint32_t dpll;
-	int factor, num_connectors = 0;
+	int factor, num_connectors = 0, i;
 	bool is_lvds = false, is_sdvo = false;
 
-	for_each_intel_encoder(dev, intel_encoder) {
-		if (intel_encoder->new_crtc != to_intel_crtc(crtc))
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
 			continue;
 
-		switch (intel_encoder->type) {
+		connector_state = state->connector_states[i];
+		if (connector_state->crtc != crtc_state->base.crtc)
+			continue;
+
+		encoder = to_intel_encoder(connector_state->best_encoder);
+
+		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
