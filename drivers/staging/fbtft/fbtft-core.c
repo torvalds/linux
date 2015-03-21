@@ -338,7 +338,7 @@ static void fbtft_set_addr_win(struct fbtft_par *par, int xs, int ys, int xe,
 	write_reg(par, 0x2A,
 		(xs >> 8) & 0xFF, xs & 0xFF, (xe >> 8) & 0xFF, xe & 0xFF);
 
-	/* Row adress set */
+	/* Row address set */
 	write_reg(par, 0x2B,
 		(ys >> 8) & 0xFF, ys & 0xFF, (ye >> 8) & 0xFF, ye & 0xFF);
 

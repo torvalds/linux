@@ -11,7 +11,7 @@
 						  *****      *   *
   Date    : 10.06.2014                                      *   *
   Version : V1.13                                          *****
-  Revison : 5
+  Revision : 5
 
 *******************************************************************************
  * This program is free software; you can redistribute it and/or modify

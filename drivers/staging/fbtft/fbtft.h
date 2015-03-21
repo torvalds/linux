@@ -147,7 +147,7 @@ struct fbtft_display {
 /**
  * struct fbtft_platform_data - Passes display specific data to the driver
  * @display: Display properties
- * @gpios: Pointer to an array of piname to gpio mappings
+ * @gpios: Pointer to an array of pinname to gpio mappings
  * @rotate: Display rotation angle
  * @bgr: LCD Controller BGR bit
  * @fps: Frames per second (this will go away, use @fps in @fbtft_display)
@@ -200,7 +200,7 @@ struct fbtft_platform_data {
  * @gpio.cs: LCD Chip Select with parallel interface bus
  * @gpio.db[16]: Parallel databus
  * @gpio.led[16]: Led control signals
- * @gpio.aux[16]: Auxillary signals, not used by core
+ * @gpio.aux[16]: Auxiliary signals, not used by core
  * @init_sequence: Pointer to LCD initialization array
  * @gamma.lock: Mutex for Gamma curve locking
  * @gamma.curves: Pointer to Gamma curve array

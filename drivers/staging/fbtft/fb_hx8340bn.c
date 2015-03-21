@@ -4,7 +4,7 @@
  * This display uses 9-bit SPI: Data/Command bit + 8 data bits
  * For platforms that doesn't support 9-bit, the driver is capable
  * of emulating this using 8-bit transfer.
- * This is done by transfering eight 9-bit words in 9 bytes.
+ * This is done by transferring eight 9-bit words in 9 bytes.
  *
  * Copyright (C) 2013 Noralf Tronnes
  *

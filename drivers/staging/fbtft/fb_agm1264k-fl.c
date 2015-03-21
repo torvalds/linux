@@ -174,7 +174,7 @@ request_gpios_match(struct fbtft_par *par, const struct fbtft_gpio *gpio)
 
 /* This function oses to enter commands
  * first byte - destination controller 0 or 1
- * folowing - commands
+ * following - commands
  */
 static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 {
@@ -199,7 +199,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	if (*buf > 1) {
 		va_end(args);
 		dev_err(par->info->device,
-			"Incorrect chip sellect request (%d)\n", *buf);
+			"Incorrect chip select request (%d)\n", *buf);
 		return;
 	}
 
@@ -278,7 +278,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	int x, y;
 	int ret = 0;
 
-	/* buffer to convert RGB565 -> grayscale16 -> Ditherd image 1bpp */
+	/* buffer to convert RGB565 -> grayscale16 -> Dithered image 1bpp */
 	signed short *convert_buf = kmalloc(par->info->var.xres *
 		par->info->var.yres * sizeof(signed short), GFP_NOIO);
 

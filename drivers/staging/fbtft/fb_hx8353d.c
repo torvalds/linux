@@ -84,7 +84,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 	/* column address */
 	write_reg(par, 0x2a, xs >> 8, xs & 0xff, xe >> 8, xe & 0xff);
 
-	/* row adress */
+	/* Row address */
 	write_reg(par, 0x2b, ys >> 8, ys & 0xff, ye >> 8, ye & 0xff);
 
 	/* memory write */
