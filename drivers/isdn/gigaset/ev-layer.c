@@ -389,24 +389,6 @@ zsau_resp[] =
 	{NULL,				ZSAU_UNKNOWN}
 };
 
-/* retrieve CID from parsed response
- * returns 0 if no CID, -1 if invalid CID, or CID value 1..65535
- */
-static int cid_of_response(char *s)
-{
-	int cid;
-	int rc;
-
-	if (s[-1] != ';')
-		return 0;	/* no CID separator */
-	rc = kstrtoint(s, 10, &cid);
-	if (rc)
-		return 0;	/* CID not numeric */
-	if (cid < 1 || cid > 65535)
-		return -1;	/* CID out of range */
-	return cid;
-}
-
 /* queue event with CID */
 static void add_cid_event(struct cardstate *cs, int cid, int type,
 			  void *ptr, int parameter)
@@ -451,7 +433,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	unsigned char *argv[MAX_REC_PARAMS + 1];
 	int params;
 	int i, j;
-	char *ptr;
+	char *psep, *ptr;
 	const struct resp_type_t *rt;
 	const struct zsau_resp_t *zr;
 	int curarg;
@@ -474,6 +456,18 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 		return;
 	}
 
+	/* check for CID */
+	psep = strrchr(cs->respdata, ';');
+	if (psep &&
+	    !kstrtoint(psep + 1, 10, &cid) &&
+	    cid >= 1 && cid <= 65535) {
+		/* valid CID: chop it off */
+		*psep = 0;
+	} else {
+		/* no valid CID: leave unchanged */
+		cid = 0;
+	}
+
 	/* parse line */
 	argv[0] = cs->respdata;
 	params = 1;
@@ -482,29 +476,17 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 		case ';':
 		case ',':
 		case '=':
-			if (params > MAX_REC_PARAMS) {
+			cs->respdata[i] = 0;
+			if (params > MAX_REC_PARAMS)
 				dev_warn(cs->dev,
 					 "too many parameters in response\n");
-				/* need last parameter (might be CID) */
-				params--;
-			}
-			argv[params++] = cs->respdata + i + 1;
+			else
+				argv[params++] = cs->respdata + i + 1;
 		}
 
-	cid = params > 1 ? cid_of_response(argv[params - 1]) : 0;
-	if (cid < 0) {
-		gigaset_add_event(cs, &cs->at_state, RSP_INVAL, NULL, 0, NULL);
-		return;
-	}
-
-	for (j = 1; j < params; ++j)
-		argv[j][-1] = 0;
-
 	gig_dbg(DEBUG_EVENT, "CMD received: %s", argv[0]);
-	if (cid) {
-		--params;
-		gig_dbg(DEBUG_EVENT, "CID: %s", argv[params]);
-	}
+	if (cid)
+		gig_dbg(DEBUG_EVENT, "CID: %d", cid);
 	gig_dbg(DEBUG_EVENT, "available params: %d", params - 1);
 	for (j = 1; j < params; j++)
 		gig_dbg(DEBUG_EVENT, "param %d: %s", j, argv[j]);
