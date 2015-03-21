@@ -3138,6 +3138,9 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 		elem.flags = ntohl(nla_get_be32(nla[NFTA_SET_ELEM_FLAGS]));
 		if (elem.flags & ~NFT_SET_ELEM_INTERVAL_END)
 			return -EINVAL;
+		if (!(set->flags & NFT_SET_INTERVAL) &&
+		    elem.flags & NFT_SET_ELEM_INTERVAL_END)
+			return -EINVAL;
 	}
 
 	if (set->flags & NFT_SET_MAP) {
