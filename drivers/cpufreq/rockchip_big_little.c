@@ -95,7 +95,10 @@ static unsigned int big_little = 1;
 /*******************************************************/
 static inline int cpu_to_cluster(int cpu)
 {
-	return topology_physical_package_id(cpu);
+	int id = topology_physical_package_id(cpu);
+	if (id < 0)
+		id = 0;
+	return id;
 }
 
 static unsigned int rockchip_bl_cpufreq_get_rate(unsigned int cpu)
