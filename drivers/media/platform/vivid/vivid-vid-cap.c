@@ -1578,6 +1578,65 @@ int vivid_vid_cap_s_std(struct file *file, void *priv, v4l2_std_id id)
 	return 0;
 }
 
+static void find_aspect_ratio(u32 width, u32 height,
+			       u32 *num, u32 *denom)
+{
+	if (!(height % 3) && ((height * 4 / 3) == width)) {
+		*num = 4;
+		*denom = 3;
+	} else if (!(height % 9) && ((height * 16 / 9) == width)) {
+		*num = 16;
+		*denom = 9;
+	} else if (!(height % 10) && ((height * 16 / 10) == width)) {
+		*num = 16;
+		*denom = 10;
+	} else if (!(height % 4) && ((height * 5 / 4) == width)) {
+		*num = 5;
+		*denom = 4;
+	} else if (!(height % 9) && ((height * 15 / 9) == width)) {
+		*num = 15;
+		*denom = 9;
+	} else { /* default to 16:9 */
+		*num = 16;
+		*denom = 9;
+	}
+}
+
+static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
+{
+	struct v4l2_bt_timings *bt = &timings->bt;
+	u32 total_h_pixel;
+	u32 total_v_lines;
+	u32 h_freq;
+
+	if (!v4l2_valid_dv_timings(timings, &vivid_dv_timings_cap,
+				NULL, NULL))
+		return false;
+
+	total_h_pixel = V4L2_DV_BT_FRAME_WIDTH(bt);
+	total_v_lines = V4L2_DV_BT_FRAME_HEIGHT(bt);
+
+	h_freq = (u32)bt->pixelclock / total_h_pixel;
+
+	if (bt->standards == 0 || (bt->standards & V4L2_DV_BT_STD_CVT)) {
+		if (v4l2_detect_cvt(total_v_lines, h_freq, bt->vsync,
+				    bt->polarities, timings))
+			return true;
+	}
+
+	if (bt->standards == 0 || (bt->standards & V4L2_DV_BT_STD_GTF)) {
+		struct v4l2_fract aspect_ratio;
+
+		find_aspect_ratio(bt->width, bt->height,
+				  &aspect_ratio.numerator,
+				  &aspect_ratio.denominator);
+		if (v4l2_detect_gtf(total_v_lines, h_freq, bt->vsync,
+				    bt->polarities, aspect_ratio, timings))
+			return true;
+	}
+	return false;
+}
+
 int vivid_vid_cap_s_dv_timings(struct file *file, void *_fh,
 				    struct v4l2_dv_timings *timings)
 {
@@ -1586,12 +1645,15 @@ int vivid_vid_cap_s_dv_timings(struct file *file, void *_fh,
 	if (!vivid_is_hdmi_cap(dev))
 		return -ENODATA;
 	if (!v4l2_find_dv_timings_cap(timings, &vivid_dv_timings_cap,
-				0, NULL, NULL))
+				      0, NULL, NULL) &&
+	    !valid_cvt_gtf_timings(timings))
 		return -EINVAL;
+
 	if (v4l2_match_dv_timings(timings, &dev->dv_timings_cap, 0))
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_cap_q))
 		return -EBUSY;
+
 	dev->dv_timings_cap = *timings;
 	vivid_update_format_cap(dev, false);
 	return 0;
