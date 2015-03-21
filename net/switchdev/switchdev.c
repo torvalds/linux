@@ -47,11 +47,20 @@ EXPORT_SYMBOL_GPL(netdev_switch_parent_id_get);
 int netdev_switch_port_stp_update(struct net_device *dev, u8 state)
 {
 	const struct swdev_ops *ops = dev->swdev_ops;
+	struct net_device *lower_dev;
+	struct list_head *iter;
+	int err = -EOPNOTSUPP;
 
-	if (!ops || !ops->swdev_port_stp_update)
-		return -EOPNOTSUPP;
-	WARN_ON(!ops->swdev_parent_id_get);
-	return ops->swdev_port_stp_update(dev, state);
+	if (ops && ops->swdev_port_stp_update)
+		return ops->swdev_port_stp_update(dev, state);
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		err = netdev_switch_port_stp_update(lower_dev, state);
+		if (err && err != -EOPNOTSUPP)
+			return err;
+	}
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(netdev_switch_port_stp_update);
 
