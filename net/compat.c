@@ -31,10 +31,10 @@
 #include <asm/uaccess.h>
 #include <net/compat.h>
 
-ssize_t get_compat_msghdr(struct msghdr *kmsg,
-			  struct compat_msghdr __user *umsg,
-			  struct sockaddr __user **save_addr,
-			  struct iovec **iov)
+int get_compat_msghdr(struct msghdr *kmsg,
+		      struct compat_msghdr __user *umsg,
+		      struct sockaddr __user **save_addr,
+		      struct iovec **iov)
 {
 	compat_uptr_t uaddr, uiov, tmp3;
 	compat_size_t nr_segs;
@@ -81,13 +81,9 @@ ssize_t get_compat_msghdr(struct msghdr *kmsg,
 
 	kmsg->msg_iocb = NULL;
 
-	err = compat_rw_copy_check_uvector(save_addr ? READ : WRITE,
-					   compat_ptr(uiov), nr_segs,
-					   UIO_FASTIOV, *iov, iov);
-	if (err >= 0)
-		iov_iter_init(&kmsg->msg_iter, save_addr ? READ : WRITE,
-			      *iov, nr_segs, err);
-	return err;
+	return compat_import_iovec(save_addr ? READ : WRITE,
+				   compat_ptr(uiov), nr_segs,
+				   UIO_FASTIOV, iov, &kmsg->msg_iter);
 }
 
 /* Bleech... */

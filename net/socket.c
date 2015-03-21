@@ -1841,10 +1841,10 @@ struct used_address {
 	unsigned int name_len;
 };
 
-static ssize_t copy_msghdr_from_user(struct msghdr *kmsg,
-				     struct user_msghdr __user *umsg,
-				     struct sockaddr __user **save_addr,
-				     struct iovec **iov)
+static int copy_msghdr_from_user(struct msghdr *kmsg,
+				 struct user_msghdr __user *umsg,
+				 struct sockaddr __user **save_addr,
+				 struct iovec **iov)
 {
 	struct sockaddr __user *uaddr;
 	struct iovec __user *uiov;
@@ -1890,13 +1890,8 @@ static ssize_t copy_msghdr_from_user(struct msghdr *kmsg,
 
 	kmsg->msg_iocb = NULL;
 
-	err = rw_copy_check_uvector(save_addr ? READ : WRITE,
-				    uiov, nr_segs,
-				    UIO_FASTIOV, *iov, iov);
-	if (err >= 0)
-		iov_iter_init(&kmsg->msg_iter, save_addr ? READ : WRITE,
-			      *iov, nr_segs, err);
-	return err;
+	return import_iovec(save_addr ? READ : WRITE, uiov, nr_segs,
+			    UIO_FASTIOV, iov, &kmsg->msg_iter);
 }
 
 static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
@@ -1921,8 +1916,8 @@ static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
 	else
 		err = copy_msghdr_from_user(msg_sys, msg, NULL, &iov);
 	if (err < 0)
-		goto out_freeiov;
-	total_len = err;
+		return err;
+	total_len = iov_iter_count(&msg_sys->msg_iter);
 
 	err = -ENOBUFS;
 
@@ -1988,8 +1983,7 @@ out_freectl:
 	if (ctl_buf != ctl)
 		sock_kfree_s(sock->sk, ctl_buf, ctl_len);
 out_freeiov:
-	if (iov != iovstack)
-		kfree(iov);
+	kfree(iov);
 	return err;
 }
 
@@ -2114,8 +2108,8 @@ static int ___sys_recvmsg(struct socket *sock, struct user_msghdr __user *msg,
 	else
 		err = copy_msghdr_from_user(msg_sys, msg, &uaddr, &iov);
 	if (err < 0)
-		goto out_freeiov;
-	total_len = err;
+		return err;
+	total_len = iov_iter_count(&msg_sys->msg_iter);
 
 	cmsg_ptr = (unsigned long)msg_sys->msg_control;
 	msg_sys->msg_flags = flags & (MSG_CMSG_CLOEXEC|MSG_CMSG_COMPAT);
@@ -2153,8 +2147,7 @@ static int ___sys_recvmsg(struct socket *sock, struct user_msghdr __user *msg,
 	err = len;
 
 out_freeiov:
-	if (iov != iovstack)
-		kfree(iov);
+	kfree(iov);
 	return err;
 }
 
