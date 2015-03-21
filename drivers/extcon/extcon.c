@@ -445,6 +445,9 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 			     const char *extcon_name, const char *cable_name,
 			     struct notifier_block *nb)
 {
+	unsigned long flags;
+	int ret;
+
 	if (!obj || !cable_name || !nb)
 		return -EINVAL;
 
@@ -462,8 +465,11 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 
 		obj->internal_nb.notifier_call = _call_per_cable;
 
-		return raw_notifier_chain_register(&obj->edev->nh,
+		spin_lock_irqsave(&obj->edev->lock, flags);
+		ret = raw_notifier_chain_register(&obj->edev->nh,
 						  &obj->internal_nb);
+		spin_unlock_irqrestore(&obj->edev->lock, flags);
+		return ret;
 	} else {
 		struct class_dev_iter iter;
 		struct extcon_dev *extd;
@@ -496,10 +502,17 @@ EXPORT_SYMBOL_GPL(extcon_register_interest);
  */
 int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 {
+	unsigned long flags;
+	int ret;
+
 	if (!obj)
 		return -EINVAL;
 
-	return raw_notifier_chain_unregister(&obj->edev->nh, &obj->internal_nb);
+	spin_lock_irqsave(&obj->edev->lock, flags);
+	ret = raw_notifier_chain_unregister(&obj->edev->nh, &obj->internal_nb);
+	spin_unlock_irqrestore(&obj->edev->lock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(extcon_unregister_interest);
 
@@ -516,7 +529,14 @@ EXPORT_SYMBOL_GPL(extcon_unregister_interest);
 int extcon_register_notifier(struct extcon_dev *edev,
 			struct notifier_block *nb)
 {
-	return raw_notifier_chain_register(&edev->nh, nb);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&edev->lock, flags);
+	ret = raw_notifier_chain_register(&edev->nh, nb);
+	spin_unlock_irqrestore(&edev->lock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(extcon_register_notifier);
 
@@ -528,7 +548,14 @@ EXPORT_SYMBOL_GPL(extcon_register_notifier);
 int extcon_unregister_notifier(struct extcon_dev *edev,
 			struct notifier_block *nb)
 {
-	return raw_notifier_chain_unregister(&edev->nh, nb);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&edev->lock, flags);
+	ret = raw_notifier_chain_unregister(&edev->nh, nb);
+	spin_unlock_irqrestore(&edev->lock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(extcon_unregister_notifier);
 
