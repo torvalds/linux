@@ -1210,13 +1210,13 @@ struct prism2sta_authlist {
 	u8 assoc[WLAN_AUTH_MAX];
 };
 
-typedef struct prism2sta_accesslist {
+struct prism2sta_accesslist {
 	unsigned int modify;
 	unsigned int cnt;
 	u8 addr[WLAN_ACCESS_MAX][ETH_ALEN];
 	unsigned int cnt1;
 	u8 addr1[WLAN_ACCESS_MAX][ETH_ALEN];
-} prism2sta_accesslist_t;
+};
 
 typedef struct hfa384x {
 	/* USB support data */
@@ -1349,9 +1349,9 @@ typedef struct hfa384x {
 	hfa384x_InfFrame_t *scanresults;
 
 	struct prism2sta_authlist authlist;	/* Authenticated station list. */
-	unsigned int accessmode;	/* Access mode. */
-	prism2sta_accesslist_t allow;	/* Allowed station list. */
-	prism2sta_accesslist_t deny;	/* Denied station list. */
+	unsigned int accessmode;		/* Access mode. */
+	struct prism2sta_accesslist allow;	/* Allowed station list. */
+	struct prism2sta_accesslist deny;	/* Denied station list. */
 
 } hfa384x_t;
 
