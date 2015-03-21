@@ -18,6 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/rockchip/pmu.h>
 #include <linux/rockchip/cru.h>
+#include <linux/rockchip/cpu_axi.h>
 
 #include "clk-ops.h"
 
@@ -113,6 +114,42 @@ static noinline void rk3368_do_pmu_set_power_domain
 		;
 }
 
+/* PD_VIO */
+static void __iomem *iep_qos_base;
+static u32 iep_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *isp_r0_qos_base;
+static u32 isp_r0_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *isp_r1_qos_base;
+static u32 isp_r1_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *isp_w0_qos_base;
+static u32 isp_w0_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *isp_w1_qos_base;
+static u32 isp_w1_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *vip_qos_base;
+static u32 vip_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *vop_qos_base;
+static u32 vop_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *rga_r_qos_base;
+static u32 rga_r_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *rga_w_qos_base;
+static u32 rga_w_qos[CPU_AXI_QOS_NUM_REGS];
+/* PD_VIDEO */
+static void __iomem *hevc_r_qos_base;
+static u32 hevc_r_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *vpu_r_qos_base;
+static u32 vpu_r_qos[CPU_AXI_QOS_NUM_REGS];
+static void __iomem *vpu_w_qos_base;
+static u32 vpu_w_qos[CPU_AXI_QOS_NUM_REGS];
+/* PD_GPU_0 */
+static void __iomem *gpu_qos_base;
+static u32 gpu_qos[CPU_AXI_QOS_NUM_REGS];
+/* PD_PERI */
+static void __iomem *peri_qos_base;
+static u32 peri_qos[CPU_AXI_QOS_NUM_REGS];
+
+#define PD_SAVE_QOS(name) CPU_AXI_SAVE_QOS(name##_qos, name##_qos_base)
+#define PD_RESTORE_QOS(name) CPU_AXI_RESTORE_QOS(name##_qos, name##_qos_base)
+
 static int rk3368_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 {
 	unsigned long flags;
@@ -124,28 +161,58 @@ static int rk3368_pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 
 	if (!on) {
 		/* if power down, idle request to NIU first */
-		if (pd == PD_VIO)
+		if (pd == PD_VIO) {
+			PD_SAVE_QOS(iep);
+			PD_SAVE_QOS(isp_r0);
+			PD_SAVE_QOS(isp_r1);
+			PD_SAVE_QOS(isp_w0);
+			PD_SAVE_QOS(isp_w1);
+			PD_SAVE_QOS(vip);
+			PD_SAVE_QOS(vop);
+			PD_SAVE_QOS(rga_r);
+			PD_SAVE_QOS(rga_w);
 			rk3368_pmu_set_idle_request(IDLE_REQ_VIO, true);
-		else if (pd == PD_VIDEO)
+		} else if (pd == PD_VIDEO) {
+			PD_SAVE_QOS(hevc_r);
+			PD_SAVE_QOS(vpu_r);
+			PD_SAVE_QOS(vpu_w);
 			rk3368_pmu_set_idle_request(IDLE_REQ_VIDEO, true);
-		else if (pd == PD_GPU_0)
+		} else if (pd == PD_GPU_0) {
+			PD_SAVE_QOS(gpu);
 			rk3368_pmu_set_idle_request(IDLE_REQ_GPU, true);
-		else if (pd == PD_PERI)
+		} else if (pd == PD_PERI) {
+			PD_SAVE_QOS(peri);
 			rk3368_pmu_set_idle_request(IDLE_REQ_PERI, true);
+		}
 	}
 
 	rk3368_do_pmu_set_power_domain(pd, on);
 
 	if (on) {
 		/* if power up, idle request release to NIU */
-		if (pd == PD_VIO)
+		if (pd == PD_VIO) {
 			rk3368_pmu_set_idle_request(IDLE_REQ_VIO, false);
-		else if (pd == PD_VIDEO)
+			PD_RESTORE_QOS(iep);
+			PD_RESTORE_QOS(isp_r0);
+			PD_RESTORE_QOS(isp_r1);
+			PD_RESTORE_QOS(isp_w0);
+			PD_RESTORE_QOS(isp_w1);
+			PD_RESTORE_QOS(vip);
+			PD_RESTORE_QOS(vop);
+			PD_RESTORE_QOS(rga_r);
+			PD_RESTORE_QOS(rga_w);
+		} else if (pd == PD_VIDEO) {
 			rk3368_pmu_set_idle_request(IDLE_REQ_VIDEO, false);
-		else if (pd == PD_GPU_0)
+			PD_RESTORE_QOS(hevc_r);
+			PD_RESTORE_QOS(vpu_r);
+			PD_RESTORE_QOS(vpu_w);
+		} else if (pd == PD_GPU_0) {
 			rk3368_pmu_set_idle_request(IDLE_REQ_GPU, false);
-		else if (pd == PD_PERI)
+			PD_RESTORE_QOS(gpu);
+		} else if (pd == PD_PERI) {
 			rk3368_pmu_set_idle_request(IDLE_REQ_PERI, false);
+			PD_RESTORE_QOS(peri);
+		}
 	}
 
 out:
@@ -178,12 +245,12 @@ static int rk3368_sys_set_power_domain(enum pmu_power_domain pd, bool on)
 
 static int __init rk3368_init_rockchip_pmu_ops(void)
 {
-	struct device_node *node;
+	struct device_node *node, *gp, *cp;
 
 	node = of_find_compatible_node(NULL, NULL, "rockchip,rk3368-pmu");
 	if (!node) {
 		pr_err("%s: could not find pmu dt node\n", __func__);
-		return -ENXIO;
+		return -ENODEV;
 	}
 
 	rk_pmu_base = of_iomap(node, 0);
@@ -191,6 +258,40 @@ static int __init rk3368_init_rockchip_pmu_ops(void)
 		pr_err("%s: could not map pmu registers\n", __func__);
 		return -ENXIO;
 	}
+
+	node = of_find_compatible_node(NULL, NULL, "rockchip,cpu_axi_bus");
+	if (!node)
+		return -ENODEV;
+
+#define MAP(name)							\
+	do {								\
+		cp = of_get_child_by_name(gp, #name);			\
+		if (cp)							\
+			name##_qos_base = of_iomap(cp, 0);		\
+		if (!name##_qos_base)					\
+			pr_err("%s: could not map qos %s register\n",	\
+			       __func__, #name);			\
+	} while (0)
+
+	gp = of_get_child_by_name(node, "qos");
+	if (gp) {
+		MAP(peri);
+		MAP(iep);
+		MAP(isp_r0);
+		MAP(isp_r1);
+		MAP(isp_w0);
+		MAP(isp_w1);
+		MAP(vip);
+		MAP(vop);
+		MAP(rga_r);
+		MAP(rga_w);
+		MAP(hevc_r);
+		MAP(vpu_r);
+		MAP(vpu_w);
+		MAP(gpu);
+	}
+
+#undef MAP
 
 	rockchip_pmu_ops.set_power_domain = rk3368_sys_set_power_domain;
 	rockchip_pmu_ops.power_domain_is_on = rk3368_pmu_power_domain_is_on;
