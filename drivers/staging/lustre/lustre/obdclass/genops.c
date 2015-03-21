@@ -43,7 +43,6 @@
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
 
-extern struct list_head obd_types;
 spinlock_t obd_types_lock;
 
 struct kmem_cache *obd_device_cachep;
