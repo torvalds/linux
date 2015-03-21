@@ -55,34 +55,11 @@
 	compatible = "csq,cs908", "allwinner,sun6i-a31s";
 };
 
-&usbphy {
-	status = "okay";
-};
-
 &ehci0 {
 	status = "okay";
 };
 
 &ehci1 {
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
-&pio {
-	usb1_vbus_pin_csq908: usb1_vbus_pin@0 {
-		allwinner,pins = "PC27";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-};
-
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
 };
 
@@ -100,5 +77,19 @@
 &ir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir_pins_a>;
+	status = "okay";
+};
+
+&ohci1 {
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&usbphy {
 	status = "okay";
 };
