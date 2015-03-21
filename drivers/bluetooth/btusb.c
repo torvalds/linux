@@ -2458,6 +2458,25 @@ static int btusb_setup_bcm_patchram(struct hci_dev *hdev)
 	subver = le16_to_cpu(ver->lmp_subver);
 	kfree_skb(skb);
 
+	/* Read Verbose Config Version Info */
+	skb = __hci_cmd_sync(hdev, 0xfc79, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		ret = PTR_ERR(skb);
+		BT_ERR("%s: BCM: Read Verbose Version failed (%ld)",
+		       hdev->name, ret);
+		return ret;
+	}
+
+	if (skb->len != 7) {
+		BT_ERR("%s: BCM: Read Verbose Version event length mismatch",
+		       hdev->name);
+		kfree_skb(skb);
+		return -EIO;
+	}
+
+	BT_INFO("%s: BCM: chip id %u", hdev->name, skb->data[1]);
+	kfree_skb(skb);
+
 	for (i = 0; bcm_subver_table[i].name; i++) {
 		if (subver == bcm_subver_table[i].subver) {
 			hw_name = bcm_subver_table[i].name;
