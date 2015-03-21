@@ -2088,8 +2088,8 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		wme_sta = true;
 
-	/* receiver and we are QoS enabled, use a QoS type frame */
-	if (wme_sta && local->hw.queues >= IEEE80211_NUM_ACS) {
+	/* receiver does QoS (which also means we do) use it */
+	if (wme_sta) {
 		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 		hdrlen += 2;
 	}

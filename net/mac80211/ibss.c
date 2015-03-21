@@ -1016,7 +1016,7 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (sta && elems->wmm_info)
+	if (sta && elems->wmm_info && local->hw.queues >= IEEE80211_NUM_ACS)
 		sta->sta.wme = true;
 
 	if (sta && elems->ht_operation && elems->ht_cap_elem &&
