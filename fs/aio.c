@@ -1352,43 +1352,33 @@ typedef ssize_t (aio_rw_op)(struct kiocb *, const struct iovec *,
 			    unsigned long, loff_t);
 typedef ssize_t (rw_iter_op)(struct kiocb *, struct iov_iter *);
 
-static ssize_t aio_setup_vectored_rw(struct kiocb *kiocb,
-				     int rw, char __user *buf,
-				     unsigned long *nr_segs,
-				     size_t *len,
-				     struct iovec **iovec,
-				     bool compat,
-				     struct iov_iter *iter)
+static int aio_setup_vectored_rw(int rw, char __user *buf, size_t len,
+				 struct iovec **iovec,
+				 bool compat,
+				 struct iov_iter *iter)
 {
 	ssize_t ret;
-
-	*nr_segs = *len;
 
 #ifdef CONFIG_COMPAT
 	if (compat)
 		ret = compat_rw_copy_check_uvector(rw,
 				(struct compat_iovec __user *)buf,
-				*nr_segs, UIO_FASTIOV, *iovec, iovec);
+				len, UIO_FASTIOV, *iovec, iovec);
 	else
 #endif
 		ret = rw_copy_check_uvector(rw,
 				(struct iovec __user *)buf,
-				*nr_segs, UIO_FASTIOV, *iovec, iovec);
+				len, UIO_FASTIOV, *iovec, iovec);
 	if (ret < 0)
 		return ret;
 
-	/* len now reflect bytes instead of segs */
-	*len = ret;
-	iov_iter_init(iter, rw, *iovec, *nr_segs, *len);
+	iov_iter_init(iter, rw, *iovec, len, ret);
 	return 0;
 }
 
-static ssize_t aio_setup_single_vector(struct kiocb *kiocb,
-				       int rw, char __user *buf,
-				       unsigned long *nr_segs,
-				       size_t len,
-				       struct iovec *iovec,
-				       struct iov_iter *iter)
+static int aio_setup_single_vector(int rw, char __user *buf, size_t len,
+				   struct iovec *iovec,
+				   struct iov_iter *iter)
 {
 	if (len > MAX_RW_COUNT)
 		len = MAX_RW_COUNT;
@@ -1397,8 +1387,7 @@ static ssize_t aio_setup_single_vector(struct kiocb *kiocb,
 
 	iovec->iov_base = buf;
 	iovec->iov_len = len;
-	*nr_segs = 1;
-	iov_iter_init(iter, rw, iovec, *nr_segs, len);
+	iov_iter_init(iter, rw, iovec, 1, len);
 	return 0;
 }
 
@@ -1411,7 +1400,6 @@ static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
 {
 	struct file *file = req->ki_filp;
 	ssize_t ret;
-	unsigned long nr_segs;
 	int rw;
 	fmode_t mode;
 	aio_rw_op *rw_op;
@@ -1443,13 +1431,14 @@ rw_common:
 			return -EINVAL;
 
 		if (opcode == IOCB_CMD_PREADV || opcode == IOCB_CMD_PWRITEV)
-			ret = aio_setup_vectored_rw(req, rw, buf, &nr_segs,
-						&len, &iovec, compat, &iter);
+			ret = aio_setup_vectored_rw(rw, buf, len,
+						&iovec, compat, &iter);
 		else
-			ret = aio_setup_single_vector(req, rw, buf, &nr_segs,
-						  len, iovec, &iter);
+			ret = aio_setup_single_vector(rw, buf, len,
+						iovec, &iter);
 		if (!ret)
-			ret = rw_verify_area(rw, file, &req->ki_pos, len);
+			ret = rw_verify_area(rw, file, &req->ki_pos,
+					     iov_iter_count(&iter));
 		if (ret < 0) {
 			if (iovec != inline_vecs)
 				kfree(iovec);
