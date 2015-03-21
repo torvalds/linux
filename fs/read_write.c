@@ -842,13 +842,14 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	iov_fn_t fnv;
 	iter_fn_t iter_fn;
 
-	ret = rw_copy_check_uvector(type, uvector, nr_segs,
-				    ARRAY_SIZE(iovstack), iovstack, &iov);
-	if (ret <= 0)
-		goto out;
-	iov_iter_init(&iter, type, iov, nr_segs, ret);
+	ret = import_iovec(type, uvector, nr_segs,
+			   ARRAY_SIZE(iovstack), &iov, &iter);
+	if (ret < 0)
+		return ret;
 
-	tot_len = ret;
+	tot_len = iov_iter_count(&iter);
+	if (!tot_len)
+		goto out;
 	ret = rw_verify_area(type, file, pos, tot_len);
 	if (ret < 0)
 		goto out;
@@ -876,8 +877,7 @@ static ssize_t do_readv_writev(int type, struct file *file,
 		file_end_write(file);
 
 out:
-	if (iov != iovstack)
-		kfree(iov);
+	kfree(iov);
 	if ((ret + (type == READ)) > 0) {
 		if (type == READ)
 			fsnotify_access(file);
@@ -1022,13 +1022,14 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	iov_fn_t fnv;
 	iter_fn_t iter_fn;
 
-	ret = compat_rw_copy_check_uvector(type, uvector, nr_segs,
-					       UIO_FASTIOV, iovstack, &iov);
-	if (ret <= 0)
-		goto out;
-	iov_iter_init(&iter, type, iov, nr_segs, ret);
+	ret = compat_import_iovec(type, uvector, nr_segs,
+				  UIO_FASTIOV, &iov, &iter);
+	if (ret < 0)
+		return ret;
 
-	tot_len = ret;
+	tot_len = iov_iter_count(&iter);
+	if (!tot_len)
+		goto out;
 	ret = rw_verify_area(type, file, pos, tot_len);
 	if (ret < 0)
 		goto out;
@@ -1056,8 +1057,7 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 		file_end_write(file);
 
 out:
-	if (iov != iovstack)
-		kfree(iov);
+	kfree(iov);
 	if ((ret + (type == READ)) > 0) {
 		if (type == READ)
 			fsnotify_access(file);
