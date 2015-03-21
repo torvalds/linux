@@ -986,11 +986,7 @@
         gpios = "GPIOY_3";
         // linux,open-drain; // .is_open_drain = 1;
 	};
-		/// - DISP&MM-A/V Amvideocap
-	//$$ MODULE = "DISP&MM-Amvideocap"
-	//$$ DEVICE="amvideocap"
-	//$$ L2 PROP_STR = "status"
-	//$$ L3 PROP_U32 4 ="reg"
+
 	amvideocap{
 		compatible = "amlogic,amvideocap";
 		dev_name = "amvideocap.0";
