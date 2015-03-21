@@ -1200,6 +1200,8 @@ static void sta_ps_start(struct sta_info *sta)
 	ps_dbg(sdata, "STA %pM aid %d enters power save mode\n",
 	       sta->sta.addr, sta->sta.aid);
 
+	ieee80211_clear_fast_xmit(sta);
+
 	if (!sta->sta.txq[0])
 		return;
 

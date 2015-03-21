@@ -229,6 +229,7 @@ static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 
 	if (uni) {
 		rcu_assign_pointer(sdata->default_unicast_key, key);
+		ieee80211_check_fast_xmit_iface(sdata);
 		drv_set_default_unicast_key(sdata->local, sdata, idx);
 	}
 
@@ -298,6 +299,7 @@ static void ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 		if (pairwise) {
 			rcu_assign_pointer(sta->ptk[idx], new);
 			sta->ptk_idx = idx;
+			ieee80211_check_fast_xmit(sta);
 		} else {
 			rcu_assign_pointer(sta->gtk[idx], new);
 			sta->gtk_idx = idx;

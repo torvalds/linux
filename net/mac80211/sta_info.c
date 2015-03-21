@@ -1201,6 +1201,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	ps_dbg(sdata,
 	       "STA %pM aid %d sending %d filtered/%d PS frames since STA not sleeping anymore\n",
 	       sta->sta.addr, sta->sta.aid, filtered, buffered);
+
+	ieee80211_check_fast_xmit(sta);
 }
 
 static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
@@ -1599,6 +1601,7 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 
 	if (block) {
 		set_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_clear_fast_xmit(sta);
 		return;
 	}
 
@@ -1616,6 +1619,7 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 		ieee80211_queue_work(hw, &sta->drv_deliver_wk);
 	} else {
 		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
+		ieee80211_check_fast_xmit(sta);
 	}
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);
@@ -1720,6 +1724,7 @@ int sta_info_move_state(struct sta_info *sta,
 			     !sta->sdata->u.vlan.sta))
 				atomic_dec(&sta->sdata->bss->num_mcast_sta);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+			ieee80211_clear_fast_xmit(sta);
 		}
 		break;
 	case IEEE80211_STA_AUTHORIZED:
@@ -1729,6 +1734,7 @@ int sta_info_move_state(struct sta_info *sta,
 			     !sta->sdata->u.vlan.sta))
 				atomic_inc(&sta->sdata->bss->num_mcast_sta);
 			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+			ieee80211_check_fast_xmit(sta);
 		}
 		break;
 	default:

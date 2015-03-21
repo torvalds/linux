@@ -242,6 +242,30 @@ struct sta_ampdu_mlme {
 #define IEEE80211_TID_UNRESERVED	0xff
 
 /**
+ * struct ieee80211_fast_tx - TX fastpath information
+ * @key: key to use for hw crypto
+ * @hdr: the 802.11 header to put with the frame
+ * @hdr_len: actual 802.11 header length
+ * @sa_offs: offset of the SA
+ * @da_offs: offset of the DA
+ * @pn_offs: offset where to put PN for crypto (or 0 if not needed)
+ * @band: band this will be transmitted on, for tx_info
+ * @rcu_head: RCU head to free this struct
+ *
+ * Try to keep this struct small so it fits into a single cacheline.
+ */
+struct ieee80211_fast_tx {
+	struct ieee80211_key *key;
+	u8 hdr[30 + 2 + IEEE80211_CCMP_HDR_LEN +
+	       sizeof(rfc1042_header)];
+	u8 hdr_len;
+	u8 sa_offs, da_offs, pn_offs;
+	u8 band;
+
+	struct rcu_head rcu_head;
+};
+
+/**
  * struct sta_info - STA information
  *
  * This structure collects information about a station that
@@ -339,6 +363,7 @@ struct sta_ampdu_mlme {
  *	using IEEE80211_NUM_TID entry for non-QoS frames
  * @rx_msdu: MSDUs received from this station, using IEEE80211_NUM_TID
  *	entry for non-QoS frames
+ * @fast_tx: TX fastpath information
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -355,6 +380,8 @@ struct sta_info {
 	void *rate_ctrl_priv;
 	spinlock_t rate_ctrl_lock;
 	spinlock_t lock;
+
+	struct ieee80211_fast_tx __rcu *fast_tx;
 
 	struct work_struct drv_deliver_wk;
 

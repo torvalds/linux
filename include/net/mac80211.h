@@ -1796,6 +1796,10 @@ struct ieee80211_txq {
  *	the driver returns 1. This also forces the driver to advertise its
  *	supported cipher suites.
  *
+ * @IEEE80211_HW_SUPPORT_FAST_XMIT: The driver/hardware supports fast-xmit,
+ *	this currently requires only the ability to calculate the duration
+ *	for frames.
+ *
  * @IEEE80211_HW_QUEUE_CONTROL: The driver wants to control per-interface
  *	queue mapping in order to use different queues (not just one per AC)
  *	for different virtual interfaces. See the doc section on HW queue
@@ -1844,7 +1848,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_WANT_MONITOR_VIF			= 1<<14,
 	IEEE80211_HW_NO_AUTO_VIF			= 1<<15,
 	IEEE80211_HW_SW_CRYPTO_CONTROL			= 1<<16,
-	/* free slots */
+	IEEE80211_HW_SUPPORT_FAST_XMIT			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
 	IEEE80211_HW_QUEUE_CONTROL			= 1<<20,
