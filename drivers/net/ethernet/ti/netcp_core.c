@@ -1098,9 +1098,9 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 	struct netcp_tx_pipe *tx_pipe = NULL;
 	struct netcp_hook_list *tx_hook;
 	struct netcp_packet p_info;
-	u32 packet_info = 0;
 	unsigned int dma_sz;
 	dma_addr_t dma;
+	u32 tmp = 0;
 	int ret = 0;
 
 	p_info.netcp = netcp;
@@ -1140,19 +1140,26 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 		memmove(p_info.psdata, p_info.psdata + p_info.psdata_len,
 			p_info.psdata_len);
 		set_words(psdata, p_info.psdata_len, psdata);
-		packet_info |=
-			(p_info.psdata_len & KNAV_DMA_DESC_PSLEN_MASK) <<
+		tmp |= (p_info.psdata_len & KNAV_DMA_DESC_PSLEN_MASK) <<
 			KNAV_DMA_DESC_PSLEN_SHIFT;
 	}
 
-	packet_info |= KNAV_DMA_DESC_HAS_EPIB |
+	tmp |= KNAV_DMA_DESC_HAS_EPIB |
 		((netcp->tx_compl_qid & KNAV_DMA_DESC_RETQ_MASK) <<
-		KNAV_DMA_DESC_RETQ_SHIFT) |
-		((tx_pipe->dma_psflags & KNAV_DMA_DESC_PSFLAG_MASK) <<
-		KNAV_DMA_DESC_PSFLAG_SHIFT);
+		KNAV_DMA_DESC_RETQ_SHIFT);
 
-	set_words(&packet_info, 1, &desc->packet_info);
+	if (!(tx_pipe->flags & SWITCH_TO_PORT_IN_TAGINFO)) {
+		tmp |= ((tx_pipe->switch_to_port & KNAV_DMA_DESC_PSFLAG_MASK) <<
+			KNAV_DMA_DESC_PSFLAG_SHIFT);
+	}
+
+	set_words(&tmp, 1, &desc->packet_info);
 	set_words((u32 *)&skb, 1, &desc->pad[0]);
+
+	if (tx_pipe->flags & SWITCH_TO_PORT_IN_TAGINFO) {
+		tmp = tx_pipe->switch_to_port;
+		set_words((u32 *)&tmp, 1, &desc->tag_info);
+	}
 
 	/* submit packet descriptor */
 	ret = knav_pool_desc_map(netcp->tx_pool, desc, sizeof(*desc), &dma,
