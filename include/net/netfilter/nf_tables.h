@@ -449,7 +449,6 @@ enum nft_chain_flags {
  *
  *	@rules: list of rules in the chain
  *	@list: used internally
- *	@net: net namespace that this chain belongs to
  *	@table: table that this chain belongs to
  *	@handle: chain handle
  *	@use: number of jump references to this chain
@@ -460,7 +459,6 @@ enum nft_chain_flags {
 struct nft_chain {
 	struct list_head		rules;
 	struct list_head		list;
-	struct net			*net;
 	struct nft_table		*table;
 	u64				handle;
 	u32				use;
@@ -512,6 +510,7 @@ struct nft_stats {
  *	struct nft_base_chain - nf_tables base chain
  *
  *	@ops: netfilter hook ops
+ *	@pnet: net namespace that this chain belongs to
  *	@type: chain type
  *	@policy: default policy
  *	@stats: per-cpu chain stats
@@ -519,6 +518,7 @@ struct nft_stats {
  */
 struct nft_base_chain {
 	struct nf_hook_ops		ops[NFT_HOOK_OPS_MAX];
+	possible_net_t			pnet;
 	const struct nf_chain_type	*type;
 	u8				policy;
 	struct nft_stats __percpu	*stats;

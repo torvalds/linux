@@ -112,6 +112,7 @@ unsigned int
 nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 {
 	const struct nft_chain *chain = ops->priv, *basechain = chain;
+	const struct net *net = read_pnet(&nft_base_chain(basechain)->pnet);
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
 	struct nft_data data[NFT_REG_MAX + 1];
@@ -123,7 +124,7 @@ nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 	 * Cache cursor to avoid problems in case that the cursor is updated
 	 * while traversing the ruleset.
 	 */
-	unsigned int gencursor = ACCESS_ONCE(chain->net->nft.gencursor);
+	unsigned int gencursor = ACCESS_ONCE(net->nft.gencursor);
 
 do_chain:
 	rulenum = 0;

@@ -1354,6 +1354,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			rcu_assign_pointer(basechain->stats, stats);
 		}
 
+		write_pnet(&basechain->pnet, net);
 		basechain->type = type;
 		chain = &basechain->chain;
 
@@ -1381,7 +1382,6 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 
 	INIT_LIST_HEAD(&chain->rules);
 	chain->handle = nf_tables_alloc_handle(table);
-	chain->net = net;
 	chain->table = table;
 	nla_strlcpy(chain->name, name, NFT_CHAIN_MAXNAMELEN);
 
