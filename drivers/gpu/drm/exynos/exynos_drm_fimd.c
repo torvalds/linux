@@ -284,14 +284,9 @@ static void fimd_clear_channel(struct fimd_context *ctx)
 	}
 }
 
-static int fimd_ctx_initialize(struct fimd_context *ctx,
+static int fimd_iommu_attach_devices(struct fimd_context *ctx,
 			struct drm_device *drm_dev)
 {
-	struct exynos_drm_private *priv;
-	priv = drm_dev->dev_private;
-
-	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
 
 	/* attach this sub driver to iommu mapping if supported. */
 	if (is_drm_iommu_supported(ctx->drm_dev)) {
@@ -313,7 +308,7 @@ static int fimd_ctx_initialize(struct fimd_context *ctx,
 	return 0;
 }
 
-static void fimd_ctx_remove(struct fimd_context *ctx)
+static void fimd_iommu_detach_devices(struct fimd_context *ctx)
 {
 	/* detach this sub driver from iommu mapping if supported. */
 	if (is_drm_iommu_supported(ctx->drm_dev))
@@ -1056,24 +1051,22 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
+	struct exynos_drm_private *priv = drm_dev->dev_private;
 	int ret;
 
-	ret = fimd_ctx_initialize(ctx, drm_dev);
-	if (ret) {
-		DRM_ERROR("fimd_ctx_initialize failed.\n");
-		return ret;
-	}
+	ctx->drm_dev = drm_dev;
+	ctx->pipe = priv->pipe++;
 
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
 					   EXYNOS_DISPLAY_TYPE_LCD,
 					   &fimd_crtc_ops, ctx);
-	if (IS_ERR(ctx->crtc)) {
-		fimd_ctx_remove(ctx);
-		return PTR_ERR(ctx->crtc);
-	}
 
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
+
+	ret = fimd_iommu_attach_devices(ctx, drm_dev);
+	if (ret)
+		return ret;
 
 	return 0;
 
@@ -1086,10 +1079,10 @@ static void fimd_unbind(struct device *dev, struct device *master,
 
 	fimd_dpms(ctx->crtc, DRM_MODE_DPMS_OFF);
 
+	fimd_iommu_detach_devices(ctx);
+
 	if (ctx->display)
 		exynos_dpi_remove(ctx->display);
-
-	fimd_ctx_remove(ctx);
 }
 
 static const struct component_ops fimd_component_ops = {
