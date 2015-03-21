@@ -345,6 +345,11 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	fsopt->rsize = CEPH_RSIZE_DEFAULT;
 	fsopt->rasize = CEPH_RASIZE_DEFAULT;
 	fsopt->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
+	if (!fsopt->snapdir_name) {
+		err = -ENOMEM;
+		goto out;
+	}
+
 	fsopt->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	fsopt->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
 	fsopt->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
@@ -730,6 +735,11 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 	if (IS_ERR(req))
 		return ERR_CAST(req);
 	req->r_path1 = kstrdup(path, GFP_NOFS);
+	if (!req->r_path1) {
+		root = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
 	req->r_ino1.ino = CEPH_INO_ROOT;
 	req->r_ino1.snap = CEPH_NOSNAP;
 	req->r_started = started;
