@@ -1895,6 +1895,8 @@ void class_exit_uuidlist(void);
 
 /* class_obd.c */
 extern char obd_jobid_node[];
+extern struct miscdevice obd_psdev;
+extern spinlock_t obd_types_lock;
 
 /* prng.c */
 #define ll_generate_random_uuid(uuid_out) cfs_get_random_bytes(uuid_out, sizeof(class_uuid_t))
