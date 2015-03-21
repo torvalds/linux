@@ -455,91 +455,79 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	const struct resp_type_t *rt;
 	const struct zsau_resp_t *zr;
 	int curarg;
-	int resp_code;
-	int param_type;
 	int abort;
-	size_t len;
 	int cid, parameter;
-	int rawstring;
 
-	len = cs->cbytes;
-	if (!len) {
+	if (!cs->cbytes) {
 		/* ignore additional LFs/CRs (M10x config mode or cx100) */
 		gig_dbg(DEBUG_MCMD, "skipped EOL [%02X]", cs->respdata[0]);
 		return;
 	}
-	cs->respdata[len] = 0;
+	cs->respdata[cs->cbytes] = 0;
+
+	if (cs->at_state.getstring) {
+		/* state machine wants next line verbatim */
+		cs->at_state.getstring = 0;
+		ptr = kstrdup(cs->respdata, GFP_ATOMIC);
+		gig_dbg(DEBUG_EVENT, "string==%s", ptr ? ptr : "NULL");
+		add_cid_event(cs, 0, RSP_STRING, ptr, 0);
+		return;
+	}
+
+	/* parse line */
 	argv[0] = cs->respdata;
 	params = 1;
-	if (cs->at_state.getstring) {
-		/* getstring only allowed without cid at the moment */
-		cs->at_state.getstring = 0;
-		rawstring = 1;
-		cid = 0;
-	} else {
-		/* parse line */
-		for (i = 0; i < len; i++)
-			switch (cs->respdata[i]) {
-			case ';':
-			case ',':
-			case '=':
-				if (params > MAX_REC_PARAMS) {
-					dev_warn(cs->dev,
-						 "too many parameters in response\n");
-					/* need last parameter (might be CID) */
-					params--;
-				}
-				argv[params++] = cs->respdata + i + 1;
+	for (i = 0; i < cs->cbytes; i++)
+		switch (cs->respdata[i]) {
+		case ';':
+		case ',':
+		case '=':
+			if (params > MAX_REC_PARAMS) {
+				dev_warn(cs->dev,
+					 "too many parameters in response\n");
+				/* need last parameter (might be CID) */
+				params--;
 			}
-
-		rawstring = 0;
-		cid = params > 1 ? cid_of_response(argv[params - 1]) : 0;
-		if (cid < 0) {
-			gigaset_add_event(cs, &cs->at_state, RSP_INVAL,
-					  NULL, 0, NULL);
-			return;
+			argv[params++] = cs->respdata + i + 1;
 		}
 
-		for (j = 1; j < params; ++j)
-			argv[j][-1] = 0;
-
-		gig_dbg(DEBUG_EVENT, "CMD received: %s", argv[0]);
-		if (cid) {
-			--params;
-			gig_dbg(DEBUG_EVENT, "CID: %s", argv[params]);
-		}
-		gig_dbg(DEBUG_EVENT, "available params: %d", params - 1);
-		for (j = 1; j < params; j++)
-			gig_dbg(DEBUG_EVENT, "param %d: %s", j, argv[j]);
+	cid = params > 1 ? cid_of_response(argv[params - 1]) : 0;
+	if (cid < 0) {
+		gigaset_add_event(cs, &cs->at_state, RSP_INVAL, NULL, 0, NULL);
+		return;
 	}
+
+	for (j = 1; j < params; ++j)
+		argv[j][-1] = 0;
+
+	gig_dbg(DEBUG_EVENT, "CMD received: %s", argv[0]);
+	if (cid) {
+		--params;
+		gig_dbg(DEBUG_EVENT, "CID: %s", argv[params]);
+	}
+	gig_dbg(DEBUG_EVENT, "available params: %d", params - 1);
+	for (j = 1; j < params; j++)
+		gig_dbg(DEBUG_EVENT, "param %d: %s", j, argv[j]);
 
 	abort = 1;
 	curarg = 0;
 	while (curarg < params) {
-		if (rawstring) {
-			resp_code = RSP_STRING;
-			param_type = RT_STRING;
-		} else {
-			for (rt = resp_type; rt->response; ++rt)
-				if (!strcmp(argv[curarg], rt->response))
-					break;
-
-			if (!rt->response) {
-				add_cid_event(cs, 0, RSP_NONE, NULL, 0);
-				gig_dbg(DEBUG_EVENT,
-					"unknown modem response: '%s'\n",
-					argv[curarg]);
+		for (rt = resp_type; rt->response; ++rt)
+			if (!strcmp(argv[curarg], rt->response))
 				break;
-			}
 
-			resp_code = rt->resp_code;
-			param_type = rt->type;
-			++curarg;
+		if (!rt->response) {
+			add_cid_event(cs, 0, RSP_NONE, NULL, 0);
+			gig_dbg(DEBUG_EVENT, "unknown modem response: '%s'\n",
+				argv[curarg]);
+			break;
 		}
 
-		switch (param_type) {
+		++curarg;
+
+		switch (rt->type) {
 		case RT_NOTHING:
-			add_cid_event(cs, cid, resp_code, NULL, 0);
+			add_cid_event(cs, cid, rt->resp_code, NULL, 0);
 			break;
 		case RT_RING:
 			if (!cid) {
@@ -548,13 +536,13 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 				add_cid_event(cs, 0, RSP_INVAL, NULL, 0);
 				abort = 1;
 			} else {
-				add_cid_event(cs, 0, resp_code, NULL, cid);
+				add_cid_event(cs, 0, rt->resp_code, NULL, cid);
 				abort = 0;
 			}
 			break;
 		case RT_ZSAU:
 			if (curarg >= params) {
-				add_cid_event(cs, cid, resp_code, NULL,
+				add_cid_event(cs, cid, rt->resp_code, NULL,
 					      ZSAU_NONE);
 				break;
 			}
@@ -565,7 +553,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 				dev_warn(cs->dev,
 					 "%s: unknown parameter %s after ZSAU\n",
 					 __func__, argv[curarg]);
-			add_cid_event(cs, cid, resp_code, NULL, zr->code);
+			add_cid_event(cs, cid, rt->resp_code, NULL, zr->code);
 			++curarg;
 			break;
 		case RT_STRING:
@@ -578,7 +566,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 				ptr = NULL;
 			}
 			gig_dbg(DEBUG_EVENT, "string==%s", ptr ? ptr : "NULL");
-			add_cid_event(cs, cid, resp_code, ptr, 0);
+			add_cid_event(cs, cid, rt->resp_code, ptr, 0);
 			break;
 		case RT_ZCAU:
 			parameter = -1;
@@ -591,15 +579,15 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 					parameter = (type << 8) | value;
 			} else
 				curarg = params - 1;
-			add_cid_event(cs, cid, resp_code, NULL, parameter);
+			add_cid_event(cs, cid, rt->resp_code, NULL, parameter);
 			break;
 		case RT_NUMBER:
 			if (curarg >= params ||
 			    kstrtoint(argv[curarg++], 10, &parameter))
 				parameter = -1;
 			gig_dbg(DEBUG_EVENT, "parameter==%d", parameter);
-			add_cid_event(cs, cid, resp_code, NULL, parameter);
-			if (resp_code == RSP_ZDLE)
+			add_cid_event(cs, cid, rt->resp_code, NULL, parameter);
+			if (rt->resp_code == RSP_ZDLE)
 				cs->dle = parameter;
 			break;
 		}
