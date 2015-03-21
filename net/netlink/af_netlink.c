@@ -974,10 +974,11 @@ struct netlink_compare_arg
 {
 	possible_net_t pnet;
 	u32 portid;
-	char trailer[];
 };
 
-#define netlink_compare_arg_len offsetof(struct netlink_compare_arg, trailer)
+/* Doing sizeof directly may yield 4 extra bytes on 64-bit. */
+#define netlink_compare_arg_len \
+	(offsetof(struct netlink_compare_arg, portid) + sizeof(u32))
 
 static inline int netlink_compare(struct rhashtable_compare_arg *arg,
 				  const void *ptr)
