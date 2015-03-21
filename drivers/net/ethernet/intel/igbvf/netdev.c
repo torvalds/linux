@@ -1519,6 +1519,7 @@ void igbvf_down(struct igbvf_adapter *adapter)
 	rxdctl = er32(RXDCTL(0));
 	ew32(RXDCTL(0), rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
 
+	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
 	/* disable transmits in the hardware */
@@ -1534,8 +1535,6 @@ void igbvf_down(struct igbvf_adapter *adapter)
 	igbvf_irq_disable(adapter);
 
 	del_timer_sync(&adapter->watchdog_timer);
-
-	netif_carrier_off(netdev);
 
 	/* record the stats before reset*/
 	igbvf_update_stats(adapter);
