@@ -31,20 +31,20 @@
 
 static int default_init_sequence[] = {
 	/* SWRESET - Software reset */
-	-1, 0x01,                                
+	-1, 0x01,
 	-2, 150,                               /* delay */
 
 	/* SLPOUT - Sleep out & booster on */
-	-1, 0x11,                          
+	-1, 0x11,
 	-2, 500,                               /* delay */
 
 	/* FRMCTR1 - frame rate control: normal mode
 	     frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D) */
-	-1, 0xB1, 0x01, 0x2C, 0x2D, 
+	-1, 0xB1, 0x01, 0x2C, 0x2D,
 
 	/* FRMCTR2 - frame rate control: idle mode
 	     frame rate = fosc / (1 x 2 + 40) * (LINE + 2C + 2D) */
-	-1, 0xB2, 0x01, 0x2C, 0x2D, 
+	-1, 0xB2, 0x01, 0x2C, 0x2D,
 
 	/* FRMCTR3 - frame rate control - partial mode
 	     dot inversion mode, line inversion mode */
@@ -91,7 +91,7 @@ static int default_init_sequence[] = {
 	-2, 10,                               /* delay */
 
 	/* end marker */
-	-3                                  
+	-3
 };
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
