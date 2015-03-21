@@ -203,6 +203,8 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 	err |= restore_xstate_sig(buf, 1);
 
+	force_iret();
+
 	return err;
 }
 

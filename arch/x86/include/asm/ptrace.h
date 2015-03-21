@@ -251,7 +251,7 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
  */
 #define arch_ptrace_stop_needed(code, info)				\
 ({									\
-	set_thread_flag(TIF_NOTIFY_RESUME);				\
+	force_iret();							\
 	false;								\
 })
 

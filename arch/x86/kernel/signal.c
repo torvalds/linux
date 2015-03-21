@@ -108,6 +108,8 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 
 	err |= restore_xstate_sig(buf, config_enabled(CONFIG_X86_32));
 
+	force_iret();
+
 	return err;
 }
 

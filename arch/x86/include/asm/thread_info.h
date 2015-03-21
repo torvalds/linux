@@ -260,6 +260,16 @@ static inline bool is_ia32_task(void)
 #endif
 	return false;
 }
+
+/*
+ * Force syscall return via IRET by making it look as if there was
+ * some work pending. IRET is our most capable (but slowest) syscall
+ * return path, which is able to restore modified SS, CS and certain
+ * EFLAGS values that other (fast) syscall return instructions
+ * are not able to restore properly.
+ */
+#define force_iret() set_thread_flag(TIF_NOTIFY_RESUME)
+
 #endif	/* !__ASSEMBLY__ */
 
 #ifndef __ASSEMBLY__

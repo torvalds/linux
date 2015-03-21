@@ -206,11 +206,7 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
 	regs->flags		= X86_EFLAGS_IF;
-	/*
-	 * force it to the iret return path by making it look as if there was
-	 * some work pending.
-	 */
-	set_thread_flag(TIF_NOTIFY_RESUME);
+	force_iret();
 }
 EXPORT_SYMBOL_GPL(start_thread);
 
