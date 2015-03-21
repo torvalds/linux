@@ -21,6 +21,7 @@
 #include <asm/tlbflush.h>
 #include <linux/vmalloc.h>
 #include <linux/rockchip/common.h>
+#include <linux/rockchip/cpu_axi.h>
 #include <linux/rockchip/dvfs.h>
 #include <dt-bindings/clock/ddr.h>
 #include <dt-bindings/clock/rk_system_status.h>
@@ -30,7 +31,6 @@
 #include <linux/clk-private.h>
 #include <linux/rockchip/cpu.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
-#include "cpu_axi.h"
 
 static DECLARE_COMPLETION(ddrfreq_completion);
 static DEFINE_MUTEX(ddrfreq_mutex);

@@ -18,9 +18,9 @@
 #include <asm/tlbflush.h>
 #include <linux/cpu.h>
 #include <dt-bindings/clock/ddr.h>
+#include <linux/rockchip/cpu_axi.h>
 #include <linux/rockchip/cru.h>
 #include <linux/rk_fb.h>
-#include "cpu_axi.h"
 
 typedef uint32_t uint32;
 

@@ -25,9 +25,9 @@
 #include <asm/hardware/cache-l2x0.h>
 #endif
 #include <linux/rockchip/common.h>
+#include <linux/rockchip/cpu_axi.h>
 #include <linux/rockchip/pmu.h>
 #include <linux/memblock.h>
-#include "cpu_axi.h"
 #include "loader.h"
 #include "sram.h"
 
