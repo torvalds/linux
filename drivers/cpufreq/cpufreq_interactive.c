@@ -1170,11 +1170,16 @@ static void cpufreq_interactive_input_event(struct input_handle *handle, unsigne
 	now = ktime_to_us(ktime_get());
 	for_each_online_cpu(i) {
 		pcpu = &per_cpu(cpuinfo, i);
-		tunables = pcpu->policy->governor_data;
+		if (have_governor_per_policy())
+			tunables = pcpu->policy->governor_data;
+		else
+			tunables = common_tunables;
+		if (!tunables)
+			continue;
 
 		endtime = now + tunables->touchboostpulse_duration_val;
 		if (endtime < (tunables->touchboostpulse_endtime + 10 * USEC_PER_MSEC))
-			break;
+			continue;
 		tunables->touchboostpulse_endtime = endtime;
 
 		spin_lock_irqsave(&pcpu->target_freq_lock, flags[1]);
