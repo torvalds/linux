@@ -19,25 +19,16 @@ struct fib_info;
 /**
  * struct switchdev_ops - switchdev operations
  *
- * int (*swdev_parent_id_get)(struct net_device *dev,
- *			      struct netdev_phys_item_id *psid);
- *	Called to get an ID of the switch chip this port is part of.
- *	If driver implements this, it indicates that it represents a port
- *	of a switch chip.
+ * @swdev_parent_id_get: Called to get an ID of the switch chip this port
+ *   is part of.  If driver implements this, it indicates that it
+ *   represents a port of a switch chip.
  *
- * int (*swdev_port_stp_update)(struct net_device *dev, u8 state);
- *	Called to notify switch device port of bridge port STP
- *	state change.
+ * @swdev_port_stp_update: Called to notify switch device port of bridge
+ *   port STP state change.
  *
- * int (*swdev_fib_ipv4_add)(struct net_device *dev, __be32 dst,
- *			     int dst_len, struct fib_info *fi,
- *			     u8 tos, u8 type, u32 nlflags, u32 tb_id);
- *	Called to add/modify IPv4 route to switch device.
+ * @swdev_fib_ipv4_add: Called to add/modify IPv4 route to switch device.
  *
- * int (*swdev_fib_ipv4_del)(struct net_device *dev, __be32 dst,
- *			     int dst_len, struct fib_info *fi,
- *			     u8 tos, u8 type, u32 tb_id);
- *	Called to delete IPv4 route from switch device.
+ * @swdev_fib_ipv4_del: Called to delete IPv4 route from switch device.
  */
 struct swdev_ops {
 	int	(*swdev_parent_id_get)(struct net_device *dev,
