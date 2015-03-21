@@ -1376,21 +1376,6 @@ static int aio_setup_vectored_rw(int rw, char __user *buf, size_t len,
 	return 0;
 }
 
-static int aio_setup_single_vector(int rw, char __user *buf, size_t len,
-				   struct iovec *iovec,
-				   struct iov_iter *iter)
-{
-	if (len > MAX_RW_COUNT)
-		len = MAX_RW_COUNT;
-	if (unlikely(!access_ok(!rw, buf, len)))
-		return -EFAULT;
-
-	iovec->iov_base = buf;
-	iovec->iov_len = len;
-	iov_iter_init(iter, rw, iovec, 1, len);
-	return 0;
-}
-
 /*
  * aio_run_iocb:
  *	Performs the initial checks and io submission.
@@ -1434,8 +1419,7 @@ rw_common:
 			ret = aio_setup_vectored_rw(rw, buf, len,
 						&iovec, compat, &iter);
 		else
-			ret = aio_setup_single_vector(rw, buf, len,
-						iovec, &iter);
+			ret = import_single_range(rw, buf, len, iovec, &iter);
 		if (!ret)
 			ret = rw_verify_area(rw, file, &req->ki_pos,
 					     iov_iter_count(&iter));
