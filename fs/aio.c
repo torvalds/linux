@@ -1357,23 +1357,14 @@ static int aio_setup_vectored_rw(int rw, char __user *buf, size_t len,
 				 bool compat,
 				 struct iov_iter *iter)
 {
-	ssize_t ret;
-
 #ifdef CONFIG_COMPAT
 	if (compat)
-		ret = compat_rw_copy_check_uvector(rw,
+		return compat_import_iovec(rw,
 				(struct compat_iovec __user *)buf,
-				len, UIO_FASTIOV, *iovec, iovec);
-	else
+				len, UIO_FASTIOV, iovec, iter);
 #endif
-		ret = rw_copy_check_uvector(rw,
-				(struct iovec __user *)buf,
-				len, UIO_FASTIOV, *iovec, iovec);
-	if (ret < 0)
-		return ret;
-
-	iov_iter_init(iter, rw, *iovec, len, ret);
-	return 0;
+	return import_iovec(rw, (struct iovec __user *)buf,
+				len, UIO_FASTIOV, iovec, iter);
 }
 
 /*
@@ -1418,14 +1409,15 @@ rw_common:
 		if (opcode == IOCB_CMD_PREADV || opcode == IOCB_CMD_PWRITEV)
 			ret = aio_setup_vectored_rw(rw, buf, len,
 						&iovec, compat, &iter);
-		else
+		else {
 			ret = import_single_range(rw, buf, len, iovec, &iter);
+			iovec = NULL;
+		}
 		if (!ret)
 			ret = rw_verify_area(rw, file, &req->ki_pos,
 					     iov_iter_count(&iter));
 		if (ret < 0) {
-			if (iovec != inline_vecs)
-				kfree(iovec);
+			kfree(iovec);
 			return ret;
 		}
 
@@ -1449,6 +1441,7 @@ rw_common:
 
 		if (rw == WRITE)
 			file_end_write(file);
+		kfree(iovec);
 		break;
 
 	case IOCB_CMD_FDSYNC:
@@ -1469,9 +1462,6 @@ rw_common:
 		pr_debug("EINVAL: no operation provided\n");
 		return -EINVAL;
 	}
-
-	if (iovec != inline_vecs)
-		kfree(iovec);
 
 	if (ret != -EIOCBQUEUED) {
 		/*
