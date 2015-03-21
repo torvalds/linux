@@ -2874,7 +2874,6 @@ static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status,
 {
 	/* General inquiry access code (GIAC) */
 	u8 lap[3] = { 0x33, 0x8b, 0x9e };
-	struct hci_request req;
 	struct hci_cp_inquiry cp;
 	int err;
 
@@ -2893,13 +2892,6 @@ static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status,
 		break;
 
 	case DISCOV_TYPE_INTERLEAVED:
-		hci_req_init(&req, hdev);
-
-		memset(&cp, 0, sizeof(cp));
-		memcpy(&cp.lap, lap, sizeof(cp.lap));
-		cp.length = DISCOV_INTERLEAVED_INQUIRY_LEN;
-		hci_req_add(&req, HCI_OP_INQUIRY, sizeof(cp), &cp);
-
 		hci_dev_lock(hdev);
 
 		if (test_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY,
@@ -2914,7 +2906,16 @@ static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status,
 				hci_discovery_set_state(hdev,
 							DISCOVERY_STOPPED);
 		} else {
+			struct hci_request req;
+
 			hci_inquiry_cache_flush(hdev);
+
+			hci_req_init(&req, hdev);
+
+			memset(&cp, 0, sizeof(cp));
+			memcpy(&cp.lap, lap, sizeof(cp.lap));
+			cp.length = DISCOV_INTERLEAVED_INQUIRY_LEN;
+			hci_req_add(&req, HCI_OP_INQUIRY, sizeof(cp), &cp);
 
 			err = hci_req_run(&req, inquiry_complete);
 			if (err) {
