@@ -222,12 +222,12 @@ extern void (*class_export_dump_hook)(struct obd_export *);
 
 #endif
 
-#define class_export_rpc_inc(exp)				       \
-({								      \
-	atomic_inc(&(exp)->exp_rpc_count);			  \
-	CDEBUG(D_INFO, "RPC GETting export %p : new rpc_count %d\n",    \
-	       (exp), atomic_read(&(exp)->exp_rpc_count));	  \
-})
+static inline void class_export_rpc_inc(struct obd_export *exp)
+{
+	atomic_inc(&(exp)->exp_rpc_count);
+	CDEBUG(D_INFO, "RPC GETting export %p : new rpc_count %d\n",
+	       (exp), atomic_read(&(exp)->exp_rpc_count));
+}
 
 #define class_export_rpc_dec(exp)				       \
 ({								      \
