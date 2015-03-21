@@ -1533,34 +1533,29 @@ static long vmsplice_to_user(struct file *file, const struct iovec __user *uiov,
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
-	ssize_t count;
 
 	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 
-	ret = rw_copy_check_uvector(READ, uiov, nr_segs,
-				    ARRAY_SIZE(iovstack), iovstack, &iov);
-	if (ret <= 0)
-		goto out;
+	ret = import_iovec(READ, uiov, nr_segs,
+			   ARRAY_SIZE(iovstack), &iov, &iter);
+	if (ret < 0)
+		return ret;
 
-	count = ret;
-	iov_iter_init(&iter, READ, iov, nr_segs, count);
-
+	sd.total_len = iov_iter_count(&iter);
 	sd.len = 0;
-	sd.total_len = count;
 	sd.flags = flags;
 	sd.u.data = &iter;
 	sd.pos = 0;
 
-	pipe_lock(pipe);
-	ret = __splice_from_pipe(pipe, &sd, pipe_to_user);
-	pipe_unlock(pipe);
+	if (sd.total_len) {
+		pipe_lock(pipe);
+		ret = __splice_from_pipe(pipe, &sd, pipe_to_user);
+		pipe_unlock(pipe);
+	}
 
-out:
-	if (iov != iovstack)
-		kfree(iov);
-
+	kfree(iov);
 	return ret;
 }
 
