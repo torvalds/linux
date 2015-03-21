@@ -1657,6 +1657,8 @@ enum dw2102_table_entry {
 	GOTVIEW_SAT_HD,
 	GENIATECH_T220,
 	TECHNOTREND_S2_4600,
+	TEVII_S482_1,
+	TEVII_S482_2,
 };
 
 static struct usb_device_id dw2102_table[] = {
@@ -1682,6 +1684,8 @@ static struct usb_device_id dw2102_table[] = {
 	[GENIATECH_T220] = {USB_DEVICE(0x1f4d, 0xD220)},
 	[TECHNOTREND_S2_4600] = {USB_DEVICE(USB_VID_TECHNOTREND,
 		USB_PID_TECHNOTREND_CONNECT_S2_4600)},
+	[TEVII_S482_1] = {USB_DEVICE(0x9022, 0xd483)},
+	[TEVII_S482_2] = {USB_DEVICE(0x9022, 0xd484)},
 	{ }
 };
 
@@ -2199,10 +2203,18 @@ static struct dvb_usb_device_properties tt_s2_4600_properties = {
 		} },
 		}
 	},
-	.num_device_descs = 1,
+	.num_device_descs = 3,
 	.devices = {
 		{ "TechnoTrend TT-connect S2-4600",
 			{ &dw2102_table[TECHNOTREND_S2_4600], NULL },
+			{ NULL },
+		},
+		{ "TeVii S482 (tuner 1)",
+			{ &dw2102_table[TEVII_S482_1], NULL },
+			{ NULL },
+		},
+		{ "TeVii S482 (tuner 2)",
+			{ &dw2102_table[TEVII_S482_2], NULL },
 			{ NULL },
 		},
 	}
