@@ -1909,13 +1909,13 @@ get_req:
 		}
 		sk	  = sk_nulls_next(st->syn_wait_sk);
 		st->state = TCP_SEQ_STATE_LISTENING;
-		read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+		spin_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 	} else {
 		icsk = inet_csk(sk);
-		read_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+		spin_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 		if (reqsk_queue_len(&icsk->icsk_accept_queue))
 			goto start_req;
-		read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+		spin_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 		sk = sk_nulls_next(sk);
 	}
 get_sk:
@@ -1927,7 +1927,7 @@ get_sk:
 			goto out;
 		}
 		icsk = inet_csk(sk);
-		read_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+		spin_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 		if (reqsk_queue_len(&icsk->icsk_accept_queue)) {
 start_req:
 			st->uid		= sock_i_uid(sk);
@@ -1936,7 +1936,7 @@ start_req:
 			st->sbucket	= 0;
 			goto get_req;
 		}
-		read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+		spin_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 	}
 	spin_unlock_bh(&ilb->lock);
 	st->offset = 0;
@@ -2155,7 +2155,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 	case TCP_SEQ_STATE_OPENREQ:
 		if (v) {
 			struct inet_connection_sock *icsk = inet_csk(st->syn_wait_sk);
-			read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+			spin_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 		}
 	case TCP_SEQ_STATE_LISTENING:
 		if (v != SEQ_START_TOKEN)

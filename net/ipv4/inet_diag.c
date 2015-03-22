@@ -728,7 +728,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 
 	entry.family = sk->sk_family;
 
-	read_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+	spin_lock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	lopt = icsk->icsk_accept_queue.listen_opt;
 	if (!lopt || !listen_sock_qlen(lopt))
@@ -776,7 +776,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 	}
 
 out:
-	read_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
+	spin_unlock_bh(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	return err;
 }

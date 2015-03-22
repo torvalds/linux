@@ -495,7 +495,7 @@ struct request_sock *inet_csk_search_req(struct sock *sk,
 	u32 hash = inet_synq_hash(raddr, rport, lopt->hash_rnd,
 				  lopt->nr_table_entries);
 
-	write_lock(&icsk->icsk_accept_queue.syn_wait_lock);
+	spin_lock(&icsk->icsk_accept_queue.syn_wait_lock);
 	for (req = lopt->syn_table[hash]; req != NULL; req = req->dl_next) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
 
@@ -508,7 +508,7 @@ struct request_sock *inet_csk_search_req(struct sock *sk,
 			break;
 		}
 	}
-	write_unlock(&icsk->icsk_accept_queue.syn_wait_lock);
+	spin_unlock(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	return req;
 }
@@ -650,10 +650,10 @@ void reqsk_queue_hash_req(struct request_sock_queue *queue,
 	setup_timer(&req->rsk_timer, reqsk_timer_handler, (unsigned long)req);
 	req->rsk_hash = hash;
 
-	write_lock(&queue->syn_wait_lock);
+	spin_lock(&queue->syn_wait_lock);
 	req->dl_next = lopt->syn_table[hash];
 	lopt->syn_table[hash] = req;
-	write_unlock(&queue->syn_wait_lock);
+	spin_unlock(&queue->syn_wait_lock);
 
 	mod_timer_pinned(&req->rsk_timer, jiffies + timeout);
 }

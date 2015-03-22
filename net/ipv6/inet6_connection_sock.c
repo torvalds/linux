@@ -124,7 +124,7 @@ struct request_sock *inet6_csk_search_req(struct sock *sk,
 	u32 hash = inet6_synq_hash(raddr, rport, lopt->hash_rnd,
 				   lopt->nr_table_entries);
 
-	write_lock(&icsk->icsk_accept_queue.syn_wait_lock);
+	spin_lock(&icsk->icsk_accept_queue.syn_wait_lock);
 	for (req = lopt->syn_table[hash]; req != NULL; req = req->dl_next) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
 
@@ -138,7 +138,7 @@ struct request_sock *inet6_csk_search_req(struct sock *sk,
 			break;
 		}
 	}
-	write_unlock(&icsk->icsk_accept_queue.syn_wait_lock);
+	spin_unlock(&icsk->icsk_accept_queue.syn_wait_lock);
 
 	return req;
 }
