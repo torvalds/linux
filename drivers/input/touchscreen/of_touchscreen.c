@@ -11,6 +11,7 @@
 
 #include <linux/of.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
 
 static u32 of_get_optional_u32(struct device_node *np,
@@ -30,8 +31,13 @@ static void touchscreen_set_params(struct input_dev *dev,
 	struct input_absinfo *absinfo;
 
 	if (!test_bit(axis, dev->absbit)) {
-		dev_warn(&dev->dev,
-			 "DT specifies parameters but the axis is not set up\n");
+		/*
+		 * Emit a warning only if the axis is not a multitouch
+		 * axis, which might not be set by the driver.
+		 */
+		if (!input_is_mt_axis(axis))
+			dev_warn(&dev->dev,
+				 "DT specifies parameters but the axis is not set up\n");
 		return;
 	}
 
@@ -59,17 +65,23 @@ void touchscreen_parse_of_params(struct input_dev *dev)
 
 	maximum = of_get_optional_u32(np, "touchscreen-size-x");
 	fuzz = of_get_optional_u32(np, "touchscreen-fuzz-x");
-	if (maximum || fuzz)
+	if (maximum || fuzz) {
 		touchscreen_set_params(dev, ABS_X, maximum, fuzz);
+		touchscreen_set_params(dev, ABS_MT_POSITION_X, maximum, fuzz);
+	}
 
 	maximum = of_get_optional_u32(np, "touchscreen-size-y");
 	fuzz = of_get_optional_u32(np, "touchscreen-fuzz-y");
-	if (maximum || fuzz)
+	if (maximum || fuzz) {
 		touchscreen_set_params(dev, ABS_Y, maximum, fuzz);
+		touchscreen_set_params(dev, ABS_MT_POSITION_Y, maximum, fuzz);
+	}
 
 	maximum = of_get_optional_u32(np, "touchscreen-max-pressure");
 	fuzz = of_get_optional_u32(np, "touchscreen-fuzz-pressure");
-	if (maximum || fuzz)
+	if (maximum || fuzz) {
 		touchscreen_set_params(dev, ABS_PRESSURE, maximum, fuzz);
+		touchscreen_set_params(dev, ABS_MT_PRESSURE, maximum, fuzz);
+	}
 }
 EXPORT_SYMBOL(touchscreen_parse_of_params);
