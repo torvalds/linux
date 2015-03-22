@@ -576,7 +576,7 @@ static void dccp_v4_reqsk_destructor(struct request_sock *req)
 	kfree(inet_rsk(req)->opt);
 }
 
-void dccp_syn_ack_timeout(struct sock *sk, struct request_sock *req)
+void dccp_syn_ack_timeout(const struct request_sock *req)
 {
 }
 EXPORT_SYMBOL(dccp_syn_ack_timeout);

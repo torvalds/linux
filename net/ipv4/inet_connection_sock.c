@@ -615,7 +615,7 @@ static void reqsk_timer_handler(unsigned long data)
 		max_retries = defer_accept;
 	syn_ack_recalc(req, thresh, max_retries, defer_accept,
 		       &expire, &resend);
-	req->rsk_ops->syn_ack_timeout(sk_listener, req);
+	req->rsk_ops->syn_ack_timeout(req);
 	if (!expire &&
 	    (!resend ||
 	     !inet_rtx_syn_ack(sk_listener, req) ||
