@@ -2685,40 +2685,12 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 					  CVMX_USB_COMPLETE_STALL);
 	} else if (usbc_hcint.s.xacterr) {
 		/*
-		 * We know at least one packet worked if we get a ACK or NAK.
-		 * Reset the retry counter
+		 * XactErr as a response means the device signaled
+		 * something wrong with the transfer. For example, PID
+		 * toggle errors cause these.
 		 */
-		if (usbc_hcint.s.nak || usbc_hcint.s.ack)
-			transaction->retries = 0;
-		transaction->retries++;
-		if (transaction->retries > MAX_RETRIES) {
-			/*
-			 * XactErr as a response means the device signaled
-			 * something wrong with the transfer. For example, PID
-			 * toggle errors cause these
-			 */
-			cvmx_usb_perform_complete(usb, pipe, transaction,
-						  CVMX_USB_COMPLETE_XACTERR);
-		} else {
-			/*
-			 * If this was a split then clear our split in progress
-			 * marker
-			 */
-			if (usb->active_split == transaction)
-				usb->active_split = NULL;
-			/*
-			 * Rewind to the beginning of the transaction by anding
-			 * off the split complete bit
-			 */
-			transaction->stage &= ~1;
-			pipe->split_sc_frame = -1;
-			pipe->next_tx_frame += pipe->interval;
-			if (pipe->next_tx_frame < usb->frame_number)
-				pipe->next_tx_frame =
-					usb->frame_number + pipe->interval -
-					(usb->frame_number -
-					 pipe->next_tx_frame) % pipe->interval;
-		}
+		cvmx_usb_perform_complete(usb, pipe, transaction,
+					  CVMX_USB_COMPLETE_XACTERR);
 	} else if (usbc_hcint.s.bblerr) {
 		/* Babble Error (BblErr) */
 		cvmx_usb_perform_complete(usb, pipe, transaction,
