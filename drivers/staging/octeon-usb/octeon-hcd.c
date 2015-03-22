@@ -3712,10 +3712,6 @@ static int octeon_usb_probe(struct platform_device *pdev)
 	/* This delay is needed for CN3010, but I don't know why... */
 	mdelay(10);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	cvmx_usb_poll(&priv->usb);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	status = usb_add_hcd(hcd, irq, 0);
 	if (status) {
 		dev_dbg(dev, "USB add HCD failed with %d\n", status);
