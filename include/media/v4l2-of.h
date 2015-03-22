@@ -60,6 +60,7 @@ struct v4l2_of_bus_parallel {
  */
 struct v4l2_of_endpoint {
 	struct of_endpoint base;
+	/* Fields below this line will be zeroed by v4l2_of_parse_endpoint() */
 	enum v4l2_mbus_type bus_type;
 	union {
 		struct v4l2_of_bus_parallel parallel;

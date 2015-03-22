@@ -149,8 +149,9 @@ int v4l2_of_parse_endpoint(const struct device_node *node,
 	int rval;
 
 	of_graph_parse_endpoint(node, &endpoint->base);
-	endpoint->bus_type = 0;
-	memset(&endpoint->bus, 0, sizeof(endpoint->bus));
+	/* Zero fields from bus_type to until the end */
+	memset(&endpoint->bus_type, 0, sizeof(*endpoint) -
+	       offsetof(typeof(*endpoint), bus_type));
 
 	rval = v4l2_of_parse_csi_bus(node, endpoint);
 	if (rval)
