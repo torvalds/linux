@@ -571,8 +571,9 @@ static void reqsk_timer_handler(unsigned long data)
 	struct inet_connection_sock *icsk = inet_csk(sk_listener);
 	struct request_sock_queue *queue = &icsk->icsk_accept_queue;
 	struct listen_sock *lopt = queue->listen_opt;
-	int expire = 0, resend = 0;
+	int qlen, expire = 0, resend = 0;
 	int max_retries, thresh;
+	u8 defer_accept;
 
 	if (sk_listener->sk_state != TCP_LISTEN || !lopt) {
 		reqsk_put(req);
@@ -598,19 +599,21 @@ static void reqsk_timer_handler(unsigned long data)
 	 * embrions; and abort old ones without pity, if old
 	 * ones are about to clog our table.
 	 */
-	if (listen_sock_qlen(lopt) >> (lopt->max_qlen_log - 1)) {
+	qlen = listen_sock_qlen(lopt);
+	if (qlen >> (lopt->max_qlen_log - 1)) {
 		int young = listen_sock_young(lopt) << 1;
 
 		while (thresh > 2) {
-			if (listen_sock_qlen(lopt) < young)
+			if (qlen < young)
 				break;
 			thresh--;
 			young <<= 1;
 		}
 	}
-	if (queue->rskq_defer_accept)
-		max_retries = queue->rskq_defer_accept;
-	syn_ack_recalc(req, thresh, max_retries, queue->rskq_defer_accept,
+	defer_accept = READ_ONCE(queue->rskq_defer_accept);
+	if (defer_accept)
+		max_retries = defer_accept;
+	syn_ack_recalc(req, thresh, max_retries, defer_accept,
 		       &expire, &resend);
 	req->rsk_ops->syn_ack_timeout(sk_listener, req);
 	if (!expire &&
