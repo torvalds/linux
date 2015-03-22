@@ -784,7 +784,7 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 		val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_RSTC_11N);
 		val32 &= ~BIT(31);
 		rtl8723au_write32(adapter, ODM_REG_OFDM_FA_RSTC_11N, val32);
-	
+
 		val32 = rtl8723au_read32(adapter, ODM_REG_OFDM_FA_RSTD_11N);
 		val32 |= BIT(27);
 		rtl8723au_write32(adapter, ODM_REG_OFDM_FA_RSTD_11N, val32);
