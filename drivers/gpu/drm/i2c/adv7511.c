@@ -27,12 +27,13 @@ struct adv7511 {
 	struct regmap *regmap;
 	struct regmap *packet_memory_regmap;
 	enum drm_connector_status status;
-	int dpms_mode;
+	bool powered;
 
 	unsigned int f_tmds;
 
 	unsigned int current_edid_segment;
 	uint8_t edid_buf[256];
+	bool edid_read;
 
 	wait_queue_head_t wq;
 	struct drm_encoder *encoder;
@@ -357,6 +358,48 @@ static void adv7511_set_link_config(struct adv7511 *adv7511,
 	adv7511->rgb = config->input_colorspace == HDMI_COLORSPACE_RGB;
 }
 
+static void adv7511_power_on(struct adv7511 *adv7511)
+{
+	adv7511->current_edid_segment = -1;
+
+	regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
+		     ADV7511_INT0_EDID_READY);
+	regmap_write(adv7511->regmap, ADV7511_REG_INT(1),
+		     ADV7511_INT1_DDC_ERROR);
+	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
+			   ADV7511_POWER_POWER_DOWN, 0);
+
+	/*
+	 * Per spec it is allowed to pulse the HDP signal to indicate that the
+	 * EDID information has changed. Some monitors do this when they wakeup
+	 * from standby or are enabled. When the HDP goes low the adv7511 is
+	 * reset and the outputs are disabled which might cause the monitor to
+	 * go to standby again. To avoid this we ignore the HDP pin for the
+	 * first few seconds after enabling the output.
+	 */
+	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
+			   ADV7511_REG_POWER2_HDP_SRC_MASK,
+			   ADV7511_REG_POWER2_HDP_SRC_NONE);
+
+	/*
+	 * Most of the registers are reset during power down or when HPD is low.
+	 */
+	regcache_sync(adv7511->regmap);
+
+	adv7511->powered = true;
+}
+
+static void adv7511_power_off(struct adv7511 *adv7511)
+{
+	/* TODO: setup additional power down modes */
+	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
+			   ADV7511_POWER_POWER_DOWN,
+			   ADV7511_POWER_POWER_DOWN);
+	regcache_mark_dirty(adv7511->regmap);
+
+	adv7511->powered = false;
+}
+
 /* -----------------------------------------------------------------------------
  * Interrupt and hotplug detection
  */
@@ -379,68 +422,70 @@ static bool adv7511_hpd(struct adv7511 *adv7511)
 	return false;
 }
 
-static irqreturn_t adv7511_irq_handler(int irq, void *devid)
-{
-	struct adv7511 *adv7511 = devid;
-
-	if (adv7511_hpd(adv7511))
-		drm_helper_hpd_irq_event(adv7511->encoder->dev);
-
-	wake_up_all(&adv7511->wq);
-
-	return IRQ_HANDLED;
-}
-
-static unsigned int adv7511_is_interrupt_pending(struct adv7511 *adv7511,
-						 unsigned int irq)
+static int adv7511_irq_process(struct adv7511 *adv7511)
 {
 	unsigned int irq0, irq1;
-	unsigned int pending;
 	int ret;
 
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_INT(0), &irq0);
 	if (ret < 0)
-		return 0;
+		return ret;
+
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_INT(1), &irq1);
 	if (ret < 0)
-		return 0;
+		return ret;
 
-	pending = (irq1 << 8) | irq0;
+	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0);
+	regmap_write(adv7511->regmap, ADV7511_REG_INT(1), irq1);
 
-	return pending & irq;
-}
+	if (irq0 & ADV7511_INT0_HDP)
+		drm_helper_hpd_irq_event(adv7511->encoder->dev);
 
-static int adv7511_wait_for_interrupt(struct adv7511 *adv7511, int irq,
-				      int timeout)
-{
-	unsigned int pending;
-	int ret;
+	if (irq0 & ADV7511_INT0_EDID_READY || irq1 & ADV7511_INT1_DDC_ERROR) {
+		adv7511->edid_read = true;
 
-	if (adv7511->i2c_main->irq) {
-		ret = wait_event_interruptible_timeout(adv7511->wq,
-				adv7511_is_interrupt_pending(adv7511, irq),
-				msecs_to_jiffies(timeout));
-		if (ret <= 0)
-			return 0;
-		pending = adv7511_is_interrupt_pending(adv7511, irq);
-	} else {
-		if (timeout < 25)
-			timeout = 25;
-		do {
-			pending = adv7511_is_interrupt_pending(adv7511, irq);
-			if (pending)
-				break;
-			msleep(25);
-			timeout -= 25;
-		} while (timeout >= 25);
+		if (adv7511->i2c_main->irq)
+			wake_up_all(&adv7511->wq);
 	}
 
-	return pending;
+	return 0;
+}
+
+static irqreturn_t adv7511_irq_handler(int irq, void *devid)
+{
+	struct adv7511 *adv7511 = devid;
+	int ret;
+
+	ret = adv7511_irq_process(adv7511);
+	return ret < 0 ? IRQ_NONE : IRQ_HANDLED;
 }
 
 /* -----------------------------------------------------------------------------
  * EDID retrieval
  */
+
+static int adv7511_wait_for_edid(struct adv7511 *adv7511, int timeout)
+{
+	int ret;
+
+	if (adv7511->i2c_main->irq) {
+		ret = wait_event_interruptible_timeout(adv7511->wq,
+				adv7511->edid_read, msecs_to_jiffies(timeout));
+	} else {
+		for (; timeout > 0; timeout -= 25) {
+			ret = adv7511_irq_process(adv7511);
+			if (ret < 0)
+				break;
+
+			if (adv7511->edid_read)
+				break;
+
+			msleep(25);
+		}
+	}
+
+	return adv7511->edid_read ? 0 : -EIO;
+}
 
 static int adv7511_get_edid_block(void *data, u8 *buf, unsigned int block,
 				  size_t len)
@@ -463,18 +508,13 @@ static int adv7511_get_edid_block(void *data, u8 *buf, unsigned int block,
 			return ret;
 
 		if (status != 2) {
+			adv7511->edid_read = false;
 			regmap_write(adv7511->regmap, ADV7511_REG_EDID_SEGMENT,
 				     block);
-			ret = adv7511_wait_for_interrupt(adv7511,
-					ADV7511_INT0_EDID_READY |
-					ADV7511_INT1_DDC_ERROR, 200);
-
-			if (!(ret & ADV7511_INT0_EDID_READY))
-				return -EIO;
+			ret = adv7511_wait_for_edid(adv7511, 200);
+			if (ret < 0)
+				return ret;
 		}
-
-		regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
-			     ADV7511_INT0_EDID_READY | ADV7511_INT1_DDC_ERROR);
 
 		/* Break this apart, hopefully more I2C controllers will
 		 * support 64 byte transfers than 256 byte transfers
@@ -526,9 +566,11 @@ static int adv7511_get_modes(struct drm_encoder *encoder,
 	unsigned int count;
 
 	/* Reading the EDID only works if the device is powered */
-	if (adv7511->dpms_mode != DRM_MODE_DPMS_ON) {
+	if (!adv7511->powered) {
 		regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
-			     ADV7511_INT0_EDID_READY | ADV7511_INT1_DDC_ERROR);
+			     ADV7511_INT0_EDID_READY);
+		regmap_write(adv7511->regmap, ADV7511_REG_INT(1),
+			     ADV7511_INT1_DDC_ERROR);
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 				   ADV7511_POWER_POWER_DOWN, 0);
 		adv7511->current_edid_segment = -1;
@@ -536,7 +578,7 @@ static int adv7511_get_modes(struct drm_encoder *encoder,
 
 	edid = drm_do_get_edid(connector, adv7511_get_edid_block, adv7511);
 
-	if (adv7511->dpms_mode != DRM_MODE_DPMS_ON)
+	if (!adv7511->powered)
 		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
 				   ADV7511_POWER_POWER_DOWN,
 				   ADV7511_POWER_POWER_DOWN);
@@ -558,41 +600,10 @@ static void adv7511_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct adv7511 *adv7511 = encoder_to_adv7511(encoder);
 
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		adv7511->current_edid_segment = -1;
-
-		regmap_write(adv7511->regmap, ADV7511_REG_INT(0),
-			     ADV7511_INT0_EDID_READY | ADV7511_INT1_DDC_ERROR);
-		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
-				   ADV7511_POWER_POWER_DOWN, 0);
-		/*
-		 * Per spec it is allowed to pulse the HDP signal to indicate
-		 * that the EDID information has changed. Some monitors do this
-		 * when they wakeup from standby or are enabled. When the HDP
-		 * goes low the adv7511 is reset and the outputs are disabled
-		 * which might cause the monitor to go to standby again. To
-		 * avoid this we ignore the HDP pin for the first few seconds
-		 * after enabling the output.
-		 */
-		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER2,
-				   ADV7511_REG_POWER2_HDP_SRC_MASK,
-				   ADV7511_REG_POWER2_HDP_SRC_NONE);
-		/* Most of the registers are reset during power down or
-		 * when HPD is low
-		 */
-		regcache_sync(adv7511->regmap);
-		break;
-	default:
-		/* TODO: setup additional power down modes */
-		regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
-				   ADV7511_POWER_POWER_DOWN,
-				   ADV7511_POWER_POWER_DOWN);
-		regcache_mark_dirty(adv7511->regmap);
-		break;
-	}
-
-	adv7511->dpms_mode = mode;
+	if (mode == DRM_MODE_DPMS_ON)
+		adv7511_power_on(adv7511);
+	else
+		adv7511_power_off(adv7511);
 }
 
 static enum drm_connector_status
@@ -620,10 +631,9 @@ adv7511_encoder_detect(struct drm_encoder *encoder,
 	 * there is a pending HPD interrupt and the cable is connected there was
 	 * at least one transition from disconnected to connected and the chip
 	 * has to be reinitialized. */
-	if (status == connector_status_connected && hpd &&
-	    adv7511->dpms_mode == DRM_MODE_DPMS_ON) {
+	if (status == connector_status_connected && hpd && adv7511->powered) {
 		regcache_mark_dirty(adv7511->regmap);
-		adv7511_encoder_dpms(encoder, adv7511->dpms_mode);
+		adv7511_power_on(adv7511);
 		adv7511_get_modes(encoder, connector);
 		if (adv7511->status == connector_status_connected)
 			status = connector_status_disconnected;
@@ -858,7 +868,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	if (!adv7511)
 		return -ENOMEM;
 
-	adv7511->dpms_mode = DRM_MODE_DPMS_OFF;
+	adv7511->powered = false;
 	adv7511->status = connector_status_disconnected;
 
 	ret = adv7511_parse_dt(dev->of_node, &link_config);
@@ -918,10 +928,7 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	regmap_write(adv7511->regmap, ADV7511_REG_CEC_CTRL,
 		     ADV7511_CEC_CTRL_POWER_DOWN);
 
-	regmap_update_bits(adv7511->regmap, ADV7511_REG_POWER,
-			   ADV7511_POWER_POWER_DOWN, ADV7511_POWER_POWER_DOWN);
-
-	adv7511->current_edid_segment = -1;
+	adv7511_power_off(adv7511);
 
 	i2c_set_clientdata(i2c, adv7511);
 
