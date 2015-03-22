@@ -324,6 +324,18 @@ config TOUCHSCREEN_ILI210X
 	  To compile this driver as a module, choose M here: the
 	  module will be called ili210x.
 
+config TOUCHSCREEN_IPROC
+	tristate "IPROC touch panel driver support"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	help
+	  Say Y here if you want to add support for the IPROC touch
+	  controller to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bcm_iproc_tsc.
+
 config TOUCHSCREEN_S3C2410
 	tristate "Samsung S3C2410/generic touchscreen input driver"
 	depends on ARCH_S3C24XX || SAMSUNG_DEV_TS
