@@ -100,6 +100,18 @@
 			(_ah)->reg_ops.write_flush((_ah));	\
 	} while (0)
 
+#define ENABLE_REG_RMW_BUFFER(_ah)					\
+	do {								\
+		if ((_ah)->reg_ops.enable_rmw_buffer)	\
+			(_ah)->reg_ops.enable_rmw_buffer((_ah)); \
+	} while (0)
+
+#define REG_RMW_BUFFER_FLUSH(_ah)					\
+	do {								\
+		if ((_ah)->reg_ops.rmw_flush)		\
+			(_ah)->reg_ops.rmw_flush((_ah));	\
+	} while (0)
+
 #define PR_EEP(_s, _val)						\
 	do {								\
 		len += scnprintf(buf + len, size - len, "%20s : %10d\n",\
