@@ -2281,10 +2281,12 @@ static int alps_set_protocol(struct psmouse *psmouse,
 		priv->set_abs_params = alps_set_abs_params_mt;
 		priv->nibble_commands = alps_v3_nibble_commands;
 		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
-		priv->x_max = 1360;
-		priv->y_max = 660;
 		priv->x_bits = 23;
 		priv->y_bits = 12;
+
+		if (alps_dolphin_get_device_area(psmouse, priv))
+			return -EIO;
+
 		break;
 
 	case ALPS_PROTO_V6:
@@ -2303,9 +2305,8 @@ static int alps_set_protocol(struct psmouse *psmouse,
 		priv->set_abs_params = alps_set_abs_params_mt;
 		priv->nibble_commands = alps_v3_nibble_commands;
 		priv->addr_command = PSMOUSE_CMD_RESET_WRAP;
-
-		if (alps_dolphin_get_device_area(psmouse, priv))
-			return -EIO;
+		priv->x_max = 0xfff;
+		priv->y_max = 0x7ff;
 
 		if (priv->fw_ver[1] != 0xba)
 			priv->flags |= ALPS_BUTTONPAD;
