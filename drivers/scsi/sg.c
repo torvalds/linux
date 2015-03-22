@@ -1744,21 +1744,15 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 			md->from_user = 0;
 	}
 
-	if (unlikely(iov_count > MAX_UIOVEC))
-		return -EINVAL;
-
 	if (iov_count) {
-		int size = sizeof(struct iovec) * iov_count;
-		struct iovec *iov;
+		struct iovec *iov = NULL;
 		struct iov_iter i;
 
-		iov = memdup_user(hp->dxferp, size);
-		if (IS_ERR(iov))
-			return PTR_ERR(iov);
+		res = import_iovec(rw, hp->dxferp, iov_count, 0, &iov, &i);
+		if (res < 0)
+			return res;
 
-		iov_iter_init(&i, rw, iov, iov_count,
-			      min_t(size_t, hp->dxfer_len,
-				    iov_length(iov, iov_count)));
+		iov_iter_truncate(&i, hp->dxfer_len);
 
 		res = blk_rq_map_user_iov(q, rq, md, &i, GFP_ATOMIC);
 		kfree(iov);
