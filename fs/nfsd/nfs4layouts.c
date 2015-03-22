@@ -440,15 +440,14 @@ nfsd4_return_file_layout(struct nfs4_layout *lp, struct nfsd4_layout_seg *seg,
 			list_move_tail(&lp->lo_perstate, reaplist);
 			return;
 		}
-		end = seg->offset;
+		lo->offset = layout_end(seg);
 	} else {
 		/* retain the whole layout segment on a split. */
 		if (layout_end(seg) < end) {
 			dprintk("%s: split not supported\n", __func__);
 			return;
 		}
-
-		lo->offset = layout_end(seg);
+		end = seg->offset;
 	}
 
 	layout_update_len(lo, end);
