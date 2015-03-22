@@ -42,18 +42,47 @@ static size_t iio_buffer_data_available(struct iio_buffer *buf)
 	return buf->access->data_available(buf);
 }
 
-static bool iio_buffer_ready(struct iio_dev *indio_dev, struct iio_buffer *buf,
-			     size_t to_wait)
+static int iio_buffer_flush_hwfifo(struct iio_dev *indio_dev,
+				   struct iio_buffer *buf, size_t required)
 {
+	if (!indio_dev->info->hwfifo_flush_to_buffer)
+		return -ENODEV;
+
+	return indio_dev->info->hwfifo_flush_to_buffer(indio_dev, required);
+}
+
+static bool iio_buffer_ready(struct iio_dev *indio_dev, struct iio_buffer *buf,
+			     size_t to_wait, int to_flush)
+{
+	size_t avail;
+	int flushed = 0;
+
 	/* wakeup if the device was unregistered */
 	if (!indio_dev->info)
 		return true;
 
 	/* drain the buffer if it was disabled */
-	if (!iio_buffer_is_active(buf))
+	if (!iio_buffer_is_active(buf)) {
 		to_wait = min_t(size_t, to_wait, 1);
+		to_flush = 0;
+	}
 
-	if (iio_buffer_data_available(buf) >= to_wait)
+	avail = iio_buffer_data_available(buf);
+
+	if (avail >= to_wait) {
+		/* force a flush for non-blocking reads */
+		if (!to_wait && !avail && to_flush)
+			iio_buffer_flush_hwfifo(indio_dev, buf, to_flush);
+		return true;
+	}
+
+	if (to_flush)
+		flushed = iio_buffer_flush_hwfifo(indio_dev, buf,
+						  to_wait - avail);
+	if (flushed <= 0)
+		return false;
+
+	if (avail + flushed >= to_wait)
 		return true;
 
 	return false;
@@ -72,6 +101,7 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 	struct iio_buffer *rb = indio_dev->buffer;
 	size_t datum_size;
 	size_t to_wait = 0;
+	size_t to_read;
 	int ret;
 
 	if (!indio_dev->info)
@@ -89,12 +119,14 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 	if (!datum_size)
 		return 0;
 
+	to_read = min_t(size_t, n / datum_size, rb->watermark);
+
 	if (!(filp->f_flags & O_NONBLOCK))
-		to_wait = min_t(size_t, n / datum_size, rb->watermark);
+		to_wait = to_read;
 
 	do {
 		ret = wait_event_interruptible(rb->pollq,
-				      iio_buffer_ready(indio_dev, rb, to_wait));
+			iio_buffer_ready(indio_dev, rb, to_wait, to_read));
 		if (ret)
 			return ret;
 
@@ -122,7 +154,7 @@ unsigned int iio_buffer_poll(struct file *filp,
 		return -ENODEV;
 
 	poll_wait(filp, &rb->pollq, wait);
-	if (iio_buffer_ready(indio_dev, rb, rb->watermark))
+	if (iio_buffer_ready(indio_dev, rb, rb->watermark, 0))
 		return POLLIN | POLLRDNORM;
 	return 0;
 }
@@ -661,19 +693,16 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 		}
 	}
 	/* Definitely possible for devices to support both of these. */
-	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED) {
-		if (!indio_dev->trig) {
-			printk(KERN_INFO "Buffer not started: no trigger\n");
-			ret = -EINVAL;
-			/* Can only occur on first buffer */
-			goto error_run_postdisable;
-		}
+	if ((indio_dev->modes & INDIO_BUFFER_TRIGGERED) && indio_dev->trig) {
 		indio_dev->currentmode = INDIO_BUFFER_TRIGGERED;
 	} else if (indio_dev->modes & INDIO_BUFFER_HARDWARE) {
 		indio_dev->currentmode = INDIO_BUFFER_HARDWARE;
 	} else if (indio_dev->modes & INDIO_BUFFER_SOFTWARE) {
 		indio_dev->currentmode = INDIO_BUFFER_SOFTWARE;
 	} else { /* Should never be reached */
+		/* Can only occur on first buffer */
+		if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
+			pr_info("Buffer not started: no trigger\n");
 		ret = -EINVAL;
 		goto error_run_postdisable;
 	}
@@ -825,6 +854,9 @@ static ssize_t iio_buffer_store_watermark(struct device *dev,
 	}
 
 	buffer->watermark = val;
+
+	if (indio_dev->info->hwfifo_set_watermark)
+		indio_dev->info->hwfifo_set_watermark(indio_dev, val);
 out:
 	mutex_unlock(&indio_dev->mlock);
 

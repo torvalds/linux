@@ -1295,3 +1295,72 @@ Description:
 		allows the application to block on poll with a timeout and read
 		the available samples after the timeout expires and thus have a
 		maximum delay guarantee.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_enabled
+KernelVersion: 4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		A read-only boolean value that indicates if the hardware fifo is
+		currently enabled or disabled. If the device does not have a
+		hardware fifo this entry is not present.
+		The hardware fifo is enabled when the buffer is enabled if the
+		current hardware fifo watermark level is set and other current
+		device settings allows it (e.g. if a trigger is set that samples
+		data differently that the hardware fifo does then hardware fifo
+		will not enabled).
+		If the hardware fifo is enabled and the level of the hardware
+		fifo reaches the hardware fifo watermark level the device will
+		flush its hardware fifo to the device buffer. Doing a non
+		blocking read on the device when no samples are present in the
+		device buffer will also force a flush.
+		When the hardware fifo is enabled there is no need to use a
+		trigger to use buffer mode since the watermark settings
+		guarantees that the hardware fifo is flushed to the device
+		buffer.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark
+KernelVersion: 4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read-only entry that contains a single integer specifying the
+		current watermark level for the hardware fifo. If the device
+		does not have a hardware fifo this entry is not present.
+		The watermark level for the hardware fifo is set by the driver
+		based on the value set by the user in buffer/watermark but
+		taking into account hardware limitations (e.g. most hardware
+		buffers are limited to 32-64 samples, some hardware buffers
+		watermarks are fixed or have minimum levels).  A value of 0
+		means that the hardware watermark is unset.
+
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_min
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the minimum watermark level
+		for the hardware fifo of this device. If the device does not
+		have a hardware fifo this entry is not present.
+		If the user sets buffer/watermark to a value less than this one,
+		then the hardware watermark will remain unset.
+
+What:	       /sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_max
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A single positive integer specifying the maximum watermark level
+		for the hardware fifo of this device. If the device does not
+		have a hardware fifo this entry is not present.
+		If the user sets buffer/watermark to a value greater than this
+		one, then the hardware watermark will be capped at this value.
+
+What:	       /sys/bus/iio/devices/iio:deviceX/buffer/hwfifo_watermark_available
+KernelVersion: 4.2
+Contact:       linux-iio@vger.kernel.org
+Description:
+		A list of positive integers specifying the available watermark
+		levels for the hardware fifo. This entry is optional and if it
+		is not present it means that all the values between
+		hwfifo_watermark_min and hwfifo_watermark_max are supported.
+		If the user sets buffer/watermark to a value greater than
+		hwfifo_watermak_min but not equal to any of the values in this
+		list, the driver will chose an appropriate value for the
+		hardware fifo watermark level.
