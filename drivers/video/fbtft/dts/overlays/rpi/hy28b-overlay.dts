@@ -1,0 +1,142 @@
+/*
+ * Device Tree overlay for HY28b display shield by Texy
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+
+			spidev@0{
+				status = "disabled";
+			};
+
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			hy28b_pins: hy28b_pins {
+				brcm,pins = <17 25 18>;
+				brcm,function = <0 1 1>; /* in out out */
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			hy28b: hy28b@0{
+				compatible = "ilitek,ili9325";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&hy28b_pins>;
+
+				spi-max-frequency = <48000000>;
+				spi-cpol;
+				spi-cpha;
+				rotate = <270>;
+				bgr;
+				fps = <50>;
+				buswidth = <8>;
+				startbyte = <0x70>;
+				reset-gpios = <&gpio 25 0>;
+				led-gpios = <&gpio 18 1>;
+
+				gamma = "04 1F 4 7 7 0 7 7 6 0\n0F 00 1 7 4 0 0 0 6 7";
+
+				init = <0x10000e7 0x0010
+					0x1000000 0x0001
+					0x1000001 0x0100
+					0x1000002 0x0700
+				        0x1000003 0x1030
+					0x1000004 0x0000
+					0x1000008 0x0207
+					0x1000009 0x0000
+				        0x100000a 0x0000
+					0x100000c 0x0001
+					0x100000d 0x0000
+					0x100000f 0x0000
+				        0x1000010 0x0000
+					0x1000011 0x0007
+					0x1000012 0x0000
+					0x1000013 0x0000
+				        0x2000032
+					0x1000010 0x1590
+					0x1000011 0x0227
+				        0x2000032
+					0x1000012 0x009c
+				        0x2000032
+				        0x1000013 0x1900
+					0x1000029 0x0023
+					0x100002b 0x000e
+				        0x2000032
+				        0x1000020 0x0000
+					0x1000021 0x0000
+				        0x2000032
+					0x1000050 0x0000
+				        0x1000051 0x00ef
+					0x1000052 0x0000
+					0x1000053 0x013f
+					0x1000060 0xa700
+				        0x1000061 0x0001
+					0x100006a 0x0000
+					0x1000080 0x0000
+					0x1000081 0x0000
+				        0x1000082 0x0000
+					0x1000083 0x0000
+					0x1000084 0x0000
+					0x1000085 0x0000
+				        0x1000090 0x0010
+					0x1000092 0x0000
+					0x1000093 0x0003
+					0x1000095 0x0110
+				        0x1000097 0x0000
+					0x1000098 0x0000
+					0x1000007 0x0133
+					0x1000020 0x0000
+				        0x1000021 0x0000
+				        0x2000064>;
+				debug = <0>;
+			};
+
+			hy28b_ts: hy28b-ts@1 {
+				compatible = "ti,ads7846";
+				reg = <1>;
+
+				spi-max-frequency = <2000000>;
+				interrupts = <17 2>; /* high-to-low edge triggered */
+				interrupt-parent = <&gpio>;
+				pendown-gpio = <&gpio 17 0>;
+				ti,x-plate-ohms = /bits/ 16 <100>;
+				ti,pressure-max = /bits/ 16 <255>;
+			};
+		};
+	};
+	__overrides__ {
+		speed = 	<&hy28b>,"spi-max-frequency:0";
+		rotate = 	<&hy28b>,"rotate:0";
+		fps = 		<&hy28b>,"fps:0";
+		debug = 	<&hy28b>,"debug:0";
+		xohms =		<&hy28b_ts>,"ti,x-plate-ohms;0";
+		resetgpio =	<&hy28b>,"reset-gpios:4",
+				<&hy28b_pins>, "brcm,pins:1";
+		ledgpio =	<&hy28b>,"led-gpios:4",
+				<&hy28b_pins>, "brcm,pins:2";
+	};
+};

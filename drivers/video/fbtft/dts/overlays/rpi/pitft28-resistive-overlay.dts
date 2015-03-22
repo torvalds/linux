@@ -1,0 +1,115 @@
+/*
+ * Device Tree overlay for pitft resistive by Adafruit
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+
+			spidev@0{
+				status = "disabled";
+			};
+
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			pitft_pins: pitft_pins {
+				brcm,pins = <24 25>;
+				brcm,function = <0 1>; /* in out */
+				brcm,pull = <2 0>; /* pullup none */
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pitft: pitft@0{
+				compatible = "ilitek,ili9340";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pitft_pins>;
+
+				spi-max-frequency = <16000000>;
+				rotate = <90>;
+				fps = <25>;
+				bgr;
+				buswidth = <8>;
+				dc-gpios = <&gpio 25 0>;
+				debug = <0>;
+			};
+
+			pitft_ts@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "st,stmpe610";
+				reg = <1>;
+
+				spi-max-frequency = <500000>;
+				irq-gpio = <&gpio 24 0x2>; /* IRQF_TRIGGER_FALLING */
+				interrupts = <24 2>; /* high-to-low edge triggered */
+				interrupt-parent = <&gpio>;
+				interrupt-controller;
+
+				stmpe_touchscreen {
+					compatible = "st,stmpe-ts";
+					st,sample-time = <4>;
+					st,mod-12b = <1>;
+					st,ref-sel = <0>;
+					st,adc-freq = <2>;
+					st,ave-ctrl = <3>;
+					st,touch-det-delay = <4>;
+					st,settling = <2>;
+					st,fraction-z = <7>;
+					st,i-drive = <0>;
+				};
+
+				stmpe_gpio: stmpe_gpio {
+					#gpio-cells = <2>;
+					compatible = "st,stmpe-gpio";
+					/*
+					 * only GPIO2 is wired/available
+					 * and it is wired to the backlight
+					 */
+					st,norequest-mask = <0x7b>;
+				};
+			};
+		};
+	};
+
+	fragment@3 {
+		target-path = "/soc";
+		__overlay__ {
+			backlight {
+				compatible = "gpio-backlight";
+				gpios = <&stmpe_gpio 2 0>;
+				default-on;
+			};
+		};
+	};
+
+	__overrides__ {
+		speed =   <&pitft>,"spi-max-frequency:0";
+		rotate =  <&pitft>,"rotate:0";
+		fps =     <&pitft>,"fps:0";
+		debug =   <&pitft>,"debug:0";
+	};
+};

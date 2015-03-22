@@ -1,0 +1,109 @@
+/*
+ * Device Tree overlay for MZ61581-PI-EXT 2014.12.28 by Tontec
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+
+			spidev@0{
+				status = "disabled";
+			};
+
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			mz61581_pins: mz61581_pins {
+				brcm,pins = <4 15 18 25>;
+				brcm,function = <0 1 1 1>; /* in out out out */
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mz61581: mz61581@0{
+				compatible = "samsung,s6d02a1";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&mz61581_pins>;
+
+				spi-max-frequency = <128000000>;
+				spi-cpol;
+				spi-cpha;
+
+				width = <320>;
+				height = <480>;
+				rotate = <270>;
+				bgr;
+				fps = <30>;
+				buswidth = <8>;
+
+				reset-gpios = <&gpio 15 0>;
+				dc-gpios = <&gpio 25 0>;
+				led-gpios = <&gpio 18 0>;
+
+				init = <0x10000b0 00
+					0x1000011
+					0x20000ff
+					0x10000b3 0x02 0x00 0x00 0x00
+					0x10000c0 0x13 0x3b 0x00 0x02 0x00 0x01 0x00 0x43
+					0x10000c1 0x08 0x16 0x08 0x08
+					0x10000c4 0x11 0x07 0x03 0x03
+					0x10000c6 0x00
+					0x10000c8 0x03 0x03 0x13 0x5c 0x03 0x07 0x14 0x08 0x00 0x21 0x08 0x14 0x07 0x53 0x0c 0x13 0x03 0x03 0x21 0x00
+					0x1000035 0x00
+					0x1000036 0xa0
+					0x100003a 0x55
+					0x1000044 0x00 0x01
+					0x10000d0 0x07 0x07 0x1d 0x03
+					0x10000d1 0x03 0x30 0x10
+					0x10000d2 0x03 0x14 0x04
+					0x1000029
+					0x100002c>;
+
+				/* This is a workaround to make sure the init sequence slows down and doesn't fail */
+				debug = <3>;
+			};
+
+			mz61581_ts: mz61581_ts@1 {
+				compatible = "ti,ads7846";
+				reg = <1>;
+
+				spi-max-frequency = <2000000>;
+				interrupts = <4 2>; /* high-to-low edge triggered */
+				interrupt-parent = <&gpio>;
+				pendown-gpio = <&gpio 4 0>;
+
+				ti,x-plate-ohms = /bits/ 16 <60>;
+				ti,pressure-max = /bits/ 16 <255>;
+			};
+		};
+	};
+	__overrides__ {
+		speed =   <&mz61581>, "spi-max-frequency:0";
+		rotate =  <&mz61581>, "rotate:0";
+		fps =     <&mz61581>, "fps:0";
+		debug =   <&mz61581>, "debug:0";
+		xohms =   <&mz61581_ts>,"ti,x-plate-ohms;0";
+	};
+};

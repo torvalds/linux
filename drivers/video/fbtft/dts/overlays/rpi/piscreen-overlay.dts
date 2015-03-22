@@ -1,0 +1,94 @@
+/*
+ * Device Tree overlay for PiScreen 3.5" display shield by Ozzmaker
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+
+			spidev@0{
+				status = "disabled";
+			};
+
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			piscreen_pins: piscreen_pins {
+				brcm,pins = <17 25 24 22>;
+				brcm,function = <0 1 1 1>; /* in out out out */
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			piscreen: piscreen@0{
+				compatible = "ilitek,ili9486";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&piscreen_pins>;
+
+				spi-max-frequency = <32000000>;
+				rotate = <270>;
+				bgr;
+				fps = <30>;
+				buswidth = <8>;
+				regwidth = <16>;
+				reset-gpios = <&gpio 25 0>;
+				dc-gpios = <&gpio 24 0>;
+				led-gpios = <&gpio 22 1>;
+				debug = <0>;
+
+				init = <0x10000b0 0x00
+				        0x1000011
+					0x20000ff
+					0x100003a 0x55
+					0x1000036 0x28
+					0x10000c2 0x44
+					0x10000c5 0x00 0x00 0x00 0x00
+					0x10000e0 0x0f 0x1f 0x1c 0x0c 0x0f 0x08 0x48 0x98 0x37 0x0a 0x13 0x04 0x11 0x0d 0x00
+					0x10000e1 0x0f 0x32 0x2e 0x0b 0x0d 0x05 0x47 0x75 0x37 0x06 0x10 0x03 0x24 0x20 0x00
+					0x10000e2 0x0f 0x32 0x2e 0x0b 0x0d 0x05 0x47 0x75 0x37 0x06 0x10 0x03 0x24 0x20 0x00
+					0x1000011
+					0x1000029>;
+			};
+
+			piscreen-ts@1 {
+				compatible = "ti,ads7846";
+				reg = <1>;
+
+				spi-max-frequency = <2000000>;
+				interrupts = <17 2>; /* high-to-low edge triggered */
+				interrupt-parent = <&gpio>;
+				pendown-gpio = <&gpio 17 0>;
+				ti,x-plate-ohms = /bits/ 16 <100>;
+				ti,pressure-max = /bits/ 16 <255>;
+			};
+		};
+	};
+	__overrides__ {
+		speed =		<&piscreen>,"spi-max-frequency:0";
+		rotate =	<&piscreen>,"rotate:0";
+		fps =		<&piscreen>,"fps:0";
+		debug =		<&piscreen>,"debug:0";
+	};
+};

@@ -1,0 +1,81 @@
+/*
+ * Device Tree overlay for rpi-display by Watterott
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+
+			spidev@0{
+				status = "disabled";
+			};
+
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			rpi_display_pins: rpi_display_pins {
+				brcm,pins = <18 23 24 25>;
+				brcm,function = <1 1 1 0>; /* out out out in */
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rpidisplay: rpi-display@0{
+				compatible = "ilitek,ili9341";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&rpi_display_pins>;
+
+				spi-max-frequency = <32000000>;
+				rotate = <270>;
+				bgr;
+				fps = <30>;
+				buswidth = <8>;
+				reset-gpios = <&gpio 23 0>;
+				dc-gpios = <&gpio 24 0>;
+				led-gpios = <&gpio 18 1>;
+				debug = <0>;
+			};
+
+			rpidisplay_ts: rpi-display-ts@1 {
+				compatible = "ti,ads7846";
+				reg = <1>;
+
+				spi-max-frequency = <2000000>;
+				interrupts = <25 2>; /* high-to-low edge triggered */
+				interrupt-parent = <&gpio>;
+				pendown-gpio = <&gpio 25 0>;
+				ti,x-plate-ohms = /bits/ 16 <60>;
+				ti,pressure-max = /bits/ 16 <255>;
+			};
+		};
+	};
+	__overrides__ {
+		speed =   <&rpidisplay>,"spi-max-frequency:0";
+		rotate =  <&rpidisplay>,"rotate:0";
+		fps =     <&rpidisplay>,"fps:0";
+		debug =   <&rpidisplay>,"debug:0";
+		xohms =   <&rpidisplay_ts>,"ti,x-plate-ohms;0";
+	};
+};

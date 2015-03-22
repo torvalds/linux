@@ -1,0 +1,414 @@
+
+/*
+ * FBTFT Device Tree part for the Raspberry Pi
+ * Add this file to the end of the *rpi-b.dts file
+ *
+ * Please keep it sorted alphabetically on display name
+ *
+ * Notes:
+ * - use ads7846 instead of tsc2046 to get module autoloading
+ * - use polarity 1 to drive backlight initially low (off):
+ *     led-gpios = <&gpio 18 1>;
+ */
+
+&spi0 {
+	/* this is provided here to make it easy to enable SPI when editing this file */
+//	status = "okay";
+};
+
+
+
+/*
+ * Texy
+ * 2.8" TFT + Touch Shield Board (320x240) HY28A
+ *
+ */
+&spi0 {
+	hy28a@0{
+		compatible = "ilitek,ili9320";
+		reg = <0>;
+		status = "disabled";
+
+		spi-max-frequency = <32000000>;
+		spi-cpol;
+		spi-cpha;
+		rotate = <270>;
+		bgr;
+		fps = <50>;
+		buswidth = <8>;
+		startbyte = <0x70>;
+		reset-gpios = <&gpio 25 0>;
+		led-gpios = <&gpio 18 1>;
+		debug = <0>;
+	};
+
+	hy28a_ts@1 {
+		compatible = "ti,ads7846";
+		reg = <1>;
+		status = "disabled";
+
+		spi-max-frequency = <2000000>;
+		interrupts = <3 17>;
+		pendown-gpio = <&gpio 17 0>;
+		ti,x-plate-ohms = /bits/ 16 <100>;
+		ti,pressure-max = /bits/ 16 <255>;
+	};
+};
+
+
+
+
+/*
+ * Texy
+ * 2.8" TFT + Touch Shield Board (320x240) HY28B
+ * NOT TESTED
+ */
+&spi0 {
+	hy28b@0{
+		compatible = "ilitek,ili9325";
+		reg = <0>;
+		status = "disabled";
+
+		spi-max-frequency = <48000000>;
+		rotate = <270>;
+		bgr;
+		fps = <50>;
+		buswidth = <8>;
+		startbyte = <0x70>;
+		reset-gpios = <&gpio 25 0>;
+		led-gpios = <&gpio 18 1>;
+
+		gamma = "04 1F 4 7 7 0 7 7 6 0\n0F 00 1 7 4 0 0 0 6 7";
+
+		init = <0x10000e7 0x0010
+			0x1000000 0x0001
+			0x1000001 0x0100
+			0x1000002 0x0700
+		        0x1000003 0x1030
+			0x1000004 0x0000
+			0x1000008 0x0207
+			0x1000009 0x0000
+		        0x100000a 0x0000
+			0x100000c 0x0001
+			0x100000d 0x0000
+			0x100000f 0x0000
+		        0x1000010 0x0000
+			0x1000011 0x0007
+			0x1000012 0x0000
+			0x1000013 0x0000
+		        0x2000032
+			0x1000010 0x1590
+			0x1000011 0x0227
+		        0x2000032
+			0x1000012 0x009c
+		        0x2000032
+		        0x1000013 0x1900
+			0x1000029 0x0023
+			0x100002b 0x000e
+		        0x2000032
+		        0x1000020 0x0000
+			0x1000021 0x0000
+		        0x2000032
+			0x1000050 0x0000
+		        0x1000051 0x00ef
+			0x1000052 0x0000
+			0x1000053 0x013f
+			0x1000060 0xa700
+		        0x1000061 0x0001
+			0x100006a 0x0000
+			0x1000080 0x0000
+			0x1000081 0x0000
+		        0x1000082 0x0000
+			0x1000083 0x0000
+			0x1000084 0x0000
+			0x1000085 0x0000
+		        0x1000090 0x0010
+			0x1000092 0x0000
+			0x1000093 0x0003
+			0x1000095 0x0110
+		        0x1000097 0x0000
+			0x1000098 0x0000
+			0x1000007 0x0133
+			0x1000020 0x0000
+		        0x1000021 0x0000
+		        0x2000064>;
+		debug = <0>;
+	};
+
+	hy28b_ts@1 {
+		compatible = "ti,ads7846";
+		reg = <1>;
+		status = "disabled";
+
+		spi-max-frequency = <2000000>;
+		interrupts = <3 17>;
+		pendown-gpio = <&gpio 17 0>;
+		ti,x-plate-ohms = /bits/ 16 <100>;
+		ti,pressure-max = /bits/ 16 <255>;
+	};
+};
+
+
+
+
+/*
+ * ITEAD
+ * ITDB02-2.8
+ *
+ */
+/ {
+	itdb28 {
+		compatible = "ilitek,ili9325";
+		status = "disabled";
+
+		rotate = <0>;
+		bgr;
+		buswidth = <8>;
+		reset-gpios = <&gpio 17 0>;
+		dc-gpios = <&gpio  3 0>;
+		cs-gpios = <&gpio 27 0>;
+		wr-gpios = <&gpio  2 0>;
+		db-gpios = <&gpio  9 0>,
+			   <&gpio 11 0>,
+			   <&gpio 18 0>,
+			   <&gpio 23 0>,
+			   <&gpio 24 0>,
+			   <&gpio 25 0>,
+			   <&gpio  8 0>,
+			   <&gpio  7 0>;
+		/* LED pin drives backlight directly. Use transistor (50mA) */
+		/* led-gpios = <&gpio 4 1>; */
+		debug = <0>;
+	};
+};
+
+
+
+
+/*
+ * Watterott
+ * RPi-Display - 2.8" Touch-Display (320x240)
+ *
+ */
+&spi0 {
+	rpi-display@0{
+		compatible = "ilitek,ili9341";
+		reg = <0>;
+		status = "disabled";
+
+		spi-max-frequency = <32000000>;
+		rotate = <270>;
+		bgr;
+		fps = <30>;
+		buswidth = <8>;
+		reset-gpios = <&gpio 23 0>;
+		dc-gpios = <&gpio 24 0>;
+		led-gpios = <&gpio 18 1>;
+		debug = <0>;
+	};
+
+	rpi-display_ts@1 {
+		compatible = "ti,ads7846";
+		reg = <1>;
+		status = "disabled";
+
+		spi-max-frequency = <2000000>;
+		interrupts = <3 25>;
+		pendown-gpio = <&gpio 25 0>;
+		ti,x-plate-ohms = /bits/ 16 <60>;
+		ti,pressure-max = /bits/ 16 <255>;
+	};
+};
+
+
+
+
+/*
+ * Ozzmaker
+ * PiScreen - 3.5" TFT touchscreen (480x320)
+ *
+ */
+&spi0 {
+	piscreen@0{
+		compatible = "ilitek,ili9486";
+		reg = <0>;
+		status = "disabled";
+
+		spi-max-frequency = <20000000>;
+		rotate = <270>;
+		bgr;
+		fps = <30>;
+		buswidth = <8>;
+		reset-gpios = <&gpio 25 0>;
+		dc-gpios = <&gpio 24 0>;
+		led-gpios = <&gpio 22 1>;
+
+		init = <0x10000b0 0x00
+		        0x1000011
+			0x20000FF
+			0x100003A 0x55
+			0x1000036 0x28
+			0x10000C2 0x44
+			0x10000C5 0x00 0x00 0x00 0x00
+			0x10000E0 0x0F 0x1F 0x1C 0x0C 0x0F 0x08 0x48 0x98 0x37 0x0A 0x13 0x04 0x11 0x0D 0x00
+			0x10000E1 0x0F 0x32 0x2E 0x0B 0x0D 0x05 0x47 0x75 0x37 0x06 0x10 0x03 0x24 0x20 0x00
+			0x10000E2 0x0F 0x32 0x2E 0x0B 0x0D 0x05 0x47 0x75 0x37 0x06 0x10 0x03 0x24 0x20 0x00
+			0x1000011 
+			0X1000029>;
+		debug = <0>;
+	};
+
+	piscreen_ts@1 {
+		compatible = "ti,ads7846";
+		reg = <1>;
+		status = "disabled";
+
+		spi-max-frequency = <2000000>;
+		interrupts = <3 17>;
+		pendown-gpio = <&gpio 17 0>;
+		ti,x-plate-ohms = /bits/ 16 <100>;
+		ti,pressure-max = /bits/ 16 <255>;
+	};
+};
+
+
+
+
+/*
+ * Adafruit
+ * PiTFT Mini Kit - 320x240 2.8" TFT+Touchscreen for Raspberry Pi
+ *
+ * Couldn't get touch controller to work
+ */
+
+&gpio {
+	stmpets_pins: stmpets_pins {
+		brcm,pins = <24>;
+		brcm,function = <0>; /* gpio in */
+		brcm,pull = <2>; /* pull up */
+	};
+};
+
+&spi0 {
+	pitft@0{
+		compatible = "ilitek,ili9340";
+		reg = <0>;
+		status = "disabled";
+
+		spi-max-frequency = <32000000>;
+		rotate = <90>;
+		bgr;
+		buswidth = <8>;
+		dc-gpios = <&gpio 25 0>;
+
+		init = <0x1000001
+			0x2000005
+			0x1000028
+			0x10000EF 0x03 0x80 0x02
+			0x10000CF 0x00 0xC1 0x30
+			0x10000ED 0x64 0x03 0x12 0x81
+			0x10000E8 0x85 0x00 0x78
+			0x10000CB 0x39 0x2C 0x00 0x34 0x02
+			0x10000F7 0x20
+			0x10000EA 0x00 0x00
+			0x10000C0 0x23
+			0x10000C1 0x10
+			0x10000C5 0x3e 0x28
+			0x10000C7 0x86
+			0x100003A 0x55
+			0x10000B1 0x00 0x18
+			0x10000B6 0x08 0x82 0x27
+			0x10000F2 0x00
+			0x1000026 0x01
+			0x10000E0 0x0F 0x31 0x2B 0x0C 0x0E 0x08 0x4E 0xF1 0x37 0x07 0x10 0x03 0x0E 0x09 0x00
+			0x10000E1 0x00 0x0E 0x14 0x03 0x11 0x07 0x31 0xC1 0x48 0x08 0x0F 0x0C 0x31 0x36 0x0F
+			0x1000011
+			0x2000064
+			0x1000029
+			0x2000014>;
+		debug = <0>;
+	};
+/*
+Touchscreen didn't work. I guess it has something to do with it being an interrupt controller.
+I have never tried this before with DT and ARCH_BCM2708.
+On ARCH_BCM2835 it should be OK, since the GPIO controller acts as an interrupt controller as well.
+(stmpe_device can't be used from 3.16, because irq_base can't be set anymore)
+
+[    8.889056] irq: irq_create_mapping(0xc3008800, 0xc2)
+[    8.895698] irq: -> using domain @c3008800
+[    8.900796] irq: -> existing mapping on virq 194
+[    8.925048] stmpe-spi spi0.1: stmpe610 detected, chip id: 0x811
+[    8.936650] irq: Added domain (null)
+[    8.941780] irq: irq_create_mapping(0xc1dc1a20, 0x0)
+[    8.949047] irq: -> using domain @c1dc1a20
+[    8.954421] irq: -> virq allocation failed
+[    8.959926] irq: irq_create_mapping(0xc1dc1a20, 0x1)
+[    8.967366] irq: -> using domain @c1dc1a20
+[    8.972870] irq: -> virq allocation failed
+*/
+	pitft_ts@1 {
+		compatible = "st,stmpe610";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <1>;
+		status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&stmpets_pins>;
+
+		spi-max-frequency = <500000>;
+		interrupts = <3 24>;
+		interrupt-parent = <&intc>;
+		interrupt-controller;
+
+		stmpe_touchscreen {
+			compatible = "st,stmpe-ts";
+			st,sample-time = <4>;
+			st,mod-12b = <1>;
+			st,ref-sel = <0>;
+			st,adc-freq = <2>;
+			st,ave-ctrl = <3>;
+			st,touch-det-delay = <4>;
+			st,settling = <2>;
+			st,fraction-z = <7>;
+			st,i-drive = <0>;
+		};
+	};
+};
+
+
+
+
+/*
+ * NeoSec LLC
+ * 3.5 inch TFT Display (320x480)
+ *
+ */
+&spi0 {
+	tinylcd35@0{
+		compatible = "neosec,tinylcd";
+		reg = <0>;
+		status = "disabled";
+
+		spi-max-frequency = <48000000>;
+		rotate = <270>;
+		bgr;
+		fps = <50>;
+		buswidth = <8>;
+		reset-gpios = <&gpio 25 0>;
+		dc-gpios = <&gpio 24 0>;
+		led-gpios = <&gpio 18 1>;
+		debug = <0>;
+	};
+
+	tinylcd35@1 {
+		compatible = "ti,ads7846";
+		reg = <1>;
+		status = "disabled";
+
+		spi-max-frequency = <2000000>;
+		interrupts = <3 3>;
+		pendown-gpio = <&gpio 3 0>;
+		ti,x-plate-ohms = /bits/ 16 <100>;
+		ti,pressure-max = /bits/ 16 <255>;
+	};
+};

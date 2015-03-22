@@ -1,0 +1,181 @@
+/*
+ * tinylcd 3.5" display
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+
+			spidev@0{
+				status = "disabled";
+			};
+
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			tinylcd35_pins: tinylcd35_pins {
+				brcm,pins = <25 24 18>;
+				brcm,function = <1>; /* out */
+			};
+			tinylcd35_ts_pins: tinylcd35_ts_pins {
+				brcm,pins = <5>;
+				brcm,function = <0>; /* in */
+			};
+			keypad_pins: keypad_pins {
+				brcm,pins = <4 17 22 23 27>;
+				brcm,function = <0>; /* in */
+				brcm,pull = <1>; /* down */
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			tinylcd35: tinylcd35@0{
+				compatible = "neosec,tinylcd";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&tinylcd35_pins>,
+					    <&tinylcd35_ts_pins>;
+
+				spi-max-frequency = <48000000>;
+				rotate = <270>;
+				fps = <20>;
+				bgr;
+				buswidth = <8>;
+				reset-gpios = <&gpio 25 0>;
+				dc-gpios = <&gpio 24 0>;
+				led-gpios = <&gpio 18 1>;
+				debug = <0>;
+
+				init = <0x10000B0 0x80
+					0x10000C0 0x0A 0x0A
+					0x10000C1 0x01 0x01
+					0x10000C2 0x33
+					0x10000C5 0x00 0x42 0x80
+					0x10000B1 0xD0 0x11
+					0x10000B4 0x02
+					0x10000B6 0x00 0x22 0x3B
+					0x10000B7 0x07
+					0x1000036 0x58
+					0x10000F0 0x36 0xA5 0xD3
+					0x10000E5 0x80
+					0x10000E5 0x01
+					0x10000B3 0x00
+					0x10000E5 0x00
+					0x10000F0 0x36 0xA5 0x53
+					0x10000E0 0x00 0x35 0x33 0x00 0x00 0x00 0x00 0x35 0x33 0x00 0x00 0x00
+					0x100003A 0x55
+					0x1000011
+					0x2000001
+					0x1000029>;
+			};
+
+			tinylcd35_ts: tinylcd35_ts@1 {
+				compatible = "ti,ads7846";
+				reg = <1>;
+				status = "disabled";
+
+				spi-max-frequency = <2000000>;
+				interrupts = <5 2>; /* high-to-low edge triggered */
+				interrupt-parent = <&gpio>;
+				pendown-gpio = <&gpio 5 0>;
+				ti,x-plate-ohms = /bits/ 16 <100>;
+				ti,pressure-max = /bits/ 16 <255>;
+			};
+		};
+	};
+
+	fragment@3 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pcf8563: pcf8563@51 {
+				compatible = "nxp,pcf8563";
+				reg = <0x51>;
+				status = "disabled";
+			};
+		};
+	};
+
+	/*
+	 * Values for input event code is found under the
+	 * 'Keys and buttons' heading in include/uapi/linux/input.h
+	 */
+	fragment@4 {
+		target-path = "/soc";
+		__overlay__ {
+			keypad: keypad {
+				compatible = "gpio-keys";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&keypad_pins>;
+				status = "disabled";
+				autorepeat;
+
+				button@17 {
+					label = "GPIO KEY_UP";
+					linux,code = <103>;
+					gpios = <&gpio 17 0>;
+				};
+				button@22 {
+					label = "GPIO KEY_DOWN";
+					linux,code = <108>;
+					gpios = <&gpio 22 0>;
+				};
+				button@27 {
+					label = "GPIO KEY_LEFT";
+					linux,code = <105>;
+					gpios = <&gpio 27 0>;
+				};
+				button@23 {
+					label = "GPIO KEY_RIGHT";
+					linux,code = <106>;
+					gpios = <&gpio 23 0>;
+				};
+				button@4 {
+					label = "GPIO KEY_ENTER";
+					linux,code = <28>;
+					gpios = <&gpio 4 0>;
+				};
+			};
+		};
+	};
+
+	__overrides__ {
+		speed =		<&tinylcd35>,"spi-max-frequency:0";
+		rotate =	<&tinylcd35>,"rotate:0";
+		fps =		<&tinylcd35>,"fps:0";
+		debug =		<&tinylcd35>,"debug:0";
+		touch =		<&tinylcd35_ts>,"status";
+		touchgpio = 	<&tinylcd35_ts_pins>,"brcm,pins:0",
+				<&tinylcd35_ts>,"interrupts:0",
+				<&tinylcd35_ts>,"pendown-gpio:4";
+		xohms =		<&tinylcd35_ts>,"ti,x-plate-ohms;0";
+		rtc =		<&i2c1>,"status",
+				<&pcf8563>,"status";
+		keypad =	<&keypad>,"status";
+	};
+};
