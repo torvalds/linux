@@ -1636,7 +1636,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 			udf_get_lb_pblock(inode->i_sb, &iinfo->i_location, 0));
 	if (!bh) {
 		udf_debug("getblk failure\n");
-		return -ENOMEM;
+		return -EIO;
 	}
 
 	lock_buffer(bh);
