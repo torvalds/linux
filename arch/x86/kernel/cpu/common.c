@@ -959,24 +959,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 #endif
 }
 
-#ifdef CONFIG_X86_64
-# ifdef CONFIG_IA32_EMULATION
-/* May not be __init: called during resume */
-static void syscall32_cpu_init(void)
-{
-	/*
-	 * Always load these, in case some future 64-bit CPU supports
-	 * SYSENTER from compat mode too:
-	 */
-	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
-	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
-	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
-
-	wrmsrl(MSR_CSTAR, ia32_cstar_target);
-}
-# endif
-#endif
-
 /*
  * Set up the CPU state needed to execute SYSENTER/SYSEXIT instructions
  * on 32-bit kernels:
@@ -1187,10 +1169,17 @@ void syscall_init(void)
 	 */
 	wrmsrl(MSR_STAR,  ((u64)__USER32_CS)<<48  | ((u64)__KERNEL_CS)<<32);
 	wrmsrl(MSR_LSTAR, system_call);
+#ifndef CONFIG_IA32_EMULATION
 	wrmsrl(MSR_CSTAR, ignore_sysret);
-
-#ifdef CONFIG_IA32_EMULATION
-	syscall32_cpu_init();
+#else
+	wrmsrl(MSR_CSTAR, ia32_cstar_target);
+	/*
+	 * Always load these, in case some future 64-bit CPU supports
+	 * SYSENTER from compat mode too:
+	 */
+	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
+	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
+	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
 #endif
 
 	/* Flags to clear on syscall */
