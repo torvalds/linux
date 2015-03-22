@@ -214,15 +214,14 @@ enum cvmx_usb_initialize_flags {
 /**
  * enum cvmx_usb_pipe_flags - internal flags for a pipe.
  *
- * @__CVMX_USB_PIPE_FLAGS_SCHEDULED: Used internally to determine if a pipe is
- *				     actively using hardware. Do not use.
- * @__CVMX_USB_PIPE_FLAGS_NEED_PING: Used internally to determine if a high
- *				     speed pipe is in the ping state. Do not
- *				     use.
+ * @CVMX_USB_PIPE_FLAGS_SCHEDULED: Used internally to determine if a pipe is
+ *				   actively using hardware.
+ * @CVMX_USB_PIPE_FLAGS_NEED_PING: Used internally to determine if a high speed
+ *				   pipe is in the ping state.
  */
 enum cvmx_usb_pipe_flags {
-	__CVMX_USB_PIPE_FLAGS_SCHEDULED	= 1 << 17,
-	__CVMX_USB_PIPE_FLAGS_NEED_PING	= 1 << 18,
+	CVMX_USB_PIPE_FLAGS_SCHEDULED	= 1 << 17,
+	CVMX_USB_PIPE_FLAGS_NEED_PING	= 1 << 18,
 };
 
 /* Maximum number of times to retry failed transactions */
@@ -1173,7 +1172,7 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
 	if ((device_speed == CVMX_USB_SPEED_HIGH) &&
 		(transfer_dir == CVMX_USB_DIRECTION_OUT) &&
 		(transfer_type == CVMX_USB_TRANSFER_BULK))
-		pipe->flags |= __CVMX_USB_PIPE_FLAGS_NEED_PING;
+		pipe->flags |= CVMX_USB_PIPE_FLAGS_NEED_PING;
 	pipe->device_addr = device_addr;
 	pipe->endpoint_num = endpoint_num;
 	pipe->device_speed = device_speed;
@@ -1586,7 +1585,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 	/* Attach the channel to the pipe */
 	usb->pipe_for_channel[channel] = pipe;
 	pipe->channel = channel;
-	pipe->flags |= __CVMX_USB_PIPE_FLAGS_SCHEDULED;
+	pipe->flags |= CVMX_USB_PIPE_FLAGS_SCHEDULED;
 
 	/* Mark this channel as in use */
 	usb->idle_hardware_channels &= ~(1<<channel);
@@ -1814,7 +1813,7 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 		/*
 		 * High speed pipes may need a hardware ping before they start
 		 */
-		if (pipe->flags & __CVMX_USB_PIPE_FLAGS_NEED_PING)
+		if (pipe->flags & CVMX_USB_PIPE_FLAGS_NEED_PING)
 			usbc_hctsiz.s.dopng = 1;
 
 		cvmx_usb_write_csr32(usb,
@@ -1931,7 +1930,7 @@ static struct cvmx_usb_pipe *cvmx_usb_find_ready_pipe(
 		struct cvmx_usb_transaction *t =
 			list_first_entry(&pipe->transactions, typeof(*t),
 					 node);
-		if (!(pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED) && t &&
+		if (!(pipe->flags & CVMX_USB_PIPE_FLAGS_SCHEDULED) && t &&
 			(pipe->next_tx_frame <= current_frame) &&
 			((pipe->split_sc_frame == -1) ||
 			 ((((int)current_frame - (int)pipe->split_sc_frame)
@@ -2394,11 +2393,11 @@ static int cvmx_usb_cancel(struct cvmx_usb_state *usb,
 	 * treat it special
 	 */
 	if (list_first_entry(&pipe->transactions, typeof(*transaction), node) ==
-	    transaction && (pipe->flags & __CVMX_USB_PIPE_FLAGS_SCHEDULED)) {
+	    transaction && (pipe->flags & CVMX_USB_PIPE_FLAGS_SCHEDULED)) {
 		union cvmx_usbcx_hccharx usbc_hcchar;
 
 		usb->pipe_for_channel[pipe->channel] = NULL;
-		pipe->flags &= ~__CVMX_USB_PIPE_FLAGS_SCHEDULED;
+		pipe->flags &= ~CVMX_USB_PIPE_FLAGS_SCHEDULED;
 
 		CVMX_SYNCW;
 
@@ -2592,7 +2591,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 	 * function will figure out which pipe needs to go
 	 */
 	usb->pipe_for_channel[channel] = NULL;
-	pipe->flags &= ~__CVMX_USB_PIPE_FLAGS_SCHEDULED;
+	pipe->flags &= ~CVMX_USB_PIPE_FLAGS_SCHEDULED;
 
 	/*
 	 * Read the channel config info so we can figure out how much data
@@ -2675,7 +2674,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 	if ((pipe->device_speed == CVMX_USB_SPEED_HIGH) &&
 		(pipe->transfer_type == CVMX_USB_TRANSFER_BULK) &&
 		(pipe->transfer_dir == CVMX_USB_DIRECTION_OUT))
-		pipe->flags |= __CVMX_USB_PIPE_FLAGS_NEED_PING;
+		pipe->flags |= CVMX_USB_PIPE_FLAGS_NEED_PING;
 
 	if (usbc_hcint.s.stall) {
 		/*
@@ -2778,7 +2777,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 		 * Since we got an ACK, we know we don't need to do a ping on
 		 * this pipe
 		 */
-		pipe->flags &= ~__CVMX_USB_PIPE_FLAGS_NEED_PING;
+		pipe->flags &= ~CVMX_USB_PIPE_FLAGS_NEED_PING;
 
 		switch (transaction->type) {
 		case CVMX_USB_TRANSFER_CONTROL:
@@ -2911,7 +2910,7 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 				     CVMX_USB_DIRECTION_OUT) &&
 				    (usbc_hcint.s.nak))
 					pipe->flags |=
-						__CVMX_USB_PIPE_FLAGS_NEED_PING;
+						CVMX_USB_PIPE_FLAGS_NEED_PING;
 				if (!buffer_space_left ||
 					(bytes_in_last_packet <
 					 pipe->max_packet)) {
