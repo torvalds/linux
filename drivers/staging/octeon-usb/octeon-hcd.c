@@ -1636,8 +1636,9 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 				     usbc_haintmsk.u32);
 	}
 
-	/* Setup the locations the DMA engines use  */
+	/* Setup the location the DMA engine uses. */
 	{
+		uint64_t reg;
 		uint64_t dma_address = transaction->buffer +
 					transaction->actual_bytes;
 
@@ -1646,12 +1647,11 @@ static void cvmx_usb_start_channel(struct cvmx_usb_state *usb, int channel,
 					transaction->iso_packets[0].offset +
 					transaction->actual_bytes;
 
-		cvmx_write64_uint64(CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) +
-					channel * 8,
-				    dma_address);
-		cvmx_write64_uint64(CVMX_USBNX_DMA0_INB_CHN0(usb->index) +
-					channel * 8,
-				    dma_address);
+		if (pipe->transfer_dir == CVMX_USB_DIRECTION_OUT)
+			reg = CVMX_USBNX_DMA0_OUTB_CHN0(usb->index);
+		else
+			reg = CVMX_USBNX_DMA0_INB_CHN0(usb->index);
+		cvmx_write64_uint64(reg + channel * 8, dma_address);
 	}
 
 	/* Setup both the size of the transfer and the SPLIT characteristics */
