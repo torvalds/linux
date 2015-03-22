@@ -2617,6 +2617,17 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 		(pipe->transfer_dir == CVMX_USB_DIRECTION_OUT))
 		pipe->flags |= CVMX_USB_PIPE_FLAGS_NEED_PING;
 
+	if (unlikely(WARN_ON_ONCE(bytes_this_transfer < 0))) {
+		/*
+		 * In some rare cases the DMA engine seems to get stuck and
+		 * keeps substracting same byte count over and over again. In
+		 * such case we just need to fail every transaction.
+		 */
+		cvmx_usb_perform_complete(usb, pipe, transaction,
+					  CVMX_USB_COMPLETE_ERROR);
+		return 0;
+	}
+
 	if (usbc_hcint.s.stall) {
 		/*
 		 * STALL as a response means this transaction cannot be
