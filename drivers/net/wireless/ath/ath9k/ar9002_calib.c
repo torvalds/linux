@@ -440,8 +440,7 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 		{ AR9285_AN_RF2G3, 0 },
 	};
 
-	for (i = 0; i < ARRAY_SIZE(regList); i++)
-		regList[i][1] = REG_READ(ah, regList[i][0]);
+	REG_READ_ARRAY(ah, regList, ARRAY_SIZE(regList));
 
 	ENABLE_REG_RMW_BUFFER(ah);
 	/* 7834, b1=0 */
