@@ -403,18 +403,17 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 				     struct flowi4 *fl4,
 				     const struct request_sock *req)
 {
-	struct rtable *rt;
 	const struct inet_request_sock *ireq = inet_rsk(req);
-	struct ip_options_rcu *opt = inet_rsk(req)->opt;
-	struct net *net = sock_net(sk);
-	int flags = inet_sk_flowi_flags(sk);
+	struct net *net = read_pnet(&ireq->ireq_net);
+	struct ip_options_rcu *opt = ireq->opt;
+	struct rtable *rt;
 
-	flowi4_init_output(fl4, sk->sk_bound_dev_if, ireq->ir_mark,
+	flowi4_init_output(fl4, ireq->ir_iif, ireq->ir_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
-			   sk->sk_protocol,
-			   flags,
+			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
-			   ireq->ir_loc_addr, ireq->ir_rmt_port, inet_sk(sk)->inet_sport);
+			   ireq->ir_loc_addr, ireq->ir_rmt_port,
+			   htons(ireq->ir_num));
 	security_req_classify_flow(req, flowi4_to_flowi(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
@@ -436,9 +435,9 @@ struct dst_entry *inet_csk_route_child_sock(struct sock *sk,
 					    const struct request_sock *req)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
+	struct net *net = read_pnet(&ireq->ireq_net);
 	struct inet_sock *newinet = inet_sk(newsk);
 	struct ip_options_rcu *opt;
-	struct net *net = sock_net(sk);
 	struct flowi4 *fl4;
 	struct rtable *rt;
 
@@ -446,11 +445,12 @@ struct dst_entry *inet_csk_route_child_sock(struct sock *sk,
 
 	rcu_read_lock();
 	opt = rcu_dereference(newinet->inet_opt);
-	flowi4_init_output(fl4, sk->sk_bound_dev_if, inet_rsk(req)->ir_mark,
+	flowi4_init_output(fl4, ireq->ir_iif, ireq->ir_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk),
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
-			   ireq->ir_loc_addr, ireq->ir_rmt_port, inet_sk(sk)->inet_sport);
+			   ireq->ir_loc_addr, ireq->ir_rmt_port,
+			   htons(ireq->ir_num));
 	security_req_classify_flow(req, flowi4_to_flowi(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
