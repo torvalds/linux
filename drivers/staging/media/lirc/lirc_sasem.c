@@ -170,10 +170,6 @@ static void delete_context(struct sasem_context *context)
 	kfree(context->driver->rbuf);
 	kfree(context->driver);
 	kfree(context);
-
-	if (debug)
-		dev_info(&context->dev->dev, "%s: context deleted\n",
-			 __func__);
 }
 
 static void deregister_from_lirc(struct sasem_context *context)
