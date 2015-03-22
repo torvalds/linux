@@ -611,7 +611,7 @@ int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 					 hmc5843_trigger_handler, NULL);
 	if (ret < 0)
-		return ret;
+		goto buffer_setup_err;
 
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
@@ -621,6 +621,8 @@ int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 
 buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
+buffer_setup_err:
+	hmc5843_set_mode(iio_priv(indio_dev), HMC5843_MODE_SLEEP);
 	return ret;
 }
 EXPORT_SYMBOL(hmc5843_common_probe);
