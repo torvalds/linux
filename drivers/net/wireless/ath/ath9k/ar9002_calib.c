@@ -436,13 +436,14 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 		{ AR9285_AN_RF2G2, 0 },
 		{ AR9285_AN_TOP2, 0 },
 		{ AR9285_AN_RF2G8, 0 },
-		{ AR9285_AN_RF2G7, 0 } ,
-		{ AR9285_AN_RF2G3, 0 } ,
+		{ AR9285_AN_RF2G7, 0 },
+		{ AR9285_AN_RF2G3, 0 },
 	};
 
 	for (i = 0; i < ARRAY_SIZE(regList); i++)
 		regList[i][1] = REG_READ(ah, regList[i][0]);
 
+	ENABLE_REG_RMW_BUFFER(ah);
 	/* 7834, b1=0 */
 	REG_CLR_BIT(ah, AR9285_AN_RF2G6, 1 << 0);
 	/* 9808, b27=1 */
@@ -476,6 +477,7 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G7, AR9285_AN_RF2G7_PADRVGN2TAB0, 0);
 	/* 7828, b0-11, ccom=fff */
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9271_AN_RF2G3_CCOMP, 0xfff);
+	REG_RMW_BUFFER_FLUSH(ah);
 
 	/* Set:
 	 * localmode=1,bmode=1,bmoderxtx=1,synthon=1,
@@ -514,10 +516,12 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 	}
 
 
+	ENABLE_REG_RMW_BUFFER(ah);
 	/* 7834, b1=1 */
 	REG_SET_BIT(ah, AR9285_AN_RF2G6, 1 << 0);
 	/* 9808, b27=0 */
 	REG_CLR_BIT(ah, 0x9808, 1 << 27);
+	REG_RMW_BUFFER_FLUSH(ah);
 
 	ENABLE_REGWRITE_BUFFER(ah);
 	for (i = 0; i < ARRAY_SIZE(regList); i++)
