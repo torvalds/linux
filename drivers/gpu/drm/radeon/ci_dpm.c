@@ -5922,6 +5922,20 @@ void ci_dpm_print_power_state(struct radeon_device *rdev,
 	r600_dpm_print_ps_status(rdev, rps);
 }
 
+u32 ci_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	u32 sclk = ci_get_average_sclk_freq(rdev);
+
+	return sclk;
+}
+
+u32 ci_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	u32 mclk = ci_get_average_mclk_freq(rdev);
+
+	return mclk;
+}
+
 u32 ci_dpm_get_sclk(struct radeon_device *rdev, bool low)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);

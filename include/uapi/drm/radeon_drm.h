@@ -1034,6 +1034,10 @@ struct drm_radeon_cs {
 #define RADEON_INFO_VRAM_USAGE		0x1e
 #define RADEON_INFO_GTT_USAGE		0x1f
 #define RADEON_INFO_ACTIVE_CU_COUNT	0x20
+#define RADEON_INFO_CURRENT_GPU_TEMP	0x21
+#define RADEON_INFO_CURRENT_GPU_SCLK	0x22
+#define RADEON_INFO_CURRENT_GPU_MCLK	0x23
+#define RADEON_INFO_READ_REG		0x24
 
 struct drm_radeon_info {
 	uint32_t		request;

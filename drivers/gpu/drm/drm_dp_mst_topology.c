@@ -2319,6 +2319,19 @@ out:
 }
 EXPORT_SYMBOL(drm_dp_mst_allocate_vcpi);
 
+int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
+{
+	int slots = 0;
+	port = drm_dp_get_validated_port_ref(mgr, port);
+	if (!port)
+		return slots;
+
+	slots = port->vcpi.num_slots;
+	drm_dp_put_port(port);
+	return slots;
+}
+EXPORT_SYMBOL(drm_dp_mst_get_vcpi_slots);
+
 /**
  * drm_dp_mst_reset_vcpi_slots() - Reset number of slots to 0 for VCPI
  * @mgr: manager for this port

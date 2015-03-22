@@ -111,6 +111,8 @@ extern int radeon_deep_color;
 extern int radeon_use_pflipirq;
 extern int radeon_bapm;
 extern int radeon_backlight;
+extern int radeon_auxch;
+extern int radeon_mst;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -1856,6 +1858,8 @@ struct radeon_asic {
 	u32 (*get_xclk)(struct radeon_device *rdev);
 	/* get the gpu clock counter */
 	uint64_t (*get_gpu_clock_counter)(struct radeon_device *rdev);
+	/* get register for info ioctl */
+	int (*get_allowed_info_register)(struct radeon_device *rdev, u32 reg, u32 *val);
 	/* gart */
 	struct {
 		void (*tlb_flush)(struct radeon_device *rdev);
@@ -1984,6 +1988,8 @@ struct radeon_asic {
 		u32 (*fan_ctrl_get_mode)(struct radeon_device *rdev);
 		int (*set_fan_speed_percent)(struct radeon_device *rdev, u32 speed);
 		int (*get_fan_speed_percent)(struct radeon_device *rdev, u32 *speed);
+		u32 (*get_current_sclk)(struct radeon_device *rdev);
+		u32 (*get_current_mclk)(struct radeon_device *rdev);
 	} dpm;
 	/* pageflipping */
 	struct {
@@ -2407,6 +2413,7 @@ struct radeon_device {
 	struct radeon_rlc rlc;
 	struct radeon_mec mec;
 	struct work_struct hotplug_work;
+	struct work_struct dp_work;
 	struct work_struct audio_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
@@ -2931,6 +2938,7 @@ static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 #define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
 #define radeon_get_xclk(rdev) (rdev)->asic->get_xclk((rdev))
 #define radeon_get_gpu_clock_counter(rdev) (rdev)->asic->get_gpu_clock_counter((rdev))
+#define radeon_get_allowed_info_register(rdev, r, v) (rdev)->asic->get_allowed_info_register((rdev), (r), (v))
 #define radeon_dpm_init(rdev) rdev->asic->dpm.init((rdev))
 #define radeon_dpm_setup_asic(rdev) rdev->asic->dpm.setup_asic((rdev))
 #define radeon_dpm_enable(rdev) rdev->asic->dpm.enable((rdev))
@@ -2949,6 +2957,8 @@ static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 #define radeon_dpm_vblank_too_short(rdev) rdev->asic->dpm.vblank_too_short((rdev))
 #define radeon_dpm_powergate_uvd(rdev, g) rdev->asic->dpm.powergate_uvd((rdev), (g))
 #define radeon_dpm_enable_bapm(rdev, e) rdev->asic->dpm.enable_bapm((rdev), (e))
+#define radeon_dpm_get_current_sclk(rdev) rdev->asic->dpm.get_current_sclk((rdev))
+#define radeon_dpm_get_current_mclk(rdev) rdev->asic->dpm.get_current_mclk((rdev))
 
 /* Common functions */
 /* AGP */

@@ -1442,6 +1442,11 @@ int radeon_device_init(struct radeon_device *rdev,
 		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
 	}
 
+	r = radeon_mst_debugfs_init(rdev);
+	if (r) {
+		DRM_ERROR("registering mst debugfs failed (%d).\n", r);
+	}
+
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
 		/* Acceleration not working on AGP card try again
 		 * with fallback to PCI or PCIE GART
