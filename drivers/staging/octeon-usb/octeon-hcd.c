@@ -958,28 +958,15 @@ static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
 
 
 /**
- * Enable a USB port. After this call succeeds, the USB port is
+ * Reset a USB port. After this call succeeds, the USB port is
  * online and servicing requests.
  *
  * @usb: USB device state populated by cvmx_usb_initialize().
- *
- * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_enable(struct cvmx_usb_state *usb)
+static void cvmx_usb_reset_port(struct cvmx_usb_state *usb)
 {
 	usb->usbcx_hprt.u32 = cvmx_usb_read_csr32(usb,
 						  CVMX_USBCX_HPRT(usb->index));
-
-	/*
-	 * If the port is already enabled the just return. We don't need to do
-	 * anything
-	 */
-	if (usb->usbcx_hprt.s.prtena)
-		return 0;
-
-	/* If there is nothing plugged into the port then fail immediately */
-	if (!usb->usbcx_hprt.s.prtconnsts)
-		return -ETIMEDOUT;
 
 	/* Program the port reset bit to start the reset process */
 	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), union cvmx_usbcx_hprt,
@@ -995,19 +982,12 @@ static int cvmx_usb_enable(struct cvmx_usb_state *usb)
 	USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index), union cvmx_usbcx_hprt,
 			prtrst, 0);
 
-	/* Wait for the USBC_HPRT[PRTENA]. */
-	if (CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_HPRT(usb->index),
-				union cvmx_usbcx_hprt, prtena, ==, 1, 100000))
-		return -ETIMEDOUT;
-
 	/*
 	 * Read the port speed field to get the enumerated speed,
 	 * USBC_HPRT[PRTSPD].
 	 */
 	usb->usbcx_hprt.u32 = cvmx_usb_read_csr32(usb,
 						  CVMX_USBCX_HPRT(usb->index));
-
-	return 0;
 }
 
 
@@ -3536,9 +3516,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_RESET:
 			dev_dbg(dev, " RESET\n");
 			spin_lock_irqsave(&priv->lock, flags);
-			cvmx_usb_disable(&priv->usb);
-			if (cvmx_usb_enable(&priv->usb))
-				dev_dbg(dev, "Failed to enable the port\n");
+			cvmx_usb_reset_port(&priv->usb);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			return 0;
 		case USB_PORT_FEAT_INDICATOR:
