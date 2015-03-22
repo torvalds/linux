@@ -613,31 +613,14 @@ static inline int cvmx_usb_get_data_pid(struct cvmx_usb_pipe *pipe)
  * other access to the Octeon USB port is made. The port starts
  * off in the disabled state.
  *
- * @usb:	 Pointer to an empty struct cvmx_usb_state
- *		 that will be populated by the initialize call.
- *		 This structure is then passed to all other USB
- *		 functions.
- * @usb_port_number:
- *		 Which Octeon USB port to initialize.
+ * @usb:	 Pointer to struct cvmx_usb_state.
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
-			       int usb_port_number,
-			       enum cvmx_usb_initialize_flags flags)
+static int cvmx_usb_initialize(struct cvmx_usb_state *usb)
 {
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 	union cvmx_usbnx_usbp_ctl_status usbn_usbp_ctl_status;
-	int i;
-
-	memset(usb, 0, sizeof(*usb));
-	usb->init_flags = flags;
-
-	/* Initialize the USB state structure */
-	usb->index = usb_port_number;
-	INIT_LIST_HEAD(&usb->idle_pipes);
-	for (i = 0; i < ARRAY_SIZE(usb->active_pipes); i++)
-		INIT_LIST_HEAD(&usb->active_pipes[i]);
 
 	/*
 	 * Power On Reset and PHY Initialization
@@ -672,7 +655,8 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 			/* From CN52XX manual */
 			usbn_clk_ctl.s.p_rtype = 1;
 
-		switch (flags & CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK) {
+		switch (usb->init_flags &
+			CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK) {
 		case CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ:
 			usbn_clk_ctl.s.p_c_sel = 0;
 			break;
@@ -791,20 +775,9 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	 */
 	{
 		union cvmx_usbcx_gahbcfg usbcx_gahbcfg;
-		/* Due to an errata, CN31XX doesn't support DMA */
-		if (OCTEON_IS_MODEL(OCTEON_CN31XX))
-			usb->init_flags |= CVMX_USB_INITIALIZE_FLAGS_NO_DMA;
 		usbcx_gahbcfg.u32 = 0;
 		usbcx_gahbcfg.s.dmaen = !(usb->init_flags &
 					  CVMX_USB_INITIALIZE_FLAGS_NO_DMA);
-		if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
-			/* Only use one channel with non DMA */
-			usb->idle_hardware_channels = 0x1;
-		else if (OCTEON_IS_MODEL(OCTEON_CN5XXX))
-			/* CN5XXX have an errata with channel 3 */
-			usb->idle_hardware_channels = 0xf7;
-		else
-			usb->idle_hardware_channels = 0xff;
 		usbcx_gahbcfg.s.hbstlen = 0;
 		usbcx_gahbcfg.s.nptxfemplvl = 1;
 		usbcx_gahbcfg.s.ptxfemplvl = 1;
@@ -3709,7 +3682,27 @@ static int octeon_usb_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->lock);
 
-	status = cvmx_usb_initialize(&priv->usb, usb_num, initialize_flags);
+	priv->usb.init_flags = initialize_flags;
+
+	/* Initialize the USB state structure */
+	priv->usb.index = usb_num;
+	INIT_LIST_HEAD(&priv->usb.idle_pipes);
+	for (i = 0; i < ARRAY_SIZE(priv->usb.active_pipes); i++)
+		INIT_LIST_HEAD(&priv->usb.active_pipes[i]);
+
+	/* Due to an errata, CN31XX doesn't support DMA */
+	if (OCTEON_IS_MODEL(OCTEON_CN31XX)) {
+		priv->usb.init_flags |= CVMX_USB_INITIALIZE_FLAGS_NO_DMA;
+		/* Only use one channel with non DMA */
+		priv->usb.idle_hardware_channels = 0x1;
+	} else if (OCTEON_IS_MODEL(OCTEON_CN5XXX)) {
+		/* CN5XXX have an errata with channel 3 */
+		priv->usb.idle_hardware_channels = 0xf7;
+	} else {
+		priv->usb.idle_hardware_channels = 0xff;
+	}
+
+	status = cvmx_usb_initialize(&priv->usb);
 	if (status) {
 		dev_dbg(dev, "USB initialization failed with %d\n", status);
 		kfree(hcd);
