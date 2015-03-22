@@ -1082,6 +1082,7 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 		mask = BIT(0)|BIT(5)|BIT(10)|BIT(15)|BIT(20)|BIT(25);
 		pwrctrl = mask * bb_desired_scale;
 		clr = mask * 0x1f;
+		ENABLE_REG_RMW_BUFFER(ah);
 		REG_RMW(ah, AR_PHY_TX_PWRCTRL8, pwrctrl, clr);
 		REG_RMW(ah, AR_PHY_TX_PWRCTRL10, pwrctrl, clr);
 		REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL12, pwrctrl, clr);
@@ -1096,6 +1097,7 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 		clr = mask * 0x1f;
 		REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL11, pwrctrl, clr);
 		REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL13, pwrctrl, clr);
+		REG_RMW_BUFFER_FLUSH(ah);
 	}
 }
 
