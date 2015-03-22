@@ -432,7 +432,6 @@ struct octeon_hcd {
 
 /**
  * struct octeon_temp_buffer - a bounce buffer for USB transfers
- * @temp_buffer: the newly allocated temporary buffer (including meta-data)
  * @orig_buffer: the original buffer passed by the USB stack
  * @data:	 the newly allocated temporary buffer (excluding meta-data)
  *
@@ -441,7 +440,6 @@ struct octeon_hcd {
  * represents it.
  */
 struct octeon_temp_buffer {
-	void *temp_buffer;
 	void *orig_buffer;
 	u8 data[0];
 };
@@ -479,7 +477,6 @@ static int octeon_alloc_temp_buffer(struct urb *urb, gfp_t mem_flags)
 	if (!temp)
 		return -ENOMEM;
 
-	temp->temp_buffer = temp;
 	temp->orig_buffer = urb->transfer_buffer;
 	if (usb_urb_dir_out(urb))
 		memcpy(temp->data, urb->transfer_buffer,
@@ -510,7 +507,7 @@ static void octeon_free_temp_buffer(struct urb *urb)
 		       urb->actual_length);
 	urb->transfer_buffer = temp->orig_buffer;
 	urb->transfer_flags &= ~URB_ALIGNED_TEMP_BUFFER;
-	kfree(temp->temp_buffer);
+	kfree(temp);
 }
 
 /**
