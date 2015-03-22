@@ -11,12 +11,10 @@
 
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clk/ti.h>
-#include <asm/div64.h>
 
 /* FAPLL Control Register PLL_CTRL */
 #define FAPLL_MAIN_LOCK		BIT(7)
@@ -48,6 +46,8 @@
 
 /* Synthesizer frequency register */
 #define SYNTH_LDFREQ		BIT(31)
+
+#define SYNTH_MAX_DIV_M		0xff
 
 struct fapll_data {
 	struct clk_hw hw;
@@ -218,11 +218,10 @@ static unsigned long ti_fapll_synth_recalc_rate(struct clk_hw *hw,
 		rate *= 8;
 	}
 
-	/* Synth ost-divider M */
-	synth_div_m = readl_relaxed(synth->div) & 0xff;
-	do_div(rate, synth_div_m);
+	/* Synth post-divider M */
+	synth_div_m = readl_relaxed(synth->div) & SYNTH_MAX_DIV_M;
 
-	return rate;
+	return DIV_ROUND_UP_ULL(rate, synth_div_m);
 }
 
 static struct clk_ops ti_fapll_synt_ops = {
