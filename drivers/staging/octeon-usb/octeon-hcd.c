@@ -705,9 +705,15 @@ static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
 static int cvmx_usb_initialize(struct device *dev,
 			       struct cvmx_usb_state *usb)
 {
+	int channel;
+	int divisor;
 	int retries = 0;
+	union cvmx_usbcx_hcfg usbcx_hcfg;
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 	union cvmx_usbcx_gintsts usbc_gintsts;
+	union cvmx_usbcx_gahbcfg usbcx_gahbcfg;
+	union cvmx_usbcx_gintmsk usbcx_gintmsk;
+	union cvmx_usbcx_gusbcfg usbcx_gusbcfg;
 	union cvmx_usbnx_usbp_ctl_status usbn_usbp_ctl_status;
 
 retry:
@@ -775,15 +781,14 @@ retry:
 	 *     setting USBN0/1_CLK_CTL[ENABLE] = 1. Divide the core clock down
 	 *     such that USB is as close as possible to 125Mhz
 	 */
-	{
-		int divisor = DIV_ROUND_UP(octeon_get_clock_rate(), 125000000);
-		/* Lower than 4 doesn't seem to work properly */
-		if (divisor < 4)
-			divisor = 4;
-		usbn_clk_ctl.s.divide = divisor;
-		usbn_clk_ctl.s.divide2 = 0;
-	}
+	divisor = DIV_ROUND_UP(octeon_get_clock_rate(), 125000000);
+	/* Lower than 4 doesn't seem to work properly */
+	if (divisor < 4)
+		divisor = 4;
+	usbn_clk_ctl.s.divide = divisor;
+	usbn_clk_ctl.s.divide2 = 0;
 	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
+
 	/* 2d. Write USBN0/1_CLK_CTL[HCLK_RST] = 1 */
 	usbn_clk_ctl.s.hclk_rst = 1;
 	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
@@ -862,18 +867,16 @@ retry:
 	 *    USBC_GAHBCFG[PTXFEMPLVL]
 	 *    Global interrupt mask, USBC_GAHBCFG[GLBLINTRMSK] = 1
 	 */
-	{
-		union cvmx_usbcx_gahbcfg usbcx_gahbcfg;
-		usbcx_gahbcfg.u32 = 0;
-		usbcx_gahbcfg.s.dmaen = !(usb->init_flags &
-					  CVMX_USB_INITIALIZE_FLAGS_NO_DMA);
-		usbcx_gahbcfg.s.hbstlen = 0;
-		usbcx_gahbcfg.s.nptxfemplvl = 1;
-		usbcx_gahbcfg.s.ptxfemplvl = 1;
-		usbcx_gahbcfg.s.glblintrmsk = 1;
-		cvmx_usb_write_csr32(usb, CVMX_USBCX_GAHBCFG(usb->index),
-				     usbcx_gahbcfg.u32);
-	}
+	usbcx_gahbcfg.u32 = 0;
+	usbcx_gahbcfg.s.dmaen = !(usb->init_flags &
+				  CVMX_USB_INITIALIZE_FLAGS_NO_DMA);
+	usbcx_gahbcfg.s.hbstlen = 0;
+	usbcx_gahbcfg.s.nptxfemplvl = 1;
+	usbcx_gahbcfg.s.ptxfemplvl = 1;
+	usbcx_gahbcfg.s.glblintrmsk = 1;
+	cvmx_usb_write_csr32(usb, CVMX_USBCX_GAHBCFG(usb->index),
+			     usbcx_gahbcfg.u32);
+
 	/*
 	 * 3. Program the following fields in USBC_GUSBCFG register.
 	 *    HS/FS timeout calibration, USBC_GUSBCFG[TOUTCAL] = 0
@@ -881,79 +884,60 @@ retry:
 	 *    USB turnaround time, USBC_GUSBCFG[USBTRDTIM] = 0x5
 	 *    PHY low-power clock select, USBC_GUSBCFG[PHYLPWRCLKSEL] = 0
 	 */
-	{
-		union cvmx_usbcx_gusbcfg usbcx_gusbcfg;
+	usbcx_gusbcfg.u32 = cvmx_usb_read_csr32(usb,
+						CVMX_USBCX_GUSBCFG(usb->index));
+	usbcx_gusbcfg.s.toutcal = 0;
+	usbcx_gusbcfg.s.ddrsel = 0;
+	usbcx_gusbcfg.s.usbtrdtim = 0x5;
+	usbcx_gusbcfg.s.phylpwrclksel = 0;
+	cvmx_usb_write_csr32(usb, CVMX_USBCX_GUSBCFG(usb->index),
+			     usbcx_gusbcfg.u32);
 
-		usbcx_gusbcfg.u32 = cvmx_usb_read_csr32(usb,
-				CVMX_USBCX_GUSBCFG(usb->index));
-		usbcx_gusbcfg.s.toutcal = 0;
-		usbcx_gusbcfg.s.ddrsel = 0;
-		usbcx_gusbcfg.s.usbtrdtim = 0x5;
-		usbcx_gusbcfg.s.phylpwrclksel = 0;
-		cvmx_usb_write_csr32(usb, CVMX_USBCX_GUSBCFG(usb->index),
-				     usbcx_gusbcfg.u32);
-	}
 	/*
 	 * 4. The software must unmask the following bits in the USBC_GINTMSK
 	 *    register.
 	 *    OTG interrupt mask, USBC_GINTMSK[OTGINTMSK] = 1
 	 *    Mode mismatch interrupt mask, USBC_GINTMSK[MODEMISMSK] = 1
 	 */
-	{
-		union cvmx_usbcx_gintmsk usbcx_gintmsk;
-		int channel;
+	usbcx_gintmsk.u32 = cvmx_usb_read_csr32(usb,
+						CVMX_USBCX_GINTMSK(usb->index));
+	usbcx_gintmsk.s.otgintmsk = 1;
+	usbcx_gintmsk.s.modemismsk = 1;
+	usbcx_gintmsk.s.hchintmsk = 1;
+	usbcx_gintmsk.s.sofmsk = 0;
+	/* We need RX FIFO interrupts if we don't have DMA */
+	if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
+		usbcx_gintmsk.s.rxflvlmsk = 1;
+	cvmx_usb_write_csr32(usb, CVMX_USBCX_GINTMSK(usb->index),
+			     usbcx_gintmsk.u32);
 
-		usbcx_gintmsk.u32 = cvmx_usb_read_csr32(usb,
-				CVMX_USBCX_GINTMSK(usb->index));
-		usbcx_gintmsk.s.otgintmsk = 1;
-		usbcx_gintmsk.s.modemismsk = 1;
-		usbcx_gintmsk.s.hchintmsk = 1;
-		usbcx_gintmsk.s.sofmsk = 0;
-		/* We need RX FIFO interrupts if we don't have DMA */
-		if (usb->init_flags & CVMX_USB_INITIALIZE_FLAGS_NO_DMA)
-			usbcx_gintmsk.s.rxflvlmsk = 1;
-		cvmx_usb_write_csr32(usb, CVMX_USBCX_GINTMSK(usb->index),
-				     usbcx_gintmsk.u32);
+	/*
+	 * Disable all channel interrupts. We'll enable them per channel later.
+	 */
+	for (channel = 0; channel < 8; channel++)
+		cvmx_usb_write_csr32(usb,
+				     CVMX_USBCX_HCINTMSKX(channel, usb->index),
+				     0);
 
-		/*
-		 * Disable all channel interrupts. We'll enable them per channel
-		 * later.
-		 */
-		for (channel = 0; channel < 8; channel++)
-			cvmx_usb_write_csr32(usb,
-				CVMX_USBCX_HCINTMSKX(channel, usb->index), 0);
-	}
+	/*
+	 * Host Port Initialization
+	 *
+	 * 1. Program the host-port interrupt-mask field to unmask,
+	 *    USBC_GINTMSK[PRTINT] = 1
+	 */
+	USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
+			union cvmx_usbcx_gintmsk, prtintmsk, 1);
+	USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
+			union cvmx_usbcx_gintmsk, disconnintmsk, 1);
 
-	{
-		/*
-		 * Host Port Initialization
-		 *
-		 * 1. Program the host-port interrupt-mask field to unmask,
-		 *    USBC_GINTMSK[PRTINT] = 1
-		 */
-		USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-				union cvmx_usbcx_gintmsk, prtintmsk, 1);
-		USB_SET_FIELD32(CVMX_USBCX_GINTMSK(usb->index),
-				union cvmx_usbcx_gintmsk, disconnintmsk, 1);
-		/*
-		 * 2. Program the USBC_HCFG register to select full-speed host
-		 *    or high-speed host.
-		 */
-		{
-			union cvmx_usbcx_hcfg usbcx_hcfg;
-
-			usbcx_hcfg.u32 = cvmx_usb_read_csr32(usb,
-					CVMX_USBCX_HCFG(usb->index));
-			usbcx_hcfg.s.fslssupp = 0;
-			usbcx_hcfg.s.fslspclksel = 0;
-			cvmx_usb_write_csr32(usb, CVMX_USBCX_HCFG(usb->index),
-					     usbcx_hcfg.u32);
-		}
-
-		/*
-		 * Steps 4-15 from the manual are done later in the port enable
-		 */
-	}
+	/*
+	 * 2. Program the USBC_HCFG register to select full-speed host
+	 *    or high-speed host.
+	 */
+	usbcx_hcfg.u32 = cvmx_usb_read_csr32(usb, CVMX_USBCX_HCFG(usb->index));
+	usbcx_hcfg.s.fslssupp = 0;
+	usbcx_hcfg.s.fslspclksel = 0;
+	cvmx_usb_write_csr32(usb, CVMX_USBCX_HCFG(usb->index), usbcx_hcfg.u32);
 
 	cvmx_fifo_setup(usb);
 
