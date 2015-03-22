@@ -930,6 +930,7 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 		}
 	}
 
+	ENABLE_REG_RMW_BUFFER(ah);
 	if (AR_SREV_9271(ah)) {
 		ath9k_hw_analog_shift_rmw(ah,
 					  AR9285_AN_RF2G3,
@@ -1034,6 +1035,7 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 					  AR9285_AN_RF2G4_DB2_4_S,
 					  db2[4]);
 	}
+	REG_RMW_BUFFER_FLUSH(ah);
 
 
 	REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
