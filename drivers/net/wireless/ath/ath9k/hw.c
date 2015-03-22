@@ -121,6 +121,36 @@ void ath9k_hw_write_array(struct ath_hw *ah, const struct ar5416IniArray *array,
 	REGWRITE_BUFFER_FLUSH(ah);
 }
 
+void ath9k_hw_read_array(struct ath_hw *ah, u32 array[][2], int size)
+{
+	u32 *tmp_reg_list, *tmp_data;
+	int i;
+
+	tmp_reg_list = kmalloc(size * sizeof(u32), GFP_KERNEL);
+	if (!tmp_reg_list) {
+		dev_err(ah->dev, "%s: tmp_reg_list: alloc filed\n", __func__);
+		return;
+	}
+
+	tmp_data = kmalloc(size * sizeof(u32), GFP_KERNEL);
+	if (!tmp_data) {
+		dev_err(ah->dev, "%s tmp_data: alloc filed\n", __func__);
+		goto error_tmp_data;
+	}
+
+	for (i = 0; i < size; i++)
+		tmp_reg_list[i] = array[i][0];
+
+	REG_READ_MULTI(ah, tmp_reg_list, tmp_data, size);
+
+	for (i = 0; i < size; i++)
+		array[i][1] = tmp_data[i];
+
+	kfree(tmp_data);
+error_tmp_data:
+	kfree(tmp_reg_list);
+}
+
 u32 ath9k_hw_reverse_bits(u32 val, u32 n)
 {
 	u32 retval;

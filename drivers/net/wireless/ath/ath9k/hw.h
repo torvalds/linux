@@ -138,6 +138,8 @@
 
 #define REG_WRITE_ARRAY(iniarray, column, regWr) \
 	ath9k_hw_write_array(ah, iniarray, column, &(regWr))
+#define REG_READ_ARRAY(ah, array, size) \
+	ath9k_hw_read_array(ah, array, size)
 
 #define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
 #define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
@@ -1030,6 +1032,7 @@ void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
 void ath9k_hw_write_array(struct ath_hw *ah, const struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt);
+void ath9k_hw_read_array(struct ath_hw *ah, u32 array[][2], int size);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 			   u8 phy, int kbps,
