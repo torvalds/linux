@@ -39,12 +39,13 @@ PKG_CONFIG := $(CROSS_COMPILE)pkg-config
 
 all: $(FILES)
 
-BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ $(patsubst %.bin,%.c,$@) $(LDFLAGS)
+__BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $(OUTPUT)$@ $(patsubst %.bin,%.c,$@) $(LDFLAGS)
+  BUILD = $(__BUILD) > $(OUTPUT)$(@:.bin=.make.output) 2>&1
 
 ###############################
 
 test-all.bin:
-	$(BUILD) -fstack-protector-all -O2 -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -laudit -I/usr/include/slang -lslang $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -DPACKAGE='"perf"' -lbfd -ldl -lz -lbabeltrace
+	$(BUILD) -fstack-protector-all -O2 -D_FORTIFY_SOURCE=2 -ldw -lelf -lnuma -lelf -laudit -I/usr/include/slang -lslang $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) $(FLAGS_PERL_EMBED) $(FLAGS_PYTHON_EMBED) -DPACKAGE='"perf"' -lbfd -ldl -lz
 
 test-hello.bin:
 	$(BUILD)
@@ -156,4 +157,4 @@ test-zlib.bin:
 ###############################
 
 clean:
-	rm -f $(FILES) *.d
+	rm -f $(FILES) *.d $(FILES:.bin=.make.output)

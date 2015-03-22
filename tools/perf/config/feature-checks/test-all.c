@@ -98,12 +98,20 @@
 #undef main
 
 #define main main_test_pthread_attr_setaffinity_np
-# include "test-pthread_attr_setaffinity_np.c"
+# include "test-pthread-attr-setaffinity-np.c"
 #undef main
+
+# if 0
+/*
+ * Disable libbabeltrace check for test-all, because the requested
+ * library version is not released yet in most distributions. Will
+ * reenable later.
+ */
 
 #define main main_test_libbabeltrace
 # include "test-libbabeltrace.c"
 #undef main
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -130,7 +138,6 @@ int main(int argc, char *argv[])
 	main_test_sync_compare_and_swap(argc, argv);
 	main_test_zlib();
 	main_test_pthread_attr_setaffinity_np();
-	main_test_libbabeltrace();
 
 	return 0;
 }

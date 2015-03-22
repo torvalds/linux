@@ -263,15 +263,9 @@ void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel)
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node);
 		next = rb_next(&n->rb_node);
-		/*
-		 * We may be annotating this, for instance, so keep it here in
-		 * case some it gets new samples, we'll eventually free it when
-		 * the user stops browsing and it agains gets fully decayed.
-		 */
 		if (((zap_user && n->level == '.') ||
 		     (zap_kernel && n->level != '.') ||
-		     hists__decay_entry(hists, n)) &&
-		    !n->used) {
+		     hists__decay_entry(hists, n))) {
 			hists__delete_entry(hists, n);
 		}
 	}

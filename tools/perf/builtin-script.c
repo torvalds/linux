@@ -1572,7 +1572,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show the mmap events"),
 	OPT_END()
 	};
-	const char * const script_usage[] = {
+	const char * const script_subcommands[] = { "record", "report", NULL };
+	const char *script_usage[] = {
 		"perf script [<options>]",
 		"perf script [<options>] record <script> [<record-options>] <command>",
 		"perf script [<options>] report <script> [script-args]",
@@ -1586,7 +1587,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	setup_scripting();
 
-	argc = parse_options(argc, argv, options, script_usage,
+	argc = parse_options_subcommand(argc, argv, options, script_subcommands, script_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	file.path = input_name;

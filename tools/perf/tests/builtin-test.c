@@ -291,7 +291,7 @@ static int perf_test__list(int argc, const char **argv)
 
 int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	const char * const test_usage[] = {
+	const char *test_usage[] = {
 	"perf test [<options>] [{list <test-name-fragment>|[<test-name-fragments>|<test-numbers>]}]",
 	NULL,
 	};
@@ -302,13 +302,14 @@ int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "be more verbose (show symbol address, etc)"),
 	OPT_END()
 	};
+	const char * const test_subcommands[] = { "list", NULL };
 	struct intlist *skiplist = NULL;
         int ret = hists__init();
 
         if (ret < 0)
                 return ret;
 
-	argc = parse_options(argc, argv, test_options, test_usage, 0);
+	argc = parse_options_subcommand(argc, argv, test_options, test_subcommands, test_usage, 0);
 	if (argc >= 1 && !strcmp(argv[0], "list"))
 		return perf_test__list(argc, argv);
 

@@ -303,6 +303,9 @@ struct hist_browser_timer {
 
 #ifdef HAVE_SLANG_SUPPORT
 #include "../ui/keysyms.h"
+int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
+			     struct hist_browser_timer *hbt);
+
 int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt);
 
@@ -318,6 +321,12 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  struct hist_browser_timer *hbt __maybe_unused,
 				  float min_pcnt __maybe_unused,
 				  struct perf_session_env *env __maybe_unused)
+{
+	return 0;
+}
+static inline int map_symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
+					   struct perf_evsel *evsel __maybe_unused,
+					   struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }

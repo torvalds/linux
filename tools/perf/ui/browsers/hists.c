@@ -1612,28 +1612,30 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (!sort__has_sym)
 			goto add_exit_option;
 
+		if (browser->selection == NULL)
+			goto skip_annotation;
+
 		if (sort__mode == SORT_MODE__BRANCH) {
 			bi = browser->he_selection->branch_info;
-			if (browser->selection != NULL &&
-			    bi &&
-			    bi->from.sym != NULL &&
-			    !bi->from.map->dso->annotate_warned &&
-				asprintf(&options[nr_options], "Annotate %s",
-					 bi->from.sym->name) > 0)
-				annotate_f = nr_options++;
 
-			if (browser->selection != NULL &&
-			    bi &&
-			    bi->to.sym != NULL &&
+			if (bi == NULL)
+				goto skip_annotation;
+
+			if (bi->from.sym != NULL &&
+			    !bi->from.map->dso->annotate_warned &&
+			    asprintf(&options[nr_options], "Annotate %s", bi->from.sym->name) > 0) {
+				annotate_f = nr_options++;
+			}
+
+			if (bi->to.sym != NULL &&
 			    !bi->to.map->dso->annotate_warned &&
 			    (bi->to.sym != bi->from.sym ||
 			     bi->to.map->dso != bi->from.map->dso) &&
-				asprintf(&options[nr_options], "Annotate %s",
-					 bi->to.sym->name) > 0)
+			    asprintf(&options[nr_options], "Annotate %s", bi->to.sym->name) > 0) {
 				annotate_t = nr_options++;
+			}
 		} else {
-			if (browser->selection != NULL &&
-			    browser->selection->sym != NULL &&
+			if (browser->selection->sym != NULL &&
 			    !browser->selection->map->dso->annotate_warned) {
 				struct annotation *notes;
 
@@ -1641,11 +1643,12 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 				if (notes->src &&
 				    asprintf(&options[nr_options], "Annotate %s",
-						 browser->selection->sym->name) > 0)
+						 browser->selection->sym->name) > 0) {
 					annotate = nr_options++;
+				}
 			}
 		}
-
+skip_annotation:
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
 			     (browser->hists->thread_filter ? "out of" : "into"),
@@ -1701,6 +1704,7 @@ retry_popup_menu:
 		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
 			struct hist_entry *he;
 			struct annotation *notes;
+			struct map_symbol ms;
 			int err;
 do_annotate:
 			if (!objdump_path && perf_session_env__lookup_objdump(env))
@@ -1710,30 +1714,21 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			/*
-			 * we stash the branch_info symbol + map into the
-			 * the ms so we don't have to rewrite all the annotation
-			 * code to use branch_info.
-			 * in branch mode, the ms struct is not used
-			 */
 			if (choice == annotate_f) {
-				he->ms.sym = he->branch_info->from.sym;
-				he->ms.map = he->branch_info->from.map;
-			}  else if (choice == annotate_t) {
-				he->ms.sym = he->branch_info->to.sym;
-				he->ms.map = he->branch_info->to.map;
+				ms.map = he->branch_info->from.map;
+				ms.sym = he->branch_info->from.sym;
+			} else if (choice == annotate_t) {
+				ms.map = he->branch_info->to.map;
+				ms.sym = he->branch_info->to.sym;
+			} else {
+				ms = *browser->selection;
 			}
 
-			notes = symbol__annotation(he->ms.sym);
+			notes = symbol__annotation(ms.sym);
 			if (!notes->src)
 				continue;
 
-			/*
-			 * Don't let this be freed, say, by hists__decay_entry.
-			 */
-			he->used = true;
-			err = hist_entry__tui_annotate(he, evsel, hbt);
-			he->used = false;
+			err = map_symbol__tui_annotate(&ms, evsel, hbt);
 			/*
 			 * offer option to annotate the other branch source or target
 			 * (if they exists) when returning from annotate

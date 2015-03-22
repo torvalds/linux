@@ -22,7 +22,9 @@ static const struct option data_options[] = {
 	OPT_END()
 };
 
-static const char * const data_usage[] = {
+static const char * const data_subcommands[] = { "convert", NULL };
+
+static const char *data_usage[] = {
 	"perf data [<common options>] <command> [<options>]",
 	NULL
 };
@@ -98,7 +100,7 @@ int cmd_data(int argc, const char **argv, const char *prefix)
 	if (argc < 2)
 		goto usage;
 
-	argc = parse_options(argc, argv, data_options, data_usage,
+	argc = parse_options_subcommand(argc, argv, data_options, data_subcommands, data_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc < 1)
 		goto usage;
