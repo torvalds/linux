@@ -661,6 +661,38 @@ static int cvmx_fifo_setup(struct cvmx_usb_state *usb)
 }
 
 /**
+ * Shutdown a USB port after a call to cvmx_usb_initialize().
+ * The port should be disabled with all pipes closed when this
+ * function is called.
+ *
+ * @usb: USB device state populated by cvmx_usb_initialize().
+ *
+ * Returns: 0 or a negative error code.
+ */
+static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
+{
+	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
+
+	/* Make sure all pipes are closed */
+	if (!list_empty(&usb->idle_pipes) ||
+	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_ISOCHRONOUS]) ||
+	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_INTERRUPT]) ||
+	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_CONTROL]) ||
+	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_BULK]))
+		return -EBUSY;
+
+	/* Disable the clocks and put them in power on reset */
+	usbn_clk_ctl.u64 = cvmx_read64_uint64(CVMX_USBNX_CLK_CTL(usb->index));
+	usbn_clk_ctl.s.enable = 1;
+	usbn_clk_ctl.s.por = 1;
+	usbn_clk_ctl.s.hclk_rst = 1;
+	usbn_clk_ctl.s.prst = 0;
+	usbn_clk_ctl.s.hrst = 0;
+	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
+	return 0;
+}
+
+/**
  * Initialize a USB port for use. This must be called before any
  * other access to the Octeon USB port is made. The port starts
  * off in the disabled state.
@@ -922,40 +954,6 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb)
 
 	return 0;
 }
-
-
-/**
- * Shutdown a USB port after a call to cvmx_usb_initialize().
- * The port should be disabled with all pipes closed when this
- * function is called.
- *
- * @usb: USB device state populated by cvmx_usb_initialize().
- *
- * Returns: 0 or a negative error code.
- */
-static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
-{
-	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
-
-	/* Make sure all pipes are closed */
-	if (!list_empty(&usb->idle_pipes) ||
-	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_ISOCHRONOUS]) ||
-	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_INTERRUPT]) ||
-	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_CONTROL]) ||
-	    !list_empty(&usb->active_pipes[CVMX_USB_TRANSFER_BULK]))
-		return -EBUSY;
-
-	/* Disable the clocks and put them in power on reset */
-	usbn_clk_ctl.u64 = cvmx_read64_uint64(CVMX_USBNX_CLK_CTL(usb->index));
-	usbn_clk_ctl.s.enable = 1;
-	usbn_clk_ctl.s.por = 1;
-	usbn_clk_ctl.s.hclk_rst = 1;
-	usbn_clk_ctl.s.prst = 0;
-	usbn_clk_ctl.s.hrst = 0;
-	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
-	return 0;
-}
-
 
 /**
  * Reset a USB port. After this call succeeds, the USB port is
