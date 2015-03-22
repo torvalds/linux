@@ -581,38 +581,6 @@ static inline void __cvmx_usb_write_csr32(struct cvmx_usb_state *usb,
 	cvmx_read64_uint64(CVMX_USBNX_DMA0_INB_CHN0(usb->index));
 }
 
-
-/**
- * Read a USB 64bit CSR. It logs the value in a readable format if
- * debugging is on.
- *
- * @usb:     USB block this access is for
- * @address: 64bit address to read
- *
- * Returns: Result of the read
- */
-static inline uint64_t __cvmx_usb_read_csr64(struct cvmx_usb_state *usb,
-					     uint64_t address)
-{
-	uint64_t result = cvmx_read64_uint64(address);
-	return result;
-}
-
-
-/**
- * Write a USB 64bit CSR. It logs the value in a readable format
- * if debugging is on.
- *
- * @usb:     USB block this access is for
- * @address: 64bit address to write
- * @value:   Value to write
- */
-static inline void __cvmx_usb_write_csr64(struct cvmx_usb_state *usb,
-					  uint64_t address, uint64_t value)
-{
-	cvmx_write64_uint64(address, value);
-}
-
 /**
  * Return non zero if this pipe connects to a non HIGH speed
  * device through a high speed hub.
@@ -683,8 +651,7 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	 * 2a. Write USBN0/1_CLK_CTL[POR] = 1 and
 	 *     USBN0/1_CLK_CTL[HRST,PRST,HCLK_RST] = 0
 	 */
-	usbn_clk_ctl.u64 =
-		__cvmx_usb_read_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index));
+	usbn_clk_ctl.u64 = cvmx_read64_uint64(CVMX_USBNX_CLK_CTL(usb->index));
 	usbn_clk_ctl.s.por = 1;
 	usbn_clk_ctl.s.hrst = 0;
 	usbn_clk_ctl.s.prst = 0;
@@ -747,12 +714,10 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 		usbn_clk_ctl.s.divide = divisor;
 		usbn_clk_ctl.s.divide2 = 0;
 	}
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
-			       usbn_clk_ctl.u64);
+	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
 	/* 2d. Write USBN0/1_CLK_CTL[HCLK_RST] = 1 */
 	usbn_clk_ctl.s.hclk_rst = 1;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
-			       usbn_clk_ctl.u64);
+	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
 	/* 2e.  Wait 64 core-clock cycles for HCLK to stabilize */
 	cvmx_wait(64);
 	/*
@@ -761,8 +726,7 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	 *    USBN_CLK_CTL[POR] = 0
 	 */
 	usbn_clk_ctl.s.por = 0;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
-			       usbn_clk_ctl.u64);
+	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
 	/* 4. Wait 1 ms for PHY clock to start */
 	mdelay(1);
 	/*
@@ -770,11 +734,11 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	 *    USBP control and status register:
 	 *    USBN_USBP_CTL_STATUS[ATE_RESET] = 1
 	 */
-	usbn_usbp_ctl_status.u64 = __cvmx_usb_read_csr64(usb,
-			CVMX_USBNX_USBP_CTL_STATUS(usb->index));
+	usbn_usbp_ctl_status.u64 =
+		cvmx_read64_uint64(CVMX_USBNX_USBP_CTL_STATUS(usb->index));
 	usbn_usbp_ctl_status.s.ate_reset = 1;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_USBP_CTL_STATUS(usb->index),
-			       usbn_usbp_ctl_status.u64);
+	cvmx_write64_uint64(CVMX_USBNX_USBP_CTL_STATUS(usb->index),
+			    usbn_usbp_ctl_status.u64);
 	/* 6. Wait 10 cycles */
 	cvmx_wait(10);
 	/*
@@ -782,23 +746,22 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	 *    USBN_USBP_CTL_STATUS[ATE_RESET] = 0
 	 */
 	usbn_usbp_ctl_status.s.ate_reset = 0;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_USBP_CTL_STATUS(usb->index),
-			       usbn_usbp_ctl_status.u64);
+	cvmx_write64_uint64(CVMX_USBNX_USBP_CTL_STATUS(usb->index),
+			    usbn_usbp_ctl_status.u64);
 	/*
 	 * 8. Program the PHY reset field in the USBN clock-control register:
 	 *    USBN_CLK_CTL[PRST] = 1
 	 */
 	usbn_clk_ctl.s.prst = 1;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
-			       usbn_clk_ctl.u64);
+	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
 	/*
 	 * 9. Program the USBP control and status register to select host or
 	 *    device mode. USBN_USBP_CTL_STATUS[HST_MODE] = 0 for host, = 1 for
 	 *    device
 	 */
 	usbn_usbp_ctl_status.s.hst_mode = 0;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_USBP_CTL_STATUS(usb->index),
-			       usbn_usbp_ctl_status.u64);
+	cvmx_write64_uint64(CVMX_USBNX_USBP_CTL_STATUS(usb->index),
+			    usbn_usbp_ctl_status.u64);
 	/* 10. Wait 1 us */
 	udelay(1);
 	/*
@@ -806,12 +769,10 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	 *     USBN_CLK_CTL[HRST] = 1
 	 */
 	usbn_clk_ctl.s.hrst = 1;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
-			       usbn_clk_ctl.u64);
+	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
 	/* 12. Proceed to USB core initialization */
 	usbn_clk_ctl.s.enable = 1;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
-			       usbn_clk_ctl.u64);
+	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
 	udelay(1);
 
 	/*
@@ -969,15 +930,13 @@ static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
 		return -EBUSY;
 
 	/* Disable the clocks and put them in power on reset */
-	usbn_clk_ctl.u64 = __cvmx_usb_read_csr64(usb,
-			CVMX_USBNX_CLK_CTL(usb->index));
+	usbn_clk_ctl.u64 = cvmx_read64_uint64(CVMX_USBNX_CLK_CTL(usb->index));
 	usbn_clk_ctl.s.enable = 1;
 	usbn_clk_ctl.s.por = 1;
 	usbn_clk_ctl.s.hclk_rst = 1;
 	usbn_clk_ctl.s.prst = 0;
 	usbn_clk_ctl.s.hrst = 0;
-	__cvmx_usb_write_csr64(usb, CVMX_USBNX_CLK_CTL(usb->index),
-			       usbn_clk_ctl.u64);
+	cvmx_write64_uint64(CVMX_USBNX_CLK_CTL(usb->index), usbn_clk_ctl.u64);
 	return 0;
 }
 
@@ -1286,13 +1245,12 @@ static void __cvmx_usb_poll_rx_fifo(struct cvmx_usb_state *usb)
 		return;
 
 	/* Get where the DMA engine would have written this data */
-	address = __cvmx_usb_read_csr64(usb,
-			CVMX_USBNX_DMA0_INB_CHN0(usb->index) + channel*8);
+	address = cvmx_read64_uint64(CVMX_USBNX_DMA0_INB_CHN0(usb->index) +
+				     channel * 8);
 
 	ptr = cvmx_phys_to_ptr(address);
-	__cvmx_usb_write_csr64(usb,
-			       CVMX_USBNX_DMA0_INB_CHN0(usb->index) + channel*8,
-			       address + bytes);
+	cvmx_write64_uint64(CVMX_USBNX_DMA0_INB_CHN0(usb->index) + channel * 8,
+			    address + bytes);
 
 	/* Loop writing the FIFO data for this packet into memory */
 	while (bytes > 0) {
@@ -1448,8 +1406,9 @@ static void __cvmx_usb_fill_tx_fifo(struct cvmx_usb_state *usb, int channel)
 		fifo = &usb->nonperiodic;
 
 	fifo->entry[fifo->head].channel = channel;
-	fifo->entry[fifo->head].address = __cvmx_usb_read_csr64(usb,
-			CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) + channel*8);
+	fifo->entry[fifo->head].address =
+		cvmx_read64_uint64(CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) +
+				   channel * 8);
 	fifo->entry[fifo->head].size = (usbc_hctsiz.s.xfersize+3)>>2;
 	fifo->head++;
 	if (fifo->head > MAX_CHANNELS)
@@ -1503,9 +1462,9 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 		 * Setup send the control header instead of the buffer data. The
 		 * buffer data will be used in the next stage
 		 */
-		__cvmx_usb_write_csr64(usb,
-			CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) + channel*8,
-			transaction->control_header);
+		cvmx_write64_uint64(CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) +
+					channel * 8,
+				    transaction->control_header);
 		break;
 	case CVMX_USB_STAGE_SETUP_SPLIT_COMPLETE:
 		usbc_hctsiz.s.pid = 3; /* Setup */
@@ -1696,13 +1655,12 @@ static void __cvmx_usb_start_channel(struct cvmx_usb_state *usb,
 					transaction->iso_packets[0].offset +
 					transaction->actual_bytes;
 
-		__cvmx_usb_write_csr64(usb,
-			CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) + channel*8,
-			dma_address);
-
-		__cvmx_usb_write_csr64(usb,
-			CVMX_USBNX_DMA0_INB_CHN0(usb->index) + channel*8,
-			dma_address);
+		cvmx_write64_uint64(CVMX_USBNX_DMA0_OUTB_CHN0(usb->index) +
+					channel * 8,
+				    dma_address);
+		cvmx_write64_uint64(CVMX_USBNX_DMA0_INB_CHN0(usb->index) +
+					channel * 8,
+				    dma_address);
 	}
 
 	/* Setup both the size of the transfer and the SPLIT characteristics */
