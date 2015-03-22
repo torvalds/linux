@@ -409,8 +409,8 @@ inline void force_pci_posting(struct net_device *dev)
 
 static struct net_device_stats *rtl8192_stats(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
-void rtl8192_restart(struct work_struct *work);
-void watch_dog_timer_callback(unsigned long data);
+static void rtl8192_restart(struct work_struct *work);
+static void watch_dog_timer_callback(unsigned long data);
 
 /****************************************************************************
  *   -----------------------------PROCFS STUFF-------------------------
@@ -1763,7 +1763,7 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 }
 #endif
 
-extern void rtl8192_update_ratr_table(struct net_device *dev);
+static void rtl8192_update_ratr_table(struct net_device *dev);
 static void rtl8192_link_change(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -2243,9 +2243,9 @@ static void rtl8192_init_priv_lock(struct r8192_priv *priv)
 	mutex_init(&priv->mutex);
 }
 
-extern  void    rtl819x_watchdog_wqcallback(struct work_struct *work);
+static void rtl819x_watchdog_wqcallback(struct work_struct *work);
 
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
 //init tasklet and wait_queue here. only 2.6 above kernel is considered
 #define DRV_NAME "wlan0"
 static void rtl8192_init_priv_task(struct net_device *dev)
@@ -3017,9 +3017,9 @@ static RESET_TYPE rtl819x_ifcheck_resetornot(struct net_device *dev)
 
 }
 
-void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
-int _rtl8192_up(struct net_device *dev);
-int rtl8192_close(struct net_device *dev);
+static void rtl8192_cancel_deferred_work(struct r8192_priv *priv);
+static int _rtl8192_up(struct net_device *dev);
+static int rtl8192_close(struct net_device *dev);
 
 
 
