@@ -697,15 +697,20 @@ static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
  * other access to the Octeon USB port is made. The port starts
  * off in the disabled state.
  *
+ * @dev:	 Pointer to struct device for logging purposes.
  * @usb:	 Pointer to struct cvmx_usb_state.
  *
  * Returns: 0 or a negative error code.
  */
-static int cvmx_usb_initialize(struct cvmx_usb_state *usb)
+static int cvmx_usb_initialize(struct device *dev,
+			       struct cvmx_usb_state *usb)
 {
+	int retries = 0;
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
+	union cvmx_usbcx_gintsts usbc_gintsts;
 	union cvmx_usbnx_usbp_ctl_status usbn_usbp_ctl_status;
 
+retry:
 	/*
 	 * Power On Reset and PHY Initialization
 	 *
@@ -952,7 +957,26 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb)
 
 	cvmx_fifo_setup(usb);
 
-	return 0;
+	/*
+	 * If the controller is getting port events right after the reset, it
+	 * means the initialization failed. Try resetting the controller again
+	 * in such case. This is seen to happen after cold boot on DSR-1000N.
+	 */
+	usbc_gintsts.u32 = cvmx_usb_read_csr32(usb,
+					       CVMX_USBCX_GINTSTS(usb->index));
+	cvmx_usb_write_csr32(usb, CVMX_USBCX_GINTSTS(usb->index),
+			     usbc_gintsts.u32);
+	dev_dbg(dev, "gintsts after reset: 0x%x\n", (int)usbc_gintsts.u32);
+	if (!usbc_gintsts.s.disconnint && !usbc_gintsts.s.prtint)
+		return 0;
+	if (retries++ >= 5)
+		return -EAGAIN;
+	dev_info(dev, "controller reset failed (gintsts=0x%x) - retrying\n",
+		 (int)usbc_gintsts.u32);
+	msleep(50);
+	cvmx_usb_shutdown(usb);
+	msleep(50);
+	goto retry;
 }
 
 /**
@@ -3690,7 +3714,7 @@ static int octeon_usb_probe(struct platform_device *pdev)
 		priv->usb.idle_hardware_channels = 0xff;
 	}
 
-	status = cvmx_usb_initialize(&priv->usb);
+	status = cvmx_usb_initialize(dev, &priv->usb);
 	if (status) {
 		dev_dbg(dev, "USB initialization failed with %d\n", status);
 		kfree(hcd);
