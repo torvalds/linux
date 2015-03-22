@@ -4135,7 +4135,7 @@ nfsd4_encode_layoutreturn(struct nfsd4_compoundres *resp, __be32 nfserr,
 		return nfserr_resource;
 	*p++ = cpu_to_be32(lrp->lrs_present);
 	if (lrp->lrs_present)
-		nfsd4_encode_stateid(xdr, &lrp->lr_sid);
+		return nfsd4_encode_stateid(xdr, &lrp->lr_sid);
 	return nfs_ok;
 }
 #endif /* CONFIG_NFSD_PNFS */
