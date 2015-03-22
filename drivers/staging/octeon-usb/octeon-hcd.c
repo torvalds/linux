@@ -608,6 +608,58 @@ static inline int cvmx_usb_get_data_pid(struct cvmx_usb_pipe *pipe)
 	return 0; /* Data0 */
 }
 
+static int cvmx_fifo_setup(struct cvmx_usb_state *usb)
+{
+	union cvmx_usbcx_ghwcfg3 usbcx_ghwcfg3;
+	union cvmx_usbcx_gnptxfsiz npsiz;
+	union cvmx_usbcx_hptxfsiz psiz;
+
+	usbcx_ghwcfg3.u32 = cvmx_usb_read_csr32(usb,
+						CVMX_USBCX_GHWCFG3(usb->index));
+
+	/*
+	 * Program the USBC_GRXFSIZ register to select the size of the receive
+	 * FIFO (25%).
+	 */
+	USB_SET_FIELD32(CVMX_USBCX_GRXFSIZ(usb->index),
+			union cvmx_usbcx_grxfsiz, rxfdep,
+			usbcx_ghwcfg3.s.dfifodepth / 4);
+
+	/*
+	 * Program the USBC_GNPTXFSIZ register to select the size and the start
+	 * address of the non-periodic transmit FIFO for nonperiodic
+	 * transactions (50%).
+	 */
+	npsiz.u32 = cvmx_usb_read_csr32(usb, CVMX_USBCX_GNPTXFSIZ(usb->index));
+	npsiz.s.nptxfdep = usbcx_ghwcfg3.s.dfifodepth / 2;
+	npsiz.s.nptxfstaddr = usbcx_ghwcfg3.s.dfifodepth / 4;
+	cvmx_usb_write_csr32(usb, CVMX_USBCX_GNPTXFSIZ(usb->index), npsiz.u32);
+
+	/*
+	 * Program the USBC_HPTXFSIZ register to select the size and start
+	 * address of the periodic transmit FIFO for periodic transactions
+	 * (25%).
+	 */
+	psiz.u32 = cvmx_usb_read_csr32(usb, CVMX_USBCX_HPTXFSIZ(usb->index));
+	psiz.s.ptxfsize = usbcx_ghwcfg3.s.dfifodepth / 4;
+	psiz.s.ptxfstaddr = 3 * usbcx_ghwcfg3.s.dfifodepth / 4;
+	cvmx_usb_write_csr32(usb, CVMX_USBCX_HPTXFSIZ(usb->index), psiz.u32);
+
+	/* Flush all FIFOs */
+	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
+			union cvmx_usbcx_grstctl, txfnum, 0x10);
+	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
+			union cvmx_usbcx_grstctl, txfflsh, 1);
+	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
+			      union cvmx_usbcx_grstctl,
+			      txfflsh, ==, 0, 100);
+	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
+			union cvmx_usbcx_grstctl, rxfflsh, 1);
+	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
+			      union cvmx_usbcx_grstctl,
+			      rxfflsh, ==, 0, 100);
+}
+
 /**
  * Initialize a USB port for use. This must be called before any
  * other access to the Octeon USB port is made. The port starts
@@ -913,8 +965,6 @@ static int cvmx_usb_shutdown(struct cvmx_usb_state *usb)
  */
 static int cvmx_usb_enable(struct cvmx_usb_state *usb)
 {
-	union cvmx_usbcx_ghwcfg3 usbcx_ghwcfg3;
-
 	usb->usbcx_hprt.u32 = cvmx_usb_read_csr32(usb,
 						  CVMX_USBCX_HPRT(usb->index));
 
@@ -954,59 +1004,8 @@ static int cvmx_usb_enable(struct cvmx_usb_state *usb)
 	 */
 	usb->usbcx_hprt.u32 = cvmx_usb_read_csr32(usb,
 						  CVMX_USBCX_HPRT(usb->index));
-	usbcx_ghwcfg3.u32 = cvmx_usb_read_csr32(usb,
-						CVMX_USBCX_GHWCFG3(usb->index));
 
-	/*
-	 * 13. Program the USBC_GRXFSIZ register to select the size of the
-	 *     receive FIFO (25%).
-	 */
-	USB_SET_FIELD32(CVMX_USBCX_GRXFSIZ(usb->index),
-			union cvmx_usbcx_grxfsiz, rxfdep,
-			usbcx_ghwcfg3.s.dfifodepth / 4);
-	/*
-	 * 14. Program the USBC_GNPTXFSIZ register to select the size and the
-	 *     start address of the non- periodic transmit FIFO for nonperiodic
-	 *     transactions (50%).
-	 */
-	{
-		union cvmx_usbcx_gnptxfsiz siz;
-
-		siz.u32 = cvmx_usb_read_csr32(usb,
-					      CVMX_USBCX_GNPTXFSIZ(usb->index));
-		siz.s.nptxfdep = usbcx_ghwcfg3.s.dfifodepth / 2;
-		siz.s.nptxfstaddr = usbcx_ghwcfg3.s.dfifodepth / 4;
-		cvmx_usb_write_csr32(usb, CVMX_USBCX_GNPTXFSIZ(usb->index),
-				     siz.u32);
-	}
-	/*
-	 * 15. Program the USBC_HPTXFSIZ register to select the size and start
-	 *     address of the periodic transmit FIFO for periodic transactions
-	 *     (25%).
-	 */
-	{
-		union cvmx_usbcx_hptxfsiz siz;
-
-		siz.u32 = cvmx_usb_read_csr32(usb,
-					      CVMX_USBCX_HPTXFSIZ(usb->index));
-		siz.s.ptxfsize = usbcx_ghwcfg3.s.dfifodepth / 4;
-		siz.s.ptxfstaddr = 3 * usbcx_ghwcfg3.s.dfifodepth / 4;
-		cvmx_usb_write_csr32(usb, CVMX_USBCX_HPTXFSIZ(usb->index),
-				     siz.u32);
-	}
-	/* Flush all FIFOs */
-	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			union cvmx_usbcx_grstctl, txfnum, 0x10);
-	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			union cvmx_usbcx_grstctl, txfflsh, 1);
-	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			      union cvmx_usbcx_grstctl,
-			      txfflsh, ==, 0, 100);
-	USB_SET_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			union cvmx_usbcx_grstctl, rxfflsh, 1);
-	CVMX_WAIT_FOR_FIELD32(CVMX_USBCX_GRSTCTL(usb->index),
-			      union cvmx_usbcx_grstctl,
-			      rxfflsh, ==, 0, 100);
+	cvmx_fifo_setup(usb);
 
 	return 0;
 }
