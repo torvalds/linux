@@ -148,6 +148,9 @@ static const struct {
 #ifdef HAVE_ZLIB_SUPPORT
 	{ "gz", gzip_decompress_to_file },
 #endif
+#ifdef HAVE_LZMA_SUPPORT
+	{ "xz", lzma_decompress_to_file },
+#endif
 	{ NULL, NULL },
 };
 
@@ -206,6 +209,72 @@ bool dso__needs_decompress(struct dso *dso)
 {
 	return dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP ||
 		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
+}
+
+/*
+ * Parses kernel module specified in @path and updates
+ * @m argument like:
+ *
+ *    @comp - true if @path contains supported compression suffix,
+ *            false otherwise
+ *    @kmod - true if @path contains '.ko' suffix in right position,
+ *            false otherwise
+ *    @name - if (@alloc_name && @kmod) is true, it contains strdup-ed base name
+ *            of the kernel module without suffixes, otherwise strudup-ed
+ *            base name of @path
+ *    @ext  - if (@alloc_ext && @comp) is true, it contains strdup-ed string
+ *            the compression suffix
+ *
+ * Returns 0 if there's no strdup error, -ENOMEM otherwise.
+ */
+int __kmod_path__parse(struct kmod_path *m, const char *path,
+		       bool alloc_name, bool alloc_ext)
+{
+	const char *name = strrchr(path, '/');
+	const char *ext  = strrchr(path, '.');
+
+	memset(m, 0x0, sizeof(*m));
+	name = name ? name + 1 : path;
+
+	/* No extension, just return name. */
+	if (ext == NULL) {
+		if (alloc_name) {
+			m->name = strdup(name);
+			return m->name ? 0 : -ENOMEM;
+		}
+		return 0;
+	}
+
+	if (is_supported_compression(ext + 1)) {
+		m->comp = true;
+		ext -= 3;
+	}
+
+	/* Check .ko extension only if there's enough name left. */
+	if (ext > name)
+		m->kmod = !strncmp(ext, ".ko", 3);
+
+	if (alloc_name) {
+		if (m->kmod) {
+			if (asprintf(&m->name, "[%.*s]", (int) (ext - name), name) == -1)
+				return -ENOMEM;
+		} else {
+			if (asprintf(&m->name, "%s", name) == -1)
+				return -ENOMEM;
+		}
+
+		strxfrchar(m->name, '-', '_');
+	}
+
+	if (alloc_ext && m->comp) {
+		m->ext = strdup(ext + 4);
+		if (!m->ext) {
+			free((void *) m->name);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -1002,19 +1071,22 @@ struct dso *dsos__find(const struct dsos *dsos, const char *name,
 	return dso__find_by_longname(&dsos->root, name);
 }
 
+struct dso *dsos__addnew(struct dsos *dsos, const char *name)
+{
+	struct dso *dso = dso__new(name);
+
+	if (dso != NULL) {
+		dsos__add(dsos, dso);
+		dso__set_basename(dso);
+	}
+	return dso;
+}
+
 struct dso *__dsos__findnew(struct dsos *dsos, const char *name)
 {
 	struct dso *dso = dsos__find(dsos, name, false);
 
-	if (!dso) {
-		dso = dso__new(name);
-		if (dso != NULL) {
-			dsos__add(dsos, dso);
-			dso__set_basename(dso);
-		}
-	}
-
-	return dso;
+	return dso ? dso : dsos__addnew(dsos, name);
 }
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,

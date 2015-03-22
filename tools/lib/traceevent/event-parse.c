@@ -6228,15 +6228,20 @@ void pevent_ref(struct pevent *pevent)
 	pevent->ref_count++;
 }
 
+void pevent_free_format_field(struct format_field *field)
+{
+	free(field->type);
+	free(field->name);
+	free(field);
+}
+
 static void free_format_fields(struct format_field *field)
 {
 	struct format_field *next;
 
 	while (field) {
 		next = field->next;
-		free(field->type);
-		free(field->name);
-		free(field);
+		pevent_free_format_field(field);
 		field = next;
 	}
 }

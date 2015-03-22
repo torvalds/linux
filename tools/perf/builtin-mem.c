@@ -286,7 +286,7 @@ int cmd_mem(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "input file name"),
 	OPT_STRING('C', "cpu", &mem.cpu_list, "cpu",
 		   "list of cpus to profile"),
-	OPT_STRING('x', "field-separator", &symbol_conf.field_sep,
+	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep,
 		   "separator",
 		   "separator for columns, no spaces will be added"
 		   " between columns '.' is reserved."),

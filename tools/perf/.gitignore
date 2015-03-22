@@ -1,7 +1,7 @@
 PERF-CFLAGS
 PERF-GUI-VARS
 PERF-VERSION-FILE
-PERF-FEATURES
+FEATURE-DUMP
 perf
 perf-read-vdso32
 perf-read-vdsox32

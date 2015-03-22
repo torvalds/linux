@@ -511,6 +511,7 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 {
 	int color, width;
 	char folded_sign = callchain_list__folded(chain);
+	bool show_annotated = browser->show_dso && chain->ms.sym && symbol__annotation(chain->ms.sym)->src;
 
 	color = HE_COLORSET_NORMAL;
 	width = browser->b.width - (offset + 2);
@@ -523,7 +524,8 @@ static void hist_browser__show_callchain_entry(struct hist_browser *browser,
 	ui_browser__set_color(&browser->b, color);
 	hist_browser__gotorc(browser, row, 0);
 	slsmg_write_nstring(" ", offset);
-	slsmg_printf("%c ", folded_sign);
+	slsmg_printf("%c", folded_sign);
+	ui_browser__write_graph(&browser->b, show_annotated ? SLSMG_RARROW_CHAR : ' ');
 	slsmg_write_nstring(str, width);
 }
 

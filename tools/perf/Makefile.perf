@@ -71,6 +71,8 @@ include config/utilities.mak
 #
 # Define NO_LIBBABELTRACE if you do not want libbabeltrace support
 # for CTF data format.
+#
+# Define NO_LZMA if you do not want to support compressed (xz) kernel modules
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(shell pwd)))
@@ -521,7 +523,7 @@ $(INSTALL_DOC_TARGETS):
 #
 config-clean:
 	$(call QUIET_CLEAN, config)
-	$(Q)$(MAKE) -C config/feature-checks clean >/dev/null
+	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
 
 clean: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean config-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)

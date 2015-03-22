@@ -1135,6 +1135,8 @@ static struct syscall_fmt *syscall_fmt__find(const char *name)
 
 struct syscall {
 	struct event_format *tp_format;
+	int		    nr_args;
+	struct format_field *args;
 	const char	    *name;
 	bool		    filtered;
 	bool		    is_exit;
@@ -1442,14 +1444,14 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 	struct format_field *field;
 	int idx = 0;
 
-	sc->arg_scnprintf = calloc(sc->tp_format->format.nr_fields - 1, sizeof(void *));
+	sc->arg_scnprintf = calloc(sc->nr_args, sizeof(void *));
 	if (sc->arg_scnprintf == NULL)
 		return -1;
 
 	if (sc->fmt)
 		sc->arg_parm = sc->fmt->arg_parm;
 
-	for (field = sc->tp_format->format.fields->next; field; field = field->next) {
+	for (field = sc->args; field; field = field->next) {
 		if (sc->fmt && sc->fmt->arg_scnprintf[idx])
 			sc->arg_scnprintf[idx] = sc->fmt->arg_scnprintf[idx];
 		else if (field->flags & FIELD_IS_POINTER)
@@ -1515,6 +1517,14 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	if (sc->tp_format == NULL)
 		return -1;
 
+	sc->args = sc->tp_format->format.fields;
+	sc->nr_args = sc->tp_format->format.nr_fields;
+	/* drop nr field - not relevant here; does not exist on older kernels */
+	if (sc->args && strcmp(sc->args->name, "nr") == 0) {
+		sc->args = sc->args->next;
+		--sc->nr_args;
+	}
+
 	sc->is_exit = !strcmp(name, "exit_group") || !strcmp(name, "exit");
 
 	return syscall__set_arg_fmts(sc);
@@ -1537,7 +1547,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 	unsigned char *p;
 	unsigned long val;
 
-	if (sc->tp_format != NULL) {
+	if (sc->args != NULL) {
 		struct format_field *field;
 		u8 bit = 1;
 		struct syscall_arg arg = {
@@ -1547,7 +1557,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			.thread = thread,
 		};
 
-		for (field = sc->tp_format->format.fields->next; field;
+		for (field = sc->args; field;
 		     field = field->next, ++arg.idx, bit <<= 1) {
 			if (arg.mask & bit)
 				continue;
@@ -1724,7 +1734,8 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 			return -1;
 	}
 
-	printed += trace__printf_interrupted_entry(trace, sample);
+	if (!trace->summary_only)
+		printed += trace__printf_interrupted_entry(trace, sample);
 
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
