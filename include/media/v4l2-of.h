@@ -57,6 +57,8 @@ struct v4l2_of_bus_parallel {
  * @base: struct of_endpoint containing port, id, and local of_node
  * @bus_type: bus type
  * @bus: bus configuration data structure
+ * @link_frequencies: array of supported link frequencies
+ * @nr_of_link_frequencies: number of elements in link_frequenccies array
  */
 struct v4l2_of_endpoint {
 	struct of_endpoint base;
@@ -66,6 +68,8 @@ struct v4l2_of_endpoint {
 		struct v4l2_of_bus_parallel parallel;
 		struct v4l2_of_bus_mipi_csi2 mipi_csi2;
 	} bus;
+	u64 *link_frequencies;
+	unsigned int nr_of_link_frequencies;
 };
 
 /**
@@ -85,6 +89,9 @@ struct v4l2_of_link {
 #ifdef CONFIG_OF
 int v4l2_of_parse_endpoint(const struct device_node *node,
 			   struct v4l2_of_endpoint *endpoint);
+struct v4l2_of_endpoint *v4l2_of_alloc_parse_endpoint(
+	const struct device_node *node);
+void v4l2_of_free_endpoint(struct v4l2_of_endpoint *endpoint);
 int v4l2_of_parse_link(const struct device_node *node,
 		       struct v4l2_of_link *link);
 void v4l2_of_put_link(struct v4l2_of_link *link);
@@ -94,6 +101,16 @@ static inline int v4l2_of_parse_endpoint(const struct device_node *node,
 					struct v4l2_of_endpoint *link)
 {
 	return -ENOSYS;
+}
+
+struct v4l2_of_endpoint *v4l2_of_alloc_parse_endpoint(
+	const struct device_node *node)
+{
+	return NULL;
+}
+
+static void v4l2_of_free_endpoint(struct v4l2_of_endpoint *endpoint)
+{
 }
 
 static inline int v4l2_of_parse_link(const struct device_node *node,
