@@ -141,6 +141,16 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	return val;
 }
 
+static void ath9k_multi_ioread32(void *hw_priv, u32 *addr,
+                                u32 *val, u16 count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		val[i] = ath9k_ioread32(hw_priv, addr[i]);
+}
+
+
 static unsigned int __ath9k_reg_rmw(struct ath_softc *sc, u32 reg_offset,
 				    u32 set, u32 clr)
 {
@@ -537,6 +547,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ah->hw = sc->hw;
 	ah->hw_version.devid = devid;
 	ah->reg_ops.read = ath9k_ioread32;
+	ah->reg_ops.multi_read = ath9k_multi_ioread32;
 	ah->reg_ops.write = ath9k_iowrite32;
 	ah->reg_ops.rmw = ath9k_reg_rmw;
 	pCap = &ah->caps;
