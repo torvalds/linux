@@ -860,12 +860,6 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb)
 			cvmx_usb_write_csr32(usb, CVMX_USBCX_HCFG(usb->index),
 					     usbcx_hcfg.u32);
 		}
-		/*
-		 * 3. Program the port power bit to drive VBUS on the USB,
-		 *    USBC_HPRT[PRTPWR] = 1
-		 */
-		USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index),
-				union cvmx_usbcx_hprt, prtpwr, 1);
 
 		/*
 		 * Steps 4-15 from the manual are done later in the port enable
@@ -3354,6 +3348,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
 	struct device *dev = hcd->self.controller;
 	struct cvmx_usb_port_status usb_port_status;
+	struct cvmx_usb_state *usb = &priv->usb;
 	int port_status;
 	struct usb_hub_descriptor *desc;
 	unsigned long flags;
@@ -3531,7 +3526,14 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			return -EINVAL;
 		case USB_PORT_FEAT_POWER:
 			dev_dbg(dev, " POWER\n");
-			return -EINVAL;
+			/*
+			 * Program the port power bit to drive VBUS on the USB.
+			 */
+			spin_lock_irqsave(&priv->lock, flags);
+			USB_SET_FIELD32(CVMX_USBCX_HPRT(usb->index),
+					union cvmx_usbcx_hprt, prtpwr, 1);
+			spin_unlock_irqrestore(&priv->lock, flags);
+			return 0;
 		case USB_PORT_FEAT_RESET:
 			dev_dbg(dev, " RESET\n");
 			spin_lock_irqsave(&priv->lock, flags);
@@ -3708,9 +3710,6 @@ static int octeon_usb_probe(struct platform_device *pdev)
 		kfree(hcd);
 		return -1;
 	}
-
-	/* This delay is needed for CN3010, but I don't know why... */
-	mdelay(10);
 
 	status = usb_add_hcd(hcd, irq, 0);
 	if (status) {
