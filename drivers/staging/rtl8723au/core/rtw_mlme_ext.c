@@ -3767,7 +3767,6 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 {
 	u16 start_seq;
 	u16 BA_para_set;
-	u16 BA_timeout_value;
 	u16 BA_starting_seqctrl;
 	u16 BA_para;
 	int max_rx_ampdu_factor;
@@ -3848,10 +3847,8 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 		put_unaligned_le16(BA_para_set,
 				   &mgmt->u.action.u.addba_req.capab);
 
-		BA_timeout_value = 5000;/*  5ms */
-		BA_timeout_value = cpu_to_le16(BA_timeout_value);
-		put_unaligned_le16(BA_timeout_value,
-				   &mgmt->u.action.u.addba_req.timeout);
+		/*  5ms */
+		put_unaligned_le16(5000, &mgmt->u.action.u.addba_req.timeout);
 
 		psta = rtw_get_stainfo23a(pstapriv, raddr);
 		if (psta) {
