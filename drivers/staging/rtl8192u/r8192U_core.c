@@ -408,7 +408,6 @@ inline void force_pci_posting(struct net_device *dev)
 }
 
 static struct net_device_stats *rtl8192_stats(struct net_device *dev);
-void rtl8192_commit(struct net_device *dev);
 static void rtl8192_restart(struct work_struct *work);
 static void watch_dog_timer_callback(unsigned long data);
 
