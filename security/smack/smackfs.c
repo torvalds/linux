@@ -54,6 +54,9 @@ enum smk_inos {
 	SMK_CHANGE_RULE	= 19,	/* change or add rules (long labels) */
 	SMK_SYSLOG	= 20,	/* change syslog label) */
 	SMK_PTRACE	= 21,	/* set ptrace rule */
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+	SMK_UNCONFINED	= 22,	/* define an unconfined label */
+#endif
 };
 
 /*
@@ -94,6 +97,16 @@ int smack_cipso_mapped = SMACK_CIPSO_MAPPED_DEFAULT;
  * will be used if any label is used.
  */
 struct smack_known *smack_onlycap;
+
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+/*
+ * Allow one label to be unconfined. This is for
+ * debugging and application bring-up purposes only.
+ * It is bad and wrong, but everyone seems to expect
+ * to have it.
+ */
+struct smack_known *smack_unconfined;
+#endif
 
 /*
  * If this value is set restrict syslog use to the label specified.
@@ -1717,6 +1730,85 @@ static const struct file_operations smk_onlycap_ops = {
 	.llseek		= default_llseek,
 };
 
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+/**
+ * smk_read_unconfined - read() for smackfs/unconfined
+ * @filp: file pointer, not actually used
+ * @buf: where to put the result
+ * @cn: maximum to send along
+ * @ppos: where to start
+ *
+ * Returns number of bytes read or error code, as appropriate
+ */
+static ssize_t smk_read_unconfined(struct file *filp, char __user *buf,
+					size_t cn, loff_t *ppos)
+{
+	char *smack = "";
+	ssize_t rc = -EINVAL;
+	int asize;
+
+	if (*ppos != 0)
+		return 0;
+
+	if (smack_unconfined != NULL)
+		smack = smack_unconfined->smk_known;
+
+	asize = strlen(smack) + 1;
+
+	if (cn >= asize)
+		rc = simple_read_from_buffer(buf, cn, ppos, smack, asize);
+
+	return rc;
+}
+
+/**
+ * smk_write_unconfined - write() for smackfs/unconfined
+ * @file: file pointer, not actually used
+ * @buf: where to get the data from
+ * @count: bytes sent
+ * @ppos: where to start
+ *
+ * Returns number of bytes written or error code, as appropriate
+ */
+static ssize_t smk_write_unconfined(struct file *file, const char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	char *data;
+	int rc = count;
+
+	if (!smack_privileged(CAP_MAC_ADMIN))
+		return -EPERM;
+
+	data = kzalloc(count + 1, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	/*
+	 * Should the null string be passed in unset the unconfined value.
+	 * This seems like something to be careful with as usually
+	 * smk_import only expects to return NULL for errors. It
+	 * is usually the case that a nullstring or "\n" would be
+	 * bad to pass to smk_import but in fact this is useful here.
+	 *
+	 * smk_import will also reject a label beginning with '-',
+	 * so "-confine" will also work.
+	 */
+	if (copy_from_user(data, buf, count) != 0)
+		rc = -EFAULT;
+	else
+		smack_unconfined = smk_import_entry(data, count);
+
+	kfree(data);
+	return rc;
+}
+
+static const struct file_operations smk_unconfined_ops = {
+	.read		= smk_read_unconfined,
+	.write		= smk_write_unconfined,
+	.llseek		= default_llseek,
+};
+#endif /* CONFIG_SECURITY_SMACK_BRINGUP */
+
 /**
  * smk_read_logging - read() for /smack/logging
  * @filp: file pointer, not actually used
@@ -2384,6 +2476,10 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 			"syslog", &smk_syslog_ops, S_IRUGO|S_IWUSR},
 		[SMK_PTRACE] = {
 			"ptrace", &smk_ptrace_ops, S_IRUGO|S_IWUSR},
+#ifdef CONFIG_SECURITY_SMACK_BRINGUP
+		[SMK_UNCONFINED] = {
+			"unconfined", &smk_unconfined_ops, S_IRUGO|S_IWUSR},
+#endif
 		/* last one */
 			{""}
 	};
