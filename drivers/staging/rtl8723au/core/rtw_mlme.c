@@ -568,13 +568,6 @@ static int rtw_is_desired_network(struct rtw_adapter *adapter,
 	return bselected;
 }
 
-/* TODO: Perry : For Power Management */
-void rtw_atimdone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
-{
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-		 ("receive atimdone_evet\n"));
-}
-
 void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	u32 len;
