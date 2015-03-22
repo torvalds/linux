@@ -317,6 +317,7 @@ int inet_dccp_listen(struct socket *sock, int backlog);
 unsigned int dccp_poll(struct file *file, struct socket *sock,
 		       poll_table *wait);
 int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
+void dccp_req_err(struct sock *sk, u64 seq);
 
 struct sk_buff *dccp_ctl_make_reset(struct sock *sk, struct sk_buff *skb);
 int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
