@@ -139,6 +139,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FW_DBG_DEST	= 38,
 	IWL_UCODE_TLV_FW_DBG_CONF	= 39,
 	IWL_UCODE_TLV_FW_DBG_TRIGGER	= 40,
+	IWL_UCODE_TLV_FW_GSCAN_CAPA	= 50,
 };
 
 struct iwl_ucode_tlv {
@@ -306,6 +307,7 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  *	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE. When either is set, multi-source LAR
  *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
+ * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan
  */
 enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_D0I3_SUPPORT			= (__force iwl_ucode_tlv_capa_t)0,
@@ -327,6 +329,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= (__force iwl_ucode_tlv_capa_t)28,
 	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= (__force iwl_ucode_tlv_capa_t)29,
 	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= (__force iwl_ucode_tlv_capa_t)30,
+	IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)31,
 };
 
 /* The default calibrate table size if not specified by firmware file */
@@ -726,6 +729,30 @@ struct iwl_fw_dbg_conf_tlv {
 	u8 reserved;
 	u8 num_of_hcmds;
 	struct iwl_fw_dbg_conf_hcmd hcmd;
+} __packed;
+
+/**
+ * struct iwl_fw_gscan_capabilities - gscan capabilities supported by FW
+ * @max_scan_cache_size: total space allocated for scan results (in bytes).
+ * @max_scan_buckets: maximum number of channel buckets.
+ * @max_ap_cache_per_scan: maximum number of APs that can be stored per scan.
+ * @max_rssi_sample_size: number of RSSI samples used for averaging RSSI.
+ * @max_scan_reporting_threshold: max possible report threshold. in percentage.
+ * @max_hotlist_aps: maximum number of entries for hotlist APs.
+ * @max_significant_change_aps: maximum number of entries for significant
+ *	change APs.
+ * @max_bssid_history_entries: number of BSSID/RSSI entries that the device can
+ *	hold.
+ */
+struct iwl_fw_gscan_capabilities {
+	__le32 max_scan_cache_size;
+	__le32 max_scan_buckets;
+	__le32 max_ap_cache_per_scan;
+	__le32 max_rssi_sample_size;
+	__le32 max_scan_reporting_threshold;
+	__le32 max_hotlist_aps;
+	__le32 max_significant_change_aps;
+	__le32 max_bssid_history_entries;
 } __packed;
 
 #endif  /* __iwl_fw_file_h__ */

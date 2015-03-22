@@ -372,6 +372,30 @@ static int iwl_store_cscheme(struct iwl_fw *fw, const u8 *data, const u32 len)
 	return 0;
 }
 
+static int iwl_store_gscan_capa(struct iwl_fw *fw, const u8 *data,
+				const u32 len)
+{
+	struct iwl_fw_gscan_capabilities *fw_capa = (void *)data;
+	struct iwl_gscan_capabilities *capa = &fw->gscan_capa;
+
+	if (len < sizeof(*fw_capa))
+		return -EINVAL;
+
+	capa->max_scan_cache_size = le32_to_cpu(fw_capa->max_scan_cache_size);
+	capa->max_scan_buckets = le32_to_cpu(fw_capa->max_scan_buckets);
+	capa->max_ap_cache_per_scan =
+		le32_to_cpu(fw_capa->max_ap_cache_per_scan);
+	capa->max_rssi_sample_size = le32_to_cpu(fw_capa->max_rssi_sample_size);
+	capa->max_scan_reporting_threshold =
+		le32_to_cpu(fw_capa->max_scan_reporting_threshold);
+	capa->max_hotlist_aps = le32_to_cpu(fw_capa->max_hotlist_aps);
+	capa->max_significant_change_aps =
+		le32_to_cpu(fw_capa->max_significant_change_aps);
+	capa->max_bssid_history_entries =
+		le32_to_cpu(fw_capa->max_bssid_history_entries);
+	return 0;
+}
+
 /*
  * Gets uCode section from tlv.
  */
@@ -581,6 +605,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	int num_of_cpus;
 	bool usniffer_images = false;
 	bool usniffer_req = false;
+	bool gscan_capa = false;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(drv, "uCode has invalid length: %zd\n", len);
@@ -991,6 +1016,11 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			drv->fw.sdio_adma_addr =
 				le32_to_cpup((__le32 *)tlv_data);
 			break;
+		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
+			if (iwl_store_gscan_capa(&drv->fw, tlv_data, tlv_len))
+				goto invalid_tlv_len;
+			gscan_capa = true;
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -1008,6 +1038,16 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		iwl_print_hex_dump(drv, IWL_DL_FW, (u8 *)data, len);
 		return -EINVAL;
 	}
+
+	/*
+	 * If ucode advertises that it supports GSCAN but GSCAN
+	 * capabilities TLV is not present, warn and continue without GSCAN.
+	 */
+	if (fw_has_capa(capa, IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT) &&
+	    WARN(!gscan_capa,
+		 "GSCAN is supported but capabilities TLV is unavailable\n"))
+		__clear_bit((__force long)IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT,
+			    capa->_capa);
 
 	return 0;
 
