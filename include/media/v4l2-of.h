@@ -57,7 +57,6 @@ struct v4l2_of_bus_parallel {
  * @base: struct of_endpoint containing port, id, and local of_node
  * @bus_type: bus type
  * @bus: bus configuration data structure
- * @head: list head for this structure
  */
 struct v4l2_of_endpoint {
 	struct of_endpoint base;
@@ -66,7 +65,6 @@ struct v4l2_of_endpoint {
 		struct v4l2_of_bus_parallel parallel;
 		struct v4l2_of_bus_mipi_csi2 mipi_csi2;
 	} bus;
-	struct list_head head;
 };
 
 /**
