@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
+#include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -53,6 +54,7 @@ static struct usb_driver btusb_driver;
 #define BTUSB_INTEL_NEW		0x2000
 #define BTUSB_AMP		0x4000
 #define BTUSB_QCA_ROME		0x8000
+#define BTUSB_BCM_APPLE		0x10000
 
 static const struct usb_device_id btusb_table[] = {
 	/* Generic Bluetooth USB device */
@@ -62,7 +64,8 @@ static const struct usb_device_id btusb_table[] = {
 	{ USB_DEVICE_INFO(0xe0, 0x01, 0x04), .driver_info = BTUSB_AMP },
 
 	/* Apple-specific (Broadcom) devices */
-	{ USB_VENDOR_AND_INTERFACE_INFO(0x05ac, 0xff, 0x01, 0x01) },
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x05ac, 0xff, 0x01, 0x01),
+	  .driver_info = BTUSB_BCM_APPLE },
 
 	/* MediaTek MT76x0E */
 	{ USB_DEVICE(0x0e8d, 0x763f) },
@@ -2634,6 +2637,34 @@ static int btusb_set_bdaddr_bcm(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	return 0;
 }
 
+static int btusb_setup_bcm_apple(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+	int err;
+
+	/* Read Verbose Config Version Info */
+	skb = __hci_cmd_sync(hdev, 0xfc79, 0, NULL, HCI_INIT_TIMEOUT);
+	if (IS_ERR(skb)) {
+		err = PTR_ERR(skb);
+		BT_ERR("%s: BCM: Read Verbose Version failed (%d)",
+		       hdev->name, err);
+		return err;
+	}
+
+	if (skb->len != 7) {
+		BT_ERR("%s: BCM: Read Verbose Version event length mismatch",
+		       hdev->name);
+		kfree_skb(skb);
+		return -EIO;
+	}
+
+	BT_INFO("%s: BCM: chip id %u build %4.4u", hdev->name, skb->data[1],
+		get_unaligned_le16(skb->data + 5));
+	kfree_skb(skb);
+
+	return 0;
+}
+
 static int btusb_set_bdaddr_ath3012(struct hci_dev *hdev,
 				    const bdaddr_t *bdaddr)
 {
@@ -3030,6 +3061,11 @@ static int btusb_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_BCM_PATCHRAM) {
 		hdev->setup = btusb_setup_bcm_patchram;
 		hdev->set_bdaddr = btusb_set_bdaddr_bcm;
+		set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+	}
+
+	if (id->driver_info & BTUSB_BCM_APPLE) {
+		hdev->setup = btusb_setup_bcm_apple;
 		set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
 	}
 
