@@ -37,9 +37,26 @@ static bool iio_buffer_is_active(struct iio_buffer *buf)
 	return !list_empty(&buf->buffer_list);
 }
 
-static bool iio_buffer_data_available(struct iio_buffer *buf)
+static size_t iio_buffer_data_available(struct iio_buffer *buf)
 {
 	return buf->access->data_available(buf);
+}
+
+static bool iio_buffer_ready(struct iio_dev *indio_dev, struct iio_buffer *buf,
+			     size_t to_wait)
+{
+	/* wakeup if the device was unregistered */
+	if (!indio_dev->info)
+		return true;
+
+	/* drain the buffer if it was disabled */
+	if (!iio_buffer_is_active(buf))
+		to_wait = min_t(size_t, to_wait, 1);
+
+	if (iio_buffer_data_available(buf) >= to_wait)
+		return true;
+
+	return false;
 }
 
 /**
@@ -53,6 +70,8 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 {
 	struct iio_dev *indio_dev = filp->private_data;
 	struct iio_buffer *rb = indio_dev->buffer;
+	size_t datum_size;
+	size_t to_wait = 0;
 	int ret;
 
 	if (!indio_dev->info)
@@ -61,19 +80,26 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 	if (!rb || !rb->access->read_first_n)
 		return -EINVAL;
 
-	do {
-		if (!iio_buffer_data_available(rb)) {
-			if (filp->f_flags & O_NONBLOCK)
-				return -EAGAIN;
+	datum_size = rb->bytes_per_datum;
 
-			ret = wait_event_interruptible(rb->pollq,
-					iio_buffer_data_available(rb) ||
-					indio_dev->info == NULL);
-			if (ret)
-				return ret;
-			if (indio_dev->info == NULL)
-				return -ENODEV;
-		}
+	/*
+	 * If datum_size is 0 there will never be anything to read from the
+	 * buffer, so signal end of file now.
+	 */
+	if (!datum_size)
+		return 0;
+
+	if (!(filp->f_flags & O_NONBLOCK))
+		to_wait = min_t(size_t, n / datum_size, rb->watermark);
+
+	do {
+		ret = wait_event_interruptible(rb->pollq,
+				      iio_buffer_ready(indio_dev, rb, to_wait));
+		if (ret)
+			return ret;
+
+		if (!indio_dev->info)
+			return -ENODEV;
 
 		ret = rb->access->read_first_n(rb, n, buf);
 		if (ret == 0 && (filp->f_flags & O_NONBLOCK))
@@ -96,9 +122,8 @@ unsigned int iio_buffer_poll(struct file *filp,
 		return -ENODEV;
 
 	poll_wait(filp, &rb->pollq, wait);
-	if (iio_buffer_data_available(rb))
+	if (iio_buffer_ready(indio_dev, rb, rb->watermark))
 		return POLLIN | POLLRDNORM;
-	/* need a way of knowing if there may be enough data... */
 	return 0;
 }
 
@@ -123,6 +148,7 @@ void iio_buffer_init(struct iio_buffer *buffer)
 	INIT_LIST_HEAD(&buffer->buffer_list);
 	init_waitqueue_head(&buffer->pollq);
 	kref_init(&buffer->ref);
+	buffer->watermark = 1;
 }
 EXPORT_SYMBOL(iio_buffer_init);
 
@@ -416,6 +442,11 @@ static ssize_t iio_buffer_write_length(struct device *dev,
 		buffer->access->set_length(buffer, val);
 		ret = 0;
 	}
+	if (ret)
+		goto out;
+	if (buffer->length && buffer->length < buffer->watermark)
+		buffer->watermark = buffer->length;
+out:
 	mutex_unlock(&indio_dev->mlock);
 
 	return ret ? ret : len;
@@ -472,6 +503,7 @@ static void iio_buffer_activate(struct iio_dev *indio_dev,
 static void iio_buffer_deactivate(struct iio_buffer *buffer)
 {
 	list_del_init(&buffer->buffer_list);
+	wake_up_interruptible(&buffer->pollq);
 	iio_buffer_put(buffer);
 }
 
@@ -754,16 +786,64 @@ done:
 
 static const char * const iio_scan_elements_group_name = "scan_elements";
 
+static ssize_t iio_buffer_show_watermark(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_buffer *buffer = indio_dev->buffer;
+
+	return sprintf(buf, "%u\n", buffer->watermark);
+}
+
+static ssize_t iio_buffer_store_watermark(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf,
+					  size_t len)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_buffer *buffer = indio_dev->buffer;
+	unsigned int val;
+	int ret;
+
+	ret = kstrtouint(buf, 10, &val);
+	if (ret)
+		return ret;
+	if (!val)
+		return -EINVAL;
+
+	mutex_lock(&indio_dev->mlock);
+
+	if (val > buffer->length) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (iio_buffer_is_active(indio_dev->buffer)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	buffer->watermark = val;
+out:
+	mutex_unlock(&indio_dev->mlock);
+
+	return ret ? ret : len;
+}
+
 static DEVICE_ATTR(length, S_IRUGO | S_IWUSR, iio_buffer_read_length,
 		   iio_buffer_write_length);
 static struct device_attribute dev_attr_length_ro = __ATTR(length,
 	S_IRUGO, iio_buffer_read_length, NULL);
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,
 		   iio_buffer_show_enable, iio_buffer_store_enable);
+static DEVICE_ATTR(watermark, S_IRUGO | S_IWUSR,
+		   iio_buffer_show_watermark, iio_buffer_store_watermark);
 
 static struct attribute *iio_buffer_attrs[] = {
 	&dev_attr_length.attr,
 	&dev_attr_enable.attr,
+	&dev_attr_watermark.attr,
 };
 
 int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
@@ -944,8 +1024,18 @@ static const void *iio_demux(struct iio_buffer *buffer,
 static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
 {
 	const void *dataout = iio_demux(buffer, data);
+	int ret;
 
-	return buffer->access->store_to(buffer, dataout);
+	ret = buffer->access->store_to(buffer, dataout);
+	if (ret)
+		return ret;
+
+	/*
+	 * We can't just test for watermark to decide if we wake the poll queue
+	 * because read may request less samples than the watermark.
+	 */
+	wake_up_interruptible_poll(&buffer->pollq, POLLIN | POLLRDNORM);
+	return 0;
 }
 
 static void iio_buffer_demux_free(struct iio_buffer *buffer)
