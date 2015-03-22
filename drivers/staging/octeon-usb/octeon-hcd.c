@@ -918,6 +918,8 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb)
 		 */
 	}
 
+	cvmx_fifo_setup(usb);
+
 	return 0;
 }
 
@@ -1004,8 +1006,6 @@ static int cvmx_usb_enable(struct cvmx_usb_state *usb)
 	 */
 	usb->usbcx_hprt.u32 = cvmx_usb_read_csr32(usb,
 						  CVMX_USBCX_HPRT(usb->index));
-
-	cvmx_fifo_setup(usb);
 
 	return 0;
 }
