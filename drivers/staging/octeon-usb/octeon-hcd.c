@@ -231,15 +231,6 @@ enum cvmx_usb_pipe_flags {
 /* Maximum number of hardware channels supported by the USB block */
 #define MAX_CHANNELS		8
 
-/* The highest valid USB device address */
-#define MAX_USB_ADDRESS		127
-
-/* The highest valid USB endpoint number */
-#define MAX_USB_ENDPOINT	15
-
-/* The highest valid port number on a hub */
-#define MAX_USB_HUB_PORT	15
-
 /*
  * The low level hardware can transfer a maximum of this number of bytes in each
  * transfer. The field is 19 bits wide
@@ -674,10 +665,6 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	union cvmx_usbnx_clk_ctl usbn_clk_ctl;
 	union cvmx_usbnx_usbp_ctl_status usbn_usbp_ctl_status;
 	int i;
-
-	/* At first allow 0-1 for the usb port number */
-	if ((usb_port_number < 0) || (usb_port_number > 1))
-		return -EINVAL;
 
 	memset(usb, 0, sizeof(*usb));
 	usb->init_flags = flags;
@@ -1222,34 +1209,6 @@ static struct cvmx_usb_pipe *cvmx_usb_open_pipe(struct cvmx_usb_state *usb,
 						int hub_port)
 {
 	struct cvmx_usb_pipe *pipe;
-
-	if (unlikely((device_addr < 0) || (device_addr > MAX_USB_ADDRESS)))
-		return NULL;
-	if (unlikely((endpoint_num < 0) || (endpoint_num > MAX_USB_ENDPOINT)))
-		return NULL;
-	if (unlikely(device_speed > CVMX_USB_SPEED_LOW))
-		return NULL;
-	if (unlikely((max_packet <= 0) || (max_packet > 1024)))
-		return NULL;
-	if (unlikely(transfer_type > CVMX_USB_TRANSFER_INTERRUPT))
-		return NULL;
-	if (unlikely((transfer_dir != CVMX_USB_DIRECTION_OUT) &&
-		(transfer_dir != CVMX_USB_DIRECTION_IN)))
-		return NULL;
-	if (unlikely(interval < 0))
-		return NULL;
-	if (unlikely((transfer_type == CVMX_USB_TRANSFER_CONTROL) && interval))
-		return NULL;
-	if (unlikely(multi_count < 0))
-		return NULL;
-	if (unlikely((device_speed != CVMX_USB_SPEED_HIGH) &&
-		(multi_count != 0)))
-		return NULL;
-	if (unlikely((hub_device_addr < 0) ||
-		(hub_device_addr > MAX_USB_ADDRESS)))
-		return NULL;
-	if (unlikely((hub_port < 0) || (hub_port > MAX_USB_HUB_PORT)))
-		return NULL;
 
 	pipe = kzalloc(sizeof(*pipe), GFP_ATOMIC);
 	if (!pipe)
