@@ -966,13 +966,19 @@ const char *get_link(struct nameidata *nd)
 	int error;
 	const char *res;
 
+	if (!(nd->flags & LOOKUP_RCU)) {
+		touch_atime(&last->link);
+		cond_resched();
+	} else if (atime_needs_update(&last->link, inode)) {
+		if (unlikely(unlazy_walk(nd, NULL, 0)))
+			return ERR_PTR(-ECHILD);
+		touch_atime(&last->link);
+	}
+
 	if (nd->flags & LOOKUP_RCU) {
 		if (unlikely(unlazy_walk(nd, NULL, 0)))
 			return ERR_PTR(-ECHILD);
 	}
-	cond_resched();
-
-	touch_atime(&last->link);
 
 	error = security_inode_follow_link(dentry, inode,
 					   nd->flags & LOOKUP_RCU);
