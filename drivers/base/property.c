@@ -15,6 +15,12 @@
 #include <linux/acpi.h>
 #include <linux/of.h>
 
+static inline struct fwnode_handle *dev_fwnode(struct device *dev)
+{
+	return IS_ENABLED(CONFIG_OF) && dev->of_node ?
+		&dev->of_node->fwnode : dev->fwnode;
+}
+
 /**
  * device_property_present - check if a property of a device is present
  * @dev: Device whose property is being checked
@@ -24,10 +30,7 @@
  */
 bool device_property_present(struct device *dev, const char *propname)
 {
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node)
-		return of_property_read_bool(dev->of_node, propname);
-
-	return !acpi_dev_prop_get(ACPI_COMPANION(dev), propname, NULL);
+	return fwnode_property_present(dev_fwnode(dev), propname);
 }
 EXPORT_SYMBOL_GPL(device_property_present);
 
@@ -46,17 +49,6 @@ bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
 	return false;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_present);
-
-#define OF_DEV_PROP_READ_ARRAY(node, propname, type, val, nval) \
-	(val) ? of_property_read_##type##_array((node), (propname), (val), (nval)) \
-	      : of_property_count_elems_of_size((node), (propname), sizeof(type))
-
-#define DEV_PROP_READ_ARRAY(_dev_, _propname_, _type_, _proptype_, _val_, _nval_) \
-	IS_ENABLED(CONFIG_OF) && _dev_->of_node ? \
-		(OF_DEV_PROP_READ_ARRAY(_dev_->of_node, _propname_, _type_, \
-					_val_, _nval_)) : \
-		acpi_dev_prop_read(ACPI_COMPANION(_dev_), _propname_, \
-				   _proptype_, _val_, _nval_)
 
 /**
  * device_property_read_u8_array - return a u8 array property of a device
@@ -78,7 +70,7 @@ EXPORT_SYMBOL_GPL(fwnode_property_present);
 int device_property_read_u8_array(struct device *dev, const char *propname,
 				  u8 *val, size_t nval)
 {
-	return DEV_PROP_READ_ARRAY(dev, propname, u8, DEV_PROP_U8, val, nval);
+	return fwnode_property_read_u8_array(dev_fwnode(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_u8_array);
 
@@ -102,7 +94,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u8_array);
 int device_property_read_u16_array(struct device *dev, const char *propname,
 				   u16 *val, size_t nval)
 {
-	return DEV_PROP_READ_ARRAY(dev, propname, u16, DEV_PROP_U16, val, nval);
+	return fwnode_property_read_u16_array(dev_fwnode(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_u16_array);
 
@@ -126,7 +118,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u16_array);
 int device_property_read_u32_array(struct device *dev, const char *propname,
 				   u32 *val, size_t nval)
 {
-	return DEV_PROP_READ_ARRAY(dev, propname, u32, DEV_PROP_U32, val, nval);
+	return fwnode_property_read_u32_array(dev_fwnode(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_u32_array);
 
@@ -150,7 +142,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u32_array);
 int device_property_read_u64_array(struct device *dev, const char *propname,
 				   u64 *val, size_t nval)
 {
-	return DEV_PROP_READ_ARRAY(dev, propname, u64, DEV_PROP_U64, val, nval);
+	return fwnode_property_read_u64_array(dev_fwnode(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_u64_array);
 
@@ -174,11 +166,7 @@ EXPORT_SYMBOL_GPL(device_property_read_u64_array);
 int device_property_read_string_array(struct device *dev, const char *propname,
 				      const char **val, size_t nval)
 {
-	return IS_ENABLED(CONFIG_OF) && dev->of_node ?
-		(val ? of_property_read_string_array(dev->of_node, propname, val, nval)
-		     : of_property_count_strings(dev->of_node, propname)) :
-		acpi_dev_prop_read(ACPI_COMPANION(dev), propname,
-				   DEV_PROP_STRING, val, nval);
+	return fwnode_property_read_string_array(dev_fwnode(dev), propname, val, nval);
 }
 EXPORT_SYMBOL_GPL(device_property_read_string_array);
 
@@ -199,12 +187,13 @@ EXPORT_SYMBOL_GPL(device_property_read_string_array);
 int device_property_read_string(struct device *dev, const char *propname,
 				const char **val)
 {
-	return IS_ENABLED(CONFIG_OF) && dev->of_node ?
-		of_property_read_string(dev->of_node, propname, val) :
-		acpi_dev_prop_read(ACPI_COMPANION(dev), propname,
-				   DEV_PROP_STRING, val, 1);
+	return fwnode_property_read_string(dev_fwnode(dev), propname, val);
 }
 EXPORT_SYMBOL_GPL(device_property_read_string);
+
+#define OF_DEV_PROP_READ_ARRAY(node, propname, type, val, nval) \
+	(val) ? of_property_read_##type##_array((node), (propname), (val), (nval)) \
+	      : of_property_count_elems_of_size((node), (propname), sizeof(type))
 
 #define FWNODE_PROP_READ_ARRAY(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_) \
 ({ \
