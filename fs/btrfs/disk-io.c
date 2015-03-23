@@ -3921,7 +3921,7 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	}
 	if (btrfs_super_sys_array_size(sb) < sizeof(struct btrfs_disk_key)
 			+ sizeof(struct btrfs_chunk)) {
-		printk(KERN_ERR "BTRFS: system chunk array too small %u < %lu\n",
+		printk(KERN_ERR "BTRFS: system chunk array too small %u < %zu\n",
 				btrfs_super_sys_array_size(sb),
 				sizeof(struct btrfs_disk_key)
 				+ sizeof(struct btrfs_chunk));

@@ -39,7 +39,7 @@ static inline int rt_restore_ucontext(struct pt_regs *regs,
 					struct ucontext *uc, int *pr2)
 {
 	int temp;
-	greg_t *gregs = uc->uc_mcontext.gregs;
+	unsigned long *gregs = uc->uc_mcontext.gregs;
 	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
@@ -127,7 +127,7 @@ badframe:
 static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
 {
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
-	greg_t *gregs = uc->uc_mcontext.gregs;
+	unsigned long *gregs = uc->uc_mcontext.gregs;
 	int err = 0;
 
 	err |= __put_user(MCONTEXT_VERSION, &uc->uc_mcontext.version);

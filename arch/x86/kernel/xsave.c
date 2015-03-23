@@ -379,7 +379,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 * thread's fpu state, reconstruct fxstate from the fsave
 		 * header. Sanitize the copied state etc.
 		 */
-		struct xsave_struct *xsave = &tsk->thread.fpu.state->xsave;
+		struct fpu *fpu = &tsk->thread.fpu;
 		struct user_i387_ia32_struct env;
 		int err = 0;
 
@@ -393,14 +393,15 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		drop_fpu(tsk);
 
-		if (__copy_from_user(xsave, buf_fx, state_size) ||
+		if (__copy_from_user(&fpu->state->xsave, buf_fx, state_size) ||
 		    __copy_from_user(&env, buf, sizeof(env))) {
+			fpu_finit(fpu);
 			err = -1;
 		} else {
 			sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);
-			set_used_math();
 		}
 
+		set_used_math();
 		if (use_eager_fpu()) {
 			preempt_disable();
 			math_state_restore();

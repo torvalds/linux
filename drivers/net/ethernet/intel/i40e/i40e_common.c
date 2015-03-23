@@ -868,8 +868,9 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	 * The grst delay value is in 100ms units, and we'll wait a
 	 * couple counts longer to be sure we don't just miss the end.
 	 */
-	grst_del = rd32(hw, I40E_GLGEN_RSTCTL) & I40E_GLGEN_RSTCTL_GRSTDEL_MASK
-			>> I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
+	grst_del = (rd32(hw, I40E_GLGEN_RSTCTL) &
+		    I40E_GLGEN_RSTCTL_GRSTDEL_MASK) >>
+		    I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
 	for (cnt = 0; cnt < grst_del + 2; cnt++) {
 		reg = rd32(hw, I40E_GLGEN_RSTAT);
 		if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
@@ -2846,7 +2847,7 @@ i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
-	if (!status)
+	if (!status && filter_index)
 		*filter_index = resp->index;
 
 	return status;

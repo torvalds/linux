@@ -54,10 +54,11 @@ struct rhash_head {
  * @buckets: size * hash buckets
  */
 struct bucket_table {
-	size_t				size;
-	unsigned int			locks_mask;
-	spinlock_t			*locks;
-	struct rhash_head __rcu		*buckets[];
+	size_t			size;
+	unsigned int		locks_mask;
+	spinlock_t		*locks;
+
+	struct rhash_head __rcu	*buckets[] ____cacheline_aligned_in_smp;
 };
 
 typedef u32 (*rht_hashfn_t)(const void *data, u32 len, u32 seed);
@@ -78,12 +79,6 @@ struct rhashtable;
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Function to hash key
  * @obj_hashfn: Function to hash object
- * @grow_decision: If defined, may return true if table should expand
- * @shrink_decision: If defined, may return true if table should shrink
- *
- * Note: when implementing the grow and shrink decision function, min/max
- * shift must be enforced, otherwise, resizing watermarks they set may be
- * useless.
  */
 struct rhashtable_params {
 	size_t			nelem_hint;
@@ -97,10 +92,6 @@ struct rhashtable_params {
 	size_t			locks_mul;
 	rht_hashfn_t		hashfn;
 	rht_obj_hashfn_t	obj_hashfn;
-	bool			(*grow_decision)(const struct rhashtable *ht,
-						 size_t new_size);
-	bool			(*shrink_decision)(const struct rhashtable *ht,
-						   size_t new_size);
 };
 
 /**
@@ -191,9 +182,6 @@ int rhashtable_init(struct rhashtable *ht, struct rhashtable_params *params);
 
 void rhashtable_insert(struct rhashtable *ht, struct rhash_head *node);
 bool rhashtable_remove(struct rhashtable *ht, struct rhash_head *node);
-
-bool rht_grow_above_75(const struct rhashtable *ht, size_t new_size);
-bool rht_shrink_below_30(const struct rhashtable *ht, size_t new_size);
 
 int rhashtable_expand(struct rhashtable *ht);
 int rhashtable_shrink(struct rhashtable *ht);

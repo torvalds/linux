@@ -69,8 +69,7 @@ config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCI
 	select CARDBUS if !EXPERT
-	select PCCARD_NONSTATIC if PCMCIA != n && ISA
-	select PCCARD_PCI if PCMCIA !=n && !ISA
+	select PCCARD_NONSTATIC if PCMCIA != n
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually
 	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
@@ -110,8 +109,7 @@ config YENTA_TOSHIBA
 config PD6729
 	tristate "Cirrus PD6729 compatible bridge support"
 	depends on PCMCIA && PCI
-	select PCCARD_NONSTATIC if PCMCIA != n && ISA
-	select PCCARD_PCI if PCMCIA !=n && !ISA
+	select PCCARD_NONSTATIC
 	help
 	  This provides support for the Cirrus PD6729 PCI-to-PCMCIA bridge
 	  device, found in some older laptops and PCMCIA card readers.
@@ -119,8 +117,7 @@ config PD6729
 config I82092
 	tristate "i82092 compatible bridge support"
 	depends on PCMCIA && PCI
-	select PCCARD_NONSTATIC if PCMCIA != n && ISA
-	select PCCARD_PCI if PCMCIA !=n && !ISA
+	select PCCARD_NONSTATIC
 	help
 	  This provides support for the Intel I82092AA PCI-to-PCMCIA bridge device,
 	  found in some older laptops and more commonly in evaluation boards for the
@@ -290,9 +287,6 @@ config ELECTRA_CF
 	help
 	  Say Y here to support the CompactFlash controller on the
 	  PA Semi Electra eval board.
-
-config PCCARD_PCI
-	bool
 
 config PCCARD_NONSTATIC
 	bool

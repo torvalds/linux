@@ -912,8 +912,8 @@
 
 #define DCCG_AUDIO_DTO0_PHASE                           0x05b0
 #define DCCG_AUDIO_DTO0_MODULE                          0x05b4
-#define DCCG_AUDIO_DTO1_PHASE                           0x05b8
-#define DCCG_AUDIO_DTO1_MODULE                          0x05bc
+#define DCCG_AUDIO_DTO1_PHASE                           0x05c0
+#define DCCG_AUDIO_DTO1_MODULE                          0x05c4
 
 #define AFMT_AUDIO_SRC_CONTROL                          0x713c
 #define		AFMT_AUDIO_SRC_SELECT(x)		(((x) & 7) << 0)

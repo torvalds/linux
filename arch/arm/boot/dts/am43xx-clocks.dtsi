@@ -107,7 +107,7 @@
 	ehrpwm0_tbclk: ehrpwm0_tbclk {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <0>;
 		reg = <0x0664>;
 	};
@@ -115,7 +115,7 @@
 	ehrpwm1_tbclk: ehrpwm1_tbclk {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <1>;
 		reg = <0x0664>;
 	};
@@ -123,7 +123,7 @@
 	ehrpwm2_tbclk: ehrpwm2_tbclk {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <2>;
 		reg = <0x0664>;
 	};
@@ -131,7 +131,7 @@
 	ehrpwm3_tbclk: ehrpwm3_tbclk {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <4>;
 		reg = <0x0664>;
 	};
@@ -139,7 +139,7 @@
 	ehrpwm4_tbclk: ehrpwm4_tbclk {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <5>;
 		reg = <0x0664>;
 	};
@@ -147,7 +147,7 @@
 	ehrpwm5_tbclk: ehrpwm5_tbclk {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
-		clocks = <&dpll_per_m2_ck>;
+		clocks = <&l4ls_gclk>;
 		ti,bit-shift = <6>;
 		reg = <0x0664>;
 	};

@@ -1377,6 +1377,36 @@ static int nfs_should_remove_suid(const struct inode *inode)
 	return 0;
 }
 
+static void nfs_writeback_check_extend(struct nfs_pgio_header *hdr,
+		struct nfs_fattr *fattr)
+{
+	struct nfs_pgio_args *argp = &hdr->args;
+	struct nfs_pgio_res *resp = &hdr->res;
+
+	if (!(fattr->valid & NFS_ATTR_FATTR_SIZE))
+		return;
+	if (argp->offset + resp->count != fattr->size)
+		return;
+	if (nfs_size_to_loff_t(fattr->size) < i_size_read(hdr->inode))
+		return;
+	/* Set attribute barrier */
+	nfs_fattr_set_barrier(fattr);
+}
+
+void nfs_writeback_update_inode(struct nfs_pgio_header *hdr)
+{
+	struct nfs_fattr *fattr = hdr->res.fattr;
+	struct inode *inode = hdr->inode;
+
+	if (fattr == NULL)
+		return;
+	spin_lock(&inode->i_lock);
+	nfs_writeback_check_extend(hdr, fattr);
+	nfs_post_op_update_inode_force_wcc_locked(inode, fattr);
+	spin_unlock(&inode->i_lock);
+}
+EXPORT_SYMBOL_GPL(nfs_writeback_update_inode);
+
 /*
  * This function is called when the WRITE call is complete.
  */

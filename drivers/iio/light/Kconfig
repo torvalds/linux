@@ -73,6 +73,7 @@ config CM36651
 config GP2AP020A00F
 	tristate "Sharp GP2AP020A00F Proximity/ALS sensor"
 	depends on I2C
+	select REGMAP_I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select IRQ_WORK
@@ -126,6 +127,7 @@ config HID_SENSOR_PROX
 config JSA1212
 	tristate "JSA1212 ALS and proximity sensor driver"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	 Say Y here if you want to build a IIO driver for JSA1212
 	 proximity & ALS sensor device.

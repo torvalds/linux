@@ -92,6 +92,16 @@ static void __init of_selftest_find_node_by_name(void)
 		 "option path test failed\n");
 	of_node_put(np);
 
+	np = of_find_node_opts_by_path("/testcase-data:test/option", &options);
+	selftest(np && !strcmp("test/option", options),
+		 "option path test, subcase #1 failed\n");
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("/testcase-data/testcase-device1:test/option", &options);
+	selftest(np && !strcmp("test/option", options),
+		 "option path test, subcase #2 failed\n");
+	of_node_put(np);
+
 	np = of_find_node_opts_by_path("/testcase-data:testoption", NULL);
 	selftest(np, "NULL option path test failed\n");
 	of_node_put(np);
@@ -100,6 +110,12 @@ static void __init of_selftest_find_node_by_name(void)
 				       &options);
 	selftest(np && !strcmp("testaliasoption", options),
 		 "option alias path test failed\n");
+	of_node_put(np);
+
+	np = of_find_node_opts_by_path("testcase-alias:test/alias/option",
+				       &options);
+	selftest(np && !strcmp("test/alias/option", options),
+		 "option alias path test, subcase #1 failed\n");
 	of_node_put(np);
 
 	np = of_find_node_opts_by_path("testcase-alias:testaliasoption", NULL);
@@ -378,9 +394,9 @@ static void __init of_selftest_property_string(void)
 	rc = of_property_match_string(np, "phandle-list-names", "first");
 	selftest(rc == 0, "first expected:0 got:%i\n", rc);
 	rc = of_property_match_string(np, "phandle-list-names", "second");
-	selftest(rc == 1, "second expected:0 got:%i\n", rc);
+	selftest(rc == 1, "second expected:1 got:%i\n", rc);
 	rc = of_property_match_string(np, "phandle-list-names", "third");
-	selftest(rc == 2, "third expected:0 got:%i\n", rc);
+	selftest(rc == 2, "third expected:2 got:%i\n", rc);
 	rc = of_property_match_string(np, "phandle-list-names", "fourth");
 	selftest(rc == -ENODATA, "unmatched string; rc=%i\n", rc);
 	rc = of_property_match_string(np, "missing-property", "blah");
@@ -478,7 +494,6 @@ static void __init of_selftest_changeset(void)
 	struct device_node *n1, *n2, *n21, *nremove, *parent, *np;
 	struct of_changeset chgset;
 
-	of_changeset_init(&chgset);
 	n1 = __of_node_dup(NULL, "/testcase-data/changeset/n1");
 	selftest(n1, "testcase setup failure\n");
 	n2 = __of_node_dup(NULL, "/testcase-data/changeset/n2");
@@ -979,7 +994,7 @@ static int of_path_platform_device_exists(const char *path)
 	return pdev != NULL;
 }
 
-#if IS_ENABLED(CONFIG_I2C)
+#if IS_BUILTIN(CONFIG_I2C)
 
 /* get the i2c client device instantiated at the path */
 static struct i2c_client *of_path_to_i2c_client(const char *path)
@@ -1445,7 +1460,7 @@ static void of_selftest_overlay_11(void)
 		return;
 }
 
-#if IS_ENABLED(CONFIG_I2C) && IS_ENABLED(CONFIG_OF_OVERLAY)
+#if IS_BUILTIN(CONFIG_I2C) && IS_ENABLED(CONFIG_OF_OVERLAY)
 
 struct selftest_i2c_bus_data {
 	struct platform_device	*pdev;
@@ -1584,7 +1599,7 @@ static struct i2c_driver selftest_i2c_dev_driver = {
 	.id_table = selftest_i2c_dev_id,
 };
 
-#if IS_ENABLED(CONFIG_I2C_MUX)
+#if IS_BUILTIN(CONFIG_I2C_MUX)
 
 struct selftest_i2c_mux_data {
 	int nchans;
@@ -1695,7 +1710,7 @@ static int of_selftest_overlay_i2c_init(void)
 			"could not register selftest i2c bus driver\n"))
 		return ret;
 
-#if IS_ENABLED(CONFIG_I2C_MUX)
+#if IS_BUILTIN(CONFIG_I2C_MUX)
 	ret = i2c_add_driver(&selftest_i2c_mux_driver);
 	if (selftest(ret == 0,
 			"could not register selftest i2c mux driver\n"))
@@ -1707,7 +1722,7 @@ static int of_selftest_overlay_i2c_init(void)
 
 static void of_selftest_overlay_i2c_cleanup(void)
 {
-#if IS_ENABLED(CONFIG_I2C_MUX)
+#if IS_BUILTIN(CONFIG_I2C_MUX)
 	i2c_del_driver(&selftest_i2c_mux_driver);
 #endif
 	platform_driver_unregister(&selftest_i2c_bus_driver);
@@ -1814,7 +1829,7 @@ static void __init of_selftest_overlay(void)
 	of_selftest_overlay_10();
 	of_selftest_overlay_11();
 
-#if IS_ENABLED(CONFIG_I2C)
+#if IS_BUILTIN(CONFIG_I2C)
 	if (selftest(of_selftest_overlay_i2c_init() == 0, "i2c init failed\n"))
 		goto out;
 

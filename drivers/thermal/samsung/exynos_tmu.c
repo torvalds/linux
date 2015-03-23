@@ -682,6 +682,7 @@ static void exynos7_tmu_control(struct platform_device *pdev, bool on)
 
 	if (on) {
 		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con |= (1 << EXYNOS7_PD_DET_EN_SHIFT);
 		interrupt_en =
 			(of_thermal_is_trip_valid(tz, 7)
 			<< EXYNOS7_TMU_INTEN_RISE7_SHIFT) |
@@ -704,9 +705,9 @@ static void exynos7_tmu_control(struct platform_device *pdev, bool on)
 			interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
 	} else {
 		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con &= ~(1 << EXYNOS7_PD_DET_EN_SHIFT);
 		interrupt_en = 0; /* Disable all interrupts */
 	}
-	con |= 1 << EXYNOS7_PD_DET_EN_SHIFT;
 
 	writel(interrupt_en, data->base + EXYNOS7_TMU_REG_INTEN);
 	writel(con, data->base + EXYNOS_TMU_REG_CONTROL);

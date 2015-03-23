@@ -13,7 +13,7 @@
 
 gpu_thermal: gpu_thermal {
 	polling-delay-passive = <250>; /* milliseconds */
-	polling-delay = <1000>; /* milliseconds */
+	polling-delay = <500>; /* milliseconds */
 
 			/* sensor       ID */
 	thermal-sensors = <&bandgap     1>;
