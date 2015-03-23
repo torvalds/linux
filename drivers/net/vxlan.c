@@ -2254,7 +2254,7 @@ static int vxlan_stop(struct net_device *dev)
 	struct vxlan_sock *vs = vxlan->vn_sock;
 	int ret = 0;
 
-	if (vs && vxlan_addr_multicast(&vxlan->default_dst.remote_ip) &&
+	if (vxlan_addr_multicast(&vxlan->default_dst.remote_ip) &&
 	    !vxlan_group_used(vn, vxlan)) {
 		ret = vxlan_igmp_leave(vxlan);
 		if (ret)
