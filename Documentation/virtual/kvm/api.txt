@@ -2716,6 +2716,110 @@ The fields in each entry are defined as follows:
    eax, ebx, ecx, edx: the values returned by the cpuid instruction for
          this function/index combination
 
+4.89 KVM_S390_MEM_OP
+
+Capability: KVM_CAP_S390_MEM_OP
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_mem_op (in)
+Returns: = 0 on success,
+         < 0 on generic error (e.g. -EFAULT or -ENOMEM),
+         > 0 if an exception occurred while walking the page tables
+
+Read or write data from/to the logical (virtual) memory of a VPCU.
+
+Parameters are specified via the following structure:
+
+struct kvm_s390_mem_op {
+	__u64 gaddr;		/* the guest address */
+	__u64 flags;		/* flags */
+	__u32 size;		/* amount of bytes */
+	__u32 op;		/* type of operation */
+	__u64 buf;		/* buffer in userspace */
+	__u8 ar;		/* the access register number */
+	__u8 reserved[31];	/* should be set to 0 */
+};
+
+The type of operation is specified in the "op" field. It is either
+KVM_S390_MEMOP_LOGICAL_READ for reading from logical memory space or
+KVM_S390_MEMOP_LOGICAL_WRITE for writing to logical memory space. The
+KVM_S390_MEMOP_F_CHECK_ONLY flag can be set in the "flags" field to check
+whether the corresponding memory access would create an access exception
+(without touching the data in the memory at the destination). In case an
+access exception occurred while walking the MMU tables of the guest, the
+ioctl returns a positive error number to indicate the type of exception.
+This exception is also raised directly at the corresponding VCPU if the
+flag KVM_S390_MEMOP_F_INJECT_EXCEPTION is set in the "flags" field.
+
+The start address of the memory region has to be specified in the "gaddr"
+field, and the length of the region in the "size" field. "buf" is the buffer
+supplied by the userspace application where the read data should be written
+to for KVM_S390_MEMOP_LOGICAL_READ, or where the data that should be written
+is stored for a KVM_S390_MEMOP_LOGICAL_WRITE. "buf" is unused and can be NULL
+when KVM_S390_MEMOP_F_CHECK_ONLY is specified. "ar" designates the access
+register number to be used.
+
+The "reserved" field is meant for future extensions. It is not used by
+KVM with the currently defined set of flags.
+
+4.90 KVM_S390_GET_SKEYS
+
+Capability: KVM_CAP_S390_SKEYS
+Architectures: s390
+Type: vm ioctl
+Parameters: struct kvm_s390_skeys
+Returns: 0 on success, KVM_S390_GET_KEYS_NONE if guest is not using storage
+         keys, negative value on error
+
+This ioctl is used to get guest storage key values on the s390
+architecture. The ioctl takes parameters via the kvm_s390_skeys struct.
+
+struct kvm_s390_skeys {
+	__u64 start_gfn;
+	__u64 count;
+	__u64 skeydata_addr;
+	__u32 flags;
+	__u32 reserved[9];
+};
+
+The start_gfn field is the number of the first guest frame whose storage keys
+you want to get.
+
+The count field is the number of consecutive frames (starting from start_gfn)
+whose storage keys to get. The count field must be at least 1 and the maximum
+allowed value is defined as KVM_S390_SKEYS_ALLOC_MAX. Values outside this range
+will cause the ioctl to return -EINVAL.
+
+The skeydata_addr field is the address to a buffer large enough to hold count
+bytes. This buffer will be filled with storage key data by the ioctl.
+
+4.91 KVM_S390_SET_SKEYS
+
+Capability: KVM_CAP_S390_SKEYS
+Architectures: s390
+Type: vm ioctl
+Parameters: struct kvm_s390_skeys
+Returns: 0 on success, negative value on error
+
+This ioctl is used to set guest storage key values on the s390
+architecture. The ioctl takes parameters via the kvm_s390_skeys struct.
+See section on KVM_S390_GET_SKEYS for struct definition.
+
+The start_gfn field is the number of the first guest frame whose storage keys
+you want to set.
+
+The count field is the number of consecutive frames (starting from start_gfn)
+whose storage keys to get. The count field must be at least 1 and the maximum
+allowed value is defined as KVM_S390_SKEYS_ALLOC_MAX. Values outside this range
+will cause the ioctl to return -EINVAL.
+
+The skeydata_addr field is the address to a buffer containing count bytes of
+storage keys. Each byte in the buffer will be set as the storage key for a
+single frame starting at start_gfn for count frames.
+
+Note: If any architecturally invalid key value is found in the given data then
+the ioctl will return -EINVAL.
+
 5. The kvm_run structure
 ------------------------
 
@@ -3258,3 +3362,31 @@ Returns: 0 on success, negative value on error
 Allows use of the vector registers introduced with z13 processor, and
 provides for the synchronization between host and user space.  Will
 return -EINVAL if the machine does not support vectors.
+
+7.4 KVM_CAP_S390_USER_STSI
+
+Architectures: s390
+Parameters: none
+
+This capability allows post-handlers for the STSI instruction. After
+initial handling in the kernel, KVM exits to user space with
+KVM_EXIT_S390_STSI to allow user space to insert further data.
+
+Before exiting to userspace, kvm handlers should fill in s390_stsi field of
+vcpu->run:
+struct {
+	__u64 addr;
+	__u8 ar;
+	__u8 reserved;
+	__u8 fc;
+	__u8 sel1;
+	__u16 sel2;
+} s390_stsi;
+
+@addr - guest address of STSI SYSIB
+@fc   - function code
+@sel1 - selector 1
+@sel2 - selector 2
+@ar   - access register number
+
+KVM handlers should exit to userspace with rc = -EREMOTE.

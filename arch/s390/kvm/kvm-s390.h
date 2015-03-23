@@ -70,16 +70,22 @@ static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
 	kvm_make_request(KVM_REQ_MMU_RELOAD, vcpu);
 }
 
-static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu)
+typedef u8 __bitwise ar_t;
+
+static inline u64 kvm_s390_get_base_disp_s(struct kvm_vcpu *vcpu, ar_t *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
+
+	if (ar)
+		*ar = base2;
 
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
 }
 
 static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
-					      u64 *address1, u64 *address2)
+					      u64 *address1, u64 *address2,
+					      ar_t *ar_b1, ar_t *ar_b2)
 {
 	u32 base1 = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
 	u32 disp1 = (vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16;
@@ -88,6 +94,11 @@ static inline void kvm_s390_get_base_disp_sse(struct kvm_vcpu *vcpu,
 
 	*address1 = (base1 ? vcpu->run->s.regs.gprs[base1] : 0) + disp1;
 	*address2 = (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
+
+	if (ar_b1)
+		*ar_b1 = base1;
+	if (ar_b2)
+		*ar_b2 = base2;
 }
 
 static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2)
@@ -98,7 +109,7 @@ static inline void kvm_s390_get_regs_rre(struct kvm_vcpu *vcpu, int *r1, int *r2
 		*r2 = (vcpu->arch.sie_block->ipb & 0x000f0000) >> 16;
 }
 
-static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)
+static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu, ar_t *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16) +
@@ -107,13 +118,19 @@ static inline u64 kvm_s390_get_base_disp_rsy(struct kvm_vcpu *vcpu)
 	if (disp2 & 0x80000)
 		disp2+=0xfff00000;
 
+	if (ar)
+		*ar = base2;
+
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + (long)(int)disp2;
 }
 
-static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu)
+static inline u64 kvm_s390_get_base_disp_rs(struct kvm_vcpu *vcpu, ar_t *ar)
 {
 	u32 base2 = vcpu->arch.sie_block->ipb >> 28;
 	u32 disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
+
+	if (ar)
+		*ar = base2;
 
 	return (base2 ? vcpu->run->s.regs.gprs[base2] : 0) + disp2;
 }
@@ -125,11 +142,22 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 	vcpu->arch.sie_block->gpsw.mask |= cc << 44;
 }
 
-/* test availability of facility in a kvm intance */
+/* test availability of facility in a kvm instance */
 static inline int test_kvm_facility(struct kvm *kvm, unsigned long nr)
 {
 	return __test_facility(nr, kvm->arch.model.fac->mask) &&
 		__test_facility(nr, kvm->arch.model.fac->list);
+}
+
+static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)
+{
+	unsigned char *ptr;
+
+	if (nr >= MAX_FACILITY_BIT)
+		return -EINVAL;
+	ptr = (unsigned char *) fac_list + (nr >> 3);
+	*ptr |= (0x80UL >> (nr & 7));
+	return 0;
 }
 
 /* are cpu states controlled by user space */

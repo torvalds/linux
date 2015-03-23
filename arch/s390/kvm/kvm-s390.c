@@ -25,6 +25,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
+#include <linux/vmalloc.h>
 #include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
 #include <asm/pgtable.h>
@@ -37,6 +38,8 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 #include "trace-s390.h"
+
+#define MEM_OP_MAX_SIZE 65536	/* Maximum transfer size for KVM_S390_MEM_OP */
 
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
@@ -104,7 +107,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 unsigned long kvm_s390_fac_list_mask[] = {
 	0xff82fffbf4fc2000UL,
 	0x005c000000000000UL,
-	0x4000000000000000UL,
 };
 
 unsigned long kvm_s390_fac_list_mask_size(void)
@@ -175,7 +177,12 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_VM_ATTRIBUTES:
 	case KVM_CAP_MP_STATE:
 	case KVM_CAP_S390_USER_SIGP:
+	case KVM_CAP_S390_USER_STSI:
+	case KVM_CAP_S390_SKEYS:
 		r = 1;
+		break;
+	case KVM_CAP_S390_MEM_OP:
+		r = MEM_OP_MAX_SIZE;
 		break;
 	case KVM_CAP_NR_VCPUS:
 	case KVM_CAP_MAX_VCPUS:
@@ -271,8 +278,16 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 		r = 0;
 		break;
 	case KVM_CAP_S390_VECTOR_REGISTERS:
-		kvm->arch.use_vectors = MACHINE_HAS_VX;
-		r = MACHINE_HAS_VX ? 0 : -EINVAL;
+		if (MACHINE_HAS_VX) {
+			set_kvm_facility(kvm->arch.model.fac->mask, 129);
+			set_kvm_facility(kvm->arch.model.fac->list, 129);
+			r = 0;
+		} else
+			r = -EINVAL;
+		break;
+	case KVM_CAP_S390_USER_STSI:
+		kvm->arch.user_stsi = 1;
+		r = 0;
 		break;
 	default:
 		r = -EINVAL;
@@ -718,6 +733,108 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 	return ret;
 }
 
+static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
+{
+	uint8_t *keys;
+	uint64_t hva;
+	unsigned long curkey;
+	int i, r = 0;
+
+	if (args->flags != 0)
+		return -EINVAL;
+
+	/* Is this guest using storage keys? */
+	if (!mm_use_skey(current->mm))
+		return KVM_S390_GET_SKEYS_NONE;
+
+	/* Enforce sane limit on memory allocation */
+	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
+		return -EINVAL;
+
+	keys = kmalloc_array(args->count, sizeof(uint8_t),
+			     GFP_KERNEL | __GFP_NOWARN);
+	if (!keys)
+		keys = vmalloc(sizeof(uint8_t) * args->count);
+	if (!keys)
+		return -ENOMEM;
+
+	for (i = 0; i < args->count; i++) {
+		hva = gfn_to_hva(kvm, args->start_gfn + i);
+		if (kvm_is_error_hva(hva)) {
+			r = -EFAULT;
+			goto out;
+		}
+
+		curkey = get_guest_storage_key(current->mm, hva);
+		if (IS_ERR_VALUE(curkey)) {
+			r = curkey;
+			goto out;
+		}
+		keys[i] = curkey;
+	}
+
+	r = copy_to_user((uint8_t __user *)args->skeydata_addr, keys,
+			 sizeof(uint8_t) * args->count);
+	if (r)
+		r = -EFAULT;
+out:
+	kvfree(keys);
+	return r;
+}
+
+static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
+{
+	uint8_t *keys;
+	uint64_t hva;
+	int i, r = 0;
+
+	if (args->flags != 0)
+		return -EINVAL;
+
+	/* Enforce sane limit on memory allocation */
+	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
+		return -EINVAL;
+
+	keys = kmalloc_array(args->count, sizeof(uint8_t),
+			     GFP_KERNEL | __GFP_NOWARN);
+	if (!keys)
+		keys = vmalloc(sizeof(uint8_t) * args->count);
+	if (!keys)
+		return -ENOMEM;
+
+	r = copy_from_user(keys, (uint8_t __user *)args->skeydata_addr,
+			   sizeof(uint8_t) * args->count);
+	if (r) {
+		r = -EFAULT;
+		goto out;
+	}
+
+	/* Enable storage key handling for the guest */
+	s390_enable_skey();
+
+	for (i = 0; i < args->count; i++) {
+		hva = gfn_to_hva(kvm, args->start_gfn + i);
+		if (kvm_is_error_hva(hva)) {
+			r = -EFAULT;
+			goto out;
+		}
+
+		/* Lowest order bit is reserved */
+		if (keys[i] & 0x01) {
+			r = -EINVAL;
+			goto out;
+		}
+
+		r = set_guest_storage_key(current->mm, hva,
+					  (unsigned long)keys[i], 0);
+		if (r)
+			goto out;
+	}
+out:
+	kvfree(keys);
+	return r;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg)
 {
@@ -775,6 +892,26 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (copy_from_user(&attr, (void __user *)arg, sizeof(attr)))
 			break;
 		r = kvm_s390_vm_has_attr(kvm, &attr);
+		break;
+	}
+	case KVM_S390_GET_SKEYS: {
+		struct kvm_s390_skeys args;
+
+		r = -EFAULT;
+		if (copy_from_user(&args, argp,
+				   sizeof(struct kvm_s390_skeys)))
+			break;
+		r = kvm_s390_get_skeys(kvm, &args);
+		break;
+	}
+	case KVM_S390_SET_SKEYS: {
+		struct kvm_s390_skeys args;
+
+		r = -EFAULT;
+		if (copy_from_user(&args, argp,
+				   sizeof(struct kvm_s390_skeys)))
+			break;
+		r = kvm_s390_set_skeys(kvm, &args);
 		break;
 	}
 	default:
@@ -897,7 +1034,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	kvm->arch.dbf = debug_register(debug_name, 8, 2, 8 * sizeof(long));
 	if (!kvm->arch.dbf)
-		goto out_nodbf;
+		goto out_err;
 
 	/*
 	 * The architectural maximum amount of facilities is 16 kbit. To store
@@ -909,7 +1046,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.model.fac =
 		(struct kvm_s390_fac *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!kvm->arch.model.fac)
-		goto out_nofac;
+		goto out_err;
 
 	/* Populate the facility mask initially. */
 	memcpy(kvm->arch.model.fac->mask, S390_lowcore.stfle_fac_list,
@@ -929,7 +1066,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	kvm->arch.model.ibc = sclp_get_ibc() & 0x0fff;
 
 	if (kvm_s390_crypto_init(kvm) < 0)
-		goto out_crypto;
+		goto out_err;
 
 	spin_lock_init(&kvm->arch.float_int.lock);
 	INIT_LIST_HEAD(&kvm->arch.float_int.list);
@@ -944,28 +1081,23 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	} else {
 		kvm->arch.gmap = gmap_alloc(current->mm, (1UL << 44) - 1);
 		if (!kvm->arch.gmap)
-			goto out_nogmap;
+			goto out_err;
 		kvm->arch.gmap->private = kvm;
 		kvm->arch.gmap->pfault_enabled = 0;
 	}
 
 	kvm->arch.css_support = 0;
 	kvm->arch.use_irqchip = 0;
-	kvm->arch.use_vectors = 0;
 	kvm->arch.epoch = 0;
 
 	spin_lock_init(&kvm->arch.start_stop_lock);
 
 	return 0;
-out_nogmap:
-	kfree(kvm->arch.crypto.crycb);
-out_crypto:
-	free_page((unsigned long)kvm->arch.model.fac);
-out_nofac:
-	debug_unregister(kvm->arch.dbf);
-out_nodbf:
-	free_page((unsigned long)(kvm->arch.sca));
 out_err:
+	kfree(kvm->arch.crypto.crycb);
+	free_page((unsigned long)kvm->arch.model.fac);
+	debug_unregister(kvm->arch.dbf);
+	free_page((unsigned long)(kvm->arch.sca));
 	return rc;
 }
 
@@ -1057,12 +1189,12 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	save_fp_ctl(&vcpu->arch.host_fpregs.fpc);
-	if (vcpu->kvm->arch.use_vectors)
+	if (test_kvm_facility(vcpu->kvm, 129))
 		save_vx_regs((__vector128 *)&vcpu->arch.host_vregs->vrs);
 	else
 		save_fp_regs(vcpu->arch.host_fpregs.fprs);
 	save_access_regs(vcpu->arch.host_acrs);
-	if (vcpu->kvm->arch.use_vectors) {
+	if (test_kvm_facility(vcpu->kvm, 129)) {
 		restore_fp_ctl(&vcpu->run->s.regs.fpc);
 		restore_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
 	} else {
@@ -1078,7 +1210,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	gmap_disable(vcpu->arch.gmap);
-	if (vcpu->kvm->arch.use_vectors) {
+	if (test_kvm_facility(vcpu->kvm, 129)) {
 		save_fp_ctl(&vcpu->run->s.regs.fpc);
 		save_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
 	} else {
@@ -1087,7 +1219,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	}
 	save_access_regs(vcpu->run->s.regs.acrs);
 	restore_fp_ctl(&vcpu->arch.host_fpregs.fpc);
-	if (vcpu->kvm->arch.use_vectors)
+	if (test_kvm_facility(vcpu->kvm, 129))
 		restore_vx_regs((__vector128 *)&vcpu->arch.host_vregs->vrs);
 	else
 		restore_fp_regs(vcpu->arch.host_fpregs.fprs);
@@ -1187,7 +1319,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->eca |= 1;
 	if (sclp_has_sigpif())
 		vcpu->arch.sie_block->eca |= 0x10000000U;
-	if (vcpu->kvm->arch.use_vectors) {
+	if (test_kvm_facility(vcpu->kvm, 129)) {
 		vcpu->arch.sie_block->eca |= 0x00020000;
 		vcpu->arch.sie_block->ecd |= 0x20000000;
 	}
@@ -1780,7 +1912,7 @@ static int vcpu_post_run_fault_in_sie(struct kvm_vcpu *vcpu)
 	 * to look up the current opcode to get the length of the instruction
 	 * to be able to forward the PSW.
 	 */
-	rc = read_guest(vcpu, psw->addr, &opcode, 1);
+	rc = read_guest(vcpu, psw->addr, 0, &opcode, 1);
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 	psw->addr = __rewind_psw(*psw, -insn_length(opcode));
@@ -2189,6 +2321,65 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	return r;
 }
 
+static long kvm_s390_guest_mem_op(struct kvm_vcpu *vcpu,
+				  struct kvm_s390_mem_op *mop)
+{
+	void __user *uaddr = (void __user *)mop->buf;
+	void *tmpbuf = NULL;
+	int r, srcu_idx;
+	const u64 supported_flags = KVM_S390_MEMOP_F_INJECT_EXCEPTION
+				    | KVM_S390_MEMOP_F_CHECK_ONLY;
+
+	if (mop->flags & ~supported_flags)
+		return -EINVAL;
+
+	if (mop->size > MEM_OP_MAX_SIZE)
+		return -E2BIG;
+
+	if (!(mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY)) {
+		tmpbuf = vmalloc(mop->size);
+		if (!tmpbuf)
+			return -ENOMEM;
+	}
+
+	srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+
+	switch (mop->op) {
+	case KVM_S390_MEMOP_LOGICAL_READ:
+		if (mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY) {
+			r = check_gva_range(vcpu, mop->gaddr, mop->ar, mop->size, false);
+			break;
+		}
+		r = read_guest(vcpu, mop->gaddr, mop->ar, tmpbuf, mop->size);
+		if (r == 0) {
+			if (copy_to_user(uaddr, tmpbuf, mop->size))
+				r = -EFAULT;
+		}
+		break;
+	case KVM_S390_MEMOP_LOGICAL_WRITE:
+		if (mop->flags & KVM_S390_MEMOP_F_CHECK_ONLY) {
+			r = check_gva_range(vcpu, mop->gaddr, mop->ar, mop->size, true);
+			break;
+		}
+		if (copy_from_user(tmpbuf, uaddr, mop->size)) {
+			r = -EFAULT;
+			break;
+		}
+		r = write_guest(vcpu, mop->gaddr, mop->ar, tmpbuf, mop->size);
+		break;
+	default:
+		r = -EINVAL;
+	}
+
+	srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
+
+	if (r > 0 && (mop->flags & KVM_S390_MEMOP_F_INJECT_EXCEPTION) != 0)
+		kvm_s390_inject_prog_irq(vcpu, &vcpu->arch.pgm);
+
+	vfree(tmpbuf);
+	return r;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -2286,6 +2477,15 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&cap, argp, sizeof(cap)))
 			break;
 		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
+		break;
+	}
+	case KVM_S390_MEM_OP: {
+		struct kvm_s390_mem_op mem_op;
+
+		if (copy_from_user(&mem_op, argp, sizeof(mem_op)) == 0)
+			r = kvm_s390_guest_mem_op(vcpu, &mem_op);
+		else
+			r = -EFAULT;
 		break;
 	}
 	default:
