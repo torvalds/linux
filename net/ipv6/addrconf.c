@@ -1712,6 +1712,7 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;
 	struct inet6_dev *idev = ifp->idev;
+	struct net *net = dev_net(ifp->idev->dev);
 
 	if (addrconf_dad_end(ifp)) {
 		in6_ifa_put(ifp);
@@ -1730,11 +1731,9 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 		struct inet6_ifaddr *ifp2;
 		u32 valid_lft, preferred_lft;
 		int pfxlen = ifp->prefix_len;
-		const unsigned int idgen_retries = 3;
-		const unsigned int idgen_delay = 1 * HZ;
 		int retries = ifp->stable_privacy_retry + 1;
 
-		if (retries > idgen_retries) {
+		if (retries > net->ipv6.sysctl.idgen_retries) {
 			net_info_ratelimited("%s: privacy stable address generation failed because of DAD conflicts!\n",
 					     ifp->idev->dev->name);
 			goto errdad;
@@ -1769,7 +1768,7 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 		ifp2->state = INET6_IFADDR_STATE_PREDAD;
 		spin_unlock_bh(&ifp2->lock);
 
-		addrconf_mod_dad_work(ifp2, idgen_delay);
+		addrconf_mod_dad_work(ifp2, net->ipv6.sysctl.idgen_delay);
 		in6_ifa_put(ifp2);
 lock_errdad:
 		spin_lock_bh(&ifp->lock);
@@ -2899,8 +2898,6 @@ static int ipv6_generate_stable_address(struct in6_addr *address,
 					u8 dad_count,
 					const struct inet6_dev *idev)
 {
-	static const int idgen_retries = 3;
-
 	static DEFINE_SPINLOCK(lock);
 	static __u32 digest[SHA_DIGEST_WORDS];
 	static __u32 workspace[SHA_WORKSPACE_WORDS];
@@ -2950,7 +2947,7 @@ retry:
 
 	if (ipv6_reserved_interfaceid(temp)) {
 		dad_count++;
-		if (dad_count > idgen_retries)
+		if (dad_count > dev_net(idev->dev)->ipv6.sysctl.idgen_retries)
 			return -1;
 		goto retry;
 	}
