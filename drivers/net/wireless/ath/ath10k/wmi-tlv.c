@@ -1307,7 +1307,7 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 	cfg->num_tdls_conn_table_entries = __cpu_to_le32(0x20);
 	cfg->beacon_tx_offload_max_vdev = __cpu_to_le32(2);
 	cfg->num_multicast_filter_entries = __cpu_to_le32(5);
-	cfg->num_wow_filters = __cpu_to_le32(0x16);
+	cfg->num_wow_filters = __cpu_to_le32(ar->wow.max_num_patterns);
 	cfg->num_keep_alive_pattern = __cpu_to_le32(6);
 	cfg->keep_alive_pattern_size = __cpu_to_le32(0);
 	cfg->max_tdls_concurrent_sleep_sta = __cpu_to_le32(1);

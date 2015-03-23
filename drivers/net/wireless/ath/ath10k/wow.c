@@ -26,6 +26,9 @@
 static const struct wiphy_wowlan_support ath10k_wowlan_support = {
 	.flags = WIPHY_WOWLAN_DISCONNECT |
 		 WIPHY_WOWLAN_MAGIC_PKT,
+	.pattern_min_len = WOW_MIN_PATTERN_SIZE,
+	.pattern_max_len = WOW_MAX_PATTERN_SIZE,
+	.max_pkt_offset = WOW_MAX_PKT_OFFSET,
 };
 
 static int ath10k_wow_vif_cleanup(struct ath10k_vif *arvif)
@@ -38,6 +41,15 @@ static int ath10k_wow_vif_cleanup(struct ath10k_vif *arvif)
 		if (ret) {
 			ath10k_warn(ar, "failed to issue wow wakeup for event %s on vdev %i: %d\n",
 				    wow_wakeup_event(i), arvif->vdev_id, ret);
+			return ret;
+		}
+	}
+
+	for (i = 0; i < ar->wow.max_num_patterns; i++) {
+		ret = ath10k_wmi_wow_del_pattern(ar, arvif->vdev_id, i);
+		if (ret) {
+			ath10k_warn(ar, "failed to delete wow pattern %d for vdev %i: %d\n",
+				    i, arvif->vdev_id, ret);
 			return ret;
 		}
 	}
@@ -70,6 +82,8 @@ static int ath10k_vif_wow_set_wakeups(struct ath10k_vif *arvif,
 	int ret, i;
 	unsigned long wow_mask = 0;
 	struct ath10k *ar = arvif->ar;
+	const struct cfg80211_pkt_pattern *patterns = wowlan->patterns;
+	int pattern_id = 0;
 
 	/* Setup requested WOW features */
 	switch (arvif->vdev_type) {
@@ -98,6 +112,35 @@ static int ath10k_vif_wow_set_wakeups(struct ath10k_vif *arvif,
 		break;
 	default:
 		break;
+	}
+
+	for (i = 0; i < wowlan->n_patterns; i++) {
+		u8 bitmask[WOW_MAX_PATTERN_SIZE] = {};
+		int j;
+
+		if (patterns[i].pattern_len > WOW_MAX_PATTERN_SIZE)
+			continue;
+
+		/* convert bytemask to bitmask */
+		for (j = 0; j < patterns[i].pattern_len; j++)
+			if (patterns[i].mask[j / 8] & BIT(j % 8))
+				bitmask[j] = 0xff;
+
+		ret = ath10k_wmi_wow_add_pattern(ar, arvif->vdev_id,
+						 pattern_id,
+						 patterns[i].pattern,
+						 bitmask,
+						 patterns[i].pattern_len,
+						 patterns[i].pkt_offset);
+		if (ret) {
+			ath10k_warn(ar, "failed to add pattern %i to vdev %i: %d\n",
+				    pattern_id,
+				    arvif->vdev_id, ret);
+			return ret;
+		}
+
+		pattern_id++;
+		__set_bit(WOW_PATTERN_MATCH_EVENT, &wow_mask);
 	}
 
 	for (i = 0; i < WOW_EVENT_MAX; i++) {
@@ -270,7 +313,9 @@ int ath10k_wow_init(struct ath10k *ar)
 	if (WARN_ON(!test_bit(WMI_SERVICE_WOW, ar->wmi.svc_map)))
 		return -EINVAL;
 
-	ar->hw->wiphy->wowlan = &ath10k_wowlan_support;
+	ar->wow.wowlan_support = ath10k_wowlan_support;
+	ar->wow.wowlan_support.n_patterns = ar->wow.max_num_patterns;
+	ar->hw->wiphy->wowlan = &ar->wow.wowlan_support;
 
 	return 0;
 }

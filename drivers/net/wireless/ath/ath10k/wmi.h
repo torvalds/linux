@@ -5028,6 +5028,10 @@ struct wmi_wow_ev_arg {
 	u32 data_len;
 };
 
+#define WOW_MIN_PATTERN_SIZE	1
+#define WOW_MAX_PATTERN_SIZE	148
+#define WOW_MAX_PKT_OFFSET	128
+
 struct ath10k;
 struct ath10k_vif;
 struct ath10k_fw_stats_pdev;

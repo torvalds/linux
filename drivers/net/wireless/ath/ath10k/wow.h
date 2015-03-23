@@ -17,7 +17,9 @@
 #define _WOW_H_
 
 struct ath10k_wow {
+	u32 max_num_patterns;
 	struct completion wakeup_completed;
+	struct wiphy_wowlan_support wowlan_support;
 };
 
 #ifdef CONFIG_PM

@@ -263,6 +263,7 @@ struct ath10k_pktlog_hdr {
 						 2)
 #define TARGET_TLV_NUM_TIDS			((TARGET_TLV_NUM_PEERS) * 2)
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
+#define TARGET_TLV_NUM_WOW_PATTERNS		22
 
 /* Number of Copy Engines supported */
 #define CE_COUNT 8
