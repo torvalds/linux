@@ -30,10 +30,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/acpi.h>
 
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/delay.h>
-
 #include "spi-pxa2xx.h"
 
 MODULE_AUTHOR("Stephen Street");
