@@ -806,13 +806,12 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 		return 0;
 
 	/*
-	 * During HW restart, only replay the last set MCC to FW. Otherwise,
+	 * try to replay the last set MCC to FW. If it doesn't exist,
 	 * queue an update to cfg80211 to retrieve the default alpha2 from FW.
 	 */
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
-		/* This should only be called during vif up and hold RTNL */
-		return iwl_mvm_init_fw_regd(mvm);
-	}
+	retval = iwl_mvm_init_fw_regd(mvm);
+	if (retval != -ENOENT)
+		return retval;
 
 	/*
 	 * Driver regulatory hint for initial update, this also informs the

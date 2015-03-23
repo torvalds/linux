@@ -379,11 +379,13 @@ int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
 {
 	enum iwl_mcc_source used_src;
 	struct ieee80211_regdomain *regd;
+	int ret;
+	bool changed;
 	const struct ieee80211_regdomain *r =
 			rtnl_dereference(mvm->hw->wiphy->regd);
 
 	if (!r)
-		return 0;
+		return -ENOENT;
 
 	/* save the last source in case we overwrite it below */
 	used_src = mvm->mcc_src;
@@ -395,14 +397,19 @@ int iwl_mvm_init_fw_regd(struct iwl_mvm *mvm)
 	}
 
 	/* Now set our last stored MCC and source */
-	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, r->alpha2, used_src, NULL);
+	regd = iwl_mvm_get_regdomain(mvm->hw->wiphy, r->alpha2, used_src,
+				     &changed);
 	if (IS_ERR_OR_NULL(regd))
 		return -EIO;
 
-	regulatory_set_wiphy_regd(mvm->hw->wiphy, regd);
-	kfree(regd);
+	/* update cfg80211 if the regdomain was changed */
+	if (changed)
+		ret = regulatory_set_wiphy_regd_sync_rtnl(mvm->hw->wiphy, regd);
+	else
+		ret = 0;
 
-	return 0;
+	kfree(regd);
+	return ret;
 }
 
 int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
