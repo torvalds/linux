@@ -331,17 +331,17 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		clk_set_rate(clk->isp,isp_clk);
         clk_set_rate(clk->isp_jpe, isp_clk);
 
+		clk_prepare_enable(clk->pd_isp);
         clk_prepare_enable(clk->aclk_isp);
         clk_prepare_enable(clk->hclk_isp);
         clk_prepare_enable(clk->isp);
-        clk_prepare_enable(clk->isp_jpe);        
+        clk_prepare_enable(clk->isp_jpe);
         clk_prepare_enable(clk->pclkin_isp); 
 		if(CHIP_TYPE == 3368){
+
 			clk_prepare_enable(clk->cif_clk_out);
 			clk_prepare_enable(clk->pclk_dphyrx);
-			clk_prepare_enable(clk->aclk_rga);
 		}else{
-			clk_prepare_enable(clk->pd_isp);
 			clk_prepare_enable(clk->clk_mipi_24m);		
 		}
         clk->in_on = true;
@@ -361,11 +361,12 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		if(CHIP_TYPE == 3368){
 	        clk_disable_unprepare(clk->cif_clk_out);
 			clk_disable_unprepare(clk->pclk_dphyrx);
-			clk_disable_unprepare(clk->aclk_rga);
+
 		}else{
 	        clk_disable_unprepare(clk->clk_mipi_24m); 
-			clk_disable_unprepare(clk->pd_isp);
 		}
+		clk_disable_unprepare(clk->pd_isp);
+
 		rockchip_clear_system_status(SYS_STATUS_ISP);
         clk->in_on = false;
         camsys_trace(1, "%s clock in turn off",dev_name(camsys_dev->miscdev.this_device));
@@ -557,7 +558,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
         goto clk_failed;
     }
     if(CHIP_TYPE == 3368){
-	    mrv_clk->pd_isp = NULL;
+	    mrv_clk->pd_isp = devm_clk_get(&pdev->dev, "pd_isp");
 	    mrv_clk->aclk_isp = devm_clk_get(&pdev->dev, "aclk_isp");
 	    mrv_clk->hclk_isp = devm_clk_get(&pdev->dev, "hclk_isp");
 	    mrv_clk->isp = devm_clk_get(&pdev->dev, "clk_isp");
@@ -566,11 +567,11 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	    mrv_clk->cif_clk_out = devm_clk_get(&pdev->dev, "clk_cif_out");
 	    mrv_clk->cif_clk_pll = devm_clk_get(&pdev->dev, "clk_cif_pll");
 	    mrv_clk->pclk_dphyrx = devm_clk_get(&pdev->dev, "pclk_dphyrx");    
-	    mrv_clk->aclk_rga = devm_clk_get(&pdev->dev, "aclk_rga");
 	    
 		if (IS_ERR_OR_NULL(mrv_clk->aclk_isp) || IS_ERR_OR_NULL(mrv_clk->hclk_isp) ||
 	        IS_ERR_OR_NULL(mrv_clk->isp) || IS_ERR_OR_NULL(mrv_clk->isp_jpe) || IS_ERR_OR_NULL(mrv_clk->pclkin_isp) || 
-	        IS_ERR_OR_NULL(mrv_clk->cif_clk_out) || IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx)||IS_ERR_OR_NULL(mrv_clk->aclk_rga)) {
+	        IS_ERR_OR_NULL(mrv_clk->cif_clk_out) || IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx)||
+	        IS_ERR_OR_NULL(mrv_clk->pd_isp)) {
 	        camsys_err("Get %s clock resouce failed!\n",miscdev_name);
 	        err = -EINVAL;
 	        goto clk_failed;
@@ -658,9 +659,6 @@ clk_failed:
 		if(CHIP_TYPE == 3368){
 	        if (!IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx)) {
 	            clk_put(mrv_clk->pclk_dphyrx);
-	        }
-	        if (!IS_ERR_OR_NULL(mrv_clk->aclk_rga)) {
-	            clk_put(mrv_clk->aclk_rga);
 	        }
 		}
 

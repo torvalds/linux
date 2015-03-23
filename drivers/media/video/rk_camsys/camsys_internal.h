@@ -116,8 +116,11 @@
          1) support rk3368. 
 *v0.0x1d.0:
          1) enable aclk_rga for rk3368, otherwise, isp reset will cause system halted.
+*v0.0x1e.0:
+         1) dts remove aclk_rga, change aclk_isp from <clk_gates17 0> to <&clk_gates16 0>.
+         2) add rl3369 pd_isp enable/disable.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x1d,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x1e,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
