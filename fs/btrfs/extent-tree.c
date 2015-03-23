@@ -6955,12 +6955,11 @@ static int __btrfs_free_reserved_extent(struct btrfs_root *root,
 		return -ENOSPC;
 	}
 
-	if (btrfs_test_opt(root, DISCARD))
-		ret = btrfs_discard_extent(root, start, len, NULL);
-
 	if (pin)
 		pin_down_extent(root, cache, start, len, 1);
 	else {
+		if (btrfs_test_opt(root, DISCARD))
+			ret = btrfs_discard_extent(root, start, len, NULL);
 		btrfs_add_free_space(cache, start, len);
 		btrfs_update_reserved_bytes(cache, len, RESERVE_FREE, delalloc);
 	}
