@@ -157,6 +157,14 @@ struct wmi_ops {
 						    enum wmi_wow_wakeup_event event,
 						    u32 enable);
 	struct sk_buff *(*gen_wow_host_wakeup_ind)(struct ath10k *ar);
+	struct sk_buff *(*gen_wow_add_pattern)(struct ath10k *ar, u32 vdev_id,
+					       u32 pattern_id,
+					       const u8 *pattern,
+					       const u8 *mask,
+					       int pattern_len,
+					       int pattern_offset);
+	struct sk_buff *(*gen_wow_del_pattern)(struct ath10k *ar, u32 vdev_id,
+					       u32 pattern_id);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1142,4 +1150,41 @@ ath10k_wmi_wow_host_wakeup_ind(struct ath10k *ar)
 	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
 }
 
+static inline int
+ath10k_wmi_wow_add_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id,
+			   const u8 *pattern, const u8 *mask,
+			   int pattern_len, int pattern_offset)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_add_pattern)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_add_pattern(ar, vdev_id, pattern_id,
+					       pattern, mask, pattern_len,
+					       pattern_offset);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->wow_add_wake_pattern_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
+
+static inline int
+ath10k_wmi_wow_del_pattern(struct ath10k *ar, u32 vdev_id, u32 pattern_id)
+{
+	struct sk_buff *skb;
+	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_wow_del_pattern)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_wow_del_pattern(ar, vdev_id, pattern_id);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	cmd_id = ar->wmi.cmd->wow_del_wake_pattern_cmdid;
+	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
+}
 #endif
