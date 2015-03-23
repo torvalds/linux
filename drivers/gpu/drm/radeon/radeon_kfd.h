@@ -29,7 +29,7 @@
 #define RADEON_KFD_H_INCLUDED
 
 #include <linux/types.h>
-#include "../amd/include/kgd_kfd_interface.h"
+#include "kgd_kfd_interface.h"
 
 struct radeon_device;
 

@@ -37,9 +37,10 @@ Required properties when using sub-nodes:
 
 
 Sub-nodes required properties:
-- reg               : the port number
-- phys              : reference to the SATA PHY node
-
+- reg		    : the port number
+And at least one of the following properties:
+- phys		    : reference to the SATA PHY node
+- target-supply    : regulator for SATA target power
 
 Examples:
         sata@ffe08000 {
@@ -68,10 +69,12 @@ With sub-nodes:
 		sata0: sata-port@0 {
 			reg = <0>;
 			phys = <&sata_phy 0>;
+			target-supply = <&reg_sata0>;
 		};
 
 		sata1: sata-port@1 {
 			reg = <1>;
 			phys = <&sata_phy 1>;
+			target-supply = <&reg_sata1>;;
 		};
 	};

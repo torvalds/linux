@@ -74,6 +74,8 @@ struct st21nfca_i2c_phy {
 	unsigned int gpio_ena;
 	unsigned int irq_polarity;
 
+	struct st21nfca_se_status se_status;
+
 	struct sk_buff *pending_skb;
 	int current_read_len;
 	/*
@@ -537,6 +539,11 @@ static int st21nfca_hci_i2c_of_request_resources(struct i2c_client *client)
 
 	phy->irq_polarity = irq_get_trigger_type(client->irq);
 
+	phy->se_status.is_ese_present =
+				of_property_read_bool(pp, "ese-present");
+	phy->se_status.is_uicc_present =
+				of_property_read_bool(pp, "uicc-present");
+
 	return 0;
 }
 #else
@@ -571,6 +578,9 @@ static int st21nfca_hci_i2c_request_resources(struct i2c_client *client)
 		}
 	}
 
+	phy->se_status.is_ese_present = pdata->is_ese_present;
+	phy->se_status.is_uicc_present = pdata->is_uicc_present;
+
 	return 0;
 }
 
@@ -591,11 +601,8 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 
 	phy = devm_kzalloc(&client->dev, sizeof(struct st21nfca_i2c_phy),
 			   GFP_KERNEL);
-	if (!phy) {
-		nfc_err(&client->dev,
-			"Cannot allocate memory for st21nfca i2c phy.\n");
+	if (!phy)
 		return -ENOMEM;
-	}
 
 	phy->i2c_dev = client;
 	phy->pending_skb = alloc_skb(ST21NFCA_HCI_LLC_MAX_SIZE * 2, GFP_KERNEL);
@@ -641,8 +648,11 @@ static int st21nfca_hci_i2c_probe(struct i2c_client *client,
 	}
 
 	return st21nfca_hci_probe(phy, &i2c_phy_ops, LLC_SHDLC_NAME,
-			       ST21NFCA_FRAME_HEADROOM, ST21NFCA_FRAME_TAILROOM,
-			       ST21NFCA_HCI_LLC_MAX_PAYLOAD, &phy->hdev);
+					ST21NFCA_FRAME_HEADROOM,
+					ST21NFCA_FRAME_TAILROOM,
+					ST21NFCA_HCI_LLC_MAX_PAYLOAD,
+					&phy->hdev,
+					&phy->se_status);
 }
 
 static int st21nfca_hci_i2c_remove(struct i2c_client *client)
@@ -661,6 +671,7 @@ static int st21nfca_hci_i2c_remove(struct i2c_client *client)
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_st21nfca_i2c_match[] = {
+	{ .compatible = "st,st21nfca-i2c", },
 	{ .compatible = "st,st21nfca_i2c", },
 	{}
 };

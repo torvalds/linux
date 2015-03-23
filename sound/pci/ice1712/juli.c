@@ -491,15 +491,17 @@ static int juli_resume(struct snd_ice1712 *ice)
 	/* akm4358 un-reset, un-mute */
 	snd_akm4xxx_reset(ak, 0);
 	/* reinit ak4114 */
-	snd_ak4114_reinit(spec->ak4114);
+	snd_ak4114_resume(spec->ak4114);
 	return 0;
 }
 
 static int juli_suspend(struct snd_ice1712 *ice)
 {
 	struct snd_akm4xxx *ak = ice->akm;
+	struct juli_spec *spec = ice->spec;
 	/* akm4358 reset and soft-mute */
 	snd_akm4xxx_reset(ak, 1);
+	snd_ak4114_suspend(spec->ak4114);
 	return 0;
 }
 #endif

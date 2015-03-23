@@ -1,0 +1,129 @@
+Qualcomm's SPMI PMIC voltage ADC
+
+SPMI PMIC voltage ADC (VADC) provides interface to clients to read
+voltage. The VADC is a 15-bit sigma-delta ADC.
+
+VADC node:
+
+- compatible:
+    Usage: required
+    Value type: <string>
+    Definition: Should contain "qcom,spmi-vadc".
+
+- reg:
+    Usage: required
+    Value type: <prop-encoded-array>
+    Definition: VADC base address and length in the SPMI PMIC register map.
+
+- #address-cells:
+    Usage: required
+    Value type: <u32>
+    Definition: Must be one. Child node 'reg' property should define ADC
+            channel number.
+
+- #size-cells:
+    Usage: required
+    Value type: <u32>
+    Definition: Must be zero.
+
+- #io-channel-cells:
+    Usage: required
+    Value type: <u32>
+    Definition: Must be one. For details about IIO bindings see:
+            Documentation/devicetree/bindings/iio/iio-bindings.txt
+
+- interrupts:
+    Usage: optional
+    Value type: <prop-encoded-array>
+    Definition: End of conversion interrupt.
+
+Channel node properties:
+
+- reg:
+    Usage: required
+    Value type: <u32>
+    Definition: ADC channel number.
+            See include/dt-bindings/iio/qcom,spmi-vadc.h
+
+- qcom,decimation:
+    Usage: optional
+    Value type: <u32>
+    Definition: This parameter is used to decrease ADC sampling rate.
+            Quicker measurements can be made by reducing decimation ratio.
+            Valid values are 512, 1024, 2048, 4096.
+            If property is not found, default value of 512 will be used.
+
+- qcom,pre-scaling:
+    Usage: optional
+    Value type: <u32 array>
+    Definition: Used for scaling the channel input signal before the signal is
+            fed to VADC. The configuration for this node is to know the
+            pre-determined ratio and use it for post scaling. Select one from
+            the following options.
+            <1 1>, <1 3>, <1 4>, <1 6>, <1 20>, <1 8>, <10 81>, <1 10>
+            If property is not found default value depending on chip will be used.
+
+- qcom,ratiometric:
+    Usage: optional
+    Value type: <empty>
+    Definition: Channel calibration type. If this property is specified
+            VADC will use the VDD reference (1.8V) and GND for channel
+            calibration. If property is not found, channel will be
+            calibrated with 0.625V and 1.25V reference channels, also
+            known as absolute calibration.
+
+- qcom,hw-settle-time:
+    Usage: optional
+    Value type: <u32>
+    Definition: Time between AMUX getting configured and the ADC starting
+            conversion. Delay = 100us * (value) for value < 11, and
+            2ms * (value - 10) otherwise.
+            Valid values are: 0, 100, 200, 300, 400, 500, 600, 700, 800,
+            900 us and 1, 2, 4, 6, 8, 10 ms
+            If property is not found, channel will use 0us.
+
+- qcom,avg-samples:
+    Usage: optional
+    Value type: <u32>
+    Definition: Number of samples to be used for measurement.
+            Averaging provides the option to obtain a single measurement
+            from the ADC that is an average of multiple samples. The value
+            selected is 2^(value).
+            Valid values are: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
+            If property is not found, 1 sample will be used.
+
+NOTE:
+
+Following channels, also known as reference point channels, are used for
+result calibration and their channel configuration nodes should be defined:
+VADC_REF_625MV and/or VADC_SPARE1(based on PMIC version) VADC_REF_1250MV,
+VADC_GND_REF and VADC_VDD_VADC.
+
+Example:
+
+	/* VADC node */
+	pmic_vadc: vadc@3100 {
+		compatible = "qcom,spmi-vadc";
+		reg = <0x3100 0x100>;
+		interrupts = <0x0 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#io-channel-cells = <1>;
+		io-channel-ranges;
+
+		/* Channel node */
+		usb_id_nopull {
+			reg = <VADC_LR_MUX10_USB_ID>;
+			qcom,decimation = <512>;
+			qcom,ratiometric;
+			qcom,hw-settle-time = <200>;
+			qcom,avg-samples = <1>;
+			qcom,pre-scaling = <1 3>;
+		};
+	};
+
+	/* IIO client node */
+	usb {
+		io-channels = <&pmic_vadc VADC_LR_MUX10_USB_ID>;
+		io-channel-names = "vadc";
+	};

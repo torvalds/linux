@@ -1,0 +1,12 @@
+TODO:
+- Dual head support
+- 2D acceleration support
+- use kernel coding style
+- refine the code and remove unused code
+- move it to drivers/video/fbdev/sm7xxfb.c
+
+Please send any patches to
+	Greg Kroah-Hartman <greg@kroah.com>
+	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+	Teddy Wang <teddy.wang@siliconmotion.com>
+	Sudip Mukherjee <sudip@vectorindia.org>

@@ -65,19 +65,19 @@ struct smiapp_platform_data {
 	unsigned short i2c_addr_dfl;	/* Default i2c addr */
 	unsigned short i2c_addr_alt;	/* Alternate i2c addr */
 
-	unsigned int nvm_size;			/* bytes */
-	unsigned int ext_clk;			/* sensor external clk */
+	uint32_t nvm_size;		/* bytes */
+	uint32_t ext_clk;		/* sensor external clk */
 
 	unsigned int lanes;		/* Number of CSI-2 lanes */
-	u8 csi_signalling_mode;		/* SMIAPP_CSI_SIGNALLING_MODE_* */
-	const s64 *op_sys_clock;
+	uint32_t csi_signalling_mode;	/* SMIAPP_CSI_SIGNALLING_MODE_* */
+	uint64_t *op_sys_clock;
 
 	enum smiapp_module_board_orient module_board_orient;
 
 	struct smiapp_flash_strobe_parms *strobe_setup;
 
 	int (*set_xclk)(struct v4l2_subdev *sd, int hz);
-	int xshutdown;			/* gpio or SMIAPP_NO_XSHUTDOWN */
+	int32_t xshutdown;		/* gpio or SMIAPP_NO_XSHUTDOWN */
 };
 
 #endif /* __SMIAPP_H_  */

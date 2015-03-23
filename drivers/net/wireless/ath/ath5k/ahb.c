@@ -227,7 +227,6 @@ static struct platform_driver ath_ahb_driver = {
 	.remove     = ath_ahb_remove,
 	.driver		= {
 		.name	= "ar231x-wmac",
-		.owner	= THIS_MODULE,
 	},
 };
 

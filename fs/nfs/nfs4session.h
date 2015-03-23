@@ -70,6 +70,7 @@ struct nfs4_session {
 
 enum nfs4_session_state {
 	NFS4_SESSION_INITING,
+	NFS4_SESSION_ESTABLISHED,
 };
 
 extern int nfs4_setup_slot_table(struct nfs4_slot_table *tbl,
@@ -116,6 +117,12 @@ static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
 	if (nfs4_has_session(clp))
 		return (clp->cl_session->flags & SESSION4_PERSIST);
 	return 0;
+}
+
+static inline void nfs4_copy_sessionid(struct nfs4_sessionid *dst,
+		const struct nfs4_sessionid *src)
+{
+	memcpy(dst->data, src->data, NFS4_MAX_SESSIONID_LEN);
 }
 
 #ifdef CONFIG_CRC32

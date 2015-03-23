@@ -103,7 +103,7 @@ do {				    \
 #define sfw_test_active(t)      (atomic_read(&(t)->tsi_nactive) != 0)
 #define sfw_batch_active(b)     (atomic_read(&(b)->bat_nactive) != 0)
 
-struct smoketest_framework {
+static struct smoketest_framework {
 	struct list_head	 fw_zombie_rpcs;     /* RPCs to be recycled */
 	struct list_head	 fw_zombie_sessions; /* stopping sessions */
 	struct list_head	 fw_tests;	   /* registered test cases */
@@ -194,9 +194,9 @@ sfw_del_session_timer (void)
 	return EBUSY; /* racing with sfw_session_expired() */
 }
 
-/* called with sfw_data.fw_lock held */
 static void
 sfw_deactivate_session (void)
+	__must_hold(&sfw_data.fw_lock)
 {
 	sfw_session_t *sn = sfw_data.fw_session;
 	int	    nactive = 0;

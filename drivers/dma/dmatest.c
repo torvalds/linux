@@ -349,14 +349,14 @@ static void dbg_result(const char *err, unsigned int n, unsigned int src_off,
 		       unsigned long data)
 {
 	pr_debug("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)\n",
-		   current->comm, n, err, src_off, dst_off, len, data);
+		 current->comm, n, err, src_off, dst_off, len, data);
 }
 
-#define verbose_result(err, n, src_off, dst_off, len, data) ({ \
-	if (verbose) \
-		result(err, n, src_off, dst_off, len, data); \
-	else \
-		dbg_result(err, n, src_off, dst_off, len, data); \
+#define verbose_result(err, n, src_off, dst_off, len, data) ({	\
+	if (verbose)						\
+		result(err, n, src_off, dst_off, len, data);	\
+	else							\
+		dbg_result(err, n, src_off, dst_off, len, data);\
 })
 
 static unsigned long long dmatest_persec(s64 runtime, unsigned int val)
@@ -405,7 +405,6 @@ static int dmatest_func(void *data)
 	struct dmatest_params	*params;
 	struct dma_chan		*chan;
 	struct dma_device	*dev;
-	unsigned int		src_off, dst_off, len;
 	unsigned int		error_count;
 	unsigned int		failed_tests = 0;
 	unsigned int		total_tests = 0;
@@ -484,6 +483,7 @@ static int dmatest_func(void *data)
 		struct dmaengine_unmap_data *um;
 		dma_addr_t srcs[src_cnt];
 		dma_addr_t *dsts;
+		unsigned int src_off, dst_off, len;
 		u8 align = 0;
 
 		total_tests++;
@@ -502,15 +502,21 @@ static int dmatest_func(void *data)
 			break;
 		}
 
-		if (params->noverify) {
+		if (params->noverify)
 			len = params->buf_size;
+		else
+			len = dmatest_random() % params->buf_size + 1;
+
+		len = (len >> align) << align;
+		if (!len)
+			len = 1 << align;
+
+		total_len += len;
+
+		if (params->noverify) {
 			src_off = 0;
 			dst_off = 0;
 		} else {
-			len = dmatest_random() % params->buf_size + 1;
-			len = (len >> align) << align;
-			if (!len)
-				len = 1 << align;
 			src_off = dmatest_random() % (params->buf_size - len + 1);
 			dst_off = dmatest_random() % (params->buf_size - len + 1);
 
@@ -522,11 +528,6 @@ static int dmatest_func(void *data)
 			dmatest_init_dsts(thread->dsts, dst_off, len,
 					  params->buf_size);
 		}
-
-		len = (len >> align) << align;
-		if (!len)
-			len = 1 << align;
-		total_len += len;
 
 		um = dmaengine_get_unmap_data(dev->dev, src_cnt+dst_cnt,
 					      GFP_KERNEL);

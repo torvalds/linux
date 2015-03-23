@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,8 +142,6 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
  */
 acpi_status
 acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback, void *context);
-
-u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status
 acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,

@@ -285,7 +285,7 @@ static int qce_ahash_update(struct ahash_request *req)
 			break;
 		len += sg_dma_len(sg);
 		sg_last = sg;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	if (!sg_last)

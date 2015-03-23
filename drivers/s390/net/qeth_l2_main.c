@@ -45,8 +45,7 @@ static int qeth_l2_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!card)
 		return -ENODEV;
 
-	if ((card->state != CARD_STATE_UP) &&
-		(card->state != CARD_STATE_SOFTSETUP))
+	if (!qeth_card_hw_is_reachable(card))
 		return -ENODEV;
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
@@ -1336,8 +1335,7 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	if (!card)
 		return -ENODEV;
 	QETH_CARD_TEXT(card, 2, "osnsdmc");
-	if ((card->state != CARD_STATE_UP) &&
-	    (card->state != CARD_STATE_SOFTSETUP))
+	if (!qeth_card_hw_is_reachable(card))
 		return -ENODEV;
 	iob = qeth_wait_for_buffer(&card->write);
 	memcpy(iob->data+IPA_PDU_HEADER_SIZE, data, data_len);

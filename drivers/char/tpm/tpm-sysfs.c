@@ -20,25 +20,6 @@
 #include <linux/device.h>
 #include "tpm.h"
 
-/* XXX for now this helper is duplicated in tpm-interface.c */
-static ssize_t transmit_cmd(struct tpm_chip *chip, struct tpm_cmd_t *cmd,
-			    int len, const char *desc)
-{
-	int err;
-
-	len = tpm_transmit(chip, (u8 *) cmd, len);
-	if (len <  0)
-		return len;
-	else if (len < TPM_HEADER_SIZE)
-		return -EFAULT;
-
-	err = be32_to_cpu(cmd->header.out.return_code);
-	if (err != 0 && desc)
-		dev_err(chip->dev, "A TPM error (%d) occurred %s\n", err, desc);
-
-	return err;
-}
-
 #define READ_PUBEK_RESULT_SIZE 314
 #define TPM_ORD_READPUBEK cpu_to_be32(124)
 static struct tpm_input_header tpm_readpubek_header = {
@@ -58,8 +39,8 @@ static ssize_t pubek_show(struct device *dev, struct device_attribute *attr,
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
 	tpm_cmd.header.in = tpm_readpubek_header;
-	err = transmit_cmd(chip, &tpm_cmd, READ_PUBEK_RESULT_SIZE,
-			   "attempting to read the PUBEK");
+	err = tpm_transmit_cmd(chip, &tpm_cmd, READ_PUBEK_RESULT_SIZE,
+			       "attempting to read the PUBEK");
 	if (err)
 		goto out;
 
@@ -303,16 +284,16 @@ static const struct attribute_group tpm_dev_group = {
 int tpm_sysfs_add_device(struct tpm_chip *chip)
 {
 	int err;
-	err = sysfs_create_group(&chip->dev->kobj,
+	err = sysfs_create_group(&chip->pdev->kobj,
 				 &tpm_dev_group);
 
 	if (err)
-		dev_err(chip->dev,
+		dev_err(chip->pdev,
 			"failed to create sysfs attributes, %d\n", err);
 	return err;
 }
 
 void tpm_sysfs_del_device(struct tpm_chip *chip)
 {
-	sysfs_remove_group(&chip->dev->kobj, &tpm_dev_group);
+	sysfs_remove_group(&chip->pdev->kobj, &tpm_dev_group);
 }

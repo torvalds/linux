@@ -57,7 +57,9 @@
 
 #define QUADSPI_BUF3CR			0x1c
 #define QUADSPI_BUF3CR_ALLMST_SHIFT	31
-#define QUADSPI_BUF3CR_ALLMST		(1 << QUADSPI_BUF3CR_ALLMST_SHIFT)
+#define QUADSPI_BUF3CR_ALLMST_MASK	(1 << QUADSPI_BUF3CR_ALLMST_SHIFT)
+#define QUADSPI_BUF3CR_ADATSZ_SHIFT		8
+#define QUADSPI_BUF3CR_ADATSZ_MASK	(0xFF << QUADSPI_BUF3CR_ADATSZ_SHIFT)
 
 #define QUADSPI_BFGENCR			0x20
 #define QUADSPI_BFGENCR_PAR_EN_SHIFT	16
@@ -198,18 +200,21 @@ struct fsl_qspi_devtype_data {
 	enum fsl_qspi_devtype devtype;
 	int rxfifo;
 	int txfifo;
+	int ahb_buf_size;
 };
 
 static struct fsl_qspi_devtype_data vybrid_data = {
 	.devtype = FSL_QUADSPI_VYBRID,
 	.rxfifo = 128,
-	.txfifo = 64
+	.txfifo = 64,
+	.ahb_buf_size = 1024
 };
 
 static struct fsl_qspi_devtype_data imx6sx_data = {
 	.devtype = FSL_QUADSPI_IMX6SX,
 	.rxfifo = 128,
-	.txfifo = 512
+	.txfifo = 512,
+	.ahb_buf_size = 1024
 };
 
 #define FSL_QSPI_MAX_CHIP	4
@@ -227,6 +232,7 @@ struct fsl_qspi {
 	u32 nor_num;
 	u32 clk_rate;
 	unsigned int chip_base_addr; /* We may support two chips. */
+	bool has_second_chip;
 };
 
 static inline int is_vybrid_qspi(struct fsl_qspi *q)
@@ -583,7 +589,12 @@ static void fsl_qspi_init_abh_read(struct fsl_qspi *q)
 	writel(QUADSPI_BUFXCR_INVALID_MSTRID, base + QUADSPI_BUF0CR);
 	writel(QUADSPI_BUFXCR_INVALID_MSTRID, base + QUADSPI_BUF1CR);
 	writel(QUADSPI_BUFXCR_INVALID_MSTRID, base + QUADSPI_BUF2CR);
-	writel(QUADSPI_BUF3CR_ALLMST, base + QUADSPI_BUF3CR);
+	/*
+	 * Set ADATSZ with the maximum AHB buffer size to improve the
+	 * read performance.
+	 */
+	writel(QUADSPI_BUF3CR_ALLMST_MASK | ((q->devtype_data->ahb_buf_size / 8)
+			<< QUADSPI_BUF3CR_ADATSZ_SHIFT), base + QUADSPI_BUF3CR);
 
 	/* We only use the buffer3 */
 	writel(0, base + QUADSPI_BUF0IND);
@@ -783,7 +794,6 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	struct spi_nor *nor;
 	struct mtd_info *mtd;
 	int ret, i = 0;
-	bool has_second_chip = false;
 	const struct of_device_id *of_id =
 			of_match_device(fsl_qspi_dt_ids, &pdev->dev);
 
@@ -798,37 +808,30 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	/* find the resources */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "QuadSPI");
 	q->iobase = devm_ioremap_resource(dev, res);
-	if (IS_ERR(q->iobase)) {
-		ret = PTR_ERR(q->iobase);
-		goto map_failed;
-	}
+	if (IS_ERR(q->iobase))
+		return PTR_ERR(q->iobase);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					"QuadSPI-memory");
 	q->ahb_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(q->ahb_base)) {
-		ret = PTR_ERR(q->ahb_base);
-		goto map_failed;
-	}
+	if (IS_ERR(q->ahb_base))
+		return PTR_ERR(q->ahb_base);
+
 	q->memmap_phy = res->start;
 
 	/* find the clocks */
 	q->clk_en = devm_clk_get(dev, "qspi_en");
-	if (IS_ERR(q->clk_en)) {
-		ret = PTR_ERR(q->clk_en);
-		goto map_failed;
-	}
+	if (IS_ERR(q->clk_en))
+		return PTR_ERR(q->clk_en);
 
 	q->clk = devm_clk_get(dev, "qspi");
-	if (IS_ERR(q->clk)) {
-		ret = PTR_ERR(q->clk);
-		goto map_failed;
-	}
+	if (IS_ERR(q->clk))
+		return PTR_ERR(q->clk);
 
 	ret = clk_prepare_enable(q->clk_en);
 	if (ret) {
 		dev_err(dev, "can not enable the qspi_en clock\n");
-		goto map_failed;
+		return ret;
 	}
 
 	ret = clk_prepare_enable(q->clk);
@@ -860,14 +863,14 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		goto irq_failed;
 
 	if (of_get_property(np, "fsl,qspi-has-second-chip", NULL))
-		has_second_chip = true;
+		q->has_second_chip = true;
 
 	/* iterate the subnodes. */
 	for_each_available_child_of_node(dev->of_node, np) {
 		char modalias[40];
 
 		/* skip the holes */
-		if (!has_second_chip)
+		if (!q->has_second_chip)
 			i *= 2;
 
 		nor = &q->nor[i];
@@ -890,24 +893,24 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 		ret = of_modalias_node(np, modalias, sizeof(modalias));
 		if (ret < 0)
-			goto map_failed;
+			goto irq_failed;
 
 		ret = of_property_read_u32(np, "spi-max-frequency",
 				&q->clk_rate);
 		if (ret < 0)
-			goto map_failed;
+			goto irq_failed;
 
 		/* set the chip address for READID */
 		fsl_qspi_set_base_addr(q, nor);
 
 		ret = spi_nor_scan(nor, modalias, SPI_NOR_QUAD);
 		if (ret)
-			goto map_failed;
+			goto irq_failed;
 
 		ppdata.of_node = np;
 		ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
 		if (ret)
-			goto map_failed;
+			goto irq_failed;
 
 		/* Set the correct NOR size now. */
 		if (q->nor_size == 0) {
@@ -939,19 +942,19 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 	clk_disable(q->clk);
 	clk_disable(q->clk_en);
-	dev_info(dev, "QuadSPI SPI NOR flash driver\n");
 	return 0;
 
 last_init_failed:
-	for (i = 0; i < q->nor_num; i++)
+	for (i = 0; i < q->nor_num; i++) {
+		/* skip the holes */
+		if (!q->has_second_chip)
+			i *= 2;
 		mtd_device_unregister(&q->mtd[i]);
-
+	}
 irq_failed:
 	clk_disable_unprepare(q->clk);
 clk_failed:
 	clk_disable_unprepare(q->clk_en);
-map_failed:
-	dev_err(dev, "Freescale QuadSPI probe failed\n");
 	return ret;
 }
 
@@ -960,8 +963,12 @@ static int fsl_qspi_remove(struct platform_device *pdev)
 	struct fsl_qspi *q = platform_get_drvdata(pdev);
 	int i;
 
-	for (i = 0; i < q->nor_num; i++)
+	for (i = 0; i < q->nor_num; i++) {
+		/* skip the holes */
+		if (!q->has_second_chip)
+			i *= 2;
 		mtd_device_unregister(&q->mtd[i]);
+	}
 
 	/* disable the hardware */
 	writel(QUADSPI_MCR_MDIS_MASK, q->iobase + QUADSPI_MCR);
@@ -969,6 +976,22 @@ static int fsl_qspi_remove(struct platform_device *pdev)
 
 	clk_unprepare(q->clk);
 	clk_unprepare(q->clk_en);
+	return 0;
+}
+
+static int fsl_qspi_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	return 0;
+}
+
+static int fsl_qspi_resume(struct platform_device *pdev)
+{
+	struct fsl_qspi *q = platform_get_drvdata(pdev);
+
+	fsl_qspi_nor_setup(q);
+	fsl_qspi_set_map_addr(q);
+	fsl_qspi_nor_setup_last(q);
+
 	return 0;
 }
 
@@ -980,6 +1003,8 @@ static struct platform_driver fsl_qspi_driver = {
 	},
 	.probe          = fsl_qspi_probe,
 	.remove		= fsl_qspi_remove,
+	.suspend	= fsl_qspi_suspend,
+	.resume		= fsl_qspi_resume,
 };
 module_platform_driver(fsl_qspi_driver);
 

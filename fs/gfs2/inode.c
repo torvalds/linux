@@ -543,10 +543,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	}
 
 	error = gfs2_dir_add(&dip->i_inode, name, ip, da);
-	if (error)
-		goto fail_end_trans;
 
-fail_end_trans:
 	gfs2_trans_end(sdp);
 fail_ipreserv:
 	gfs2_inplace_release(dip);

@@ -729,9 +729,7 @@ static int get_ether_addr_str(u8 dev_addr[ETH_ALEN], char *str, int len)
 	if (len < 18)
 		return -EINVAL;
 
-	snprintf(str, len, "%02x:%02x:%02x:%02x:%02x:%02x",
-		 dev_addr[0], dev_addr[1], dev_addr[2],
-		 dev_addr[3], dev_addr[4], dev_addr[5]);
+	snprintf(str, len, "%pM", dev_addr);
 	return 18;
 }
 

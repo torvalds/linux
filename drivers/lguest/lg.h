@@ -50,7 +50,10 @@ struct lg_cpu {
 	/* Bitmap of what has changed: see CHANGED_* above. */
 	int changed;
 
-	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
+	/* Pending operation. */
+	struct lguest_pending pending;
+
+	unsigned long *reg_read; /* register from LHREQ_GETREG */
 
 	/* At end of a page shared mapped over lguest_pages in guest. */
 	unsigned long regs_page;
@@ -78,23 +81,17 @@ struct lg_cpu {
 	struct lg_cpu_arch arch;
 };
 
-struct lg_eventfd {
-	unsigned long addr;
-	struct eventfd_ctx *event;
-};
-
-struct lg_eventfd_map {
-	unsigned int num;
-	struct lg_eventfd map[];
-};
-
 /* The private info the thread maintains about the guest. */
 struct lguest {
 	struct lguest_data __user *lguest_data;
 	struct lg_cpu cpus[NR_CPUS];
 	unsigned int nr_cpus;
 
+	/* Valid guest memory pages must be < this. */
 	u32 pfn_limit;
+
+	/* Device memory is >= pfn_limit and < device_limit. */
+	u32 device_limit;
 
 	/*
 	 * This provides the offset to the base of guest-physical memory in the
@@ -109,8 +106,6 @@ struct lguest {
 
 	unsigned int stack_pages;
 	u32 tsc_khz;
-
-	struct lg_eventfd_map *eventfds;
 
 	/* Dead? */
 	const char *dead;
@@ -197,8 +192,10 @@ void guest_pagetable_flush_user(struct lg_cpu *cpu);
 void guest_set_pte(struct lg_cpu *cpu, unsigned long gpgdir,
 		   unsigned long vaddr, pte_t val);
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages);
-bool demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode);
+bool demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode,
+		 unsigned long *iomem);
 void pin_page(struct lg_cpu *cpu, unsigned long vaddr);
+bool __guest_pa(struct lg_cpu *cpu, unsigned long vaddr, unsigned long *paddr);
 unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr);
 void page_table_guest_data_init(struct lg_cpu *cpu);
 
@@ -210,6 +207,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu);
 int lguest_arch_init_hypercalls(struct lg_cpu *cpu);
 int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args);
 void lguest_arch_setup_regs(struct lg_cpu *cpu, unsigned long start);
+unsigned long *lguest_arch_regptr(struct lg_cpu *cpu, size_t reg_off, bool any);
 
 /* <arch>/switcher.S: */
 extern char start_switcher_text[], end_switcher_text[], switch_to_guest[];

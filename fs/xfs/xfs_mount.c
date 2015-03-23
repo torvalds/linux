@@ -408,11 +408,11 @@ xfs_update_alignment(xfs_mount_t *mp)
 		if (xfs_sb_version_hasdalign(sbp)) {
 			if (sbp->sb_unit != mp->m_dalign) {
 				sbp->sb_unit = mp->m_dalign;
-				mp->m_update_flags |= XFS_SB_UNIT;
+				mp->m_update_sb = true;
 			}
 			if (sbp->sb_width != mp->m_swidth) {
 				sbp->sb_width = mp->m_swidth;
-				mp->m_update_flags |= XFS_SB_WIDTH;
+				mp->m_update_sb = true;
 			}
 		} else {
 			xfs_warn(mp,
@@ -583,38 +583,19 @@ int
 xfs_mount_reset_sbqflags(
 	struct xfs_mount	*mp)
 {
-	int			error;
-	struct xfs_trans	*tp;
-
 	mp->m_qflags = 0;
 
-	/*
-	 * It is OK to look at sb_qflags here in mount path,
-	 * without m_sb_lock.
-	 */
+	/* It is OK to look at sb_qflags in the mount path without m_sb_lock. */
 	if (mp->m_sb.sb_qflags == 0)
 		return 0;
 	spin_lock(&mp->m_sb_lock);
 	mp->m_sb.sb_qflags = 0;
 	spin_unlock(&mp->m_sb_lock);
 
-	/*
-	 * If the fs is readonly, let the incore superblock run
-	 * with quotas off but don't flush the update out to disk
-	 */
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
+	if (!xfs_fs_writable(mp, SB_FREEZE_WRITE))
 		return 0;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_sbchange, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		xfs_alert(mp, "%s: Superblock update failed!", __func__);
-		return error;
-	}
-
-	xfs_mod_sb(tp, XFS_SB_QFLAGS);
-	return xfs_trans_commit(tp, 0);
+	return xfs_sync_sb(mp, false);
 }
 
 __uint64_t
@@ -659,26 +640,25 @@ xfs_mountfs(
 	xfs_sb_mount_common(mp, sbp);
 
 	/*
-	 * Check for a mismatched features2 values.  Older kernels
-	 * read & wrote into the wrong sb offset for sb_features2
-	 * on some platforms due to xfs_sb_t not being 64bit size aligned
-	 * when sb_features2 was added, which made older superblock
-	 * reading/writing routines swap it as a 64-bit value.
+	 * Check for a mismatched features2 values.  Older kernels read & wrote
+	 * into the wrong sb offset for sb_features2 on some platforms due to
+	 * xfs_sb_t not being 64bit size aligned when sb_features2 was added,
+	 * which made older superblock reading/writing routines swap it as a
+	 * 64-bit value.
 	 *
 	 * For backwards compatibility, we make both slots equal.
 	 *
-	 * If we detect a mismatched field, we OR the set bits into the
-	 * existing features2 field in case it has already been modified; we
-	 * don't want to lose any features.  We then update the bad location
-	 * with the ORed value so that older kernels will see any features2
-	 * flags, and mark the two fields as needing updates once the
-	 * transaction subsystem is online.
+	 * If we detect a mismatched field, we OR the set bits into the existing
+	 * features2 field in case it has already been modified; we don't want
+	 * to lose any features.  We then update the bad location with the ORed
+	 * value so that older kernels will see any features2 flags. The
+	 * superblock writeback code ensures the new sb_features2 is copied to
+	 * sb_bad_features2 before it is logged or written to disk.
 	 */
 	if (xfs_sb_has_mismatched_features2(sbp)) {
 		xfs_warn(mp, "correcting sb_features alignment problem");
 		sbp->sb_features2 |= sbp->sb_bad_features2;
-		sbp->sb_bad_features2 = sbp->sb_features2;
-		mp->m_update_flags |= XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2;
+		mp->m_update_sb = true;
 
 		/*
 		 * Re-check for ATTR2 in case it was found in bad_features2
@@ -692,17 +672,17 @@ xfs_mountfs(
 	if (xfs_sb_version_hasattr2(&mp->m_sb) &&
 	   (mp->m_flags & XFS_MOUNT_NOATTR2)) {
 		xfs_sb_version_removeattr2(&mp->m_sb);
-		mp->m_update_flags |= XFS_SB_FEATURES2;
+		mp->m_update_sb = true;
 
 		/* update sb_versionnum for the clearing of the morebits */
 		if (!sbp->sb_features2)
-			mp->m_update_flags |= XFS_SB_VERSIONNUM;
+			mp->m_update_sb = true;
 	}
 
 	/* always use v2 inodes by default now */
 	if (!(mp->m_sb.sb_versionnum & XFS_SB_VERSION_NLINKBIT)) {
 		mp->m_sb.sb_versionnum |= XFS_SB_VERSION_NLINKBIT;
-		mp->m_update_flags |= XFS_SB_VERSIONNUM;
+		mp->m_update_sb = true;
 	}
 
 	/*
@@ -895,8 +875,8 @@ xfs_mountfs(
 	 * the next remount into writeable mode.  Otherwise we would never
 	 * perform the update e.g. for the root filesystem.
 	 */
-	if (mp->m_update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
-		error = xfs_mount_log_sb(mp, mp->m_update_flags);
+	if (mp->m_update_sb && !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		error = xfs_sync_sb(mp, false);
 		if (error) {
 			xfs_warn(mp, "failed to write sb changes");
 			goto out_rtunmount;
@@ -1103,9 +1083,6 @@ xfs_fs_writable(
 int
 xfs_log_sbcount(xfs_mount_t *mp)
 {
-	xfs_trans_t	*tp;
-	int		error;
-
 	/* allow this to proceed during the freeze sequence... */
 	if (!xfs_fs_writable(mp, SB_FREEZE_COMPLETE))
 		return 0;
@@ -1119,17 +1096,7 @@ xfs_log_sbcount(xfs_mount_t *mp)
 	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
 		return 0;
 
-	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_COUNT, KM_SLEEP);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-
-	xfs_mod_sb(tp, XFS_SB_IFREE | XFS_SB_ICOUNT | XFS_SB_FDBLOCKS);
-	xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
-	return error;
+	return xfs_sync_sb(mp, true);
 }
 
 /*
@@ -1420,34 +1387,6 @@ xfs_freesb(
 	xfs_buf_lock(bp);
 	mp->m_sb_bp = NULL;
 	xfs_buf_relse(bp);
-}
-
-/*
- * Used to log changes to the superblock unit and width fields which could
- * be altered by the mount options, as well as any potential sb_features2
- * fixup. Only the first superblock is updated.
- */
-int
-xfs_mount_log_sb(
-	xfs_mount_t	*mp,
-	__int64_t	fields)
-{
-	xfs_trans_t	*tp;
-	int		error;
-
-	ASSERT(fields & (XFS_SB_UNIT | XFS_SB_WIDTH | XFS_SB_UUID |
-			 XFS_SB_FEATURES2 | XFS_SB_BAD_FEATURES2 |
-			 XFS_SB_VERSIONNUM));
-
-	tp = xfs_trans_alloc(mp, XFS_TRANS_SB_UNIT);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_sb, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-	xfs_mod_sb(tp, fields);
-	error = xfs_trans_commit(tp, 0);
-	return error;
 }
 
 /*

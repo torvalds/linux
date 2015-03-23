@@ -19,7 +19,7 @@
 /*
  * Driver: dmm32at
  * Description: Diamond Systems Diamond-MM-32-AT
- * Devices: (Diamond Systems) Diamond-MM-32-AT [dmm32at]
+ * Devices: [Diamond Systems] Diamond-MM-32-AT (dmm32at)
  * Author: Perry J. Piplani <perry.j.piplani@nasa.gov>
  * Updated: Fri Jun  4 09:13:24 CDT 2004
  * Status: experimental
@@ -365,7 +365,7 @@ static void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
 	/* enable the ai conversion interrupt and the clock to start scans */
 	outb(DMM32AT_INTCLK_ADINT |
 	     DMM32AT_INTCLK_CLKEN | DMM32AT_INTCLK_CLKSEL,
-             dev->iobase + DMM32AT_INTCLK_REG);
+	     dev->iobase + DMM32AT_INTCLK_REG);
 }
 
 static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)

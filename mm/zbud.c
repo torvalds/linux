@@ -130,7 +130,8 @@ static struct zbud_ops zbud_zpool_ops = {
 	.evict =	zbud_zpool_evict
 };
 
-static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
+static void *zbud_zpool_create(char *name, gfp_t gfp,
+			struct zpool_ops *zpool_ops)
 {
 	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
 }

@@ -21,7 +21,7 @@ Required properties:
     according to DSI host bindings (see MIPI DSI bindings [1])
 
 Optional properties:
-  - samsung,power-domain: a phandle to DSIM power domain node
+  - power-domains: a phandle to DSIM power domain node
 
 Child nodes:
   Should contain DSI peripheral nodes (see MIPI DSI bindings [1]).
@@ -53,7 +53,7 @@ Example:
 		phy-names = "dsim";
 		vddcore-supply = <&vusb_reg>;
 		vddio-supply = <&vmipi_reg>;
-		samsung,power-domain = <&pd_lcd0>;
+		power-domains = <&pd_lcd0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		samsung,pll-clock-frequency = <24000000>;

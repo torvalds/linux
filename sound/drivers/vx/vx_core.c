@@ -27,11 +27,11 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/asoundef.h>
 #include <sound/info.h>
-#include <asm/io.h>
 #include <sound/vx_core.h>
 #include "vx_cmd.h"
 

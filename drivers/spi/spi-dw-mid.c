@@ -139,6 +139,9 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws)
 				1,
 				DMA_MEM_TO_DEV,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!txdesc)
+		return NULL;
+
 	txdesc->callback = dw_spi_dma_tx_done;
 	txdesc->callback_param = dws;
 
@@ -184,6 +187,9 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws)
 				1,
 				DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!rxdesc)
+		return NULL;
+
 	rxdesc->callback = dw_spi_dma_rx_done;
 	rxdesc->callback_param = dws;
 
@@ -247,9 +253,9 @@ static struct dw_spi_dma_ops mid_dma_ops = {
 
 /* Some specific info for SPI0 controller on Intel MID */
 
-/* HW info for MRST CLk Control Unit, one 32b reg */
+/* HW info for MRST Clk Control Unit, 32b reg per controller */
 #define MRST_SPI_CLK_BASE	100000000	/* 100m */
-#define MRST_CLK_SPI0_REG	0xff11d86c
+#define MRST_CLK_SPI_REG	0xff11d86c
 #define CLK_SPI_BDIV_OFFSET	0
 #define CLK_SPI_BDIV_MASK	0x00000007
 #define CLK_SPI_CDIV_OFFSET	9
@@ -261,16 +267,17 @@ int dw_spi_mid_init(struct dw_spi *dws)
 	void __iomem *clk_reg;
 	u32 clk_cdiv;
 
-	clk_reg = ioremap_nocache(MRST_CLK_SPI0_REG, 16);
+	clk_reg = ioremap_nocache(MRST_CLK_SPI_REG, 16);
 	if (!clk_reg)
 		return -ENOMEM;
 
-	/* get SPI controller operating freq info */
-	clk_cdiv  = (readl(clk_reg) & CLK_SPI_CDIV_MASK) >> CLK_SPI_CDIV_OFFSET;
+	/* Get SPI controller operating freq info */
+	clk_cdiv = readl(clk_reg + dws->bus_num * sizeof(u32));
+	clk_cdiv &= CLK_SPI_CDIV_MASK;
+	clk_cdiv >>= CLK_SPI_CDIV_OFFSET;
 	dws->max_freq = MRST_SPI_CLK_BASE / (clk_cdiv + 1);
-	iounmap(clk_reg);
 
-	dws->num_cs = 16;
+	iounmap(clk_reg);
 
 #ifdef CONFIG_SPI_DW_MID_DMA
 	dws->dma_priv = kzalloc(sizeof(struct mid_dma), GFP_KERNEL);

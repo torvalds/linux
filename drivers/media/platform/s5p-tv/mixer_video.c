@@ -926,22 +926,6 @@ static void buf_queue(struct vb2_buffer *vb)
 	mxr_dbg(mdev, "queuing buffer\n");
 }
 
-static void wait_lock(struct vb2_queue *vq)
-{
-	struct mxr_layer *layer = vb2_get_drv_priv(vq);
-
-	mxr_dbg(layer->mdev, "%s\n", __func__);
-	mutex_lock(&layer->mutex);
-}
-
-static void wait_unlock(struct vb2_queue *vq)
-{
-	struct mxr_layer *layer = vb2_get_drv_priv(vq);
-
-	mxr_dbg(layer->mdev, "%s\n", __func__);
-	mutex_unlock(&layer->mutex);
-}
-
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct mxr_layer *layer = vb2_get_drv_priv(vq);
@@ -1040,8 +1024,8 @@ static void stop_streaming(struct vb2_queue *vq)
 static struct vb2_ops mxr_video_qops = {
 	.queue_setup = queue_setup,
 	.buf_queue = buf_queue,
-	.wait_prepare = wait_unlock,
-	.wait_finish = wait_lock,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
 };
@@ -1122,6 +1106,7 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 		.ops = &mxr_video_qops,
 		.min_buffers_needed = 1,
 		.mem_ops = &vb2_dma_contig_memops,
+		.lock = &layer->mutex,
 	};
 
 	return layer;

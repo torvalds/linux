@@ -107,8 +107,10 @@ static short int watchdog_key = 42;  /* arbitrary 7 bit number */
  * is used though, so set this really low. */
 #define WATCHDOG_MIN_FREE_PAGES 8
 
+#if defined(CONFIG_ETRAX_WATCHDOG_NICE_DOGGY)
 /* for reliable NICE_DOGGY behaviour */
 static int bite_in_progress;
+#endif
 
 void reset_watchdog(void)
 {
@@ -155,7 +157,9 @@ void handle_watchdog_bite(struct pt_regs *regs)
 
 	nmi_enter();
 	oops_in_progress = 1;
+#if defined(CONFIG_ETRAX_WATCHDOG_NICE_DOGGY)
 	bite_in_progress = 1;
+#endif
 	printk(KERN_WARNING "Watchdog bite\n");
 
 	/* Check if forced restart or unexpected watchdog */

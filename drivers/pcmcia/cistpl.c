@@ -168,9 +168,12 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	} else {
 		u_int inc = 1, card_offset, flags;
 
-		if (addr > CISTPL_MAX_CIS_SIZE)
+		if (addr > CISTPL_MAX_CIS_SIZE) {
 			dev_dbg(&s->dev,
 				"attempt to read CIS mem at addr %#x", addr);
+			memset(ptr, 0xff, len);
+			return -1;
+		}
 
 		flags = MAP_ACTIVE | ((cis_width) ? MAP_16BIT : 0);
 		if (attr) {
@@ -1383,7 +1386,7 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 	if (!s)
 		return -EINVAL;
 
-	if (s->functions) {
+	if (s->functions || !(s->state & SOCKET_PRESENT)) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -1448,10 +1451,26 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 done:
 	/* invalidate CIS cache on failure */
 	if (!dev_ok || !ident_ok || !count) {
-		mutex_lock(&s->ops_mutex);
-		destroy_cis_cache(s);
-		mutex_unlock(&s->ops_mutex);
-		ret = -EIO;
+#if defined(CONFIG_MTD_PCMCIA_ANONYMOUS)
+		/* Set up as an anonymous card. If we don't have anonymous
+		   memory support then just error the card as there is no
+		   point trying to second guess.
+
+		   Note: some cards have just a device entry, it may be
+		   worth extending support to cover these in future */
+		if (!dev_ok || !ident_ok) {
+			dev_info(&s->dev, "no CIS, assuming an anonymous memory card.\n");
+			pcmcia_replace_cis(s, "\xFF", 1);
+			count = 1;
+			ret = 0;
+		} else
+#endif
+		{
+			mutex_lock(&s->ops_mutex);
+			destroy_cis_cache(s);
+			mutex_unlock(&s->ops_mutex);
+			ret = -EIO;
+		}
 	}
 
 	if (info)

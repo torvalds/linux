@@ -46,17 +46,17 @@
 #include "console.h"
 #include "conrpc.h"
 
-#define LST_NODE_STATE_COUNTER(nd, p)		   \
-do {						    \
-	if ((nd)->nd_state == LST_NODE_ACTIVE)	  \
-		(p)->nle_nactive ++;		    \
+#define LST_NODE_STATE_COUNTER(nd, p)			\
+do {							\
+	if ((nd)->nd_state == LST_NODE_ACTIVE)		\
+		(p)->nle_nactive++;			\
 	else if ((nd)->nd_state == LST_NODE_BUSY)       \
-		(p)->nle_nbusy ++;		      \
+		(p)->nle_nbusy++;			\
 	else if ((nd)->nd_state == LST_NODE_DOWN)       \
-		(p)->nle_ndown ++;		      \
-	else					    \
-		(p)->nle_nunknown ++;		   \
-	(p)->nle_nnode ++;			      \
+		(p)->nle_ndown++;			\
+	else						\
+		(p)->nle_nunknown++;			\
+	(p)->nle_nnode++;				\
 } while (0)
 
 lstcon_session_t	console_session;
@@ -223,7 +223,7 @@ lstcon_group_alloc(char *name, lstcon_group_t **grpp)
 static void
 lstcon_group_addref(lstcon_group_t *grp)
 {
-	grp->grp_ref ++;
+	grp->grp_ref++;
 }
 
 static void lstcon_group_ndlink_release(lstcon_group_t *, lstcon_ndlink_t *);
@@ -298,7 +298,7 @@ lstcon_group_ndlink_find(lstcon_group_t *grp, lnet_process_id_t id,
 		return 0;
 
 	list_add_tail(&(*ndlpp)->ndl_link, &grp->grp_ndl_list);
-	grp->grp_nnode ++;
+	grp->grp_nnode++;
 
 	return 0;
 }
@@ -324,7 +324,7 @@ lstcon_group_ndlink_move(lstcon_group_t *old,
 
 	list_add_tail(&ndl->ndl_hlink, &new->grp_ndl_hash[idx]);
 	list_add_tail(&ndl->ndl_link, &new->grp_ndl_list);
-	new->grp_nnode ++;
+	new->grp_nnode++;
 
 	return;
 }
@@ -767,7 +767,7 @@ lstcon_nodes_getent(struct list_head *head, int *index_p,
 				     &nd->nd_state, sizeof(nd->nd_state)))
 			return -EFAULT;
 
-		count ++;
+		count++;
 	}
 
 	if (index <= *index_p)
@@ -1343,7 +1343,7 @@ lstcon_test_add(char *batch_name, int type, int loop,
 	/* add to test list anyway, so user can check what's going on */
 	list_add_tail(&test->tes_link, &batch->bat_test_list);
 
-	batch->bat_ntest ++;
+	batch->bat_ntest++;
 	test->tes_hdr.tsb_index = batch->bat_ntest;
 
 	/*  hold groups so nobody can change them */
@@ -1986,7 +1986,7 @@ static void lstcon_init_acceptor_service(void)
 
 extern int lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_data *data);
 
-DECLARE_IOCTL_HANDLER(lstcon_ioctl_handler, lstcon_ioctl_entry);
+static DECLARE_IOCTL_HANDLER(lstcon_ioctl_handler, lstcon_ioctl_entry);
 
 /* initialize console */
 int

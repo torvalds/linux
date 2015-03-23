@@ -22,6 +22,7 @@
 #define SYN_QUE_EXT_CAPAB_0C		0x0c
 #define SYN_QUE_EXT_MAX_COORDS		0x0d
 #define SYN_QUE_EXT_MIN_COORDS		0x0f
+#define SYN_QUE_MEXT_CAPAB_10		0x10
 
 /* synatics modes */
 #define SYN_BIT_ABSOLUTE_MODE		(1 << 7)
@@ -53,6 +54,7 @@
 #define SYN_EXT_CAP_REQUESTS(c)		(((c) & 0x700000) >> 20)
 #define SYN_CAP_MULTI_BUTTON_NO(ec)	(((ec) & 0x00f000) >> 12)
 #define SYN_CAP_PRODUCT_ID(ec)		(((ec) & 0xff0000) >> 16)
+#define SYN_MEXT_CAP_BIT(m)		((m) & (1 << 1))
 
 /*
  * The following describes response for the 0x0c query.
@@ -88,6 +90,30 @@
 #define SYN_CAP_ADV_GESTURE(ex0c)	((ex0c) & 0x080000)
 #define SYN_CAP_REDUCED_FILTERING(ex0c)	((ex0c) & 0x000400)
 #define SYN_CAP_IMAGE_SENSOR(ex0c)	((ex0c) & 0x000800)
+
+/*
+ * The following descibes response for the 0x10 query.
+ *
+ * byte	mask	name			meaning
+ * ----	----	-------			------------
+ * 1	0x01	ext buttons are stick	buttons exported in the extended
+ *					capability are actually meant to be used
+ *					by the tracktick (pass-through).
+ * 1	0x02	SecurePad		the touchpad is a SecurePad, so it
+ *					contains a built-in fingerprint reader.
+ * 1	0xe0	more ext count		how many more extented queries are
+ *					available after this one.
+ * 2	0xff	SecurePad width		the width of the SecurePad fingerprint
+ *					reader.
+ * 3	0xff	SecurePad height	the height of the SecurePad fingerprint
+ *					reader.
+ */
+#define SYN_CAP_EXT_BUTTONS_STICK(ex10)	((ex10) & 0x010000)
+#define SYN_CAP_SECUREPAD(ex10)		((ex10) & 0x020000)
+
+#define SYN_CAP_EXT_BUTTON_STICK_L(eb)	(!!((eb) & 0x01))
+#define SYN_CAP_EXT_BUTTON_STICK_M(eb)	(!!((eb) & 0x02))
+#define SYN_CAP_EXT_BUTTON_STICK_R(eb)	(!!((eb) & 0x04))
 
 /* synaptics modes query bits */
 #define SYN_MODE_ABSOLUTE(m)		((m) & (1 << 7))
@@ -143,6 +169,7 @@ struct synaptics_data {
 	unsigned long int capabilities;		/* Capabilities */
 	unsigned long int ext_cap;		/* Extended Capabilities */
 	unsigned long int ext_cap_0c;		/* Ext Caps from 0x0c query */
+	unsigned long int ext_cap_10;		/* Ext Caps from 0x10 query */
 	unsigned long int identity;		/* Identification */
 	unsigned int x_res, y_res;		/* X/Y resolution in units/mm */
 	unsigned int x_max, y_max;		/* Max coordinates (from FW) */
@@ -156,6 +183,7 @@ struct synaptics_data {
 	bool disable_gesture;			/* disable gestures */
 
 	struct serio *pt_port;			/* Pass-through serio port */
+	unsigned char pt_buttons;		/* Pass-through buttons */
 
 	/*
 	 * Last received Advanced Gesture Mode (AGM) packet. An AGM packet

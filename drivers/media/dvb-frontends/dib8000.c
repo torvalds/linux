@@ -1263,7 +1263,8 @@ static int dib8000_agc_startup(struct dvb_frontend *fe)
 	struct dib8000_state *state = fe->demodulator_priv;
 	enum frontend_tune_state *tune_state = &state->tune_state;
 	int ret = 0;
-	u16 reg, upd_demod_gain_period = 0x8000;
+	u16 reg;
+	u32 upd_demod_gain_period = 0x8000;
 
 	switch (*tune_state) {
 	case CT_AGC_START:

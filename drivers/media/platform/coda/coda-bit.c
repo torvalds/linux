@@ -718,6 +718,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	struct vb2_buffer *buf;
 	int gamma, ret, value;
 	u32 dst_fourcc;
+	int num_fb;
 	u32 stride;
 
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
@@ -983,12 +984,14 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			v4l2_err(v4l2_dev, "failed to allocate framebuffers\n");
 			goto out;
 		}
+		num_fb = 2;
 		stride = q_data_src->bytesperline;
 	} else {
 		ctx->num_internal_frames = 0;
+		num_fb = 0;
 		stride = 0;
 	}
-	coda_write(dev, ctx->num_internal_frames, CODA_CMD_SET_FRAME_BUF_NUM);
+	coda_write(dev, num_fb, CODA_CMD_SET_FRAME_BUF_NUM);
 	coda_write(dev, stride, CODA_CMD_SET_FRAME_BUF_STRIDE);
 
 	if (dev->devtype->product == CODA_7541) {
@@ -1316,8 +1319,10 @@ static void coda_seq_end_work(struct work_struct *work)
 
 static void coda_bit_release(struct coda_ctx *ctx)
 {
+	mutex_lock(&ctx->buffer_mutex);
 	coda_free_framebuffers(ctx);
 	coda_free_context_buffers(ctx);
+	mutex_unlock(&ctx->buffer_mutex);
 }
 
 const struct coda_context_ops coda_bit_encode_ops = {
@@ -1431,9 +1436,10 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 		height = val & CODA7_PICHEIGHT_MASK;
 	}
 
-	if (width > q_data_dst->width || height > q_data_dst->height) {
+	if (width > q_data_dst->bytesperline || height > q_data_dst->height) {
 		v4l2_err(&dev->v4l2_dev, "stream is %dx%d, not %dx%d\n",
-			 width, height, q_data_dst->width, q_data_dst->height);
+			 width, height, q_data_dst->bytesperline,
+			 q_data_dst->height);
 		return -EINVAL;
 	}
 
@@ -1565,6 +1571,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	struct vb2_buffer *dst_buf;
 	struct coda_dev *dev = ctx->dev;
 	struct coda_q_data *q_data_dst;
+	struct coda_buffer_meta *meta;
 	u32 reg_addr, reg_stride;
 
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -1643,12 +1650,12 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 		coda_write(dev, ctx->iram_info.axi_sram_use,
 				CODA7_REG_BIT_AXI_SRAM_USE);
 
-	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG) {
-		struct coda_buffer_meta *meta;
+	meta = list_first_entry_or_null(&ctx->buffer_meta_list,
+					struct coda_buffer_meta, list);
+
+	if (meta && ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG) {
 
 		/* If this is the last buffer in the bitstream, add padding */
-		meta = list_first_entry(&ctx->buffer_meta_list,
-				      struct coda_buffer_meta, list);
 		if (meta->end == (ctx->bitstream_fifo.kfifo.in &
 				  ctx->bitstream_fifo.kfifo.mask)) {
 			static unsigned char buf[512];
@@ -1664,6 +1671,9 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	}
 
 	coda_kfifo_sync_to_device_full(ctx);
+
+	/* Clear decode success flag */
+	coda_write(dev, 0, CODA_RET_DEC_PIC_SUCCESS);
 
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 
@@ -1821,6 +1831,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 			memset(&ctx->frame_metas[decoded_idx], 0,
 			       sizeof(struct coda_buffer_meta));
 			ctx->frame_metas[decoded_idx].sequence = val;
+			ctx->sequence_offset++;
 		}
 		mutex_unlock(&ctx->bitstream_mutex);
 

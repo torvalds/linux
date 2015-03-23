@@ -612,11 +612,14 @@ Type: vm ioctl
 Parameters: none
 Returns: 0 on success, -1 on error
 
-Creates an interrupt controller model in the kernel.  On x86, creates a virtual
-ioapic, a virtual PIC (two PICs, nested), and sets up future vcpus to have a
-local APIC.  IRQ routing for GSIs 0-15 is set to both PIC and IOAPIC; GSI 16-23
-only go to the IOAPIC.  On ARM/arm64, a GIC is
-created. On s390, a dummy irq routing table is created.
+Creates an interrupt controller model in the kernel.
+On x86, creates a virtual ioapic, a virtual PIC (two PICs, nested), and sets up
+future vcpus to have a local APIC.  IRQ routing for GSIs 0-15 is set to both
+PIC and IOAPIC; GSI 16-23 only go to the IOAPIC.
+On ARM/arm64, a GICv2 is created. Any other GIC versions require the usage of
+KVM_CREATE_DEVICE, which also supports creating a GICv2.  Using
+KVM_CREATE_DEVICE is preferred over KVM_CREATE_IRQCHIP for GICv2.
+On s390, a dummy irq routing table is created.
 
 Note that on s390 the KVM_CAP_S390_IRQCHIP vm capability needs to be enabled
 before KVM_CREATE_IRQCHIP can be used.
@@ -2312,7 +2315,7 @@ struct kvm_s390_interrupt {
 
 type can be one of the following:
 
-KVM_S390_SIGP_STOP (vcpu) - sigp restart
+KVM_S390_SIGP_STOP (vcpu) - sigp stop; optional flags in parm
 KVM_S390_PROGRAM_INT (vcpu) - program check; code in parm
 KVM_S390_SIGP_SET_PREFIX (vcpu) - sigp set prefix; prefix address in parm
 KVM_S390_RESTART (vcpu) - restart
@@ -3225,3 +3228,23 @@ userspace from doing that.
 If the hcall number specified is not one that has an in-kernel
 implementation, the KVM_ENABLE_CAP ioctl will fail with an EINVAL
 error.
+
+7.2 KVM_CAP_S390_USER_SIGP
+
+Architectures: s390
+Parameters: none
+
+This capability controls which SIGP orders will be handled completely in user
+space. With this capability enabled, all fast orders will be handled completely
+in the kernel:
+- SENSE
+- SENSE RUNNING
+- EXTERNAL CALL
+- EMERGENCY SIGNAL
+- CONDITIONAL EMERGENCY SIGNAL
+
+All other orders will be handled completely in user space.
+
+Only privileged operation exceptions will be checked for in the kernel (or even
+in the hardware prior to interception). If this capability is not enabled, the
+old way of handling SIGP orders is used (partially in kernel and user space).

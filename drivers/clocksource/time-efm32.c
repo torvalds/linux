@@ -225,11 +225,11 @@ static int __init efm32_clockevent_init(struct device_node *np)
 	clock_event_ddata.base = base;
 	clock_event_ddata.periodic_top = DIV_ROUND_CLOSEST(rate, 1024 * HZ);
 
-	setup_irq(irq, &efm32_clock_event_irq);
-
 	clockevents_config_and_register(&clock_event_ddata.evtdev,
 					DIV_ROUND_CLOSEST(rate, 1024),
 					0xf, 0xffff);
+
+	setup_irq(irq, &efm32_clock_event_irq);
 
 	return 0;
 

@@ -6,6 +6,7 @@
 
 #include <linux/bio.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <linux/dm-dirty-log.h>
 #include <linux/device-mapper.h>
 #include <linux/dm-log-userspace.h>
@@ -829,7 +830,7 @@ static int userspace_is_remote_recovering(struct dm_dirty_log *log,
 	int r;
 	uint64_t region64 = region;
 	struct log_c *lc = log->context;
-	static unsigned long long limit;
+	static unsigned long limit;
 	struct {
 		int64_t is_recovering;
 		uint64_t in_sync_hint;
@@ -845,7 +846,7 @@ static int userspace_is_remote_recovering(struct dm_dirty_log *log,
 	 */
 	if (region < lc->in_sync_hint)
 		return 0;
-	else if (jiffies < limit)
+	else if (time_after(limit, jiffies))
 		return 1;
 
 	limit = jiffies + (HZ / 4);

@@ -1535,7 +1535,7 @@ isif_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 }
 
 /*
- * isif_pad_set_crop() - set crop rectangle on pad
+ * isif_pad_set_selection() - set crop rectangle on pad
  * @sd: VPFE isif V4L2 subdevice
  * @fh: V4L2 subdev file handle
  * @code: pointer to v4l2_subdev_mbus_code_enum structure
@@ -1543,35 +1543,36 @@ isif_enum_mbus_code(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
  * Return 0 on success, -EINVAL if pad is invalid
  */
 static int
-isif_pad_set_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-		  struct v4l2_subdev_crop *crop)
+isif_pad_set_selection(struct v4l2_subdev *sd,
+		       struct v4l2_subdev_fh *fh,
+		       struct v4l2_subdev_selection *sel)
 {
 	struct vpfe_isif_device *vpfe_isif = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	/* check wether its a valid pad */
-	if (crop->pad != ISIF_PAD_SINK)
+	/* check whether it's a valid pad and target */
+	if (sel->pad != ISIF_PAD_SINK || sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	format = __isif_get_format(vpfe_isif, fh, crop->pad, crop->which);
+	format = __isif_get_format(vpfe_isif, fh, sel->pad, sel->which);
 	if (format == NULL)
 		return -EINVAL;
 
 	/* check wether crop rect is within limits */
-	if (crop->rect.top < 0 || crop->rect.left < 0 ||
-		(crop->rect.left + crop->rect.width >
+	if (sel->r.top < 0 || sel->r.left < 0 ||
+		(sel->r.left + sel->r.width >
 		vpfe_isif->formats[ISIF_PAD_SINK].width) ||
-		(crop->rect.top + crop->rect.height >
+		(sel->r.top + sel->r.height >
 			vpfe_isif->formats[ISIF_PAD_SINK].height)) {
-		crop->rect.left = 0;
-		crop->rect.top = 0;
-		crop->rect.width = format->width;
-		crop->rect.height = format->height;
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = format->width;
+		sel->r.height = format->height;
 	}
 	/* adjust the width to 16 pixel boundary */
-	crop->rect.width = ((crop->rect.width + 15) & ~0xf);
-	vpfe_isif->crop = crop->rect;
-	if (crop->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+	sel->r.width = ((sel->r.width + 15) & ~0xf);
+	vpfe_isif->crop = sel->r;
+	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		isif_set_image_window(vpfe_isif);
 	} else {
 		struct v4l2_rect *rect;
@@ -1583,7 +1584,7 @@ isif_pad_set_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 }
 
 /*
- * isif_pad_get_crop() - get crop rectangle on pad
+ * isif_pad_get_selection() - get crop rectangle on pad
  * @sd: VPFE isif V4L2 subdevice
  * @fh: V4L2 subdev file handle
  * @code: pointer to v4l2_subdev_mbus_code_enum structure
@@ -1591,22 +1592,23 @@ isif_pad_set_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
  * Return 0 on success, -EINVAL if pad is invalid
  */
 static int
-isif_pad_get_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-		  struct v4l2_subdev_crop *crop)
+isif_pad_get_selection(struct v4l2_subdev *sd,
+		       struct v4l2_subdev_fh *fh,
+		       struct v4l2_subdev_selection *sel)
 {
 	struct vpfe_isif_device *vpfe_isif = v4l2_get_subdevdata(sd);
 
-	/* check wether its a valid pad */
-	if (crop->pad != ISIF_PAD_SINK)
+	/* check whether it's a valid pad and target */
+	if (sel->pad != ISIF_PAD_SINK || sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	if (crop->which == V4L2_SUBDEV_FORMAT_TRY) {
+	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_rect *rect;
 
 		rect = v4l2_subdev_get_try_crop(fh, ISIF_PAD_SINK);
-		memcpy(&crop->rect, rect, sizeof(*rect));
+		memcpy(&sel->r, rect, sizeof(*rect));
 	} else {
-		crop->rect = vpfe_isif->crop;
+		sel->r = vpfe_isif->crop;
 	}
 
 	return 0;
@@ -1626,7 +1628,7 @@ isif_init_formats(struct v4l2_subdev *sd,
 		  struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_subdev_format format;
-	struct v4l2_subdev_crop crop;
+	struct v4l2_subdev_selection sel;
 
 	memset(&format, 0, sizeof(format));
 	format.pad = ISIF_PAD_SINK;
@@ -1644,12 +1646,13 @@ isif_init_formats(struct v4l2_subdev *sd,
 	format.format.height = MAX_HEIGHT;
 	isif_set_format(sd, fh, &format);
 
-	memset(&crop, 0, sizeof(crop));
-	crop.pad = ISIF_PAD_SINK;
-	crop.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	crop.rect.width = MAX_WIDTH;
-	crop.rect.height = MAX_HEIGHT;
-	isif_pad_set_crop(sd, fh, &crop);
+	memset(&sel, 0, sizeof(sel));
+	sel.pad = ISIF_PAD_SINK;
+	sel.which = fh ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.target = V4L2_SEL_TGT_CROP;
+	sel.r.width = MAX_WIDTH;
+	sel.r.height = MAX_HEIGHT;
+	isif_pad_set_selection(sd, fh, &sel);
 
 	return 0;
 }
@@ -1675,8 +1678,8 @@ static const struct v4l2_subdev_pad_ops isif_v4l2_pad_ops = {
 	.enum_frame_size = isif_enum_frame_size,
 	.get_fmt = isif_get_format,
 	.set_fmt = isif_set_format,
-	.set_crop = isif_pad_set_crop,
-	.get_crop = isif_pad_get_crop,
+	.set_selection = isif_pad_set_selection,
+	.get_selection = isif_pad_get_selection,
 };
 
 /* subdev operations */

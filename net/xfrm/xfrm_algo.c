@@ -561,11 +561,6 @@ static struct xfrm_algo_desc calg_list[] = {
 },
 };
 
-static inline int aead_entries(void)
-{
-	return ARRAY_SIZE(aead_list);
-}
-
 static inline int aalg_entries(void)
 {
 	return ARRAY_SIZE(aalg_list);

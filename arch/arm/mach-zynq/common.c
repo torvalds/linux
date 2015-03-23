@@ -146,8 +146,6 @@ out:
 
 	platform_device_register(&zynq_cpuidle_device);
 	platform_device_register_full(&devinfo);
-
-	zynq_slcr_init();
 }
 
 static void __init zynq_timer_init(void)

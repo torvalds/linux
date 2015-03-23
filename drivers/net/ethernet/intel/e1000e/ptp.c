@@ -90,12 +90,9 @@ static int e1000e_phc_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct e1000_adapter *adapter = container_of(ptp, struct e1000_adapter,
 						     ptp_clock_info);
 	unsigned long flags;
-	s64 now;
 
 	spin_lock_irqsave(&adapter->systim_lock, flags);
-	now = timecounter_read(&adapter->tc);
-	now += delta;
-	timecounter_init(&adapter->tc, &adapter->cc, now);
+	timecounter_adjtime(&adapter->tc, delta);
 	spin_unlock_irqrestore(&adapter->systim_lock, flags);
 
 	return 0;

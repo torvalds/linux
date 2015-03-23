@@ -74,8 +74,8 @@ static int regmap_ac97_reg_write(void *context, unsigned int reg,
 }
 
 static const struct regmap_bus ac97_regmap_bus = {
-		.reg_write = regmap_ac97_reg_write,
-		.reg_read = regmap_ac97_reg_read,
+	.reg_write = regmap_ac97_reg_write,
+	.reg_read = regmap_ac97_reg_read,
 };
 
 /**

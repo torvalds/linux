@@ -20,7 +20,7 @@
  */
 
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -867,16 +867,11 @@ static int snd_pmac_free(struct snd_pmac *chip)
 	snd_pmac_dbdma_free(chip, &chip->capture.cmd);
 	snd_pmac_dbdma_free(chip, &chip->extra_dma);
 	snd_pmac_dbdma_free(chip, &emergency_dbdma);
-	if (chip->macio_base)
-		iounmap(chip->macio_base);
-	if (chip->latch_base)
-		iounmap(chip->latch_base);
-	if (chip->awacs)
-		iounmap(chip->awacs);
-	if (chip->playback.dma)
-		iounmap(chip->playback.dma);
-	if (chip->capture.dma)
-		iounmap(chip->capture.dma);
+	iounmap(chip->macio_base);
+	iounmap(chip->latch_base);
+	iounmap(chip->awacs);
+	iounmap(chip->playback.dma);
+	iounmap(chip->capture.dma);
 
 	if (chip->node) {
 		int i;

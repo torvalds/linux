@@ -39,6 +39,7 @@
 #include "xfs_icache.h"
 #include "xfs_symlink.h"
 #include "xfs_trans.h"
+#include "xfs_pnfs.h"
 
 #include <linux/capability.h>
 #include <linux/dcache.h>
@@ -286,7 +287,7 @@ xfs_readlink_by_handle(
 		return PTR_ERR(dentry);
 
 	/* Restrict this handle operation to symlinks only. */
-	if (!S_ISLNK(dentry->d_inode->i_mode)) {
+	if (!d_is_symlink(dentry)) {
 		error = -EINVAL;
 		goto out_dput;
 	}
@@ -606,11 +607,9 @@ xfs_ioc_space(
 	unsigned int		cmd,
 	xfs_flock64_t		*bf)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_trans	*tp;
 	struct iattr		iattr;
-	bool			setprealloc = false;
-	bool			clrprealloc = false;
+	enum xfs_prealloc_flags	flags = 0;
+	uint			iolock = XFS_IOLOCK_EXCL;
 	int			error;
 
 	/*
@@ -630,11 +629,19 @@ xfs_ioc_space(
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
 
+	if (filp->f_flags & O_DSYNC)
+		flags |= XFS_PREALLOC_SYNC;
+	if (ioflags & XFS_IO_INVIS)	
+		flags |= XFS_PREALLOC_INVISIBLE;
+
 	error = mnt_want_write_file(filp);
 	if (error)
 		return error;
 
-	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	xfs_ilock(ip, iolock);
+	error = xfs_break_layouts(inode, &iolock);
+	if (error)
+		goto out_unlock;
 
 	switch (bf->l_whence) {
 	case 0: /*SEEK_SET*/
@@ -673,25 +680,23 @@ xfs_ioc_space(
 	}
 
 	if (bf->l_start < 0 ||
-	    bf->l_start > mp->m_super->s_maxbytes ||
+	    bf->l_start > inode->i_sb->s_maxbytes ||
 	    bf->l_start + bf->l_len < 0 ||
-	    bf->l_start + bf->l_len >= mp->m_super->s_maxbytes) {
+	    bf->l_start + bf->l_len >= inode->i_sb->s_maxbytes) {
 		error = -EINVAL;
 		goto out_unlock;
 	}
 
 	switch (cmd) {
 	case XFS_IOC_ZERO_RANGE:
+		flags |= XFS_PREALLOC_SET;
 		error = xfs_zero_file_space(ip, bf->l_start, bf->l_len);
-		if (!error)
-			setprealloc = true;
 		break;
 	case XFS_IOC_RESVSP:
 	case XFS_IOC_RESVSP64:
+		flags |= XFS_PREALLOC_SET;
 		error = xfs_alloc_file_space(ip, bf->l_start, bf->l_len,
 						XFS_BMAPI_PREALLOC);
-		if (!error)
-			setprealloc = true;
 		break;
 	case XFS_IOC_UNRESVSP:
 	case XFS_IOC_UNRESVSP64:
@@ -701,6 +706,7 @@ xfs_ioc_space(
 	case XFS_IOC_ALLOCSP64:
 	case XFS_IOC_FREESP:
 	case XFS_IOC_FREESP64:
+		flags |= XFS_PREALLOC_CLEAR;
 		if (bf->l_start > XFS_ISIZE(ip)) {
 			error = xfs_alloc_file_space(ip, XFS_ISIZE(ip),
 					bf->l_start - XFS_ISIZE(ip), 0);
@@ -712,8 +718,6 @@ xfs_ioc_space(
 		iattr.ia_size = bf->l_start;
 
 		error = xfs_setattr_size(ip, &iattr);
-		if (!error)
-			clrprealloc = true;
 		break;
 	default:
 		ASSERT(0);
@@ -723,35 +727,10 @@ xfs_ioc_space(
 	if (error)
 		goto out_unlock;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_WRITEID);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_writeid, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp, 0);
-		goto out_unlock;
-	}
-
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-
-	if (!(ioflags & XFS_IO_INVIS)) {
-		ip->i_d.di_mode &= ~S_ISUID;
-		if (ip->i_d.di_mode & S_IXGRP)
-			ip->i_d.di_mode &= ~S_ISGID;
-		xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-	}
-
-	if (setprealloc)
-		ip->i_d.di_flags |= XFS_DIFLAG_PREALLOC;
-	else if (clrprealloc)
-		ip->i_d.di_flags &= ~XFS_DIFLAG_PREALLOC;
-
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	if (filp->f_flags & O_DSYNC)
-		xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
+	error = xfs_update_prealloc_flags(ip, flags);
 
 out_unlock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	xfs_iunlock(ip, iolock);
 	mnt_drop_write_file(filp);
 	return error;
 }
@@ -1013,20 +992,182 @@ xfs_diflags_to_linux(
 		inode->i_flags &= ~S_NOATIME;
 }
 
-#define FSX_PROJID	1
-#define FSX_EXTSIZE	2
-#define FSX_XFLAGS	4
-#define FSX_NONBLOCK	8
+static int
+xfs_ioctl_setattr_xflags(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	struct fsxattr		*fa)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	/* Can't change realtime flag if any extents are allocated. */
+	if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
+	    XFS_IS_REALTIME_INODE(ip) != (fa->fsx_xflags & XFS_XFLAG_REALTIME))
+		return -EINVAL;
+
+	/* If realtime flag is set then must have realtime device */
+	if (fa->fsx_xflags & XFS_XFLAG_REALTIME) {
+		if (mp->m_sb.sb_rblocks == 0 || mp->m_sb.sb_rextsize == 0 ||
+		    (ip->i_d.di_extsize % mp->m_sb.sb_rextsize))
+			return -EINVAL;
+	}
+
+	/*
+	 * Can't modify an immutable/append-only file unless
+	 * we have appropriate permission.
+	 */
+	if (((ip->i_d.di_flags & (XFS_DIFLAG_IMMUTABLE | XFS_DIFLAG_APPEND)) ||
+	     (fa->fsx_xflags & (XFS_XFLAG_IMMUTABLE | XFS_XFLAG_APPEND))) &&
+	    !capable(CAP_LINUX_IMMUTABLE))
+		return -EPERM;
+
+	xfs_set_diflags(ip, fa->fsx_xflags);
+	xfs_diflags_to_linux(ip);
+	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	XFS_STATS_INC(xs_ig_attrchg);
+	return 0;
+}
+
+/*
+ * Set up the transaction structure for the setattr operation, checking that we
+ * have permission to do so. On success, return a clean transaction and the
+ * inode locked exclusively ready for further operation specific checks. On
+ * failure, return an error without modifying or locking the inode.
+ */
+static struct xfs_trans *
+xfs_ioctl_setattr_get_trans(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
+		return ERR_PTR(-EROFS);
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return ERR_PTR(-EIO);
+
+	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
+	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
+	if (error)
+		goto out_cancel;
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+
+	/*
+	 * CAP_FOWNER overrides the following restrictions:
+	 *
+	 * The user ID of the calling process must be equal to the file owner
+	 * ID, except in cases where the CAP_FSETID capability is applicable.
+	 */
+	if (!inode_owner_or_capable(VFS_I(ip))) {
+		error = -EPERM;
+		goto out_cancel;
+	}
+
+	if (mp->m_flags & XFS_MOUNT_WSYNC)
+		xfs_trans_set_sync(tp);
+
+	return tp;
+
+out_cancel:
+	xfs_trans_cancel(tp, 0);
+	return ERR_PTR(error);
+}
+
+/*
+ * extent size hint validation is somewhat cumbersome. Rules are:
+ *
+ * 1. extent size hint is only valid for directories and regular files
+ * 2. XFS_XFLAG_EXTSIZE is only valid for regular files
+ * 3. XFS_XFLAG_EXTSZINHERIT is only valid for directories.
+ * 4. can only be changed on regular files if no extents are allocated
+ * 5. can be changed on directories at any time
+ * 6. extsize hint of 0 turns off hints, clears inode flags.
+ * 7. Extent size must be a multiple of the appropriate block size.
+ * 8. for non-realtime files, the extent size hint must be limited
+ *    to half the AG size to avoid alignment extending the extent beyond the
+ *    limits of the AG.
+ */
+static int
+xfs_ioctl_setattr_check_extsize(
+	struct xfs_inode	*ip,
+	struct fsxattr		*fa)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	if ((fa->fsx_xflags & XFS_XFLAG_EXTSIZE) && !S_ISREG(ip->i_d.di_mode))
+		return -EINVAL;
+
+	if ((fa->fsx_xflags & XFS_XFLAG_EXTSZINHERIT) &&
+	    !S_ISDIR(ip->i_d.di_mode))
+		return -EINVAL;
+
+	if (S_ISREG(ip->i_d.di_mode) && ip->i_d.di_nextents &&
+	    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) != fa->fsx_extsize))
+		return -EINVAL;
+
+	if (fa->fsx_extsize != 0) {
+		xfs_extlen_t    size;
+		xfs_fsblock_t   extsize_fsb;
+
+		extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
+		if (extsize_fsb > MAXEXTLEN)
+			return -EINVAL;
+
+		if (XFS_IS_REALTIME_INODE(ip) ||
+		    (fa->fsx_xflags & XFS_XFLAG_REALTIME)) {
+			size = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
+		} else {
+			size = mp->m_sb.sb_blocksize;
+			if (extsize_fsb > mp->m_sb.sb_agblocks / 2)
+				return -EINVAL;
+		}
+
+		if (fa->fsx_extsize % size)
+			return -EINVAL;
+	} else
+		fa->fsx_xflags &= ~(XFS_XFLAG_EXTSIZE | XFS_XFLAG_EXTSZINHERIT);
+
+	return 0;
+}
+
+static int
+xfs_ioctl_setattr_check_projid(
+	struct xfs_inode	*ip,
+	struct fsxattr		*fa)
+{
+	/* Disallow 32bit project ids if projid32bit feature is not enabled. */
+	if (fa->fsx_projid > (__uint16_t)-1 &&
+	    !xfs_sb_version_hasprojid32bit(&ip->i_mount->m_sb))
+		return -EINVAL;
+
+	/*
+	 * Project Quota ID state is only allowed to change from within the init
+	 * namespace. Enforce that restriction only if we are trying to change
+	 * the quota ID state. Everything else is allowed in user namespaces.
+	 */
+	if (current_user_ns() == &init_user_ns)
+		return 0;
+
+	if (xfs_get_projid(ip) != fa->fsx_projid)
+		return -EINVAL;
+	if ((fa->fsx_xflags & XFS_XFLAG_PROJINHERIT) !=
+	    (ip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT))
+		return -EINVAL;
+
+	return 0;
+}
 
 STATIC int
 xfs_ioctl_setattr(
 	xfs_inode_t		*ip,
-	struct fsxattr		*fa,
-	int			mask)
+	struct fsxattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
-	unsigned int		lock_flags = 0;
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
 	struct xfs_dquot	*olddquot = NULL;
@@ -1034,17 +1175,9 @@ xfs_ioctl_setattr(
 
 	trace_xfs_ioctl_setattr(ip);
 
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		return -EROFS;
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return -EIO;
-
-	/*
-	 * Disallow 32bit project ids when projid32bit feature is not enabled.
-	 */
-	if ((mask & FSX_PROJID) && (fa->fsx_projid > (__uint16_t)-1) &&
-			!xfs_sb_version_hasprojid32bit(&ip->i_mount->m_sb))
-		return -EINVAL;
+	code = xfs_ioctl_setattr_check_projid(ip, fa);
+	if (code)
+		return code;
 
 	/*
 	 * If disk quotas is on, we make sure that the dquots do exist on disk,
@@ -1054,7 +1187,7 @@ xfs_ioctl_setattr(
 	 * If the IDs do change before we take the ilock, we're covered
 	 * because the i_*dquot fields will get updated anyway.
 	 */
-	if (XFS_IS_QUOTA_ON(mp) && (mask & FSX_PROJID)) {
+	if (XFS_IS_QUOTA_ON(mp)) {
 		code = xfs_qm_vop_dqalloc(ip, ip->i_d.di_uid,
 					 ip->i_d.di_gid, fa->fsx_projid,
 					 XFS_QMOPT_PQUOTA, &udqp, NULL, &pdqp);
@@ -1062,175 +1195,49 @@ xfs_ioctl_setattr(
 			return code;
 	}
 
-	/*
-	 * For the other attributes, we acquire the inode lock and
-	 * first do an error checking pass.
-	 */
-	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
-	code = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
+	tp = xfs_ioctl_setattr_get_trans(ip);
+	if (IS_ERR(tp)) {
+		code = PTR_ERR(tp);
+		goto error_free_dquots;
+	}
+
+
+	if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp) &&
+	    xfs_get_projid(ip) != fa->fsx_projid) {
+		code = xfs_qm_vop_chown_reserve(tp, ip, udqp, NULL, pdqp,
+				capable(CAP_FOWNER) ?  XFS_QMOPT_FORCE_RES : 0);
+		if (code)	/* out of quota */
+			goto error_trans_cancel;
+	}
+
+	code = xfs_ioctl_setattr_check_extsize(ip, fa);
 	if (code)
-		goto error_return;
+		goto error_trans_cancel;
 
-	lock_flags = XFS_ILOCK_EXCL;
-	xfs_ilock(ip, lock_flags);
+	code = xfs_ioctl_setattr_xflags(tp, ip, fa);
+	if (code)
+		goto error_trans_cancel;
 
 	/*
-	 * CAP_FOWNER overrides the following restrictions:
+	 * Change file ownership.  Must be the owner or privileged.  CAP_FSETID
+	 * overrides the following restrictions:
 	 *
-	 * The user ID of the calling process must be equal
-	 * to the file owner ID, except in cases where the
-	 * CAP_FSETID capability is applicable.
+	 * The set-user-ID and set-group-ID bits of a file will be cleared upon
+	 * successful return from chown()
 	 */
-	if (!inode_owner_or_capable(VFS_I(ip))) {
-		code = -EPERM;
-		goto error_return;
-	}
 
-	/*
-	 * Do a quota reservation only if projid is actually going to change.
-	 * Only allow changing of projid from init_user_ns since it is a
-	 * non user namespace aware identifier.
-	 */
-	if (mask & FSX_PROJID) {
-		if (current_user_ns() != &init_user_ns) {
-			code = -EINVAL;
-			goto error_return;
+	if ((ip->i_d.di_mode & (S_ISUID|S_ISGID)) &&
+	    !capable_wrt_inode_uidgid(VFS_I(ip), CAP_FSETID))
+		ip->i_d.di_mode &= ~(S_ISUID|S_ISGID);
+
+	/* Change the ownerships and register project quota modifications */
+	if (xfs_get_projid(ip) != fa->fsx_projid) {
+		if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp)) {
+			olddquot = xfs_qm_vop_chown(tp, ip,
+						&ip->i_pdquot, pdqp);
 		}
-
-		if (XFS_IS_QUOTA_RUNNING(mp) &&
-		    XFS_IS_PQUOTA_ON(mp) &&
-		    xfs_get_projid(ip) != fa->fsx_projid) {
-			ASSERT(tp);
-			code = xfs_qm_vop_chown_reserve(tp, ip, udqp, NULL,
-						pdqp, capable(CAP_FOWNER) ?
-						XFS_QMOPT_FORCE_RES : 0);
-			if (code)	/* out of quota */
-				goto error_return;
-		}
-	}
-
-	if (mask & FSX_EXTSIZE) {
-		/*
-		 * Can't change extent size if any extents are allocated.
-		 */
-		if (ip->i_d.di_nextents &&
-		    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) !=
-		     fa->fsx_extsize)) {
-			code = -EINVAL;	/* EFBIG? */
-			goto error_return;
-		}
-
-		/*
-		 * Extent size must be a multiple of the appropriate block
-		 * size, if set at all. It must also be smaller than the
-		 * maximum extent size supported by the filesystem.
-		 *
-		 * Also, for non-realtime files, limit the extent size hint to
-		 * half the size of the AGs in the filesystem so alignment
-		 * doesn't result in extents larger than an AG.
-		 */
-		if (fa->fsx_extsize != 0) {
-			xfs_extlen_t    size;
-			xfs_fsblock_t   extsize_fsb;
-
-			extsize_fsb = XFS_B_TO_FSB(mp, fa->fsx_extsize);
-			if (extsize_fsb > MAXEXTLEN) {
-				code = -EINVAL;
-				goto error_return;
-			}
-
-			if (XFS_IS_REALTIME_INODE(ip) ||
-			    ((mask & FSX_XFLAGS) &&
-			    (fa->fsx_xflags & XFS_XFLAG_REALTIME))) {
-				size = mp->m_sb.sb_rextsize <<
-				       mp->m_sb.sb_blocklog;
-			} else {
-				size = mp->m_sb.sb_blocksize;
-				if (extsize_fsb > mp->m_sb.sb_agblocks / 2) {
-					code = -EINVAL;
-					goto error_return;
-				}
-			}
-
-			if (fa->fsx_extsize % size) {
-				code = -EINVAL;
-				goto error_return;
-			}
-		}
-	}
-
-
-	if (mask & FSX_XFLAGS) {
-		/*
-		 * Can't change realtime flag if any extents are allocated.
-		 */
-		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
-		    (XFS_IS_REALTIME_INODE(ip)) !=
-		    (fa->fsx_xflags & XFS_XFLAG_REALTIME)) {
-			code = -EINVAL;	/* EFBIG? */
-			goto error_return;
-		}
-
-		/*
-		 * If realtime flag is set then must have realtime data.
-		 */
-		if ((fa->fsx_xflags & XFS_XFLAG_REALTIME)) {
-			if ((mp->m_sb.sb_rblocks == 0) ||
-			    (mp->m_sb.sb_rextsize == 0) ||
-			    (ip->i_d.di_extsize % mp->m_sb.sb_rextsize)) {
-				code = -EINVAL;
-				goto error_return;
-			}
-		}
-
-		/*
-		 * Can't modify an immutable/append-only file unless
-		 * we have appropriate permission.
-		 */
-		if ((ip->i_d.di_flags &
-				(XFS_DIFLAG_IMMUTABLE|XFS_DIFLAG_APPEND) ||
-		     (fa->fsx_xflags &
-				(XFS_XFLAG_IMMUTABLE | XFS_XFLAG_APPEND))) &&
-		    !capable(CAP_LINUX_IMMUTABLE)) {
-			code = -EPERM;
-			goto error_return;
-		}
-	}
-
-	xfs_trans_ijoin(tp, ip, 0);
-
-	/*
-	 * Change file ownership.  Must be the owner or privileged.
-	 */
-	if (mask & FSX_PROJID) {
-		/*
-		 * CAP_FSETID overrides the following restrictions:
-		 *
-		 * The set-user-ID and set-group-ID bits of a file will be
-		 * cleared upon successful return from chown()
-		 */
-		if ((ip->i_d.di_mode & (S_ISUID|S_ISGID)) &&
-		    !capable_wrt_inode_uidgid(VFS_I(ip), CAP_FSETID))
-			ip->i_d.di_mode &= ~(S_ISUID|S_ISGID);
-
-		/*
-		 * Change the ownerships and register quota modifications
-		 * in the transaction.
-		 */
-		if (xfs_get_projid(ip) != fa->fsx_projid) {
-			if (XFS_IS_QUOTA_RUNNING(mp) && XFS_IS_PQUOTA_ON(mp)) {
-				olddquot = xfs_qm_vop_chown(tp, ip,
-							&ip->i_pdquot, pdqp);
-			}
-			ASSERT(ip->i_d.di_version > 1);
-			xfs_set_projid(ip, fa->fsx_projid);
-		}
-
-	}
-
-	if (mask & FSX_XFLAGS) {
-		xfs_set_diflags(ip, fa->fsx_xflags);
-		xfs_diflags_to_linux(ip);
+		ASSERT(ip->i_d.di_version > 1);
+		xfs_set_projid(ip, fa->fsx_projid);
 	}
 
 	/*
@@ -1238,34 +1245,12 @@ xfs_ioctl_setattr(
 	 * extent size hint should be set on the inode. If no extent size flags
 	 * are set on the inode then unconditionally clear the extent size hint.
 	 */
-	if (mask & FSX_EXTSIZE) {
-		int	extsize = 0;
+	if (ip->i_d.di_flags & (XFS_DIFLAG_EXTSIZE | XFS_DIFLAG_EXTSZINHERIT))
+		ip->i_d.di_extsize = fa->fsx_extsize >> mp->m_sb.sb_blocklog;
+	else
+		ip->i_d.di_extsize = 0;
 
-		if (ip->i_d.di_flags &
-				(XFS_DIFLAG_EXTSIZE | XFS_DIFLAG_EXTSZINHERIT))
-			extsize = fa->fsx_extsize >> mp->m_sb.sb_blocklog;
-		ip->i_d.di_extsize = extsize;
-	}
-
-	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-
-	XFS_STATS_INC(xs_ig_attrchg);
-
-	/*
-	 * If this is a synchronous mount, make sure that the
-	 * transaction goes to disk before returning to the user.
-	 * This is slightly sub-optimal in that truncates require
-	 * two sync transactions instead of one for wsync filesystems.
-	 * One for the truncate and one for the timestamps since we
-	 * don't want to change the timestamps unless we're sure the
-	 * truncate worked.  Truncates are less than 1% of the laddis
-	 * mix so this probably isn't worth the trouble to optimize.
-	 */
-	if (mp->m_flags & XFS_MOUNT_WSYNC)
-		xfs_trans_set_sync(tp);
 	code = xfs_trans_commit(tp, 0);
-	xfs_iunlock(ip, lock_flags);
 
 	/*
 	 * Release any dquot(s) the inode had kept before chown.
@@ -1276,12 +1261,11 @@ xfs_ioctl_setattr(
 
 	return code;
 
- error_return:
+error_trans_cancel:
+	xfs_trans_cancel(tp, 0);
+error_free_dquots:
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(pdqp);
-	xfs_trans_cancel(tp, 0);
-	if (lock_flags)
-		xfs_iunlock(ip, lock_flags);
 	return code;
 }
 
@@ -1292,20 +1276,15 @@ xfs_ioc_fssetxattr(
 	void			__user *arg)
 {
 	struct fsxattr		fa;
-	unsigned int		mask;
 	int error;
 
 	if (copy_from_user(&fa, arg, sizeof(fa)))
 		return -EFAULT;
 
-	mask = FSX_XFLAGS | FSX_EXTSIZE | FSX_PROJID;
-	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
-		mask |= FSX_NONBLOCK;
-
 	error = mnt_want_write_file(filp);
 	if (error)
 		return error;
-	error = xfs_ioctl_setattr(ip, &fa, mask);
+	error = xfs_ioctl_setattr(ip, &fa);
 	mnt_drop_write_file(filp);
 	return error;
 }
@@ -1325,14 +1304,14 @@ xfs_ioc_getxflags(
 
 STATIC int
 xfs_ioc_setxflags(
-	xfs_inode_t		*ip,
+	struct xfs_inode	*ip,
 	struct file		*filp,
 	void			__user *arg)
 {
+	struct xfs_trans	*tp;
 	struct fsxattr		fa;
 	unsigned int		flags;
-	unsigned int		mask;
-	int error;
+	int			error;
 
 	if (copy_from_user(&flags, arg, sizeof(flags)))
 		return -EFAULT;
@@ -1342,15 +1321,26 @@ xfs_ioc_setxflags(
 		      FS_SYNC_FL))
 		return -EOPNOTSUPP;
 
-	mask = FSX_XFLAGS;
-	if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
-		mask |= FSX_NONBLOCK;
 	fa.fsx_xflags = xfs_merge_ioc_xflags(flags, xfs_ip2xflags(ip));
 
 	error = mnt_want_write_file(filp);
 	if (error)
 		return error;
-	error = xfs_ioctl_setattr(ip, &fa, mask);
+
+	tp = xfs_ioctl_setattr_get_trans(ip);
+	if (IS_ERR(tp)) {
+		error = PTR_ERR(tp);
+		goto out_drop_write;
+	}
+
+	error = xfs_ioctl_setattr_xflags(tp, ip, &fa);
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		goto out_drop_write;
+	}
+
+	error = xfs_trans_commit(tp, 0);
+out_drop_write:
 	mnt_drop_write_file(filp);
 	return error;
 }

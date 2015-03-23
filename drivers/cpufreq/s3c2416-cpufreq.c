@@ -263,7 +263,7 @@ out:
 }
 
 #ifdef CONFIG_ARM_S3C2416_CPUFREQ_VCORESCALE
-static void __init s3c2416_cpufreq_cfg_regulator(struct s3c2416_data *s3c_freq)
+static void s3c2416_cpufreq_cfg_regulator(struct s3c2416_data *s3c_freq)
 {
 	int count, v, i, found;
 	struct cpufreq_frequency_table *pos;
@@ -333,7 +333,7 @@ static struct notifier_block s3c2416_cpufreq_reboot_notifier = {
 	.notifier_call = s3c2416_cpufreq_reboot_notifier_evt,
 };
 
-static int __init s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
+static int s3c2416_cpufreq_driver_init(struct cpufreq_policy *policy)
 {
 	struct s3c2416_data *s3c_freq = &s3c2416_cpufreq;
 	struct cpufreq_frequency_table *pos;

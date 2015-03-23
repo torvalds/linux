@@ -40,7 +40,7 @@ struct page_ext {
 #ifdef CONFIG_PAGE_OWNER
 	unsigned int order;
 	gfp_t gfp_mask;
-	struct stack_trace trace;
+	unsigned int nr_entries;
 	unsigned long trace_entries[8];
 #endif
 };

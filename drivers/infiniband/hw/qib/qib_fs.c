@@ -106,7 +106,7 @@ static ssize_t driver_stats_read(struct file *file, char __user *buf,
 {
 	qib_stats.sps_ints = qib_sps_ints();
 	return simple_read_from_buffer(buf, count, ppos, &qib_stats,
-				       sizeof qib_stats);
+				       sizeof(qib_stats));
 }
 
 /*
@@ -133,7 +133,7 @@ static ssize_t driver_names_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	return simple_read_from_buffer(buf, count, ppos, qib_statnames,
-		sizeof qib_statnames - 1); /* no null */
+		sizeof(qib_statnames) - 1); /* no null */
 }
 
 static const struct file_operations driver_ops[] = {
@@ -379,7 +379,7 @@ static int add_cntr_files(struct super_block *sb, struct qib_devdata *dd)
 	int ret, i;
 
 	/* create the per-unit directory */
-	snprintf(unit, sizeof unit, "%u", dd->unit);
+	snprintf(unit, sizeof(unit), "%u", dd->unit);
 	ret = create_file(unit, S_IFDIR|S_IRUGO|S_IXUGO, sb->s_root, &dir,
 			  &simple_dir_operations, dd);
 	if (ret) {
@@ -455,7 +455,7 @@ static int remove_file(struct dentry *parent, char *name)
 	}
 
 	spin_lock(&tmp->d_lock);
-	if (!(d_unhashed(tmp) && tmp->d_inode)) {
+	if (!d_unhashed(tmp) && tmp->d_inode) {
 		__d_drop(tmp);
 		spin_unlock(&tmp->d_lock);
 		simple_unlink(parent->d_inode, tmp);
@@ -482,7 +482,7 @@ static int remove_device_files(struct super_block *sb,
 
 	root = dget(sb->s_root);
 	mutex_lock(&root->d_inode->i_mutex);
-	snprintf(unit, sizeof unit, "%u", dd->unit);
+	snprintf(unit, sizeof(unit), "%u", dd->unit);
 	dir = lookup_one_len(unit, root, strlen(unit));
 
 	if (IS_ERR(dir)) {
@@ -560,6 +560,7 @@ static struct dentry *qibfs_mount(struct file_system_type *fs_type, int flags,
 			const char *dev_name, void *data)
 {
 	struct dentry *ret;
+
 	ret = mount_single(fs_type, flags, data, qibfs_fill_super);
 	if (!IS_ERR(ret))
 		qib_super = ret->d_sb;

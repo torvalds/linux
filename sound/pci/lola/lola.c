@@ -551,10 +551,8 @@ static void lola_free(struct lola *chip)
 	lola_free_mixer(chip);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
-	if (chip->bar[0].remap_addr)
-		iounmap(chip->bar[0].remap_addr);
-	if (chip->bar[1].remap_addr)
-		iounmap(chip->bar[1].remap_addr);
+	iounmap(chip->bar[0].remap_addr);
+	iounmap(chip->bar[1].remap_addr);
 	if (chip->rb.area)
 		snd_dma_free_pages(&chip->rb);
 	pci_release_regions(chip->pci);

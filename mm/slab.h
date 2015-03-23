@@ -86,8 +86,6 @@ extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
 extern void create_boot_cache(struct kmem_cache *, const char *name,
 			size_t size, unsigned long flags);
 
-struct mem_cgroup;
-
 int slab_unmergeable(struct kmem_cache *s);
 struct kmem_cache *find_mergeable(size_t size, size_t align,
 		unsigned long flags, const char *name, void (*ctor)(void *));
@@ -140,7 +138,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
 #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
 
 int __kmem_cache_shutdown(struct kmem_cache *);
-int __kmem_cache_shrink(struct kmem_cache *);
+int __kmem_cache_shrink(struct kmem_cache *, bool);
 void slab_kmem_cache_release(struct kmem_cache *);
 
 struct seq_file;
@@ -165,16 +163,27 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *ppos);
 
 #ifdef CONFIG_MEMCG_KMEM
+/*
+ * Iterate over all memcg caches of the given root cache. The caller must hold
+ * slab_mutex.
+ */
+#define for_each_memcg_cache(iter, root) \
+	list_for_each_entry(iter, &(root)->memcg_params.list, \
+			    memcg_params.list)
+
+#define for_each_memcg_cache_safe(iter, tmp, root) \
+	list_for_each_entry_safe(iter, tmp, &(root)->memcg_params.list, \
+				 memcg_params.list)
+
 static inline bool is_root_cache(struct kmem_cache *s)
 {
-	return !s->memcg_params || s->memcg_params->is_root_cache;
+	return s->memcg_params.is_root_cache;
 }
 
 static inline bool slab_equal_or_root(struct kmem_cache *s,
-					struct kmem_cache *p)
+				      struct kmem_cache *p)
 {
-	return (p == s) ||
-		(s->memcg_params && (p == s->memcg_params->root_cache));
+	return p == s || p == s->memcg_params.root_cache;
 }
 
 /*
@@ -185,37 +194,30 @@ static inline bool slab_equal_or_root(struct kmem_cache *s,
 static inline const char *cache_name(struct kmem_cache *s)
 {
 	if (!is_root_cache(s))
-		return s->memcg_params->root_cache->name;
+		s = s->memcg_params.root_cache;
 	return s->name;
 }
 
 /*
  * Note, we protect with RCU only the memcg_caches array, not per-memcg caches.
- * That said the caller must assure the memcg's cache won't go away. Since once
- * created a memcg's cache is destroyed only along with the root cache, it is
- * true if we are going to allocate from the cache or hold a reference to the
- * root cache by other means. Otherwise, we should hold either the slab_mutex
- * or the memcg's slab_caches_mutex while calling this function and accessing
- * the returned value.
+ * That said the caller must assure the memcg's cache won't go away by either
+ * taking a css reference to the owner cgroup, or holding the slab_mutex.
  */
 static inline struct kmem_cache *
 cache_from_memcg_idx(struct kmem_cache *s, int idx)
 {
 	struct kmem_cache *cachep;
-	struct memcg_cache_params *params;
-
-	if (!s->memcg_params)
-		return NULL;
+	struct memcg_cache_array *arr;
 
 	rcu_read_lock();
-	params = rcu_dereference(s->memcg_params);
+	arr = rcu_dereference(s->memcg_params.memcg_caches);
 
 	/*
 	 * Make sure we will access the up-to-date value. The code updating
 	 * memcg_caches issues a write barrier to match this (see
-	 * memcg_register_cache()).
+	 * memcg_create_kmem_cache()).
 	 */
-	cachep = lockless_dereference(params->memcg_caches[idx]);
+	cachep = lockless_dereference(arr->entries[idx]);
 	rcu_read_unlock();
 
 	return cachep;
@@ -225,7 +227,7 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 {
 	if (is_root_cache(s))
 		return s;
-	return s->memcg_params->root_cache;
+	return s->memcg_params.root_cache;
 }
 
 static __always_inline int memcg_charge_slab(struct kmem_cache *s,
@@ -235,7 +237,7 @@ static __always_inline int memcg_charge_slab(struct kmem_cache *s,
 		return 0;
 	if (is_root_cache(s))
 		return 0;
-	return __memcg_charge_slab(s, gfp, order);
+	return memcg_charge_kmem(s->memcg_params.memcg, gfp, 1 << order);
 }
 
 static __always_inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
@@ -244,9 +246,18 @@ static __always_inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
 		return;
 	if (is_root_cache(s))
 		return;
-	__memcg_uncharge_slab(s, order);
+	memcg_uncharge_kmem(s->memcg_params.memcg, 1 << order);
 }
-#else
+
+extern void slab_init_memcg_params(struct kmem_cache *);
+
+#else /* !CONFIG_MEMCG_KMEM */
+
+#define for_each_memcg_cache(iter, root) \
+	for ((void)(iter), (void)(root); 0; )
+#define for_each_memcg_cache_safe(iter, tmp, root) \
+	for ((void)(iter), (void)(tmp), (void)(root); 0; )
+
 static inline bool is_root_cache(struct kmem_cache *s)
 {
 	return true;
@@ -282,7 +293,11 @@ static inline int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order)
 static inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
 {
 }
-#endif
+
+static inline void slab_init_memcg_params(struct kmem_cache *s)
+{
+}
+#endif /* CONFIG_MEMCG_KMEM */
 
 static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 {

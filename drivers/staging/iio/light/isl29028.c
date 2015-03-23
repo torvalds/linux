@@ -537,8 +537,8 @@ static const struct i2c_device_id isl29028_id[] = {
 MODULE_DEVICE_TABLE(i2c, isl29028_id);
 
 static const struct of_device_id isl29028_of_match[] = {
-	{ .compatible = "isl,isl29028", },
-	{ .compatible = "isil,isl29028", },/* deprecated, don't use */
+	{ .compatible = "isl,isl29028", }, /* for backward compat., don't use */
+	{ .compatible = "isil,isl29028", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, isl29028_of_match);

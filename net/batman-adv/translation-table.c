@@ -1780,7 +1780,6 @@ static void batadv_tt_global_del(struct batadv_priv *bat_priv,
 		batadv_tt_global_del_roaming(bat_priv, tt_global_entry,
 					     orig_node, message);
 
-
 out:
 	if (tt_global_entry)
 		batadv_tt_global_entry_free_ref(tt_global_entry);
@@ -2769,9 +2768,8 @@ static bool batadv_send_tt_response(struct batadv_priv *bat_priv,
 {
 	if (batadv_is_my_mac(bat_priv, req_dst))
 		return batadv_send_my_tt_response(bat_priv, tt_data, req_src);
-	else
-		return batadv_send_other_tt_response(bat_priv, tt_data,
-						     req_src, req_dst);
+	return batadv_send_other_tt_response(bat_priv, tt_data, req_src,
+					     req_dst);
 }
 
 static void _batadv_tt_update_changes(struct batadv_priv *bat_priv,
@@ -2854,7 +2852,7 @@ static void batadv_tt_update_changes(struct batadv_priv *bat_priv,
 /**
  * batadv_is_my_client - check if a client is served by the local node
  * @bat_priv: the bat priv with all the soft interface information
- * @addr: the mac adress of the client to check
+ * @addr: the mac address of the client to check
  * @vid: VLAN identifier
  *
  * Returns true if the client is served by this node, false otherwise.

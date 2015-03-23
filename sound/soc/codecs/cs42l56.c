@@ -1164,7 +1164,7 @@ static int cs42l56_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs42l56 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs42l56 = {
 	.probe = cs42l56_probe,
 	.remove = cs42l56_remove,
 	.set_bias_level = cs42l56_set_bias_level,
@@ -1179,7 +1179,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs42l56 = {
 	.num_controls = ARRAY_SIZE(cs42l56_snd_controls),
 };
 
-static struct regmap_config cs42l56_regmap = {
+static const struct regmap_config cs42l56_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 

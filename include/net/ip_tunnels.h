@@ -97,7 +97,10 @@ struct ip_tunnel {
 #define TUNNEL_DONT_FRAGMENT    __cpu_to_be16(0x0100)
 #define TUNNEL_OAM		__cpu_to_be16(0x0200)
 #define TUNNEL_CRIT_OPT		__cpu_to_be16(0x0400)
-#define TUNNEL_OPTIONS_PRESENT	__cpu_to_be16(0x0800)
+#define TUNNEL_GENEVE_OPT	__cpu_to_be16(0x0800)
+#define TUNNEL_VXLAN_OPT	__cpu_to_be16(0x1000)
+
+#define TUNNEL_OPTIONS_PRESENT	(TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT)
 
 struct tnl_ptk_info {
 	__be16 flags;
@@ -138,6 +141,7 @@ int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
 int ip_tunnel_init(struct net_device *dev);
 void ip_tunnel_uninit(struct net_device *dev);
 void  ip_tunnel_dellink(struct net_device *dev, struct list_head *head);
+struct net *ip_tunnel_get_link_net(const struct net_device *dev);
 int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 		       struct rtnl_link_ops *ops, char *devname);
 

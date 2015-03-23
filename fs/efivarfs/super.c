@@ -140,7 +140,7 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 
 	name[len] = '-';
 
-	efi_guid_unparse(&entry->var.VendorGuid, name + len + 1);
+	efi_guid_to_str(&entry->var.VendorGuid, name + len + 1);
 
 	name[len + EFI_VARIABLE_GUID_LEN+1] = '\0';
 

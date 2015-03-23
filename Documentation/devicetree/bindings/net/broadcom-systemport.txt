@@ -3,7 +3,7 @@
 Required properties:
 - compatible: should be one of "brcm,systemport-v1.00" or "brcm,systemport"
 - reg: address and length of the register set for the device.
-- interrupts: interrupts for the device, first cell must be for the the rx
+- interrupts: interrupts for the device, first cell must be for the rx
   interrupts, and the second cell should be for the transmit queues. An
   optional third interrupt cell for Wake-on-LAN can be specified
 - local-mac-address: Ethernet MAC address (48 bits) of this adapter

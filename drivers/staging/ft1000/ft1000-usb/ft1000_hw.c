@@ -332,14 +332,14 @@ int card_send_command(struct ft1000_usb *ft1000dev, void *ptempbuffer,
 
 	pr_debug("enter card_send_command... size=%d\n", size);
 
+	ret = ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
+	if (ret)
+		return ret;
+
 	commandbuf = kmalloc(size + 2, GFP_KERNEL);
 	if (!commandbuf)
 		return -ENOMEM;
 	memcpy((void *)commandbuf + 2, (void *)ptempbuffer, size);
-
-	ret = ft1000_read_register(ft1000dev, &temp, FT1000_REG_DOORBELL);
-	if (ret)
-		return ret;
 
 	if (temp & 0x0100)
 		usleep_range(900, 1100);

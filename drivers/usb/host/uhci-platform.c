@@ -147,7 +147,6 @@ static struct platform_driver uhci_platform_driver = {
 	.shutdown	= uhci_hcd_platform_shutdown,
 	.driver = {
 		.name = "platform-uhci",
-		.owner = THIS_MODULE,
 		.of_match_table = platform_uhci_ids,
 	},
 };

@@ -115,6 +115,7 @@
  */
 
 #include <linux/phy.h>
+#include <linux/mdio.h>
 #include <linux/clk.h>
 #include <linux/bitrev.h>
 #include <linux/crc32.h>
@@ -130,7 +131,7 @@ static unsigned int xgbe_usec_to_riwt(struct xgbe_prv_data *pdata,
 
 	DBGPR("-->xgbe_usec_to_riwt\n");
 
-	rate = clk_get_rate(pdata->sysclk);
+	rate = pdata->sysclk_rate;
 
 	/*
 	 * Convert the input usec value to the watchdog timer value. Each
@@ -153,7 +154,7 @@ static unsigned int xgbe_riwt_to_usec(struct xgbe_prv_data *pdata,
 
 	DBGPR("-->xgbe_riwt_to_usec\n");
 
-	rate = clk_get_rate(pdata->sysclk);
+	rate = pdata->sysclk_rate;
 
 	/*
 	 * Convert the input watchdog timer value to the usec value. Each
@@ -673,6 +674,9 @@ static void xgbe_enable_mac_interrupts(struct xgbe_prv_data *pdata)
 
 static int xgbe_set_gmii_speed(struct xgbe_prv_data *pdata)
 {
+	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0x3)
+		return 0;
+
 	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0x3);
 
 	return 0;
@@ -680,6 +684,9 @@ static int xgbe_set_gmii_speed(struct xgbe_prv_data *pdata)
 
 static int xgbe_set_gmii_2500_speed(struct xgbe_prv_data *pdata)
 {
+	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0x2)
+		return 0;
+
 	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0x2);
 
 	return 0;
@@ -687,6 +694,9 @@ static int xgbe_set_gmii_2500_speed(struct xgbe_prv_data *pdata)
 
 static int xgbe_set_xgmii_speed(struct xgbe_prv_data *pdata)
 {
+	if (XGMAC_IOREAD_BITS(pdata, MAC_TCR, SS) == 0)
+		return 0;
+
 	XGMAC_IOWRITE_BITS(pdata, MAC_TCR, SS, 0);
 
 	return 0;
@@ -880,6 +890,23 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 		mmd_address = mmd_reg & ~MII_ADDR_C45;
 	else
 		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
+
+	/* If the PCS is changing modes, match the MAC speed to it */
+	if (((mmd_address >> 16) == MDIO_MMD_PCS) &&
+	    ((mmd_address & 0xffff) == MDIO_CTRL2)) {
+		struct phy_device *phydev = pdata->phydev;
+
+		if (mmd_data & MDIO_PCS_CTRL2_TYPE) {
+			/* KX mode */
+			if (phydev->supported & SUPPORTED_1000baseKX_Full)
+				xgbe_set_gmii_speed(pdata);
+			else
+				xgbe_set_gmii_2500_speed(pdata);
+		} else {
+			/* KR mode */
+			xgbe_set_xgmii_speed(pdata);
+		}
+	}
 
 	/* The PCS registers are accessed using mmio. The underlying APB3
 	 * management interface uses indirect addressing to access the MMD
@@ -1359,6 +1386,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	unsigned int tso_context, vlan_context;
 	unsigned int tx_set_ic;
 	int start_index = ring->cur;
+	int cur_index = ring->cur;
 	int i;
 
 	DBGPR("-->xgbe_dev_xmit\n");
@@ -1401,7 +1429,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	else
 		tx_set_ic = 0;
 
-	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+	rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 	rdesc = rdata->rdesc;
 
 	/* Create a context descriptor if this is a TSO packet */
@@ -1444,8 +1472,8 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 			ring->tx.cur_vlan_ctag = packet->vlan_ctag;
 		}
 
-		ring->cur++;
-		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+		cur_index++;
+		rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 		rdesc = rdata->rdesc;
 	}
 
@@ -1473,7 +1501,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CTXT, 0);
 
 	/* Set OWN bit if not the first descriptor */
-	if (ring->cur != start_index)
+	if (cur_index != start_index)
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
 
 	if (tso) {
@@ -1497,9 +1525,9 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 				  packet->length);
 	}
 
-	for (i = ring->cur - start_index + 1; i < packet->rdesc_count; i++) {
-		ring->cur++;
-		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
+	for (i = cur_index - start_index + 1; i < packet->rdesc_count; i++) {
+		cur_index++;
+		rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 		rdesc = rdata->rdesc;
 
 		/* Update buffer address */
@@ -1551,7 +1579,7 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 	/* Make sure ownership is written to the descriptor */
 	wmb();
 
-	ring->cur++;
+	ring->cur = cur_index + 1;
 	if (!packet->skb->xmit_more ||
 	    netif_xmit_stopped(netdev_get_tx_queue(pdata->netdev,
 						   channel->queue_index)))
@@ -2105,6 +2133,23 @@ static void xgbe_config_jumbo_enable(struct xgbe_prv_data *pdata)
 	val = (pdata->netdev->mtu > XGMAC_STD_PACKET_MTU) ? 1 : 0;
 
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, JE, val);
+}
+
+static void xgbe_config_mac_speed(struct xgbe_prv_data *pdata)
+{
+	switch (pdata->phy_speed) {
+	case SPEED_10000:
+		xgbe_set_xgmii_speed(pdata);
+		break;
+
+	case SPEED_2500:
+		xgbe_set_gmii_2500_speed(pdata);
+		break;
+
+	case SPEED_1000:
+		xgbe_set_gmii_speed(pdata);
+		break;
+	}
 }
 
 static void xgbe_config_checksum_offload(struct xgbe_prv_data *pdata)
@@ -2757,6 +2802,7 @@ static int xgbe_init(struct xgbe_prv_data *pdata)
 	xgbe_config_mac_address(pdata);
 	xgbe_config_jumbo_enable(pdata);
 	xgbe_config_flow_control(pdata);
+	xgbe_config_mac_speed(pdata);
 	xgbe_config_checksum_offload(pdata);
 	xgbe_config_vlan_support(pdata);
 	xgbe_config_mmc(pdata);

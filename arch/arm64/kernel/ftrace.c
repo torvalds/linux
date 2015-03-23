@@ -156,7 +156,7 @@ static int ftrace_modify_graph_caller(bool enable)
 
 	branch = aarch64_insn_gen_branch_imm(pc,
 					     (unsigned long)ftrace_graph_caller,
-					     AARCH64_INSN_BRANCH_LINK);
+					     AARCH64_INSN_BRANCH_NOLINK);
 	nop = aarch64_insn_gen_nop();
 
 	if (enable)

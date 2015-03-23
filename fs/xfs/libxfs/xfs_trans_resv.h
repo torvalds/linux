@@ -56,7 +56,6 @@ struct xfs_trans_resv {
 	struct xfs_trans_res	tr_growrtalloc;	/* grow realtime allocations */
 	struct xfs_trans_res	tr_growrtzero;	/* grow realtime zeroing */
 	struct xfs_trans_res	tr_growrtfree;	/* grow realtime freeing */
-	struct xfs_trans_res	tr_qm_sbchange;	/* change quota flags */
 	struct xfs_trans_res	tr_qm_setqlim;	/* adjust quota limits */
 	struct xfs_trans_res	tr_qm_dqalloc;	/* allocate quota on disk */
 	struct xfs_trans_res	tr_qm_quotaoff;	/* turn quota off */

@@ -1203,24 +1203,41 @@ static void ar9003_hw_tx_iq_cal_reload(struct ath_hw *ah)
 static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 {
 	int offset[8] = {0}, total = 0, test;
-	int agc_out, i;
+	int agc_out, i, peak_detect_threshold;
 
+	if (AR_SREV_9550(ah) || AR_SREV_9531(ah))
+		peak_detect_threshold = 8;
+	else
+		peak_detect_threshold = 0;
+
+	/*
+	 * Turn off LNA/SW.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
 		      AR_PHY_65NM_RXRF_GAINSTAGES_RX_OVERRIDE, 0x1);
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
 		      AR_PHY_65NM_RXRF_GAINSTAGES_LNAON_CALDC, 0x0);
-	if (is_2g)
-		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
-			      AR_PHY_65NM_RXRF_GAINSTAGES_LNA2G_GAIN_OVR, 0x0);
-	else
-		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
-			      AR_PHY_65NM_RXRF_GAINSTAGES_LNA5G_GAIN_OVR, 0x0);
 
+	if (AR_SREV_9003_PCOEM(ah) || AR_SREV_9330_11(ah)) {
+		if (is_2g)
+			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
+				      AR_PHY_65NM_RXRF_GAINSTAGES_LNA2G_GAIN_OVR, 0x0);
+		else
+			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
+				      AR_PHY_65NM_RXRF_GAINSTAGES_LNA5G_GAIN_OVR, 0x0);
+	}
+
+	/*
+	 * Turn off RXON.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXTX2(chain),
 		      AR_PHY_65NM_RXTX2_RXON_OVR, 0x1);
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXTX2(chain),
 		      AR_PHY_65NM_RXTX2_RXON, 0x0);
 
+	/*
+	 * Turn on AGC for cal.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 		      AR_PHY_65NM_RXRF_AGC_AGC_OVERRIDE, 0x1);
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
@@ -1228,16 +1245,19 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 		      AR_PHY_65NM_RXRF_AGC_AGC_CAL_OVR, 0x1);
 
-	if (AR_SREV_9330_11(ah)) {
+	if (AR_SREV_9330_11(ah))
 		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 			      AR_PHY_65NM_RXRF_AGC_AGC2G_CALDAC_OVR, 0x0);
-	} else {
+
+	if (AR_SREV_9003_PCOEM(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah)) {
 		if (is_2g)
 			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
-				      AR_PHY_65NM_RXRF_AGC_AGC2G_DBDAC_OVR, 0x0);
+				      AR_PHY_65NM_RXRF_AGC_AGC2G_DBDAC_OVR,
+				      peak_detect_threshold);
 		else
 			REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
-				      AR_PHY_65NM_RXRF_AGC_AGC5G_DBDAC_OVR, 0x0);
+				      AR_PHY_65NM_RXRF_AGC_AGC5G_DBDAC_OVR,
+				      peak_detect_threshold);
 	}
 
 	for (i = 6; i > 0; i--) {
@@ -1266,10 +1286,19 @@ static void ar9003_hw_manual_peak_cal(struct ath_hw *ah, u8 chain, bool is_2g)
 		REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 			      AR_PHY_65NM_RXRF_AGC_AGC5G_CALDAC_OVR, total);
 
+	/*
+	 * Turn on LNA.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_GAINSTAGES(chain),
 		      AR_PHY_65NM_RXRF_GAINSTAGES_RX_OVERRIDE, 0);
+	/*
+	 * Turn off RXON.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXTX2(chain),
 		      AR_PHY_65NM_RXTX2_RXON_OVR, 0);
+	/*
+	 * Turn off peak detect calibration.
+	 */
 	REG_RMW_FIELD(ah, AR_PHY_65NM_RXRF_AGC(chain),
 		      AR_PHY_65NM_RXRF_AGC_AGC_CAL_OVR, 0);
 }
@@ -1611,8 +1640,14 @@ static bool ar9003_hw_init_cal_soc(struct ath_hw *ah,
 
 skip_tx_iqcal:
 	if (run_agc_cal || !(ah->ah_flags & AH_FASTCC)) {
-		if (AR_SREV_9330_11(ah))
-			ar9003_hw_manual_peak_cal(ah, 0, IS_CHAN_2GHZ(chan));
+		if (AR_SREV_9330_11(ah) || AR_SREV_9531(ah) || AR_SREV_9550(ah)) {
+			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+				if (!(ah->rxchainmask & (1 << i)))
+					continue;
+				ar9003_hw_manual_peak_cal(ah, i,
+							  IS_CHAN_2GHZ(chan));
+			}
+		}
 
 		/*
 		 * For non-AR9550 chips, we just trigger AGC calibration

@@ -454,25 +454,23 @@ cfs_hash_bkt_size(struct cfs_hash *hs)
 	       hs->hs_extra_bytes;
 }
 
-#define CFS_HOP(hs, op)	   (hs)->hs_ops->hs_ ## op
-
 static inline unsigned
 cfs_hash_id(struct cfs_hash *hs, const void *key, unsigned mask)
 {
-	return CFS_HOP(hs, hash)(hs, key, mask);
+	return hs->hs_ops->hs_hash(hs, key, mask);
 }
 
 static inline void *
 cfs_hash_key(struct cfs_hash *hs, struct hlist_node *hnode)
 {
-	return CFS_HOP(hs, key)(hnode);
+	return hs->hs_ops->hs_key(hnode);
 }
 
 static inline void
 cfs_hash_keycpy(struct cfs_hash *hs, struct hlist_node *hnode, void *key)
 {
-	if (CFS_HOP(hs, keycpy) != NULL)
-		CFS_HOP(hs, keycpy)(hnode, key);
+        if (hs->hs_ops->hs_keycpy)
+		hs->hs_ops->hs_keycpy(hnode, key);
 }
 
 /**
@@ -481,42 +479,38 @@ cfs_hash_keycpy(struct cfs_hash *hs, struct hlist_node *hnode, void *key)
 static inline int
 cfs_hash_keycmp(struct cfs_hash *hs, const void *key, struct hlist_node *hnode)
 {
-	return CFS_HOP(hs, keycmp)(key, hnode);
+	return hs->hs_ops->hs_keycmp(key, hnode);
 }
 
 static inline void *
 cfs_hash_object(struct cfs_hash *hs, struct hlist_node *hnode)
 {
-	return CFS_HOP(hs, object)(hnode);
+	return hs->hs_ops->hs_object(hnode);
 }
 
 static inline void
 cfs_hash_get(struct cfs_hash *hs, struct hlist_node *hnode)
 {
-	return CFS_HOP(hs, get)(hs, hnode);
+	return hs->hs_ops->hs_get(hs, hnode);
 }
 
 static inline void
 cfs_hash_put_locked(struct cfs_hash *hs, struct hlist_node *hnode)
 {
-	LASSERT(CFS_HOP(hs, put_locked) != NULL);
-
-	return CFS_HOP(hs, put_locked)(hs, hnode);
+	return hs->hs_ops->hs_put_locked(hs, hnode);
 }
 
 static inline void
 cfs_hash_put(struct cfs_hash *hs, struct hlist_node *hnode)
 {
-	LASSERT(CFS_HOP(hs, put) != NULL);
-
-	return CFS_HOP(hs, put)(hs, hnode);
+	return hs->hs_ops->hs_put(hs, hnode);
 }
 
 static inline void
 cfs_hash_exit(struct cfs_hash *hs, struct hlist_node *hnode)
 {
-	if (CFS_HOP(hs, exit))
-		CFS_HOP(hs, exit)(hs, hnode);
+	if (hs->hs_ops->hs_exit)
+		hs->hs_ops->hs_exit(hs, hnode);
 }
 
 static inline void cfs_hash_lock(struct cfs_hash *hs, int excl)

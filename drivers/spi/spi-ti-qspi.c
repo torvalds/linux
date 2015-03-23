@@ -101,6 +101,7 @@ struct ti_qspi {
 #define QSPI_FLEN(n)			((n - 1) << 0)
 
 /* STATUS REGISTER */
+#define BUSY				0x01
 #define WC				0x02
 
 /* INTERRUPT REGISTER */
@@ -199,9 +200,24 @@ static void ti_qspi_restore_ctx(struct ti_qspi *qspi)
 	ti_qspi_write(qspi, ctx_reg->clkctrl, QSPI_SPI_CLOCK_CNTRL_REG);
 }
 
+static inline u32 qspi_is_busy(struct ti_qspi *qspi)
+{
+	u32 stat;
+	unsigned long timeout = jiffies + QSPI_COMPLETION_TIMEOUT;
+
+	stat = ti_qspi_read(qspi, QSPI_SPI_STATUS_REG);
+	while ((stat & BUSY) && time_after(timeout, jiffies)) {
+		cpu_relax();
+		stat = ti_qspi_read(qspi, QSPI_SPI_STATUS_REG);
+	}
+
+	WARN(stat & BUSY, "qspi busy\n");
+	return stat & BUSY;
+}
+
 static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 {
-	int wlen, count, ret;
+	int wlen, count;
 	unsigned int cmd;
 	const u8 *txbuf;
 
@@ -211,6 +227,9 @@ static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 	wlen = t->bits_per_word >> 3;	/* in bytes */
 
 	while (count) {
+		if (qspi_is_busy(qspi))
+			return -EBUSY;
+
 		switch (wlen) {
 		case 1:
 			dev_dbg(qspi->dev, "tx cmd %08x dc %08x data %02x\n",
@@ -230,9 +249,8 @@ static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 		}
 
 		ti_qspi_write(qspi, cmd, QSPI_SPI_CMD_REG);
-		ret = wait_for_completion_timeout(&qspi->transfer_complete,
-						  QSPI_COMPLETION_TIMEOUT);
-		if (ret == 0) {
+		if (!wait_for_completion_timeout(&qspi->transfer_complete,
+						 QSPI_COMPLETION_TIMEOUT)) {
 			dev_err(qspi->dev, "write timed out\n");
 			return -ETIMEDOUT;
 		}
@@ -245,7 +263,7 @@ static int qspi_write_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 
 static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 {
-	int wlen, count, ret;
+	int wlen, count;
 	unsigned int cmd;
 	u8 *rxbuf;
 
@@ -267,10 +285,12 @@ static int qspi_read_msg(struct ti_qspi *qspi, struct spi_transfer *t)
 
 	while (count) {
 		dev_dbg(qspi->dev, "rx cmd %08x dc %08x\n", cmd, qspi->dc);
+		if (qspi_is_busy(qspi))
+			return -EBUSY;
+
 		ti_qspi_write(qspi, cmd, QSPI_SPI_CMD_REG);
-		ret = wait_for_completion_timeout(&qspi->transfer_complete,
-				QSPI_COMPLETION_TIMEOUT);
-		if (ret == 0) {
+		if (!wait_for_completion_timeout(&qspi->transfer_complete,
+						 QSPI_COMPLETION_TIMEOUT)) {
 			dev_err(qspi->dev, "read timed out\n");
 			return -ETIMEDOUT;
 		}

@@ -1,6 +1,7 @@
 config EFIVAR_FS
 	tristate "EFI Variable filesystem"
 	depends on EFI
+	default m
 	help
 	  efivarfs is a replacement filesystem for the old EFI
 	  variable support via sysfs, as it doesn't suffer from the

@@ -354,7 +354,7 @@ struct fm10k_hw;
 
 /* Define timeouts for resets and disables */
 #define FM10K_QUEUE_DISABLE_TIMEOUT		100
-#define FM10K_RESET_TIMEOUT			100
+#define FM10K_RESET_TIMEOUT			150
 
 /* VF registers */
 #define FM10K_VFCTRL		0x00000

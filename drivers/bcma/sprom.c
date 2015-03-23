@@ -579,7 +579,8 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	u16 offset = BCMA_CC_SPROM;
 	u16 *sprom;
 	size_t sprom_sizes[] = { SSB_SPROMSIZE_WORDS_R4,
-				 SSB_SPROMSIZE_WORDS_R10, };
+				 SSB_SPROMSIZE_WORDS_R10,
+				 SSB_SPROMSIZE_WORDS_R11, };
 	int i, err = 0;
 
 	if (!bus->drv_cc.core)

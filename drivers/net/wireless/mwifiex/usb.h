@@ -30,6 +30,9 @@
 #define USB8797_PID_2		0x2044
 #define USB8897_PID_1		0x2045
 #define USB8897_PID_2		0x2046
+#define USB8801_PID_1		0x2049
+#define USB8801_PID_2		0x204a
+
 
 #define USB8XXX_FW_DNLD		1
 #define USB8XXX_FW_READY	2
@@ -41,6 +44,7 @@
 
 #define USB8766_DEFAULT_FW_NAME	"mrvl/usb8766_uapsta.bin"
 #define USB8797_DEFAULT_FW_NAME	"mrvl/usb8797_uapsta.bin"
+#define USB8801_DEFAULT_FW_NAME	"mrvl/usb8801_uapsta.bin"
 #define USB8897_DEFAULT_FW_NAME	"mrvl/usb8897_uapsta.bin"
 
 #define FW_DNLD_TX_BUF_SIZE	620
@@ -95,12 +99,5 @@ struct fw_data {
 	__le32 seq_num;
 	u8 data[1];
 };
-
-/* This function is called after the card has woken up. */
-static inline int
-mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
-{
-	return 0;
-}
 
 #endif /*_MWIFIEX_USB_H */

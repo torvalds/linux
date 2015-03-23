@@ -218,13 +218,12 @@ static int drv_cp_harray_to_user(void __user *user_buf_uva,
 }
 
 /*
- * Sets up a given context for notify to work.  Calls drv_map_bool_ptr()
- * which maps the notify boolean in user VA in kernel space.
+ * Sets up a given context for notify to work. Maps the notify
+ * boolean in user VA into kernel space.
  */
 static int vmci_host_setup_notify(struct vmci_ctx *context,
 				  unsigned long uva)
 {
-	struct page *page;
 	int retval;
 
 	if (context->notify_page) {
@@ -243,14 +242,16 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
 	/*
 	 * Lock physical page backing a given user VA.
 	 */
-	retval = get_user_pages_fast(PAGE_ALIGN(uva), 1, 1, &page);
-	if (retval != 1)
+	retval = get_user_pages_fast(uva, 1, 1, &context->notify_page);
+	if (retval != 1) {
+		context->notify_page = NULL;
 		return VMCI_ERROR_GENERIC;
+	}
 
 	/*
 	 * Map the locked page and set up notify pointer.
 	 */
-	context->notify = kmap(page) + (uva & (PAGE_SIZE - 1));
+	context->notify = kmap(context->notify_page) + (uva & (PAGE_SIZE - 1));
 	vmci_ctx_check_signal_notify(context);
 
 	return VMCI_SUCCESS;

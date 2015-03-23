@@ -1171,6 +1171,7 @@ omap_set_selfpowered(struct usb_gadget *gadget, int is_selfpowered)
 	unsigned long	flags;
 	u16		syscon1;
 
+	gadget->is_selfpowered = (is_selfpowered != 0);
 	udc = container_of(gadget, struct omap_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
 	syscon1 = omap_readw(UDC_SYSCON1);

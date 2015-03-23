@@ -260,7 +260,7 @@ asmlinkage int sys_sigreturn(unsigned long r2, unsigned long r3,
 	long long ret;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -294,7 +294,7 @@ asmlinkage int sys_rt_sigreturn(unsigned long r2, unsigned long r3,
 	long long ret;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_no_restart_syscall;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;

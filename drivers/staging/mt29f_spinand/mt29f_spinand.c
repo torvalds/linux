@@ -626,7 +626,8 @@ static int spinand_write_page_hwecc(struct mtd_info *mtd,
 static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		uint8_t *buf, int oob_required, int page)
 {
-	u8 retval, status;
+	int retval;
+	u8 status;
 	uint8_t *p = buf;
 	int eccsize = chip->ecc.size;
 	int eccsteps = chip->ecc.steps;
@@ -640,6 +641,13 @@ static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 	while (1) {
 		retval = spinand_read_status(info->spi, &status);
+		if (retval < 0) {
+			dev_err(&mtd->dev,
+					"error %d reading status register\n",
+					retval);
+			return retval;
+		}
+
 		if ((status & STATUS_OIP_MASK) == STATUS_READY) {
 			if ((status & STATUS_ECC_MASK) == STATUS_ECC_ERROR) {
 				pr_info("spinand: ECC error\n");
@@ -685,6 +693,13 @@ static int spinand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 
 	while (time_before(jiffies, timeo)) {
 		retval = spinand_read_status(info->spi, &status);
+		if (retval < 0) {
+			dev_err(&mtd->dev,
+					"error %d reading status register\n",
+					retval);
+			return retval;
+		}
+
 		if ((status & STATUS_OIP_MASK) == STATUS_READY)
 			return 0;
 

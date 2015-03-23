@@ -727,9 +727,9 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 		p->xauicfg[1] = simple_strtoul(vpd.xaui1cfg_data, NULL, 16);
 	}
 
-	for (i = 0; i < 6; i++)
-		p->eth_base[i] = hex_to_bin(vpd.na_data[2 * i]) * 16 +
-				 hex_to_bin(vpd.na_data[2 * i + 1]);
+	ret = hex2bin(p->eth_base, vpd.na_data, 6);
+	if (ret < 0)
+		return -EINVAL;
 	return 0;
 }
 

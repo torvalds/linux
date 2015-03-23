@@ -50,6 +50,7 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 #define	VNET_MAX_RETRIES	10
 
 static int __vnet_tx_trigger(struct vnet_port *port, u32 start);
+static void vnet_port_reset(struct vnet_port *port);
 
 /* Ordered from largest major to lowest */
 static struct vio_version vnet_versions[] = {
@@ -351,10 +352,15 @@ static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 	unsigned int len = desc->size;
 	unsigned int copy_len;
 	struct sk_buff *skb;
+	int maxlen;
 	int err;
 
 	err = -EMSGSIZE;
-	if (unlikely(len < ETH_ZLEN || len > port->rmtu)) {
+	if (port->tso && port->tsolen > port->rmtu)
+		maxlen = port->tsolen;
+	else
+		maxlen = port->rmtu;
+	if (unlikely(len < ETH_ZLEN || len > maxlen)) {
 		dev->stats.rx_length_errors++;
 		goto out_dropped;
 	}
@@ -731,9 +737,7 @@ ldc_ctrl:
 		vio_link_state_change(vio, event);
 
 		if (event == LDC_EVENT_RESET) {
-			port->rmtu = 0;
-			port->tso = true;
-			port->tsolen = 0;
+			vnet_port_reset(port);
 			vio_port_up(vio);
 		}
 		port->rx_event = 0;
@@ -929,36 +933,36 @@ static struct sk_buff *vnet_clean_tx_ring(struct vnet_port *port,
 
 	*pending = 0;
 
-	txi = dr->prod-1;
-	if (txi < 0)
-		txi = VNET_TX_RING_SIZE-1;
-
+	txi = dr->prod;
 	for (i = 0; i < VNET_TX_RING_SIZE; ++i) {
 		struct vio_net_desc *d;
 
-		d = vio_dring_entry(dr, txi);
-
-		if (d->hdr.state == VIO_DESC_DONE) {
-			if (port->tx_bufs[txi].skb) {
-				BUG_ON(port->tx_bufs[txi].skb->next);
-
-				port->tx_bufs[txi].skb->next = skb;
-				skb = port->tx_bufs[txi].skb;
-				port->tx_bufs[txi].skb = NULL;
-
-				ldc_unmap(port->vio.lp,
-					  port->tx_bufs[txi].cookies,
-					  port->tx_bufs[txi].ncookies);
-			}
-			d->hdr.state = VIO_DESC_FREE;
-		} else if (d->hdr.state == VIO_DESC_READY) {
-			(*pending)++;
-		} else if (d->hdr.state == VIO_DESC_FREE) {
-			break;
-		}
 		--txi;
 		if (txi < 0)
 			txi = VNET_TX_RING_SIZE-1;
+
+		d = vio_dring_entry(dr, txi);
+
+		if (d->hdr.state == VIO_DESC_READY) {
+			(*pending)++;
+			continue;
+		}
+		if (port->tx_bufs[txi].skb) {
+			if (d->hdr.state != VIO_DESC_DONE)
+				pr_notice("invalid ring buffer state %d\n",
+					  d->hdr.state);
+			BUG_ON(port->tx_bufs[txi].skb->next);
+
+			port->tx_bufs[txi].skb->next = skb;
+			skb = port->tx_bufs[txi].skb;
+			port->tx_bufs[txi].skb = NULL;
+
+			ldc_unmap(port->vio.lp,
+				  port->tx_bufs[txi].cookies,
+				  port->tx_bufs[txi].ncookies);
+		} else if (d->hdr.state == VIO_DESC_FREE)
+			break;
+		d->hdr.state = VIO_DESC_FREE;
 	}
 	return skb;
 }
@@ -1188,23 +1192,16 @@ static int vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb)
 	skb_pull(skb, maclen);
 
 	if (port->tso && gso_size < datalen) {
+		if (skb_unclone(skb, GFP_ATOMIC))
+			goto out_dropped;
+
 		/* segment to TSO size */
 		skb_shinfo(skb)->gso_size = datalen;
 		skb_shinfo(skb)->gso_segs = gso_segs;
-
-		segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO);
-
-		/* restore gso_size & gso_segs */
-		skb_shinfo(skb)->gso_size = gso_size;
-		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len - hlen,
-							 gso_size);
-	} else
-		segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO);
-	if (IS_ERR(segs)) {
-		dev->stats.tx_dropped++;
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
 	}
+	segs = skb_gso_segment(skb, dev->features & ~NETIF_F_TSO);
+	if (IS_ERR(segs))
+		goto out_dropped;
 
 	skb_push(skb, maclen);
 	skb_reset_mac_header(skb);
@@ -1242,6 +1239,10 @@ static int vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb)
 	if (!(status & NETDEV_TX_MASK))
 		dev_kfree_skb_any(skb);
 	return status;
+out_dropped:
+	dev->stats.tx_dropped++;
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
 }
 
 static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1633,16 +1634,9 @@ static void vnet_port_free_tx_bufs(struct vnet_port *port)
 	int i;
 
 	dr = &port->vio.drings[VIO_DRIVER_TX_RING];
-	if (dr->base) {
-		ldc_free_exp_dring(port->vio.lp, dr->base,
-				   (dr->entry_size * dr->num_entries),
-				   dr->cookies, dr->ncookies);
-		dr->base = NULL;
-		dr->entry_size = 0;
-		dr->num_entries = 0;
-		dr->pending = 0;
-		dr->ncookies = 0;
-	}
+
+	if (dr->base == NULL)
+		return;
 
 	for (i = 0; i < VNET_TX_RING_SIZE; i++) {
 		struct vio_net_desc *d;
@@ -1652,8 +1646,6 @@ static void vnet_port_free_tx_bufs(struct vnet_port *port)
 			continue;
 
 		d = vio_dring_entry(dr, i);
-		if (d->hdr.state == VIO_DESC_READY)
-			pr_warn("active transmit buffers freed\n");
 
 		ldc_unmap(port->vio.lp,
 			  port->tx_bufs[i].cookies,
@@ -1662,6 +1654,23 @@ static void vnet_port_free_tx_bufs(struct vnet_port *port)
 		port->tx_bufs[i].skb = NULL;
 		d->hdr.state = VIO_DESC_FREE;
 	}
+	ldc_free_exp_dring(port->vio.lp, dr->base,
+			   (dr->entry_size * dr->num_entries),
+			   dr->cookies, dr->ncookies);
+	dr->base = NULL;
+	dr->entry_size = 0;
+	dr->num_entries = 0;
+	dr->pending = 0;
+	dr->ncookies = 0;
+}
+
+static void vnet_port_reset(struct vnet_port *port)
+{
+	del_timer(&port->clean_timer);
+	vnet_port_free_tx_bufs(port);
+	port->rmtu = 0;
+	port->tso = true;
+	port->tsolen = 0;
 }
 
 static int vnet_port_alloc_tx_ring(struct vnet_port *port)

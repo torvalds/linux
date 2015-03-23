@@ -17,6 +17,7 @@
 #include <misc/cxl.h>
 
 #include "cxl.h"
+#include "trace.h"
 
 /* XXX: This is implementation specific */
 static irqreturn_t handle_psl_slice_error(struct cxl_context *ctx, u64 dsisr, u64 errstat)
@@ -100,6 +101,8 @@ static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 	dsisr = irq_info->dsisr;
 	dar = irq_info->dar;
 
+	trace_cxl_psl_irq(ctx, irq, dsisr, dar);
+
 	pr_devel("CXL interrupt %i for afu pe: %i DSISR: %#llx DAR: %#llx\n", irq, ctx->pe, dsisr, dar);
 
 	if (dsisr & CXL_PSL_DSISR_An_DS) {
@@ -167,6 +170,7 @@ static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 		}
 
 		cxl_ack_irq(ctx, CXL_PSL_TFC_An_A, 0);
+		return IRQ_HANDLED;
 	}
 	if (dsisr & CXL_PSL_DSISR_An_OC)
 		pr_devel("CXL interrupt: OS Context Warning\n");
@@ -237,6 +241,7 @@ static irqreturn_t cxl_irq_afu(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
+	trace_cxl_afu_irq(ctx, afu_irq, irq, hwirq);
 	pr_devel("Received AFU interrupt %i for pe: %i (virq %i hwirq %lx)\n",
 	       afu_irq, ctx->pe, irq, hwirq);
 
@@ -436,7 +441,7 @@ int afu_register_irqs(struct cxl_context *ctx, u32 count)
 	 */
 	INIT_LIST_HEAD(&ctx->irq_names);
 	for (r = 1; r < CXL_IRQ_RANGES; r++) {
-		for (i = 0; i < ctx->irqs.range[r]; hwirq++, i++) {
+		for (i = 0; i < ctx->irqs.range[r]; i++) {
 			irq_name = kmalloc(sizeof(struct cxl_irq_name),
 					   GFP_KERNEL);
 			if (!irq_name)

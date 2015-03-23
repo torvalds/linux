@@ -62,6 +62,8 @@ There are three components to pagemap:
     20. NOPAGE
     21. KSM
     22. THP
+    23. BALLOON
+    24. ZERO_PAGE
 
 Short descriptions to the page flags:
 
@@ -101,6 +103,12 @@ Short descriptions to the page flags:
 
 22. THP
     contiguous pages which construct transparent hugepages
+
+23. BALLOON
+    balloon compaction page
+
+24. ZERO_PAGE
+    zero page for pfn_zero or huge_zero page
 
     [IO related page flags]
  1. ERROR     IO error occurred

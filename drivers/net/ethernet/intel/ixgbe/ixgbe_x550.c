@@ -80,7 +80,7 @@ static s32 ixgbe_write_phy_reg_x550em(struct ixgbe_hw *hw, u32 reg_addr,
  *  Initializes the EEPROM parameters ixgbe_eeprom_info within the
  *  ixgbe_hw struct in order to set up EEPROM access.
  **/
-s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
+static s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
 {
 	struct ixgbe_eeprom_info *eeprom = &hw->eeprom;
 	u32 eec;
@@ -110,8 +110,8 @@ s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
  *  @device_type: 3 bit device type
  *  @phy_data: Pointer to read data from the register
  **/
-s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
-				u32 device_type, u32 *data)
+static s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
+				       u32 device_type, u32 *data)
 {
 	u32 i, command, error;
 
@@ -158,7 +158,8 @@ s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
  *
  *  Reads a 16 bit word from the EEPROM using the hostif.
  **/
-s32 ixgbe_read_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
+static s32 ixgbe_read_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
+					  u16 *data)
 {
 	s32 status;
 	struct ixgbe_hic_read_shadow_ram buffer;
@@ -193,8 +194,8 @@ s32 ixgbe_read_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
  *
  *  Reads a 16 bit word(s) from the EEPROM using the hostif.
  **/
-s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
-				     u16 offset, u16 words, u16 *data)
+static s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
+					    u16 offset, u16 words, u16 *data)
 {
 	struct ixgbe_hic_read_shadow_ram buffer;
 	u32 current_word = 0;
@@ -331,7 +332,8 @@ static s32 ixgbe_checksum_ptr_x550(struct ixgbe_hw *hw, u16 ptr,
  *
  *  Returns a negative error code on error, or the 16-bit checksum
  **/
-s32 ixgbe_calc_checksum_X550(struct ixgbe_hw *hw, u16 *buffer, u32 buffer_size)
+static s32 ixgbe_calc_checksum_X550(struct ixgbe_hw *hw, u16 *buffer,
+				    u32 buffer_size)
 {
 	u16 eeprom_ptrs[IXGBE_EEPROM_LAST_WORD + 1];
 	u16 *local_buffer;
@@ -407,7 +409,7 @@ s32 ixgbe_calc_checksum_X550(struct ixgbe_hw *hw, u16 *buffer, u32 buffer_size)
  *
  *  Returns a negative error code on error, or the 16-bit checksum
  **/
-s32 ixgbe_calc_eeprom_checksum_X550(struct ixgbe_hw *hw)
+static s32 ixgbe_calc_eeprom_checksum_X550(struct ixgbe_hw *hw)
 {
 	return ixgbe_calc_checksum_X550(hw, NULL, 0);
 }
@@ -419,7 +421,7 @@ s32 ixgbe_calc_eeprom_checksum_X550(struct ixgbe_hw *hw)
  *
  *   Reads a 16 bit word from the EEPROM using the hostif.
  **/
-s32 ixgbe_read_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
+static s32 ixgbe_read_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
 {
 	s32 status = 0;
 
@@ -440,7 +442,8 @@ s32 ixgbe_read_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
  *  Performs checksum calculation and validates the EEPROM checksum.  If the
  *  caller does not need checksum_val, the value can be NULL.
  **/
-s32 ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw, u16 *checksum_val)
+static s32 ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw,
+					       u16 *checksum_val)
 {
 	s32 status;
 	u16 checksum;
@@ -489,7 +492,8 @@ s32 ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw, u16 *checksum_val)
  *
  *  Write a 16 bit word to the EEPROM using the hostif.
  **/
-s32 ixgbe_write_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset, u16 data)
+static s32 ixgbe_write_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
+					   u16 data)
 {
 	s32 status;
 	struct ixgbe_hic_write_shadow_ram buffer;
@@ -517,7 +521,7 @@ s32 ixgbe_write_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset, u16 data)
  *
  *  Write a 16 bit word to the EEPROM using the hostif.
  **/
-s32 ixgbe_write_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 data)
+static s32 ixgbe_write_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 data)
 {
 	s32 status = 0;
 
@@ -537,7 +541,7 @@ s32 ixgbe_write_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 data)
  *
  *  Issue a shadow RAM dump to FW to copy EEPROM from shadow RAM to the flash.
  **/
-s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
+static s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
 {
 	s32 status = 0;
 	union ixgbe_hic_hdr2 buffer;
@@ -560,7 +564,7 @@ s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
  *  checksum and updates the EEPROM and instructs the hardware to update
  *  the flash.
  **/
-s32 ixgbe_update_eeprom_checksum_X550(struct ixgbe_hw *hw)
+static s32 ixgbe_update_eeprom_checksum_X550(struct ixgbe_hw *hw)
 {
 	s32 status;
 	u16 checksum = 0;
@@ -600,8 +604,9 @@ s32 ixgbe_update_eeprom_checksum_X550(struct ixgbe_hw *hw)
  *
  *  Write a 16 bit word(s) to the EEPROM using the hostif.
  **/
-s32 ixgbe_write_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
-				      u16 offset, u16 words, u16 *data)
+static s32 ixgbe_write_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
+					     u16 offset, u16 words,
+					     u16 *data)
 {
 	s32 status = 0;
 	u32 i = 0;
@@ -630,7 +635,7 @@ s32 ixgbe_write_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
 /** ixgbe_init_mac_link_ops_X550em - init mac link function pointers
  *  @hw: pointer to hardware structure
  **/
-void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
+static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 
@@ -647,7 +652,7 @@ void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
 /** ixgbe_setup_sfp_modules_X550em - Setup SFP module
  * @hw: pointer to hardware structure
  */
-s32 ixgbe_setup_sfp_modules_X550em(struct ixgbe_hw *hw)
+static s32 ixgbe_setup_sfp_modules_X550em(struct ixgbe_hw *hw)
 {
 	bool setup_linear;
 	u16 reg_slice, edc_mode;
@@ -703,9 +708,9 @@ s32 ixgbe_setup_sfp_modules_X550em(struct ixgbe_hw *hw)
  * @speed: pointer to link speed
  * @autoneg: true when autoneg or autotry is enabled
  **/
-s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
-				       ixgbe_link_speed *speed,
-				       bool *autoneg)
+static s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
+					      ixgbe_link_speed *speed,
+					      bool *autoneg)
 {
 	/* SFP */
 	if (hw->phy.media_type == ixgbe_media_type_fiber) {
@@ -740,8 +745,8 @@ s32 ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
  *  @device_type: 3 bit device type
  *  @data: Data to write to the register
  **/
-s32 ixgbe_write_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
-				 u32 device_type, u32 data)
+static s32 ixgbe_write_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
+					u32 device_type, u32 data)
 {
 	u32 i, command, error;
 
@@ -904,7 +909,7 @@ static s32 ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
  *
  *   Configures the integrated KX4 PHY.
  **/
-s32 ixgbe_setup_kx4_x550em(struct ixgbe_hw *hw)
+static s32 ixgbe_setup_kx4_x550em(struct ixgbe_hw *hw)
 {
 	s32 status;
 	u32 reg_val;
@@ -942,7 +947,7 @@ s32 ixgbe_setup_kx4_x550em(struct ixgbe_hw *hw)
  *
  *   Configures the integrated KR PHY.
  **/
-s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw)
+static s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw)
 {
 	s32 status;
 	u32 reg_val;
@@ -987,7 +992,7 @@ s32 ixgbe_setup_kr_x550em(struct ixgbe_hw *hw)
  *  A return of a non-zero value indicates an error, and the base driver should
  *  not report link up.
  **/
-s32 ixgbe_setup_internal_phy_x550em(struct ixgbe_hw *hw)
+static s32 ixgbe_setup_internal_phy_x550em(struct ixgbe_hw *hw)
 {
 	u32 status;
 	u16 lasi, autoneg_status, speed;
@@ -1049,7 +1054,7 @@ s32 ixgbe_setup_internal_phy_x550em(struct ixgbe_hw *hw)
  *  set during init_shared_code because the PHY/SFP type was
  *  not known.  Perform the SFP init if necessary.
  **/
-s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
+static s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
 {
 	struct ixgbe_phy_info *phy = &hw->phy;
 	s32 ret_val;
@@ -1102,7 +1107,7 @@ s32 ixgbe_init_phy_ops_X550em(struct ixgbe_hw *hw)
  *  Returns the media type (fiber, copper, backplane)
  *
  */
-enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
+static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 {
 	enum ixgbe_media_type media_type;
 
@@ -1129,7 +1134,7 @@ enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 /** ixgbe_init_ext_t_x550em - Start (unstall) the external Base T PHY.
  ** @hw: pointer to hardware structure
  **/
-s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
+static s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
 {
 	u32 status;
 	u16 reg;
@@ -1202,7 +1207,7 @@ s32 ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
  **  and clears all interrupts, perform a PHY reset, and perform a link (MAC)
  **  reset.
  **/
-s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
+static s32 ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 {
 	ixgbe_link_speed link_speed;
 	s32 status;
@@ -1295,6 +1300,28 @@ mac_reset_top:
 	return status;
 }
 
+/** ixgbe_set_ethertype_anti_spoofing_X550 - Enable/Disable Ethertype
+ *	anti-spoofing
+ *  @hw:  pointer to hardware structure
+ *  @enable: enable or disable switch for Ethertype anti-spoofing
+ *  @vf: Virtual Function pool - VF Pool to set for Ethertype anti-spoofing
+ **/
+void ixgbe_set_ethertype_anti_spoofing_X550(struct ixgbe_hw *hw, bool enable,
+					    int vf)
+{
+	int vf_target_reg = vf >> 3;
+	int vf_target_shift = vf % 8 + IXGBE_SPOOF_ETHERTYPEAS_SHIFT;
+	u32 pfvfspoof;
+
+	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
+	if (enable)
+		pfvfspoof |= (1 << vf_target_shift);
+	else
+		pfvfspoof &= ~(1 << vf_target_shift);
+
+	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
+}
+
 #define X550_COMMON_MAC \
 	.init_hw			= &ixgbe_init_hw_generic, \
 	.start_hw			= &ixgbe_start_hw_X540, \
@@ -1329,6 +1356,8 @@ mac_reset_top:
 	.init_uta_tables		= &ixgbe_init_uta_tables_generic, \
 	.set_mac_anti_spoofing		= &ixgbe_set_mac_anti_spoofing, \
 	.set_vlan_anti_spoofing		= &ixgbe_set_vlan_anti_spoofing, \
+	.set_ethertype_anti_spoofing	= \
+				&ixgbe_set_ethertype_anti_spoofing_X550, \
 	.acquire_swfw_sync		= &ixgbe_acquire_swfw_sync_X540, \
 	.release_swfw_sync		= &ixgbe_release_swfw_sync_X540, \
 	.disable_rx_buff		= &ixgbe_disable_rx_buff_generic, \
@@ -1345,7 +1374,6 @@ static struct ixgbe_mac_operations mac_ops_X550 = {
 	.get_san_mac_addr	= &ixgbe_get_san_mac_addr_generic,
 	.get_wwn_prefix		= &ixgbe_get_wwn_prefix_generic,
 	.setup_link		= &ixgbe_setup_mac_link_X540,
-	.set_rxpba		= &ixgbe_set_rxpba_generic,
 	.get_link_capabilities	= &ixgbe_get_copper_link_capabilities_generic,
 	.setup_sfp		= NULL,
 };

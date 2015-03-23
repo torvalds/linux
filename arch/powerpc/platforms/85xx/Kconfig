@@ -241,6 +241,12 @@ config SGY_CTS1000
 	help
 	  Enable this to support functionality in Servergy's CTS-1000 systems.
 
+config MVME2500
+	bool "Artesyn MVME2500"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Emerson/Artesyn MVME2500 board.
+
 endif # PPC32
 
 config PPC_QEMU_E500

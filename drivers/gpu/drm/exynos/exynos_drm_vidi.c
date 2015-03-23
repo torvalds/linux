@@ -47,11 +47,10 @@ struct vidi_win_data {
 };
 
 struct vidi_context {
-	struct exynos_drm_manager	manager;
 	struct exynos_drm_display	display;
 	struct platform_device		*pdev;
 	struct drm_device		*drm_dev;
-	struct drm_crtc			*crtc;
+	struct exynos_drm_crtc		*crtc;
 	struct drm_encoder		*encoder;
 	struct drm_connector		connector;
 	struct vidi_win_data		win_data[WINDOWS_NR];
@@ -67,11 +66,6 @@ struct vidi_context {
 	struct mutex			lock;
 	int				pipe;
 };
-
-static inline struct vidi_context *manager_to_vidi(struct exynos_drm_manager *m)
-{
-	return container_of(m, struct vidi_context, manager);
-}
 
 static inline struct vidi_context *display_to_vidi(struct exynos_drm_display *d)
 {
@@ -103,34 +97,22 @@ static const char fake_edid_info[] = {
 	0x00, 0x00, 0x00, 0x06
 };
 
-static void vidi_apply(struct exynos_drm_manager *mgr)
+static void vidi_apply(struct vidi_context *ctx)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
-	struct exynos_drm_manager_ops *mgr_ops = mgr->ops;
+	struct exynos_drm_crtc_ops *crtc_ops = ctx->crtc->ops;
 	struct vidi_win_data *win_data;
 	int i;
 
 	for (i = 0; i < WINDOWS_NR; i++) {
 		win_data = &ctx->win_data[i];
-		if (win_data->enabled && (mgr_ops && mgr_ops->win_commit))
-			mgr_ops->win_commit(mgr, i);
+		if (win_data->enabled && (crtc_ops && crtc_ops->win_commit))
+			crtc_ops->win_commit(ctx->crtc, i);
 	}
-
-	if (mgr_ops && mgr_ops->commit)
-		mgr_ops->commit(mgr);
 }
 
-static void vidi_commit(struct exynos_drm_manager *mgr)
+static int vidi_enable_vblank(struct exynos_drm_crtc *crtc)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
-
-	if (ctx->suspended)
-		return;
-}
-
-static int vidi_enable_vblank(struct exynos_drm_manager *mgr)
-{
-	struct vidi_context *ctx = manager_to_vidi(mgr);
+	struct vidi_context *ctx = crtc->ctx;
 
 	if (ctx->suspended)
 		return -EPERM;
@@ -143,16 +125,16 @@ static int vidi_enable_vblank(struct exynos_drm_manager *mgr)
 	/*
 	 * in case of page flip request, vidi_finish_pageflip function
 	 * will not be called because direct_vblank is true and then
-	 * that function will be called by manager_ops->win_commit callback
+	 * that function will be called by crtc_ops->win_commit callback
 	 */
 	schedule_work(&ctx->work);
 
 	return 0;
 }
 
-static void vidi_disable_vblank(struct exynos_drm_manager *mgr)
+static void vidi_disable_vblank(struct exynos_drm_crtc *crtc)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
+	struct vidi_context *ctx = crtc->ctx;
 
 	if (ctx->suspended)
 		return;
@@ -161,44 +143,44 @@ static void vidi_disable_vblank(struct exynos_drm_manager *mgr)
 		ctx->vblank_on = false;
 }
 
-static void vidi_win_mode_set(struct exynos_drm_manager *mgr,
-			struct exynos_drm_overlay *overlay)
+static void vidi_win_mode_set(struct exynos_drm_crtc *crtc,
+			struct exynos_drm_plane *plane)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
+	struct vidi_context *ctx = crtc->ctx;
 	struct vidi_win_data *win_data;
 	int win;
 	unsigned long offset;
 
-	if (!overlay) {
-		DRM_ERROR("overlay is NULL\n");
+	if (!plane) {
+		DRM_ERROR("plane is NULL\n");
 		return;
 	}
 
-	win = overlay->zpos;
+	win = plane->zpos;
 	if (win == DEFAULT_ZPOS)
 		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
 
-	offset = overlay->fb_x * (overlay->bpp >> 3);
-	offset += overlay->fb_y * overlay->pitch;
+	offset = plane->fb_x * (plane->bpp >> 3);
+	offset += plane->fb_y * plane->pitch;
 
-	DRM_DEBUG_KMS("offset = 0x%lx, pitch = %x\n", offset, overlay->pitch);
+	DRM_DEBUG_KMS("offset = 0x%lx, pitch = %x\n", offset, plane->pitch);
 
 	win_data = &ctx->win_data[win];
 
-	win_data->offset_x = overlay->crtc_x;
-	win_data->offset_y = overlay->crtc_y;
-	win_data->ovl_width = overlay->crtc_width;
-	win_data->ovl_height = overlay->crtc_height;
-	win_data->fb_width = overlay->fb_width;
-	win_data->fb_height = overlay->fb_height;
-	win_data->dma_addr = overlay->dma_addr[0] + offset;
-	win_data->bpp = overlay->bpp;
-	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
-				(overlay->bpp >> 3);
-	win_data->line_size = overlay->crtc_width * (overlay->bpp >> 3);
+	win_data->offset_x = plane->crtc_x;
+	win_data->offset_y = plane->crtc_y;
+	win_data->ovl_width = plane->crtc_width;
+	win_data->ovl_height = plane->crtc_height;
+	win_data->fb_width = plane->fb_width;
+	win_data->fb_height = plane->fb_height;
+	win_data->dma_addr = plane->dma_addr[0] + offset;
+	win_data->bpp = plane->bpp;
+	win_data->buf_offsize = (plane->fb_width - plane->crtc_width) *
+				(plane->bpp >> 3);
+	win_data->line_size = plane->crtc_width * (plane->bpp >> 3);
 
 	/*
 	 * some parts of win_data should be transferred to user side
@@ -211,12 +193,12 @@ static void vidi_win_mode_set(struct exynos_drm_manager *mgr,
 			win_data->ovl_width, win_data->ovl_height);
 	DRM_DEBUG_KMS("paddr = 0x%lx\n", (unsigned long)win_data->dma_addr);
 	DRM_DEBUG_KMS("fb_width = %d, crtc_width = %d\n",
-			overlay->fb_width, overlay->crtc_width);
+			plane->fb_width, plane->crtc_width);
 }
 
-static void vidi_win_commit(struct exynos_drm_manager *mgr, int zpos)
+static void vidi_win_commit(struct exynos_drm_crtc *crtc, int zpos)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
+	struct vidi_context *ctx = crtc->ctx;
 	struct vidi_win_data *win_data;
 	int win = zpos;
 
@@ -239,9 +221,9 @@ static void vidi_win_commit(struct exynos_drm_manager *mgr, int zpos)
 		schedule_work(&ctx->work);
 }
 
-static void vidi_win_disable(struct exynos_drm_manager *mgr, int zpos)
+static void vidi_win_disable(struct exynos_drm_crtc *crtc, int zpos)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
+	struct vidi_context *ctx = crtc->ctx;
 	struct vidi_win_data *win_data;
 	int win = zpos;
 
@@ -257,10 +239,8 @@ static void vidi_win_disable(struct exynos_drm_manager *mgr, int zpos)
 	/* TODO. */
 }
 
-static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
+static int vidi_power_on(struct vidi_context *ctx, bool enable)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (enable != false && enable != true)
@@ -271,9 +251,9 @@ static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
 
 		/* if vblank was enabled status, enable it again. */
 		if (test_and_clear_bit(0, &ctx->irq_flags))
-			vidi_enable_vblank(mgr);
+			vidi_enable_vblank(ctx->crtc);
 
-		vidi_apply(mgr);
+		vidi_apply(ctx);
 	} else {
 		ctx->suspended = true;
 	}
@@ -281,9 +261,9 @@ static int vidi_power_on(struct exynos_drm_manager *mgr, bool enable)
 	return 0;
 }
 
-static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
+static void vidi_dpms(struct exynos_drm_crtc *crtc, int mode)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
+	struct vidi_context *ctx = crtc->ctx;
 
 	DRM_DEBUG_KMS("%d\n", mode);
 
@@ -291,12 +271,12 @@ static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		vidi_power_on(mgr, true);
+		vidi_power_on(ctx, true);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		vidi_power_on(mgr, false);
+		vidi_power_on(ctx, false);
 		break;
 	default:
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
@@ -306,21 +286,19 @@ static void vidi_dpms(struct exynos_drm_manager *mgr, int mode)
 	mutex_unlock(&ctx->lock);
 }
 
-static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
+static int vidi_ctx_initialize(struct vidi_context *ctx,
 			struct drm_device *drm_dev)
 {
-	struct vidi_context *ctx = manager_to_vidi(mgr);
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
-	mgr->drm_dev = ctx->drm_dev = drm_dev;
-	mgr->pipe = ctx->pipe = priv->pipe++;
+	ctx->drm_dev = drm_dev;
+	ctx->pipe = priv->pipe++;
 
 	return 0;
 }
 
-static struct exynos_drm_manager_ops vidi_manager_ops = {
+static struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.dpms = vidi_dpms,
-	.commit = vidi_commit,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,
 	.win_mode_set = vidi_win_mode_set,
@@ -565,21 +543,21 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct vidi_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct drm_crtc *crtc = ctx->crtc;
 	int ret;
 
-	vidi_mgr_initialize(&ctx->manager, drm_dev);
+	vidi_ctx_initialize(ctx, drm_dev);
 
-	ret = exynos_drm_crtc_create(&ctx->manager);
-	if (ret) {
+	ctx->crtc = exynos_drm_crtc_create(drm_dev, ctx->pipe,
+					   EXYNOS_DISPLAY_TYPE_VIDI,
+					   &vidi_crtc_ops, ctx);
+	if (IS_ERR(ctx->crtc)) {
 		DRM_ERROR("failed to create crtc.\n");
-		return ret;
+		return PTR_ERR(ctx->crtc);
 	}
 
 	ret = exynos_drm_create_enc_conn(drm_dev, &ctx->display);
 	if (ret) {
-		crtc->funcs->destroy(crtc);
-		DRM_ERROR("failed to create encoder and connector.\n");
+		ctx->crtc->base.funcs->destroy(&ctx->crtc->base);
 		return ret;
 	}
 
@@ -605,15 +583,13 @@ static int vidi_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->manager.type = EXYNOS_DISPLAY_TYPE_VIDI;
-	ctx->manager.ops = &vidi_manager_ops;
 	ctx->display.type = EXYNOS_DISPLAY_TYPE_VIDI;
 	ctx->display.ops = &vidi_display_ops;
 	ctx->default_win = 0;
 	ctx->pdev = pdev;
 
 	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CRTC,
-					ctx->manager.type);
+					EXYNOS_DISPLAY_TYPE_VIDI);
 	if (ret)
 		return ret;
 

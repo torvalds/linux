@@ -38,7 +38,6 @@ MODULE_LICENSE("GPL");
 static LIST_HEAD(snd_hwdep_devices);
 static DEFINE_MUTEX(register_mutex);
 
-static int snd_hwdep_free(struct snd_hwdep *hwdep);
 static int snd_hwdep_dev_free(struct snd_device *device);
 static int snd_hwdep_dev_register(struct snd_device *device);
 static int snd_hwdep_dev_disconnect(struct snd_device *device);
@@ -345,6 +344,11 @@ static const struct file_operations snd_hwdep_f_ops =
 	.mmap =		snd_hwdep_mmap,
 };
 
+static void release_hwdep_device(struct device *dev)
+{
+	kfree(container_of(dev, struct snd_hwdep, dev));
+}
+
 /**
  * snd_hwdep_new - create a new hwdep instance
  * @card: the card instance
@@ -378,48 +382,49 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 		dev_err(card->dev, "hwdep: cannot allocate\n");
 		return -ENOMEM;
 	}
+
+	init_waitqueue_head(&hwdep->open_wait);
+	mutex_init(&hwdep->open_mutex);
 	hwdep->card = card;
 	hwdep->device = device;
 	if (id)
 		strlcpy(hwdep->id, id, sizeof(hwdep->id));
+
+	snd_device_initialize(&hwdep->dev, card);
+	hwdep->dev.release = release_hwdep_device;
+	dev_set_name(&hwdep->dev, "hwC%iD%i", card->number, device);
 #ifdef CONFIG_SND_OSSEMUL
 	hwdep->oss_type = -1;
 #endif
-	if ((err = snd_device_new(card, SNDRV_DEV_HWDEP, hwdep, &ops)) < 0) {
-		snd_hwdep_free(hwdep);
+
+	err = snd_device_new(card, SNDRV_DEV_HWDEP, hwdep, &ops);
+	if (err < 0) {
+		put_device(&hwdep->dev);
 		return err;
 	}
-	init_waitqueue_head(&hwdep->open_wait);
-	mutex_init(&hwdep->open_mutex);
+
 	if (rhwdep)
 		*rhwdep = hwdep;
 	return 0;
 }
 EXPORT_SYMBOL(snd_hwdep_new);
 
-static int snd_hwdep_free(struct snd_hwdep *hwdep)
+static int snd_hwdep_dev_free(struct snd_device *device)
 {
+	struct snd_hwdep *hwdep = device->device_data;
 	if (!hwdep)
 		return 0;
 	if (hwdep->private_free)
 		hwdep->private_free(hwdep);
-	kfree(hwdep);
+	put_device(&hwdep->dev);
 	return 0;
-}
-
-static int snd_hwdep_dev_free(struct snd_device *device)
-{
-	struct snd_hwdep *hwdep = device->device_data;
-	return snd_hwdep_free(hwdep);
 }
 
 static int snd_hwdep_dev_register(struct snd_device *device)
 {
 	struct snd_hwdep *hwdep = device->device_data;
 	struct snd_card *card = hwdep->card;
-	struct device *dev;
 	int err;
-	char name[32];
 
 	mutex_lock(&register_mutex);
 	if (snd_hwdep_search(card, hwdep->device)) {
@@ -427,53 +432,30 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 		return -EBUSY;
 	}
 	list_add_tail(&hwdep->list, &snd_hwdep_devices);
-	sprintf(name, "hwC%iD%i", hwdep->card->number, hwdep->device);
-	dev = hwdep->dev;
-	if (!dev)
-		dev = snd_card_get_device_link(hwdep->card);
-	err = snd_register_device_for_dev(SNDRV_DEVICE_TYPE_HWDEP,
-					  hwdep->card, hwdep->device,
-					  &snd_hwdep_f_ops, hwdep, name, dev);
+	err = snd_register_device(SNDRV_DEVICE_TYPE_HWDEP,
+				  hwdep->card, hwdep->device,
+				  &snd_hwdep_f_ops, hwdep, &hwdep->dev);
 	if (err < 0) {
-		dev_err(dev,
-			"unable to register hardware dependent device %i:%i\n",
-			card->number, hwdep->device);
+		dev_err(&hwdep->dev, "unable to register\n");
 		list_del(&hwdep->list);
 		mutex_unlock(&register_mutex);
 		return err;
 	}
 
-	if (hwdep->groups) {
-		struct device *d = snd_get_device(SNDRV_DEVICE_TYPE_HWDEP,
-						  hwdep->card, hwdep->device);
-		if (d) {
-			if (hwdep->private_data)
-				dev_set_drvdata(d, hwdep->private_data);
-			err = sysfs_create_groups(&d->kobj, hwdep->groups);
-			if (err < 0)
-				dev_warn(dev,
-					 "hwdep %d:%d: cannot create sysfs groups\n",
-					 card->number, hwdep->device);
-			put_device(d);
-		}
-	}
-
 #ifdef CONFIG_SND_OSSEMUL
 	hwdep->ossreg = 0;
 	if (hwdep->oss_type >= 0) {
-		if ((hwdep->oss_type == SNDRV_OSS_DEVICE_TYPE_DMFM) && (hwdep->device != 0)) {
-			dev_warn(dev,
+		if (hwdep->oss_type == SNDRV_OSS_DEVICE_TYPE_DMFM &&
+		    hwdep->device)
+			dev_warn(&hwdep->dev,
 				 "only hwdep device 0 can be registered as OSS direct FM device!\n");
-		} else {
-			if (snd_register_oss_device(hwdep->oss_type,
-						    card, hwdep->device,
-						    &snd_hwdep_f_ops, hwdep) < 0) {
-				dev_err(dev,
-					"unable to register OSS compatibility device %i:%i\n",
-					card->number, hwdep->device);
-			} else
-				hwdep->ossreg = 1;
-		}
+		else if (snd_register_oss_device(hwdep->oss_type,
+						 card, hwdep->device,
+						 &snd_hwdep_f_ops, hwdep) < 0)
+			dev_warn(&hwdep->dev,
+				 "unable to register OSS compatibility device\n");
+		else
+			hwdep->ossreg = 1;
 	}
 #endif
 	mutex_unlock(&register_mutex);
@@ -497,7 +479,7 @@ static int snd_hwdep_dev_disconnect(struct snd_device *device)
 	if (hwdep->ossreg)
 		snd_unregister_oss_device(hwdep->oss_type, hwdep->card, hwdep->device);
 #endif
-	snd_unregister_device(SNDRV_DEVICE_TYPE_HWDEP, hwdep->card, hwdep->device);
+	snd_unregister_device(&hwdep->dev);
 	list_del_init(&hwdep->list);
 	mutex_unlock(&hwdep->open_mutex);
 	mutex_unlock(&register_mutex);

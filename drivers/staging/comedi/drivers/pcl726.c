@@ -21,11 +21,8 @@
  * Description: Advantech PCL-726 & compatibles
  * Author: David A. Schleef <ds@schleef.org>
  * Status: untested
- * Devices: (Advantech) PCL-726 [pcl726]
- *	    (Advantech) PCL-727 [pcl727]
- *	    (Advantech) PCL-728 [pcl728]
- *	    (ADLink) ACL-6126 [acl6126]
- *	    (ADLink) ACL-6128 [acl6128]
+ * Devices: [Advantech] PCL-726 (pcl726), PCL-727 (pcl727), PCL-728 (pcl728),
+ *   [ADLink] ACL-6126 (acl6126), ACL-6128 (acl6128)
  *
  * Configuration Options:
  *   [0]  - IO Base

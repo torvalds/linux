@@ -524,6 +524,12 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	int err;
 	struct virtio_chan *chan;
 
+	if (!vdev->config->get) {
+		dev_err(&vdev->dev, "%s failure: config access disabled\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	chan = kmalloc(sizeof(struct virtio_chan), GFP_KERNEL);
 	if (!chan) {
 		pr_err("Failed to allocate virtio 9P channel\n");
@@ -652,14 +658,30 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 static void p9_virtio_remove(struct virtio_device *vdev)
 {
 	struct virtio_chan *chan = vdev->priv;
-
-	if (chan->inuse)
-		p9_virtio_close(chan->client);
-	vdev->config->del_vqs(vdev);
+	unsigned long warning_time;
 
 	mutex_lock(&virtio_9p_lock);
+
+	/* Remove self from list so we don't get new users. */
 	list_del(&chan->chan_list);
+	warning_time = jiffies;
+
+	/* Wait for existing users to close. */
+	while (chan->inuse) {
+		mutex_unlock(&virtio_9p_lock);
+		msleep(250);
+		if (time_after(jiffies, warning_time + 10 * HZ)) {
+			dev_emerg(&vdev->dev,
+				  "p9_virtio_remove: waiting for device in use.\n");
+			warning_time = jiffies;
+		}
+		mutex_lock(&virtio_9p_lock);
+	}
+
 	mutex_unlock(&virtio_9p_lock);
+
+	vdev->config->del_vqs(vdev);
+
 	sysfs_remove_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
 	kobject_uevent(&(vdev->dev.kobj), KOBJ_CHANGE);
 	kfree(chan->tag);

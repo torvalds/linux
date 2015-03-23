@@ -1378,9 +1378,6 @@ static int mv_udc_start(struct usb_gadget *gadget,
 		}
 	}
 
-	/* pullup is always on */
-	mv_udc_pullup(&udc->gadget, 1);
-
 	/* When boot with cable attached, there will be no vbus irq occurred */
 	if (udc->qwork)
 		queue_work(udc->qwork, &udc->vbus_work);

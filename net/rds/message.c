@@ -266,7 +266,7 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 
 int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from)
 {
-	unsigned long to_copy;
+	unsigned long to_copy, nbytes;
 	unsigned long sg_off;
 	struct scatterlist *sg;
 	int ret = 0;
@@ -293,9 +293,9 @@ int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from)
 				sg->length - sg_off);
 
 		rds_stats_add(s_copy_from_user, to_copy);
-		ret = copy_page_from_iter(sg_page(sg), sg->offset + sg_off,
-					  to_copy, from);
-		if (ret != to_copy)
+		nbytes = copy_page_from_iter(sg_page(sg), sg->offset + sg_off,
+					     to_copy, from);
+		if (nbytes != to_copy)
 			return -EFAULT;
 
 		sg_off += to_copy;

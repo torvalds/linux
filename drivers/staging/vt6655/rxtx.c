@@ -205,7 +205,7 @@ s_uGetRTSCTSRsvTime(
 	unsigned short wCurrentRate
 )
 {
-	unsigned int uRrvTime  , uRTSTime, uCTSTime, uAckTime, uDataTime;
+	unsigned int uRrvTime, uRTSTime, uCTSTime, uAckTime, uDataTime;
 
 	uRrvTime = uRTSTime = uCTSTime = uAckTime = uDataTime = 0;
 
@@ -1207,7 +1207,6 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 	ptdCurr->pTDInfo->dwReqCount = cbReqCount;
 	ptdCurr->pTDInfo->dwHeaderLength = cbHeaderLength;
 	ptdCurr->pTDInfo->skb_dma = ptdCurr->pTDInfo->buf_dma;
-	ptdCurr->buff_addr = cpu_to_le32(ptdCurr->pTDInfo->skb_dma);
 
 	return cbHeaderLength;
 }

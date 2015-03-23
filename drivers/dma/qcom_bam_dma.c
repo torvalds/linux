@@ -162,9 +162,9 @@ static const struct reg_offset_data bam_v1_4_reg_info[] = {
 	[BAM_P_IRQ_STTS]	= { 0x1010, 0x1000, 0x00, 0x00 },
 	[BAM_P_IRQ_CLR]		= { 0x1014, 0x1000, 0x00, 0x00 },
 	[BAM_P_IRQ_EN]		= { 0x1018, 0x1000, 0x00, 0x00 },
-	[BAM_P_EVNT_DEST_ADDR]	= { 0x102C, 0x00, 0x1000, 0x00 },
-	[BAM_P_EVNT_REG]	= { 0x1018, 0x00, 0x1000, 0x00 },
-	[BAM_P_SW_OFSTS]	= { 0x1000, 0x00, 0x1000, 0x00 },
+	[BAM_P_EVNT_DEST_ADDR]	= { 0x182C, 0x00, 0x1000, 0x00 },
+	[BAM_P_EVNT_REG]	= { 0x1818, 0x00, 0x1000, 0x00 },
+	[BAM_P_SW_OFSTS]	= { 0x1800, 0x00, 0x1000, 0x00 },
 	[BAM_P_DATA_FIFO_ADDR]	= { 0x1824, 0x00, 0x1000, 0x00 },
 	[BAM_P_DESC_FIFO_ADDR]	= { 0x181C, 0x00, 0x1000, 0x00 },
 	[BAM_P_EVNT_GEN_TRSHLD]	= { 0x1828, 0x00, 0x1000, 0x00 },
@@ -530,11 +530,18 @@ static void bam_free_chan(struct dma_chan *chan)
  * Sets slave configuration for channel
  *
  */
-static void bam_slave_config(struct bam_chan *bchan,
-		struct dma_slave_config *cfg)
+static int bam_slave_config(struct dma_chan *chan,
+			    struct dma_slave_config *cfg)
 {
+	struct bam_chan *bchan = to_bam_chan(chan);
+	unsigned long flag;
+
+	spin_lock_irqsave(&bchan->vc.lock, flag);
 	memcpy(&bchan->slave, cfg, sizeof(*cfg));
 	bchan->reconfigure = 1;
+	spin_unlock_irqrestore(&bchan->vc.lock, flag);
+
+	return 0;
 }
 
 /**
@@ -627,8 +634,9 @@ err_out:
  * No callbacks are done
  *
  */
-static void bam_dma_terminate_all(struct bam_chan *bchan)
+static int bam_dma_terminate_all(struct dma_chan *chan)
 {
+	struct bam_chan *bchan = to_bam_chan(chan);
 	unsigned long flag;
 	LIST_HEAD(head);
 
@@ -643,56 +651,46 @@ static void bam_dma_terminate_all(struct bam_chan *bchan)
 	spin_unlock_irqrestore(&bchan->vc.lock, flag);
 
 	vchan_dma_desc_free_list(&bchan->vc, &head);
+
+	return 0;
 }
 
 /**
- * bam_control - DMA device control
+ * bam_pause - Pause DMA channel
  * @chan: dma channel
- * @cmd: control cmd
- * @arg: cmd argument
- *
- * Perform DMA control command
  *
  */
-static int bam_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-	unsigned long arg)
+static int bam_pause(struct dma_chan *chan)
 {
 	struct bam_chan *bchan = to_bam_chan(chan);
 	struct bam_device *bdev = bchan->bdev;
-	int ret = 0;
 	unsigned long flag;
 
-	switch (cmd) {
-	case DMA_PAUSE:
-		spin_lock_irqsave(&bchan->vc.lock, flag);
-		writel_relaxed(1, bam_addr(bdev, bchan->id, BAM_P_HALT));
-		bchan->paused = 1;
-		spin_unlock_irqrestore(&bchan->vc.lock, flag);
-		break;
+	spin_lock_irqsave(&bchan->vc.lock, flag);
+	writel_relaxed(1, bam_addr(bdev, bchan->id, BAM_P_HALT));
+	bchan->paused = 1;
+	spin_unlock_irqrestore(&bchan->vc.lock, flag);
 
-	case DMA_RESUME:
-		spin_lock_irqsave(&bchan->vc.lock, flag);
-		writel_relaxed(0, bam_addr(bdev, bchan->id, BAM_P_HALT));
-		bchan->paused = 0;
-		spin_unlock_irqrestore(&bchan->vc.lock, flag);
-		break;
+	return 0;
+}
 
-	case DMA_TERMINATE_ALL:
-		bam_dma_terminate_all(bchan);
-		break;
+/**
+ * bam_resume - Resume DMA channel operations
+ * @chan: dma channel
+ *
+ */
+static int bam_resume(struct dma_chan *chan)
+{
+	struct bam_chan *bchan = to_bam_chan(chan);
+	struct bam_device *bdev = bchan->bdev;
+	unsigned long flag;
 
-	case DMA_SLAVE_CONFIG:
-		spin_lock_irqsave(&bchan->vc.lock, flag);
-		bam_slave_config(bchan, (struct dma_slave_config *)arg);
-		spin_unlock_irqrestore(&bchan->vc.lock, flag);
-		break;
+	spin_lock_irqsave(&bchan->vc.lock, flag);
+	writel_relaxed(0, bam_addr(bdev, bchan->id, BAM_P_HALT));
+	bchan->paused = 0;
+	spin_unlock_irqrestore(&bchan->vc.lock, flag);
 
-	default:
-		ret = -ENXIO;
-		break;
-	}
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -1145,10 +1143,17 @@ static int bam_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_SLAVE, bdev->common.cap_mask);
 
 	/* initialize dmaengine apis */
+	bdev->common.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	bdev->common.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
+	bdev->common.src_addr_widths = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	bdev->common.dst_addr_widths = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	bdev->common.device_alloc_chan_resources = bam_alloc_chan;
 	bdev->common.device_free_chan_resources = bam_free_chan;
 	bdev->common.device_prep_slave_sg = bam_prep_slave_sg;
-	bdev->common.device_control = bam_control;
+	bdev->common.device_config = bam_slave_config;
+	bdev->common.device_pause = bam_pause;
+	bdev->common.device_resume = bam_resume;
+	bdev->common.device_terminate_all = bam_dma_terminate_all;
 	bdev->common.device_issue_pending = bam_issue_pending;
 	bdev->common.device_tx_status = bam_tx_status;
 	bdev->common.dev = bdev->dev;
@@ -1187,7 +1192,7 @@ static int bam_dma_remove(struct platform_device *pdev)
 	devm_free_irq(bdev->dev, bdev->irq, bdev);
 
 	for (i = 0; i < bdev->num_channels; i++) {
-		bam_dma_terminate_all(&bdev->channels[i]);
+		bam_dma_terminate_all(&bdev->channels[i].vc.chan);
 		tasklet_kill(&bdev->channels[i].vc.task);
 
 		dma_free_writecombine(bdev->dev, BAM_DESC_FIFO_SIZE,

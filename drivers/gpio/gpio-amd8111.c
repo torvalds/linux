@@ -213,6 +213,12 @@ found:
 		goto out;
 	}
 	gp.pm = ioport_map(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
+	if (!gp.pm) {
+		dev_err(&pdev->dev, "Couldn't map io port into io memory\n");
+		release_region(gp.pmbase + PMBASE_OFFSET, PMBASE_SIZE);
+		err = -ENOMEM;
+		goto out;
+	}
 	gp.pdev = pdev;
 	gp.chip.dev = &pdev->dev;
 

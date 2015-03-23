@@ -170,7 +170,4 @@ struct r1bio {
  */
 #define	R1BIO_MadeGood 7
 #define	R1BIO_WriteError 8
-
-extern int md_raid1_congested(struct mddev *mddev, int bits);
-
 #endif

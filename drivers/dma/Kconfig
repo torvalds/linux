@@ -184,7 +184,7 @@ config TEGRA20_APB_DMA
 
 config S3C24XX_DMAC
 	tristate "Samsung S3C24XX DMA support"
-	depends on ARCH_S3C24XX && !S3C24XX_DMA
+	depends on ARCH_S3C24XX
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -415,6 +415,15 @@ config NBPFAXI_DMA
 	depends on ARM || COMPILE_TEST
 	help
 	  Support for "Type-AXI" NBPF DMA IPs from Renesas
+
+config IMG_MDC_DMA
+	tristate "IMG MDC support"
+	depends on MIPS || COMPILE_TEST
+	depends on MFD_SYSCON
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the IMG multi-threaded DMA controller (MDC).
 
 config DMA_ENGINE
 	bool

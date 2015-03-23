@@ -18,6 +18,8 @@
 #ifndef __TARGADDRS_H__
 #define __TARGADDRS_H__
 
+#include "hw.h"
+
 /*
  * xxx_HOST_INTEREST_ADDRESS is the address in Target RAM of the
  * host_interest structure.  It must match the address of the _host_interest
@@ -444,5 +446,8 @@ Fw Mode/SubMode Mask
 /* Reserve 1024 bytes for extended board data */
 #define QCA988X_BOARD_DATA_SZ     7168
 #define QCA988X_BOARD_EXT_DATA_SZ 0
+
+#define QCA6174_BOARD_DATA_SZ     8192
+#define QCA6174_BOARD_EXT_DATA_SZ 0
 
 #endif /* __TARGADDRS_H__ */

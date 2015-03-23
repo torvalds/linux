@@ -1489,7 +1489,8 @@ out:
 	return ret;
 }
 
-static void qlcnic_vf_add_mc_list(struct net_device *netdev, const u8 *mac)
+static void qlcnic_vf_add_mc_list(struct net_device *netdev, const u8 *mac,
+				  enum qlcnic_mac_type mac_type)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
@@ -1500,17 +1501,18 @@ static void qlcnic_vf_add_mc_list(struct net_device *netdev, const u8 *mac)
 	vf = &adapter->ahw->sriov->vf_info[0];
 
 	if (!qlcnic_sriov_check_any_vlan(vf)) {
-		qlcnic_nic_add_mac(adapter, mac, 0);
+		qlcnic_nic_add_mac(adapter, mac, 0, mac_type);
 	} else {
 		spin_lock(&vf->vlan_list_lock);
 		for (i = 0; i < sriov->num_allowed_vlans; i++) {
 			vlan_id = vf->sriov_vlans[i];
 			if (vlan_id)
-				qlcnic_nic_add_mac(adapter, mac, vlan_id);
+				qlcnic_nic_add_mac(adapter, mac, vlan_id,
+						   mac_type);
 		}
 		spin_unlock(&vf->vlan_list_lock);
 		if (qlcnic_84xx_check(adapter))
-			qlcnic_nic_add_mac(adapter, mac, 0);
+			qlcnic_nic_add_mac(adapter, mac, 0, mac_type);
 	}
 }
 
@@ -1549,10 +1551,12 @@ void qlcnic_sriov_vf_set_multi(struct net_device *netdev)
 		   (netdev_mc_count(netdev) > ahw->max_mc_count)) {
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 	} else {
-		qlcnic_vf_add_mc_list(netdev, bcast_addr);
+		qlcnic_vf_add_mc_list(netdev, bcast_addr, QLCNIC_BROADCAST_MAC);
 		if (!netdev_mc_empty(netdev)) {
+			qlcnic_flush_mcast_mac(adapter);
 			netdev_for_each_mc_addr(ha, netdev)
-				qlcnic_vf_add_mc_list(netdev, ha->addr);
+				qlcnic_vf_add_mc_list(netdev, ha->addr,
+						      QLCNIC_MULTICAST_MAC);
 		}
 	}
 
@@ -1563,7 +1567,8 @@ void qlcnic_sriov_vf_set_multi(struct net_device *netdev)
 		mode = VPORT_MISS_MODE_ACCEPT_ALL;
 	} else if (!netdev_uc_empty(netdev)) {
 		netdev_for_each_uc_addr(ha, netdev)
-			qlcnic_vf_add_mc_list(netdev, ha->addr);
+			qlcnic_vf_add_mc_list(netdev, ha->addr,
+					      QLCNIC_UNICAST_MAC);
 	}
 
 	if (adapter->pdev->is_virtfn) {

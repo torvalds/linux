@@ -60,8 +60,6 @@ extern int omap2xxx_cm_fclks_active(void);
 extern int omap2xxx_cm_mpu_retention_allowed(void);
 extern u32 omap2xxx_cm_get_core_clk_src(void);
 extern u32 omap2xxx_cm_get_core_pll_config(void);
-extern u32 omap2xxx_cm_get_pll_config(void);
-extern u32 omap2xxx_cm_get_pll_status(void);
 extern void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core,
 					 u32 mdm);
 

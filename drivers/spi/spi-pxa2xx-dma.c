@@ -111,23 +111,24 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 	 * by using ->dma_running.
 	 */
 	if (atomic_dec_and_test(&drv_data->dma_running)) {
-		void __iomem *reg = drv_data->ioaddr;
-
 		/*
 		 * If the other CPU is still handling the ROR interrupt we
 		 * might not know about the error yet. So we re-check the
 		 * ROR bit here before we clear the status register.
 		 */
 		if (!error) {
-			u32 status = read_SSSR(reg) & drv_data->mask_sr;
+			u32 status = pxa2xx_spi_read(drv_data, SSSR)
+				     & drv_data->mask_sr;
 			error = status & SSSR_ROR;
 		}
 
 		/* Clear status & disable interrupts */
-		write_SSCR1(read_SSCR1(reg) & ~drv_data->dma_cr1, reg);
+		pxa2xx_spi_write(drv_data, SSCR1,
+				 pxa2xx_spi_read(drv_data, SSCR1)
+				 & ~drv_data->dma_cr1);
 		write_SSSR_CS(drv_data, drv_data->clear_sr);
 		if (!pxa25x_ssp_comp(drv_data))
-			write_SSTO(0, reg);
+			pxa2xx_spi_write(drv_data, SSTO, 0);
 
 		if (!error) {
 			pxa2xx_spi_unmap_dma_buffers(drv_data);
@@ -139,7 +140,9 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 			msg->state = pxa2xx_spi_next_transfer(drv_data);
 		} else {
 			/* In case we got an error we disable the SSP now */
-			write_SSCR0(read_SSCR0(reg) & ~SSCR0_SSE, reg);
+			pxa2xx_spi_write(drv_data, SSCR0,
+					 pxa2xx_spi_read(drv_data, SSCR0)
+					 & ~SSCR0_SSE);
 
 			msg->state = ERROR_STATE;
 		}
@@ -247,7 +250,7 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 {
 	u32 status;
 
-	status = read_SSSR(drv_data->ioaddr) & drv_data->mask_sr;
+	status = pxa2xx_spi_read(drv_data, SSSR) & drv_data->mask_sr;
 	if (status & SSSR_ROR) {
 		dev_err(&drv_data->pdev->dev, "FIFO overrun\n");
 

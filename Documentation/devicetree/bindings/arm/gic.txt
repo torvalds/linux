@@ -32,12 +32,16 @@ Main node required properties:
   The 3rd cell is the flags, encoded as follows:
 	bits[3:0] trigger type and level flags.
 		1 = low-to-high edge triggered
-		2 = high-to-low edge triggered
+		2 = high-to-low edge triggered (invalid for SPIs)
 		4 = active high level-sensitive
-		8 = active low level-sensitive
+		8 = active low level-sensitive (invalid for SPIs).
 	bits[15:8] PPI interrupt cpu mask.  Each bit corresponds to each of
 	the 8 possible cpus attached to the GIC.  A bit set to '1' indicated
 	the interrupt is wired to that CPU.  Only valid for PPI interrupts.
+	Also note that the configurability of PPI interrupts is IMPLEMENTATION
+	DEFINED and as such not guaranteed to be present (most SoC available
+	in 2014 seem to ignore the setting of this flag and use the hardware
+	default value).
 
 - reg : Specifies base physical address(s) and size of the GIC registers. The
   first region is the GIC distributor register base and size. The 2nd region is

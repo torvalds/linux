@@ -61,6 +61,10 @@
 #define  LPI_COUNT_SHIFT		9
 #define  LPI_COUNT_MASK			0x3F
 
+#define REG_LED_CNTRL_BASE		0x90
+#define REG_LED_CNTRL(x)		(REG_LED_CNTRL_BASE + (x) * 4)
+#define  SPDLNK_SRC_SEL			(1 << 24)
+
 /* Register set relative to 'INTRL2_0' and 'INTRL2_1' */
 #define INTRL2_CPU_STATUS		0x00
 #define INTRL2_CPU_SET			0x04

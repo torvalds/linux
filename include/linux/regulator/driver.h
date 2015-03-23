@@ -21,6 +21,7 @@
 
 struct regmap;
 struct regulator_dev;
+struct regulator_config;
 struct regulator_init_data;
 struct regulator_enable_gpio;
 
@@ -205,6 +206,15 @@ enum regulator_type {
  * @supply_name: Identifying the regulator supply
  * @of_match: Name used to identify regulator in DT.
  * @regulators_node: Name of node containing regulator definitions in DT.
+ * @of_parse_cb: Optional callback called only if of_match is present.
+ *               Will be called for each regulator parsed from DT, during
+ *               init_data parsing.
+ *               The regulator_config passed as argument to the callback will
+ *               be a copy of config passed to regulator_register, valid only
+ *               for this particular call. Callback may freely change the
+ *               config but it cannot store it for later usage.
+ *               Callback should return 0 on success or negative ERRNO
+ *               indicating failure.
  * @id: Numerical identifier for the regulator.
  * @ops: Regulator operations table.
  * @irq: Interrupt number for the regulator.
@@ -251,6 +261,9 @@ struct regulator_desc {
 	const char *supply_name;
 	const char *of_match;
 	const char *regulators_node;
+	int (*of_parse_cb)(struct device_node *,
+			    const struct regulator_desc *,
+			    struct regulator_config *);
 	int id;
 	bool continuous_voltage_range;
 	unsigned n_voltages;

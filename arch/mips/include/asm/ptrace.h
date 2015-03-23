@@ -40,8 +40,8 @@ struct pt_regs {
 	unsigned long cp0_cause;
 	unsigned long cp0_epc;
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
-	unsigned long long mpl[3];	  /* MTM{0,1,2} */
-	unsigned long long mtp[3];	  /* MTP{0,1,2} */
+	unsigned long long mpl[6];        /* MTM{0-5} */
+	unsigned long long mtp[6];        /* MTP{0-5} */
 #endif
 } __aligned(8);
 

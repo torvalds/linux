@@ -171,6 +171,18 @@ Aliases:
 All the pin controller nodes should be represented in the aliases node using
 the following format 'pinctrl{n}' where n is a unique number for the alias.
 
+Aliases for controllers compatible with "samsung,exynos7-pinctrl":
+- pinctrl0: pin controller of ALIVE block,
+- pinctrl1: pin controller of BUS0 block,
+- pinctrl2: pin controller of NFC block,
+- pinctrl3: pin controller of TOUCH block,
+- pinctrl4: pin controller of FF block,
+- pinctrl5: pin controller of ESE block,
+- pinctrl6: pin controller of FSYS0 block,
+- pinctrl7: pin controller of FSYS1 block,
+- pinctrl8: pin controller of BUS1 block,
+- pinctrl9: pin controller of AUDIO block,
+
 Example: A pin-controller node with pin banks:
 
 	pinctrl_0: pinctrl@11400000 {

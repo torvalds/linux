@@ -28,9 +28,9 @@
 #define BTM_UPLD_SIZE			2312
 
 /* Time to wait until Host Sleep state change in millisecond */
-#define WAIT_UNTIL_HS_STATE_CHANGED	5000
+#define WAIT_UNTIL_HS_STATE_CHANGED	msecs_to_jiffies(5000)
 /* Time to wait for command response in millisecond */
-#define WAIT_UNTIL_CMD_RESP		5000
+#define WAIT_UNTIL_CMD_RESP		msecs_to_jiffies(5000)
 
 enum rdwr_status {
 	RDWR_STATUS_SUCCESS = 0,
@@ -104,6 +104,7 @@ struct btmrvl_private {
 #ifdef CONFIG_DEBUG_FS
 	void *debugfs_data;
 #endif
+	bool surprise_removed;
 };
 
 #define MRVL_VENDOR_PKT			0xFE

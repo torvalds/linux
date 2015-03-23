@@ -437,6 +437,7 @@ static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 	rs->state &= ~TXBUSY;
 	spin_unlock_irqrestore(&rs->lock, flags);
 
+	rxdesc = NULL;
 	if (rs->rx) {
 		rxconf.direction = rs->dma_rx.direction;
 		rxconf.src_addr = rs->dma_rx.addr;
@@ -453,6 +454,7 @@ static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 		rxdesc->callback_param = rs;
 	}
 
+	txdesc = NULL;
 	if (rs->tx) {
 		txconf.direction = rs->dma_tx.direction;
 		txconf.dst_addr = rs->dma_tx.addr;
@@ -470,7 +472,7 @@ static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 	}
 
 	/* rx must be started before tx due to spi instinct */
-	if (rs->rx) {
+	if (rxdesc) {
 		spin_lock_irqsave(&rs->lock, flags);
 		rs->state |= RXBUSY;
 		spin_unlock_irqrestore(&rs->lock, flags);
@@ -478,7 +480,7 @@ static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 		dma_async_issue_pending(rs->dma_rx.ch);
 	}
 
-	if (rs->tx) {
+	if (txdesc) {
 		spin_lock_irqsave(&rs->lock, flags);
 		rs->state |= TXBUSY;
 		spin_unlock_irqrestore(&rs->lock, flags);

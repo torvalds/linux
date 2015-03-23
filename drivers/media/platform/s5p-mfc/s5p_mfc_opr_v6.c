@@ -1340,11 +1340,7 @@ static int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 	/* FMO_ASO_CTRL - 0: Enable, 1: Disable */
 	reg |= (fmo_aso_ctrl << S5P_FIMV_D_OPT_FMO_ASO_CTRL_MASK_V6);
 
-	/* When user sets desplay_delay to 0,
-	 * It works as "display_delay enable" and delay set to 0.
-	 * If user wants display_delay disable, It should be
-	 * set to negative value. */
-	if (ctx->display_delay >= 0) {
+	if (ctx->display_delay_enable) {
 		reg |= (0x1 << S5P_FIMV_D_OPT_DDELAY_EN_SHIFT_V6);
 		writel(ctx->display_delay, mfc_regs->d_display_delay);
 	}

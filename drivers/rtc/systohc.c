@@ -20,16 +20,16 @@
  *
  * If temporary failure is indicated the caller should try again 'soon'
  */
-int rtc_set_ntp_time(struct timespec now)
+int rtc_set_ntp_time(struct timespec64 now)
 {
 	struct rtc_device *rtc;
 	struct rtc_time tm;
 	int err = -ENODEV;
 
 	if (now.tv_nsec < (NSEC_PER_SEC >> 1))
-		rtc_time_to_tm(now.tv_sec, &tm);
+		rtc_time64_to_tm(now.tv_sec, &tm);
 	else
-		rtc_time_to_tm(now.tv_sec + 1, &tm);
+		rtc_time64_to_tm(now.tv_sec + 1, &tm);
 
 	rtc = rtc_class_open(CONFIG_RTC_HCTOSYS_DEVICE);
 	if (rtc) {

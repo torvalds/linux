@@ -17,6 +17,7 @@
 #include <linux/relay.h>
 #include "core.h"
 #include "debug.h"
+#include "wmi-ops.h"
 
 static void send_fft_sample(struct ath10k *ar,
 			    const struct fft_sample_tlv *fft_sample_tlv)

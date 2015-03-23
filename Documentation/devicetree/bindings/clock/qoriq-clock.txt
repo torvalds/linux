@@ -1,6 +1,6 @@
-* Clock Block on Freescale CoreNet Platforms
+* Clock Block on Freescale QorIQ Platforms
 
-Freescale CoreNet chips take primary clocking input from the external
+Freescale qoriq chips take primary clocking input from the external
 SYSCLK signal. The SYSCLK input (frequency) is multiplied using
 multiple phase locked loops (PLL) to create a variety of frequencies
 which can then be passed to a variety of internal logic, including
@@ -29,6 +29,7 @@ Required properties:
 	* "fsl,t4240-clockgen"
 	* "fsl,b4420-clockgen"
 	* "fsl,b4860-clockgen"
+	* "fsl,ls1021a-clockgen"
 	Chassis clock strings include:
 	* "fsl,qoriq-clockgen-1.0": for chassis 1.0 clocks
 	* "fsl,qoriq-clockgen-2.0": for chassis 2.0 clocks

@@ -488,13 +488,13 @@ static void sync_cmos_clock(struct work_struct *work)
 
 	getnstimeofday64(&now);
 	if (abs(now.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec * 5) {
-		struct timespec adjust = timespec64_to_timespec(now);
+		struct timespec64 adjust = now;
 
 		fail = -ENODEV;
 		if (persistent_clock_is_local)
 			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
-		fail = update_persistent_clock(adjust);
+		fail = update_persistent_clock(timespec64_to_timespec(adjust));
 #endif
 #ifdef CONFIG_RTC_SYSTOHC
 		if (fail == -ENODEV)
@@ -633,10 +633,14 @@ int ntp_validate_timex(struct timex *txc)
 	if ((txc->modes & ADJ_SETOFFSET) && (!capable(CAP_SYS_TIME)))
 		return -EPERM;
 
-	if (txc->modes & ADJ_FREQUENCY) {
-		if (LONG_MIN / PPM_SCALE > txc->freq)
+	/*
+	 * Check for potential multiplication overflows that can
+	 * only happen on 64-bit systems:
+	 */
+	if ((txc->modes & ADJ_FREQUENCY) && (BITS_PER_LONG == 64)) {
+		if (LLONG_MIN / PPM_SCALE > txc->freq)
 			return -EINVAL;
-		if (LONG_MAX / PPM_SCALE < txc->freq)
+		if (LLONG_MAX / PPM_SCALE < txc->freq)
 			return -EINVAL;
 	}
 

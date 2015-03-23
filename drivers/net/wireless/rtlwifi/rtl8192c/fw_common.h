@@ -37,6 +37,7 @@
 #define FW_8192C_POLLING_DELAY			5
 #define FW_8192C_POLLING_TIMEOUT_COUNT		100
 #define NORMAL_CHIP				BIT(4)
+#define H2C_92C_KEEP_ALIVE_CTRL			48
 
 #define IS_FW_HEADER_EXIST(_pfwhdr)	\
 	((le16_to_cpu(_pfwhdr->signature)&0xFFF0) == 0x92C0 ||\

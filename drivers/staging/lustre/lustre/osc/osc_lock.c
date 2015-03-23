@@ -100,14 +100,14 @@ static int osc_lock_invariant(struct osc_lock *ols)
 	/*
 	 * If all the following "ergo"s are true, return 1, otherwise 0
 	 */
-	if (! ergo(olock != NULL, handle_used))
+	if (!ergo(olock != NULL, handle_used))
 		return 0;
 
-	if (! ergo(olock != NULL,
+	if (!ergo(olock != NULL,
 		   olock->l_handle.h_cookie == ols->ols_handle.cookie))
 		return 0;
 
-	if (! ergo(handle_used,
+	if (!ergo(handle_used,
 		   ergo(lock != NULL && olock != NULL, lock == olock) &&
 		   ergo(lock == NULL, olock == NULL)))
 		return 0;
@@ -115,18 +115,18 @@ static int osc_lock_invariant(struct osc_lock *ols)
 	 * Check that ->ols_handle and ->ols_lock are consistent, but
 	 * take into account that they are set at the different time.
 	 */
-	if (! ergo(ols->ols_state == OLS_CANCELLED,
+	if (!ergo(ols->ols_state == OLS_CANCELLED,
 		   olock == NULL && !handle_used))
 		return 0;
 	/*
 	 * DLM lock is destroyed only after we have seen cancellation
 	 * ast.
 	 */
-	if (! ergo(olock != NULL && ols->ols_state < OLS_CANCELLED,
+	if (!ergo(olock != NULL && ols->ols_state < OLS_CANCELLED,
 		   ((olock->l_flags & LDLM_FL_DESTROYED) == 0)))
 		return 0;
 
-	if (! ergo(ols->ols_state == OLS_GRANTED,
+	if (!ergo(ols->ols_state == OLS_GRANTED,
 		   olock != NULL &&
 		   olock->l_req_mode == olock->l_granted_mode &&
 		   ols->ols_hold))

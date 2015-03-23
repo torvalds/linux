@@ -238,8 +238,8 @@
 				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <32>;
-			#dma-requests = <127>;
+			dma-channels = <32>;
+			dma-requests = <127>;
 		};
 
 		gpio1: gpio@4ae10000 {
@@ -929,8 +929,8 @@
 				      <0x4A096800 0x40>; /* pll_ctrl */
 				reg-names = "phy_rx", "phy_tx", "pll_ctrl";
 				ctrl-module = <&omap_control_sata>;
-				clocks = <&sys_clkin>;
-				clock-names = "sysclk";
+				clocks = <&sys_clkin>, <&sata_ref_clk>;
+				clock-names = "sysclk", "refclk";
 				#phy-cells = <0>;
 			};
 		};
@@ -1077,6 +1077,10 @@
 			>;
 		};
 	};
+};
+
+&cpu_thermal {
+	polling-delay = <500>; /* milliseconds */
 };
 
 /include/ "omap54xx-clocks.dtsi"

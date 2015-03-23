@@ -9,14 +9,10 @@ The device node has following properties.
 Required properties:
  - compatible	: Can be "st,stih415-dwmac", "st,stih416-dwmac",
    "st,stih407-dwmac", "st,stid127-dwmac".
- - reg : Offset of the glue configuration register map in system
-   configuration regmap pointed by st,syscon property and size.
- - st,syscon : Should be phandle to system configuration node which
-   encompases this glue registers.
+ - st,syscon : Should be phandle/offset pair. The phandle to the syscon node which
+   encompases the glue register, and the offset of the control register.
  - st,gmac_en: this is to enable the gmac into a dedicated sysctl control
    register available on STiH407 SoC.
- - sti-ethconf: this is the gmac glue logic register to enable the GMAC,
-   select among the different modes and program the clk retiming.
  - pinctrl-0: pin-control for all the MII mode supported.
 
 Optional properties:
@@ -40,10 +36,10 @@ ethernet0: dwmac@9630000 {
 	device_type = "network";
 	status = "disabled";
 	compatible = "st,stih407-dwmac", "snps,dwmac", "snps,dwmac-3.710";
-	reg = <0x9630000 0x8000>, <0x80 0x4>;
-	reg-names = "stmmaceth", "sti-ethconf";
+	reg = <0x9630000 0x8000>;
+	reg-names = "stmmaceth";
 
-	st,syscon = <&syscfg_sbc_reg>;
+	st,syscon = <&syscfg_sbc_reg 0x80>;
 	st,gmac_en;
 	resets = <&softreset STIH407_ETH1_SOFTRESET>;
 	reset-names = "stmmaceth";

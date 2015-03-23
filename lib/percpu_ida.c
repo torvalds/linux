@@ -19,13 +19,10 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/export.h>
-#include <linux/hardirq.h>
-#include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/percpu_ida.h>

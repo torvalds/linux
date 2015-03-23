@@ -10,7 +10,6 @@ menu "Device Tree and Open Firmware support"
 config OF_UNITTEST
 	bool "Device Tree runtime unit tests"
 	depends on OF_IRQ && OF_EARLY_FLATTREE
-	select OF_DYNAMIC
 	select OF_RESOLVE
 	help
 	  This option builds in test cases for the device tree infrastructure
@@ -85,8 +84,7 @@ config OF_RESOLVE
 	bool
 
 config OF_OVERLAY
-	bool
-	depends on OF
+	bool "Device Tree overlays"
 	select OF_DYNAMIC
 	select OF_RESOLVE
 
