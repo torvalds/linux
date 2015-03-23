@@ -830,7 +830,7 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 	/* Double as long as the resulting node has a number of
 	 * nonempty nodes that are above the threshold.
 	 */
-	while (should_inflate(tp, tn) && max_work--) {
+	while (should_inflate(tp, tn) && max_work) {
 		tp = inflate(t, tn);
 		if (!tp) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -839,17 +839,21 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 			break;
 		}
 
+		max_work--;
 		tn = get_child(tp, cindex);
 	}
 
+	/* update parent in case inflate failed */
+	tp = node_parent(tn);
+
 	/* Return if at least one inflate is run */
 	if (max_work != MAX_WORK)
-		return node_parent(tn);
+		return tp;
 
 	/* Halve as long as the number of empty children in this
 	 * node is above threshold.
 	 */
-	while (should_halve(tp, tn) && max_work--) {
+	while (should_halve(tp, tn) && max_work) {
 		tp = halve(t, tn);
 		if (!tp) {
 #ifdef CONFIG_IP_FIB_TRIE_STATS
@@ -858,6 +862,7 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 			break;
 		}
 
+		max_work--;
 		tn = get_child(tp, cindex);
 	}
 
@@ -865,7 +870,7 @@ static struct key_vector *resize(struct trie *t, struct key_vector *tn)
 	if (should_collapse(tn))
 		return collapse(t, tn);
 
-	/* update parent in case inflate or halve failed */
+	/* update parent in case halve failed */
 	tp = node_parent(tn);
 
 	/* Return if at least one deflate was run */
