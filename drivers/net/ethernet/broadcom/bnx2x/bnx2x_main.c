@@ -12037,9 +12037,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
 	mutex_init(&bp->drv_info_mutex);
+	mutex_init(&bp->stats_lock);
 	bp->drv_info_mng_owner = false;
-	spin_lock_init(&bp->stats_lock);
-	sema_init(&bp->stats_sema, 1);
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_DELAYED_WORK(&bp->sp_rtnl_task, bnx2x_sp_rtnl_task);
@@ -13668,9 +13667,9 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	cancel_delayed_work_sync(&bp->sp_task);
 	cancel_delayed_work_sync(&bp->period_task);
 
-	spin_lock_bh(&bp->stats_lock);
+	mutex_lock(&bp->stats_lock);
 	bp->stats_state = STATS_STATE_DISABLED;
-	spin_unlock_bh(&bp->stats_lock);
+	mutex_unlock(&bp->stats_lock);
 
 	bnx2x_save_statistics(bp);
 
