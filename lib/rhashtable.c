@@ -532,6 +532,11 @@ static size_t rounded_hashtable_size(const struct rhashtable_params *params)
 		   (unsigned long)params->min_size);
 }
 
+static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
+{
+	return jhash2(key, length, seed);
+}
+
 /**
  * rhashtable_init - initialize a new hash table
  * @ht:		hash table to be initialized
@@ -583,7 +588,7 @@ int rhashtable_init(struct rhashtable *ht,
 
 	size = HASH_DEFAULT_SIZE;
 
-	if ((!(params->key_len && params->hashfn) && !params->obj_hashfn) ||
+	if ((!params->key_len && !params->obj_hashfn) ||
 	    (params->obj_hashfn && !params->obj_cmpfn))
 		return -EINVAL;
 
@@ -609,6 +614,16 @@ int rhashtable_init(struct rhashtable *ht,
 		ht->p.locks_mul = roundup_pow_of_two(params->locks_mul);
 	else
 		ht->p.locks_mul = BUCKET_LOCKS_PER_CPU;
+
+	ht->key_len = ht->p.key_len;
+	if (!params->hashfn) {
+		ht->p.hashfn = jhash;
+
+		if (!(ht->key_len & (sizeof(u32) - 1))) {
+			ht->key_len /= sizeof(u32);
+			ht->p.hashfn = rhashtable_jhash2;
+		}
+	}
 
 	tbl = bucket_table_alloc(ht, size);
 	if (tbl == NULL)

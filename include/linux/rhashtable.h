@@ -19,6 +19,7 @@
 
 #include <linux/compiler.h>
 #include <linux/errno.h>
+#include <linux/jhash.h>
 #include <linux/list_nulls.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
@@ -103,7 +104,7 @@ struct rhashtable;
  * @min_size: Minimum size while shrinking
  * @nulls_base: Base value to generate nulls marker
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
- * @hashfn: Function to hash key
+ * @hashfn: Hash function (default: jhash2 if !(key_len % 4), or jhash)
  * @obj_hashfn: Function to hash object
  * @obj_cmpfn: Function to compare key with object
  */
@@ -125,6 +126,7 @@ struct rhashtable_params {
  * struct rhashtable - Hash table handle
  * @tbl: Bucket table
  * @nelems: Number of elements in table
+ * @key_len: Key length for hashfn
  * @p: Configuration parameters
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
@@ -134,6 +136,7 @@ struct rhashtable {
 	struct bucket_table __rcu	*tbl;
 	atomic_t			nelems;
 	bool                            being_destroyed;
+	unsigned int			key_len;
 	struct rhashtable_params	p;
 	struct work_struct		run_work;
 	struct mutex                    mutex;
@@ -199,13 +202,31 @@ static inline unsigned int rht_key_hashfn(
 	struct rhashtable *ht, const struct bucket_table *tbl,
 	const void *key, const struct rhashtable_params params)
 {
-	/* params must be equal to ht->p if it isn't constant. */
-	unsigned key_len = __builtin_constant_p(params.key_len) ?
-			   (params.key_len ?: ht->p.key_len) :
-			   params.key_len;
+	unsigned hash;
 
-	return rht_bucket_index(tbl, params.hashfn(key, key_len,
-						   tbl->hash_rnd));
+	/* params must be equal to ht->p if it isn't constant. */
+	if (!__builtin_constant_p(params.key_len))
+		hash = ht->p.hashfn(key, ht->key_len, tbl->hash_rnd);
+	else if (params.key_len) {
+		unsigned key_len = params.key_len;
+
+		if (params.hashfn)
+			hash = params.hashfn(key, key_len, tbl->hash_rnd);
+		else if (key_len & (sizeof(u32) - 1))
+			hash = jhash(key, key_len, tbl->hash_rnd);
+		else
+			hash = jhash2(key, key_len / sizeof(u32),
+				      tbl->hash_rnd);
+	} else {
+		unsigned key_len = ht->p.key_len;
+
+		if (params.hashfn)
+			hash = params.hashfn(key, key_len, tbl->hash_rnd);
+		else
+			hash = jhash(key, key_len, tbl->hash_rnd);
+	}
+
+	return rht_bucket_index(tbl, hash);
 }
 
 static inline unsigned int rht_head_hashfn(
