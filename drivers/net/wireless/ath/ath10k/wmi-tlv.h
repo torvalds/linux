@@ -1464,6 +1464,27 @@ struct wmi_tlv_roam_ev {
 	__le32 rssi;
 } __packed;
 
+struct wmi_tlv_wow_add_del_event_cmd {
+	__le32 vdev_id;
+	__le32 is_add;
+	__le32 event_bitmap;
+} __packed;
+
+struct wmi_tlv_wow_enable_cmd {
+	__le32 enable;
+} __packed;
+
+struct wmi_tlv_wow_host_wakeup_ind {
+	__le32 reserved;
+} __packed;
+
+struct wmi_tlv_wow_event_info {
+	__le32 vdev_id;
+	__le32 flag;
+	__le32 wake_reason;
+	__le32 data_len;
+} __packed;
+
 void ath10k_wmi_tlv_attach(struct ath10k *ar);
 
 #endif
