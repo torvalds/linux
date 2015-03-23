@@ -1614,8 +1614,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 					else
 						pstat->uapsd_be = 0;
 
+					break;
 				}
-				break;
 			} else {
 				break;
 			}
