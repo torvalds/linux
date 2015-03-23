@@ -30,6 +30,8 @@ static int disasm_line__parse(char *line, char **namep, char **rawp);
 
 static void ins__delete(struct ins_operands *ops)
 {
+	if (ops == NULL)
+		return;
 	zfree(&ops->source.raw);
 	zfree(&ops->source.name);
 	zfree(&ops->target.raw);

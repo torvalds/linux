@@ -18,6 +18,7 @@
  */
 
 #include "skeleton.dtsi"
+#include "exynos4-cpu-thermal.dtsi"
 #include <dt-bindings/clock/exynos3250.h>
 
 / {
@@ -193,6 +194,7 @@
 			interrupts = <0 216 0>;
 			clocks = <&cmu CLK_TMU_APBIF>;
 			clock-names = "tmu_apbif";
+			#include "exynos4412-tmu-sensor-conf.dtsi"
 			status = "disabled";
 		};
 

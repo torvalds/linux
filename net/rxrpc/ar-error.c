@@ -42,7 +42,8 @@ void rxrpc_UDP_error_report(struct sock *sk)
 		_leave("UDP socket errqueue empty");
 		return;
 	}
-	if (!skb->len) {
+	serr = SKB_EXT_ERR(skb);
+	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
 		_leave("UDP empty message");
 		kfree_skb(skb);
 		return;
@@ -50,7 +51,6 @@ void rxrpc_UDP_error_report(struct sock *sk)
 
 	rxrpc_new_skb(skb);
 
-	serr = SKB_EXT_ERR(skb);
 	addr = *(__be32 *)(skb_network_header(skb) + serr->addr_offset);
 	port = serr->port;
 

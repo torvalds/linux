@@ -1453,8 +1453,8 @@ int isp1760_udc_register(struct isp1760_device *isp, int irq,
 
 	sprintf(udc->irqname, "%s (udc)", devname);
 
-	ret = request_irq(irq, isp1760_udc_irq, IRQF_SHARED | IRQF_DISABLED |
-			  irqflags, udc->irqname, udc);
+	ret = request_irq(irq, isp1760_udc_irq, IRQF_SHARED | irqflags,
+			  udc->irqname, udc);
 	if (ret < 0)
 		goto error;
 

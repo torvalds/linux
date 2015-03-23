@@ -2389,6 +2389,10 @@ int target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
 	list_add_tail(&se_cmd->se_cmd_list, &se_sess->sess_cmd_list);
 out:
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+
+	if (ret && ack_kref)
+		target_put_sess_cmd(se_sess, se_cmd);
+
 	return ret;
 }
 EXPORT_SYMBOL(target_get_sess_cmd);
