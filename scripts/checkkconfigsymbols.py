@@ -112,14 +112,15 @@ def main():
         undefined_b = check_symbols()
 
         # report cases that are present for the commit but not before
-        for feature in undefined_b:
+        for feature in sorted(undefined_b):
             # feature has not been undefined before
             if not feature in undefined_a:
-                files = undefined_b.get(feature)
+                files = sorted(undefined_b.get(feature))
                 print "%s\t%s" % (feature, ", ".join(files))
             # check if there are new files that reference the undefined feature
             else:
-                files = undefined_b.get(feature) - undefined_a.get(feature)
+                files = sorted(undefined_b.get(feature) -
+                               undefined_a.get(feature))
                 if files:
                     print "%s\t%s" % (feature, ", ".join(files))
 
@@ -129,8 +130,9 @@ def main():
     # default to check the entire tree
     else:
         undefined = check_symbols()
-        for feature in undefined:
-            files = undefined.get(feature)
+        for feature in sorted(undefined):
+            files = sorted(undefined.get(feature))
+            print "%s\t%s" % (feature, ", ".join(files))
 
 
 def execute(cmd):
