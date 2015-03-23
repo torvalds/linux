@@ -25,21 +25,41 @@ static int tcf_bpf(struct sk_buff *skb, const struct tc_action *a,
 		   struct tcf_result *res)
 {
 	struct tcf_bpf *b = a->priv;
-	int action;
-	int filter_res;
+	int action, filter_res;
 
 	spin_lock(&b->tcf_lock);
+
 	b->tcf_tm.lastuse = jiffies;
 	bstats_update(&b->tcf_bstats, skb);
-	action = b->tcf_action;
 
 	filter_res = BPF_PROG_RUN(b->filter, skb);
-	if (filter_res == 0) {
-		/* Return code 0 from the BPF program
-		 * is being interpreted as a drop here.
-		 */
-		action = TC_ACT_SHOT;
+
+	/* A BPF program may overwrite the default action opcode.
+	 * Similarly as in cls_bpf, if filter_res == -1 we use the
+	 * default action specified from tc.
+	 *
+	 * In case a different well-known TC_ACT opcode has been
+	 * returned, it will overwrite the default one.
+	 *
+	 * For everything else that is unkown, TC_ACT_UNSPEC is
+	 * returned.
+	 */
+	switch (filter_res) {
+	case TC_ACT_PIPE:
+	case TC_ACT_RECLASSIFY:
+	case TC_ACT_OK:
+		action = filter_res;
+		break;
+	case TC_ACT_SHOT:
+		action = filter_res;
 		b->tcf_qstats.drops++;
+		break;
+	case TC_ACT_UNSPEC:
+		action = b->tcf_action;
+		break;
+	default:
+		action = TC_ACT_UNSPEC;
+		break;
 	}
 
 	spin_unlock(&b->tcf_lock);

@@ -538,8 +538,8 @@ static const struct snd_soc_dapm_route sn95031_audio_map[] = {
 	/* speaker map */
 	{ "IHFOUTL", NULL, "Speaker Rail"},
 	{ "IHFOUTR", NULL, "Speaker Rail"},
-	{ "IHFOUTL", "NULL", "Speaker Left Playback"},
-	{ "IHFOUTR", "NULL", "Speaker Right Playback"},
+	{ "IHFOUTL", NULL, "Speaker Left Playback"},
+	{ "IHFOUTR", NULL, "Speaker Right Playback"},
 	{ "Speaker Left Playback", NULL, "Speaker Left Filter"},
 	{ "Speaker Right Playback", NULL, "Speaker Right Filter"},
 	{ "Speaker Left Filter", NULL, "IHFDAC Left"},

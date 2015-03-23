@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/balloon_compaction.h>
 #include <linux/oom.h>
+#include <linux/wait.h>
 
 /*
  * Balloon device works in 4K page units.  So each page is pointed to by
@@ -334,17 +335,25 @@ static int virtballoon_oom_notify(struct notifier_block *self,
 static int balloon(void *_vballoon)
 {
 	struct virtio_balloon *vb = _vballoon;
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	set_freezable();
 	while (!kthread_should_stop()) {
 		s64 diff;
 
 		try_to_freeze();
-		wait_event_interruptible(vb->config_change,
-					 (diff = towards_target(vb)) != 0
-					 || vb->need_stats_update
-					 || kthread_should_stop()
-					 || freezing(current));
+
+		add_wait_queue(&vb->config_change, &wait);
+		for (;;) {
+			if ((diff = towards_target(vb)) != 0 ||
+			    vb->need_stats_update ||
+			    kthread_should_stop() ||
+			    freezing(current))
+				break;
+			wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
+		}
+		remove_wait_queue(&vb->config_change, &wait);
+
 		if (vb->need_stats_update)
 			stats_handle_request(vb);
 		if (diff > 0)
@@ -498,6 +507,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	err = register_oom_notifier(&vb->nb);
 	if (err < 0)
 		goto out_oom_notify;
+
+	virtio_device_ready(vdev);
 
 	vb->thread = kthread_run(balloon, vb, "vballoon");
 	if (IS_ERR(vb->thread)) {

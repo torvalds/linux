@@ -2697,8 +2697,12 @@ static void handle_bonded_port_state_event(struct work_struct *work)
 	spin_lock_bh(&ibdev->iboe.lock);
 	for (i = 0; i < MLX4_MAX_PORTS; ++i) {
 		struct net_device *curr_netdev = ibdev->iboe.netdevs[i];
+		enum ib_port_state curr_port_state;
 
-		enum ib_port_state curr_port_state =
+		if (!curr_netdev)
+			continue;
+
+		curr_port_state =
 			(netif_running(curr_netdev) &&
 			 netif_carrier_ok(curr_netdev)) ?
 			IB_PORT_ACTIVE : IB_PORT_DOWN;
