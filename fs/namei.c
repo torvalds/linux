@@ -881,8 +881,9 @@ const char *get_link(struct nameidata *nd)
 
 	touch_atime(&last->link);
 
-	error = security_inode_follow_link(dentry);
-	if (error)
+	error = security_inode_follow_link(dentry, inode,
+					   nd->flags & LOOKUP_RCU);
+	if (unlikely(error))
 		return ERR_PTR(error);
 
 	nd->last_type = LAST_BIND;

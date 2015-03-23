@@ -209,7 +209,8 @@ static int cap_inode_readlink(struct dentry *dentry)
 	return 0;
 }
 
-static int cap_inode_follow_link(struct dentry *dentry)
+static int cap_inode_follow_link(struct dentry *dentry, struct inode *inode,
+				 bool rcu)
 {
 	return 0;
 }
