@@ -73,7 +73,7 @@ int snd_ak4113_create(struct snd_card *card, ak4113_read_t *read,
 		void *private_data, struct ak4113 **r_ak4113)
 {
 	struct ak4113 *chip;
-	int err = 0;
+	int err;
 	unsigned char reg;
 	static struct snd_device_ops ops = {
 		.dev_free =     snd_ak4113_dev_free,
@@ -109,7 +109,7 @@ int snd_ak4113_create(struct snd_card *card, ak4113_read_t *read,
 
 __fail:
 	snd_ak4113_free(chip);
-	return err < 0 ? err : -EIO;
+	return err;
 }
 EXPORT_SYMBOL_GPL(snd_ak4113_create);
 
