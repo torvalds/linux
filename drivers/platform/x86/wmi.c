@@ -45,7 +45,6 @@ MODULE_LICENSE("GPL");
 
 #define ACPI_WMI_CLASS "wmi"
 
-static DEFINE_MUTEX(wmi_data_lock);
 static LIST_HEAD(wmi_block_list);
 
 struct guid_block {
