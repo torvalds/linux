@@ -199,8 +199,12 @@ static inline unsigned int rht_key_hashfn(
 	struct rhashtable *ht, const struct bucket_table *tbl,
 	const void *key, const struct rhashtable_params params)
 {
-	return rht_bucket_index(tbl, params.hashfn(key, params.key_len ?:
-							ht->p.key_len,
+	/* params must be equal to ht->p if it isn't constant. */
+	unsigned key_len = __builtin_constant_p(params.key_len) ?
+			   (params.key_len ?: ht->p.key_len) :
+			   params.key_len;
+
+	return rht_bucket_index(tbl, params.hashfn(key, key_len,
 						   tbl->hash_rnd));
 }
 
