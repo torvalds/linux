@@ -1837,8 +1837,9 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	/*if hdmi size move to hwc,screen should point to cur_screen*/
-	struct rk_screen *screen = dev_drv->screen0;/*cur_screen;*/
+	/*if hdmi size move to hwc,screen should point to cur_screen
+	  otherwise point to screen0[main screen]*/
+	struct rk_screen *screen = dev_drv->cur_screen;/*screen0;*/
 	struct fb_info *fbi;
 	int i, ion_fd, acq_fence_fd;
 	u32 xvir, yvir;
