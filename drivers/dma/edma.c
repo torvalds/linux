@@ -805,7 +805,7 @@ static int edma_alloc_chan_resources(struct dma_chan *chan)
 	LIST_HEAD(descs);
 
 	a_ch_num = edma_alloc_channel(echan->ch_num, edma_callback,
-					chan, EVENTQ_DEFAULT);
+					echan, EVENTQ_DEFAULT);
 
 	if (a_ch_num < 0) {
 		ret = -ENODEV;
