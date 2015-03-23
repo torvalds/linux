@@ -81,7 +81,6 @@ struct gpio_bank {
 	struct omap_gpio_reg_offs *regs;
 };
 
-#define GPIO_INDEX(bank, gpio) (gpio % bank->width)
 #define GPIO_MOD_CTRL_BIT	BIT(0)
 
 #define BANK_USED(bank) (bank->mod_usage || bank->irq_usage)
@@ -491,14 +490,6 @@ static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 
 	if (!BANK_USED(bank))
 		pm_runtime_get_sync(bank->dev);
-
-#ifdef CONFIG_ARCH_OMAP1
-	if (d->irq > IH_MPUIO_BASE) {
-		unsigned gpio = 0;
-		gpio = OMAP_MPUIO(d->irq - IH_MPUIO_BASE);
-		offset = GPIO_INDEX(bank, gpio);
-	}
-#endif
 
 	if (type & ~IRQ_TYPE_SENSE_MASK)
 		return -EINVAL;
