@@ -464,7 +464,7 @@ static int img_hash_hw_init(struct img_hash_dev *hdev)
 	img_hash_write(hdev, CR_RESET, CR_RESET_UNSET);
 	img_hash_write(hdev, CR_INTENAB, CR_INT_NEW_RESULTS_SET);
 
-	nbits = (hdev->req->nbytes << 3);
+	nbits = (u64)hdev->req->nbytes << 3;
 	u = nbits >> 32;
 	l = nbits;
 	img_hash_write(hdev, CR_MESSAGE_LENGTH_H, u);
