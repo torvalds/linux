@@ -869,6 +869,8 @@ static int bcmgenet_power_down(struct bcmgenet_priv *priv,
 			reg |= (EXT_PWR_DOWN_PHY |
 				EXT_PWR_DOWN_DLL | EXT_PWR_DOWN_BIAS);
 			bcmgenet_ext_writel(priv, reg, EXT_EXT_PWR_MGMT);
+
+			bcmgenet_phy_power_set(priv->dev, false);
 		}
 		break;
 	default:
@@ -2465,9 +2467,6 @@ static void bcmgenet_netif_start(struct net_device *dev)
 
 	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, true);
 
-	if (phy_is_internal(priv->phydev))
-		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
-
 	netif_tx_start_all_queues(dev);
 
 	phy_start(priv->phydev);
@@ -2485,6 +2484,12 @@ static int bcmgenet_open(struct net_device *dev)
 	/* Turn on the clock */
 	if (!IS_ERR(priv->clk))
 		clk_prepare_enable(priv->clk);
+
+	/* If this is an internal GPHY, power it back on now, before UniMAC is
+	 * brought out of reset as absolutely no UniMAC activity is allowed
+	 */
+	if (phy_is_internal(priv->phydev))
+		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	/* take MAC out of reset */
 	bcmgenet_umac_reset(priv);

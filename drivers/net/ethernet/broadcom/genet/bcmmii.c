@@ -168,7 +168,7 @@ void bcmgenet_mii_reset(struct net_device *dev)
 	}
 }
 
-static void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
+void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 reg = 0;
