@@ -375,19 +375,74 @@ unlock:
 		schedule_work(&ht->run_work);
 }
 
+static bool rhashtable_check_elasticity(struct rhashtable *ht,
+					struct bucket_table *tbl,
+					unsigned hash)
+{
+	unsigned elasticity = ht->elasticity;
+	struct rhash_head *head;
+
+	rht_for_each(head, tbl, hash)
+		if (!--elasticity)
+			return true;
+
+	return false;
+}
+
+int rhashtable_insert_rehash(struct rhashtable *ht)
+{
+	struct bucket_table *old_tbl;
+	struct bucket_table *new_tbl;
+	struct bucket_table *tbl;
+	unsigned int size;
+	int err;
+
+	old_tbl = rht_dereference_rcu(ht->tbl, ht);
+	tbl = rhashtable_last_table(ht, old_tbl);
+
+	size = tbl->size;
+
+	if (rht_grow_above_75(ht, tbl))
+		size *= 2;
+	/* More than two rehashes (not resizes) detected. */
+	else if (WARN_ON(old_tbl != tbl && old_tbl->size == size))
+		return -EBUSY;
+
+	new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC);
+	if (new_tbl == NULL)
+		return -ENOMEM;
+
+	err = rhashtable_rehash_attach(ht, tbl, new_tbl);
+	if (err) {
+		bucket_table_free(new_tbl);
+		if (err == -EEXIST)
+			err = 0;
+	} else
+		schedule_work(&ht->run_work);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(rhashtable_insert_rehash);
+
 int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 			   struct rhash_head *obj,
 			   struct bucket_table *tbl)
 {
 	struct rhash_head *head;
 	unsigned hash;
-	int err = -EEXIST;
+	int err;
 
 	tbl = rhashtable_last_table(ht, tbl);
 	hash = head_hashfn(ht, tbl, obj);
 	spin_lock_nested(rht_bucket_lock(tbl, hash), SINGLE_DEPTH_NESTING);
 
+	err = -EEXIST;
 	if (key && rhashtable_lookup_fast(ht, key, ht->p))
+		goto exit;
+
+	err = -EAGAIN;
+	if (rhashtable_check_elasticity(ht, tbl, hash) ||
+	    rht_grow_above_100(ht, tbl))
 		goto exit;
 
 	err = 0;
@@ -677,6 +732,9 @@ int rhashtable_init(struct rhashtable *ht,
 		ht->p.max_size = rounddown_pow_of_two(params->max_size);
 
 	ht->p.min_size = max(ht->p.min_size, HASH_MIN_SIZE);
+
+	if (!params->insecure_elasticity)
+		ht->elasticity = 16;
 
 	if (params->locks_mul)
 		ht->p.locks_mul = roundup_pow_of_two(params->locks_mul);

@@ -103,6 +103,7 @@ struct rhashtable;
  * @max_size: Maximum size while expanding
  * @min_size: Minimum size while shrinking
  * @nulls_base: Base value to generate nulls marker
+ * @insecure_elasticity: Set to true to disable chain length checks
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Hash function (default: jhash2 if !(key_len % 4), or jhash)
  * @obj_hashfn: Function to hash object
@@ -116,6 +117,7 @@ struct rhashtable_params {
 	unsigned int		max_size;
 	unsigned int		min_size;
 	u32			nulls_base;
+	bool			insecure_elasticity;
 	size_t			locks_mul;
 	rht_hashfn_t		hashfn;
 	rht_obj_hashfn_t	obj_hashfn;
@@ -127,6 +129,7 @@ struct rhashtable_params {
  * @tbl: Bucket table
  * @nelems: Number of elements in table
  * @key_len: Key length for hashfn
+ * @elasticity: Maximum chain length before rehash
  * @p: Configuration parameters
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
@@ -137,6 +140,7 @@ struct rhashtable {
 	atomic_t			nelems;
 	bool                            being_destroyed;
 	unsigned int			key_len;
+	unsigned int			elasticity;
 	struct rhashtable_params	p;
 	struct work_struct		run_work;
 	struct mutex                    mutex;
@@ -266,6 +270,17 @@ static inline bool rht_shrink_below_30(const struct rhashtable *ht,
 	       tbl->size > ht->p.min_size;
 }
 
+/**
+ * rht_grow_above_100 - returns true if nelems > table-size
+ * @ht:		hash table
+ * @tbl:	current table
+ */
+static inline bool rht_grow_above_100(const struct rhashtable *ht,
+				      const struct bucket_table *tbl)
+{
+	return atomic_read(&ht->nelems) > tbl->size;
+}
+
 /* The bucket lock is selected based on the hash and protects mutations
  * on a group of hash buckets.
  *
@@ -307,6 +322,7 @@ int rhashtable_init(struct rhashtable *ht,
 int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 			   struct rhash_head *obj,
 			   struct bucket_table *old_tbl);
+int rhashtable_insert_rehash(struct rhashtable *ht);
 
 int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter);
 void rhashtable_walk_exit(struct rhashtable_iter *iter);
@@ -529,12 +545,14 @@ static inline int __rhashtable_insert_fast(
 		.ht = ht,
 		.key = key,
 	};
-	int err = -EEXIST;
 	struct bucket_table *tbl, *new_tbl;
 	struct rhash_head *head;
 	spinlock_t *lock;
+	unsigned elasticity;
 	unsigned hash;
+	int err;
 
+restart:
 	rcu_read_lock();
 
 	tbl = rht_dereference_rcu(ht->tbl, ht);
@@ -557,20 +575,34 @@ static inline int __rhashtable_insert_fast(
 	new_tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 	if (unlikely(new_tbl)) {
 		err = rhashtable_insert_slow(ht, key, obj, new_tbl);
+		if (err == -EAGAIN)
+			goto slow_path;
 		goto out;
 	}
 
-	if (!key)
-		goto skip_lookup;
+	if (unlikely(rht_grow_above_100(ht, tbl))) {
+slow_path:
+		spin_unlock_bh(lock);
+		rcu_read_unlock();
+		err = rhashtable_insert_rehash(ht);
+		if (err)
+			return err;
 
+		goto restart;
+	}
+
+	err = -EEXIST;
+	elasticity = ht->elasticity;
 	rht_for_each(head, tbl, hash) {
-		if (unlikely(!(params.obj_cmpfn ?
+		if (key &&
+		    unlikely(!(params.obj_cmpfn ?
 			       params.obj_cmpfn(&arg, rht_obj(ht, head)) :
 			       rhashtable_compare(&arg, rht_obj(ht, head)))))
 			goto out;
+		if (!--elasticity)
+			goto slow_path;
 	}
 
-skip_lookup:
 	err = 0;
 
 	head = rht_dereference_bucket(tbl->buckets[hash], tbl, hash);
