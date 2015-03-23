@@ -2301,8 +2301,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	if (!plane_state)
 		return 0;
 
-	if (!(plane_state->rotation &
-	    (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))))
+	if (!intel_rotation_90_or_270(plane_state->rotation))
 		return 0;
 
 	*view = rotated_view;
@@ -2900,6 +2899,17 @@ u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
 	}
 }
 
+unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
+				     struct drm_i915_gem_object *obj)
+{
+	enum i915_ggtt_view_type view = I915_GGTT_VIEW_NORMAL;
+
+	if (intel_rotation_90_or_270(intel_plane->base.state->rotation))
+		view = I915_GGTT_VIEW_ROTATED;
+
+	return i915_gem_obj_ggtt_offset_view(obj, view);
+}
+
 static void skylake_update_primary_plane(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
 					 int x, int y)
@@ -2910,6 +2920,7 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	struct drm_i915_gem_object *obj;
 	int pipe = intel_crtc->pipe;
 	u32 plane_ctl, stride_div;
+	unsigned long surf_addr;
 
 	if (!intel_crtc->primary_enabled) {
 		I915_WRITE(PLANE_CTL(pipe, 0), 0);
@@ -2976,16 +2987,16 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	obj = intel_fb_obj(fb);
 	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
 					       fb->pixel_format);
+	surf_addr = intel_plane_obj_offset(to_intel_plane(crtc->primary), obj);
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
-
 	I915_WRITE(PLANE_POS(pipe, 0), 0);
 	I915_WRITE(PLANE_OFFSET(pipe, 0), (y << 16) | x);
 	I915_WRITE(PLANE_SIZE(pipe, 0),
 		   (intel_crtc->config->pipe_src_h - 1) << 16 |
 		   (intel_crtc->config->pipe_src_w - 1));
 	I915_WRITE(PLANE_STRIDE(pipe, 0), fb->pitches[0] / stride_div);
-	I915_WRITE(PLANE_SURF(pipe, 0), i915_gem_obj_ggtt_offset(obj));
+	I915_WRITE(PLANE_SURF(pipe, 0), surf_addr);
 
 	POSTING_READ(PLANE_SURF(pipe, 0));
 }
@@ -10079,8 +10090,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_pending;
 
-	work->gtt_offset =
-		i915_gem_obj_ggtt_offset(obj) + intel_crtc->dspaddr_offset;
+	work->gtt_offset = intel_plane_obj_offset(to_intel_plane(primary), obj)
+						  + intel_crtc->dspaddr_offset;
 
 	if (use_mmio_flip(ring, obj)) {
 		ret = intel_queue_mmio_flip(dev, crtc, fb, obj, ring,
