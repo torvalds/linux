@@ -1540,22 +1540,16 @@ static int dw_mci_set_sdio_status(struct mmc_host *mmc, int val)
 
         spin_unlock_bh(&host->lock);
 
-        if(test_bit(DW_MMC_CARD_PRESENT, &slot->flags)){
-                if (!IS_ERR(host->hpclk_mmc) &&
-			 __clk_is_enabled(host->hpclk_mmc) == false)
-			 clk_prepare_enable(host->hpclk_mmc);
+        if (test_bit(DW_MMC_CARD_PRESENT, &slot->flags)) {
 		if (__clk_is_enabled(host->hclk_mmc) == false)
                         clk_prepare_enable(host->hclk_mmc);
-                if (__clk_is_enabled(host->clk_mmc) == false)
+		if (__clk_is_enabled(host->clk_mmc) == false)
                         clk_prepare_enable(host->clk_mmc);
-        }else{
-                if (__clk_is_enabled(host->clk_mmc) == true)
+        } else {
+		if (__clk_is_enabled(host->clk_mmc) == true)
                         clk_disable_unprepare(slot->host->clk_mmc);
-                if (__clk_is_enabled(host->hclk_mmc) == true)
+		if (__clk_is_enabled(host->hclk_mmc) == true)
                         clk_disable_unprepare(slot->host->hclk_mmc);
-		if (!IS_ERR(host->hpclk_mmc) &&
-			__clk_is_enabled(host->hpclk_mmc) == true)
-			clk_disable_unprepare(slot->host->hpclk_mmc);
         }
 
         mmc_detect_change(slot->mmc, 20);
