@@ -297,8 +297,8 @@ static int calc_resize_coeffs(struct ipu_ic *ic,
 		return -EINVAL;
 	}
 
-	/* Cannot downsize more than 8:1 */
-	if ((out_size << 3) < in_size) {
+	/* Cannot downsize more than 4:1 */
+	if ((out_size << 2) < in_size) {
 		dev_err(ipu->dev, "Unsupported downsize\n");
 		return -EINVAL;
 	}
