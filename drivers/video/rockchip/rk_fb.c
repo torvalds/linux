@@ -2011,7 +2011,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		if ((fb_data_fmt != YUV420) &&
 		    (fb_data_fmt != YUV420_NV21) &&
 		    (fb_data_fmt != YUV422) &&
-                    (fb_data_fmt != YUV444)) {
+                    (fb_data_fmt != YUV444) &&
+                    dev_drv->iommu_enabled) {
                         buff_len = reg_win_data->reg_area_data[i].y_offset +
                                 reg_win_data->reg_area_data[i].xvir *
                                 reg_win_data->reg_area_data[i].yact *
@@ -2105,7 +2106,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 			reg_win_data->reg_area_data[0].smem_start -
 			reg_win_data->reg_area_data[0].xoff*
 			pixel_width / 16 ;
-		if (buff_len > reg_win_data->reg_area_data[0].buff_len)
+		if ((buff_len > reg_win_data->reg_area_data[0].buff_len) &&
+                     dev_drv->iommu_enabled)
 			pr_err("\n!!!!!!error: fmt=%d,xvir[%d]*"
 			       "yact[%d]*bpp[%d]"
 			       "=buff_len[0x%x]>>mmu len=0x%x\n",
