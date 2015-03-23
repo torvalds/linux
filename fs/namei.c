@@ -505,6 +505,7 @@ struct nameidata {
 	unsigned	seq, m_seq;
 	int		last_type;
 	unsigned	depth;
+	int		total_link_count;
 	struct file	*base;
 	struct saved {
 		struct path link;
@@ -513,16 +514,25 @@ struct nameidata {
 	} *stack, internal[EMBEDDED_LEVELS];
 };
 
-static void set_nameidata(struct nameidata *nd)
+static struct nameidata *set_nameidata(struct nameidata *p)
 {
-	nd->stack = nd->internal;
+	struct nameidata *old = current->nameidata;
+	p->stack = p->internal;
+	p->total_link_count = old ? old->total_link_count : 0;
+	current->nameidata = p;
+	return old;
 }
 
-static void restore_nameidata(struct nameidata *nd)
+static void restore_nameidata(struct nameidata *old)
 {
-	if (nd->stack != nd->internal) {
-		kfree(nd->stack);
-		nd->stack = nd->internal;
+	struct nameidata *now = current->nameidata;
+
+	current->nameidata = old;
+	if (old)
+		old->total_link_count = now->total_link_count;
+	if (now->stack != now->internal) {
+		kfree(now->stack);
+		now->stack = now->internal;
 	}
 }
 
@@ -970,7 +980,7 @@ EXPORT_SYMBOL(follow_up);
  * - return -EISDIR to tell follow_managed() to stop and return the path we
  *   were called with.
  */
-static int follow_automount(struct path *path, unsigned flags,
+static int follow_automount(struct path *path, struct nameidata *nd,
 			    bool *need_mntput)
 {
 	struct vfsmount *mnt;
@@ -990,13 +1000,13 @@ static int follow_automount(struct path *path, unsigned flags,
 	 * as being automount points.  These will need the attentions
 	 * of the daemon to instantiate them before they can be used.
 	 */
-	if (!(flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY |
-		     LOOKUP_OPEN | LOOKUP_CREATE | LOOKUP_AUTOMOUNT)) &&
+	if (!(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY |
+			   LOOKUP_OPEN | LOOKUP_CREATE | LOOKUP_AUTOMOUNT)) &&
 	    path->dentry->d_inode)
 		return -EISDIR;
 
-	current->total_link_count++;
-	if (current->total_link_count >= 40)
+	nd->total_link_count++;
+	if (nd->total_link_count >= 40)
 		return -ELOOP;
 
 	mnt = path->dentry->d_op->d_automount(path);
@@ -1010,7 +1020,7 @@ static int follow_automount(struct path *path, unsigned flags,
 		 * the path being looked up; if it wasn't then the remainder of
 		 * the path is inaccessible and we should say so.
 		 */
-		if (PTR_ERR(mnt) == -EISDIR && (flags & LOOKUP_PARENT))
+		if (PTR_ERR(mnt) == -EISDIR && (nd->flags & LOOKUP_PARENT))
 			return -EREMOTE;
 		return PTR_ERR(mnt);
 	}
@@ -1050,7 +1060,7 @@ static int follow_automount(struct path *path, unsigned flags,
  *
  * Serialization is taken care of in namespace.c
  */
-static int follow_managed(struct path *path, unsigned flags)
+static int follow_managed(struct path *path, struct nameidata *nd)
 {
 	struct vfsmount *mnt = path->mnt; /* held by caller, must be left alone */
 	unsigned managed;
@@ -1094,7 +1104,7 @@ static int follow_managed(struct path *path, unsigned flags)
 
 		/* Handle an automount point */
 		if (managed & DCACHE_NEED_AUTOMOUNT) {
-			ret = follow_automount(path, flags, &need_mntput);
+			ret = follow_automount(path, nd, &need_mntput);
 			if (ret < 0)
 				break;
 			continue;
@@ -1483,7 +1493,7 @@ unlazy:
 	}
 	path->mnt = mnt;
 	path->dentry = dentry;
-	err = follow_managed(path, nd->flags);
+	err = follow_managed(path, nd);
 	if (unlikely(err < 0)) {
 		path_put_conditional(path, nd);
 		return err;
@@ -1513,7 +1523,7 @@ static int lookup_slow(struct nameidata *nd, struct path *path)
 		return PTR_ERR(dentry);
 	path->mnt = nd->path.mnt;
 	path->dentry = dentry;
-	err = follow_managed(path, nd->flags);
+	err = follow_managed(path, nd);
 	if (unlikely(err < 0)) {
 		path_put_conditional(path, nd);
 		return err;
@@ -1563,7 +1573,7 @@ static void terminate_walk(struct nameidata *nd)
 static int pick_link(struct nameidata *nd, struct path *link)
 {
 	int error;
-	if (unlikely(current->total_link_count++ >= MAXSYMLINKS)) {
+	if (unlikely(nd->total_link_count++ >= MAXSYMLINKS)) {
 		path_to_nameidata(link, nd);
 		return -ELOOP;
 	}
@@ -1981,7 +1991,7 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 	rcu_read_unlock();
 	return -ECHILD;
 done:
-	current->total_link_count = 0;
+	nd->total_link_count = 0;
 	return link_path_walk(s, nd);
 }
 
@@ -2087,10 +2097,9 @@ static int filename_lookup(int dfd, struct filename *name,
 				unsigned int flags, struct nameidata *nd)
 {
 	int retval;
+	struct nameidata *saved_nd = set_nameidata(nd);
 
-	set_nameidata(nd);
 	retval = path_lookupat(dfd, name, flags | LOOKUP_RCU, nd);
-
 	if (unlikely(retval == -ECHILD))
 		retval = path_lookupat(dfd, name, flags, nd);
 	if (unlikely(retval == -ESTALE))
@@ -2098,7 +2107,7 @@ static int filename_lookup(int dfd, struct filename *name,
 
 	if (likely(!retval))
 		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
-	restore_nameidata(nd);
+	restore_nameidata(saved_nd);
 	return retval;
 }
 
@@ -2426,11 +2435,11 @@ static int
 filename_mountpoint(int dfd, struct filename *name, struct path *path,
 			unsigned int flags)
 {
-	struct nameidata nd;
+	struct nameidata nd, *saved;
 	int error;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	set_nameidata(&nd);
+	saved = set_nameidata(&nd);
 	error = path_mountpoint(dfd, name, path, &nd, flags | LOOKUP_RCU);
 	if (unlikely(error == -ECHILD))
 		error = path_mountpoint(dfd, name, path, &nd, flags);
@@ -2438,7 +2447,7 @@ filename_mountpoint(int dfd, struct filename *name, struct path *path,
 		error = path_mountpoint(dfd, name, path, &nd, flags | LOOKUP_REVAL);
 	if (likely(!error))
 		audit_inode(name, path->dentry, 0);
-	restore_nameidata(&nd);
+	restore_nameidata(saved);
 	putname(name);
 	return error;
 }
@@ -3087,7 +3096,7 @@ retry_lookup:
 	if ((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT))
 		goto exit_dput;
 
-	error = follow_managed(&path, nd->flags);
+	error = follow_managed(&path, nd);
 	if (error < 0)
 		goto exit_dput;
 
@@ -3323,31 +3332,29 @@ out2:
 struct file *do_filp_open(int dfd, struct filename *pathname,
 		const struct open_flags *op)
 {
-	struct nameidata nd;
+	struct nameidata nd, *saved_nd = set_nameidata(&nd);
 	int flags = op->lookup_flags;
 	struct file *filp;
 
-	set_nameidata(&nd);
 	filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_RCU);
 	if (unlikely(filp == ERR_PTR(-ECHILD)))
 		filp = path_openat(dfd, pathname, &nd, op, flags);
 	if (unlikely(filp == ERR_PTR(-ESTALE)))
 		filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_REVAL);
-	restore_nameidata(&nd);
+	restore_nameidata(saved_nd);
 	return filp;
 }
 
 struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 		const char *name, const struct open_flags *op)
 {
-	struct nameidata nd;
+	struct nameidata nd, *saved_nd;
 	struct file *file;
 	struct filename *filename;
 	int flags = op->lookup_flags | LOOKUP_ROOT;
 
 	nd.root.mnt = mnt;
 	nd.root.dentry = dentry;
-	set_nameidata(&nd);
 
 	if (d_is_symlink(dentry) && op->intent & LOOKUP_OPEN)
 		return ERR_PTR(-ELOOP);
@@ -3356,12 +3363,13 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 	if (unlikely(IS_ERR(filename)))
 		return ERR_CAST(filename);
 
+	saved_nd = set_nameidata(&nd);
 	file = path_openat(-1, filename, &nd, op, flags | LOOKUP_RCU);
 	if (unlikely(file == ERR_PTR(-ECHILD)))
 		file = path_openat(-1, filename, &nd, op, flags);
 	if (unlikely(file == ERR_PTR(-ESTALE)))
 		file = path_openat(-1, filename, &nd, op, flags | LOOKUP_REVAL);
-	restore_nameidata(&nd);
+	restore_nameidata(saved_nd);
 	putname(filename);
 	return file;
 }

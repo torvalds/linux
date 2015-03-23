@@ -1461,7 +1461,7 @@ struct task_struct {
 				       it with task_lock())
 				     - initialized normally by setup_new_exec */
 /* file system info */
-	int link_count, total_link_count;
+	struct nameidata *nameidata;
 #ifdef CONFIG_SYSVIPC
 /* ipc stuff */
 	struct sysv_sem sysvsem;
