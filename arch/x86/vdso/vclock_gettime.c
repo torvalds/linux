@@ -82,18 +82,15 @@ static notrace cycle_t vread_pvclock(int *mode)
 	cycle_t ret;
 	u64 last;
 	u32 version;
+	u32 migrate_count;
 	u8 flags;
 	unsigned cpu, cpu1;
 
 
 	/*
-	 * Note: hypervisor must guarantee that:
-	 * 1. cpu ID number maps 1:1 to per-CPU pvclock time info.
-	 * 2. that per-CPU pvclock time info is updated if the
-	 *    underlying CPU changes.
-	 * 3. that version is increased whenever underlying CPU
-	 *    changes.
-	 *
+	 * When looping to get a consistent (time-info, tsc) pair, we
+	 * also need to deal with the possibility we can switch vcpus,
+	 * so make sure we always re-fetch time-info for the current vcpu.
 	 */
 	do {
 		cpu = __getcpu() & VGETCPU_CPU_MASK;
@@ -103,6 +100,8 @@ static notrace cycle_t vread_pvclock(int *mode)
 		 */
 
 		pvti = get_pvti(cpu);
+
+		migrate_count = pvti->migrate_count;
 
 		version = __pvclock_read_cycles(&pvti->pvti, &ret, &flags);
 
@@ -115,7 +114,8 @@ static notrace cycle_t vread_pvclock(int *mode)
 		cpu1 = __getcpu() & VGETCPU_CPU_MASK;
 	} while (unlikely(cpu != cpu1 ||
 			  (pvti->pvti.version & 1) ||
-			  pvti->pvti.version != version));
+			  pvti->pvti.version != version ||
+			  pvti->migrate_count != migrate_count));
 
 	if (unlikely(!(flags & PVCLOCK_TSC_STABLE_BIT)))
 		*mode = VCLOCK_NONE;
