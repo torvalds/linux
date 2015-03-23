@@ -179,14 +179,18 @@ static void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 
 	if (enable) {
 		reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
-		reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN | EXT_CK25_DIS);
+		reg &= ~EXT_CK25_DIS;
+		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+		mdelay(1);
+
+		reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN);
 		reg |= EXT_GPHY_RESET;
 		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-		mdelay(2);
+		mdelay(1);
 
 		reg &= ~EXT_GPHY_RESET;
 		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-		udelay(20);
+		udelay(60);
 	}
 }
 
