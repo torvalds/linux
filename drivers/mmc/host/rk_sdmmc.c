@@ -3488,7 +3488,10 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		else
 			/* Disable force_jtag */
 			regmap_write(host->grf, 0x43c, (1<<13)<<16 | (0 << 13));
+	} else if (cpu_is_rk3288()) {
+		grf_writel(((1 << 12) << 16) | (0 << 12), RK3288_GRF_SOC_CON0);
 	}
+
 
         /* We assume only low-level chip use gpio_cd */
         if ((soc_is_rk3126() || soc_is_rk3126b() || soc_is_rk3036()) &&
