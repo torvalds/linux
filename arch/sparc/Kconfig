@@ -86,6 +86,9 @@ config ARCH_DEFCONFIG
 	default "arch/sparc/configs/sparc32_defconfig" if SPARC32
 	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
 
+config ARCH_PROC_KCORE_TEXT
+	def_bool y
+
 config IOMMU_HELPER
 	bool
 	default y if SPARC64

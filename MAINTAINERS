@@ -1741,7 +1741,7 @@ S:	Maintained
 F:	drivers/net/ethernet/atheros/
 
 ATM
-M:	Chas Williams <chas@cmf.nrl.navy.mil>
+M:	Chas Williams <3chas3@gmail.com>
 L:	linux-atm-general@lists.sourceforge.net (moderated for non-subscribers)
 L:	netdev@vger.kernel.org
 W:	http://linux-atm.sourceforge.net
@@ -10206,6 +10206,13 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
+
+USB OTG FSM (Finite State Machine)
+M:	Peter Chen <Peter.Chen@freescale.com>
+T:	git git://github.com/hzpeterchen/linux-usb.git
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/common/usb-otg-fsm.c
 
 USB OVER IP DRIVER
 M:	Valentina Manea <valentina.manea.m@gmail.com>

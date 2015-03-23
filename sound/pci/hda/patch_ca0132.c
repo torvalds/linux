@@ -4243,13 +4243,9 @@ static void ca0132_refresh_widget_caps(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 	int i;
-	hda_nid_t nid;
 
 	codec_dbg(codec, "ca0132_refresh_widget_caps.\n");
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++)
-		codec->wcaps[i] = snd_hda_param_read(codec, nid,
-						     AC_PAR_AUDIO_WIDGET_CAP);
+	snd_hda_codec_update_widgets(codec);
 
 	for (i = 0; i < spec->multiout.num_dacs; i++)
 		refresh_amp_caps(codec, spec->dacs[i], HDA_OUTPUT);

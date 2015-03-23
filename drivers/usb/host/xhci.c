@@ -1338,12 +1338,6 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		goto exit;
 	}
 
-	/* Reject urb if endpoint is in soft reset, queue must stay empty */
-	if (xhci->devs[slot_id]->eps[ep_index].ep_state & EP_CONFIG_PENDING) {
-		xhci_warn(xhci, "Can't enqueue URB while ep is in soft reset\n");
-		ret = -EINVAL;
-	}
-
 	if (usb_endpoint_xfer_isoc(&urb->ep->desc))
 		size = urb->number_of_packets;
 	else
@@ -2954,36 +2948,23 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	}
 }
 
-/* Called after clearing a halted device. USB core should have sent the control
+/* Called when clearing halted device. The core should have sent the control
  * message to clear the device halt condition. The host side of the halt should
- * already be cleared with a reset endpoint command issued immediately when the
- * STALL tx event was received.
+ * already be cleared with a reset endpoint command issued when the STALL tx
+ * event was received.
+ *
+ * Context: in_interrupt
  */
 
 void xhci_endpoint_reset(struct usb_hcd *hcd,
 		struct usb_host_endpoint *ep)
 {
 	struct xhci_hcd *xhci;
-	struct usb_device *udev;
-	struct xhci_virt_device *virt_dev;
-	struct xhci_virt_ep *virt_ep;
-	struct xhci_input_control_ctx *ctrl_ctx;
-	struct xhci_command *command;
-	unsigned int ep_index, ep_state;
-	unsigned long flags;
-	u32 ep_flag;
 
 	xhci = hcd_to_xhci(hcd);
-	udev = (struct usb_device *) ep->hcpriv;
-	if (!ep->hcpriv)
-		return;
-	virt_dev = xhci->devs[udev->slot_id];
-	ep_index = xhci_get_endpoint_index(&ep->desc);
-	virt_ep = &virt_dev->eps[ep_index];
-	ep_state = virt_ep->ep_state;
 
 	/*
-	 * Implement the config ep command in xhci 4.6.8 additional note:
+	 * We might need to implement the config ep cmd in xhci 4.8.1 note:
 	 * The Reset Endpoint Command may only be issued to endpoints in the
 	 * Halted state. If software wishes reset the Data Toggle or Sequence
 	 * Number of an endpoint that isn't in the Halted state, then software
@@ -2991,72 +2972,9 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 	 * for the target endpoint. that is in the Stopped state.
 	 */
 
-	if (ep_state & SET_DEQ_PENDING || ep_state & EP_RECENTLY_HALTED) {
-		virt_ep->ep_state &= ~EP_RECENTLY_HALTED;
-		xhci_dbg(xhci, "ep recently halted, no toggle reset needed\n");
-		return;
-	}
-
-	/* Only interrupt and bulk ep's use Data toggle, USB2 spec 5.5.4-> */
-	if (usb_endpoint_xfer_control(&ep->desc) ||
-	    usb_endpoint_xfer_isoc(&ep->desc))
-		return;
-
-	ep_flag = xhci_get_endpoint_flag(&ep->desc);
-
-	if (ep_flag == SLOT_FLAG || ep_flag == EP0_FLAG)
-		return;
-
-	command = xhci_alloc_command(xhci, true, true, GFP_NOWAIT);
-	if (!command) {
-		xhci_err(xhci, "Could not allocate xHCI command structure.\n");
-		return;
-	}
-
-	spin_lock_irqsave(&xhci->lock, flags);
-
-	/* block ringing ep doorbell */
-	virt_ep->ep_state |= EP_CONFIG_PENDING;
-
-	/*
-	 * Make sure endpoint ring is empty before resetting the toggle/seq.
-	 * Driver is required to synchronously cancel all transfer request.
-	 *
-	 * xhci 4.6.6 says we can issue a configure endpoint command on a
-	 * running endpoint ring as long as it's idle (queue empty)
-	 */
-
-	if (!list_empty(&virt_ep->ring->td_list)) {
-		dev_err(&udev->dev, "EP not empty, refuse reset\n");
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		goto cleanup;
-	}
-
-	xhci_dbg(xhci, "Reset toggle/seq for slot %d, ep_index: %d\n",
-		 udev->slot_id, ep_index);
-
-	ctrl_ctx = xhci_get_input_control_ctx(command->in_ctx);
-	if (!ctrl_ctx) {
-		xhci_err(xhci, "Could not get input context, bad type. virt_dev: %p, in_ctx %p\n",
-			 virt_dev, virt_dev->in_ctx);
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		goto cleanup;
-	}
-	xhci_setup_input_ctx_for_config_ep(xhci, command->in_ctx,
-					   virt_dev->out_ctx, ctrl_ctx,
-					   ep_flag, ep_flag);
-	xhci_endpoint_copy(xhci, command->in_ctx, virt_dev->out_ctx, ep_index);
-
-	xhci_queue_configure_endpoint(xhci, command, command->in_ctx->dma,
-				     udev->slot_id, false);
-	xhci_ring_cmd_db(xhci);
-	spin_unlock_irqrestore(&xhci->lock, flags);
-
-	wait_for_completion(command->completion);
-
-cleanup:
-	virt_ep->ep_state &= ~EP_CONFIG_PENDING;
-	xhci_free_command(xhci, command);
+	/* For now just print debug to follow the situation */
+	xhci_dbg(xhci, "Endpoint 0x%x ep reset callback called\n",
+		 ep->desc.bEndpointAddress);
 }
 
 static int xhci_check_streams_endpoint(struct xhci_hcd *xhci,

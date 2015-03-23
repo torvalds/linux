@@ -10,7 +10,6 @@ snd-hda-codec-$(CONFIG_SND_HDA_HWDEP) += hda_hwdep.o
 snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
 
 # for trace-points
-CFLAGS_hda_codec.o := -I$(src)
 CFLAGS_hda_controller.o := -I$(src)
 
 snd-hda-codec-generic-objs :=	hda_generic.o

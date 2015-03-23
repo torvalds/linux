@@ -133,14 +133,14 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 	spec->gen.keep_eapd_on = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
 	spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
-	codec->power_mgmt = 1;
+	codec->power_save_node = 1;
 	spec->gen.power_down_unused = 1;
 	return spec;
 }
 
 static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 {
-	u32 vendor_id = codec->vendor_id;
+	u32 vendor_id = codec->core.vendor_id;
 	u16 ven_id = vendor_id >> 16;
 	u16 dev_id = vendor_id & 0xffff;
 	enum VIA_HDA_CODEC codec_type;
@@ -236,7 +236,7 @@ static int via_pin_power_ctl_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.enumerated.item[0] = codec->power_mgmt;
+	ucontrol->value.enumerated.item[0] = codec->power_save_node;
 	return 0;
 }
 
@@ -247,9 +247,9 @@ static int via_pin_power_ctl_put(struct snd_kcontrol *kcontrol,
 	struct via_spec *spec = codec->spec;
 	bool val = !!ucontrol->value.enumerated.item[0];
 
-	if (val == codec->power_mgmt)
+	if (val == codec->power_save_node)
 		return 0;
-	codec->power_mgmt = val;
+	codec->power_save_node = val;
 	spec->gen.power_down_unused = val;
 	analog_low_current_mode(codec);
 	return 1;
@@ -295,7 +295,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 	bool enable;
 	unsigned int verb, parm;
 
-	if (!codec->power_mgmt)
+	if (!codec->power_save_node)
 		enable = false;
 	else
 		enable = is_aa_path_mute(codec) && !spec->gen.active_streams;
@@ -335,7 +335,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 		return;		/* other codecs are not supported */
 	}
 	/* send verb */
-	snd_hda_codec_write(codec, codec->afg, 0, verb, parm);
+	snd_hda_codec_write(codec, codec->core.afg, 0, verb, parm);
 }
 
 static void analog_low_current_mode(struct hda_codec *codec)
@@ -517,7 +517,7 @@ static int via_parse_auto_config(struct hda_codec *codec)
 		return err;
 
 	/* disable widget PM at start for compatibility */
-	codec->power_mgmt = 0;
+	codec->power_save_node = 0;
 	spec->gen.power_down_unused = 0;
 	return 0;
 }
@@ -558,7 +558,7 @@ static int vt1708_build_pcms(struct hda_codec *codec)
 	int i, err;
 
 	err = snd_hda_gen_build_pcms(codec);
-	if (err < 0 || codec->vendor_id != 0x11061708)
+	if (err < 0 || codec->core.vendor_id != 0x11061708)
 		return err;
 
 	/* We got noisy outputs on the right channel on VT1708 when
@@ -714,19 +714,19 @@ static int patch_vt1708S(struct hda_codec *codec)
 
 	/* correct names for VT1708BCE */
 	if (get_codec_type(codec) == VT1708BCE)	{
-		kfree(codec->chip_name);
-		codec->chip_name = kstrdup("VT1708BCE", GFP_KERNEL);
+		kfree(codec->core.chip_name);
+		codec->core.chip_name = kstrdup("VT1708BCE", GFP_KERNEL);
 		snprintf(codec->card->mixername,
 			 sizeof(codec->card->mixername),
-			 "%s %s", codec->vendor_name, codec->chip_name);
+			 "%s %s", codec->core.vendor_name, codec->core.chip_name);
 	}
 	/* correct names for VT1705 */
-	if (codec->vendor_id == 0x11064397)	{
-		kfree(codec->chip_name);
-		codec->chip_name = kstrdup("VT1705", GFP_KERNEL);
+	if (codec->core.vendor_id == 0x11064397) {
+		kfree(codec->core.chip_name);
+		codec->core.chip_name = kstrdup("VT1705", GFP_KERNEL);
 		snprintf(codec->card->mixername,
 			 sizeof(codec->card->mixername),
-			 "%s %s", codec->vendor_name, codec->chip_name);
+			 "%s %s", codec->core.vendor_name, codec->core.chip_name);
 	}
 
 	/* automatic parse from the BIOS config */
@@ -815,8 +815,7 @@ static int add_secret_dac_path(struct hda_codec *codec)
 	}
 
 	/* find the primary DAC and add to the connection list */
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		unsigned int caps = get_wcaps(codec, nid);
 		if (get_wcaps_type(caps) == AC_WID_AUD_OUT &&
 		    !(caps & AC_WCAP_DIGITAL)) {

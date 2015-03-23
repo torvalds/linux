@@ -891,7 +891,7 @@ static int azx_runtime_resume(struct device *dev)
 
 	bus = chip->bus;
 	if (status && bus) {
-		list_for_each_entry(codec, &bus->codec_list, list)
+		list_for_each_codec(codec, bus)
 			if (status & (1 << codec->addr))
 				schedule_delayed_work(&codec->jackpoll_work,
 						      codec->jackpoll_interval);
@@ -919,7 +919,7 @@ static int azx_runtime_idle(struct device *dev)
 		return 0;
 
 	if (!power_save_controller || !azx_has_pm_runtime(chip) ||
-	    chip->bus->codec_powered)
+	    chip->bus->core.codec_powered)
 		return -EBUSY;
 
 	return 0;

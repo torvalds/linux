@@ -140,9 +140,9 @@ static void parse_user_hints(struct hda_codec *codec)
 	val = snd_hda_get_bool_hint(codec, "single_adc_amp");
 	if (val >= 0)
 		codec->single_adc_amp = !!val;
-	val = snd_hda_get_bool_hint(codec, "power_mgmt");
+	val = snd_hda_get_bool_hint(codec, "power_save_node");
 	if (val >= 0)
-		codec->power_mgmt = !!val;
+		codec->power_save_node = !!val;
 
 	val = snd_hda_get_bool_hint(codec, "auto_mute");
 	if (val >= 0)
@@ -654,18 +654,18 @@ static bool is_active_nid(struct hda_codec *codec, hda_nid_t nid,
 	int type = get_wcaps_type(get_wcaps(codec, nid));
 	int i, n;
 
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		return true;
 
 	for (n = 0; n < spec->paths.used; n++) {
 		struct nid_path *path = snd_array_elem(&spec->paths, n);
 		if (!path->active)
 			continue;
-		if (codec->power_mgmt) {
+		if (codec->power_save_node) {
 			if (!path->stream_enabled)
 				continue;
 			/* ignore unplugged paths except for DAC/ADC */
-			if (!path->pin_enabled &&
+			if (!(path->pin_enabled || path->pin_fixed) &&
 			    type != AC_WID_AUD_OUT && type != AC_WID_AUD_IN)
 				continue;
 		}
@@ -832,7 +832,7 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 
 	for (i = 0; i < path->depth; i++) {
 		nid = path->path[i];
-		if (nid == codec->afg)
+		if (nid == codec->core.afg)
 			continue;
 		if (!allow_powerdown || is_active_nid_for_any(codec, nid))
 			state = AC_PWRST_D0;
@@ -879,8 +879,8 @@ void snd_hda_activate_path(struct hda_codec *codec, struct nid_path *path,
 		path->active = false;
 
 	/* make sure the widget is powered up */
-	if (enable && (spec->power_down_unused || codec->power_mgmt))
-		path_power_update(codec, path, codec->power_mgmt);
+	if (enable && (spec->power_down_unused || codec->power_save_node))
+		path_power_update(codec, path, codec->power_save_node);
 
 	for (i = path->depth - 1; i >= 0; i--) {
 		hda_nid_t nid = path->path[i];
@@ -905,7 +905,7 @@ static void path_power_down_sync(struct hda_codec *codec, struct nid_path *path)
 {
 	struct hda_gen_spec *spec = codec->spec;
 
-	if (!(spec->power_down_unused || codec->power_mgmt) || path->active)
+	if (!(spec->power_down_unused || codec->power_save_node) || path->active)
 		return;
 	sync_power_state_change(codec, path_power_update(codec, path, true));
 }
@@ -1607,7 +1607,7 @@ static int check_aamix_out_path(struct hda_codec *codec, int path_idx)
 		return 0;
 	/* print_nid_path(codec, "output-aamix", path); */
 	path->active = false; /* unused as default */
-	path->pin_enabled = true; /* static route */
+	path->pin_fixed = true; /* static route */
 	return snd_hda_get_path_idx(codec, path);
 }
 
@@ -1897,12 +1897,11 @@ static void debug_show_configs(struct hda_codec *codec,
 static void fill_all_dac_nids(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	int i;
-	hda_nid_t nid = codec->start_nid;
+	hda_nid_t nid;
 
 	spec->num_all_dacs = 0;
 	memset(spec->all_dacs, 0, sizeof(spec->all_dacs));
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_AUD_OUT)
 			continue;
 		if (spec->num_all_dacs >= ARRAY_SIZE(spec->all_dacs)) {
@@ -3044,7 +3043,7 @@ static int new_analog_input(struct hda_codec *codec, int input_idx,
 		if (path) {
 			print_nid_path(codec, "loopback-merge", path);
 			path->active = true;
-			path->pin_enabled = true; /* static route */
+			path->pin_fixed = true; /* static route */
 			path->stream_enabled = true; /* no DAC/ADC involved */
 			spec->loopback_merge_path =
 				snd_hda_get_path_idx(codec, path);
@@ -3067,10 +3066,9 @@ static int fill_adc_nids(struct hda_codec *codec)
 	hda_nid_t nid;
 	hda_nid_t *adc_nids = spec->adc_nids;
 	int max_nums = ARRAY_SIZE(spec->adc_nids);
-	int i, nums = 0;
+	int nums = 0;
 
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
+	for_each_hda_codec_node(nid, codec) {
 		unsigned int caps = get_wcaps(codec, nid);
 		int type = get_wcaps_type(caps);
 
@@ -3847,7 +3845,7 @@ static void parse_digital(struct hda_codec *codec)
 			continue;
 		print_nid_path(codec, "digout", path);
 		path->active = true;
-		path->pin_enabled = true; /* no jack detection */
+		path->pin_fixed = true; /* no jack detection */
 		spec->digout_paths[i] = snd_hda_get_path_idx(codec, path);
 		set_pin_target(codec, pin, PIN_OUT, false);
 		if (!nums) {
@@ -3864,8 +3862,7 @@ static void parse_digital(struct hda_codec *codec)
 
 	if (spec->autocfg.dig_in_pin) {
 		pin = spec->autocfg.dig_in_pin;
-		dig_nid = codec->start_nid;
-		for (i = 0; i < codec->num_nodes; i++, dig_nid++) {
+		for_each_hda_codec_node(dig_nid, codec) {
 			unsigned int wcaps = get_wcaps(codec, dig_nid);
 			if (get_wcaps_type(wcaps) != AC_WID_AUD_IN)
 				continue;
@@ -3875,7 +3872,7 @@ static void parse_digital(struct hda_codec *codec)
 			if (path) {
 				print_nid_path(codec, "digin", path);
 				path->active = true;
-				path->pin_enabled = true; /* no jack */
+				path->pin_fixed = true; /* no jack */
 				spec->dig_in_nid = dig_nid;
 				spec->digin_path = snd_hda_get_path_idx(codec, path);
 				set_pin_target(codec, pin, PIN_IN, false);
@@ -3959,8 +3956,8 @@ static hda_nid_t set_path_power(struct hda_codec *codec, hda_nid_t nid,
 				path->pin_enabled = pin_state;
 			if (stream_state >= 0)
 				path->stream_enabled = stream_state;
-			if (path->pin_enabled != pin_old ||
-			    path->stream_enabled != stream_old) {
+			if ((!path->pin_fixed && path->pin_enabled != pin_old)
+			    || path->stream_enabled != stream_old) {
 				last = path_power_update(codec, path, true);
 				if (last)
 					changed = last;
@@ -3981,7 +3978,7 @@ static hda_nid_t set_pin_power_jack(struct hda_codec *codec, hda_nid_t pin,
 {
 	bool on;
 
-	if (!codec->power_mgmt)
+	if (!codec->power_save_node)
 		return 0;
 
 	on = snd_hda_jack_detect_state(codec, pin) != HDA_JACK_NOT_PRESENT;
@@ -4038,7 +4035,7 @@ static void add_all_pin_power_ctls(struct hda_codec *codec, bool on)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	if (!codec->power_mgmt)
+	if (!codec->power_save_node)
 		return;
 	add_pin_power_ctls(codec, cfg->line_outs, cfg->line_out_pins, on);
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
@@ -4067,7 +4064,7 @@ static void sync_all_pin_power_ctls(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
-	if (!codec->power_mgmt)
+	if (!codec->power_save_node)
 		return;
 	sync_pin_power_ctls(codec, cfg->line_outs, cfg->line_out_pins);
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
@@ -4111,7 +4108,7 @@ static int add_fake_beep_paths(struct hda_codec *codec)
 	hda_nid_t nid = spec->beep_nid;
 	int err;
 
-	if (!codec->power_mgmt || !nid)
+	if (!codec->power_save_node || !nid)
 		return 0;
 	err = add_fake_paths(codec, nid, cfg->line_outs, cfg->line_out_pins);
 	if (err < 0)
@@ -4135,6 +4132,29 @@ static void beep_power_hook(struct hda_beep *beep, bool on)
 {
 	set_path_power(beep->codec, beep->nid, -1, on);
 }
+
+/**
+ * snd_hda_gen_fix_pin_power - Fix the power of the given pin widget to D0
+ * @codec: the HDA codec
+ * @pin: NID of pin to fix
+ */
+int snd_hda_gen_fix_pin_power(struct hda_codec *codec, hda_nid_t pin)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct nid_path *path;
+
+	path = snd_array_new(&spec->paths);
+	if (!path)
+		return -ENOMEM;
+	memset(path, 0, sizeof(*path));
+	path->depth = 1;
+	path->path[0] = pin;
+	path->active = true;
+	path->pin_fixed = true;
+	path->stream_enabled = true;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hda_gen_fix_pin_power);
 
 /*
  * Jack detections for HP auto-mute and mic-switch
@@ -4210,7 +4230,7 @@ static void do_automute(struct hda_codec *codec, int num_pins, hda_nid_t *pins,
 		}
 
 		set_pin_eapd(codec, nid, !mute);
-		if (codec->power_mgmt) {
+		if (codec->power_save_node) {
 			bool on = !mute;
 			if (on)
 				on = snd_hda_jack_detect_state(codec, nid)
@@ -4683,7 +4703,7 @@ unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 						  hda_nid_t nid,
 						  unsigned int power_state)
 {
-	if (power_state != AC_PWRST_D0 || nid == codec->afg)
+	if (power_state != AC_PWRST_D0 || nid == codec->core.afg)
 		return power_state;
 	if (get_wcaps_type(get_wcaps(codec, nid)) >= AC_WID_POWER)
 		return power_state;
@@ -4718,11 +4738,11 @@ static void mute_all_mixer_nid(struct hda_codec *codec, hda_nid_t mix)
  * @nid: audio widget
  * @on: power on/off flag
  *
- * Set this in patch_ops.stream_pm.  Only valid with power_mgmt flag.
+ * Set this in patch_ops.stream_pm.  Only valid with power_save_node flag.
  */
 void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on)
 {
-	if (codec->power_mgmt)
+	if (codec->power_save_node)
 		set_path_power(codec, nid, -1, on);
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_stream_pm);
@@ -4893,14 +4913,14 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
  dig_only:
 	parse_digital(codec);
 
-	if (spec->power_down_unused || codec->power_mgmt)
+	if (spec->power_down_unused || codec->power_save_node)
 		codec->power_filter = snd_hda_gen_path_power_filter;
 
 	if (!spec->no_analog && spec->beep_nid) {
 		err = snd_hda_attach_beep_device(codec, spec->beep_nid);
 		if (err < 0)
 			return err;
-		if (codec->beep && codec->power_mgmt) {
+		if (codec->beep && codec->power_save_node) {
 			err = add_fake_beep_paths(codec);
 			if (err < 0)
 				return err;
@@ -5455,7 +5475,7 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 
 	fill_pcm_stream_name(spec->stream_name_analog,
 			     sizeof(spec->stream_name_analog),
-			     " Analog", codec->chip_name);
+			     " Analog", codec->core.chip_name);
 	info = snd_hda_codec_pcm_new(codec, "%s", spec->stream_name_analog);
 	if (!info)
 		return -ENOMEM;
@@ -5486,7 +5506,7 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		fill_pcm_stream_name(spec->stream_name_digital,
 				     sizeof(spec->stream_name_digital),
-				     " Digital", codec->chip_name);
+				     " Digital", codec->core.chip_name);
 		info = snd_hda_codec_pcm_new(codec, "%s",
 					     spec->stream_name_digital);
 		if (!info)
@@ -5521,7 +5541,7 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec)
 	if (spec->alt_dac_nid || have_multi_adcs) {
 		fill_pcm_stream_name(spec->stream_name_alt_analog,
 				     sizeof(spec->stream_name_alt_analog),
-			     " Alt Analog", codec->chip_name);
+			     " Alt Analog", codec->core.chip_name);
 		info = snd_hda_codec_pcm_new(codec, "%s",
 					     spec->stream_name_alt_analog);
 		if (!info)

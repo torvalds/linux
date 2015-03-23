@@ -26,6 +26,7 @@
 #include <sound/control.h>
 #include <sound/pcm.h>
 #include <sound/hwdep.h>
+#include <sound/hdaudio.h>
 #include <sound/hda_verbs.h>
 
 /*
@@ -97,16 +98,6 @@ struct hda_bus_ops {
 #endif
 };
 
-/* unsolicited event handler */
-#define HDA_UNSOL_QUEUE_SIZE	64
-struct hda_bus_unsolicited {
-	/* ring buffer */
-	u32 queue[HDA_UNSOL_QUEUE_SIZE * 2];
-	unsigned int rp, wp;
-	/* workqueue */
-	struct work_struct work;
-};
-
 /*
  * codec bus
  *
@@ -114,6 +105,8 @@ struct hda_bus_unsolicited {
  * A hda_bus contains several codecs in the list codec_list.
  */
 struct hda_bus {
+	struct hdac_bus core;
+
 	struct snd_card *card;
 
 	void *private_data;
@@ -121,17 +114,7 @@ struct hda_bus {
 	const char *modelname;
 	struct hda_bus_ops ops;
 
-	/* codec linked list */
-	struct list_head codec_list;
-	unsigned int num_codecs;
-	/* link caddr -> codec */
-	struct hda_codec *caddr_tbl[HDA_MAX_CODEC_ADDRESS + 1];
-
-	struct mutex cmd_mutex;
 	struct mutex prepare_mutex;
-
-	/* unsolicited event queue */
-	struct hda_bus_unsolicited unsol;
 
 	/* assigned PCMs */
 	DECLARE_BITMAP(pcm_dev_bits, SNDRV_PCM_DEVICES);
@@ -139,7 +122,6 @@ struct hda_bus {
 	/* misc op flags */
 	unsigned int needs_damn_long_delay :1;
 	unsigned int allow_bus_reset:1;	/* allow bus reset at fatal error */
-	unsigned int sync_write:1;	/* sync after verb write */
 	/* status for codec/controller */
 	unsigned int shutdown :1;	/* being unloaded */
 	unsigned int rirb_error:1;	/* error in codec communication */
@@ -148,7 +130,6 @@ struct hda_bus {
 	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
-	unsigned long codec_powered;	/* bit flags of powered codecs */
 };
 
 /*
@@ -172,7 +153,7 @@ struct hda_codec_preset {
 #define HDA_CODEC_ID_GENERIC		0x00000201
 
 struct hda_codec_driver {
-	struct device_driver driver;
+	struct hdac_driver core;
 	const struct hda_codec_preset *preset;
 };
 
@@ -276,29 +257,14 @@ struct hda_pcm {
 
 /* codec information */
 struct hda_codec {
-	struct device dev;
+	struct hdac_device core;
 	struct hda_bus *bus;
 	struct snd_card *card;
 	unsigned int addr;	/* codec addr*/
-	struct list_head list;	/* list point */
-
-	hda_nid_t afg;	/* AFG node id */
-	hda_nid_t mfg;	/* MFG node id */
-
-	/* ids */
-	u8 afg_function_id;
-	u8 mfg_function_id;
-	u8 afg_unsol;
-	u8 mfg_unsol;
-	u32 vendor_id;
-	u32 subsystem_id;
-	u32 revision_id;
 	u32 probe_id; /* overridden id for probing */
 
 	/* detected preset */
 	const struct hda_codec_preset *preset;
-	const char *vendor_name;	/* codec vendor name */
-	const char *chip_name;		/* codec chip name */
 	const char *modelname;	/* model name for preset */
 
 	/* set by patch */
@@ -315,8 +281,6 @@ struct hda_codec {
 	unsigned int beep_mode;
 
 	/* widget capabilities cache */
-	unsigned int num_nodes;
-	hda_nid_t start_nid;
 	u32 *wcaps;
 
 	struct snd_array mixers;	/* list of assigned mixer elements */
@@ -350,6 +314,7 @@ struct hda_codec {
 
 	/* misc flags */
 	unsigned int in_freeing:1; /* being released */
+	unsigned int registered:1; /* codec was registered */
 	unsigned int spdif_status_reset :1; /* needs to toggle SPDIF for each
 					     * status change
 					     * (e.g. Realtek codecs)
@@ -367,14 +332,11 @@ struct hda_codec {
 	unsigned int inv_eapd:1; /* broken h/w: inverted EAPD control */
 	unsigned int inv_jack_detect:1;	/* broken h/w: inverted detection bit */
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
-	unsigned int epss:1;		/* supporting EPSS? */
 	unsigned int cached_write:1;	/* write only to caches */
 	unsigned int dp_mst:1; /* support DP1.2 Multi-stream transport */
 	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
-	unsigned int power_mgmt:1; /* advanced PM for each widget */
+	unsigned int power_save_node:1; /* advanced PM for each widget */
 #ifdef CONFIG_PM
-	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
-	atomic_t in_pm;		/* suspend/resume being performed */
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
@@ -409,15 +371,11 @@ struct hda_codec {
 	struct snd_array verbs;
 };
 
-#define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, dev)
-#define hda_codec_dev(_dev)	(&(_dev)->dev)
+#define dev_to_hda_codec(_dev)	container_of(_dev, struct hda_codec, core.dev)
+#define hda_codec_dev(_dev)	(&(_dev)->core.dev)
 
-extern struct bus_type snd_hda_bus_type;
-
-/* direction */
-enum {
-	HDA_INPUT, HDA_OUTPUT
-};
+#define list_for_each_codec(c, bus) \
+	list_for_each_entry(c, &(bus)->core.codec_list, core.list)
 
 /* snd_hda_codec_read/write optional flags */
 #define HDA_RW_NO_RESPONSE_FALLBACK	(1 << 0)
@@ -441,8 +399,8 @@ int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int flags,
 			unsigned int verb, unsigned int parm);
 #define snd_hda_param_read(codec, nid, param) \
 	snd_hda_codec_read(codec, nid, 0, AC_VERB_PARAMETERS, param)
-int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid,
-			  hda_nid_t *start_id);
+#define snd_hda_get_sub_nodes(codec, nid, start_nid) \
+	snd_hdac_get_sub_nodes(&(codec)->core, nid, start_nid)
 int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns);
 static inline int
@@ -450,9 +408,12 @@ snd_hda_get_num_conns(struct hda_codec *codec, hda_nid_t nid)
 {
 	return snd_hda_get_connections(codec, nid, NULL, 0);
 }
-int snd_hda_get_num_raw_conns(struct hda_codec *codec, hda_nid_t nid);
-int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
-			    hda_nid_t *conn_list, int max_conns);
+
+#define snd_hda_get_raw_connections(codec, nid, list, max_conns) \
+	snd_hdac_get_connections(&(codec)->core, nid, list, max_conns)
+#define snd_hda_get_num_raw_conns(codec, nid) \
+	snd_hdac_get_connections(&(codec)->core, nid, NULL, 0);
+
 int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
 			  const hda_nid_t **listp);
 int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int nums,
@@ -474,7 +435,11 @@ void snd_hda_sequence_write(struct hda_codec *codec,
 			    const struct hda_verb *seq);
 
 /* unsolicited event */
-int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
+static inline void
+snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
+{
+	snd_hdac_bus_queue_event(&bus->core, res, res_ex);
+}
 
 /* cached write */
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
@@ -597,14 +562,12 @@ const char *snd_hda_get_jack_location(u32 cfg);
 /*
  * power saving
  */
+#define snd_hda_power_up(codec)		snd_hdac_power_up(&(codec)->core)
+#define snd_hda_power_down(codec)	snd_hdac_power_down(&(codec)->core)
 #ifdef CONFIG_PM
-void snd_hda_power_up(struct hda_codec *codec);
-void snd_hda_power_down(struct hda_codec *codec);
 void snd_hda_set_power_save(struct hda_bus *bus, int delay);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
-static inline void snd_hda_power_up(struct hda_codec *codec) {}
-static inline void snd_hda_power_down(struct hda_codec *codec) {}
 static inline void snd_hda_set_power_save(struct hda_bus *bus, int delay) {}
 #endif
 

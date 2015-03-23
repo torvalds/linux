@@ -851,9 +851,9 @@ gk104_grctx_generate_bundle(struct gf100_grctx *info)
 	const int s = 8;
 	const int b = mmio_vram(info, impl->bundle_size, (1 << s), access);
 	mmio_refn(info, 0x408004, 0x00000000, s, b);
-	mmio_refn(info, 0x408008, 0x80000000 | (impl->bundle_size >> s), 0, b);
+	mmio_wr32(info, 0x408008, 0x80000000 | (impl->bundle_size >> s));
 	mmio_refn(info, 0x418808, 0x00000000, s, b);
-	mmio_refn(info, 0x41880c, 0x80000000 | (impl->bundle_size >> s), 0, b);
+	mmio_wr32(info, 0x41880c, 0x80000000 | (impl->bundle_size >> s));
 	mmio_wr32(info, 0x4064c8, (state_limit << 16) | token_limit);
 }
 

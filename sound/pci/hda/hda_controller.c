@@ -1764,12 +1764,12 @@ static int probe_codec(struct azx *chip, int addr)
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	unsigned int res;
 
-	mutex_lock(&chip->bus->cmd_mutex);
+	mutex_lock(&chip->bus->core.cmd_mutex);
 	chip->probing = 1;
 	azx_send_cmd(chip->bus, cmd);
 	res = azx_get_response(chip->bus, addr);
 	chip->probing = 0;
-	mutex_unlock(&chip->bus->cmd_mutex);
+	mutex_unlock(&chip->bus->core.cmd_mutex);
 	if (res == -1)
 		return -EIO;
 	dev_dbg(chip->card->dev, "codec #%d probed OK\n", addr);
@@ -1848,7 +1848,7 @@ int azx_bus_create(struct azx *chip, const char *model)
 	 */
 	if (chip->driver_caps & AZX_DCAPS_SYNC_WRITE) {
 		dev_dbg(chip->card->dev, "Enable sync_write for stable communication\n");
-		bus->sync_write = 1;
+		bus->core.sync_write = 1;
 		bus->allow_bus_reset = 1;
 	}
 
@@ -1913,7 +1913,7 @@ EXPORT_SYMBOL_GPL(azx_probe_codecs);
 int azx_codec_configure(struct azx *chip)
 {
 	struct hda_codec *codec;
-	list_for_each_entry(codec, &chip->bus->codec_list, list) {
+	list_for_each_codec(codec, chip->bus) {
 		snd_hda_codec_configure(codec);
 	}
 	return 0;
