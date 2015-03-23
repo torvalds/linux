@@ -2840,6 +2840,7 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 		}
 		p->plane[0].horiz_pixels = intel_crtc->config->pipe_src_w;
 		p->plane[0].vert_pixels = intel_crtc->config->pipe_src_h;
+		p->plane[0].rotation = crtc->primary->state->rotation;
 
 		fb = crtc->cursor->state->fb;
 		if (fb) {
@@ -2897,7 +2898,21 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 	if (p_params->tiling == I915_FORMAT_MOD_Y_TILED ||
 	    p_params->tiling == I915_FORMAT_MOD_Yf_TILED) {
-		uint32_t y_tile_minimum = plane_blocks_per_line * 4;
+		uint32_t min_scanlines = 4;
+		uint32_t y_tile_minimum;
+		if (intel_rotation_90_or_270(p_params->rotation)) {
+			switch (p_params->bytes_per_pixel) {
+			case 1:
+				min_scanlines = 16;
+				break;
+			case 2:
+				min_scanlines = 8;
+				break;
+			case 8:
+				WARN(1, "Unsupported pixel depth for rotation");
+			};
+		}
+		y_tile_minimum = plane_blocks_per_line * min_scanlines;
 		selected_result = max(method2, y_tile_minimum);
 	} else {
 		if ((ddb_allocation / plane_blocks_per_line) >= 1)
@@ -3357,6 +3372,7 @@ skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
 	 */
 	if (fb)
 		intel_plane->wm.tiling = fb->modifier[0];
+	intel_plane->wm.rotation = plane->state->rotation;
 
 	skl_update_wm(crtc);
 }

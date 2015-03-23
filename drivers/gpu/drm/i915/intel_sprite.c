@@ -1039,10 +1039,7 @@ finish:
 		if (!intel_crtc->primary_enabled && !state->hides_primary)
 			intel_crtc->atomic.post_enable_primary = true;
 
-		/* Update watermarks on tiling changes. */
-		if (!plane->state->fb || !state->base.fb ||
-		    plane->state->fb->modifier[0] !=
-		    state->base.fb->modifier[0])
+		if (intel_wm_need_update(plane, &state->base))
 			intel_crtc->atomic.update_wm = true;
 
 		if (!state->visible) {

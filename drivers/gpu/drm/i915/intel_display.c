@@ -12034,6 +12034,28 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 }
 
 /**
+ * intel_wm_need_update - Check whether watermarks need updating
+ * @plane: drm plane
+ * @state: new plane state
+ *
+ * Check current plane state versus the new one to determine whether
+ * watermarks need to be recalculated.
+ *
+ * Returns true or false.
+ */
+bool intel_wm_need_update(struct drm_plane *plane,
+			  struct drm_plane_state *state)
+{
+	/* Update watermarks on tiling changes. */
+	if (!plane->state->fb || !state->fb ||
+	    plane->state->fb->modifier[0] != state->fb->modifier[0] ||
+	    plane->state->rotation != state->rotation)
+		return true;
+
+	return false;
+}
+
+/**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
  * @plane: drm plane to prepare for
  * @fb: framebuffer to prepare for presentation
@@ -12179,10 +12201,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 
 		intel_crtc->atomic.update_fbc = true;
 
-		/* Update watermarks on tiling changes. */
-		if (!plane->state->fb || !state->base.fb ||
-		    plane->state->fb->modifier[0] !=
-		    state->base.fb->modifier[0])
+		if (intel_wm_need_update(plane, &state->base))
 			intel_crtc->atomic.update_wm = true;
 	}
 

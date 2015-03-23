@@ -501,6 +501,7 @@ struct intel_plane_wm_parameters {
 	bool enabled;
 	bool scaled;
 	u64 tiling;
+	unsigned int rotation;
 };
 
 struct intel_plane {
@@ -993,6 +994,9 @@ intel_rotation_90_or_270(unsigned int rotation)
 {
 	return rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270));
 }
+
+bool intel_wm_need_update(struct drm_plane *plane,
+			  struct drm_plane_state *state);
 
 /* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
