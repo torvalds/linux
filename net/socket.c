@@ -798,7 +798,8 @@ static ssize_t sock_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct socket *sock = file->private_data;
-	struct msghdr msg = {.msg_iter = *to};
+	struct msghdr msg = {.msg_iter = *to,
+			     .msg_iocb = iocb};
 	ssize_t res;
 
 	if (file->f_flags & O_NONBLOCK)
@@ -819,7 +820,8 @@ static ssize_t sock_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct socket *sock = file->private_data;
-	struct msghdr msg = {.msg_iter = *from};
+	struct msghdr msg = {.msg_iter = *from,
+			     .msg_iocb = iocb};
 	ssize_t res;
 
 	if (iocb->ki_pos != 0)
@@ -1893,6 +1895,8 @@ static ssize_t copy_msghdr_from_user(struct msghdr *kmsg,
 
 	if (nr_segs > UIO_MAXIOV)
 		return -EMSGSIZE;
+
+	kmsg->msg_iocb = NULL;
 
 	err = rw_copy_check_uvector(save_addr ? READ : WRITE,
 				    uiov, nr_segs,

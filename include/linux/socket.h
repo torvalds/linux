@@ -51,6 +51,7 @@ struct msghdr {
 	void		*msg_control;	/* ancillary data */
 	__kernel_size_t	msg_controllen;	/* ancillary data buffer length */
 	unsigned int	msg_flags;	/* flags on received message */
+	struct kiocb	*msg_iocb;	/* ptr to iocb for async requests */
 };
  
 struct user_msghdr {

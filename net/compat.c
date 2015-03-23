@@ -79,6 +79,8 @@ ssize_t get_compat_msghdr(struct msghdr *kmsg,
 	if (nr_segs > UIO_MAXIOV)
 		return -EMSGSIZE;
 
+	kmsg->msg_iocb = NULL;
+
 	err = compat_rw_copy_check_uvector(save_addr ? READ : WRITE,
 					   compat_ptr(uiov), nr_segs,
 					   UIO_FASTIOV, *iov, iov);
