@@ -64,7 +64,6 @@ enum smk_inos {
  */
 static DEFINE_MUTEX(smack_cipso_lock);
 static DEFINE_MUTEX(smack_ambient_lock);
-static DEFINE_MUTEX(smack_syslog_lock);
 static DEFINE_MUTEX(smk_netlbladdr_lock);
 
 /*
