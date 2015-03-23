@@ -13006,8 +13006,8 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	case I915_FORMAT_MOD_X_TILED:
 		break;
 	default:
-		DRM_ERROR("Unsupported fb modifier 0x%llx!\n",
-				mode_cmd->modifier[0]);
+		DRM_DEBUG("Unsupported fb modifier 0x%llx!\n",
+			  mode_cmd->modifier[0]);
 		return -EINVAL;
 	}
 
