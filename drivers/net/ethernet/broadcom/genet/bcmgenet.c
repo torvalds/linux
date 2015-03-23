@@ -847,9 +847,10 @@ static struct ethtool_ops bcmgenet_ethtool_ops = {
 };
 
 /* Power down the unimac, based on mode. */
-static void bcmgenet_power_down(struct bcmgenet_priv *priv,
+static int bcmgenet_power_down(struct bcmgenet_priv *priv,
 				enum bcmgenet_power_mode mode)
 {
+	int ret = 0;
 	u32 reg;
 
 	switch (mode) {
@@ -858,7 +859,7 @@ static void bcmgenet_power_down(struct bcmgenet_priv *priv,
 		break;
 
 	case GENET_POWER_WOL_MAGIC:
-		bcmgenet_wol_power_down_cfg(priv, mode);
+		ret = bcmgenet_wol_power_down_cfg(priv, mode);
 		break;
 
 	case GENET_POWER_PASSIVE:
@@ -873,6 +874,8 @@ static void bcmgenet_power_down(struct bcmgenet_priv *priv,
 	default:
 		break;
 	}
+
+	return 0;
 }
 
 static void bcmgenet_power_up(struct bcmgenet_priv *priv,
@@ -2606,12 +2609,12 @@ static int bcmgenet_close(struct net_device *dev)
 	free_irq(priv->irq1, priv);
 
 	if (phy_is_internal(priv->phydev))
-		bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
+		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
 
-	return 0;
+	return ret;
 }
 
 static void bcmgenet_timeout(struct net_device *dev)
@@ -3097,14 +3100,14 @@ static int bcmgenet_suspend(struct device *d)
 
 	/* Prepare the device for Wake-on-LAN and switch to the slow clock */
 	if (device_may_wakeup(d) && priv->wolopts) {
-		bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
+		ret = bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
 		clk_prepare_enable(priv->clk_wol);
 	}
 
 	/* Turn off the clocks */
 	clk_disable_unprepare(priv->clk);
 
-	return 0;
+	return ret;
 }
 
 static int bcmgenet_resume(struct device *d)
