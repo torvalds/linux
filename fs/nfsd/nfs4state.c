@@ -5062,7 +5062,7 @@ alloc_init_lock_stateowner(unsigned int strhashval, struct nfs4_client *clp,
 	} else
 		nfs4_free_lockowner(&lo->lo_owner);
 	spin_unlock(&clp->cl_lock);
-	return lo;
+	return ret;
 }
 
 static void
