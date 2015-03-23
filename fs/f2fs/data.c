@@ -1126,16 +1126,23 @@ static int __allocate_data_block(struct dnode_of_data *dn)
 
 	if (unlikely(is_inode_flag_set(F2FS_I(dn->inode), FI_NO_ALLOC)))
 		return -EPERM;
+
+	dn->data_blkaddr = datablock_addr(dn->node_page, dn->ofs_in_node);
+	if (dn->data_blkaddr == NEW_ADDR)
+		goto alloc;
+
 	if (unlikely(!inc_valid_block_count(sbi, dn->inode, 1)))
 		return -ENOSPC;
 
+alloc:
 	get_node_info(sbi, dn->nid, &ni);
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 
 	if (dn->ofs_in_node == 0 && dn->inode_page == dn->node_page)
 		seg = CURSEG_DIRECT_IO;
 
-	allocate_data_block(sbi, NULL, NULL_ADDR, &dn->data_blkaddr, &sum, seg);
+	allocate_data_block(sbi, NULL, dn->data_blkaddr, &dn->data_blkaddr,
+								&sum, seg);
 
 	/* direct IO doesn't use extent cache to maximize the performance */
 	set_data_blkaddr(dn);
@@ -1175,7 +1182,7 @@ static void __allocate_data_blocks(struct inode *inode, loff_t offset,
 			block_t blkaddr;
 
 			blkaddr = datablock_addr(dn.node_page, dn.ofs_in_node);
-			if (blkaddr == NULL_ADDR) {
+			if (blkaddr == NULL_ADDR || blkaddr == NEW_ADDR) {
 				if (__allocate_data_block(&dn))
 					goto sync_out;
 				allocated = true;
