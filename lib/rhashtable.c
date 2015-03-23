@@ -256,8 +256,10 @@ static int rhashtable_rehash_table(struct rhashtable *ht)
 	/* Publish the new table pointer. */
 	rcu_assign_pointer(ht->tbl, new_tbl);
 
+	spin_lock(&ht->lock);
 	list_for_each_entry(walker, &old_tbl->walkers, list)
 		walker->tbl = NULL;
+	spin_unlock(&ht->lock);
 
 	/* Wait for readers. All new readers will see the new
 	 * table, and thus no references to the old table will
@@ -635,12 +637,12 @@ void rhashtable_walk_stop(struct rhashtable_iter *iter)
 
 	ht = iter->ht;
 
-	mutex_lock(&ht->mutex);
+	spin_lock(&ht->lock);
 	if (tbl->rehash < tbl->size)
 		list_add(&iter->walker->list, &tbl->walkers);
 	else
 		iter->walker->tbl = NULL;
-	mutex_unlock(&ht->mutex);
+	spin_unlock(&ht->lock);
 
 	iter->p = NULL;
 
@@ -723,6 +725,7 @@ int rhashtable_init(struct rhashtable *ht,
 
 	memset(ht, 0, sizeof(*ht));
 	mutex_init(&ht->mutex);
+	spin_lock_init(&ht->lock);
 	memcpy(&ht->p, params, sizeof(*params));
 
 	if (params->min_size)

@@ -133,6 +133,7 @@ struct rhashtable_params {
  * @p: Configuration parameters
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
+ * @lock: Spin lock to protect walker list
  * @being_destroyed: True if table is set up for destruction
  */
 struct rhashtable {
@@ -144,6 +145,7 @@ struct rhashtable {
 	struct rhashtable_params	p;
 	struct work_struct		run_work;
 	struct mutex                    mutex;
+	spinlock_t			lock;
 };
 
 /**
