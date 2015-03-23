@@ -481,8 +481,8 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		}
 
 		/* Limit to hardware min/max. */
-		v4l_bound_align_image(&pix_fmt_mp->width, 8, 1920, 0,
-				      &pix_fmt_mp->height, 4, 1080, 0, 0);
+		pix_fmt_mp->width = clamp(pix_fmt_mp->width, 96U, 1920U);
+		pix_fmt_mp->height = clamp(pix_fmt_mp->height, 96U, 1088U);
 
 		/* Round up to macroblocks. */
 		pix_fmt_mp->width = round_up(pix_fmt_mp->width, MB_DIM);
@@ -559,7 +559,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 		vpu_debug(0, "OUTPUT codec mode: %d\n", fmt->codec_mode);
 		vpu_debug(0, "fmt - w: %d, h: %d, mb - w: %d, h: %d\n",
-			  pix_fmt_mp->width, pix_fmt_mp->width,
+			  pix_fmt_mp->width, pix_fmt_mp->height,
 			  mb_width, mb_height);
 
 		for (i = 0; i < fmt->num_planes; ++i) {
