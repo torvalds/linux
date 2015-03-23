@@ -20,6 +20,7 @@
 
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <locale.h>
 
 struct alloc_stat;
 typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
@@ -325,13 +326,13 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 static void print_summary(void)
 {
 	printf("\nSUMMARY\n=======\n");
-	printf("Total bytes requested: %lu\n", total_requested);
-	printf("Total bytes allocated: %lu\n", total_allocated);
-	printf("Total bytes wasted on internal fragmentation: %lu\n",
+	printf("Total bytes requested: %'lu\n", total_requested);
+	printf("Total bytes allocated: %'lu\n", total_allocated);
+	printf("Total bytes wasted on internal fragmentation: %'lu\n",
 	       total_allocated - total_requested);
 	printf("Internal fragmentation: %f%%\n",
 	       fragmentation(total_requested, total_allocated));
-	printf("Cross CPU allocations: %lu/%lu\n", nr_cross_allocs, nr_allocs);
+	printf("Cross CPU allocations: %'lu/%'lu\n", nr_cross_allocs, nr_allocs);
 }
 
 static void print_result(struct perf_session *session)
@@ -706,6 +707,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	symbol__init(&session->header.env);
 
 	if (!strcmp(argv[0], "stat")) {
+		setlocale(LC_ALL, "");
+
 		if (cpu__setup_cpunode_map())
 			goto out_delete;
 
