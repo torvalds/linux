@@ -4427,7 +4427,6 @@ min_sync_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	unsigned long long min;
 	int err;
-	int chunk;
 
 	if (kstrtoull(buf, 10, &min))
 		return -EINVAL;
@@ -4441,16 +4440,8 @@ min_sync_store(struct mddev *mddev, const char *buf, size_t len)
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		goto out_unlock;
 
-	/* Must be a multiple of chunk_size */
-	chunk = mddev->chunk_sectors;
-	if (chunk) {
-		sector_t temp = min;
-
-		err = -EINVAL;
-		if (sector_div(temp, chunk))
-			goto out_unlock;
-	}
-	mddev->resync_min = min;
+	/* Round down to multiple of 4K for safety */
+	mddev->resync_min = round_down(min, 8);
 	err = 0;
 
 out_unlock:
