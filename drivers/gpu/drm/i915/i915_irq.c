@@ -277,6 +277,7 @@ void gen6_reset_rps_interrupts(struct drm_device *dev)
 	I915_WRITE(reg, dev_priv->pm_rps_events);
 	I915_WRITE(reg, dev_priv->pm_rps_events);
 	POSTING_READ(reg);
+	dev_priv->rps.pm_iir = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
@@ -334,15 +335,6 @@ void gen6_disable_rps_interrupts(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	synchronize_irq(dev->irq);
-
-	spin_lock_irq(&dev_priv->irq_lock);
-
-	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
-	I915_WRITE(gen6_pm_iir(dev_priv), dev_priv->pm_rps_events);
-
-	dev_priv->rps.pm_iir = 0;
-
-	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 /**
