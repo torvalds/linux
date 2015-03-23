@@ -116,6 +116,12 @@ struct mca_config {
 	u32 rip_msr;
 };
 
+struct mce_vendor_flags {
+	__u64		overflow_recov	: 1, /* cpuid_ebx(80000007) */
+			__reserved_0	: 63;
+};
+extern struct mce_vendor_flags mce_flags;
+
 extern struct mca_config mca_cfg;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);

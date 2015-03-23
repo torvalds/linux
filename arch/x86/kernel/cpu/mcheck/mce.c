@@ -64,6 +64,7 @@ static DEFINE_MUTEX(mce_chrdev_read_mutex);
 DEFINE_PER_CPU(unsigned, mce_exception_count);
 
 struct mce_bank *mce_banks __read_mostly;
+struct mce_vendor_flags mce_flags __read_mostly;
 
 struct mca_config mca_cfg __read_mostly = {
 	.bootlog  = -1,
@@ -1535,6 +1536,13 @@ static int __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 			mce_banks[0].ctl = 0;
 
 		/*
+		 * overflow_recov is supported for F15h Models 00h-0fh
+		 * even though we don't have a CPUID bit for it.
+		 */
+		if (c->x86 == 0x15 && c->x86_model <= 0xf)
+			mce_flags.overflow_recov = 1;
+
+		/*
 		 * Turn off MC4_MISC thresholding banks on those models since
 		 * they're not supported there.
 		 */
@@ -1633,6 +1641,7 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 		break;
 	case X86_VENDOR_AMD:
 		mce_amd_feature_init(c);
+		mce_flags.overflow_recov = cpuid_ebx(0x80000007) & 0x1;
 		break;
 	default:
 		break;
