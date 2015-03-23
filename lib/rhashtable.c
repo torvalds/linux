@@ -477,6 +477,9 @@ next:
 		iter->skip = 0;
 	}
 
+	/* Ensure we see any new tables. */
+	smp_rmb();
+
 	iter->walker->tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 	if (iter->walker->tbl) {
 		iter->slot = 0;
