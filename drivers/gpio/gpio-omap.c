@@ -472,11 +472,11 @@ static void omap_disable_gpio_module(struct gpio_bank *bank, unsigned offset)
 	}
 }
 
-static int omap_gpio_is_input(struct gpio_bank *bank, int mask)
+static int omap_gpio_is_input(struct gpio_bank *bank, unsigned offset)
 {
 	void __iomem *reg = bank->base + bank->regs->direction;
 
-	return readl_relaxed(reg) & mask;
+	return readl_relaxed(reg) & BIT(offset);
 }
 
 static void omap_gpio_init_irq(struct gpio_bank *bank, unsigned gpio,
@@ -519,7 +519,7 @@ static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 	offset = GPIO_INDEX(bank, gpio);
 	retval = omap_set_gpio_triggering(bank, offset, type);
 	omap_gpio_init_irq(bank, gpio, offset);
-	if (!omap_gpio_is_input(bank, BIT(offset))) {
+	if (!omap_gpio_is_input(bank, offset)) {
 		spin_unlock_irqrestore(&bank->lock, flags);
 		return -EINVAL;
 	}
@@ -976,12 +976,10 @@ static int omap_gpio_input(struct gpio_chip *chip, unsigned offset)
 static int omap_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_bank *bank;
-	u32 mask;
 
 	bank = container_of(chip, struct gpio_bank, chip);
-	mask = (BIT(offset));
 
-	if (omap_gpio_is_input(bank, mask))
+	if (omap_gpio_is_input(bank, offset))
 		return omap_get_gpio_datain(bank, offset);
 	else
 		return omap_get_gpio_dataout(bank, offset);
