@@ -1520,7 +1520,8 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 * perform initial actions required for Internal ADP logic.
 	 */
 	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if)) {
-		if (pldata->phy_status == USB_PHY_ENABLED) {
+		if (dwc_otg_device->core_if->usb_mode == USB_MODE_NORMAL &&
+		    pldata->phy_status == USB_PHY_ENABLED) {
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 			udelay(3);
 			pldata->clock_enable(pldata, 0);
