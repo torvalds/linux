@@ -30,6 +30,10 @@
  * These kinds of heuristics are just asking for trouble (and don't belong
  * in the kernel). So this driver offers straight forward, reliable single
  * touch functionality only.
+ *
+ * s.a. A20 User Manual "1.15 TP" (Documentation/arm/sunxi/README)
+ * (looks like the description in the A20 User Manual v1.3 is better
+ * than the one in the A10 User Manual v.1.5)
  */
 
 #include <linux/err.h>
@@ -246,6 +250,8 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	int error;
 	u32 reg;
 	bool ts_attached;
+	u32 tp_sensitive_adjust = 15;
+	u32 filter_type = 1;
 
 	ts = devm_kzalloc(dev, sizeof(struct sun4i_ts_data), GFP_KERNEL);
 	if (!ts)
@@ -322,14 +328,20 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	       ts->base + TP_CTRL0);
 
 	/*
-	 * sensitive_adjust = 15 : max, which is not all that sensitive,
+	 * tp_sensitive_adjust is an optional property
 	 * tp_mode = 0 : only x and y coordinates, as we don't use dual touch
 	 */
-	writel(TP_SENSITIVE_ADJUST(15) | TP_MODE_SELECT(0),
+	of_property_read_u32(np, "allwinner,tp-sensitive-adjust",
+			     &tp_sensitive_adjust);
+	writel(TP_SENSITIVE_ADJUST(tp_sensitive_adjust) | TP_MODE_SELECT(0),
 	       ts->base + TP_CTRL2);
 
-	/* Enable median filter, type 1 : 5/3 */
-	writel(FILTER_EN(1) | FILTER_TYPE(1), ts->base + TP_CTRL3);
+	/*
+	 * Enable median and averaging filter, optional property for
+	 * filter type.
+	 */
+	of_property_read_u32(np, "allwinner,filter-type", &filter_type);
+	writel(FILTER_EN(1) | FILTER_TYPE(filter_type), ts->base + TP_CTRL3);
 
 	/* Enable temperature measurement, period 1953 (2 seconds) */
 	writel(TEMP_ENABLE(1) | TEMP_PERIOD(1953), ts->base + TP_TPR);

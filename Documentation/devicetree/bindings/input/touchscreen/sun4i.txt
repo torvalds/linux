@@ -9,8 +9,20 @@ Required properties:
  - #thermal-sensor-cells: shall be 0
 
 Optional properties:
- - allwinner,ts-attached: boolean indicating that an actual touchscreen is
-			  attached to the controller
+ - allwinner,ts-attached	 : boolean indicating that an actual touchscreen
+				   is attached to the controller
+ - allwinner,tp-sensitive-adjust : integer (4 bits)
+				   adjust sensitivity of pen down detection
+				   between 0 (least sensitive) and 15
+				   (defaults to 15)
+ - allwinner,filter-type	 : integer (2 bits)
+				   select median and averaging filter
+				   samples used for median / averaging filter
+				   0: 4/2
+				   1: 5/3
+				   2: 8/4
+				   3: 16/8
+				   (defaults to 1)
 
 Example:
 
@@ -20,4 +32,7 @@ Example:
 		interrupts = <29>;
 		allwinner,ts-attached;
 		#thermal-sensor-cells = <0>;
+		/* sensitive/noisy touch panel */
+		allwinner,tp-sensitive-adjust = <0>;
+		allwinner,filter-type = <3>;
 	};
