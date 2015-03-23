@@ -1342,7 +1342,6 @@ enum netdev_priv_flags {
  *	@netdev_ops:	Includes several pointers to callbacks,
  *			if one wants to override the ndo_*() functions
  *	@ethtool_ops:	Management operations
- *	@fwd_ops:	Management operations
  *	@header_ops:	Includes callbacks for creating,parsing,caching,etc
  *			of Layer 2 headers.
  *
@@ -1551,7 +1550,6 @@ struct net_device {
 #endif
 	const struct net_device_ops *netdev_ops;
 	const struct ethtool_ops *ethtool_ops;
-	const struct forwarding_accel_ops *fwd_ops;
 #ifdef CONFIG_NET_SWITCHDEV
 	const struct swdev_ops *swdev_ops;
 #endif
