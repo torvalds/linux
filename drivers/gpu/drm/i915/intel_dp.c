@@ -5337,8 +5337,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct edid *edid;
 	enum pipe pipe = INVALID_PIPE;
 
-	dev_priv->drrs.type = DRRS_NOT_SUPPORTED;
-
 	if (!is_edp(intel_dp))
 		return true;
 
