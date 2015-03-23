@@ -135,40 +135,23 @@ int ufs_qcom_phy_base_init(struct platform_device *pdev,
 	int err = 0;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy_mem");
-	if (!res) {
-		dev_err(dev, "%s: phy_mem resource not found\n", __func__);
-		err = -ENOMEM;
-		goto out;
-	}
-
 	phy_common->mmio = devm_ioremap_resource(dev, res);
 	if (IS_ERR((void const *)phy_common->mmio)) {
 		err = PTR_ERR((void const *)phy_common->mmio);
 		phy_common->mmio = NULL;
 		dev_err(dev, "%s: ioremap for phy_mem resource failed %d\n",
 			__func__, err);
-		goto out;
+		return err;
 	}
 
 	/* "dev_ref_clk_ctrl_mem" is optional resource */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "dev_ref_clk_ctrl_mem");
-	if (!res) {
-		dev_dbg(dev, "%s: dev_ref_clk_ctrl_mem resource not found\n",
-			__func__);
-		goto out;
-	}
-
 	phy_common->dev_ref_clk_ctrl_mmio = devm_ioremap_resource(dev, res);
-	if (IS_ERR((void const *)phy_common->dev_ref_clk_ctrl_mmio)) {
-		err = PTR_ERR((void const *)phy_common->dev_ref_clk_ctrl_mmio);
+	if (IS_ERR((void const *)phy_common->dev_ref_clk_ctrl_mmio))
 		phy_common->dev_ref_clk_ctrl_mmio = NULL;
-		dev_err(dev, "%s: ioremap for dev_ref_clk_ctrl_mem resource failed %d\n",
-			__func__, err);
-	}
 
-out:
-	return err;
+	return 0;
 }
 
 static int __ufs_qcom_phy_clk_get(struct phy *phy,
