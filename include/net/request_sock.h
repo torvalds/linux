@@ -39,8 +39,7 @@ struct request_sock_ops {
 	void		(*send_reset)(struct sock *sk,
 				      struct sk_buff *skb);
 	void		(*destructor)(struct request_sock *req);
-	void		(*syn_ack_timeout)(struct sock *sk,
-					   struct request_sock *req);
+	void		(*syn_ack_timeout)(const struct request_sock *req);
 };
 
 int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req);
@@ -174,11 +173,6 @@ struct fastopen_queue {
  * %syn_wait_lock is necessary only to avoid proc interface having to grab the main
  * lock sock while browsing the listening hash (otherwise it's deadlock prone).
  *
- * This lock is acquired in read mode only from listening_get_next() seq_file
- * op and it's acquired in write mode _only_ from code that is actively
- * changing rskq_accept_head. All readers that are holding the master sock lock
- * don't need to grab this lock in read mode too as rskq_accept_head. writes
- * are always protected from the main sock lock.
  */
 struct request_sock_queue {
 	struct request_sock	*rskq_accept_head;
@@ -193,7 +187,7 @@ struct request_sock_queue {
 					     */
 
 	/* temporary alignment, our goal is to get rid of this lock */
-	rwlock_t		syn_wait_lock ____cacheline_aligned_in_smp;
+	spinlock_t		syn_wait_lock ____cacheline_aligned_in_smp;
 };
 
 int reqsk_queue_alloc(struct request_sock_queue *queue,
@@ -224,14 +218,14 @@ static inline void reqsk_queue_unlink(struct request_sock_queue *queue,
 	struct listen_sock *lopt = queue->listen_opt;
 	struct request_sock **prev;
 
-	write_lock(&queue->syn_wait_lock);
+	spin_lock(&queue->syn_wait_lock);
 
 	prev = &lopt->syn_table[req->rsk_hash];
 	while (*prev != req)
 		prev = &(*prev)->dl_next;
 	*prev = req->dl_next;
 
-	write_unlock(&queue->syn_wait_lock);
+	spin_unlock(&queue->syn_wait_lock);
 	if (del_timer(&req->rsk_timer))
 		reqsk_put(req);
 }

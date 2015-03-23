@@ -433,7 +433,7 @@ int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
 int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, unsigned int optlen);
 void tcp_set_keepalive(struct sock *sk, int val);
-void tcp_syn_ack_timeout(struct sock *sk, struct request_sock *req);
+void tcp_syn_ack_timeout(const struct request_sock *req);
 int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 		int flags, int *addr_len);
 void tcp_parse_options(const struct sk_buff *skb,
@@ -447,6 +447,7 @@ const u8 *tcp_parse_md5sig_option(const struct tcphdr *th);
 
 void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 void tcp_v4_mtu_reduced(struct sock *sk);
+void tcp_req_err(struct sock *sk, u32 seq);
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_create_openreq_child(struct sock *sk,
 				      struct request_sock *req,
