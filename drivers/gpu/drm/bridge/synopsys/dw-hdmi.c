@@ -1383,7 +1383,7 @@ static void hdmi_video_packetize(struct dw_hdmi *hdmi)
 		switch (hdmi_bus_fmt_color_depth(
 					hdmi->hdmi_data.enc_out_bus_format)) {
 		case 8:
-			color_depth = 4;
+			color_depth = 0;
 			output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_BYPASS;
 			break;
 		case 10:
