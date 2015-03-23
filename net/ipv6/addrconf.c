@@ -1710,6 +1710,7 @@ static int addrconf_dad_end(struct inet6_ifaddr *ifp)
 
 void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 {
+	struct in6_addr addr;
 	struct inet6_dev *idev = ifp->idev;
 
 	if (addrconf_dad_end(ifp)) {
@@ -1720,9 +1721,59 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 	net_info_ratelimited("%s: IPv6 duplicate address %pI6c detected!\n",
 			     ifp->idev->dev->name, &ifp->addr);
 
-	if (idev->cnf.accept_dad > 1 && !idev->cnf.disable_ipv6) {
-		struct in6_addr addr;
+	spin_lock_bh(&ifp->lock);
 
+	if (ifp->flags & IFA_F_STABLE_PRIVACY) {
+		int scope = ifp->scope;
+		u32 flags = ifp->flags;
+		struct in6_addr new_addr;
+		struct inet6_ifaddr *ifp2;
+		u32 valid_lft, preferred_lft;
+		int pfxlen = ifp->prefix_len;
+		const unsigned int idgen_retries = 3;
+		const unsigned int idgen_delay = 1 * HZ;
+		int retries = ifp->stable_privacy_retry + 1;
+
+		if (retries > idgen_retries) {
+			net_info_ratelimited("%s: privacy stable address generation failed because of DAD conflicts!\n",
+					     ifp->idev->dev->name);
+			goto errdad;
+		}
+
+		new_addr = ifp->addr;
+		if (ipv6_generate_stable_address(&new_addr, retries,
+						 idev))
+			goto errdad;
+
+		valid_lft = ifp->valid_lft;
+		preferred_lft = ifp->prefered_lft;
+
+		spin_unlock_bh(&ifp->lock);
+
+		if (idev->cnf.max_addresses &&
+		    ipv6_count_addresses(idev) >=
+		    idev->cnf.max_addresses)
+			goto lock_errdad;
+
+		net_info_ratelimited("%s: generating new stable privacy address because of DAD conflict\n",
+				     ifp->idev->dev->name);
+
+		ifp2 = ipv6_add_addr(idev, &new_addr, NULL, pfxlen,
+				     scope, flags, valid_lft,
+				     preferred_lft);
+		if (IS_ERR(ifp2))
+			goto lock_errdad;
+
+		spin_lock_bh(&ifp2->lock);
+		ifp2->stable_privacy_retry = retries;
+		ifp2->state = INET6_IFADDR_STATE_PREDAD;
+		spin_unlock_bh(&ifp2->lock);
+
+		addrconf_mod_dad_work(ifp2, idgen_delay);
+		in6_ifa_put(ifp2);
+lock_errdad:
+		spin_lock_bh(&ifp->lock);
+	} else if (idev->cnf.accept_dad > 1 && !idev->cnf.disable_ipv6) {
 		addr.s6_addr32[0] = htonl(0xfe800000);
 		addr.s6_addr32[1] = 0;
 
@@ -1736,7 +1787,7 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 		}
 	}
 
-	spin_lock_bh(&ifp->lock);
+errdad:
 	/* transition from _POSTDAD to _ERRDAD */
 	ifp->state = INET6_IFADDR_STATE_ERRDAD;
 	spin_unlock_bh(&ifp->lock);

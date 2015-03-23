@@ -52,6 +52,7 @@ struct inet6_ifaddr {
 
 	__u32			flags;
 	__u8			dad_probes;
+	__u8			stable_privacy_retry;
 
 	__u16			scope;
 
