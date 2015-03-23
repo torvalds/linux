@@ -452,9 +452,9 @@ static bool hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 		kfree(psy_desc->name);
 		kfree(psy_desc);
 		dev->battery = NULL;
+	} else {
+		power_supply_powers(dev->battery, &dev->dev);
 	}
-
-	power_supply_powers(dev->battery, &dev->dev);
 
 out:
 	return true;
