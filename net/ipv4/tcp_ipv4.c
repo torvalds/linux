@@ -324,6 +324,7 @@ void tcp_req_err(struct sock *sk, u32 seq)
 
 	if (seq != tcp_rsk(req)->snt_isn) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
+		reqsk_put(req);
 	} else {
 		/*
 		 * Still in SYN_RECV, just remove it silently.
@@ -331,10 +332,9 @@ void tcp_req_err(struct sock *sk, u32 seq)
 		 * created socket, and POSIX does not want network
 		 * errors returned from accept().
 		 */
-		inet_csk_reqsk_queue_drop(req->rsk_listener, req);
 		NET_INC_STATS_BH(net, LINUX_MIB_LISTENDROPS);
+		inet_csk_reqsk_queue_drop(req->rsk_listener, req);
 	}
-	reqsk_put(req);
 }
 EXPORT_SYMBOL(tcp_req_err);
 
