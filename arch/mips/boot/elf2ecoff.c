@@ -268,7 +268,6 @@ int main(int argc, char *argv[])
 	Elf32_Ehdr ex;
 	Elf32_Phdr *ph;
 	Elf32_Shdr *sh;
-	char *shstrtab;
 	int i, pad;
 	struct sect text, data, bss;
 	struct filehdr efh;
@@ -336,9 +335,6 @@ int main(int argc, char *argv[])
 				     "sh");
 	if (must_convert_endian)
 		convert_elf_shdrs(sh, ex.e_shnum);
-	/* Read in the section string table. */
-	shstrtab = saveRead(infile, sh[ex.e_shstrndx].sh_offset,
-			    sh[ex.e_shstrndx].sh_size, "shstrtab");
 
 	/* Figure out if we can cram the program header into an ECOFF
 	   header...  Basically, we can't handle anything but loadable

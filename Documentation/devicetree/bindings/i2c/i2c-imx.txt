@@ -7,6 +7,7 @@ Required properties:
   - "fsl,vf610-i2c" for I2C compatible with the one integrated on Vybrid vf610 SoC
 - reg : Should contain I2C/HS-I2C registers location and length
 - interrupts : Should contain I2C/HS-I2C interrupt
+- clocks : Should contain the I2C/HS-I2C clock specifier
 
 Optional properties:
 - clock-frequency : Constains desired I2C/HS-I2C bus clock frequency in Hz.

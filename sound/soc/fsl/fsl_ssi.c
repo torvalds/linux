@@ -160,7 +160,7 @@ struct fsl_ssi_soc_data {
  */
 struct fsl_ssi_private {
 	struct regmap *regs;
-	unsigned int irq;
+	int irq;
 	struct snd_soc_dai_driver cpu_dai_drv;
 
 	unsigned int dai_fmt;
@@ -603,16 +603,19 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 	factor = (div2 + 1) * (7 * psr + 1) * 2;
 
 	for (i = 0; i < 255; i++) {
-		/* The bclk rate must be smaller than 1/5 sysclk rate */
-		if (factor * (i + 1) < 5)
-			continue;
-
-		tmprate = freq * factor * (i + 2);
+		tmprate = freq * factor * (i + 1);
 
 		if (baudclk_is_used)
 			clkrate = clk_get_rate(ssi_private->baudclk);
 		else
 			clkrate = clk_round_rate(ssi_private->baudclk, tmprate);
+
+		/*
+		 * Hardware limitation: The bclk rate must be
+		 * never greater than 1/5 IPG clock rate
+		 */
+		if (clkrate * 5 > clk_get_rate(ssi_private->clk))
+			continue;
 
 		clkrate /= factor;
 		afreq = clkrate / (i + 1);
@@ -992,8 +995,8 @@ static int fsl_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai, u32 tx_mask,
 	regmap_update_bits(regs, CCSR_SSI_SCR, CCSR_SSI_SCR_SSIEN,
 			CCSR_SSI_SCR_SSIEN);
 
-	regmap_write(regs, CCSR_SSI_STMSK, tx_mask);
-	regmap_write(regs, CCSR_SSI_SRMSK, rx_mask);
+	regmap_write(regs, CCSR_SSI_STMSK, ~tx_mask);
+	regmap_write(regs, CCSR_SSI_SRMSK, ~rx_mask);
 
 	regmap_update_bits(regs, CCSR_SSI_SCR, CCSR_SSI_SCR_SSIEN, val);
 
@@ -1224,7 +1227,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	ssi_private->dma_params_tx.addr = ssi_private->ssi_phys + CCSR_SSI_STX0;
 	ssi_private->dma_params_rx.addr = ssi_private->ssi_phys + CCSR_SSI_SRX0;
 
-	ret = !of_property_read_u32_array(np, "dmas", dmas, 4);
+	ret = of_property_read_u32_array(np, "dmas", dmas, 4);
 	if (ssi_private->use_dma && !ret && dmas[2] == IMX_DMATYPE_SSI_DUAL) {
 		ssi_private->use_dual_fifo = true;
 		/* When using dual fifo mode, we need to keep watermark
@@ -1362,8 +1365,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	}
 
 	ssi_private->irq = platform_get_irq(pdev, 0);
-	if (ssi_private->irq < 0) {
-		dev_err(&pdev->dev, "no irq for node %s\n", np->full_name);
+	if (!ssi_private->irq) {
+		dev_err(&pdev->dev, "no irq for node %s\n", pdev->name);
 		return ssi_private->irq;
 	}
 

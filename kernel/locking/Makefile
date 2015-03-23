@@ -2,10 +2,10 @@
 obj-y += mutex.o semaphore.o rwsem.o
 
 ifdef CONFIG_FUNCTION_TRACER
-CFLAGS_REMOVE_lockdep.o = -pg
-CFLAGS_REMOVE_lockdep_proc.o = -pg
-CFLAGS_REMOVE_mutex-debug.o = -pg
-CFLAGS_REMOVE_rtmutex-debug.o = -pg
+CFLAGS_REMOVE_lockdep.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_lockdep_proc.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_mutex-debug.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_rtmutex-debug.o = $(CC_FLAGS_FTRACE)
 endif
 
 obj-$(CONFIG_DEBUG_MUTEXES) += mutex-debug.o

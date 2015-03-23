@@ -32,6 +32,7 @@
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
 #define KSZPHY_OMSO_B_CAST_OFF			BIT(9)
+#define KSZPHY_OMSO_NAND_TREE_ON		BIT(5)
 #define KSZPHY_OMSO_RMII_OVERRIDE		BIT(1)
 #define KSZPHY_OMSO_MII_OVERRIDE		BIT(0)
 
@@ -76,6 +77,7 @@ struct kszphy_type {
 	u32 led_mode_reg;
 	u16 interrupt_level_mask;
 	bool has_broadcast_disable;
+	bool has_nand_tree_disable;
 	bool has_rmii_ref_clk_sel;
 };
 
@@ -89,6 +91,7 @@ struct kszphy_priv {
 static const struct kszphy_type ksz8021_type = {
 	.led_mode_reg		= MII_KSZPHY_CTRL_2,
 	.has_broadcast_disable	= true,
+	.has_nand_tree_disable	= true,
 	.has_rmii_ref_clk_sel	= true,
 };
 
@@ -98,11 +101,13 @@ static const struct kszphy_type ksz8041_type = {
 
 static const struct kszphy_type ksz8051_type = {
 	.led_mode_reg		= MII_KSZPHY_CTRL_2,
+	.has_nand_tree_disable	= true,
 };
 
 static const struct kszphy_type ksz8081_type = {
 	.led_mode_reg		= MII_KSZPHY_CTRL_2,
 	.has_broadcast_disable	= true,
+	.has_nand_tree_disable	= true,
 	.has_rmii_ref_clk_sel	= true,
 };
 
@@ -231,6 +236,26 @@ out:
 	return ret;
 }
 
+static int kszphy_nand_tree_disable(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_KSZPHY_OMSO);
+	if (ret < 0)
+		goto out;
+
+	if (!(ret & KSZPHY_OMSO_NAND_TREE_ON))
+		return 0;
+
+	ret = phy_write(phydev, MII_KSZPHY_OMSO,
+			ret & ~KSZPHY_OMSO_NAND_TREE_ON);
+out:
+	if (ret)
+		dev_err(&phydev->dev, "failed to disable NAND tree mode\n");
+
+	return ret;
+}
+
 static int kszphy_config_init(struct phy_device *phydev)
 {
 	struct kszphy_priv *priv = phydev->priv;
@@ -244,6 +269,9 @@ static int kszphy_config_init(struct phy_device *phydev)
 
 	if (type->has_broadcast_disable)
 		kszphy_broadcast_disable(phydev);
+
+	if (type->has_nand_tree_disable)
+		kszphy_nand_tree_disable(phydev);
 
 	if (priv->rmii_ref_clk_sel) {
 		ret = kszphy_rmii_clk_sel(phydev, priv->rmii_ref_clk_sel_val);

@@ -1247,7 +1247,9 @@ static int after_reply(struct ptlrpc_request *req)
 		time_t	now = get_seconds();
 
 		DEBUG_REQ(D_RPCTRACE, req, "Resending request on EINPROGRESS");
+		spin_lock(&req->rq_lock);
 		req->rq_resend = 1;
+		spin_unlock(&req->rq_lock);
 		req->rq_nr_resend++;
 
 		/* allocate new xid to avoid reply reconstruction */
@@ -1497,11 +1499,13 @@ static inline int ptlrpc_set_producer(struct ptlrpc_request_set *set)
 int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 {
 	struct list_head *tmp, *next;
+	struct list_head comp_reqs;
 	int force_timer_recalc = 0;
 
 	if (atomic_read(&set->set_remaining) == 0)
 		return 1;
 
+	INIT_LIST_HEAD(&comp_reqs);
 	list_for_each_safe(tmp, next, &set->set_requests) {
 		struct ptlrpc_request *req =
 			list_entry(tmp, struct ptlrpc_request,
@@ -1576,8 +1580,10 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 			ptlrpc_rqphase_move(req, req->rq_next_phase);
 		}
 
-		if (req->rq_phase == RQ_PHASE_COMPLETE)
+		if (req->rq_phase == RQ_PHASE_COMPLETE) {
+			list_move_tail(&req->rq_set_chain, &comp_reqs);
 			continue;
+		}
 
 		if (req->rq_phase == RQ_PHASE_INTERPRET)
 			goto interpret;
@@ -1860,8 +1866,14 @@ interpret:
 			if (req->rq_status != 0)
 				set->set_rc = req->rq_status;
 			ptlrpc_req_finished(req);
+		} else {
+			list_move_tail(&req->rq_set_chain, &comp_reqs);
 		}
 	}
+
+	/* move completed request at the head of list so it's easier for
+	 * caller to find them */
+	list_splice(&comp_reqs, &set->set_requests);
 
 	/* If we hit an error, we want to recover promptly. */
 	return atomic_read(&set->set_remaining) == 0 || force_timer_recalc;

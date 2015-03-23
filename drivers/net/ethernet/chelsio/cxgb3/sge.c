@@ -1148,8 +1148,8 @@ static void write_tx_pkt_wr(struct adapter *adap, struct sk_buff *skb,
 	cpl->len = htonl(skb->len);
 	cntrl = V_TXPKT_INTF(pi->port_id);
 
-	if (vlan_tx_tag_present(skb))
-		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(vlan_tx_tag_get(skb));
+	if (skb_vlan_tag_present(skb))
+		cntrl |= F_TXPKT_VLAN_VLD | V_TXPKT_VLAN(skb_vlan_tag_get(skb));
 
 	tso_info = V_LSO_MSS(skb_shinfo(skb)->gso_size);
 	if (tso_info) {
@@ -1282,7 +1282,7 @@ netdev_tx_t t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		qs->port_stats[SGE_PSTAT_TX_CSUM]++;
 	if (skb_shinfo(skb)->gso_size)
 		qs->port_stats[SGE_PSTAT_TSO]++;
-	if (vlan_tx_tag_present(skb))
+	if (skb_vlan_tag_present(skb))
 		qs->port_stats[SGE_PSTAT_VLANINS]++;
 
 	/*

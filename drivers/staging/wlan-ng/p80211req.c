@@ -80,7 +80,7 @@ static void p80211req_mibset_mibget(wlandevice_t *wlandev,
 /*----------------------------------------------------------------
 * p80211req_dorequest
 *
-* Handles an MLME reqest/confirm message.
+* Handles an MLME request/confirm message.
 *
 * Arguments:
 *	wlandev		WLAN device struct

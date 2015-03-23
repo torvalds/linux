@@ -1159,7 +1159,7 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	mutex_lock(&inode->i_mutex);
 
 	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = mapping->backing_dev_info;
+	current->backing_dev_info = inode_to_bdi(inode);
 
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
 	if (err)
@@ -1464,7 +1464,7 @@ static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
 {
 	struct inode *inode = req->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct backing_dev_info *bdi = inode->i_mapping->backing_dev_info;
+	struct backing_dev_info *bdi = inode_to_bdi(inode);
 	int i;
 
 	list_del(&req->writepages_entry);
@@ -1658,7 +1658,7 @@ static int fuse_writepage_locked(struct page *page)
 	req->end = fuse_writepage_end;
 	req->inode = inode;
 
-	inc_bdi_stat(mapping->backing_dev_info, BDI_WRITEBACK);
+	inc_bdi_stat(inode_to_bdi(inode), BDI_WRITEBACK);
 	inc_zone_page_state(tmp_page, NR_WRITEBACK_TEMP);
 
 	spin_lock(&fc->lock);
@@ -1768,7 +1768,7 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 
 	if (old_req->num_pages == 1 && (old_req->state == FUSE_REQ_INIT ||
 					old_req->state == FUSE_REQ_PENDING)) {
-		struct backing_dev_info *bdi = page->mapping->backing_dev_info;
+		struct backing_dev_info *bdi = inode_to_bdi(page->mapping->host);
 
 		copy_highpage(old_req->pages[0], page);
 		spin_unlock(&fc->lock);
@@ -1872,7 +1872,7 @@ static int fuse_writepages_fill(struct page *page,
 	req->page_descs[req->num_pages].offset = 0;
 	req->page_descs[req->num_pages].length = PAGE_SIZE;
 
-	inc_bdi_stat(page->mapping->backing_dev_info, BDI_WRITEBACK);
+	inc_bdi_stat(inode_to_bdi(inode), BDI_WRITEBACK);
 	inc_zone_page_state(tmp_page, NR_WRITEBACK_TEMP);
 
 	err = 0;
@@ -2062,7 +2062,6 @@ static const struct vm_operations_struct fuse_file_vm_ops = {
 	.fault		= filemap_fault,
 	.map_pages	= filemap_map_pages,
 	.page_mkwrite	= fuse_page_mkwrite,
-	.remap_pages	= generic_file_remap_pages,
 };
 
 static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)

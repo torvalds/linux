@@ -743,7 +743,7 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
-	struct backing_dev_info *bdi = metamapping->backing_dev_info;
+	struct backing_dev_info *bdi = inode_to_bdi(metamapping->host);
 	int ret = 0;
 
 	if (wbc->sync_mode == WB_SYNC_ALL)

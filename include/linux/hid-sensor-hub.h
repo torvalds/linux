@@ -33,6 +33,8 @@
  * @units:		Measurment unit for this attribute.
  * @unit_expo:		Exponent used in the data.
  * @size:		Size in bytes for data size.
+ * @logical_minimum:	Logical minimum value for this attribute.
+ * @logical_maximum:	Logical maximum value for this attribute.
  */
 struct hid_sensor_hub_attribute_info {
 	u32 usage_id;
@@ -146,6 +148,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 
 /**
 * sensor_hub_input_attr_get_raw_value() - Synchronous read request
+* @hsdev:	Hub device instance.
 * @usage_id:	Attribute usage id of parent physical device as per spec
 * @attr_usage_id:	Attribute usage id as per spec
 * @report_id:	Report id to look for
@@ -160,6 +163,7 @@ int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 			u32 attr_usage_id, u32 report_id);
 /**
 * sensor_hub_set_feature() - Feature set request
+* @hsdev:	Hub device instance.
 * @report_id:	Report id to look for
 * @field_index:	Field index inside a report
 * @value:	Value to set
@@ -172,6 +176,7 @@ int sensor_hub_set_feature(struct hid_sensor_hub_device *hsdev, u32 report_id,
 
 /**
 * sensor_hub_get_feature() - Feature get request
+* @hsdev:	Hub device instance.
 * @report_id:	Report id to look for
 * @field_index:	Field index inside a report
 * @value:	Place holder for return value

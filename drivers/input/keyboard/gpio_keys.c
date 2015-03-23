@@ -190,7 +190,7 @@ static ssize_t gpio_keys_attr_show_helper(struct gpio_keys_drvdata *ddata,
 		__set_bit(bdata->button->code, bits);
 	}
 
-	ret = bitmap_scnlistprintf(buf, PAGE_SIZE - 2, bits, n_events);
+	ret = scnprintf(buf, PAGE_SIZE - 1, "%*pbl", n_events, bits);
 	buf[ret++] = '\n';
 	buf[ret] = '\0';
 

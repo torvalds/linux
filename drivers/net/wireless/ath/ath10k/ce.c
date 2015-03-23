@@ -803,7 +803,7 @@ int ath10k_ce_disable_interrupts(struct ath10k *ar)
 	int ce_id;
 
 	for (ce_id = 0; ce_id < CE_COUNT; ce_id++) {
-		u32 ctrl_addr = ath10k_ce_base_address(ce_id);
+		u32 ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 
 		ath10k_ce_copy_complete_intr_disable(ar, ctrl_addr);
 		ath10k_ce_error_intr_disable(ar, ctrl_addr);
@@ -832,7 +832,7 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	struct ath10k_ce_ring *src_ring = ce_state->src_ring;
-	u32 nentries, ctrl_addr = ath10k_ce_base_address(ce_id);
+	u32 nentries, ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 
 	nentries = roundup_pow_of_two(attr->src_nentries);
 
@@ -869,7 +869,7 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	struct ath10k_ce_ring *dest_ring = ce_state->dest_ring;
-	u32 nentries, ctrl_addr = ath10k_ce_base_address(ce_id);
+	u32 nentries, ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 
 	nentries = roundup_pow_of_two(attr->dest_nentries);
 
@@ -1051,7 +1051,7 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 
 static void ath10k_ce_deinit_src_ring(struct ath10k *ar, unsigned int ce_id)
 {
-	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
+	u32 ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 
 	ath10k_ce_src_ring_base_addr_set(ar, ctrl_addr, 0);
 	ath10k_ce_src_ring_size_set(ar, ctrl_addr, 0);
@@ -1061,7 +1061,7 @@ static void ath10k_ce_deinit_src_ring(struct ath10k *ar, unsigned int ce_id)
 
 static void ath10k_ce_deinit_dest_ring(struct ath10k *ar, unsigned int ce_id)
 {
-	u32 ctrl_addr = ath10k_ce_base_address(ce_id);
+	u32 ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 
 	ath10k_ce_dest_ring_base_addr_set(ar, ctrl_addr, 0);
 	ath10k_ce_dest_ring_size_set(ar, ctrl_addr, 0);
@@ -1093,10 +1093,12 @@ int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 	BUILD_BUG_ON(2*TARGET_10X_NUM_MSDU_DESC >
 		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
+	BUILD_BUG_ON(2*TARGET_TLV_NUM_MSDU_DESC >
+		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
 
 	ce_state->ar = ar;
 	ce_state->id = ce_id;
-	ce_state->ctrl_addr = ath10k_ce_base_address(ce_id);
+	ce_state->ctrl_addr = ath10k_ce_base_address(ar, ce_id);
 	ce_state->attr_flags = attr->flags;
 	ce_state->src_sz_max = attr->src_sz_max;
 

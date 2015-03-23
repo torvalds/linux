@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/skbuff.h>
+#include <linux/timecounter.h>
 
 struct cpsw_cpts {
 	u32 idver;                /* Identification and version */

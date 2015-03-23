@@ -96,6 +96,7 @@ static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 static void make_tx_response(struct xenvif_queue *queue,
 			     struct xen_netif_tx_request *txp,
 			     s8       st);
+static void push_tx_responses(struct xenvif_queue *queue);
 
 static inline int tx_work_todo(struct xenvif_queue *queue);
 
@@ -233,51 +234,6 @@ static void xenvif_rx_queue_drop_expired(struct xenvif_queue *queue)
 	}
 }
 
-/*
- * Returns true if we should start a new receive buffer instead of
- * adding 'size' bytes to a buffer which currently contains 'offset'
- * bytes.
- */
-static bool start_new_rx_buffer(int offset, unsigned long size, int head,
-				bool full_coalesce)
-{
-	/* simple case: we have completely filled the current buffer. */
-	if (offset == MAX_BUFFER_OFFSET)
-		return true;
-
-	/*
-	 * complex case: start a fresh buffer if the current frag
-	 * would overflow the current buffer but only if:
-	 *     (i)   this frag would fit completely in the next buffer
-	 * and (ii)  there is already some data in the current buffer
-	 * and (iii) this is not the head buffer.
-	 * and (iv)  there is no need to fully utilize the buffers
-	 *
-	 * Where:
-	 * - (i) stops us splitting a frag into two copies
-	 *   unless the frag is too large for a single buffer.
-	 * - (ii) stops us from leaving a buffer pointlessly empty.
-	 * - (iii) stops us leaving the first buffer
-	 *   empty. Strictly speaking this is already covered
-	 *   by (ii) but is explicitly checked because
-	 *   netfront relies on the first buffer being
-	 *   non-empty and can crash otherwise.
-	 * - (iv) is needed for skbs which can use up more than MAX_SKB_FRAGS
-	 *   slot
-	 *
-	 * This means we will effectively linearise small
-	 * frags but do not needlessly split large buffers
-	 * into multiple copies tend to give large frags their
-	 * own buffers as before.
-	 */
-	BUG_ON(size > MAX_BUFFER_OFFSET);
-	if ((offset + size > MAX_BUFFER_OFFSET) && offset && !head &&
-	    !full_coalesce)
-		return true;
-
-	return false;
-}
-
 struct netrx_pending_operations {
 	unsigned copy_prod, copy_cons;
 	unsigned meta_prod, meta_cons;
@@ -314,9 +270,7 @@ static struct xenvif_rx_meta *get_next_rx_buffer(struct xenvif_queue *queue,
 static void xenvif_gop_frag_copy(struct xenvif_queue *queue, struct sk_buff *skb,
 				 struct netrx_pending_operations *npo,
 				 struct page *page, unsigned long size,
-				 unsigned long offset, int *head,
-				 struct xenvif_queue *foreign_queue,
-				 grant_ref_t foreign_gref)
+				 unsigned long offset, int *head)
 {
 	struct gnttab_copy *copy_gop;
 	struct xenvif_rx_meta *meta;
@@ -333,26 +287,17 @@ static void xenvif_gop_frag_copy(struct xenvif_queue *queue, struct sk_buff *skb
 	offset &= ~PAGE_MASK;
 
 	while (size > 0) {
+		struct xen_page_foreign *foreign;
+
 		BUG_ON(offset >= PAGE_SIZE);
 		BUG_ON(npo->copy_off > MAX_BUFFER_OFFSET);
 
-		bytes = PAGE_SIZE - offset;
+		if (npo->copy_off == MAX_BUFFER_OFFSET)
+			meta = get_next_rx_buffer(queue, npo);
 
+		bytes = PAGE_SIZE - offset;
 		if (bytes > size)
 			bytes = size;
-
-		if (start_new_rx_buffer(npo->copy_off,
-					bytes,
-					*head,
-					XENVIF_RX_CB(skb)->full_coalesce)) {
-			/*
-			 * Netfront requires there to be some data in the head
-			 * buffer.
-			 */
-			BUG_ON(*head);
-
-			meta = get_next_rx_buffer(queue, npo);
-		}
 
 		if (npo->copy_off + bytes > MAX_BUFFER_OFFSET)
 			bytes = MAX_BUFFER_OFFSET - npo->copy_off;
@@ -361,9 +306,10 @@ static void xenvif_gop_frag_copy(struct xenvif_queue *queue, struct sk_buff *skb
 		copy_gop->flags = GNTCOPY_dest_gref;
 		copy_gop->len = bytes;
 
-		if (foreign_queue) {
-			copy_gop->source.domid = foreign_queue->vif->domid;
-			copy_gop->source.u.ref = foreign_gref;
+		foreign = xen_page_foreign(page);
+		if (foreign) {
+			copy_gop->source.domid = foreign->domid;
+			copy_gop->source.u.ref = foreign->gref;
 			copy_gop->flags |= GNTCOPY_source_gref;
 		} else {
 			copy_gop->source.domid = DOMID_SELF;
@@ -406,35 +352,6 @@ static void xenvif_gop_frag_copy(struct xenvif_queue *queue, struct sk_buff *skb
 }
 
 /*
- * Find the grant ref for a given frag in a chain of struct ubuf_info's
- * skb: the skb itself
- * i: the frag's number
- * ubuf: a pointer to an element in the chain. It should not be NULL
- *
- * Returns a pointer to the element in the chain where the page were found. If
- * not found, returns NULL.
- * See the definition of callback_struct in common.h for more details about
- * the chain.
- */
-static const struct ubuf_info *xenvif_find_gref(const struct sk_buff *const skb,
-						const int i,
-						const struct ubuf_info *ubuf)
-{
-	struct xenvif_queue *foreign_queue = ubuf_to_queue(ubuf);
-
-	do {
-		u16 pending_idx = ubuf->desc;
-
-		if (skb_shinfo(skb)->frags[i].page.p ==
-		    foreign_queue->mmap_pages[pending_idx])
-			break;
-		ubuf = (struct ubuf_info *) ubuf->ctx;
-	} while (ubuf);
-
-	return ubuf;
-}
-
-/*
  * Prepare an SKB to be transmitted to the frontend.
  *
  * This function is responsible for allocating grant operations, meta
@@ -459,8 +376,6 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 	int head = 1;
 	int old_meta_prod;
 	int gso_type;
-	const struct ubuf_info *ubuf = skb_shinfo(skb)->destructor_arg;
-	const struct ubuf_info *const head_ubuf = ubuf;
 
 	old_meta_prod = npo->meta_prod;
 
@@ -507,68 +422,16 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 			len = skb_tail_pointer(skb) - data;
 
 		xenvif_gop_frag_copy(queue, skb, npo,
-				     virt_to_page(data), len, offset, &head,
-				     NULL,
-				     0);
+				     virt_to_page(data), len, offset, &head);
 		data += len;
 	}
 
 	for (i = 0; i < nr_frags; i++) {
-		/* This variable also signals whether foreign_gref has a real
-		 * value or not.
-		 */
-		struct xenvif_queue *foreign_queue = NULL;
-		grant_ref_t foreign_gref;
-
-		if ((skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY) &&
-			(ubuf->callback == &xenvif_zerocopy_callback)) {
-			const struct ubuf_info *const startpoint = ubuf;
-
-			/* Ideally ubuf points to the chain element which
-			 * belongs to this frag. Or if frags were removed from
-			 * the beginning, then shortly before it.
-			 */
-			ubuf = xenvif_find_gref(skb, i, ubuf);
-
-			/* Try again from the beginning of the list, if we
-			 * haven't tried from there. This only makes sense in
-			 * the unlikely event of reordering the original frags.
-			 * For injected local pages it's an unnecessary second
-			 * run.
-			 */
-			if (unlikely(!ubuf) && startpoint != head_ubuf)
-				ubuf = xenvif_find_gref(skb, i, head_ubuf);
-
-			if (likely(ubuf)) {
-				u16 pending_idx = ubuf->desc;
-
-				foreign_queue = ubuf_to_queue(ubuf);
-				foreign_gref =
-					foreign_queue->pending_tx_info[pending_idx].req.gref;
-				/* Just a safety measure. If this was the last
-				 * element on the list, the for loop will
-				 * iterate again if a local page were added to
-				 * the end. Using head_ubuf here prevents the
-				 * second search on the chain. Or the original
-				 * frags changed order, but that's less likely.
-				 * In any way, ubuf shouldn't be NULL.
-				 */
-				ubuf = ubuf->ctx ?
-					(struct ubuf_info *) ubuf->ctx :
-					head_ubuf;
-			} else
-				/* This frag was a local page, added to the
-				 * array after the skb left netback.
-				 */
-				ubuf = head_ubuf;
-		}
 		xenvif_gop_frag_copy(queue, skb, npo,
 				     skb_frag_page(&skb_shinfo(skb)->frags[i]),
 				     skb_frag_size(&skb_shinfo(skb)->frags[i]),
 				     skb_shinfo(skb)->frags[i].page_offset,
-				     &head,
-				     foreign_queue,
-				     foreign_queue ? foreign_gref : UINT_MAX);
+				     &head);
 	}
 
 	return npo->meta_prod - old_meta_prod;
@@ -652,59 +515,14 @@ static void xenvif_rx_action(struct xenvif_queue *queue)
 
 	while (xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX)
 	       && (skb = xenvif_rx_dequeue(queue)) != NULL) {
-		RING_IDX max_slots_needed;
 		RING_IDX old_req_cons;
 		RING_IDX ring_slots_used;
-		int i;
 
 		queue->last_rx_time = jiffies;
-
-		/* We need a cheap worse case estimate for the number of
-		 * slots we'll use.
-		 */
-
-		max_slots_needed = DIV_ROUND_UP(offset_in_page(skb->data) +
-						skb_headlen(skb),
-						PAGE_SIZE);
-		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			unsigned int size;
-			unsigned int offset;
-
-			size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
-			offset = skb_shinfo(skb)->frags[i].page_offset;
-
-			/* For a worse-case estimate we need to factor in
-			 * the fragment page offset as this will affect the
-			 * number of times xenvif_gop_frag_copy() will
-			 * call start_new_rx_buffer().
-			 */
-			max_slots_needed += DIV_ROUND_UP(offset + size,
-							 PAGE_SIZE);
-		}
-
-		/* To avoid the estimate becoming too pessimal for some
-		 * frontends that limit posted rx requests, cap the estimate
-		 * at MAX_SKB_FRAGS. In this case netback will fully coalesce
-		 * the skb into the provided slots.
-		 */
-		if (max_slots_needed > MAX_SKB_FRAGS) {
-			max_slots_needed = MAX_SKB_FRAGS;
-			XENVIF_RX_CB(skb)->full_coalesce = true;
-		} else {
-			XENVIF_RX_CB(skb)->full_coalesce = false;
-		}
-
-		/* We may need one more slot for GSO metadata */
-		if (skb_is_gso(skb) &&
-		   (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4 ||
-		    skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6))
-			max_slots_needed++;
 
 		old_req_cons = queue->rx.req_cons;
 		XENVIF_RX_CB(skb)->meta_slots_used = xenvif_gop_skb(skb, &npo, queue);
 		ring_slots_used = queue->rx.req_cons - old_req_cons;
-
-		BUG_ON(ring_slots_used > max_slots_needed);
 
 		__skb_queue_tail(&rxq, skb);
 	}
@@ -840,6 +658,7 @@ static void xenvif_tx_err(struct xenvif_queue *queue,
 	do {
 		spin_lock_irqsave(&queue->response_lock, flags);
 		make_tx_response(queue, txp, XEN_NETIF_RSP_ERROR);
+		push_tx_responses(queue);
 		spin_unlock_irqrestore(&queue->response_lock, flags);
 		if (cons == end)
 			break;
@@ -1241,12 +1060,6 @@ static void xenvif_fill_frags(struct xenvif_queue *queue, struct sk_buff *skb)
 		/* Take an extra reference to offset network stack's put_page */
 		get_page(queue->mmap_pages[pending_idx]);
 	}
-	/* FIXME: __skb_fill_page_desc set this to true because page->pfmemalloc
-	 * overlaps with "index", and "mapping" is not set. I think mapping
-	 * should be set. If delivered to local stack, it would drop this
-	 * skb in sk_filter unless the socket has the right to use it.
-	 */
-	skb->pfmemalloc	= false;
 }
 
 static int xenvif_get_extras(struct xenvif_queue *queue,
@@ -1532,7 +1345,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 {
 	unsigned int offset = skb_headlen(skb);
 	skb_frag_t frags[MAX_SKB_FRAGS];
-	int i;
+	int i, f;
 	struct ubuf_info *uarg;
 	struct sk_buff *nskb = skb_shinfo(skb)->frag_list;
 
@@ -1572,23 +1385,25 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 		frags[i].page_offset = 0;
 		skb_frag_size_set(&frags[i], len);
 	}
-	/* swap out with old one */
-	memcpy(skb_shinfo(skb)->frags,
-	       frags,
-	       i * sizeof(skb_frag_t));
-	skb_shinfo(skb)->nr_frags = i;
-	skb->truesize += i * PAGE_SIZE;
 
-	/* remove traces of mapped pages and frag_list */
+	/* Copied all the bits from the frag list -- free it. */
 	skb_frag_list_init(skb);
+	xenvif_skb_zerocopy_prepare(queue, nskb);
+	kfree_skb(nskb);
+
+	/* Release all the original (foreign) frags. */
+	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
+		skb_frag_unref(skb, f);
 	uarg = skb_shinfo(skb)->destructor_arg;
 	/* increase inflight counter to offset decrement in callback */
 	atomic_inc(&queue->inflight_packets);
 	uarg->callback(uarg, true);
 	skb_shinfo(skb)->destructor_arg = NULL;
 
-	xenvif_skb_zerocopy_prepare(queue, nskb);
-	kfree_skb(nskb);
+	/* Fill the skb with the new (local) frags. */
+	memcpy(skb_shinfo(skb)->frags, frags, i * sizeof(skb_frag_t));
+	skb_shinfo(skb)->nr_frags = i;
+	skb->truesize += i * PAGE_SIZE;
 
 	return 0;
 }
@@ -1841,13 +1656,20 @@ static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
 	unsigned long flags;
 
 	pending_tx_info = &queue->pending_tx_info[pending_idx];
+
 	spin_lock_irqsave(&queue->response_lock, flags);
+
 	make_tx_response(queue, &pending_tx_info->req, status);
-	index = pending_index(queue->pending_prod);
+
+	/* Release the pending index before pusing the Tx response so
+	 * its available before a new Tx request is pushed by the
+	 * frontend.
+	 */
+	index = pending_index(queue->pending_prod++);
 	queue->pending_ring[index] = pending_idx;
-	/* TX shouldn't use the index before we give it back here */
-	mb();
-	queue->pending_prod++;
+
+	push_tx_responses(queue);
+
 	spin_unlock_irqrestore(&queue->response_lock, flags);
 }
 
@@ -1858,7 +1680,6 @@ static void make_tx_response(struct xenvif_queue *queue,
 {
 	RING_IDX i = queue->tx.rsp_prod_pvt;
 	struct xen_netif_tx_response *resp;
-	int notify;
 
 	resp = RING_GET_RESPONSE(&queue->tx, i);
 	resp->id     = txp->id;
@@ -1868,6 +1689,12 @@ static void make_tx_response(struct xenvif_queue *queue,
 		RING_GET_RESPONSE(&queue->tx, ++i)->status = XEN_NETIF_RSP_NULL;
 
 	queue->tx.rsp_prod_pvt = ++i;
+}
+
+static void push_tx_responses(struct xenvif_queue *queue)
+{
+	int notify;
+
 	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, notify);
 	if (notify)
 		notify_remote_via_irq(queue->tx_irq);

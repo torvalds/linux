@@ -29,7 +29,6 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, int32_t n)
 	bitmap_shift_left(seq_bits, seq_bits, n, BATADV_TQ_LOCAL_WINDOW_SIZE);
 }
 
-
 /* receive and process one packet within the sequence number window.
  *
  * returns:

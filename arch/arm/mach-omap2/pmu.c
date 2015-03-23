@@ -13,7 +13,7 @@
  */
 #include <linux/of.h>
 
-#include <asm/pmu.h>
+#include <asm/system_info.h>
 
 #include "soc.h"
 #include "omap_hwmod.h"
@@ -37,7 +37,8 @@ static int __init omap2_init_pmu(unsigned oh_num, char *oh_names[])
 {
 	int i;
 	struct omap_hwmod *oh[3];
-	char *dev_name = "arm-pmu";
+	char *dev_name = cpu_architecture() == CPU_ARCH_ARMv6 ?
+			 "armv6-pmu" : "armv7-pmu";
 
 	if ((!oh_num) || (oh_num > 3))
 		return -EINVAL;

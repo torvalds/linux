@@ -202,9 +202,6 @@ void sumo_construct_vid_mapping_table(struct radeon_device *rdev,
 u32 sumo_convert_vid2_to_vid7(struct radeon_device *rdev,
 			      struct sumo_vid_mapping_table *vid_mapping_table,
 			      u32 vid_2bit);
-u32 sumo_convert_vid7_to_vid2(struct radeon_device *rdev,
-			      struct sumo_vid_mapping_table *vid_mapping_table,
-			      u32 vid_7bit);
 u32 sumo_get_sleep_divider_from_id(u32 id);
 u32 sumo_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
 					 u32 sclk,

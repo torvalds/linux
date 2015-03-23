@@ -46,6 +46,7 @@
 #include "t4_msg.h"
 #include "t4fw_api.h"
 #include "t4_regs.h"
+#include "t4_values.h"
 
 #define VLAN_NONE 0xfff
 
@@ -150,8 +151,8 @@ static int write_l2e(struct adapter *adap, struct l2t_entry *e, int sync)
 
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ,
 					e->idx | (sync ? F_SYNC_WR : 0) |
-					TID_QID(adap->sge.fw_evtq.abs_id)));
-	req->params = htons(L2T_W_PORT(e->lport) | L2T_W_NOREPLY(!sync));
+					TID_QID_V(adap->sge.fw_evtq.abs_id)));
+	req->params = htons(L2T_W_PORT_V(e->lport) | L2T_W_NOREPLY_V(!sync));
 	req->l2t_idx = htons(e->idx);
 	req->vlan = htons(e->vlan);
 	if (e->neigh && !(e->neigh->dev->flags & IFF_LOOPBACK))
@@ -425,7 +426,7 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 	 * in the Compressed Filter Tuple.
 	 */
 	if (tp->vlan_shift >= 0 && l2t->vlan != VLAN_NONE)
-		ntuple |= (u64)(F_FT_VLAN_VLD | l2t->vlan) << tp->vlan_shift;
+		ntuple |= (u64)(FT_VLAN_VLD_F | l2t->vlan) << tp->vlan_shift;
 
 	if (tp->port_shift >= 0)
 		ntuple |= (u64)l2t->lport << tp->port_shift;
@@ -439,9 +440,9 @@ u64 cxgb4_select_ntuple(struct net_device *dev,
 		u32 pf = FW_VIID_PFN_G(viid);
 		u32 vld = FW_VIID_VIVLD_G(viid);
 
-		ntuple |= (u64)(V_FT_VNID_ID_VF(vf) |
-				V_FT_VNID_ID_PF(pf) |
-				V_FT_VNID_ID_VLD(vld)) << tp->vnic_shift;
+		ntuple |= (u64)(FT_VNID_ID_VF_V(vf) |
+				FT_VNID_ID_PF_V(pf) |
+				FT_VNID_ID_VLD_V(vld)) << tp->vnic_shift;
 	}
 
 	return ntuple;

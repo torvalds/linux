@@ -1033,7 +1033,7 @@ static irqreturn_t max77693_muic_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct regmap_config max77693_muic_regmap_config = {
+static const struct regmap_config max77693_muic_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };

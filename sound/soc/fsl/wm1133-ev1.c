@@ -87,7 +87,6 @@ static int wm1133_ev1_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_format_t format = params_format(params);
 	unsigned int rate = params_rate(params);
 	unsigned int channels = params_channels(params);
-	u32 dai_format;
 
 	/* find the correct audio parameters */
 	for (i = 0; i < ARRAY_SIZE(wm8350_audio); i++) {
@@ -104,22 +103,13 @@ static int wm1133_ev1_hw_params(struct snd_pcm_substream *substream,
 	/* codec FLL input is 14.75 MHz from MCLK */
 	snd_soc_dai_set_pll(codec_dai, 0, 0, 14750000, wm8350_audio[i].sysclk);
 
-	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-		SND_SOC_DAIFMT_CBM_CFM;
-
-	/* set codec DAI configuration */
-	snd_soc_dai_set_fmt(codec_dai, dai_format);
-
-	/* set cpu DAI configuration */
-	snd_soc_dai_set_fmt(cpu_dai, dai_format);
-
 	/* TODO: The SSI driver should figure this out for us */
 	switch (channels) {
 	case 2:
-		snd_soc_dai_set_tdm_slot(cpu_dai, 0xffffffc, 0xffffffc, 2, 0);
+		snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 2, 0);
 		break;
 	case 1:
-		snd_soc_dai_set_tdm_slot(cpu_dai, 0xffffffe, 0xffffffe, 1, 0);
+		snd_soc_dai_set_tdm_slot(cpu_dai, 0x1, 0x1, 1, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -244,6 +234,8 @@ static struct snd_soc_dai_link wm1133_ev1_dai = {
 	.init = wm1133_ev1_init,
 	.ops = &wm1133_ev1_ops,
 	.symmetric_rates = 1,
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBM_CFM,
 };
 
 static struct snd_soc_card wm1133_ev1 = {

@@ -224,6 +224,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_REG_READ		0x31
 #define DRM_I915_GET_RESET_STATS	0x32
 #define DRM_I915_GEM_USERPTR		0x33
+#define DRM_I915_GEM_CONTEXT_GETPARAM	0x34
+#define DRM_I915_GEM_CONTEXT_SETPARAM	0x35
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -275,6 +277,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_REG_READ			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_REG_READ, struct drm_i915_reg_read)
 #define DRM_IOCTL_I915_GET_RESET_STATS		DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GET_RESET_STATS, struct drm_i915_reset_stats)
 #define DRM_IOCTL_I915_GEM_USERPTR			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_USERPTR, struct drm_i915_gem_userptr)
+#define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_GETPARAM, struct drm_i915_gem_context_param)
+#define DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_SETPARAM, struct drm_i915_gem_context_param)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -341,6 +345,8 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_WT     	 	 27
 #define I915_PARAM_CMD_PARSER_VERSION	 28
 #define I915_PARAM_HAS_COHERENT_PHYS_GTT 29
+#define I915_PARAM_MMAP_VERSION          30
+#define I915_PARAM_HAS_BSD2		 31
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -488,6 +494,14 @@ struct drm_i915_gem_mmap {
 	 * This is a fixed-size type for 32/64 compatibility.
 	 */
 	__u64 addr_ptr;
+
+	/**
+	 * Flags for extended behaviour.
+	 *
+	 * Added in version 2.
+	 */
+	__u64 flags;
+#define I915_MMAP_WC 0x1
 };
 
 struct drm_i915_gem_mmap_gtt {
@@ -737,7 +751,13 @@ struct drm_i915_gem_execbuffer2 {
  */
 #define I915_EXEC_HANDLE_LUT		(1<<12)
 
-#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_HANDLE_LUT<<1)
+/** Used for switching BSD rings on the platforms with two BSD rings */
+#define I915_EXEC_BSD_MASK		(3<<13)
+#define I915_EXEC_BSD_DEFAULT		(0<<13) /* default ping-pong mode */
+#define I915_EXEC_BSD_RING1		(1<<13)
+#define I915_EXEC_BSD_RING2		(2<<13)
+
+#define __I915_EXEC_UNKNOWN_FLAGS -(1<<15)
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \
@@ -1071,6 +1091,14 @@ struct drm_i915_gem_userptr {
 	 * Object handles are nonzero.
 	 */
 	__u32 handle;
+};
+
+struct drm_i915_gem_context_param {
+	__u32 ctx_id;
+	__u32 size;
+	__u64 param;
+#define I915_CONTEXT_PARAM_BAN_PERIOD 0x1
+	__u64 value;
 };
 
 #endif /* _UAPI_I915_DRM_H_ */

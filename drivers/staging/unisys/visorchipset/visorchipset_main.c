@@ -20,7 +20,6 @@
 #include "procobjecttree.h"
 #include "visorchannel.h"
 #include "periodic_work.h"
-#include "testing.h"
 #include "file.h"
 #include "parser.h"
 #include "uniklog.h"
@@ -102,7 +101,7 @@ static struct controlvm_message_packet g_DeviceChangeStatePacket;
 static LIST_HEAD(BusInfoList);
 static LIST_HEAD(DevInfoList);
 
-static VISORCHANNEL *ControlVm_channel;
+static struct visorchannel *ControlVm_channel;
 
 typedef struct {
 	u8 __iomem *ptr;	/* pointer to base address of payload pool */
@@ -1595,7 +1594,7 @@ parahotplug_next_id(void)
 static unsigned long
 parahotplug_next_expiration(void)
 {
-	return jiffies + PARAHOTPLUG_TIMEOUT_MS * HZ / 1000;
+	return jiffies + msecs_to_jiffies(PARAHOTPLUG_TIMEOUT_MS);
 }
 
 /*

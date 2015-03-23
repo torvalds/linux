@@ -183,7 +183,7 @@ static struct clock_event_device clkevt = {
 void __iomem *at91_st_base;
 EXPORT_SYMBOL_GPL(at91_st_base);
 
-static struct of_device_id at91rm9200_st_timer_ids[] = {
+static const struct of_device_id at91rm9200_st_timer_ids[] = {
 	{ .compatible = "atmel,at91rm9200-st" },
 	{ /* sentinel */ }
 };

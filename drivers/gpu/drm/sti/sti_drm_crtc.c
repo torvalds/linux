@@ -190,11 +190,6 @@ out:
 	return ret;
 }
 
-static void sti_drm_crtc_load_lut(struct drm_crtc *crtc)
-{
-	/* do nothing */
-}
-
 static void sti_drm_crtc_disable(struct drm_crtc *crtc)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
@@ -249,7 +244,6 @@ static struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
 	.mode_fixup = sti_drm_crtc_mode_fixup,
 	.mode_set = sti_drm_crtc_mode_set,
 	.mode_set_base = sti_drm_crtc_mode_set_base,
-	.load_lut = sti_drm_crtc_load_lut,
 	.disable = sti_drm_crtc_disable,
 };
 

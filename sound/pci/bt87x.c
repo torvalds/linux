@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -690,8 +690,7 @@ static int snd_bt87x_free(struct snd_bt87x *chip)
 		snd_bt87x_stop(chip);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	if (chip->mmio)
-		iounmap(chip->mmio);
+	iounmap(chip->mmio);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip);

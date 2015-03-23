@@ -819,8 +819,8 @@ __acquires(hwep->lock)
 	}
 
 	if ((setup->bRequestType & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
-		/* Assume that device is bus powered for now. */
-		*(u16 *)req->buf = ci->remote_wakeup << 1;
+		*(u16 *)req->buf = (ci->remote_wakeup << 1) |
+			ci->gadget.is_selfpowered;
 	} else if ((setup->bRequestType & USB_RECIP_MASK) \
 		   == USB_RECIP_ENDPOINT) {
 		dir = (le16_to_cpu(setup->wIndex) & USB_ENDPOINT_DIR_MASK) ?
@@ -927,6 +927,13 @@ __acquires(hwep->lock)
 		retval = 0;
 
 	return retval;
+}
+
+static int otg_a_alt_hnp_support(struct ci_hdrc *ci)
+{
+	dev_warn(&ci->gadget.dev,
+		"connect the device to an alternate port if you want HNP\n");
+	return isr_setup_status_phase(ci);
 }
 
 /**
@@ -1060,6 +1067,10 @@ __acquires(ci->lock)
 					err = isr_setup_status_phase(
 							ci);
 				}
+				break;
+			case USB_DEVICE_A_ALT_HNP_SUPPORT:
+				if (ci_otg_is_fsm_mode(ci))
+					err = otg_a_alt_hnp_support(ci);
 				break;
 			default:
 				goto delegate;
@@ -1520,6 +1531,19 @@ static int ci_udc_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 	return -ENOTSUPP;
 }
 
+static int ci_udc_selfpowered(struct usb_gadget *_gadget, int is_on)
+{
+	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
+	struct ci_hw_ep *hwep = ci->ep0in;
+	unsigned long flags;
+
+	spin_lock_irqsave(hwep->lock, flags);
+	_gadget->is_selfpowered = (is_on != 0);
+	spin_unlock_irqrestore(hwep->lock, flags);
+
+	return 0;
+}
+
 /* Change Data+ pullup status
  * this func is used by usb_gadget_connect/disconnet
  */
@@ -1549,6 +1573,7 @@ static int ci_udc_stop(struct usb_gadget *gadget);
 static const struct usb_gadget_ops usb_gadget_ops = {
 	.vbus_session	= ci_udc_vbus_session,
 	.wakeup		= ci_udc_wakeup,
+	.set_selfpowered	= ci_udc_selfpowered,
 	.pullup		= ci_udc_pullup,
 	.vbus_draw	= ci_udc_vbus_draw,
 	.udc_start	= ci_udc_start,

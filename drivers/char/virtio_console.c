@@ -142,6 +142,7 @@ struct ports_device {
 	 * notification
 	 */
 	struct work_struct control_work;
+	struct work_struct config_work;
 
 	struct list_head ports;
 
@@ -1837,10 +1838,21 @@ static void config_intr(struct virtio_device *vdev)
 
 	portdev = vdev->priv;
 
+	if (!use_multiport(portdev))
+		schedule_work(&portdev->config_work);
+}
+
+static void config_work_handler(struct work_struct *work)
+{
+	struct ports_device *portdev;
+
+	portdev = container_of(work, struct ports_device, control_work);
 	if (!use_multiport(portdev)) {
+		struct virtio_device *vdev;
 		struct port *port;
 		u16 rows, cols;
 
+		vdev = portdev->vdev;
 		virtio_cread(vdev, struct virtio_console_config, cols, &cols);
 		virtio_cread(vdev, struct virtio_console_config, rows, &rows);
 
@@ -1986,6 +1998,15 @@ static int virtcons_probe(struct virtio_device *vdev)
 	bool multiport;
 	bool early = early_put_chars != NULL;
 
+	/* We only need a config space if features are offered */
+	if (!vdev->config->get &&
+	    (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_SIZE)
+	     || virtio_has_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT))) {
+		dev_err(&vdev->dev, "%s failure: config access disabled\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	/* Ensure to read early_put_chars now */
 	barrier();
 
@@ -2031,12 +2052,14 @@ static int virtcons_probe(struct virtio_device *vdev)
 
 	virtio_device_ready(portdev->vdev);
 
+	INIT_WORK(&portdev->config_work, &config_work_handler);
+	INIT_WORK(&portdev->control_work, &control_work_handler);
+
 	if (multiport) {
 		unsigned int nr_added_bufs;
 
 		spin_lock_init(&portdev->c_ivq_lock);
 		spin_lock_init(&portdev->c_ovq_lock);
-		INIT_WORK(&portdev->control_work, &control_work_handler);
 
 		nr_added_bufs = fill_queue(portdev->c_ivq,
 					   &portdev->c_ivq_lock);
@@ -2104,6 +2127,8 @@ static void virtcons_remove(struct virtio_device *vdev)
 	/* Finish up work that's lined up */
 	if (use_multiport(portdev))
 		cancel_work_sync(&portdev->control_work);
+	else
+		cancel_work_sync(&portdev->config_work);
 
 	list_for_each_entry_safe(port, port2, &portdev->ports, list)
 		unplug_port(port);
@@ -2155,6 +2180,7 @@ static int virtcons_freeze(struct virtio_device *vdev)
 
 	virtqueue_disable_cb(portdev->c_ivq);
 	cancel_work_sync(&portdev->control_work);
+	cancel_work_sync(&portdev->config_work);
 	/*
 	 * Once more: if control_work_handler() was running, it would
 	 * enable the cb as the last step.

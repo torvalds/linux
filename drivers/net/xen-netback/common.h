@@ -251,7 +251,6 @@ struct xenvif {
 struct xenvif_rx_cb {
 	unsigned long expires;
 	int meta_slots_used;
-	bool full_coalesce;
 };
 
 #define XENVIF_RX_CB(skb) ((struct xenvif_rx_cb *)(skb)->cb)

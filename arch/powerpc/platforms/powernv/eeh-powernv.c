@@ -68,6 +68,17 @@ static int powernv_eeh_init(void)
 
 		if (phb->model == PNV_PHB_MODEL_P7IOC)
 			eeh_add_flag(EEH_ENABLE_IO_FOR_LOG);
+
+		/*
+		 * PE#0 should be regarded as valid by EEH core
+		 * if it's not the reserved one. Currently, we
+		 * have the reserved PE#0 and PE#127 for PHB3
+		 * and P7IOC separately. So we should regard
+		 * PE#0 as valid for P7IOC.
+		 */
+		if (phb->ioda.reserved_pe != 0)
+			eeh_add_flag(EEH_VALID_PE_ZERO);
+
 		break;
 	}
 

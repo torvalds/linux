@@ -560,6 +560,61 @@ static int iss_pipeline_link_notify(struct media_link *link, u32 flags,
  */
 
 /*
+ * iss_pipeline_disable - Disable streaming on a pipeline
+ * @pipe: ISS pipeline
+ * @until: entity at which to stop pipeline walk
+ *
+ * Walk the entities chain starting at the pipeline output video node and stop
+ * all modules in the chain. Wait synchronously for the modules to be stopped if
+ * necessary.
+ *
+ * If the until argument isn't NULL, stop the pipeline walk when reaching the
+ * until entity. This is used to disable a partially started pipeline due to a
+ * subdev start error.
+ */
+static int iss_pipeline_disable(struct iss_pipeline *pipe,
+				struct media_entity *until)
+{
+	struct iss_device *iss = pipe->output->iss;
+	struct media_entity *entity;
+	struct media_pad *pad;
+	struct v4l2_subdev *subdev;
+	int failure = 0;
+	int ret;
+
+	entity = &pipe->output->video.entity;
+	while (1) {
+		pad = &entity->pads[0];
+		if (!(pad->flags & MEDIA_PAD_FL_SINK))
+			break;
+
+		pad = media_entity_remote_pad(pad);
+		if (pad == NULL ||
+		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+			break;
+
+		entity = pad->entity;
+		if (entity == until)
+			break;
+
+		subdev = media_entity_to_v4l2_subdev(entity);
+		ret = v4l2_subdev_call(subdev, video, s_stream, 0);
+		if (ret < 0) {
+			dev_dbg(iss->dev, "%s: module stop timeout.\n",
+				subdev->name);
+			/* If the entity failed to stopped, assume it has
+			 * crashed. Mark it as such, the ISS will be reset when
+			 * applications will release it.
+			 */
+			iss->crashed |= 1U << subdev->entity.id;
+			failure = -ETIMEDOUT;
+		}
+	}
+
+	return failure;
+}
+
+/*
  * iss_pipeline_enable - Enable streaming on a pipeline
  * @pipe: ISS pipeline
  * @mode: Stream mode (single shot or continuous)
@@ -610,58 +665,18 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 		subdev = media_entity_to_v4l2_subdev(entity);
 
 		ret = v4l2_subdev_call(subdev, video, s_stream, mode);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
+		if (ret < 0 && ret != -ENOIOCTLCMD) {
+			iss_pipeline_disable(pipe, entity);
 			return ret;
+		}
+
+		if (subdev == &iss->csi2a.subdev ||
+		    subdev == &iss->csi2b.subdev)
+			pipe->do_propagation = true;
 	}
+
 	iss_print_status(pipe->output->iss);
 	return 0;
-}
-
-/*
- * iss_pipeline_disable - Disable streaming on a pipeline
- * @pipe: ISS pipeline
- *
- * Walk the entities chain starting at the pipeline output video node and stop
- * all modules in the chain. Wait synchronously for the modules to be stopped if
- * necessary.
- */
-static int iss_pipeline_disable(struct iss_pipeline *pipe)
-{
-	struct iss_device *iss = pipe->output->iss;
-	struct media_entity *entity;
-	struct media_pad *pad;
-	struct v4l2_subdev *subdev;
-	int failure = 0;
-	int ret;
-
-	entity = &pipe->output->video.entity;
-	while (1) {
-		pad = &entity->pads[0];
-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
-			break;
-
-		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
-			break;
-
-		entity = pad->entity;
-		subdev = media_entity_to_v4l2_subdev(entity);
-
-		ret = v4l2_subdev_call(subdev, video, s_stream, 0);
-		if (ret < 0) {
-			dev_dbg(iss->dev, "%s: module stop timeout.\n",
-				subdev->name);
-			/* If the entity failed to stopped, assume it has
-			 * crashed. Mark it as such, the ISS will be reset when
-			 * applications will release it.
-			 */
-			iss->crashed |= 1U << subdev->entity.id;
-			failure = -ETIMEDOUT;
-		}
-	}
-
-	return failure;
 }
 
 /*
@@ -682,7 +697,7 @@ int omap4iss_pipeline_set_stream(struct iss_pipeline *pipe,
 	int ret;
 
 	if (state == ISS_PIPELINE_STREAM_STOPPED)
-		ret = iss_pipeline_disable(pipe);
+		ret = iss_pipeline_disable(pipe, NULL);
 	else
 		ret = iss_pipeline_enable(pipe, state);
 

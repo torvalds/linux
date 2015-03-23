@@ -66,7 +66,8 @@ static inline int scsi_init_shared_tag_map(struct Scsi_Host *shost, int depth)
 	 * devices on the shared host (for libata)
 	 */
 	if (!shost->bqt) {
-		shost->bqt = blk_init_tags(depth);
+		shost->bqt = blk_init_tags(depth,
+			shost->hostt->tag_alloc_policy);
 		if (!shost->bqt)
 			return -ENOMEM;
 	}

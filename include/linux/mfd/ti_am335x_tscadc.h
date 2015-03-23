@@ -52,6 +52,7 @@
 
 /* IRQ enable */
 #define IRQENB_HW_PEN		BIT(0)
+#define IRQENB_EOS		BIT(1)
 #define IRQENB_FIFO0THRES	BIT(2)
 #define IRQENB_FIFO0OVRRUN	BIT(3)
 #define IRQENB_FIFO0UNDRFLW	BIT(4)
@@ -107,7 +108,7 @@
 /* Charge delay */
 #define CHARGEDLY_OPEN_MASK	(0x3FFFF << 0)
 #define CHARGEDLY_OPEN(val)	((val) << 0)
-#define CHARGEDLY_OPENDLY	CHARGEDLY_OPEN(1)
+#define CHARGEDLY_OPENDLY	CHARGEDLY_OPEN(0x400)
 
 /* Control register */
 #define CNTRLREG_TSCSSENB	BIT(0)

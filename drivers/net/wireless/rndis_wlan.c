@@ -2478,7 +2478,7 @@ static void rndis_fill_station_info(struct usbnet *usbdev,
 	ret = rndis_query_oid(usbdev, RNDIS_OID_GEN_LINK_SPEED, &linkspeed, &len);
 	if (ret == 0) {
 		sinfo->txrate.legacy = le32_to_cpu(linkspeed) / 1000;
-		sinfo->filled |= STATION_INFO_TX_BITRATE;
+		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
 	}
 
 	len = sizeof(rssi);
@@ -2486,7 +2486,7 @@ static void rndis_fill_station_info(struct usbnet *usbdev,
 			      &rssi, &len);
 	if (ret == 0) {
 		sinfo->signal = level_to_qual(le32_to_cpu(rssi));
-		sinfo->filled |= STATION_INFO_SIGNAL;
+		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 	}
 }
 

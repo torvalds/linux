@@ -1707,21 +1707,6 @@ void altivec_assist_exception(struct pt_regs *regs)
 }
 #endif /* CONFIG_ALTIVEC */
 
-#ifdef CONFIG_VSX
-void vsx_assist_exception(struct pt_regs *regs)
-{
-	if (!user_mode(regs)) {
-		printk(KERN_EMERG "VSX assist exception in kernel mode"
-		       " at %lx\n", regs->nip);
-		die("Kernel VSX assist exception", regs, SIGILL);
-	}
-
-	flush_vsx_to_thread(current);
-	printk(KERN_INFO "VSX assist not supported at %lx\n", regs->nip);
-	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-}
-#endif /* CONFIG_VSX */
-
 #ifdef CONFIG_FSL_BOOKE
 void CacheLockingException(struct pt_regs *regs, unsigned long address,
 			   unsigned long error_code)

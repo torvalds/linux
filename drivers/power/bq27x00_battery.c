@@ -76,7 +76,8 @@
 
 /* bq27425 register addresses are same as bq27x00 addresses minus 4 */
 #define BQ27425_REG_OFFSET		0x04
-#define BQ27425_REG_SOC			0x18 /* Register address plus offset */
+#define BQ27425_REG_SOC		(0x1C + BQ27425_REG_OFFSET)
+#define BQ27425_REG_DCAP		(0x3C + BQ27425_REG_OFFSET)
 
 #define BQ27000_RS			20 /* Resistor sense */
 #define BQ27x00_POWER_CONSTANT		(256 * 29200 / 1000)
@@ -282,9 +283,12 @@ static int bq27x00_battery_read_ilmd(struct bq27x00_device_info *di)
 {
 	int ilmd;
 
-	if (bq27xxx_is_chip_version_higher(di))
-		ilmd = bq27x00_read(di, BQ27500_REG_DCAP, false);
-	else
+	if (bq27xxx_is_chip_version_higher(di)) {
+		if (di->chip == BQ27425)
+			ilmd = bq27x00_read(di, BQ27425_REG_DCAP, false);
+		else
+			ilmd = bq27x00_read(di, BQ27500_REG_DCAP, false);
+	} else
 		ilmd = bq27x00_read(di, BQ27000_REG_ILMD, true);
 
 	if (ilmd < 0) {
@@ -493,10 +497,11 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 			di->charge_design_full = bq27x00_battery_read_ilmd(di);
 	}
 
-	if (memcmp(&di->cache, &cache, sizeof(cache)) != 0) {
-		di->cache = cache;
+	if (di->cache.capacity != cache.capacity)
 		power_supply_changed(&di->bat);
-	}
+
+	if (memcmp(&di->cache, &cache, sizeof(cache)) != 0)
+		di->cache = cache;
 
 	di->last_update = jiffies;
 }

@@ -33,6 +33,10 @@
 #define RMI_READ_DATA_PENDING		BIT(1)
 #define RMI_STARTED			BIT(2)
 
+/* device flags */
+#define RMI_DEVICE			BIT(0)
+#define RMI_DEVICE_HAS_PHYS_BUTTONS	BIT(1)
+
 enum rmi_mode_type {
 	RMI_MODE_OFF			= 0,
 	RMI_MODE_ATTN_REPORTS		= 1,
@@ -118,6 +122,8 @@ struct rmi_data {
 
 	struct work_struct reset_work;
 	struct hid_device *hdev;
+
+	unsigned long device_flags;
 };
 
 #define RMI_PAGE(addr) (((addr) >> 8) & 0xff)
@@ -452,9 +458,32 @@ static int rmi_raw_event(struct hid_device *hdev,
 		return rmi_read_data_event(hdev, data, size);
 	case RMI_ATTN_REPORT_ID:
 		return rmi_input_event(hdev, data, size);
-	case RMI_MOUSE_REPORT_ID:
+	default:
+		return 1;
+	}
+
+	return 0;
+}
+
+static int rmi_event(struct hid_device *hdev, struct hid_field *field,
+			struct hid_usage *usage, __s32 value)
+{
+	struct rmi_data *data = hid_get_drvdata(hdev);
+
+	if ((data->device_flags & RMI_DEVICE) &&
+	    (field->application == HID_GD_POINTER ||
+	    field->application == HID_GD_MOUSE)) {
+		if (data->device_flags & RMI_DEVICE_HAS_PHYS_BUTTONS) {
+			if ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON)
+				return 0;
+
+			if ((usage->hid == HID_GD_X || usage->hid == HID_GD_Y)
+			    && !value)
+				return 1;
+		}
+
 		rmi_schedule_reset(hdev);
-		break;
+		return 1;
 	}
 
 	return 0;
@@ -856,6 +885,9 @@ static void rmi_input_configured(struct hid_device *hdev, struct hid_input *hi)
 	if (ret)
 		return;
 
+	if (!(data->device_flags & RMI_DEVICE))
+		return;
+
 	/* Allow incoming hid reports */
 	hid_device_io_start(hdev);
 
@@ -914,8 +946,38 @@ static int rmi_input_mapping(struct hid_device *hdev,
 		struct hid_input *hi, struct hid_field *field,
 		struct hid_usage *usage, unsigned long **bit, int *max)
 {
-	/* we want to make HID ignore the advertised HID collection */
-	return -1;
+	struct rmi_data *data = hid_get_drvdata(hdev);
+
+	/*
+	 * we want to make HID ignore the advertised HID collection
+	 * for RMI deivces
+	 */
+	if (data->device_flags & RMI_DEVICE) {
+		if ((data->device_flags & RMI_DEVICE_HAS_PHYS_BUTTONS) &&
+		    ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON))
+			return 0;
+
+		return -1;
+	}
+
+	return 0;
+}
+
+static int rmi_check_valid_report_id(struct hid_device *hdev, unsigned type,
+		unsigned id, struct hid_report **report)
+{
+	int i;
+
+	*report = hdev->report_enum[type].report_id_hash[id];
+	if (*report) {
+		for (i = 0; i < (*report)->maxfield; i++) {
+			unsigned app = (*report)->field[i]->application;
+			if ((app & HID_USAGE_PAGE) >= HID_UP_MSVENDOR)
+				return 1;
+		}
+	}
+
+	return 0;
 }
 
 static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
@@ -925,6 +987,7 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	size_t alloc_size;
 	struct hid_report *input_report;
 	struct hid_report *output_report;
+	struct hid_report *feature_report;
 
 	data = devm_kzalloc(&hdev->dev, sizeof(struct rmi_data), GFP_KERNEL);
 	if (!data)
@@ -943,27 +1006,37 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
-	input_report = hdev->report_enum[HID_INPUT_REPORT]
-			.report_id_hash[RMI_ATTN_REPORT_ID];
-	if (!input_report) {
-		hid_err(hdev, "device does not have expected input report\n");
-		ret = -ENODEV;
-		return ret;
+	if (id->driver_data)
+		data->device_flags = id->driver_data;
+
+	/*
+	 * Check for the RMI specific report ids. If they are misisng
+	 * simply return and let the events be processed by hid-input
+	 */
+	if (!rmi_check_valid_report_id(hdev, HID_FEATURE_REPORT,
+	    RMI_SET_RMI_MODE_REPORT_ID, &feature_report)) {
+		hid_dbg(hdev, "device does not have set mode feature report\n");
+		goto start;
 	}
 
-	data->input_report_size = (input_report->size >> 3) + 1 /* report id */;
-
-	output_report = hdev->report_enum[HID_OUTPUT_REPORT]
-			.report_id_hash[RMI_WRITE_REPORT_ID];
-	if (!output_report) {
-		hid_err(hdev, "device does not have expected output report\n");
-		ret = -ENODEV;
-		return ret;
+	if (!rmi_check_valid_report_id(hdev, HID_INPUT_REPORT,
+	    RMI_ATTN_REPORT_ID, &input_report)) {
+		hid_dbg(hdev, "device does not have attention input report\n");
+		goto start;
 	}
 
-	data->output_report_size = (output_report->size >> 3)
-					+ 1 /* report id */;
+	data->input_report_size = hid_report_len(input_report);
 
+	if (!rmi_check_valid_report_id(hdev, HID_OUTPUT_REPORT,
+	    RMI_WRITE_REPORT_ID, &output_report)) {
+		hid_dbg(hdev,
+			"device does not have rmi write output report\n");
+		goto start;
+	}
+
+	data->output_report_size = hid_report_len(output_report);
+
+	data->device_flags |= RMI_DEVICE;
 	alloc_size = data->output_report_size + data->input_report_size;
 
 	data->writeReport = devm_kzalloc(&hdev->dev, alloc_size, GFP_KERNEL);
@@ -978,13 +1051,15 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	mutex_init(&data->page_mutex);
 
+start:
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
 		return ret;
 	}
 
-	if (!test_bit(RMI_STARTED, &data->flags))
+	if ((data->device_flags & RMI_DEVICE) &&
+	    !test_bit(RMI_STARTED, &data->flags))
 		/*
 		 * The device maybe in the bootloader if rmi_input_configured
 		 * failed to find F11 in the PDT. Print an error, but don't
@@ -1007,6 +1082,8 @@ static void rmi_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id rmi_id[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_RAZER, USB_DEVICE_ID_RAZER_BLADE_14),
+		.driver_data = RMI_DEVICE_HAS_PHYS_BUTTONS },
 	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_RMI, HID_ANY_ID, HID_ANY_ID) },
 	{ }
 };
@@ -1017,6 +1094,7 @@ static struct hid_driver rmi_driver = {
 	.id_table		= rmi_id,
 	.probe			= rmi_probe,
 	.remove			= rmi_remove,
+	.event			= rmi_event,
 	.raw_event		= rmi_raw_event,
 	.input_mapping		= rmi_input_mapping,
 	.input_configured	= rmi_input_configured,

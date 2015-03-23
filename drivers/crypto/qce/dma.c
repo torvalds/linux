@@ -64,7 +64,7 @@ int qce_mapsg(struct device *dev, struct scatterlist *sg, int nents,
 			err = dma_map_sg(dev, sg, 1, dir);
 			if (!err)
 				return -EFAULT;
-			sg = scatterwalk_sg_next(sg);
+			sg = sg_next(sg);
 		}
 	} else {
 		err = dma_map_sg(dev, sg, nents, dir);
@@ -81,7 +81,7 @@ void qce_unmapsg(struct device *dev, struct scatterlist *sg, int nents,
 	if (chained)
 		while (sg) {
 			dma_unmap_sg(dev, sg, 1, dir);
-			sg = scatterwalk_sg_next(sg);
+			sg = sg_next(sg);
 		}
 	else
 		dma_unmap_sg(dev, sg, nents, dir);
@@ -100,7 +100,7 @@ int qce_countsg(struct scatterlist *sglist, int nbytes, bool *chained)
 		nbytes -= sg->length;
 		if (!sg_is_last(sg) && (sg + 1)->length == 0 && chained)
 			*chained = true;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	return nents;

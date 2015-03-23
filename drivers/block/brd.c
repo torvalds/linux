@@ -97,13 +97,13 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 	 * Must use NOIO because we don't want to recurse back into the
 	 * block or filesystem layers from page reclaim.
 	 *
-	 * Cannot support XIP and highmem, because our ->direct_access
-	 * routine for XIP must return memory that is always addressable.
-	 * If XIP was reworked to use pfns and kmap throughout, this
+	 * Cannot support DAX and highmem, because our ->direct_access
+	 * routine for DAX must return memory that is always addressable.
+	 * If DAX was reworked to use pfns and kmap throughout, this
 	 * restriction might be able to be lifted.
 	 */
 	gfp_flags = GFP_NOIO | __GFP_ZERO;
-#ifndef CONFIG_BLK_DEV_XIP
+#ifndef CONFIG_BLK_DEV_RAM_DAX
 	gfp_flags |= __GFP_HIGHMEM;
 #endif
 	page = alloc_page(gfp_flags);
@@ -369,27 +369,29 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
 	return err;
 }
 
-#ifdef CONFIG_BLK_DEV_XIP
-static int brd_direct_access(struct block_device *bdev, sector_t sector,
-			void **kaddr, unsigned long *pfn)
+#ifdef CONFIG_BLK_DEV_RAM_DAX
+static long brd_direct_access(struct block_device *bdev, sector_t sector,
+			void **kaddr, unsigned long *pfn, long size)
 {
 	struct brd_device *brd = bdev->bd_disk->private_data;
 	struct page *page;
 
 	if (!brd)
 		return -ENODEV;
-	if (sector & (PAGE_SECTORS-1))
-		return -EINVAL;
-	if (sector + PAGE_SECTORS > get_capacity(bdev->bd_disk))
-		return -ERANGE;
 	page = brd_insert_page(brd, sector);
 	if (!page)
 		return -ENOSPC;
 	*kaddr = page_address(page);
 	*pfn = page_to_pfn(page);
 
-	return 0;
+	/*
+	 * TODO: If size > PAGE_SIZE, we could look to see if the next page in
+	 * the file happens to be mapped to the next page of physical RAM.
+	 */
+	return PAGE_SIZE;
 }
+#else
+#define brd_direct_access NULL
 #endif
 
 static int brd_ioctl(struct block_device *bdev, fmode_t mode,
@@ -430,27 +432,24 @@ static const struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
 	.rw_page =		brd_rw_page,
 	.ioctl =		brd_ioctl,
-#ifdef CONFIG_BLK_DEV_XIP
 	.direct_access =	brd_direct_access,
-#endif
 };
 
 /*
  * And now the modules code and kernel interface.
  */
-static int rd_nr;
-int rd_size = CONFIG_BLK_DEV_RAM_SIZE;
-static int max_part;
-static int part_shift;
-static int part_show = 0;
+static int rd_nr = CONFIG_BLK_DEV_RAM_COUNT;
 module_param(rd_nr, int, S_IRUGO);
 MODULE_PARM_DESC(rd_nr, "Maximum number of brd devices");
+
+int rd_size = CONFIG_BLK_DEV_RAM_SIZE;
 module_param(rd_size, int, S_IRUGO);
 MODULE_PARM_DESC(rd_size, "Size of each RAM disk in kbytes.");
+
+static int max_part = 1;
 module_param(max_part, int, S_IRUGO);
-MODULE_PARM_DESC(max_part, "Maximum number of partitions per RAM disk");
-module_param(part_show, int, S_IRUGO);
-MODULE_PARM_DESC(part_show, "Control RAM disk visibility in /proc/partitions");
+MODULE_PARM_DESC(max_part, "Num Minors to reserve between devices");
+
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_BLOCKDEV_MAJOR(RAMDISK_MAJOR);
 MODULE_ALIAS("rd");
@@ -487,25 +486,33 @@ static struct brd_device *brd_alloc(int i)
 	brd->brd_queue = blk_alloc_queue(GFP_KERNEL);
 	if (!brd->brd_queue)
 		goto out_free_dev;
+
 	blk_queue_make_request(brd->brd_queue, brd_make_request);
 	blk_queue_max_hw_sectors(brd->brd_queue, 1024);
 	blk_queue_bounce_limit(brd->brd_queue, BLK_BOUNCE_ANY);
+
+	/* This is so fdisk will align partitions on 4k, because of
+	 * direct_access API needing 4k alignment, returning a PFN
+	 * (This is only a problem on very small devices <= 4M,
+	 *  otherwise fdisk will align on 1M. Regardless this call
+	 *  is harmless)
+	 */
+	blk_queue_physical_block_size(brd->brd_queue, PAGE_SIZE);
 
 	brd->brd_queue->limits.discard_granularity = PAGE_SIZE;
 	brd->brd_queue->limits.max_discard_sectors = UINT_MAX;
 	brd->brd_queue->limits.discard_zeroes_data = 1;
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, brd->brd_queue);
 
-	disk = brd->brd_disk = alloc_disk(1 << part_shift);
+	disk = brd->brd_disk = alloc_disk(max_part);
 	if (!disk)
 		goto out_free_queue;
 	disk->major		= RAMDISK_MAJOR;
-	disk->first_minor	= i << part_shift;
+	disk->first_minor	= i * max_part;
 	disk->fops		= &brd_fops;
 	disk->private_data	= brd;
 	disk->queue		= brd->brd_queue;
-	if (!part_show)
-		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
+	disk->flags		= GENHD_FL_EXT_DEVT;
 	sprintf(disk->disk_name, "ram%d", i);
 	set_capacity(disk, rd_size * 2);
 
@@ -527,10 +534,11 @@ static void brd_free(struct brd_device *brd)
 	kfree(brd);
 }
 
-static struct brd_device *brd_init_one(int i)
+static struct brd_device *brd_init_one(int i, bool *new)
 {
 	struct brd_device *brd;
 
+	*new = false;
 	list_for_each_entry(brd, &brd_devices, brd_list) {
 		if (brd->brd_number == i)
 			goto out;
@@ -541,6 +549,7 @@ static struct brd_device *brd_init_one(int i)
 		add_disk(brd->brd_disk);
 		list_add_tail(&brd->brd_list, &brd_devices);
 	}
+	*new = true;
 out:
 	return brd;
 }
@@ -556,70 +565,46 @@ static struct kobject *brd_probe(dev_t dev, int *part, void *data)
 {
 	struct brd_device *brd;
 	struct kobject *kobj;
+	bool new;
 
 	mutex_lock(&brd_devices_mutex);
-	brd = brd_init_one(MINOR(dev) >> part_shift);
+	brd = brd_init_one(MINOR(dev) / max_part, &new);
 	kobj = brd ? get_disk(brd->brd_disk) : NULL;
 	mutex_unlock(&brd_devices_mutex);
 
-	*part = 0;
+	if (new)
+		*part = 0;
+
 	return kobj;
 }
 
 static int __init brd_init(void)
 {
-	int i, nr;
-	unsigned long range;
 	struct brd_device *brd, *next;
+	int i;
 
 	/*
 	 * brd module now has a feature to instantiate underlying device
 	 * structure on-demand, provided that there is an access dev node.
-	 * However, this will not work well with user space tool that doesn't
-	 * know about such "feature".  In order to not break any existing
-	 * tool, we do the following:
 	 *
-	 * (1) if rd_nr is specified, create that many upfront, and this
-	 *     also becomes a hard limit.
-	 * (2) if rd_nr is not specified, create CONFIG_BLK_DEV_RAM_COUNT
-	 *     (default 16) rd device on module load, user can further
-	 *     extend brd device by create dev node themselves and have
-	 *     kernel automatically instantiate actual device on-demand.
+	 * (1) if rd_nr is specified, create that many upfront. else
+	 *     it defaults to CONFIG_BLK_DEV_RAM_COUNT
+	 * (2) User can further extend brd devices by create dev node themselves
+	 *     and have kernel automatically instantiate actual device
+	 *     on-demand. Example:
+	 *		mknod /path/devnod_name b 1 X	# 1 is the rd major
+	 *		fdisk -l /path/devnod_name
+	 *	If (X / max_part) was not already created it will be created
+	 *	dynamically.
 	 */
-
-	part_shift = 0;
-	if (max_part > 0) {
-		part_shift = fls(max_part);
-
-		/*
-		 * Adjust max_part according to part_shift as it is exported
-		 * to user space so that user can decide correct minor number
-		 * if [s]he want to create more devices.
-		 *
-		 * Note that -1 is required because partition 0 is reserved
-		 * for the whole disk.
-		 */
-		max_part = (1UL << part_shift) - 1;
-	}
-
-	if ((1UL << part_shift) > DISK_MAX_PARTS)
-		return -EINVAL;
-
-	if (rd_nr > 1UL << (MINORBITS - part_shift))
-		return -EINVAL;
-
-	if (rd_nr) {
-		nr = rd_nr;
-		range = rd_nr << part_shift;
-	} else {
-		nr = CONFIG_BLK_DEV_RAM_COUNT;
-		range = 1UL << MINORBITS;
-	}
 
 	if (register_blkdev(RAMDISK_MAJOR, "ramdisk"))
 		return -EIO;
 
-	for (i = 0; i < nr; i++) {
+	if (unlikely(!max_part))
+		max_part = 1;
+
+	for (i = 0; i < rd_nr; i++) {
 		brd = brd_alloc(i);
 		if (!brd)
 			goto out_free;
@@ -631,10 +616,10 @@ static int __init brd_init(void)
 	list_for_each_entry(brd, &brd_devices, brd_list)
 		add_disk(brd->brd_disk);
 
-	blk_register_region(MKDEV(RAMDISK_MAJOR, 0), range,
+	blk_register_region(MKDEV(RAMDISK_MAJOR, 0), 1UL << MINORBITS,
 				  THIS_MODULE, brd_probe, NULL, NULL);
 
-	printk(KERN_INFO "brd: module loaded\n");
+	pr_info("brd: module loaded\n");
 	return 0;
 
 out_free:
@@ -644,21 +629,21 @@ out_free:
 	}
 	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
 
+	pr_info("brd: module NOT loaded !!!\n");
 	return -ENOMEM;
 }
 
 static void __exit brd_exit(void)
 {
-	unsigned long range;
 	struct brd_device *brd, *next;
-
-	range = rd_nr ? rd_nr << part_shift : 1UL << MINORBITS;
 
 	list_for_each_entry_safe(brd, next, &brd_devices, brd_list)
 		brd_del_one(brd);
 
-	blk_unregister_region(MKDEV(RAMDISK_MAJOR, 0), range);
+	blk_unregister_region(MKDEV(RAMDISK_MAJOR, 0), 1UL << MINORBITS);
 	unregister_blkdev(RAMDISK_MAJOR, "ramdisk");
+
+	pr_info("brd: module unloaded\n");
 }
 
 module_init(brd_init);

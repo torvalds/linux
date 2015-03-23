@@ -303,6 +303,11 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 		return err;
 	}
 
+	/* Don't check the sample rate for devices which we know don't
+	 * support reading */
+	if (snd_usb_get_sample_rate_quirk(chip))
+		return 0;
+
 	if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC_GET_CUR,
 				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_IN,
 				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,

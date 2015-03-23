@@ -41,6 +41,4 @@ void write_cam(struct net_device *dev, u8 addr, u32 data);
 
 void CamRestoreAllEntry(struct net_device *dev);
 
-void CAM_read_entry(struct net_device *dev, u32 iIndex);
-
 #endif

@@ -316,34 +316,24 @@ void post_mobility_fixup(void)
 static ssize_t migrate_store(struct class *class, struct class_attribute *attr,
 			     const char *buf, size_t count)
 {
-	struct rtas_args args;
 	u64 streamid;
 	int rc;
+	int vasi_rc = 0;
 
 	rc = kstrtou64(buf, 0, &streamid);
 	if (rc)
 		return rc;
 
-	memset(&args, 0, sizeof(args));
-	args.token = rtas_token("ibm,suspend-me");
-	args.nargs = 2;
-	args.nret = 1;
-
-	args.args[0] = streamid >> 32 ;
-	args.args[1] = streamid & 0xffffffff;
-	args.rets = &args.args[args.nargs];
-
 	do {
-		args.rets[0] = 0;
-		rc = rtas_ibm_suspend_me(&args);
-		if (!rc && args.rets[0] == RTAS_NOT_SUSPENDABLE)
+		rc = rtas_ibm_suspend_me(streamid, &vasi_rc);
+		if (!rc && vasi_rc == RTAS_NOT_SUSPENDABLE)
 			ssleep(1);
-	} while (!rc && args.rets[0] == RTAS_NOT_SUSPENDABLE);
+	} while (!rc && vasi_rc == RTAS_NOT_SUSPENDABLE);
 
 	if (rc)
 		return rc;
-	else if (args.rets[0])
-		return args.rets[0];
+	if (vasi_rc)
+		return vasi_rc;
 
 	post_mobility_fixup();
 	return count;

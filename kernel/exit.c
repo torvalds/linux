@@ -435,7 +435,8 @@ static void exit_mm(struct task_struct *tsk)
 	task_unlock(tsk);
 	mm_update_next_owner(mm);
 	mmput(mm);
-	clear_thread_flag(TIF_MEMDIE);
+	if (test_thread_flag(TIF_MEMDIE))
+		unmark_oom_victim();
 }
 
 static struct task_struct *find_alive_thread(struct task_struct *p)

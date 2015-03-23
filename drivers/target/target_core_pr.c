@@ -1874,8 +1874,8 @@ static int core_scsi3_update_aptpl_buf(
 		}
 
 		if ((len + strlen(tmp) >= pr_aptpl_buf_len)) {
-			pr_err("Unable to update renaming"
-				" APTPL metadata\n");
+			pr_err("Unable to update renaming APTPL metadata,"
+			       " reallocating larger buffer\n");
 			ret = -EMSGSIZE;
 			goto out;
 		}
@@ -1892,8 +1892,8 @@ static int core_scsi3_update_aptpl_buf(
 			lun->lun_sep->sep_rtpi, lun->unpacked_lun, reg_count);
 
 		if ((len + strlen(tmp) >= pr_aptpl_buf_len)) {
-			pr_err("Unable to update renaming"
-				" APTPL metadata\n");
+			pr_err("Unable to update renaming APTPL metadata,"
+			       " reallocating larger buffer\n");
 			ret = -EMSGSIZE;
 			goto out;
 		}
@@ -1956,7 +1956,7 @@ static int __core_scsi3_write_aptpl_to_file(
 static sense_reason_t core_scsi3_update_and_write_aptpl(struct se_device *dev, bool aptpl)
 {
 	unsigned char *buf;
-	int rc;
+	int rc, len = PR_APTPL_BUF_LEN;
 
 	if (!aptpl) {
 		char *null_buf = "No Registrations or Reservations\n";
@@ -1970,25 +1970,26 @@ static sense_reason_t core_scsi3_update_and_write_aptpl(struct se_device *dev, b
 
 		return 0;
 	}
-
-	buf = kzalloc(PR_APTPL_BUF_LEN, GFP_KERNEL);
+retry:
+	buf = vzalloc(len);
 	if (!buf)
 		return TCM_OUT_OF_RESOURCES;
 
-	rc = core_scsi3_update_aptpl_buf(dev, buf, PR_APTPL_BUF_LEN);
+	rc = core_scsi3_update_aptpl_buf(dev, buf, len);
 	if (rc < 0) {
-		kfree(buf);
-		return TCM_OUT_OF_RESOURCES;
+		vfree(buf);
+		len *= 2;
+		goto retry;
 	}
 
 	rc = __core_scsi3_write_aptpl_to_file(dev, buf);
 	if (rc != 0) {
 		pr_err("SPC-3 PR: Could not update APTPL\n");
-		kfree(buf);
+		vfree(buf);
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	dev->t10_pr.pr_aptpl_active = 1;
-	kfree(buf);
+	vfree(buf);
 	pr_debug("SPC-3 PR: Set APTPL Bit Activated\n");
 	return 0;
 }

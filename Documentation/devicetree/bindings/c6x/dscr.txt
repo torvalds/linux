@@ -12,7 +12,7 @@ configuration register for writes. These configuration register may be used to
 enable (and disable in some cases) SoC pin drivers, select peripheral clock
 sources (internal or pin), etc. In some cases, a configuration register is
 write once or the individual bits are write once. In addition to device config,
-the DSCR block may provide registers which which are used to reset peripherals,
+the DSCR block may provide registers which are used to reset peripherals,
 provide device ID information, provide ethernet MAC addresses, as well as other
 miscellaneous functions.
 

@@ -63,7 +63,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	inet_sk(sk)->mc_loop = 0;
 
 	/* Enable CHECKSUM_UNNECESSARY to CHECKSUM_COMPLETE conversion */
-	udp_set_convert_csum(sk, true);
+	inet_inc_convert_csum(sk);
 
 	rcu_assign_sk_user_data(sk, cfg->sk_user_data);
 
@@ -75,10 +75,10 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 }
 EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
 
-int udp_tunnel_xmit_skb(struct socket *sock, struct rtable *rt,
-			struct sk_buff *skb, __be32 src, __be32 dst,
-			__u8 tos, __u8 ttl, __be16 df, __be16 src_port,
-			__be16 dst_port, bool xnet)
+int udp_tunnel_xmit_skb(struct rtable *rt, struct sk_buff *skb,
+			__be32 src, __be32 dst, __u8 tos, __u8 ttl,
+			__be16 df, __be16 src_port, __be16 dst_port,
+			bool xnet, bool nocheck)
 {
 	struct udphdr *uh;
 
@@ -90,9 +90,9 @@ int udp_tunnel_xmit_skb(struct socket *sock, struct rtable *rt,
 	uh->source = src_port;
 	uh->len = htons(skb->len);
 
-	udp_set_csum(sock->sk->sk_no_check_tx, skb, src, dst, skb->len);
+	udp_set_csum(nocheck, skb, src, dst, skb->len);
 
-	return iptunnel_xmit(sock->sk, rt, skb, src, dst, IPPROTO_UDP,
+	return iptunnel_xmit(skb->sk, rt, skb, src, dst, IPPROTO_UDP,
 			     tos, ttl, df, xnet);
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_xmit_skb);

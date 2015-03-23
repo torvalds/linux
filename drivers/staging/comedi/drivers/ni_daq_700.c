@@ -51,10 +51,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "../comedidev.h"
-
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
+#include "../comedi_pcmcia.h"
 
 /* daqcard700 registers */
 #define DIO_W		0x04	/* WO 8bit */

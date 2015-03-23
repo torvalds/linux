@@ -14,7 +14,7 @@ drm-y       :=	drm_auth.o drm_bufs.o drm_cache.o \
 		drm_info.o drm_debugfs.o drm_encoder_slave.o \
 		drm_trace_points.o drm_global.o drm_prime.o \
 		drm_rect.o drm_vma_manager.o drm_flip_work.o \
-		drm_modeset_lock.o drm_atomic.o
+		drm_modeset_lock.o drm_atomic.o drm_bridge.o
 
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_DRM_GEM_CMA_HELPER) += drm_gem_cma_helper.o
@@ -55,6 +55,7 @@ obj-$(CONFIG_DRM_GMA500) += gma500/
 obj-$(CONFIG_DRM_UDL) += udl/
 obj-$(CONFIG_DRM_AST) += ast/
 obj-$(CONFIG_DRM_ARMADA) += armada/
+obj-$(CONFIG_DRM_ATMEL_HLCDC)	+= atmel-hlcdc/
 obj-$(CONFIG_DRM_RCAR_DU) += rcar-du/
 obj-$(CONFIG_DRM_SHMOBILE) +=shmobile/
 obj-$(CONFIG_DRM_OMAP)	+= omapdrm/

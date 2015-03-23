@@ -135,8 +135,9 @@ static struct hid_sensor_hub_callbacks *sensor_hub_get_callback(
 {
 	struct hid_sensor_hub_callbacks_list *callback;
 	struct sensor_hub_data *pdata = hid_get_drvdata(hdev);
+	unsigned long flags;
 
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list)
 		if (callback->usage_id == usage_id &&
 			(collection_index >=
@@ -145,10 +146,11 @@ static struct hid_sensor_hub_callbacks *sensor_hub_get_callback(
 				callback->hsdev->end_collection_index)) {
 			*priv = callback->priv;
 			*hsdev = callback->hsdev;
-			spin_unlock(&pdata->dyn_callback_lock);
+			spin_unlock_irqrestore(&pdata->dyn_callback_lock,
+					       flags);
 			return callback->usage_callback;
 		}
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return NULL;
 }

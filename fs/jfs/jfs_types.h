@@ -30,8 +30,6 @@
 #include <linux/types.h>
 #include <linux/nls.h>
 
-#include "endian24.h"
-
 /*
  * transaction and lock id's
  *
@@ -59,26 +57,42 @@ struct timestruc_t {
 
 /*
  *	physical xd (pxd)
+ *
+ *	The leftmost 24 bits of len_addr are the extent length.
+ *	The rightmost 8 bits of len_addr are the most signficant bits of
+ *	the extent address
  */
 typedef struct {
-	unsigned len:24;
-	unsigned addr1:8;
+	__le32 len_addr;
 	__le32 addr2;
 } pxd_t;
 
 /* xd_t field construction */
 
-#define	PXDlength(pxd, length32)	((pxd)->len = __cpu_to_le24(length32))
-#define	PXDaddress(pxd, address64)\
-{\
-	(pxd)->addr1 = ((s64)address64) >> 32;\
-	(pxd)->addr2 = __cpu_to_le32((address64) & 0xffffffff);\
+static inline void PXDlength(pxd_t *pxd, __u32 len)
+{
+	pxd->len_addr = (pxd->len_addr & cpu_to_le32(~0xffffff)) |
+			cpu_to_le32(len & 0xffffff);
+}
+
+static inline void PXDaddress(pxd_t *pxd, __u64 addr)
+{
+	pxd->len_addr = (pxd->len_addr & cpu_to_le32(0xffffff)) |
+			cpu_to_le32((addr >> 32)<<24);
+	pxd->addr2 = cpu_to_le32(addr & 0xffffffff);
 }
 
 /* xd_t field extraction */
-#define	lengthPXD(pxd)	__le24_to_cpu((pxd)->len)
-#define	addressPXD(pxd)\
-	( ((s64)((pxd)->addr1)) << 32 | __le32_to_cpu((pxd)->addr2))
+static inline __u32 lengthPXD(pxd_t *pxd)
+{
+	return le32_to_cpu((pxd)->len_addr) & 0xffffff;
+}
+
+static inline __u64 addressPXD(pxd_t *pxd)
+{
+	__u64 n = le32_to_cpu(pxd->len_addr) & ~0xffffff;
+	return (n << 8) + le32_to_cpu(pxd->addr2);
+}
 
 #define MAXTREEHEIGHT 8
 /* pxd list */
@@ -93,12 +107,10 @@ struct pxdlist {
  *	data extent descriptor (dxd)
  */
 typedef struct {
-	unsigned flag:8;	/* 1: flags */
-	unsigned rsrvd:24;
+	__u8 flag;	/* 1: flags */
+	__u8 rsrvd[3];
 	__le32 size;		/* 4: size in byte */
-	unsigned len:24;	/* 3: length in unit of fsblksize */
-	unsigned addr1:8;	/* 1: address in unit of fsblksize */
-	__le32 addr2;		/* 4: address in unit of fsblksize */
+	pxd_t loc;		/* 8: address and length in unit of fsblksize */
 } dxd_t;			/* - 16 - */
 
 /* dxd_t flags */
@@ -109,12 +121,11 @@ typedef struct {
 #define DXD_CORRUPT	0x08	/* Inconsistency detected */
 
 /* dxd_t field construction
- *	Conveniently, the PXD macros work for DXD
  */
-#define	DXDlength	PXDlength
-#define	DXDaddress	PXDaddress
-#define	lengthDXD	lengthPXD
-#define	addressDXD	addressPXD
+#define	DXDlength(dxd, len)	PXDlength(&(dxd)->loc, len)
+#define	DXDaddress(dxd, addr)	PXDaddress(&(dxd)->loc, addr)
+#define	lengthDXD(dxd)	lengthPXD(&(dxd)->loc)
+#define	addressDXD(dxd)	addressPXD(&(dxd)->loc)
 #define DXDsize(dxd, size32) ((dxd)->size = cpu_to_le32(size32))
 #define sizeDXD(dxd)	le32_to_cpu((dxd)->size)
 

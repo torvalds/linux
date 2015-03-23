@@ -277,7 +277,6 @@ static int fib6_dump_node(struct fib6_walker *w)
 			w->leaf = rt;
 			return 1;
 		}
-		WARN_ON(res == 0);
 	}
 	w->leaf = NULL;
 	return 0;
@@ -630,32 +629,35 @@ static bool rt6_qualify_for_ecmp(struct rt6_info *rt)
 	       RTF_GATEWAY;
 }
 
-static int fib6_commit_metrics(struct dst_entry *dst,
-			       struct nlattr *mx, int mx_len)
+static void fib6_copy_metrics(u32 *mp, const struct mx6_config *mxc)
 {
-	struct nlattr *nla;
-	int remaining;
-	u32 *mp;
+	int i;
+
+	for (i = 0; i < RTAX_MAX; i++) {
+		if (test_bit(i, mxc->mx_valid))
+			mp[i] = mxc->mx[i];
+	}
+}
+
+static int fib6_commit_metrics(struct dst_entry *dst, struct mx6_config *mxc)
+{
+	if (!mxc->mx)
+		return 0;
 
 	if (dst->flags & DST_HOST) {
-		mp = dst_metrics_write_ptr(dst);
-	} else {
-		mp = kzalloc(sizeof(u32) * RTAX_MAX, GFP_ATOMIC);
-		if (!mp)
+		u32 *mp = dst_metrics_write_ptr(dst);
+
+		if (unlikely(!mp))
 			return -ENOMEM;
-		dst_init_metrics(dst, mp, 0);
+
+		fib6_copy_metrics(mp, mxc);
+	} else {
+		dst_init_metrics(dst, mxc->mx, false);
+
+		/* We've stolen mx now. */
+		mxc->mx = NULL;
 	}
 
-	nla_for_each_attr(nla, mx, mx_len, remaining) {
-		int type = nla_type(nla);
-
-		if (type) {
-			if (type > RTAX_MAX)
-				return -EINVAL;
-
-			mp[type - 1] = nla_get_u32(nla);
-		}
-	}
 	return 0;
 }
 
@@ -687,7 +689,7 @@ static void fib6_purge_rt(struct rt6_info *rt, struct fib6_node *fn,
  */
 
 static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
-			    struct nl_info *info, struct nlattr *mx, int mx_len)
+			    struct nl_info *info, struct mx6_config *mxc)
 {
 	struct rt6_info *iter = NULL;
 	struct rt6_info **ins;
@@ -796,11 +798,10 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 			pr_warn("NLM_F_CREATE should be set when creating new route\n");
 
 add:
-		if (mx) {
-			err = fib6_commit_metrics(&rt->dst, mx, mx_len);
-			if (err)
-				return err;
-		}
+		err = fib6_commit_metrics(&rt->dst, mxc);
+		if (err)
+			return err;
+
 		rt->dst.rt6_next = iter;
 		*ins = rt;
 		rt->rt6i_node = fn;
@@ -820,11 +821,11 @@ add:
 			pr_warn("NLM_F_REPLACE set, but no existing node found!\n");
 			return -ENOENT;
 		}
-		if (mx) {
-			err = fib6_commit_metrics(&rt->dst, mx, mx_len);
-			if (err)
-				return err;
-		}
+
+		err = fib6_commit_metrics(&rt->dst, mxc);
+		if (err)
+			return err;
+
 		*ins = rt;
 		rt->rt6i_node = fn;
 		rt->dst.rt6_next = iter->dst.rt6_next;
@@ -862,8 +863,8 @@ void fib6_force_start_gc(struct net *net)
  *	with source addr info in sub-trees
  */
 
-int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info,
-	     struct nlattr *mx, int mx_len)
+int fib6_add(struct fib6_node *root, struct rt6_info *rt,
+	     struct nl_info *info, struct mx6_config *mxc)
 {
 	struct fib6_node *fn, *pn = NULL;
 	int err = -ENOMEM;
@@ -958,7 +959,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info,
 	}
 #endif
 
-	err = fib6_add_rt2node(fn, rt, info, mx, mx_len);
+	err = fib6_add_rt2node(fn, rt, info, mxc);
 	if (!err) {
 		fib6_start_gc(info->nl_net, rt);
 		if (!(rt->rt6i_flags & RTF_CACHE))

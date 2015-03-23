@@ -34,7 +34,7 @@ struct ath_vif;
 
 extern struct ieee80211_ops ath9k_ops;
 extern int ath9k_modparam_nohwcrypt;
-extern int led_blink;
+extern int ath9k_led_blink;
 extern bool is_ath9k_unloaded;
 extern int ath9k_use_chanctx;
 
@@ -830,20 +830,18 @@ static inline void ath_fill_led_pin(struct ath_softc *sc)
 /* Wake on Wireless LAN */
 /************************/
 
-struct ath9k_wow_pattern {
-	u8 pattern_bytes[MAX_PATTERN_SIZE];
-	u8 mask_bytes[MAX_PATTERN_SIZE];
-	u32 pattern_len;
-};
-
 #ifdef CONFIG_ATH9K_WOW
 void ath9k_init_wow(struct ieee80211_hw *hw);
+void ath9k_deinit_wow(struct ieee80211_hw *hw);
 int ath9k_suspend(struct ieee80211_hw *hw,
 		  struct cfg80211_wowlan *wowlan);
 int ath9k_resume(struct ieee80211_hw *hw);
 void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled);
 #else
 static inline void ath9k_init_wow(struct ieee80211_hw *hw)
+{
+}
+static inline void ath9k_deinit_wow(struct ieee80211_hw *hw)
 {
 }
 static inline int ath9k_suspend(struct ieee80211_hw *hw,
@@ -1039,9 +1037,8 @@ struct ath_softc {
 	s16 tx99_power;
 
 #ifdef CONFIG_ATH9K_WOW
-	atomic_t wow_got_bmiss_intr;
-	atomic_t wow_sleep_proc_intr; /* in the middle of WoW sleep ? */
 	u32 wow_intr_before_sleep;
+	bool force_wow;
 #endif
 };
 

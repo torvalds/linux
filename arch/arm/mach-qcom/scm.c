@@ -22,12 +22,10 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 
+#include <asm/outercache.h>
 #include <asm/cacheflush.h>
 
 #include "scm.h"
-
-/* Cache line size for msm8x60 */
-#define CACHELINESIZE 32
 
 #define SCM_ENOMEM		-5
 #define SCM_EOPNOTSUPP		-4
@@ -63,11 +61,11 @@ static DEFINE_MUTEX(scm_lock);
  * to access the buffers in a safe manner.
  */
 struct scm_command {
-	u32	len;
-	u32	buf_offset;
-	u32	resp_hdr_offset;
-	u32	id;
-	u32	buf[0];
+	__le32 len;
+	__le32 buf_offset;
+	__le32 resp_hdr_offset;
+	__le32 id;
+	__le32 buf[0];
 };
 
 /**
@@ -77,9 +75,9 @@ struct scm_command {
  * @is_complete: indicates if the command has finished processing
  */
 struct scm_response {
-	u32	len;
-	u32	buf_offset;
-	u32	is_complete;
+	__le32 len;
+	__le32 buf_offset;
+	__le32 is_complete;
 };
 
 /**
@@ -97,12 +95,14 @@ static struct scm_command *alloc_scm_command(size_t cmd_size, size_t resp_size)
 	struct scm_command *cmd;
 	size_t len = sizeof(*cmd) + sizeof(struct scm_response) + cmd_size +
 		resp_size;
+	u32 offset;
 
 	cmd = kzalloc(PAGE_ALIGN(len), GFP_KERNEL);
 	if (cmd) {
-		cmd->len = len;
-		cmd->buf_offset = offsetof(struct scm_command, buf);
-		cmd->resp_hdr_offset = cmd->buf_offset + cmd_size;
+		cmd->len = cpu_to_le32(len);
+		offset = offsetof(struct scm_command, buf);
+		cmd->buf_offset = cpu_to_le32(offset);
+		cmd->resp_hdr_offset = cpu_to_le32(offset + cmd_size);
 	}
 	return cmd;
 }
@@ -127,7 +127,7 @@ static inline void free_scm_command(struct scm_command *cmd)
 static inline struct scm_response *scm_command_to_response(
 		const struct scm_command *cmd)
 {
-	return (void *)cmd + cmd->resp_hdr_offset;
+	return (void *)cmd + le32_to_cpu(cmd->resp_hdr_offset);
 }
 
 /**
@@ -149,11 +149,12 @@ static inline void *scm_get_command_buffer(const struct scm_command *cmd)
  */
 static inline void *scm_get_response_buffer(const struct scm_response *rsp)
 {
-	return (void *)rsp + rsp->buf_offset;
+	return (void *)rsp + le32_to_cpu(rsp->buf_offset);
 }
 
 static int scm_remap_error(int err)
 {
+	pr_err("scm_call failed with error code %d\n", err);
 	switch (err) {
 	case SCM_ERROR:
 		return -EIO;
@@ -198,16 +199,36 @@ static int __scm_call(const struct scm_command *cmd)
 	u32 cmd_addr = virt_to_phys(cmd);
 
 	/*
-	 * Flush the entire cache here so callers don't have to remember
-	 * to flush the cache when passing physical addresses to the secure
-	 * side in the buffer.
+	 * Flush the command buffer so that the secure world sees
+	 * the correct data.
 	 */
-	flush_cache_all();
+	__cpuc_flush_dcache_area((void *)cmd, cmd->len);
+	outer_flush_range(cmd_addr, cmd_addr + cmd->len);
+
 	ret = smc(cmd_addr);
 	if (ret < 0)
 		ret = scm_remap_error(ret);
 
 	return ret;
+}
+
+static void scm_inv_range(unsigned long start, unsigned long end)
+{
+	u32 cacheline_size, ctr;
+
+	asm volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (ctr));
+	cacheline_size = 4 << ((ctr >> 16) & 0xf);
+
+	start = round_down(start, cacheline_size);
+	end = round_up(end, cacheline_size);
+	outer_inv_range(start, end);
+	while (start < end) {
+		asm ("mcr p15, 0, %0, c7, c6, 1" : : "r" (start)
+		     : "memory");
+		start += cacheline_size;
+	}
+	dsb();
+	isb();
 }
 
 /**
@@ -220,6 +241,13 @@ static int __scm_call(const struct scm_command *cmd)
  * @resp_len: length of the response buffer
  *
  * Sends a command to the SCM and waits for the command to finish processing.
+ *
+ * A note on cache maintenance:
+ * Note that any buffers that are expected to be accessed by the secure world
+ * must be flushed before invoking scm_call and invalidated in the cache
+ * immediately after scm_call returns. Cache maintenance on the command and
+ * response buffers is taken care of by scm_call; however, callers are
+ * responsible for any other cached buffers passed over to the secure world.
  */
 int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 		void *resp_buf, size_t resp_len)
@@ -227,12 +255,13 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 	int ret;
 	struct scm_command *cmd;
 	struct scm_response *rsp;
+	unsigned long start, end;
 
 	cmd = alloc_scm_command(cmd_len, resp_len);
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->id = (svc_id << 10) | cmd_id;
+	cmd->id = cpu_to_le32((svc_id << 10) | cmd_id);
 	if (cmd_buf)
 		memcpy(scm_get_command_buffer(cmd), cmd_buf, cmd_len);
 
@@ -243,16 +272,14 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 		goto out;
 
 	rsp = scm_command_to_response(cmd);
+	start = (unsigned long)rsp;
+
 	do {
-		u32 start = (u32)rsp;
-		u32 end = (u32)scm_get_response_buffer(rsp) + resp_len;
-		start &= ~(CACHELINESIZE - 1);
-		while (start < end) {
-			asm ("mcr p15, 0, %0, c7, c6, 1" : : "r" (start)
-			     : "memory");
-			start += CACHELINESIZE;
-		}
+		scm_inv_range(start, start + sizeof(*rsp));
 	} while (!rsp->is_complete);
+
+	end = (unsigned long)scm_get_response_buffer(rsp) + resp_len;
+	scm_inv_range(start, end);
 
 	if (resp_buf)
 		memcpy(resp_buf, scm_get_response_buffer(rsp), resp_len);

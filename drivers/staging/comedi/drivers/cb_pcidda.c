@@ -22,12 +22,10 @@
 /*
  * Driver: cb_pcidda
  * Description: MeasurementComputing PCI-DDA series
- * Devices: (Measurement Computing) PCI-DDA08/12 [pci-dda08/12]
- *	    (Measurement Computing) PCI-DDA04/12 [pci-dda04/12]
- *	    (Measurement Computing) PCI-DDA02/12 [pci-dda02/12]
- *	    (Measurement Computing) PCI-DDA08/16 [pci-dda08/16]
- *	    (Measurement Computing) PCI-DDA04/16 [pci-dda04/16]
- *	    (Measurement Computing) PCI-DDA02/16 [pci-dda02/16]
+ * Devices: [Measurement Computing] PCI-DDA08/12 (pci-dda08/12),
+ *   PCI-DDA04/12 (pci-dda04/12), PCI-DDA02/12 (pci-dda02/12),
+ *   PCI-DDA08/16 (pci-dda08/16), PCI-DDA04/16 (pci-dda04/16),
+ *   PCI-DDA02/16 (pci-dda02/16)
  * Author: Ivan Martinez <ivanmr@altavista.com>
  *	   Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works

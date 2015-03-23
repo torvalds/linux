@@ -333,8 +333,8 @@ static int ad193x_codec_probe(struct snd_soc_codec *codec)
 	regmap_write(ad193x->regmap, AD193X_DAC_CHNL_MUTE, 0x0);
 	/* de-emphasis: 48kHz, powedown dac */
 	regmap_write(ad193x->regmap, AD193X_DAC_CTRL2, 0x1A);
-	/* powerdown dac, dac in tdm mode */
-	regmap_write(ad193x->regmap, AD193X_DAC_CTRL0, 0x41);
+	/* dac in tdm mode */
+	regmap_write(ad193x->regmap, AD193X_DAC_CTRL0, 0x40);
 	/* high-pass filter enable */
 	regmap_write(ad193x->regmap, AD193X_ADC_CTRL0, 0x3);
 	/* sata delay=1, adc aux mode */

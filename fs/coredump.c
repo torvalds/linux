@@ -572,7 +572,7 @@ void do_coredump(const siginfo_t *siginfo)
 			 *
 			 * Normally core limits are irrelevant to pipes, since
 			 * we're not writing to the file system, but we use
-			 * cprm.limit of 1 here as a speacial value, this is a
+			 * cprm.limit of 1 here as a special value, this is a
 			 * consistent way to catch recursive crashes.
 			 * We can still crash if the core_pattern binary sets
 			 * RLIM_CORE = !1, but it runs as root, and can do

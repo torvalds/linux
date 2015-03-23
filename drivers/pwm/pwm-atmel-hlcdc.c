@@ -64,6 +64,9 @@ static int atmel_hlcdc_pwm_config(struct pwm_chip *c,
 
 	if (!chip->errata || !chip->errata->slow_clk_erratum) {
 		clk_freq = clk_get_rate(new_clk);
+		if (!clk_freq)
+			return -EINVAL;
+
 		clk_period_ns = (u64)NSEC_PER_SEC * 256;
 		do_div(clk_period_ns, clk_freq);
 	}
@@ -73,6 +76,9 @@ static int atmel_hlcdc_pwm_config(struct pwm_chip *c,
 	    clk_period_ns > period_ns) {
 		new_clk = hlcdc->sys_clk;
 		clk_freq = clk_get_rate(new_clk);
+		if (!clk_freq)
+			return -EINVAL;
+
 		clk_period_ns = (u64)NSEC_PER_SEC * 256;
 		do_div(clk_period_ns, clk_freq);
 	}

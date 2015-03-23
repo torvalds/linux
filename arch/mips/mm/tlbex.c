@@ -501,7 +501,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case tlb_indexed: tlbw = uasm_i_tlbwi; break;
 	}
 
-	if (cpu_has_mips_r2) {
+	if (cpu_has_mips_r2_exec_hazard) {
 		/*
 		 * The architecture spec says an ehb is required here,
 		 * but a number of cores do not have the hazard and
@@ -514,6 +514,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		case CPU_PROAPTIV:
 		case CPU_P5600:
 		case CPU_M5150:
+		case CPU_QEMU_GENERIC:
 			break;
 
 		default:
@@ -1952,7 +1953,7 @@ static void build_r4000_tlb_load_handler(void)
 
 		switch (current_cpu_type()) {
 		default:
-			if (cpu_has_mips_r2) {
+			if (cpu_has_mips_r2_exec_hazard) {
 				uasm_i_ehb(&p);
 
 		case CPU_CAVIUM_OCTEON:
@@ -2019,7 +2020,7 @@ static void build_r4000_tlb_load_handler(void)
 
 		switch (current_cpu_type()) {
 		default:
-			if (cpu_has_mips_r2) {
+			if (cpu_has_mips_r2_exec_hazard) {
 				uasm_i_ehb(&p);
 
 		case CPU_CAVIUM_OCTEON:

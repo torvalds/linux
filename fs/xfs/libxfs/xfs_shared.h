@@ -82,7 +82,7 @@ extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 #define	XFS_TRANS_ATTR_RM		23
 #define	XFS_TRANS_ATTR_FLAG		24
 #define	XFS_TRANS_CLEAR_AGI_BUCKET	25
-#define XFS_TRANS_QM_SBCHANGE		26
+#define XFS_TRANS_SB_CHANGE		26
 /*
  * Dummy entries since we use the transaction type to index into the
  * trans_type[] in xlog_recover_print_trans_head()
@@ -95,17 +95,15 @@ extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 #define XFS_TRANS_QM_DQCLUSTER		32
 #define XFS_TRANS_QM_QINOCREATE		33
 #define XFS_TRANS_QM_QUOTAOFF_END	34
-#define XFS_TRANS_SB_UNIT		35
-#define XFS_TRANS_FSYNC_TS		36
-#define	XFS_TRANS_GROWFSRT_ALLOC	37
-#define	XFS_TRANS_GROWFSRT_ZERO		38
-#define	XFS_TRANS_GROWFSRT_FREE		39
-#define	XFS_TRANS_SWAPEXT		40
-#define	XFS_TRANS_SB_COUNT		41
-#define	XFS_TRANS_CHECKPOINT		42
-#define	XFS_TRANS_ICREATE		43
-#define	XFS_TRANS_CREATE_TMPFILE	44
-#define	XFS_TRANS_TYPE_MAX		44
+#define XFS_TRANS_FSYNC_TS		35
+#define	XFS_TRANS_GROWFSRT_ALLOC	36
+#define	XFS_TRANS_GROWFSRT_ZERO		37
+#define	XFS_TRANS_GROWFSRT_FREE		38
+#define	XFS_TRANS_SWAPEXT		39
+#define	XFS_TRANS_CHECKPOINT		40
+#define	XFS_TRANS_ICREATE		41
+#define	XFS_TRANS_CREATE_TMPFILE	42
+#define	XFS_TRANS_TYPE_MAX		43
 /* new transaction types need to be reflected in xfs_logprint(8) */
 
 #define XFS_TRANS_TYPES \
@@ -113,7 +111,6 @@ extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 	{ XFS_TRANS_SETATTR_SIZE,	"SETATTR_SIZE" }, \
 	{ XFS_TRANS_INACTIVE,		"INACTIVE" }, \
 	{ XFS_TRANS_CREATE,		"CREATE" }, \
-	{ XFS_TRANS_CREATE_TMPFILE,	"CREATE_TMPFILE" }, \
 	{ XFS_TRANS_CREATE_TRUNC,	"CREATE_TRUNC" }, \
 	{ XFS_TRANS_TRUNCATE_FILE,	"TRUNCATE_FILE" }, \
 	{ XFS_TRANS_REMOVE,		"REMOVE" }, \
@@ -134,23 +131,23 @@ extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 	{ XFS_TRANS_ATTR_RM,		"ATTR_RM" }, \
 	{ XFS_TRANS_ATTR_FLAG,		"ATTR_FLAG" }, \
 	{ XFS_TRANS_CLEAR_AGI_BUCKET,	"CLEAR_AGI_BUCKET" }, \
-	{ XFS_TRANS_QM_SBCHANGE,	"QM_SBCHANGE" }, \
+	{ XFS_TRANS_SB_CHANGE,		"SBCHANGE" }, \
+	{ XFS_TRANS_DUMMY1,		"DUMMY1" }, \
+	{ XFS_TRANS_DUMMY2,		"DUMMY2" }, \
 	{ XFS_TRANS_QM_QUOTAOFF,	"QM_QUOTAOFF" }, \
 	{ XFS_TRANS_QM_DQALLOC,		"QM_DQALLOC" }, \
 	{ XFS_TRANS_QM_SETQLIM,		"QM_SETQLIM" }, \
 	{ XFS_TRANS_QM_DQCLUSTER,	"QM_DQCLUSTER" }, \
 	{ XFS_TRANS_QM_QINOCREATE,	"QM_QINOCREATE" }, \
 	{ XFS_TRANS_QM_QUOTAOFF_END,	"QM_QOFF_END" }, \
-	{ XFS_TRANS_SB_UNIT,		"SB_UNIT" }, \
 	{ XFS_TRANS_FSYNC_TS,		"FSYNC_TS" }, \
 	{ XFS_TRANS_GROWFSRT_ALLOC,	"GROWFSRT_ALLOC" }, \
 	{ XFS_TRANS_GROWFSRT_ZERO,	"GROWFSRT_ZERO" }, \
 	{ XFS_TRANS_GROWFSRT_FREE,	"GROWFSRT_FREE" }, \
 	{ XFS_TRANS_SWAPEXT,		"SWAPEXT" }, \
-	{ XFS_TRANS_SB_COUNT,		"SB_COUNT" }, \
 	{ XFS_TRANS_CHECKPOINT,		"CHECKPOINT" }, \
-	{ XFS_TRANS_DUMMY1,		"DUMMY1" }, \
-	{ XFS_TRANS_DUMMY2,		"DUMMY2" }, \
+	{ XFS_TRANS_ICREATE,		"ICREATE" }, \
+	{ XFS_TRANS_CREATE_TMPFILE,	"CREATE_TMPFILE" }, \
 	{ XLOG_UNMOUNT_REC_TYPE,	"UNMOUNT" }
 
 /*

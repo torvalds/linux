@@ -21,6 +21,16 @@
 #include "fw.h"
 
 
+void mwifiex_init_11h_params(struct mwifiex_private *priv)
+{
+	priv->state_11h.is_11h_enabled = true;
+	priv->state_11h.is_11h_active = false;
+}
+
+inline int mwifiex_is_11h_active(struct mwifiex_private *priv)
+{
+	return priv->state_11h.is_11h_active;
+}
 /* This function appends 11h info to a buffer while joining an
  * infrastructure BSS
  */
@@ -39,7 +49,7 @@ mwifiex_11h_process_infra_join(struct mwifiex_private *priv, u8 **buffer,
 		return;
 
 	radio_type = mwifiex_band_to_radio_type((u8) bss_desc->bss_band);
-	sband = priv->wdev->wiphy->bands[radio_type];
+	sband = priv->wdev.wiphy->bands[radio_type];
 
 	cap = (struct mwifiex_ie_types_pwr_capability *)*buffer;
 	cap->header.type = cpu_to_le16(WLAN_EID_PWR_CAPABILITY);
@@ -69,9 +79,13 @@ mwifiex_11h_process_infra_join(struct mwifiex_private *priv, u8 **buffer,
 }
 
 /* Enable or disable the 11h extensions in the firmware */
-static int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag)
+int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag)
 {
 	u32 enable = flag;
+
+	/* enable master mode radar detection on AP interface */
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) && enable)
+		enable |= MWIFIEX_MASTER_RADAR_DET_MASK;
 
 	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
 				HostCmd_ACT_GEN_SET, DOT11H_I, &enable, true);
@@ -91,11 +105,191 @@ void mwifiex_11h_process_join(struct mwifiex_private *priv, u8 **buffer,
 		 * bit
 		 */
 		mwifiex_11h_activate(priv, true);
+		priv->state_11h.is_11h_active = true;
 		bss_desc->cap_info_bitmap |= WLAN_CAPABILITY_SPECTRUM_MGMT;
 		mwifiex_11h_process_infra_join(priv, buffer, bss_desc);
 	} else {
 		/* Deactivate 11h functions in the firmware */
 		mwifiex_11h_activate(priv, false);
+		priv->state_11h.is_11h_active = false;
 		bss_desc->cap_info_bitmap &= ~WLAN_CAPABILITY_SPECTRUM_MGMT;
 	}
+}
+
+/* This is DFS CAC work queue function.
+ * This delayed work emits CAC finished event for cfg80211 if
+ * CAC was started earlier.
+ */
+void mwifiex_dfs_cac_work_queue(struct work_struct *work)
+{
+	struct cfg80211_chan_def chandef;
+	struct delayed_work *delayed_work =
+			container_of(work, struct delayed_work, work);
+	struct mwifiex_private *priv =
+			container_of(delayed_work, struct mwifiex_private,
+				     dfs_cac_work);
+
+	if (WARN_ON(!priv))
+		return;
+
+	chandef = priv->dfs_chandef;
+	if (priv->wdev.cac_started) {
+		dev_dbg(priv->adapter->dev,
+			"CAC timer finished; No radar detected\n");
+		cfg80211_cac_event(priv->netdev, &chandef,
+				   NL80211_RADAR_CAC_FINISHED,
+				   GFP_KERNEL);
+	}
+}
+
+/* This function prepares channel report request command to FW for
+ * starting radar detection.
+ */
+int mwifiex_cmd_issue_chan_report_request(struct mwifiex_private *priv,
+					  struct host_cmd_ds_command *cmd,
+					  void *data_buf)
+{
+	struct host_cmd_ds_chan_rpt_req *cr_req = &cmd->params.chan_rpt_req;
+	struct mwifiex_radar_params *radar_params = (void *)data_buf;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_CHAN_REPORT_REQUEST);
+	cmd->size = cpu_to_le16(S_DS_GEN);
+	le16_add_cpu(&cmd->size, sizeof(struct host_cmd_ds_chan_rpt_req));
+
+	cr_req->chan_desc.start_freq = cpu_to_le16(MWIFIEX_A_BAND_START_FREQ);
+	cr_req->chan_desc.chan_num = radar_params->chandef->chan->hw_value;
+	cr_req->chan_desc.chan_width = radar_params->chandef->width;
+	cr_req->msec_dwell_time = cpu_to_le32(radar_params->cac_time_ms);
+
+	dev_dbg(priv->adapter->dev,
+		"11h: issuing DFS Radar check for channel=%d\n",
+		radar_params->chandef->chan->hw_value);
+
+	return 0;
+}
+
+/* This function is to abort ongoing CAC upon stopping AP operations
+ * or during unload.
+ */
+void mwifiex_abort_cac(struct mwifiex_private *priv)
+{
+	if (priv->wdev.cac_started) {
+		dev_dbg(priv->adapter->dev,
+			"Aborting delayed work for CAC.\n");
+		cancel_delayed_work_sync(&priv->dfs_cac_work);
+		cfg80211_cac_event(priv->netdev, &priv->dfs_chandef,
+				   NL80211_RADAR_CAC_ABORTED, GFP_KERNEL);
+	}
+}
+
+/* This function handles channel report event from FW during CAC period.
+ * If radar is detected during CAC, driver indicates the same to cfg80211
+ * and also cancels ongoing delayed work.
+ */
+int mwifiex_11h_handle_chanrpt_ready(struct mwifiex_private *priv,
+				     struct sk_buff *skb)
+{
+	struct host_cmd_ds_chan_rpt_event *rpt_event;
+	struct mwifiex_ie_types_chan_rpt_data *rpt;
+	u8 *evt_buf;
+	u16 event_len, tlv_len;
+
+	rpt_event = (void *)(skb->data + sizeof(u32));
+	event_len = skb->len - (sizeof(struct host_cmd_ds_chan_rpt_event)+
+				sizeof(u32));
+
+	if (le32_to_cpu(rpt_event->result) != HostCmd_RESULT_OK) {
+		dev_err(priv->adapter->dev, "Error in channel report event\n");
+		return -1;
+	}
+
+	evt_buf = (void *)&rpt_event->tlvbuf;
+
+	while (event_len >= sizeof(struct mwifiex_ie_types_header)) {
+		rpt = (void *)&rpt_event->tlvbuf;
+		tlv_len = le16_to_cpu(rpt->header.len);
+
+		switch (le16_to_cpu(rpt->header.type)) {
+		case TLV_TYPE_CHANRPT_11H_BASIC:
+			if (rpt->map.radar) {
+				dev_notice(priv->adapter->dev,
+					   "RADAR Detected on channel %d!\n",
+					    priv->dfs_chandef.chan->hw_value);
+				cancel_delayed_work_sync(&priv->dfs_cac_work);
+				cfg80211_cac_event(priv->netdev,
+						   &priv->dfs_chandef,
+						   NL80211_RADAR_DETECTED,
+						   GFP_KERNEL);
+			}
+			break;
+		default:
+			break;
+		}
+
+		evt_buf += (tlv_len + sizeof(rpt->header));
+		event_len -= (tlv_len + sizeof(rpt->header));
+	}
+
+	return 0;
+}
+
+/* Handler for radar detected event from FW.*/
+int mwifiex_11h_handle_radar_detected(struct mwifiex_private *priv,
+				      struct sk_buff *skb)
+{
+	struct mwifiex_radar_det_event *rdr_event;
+
+	rdr_event = (void *)(skb->data + sizeof(u32));
+
+	if (le32_to_cpu(rdr_event->passed)) {
+		dev_notice(priv->adapter->dev,
+			   "radar detected; indicating kernel\n");
+		cfg80211_radar_event(priv->adapter->wiphy, &priv->dfs_chandef,
+				     GFP_KERNEL);
+		dev_dbg(priv->adapter->dev, "regdomain: %d\n",
+			rdr_event->reg_domain);
+		dev_dbg(priv->adapter->dev, "radar detection type: %d\n",
+			rdr_event->det_type);
+	} else {
+		dev_dbg(priv->adapter->dev, "false radar detection event!\n");
+	}
+
+	return 0;
+}
+
+/* This is work queue function for channel switch handling.
+ * This function takes care of updating new channel definitin to
+ * bss config structure, restart AP and indicate channel switch success
+ * to cfg80211.
+ */
+void mwifiex_dfs_chan_sw_work_queue(struct work_struct *work)
+{
+	struct mwifiex_uap_bss_param *bss_cfg;
+	struct delayed_work *delayed_work =
+			container_of(work, struct delayed_work, work);
+	struct mwifiex_private *priv =
+			container_of(delayed_work, struct mwifiex_private,
+				     dfs_chan_sw_work);
+
+	if (WARN_ON(!priv))
+		return;
+
+	bss_cfg = &priv->bss_cfg;
+	if (!bss_cfg->beacon_period) {
+		dev_err(priv->adapter->dev,
+			"channel switch: AP already stopped\n");
+		return;
+	}
+
+	mwifiex_uap_set_channel(bss_cfg, priv->dfs_chandef);
+
+	if (mwifiex_config_start_uap(priv, bss_cfg)) {
+		dev_dbg(priv->adapter->dev,
+			"Failed to start AP after channel switch\n");
+		return;
+	}
+
+	dev_notice(priv->adapter->dev,
+		   "indicating channel switch completion to kernel\n");
+	cfg80211_ch_switch_notify(priv->netdev, &priv->dfs_chandef);
 }

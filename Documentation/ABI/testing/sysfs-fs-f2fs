@@ -74,3 +74,9 @@ Date:		March 2014
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:
 		 Controls the memory footprint used by f2fs.
+
+What:		/sys/fs/f2fs/<disk>/trim_sections
+Date:		February 2015
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the trimming rate in batch mode.

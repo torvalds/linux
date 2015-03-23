@@ -251,4 +251,19 @@
 /* HDMI blocks at 0x7030, 0x7c30, 0x10830, 0x11430, 0x12030, 0x12c30 */
 #define EVERGREEN_HDMI_BASE				0x7030
 
+/* Display Port block */
+#define EVERGREEN_DP_SEC_CNTL                           0x7280
+#       define EVERGREEN_DP_SEC_STREAM_ENABLE           (1 << 0)
+#       define EVERGREEN_DP_SEC_ASP_ENABLE              (1 << 4)
+#       define EVERGREEN_DP_SEC_ATP_ENABLE              (1 << 8)
+#       define EVERGREEN_DP_SEC_AIP_ENABLE              (1 << 12)
+#       define EVERGREEN_DP_SEC_GSP_ENABLE              (1 << 20)
+#       define EVERGREEN_DP_SEC_AVI_ENABLE              (1 << 24)
+#       define EVERGREEN_DP_SEC_MPG_ENABLE              (1 << 28)
+#define EVERGREEN_DP_SEC_TIMESTAMP                      0x72a4
+#       define EVERGREEN_DP_SEC_TIMESTAMP_MODE(x)       (((x) & 0x3) << 0)
+#define EVERGREEN_DP_SEC_AUD_N                          0x7294
+#       define EVERGREEN_DP_SEC_N_BASE_MULTIPLE(x)      (((x) & 0xf) << 24)
+#       define EVERGREEN_DP_SEC_SS_EN                   (1 << 28)
+
 #endif

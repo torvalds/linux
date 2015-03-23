@@ -21,6 +21,7 @@ struct rmobile_pm_domain {
 	struct dev_power_governor *gov;
 	int (*suspend)(void);
 	void (*resume)(void);
+	void __iomem *base;
 	unsigned int bit_shift;
 	bool no_debug;
 };
@@ -36,7 +37,7 @@ struct pm_domain_device {
 	struct platform_device *pdev;
 };
 
-#ifdef CONFIG_PM_RMOBILE
+#if defined(CONFIG_PM_RMOBILE) && defined(CONFIG_ARCH_SHMOBILE_LEGACY)
 extern void rmobile_init_domains(struct rmobile_pm_domain domains[], int num);
 extern void rmobile_add_device_to_domain_td(const char *domain_name,
 					    struct platform_device *pdev,

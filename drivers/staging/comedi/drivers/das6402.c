@@ -20,8 +20,8 @@
 /*
  * Driver: das6402
  * Description: Keithley Metrabyte DAS6402 (& compatibles)
- * Devices: (Keithley Metrabyte) DAS6402-12 (das6402-12)
- *	    (Keithley Metrabyte) DAS6402-16 (das6402-16)
+ * Devices: [Keithley Metrabyte] DAS6402-12 (das6402-12),
+ *   DAS6402-16 (das6402-16)
  * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
  * Updated: Fri, 14 Mar 2014 10:18:43 -0700
  * Status: unknown

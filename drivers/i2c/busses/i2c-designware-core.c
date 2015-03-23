@@ -170,10 +170,10 @@ u32 dw_readl(struct dw_i2c_dev *dev, int offset)
 	u32 value;
 
 	if (dev->accessor_flags & ACCESS_16BIT)
-		value = readw(dev->base + offset) |
-			(readw(dev->base + offset + 2) << 16);
+		value = readw_relaxed(dev->base + offset) |
+			(readw_relaxed(dev->base + offset + 2) << 16);
 	else
-		value = readl(dev->base + offset);
+		value = readl_relaxed(dev->base + offset);
 
 	if (dev->accessor_flags & ACCESS_SWAP)
 		return swab32(value);
@@ -187,10 +187,10 @@ void dw_writel(struct dw_i2c_dev *dev, u32 b, int offset)
 		b = swab32(b);
 
 	if (dev->accessor_flags & ACCESS_16BIT) {
-		writew((u16)b, dev->base + offset);
-		writew((u16)(b >> 16), dev->base + offset + 2);
+		writew_relaxed((u16)b, dev->base + offset);
+		writew_relaxed((u16)(b >> 16), dev->base + offset + 2);
 	} else {
-		writel(b, dev->base + offset);
+		writel_relaxed(b, dev->base + offset);
 	}
 }
 
@@ -285,6 +285,15 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	u32 hcnt, lcnt;
 	u32 reg;
 	u32 sda_falling_time, scl_falling_time;
+	int ret;
+
+	if (dev->acquire_lock) {
+		ret = dev->acquire_lock(dev);
+		if (ret) {
+			dev_err(dev->dev, "couldn't acquire bus ownership\n");
+			return ret;
+		}
+	}
 
 	input_clock_khz = dev->get_clk_rate_khz(dev);
 
@@ -298,6 +307,8 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
 		dev_err(dev->dev, "Unknown Synopsys component type: "
 			"0x%08x\n", reg);
+		if (dev->release_lock)
+			dev->release_lock(dev);
 		return -ENODEV;
 	}
 
@@ -309,40 +320,39 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	sda_falling_time = dev->sda_falling_time ?: 300; /* ns */
 	scl_falling_time = dev->scl_falling_time ?: 300; /* ns */
 
-	/* Standard-mode */
-	hcnt = i2c_dw_scl_hcnt(input_clock_khz,
-				4000,	/* tHD;STA = tHIGH = 4.0 us */
-				sda_falling_time,
-				0,	/* 0: DW default, 1: Ideal */
-				0);	/* No offset */
-	lcnt = i2c_dw_scl_lcnt(input_clock_khz,
-				4700,	/* tLOW = 4.7 us */
-				scl_falling_time,
-				0);	/* No offset */
-
-	/* Allow platforms to specify the ideal HCNT and LCNT values */
+	/* Set SCL timing parameters for standard-mode */
 	if (dev->ss_hcnt && dev->ss_lcnt) {
 		hcnt = dev->ss_hcnt;
 		lcnt = dev->ss_lcnt;
+	} else {
+		hcnt = i2c_dw_scl_hcnt(input_clock_khz,
+					4000,	/* tHD;STA = tHIGH = 4.0 us */
+					sda_falling_time,
+					0,	/* 0: DW default, 1: Ideal */
+					0);	/* No offset */
+		lcnt = i2c_dw_scl_lcnt(input_clock_khz,
+					4700,	/* tLOW = 4.7 us */
+					scl_falling_time,
+					0);	/* No offset */
 	}
 	dw_writel(dev, hcnt, DW_IC_SS_SCL_HCNT);
 	dw_writel(dev, lcnt, DW_IC_SS_SCL_LCNT);
 	dev_dbg(dev->dev, "Standard-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
 
-	/* Fast-mode */
-	hcnt = i2c_dw_scl_hcnt(input_clock_khz,
-				600,	/* tHD;STA = tHIGH = 0.6 us */
-				sda_falling_time,
-				0,	/* 0: DW default, 1: Ideal */
-				0);	/* No offset */
-	lcnt = i2c_dw_scl_lcnt(input_clock_khz,
-				1300,	/* tLOW = 1.3 us */
-				scl_falling_time,
-				0);	/* No offset */
-
+	/* Set SCL timing parameters for fast-mode */
 	if (dev->fs_hcnt && dev->fs_lcnt) {
 		hcnt = dev->fs_hcnt;
 		lcnt = dev->fs_lcnt;
+	} else {
+		hcnt = i2c_dw_scl_hcnt(input_clock_khz,
+					600,	/* tHD;STA = tHIGH = 0.6 us */
+					sda_falling_time,
+					0,	/* 0: DW default, 1: Ideal */
+					0);	/* No offset */
+		lcnt = i2c_dw_scl_lcnt(input_clock_khz,
+					1300,	/* tLOW = 1.3 us */
+					scl_falling_time,
+					0);	/* No offset */
 	}
 	dw_writel(dev, hcnt, DW_IC_FS_SCL_HCNT);
 	dw_writel(dev, lcnt, DW_IC_FS_SCL_LCNT);
@@ -364,6 +374,9 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 
 	/* configure the i2c master */
 	dw_writel(dev, dev->master_cfg , DW_IC_CON);
+
+	if (dev->release_lock)
+		dev->release_lock(dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(i2c_dw_init);
@@ -627,6 +640,14 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	dev->abort_source = 0;
 	dev->rx_outstanding = 0;
 
+	if (dev->acquire_lock) {
+		ret = dev->acquire_lock(dev);
+		if (ret) {
+			dev_err(dev->dev, "couldn't acquire bus ownership\n");
+			goto done_nolock;
+		}
+	}
+
 	ret = i2c_dw_wait_bus_not_busy(dev);
 	if (ret < 0)
 		goto done;
@@ -672,6 +693,10 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	ret = -EIO;
 
 done:
+	if (dev->release_lock)
+		dev->release_lock(dev);
+
+done_nolock:
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 	mutex_unlock(&dev->lock);

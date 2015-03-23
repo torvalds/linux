@@ -78,7 +78,7 @@ static int allow_vf_ioctls;
 module_param(allow_vf_ioctls, int, S_IRUGO);
 MODULE_PARM_DESC(allow_vf_ioctls, "Allow ioctls in SR-IOV VF mode. Default: 0");
 
-static int throttlequeuedepth = MEGASAS_THROTTLE_QUEUE_DEPTH;
+static unsigned int throttlequeuedepth = MEGASAS_THROTTLE_QUEUE_DEPTH;
 module_param(throttlequeuedepth, int, S_IRUGO);
 MODULE_PARM_DESC(throttlequeuedepth,
 	"Adapter queue depth when throttled due to I/O timeout. Default: 16");
@@ -1417,16 +1417,15 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 }
 
 /**
- * megasas_is_ldio -		Checks if the cmd is for logical drive
+ * megasas_cmd_type -		Checks if the cmd is for logical drive/sysPD
+ *				and whether it's RW or non RW
  * @scmd:			SCSI command
  *
- * Called by megasas_queue_command to find out if the command to be queued
- * is a logical drive command
  */
-inline int megasas_is_ldio(struct scsi_cmnd *cmd)
+inline int megasas_cmd_type(struct scsi_cmnd *cmd)
 {
-	if (!MEGASAS_IS_LOGICAL(cmd))
-		return 0;
+	int ret;
+
 	switch (cmd->cmnd[0]) {
 	case READ_10:
 	case WRITE_10:
@@ -1436,10 +1435,14 @@ inline int megasas_is_ldio(struct scsi_cmnd *cmd)
 	case WRITE_6:
 	case READ_16:
 	case WRITE_16:
-		return 1;
+		ret = (MEGASAS_IS_LOGICAL(cmd)) ?
+			READ_WRITE_LDIO : READ_WRITE_SYSPDIO;
+		break;
 	default:
-		return 0;
+		ret = (MEGASAS_IS_LOGICAL(cmd)) ?
+			NON_READ_WRITE_LDIO : NON_READ_WRITE_SYSPDIO;
 	}
+	return ret;
 }
 
  /**
@@ -1471,7 +1474,7 @@ megasas_dump_pending_frames(struct megasas_instance *instance)
 		if(!cmd->scmd)
 			continue;
 		printk(KERN_ERR "megasas[%d]: Frame addr :0x%08lx : ",instance->host->host_no,(unsigned long)cmd->frame_phys_addr);
-		if (megasas_is_ldio(cmd->scmd)){
+		if (megasas_cmd_type(cmd->scmd) == READ_WRITE_LDIO) {
 			ldio = (struct megasas_io_frame *)cmd->frame;
 			mfi_sgl = &ldio->sgl;
 			sgcount = ldio->sge_count;
@@ -1531,7 +1534,7 @@ megasas_build_and_issue_cmd(struct megasas_instance *instance,
 	/*
 	 * Logical drive command
 	 */
-	if (megasas_is_ldio(scmd))
+	if (megasas_cmd_type(scmd) == READ_WRITE_LDIO)
 		frame_count = megasas_build_ldio(instance, scmd, cmd);
 	else
 		frame_count = megasas_build_dcdb(instance, scmd, cmd);
@@ -1689,22 +1692,66 @@ static int megasas_slave_alloc(struct scsi_device *sdev)
 	return 0;
 }
 
+/*
+* megasas_complete_outstanding_ioctls - Complete outstanding ioctls after a
+*                                       kill adapter
+* @instance:				Adapter soft state
+*
+*/
+void megasas_complete_outstanding_ioctls(struct megasas_instance *instance)
+{
+	int i;
+	struct megasas_cmd *cmd_mfi;
+	struct megasas_cmd_fusion *cmd_fusion;
+	struct fusion_context *fusion = instance->ctrl_context;
+
+	/* Find all outstanding ioctls */
+	if (fusion) {
+		for (i = 0; i < instance->max_fw_cmds; i++) {
+			cmd_fusion = fusion->cmd_list[i];
+			if (cmd_fusion->sync_cmd_idx != (u32)ULONG_MAX) {
+				cmd_mfi = instance->cmd_list[cmd_fusion->sync_cmd_idx];
+				if (cmd_mfi->sync_cmd &&
+					cmd_mfi->frame->hdr.cmd != MFI_CMD_ABORT)
+					megasas_complete_cmd(instance,
+							     cmd_mfi, DID_OK);
+			}
+		}
+	} else {
+		for (i = 0; i < instance->max_fw_cmds; i++) {
+			cmd_mfi = instance->cmd_list[i];
+			if (cmd_mfi->sync_cmd && cmd_mfi->frame->hdr.cmd !=
+				MFI_CMD_ABORT)
+				megasas_complete_cmd(instance, cmd_mfi, DID_OK);
+		}
+	}
+}
+
+
 void megaraid_sas_kill_hba(struct megasas_instance *instance)
 {
+	/* Set critical error to block I/O & ioctls in case caller didn't */
+	instance->adprecovery = MEGASAS_HW_CRITICAL_ERROR;
+	/* Wait 1 second to ensure IO or ioctls in build have posted */
+	msleep(1000);
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
-		writel(MFI_STOP_ADP, &instance->reg_set->doorbell);
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
+		writel(MFI_STOP_ADP,
+			&instance->reg_set->doorbell);
 		/* Flush */
 		readl(&instance->reg_set->doorbell);
 		if (instance->mpio && instance->requestorId)
 			memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
 	} else {
-		writel(MFI_STOP_ADP, &instance->reg_set->inbound_doorbell);
+		writel(MFI_STOP_ADP,
+			&instance->reg_set->inbound_doorbell);
 	}
+	/* Complete outstanding ioctls when adapter is killed */
+	megasas_complete_outstanding_ioctls(instance);
 }
 
  /**
@@ -1717,6 +1764,7 @@ void
 megasas_check_and_restore_queue_depth(struct megasas_instance *instance)
 {
 	unsigned long flags;
+
 	if (instance->flag & MEGASAS_FW_BUSY
 	    && time_after(jiffies, instance->last_time + 5 * HZ)
 	    && atomic_read(&instance->fw_outstanding) <
@@ -1724,13 +1772,8 @@ megasas_check_and_restore_queue_depth(struct megasas_instance *instance)
 
 		spin_lock_irqsave(instance->host->host_lock, flags);
 		instance->flag &= ~MEGASAS_FW_BUSY;
-		if (instance->is_imr) {
-			instance->host->can_queue =
-				instance->max_fw_cmds - MEGASAS_SKINNY_INT_CMDS;
-		} else
-			instance->host->can_queue =
-				instance->max_fw_cmds - MEGASAS_INT_CMDS;
 
+		instance->host->can_queue = instance->max_scsi_cmds;
 		spin_unlock_irqrestore(instance->host->host_lock, flags);
 	}
 }
@@ -3028,10 +3071,9 @@ megasas_issue_pending_cmds_again(struct megasas_instance *instance)
 					"was tried multiple times during reset."
 					"Shutting down the HBA\n",
 					cmd, cmd->scmd, cmd->sync_cmd);
+				instance->instancet->disable_intr(instance);
+				atomic_set(&instance->fw_reset_no_pci_access, 1);
 				megaraid_sas_kill_hba(instance);
-
-				instance->adprecovery =
-						MEGASAS_HW_CRITICAL_ERROR;
 				return;
 			}
 		}
@@ -3165,8 +3207,8 @@ process_fw_state_change_wq(struct work_struct *work)
 		if (megasas_transition_to_ready(instance, 1)) {
 			printk(KERN_NOTICE "megaraid_sas:adapter not ready\n");
 
+			atomic_set(&instance->fw_reset_no_pci_access, 1);
 			megaraid_sas_kill_hba(instance);
-			instance->adprecovery	= MEGASAS_HW_CRITICAL_ERROR;
 			return ;
 		}
 
@@ -3547,7 +3589,6 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 	int i;
 	u32 max_cmd;
 	u32 sge_sz;
-	u32 sgl_sz;
 	u32 total_sz;
 	u32 frame_count;
 	struct megasas_cmd *cmd;
@@ -3566,24 +3607,23 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 	}
 
 	/*
-	 * Calculated the number of 64byte frames required for SGL
+	 * For MFI controllers.
+	 * max_num_sge = 60
+	 * max_sge_sz  = 16 byte (sizeof megasas_sge_skinny)
+	 * Total 960 byte (15 MFI frame of 64 byte)
+	 *
+	 * Fusion adapter require only 3 extra frame.
+	 * max_num_sge = 16 (defined as MAX_IOCTL_SGE)
+	 * max_sge_sz  = 12 byte (sizeof  megasas_sge64)
+	 * Total 192 byte (3 MFI frame of 64 byte)
 	 */
-	sgl_sz = sge_sz * instance->max_num_sge;
-	frame_count = (sgl_sz + MEGAMFI_FRAME_SIZE - 1) / MEGAMFI_FRAME_SIZE;
-	frame_count = 15;
-
-	/*
-	 * We need one extra frame for the MFI command
-	 */
-	frame_count++;
-
+	frame_count = instance->ctrl_context ? (3 + 1) : (15 + 1);
 	total_sz = MEGAMFI_FRAME_SIZE * frame_count;
 	/*
 	 * Use DMA pool facility provided by PCI layer
 	 */
 	instance->frame_dma_pool = pci_pool_create("megasas frame pool",
-						   instance->pdev, total_sz, 64,
-						   0);
+					instance->pdev, total_sz, 256, 0);
 
 	if (!instance->frame_dma_pool) {
 		printk(KERN_DEBUG "megasas: failed to setup frame pool\n");
@@ -4631,27 +4671,47 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				instance->crash_dump_h);
 		instance->crash_dump_buf = NULL;
 	}
+
+	instance->secure_jbod_support =
+		ctrl_info->adapterOperations3.supportSecurityonJBOD;
+	if (instance->secure_jbod_support)
+		dev_info(&instance->pdev->dev, "Firmware supports Secure JBOD\n");
 	instance->max_sectors_per_req = instance->max_num_sge *
 						PAGE_SIZE / 512;
 	if (tmp_sectors && (instance->max_sectors_per_req > tmp_sectors))
 		instance->max_sectors_per_req = tmp_sectors;
 
-	/* Check for valid throttlequeuedepth module parameter */
-	if (instance->is_imr) {
-		if (throttlequeuedepth > (instance->max_fw_cmds -
-					  MEGASAS_SKINNY_INT_CMDS))
-			instance->throttlequeuedepth =
-				MEGASAS_THROTTLE_QUEUE_DEPTH;
-		else
-			instance->throttlequeuedepth = throttlequeuedepth;
+	/*
+	 * 1. For fusion adapters, 3 commands for IOCTL and 5 commands
+	 *    for driver's internal DCMDs.
+	 * 2. For MFI skinny adapters, 5 commands for IOCTL + driver's
+	 *    internal DCMDs.
+	 * 3. For rest of MFI adapters, 27 commands reserved for IOCTLs
+	 *    and 5 commands for drivers's internal DCMD.
+	 */
+	if (instance->ctrl_context) {
+		instance->max_scsi_cmds = instance->max_fw_cmds -
+					(MEGASAS_FUSION_INTERNAL_CMDS +
+					MEGASAS_FUSION_IOCTL_CMDS);
+		sema_init(&instance->ioctl_sem, MEGASAS_FUSION_IOCTL_CMDS);
+	} else if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+		instance->max_scsi_cmds = instance->max_fw_cmds -
+						MEGASAS_SKINNY_INT_CMDS;
+		sema_init(&instance->ioctl_sem, MEGASAS_SKINNY_INT_CMDS);
 	} else {
-		if (throttlequeuedepth > (instance->max_fw_cmds -
-					  MEGASAS_INT_CMDS))
-			instance->throttlequeuedepth =
-				MEGASAS_THROTTLE_QUEUE_DEPTH;
-		else
-			instance->throttlequeuedepth = throttlequeuedepth;
+		instance->max_scsi_cmds = instance->max_fw_cmds -
+						MEGASAS_INT_CMDS;
+		sema_init(&instance->ioctl_sem, (MEGASAS_INT_CMDS - 5));
 	}
+
+	/* Check for valid throttlequeuedepth module parameter */
+	if (throttlequeuedepth &&
+			throttlequeuedepth <= instance->max_scsi_cmds)
+		instance->throttlequeuedepth = throttlequeuedepth;
+	else
+		instance->throttlequeuedepth =
+				MEGASAS_THROTTLE_QUEUE_DEPTH;
 
         /*
 	* Setup tasklet for cmd completion
@@ -4947,12 +5007,7 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	 */
 	host->irq = instance->pdev->irq;
 	host->unique_id = instance->unique_id;
-	if (instance->is_imr) {
-		host->can_queue =
-			instance->max_fw_cmds - MEGASAS_SKINNY_INT_CMDS;
-	} else
-		host->can_queue =
-			instance->max_fw_cmds - MEGASAS_INT_CMDS;
+	host->can_queue = instance->max_scsi_cmds;
 	host->this_id = instance->init_id;
 	host->sg_tablesize = instance->max_num_sge;
 
@@ -5130,8 +5185,6 @@ static int megasas_probe_one(struct pci_dev *pdev,
 			((1 << PAGE_SHIFT) << instance->ctrl_context_pages));
 		INIT_LIST_HEAD(&fusion->cmd_pool);
 		spin_lock_init(&fusion->mpt_pool_lock);
-		memset(fusion->load_balance_info, 0,
-			sizeof(struct LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES_EXT);
 	}
 	break;
 	default: /* For all other supported controllers */
@@ -5215,12 +5268,10 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->init_id = MEGASAS_DEFAULT_INIT_ID;
 	instance->ctrl_info = NULL;
 
+
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY)) {
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY))
 		instance->flag_ieee = 1;
-		sema_init(&instance->ioctl_sem, MEGASAS_SKINNY_INT_CMDS);
-	} else
-		sema_init(&instance->ioctl_sem, (MEGASAS_INT_CMDS - 5));
 
 	megasas_dbg_lvl = 0;
 	instance->flag = 0;
@@ -6215,9 +6266,6 @@ static int megasas_mgmt_ioctl_fw(struct file *file, unsigned long arg)
 		goto out_kfree_ioc;
 	}
 
-	/*
-	 * We will allow only MEGASAS_INT_CMDS number of parallel ioctl cmds
-	 */
 	if (down_interruptible(&instance->ioctl_sem)) {
 		error = -ERESTARTSYS;
 		goto out_kfree_ioc;

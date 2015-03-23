@@ -62,12 +62,6 @@ static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
 	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
 }
 
-static struct backing_dev_info hugetlbfs_backing_dev_info = {
-	.name		= "hugetlbfs",
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-};
-
 int sysctl_hugetlb_shm_group;
 
 enum {
@@ -498,7 +492,6 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
 				&hugetlbfs_i_mmap_rwsem_key);
 		inode->i_mapping->a_ops = &hugetlbfs_aops;
-		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_mapping->private_data = resv_map;
 		info = HUGETLBFS_I(inode);
@@ -1032,10 +1025,6 @@ static int __init init_hugetlbfs_fs(void)
 		return -ENOTSUPP;
 	}
 
-	error = bdi_init(&hugetlbfs_backing_dev_info);
-	if (error)
-		return error;
-
 	error = -ENOMEM;
 	hugetlbfs_inode_cachep = kmem_cache_create("hugetlbfs_inode_cache",
 					sizeof(struct hugetlbfs_inode_info),
@@ -1071,7 +1060,6 @@ static int __init init_hugetlbfs_fs(void)
  out:
 	kmem_cache_destroy(hugetlbfs_inode_cachep);
  out2:
-	bdi_destroy(&hugetlbfs_backing_dev_info);
 	return error;
 }
 
@@ -1091,7 +1079,6 @@ static void __exit exit_hugetlbfs_fs(void)
 	for_each_hstate(h)
 		kern_unmount(hugetlbfs_vfsmount[i++]);
 	unregister_filesystem(&hugetlbfs_fs_type);
-	bdi_destroy(&hugetlbfs_backing_dev_info);
 }
 
 module_init(init_hugetlbfs_fs)

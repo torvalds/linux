@@ -108,26 +108,47 @@ int adf_service_unregister(struct service_hndl *service)
 EXPORT_SYMBOL_GPL(adf_service_unregister);
 
 /**
- * adf_dev_start() - Start acceleration service for the given accel device
- * @accel_dev:    Pointer to acceleration device.
+ * adf_dev_init() - Init data structures and services for the given accel device
+ * @accel_dev: Pointer to acceleration device.
  *
- * Function notifies all the registered services that the acceleration device
- * is ready to be used.
- * To be used by QAT device specific drivers.
+ * Initialize the ring data structures and the admin comms and arbitration
+ * services.
  *
  * Return: 0 on success, error code othewise.
  */
-int adf_dev_start(struct adf_accel_dev *accel_dev)
+int adf_dev_init(struct adf_accel_dev *accel_dev)
 {
 	struct service_hndl *service;
 	struct list_head *list_itr;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 
+	if (!hw_data) {
+		dev_err(&GET_DEV(accel_dev),
+			"QAT: Failed to init device - hw_data not set\n");
+		return -EFAULT;
+	}
+
 	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status)) {
 		pr_info("QAT: Device not configured\n");
 		return -EFAULT;
 	}
-	set_bit(ADF_STATUS_STARTING, &accel_dev->status);
+
+	if (adf_init_etr_data(accel_dev)) {
+		dev_err(&GET_DEV(accel_dev), "Failed initialize etr\n");
+		return -EFAULT;
+	}
+
+	if (hw_data->init_admin_comms && hw_data->init_admin_comms(accel_dev)) {
+		dev_err(&GET_DEV(accel_dev), "Failed initialize admin comms\n");
+		return -EFAULT;
+	}
+
+	if (hw_data->init_arb && hw_data->init_arb(accel_dev)) {
+		dev_err(&GET_DEV(accel_dev), "Failed initialize hw arbiter\n");
+		return -EFAULT;
+	}
+
+	hw_data->enable_ints(accel_dev);
 
 	if (adf_ae_init(accel_dev)) {
 		pr_err("QAT: Failed to initialise Acceleration Engine\n");
@@ -177,6 +198,27 @@ int adf_dev_start(struct adf_accel_dev *accel_dev)
 	}
 
 	hw_data->enable_error_correction(accel_dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_dev_init);
+
+/**
+ * adf_dev_start() - Start acceleration service for the given accel device
+ * @accel_dev:    Pointer to acceleration device.
+ *
+ * Function notifies all the registered services that the acceleration device
+ * is ready to be used.
+ * To be used by QAT device specific drivers.
+ *
+ * Return: 0 on success, error code othewise.
+ */
+int adf_dev_start(struct adf_accel_dev *accel_dev)
+{
+	struct service_hndl *service;
+	struct list_head *list_itr;
+
+	set_bit(ADF_STATUS_STARTING, &accel_dev->status);
 
 	if (adf_ae_start(accel_dev)) {
 		pr_err("QAT: AE Start Failed\n");
@@ -232,16 +274,15 @@ EXPORT_SYMBOL_GPL(adf_dev_start);
  */
 int adf_dev_stop(struct adf_accel_dev *accel_dev)
 {
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
 	struct list_head *list_itr;
-	int ret, wait = 0;
+	bool wait = false;
+	int ret;
 
 	if (!adf_dev_started(accel_dev) &&
 	    !test_bit(ADF_STATUS_STARTING, &accel_dev->status)) {
 		return 0;
 	}
-	clear_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 
@@ -258,7 +299,7 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 		if (!ret) {
 			clear_bit(accel_dev->accel_id, &service->start_status);
 		} else if (ret == -EAGAIN) {
-			wait = 1;
+			wait = true;
 			clear_bit(accel_dev->accel_id, &service->start_status);
 		}
 	}
@@ -278,11 +319,34 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 	if (wait)
 		msleep(100);
 
-	if (adf_dev_started(accel_dev)) {
+	if (test_bit(ADF_STATUS_AE_STARTED, &accel_dev->status)) {
 		if (adf_ae_stop(accel_dev))
 			pr_err("QAT: failed to stop AE\n");
 		else
 			clear_bit(ADF_STATUS_AE_STARTED, &accel_dev->status);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_dev_stop);
+
+/**
+ * adf_dev_shutdown() - shutdown acceleration services and data strucutures
+ * @accel_dev: Pointer to acceleration device
+ *
+ * Cleanup the ring data structures and the admin comms and arbitration
+ * services.
+ */
+void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct service_hndl *service;
+	struct list_head *list_itr;
+
+	if (!hw_data) {
+		dev_err(&GET_DEV(accel_dev),
+			"QAT: Failed to shutdown device - hw_data not set\n");
+		return;
 	}
 
 	if (test_bit(ADF_STATUS_AE_UCODE_LOADED, &accel_dev->status)) {
@@ -335,9 +399,15 @@ int adf_dev_stop(struct adf_accel_dev *accel_dev)
 	if (!test_bit(ADF_STATUS_RESTARTING, &accel_dev->status))
 		adf_cfg_del_all(accel_dev);
 
-	return 0;
+	if (hw_data->exit_arb)
+		hw_data->exit_arb(accel_dev);
+
+	if (hw_data->exit_admin_comms)
+		hw_data->exit_admin_comms(accel_dev);
+
+	adf_cleanup_etr_data(accel_dev);
 }
-EXPORT_SYMBOL_GPL(adf_dev_stop);
+EXPORT_SYMBOL_GPL(adf_dev_shutdown);
 
 int adf_dev_restarting_notify(struct adf_accel_dev *accel_dev)
 {

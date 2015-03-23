@@ -232,8 +232,9 @@ static int proc_debug_mb(struct ctl_table *table, int write,
 				 __proc_debug_mb);
 }
 
-int proc_console_max_delay_cs(struct ctl_table *table, int write,
-			      void __user *buffer, size_t *lenp, loff_t *ppos)
+static int proc_console_max_delay_cs(struct ctl_table *table, int write,
+				     void __user *buffer, size_t *lenp,
+				     loff_t *ppos)
 {
 	int rc, max_delay_cs;
 	struct ctl_table dummy = *table;
@@ -264,8 +265,9 @@ int proc_console_max_delay_cs(struct ctl_table *table, int write,
 	return rc;
 }
 
-int proc_console_min_delay_cs(struct ctl_table *table, int write,
-			      void __user *buffer, size_t *lenp, loff_t *ppos)
+static int proc_console_min_delay_cs(struct ctl_table *table, int write,
+				     void __user *buffer, size_t *lenp,
+				     loff_t *ppos)
 {
 	int rc, min_delay_cs;
 	struct ctl_table dummy = *table;
@@ -296,8 +298,8 @@ int proc_console_min_delay_cs(struct ctl_table *table, int write,
 	return rc;
 }
 
-int proc_console_backoff(struct ctl_table *table, int write,
-			 void __user *buffer, size_t *lenp, loff_t *ppos)
+static int proc_console_backoff(struct ctl_table *table, int write,
+				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int rc, backoff;
 	struct ctl_table dummy = *table;
@@ -324,16 +326,18 @@ int proc_console_backoff(struct ctl_table *table, int write,
 	return rc;
 }
 
-int libcfs_force_lbug(struct ctl_table *table, int write, void __user *buffer,
-		      size_t *lenp, loff_t *ppos)
+static int libcfs_force_lbug(struct ctl_table *table, int write,
+			     void __user *buffer,
+			     size_t *lenp, loff_t *ppos)
 {
 	if (write)
 		LBUG();
 	return 0;
 }
 
-int proc_fail_loc(struct ctl_table *table, int write, void __user *buffer,
-		  size_t *lenp, loff_t *ppos)
+static int proc_fail_loc(struct ctl_table *table, int write,
+			 void __user *buffer,
+			 size_t *lenp, loff_t *ppos)
 {
 	int rc;
 	long old_fail_loc = cfs_fail_loc;

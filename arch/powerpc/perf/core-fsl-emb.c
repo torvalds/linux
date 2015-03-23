@@ -330,9 +330,11 @@ static int fsl_emb_pmu_add(struct perf_event *event, int flags)
 	}
 	local64_set(&event->hw.prev_count, val);
 
-	if (!(flags & PERF_EF_START)) {
+	if (unlikely(!(flags & PERF_EF_START))) {
 		event->hw.state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 		val = 0;
+	} else {
+		event->hw.state &= ~(PERF_HES_STOPPED | PERF_HES_UPTODATE);
 	}
 
 	write_pmc(i, val);
@@ -389,6 +391,7 @@ static void fsl_emb_pmu_del(struct perf_event *event, int flags)
 static void fsl_emb_pmu_start(struct perf_event *event, int ef_flags)
 {
 	unsigned long flags;
+	unsigned long val;
 	s64 left;
 
 	if (event->hw.idx < 0 || !event->hw.sample_period)
@@ -405,7 +408,10 @@ static void fsl_emb_pmu_start(struct perf_event *event, int ef_flags)
 
 	event->hw.state = 0;
 	left = local64_read(&event->hw.period_left);
-	write_pmc(event->hw.idx, left);
+	val = 0;
+	if (left < 0x80000000L)
+		val = 0x80000000L - left;
+	write_pmc(event->hw.idx, val);
 
 	perf_event_update_userpage(event);
 	perf_pmu_enable(event->pmu);

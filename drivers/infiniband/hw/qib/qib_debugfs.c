@@ -255,7 +255,6 @@ void qib_dbg_ibdev_init(struct qib_ibdev *ibd)
 	DEBUGFS_FILE_CREATE(opcode_stats);
 	DEBUGFS_FILE_CREATE(ctx_stats);
 	DEBUGFS_FILE_CREATE(qp_stats);
-	return;
 }
 
 void qib_dbg_ibdev_exit(struct qib_ibdev *ibd)

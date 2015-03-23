@@ -539,7 +539,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 			spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 			dev_dbg(dev->class_dev, "fifo overflow\n");
 			outb(0, dev->iobase + PCI9111_INT_CLR_REG);
-			async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+			async->events |= COMEDI_CB_ERROR;
 			comedi_handle_events(dev, s);
 
 			return IRQ_HANDLED;

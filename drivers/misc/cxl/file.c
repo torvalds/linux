@@ -23,6 +23,7 @@
 #include <asm/copro.h>
 
 #include "cxl.h"
+#include "trace.h"
 
 #define CXL_NUM_MINORS 256 /* Total to reserve */
 #define CXL_DEV_MINORS 13   /* 1 control + 4 AFUs * 3 (dedicated/master/shared) */
@@ -186,9 +187,13 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	 */
 	ctx->pid = get_pid(get_task_pid(current, PIDTYPE_PID));
 
+	trace_cxl_attach(ctx, work.work_element_descriptor, work.num_interrupts, amr);
+
 	if ((rc = cxl_attach_process(ctx, false, work.work_element_descriptor,
-				     amr)))
+				     amr))) {
+		afu_release_irqs(ctx);
 		goto out;
+	}
 
 	ctx->status = STARTED;
 	rc = 0;

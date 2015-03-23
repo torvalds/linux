@@ -271,7 +271,7 @@ int rtsx_send_cmd(struct rtsx_chip *chip, u8 card, int timeout)
 
 	/* Wait for TRANS_OK_INT */
 	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, timeout * HZ / 1000);
+		&trans_done, msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "chip->int_reg = 0x%x\n",
 			chip->int_reg);
@@ -431,7 +431,7 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 	spin_unlock_irq(&rtsx->reg_lock);
 
 	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, timeout * HZ / 1000);
+		&trans_done, msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 			__func__, __LINE__);
@@ -455,7 +455,7 @@ static int rtsx_transfer_sglist_adma_partial(struct rtsx_chip *chip, u8 card,
 		init_completion(&trans_done);
 		spin_unlock_irq(&rtsx->reg_lock);
 		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, timeout * HZ / 1000);
+			&trans_done, msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -575,7 +575,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 		spin_unlock_irq(&rtsx->reg_lock);
 
 		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, timeout * HZ / 1000);
+			&trans_done, msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -602,7 +602,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 		init_completion(&trans_done);
 		spin_unlock_irq(&rtsx->reg_lock);
 		timeleft = wait_for_completion_interruptible_timeout(
-			&trans_done, timeout * HZ / 1000);
+			&trans_done, msecs_to_jiffies(timeout));
 		if (timeleft <= 0) {
 			dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 				__func__, __LINE__);
@@ -688,7 +688,7 @@ static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
 
 	/* Wait for TRANS_OK_INT */
 	timeleft = wait_for_completion_interruptible_timeout(
-		&trans_done, timeout * HZ / 1000);
+		&trans_done, msecs_to_jiffies(timeout));
 	if (timeleft <= 0) {
 		dev_dbg(rtsx_dev(chip), "Timeout (%s %d)\n",
 			__func__, __LINE__);

@@ -22,7 +22,7 @@
 
 /* DCBx version control
  */
-char *dcb_ver_array[] = {
+static const char * const dcb_ver_array[] = {
 	"Unknown",
 	"DCBx-CIN",
 	"DCBx-CEE 1.01",
@@ -428,7 +428,10 @@ static void cxgb4_getpgtccfg(struct net_device *dev, int tc,
 	}
 	*pgid = (be32_to_cpu(pcmd.u.dcb.pgid.pgid) >> (tc * 4)) & 0xf;
 
-	INIT_PORT_DCB_READ_PEER_CMD(pcmd, pi->port_id);
+	if (local)
+		INIT_PORT_DCB_READ_LOCAL_CMD(pcmd, pi->port_id);
+	else
+		INIT_PORT_DCB_READ_PEER_CMD(pcmd, pi->port_id);
 	pcmd.u.dcb.pgrate.type = FW_PORT_DCB_TYPE_PGRATE;
 	err = t4_wr_mbox(adap, adap->mbox, &pcmd, sizeof(pcmd), &pcmd);
 	if (err != FW_PORT_DCB_CFG_SUCCESS) {
@@ -900,6 +903,88 @@ cxgb4_ieee_negotiation_complete(struct net_device *dev,
 		(dcb->supported & DCB_CAP_DCBX_VER_IEEE));
 }
 
+static int cxgb4_ieee_read_ets(struct net_device *dev, struct ieee_ets *ets,
+			       int local)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct port_dcb_info *dcb = &pi->dcb;
+	struct adapter *adap = pi->adapter;
+	uint32_t tc_info;
+	struct fw_port_cmd pcmd;
+	int i, bwg, err;
+
+	if (!(dcb->msgs & (CXGB4_DCB_FW_PGID | CXGB4_DCB_FW_PGRATE)))
+		return 0;
+
+	ets->ets_cap =  dcb->pg_num_tcs_supported;
+
+	if (local) {
+		ets->willing = 1;
+		INIT_PORT_DCB_READ_LOCAL_CMD(pcmd, pi->port_id);
+	} else {
+		INIT_PORT_DCB_READ_PEER_CMD(pcmd, pi->port_id);
+	}
+
+	pcmd.u.dcb.pgid.type = FW_PORT_DCB_TYPE_PGID;
+	err = t4_wr_mbox(adap, adap->mbox, &pcmd, sizeof(pcmd), &pcmd);
+	if (err != FW_PORT_DCB_CFG_SUCCESS) {
+		dev_err(adap->pdev_dev, "DCB read PGID failed with %d\n", -err);
+		return err;
+	}
+
+	tc_info = be32_to_cpu(pcmd.u.dcb.pgid.pgid);
+
+	if (local)
+		INIT_PORT_DCB_READ_LOCAL_CMD(pcmd, pi->port_id);
+	else
+		INIT_PORT_DCB_READ_PEER_CMD(pcmd, pi->port_id);
+
+	pcmd.u.dcb.pgrate.type = FW_PORT_DCB_TYPE_PGRATE;
+	err = t4_wr_mbox(adap, adap->mbox, &pcmd, sizeof(pcmd), &pcmd);
+	if (err != FW_PORT_DCB_CFG_SUCCESS) {
+		dev_err(adap->pdev_dev, "DCB read PGRATE failed with %d\n",
+			-err);
+		return err;
+	}
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		bwg = (tc_info >> ((7 - i) * 4)) & 0xF;
+		ets->prio_tc[i] = bwg;
+		ets->tc_tx_bw[i] = pcmd.u.dcb.pgrate.pgrate[i];
+		ets->tc_rx_bw[i] = ets->tc_tx_bw[i];
+		ets->tc_tsa[i] = pcmd.u.dcb.pgrate.tsa[i];
+	}
+
+	return 0;
+}
+
+static int cxgb4_ieee_get_ets(struct net_device *dev, struct ieee_ets *ets)
+{
+	return cxgb4_ieee_read_ets(dev, ets, 1);
+}
+
+/* We reuse this for peer PFC as well, as we can't have it enabled one way */
+static int cxgb4_ieee_get_pfc(struct net_device *dev, struct ieee_pfc *pfc)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct port_dcb_info *dcb = &pi->dcb;
+
+	memset(pfc, 0, sizeof(struct ieee_pfc));
+
+	if (!(dcb->msgs & CXGB4_DCB_FW_PFC))
+		return 0;
+
+	pfc->pfc_cap = dcb->pfc_num_tcs_supported;
+	pfc->pfc_en = bitswap_1(dcb->pfcen);
+
+	return 0;
+}
+
+static int cxgb4_ieee_peer_ets(struct net_device *dev, struct ieee_ets *ets)
+{
+	return cxgb4_ieee_read_ets(dev, ets, 0);
+}
+
 /* Fill in the Application User Priority Map associated with the
  * specified Application.
  * Priority for IEEE dcb_app is an integer, with 0 being a valid value
@@ -1106,14 +1191,23 @@ static int cxgb4_cee_peer_getpfc(struct net_device *dev, struct cee_pfc *pfc)
 	struct port_info *pi = netdev2pinfo(dev);
 
 	cxgb4_getnumtcs(dev, DCB_NUMTCS_ATTR_PFC, &(pfc->tcs_supported));
-	pfc->pfc_en = pi->dcb.pfcen;
+
+	/* Firmware sends this to us in a formwat that is a bit flipped version
+	 * of spec, correct it before we send it to host. This is taken care of
+	 * by bit shifting in other uses of pfcen
+	 */
+	pfc->pfc_en = bitswap_1(pi->dcb.pfcen);
 
 	return 0;
 }
 
 const struct dcbnl_rtnl_ops cxgb4_dcb_ops = {
+	.ieee_getets		= cxgb4_ieee_get_ets,
+	.ieee_getpfc		= cxgb4_ieee_get_pfc,
 	.ieee_getapp		= cxgb4_ieee_getapp,
 	.ieee_setapp		= cxgb4_ieee_setapp,
+	.ieee_peer_getets	= cxgb4_ieee_peer_ets,
+	.ieee_peer_getpfc	= cxgb4_ieee_get_pfc,
 
 	/* CEE std */
 	.getstate		= cxgb4_getstate,

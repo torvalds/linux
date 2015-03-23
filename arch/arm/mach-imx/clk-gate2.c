@@ -96,15 +96,30 @@ static int clk_gate2_is_enabled(struct clk_hw *hw)
 {
 	struct clk_gate2 *gate = to_clk_gate2(hw);
 
-	if (gate->share_count)
-		return !!__clk_get_enable_count(hw->clk);
-	else
-		return clk_gate2_reg_is_enabled(gate->reg, gate->bit_idx);
+	return clk_gate2_reg_is_enabled(gate->reg, gate->bit_idx);
+}
+
+static void clk_gate2_disable_unused(struct clk_hw *hw)
+{
+	struct clk_gate2 *gate = to_clk_gate2(hw);
+	unsigned long flags = 0;
+	u32 reg;
+
+	spin_lock_irqsave(gate->lock, flags);
+
+	if (!gate->share_count || *gate->share_count == 0) {
+		reg = readl(gate->reg);
+		reg &= ~(3 << gate->bit_idx);
+		writel(reg, gate->reg);
+	}
+
+	spin_unlock_irqrestore(gate->lock, flags);
 }
 
 static struct clk_ops clk_gate2_ops = {
 	.enable = clk_gate2_enable,
 	.disable = clk_gate2_disable,
+	.disable_unused = clk_gate2_disable_unused,
 	.is_enabled = clk_gate2_is_enabled,
 };
 

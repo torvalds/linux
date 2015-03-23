@@ -46,7 +46,6 @@ struct ipu_crtc {
 	struct drm_framebuffer	*newfb;
 	int			irq;
 	u32			interface_pix_fmt;
-	unsigned long		di_clkflags;
 	int			di_hsync_pin;
 	int			di_vsync_pin;
 };
@@ -141,47 +140,51 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 			       int x, int y,
 			       struct drm_framebuffer *old_fb)
 {
+	struct drm_device *dev = crtc->dev;
+	struct drm_encoder *encoder;
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-	int ret;
 	struct ipu_di_signal_cfg sig_cfg = {};
+	unsigned long encoder_types = 0;
 	u32 out_pixel_fmt;
+	int ret;
 
 	dev_dbg(ipu_crtc->dev, "%s: mode->hdisplay: %d\n", __func__,
 			mode->hdisplay);
 	dev_dbg(ipu_crtc->dev, "%s: mode->vdisplay: %d\n", __func__,
 			mode->vdisplay);
 
-	out_pixel_fmt = ipu_crtc->interface_pix_fmt;
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		if (encoder->crtc == crtc)
+			encoder_types |= BIT(encoder->encoder_type);
 
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		sig_cfg.interlaced = 1;
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
-		sig_cfg.Hsync_pol = 1;
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		sig_cfg.Vsync_pol = 1;
+	dev_dbg(ipu_crtc->dev, "%s: attached to encoder types 0x%lx\n",
+		__func__, encoder_types);
+
+	/*
+	 * If we have DAC, TVDAC or LDB, then we need the IPU DI clock
+	 * to be the same as the LDB DI clock.
+	 */
+	if (encoder_types & (BIT(DRM_MODE_ENCODER_DAC) |
+			     BIT(DRM_MODE_ENCODER_TVDAC) |
+			     BIT(DRM_MODE_ENCODER_LVDS)))
+		sig_cfg.clkflags = IPU_DI_CLKMODE_SYNC | IPU_DI_CLKMODE_EXT;
+	else
+		sig_cfg.clkflags = 0;
+
+	out_pixel_fmt = ipu_crtc->interface_pix_fmt;
 
 	sig_cfg.enable_pol = 1;
 	sig_cfg.clk_pol = 0;
-	sig_cfg.width = mode->hdisplay;
-	sig_cfg.height = mode->vdisplay;
 	sig_cfg.pixel_fmt = out_pixel_fmt;
-	sig_cfg.h_start_width = mode->htotal - mode->hsync_end;
-	sig_cfg.h_sync_width = mode->hsync_end - mode->hsync_start;
-	sig_cfg.h_end_width = mode->hsync_start - mode->hdisplay;
-
-	sig_cfg.v_start_width = mode->vtotal - mode->vsync_end;
-	sig_cfg.v_sync_width = mode->vsync_end - mode->vsync_start;
-	sig_cfg.v_end_width = mode->vsync_start - mode->vdisplay;
-	sig_cfg.pixelclock = mode->clock * 1000;
-	sig_cfg.clkflags = ipu_crtc->di_clkflags;
-
 	sig_cfg.v_to_h_sync = 0;
-
 	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
 	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
 
-	ret = ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di, sig_cfg.interlaced,
-			out_pixel_fmt, mode->hdisplay);
+	drm_display_mode_to_videomode(mode, &sig_cfg.mode);
+
+	ret = ipu_dc_init_sync(ipu_crtc->dc, ipu_crtc->di,
+			       mode->flags & DRM_MODE_FLAG_INTERLACE,
+			       out_pixel_fmt, mode->hdisplay);
 	if (ret) {
 		dev_err(ipu_crtc->dev,
 				"initializing display controller failed with %d\n",
@@ -237,6 +240,18 @@ static bool ipu_crtc_mode_fixup(struct drm_crtc *crtc,
 				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
+	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+	struct videomode vm;
+	int ret;
+
+	drm_display_mode_to_videomode(adjusted_mode, &vm);
+
+	ret = ipu_di_adjust_videomode(ipu_crtc->di, &vm);
+	if (ret)
+		return false;
+
+	drm_display_mode_from_videomode(&vm, adjusted_mode);
+
 	return true;
 }
 
@@ -275,7 +290,7 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 	ipu_crtc->newfb = NULL;
 }
 
-static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
+static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc,
 		u32 pixfmt, int hsync_pin, int vsync_pin)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
@@ -283,19 +298,6 @@ static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
 	ipu_crtc->interface_pix_fmt = pixfmt;
 	ipu_crtc->di_hsync_pin = hsync_pin;
 	ipu_crtc->di_vsync_pin = vsync_pin;
-
-	switch (encoder_type) {
-	case DRM_MODE_ENCODER_DAC:
-	case DRM_MODE_ENCODER_TVDAC:
-	case DRM_MODE_ENCODER_LVDS:
-		ipu_crtc->di_clkflags = IPU_DI_CLKMODE_SYNC |
-			IPU_DI_CLKMODE_EXT;
-		break;
-	case DRM_MODE_ENCODER_TMDS:
-	case DRM_MODE_ENCODER_NONE:
-		ipu_crtc->di_clkflags = 0;
-		break;
-	}
 
 	return 0;
 }

@@ -270,6 +270,8 @@ characters, each representing a particular tainted value.
 
  15: 'L' if a soft lockup has previously occurred on the system.
 
+ 16: 'K' if the kernel has been live patched.
+
 The primary reason for the 'Tainted: ' string is to tell kernel
 debuggers if this is a clean kernel or if anything unusual has
 occurred.  Tainting is permanent: even if an offending module is

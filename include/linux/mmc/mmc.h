@@ -53,11 +53,6 @@
 #define MMC_SEND_TUNING_BLOCK    19   /* adtc                    R1  */
 #define MMC_SEND_TUNING_BLOCK_HS200	21	/* adtc R1  */
 
-#define MMC_TUNING_BLK_PATTERN_4BIT_SIZE	 64
-#define MMC_TUNING_BLK_PATTERN_8BIT_SIZE	128
-extern const u8 tuning_blk_pattern_4bit[MMC_TUNING_BLK_PATTERN_4BIT_SIZE];
-extern const u8 tuning_blk_pattern_8bit[MMC_TUNING_BLK_PATTERN_8BIT_SIZE];
-
   /* class 3 */
 #define MMC_WRITE_DAT_UNTIL_STOP 20   /* adtc [31:0] data addr   R1  */
 
@@ -431,6 +426,11 @@ struct _mmc_csd {
  * BKOPS status level
  */
 #define EXT_CSD_BKOPS_LEVEL_2		0x2
+
+/*
+ * BKOPS modes
+ */
+#define EXT_CSD_MANUAL_BKOPS_MASK	0x01
 
 /*
  * MMC_SWITCH access modes

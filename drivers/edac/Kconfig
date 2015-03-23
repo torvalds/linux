@@ -385,4 +385,11 @@ config EDAC_ALTERA_MC
 	  preloader must initialize the SDRAM before loading
 	  the kernel.
 
+config EDAC_SYNOPSYS
+	tristate "Synopsys DDR Memory Controller"
+	depends on EDAC_MM_EDAC && ARCH_ZYNQ
+	help
+	  Support for error detection and correction on the Synopsys DDR
+	  memory controller.
+
 endif # EDAC

@@ -301,10 +301,6 @@ struct mgmt_cp_user_passkey_neg_reply {
 #define MGMT_OP_READ_LOCAL_OOB_DATA	0x0020
 #define MGMT_READ_LOCAL_OOB_DATA_SIZE	0
 struct mgmt_rp_read_local_oob_data {
-	__u8	hash[16];
-	__u8	rand[16];
-} __packed;
-struct mgmt_rp_read_local_oob_ext_data {
 	__u8	hash192[16];
 	__u8	rand192[16];
 	__u8	hash256[16];

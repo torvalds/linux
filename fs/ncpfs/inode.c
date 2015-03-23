@@ -267,7 +267,6 @@ ncp_iget(struct super_block *sb, struct ncp_entry_info *info)
 	if (inode) {
 		atomic_set(&NCP_FINFO(inode)->opened, info->opened);
 
-		inode->i_mapping->backing_dev_info = sb->s_bdi;
 		inode->i_ino = info->ino;
 		ncp_set_attr(inode, info);
 		if (S_ISREG(inode->i_mode)) {
@@ -560,7 +559,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 	server = NCP_SBP(sb);
 	memset(server, 0, sizeof(*server));
 
-	error = bdi_setup_and_register(&server->bdi, "ncpfs", BDI_CAP_MAP_COPY);
+	error = bdi_setup_and_register(&server->bdi, "ncpfs");
 	if (error)
 		goto out_fput;
 

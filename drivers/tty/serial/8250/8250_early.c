@@ -93,15 +93,18 @@ static void __init early_serial8250_write(struct console *console,
 	struct uart_port *port = &early_device->port;
 	unsigned int ier;
 
-	/* Save the IER and disable interrupts */
+	/* Save the IER and disable interrupts preserving the UUE bit */
 	ier = serial8250_early_in(port, UART_IER);
-	serial8250_early_out(port, UART_IER, 0);
+	if (ier)
+		serial8250_early_out(port, UART_IER, ier & UART_IER_UUE);
 
 	uart_console_write(port, s, count, serial_putc);
 
 	/* Wait for transmitter to become empty and restore the IER */
 	wait_for_xmitr(port);
-	serial8250_early_out(port, UART_IER, ier);
+
+	if (ier)
+		serial8250_early_out(port, UART_IER, ier);
 }
 
 static unsigned int __init probe_baud(struct uart_port *port)
@@ -124,9 +127,11 @@ static void __init init_port(struct earlycon_device *device)
 	struct uart_port *port = &device->port;
 	unsigned int divisor;
 	unsigned char c;
+	unsigned int ier;
 
 	serial8250_early_out(port, UART_LCR, 0x3);	/* 8n1 */
-	serial8250_early_out(port, UART_IER, 0);	/* no interrupt */
+	ier = serial8250_early_in(port, UART_IER);
+	serial8250_early_out(port, UART_IER, ier & UART_IER_UUE); /* no interrupt */
 	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
 	serial8250_early_out(port, UART_MCR, 0x3);	/* DTR + RTS */
 

@@ -32,7 +32,6 @@ struct access_method {
 	void (*submit_command)(struct ctlr_info *h,
 		struct CommandList *c);
 	void (*set_intr_mask)(struct ctlr_info *h, unsigned long val);
-	unsigned long (*fifo_full)(struct ctlr_info *h);
 	bool (*intr_pending)(struct ctlr_info *h);
 	unsigned long (*command_completed)(struct ctlr_info *h, u8 q);
 };
@@ -47,6 +46,11 @@ struct hpsa_scsi_dev_t {
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 	unsigned char volume_offline;	/* discovered via TUR or VPD */
+	u16 queue_depth;		/* max queue_depth for this device */
+	atomic_t ioaccel_cmds_out;	/* Only used for physical devices
+					 * counts commands sent to physical
+					 * device via "ioaccel" path.
+					 */
 	u32 ioaccel_handle;
 	int offload_config;		/* I/O accel RAID offload configured */
 	int offload_enabled;		/* I/O accel RAID offload enabled */
@@ -55,6 +59,15 @@ struct hpsa_scsi_dev_t {
 					 */
 	struct raid_map_data raid_map;	/* I/O accelerator RAID map */
 
+	/*
+	 * Pointers from logical drive map indices to the phys drives that
+	 * make those logical drives.  Note, multiple logical drives may
+	 * share physical drives.  You can have for instance 5 physical
+	 * drives with 3 logical drives each using those same 5 physical
+	 * disks. We need these pointers for counting i/o's out to physical
+	 * devices in order to honor physical device queue depth limits.
+	 */
+	struct hpsa_scsi_dev_t *phys_disk[RAID_MAP_MAX_ENTRIES];
 };
 
 struct reply_queue_buffer {
@@ -115,9 +128,12 @@ struct ctlr_info {
 	void __iomem *vaddr;
 	unsigned long paddr;
 	int 	nr_cmds; /* Number of commands allowed on this controller */
+#define HPSA_CMDS_RESERVED_FOR_ABORTS 2
+#define HPSA_CMDS_RESERVED_FOR_DRIVER 1
 	struct CfgTable __iomem *cfgtable;
 	int	interrupts_enabled;
 	int 	max_commands;
+	int last_allocation;
 	atomic_t commands_outstanding;
 #	define PERF_MODE_INT	0
 #	define DOORBELL_INT	1
@@ -131,8 +147,6 @@ struct ctlr_info {
 	char hba_mode_enabled;
 
 	/* queue and queue Info */
-	struct list_head reqQ;
-	struct list_head cmpQ;
 	unsigned int Qdepth;
 	unsigned int maxSG;
 	spinlock_t lock;
@@ -168,9 +182,8 @@ struct ctlr_info {
 	unsigned long transMethod;
 
 	/* cap concurrent passthrus at some reasonable maximum */
-#define HPSA_MAX_CONCURRENT_PASSTHRUS (20)
-	spinlock_t passthru_count_lock; /* protects passthru_count */
-	int passthru_count;
+#define HPSA_MAX_CONCURRENT_PASSTHRUS (10)
+	atomic_t passthru_cmds_avail;
 
 	/*
 	 * Performant mode completion buffers
@@ -194,8 +207,8 @@ struct ctlr_info {
 	atomic_t firmware_flash_in_progress;
 	u32 __percpu *lockup_detected;
 	struct delayed_work monitor_ctlr_work;
+	struct delayed_work rescan_ctlr_work;
 	int remove_in_progress;
-	u32 fifo_recently_full;
 	/* Address of h->q[x] is passed to intr handler to know which queue */
 	u8 q[MAX_REPLY_QUEUES];
 	u32 TMFSupportFlags; /* cache what task mgmt funcs are supported. */
@@ -237,8 +250,9 @@ struct ctlr_info {
 	spinlock_t offline_device_lock;
 	struct list_head offline_device_list;
 	int	acciopath_status;
-	int	drv_req_rescan;	/* flag for driver to request rescan event */
 	int	raid_offload_debug;
+	struct workqueue_struct *resubmit_wq;
+	struct workqueue_struct *rescan_ctlr_wq;
 };
 
 struct offline_device_entry {
@@ -297,6 +311,8 @@ struct offline_device_entry {
  */
 #define SA5_DOORBELL	0x20
 #define SA5_REQUEST_PORT_OFFSET	0x40
+#define SA5_REQUEST_PORT64_LO_OFFSET 0xC0
+#define SA5_REQUEST_PORT64_HI_OFFSET 0xC4
 #define SA5_REPLY_INTR_MASK_OFFSET	0x34
 #define SA5_REPLY_PORT_OFFSET		0x44
 #define SA5_INTR_STATUS		0x30
@@ -353,10 +369,7 @@ static void SA5_submit_command_no_read(struct ctlr_info *h,
 static void SA5_submit_command_ioaccel2(struct ctlr_info *h,
 	struct CommandList *c)
 {
-	if (c->cmd_type == CMD_IOACCEL2)
-		writel(c->busaddr, h->vaddr + IOACCEL2_INBOUND_POSTQ_32);
-	else
-		writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
+	writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
 }
 
 /*
@@ -398,19 +411,19 @@ static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 	unsigned long register_value = FIFO_EMPTY;
 
 	/* msi auto clears the interrupt pending bit. */
-	if (!(h->msi_vector || h->msix_vector)) {
+	if (unlikely(!(h->msi_vector || h->msix_vector))) {
 		/* flush the controller write of the reply queue by reading
 		 * outbound doorbell status register.
 		 */
-		register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
+		(void) readl(h->vaddr + SA5_OUTDB_STATUS);
 		writel(SA5_OUTDB_CLEAR_PERF_BIT, h->vaddr + SA5_OUTDB_CLEAR);
 		/* Do a read in order to flush the write to the controller
 		 * (as per spec.)
 		 */
-		register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
+		(void) readl(h->vaddr + SA5_OUTDB_STATUS);
 	}
 
-	if ((rq->head[rq->current_entry] & 1) == rq->wraparound) {
+	if ((((u32) rq->head[rq->current_entry]) & 1) == rq->wraparound) {
 		register_value = rq->head[rq->current_entry];
 		rq->current_entry++;
 		atomic_dec(&h->commands_outstanding);
@@ -425,14 +438,6 @@ static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 	return register_value;
 }
 
-/*
- *  Returns true if fifo is full.
- *
- */
-static unsigned long SA5_fifo_full(struct ctlr_info *h)
-{
-	return atomic_read(&h->commands_outstanding) >= h->max_commands;
-}
 /*
  *   returns value read from hardware.
  *     returns FIFO_EMPTY if there is nothing to read
@@ -472,9 +477,6 @@ static bool SA5_performant_intr_pending(struct ctlr_info *h)
 
 	if (!register_value)
 		return false;
-
-	if (h->msi_vector || h->msix_vector)
-		return true;
 
 	/* Read outbound doorbell to flush */
 	register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
@@ -525,7 +527,6 @@ static unsigned long SA5_ioaccel_mode1_completed(struct ctlr_info *h, u8 q)
 static struct access_method SA5_access = {
 	SA5_submit_command,
 	SA5_intr_mask,
-	SA5_fifo_full,
 	SA5_intr_pending,
 	SA5_completed,
 };
@@ -533,7 +534,6 @@ static struct access_method SA5_access = {
 static struct access_method SA5_ioaccel_mode1_access = {
 	SA5_submit_command,
 	SA5_performant_intr_mask,
-	SA5_fifo_full,
 	SA5_ioaccel_mode1_intr_pending,
 	SA5_ioaccel_mode1_completed,
 };
@@ -541,7 +541,6 @@ static struct access_method SA5_ioaccel_mode1_access = {
 static struct access_method SA5_ioaccel_mode2_access = {
 	SA5_submit_command_ioaccel2,
 	SA5_performant_intr_mask,
-	SA5_fifo_full,
 	SA5_performant_intr_pending,
 	SA5_performant_completed,
 };
@@ -549,7 +548,6 @@ static struct access_method SA5_ioaccel_mode2_access = {
 static struct access_method SA5_performant_access = {
 	SA5_submit_command,
 	SA5_performant_intr_mask,
-	SA5_fifo_full,
 	SA5_performant_intr_pending,
 	SA5_performant_completed,
 };
@@ -557,7 +555,6 @@ static struct access_method SA5_performant_access = {
 static struct access_method SA5_performant_access_no_read = {
 	SA5_submit_command_no_read,
 	SA5_performant_intr_mask,
-	SA5_fifo_full,
 	SA5_performant_intr_pending,
 	SA5_performant_completed,
 };

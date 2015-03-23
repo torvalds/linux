@@ -1039,7 +1039,7 @@ struct gfar_priv_rx_q {
 	/* RX Coalescing values */
 	unsigned char rxcoalescing;
 	unsigned long rxic;
-	u32 *rfbptr;
+	u32 __iomem *rfbptr;
 };
 
 enum gfar_irqinfo_id {

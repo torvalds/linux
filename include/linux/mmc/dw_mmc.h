@@ -106,6 +106,11 @@ struct mmc_data;
  * @cur_slot, @mrq and @state. These must always be updated
  * at the same time while holding @lock.
  *
+ * @irq_lock is an irq-safe spinlock protecting the INTMASK register
+ * to allow the interrupt handler to modify it directly.  Held for only long
+ * enough to read-modify-write INTMASK and no other locks are grabbed when
+ * holding this one.
+ *
  * The @mrq field of struct dw_mci_slot is also protected by @lock,
  * and must always be written at the same time as the slot is added to
  * @queue.
@@ -125,6 +130,7 @@ struct mmc_data;
  */
 struct dw_mci {
 	spinlock_t		lock;
+	spinlock_t		irq_lock;
 	void __iomem		*regs;
 
 	struct scatterlist	*sg;

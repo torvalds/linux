@@ -289,62 +289,69 @@ static void fsl_edma_free_desc(struct virt_dma_desc *vdesc)
 	kfree(fsl_desc);
 }
 
-static int fsl_edma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
-		unsigned long arg)
+static int fsl_edma_terminate_all(struct dma_chan *chan)
 {
 	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
-	struct dma_slave_config *cfg = (void *)arg;
 	unsigned long flags;
 	LIST_HEAD(head);
 
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
+	spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
+	fsl_edma_disable_request(fsl_chan);
+	fsl_chan->edesc = NULL;
+	vchan_get_all_descriptors(&fsl_chan->vchan, &head);
+	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
+	vchan_dma_desc_free_list(&fsl_chan->vchan, &head);
+	return 0;
+}
+
+static int fsl_edma_pause(struct dma_chan *chan)
+{
+	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
+	if (fsl_chan->edesc) {
 		fsl_edma_disable_request(fsl_chan);
-		fsl_chan->edesc = NULL;
-		vchan_get_all_descriptors(&fsl_chan->vchan, &head);
-		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
-		vchan_dma_desc_free_list(&fsl_chan->vchan, &head);
-		return 0;
-
-	case DMA_SLAVE_CONFIG:
-		fsl_chan->fsc.dir = cfg->direction;
-		if (cfg->direction == DMA_DEV_TO_MEM) {
-			fsl_chan->fsc.dev_addr = cfg->src_addr;
-			fsl_chan->fsc.addr_width = cfg->src_addr_width;
-			fsl_chan->fsc.burst = cfg->src_maxburst;
-			fsl_chan->fsc.attr = fsl_edma_get_tcd_attr(cfg->src_addr_width);
-		} else if (cfg->direction == DMA_MEM_TO_DEV) {
-			fsl_chan->fsc.dev_addr = cfg->dst_addr;
-			fsl_chan->fsc.addr_width = cfg->dst_addr_width;
-			fsl_chan->fsc.burst = cfg->dst_maxburst;
-			fsl_chan->fsc.attr = fsl_edma_get_tcd_attr(cfg->dst_addr_width);
-		} else {
-			return -EINVAL;
-		}
-		return 0;
-
-	case DMA_PAUSE:
-		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
-		if (fsl_chan->edesc) {
-			fsl_edma_disable_request(fsl_chan);
-			fsl_chan->status = DMA_PAUSED;
-		}
-		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
-		return 0;
-
-	case DMA_RESUME:
-		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
-		if (fsl_chan->edesc) {
-			fsl_edma_enable_request(fsl_chan);
-			fsl_chan->status = DMA_IN_PROGRESS;
-		}
-		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
-		return 0;
-
-	default:
-		return -ENXIO;
+		fsl_chan->status = DMA_PAUSED;
 	}
+	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
+	return 0;
+}
+
+static int fsl_edma_resume(struct dma_chan *chan)
+{
+	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
+	if (fsl_chan->edesc) {
+		fsl_edma_enable_request(fsl_chan);
+		fsl_chan->status = DMA_IN_PROGRESS;
+	}
+	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
+	return 0;
+}
+
+static int fsl_edma_slave_config(struct dma_chan *chan,
+				 struct dma_slave_config *cfg)
+{
+	struct fsl_edma_chan *fsl_chan = to_fsl_edma_chan(chan);
+
+	fsl_chan->fsc.dir = cfg->direction;
+	if (cfg->direction == DMA_DEV_TO_MEM) {
+		fsl_chan->fsc.dev_addr = cfg->src_addr;
+		fsl_chan->fsc.addr_width = cfg->src_addr_width;
+		fsl_chan->fsc.burst = cfg->src_maxburst;
+		fsl_chan->fsc.attr = fsl_edma_get_tcd_attr(cfg->src_addr_width);
+	} else if (cfg->direction == DMA_MEM_TO_DEV) {
+		fsl_chan->fsc.dev_addr = cfg->dst_addr;
+		fsl_chan->fsc.addr_width = cfg->dst_addr_width;
+		fsl_chan->fsc.burst = cfg->dst_maxburst;
+		fsl_chan->fsc.attr = fsl_edma_get_tcd_attr(cfg->dst_addr_width);
+	} else {
+			return -EINVAL;
+	}
+	return 0;
 }
 
 static size_t fsl_edma_desc_residue(struct fsl_edma_chan *fsl_chan,
@@ -780,18 +787,6 @@ static void fsl_edma_free_chan_resources(struct dma_chan *chan)
 	fsl_chan->tcd_pool = NULL;
 }
 
-static int fsl_dma_device_slave_caps(struct dma_chan *dchan,
-		struct dma_slave_caps *caps)
-{
-	caps->src_addr_widths = FSL_EDMA_BUSWIDTHS;
-	caps->dstn_addr_widths = FSL_EDMA_BUSWIDTHS;
-	caps->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
-	caps->cmd_pause = true;
-	caps->cmd_terminate = true;
-
-	return 0;
-}
-
 static int
 fsl_edma_irq_init(struct platform_device *pdev, struct fsl_edma_engine *fsl_edma)
 {
@@ -917,9 +912,15 @@ static int fsl_edma_probe(struct platform_device *pdev)
 	fsl_edma->dma_dev.device_tx_status = fsl_edma_tx_status;
 	fsl_edma->dma_dev.device_prep_slave_sg = fsl_edma_prep_slave_sg;
 	fsl_edma->dma_dev.device_prep_dma_cyclic = fsl_edma_prep_dma_cyclic;
-	fsl_edma->dma_dev.device_control = fsl_edma_control;
+	fsl_edma->dma_dev.device_config = fsl_edma_slave_config;
+	fsl_edma->dma_dev.device_pause = fsl_edma_pause;
+	fsl_edma->dma_dev.device_resume = fsl_edma_resume;
+	fsl_edma->dma_dev.device_terminate_all = fsl_edma_terminate_all;
 	fsl_edma->dma_dev.device_issue_pending = fsl_edma_issue_pending;
-	fsl_edma->dma_dev.device_slave_caps = fsl_dma_device_slave_caps;
+
+	fsl_edma->dma_dev.src_addr_widths = FSL_EDMA_BUSWIDTHS;
+	fsl_edma->dma_dev.dst_addr_widths = FSL_EDMA_BUSWIDTHS;
+	fsl_edma->dma_dev.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 
 	platform_set_drvdata(pdev, fsl_edma);
 

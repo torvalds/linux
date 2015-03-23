@@ -1,6 +1,6 @@
 config VIDEO_DAVINCI_VPIF_DISPLAY
 	tristate "TI DaVinci VPIF V4L2-Display driver"
-	depends on VIDEO_DEV
+	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
@@ -16,7 +16,7 @@ config VIDEO_DAVINCI_VPIF_DISPLAY
 
 config VIDEO_DAVINCI_VPIF_CAPTURE
 	tristate "TI DaVinci VPIF video capture driver"
-	depends on VIDEO_DEV
+	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
@@ -75,7 +75,7 @@ config VIDEO_DM365_ISIF
 
 config VIDEO_DAVINCI_VPBE_DISPLAY
 	tristate "TI DaVinci VPBE V4L2-Display driver"
-	depends on ARCH_DAVINCI
+	depends on VIDEO_V4L2 && ARCH_DAVINCI
 	depends on HAS_DMA
 	select VIDEOBUF2_DMA_CONTIG
 	help

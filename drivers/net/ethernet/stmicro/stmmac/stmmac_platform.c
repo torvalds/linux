@@ -33,6 +33,7 @@
 
 static const struct of_device_id stmmac_dt_ids[] = {
 	/* SoC specific glue layers should come before generic bindings */
+	{ .compatible = "rockchip,rk3288-gmac", .data = &rk3288_gmac_data},
 	{ .compatible = "amlogic,meson6-dwmac", .data = &meson6_dwmac_data},
 	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
 	{ .compatible = "st,stih415-dwmac", .data = &stih4xx_dwmac_data},
@@ -234,6 +235,9 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 			of_property_read_bool(np, "snps,fixed-burst");
 		dma_cfg->mixed_burst =
 			of_property_read_bool(np, "snps,mixed-burst");
+		of_property_read_u32(np, "snps,burst_len", &dma_cfg->burst_len);
+		if (dma_cfg->burst_len < 0 || dma_cfg->burst_len > 256)
+			dma_cfg->burst_len = 0;
 	}
 	plat->force_thresh_dma_mode = of_property_read_bool(np, "snps,force_thresh_dma_mode");
 	if (plat->force_thresh_dma_mode) {
@@ -268,6 +272,37 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	struct stmmac_priv *priv = NULL;
 	struct plat_stmmacenet_data *plat_dat = NULL;
 	const char *mac = NULL;
+	int irq, wol_irq, lpi_irq;
+
+	/* Get IRQ information early to have an ability to ask for deferred
+	 * probe if needed before we went too far with resource allocation.
+	 */
+	irq = platform_get_irq_byname(pdev, "macirq");
+	if (irq < 0) {
+		if (irq != -EPROBE_DEFER) {
+			dev_err(dev,
+				"MAC IRQ configuration information not found\n");
+		}
+		return irq;
+	}
+
+	/* On some platforms e.g. SPEAr the wake up irq differs from the mac irq
+	 * The external wake up irq can be passed through the platform code
+	 * named as "eth_wake_irq"
+	 *
+	 * In case the wake up interrupt is not passed from the platform
+	 * so the driver will continue to use the mac irq (ndev->irq)
+	 */
+	wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
+	if (wol_irq < 0) {
+		if (wol_irq == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		wol_irq = irq;
+	}
+
+	lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
+	if (lpi_irq == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	addr = devm_ioremap_resource(dev, res);
@@ -319,38 +354,14 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		return PTR_ERR(priv);
 	}
 
+	/* Copy IRQ values to priv structure which is now avaialble */
+	priv->dev->irq = irq;
+	priv->wol_irq = wol_irq;
+	priv->lpi_irq = lpi_irq;
+
 	/* Get MAC address if available (DT) */
 	if (mac)
 		memcpy(priv->dev->dev_addr, mac, ETH_ALEN);
-
-	/* Get the MAC information */
-	priv->dev->irq = platform_get_irq_byname(pdev, "macirq");
-	if (priv->dev->irq < 0) {
-		if (priv->dev->irq != -EPROBE_DEFER) {
-			netdev_err(priv->dev,
-				   "MAC IRQ configuration information not found\n");
-		}
-		return priv->dev->irq;
-	}
-
-	/*
-	 * On some platforms e.g. SPEAr the wake up irq differs from the mac irq
-	 * The external wake up irq can be passed through the platform code
-	 * named as "eth_wake_irq"
-	 *
-	 * In case the wake up interrupt is not passed from the platform
-	 * so the driver will continue to use the mac irq (ndev->irq)
-	 */
-	priv->wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
-	if (priv->wol_irq < 0) {
-		if (priv->wol_irq == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		priv->wol_irq = priv->dev->irq;
-	}
-
-	priv->lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
-	if (priv->lpi_irq == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
 
 	platform_set_drvdata(pdev, priv->dev);
 

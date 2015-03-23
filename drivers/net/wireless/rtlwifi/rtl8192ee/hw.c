@@ -85,29 +85,6 @@ static void _rtl92ee_enable_bcn_sub_func(struct ieee80211_hw *hw)
 	_rtl92ee_set_bcn_ctrl_reg(hw, 0, BIT(1));
 }
 
-static void _rtl92ee_return_beacon_queue_skb(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[BEACON_QUEUE];
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
-	while (skb_queue_len(&ring->queue)) {
-		struct rtl_tx_buffer_desc *entry =
-						&ring->buffer_desc[ring->idx];
-		struct sk_buff *skb = __skb_dequeue(&ring->queue);
-
-		pci_unmap_single(rtlpci->pdev,
-				 rtlpriv->cfg->ops->get_desc(
-				 (u8 *)entry, true, HW_DESC_TXBUFF_ADDR),
-				 skb->len, PCI_DMA_TODEVICE);
-		kfree_skb(skb);
-		ring->idx = (ring->idx + 1) % ring->entries;
-	}
-	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
-}
-
 static void _rtl92ee_disable_bcn_sub_func(struct ieee80211_hw *hw)
 {
 	_rtl92ee_set_bcn_ctrl_reg(hw, BIT(1), 0);
@@ -402,9 +379,6 @@ static void _rtl92ee_download_rsvd_page(struct ieee80211_hw *hw)
 		bcnvalid_reg = rtl_read_byte(rtlpriv, REG_DWBCN0_CTRL + 2);
 		rtl_write_byte(rtlpriv, REG_DWBCN0_CTRL + 2,
 			       bcnvalid_reg | BIT(0));
-
-		/* Return Beacon TCB */
-		_rtl92ee_return_beacon_queue_skb(hw);
 
 		/* download rsvd page */
 		rtl92ee_set_fw_rsvdpagepkt(hw, false);
@@ -1163,6 +1137,139 @@ void rtl92ee_enable_hw_security_config(struct ieee80211_hw *hw)
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_WPA_CONFIG, &sec_reg_value);
 }
 
+static bool _rtl8192ee_check_pcie_dma_hang(struct rtl_priv *rtlpriv)
+{
+	u8 tmp;
+
+	/* write reg 0x350 Bit[26]=1. Enable debug port. */
+	tmp = rtl_read_byte(rtlpriv, REG_BACKDOOR_DBI_DATA + 3);
+	if (!(tmp & BIT(2))) {
+		rtl_write_byte(rtlpriv, REG_BACKDOOR_DBI_DATA + 3,
+			       tmp | BIT(2));
+		mdelay(100); /* Suggested by DD Justin_tsai. */
+	}
+
+	/* read reg 0x350 Bit[25] if 1 : RX hang
+	 * read reg 0x350 Bit[24] if 1 : TX hang
+	 */
+	tmp = rtl_read_byte(rtlpriv, REG_BACKDOOR_DBI_DATA + 3);
+	if ((tmp & BIT(0)) || (tmp & BIT(1))) {
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+			 "CheckPcieDMAHang8192EE(): true!!\n");
+		return true;
+	}
+	return false;
+}
+
+static void _rtl8192ee_reset_pcie_interface_dma(struct rtl_priv *rtlpriv,
+						bool mac_power_on)
+{
+	u8 tmp;
+	bool release_mac_rx_pause;
+	u8 backup_pcie_dma_pause;
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+		 "ResetPcieInterfaceDMA8192EE()\n");
+
+	/* Revise Note: Follow the document "PCIe RX DMA Hang Reset Flow_v03"
+	 * released by SD1 Alan.
+	 */
+
+	/* 1. disable register write lock
+	 *	write 0x1C bit[1:0] = 2'h0
+	 *	write 0xCC bit[2] = 1'b1
+	 */
+	tmp = rtl_read_byte(rtlpriv, REG_RSV_CTRL);
+	tmp &= ~(BIT(1) | BIT(0));
+	rtl_write_byte(rtlpriv, REG_RSV_CTRL, tmp);
+	tmp = rtl_read_byte(rtlpriv, REG_PMC_DBG_CTRL2);
+	tmp |= BIT(2);
+	rtl_write_byte(rtlpriv, REG_PMC_DBG_CTRL2, tmp);
+
+	/* 2. Check and pause TRX DMA
+	 *	write 0x284 bit[18] = 1'b1
+	 *	write 0x301 = 0xFF
+	 */
+	tmp = rtl_read_byte(rtlpriv, REG_RXDMA_CONTROL);
+	if (tmp & BIT(2)) {
+		/* Already pause before the function for another reason. */
+		release_mac_rx_pause = false;
+	} else {
+		rtl_write_byte(rtlpriv, REG_RXDMA_CONTROL, (tmp | BIT(2)));
+		release_mac_rx_pause = true;
+	}
+
+	backup_pcie_dma_pause = rtl_read_byte(rtlpriv, REG_PCIE_CTRL_REG + 1);
+	if (backup_pcie_dma_pause != 0xFF)
+		rtl_write_byte(rtlpriv, REG_PCIE_CTRL_REG + 1, 0xFF);
+
+	if (mac_power_on) {
+		/* 3. reset TRX function
+		 *	write 0x100 = 0x00
+		 */
+		rtl_write_byte(rtlpriv, REG_CR, 0);
+	}
+
+	/* 4. Reset PCIe DMA
+	 *	write 0x003 bit[0] = 0
+	 */
+	tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
+	tmp &= ~(BIT(0));
+	rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1, tmp);
+
+	/* 5. Enable PCIe DMA
+	 *	write 0x003 bit[0] = 1
+	 */
+	tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
+	tmp |= BIT(0);
+	rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1, tmp);
+
+	if (mac_power_on) {
+		/* 6. enable TRX function
+		 *	write 0x100 = 0xFF
+		 */
+		rtl_write_byte(rtlpriv, REG_CR, 0xFF);
+
+		/* We should init LLT & RQPN and
+		 * prepare Tx/Rx descrptor address later
+		 * because MAC function is reset.
+		 */
+	}
+
+	/* 7. Restore PCIe autoload down bit
+	 *	write 0xF8 bit[17] = 1'b1
+	 */
+	tmp = rtl_read_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2);
+	tmp |= BIT(1);
+	rtl_write_byte(rtlpriv, REG_MAC_PHY_CTRL_NORMAL + 2, tmp);
+
+	/* In MAC power on state, BB and RF maybe in ON state,
+	 * if we release TRx DMA here
+	 * it will cause packets to be started to Tx/Rx,
+	 * so we release Tx/Rx DMA later.
+	 */
+	if (!mac_power_on) {
+		/* 8. release TRX DMA
+		 *	write 0x284 bit[18] = 1'b0
+		 *	write 0x301 = 0x00
+		 */
+		if (release_mac_rx_pause) {
+			tmp = rtl_read_byte(rtlpriv, REG_RXDMA_CONTROL);
+			rtl_write_byte(rtlpriv, REG_RXDMA_CONTROL,
+				       (tmp & (~BIT(2))));
+		}
+		rtl_write_byte(rtlpriv, REG_PCIE_CTRL_REG + 1,
+			       backup_pcie_dma_pause);
+	}
+
+	/* 9. lock system register
+	 *	write 0xCC bit[2] = 1'b0
+	 */
+	tmp = rtl_read_byte(rtlpriv, REG_PMC_DBG_CTRL2);
+	tmp &= ~(BIT(2));
+	rtl_write_byte(rtlpriv, REG_PMC_DBG_CTRL2, tmp);
+}
+
 int rtl92ee_hw_init(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1186,6 +1293,13 @@ int rtl92ee_hw_init(struct ieee80211_hw *hw)
 	} else {
 		rtlhal->mac_func_enable = false;
 		rtlhal->fw_ps_state = FW_PS_STATE_ALL_ON_92E;
+	}
+
+	if (_rtl8192ee_check_pcie_dma_hang(rtlpriv)) {
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "92ee dma hang!\n");
+		_rtl8192ee_reset_pcie_interface_dma(rtlpriv,
+						    rtlhal->mac_func_enable);
+		rtlhal->mac_func_enable = false;
 	}
 
 	rtstatus = _rtl92ee_init_mac(hw);

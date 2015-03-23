@@ -114,8 +114,6 @@ bool rtl8723be_phy_mac_config(struct ieee80211_hw *hw);
 bool rtl8723be_phy_bb_config(struct ieee80211_hw *hw);
 bool rtl8723be_phy_rf_config(struct ieee80211_hw *hw);
 void rtl8723be_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw);
-void rtl8723be_phy_get_txpower_level(struct ieee80211_hw *hw,
-				     long *powerlevel);
 void rtl8723be_phy_set_txpower_level(struct ieee80211_hw *hw,
 				     u8 channel);
 void rtl8723be_phy_scan_operation_backup(struct ieee80211_hw *hw,

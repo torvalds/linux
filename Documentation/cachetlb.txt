@@ -317,10 +317,10 @@ maps this page at its virtual address.
 	about doing this.
 
 	The idea is, first at flush_dcache_page() time, if
-	page->mapping->i_mmap is an empty tree and ->i_mmap_nonlinear
-	an empty list, just mark the architecture private page flag bit.
-	Later, in update_mmu_cache(), a check is made of this flag bit,
-	and if set the flush is done and the flag bit is cleared.
+	page->mapping->i_mmap is an empty tree, just mark the architecture
+	private page flag bit.  Later, in update_mmu_cache(), a check is
+	made of this flag bit, and if set the flush is done and the flag
+	bit is cleared.
 
 	IMPORTANT NOTE: It is often important, if you defer the flush,
 			that the actual flush occurs on the same CPU

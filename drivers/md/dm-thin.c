@@ -11,6 +11,7 @@
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
 #include <linux/dm-kcopyd.h>
+#include <linux/jiffies.h>
 #include <linux/log2.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
@@ -1700,8 +1701,8 @@ static void process_cell_fail(struct thin_c *tc, struct dm_bio_prison_cell *cell
  */
 static int need_commit_due_to_time(struct pool *pool)
 {
-	return jiffies < pool->last_commit_jiffies ||
-	       jiffies > pool->last_commit_jiffies + COMMIT_PERIOD;
+	return !time_in_range(jiffies, pool->last_commit_jiffies,
+			      pool->last_commit_jiffies + COMMIT_PERIOD);
 }
 
 #define thin_pbd(node) rb_entry((node), struct dm_thin_endio_hook, rb_node)
@@ -2357,17 +2358,6 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_REMAPPED;
 
 	case -ENODATA:
-		if (get_pool_mode(tc->pool) == PM_READ_ONLY) {
-			/*
-			 * This block isn't provisioned, and we have no way
-			 * of doing so.
-			 */
-			handle_unserviceable_bio(tc->pool, bio);
-			cell_defer_no_holder(tc, virt_cell);
-			return DM_MAPIO_SUBMITTED;
-		}
-		/* fall through */
-
 	case -EWOULDBLOCK:
 		thin_defer_cell(tc, virt_cell);
 		return DM_MAPIO_SUBMITTED;

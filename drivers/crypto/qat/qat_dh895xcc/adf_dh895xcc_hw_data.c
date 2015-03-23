@@ -46,6 +46,7 @@
 */
 #include <adf_accel_devices.h>
 #include "adf_dh895xcc_hw_data.h"
+#include "adf_common_drv.h"
 #include "adf_drv.h"
 
 /* Worker thread to service arbiter mappings based on dev SKUs */
@@ -182,6 +183,19 @@ static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 	}
 }
 
+static void adf_enable_ints(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *addr;
+
+	addr = (&GET_BARS(accel_dev)[ADF_DH895XCC_PMISC_BAR])->virt_addr;
+
+	/* Enable bundle and misc interrupts */
+	ADF_CSR_WR(addr, ADF_DH895XCC_SMIAPF0_MASK_OFFSET,
+		   ADF_DH895XCC_SMIA0_MASK);
+	ADF_CSR_WR(addr, ADF_DH895XCC_SMIAPF1_MASK_OFFSET,
+		   ADF_DH895XCC_SMIA1_MASK);
+}
+
 void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class = &dh895xcc_class;
@@ -206,6 +220,11 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->get_misc_bar_id = get_misc_bar_id;
 	hw_data->get_sku = get_sku;
 	hw_data->fw_name = ADF_DH895XCC_FW;
+	hw_data->init_admin_comms = adf_init_admin_comms;
+	hw_data->exit_admin_comms = adf_exit_admin_comms;
+	hw_data->init_arb = adf_init_arb;
+	hw_data->exit_arb = adf_exit_arb;
+	hw_data->enable_ints = adf_enable_ints;
 }
 
 void adf_clean_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)

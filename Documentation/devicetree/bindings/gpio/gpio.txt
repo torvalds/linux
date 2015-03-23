@@ -69,7 +69,8 @@ GPIO pin number, and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
 ----------------------------------
 
 A gpio-specifier should contain a flag indicating the GPIO polarity; active-
-high or active-low. If it does, the follow best practices should be followed:
+high or active-low. If it does, the following best practices should be
+followed:
 
 The gpio-specifier's polarity flag should represent the physical level at the
 GPIO controller that achieves (or represents, for inputs) a logically asserted
@@ -147,7 +148,7 @@ contains information structures as follows:
 	numeric-gpio-range ::=
 			<pinctrl-phandle> <gpio-base> <pinctrl-base> <count>
 	named-gpio-range ::= <pinctrl-phandle> <gpio-base> '<0 0>'
-	gpio-phandle : phandle to pin controller node.
+	pinctrl-phandle : phandle to pin controller node
 	gpio-base : Base GPIO ID in the GPIO controller
 	pinctrl-base : Base pinctrl pin ID in the pin controller
 	count : The number of GPIOs/pins in this range

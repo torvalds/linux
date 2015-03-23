@@ -57,6 +57,7 @@ config MMC_SDHCI_IO_ACCESSORS
 
 config MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	bool
+	depends on MMC_SDHCI
 	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This option is selected by drivers running on big endian hosts
@@ -82,6 +83,7 @@ config MMC_SDHCI_PCI
 config MMC_RICOH_MMC
 	bool "Ricoh MMC Controller Disabler"
 	depends on MMC_SDHCI_PCI
+	default y
 	help
 	  This adds a pci quirk to disable Ricoh MMC Controller. This
 	  proprietary controller is unnecessary because the SDHCI driver
@@ -228,6 +230,7 @@ config MMC_SDHCI_PXAV3
 	tristate "Marvell MMP2 SD Host Controller support (PXAV3)"
 	depends on CLKDEV_LOOKUP
 	depends on MMC_SDHCI_PLTFM
+	depends on ARCH_MMP || COMPILE_TEST
 	default CPU_MMP2
 	help
 	  This selects the Marvell(R) PXAV3 SD Host Controller.
@@ -240,6 +243,7 @@ config MMC_SDHCI_PXAV2
 	tristate "Marvell PXA9XX SD Host Controller support (PXAV2)"
 	depends on CLKDEV_LOOKUP
 	depends on MMC_SDHCI_PLTFM
+	depends on ARCH_MMP || COMPILE_TEST
 	default CPU_PXA910
 	help
 	  This selects the Marvell(R) PXAV2 SD Host Controller.
@@ -289,6 +293,17 @@ config MMC_SDHCI_BCM2835
 	help
 	  This selects the BCM2835 SD/MMC controller. If you have a BCM2835
 	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_F_SDH30
+	tristate "SDHCI support for Fujitsu Semiconductor F_SDH30"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  Needed by some Fujitsu SoC for MMC / SD / SDIO support.
+	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
 

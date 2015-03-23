@@ -33,11 +33,8 @@
 
 /* The level of bus communication with the dongle */
 enum brcmf_bus_state {
-	BRCMF_BUS_UNKNOWN,	/* Not determined yet */
-	BRCMF_BUS_NOMEDIUM,	/* No medium access to dongle */
 	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
-	BRCMF_BUS_LOAD,		/* Download access only (CPU reset) */
-	BRCMF_BUS_DATA		/* Ready for frame transfers */
+	BRCMF_BUS_UP		/* Ready for frame transfers */
 };
 
 /* The level of bus communication with the dongle */
@@ -188,22 +185,6 @@ void brcmf_bus_wowl_config(struct brcmf_bus *bus, bool enabled)
 		bus->ops->wowl_config(bus->dev, enabled);
 }
 
-static inline bool brcmf_bus_ready(struct brcmf_bus *bus)
-{
-	return bus->state == BRCMF_BUS_LOAD || bus->state == BRCMF_BUS_DATA;
-}
-
-static inline void brcmf_bus_change_state(struct brcmf_bus *bus,
-					  enum brcmf_bus_state new_state)
-{
-	/* NOMEDIUM is permanent */
-	if (bus->state == BRCMF_BUS_NOMEDIUM)
-		return;
-
-	brcmf_dbg(TRACE, "%d -> %d\n", bus->state, new_state);
-	bus->state = new_state;
-}
-
 /*
  * interface functions from common layer
  */
@@ -225,6 +206,9 @@ void brcmf_txflowblock(struct device *dev, bool state);
 
 /* Notify the bus has transferred the tx packet to firmware */
 void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
+
+/* Configure the "global" bus state used by upper layers */
+void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state);
 
 int brcmf_bus_start(struct device *dev);
 s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data, u32 len);

@@ -100,8 +100,8 @@ static void ctcm_print_statistics(struct ctcm_priv *priv)
 		     priv->channel[WRITE]->prof.doios_multi);
 	p += sprintf(p, "  Netto bytes written: %ld\n",
 		     priv->channel[WRITE]->prof.txlen);
-	p += sprintf(p, "  Max. TX IO-time: %ld\n",
-		     priv->channel[WRITE]->prof.tx_time);
+	p += sprintf(p, "  Max. TX IO-time: %u\n",
+		     jiffies_to_usecs(priv->channel[WRITE]->prof.tx_time));
 
 	printk(KERN_INFO "Statistics for %s:\n%s",
 				priv->channel[CTCM_WRITE]->netdev->name, sbuf);

@@ -88,3 +88,39 @@ __sys_sync_file_range:
 	call	sys_sync_file_range
 	sub	sp, -4
 	popm	pc
+
+	.global __sys_fallocate
+	.type	__sys_fallocate,@function
+__sys_fallocate:
+	pushm	lr
+	st.w	--sp, ARG6
+	call	sys_fallocate
+	sub	sp, -4
+	popm	pc
+
+	.global __sys_fanotify_mark
+	.type	__sys_fanotify_mark,@function
+__sys_fanotify_mark:
+	pushm	lr
+	st.w	--sp, ARG6
+	call	sys_fanotify_mark
+	sub	sp, -4
+	popm	pc
+
+	.global __sys_process_vm_readv
+	.type	__sys_process_vm_readv,@function
+__sys_process_vm_readv:
+	pushm	lr
+	st.w	--sp, ARG6
+	call	sys_process_vm_readv
+	sub	sp, -4
+	popm	pc
+
+	.global __sys_process_vm_writev
+	.type	__sys_process_vm_writev,@function
+__sys_process_vm_writev:
+	pushm	lr
+	st.w	--sp, ARG6
+	call	sys_process_vm_writev
+	sub	sp, -4
+	popm	pc

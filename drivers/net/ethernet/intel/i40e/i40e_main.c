@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 2
-#define DRV_VERSION_BUILD 2
+#define DRV_VERSION_BUILD 6
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1512,7 +1512,12 @@ static void i40e_vsi_setup_queue_map(struct i40e_vsi *vsi,
 	vsi->tc_config.numtc = numtc;
 	vsi->tc_config.enabled_tc = enabled_tc ? enabled_tc : 1;
 	/* Number of queues per enabled TC */
-	num_tc_qps = vsi->alloc_queue_pairs/numtc;
+	/* In MFP case we can have a much lower count of MSIx
+	 * vectors available and so we need to lower the used
+	 * q count.
+	 */
+	qcount = min_t(int, vsi->alloc_queue_pairs, pf->num_lan_msix);
+	num_tc_qps = qcount / numtc;
 	num_tc_qps = min_t(int, num_tc_qps, I40E_MAX_QUEUES_PER_TC);
 
 	/* Setup queue offset/count for all TCs for given VSI */
@@ -2684,8 +2689,15 @@ static void i40e_vsi_config_dcb_rings(struct i40e_vsi *vsi)
 	u16 qoffset, qcount;
 	int i, n;
 
-	if (!(vsi->back->flags & I40E_FLAG_DCB_ENABLED))
-		return;
+	if (!(vsi->back->flags & I40E_FLAG_DCB_ENABLED)) {
+		/* Reset the TC information */
+		for (i = 0; i < vsi->num_queue_pairs; i++) {
+			rx_ring = vsi->rx_rings[i];
+			tx_ring = vsi->tx_rings[i];
+			rx_ring->dcb_tc = 0;
+			tx_ring->dcb_tc = 0;
+		}
+	}
 
 	for (n = 0; n < I40E_MAX_TRAFFIC_CLASS; n++) {
 		if (!(vsi->tc_config.enabled_tc & (1 << n)))
@@ -2819,8 +2831,9 @@ static void i40e_vsi_configure_msix(struct i40e_vsi *vsi)
  * i40e_enable_misc_int_causes - enable the non-queue interrupts
  * @hw: ptr to the hardware info
  **/
-static void i40e_enable_misc_int_causes(struct i40e_hw *hw)
+static void i40e_enable_misc_int_causes(struct i40e_pf *pf)
 {
+	struct i40e_hw *hw = &pf->hw;
 	u32 val;
 
 	/* clear things first */
@@ -2832,10 +2845,12 @@ static void i40e_enable_misc_int_causes(struct i40e_hw *hw)
 	      I40E_PFINT_ICR0_ENA_GRST_MASK          |
 	      I40E_PFINT_ICR0_ENA_PCI_EXCEPTION_MASK |
 	      I40E_PFINT_ICR0_ENA_GPIO_MASK          |
-	      I40E_PFINT_ICR0_ENA_TIMESYNC_MASK      |
 	      I40E_PFINT_ICR0_ENA_HMC_ERR_MASK       |
 	      I40E_PFINT_ICR0_ENA_VFLR_MASK          |
 	      I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
+
+	if (pf->flags & I40E_FLAG_PTP)
+		val |= I40E_PFINT_ICR0_ENA_TIMESYNC_MASK;
 
 	wr32(hw, I40E_PFINT_ICR0_ENA, val);
 
@@ -2866,7 +2881,7 @@ static void i40e_configure_msi_and_legacy(struct i40e_vsi *vsi)
 	q_vector->tx.latency_range = I40E_LOW_LATENCY;
 	wr32(hw, I40E_PFINT_ITR0(I40E_TX_ITR), q_vector->tx.itr);
 
-	i40e_enable_misc_int_causes(hw);
+	i40e_enable_misc_int_causes(pf);
 
 	/* FIRSTQ_INDX = 0, FIRSTQ_TYPE = 0 (rx) */
 	wr32(hw, I40E_PFINT_LNKLST0, 0);
@@ -2937,7 +2952,7 @@ void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector)
 /**
  * i40e_irq_dynamic_disable - Disable default interrupt generation settings
  * @vsi: pointer to a vsi
- * @vector: enable a particular Hw Interrupt vector
+ * @vector: disable a particular Hw Interrupt vector
  **/
 void i40e_irq_dynamic_disable(struct i40e_vsi *vsi, int vector)
 {
@@ -3402,10 +3417,10 @@ static int i40e_vsi_request_irq(struct i40e_vsi *vsi, char *basename)
 		err = i40e_vsi_request_irq_msix(vsi, basename);
 	else if (pf->flags & I40E_FLAG_MSI_ENABLED)
 		err = request_irq(pf->pdev->irq, i40e_intr, 0,
-				  pf->misc_int_name, pf);
+				  pf->int_name, pf);
 	else
 		err = request_irq(pf->pdev->irq, i40e_intr, IRQF_SHARED,
-				  pf->misc_int_name, pf);
+				  pf->int_name, pf);
 
 	if (err)
 		dev_info(&pf->pdev->dev, "request_irq failed, Error %d\n", err);
@@ -3827,6 +3842,12 @@ static void i40e_clear_interrupt_scheme(struct i40e_pf *pf)
 {
 	int i;
 
+	i40e_stop_misc_vector(pf);
+	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
+		synchronize_irq(pf->msix_entries[0].vector);
+		free_irq(pf->msix_entries[0].vector, pf);
+	}
+
 	i40e_put_lump(pf->irq_pile, 0, I40E_PILE_VALID_BIT-1);
 	for (i = 0; i < pf->num_alloc_vsi; i++)
 		if (pf->vsi[i])
@@ -3999,6 +4020,35 @@ static int i40e_pf_wait_txq_disabled(struct i40e_pf *pf)
 
 #endif
 /**
+ * i40e_get_iscsi_tc_map - Return TC map for iSCSI APP
+ * @pf: pointer to pf
+ *
+ * Get TC map for ISCSI PF type that will include iSCSI TC
+ * and LAN TC.
+ **/
+static u8 i40e_get_iscsi_tc_map(struct i40e_pf *pf)
+{
+	struct i40e_dcb_app_priority_table app;
+	struct i40e_hw *hw = &pf->hw;
+	u8 enabled_tc = 1; /* TC0 is always enabled */
+	u8 tc, i;
+	/* Get the iSCSI APP TLV */
+	struct i40e_dcbx_config *dcbcfg = &hw->local_dcbx_config;
+
+	for (i = 0; i < dcbcfg->numapps; i++) {
+		app = dcbcfg->app[i];
+		if (app.selector == I40E_APP_SEL_TCPIP &&
+		    app.protocolid == I40E_APP_PROTOID_ISCSI) {
+			tc = dcbcfg->etscfg.prioritytable[app.priority];
+			enabled_tc |= (1 << tc);
+			break;
+		}
+	}
+
+	return enabled_tc;
+}
+
+/**
  * i40e_dcb_get_num_tc -  Get the number of TCs from DCBx config
  * @dcbcfg: the corresponding DCBx configuration structure
  *
@@ -4061,18 +4111,23 @@ static u8 i40e_pf_get_num_tc(struct i40e_pf *pf)
 	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
 		return 1;
 
-	/* MFP mode return count of enabled TCs for this PF */
-	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
-		enabled_tc = pf->hw.func_caps.enabled_tcmap;
-		for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
-			if (enabled_tc & (1 << i))
-				num_tc++;
-		}
-		return num_tc;
-	}
-
 	/* SFP mode will be enabled for all TCs on port */
-	return i40e_dcb_get_num_tc(dcbcfg);
+	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
+		return i40e_dcb_get_num_tc(dcbcfg);
+
+	/* MFP mode return count of enabled TCs for this PF */
+	if (pf->hw.func_caps.iscsi)
+		enabled_tc =  i40e_get_iscsi_tc_map(pf);
+	else
+		enabled_tc = pf->hw.func_caps.enabled_tcmap;
+
+	/* At least have TC0 */
+	enabled_tc = (enabled_tc ? enabled_tc : 0x1);
+	for (i = 0; i < I40E_MAX_TRAFFIC_CLASS; i++) {
+		if (enabled_tc & (1 << i))
+			num_tc++;
+	}
+	return num_tc;
 }
 
 /**
@@ -4110,12 +4165,15 @@ static u8 i40e_pf_get_tc_map(struct i40e_pf *pf)
 	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
 		return i40e_pf_get_default_tc(pf);
 
-	/* MFP mode will have enabled TCs set by FW */
-	if (pf->flags & I40E_FLAG_MFP_ENABLED)
-		return pf->hw.func_caps.enabled_tcmap;
-
 	/* SFP mode we want PF to be enabled for all TCs */
-	return i40e_dcb_get_enabled_tc(&pf->hw.local_dcbx_config);
+	if (!(pf->flags & I40E_FLAG_MFP_ENABLED))
+		return i40e_dcb_get_enabled_tc(&pf->hw.local_dcbx_config);
+
+	/* MPF enabled and iSCSI PF type */
+	if (pf->hw.func_caps.iscsi)
+		return i40e_get_iscsi_tc_map(pf);
+	else
+		return pf->hw.func_caps.enabled_tcmap;
 }
 
 /**
@@ -4505,9 +4563,6 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	int err = 0;
 
-	if (pf->hw.func_caps.npar_enable)
-		goto out;
-
 	/* Get the initial DCB configuration */
 	err = i40e_init_dcb(hw);
 	if (!err) {
@@ -4533,7 +4588,8 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 				"DCBX offload is supported for this PF.\n");
 		}
 	} else {
-		dev_info(&pf->pdev->dev, "AQ Querying DCB configuration failed: %d\n",
+		dev_info(&pf->pdev->dev,
+			 "AQ Querying DCB configuration failed: aq_err %d\n",
 			 pf->hw.aq.asq_last_status);
 	}
 
@@ -4556,6 +4612,15 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 		netdev_info(vsi->netdev, "NIC Link is Down\n");
 		return;
 	}
+
+	/* Warn user if link speed on NPAR enabled partition is not at
+	 * least 10GB
+	 */
+	if (vsi->back->hw.func_caps.npar_enable &&
+	    (vsi->back->hw.phy.link_info.link_speed == I40E_LINK_SPEED_1GB ||
+	     vsi->back->hw.phy.link_info.link_speed == I40E_LINK_SPEED_100MB))
+		netdev_warn(vsi->netdev,
+			    "The partition detected link speed that is less than 10Gbps\n");
 
 	switch (vsi->back->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
@@ -4836,7 +4901,7 @@ static int i40e_open(struct net_device *netdev)
 int i40e_vsi_open(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
-	char int_name[IFNAMSIZ];
+	char int_name[I40E_INT_NAME_STR_LEN];
 	int err;
 
 	/* allocate descriptors */
@@ -4870,7 +4935,7 @@ int i40e_vsi_open(struct i40e_vsi *vsi)
 			goto err_set_queues;
 
 	} else if (vsi->type == I40E_VSI_FDIR) {
-		snprintf(int_name, sizeof(int_name) - 1, "%s-%s-fdir",
+		snprintf(int_name, sizeof(int_name) - 1, "%s-%s:fdir",
 			 dev_driver_string(&pf->pdev->dev),
 			 dev_name(&pf->pdev->dev));
 		err = i40e_vsi_request_irq(vsi, int_name);
@@ -5207,8 +5272,14 @@ static int i40e_handle_lldp_event(struct i40e_pf *pf,
 
 	/* Wait for the PF's Tx queues to be disabled */
 	ret = i40e_pf_wait_txq_disabled(pf);
-	if (!ret)
+	if (ret) {
+		/* Schedule PF reset to recover */
+		set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
+		i40e_service_event_schedule(pf);
+	} else {
 		i40e_pf_unquiesce_all_vsi(pf);
+	}
+
 exit:
 	return ret;
 }
@@ -5494,14 +5565,18 @@ static void i40e_link_event(struct i40e_pf *pf)
 {
 	bool new_link, old_link;
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	u8 new_link_speed, old_link_speed;
 
 	/* set this to force the get_link_status call to refresh state */
 	pf->hw.phy.get_link_info = true;
 
 	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
 	new_link = i40e_get_link_status(&pf->hw);
+	old_link_speed = pf->hw.phy.link_info_old.link_speed;
+	new_link_speed = pf->hw.phy.link_info.link_speed;
 
 	if (new_link == old_link &&
+	    new_link_speed == old_link_speed &&
 	    (test_bit(__I40E_DOWN, &vsi->state) ||
 	     new_link == netif_carrier_ok(vsi->netdev)))
 		return;
@@ -5536,7 +5611,8 @@ static void i40e_check_hang_subtask(struct i40e_pf *pf)
 	int i, v;
 
 	/* If we're down or resetting, just bail */
-	if (test_bit(__I40E_CONFIG_BUSY, &pf->state))
+	if (test_bit(__I40E_DOWN, &pf->state) ||
+	    test_bit(__I40E_CONFIG_BUSY, &pf->state))
 		return;
 
 	/* for each VSI/netdev
@@ -6175,8 +6251,9 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 #ifdef CONFIG_I40E_DCB
 	ret = i40e_init_pf_dcb(pf);
 	if (ret) {
-		dev_info(&pf->pdev->dev, "init_pf_dcb failed: %d\n", ret);
-		goto end_core_reset;
+		dev_info(&pf->pdev->dev, "DCB init failed %d, disabled\n", ret);
+		pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
+		/* Continue without DCB enabled */
 	}
 #endif /* CONFIG_I40E_DCB */
 #ifdef I40E_FCOE
@@ -6881,17 +6958,17 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
 		other_vecs++;
 
+	/* Scale down if necessary, and the rings will share vectors */
+	pf->num_lan_msix = min_t(int, pf->num_lan_msix,
+			(hw->func_caps.num_msix_vectors - other_vecs));
+	v_budget = pf->num_lan_msix + other_vecs;
+
 #ifdef I40E_FCOE
 	if (pf->flags & I40E_FLAG_FCOE_ENABLED) {
 		pf->num_fcoe_msix = pf->num_fcoe_qps;
 		v_budget += pf->num_fcoe_msix;
 	}
-
 #endif
-	/* Scale down if necessary, and the rings will share vectors */
-	pf->num_lan_msix = min_t(int, pf->num_lan_msix,
-			(hw->func_caps.num_msix_vectors - other_vecs));
-	v_budget = pf->num_lan_msix + other_vecs;
 
 	pf->msix_entries = kcalloc(v_budget, sizeof(struct msix_entry),
 				   GFP_KERNEL);
@@ -7113,16 +7190,16 @@ static int i40e_setup_misc_vector(struct i40e_pf *pf)
 	 */
 	if (!test_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state)) {
 		err = request_irq(pf->msix_entries[0].vector,
-				  i40e_intr, 0, pf->misc_int_name, pf);
+				  i40e_intr, 0, pf->int_name, pf);
 		if (err) {
 			dev_info(&pf->pdev->dev,
 				 "request_irq for %s failed: %d\n",
-				 pf->misc_int_name, err);
+				 pf->int_name, err);
 			return -EFAULT;
 		}
 	}
 
-	i40e_enable_misc_int_causes(hw);
+	i40e_enable_misc_int_causes(pf);
 
 	/* associate no queues to the misc vector */
 	wr32(hw, I40E_PFINT_LNKLST0, I40E_QUEUE_END_OF_LIST);
@@ -7306,7 +7383,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 
 #endif /* I40E_FCOE */
 #ifdef CONFIG_PCI_IOV
-	if (pf->hw.func_caps.num_vfs) {
+	if (pf->hw.func_caps.num_vfs && pf->hw.partition_id == 1) {
 		pf->num_vf_qps = I40E_DEFAULT_QUEUES_PER_VF;
 		pf->flags |= I40E_FLAG_SRIOV_ENABLED;
 		pf->num_req_vfs = min_t(int,
@@ -7766,7 +7843,8 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		enabled_tc = i40e_pf_get_tc_map(pf);
 
 		/* MFP mode setup queue map and update VSI */
-		if (pf->flags & I40E_FLAG_MFP_ENABLED) {
+		if ((pf->flags & I40E_FLAG_MFP_ENABLED) &&
+		    !(pf->hw.func_caps.iscsi)) { /* NIC type PF */
 			memset(&ctxt, 0, sizeof(ctxt));
 			ctxt.seid = pf->main_vsi_seid;
 			ctxt.pf_num = pf->hw.pf_id;
@@ -7787,6 +7865,8 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 			/* Default/Main VSI is only enabled for TC0
 			 * reconfigure it to enable all TCs that are
 			 * available on the port in SFP mode.
+			 * For MFP case the iSCSI PF would use this
+			 * flow to enable LAN+iSCSI TC.
 			 */
 			ret = i40e_vsi_config_tc(vsi, enabled_tc);
 			if (ret) {
@@ -9164,7 +9244,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->aq.asq_buf_size = I40E_MAX_AQ_BUF_SIZE;
 	pf->adminq_work_limit = I40E_AQ_WORK_LIMIT;
 
-	snprintf(pf->misc_int_name, sizeof(pf->misc_int_name) - 1,
+	snprintf(pf->int_name, sizeof(pf->int_name) - 1,
 		 "%s-%s:misc",
 		 dev_driver_string(&pf->pdev->dev), dev_name(&pdev->dev));
 
@@ -9227,6 +9307,16 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_configure_lan_hmc;
 	}
 
+	/* Disable LLDP for NICs that have firmware versions lower than v4.3.
+	 * Ignore error return codes because if it was already disabled via
+	 * hardware settings this will fail
+	 */
+	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
+	    (pf->hw.aq.fw_maj_ver < 4)) {
+		dev_info(&pdev->dev, "Stopping firmware LLDP agent.\n");
+		i40e_aq_stop_lldp(hw, true, NULL);
+	}
+
 	i40e_get_mac_addr(hw, hw->mac.addr);
 	if (!is_valid_ether_addr(hw->mac.addr)) {
 		dev_info(&pdev->dev, "invalid MAC address %pM\n", hw->mac.addr);
@@ -9256,7 +9346,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_I40E_DCB
 	err = i40e_init_pf_dcb(pf);
 	if (err) {
-		dev_info(&pdev->dev, "init_pf_dcb failed: %d\n", err);
+		dev_info(&pdev->dev, "DCB init failed %d, disabled\n", err);
 		pf->flags &= ~I40E_FLAG_DCB_CAPABLE;
 		/* Continue without DCB enabled */
 	}
@@ -9468,6 +9558,7 @@ static void i40e_remove(struct pci_dev *pdev)
 	set_bit(__I40E_DOWN, &pf->state);
 	del_timer_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
+	i40e_fdir_teardown(pf);
 
 	if (pf->flags & I40E_FLAG_SRIOV_ENABLED) {
 		i40e_free_vfs(pf);
@@ -9493,12 +9584,6 @@ static void i40e_remove(struct pci_dev *pdev)
 	 */
 	if (pf->vsi[pf->lan_vsi])
 		i40e_vsi_release(pf->vsi[pf->lan_vsi]);
-
-	i40e_stop_misc_vector(pf);
-	if (pf->flags & I40E_FLAG_MSIX_ENABLED) {
-		synchronize_irq(pf->msix_entries[0].vector);
-		free_irq(pf->msix_entries[0].vector, pf);
-	}
 
 	/* shutdown and destroy the HMC */
 	if (pf->hw.hmc.hmc_obj) {
@@ -9653,6 +9738,8 @@ static void i40e_shutdown(struct pci_dev *pdev)
 	wr32(hw, I40E_PFPM_APM, (pf->wol_en ? I40E_PFPM_APM_APME_MASK : 0));
 	wr32(hw, I40E_PFPM_WUFC, (pf->wol_en ? I40E_PFPM_WUFC_MAG_MASK : 0));
 
+	i40e_clear_interrupt_scheme(pf);
+
 	if (system_state == SYSTEM_POWER_OFF) {
 		pci_wake_from_d3(pdev, pf->wol_en);
 		pci_set_power_state(pdev, PCI_D3hot);
@@ -9671,6 +9758,8 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	set_bit(__I40E_SUSPENDED, &pf->state);
 	set_bit(__I40E_DOWN, &pf->state);
+	del_timer_sync(&pf->service_timer);
+	cancel_work_sync(&pf->service_task);
 	rtnl_lock();
 	i40e_prep_for_reset(pf);
 	rtnl_unlock();

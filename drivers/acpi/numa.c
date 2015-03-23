@@ -177,12 +177,7 @@ static int __init slit_valid(struct acpi_table_slit *slit)
 
 static int __init acpi_parse_slit(struct acpi_table_header *table)
 {
-	struct acpi_table_slit *slit;
-
-	if (!table)
-		return -EINVAL;
-
-	slit = (struct acpi_table_slit *)table;
+	struct acpi_table_slit *slit = (struct acpi_table_slit *)table;
 
 	if (!slit_valid(slit)) {
 		printk(KERN_INFO "ACPI: SLIT table looks invalid. Not used.\n");
@@ -260,11 +255,8 @@ acpi_parse_memory_affinity(struct acpi_subtable_header * header,
 
 static int __init acpi_parse_srat(struct acpi_table_header *table)
 {
-	struct acpi_table_srat *srat;
-	if (!table)
-		return -EINVAL;
+	struct acpi_table_srat *srat = (struct acpi_table_srat *)table;
 
-	srat = (struct acpi_table_srat *)table;
 	acpi_srat_revision = srat->header.revision;
 
 	/* Real work done in acpi_table_parse_srat below. */

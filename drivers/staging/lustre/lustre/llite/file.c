@@ -1553,6 +1553,11 @@ ll_get_grouplock(struct inode *inode, struct file *file, unsigned long arg)
 	struct ccc_grouplock    grouplock;
 	int		     rc;
 
+	if (arg == 0) {
+		CWARN("group id for group lock must not be 0\n");
+		return -EINVAL;
+	}
+
 	if (ll_file_nolock(file))
 		return -EOPNOTSUPP;
 
@@ -1587,7 +1592,8 @@ ll_get_grouplock(struct inode *inode, struct file *file, unsigned long arg)
 	return 0;
 }
 
-int ll_put_grouplock(struct inode *inode, struct file *file, unsigned long arg)
+static int ll_put_grouplock(struct inode *inode, struct file *file,
+			    unsigned long arg)
 {
 	struct ll_inode_info   *lli = ll_i2info(inode);
 	struct ll_file_data    *fd = LUSTRE_FPRIVATE(file);
@@ -2906,8 +2912,8 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 			oit.it_op = IT_LOOKUP;
 
 		/* Call getattr by fid, so do not provide name at all. */
-		op_data = ll_prep_md_op_data(NULL, dentry->d_inode,
-					     dentry->d_inode, NULL, 0, 0,
+		op_data = ll_prep_md_op_data(NULL, inode,
+					     inode, NULL, 0, 0,
 					     LUSTRE_OPC_ANY, NULL);
 		if (IS_ERR(op_data))
 			return PTR_ERR(op_data);
@@ -2925,7 +2931,7 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 			goto out;
 		}
 
-		rc = ll_revalidate_it_finish(req, &oit, dentry);
+		rc = ll_revalidate_it_finish(req, &oit, inode);
 		if (rc != 0) {
 			ll_intent_release(&oit);
 			goto out;
@@ -2938,7 +2944,7 @@ static int __ll_inode_revalidate(struct dentry *dentry, __u64 ibits)
 		if (!dentry->d_inode->i_nlink)
 			d_lustre_invalidate(dentry, 0);
 
-		ll_lookup_finish_locks(&oit, dentry);
+		ll_lookup_finish_locks(&oit, inode);
 	} else if (!ll_have_md_lock(dentry->d_inode, &ibits, LCK_MINMODE)) {
 		struct ll_sb_info *sbi = ll_i2sbi(dentry->d_inode);
 		u64 valid = OBD_MD_FLGETATTR;

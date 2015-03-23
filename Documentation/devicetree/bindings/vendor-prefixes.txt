@@ -4,12 +4,15 @@ This isn't an exhaustive list, but you should add new prefixes to it before
 using them to avoid name-space collisions.
 
 abilis	Abilis Systems
+abcn	Abracon Corporation
 active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
 adapteva	Adapteva, Inc.
+adh	AD Holdings Plc.
 adi	Analog Devices, Inc.
 aeroflexgaisler	Aeroflex Gaisler AB
 allwinner	Allwinner Technology Co., Ltd.
+alphascale	AlphaScale Integrated Circuits Systems, Inc.
 altr	Altera Corp.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 amd	Advanced Micro Devices (AMD), Inc.
@@ -17,12 +20,15 @@ amlogic	Amlogic, Inc.
 ams	AMS AG
 amstaos	AMS-Taos Inc.
 apm	Applied Micro Circuits Corporation (APM)
+arasan	Arasan Chip Systems
 arm	ARM Ltd.
 armadeus	ARMadeus Systems SARL
 asahi-kasei	Asahi Kasei Corp.
 atmel	Atmel Corporation
 auo	AU Optronics Corporation
 avago	Avago Technologies
+avic	Shanghai AVIC Optoelectronics Co., Ltd.
+axis	Axis Communications AB
 bosch	Bosch Sensortec GmbH
 brcm	Broadcom Corporation
 buffalo	Buffalo, Inc.
@@ -31,11 +37,15 @@ capella	Capella Microsystems, Inc
 cavium	Cavium, Inc.
 cdns	Cadence Design Systems Inc.
 chipidea	Chipidea, Inc
+chipspark	ChipSPARK
 chrp	Common Hardware Reference Platform
 chunghwa	Chunghwa Picture Tubes Ltd.
 cirrus	Cirrus Logic, Inc.
+cloudengines	Cloud Engines, Inc.
 cnm	Chips&Media, Inc.
+cnxt	Conexant Systems, Inc.
 cortina	Cortina Systems, Inc.
+cosmic	Cosmic Circuits
 crystalfontz	Crystalfontz America, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 davicom	DAVICOM Semiconductor, Inc.
@@ -54,14 +64,18 @@ epcos	EPCOS AG
 epfl	Ecole Polytechnique Fédérale de Lausanne
 epson	Seiko Epson Corp.
 est	ESTeem Wireless Modems
+ettus	NI Ettus Research
 eukrea  Eukréa Electromatique
 everest	Everest Semiconductor Co. Ltd.
+everspin	Everspin Technologies, Inc.
 excito	Excito
 fcs	Fairchild Semiconductor
+firefly	Firefly
 fsl	Freescale Semiconductor
 GEFanuc	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 gef	GE Fanuc Intelligent Platforms Embedded Systems, Inc.
 geniatech	Geniatech, Inc.
+giantplus	Giantplus Technology Co., Ltd.
 globalscale	Globalscale Technologies, Inc.
 gmt	Global Mixed-mode Technology, Inc.
 google	Google, Inc.
@@ -69,6 +83,7 @@ gumstix	Gumstix, Inc.
 gw	Gateworks Corporation
 hannstar	HannStar Display Corporation
 haoyu	Haoyu Microelectronic Co. Ltd.
+himax	Himax Technologies, Inc.
 hisilicon	Hisilicon Limited.
 hit	Hitachi Ltd.
 honeywell	Honeywell
@@ -82,8 +97,7 @@ innolux	Innolux Corporation
 intel	Intel Corporation
 intercontrol	Inter Control Group
 isee	ISEE 2007 S.L.
-isil    Intersil (deprecated, use isl)
-isl	Intersil
+isil	Intersil
 karo	Ka-Ro electronics GmbH
 keymile	Keymile GmbH
 lacie	LaCie
@@ -118,7 +132,9 @@ nvidia	NVIDIA
 nxp	NXP Semiconductors
 onnn	ON Semiconductor Corp.
 opencores	OpenCores.org
+ovti	OmniVision Technologies
 panasonic	Panasonic Corporation
+parade	Parade Technologies Inc.
 pericom	Pericom Technology Inc.
 phytec	PHYTEC Messtechnik GmbH
 picochip	Picochip Ltd
@@ -142,8 +158,10 @@ sandisk	Sandisk Corporation
 sbs	Smart Battery System
 schindler	Schindler
 seagate	Seagate Technology PLC
+semtech	Semtech Corporation
 sil	Silicon Image
 silabs	Silicon Laboratories
+siliconmitus	Silicon Mitus, Inc.
 simtek
 sii	Seiko Instruments, Inc.
 silergy	Silergy Corp.
@@ -154,6 +172,7 @@ snps	Synopsys, Inc.
 solidrun	SolidRun
 sony	Sony Corporation
 spansion	Spansion Inc.
+sprd	Spreadtrum Communications Inc.
 st	STMicroelectronics
 ste	ST-Ericsson
 stericsson	ST-Ericsson
@@ -165,6 +184,7 @@ tlm	Trusted Logic Mobility
 toradex	Toradex AG
 toshiba	Toshiba Corporation
 toumaz	Toumaz
+truly	Truly Semiconductors Limited
 usi	Universal Scientific Industrial Co., Ltd.
 v3	V3 Semiconductor
 variscite	Variscite Ltd.

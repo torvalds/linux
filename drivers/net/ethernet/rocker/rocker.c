@@ -806,13 +806,13 @@ static bool rocker_desc_gen(struct rocker_desc_info *desc_info)
 
 static void *rocker_desc_cookie_ptr_get(struct rocker_desc_info *desc_info)
 {
-	return (void *) desc_info->desc->cookie;
+	return (void *)(uintptr_t)desc_info->desc->cookie;
 }
 
 static void rocker_desc_cookie_ptr_set(struct rocker_desc_info *desc_info,
 				       void *ptr)
 {
-	desc_info->desc->cookie = (long) ptr;
+	desc_info->desc->cookie = (uintptr_t) ptr;
 }
 
 static struct rocker_desc_info *
@@ -1257,9 +1257,9 @@ static void rocker_port_set_enable(struct rocker_port *rocker_port, bool enable)
 	u64 val = rocker_read64(rocker_port->rocker, PORT_PHYS_ENABLE);
 
 	if (enable)
-		val |= 1 << rocker_port->lport;
+		val |= 1ULL << rocker_port->lport;
 	else
-		val &= ~(1 << rocker_port->lport);
+		val &= ~(1ULL << rocker_port->lport);
 	rocker_write64(rocker_port->rocker, PORT_PHYS_ENABLE, val);
 }
 
@@ -3026,11 +3026,17 @@ static void rocker_port_fdb_learn_work(struct work_struct *work)
 		container_of(work, struct rocker_fdb_learn_work, work);
 	bool removing = (lw->flags & ROCKER_OP_FLAG_REMOVE);
 	bool learned = (lw->flags & ROCKER_OP_FLAG_LEARNED);
+	struct netdev_switch_notifier_fdb_info info;
+
+	info.addr = lw->addr;
+	info.vid = lw->vid;
 
 	if (learned && removing)
-		br_fdb_external_learn_del(lw->dev, lw->addr, lw->vid);
+		call_netdev_switch_notifiers(NETDEV_SWITCH_FDB_DEL,
+					     lw->dev, &info.info);
 	else if (learned && !removing)
-		br_fdb_external_learn_add(lw->dev, lw->addr, lw->vid);
+		call_netdev_switch_notifiers(NETDEV_SWITCH_FDB_ADD,
+					     lw->dev, &info.info);
 
 	kfree(work);
 }
@@ -3565,6 +3571,8 @@ nest_cancel:
 	rocker_tlv_nest_cancel(desc_info, frags);
 out:
 	dev_kfree_skb(skb);
+	dev->stats.tx_dropped++;
+
 	return NETDEV_TX_OK;
 }
 
@@ -3668,7 +3676,8 @@ static int rocker_fdb_fill_info(struct sk_buff *skb,
 	if (vid && nla_put_u16(skb, NDA_VLAN, vid))
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -3713,7 +3722,7 @@ skip:
 }
 
 static int rocker_port_bridge_setlink(struct net_device *dev,
-				      struct nlmsghdr *nlh)
+				      struct nlmsghdr *nlh, u16 flags)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	struct nlattr *protinfo;
@@ -3824,11 +3833,145 @@ static void rocker_port_get_drvinfo(struct net_device *dev,
 	strlcpy(drvinfo->version, UTS_RELEASE, sizeof(drvinfo->version));
 }
 
+static struct rocker_port_stats {
+	char str[ETH_GSTRING_LEN];
+	int type;
+} rocker_port_stats[] = {
+	{ "rx_packets", ROCKER_TLV_CMD_PORT_STATS_RX_PKTS,    },
+	{ "rx_bytes",   ROCKER_TLV_CMD_PORT_STATS_RX_BYTES,   },
+	{ "rx_dropped", ROCKER_TLV_CMD_PORT_STATS_RX_DROPPED, },
+	{ "rx_errors",  ROCKER_TLV_CMD_PORT_STATS_RX_ERRORS,  },
+
+	{ "tx_packets", ROCKER_TLV_CMD_PORT_STATS_TX_PKTS,    },
+	{ "tx_bytes",   ROCKER_TLV_CMD_PORT_STATS_TX_BYTES,   },
+	{ "tx_dropped", ROCKER_TLV_CMD_PORT_STATS_TX_DROPPED, },
+	{ "tx_errors",  ROCKER_TLV_CMD_PORT_STATS_TX_ERRORS,  },
+};
+
+#define ROCKER_PORT_STATS_LEN  ARRAY_SIZE(rocker_port_stats)
+
+static void rocker_port_get_strings(struct net_device *netdev, u32 stringset,
+				    u8 *data)
+{
+	u8 *p = data;
+	int i;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < ARRAY_SIZE(rocker_port_stats); i++) {
+			memcpy(p, rocker_port_stats[i].str, ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		break;
+	}
+}
+
+static int
+rocker_cmd_get_port_stats_prep(struct rocker *rocker,
+			       struct rocker_port *rocker_port,
+			       struct rocker_desc_info *desc_info,
+			       void *priv)
+{
+	struct rocker_tlv *cmd_stats;
+
+	if (rocker_tlv_put_u16(desc_info, ROCKER_TLV_CMD_TYPE,
+			       ROCKER_TLV_CMD_TYPE_GET_PORT_STATS))
+		return -EMSGSIZE;
+
+	cmd_stats = rocker_tlv_nest_start(desc_info, ROCKER_TLV_CMD_INFO);
+	if (!cmd_stats)
+		return -EMSGSIZE;
+
+	if (rocker_tlv_put_u32(desc_info, ROCKER_TLV_CMD_PORT_STATS_LPORT,
+			       rocker_port->lport))
+		return -EMSGSIZE;
+
+	rocker_tlv_nest_end(desc_info, cmd_stats);
+
+	return 0;
+}
+
+static int
+rocker_cmd_get_port_stats_ethtool_proc(struct rocker *rocker,
+				       struct rocker_port *rocker_port,
+				       struct rocker_desc_info *desc_info,
+				       void *priv)
+{
+	struct rocker_tlv *attrs[ROCKER_TLV_CMD_MAX + 1];
+	struct rocker_tlv *stats_attrs[ROCKER_TLV_CMD_PORT_STATS_MAX + 1];
+	struct rocker_tlv *pattr;
+	u32 lport;
+	u64 *data = priv;
+	int i;
+
+	rocker_tlv_parse_desc(attrs, ROCKER_TLV_CMD_MAX, desc_info);
+
+	if (!attrs[ROCKER_TLV_CMD_INFO])
+		return -EIO;
+
+	rocker_tlv_parse_nested(stats_attrs, ROCKER_TLV_CMD_PORT_STATS_MAX,
+				attrs[ROCKER_TLV_CMD_INFO]);
+
+	if (!stats_attrs[ROCKER_TLV_CMD_PORT_STATS_LPORT])
+		return -EIO;
+
+	lport = rocker_tlv_get_u32(stats_attrs[ROCKER_TLV_CMD_PORT_STATS_LPORT]);
+	if (lport != rocker_port->lport)
+		return -EIO;
+
+	for (i = 0; i < ARRAY_SIZE(rocker_port_stats); i++) {
+		pattr = stats_attrs[rocker_port_stats[i].type];
+		if (!pattr)
+			continue;
+
+		data[i] = rocker_tlv_get_u64(pattr);
+	}
+
+	return 0;
+}
+
+static int rocker_cmd_get_port_stats_ethtool(struct rocker_port *rocker_port,
+					     void *priv)
+{
+	return rocker_cmd_exec(rocker_port->rocker, rocker_port,
+			       rocker_cmd_get_port_stats_prep, NULL,
+			       rocker_cmd_get_port_stats_ethtool_proc,
+			       priv, false);
+}
+
+static void rocker_port_get_stats(struct net_device *dev,
+				  struct ethtool_stats *stats, u64 *data)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+
+	if (rocker_cmd_get_port_stats_ethtool(rocker_port, data) != 0) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(rocker_port_stats); ++i)
+			data[i] = 0;
+	}
+
+	return;
+}
+
+static int rocker_port_get_sset_count(struct net_device *netdev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ROCKER_PORT_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops rocker_port_ethtool_ops = {
 	.get_settings		= rocker_port_get_settings,
 	.set_settings		= rocker_port_set_settings,
 	.get_drvinfo		= rocker_port_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.get_strings		= rocker_port_get_strings,
+	.get_ethtool_stats	= rocker_port_get_stats,
+	.get_sset_count		= rocker_port_get_sset_count,
 };
 
 /*****************
@@ -3850,12 +3993,22 @@ static int rocker_port_poll_tx(struct napi_struct *napi, int budget)
 
 	/* Cleanup tx descriptors */
 	while ((desc_info = rocker_desc_tail_get(&rocker_port->tx_ring))) {
+		struct sk_buff *skb;
+
 		err = rocker_desc_err(desc_info);
 		if (err && net_ratelimit())
 			netdev_err(rocker_port->dev, "tx desc received with err %d\n",
 				   err);
 		rocker_tx_desc_frags_unmap(rocker_port, desc_info);
-		dev_kfree_skb_any(rocker_desc_cookie_ptr_get(desc_info));
+
+		skb = rocker_desc_cookie_ptr_get(desc_info);
+		if (err == 0) {
+			rocker_port->dev->stats.tx_packets++;
+			rocker_port->dev->stats.tx_bytes += skb->len;
+		} else
+			rocker_port->dev->stats.tx_errors++;
+
+		dev_kfree_skb_any(skb);
 		credits++;
 	}
 
@@ -3888,6 +4041,10 @@ static int rocker_port_rx_proc(struct rocker *rocker,
 	rx_len = rocker_tlv_get_u16(attrs[ROCKER_TLV_RX_FRAG_LEN]);
 	skb_put(skb, rx_len);
 	skb->protocol = eth_type_trans(skb, rocker_port->dev);
+
+	rocker_port->dev->stats.rx_packets++;
+	rocker_port->dev->stats.rx_bytes += skb->len;
+
 	netif_receive_skb(skb);
 
 	return rocker_dma_rx_ring_skb_alloc(rocker, rocker_port, desc_info);
@@ -3921,6 +4078,9 @@ static int rocker_port_poll_rx(struct napi_struct *napi, int budget)
 				netdev_err(rocker_port->dev, "rx processing failed with err %d\n",
 					   err);
 		}
+		if (err)
+			rocker_port->dev->stats.rx_errors++;
+
 		rocker_desc_gen_clear(desc_info);
 		rocker_desc_head_set(rocker, &rocker_port->rx_ring, desc_info);
 		credits++;
@@ -4004,7 +4164,8 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 		       NAPI_POLL_WEIGHT);
 	rocker_carrier_init(rocker_port);
 
-	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
+				NETIF_F_HW_SWITCH_OFFLOAD;
 
 	err = register_netdev(dev);
 	if (err) {
@@ -4040,6 +4201,8 @@ static int rocker_probe_ports(struct rocker *rocker)
 
 	alloc_size = sizeof(struct rocker_port *) * rocker->port_count;
 	rocker->ports = kmalloc(alloc_size, GFP_KERNEL);
+	if (!rocker->ports)
+		return -ENOMEM;
 	for (i = 0; i < rocker->port_count; i++) {
 		err = rocker_probe_port(rocker, i);
 		if (err)

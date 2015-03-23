@@ -60,6 +60,11 @@
 		};
 	};
 
+	sram: sram@00300000 {
+		compatible = "mmio-sram";
+		reg = <0x00300000 0x28000>;
+	};
+
 	ahb {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -119,11 +124,12 @@
 			};
 
 			usb1: gadget@fffa4000 {
-				compatible = "atmel,at91rm9200-udc";
+				compatible = "atmel,at91sam9261-udc";
 				reg = <0xfffa4000 0x4000>;
 				interrupts = <10 IRQ_TYPE_LEVEL_HIGH 2>;
-				clocks = <&usb>, <&udc_clk>, <&udpck>;
-				clock-names = "usb_clk", "udc_clk", "udpck";
+				clocks = <&udc_clk>, <&udpck>;
+				clock-names = "pclk", "hclk";
+				atmel,matrix = <&matrix>;
 				status = "disabled";
 			};
 
@@ -257,7 +263,7 @@
 			};
 
 			matrix: matrix@ffffee00 {
-				compatible = "atmel,at91sam9260-bus-matrix";
+				compatible = "atmel,at91sam9260-bus-matrix", "syscon";
 				reg = <0xffffee00 0x200>;
 			};
 

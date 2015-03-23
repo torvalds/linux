@@ -291,10 +291,6 @@ config SYSVIPC_COMPAT
 config AUDIT_ARCH
 	def_bool y
 
-config HPUX
-	bool "Support for HP-UX binaries"
-	depends on !64BIT
-
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32

@@ -941,37 +941,33 @@ fail:
 	return NULL;
 }
 
-/**
- * fsl_dma_prep_slave_sg - prepare descriptors for a DMA_SLAVE transaction
- * @chan: DMA channel
- * @sgl: scatterlist to transfer to/from
- * @sg_len: number of entries in @scatterlist
- * @direction: DMA direction
- * @flags: DMAEngine flags
- * @context: transaction context (ignored)
- *
- * Prepare a set of descriptors for a DMA_SLAVE transaction. Following the
- * DMA_SLAVE API, this gets the device-specific information from the
- * chan->private variable.
- */
-static struct dma_async_tx_descriptor *fsl_dma_prep_slave_sg(
-	struct dma_chan *dchan, struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_transfer_direction direction, unsigned long flags,
-	void *context)
+static int fsl_dma_device_terminate_all(struct dma_chan *dchan)
 {
-	/*
-	 * This operation is not supported on the Freescale DMA controller
-	 *
-	 * However, we need to provide the function pointer to allow the
-	 * device_control() method to work.
-	 */
-	return NULL;
+	struct fsldma_chan *chan;
+
+	if (!dchan)
+		return -EINVAL;
+
+	chan = to_fsl_chan(dchan);
+
+	spin_lock_bh(&chan->desc_lock);
+
+	/* Halt the DMA engine */
+	dma_halt(chan);
+
+	/* Remove and free all of the descriptors in the LD queue */
+	fsldma_free_desc_list(chan, &chan->ld_pending);
+	fsldma_free_desc_list(chan, &chan->ld_running);
+	fsldma_free_desc_list(chan, &chan->ld_completed);
+	chan->idle = true;
+
+	spin_unlock_bh(&chan->desc_lock);
+	return 0;
 }
 
-static int fsl_dma_device_control(struct dma_chan *dchan,
-				  enum dma_ctrl_cmd cmd, unsigned long arg)
+static int fsl_dma_device_config(struct dma_chan *dchan,
+				 struct dma_slave_config *config)
 {
-	struct dma_slave_config *config;
 	struct fsldma_chan *chan;
 	int size;
 
@@ -980,44 +976,20 @@ static int fsl_dma_device_control(struct dma_chan *dchan,
 
 	chan = to_fsl_chan(dchan);
 
-	switch (cmd) {
-	case DMA_TERMINATE_ALL:
-		spin_lock_bh(&chan->desc_lock);
-
-		/* Halt the DMA engine */
-		dma_halt(chan);
-
-		/* Remove and free all of the descriptors in the LD queue */
-		fsldma_free_desc_list(chan, &chan->ld_pending);
-		fsldma_free_desc_list(chan, &chan->ld_running);
-		fsldma_free_desc_list(chan, &chan->ld_completed);
-		chan->idle = true;
-
-		spin_unlock_bh(&chan->desc_lock);
-		return 0;
-
-	case DMA_SLAVE_CONFIG:
-		config = (struct dma_slave_config *)arg;
-
-		/* make sure the channel supports setting burst size */
-		if (!chan->set_request_count)
-			return -ENXIO;
-
-		/* we set the controller burst size depending on direction */
-		if (config->direction == DMA_MEM_TO_DEV)
-			size = config->dst_addr_width * config->dst_maxburst;
-		else
-			size = config->src_addr_width * config->src_maxburst;
-
-		chan->set_request_count(chan, size);
-		return 0;
-
-	default:
+	/* make sure the channel supports setting burst size */
+	if (!chan->set_request_count)
 		return -ENXIO;
-	}
 
+	/* we set the controller burst size depending on direction */
+	if (config->direction == DMA_MEM_TO_DEV)
+		size = config->dst_addr_width * config->dst_maxburst;
+	else
+		size = config->src_addr_width * config->src_maxburst;
+
+	chan->set_request_count(chan, size);
 	return 0;
 }
+
 
 /**
  * fsl_dma_memcpy_issue_pending - Issue the DMA start command
@@ -1395,9 +1367,14 @@ static int fsldma_of_probe(struct platform_device *op)
 	fdev->common.device_prep_dma_sg = fsl_dma_prep_sg;
 	fdev->common.device_tx_status = fsl_tx_status;
 	fdev->common.device_issue_pending = fsl_dma_memcpy_issue_pending;
-	fdev->common.device_prep_slave_sg = fsl_dma_prep_slave_sg;
-	fdev->common.device_control = fsl_dma_device_control;
+	fdev->common.device_config = fsl_dma_device_config;
+	fdev->common.device_terminate_all = fsl_dma_device_terminate_all;
 	fdev->common.dev = &op->dev;
+
+	fdev->common.src_addr_widths = FSL_DMA_BUSWIDTHS;
+	fdev->common.dst_addr_widths = FSL_DMA_BUSWIDTHS;
+	fdev->common.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+	fdev->common.residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
 
 	dma_set_mask(&(op->dev), DMA_BIT_MASK(36));
 

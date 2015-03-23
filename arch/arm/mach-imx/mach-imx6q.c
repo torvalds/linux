@@ -211,8 +211,9 @@ static void __init imx6q_1588_init(void)
 	 * set bit IOMUXC_GPR1[21].  Or the PTP clock must be from pad
 	 * (external OSC), and we need to clear the bit.
 	 */
-	clksel = ptp_clk == enet_ref ? IMX6Q_GPR1_ENET_CLK_SEL_ANATOP :
-				       IMX6Q_GPR1_ENET_CLK_SEL_PAD;
+	clksel = clk_is_match(ptp_clk, enet_ref) ?
+				IMX6Q_GPR1_ENET_CLK_SEL_ANATOP :
+				IMX6Q_GPR1_ENET_CLK_SEL_PAD;
 	gpr = syscon_regmap_lookup_by_compatible("fsl,imx6q-iomuxc-gpr");
 	if (!IS_ERR(gpr))
 		regmap_update_bits(gpr, IOMUXC_GPR1,
@@ -329,7 +330,7 @@ static void __init imx6q_opp_check_speed_grading(struct device *cpu_dev)
 			if (dev_pm_opp_disable(cpu_dev, 852000000))
 				pr_warn("failed to disable 852 MHz OPP\n");
 	}
-
+	iounmap(base);
 put_node:
 	of_node_put(np);
 }

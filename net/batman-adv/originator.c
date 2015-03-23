@@ -797,7 +797,6 @@ batadv_purge_orig_ifinfo(struct batadv_priv *bat_priv,
 	return ifinfo_purged;
 }
 
-
 /**
  * batadv_purge_orig_neighbors - purges neighbors from originator
  * @bat_priv: the bat priv with all the soft interface information

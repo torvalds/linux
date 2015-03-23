@@ -1,7 +1,6 @@
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
-#include <asm/cpu_ops.h>
 #include <asm/debug-monitors.h>
 #include <asm/pgtable.h>
 #include <asm/memory.h>
@@ -49,26 +48,6 @@ void __init cpu_suspend_set_dbg_restorer(void (*hw_bp_restore)(void *))
 	if (WARN_ON(hw_breakpoint_restore))
 		return;
 	hw_breakpoint_restore = hw_bp_restore;
-}
-
-/**
- * cpu_suspend() - function to enter a low-power state
- * @arg: argument to pass to CPU suspend operations
- *
- * Return: 0 on success, -EOPNOTSUPP if CPU suspend hook not initialized, CPU
- * operations back-end error code otherwise.
- */
-int cpu_suspend(unsigned long arg)
-{
-	int cpu = smp_processor_id();
-
-	/*
-	 * If cpu_ops have not been registered or suspend
-	 * has not been initialized, cpu_suspend call fails early.
-	 */
-	if (!cpu_ops[cpu] || !cpu_ops[cpu]->cpu_suspend)
-		return -EOPNOTSUPP;
-	return cpu_ops[cpu]->cpu_suspend(arg);
 }
 
 /*

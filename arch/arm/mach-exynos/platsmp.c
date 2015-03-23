@@ -126,8 +126,7 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
  */
 void exynos_cpu_power_down(int cpu)
 {
-	if (cpu == 0 && (of_machine_is_compatible("samsung,exynos5420") ||
-		of_machine_is_compatible("samsung,exynos5800"))) {
+	if (cpu == 0 && (soc_is_exynos5420() || soc_is_exynos5800())) {
 		/*
 		 * Bypass power down for CPU0 during suspend. Check for
 		 * the SYS_PWR_REG value to decide if we are suspending
@@ -194,7 +193,7 @@ int exynos_cluster_power_state(int cluster)
 		S5P_CORE_LOCAL_PWR_EN);
 }
 
-static inline void __iomem *cpu_boot_reg_base(void)
+void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
 		return pmu_base_addr + S5P_INFORM5;

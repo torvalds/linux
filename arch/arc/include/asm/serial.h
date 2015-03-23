@@ -10,26 +10,13 @@
 #define _ASM_ARC_SERIAL_H
 
 /*
- * early-8250 requires BASE_BAUD to be defined and includes this header.
- * We put in a typical value:
- * 	(core clk / 16) - i.e. UART samples 16 times per sec.
- * Athough in multi-platform-image this might not work, specially if the
- * clk driving the UART is different.
- * We can't use DeviceTree as this is typically for early serial.
+ * early 8250 (now earlycon) requires BASE_BAUD to be defined in this header.
+ * However to still determine it dynamically (for multi-platform images)
+ * we do this in a helper by parsing the FDT early
  */
 
-#include <asm/clk.h>
+extern unsigned int __init arc_early_base_baud(void);
 
-#define BASE_BAUD	(arc_get_core_freq() / 16)
-
-/*
- * This is definitely going to break early 8250 consoles on multi-platform
- * images but hey, it won't add any code complexity for a debug feature of
- * one broken driver.
- */
-#ifdef CONFIG_ARC_PLAT_TB10X
-#undef BASE_BAUD
-#define BASE_BAUD	(arc_get_core_freq() / 16 / 3)
-#endif
+#define BASE_BAUD	arc_early_base_baud()
 
 #endif /* _ASM_ARC_SERIAL_H */

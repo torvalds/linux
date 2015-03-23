@@ -28,6 +28,12 @@
 #ifndef __OCRDMA_AH_H__
 #define __OCRDMA_AH_H__
 
+enum {
+	OCRDMA_AH_ID_MASK		= 0x3FF,
+	OCRDMA_AH_VLAN_VALID_MASK	= 0x01,
+	OCRDMA_AH_VLAN_VALID_SHIFT	= 0x1F
+};
+
 struct ib_ah *ocrdma_create_ah(struct ib_pd *, struct ib_ah_attr *);
 int ocrdma_destroy_ah(struct ib_ah *);
 int ocrdma_query_ah(struct ib_ah *, struct ib_ah_attr *);

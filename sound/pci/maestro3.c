@@ -31,7 +31,7 @@
 #define CARD_NAME "ESS Maestro3/Allegro/Canyon3D-2"
 #define DRIVER_NAME "Maestro3"
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -2395,7 +2395,6 @@ static int snd_m3_free(struct snd_m3 *chip)
 #ifdef CONFIG_PM_SLEEP
 static int m3_suspend(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_m3 *chip = card->private_data;
 	int i, dsp_index;
@@ -2421,31 +2420,17 @@ static int m3_suspend(struct device *dev)
 	for (i = REV_B_DATA_MEMORY_BEGIN ; i <= REV_B_DATA_MEMORY_END; i++)
 		chip->suspend_mem[dsp_index++] =
 			snd_m3_assp_read(chip, MEMTYPE_INTERNAL_DATA, i);
-
-	pci_disable_device(pci);
-	pci_save_state(pci);
-	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int m3_resume(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_m3 *chip = card->private_data;
 	int i, dsp_index;
 
 	if (chip->suspend_mem == NULL)
 		return 0;
-
-	pci_set_power_state(pci, PCI_D0);
-	pci_restore_state(pci);
-	if (pci_enable_device(pci) < 0) {
-		dev_err(dev, "pci_enable_device failed, disabling device\n");
-		snd_card_disconnect(card);
-		return -EIO;
-	}
-	pci_set_master(pci);
 
 	/* first lets just bring everything back. .*/
 	snd_m3_outw(chip, 0, 0x54);

@@ -34,7 +34,6 @@
 
 #include "common.h"
 #include "regs-pmu.h"
-#include "regs-sys.h"
 #include "exynos-pmu.h"
 
 #define S5P_CHECK_SLEEP 0x00000BAD
@@ -51,10 +50,6 @@
 struct exynos_wkup_irq {
 	unsigned int hwirq;
 	u32 mask;
-};
-
-static struct sleep_save exynos5_sys_save[] = {
-	SAVE_ITEM(EXYNOS5_SYS_I2C_CFG),
 };
 
 static struct sleep_save exynos_core_save[] = {
@@ -91,6 +86,12 @@ static unsigned int exynos_pmu_spare3;
 
 static u32 exynos_irqwake_intmask = 0xffffffff;
 
+static const struct exynos_wkup_irq exynos3250_wkup_irq[] = {
+	{ 105, BIT(1) }, /* RTC alarm */
+	{ 106, BIT(2) }, /* RTC tick */
+	{ /* sentinel */ },
+};
+
 static const struct exynos_wkup_irq exynos4_wkup_irq[] = {
 	{ 76, BIT(1) }, /* RTC alarm */
 	{ 77, BIT(2) }, /* RTC tick */
@@ -111,6 +112,19 @@ unsigned int exynos_release_ret_regs[] = {
 	S5P_PAD_RET_MMCB_OPTION,
 	S5P_PAD_RET_EBIA_OPTION,
 	S5P_PAD_RET_EBIB_OPTION,
+	REG_TABLE_END,
+};
+
+unsigned int exynos3250_release_ret_regs[] = {
+	S5P_PAD_RET_MAUDIO_OPTION,
+	S5P_PAD_RET_GPIO_OPTION,
+	S5P_PAD_RET_UART_OPTION,
+	S5P_PAD_RET_MMCA_OPTION,
+	S5P_PAD_RET_MMCB_OPTION,
+	S5P_PAD_RET_EBIA_OPTION,
+	S5P_PAD_RET_EBIB_OPTION,
+	S5P_PAD_RET_MMC2_OPTION,
+	S5P_PAD_RET_SPI_OPTION,
 	REG_TABLE_END,
 };
 
@@ -173,6 +187,12 @@ static int exynos_cpu_suspend(unsigned long arg)
 	return exynos_cpu_do_idle();
 }
 
+static int exynos3250_cpu_suspend(unsigned long arg)
+{
+	flush_cache_all();
+	return exynos_cpu_do_idle();
+}
+
 static int exynos5420_cpu_suspend(unsigned long arg)
 {
 	/* MCPM works with HW CPU identifiers */
@@ -223,6 +243,23 @@ static void exynos_pm_prepare(void)
 	 if (pm_data->extra_save)
 		s3c_pm_do_save(pm_data->extra_save,
 				pm_data->num_extra_save);
+
+	exynos_pm_enter_sleep_mode();
+
+	/* ensure at least INFORM0 has the resume address */
+	pmu_raw_writel(virt_to_phys(exynos_cpu_resume), S5P_INFORM0);
+}
+
+static void exynos3250_pm_prepare(void)
+{
+	unsigned int tmp;
+
+	/* Set wake-up mask registers */
+	exynos_pm_set_wakeup_mask();
+
+	tmp = pmu_raw_readl(EXYNOS3_ARM_L2_OPTION);
+	tmp &= ~EXYNOS5_OPTION_USE_RETENTION;
+	pmu_raw_writel(tmp, EXYNOS3_ARM_L2_OPTION);
 
 	exynos_pm_enter_sleep_mode();
 
@@ -282,6 +319,10 @@ static int exynos_pm_suspend(void)
 {
 	exynos_pm_central_suspend();
 
+	/* Setting SEQ_OPTION register */
+	pmu_raw_writel(S5P_USE_STANDBY_WFI0 | S5P_USE_STANDBY_WFE0,
+		       S5P_CENTRAL_SEQ_OPTION);
+
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 		exynos_cpu_save_register();
 
@@ -333,6 +374,28 @@ static void exynos_pm_resume(void)
 
 	if (cpuid == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(S5P_VA_SCU);
+
+	if (call_firmware_op(resume) == -ENOSYS
+	    && cpuid == ARM_CPU_PART_CORTEX_A9)
+		exynos_cpu_restore_register();
+
+early_wakeup:
+
+	/* Clear SLEEP mode set in INFORM1 */
+	pmu_raw_writel(0x0, S5P_INFORM1);
+}
+
+static void exynos3250_pm_resume(void)
+{
+	u32 cpuid = read_cpuid_part();
+
+	if (exynos_pm_central_resume())
+		goto early_wakeup;
+
+	/* For release retention */
+	exynos_pm_release_retention();
+
+	pmu_raw_writel(S5P_USE_STANDBY_WFI_ALL, S5P_CENTRAL_SEQ_OPTION);
 
 	if (call_firmware_op(resume) == -ENOSYS
 	    && cpuid == ARM_CPU_PART_CORTEX_A9)
@@ -483,6 +546,16 @@ static const struct platform_suspend_ops exynos_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
+static const struct exynos_pm_data exynos3250_pm_data = {
+	.wkup_irq	= exynos3250_wkup_irq,
+	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
+	.release_ret_regs = exynos3250_release_ret_regs,
+	.pm_suspend	= exynos_pm_suspend,
+	.pm_resume	= exynos3250_pm_resume,
+	.pm_prepare	= exynos3250_pm_prepare,
+	.cpu_suspend	= exynos3250_cpu_suspend,
+};
+
 static const struct exynos_pm_data exynos4_pm_data = {
 	.wkup_irq	= exynos4_wkup_irq,
 	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
@@ -497,8 +570,6 @@ static const struct exynos_pm_data exynos5250_pm_data = {
 	.wkup_irq	= exynos5250_wkup_irq,
 	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
 	.release_ret_regs = exynos_release_ret_regs,
-	.extra_save	= exynos5_sys_save,
-	.num_extra_save	= ARRAY_SIZE(exynos5_sys_save),
 	.pm_suspend	= exynos_pm_suspend,
 	.pm_resume	= exynos_pm_resume,
 	.pm_prepare	= exynos_pm_prepare,
@@ -516,8 +587,11 @@ static struct exynos_pm_data exynos5420_pm_data = {
 	.cpu_suspend	= exynos5420_cpu_suspend,
 };
 
-static struct of_device_id exynos_pmu_of_device_ids[] = {
+static const struct of_device_id exynos_pmu_of_device_ids[] __initconst = {
 	{
+		.compatible = "samsung,exynos3250-pmu",
+		.data = &exynos3250_pm_data,
+	}, {
 		.compatible = "samsung,exynos4210-pmu",
 		.data = &exynos4_pm_data,
 	}, {

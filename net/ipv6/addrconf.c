@@ -201,6 +201,7 @@ static struct ipv6_devconf ipv6_devconf __read_mostly = {
 	.disable_ipv6		= 0,
 	.accept_dad		= 1,
 	.suppress_frag_ndisc	= 1,
+	.accept_ra_mtu		= 1,
 };
 
 static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
@@ -238,6 +239,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 	.disable_ipv6		= 0,
 	.accept_dad		= 1,
 	.suppress_frag_ndisc	= 1,
+	.accept_ra_mtu		= 1,
 };
 
 /* Check if a valid qdisc is available */
@@ -489,7 +491,8 @@ static int inet6_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	    nla_put_s32(skb, NETCONFA_PROXY_NEIGH, devconf->proxy_ndp) < 0)
 		goto nla_put_failure;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -619,7 +622,7 @@ static int inet6_netconf_dump_devconf(struct sk_buff *skb,
 						       cb->nlh->nlmsg_seq,
 						       RTM_NEWNETCONF,
 						       NLM_F_MULTI,
-						       -1) <= 0) {
+						       -1) < 0) {
 				rcu_read_unlock();
 				goto done;
 			}
@@ -635,7 +638,7 @@ cont:
 					       NETLINK_CB(cb->skb).portid,
 					       cb->nlh->nlmsg_seq,
 					       RTM_NEWNETCONF, NLM_F_MULTI,
-					       -1) <= 0)
+					       -1) < 0)
 			goto done;
 		else
 			h++;
@@ -646,7 +649,7 @@ cont:
 					       NETLINK_CB(cb->skb).portid,
 					       cb->nlh->nlmsg_seq,
 					       RTM_NEWNETCONF, NLM_F_MULTI,
-					       -1) <= 0)
+					       -1) < 0)
 			goto done;
 		else
 			h++;
@@ -1519,15 +1522,30 @@ static int ipv6_count_addresses(struct inet6_dev *idev)
 int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 		  const struct net_device *dev, int strict)
 {
+	return ipv6_chk_addr_and_flags(net, addr, dev, strict, IFA_F_TENTATIVE);
+}
+EXPORT_SYMBOL(ipv6_chk_addr);
+
+int ipv6_chk_addr_and_flags(struct net *net, const struct in6_addr *addr,
+			    const struct net_device *dev, int strict,
+			    u32 banned_flags)
+{
 	struct inet6_ifaddr *ifp;
 	unsigned int hash = inet6_addr_hash(addr);
+	u32 ifp_flags;
 
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu(ifp, &inet6_addr_lst[hash], addr_lst) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
+		/* Decouple optimistic from tentative for evaluation here.
+		 * Ban optimistic addresses explicitly, when required.
+		 */
+		ifp_flags = (ifp->flags&IFA_F_OPTIMISTIC)
+			    ? (ifp->flags&~IFA_F_TENTATIVE)
+			    : ifp->flags;
 		if (ipv6_addr_equal(&ifp->addr, addr) &&
-		    !(ifp->flags&IFA_F_TENTATIVE) &&
+		    !(ifp_flags&banned_flags) &&
 		    (dev == NULL || ifp->idev->dev == dev ||
 		     !(ifp->scope&(IFA_LINK|IFA_HOST) || strict))) {
 			rcu_read_unlock_bh();
@@ -1538,7 +1556,7 @@ int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 	rcu_read_unlock_bh();
 	return 0;
 }
-EXPORT_SYMBOL(ipv6_chk_addr);
+EXPORT_SYMBOL(ipv6_chk_addr_and_flags);
 
 static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 			       struct net_device *dev)
@@ -4047,7 +4065,8 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 	if (nla_put_u32(skb, IFA_FLAGS, ifa->flags) < 0)
 		goto error;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 error:
 	nlmsg_cancel(skb, nlh);
@@ -4076,7 +4095,8 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 		return -EMSGSIZE;
 	}
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 }
 
 static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
@@ -4101,7 +4121,8 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 		return -EMSGSIZE;
 	}
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 }
 
 enum addr_type_t {
@@ -4134,7 +4155,7 @@ static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
 						cb->nlh->nlmsg_seq,
 						RTM_NEWADDR,
 						NLM_F_MULTI);
-			if (err <= 0)
+			if (err < 0)
 				break;
 			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 		}
@@ -4151,7 +4172,7 @@ static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
 						  cb->nlh->nlmsg_seq,
 						  RTM_GETMULTICAST,
 						  NLM_F_MULTI);
-			if (err <= 0)
+			if (err < 0)
 				break;
 		}
 		break;
@@ -4166,7 +4187,7 @@ static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
 						  cb->nlh->nlmsg_seq,
 						  RTM_GETANYCAST,
 						  NLM_F_MULTI);
-			if (err <= 0)
+			if (err < 0)
 				break;
 		}
 		break;
@@ -4209,7 +4230,7 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 				goto cont;
 
 			if (in6_dump_addrs(idev, skb, cb, type,
-					   s_ip_idx, &ip_idx) <= 0)
+					   s_ip_idx, &ip_idx) < 0)
 				goto done;
 cont:
 			idx++;
@@ -4376,6 +4397,7 @@ static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_NDISC_NOTIFY] = cnf->ndisc_notify;
 	array[DEVCONF_SUPPRESS_FRAG_NDISC] = cnf->suppress_frag_ndisc;
 	array[DEVCONF_ACCEPT_RA_FROM_LOCAL] = cnf->accept_ra_from_local;
+	array[DEVCONF_ACCEPT_RA_MTU] = cnf->accept_ra_mtu;
 }
 
 static inline size_t inet6_ifla6_size(void)
@@ -4572,6 +4594,22 @@ static int inet6_set_iftoken(struct inet6_dev *idev, struct in6_addr *token)
 	return 0;
 }
 
+static const struct nla_policy inet6_af_policy[IFLA_INET6_MAX + 1] = {
+	[IFLA_INET6_ADDR_GEN_MODE]	= { .type = NLA_U8 },
+	[IFLA_INET6_TOKEN]		= { .len = sizeof(struct in6_addr) },
+};
+
+static int inet6_validate_link_af(const struct net_device *dev,
+				  const struct nlattr *nla)
+{
+	struct nlattr *tb[IFLA_INET6_MAX + 1];
+
+	if (dev && !__in6_dev_get(dev))
+		return -EAFNOSUPPORT;
+
+	return nla_parse_nested(tb, IFLA_INET6_MAX, nla, inet6_af_policy);
+}
+
 static int inet6_set_link_af(struct net_device *dev, const struct nlattr *nla)
 {
 	int err = -EINVAL;
@@ -4638,7 +4676,8 @@ static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 		goto nla_put_failure;
 
 	nla_nest_end(skb, protoinfo);
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -4670,7 +4709,7 @@ static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 			if (inet6_fill_ifinfo(skb, idev,
 					      NETLINK_CB(cb->skb).portid,
 					      cb->nlh->nlmsg_seq,
-					      RTM_NEWLINK, NLM_F_MULTI) <= 0)
+					      RTM_NEWLINK, NLM_F_MULTI) < 0)
 				goto out;
 cont:
 			idx++;
@@ -4747,7 +4786,8 @@ static int inet6_fill_prefix(struct sk_buff *skb, struct inet6_dev *idev,
 	ci.valid_time = ntohl(pinfo->valid);
 	if (nla_put(skb, PREFIX_CACHEINFO, sizeof(ci), &ci))
 		goto nla_put_failure;
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
@@ -4861,6 +4901,21 @@ int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
 	if (ret)
 		*ppos = pos;
 	return ret;
+}
+
+static
+int addrconf_sysctl_mtu(struct ctl_table *ctl, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct inet6_dev *idev = ctl->extra1;
+	int min_mtu = IPV6_MIN_MTU;
+	struct ctl_table lctl;
+
+	lctl = *ctl;
+	lctl.extra1 = &min_mtu;
+	lctl.extra2 = idev ? &idev->dev->mtu : NULL;
+
+	return proc_dointvec_minmax(&lctl, write, buffer, lenp, ppos);
 }
 
 static void dev_disable_change(struct inet6_dev *idev)
@@ -5014,7 +5069,7 @@ static struct addrconf_sysctl_table
 			.data		= &ipv6_devconf.mtu6,
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec,
+			.proc_handler	= addrconf_sysctl_mtu,
 		},
 		{
 			.procname	= "accept_ra",
@@ -5253,6 +5308,13 @@ static struct addrconf_sysctl_table
 			.proc_handler	= proc_dointvec,
 		},
 		{
+			.procname	= "accept_ra_mtu",
+			.data		= &ipv6_devconf.accept_ra_mtu,
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		{
 			/* sentinel */
 		}
 	},
@@ -5389,10 +5451,11 @@ static struct pernet_operations addrconf_ops = {
 	.exit = addrconf_exit_net,
 };
 
-static struct rtnl_af_ops inet6_ops = {
+static struct rtnl_af_ops inet6_ops __read_mostly = {
 	.family		  = AF_INET6,
 	.fill_link_af	  = inet6_fill_link_af,
 	.get_link_af_size = inet6_get_link_af_size,
+	.validate_link_af = inet6_validate_link_af,
 	.set_link_af	  = inet6_set_link_af,
 };
 

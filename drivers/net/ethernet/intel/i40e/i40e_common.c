@@ -742,6 +742,65 @@ i40e_status i40e_get_san_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 #endif
 
 /**
+ *  i40e_read_pba_string - Reads part number string from EEPROM
+ *  @hw: pointer to hardware structure
+ *  @pba_num: stores the part number string from the EEPROM
+ *  @pba_num_size: part number string buffer length
+ *
+ *  Reads the part number string from the EEPROM.
+ **/
+i40e_status i40e_read_pba_string(struct i40e_hw *hw, u8 *pba_num,
+				 u32 pba_num_size)
+{
+	i40e_status status = 0;
+	u16 pba_word = 0;
+	u16 pba_size = 0;
+	u16 pba_ptr = 0;
+	u16 i = 0;
+
+	status = i40e_read_nvm_word(hw, I40E_SR_PBA_FLAGS, &pba_word);
+	if (status || (pba_word != 0xFAFA)) {
+		hw_dbg(hw, "Failed to read PBA flags or flag is invalid.\n");
+		return status;
+	}
+
+	status = i40e_read_nvm_word(hw, I40E_SR_PBA_BLOCK_PTR, &pba_ptr);
+	if (status) {
+		hw_dbg(hw, "Failed to read PBA Block pointer.\n");
+		return status;
+	}
+
+	status = i40e_read_nvm_word(hw, pba_ptr, &pba_size);
+	if (status) {
+		hw_dbg(hw, "Failed to read PBA Block size.\n");
+		return status;
+	}
+
+	/* Subtract one to get PBA word count (PBA Size word is included in
+	 * total size)
+	 */
+	pba_size--;
+	if (pba_num_size < (((u32)pba_size * 2) + 1)) {
+		hw_dbg(hw, "Buffer to small for PBA data.\n");
+		return I40E_ERR_PARAM;
+	}
+
+	for (i = 0; i < pba_size; i++) {
+		status = i40e_read_nvm_word(hw, (pba_ptr + 1) + i, &pba_word);
+		if (status) {
+			hw_dbg(hw, "Failed to read PBA Block word %d.\n", i);
+			return status;
+		}
+
+		pba_num[(i * 2)] = (pba_word >> 8) & 0xFF;
+		pba_num[(i * 2) + 1] = pba_word & 0xFF;
+	}
+	pba_num[(pba_size * 2)] = '\0';
+
+	return status;
+}
+
+/**
  * i40e_get_media_type - Gets media type
  * @hw: pointer to the hardware structure
  **/
@@ -809,8 +868,9 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	 * The grst delay value is in 100ms units, and we'll wait a
 	 * couple counts longer to be sure we don't just miss the end.
 	 */
-	grst_del = rd32(hw, I40E_GLGEN_RSTCTL) & I40E_GLGEN_RSTCTL_GRSTDEL_MASK
-			>> I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
+	grst_del = (rd32(hw, I40E_GLGEN_RSTCTL) &
+		    I40E_GLGEN_RSTCTL_GRSTDEL_MASK) >>
+		    I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
 	for (cnt = 0; cnt < grst_del + 2; cnt++) {
 		reg = rd32(hw, I40E_GLGEN_RSTAT);
 		if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
@@ -1083,8 +1143,10 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 		if (mode == I40E_LINK_ACTIVITY)
 			blink = false;
 
-		gpio_val |= (blink ? 1 : 0) <<
-			    I40E_GLGEN_GPIO_CTL_LED_BLINK_SHIFT;
+		if (blink)
+			gpio_val |= (1 << I40E_GLGEN_GPIO_CTL_LED_BLINK_SHIFT);
+		else
+			gpio_val &= ~(1 << I40E_GLGEN_GPIO_CTL_LED_BLINK_SHIFT);
 
 		wr32(hw, I40E_GLGEN_GPIO_CTL(i), gpio_val);
 		break;
@@ -2035,6 +2097,43 @@ i40e_status i40e_aq_send_msg_to_vf(struct i40e_hw *hw, u16 vfid,
 }
 
 /**
+ * i40e_aq_debug_read_register
+ * @hw: pointer to the hw struct
+ * @reg_addr: register address
+ * @reg_val: register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Read the register using the admin queue commands
+ **/
+i40e_status i40e_aq_debug_read_register(struct i40e_hw *hw,
+				u32  reg_addr, u64 *reg_val,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_debug_reg_read_write *cmd_resp =
+		(struct i40e_aqc_debug_reg_read_write *)&desc.params.raw;
+	i40e_status status;
+
+	if (reg_val == NULL)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_debug_read_reg);
+
+	cmd_resp->address = cpu_to_le32(reg_addr);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	if (!status) {
+		*reg_val = ((u64)cmd_resp->value_high << 32) |
+			    (u64)cmd_resp->value_low;
+		*reg_val = le64_to_cpu(*reg_val);
+	}
+
+	return status;
+}
+
+/**
  * i40e_aq_debug_write_register
  * @hw: pointer to the hw struct
  * @reg_addr: register address
@@ -2264,6 +2363,7 @@ i40e_aq_erase_nvm_exit:
 #define I40E_DEV_FUNC_CAP_VSI		0x17
 #define I40E_DEV_FUNC_CAP_DCB		0x18
 #define I40E_DEV_FUNC_CAP_FCOE		0x21
+#define I40E_DEV_FUNC_CAP_ISCSI		0x22
 #define I40E_DEV_FUNC_CAP_RSS		0x40
 #define I40E_DEV_FUNC_CAP_RX_QUEUES	0x41
 #define I40E_DEV_FUNC_CAP_TX_QUEUES	0x42
@@ -2292,6 +2392,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 				     enum i40e_admin_queue_opc list_type_opc)
 {
 	struct i40e_aqc_list_capabilities_element_resp *cap;
+	u32 valid_functions, num_functions;
 	u32 number, logical_id, phys_id;
 	struct i40e_hw_capabilities *p;
 	u32 i = 0;
@@ -2362,6 +2463,10 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			if (number == 1)
 				p->fcoe = true;
 			break;
+		case I40E_DEV_FUNC_CAP_ISCSI:
+			if (number == 1)
+				p->iscsi = true;
+			break;
 		case I40E_DEV_FUNC_CAP_RSS:
 			p->rss = true;
 			p->rss_table_size = number;
@@ -2426,6 +2531,34 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	 */
 	if (p->npar_enable || p->mfp_mode_1)
 		p->fcoe = false;
+
+	/* count the enabled ports (aka the "not disabled" ports) */
+	hw->num_ports = 0;
+	for (i = 0; i < 4; i++) {
+		u32 port_cfg_reg = I40E_PRTGEN_CNF + (4 * i);
+		u64 port_cfg = 0;
+
+		/* use AQ read to get the physical register offset instead
+		 * of the port relative offset
+		 */
+		i40e_aq_debug_read_register(hw, port_cfg_reg, &port_cfg, NULL);
+		if (!(port_cfg & I40E_PRTGEN_CNF_PORT_DIS_MASK))
+			hw->num_ports++;
+	}
+
+	valid_functions = p->valid_functions;
+	num_functions = 0;
+	while (valid_functions) {
+		if (valid_functions & 1)
+			num_functions++;
+		valid_functions >>= 1;
+	}
+
+	/* partition id is 1-based, and functions are evenly spread
+	 * across the ports as partitions
+	 */
+	hw->partition_id = (hw->pf_id / hw->num_ports) + 1;
+	hw->num_partitions = num_functions / hw->num_ports;
 
 	/* additional HW specific goodies that might
 	 * someday be HW version specific
@@ -2714,7 +2847,7 @@ i40e_status i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
-	if (!status)
+	if (!status && filter_index)
 		*filter_index = resp->index;
 
 	return status;

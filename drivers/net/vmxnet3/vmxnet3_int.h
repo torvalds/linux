@@ -69,10 +69,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.2.1.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.3.4.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01020100
+#define VMXNET3_DRIVER_VERSION_NUM      0x01030400
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -352,6 +352,7 @@ struct vmxnet3_adapter {
 	/* Ring sizes */
 	u32 tx_ring_size;
 	u32 rx_ring_size;
+	u32 rx_ring2_size;
 
 	struct work_struct work;
 
@@ -384,6 +385,7 @@ struct vmxnet3_adapter {
 /* must be a multiple of VMXNET3_RING_SIZE_ALIGN */
 #define VMXNET3_DEF_TX_RING_SIZE    512
 #define VMXNET3_DEF_RX_RING_SIZE    256
+#define VMXNET3_DEF_RX_RING2_SIZE   128
 
 #define VMXNET3_MAX_ETH_HDR_SIZE    22
 #define VMXNET3_MAX_SKB_BUF_SIZE    (3*1024)

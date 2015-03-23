@@ -51,6 +51,7 @@
 #include <linux/netdev_features.h>
 #include <linux/neighbour.h>
 #include <uapi/linux/netdevice.h>
+#include <uapi/linux/if_bonding.h>
 
 struct netpoll_info;
 struct device;
@@ -643,38 +644,39 @@ struct rps_dev_flow_table {
 /*
  * The rps_sock_flow_table contains mappings of flows to the last CPU
  * on which they were processed by the application (set in recvmsg).
+ * Each entry is a 32bit value. Upper part is the high order bits
+ * of flow hash, lower part is cpu number.
+ * rps_cpu_mask is used to partition the space, depending on number of
+ * possible cpus : rps_cpu_mask = roundup_pow_of_two(nr_cpu_ids) - 1
+ * For example, if 64 cpus are possible, rps_cpu_mask = 0x3f,
+ * meaning we use 32-6=26 bits for the hash.
  */
 struct rps_sock_flow_table {
-	unsigned int mask;
-	u16 ents[0];
+	u32	mask;
+
+	u32	ents[0] ____cacheline_aligned_in_smp;
 };
-#define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (sizeof(struct rps_sock_flow_table) + \
-    ((_num) * sizeof(u16)))
+#define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (offsetof(struct rps_sock_flow_table, ents[_num]))
 
 #define RPS_NO_CPU 0xffff
+
+extern u32 rps_cpu_mask;
+extern struct rps_sock_flow_table __rcu *rps_sock_flow_table;
 
 static inline void rps_record_sock_flow(struct rps_sock_flow_table *table,
 					u32 hash)
 {
 	if (table && hash) {
-		unsigned int cpu, index = hash & table->mask;
+		unsigned int index = hash & table->mask;
+		u32 val = hash & ~rps_cpu_mask;
 
 		/* We only give a hint, preemption can change cpu under us */
-		cpu = raw_smp_processor_id();
+		val |= raw_smp_processor_id();
 
-		if (table->ents[index] != cpu)
-			table->ents[index] = cpu;
+		if (table->ents[index] != val)
+			table->ents[index] = val;
 	}
 }
-
-static inline void rps_reset_sock_flow(struct rps_sock_flow_table *table,
-				       u32 hash)
-{
-	if (table && hash)
-		table->ents[hash & table->mask] = RPS_NO_CPU;
-}
-
-extern struct rps_sock_flow_table __rcu *rps_sock_flow_table;
 
 #ifdef CONFIG_RFS_ACCEL
 bool rps_may_expire_flow(struct net_device *dev, u16 rxq_index, u32 flow_id,
@@ -963,9 +965,12 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	Used to add FDB entries to dump requests. Implementers should add
  *	entries to skb and update idx with the number of entries.
  *
- * int (*ndo_bridge_setlink)(struct net_device *dev, struct nlmsghdr *nlh)
+ * int (*ndo_bridge_setlink)(struct net_device *dev, struct nlmsghdr *nlh,
+ *			     u16 flags)
  * int (*ndo_bridge_getlink)(struct sk_buff *skb, u32 pid, u32 seq,
  *			     struct net_device *dev, u32 filter_mask)
+ * int (*ndo_bridge_dellink)(struct net_device *dev, struct nlmsghdr *nlh,
+ *			     u16 flags);
  *
  * int (*ndo_change_carrier)(struct net_device *dev, bool new_carrier);
  *	Called to change device carrier. Soft-devices (like dummy, team, etc)
@@ -1154,13 +1159,15 @@ struct net_device_ops {
 						int idx);
 
 	int			(*ndo_bridge_setlink)(struct net_device *dev,
-						      struct nlmsghdr *nlh);
+						      struct nlmsghdr *nlh,
+						      u16 flags);
 	int			(*ndo_bridge_getlink)(struct sk_buff *skb,
 						      u32 pid, u32 seq,
 						      struct net_device *dev,
 						      u32 filter_mask);
 	int			(*ndo_bridge_dellink)(struct net_device *dev,
-						      struct nlmsghdr *nlh);
+						      struct nlmsghdr *nlh,
+						      u16 flags);
 	int			(*ndo_change_carrier)(struct net_device *dev,
 						      bool new_carrier);
 	int			(*ndo_get_phys_port_id)(struct net_device *dev,
@@ -1514,6 +1521,8 @@ struct net_device {
 	struct list_head	napi_list;
 	struct list_head	unreg_list;
 	struct list_head	close_list;
+	struct list_head	ptype_all;
+	struct list_head	ptype_specific;
 
 	struct {
 		struct list_head upper;
@@ -1917,19 +1926,17 @@ struct napi_gro_cb {
 	/* Number of segments aggregated. */
 	u16	count;
 
-	/* This is non-zero if the packet may be of the same flow. */
-	u8	same_flow;
-
-	/* Free the skb? */
-	u8	free;
-#define NAPI_GRO_FREE		  1
-#define NAPI_GRO_FREE_STOLEN_HEAD 2
+	/* Start offset for remote checksum offload */
+	u16	gro_remcsum_start;
 
 	/* jiffies when first packet was created/queued */
 	unsigned long age;
 
 	/* Used in ipv6_gro_receive() and foo-over-udp */
 	u16	proto;
+
+	/* This is non-zero if the packet may be of the same flow. */
+	u8	same_flow:1;
 
 	/* Used in udp_gro_receive */
 	u8	udp_mark:1;
@@ -1940,8 +1947,15 @@ struct napi_gro_cb {
 	/* Number of checksums via CHECKSUM_UNNECESSARY */
 	u8	csum_cnt:3;
 
+	/* Free the skb? */
+	u8	free:2;
+#define NAPI_GRO_FREE		  1
+#define NAPI_GRO_FREE_STOLEN_HEAD 2
+
 	/* Used in foo-over-udp, set in udp[46]_gro_receive */
 	u8	is_ipv6:1;
+
+	/* 7 bit hole */
 
 	/* used to support CHECKSUM_COMPLETE for tunneling protocols */
 	__wsum	csum;
@@ -1969,7 +1983,7 @@ struct offload_callbacks {
 	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
 						netdev_features_t features);
 	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
-					       struct sk_buff *skb);
+						 struct sk_buff *skb);
 	int			(*gro_complete)(struct sk_buff *skb, int nhoff);
 };
 
@@ -1979,10 +1993,21 @@ struct packet_offload {
 	struct list_head	 list;
 };
 
+struct udp_offload;
+
+struct udp_offload_callbacks {
+	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
+						 struct sk_buff *skb,
+						 struct udp_offload *uoff);
+	int			(*gro_complete)(struct sk_buff *skb,
+						int nhoff,
+						struct udp_offload *uoff);
+};
+
 struct udp_offload {
 	__be16			 port;
 	u8			 ipproto;
-	struct offload_callbacks callbacks;
+	struct udp_offload_callbacks callbacks;
 };
 
 /* often modified stats are per cpu, other are shared (netdev->stats) */
@@ -2041,6 +2066,7 @@ struct pcpu_sw_netstats {
 #define NETDEV_RESEND_IGMP	0x0016
 #define NETDEV_PRECHANGEMTU	0x0017 /* notify before mtu change happened */
 #define NETDEV_CHANGEINFODATA	0x0018
+#define NETDEV_BONDING_INFO	0x0019
 
 int register_netdevice_notifier(struct notifier_block *nb);
 int unregister_netdevice_notifier(struct notifier_block *nb);
@@ -2224,11 +2250,20 @@ static inline void skb_gro_postpull_rcsum(struct sk_buff *skb,
 
 __sum16 __skb_gro_checksum_complete(struct sk_buff *skb);
 
+static inline bool skb_at_gro_remcsum_start(struct sk_buff *skb)
+{
+	return (NAPI_GRO_CB(skb)->gro_remcsum_start - skb_headroom(skb) ==
+		skb_gro_offset(skb));
+}
+
 static inline bool __skb_gro_checksum_validate_needed(struct sk_buff *skb,
 						      bool zero_okay,
 						      __sum16 check)
 {
-	return (skb->ip_summed != CHECKSUM_PARTIAL &&
+	return ((skb->ip_summed != CHECKSUM_PARTIAL ||
+		skb_checksum_start_offset(skb) <
+		 skb_gro_offset(skb)) &&
+		!skb_at_gro_remcsum_start(skb) &&
 		NAPI_GRO_CB(skb)->csum_cnt == 0 &&
 		(!zero_okay || check));
 }
@@ -2302,6 +2337,50 @@ do {									\
 		__skb_gro_checksum_convert(skb, check,			\
 					   compute_pseudo(skb, proto));	\
 } while (0)
+
+struct gro_remcsum {
+	int offset;
+	__wsum delta;
+};
+
+static inline void skb_gro_remcsum_init(struct gro_remcsum *grc)
+{
+	grc->offset = 0;
+	grc->delta = 0;
+}
+
+static inline void skb_gro_remcsum_process(struct sk_buff *skb, void *ptr,
+					   int start, int offset,
+					   struct gro_remcsum *grc,
+					   bool nopartial)
+{
+	__wsum delta;
+
+	BUG_ON(!NAPI_GRO_CB(skb)->csum_valid);
+
+	if (!nopartial) {
+		NAPI_GRO_CB(skb)->gro_remcsum_start =
+		    ((unsigned char *)ptr + start) - skb->head;
+		return;
+	}
+
+	delta = remcsum_adjust(ptr, NAPI_GRO_CB(skb)->csum, start, offset);
+
+	/* Adjust skb->csum since we changed the packet */
+	NAPI_GRO_CB(skb)->csum = csum_add(NAPI_GRO_CB(skb)->csum, delta);
+
+	grc->offset = (ptr + offset) - (void *)skb->head;
+	grc->delta = delta;
+}
+
+static inline void skb_gro_remcsum_cleanup(struct sk_buff *skb,
+					   struct gro_remcsum *grc)
+{
+	if (!grc->delta)
+		return;
+
+	remcsum_unadjust((__sum16 *)(skb->head + grc->offset), grc->delta);
+}
 
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 				  unsigned short type,
@@ -3463,6 +3542,19 @@ struct sk_buff *__skb_gso_segment(struct sk_buff *skb,
 				  netdev_features_t features, bool tx_path);
 struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 				    netdev_features_t features);
+
+struct netdev_bonding_info {
+	ifslave	slave;
+	ifbond	master;
+};
+
+struct netdev_notifier_bonding_info {
+	struct netdev_notifier_info info; /* must be first */
+	struct netdev_bonding_info  bonding_info;
+};
+
+void netdev_bonding_info_change(struct net_device *dev,
+				struct netdev_bonding_info *bonding_info);
 
 static inline
 struct sk_buff *skb_gso_segment(struct sk_buff *skb, netdev_features_t features)

@@ -931,7 +931,7 @@ static void rs_send_xchar(struct tty_struct *tty, char ch)
 	struct serial_state *info = tty->driver_data;
         unsigned long flags;
 
-	if (serial_paranoia_check(info, tty->name, "rs_send_char"))
+	if (serial_paranoia_check(info, tty->name, "rs_send_xchar"))
 		return;
 
 	info->x_char = ch;

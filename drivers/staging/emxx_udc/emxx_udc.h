@@ -624,7 +624,6 @@ struct nbu2ss_udc {
 	unsigned		linux_suspended:1;
 	unsigned		linux_resume:1;
 	unsigned		usb_suspended:1;
-	unsigned		self_powered:1;
 	unsigned		remote_wakeup:1;
 	unsigned		udc_enabled:1;
 

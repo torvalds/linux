@@ -23,11 +23,8 @@ struct hdmi_bridge {
 };
 #define to_hdmi_bridge(x) container_of(x, struct hdmi_bridge, base)
 
-static void hdmi_bridge_destroy(struct drm_bridge *bridge)
+void hdmi_bridge_destroy(struct drm_bridge *bridge)
 {
-	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
-	drm_bridge_cleanup(bridge);
-	kfree(hdmi_bridge);
 }
 
 static void power_on(struct drm_bridge *bridge)
@@ -200,7 +197,6 @@ static const struct drm_bridge_funcs hdmi_bridge_funcs = {
 		.disable = hdmi_bridge_disable,
 		.post_disable = hdmi_bridge_post_disable,
 		.mode_set = hdmi_bridge_mode_set,
-		.destroy = hdmi_bridge_destroy,
 };
 
 
@@ -211,7 +207,8 @@ struct drm_bridge *hdmi_bridge_init(struct hdmi *hdmi)
 	struct hdmi_bridge *hdmi_bridge;
 	int ret;
 
-	hdmi_bridge = kzalloc(sizeof(*hdmi_bridge), GFP_KERNEL);
+	hdmi_bridge = devm_kzalloc(hdmi->dev->dev,
+			sizeof(*hdmi_bridge), GFP_KERNEL);
 	if (!hdmi_bridge) {
 		ret = -ENOMEM;
 		goto fail;
@@ -220,8 +217,11 @@ struct drm_bridge *hdmi_bridge_init(struct hdmi *hdmi)
 	hdmi_bridge->hdmi = hdmi;
 
 	bridge = &hdmi_bridge->base;
+	bridge->funcs = &hdmi_bridge_funcs;
 
-	drm_bridge_init(hdmi->dev, bridge, &hdmi_bridge_funcs);
+	ret = drm_bridge_attach(hdmi->dev, bridge);
+	if (ret)
+		goto fail;
 
 	return bridge;
 

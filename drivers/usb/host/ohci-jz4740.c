@@ -239,7 +239,6 @@ static struct platform_driver ohci_hcd_jz4740_driver = {
 	.remove = jz4740_ohci_remove,
 	.driver = {
 		.name = "jz4740-ohci",
-		.owner = THIS_MODULE,
 	},
 };
 

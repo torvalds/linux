@@ -138,7 +138,7 @@ static void llt_ndlc_requeue_data_pending(struct llt_ndlc *ndlc)
 		default:
 			pr_err("UNKNOWN Packet Control Byte=%d\n", pcb);
 			kfree_skb(skb);
-			break;
+			continue;
 		}
 		skb_queue_head(&ndlc->send_q, skb);
 	}
@@ -297,6 +297,5 @@ void ndlc_remove(struct llt_ndlc *ndlc)
 	skb_queue_purge(&ndlc->send_q);
 
 	st21nfcb_nci_remove(ndlc->ndev);
-	kfree(ndlc);
 }
 EXPORT_SYMBOL(ndlc_remove);

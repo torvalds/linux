@@ -122,7 +122,7 @@ struct sti_dwmac {
 	bool ext_phyclk;	/* Clock from external PHY */
 	u32 tx_retime_src;	/* TXCLK Retiming*/
 	struct clk *clk;	/* PHY clock */
-	int ctrl_reg;		/* GMAC glue-logic control register */
+	u32 ctrl_reg;		/* GMAC glue-logic control register */
 	int clk_sel_reg;	/* GMAC ext clk selection register */
 	struct device *dev;
 	struct regmap *regmap;
@@ -285,11 +285,6 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	if (!np)
 		return -EINVAL;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sti-ethconf");
-	if (!res)
-		return -ENODATA;
-	dwmac->ctrl_reg = res->start;
-
 	/* clk selection from extra syscfg register */
 	dwmac->clk_sel_reg = -ENXIO;
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sti-clkconf");
@@ -299,6 +294,12 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	regmap = syscon_regmap_lookup_by_phandle(np, "st,syscon");
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
+
+	err = of_property_read_u32_index(np, "st,syscon", 1, &dwmac->ctrl_reg);
+	if (err) {
+		dev_err(dev, "Can't get sysconfig ctrl offset (%d)\n", err);
+		return err;
+	}
 
 	dwmac->dev = dev;
 	dwmac->interface = of_get_phy_mode(np);

@@ -946,6 +946,7 @@ int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mod
 		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
 	if (!crtc_state)
 		return -ENOMEM;
+	crtc_state->crtc = crtc;
 
 	crtc_state->enable = true;
 	crtc_state->planes_changed = true;
@@ -1005,6 +1006,7 @@ int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
 	if (!plane_state)
 		return -ENOMEM;
+	plane_state->plane = plane;
 
 	plane_state->crtc = crtc;
 	drm_atomic_set_fb_for_plane(plane_state, crtc->primary->fb);

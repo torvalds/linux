@@ -84,7 +84,6 @@ head-y			:= arch/parisc/kernel/head.o
 KBUILD_CFLAGS	+= $(cflags-y)
 
 kernel-y			:= mm/ kernel/ math-emu/
-kernel-$(CONFIG_HPUX)		+= hpux/
 
 core-y	+= $(addprefix arch/parisc/, $(kernel-y))
 libs-y	+= arch/parisc/lib/ $(LIBGCC)
@@ -149,7 +148,7 @@ endef
 # we require gcc 3.3 or above to compile the kernel
 archprepare: checkbin
 checkbin:
-	@if test "$(call cc-version)" -lt "0303"; then \
+	@if test "$(cc-version)" -lt "0303"; then \
 		echo -n "Sorry, GCC v3.3 or above is required to build " ; \
 		echo "the kernel." ; \
 		false ; \

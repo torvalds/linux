@@ -2382,7 +2382,7 @@ out:
 	return nr_freed;
 }
 
-int __kmem_cache_shrink(struct kmem_cache *cachep)
+int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
 {
 	int ret = 0;
 	int node;
@@ -2404,7 +2404,7 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
 {
 	int i;
 	struct kmem_cache_node *n;
-	int rc = __kmem_cache_shrink(cachep);
+	int rc = __kmem_cache_shrink(cachep, false);
 
 	if (rc)
 		return rc;
@@ -3708,8 +3708,7 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 				int batchcount, int shared, gfp_t gfp)
 {
 	int ret;
-	struct kmem_cache *c = NULL;
-	int i = 0;
+	struct kmem_cache *c;
 
 	ret = __do_tune_cpucache(cachep, limit, batchcount, shared, gfp);
 
@@ -3719,12 +3718,10 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	if ((ret < 0) || !is_root_cache(cachep))
 		return ret;
 
-	VM_BUG_ON(!mutex_is_locked(&slab_mutex));
-	for_each_memcg_cache_index(i) {
-		c = cache_from_memcg_idx(cachep, i);
-		if (c)
-			/* return value determined by the parent cache only */
-			__do_tune_cpucache(c, limit, batchcount, shared, gfp);
+	lockdep_assert_held(&slab_mutex);
+	for_each_memcg_cache(c, cachep) {
+		/* return value determined by the root cache only */
+		__do_tune_cpucache(c, limit, batchcount, shared, gfp);
 	}
 
 	return ret;

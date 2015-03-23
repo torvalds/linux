@@ -39,14 +39,13 @@ config POWER_RESET_AXXIA
 	  Say Y if you have an Axxia family SoC.
 
 config POWER_RESET_BRCMSTB
-	bool "Broadcom STB reset driver" if COMPILE_TEST
-	depends on ARM
+	bool "Broadcom STB reset driver"
+	depends on ARM || MIPS || COMPILE_TEST
 	default ARCH_BRCMSTB
 	help
-	  This driver provides restart support for ARM-based Broadcom STB
-	  boards.
+	  This driver provides restart support for Broadcom STB boards.
 
-	  Say Y here if you have an ARM-based Broadcom STB board and you wish
+	  Say Y here if you have a Broadcom STB board and you wish
 	  to have restart support.
 
 config POWER_RESET_GPIO
@@ -104,23 +103,16 @@ config POWER_RESET_QNAP
 
 config POWER_RESET_RESTART
 	bool "Restart power-off driver"
-	depends on ARM
 	help
 	  Some boards don't actually have the ability to power off.
 	  Instead they restart, and u-boot holds the SoC until the
 	  user presses a key. u-boot then boots into Linux.
 
-config POWER_RESET_SUN6I
-	bool "Allwinner A31 SoC reset driver"
-	depends on ARCH_SUNXI
-	help
-	  Reboot support for the Allwinner A31 SoCs.
-
 config POWER_RESET_ST
-	bool "ST restart power-off driver"
+	bool "ST restart driver"
 	depends on ARCH_STI
 	help
-	  Power off and reset support for STMicroelectronics boards.
+	  Reset support for STMicroelectronics boards.
 
 config POWER_RESET_VERSATILE
 	bool "ARM Versatile family reboot driver"
@@ -158,6 +150,12 @@ config POWER_RESET_SYSCON
 	select MFD_SYSCON
 	help
 	  Reboot support for generic SYSCON mapped register reset.
+
+config POWER_RESET_RMOBILE
+	tristate "Renesas R-Mobile reset driver"
+	depends on ARCH_RMOBILE || COMPILE_TEST
+	help
+	  Reboot support for Renesas R-Mobile and SH-Mobile SoCs.
 
 endif
 

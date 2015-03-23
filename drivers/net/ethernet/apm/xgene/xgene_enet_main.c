@@ -24,6 +24,10 @@
 #include "xgene_enet_sgmac.h"
 #include "xgene_enet_xgmac.h"
 
+#define RES_ENET_CSR	0
+#define RES_RING_CSR	1
+#define RES_RING_CMD	2
+
 static void xgene_enet_init_bufpool(struct xgene_enet_desc_ring *buf_pool)
 {
 	struct xgene_enet_raw_desc16 *raw_desc;
@@ -748,6 +752,41 @@ static const struct net_device_ops xgene_ndev_ops = {
 	.ndo_set_mac_address = xgene_enet_set_mac_address,
 };
 
+static int xgene_get_mac_address(struct device *dev,
+				 unsigned char *addr)
+{
+	int ret;
+
+	ret = device_property_read_u8_array(dev, "local-mac-address", addr, 6);
+	if (ret)
+		ret = device_property_read_u8_array(dev, "mac-address",
+						    addr, 6);
+	if (ret)
+		return -ENODEV;
+
+	return ETH_ALEN;
+}
+
+static int xgene_get_phy_mode(struct device *dev)
+{
+	int i, ret;
+	char *modestr;
+
+	ret = device_property_read_string(dev, "phy-connection-type",
+					  (const char **)&modestr);
+	if (ret)
+		ret = device_property_read_string(dev, "phy-mode",
+						  (const char **)&modestr);
+	if (ret)
+		return -ENODEV;
+
+	for (i = 0; i < PHY_INTERFACE_MODE_MAX; i++) {
+		if (!strcasecmp(modestr, phy_modes(i)))
+			return i;
+	}
+	return -ENODEV;
+}
+
 static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 {
 	struct platform_device *pdev;
@@ -755,32 +794,45 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	struct device *dev;
 	struct resource *res;
 	void __iomem *base_addr;
-	const char *mac;
 	int ret;
 
 	pdev = pdata->pdev;
 	dev = &pdev->dev;
 	ndev = pdata->ndev;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "enet_csr");
-	pdata->base_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pdata->base_addr)) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_ENET_CSR);
+	if (!res) {
+		dev_err(dev, "Resource enet_csr not defined\n");
+		return -ENODEV;
+	}
+	pdata->base_addr = devm_ioremap(dev, res->start, resource_size(res));
+	if (!pdata->base_addr) {
 		dev_err(dev, "Unable to retrieve ENET Port CSR region\n");
-		return PTR_ERR(pdata->base_addr);
+		return -ENOMEM;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ring_csr");
-	pdata->ring_csr_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pdata->ring_csr_addr)) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_RING_CSR);
+	if (!res) {
+		dev_err(dev, "Resource ring_csr not defined\n");
+		return -ENODEV;
+	}
+	pdata->ring_csr_addr = devm_ioremap(dev, res->start,
+							resource_size(res));
+	if (!pdata->ring_csr_addr) {
 		dev_err(dev, "Unable to retrieve ENET Ring CSR region\n");
-		return PTR_ERR(pdata->ring_csr_addr);
+		return -ENOMEM;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ring_cmd");
-	pdata->ring_cmd_addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(pdata->ring_cmd_addr)) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_RING_CMD);
+	if (!res) {
+		dev_err(dev, "Resource ring_cmd not defined\n");
+		return -ENODEV;
+	}
+	pdata->ring_cmd_addr = devm_ioremap(dev, res->start,
+							resource_size(res));
+	if (!pdata->ring_cmd_addr) {
 		dev_err(dev, "Unable to retrieve ENET Ring command region\n");
-		return PTR_ERR(pdata->ring_cmd_addr);
+		return -ENOMEM;
 	}
 
 	ret = platform_get_irq(pdev, 0);
@@ -791,14 +843,12 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	}
 	pdata->rx_irq = ret;
 
-	mac = of_get_mac_address(dev->of_node);
-	if (mac)
-		memcpy(ndev->dev_addr, mac, ndev->addr_len);
-	else
+	if (xgene_get_mac_address(dev, ndev->dev_addr) != ETH_ALEN)
 		eth_hw_addr_random(ndev);
+
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
-	pdata->phy_mode = of_get_phy_mode(pdev->dev.of_node);
+	pdata->phy_mode = xgene_get_phy_mode(dev);
 	if (pdata->phy_mode < 0) {
 		dev_err(dev, "Unable to get phy-connection-type\n");
 		return pdata->phy_mode;
@@ -811,11 +861,9 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	}
 
 	pdata->clk = devm_clk_get(&pdev->dev, NULL);
-	ret = IS_ERR(pdata->clk);
 	if (IS_ERR(pdata->clk)) {
-		dev_err(&pdev->dev, "can't get clock\n");
-		ret = PTR_ERR(pdata->clk);
-		return ret;
+		/* Firmware may have set up the clock already. */
+		pdata->clk = NULL;
 	}
 
 	base_addr = pdata->base_addr;
@@ -926,7 +974,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret) {
 		netdev_err(ndev, "No usable DMA configuration\n");
 		goto err;
@@ -974,17 +1022,32 @@ static int xgene_enet_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id xgene_enet_match[] = {
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xgene_enet_acpi_match[] = {
+	{ "APMC0D05", },
+	{ "APMC0D30", },
+	{ "APMC0D31", },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, xgene_enet_acpi_match);
+#endif
+
+#ifdef CONFIG_OF
+static struct of_device_id xgene_enet_of_match[] = {
 	{.compatible = "apm,xgene-enet",},
+	{.compatible = "apm,xgene1-sgenet",},
+	{.compatible = "apm,xgene1-xgenet",},
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, xgene_enet_match);
+MODULE_DEVICE_TABLE(of, xgene_enet_of_match);
+#endif
 
 static struct platform_driver xgene_enet_driver = {
 	.driver = {
 		   .name = "xgene-enet",
-		   .of_match_table = xgene_enet_match,
+		   .of_match_table = of_match_ptr(xgene_enet_of_match),
+		   .acpi_match_table = ACPI_PTR(xgene_enet_acpi_match),
 	},
 	.probe = xgene_enet_probe,
 	.remove = xgene_enet_remove,

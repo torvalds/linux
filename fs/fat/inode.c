@@ -580,7 +580,7 @@ static void fat_set_state(struct super_block *sb,
 {
 	struct buffer_head *bh;
 	struct fat_boot_sector *b;
-	struct msdos_sb_info *sbi = sb->s_fs_info;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
 	/* do not change any thing if mounted read only */
 	if ((sb->s_flags & MS_RDONLY) && !force)

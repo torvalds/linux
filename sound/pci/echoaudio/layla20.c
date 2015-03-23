@@ -52,6 +52,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -61,7 +62,6 @@
 #include <sound/asoundef.h>
 #include <sound/initval.h>
 #include <sound/rawmidi.h>
-#include <asm/io.h>
 #include <linux/atomic.h>
 #include "echoaudio.h"
 

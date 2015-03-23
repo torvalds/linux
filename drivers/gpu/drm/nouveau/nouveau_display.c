@@ -450,7 +450,7 @@ nouveau_display_create(struct drm_device *dev)
 	drm_mode_create_dvi_i_properties(dev);
 
 	dev->mode_config.funcs = &nouveau_mode_config_funcs;
-	dev->mode_config.fb_base = nv_device_resource_start(nvkm_device(&drm->device), 1);
+	dev->mode_config.fb_base = nv_device_resource_start(nvxx_device(&drm->device), 1);
 
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
@@ -570,7 +570,8 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 		if (nv_crtc->cursor.nvbo) {
-			nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+			if (nv_crtc->cursor.set_offset)
+				nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 			nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 		}
 	}
@@ -604,7 +605,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 			continue;
 
 		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
-		if (!ret)
+		if (!ret && nv_crtc->cursor.set_offset)
 			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
 		if (ret)
 			NV_ERROR(drm, "Could not pin/map cursor.\n");
@@ -637,7 +638,9 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 
 		if (!nv_crtc->cursor.nvbo)
 			continue;
-		nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset);
+
+		if (nv_crtc->cursor.set_offset)
+			nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset);
 		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
 						 nv_crtc->cursor_saved_y);
 	}

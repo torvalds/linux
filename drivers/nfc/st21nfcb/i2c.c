@@ -199,7 +199,7 @@ static irqreturn_t st21nfcb_nci_irq_thread_fn(int irq, void *phy_id)
 	struct sk_buff *skb = NULL;
 	int r;
 
-	if (!phy || irq != phy->i2c_dev->irq) {
+	if (!phy || !phy->ndlc || irq != phy->i2c_dev->irq) {
 		WARN_ON_ONCE(1);
 		return IRQ_NONE;
 	}
@@ -343,18 +343,22 @@ static int st21nfcb_nci_i2c_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
+	r = ndlc_probe(phy, &i2c_phy_ops, &client->dev,
+			ST21NFCB_FRAME_HEADROOM, ST21NFCB_FRAME_TAILROOM,
+			&phy->ndlc);
+	if (r < 0) {
+		nfc_err(&client->dev, "Unable to register ndlc layer\n");
+		return r;
+	}
+
 	r = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 				st21nfcb_nci_irq_thread_fn,
 				phy->irq_polarity | IRQF_ONESHOT,
 				ST21NFCB_NCI_DRIVER_NAME, phy);
-	if (r < 0) {
+	if (r < 0)
 		nfc_err(&client->dev, "Unable to register IRQ handler\n");
-		return r;
-	}
 
-	return ndlc_probe(phy, &i2c_phy_ops, &client->dev,
-			ST21NFCB_FRAME_HEADROOM, ST21NFCB_FRAME_TAILROOM,
-			&phy->ndlc);
+	return r;
 }
 
 static int st21nfcb_nci_i2c_remove(struct i2c_client *client)
@@ -373,6 +377,7 @@ static int st21nfcb_nci_i2c_remove(struct i2c_client *client)
 
 #ifdef CONFIG_OF
 static const struct of_device_id of_st21nfcb_i2c_match[] = {
+	{ .compatible = "st,st21nfcb-i2c", },
 	{ .compatible = "st,st21nfcb_i2c", },
 	{}
 };

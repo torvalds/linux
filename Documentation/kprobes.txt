@@ -702,7 +702,8 @@ a virtual address that is no longer valid (module init sections, module
 virtual addresses that correspond to modules that've been unloaded),
 such probes are marked with [GONE]. If the probe is temporarily disabled,
 such probes are marked with [DISABLED]. If the probe is optimized, it is
-marked with [OPTIMIZED].
+marked with [OPTIMIZED]. If the probe is ftrace-based, it is marked with
+[FTRACE].
 
 /sys/kernel/debug/kprobes/enabled: Turn kprobes ON/OFF forcibly.
 

@@ -197,9 +197,16 @@ config GPIO_F7188X
 	  To compile this driver as a module, choose M here: the module will
 	  be called f7188x-gpio.
 
+config GPIO_MB86S7X
+	bool "GPIO support for Fujitsu MB86S7x Platforms"
+	depends on ARCH_MB86S7X
+	help
+	  Say yes here to support the GPIO controller in Fujitsu MB86S70 SoCs.
+
 config GPIO_MOXART
 	bool "MOXART GPIO support"
 	depends on ARCH_MOXART
+	select GPIO_GENERIC
 	help
 	  Select this option to enable GPIO driver for
 	  MOXA ART SoC devices.
@@ -285,6 +292,7 @@ config GPIO_PXA
 config GPIO_RCAR
 	tristate "Renesas R-Car GPIO"
 	depends on ARM && (ARCH_SHMOBILE || COMPILE_TEST)
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
 
@@ -365,9 +373,17 @@ config GPIO_XGENE
 	  the generic flash controller's address and data pins. Say yes
 	  here to enable the GFC GPIO functionality.
 
+config GPIO_XGENE_SB
+	tristate "APM X-Gene GPIO standby controller support"
+	depends on ARCH_XGENE && OF_GPIO
+	select GPIO_GENERIC
+	help
+	  This driver supports the GPIO block within the APM X-Gene
+	  Standby Domain. Say yes here to enable the GPIO functionality.
+
 config GPIO_XILINX
-	bool "Xilinx GPIO support"
-	depends on PPC_OF || MICROBLAZE || ARCH_ZYNQ
+	tristate "Xilinx GPIO support"
+	depends on OF_GPIO && (PPC || MICROBLAZE || ARCH_ZYNQ || X86)
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
@@ -394,24 +410,31 @@ config GPIO_VR41XX
 	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
 
 config GPIO_SCH
-	tristate "Intel SCH/TunnelCreek/Centerton GPIO"
+	tristate "Intel SCH/TunnelCreek/Centerton/Quark X1000 GPIO"
 	depends on PCI && X86
 	select MFD_CORE
 	select LPC_SCH
 	help
 	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
-	  Intel Tunnel Creek processor or Intel Centerton processor.
+	  Intel Tunnel Creek processor, Intel Centerton processor or
+	  Intel Quark X1000 SoC.
+
 	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
 	  powered by the core power rail and are turned off during sleep
 	  modes (S3 and higher). The remaining four GPIOs are powered by
 	  the Intel SCH suspend power supply. These GPIOs remain
 	  active during S3. The suspend powered GPIOs can be used to wake the
 	  system from the Suspend-to-RAM state.
+
 	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
 	  core power rail and 9 from suspend power supply.
+
 	  The Intel Centerton processor has a total of 30 GPIO pins.
 	  Twenty-one are powered by the core power rail and 9 from the
 	  suspend power supply.
+
+	  The Intel Quark X1000 SoC has 2 GPIOs powered by the core
+	  power well and 6 from the suspend power well.
 
 config GPIO_ICH
 	tristate "Intel ICH GPIO"
@@ -450,6 +473,7 @@ config GPIO_VX855
 config GPIO_GE_FPGA
 	bool "GE FPGA based GPIO"
 	depends on GE_FPGA
+	select GPIO_GENERIC
 	help
 	  Support for common GPIO functionality provided on some GE Single Board
 	  Computers.
@@ -519,6 +543,7 @@ config GPIO_MAX7300
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
 	depends on I2C
+	select IRQ_DOMAIN
 	help
 	  Say yes here to support the MAX7319, MAX7320-7327 series of I2C
 	  Port Expanders. Each IO port on these chips has a fixed role of
@@ -613,6 +638,7 @@ config GPIO_RC5T583
 config GPIO_SX150X
 	bool "Semtech SX150x I2C GPIO expander"
 	depends on I2C=y
+	select GPIOLIB_IRQCHIP
 	default n
 	help
 	  Say yes here to provide support for Semtech SX150-series I2C
@@ -624,6 +650,7 @@ config GPIO_SX150X
 config GPIO_STMPE
 	bool "STMPE GPIOs"
 	depends on MFD_STMPE
+	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
 	  This enables support for the GPIOs found on the STMPE I/O

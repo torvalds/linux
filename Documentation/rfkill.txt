@@ -25,6 +25,9 @@ whether they can be changed or not:
  - soft block: writable radio block (need not be readable) that is set by
                the system software.
 
+The rfkill subsystem has two parameters, rfkill.default_state and
+rfkill.master_switch_mode, which are documented in kernel-parameters.txt.
+
 
 2. Implementation details
 

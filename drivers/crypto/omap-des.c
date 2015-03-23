@@ -921,7 +921,7 @@ static irqreturn_t omap_des_irq(int irq, void *dev_id)
 
 			scatterwalk_advance(&dd->in_walk, 4);
 			if (dd->in_sg->length == _calc_walked(in)) {
-				dd->in_sg = scatterwalk_sg_next(dd->in_sg);
+				dd->in_sg = sg_next(dd->in_sg);
 				if (dd->in_sg) {
 					scatterwalk_start(&dd->in_walk,
 							  dd->in_sg);
@@ -953,7 +953,7 @@ static irqreturn_t omap_des_irq(int irq, void *dev_id)
 			*dst = omap_des_read(dd, DES_REG_DATA_N(dd, i));
 			scatterwalk_advance(&dd->out_walk, 4);
 			if (dd->out_sg->length == _calc_walked(out)) {
-				dd->out_sg = scatterwalk_sg_next(dd->out_sg);
+				dd->out_sg = sg_next(dd->out_sg);
 				if (dd->out_sg) {
 					scatterwalk_start(&dd->out_walk,
 							  dd->out_sg);
@@ -965,9 +965,9 @@ static irqreturn_t omap_des_irq(int irq, void *dev_id)
 			}
 		}
 
-		dd->total -= DES_BLOCK_SIZE;
+		BUG_ON(dd->total < DES_BLOCK_SIZE);
 
-		BUG_ON(dd->total < 0);
+		dd->total -= DES_BLOCK_SIZE;
 
 		/* Clear IRQ status */
 		status &= ~DES_REG_IRQ_DATA_OUT;
