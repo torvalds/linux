@@ -984,6 +984,10 @@ int intel_plane_atomic_set_property(struct drm_plane *plane,
 				    struct drm_property *property,
 				    uint64_t val);
 
+unsigned int
+intel_tile_height(struct drm_device *dev, uint32_t pixel_format,
+		  uint64_t fb_format_modifier);
+
 /* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
 void assert_shared_dpll(struct drm_i915_private *dev_priv,

@@ -2233,7 +2233,7 @@ static bool need_vtd_wa(struct drm_device *dev)
 	return false;
 }
 
-static unsigned int
+unsigned int
 intel_tile_height(struct drm_device *dev, uint32_t pixel_format,
 		  uint64_t fb_format_modifier)
 {
@@ -2292,7 +2292,32 @@ static int
 intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 			const struct drm_plane_state *plane_state)
 {
+	struct intel_rotation_info *info = &view->rotation_info;
+	static const struct i915_ggtt_view rotated_view =
+				{ .type = I915_GGTT_VIEW_ROTATED };
+
 	*view = i915_ggtt_view_normal;
+
+	if (!plane_state)
+		return 0;
+
+	if (!(plane_state->rotation &
+	    (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270))))
+		return 0;
+
+	*view = rotated_view;
+
+	info->height = fb->height;
+	info->pixel_format = fb->pixel_format;
+	info->pitch = fb->pitches[0];
+	info->fb_modifier = fb->modifier[0];
+
+	if (!(info->fb_modifier == I915_FORMAT_MOD_Y_TILED ||
+	      info->fb_modifier == I915_FORMAT_MOD_Yf_TILED)) {
+		DRM_DEBUG_KMS(
+			      "Y or Yf tiling is needed for 90/270 rotation!\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }

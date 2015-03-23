@@ -2500,15 +2500,119 @@ i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
 
 }
 
-
-static inline
-int i915_get_ggtt_vma_pages(struct i915_vma *vma)
+static void
+rotate_pages(dma_addr_t *in, unsigned int width, unsigned int height,
+	     struct sg_table *st)
 {
+	unsigned int column, row;
+	unsigned int src_idx;
+	struct scatterlist *sg = st->sgl;
+
+	st->nents = 0;
+
+	for (column = 0; column < width; column++) {
+		src_idx = width * (height - 1) + column;
+		for (row = 0; row < height; row++) {
+			st->nents++;
+			/* We don't need the pages, but need to initialize
+			 * the entries so the sg list can be happily traversed.
+			 * The only thing we need are DMA addresses.
+			 */
+			sg_set_page(sg, NULL, PAGE_SIZE, 0);
+			sg_dma_address(sg) = in[src_idx];
+			sg_dma_len(sg) = PAGE_SIZE;
+			sg = sg_next(sg);
+			src_idx -= width;
+		}
+	}
+}
+
+static struct sg_table *
+intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
+			  struct drm_i915_gem_object *obj)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct intel_rotation_info *rot_info = &ggtt_view->rotation_info;
+	unsigned long size, pages, rot_pages;
+	struct sg_page_iter sg_iter;
+	unsigned long i;
+	dma_addr_t *page_addr_list;
+	struct sg_table *st;
+	unsigned int tile_pitch, tile_height;
+	unsigned int width_pages, height_pages;
+	int ret = ENOMEM;
+
+	pages = obj->base.size / PAGE_SIZE;
+
+	/* Calculate tiling geometry. */
+	tile_height = intel_tile_height(dev, rot_info->pixel_format,
+					rot_info->fb_modifier);
+	tile_pitch = PAGE_SIZE / tile_height;
+	width_pages = DIV_ROUND_UP(rot_info->pitch, tile_pitch);
+	height_pages = DIV_ROUND_UP(rot_info->height, tile_height);
+	rot_pages = width_pages * height_pages;
+	size = rot_pages * PAGE_SIZE;
+
+	/* Allocate a temporary list of source pages for random access. */
+	page_addr_list = drm_malloc_ab(pages, sizeof(dma_addr_t));
+	if (!page_addr_list)
+		return ERR_PTR(ret);
+
+	/* Allocate target SG list. */
+	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		goto err_st_alloc;
+
+	ret = sg_alloc_table(st, rot_pages, GFP_KERNEL);
+	if (ret)
+		goto err_sg_alloc;
+
+	/* Populate source page list from the object. */
+	i = 0;
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
+		page_addr_list[i] = sg_page_iter_dma_address(&sg_iter);
+		i++;
+	}
+
+	/* Rotate the pages. */
+	rotate_pages(page_addr_list, width_pages, height_pages, st);
+
+	DRM_DEBUG_KMS(
+		      "Created rotated page mapping for object size %lu (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %lu pages).\n",
+		      size, rot_info->pitch, rot_info->height,
+		      rot_info->pixel_format, width_pages, height_pages,
+		      rot_pages);
+
+	drm_free_large(page_addr_list);
+
+	return st;
+
+err_sg_alloc:
+	kfree(st);
+err_st_alloc:
+	drm_free_large(page_addr_list);
+
+	DRM_DEBUG_KMS(
+		      "Failed to create rotated mapping for object size %lu! (%d) (pitch=%u, height=%u, pixel_format=0x%x, %ux%u tiles, %lu pages)\n",
+		      size, ret, rot_info->pitch, rot_info->height,
+		      rot_info->pixel_format, width_pages, height_pages,
+		      rot_pages);
+	return ERR_PTR(ret);
+}
+
+static inline int
+i915_get_ggtt_vma_pages(struct i915_vma *vma)
+{
+	int ret = 0;
+
 	if (vma->ggtt_view.pages)
 		return 0;
 
 	if (vma->ggtt_view.type == I915_GGTT_VIEW_NORMAL)
 		vma->ggtt_view.pages = vma->obj->pages;
+	else if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED)
+		vma->ggtt_view.pages =
+			intel_rotate_fb_obj_pages(&vma->ggtt_view, vma->obj);
 	else
 		WARN_ONCE(1, "GGTT view %u not implemented!\n",
 			  vma->ggtt_view.type);
@@ -2516,10 +2620,15 @@ int i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	if (!vma->ggtt_view.pages) {
 		DRM_ERROR("Failed to get pages for GGTT view type %u!\n",
 			  vma->ggtt_view.type);
-		return -EINVAL;
+		ret = -EINVAL;
+	} else if (IS_ERR(vma->ggtt_view.pages)) {
+		ret = PTR_ERR(vma->ggtt_view.pages);
+		vma->ggtt_view.pages = NULL;
+		DRM_ERROR("Failed to get pages for VMA view type %u (%d)!\n",
+			  vma->ggtt_view.type, ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 /**

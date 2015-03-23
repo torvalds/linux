@@ -117,12 +117,24 @@ typedef uint64_t gen8_pde_t;
 
 enum i915_ggtt_view_type {
 	I915_GGTT_VIEW_NORMAL = 0,
+	I915_GGTT_VIEW_ROTATED
+};
+
+struct intel_rotation_info {
+	unsigned int height;
+	unsigned int pitch;
+	uint32_t pixel_format;
+	uint64_t fb_modifier;
 };
 
 struct i915_ggtt_view {
 	enum i915_ggtt_view_type type;
 
 	struct sg_table *pages;
+
+	union {
+		struct intel_rotation_info rotation_info;
+	};
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;

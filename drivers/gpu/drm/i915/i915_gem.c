@@ -3908,7 +3908,9 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
 	 * always use map_and_fenceable for all scanout buffers.
 	 */
-	ret = i915_gem_object_ggtt_pin(obj, view, alignment, PIN_MAPPABLE);
+	ret = i915_gem_object_ggtt_pin(obj, view, alignment,
+				       view->type == I915_GGTT_VIEW_NORMAL ?
+				       PIN_MAPPABLE : 0);
 	if (ret)
 		goto err_unpin_display;
 
