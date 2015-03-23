@@ -4117,7 +4117,7 @@ out:
 }
 
 void nfsd4_cleanup_open_state(struct nfsd4_compound_state *cstate,
-			      struct nfsd4_open *open, __be32 status)
+			      struct nfsd4_open *open)
 {
 	if (open->op_openowner) {
 		struct nfs4_stateowner *so = &open->op_openowner->oo_owner;
