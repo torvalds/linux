@@ -793,13 +793,8 @@
 			tx-dma-channel = <&pdma 16>;
 			rx-dma-channel = <&pdma 17>;
 			clocks = <&per_base_clk>;
-
-			spidev@0 {
-				compatible = "spidev";
-				reg = <0>;	/* chip select */
-				spi-max-frequency = <100000000>;
-				enable-dma = <1>;
-			};
+			
+			/* disabled spidev due to conflict */
 		};
 
 		spi1: spi@fff01000 {

@@ -1,0 +1,109 @@
+/*
+ * Copyright Altera Corporation (C) 2012,2014. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/dts-v1/;
+/include/ "socfpga.dtsi"
+/include/ "fpga_stuff.dtsi"
+
+/ {
+	model = "Terasic DE0 Nano SOC";
+	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootwait";
+	};
+
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x0 0x40000000>; /* 1 GB */
+	};
+
+	aliases {
+		/* this allow the ethaddr uboot environmnet variable contents
+		 * to be added to the gmac1 device tree blob.
+		 */
+		ethernet0 = &gmac1;
+	};
+
+	soc {
+		clkmgr@ffd04000 {
+			clocks {
+				osc1 {
+					clock-frequency = <25000000>;
+				};
+			};
+		};
+
+		dwmmc0@ff704000 {
+			num-slots = <1>;
+			supports-highspeed;
+			broken-cd;
+			altr,dw-mshc-ciu-div = <3>;
+			altr,dw-mshc-sdr-timing = <0 3>;
+
+			slot@0 {
+				cd-gpios = <&gpio1 18 0>;
+				reg = <0>;
+				bus-width = <4>;
+			};
+		};
+
+		ethernet@ff702000 {
+			phy-mode = "rgmii";
+			phy-addr = <0xffffffff>; /* probe for phy addr */
+			status = "okay";
+		};
+
+		serial0@ffc02000 {
+			status = "okay";
+		};
+
+		sysmgr@ffd08000 {
+			cpu1-start-addr = <0xffd080c4>;
+		};
+
+		usb1: usb@ffb40000 {
+			status = "okay";
+		};
+
+		watchdog0: wd@ffd02000 {
+			status = "okay";
+		};
+	};
+};
+
+&gmac1 {
+	address-bits = <48>;
+	max-frame-size = <3800>;	/* appended from boardinfo */
+	phy-mode = "rgmii";	/* appended from boardinfo */
+	snps,phy-addr = <0xffffffff>;	/* appended from boardinfo */
+	phy-addr = <0xffffffff>;	/* appended from boardinfo */
+	txc-skew-ps = <2600>;	/* appended from boardinfo */
+	rxc-skew-ps = <2000>;	/* appended from boardinfo */
+	txen-skew-ps = <0>;	/* appended from boardinfo */
+	rxdv-skew-ps = <0>;	/* appended from boardinfo */
+	rxd0-skew-ps = <0>;	/* appended from boardinfo */
+	rxd1-skew-ps = <0>;	/* appended from boardinfo */
+	rxd2-skew-ps = <0>;	/* appended from boardinfo */
+	rxd3-skew-ps = <0>;	/* appended from boardinfo */
+	txd0-skew-ps = <0>;	/* appended from boardinfo */
+	txd1-skew-ps = <0>;	/* appended from boardinfo */
+	txd2-skew-ps = <0>;	/* appended from boardinfo */
+	txd3-skew-ps = <0>;	/* appended from boardinfo */
+	snps,max-mtu = <3800>;
+	status = "okay";
+};
