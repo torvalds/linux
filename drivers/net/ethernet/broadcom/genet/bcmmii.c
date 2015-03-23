@@ -177,8 +177,8 @@ static void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 	if (!GENET_IS_V4(priv))
 		return;
 
+	reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
 	if (enable) {
-		reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
 		reg &= ~EXT_CK25_DIS;
 		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 		mdelay(1);
@@ -189,9 +189,14 @@ static void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 		mdelay(1);
 
 		reg &= ~EXT_GPHY_RESET;
+	} else {
+		reg |= EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN | EXT_GPHY_RESET;
 		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-		udelay(60);
+		mdelay(1);
+		reg |= EXT_CK25_DIS;
 	}
+	bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+	udelay(60);
 }
 
 static void bcmgenet_internal_phy_setup(struct net_device *dev)
