@@ -3107,6 +3107,8 @@ static int bcmgenet_suspend(struct device *d)
 	if (device_may_wakeup(d) && priv->wolopts) {
 		ret = bcmgenet_power_down(priv, GENET_POWER_WOL_MAGIC);
 		clk_prepare_enable(priv->clk_wol);
+	} else if (phy_is_internal(priv->phydev)) {
+		ret = bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 	}
 
 	/* Turn off the clocks */
@@ -3130,6 +3132,12 @@ static int bcmgenet_resume(struct device *d)
 	ret = clk_prepare_enable(priv->clk);
 	if (ret)
 		return ret;
+
+	/* If this is an internal GPHY, power it back on now, before UniMAC is
+	 * brought out of reset as absolutely no UniMAC activity is allowed
+	 */
+	if (phy_is_internal(priv->phydev))
+		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	bcmgenet_umac_reset(priv);
 
