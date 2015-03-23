@@ -157,3 +157,6 @@ target:	@ We're now in the trampoline code, switch page tables
 __kvm_hyp_init_end:
 
 	.popsection
+
+	.global	__hyp_idmap_size
+	.set	__hyp_idmap_size, __kvm_hyp_init_end - __kvm_hyp_init
