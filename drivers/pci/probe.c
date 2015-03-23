@@ -2089,7 +2089,6 @@ struct pci_bus *pci_scan_root_bus(struct device *parent, int bus,
 	if (!found)
 		pci_bus_update_busn_res_end(b, max);
 
-	pci_bus_add_devices(b);
 	return b;
 }
 EXPORT_SYMBOL(pci_scan_root_bus);
@@ -2125,7 +2124,6 @@ struct pci_bus *pci_scan_bus(int bus, struct pci_ops *ops,
 	b = pci_create_root_bus(NULL, bus, ops, sysdata, &resources);
 	if (b) {
 		pci_scan_child_bus(b);
-		pci_bus_add_devices(b);
 	} else {
 		pci_free_resource_list(&resources);
 	}

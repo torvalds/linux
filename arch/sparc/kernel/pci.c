@@ -677,11 +677,10 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	}
 
 	pci_of_scan_bus(pbm, node, bus);
-	pci_bus_add_devices(bus);
 	pci_bus_register_of_sysfs(bus);
 
 	pci_claim_bus_resources(bus);
-
+	pci_bus_add_devices(bus);
 	return bus;
 }
 
