@@ -131,6 +131,9 @@ static void ipv6_regen_rndid(unsigned long data);
 
 static int ipv6_generate_eui64(u8 *eui, struct net_device *dev);
 static int ipv6_count_addresses(struct inet6_dev *idev);
+static int ipv6_generate_stable_address(struct in6_addr *addr,
+					u8 dad_count,
+					const struct inet6_dev *idev);
 
 /*
  *	Configured unicast address hash table
@@ -2302,6 +2305,11 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len, bool sllao)
 				       in6_dev->token.s6_addr + 8, 8);
 				read_unlock_bh(&in6_dev->lock);
 				tokenized = true;
+			} else if (in6_dev->addr_gen_mode ==
+				   IN6_ADDR_GEN_MODE_STABLE_PRIVACY &&
+				   !ipv6_generate_stable_address(&addr, 0,
+								 in6_dev)) {
+				goto ok;
 			} else if (ipv6_generate_eui64(addr.s6_addr + 8, dev) &&
 				   ipv6_inherit_eui64(addr.s6_addr + 8, in6_dev)) {
 				in6_dev_put(in6_dev);
@@ -2820,12 +2828,98 @@ static void addrconf_add_linklocal(struct inet6_dev *idev, const struct in6_addr
 	}
 }
 
+static bool ipv6_reserved_interfaceid(struct in6_addr address)
+{
+	if ((address.s6_addr32[2] | address.s6_addr32[3]) == 0)
+		return true;
+
+	if (address.s6_addr32[2] == htonl(0x02005eff) &&
+	    ((address.s6_addr32[3] & htonl(0xfe000000)) == htonl(0xfe000000)))
+		return true;
+
+	if (address.s6_addr32[2] == htonl(0xfdffffff) &&
+	    ((address.s6_addr32[3] & htonl(0xffffff80)) == htonl(0xffffff80)))
+		return true;
+
+	return false;
+}
+
+static int ipv6_generate_stable_address(struct in6_addr *address,
+					u8 dad_count,
+					const struct inet6_dev *idev)
+{
+	static const int idgen_retries = 3;
+
+	static DEFINE_SPINLOCK(lock);
+	static __u32 digest[SHA_DIGEST_WORDS];
+	static __u32 workspace[SHA_WORKSPACE_WORDS];
+
+	static union {
+		char __data[SHA_MESSAGE_BYTES];
+		struct {
+			struct in6_addr secret;
+			__be64 prefix;
+			unsigned char hwaddr[MAX_ADDR_LEN];
+			u8 dad_count;
+		} __packed;
+	} data;
+
+	struct in6_addr secret;
+	struct in6_addr temp;
+	struct net *net = dev_net(idev->dev);
+
+	BUILD_BUG_ON(sizeof(data.__data) != sizeof(data));
+
+	if (idev->cnf.stable_secret.initialized)
+		secret = idev->cnf.stable_secret.secret;
+	else if (net->ipv6.devconf_dflt->stable_secret.initialized)
+		secret = net->ipv6.devconf_dflt->stable_secret.secret;
+	else
+		return -1;
+
+retry:
+	spin_lock_bh(&lock);
+
+	sha_init(digest);
+	memset(&data, 0, sizeof(data));
+	memset(workspace, 0, sizeof(workspace));
+	memcpy(data.hwaddr, idev->dev->perm_addr, idev->dev->addr_len);
+	data.prefix = ((__be64)address->s6_addr32[0] << 32) |
+		       (__be64)address->s6_addr32[1];
+	data.secret = secret;
+	data.dad_count = dad_count;
+
+	sha_transform(digest, data.__data, workspace);
+
+	temp = *address;
+	temp.s6_addr32[2] = digest[0];
+	temp.s6_addr32[3] = digest[1];
+
+	spin_unlock_bh(&lock);
+
+	if (ipv6_reserved_interfaceid(temp)) {
+		dad_count++;
+		if (dad_count > idgen_retries)
+			return -1;
+		goto retry;
+	}
+
+	*address = temp;
+	return 0;
+}
+
 static void addrconf_addr_gen(struct inet6_dev *idev, bool prefix_route)
 {
-	if (idev->addr_gen_mode == IN6_ADDR_GEN_MODE_EUI64) {
-		struct in6_addr addr;
+	struct in6_addr addr;
 
-		ipv6_addr_set(&addr,  htonl(0xFE800000), 0, 0, 0);
+	ipv6_addr_set(&addr, htonl(0xFE800000), 0, 0, 0);
+
+	if (idev->addr_gen_mode == IN6_ADDR_GEN_MODE_STABLE_PRIVACY) {
+		if (!ipv6_generate_stable_address(&addr, 0, idev))
+			addrconf_add_linklocal(idev, &addr);
+		else if (prefix_route)
+			addrconf_prefix_route(&addr, 64, idev->dev, 0, 0);
+	} else if (idev->addr_gen_mode == IN6_ADDR_GEN_MODE_EUI64) {
 		/* addrconf_add_linklocal also adds a prefix_route and we
 		 * only need to care about prefix routes if ipv6_generate_eui64
 		 * couldn't generate one.
@@ -4675,8 +4769,15 @@ static int inet6_set_link_af(struct net_device *dev, const struct nlattr *nla)
 		u8 mode = nla_get_u8(tb[IFLA_INET6_ADDR_GEN_MODE]);
 
 		if (mode != IN6_ADDR_GEN_MODE_EUI64 &&
-		    mode != IN6_ADDR_GEN_MODE_NONE)
+		    mode != IN6_ADDR_GEN_MODE_NONE &&
+		    mode != IN6_ADDR_GEN_MODE_STABLE_PRIVACY)
 			return -EINVAL;
+
+		if (mode == IN6_ADDR_GEN_MODE_STABLE_PRIVACY &&
+		    !idev->cnf.stable_secret.initialized &&
+		    !dev_net(dev)->ipv6.devconf_dflt->stable_secret.initialized)
+			return -EINVAL;
+
 		idev->addr_gen_mode = mode;
 		err = 0;
 	}
@@ -5093,7 +5194,11 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 	struct in6_addr addr;
 	char str[IPV6_MAX_STRLEN];
 	struct ctl_table lctl = *ctl;
+	struct net *net = ctl->extra2;
 	struct ipv6_stable_secret *secret = ctl->data;
+
+	if (&net->ipv6.devconf_all->stable_secret == ctl->data)
+		return -EIO;
 
 	lctl.maxlen = IPV6_MAX_STRLEN;
 	lctl.data = str;
@@ -5126,6 +5231,23 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 
 	secret->initialized = true;
 	secret->secret = addr;
+
+	if (&net->ipv6.devconf_dflt->stable_secret == ctl->data) {
+		struct net_device *dev;
+
+		for_each_netdev(net, dev) {
+			struct inet6_dev *idev = __in6_dev_get(dev);
+
+			if (idev) {
+				idev->addr_gen_mode =
+					IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
+			}
+		}
+	} else {
+		struct inet6_dev *idev = ctl->extra1;
+
+		idev->addr_gen_mode = IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
+	}
 
 out:
 	rtnl_unlock();
