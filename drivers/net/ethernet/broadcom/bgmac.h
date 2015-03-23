@@ -345,8 +345,8 @@
 
 #define BGMAC_DESC_CTL0_EOT			0x10000000	/* End of ring */
 #define BGMAC_DESC_CTL0_IOC			0x20000000	/* IRQ on complete */
-#define BGMAC_DESC_CTL0_SOF			0x40000000	/* Start of frame */
-#define BGMAC_DESC_CTL0_EOF			0x80000000	/* End of frame */
+#define BGMAC_DESC_CTL0_EOF			0x40000000	/* End of frame */
+#define BGMAC_DESC_CTL0_SOF			0x80000000	/* Start of frame */
 #define BGMAC_DESC_CTL1_LEN			0x00001FFF
 
 #define BGMAC_PHY_NOREGS			0x1E
