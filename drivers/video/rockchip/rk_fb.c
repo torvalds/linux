@@ -452,6 +452,7 @@ int rk_fb_video_mode_from_timing(const struct display_timing *dt,
 	screen->color_mode = dt->color_mode;
 	screen->dsp_lut = dt->dsp_lut;
 	screen->cabc_lut = dt->cabc_lut;
+	screen->cabc_gamma_base = dt->cabc_gamma_base;
 
 	if (dt->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
 		screen->pin_dclk = 1;
@@ -3538,8 +3539,6 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->overscan.bottom = 100;
 	rk_disp_pwr_ctr_parse_dt(dev_drv);
 	if (dev_drv->prop == PRMRY) {
-		if (dev_drv->ops->set_dsp_cabc)
-			dev_drv->ops->set_dsp_cabc(dev_drv, dev_drv->cabc_mode);
 		rk_fb_set_prmry_screen(screen);
 		rk_fb_get_prmry_screen(screen);
 	}

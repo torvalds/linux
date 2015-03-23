@@ -82,6 +82,7 @@ struct display_timing {
 	u16 color_mode;				/* input color mode: RGB or YUV */
 	u32 *dsp_lut;
 	u32 *cabc_lut;
+	u32 *cabc_gamma_base;
 #endif
 };
 

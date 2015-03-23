@@ -605,14 +605,41 @@ static ssize_t set_dsp_cabc(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
 	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
-	int ret, mode = 0;
+	int space_max, ret, mode = 0, calc = 0,up = 0, down = 0, global = 0;
+	const char *start = buf;
 
-	ret = kstrtoint(buf, 0, &mode);
-	if (ret)
-		return ret;
+	space_max = 10;	/*max space number 10*/
+	mode = simple_strtoul(start, NULL, 10);
+	do {
+		start++;
+		space_max--;
+	} while ((*start != ' ') && space_max);
+	start++;
+	calc = simple_strtoul(start, NULL, 10);
 
-	if (dev_drv->ops->set_dsp_cabc)
-		ret = dev_drv->ops->set_dsp_cabc(dev_drv, mode);
+	do {
+		start++;
+		space_max--;
+	} while ((*start != ' ') && space_max);
+	start++;
+	up  = simple_strtoul(start, NULL, 10);
+
+	do {
+		start++;
+		space_max--;
+	} while ((*start != ' ') && space_max);
+	start++;
+	down = simple_strtoul(start, NULL, 10);
+
+	do {
+		start++;
+		space_max--;
+	} while ((*start != ' ') && space_max);
+	start++;
+	global = simple_strtoul(start, NULL, 10);
+
+    if (dev_drv->ops->set_dsp_cabc)
+		ret = dev_drv->ops->set_dsp_cabc(dev_drv, mode, calc, up, down, global);
 	if (ret < 0)
 		return ret;
 
