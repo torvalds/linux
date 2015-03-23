@@ -49,10 +49,6 @@
 
 static void hid_lg4ff_set_range_dfp(struct hid_device *hid, u16 range);
 static void hid_lg4ff_set_range_g25(struct hid_device *hid, u16 range);
-static ssize_t lg4ff_range_show(struct device *dev, struct device_attribute *attr, char *buf);
-static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
-
-static DEVICE_ATTR(range, S_IRWXU | S_IRWXG | S_IROTH, lg4ff_range_show, lg4ff_range_store);
 
 struct lg4ff_device_entry {
 	__u32 product_id;
@@ -416,7 +412,8 @@ static void hid_lg4ff_switch_native(struct hid_device *hid, const struct lg4ff_n
 }
 
 /* Read current range and display it in terminal */
-static ssize_t lg4ff_range_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t range_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct hid_device *hid = to_hid_device(dev);
 	struct lg4ff_device_entry *entry;
@@ -441,7 +438,8 @@ static ssize_t lg4ff_range_show(struct device *dev, struct device_attribute *att
 
 /* Set range to user specified value, call appropriate function
  * according to the type of the wheel */
-static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t range_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct hid_device *hid = to_hid_device(dev);
 	struct lg4ff_device_entry *entry;
@@ -472,6 +470,7 @@ static ssize_t lg4ff_range_store(struct device *dev, struct device_attribute *at
 
 	return count;
 }
+static DEVICE_ATTR_RW(range);
 
 #ifdef CONFIG_LEDS_CLASS
 static void lg4ff_set_leds(struct hid_device *hid, __u8 leds)

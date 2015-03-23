@@ -31,12 +31,12 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 
-#include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
 
@@ -1923,7 +1923,7 @@ static struct snd_pcm_ops snd_wss_capture_ops = {
 	.pointer =	snd_wss_capture_pointer,
 };
 
-int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
+int snd_wss_pcm(struct snd_wss *chip, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1949,8 +1949,6 @@ int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
 					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;
-	if (rpcm)
-		*rpcm = pcm;
 	return 0;
 }
 EXPORT_SYMBOL(snd_wss_pcm);
@@ -1961,7 +1959,7 @@ static void snd_wss_timer_free(struct snd_timer *timer)
 	chip->timer = NULL;
 }
 
-int snd_wss_timer(struct snd_wss *chip, int device, struct snd_timer **rtimer)
+int snd_wss_timer(struct snd_wss *chip, int device)
 {
 	struct snd_timer *timer;
 	struct snd_timer_id tid;
@@ -1980,8 +1978,6 @@ int snd_wss_timer(struct snd_wss *chip, int device, struct snd_timer **rtimer)
 	timer->private_free = snd_wss_timer_free;
 	timer->hw = snd_wss_timer_table;
 	chip->timer = timer;
-	if (rtimer)
-		*rtimer = timer;
 	return 0;
 }
 EXPORT_SYMBOL(snd_wss_timer);

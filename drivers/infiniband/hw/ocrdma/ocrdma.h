@@ -40,7 +40,7 @@
 #include <be_roce.h>
 #include "ocrdma_sli.h"
 
-#define OCRDMA_ROCE_DRV_VERSION "10.2.287.0u"
+#define OCRDMA_ROCE_DRV_VERSION "10.4.205.0u"
 
 #define OCRDMA_ROCE_DRV_DESC "Emulex OneConnect RoCE Driver"
 #define OCRDMA_NODE_DESC "Emulex OneConnect RoCE HCA"
@@ -55,12 +55,19 @@
 #define OCRDMA_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
 
 #define convert_to_64bit(lo, hi) ((u64)hi << 32 | (u64)lo)
+#define EQ_INTR_PER_SEC_THRSH_HI 150000
+#define EQ_INTR_PER_SEC_THRSH_LOW 100000
+#define EQ_AIC_MAX_EQD 20
+#define EQ_AIC_MIN_EQD 0
+
+void ocrdma_eqd_set_task(struct work_struct *work);
 
 struct ocrdma_dev_attr {
 	u8 fw_ver[32];
 	u32 vendor_id;
 	u32 device_id;
 	u16 max_pd;
+	u16 max_dpp_pds;
 	u16 max_cq;
 	u16 max_cqe;
 	u16 max_qp;
@@ -116,12 +123,19 @@ struct ocrdma_queue_info {
 	bool created;
 };
 
+struct ocrdma_aic_obj {         /* Adaptive interrupt coalescing (AIC) info */
+	u32 prev_eqd;
+	u64 eq_intr_cnt;
+	u64 prev_eq_intr_cnt;
+};
+
 struct ocrdma_eq {
 	struct ocrdma_queue_info q;
 	u32 vector;
 	int cq_cnt;
 	struct ocrdma_dev *dev;
 	char irq_name[32];
+	struct ocrdma_aic_obj aic_obj;
 };
 
 struct ocrdma_mq {
@@ -171,6 +185,21 @@ struct ocrdma_stats {
 	struct ocrdma_dev *dev;
 };
 
+struct ocrdma_pd_resource_mgr {
+	u32 pd_norm_start;
+	u16 pd_norm_count;
+	u16 pd_norm_thrsh;
+	u16 max_normal_pd;
+	u32 pd_dpp_start;
+	u16 pd_dpp_count;
+	u16 pd_dpp_thrsh;
+	u16 max_dpp_pd;
+	u16 dpp_page_index;
+	unsigned long *pd_norm_bitmap;
+	unsigned long *pd_dpp_bitmap;
+	bool pd_prealloc_valid;
+};
+
 struct stats_mem {
 	struct ocrdma_mqe mqe;
 	void *va;
@@ -198,6 +227,7 @@ struct ocrdma_dev {
 
 	struct ocrdma_eq *eq_tbl;
 	int eq_cnt;
+	struct delayed_work eqd_work;
 	u16 base_eqid;
 	u16 max_eq;
 
@@ -255,7 +285,12 @@ struct ocrdma_dev {
 	struct ocrdma_stats rx_qp_err_stats;
 	struct ocrdma_stats tx_dbg_stats;
 	struct ocrdma_stats rx_dbg_stats;
+	struct ocrdma_stats driver_stats;
+	struct ocrdma_stats reset_stats;
 	struct dentry *dir;
+	atomic_t async_err_stats[OCRDMA_MAX_ASYNC_ERRORS];
+	atomic_t cqe_err_stats[OCRDMA_MAX_CQE_ERR];
+	struct ocrdma_pd_resource_mgr *pd_mgr;
 };
 
 struct ocrdma_cq {
@@ -335,7 +370,6 @@ struct ocrdma_srq {
 
 struct ocrdma_qp {
 	struct ib_qp ibqp;
-	struct ocrdma_dev *dev;
 
 	u8 __iomem *sq_db;
 	struct ocrdma_qp_hwq_info sq;

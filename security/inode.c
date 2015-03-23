@@ -203,7 +203,7 @@ void securityfs_remove(struct dentry *dentry)
 	mutex_lock(&parent->d_inode->i_mutex);
 	if (positive(dentry)) {
 		if (dentry->d_inode) {
-			if (S_ISDIR(dentry->d_inode->i_mode))
+			if (d_is_dir(dentry))
 				simple_rmdir(parent->d_inode, dentry);
 			else
 				simple_unlink(parent->d_inode, dentry);

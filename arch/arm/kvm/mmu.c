@@ -45,6 +45,26 @@ static phys_addr_t hyp_idmap_vector;
 #define hyp_pgd_order get_order(PTRS_PER_PGD * sizeof(pgd_t))
 
 #define kvm_pmd_huge(_x)	(pmd_huge(_x) || pmd_trans_huge(_x))
+#define kvm_pud_huge(_x)	pud_huge(_x)
+
+#define KVM_S2PTE_FLAG_IS_IOMAP		(1UL << 0)
+#define KVM_S2_FLAG_LOGGING_ACTIVE	(1UL << 1)
+
+static bool memslot_is_logging(struct kvm_memory_slot *memslot)
+{
+	return memslot->dirty_bitmap && !(memslot->flags & KVM_MEM_READONLY);
+}
+
+/**
+ * kvm_flush_remote_tlbs() - flush all VM TLB entries for v7/8
+ * @kvm:	pointer to kvm structure.
+ *
+ * Interface to HYP function to flush all VM TLB entries
+ */
+void kvm_flush_remote_tlbs(struct kvm *kvm)
+{
+	kvm_call_hyp(__kvm_tlb_flush_vmid, kvm);
+}
 
 static void kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
@@ -76,6 +96,25 @@ static void kvm_flush_dcache_pmd(pmd_t pmd)
 static void kvm_flush_dcache_pud(pud_t pud)
 {
 	__kvm_flush_dcache_pud(pud);
+}
+
+/**
+ * stage2_dissolve_pmd() - clear and flush huge PMD entry
+ * @kvm:	pointer to kvm structure.
+ * @addr:	IPA
+ * @pmd:	pmd pointer for IPA
+ *
+ * Function clears a PMD entry, flushes addr 1st and 2nd stage TLBs. Marks all
+ * pages in the range dirty.
+ */
+static void stage2_dissolve_pmd(struct kvm *kvm, phys_addr_t addr, pmd_t *pmd)
+{
+	if (!kvm_pmd_huge(*pmd))
+		return;
+
+	pmd_clear(pmd);
+	kvm_tlb_flush_vmid_ipa(kvm, addr);
+	put_page(virt_to_page(pmd));
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
@@ -251,7 +290,7 @@ static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
 	phys_addr_t addr = start, end = start + size;
 	phys_addr_t next;
 
-	pgd = pgdp + pgd_index(addr);
+	pgd = pgdp + kvm_pgd_index(addr);
 	do {
 		next = kvm_pgd_addr_end(addr, end);
 		if (!pgd_none(*pgd))
@@ -316,7 +355,7 @@ static void stage2_flush_memslot(struct kvm *kvm,
 	phys_addr_t next;
 	pgd_t *pgd;
 
-	pgd = kvm->arch.pgd + pgd_index(addr);
+	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
 	do {
 		next = kvm_pgd_addr_end(addr, end);
 		stage2_flush_puds(kvm, pgd, addr, next);
@@ -593,6 +632,20 @@ int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 				     __phys_to_pfn(phys_addr), PAGE_HYP_DEVICE);
 }
 
+/* Free the HW pgd, one page at a time */
+static void kvm_free_hwpgd(void *hwpgd)
+{
+	free_pages_exact(hwpgd, kvm_get_hwpgd_size());
+}
+
+/* Allocate the HW PGD, making sure that each page gets its own refcount */
+static void *kvm_alloc_hwpgd(void)
+{
+	unsigned int size = kvm_get_hwpgd_size();
+
+	return alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
+}
+
 /**
  * kvm_alloc_stage2_pgd - allocate level-1 table for stage-2 translation.
  * @kvm:	The KVM struct pointer for the VM.
@@ -606,15 +659,31 @@ int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
  */
 int kvm_alloc_stage2_pgd(struct kvm *kvm)
 {
-	int ret;
 	pgd_t *pgd;
+	void *hwpgd;
 
 	if (kvm->arch.pgd != NULL) {
 		kvm_err("kvm_arch already initialized?\n");
 		return -EINVAL;
 	}
 
+	hwpgd = kvm_alloc_hwpgd();
+	if (!hwpgd)
+		return -ENOMEM;
+
+	/* When the kernel uses more levels of page tables than the
+	 * guest, we allocate a fake PGD and pre-populate it to point
+	 * to the next-level page table, which will be the real
+	 * initial page table pointed to by the VTTBR.
+	 *
+	 * When KVM_PREALLOC_LEVEL==2, we allocate a single page for
+	 * the PMD and the kernel will use folded pud.
+	 * When KVM_PREALLOC_LEVEL==1, we allocate 2 consecutive PUD
+	 * pages.
+	 */
 	if (KVM_PREALLOC_LEVEL > 0) {
+		int i;
+
 		/*
 		 * Allocate fake pgd for the page table manipulation macros to
 		 * work.  This is not used by the hardware and we have no
@@ -622,30 +691,32 @@ int kvm_alloc_stage2_pgd(struct kvm *kvm)
 		 */
 		pgd = (pgd_t *)kmalloc(PTRS_PER_S2_PGD * sizeof(pgd_t),
 				       GFP_KERNEL | __GFP_ZERO);
+
+		if (!pgd) {
+			kvm_free_hwpgd(hwpgd);
+			return -ENOMEM;
+		}
+
+		/* Plug the HW PGD into the fake one. */
+		for (i = 0; i < PTRS_PER_S2_PGD; i++) {
+			if (KVM_PREALLOC_LEVEL == 1)
+				pgd_populate(NULL, pgd + i,
+					     (pud_t *)hwpgd + i * PTRS_PER_PUD);
+			else if (KVM_PREALLOC_LEVEL == 2)
+				pud_populate(NULL, pud_offset(pgd, 0) + i,
+					     (pmd_t *)hwpgd + i * PTRS_PER_PMD);
+		}
 	} else {
 		/*
 		 * Allocate actual first-level Stage-2 page table used by the
 		 * hardware for Stage-2 page table walks.
 		 */
-		pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, S2_PGD_ORDER);
+		pgd = (pgd_t *)hwpgd;
 	}
-
-	if (!pgd)
-		return -ENOMEM;
-
-	ret = kvm_prealloc_hwpgd(kvm, pgd);
-	if (ret)
-		goto out_err;
 
 	kvm_clean_pgd(pgd);
 	kvm->arch.pgd = pgd;
 	return 0;
-out_err:
-	if (KVM_PREALLOC_LEVEL > 0)
-		kfree(pgd);
-	else
-		free_pages((unsigned long)pgd, S2_PGD_ORDER);
-	return ret;
 }
 
 /**
@@ -746,11 +817,10 @@ void kvm_free_stage2_pgd(struct kvm *kvm)
 		return;
 
 	unmap_stage2_range(kvm, 0, KVM_PHYS_SIZE);
-	kvm_free_hwpgd(kvm);
+	kvm_free_hwpgd(kvm_get_hwpgd(kvm));
 	if (KVM_PREALLOC_LEVEL > 0)
 		kfree(kvm->arch.pgd);
-	else
-		free_pages((unsigned long)kvm->arch.pgd, S2_PGD_ORDER);
+
 	kvm->arch.pgd = NULL;
 }
 
@@ -760,7 +830,7 @@ static pud_t *stage2_get_pud(struct kvm *kvm, struct kvm_mmu_memory_cache *cache
 	pgd_t *pgd;
 	pud_t *pud;
 
-	pgd = kvm->arch.pgd + pgd_index(addr);
+	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
 	if (WARN_ON(pgd_none(*pgd))) {
 		if (!cache)
 			return NULL;
@@ -819,10 +889,15 @@ static int stage2_set_pmd_huge(struct kvm *kvm, struct kvm_mmu_memory_cache
 }
 
 static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
-			  phys_addr_t addr, const pte_t *new_pte, bool iomap)
+			  phys_addr_t addr, const pte_t *new_pte,
+			  unsigned long flags)
 {
 	pmd_t *pmd;
 	pte_t *pte, old_pte;
+	bool iomap = flags & KVM_S2PTE_FLAG_IS_IOMAP;
+	bool logging_active = flags & KVM_S2_FLAG_LOGGING_ACTIVE;
+
+	VM_BUG_ON(logging_active && !cache);
 
 	/* Create stage-2 page table mapping - Levels 0 and 1 */
 	pmd = stage2_get_pmd(kvm, cache, addr);
@@ -833,6 +908,13 @@ static int stage2_set_pte(struct kvm *kvm, struct kvm_mmu_memory_cache *cache,
 		 */
 		return 0;
 	}
+
+	/*
+	 * While dirty page logging - dissolve huge PMD, then continue on to
+	 * allocate page.
+	 */
+	if (logging_active)
+		stage2_dissolve_pmd(kvm, addr, pmd);
 
 	/* Create stage-2 page mappings - Level 2 */
 	if (pmd_none(*pmd)) {
@@ -890,7 +972,8 @@ int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
 		if (ret)
 			goto out;
 		spin_lock(&kvm->mmu_lock);
-		ret = stage2_set_pte(kvm, &cache, addr, &pte, true);
+		ret = stage2_set_pte(kvm, &cache, addr, &pte,
+						KVM_S2PTE_FLAG_IS_IOMAP);
 		spin_unlock(&kvm->mmu_lock);
 		if (ret)
 			goto out;
@@ -957,6 +1040,165 @@ static bool kvm_is_device_pfn(unsigned long pfn)
 	return !pfn_valid(pfn);
 }
 
+/**
+ * stage2_wp_ptes - write protect PMD range
+ * @pmd:	pointer to pmd entry
+ * @addr:	range start address
+ * @end:	range end address
+ */
+static void stage2_wp_ptes(pmd_t *pmd, phys_addr_t addr, phys_addr_t end)
+{
+	pte_t *pte;
+
+	pte = pte_offset_kernel(pmd, addr);
+	do {
+		if (!pte_none(*pte)) {
+			if (!kvm_s2pte_readonly(pte))
+				kvm_set_s2pte_readonly(pte);
+		}
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+}
+
+/**
+ * stage2_wp_pmds - write protect PUD range
+ * @pud:	pointer to pud entry
+ * @addr:	range start address
+ * @end:	range end address
+ */
+static void stage2_wp_pmds(pud_t *pud, phys_addr_t addr, phys_addr_t end)
+{
+	pmd_t *pmd;
+	phys_addr_t next;
+
+	pmd = pmd_offset(pud, addr);
+
+	do {
+		next = kvm_pmd_addr_end(addr, end);
+		if (!pmd_none(*pmd)) {
+			if (kvm_pmd_huge(*pmd)) {
+				if (!kvm_s2pmd_readonly(pmd))
+					kvm_set_s2pmd_readonly(pmd);
+			} else {
+				stage2_wp_ptes(pmd, addr, next);
+			}
+		}
+	} while (pmd++, addr = next, addr != end);
+}
+
+/**
+  * stage2_wp_puds - write protect PGD range
+  * @pgd:	pointer to pgd entry
+  * @addr:	range start address
+  * @end:	range end address
+  *
+  * Process PUD entries, for a huge PUD we cause a panic.
+  */
+static void  stage2_wp_puds(pgd_t *pgd, phys_addr_t addr, phys_addr_t end)
+{
+	pud_t *pud;
+	phys_addr_t next;
+
+	pud = pud_offset(pgd, addr);
+	do {
+		next = kvm_pud_addr_end(addr, end);
+		if (!pud_none(*pud)) {
+			/* TODO:PUD not supported, revisit later if supported */
+			BUG_ON(kvm_pud_huge(*pud));
+			stage2_wp_pmds(pud, addr, next);
+		}
+	} while (pud++, addr = next, addr != end);
+}
+
+/**
+ * stage2_wp_range() - write protect stage2 memory region range
+ * @kvm:	The KVM pointer
+ * @addr:	Start address of range
+ * @end:	End address of range
+ */
+static void stage2_wp_range(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
+{
+	pgd_t *pgd;
+	phys_addr_t next;
+
+	pgd = kvm->arch.pgd + kvm_pgd_index(addr);
+	do {
+		/*
+		 * Release kvm_mmu_lock periodically if the memory region is
+		 * large. Otherwise, we may see kernel panics with
+		 * CONFIG_DETECT_HUNG_TASK, CONFIG_LOCKUP_DETECTOR,
+		 * CONFIG_LOCKDEP. Additionally, holding the lock too long
+		 * will also starve other vCPUs.
+		 */
+		if (need_resched() || spin_needbreak(&kvm->mmu_lock))
+			cond_resched_lock(&kvm->mmu_lock);
+
+		next = kvm_pgd_addr_end(addr, end);
+		if (pgd_present(*pgd))
+			stage2_wp_puds(pgd, addr, next);
+	} while (pgd++, addr = next, addr != end);
+}
+
+/**
+ * kvm_mmu_wp_memory_region() - write protect stage 2 entries for memory slot
+ * @kvm:	The KVM pointer
+ * @slot:	The memory slot to write protect
+ *
+ * Called to start logging dirty pages after memory region
+ * KVM_MEM_LOG_DIRTY_PAGES operation is called. After this function returns
+ * all present PMD and PTEs are write protected in the memory region.
+ * Afterwards read of dirty page log can be called.
+ *
+ * Acquires kvm_mmu_lock. Called with kvm->slots_lock mutex acquired,
+ * serializing operations for VM memory regions.
+ */
+void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot)
+{
+	struct kvm_memory_slot *memslot = id_to_memslot(kvm->memslots, slot);
+	phys_addr_t start = memslot->base_gfn << PAGE_SHIFT;
+	phys_addr_t end = (memslot->base_gfn + memslot->npages) << PAGE_SHIFT;
+
+	spin_lock(&kvm->mmu_lock);
+	stage2_wp_range(kvm, start, end);
+	spin_unlock(&kvm->mmu_lock);
+	kvm_flush_remote_tlbs(kvm);
+}
+
+/**
+ * kvm_mmu_write_protect_pt_masked() - write protect dirty pages
+ * @kvm:	The KVM pointer
+ * @slot:	The memory slot associated with mask
+ * @gfn_offset:	The gfn offset in memory slot
+ * @mask:	The mask of dirty pages at offset 'gfn_offset' in this memory
+ *		slot to be write protected
+ *
+ * Walks bits set in mask write protects the associated pte's. Caller must
+ * acquire kvm_mmu_lock.
+ */
+static void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
+		struct kvm_memory_slot *slot,
+		gfn_t gfn_offset, unsigned long mask)
+{
+	phys_addr_t base_gfn = slot->base_gfn + gfn_offset;
+	phys_addr_t start = (base_gfn +  __ffs(mask)) << PAGE_SHIFT;
+	phys_addr_t end = (base_gfn + __fls(mask) + 1) << PAGE_SHIFT;
+
+	stage2_wp_range(kvm, start, end);
+}
+
+/*
+ * kvm_arch_mmu_enable_log_dirty_pt_masked - enable dirty logging for selected
+ * dirty pages.
+ *
+ * It calls kvm_mmu_write_protect_pt_masked to write protect selected pages to
+ * enable dirty logging for them.
+ */
+void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
+		struct kvm_memory_slot *slot,
+		gfn_t gfn_offset, unsigned long mask)
+{
+	kvm_mmu_write_protect_pt_masked(kvm, slot, gfn_offset, mask);
+}
+
 static void coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
 				      unsigned long size, bool uncached)
 {
@@ -977,6 +1219,8 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	pfn_t pfn;
 	pgprot_t mem_type = PAGE_S2;
 	bool fault_ipa_uncached;
+	bool logging_active = memslot_is_logging(memslot);
+	unsigned long flags = 0;
 
 	write_fault = kvm_is_write_fault(vcpu);
 	if (fault_status == FSC_PERM && !write_fault) {
@@ -993,7 +1237,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		return -EFAULT;
 	}
 
-	if (is_vm_hugetlb_page(vma)) {
+	if (is_vm_hugetlb_page(vma) && !logging_active) {
 		hugetlb = true;
 		gfn = (fault_ipa & PMD_MASK) >> PAGE_SHIFT;
 	} else {
@@ -1034,12 +1278,30 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	if (is_error_pfn(pfn))
 		return -EFAULT;
 
-	if (kvm_is_device_pfn(pfn))
+	if (kvm_is_device_pfn(pfn)) {
 		mem_type = PAGE_S2_DEVICE;
+		flags |= KVM_S2PTE_FLAG_IS_IOMAP;
+	} else if (logging_active) {
+		/*
+		 * Faults on pages in a memslot with logging enabled
+		 * should not be mapped with huge pages (it introduces churn
+		 * and performance degradation), so force a pte mapping.
+		 */
+		force_pte = true;
+		flags |= KVM_S2_FLAG_LOGGING_ACTIVE;
+
+		/*
+		 * Only actually map the page as writable if this was a write
+		 * fault.
+		 */
+		if (!write_fault)
+			writable = false;
+	}
 
 	spin_lock(&kvm->mmu_lock);
 	if (mmu_notifier_retry(kvm, mmu_seq))
 		goto out_unlock;
+
 	if (!hugetlb && !force_pte)
 		hugetlb = transparent_hugepage_adjust(&pfn, &fault_ipa);
 
@@ -1056,15 +1318,15 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		ret = stage2_set_pmd_huge(kvm, memcache, fault_ipa, &new_pmd);
 	} else {
 		pte_t new_pte = pfn_pte(pfn, mem_type);
+
 		if (writable) {
 			kvm_set_s2pte_writable(&new_pte);
 			kvm_set_pfn_dirty(pfn);
+			mark_page_dirty(kvm, gfn);
 		}
 		coherent_cache_guest_page(vcpu, pfn, PAGE_SIZE, fault_ipa_uncached);
-		ret = stage2_set_pte(kvm, memcache, fault_ipa, &new_pte,
-			pgprot_val(mem_type) == pgprot_val(PAGE_S2_DEVICE));
+		ret = stage2_set_pte(kvm, memcache, fault_ipa, &new_pte, flags);
 	}
-
 
 out_unlock:
 	spin_unlock(&kvm->mmu_lock);
@@ -1215,7 +1477,14 @@ static void kvm_set_spte_handler(struct kvm *kvm, gpa_t gpa, void *data)
 {
 	pte_t *pte = (pte_t *)data;
 
-	stage2_set_pte(kvm, NULL, gpa, pte, false);
+	/*
+	 * We can always call stage2_set_pte with KVM_S2PTE_FLAG_LOGGING_ACTIVE
+	 * flag clear because MMU notifiers will have unmapped a huge PMD before
+	 * calling ->change_pte() (which in turn calls kvm_set_spte_hva()) and
+	 * therefore stage2_set_pte() never needs to clear out a huge PMD
+	 * through this calling path.
+	 */
+	stage2_set_pte(kvm, NULL, gpa, pte, 0);
 }
 
 
@@ -1348,6 +1617,13 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   const struct kvm_memory_slot *old,
 				   enum kvm_mr_change change)
 {
+	/*
+	 * At this point memslot has been committed and there is an
+	 * allocated dirty_bitmap[], dirty pages will be be tracked while the
+	 * memory slot is write protected.
+	 */
+	if (change != KVM_MR_DELETE && mem->flags & KVM_MEM_LOG_DIRTY_PAGES)
+		kvm_mmu_wp_memory_region(kvm, mem->slot);
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
@@ -1360,7 +1636,8 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	bool writable = !(mem->flags & KVM_MEM_READONLY);
 	int ret = 0;
 
-	if (change != KVM_MR_CREATE && change != KVM_MR_MOVE)
+	if (change != KVM_MR_CREATE && change != KVM_MR_MOVE &&
+			change != KVM_MR_FLAGS_ONLY)
 		return 0;
 
 	/*
@@ -1411,6 +1688,10 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 			phys_addr_t pa = (vma->vm_pgoff << PAGE_SHIFT) +
 					 vm_start - vma->vm_start;
 
+			/* IO region dirty page logging not allowed */
+			if (memslot->flags & KVM_MEM_LOG_DIRTY_PAGES)
+				return -EINVAL;
+
 			ret = kvm_phys_addr_ioremap(kvm, gpa, pa,
 						    vm_end - vm_start,
 						    writable);
@@ -1419,6 +1700,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		}
 		hva = vm_end;
 	} while (hva < reg_end);
+
+	if (change == KVM_MR_FLAGS_ONLY)
+		return ret;
 
 	spin_lock(&kvm->mmu_lock);
 	if (ret)

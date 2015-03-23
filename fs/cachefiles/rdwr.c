@@ -900,7 +900,7 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 		return -ENOBUFS;
 	}
 
-	ASSERT(S_ISREG(object->backer->d_inode->i_mode));
+	ASSERT(d_is_reg(object->backer));
 
 	cache = container_of(object->fscache.cache,
 			     struct cachefiles_cache, cache);

@@ -16,6 +16,7 @@
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/timecounter.h>
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
@@ -356,6 +357,7 @@ struct bufdesc_ex {
 #define FEC_ENET_RXB    ((uint)0x01000000)      /* A buffer was received */
 #define FEC_ENET_MII    ((uint)0x00800000)      /* MII interrupt */
 #define FEC_ENET_EBERR  ((uint)0x00400000)      /* SDMA bus error */
+#define FEC_ENET_WAKEUP	((uint)0x00020000)	/* Wakeup request */
 #define FEC_ENET_TXF	(FEC_ENET_TXF_0 | FEC_ENET_TXF_1 | FEC_ENET_TXF_2)
 #define FEC_ENET_RXF	(FEC_ENET_RXF_0 | FEC_ENET_RXF_1 | FEC_ENET_RXF_2)
 #define FEC_ENET_TS_AVAIL       ((uint)0x00010000)
@@ -513,6 +515,7 @@ struct fec_enet_private {
 	int	irq[FEC_IRQ_NUM];
 	bool	bufdesc_ex;
 	int	pause_flag;
+	int	wol_flag;
 	u32	quirks;
 
 	struct	napi_struct napi;

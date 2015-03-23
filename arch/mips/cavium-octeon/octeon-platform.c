@@ -77,7 +77,7 @@ static DEFINE_MUTEX(octeon2_usb_clocks_mutex);
 
 static int octeon2_usb_clock_start_cnt;
 
-static void octeon2_usb_clocks_start(void)
+static void octeon2_usb_clocks_start(struct device *dev)
 {
 	u64 div;
 	union cvmx_uctlx_if_ena if_ena;
@@ -86,6 +86,8 @@ static void octeon2_usb_clocks_start(void)
 	union cvmx_uctlx_uphy_portx_ctl_status port_ctl_status;
 	int i;
 	unsigned long io_clk_64_to_ns;
+	u32 clock_rate = 12000000;
+	bool is_crystal_clock = false;
 
 
 	mutex_lock(&octeon2_usb_clocks_mutex);
@@ -95,6 +97,28 @@ static void octeon2_usb_clocks_start(void)
 		goto exit;
 
 	io_clk_64_to_ns = 64000000000ull / octeon_get_io_clock_rate();
+
+	if (dev->of_node) {
+		struct device_node *uctl_node;
+		const char *clock_type;
+
+		uctl_node = of_get_parent(dev->of_node);
+		if (!uctl_node) {
+			dev_err(dev, "No UCTL device node\n");
+			goto exit;
+		}
+		i = of_property_read_u32(uctl_node,
+					 "refclk-frequency", &clock_rate);
+		if (i) {
+			dev_err(dev, "No UCTL \"refclk-frequency\"\n");
+			goto exit;
+		}
+		i = of_property_read_string(uctl_node,
+					    "refclk-type", &clock_type);
+
+		if (!i && strcmp("crystal", clock_type) == 0)
+			is_crystal_clock = true;
+	}
 
 	/*
 	 * Step 1: Wait for voltages stable.  That surely happened
@@ -126,9 +150,22 @@ static void octeon2_usb_clocks_start(void)
 	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
 
 	/* 3b */
-	/* 12MHz crystal. */
-	clk_rst_ctl.s.p_refclk_sel = 0;
-	clk_rst_ctl.s.p_refclk_div = 0;
+	clk_rst_ctl.s.p_refclk_sel = is_crystal_clock ? 0 : 1;
+	switch (clock_rate) {
+	default:
+		pr_err("Invalid UCTL clock rate of %u, using 12000000 instead\n",
+			clock_rate);
+		/* Fall through */
+	case 12000000:
+		clk_rst_ctl.s.p_refclk_div = 0;
+		break;
+	case 24000000:
+		clk_rst_ctl.s.p_refclk_div = 1;
+		break;
+	case 48000000:
+		clk_rst_ctl.s.p_refclk_div = 2;
+		break;
+	}
 	cvmx_write_csr(CVMX_UCTLX_CLK_RST_CTL(0), clk_rst_ctl.u64);
 
 	/* 3c */
@@ -259,7 +296,7 @@ static void octeon2_usb_clocks_stop(void)
 
 static int octeon_ehci_power_on(struct platform_device *pdev)
 {
-	octeon2_usb_clocks_start();
+	octeon2_usb_clocks_start(&pdev->dev);
 	return 0;
 }
 
@@ -273,15 +310,16 @@ static struct usb_ehci_pdata octeon_ehci_pdata = {
 #ifdef __BIG_ENDIAN
 	.big_endian_mmio	= 1,
 #endif
+	.dma_mask_64	= 1,
 	.power_on	= octeon_ehci_power_on,
 	.power_off	= octeon_ehci_power_off,
 };
 
-static void __init octeon_ehci_hw_start(void)
+static void __init octeon_ehci_hw_start(struct device *dev)
 {
 	union cvmx_uctlx_ehci_ctl ehci_ctl;
 
-	octeon2_usb_clocks_start();
+	octeon2_usb_clocks_start(dev);
 
 	ehci_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_EHCI_CTL(0));
 	/* Use 64-bit addressing. */
@@ -294,64 +332,30 @@ static void __init octeon_ehci_hw_start(void)
 	octeon2_usb_clocks_stop();
 }
 
-static u64 octeon_ehci_dma_mask = DMA_BIT_MASK(64);
-
 static int __init octeon_ehci_device_init(void)
 {
 	struct platform_device *pd;
+	struct device_node *ehci_node;
 	int ret = 0;
 
-	struct resource usb_resources[] = {
-		{
-			.flags	= IORESOURCE_MEM,
-		}, {
-			.flags	= IORESOURCE_IRQ,
-		}
-	};
-
-	/* Only Octeon2 has ehci/ohci */
-	if (!OCTEON_IS_MODEL(OCTEON_CN63XX))
+	ehci_node = of_find_node_by_name(NULL, "ehci");
+	if (!ehci_node)
 		return 0;
 
-	if (octeon_is_simulation() || usb_disabled())
-		return 0; /* No USB in the simulator. */
+	pd = of_find_device_by_node(ehci_node);
+	if (!pd)
+		return 0;
 
-	pd = platform_device_alloc("ehci-platform", 0);
-	if (!pd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	usb_resources[0].start = 0x00016F0000000000ULL;
-	usb_resources[0].end = usb_resources[0].start + 0x100;
-
-	usb_resources[1].start = OCTEON_IRQ_USB0;
-	usb_resources[1].end = OCTEON_IRQ_USB0;
-
-	ret = platform_device_add_resources(pd, usb_resources,
-					    ARRAY_SIZE(usb_resources));
-	if (ret)
-		goto fail;
-
-	pd->dev.dma_mask = &octeon_ehci_dma_mask;
 	pd->dev.platform_data = &octeon_ehci_pdata;
-	octeon_ehci_hw_start();
+	octeon_ehci_hw_start(&pd->dev);
 
-	ret = platform_device_add(pd);
-	if (ret)
-		goto fail;
-
-	return ret;
-fail:
-	platform_device_put(pd);
-out:
 	return ret;
 }
 device_initcall(octeon_ehci_device_init);
 
 static int octeon_ohci_power_on(struct platform_device *pdev)
 {
-	octeon2_usb_clocks_start();
+	octeon2_usb_clocks_start(&pdev->dev);
 	return 0;
 }
 
@@ -369,11 +373,11 @@ static struct usb_ohci_pdata octeon_ohci_pdata = {
 	.power_off	= octeon_ohci_power_off,
 };
 
-static void __init octeon_ohci_hw_start(void)
+static void __init octeon_ohci_hw_start(struct device *dev)
 {
 	union cvmx_uctlx_ohci_ctl ohci_ctl;
 
-	octeon2_usb_clocks_start();
+	octeon2_usb_clocks_start(dev);
 
 	ohci_ctl.u64 = cvmx_read_csr(CVMX_UCTLX_OHCI_CTL(0));
 	ohci_ctl.s.l2c_addr_msb = 0;
@@ -387,56 +391,26 @@ static void __init octeon_ohci_hw_start(void)
 static int __init octeon_ohci_device_init(void)
 {
 	struct platform_device *pd;
+	struct device_node *ohci_node;
 	int ret = 0;
 
-	struct resource usb_resources[] = {
-		{
-			.flags	= IORESOURCE_MEM,
-		}, {
-			.flags	= IORESOURCE_IRQ,
-		}
-	};
-
-	/* Only Octeon2 has ehci/ohci */
-	if (!OCTEON_IS_MODEL(OCTEON_CN63XX))
+	ohci_node = of_find_node_by_name(NULL, "ohci");
+	if (!ohci_node)
 		return 0;
 
-	if (octeon_is_simulation() || usb_disabled())
-		return 0; /* No USB in the simulator. */
-
-	pd = platform_device_alloc("ohci-platform", 0);
-	if (!pd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	usb_resources[0].start = 0x00016F0000000400ULL;
-	usb_resources[0].end = usb_resources[0].start + 0x100;
-
-	usb_resources[1].start = OCTEON_IRQ_USB0;
-	usb_resources[1].end = OCTEON_IRQ_USB0;
-
-	ret = platform_device_add_resources(pd, usb_resources,
-					    ARRAY_SIZE(usb_resources));
-	if (ret)
-		goto fail;
+	pd = of_find_device_by_node(ohci_node);
+	if (!pd)
+		return 0;
 
 	pd->dev.platform_data = &octeon_ohci_pdata;
-	octeon_ohci_hw_start();
+	octeon_ohci_hw_start(&pd->dev);
 
-	ret = platform_device_add(pd);
-	if (ret)
-		goto fail;
-
-	return ret;
-fail:
-	platform_device_put(pd);
-out:
 	return ret;
 }
 device_initcall(octeon_ohci_device_init);
 
 #endif /* CONFIG_USB */
+
 
 static struct of_device_id __initdata octeon_ids[] = {
 	{ .compatible = "simple-bus", },

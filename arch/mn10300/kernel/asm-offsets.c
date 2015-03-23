@@ -28,7 +28,6 @@ void foo(void)
 	OFFSET(TI_cpu,			thread_info, cpu);
 	OFFSET(TI_preempt_count,	thread_info, preempt_count);
 	OFFSET(TI_addr_limit,		thread_info, addr_limit);
-	OFFSET(TI_restart_block,	thread_info, restart_block);
 	BLANK();
 
 	OFFSET(REG_D0,			pt_regs, d0);

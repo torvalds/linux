@@ -259,7 +259,8 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel,
 				     entry_cck->fir_step_level);
 
 	/* Skip MRC CCK for pre AR9003 families */
-	if (!AR_SREV_9300_20_OR_LATER(ah) || AR_SREV_9485(ah) || AR_SREV_9565(ah))
+	if (!AR_SREV_9300_20_OR_LATER(ah) || AR_SREV_9485(ah) ||
+	    AR_SREV_9565(ah) || AR_SREV_9561(ah))
 		return;
 
 	if (aniState->mrcCCK != entry_cck->mrc_cck_on)

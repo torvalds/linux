@@ -17,7 +17,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-static const char *brcmstb_match[] __initconst = {
+static const char *const brcmstb_match[] __initconst = {
 	"brcm,bcm7445",
 	"brcm,brcmstb",
 	NULL

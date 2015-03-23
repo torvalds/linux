@@ -1570,9 +1570,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	 * match the format by tcm_qla2xxx explict ConfigFS NodeACLs.
 	 */
 	memset(&port_name, 0, 36);
-	snprintf(port_name, 36, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-		fc_wwpn[0], fc_wwpn[1], fc_wwpn[2], fc_wwpn[3], fc_wwpn[4],
-		fc_wwpn[5], fc_wwpn[6], fc_wwpn[7]);
+	snprintf(port_name, sizeof(port_name), "%8phC", fc_wwpn);
 	/*
 	 * Locate our struct se_node_acl either from an explict NodeACL created
 	 * via ConfigFS, or via running in TPG demo mode.
@@ -1598,7 +1596,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	/*
 	 * Finally register the new FC Nexus with TCM
 	 */
-	__transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
+	transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
 
 	return 0;
 }

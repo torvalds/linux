@@ -39,9 +39,9 @@ request_update
   If parameters have changed that require reinitialization or configuration of
   the buffer this will trigger it.
 
-get_bytes_per_datum, set_bytes_per_datum
-  Get/set the number of bytes for a complete scan. (All samples + timestamp)
+set_bytes_per_datum
+  Set the number of bytes for a complete scan. (All samples + timestamp)
 
-get_length / set_length
-  Get/set the number of complete scans that may be held by the buffer.
+set_length
+  Set the number of complete scans that may be held by the buffer.
 

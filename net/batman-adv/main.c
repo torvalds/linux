@@ -41,7 +41,6 @@
 #include "network-coding.h"
 #include "fragmentation.h"
 
-
 /* List manipulations on hardif_list have to be rtnl_lock()'ed,
  * list traversals just rcu-locked
  */
@@ -403,6 +402,9 @@ int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_free;
 	}
 
+	/* reset control block to avoid left overs from previous users */
+	memset(skb->cb, 0, sizeof(struct batadv_skb_cb));
+
 	/* all receive handlers return whether they received or reused
 	 * the supplied skb. if not, we have to free the skb.
 	 */
@@ -651,7 +653,7 @@ static struct batadv_tvlv_handler
 /**
  * batadv_tvlv_container_free_ref - decrement the tvlv container refcounter and
  *  possibly free it
- * @tvlv_handler: the tvlv container to free
+ * @tvlv: the tvlv container to free
  */
 static void batadv_tvlv_container_free_ref(struct batadv_tvlv_container *tvlv)
 {
@@ -796,11 +798,11 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_tvlv_realloc_packet_buff - reallocate packet buffer to accomodate
+ * batadv_tvlv_realloc_packet_buff - reallocate packet buffer to accommodate
  *  requested packet size
  * @packet_buff: packet buffer
  * @packet_buff_len: packet buffer size
- * @packet_min_len: requested packet minimum size
+ * @min_packet_len: requested packet minimum size
  * @additional_packet_len: requested additional packet size on top of minimum
  *  size
  *

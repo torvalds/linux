@@ -587,10 +587,17 @@ static void dln2_free_rx_urbs(struct dln2_dev *dln2)
 	int i;
 
 	for (i = 0; i < DLN2_MAX_URBS; i++) {
-		usb_kill_urb(dln2->rx_urb[i]);
 		usb_free_urb(dln2->rx_urb[i]);
 		kfree(dln2->rx_buf[i]);
 	}
+}
+
+static void dln2_stop_rx_urbs(struct dln2_dev *dln2)
+{
+	int i;
+
+	for (i = 0; i < DLN2_MAX_URBS; i++)
+		usb_kill_urb(dln2->rx_urb[i]);
 }
 
 static void dln2_free(struct dln2_dev *dln2)
@@ -604,9 +611,7 @@ static int dln2_setup_rx_urbs(struct dln2_dev *dln2,
 			      struct usb_host_interface *hostif)
 {
 	int i;
-	int ret;
 	const int rx_max_size = DLN2_RX_BUF_SIZE;
-	struct device *dev = &dln2->interface->dev;
 
 	for (i = 0; i < DLN2_MAX_URBS; i++) {
 		dln2->rx_buf[i] = kmalloc(rx_max_size, GFP_KERNEL);
@@ -620,8 +625,19 @@ static int dln2_setup_rx_urbs(struct dln2_dev *dln2,
 		usb_fill_bulk_urb(dln2->rx_urb[i], dln2->usb_dev,
 				  usb_rcvbulkpipe(dln2->usb_dev, dln2->ep_in),
 				  dln2->rx_buf[i], rx_max_size, dln2_rx, dln2);
+	}
 
-		ret = usb_submit_urb(dln2->rx_urb[i], GFP_KERNEL);
+	return 0;
+}
+
+static int dln2_start_rx_urbs(struct dln2_dev *dln2, gfp_t gfp)
+{
+	struct device *dev = &dln2->interface->dev;
+	int ret;
+	int i;
+
+	for (i = 0; i < DLN2_MAX_URBS; i++) {
+		ret = usb_submit_urb(dln2->rx_urb[i], gfp);
 		if (ret < 0) {
 			dev_err(dev, "failed to submit RX URB: %d\n", ret);
 			return ret;
@@ -665,9 +681,8 @@ static const struct mfd_cell dln2_devs[] = {
 	},
 };
 
-static void dln2_disconnect(struct usb_interface *interface)
+static void dln2_stop(struct dln2_dev *dln2)
 {
-	struct dln2_dev *dln2 = usb_get_intfdata(interface);
 	int i, j;
 
 	/* don't allow starting new transfers */
@@ -695,6 +710,15 @@ static void dln2_disconnect(struct usb_interface *interface)
 
 	/* wait for transfers to end */
 	wait_event(dln2->disconnect_wq, !dln2->active_transfers);
+
+	dln2_stop_rx_urbs(dln2);
+}
+
+static void dln2_disconnect(struct usb_interface *interface)
+{
+	struct dln2_dev *dln2 = usb_get_intfdata(interface);
+
+	dln2_stop(dln2);
 
 	mfd_remove_devices(&interface->dev);
 
@@ -738,26 +762,51 @@ static int dln2_probe(struct usb_interface *interface,
 
 	ret = dln2_setup_rx_urbs(dln2, hostif);
 	if (ret)
-		goto out_cleanup;
+		goto out_free;
+
+	ret = dln2_start_rx_urbs(dln2, GFP_KERNEL);
+	if (ret)
+		goto out_stop_rx;
 
 	ret = dln2_hw_init(dln2);
 	if (ret < 0) {
 		dev_err(dev, "failed to initialize hardware\n");
-		goto out_cleanup;
+		goto out_stop_rx;
 	}
 
 	ret = mfd_add_hotplug_devices(dev, dln2_devs, ARRAY_SIZE(dln2_devs));
 	if (ret != 0) {
 		dev_err(dev, "failed to add mfd devices to core\n");
-		goto out_cleanup;
+		goto out_stop_rx;
 	}
 
 	return 0;
 
-out_cleanup:
+out_stop_rx:
+	dln2_stop_rx_urbs(dln2);
+
+out_free:
 	dln2_free(dln2);
 
 	return ret;
+}
+
+static int dln2_suspend(struct usb_interface *iface, pm_message_t message)
+{
+	struct dln2_dev *dln2 = usb_get_intfdata(iface);
+
+	dln2_stop(dln2);
+
+	return 0;
+}
+
+static int dln2_resume(struct usb_interface *iface)
+{
+	struct dln2_dev *dln2 = usb_get_intfdata(iface);
+
+	dln2->disconnect = false;
+
+	return dln2_start_rx_urbs(dln2, GFP_NOIO);
 }
 
 static const struct usb_device_id dln2_table[] = {
@@ -772,6 +821,8 @@ static struct usb_driver dln2_driver = {
 	.probe = dln2_probe,
 	.disconnect = dln2_disconnect,
 	.id_table = dln2_table,
+	.suspend = dln2_suspend,
+	.resume = dln2_resume,
 };
 
 module_usb_driver(dln2_driver);

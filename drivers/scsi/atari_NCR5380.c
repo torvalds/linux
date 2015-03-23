@@ -711,12 +711,12 @@ static void show_Scsi_Cmnd(struct scsi_cmnd *cmd, struct seq_file *m)
 	unsigned char *command;
 	seq_printf(m, "scsi%d: destination target %d, lun %llu\n",
 		H_NO(cmd), cmd->device->id, cmd->device->lun);
-	seq_printf(m, "        command = ");
+	seq_puts(m, "        command = ");
 	command = cmd->cmnd;
 	seq_printf(m, "%2d (0x%02x)", command[0], command[0]);
 	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
 		seq_printf(m, " %02x", command[i]);
-	seq_printf(m, "\n");
+	seq_putc(m, '\n');
 }
 
 static int __maybe_unused NCR5380_show_info(struct seq_file *m,

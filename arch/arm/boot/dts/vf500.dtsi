@@ -94,23 +94,23 @@
 	interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio1 {
+&gpio0 {
 	interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio2 {
+&gpio1 {
 	interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio3 {
+&gpio2 {
 	interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio4 {
+&gpio3 {
 	interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 };
 
-&gpio5 {
+&gpio4 {
 	interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 };
 
@@ -128,6 +128,14 @@
 
 &sai2 {
 	interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&snvsrtc {
+	interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&src {
+	interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &uart0 {
@@ -168,4 +176,9 @@
 
 &usbphy1 {
 	interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&wdoga5 {
+	interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+	status = "okay";
 };

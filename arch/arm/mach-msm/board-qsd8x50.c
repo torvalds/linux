@@ -22,6 +22,7 @@
 #include <linux/usb/msm_hsusb.h>
 #include <linux/err.h>
 #include <linux/clkdev.h>
+#include <linux/smc91x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -49,8 +50,12 @@ static struct resource smc91x_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.flags = IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
+};
+
+static struct smc91x_platdata smc91x_platdata = {
+	.flags = SMC91X_USE_16BIT | SMC91X_NOWAIT,
 };
 
 static struct platform_device smc91x_device = {
@@ -58,6 +63,7 @@ static struct platform_device smc91x_device = {
 	.id             = 0,
 	.num_resources  = ARRAY_SIZE(smc91x_resources),
 	.resource       = smc91x_resources,
+	.dev.platform_data = &smc91x_platdata,
 };
 
 static int __init msm_init_smc91x(void)

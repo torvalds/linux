@@ -672,10 +672,10 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
 	spin_lock_bh(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
 	if (cc->cycles > 0) {
-		ah->survey.channel_time += cc->cycles / div;
-		ah->survey.channel_time_busy += cc->rx_busy / div;
-		ah->survey.channel_time_rx += cc->rx_frame / div;
-		ah->survey.channel_time_tx += cc->tx_frame / div;
+		ah->survey.time += cc->cycles / div;
+		ah->survey.time_busy += cc->rx_busy / div;
+		ah->survey.time_rx += cc->rx_frame / div;
+		ah->survey.time_tx += cc->tx_frame / div;
 	}
 	memset(cc, 0, sizeof(*cc));
 	spin_unlock_bh(&common->cc_lock);
@@ -686,10 +686,10 @@ ath5k_get_survey(struct ieee80211_hw *hw, int idx, struct survey_info *survey)
 	survey->noise = ah->ah_noise_floor;
 	survey->filled = SURVEY_INFO_NOISE_DBM |
 			SURVEY_INFO_IN_USE |
-			SURVEY_INFO_CHANNEL_TIME |
-			SURVEY_INFO_CHANNEL_TIME_BUSY |
-			SURVEY_INFO_CHANNEL_TIME_RX |
-			SURVEY_INFO_CHANNEL_TIME_TX;
+			SURVEY_INFO_TIME |
+			SURVEY_INFO_TIME_BUSY |
+			SURVEY_INFO_TIME_RX |
+			SURVEY_INFO_TIME_TX;
 
 	return 0;
 }

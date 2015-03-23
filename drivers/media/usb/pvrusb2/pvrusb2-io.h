@@ -90,13 +90,3 @@ int pvr2_buffer_get_id(struct pvr2_buffer *);
 int pvr2_buffer_queue(struct pvr2_buffer *);
 
 #endif /* __PVRUSB2_IO_H */
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

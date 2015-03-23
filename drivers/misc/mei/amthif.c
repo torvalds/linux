@@ -97,23 +97,25 @@ int mei_amthif_host_init(struct mei_device *dev)
 	/* allocate storage for ME message buffer */
 	msg_buf = kcalloc(dev->iamthif_mtu,
 			sizeof(unsigned char), GFP_KERNEL);
-	if (!msg_buf)
-		return -ENOMEM;
+	if (!msg_buf) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	dev->iamthif_msg_buf = msg_buf;
 
 	ret = mei_cl_link(cl, MEI_IAMTHIF_HOST_CLIENT_ID);
-
 	if (ret < 0) {
-		dev_err(dev->dev,
-			"amthif: failed link client %d\n", ret);
-		return ret;
+		dev_err(dev->dev, "amthif: failed cl_link %d\n", ret);
+		goto out;
 	}
 
 	ret = mei_cl_connect(cl, NULL);
 
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 
+out:
+	mei_me_cl_put(me_cl);
 	return ret;
 }
 

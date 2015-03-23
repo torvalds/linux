@@ -354,6 +354,7 @@ struct dvb_usb_adapter {
  * @name: device name
  * @rc_map: name of rc codes table
  * @rc_polling_active: set when RC polling is active
+ * @intf: pointer to the device's struct usb_interface
  * @udev: pointer to the device's struct usb_device
  * @rc: remote controller configuration
  * @powered: indicated whether the device is power or not
@@ -370,6 +371,7 @@ struct dvb_usb_device {
 	const char *name;
 	const char *rc_map;
 	bool rc_polling_active;
+	struct usb_interface *intf;
 	struct usb_device *udev;
 	struct dvb_usb_rc rc;
 	int powered;

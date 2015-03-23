@@ -26,6 +26,7 @@
 #include "../wifi.h"
 #include "../base.h"
 #include "../pci.h"
+#include "../core.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -145,31 +146,6 @@ static const u8 cckswing_table_ch14[CCK_TABLE_SIZE][8] = {
 	{0x09, 0x09, 0x08, 0x05, 0x00, 0x00, 0x00, 0x00},
 	{0x09, 0x08, 0x07, 0x04, 0x00, 0x00, 0x00, 0x00}
 };
-
-static void rtl8723e_dm_diginit(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
-
-	dm_digtable->dig_enable_flag = true;
-	dm_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
-	dm_digtable->cur_igvalue = 0x20;
-	dm_digtable->pre_igvalue = 0x0;
-	dm_digtable->cursta_cstate = DIG_STA_DISCONNECT;
-	dm_digtable->presta_cstate = DIG_STA_DISCONNECT;
-	dm_digtable->curmultista_cstate = DIG_MULTISTA_DISCONNECT;
-	dm_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
-	dm_digtable->rssi_highthresh = DM_DIG_THRESH_HIGH;
-	dm_digtable->fa_lowthresh = DM_FALSEALARM_THRESH_LOW;
-	dm_digtable->fa_highthresh = DM_FALSEALARM_THRESH_HIGH;
-	dm_digtable->rx_gain_max = DM_DIG_MAX;
-	dm_digtable->rx_gain_min = DM_DIG_MIN;
-	dm_digtable->back_val = DM_DIG_BACKOFF_DEFAULT;
-	dm_digtable->back_range_max = DM_DIG_BACKOFF_MAX;
-	dm_digtable->back_range_min = DM_DIG_BACKOFF_MIN;
-	dm_digtable->pre_cck_pd_state = CCK_PD_STAGE_MAX;
-	dm_digtable->cur_cck_pd_state = CCK_PD_STAGE_MAX;
-}
 
 static u8 rtl8723e_dm_initial_gain_min_pwdb(struct ieee80211_hw *hw)
 {
@@ -395,30 +371,30 @@ static void rtl8723e_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 	if (dm_digtable->cursta_cstate == DIG_STA_CONNECT) {
 		dm_digtable->rssi_val_min = rtl8723e_dm_initial_gain_min_pwdb(hw);
 
-		if (dm_digtable->pre_cck_pd_state == CCK_PD_STAGE_LowRssi) {
+		if (dm_digtable->pre_cck_pd_state == CCK_PD_STAGE_LOWRSSI) {
 			if (dm_digtable->rssi_val_min <= 25)
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_LowRssi;
+				    CCK_PD_STAGE_LOWRSSI;
 			else
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_HighRssi;
+				    CCK_PD_STAGE_HIGHRSSI;
 		} else {
 			if (dm_digtable->rssi_val_min <= 20)
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_LowRssi;
+				    CCK_PD_STAGE_LOWRSSI;
 			else
 				dm_digtable->cur_cck_pd_state =
-				    CCK_PD_STAGE_HighRssi;
+				    CCK_PD_STAGE_HIGHRSSI;
 		}
 	} else {
 		dm_digtable->cur_cck_pd_state = CCK_PD_STAGE_MAX;
 	}
 
 	if (dm_digtable->pre_cck_pd_state != dm_digtable->cur_cck_pd_state) {
-		if (dm_digtable->cur_cck_pd_state == CCK_PD_STAGE_LowRssi) {
+		if (dm_digtable->cur_cck_pd_state == CCK_PD_STAGE_LOWRSSI) {
 			if (rtlpriv->falsealm_cnt.cnt_cck_fail > 800)
 				dm_digtable->cur_cck_fa_state =
-				    CCK_FA_STAGE_High;
+				    CCK_FA_STAGE_HIGH;
 			else
 				dm_digtable->cur_cck_fa_state =
 				    CCK_FA_STAGE_LOW;
@@ -818,7 +794,7 @@ void rtl8723e_dm_init(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtlpriv->dm.dm_type = DM_TYPE_BYDRIVER;
-	rtl8723e_dm_diginit(hw);
+	rtl_dm_diginit(hw, 0x20);
 	rtl8723_dm_init_dynamic_txpower(hw);
 	rtl8723_dm_init_edca_turbo(hw);
 	rtl8723e_dm_init_rate_adaptive_mask(hw);

@@ -538,7 +538,7 @@ static void cypress_process_packet(struct psmouse *psmouse, bool zero_pkt)
 		pos[i].y = contact->y;
 	}
 
-	input_mt_assign_slots(input, slots, pos, n);
+	input_mt_assign_slots(input, slots, pos, n, 0);
 
 	for (i = 0; i < n; i++) {
 		contact = &report_data.contacts[i];
@@ -709,9 +709,4 @@ err_exit:
 	kfree(cytp);
 
 	return -1;
-}
-
-bool cypress_supported(void)
-{
-	return true;
 }

@@ -128,8 +128,22 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
 static inline bool __ref_is_percpu(struct percpu_ref *ref,
 					  unsigned long __percpu **percpu_countp)
 {
-	/* paired with smp_store_release() in percpu_ref_reinit() */
-	unsigned long percpu_ptr = lockless_dereference(ref->percpu_count_ptr);
+	unsigned long percpu_ptr;
+
+	/*
+	 * The value of @ref->percpu_count_ptr is tested for
+	 * !__PERCPU_REF_ATOMIC, which may be set asynchronously, and then
+	 * used as a pointer.  If the compiler generates a separate fetch
+	 * when using it as a pointer, __PERCPU_REF_ATOMIC may be set in
+	 * between contaminating the pointer value, meaning that
+	 * ACCESS_ONCE() is required when fetching it.
+	 *
+	 * Also, we need a data dependency barrier to be paired with
+	 * smp_store_release() in __percpu_ref_switch_to_percpu().
+	 *
+	 * Use lockless deref which contains both.
+	 */
+	percpu_ptr = lockless_dereference(ref->percpu_count_ptr);
 
 	/*
 	 * Theoretically, the following could test just ATOMIC; however,
@@ -233,7 +247,7 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 	if (__ref_is_percpu(ref, &percpu_count)) {
 		this_cpu_inc(*percpu_count);
 		ret = true;
-	} else if (!(ACCESS_ONCE(ref->percpu_count_ptr) & __PERCPU_REF_DEAD)) {
+	} else if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD)) {
 		ret = atomic_long_inc_not_zero(&ref->count);
 	}
 
@@ -278,6 +292,20 @@ static inline void percpu_ref_put_many(struct percpu_ref *ref, unsigned long nr)
 static inline void percpu_ref_put(struct percpu_ref *ref)
 {
 	percpu_ref_put_many(ref, 1);
+}
+
+/**
+ * percpu_ref_is_dying - test whether a percpu refcount is dying or dead
+ * @ref: percpu_ref to test
+ *
+ * Returns %true if @ref is dying or dead.
+ *
+ * This function is safe to call as long as @ref is between init and exit
+ * and the caller is responsible for synchronizing against state changes.
+ */
+static inline bool percpu_ref_is_dying(struct percpu_ref *ref)
+{
+	return ref->percpu_count_ptr & __PERCPU_REF_DEAD;
 }
 
 /**

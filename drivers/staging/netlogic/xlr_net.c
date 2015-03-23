@@ -788,7 +788,7 @@ void xlr_set_gmac_speed(struct xlr_net_priv *priv)
 			xlr_nae_wreg(priv->base_addr, R_MAC_CONFIG_2, 0x7117);
 			priv->phy_speed = speed;
 		}
-		/* Set SGMII speed in Interface controll reg */
+		/* Set SGMII speed in Interface control reg */
 		if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
 			if (speed == SPEED_10)
 				xlr_nae_wreg(priv->base_addr,

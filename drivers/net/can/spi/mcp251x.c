@@ -905,6 +905,7 @@ static irqreturn_t mcp251x_can_ist(int irq, void *dev_id)
 		if (priv->can.state == CAN_STATE_BUS_OFF) {
 			if (priv->can.restart_ms == 0) {
 				priv->force_quit = 1;
+				priv->can.can_stats.bus_off++;
 				can_bus_off(net);
 				mcp251x_hw_sleep(spi);
 				break;

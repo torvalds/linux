@@ -492,10 +492,10 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 	return ret;
 }
 
-static int dma_slave_control(struct dma_chan *chan, unsigned long arg)
+static int intel_mid_dma_config(struct dma_chan *chan,
+				struct dma_slave_config *slave)
 {
 	struct intel_mid_dma_chan	*midc = to_intel_mid_dma_chan(chan);
-	struct dma_slave_config  *slave = (struct dma_slave_config *)arg;
 	struct intel_mid_dma_slave *mid_slave;
 
 	BUG_ON(!midc);
@@ -509,27 +509,13 @@ static int dma_slave_control(struct dma_chan *chan, unsigned long arg)
 	midc->mid_slave = mid_slave;
 	return 0;
 }
-/**
- * intel_mid_dma_device_control -	DMA device control
- * @chan: chan for DMA control
- * @cmd: control cmd
- * @arg: cmd arg value
- *
- * Perform DMA control command
- */
-static int intel_mid_dma_device_control(struct dma_chan *chan,
-			enum dma_ctrl_cmd cmd, unsigned long arg)
+
+static int intel_mid_dma_terminate_all(struct dma_chan *chan)
 {
 	struct intel_mid_dma_chan	*midc = to_intel_mid_dma_chan(chan);
 	struct middma_device	*mid = to_middma_device(chan->device);
 	struct intel_mid_dma_desc	*desc, *_desc;
 	union intel_mid_dma_cfg_lo cfg_lo;
-
-	if (cmd == DMA_SLAVE_CONFIG)
-		return dma_slave_control(chan, arg);
-
-	if (cmd != DMA_TERMINATE_ALL)
-		return -ENXIO;
 
 	spin_lock_bh(&midc->lock);
 	if (midc->busy == false) {
@@ -1148,7 +1134,8 @@ static int mid_setup_dma(struct pci_dev *pdev)
 	dma->common.device_prep_dma_memcpy = intel_mid_dma_prep_memcpy;
 	dma->common.device_issue_pending = intel_mid_dma_issue_pending;
 	dma->common.device_prep_slave_sg = intel_mid_dma_prep_slave_sg;
-	dma->common.device_control = intel_mid_dma_device_control;
+	dma->common.device_config = intel_mid_dma_config;
+	dma->common.device_terminate_all = intel_mid_dma_terminate_all;
 
 	/*enable dma cntrl*/
 	iowrite32(REG_BIT0, dma->dma_base + DMA_CFG);

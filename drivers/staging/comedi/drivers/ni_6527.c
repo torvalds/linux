@@ -19,8 +19,7 @@
 /*
  * Driver: ni_6527
  * Description: National Instruments 6527
- * Devices: (National Instruments) PCI-6527 [pci-6527]
- *          (National Instruments) PXI-6527 [pxi-6527]
+ * Devices: [National Instruments] PCI-6527 (pci-6527), PXI-6527 (pxi-6527)
  * Author: David A. Schleef <ds@schleef.org>
  * Updated: Sat, 25 Jan 2003 13:24:40 -0800
  * Status: works

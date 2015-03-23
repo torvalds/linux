@@ -259,6 +259,8 @@ static int can_optimize(unsigned long paddr)
 			 */
 			return 0;
 		recovered_insn = recover_probed_instruction(buf, addr);
+		if (!recovered_insn)
+			return 0;
 		kernel_insn_init(&insn, (void *)recovered_insn, MAX_INSN_SIZE);
 		insn_get_length(&insn);
 		/* Another subsystem puts a breakpoint */
@@ -322,7 +324,8 @@ void arch_remove_optimized_kprobe(struct optimized_kprobe *op)
  * Target instructions MUST be relocatable (checked inside)
  * This is called when new aggr(opt)probe is allocated or reused.
  */
-int arch_prepare_optimized_kprobe(struct optimized_kprobe *op)
+int arch_prepare_optimized_kprobe(struct optimized_kprobe *op,
+				  struct kprobe *__unused)
 {
 	u8 *buf;
 	int ret;

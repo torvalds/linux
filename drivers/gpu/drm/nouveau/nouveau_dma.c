@@ -84,7 +84,7 @@ nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
 {
 	struct nouveau_cli *cli = (void *)nvif_client(&chan->device->base);
 	struct nouveau_bo *pb = chan->push.buffer;
-	struct nouveau_vma *vma;
+	struct nvkm_vma *vma;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 	u64 offset;
 

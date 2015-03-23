@@ -85,7 +85,8 @@ static int virthba_host_reset_handler(struct scsi_cmnd *scsicmd);
 static const char *virthba_get_info(struct Scsi_Host *shp);
 static int virthba_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
 static int virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
-				     void (*virthba_cmnd_done)(struct scsi_cmnd *));
+				     void (*virthba_cmnd_done)
+					   (struct scsi_cmnd *));
 
 static const struct x86_cpu_id unisys_spar_ids[] = {
 	{ X86_VENDOR_INTEL, 6, 62, X86_FEATURE_ANY },
@@ -107,19 +108,20 @@ static void virthba_slave_destroy(struct scsi_device *scsidev);
 static int process_incoming_rsps(void *);
 static int virthba_serverup(struct virtpci_dev *virtpcidev);
 static int virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state);
-static void doDiskAddRemove(struct work_struct *work);
+static void do_disk_add_remove(struct work_struct *work);
 static void virthba_serverdown_complete(struct work_struct *work);
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-			size_t len, loff_t *offset);
+				 size_t len, loff_t *offset);
 static ssize_t enable_ints_write(struct file *file,
-			const char __user *buffer, size_t count, loff_t *ppos);
+				 const char __user *buffer, size_t count,
+				 loff_t *ppos);
 
 /*****************************************************/
 /* Globals                                           */
 /*****************************************************/
 
 static int rsltq_wait_usecs = 4000;	/* Default 4ms */
-static unsigned int MaxBuffLen;
+static unsigned int max_buff_len;
 
 /* Module options */
 static char *virthba_options = "NONE";
@@ -165,6 +167,7 @@ struct virtdisk_info {
 	atomic_t error_count;
 	struct virtdisk_info *next;
 };
+
 /* Each Scsi_Host has a host_data area that contains this struct. */
 struct virthba_info {
 	struct Scsi_Host *scsihost;
@@ -193,7 +196,7 @@ struct virthba_info {
 	struct virtdisk_info head;
 };
 
-/* Work Data for DARWorkQ */
+/* Work Data for dar_work_queue */
 struct diskaddremove {
 	u8 add;			/* 0-remove, 1-add */
 	struct Scsi_Host *shost; /* Scsi Host for this virthba instance */
@@ -244,7 +247,7 @@ static const struct file_operations debugfs_enable_ints_fops = {
 
 #define VIRTHBASOPENMAX 1
 /* array of open devices maintained by open() and close(); */
-static struct virthba_devices_open VirtHbasOpen[VIRTHBASOPENMAX];
+static struct virthba_devices_open virthbas_open[VIRTHBASOPENMAX];
 static struct dentry *virthba_debugfs_dir;
 
 /*****************************************************/
@@ -260,7 +263,7 @@ add_scsipending_entry(struct virthba_info *vhbainfo, char cmdtype, void *new)
 	insert_location = vhbainfo->nextinsert;
 	while (vhbainfo->pending[insert_location].sent != NULL) {
 		insert_location = (insert_location + 1) % MAX_PENDING_REQUESTS;
-		if (insert_location == (int) vhbainfo->nextinsert) {
+		if (insert_location == (int)vhbainfo->nextinsert) {
 			LOGERR("Queue should be full. insert_location<<%d>>  Unable to find open slot for pending commands.\n",
 			     insert_location);
 			spin_unlock_irqrestore(&vhbainfo->privlock, flags);
@@ -289,7 +292,7 @@ add_scsipending_entry_with_wait(struct virthba_info *vhbainfo, char cmdtype,
 		insert_location = add_scsipending_entry(vhbainfo, cmdtype, new);
 	}
 
-	return (unsigned int) insert_location;
+	return (unsigned int)insert_location;
 }
 
 static void *
@@ -300,13 +303,13 @@ del_scsipending_entry(struct virthba_info *vhbainfo, uintptr_t del)
 
 	if (del >= MAX_PENDING_REQUESTS) {
 		LOGERR("Invalid queue position <<%lu>> given to delete. MAX_PENDING_REQUESTS <<%d>>\n",
-		     (unsigned long) del, MAX_PENDING_REQUESTS);
+		     (unsigned long)del, MAX_PENDING_REQUESTS);
 	} else {
 		spin_lock_irqsave(&vhbainfo->privlock, flags);
 
 		if (vhbainfo->pending[del].sent == NULL)
 			LOGERR("Deleting already cleared queue entry at <<%lu>>.\n",
-			     (unsigned long) del);
+			     (unsigned long)del);
 
 		sent = vhbainfo->pending[del].sent;
 
@@ -318,30 +321,30 @@ del_scsipending_entry(struct virthba_info *vhbainfo, uintptr_t del)
 	return sent;
 }
 
-/* DARWorkQ (Disk Add/Remove) */
-static struct work_struct DARWorkQ;
-static struct diskaddremove *DARWorkQHead;
-static spinlock_t DARWorkQLock;
-static unsigned short DARWorkQSched;
+/* dar_work_queue (Disk Add/Remove) */
+static struct work_struct dar_work_queue;
+static struct diskaddremove *dar_work_queue_head;
+static spinlock_t dar_work_queue_lock;
+static unsigned short dar_work_queue_sched;
 #define QUEUE_DISKADDREMOVE(dar) { \
-	spin_lock_irqsave(&DARWorkQLock, flags); \
-	if (!DARWorkQHead) { \
-		DARWorkQHead = dar; \
+	spin_lock_irqsave(&dar_work_queue_lock, flags); \
+	if (!dar_work_queue_head) { \
+		dar_work_queue_head = dar; \
 		dar->next = NULL; \
 	} \
 	else { \
-		dar->next = DARWorkQHead; \
-		DARWorkQHead = dar; \
+		dar->next = dar_work_queue_head; \
+		dar_work_queue_head = dar; \
 	} \
-	if (!DARWorkQSched) { \
-		schedule_work(&DARWorkQ); \
-		DARWorkQSched = 1; \
+	if (!dar_work_queue_sched) { \
+		schedule_work(&dar_work_queue); \
+		dar_work_queue_sched = 1; \
 	} \
-	spin_unlock_irqrestore(&DARWorkQLock, flags); \
+	spin_unlock_irqrestore(&dar_work_queue_lock, flags); \
 }
 
 static inline void
-SendDiskAddRemove(struct diskaddremove *dar)
+send_disk_add_remove(struct diskaddremove *dar)
 {
 	struct scsi_device *sdev;
 	int error;
@@ -365,31 +368,31 @@ SendDiskAddRemove(struct diskaddremove *dar)
 }
 
 /*****************************************************/
-/* DARWorkQ Handler Thread                           */
+/* dar_work_queue Handler Thread                     */
 /*****************************************************/
 static void
-doDiskAddRemove(struct work_struct *work)
+do_disk_add_remove(struct work_struct *work)
 {
 	struct diskaddremove *dar;
 	struct diskaddremove *tmphead;
 	int i = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&DARWorkQLock, flags);
-	tmphead = DARWorkQHead;
-	DARWorkQHead = NULL;
-	DARWorkQSched = 0;
-	spin_unlock_irqrestore(&DARWorkQLock, flags);
+	spin_lock_irqsave(&dar_work_queue_lock, flags);
+	tmphead = dar_work_queue_head;
+	dar_work_queue_head = NULL;
+	dar_work_queue_sched = 0;
+	spin_unlock_irqrestore(&dar_work_queue_lock, flags);
 	while (tmphead) {
 		dar = tmphead;
 		tmphead = dar->next;
-		SendDiskAddRemove(dar);
+		send_disk_add_remove(dar);
 		i++;
 	}
 }
 
 /*****************************************************/
-/* Routine to add entry to DARWorkQ                  */
+/* Routine to add entry to dar_work_queue            */
 /*****************************************************/
 static void
 process_disk_notify(struct Scsi_Host *shost, struct uiscmdrsp *cmdrsp)
@@ -397,7 +400,7 @@ process_disk_notify(struct Scsi_Host *shost, struct uiscmdrsp *cmdrsp)
 	struct diskaddremove *dar;
 	unsigned long flags;
 
-	dar = kzalloc(sizeof(struct diskaddremove), GFP_ATOMIC);
+	dar = kzalloc(sizeof(*dar), GFP_ATOMIC);
 	if (dar) {
 		dar->add = cmdrsp->disknotify.add;
 		dar->shost = shost;
@@ -416,10 +419,10 @@ process_disk_notify(struct Scsi_Host *shost, struct uiscmdrsp *cmdrsp)
 /* Probe Remove Functions                            */
 /*****************************************************/
 static irqreturn_t
-virthba_ISR(int irq, void *dev_id)
+virthba_isr(int irq, void *dev_id)
 {
-	struct virthba_info *virthbainfo = (struct virthba_info *) dev_id;
-	struct channel_header __iomem *pChannelHeader;
+	struct virthba_info *virthbainfo = (struct virthba_info *)dev_id;
+	struct channel_header __iomem *channel_header;
 	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 	unsigned long long rc1;
@@ -427,23 +430,23 @@ virthba_ISR(int irq, void *dev_id)
 	if (virthbainfo == NULL)
 		return IRQ_NONE;
 	virthbainfo->interrupts_rcvd++;
-	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
-	if (((readq(&pChannelHeader->features)
-	      & ULTRA_IO_IOVM_IS_OK_WITH_DRIVER_DISABLING_INTS) != 0)
-	    && ((readq(&pChannelHeader->features) &
+	channel_header = virthbainfo->chinfo.queueinfo->chan;
+	if (((readq(&channel_header->features)
+	      & ULTRA_IO_IOVM_IS_OK_WITH_DRIVER_DISABLING_INTS) != 0) &&
+	     ((readq(&channel_header->features) &
 		 ULTRA_IO_DRIVER_DISABLES_INTS) !=
 		0)) {
 		virthbainfo->interrupts_disabled++;
 		mask = ~ULTRA_CHANNEL_ENABLE_INTS;
 		rc1 = uisqueue_interlocked_and(virthbainfo->flags_addr, mask);
 	}
-	if (spar_signalqueue_empty(pChannelHeader, IOCHAN_FROM_IOPART)) {
+	if (spar_signalqueue_empty(channel_header, IOCHAN_FROM_IOPART)) {
 		virthbainfo->interrupts_notme++;
 		return IRQ_NONE;
 	}
 	pqhdr = (struct signal_queue_header __iomem *)
-		((char __iomem *) pChannelHeader +
-		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
+		((char __iomem *)channel_header +
+		 readq(&channel_header->ch_space_offset)) + IOCHAN_FROM_IOPART;
 	writeq(readq(&pqhdr->num_irq_received) + 1,
 	       &pqhdr->num_irq_received);
 	atomic_set(&virthbainfo->interrupt_rcvd, 1);
@@ -459,8 +462,8 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	struct virthba_info *virthbainfo;
 	int rsp;
 	int i;
-	irq_handler_t handler = virthba_ISR;
-	struct channel_header __iomem *pChannelHeader;
+	irq_handler_t handler = virthba_isr;
+	struct channel_header __iomem *channel_header;
 	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 
@@ -476,7 +479,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	 * instance - this virthba that has just been created is an
 	 * instance of a scsi host adapter. This scsi_host_alloc
 	 * function allocates a new Scsi_Host struct & performs basic
-	 * initializatoin.  The host is not published to the scsi
+	 * initialization.  The host is not published to the scsi
 	 * midlayer until scsi_add_host is called.
 	 */
 	DBGINF("calling scsi_host_alloc.\n");
@@ -501,19 +504,19 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	 * the max-channel value.
 	 */
 	LOGINF("virtpcidev->scsi.max.max_channel=%u, max_id=%u, max_lun=%u, cmd_per_lun=%u, max_io_size=%u\n",
-	     (unsigned) virtpcidev->scsi.max.max_channel - 1,
-	     (unsigned) virtpcidev->scsi.max.max_id,
-	     (unsigned) virtpcidev->scsi.max.max_lun,
-	     (unsigned) virtpcidev->scsi.max.cmd_per_lun,
-	     (unsigned) virtpcidev->scsi.max.max_io_size);
-	scsihost->max_channel = (unsigned) virtpcidev->scsi.max.max_channel;
-	scsihost->max_id = (unsigned) virtpcidev->scsi.max.max_id;
-	scsihost->max_lun = (unsigned) virtpcidev->scsi.max.max_lun;
-	scsihost->cmd_per_lun = (unsigned) virtpcidev->scsi.max.cmd_per_lun;
+	     (unsigned)virtpcidev->scsi.max.max_channel - 1,
+	     (unsigned)virtpcidev->scsi.max.max_id,
+	     (unsigned)virtpcidev->scsi.max.max_lun,
+	     (unsigned)virtpcidev->scsi.max.cmd_per_lun,
+	     (unsigned)virtpcidev->scsi.max.max_io_size);
+	scsihost->max_channel = (unsigned)virtpcidev->scsi.max.max_channel;
+	scsihost->max_id = (unsigned)virtpcidev->scsi.max.max_id;
+	scsihost->max_lun = (unsigned)virtpcidev->scsi.max.max_lun;
+	scsihost->cmd_per_lun = (unsigned)virtpcidev->scsi.max.cmd_per_lun;
 	scsihost->max_sectors =
-	    (unsigned short) (virtpcidev->scsi.max.max_io_size >> 9);
+	    (unsigned short)(virtpcidev->scsi.max.max_io_size >> 9);
 	scsihost->sg_tablesize =
-	    (unsigned short) (virtpcidev->scsi.max.max_io_size / PAGE_SIZE);
+	    (unsigned short)(virtpcidev->scsi.max.max_io_size / PAGE_SIZE);
 	if (scsihost->sg_tablesize > MAX_PHYS_INFO)
 		scsihost->sg_tablesize = MAX_PHYS_INFO;
 	LOGINF("scsihost->max_channel=%u, max_id=%u, max_lun=%llu, cmd_per_lun=%u, max_sectors=%hu, sg_tablesize=%hu\n",
@@ -544,11 +547,11 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
-	virthbainfo = (struct virthba_info *) scsihost->hostdata;
+	virthbainfo = (struct virthba_info *)scsihost->hostdata;
 	memset(virthbainfo, 0, sizeof(struct virthba_info));
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (VirtHbasOpen[i].virthbainfo == NULL) {
-			VirtHbasOpen[i].virthbainfo = virthbainfo;
+		if (virthbas_open[i].virthbainfo == NULL) {
+			virthbas_open[i].virthbainfo = virthbainfo;
 			break;
 		}
 	}
@@ -584,10 +587,10 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	DBGINF("starting rsp thread -- queueinfo: 0x%p, threadinfo: 0x%p.\n",
 	       virthbainfo->chinfo.queueinfo, &virthbainfo->chinfo.threadinfo);
 
-	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
+	channel_header = virthbainfo->chinfo.queueinfo->chan;
 	pqhdr = (struct signal_queue_header __iomem *)
-		((char __iomem *)pChannelHeader +
-		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
+		((char __iomem *)channel_header +
+		 readq(&channel_header->ch_space_offset)) + IOCHAN_FROM_IOPART;
 	virthbainfo->flags_addr = &pqhdr->features;
 
 	if (!uisthread_start(&virthbainfo->chinfo.threadinfo,
@@ -646,11 +649,11 @@ virthba_remove(struct virtpci_dev *virtpcidev)
 {
 	struct virthba_info *virthbainfo;
 	struct Scsi_Host *scsihost =
-	    (struct Scsi_Host *) virtpcidev->scsi.scsihost;
+	    (struct Scsi_Host *)virtpcidev->scsi.scsihost;
 
 	LOGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
 	       virtpcidev->device_no);
-	virthbainfo = (struct virthba_info *) scsihost->hostdata;
+	virthbainfo = (struct virthba_info *)scsihost->hostdata;
 	if (virthbainfo->interrupt_vector != -1)
 		free_irq(virthbainfo->interrupt_vector, virthbainfo);
 	LOGINF("Removing virtpcidev: 0x%p, virthbainfo: 0x%p\n", virtpcidev,
@@ -679,7 +682,7 @@ forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 {
 	struct uiscmdrsp *cmdrsp;
 	struct virthba_info *virthbainfo =
-	    (struct virthba_info *) scsihost->hostdata;
+	    (struct virthba_info *)scsihost->hostdata;
 	int notifyresult = 0xffff;
 	wait_queue_head_t notifyevent;
 
@@ -706,8 +709,8 @@ forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 	/* specify the event that has to be triggered when this cmd is
 	 * complete
 	 */
-	cmdrsp->vdiskmgmt.notify = (void *) &notifyevent;
-	cmdrsp->vdiskmgmt.notifyresult = (void *) &notifyresult;
+	cmdrsp->vdiskmgmt.notify = (void *)&notifyevent;
+	cmdrsp->vdiskmgmt.notifyresult = (void *)&notifyresult;
 
 	/* save destination */
 	cmdrsp->vdiskmgmt.vdisktype = vdiskcmdtype;
@@ -715,14 +718,14 @@ forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 	cmdrsp->vdiskmgmt.vdest.id = vdest->id;
 	cmdrsp->vdiskmgmt.vdest.lun = vdest->lun;
 	cmdrsp->vdiskmgmt.scsicmd =
-	    (void *) (uintptr_t)
+	    (void *)(uintptr_t)
 		add_scsipending_entry_with_wait(virthbainfo, CMD_VDISKMGMT_TYPE,
-						(void *) cmdrsp);
+						(void *)cmdrsp);
 
 	uisqueue_put_cmdrsp_with_lock_client(virthbainfo->chinfo.queueinfo,
 					     cmdrsp, IOCHAN_TO_IOPART,
 					     &virthbainfo->chinfo.insertlock,
-					     DONT_ISSUE_INTERRUPT, (u64) NULL,
+					     DONT_ISSUE_INTERRUPT, (u64)NULL,
 					     OK_TO_WAIT, "vhba");
 	LOGINF("VdiskMgmt waiting on event notifyevent=0x%p\n",
 	       cmdrsp->scsitaskmgmt.notify);
@@ -742,7 +745,7 @@ forward_taskmgmt_command(enum task_mgmt_types tasktype,
 {
 	struct uiscmdrsp *cmdrsp;
 	struct virthba_info *virthbainfo =
-	    (struct virthba_info *) scsidev->host->hostdata;
+	    (struct virthba_info *)scsidev->host->hostdata;
 	int notifyresult = 0xffff;
 	wait_queue_head_t notifyevent;
 
@@ -767,8 +770,8 @@ forward_taskmgmt_command(enum task_mgmt_types tasktype,
 	cmdrsp->cmdtype = CMD_SCSITASKMGMT_TYPE;
 	/* specify the event that has to be triggered when this */
 	/* cmd is complete */
-	cmdrsp->scsitaskmgmt.notify = (void *) &notifyevent;
-	cmdrsp->scsitaskmgmt.notifyresult = (void *) &notifyresult;
+	cmdrsp->scsitaskmgmt.notify = (void *)&notifyevent;
+	cmdrsp->scsitaskmgmt.notifyresult = (void *)&notifyresult;
 
 	/* save destination */
 	cmdrsp->scsitaskmgmt.tasktype = tasktype;
@@ -776,15 +779,15 @@ forward_taskmgmt_command(enum task_mgmt_types tasktype,
 	cmdrsp->scsitaskmgmt.vdest.id = scsidev->id;
 	cmdrsp->scsitaskmgmt.vdest.lun = scsidev->lun;
 	cmdrsp->scsitaskmgmt.scsicmd =
-	    (void *) (uintptr_t)
+	    (void *)(uintptr_t)
 		add_scsipending_entry_with_wait(virthbainfo,
 						CMD_SCSITASKMGMT_TYPE,
-						(void *) cmdrsp);
+						(void *)cmdrsp);
 
 	uisqueue_put_cmdrsp_with_lock_client(virthbainfo->chinfo.queueinfo,
 					     cmdrsp, IOCHAN_TO_IOPART,
 					     &virthbainfo->chinfo.insertlock,
-					     DONT_ISSUE_INTERRUPT, (u64) NULL,
+					     DONT_ISSUE_INTERRUPT, (u64)NULL,
 					     OK_TO_WAIT, "vhba");
 	LOGINF("TaskMgmt waiting on event notifyevent=0x%p\n",
 	       cmdrsp->scsitaskmgmt.notify);
@@ -805,11 +808,11 @@ virthba_abort_handler(struct scsi_cmnd *scsicmd)
 	struct virtdisk_info *vdisk;
 
 	scsidev = scsicmd->device;
-	for (vdisk = &((struct virthba_info *) scsidev->host->hostdata)->head;
+	for (vdisk = &((struct virthba_info *)scsidev->host->hostdata)->head;
 	     vdisk->next; vdisk = vdisk->next) {
-		if ((scsidev->channel == vdisk->channel)
-		    && (scsidev->id == vdisk->id)
-		    && (scsidev->lun == vdisk->lun)) {
+		if ((scsidev->channel == vdisk->channel) &&
+		    (scsidev->id == vdisk->id) &&
+		    (scsidev->lun == vdisk->lun)) {
 			if (atomic_read(&vdisk->error_count) <
 			    VIRTHBA_ERROR_COUNT) {
 				atomic_inc(&vdisk->error_count);
@@ -831,11 +834,11 @@ virthba_bus_reset_handler(struct scsi_cmnd *scsicmd)
 	struct virtdisk_info *vdisk;
 
 	scsidev = scsicmd->device;
-	for (vdisk = &((struct virthba_info *) scsidev->host->hostdata)->head;
+	for (vdisk = &((struct virthba_info *)scsidev->host->hostdata)->head;
 	     vdisk->next; vdisk = vdisk->next) {
-		if ((scsidev->channel == vdisk->channel)
-		    && (scsidev->id == vdisk->id)
-		    && (scsidev->lun == vdisk->lun)) {
+		if ((scsidev->channel == vdisk->channel) &&
+		    (scsidev->id == vdisk->id) &&
+		    (scsidev->lun == vdisk->lun)) {
 			if (atomic_read(&vdisk->error_count) <
 			    VIRTHBA_ERROR_COUNT) {
 				atomic_inc(&vdisk->error_count);
@@ -857,11 +860,11 @@ virthba_device_reset_handler(struct scsi_cmnd *scsicmd)
 	struct virtdisk_info *vdisk;
 
 	scsidev = scsicmd->device;
-	for (vdisk = &((struct virthba_info *) scsidev->host->hostdata)->head;
+	for (vdisk = &((struct virthba_info *)scsidev->host->hostdata)->head;
 	     vdisk->next; vdisk = vdisk->next) {
-		if ((scsidev->channel == vdisk->channel)
-		    && (scsidev->id == vdisk->id)
-		    && (scsidev->lun == vdisk->lun)) {
+		if ((scsidev->channel == vdisk->channel) &&
+		    (scsidev->id == vdisk->id) &&
+		    (scsidev->lun == vdisk->lun)) {
 			if (atomic_read(&vdisk->error_count) <
 			    VIRTHBA_ERROR_COUNT) {
 				atomic_inc(&vdisk->error_count);
@@ -915,7 +918,7 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	struct uiscmdrsp *cmdrsp;
 	unsigned int i;
 	struct virthba_info *virthbainfo =
-	    (struct virthba_info *) scsihost->hostdata;
+	    (struct virthba_info *)scsihost->hostdata;
 	struct scatterlist *sg = NULL;
 	struct scatterlist *sgl = NULL;
 	int sg_failed = 0;
@@ -940,9 +943,9 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	 * will return the scsicmd pointer for completion
 	 */
 	insert_location =
-	    add_scsipending_entry(virthbainfo, CMD_SCSI_TYPE, (void *) scsicmd);
+	    add_scsipending_entry(virthbainfo, CMD_SCSI_TYPE, (void *)scsicmd);
 	if (insert_location != -1) {
-		cmdrsp->scsi.scsicmd = (void *) (uintptr_t) insert_location;
+		cmdrsp->scsi.scsicmd = (void *)(uintptr_t)insert_location;
 	} else {
 		LOGERR("Queue is full. Returning busy.\n");
 		kfree(cmdrsp);
@@ -961,13 +964,13 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 	cmdrsp->scsi.bufflen = scsi_bufflen(scsicmd);
 
 	/* keep track of the max buffer length so far. */
-	if (cmdrsp->scsi.bufflen > MaxBuffLen)
-		MaxBuffLen = cmdrsp->scsi.bufflen;
+	if (cmdrsp->scsi.bufflen > max_buff_len)
+		max_buff_len = cmdrsp->scsi.bufflen;
 
 	if (scsi_sg_count(scsicmd) > MAX_PHYS_INFO) {
 		LOGERR("scsicmd use_sg:%d greater than MAX:%d\n",
 		       scsi_sg_count(scsicmd), MAX_PHYS_INFO);
-		del_scsipending_entry(virthbainfo, (uintptr_t) insert_location);
+		del_scsipending_entry(virthbainfo, (uintptr_t)insert_location);
 		kfree(cmdrsp);
 		return 1;	/* reject the command */
 	}
@@ -989,22 +992,21 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 		sgl = scsi_sglist(scsicmd);
 
 		for_each_sg(sgl, sg, scsi_sg_count(scsicmd), i) {
-
 			cmdrsp->scsi.gpi_list[i].address = sg_phys(sg);
 			cmdrsp->scsi.gpi_list[i].length = sg->length;
 			if ((i != 0) && (sg->offset != 0))
 				LOGINF("Offset on a sg_entry other than zero =<<%d>>.\n",
-				     sg->offset);
+				       sg->offset);
 		}
 
 		if (sg_failed) {
 			LOGERR("Start sg_list dump (entries %d, bufflen %d)...\n",
-			     scsi_sg_count(scsicmd), cmdrsp->scsi.bufflen);
+			       scsi_sg_count(scsicmd), cmdrsp->scsi.bufflen);
 			for_each_sg(sgl, sg, scsi_sg_count(scsicmd), i) {
 				LOGERR("   Entry(%d): page->[0x%p], phys->[0x%Lx], off(%d), len(%d)\n",
-				     i, sg_page(sg),
-				     (unsigned long long) sg_phys(sg),
-				     sg->offset, sg->length);
+				       i, sg_page(sg),
+				       (unsigned long long)sg_phys(sg),
+				       sg->offset, sg->length);
 			}
 			LOGERR("Done sg_list dump.\n");
 			/* BUG(); ***** For now, let it fail in uissd
@@ -1022,12 +1024,12 @@ virthba_queue_command_lck(struct scsi_cmnd *scsicmd,
 						 &virthbainfo->chinfo.
 						 insertlock,
 						 DONT_ISSUE_INTERRUPT,
-						 (u64) NULL, DONT_WAIT, "vhba");
+						 (u64)NULL, DONT_WAIT, "vhba");
 	if (i == 0) {
 		/* queue must be full - and we said don't wait - return busy */
 		LOGERR("uisqueue_put_cmdrsp_with_lock ****FAILED\n");
 		kfree(cmdrsp);
-		del_scsipending_entry(virthbainfo, (uintptr_t) insert_location);
+		del_scsipending_entry(virthbainfo, (uintptr_t)insert_location);
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
@@ -1047,9 +1049,9 @@ virthba_slave_alloc(struct scsi_device *scsidev)
 	struct virtdisk_info *vdisk;
 	struct virtdisk_info *tmpvdisk;
 	struct virthba_info *virthbainfo;
-	struct Scsi_Host *scsihost = (struct Scsi_Host *) scsidev->host;
+	struct Scsi_Host *scsihost = (struct Scsi_Host *)scsidev->host;
 
-	virthbainfo = (struct virthba_info *) scsihost->hostdata;
+	virthbainfo = (struct virthba_info *)scsihost->hostdata;
 	if (!virthbainfo) {
 		LOGERR("Could not find virthba_info for scsihost\n");
 		return 0;	/* even though we errored, treat as success */
@@ -1061,7 +1063,7 @@ virthba_slave_alloc(struct scsi_device *scsidev)
 		    (vdisk->next->lun == scsidev->lun))
 			return 0;
 	}
-	tmpvdisk = kzalloc(sizeof(struct virtdisk_info), GFP_ATOMIC);
+	tmpvdisk = kzalloc(sizeof(*tmpvdisk), GFP_ATOMIC);
 	if (!tmpvdisk) {	/* error allocating */
 		LOGERR("Could not allocate memory for disk\n");
 		return 0;
@@ -1089,9 +1091,9 @@ virthba_slave_destroy(struct scsi_device *scsidev)
 	 */
 	struct virtdisk_info *vdisk, *delvdisk;
 	struct virthba_info *virthbainfo;
-	struct Scsi_Host *scsihost = (struct Scsi_Host *) scsidev->host;
+	struct Scsi_Host *scsihost = (struct Scsi_Host *)scsidev->host;
 
-	virthbainfo = (struct virthba_info *) scsihost->hostdata;
+	virthbainfo = (struct virthba_info *)scsihost->hostdata;
 	if (!virthbainfo)
 		LOGERR("Could not find virthba_info for scsihost\n");
 	for (vdisk = &virthbainfo->head; vdisk->next; vdisk = vdisk->next) {
@@ -1120,7 +1122,7 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 
 	scsidev = scsicmd->device;
 	memcpy(scsicmd->sense_buffer, cmdrsp->scsi.sensebuf, MAX_SENSE_SIZE);
-	sd = (struct sense_data *) scsicmd->sense_buffer;
+	sd = (struct sense_data *)scsicmd->sense_buffer;
 
 	/* Do not log errors for disk-not-present inquiries */
 	if ((cmdrsp->scsi.cmnd[0] == INQUIRY) &&
@@ -1129,11 +1131,11 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 		return;
 
 	/* Okay see what our error_count is here.... */
-	for (vdisk = &((struct virthba_info *) scsidev->host->hostdata)->head;
+	for (vdisk = &((struct virthba_info *)scsidev->host->hostdata)->head;
 	     vdisk->next; vdisk = vdisk->next) {
-		if ((scsidev->channel != vdisk->channel)
-		    || (scsidev->id != vdisk->id)
-		    || (scsidev->lun != vdisk->lun))
+		if ((scsidev->channel != vdisk->channel) ||
+		    (scsidev->id != vdisk->id) ||
+		    (scsidev->lun != vdisk->lun))
 			continue;
 
 		if (atomic_read(&vdisk->error_count) < VIRTHBA_ERROR_COUNT) {
@@ -1148,8 +1150,8 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 			if (atomic_read(&vdisk->error_count) ==
 			    VIRTHBA_ERROR_COUNT) {
 				LOGERR("Throtling SCSICMD errors disk <%d:%d:%d:%llu>\n",
-				     scsidev->host->host_no, scsidev->id,
-				     scsidev->channel, scsidev->lun);
+				       scsidev->host->host_no, scsidev->id,
+				       scsidev->channel, scsidev->lun);
 			}
 			atomic_set(&vdisk->ios_threshold, IOS_ERROR_THRESHOLD);
 		}
@@ -1169,8 +1171,8 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 	struct virtdisk_info *vdisk;
 
 	scsidev = scsicmd->device;
-	if ((cmdrsp->scsi.cmnd[0] == INQUIRY)
-	    && (cmdrsp->scsi.bufflen >= MIN_INQUIRY_RESULT_LEN)) {
+	if ((cmdrsp->scsi.cmnd[0] == INQUIRY) &&
+	    (cmdrsp->scsi.bufflen >= MIN_INQUIRY_RESULT_LEN)) {
 		if (cmdrsp->scsi.no_disk_result == 0)
 			return;
 
@@ -1198,21 +1200,20 @@ do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 		sg = scsi_sglist(scsicmd);
 		for (i = 0; i < scsi_sg_count(scsicmd); i++) {
 			DBGVER("copying OUT OF buf into 0x%p %d\n",
-			     sg_page(sg + i), sg[i].length);
+			       sg_page(sg + i), sg[i].length);
 			thispage_orig = kmap_atomic(sg_page(sg + i));
-			thispage = (void *) ((unsigned long)thispage_orig |
+			thispage = (void *)((unsigned long)thispage_orig |
 					     sg[i].offset);
 			memcpy(thispage, buf + bufind, sg[i].length);
 			kunmap_atomic(thispage_orig);
 			bufind += sg[i].length;
 		}
 	} else {
-
 		vdisk = &((struct virthba_info *)scsidev->host->hostdata)->head;
 		for ( ; vdisk->next; vdisk = vdisk->next) {
-			if ((scsidev->channel != vdisk->channel)
-			    || (scsidev->id != vdisk->id)
-			    || (scsidev->lun != vdisk->lun))
+			if ((scsidev->channel != vdisk->channel) ||
+			    (scsidev->id != vdisk->id) ||
+			    (scsidev->lun != vdisk->lun))
 				continue;
 
 			if (atomic_read(&vdisk->ios_threshold) > 0) {
@@ -1249,8 +1250,8 @@ complete_vdiskmgmt_command(struct uiscmdrsp *cmdrsp)
 {
 	/* copy the result of the taskmgmt and */
 	/* wake up the error handler that is waiting for this */
-	*(int *) cmdrsp->vdiskmgmt.notifyresult = cmdrsp->vdiskmgmt.result;
-	wake_up_all((wait_queue_head_t *) cmdrsp->vdiskmgmt.notify);
+	*(int *)cmdrsp->vdiskmgmt.notifyresult = cmdrsp->vdiskmgmt.result;
+	wake_up_all((wait_queue_head_t *)cmdrsp->vdiskmgmt.notify);
 	LOGINF("set notify result to %d\n", cmdrsp->vdiskmgmt.result);
 }
 
@@ -1259,15 +1260,15 @@ complete_taskmgmt_command(struct uiscmdrsp *cmdrsp)
 {
 	/* copy the result of the taskmgmt and */
 	/* wake up the error handler that is waiting for this */
-	*(int *) cmdrsp->scsitaskmgmt.notifyresult =
+	*(int *)cmdrsp->scsitaskmgmt.notifyresult =
 	    cmdrsp->scsitaskmgmt.result;
-	wake_up_all((wait_queue_head_t *) cmdrsp->scsitaskmgmt.notify);
+	wake_up_all((wait_queue_head_t *)cmdrsp->scsitaskmgmt.notify);
 	LOGINF("set notify result to %d\n", cmdrsp->scsitaskmgmt.result);
 }
 
 static void
 drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
-		struct uiscmdrsp *cmdrsp)
+	    struct uiscmdrsp *cmdrsp)
 {
 	unsigned long flags;
 	int qrslt = 0;
@@ -1277,7 +1278,7 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 	while (1) {
 		spin_lock_irqsave(&virthbainfo->chinfo.insertlock, flags);
 		if (!spar_channel_client_acquire_os(dc->queueinfo->chan,
-						     "vhba")) {
+						    "vhba")) {
 			spin_unlock_irqrestore(&virthbainfo->chinfo.insertlock,
 					       flags);
 			virthbainfo->acquire_failed_cnt++;
@@ -1294,14 +1295,15 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 			 * deletion
 			 */
 			scsicmd = del_scsipending_entry(virthbainfo,
-					(uintptr_t) cmdrsp->scsi.scsicmd);
+							(uintptr_t)
+							 cmdrsp->scsi.scsicmd);
 			if (!scsicmd)
 				break;
 			/* complete the orig cmd */
 			complete_scsi_command(cmdrsp, scsicmd);
 		} else if (cmdrsp->cmdtype == CMD_SCSITASKMGMT_TYPE) {
 			if (!del_scsipending_entry(virthbainfo,
-				   (uintptr_t) cmdrsp->scsitaskmgmt.scsicmd))
+				   (uintptr_t)cmdrsp->scsitaskmgmt.scsicmd))
 				break;
 			complete_taskmgmt_command(cmdrsp);
 		} else if (cmdrsp->cmdtype == CMD_NOTIFYGUEST_TYPE) {
@@ -1313,7 +1315,8 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 			process_disk_notify(shost, cmdrsp);
 		} else if (cmdrsp->cmdtype == CMD_VDISKMGMT_TYPE) {
 			if (!del_scsipending_entry(virthbainfo,
-				   (uintptr_t) cmdrsp->vdiskmgmt.scsicmd))
+						   (uintptr_t)
+						    cmdrsp->vdiskmgmt.scsicmd))
 				break;
 			complete_vdiskmgmt_command(cmdrsp);
 		} else
@@ -1347,7 +1350,7 @@ process_incoming_rsps(void *v)
 	while (1) {
 		wait_event_interruptible_timeout(virthbainfo->rsp_queue,
 			 (atomic_read(&virthbainfo->interrupt_rcvd) == 1),
-					 usecs_to_jiffies(rsltq_wait_usecs));
+				      usecs_to_jiffies(rsltq_wait_usecs));
 		atomic_set(&virthbainfo->interrupt_rcvd, 0);
 		/* drain queue */
 		drain_queue(virthbainfo, dc, cmdrsp);
@@ -1367,7 +1370,7 @@ process_incoming_rsps(void *v)
 /*****************************************************/
 
 static ssize_t info_debugfs_read(struct file *file,
-			char __user *buf, size_t len, loff_t *offset)
+				 char __user *buf, size_t len, loff_t *offset)
 {
 	ssize_t bytes_read = 0;
 	int str_pos = 0;
@@ -1383,13 +1386,14 @@ static ssize_t info_debugfs_read(struct file *file,
 		return -ENOMEM;
 
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (VirtHbasOpen[i].virthbainfo == NULL)
+		if (virthbas_open[i].virthbainfo == NULL)
 			continue;
 
-		virthbainfo = VirtHbasOpen[i].virthbainfo;
+		virthbainfo = virthbas_open[i].virthbainfo;
 
 		str_pos += scnprintf(vbuf + str_pos,
-				len - str_pos, "MaxBuffLen:%u\n", MaxBuffLen);
+				len - str_pos, "max_buff_len:%u\n",
+				max_buff_len);
 
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 				"\nvirthba result queue poll wait:%d usecs.\n",
@@ -1418,14 +1422,14 @@ static ssize_t info_debugfs_read(struct file *file,
 	return bytes_read;
 }
 
-static ssize_t enable_ints_write(struct file *file,
-			const char __user *buffer, size_t count, loff_t *ppos)
+static ssize_t enable_ints_write(struct file *file, const char __user *buffer,
+				 size_t count, loff_t *ppos)
 {
 	char buf[4];
 	int i, new_value;
 	struct virthba_info *virthbainfo;
 
-	u64 __iomem *Features_addr;
+	u64 __iomem *features_addr;
 	u64 mask;
 
 	if (count >= ARRAY_SIZE(buf))
@@ -1434,37 +1438,37 @@ static ssize_t enable_ints_write(struct file *file,
 	buf[count] = '\0';
 	if (copy_from_user(buf, buffer, count)) {
 		LOGERR("copy_from_user failed. buf<<%.*s>> count<<%lu>>\n",
-		       (int) count, buf, count);
+		       (int)count, buf, count);
 		return -EFAULT;
 	}
 
-	i = kstrtoint(buf, 10 , &new_value);
+	i = kstrtoint(buf, 10, &new_value);
 
 	if (i != 0) {
 		LOGERR("Failed to scan value for enable_ints, buf<<%.*s>>",
-		       (int) count, buf);
+		       (int)count, buf);
 		return -EFAULT;
 	}
 
 	/* set all counts to new_value usually 0 */
 	for (i = 0; i < VIRTHBASOPENMAX; i++) {
-		if (VirtHbasOpen[i].virthbainfo != NULL) {
-			virthbainfo = VirtHbasOpen[i].virthbainfo;
-			Features_addr =
+		if (virthbas_open[i].virthbainfo != NULL) {
+			virthbainfo = virthbas_open[i].virthbainfo;
+			features_addr =
 				&virthbainfo->chinfo.queueinfo->chan->features;
 			if (new_value == 1) {
 				mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);
-				uisqueue_interlocked_and(Features_addr, mask);
+				uisqueue_interlocked_and(features_addr, mask);
 				mask = ULTRA_IO_DRIVER_ENABLES_INTS;
-				uisqueue_interlocked_or(Features_addr, mask);
+				uisqueue_interlocked_or(features_addr, mask);
 				rsltq_wait_usecs = 4000000;
 			} else {
 				mask = ~(ULTRA_IO_DRIVER_ENABLES_INTS |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);
-				uisqueue_interlocked_and(Features_addr, mask);
+				uisqueue_interlocked_and(features_addr, mask);
 				mask = ULTRA_IO_CHANNEL_IS_POLLING;
-				uisqueue_interlocked_or(Features_addr, mask);
+				uisqueue_interlocked_or(features_addr, mask);
 				rsltq_wait_usecs = 4000;
 			}
 		}
@@ -1477,7 +1481,7 @@ static int
 virthba_serverup(struct virtpci_dev *virtpcidev)
 {
 	struct virthba_info *virthbainfo =
-	    (struct virthba_info *) ((struct Scsi_Host *) virtpcidev->scsi.
+	    (struct virthba_info *)((struct Scsi_Host *)virtpcidev->scsi.
 				     scsihost)->hostdata;
 
 	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
@@ -1535,26 +1539,26 @@ virthba_serverdown_complete(struct work_struct *work)
 	/* Fail Commands that weren't completed */
 	spin_lock_irqsave(&virthbainfo->privlock, flags);
 	for (i = 0; i < MAX_PENDING_REQUESTS; i++) {
-		pendingdel = &(virthbainfo->pending[i]);
+		pendingdel = &virthbainfo->pending[i];
 		switch (pendingdel->cmdtype) {
 		case CMD_SCSI_TYPE:
-			scsicmd = (struct scsi_cmnd *) pendingdel->sent;
+			scsicmd = (struct scsi_cmnd *)pendingdel->sent;
 			scsicmd->result = (DID_RESET << 16);
 			if (scsicmd->scsi_done)
 				scsicmd->scsi_done(scsicmd);
 			break;
 		case CMD_SCSITASKMGMT_TYPE:
-			cmdrsp = (struct uiscmdrsp *) pendingdel->sent;
+			cmdrsp = (struct uiscmdrsp *)pendingdel->sent;
 			DBGINF("cmdrsp=0x%x, notify=0x%x\n", cmdrsp,
 			       cmdrsp->scsitaskmgmt.notify);
-			*(int *) cmdrsp->scsitaskmgmt.notifyresult =
+			*(int *)cmdrsp->scsitaskmgmt.notifyresult =
 			    TASK_MGMT_FAILED;
 			wake_up_all((wait_queue_head_t *)
 				    cmdrsp->scsitaskmgmt.notify);
 			break;
 		case CMD_VDISKMGMT_TYPE:
-			cmdrsp = (struct uiscmdrsp *) pendingdel->sent;
-			*(int *) cmdrsp->vdiskmgmt.notifyresult =
+			cmdrsp = (struct uiscmdrsp *)pendingdel->sent;
+			*(int *)cmdrsp->vdiskmgmt.notifyresult =
 			    VDISK_MGMT_FAILED;
 			wake_up_all((wait_queue_head_t *)
 				    cmdrsp->vdiskmgmt.notify);
@@ -1584,8 +1588,10 @@ virthba_serverdown_complete(struct work_struct *work)
 static int
 virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state)
 {
+	int stat = 1;
+
 	struct virthba_info *virthbainfo =
-	    (struct virthba_info *) ((struct Scsi_Host *) virtpcidev->scsi.
+	    (struct virthba_info *)((struct Scsi_Host *)virtpcidev->scsi.
 				     scsihost)->hostdata;
 
 	DBGINF("virthba_serverdown");
@@ -1598,11 +1604,12 @@ virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state)
 			   &virthbainfo->serverdown_completion);
 	} else if (virthbainfo->serverchangingstate) {
 		LOGERR("Server already processing change state message\n");
-		return 0;
-	} else
+		stat = 0;
+	} else {
 		LOGERR("Server already down, but another server down message received.");
+	}
 
-	return 1;
+	return stat;
 }
 
 /*****************************************************/
@@ -1655,23 +1662,22 @@ virthba_mod_init(void)
 		POSTCODE_LINUX_3(VHBA_CREATE_FAILURE_PC, error,
 				 POSTCODE_SEVERITY_ERR);
 	} else {
-
 		/* create the debugfs directories and entries */
 		virthba_debugfs_dir = debugfs_create_dir("virthba", NULL);
 		debugfs_create_file("info", S_IRUSR, virthba_debugfs_dir,
-				NULL, &debugfs_info_fops);
+				    NULL, &debugfs_info_fops);
 		debugfs_create_u32("rqwait_usecs", S_IRUSR | S_IWUSR,
-				virthba_debugfs_dir, &rsltq_wait_usecs);
+				   virthba_debugfs_dir, &rsltq_wait_usecs);
 		debugfs_create_file("enable_ints", S_IWUSR,
-				virthba_debugfs_dir, NULL,
-				&debugfs_enable_ints_fops);
-		/* Initialize DARWorkQ */
-		INIT_WORK(&DARWorkQ, doDiskAddRemove);
-		spin_lock_init(&DARWorkQLock);
+				    virthba_debugfs_dir, NULL,
+				    &debugfs_enable_ints_fops);
+		/* Initialize dar_work_queue */
+		INIT_WORK(&dar_work_queue, do_disk_add_remove);
+		spin_lock_init(&dar_work_queue_lock);
 
 		/* clear out array */
 		for (i = 0; i < VIRTHBASOPENMAX; i++)
-			VirtHbasOpen[i].virthbainfo = NULL;
+			virthbas_open[i].virthbainfo = NULL;
 		/* Initialize the serverdown workqueue */
 		virthba_serverdown_workqueue =
 		    create_singlethread_workqueue("virthba_serverdown");
@@ -1746,7 +1752,6 @@ virthba_mod_exit(void)
 
 	debugfs_remove_recursive(virthba_debugfs_dir);
 	LOGINF("Leaving virthba_mod_exit\n");
-
 }
 
 /* specify function to be run at module insertion time */

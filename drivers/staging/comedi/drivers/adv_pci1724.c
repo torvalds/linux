@@ -22,7 +22,7 @@
 /*
  * Driver: adv_pci1724
  * Description: Advantech PCI-1724U
- * Devices: (Advantech) PCI-1724U [adv_pci1724]
+ * Devices: [Advantech] PCI-1724U (adv_pci1724)
  * Author: Frank Mori Hess <fmh6jj@gmail.com>
  * Updated: 2013-02-09
  * Status: works

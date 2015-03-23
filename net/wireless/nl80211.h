@@ -17,7 +17,21 @@ void nl80211_send_sched_scan(struct cfg80211_registered_device *rdev,
 			     struct net_device *netdev, u32 cmd);
 void nl80211_send_sched_scan_results(struct cfg80211_registered_device *rdev,
 				     struct net_device *netdev);
-void nl80211_send_reg_change_event(struct regulatory_request *request);
+void nl80211_common_reg_change_event(enum nl80211_commands cmd_id,
+				     struct regulatory_request *request);
+
+static inline void
+nl80211_send_reg_change_event(struct regulatory_request *request)
+{
+	nl80211_common_reg_change_event(NL80211_CMD_REG_CHANGE, request);
+}
+
+static inline void
+nl80211_send_wiphy_reg_change_event(struct regulatory_request *request)
+{
+	nl80211_common_reg_change_event(NL80211_CMD_WIPHY_REG_CHANGE, request);
+}
+
 void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 			  struct net_device *netdev,
 			  const u8 *buf, size_t len, gfp_t gfp);

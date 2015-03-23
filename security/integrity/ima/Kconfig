@@ -126,7 +126,6 @@ config IMA_TRUSTED_KEYRING
 	bool "Require all keys on the .ima keyring be signed"
 	depends on IMA_APPRAISE && SYSTEM_TRUSTED_KEYRING
 	depends on INTEGRITY_ASYMMETRIC_KEYS
-	select KEYS_DEBUG_PROC_KEYS
 	default y
 	help
 	   This option requires that all keys added to the .ima

@@ -54,7 +54,7 @@ static int st_sensors_spi_read(struct st_sensor_transfer_buffer *tb,
 	if (err)
 		goto acc_spi_read_error;
 
-	memcpy(data, tb->rx_buf, len*sizeof(u8));
+	memcpy(data, tb->rx_buf, len);
 	mutex_unlock(&tb->buf_lock);
 	return len;
 

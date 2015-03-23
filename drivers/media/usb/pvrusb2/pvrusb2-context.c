@@ -418,14 +418,3 @@ struct pvr2_ioread *pvr2_channel_create_mpeg_stream(
 	pvr2_ioread_set_sync_key(cp,stream_sync_key,sizeof(stream_sync_key));
 	return cp;
 }
-
-
-/*
-  Stuff for Emacs to see, in order to encourage consistent editing style:
-  *** Local Variables: ***
-  *** mode: c ***
-  *** fill-column: 75 ***
-  *** tab-width: 8 ***
-  *** c-basic-offset: 8 ***
-  *** End: ***
-  */

@@ -48,7 +48,8 @@ struct netns_ipv4 {
 	struct hlist_head	*fib_table_hash;
 	struct sock		*fibnl;
 
-	struct sock		**icmp_sk;
+	struct sock  * __percpu	*icmp_sk;
+
 	struct inet_peer_base	*peers;
 	struct tcpm_hash_bucket	*tcp_metrics_hash;
 	unsigned int		tcp_metrics_hash_log;
@@ -81,6 +82,8 @@ struct netns_ipv4 {
 
 	int sysctl_fwmark_reflect;
 	int sysctl_tcp_fwmark_accept;
+	int sysctl_tcp_mtu_probing;
+	int sysctl_tcp_base_mss;
 
 	struct ping_group_range ping_group_range;
 

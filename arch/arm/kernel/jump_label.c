@@ -1,8 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/jump_label.h>
-
-#include "insn.h"
-#include "patch.h"
+#include <asm/patch.h>
+#include <asm/insn.h>
 
 #ifdef HAVE_JUMP_LABEL
 

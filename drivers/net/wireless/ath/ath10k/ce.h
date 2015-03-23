@@ -394,7 +394,7 @@ struct ce_attr {
 #define DST_WATERMARK_HIGH_RESET		0
 #define DST_WATERMARK_ADDRESS			0x0050
 
-static inline u32 ath10k_ce_base_address(unsigned int ce_id)
+static inline u32 ath10k_ce_base_address(struct ath10k *ar, unsigned int ce_id)
 {
 	return CE0_BASE_ADDRESS + (CE1_BASE_ADDRESS - CE0_BASE_ADDRESS) * ce_id;
 }

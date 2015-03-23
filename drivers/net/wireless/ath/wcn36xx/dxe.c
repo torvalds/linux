@@ -84,6 +84,7 @@ static int wcn36xx_dxe_allocate_ctl_block(struct wcn36xx_dxe_ch *ch)
 		if (!cur_ctl)
 			goto out_fail;
 
+		spin_lock_init(&cur_ctl->skb_lock);
 		cur_ctl->ctl_blk_order = i;
 		if (i == 0) {
 			ch->head_blk_ctl = cur_ctl;
@@ -354,6 +355,8 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	 * and while-do will not make any cycles.
 	 */
 	do {
+		if (ctl->desc->ctrl & WCN36XX_DXE_CTRL_VALID_MASK)
+			break;
 		if (ctl->skb) {
 			dma_unmap_single(NULL, ctl->desc->src_addr_l,
 					 ctl->skb->len, DMA_TO_DEVICE);

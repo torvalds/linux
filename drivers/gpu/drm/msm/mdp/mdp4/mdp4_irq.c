@@ -32,7 +32,10 @@ static void mdp4_irq_error_handler(struct mdp_irq *irq, uint32_t irqstatus)
 void mdp4_irq_preinstall(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	mdp4_enable(mdp4_kms);
 	mdp4_write(mdp4_kms, REG_MDP4_INTR_CLEAR, 0xffffffff);
+	mdp4_write(mdp4_kms, REG_MDP4_INTR_ENABLE, 0x00000000);
+	mdp4_disable(mdp4_kms);
 }
 
 int mdp4_irq_postinstall(struct msm_kms *kms)
@@ -53,7 +56,9 @@ int mdp4_irq_postinstall(struct msm_kms *kms)
 void mdp4_irq_uninstall(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	mdp4_enable(mdp4_kms);
 	mdp4_write(mdp4_kms, REG_MDP4_INTR_ENABLE, 0x00000000);
+	mdp4_disable(mdp4_kms);
 }
 
 irqreturn_t mdp4_irq(struct msm_kms *kms)

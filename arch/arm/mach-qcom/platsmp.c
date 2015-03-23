@@ -44,7 +44,7 @@
 #define APCS_SAW2_VCTL		0x14
 #define APCS_SAW2_2_VCTL	0x1c
 
-extern void secondary_startup(void);
+extern void secondary_startup_arm(void);
 
 static DEFINE_SPINLOCK(boot_lock);
 
@@ -337,7 +337,7 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 		flags |= cold_boot_flags[map];
 	}
 
-	if (scm_set_boot_addr(virt_to_phys(secondary_startup), flags)) {
+	if (scm_set_boot_addr(virt_to_phys(secondary_startup_arm), flags)) {
 		for_each_present_cpu(cpu) {
 			if (cpu == smp_processor_id())
 				continue;

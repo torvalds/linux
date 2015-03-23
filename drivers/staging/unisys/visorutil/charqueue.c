@@ -28,7 +28,7 @@
 struct charqueue {
 	int alloc_size;
 	int nslots;
-	spinlock_t lock;
+	spinlock_t lock; /* read/write lock for this structure */
 	int head, tail;
 	unsigned char buf[0];
 };

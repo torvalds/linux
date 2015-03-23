@@ -45,7 +45,6 @@
 #include <mach/irqs.h>
 #include <mach/serial.h>
 #include <mach/clock.h>
-#include <mach/cdce949.h>
 
 #include "davinci.h"
 #include "clock.h"
@@ -399,9 +398,6 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 	{
 		I2C_BOARD_INFO("cpld_video", 0x3b),
 	},
-	{
-		I2C_BOARD_INFO("cdce949", 0x6c),
-	},
 };
 
 static struct davinci_i2c_platform_data i2c_pdata = {
@@ -715,31 +711,6 @@ static void __init evm_init_i2c(void)
 	evm_init_video();
 }
 
-#define CDCE949_XIN_RATE	27000000
-
-/* CDCE949 support - "lpsc" field is overridden to work as clock number */
-static struct clk cdce_clk_in = {
-	.name	= "cdce_xin",
-	.rate	= CDCE949_XIN_RATE,
-};
-
-static struct clk_lookup cdce_clks[] = {
-	CLK(NULL, "xin", &cdce_clk_in),
-	CLK(NULL, NULL, NULL),
-};
-
-static void __init cdce_clk_init(void)
-{
-	struct clk_lookup *c;
-	struct clk *clk;
-
-	for (c = cdce_clks; c->clk; c++) {
-		clk = c->clk;
-		clkdev_add(c);
-		clk_register(clk);
-	}
-}
-
 #define DM6467T_EVM_REF_FREQ		33000000
 
 static void __init davinci_map_io(void)
@@ -748,8 +719,6 @@ static void __init davinci_map_io(void)
 
 	if (machine_is_davinci_dm6467tevm())
 		davinci_set_refclk_rate(DM6467T_EVM_REF_FREQ);
-
-	cdce_clk_init();
 }
 
 #define DM646X_EVM_PHY_ID		"davinci_mdio-0:01"

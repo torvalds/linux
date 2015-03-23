@@ -91,6 +91,8 @@ static bool vnt_rx_data(struct vnt_private *priv, struct sk_buff *skb,
 	new_rsr = skb_data + bytes_received - 3;
 	rssi = skb_data + bytes_received - 2;
 	rsr = skb_data + bytes_received - 1;
+	if (*rsr & (RSR_IVLDTYP | RSR_IVLDLEN))
+		return false;
 
 	RFvRSSITodBm(priv, *rssi, &rx_dbm);
 
@@ -106,6 +108,9 @@ static bool vnt_rx_data(struct vnt_private *priv, struct sk_buff *skb,
 	rx_status.flag = 0;
 	rx_status.freq = hw->conf.chandef.chan->center_freq;
 
+	if (!(*rsr & RSR_CRCOK))
+		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
+
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = hdr->frame_control;
 
@@ -113,13 +118,11 @@ static bool vnt_rx_data(struct vnt_private *priv, struct sk_buff *skb,
 
 	if (ieee80211_has_protected(fc)) {
 		if (priv->byLocalID > REV_ID_VT3253_A1)
-			rx_status.flag = RX_FLAG_DECRYPTED;
-	}
+			rx_status.flag |= RX_FLAG_DECRYPTED;
 
-	if (priv->vif && priv->bDiversityEnable) {
-		if (ieee80211_is_data(fc) &&
-		    (frame_size > 50) && priv->vif->bss_conf.assoc)
-			BBvAntennaDiversity(priv, priv->rx_rate, 0);
+		/* Drop packet */
+		if (!(*new_rsr & NEWRSR_DECRYPTOK))
+			return false;
 	}
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));

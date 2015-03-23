@@ -235,19 +235,19 @@ static void release_tid(struct c4iw_rdev *rdev, u32 hwtid, struct sk_buff *skb)
 
 static void set_emss(struct c4iw_ep *ep, u16 opt)
 {
-	ep->emss = ep->com.dev->rdev.lldi.mtus[GET_TCPOPT_MSS(opt)] -
+	ep->emss = ep->com.dev->rdev.lldi.mtus[TCPOPT_MSS_G(opt)] -
 		   ((AF_INET == ep->com.remote_addr.ss_family) ?
 		    sizeof(struct iphdr) : sizeof(struct ipv6hdr)) -
 		   sizeof(struct tcphdr);
 	ep->mss = ep->emss;
-	if (GET_TCPOPT_TSTAMP(opt))
+	if (TCPOPT_TSTAMP_G(opt))
 		ep->emss -= round_up(TCPOLEN_TIMESTAMP, 4);
 	if (ep->emss < 128)
 		ep->emss = 128;
 	if (ep->emss & 7)
 		PDBG("Warning: misaligned mtu idx %u mss %u emss=%u\n",
-		     GET_TCPOPT_MSS(opt), ep->mss, ep->emss);
-	PDBG("%s mss_idx %u mss %u emss=%u\n", __func__, GET_TCPOPT_MSS(opt),
+		     TCPOPT_MSS_G(opt), ep->mss, ep->emss);
+	PDBG("%s mss_idx %u mss %u emss=%u\n", __func__, TCPOPT_MSS_G(opt),
 	     ep->mss, ep->emss);
 }
 
@@ -652,29 +652,29 @@ static int send_connect(struct c4iw_ep *ep)
 	if (win > RCV_BUFSIZ_M)
 		win = RCV_BUFSIZ_M;
 
-	opt0 = (nocong ? NO_CONG(1) : 0) |
+	opt0 = (nocong ? NO_CONG_F : 0) |
 	       KEEP_ALIVE_F |
-	       DELACK(1) |
+	       DELACK_F |
 	       WND_SCALE_V(wscale) |
 	       MSS_IDX_V(mtu_idx) |
 	       L2T_IDX_V(ep->l2t->idx) |
 	       TX_CHAN_V(ep->tx_chan) |
 	       SMAC_SEL_V(ep->smac_idx) |
-	       DSCP(ep->tos) |
+	       DSCP_V(ep->tos) |
 	       ULP_MODE_V(ULP_MODE_TCPDDP) |
 	       RCV_BUFSIZ_V(win);
 	opt2 = RX_CHANNEL_V(0) |
-	       CCTRL_ECN(enable_ecn) |
+	       CCTRL_ECN_V(enable_ecn) |
 	       RSS_QUEUE_VALID_F | RSS_QUEUE_V(ep->rss_qid);
 	if (enable_tcp_timestamps)
-		opt2 |= TSTAMPS_EN(1);
+		opt2 |= TSTAMPS_EN_F;
 	if (enable_tcp_sack)
-		opt2 |= SACK_EN(1);
+		opt2 |= SACK_EN_F;
 	if (wscale && enable_tcp_window_scaling)
 		opt2 |= WND_SCALE_EN_F;
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
 		opt2 |= T5_OPT_2_VALID_F;
-		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		opt2 |= CONG_CNTRL_V(CONG_ALG_TAHOE);
 		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 	}
 	t4_set_arp_err_handler(skb, ep, act_open_req_arp_failure);
@@ -1042,7 +1042,7 @@ static int act_establish(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct c4iw_ep *ep;
 	struct cpl_act_establish *req = cplhdr(skb);
 	unsigned int tid = GET_TID(req);
-	unsigned int atid = GET_TID_TID(ntohl(req->tos_atid));
+	unsigned int atid = TID_TID_G(ntohl(req->tos_atid));
 	struct tid_info *t = dev->rdev.lldi.tids;
 
 	ep = lookup_atid(t, atid);
@@ -1258,8 +1258,8 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_RX_DATA_ACK,
 						    ep->hwtid));
 	req->credit_dack = cpu_to_be32(credits | RX_FORCE_ACK_F |
-				       F_RX_DACK_CHANGE |
-				       V_RX_DACK_MODE(dack_mode));
+				       RX_DACK_CHANGE_F |
+				       RX_DACK_MODE_V(dack_mode));
 	set_wr_txq(skb, CPL_PRIORITY_ACK, ep->ctrlq_idx);
 	c4iw_ofld_send(&ep->com.dev->rdev, skb);
 	return credits;
@@ -1751,7 +1751,7 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	skb = get_skb(NULL, sizeof(*req), GFP_KERNEL);
 	req = (struct fw_ofld_connection_wr *)__skb_put(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
-	req->op_compl = htonl(V_WR_OP(FW_OFLD_CONNECTION_WR));
+	req->op_compl = htonl(WR_OP_V(FW_OFLD_CONNECTION_WR));
 	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));
 	req->le.filter = cpu_to_be32(cxgb4_select_ntuple(
 				     ep->com.dev->rdev.lldi.ports[0],
@@ -1782,27 +1782,27 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	if (win > RCV_BUFSIZ_M)
 		win = RCV_BUFSIZ_M;
 
-	req->tcb.opt0 = (__force __be64) (TCAM_BYPASS(1) |
-		(nocong ? NO_CONG(1) : 0) |
+	req->tcb.opt0 = (__force __be64) (TCAM_BYPASS_F |
+		(nocong ? NO_CONG_F : 0) |
 		KEEP_ALIVE_F |
-		DELACK(1) |
+		DELACK_F |
 		WND_SCALE_V(wscale) |
 		MSS_IDX_V(mtu_idx) |
 		L2T_IDX_V(ep->l2t->idx) |
 		TX_CHAN_V(ep->tx_chan) |
 		SMAC_SEL_V(ep->smac_idx) |
-		DSCP(ep->tos) |
+		DSCP_V(ep->tos) |
 		ULP_MODE_V(ULP_MODE_TCPDDP) |
 		RCV_BUFSIZ_V(win));
-	req->tcb.opt2 = (__force __be32) (PACE(1) |
-		TX_QUEUE(ep->com.dev->rdev.lldi.tx_modq[ep->tx_chan]) |
+	req->tcb.opt2 = (__force __be32) (PACE_V(1) |
+		TX_QUEUE_V(ep->com.dev->rdev.lldi.tx_modq[ep->tx_chan]) |
 		RX_CHANNEL_V(0) |
-		CCTRL_ECN(enable_ecn) |
+		CCTRL_ECN_V(enable_ecn) |
 		RSS_QUEUE_VALID_F | RSS_QUEUE_V(ep->rss_qid));
 	if (enable_tcp_timestamps)
-		req->tcb.opt2 |= (__force __be32)TSTAMPS_EN(1);
+		req->tcb.opt2 |= (__force __be32)TSTAMPS_EN_F;
 	if (enable_tcp_sack)
-		req->tcb.opt2 |= (__force __be32)SACK_EN(1);
+		req->tcb.opt2 |= (__force __be32)SACK_EN_F;
 	if (wscale && enable_tcp_window_scaling)
 		req->tcb.opt2 |= (__force __be32)WND_SCALE_EN_F;
 	req->tcb.opt0 = cpu_to_be64((__force u64)req->tcb.opt0);
@@ -2023,10 +2023,10 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 {
 	struct c4iw_ep *ep;
 	struct cpl_act_open_rpl *rpl = cplhdr(skb);
-	unsigned int atid = GET_TID_TID(GET_AOPEN_ATID(
-					ntohl(rpl->atid_status)));
+	unsigned int atid = TID_TID_G(AOPEN_ATID_G(
+				      ntohl(rpl->atid_status)));
 	struct tid_info *t = dev->rdev.lldi.tids;
-	int status = GET_AOPEN_STATUS(ntohl(rpl->atid_status));
+	int status = AOPEN_STATUS_G(ntohl(rpl->atid_status));
 	struct sockaddr_in *la;
 	struct sockaddr_in *ra;
 	struct sockaddr_in6 *la6;
@@ -2064,7 +2064,7 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		if (ep->com.local_addr.ss_family == AF_INET &&
 		    dev->rdev.lldi.enable_fw_ofld_conn) {
 			send_fw_act_open_req(ep,
-					     GET_TID_TID(GET_AOPEN_ATID(
+					     TID_TID_G(AOPEN_ATID_G(
 					     ntohl(rpl->atid_status))));
 			return 0;
 		}
@@ -2181,39 +2181,39 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	win = ep->rcv_win >> 10;
 	if (win > RCV_BUFSIZ_M)
 		win = RCV_BUFSIZ_M;
-	opt0 = (nocong ? NO_CONG(1) : 0) |
+	opt0 = (nocong ? NO_CONG_F : 0) |
 	       KEEP_ALIVE_F |
-	       DELACK(1) |
+	       DELACK_F |
 	       WND_SCALE_V(wscale) |
 	       MSS_IDX_V(mtu_idx) |
 	       L2T_IDX_V(ep->l2t->idx) |
 	       TX_CHAN_V(ep->tx_chan) |
 	       SMAC_SEL_V(ep->smac_idx) |
-	       DSCP(ep->tos >> 2) |
+	       DSCP_V(ep->tos >> 2) |
 	       ULP_MODE_V(ULP_MODE_TCPDDP) |
 	       RCV_BUFSIZ_V(win);
 	opt2 = RX_CHANNEL_V(0) |
 	       RSS_QUEUE_VALID_F | RSS_QUEUE_V(ep->rss_qid);
 
 	if (enable_tcp_timestamps && req->tcpopt.tstamp)
-		opt2 |= TSTAMPS_EN(1);
+		opt2 |= TSTAMPS_EN_F;
 	if (enable_tcp_sack && req->tcpopt.sack)
-		opt2 |= SACK_EN(1);
+		opt2 |= SACK_EN_F;
 	if (wscale && enable_tcp_window_scaling)
 		opt2 |= WND_SCALE_EN_F;
 	if (enable_ecn) {
 		const struct tcphdr *tcph;
 		u32 hlen = ntohl(req->hdr_len);
 
-		tcph = (const void *)(req + 1) + G_ETH_HDR_LEN(hlen) +
-			G_IP_HDR_LEN(hlen);
+		tcph = (const void *)(req + 1) + ETH_HDR_LEN_G(hlen) +
+			IP_HDR_LEN_G(hlen);
 		if (tcph->ece && tcph->cwr)
-			opt2 |= CCTRL_ECN(1);
+			opt2 |= CCTRL_ECN_V(1);
 	}
 	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
 		u32 isn = (prandom_u32() & ~7UL) - 1;
 		opt2 |= T5_OPT_2_VALID_F;
-		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+		opt2 |= CONG_CNTRL_V(CONG_ALG_TAHOE);
 		opt2 |= CONG_CNTRL_VALID; /* OPT_2_ISS for T5 */
 		rpl5 = (void *)rpl;
 		memset(&rpl5->iss, 0, roundup(sizeof(*rpl5)-sizeof(*rpl), 16));
@@ -2245,8 +2245,8 @@ static void get_4tuple(struct cpl_pass_accept_req *req, int *iptype,
 		       __u8 *local_ip, __u8 *peer_ip,
 		       __be16 *local_port, __be16 *peer_port)
 {
-	int eth_len = G_ETH_HDR_LEN(be32_to_cpu(req->hdr_len));
-	int ip_len = G_IP_HDR_LEN(be32_to_cpu(req->hdr_len));
+	int eth_len = ETH_HDR_LEN_G(be32_to_cpu(req->hdr_len));
+	int ip_len = IP_HDR_LEN_G(be32_to_cpu(req->hdr_len));
 	struct iphdr *ip = (struct iphdr *)((u8 *)(req + 1) + eth_len);
 	struct ipv6hdr *ip6 = (struct ipv6hdr *)((u8 *)(req + 1) + eth_len);
 	struct tcphdr *tcp = (struct tcphdr *)
@@ -2277,7 +2277,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 {
 	struct c4iw_ep *child_ep = NULL, *parent_ep;
 	struct cpl_pass_accept_req *req = cplhdr(skb);
-	unsigned int stid = GET_POPEN_TID(ntohl(req->tos_stid));
+	unsigned int stid = PASS_OPEN_TID_G(ntohl(req->tos_stid));
 	struct tid_info *t = dev->rdev.lldi.tids;
 	unsigned int hwtid = GET_TID(req);
 	struct dst_entry *dst;
@@ -2310,14 +2310,14 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 		     ntohs(peer_port), peer_mss);
 		dst = find_route(dev, *(__be32 *)local_ip, *(__be32 *)peer_ip,
 				 local_port, peer_port,
-				 GET_POPEN_TOS(ntohl(req->tos_stid)));
+				 PASS_OPEN_TOS_G(ntohl(req->tos_stid)));
 	} else {
 		PDBG("%s parent ep %p hwtid %u laddr %pI6 raddr %pI6 lport %d rport %d peer_mss %d\n"
 		     , __func__, parent_ep, hwtid,
 		     local_ip, peer_ip, ntohs(local_port),
 		     ntohs(peer_port), peer_mss);
 		dst = find_route6(dev, local_ip, peer_ip, local_port, peer_port,
-				  PASS_OPEN_TOS(ntohl(req->tos_stid)),
+				  PASS_OPEN_TOS_G(ntohl(req->tos_stid)),
 				  ((struct sockaddr_in6 *)
 				  &parent_ep->com.local_addr)->sin6_scope_id);
 	}
@@ -2375,7 +2375,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	c4iw_get_ep(&parent_ep->com);
 	child_ep->parent_ep = parent_ep;
-	child_ep->tos = GET_POPEN_TOS(ntohl(req->tos_stid));
+	child_ep->tos = PASS_OPEN_TOS_G(ntohl(req->tos_stid));
 	child_ep->dst = dst;
 	child_ep->hwtid = hwtid;
 
@@ -3500,24 +3500,24 @@ static void build_cpl_pass_accept_req(struct sk_buff *skb, int stid , u8 tos)
 
 	req = (struct cpl_pass_accept_req *)__skb_push(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
-	req->l2info = cpu_to_be16(V_SYN_INTF(intf) |
-			 V_SYN_MAC_IDX(G_RX_MACIDX(
+	req->l2info = cpu_to_be16(SYN_INTF_V(intf) |
+			 SYN_MAC_IDX_V(RX_MACIDX_G(
 			 (__force int) htonl(l2info))) |
-			 F_SYN_XACT_MATCH);
+			 SYN_XACT_MATCH_F);
 	eth_hdr_len = is_t4(dev->rdev.lldi.adapter_type) ?
-			    G_RX_ETHHDR_LEN((__force int) htonl(l2info)) :
-			    G_RX_T5_ETHHDR_LEN((__force int) htonl(l2info));
-	req->hdr_len = cpu_to_be32(V_SYN_RX_CHAN(G_RX_CHAN(
+			    RX_ETHHDR_LEN_G((__force int)htonl(l2info)) :
+			    RX_T5_ETHHDR_LEN_G((__force int)htonl(l2info));
+	req->hdr_len = cpu_to_be32(SYN_RX_CHAN_V(RX_CHAN_G(
 					(__force int) htonl(l2info))) |
-				   V_TCP_HDR_LEN(G_RX_TCPHDR_LEN(
+				   TCP_HDR_LEN_V(RX_TCPHDR_LEN_G(
 					(__force int) htons(hdr_len))) |
-				   V_IP_HDR_LEN(G_RX_IPHDR_LEN(
+				   IP_HDR_LEN_V(RX_IPHDR_LEN_G(
 					(__force int) htons(hdr_len))) |
-				   V_ETH_HDR_LEN(G_RX_ETHHDR_LEN(eth_hdr_len)));
+				   ETH_HDR_LEN_V(RX_ETHHDR_LEN_G(eth_hdr_len)));
 	req->vlan = (__force __be16) vlantag;
 	req->len = (__force __be16) len;
-	req->tos_stid = cpu_to_be32(PASS_OPEN_TID(stid) |
-				    PASS_OPEN_TOS(tos));
+	req->tos_stid = cpu_to_be32(PASS_OPEN_TID_V(stid) |
+				    PASS_OPEN_TOS_V(tos));
 	req->tcpopt.mss = htons(tmp_opt.mss_clamp);
 	if (tmp_opt.wscale_ok)
 		req->tcpopt.wsf = tmp_opt.snd_wscale;
@@ -3542,7 +3542,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	req_skb = alloc_skb(sizeof(struct fw_ofld_connection_wr), GFP_KERNEL);
 	req = (struct fw_ofld_connection_wr *)__skb_put(req_skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
-	req->op_compl = htonl(V_WR_OP(FW_OFLD_CONNECTION_WR) | FW_WR_COMPL_F);
+	req->op_compl = htonl(WR_OP_V(FW_OFLD_CONNECTION_WR) | FW_WR_COMPL_F);
 	req->len16_pkd = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(sizeof(*req), 16)));
 	req->le.version_cpl = htonl(FW_OFLD_CONNECTION_WR_CPL_F);
 	req->le.filter = (__force __be32) filter;
@@ -3556,7 +3556,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 		 htonl(FW_OFLD_CONNECTION_WR_T_STATE_V(TCP_SYN_RECV) |
 			FW_OFLD_CONNECTION_WR_RCV_SCALE_V(cpl->tcpopt.wsf) |
 			FW_OFLD_CONNECTION_WR_ASTID_V(
-			GET_PASS_OPEN_TID(ntohl(cpl->tos_stid))));
+			PASS_OPEN_TID_G(ntohl(cpl->tos_stid))));
 
 	/*
 	 * We store the qid in opt2 which will be used by the firmware
@@ -3613,7 +3613,7 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct neighbour *neigh;
 
 	/* Drop all non-SYN packets */
-	if (!(cpl->l2info & cpu_to_be32(F_RXF_SYN)))
+	if (!(cpl->l2info & cpu_to_be32(RXF_SYN_F)))
 		goto reject;
 
 	/*
@@ -3635,8 +3635,8 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 
 	eth_hdr_len = is_t4(dev->rdev.lldi.adapter_type) ?
-			    G_RX_ETHHDR_LEN(htonl(cpl->l2info)) :
-			    G_RX_T5_ETHHDR_LEN(htonl(cpl->l2info));
+			    RX_ETHHDR_LEN_G(htonl(cpl->l2info)) :
+			    RX_T5_ETHHDR_LEN_G(htonl(cpl->l2info));
 	if (eth_hdr_len == ETH_HLEN) {
 		eh = (struct ethhdr *)(req + 1);
 		iph = (struct iphdr *)(eh + 1);

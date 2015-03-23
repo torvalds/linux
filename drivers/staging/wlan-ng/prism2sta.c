@@ -199,7 +199,7 @@ static int prism2sta_close(wlandevice_t *wlandev)
 /*----------------------------------------------------------------
 * prism2sta_reset
 *
-* Not currently implented.
+* Currently not implemented.
 *
 * Arguments:
 *	wlandev		wlan device structure
@@ -662,7 +662,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 		       "ident:  ap f/w: id=0x%02x %d.%d.%d\n",
 		       hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 		       hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
-		netdev_err(wlandev->netdev, "Unsupported Tertiary AP firmeare loaded!\n");
+		netdev_err(wlandev->netdev, "Unsupported Tertiary AP firmware loaded!\n");
 		goto failed;
 	}
 

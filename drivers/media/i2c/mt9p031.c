@@ -581,37 +581,42 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int mt9p031_get_crop(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_fh *fh,
-			    struct v4l2_subdev_crop *crop)
+static int mt9p031_get_selection(struct v4l2_subdev *subdev,
+				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 
-	crop->rect = *__mt9p031_get_pad_crop(mt9p031, fh, crop->pad,
-					     crop->which);
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	sel->r = *__mt9p031_get_pad_crop(mt9p031, fh, sel->pad, sel->which);
 	return 0;
 }
 
-static int mt9p031_set_crop(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_fh *fh,
-			    struct v4l2_subdev_crop *crop)
+static int mt9p031_set_selection(struct v4l2_subdev *subdev,
+				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 	struct v4l2_mbus_framefmt *__format;
 	struct v4l2_rect *__crop;
 	struct v4l2_rect rect;
 
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
 	/* Clamp the crop rectangle boundaries and align them to a multiple of 2
 	 * pixels to ensure a GRBG Bayer pattern.
 	 */
-	rect.left = clamp(ALIGN(crop->rect.left, 2), MT9P031_COLUMN_START_MIN,
+	rect.left = clamp(ALIGN(sel->r.left, 2), MT9P031_COLUMN_START_MIN,
 			  MT9P031_COLUMN_START_MAX);
-	rect.top = clamp(ALIGN(crop->rect.top, 2), MT9P031_ROW_START_MIN,
+	rect.top = clamp(ALIGN(sel->r.top, 2), MT9P031_ROW_START_MIN,
 			 MT9P031_ROW_START_MAX);
-	rect.width = clamp_t(unsigned int, ALIGN(crop->rect.width, 2),
+	rect.width = clamp_t(unsigned int, ALIGN(sel->r.width, 2),
 			     MT9P031_WINDOW_WIDTH_MIN,
 			     MT9P031_WINDOW_WIDTH_MAX);
-	rect.height = clamp_t(unsigned int, ALIGN(crop->rect.height, 2),
+	rect.height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
 			      MT9P031_WINDOW_HEIGHT_MIN,
 			      MT9P031_WINDOW_HEIGHT_MAX);
 
@@ -620,20 +625,20 @@ static int mt9p031_set_crop(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int, rect.height,
 			    MT9P031_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9p031_get_pad_crop(mt9p031, fh, crop->pad, crop->which);
+	__crop = __mt9p031_get_pad_crop(mt9p031, fh, sel->pad, sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		__format = __mt9p031_get_pad_format(mt9p031, fh, crop->pad,
-						    crop->which);
+		__format = __mt9p031_get_pad_format(mt9p031, fh, sel->pad,
+						    sel->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
 	}
 
 	*__crop = rect;
-	crop->rect = rect;
+	sel->r = rect;
 
 	return 0;
 }
@@ -980,8 +985,8 @@ static struct v4l2_subdev_pad_ops mt9p031_subdev_pad_ops = {
 	.enum_frame_size = mt9p031_enum_frame_size,
 	.get_fmt = mt9p031_get_format,
 	.set_fmt = mt9p031_set_format,
-	.get_crop = mt9p031_get_crop,
-	.set_crop = mt9p031_set_crop,
+	.get_selection = mt9p031_get_selection,
+	.set_selection = mt9p031_set_selection,
 };
 
 static struct v4l2_subdev_ops mt9p031_subdev_ops = {

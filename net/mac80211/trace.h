@@ -825,6 +825,13 @@ DECLARE_EVENT_CLASS(sta_event,
 	)
 );
 
+DEFINE_EVENT(sta_event, drv_sta_statistics,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta),
+	TP_ARGS(local, sdata, sta)
+);
+
 DEFINE_EVENT(sta_event, drv_sta_add,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
@@ -1327,32 +1334,6 @@ DEFINE_EVENT(release_evt, drv_allow_buffered_frames,
 		 bool more_data),
 
 	TP_ARGS(local, sta, tids, num_frames, reason, more_data)
-);
-
-TRACE_EVENT(drv_get_rssi,
-	TP_PROTO(struct ieee80211_local *local, struct ieee80211_sta *sta,
-		 s8 rssi, int ret),
-
-	TP_ARGS(local, sta, rssi, ret),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		STA_ENTRY
-		__field(s8, rssi)
-		__field(int, ret)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		STA_ASSIGN;
-		__entry->rssi = rssi;
-		__entry->ret = ret;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT STA_PR_FMT " rssi:%d ret:%d",
-		LOCAL_PR_ARG, STA_PR_ARG, __entry->rssi, __entry->ret
-	)
 );
 
 DEFINE_EVENT(local_sdata_evt, drv_mgd_prepare_tx,

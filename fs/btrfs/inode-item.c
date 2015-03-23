@@ -344,6 +344,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	path->leave_spinning = 1;
+	path->skip_release_on_error = 1;
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
 				      ins_len);
 	if (ret == -EEXIST) {
@@ -362,8 +363,12 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 		ptr = (unsigned long)(ref + 1);
 		ret = 0;
 	} else if (ret < 0) {
-		if (ret == -EOVERFLOW)
-			ret = -EMLINK;
+		if (ret == -EOVERFLOW) {
+			if (find_name_in_backref(path, name, name_len, &ref))
+				ret = -EEXIST;
+			else
+				ret = -EMLINK;
+		}
 		goto out;
 	} else {
 		ref = btrfs_item_ptr(path->nodes[0], path->slots[0],

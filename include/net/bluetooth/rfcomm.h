@@ -24,8 +24,6 @@
 #ifndef __RFCOMM_H
 #define __RFCOMM_H
 
-#define RFCOMM_PSM 3
-
 #define RFCOMM_CONN_TIMEOUT (HZ * 30)
 #define RFCOMM_DISC_TIMEOUT (HZ * 20)
 #define RFCOMM_AUTH_TIMEOUT (HZ * 25)

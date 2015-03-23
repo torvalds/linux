@@ -33,7 +33,7 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/rcupdate.h>
-#include <linux/hardirq.h>		/* in_interrupt() */
+#include <linux/preempt_mask.h>		/* in_interrupt() */
 
 
 /*

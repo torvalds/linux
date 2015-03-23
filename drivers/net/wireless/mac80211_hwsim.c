@@ -625,22 +625,22 @@ static int hwsim_fops_ps_write(void *dat, u64 val)
 	old_ps = data->ps;
 	data->ps = val;
 
+	local_bh_disable();
 	if (val == PS_MANUAL_POLL) {
-		ieee80211_iterate_active_interfaces(data->hw,
-						    IEEE80211_IFACE_ITER_NORMAL,
-						    hwsim_send_ps_poll, data);
+		ieee80211_iterate_active_interfaces_atomic(
+			data->hw, IEEE80211_IFACE_ITER_NORMAL,
+			hwsim_send_ps_poll, data);
 		data->ps_poll_pending = true;
 	} else if (old_ps == PS_DISABLED && val != PS_DISABLED) {
-		ieee80211_iterate_active_interfaces(data->hw,
-						    IEEE80211_IFACE_ITER_NORMAL,
-						    hwsim_send_nullfunc_ps,
-						    data);
+		ieee80211_iterate_active_interfaces_atomic(
+			data->hw, IEEE80211_IFACE_ITER_NORMAL,
+			hwsim_send_nullfunc_ps, data);
 	} else if (old_ps != PS_DISABLED && val == PS_DISABLED) {
-		ieee80211_iterate_active_interfaces(data->hw,
-						    IEEE80211_IFACE_ITER_NORMAL,
-						    hwsim_send_nullfunc_no_ps,
-						    data);
+		ieee80211_iterate_active_interfaces_atomic(
+			data->hw, IEEE80211_IFACE_ITER_NORMAL,
+			hwsim_send_nullfunc_no_ps, data);
 	}
+	local_bh_enable();
 
 	return 0;
 }
@@ -946,7 +946,8 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
-	genlmsg_unicast(&init_net, skb, dst_portid);
+	if (genlmsg_unicast(&init_net, skb, dst_portid))
+		goto err_free_txskb;
 
 	/* Enqueue the packet */
 	skb_queue_tail(&data->pending, my_skb);
@@ -955,6 +956,8 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	return;
 
 nla_put_failure:
+	nlmsg_free(skb);
+err_free_txskb:
 	printk(KERN_DEBUG "mac80211_hwsim: error occurred in %s\n", __func__);
 	ieee80211_free_txskb(hw, my_skb);
 	data->tx_failed++;
@@ -2149,14 +2152,14 @@ static int append_radio_msg(struct sk_buff *skb, int id,
 	if (param->regd) {
 		int i;
 
-		for (i = 0; hwsim_world_regdom_custom[i] != param->regd &&
-		     i < ARRAY_SIZE(hwsim_world_regdom_custom); i++)
-			;
+		for (i = 0; i < ARRAY_SIZE(hwsim_world_regdom_custom); i++) {
+			if (hwsim_world_regdom_custom[i] != param->regd)
+				continue;
 
-		if (i < ARRAY_SIZE(hwsim_world_regdom_custom)) {
 			ret = nla_put_u32(skb, HWSIM_ATTR_REG_CUSTOM_REG, i);
 			if (ret < 0)
 				return ret;
+			break;
 		}
 	}
 
@@ -2557,7 +2560,8 @@ static int mac80211_hwsim_get_radio(struct sk_buff *skb,
 	if (res < 0)
 		goto out_err;
 
-	return genlmsg_end(skb, hdr);
+	genlmsg_end(skb, hdr);
+	return 0;
 
 out_err:
 	genlmsg_cancel(skb, hdr);

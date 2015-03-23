@@ -47,8 +47,11 @@
  */
 
 /dts-v1/;
-/include/ "sun5i-a13.dtsi"
-/include/ "sunxi-common-regulators.dtsi"
+#include "sun5i-a13.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Olimex A13-Olinuxino Micro";
@@ -64,7 +67,7 @@
 			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxinom>;
 			vmmc-supply = <&reg_vcc3v3>;
 			bus-width = <4>;
-			cd-gpios = <&pio 6 0 0>; /* PG0 */
+			cd-gpios = <&pio 6 0 GPIO_ACTIVE_HIGH>; /* PG0 */
 			cd-inverted;
 			status = "okay";
 		};
@@ -86,22 +89,22 @@
 			mmc0_cd_pin_olinuxinom: mmc0_cd_pin@0 {
 				allwinner,pins = "PG0";
 				allwinner,function = "gpio_in";
-				allwinner,drive = <0>;
-				allwinner,pull = <1>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			led_pins_olinuxinom: led_pins@0 {
 				allwinner,pins = "PG9";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <1>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_20_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			usb1_vbus_pin_olinuxinom: usb1_vbus_pin@0 {
 				allwinner,pins = "PG11";
 				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 		};
 
@@ -137,14 +140,14 @@
 
 		power {
 			label = "a13-olinuxino-micro:green:power";
-			gpios = <&pio 6 9 0>;
+			gpios = <&pio 6 9 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 	};
 
 	reg_usb1_vbus: usb1-vbus {
 		pinctrl-0 = <&usb1_vbus_pin_olinuxinom>;
-		gpio = <&pio 6 11 0>;
+		gpio = <&pio 6 11 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

@@ -31,7 +31,7 @@ through gpiod_get(). For example:
 			    <&gpio 16 GPIO_ACTIVE_HIGH>, /* green */
 			    <&gpio 17 GPIO_ACTIVE_HIGH>; /* blue */
 
-		power-gpio = <&gpio 1 GPIO_ACTIVE_LOW>;
+		power-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
 	};
 
 This property will make GPIOs 15, 16 and 17 available to the driver under the

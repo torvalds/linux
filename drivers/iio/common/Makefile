@@ -8,4 +8,5 @@
 
 # When adding new entries keep the list in alphabetical order
 obj-y += hid-sensors/
+obj-y += ssp_sensors/
 obj-y += st_sensors/

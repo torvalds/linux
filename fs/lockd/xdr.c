@@ -95,14 +95,6 @@ nlm_decode_fh(__be32 *p, struct nfs_fh *f)
 	return p + XDR_QUADLEN(NFS2_FHSIZE);
 }
 
-static inline __be32 *
-nlm_encode_fh(__be32 *p, struct nfs_fh *f)
-{
-	*p++ = htonl(NFS2_FHSIZE);
-	memcpy(p, f->data, NFS2_FHSIZE);
-	return p + XDR_QUADLEN(NFS2_FHSIZE);
-}
-
 /*
  * Encode and decode owner handle
  */

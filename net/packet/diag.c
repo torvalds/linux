@@ -177,7 +177,8 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 				     PACKET_DIAG_FILTER))
 		goto out_nlmsg_trim;
 
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 out_nlmsg_trim:
 	nlmsg_cancel(skb, nlh);

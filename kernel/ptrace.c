@@ -1077,7 +1077,6 @@ int generic_ptrace_pokedata(struct task_struct *tsk, unsigned long addr,
 }
 
 #if defined CONFIG_COMPAT
-#include <linux/compat.h>
 
 int compat_ptrace_request(struct task_struct *child, compat_long_t request,
 			  compat_ulong_t addr, compat_ulong_t data)

@@ -29,8 +29,6 @@ DMA-ISA-LPC.txt
 	- How to do DMA with ISA (and LPC) devices.
 DMA-attributes.txt
 	- listing of the various possible attributes a DMA region can have
-dmatest.txt
-	- how to compile, configure and use the dmatest system.
 DocBook/
 	- directory with DocBook templates etc. for kernel documentation.
 EDID/
@@ -163,8 +161,6 @@ digsig.txt
 	-info on the Digital Signature Verification API
 dma-buf-sharing.txt
 	- the DMA Buffer Sharing API Guide
-dmaengine.txt
-	-the DMA Engine API Guide
 dontdiff
 	- file containing a list of files that should never be diff'ed.
 driver-model/
@@ -209,6 +205,8 @@ hid/
 	- directory with information on human interface devices
 highuid.txt
 	- notes on the change from 16 bit to 32 bit user/group IDs.
+hsi.txt
+	- HSI subsystem overview.
 hwspinlock.txt
 	- hardware spinlock provides hardware assistance for synchronization
 timers/
@@ -277,6 +275,8 @@ kprobes.txt
 	- documents the kernel probes debugging feature.
 kref.txt
 	- docs on adding reference counters (krefs) to kernel objects.
+kselftest.txt
+	- small unittests for (some) individual codepaths in the kernel.
 laptops/
 	- directory with laptop related info and laptop driver documentation.
 ldm.txt
@@ -285,22 +285,22 @@ leds/
 	- directory with info about LED handling under Linux.
 local_ops.txt
 	- semantics and behavior of local atomic operations.
-lockdep-design.txt
-	- documentation on the runtime locking correctness validator.
 locking/
 	- directory with info about kernel locking primitives
-lockstat.txt
-	- info on collecting statistics on locks (and contention).
 lockup-watchdogs.txt
 	- info on soft and hard lockup detectors (aka nmi_watchdog).
 logo.gif
 	- full colour GIF image of Linux logo (penguin - Tux).
 logo.txt
 	- info on creator of above logo & site to get additional images from.
+lzo.txt
+	- kernel LZO decompressor input formats
 m68k/
 	- directory with info about Linux on Motorola 68k architecture.
 magic-number.txt
 	- list of magic numbers used to mark/protect kernel data structures.
+mailbox.txt
+	- How to write drivers for the common mailbox framework (IPC).
 md.txt
 	- info on boot arguments for the multiple devices driver.
 media-framework.txt
@@ -327,8 +327,6 @@ mtd/
 	- directory with info about memory technology devices (flash)
 mono.txt
 	- how to execute Mono-based .NET binaries with the help of BINFMT_MISC.
-mutex-design.txt
-	- info on the generic mutex subsystem.
 namespaces/
 	- directory with various information about namespaces
 netlabel/
@@ -395,10 +393,6 @@ robust-futexes.txt
 	- a description of what robust futexes are.
 rpmsg.txt
 	- info on the Remote Processor Messaging (rpmsg) Framework
-rt-mutex-design.txt
-	- description of the RealTime mutex implementation design.
-rt-mutex.txt
-	- desc. of RT-mutex subsystem with PI (Priority Inheritance) support.
 rtc.txt
 	- notes on how to use the Real Time Clock (aka CMOS clock) driver.
 s390/
@@ -425,8 +419,6 @@ sparse.txt
 	- info on how to obtain and use the sparse tool for typechecking.
 spi/
 	- overview of Linux kernel Serial Peripheral Interface (SPI) support.
-spinlocks.txt
-	- info on using spinlocks to provide exclusive access in kernel.
 stable_api_nonsense.txt
 	- info on why the kernel does not have a stable in-kernel api or abi.
 stable_kernel_rules.txt
@@ -483,10 +475,10 @@ wimax/
 	- directory with info about Intel Wireless Wimax Connections
 workqueue.txt
 	- information on the Concurrency Managed Workqueue implementation
-ww-mutex-design.txt
-	- Intro to Mutex wait/would deadlock handling.s
 x86/x86_64/
 	- directory with info on Linux support for AMD x86-64 (Hammer) machines.
+xillybus.txt
+	- Overview and basic ui of xillybus driver
 xtensa/
 	- directory with documents relating to arch/xtensa port/implementation
 xz.txt

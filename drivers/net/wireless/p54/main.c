@@ -305,9 +305,9 @@ static void p54_reset_stats(struct p54_common *priv)
 		struct survey_info *info = &priv->survey[chan->hw_value];
 
 		/* only reset channel statistics, don't touch .filled, etc. */
-		info->channel_time = 0;
-		info->channel_time_busy = 0;
-		info->channel_time_tx = 0;
+		info->time = 0;
+		info->time_busy = 0;
+		info->time_tx = 0;
 	}
 
 	priv->update_stats = true;
@@ -575,6 +575,8 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			key->hw_key_idx = 0xff;
 			goto out_unlock;
 		}
+
+		key->flags |= IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
 	} else {
 		slot = key->hw_key_idx;
 
@@ -634,7 +636,7 @@ static int p54_get_survey(struct ieee80211_hw *dev, int idx,
 
 		if (in_use) {
 			/* test if the reported statistics are valid. */
-			if  (survey->channel_time != 0) {
+			if  (survey->time != 0) {
 				survey->filled |= SURVEY_INFO_IN_USE;
 			} else {
 				/*

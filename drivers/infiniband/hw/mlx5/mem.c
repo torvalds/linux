@@ -81,7 +81,7 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift,
 		for (k = 0; k < len; k++) {
 			if (!(i & mask)) {
 				tmp = (unsigned long)pfn;
-				m = min(m, find_first_bit(&tmp, sizeof(tmp)));
+				m = min_t(unsigned long, m, find_first_bit(&tmp, sizeof(tmp)));
 				skip = 1 << m;
 				mask = skip - 1;
 				base = pfn;

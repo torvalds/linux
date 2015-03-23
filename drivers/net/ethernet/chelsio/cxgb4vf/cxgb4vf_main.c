@@ -380,9 +380,9 @@ static void qenable(struct sge_rspq *rspq)
 	 * enable interrupts.
 	 */
 	t4_write_reg(rspq->adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
-		     CIDXINC(0) |
-		     SEINTARM(rspq->intr_params) |
-		     INGRESSQID(rspq->cntxt_id));
+		     CIDXINC_V(0) |
+		     SEINTARM_V(rspq->intr_params) |
+		     INGRESSQID_V(rspq->cntxt_id));
 }
 
 /*
@@ -403,9 +403,9 @@ static void enable_rx(struct adapter *adapter)
 	 */
 	if (adapter->flags & USING_MSI)
 		t4_write_reg(adapter, T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
-			     CIDXINC(0) |
-			     SEINTARM(s->intrq.intr_params) |
-			     INGRESSQID(s->intrq.cntxt_id));
+			     CIDXINC_V(0) |
+			     SEINTARM_V(s->intrq.intr_params) |
+			     INGRESSQID_V(s->intrq.cntxt_id));
 
 }
 
@@ -450,7 +450,7 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		/* FW can send EGR_UPDATEs encapsulated in a CPL_FW4_MSG.
 		 */
 		const struct cpl_sge_egr_update *p = (void *)(rsp + 3);
-		opcode = G_CPL_OPCODE(ntohl(p->opcode_qid));
+		opcode = CPL_OPCODE_G(ntohl(p->opcode_qid));
 		if (opcode != CPL_SGE_EGR_UPDATE) {
 			dev_err(adapter->pdev_dev, "unexpected FW4/CPL %#x on FW event queue\n"
 				, opcode);
@@ -471,7 +471,7 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		 * free TX Queue Descriptors ...
 		 */
 		const struct cpl_sge_egr_update *p = cpl;
-		unsigned int qid = EGR_QID(be32_to_cpu(p->opcode_qid));
+		unsigned int qid = EGR_QID_G(be32_to_cpu(p->opcode_qid));
 		struct sge *s = &adapter->sge;
 		struct sge_txq *tq;
 		struct sge_eth_txq *txq;
@@ -1673,7 +1673,7 @@ static void cxgb4vf_get_regs(struct net_device *dev,
 	reg_block_dump(adapter, regbuf,
 		       T4VF_PL_BASE_ADDR + T4VF_MOD_MAP_PL_FIRST,
 		       T4VF_PL_BASE_ADDR + (is_t4(adapter->params.chip)
-		       ? A_PL_VF_WHOAMI : A_PL_VF_REVISION));
+		       ? PL_VF_WHOAMI_A : PL_VF_REVISION_A));
 	reg_block_dump(adapter, regbuf,
 		       T4VF_CIM_BASE_ADDR + T4VF_MOD_MAP_CIM_FIRST,
 		       T4VF_CIM_BASE_ADDR + T4VF_MOD_MAP_CIM_LAST);
@@ -2294,26 +2294,22 @@ static int adap_init0(struct adapter *adapter)
 	 * threshold values from the SGE parameters.
 	 */
 	s->timer_val[0] = core_ticks_to_us(adapter,
-		TIMERVALUE0_GET(sge_params->sge_timer_value_0_and_1));
+		TIMERVALUE0_G(sge_params->sge_timer_value_0_and_1));
 	s->timer_val[1] = core_ticks_to_us(adapter,
-		TIMERVALUE1_GET(sge_params->sge_timer_value_0_and_1));
+		TIMERVALUE1_G(sge_params->sge_timer_value_0_and_1));
 	s->timer_val[2] = core_ticks_to_us(adapter,
-		TIMERVALUE0_GET(sge_params->sge_timer_value_2_and_3));
+		TIMERVALUE0_G(sge_params->sge_timer_value_2_and_3));
 	s->timer_val[3] = core_ticks_to_us(adapter,
-		TIMERVALUE1_GET(sge_params->sge_timer_value_2_and_3));
+		TIMERVALUE1_G(sge_params->sge_timer_value_2_and_3));
 	s->timer_val[4] = core_ticks_to_us(adapter,
-		TIMERVALUE0_GET(sge_params->sge_timer_value_4_and_5));
+		TIMERVALUE0_G(sge_params->sge_timer_value_4_and_5));
 	s->timer_val[5] = core_ticks_to_us(adapter,
-		TIMERVALUE1_GET(sge_params->sge_timer_value_4_and_5));
+		TIMERVALUE1_G(sge_params->sge_timer_value_4_and_5));
 
-	s->counter_val[0] =
-		THRESHOLD_0_GET(sge_params->sge_ingress_rx_threshold);
-	s->counter_val[1] =
-		THRESHOLD_1_GET(sge_params->sge_ingress_rx_threshold);
-	s->counter_val[2] =
-		THRESHOLD_2_GET(sge_params->sge_ingress_rx_threshold);
-	s->counter_val[3] =
-		THRESHOLD_3_GET(sge_params->sge_ingress_rx_threshold);
+	s->counter_val[0] = THRESHOLD_0_G(sge_params->sge_ingress_rx_threshold);
+	s->counter_val[1] = THRESHOLD_1_G(sge_params->sge_ingress_rx_threshold);
+	s->counter_val[2] = THRESHOLD_2_G(sge_params->sge_ingress_rx_threshold);
+	s->counter_val[3] = THRESHOLD_3_G(sge_params->sge_ingress_rx_threshold);
 
 	/*
 	 * Grab our Virtual Interface resource allocation, extract the

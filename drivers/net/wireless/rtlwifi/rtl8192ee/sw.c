@@ -113,8 +113,6 @@ int rtl92ee_init_sw_vars(struct ieee80211_hw *hw)
 				  RCR_HTC_LOC_CTRL		|
 				  RCR_AMF			|
 				  RCR_ACF			|
-				  RCR_ADF			|
-				  RCR_AICV			|
 				  RCR_ACRC32			|
 				  RCR_AB			|
 				  RCR_AM			|
@@ -241,6 +239,7 @@ static struct rtl_hal_ops rtl8192ee_hal_ops = {
 	.set_desc = rtl92ee_set_desc,
 	.get_desc = rtl92ee_get_desc,
 	.is_tx_desc_closed = rtl92ee_is_tx_desc_closed,
+	.get_available_desc = rtl92ee_get_available_desc,
 	.tx_polling = rtl92ee_tx_polling,
 	.enable_hw_sec = rtl92ee_enable_hw_security_config,
 	.set_key = rtl92ee_set_key,

@@ -1,0 +1,5 @@
+nvkm-y += nvkm/engine/dmaobj/base.o
+nvkm-y += nvkm/engine/dmaobj/nv04.o
+nvkm-y += nvkm/engine/dmaobj/nv50.o
+nvkm-y += nvkm/engine/dmaobj/gf100.o
+nvkm-y += nvkm/engine/dmaobj/gf110.o

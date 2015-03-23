@@ -464,7 +464,7 @@
 			};
 
 			coda: coda@10023000 {
-				compatible = "fsl,imx27-vpu";
+				compatible = "fsl,imx27-vpu", "cnm,codadx6";
 				reg = <0x10023000 0x0200>;
 				interrupts = <53>;
 				clocks = <&clks IMX27_CLK_VPU_BAUD_GATE>,

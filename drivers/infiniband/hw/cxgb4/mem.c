@@ -86,14 +86,14 @@ static int _c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr,
 	req->wr.wr_lo = wait ? (__force __be64)(unsigned long) &wr_wait : 0L;
 	req->wr.wr_mid = cpu_to_be32(FW_WR_LEN16_V(DIV_ROUND_UP(wr_len, 16)));
 	req->cmd = cpu_to_be32(ULPTX_CMD_V(ULP_TX_MEM_WRITE));
-	req->cmd |= cpu_to_be32(V_T5_ULP_MEMIO_ORDER(1));
+	req->cmd |= cpu_to_be32(T5_ULP_MEMIO_ORDER_V(1));
 	req->dlen = cpu_to_be32(ULP_MEMIO_DATA_LEN_V(len>>5));
 	req->len16 = cpu_to_be32(DIV_ROUND_UP(wr_len-sizeof(req->wr), 16));
 	req->lock_addr = cpu_to_be32(ULP_MEMIO_ADDR_V(addr));
 
 	sgl = (struct ulptx_sgl *)(req + 1);
 	sgl->cmd_nsge = cpu_to_be32(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
-				    ULPTX_NSGE(1));
+				    ULPTX_NSGE_V(1));
 	sgl->len0 = cpu_to_be32(len);
 	sgl->addr0 = cpu_to_be64(data);
 
@@ -286,17 +286,17 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 	if (reset_tpt_entry)
 		memset(&tpt, 0, sizeof(tpt));
 	else {
-		tpt.valid_to_pdid = cpu_to_be32(F_FW_RI_TPTE_VALID |
-			V_FW_RI_TPTE_STAGKEY((*stag & M_FW_RI_TPTE_STAGKEY)) |
-			V_FW_RI_TPTE_STAGSTATE(stag_state) |
-			V_FW_RI_TPTE_STAGTYPE(type) | V_FW_RI_TPTE_PDID(pdid));
-		tpt.locread_to_qpid = cpu_to_be32(V_FW_RI_TPTE_PERM(perm) |
-			(bind_enabled ? F_FW_RI_TPTE_MWBINDEN : 0) |
-			V_FW_RI_TPTE_ADDRTYPE((zbva ? FW_RI_ZERO_BASED_TO :
+		tpt.valid_to_pdid = cpu_to_be32(FW_RI_TPTE_VALID_F |
+			FW_RI_TPTE_STAGKEY_V((*stag & FW_RI_TPTE_STAGKEY_M)) |
+			FW_RI_TPTE_STAGSTATE_V(stag_state) |
+			FW_RI_TPTE_STAGTYPE_V(type) | FW_RI_TPTE_PDID_V(pdid));
+		tpt.locread_to_qpid = cpu_to_be32(FW_RI_TPTE_PERM_V(perm) |
+			(bind_enabled ? FW_RI_TPTE_MWBINDEN_F : 0) |
+			FW_RI_TPTE_ADDRTYPE_V((zbva ? FW_RI_ZERO_BASED_TO :
 						      FW_RI_VA_BASED_TO))|
-			V_FW_RI_TPTE_PS(page_size));
+			FW_RI_TPTE_PS_V(page_size));
 		tpt.nosnoop_pbladdr = !pbl_size ? 0 : cpu_to_be32(
-			V_FW_RI_TPTE_PBLADDR(PBL_OFF(rdev, pbl_addr)>>3));
+			FW_RI_TPTE_PBLADDR_V(PBL_OFF(rdev, pbl_addr)>>3));
 		tpt.len_lo = cpu_to_be32((u32)(len & 0xffffffffUL));
 		tpt.va_hi = cpu_to_be32((u32)(to >> 32));
 		tpt.va_lo_fbo = cpu_to_be32((u32)(to & 0xffffffffUL));

@@ -6,7 +6,8 @@ nvidia,tegra30-pinmux.txt. In fact, this document assumes that binding as
 a baseline, and only documents the differences between the two bindings.
 
 Required properties:
-- compatible: "nvidia,tegra124-pinmux"
+- compatible: For Tegra124, must contain "nvidia,tegra124-pinmux".  For
+  Tegra132, must contain '"nvidia,tegra132-pinmux", "nvidia-tegra124-pinmux"'.
 - reg: Should contain a list of base address and size pairs for:
     -- first entry - the drive strength and pad control registers.
     -- second entry - the pinmux registers

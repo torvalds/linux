@@ -355,7 +355,8 @@ out:
 	return result;
 }
 
-static struct rpc_clnt *rpcb_create(struct net *net, const char *hostname,
+static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
+				    const char *hostname,
 				    struct sockaddr *srvaddr, size_t salen,
 				    int proto, u32 version)
 {
@@ -365,6 +366,7 @@ static struct rpc_clnt *rpcb_create(struct net *net, const char *hostname,
 		.address	= srvaddr,
 		.addrsize	= salen,
 		.servername	= hostname,
+		.nodename	= nodename,
 		.program	= &rpcb_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
@@ -740,7 +742,9 @@ void rpcb_getport_async(struct rpc_task *task)
 	dprintk("RPC: %5u %s: trying rpcbind version %u\n",
 		task->tk_pid, __func__, bind_version);
 
-	rpcb_clnt = rpcb_create(xprt->xprt_net, xprt->servername, sap, salen,
+	rpcb_clnt = rpcb_create(xprt->xprt_net,
+				clnt->cl_nodename,
+				xprt->servername, sap, salen,
 				xprt->prot, bind_version);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);

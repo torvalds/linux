@@ -532,15 +532,7 @@ struct cx231xx_video_mode {
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	u16 end_point_addr;
 };
-/*
-struct cx23885_dmaqueue {
-	struct list_head       active;
-	struct list_head       queued;
-	struct timer_list      timeout;
-	struct btcx_riscmem    stopper;
-	u32                    count;
-};
-*/
+
 struct cx231xx_tsport {
 	struct cx231xx *dev;
 

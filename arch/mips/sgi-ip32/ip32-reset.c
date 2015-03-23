@@ -8,6 +8,7 @@
  * Copyright (C) 2003 Guido Guenther <agx@sigxcpu.org>
  */
 
+#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -35,9 +36,9 @@
 static struct timer_list power_timer, blink_timer, debounce_timer;
 static int has_panicked, shuting_down;
 
-static void ip32_machine_restart(char *command) __attribute__((noreturn));
-static void ip32_machine_halt(void) __attribute__((noreturn));
-static void ip32_machine_power_off(void) __attribute__((noreturn));
+static void ip32_machine_restart(char *command) __noreturn;
+static void ip32_machine_halt(void) __noreturn;
+static void ip32_machine_power_off(void) __noreturn;
 
 static void ip32_machine_restart(char *cmd)
 {

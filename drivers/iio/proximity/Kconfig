@@ -17,3 +17,20 @@ config AS3935
 	  module will be called as3935
 
 endmenu
+
+menu "Proximity sensors"
+
+config SX9500
+	tristate "SX9500 Semtech proximity sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here to build a driver for Semtech's SX9500 capacitive
+	  proximity/button sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sx9500.
+
+endmenu

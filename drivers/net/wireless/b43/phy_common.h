@@ -222,6 +222,8 @@ struct b43_phy {
 		struct b43_phy_ht *ht;
 		/* LCN-PHY specific information */
 		struct b43_phy_lcn *lcn;
+		/* AC-PHY specific information */
+		struct b43_phy_ac *ac;
 	};
 
 	/* Band support flags. */

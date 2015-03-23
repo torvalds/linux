@@ -256,7 +256,7 @@ static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
  * and return immediately.
  *
  * Returns: 0 on success, a negative error code on failure. If a failure
- * occured, the nvec driver may print an error.
+ * occurred, the nvec driver may print an error.
  */
 int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 			short size)

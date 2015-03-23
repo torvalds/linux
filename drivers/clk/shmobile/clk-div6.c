@@ -54,12 +54,19 @@ static int cpg_div6_clock_enable(struct clk_hw *hw)
 static void cpg_div6_clock_disable(struct clk_hw *hw)
 {
 	struct div6_clock *clock = to_div6_clock(hw);
+	u32 val;
 
-	/* DIV6 clocks require the divisor field to be non-zero when stopping
-	 * the clock.
+	val = clk_readl(clock->reg);
+	val |= CPG_DIV6_CKSTP;
+	/*
+	 * DIV6 clocks require the divisor field to be non-zero when stopping
+	 * the clock. However, some clocks (e.g. ZB on sh73a0) fail to be
+	 * re-enabled later if the divisor field is changed when stopping the
+	 * clock
 	 */
-	clk_writel(clk_readl(clock->reg) | CPG_DIV6_CKSTP | CPG_DIV6_DIV_MASK,
-		   clock->reg);
+	if (!(val & CPG_DIV6_DIV_MASK))
+		val |= CPG_DIV6_DIV_MASK;
+	clk_writel(val, clock->reg);
 }
 
 static int cpg_div6_clock_is_enabled(struct clk_hw *hw)
@@ -82,6 +89,9 @@ static unsigned int cpg_div6_clock_calc_div(unsigned long rate,
 					    unsigned long parent_rate)
 {
 	unsigned int div;
+
+	if (!rate)
+		rate = 1;
 
 	div = DIV_ROUND_CLOSEST(parent_rate, rate);
 	return clamp_t(unsigned int, div, 1, 64);

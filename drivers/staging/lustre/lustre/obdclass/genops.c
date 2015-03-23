@@ -1151,22 +1151,24 @@ void class_export_recovery_cleanup(struct obd_export *exp)
 			exp->exp_obd->obd_stale_clients++;
 	}
 	spin_unlock(&obd->obd_recovery_task_lock);
+
+	spin_lock(&exp->exp_lock);
 	/** Cleanup req replay fields */
 	if (exp->exp_req_replay_needed) {
-		spin_lock(&exp->exp_lock);
 		exp->exp_req_replay_needed = 0;
-		spin_unlock(&exp->exp_lock);
+
 		LASSERT(atomic_read(&obd->obd_req_replay_clients));
 		atomic_dec(&obd->obd_req_replay_clients);
 	}
+
 	/** Cleanup lock replay data */
 	if (exp->exp_lock_replay_needed) {
-		spin_lock(&exp->exp_lock);
 		exp->exp_lock_replay_needed = 0;
-		spin_unlock(&exp->exp_lock);
+
 		LASSERT(atomic_read(&obd->obd_lock_replay_clients));
 		atomic_dec(&obd->obd_lock_replay_clients);
 	}
+	spin_unlock(&exp->exp_lock);
 }
 
 /* This function removes 1-3 references from the export:

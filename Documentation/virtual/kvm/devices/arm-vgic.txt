@@ -3,22 +3,42 @@ ARM Virtual Generic Interrupt Controller (VGIC)
 
 Device types supported:
   KVM_DEV_TYPE_ARM_VGIC_V2     ARM Generic Interrupt Controller v2.0
+  KVM_DEV_TYPE_ARM_VGIC_V3     ARM Generic Interrupt Controller v3.0
 
 Only one VGIC instance may be instantiated through either this API or the
 legacy KVM_CREATE_IRQCHIP api.  The created VGIC will act as the VM interrupt
 controller, requiring emulated user-space devices to inject interrupts to the
 VGIC instead of directly to CPUs.
 
+Creating a guest GICv3 device requires a host GICv3 as well.
+GICv3 implementations with hardware compatibility support allow a guest GICv2
+as well.
+
 Groups:
   KVM_DEV_ARM_VGIC_GRP_ADDR
   Attributes:
     KVM_VGIC_V2_ADDR_TYPE_DIST (rw, 64-bit)
       Base address in the guest physical address space of the GIC distributor
-      register mappings.
+      register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V2.
+      This address needs to be 4K aligned and the region covers 4 KByte.
 
     KVM_VGIC_V2_ADDR_TYPE_CPU (rw, 64-bit)
       Base address in the guest physical address space of the GIC virtual cpu
-      interface register mappings.
+      interface register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V2.
+      This address needs to be 4K aligned and the region covers 4 KByte.
+
+    KVM_VGIC_V3_ADDR_TYPE_DIST (rw, 64-bit)
+      Base address in the guest physical address space of the GICv3 distributor
+      register mappings. Only valid for KVM_DEV_TYPE_ARM_VGIC_V3.
+      This address needs to be 64K aligned and the region covers 64 KByte.
+
+    KVM_VGIC_V3_ADDR_TYPE_REDIST (rw, 64-bit)
+      Base address in the guest physical address space of the GICv3
+      redistributor register mappings. There are two 64K pages for each
+      VCPU and all of the redistributor pages are contiguous.
+      Only valid for KVM_DEV_TYPE_ARM_VGIC_V3.
+      This address needs to be 64K aligned.
+
 
   KVM_DEV_ARM_VGIC_GRP_DIST_REGS
   Attributes:
@@ -36,6 +56,7 @@ Groups:
     the register.
   Limitations:
     - Priorities are not implemented, and registers are RAZ/WI
+    - Currently only implemented for KVM_DEV_TYPE_ARM_VGIC_V2.
   Errors:
     -ENODEV: Getting or setting this register is not yet supported
     -EBUSY: One or more VCPUs are running
@@ -68,6 +89,7 @@ Groups:
 
   Limitations:
     - Priorities are not implemented, and registers are RAZ/WI
+    - Currently only implemented for KVM_DEV_TYPE_ARM_VGIC_V2.
   Errors:
     -ENODEV: Getting or setting this register is not yet supported
     -EBUSY: One or more VCPUs are running
@@ -81,3 +103,14 @@ Groups:
     -EINVAL: Value set is out of the expected range
     -EBUSY: Value has already be set, or GIC has already been initialized
             with default values.
+
+  KVM_DEV_ARM_VGIC_GRP_CTRL
+  Attributes:
+    KVM_DEV_ARM_VGIC_CTRL_INIT
+      request the initialization of the VGIC, no additional parameter in
+      kvm_device_attr.addr.
+  Errors:
+    -ENXIO: VGIC not properly configured as required prior to calling
+     this attribute
+    -ENODEV: no online VCPU
+    -ENOMEM: memory shortage when allocating vgic internal data

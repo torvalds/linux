@@ -21,6 +21,8 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 			      struct audioformat *fmt);
 
+bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip);
+
 int snd_usb_is_big_endian_format(struct snd_usb_audio *chip,
 				 struct audioformat *fp);
 

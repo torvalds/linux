@@ -351,9 +351,10 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 		 * unless perhaps the user has mpin'ed the pages
 		 * themselves.
 		 */
-		qib_devinfo(dd->pcidev,
-			 "Failed to lock addr %p, %u pages: "
-			 "errno %d\n", (void *) vaddr, cnt, -ret);
+		qib_devinfo(
+			dd->pcidev,
+			"Failed to lock addr %p, %u pages: errno %d\n",
+			(void *) vaddr, cnt, -ret);
 		goto done;
 	}
 	for (i = 0; i < cnt; i++, vaddr += PAGE_SIZE) {
@@ -437,7 +438,7 @@ cleanup:
 			goto cleanup;
 		}
 		if (copy_to_user((void __user *) (unsigned long) ti->tidmap,
-				 tidmap, sizeof tidmap)) {
+				 tidmap, sizeof(tidmap))) {
 			ret = -EFAULT;
 			goto cleanup;
 		}
@@ -484,7 +485,7 @@ static int qib_tid_free(struct qib_ctxtdata *rcd, unsigned subctxt,
 	}
 
 	if (copy_from_user(tidmap, (void __user *)(unsigned long)ti->tidmap,
-			   sizeof tidmap)) {
+			   sizeof(tidmap))) {
 		ret = -EFAULT;
 		goto done;
 	}
@@ -951,8 +952,8 @@ static int mmap_kvaddr(struct vm_area_struct *vma, u64 pgaddr,
 		/* rcvegrbufs are read-only on the slave */
 		if (vma->vm_flags & VM_WRITE) {
 			qib_devinfo(dd->pcidev,
-				 "Can't map eager buffers as "
-				 "writable (flags=%lx)\n", vma->vm_flags);
+				 "Can't map eager buffers as writable (flags=%lx)\n",
+				 vma->vm_flags);
 			ret = -EPERM;
 			goto bail;
 		}
@@ -1185,6 +1186,7 @@ static void assign_ctxt_affinity(struct file *fp, struct qib_devdata *dd)
 	 */
 	if (weight >= qib_cpulist_count) {
 		int cpu;
+
 		cpu = find_first_zero_bit(qib_cpulist,
 					  qib_cpulist_count);
 		if (cpu == qib_cpulist_count)
@@ -1247,10 +1249,7 @@ static int init_subctxts(struct qib_devdata *dd,
 	if (!qib_compatible_subctxts(uinfo->spu_userversion >> 16,
 		uinfo->spu_userversion & 0xffff)) {
 		qib_devinfo(dd->pcidev,
-			 "Mismatched user version (%d.%d) and driver "
-			 "version (%d.%d) while context sharing. Ensure "
-			 "that driver and library are from the same "
-			 "release.\n",
+			 "Mismatched user version (%d.%d) and driver version (%d.%d) while context sharing. Ensure that driver and library are from the same release.\n",
 			 (int) (uinfo->spu_userversion >> 16),
 			 (int) (uinfo->spu_userversion & 0xffff),
 			 QIB_USER_SWMAJOR, QIB_USER_SWMINOR);
@@ -1391,6 +1390,7 @@ static int choose_port_ctxt(struct file *fp, struct qib_devdata *dd, u32 port,
 	}
 	if (!ppd) {
 		u32 pidx = ctxt % dd->num_pports;
+
 		if (usable(dd->pport + pidx))
 			ppd = dd->pport + pidx;
 		else {
@@ -1438,10 +1438,12 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 
 	if (alg == QIB_PORT_ALG_ACROSS) {
 		unsigned inuse = ~0U;
+
 		/* find device (with ACTIVE ports) with fewest ctxts in use */
 		for (ndev = 0; ndev < devmax; ndev++) {
 			struct qib_devdata *dd = qib_lookup(ndev);
 			unsigned cused = 0, cfree = 0, pusable = 0;
+
 			if (!dd)
 				continue;
 			if (port && port <= dd->num_pports &&
@@ -1471,6 +1473,7 @@ static int get_a_ctxt(struct file *fp, const struct qib_user_info *uinfo,
 	} else {
 		for (ndev = 0; ndev < devmax; ndev++) {
 			struct qib_devdata *dd = qib_lookup(ndev);
+
 			if (dd) {
 				ret = choose_port_ctxt(fp, dd, port, uinfo);
 				if (!ret)
@@ -1556,6 +1559,7 @@ static int find_hca(unsigned int cpu, int *unit)
 	}
 	for (ndev = 0; ndev < devmax; ndev++) {
 		struct qib_devdata *dd = qib_lookup(ndev);
+
 		if (dd) {
 			if (pcibus_to_node(dd->pcidev->bus) < 0) {
 				ret = -EINVAL;

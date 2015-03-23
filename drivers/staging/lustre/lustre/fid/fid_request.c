@@ -402,7 +402,7 @@ EXPORT_SYMBOL(seq_client_flush);
 
 static void seq_client_proc_fini(struct lu_client_seq *seq)
 {
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 	if (seq->lcs_proc_dir) {
 		if (!IS_ERR(seq->lcs_proc_dir))
 			lprocfs_remove(&seq->lcs_proc_dir);
@@ -413,7 +413,7 @@ static void seq_client_proc_fini(struct lu_client_seq *seq)
 
 static int seq_client_proc_init(struct lu_client_seq *seq)
 {
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 	int rc;
 
 	seq->lcs_proc_dir = lprocfs_register(seq->lcs_name,

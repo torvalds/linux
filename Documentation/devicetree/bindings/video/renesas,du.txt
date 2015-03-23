@@ -26,6 +26,10 @@ Required Properties:
       per LVDS encoder. The functional clocks must be named "du.x" with "x"
       being the channel numerical index. The LVDS clocks must be named
       "lvds.x" with "x" being the LVDS encoder numerical index.
+    - In addition to the functional and encoder clocks, all DU versions also
+      support externally supplied pixel clocks. Those clocks are optional.
+      When supplied they must be named "dclkin.x" with "x" being the input
+      clock numerical index.
 
 Required nodes:
 

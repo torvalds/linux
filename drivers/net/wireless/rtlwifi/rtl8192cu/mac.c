@@ -880,8 +880,8 @@ static void _rtl92c_query_rxphystatus(struct ieee80211_hw *hw,
 		pstats->rxpower = rx_pwr_all;
 		pstats->recvsignalpower = rx_pwr_all;
 		if (GET_RX_DESC_RX_MCS(pdesc) &&
-		    GET_RX_DESC_RX_MCS(pdesc) >= DESC92_RATEMCS8 &&
-		    GET_RX_DESC_RX_MCS(pdesc) <= DESC92_RATEMCS15)
+		    GET_RX_DESC_RX_MCS(pdesc) >= DESC_RATEMCS8 &&
+		    GET_RX_DESC_RX_MCS(pdesc) <= DESC_RATEMCS15)
 			max_spatial_stream = 2;
 		else
 			max_spatial_stream = 1;

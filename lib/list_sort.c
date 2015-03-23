@@ -2,9 +2,11 @@
 #define pr_fmt(fmt) "list_sort_test: " fmt
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/bug.h>
+#include <linux/compiler.h>
+#include <linux/export.h>
+#include <linux/string.h>
 #include <linux/list_sort.h>
-#include <linux/slab.h>
 #include <linux/list.h>
 
 #define MAX_LIST_LENGTH_BITS 20
@@ -146,6 +148,7 @@ EXPORT_SYMBOL(list_sort);
 
 #ifdef CONFIG_TEST_LIST_SORT
 
+#include <linux/slab.h>
 #include <linux/random.h>
 
 /*

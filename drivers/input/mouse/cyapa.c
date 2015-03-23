@@ -20,408 +20,131 @@
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
+#include <linux/pm_runtime.h>
+#include <linux/acpi.h>
+#include "cyapa.h"
 
-/* APA trackpad firmware generation */
-#define CYAPA_GEN3   0x03   /* support MT-protocol B with tracking ID. */
-
-#define CYAPA_NAME   "Cypress APA Trackpad (cyapa)"
-
-/* commands for read/write registers of Cypress trackpad */
-#define CYAPA_CMD_SOFT_RESET       0x00
-#define CYAPA_CMD_POWER_MODE       0x01
-#define CYAPA_CMD_DEV_STATUS       0x02
-#define CYAPA_CMD_GROUP_DATA       0x03
-#define CYAPA_CMD_GROUP_CMD        0x04
-#define CYAPA_CMD_GROUP_QUERY      0x05
-#define CYAPA_CMD_BL_STATUS        0x06
-#define CYAPA_CMD_BL_HEAD          0x07
-#define CYAPA_CMD_BL_CMD           0x08
-#define CYAPA_CMD_BL_DATA          0x09
-#define CYAPA_CMD_BL_ALL           0x0a
-#define CYAPA_CMD_BLK_PRODUCT_ID   0x0b
-#define CYAPA_CMD_BLK_HEAD         0x0c
-
-/* report data start reg offset address. */
-#define DATA_REG_START_OFFSET  0x0000
-
-#define BL_HEAD_OFFSET 0x00
-#define BL_DATA_OFFSET 0x10
-
-/*
- * Operational Device Status Register
- *
- * bit 7: Valid interrupt source
- * bit 6 - 4: Reserved
- * bit 3 - 2: Power status
- * bit 1 - 0: Device status
- */
-#define REG_OP_STATUS     0x00
-#define OP_STATUS_SRC     0x80
-#define OP_STATUS_POWER   0x0c
-#define OP_STATUS_DEV     0x03
-#define OP_STATUS_MASK (OP_STATUS_SRC | OP_STATUS_POWER | OP_STATUS_DEV)
-
-/*
- * Operational Finger Count/Button Flags Register
- *
- * bit 7 - 4: Number of touched finger
- * bit 3: Valid data
- * bit 2: Middle Physical Button
- * bit 1: Right Physical Button
- * bit 0: Left physical Button
- */
-#define REG_OP_DATA1       0x01
-#define OP_DATA_VALID      0x08
-#define OP_DATA_MIDDLE_BTN 0x04
-#define OP_DATA_RIGHT_BTN  0x02
-#define OP_DATA_LEFT_BTN   0x01
-#define OP_DATA_BTN_MASK (OP_DATA_MIDDLE_BTN | OP_DATA_RIGHT_BTN | \
-			  OP_DATA_LEFT_BTN)
-
-/*
- * Bootloader Status Register
- *
- * bit 7: Busy
- * bit 6 - 5: Reserved
- * bit 4: Bootloader running
- * bit 3 - 1: Reserved
- * bit 0: Checksum valid
- */
-#define REG_BL_STATUS        0x01
-#define BL_STATUS_BUSY       0x80
-#define BL_STATUS_RUNNING    0x10
-#define BL_STATUS_DATA_VALID 0x08
-#define BL_STATUS_CSUM_VALID 0x01
-
-/*
- * Bootloader Error Register
- *
- * bit 7: Invalid
- * bit 6: Invalid security key
- * bit 5: Bootloading
- * bit 4: Command checksum
- * bit 3: Flash protection error
- * bit 2: Flash checksum error
- * bit 1 - 0: Reserved
- */
-#define REG_BL_ERROR         0x02
-#define BL_ERROR_INVALID     0x80
-#define BL_ERROR_INVALID_KEY 0x40
-#define BL_ERROR_BOOTLOADING 0x20
-#define BL_ERROR_CMD_CSUM    0x10
-#define BL_ERROR_FLASH_PROT  0x08
-#define BL_ERROR_FLASH_CSUM  0x04
-
-#define BL_STATUS_SIZE  3  /* length of bootloader status registers */
-#define BLK_HEAD_BYTES 32
-
-#define PRODUCT_ID_SIZE  16
-#define QUERY_DATA_SIZE  27
-#define REG_PROTOCOL_GEN_QUERY_OFFSET  20
-
-#define REG_OFFSET_DATA_BASE     0x0000
-#define REG_OFFSET_COMMAND_BASE  0x0028
-#define REG_OFFSET_QUERY_BASE    0x002a
-
-#define CAPABILITY_LEFT_BTN_MASK	(0x01 << 3)
-#define CAPABILITY_RIGHT_BTN_MASK	(0x01 << 4)
-#define CAPABILITY_MIDDLE_BTN_MASK	(0x01 << 5)
-#define CAPABILITY_BTN_MASK  (CAPABILITY_LEFT_BTN_MASK | \
-			      CAPABILITY_RIGHT_BTN_MASK | \
-			      CAPABILITY_MIDDLE_BTN_MASK)
-
-#define CYAPA_OFFSET_SOFT_RESET  REG_OFFSET_COMMAND_BASE
-
-#define REG_OFFSET_POWER_MODE (REG_OFFSET_COMMAND_BASE + 1)
-
-#define PWR_MODE_MASK   0xfc
-#define PWR_MODE_FULL_ACTIVE (0x3f << 2)
-#define PWR_MODE_IDLE        (0x05 << 2) /* default sleep time is 50 ms. */
-#define PWR_MODE_OFF         (0x00 << 2)
-
-#define PWR_STATUS_MASK      0x0c
-#define PWR_STATUS_ACTIVE    (0x03 << 2)
-#define PWR_STATUS_IDLE      (0x02 << 2)
-#define PWR_STATUS_OFF       (0x00 << 2)
-
-/*
- * CYAPA trackpad device states.
- * Used in register 0x00, bit1-0, DeviceStatus field.
- * Other values indicate device is in an abnormal state and must be reset.
- */
-#define CYAPA_DEV_NORMAL  0x03
-#define CYAPA_DEV_BUSY    0x01
-
-enum cyapa_state {
-	CYAPA_STATE_OP,
-	CYAPA_STATE_BL_IDLE,
-	CYAPA_STATE_BL_ACTIVE,
-	CYAPA_STATE_BL_BUSY,
-	CYAPA_STATE_NO_DEVICE,
-};
-
-
-struct cyapa_touch {
-	/*
-	 * high bits or x/y position value
-	 * bit 7 - 4: high 4 bits of x position value
-	 * bit 3 - 0: high 4 bits of y position value
-	 */
-	u8 xy_hi;
-	u8 x_lo;  /* low 8 bits of x position value. */
-	u8 y_lo;  /* low 8 bits of y position value. */
-	u8 pressure;
-	/* id range is 1 - 15.  It is incremented with every new touch. */
-	u8 id;
-} __packed;
-
-/* The touch.id is used as the MT slot id, thus max MT slot is 15 */
-#define CYAPA_MAX_MT_SLOTS  15
-
-struct cyapa_reg_data {
-	/*
-	 * bit 0 - 1: device status
-	 * bit 3 - 2: power mode
-	 * bit 6 - 4: reserved
-	 * bit 7: interrupt valid bit
-	 */
-	u8 device_status;
-	/*
-	 * bit 7 - 4: number of fingers currently touching pad
-	 * bit 3: valid data check bit
-	 * bit 2: middle mechanism button state if exists
-	 * bit 1: right mechanism button state if exists
-	 * bit 0: left mechanism button state if exists
-	 */
-	u8 finger_btn;
-	/* CYAPA reports up to 5 touches per packet. */
-	struct cyapa_touch touches[5];
-} __packed;
-
-/* The main device structure */
-struct cyapa {
-	enum cyapa_state state;
-
-	struct i2c_client *client;
-	struct input_dev *input;
-	char phys[32];	/* device physical location */
-	bool irq_wake;  /* irq wake is enabled */
-	bool smbus;
-
-	/* read from query data region. */
-	char product_id[16];
-	u8 btn_capability;
-	u8 gen;
-	int max_abs_x;
-	int max_abs_y;
-	int physical_size_x;
-	int physical_size_y;
-};
-
-static const u8 bl_deactivate[] = { 0x00, 0xff, 0x3b, 0x00, 0x01, 0x02, 0x03,
-		0x04, 0x05, 0x06, 0x07 };
-static const u8 bl_exit[] = { 0x00, 0xff, 0xa5, 0x00, 0x01, 0x02, 0x03, 0x04,
-		0x05, 0x06, 0x07 };
-
-struct cyapa_cmd_len {
-	u8 cmd;
-	u8 len;
-};
 
 #define CYAPA_ADAPTER_FUNC_NONE   0
 #define CYAPA_ADAPTER_FUNC_I2C    1
 #define CYAPA_ADAPTER_FUNC_SMBUS  2
 #define CYAPA_ADAPTER_FUNC_BOTH   3
 
-/*
- * macros for SMBus communication
- */
-#define SMBUS_READ   0x01
-#define SMBUS_WRITE 0x00
-#define SMBUS_ENCODE_IDX(cmd, idx) ((cmd) | (((idx) & 0x03) << 1))
-#define SMBUS_ENCODE_RW(cmd, rw) ((cmd) | ((rw) & 0x01))
-#define SMBUS_BYTE_BLOCK_CMD_MASK 0x80
-#define SMBUS_GROUP_BLOCK_CMD_MASK 0x40
+#define CYAPA_FW_NAME		"cyapa.bin"
 
- /* for byte read/write command */
-#define CMD_RESET 0
-#define CMD_POWER_MODE 1
-#define CMD_DEV_STATUS 2
-#define SMBUS_BYTE_CMD(cmd) (((cmd) & 0x3f) << 1)
-#define CYAPA_SMBUS_RESET SMBUS_BYTE_CMD(CMD_RESET)
-#define CYAPA_SMBUS_POWER_MODE SMBUS_BYTE_CMD(CMD_POWER_MODE)
-#define CYAPA_SMBUS_DEV_STATUS SMBUS_BYTE_CMD(CMD_DEV_STATUS)
+const char product_id[] = "CYTRA";
 
- /* for group registers read/write command */
-#define REG_GROUP_DATA 0
-#define REG_GROUP_CMD 2
-#define REG_GROUP_QUERY 3
-#define SMBUS_GROUP_CMD(grp) (0x80 | (((grp) & 0x07) << 3))
-#define CYAPA_SMBUS_GROUP_DATA SMBUS_GROUP_CMD(REG_GROUP_DATA)
-#define CYAPA_SMBUS_GROUP_CMD SMBUS_GROUP_CMD(REG_GROUP_CMD)
-#define CYAPA_SMBUS_GROUP_QUERY SMBUS_GROUP_CMD(REG_GROUP_QUERY)
+static int cyapa_reinitialize(struct cyapa *cyapa);
 
- /* for register block read/write command */
-#define CMD_BL_STATUS 0
-#define CMD_BL_HEAD 1
-#define CMD_BL_CMD 2
-#define CMD_BL_DATA 3
-#define CMD_BL_ALL 4
-#define CMD_BLK_PRODUCT_ID 5
-#define CMD_BLK_HEAD 6
-#define SMBUS_BLOCK_CMD(cmd) (0xc0 | (((cmd) & 0x1f) << 1))
+static inline bool cyapa_is_bootloader_mode(struct cyapa *cyapa)
+{
+	if (cyapa->gen == CYAPA_GEN5 && cyapa->state == CYAPA_STATE_GEN5_BL)
+		return true;
 
-/* register block read/write command in bootloader mode */
-#define CYAPA_SMBUS_BL_STATUS SMBUS_BLOCK_CMD(CMD_BL_STATUS)
-#define CYAPA_SMBUS_BL_HEAD SMBUS_BLOCK_CMD(CMD_BL_HEAD)
-#define CYAPA_SMBUS_BL_CMD SMBUS_BLOCK_CMD(CMD_BL_CMD)
-#define CYAPA_SMBUS_BL_DATA SMBUS_BLOCK_CMD(CMD_BL_DATA)
-#define CYAPA_SMBUS_BL_ALL SMBUS_BLOCK_CMD(CMD_BL_ALL)
+	if (cyapa->gen == CYAPA_GEN3 &&
+		cyapa->state >= CYAPA_STATE_BL_BUSY &&
+		cyapa->state <= CYAPA_STATE_BL_ACTIVE)
+		return true;
 
-/* register block read/write command in operational mode */
-#define CYAPA_SMBUS_BLK_PRODUCT_ID SMBUS_BLOCK_CMD(CMD_BLK_PRODUCT_ID)
-#define CYAPA_SMBUS_BLK_HEAD SMBUS_BLOCK_CMD(CMD_BLK_HEAD)
+	return false;
+}
 
-static const struct cyapa_cmd_len cyapa_i2c_cmds[] = {
-	{ CYAPA_OFFSET_SOFT_RESET, 1 },
-	{ REG_OFFSET_COMMAND_BASE + 1, 1 },
-	{ REG_OFFSET_DATA_BASE, 1 },
-	{ REG_OFFSET_DATA_BASE, sizeof(struct cyapa_reg_data) },
-	{ REG_OFFSET_COMMAND_BASE, 0 },
-	{ REG_OFFSET_QUERY_BASE, QUERY_DATA_SIZE },
-	{ BL_HEAD_OFFSET, 3 },
-	{ BL_HEAD_OFFSET, 16 },
-	{ BL_HEAD_OFFSET, 16 },
-	{ BL_DATA_OFFSET, 16 },
-	{ BL_HEAD_OFFSET, 32 },
-	{ REG_OFFSET_QUERY_BASE, PRODUCT_ID_SIZE },
-	{ REG_OFFSET_DATA_BASE, 32 }
-};
+static inline bool cyapa_is_operational_mode(struct cyapa *cyapa)
+{
+	if (cyapa->gen == CYAPA_GEN5 && cyapa->state == CYAPA_STATE_GEN5_APP)
+		return true;
 
-static const struct cyapa_cmd_len cyapa_smbus_cmds[] = {
-	{ CYAPA_SMBUS_RESET, 1 },
-	{ CYAPA_SMBUS_POWER_MODE, 1 },
-	{ CYAPA_SMBUS_DEV_STATUS, 1 },
-	{ CYAPA_SMBUS_GROUP_DATA, sizeof(struct cyapa_reg_data) },
-	{ CYAPA_SMBUS_GROUP_CMD, 2 },
-	{ CYAPA_SMBUS_GROUP_QUERY, QUERY_DATA_SIZE },
-	{ CYAPA_SMBUS_BL_STATUS, 3 },
-	{ CYAPA_SMBUS_BL_HEAD, 16 },
-	{ CYAPA_SMBUS_BL_CMD, 16 },
-	{ CYAPA_SMBUS_BL_DATA, 16 },
-	{ CYAPA_SMBUS_BL_ALL, 32 },
-	{ CYAPA_SMBUS_BLK_PRODUCT_ID, PRODUCT_ID_SIZE },
-	{ CYAPA_SMBUS_BLK_HEAD, 16 },
-};
+	if (cyapa->gen == CYAPA_GEN3 && cyapa->state == CYAPA_STATE_OP)
+		return true;
 
-static ssize_t cyapa_i2c_reg_read_block(struct cyapa *cyapa, u8 reg, size_t len,
+	return false;
+}
+
+/* Returns 0 on success, else negative errno on failure. */
+static ssize_t cyapa_i2c_read(struct cyapa *cyapa, u8 reg, size_t len,
 					u8 *values)
 {
-	return i2c_smbus_read_i2c_block_data(cyapa->client, reg, len, values);
-}
-
-static ssize_t cyapa_i2c_reg_write_block(struct cyapa *cyapa, u8 reg,
-					 size_t len, const u8 *values)
-{
-	return i2c_smbus_write_i2c_block_data(cyapa->client, reg, len, values);
-}
-
-/*
- * cyapa_smbus_read_block - perform smbus block read command
- * @cyapa  - private data structure of the driver
- * @cmd    - the properly encoded smbus command
- * @len    - expected length of smbus command result
- * @values - buffer to store smbus command result
- *
- * Returns negative errno, else the number of bytes written.
- *
- * Note:
- * In trackpad device, the memory block allocated for I2C register map
- * is 256 bytes, so the max read block for I2C bus is 256 bytes.
- */
-static ssize_t cyapa_smbus_read_block(struct cyapa *cyapa, u8 cmd, size_t len,
-				      u8 *values)
-{
-	ssize_t ret;
-	u8 index;
-	u8 smbus_cmd;
-	u8 *buf;
 	struct i2c_client *client = cyapa->client;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = &reg,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = len,
+			.buf = values,
+		},
+	};
+	int ret;
 
-	if (!(SMBUS_BYTE_BLOCK_CMD_MASK & cmd))
-		return -EINVAL;
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 
-	if (SMBUS_GROUP_BLOCK_CMD_MASK & cmd) {
-		/* read specific block registers command. */
-		smbus_cmd = SMBUS_ENCODE_RW(cmd, SMBUS_READ);
-		ret = i2c_smbus_read_block_data(client, smbus_cmd, values);
-		goto out;
-	}
+	if (ret != ARRAY_SIZE(msgs))
+		return ret < 0 ? ret : -EIO;
 
-	ret = 0;
-	for (index = 0; index * I2C_SMBUS_BLOCK_MAX < len; index++) {
-		smbus_cmd = SMBUS_ENCODE_IDX(cmd, index);
-		smbus_cmd = SMBUS_ENCODE_RW(smbus_cmd, SMBUS_READ);
-		buf = values + I2C_SMBUS_BLOCK_MAX * index;
-		ret = i2c_smbus_read_block_data(client, smbus_cmd, buf);
-		if (ret < 0)
-			goto out;
-	}
-
-out:
-	return ret > 0 ? len : ret;
+	return 0;
 }
 
-static s32 cyapa_read_byte(struct cyapa *cyapa, u8 cmd_idx)
+/**
+ * cyapa_i2c_write - Execute i2c block data write operation
+ * @cyapa: Handle to this driver
+ * @ret: Offset of the data to written in the register map
+ * @len: number of bytes to write
+ * @values: Data to be written
+ *
+ * Return negative errno code on error; return zero when success.
+ */
+static int cyapa_i2c_write(struct cyapa *cyapa, u8 reg,
+					 size_t len, const void *values)
 {
-	u8 cmd;
+	struct i2c_client *client = cyapa->client;
+	char buf[32];
+	int ret;
 
-	if (cyapa->smbus) {
-		cmd = cyapa_smbus_cmds[cmd_idx].cmd;
-		cmd = SMBUS_ENCODE_RW(cmd, SMBUS_READ);
-	} else {
-		cmd = cyapa_i2c_cmds[cmd_idx].cmd;
-	}
-	return i2c_smbus_read_byte_data(cyapa->client, cmd);
+	if (len > sizeof(buf) - 1)
+		return -ENOMEM;
+
+	buf[0] = reg;
+	memcpy(&buf[1], values, len);
+
+	ret = i2c_master_send(client, buf, len + 1);
+	if (ret != len + 1)
+		return ret < 0 ? ret : -EIO;
+
+	return 0;
 }
 
-static s32 cyapa_write_byte(struct cyapa *cyapa, u8 cmd_idx, u8 value)
+static u8 cyapa_check_adapter_functionality(struct i2c_client *client)
 {
-	u8 cmd;
+	u8 ret = CYAPA_ADAPTER_FUNC_NONE;
 
-	if (cyapa->smbus) {
-		cmd = cyapa_smbus_cmds[cmd_idx].cmd;
-		cmd = SMBUS_ENCODE_RW(cmd, SMBUS_WRITE);
-	} else {
-		cmd = cyapa_i2c_cmds[cmd_idx].cmd;
-	}
-	return i2c_smbus_write_byte_data(cyapa->client, cmd, value);
-}
-
-static ssize_t cyapa_read_block(struct cyapa *cyapa, u8 cmd_idx, u8 *values)
-{
-	u8 cmd;
-	size_t len;
-
-	if (cyapa->smbus) {
-		cmd = cyapa_smbus_cmds[cmd_idx].cmd;
-		len = cyapa_smbus_cmds[cmd_idx].len;
-		return cyapa_smbus_read_block(cyapa, cmd, len, values);
-	} else {
-		cmd = cyapa_i2c_cmds[cmd_idx].cmd;
-		len = cyapa_i2c_cmds[cmd_idx].len;
-		return cyapa_i2c_reg_read_block(cyapa, cmd, len, values);
-	}
+	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		ret |= CYAPA_ADAPTER_FUNC_I2C;
+	if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA |
+				     I2C_FUNC_SMBUS_BLOCK_DATA |
+				     I2C_FUNC_SMBUS_I2C_BLOCK))
+		ret |= CYAPA_ADAPTER_FUNC_SMBUS;
+	return ret;
 }
 
 /*
  * Query device for its current operating state.
- *
  */
 static int cyapa_get_state(struct cyapa *cyapa)
 {
 	u8 status[BL_STATUS_SIZE];
+	u8 cmd[32];
+	/* The i2c address of gen4 and gen5 trackpad device must be even. */
+	bool even_addr = ((cyapa->client->addr & 0x0001) == 0);
+	bool smbus = false;
+	int retries = 2;
 	int error;
 
 	cyapa->state = CYAPA_STATE_NO_DEVICE;
@@ -433,39 +156,74 @@ static int cyapa_get_state(struct cyapa *cyapa)
 	 *
 	 */
 	error = cyapa_i2c_reg_read_block(cyapa, BL_HEAD_OFFSET, BL_STATUS_SIZE,
-				         status);
+				       status);
 
 	/*
 	 * On smbus systems in OP mode, the i2c_reg_read will fail with
 	 * -ETIMEDOUT.  In this case, try again using the smbus equivalent
 	 * command.  This should return a BL_HEAD indicating CYAPA_STATE_OP.
 	 */
-	if (cyapa->smbus && (error == -ETIMEDOUT || error == -ENXIO))
-		error = cyapa_read_block(cyapa, CYAPA_CMD_BL_STATUS, status);
+	if (cyapa->smbus && (error == -ETIMEDOUT || error == -ENXIO)) {
+		if (!even_addr)
+			error = cyapa_read_block(cyapa,
+					CYAPA_CMD_BL_STATUS, status);
+		smbus = true;
+	}
 
 	if (error != BL_STATUS_SIZE)
 		goto error;
 
-	if ((status[REG_OP_STATUS] & OP_STATUS_SRC) == OP_STATUS_SRC) {
-		switch (status[REG_OP_STATUS] & OP_STATUS_DEV) {
-		case CYAPA_DEV_NORMAL:
-		case CYAPA_DEV_BUSY:
-			cyapa->state = CYAPA_STATE_OP;
-			break;
-		default:
-			error = -EAGAIN;
-			goto error;
-		}
-	} else {
-		if (status[REG_BL_STATUS] & BL_STATUS_BUSY)
-			cyapa->state = CYAPA_STATE_BL_BUSY;
-		else if (status[REG_BL_ERROR] & BL_ERROR_BOOTLOADING)
-			cyapa->state = CYAPA_STATE_BL_ACTIVE;
-		else
-			cyapa->state = CYAPA_STATE_BL_IDLE;
-	}
+	/*
+	 * Detect trackpad protocol based on characteristic registers and bits.
+	 */
+	do {
+		cyapa->status[REG_OP_STATUS] = status[REG_OP_STATUS];
+		cyapa->status[REG_BL_STATUS] = status[REG_BL_STATUS];
+		cyapa->status[REG_BL_ERROR] = status[REG_BL_ERROR];
 
+		if (cyapa->gen == CYAPA_GEN_UNKNOWN ||
+				cyapa->gen == CYAPA_GEN3) {
+			error = cyapa_gen3_ops.state_parse(cyapa,
+					status, BL_STATUS_SIZE);
+			if (!error)
+				goto out_detected;
+		}
+		if ((cyapa->gen == CYAPA_GEN_UNKNOWN ||
+				cyapa->gen == CYAPA_GEN5) &&
+			!smbus && even_addr) {
+			error = cyapa_gen5_ops.state_parse(cyapa,
+					status, BL_STATUS_SIZE);
+			if (!error)
+				goto out_detected;
+		}
+
+		/*
+		 * Write 0x00 0x00 to trackpad device to force update its
+		 * status, then redo the detection again.
+		 */
+		if (!smbus) {
+			cmd[0] = 0x00;
+			cmd[1] = 0x00;
+			error = cyapa_i2c_write(cyapa, 0, 2, cmd);
+			if (error)
+				goto error;
+
+			msleep(50);
+
+			error = cyapa_i2c_read(cyapa, BL_HEAD_OFFSET,
+					BL_STATUS_SIZE, status);
+			if (error)
+				goto error;
+		}
+	} while (--retries > 0 && !smbus);
+
+	goto error;
+
+out_detected:
+	if (cyapa->state <= CYAPA_STATE_BL_BUSY)
+		return -EAGAIN;
 	return 0;
+
 error:
 	return (error < 0) ? error : -EAGAIN;
 }
@@ -482,143 +240,23 @@ error:
  * Returns:
  *   0 when the device eventually responds with a valid non-busy state.
  *   -ETIMEDOUT if device never responds (too many -EAGAIN)
- *   < 0    other errors
+ *   -EAGAIN    if bootload is busy, or unknown state.
+ *   < 0        other errors
  */
-static int cyapa_poll_state(struct cyapa *cyapa, unsigned int timeout)
+int cyapa_poll_state(struct cyapa *cyapa, unsigned int timeout)
 {
 	int error;
 	int tries = timeout / 100;
 
-	error = cyapa_get_state(cyapa);
-	while ((error || cyapa->state >= CYAPA_STATE_BL_BUSY) && tries--) {
-		msleep(100);
+	do {
 		error = cyapa_get_state(cyapa);
-	}
+		if (!error && cyapa->state > CYAPA_STATE_BL_BUSY)
+			return 0;
+
+		msleep(100);
+	} while (tries--);
+
 	return (error == -EAGAIN || error == -ETIMEDOUT) ? -ETIMEDOUT : error;
-}
-
-static int cyapa_bl_deactivate(struct cyapa *cyapa)
-{
-	int error;
-
-	error = cyapa_i2c_reg_write_block(cyapa, 0, sizeof(bl_deactivate),
-					  bl_deactivate);
-	if (error)
-		return error;
-
-	/* wait for bootloader to switch to idle state; should take < 100ms */
-	msleep(100);
-	error = cyapa_poll_state(cyapa, 500);
-	if (error)
-		return error;
-	if (cyapa->state != CYAPA_STATE_BL_IDLE)
-		return -EAGAIN;
-	return 0;
-}
-
-/*
- * Exit bootloader
- *
- * Send bl_exit command, then wait 50 - 100 ms to let device transition to
- * operational mode.  If this is the first time the device's firmware is
- * running, it can take up to 2 seconds to calibrate its sensors.  So, poll
- * the device's new state for up to 2 seconds.
- *
- * Returns:
- *   -EIO    failure while reading from device
- *   -EAGAIN device is stuck in bootloader, b/c it has invalid firmware
- *   0       device is supported and in operational mode
- */
-static int cyapa_bl_exit(struct cyapa *cyapa)
-{
-	int error;
-
-	error = cyapa_i2c_reg_write_block(cyapa, 0, sizeof(bl_exit), bl_exit);
-	if (error)
-		return error;
-
-	/*
-	 * Wait for bootloader to exit, and operation mode to start.
-	 * Normally, this takes at least 50 ms.
-	 */
-	usleep_range(50000, 100000);
-	/*
-	 * In addition, when a device boots for the first time after being
-	 * updated to new firmware, it must first calibrate its sensors, which
-	 * can take up to an additional 2 seconds.
-	 */
-	error = cyapa_poll_state(cyapa, 2000);
-	if (error < 0)
-		return error;
-	if (cyapa->state != CYAPA_STATE_OP)
-		return -EAGAIN;
-
-	return 0;
-}
-
-/*
- * Set device power mode
- *
- */
-static int cyapa_set_power_mode(struct cyapa *cyapa, u8 power_mode)
-{
-	struct device *dev = &cyapa->client->dev;
-	int ret;
-	u8 power;
-
-	if (cyapa->state != CYAPA_STATE_OP)
-		return 0;
-
-	ret = cyapa_read_byte(cyapa, CYAPA_CMD_POWER_MODE);
-	if (ret < 0)
-		return ret;
-
-	power = ret & ~PWR_MODE_MASK;
-	power |= power_mode & PWR_MODE_MASK;
-	ret = cyapa_write_byte(cyapa, CYAPA_CMD_POWER_MODE, power);
-	if (ret < 0) {
-		dev_err(dev, "failed to set power_mode 0x%02x err = %d\n",
-			power_mode, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int cyapa_get_query_data(struct cyapa *cyapa)
-{
-	u8 query_data[QUERY_DATA_SIZE];
-	int ret;
-
-	if (cyapa->state != CYAPA_STATE_OP)
-		return -EBUSY;
-
-	ret = cyapa_read_block(cyapa, CYAPA_CMD_GROUP_QUERY, query_data);
-	if (ret < 0)
-		return ret;
-	if (ret != QUERY_DATA_SIZE)
-		return -EIO;
-
-	memcpy(&cyapa->product_id[0], &query_data[0], 5);
-	cyapa->product_id[5] = '-';
-	memcpy(&cyapa->product_id[6], &query_data[5], 6);
-	cyapa->product_id[12] = '-';
-	memcpy(&cyapa->product_id[13], &query_data[11], 2);
-	cyapa->product_id[15] = '\0';
-
-	cyapa->btn_capability = query_data[19] & CAPABILITY_BTN_MASK;
-
-	cyapa->gen = query_data[20] & 0x0f;
-
-	cyapa->max_abs_x = ((query_data[21] & 0xf0) << 4) | query_data[22];
-	cyapa->max_abs_y = ((query_data[21] & 0x0f) << 8) | query_data[23];
-
-	cyapa->physical_size_x =
-		((query_data[24] & 0xf0) << 4) | query_data[25];
-	cyapa->physical_size_y =
-		((query_data[24] & 0x0f) << 8) | query_data[26];
-
-	return 0;
 }
 
 /*
@@ -628,8 +266,10 @@ static int cyapa_get_query_data(struct cyapa *cyapa)
  * firmware supported by this driver.
  *
  * Returns:
+ *   -ENODEV no device
  *   -EBUSY  no device or in bootloader
  *   -EIO    failure while reading from device
+ *   -ETIMEDOUT timeout failure for bus idle or bus no response
  *   -EAGAIN device is still in bootloader
  *           if ->state = CYAPA_STATE_BL_IDLE, device has invalid firmware
  *   -EINVAL device is in operational mode, but not supported by this driver
@@ -637,122 +277,56 @@ static int cyapa_get_query_data(struct cyapa *cyapa)
  */
 static int cyapa_check_is_operational(struct cyapa *cyapa)
 {
-	struct device *dev = &cyapa->client->dev;
-	static const char unique_str[] = "CYTRA";
 	int error;
 
-	error = cyapa_poll_state(cyapa, 2000);
+	error = cyapa_poll_state(cyapa, 4000);
 	if (error)
 		return error;
-	switch (cyapa->state) {
-	case CYAPA_STATE_BL_ACTIVE:
-		error = cyapa_bl_deactivate(cyapa);
-		if (error)
-			return error;
 
-	/* Fallthrough state */
-	case CYAPA_STATE_BL_IDLE:
-		error = cyapa_bl_exit(cyapa);
-		if (error)
-			return error;
-
-	/* Fallthrough state */
-	case CYAPA_STATE_OP:
-		error = cyapa_get_query_data(cyapa);
-		if (error)
-			return error;
-
-		/* only support firmware protocol gen3 */
-		if (cyapa->gen != CYAPA_GEN3) {
-			dev_err(dev, "unsupported protocol version (%d)",
-				cyapa->gen);
-			return -EINVAL;
-		}
-
-		/* only support product ID starting with CYTRA */
-		if (memcmp(cyapa->product_id, unique_str,
-			   sizeof(unique_str) - 1) != 0) {
-			dev_err(dev, "unsupported product ID (%s)\n",
-				cyapa->product_id);
-			return -EINVAL;
-		}
-		return 0;
-
+	switch (cyapa->gen) {
+	case CYAPA_GEN5:
+		cyapa->ops = &cyapa_gen5_ops;
+		break;
+	case CYAPA_GEN3:
+		cyapa->ops = &cyapa_gen3_ops;
+		break;
 	default:
-		return -EIO;
+		return -ENODEV;
 	}
-	return 0;
+
+	error = cyapa->ops->operational_check(cyapa);
+	if (!error && cyapa_is_operational_mode(cyapa))
+		cyapa->operational = true;
+	else
+		cyapa->operational = false;
+
+	return error;
 }
 
-static irqreturn_t cyapa_irq(int irq, void *dev_id)
+
+/*
+ * Returns 0 on device detected, negative errno on no device detected.
+ * And when the device is detected and opertaional, it will be reset to
+ * full power active mode automatically.
+ */
+static int cyapa_detect(struct cyapa *cyapa)
 {
-	struct cyapa *cyapa = dev_id;
 	struct device *dev = &cyapa->client->dev;
-	struct input_dev *input = cyapa->input;
-	struct cyapa_reg_data data;
-	int i;
-	int ret;
-	int num_fingers;
+	int error;
 
-	if (device_may_wakeup(dev))
-		pm_wakeup_event(dev, 0);
+	error = cyapa_check_is_operational(cyapa);
+	if (error) {
+		if (error != -ETIMEDOUT && error != -ENODEV &&
+			cyapa_is_bootloader_mode(cyapa)) {
+			dev_warn(dev, "device detected but not operational\n");
+			return 0;
+		}
 
-	ret = cyapa_read_block(cyapa, CYAPA_CMD_GROUP_DATA, (u8 *)&data);
-	if (ret != sizeof(data))
-		goto out;
-
-	if ((data.device_status & OP_STATUS_SRC) != OP_STATUS_SRC ||
-	    (data.device_status & OP_STATUS_DEV) != CYAPA_DEV_NORMAL ||
-	    (data.finger_btn & OP_DATA_VALID) != OP_DATA_VALID) {
-		goto out;
+		dev_err(dev, "no device detected: %d\n", error);
+		return error;
 	}
 
-	num_fingers = (data.finger_btn >> 4) & 0x0f;
-	for (i = 0; i < num_fingers; i++) {
-		const struct cyapa_touch *touch = &data.touches[i];
-		/* Note: touch->id range is 1 to 15; slots are 0 to 14. */
-		int slot = touch->id - 1;
-
-		input_mt_slot(input, slot);
-		input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
-		input_report_abs(input, ABS_MT_POSITION_X,
-				 ((touch->xy_hi & 0xf0) << 4) | touch->x_lo);
-		input_report_abs(input, ABS_MT_POSITION_Y,
-				 ((touch->xy_hi & 0x0f) << 8) | touch->y_lo);
-		input_report_abs(input, ABS_MT_PRESSURE, touch->pressure);
-	}
-
-	input_mt_sync_frame(input);
-
-	if (cyapa->btn_capability & CAPABILITY_LEFT_BTN_MASK)
-		input_report_key(input, BTN_LEFT,
-				 data.finger_btn & OP_DATA_LEFT_BTN);
-
-	if (cyapa->btn_capability & CAPABILITY_MIDDLE_BTN_MASK)
-		input_report_key(input, BTN_MIDDLE,
-				 data.finger_btn & OP_DATA_MIDDLE_BTN);
-
-	if (cyapa->btn_capability & CAPABILITY_RIGHT_BTN_MASK)
-		input_report_key(input, BTN_RIGHT,
-				 data.finger_btn & OP_DATA_RIGHT_BTN);
-
-	input_sync(input);
-
-out:
-	return IRQ_HANDLED;
-}
-
-static u8 cyapa_check_adapter_functionality(struct i2c_client *client)
-{
-	u8 ret = CYAPA_ADAPTER_FUNC_NONE;
-
-	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		ret |= CYAPA_ADAPTER_FUNC_I2C;
-	if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_BLOCK_DATA |
-				     I2C_FUNC_SMBUS_I2C_BLOCK))
-		ret |= CYAPA_ADAPTER_FUNC_SMBUS;
-	return ret;
+	return 0;
 }
 
 static int cyapa_open(struct input_dev *input)
@@ -761,22 +335,57 @@ static int cyapa_open(struct input_dev *input)
 	struct i2c_client *client = cyapa->client;
 	int error;
 
-	error = cyapa_set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE);
-	if (error) {
-		dev_err(&client->dev, "set active power failed: %d\n", error);
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
 		return error;
+
+	if (cyapa->operational) {
+		/*
+		 * though failed to set active power mode,
+		 * but still may be able to work in lower scan rate
+		 * when in operational mode.
+		 */
+		error = cyapa->ops->set_power_mode(cyapa,
+				PWR_MODE_FULL_ACTIVE, 0);
+		if (error) {
+			dev_warn(&client->dev,
+				"set active power failed: %d\n", error);
+			goto out;
+		}
+	} else {
+		error = cyapa_reinitialize(cyapa);
+		if (error || !cyapa->operational) {
+			error = error ? error : -EAGAIN;
+			goto out;
+		}
 	}
 
 	enable_irq(client->irq);
-	return 0;
+	if (!pm_runtime_enabled(&client->dev)) {
+		pm_runtime_set_active(&client->dev);
+		pm_runtime_enable(&client->dev);
+	}
+out:
+	mutex_unlock(&cyapa->state_sync_lock);
+	return error;
 }
 
 static void cyapa_close(struct input_dev *input)
 {
 	struct cyapa *cyapa = input_get_drvdata(input);
+	struct i2c_client *client = cyapa->client;
 
-	disable_irq(cyapa->client->irq);
-	cyapa_set_power_mode(cyapa, PWR_MODE_OFF);
+	mutex_lock(&cyapa->state_sync_lock);
+
+	disable_irq(client->irq);
+	if (pm_runtime_enabled(&client->dev))
+		pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+
+	if (cyapa->operational)
+		cyapa->ops->set_power_mode(cyapa, PWR_MODE_OFF, 0);
+
+	mutex_unlock(&cyapa->state_sync_lock);
 }
 
 static int cyapa_create_input_dev(struct cyapa *cyapa)
@@ -813,7 +422,28 @@ static int cyapa_create_input_dev(struct cyapa *cyapa)
 			     0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, cyapa->max_abs_y, 0,
 			     0);
-	input_set_abs_params(input, ABS_MT_PRESSURE, 0, 255, 0, 0);
+	input_set_abs_params(input, ABS_MT_PRESSURE, 0, cyapa->max_z, 0, 0);
+	if (cyapa->gen > CYAPA_GEN3) {
+		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 255, 0, 0);
+		/*
+		 * Orientation is the angle between the vertical axis and
+		 * the major axis of the contact ellipse.
+		 * The range is -127 to 127.
+		 * the positive direction is clockwise form the vertical axis.
+		 * If the ellipse of contact degenerates into a circle,
+		 * orientation is reported as 0.
+		 *
+		 * Also, for Gen5 trackpad the accurate of this orientation
+		 * value is value + (-30 ~ 30).
+		 */
+		input_set_abs_params(input, ABS_MT_ORIENTATION,
+				-127, 127, 0, 0);
+	}
+	if (cyapa->gen >= CYAPA_GEN5) {
+		input_set_abs_params(input, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+		input_set_abs_params(input, ABS_MT_WIDTH_MINOR, 0, 255, 0, 0);
+	}
 
 	input_abs_set_res(input, ABS_MT_POSITION_X,
 			  cyapa->max_abs_x / cyapa->physical_size_x);
@@ -838,8 +468,711 @@ static int cyapa_create_input_dev(struct cyapa *cyapa)
 		return error;
 	}
 
+	/* Register the device in input subsystem */
+	error = input_register_device(input);
+	if (error) {
+		dev_err(dev, "failed to register input device: %d\n", error);
+		return error;
+	}
+
 	cyapa->input = input;
 	return 0;
+}
+
+static void cyapa_enable_irq_for_cmd(struct cyapa *cyapa)
+{
+	struct input_dev *input = cyapa->input;
+
+	if (!input || !input->users) {
+		/*
+		 * When input is NULL, TP must be in deep sleep mode.
+		 * In this mode, later non-power I2C command will always failed
+		 * if not bring it out of deep sleep mode firstly,
+		 * so must command TP to active mode here.
+		 */
+		if (!input || cyapa->operational)
+			cyapa->ops->set_power_mode(cyapa,
+				PWR_MODE_FULL_ACTIVE, 0);
+		/* Gen3 always using polling mode for command. */
+		if (cyapa->gen >= CYAPA_GEN5)
+			enable_irq(cyapa->client->irq);
+	}
+}
+
+static void cyapa_disable_irq_for_cmd(struct cyapa *cyapa)
+{
+	struct input_dev *input = cyapa->input;
+
+	if (!input || !input->users) {
+		if (cyapa->gen >= CYAPA_GEN5)
+			disable_irq(cyapa->client->irq);
+		if (!input || cyapa->operational)
+			cyapa->ops->set_power_mode(cyapa, PWR_MODE_OFF, 0);
+	}
+}
+
+/*
+ * cyapa_sleep_time_to_pwr_cmd and cyapa_pwr_cmd_to_sleep_time
+ *
+ * These are helper functions that convert to and from integer idle
+ * times and register settings to write to the PowerMode register.
+ * The trackpad supports between 20ms to 1000ms scan intervals.
+ * The time will be increased in increments of 10ms from 20ms to 100ms.
+ * From 100ms to 1000ms, time will be increased in increments of 20ms.
+ *
+ * When Idle_Time < 100, the format to convert Idle_Time to Idle_Command is:
+ *   Idle_Command = Idle Time / 10;
+ * When Idle_Time >= 100, the format to convert Idle_Time to Idle_Command is:
+ *   Idle_Command = Idle Time / 20 + 5;
+ */
+u8 cyapa_sleep_time_to_pwr_cmd(u16 sleep_time)
+{
+	u16 encoded_time;
+
+	sleep_time = clamp_val(sleep_time, 20, 1000);
+	encoded_time = sleep_time < 100 ? sleep_time / 10 : sleep_time / 20 + 5;
+	return (encoded_time << 2) & PWR_MODE_MASK;
+}
+
+u16 cyapa_pwr_cmd_to_sleep_time(u8 pwr_mode)
+{
+	u8 encoded_time = pwr_mode >> 2;
+
+	return (encoded_time < 10) ? encoded_time * 10
+				   : (encoded_time - 5) * 20;
+}
+
+/* 0 on driver initialize and detected successfully, negative on failure. */
+static int cyapa_initialize(struct cyapa *cyapa)
+{
+	int error = 0;
+
+	cyapa->state = CYAPA_STATE_NO_DEVICE;
+	cyapa->gen = CYAPA_GEN_UNKNOWN;
+	mutex_init(&cyapa->state_sync_lock);
+
+	/*
+	 * Set to hard code default, they will be updated with trackpad set
+	 * default values after probe and initialized.
+	 */
+	cyapa->suspend_power_mode = PWR_MODE_SLEEP;
+	cyapa->suspend_sleep_time =
+		cyapa_pwr_cmd_to_sleep_time(cyapa->suspend_power_mode);
+
+	/* ops.initialize() is aimed to prepare for module communications. */
+	error = cyapa_gen3_ops.initialize(cyapa);
+	if (!error)
+		error = cyapa_gen5_ops.initialize(cyapa);
+	if (error)
+		return error;
+
+	error = cyapa_detect(cyapa);
+	if (error)
+		return error;
+
+	/* Power down the device until we need it. */
+	if (cyapa->operational)
+		cyapa->ops->set_power_mode(cyapa, PWR_MODE_OFF, 0);
+
+	return 0;
+}
+
+static int cyapa_reinitialize(struct cyapa *cyapa)
+{
+	struct device *dev = &cyapa->client->dev;
+	struct input_dev *input = cyapa->input;
+	int error;
+
+	if (pm_runtime_enabled(dev))
+		pm_runtime_disable(dev);
+
+	/* Avoid command failures when TP was in OFF state. */
+	if (cyapa->operational)
+		cyapa->ops->set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE, 0);
+
+	error = cyapa_detect(cyapa);
+	if (error)
+		goto out;
+
+	if (!input && cyapa->operational) {
+		error = cyapa_create_input_dev(cyapa);
+		if (error) {
+			dev_err(dev, "create input_dev instance failed: %d\n",
+					error);
+			goto out;
+		}
+	}
+
+out:
+	if (!input || !input->users) {
+		/* Reset to power OFF state to save power when no user open. */
+		if (cyapa->operational)
+			cyapa->ops->set_power_mode(cyapa, PWR_MODE_OFF, 0);
+	} else if (!error && cyapa->operational) {
+		/*
+		 * Make sure only enable runtime PM when device is
+		 * in operational mode and input->users > 0.
+		 */
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+	}
+
+	return error;
+}
+
+static irqreturn_t cyapa_irq(int irq, void *dev_id)
+{
+	struct cyapa *cyapa = dev_id;
+	struct device *dev = &cyapa->client->dev;
+
+	pm_runtime_get_sync(dev);
+	if (device_may_wakeup(dev))
+		pm_wakeup_event(dev, 0);
+
+	/* Interrupt event maybe cuased by host command to trackpad device. */
+	if (cyapa->ops->irq_cmd_handler(cyapa)) {
+		/*
+		 * Interrupt event maybe from trackpad device input reporting.
+		 */
+		if (!cyapa->input) {
+			/*
+			 * Still in probling or in firware image
+			 * udpating or reading.
+			 */
+			cyapa->ops->sort_empty_output_data(cyapa,
+					NULL, NULL, NULL);
+			goto out;
+		}
+
+		if (!cyapa->operational || cyapa->ops->irq_handler(cyapa)) {
+			if (!mutex_trylock(&cyapa->state_sync_lock)) {
+				cyapa->ops->sort_empty_output_data(cyapa,
+					NULL, NULL, NULL);
+				goto out;
+			}
+			cyapa_reinitialize(cyapa);
+			mutex_unlock(&cyapa->state_sync_lock);
+		}
+	}
+
+out:
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_sync_autosuspend(dev);
+	return IRQ_HANDLED;
+}
+
+/*
+ **************************************************************
+ * sysfs interface
+ **************************************************************
+*/
+#ifdef CONFIG_PM_SLEEP
+static ssize_t cyapa_show_suspend_scanrate(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	u8 pwr_cmd = cyapa->suspend_power_mode;
+	u16 sleep_time;
+	int len;
+	int error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	pwr_cmd = cyapa->suspend_power_mode;
+	sleep_time = cyapa->suspend_sleep_time;
+
+	mutex_unlock(&cyapa->state_sync_lock);
+
+	switch (pwr_cmd) {
+	case PWR_MODE_BTN_ONLY:
+		len = scnprintf(buf, PAGE_SIZE, "%s\n", BTN_ONLY_MODE_NAME);
+		break;
+
+	case PWR_MODE_OFF:
+		len = scnprintf(buf, PAGE_SIZE, "%s\n", OFF_MODE_NAME);
+		break;
+
+	default:
+		len = scnprintf(buf, PAGE_SIZE, "%u\n",
+				cyapa->gen == CYAPA_GEN3 ?
+					cyapa_pwr_cmd_to_sleep_time(pwr_cmd) :
+					sleep_time);
+		break;
+	}
+
+	return len;
+}
+
+static ssize_t cyapa_update_suspend_scanrate(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	u16 sleep_time;
+	int error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	if (sysfs_streq(buf, BTN_ONLY_MODE_NAME)) {
+		cyapa->suspend_power_mode = PWR_MODE_BTN_ONLY;
+	} else if (sysfs_streq(buf, OFF_MODE_NAME)) {
+		cyapa->suspend_power_mode = PWR_MODE_OFF;
+	} else if (!kstrtou16(buf, 10, &sleep_time)) {
+		cyapa->suspend_sleep_time = max_t(u16, sleep_time, 1000);
+		cyapa->suspend_power_mode =
+			cyapa_sleep_time_to_pwr_cmd(cyapa->suspend_sleep_time);
+	} else {
+		count = -EINVAL;
+	}
+
+	mutex_unlock(&cyapa->state_sync_lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(suspend_scanrate_ms, S_IRUGO|S_IWUSR,
+		   cyapa_show_suspend_scanrate,
+		   cyapa_update_suspend_scanrate);
+
+static struct attribute *cyapa_power_wakeup_entries[] = {
+	&dev_attr_suspend_scanrate_ms.attr,
+	NULL,
+};
+
+static const struct attribute_group cyapa_power_wakeup_group = {
+	.name = power_group_name,
+	.attrs = cyapa_power_wakeup_entries,
+};
+
+static void cyapa_remove_power_wakeup_group(void *data)
+{
+	struct cyapa *cyapa = data;
+
+	sysfs_unmerge_group(&cyapa->client->dev.kobj,
+				&cyapa_power_wakeup_group);
+}
+
+static int cyapa_prepare_wakeup_controls(struct cyapa *cyapa)
+{
+	struct i2c_client *client = cyapa->client;
+	struct device *dev = &client->dev;
+	int error;
+
+	if (device_can_wakeup(dev)) {
+		error = sysfs_merge_group(&client->dev.kobj,
+					&cyapa_power_wakeup_group);
+		if (error) {
+			dev_err(dev, "failed to add power wakeup group: %d\n",
+				error);
+			return error;
+		}
+
+		error = devm_add_action(dev,
+				cyapa_remove_power_wakeup_group, cyapa);
+		if (error) {
+			cyapa_remove_power_wakeup_group(cyapa);
+			dev_err(dev, "failed to add power cleanup action: %d\n",
+				error);
+			return error;
+		}
+	}
+
+	return 0;
+}
+#else
+static inline int cyapa_prepare_wakeup_controls(struct cyapa *cyapa)
+{
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
+static ssize_t cyapa_show_rt_suspend_scanrate(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	u8 pwr_cmd;
+	u16 sleep_time;
+	int error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	pwr_cmd = cyapa->runtime_suspend_power_mode;
+	sleep_time = cyapa->runtime_suspend_sleep_time;
+
+	mutex_unlock(&cyapa->state_sync_lock);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n",
+			 cyapa->gen == CYAPA_GEN3 ?
+				cyapa_pwr_cmd_to_sleep_time(pwr_cmd) :
+				sleep_time);
+}
+
+static ssize_t cyapa_update_rt_suspend_scanrate(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	u16 time;
+	int error;
+
+	if (buf == NULL || count == 0 || kstrtou16(buf, 10, &time)) {
+		dev_err(dev, "invalid runtime suspend scanrate ms parameter\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * When the suspend scanrate is changed, pm_runtime_get to resume
+	 * a potentially suspended device, update to the new pwr_cmd
+	 * and then pm_runtime_put to suspend into the new power mode.
+	 */
+	pm_runtime_get_sync(dev);
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	cyapa->runtime_suspend_sleep_time = max_t(u16, time, 1000);
+	cyapa->runtime_suspend_power_mode =
+		cyapa_sleep_time_to_pwr_cmd(cyapa->runtime_suspend_sleep_time);
+
+	mutex_unlock(&cyapa->state_sync_lock);
+
+	pm_runtime_put_sync_autosuspend(dev);
+
+	return count;
+}
+
+static DEVICE_ATTR(runtime_suspend_scanrate_ms, S_IRUGO|S_IWUSR,
+		   cyapa_show_rt_suspend_scanrate,
+		   cyapa_update_rt_suspend_scanrate);
+
+static struct attribute *cyapa_power_runtime_entries[] = {
+	&dev_attr_runtime_suspend_scanrate_ms.attr,
+	NULL,
+};
+
+static const struct attribute_group cyapa_power_runtime_group = {
+	.name = power_group_name,
+	.attrs = cyapa_power_runtime_entries,
+};
+
+static void cyapa_remove_power_runtime_group(void *data)
+{
+	struct cyapa *cyapa = data;
+
+	sysfs_unmerge_group(&cyapa->client->dev.kobj,
+				&cyapa_power_runtime_group);
+}
+
+static int cyapa_start_runtime(struct cyapa *cyapa)
+{
+	struct device *dev = &cyapa->client->dev;
+	int error;
+
+	cyapa->runtime_suspend_power_mode = PWR_MODE_IDLE;
+	cyapa->runtime_suspend_sleep_time =
+		cyapa_pwr_cmd_to_sleep_time(cyapa->runtime_suspend_power_mode);
+
+	error = sysfs_merge_group(&dev->kobj, &cyapa_power_runtime_group);
+	if (error) {
+		dev_err(dev,
+			"failed to create power runtime group: %d\n", error);
+		return error;
+	}
+
+	error = devm_add_action(dev, cyapa_remove_power_runtime_group, cyapa);
+	if (error) {
+		cyapa_remove_power_runtime_group(cyapa);
+		dev_err(dev,
+			"failed to add power runtime cleanup action: %d\n",
+			error);
+		return error;
+	}
+
+	/* runtime is enabled until device is operational and opened. */
+	pm_runtime_set_suspended(dev);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, AUTOSUSPEND_DELAY);
+
+	return 0;
+}
+#else
+static inline int cyapa_start_runtime(struct cyapa *cyapa)
+{
+	return 0;
+}
+#endif /* CONFIG_PM */
+
+static ssize_t cyapa_show_fm_ver(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	int error;
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+	error = scnprintf(buf, PAGE_SIZE, "%d.%d\n", cyapa->fw_maj_ver,
+			 cyapa->fw_min_ver);
+	mutex_unlock(&cyapa->state_sync_lock);
+	return error;
+}
+
+static ssize_t cyapa_show_product_id(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	int size;
+	int error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+	size = scnprintf(buf, PAGE_SIZE, "%s\n", cyapa->product_id);
+	mutex_unlock(&cyapa->state_sync_lock);
+	return size;
+}
+
+static int cyapa_firmware(struct cyapa *cyapa, const char *fw_name)
+{
+	struct device *dev = &cyapa->client->dev;
+	const struct firmware *fw;
+	int error;
+
+	error = request_firmware(&fw, fw_name, dev);
+	if (error) {
+		dev_err(dev, "Could not load firmware from %s: %d\n",
+			fw_name, error);
+		return error;
+	}
+
+	error = cyapa->ops->check_fw(cyapa, fw);
+	if (error) {
+		dev_err(dev, "Invalid CYAPA firmware image: %s\n",
+				fw_name);
+		goto done;
+	}
+
+	/*
+	 * Resume the potentially suspended device because doing FW
+	 * update on a device not in the FULL mode has a chance to
+	 * fail.
+	 */
+	pm_runtime_get_sync(dev);
+
+	/* Require IRQ support for firmware update commands. */
+	cyapa_enable_irq_for_cmd(cyapa);
+
+	error = cyapa->ops->bl_enter(cyapa);
+	if (error) {
+		dev_err(dev, "bl_enter failed, %d\n", error);
+		goto err_detect;
+	}
+
+	error = cyapa->ops->bl_activate(cyapa);
+	if (error) {
+		dev_err(dev, "bl_activate failed, %d\n", error);
+		goto err_detect;
+	}
+
+	error = cyapa->ops->bl_initiate(cyapa, fw);
+	if (error) {
+		dev_err(dev, "bl_initiate failed, %d\n", error);
+		goto err_detect;
+	}
+
+	error = cyapa->ops->update_fw(cyapa, fw);
+	if (error) {
+		dev_err(dev, "update_fw failed, %d\n", error);
+		goto err_detect;
+	}
+
+err_detect:
+	cyapa_disable_irq_for_cmd(cyapa);
+	pm_runtime_put_noidle(dev);
+
+done:
+	release_firmware(fw);
+	return error;
+}
+
+static ssize_t cyapa_update_fw_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	char fw_name[NAME_MAX];
+	int ret, error;
+
+	if (count >= NAME_MAX) {
+		dev_err(dev, "File name too long\n");
+		return -EINVAL;
+	}
+
+	memcpy(fw_name, buf, count);
+	if (fw_name[count - 1] == '\n')
+		fw_name[count - 1] = '\0';
+	else
+		fw_name[count] = '\0';
+
+	if (cyapa->input) {
+		/*
+		 * Force the input device to be registered after the firmware
+		 * image is updated, so if the corresponding parameters updated
+		 * in the new firmware image can taken effect immediately.
+		 */
+		input_unregister_device(cyapa->input);
+		cyapa->input = NULL;
+	}
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error) {
+		/*
+		 * Whatever, do reinitialize to try to recover TP state to
+		 * previous state just as it entered fw update entrance.
+		 */
+		cyapa_reinitialize(cyapa);
+		return error;
+	}
+
+	error = cyapa_firmware(cyapa, fw_name);
+	if (error)
+		dev_err(dev, "firmware update failed: %d\n", error);
+	else
+		dev_dbg(dev, "firmware update successfully done.\n");
+
+	/*
+	 * Redetect trackpad device states because firmware update process
+	 * will reset trackpad device into bootloader mode.
+	 */
+	ret = cyapa_reinitialize(cyapa);
+	if (ret) {
+		dev_err(dev, "failed to redetect after updated: %d\n", ret);
+		error = error ? error : ret;
+	}
+
+	mutex_unlock(&cyapa->state_sync_lock);
+
+	return error ? error : count;
+}
+
+static ssize_t cyapa_calibrate_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	int error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	if (cyapa->operational) {
+		cyapa_enable_irq_for_cmd(cyapa);
+		error = cyapa->ops->calibrate_store(dev, attr, buf, count);
+		cyapa_disable_irq_for_cmd(cyapa);
+	} else {
+		error = -EBUSY;  /* Still running in bootloader mode. */
+	}
+
+	mutex_unlock(&cyapa->state_sync_lock);
+	return error < 0 ? error : count;
+}
+
+static ssize_t cyapa_show_baseline(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	ssize_t error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	if (cyapa->operational) {
+		cyapa_enable_irq_for_cmd(cyapa);
+		error = cyapa->ops->show_baseline(dev, attr, buf);
+		cyapa_disable_irq_for_cmd(cyapa);
+	} else {
+		error = -EBUSY;  /* Still running in bootloader mode. */
+	}
+
+	mutex_unlock(&cyapa->state_sync_lock);
+	return error;
+}
+
+static char *cyapa_state_to_string(struct cyapa *cyapa)
+{
+	switch (cyapa->state) {
+	case CYAPA_STATE_BL_BUSY:
+		return "bootloader busy";
+	case CYAPA_STATE_BL_IDLE:
+		return "bootloader idle";
+	case CYAPA_STATE_BL_ACTIVE:
+		return "bootloader active";
+	case CYAPA_STATE_GEN5_BL:
+		return "bootloader";
+	case CYAPA_STATE_OP:
+	case CYAPA_STATE_GEN5_APP:
+		return "operational";  /* Normal valid state. */
+	default:
+		return "invalid mode";
+	}
+}
+
+static ssize_t cyapa_show_mode(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	int size;
+	int error;
+
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
+	if (error)
+		return error;
+
+	size = scnprintf(buf, PAGE_SIZE, "gen%d %s\n",
+			cyapa->gen, cyapa_state_to_string(cyapa));
+
+	mutex_unlock(&cyapa->state_sync_lock);
+	return size;
+}
+
+static DEVICE_ATTR(firmware_version, S_IRUGO, cyapa_show_fm_ver, NULL);
+static DEVICE_ATTR(product_id, S_IRUGO, cyapa_show_product_id, NULL);
+static DEVICE_ATTR(update_fw, S_IWUSR, NULL, cyapa_update_fw_store);
+static DEVICE_ATTR(baseline, S_IRUGO, cyapa_show_baseline, NULL);
+static DEVICE_ATTR(calibrate, S_IWUSR, NULL, cyapa_calibrate_store);
+static DEVICE_ATTR(mode, S_IRUGO, cyapa_show_mode, NULL);
+
+static struct attribute *cyapa_sysfs_entries[] = {
+	&dev_attr_firmware_version.attr,
+	&dev_attr_product_id.attr,
+	&dev_attr_update_fw.attr,
+	&dev_attr_baseline.attr,
+	&dev_attr_calibrate.attr,
+	&dev_attr_mode.attr,
+	NULL,
+};
+
+static const struct attribute_group cyapa_sysfs_group = {
+	.attrs = cyapa_sysfs_entries,
+};
+
+static void cyapa_remove_sysfs_group(void *data)
+{
+	struct cyapa *cyapa = data;
+
+	sysfs_remove_group(&cyapa->client->dev.kobj, &cyapa_sysfs_group);
 }
 
 static int cyapa_probe(struct i2c_client *client,
@@ -848,6 +1181,7 @@ static int cyapa_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct cyapa *cyapa;
 	u8 adapter_func;
+	union i2c_smbus_data dummy;
 	int error;
 
 	adapter_func = cyapa_check_adapter_functionality(client);
@@ -856,38 +1190,54 @@ static int cyapa_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
+	/* Make sure there is something at this address */
+	if (i2c_smbus_xfer(client->adapter, client->addr, 0,
+			I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0)
+		return -ENODEV;
+
 	cyapa = devm_kzalloc(dev, sizeof(struct cyapa), GFP_KERNEL);
 	if (!cyapa)
 		return -ENOMEM;
-
-	cyapa->gen = CYAPA_GEN3;
-	cyapa->client = client;
-	i2c_set_clientdata(client, cyapa);
-	sprintf(cyapa->phys, "i2c-%d-%04x/input0", client->adapter->nr,
-		client->addr);
 
 	/* i2c isn't supported, use smbus */
 	if (adapter_func == CYAPA_ADAPTER_FUNC_SMBUS)
 		cyapa->smbus = true;
 
-	cyapa->state = CYAPA_STATE_NO_DEVICE;
+	cyapa->client = client;
+	i2c_set_clientdata(client, cyapa);
+	sprintf(cyapa->phys, "i2c-%d-%04x/input0", client->adapter->nr,
+		client->addr);
 
-	error = cyapa_check_is_operational(cyapa);
+	error = cyapa_initialize(cyapa);
 	if (error) {
-		dev_err(dev, "device not operational, %d\n", error);
+		dev_err(dev, "failed to detect and initialize tp device.\n");
 		return error;
 	}
 
-	/* Power down the device until we need it */
-	error = cyapa_set_power_mode(cyapa, PWR_MODE_OFF);
+	error = sysfs_create_group(&client->dev.kobj, &cyapa_sysfs_group);
 	if (error) {
-		dev_err(dev, "failed to quiesce the device: %d\n", error);
+		dev_err(dev, "failed to create sysfs entries: %d\n", error);
 		return error;
 	}
 
-	error = cyapa_create_input_dev(cyapa);
-	if (error)
+	error = devm_add_action(dev, cyapa_remove_sysfs_group, cyapa);
+	if (error) {
+		cyapa_remove_sysfs_group(cyapa);
+		dev_err(dev, "failed to add sysfs cleanup action: %d\n", error);
 		return error;
+	}
+
+	error = cyapa_prepare_wakeup_controls(cyapa);
+	if (error) {
+		dev_err(dev, "failed to prepare wakeup controls: %d\n", error);
+		return error;
+	}
+
+	error = cyapa_start_runtime(cyapa);
+	if (error) {
+		dev_err(dev, "failed to start pm_runtime: %d\n", error);
+		return error;
+	}
 
 	error = devm_request_threaded_irq(dev, client->irq,
 					  NULL, cyapa_irq,
@@ -901,11 +1251,18 @@ static int cyapa_probe(struct i2c_client *client,
 	/* Disable IRQ until the device is opened */
 	disable_irq(client->irq);
 
-	/* Register the device in input subsystem */
-	error = input_register_device(cyapa->input);
-	if (error) {
-		dev_err(dev, "failed to register input device: %d\n", error);
-		return error;
+	/*
+	 * Register the device in the input subsystem when it's operational.
+	 * Otherwise, keep in this driver, so it can be be recovered or updated
+	 * through the sysfs mode and update_fw interfaces by user or apps.
+	 */
+	if (cyapa->operational) {
+		error = cyapa_create_input_dev(cyapa);
+		if (error) {
+			dev_err(dev, "create input_dev instance failed: %d\n",
+					error);
+			return error;
+		}
 	}
 
 	return 0;
@@ -915,32 +1272,40 @@ static int __maybe_unused cyapa_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct cyapa *cyapa = i2c_get_clientdata(client);
-	struct input_dev *input = cyapa->input;
 	u8 power_mode;
 	int error;
 
-	error = mutex_lock_interruptible(&input->mutex);
+	error = mutex_lock_interruptible(&cyapa->state_sync_lock);
 	if (error)
 		return error;
 
+	/*
+	 * Runtime PM is enable only when device is in operational mode and
+	 * users in use, so need check it before disable it to
+	 * avoid unbalance warning.
+	 */
+	if (pm_runtime_enabled(dev))
+		pm_runtime_disable(dev);
 	disable_irq(client->irq);
 
 	/*
 	 * Set trackpad device to idle mode if wakeup is allowed,
 	 * otherwise turn off.
 	 */
-	power_mode = device_may_wakeup(dev) ? PWR_MODE_IDLE
-					    : PWR_MODE_OFF;
-	error = cyapa_set_power_mode(cyapa, power_mode);
-	if (error)
-		dev_err(dev, "resume: set power mode to %d failed: %d\n",
-			 power_mode, error);
+	if (cyapa->operational) {
+		power_mode = device_may_wakeup(dev) ? cyapa->suspend_power_mode
+						    : PWR_MODE_OFF;
+		error = cyapa->ops->set_power_mode(cyapa, power_mode,
+				cyapa->suspend_sleep_time);
+		if (error)
+			dev_err(dev, "suspend set power mode failed: %d\n",
+					error);
+	}
 
 	if (device_may_wakeup(dev))
 		cyapa->irq_wake = (enable_irq_wake(client->irq) == 0);
 
-	mutex_unlock(&input->mutex);
-
+	mutex_unlock(&cyapa->state_sync_lock);
 	return 0;
 }
 
@@ -948,29 +1313,56 @@ static int __maybe_unused cyapa_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct cyapa *cyapa = i2c_get_clientdata(client);
-	struct input_dev *input = cyapa->input;
-	u8 power_mode;
 	int error;
 
-	mutex_lock(&input->mutex);
+	mutex_lock(&cyapa->state_sync_lock);
 
-	if (device_may_wakeup(dev) && cyapa->irq_wake)
+	if (device_may_wakeup(dev) && cyapa->irq_wake) {
 		disable_irq_wake(client->irq);
+		cyapa->irq_wake = false;
+	}
 
-	power_mode = input->users ? PWR_MODE_FULL_ACTIVE : PWR_MODE_OFF;
-	error = cyapa_set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE);
+	/* Update device states and runtime PM states. */
+	error = cyapa_reinitialize(cyapa);
 	if (error)
-		dev_warn(dev, "resume: set power mode to %d failed: %d\n",
-			 power_mode, error);
+		dev_warn(dev, "failed to reinitialize TP device: %d\n", error);
 
 	enable_irq(client->irq);
 
-	mutex_unlock(&input->mutex);
+	mutex_unlock(&cyapa->state_sync_lock);
+	return 0;
+}
+
+static int __maybe_unused cyapa_runtime_suspend(struct device *dev)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	int error;
+
+	error = cyapa->ops->set_power_mode(cyapa,
+			cyapa->runtime_suspend_power_mode,
+			cyapa->runtime_suspend_sleep_time);
+	if (error)
+		dev_warn(dev, "runtime suspend failed: %d\n", error);
 
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(cyapa_pm_ops, cyapa_suspend, cyapa_resume);
+static int __maybe_unused cyapa_runtime_resume(struct device *dev)
+{
+	struct cyapa *cyapa = dev_get_drvdata(dev);
+	int error;
+
+	error = cyapa->ops->set_power_mode(cyapa, PWR_MODE_FULL_ACTIVE, 0);
+	if (error)
+		dev_warn(dev, "runtime resume failed: %d\n", error);
+
+	return 0;
+}
+
+static const struct dev_pm_ops cyapa_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(cyapa_suspend, cyapa_resume)
+	SET_RUNTIME_PM_OPS(cyapa_runtime_suspend, cyapa_runtime_resume, NULL)
+};
 
 static const struct i2c_device_id cyapa_id_table[] = {
 	{ "cyapa", 0 },
@@ -978,11 +1370,21 @@ static const struct i2c_device_id cyapa_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, cyapa_id_table);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id cyapa_acpi_id[] = {
+	{ "CYAP0000", 0 },  /* Gen3 trackpad with 0x67 I2C address. */
+	{ "CYAP0001", 0 },  /* Gen5 trackpad with 0x24 I2C address. */
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, cyapa_acpi_id);
+#endif
+
 static struct i2c_driver cyapa_driver = {
 	.driver = {
 		.name = "cyapa",
 		.owner = THIS_MODULE,
 		.pm = &cyapa_pm_ops,
+		.acpi_match_table = ACPI_PTR(cyapa_acpi_id),
 	},
 
 	.probe = cyapa_probe,

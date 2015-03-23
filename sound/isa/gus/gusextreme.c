@@ -284,7 +284,7 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 	}
 	gus->codec_flag = 1;
 
-	error = snd_es1688_pcm(card, es1688, 0, NULL);
+	error = snd_es1688_pcm(card, es1688, 0);
 	if (error < 0)
 		goto out;
 
@@ -295,7 +295,7 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 	snd_component_add(card, "ES1688");
 
 	if (pcm_channels[n] > 0) {
-		error = snd_gf1_pcm_new(gus, 1, 1, NULL);
+		error = snd_gf1_pcm_new(gus, 1, 1);
 		if (error < 0)
 			goto out;
 	}

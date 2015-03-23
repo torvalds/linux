@@ -191,10 +191,18 @@ static int tve_setup_vga(struct imx_tve *tve)
 	/* set gain to (1 + 10/128) to provide 0.7V peak-to-peak amplitude */
 	ret = regmap_update_bits(tve->regmap, TVE_TVDAC0_CONT_REG,
 				 TVE_TVDAC_GAIN_MASK, 0x0a);
+	if (ret)
+		return ret;
+
 	ret = regmap_update_bits(tve->regmap, TVE_TVDAC1_CONT_REG,
 				 TVE_TVDAC_GAIN_MASK, 0x0a);
+	if (ret)
+		return ret;
+
 	ret = regmap_update_bits(tve->regmap, TVE_TVDAC2_CONT_REG,
 				 TVE_TVDAC_GAIN_MASK, 0x0a);
+	if (ret)
+		return ret;
 
 	/* set configuration register */
 	mask = TVE_DATA_SOURCE_MASK | TVE_INP_VIDEO_FORM;
@@ -204,16 +212,12 @@ static int tve_setup_vga(struct imx_tve *tve)
 	mask |= TVE_TV_OUT_MODE_MASK | TVE_SYNC_CH_0_EN;
 	val  |= TVE_TV_OUT_RGB       | TVE_SYNC_CH_0_EN;
 	ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, mask, val);
-	if (ret < 0) {
-		dev_err(tve->dev, "failed to set configuration: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	/* set test mode (as documented) */
-	ret = regmap_update_bits(tve->regmap, TVE_TST_MODE_REG,
+	return regmap_update_bits(tve->regmap, TVE_TST_MODE_REG,
 				 TVE_TVDAC_TEST_MODE_MASK, 1);
-
-	return 0;
 }
 
 static enum drm_connector_status imx_tve_connector_detect(
@@ -307,8 +311,8 @@ static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 }
 
 static void imx_tve_encoder_mode_set(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode,
-				     struct drm_display_mode *adjusted_mode)
+				     struct drm_display_mode *orig_mode,
+				     struct drm_display_mode *mode)
 {
 	struct imx_tve *tve = enc_to_tve(encoder);
 	unsigned long rounded_rate;
@@ -335,9 +339,11 @@ static void imx_tve_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (tve->mode == TVE_MODE_VGA)
-		tve_setup_vga(tve);
+		ret = tve_setup_vga(tve);
 	else
-		tve_setup_tvout(tve);
+		ret = tve_setup_tvout(tve);
+	if (ret)
+		dev_err(tve->dev, "failed to set configuration: %d\n", ret);
 }
 
 static void imx_tve_encoder_commit(struct drm_encoder *encoder)
@@ -671,6 +677,8 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 
 	/* disable cable detection for VGA mode */
 	ret = regmap_write(tve->regmap, TVE_CD_CONT_REG, 0);
+	if (ret)
+		return ret;
 
 	ret = imx_tve_register(drm, tve);
 	if (ret)

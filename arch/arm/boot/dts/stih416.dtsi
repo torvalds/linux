@@ -163,8 +163,8 @@
 			device_type 	= "network";
 			compatible	= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
 			status 		= "disabled";
-			reg 		= <0xfe810000 0x8000>, <0x8bc 0x4>;
-			reg-names	= "stmmaceth", "sti-ethconf";
+			reg		= <0xfe810000 0x8000>;
+			reg-names	= "stmmaceth";
 
 			interrupts = <0 133 0>, <0 134 0>, <0 135 0>;
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
@@ -172,7 +172,7 @@
 			snps,pbl 	= <32>;
 			snps,mixed-burst;
 
-			st,syscon		= <&syscfg_rear>;
+			st,syscon		= <&syscfg_rear 0x8bc>;
 			resets			= <&softreset STIH416_ETH0_SOFTRESET>;
 			reset-names		= "stmmaceth";
 			pinctrl-names 	= "default";
@@ -185,15 +185,15 @@
 			device_type = "network";
 			compatible		= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
 			status 		= "disabled";
-			reg		= <0xfef08000 0x8000>, <0x7f0 0x4>;
-			reg-names	= "stmmaceth", "sti-ethconf";
+			reg		= <0xfef08000 0x8000>;
+			reg-names	= "stmmaceth";
 			interrupts = <0 136 0>, <0 137 0>, <0 138 0>;
 			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 
 			snps,pbl	= <32>;
 			snps,mixed-burst;
 
-			st,syscon	= <&syscfg_sbc>;
+			st,syscon	= <&syscfg_sbc 0x7f0>;
 
 			resets		= <&softreset STIH416_ETH1_SOFTRESET>;
 			reset-names	= "stmmaceth";
@@ -283,21 +283,21 @@
 
 		miphy365x_phy: phy@fe382000 {
 			compatible      = "st,miphy365x-phy";
-			st,syscfg  	= <&syscfg_rear>;
+			st,syscfg	= <&syscfg_rear 0x824 0x828>;
 			#address-cells	= <1>;
 			#size-cells	= <1>;
 			ranges;
 
 			phy_port0: port@fe382000 {
 				#phy-cells = <1>;
-				reg = <0xfe382000 0x100>, <0xfe394000 0x100>, <0x824 0x4>;
-				reg-names = "sata", "pcie", "syscfg";
+				reg = <0xfe382000 0x100>, <0xfe394000 0x100>;
+				reg-names = "sata", "pcie";
 			};
 
 			phy_port1: port@fe38a000 {
 				#phy-cells = <1>;
-				reg = <0xfe38a000 0x100>, <0xfe804000 0x100>, <0x828 0x4>;
-				reg-names = "sata", "pcie", "syscfg";
+				reg = <0xfe38a000 0x100>, <0xfe804000 0x100>;
+				reg-names = "sata", "pcie";
 			};
 		};
 

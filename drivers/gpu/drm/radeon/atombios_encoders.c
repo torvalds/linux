@@ -27,6 +27,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
+#include "radeon_audio.h"
 #include "atom.h"
 #include <linux/backlight.h>
 
@@ -664,6 +665,8 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 int
 atombios_get_encoder_mode(struct drm_encoder *encoder)
 {
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
@@ -728,6 +731,10 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		dig_connector = radeon_connector->con_priv;
 		if ((dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
 		    (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP)) {
+			if (radeon_audio != 0 &&
+			    drm_detect_monitor_audio(radeon_connector_edid(connector)) &&
+			    ASIC_IS_DCE4(rdev) && !ASIC_IS_DCE5(rdev))
+				return ATOM_ENCODER_MODE_DP_AUDIO;
 			return ATOM_ENCODER_MODE_DP;
 		} else if (radeon_audio != 0) {
 			if (radeon_connector->audio == RADEON_AUDIO_ENABLE)
@@ -742,6 +749,10 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		}
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
+		if (radeon_audio != 0 &&
+		    drm_detect_monitor_audio(radeon_connector_edid(connector)) &&
+		    ASIC_IS_DCE4(rdev) && !ASIC_IS_DCE5(rdev))
+			return ATOM_ENCODER_MODE_DP_AUDIO;
 		return ATOM_ENCODER_MODE_DP;
 	case DRM_MODE_CONNECTOR_DVIA:
 	case DRM_MODE_CONNECTOR_VGA:
@@ -1718,10 +1729,19 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	int encoder_mode = atombios_get_encoder_mode(encoder);
 
 	DRM_DEBUG_KMS("encoder dpms %d to mode %d, devices %08x, active_devices %08x\n",
 		  radeon_encoder->encoder_id, mode, radeon_encoder->devices,
 		  radeon_encoder->active_device);
+
+	if (connector && (radeon_audio != 0) &&
+	    ((encoder_mode == ATOM_ENCODER_MODE_HDMI) ||
+	     (ENCODER_MODE_IS_DP(encoder_mode) &&
+	      drm_detect_monitor_audio(radeon_connector_edid(connector)))))
+		radeon_audio_dpms(encoder, mode);
+
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
@@ -2123,6 +2143,8 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	int encoder_mode;
 
 	radeon_encoder->pixel_clock = adjusted_mode->clock;
 
@@ -2171,12 +2193,12 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);
 
-	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
-		if (rdev->asic->display.hdmi_enable)
-			radeon_hdmi_enable(rdev, encoder, true);
-		if (rdev->asic->display.hdmi_setmode)
-			radeon_hdmi_setmode(rdev, encoder, adjusted_mode);
-	}
+	encoder_mode = atombios_get_encoder_mode(encoder);
+	if (connector && (radeon_audio != 0) &&
+	    ((encoder_mode == ATOM_ENCODER_MODE_HDMI) ||
+	     (ENCODER_MODE_IS_DP(encoder_mode) &&
+	      drm_detect_monitor_audio(radeon_connector_edid(connector)))))
+		radeon_audio_mode_set(encoder, adjusted_mode);
 }
 
 static bool
@@ -2442,10 +2464,6 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 
 disable_done:
 	if (radeon_encoder_is_digital(encoder)) {
-		if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
-			if (rdev->asic->display.hdmi_enable)
-				radeon_hdmi_enable(rdev, encoder, false);
-		}
 		dig = radeon_encoder->enc_priv;
 		dig->dig_encoder = -1;
 	}

@@ -147,10 +147,8 @@ void pci_devs_phb_init_dynamic(struct pci_controller *phb)
 	/* PHB nodes themselves must not match */
 	update_dn_pci_info(dn, phb);
 	pdn = dn->data;
-	if (pdn) {
+	if (pdn)
 		pdn->devfn = pdn->busno = -1;
-		pdn->phb = phb;
-	}
 
 	/* Update dn->phb ptrs for new phb and children devices */
 	traverse_pci_devices(dn, update_dn_pci_info, phb);

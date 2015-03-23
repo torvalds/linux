@@ -190,7 +190,8 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 
 	nla_nest_end(skb, nest2);
 	nla_nest_end(skb, nest);
-	return nlmsg_end(skb, nlh);
+	nlmsg_end(skb, nlh);
+	return 0;
 
 end:
 	nla_nest_end(skb, nest);
@@ -276,7 +277,7 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *dev;
 	int err;
 
-	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY, NULL);
+	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX, NULL);
 	if (err < 0)
 		return err;
 

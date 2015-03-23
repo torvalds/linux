@@ -544,15 +544,15 @@ ohci_hub_descriptor (
 	temp = 1 + (ohci->num_ports / 8);
 	desc->bDescLength = 7 + 2 * temp;
 
-	temp = 0;
+	temp = HUB_CHAR_COMMON_LPSM | HUB_CHAR_COMMON_OCPM;
 	if (rh & RH_A_NPS)		/* no power switching? */
-	    temp |= 0x0002;
+		temp |= HUB_CHAR_NO_LPSM;
 	if (rh & RH_A_PSM)		/* per-port power switching? */
-	    temp |= 0x0001;
+		temp |= HUB_CHAR_INDV_PORT_LPSM;
 	if (rh & RH_A_NOCP)		/* no overcurrent reporting? */
-	    temp |= 0x0010;
+		temp |= HUB_CHAR_NO_OCPM;
 	else if (rh & RH_A_OCPM)	/* per-port overcurrent reporting? */
-	    temp |= 0x0008;
+		temp |= HUB_CHAR_INDV_PORT_OCPM;
 	desc->wHubCharacteristics = cpu_to_le16(temp);
 
 	/* ports removable, and usb 1.0 legacy PortPwrCtrlMask */

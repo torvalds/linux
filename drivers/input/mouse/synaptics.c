@@ -120,32 +120,41 @@ void synaptics_reset(struct psmouse *psmouse)
 
 static bool cr48_profile_sensor;
 
+#define ANY_BOARD_ID 0
 struct min_max_quirk {
 	const char * const *pnp_ids;
+	struct {
+		unsigned long int min, max;
+	} board_id;
 	int x_min, x_max, y_min, y_max;
 };
 
 static const struct min_max_quirk min_max_pnpid_table[] = {
 	{
 		(const char * const []){"LEN0033", NULL},
+		{ANY_BOARD_ID, ANY_BOARD_ID},
 		1024, 5052, 2258, 4832
 	},
 	{
-		(const char * const []){"LEN0035", "LEN0042", NULL},
+		(const char * const []){"LEN0042", NULL},
+		{ANY_BOARD_ID, ANY_BOARD_ID},
 		1232, 5710, 1156, 4696
 	},
 	{
 		(const char * const []){"LEN0034", "LEN0036", "LEN0037",
 					"LEN0039", "LEN2002", "LEN2004",
 					NULL},
+		{ANY_BOARD_ID, 2961},
 		1024, 5112, 2024, 4832
 	},
 	{
 		(const char * const []){"LEN2001", NULL},
+		{ANY_BOARD_ID, ANY_BOARD_ID},
 		1024, 5022, 2508, 4832
 	},
 	{
 		(const char * const []){"LEN2006", NULL},
+		{ANY_BOARD_ID, ANY_BOARD_ID},
 		1264, 5675, 1171, 4688
 	},
 	{ }
@@ -172,9 +181,7 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	"LEN0041",
 	"LEN0042", /* Yoga */
 	"LEN0045",
-	"LEN0046",
 	"LEN0047",
-	"LEN0048",
 	"LEN0049",
 	"LEN2000",
 	"LEN2001", /* Edge E431 */
@@ -232,18 +239,39 @@ static int synaptics_model_id(struct psmouse *psmouse)
 	return 0;
 }
 
+static int synaptics_more_extended_queries(struct psmouse *psmouse)
+{
+	struct synaptics_data *priv = psmouse->private;
+	unsigned char buf[3];
+
+	if (synaptics_send_cmd(psmouse, SYN_QUE_MEXT_CAPAB_10, buf))
+		return -1;
+
+	priv->ext_cap_10 = (buf[0]<<16) | (buf[1]<<8) | buf[2];
+
+	return 0;
+}
+
 /*
- * Read the board id from the touchpad
+ * Read the board id and the "More Extended Queries" from the touchpad
  * The board id is encoded in the "QUERY MODES" response
  */
-static int synaptics_board_id(struct psmouse *psmouse)
+static int synaptics_query_modes(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	unsigned char bid[3];
 
+	/* firmwares prior 7.5 have no board_id encoded */
+	if (SYN_ID_FULL(priv->identity) < 0x705)
+		return 0;
+
 	if (synaptics_send_cmd(psmouse, SYN_QUE_MODES, bid))
 		return -1;
 	priv->board_id = ((bid[0] & 0xfc) << 6) | bid[1];
+
+	if (SYN_MEXT_CAP_BIT(bid[0]))
+		return synaptics_more_extended_queries(psmouse);
+
 	return 0;
 }
 
@@ -343,7 +371,6 @@ static int synaptics_resolution(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	unsigned char resp[3];
-	int i;
 
 	if (SYN_ID_MAJOR(priv->identity) < 4)
 		return 0;
@@ -355,17 +382,6 @@ static int synaptics_resolution(struct psmouse *psmouse)
 		}
 	}
 
-	for (i = 0; min_max_pnpid_table[i].pnp_ids; i++) {
-		if (psmouse_matches_pnp_id(psmouse,
-					   min_max_pnpid_table[i].pnp_ids)) {
-			priv->x_min = min_max_pnpid_table[i].x_min;
-			priv->x_max = min_max_pnpid_table[i].x_max;
-			priv->y_min = min_max_pnpid_table[i].y_min;
-			priv->y_max = min_max_pnpid_table[i].y_max;
-			return 0;
-		}
-	}
-
 	if (SYN_EXT_CAP_REQUESTS(priv->capabilities) >= 5 &&
 	    SYN_CAP_MAX_DIMENSIONS(priv->ext_cap_0c)) {
 		if (synaptics_send_cmd(psmouse, SYN_QUE_EXT_MAX_COORDS, resp)) {
@@ -374,21 +390,67 @@ static int synaptics_resolution(struct psmouse *psmouse)
 		} else {
 			priv->x_max = (resp[0] << 5) | ((resp[1] & 0x0f) << 1);
 			priv->y_max = (resp[2] << 5) | ((resp[1] & 0xf0) >> 3);
+			psmouse_info(psmouse,
+				     "queried max coordinates: x [..%d], y [..%d]\n",
+				     priv->x_max, priv->y_max);
 		}
 	}
 
-	if (SYN_EXT_CAP_REQUESTS(priv->capabilities) >= 7 &&
-	    SYN_CAP_MIN_DIMENSIONS(priv->ext_cap_0c)) {
+	if (SYN_CAP_MIN_DIMENSIONS(priv->ext_cap_0c) &&
+	    (SYN_EXT_CAP_REQUESTS(priv->capabilities) >= 7 ||
+	     /*
+	      * Firmware v8.1 does not report proper number of extended
+	      * capabilities, but has been proven to report correct min
+	      * coordinates.
+	      */
+	     SYN_ID_FULL(priv->identity) == 0x801)) {
 		if (synaptics_send_cmd(psmouse, SYN_QUE_EXT_MIN_COORDS, resp)) {
 			psmouse_warn(psmouse,
 				     "device claims to have min coordinates query, but I'm not able to read it.\n");
 		} else {
 			priv->x_min = (resp[0] << 5) | ((resp[1] & 0x0f) << 1);
 			priv->y_min = (resp[2] << 5) | ((resp[1] & 0xf0) >> 3);
+			psmouse_info(psmouse,
+				     "queried min coordinates: x [%d..], y [%d..]\n",
+				     priv->x_min, priv->y_min);
 		}
 	}
 
 	return 0;
+}
+
+/*
+ * Apply quirk(s) if the hardware matches
+ */
+
+static void synaptics_apply_quirks(struct psmouse *psmouse)
+{
+	struct synaptics_data *priv = psmouse->private;
+	int i;
+
+	for (i = 0; min_max_pnpid_table[i].pnp_ids; i++) {
+		if (!psmouse_matches_pnp_id(psmouse,
+					    min_max_pnpid_table[i].pnp_ids))
+			continue;
+
+		if (min_max_pnpid_table[i].board_id.min != ANY_BOARD_ID &&
+		    priv->board_id < min_max_pnpid_table[i].board_id.min)
+			continue;
+
+		if (min_max_pnpid_table[i].board_id.max != ANY_BOARD_ID &&
+		    priv->board_id > min_max_pnpid_table[i].board_id.max)
+			continue;
+
+		priv->x_min = min_max_pnpid_table[i].x_min;
+		priv->x_max = min_max_pnpid_table[i].x_max;
+		priv->y_min = min_max_pnpid_table[i].y_min;
+		priv->y_max = min_max_pnpid_table[i].y_max;
+		psmouse_info(psmouse,
+			     "quirked min/max coordinates: x [%d..%d], y [%d..%d]\n",
+			     priv->x_min, priv->x_max,
+			     priv->y_min, priv->y_max);
+		break;
+	}
 }
 
 static int synaptics_query_hardware(struct psmouse *psmouse)
@@ -399,12 +461,14 @@ static int synaptics_query_hardware(struct psmouse *psmouse)
 		return -1;
 	if (synaptics_firmware_id(psmouse))
 		return -1;
-	if (synaptics_board_id(psmouse))
+	if (synaptics_query_modes(psmouse))
 		return -1;
 	if (synaptics_capability(psmouse))
 		return -1;
 	if (synaptics_resolution(psmouse))
 		return -1;
+
+	synaptics_apply_quirks(psmouse);
 
 	return 0;
 }
@@ -513,18 +577,22 @@ static int synaptics_is_pt_packet(unsigned char *buf)
 	return (buf[0] & 0xFC) == 0x84 && (buf[3] & 0xCC) == 0xC4;
 }
 
-static void synaptics_pass_pt_packet(struct serio *ptport, unsigned char *packet)
+static void synaptics_pass_pt_packet(struct psmouse *psmouse,
+				     struct serio *ptport,
+				     unsigned char *packet)
 {
+	struct synaptics_data *priv = psmouse->private;
 	struct psmouse *child = serio_get_drvdata(ptport);
 
 	if (child && child->state == PSMOUSE_ACTIVATED) {
-		serio_interrupt(ptport, packet[1], 0);
+		serio_interrupt(ptport, packet[1] | priv->pt_buttons, 0);
 		serio_interrupt(ptport, packet[4], 0);
 		serio_interrupt(ptport, packet[5], 0);
 		if (child->pktsize == 4)
 			serio_interrupt(ptport, packet[2], 0);
-	} else
+	} else {
 		serio_interrupt(ptport, packet[1], 0);
+	}
 }
 
 static void synaptics_pt_activate(struct psmouse *psmouse)
@@ -575,14 +643,6 @@ static void synaptics_pt_create(struct psmouse *psmouse)
  *	Functions to interpret the absolute mode packets
  ****************************************************************************/
 
-static void synaptics_mt_state_set(struct synaptics_mt_state *state, int count,
-				   int sgm, int agm)
-{
-	state->count = count;
-	state->sgm = sgm;
-	state->agm = agm;
-}
-
 static void synaptics_parse_agm(const unsigned char buf[],
 				struct synaptics_data *priv,
 				struct synaptics_hw_state *hw)
@@ -601,16 +661,25 @@ static void synaptics_parse_agm(const unsigned char buf[],
 		break;
 
 	case 2:
-		/* AGM-CONTACT packet: (count, sgm, agm) */
-		synaptics_mt_state_set(&agm->mt_state, buf[1], buf[2], buf[4]);
+		/* AGM-CONTACT packet: we are only interested in the count */
+		priv->agm_count = buf[1];
 		break;
 
 	default:
 		break;
 	}
+}
 
-	/* Record that at least one AGM has been received since last SGM */
-	priv->agm_pending = true;
+static void synaptics_parse_ext_buttons(const unsigned char buf[],
+					struct synaptics_data *priv,
+					struct synaptics_hw_state *hw)
+{
+	unsigned int ext_bits =
+		(SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap) + 1) >> 1;
+	unsigned int ext_mask = GENMASK(ext_bits - 1, 0);
+
+	hw->ext_buttons = buf[4] & ext_mask;
+	hw->ext_buttons |= (buf[5] & ext_mask) << ext_bits;
 }
 
 static bool is_forcepad;
@@ -699,28 +768,9 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 			hw->down = ((buf[0] ^ buf[3]) & 0x02) ? 1 : 0;
 		}
 
-		if (SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap) &&
+		if (SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap) > 0 &&
 		    ((buf[0] ^ buf[3]) & 0x02)) {
-			switch (SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap) & ~0x01) {
-			default:
-				/*
-				 * if nExtBtn is greater than 8 it should be
-				 * considered invalid and treated as 0
-				 */
-				break;
-			case 8:
-				hw->ext_buttons |= ((buf[5] & 0x08)) ? 0x80 : 0;
-				hw->ext_buttons |= ((buf[4] & 0x08)) ? 0x40 : 0;
-			case 6:
-				hw->ext_buttons |= ((buf[5] & 0x04)) ? 0x20 : 0;
-				hw->ext_buttons |= ((buf[4] & 0x04)) ? 0x10 : 0;
-			case 4:
-				hw->ext_buttons |= ((buf[5] & 0x02)) ? 0x08 : 0;
-				hw->ext_buttons |= ((buf[4] & 0x02)) ? 0x04 : 0;
-			case 2:
-				hw->ext_buttons |= ((buf[5] & 0x01)) ? 0x02 : 0;
-				hw->ext_buttons |= ((buf[4] & 0x01)) ? 0x01 : 0;
-			}
+			synaptics_parse_ext_buttons(buf, priv, hw);
 		}
 	} else {
 		hw->x = (((buf[1] & 0x1f) << 8) | buf[2]);
@@ -782,12 +832,54 @@ static void synaptics_report_semi_mt_data(struct input_dev *dev,
 	}
 }
 
+static void synaptics_report_ext_buttons(struct psmouse *psmouse,
+					 const struct synaptics_hw_state *hw)
+{
+	struct input_dev *dev = psmouse->dev;
+	struct synaptics_data *priv = psmouse->private;
+	int ext_bits = (SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap) + 1) >> 1;
+	char buf[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	int i;
+
+	if (!SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap))
+		return;
+
+	/* Bug in FW 8.1, buttons are reported only when ExtBit is 1 */
+	if (SYN_ID_FULL(priv->identity) == 0x801 &&
+	    !((psmouse->packet[0] ^ psmouse->packet[3]) & 0x02))
+		return;
+
+	if (!SYN_CAP_EXT_BUTTONS_STICK(priv->ext_cap_10)) {
+		for (i = 0; i < ext_bits; i++) {
+			input_report_key(dev, BTN_0 + 2 * i,
+				hw->ext_buttons & (1 << i));
+			input_report_key(dev, BTN_1 + 2 * i,
+				hw->ext_buttons & (1 << (i + ext_bits)));
+		}
+		return;
+	}
+
+	/*
+	 * This generation of touchpads has the trackstick buttons
+	 * physically wired to the touchpad. Re-route them through
+	 * the pass-through interface.
+	 */
+	if (!priv->pt_port)
+		return;
+
+	/* The trackstick expects at most 3 buttons */
+	priv->pt_buttons = SYN_CAP_EXT_BUTTON_STICK_L(hw->ext_buttons)      |
+			   SYN_CAP_EXT_BUTTON_STICK_R(hw->ext_buttons) << 1 |
+			   SYN_CAP_EXT_BUTTON_STICK_M(hw->ext_buttons) << 2;
+
+	synaptics_pass_pt_packet(psmouse, priv->pt_port, buf);
+}
+
 static void synaptics_report_buttons(struct psmouse *psmouse,
 				     const struct synaptics_hw_state *hw)
 {
 	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
-	int i;
 
 	input_report_key(dev, BTN_LEFT, hw->left);
 	input_report_key(dev, BTN_RIGHT, hw->right);
@@ -800,401 +892,16 @@ static void synaptics_report_buttons(struct psmouse *psmouse,
 		input_report_key(dev, BTN_BACK, hw->down);
 	}
 
-	for (i = 0; i < SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap); i++)
-		input_report_key(dev, BTN_0 + i, hw->ext_buttons & (1 << i));
-}
-
-static void synaptics_report_slot(struct input_dev *dev, int slot,
-				  const struct synaptics_hw_state *hw)
-{
-	input_mt_slot(dev, slot);
-	input_mt_report_slot_state(dev, MT_TOOL_FINGER, (hw != NULL));
-	if (!hw)
-		return;
-
-	input_report_abs(dev, ABS_MT_POSITION_X, hw->x);
-	input_report_abs(dev, ABS_MT_POSITION_Y, synaptics_invert_y(hw->y));
-	input_report_abs(dev, ABS_MT_PRESSURE, hw->z);
+	synaptics_report_ext_buttons(psmouse, hw);
 }
 
 static void synaptics_report_mt_data(struct psmouse *psmouse,
-				     struct synaptics_mt_state *mt_state,
-				     const struct synaptics_hw_state *sgm)
+				     const struct synaptics_hw_state *sgm,
+				     int num_fingers)
 {
 	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
-	struct synaptics_hw_state *agm = &priv->agm;
-	struct synaptics_mt_state *old = &priv->mt_state;
-
-	switch (mt_state->count) {
-	case 0:
-		synaptics_report_slot(dev, 0, NULL);
-		synaptics_report_slot(dev, 1, NULL);
-		break;
-	case 1:
-		if (mt_state->sgm == -1) {
-			synaptics_report_slot(dev, 0, NULL);
-			synaptics_report_slot(dev, 1, NULL);
-		} else if (mt_state->sgm == 0) {
-			synaptics_report_slot(dev, 0, sgm);
-			synaptics_report_slot(dev, 1, NULL);
-		} else {
-			synaptics_report_slot(dev, 0, NULL);
-			synaptics_report_slot(dev, 1, sgm);
-		}
-		break;
-	default:
-		/*
-		 * If the finger slot contained in SGM is valid, and either
-		 * hasn't changed, or is new, or the old SGM has now moved to
-		 * AGM, then report SGM in MTB slot 0.
-		 * Otherwise, empty MTB slot 0.
-		 */
-		if (mt_state->sgm != -1 &&
-		    (mt_state->sgm == old->sgm ||
-		     old->sgm == -1 || mt_state->agm == old->sgm))
-			synaptics_report_slot(dev, 0, sgm);
-		else
-			synaptics_report_slot(dev, 0, NULL);
-
-		/*
-		 * If the finger slot contained in AGM is valid, and either
-		 * hasn't changed, or is new, then report AGM in MTB slot 1.
-		 * Otherwise, empty MTB slot 1.
-		 *
-		 * However, in the case where the AGM is new, make sure that
-		 * that it is either the same as the old SGM, or there was no
-		 * SGM.
-		 *
-		 * Otherwise, if the SGM was just 1, and the new AGM is 2, then
-		 * the new AGM will keep the old SGM's tracking ID, which can
-		 * cause apparent drumroll.  This happens if in the following
-		 * valid finger sequence:
-		 *
-		 *  Action                 SGM  AGM (MTB slot:Contact)
-		 *  1. Touch contact 0    (0:0)
-		 *  2. Touch contact 1    (0:0, 1:1)
-		 *  3. Lift  contact 0    (1:1)
-		 *  4. Touch contacts 2,3 (0:2, 1:3)
-		 *
-		 * In step 4, contact 3, in AGM must not be given the same
-		 * tracking ID as contact 1 had in step 3.  To avoid this,
-		 * the first agm with contact 3 is dropped and slot 1 is
-		 * invalidated (tracking ID = -1).
-		 */
-		if (mt_state->agm != -1 &&
-		    (mt_state->agm == old->agm ||
-		     (old->agm == -1 &&
-		      (old->sgm == -1 || mt_state->agm == old->sgm))))
-			synaptics_report_slot(dev, 1, agm);
-		else
-			synaptics_report_slot(dev, 1, NULL);
-		break;
-	}
-
-	/* Don't use active slot count to generate BTN_TOOL events. */
-	input_mt_report_pointer_emulation(dev, false);
-
-	/* Send the number of fingers reported by touchpad itself. */
-	input_mt_report_finger_count(dev, mt_state->count);
-
-	synaptics_report_buttons(psmouse, sgm);
-
-	input_sync(dev);
-}
-
-/* Handle case where mt_state->count = 0 */
-static void synaptics_image_sensor_0f(struct synaptics_data *priv,
-				      struct synaptics_mt_state *mt_state)
-{
-	synaptics_mt_state_set(mt_state, 0, -1, -1);
-	priv->mt_state_lost = false;
-}
-
-/* Handle case where mt_state->count = 1 */
-static void synaptics_image_sensor_1f(struct synaptics_data *priv,
-				      struct synaptics_mt_state *mt_state)
-{
-	struct synaptics_hw_state *agm = &priv->agm;
-	struct synaptics_mt_state *old = &priv->mt_state;
-
-	/*
-	 * If the last AGM was (0,0,0), and there is only one finger left,
-	 * then we absolutely know that SGM contains slot 0, and all other
-	 * fingers have been removed.
-	 */
-	if (priv->agm_pending && agm->z == 0) {
-		synaptics_mt_state_set(mt_state, 1, 0, -1);
-		priv->mt_state_lost = false;
-		return;
-	}
-
-	switch (old->count) {
-	case 0:
-		synaptics_mt_state_set(mt_state, 1, 0, -1);
-		break;
-	case 1:
-		/*
-		 * If mt_state_lost, then the previous transition was 3->1,
-		 * and SGM now contains either slot 0 or 1, but we don't know
-		 * which.  So, we just assume that the SGM now contains slot 1.
-		 *
-		 * If pending AGM and either:
-		 *   (a) the previous SGM slot contains slot 0, or
-		 *   (b) there was no SGM slot
-		 * then, the SGM now contains slot 1
-		 *
-		 * Case (a) happens with very rapid "drum roll" gestures, where
-		 * slot 0 finger is lifted and a new slot 1 finger touches
-		 * within one reporting interval.
-		 *
-		 * Case (b) happens if initially two or more fingers tap
-		 * briefly, and all but one lift before the end of the first
-		 * reporting interval.
-		 *
-		 * (In both these cases, slot 0 will becomes empty, so SGM
-		 * contains slot 1 with the new finger)
-		 *
-		 * Else, if there was no previous SGM, it now contains slot 0.
-		 *
-		 * Otherwise, SGM still contains the same slot.
-		 */
-		if (priv->mt_state_lost ||
-		    (priv->agm_pending && old->sgm <= 0))
-			synaptics_mt_state_set(mt_state, 1, 1, -1);
-		else if (old->sgm == -1)
-			synaptics_mt_state_set(mt_state, 1, 0, -1);
-		break;
-	case 2:
-		/*
-		 * If mt_state_lost, we don't know which finger SGM contains.
-		 *
-		 * So, report 1 finger, but with both slots empty.
-		 * We will use slot 1 on subsequent 1->1
-		 */
-		if (priv->mt_state_lost) {
-			synaptics_mt_state_set(mt_state, 1, -1, -1);
-			break;
-		}
-		/*
-		 * Since the last AGM was NOT (0,0,0), it was the finger in
-		 * slot 0 that has been removed.
-		 * So, SGM now contains previous AGM's slot, and AGM is now
-		 * empty.
-		 */
-		synaptics_mt_state_set(mt_state, 1, old->agm, -1);
-		break;
-	case 3:
-		/*
-		 * Since last AGM was not (0,0,0), we don't know which finger
-		 * is left.
-		 *
-		 * So, report 1 finger, but with both slots empty.
-		 * We will use slot 1 on subsequent 1->1
-		 */
-		synaptics_mt_state_set(mt_state, 1, -1, -1);
-		priv->mt_state_lost = true;
-		break;
-	case 4:
-	case 5:
-		/* mt_state was updated by AGM-CONTACT packet */
-		break;
-	}
-}
-
-/* Handle case where mt_state->count = 2 */
-static void synaptics_image_sensor_2f(struct synaptics_data *priv,
-				      struct synaptics_mt_state *mt_state)
-{
-	struct synaptics_mt_state *old = &priv->mt_state;
-
-	switch (old->count) {
-	case 0:
-		synaptics_mt_state_set(mt_state, 2, 0, 1);
-		break;
-	case 1:
-		/*
-		 * If previous SGM contained slot 1 or higher, SGM now contains
-		 * slot 0 (the newly touching finger) and AGM contains SGM's
-		 * previous slot.
-		 *
-		 * Otherwise, SGM still contains slot 0 and AGM now contains
-		 * slot 1.
-		 */
-		if (old->sgm >= 1)
-			synaptics_mt_state_set(mt_state, 2, 0, old->sgm);
-		else
-			synaptics_mt_state_set(mt_state, 2, 0, 1);
-		break;
-	case 2:
-		/*
-		 * If mt_state_lost, SGM now contains either finger 1 or 2, but
-		 * we don't know which.
-		 * So, we just assume that the SGM contains slot 0 and AGM 1.
-		 */
-		if (priv->mt_state_lost)
-			synaptics_mt_state_set(mt_state, 2, 0, 1);
-		/*
-		 * Otherwise, use the same mt_state, since it either hasn't
-		 * changed, or was updated by a recently received AGM-CONTACT
-		 * packet.
-		 */
-		break;
-	case 3:
-		/*
-		 * 3->2 transitions have two unsolvable problems:
-		 *  1) no indication is given which finger was removed
-		 *  2) no way to tell if agm packet was for finger 3
-		 *     before 3->2, or finger 2 after 3->2.
-		 *
-		 * So, report 2 fingers, but empty all slots.
-		 * We will guess slots [0,1] on subsequent 2->2.
-		 */
-		synaptics_mt_state_set(mt_state, 2, -1, -1);
-		priv->mt_state_lost = true;
-		break;
-	case 4:
-	case 5:
-		/* mt_state was updated by AGM-CONTACT packet */
-		break;
-	}
-}
-
-/* Handle case where mt_state->count = 3 */
-static void synaptics_image_sensor_3f(struct synaptics_data *priv,
-				      struct synaptics_mt_state *mt_state)
-{
-	struct synaptics_mt_state *old = &priv->mt_state;
-
-	switch (old->count) {
-	case 0:
-		synaptics_mt_state_set(mt_state, 3, 0, 2);
-		break;
-	case 1:
-		/*
-		 * If previous SGM contained slot 2 or higher, SGM now contains
-		 * slot 0 (one of the newly touching fingers) and AGM contains
-		 * SGM's previous slot.
-		 *
-		 * Otherwise, SGM now contains slot 0 and AGM contains slot 2.
-		 */
-		if (old->sgm >= 2)
-			synaptics_mt_state_set(mt_state, 3, 0, old->sgm);
-		else
-			synaptics_mt_state_set(mt_state, 3, 0, 2);
-		break;
-	case 2:
-		/*
-		 * If the AGM previously contained slot 3 or higher, then the
-		 * newly touching finger is in the lowest available slot.
-		 *
-		 * If SGM was previously 1 or higher, then the new SGM is
-		 * now slot 0 (with a new finger), otherwise, the new finger
-		 * is now in a hidden slot between 0 and AGM's slot.
-		 *
-		 * In all such cases, the SGM now contains slot 0, and the AGM
-		 * continues to contain the same slot as before.
-		 */
-		if (old->agm >= 3) {
-			synaptics_mt_state_set(mt_state, 3, 0, old->agm);
-			break;
-		}
-
-		/*
-		 * After some 3->1 and all 3->2 transitions, we lose track
-		 * of which slot is reported by SGM and AGM.
-		 *
-		 * For 2->3 in this state, report 3 fingers, but empty all
-		 * slots, and we will guess (0,2) on a subsequent 0->3.
-		 *
-		 * To userspace, the resulting transition will look like:
-		 *    2:[0,1] -> 3:[-1,-1] -> 3:[0,2]
-		 */
-		if (priv->mt_state_lost) {
-			synaptics_mt_state_set(mt_state, 3, -1, -1);
-			break;
-		}
-
-		/*
-		 * If the (SGM,AGM) really previously contained slots (0, 1),
-		 * then we cannot know what slot was just reported by the AGM,
-		 * because the 2->3 transition can occur either before or after
-		 * the AGM packet. Thus, this most recent AGM could contain
-		 * either the same old slot 1 or the new slot 2.
-		 * Subsequent AGMs will be reporting slot 2.
-		 *
-		 * To userspace, the resulting transition will look like:
-		 *    2:[0,1] -> 3:[0,-1] -> 3:[0,2]
-		 */
-		synaptics_mt_state_set(mt_state, 3, 0, -1);
-		break;
-	case 3:
-		/*
-		 * If, for whatever reason, the previous agm was invalid,
-		 * Assume SGM now contains slot 0, AGM now contains slot 2.
-		 */
-		if (old->agm <= 2)
-			synaptics_mt_state_set(mt_state, 3, 0, 2);
-		/*
-		 * mt_state either hasn't changed, or was updated by a recently
-		 * received AGM-CONTACT packet.
-		 */
-		break;
-
-	case 4:
-	case 5:
-		/* mt_state was updated by AGM-CONTACT packet */
-		break;
-	}
-}
-
-/* Handle case where mt_state->count = 4, or = 5 */
-static void synaptics_image_sensor_45f(struct synaptics_data *priv,
-				       struct synaptics_mt_state *mt_state)
-{
-	/* mt_state was updated correctly by AGM-CONTACT packet */
-	priv->mt_state_lost = false;
-}
-
-static void synaptics_image_sensor_process(struct psmouse *psmouse,
-					   struct synaptics_hw_state *sgm)
-{
-	struct synaptics_data *priv = psmouse->private;
-	struct synaptics_hw_state *agm = &priv->agm;
-	struct synaptics_mt_state mt_state;
-
-	/* Initialize using current mt_state (as updated by last agm) */
-	mt_state = agm->mt_state;
-
-	/*
-	 * Update mt_state using the new finger count and current mt_state.
-	 */
-	if (sgm->z == 0)
-		synaptics_image_sensor_0f(priv, &mt_state);
-	else if (sgm->w >= 4)
-		synaptics_image_sensor_1f(priv, &mt_state);
-	else if (sgm->w == 0)
-		synaptics_image_sensor_2f(priv, &mt_state);
-	else if (sgm->w == 1 && mt_state.count <= 3)
-		synaptics_image_sensor_3f(priv, &mt_state);
-	else
-		synaptics_image_sensor_45f(priv, &mt_state);
-
-	/* Send resulting input events to user space */
-	synaptics_report_mt_data(psmouse, &mt_state, sgm);
-
-	/* Store updated mt_state */
-	priv->mt_state = agm->mt_state = mt_state;
-	priv->agm_pending = false;
-}
-
-static void synaptics_profile_sensor_process(struct psmouse *psmouse,
-					     struct synaptics_hw_state *sgm,
-					     int num_fingers)
-{
-	struct input_dev *dev = psmouse->dev;
-	struct synaptics_data *priv = psmouse->private;
-	struct synaptics_hw_state *hw[2] = { sgm, &priv->agm };
+	const struct synaptics_hw_state *hw[2] = { sgm, &priv->agm };
 	struct input_mt_pos pos[2];
 	int slot[2], nsemi, i;
 
@@ -1205,7 +912,7 @@ static void synaptics_profile_sensor_process(struct psmouse *psmouse,
 		pos[i].y = synaptics_invert_y(hw[i]->y);
 	}
 
-	input_mt_assign_slots(dev, slot, pos, nsemi);
+	input_mt_assign_slots(dev, slot, pos, nsemi, 0);
 
 	for (i = 0; i < nsemi; i++) {
 		input_mt_slot(dev, slot[i]);
@@ -1216,12 +923,40 @@ static void synaptics_profile_sensor_process(struct psmouse *psmouse,
 	}
 
 	input_mt_drop_unused(dev);
+
+	/* Don't use active slot count to generate BTN_TOOL events. */
 	input_mt_report_pointer_emulation(dev, false);
+
+	/* Send the number of fingers reported by touchpad itself. */
 	input_mt_report_finger_count(dev, num_fingers);
 
 	synaptics_report_buttons(psmouse, sgm);
 
 	input_sync(dev);
+}
+
+static void synaptics_image_sensor_process(struct psmouse *psmouse,
+					   struct synaptics_hw_state *sgm)
+{
+	struct synaptics_data *priv = psmouse->private;
+	int num_fingers;
+
+	/*
+	 * Update mt_state using the new finger count and current mt_state.
+	 */
+	if (sgm->z == 0)
+		num_fingers = 0;
+	else if (sgm->w >= 4)
+		num_fingers = 1;
+	else if (sgm->w == 0)
+		num_fingers = 2;
+	else if (sgm->w == 1)
+		num_fingers = priv->agm_count ? priv->agm_count : 3;
+	else
+		num_fingers = 4;
+
+	/* Send resulting input events to user space */
+	synaptics_report_mt_data(psmouse, sgm, num_fingers);
 }
 
 /*
@@ -1288,7 +1023,7 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	}
 
 	if (cr48_profile_sensor) {
-		synaptics_profile_sensor_process(psmouse, &hw, num_fingers);
+		synaptics_report_mt_data(psmouse, &hw, num_fingers);
 		return;
 	}
 
@@ -1378,7 +1113,8 @@ static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse)
 		if (SYN_CAP_PASS_THROUGH(priv->capabilities) &&
 		    synaptics_is_pt_packet(psmouse->packet)) {
 			if (priv->pt_port)
-				synaptics_pass_pt_packet(priv->pt_port, psmouse->packet);
+				synaptics_pass_pt_packet(psmouse, priv->pt_port,
+							 psmouse->packet);
 		} else
 			synaptics_process_packet(psmouse);
 
@@ -1445,7 +1181,7 @@ static void set_input_params(struct psmouse *psmouse,
 					ABS_MT_POSITION_Y);
 		/* Image sensors can report per-contact pressure */
 		input_set_abs_params(dev, ABS_MT_PRESSURE, 0, 255, 0, 0);
-		input_mt_init_slots(dev, 2, INPUT_MT_POINTER);
+		input_mt_init_slots(dev, 2, INPUT_MT_POINTER | INPUT_MT_TRACK);
 
 		/* Image sensors can signal 4 and 5 finger clicks */
 		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
@@ -1480,8 +1216,9 @@ static void set_input_params(struct psmouse *psmouse,
 		__set_bit(BTN_BACK, dev->keybit);
 	}
 
-	for (i = 0; i < SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap); i++)
-		__set_bit(BTN_0 + i, dev->keybit);
+	if (!SYN_CAP_EXT_BUTTONS_STICK(priv->ext_cap_10))
+		for (i = 0; i < SYN_CAP_MULTI_BUTTON_NO(priv->ext_cap); i++)
+			__set_bit(BTN_0 + i, dev->keybit);
 
 	__clear_bit(EV_REL, dev->evbit);
 	__clear_bit(REL_X, dev->relbit);
@@ -1489,7 +1226,8 @@ static void set_input_params(struct psmouse *psmouse,
 
 	if (SYN_CAP_CLICKPAD(priv->ext_cap_0c)) {
 		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
-		if (psmouse_matches_pnp_id(psmouse, topbuttonpad_pnp_ids))
+		if (psmouse_matches_pnp_id(psmouse, topbuttonpad_pnp_ids) &&
+		    !SYN_CAP_EXT_BUTTONS_STICK(priv->ext_cap_10))
 			__set_bit(INPUT_PROP_TOPBUTTONPAD, dev->propbit);
 		/* Clickpads report only left button */
 		__clear_bit(BTN_RIGHT, dev->keybit);
@@ -1818,11 +1556,6 @@ int synaptics_init_relative(struct psmouse *psmouse)
 	return __synaptics_init(psmouse, false);
 }
 
-bool synaptics_supported(void)
-{
-	return true;
-}
-
 #else /* CONFIG_MOUSE_PS2_SYNAPTICS */
 
 void __init synaptics_module_init(void)
@@ -1832,11 +1565,6 @@ void __init synaptics_module_init(void)
 int synaptics_init(struct psmouse *psmouse)
 {
 	return -ENOSYS;
-}
-
-bool synaptics_supported(void)
-{
-	return false;
 }
 
 #endif /* CONFIG_MOUSE_PS2_SYNAPTICS */

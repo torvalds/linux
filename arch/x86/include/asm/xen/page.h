@@ -55,9 +55,8 @@ extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 				   struct gnttab_map_grant_ref *kmap_ops,
 				   struct page **pages, unsigned int count);
 extern int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
-				     struct gnttab_map_grant_ref *kmap_ops,
+				     struct gnttab_unmap_grant_ref *kunmap_ops,
 				     struct page **pages, unsigned int count);
-extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
 
 /*
  * Helper functions to write or read unsigned long values to/from
@@ -154,21 +153,12 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 		return mfn;
 
 	pfn = mfn_to_pfn_no_overrides(mfn);
-	if (__pfn_to_mfn(pfn) != mfn) {
-		/*
-		 * If this appears to be a foreign mfn (because the pfn
-		 * doesn't map back to the mfn), then check the local override
-		 * table to see if there's a better pfn to use.
-		 *
-		 * m2p_find_override_pfn returns ~0 if it doesn't find anything.
-		 */
-		pfn = m2p_find_override_pfn(mfn, ~0);
-	}
+	if (__pfn_to_mfn(pfn) != mfn)
+		pfn = ~0;
 
 	/*
-	 * pfn is ~0 if there are no entries in the m2p for mfn or if the
-	 * entry doesn't map back to the mfn and m2p_override doesn't have a
-	 * valid entry for it.
+	 * pfn is ~0 if there are no entries in the m2p for mfn or the
+	 * entry doesn't map back to the mfn.
 	 */
 	if (pfn == ~0 && __pfn_to_mfn(mfn) == IDENTITY_FRAME(mfn))
 		pfn = mfn;

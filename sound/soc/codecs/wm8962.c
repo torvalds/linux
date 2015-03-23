@@ -1866,7 +1866,7 @@ static int cp_event(struct snd_soc_dapm_widget *w,
 static int hp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int timeout;
 	int reg;
 	int expected = (WM8962_DCS_STARTUP_DONE_HP1L |
@@ -1960,7 +1960,7 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 static int out_pga_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int reg;
 
 	switch (w->shift) {
@@ -1993,7 +1993,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 static int dsp2_event(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {

@@ -121,6 +121,11 @@ show the header with column descriptions. Lines 05-18 and 20-31 show the actual
 statistics. These statistics come in two parts; the actual stats separated by a
 short separator (line 08, 13) from the contention points.
 
+Lines 09-12 show the first 4 recorded contention points (the code
+which tries to get the lock) and lines 14-17 show the first 4 recorded
+contended points (the lock holder). It is possible that the max
+con-bounces point is missing in the statistics.
+
 The first lock (05-18) is a read/write lock, and shows two lines above the
 short separator. The contention points don't match the column descriptors,
 they have two: contentions and [<IP>] symbol. The second set of contention

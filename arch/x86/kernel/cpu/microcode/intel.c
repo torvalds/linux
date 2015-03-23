@@ -196,6 +196,11 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 		struct microcode_header_intel mc_header;
 		unsigned int mc_size;
 
+		if (leftover < sizeof(mc_header)) {
+			pr_err("error! Truncated header in microcode data file\n");
+			break;
+		}
+
 		if (get_ucode_data(&mc_header, ucode_ptr, sizeof(mc_header)))
 			break;
 

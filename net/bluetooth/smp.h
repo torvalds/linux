@@ -192,4 +192,17 @@ int smp_generate_rpa(struct hci_dev *hdev, const u8 irk[16], bdaddr_t *rpa);
 int smp_register(struct hci_dev *hdev);
 void smp_unregister(struct hci_dev *hdev);
 
+#if IS_ENABLED(CONFIG_BT_SELFTEST_SMP)
+
+int bt_selftest_smp(void);
+
+#else
+
+static inline int bt_selftest_smp(void)
+{
+	return 0;
+}
+
+#endif
+
 #endif /* __SMP_H */

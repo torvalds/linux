@@ -66,6 +66,9 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
+unsigned int halt_poll_ns = 0;
+module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
+
 /*
  * Ordering of locks:
  *
@@ -89,7 +92,7 @@ struct dentry *kvm_debugfs_dir;
 
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 			   unsigned long arg);
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_KVM_COMPAT
 static long kvm_vcpu_compat_ioctl(struct file *file, unsigned int ioctl,
 				  unsigned long arg);
 #endif
@@ -176,6 +179,7 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 	return called;
 }
 
+#ifndef CONFIG_HAVE_KVM_ARCH_TLB_FLUSH_ALL
 void kvm_flush_remote_tlbs(struct kvm *kvm)
 {
 	long dirty_count = kvm->tlbs_dirty;
@@ -186,6 +190,7 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 	cmpxchg(&kvm->tlbs_dirty, dirty_count, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_flush_remote_tlbs);
+#endif
 
 void kvm_reload_remote_mmus(struct kvm *kvm)
 {
@@ -673,6 +678,7 @@ static void update_memslots(struct kvm_memslots *slots,
 	if (!new->npages) {
 		WARN_ON(!mslots[i].npages);
 		new->base_gfn = 0;
+		new->flags = 0;
 		if (mslots[i].npages)
 			slots->used_slots--;
 	} else {
@@ -993,6 +999,86 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_get_dirty_log);
 
+#ifdef CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT
+/**
+ * kvm_get_dirty_log_protect - get a snapshot of dirty pages, and if any pages
+ *	are dirty write protect them for next write.
+ * @kvm:	pointer to kvm instance
+ * @log:	slot id and address to which we copy the log
+ * @is_dirty:	flag set if any page is dirty
+ *
+ * We need to keep it in mind that VCPU threads can write to the bitmap
+ * concurrently. So, to avoid losing track of dirty pages we keep the
+ * following order:
+ *
+ *    1. Take a snapshot of the bit and clear it if needed.
+ *    2. Write protect the corresponding page.
+ *    3. Copy the snapshot to the userspace.
+ *    4. Upon return caller flushes TLB's if needed.
+ *
+ * Between 2 and 4, the guest may write to the page using the remaining TLB
+ * entry.  This is not a problem because the page is reported dirty using
+ * the snapshot taken before and step 4 ensures that writes done after
+ * exiting to userspace will be logged for the next call.
+ *
+ */
+int kvm_get_dirty_log_protect(struct kvm *kvm,
+			struct kvm_dirty_log *log, bool *is_dirty)
+{
+	struct kvm_memory_slot *memslot;
+	int r, i;
+	unsigned long n;
+	unsigned long *dirty_bitmap;
+	unsigned long *dirty_bitmap_buffer;
+
+	r = -EINVAL;
+	if (log->slot >= KVM_USER_MEM_SLOTS)
+		goto out;
+
+	memslot = id_to_memslot(kvm->memslots, log->slot);
+
+	dirty_bitmap = memslot->dirty_bitmap;
+	r = -ENOENT;
+	if (!dirty_bitmap)
+		goto out;
+
+	n = kvm_dirty_bitmap_bytes(memslot);
+
+	dirty_bitmap_buffer = dirty_bitmap + n / sizeof(long);
+	memset(dirty_bitmap_buffer, 0, n);
+
+	spin_lock(&kvm->mmu_lock);
+	*is_dirty = false;
+	for (i = 0; i < n / sizeof(long); i++) {
+		unsigned long mask;
+		gfn_t offset;
+
+		if (!dirty_bitmap[i])
+			continue;
+
+		*is_dirty = true;
+
+		mask = xchg(&dirty_bitmap[i], 0);
+		dirty_bitmap_buffer[i] = mask;
+
+		offset = i * BITS_PER_LONG;
+		kvm_arch_mmu_enable_log_dirty_pt_masked(kvm, memslot, offset,
+								mask);
+	}
+
+	spin_unlock(&kvm->mmu_lock);
+
+	r = -EFAULT;
+	if (copy_to_user(log->dirty_bitmap, dirty_bitmap_buffer, n))
+		goto out;
+
+	r = 0;
+out:
+	return r;
+}
+EXPORT_SYMBOL_GPL(kvm_get_dirty_log_protect);
+#endif
+
 bool kvm_largepages_enabled(void)
 {
 	return largepages_enabled;
@@ -1128,43 +1214,6 @@ static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
 	return __get_user_pages(tsk, mm, start, 1, flags, page, NULL, NULL);
 }
 
-int kvm_get_user_page_io(struct task_struct *tsk, struct mm_struct *mm,
-			 unsigned long addr, bool write_fault,
-			 struct page **pagep)
-{
-	int npages;
-	int locked = 1;
-	int flags = FOLL_TOUCH | FOLL_HWPOISON |
-		    (pagep ? FOLL_GET : 0) |
-		    (write_fault ? FOLL_WRITE : 0);
-
-	/*
-	 * If retrying the fault, we get here *not* having allowed the filemap
-	 * to wait on the page lock. We should now allow waiting on the IO with
-	 * the mmap semaphore released.
-	 */
-	down_read(&mm->mmap_sem);
-	npages = __get_user_pages(tsk, mm, addr, 1, flags, pagep, NULL,
-				  &locked);
-	if (!locked) {
-		VM_BUG_ON(npages);
-
-		if (!pagep)
-			return 0;
-
-		/*
-		 * The previous call has now waited on the IO. Now we can
-		 * retry and complete. Pass TRIED to ensure we do not re
-		 * schedule async IO (see e.g. filemap_fault).
-		 */
-		down_read(&mm->mmap_sem);
-		npages = __get_user_pages(tsk, mm, addr, 1, flags | FOLL_TRIED,
-					  pagep, NULL, NULL);
-	}
-	up_read(&mm->mmap_sem);
-	return npages;
-}
-
 static inline int check_user_page_hwpoison(unsigned long addr)
 {
 	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
@@ -1227,15 +1276,10 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 		npages = get_user_page_nowait(current, current->mm,
 					      addr, write_fault, page);
 		up_read(&current->mm->mmap_sem);
-	} else {
-		/*
-		 * By now we have tried gup_fast, and possibly async_pf, and we
-		 * are certainly not atomic. Time to retry the gup, allowing
-		 * mmap semaphore to be relinquished in the case of IO.
-		 */
-		npages = kvm_get_user_page_io(current, current->mm, addr,
-					      write_fault, page);
-	}
+	} else
+		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
+						   write_fault, 0, page,
+						   FOLL_TOUCH|FOLL_HWPOISON);
 	if (npages != 1)
 		return npages;
 
@@ -1593,6 +1637,7 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(kvm_write_guest);
 
 int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 			      gpa_t gpa, unsigned long len)
@@ -1729,29 +1774,60 @@ void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(mark_page_dirty);
 
+static int kvm_vcpu_check_block(struct kvm_vcpu *vcpu)
+{
+	if (kvm_arch_vcpu_runnable(vcpu)) {
+		kvm_make_request(KVM_REQ_UNHALT, vcpu);
+		return -EINTR;
+	}
+	if (kvm_cpu_has_pending_timer(vcpu))
+		return -EINTR;
+	if (signal_pending(current))
+		return -EINTR;
+
+	return 0;
+}
+
 /*
  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
  */
 void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 {
+	ktime_t start, cur;
 	DEFINE_WAIT(wait);
+	bool waited = false;
+
+	start = cur = ktime_get();
+	if (halt_poll_ns) {
+		ktime_t stop = ktime_add_ns(ktime_get(), halt_poll_ns);
+		do {
+			/*
+			 * This sets KVM_REQ_UNHALT if an interrupt
+			 * arrives.
+			 */
+			if (kvm_vcpu_check_block(vcpu) < 0) {
+				++vcpu->stat.halt_successful_poll;
+				goto out;
+			}
+			cur = ktime_get();
+		} while (single_task_running() && ktime_before(cur, stop));
+	}
 
 	for (;;) {
 		prepare_to_wait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
 
-		if (kvm_arch_vcpu_runnable(vcpu)) {
-			kvm_make_request(KVM_REQ_UNHALT, vcpu);
-			break;
-		}
-		if (kvm_cpu_has_pending_timer(vcpu))
-			break;
-		if (signal_pending(current))
+		if (kvm_vcpu_check_block(vcpu) < 0)
 			break;
 
+		waited = true;
 		schedule();
 	}
 
 	finish_wait(&vcpu->wq, &wait);
+	cur = ktime_get();
+
+out:
+	trace_kvm_vcpu_wakeup(ktime_to_ns(cur) - ktime_to_ns(start), waited);
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_block);
 
@@ -1934,7 +2010,7 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 static struct file_operations kvm_vcpu_fops = {
 	.release        = kvm_vcpu_release,
 	.unlocked_ioctl = kvm_vcpu_ioctl,
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_KVM_COMPAT
 	.compat_ioctl   = kvm_vcpu_compat_ioctl,
 #endif
 	.mmap           = kvm_vcpu_mmap,
@@ -2224,7 +2300,7 @@ out:
 	return r;
 }
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_KVM_COMPAT
 static long kvm_vcpu_compat_ioctl(struct file *filp,
 				  unsigned int ioctl, unsigned long arg)
 {
@@ -2316,7 +2392,7 @@ static int kvm_device_release(struct inode *inode, struct file *filp)
 
 static const struct file_operations kvm_device_fops = {
 	.unlocked_ioctl = kvm_device_ioctl,
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_KVM_COMPAT
 	.compat_ioctl = kvm_device_ioctl,
 #endif
 	.release = kvm_device_release,
@@ -2416,6 +2492,7 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 	case KVM_CAP_SIGNAL_MSI:
 #endif
 #ifdef CONFIG_HAVE_KVM_IRQFD
+	case KVM_CAP_IRQFD:
 	case KVM_CAP_IRQFD_RESAMPLE:
 #endif
 	case KVM_CAP_CHECK_EXTENSION_VM:
@@ -2603,7 +2680,7 @@ out:
 	return r;
 }
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_KVM_COMPAT
 struct compat_kvm_dirty_log {
 	__u32 slot;
 	__u32 padding1;
@@ -2650,7 +2727,7 @@ out:
 static struct file_operations kvm_vm_fops = {
 	.release        = kvm_vm_release,
 	.unlocked_ioctl = kvm_vm_ioctl,
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_KVM_COMPAT
 	.compat_ioctl   = kvm_vm_compat_ioctl,
 #endif
 	.llseek		= noop_llseek,

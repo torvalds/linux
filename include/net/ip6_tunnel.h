@@ -70,6 +70,7 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t, const struct in6_addr *laddr,
 __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw);
 __u32 ip6_tnl_get_cap(struct ip6_tnl *t, const struct in6_addr *laddr,
 			     const struct in6_addr *raddr);
+struct net *ip6_tnl_get_link_net(const struct net_device *dev);
 
 static inline void ip6tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {

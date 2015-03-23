@@ -289,6 +289,19 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 	struct request_queue *q = bdev_get_queue(where->bdev);
 	unsigned short logical_block_size = queue_logical_block_size(q);
 	sector_t num_sectors;
+	unsigned int uninitialized_var(special_cmd_max_sectors);
+
+	/*
+	 * Reject unsupported discard and write same requests.
+	 */
+	if (rw & REQ_DISCARD)
+		special_cmd_max_sectors = q->limits.max_discard_sectors;
+	else if (rw & REQ_WRITE_SAME)
+		special_cmd_max_sectors = q->limits.max_write_same_sectors;
+	if ((rw & (REQ_DISCARD | REQ_WRITE_SAME)) && special_cmd_max_sectors == 0) {
+		dec_count(io, region, -EOPNOTSUPP);
+		return;
+	}
 
 	/*
 	 * where->count may be zero if rw holds a flush and we need to
@@ -311,7 +324,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		store_io_and_region_in_bio(bio, io, region);
 
 		if (rw & REQ_DISCARD) {
-			num_sectors = min_t(sector_t, q->limits.max_discard_sectors, remaining);
+			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
 			remaining -= num_sectors;
 		} else if (rw & REQ_WRITE_SAME) {
@@ -320,7 +333,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 			 */
 			dp->get_page(dp, &page, &len, &offset);
 			bio_add_page(bio, page, logical_block_size, offset);
-			num_sectors = min_t(sector_t, q->limits.max_write_same_sectors, remaining);
+			num_sectors = min_t(sector_t, special_cmd_max_sectors, remaining);
 			bio->bi_iter.bi_size = num_sectors << SECTOR_SHIFT;
 
 			offset = 0;

@@ -1028,9 +1028,22 @@ int ubifs_replay_journal(struct ubifs_info *c)
 
 	do {
 		err = replay_log_leb(c, lnum, 0, c->sbuf);
-		if (err == 1)
-			/* We hit the end of the log */
-			break;
+		if (err == 1) {
+			if (lnum != c->lhead_lnum)
+				/* We hit the end of the log */
+				break;
+
+			/*
+			 * The head of the log must always start with the
+			 * "commit start" node on a properly formatted UBIFS.
+			 * But we found no nodes at all, which means that
+			 * someting went wrong and we cannot proceed mounting
+			 * the file-system.
+			 */
+			ubifs_err("no UBIFS nodes found at the log head LEB %d:%d, possibly corrupted",
+				  lnum, 0);
+			err = -EINVAL;
+		}
 		if (err)
 			goto out;
 		lnum = ubifs_next_log_lnum(c, lnum);

@@ -787,6 +787,7 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 
 static const struct of_device_id hdmi_of_match[] = {
 	{ .compatible = "ti,omap5-hdmi", },
+	{ .compatible = "ti,dra7-hdmi", },
 	{},
 };
 

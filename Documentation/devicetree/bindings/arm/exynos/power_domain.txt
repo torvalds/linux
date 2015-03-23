@@ -22,8 +22,10 @@ Optional Properties:
 	- pclkN, clkN: Pairs of parent of input clock and input clock to the
 		devices in this power domain. Maximum of 4 pairs (N = 0 to 3)
 		are supported currently.
+- power-domains: phandle pointing to the parent power domain, for more details
+		 see Documentation/devicetree/bindings/power/power_domain.txt
 
-Node of a device using power domains must have a samsung,power-domain property
+Node of a device using power domains must have a power-domains property
 defined with a phandle to respective power domain.
 
 Example:

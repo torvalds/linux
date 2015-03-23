@@ -101,6 +101,13 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 {
 	struct txpd *local_tx_pd;
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
+	unsigned int pad;
+	int headroom = (priv->adapter->iface_type ==
+			MWIFIEX_USB) ? 0 : INTF_HEADER_LEN;
+
+	pad = ((void *)skb->data - sizeof(*local_tx_pd) -
+		headroom - NULL) & (MWIFIEX_DMA_ALIGN_SZ - 1);
+	skb_push(skb, pad);
 
 	skb_push(skb, sizeof(*local_tx_pd));
 
@@ -114,10 +121,12 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 	local_tx_pd->bss_num = priv->bss_num;
 	local_tx_pd->bss_type = priv->bss_type;
 	/* Always zero as the data is followed by struct txpd */
-	local_tx_pd->tx_pkt_offset = cpu_to_le16(sizeof(struct txpd));
+	local_tx_pd->tx_pkt_offset = cpu_to_le16(sizeof(struct txpd) +
+						 pad);
 	local_tx_pd->tx_pkt_type = cpu_to_le16(PKT_TYPE_AMSDU);
 	local_tx_pd->tx_pkt_length = cpu_to_le16(skb->len -
-						 sizeof(*local_tx_pd));
+						 sizeof(*local_tx_pd) -
+						 pad);
 
 	if (tx_info->flags & MWIFIEX_BUF_FLAG_TDLS_PKT)
 		local_tx_pd->flags |= MWIFIEX_TXPD_FLAGS_TDLS_PACKET;
@@ -182,7 +191,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 				       ra_list_flags);
 		return -1;
 	}
-	skb_reserve(skb_aggr, headroom + sizeof(struct txpd));
+	skb_reserve(skb_aggr, MWIFIEX_MIN_DATA_HEADER_LEN);
 	tx_info_aggr =  MWIFIEX_SKB_TXCB(skb_aggr);
 
 	memset(tx_info_aggr, 0, sizeof(*tx_info_aggr));

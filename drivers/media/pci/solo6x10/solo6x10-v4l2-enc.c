@@ -38,28 +38,28 @@
 #define DMA_ALIGN		4096
 
 /* 6010 M4V */
-static unsigned char vop_6010_ntsc_d1[] = {
+static u8 vop_6010_ntsc_d1[] = {
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x20,
 	0x02, 0x48, 0x1d, 0xc0, 0x00, 0x40, 0x00, 0x40,
 	0x00, 0x40, 0x00, 0x80, 0x00, 0x97, 0x53, 0x04,
 	0x1f, 0x4c, 0x58, 0x10, 0xf0, 0x71, 0x18, 0x3f,
 };
 
-static unsigned char vop_6010_ntsc_cif[] = {
+static u8 vop_6010_ntsc_cif[] = {
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x20,
 	0x02, 0x48, 0x1d, 0xc0, 0x00, 0x40, 0x00, 0x40,
 	0x00, 0x40, 0x00, 0x80, 0x00, 0x97, 0x53, 0x04,
 	0x1f, 0x4c, 0x2c, 0x10, 0x78, 0x51, 0x18, 0x3f,
 };
 
-static unsigned char vop_6010_pal_d1[] = {
+static u8 vop_6010_pal_d1[] = {
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x20,
 	0x02, 0x48, 0x15, 0xc0, 0x00, 0x40, 0x00, 0x40,
 	0x00, 0x40, 0x00, 0x80, 0x00, 0x97, 0x53, 0x04,
 	0x1f, 0x4c, 0x58, 0x11, 0x20, 0x71, 0x18, 0x3f,
 };
 
-static unsigned char vop_6010_pal_cif[] = {
+static u8 vop_6010_pal_cif[] = {
 	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x20,
 	0x02, 0x48, 0x15, 0xc0, 0x00, 0x40, 0x00, 0x40,
 	0x00, 0x40, 0x00, 0x80, 0x00, 0x97, 0x53, 0x04,
@@ -67,25 +67,25 @@ static unsigned char vop_6010_pal_cif[] = {
 };
 
 /* 6110 h.264 */
-static unsigned char vop_6110_ntsc_d1[] = {
+static u8 vop_6110_ntsc_d1[] = {
 	0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x00, 0x1e,
 	0x9a, 0x74, 0x05, 0x81, 0xec, 0x80, 0x00, 0x00,
 	0x00, 0x01, 0x68, 0xce, 0x32, 0x28, 0x00, 0x00,
 };
 
-static unsigned char vop_6110_ntsc_cif[] = {
+static u8 vop_6110_ntsc_cif[] = {
 	0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x00, 0x1e,
 	0x9a, 0x74, 0x0b, 0x0f, 0xc8, 0x00, 0x00, 0x00,
 	0x01, 0x68, 0xce, 0x32, 0x28, 0x00, 0x00, 0x00,
 };
 
-static unsigned char vop_6110_pal_d1[] = {
+static u8 vop_6110_pal_d1[] = {
 	0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x00, 0x1e,
 	0x9a, 0x74, 0x05, 0x80, 0x93, 0x20, 0x00, 0x00,
 	0x00, 0x01, 0x68, 0xce, 0x32, 0x28, 0x00, 0x00,
 };
 
-static unsigned char vop_6110_pal_cif[] = {
+static u8 vop_6110_pal_cif[] = {
 	0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x00, 0x1e,
 	0x9a, 0x74, 0x0b, 0x04, 0xb2, 0x00, 0x00, 0x00,
 	0x01, 0x68, 0xce, 0x32, 0x28, 0x00, 0x00, 0x00,
@@ -149,7 +149,7 @@ void solo_update_mode(struct solo_enc_dev *solo_enc)
 {
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 	int vop_len;
-	unsigned char *vop;
+	u8 *vop;
 
 	solo_enc->interlaced = (solo_enc->mode & 0x08) ? 1 : 0;
 	solo_enc->bw_weight = max(solo_dev->fps / solo_enc->interval, 1);
@@ -239,8 +239,6 @@ static int solo_enc_on(struct solo_enc_dev *solo_enc)
 	if (solo_enc->bw_weight > solo_dev->enc_bw_remain)
 		return -EBUSY;
 	solo_enc->sequence = 0;
-	solo_enc->motion_last_state = false;
-	solo_enc->frames_since_last_motion = 0;
 	solo_dev->enc_bw_remain -= solo_enc->bw_weight;
 
 	if (solo_enc->type == SOLO_ENC_TYPE_EXT)
@@ -529,36 +527,12 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 	}
 
 	if (!ret) {
-		bool send_event = false;
-
 		vb->v4l2_buf.sequence = solo_enc->sequence++;
 		vb->v4l2_buf.timestamp.tv_sec = vop_sec(vh);
 		vb->v4l2_buf.timestamp.tv_usec = vop_usec(vh);
 
 		/* Check for motion flags */
-		if (solo_is_motion_on(solo_enc)) {
-			/* It takes a few frames for the hardware to detect
-			 * motion. Once it does it clears the motion detection
-			 * register and it takes again a few frames before
-			 * motion is seen. This means in practice that when the
-			 * motion field is 1, it will go back to 0 for the next
-			 * frame. This leads to motion detection event being
-			 * sent all the time, which is not what we want.
-			 * Instead wait a few frames before deciding that the
-			 * motion has halted. After some experimentation it
-			 * turns out that waiting for 5 frames works well.
-			 */
-			if (enc_buf->motion == 0 &&
-			    solo_enc->motion_last_state &&
-			    solo_enc->frames_since_last_motion++ > 5)
-				send_event = true;
-			else if (enc_buf->motion) {
-				solo_enc->frames_since_last_motion = 0;
-				send_event = !solo_enc->motion_last_state;
-			}
-		}
-
-		if (send_event) {
+		if (solo_is_motion_on(solo_enc) && enc_buf->motion) {
 			struct v4l2_event ev = {
 				.type = V4L2_EVENT_MOTION_DET,
 				.u.motion_det = {
@@ -568,8 +542,6 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 				},
 			};
 
-			solo_enc->motion_last_state = enc_buf->motion;
-			solo_enc->frames_since_last_motion = 0;
 			v4l2_event_queue(solo_enc->vfd, &ev);
 		}
 	}

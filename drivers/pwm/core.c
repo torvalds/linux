@@ -192,7 +192,7 @@ static void of_pwmchip_add(struct pwm_chip *chip)
 
 static void of_pwmchip_remove(struct pwm_chip *chip)
 {
-	if (chip->dev && chip->dev->of_node)
+	if (chip->dev)
 		of_node_put(chip->dev->of_node);
 }
 

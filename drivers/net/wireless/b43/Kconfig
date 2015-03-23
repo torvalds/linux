@@ -166,6 +166,15 @@ config B43_PHY_LCN
 
 	  Say N, this is BROKEN and crashes driver.
 
+config B43_PHY_AC
+	bool "Support for AC-PHY (802.11ac) devices (BROKEN)"
+	depends on B43 && B43_BCMA && BROKEN
+	---help---
+	  This PHY type can be found in the following chipsets:
+	  PCI: BCM4352, BCM4360
+
+	  Say N, this is BROKEN and crashes driver.
+
 # This config option automatically enables b43 LEDS support,
 # if it's possible.
 config B43_LEDS

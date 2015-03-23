@@ -84,21 +84,8 @@
  *
  ******************************************************************************/
 
-/*
- * module name, copyright, version, etc.
- */
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi driver for Linux"
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-#define VD "d"
-#else
-#define VD
-#endif
-
-#define DRV_VERSION     IWLWIFI_VERSION VD
-
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
@@ -250,9 +237,6 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	/*
 	 * Starting 8000B - FW name format has changed. This overwrites the
 	 * previous name and uses the new format.
-	 *
-	 * TODO:
-	 * Once there is only one supported step for 8000 family - delete this!
 	 */
 	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) {
 		char rev_step[2] = {
@@ -262,13 +246,6 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		/* A-step doesn't have an indication */
 		if (CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_A_STEP)
 			rev_step[0] = 0;
-
-		/*
-		 * If hw_rev wasn't set yet - default as B-step. If it IS A-step
-		 * we'll reload that FW later instead.
-		 */
-		if (drv->trans->hw_rev == 0)
-			rev_step[0] = 'B';
 
 		snprintf(drv->firmware_name, sizeof(drv->firmware_name),
 			 "%s%s-%s.ucode", name_pre, rev_step, tag);
@@ -926,6 +903,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 					    IWL_UCODE_REGULAR_USNIFFER,
 					    tlv_len);
 			break;
+		case IWL_UCODE_TLV_SDIO_ADMA_ADDR:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			drv->fw.sdio_adma_addr =
+				le32_to_cpup((__le32 *)tlv_data);
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -1082,7 +1065,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	u32 api_ver;
 	int i;
 	bool load_module = false;
-	u32 hw_rev = drv->trans->hw_rev;
 
 	fw->ucode_capa.max_probe_length = IWL_DEFAULT_MAX_PROBE_LENGTH;
 	fw->ucode_capa.standard_phy_calibration_size =
@@ -1275,50 +1257,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 				op->name, err);
 #endif
 	}
-
-	/*
-	 * We may have loaded the wrong FW file in 8000 HW family if it is an
-	 * A-step card, and if drv->trans->hw_rev wasn't properly read when
-	 * the FW file had been loaded. (This might happen in SDIO.) In such a
-	 * case - unload and reload the correct file.
-	 *
-	 * TODO:
-	 * Once there is only one supported step for 8000 family - delete this!
-	 */
-	if (drv->trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 &&
-	    CSR_HW_REV_STEP(drv->trans->hw_rev) == SILICON_A_STEP &&
-	    drv->trans->hw_rev != hw_rev) {
-		char firmware_name[32];
-
-		/* Free previous FW resources */
-		if (drv->op_mode)
-			_iwl_op_mode_stop(drv);
-		iwl_dealloc_ucode(drv);
-
-		/* Build name of correct-step FW */
-		snprintf(firmware_name, sizeof(firmware_name),
-			 strrchr(drv->firmware_name, '-'));
-		snprintf(drv->firmware_name, sizeof(drv->firmware_name),
-			 "%s%s", drv->cfg->fw_name_pre, firmware_name);
-
-		/* Clear data before loading correct FW */
-		list_del(&drv->list);
-
-		/* Request correct FW file this time */
-		IWL_DEBUG_INFO(drv, "attempting to load A-step FW %s\n",
-			       drv->firmware_name);
-		err = request_firmware(&ucode_raw, drv->firmware_name,
-				       drv->trans->dev);
-		if (err) {
-			IWL_ERR(drv, "Failed swapping FW!\n");
-			goto out_unbind;
-		}
-
-		/* Redo callback function - this time with right FW */
-		iwl_req_fw_callback(ucode_raw, context);
-	}
-
-	kfree(pieces);
 	return;
 
  try_again:
@@ -1429,7 +1367,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.restart_fw = true,
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
-	.wd_disable = true,
+	.d0i3_disable = true,
 #ifndef CONFIG_IWLWIFI_UAPSD
 	.uapsd_disable = true,
 #endif /* CONFIG_IWLWIFI_UAPSD */
@@ -1492,7 +1430,7 @@ static int __init iwl_drv_init(void)
 	for (i = 0; i < ARRAY_SIZE(iwlwifi_opmode_table); i++)
 		INIT_LIST_HEAD(&iwlwifi_opmode_table[i].drv);
 
-	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
+	pr_info(DRV_DESCRIPTION "\n");
 	pr_info(DRV_COPYRIGHT "\n");
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1539,15 +1477,15 @@ module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
 MODULE_PARM_DESC(antenna_coupling,
 		 "specify antenna coupling in dB (default: 0 dB)");
 
-module_param_named(wd_disable, iwlwifi_mod_params.wd_disable, int, S_IRUGO);
-MODULE_PARM_DESC(wd_disable,
-		"Disable stuck queue watchdog timer 0=system default, 1=disable (default: 1)");
-
 module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, S_IRUGO);
 MODULE_PARM_DESC(nvm_file, "NVM file name");
 
-module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
+module_param_named(d0i3_disable, iwlwifi_mod_params.d0i3_disable,
 		   bool, S_IRUGO);
+MODULE_PARM_DESC(d0i3_disable, "disable d0i3 functionality (default: Y)");
+
+module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
+		   bool, S_IRUGO | S_IWUSR);
 #ifdef CONFIG_IWLWIFI_UAPSD
 MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: N)");
 #else

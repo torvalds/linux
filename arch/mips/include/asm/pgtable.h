@@ -99,28 +99,34 @@ extern void paging_init(void);
 
 #define htw_stop()							\
 do {									\
-	if (cpu_has_htw)						\
-		write_c0_pwctl(read_c0_pwctl() &			\
-			       ~(1 << MIPS_PWCTL_PWEN_SHIFT));		\
+	unsigned long flags;						\
+									\
+	if (cpu_has_htw) {						\
+		local_irq_save(flags);					\
+		if(!raw_current_cpu_data.htw_seq++) {			\
+			write_c0_pwctl(read_c0_pwctl() &		\
+				       ~(1 << MIPS_PWCTL_PWEN_SHIFT));	\
+			back_to_back_c0_hazard();			\
+		}							\
+		local_irq_restore(flags);				\
+	}								\
 } while(0)
 
 #define htw_start()							\
 do {									\
-	if (cpu_has_htw)						\
-		write_c0_pwctl(read_c0_pwctl() |			\
-			       (1 << MIPS_PWCTL_PWEN_SHIFT));		\
-} while(0)
-
-
-#define htw_reset()							\
-do {									\
+	unsigned long flags;						\
+									\
 	if (cpu_has_htw) {						\
-		htw_stop();						\
-		back_to_back_c0_hazard();				\
-		htw_start();						\
-		back_to_back_c0_hazard();				\
+		local_irq_save(flags);					\
+		if (!--raw_current_cpu_data.htw_seq) {			\
+			write_c0_pwctl(read_c0_pwctl() |		\
+				       (1 << MIPS_PWCTL_PWEN_SHIFT));	\
+			back_to_back_c0_hazard();			\
+		}							\
+		local_irq_restore(flags);				\
 	}								\
 } while(0)
+
 
 extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 	pte_t pteval);
@@ -153,12 +159,13 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 {
 	pte_t null = __pte(0);
 
+	htw_stop();
 	/* Preserve global status for the pair */
 	if (ptep_buddy(ptep)->pte_low & _PAGE_GLOBAL)
 		null.pte_low = null.pte_high = _PAGE_GLOBAL;
 
 	set_pte_at(mm, addr, ptep, null);
-	htw_reset();
+	htw_start();
 }
 #else
 
@@ -188,6 +195,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
+	htw_stop();
 #if !defined(CONFIG_CPU_R3000) && !defined(CONFIG_CPU_TX39XX)
 	/* Preserve global status for the pair */
 	if (pte_val(*ptep_buddy(ptep)) & _PAGE_GLOBAL)
@@ -195,7 +203,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 	else
 #endif
 		set_pte_at(mm, addr, ptep, __pte(0));
-	htw_reset();
+	htw_start();
 }
 #endif
 
@@ -231,7 +239,6 @@ extern pgd_t swapper_pg_dir[];
 static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte.pte_low & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)	{ return pte.pte_low & _PAGE_FILE; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -287,7 +294,6 @@ static inline pte_t pte_mkyoung(pte_t pte)
 static inline int pte_write(pte_t pte)	{ return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_file(pte_t pte)	{ return pte_val(pte) & _PAGE_FILE; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -336,7 +342,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 
-#ifdef _PAGE_HUGE
+#ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 static inline int pte_huge(pte_t pte)	{ return pte_val(pte) & _PAGE_HUGE; }
 
 static inline pte_t pte_mkhuge(pte_t pte)
@@ -344,7 +350,7 @@ static inline pte_t pte_mkhuge(pte_t pte)
 	pte_val(pte) |= _PAGE_HUGE;
 	return pte;
 }
-#endif /* _PAGE_HUGE */
+#endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 #endif
 static inline int pte_special(pte_t pte)	{ return 0; }
 static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }

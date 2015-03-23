@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2014, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,10 @@ static acpi_status
 acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				struct acpi_gpe_block_info *gpe_block,
 				void *context);
+
+static acpi_status
+acpi_hw_gpe_enable_write(u8 enable_mask,
+			 struct acpi_gpe_register_info *gpe_register_info);
 
 /******************************************************************************
  *
@@ -146,7 +150,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u32 action)
 
 	status = acpi_hw_write(enable_mask, &gpe_register_info->enable_address);
 	if (ACPI_SUCCESS(status) && (action & ACPI_GPE_SAVE_MASK)) {
-		gpe_register_info->enable_mask = enable_mask;
+		gpe_register_info->enable_mask = (u8)enable_mask;
 	}
 	return (status);
 }
@@ -221,7 +225,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 
 	/* GPE currently handled? */
 
-	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) !=
+	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) !=
 	    ACPI_GPE_DISPATCH_NONE) {
 		local_event_status |= ACPI_EVENT_FLAG_HAS_HANDLER;
 	}

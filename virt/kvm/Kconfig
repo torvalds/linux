@@ -37,3 +37,13 @@ config HAVE_KVM_CPU_RELAX_INTERCEPT
 
 config KVM_VFIO
        bool
+
+config HAVE_KVM_ARCH_TLB_FLUSH_ALL
+       bool
+
+config KVM_GENERIC_DIRTYLOG_READ_PROTECT
+       bool
+
+config KVM_COMPAT
+       def_bool y
+       depends on COMPAT && !S390

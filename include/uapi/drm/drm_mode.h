@@ -272,6 +272,13 @@ struct drm_mode_get_connector {
 #define DRM_MODE_PROP_OBJECT		DRM_MODE_PROP_TYPE(1)
 #define DRM_MODE_PROP_SIGNED_RANGE	DRM_MODE_PROP_TYPE(2)
 
+/* the PROP_ATOMIC flag is used to hide properties from userspace that
+ * is not aware of atomic properties.  This is mostly to work around
+ * older userspace (DDX drivers) that read/write each prop they find,
+ * witout being aware that this could be triggering a lengthy modeset.
+ */
+#define DRM_MODE_PROP_ATOMIC        0x80000000
+
 struct drm_mode_property_enum {
 	__u64 value;
 	char name[DRM_PROP_NAME_LEN];
@@ -338,7 +345,7 @@ struct drm_mode_fb_cmd2 {
 
 	/*
 	 * In case of planar formats, this ioctl allows up to 4
-	 * buffer objects with offets and pitches per plane.
+	 * buffer objects with offsets and pitches per plane.
 	 * The pitch and offset order is dictated by the fourcc,
 	 * e.g. NV12 (http://fourcc.org/yuv.php#NV12) is described as:
 	 *
@@ -346,9 +353,9 @@ struct drm_mode_fb_cmd2 {
 	 *   followed by an interleaved U/V plane containing
 	 *   8 bit 2x2 subsampled colour difference samples.
 	 *
-	 * So it would consist of Y as offset[0] and UV as
-	 * offeset[1].  Note that offset[0] will generally
-	 * be 0.
+	 * So it would consist of Y as offsets[0] and UV as
+	 * offsets[1].  Note that offsets[0] will generally
+	 * be 0 (but this is not required).
 	 */
 	__u32 handles[4];
 	__u32 pitches[4]; /* pitch for each plane */
@@ -517,6 +524,29 @@ struct drm_mode_map_dumb {
 
 struct drm_mode_destroy_dumb {
 	uint32_t handle;
+};
+
+/* page-flip flags are valid, plus: */
+#define DRM_MODE_ATOMIC_TEST_ONLY 0x0100
+#define DRM_MODE_ATOMIC_NONBLOCK  0x0200
+#define DRM_MODE_ATOMIC_ALLOW_MODESET 0x0400
+
+#define DRM_MODE_ATOMIC_FLAGS (\
+		DRM_MODE_PAGE_FLIP_EVENT |\
+		DRM_MODE_PAGE_FLIP_ASYNC |\
+		DRM_MODE_ATOMIC_TEST_ONLY |\
+		DRM_MODE_ATOMIC_NONBLOCK |\
+		DRM_MODE_ATOMIC_ALLOW_MODESET)
+
+struct drm_mode_atomic {
+	__u32 flags;
+	__u32 count_objs;
+	__u64 objs_ptr;
+	__u64 count_props_ptr;
+	__u64 props_ptr;
+	__u64 prop_values_ptr;
+	__u64 reserved;
+	__u64 user_data;
 };
 
 #endif

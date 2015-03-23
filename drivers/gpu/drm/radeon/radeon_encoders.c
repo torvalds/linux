@@ -179,9 +179,12 @@ static void radeon_encoder_add_backlight(struct radeon_encoder *radeon_encoder,
 		    (rdev->pdev->subsystem_vendor == 0x1734) &&
 		    (rdev->pdev->subsystem_device == 0x1107))
 			use_bl = false;
+/* Older PPC macs use on-GPU backlight controller */
+#ifndef CONFIG_PPC_PMAC
 		/* disable native backlight control on older asics */
 		else if (rdev->family < CHIP_R600)
 			use_bl = false;
+#endif
 		else
 			use_bl = true;
 	}

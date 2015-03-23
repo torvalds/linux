@@ -47,7 +47,6 @@
 #ifndef ADF_ACCEL_DEVICES_H_
 #define ADF_ACCEL_DEVICES_H_
 #include <linux/module.h>
-#include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/io.h>
@@ -148,6 +147,11 @@ struct adf_hw_device_data {
 	int (*alloc_irq)(struct adf_accel_dev *accel_dev);
 	void (*free_irq)(struct adf_accel_dev *accel_dev);
 	void (*enable_error_correction)(struct adf_accel_dev *accel_dev);
+	int (*init_admin_comms)(struct adf_accel_dev *accel_dev);
+	void (*exit_admin_comms)(struct adf_accel_dev *accel_dev);
+	int (*init_arb)(struct adf_accel_dev *accel_dev);
+	void (*exit_arb)(struct adf_accel_dev *accel_dev);
+	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
 	uint32_t pci_dev_id;
 	uint32_t fuses;

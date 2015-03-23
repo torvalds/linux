@@ -626,6 +626,7 @@ int knav_queue_push(void *qhandle, dma_addr_t dma,
 	atomic_inc(&qh->stats.pushes);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(knav_queue_push);
 
 /**
  * knav_queue_pop()	- pop data (or descriptor) from the head of a queue
@@ -663,6 +664,7 @@ dma_addr_t knav_queue_pop(void *qhandle, unsigned *size)
 	atomic_inc(&qh->stats.pops);
 	return dma;
 }
+EXPORT_SYMBOL_GPL(knav_queue_pop);
 
 /* carve out descriptors and push into queue */
 static void kdesc_fill_pool(struct knav_pool *pool)
@@ -717,12 +719,14 @@ dma_addr_t knav_pool_desc_virt_to_dma(void *ph, void *virt)
 	struct knav_pool *pool = ph;
 	return pool->region->dma_start + (virt - pool->region->virt_start);
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_virt_to_dma);
 
 void *knav_pool_desc_dma_to_virt(void *ph, dma_addr_t dma)
 {
 	struct knav_pool *pool = ph;
 	return pool->region->virt_start + (dma - pool->region->dma_start);
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_dma_to_virt);
 
 /**
  * knav_pool_create()	- Create a pool of descriptors
@@ -878,6 +882,7 @@ void *knav_pool_desc_get(void *ph)
 	data = knav_pool_desc_dma_to_virt(pool, dma);
 	return data;
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_get);
 
 /**
  * knav_pool_desc_put()	- return a descriptor to the pool
@@ -890,6 +895,7 @@ void knav_pool_desc_put(void *ph, void *desc)
 	dma = knav_pool_desc_virt_to_dma(pool, desc);
 	knav_queue_push(pool->queue, dma, pool->region->desc_size, 0);
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_put);
 
 /**
  * knav_pool_desc_map()	- Map descriptor for DMA transfer
@@ -916,6 +922,7 @@ int knav_pool_desc_map(void *ph, void *desc, unsigned size,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_map);
 
 /**
  * knav_pool_desc_unmap()	- Unmap descriptor after DMA transfer
@@ -938,6 +945,7 @@ void *knav_pool_desc_unmap(void *ph, dma_addr_t dma, unsigned dma_sz)
 	prefetch(desc);
 	return desc;
 }
+EXPORT_SYMBOL_GPL(knav_pool_desc_unmap);
 
 /**
  * knav_pool_count()	- Get the number of descriptors in pool.
@@ -949,6 +957,7 @@ int knav_pool_count(void *ph)
 	struct knav_pool *pool = ph;
 	return knav_queue_get_count(pool->queue);
 }
+EXPORT_SYMBOL_GPL(knav_pool_count);
 
 static void knav_queue_setup_region(struct knav_device *kdev,
 					struct knav_region *region)

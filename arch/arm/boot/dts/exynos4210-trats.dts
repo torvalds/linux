@@ -28,6 +28,7 @@
 
 	chosen {
 		bootargs = "console=ttySAC2,115200N8 root=/dev/mmcblk0p5 rootwait earlyprintk panic=5";
+		stdout-path = &serial_2;
 	};
 
 	regulators {
@@ -91,6 +92,7 @@
 	hsotg@12480000 {
 		vusb_d-supply = <&vusb_reg>;
 		vusb_a-supply = <&vusbdac_reg>;
+		dr_mode = "peripheral";
 		status = "okay";
 	};
 
@@ -422,6 +424,25 @@
 
 	fimd@11c00000 {
 		status = "okay";
+	};
+
+	tmu@100C0000 {
+		status = "okay";
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			cooling-maps {
+				map0 {
+				     /* Corresponds to 800MHz at freq_table */
+				     cooling-device = <&cpu0 2 2>;
+				};
+				map1 {
+				     /* Corresponds to 200MHz at freq_table */
+				     cooling-device = <&cpu0 4 4>;
+			       };
+		       };
+		};
 	};
 
 	camera {

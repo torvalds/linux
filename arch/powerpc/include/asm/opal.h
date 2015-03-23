@@ -304,7 +304,7 @@ enum OpalMessageType {
 					 */
 	OPAL_MSG_MEM_ERR,
 	OPAL_MSG_EPOW,
-	OPAL_MSG_SHUTDOWN,
+	OPAL_MSG_SHUTDOWN,		/* params[0] = 1 reboot, 0 shutdown */
 	OPAL_MSG_HMI_EVT,
 	OPAL_MSG_TYPE_MAX,
 };
@@ -593,6 +593,14 @@ enum {
 enum {
 	OPAL_P7IOC_NUM_PEST_REGS = 128,
 	OPAL_PHB3_NUM_PEST_REGS = 256
+};
+
+/* CAPI modes for PHB */
+enum {
+	OPAL_PHB_CAPI_MODE_PCIE         = 0,
+	OPAL_PHB_CAPI_MODE_CAPI         = 1,
+	OPAL_PHB_CAPI_MODE_SNOOP_OFF    = 2,
+	OPAL_PHB_CAPI_MODE_SNOOP_ON     = 3,
 };
 
 struct OpalIoPhbErrorCommon {

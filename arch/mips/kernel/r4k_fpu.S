@@ -34,7 +34,7 @@
 	.endm
 
 	.set	noreorder
-	.set	arch=r4000
+	.set	MIPS_ISA_ARCH_LEVEL_RAW
 
 LEAF(_save_fp_context)
 	.set	push
@@ -42,7 +42,8 @@ LEAF(_save_fp_context)
 	cfc1	t1, fcr31
 	.set	pop
 
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
+		defined(CONFIG_CPU_MIPS32_R6)
 	.set	push
 	SET_HARDFLOAT
 #ifdef CONFIG_CPU_MIPS32_R2
@@ -105,10 +106,12 @@ LEAF(_save_fp_context32)
 	SET_HARDFLOAT
 	cfc1	t1, fcr31
 
+#ifndef CONFIG_CPU_MIPS64_R6
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip storing odd if FR=0
 	 nop
+#endif
 
 	/* Store the 16 odd double precision registers */
 	EX      sdc1 $f1, SC32_FPREGS+8(a0)
@@ -163,7 +166,8 @@ LEAF(_save_fp_context32)
 LEAF(_restore_fp_context)
 	EX	lw t1, SC_FPC_CSR(a0)
 
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)  || \
+		defined(CONFIG_CPU_MIPS32_R6)
 	.set	push
 	SET_HARDFLOAT
 #ifdef CONFIG_CPU_MIPS32_R2
@@ -223,10 +227,12 @@ LEAF(_restore_fp_context32)
 	SET_HARDFLOAT
 	EX	lw t1, SC32_FPC_CSR(a0)
 
+#ifndef CONFIG_CPU_MIPS64_R6
 	mfc0	t0, CP0_STATUS
 	sll	t0, t0, 5
 	bgez	t0, 1f			# skip loading odd if FR=0
 	 nop
+#endif
 
 	EX      ldc1 $f1, SC32_FPREGS+8(a0)
 	EX      ldc1 $f3, SC32_FPREGS+24(a0)

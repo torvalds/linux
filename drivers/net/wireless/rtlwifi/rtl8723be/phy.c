@@ -874,31 +874,6 @@ void rtl8723be_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw)
 		  ROFDM0_RXDETECTOR3, rtlphy->framesync);
 }
 
-void rtl8723be_phy_get_txpower_level(struct ieee80211_hw *hw, long *powerlevel)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	u8 txpwr_level;
-	long txpwr_dbm;
-
-	txpwr_level = rtlphy->cur_cck_txpwridx;
-	txpwr_dbm = rtl8723_phy_txpwr_idx_to_dbm(hw, WIRELESS_MODE_B,
-						 txpwr_level);
-	txpwr_level = rtlphy->cur_ofdm24g_txpwridx;
-	if (rtl8723_phy_txpwr_idx_to_dbm(hw, WIRELESS_MODE_G, txpwr_level) >
-	    txpwr_dbm)
-		txpwr_dbm =
-		    rtl8723_phy_txpwr_idx_to_dbm(hw, WIRELESS_MODE_G,
-						 txpwr_level);
-	txpwr_level = rtlphy->cur_ofdm24g_txpwridx;
-	if (rtl8723_phy_txpwr_idx_to_dbm(hw, WIRELESS_MODE_N_24G,
-					 txpwr_level) > txpwr_dbm)
-		txpwr_dbm =
-		    rtl8723_phy_txpwr_idx_to_dbm(hw, WIRELESS_MODE_N_24G,
-						 txpwr_level);
-	*powerlevel = txpwr_dbm;
-}
-
 static u8 _rtl8723be_phy_get_ratesection_intxpower_byrate(enum radio_path path,
 							  u8 rate)
 {

@@ -138,7 +138,7 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 
 		gfn += page_size >> PAGE_SHIFT;
 
-
+		cond_resched();
 	}
 
 	return 0;
@@ -306,6 +306,8 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 		kvm_unpin_pages(kvm, pfn, unmap_pages);
 
 		gfn += unmap_pages;
+
+		cond_resched();
 	}
 }
 

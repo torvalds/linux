@@ -681,8 +681,26 @@ static void rtsx_usb_disconnect(struct usb_interface *intf)
 #ifdef CONFIG_PM
 static int rtsx_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {
+	struct rtsx_ucr *ucr =
+		(struct rtsx_ucr *)usb_get_intfdata(intf);
+	u16 val = 0;
+
 	dev_dbg(&intf->dev, "%s called with pm message 0x%04x\n",
 			__func__, message.event);
+
+	if (PMSG_IS_AUTO(message)) {
+		if (mutex_trylock(&ucr->dev_mutex)) {
+			rtsx_usb_get_card_status(ucr, &val);
+			mutex_unlock(&ucr->dev_mutex);
+
+			/* Defer the autosuspend if card exists */
+			if (val & (SD_CD | MS_CD))
+				return -EAGAIN;
+		} else {
+			/* There is an ongoing operation*/
+			return -EAGAIN;
+		}
+	}
 
 	return 0;
 }

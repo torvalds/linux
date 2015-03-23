@@ -1958,11 +1958,6 @@ static int btrfs_freeze(struct super_block *sb)
 	return btrfs_commit_transaction(trans, root);
 }
 
-static int btrfs_unfreeze(struct super_block *sb)
-{
-	return 0;
-}
-
 static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(root->d_sb);
@@ -2011,7 +2006,6 @@ static const struct super_operations btrfs_super_ops = {
 	.statfs		= btrfs_statfs,
 	.remount_fs	= btrfs_remount,
 	.freeze_fs	= btrfs_freeze,
-	.unfreeze_fs	= btrfs_unfreeze,
 };
 
 static const struct file_operations btrfs_ctl_fops = {

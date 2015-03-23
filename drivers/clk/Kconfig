@@ -102,12 +102,12 @@ config COMMON_CLK_AXI_CLKGEN
 	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
 	  FPGAs. It is commonly used in Analog Devices' reference designs.
 
-config CLK_PPC_CORENET
-	bool "Clock driver for PowerPC corenet platforms"
-	depends on PPC_E500MC && OF
+config CLK_QORIQ
+	bool "Clock driver for Freescale QorIQ platforms"
+	depends on (PPC_E500MC || ARM) && OF
 	---help---
-	  This adds the clock driver support for Freescale PowerPC corenet
-	  platforms using common clock framework.
+	  This adds the clock driver support for Freescale QorIQ platforms
+	  using common clock framework.
 
 config COMMON_CLK_XGENE
 	bool "Clock driver for APM XGene SoC"
@@ -134,6 +134,14 @@ config COMMON_CLK_PXA
 	def_bool COMMON_CLK && ARCH_PXA
 	---help---
 	  Sypport for the Marvell PXA SoC.
+
+config COMMON_CLK_CDCE706
+	tristate "Clock driver for TI CDCE706 clock synthesizer"
+	depends on I2C
+	select REGMAP_I2C
+	select RATIONAL
+	---help---
+	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
 
 source "drivers/clk/qcom/Kconfig"
 

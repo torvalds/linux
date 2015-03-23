@@ -8,6 +8,7 @@
 
 #include <asm/processor.h>
 #include <asm/traps.h>
+#include <asm/tlbflush.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 
@@ -36,7 +37,7 @@ void winchip_mcheck_init(struct cpuinfo_x86 *c)
 	lo &= ~(1<<4);	/* Enable MCE */
 	wrmsr(MSR_IDT_FCR1, lo, hi);
 
-	set_in_cr4(X86_CR4_MCE);
+	cr4_set_bits(X86_CR4_MCE);
 
 	printk(KERN_INFO
 	       "Winchip machine check reporting enabled on CPU#0.\n");

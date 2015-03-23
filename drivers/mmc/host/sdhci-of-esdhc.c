@@ -276,6 +276,14 @@ static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
 			ESDHC_CTRL_BUSWIDTH_MASK, ctrl);
 }
 
+static void esdhc_reset(struct sdhci_host *host, u8 mask)
+{
+	sdhci_reset(host, mask);
+
+	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
+	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
+}
+
 static const struct sdhci_ops sdhci_esdhc_ops = {
 	.read_l = esdhc_readl,
 	.read_w = esdhc_readw,
@@ -290,7 +298,7 @@ static const struct sdhci_ops sdhci_esdhc_ops = {
 	.platform_init = esdhc_of_platform_init,
 	.adma_workaround = esdhci_of_adma_workaround,
 	.set_bus_width = esdhc_pltfm_set_bus_width,
-	.reset = sdhci_reset,
+	.reset = esdhc_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
@@ -362,13 +370,19 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	}
 
 	/* call to generic mmc_of_parse to support additional capabilities */
-	mmc_of_parse(host->mmc);
+	ret = mmc_of_parse(host->mmc);
+	if (ret)
+		goto err;
+
 	mmc_of_parse_voltage(np, &host->ocr_mask);
 
 	ret = sdhci_add_host(host);
 	if (ret)
-		sdhci_pltfm_free(pdev);
+		goto err;
 
+	return 0;
+ err:
+	sdhci_pltfm_free(pdev);
 	return ret;
 }
 

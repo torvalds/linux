@@ -227,7 +227,7 @@ void mwifiex_parse_tx_status_event(struct mwifiex_private *priv,
 			/* consumes ack_skb */
 			skb_complete_wifi_ack(ack_skb, !tx_status->status);
 		} else {
-			cfg80211_mgmt_tx_status(priv->wdev, tx_info->cookie,
+			cfg80211_mgmt_tx_status(&priv->wdev, tx_info->cookie,
 						ack_skb->data, ack_skb->len,
 						!tx_status->status, GFP_ATOMIC);
 			dev_kfree_skb_any(ack_skb);

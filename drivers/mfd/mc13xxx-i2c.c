@@ -46,7 +46,7 @@ static const struct of_device_id mc13xxx_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mc13xxx_dt_ids);
 
-static struct regmap_config mc13xxx_regmap_i2c_config = {
+static const struct regmap_config mc13xxx_regmap_i2c_config = {
 	.reg_bits = 8,
 	.val_bits = 24,
 

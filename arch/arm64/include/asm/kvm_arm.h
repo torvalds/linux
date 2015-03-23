@@ -18,6 +18,7 @@
 #ifndef __ARM64_KVM_ARM_H__
 #define __ARM64_KVM_ARM_H__
 
+#include <asm/esr.h>
 #include <asm/memory.h>
 #include <asm/types.h>
 
@@ -128,6 +129,9 @@
  * 40 bits wide (T0SZ = 24).  Systems with a PARange smaller than 40 bits are
  * not known to exist and will break with this configuration.
  *
+ * VTCR_EL2.PS is extracted from ID_AA64MMFR0_EL1.PARange at boot time
+ * (see hyp-init.S).
+ *
  * Note that when using 4K pages, we concatenate two first level page tables
  * together.
  *
@@ -137,7 +141,6 @@
 #ifdef CONFIG_ARM64_64K_PAGES
 /*
  * Stage2 translation configuration:
- * 40bits output (PS = 2)
  * 40bits input  (T0SZ = 24)
  * 64kB pages (TG0 = 1)
  * 2 level page tables (SL = 1)
@@ -149,7 +152,6 @@
 #else
 /*
  * Stage2 translation configuration:
- * 40bits output (PS = 2)
  * 40bits input  (T0SZ = 24)
  * 4kB pages (TG0 = 0)
  * 3 level page tables (SL = 1)
@@ -184,77 +186,11 @@
 #define MDCR_EL2_TPMCR		(1 << 5)
 #define MDCR_EL2_HPMN_MASK	(0x1F)
 
-/* Exception Syndrome Register (ESR) bits */
-#define ESR_EL2_EC_SHIFT	(26)
-#define ESR_EL2_EC		(UL(0x3f) << ESR_EL2_EC_SHIFT)
-#define ESR_EL2_IL		(UL(1) << 25)
-#define ESR_EL2_ISS		(ESR_EL2_IL - 1)
-#define ESR_EL2_ISV_SHIFT	(24)
-#define ESR_EL2_ISV		(UL(1) << ESR_EL2_ISV_SHIFT)
-#define ESR_EL2_SAS_SHIFT	(22)
-#define ESR_EL2_SAS		(UL(3) << ESR_EL2_SAS_SHIFT)
-#define ESR_EL2_SSE		(1 << 21)
-#define ESR_EL2_SRT_SHIFT	(16)
-#define ESR_EL2_SRT_MASK	(0x1f << ESR_EL2_SRT_SHIFT)
-#define ESR_EL2_SF 		(1 << 15)
-#define ESR_EL2_AR 		(1 << 14)
-#define ESR_EL2_EA 		(1 << 9)
-#define ESR_EL2_CM 		(1 << 8)
-#define ESR_EL2_S1PTW 		(1 << 7)
-#define ESR_EL2_WNR		(1 << 6)
-#define ESR_EL2_FSC		(0x3f)
-#define ESR_EL2_FSC_TYPE	(0x3c)
-
-#define ESR_EL2_CV_SHIFT	(24)
-#define ESR_EL2_CV		(UL(1) << ESR_EL2_CV_SHIFT)
-#define ESR_EL2_COND_SHIFT	(20)
-#define ESR_EL2_COND		(UL(0xf) << ESR_EL2_COND_SHIFT)
-
-
-#define FSC_FAULT	(0x04)
-#define FSC_PERM	(0x0c)
+/* For compatibility with fault code shared with 32-bit */
+#define FSC_FAULT	ESR_ELx_FSC_FAULT
+#define FSC_PERM	ESR_ELx_FSC_PERM
 
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~UL(0xf))
-
-#define ESR_EL2_EC_UNKNOWN	(0x00)
-#define ESR_EL2_EC_WFI		(0x01)
-#define ESR_EL2_EC_CP15_32	(0x03)
-#define ESR_EL2_EC_CP15_64	(0x04)
-#define ESR_EL2_EC_CP14_MR	(0x05)
-#define ESR_EL2_EC_CP14_LS	(0x06)
-#define ESR_EL2_EC_FP_ASIMD	(0x07)
-#define ESR_EL2_EC_CP10_ID	(0x08)
-#define ESR_EL2_EC_CP14_64	(0x0C)
-#define ESR_EL2_EC_ILL_ISS	(0x0E)
-#define ESR_EL2_EC_SVC32	(0x11)
-#define ESR_EL2_EC_HVC32	(0x12)
-#define ESR_EL2_EC_SMC32	(0x13)
-#define ESR_EL2_EC_SVC64	(0x15)
-#define ESR_EL2_EC_HVC64	(0x16)
-#define ESR_EL2_EC_SMC64	(0x17)
-#define ESR_EL2_EC_SYS64	(0x18)
-#define ESR_EL2_EC_IABT		(0x20)
-#define ESR_EL2_EC_IABT_HYP	(0x21)
-#define ESR_EL2_EC_PC_ALIGN	(0x22)
-#define ESR_EL2_EC_DABT		(0x24)
-#define ESR_EL2_EC_DABT_HYP	(0x25)
-#define ESR_EL2_EC_SP_ALIGN	(0x26)
-#define ESR_EL2_EC_FP_EXC32	(0x28)
-#define ESR_EL2_EC_FP_EXC64	(0x2C)
-#define ESR_EL2_EC_SERROR	(0x2F)
-#define ESR_EL2_EC_BREAKPT	(0x30)
-#define ESR_EL2_EC_BREAKPT_HYP	(0x31)
-#define ESR_EL2_EC_SOFTSTP	(0x32)
-#define ESR_EL2_EC_SOFTSTP_HYP	(0x33)
-#define ESR_EL2_EC_WATCHPT	(0x34)
-#define ESR_EL2_EC_WATCHPT_HYP	(0x35)
-#define ESR_EL2_EC_BKPT32	(0x38)
-#define ESR_EL2_EC_VECTOR32	(0x3A)
-#define ESR_EL2_EC_BRK64	(0x3C)
-
-#define ESR_EL2_EC_xABT_xFSR_EXTABT	0x10
-
-#define ESR_EL2_EC_WFI_ISS_WFE	(1 << 0)
 
 #endif /* __ARM64_KVM_ARM_H__ */

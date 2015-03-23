@@ -191,6 +191,7 @@ enum {
 	Opt_coherency_full,
 	Opt_resv_level,
 	Opt_dir_resv_level,
+	Opt_journal_async_commit,
 	Opt_err,
 };
 
@@ -222,6 +223,7 @@ static const match_table_t tokens = {
 	{Opt_coherency_full, "coherency=full"},
 	{Opt_resv_level, "resv_level=%u"},
 	{Opt_dir_resv_level, "dir_resv_level=%u"},
+	{Opt_journal_async_commit, "journal_async_commit"},
 	{Opt_err, NULL}
 };
 
@@ -1000,36 +1002,6 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 	}
 }
 
-/* Handle quota on quotactl */
-static int ocfs2_quota_on(struct super_block *sb, int type, int format_id)
-{
-	unsigned int feature[OCFS2_MAXQUOTAS] = {
-					OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
-					OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
-
-	if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
-		return -EINVAL;
-
-	return dquot_enable(sb_dqopt(sb)->files[type], type,
-			    format_id, DQUOT_LIMITS_ENABLED);
-}
-
-/* Handle quota off quotactl */
-static int ocfs2_quota_off(struct super_block *sb, int type)
-{
-	return dquot_disable(sb, type, DQUOT_LIMITS_ENABLED);
-}
-
-static const struct quotactl_ops ocfs2_quotactl_ops = {
-	.quota_on_meta	= ocfs2_quota_on,
-	.quota_off	= ocfs2_quota_off,
-	.quota_sync	= dquot_quota_sync,
-	.get_info	= dquot_get_dqinfo,
-	.set_info	= dquot_set_dqinfo,
-	.get_dqblk	= dquot_get_dqblk,
-	.set_dqblk	= dquot_set_dqblk,
-};
-
 static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct dentry *root;
@@ -1500,6 +1472,9 @@ static int ocfs2_parse_options(struct super_block *sb,
 			    option < OCFS2_MAX_RESV_LEVEL)
 				mopt->dir_resv_level = option;
 			break;
+		case Opt_journal_async_commit:
+			mopt->mount_opt |= OCFS2_MOUNT_JOURNAL_ASYNC_COMMIT;
+			break;
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -1605,6 +1580,9 @@ static int ocfs2_show_options(struct seq_file *s, struct dentry *root)
 
 	if (osb->osb_dir_resv_level != osb->osb_resv_level)
 		seq_printf(s, ",dir_resv_level=%d", osb->osb_resv_level);
+
+	if (opts & OCFS2_MOUNT_JOURNAL_ASYNC_COMMIT)
+		seq_printf(s, ",journal_async_commit");
 
 	return 0;
 }
@@ -1767,6 +1745,8 @@ static void ocfs2_inode_init_once(void *data)
 	ocfs2_lock_res_init_once(&oi->ip_rw_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_inode_lockres);
 	ocfs2_lock_res_init_once(&oi->ip_open_lockres);
+
+	init_waitqueue_head(&oi->append_dio_wq);
 
 	ocfs2_metadata_cache_init(INODE_CACHE(&oi->vfs_inode),
 				  &ocfs2_inode_caching_ops);
@@ -2079,7 +2059,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	sb->s_op = &ocfs2_sops;
 	sb->s_d_op = &ocfs2_dentry_ops;
 	sb->s_export_op = &ocfs2_export_ops;
-	sb->s_qcop = &ocfs2_quotactl_ops;
+	sb->s_qcop = &dquot_quotactl_sysfile_ops;
 	sb->dq_op = &ocfs2_quota_operations;
 	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
 	sb->s_xattr = ocfs2_xattr_handlers;
@@ -2474,6 +2454,15 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 		mlog(ML_ERROR, "ocfs2 journal load failed! %d\n", status);
 		goto finally;
 	}
+
+	if (osb->s_mount_opt & OCFS2_MOUNT_JOURNAL_ASYNC_COMMIT)
+		jbd2_journal_set_features(osb->journal->j_journal,
+				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
+				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
+	else
+		jbd2_journal_clear_features(osb->journal->j_journal,
+				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
+				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
 
 	if (dirty) {
 		/* recover my local alloc if we didn't unmount cleanly. */

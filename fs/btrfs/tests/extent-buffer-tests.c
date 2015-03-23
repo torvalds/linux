@@ -53,7 +53,7 @@ static int test_btrfs_split_item(void)
 		return -ENOMEM;
 	}
 
-	path->nodes[0] = eb = alloc_dummy_extent_buffer(0, 4096);
+	path->nodes[0] = eb = alloc_dummy_extent_buffer(NULL, 4096);
 	if (!eb) {
 		test_msg("Could not allocate dummy buffer\n");
 		ret = -ENOMEM;

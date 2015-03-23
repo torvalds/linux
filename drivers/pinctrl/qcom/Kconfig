@@ -47,6 +47,14 @@ config PINCTRL_MSM8X74
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm TLMM block found in the Qualcomm 8974 platform.
 
+config PINCTRL_MSM8916
+	tristate "Qualcomm 8916 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found on the Qualcomm 8916 platform.
+
 config PINCTRL_QCOM_SPMI_PMIC
        tristate "Qualcomm SPMI PMIC pin controller driver"
        depends on GPIOLIB && OF && SPMI

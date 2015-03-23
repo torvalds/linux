@@ -27,6 +27,7 @@
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "radeon_audio.h"
 #include <drm/radeon_drm.h>
 #include "nid.h"
 #include "atom.h"
@@ -961,6 +962,8 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	}
 
 	WREG32(GRBM_CNTL, GRBM_READ_TIMEOUT(0xff));
+	WREG32(SRBM_INT_CNTL, 0x1);
+	WREG32(SRBM_INT_ACK, 0x1);
 
 	evergreen_fix_pci_max_read_req_size(rdev);
 
@@ -1085,12 +1088,12 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	if ((rdev->config.cayman.max_backends_per_se == 1) &&
 	    (rdev->flags & RADEON_IS_IGP)) {
-		if ((disabled_rb_mask & 3) == 1) {
-			/* RB0 disabled, RB1 enabled */
-			tmp = 0x11111111;
-		} else {
+		if ((disabled_rb_mask & 3) == 2) {
 			/* RB1 disabled, RB0 enabled */
 			tmp = 0x00000000;
+		} else {
+			/* RB0 disabled, RB1 enabled */
+			tmp = 0x11111111;
 		}
 	} else {
 		tmp = gb_addr_config & NUM_PIPES_MASK;
@@ -2097,15 +2100,9 @@ static int cayman_startup(struct radeon_device *rdev)
 		return r;
 	}
 
-	if (ASIC_IS_DCE6(rdev)) {
-		r = dce6_audio_init(rdev);
-		if (r)
-			return r;
-	} else {
-		r = r600_audio_init(rdev);
-		if (r)
-			return r;
-	}
+	r = radeon_audio_init(rdev);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -2140,10 +2137,7 @@ int cayman_resume(struct radeon_device *rdev)
 int cayman_suspend(struct radeon_device *rdev)
 {
 	radeon_pm_suspend(rdev);
-	if (ASIC_IS_DCE6(rdev))
-		dce6_audio_fini(rdev);
-	else
-		r600_audio_fini(rdev);
+	radeon_audio_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	cayman_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);

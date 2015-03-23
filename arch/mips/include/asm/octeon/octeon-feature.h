@@ -46,8 +46,6 @@ enum octeon_feature {
 	OCTEON_FEATURE_SAAD,
 	/* Does this Octeon support the ZIP offload engine? */
 	OCTEON_FEATURE_ZIP,
-	/* Does this Octeon support crypto acceleration using COP2? */
-	OCTEON_FEATURE_CRYPTO,
 	OCTEON_FEATURE_DORM_CRYPTO,
 	/* Does this Octeon support PCI express? */
 	OCTEON_FEATURE_PCIE,
@@ -85,6 +83,21 @@ enum octeon_feature {
 	OCTEON_FEATURE_CIU2,
 	OCTEON_MAX_FEATURE
 };
+
+enum octeon_feature_bits {
+	OCTEON_HAS_CRYPTO = 0x0001,	/* Crypto acceleration using COP2 */
+};
+extern enum octeon_feature_bits __octeon_feature_bits;
+
+/**
+ * octeon_has_crypto() - Check if this OCTEON has crypto acceleration support.
+ *
+ * Returns: Non-zero if the feature exists. Zero if the feature does not exist.
+ */
+static inline int octeon_has_crypto(void)
+{
+	return __octeon_feature_bits & OCTEON_HAS_CRYPTO;
+}
 
 /**
  * Determine if the current Octeon supports a specific feature. These

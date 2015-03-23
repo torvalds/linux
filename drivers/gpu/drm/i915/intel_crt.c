@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
@@ -110,31 +111,31 @@ static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 }
 
 static void intel_crt_get_config(struct intel_encoder *encoder,
-				 struct intel_crtc_config *pipe_config)
+				 struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 	int dotclock;
 
-	pipe_config->adjusted_mode.flags |= intel_crt_get_flags(encoder);
+	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
 	dotclock = pipe_config->port_clock;
 
 	if (HAS_PCH_SPLIT(dev))
 		ironlake_check_encoder_dotclock(pipe_config, dotclock);
 
-	pipe_config->adjusted_mode.crtc_clock = dotclock;
+	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
 }
 
 static void hsw_crt_get_config(struct intel_encoder *encoder,
-			       struct intel_crtc_config *pipe_config)
+			       struct intel_crtc_state *pipe_config)
 {
 	intel_ddi_get_config(encoder, pipe_config);
 
-	pipe_config->adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
+	pipe_config->base.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
 					      DRM_MODE_FLAG_NHSYNC |
 					      DRM_MODE_FLAG_PVSYNC |
 					      DRM_MODE_FLAG_NVSYNC);
-	pipe_config->adjusted_mode.flags |= intel_crt_get_flags(encoder);
+	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
 static void hsw_crt_pre_enable(struct intel_encoder *encoder)
@@ -157,7 +158,7 @@ static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->config.adjusted_mode;
+	struct drm_display_mode *adjusted_mode = &crtc->config->base.adjusted_mode;
 	u32 adpa;
 
 	if (INTEL_INFO(dev)->gen >= 5)
@@ -303,7 +304,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 }
 
 static bool intel_crt_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_config *pipe_config)
+				     struct intel_crtc_state *pipe_config)
 {
 	struct drm_device *dev = encoder->base.dev;
 
@@ -792,6 +793,8 @@ static const struct drm_connector_funcs intel_crt_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = intel_crt_destroy,
 	.set_property = intel_crt_set_property,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_get_property = intel_connector_atomic_get_property,
 };
 
 static const struct drm_connector_helper_funcs intel_crt_connector_helper_funcs = {

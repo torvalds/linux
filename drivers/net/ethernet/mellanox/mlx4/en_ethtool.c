@@ -92,7 +92,7 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 		(u16) (mdev->dev->caps.fw_ver >> 32),
 		(u16) ((mdev->dev->caps.fw_ver >> 16) & 0xffff),
 		(u16) (mdev->dev->caps.fw_ver & 0xffff));
-	strlcpy(drvinfo->bus_info, pci_name(mdev->dev->pdev),
+	strlcpy(drvinfo->bus_info, pci_name(mdev->dev->persist->pdev),
 		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = 0;
 	drvinfo->regdump_len = 0;
@@ -770,21 +770,19 @@ static int mlx4_en_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return 0;
 	}
 
-	proto_admin = cpu_to_be32(ptys_adv);
-	if (speed >= 0 && speed != priv->port_state.link_speed)
-		/* If speed was set then speed decides :-) */
-		proto_admin = speed_set_ptys_admin(priv, speed,
-						   ptys_reg.eth_proto_cap);
+	proto_admin = cmd->autoneg == AUTONEG_ENABLE ?
+		cpu_to_be32(ptys_adv) :
+		speed_set_ptys_admin(priv, speed,
+				     ptys_reg.eth_proto_cap);
 
 	proto_admin &= ptys_reg.eth_proto_cap;
-
-	if (proto_admin == ptys_reg.eth_proto_admin)
-		return 0; /* Nothing to change */
-
 	if (!proto_admin) {
 		en_warn(priv, "Not supported link mode(s) requested, check supported link modes.\n");
 		return -EINVAL; /* nothing to change due to bad input */
 	}
+
+	if (proto_admin == ptys_reg.eth_proto_admin)
+		return 0; /* Nothing to change */
 
 	en_dbg(DRV, priv, "mlx4_ACCESS_PTYS_REG SET: ptys_reg.eth_proto_admin = 0x%x\n",
 	       be32_to_cpu(proto_admin));
@@ -798,9 +796,9 @@ static int mlx4_en_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return ret;
 	}
 
-	en_warn(priv, "Port link mode changed, restarting port...\n");
 	mutex_lock(&priv->mdev->state_lock);
 	if (priv->port_up) {
+		en_warn(priv, "Port link mode changed, restarting port...\n");
 		mlx4_en_stop_port(dev, 1);
 		if (mlx4_en_start_port(dev))
 			en_err(priv, "Failed restarting port %d\n", priv->port);

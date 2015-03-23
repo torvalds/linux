@@ -149,8 +149,8 @@ static int tcs3414_read_raw(struct iio_dev *indio_dev,
 		*val = ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-	i = (data->gain & TCS3414_GAIN_MASK) >> TCS3414_GAIN_SHIFT;
-	*val = tcs3414_scales[i][0];
+		i = (data->gain & TCS3414_GAIN_MASK) >> TCS3414_GAIN_SHIFT;
+		*val = tcs3414_scales[i][0];
 		*val2 = tcs3414_scales[i][1];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_INT_TIME:
