@@ -362,6 +362,12 @@ static int tpm_st33_spi_remove(struct spi_device *dev)
 	return st33zp24_remove(chip);
 }
 
+static const struct spi_device_id st33zp24_spi_id[] = {
+	{TPM_ST33_SPI, 0},
+	{}
+};
+MODULE_DEVICE_TABLE(spi, st33zp24_spi_id);
+
 #ifdef CONFIG_OF
 static const struct of_device_id of_st33zp24_spi_match[] = {
 	{ .compatible = "st,st33zp24-spi", },
@@ -382,6 +388,7 @@ static struct spi_driver tpm_st33_spi_driver = {
 	},
 	.probe = tpm_st33_spi_probe,
 	.remove = tpm_st33_spi_remove,
+	.id_table = st33zp24_spi_id,
 };
 
 module_spi_driver(tpm_st33_spi_driver);
