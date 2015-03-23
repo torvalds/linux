@@ -178,7 +178,7 @@ static void bcmgenet_ephy_power_up(struct net_device *dev)
 		return;
 
 	reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
-	reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN);
+	reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN | EXT_CK25_DIS);
 	reg |= EXT_GPHY_RESET;
 	bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
 	mdelay(2);
