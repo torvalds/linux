@@ -48,7 +48,7 @@ struct tegra_sku_info {
 	int cpu_speedo_id;
 	int cpu_speedo_value;
 	int cpu_iddq_value;
-	int core_process_id;
+	int soc_process_id;
 	int soc_speedo_id;
 	int soc_speedo_value;
 	int gpu_process_id;

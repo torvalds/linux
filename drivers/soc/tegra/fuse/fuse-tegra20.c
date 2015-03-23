@@ -143,7 +143,7 @@ static void __init tegra20_fuse_add_randomness(void)
 	randomness[1] = tegra_read_straps();
 	randomness[2] = tegra_read_chipid();
 	randomness[3] = tegra_sku_info.cpu_process_id << 16;
-	randomness[3] |= tegra_sku_info.core_process_id;
+	randomness[3] |= tegra_sku_info.soc_process_id;
 	randomness[4] = tegra_sku_info.cpu_speedo_id << 16;
 	randomness[4] |= tegra_sku_info.soc_speedo_id;
 	randomness[5] = tegra_fuse_read_early(FUSE_UID_LOW);

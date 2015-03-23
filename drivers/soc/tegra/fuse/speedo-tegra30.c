@@ -22,7 +22,7 @@
 
 #include "fuse.h"
 
-#define CORE_PROCESS_CORNERS	1
+#define SOC_PROCESS_CORNERS	1
 #define CPU_PROCESS_CORNERS	6
 
 #define FUSE_SPEEDO_CALIB_0	0x14
@@ -54,7 +54,7 @@ enum {
 	THRESHOLD_INDEX_COUNT,
 };
 
-static const u32 __initconst core_process_speedos[][CORE_PROCESS_CORNERS] = {
+static const u32 __initconst soc_process_speedos[][SOC_PROCESS_CORNERS] = {
 	{180},
 	{170},
 	{195},
@@ -246,19 +246,19 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info)
 void __init tegra30_init_speedo_data(struct tegra_sku_info *sku_info)
 {
 	u32 cpu_speedo_val;
-	u32 core_speedo_val;
+	u32 soc_speedo_val;
 	int i;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cpu_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
-	BUILD_BUG_ON(ARRAY_SIZE(core_process_speedos) !=
+	BUILD_BUG_ON(ARRAY_SIZE(soc_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
 
 
 	rev_sku_to_speedo_ids(sku_info);
-	fuse_speedo_calib(&cpu_speedo_val, &core_speedo_val);
+	fuse_speedo_calib(&cpu_speedo_val, &soc_speedo_val);
 	pr_debug("Tegra CPU speedo value %u\n", cpu_speedo_val);
-	pr_debug("Tegra Core speedo value %u\n", core_speedo_val);
+	pr_debug("Tegra Core speedo value %u\n", soc_speedo_val);
 
 	for (i = 0; i < CPU_PROCESS_CORNERS; i++) {
 		if (cpu_speedo_val < cpu_process_speedos[threshold_index][i])
@@ -273,16 +273,16 @@ void __init tegra30_init_speedo_data(struct tegra_sku_info *sku_info)
 		sku_info->cpu_speedo_id = 1;
 	}
 
-	for (i = 0; i < CORE_PROCESS_CORNERS; i++) {
-		if (core_speedo_val < core_process_speedos[threshold_index][i])
+	for (i = 0; i < SOC_PROCESS_CORNERS; i++) {
+		if (soc_speedo_val < soc_process_speedos[threshold_index][i])
 			break;
 	}
-	sku_info->core_process_id = i - 1;
+	sku_info->soc_process_id = i - 1;
 
-	if (sku_info->core_process_id == -1) {
-		pr_warn("Tegra CORE speedo value %3d out of range",
-				 core_speedo_val);
-		sku_info->core_process_id = 0;
+	if (sku_info->soc_process_id == -1) {
+		pr_warn("Tegra SoC speedo value %3d out of range",
+			soc_speedo_val);
+		sku_info->soc_process_id = 0;
 		sku_info->soc_speedo_id = 1;
 	}
 }
