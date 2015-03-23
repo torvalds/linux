@@ -1851,6 +1851,8 @@ static int tipc_connect(struct socket *sock, struct sockaddr *dest,
 		if (dst->family == AF_UNSPEC) {
 			memset(&tsk->remote, 0, sizeof(struct sockaddr_tipc));
 			tsk->connected = 0;
+		} else if (destlen != sizeof(struct sockaddr_tipc)) {
+			res = -EINVAL;
 		} else {
 			memcpy(&tsk->remote, dest, destlen);
 			tsk->connected = 1;
