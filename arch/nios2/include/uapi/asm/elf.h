@@ -50,9 +50,7 @@
 
 typedef unsigned long elf_greg_t;
 
-#define ELF_NGREG	\
-	((sizeof(struct pt_regs) + sizeof(struct switch_stack)) /	\
-		sizeof(elf_greg_t))
+#define ELF_NGREG		49
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 typedef unsigned long elf_fpregset_t;

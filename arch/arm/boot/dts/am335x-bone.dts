@@ -24,11 +24,3 @@
 &mmc1 {
 	vmmc-supply = <&ldo3_reg>;
 };
-
-&sham {
-	status = "okay";
-};
-
-&aes {
-	status = "okay";
-};

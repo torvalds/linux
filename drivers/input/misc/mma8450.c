@@ -187,6 +187,7 @@ static int mma8450_probe(struct i2c_client *c,
 	idev->private		= m;
 	idev->input->name	= MMA8450_DRV_NAME;
 	idev->input->id.bustype	= BUS_I2C;
+	idev->input->dev.parent = &c->dev;
 	idev->poll		= mma8450_poll;
 	idev->poll_interval	= POLL_INTERVAL;
 	idev->poll_interval_max	= POLL_INTERVAL_MAX;

@@ -5080,7 +5080,8 @@ int md_run(struct mddev *mddev)
 	}
 	if (err) {
 		mddev_detach(mddev);
-		pers->free(mddev, mddev->private);
+		if (mddev->private)
+			pers->free(mddev, mddev->private);
 		module_put(pers->owner);
 		bitmap_destroy(mddev);
 		return err;

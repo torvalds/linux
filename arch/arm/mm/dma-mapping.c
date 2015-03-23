@@ -171,7 +171,7 @@ static int __dma_supported(struct device *dev, u64 mask, bool warn)
 	 */
 	if (sizeof(mask) != sizeof(dma_addr_t) &&
 	    mask > (dma_addr_t)~0 &&
-	    dma_to_pfn(dev, ~0) < max_pfn) {
+	    dma_to_pfn(dev, ~0) < max_pfn - 1) {
 		if (warn) {
 			dev_warn(dev, "Coherent DMA mask %#llx is larger than dma_addr_t allows\n",
 				 mask);

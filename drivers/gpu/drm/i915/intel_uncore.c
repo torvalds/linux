@@ -1048,8 +1048,14 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 
 		/* We need to init first for ECOBUS access and then
 		 * determine later if we want to reinit, in case of MT access is
-		 * not working
+		 * not working. In this stage we don't know which flavour this
+		 * ivb is, so it is better to reset also the gen6 fw registers
+		 * before the ecobus check.
 		 */
+
+		__raw_i915_write32(dev_priv, FORCEWAKE, 0);
+		__raw_posting_read(dev_priv, ECOBUS);
+
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_MT_ACK);
 

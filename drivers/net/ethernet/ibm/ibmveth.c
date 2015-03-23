@@ -1136,6 +1136,8 @@ restart_poll:
 	ibmveth_replenish_task(adapter);
 
 	if (frames_processed < budget) {
+		napi_complete(napi);
+
 		/* We think we are done - reenable interrupts,
 		 * then check once more to make sure we are done.
 		 */
@@ -1143,8 +1145,6 @@ restart_poll:
 				       VIO_IRQ_ENABLE);
 
 		BUG_ON(lpar_rc != H_SUCCESS);
-
-		napi_complete(napi);
 
 		if (ibmveth_rxq_pending_buffer(adapter) &&
 		    napi_reschedule(napi)) {
