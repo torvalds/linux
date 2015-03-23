@@ -1317,10 +1317,14 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 			skb_deaggr = mwifiex_alloc_dma_align_buf(len_arr[pind],
 								 GFP_KERNEL |
 								 GFP_DMA);
-			if (!skb_deaggr)
-				goto error;
+			if (!skb_deaggr) {
+				dev_err(adapter->dev, "skb allocation failure drop pkt len=%d type=%d\n",
+					pkt_len, pkt_type);
+				curr_ptr += len_arr[pind];
+				continue;
+			}
+
 			skb_put(skb_deaggr, len_arr[pind]);
-			card->mpa_rx.skb_arr[pind] = skb_deaggr;
 
 			if ((pkt_type == MWIFIEX_TYPE_DATA ||
 			     (pkt_type == MWIFIEX_TYPE_AGGR_DATA &&
@@ -1335,7 +1339,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 				mwifiex_decode_rx_packet(adapter, skb_deaggr,
 							 pkt_type);
 			} else {
-				dev_err(adapter->dev, "wrong aggr pkt:\t"
+				dev_err(adapter->dev, " drop wrong aggr pkt:\t"
 					"sdio_single_port_rx_aggr=%d\t"
 					"type=%d len=%d max_len=%d\n",
 					adapter->sdio_rx_aggr_enable,
@@ -1352,9 +1356,18 @@ rx_curr_single:
 	if (f_do_rx_cur) {
 		dev_dbg(adapter->dev, "info: RX: port: %d, rx_len: %d\n",
 			port, rx_len);
+
 		skb = mwifiex_alloc_dma_align_buf(rx_len, GFP_KERNEL | GFP_DMA);
-		if (!skb)
-			goto error;
+		if (!skb) {
+			dev_err(adapter->dev, "single skb allocated fail,\t"
+				"drop pkt port=%d len=%d\n", port, rx_len);
+			if (mwifiex_sdio_card_to_host(adapter, &pkt_type,
+						      card->mpa_rx.buf, rx_len,
+						      adapter->ioport + port))
+				goto error;
+			return 0;
+		}
+
 		skb_put(skb, rx_len);
 
 		if (mwifiex_sdio_card_to_host(adapter, &pkt_type,
@@ -1363,10 +1376,11 @@ rx_curr_single:
 			goto error;
 		if (!adapter->sdio_rx_aggr_enable &&
 		    pkt_type == MWIFIEX_TYPE_AGGR_DATA) {
-			dev_err(adapter->dev, "Wrong pkt type %d\t"
-				"Current SDIO RX Aggr not enabled\n",
+			dev_err(adapter->dev, "drop wrong pkt type %d\t"
+				"current SDIO RX Aggr not enabled\n",
 				pkt_type);
-			goto error;
+			dev_kfree_skb_any(skb);
+			return 0;
 		}
 
 		mwifiex_decode_rx_packet(adapter, skb, pkt_type);
@@ -1379,16 +1393,8 @@ rx_curr_single:
 
 	return 0;
 error:
-	if (MP_RX_AGGR_IN_PROGRESS(card)) {
-		/* Multiport-aggregation transfer failed - cleanup */
-		for (pind = 0; pind < card->mpa_rx.pkt_cnt; pind++) {
-			/* copy pkt to deaggr buf */
-			skb_deaggr = card->mpa_rx.skb_arr[pind];
-			if (skb_deaggr)
-				dev_kfree_skb_any(skb_deaggr);
-		}
+	if (MP_RX_AGGR_IN_PROGRESS(card))
 		MP_RX_AGGR_BUF_RESET(card);
-	}
 
 	if (f_do_rx_cur && skb)
 		/* Single transfer pending. Free curr buff also */
