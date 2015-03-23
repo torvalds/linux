@@ -8,10 +8,14 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/sizes.h>
 #include <linux/usb.h>
+#include <linux/kfifo.h>
+#include <linux/debugfs.h>
+#include <asm/uaccess.h>
 
 #include "greybus.h"
 #include "svc_msg.h"
@@ -34,6 +38,12 @@ static const struct usb_device_id id_table[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
+
+#define APB1_LOG_SIZE		SZ_16K
+static struct dentry *apb1_log_dentry;
+static struct dentry *apb1_log_enable_dentry;
+static struct task_struct *apb1_log_task;
+static DEFINE_KFIFO(apb1_log_fifo, char, APB1_LOG_SIZE);
 
 /*
  * Number of CPort IN urbs in flight at any point in time.
@@ -91,6 +101,7 @@ static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 }
 
 static void cport_out_callback(struct urb *urb);
+static void usb_log_enable(struct es1_ap_dev *es1, int enable);
 
 /*
  * Buffer constraints for the host driver.
@@ -326,6 +337,8 @@ static void ap_disconnect(struct usb_interface *interface)
 	if (!es1)
 		return;
 
+	usb_log_enable(es1, 0);
+
 	/* Tear down everything! */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
 		struct urb *urb = es1->cport_out_urb[i];
@@ -474,6 +487,125 @@ static void cport_out_callback(struct urb *urb)
 	 */
 }
 
+static void apb1_log_get(struct es1_ap_dev *es1)
+{
+	char buf[65];
+	int retval;
+
+	/* SVC messages go down our control pipe */
+	do {
+		memset(buf, 0, 65);
+		retval = usb_control_msg(es1->usb_dev,
+					usb_rcvctrlpipe(es1->usb_dev,
+							es1->control_endpoint),
+					0x02,	/* vendor request APB1 log */
+					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+					0x00, 0x00,
+					buf,
+					64,
+					ES1_TIMEOUT);
+		if (retval > 0)
+			kfifo_in(&apb1_log_fifo, buf, retval);
+	} while (retval > 0);
+}
+
+static int apb1_log_poll(void *data)
+{
+	while (!kthread_should_stop()) {
+		msleep(1000);
+		apb1_log_get((struct es1_ap_dev *)data);
+	}
+	return 0;
+}
+
+static ssize_t apb1_log_read(struct file *f, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	ssize_t ret;
+	size_t copied;
+	char *tmp_buf;
+
+	if (count > APB1_LOG_SIZE)
+		count = APB1_LOG_SIZE;
+
+	tmp_buf = kmalloc(count, GFP_KERNEL);
+	if (!tmp_buf)
+		return -ENOMEM;
+
+	copied = kfifo_out(&apb1_log_fifo, tmp_buf, count);
+	ret = simple_read_from_buffer(buf, count, ppos, tmp_buf, copied);
+
+	kfree(tmp_buf);
+
+	return ret;
+}
+
+static struct file_operations apb1_log_fops = {
+	.read	= apb1_log_read,
+};
+
+static void usb_log_enable(struct es1_ap_dev *es1, int enable)
+{
+	if (enable && apb1_log_task != NULL)
+		return;
+
+	if (enable) {
+		/* get log from APB1 */
+		apb1_log_task = kthread_run(apb1_log_poll, es1, "apb1_log");
+		if (apb1_log_task == ERR_PTR(-ENOMEM))
+			return;
+		apb1_log_dentry = debugfs_create_file("apb1_log", 444,
+							gb_debugfs_get(), NULL,
+							&apb1_log_fops);
+	} else {
+		if (apb1_log_dentry) {
+			debugfs_remove(apb1_log_dentry);
+			apb1_log_dentry = NULL;
+		}
+
+		if (apb1_log_task) {
+			kthread_stop(apb1_log_task);
+			apb1_log_task = NULL;
+		}
+	}
+}
+
+static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	char tmp_buf[3];
+	int enable = apb1_log_task != NULL;
+	sprintf(tmp_buf, "%d\n", enable);
+	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 3);
+}
+
+static ssize_t apb1_log_enable_write(struct file *f, char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	int enable;
+	char *tmp_buf;
+	ssize_t retval = -EINVAL;
+	struct es1_ap_dev *es1 = (struct es1_ap_dev *)f->f_inode->i_private;
+
+	tmp_buf = kmalloc(count, GFP_KERNEL);
+	if (!tmp_buf)
+		return -ENOMEM;
+
+	copy_from_user(tmp_buf, buf, count);
+	if (sscanf(tmp_buf, "%d", &enable) == 1) {
+		usb_log_enable(es1, enable);
+		retval = count;
+	}
+	kfree(tmp_buf);
+	
+	return retval;
+}
+
+static struct file_operations apb1_log_enable_fops = {
+	.read	= apb1_log_enable_read,
+	.write	= apb1_log_enable_write,
+};
+
 /*
  * The ES1 USB Bridge device contains 4 endpoints
  * 1 Control - usual USB stuff + AP -> SVC messages
@@ -599,6 +731,10 @@ static int ap_probe(struct usb_interface *interface,
 	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
 	if (retval)
 		goto error;
+
+	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable", 666,
+							gb_debugfs_get(), es1,
+							&apb1_log_enable_fops);
 
 	return 0;
 error:
