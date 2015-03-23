@@ -359,9 +359,11 @@ static int __init psci_0_2_init(struct device_node *np)
 		PSCI_0_2_FN_MIGRATE_INFO_TYPE;
 	psci_ops.migrate_info_type = psci_migrate_info_type;
 
+#ifndef CONFIG_ARCH_ROCKCHIP
 	arm_pm_restart = psci_sys_reset;
 
 	pm_power_off = psci_sys_poweroff;
+#endif
 
 out_put_node:
 	of_node_put(np);
