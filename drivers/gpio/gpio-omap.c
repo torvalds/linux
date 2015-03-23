@@ -89,11 +89,6 @@ struct gpio_bank {
 
 static void omap_gpio_unmask_irq(struct irq_data *d);
 
-static int omap_irq_to_gpio(struct gpio_bank *bank, unsigned int gpio_irq)
-{
-	return bank->chip.base + gpio_irq;
-}
-
 static inline struct gpio_bank *omap_irq_data_get_bank(struct irq_data *d)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
@@ -490,21 +485,20 @@ static void omap_gpio_init_irq(struct gpio_bank *bank, unsigned offset)
 static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 {
 	struct gpio_bank *bank = omap_irq_data_get_bank(d);
-	unsigned gpio = 0;
 	int retval;
 	unsigned long flags;
-	unsigned offset;
+	unsigned offset = d->hwirq;
 
 	if (!BANK_USED(bank))
 		pm_runtime_get_sync(bank->dev);
 
 #ifdef CONFIG_ARCH_OMAP1
-	if (d->irq > IH_MPUIO_BASE)
+	if (d->irq > IH_MPUIO_BASE) {
+		unsigned gpio = 0;
 		gpio = OMAP_MPUIO(d->irq - IH_MPUIO_BASE);
+		offset = GPIO_INDEX(bank, gpio);
+	}
 #endif
-
-	if (!gpio)
-		gpio = omap_irq_to_gpio(bank, d->hwirq);
 
 	if (type & ~IRQ_TYPE_SENSE_MASK)
 		return -EINVAL;
@@ -514,7 +508,6 @@ static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 		return -EINVAL;
 
 	spin_lock_irqsave(&bank->lock, flags);
-	offset = GPIO_INDEX(bank, gpio);
 	retval = omap_set_gpio_triggering(bank, offset, type);
 	omap_gpio_init_irq(bank, offset);
 	if (!omap_gpio_is_input(bank, offset)) {
