@@ -190,8 +190,10 @@ static int error_context(struct mce *m)
  * See AMD Error Scope Hierarchy table in a newer BKDG. For example
  * 49125_15h_Models_30h-3Fh_BKDG.pdf, section "RAS Features"
  */
-static int mce_severity_amd(struct mce *m, enum context ctx)
+static int mce_severity_amd(struct mce *m, int tolerant, char **msg, bool is_excp)
 {
+	enum context ctx = error_context(m);
+
 	/* Processor Context Corrupt, no need to fumble too much, die! */
 	if (m->status & MCI_STATUS_PCC)
 		return MCE_PANIC_SEVERITY;
@@ -239,14 +241,11 @@ static int mce_severity_amd(struct mce *m, enum context ctx)
 	return MCE_KEEP_SEVERITY;
 }
 
-int mce_severity(struct mce *m, int tolerant, char **msg, bool is_excp)
+static int mce_severity_intel(struct mce *m, int tolerant, char **msg, bool is_excp)
 {
 	enum exception excp = (is_excp ? EXCP_CONTEXT : NO_EXCP);
 	enum context ctx = error_context(m);
 	struct severity *s;
-
-	if (m->cpuvendor == X86_VENDOR_AMD)
-		return mce_severity_amd(m, ctx);
 
 	for (s = severities;; s++) {
 		if ((m->status & s->mask) != s->result)
@@ -270,6 +269,16 @@ int mce_severity(struct mce *m, int tolerant, char **msg, bool is_excp)
 		}
 		return s->sev;
 	}
+}
+
+/* Default to mce_severity_intel */
+int (*mce_severity)(struct mce *m, int tolerant, char **msg, bool is_excp) =
+		    mce_severity_intel;
+
+void __init mcheck_vendor_init_severity(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		mce_severity = mce_severity_amd;
 }
 
 #ifdef CONFIG_DEBUG_FS

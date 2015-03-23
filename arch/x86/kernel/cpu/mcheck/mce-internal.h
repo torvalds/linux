@@ -24,7 +24,7 @@ struct mce_bank {
 	char			attrname[ATTR_LEN];	/* attribute name */
 };
 
-int mce_severity(struct mce *a, int tolerant, char **msg, bool is_excp);
+extern int (*mce_severity)(struct mce *a, int tolerant, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
 
 extern struct mce_bank *mce_banks;
