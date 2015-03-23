@@ -32,6 +32,8 @@ int mali_pm_statue = 1;
 static struct mali_gpu_device_data mali_gpu_data =
 {
 	.shared_mem_size = 1024 * 1024 * 1024,
+	.fb_start = 0x06100000,
+	.fb_size = 0x01800000,
 	.max_job_runtime = 60000, /* 60 seconds */
 	.pmu_switch_delay = 0xFFFF, /* do not have to be this high on FPGA, but it is good for testing to have a delay */
 	.pmu_domain_config = {0x1, 0x2, 0x4, 0x4, 0x4, 0x8, 0x8, 0x8, 0x8, 0x1, 0x2, 0x8},
