@@ -522,9 +522,9 @@ retry:
 		spin_lock_irq(&desc->iuspin);
 
 		if (desc->rerr) { /* read completed, error happened */
+			rv = usb_translate_errors(desc->rerr);
 			desc->rerr = 0;
 			spin_unlock_irq(&desc->iuspin);
-			rv = -EIO;
 			goto err;
 		}
 		/*
