@@ -6,7 +6,7 @@ LDFLAGS += -lrt -lpthread
 # these are all "safe" tests that don't modify
 # system time or require escalated privledges
 TEST_PROGS = posix_timers nanosleep nsleep-lat set-timer-lat mqueue-lat \
-	     inconsistency-check raw_skew threadtest
+	     inconsistency-check raw_skew threadtest rtctest
 
 TEST_PROGS_EXTENDED = alarmtimer-suspend valid-adjtimex change_skew \
 		      skew_consistency clocksource-switch leap-a-day \
