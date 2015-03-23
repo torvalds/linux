@@ -574,6 +574,8 @@ struct dma_pl330_chan {
 
 	/* for cyclic capability */
 	bool cyclic;
+
+	enum dma_status chan_status;
 };
 
 struct dma_pl330_dmac {
@@ -2408,11 +2410,18 @@ static inline void handle_cyclic_desc_list(struct list_head *list)
 	}
 
 	/* pch will be unset if list was empty */
-	if (!pch)
+	if (!pch || !pch->dmac)
 		return;
 
 	spin_lock_irqsave(&pch->lock, flags);
-	list_splice_tail_init(list, &pch->work_list);
+	if (pch->chan_status == DMA_PAUSED) {
+		list_for_each_entry(desc, list, node) {
+			desc->status = DONE;
+		}
+		list_splice_tail_init(list, &pch->dmac->desc_pool);
+	} else {
+		list_splice_tail_init(list, &pch->work_list);
+	}
 	spin_unlock_irqrestore(&pch->lock, flags);
 }
 
@@ -2453,6 +2462,7 @@ static void pl330_tasklet(unsigned long data)
 
 	spin_lock_irqsave(&pch->lock, flags);
 
+	pch->chan_status = DMA_SUCCESS;
 	/* Pick up ripe tomatoes */
 	list_for_each_entry_safe(desc, _dt, &pch->work_list, node)
 		if (desc->status == DONE) {
@@ -2587,6 +2597,7 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 		}
 
 		list_splice_tail_init(&list, &pdmac->desc_pool);
+		pch->chan_status = DMA_PAUSED;
 		spin_unlock_irqrestore(&pch->lock, flags);
 		break;
 	case DMA_SLAVE_CONFIG:
