@@ -1,0 +1,647 @@
+ChangeLog for hostapd
+
+2010-04-18 - v0.7.2
+	* fix WPS internal Registrar use when an external Registrar is also
+	  active
+	* bsd: Cleaned up driver wrapper and added various low-level
+	  configuration options
+	* TNC: fixed issues with fragmentation
+	* EAP-TNC: add Flags field into fragment acknowledgement (needed to
+	  interoperate with other implementations; may potentially breaks
+	  compatibility with older wpa_supplicant/hostapd versions)
+	* cleaned up driver wrapper API for multi-BSS operations
+	* nl80211: fix multi-BSS and VLAN operations
+	* fix number of issues with IEEE 802.11r/FT; this version is not
+	  backwards compatible with old versions
+	* add SA Query Request processing in AP mode (IEEE 802.11w)
+	* fix IGTK PN in group rekeying (IEEE 802.11w)
+	* fix WPS PBC session overlap detection to use correct attribute
+	* hostapd_notif_Assoc() can now be called with all IEs to simplify
+	  driver wrappers
+	* work around interoperability issue with some WPS External Registrar
+	  implementations
+	* nl80211: fix WPS IE update
+	* hostapd_cli: add support for action script operations (run a script
+	  on hostapd events)
+	* fix DH padding with internal crypto code (mainly, for WPS)
+	* fix WPS association with both WPS IE and WPA/RSN IE present with
+	  driver wrappers that use hostapd MLME (e.g., nl80211)
+
+2010-01-16 - v0.7.1
+	* cleaned up driver wrapper API (struct wpa_driver_ops); the new API
+	  is not fully backwards compatible, so out-of-tree driver wrappers
+	  will need modifications
+	* cleaned up various module interfaces
+	* merge hostapd and wpa_supplicant developers' documentation into a
+	  single document
+	* fixed HT Capabilities IE with nl80211 drivers
+	* moved generic AP functionality code into src/ap
+	* WPS: handle Selected Registrar as union of info from all Registrars
+	* remove obsolte Prism54.org driver wrapper
+	* added internal debugging mechanism with backtrace support and memory
+	  allocation/freeing validation, etc. tests (CONFIG_WPA_TRACE=y)
+	* EAP-FAST server: piggyback Phase 2 start with the end of Phase 1
+	* WPS: add support for dynamically selecting whether to provision the
+	  PSK as an ASCII passphrase or PSK
+	* added support for WDS (4-address frame) mode with per-station virtual
+	  interfaces (wds_sta=1 in config file; only supported with
+	  driver=nl80211 for now)
+	* fixed WPS Probe Request processing to handle missing required
+	  attribute
+	* fixed PKCS#12 use with OpenSSL 1.0.0
+	* detect bridge interface automatically so that bridge parameter in
+	  hostapd.conf becomes optional (though, it may now be used to
+	  automatically add then WLAN interface into a bridge with
+	  driver=nl80211)
+
+2009-11-21 - v0.7.0
+	* increased hostapd_cli ping interval to 5 seconds and made this
+	  configurable with a new command line options (-G<seconds>)
+	* driver_nl80211: use Linux socket filter to improve performance
+	* added support for external Registrars with WPS (UPnP transport)
+	* 802.11n: scan for overlapping BSSes before starting 20/40 MHz channel
+	* driver_nl80211: fixed STA accounting data collection (TX/RX bytes
+	  reported correctly; TX/RX packets not yet available from kernel)
+	* added support for WPS USBA out-of-band mechanism with USB Flash
+	  Drives (UFD) (CONFIG_WPS_UFD=y)
+	* fixed EAPOL/EAP reauthentication when using an external RADIUS
+	  authentication server
+	* fixed TNC with EAP-TTLS
+	* fixed IEEE 802.11r key derivation function to match with the standard
+	  (note: this breaks interoperability with previous version) [Bug 303]
+	* fixed SHA-256 based key derivation function to match with the
+	  standard when using CCMP (for IEEE 802.11r and IEEE 802.11w)
+	  (note: this breaks interoperability with previous version) [Bug 307]
+	* added number of code size optimizations to remove unnecessary
+	  functionality from the program binary based on build configuration
+	  (part of this automatic; part configurable with CONFIG_NO_* build
+	  options)
+	* use shared driver wrapper files with wpa_supplicant
+	* driver_nl80211: multiple updates to provide support for new Linux
+	  nl80211/mac80211 functionality
+	* updated management frame protection to use IEEE Std 802.11w-2009
+	* fixed number of small WPS issues and added workarounds to
+	  interoperate with common deployed broken implementations
+	* added some IEEE 802.11n co-existance rules to disable 40 MHz channels
+	  or modify primary/secondary channels if needed based on neighboring
+	  networks
+	* added support for NFC out-of-band mechanism with WPS
+	* added preliminary support for IEEE 802.11r RIC processing
+
+2009-01-06 - v0.6.7
+	* added support for Wi-Fi Protected Setup (WPS)
+	  (hostapd can now be configured to act as an integrated WPS Registrar
+	  and provision credentials for WPS Enrollees using PIN and PBC
+	  methods; external wireless Registrar can configure the AP, but
+	  external WLAN Manager Registrars are not supported); WPS support can
+	  be enabled by adding CONFIG_WPS=y into .config and setting the
+	  runtime configuration variables in hostapd.conf (see WPS section in
+	  the example configuration file); new hostapd_cli commands wps_pin and
+	  wps_pbc are used to configure WPS negotiation; see README-WPS for
+	  more details
+	* added IEEE 802.11n HT capability configuration (ht_capab)
+	* added support for generating Country IE based on nl80211 regulatory
+	  information (added if ieee80211d=1 in configuration)
+	* fixed WEP authentication (both Open System and Shared Key) with
+	  mac80211
+	* added support for EAP-AKA' (draft-arkko-eap-aka-kdf)
+	* added support for using driver_test over UDP socket
+	* changed EAP-GPSK to use the IANA assigned EAP method type 51
+	* updated management frame protection to use IEEE 802.11w/D7.0
+	* fixed retransmission of EAP requests if no response is received
+
+2008-11-23 - v0.6.6
+	* added a new configuration option, wpa_ptk_rekey, that can be used to
+	  enforce frequent PTK rekeying, e.g., to mitigate some attacks against
+	  TKIP deficiencies
+	* updated OpenSSL code for EAP-FAST to use an updated version of the
+	  session ticket overriding API that was included into the upstream
+	  OpenSSL 0.9.9 tree on 2008-11-15 (no additional OpenSSL patch is
+	  needed with that version anymore)
+	* changed channel flags configuration to read the information from
+	  the driver (e.g., via driver_nl80211 when using mac80211) instead of
+	  using hostapd as the source of the regulatory information (i.e.,
+	  information from CRDA is now used with mac80211); this allows 5 GHz
+	  channels to be used with hostapd (if allowed in the current
+	  regulatory domain)
+	* fixed EAP-TLS message processing for the last TLS message if it is
+	  large enough to require fragmentation (e.g., if a large Session
+	  Ticket data is included)
+	* fixed listen interval configuration for nl80211 drivers
+
+2008-11-01 - v0.6.5
+	* added support for SHA-256 as X.509 certificate digest when using the
+	  internal X.509/TLSv1 implementation
+	* fixed EAP-FAST PAC-Opaque padding (0.6.4 broke this for some peer
+	  identity lengths)
+	* fixed internal TLSv1 implementation for abbreviated handshake (used
+	  by EAP-FAST server)
+	* added support for setting VLAN ID for STAs based on local MAC ACL
+	  (accept_mac_file) as an alternative for RADIUS server-based
+	  configuration
+	* updated management frame protection to use IEEE 802.11w/D6.0
+	  (adds a new association ping to protect against unauthenticated
+	  authenticate or (re)associate request frames dropping association)
+	* added support for using SHA256-based stronger key derivation for WPA2
+	  (IEEE 802.11w)
+	* added new "driver wrapper" for RADIUS-only configuration
+	  (driver=none in hostapd.conf; CONFIG_DRIVER_NONE=y in .config)
+	* fixed WPA/RSN IE validation to verify that the proto (WPA vs. WPA2)
+	  is enabled in configuration
+	* changed EAP-FAST configuration to use separate fields for A-ID and
+	  A-ID-Info (eap_fast_a_id_info) to allow A-ID to be set to a fixed
+	  16-octet len binary value for better interoperability with some peer
+	  implementations; eap_fast_a_id is now configured as a hex string
+	* driver_nl80211: Updated to match the current Linux mac80211 AP mode
+	  configuration (wireless-testing.git and Linux kernel releases
+	  starting from 2.6.29)
+
+2008-08-10 - v0.6.4
+	* added peer identity into EAP-FAST PAC-Opaque and skip Phase 2
+	  Identity Request if identity is already known
+	* added support for EAP Sequences in EAP-FAST Phase 2
+	* added support for EAP-TNC (Trusted Network Connect)
+	  (this version implements the EAP-TNC method and EAP-TTLS/EAP-FAST
+	  changes needed to run two methods in sequence (IF-T) and the IF-IMV
+	  and IF-TNCCS interfaces from TNCS)
+	* added support for optional cryptobinding with PEAPv0
+	* added fragmentation support for EAP-TNC
+	* added support for fragmenting EAP-TTLS/PEAP/FAST Phase 2 (tunneled)
+	  data
+	* added support for opportunistic key caching (OKC)
+
+2008-02-22 - v0.6.3
+	* fixed Reassociation Response callback processing when using internal
+	  MLME (driver_{hostap,nl80211,test}.c)
+	* updated FT support to use the latest draft, IEEE 802.11r/D9.0
+	* copy optional Proxy-State attributes into RADIUS response when acting
+	  as a RADIUS authentication server
+	* fixed EAPOL state machine to handle a case in which no response is
+	  received from the RADIUS authentication server; previous version
+	  could have triggered a crash in some cases after a timeout
+	* fixed EAP-SIM/AKA realm processing to allow decorated usernames to
+	  be used
+	* added a workaround for EAP-SIM/AKA peers that include incorrect null
+	  termination in the username
+	* fixed EAP-SIM/AKA protected result indication to include AT_COUNTER
+	  attribute in notification messages only when using fast
+	  reauthentication
+	* fixed EAP-SIM Start response processing for fast reauthentication
+	  case
+	* added support for pending EAP processing in EAP-{PEAP,TTLS,FAST}
+	  phase 2 to allow EAP-SIM and EAP-AKA to be used as the Phase 2 method
+
+2008-01-01 - v0.6.2
+	* fixed EAP-SIM and EAP-AKA message parser to validate attribute
+	  lengths properly to avoid potential crash caused by invalid messages
+	* added data structure for storing allocated buffers (struct wpabuf);
+	  this does not affect hostapd usage, but many of the APIs changed
+	  and various interfaces (e.g., EAP) is not compatible with old
+	  versions
+	* added support for protecting EAP-AKA/Identity messages with
+	  AT_CHECKCODE (optional feature in RFC 4187)
+	* added support for protected result indication with AT_RESULT_IND for
+	  EAP-SIM and EAP-AKA (eap_sim_aka_result_ind=1)
+	* added support for configuring EAP-TTLS phase 2 non-EAP methods in
+	  EAP server configuration; previously all four were enabled for every
+	  phase 2 user, now all four are disabled by default and need to be
+	  enabled with new method names TTLS-PAP, TTLS-CHAP, TTLS-MSCHAP,
+	  TTLS-MSCHAPV2
+	* removed old debug printing mechanism and the related 'debug'
+	  parameter in the configuration file; debug verbosity is now set with
+	  -d (or -dd) command line arguments
+	* added support for EAP-IKEv2 (draft-tschofenig-eap-ikev2-15.txt);
+	  only shared key/password authentication is supported in this version
+
+2007-11-24 - v0.6.1
+	* added experimental, integrated TLSv1 server implementation with the
+	  needed X.509/ASN.1/RSA/bignum processing (this can be enabled by
+	  setting CONFIG_TLS=internal and CONFIG_INTERNAL_LIBTOMMATH=y in
+	  .config); this can be useful, e.g., if the target system does not
+	  have a suitable TLS library and a minimal code size is required
+	* added support for EAP-FAST server method to the integrated EAP
+	  server
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-07.txt)
+	* added a new configuration parameter, rsn_pairwise, to allow different
+	  pairwise cipher suites to be enabled for WPA and RSN/WPA2
+	  (note: if wpa_pairwise differs from rsn_pairwise, the driver will
+	  either need to support this or will have to use the WPA/RSN IEs from
+	  hostapd; currently, the included madwifi and bsd driver interfaces do
+	  not have support for this)
+	* updated FT support to use the latest draft, IEEE 802.11r/D8.0
+
+2007-05-28 - v0.6.0
+	* added experimental IEEE 802.11r/D6.0 support
+	* updated EAP-SAKE to RFC 4763 and the IANA-allocated EAP type 48
+	* updated EAP-PSK to use the IANA-allocated EAP type 47
+	* fixed EAP-PSK bit ordering of the Flags field
+	* fixed configuration reloading (SIGHUP) to re-initialize WPA PSKs
+	  by reading wpa_psk_file [Bug 181]
+	* fixed EAP-TTLS AVP parser processing for too short AVP lengths
+	* fixed IPv6 connection to RADIUS accounting server
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-04.txt)
+	* hlr_auc_gw: read GSM triplet file into memory and rotate through the
+	  entries instead of only using the same three triplets every time
+	  (this does not work properly with tests using multiple clients, but
+	  provides bit better triplet data for testing a single client; anyway,
+	  if a better quality triplets are needed, GSM-Milenage should be used
+	  instead of hardcoded triplet file)
+	* fixed EAP-MSCHAPv2 server to use a space between S and M parameters
+	  in Success Request [Bug 203]
+	* added support for sending EAP-AKA Notifications in error cases
+	* updated to use IEEE 802.11w/D2.0 for management frame protection
+	  (still experimental)
+	* RADIUS server: added support for processing duplicate messages
+	  (retransmissions from RADIUS client) by replying with the previous
+	  reply
+
+2006-11-24 - v0.5.6
+	* added support for configuring and controlling multiple BSSes per
+	  radio interface (bss=<ifname> in hostapd.conf); this is only
+	  available with Devicescape and test driver interfaces
+	* fixed PMKSA cache update in the end of successful RSN
+	  pre-authentication
+	* added support for dynamic VLAN configuration (i.e., selecting VLAN-ID
+	  for each STA based on RADIUS Access-Accept attributes); this requires
+	  VLAN support from the kernel driver/802.11 stack and this is
+	  currently only available with Devicescape and test driver interfaces
+	* driver_madwifi: fixed configuration of unencrypted modes (plaintext
+	  and IEEE 802.1X without WEP)
+	* removed STAKey handshake since PeerKey handshake has replaced it in
+	  IEEE 802.11ma and there are no known deployments of STAKey
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-01.txt)
+	* added preliminary implementation of IEEE 802.11w/D1.0 (management
+	  frame protection)
+	  (Note: this requires driver support to work properly.)
+	  (Note2: IEEE 802.11w is an unapproved draft and subject to change.)
+	* hlr_auc_gw: added support for GSM-Milenage (for EAP-SIM)
+	* hlr_auc_gw: added support for reading per-IMSI Milenage keys and
+	  parameters from a text file to make it possible to implement proper
+	  GSM/UMTS authentication server for multiple SIM/USIM cards using
+	  EAP-SIM/EAP-AKA
+	* fixed session timeout processing with drivers that do not use
+	  ieee802_11.c (e.g., madwifi)
+
+2006-08-27 - v0.5.5
+	* added 'hostapd_cli new_sta <addr>' command for adding a new STA into
+	  hostapd (e.g., to initialize wired network authentication based on an
+	  external signal)
+	* fixed hostapd to add PMKID KDE into 4-Way Handshake Message 1 when
+	  using WPA2 even if PMKSA caching is not used
+	* added -P<pid file> argument for hostapd to write the current process
+	  id into a file
+	* added support for RADIUS Authentication Server MIB (RFC 2619)
+
+2006-06-20 - v0.5.4
+	* fixed nt_password_hash build [Bug 144]
+	* added PeerKey handshake implementation for IEEE 802.11e
+	  direct link setup (DLS) to replace STAKey handshake
+	* added support for EAP Generalized Pre-Shared Key (EAP-GPSK,
+	  draft-clancy-emu-eap-shared-secret-00.txt)
+	* fixed a segmentation fault when RSN pre-authentication was completed
+	  successfully [Bug 152]
+
+2006-04-27 - v0.5.3
+	* do not build nt_password_hash and hlr_auc_gw by default to avoid
+	  requiring a TLS library for a successful build; these programs can be
+	  build with 'make nt_password_hash' and 'make hlr_auc_gw'
+	* added a new configuration option, eapol_version, that can be used to
+	  set EAPOL version to 1 (default is 2) to work around broken client
+	  implementations that drop EAPOL frames which use version number 2
+	  [Bug 89]
+	* added support for EAP-SAKE (no EAP method number allocated yet, so
+	  this is using the same experimental type 255 as EAP-PSK)
+	* fixed EAP-MSCHAPv2 message length validation
+
+2006-03-19 - v0.5.2
+	* fixed stdarg use in hostapd_logger(): if both stdout and syslog
+	  logging was enabled, hostapd could trigger a segmentation fault in
+	  vsyslog on some CPU -- C library combinations
+	* moved HLR/AuC gateway implementation for EAP-SIM/AKA into an external
+	  program to make it easier to use for implementing real SS7 gateway;
+	  eap_sim_db is not anymore used as a file name for GSM authentication
+	  triplets; instead, it is path to UNIX domain socket that will be used
+	  to communicate with the external gateway program (e.g., hlr_auc_gw)
+	* added example HLR/AuC gateway implementation, hlr_auc_gw, that uses
+	  local information (GSM authentication triplets from a text file and
+	  hardcoded AKA authentication data); this can be used to test EAP-SIM
+	  and EAP-AKA
+	* added Milenage algorithm (example 3GPP AKA algorithm) to hlr_auc_gw
+	  to make it possible to test EAP-AKA with real USIM cards (this is
+	  disabled by default; define AKA_USE_MILENAGE when building hlr_auc_gw
+	  to enable this)
+	* driver_madwifi: added support for getting station RSN IE from
+	  madwifi-ng svn r1453 and newer; this fixes RSN that was apparently
+	  broken with earlier change (r1357) in the driver
+	* changed EAP method registration to use a dynamic list of methods
+	  instead of a static list generated at build time
+	* fixed WPA message 3/4 not to encrypt Key Data field (WPA IE)
+	  [Bug 125]
+	* added ap_max_inactivity configuration parameter
+
+2006-01-29 - v0.5.1
+	* driver_test: added better support for multiple APs and STAs by using
+	  a directory with sockets that include MAC address for each device in
+	  the name (test_socket=DIR:/tmp/test)
+	* added support for EAP expanded type (vendor specific EAP methods)
+
+2005-12-18 - v0.5.0 (beginning of 0.5.x development releases)
+	* added experimental STAKey handshake implementation for IEEE 802.11e
+	  direct link setup (DLS); note: this is disabled by default in both
+	  build and runtime configuration (can be enabled with CONFIG_STAKEY=y
+	  and stakey=1)
+	* added support for EAP methods to use callbacks to external programs
+	  by buffering a pending request and processing it after the EAP method
+	  is ready to continue
+	* improved EAP-SIM database interface to allow external request to GSM
+	  HLR/AuC without blocking hostapd process
+	* added support for using EAP-SIM pseudonyms and fast re-authentication
+	* added support for EAP-AKA in the integrated EAP authenticator
+	* added support for matching EAP identity prefixes (e.g., "1"*) in EAP
+	  user database to allow EAP-SIM/AKA selection without extra roundtrip
+	  for EAP-Nak negotiation
+	* added support for storing EAP user password as NtPasswordHash instead
+	  of plaintext password when using MSCHAP or MSCHAPv2 for
+	  authentication (hash:<16-octet hex value>); added nt_password_hash
+	  tool for hashing password to generate NtPasswordHash
+
+2005-11-20 - v0.4.7 (beginning of 0.4.x stable releases)
+	* driver_wired: fixed EAPOL sending to optionally use PAE group address
+	  as the destination instead of supplicant MAC address; this is
+	  disabled by default, but should be enabled with use_pae_group_addr=1
+	  in configuration file if the wired interface is used by only one
+	  device at the time (common switch configuration)
+	* driver_madwifi: configure driver to use TKIP countermeasures in order
+	  to get correct behavior (IEEE 802.11 association failing; previously,
+	  association succeeded, but hostpad forced disassociation immediately)
+	* driver_madwifi: added support for madwifi-ng
+
+2005-10-27 - v0.4.6
+	* added support for replacing user identity from EAP with RADIUS
+	  User-Name attribute from Access-Accept message, if that is included,
+	  for the RADIUS accounting messages (e.g., for EAP-PEAP/TTLS to get
+	  tunneled identity into accounting messages when the RADIUS server
+	  does not support better way of doing this with Class attribute)
+	* driver_madwifi: fixed EAPOL packet receive for configuration where
+	  ath# is part of a bridge interface
+	* added a configuration file and log analyzer script for logwatch
+	* fixed EAPOL state machine step function to process all state
+	  transitions before processing new events; this resolves a race
+	  condition in which EAPOL-Start message could trigger hostapd to send
+	  two EAP-Response/Identity frames to the authentication server
+
+2005-09-25 - v0.4.5
+	* added client CA list to the TLS certificate request in order to make
+	  it easier for the client to select which certificate to use
+	* added experimental support for EAP-PSK
+	* added support for WE-19 (hostap, madwifi)
+
+2005-08-21 - v0.4.4
+	* fixed build without CONFIG_RSN_PREAUTH
+	* fixed FreeBSD build
+
+2005-06-26 - v0.4.3
+	* fixed PMKSA caching to copy User-Name and Class attributes so that
+	  RADIUS accounting gets correct information
+	* start RADIUS accounting only after successful completion of WPA
+	  4-Way Handshake if WPA-PSK is used
+	* fixed PMKSA caching for the case where STA (re)associates without
+	  first disassociating
+
+2005-06-12 - v0.4.2
+	* EAP-PAX is now registered as EAP type 46
+	* fixed EAP-PAX MAC calculation
+	* fixed EAP-PAX CK and ICK key derivation
+	* renamed eap_authenticator configuration variable to eap_server to
+	  better match with RFC 3748 (EAP) terminology
+	* driver_test: added support for testing hostapd with wpa_supplicant
+	  by using test driver interface without any kernel drivers or network
+	  cards
+
+2005-05-22 - v0.4.1
+	* fixed RADIUS server initialization when only auth or acct server
+	  is configured and the other one is left empty
+	* driver_madwifi: added support for RADIUS accounting
+	* driver_madwifi: added preliminary support for compiling against 'BSD'
+	  branch of madwifi CVS tree
+	* driver_madwifi: fixed pairwise key removal to allow WPA reauth
+	  without disassociation
+	* added support for reading additional certificates from PKCS#12 files
+	  and adding them to the certificate chain
+	* fixed RADIUS Class attribute processing to only use Access-Accept
+	  packets to update Class; previously, other RADIUS authentication
+	  packets could have cleared Class attribute
+	* added support for more than one Class attribute in RADIUS packets
+	* added support for verifying certificate revocation list (CRL) when
+	  using integrated EAP authenticator for EAP-TLS; new hostapd.conf
+	  options 'check_crl'; CRL must be included in the ca_cert file for now
+
+2005-04-25 - v0.4.0 (beginning of 0.4.x development releases)
+	* added support for including network information into
+	  EAP-Request/Identity message (ASCII-0 (nul) in eap_message)
+	  (e.g., to implement draft-adrange-eap-network-discovery-07.txt)
+	* fixed a bug which caused some RSN pre-authentication cases to use
+	  freed memory and potentially crash hostapd
+	* fixed private key loading for cases where passphrase is not set
+	* added support for sending TLS alerts and aborting authentication
+	  when receiving a TLS alert
+	* fixed WPA2 to add PMKSA cache entry when using integrated EAP
+	  authenticator
+	* fixed PMKSA caching (EAP authentication was not skipped correctly
+	  with the new state machine changes from IEEE 802.1X draft)
+	* added support for RADIUS over IPv6; own_ip_addr, auth_server_addr,
+	  and acct_server_addr can now be IPv6 addresses (CONFIG_IPV6=y needs
+	  to be added to .config to include IPv6 support); for RADIUS server,
+	  radius_server_ipv6=1 needs to be set in hostapd.conf and addresses
+	  in RADIUS clients file can then use IPv6 format
+	* added experimental support for EAP-PAX
+	* replaced hostapd control interface library (hostapd_ctrl.[ch]) with
+	  the same implementation that wpa_supplicant is using (wpa_ctrl.[ch])
+
+2005-02-12 - v0.3.7 (beginning of 0.3.x stable releases)
+
+2005-01-23 - v0.3.5
+	* added support for configuring a forced PEAP version based on the
+	  Phase 1 identity
+	* fixed PEAPv1 to use tunneled EAP-Success/Failure instead of EAP-TLV
+	  to terminate authentication
+	* fixed EAP identifier duplicate processing with the new IEEE 802.1X
+	  draft
+	* clear accounting data in the driver when starting a new accounting
+	  session
+	* driver_madwifi: filter wireless events based on ifindex to allow more
+	  than one network interface to be used
+	* fixed WPA message 2/4 processing not to cancel timeout for TimeoutEvt
+	  setting if the packet does not pass MIC verification (e.g., due to
+	  incorrect PSK); previously, message 1/4 was not tried again if an
+	  invalid message 2/4 was received
+	* fixed reconfiguration of RADIUS client retransmission timer when
+	  adding a new message to the pending list; previously, timer was not
+	  updated at this point and if there was a pending message with long
+	  time for the next retry, the new message needed to wait that long for
+	  its first retry, too
+
+2005-01-09 - v0.3.4
+	* added support for configuring multiple allowed EAP types for Phase 2
+	  authentication (EAP-PEAP, EAP-TTLS)
+	* fixed EAPOL-Start processing to trigger WPA reauthentication
+	  (previously, only EAPOL authentication was done)
+
+2005-01-02 - v0.3.3
+	* added support for EAP-PEAP in the integrated EAP authenticator
+	* added support for EAP-GTC in the integrated EAP authenticator
+	* added support for configuring list of EAP methods for Phase 1 so that
+	  the integrated EAP authenticator can, e.g., use the wildcard entry
+	  for EAP-TLS and EAP-PEAP
+	* added support for EAP-TTLS in the integrated EAP authenticator
+	* added support for EAP-SIM in the integrated EAP authenticator
+	* added support for using hostapd as a RADIUS authentication server
+	  with the integrated EAP authenticator taking care of EAP
+	  authentication (new hostapd.conf options: radius_server_clients and
+	  radius_server_auth_port); this is not included in default build; use
+	  CONFIG_RADIUS_SERVER=y in .config to include
+
+2004-12-19 - v0.3.2
+	* removed 'daemonize' configuration file option since it has not really
+	  been used at all for more than year
+	* driver_madwifi: fixed group key setup and added get_ssid method
+	* added support for EAP-MSCHAPv2 in the integrated EAP authenticator
+
+2004-12-12 - v0.3.1
+	* added support for integrated EAP-TLS authentication (new hostapd.conf
+	  variables: ca_cert, server_cert, private_key, private_key_passwd);
+	  this enabled dynamic keying (WPA2/WPA/IEEE 802.1X/WEP) without
+	  external RADIUS server
+	* added support for reading PKCS#12 (PFX) files (as a replacement for
+	  PEM/DER) to get certificate and private key (CONFIG_PKCS12)
+
+2004-12-05 - v0.3.0 (beginning of 0.3.x development releases)
+	* added support for Acct-{Input,Output}-Gigawords
+	* added support for Event-Timestamp (in RADIUS Accounting-Requests)
+	* added support for RADIUS Authentication Client MIB (RFC2618)
+	* added support for RADIUS Accounting Client MIB (RFC2620)
+	* made EAP re-authentication period configurable (eap_reauth_period)
+	* fixed EAPOL reauthentication to trigger WPA/WPA2 reauthentication
+	* fixed EAPOL state machine to stop if STA is removed during
+	  eapol_sm_step(); this fixes at least one segfault triggering bug with
+	  IEEE 802.11i pre-authentication
+	* added support for multiple WPA pre-shared keys (e.g., one for each
+	  client MAC address or keys shared by a group of clients);
+	  new hostapd.conf field wpa_psk_file for setting path to a text file
+	  containing PSKs, see hostapd.wpa_psk for an example
+	* added support for multiple driver interfaces to allow hostapd to be
+	  used with other drivers
+	* added wired authenticator driver interface (driver=wired in
+	  hostapd.conf, see wired.conf for example configuration)
+	* added madwifi driver interface (driver=madwifi in hostapd.conf, see
+	  madwifi.conf for example configuration; Note: include files from
+	  madwifi project is needed for building and a configuration file,
+	  .config, needs to be created in hostapd directory with
+	  CONFIG_DRIVER_MADWIFI=y to include this driver interface in hostapd
+	  build)
+	* fixed an alignment issue that could cause SHA-1 to fail on some
+	  platforms (e.g., Intel ixp425 with a compiler that does not 32-bit
+	  align variables)
+	* fixed RADIUS reconnection after an error in sending interim
+	  accounting packets
+	* added hostapd control interface for external programs and an example
+	  CLI, hostapd_cli (like wpa_cli for wpa_supplicant)
+	* started adding dot11, dot1x, radius MIBs ('hostapd_cli mib',
+	  'hostapd_cli sta <addr>')
+	* finished update from IEEE 802.1X-2001 to IEEE 802.1X-REV (now d11)
+	* added support for strict GTK rekeying (wpa_strict_rekey in
+	  hostapd.conf)
+	* updated IAPP to use UDP port 3517 and multicast address 224.0.1.178
+	  (instead of broadcast) for IAPP ADD-notify (moved from draft 3 to
+	  IEEE 802.11F-2003)
+	* added Prism54 driver interface (driver=prism54 in hostapd.conf;
+	  note: .config needs to be created in hostapd directory with
+	  CONFIG_DRIVER_PRISM54=y to include this driver interface in hostapd
+	  build)
+	* dual-licensed hostapd (GPLv2 and BSD licenses)
+	* fixed RADIUS accounting to generate a new session id for cases where
+	  a station reassociates without first being complete deauthenticated
+	* fixed STA disassociation handler to mark next timeout state to
+	  deauthenticate the station, i.e., skip long wait for inactivity poll
+	  and extra disassociation, if the STA disassociates without
+	  deauthenticating
+	* added integrated EAP authenticator that can be used instead of
+	  external RADIUS authentication server; currently, only EAP-MD5 is
+	  supported, so this cannot yet be used for key distribution; the EAP
+	  method interface is generic, though, so adding new EAP methods should
+	  be straightforward; new hostapd.conf variables: 'eap_authenticator'
+	  and 'eap_user_file'; this obsoletes "minimal authentication server"
+	  ('minimal_eap' in hostapd.conf) which is now removed
+	* added support for FreeBSD and driver interface for the BSD net80211
+	  layer (driver=bsd in hostapd.conf and CONFIG_DRIVER_BSD=y in
+	  .config); please note that some of the required kernel mods have not
+	  yet been committed
+
+2004-07-17 - v0.2.4 (beginning of 0.2.x stable releases)
+	* fixed some accounting cases where Accounting-Start was sent when
+	  IEEE 802.1X port was being deauthorized
+
+2004-06-20 - v0.2.3
+	* modified RADIUS client to re-connect the socket in case of certain
+	  error codes that are generated when a network interface state is
+	  changes (e.g., when IP address changes or the interface is set UP)
+	* fixed couple of cases where EAPOL state for a station was freed
+	  twice causing a segfault for hostapd
+	* fixed couple of bugs in processing WPA deauthentication (freed data
+	  was used)
+
+2004-05-31 - v0.2.2
+	* fixed WPA/WPA2 group rekeying to use key index correctly (GN/GM)
+	* fixed group rekeying to send zero TSC in EAPOL-Key messages to fix
+	  cases where STAs dropped multicast frames as replay attacks
+	* added support for copying RADIUS Attribute 'Class' from
+	  authentication messages into accounting messages
+	* send canned EAP failure if RADIUS server sends Access-Reject without
+	  EAP message (previously, Supplicant was not notified in this case)
+	* fixed mixed WPA-PSK and WPA-EAP mode to work with WPA-PSK (i.e., do
+	  not start EAPOL state machines if the STA selected to use WPA-PSK)
+
+2004-05-06 - v0.2.1
+	* added WPA and IEEE 802.11i/RSN (WPA2) Authenticator functionality
+	  - based on IEEE 802.11i/D10.0 but modified to interoperate with WPA
+	    (i.e., IEEE 802.11i/D3.0)
+	  - supports WPA-only, RSN-only, and mixed WPA/RSN mode
+	  - both WPA-PSK and WPA-RADIUS/EAP are supported
+	  - PMKSA caching and pre-authentication
+	  - new hostapd.conf variables: wpa, wpa_psk, wpa_passphrase,
+	    wpa_key_mgmt, wpa_pairwise, wpa_group_rekey, wpa_gmk_rekey,
+	    rsn_preauth, rsn_preauth_interfaces
+	* fixed interim accounting to remove any pending accounting messages
+	  to the STA before sending a new one
+
+2004-02-15 - v0.2.0
+	* added support for Acct-Interim-Interval:
+	  - draft-ietf-radius-acct-interim-01.txt
+	  - use Acct-Interim-Interval attribute from Access-Accept if local
+	    'radius_acct_interim_interval' is not set
+	  - allow different update intervals for each STA
+	* fixed event loop to call signal handlers only after returning from
+	  the real signal handler
+	* reset sta->timeout_next after successful association to make sure
+	  that the previously registered inactivity timer will not remove the
+	  STA immediately (e.g., if STA deauthenticates and re-associates
+	  before the timer is triggered).
+	* added new hostapd.conf variable, nas_identifier, that can be used to
+	  add an optional RADIUS Attribute, NAS-Identifier, into authentication
+	  and accounting messages
+	* added support for Accounting-On and Accounting-Off messages
+	* fixed accounting session handling to send Accounting-Start only once
+	  per session and not to send Accounting-Stop if the session was not
+	  initialized properly
+	* fixed Accounting-Stop statistics in cases where the message was
+	  previously sent after the kernel entry for the STA (and/or IEEE
+	  802.1X data) was removed
+
+
+Note:
+
+Older changes up to and including v0.1.0 are included in the ChangeLog
+of the Host AP driver.

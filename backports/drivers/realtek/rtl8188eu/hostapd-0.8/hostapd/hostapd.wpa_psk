@@ -1,0 +1,9 @@
+# List of WPA PSKs. Each line, except for empty lines and lines starting
+# with #, must contain a MAC address and PSK separated with a space.
+# Special MAC address 00:00:00:00:00:00 can be used to configure PSKs that
+# anyone can use. PSK can be configured as an ASCII passphrase of 8..63
+# characters or as a 256-bit hex PSK (64 hex digits).
+00:00:00:00:00:00 secret passphrase
+00:11:22:33:44:55 another passphrase
+00:22:33:44:55:66 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+00:00:00:00:00:00 another passphrase for all STAs

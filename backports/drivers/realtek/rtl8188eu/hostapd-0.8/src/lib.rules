@@ -1,0 +1,21 @@
+ifndef CC
+CC=gcc
+endif
+
+ifndef CFLAGS
+CFLAGS = -MMD -O2 -Wall -g
+endif
+
+CFLAGS += -I.. -I../utils
+
+
+Q=@
+E=echo
+ifeq ($(V), 1)
+Q=
+E=true
+endif
+
+%.o: %.c
+	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
+	@$(E) "  CC " $<

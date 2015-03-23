@@ -1,0 +1,65 @@
+#!/usr/bin/perl -w
+#
+# Logwatch script for hostapd
+#
+# Copyright 2005 Henrik Brix Andersen <brix@gentoo.org>
+# Distributed under the terms of the GNU General Public License v2
+# Alternatively, this file may be distributed under the terms of the BSD License
+
+use strict;
+
+my $debug = $ENV{'LOGWATCH_DEBUG'} || 0;
+my $detail = $ENV{'LOGWATCH_DETAIL_LEVEL'} || 0;
+my $debugcounter = 1;
+
+my %hostapd;
+my @unmatched;
+
+if ($debug >= 5) {
+	print STDERR "\n\nDEBUG: Inside HOSTAPD Filter\n\n";
+}
+
+while (defined(my $line = <STDIN>)) {
+	if ($debug >= 5) {
+		print STDERR "DEBUG($debugcounter): $line";
+		$debugcounter++;
+	}
+    chomp($line);
+
+	if (my ($iface,$mac,$layer,$details) = ($line =~ /(.*?): STA (.*?) (.*?): (.*?)$/i)) {
+		unless ($detail == 10) {
+			# collapse association events
+			$details =~ s/^(associated) .*$/$1/i;
+		}
+		$hostapd{$iface}->{$mac}->{$layer}->{$details}++;
+	} else {
+		push @unmatched, "$line\n";
+	}
+}
+
+if (keys %hostapd) {
+	foreach my $iface (sort keys %hostapd) {
+		print "Interface $iface:\n";
+		foreach my $mac (sort keys %{$hostapd{$iface}}) {
+			print "  Client MAC Address $mac:\n";
+			foreach my $layer (sort keys %{$hostapd{$iface}->{$mac}}) {
+				print "    $layer:\n";
+				foreach my $details (sort keys %{$hostapd{$iface}->{$mac}->{$layer}}) {
+					print "      $details";
+					my $count = $hostapd{$iface}->{$mac}->{$layer}->{$details};
+					if ($count > 1) {
+						print ": " . $count . " Times";
+					}
+					print "\n";
+				}
+			}
+		}
+	}
+}
+
+if ($#unmatched >= 0) {
+    print "\n**Unmatched Entries**\n";
+    print @unmatched;
+}
+
+exit(0);

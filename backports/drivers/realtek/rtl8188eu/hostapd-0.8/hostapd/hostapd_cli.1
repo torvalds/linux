@@ -1,0 +1,89 @@
+.TH HOSTAPD_CLI 1 "April  7, 2005" hostapd_cli "hostapd command-line interface"
+.SH NAME
+hostapd_cli \- hostapd command-line interface
+.SH SYNOPSIS
+.B hostapd_cli
+[\-p<path>] [\-i<ifname>] [\-a<path>] [\-hvB] [command..]
+.SH DESCRIPTION
+This manual page documents briefly the
+.B hostapd_cli
+utility.
+.PP
+.B hostapd_cli
+is a command-line interface for the
+.B hostapd
+daemon.
+
+.B hostapd
+is a user space daemon for access point and authentication servers.
+It implements IEEE 802.11 access point management, IEEE 802.1X/WPA/WPA2/EAP Authenticators and RADIUS authentication server.
+For more information about
+.B hostapd
+refer to the
+.BR hostapd (8)
+man page.
+.SH OPTIONS
+A summary of options is included below.
+For a complete description, run
+.BR hostapd_cli
+from the command line.
+.TP
+.B \-p<path>
+Path to find control sockets.
+
+Default: /var/run/hostapd
+.TP
+.B \-i<ifname>
+Interface to listen on.
+
+Default: first interface found in socket path.
+.TP
+.B \-a<path>
+Run in daemon mode executing the action file based on events from hostapd.
+.TP
+.B \-B
+Run a daemon in the background.
+.TP
+.B \-h
+Show usage.
+.TP
+.B \-v
+Show hostapd_cli version.
+.SH COMMANDS
+A summary of commands is included below.
+For a complete description, run
+.BR hostapd_cli
+from the command line.
+.TP
+.B mib
+Get MIB variables (dot1x, dot11, radius).
+.TP
+.B sta <addr>
+Get MIB variables for one station.
+.TP
+.B all_sta
+Get MIB variables for all stations.
+.TP
+.B help
+Get usage help.
+.TP
+.B interface [ifname] 
+Show interfaces/select interface.
+.TP
+.B level <debug level>
+Change debug level.
+.TP
+.B license
+Show full
+.B hostapd_cli
+license.
+.TP
+.B quit
+Exit hostapd_cli.
+.SH SEE ALSO
+.BR hostapd (8).
+.SH AUTHOR
+hostapd_cli was written by Jouni Malinen <j@w1.fi>. 
+.PP
+This manual page was written by Faidon Liambotis <faidon@cube.gr>,
+for the Debian project (but may be used by others).

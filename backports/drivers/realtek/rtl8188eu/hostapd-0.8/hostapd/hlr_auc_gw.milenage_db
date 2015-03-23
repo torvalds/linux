@@ -1,0 +1,13 @@
+# Parameters for Milenage (Example algorithms for AKA).
+# The example Ki, OPc, and AMF values here are from 3GPP TS 35.208 v6.0.0
+# 4.3.20 Test Set 20. SQN is the last used SQN value.
+# These values can be used for both UMTS (EAP-AKA) and GSM (EAP-SIM)
+# authentication. In case of GSM/EAP-SIM, AMF and SQN values are not used, but
+# dummy values will need to be included in this file.
+
+# IMSI Ki OPc AMF SQN
+232010000000000 90dca4eda45b53cf0f12d7c9c3bc6a89 cb9cccc4b9258e6dca4760379fb82581 61df 000000000000
+
+# These values are from Test Set 19 which has the AMF separation bit set to 1
+# and as such, is suitable for EAP-AKA' test.
+555444333222111 5122250214c33e723a5dd523fc145fc0 981d464c7c52eb6e5036234984ad0bcf c3ab 16f3b3f70fc1

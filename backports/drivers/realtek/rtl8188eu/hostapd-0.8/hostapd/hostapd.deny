@@ -1,0 +1,5 @@
+# List of MAC addresses that are not allowed to authenticate (IEEE 802.11)
+# with the AP.
+00:20:30:40:50:60
+00:ab:cd:ef:12:34
+00:00:30:40:50:60

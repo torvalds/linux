@@ -1,0 +1,162 @@
+#!/bin/sh
+# Script to start/stop a hostapd-based access point
+#
+# Sample start call "control_ap start wlan0 eth0"
+# Stop with "control_ap stop"
+#
+
+case "$1" in
+start)
+	if [ $# -ne 3 ]
+	then
+	  echo "Usage: $0 start AP_iface NET_iface"
+	  exit 1
+	fi
+;;
+stop)
+	if [ $# -ne 1 ]
+	then
+	  echo "Usage: $0 stop"
+	  exit 1
+	fi
+;;
+*)
+        echo "Usage:"
+	echo "$0 start AP-iface net_iface"
+	echo "or"
+	echo "$0 stop"
+        exit 1
+        ;;
+esac
+
+# Symbols for needed programs
+
+IPTABLES=/sbin/iptables
+IFCONFIG=/sbin/ifconfig
+DHCPD=/usr/sbin/dhcpd
+HOSTAPD=/home/finger/rtl8188eu/hostapd-0.8/hostapd/hostapd
+
+# Symbols for AP and external interfaces
+
+NET_AP=$2
+NET_EXT=$3
+
+# First 3 octets of IP address for the AP
+
+AP_ADDR=192.168.0
+
+# IP address for nameserver
+
+NAME_SERVER=8.8.8.8
+
+# AP Channel, SSID, Encryption method, driver,  and Encryption secret
+
+AP_CHANNEL=11
+AP_SSID=rtwap
+WPA_SECRET="87654321"
+ENCRYPT_MODE=2
+DRIVER=rtl871xdrv
+
+case "$1" in
+start)
+        echo "Starting AP mode for $NET_AP at address $AP_ADDR.1"
+        # Disable packet forwarding
+        echo 0 > /proc/sys/net/ipv4/ip_forward
+        # Stop any existing hostapd and dhcpd daemons
+        killall -q hostapd
+        killall -q dhcpd
+        #Set up forwarding
+        $IPTABLES -t nat -A POSTROUTING -o $NET_EXT -j MASQUERADE
+        $IPTABLES -A FORWARD -i $NET_EXT -o $NET_AP -m state \
+		--state RELATED,ESTABLISHED -j ACCEPT
+        $IPTABLES -A FORWARD -i $NET_AP -o $NET_EXT -j ACCEPT
+        # Get the AP interface in the right state
+        $IFCONFIG $NET_AP down
+        $IFCONFIG $NET_AP up
+        $IFCONFIG $NET_AP $AP_ADDR.1
+        # dhcpd needs to have a leases file available - create it if needed
+        if [ ! -f /var/lib/dhcp/db/dhcpd.leases ]; then
+		mkdir -p /var/lib/dhcp/db
+                touch /var/lib/dhcp/db/dhcpd.leases
+        fi
+	# Write the DHCP server configuration file
+	echo "option domain-name-servers $NAME_SERVER;" > ~/dhcpd.conf
+	echo "default-lease-time 600;" >> ~/dhcpd.conf
+	echo "max-lease-time 7200;" >> ~/dhcpd.conf
+	echo "ddns-update-style none; ddns-updates off;" >> ~/dhcpd.conf
+	echo "subnet $AP_ADDR.0 netmask 255.255.255.0 {" >> ~/dhcpd.conf
+	echo "        range $AP_ADDR.200 $AP_ADDR.229;" >> ~/dhcpd.conf
+	echo "        option subnet-mask 255.255.255.0;" >> ~/dhcpd.conf
+	echo "        option broadcast-address $AP_ADDR.255;" >> ~/dhcpd.conf
+	echo "        option routers $AP_ADDR.1;" >> ~/dhcpd.conf
+	echo "}" >> ~/dhcpd.conf
+        # Bring up the DHCP server
+        $DHCPD -cf ~/dhcpd.conf $NET_AP
+	# Write the hostapd configuration file
+	cat > ~/hostapd.conf << EOF
+auth_algs=1
+beacon_int=100
+country_code=US
+ctrl_interface_group=0
+ctrl_interface=/var/run/hostapd
+dtim_period=2
+dump_file=/tmp/hostapd.dump
+fragm_threshold=2346
+#ht_capab=[HT40-][SHORT-GI-20][SHORT-GI-40][MAX-AMSDU-7935][DSSS_CCK-40]
+#ieee80211d=1
+ieee80211n=1
+ignore_broadcast_ssid=0
+logger_stdout=-1
+logger_stdout_level=2
+logger_syslog=-1
+logger_syslog_level=2
+macaddr_acl=0
+max_num_sta=255
+rts_threshold=2347
+wmm_ac_be_acm=0
+wmm_ac_be_aifs=3
+wmm_ac_be_cwmax=10
+wmm_ac_be_cwmin=4
+wmm_ac_be_txop_limit=0
+wmm_ac_bk_acm=0
+wmm_ac_bk_aifs=7
+wmm_ac_bk_cwmax=10
+wmm_ac_bk_cwmin=4
+wmm_ac_bk_txop_limit=0
+wmm_ac_vi_acm=0
+wmm_ac_vi_aifs=2
+wmm_ac_vi_cwmax=4
+wmm_ac_vi_cwmin=3
+wmm_ac_vi_txop_limit=94
+wmm_ac_vo_acm=0
+wmm_ac_vo_aifs=2
+wmm_ac_vo_cwmax=3
+wmm_ac_vo_cwmin=2
+wmm_ac_vo_txop_limit=47
+wmm_enabled=1
+EOF
+	echo "interface=$NET_AP" >> ~/hostapd.conf
+	echo "ssid=$AP_SSID" >> ~/hostapd.conf 
+	echo "driver=$DRIVER" >> ~/hostapd.conf 
+	echo "hw_mode=g" >> ~/hostapd.conf 
+	echo "channel=$AP_CHANNEL" >> ~/hostapd.conf 
+	echo "wpa=$ENCRYPT_MODE" >> ~/hostapd.conf 
+	echo "wpa_key_mgmt=WPA-PSK" >> ~/hostapd.conf 
+	echo "wpa_pairwise=TKIP CCMP" >> ~/hostapd.conf 
+	echo "rsn_pairwise=CCMP" >> ~/hostapd.conf
+	echo "wpa_passphrase=$WPA_SECRET" >> ~/hostapd.conf 
+        # Enable packet forwarding
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+        # Bring up hostapd
+        $HOSTAPD -dd -B ~/hostapd.conf
+        ;;
+stop)
+        echo "Stopping AP mode"
+        # Stop hostapd and dhcpd daemons
+        killall hostapd
+        killall dhcpd
+	rm -f ~/hostapd.conf
+	rm -f ~/dhcpd.conf
+        ;;
+esac
+
