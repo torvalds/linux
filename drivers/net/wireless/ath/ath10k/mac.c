@@ -29,6 +29,7 @@
 #include "testmode.h"
 #include "wmi.h"
 #include "wmi-ops.h"
+#include "wow.h"
 
 /**********/
 /* Crypto */
@@ -4810,70 +4811,6 @@ static int ath10k_tx_last_beacon(struct ieee80211_hw *hw)
 	return 1;
 }
 
-#ifdef CONFIG_PM
-static int ath10k_suspend(struct ieee80211_hw *hw,
-			  struct cfg80211_wowlan *wowlan)
-{
-	struct ath10k *ar = hw->priv;
-	int ret;
-
-	mutex_lock(&ar->conf_mutex);
-
-	ret = ath10k_wait_for_suspend(ar, WMI_PDEV_SUSPEND);
-	if (ret) {
-		if (ret == -ETIMEDOUT)
-			goto resume;
-		ret = 1;
-		goto exit;
-	}
-
-	ret = ath10k_hif_suspend(ar);
-	if (ret) {
-		ath10k_warn(ar, "failed to suspend hif: %d\n", ret);
-		goto resume;
-	}
-
-	ret = 0;
-	goto exit;
-resume:
-	ret = ath10k_wmi_pdev_resume_target(ar);
-	if (ret)
-		ath10k_warn(ar, "failed to resume target: %d\n", ret);
-
-	ret = 1;
-exit:
-	mutex_unlock(&ar->conf_mutex);
-	return ret;
-}
-
-static int ath10k_resume(struct ieee80211_hw *hw)
-{
-	struct ath10k *ar = hw->priv;
-	int ret;
-
-	mutex_lock(&ar->conf_mutex);
-
-	ret = ath10k_hif_resume(ar);
-	if (ret) {
-		ath10k_warn(ar, "failed to resume hif: %d\n", ret);
-		ret = 1;
-		goto exit;
-	}
-
-	ret = ath10k_wmi_pdev_resume_target(ar);
-	if (ret) {
-		ath10k_warn(ar, "failed to resume target: %d\n", ret);
-		ret = 1;
-		goto exit;
-	}
-
-	ret = 0;
-exit:
-	mutex_unlock(&ar->conf_mutex);
-	return ret;
-}
-#endif
-
 static void ath10k_reconfig_complete(struct ieee80211_hw *hw,
 				     enum ieee80211_reconfig_type reconfig_type)
 {
@@ -5423,8 +5360,8 @@ static const struct ieee80211_ops ath10k_ops = {
 	CFG80211_TESTMODE_CMD(ath10k_tm_cmd)
 
 #ifdef CONFIG_PM
-	.suspend			= ath10k_suspend,
-	.resume				= ath10k_resume,
+	.suspend			= ath10k_wow_op_suspend,
+	.resume				= ath10k_wow_op_resume,
 #endif
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.sta_add_debugfs		= ath10k_sta_add_debugfs,
@@ -5860,6 +5797,12 @@ int ath10k_mac_register(struct ath10k *ar)
 	ar->hw->wiphy->features |= NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE;
 
 	ar->hw->wiphy->max_ap_assoc_sta = ar->max_num_stations;
+
+	ret = ath10k_wow_init(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to init wow: %d\n", ret);
+		goto err_free;
+	}
 
 	/*
 	 * on LL hardware queues are managed entirely by the FW

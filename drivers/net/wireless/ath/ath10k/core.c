@@ -1386,6 +1386,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	init_completion(&ar->scan.completed);
 	init_completion(&ar->scan.on_channel);
 	init_completion(&ar->target_suspend);
+	init_completion(&ar->wow.wakeup_completed);
 
 	init_completion(&ar->install_key_done);
 	init_completion(&ar->vdev_setup_done);

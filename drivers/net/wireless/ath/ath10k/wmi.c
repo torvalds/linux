@@ -2898,7 +2898,19 @@ void ath10k_wmi_event_rtt_error_report(struct ath10k *ar, struct sk_buff *skb)
 
 void ath10k_wmi_event_wow_wakeup_host(struct ath10k *ar, struct sk_buff *skb)
 {
-	ath10k_dbg(ar, ATH10K_DBG_WMI, "WMI_WOW_WAKEUP_HOST_EVENTID\n");
+	struct wmi_wow_ev_arg ev = {};
+	int ret;
+
+	complete(&ar->wow.wakeup_completed);
+
+	ret = ath10k_wmi_pull_wow_event(ar, skb, &ev);
+	if (ret) {
+		ath10k_warn(ar, "failed to parse wow wakeup event: %d\n", ret);
+		return;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wow wakeup host reason %s\n",
+		   wow_reason(ev.wake_reason));
 }
 
 void ath10k_wmi_event_dcs_interference(struct ath10k *ar, struct sk_buff *skb)

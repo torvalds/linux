@@ -35,6 +35,7 @@
 #include "../dfs_pattern_detector.h"
 #include "spectral.h"
 #include "thermal.h"
+#include "wow.h"
 
 #define MS(_v, _f) (((_v) & _f##_MASK) >> _f##_LSB)
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
@@ -443,6 +444,12 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT = 5,
 
+	/* Some firmware revisions have an incomplete WoWLAN implementation
+	 * despite WMI service bit being advertised. This feature flag is used
+	 * to distinguish whether WoWLAN is really supported or not.
+	 */
+	ATH10K_FW_FEATURE_WOWLAN_SUPPORT = 6,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
@@ -691,6 +698,7 @@ struct ath10k {
 	} stats;
 
 	struct ath10k_thermal thermal;
+	struct ath10k_wow wow;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
