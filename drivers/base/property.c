@@ -347,8 +347,10 @@ int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
 				      size_t nval)
 {
 	if (is_of_node(fwnode))
-		return of_property_read_string_array(of_node(fwnode), propname,
-						     val, nval);
+		return val ?
+			of_property_read_string_array(of_node(fwnode), propname,
+						      val, nval) :
+			of_property_count_strings(of_node(fwnode), propname);
 	else if (is_acpi_node(fwnode))
 		return acpi_dev_prop_read(acpi_node(fwnode), propname,
 					  DEV_PROP_STRING, val, nval);
