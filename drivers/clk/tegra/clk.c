@@ -272,7 +272,7 @@ void __init tegra_add_of_provider(struct device_node *np)
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
 	rst_ctlr.of_node = np;
-	rst_ctlr.nr_resets = clk_num * 32;
+	rst_ctlr.nr_resets = periph_banks * 32;
 	reset_controller_register(&rst_ctlr);
 }
 
