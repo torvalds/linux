@@ -11,7 +11,27 @@
 #ifdef CONFIG_ARM_KERNMEM_PERMS
 #include <asm/pgtable.h>
 #endif
-	
+
+/*
+ * Poor man's version of LOG2CEIL(), which is
+ * not available in binutils before v2.24.
+ */
+#define LOG2_ROUNDUP(size) (		\
+	__LOG2_ROUNDUP(size,  2)	\
+	__LOG2_ROUNDUP(size,  3)	\
+	__LOG2_ROUNDUP(size,  4)	\
+	__LOG2_ROUNDUP(size,  5)	\
+	__LOG2_ROUNDUP(size,  6)	\
+	__LOG2_ROUNDUP(size,  7)	\
+	__LOG2_ROUNDUP(size,  8)	\
+	__LOG2_ROUNDUP(size,  9)	\
+	__LOG2_ROUNDUP(size, 10)	\
+	__LOG2_ROUNDUP(size, 11)	\
+	12)
+
+#define __LOG2_ROUNDUP(size, order)	\
+	(size) <= (1 << order) ? order :
+
 #define PROC_INFO							\
 	. = ALIGN(4);							\
 	VMLINUX_SYMBOL(__proc_info_begin) = .;				\
@@ -23,7 +43,7 @@
 	VMLINUX_SYMBOL(__idmap_text_start) = .;				\
 	*(.idmap.text)							\
 	VMLINUX_SYMBOL(__idmap_text_end) = .;				\
-	. = ALIGN(1 << LOG2CEIL(__hyp_idmap_size));			\
+	. = ALIGN(1 << LOG2_ROUNDUP(__hyp_idmap_size));			\
 	VMLINUX_SYMBOL(__hyp_idmap_text_start) = .;			\
 	*(.hyp.idmap.text)						\
 	VMLINUX_SYMBOL(__hyp_idmap_text_end) = .;
