@@ -222,7 +222,7 @@ config TEGRA_IOMMU_SMMU
 	select IOMMU_API
 	help
 	  This driver supports the IOMMU hardware (SMMU) found on NVIDIA Tegra
-	  SoCs (Tegra30 up to Tegra132).
+	  SoCs (Tegra30 up to Tegra210).
 
 config EXYNOS_IOMMU
 	bool "Exynos IOMMU Support"
