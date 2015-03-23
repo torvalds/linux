@@ -75,7 +75,7 @@ struct gpio_bank {
 	int power_mode;
 	bool workaround_enabled;
 
-	void (*set_dataout)(struct gpio_bank *bank, int gpio, int enable);
+	void (*set_dataout)(struct gpio_bank *bank, unsigned gpio, int enable);
 	int (*get_context_loss_count)(struct device *dev);
 
 	struct omap_gpio_reg_offs *regs;
@@ -119,11 +119,11 @@ static void omap_set_gpio_direction(struct gpio_bank *bank, int gpio,
 
 
 /* set data out value using dedicate set/clear register */
-static void omap_set_gpio_dataout_reg(struct gpio_bank *bank, int gpio,
+static void omap_set_gpio_dataout_reg(struct gpio_bank *bank, unsigned offset,
 				      int enable)
 {
 	void __iomem *reg = bank->base;
-	u32 l = GPIO_BIT(bank, gpio);
+	u32 l = BIT(offset);
 
 	if (enable) {
 		reg += bank->regs->set_dataout;
@@ -137,11 +137,11 @@ static void omap_set_gpio_dataout_reg(struct gpio_bank *bank, int gpio,
 }
 
 /* set data out value using mask register */
-static void omap_set_gpio_dataout_mask(struct gpio_bank *bank, int gpio,
+static void omap_set_gpio_dataout_mask(struct gpio_bank *bank, unsigned offset,
 				       int enable)
 {
 	void __iomem *reg = bank->base + bank->regs->dataout;
-	u32 gpio_bit = GPIO_BIT(bank, gpio);
+	u32 gpio_bit = BIT(offset);
 	u32 l;
 
 	l = readl_relaxed(reg);
