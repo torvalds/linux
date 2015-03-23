@@ -48,7 +48,7 @@ struct pr_transport_id_holder {
 	struct t10_pr_registration *dest_pr_reg;
 	struct se_portal_group *dest_tpg;
 	struct se_node_acl *dest_node_acl;
-	struct se_dev_entry *dest_se_deve;
+	struct se_dev_entry __rcu *dest_se_deve;
 	struct list_head dest_list;
 };
 
@@ -232,7 +232,7 @@ target_scsi2_reservation_release(struct se_cmd *cmd)
 	tpg = sess->se_tpg;
 	pr_debug("SCSI-2 Released reservation for %s LUN: %u ->"
 		" MAPPED LUN: %u for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
-		cmd->se_lun->unpacked_lun, cmd->se_deve->mapped_lun,
+		cmd->se_lun->unpacked_lun, cmd->orig_fe_lun,
 		sess->se_node_acl->initiatorname);
 
 out_unlock:
@@ -281,7 +281,7 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 			dev->dev_reserved_node_acl->initiatorname);
 		pr_err("Current attempt - LUN: %u -> MAPPED LUN: %u"
 			" from %s \n", cmd->se_lun->unpacked_lun,
-			cmd->se_deve->mapped_lun,
+			cmd->orig_fe_lun,
 			sess->se_node_acl->initiatorname);
 		ret = TCM_RESERVATION_CONFLICT;
 		goto out_unlock;
@@ -295,7 +295,7 @@ target_scsi2_reservation_reserve(struct se_cmd *cmd)
 	}
 	pr_debug("SCSI-2 Reserved %s LUN: %u -> MAPPED LUN: %u"
 		" for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
-		cmd->se_lun->unpacked_lun, cmd->se_deve->mapped_lun,
+		cmd->se_lun->unpacked_lun, cmd->orig_fe_lun,
 		sess->se_node_acl->initiatorname);
 
 out_unlock:
@@ -320,6 +320,7 @@ static int core_scsi3_pr_seq_non_holder(
 	unsigned char *cdb = cmd->t_task_cdb;
 	struct se_dev_entry *se_deve;
 	struct se_session *se_sess = cmd->se_sess;
+	struct se_node_acl *nacl = se_sess->se_node_acl;
 	int other_cdb = 0, ignore_reg;
 	int registered_nexus = 0, ret = 1; /* Conflict by default */
 	int all_reg = 0, reg_only = 0; /* ALL_REG, REG_ONLY */
@@ -327,7 +328,8 @@ static int core_scsi3_pr_seq_non_holder(
 	int legacy = 0; /* Act like a legacy device and return
 			 * RESERVATION CONFLICT on some CDBs */
 
-	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	rcu_read_lock();
+	se_deve = target_nacl_find_deve(nacl, cmd->orig_fe_lun);
 	/*
 	 * Determine if the registration should be ignored due to
 	 * non-matching ISIDs in target_scsi3_pr_reservation_check().
@@ -368,8 +370,10 @@ static int core_scsi3_pr_seq_non_holder(
 			registered_nexus = 1;
 		break;
 	default:
+		rcu_read_unlock();
 		return -EINVAL;
 	}
+	rcu_read_unlock();
 	/*
 	 * Referenced from spc4r17 table 45 for *NON* PR holder access
 	 */
@@ -735,7 +739,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			if (strcmp(nacl->initiatorname, nacl_tmp->initiatorname))
 				continue;
 
-			atomic_inc_mb(&deve_tmp->pr_ref_count);
+			kref_get(&deve_tmp->pr_kref);
 			spin_unlock_bh(&port->sep_alua_lock);
 			/*
 			 * Grab a configfs group dependency that is released
@@ -748,7 +752,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 				pr_err("core_scsi3_lunacl_depend"
 						"_item() failed\n");
 				atomic_dec_mb(&port->sep_tg_pt_ref_cnt);
-				atomic_dec_mb(&deve_tmp->pr_ref_count);
+				kref_put(&deve_tmp->pr_kref, target_pr_kref_release);
 				goto out;
 			}
 			/*
@@ -763,7 +767,6 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 						sa_res_key, all_tg_pt, aptpl);
 			if (!pr_reg_atp) {
 				atomic_dec_mb(&port->sep_tg_pt_ref_cnt);
-				atomic_dec_mb(&deve_tmp->pr_ref_count);
 				core_scsi3_lunacl_undepend_item(deve_tmp);
 				goto out;
 			}
@@ -896,7 +899,7 @@ static int __core_scsi3_check_aptpl_registration(
 	struct se_lun *lun,
 	u32 target_lun,
 	struct se_node_acl *nacl,
-	struct se_dev_entry *deve)
+	u32 mapped_lun)
 {
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
@@ -924,13 +927,12 @@ static int __core_scsi3_check_aptpl_registration(
 				pr_reg_aptpl_list) {
 
 		if (!strcmp(pr_reg->pr_iport, i_port) &&
-		     (pr_reg->pr_res_mapped_lun == deve->mapped_lun) &&
+		     (pr_reg->pr_res_mapped_lun == mapped_lun) &&
 		    !(strcmp(pr_reg->pr_tport, t_port)) &&
 		     (pr_reg->pr_reg_tpgt == tpgt) &&
 		     (pr_reg->pr_aptpl_target_lun == target_lun)) {
 
 			pr_reg->pr_reg_nacl = nacl;
-			pr_reg->pr_reg_deve = deve;
 			pr_reg->pr_reg_tg_pt_lun = lun;
 
 			list_del(&pr_reg->pr_reg_aptpl_list);
@@ -968,13 +970,12 @@ int core_scsi3_check_aptpl_registration(
 	struct se_node_acl *nacl,
 	u32 mapped_lun)
 {
-	struct se_dev_entry *deve = nacl->device_list[mapped_lun];
-
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return 0;
 
 	return __core_scsi3_check_aptpl_registration(dev, tpg, lun,
-				lun->unpacked_lun, nacl, deve);
+						     lun->unpacked_lun, nacl,
+						     mapped_lun);
 }
 
 static void __core_scsi3_dump_registration(
@@ -1408,27 +1409,29 @@ static int core_scsi3_lunacl_depend_item(struct se_dev_entry *se_deve)
 
 static void core_scsi3_lunacl_undepend_item(struct se_dev_entry *se_deve)
 {
-	struct se_lun_acl *lun_acl = se_deve->se_lun_acl;
+	struct se_lun_acl *lun_acl;
 	struct se_node_acl *nacl;
 	struct se_portal_group *tpg;
 	/*
 	 * For nacl->dynamic_node_acl=1
 	 */
+	lun_acl = se_deve->se_lun_acl;
 	if (!lun_acl) {
-		atomic_dec_mb(&se_deve->pr_ref_count);
+		kref_put(&se_deve->pr_kref, target_pr_kref_release);
 		return;
 	}
 	nacl = lun_acl->se_lun_nacl;
 	tpg = nacl->se_tpg;
 
 	target_undepend_item(&lun_acl->se_lun_group.cg_item);
-	atomic_dec_mb(&se_deve->pr_ref_count);
+	kref_put(&se_deve->pr_kref, target_pr_kref_release);
 }
 
 static sense_reason_t
 core_scsi3_decode_spec_i_port(
 	struct se_cmd *cmd,
 	struct se_portal_group *tpg,
+	struct se_dev_entry *local_se_deve,
 	unsigned char *l_isid,
 	u64 sa_res_key,
 	int all_tg_pt,
@@ -1439,7 +1442,7 @@ core_scsi3_decode_spec_i_port(
 	struct se_portal_group *dest_tpg = NULL, *tmp_tpg;
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_node_acl *dest_node_acl = NULL;
-	struct se_dev_entry *dest_se_deve = NULL, *local_se_deve;
+	struct se_dev_entry __rcu *dest_se_deve = NULL;
 	struct t10_pr_registration *dest_pr_reg, *local_pr_reg, *pr_reg_e;
 	struct t10_pr_registration *pr_reg_tmp, *pr_reg_tmp_safe;
 	LIST_HEAD(tid_dest_list);
@@ -1452,7 +1455,6 @@ core_scsi3_decode_spec_i_port(
 	int dest_local_nexus;
 	u32 dest_rtpi = 0;
 
-	local_se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Allocate a struct pr_transport_id_holder and setup the
 	 * local_node_acl and local_se_deve pointers and add to
@@ -1467,7 +1469,6 @@ core_scsi3_decode_spec_i_port(
 	INIT_LIST_HEAD(&tidh_new->dest_list);
 	tidh_new->dest_tpg = tpg;
 	tidh_new->dest_node_acl = se_sess->se_node_acl;
-	tidh_new->dest_se_deve = local_se_deve;
 
 	local_pr_reg = __core_scsi3_alloc_registration(cmd->se_dev,
 				se_sess->se_node_acl, local_se_deve, l_isid,
@@ -1476,6 +1477,7 @@ core_scsi3_decode_spec_i_port(
 		kfree(tidh_new);
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
+	rcu_assign_pointer(tidh_new->dest_se_deve, local_se_deve);
 	tidh_new->dest_pr_reg = local_pr_reg;
 	/*
 	 * The local I_T nexus does not hold any configfs dependances,
@@ -1635,7 +1637,7 @@ core_scsi3_decode_spec_i_port(
 		if (core_scsi3_lunacl_depend_item(dest_se_deve)) {
 			pr_err("core_scsi3_lunacl_depend_item()"
 					" failed\n");
-			atomic_dec_mb(&dest_se_deve->pr_ref_count);
+			kref_put(&dest_se_deve->pr_kref, target_pr_kref_release);
 			core_scsi3_nodeacl_undepend_item(dest_node_acl);
 			core_scsi3_tpg_undepend_item(dest_tpg);
 			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1990,6 +1992,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		bool aptpl, bool all_tg_pt, bool spec_i_pt, enum register_type register_type)
 {
 	struct se_session *se_sess = cmd->se_sess;
+	struct se_node_acl *nacl = se_sess->se_node_acl;
 	struct se_device *dev = cmd->se_dev;
 	struct se_dev_entry *se_deve;
 	struct se_lun *se_lun = cmd->se_lun;
@@ -2005,7 +2008,14 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	se_tpg = se_sess->se_tpg;
-	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+
+	rcu_read_lock();
+	se_deve = target_nacl_find_deve(nacl, cmd->orig_fe_lun);
+	if (!se_deve) {
+		pr_err("Unable to locate se_deve for PRO-REGISTER\n");
+		rcu_read_unlock();
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
 
 	if (se_tpg->se_tpg_tfo->sess_get_initiator_sid) {
 		memset(&isid_buf[0], 0, PR_REG_ISID_LEN);
@@ -2021,14 +2031,16 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		if (res_key) {
 			pr_warn("SPC-3 PR: Reservation Key non-zero"
 				" for SA REGISTER, returning CONFLICT\n");
+			rcu_read_unlock();
 			return TCM_RESERVATION_CONFLICT;
 		}
 		/*
 		 * Do nothing but return GOOD status.
 		 */
-		if (!sa_res_key)
+		if (!sa_res_key) {
+			rcu_read_unlock();
 			return 0;
-
+		}
 		if (!spec_i_pt) {
 			/*
 			 * Perform the Service Action REGISTER on the Initiator
@@ -2041,6 +2053,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 					register_type, 0)) {
 				pr_err("Unable to allocate"
 					" struct t10_pr_registration\n");
+				rcu_read_unlock();
 				return TCM_INVALID_PARAMETER_LIST;
 			}
 		} else {
@@ -2052,14 +2065,17 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 			 * logic from of core_scsi3_alloc_registration() for
 			 * each TransportID provided SCSI Initiator Port/Device
 			 */
-			ret = core_scsi3_decode_spec_i_port(cmd, se_tpg,
+			ret = core_scsi3_decode_spec_i_port(cmd, se_tpg, se_deve,
 					isid_ptr, sa_res_key, all_tg_pt, aptpl);
-			if (ret != 0)
+			if (ret != 0) {
+				rcu_read_unlock();
 				return ret;
+			}
 		}
-
+		rcu_read_unlock();
 		return core_scsi3_update_and_write_aptpl(dev, aptpl);
 	}
+	rcu_read_unlock();
 
 	/* ok, existing registration */
 
@@ -3321,7 +3337,7 @@ after_iport_check:
 
 	if (core_scsi3_lunacl_depend_item(dest_se_deve)) {
 		pr_err("core_scsi3_lunacl_depend_item() failed\n");
-		atomic_dec_mb(&dest_se_deve->pr_ref_count);
+		kref_put(&dest_se_deve->pr_kref, target_pr_kref_release);
 		dest_se_deve = NULL;
 		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		goto out;

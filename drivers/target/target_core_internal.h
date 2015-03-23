@@ -9,13 +9,15 @@ extern struct mutex g_device_mutex;
 extern struct list_head g_device_list;
 
 struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
-int	core_free_device_list_for_node(struct se_node_acl *,
+void	target_pr_kref_release(struct kref *);
+void	core_free_device_list_for_node(struct se_node_acl *,
 		struct se_portal_group *);
 void	core_update_device_list_access(u32, u32, struct se_node_acl *);
+struct se_dev_entry *target_nacl_find_deve(struct se_node_acl *, u32);
 int	core_enable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
 		u32, u32, struct se_node_acl *, struct se_portal_group *);
-int	core_disable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
-		u32, u32, struct se_node_acl *, struct se_portal_group *);
+void	core_disable_device_list_for_node(struct se_lun *, struct se_dev_entry *,
+		struct se_node_acl *, struct se_portal_group *);
 void	core_clear_lun_from_tpg(struct se_lun *, struct se_portal_group *);
 int	core_dev_export(struct se_device *, struct se_portal_group *,
 		struct se_lun *);

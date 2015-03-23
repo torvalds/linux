@@ -47,42 +47,6 @@ extern struct se_device *g_lun0_dev;
 static DEFINE_SPINLOCK(tpg_lock);
 static LIST_HEAD(tpg_list);
 
-/*	core_clear_initiator_node_from_tpg():
- *
- *
- */
-static void core_clear_initiator_node_from_tpg(
-	struct se_node_acl *nacl,
-	struct se_portal_group *tpg)
-{
-	int i;
-	struct se_dev_entry *deve;
-	struct se_lun *lun;
-
-	spin_lock_irq(&nacl->device_list_lock);
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		deve = nacl->device_list[i];
-
-		if (!(deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS))
-			continue;
-
-		if (!deve->se_lun) {
-			pr_err("%s device entries device pointer is"
-				" NULL, but Initiator has access.\n",
-				tpg->se_tpg_tfo->get_fabric_name());
-			continue;
-		}
-
-		lun = deve->se_lun;
-		spin_unlock_irq(&nacl->device_list_lock);
-		core_disable_device_list_for_node(lun, NULL, deve->mapped_lun,
-			TRANSPORT_LUNFLAGS_NO_ACCESS, nacl, tpg);
-
-		spin_lock_irq(&nacl->device_list_lock);
-	}
-	spin_unlock_irq(&nacl->device_list_lock);
-}
-
 /*	__core_tpg_get_initiator_node_acl():
  *
  *	spin_lock_bh(&tpg->acl_node_lock); must be held when calling
@@ -225,35 +189,6 @@ static void *array_zalloc(int n, size_t size, gfp_t flags)
 	return a;
 }
 
-/*      core_create_device_list_for_node():
- *
- *
- */
-static int core_create_device_list_for_node(struct se_node_acl *nacl)
-{
-	struct se_dev_entry *deve;
-	int i;
-
-	nacl->device_list = array_zalloc(TRANSPORT_MAX_LUNS_PER_TPG,
-			sizeof(struct se_dev_entry), GFP_KERNEL);
-	if (!nacl->device_list) {
-		pr_err("Unable to allocate memory for"
-			" struct se_node_acl->device_list\n");
-		return -ENOMEM;
-	}
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		deve = nacl->device_list[i];
-
-		atomic_set(&deve->ua_count, 0);
-		atomic_set(&deve->pr_ref_count, 0);
-		spin_lock_init(&deve->ua_lock);
-		INIT_LIST_HEAD(&deve->alua_port_list);
-		INIT_LIST_HEAD(&deve->ua_list);
-	}
-
-	return 0;
-}
-
 static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
 		const unsigned char *initiatorname)
 {
@@ -266,10 +201,11 @@ static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
 
 	INIT_LIST_HEAD(&acl->acl_list);
 	INIT_LIST_HEAD(&acl->acl_sess_list);
+	INIT_HLIST_HEAD(&acl->lun_entry_hlist);
 	kref_init(&acl->acl_kref);
 	init_completion(&acl->acl_free_comp);
-	spin_lock_init(&acl->device_list_lock);
 	spin_lock_init(&acl->nacl_sess_lock);
+	mutex_init(&acl->lun_entry_mutex);
 	atomic_set(&acl->acl_pr_ref_count, 0);
 	if (tpg->se_tpg_tfo->tpg_get_default_depth)
 		acl->queue_depth = tpg->se_tpg_tfo->tpg_get_default_depth(tpg);
@@ -281,15 +217,11 @@ static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
 
 	tpg->se_tpg_tfo->set_default_node_attributes(acl);
 
-	if (core_create_device_list_for_node(acl) < 0)
-		goto out_free_acl;
 	if (core_set_queue_depth_for_node(tpg, acl) < 0)
-		goto out_free_device_list;
+		goto out_free_acl;
 
 	return acl;
 
-out_free_device_list:
-	core_free_device_list_for_node(acl, tpg);
 out_free_acl:
 	kfree(acl);
 	return NULL;
@@ -454,7 +386,6 @@ void core_tpg_del_initiator_node_acl(struct se_node_acl *acl)
 	wait_for_completion(&acl->acl_free_comp);
 
 	core_tpg_wait_for_nacl_pr_ref(acl);
-	core_clear_initiator_node_from_tpg(acl, tpg);
 	core_free_device_list_for_node(acl, tpg);
 
 	pr_debug("%s_TPG[%hu] - Deleted ACL with TCQ Depth: %d for %s"
