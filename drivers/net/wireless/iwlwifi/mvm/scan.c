@@ -1181,6 +1181,10 @@ static u32 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	if (iwl_mvm_scan_total_iterations(params) > 1)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_PERIODIC;
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (mvm->scan_iter_notif_enabled)
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
+#endif
 	return flags;
 }
 
@@ -1519,6 +1523,23 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		IWL_DEBUG_SCAN(mvm, "Another sched scan is running\n");
 	}
 
+	return 0;
+}
+
+int iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_umac_scan_iter_complete_notif *notif = (void *)pkt->data;
+	u8 buf[256];
+
+	IWL_DEBUG_SCAN(mvm,
+		       "UMAC Scan iteration complete: status=0x%x scanned_channels=%d channels list: %s\n",
+		       notif->status, notif->scanned_channels,
+		       iwl_mvm_dump_channel_list(notif->results,
+						 notif->scanned_channels, buf,
+						 sizeof(buf)));
 	return 0;
 }
 

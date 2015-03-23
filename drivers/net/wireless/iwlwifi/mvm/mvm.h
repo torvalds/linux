@@ -1150,6 +1150,9 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm);
 int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb,
 					struct iwl_device_cmd *cmd);
+int iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd);
 
 /* MVM debugfs */
 #ifdef CONFIG_IWLWIFI_DEBUGFS

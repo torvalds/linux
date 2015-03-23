@@ -245,6 +245,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   false),
 	RX_HANDLER(SCAN_COMPLETE_UMAC, iwl_mvm_rx_umac_scan_complete_notif,
 		   true),
+	RX_HANDLER(SCAN_ITERATION_COMPLETE_UMAC,
+		   iwl_mvm_rx_umac_scan_iter_complete_notif, false),
 
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif, false),
 
@@ -356,6 +358,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(TDLS_CHANNEL_SWITCH_NOTIFICATION),
 	CMD(TDLS_CONFIG_CMD),
 	CMD(MCC_UPDATE_CMD),
+	CMD(SCAN_ITERATION_COMPLETE_UMAC),
 };
 #undef CMD
 
