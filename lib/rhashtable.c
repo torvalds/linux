@@ -261,8 +261,8 @@ EXPORT_SYMBOL_GPL(rhashtable_expand);
  * rhashtable_shrink - Shrink hash table while allowing concurrent lookups
  * @ht:		the hash table to shrink
  *
- * This function may only be called in a context where it is safe to call
- * synchronize_rcu(), e.g. not within a rcu_read_lock() section.
+ * This function shrinks the hash table to fit, i.e., the smallest
+ * size would not cause it to expand right away automatically.
  *
  * The caller must ensure that no concurrent resizing occurs by holding
  * ht->mutex.
@@ -276,10 +276,17 @@ EXPORT_SYMBOL_GPL(rhashtable_expand);
 int rhashtable_shrink(struct rhashtable *ht)
 {
 	struct bucket_table *new_tbl, *old_tbl = rht_dereference(ht->tbl, ht);
+	unsigned size = roundup_pow_of_two(atomic_read(&ht->nelems) * 3 / 2);
 
 	ASSERT_RHT_MUTEX(ht);
 
-	new_tbl = bucket_table_alloc(ht, old_tbl->size / 2);
+	if (size < ht->p.min_size)
+		size = ht->p.min_size;
+
+	if (old_tbl->size <= size)
+		return 0;
+
+	new_tbl = bucket_table_alloc(ht, size);
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
