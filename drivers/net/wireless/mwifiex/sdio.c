@@ -47,6 +47,7 @@
 static u8 user_rmmod;
 
 static struct mwifiex_if_ops sdio_ops;
+static unsigned long iface_work_flags;
 
 static struct semaphore add_remove_card_sem;
 
@@ -199,8 +200,6 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	adapter = card->adapter;
 	if (!adapter || !adapter->priv_num)
 		return;
-
-	cancel_work_sync(&adapter->iface_work);
 
 	if (user_rmmod) {
 		if (adapter->is_suspended)
@@ -2040,6 +2039,7 @@ mwifiex_update_mp_end_port(struct mwifiex_adapter *adapter, u16 port)
 		port, card->mp_data_port_mask);
 }
 
+static struct mwifiex_adapter *save_adapter;
 static void mwifiex_sdio_card_reset_work(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
@@ -2108,10 +2108,8 @@ rdwr_status mwifiex_sdio_rdwr_firmware(struct mwifiex_adapter *adapter,
 }
 
 /* This function dump firmware memory to file */
-static void mwifiex_sdio_fw_dump_work(struct work_struct *work)
+static void mwifiex_sdio_fw_dump_work(struct mwifiex_adapter *adapter)
 {
-	struct mwifiex_adapter *adapter =
-			container_of(work, struct mwifiex_adapter, iface_work);
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = 0;
 	unsigned int reg, reg_start, reg_end;
@@ -2233,36 +2231,36 @@ done:
 
 static void mwifiex_sdio_work(struct work_struct *work)
 {
-	struct mwifiex_adapter *adapter =
-			container_of(work, struct mwifiex_adapter, iface_work);
-
-	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET,
-			       &adapter->iface_work_flags))
-		mwifiex_sdio_card_reset_work(adapter);
 	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_FW_DUMP,
-			       &adapter->iface_work_flags))
-		mwifiex_sdio_fw_dump_work(work);
+			       &iface_work_flags))
+		mwifiex_sdio_fw_dump_work(save_adapter);
+	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET,
+			       &iface_work_flags))
+		mwifiex_sdio_card_reset_work(save_adapter);
 }
 
+static DECLARE_WORK(sdio_work, mwifiex_sdio_work);
 /* This function resets the card */
 static void mwifiex_sdio_card_reset(struct mwifiex_adapter *adapter)
 {
-	if (test_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &adapter->iface_work_flags))
+	save_adapter = adapter;
+	if (test_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &iface_work_flags))
 		return;
 
-	set_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &adapter->iface_work_flags);
+	set_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &iface_work_flags);
 
-	schedule_work(&adapter->iface_work);
+	schedule_work(&sdio_work);
 }
 
 /* This function dumps FW information */
 static void mwifiex_sdio_fw_dump(struct mwifiex_adapter *adapter)
 {
-	if (test_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &adapter->iface_work_flags))
+	save_adapter = adapter;
+	if (test_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &iface_work_flags))
 		return;
 
-	set_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &adapter->iface_work_flags);
-	schedule_work(&adapter->iface_work);
+	set_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &iface_work_flags);
+	schedule_work(&sdio_work);
 }
 
 /* Function to dump SDIO function registers and SDIO scratch registers in case
@@ -2378,7 +2376,6 @@ static struct mwifiex_if_ops sdio_ops = {
 	.cmdrsp_complete = mwifiex_sdio_cmdrsp_complete,
 	.event_complete = mwifiex_sdio_event_complete,
 	.card_reset = mwifiex_sdio_card_reset,
-	.iface_work = mwifiex_sdio_work,
 	.fw_dump = mwifiex_sdio_fw_dump,
 	.reg_dump = mwifiex_sdio_reg_dump,
 	.deaggr_pkt = mwifiex_deaggr_sdio_pkt,
@@ -2418,6 +2415,7 @@ mwifiex_sdio_cleanup_module(void)
 
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
+	cancel_work_sync(&sdio_work);
 
 	sdio_unregister_driver(&mwifiex_sdio);
 }

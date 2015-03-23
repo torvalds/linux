@@ -234,8 +234,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	if (!adapter || !adapter->priv_num)
 		return;
 
-	cancel_work_sync(&adapter->iface_work);
-
 	if (user_rmmod) {
 #ifdef CONFIG_PM_SLEEP
 		if (adapter->is_suspended)
@@ -2373,25 +2371,26 @@ done:
 	adapter->curr_mem_idx = 0;
 }
 
+static unsigned long iface_work_flags;
+static struct mwifiex_adapter *save_adapter;
 static void mwifiex_pcie_work(struct work_struct *work)
 {
-	struct mwifiex_adapter *adapter =
-			container_of(work, struct mwifiex_adapter, iface_work);
-
 	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_FW_DUMP,
-			       &adapter->iface_work_flags))
-		mwifiex_pcie_fw_dump_work(adapter);
+			       &iface_work_flags))
+		mwifiex_pcie_fw_dump_work(save_adapter);
 }
 
+static DECLARE_WORK(pcie_work, mwifiex_pcie_work);
 /* This function dumps FW information */
 static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 {
-	if (test_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &adapter->iface_work_flags))
+	save_adapter = adapter;
+	if (test_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &iface_work_flags))
 		return;
 
-	set_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &adapter->iface_work_flags);
+	set_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &iface_work_flags);
 
-	schedule_work(&adapter->iface_work);
+	schedule_work(&pcie_work);
 }
 
 /*
@@ -2619,7 +2618,6 @@ static struct mwifiex_if_ops pcie_ops = {
 	.init_fw_port =			mwifiex_pcie_init_fw_port,
 	.clean_pcie_ring =		mwifiex_clean_pcie_ring_buf,
 	.fw_dump =			mwifiex_pcie_fw_dump,
-	.iface_work =			mwifiex_pcie_work,
 };
 
 /*
@@ -2665,6 +2663,7 @@ static void mwifiex_pcie_cleanup_module(void)
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
 
+	cancel_work_sync(&pcie_work);
 	pci_unregister_driver(&mwifiex_pcie);
 }
 

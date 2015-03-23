@@ -898,8 +898,6 @@ struct mwifiex_adapter {
 	bool ext_scan;
 	u8 fw_api_ver;
 	u8 key_api_major_ver, key_api_minor_ver;
-	struct work_struct iface_work;
-	unsigned long iface_work_flags;
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
 	u8 curr_mem_idx;
