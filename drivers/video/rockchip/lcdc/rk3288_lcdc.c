@@ -3362,7 +3362,8 @@ static struct lcdc_cabc_mode cabc_mode[4] = {
 	{20,	128,	0},	/*mode 4*/
 };
 
-static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
+static int __maybe_unused
+rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
@@ -3663,7 +3664,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dpi_win_sel 		= rk3288_lcdc_dpi_win_sel,
 	.dpi_status 		= rk3288_lcdc_dpi_status,
 	.get_dsp_addr 		= rk3288_lcdc_get_dsp_addr,
-	.set_dsp_cabc 		= rk3288_lcdc_set_dsp_cabc,
+	/*.set_dsp_cabc 		= rk3288_lcdc_set_dsp_cabc,*/
 	.set_dsp_bcsh_hue 	= rk3288_lcdc_set_bcsh_hue,
 	.set_dsp_bcsh_bcs 	= rk3288_lcdc_set_bcsh_bcs,
 	.get_dsp_bcsh_hue 	= rk3288_lcdc_get_bcsh_hue,
