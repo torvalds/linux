@@ -37,6 +37,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -2416,6 +2417,14 @@ out_unref_obj:
 	return false;
 }
 
+/* Update plane->state->fb to match plane->fb after driver-internal updates */
+static void
+update_state_fb(struct drm_plane *plane)
+{
+	if (plane->fb != plane->state->fb)
+		drm_atomic_set_fb_for_plane(plane->state, plane->fb);
+}
+
 static void
 intel_find_plane_obj(struct intel_crtc *intel_crtc,
 		     struct intel_initial_plane_config *plane_config)
@@ -2462,6 +2471,8 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 			break;
 		}
 	}
+
+	update_state_fb(intel_crtc->base.primary);
 }
 
 static void i9xx_update_primary_plane(struct drm_crtc *crtc,
@@ -6602,6 +6613,10 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
+	val = I915_READ(DSPCNTR(plane));
+	if (!(val & DISPLAY_PLANE_ENABLE))
+		return;
+
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
@@ -6609,8 +6624,6 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	}
 
 	fb = &intel_fb->base;
-
-	val = I915_READ(DSPCNTR(plane));
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		if (val & DISPPLANE_TILED)
@@ -6650,6 +6663,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 		      plane_config->size);
 
 	crtc->base.primary->fb = fb;
+	update_state_fb(crtc->base.primary);
 }
 
 static void chv_crtc_clock_get(struct intel_crtc *crtc,
@@ -7643,6 +7657,9 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 	fb = &intel_fb->base;
 
 	val = I915_READ(PLANE_CTL(pipe, 0));
+	if (!(val & PLANE_CTL_ENABLE))
+		goto error;
+
 	if (val & PLANE_CTL_TILED_MASK)
 		plane_config->tiling = I915_TILING_X;
 
@@ -7687,6 +7704,7 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 		      plane_config->size);
 
 	crtc->base.primary->fb = fb;
+	update_state_fb(crtc->base.primary);
 	return;
 
 error:
@@ -7730,6 +7748,10 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	struct drm_framebuffer *fb;
 	struct intel_framebuffer *intel_fb;
 
+	val = I915_READ(DSPCNTR(pipe));
+	if (!(val & DISPLAY_PLANE_ENABLE))
+		return;
+
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
 		DRM_DEBUG_KMS("failed to alloc fb\n");
@@ -7737,8 +7759,6 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 	}
 
 	fb = &intel_fb->base;
-
-	val = I915_READ(DSPCNTR(pipe));
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		if (val & DISPPLANE_TILED)
@@ -7778,6 +7798,7 @@ ironlake_get_initial_plane_config(struct intel_crtc *crtc,
 		      plane_config->size);
 
 	crtc->base.primary->fb = fb;
+	update_state_fb(crtc->base.primary);
 }
 
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
@@ -9816,6 +9837,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(&obj->base);
 
 	crtc->primary->fb = fb;
+	update_state_fb(crtc->primary);
 
 	work->pending_flip_obj = obj;
 
@@ -9884,6 +9906,7 @@ cleanup_unpin:
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
 	crtc->primary->fb = old_fb;
+	update_state_fb(crtc->primary);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
@@ -13718,6 +13741,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 				  to_intel_crtc(c)->pipe);
 			drm_framebuffer_unreference(c->primary->fb);
 			c->primary->fb = NULL;
+			update_state_fb(c->primary);
 		}
 	}
 	mutex_unlock(&dev->struct_mutex);

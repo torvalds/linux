@@ -360,7 +360,7 @@ static void __exit omap_control_phy_exit(void)
 }
 module_exit(omap_control_phy_exit);
 
-MODULE_ALIAS("platform: omap_control_phy");
+MODULE_ALIAS("platform:omap_control_phy");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("OMAP Control Module PHY Driver");
 MODULE_LICENSE("GPL v2");
