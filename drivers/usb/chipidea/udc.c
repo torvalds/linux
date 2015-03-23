@@ -1574,6 +1574,10 @@ static int ci_udc_pullup(struct usb_gadget *_gadget, int is_on)
 {
 	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
 
+	/* Data+ pullup controlled by OTG state machine in OTG fsm mode */
+	if (ci_otg_is_fsm_mode(ci))
+		return 0;
+
 	pm_runtime_get_sync(&ci->gadget.dev);
 	if (is_on)
 		hw_write(ci, OP_USBCMD, USBCMD_RS, USBCMD_RS);
