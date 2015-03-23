@@ -145,6 +145,7 @@ static void *ovl_follow_link(struct dentry *dentry, struct nameidata *nd)
 	void *ret;
 	struct dentry *realdentry;
 	struct inode *realinode;
+	struct ovl_link_data *data = NULL;
 
 	realdentry = ovl_dentry_real(dentry);
 	realinode = realdentry->d_inode;
@@ -152,25 +153,23 @@ static void *ovl_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (WARN_ON(!realinode->i_op->follow_link))
 		return ERR_PTR(-EPERM);
 
-	ret = realinode->i_op->follow_link(realdentry, nd);
-	if (IS_ERR(ret))
-		return ret;
-
 	if (realinode->i_op->put_link) {
-		struct ovl_link_data *data;
-
 		data = kmalloc(sizeof(struct ovl_link_data), GFP_KERNEL);
-		if (!data) {
-			realinode->i_op->put_link(realdentry, nd, ret);
+		if (!data)
 			return ERR_PTR(-ENOMEM);
-		}
 		data->realdentry = realdentry;
+	}
+
+	ret = realinode->i_op->follow_link(realdentry, nd);
+	if (IS_ERR(ret)) {
+		kfree(data);
+		return ret;
+	}
+
+	if (data)
 		data->cookie = ret;
 
-		return data;
-	} else {
-		return NULL;
-	}
+	return data;
 }
 
 static void ovl_put_link(struct dentry *dentry, struct nameidata *nd, void *c)
