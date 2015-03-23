@@ -36,7 +36,7 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 	struct eeprom_data *eeprom = i2c_get_clientdata(client);
 
 	switch (event) {
-	case I2C_SLAVE_REQ_WRITE_END:
+	case I2C_SLAVE_WRITE_RECEIVED:
 		if (eeprom->first_write) {
 			eeprom->buffer_idx = *val;
 			eeprom->first_write = false;
@@ -47,17 +47,17 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 		}
 		break;
 
-	case I2C_SLAVE_REQ_READ_START:
+	case I2C_SLAVE_READ_PROCESSED:
+		eeprom->buffer_idx++;
+		/* fallthrough */
+	case I2C_SLAVE_READ_REQUESTED:
 		spin_lock(&eeprom->buffer_lock);
 		*val = eeprom->buffer[eeprom->buffer_idx];
 		spin_unlock(&eeprom->buffer_lock);
 		break;
 
-	case I2C_SLAVE_REQ_READ_END:
-		eeprom->buffer_idx++;
-		break;
-
 	case I2C_SLAVE_STOP:
+	case I2C_SLAVE_WRITE_REQUESTED:
 		eeprom->first_write = true;
 		break;
 
