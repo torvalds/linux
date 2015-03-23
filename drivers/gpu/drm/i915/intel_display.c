@@ -2350,7 +2350,8 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 	intel_runtime_pm_get(dev_priv);
 
 	dev_priv->mm.interruptible = false;
-	ret = i915_gem_object_pin_to_display_plane(obj, alignment, pipelined);
+	ret = i915_gem_object_pin_to_display_plane(obj, alignment, pipelined,
+						   &i915_ggtt_view_normal);
 	if (ret)
 		goto err_interruptible;
 
@@ -2370,7 +2371,7 @@ intel_pin_and_fence_fb_obj(struct drm_plane *plane,
 	return 0;
 
 err_unpin:
-	i915_gem_object_unpin_from_display_plane(obj);
+	i915_gem_object_unpin_from_display_plane(obj, &i915_ggtt_view_normal);
 err_interruptible:
 	dev_priv->mm.interruptible = true;
 	intel_runtime_pm_put(dev_priv);
@@ -2382,7 +2383,7 @@ static void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&obj->base.dev->struct_mutex));
 
 	i915_gem_object_unpin_fence(obj);
-	i915_gem_object_unpin_from_display_plane(obj);
+	i915_gem_object_unpin_from_display_plane(obj, &i915_ggtt_view_normal);
 }
 
 /* Computes the linear offset to the base tile and adjusts x, y. bytes per pixel

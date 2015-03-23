@@ -2765,8 +2765,10 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
 int __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     struct intel_engine_cs *pipelined);
-void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj);
+				     struct intel_engine_cs *pipelined,
+				     const struct i915_ggtt_view *view);
+void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
+					      const struct i915_ggtt_view *view);
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 				int align);
 int i915_gem_open(struct drm_device *dev, struct drm_file *file);
@@ -2875,7 +2877,13 @@ i915_gem_object_ggtt_unbind(struct drm_i915_gem_object *obj)
 	return i915_vma_unbind(i915_gem_obj_to_ggtt(obj));
 }
 
-void i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj);
+void i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
+				     const struct i915_ggtt_view *view);
+static inline void
+i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj)
+{
+	i915_gem_object_ggtt_unpin_view(obj, &i915_ggtt_view_normal);
+}
 
 /* i915_gem_context.c */
 int __must_check i915_gem_context_init(struct drm_device *dev);

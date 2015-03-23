@@ -3871,7 +3871,8 @@ static bool is_pin_display(struct drm_i915_gem_object *obj)
 int
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     struct intel_engine_cs *pipelined)
+				     struct intel_engine_cs *pipelined,
+				     const struct i915_ggtt_view *view)
 {
 	u32 old_read_domains, old_write_domain;
 	bool was_pin_display;
@@ -3907,7 +3908,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
 	 * always use map_and_fenceable for all scanout buffers.
 	 */
-	ret = i915_gem_obj_ggtt_pin(obj, alignment, PIN_MAPPABLE);
+	ret = i915_gem_object_ggtt_pin(obj, view, alignment, PIN_MAPPABLE);
 	if (ret)
 		goto err_unpin_display;
 
@@ -3935,9 +3936,11 @@ err_unpin_display:
 }
 
 void
-i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj)
+i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
+					 const struct i915_ggtt_view *view)
 {
-	i915_gem_object_ggtt_unpin(obj);
+	i915_gem_object_ggtt_unpin_view(obj, view);
+
 	obj->pin_display = is_pin_display(obj);
 }
 
@@ -4214,15 +4217,16 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 }
 
 void
-i915_gem_object_ggtt_unpin(struct drm_i915_gem_object *obj)
+i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
+				const struct i915_ggtt_view *view)
 {
-	struct i915_vma *vma = i915_gem_obj_to_ggtt(obj);
+	struct i915_vma *vma = i915_gem_obj_to_ggtt_view(obj, view);
 
 	BUG_ON(!vma);
-	BUG_ON(vma->pin_count == 0);
-	BUG_ON(!i915_gem_obj_ggtt_bound(obj));
+	WARN_ON(vma->pin_count == 0);
+	WARN_ON(!i915_gem_obj_ggtt_bound_view(obj, view->type));
 
-	if (--vma->pin_count == 0)
+	if (--vma->pin_count == 0 && view->type == I915_GGTT_VIEW_NORMAL)
 		obj->pin_mappable = false;
 }
 
