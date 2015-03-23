@@ -136,11 +136,24 @@ static struct bucket_table *bucket_table_alloc(struct rhashtable *ht,
 	return tbl;
 }
 
+static struct bucket_table *rhashtable_last_table(struct rhashtable *ht,
+						  struct bucket_table *tbl)
+{
+	struct bucket_table *new_tbl;
+
+	do {
+		new_tbl = tbl;
+		tbl = rht_dereference_rcu(tbl->future_tbl, ht);
+	} while (tbl);
+
+	return new_tbl;
+}
+
 static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
-	struct bucket_table *new_tbl =
-		rht_dereference(old_tbl->future_tbl, ht) ?: old_tbl;
+	struct bucket_table *new_tbl = rhashtable_last_table(ht,
+		rht_dereference_rcu(old_tbl->future_tbl, ht));
 	struct rhash_head __rcu **pprev = &old_tbl->buckets[old_hash];
 	int err = -ENOENT;
 	struct rhash_head *head, *next, *entry;
@@ -196,12 +209,18 @@ static void rhashtable_rehash_chain(struct rhashtable *ht, unsigned old_hash)
 	spin_unlock_bh(old_bucket_lock);
 }
 
-static void rhashtable_rehash(struct rhashtable *ht,
-			      struct bucket_table *new_tbl)
+static int rhashtable_rehash_attach(struct rhashtable *ht,
+				    struct bucket_table *old_tbl,
+				    struct bucket_table *new_tbl)
 {
-	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
-	struct rhashtable_walker *walker;
-	unsigned old_hash;
+	/* Protect future_tbl using the first bucket lock. */
+	spin_lock_bh(old_tbl->locks);
+
+	/* Did somebody beat us to it? */
+	if (rcu_access_pointer(old_tbl->future_tbl)) {
+		spin_unlock_bh(old_tbl->locks);
+		return -EEXIST;
+	}
 
 	/* Make insertions go into the new, empty table right away. Deletions
 	 * and lookups will be attempted in both tables until we synchronize.
@@ -210,6 +229,22 @@ static void rhashtable_rehash(struct rhashtable *ht,
 
 	/* Ensure the new table is visible to readers. */
 	smp_wmb();
+
+	spin_unlock_bh(old_tbl->locks);
+
+	return 0;
+}
+
+static int rhashtable_rehash_table(struct rhashtable *ht)
+{
+	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
+	struct bucket_table *new_tbl;
+	struct rhashtable_walker *walker;
+	unsigned old_hash;
+
+	new_tbl = rht_dereference(old_tbl->future_tbl, ht);
+	if (!new_tbl)
+		return 0;
 
 	for (old_hash = 0; old_hash < old_tbl->size; old_hash++)
 		rhashtable_rehash_chain(ht, old_hash);
@@ -225,6 +260,8 @@ static void rhashtable_rehash(struct rhashtable *ht,
 	 * remain.
 	 */
 	call_rcu(&old_tbl->rcu, bucket_table_free_rcu);
+
+	return rht_dereference(new_tbl->future_tbl, ht) ? -EAGAIN : 0;
 }
 
 /**
@@ -242,20 +279,25 @@ static void rhashtable_rehash(struct rhashtable *ht,
  * It is valid to have concurrent insertions and deletions protected by per
  * bucket locks or concurrent RCU protected lookups and traversals.
  */
-int rhashtable_expand(struct rhashtable *ht)
+static int rhashtable_expand(struct rhashtable *ht)
 {
 	struct bucket_table *new_tbl, *old_tbl = rht_dereference(ht->tbl, ht);
+	int err;
 
 	ASSERT_RHT_MUTEX(ht);
+
+	old_tbl = rhashtable_last_table(ht, old_tbl);
 
 	new_tbl = bucket_table_alloc(ht, old_tbl->size * 2);
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
-	rhashtable_rehash(ht, new_tbl);
-	return 0;
+	err = rhashtable_rehash_attach(ht, old_tbl, new_tbl);
+	if (err)
+		bucket_table_free(new_tbl);
+
+	return err;
 }
-EXPORT_SYMBOL_GPL(rhashtable_expand);
 
 /**
  * rhashtable_shrink - Shrink hash table while allowing concurrent lookups
@@ -273,10 +315,11 @@ EXPORT_SYMBOL_GPL(rhashtable_expand);
  * It is valid to have concurrent insertions and deletions protected by per
  * bucket locks or concurrent RCU protected lookups and traversals.
  */
-int rhashtable_shrink(struct rhashtable *ht)
+static int rhashtable_shrink(struct rhashtable *ht)
 {
 	struct bucket_table *new_tbl, *old_tbl = rht_dereference(ht->tbl, ht);
 	unsigned size = roundup_pow_of_two(atomic_read(&ht->nelems) * 3 / 2);
+	int err;
 
 	ASSERT_RHT_MUTEX(ht);
 
@@ -286,19 +329,25 @@ int rhashtable_shrink(struct rhashtable *ht)
 	if (old_tbl->size <= size)
 		return 0;
 
+	if (rht_dereference(old_tbl->future_tbl, ht))
+		return -EEXIST;
+
 	new_tbl = bucket_table_alloc(ht, size);
 	if (new_tbl == NULL)
 		return -ENOMEM;
 
-	rhashtable_rehash(ht, new_tbl);
-	return 0;
+	err = rhashtable_rehash_attach(ht, old_tbl, new_tbl);
+	if (err)
+		bucket_table_free(new_tbl);
+
+	return err;
 }
-EXPORT_SYMBOL_GPL(rhashtable_shrink);
 
 static void rht_deferred_worker(struct work_struct *work)
 {
 	struct rhashtable *ht;
 	struct bucket_table *tbl;
+	int err = 0;
 
 	ht = container_of(work, struct rhashtable, run_work);
 	mutex_lock(&ht->mutex);
@@ -306,13 +355,20 @@ static void rht_deferred_worker(struct work_struct *work)
 		goto unlock;
 
 	tbl = rht_dereference(ht->tbl, ht);
+	tbl = rhashtable_last_table(ht, tbl);
 
 	if (rht_grow_above_75(ht, tbl))
 		rhashtable_expand(ht);
 	else if (rht_shrink_below_30(ht, tbl))
 		rhashtable_shrink(ht);
+
+	err = rhashtable_rehash_table(ht);
+
 unlock:
 	mutex_unlock(&ht->mutex);
+
+	if (err)
+		schedule_work(&ht->run_work);
 }
 
 int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
@@ -323,6 +379,7 @@ int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 	unsigned hash;
 	int err = -EEXIST;
 
+	tbl = rhashtable_last_table(ht, tbl);
 	hash = head_hashfn(ht, tbl, obj);
 	spin_lock_nested(rht_bucket_lock(tbl, hash), SINGLE_DEPTH_NESTING);
 

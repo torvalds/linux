@@ -308,9 +308,6 @@ int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 			   struct rhash_head *obj,
 			   struct bucket_table *old_tbl);
 
-int rhashtable_expand(struct rhashtable *ht);
-int rhashtable_shrink(struct rhashtable *ht);
-
 int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter);
 void rhashtable_walk_exit(struct rhashtable_iter *iter);
 int rhashtable_walk_start(struct rhashtable_iter *iter) __acquires(RCU);
@@ -541,17 +538,22 @@ static inline int __rhashtable_insert_fast(
 	rcu_read_lock();
 
 	tbl = rht_dereference_rcu(ht->tbl, ht);
-	hash = rht_head_hashfn(ht, tbl, obj, params);
-	lock = rht_bucket_lock(tbl, hash);
 
-	spin_lock_bh(lock);
-
-	/* Because we have already taken the bucket lock in tbl,
-	 * if we find that future_tbl is not yet visible then
-	 * that guarantees all other insertions of the same entry
-	 * will also grab the bucket lock in tbl because until
-	 * the rehash completes ht->tbl won't be changed.
+	/* All insertions must grab the oldest table containing
+	 * the hashed bucket that is yet to be rehashed.
 	 */
+	for (;;) {
+		hash = rht_head_hashfn(ht, tbl, obj, params);
+		lock = rht_bucket_lock(tbl, hash);
+		spin_lock_bh(lock);
+
+		if (tbl->rehash <= hash)
+			break;
+
+		spin_unlock_bh(lock);
+		tbl = rht_dereference_rcu(tbl->future_tbl, ht);
+	}
+
 	new_tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 	if (unlikely(new_tbl)) {
 		err = rhashtable_insert_slow(ht, key, obj, new_tbl);
