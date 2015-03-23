@@ -38,7 +38,7 @@ nvkm_gr(void *obj)
 }
 
 #define nvkm_gr_create(p,e,c,y,d)                                        \
-	nvkm_engine_create((p), (e), (c), (y), "PGR", "graphics", (d))
+	nvkm_engine_create((p), (e), (c), (y), "PGRAPH", "graphics", (d))
 #define nvkm_gr_destroy(d)                                               \
 	nvkm_engine_destroy(&(d)->base)
 #define nvkm_gr_init(d)                                                  \
