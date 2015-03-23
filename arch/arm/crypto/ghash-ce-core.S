@@ -40,7 +40,7 @@
 	 *			   struct ghash_key const *k, const char *head)
 	 */
 ENTRY(pmull_ghash_update)
-	vld1.8		{SHASH}, [r3]
+	vld1.64		{SHASH}, [r3]
 	vld1.64		{XL}, [r1]
 	vmov.i8		MASK, #0xe1
 	vext.8		SHASH2, SHASH, SHASH, #8
