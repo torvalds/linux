@@ -628,7 +628,11 @@
 			<&clk_gates21 4>,/*aclk_peri_mmu*/
 			<&clk_gates19 0>,/*hclk_peri_axi_matrix*/
 			<&clk_gates20 7>,/*hclk_peri_ahb_arbi*/
-			<&clk_gates19 1>;/*pclk_peri_axi_matrix*/
+			<&clk_gates19 1>,/*pclk_peri_axi_matrix*/
+
+			<&fclk_mcu>,
+			<&stclk_mcu>,
+			<&clk_gates7 0>;/*clk_jtag*/
 	};
 
 	/* I2C_PMU */
