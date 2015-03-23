@@ -84,6 +84,8 @@ static int test_codec_of_node(struct device_node* p_node, aml_audio_codec_info_t
 		goto exit;
 	if (!strcmp(audio_codec_dev->name, "dummy_codec"))
 		goto exit;
+	if (!strcmp(audio_codec_dev->name, "pcm5102"))
+		goto exit;
 
 	ret = of_property_read_u32(p_node,"i2c_addr", &audio_codec_dev->i2c_addr);
 	if(ret){
@@ -226,7 +228,14 @@ static int aml_audio_codec_probe(struct platform_device *pdev)
 		strlcpy(codec_info.name, "dummy", NAME_SIZE);
 		goto exit;
 	}
-	
+
+	if (ext_codec &&(!strcmp(audio_codec_dev->name, "pcm5102"))){
+		printk("using pcm5102 codec\n");
+		strlcpy(codec_info.name_bus, "pcm5102.0", NAME_SIZE);
+		strlcpy(codec_info.name, "pcm5102", NAME_SIZE);
+		goto exit;
+	}
+		
 	if (!ext_codec){
 		printk("no external codec, using aml default codec\n");
 		strlcpy(codec_info.name_bus, "aml_m8_codec.0", NAME_SIZE);

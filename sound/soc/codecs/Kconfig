@@ -130,6 +130,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TAS5707 if I2C
 	select SND_SOC_DUMMY_CODEC
 	select SND_SOC_AML_M8_CODEC
+	select SND_SOC_PCM5102
         help
           Normally ASoC codec drivers are only built if a machine driver which
           uses them is also built since they are only usable with a machine
@@ -547,4 +548,6 @@ config SND_SOC_TPA6130A2
 config SND_SOC_DUMMY_CODEC
        tristate
 config SND_SOC_PCM2BT
+       tristate
+config SND_SOC_PCM5102
        tristate

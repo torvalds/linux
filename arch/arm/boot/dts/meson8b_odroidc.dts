@@ -420,16 +420,16 @@
         status = "okay";
     };
 
-    dummy_codec{
-        compatible = "amlogic,aml_dummy_codec";
-        dev_name = "dummy_codec.0";
+    pcm5102{
+        compatible = "hardkernel,pcm5102";
+        dev_name = "pcm5102.0";
         status = "okay";
     };
 
     aml_audio_codec{
         compatible = "amlogic,audio_codec";
-        dummy:dummy{
-          codec_name = "dummy_codec";
+        pcm5102:pcm5102{
+          codec_name = "pcm5102";
           status = "okay";
         };
     };
@@ -437,13 +437,13 @@
     aml_m8_sound_card{
         compatible = "sound_card, aml_snd_m8";
         aml,sound_card = "AML-M8AUDIO";
-        aml,codec_dai = "AML-M8","dummy_codec";
+        aml,codec_dai = "AML-M8","pcm5102";
         aml,audio-routing-amlm8 =
             "Ext Spk","LINEOUTL",
             "Ext Spk","LINEOUTR",
             "HP","HP_L",
             "HP","HP_R";
-        aml,audio-routing-dummy=
+        aml,audio-routing-pcm5102=
             "Ext Spk","LOUTL",
             "Ext Spk","LOUTR";
         sleep_time = <130>;
