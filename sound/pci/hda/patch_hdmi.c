@@ -86,7 +86,6 @@ struct hdmi_spec_per_pin {
 	bool non_pcm;
 	bool chmap_set;		/* channel-map override by ALSA API? */
 	unsigned char chmap[8]; /* ALSA API channel-map */
-	char pcm_name[8];	/* filled in build_pcm callbacks */
 #ifdef CONFIG_PROC_FS
 	struct snd_info_entry *proc_entry;
 #endif
@@ -132,7 +131,7 @@ struct hdmi_spec {
 
 	int num_pins;
 	struct snd_array pins; /* struct hdmi_spec_per_pin */
-	struct snd_array pcm_rec; /* struct hda_pcm */
+	struct hda_pcm *pcm_rec[16];
 	unsigned int channels_max; /* max over all cvts */
 
 	struct hdmi_eld temp_eld;
@@ -355,8 +354,7 @@ static struct cea_channel_speaker_allocation channel_allocations[] = {
 	((struct hdmi_spec_per_pin *)snd_array_elem(&spec->pins, idx))
 #define get_cvt(spec, idx) \
 	((struct hdmi_spec_per_cvt  *)snd_array_elem(&spec->cvts, idx))
-#define get_pcm_rec(spec, idx) \
-	((struct hda_pcm *)snd_array_elem(&spec->pcm_rec, idx))
+#define get_pcm_rec(spec, idx)	((spec)->pcm_rec[idx])
 
 static int pin_nid_to_pin_index(struct hda_codec *codec, hda_nid_t pin_nid)
 {
@@ -579,7 +577,7 @@ static int eld_proc_new(struct hdmi_spec_per_pin *per_pin, int index)
 	int err;
 
 	snprintf(name, sizeof(name), "eld#%d.%d", codec->addr, index);
-	err = snd_card_proc_new(codec->bus->card, name, &entry);
+	err = snd_card_proc_new(codec->card, name, &entry);
 	if (err < 0)
 		return err;
 
@@ -594,7 +592,7 @@ static int eld_proc_new(struct hdmi_spec_per_pin *per_pin, int index)
 static void eld_proc_free(struct hdmi_spec_per_pin *per_pin)
 {
 	if (!per_pin->codec->bus->shutdown && per_pin->proc_entry) {
-		snd_device_free(per_pin->codec->bus->card, per_pin->proc_entry);
+		snd_device_free(per_pin->codec->card, per_pin->proc_entry);
 		per_pin->proc_entry = NULL;
 	}
 }
@@ -1578,9 +1576,8 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 			update_eld = true;
 		}
 		else if (repoll) {
-			queue_delayed_work(codec->bus->workq,
-					   &per_pin->work,
-					   msecs_to_jiffies(300));
+			schedule_delayed_work(&per_pin->work,
+					      msecs_to_jiffies(300));
 			goto unlock;
 		}
 	}
@@ -1624,7 +1621,7 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	}
 
 	if (eld_changed)
-		snd_ctl_notify(codec->bus->card,
+		snd_ctl_notify(codec->card,
 			       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
 			       &per_pin->eld_ctl->id);
  unlock:
@@ -2056,11 +2053,10 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 		struct hdmi_spec_per_pin *per_pin;
 
 		per_pin = get_pin(spec, pin_idx);
-		sprintf(per_pin->pcm_name, "HDMI %d", pin_idx);
-		info = snd_array_new(&spec->pcm_rec);
+		info = snd_hda_codec_pcm_new(codec, "HDMI %d", pin_idx);
 		if (!info)
 			return -ENOMEM;
-		info->name = per_pin->pcm_name;
+		spec->pcm_rec[pin_idx] = info;
 		info->pcm_type = HDA_PCM_TYPE_HDMI;
 		info->own_chmap = true;
 
@@ -2069,9 +2065,6 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 		pstr->ops = generic_ops;
 		/* other pstr fields are set in open */
 	}
-
-	codec->num_pcms = spec->num_pins;
-	codec->pcm_info = spec->pcm_rec.list;
 
 	return 0;
 }
@@ -2125,13 +2118,15 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 
 	/* add channel maps */
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
+		struct hda_pcm *pcm;
 		struct snd_pcm_chmap *chmap;
 		struct snd_kcontrol *kctl;
 		int i;
 
-		if (!codec->pcm_info[pin_idx].pcm)
+		pcm = spec->pcm_rec[pin_idx];
+		if (!pcm || !pcm->pcm)
 			break;
-		err = snd_pcm_add_chmap_ctls(codec->pcm_info[pin_idx].pcm,
+		err = snd_pcm_add_chmap_ctls(pcm->pcm,
 					     SNDRV_PCM_STREAM_PLAYBACK,
 					     NULL, 0, pin_idx, &chmap);
 		if (err < 0)
@@ -2186,14 +2181,12 @@ static void hdmi_array_init(struct hdmi_spec *spec, int nums)
 {
 	snd_array_init(&spec->pins, sizeof(struct hdmi_spec_per_pin), nums);
 	snd_array_init(&spec->cvts, sizeof(struct hdmi_spec_per_cvt), nums);
-	snd_array_init(&spec->pcm_rec, sizeof(struct hda_pcm), nums);
 }
 
 static void hdmi_array_free(struct hdmi_spec *spec)
 {
 	snd_array_free(&spec->pins);
 	snd_array_free(&spec->cvts);
-	snd_array_free(&spec->pcm_rec);
 }
 
 static void generic_hdmi_free(struct hda_codec *codec)
@@ -2204,11 +2197,10 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 
-		cancel_delayed_work(&per_pin->work);
+		cancel_delayed_work_sync(&per_pin->work);
 		eld_proc_free(per_pin);
 	}
 
-	flush_workqueue(codec->bus->workq);
 	hdmi_array_free(spec);
 	kfree(spec);
 }
@@ -2381,20 +2373,16 @@ static int simple_playback_build_pcms(struct hda_codec *codec)
 	chans = get_wcaps(codec, per_cvt->cvt_nid);
 	chans = get_wcaps_channels(chans);
 
-	info = snd_array_new(&spec->pcm_rec);
+	info = snd_hda_codec_pcm_new(codec, "HDMI 0");
 	if (!info)
 		return -ENOMEM;
-	info->name = get_pin(spec, 0)->pcm_name;
-	sprintf(info->name, "HDMI 0");
+	spec->pcm_rec[0] = info;
 	info->pcm_type = HDA_PCM_TYPE_HDMI;
 	pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
 	*pstr = spec->pcm_playback;
 	pstr->nid = per_cvt->cvt_nid;
 	if (pstr->channels_max <= 2 && chans && chans <= 16)
 		pstr->channels_max = chans;
-
-	codec->num_pcms = 1;
-	codec->pcm_info = info;
 
 	return 0;
 }
@@ -3301,15 +3289,6 @@ static int patch_via_hdmi(struct hda_codec *codec)
 }
 
 /*
- * called from hda_codec.c for generic HDMI support
- */
-int snd_hda_parse_hdmi_codec(struct hda_codec *codec)
-{
-	return patch_generic_hdmi(codec);
-}
-EXPORT_SYMBOL_GPL(snd_hda_parse_hdmi_codec);
-
-/*
  * patch entries
  */
 static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
@@ -3373,6 +3352,8 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x80862882, .name = "Valleyview2 HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x80862883, .name = "Braswell HDMI",	.patch = patch_generic_hdmi },
 { .id = 0x808629fb, .name = "Crestline HDMI",	.patch = patch_generic_hdmi },
+/* special ID for generic HDMI */
+{ .id = HDA_CODEC_ID_GENERIC_HDMI, .patch = patch_generic_hdmi },
 {} /* terminator */
 };
 
@@ -3442,20 +3423,8 @@ MODULE_ALIAS("snd-hda-codec-intelhdmi");
 MODULE_ALIAS("snd-hda-codec-nvhdmi");
 MODULE_ALIAS("snd-hda-codec-atihdmi");
 
-static struct hda_codec_preset_list intel_list = {
+static struct hda_codec_driver hdmi_driver = {
 	.preset = snd_hda_preset_hdmi,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_hdmi_init(void)
-{
-	return snd_hda_add_codec_preset(&intel_list);
-}
-
-static void __exit patch_hdmi_exit(void)
-{
-	snd_hda_delete_codec_preset(&intel_list);
-}
-
-module_init(patch_hdmi_init)
-module_exit(patch_hdmi_exit)
+module_hda_codec_driver(hdmi_driver);

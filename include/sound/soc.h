@@ -450,8 +450,10 @@ int soc_dai_hw_params(struct snd_pcm_substream *substream,
 		      struct snd_soc_dai *dai);
 
 /* Jack reporting */
-int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
-		     struct snd_soc_jack *jack);
+int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
+	struct snd_soc_jack *jack, struct snd_soc_jack_pin *pins,
+	unsigned int num_pins);
+
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
@@ -659,7 +661,7 @@ struct snd_soc_jack_gpio {
 struct snd_soc_jack {
 	struct mutex mutex;
 	struct snd_jack *jack;
-	struct snd_soc_codec *codec;
+	struct snd_soc_card *card;
 	struct list_head pins;
 	int status;
 	struct blocking_notifier_head notifier;
@@ -954,6 +956,9 @@ struct snd_soc_dai_link {
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_samplebits:1;
 
+	/* Mark this pcm with non atomic ops */
+	bool nonatomic;
+
 	/* Do not create a PCM for this DAI link (Backend link) */
 	unsigned int no_pcm:1;
 
@@ -1071,11 +1076,16 @@ struct snd_soc_card {
 
 	/*
 	 * Card-specific routes and widgets.
+	 * Note: of_dapm_xxx for Device Tree; Otherwise for driver build-in.
 	 */
 	const struct snd_soc_dapm_widget *dapm_widgets;
 	int num_dapm_widgets;
 	const struct snd_soc_dapm_route *dapm_routes;
 	int num_dapm_routes;
+	const struct snd_soc_dapm_widget *of_dapm_widgets;
+	int num_of_dapm_widgets;
+	const struct snd_soc_dapm_route *of_dapm_routes;
+	int num_of_dapm_routes;
 	bool fully_routed;
 
 	struct work_struct deferred_resume_work;
@@ -1469,7 +1479,7 @@ static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
 }
 
 /**
- * snd_soc_kcontrol_platform() - Returns the platform that registerd the control
+ * snd_soc_kcontrol_platform() - Returns the platform that registered the control
  * @kcontrol: The control for which to get the platform
  *
  * Note: This function will only work correctly if the control has been

@@ -133,24 +133,26 @@ static const struct snd_soc_dapm_widget tegra_max98090_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphones", NULL),
 	SND_SOC_DAPM_SPK("Speakers", NULL),
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+	SND_SOC_DAPM_MIC("Int Mic", NULL),
 };
 
 static const struct snd_kcontrol_new tegra_max98090_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Headphones"),
 	SOC_DAPM_PIN_SWITCH("Speakers"),
+	SOC_DAPM_PIN_SWITCH("Mic Jack"),
+	SOC_DAPM_PIN_SWITCH("Int Mic"),
 };
 
 static int tegra_max98090_asoc_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
 	struct tegra_max98090 *machine = snd_soc_card_get_drvdata(rtd->card);
 
 	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_jack_new(codec, "Headphones", SND_JACK_HEADPHONE,
-				&tegra_max98090_hp_jack);
-		snd_soc_jack_add_pins(&tegra_max98090_hp_jack,
-				ARRAY_SIZE(tegra_max98090_hp_jack_pins),
-				tegra_max98090_hp_jack_pins);
+		snd_soc_card_jack_new(rtd->card, "Headphones",
+				      SND_JACK_HEADPHONE,
+				      &tegra_max98090_hp_jack,
+				      tegra_max98090_hp_jack_pins,
+				      ARRAY_SIZE(tegra_max98090_hp_jack_pins));
 
 		tegra_max98090_hp_jack_gpio.gpio = machine->gpio_hp_det;
 		snd_soc_jack_add_gpios(&tegra_max98090_hp_jack,
@@ -159,11 +161,11 @@ static int tegra_max98090_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	if (gpio_is_valid(machine->gpio_mic_det)) {
-		snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
-				 &tegra_max98090_mic_jack);
-		snd_soc_jack_add_pins(&tegra_max98090_mic_jack,
-				      ARRAY_SIZE(tegra_max98090_mic_jack_pins),
-				      tegra_max98090_mic_jack_pins);
+		snd_soc_card_jack_new(rtd->card, "Mic Jack",
+				      SND_JACK_MICROPHONE,
+				      &tegra_max98090_mic_jack,
+				      tegra_max98090_mic_jack_pins,
+				      ARRAY_SIZE(tegra_max98090_mic_jack_pins));
 
 		tegra_max98090_mic_jack_gpio.gpio = machine->gpio_mic_det;
 		snd_soc_jack_add_gpios(&tegra_max98090_mic_jack,

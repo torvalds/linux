@@ -228,10 +228,13 @@ static void mfld_jack_check(unsigned int intr_status)
 {
 	struct mfld_jack_data jack_data;
 
+	if (!mfld_codec)
+		return;
+
 	jack_data.mfld_jack = &mfld_jack;
 	jack_data.intr_id = intr_status;
 
-	sn95031_jack_detection(&jack_data);
+	sn95031_jack_detection(mfld_codec, &jack_data);
 	/* TODO: add american headset detection post gpiolib support */
 }
 
@@ -239,8 +242,6 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_dapm_context *dapm = &runtime->card->dapm;
 	int ret_val;
-
-	mfld_codec = runtime->codec;
 
 	/* default is earpiece pin, userspace sets it explcitly */
 	snd_soc_dapm_disable_pin(dapm, "Headphones");
@@ -254,26 +255,23 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_disable_pin(dapm, "LINEINR");
 
 	/* Headset and button jack detection */
-	ret_val = snd_soc_jack_new(mfld_codec, "Intel(R) MID Audio Jack",
-			SND_JACK_HEADSET | SND_JACK_BTN_0 |
-			SND_JACK_BTN_1, &mfld_jack);
+	ret_val = snd_soc_card_jack_new(runtime->card,
+			"Intel(R) MID Audio Jack", SND_JACK_HEADSET |
+			SND_JACK_BTN_0 | SND_JACK_BTN_1, &mfld_jack,
+			mfld_jack_pins, ARRAY_SIZE(mfld_jack_pins));
 	if (ret_val) {
 		pr_err("jack creation failed\n");
 		return ret_val;
 	}
 
-	ret_val = snd_soc_jack_add_pins(&mfld_jack,
-			ARRAY_SIZE(mfld_jack_pins), mfld_jack_pins);
-	if (ret_val) {
-		pr_err("adding jack pins failed\n");
-		return ret_val;
-	}
 	ret_val = snd_soc_jack_add_zones(&mfld_jack,
 			ARRAY_SIZE(mfld_zones), mfld_zones);
 	if (ret_val) {
 		pr_err("adding jack zones failed\n");
 		return ret_val;
 	}
+
+	mfld_codec = runtime->codec;
 
 	/* we want to check if anything is inserted at boot,
 	 * so send a fake event to codec and it will read adc
@@ -359,8 +357,6 @@ static irqreturn_t snd_mfld_jack_detection(int irq, void *data)
 {
 	struct mfld_mc_private *mc_drv_ctx = (struct mfld_mc_private *) data;
 
-	if (mfld_jack.codec == NULL)
-		return IRQ_HANDLED;
 	mfld_jack_check(mc_drv_ctx->interrupt_status);
 
 	return IRQ_HANDLED;

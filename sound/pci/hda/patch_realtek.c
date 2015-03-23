@@ -2602,53 +2602,12 @@ static int patch_alc268(struct hda_codec *codec)
  * ALC269
  */
 
-static int playback_pcm_open(struct hda_pcm_stream *hinfo,
-			     struct hda_codec *codec,
-			     struct snd_pcm_substream *substream)
-{
-	struct hda_gen_spec *spec = codec->spec;
-	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
-					     hinfo);
-}
-
-static int playback_pcm_prepare(struct hda_pcm_stream *hinfo,
-				struct hda_codec *codec,
-				unsigned int stream_tag,
-				unsigned int format,
-				struct snd_pcm_substream *substream)
-{
-	struct hda_gen_spec *spec = codec->spec;
-	return snd_hda_multi_out_analog_prepare(codec, &spec->multiout,
-						stream_tag, format, substream);
-}
-
-static int playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
-				struct hda_codec *codec,
-				struct snd_pcm_substream *substream)
-{
-	struct hda_gen_spec *spec = codec->spec;
-	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
-}
-
 static const struct hda_pcm_stream alc269_44k_pcm_analog_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 8,
 	.rates = SNDRV_PCM_RATE_44100, /* fixed rate */
-	/* NID is set in alc_build_pcms */
-	.ops = {
-		.open = playback_pcm_open,
-		.prepare = playback_pcm_prepare,
-		.cleanup = playback_pcm_cleanup
-	},
 };
 
 static const struct hda_pcm_stream alc269_44k_pcm_analog_capture = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
 	.rates = SNDRV_PCM_RATE_44100, /* fixed rate */
-	/* NID is set in alc_build_pcms */
 };
 
 /* different alc269-variants */
@@ -5850,7 +5809,7 @@ static void alc_fixup_bass_chmap(struct hda_codec *codec,
 {
 	if (action == HDA_FIXUP_ACT_BUILD) {
 		struct alc_spec *spec = codec->spec;
-		spec->gen.pcm_rec[0].stream[0].chmap = asus_pcm_2_1_chmaps;
+		spec->gen.pcm_rec[0]->stream[0].chmap = asus_pcm_2_1_chmaps;
 	}
 }
 
@@ -6521,20 +6480,8 @@ MODULE_ALIAS("snd-hda-codec-id:10ec*");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek HD-audio codec");
 
-static struct hda_codec_preset_list realtek_list = {
+static struct hda_codec_driver realtek_driver = {
 	.preset = snd_hda_preset_realtek,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_realtek_init(void)
-{
-	return snd_hda_add_codec_preset(&realtek_list);
-}
-
-static void __exit patch_realtek_exit(void)
-{
-	snd_hda_delete_codec_preset(&realtek_list);
-}
-
-module_init(patch_realtek_init)
-module_exit(patch_realtek_exit)
+module_hda_codec_driver(realtek_driver);

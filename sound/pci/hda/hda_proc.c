@@ -99,10 +99,10 @@ static void print_nid_array(struct snd_info_buffer *buffer,
 static void print_nid_pcms(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
-	int pcm, type;
+	int type;
 	struct hda_pcm *cpcm;
-	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-		cpcm = &codec->pcm_info[pcm];
+
+	list_for_each_entry(cpcm, &codec->pcm_list_head, list) {
 		for (type = 0; type < 2; type++) {
 			if (cpcm->stream[type].nid != nid || cpcm->pcm == NULL)
 				continue;
@@ -861,7 +861,7 @@ int snd_hda_codec_proc_new(struct hda_codec *codec)
 	int err;
 
 	snprintf(name, sizeof(name), "codec#%d", codec->addr);
-	err = snd_card_proc_new(codec->bus->card, name, &entry);
+	err = snd_card_proc_new(codec->card, name, &entry);
 	if (err < 0)
 		return err;
 

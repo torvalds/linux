@@ -1665,6 +1665,11 @@ enum {
 	RT5677_IRQ_JD3,
 };
 
+enum rt5677_type {
+	RT5677,
+	RT5676,
+};
+
 struct rt5677_priv {
 	struct snd_soc_codec *codec;
 	struct rt5677_platform_data pdata;
@@ -1681,6 +1686,7 @@ struct rt5677_priv {
 	int pll_in;
 	int pll_out;
 	int pow_ldo2; /* POW_LDO2 pin */
+	enum rt5677_type type;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;
 #endif

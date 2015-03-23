@@ -22,7 +22,7 @@
 #include <linux/component.h>
 #include <drm/i915_component.h>
 #include <sound/core.h>
-#include "hda_priv.h"
+#include "hda_controller.h"
 #include "hda_intel.h"
 
 /* Intel HSW/BDW display HDA controller Extended Mode registers.
