@@ -166,6 +166,27 @@ cycle_t gic_read_compare(void)
 
 	return (((cycle_t) hi) << 32) + lo;
 }
+
+void gic_start_count(void)
+{
+	u32 gicconfig;
+
+	/* Start the counter */
+	gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
+	gicconfig &= ~(1 << GIC_SH_CONFIG_COUNTSTOP_SHF);
+	gic_write(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
+}
+
+void gic_stop_count(void)
+{
+	u32 gicconfig;
+
+	/* Stop the counter */
+	gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
+	gicconfig |= 1 << GIC_SH_CONFIG_COUNTSTOP_SHF;
+	gic_write(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
+}
+
 #endif
 
 static bool gic_local_irq_is_routable(int intr)
