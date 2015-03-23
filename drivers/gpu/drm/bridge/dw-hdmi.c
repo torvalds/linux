@@ -923,7 +923,7 @@ static void hdmi_video_packetize(struct dw_hdmi *hdmi)
 		if (!hdmi_data->enc_color_depth) {
 			output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_BYPASS;
 		} else if (hdmi_data->enc_color_depth == 8) {
-			color_depth = 4;
+			color_depth = 0;
 			output_select = HDMI_VP_CONF_OUTPUT_SELECTOR_BYPASS;
 		} else if (hdmi_data->enc_color_depth == 10) {
 			color_depth = 5;
