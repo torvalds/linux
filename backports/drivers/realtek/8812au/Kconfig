@@ -1,6 +1,0 @@
-config RTL8812AU
-	tristate "Realtek 8812A USB WiFi"
-	depends on USB
-	---help---
-	  Help message of RTL8812AU
-
