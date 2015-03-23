@@ -22,6 +22,9 @@ static void usb20otg_hw_init(void)
 	/* Turn off differential receiver in suspend mode */
 	uoc_write(UOC_HIWORD_UPDATE(0, 1, 2), 0x798);
 
+	/* Set disconnect detection trigger point to 600mv */
+	uoc_write(UOC_HIWORD_UPDATE(0, 0xf, 11), 0x79c);
+
 	/* other haredware init,include:
 	 * DRV_VBUS GPIO init */
 	if (gpio_is_valid(control_usb->otg_gpios->gpio))
@@ -31,10 +34,9 @@ static void usb20otg_hw_init(void)
 static void usb20otg_phy_suspend(void *pdata, int suspend)
 {
 	struct dwc_otg_platform_data *usbpdata = pdata;
-
 	if (suspend) {
 		/* enable soft control */
-		uoc_write(UOC_HIWORD_UPDATE(0x55, 0x7f, 0), 0x700);
+		uoc_write(UOC_HIWORD_UPDATE(0x1d5, 0x1ff, 0), 0x700);
 		usbpdata->phy_status = 1;
 	} else {
 		/* exit suspend */
