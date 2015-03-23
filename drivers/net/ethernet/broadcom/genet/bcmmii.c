@@ -168,7 +168,7 @@ void bcmgenet_mii_reset(struct net_device *dev)
 	}
 }
 
-static void bcmgenet_ephy_power_up(struct net_device *dev)
+static void bcmgenet_phy_power_set(struct net_device *dev, bool enable)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 reg = 0;
@@ -177,15 +177,17 @@ static void bcmgenet_ephy_power_up(struct net_device *dev)
 	if (!GENET_IS_V4(priv))
 		return;
 
-	reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
-	reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN | EXT_CK25_DIS);
-	reg |= EXT_GPHY_RESET;
-	bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-	mdelay(2);
+	if (enable) {
+		reg = bcmgenet_ext_readl(priv, EXT_GPHY_CTRL);
+		reg &= ~(EXT_CFG_IDDQ_BIAS | EXT_CFG_PWR_DOWN | EXT_CK25_DIS);
+		reg |= EXT_GPHY_RESET;
+		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+		mdelay(2);
 
-	reg &= ~EXT_GPHY_RESET;
-	bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
-	udelay(20);
+		reg &= ~EXT_GPHY_RESET;
+		bcmgenet_ext_writel(priv, reg, EXT_GPHY_CTRL);
+		udelay(20);
+	}
 }
 
 static void bcmgenet_internal_phy_setup(struct net_device *dev)
@@ -193,8 +195,8 @@ static void bcmgenet_internal_phy_setup(struct net_device *dev)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	u32 reg;
 
-	/* Power up EPHY */
-	bcmgenet_ephy_power_up(dev);
+	/* Power up PHY */
+	bcmgenet_phy_power_set(dev, true);
 	/* enable APD */
 	reg = bcmgenet_ext_readl(priv, EXT_EXT_PWR_MGMT);
 	reg |= EXT_PWR_DN_EN_LD;
