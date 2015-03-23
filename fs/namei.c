@@ -871,7 +871,7 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 	touch_atime(link);
 	nd_set_link(nd, NULL);
 
-	error = security_inode_follow_link(link->dentry, nd);
+	error = security_inode_follow_link(dentry);
 	if (error)
 		goto out_put_nd_path;
 
