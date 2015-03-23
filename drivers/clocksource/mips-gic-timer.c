@@ -133,6 +133,9 @@ static void __init __gic_clocksource_init(void)
 	clocksource_register_hz(&gic_clocksource, gic_frequency);
 
 	gic_clockevent_init();
+
+	/* And finally start the counter */
+	gic_start_count();
 }
 
 void __init gic_clocksource_init(unsigned int frequency)
