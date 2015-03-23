@@ -156,8 +156,10 @@ struct oob_data {
 };
 
 struct adv_info {
+	struct delayed_work timeout_exp;
 	__u8	instance;
 	__u32	flags;
+	__u16	timeout;
 	__u16	adv_data_len;
 	__u8	adv_data[HCI_MAX_AD_LENGTH];
 	__u16	scan_rsp_len;

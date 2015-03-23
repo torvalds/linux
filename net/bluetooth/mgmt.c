@@ -1336,6 +1336,49 @@ static bool hci_stop_discovery(struct hci_request *req)
 	return false;
 }
 
+static void advertising_added(struct sock *sk, struct hci_dev *hdev,
+			      u8 instance)
+{
+	struct mgmt_ev_advertising_added ev;
+
+	ev.instance = instance;
+
+	mgmt_event(MGMT_EV_ADVERTISING_ADDED, hdev, &ev, sizeof(ev), sk);
+}
+
+static void advertising_removed(struct sock *sk, struct hci_dev *hdev,
+				u8 instance)
+{
+	struct mgmt_ev_advertising_removed ev;
+
+	ev.instance = instance;
+
+	mgmt_event(MGMT_EV_ADVERTISING_REMOVED, hdev, &ev, sizeof(ev), sk);
+}
+
+static void clear_adv_instance(struct hci_dev *hdev)
+{
+	struct hci_request req;
+
+	if (!hci_dev_test_flag(hdev, HCI_ADVERTISING_INSTANCE))
+		return;
+
+	if (hdev->adv_instance.timeout)
+		cancel_delayed_work(&hdev->adv_instance.timeout_exp);
+
+	memset(&hdev->adv_instance, 0, sizeof(hdev->adv_instance));
+	advertising_removed(NULL, hdev, 1);
+	hci_dev_clear_flag(hdev, HCI_ADVERTISING_INSTANCE);
+
+	if (!hdev_is_powered(hdev) ||
+	    hci_dev_test_flag(hdev, HCI_ADVERTISING))
+		return;
+
+	hci_req_init(&req, hdev);
+	disable_advertising(&req);
+	hci_req_run(&req, NULL);
+}
+
 static int clean_up_hci_state(struct hci_dev *hdev)
 {
 	struct hci_request req;
@@ -1350,6 +1393,9 @@ static int clean_up_hci_state(struct hci_dev *hdev)
 		u8 scan = 0x00;
 		hci_req_add(&req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 	}
+
+	if (hdev->adv_instance.timeout)
+		clear_adv_instance(hdev);
 
 	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
 		disable_advertising(&req);
@@ -6468,26 +6514,6 @@ static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
 	return true;
 }
 
-static void advertising_added(struct sock *sk, struct hci_dev *hdev,
-			      u8 instance)
-{
-	struct mgmt_ev_advertising_added ev;
-
-	ev.instance = instance;
-
-	mgmt_event(MGMT_EV_ADVERTISING_ADDED, hdev, &ev, sizeof(ev), sk);
-}
-
-static void advertising_removed(struct sock *sk, struct hci_dev *hdev,
-				u8 instance)
-{
-	struct mgmt_ev_advertising_removed ev;
-
-	ev.instance = instance;
-
-	mgmt_event(MGMT_EV_ADVERTISING_REMOVED, hdev, &ev, sizeof(ev), sk);
-}
-
 static void add_advertising_complete(struct hci_dev *hdev, u8 status,
 				     u16 opcode)
 {
@@ -6524,6 +6550,18 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static void adv_timeout_expired(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    adv_instance.timeout_exp.work);
+
+	hdev->adv_instance.timeout = 0;
+
+	hci_dev_lock(hdev);
+	clear_adv_instance(hdev);
+	hci_dev_unlock(hdev);
+}
+
 static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 			   void *data, u16 data_len)
 {
@@ -6531,6 +6569,7 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	struct mgmt_rp_add_advertising rp;
 	u32 flags;
 	u8 status;
+	u16 timeout;
 	int err;
 	struct mgmt_pending_cmd *cmd;
 	struct hci_request req;
@@ -6543,6 +6582,7 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 				       status);
 
 	flags = __le32_to_cpu(cp->flags);
+	timeout = __le16_to_cpu(cp->timeout);
 
 	/* The current implementation only supports adding one instance and
 	 * doesn't support flags.
@@ -6552,6 +6592,12 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 				       MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
+
+	if (timeout && !hdev_is_powered(hdev)) {
+		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
+				      MGMT_STATUS_REJECTED);
+		goto unlock;
+	}
 
 	if (pending_find(MGMT_OP_ADD_ADVERTISING, hdev) ||
 	    pending_find(MGMT_OP_REMOVE_ADVERTISING, hdev) ||
@@ -6569,6 +6615,8 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
+	INIT_DELAYED_WORK(&hdev->adv_instance.timeout_exp, adv_timeout_expired);
+
 	hdev->adv_instance.flags = flags;
 	hdev->adv_instance.adv_data_len = cp->adv_data_len;
 	hdev->adv_instance.scan_rsp_len = cp->scan_rsp_len;
@@ -6579,6 +6627,16 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	if (cp->scan_rsp_len)
 		memcpy(hdev->adv_instance.scan_rsp_data,
 		       cp->data + cp->adv_data_len, cp->scan_rsp_len);
+
+	if (hdev->adv_instance.timeout)
+		cancel_delayed_work(&hdev->adv_instance.timeout_exp);
+
+	hdev->adv_instance.timeout = timeout;
+
+	if (timeout)
+		queue_delayed_work(hdev->workqueue,
+				   &hdev->adv_instance.timeout_exp,
+				   msecs_to_jiffies(timeout * 1000));
 
 	if (!hci_dev_test_and_set_flag(hdev, HCI_ADVERTISING_INSTANCE))
 		advertising_added(sk, hdev, 1);
@@ -6681,6 +6739,9 @@ static int remove_advertising(struct sock *sk, struct hci_dev *hdev,
 				      MGMT_STATUS_INVALID_PARAMS);
 		goto unlock;
 	}
+
+	if (hdev->adv_instance.timeout)
+		cancel_delayed_work(&hdev->adv_instance.timeout_exp);
 
 	memset(&hdev->adv_instance, 0, sizeof(hdev->adv_instance));
 
