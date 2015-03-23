@@ -896,6 +896,18 @@ int ceph_is_any_caps(struct inode *inode)
 	return ret;
 }
 
+static void drop_inode_snap_realm(struct ceph_inode_info *ci)
+{
+	struct ceph_snap_realm *realm = ci->i_snap_realm;
+	spin_lock(&realm->inodes_with_caps_lock);
+	list_del_init(&ci->i_snap_realm_item);
+	ci->i_snap_realm_counter++;
+	ci->i_snap_realm = NULL;
+	spin_unlock(&realm->inodes_with_caps_lock);
+	ceph_put_snap_realm(ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc,
+			    realm);
+}
+
 /*
  * Remove a cap.  Take steps to deal with a racing iterate_session_caps.
  *
@@ -946,15 +958,13 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 	if (removed)
 		ceph_put_cap(mdsc, cap);
 
-	if (!__ceph_is_any_caps(ci) && ci->i_snap_realm) {
-		struct ceph_snap_realm *realm = ci->i_snap_realm;
-		spin_lock(&realm->inodes_with_caps_lock);
-		list_del_init(&ci->i_snap_realm_item);
-		ci->i_snap_realm_counter++;
-		ci->i_snap_realm = NULL;
-		spin_unlock(&realm->inodes_with_caps_lock);
-		ceph_put_snap_realm(mdsc, realm);
-	}
+	/* when reconnect denied, we remove session caps forcibly,
+	 * i_wr_ref can be non-zero. If there are ongoing write,
+	 * keep i_snap_realm.
+	 */
+	if (!__ceph_is_any_caps(ci) && ci->i_wr_ref == 0 && ci->i_snap_realm)
+		drop_inode_snap_realm(ci);
+
 	if (!__ceph_is_any_real_caps(ci))
 		__cap_delay_cancel(mdsc, ci);
 }
@@ -2309,6 +2319,9 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 					wake = 1;
 				}
 			}
+			/* see comment in __ceph_remove_cap() */
+			if (!__ceph_is_any_caps(ci) && ci->i_snap_realm)
+				drop_inode_snap_realm(ci);
 		}
 	spin_unlock(&ci->i_ceph_lock);
 
