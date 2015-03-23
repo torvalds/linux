@@ -48,7 +48,7 @@
 #define ICTLR_COP_IER_CLR	0x38
 #define ICTLR_COP_IEP_CLASS	0x3c
 
-#define TEGRA_MAX_NUM_ICTLRS	5
+#define TEGRA_MAX_NUM_ICTLRS	6
 
 static unsigned int num_ictlrs;
 
@@ -64,7 +64,12 @@ static const struct tegra_ictlr_soc tegra30_ictlr_soc = {
 	.num_ictlrs = 5,
 };
 
+static const struct tegra_ictlr_soc tegra210_ictlr_soc = {
+	.num_ictlrs = 6,
+};
+
 static const struct of_device_id ictlr_matches[] = {
+	{ .compatible = "nvidia,tegra210-ictlr", .data = &tegra210_ictlr_soc },
 	{ .compatible = "nvidia,tegra30-ictlr", .data = &tegra30_ictlr_soc },
 	{ .compatible = "nvidia,tegra20-ictlr", .data = &tegra20_ictlr_soc },
 	{ }
@@ -369,3 +374,4 @@ out_free:
 
 IRQCHIP_DECLARE(tegra20_ictlr, "nvidia,tegra20-ictlr", tegra_ictlr_init);
 IRQCHIP_DECLARE(tegra30_ictlr, "nvidia,tegra30-ictlr", tegra_ictlr_init);
+IRQCHIP_DECLARE(tegra210_ictlr, "nvidia,tegra210-ictlr", tegra_ictlr_init);
