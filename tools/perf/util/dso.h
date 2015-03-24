@@ -60,6 +60,31 @@ enum dso_type {
 	DSO__TYPE_X32BIT,
 };
 
+enum dso_load_errno {
+	DSO_LOAD_ERRNO__SUCCESS		= 0,
+
+	/*
+	 * Choose an arbitrary negative big number not to clash with standard
+	 * errno since SUS requires the errno has distinct positive values.
+	 * See 'Issue 6' in the link below.
+	 *
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 */
+	__DSO_LOAD_ERRNO__START		= -10000,
+
+	DSO_LOAD_ERRNO__INTERNAL_ERROR	= __DSO_LOAD_ERRNO__START,
+
+	/* for symsrc__init() */
+	DSO_LOAD_ERRNO__INVALID_ELF,
+	DSO_LOAD_ERRNO__CANNOT_READ_BUILDID,
+	DSO_LOAD_ERRNO__MISMATCHING_BUILDID,
+
+	/* for decompress_kmodule */
+	DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE,
+
+	__DSO_LOAD_ERRNO__END,
+};
+
 #define DSO__SWAP(dso, type, val)			\
 ({							\
 	type ____r = val;				\
@@ -113,6 +138,7 @@ struct dso {
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
 	enum dso_binary_type	binary_type;
+	enum dso_load_errno	load_errno;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 has_srcline:1;
@@ -293,5 +319,7 @@ static inline bool dso__is_kcore(struct dso *dso)
 void dso__free_a2l(struct dso *dso);
 
 enum dso_type dso__type(struct dso *dso, struct machine *machine);
+
+int dso__strerror_load(struct dso *dso, char *buf, size_t buflen);
 
 #endif /* __PERF_DSO */

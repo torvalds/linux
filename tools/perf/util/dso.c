@@ -1137,3 +1137,36 @@ enum dso_type dso__type(struct dso *dso, struct machine *machine)
 
 	return dso__type_fd(fd);
 }
+
+int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
+{
+	int idx, errnum = dso->load_errno;
+	/*
+	 * This must have a same ordering as the enum dso_load_errno.
+	 */
+	static const char *dso_load__error_str[] = {
+	"Internal tools/perf/ library error",
+	"Invalid ELF file",
+	"Can not read build id",
+	"Mismatching build id",
+	"Decompression failure",
+	};
+
+	BUG_ON(buflen == 0);
+
+	if (errnum >= 0) {
+		const char *err = strerror_r(errnum, buf, buflen);
+
+		if (err != buf)
+			scnprintf(buf, buflen, "%s", err);
+
+		return 0;
+	}
+
+	if (errnum <  __DSO_LOAD_ERRNO__START || errnum >= __DSO_LOAD_ERRNO__END)
+		return -1;
+
+	idx = errnum - __DSO_LOAD_ERRNO__START;
+	scnprintf(buf, buflen, "%s", dso_load__error_str[idx]);
+	return 0;
+}

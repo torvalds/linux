@@ -595,10 +595,13 @@ static int decompress_kmodule(struct dso *dso, const char *name,
 		return -1;
 
 	fd = mkstemp(tmpbuf);
-	if (fd < 0)
+	if (fd < 0) {
+		dso->load_errno = errno;
 		goto out;
+	}
 
 	if (!decompress_to_file(m.ext, name, fd)) {
+		dso->load_errno = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
 		close(fd);
 		fd = -1;
 	}
@@ -635,37 +638,49 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	Elf *elf;
 	int fd;
 
-	if (dso__needs_decompress(dso))
+	if (dso__needs_decompress(dso)) {
 		fd = decompress_kmodule(dso, name, type);
-	else
+		if (fd < 0)
+			return -1;
+	} else {
 		fd = open(name, O_RDONLY);
-
-	if (fd < 0)
-		return -1;
+		if (fd < 0) {
+			dso->load_errno = errno;
+			return -1;
+		}
+	}
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
 		pr_debug("%s: cannot read %s ELF file.\n", __func__, name);
+		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
 		goto out_close;
 	}
 
 	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		dso->load_errno = DSO_LOAD_ERRNO__INVALID_ELF;
 		pr_debug("%s: cannot get elf header.\n", __func__);
 		goto out_elf_end;
 	}
 
-	if (dso__swap_init(dso, ehdr.e_ident[EI_DATA]))
+	if (dso__swap_init(dso, ehdr.e_ident[EI_DATA])) {
+		dso->load_errno = DSO_LOAD_ERRNO__INTERNAL_ERROR;
 		goto out_elf_end;
+	}
 
 	/* Always reject images with a mismatched build-id: */
 	if (dso->has_build_id) {
 		u8 build_id[BUILD_ID_SIZE];
 
-		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0)
+		if (elf_read_build_id(elf, build_id, BUILD_ID_SIZE) < 0) {
+			dso->load_errno = DSO_LOAD_ERRNO__CANNOT_READ_BUILDID;
 			goto out_elf_end;
+		}
 
-		if (!dso__build_id_equal(dso, build_id))
+		if (!dso__build_id_equal(dso, build_id)) {
+			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
 			goto out_elf_end;
+		}
 	}
 
 	ss->is_64_bit = (gelf_getclass(elf) == ELFCLASS64);
@@ -701,8 +716,10 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	}
 
 	ss->name   = strdup(name);
-	if (!ss->name)
+	if (!ss->name) {
+		dso->load_errno = errno;
 		goto out_elf_end;
+	}
 
 	ss->elf    = elf;
 	ss->fd     = fd;
