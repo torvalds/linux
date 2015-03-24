@@ -214,22 +214,22 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	/* tv size */
 	dss_mgr_set_timings(mgr, p);
 
-	r = hdmi_wp_video_start(&hdmi.wp);
-	if (r)
-		goto err_vid_enable;
-
 	r = dss_mgr_enable(mgr);
 	if (r)
 		goto err_mgr_enable;
+
+	r = hdmi_wp_video_start(&hdmi.wp);
+	if (r)
+		goto err_vid_enable;
 
 	hdmi_wp_set_irqenable(wp,
 		HDMI_IRQ_LINK_CONNECT | HDMI_IRQ_LINK_DISCONNECT);
 
 	return 0;
 
-err_mgr_enable:
-	hdmi_wp_video_stop(&hdmi.wp);
 err_vid_enable:
+	dss_mgr_disable(mgr);
+err_mgr_enable:
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 err_phy_pwr:
 err_phy_cfg:
@@ -246,9 +246,9 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 
 	hdmi_wp_clear_irqenable(&hdmi.wp, 0xffffffff);
 
-	dss_mgr_disable(mgr);
-
 	hdmi_wp_video_stop(&hdmi.wp);
+
+	dss_mgr_disable(mgr);
 
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 

@@ -138,6 +138,11 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	u32 framedone_irq, vsync_irq;
 	int ret;
 
+	if (omap_crtc->mgr->output->output_type == OMAP_DISPLAY_TYPE_HDMI) {
+		dispc_mgr_enable(channel, enable);
+		return;
+	}
+
 	if (dispc_mgr_is_enabled(channel) == enable)
 		return;
 
