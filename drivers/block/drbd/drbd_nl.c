@@ -1168,21 +1168,20 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 	if (b) {
 		struct drbd_connection *connection = first_peer_device(device)->connection;
 
+		blk_queue_max_discard_sectors(q, DRBD_MAX_DISCARD_SECTORS);
+
 		if (blk_queue_discard(b) &&
 		    (connection->cstate < C_CONNECTED || connection->agreed_features & FF_TRIM)) {
-			/* For now, don't allow more than one activity log extent worth of data
-			 * to be discarded in one go. We may need to rework drbd_al_begin_io()
-			 * to allow for even larger discard ranges */
-			blk_queue_max_discard_sectors(q, DRBD_MAX_DISCARD_SECTORS);
-
+			/* We don't care, stacking below should fix it for the local device.
+			 * Whether or not it is a suitable granularity on the remote device
+			 * is not our problem, really. If you care, you need to
+			 * use devices with similar topology on all peers. */
+			q->limits.discard_granularity = 512;
 			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
-			/* REALLY? Is stacking secdiscard "legal"? */
-			if (blk_queue_secdiscard(b))
-				queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD, q);
 		} else {
 			blk_queue_max_discard_sectors(q, 0);
 			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
-			queue_flag_clear_unlocked(QUEUE_FLAG_SECDISCARD, q);
+			q->limits.discard_granularity = 0;
 		}
 
 		blk_queue_stack_limits(q, b);
@@ -1193,6 +1192,12 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 				 b->backing_dev_info.ra_pages);
 			q->backing_dev_info.ra_pages = b->backing_dev_info.ra_pages;
 		}
+	}
+	/* To avoid confusion, if this queue does not support discard, clear
+	 * max_discard_sectors, which is what lsblk -D reports to the user.  */
+	if (!blk_queue_discard(q)) {
+		blk_queue_max_discard_sectors(q, 0);
+		q->limits.discard_granularity = 0;
 	}
 }
 
