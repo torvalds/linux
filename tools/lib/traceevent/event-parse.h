@@ -116,7 +116,7 @@ struct pevent_plugin_option {
 	char				*name;
 	char				*plugin_alias;
 	char				*description;
-	char				*value;
+	const char			*value;
 	void				*priv;
 	int				set;
 };
@@ -153,6 +153,10 @@ struct pevent_plugin_option {
  *
  *   .plugin_alias is used to give a shorter name to access
  *   the vairable. Useful if a plugin handles more than one event.
+ *
+ *   If .value is not set, then it is considered a boolean and only
+ *   .set will be processed. If .value is defined, then it is considered
+ *   a string option and .set will be ignored.
  *
  * PEVENT_PLUGIN_ALIAS: (optional)
  *   The name to use for finding options (uses filename if not defined)
