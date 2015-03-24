@@ -4954,6 +4954,96 @@ const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
 	return comm;
 }
 
+static struct cmdline *
+pid_from_cmdlist(struct pevent *pevent, const char *comm, struct cmdline *next)
+{
+	struct cmdline_list *cmdlist = (struct cmdline_list *)next;
+
+	if (cmdlist)
+		cmdlist = cmdlist->next;
+	else
+		cmdlist = pevent->cmdlist;
+
+	while (cmdlist && strcmp(cmdlist->comm, comm) != 0)
+		cmdlist = cmdlist->next;
+
+	return (struct cmdline *)cmdlist;
+}
+
+/**
+ * pevent_data_pid_from_comm - return the pid from a given comm
+ * @pevent: a handle to the pevent
+ * @comm: the cmdline to find the pid from
+ * @next: the cmdline structure to find the next comm
+ *
+ * This returns the cmdline structure that holds a pid for a given
+ * comm, or NULL if none found. As there may be more than one pid for
+ * a given comm, the result of this call can be passed back into
+ * a recurring call in the @next paramater, and then it will find the
+ * next pid.
+ * Also, it does a linear seach, so it may be slow.
+ */
+struct cmdline *pevent_data_pid_from_comm(struct pevent *pevent, const char *comm,
+					  struct cmdline *next)
+{
+	struct cmdline *cmdline;
+
+	/*
+	 * If the cmdlines have not been converted yet, then use
+	 * the list.
+	 */
+	if (!pevent->cmdlines)
+		return pid_from_cmdlist(pevent, comm, next);
+
+	if (next) {
+		/*
+		 * The next pointer could have been still from
+		 * a previous call before cmdlines were created
+		 */
+		if (next < pevent->cmdlines ||
+		    next >= pevent->cmdlines + pevent->cmdline_count)
+			next = NULL;
+		else
+			cmdline  = next++;
+	}
+
+	if (!next)
+		cmdline = pevent->cmdlines;
+
+	while (cmdline < pevent->cmdlines + pevent->cmdline_count) {
+		if (strcmp(cmdline->comm, comm) == 0)
+			return cmdline;
+		cmdline++;
+	}
+	return NULL;
+}
+
+/**
+ * pevent_cmdline_pid - return the pid associated to a given cmdline
+ * @cmdline: The cmdline structure to get the pid from
+ *
+ * Returns the pid for a give cmdline. If @cmdline is NULL, then
+ * -1 is returned.
+ */
+int pevent_cmdline_pid(struct pevent *pevent, struct cmdline *cmdline)
+{
+	struct cmdline_list *cmdlist = (struct cmdline_list *)cmdline;
+
+	if (!cmdline)
+		return -1;
+
+	/*
+	 * If cmdlines have not been created yet, or cmdline is
+	 * not part of the array, then treat it as a cmdlist instead.
+	 */
+	if (!pevent->cmdlines ||
+	    cmdline < pevent->cmdlines ||
+	    cmdline >= pevent->cmdlines + pevent->cmdline_count)
+		return cmdlist->pid;
+
+	return cmdline->pid;
+}
+
 /**
  * pevent_data_comm_from_pid - parse the data into the print format
  * @s: the trace_seq to write to
