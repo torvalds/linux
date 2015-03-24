@@ -129,7 +129,7 @@ static void usb_log_enable(struct es1_ap_dev *es1, int enable);
  *		host driver.  I.e., ((char *)buffer - headroom) must
  *		point to valid memory, usable only by the host driver.
  *  size_max:	The maximum size of a buffer (not including the
- *  		headroom) must not exceed this.
+ *		headroom) must not exceed this.
  */
 static void hd_buffer_constraints(struct greybus_host_device *hd)
 {
@@ -597,7 +597,7 @@ static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 		retval = count;
 	}
 	kfree(tmp_buf);
-	
+
 	return retval;
 }
 
