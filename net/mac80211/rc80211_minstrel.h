@@ -35,6 +35,24 @@ minstrel_ewma(int old, int new, int weight)
 	return old + incr;
 }
 
+/*
+ * Perform EWMSD (Exponentially Weighted Moving Standard Deviation) calculation
+ */
+static inline int
+minstrel_ewmsd(int old_ewmsd, int cur_prob, int prob_ewma, int weight)
+{
+	int diff, incr, tmp_var;
+
+	/* calculate exponential weighted moving variance */
+	diff = MINSTREL_TRUNC((cur_prob - prob_ewma) * 1000000);
+	incr = (EWMA_DIV - weight) * diff / EWMA_DIV;
+	tmp_var = old_ewmsd * old_ewmsd;
+	tmp_var = weight * (tmp_var + diff * incr / 1000000) / EWMA_DIV;
+
+	/* return standard deviation */
+	return (u16) int_sqrt(tmp_var);
+}
+
 struct minstrel_rate_stats {
 	/* current / last sampling period attempts/success counters */
 	u16 attempts, last_attempts;
@@ -45,9 +63,11 @@ struct minstrel_rate_stats {
 
 	/* statistis of packet delivery probability
 	 *  cur_prob  - current prob within last update intervall
-	 *  prob_ewma - exponential weighted moving average of prob */
+	 *  prob_ewma - exponential weighted moving average of prob
+	 *  prob_ewmsd - exp. weighted moving standard deviation of prob */
 	unsigned int cur_prob;
 	unsigned int prob_ewma;
+	u16 prob_ewmsd;
 
 	/* maximum retry counts */
 	u8 retry_count;

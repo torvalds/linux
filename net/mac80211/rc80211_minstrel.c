@@ -153,7 +153,7 @@ minstrel_update_rates(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 }
 
 /*
-* Recalculate success probabilities and counters for a given rate using EWMA
+* Recalculate statistics and counters of a given rate
 */
 void
 minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs)
@@ -161,11 +161,20 @@ minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs)
 	if (unlikely(mrs->attempts > 0)) {
 		mrs->sample_skipped = 0;
 		mrs->cur_prob = MINSTREL_FRAC(mrs->success, mrs->attempts);
-		if (unlikely(!mrs->att_hist))
+		if (unlikely(!mrs->att_hist)) {
 			mrs->prob_ewma = mrs->cur_prob;
-		else
+		} else {
+			/* update exponential weighted moving variance */
+			mrs->prob_ewmsd = minstrel_ewmsd(mrs->prob_ewmsd,
+							 mrs->cur_prob,
+							 mrs->prob_ewma,
+							 EWMA_LEVEL);
+
+			/*update exponential weighted moving avarage */
 			mrs->prob_ewma = minstrel_ewma(mrs->prob_ewma,
-						     mrs->cur_prob, EWMA_LEVEL);
+						       mrs->cur_prob,
+						       EWMA_LEVEL);
+		}
 		mrs->att_hist += mrs->attempts;
 		mrs->succ_hist += mrs->success;
 	} else {
@@ -193,7 +202,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		struct minstrel_rate_stats *mrs = &mi->r[i].stats;
 		struct minstrel_rate_stats *tmp_mrs = &mi->r[tmp_prob_rate].stats;
 
-		/* Update success probabilities per rate */
+		/* Update statistics of success probability per rate */
 		minstrel_calc_rate_stats(mrs);
 
 		/* Sample less often below the 10% chance of success.
