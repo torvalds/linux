@@ -132,7 +132,7 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 
 	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
 	if (!intf)
-		return NULL;
+		goto put_module;
 
 	intf->hd = hd;		/* XXX refcount? */
 	intf->module = module;
@@ -151,10 +151,7 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 	if (retval) {
 		pr_err("failed to add module device for id 0x%02hhx\n",
 			module_id);
-		put_device(&intf->dev);
-		put_device(&module->dev);
-		kfree(intf);
-		return NULL;
+		goto free_intf;
 	}
 
 	spin_lock_irq(&gb_interfaces_lock);
@@ -162,6 +159,13 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 	spin_unlock_irq(&gb_interfaces_lock);
 
 	return intf;
+
+free_intf:
+	put_device(&intf->dev);
+	kfree(intf);
+put_module:
+	put_device(&module->dev);
+	return NULL;
 }
 
 /*
