@@ -74,7 +74,7 @@ SECTIONS
 		ARM_EXIT_DISCARD(EXIT_DATA)
 		EXIT_CALL
 #ifndef CONFIG_MMU
-		*(.fixup)
+		*(.text.fixup)
 		*(__ex_table)
 #endif
 #ifndef CONFIG_SMP_ON_UP
@@ -109,9 +109,6 @@ SECTIONS
 			SCHED_TEXT
 			LOCK_TEXT
 			KPROBES_TEXT
-#ifdef CONFIG_MMU
-			*(.fixup)
-#endif
 			*(.gnu.warning)
 			*(.glue_7)
 			*(.glue_7t)
