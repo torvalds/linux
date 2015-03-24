@@ -155,30 +155,6 @@ static int __init test_rhashtable(struct rhashtable *ht)
 	test_rht_lookup(ht);
 	rcu_read_unlock();
 
-	for (i = 0; i < TEST_NEXPANDS; i++) {
-		pr_info("  Table expansion iteration %u...\n", i);
-		mutex_lock(&ht->mutex);
-		rhashtable_expand(ht);
-		mutex_unlock(&ht->mutex);
-
-		rcu_read_lock();
-		pr_info("  Verifying lookups...\n");
-		test_rht_lookup(ht);
-		rcu_read_unlock();
-	}
-
-	for (i = 0; i < TEST_NEXPANDS; i++) {
-		pr_info("  Table shrinkage iteration %u...\n", i);
-		mutex_lock(&ht->mutex);
-		rhashtable_shrink(ht);
-		mutex_unlock(&ht->mutex);
-
-		rcu_read_lock();
-		pr_info("  Verifying lookups...\n");
-		test_rht_lookup(ht);
-		rcu_read_unlock();
-	}
-
 	rcu_read_lock();
 	test_bucket_stats(ht, true);
 	rcu_read_unlock();

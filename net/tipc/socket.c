@@ -35,7 +35,6 @@
  */
 
 #include <linux/rhashtable.h>
-#include <linux/jhash.h>
 #include "core.h"
 #include "name_table.h"
 #include "node.h"
@@ -2294,7 +2293,6 @@ static const struct rhashtable_params tsk_rht_params = {
 	.head_offset = offsetof(struct tipc_sock, node),
 	.key_offset = offsetof(struct tipc_sock, portid),
 	.key_len = sizeof(u32), /* portid */
-	.hashfn = jhash,
 	.max_size = 1048576,
 	.min_size = 256,
 };

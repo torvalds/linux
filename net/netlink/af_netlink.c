@@ -3133,13 +3133,12 @@ static inline u32 netlink_hash(const void *data, u32 seed)
 	struct netlink_compare_arg arg;
 
 	netlink_compare_arg_init(&arg, sock_net(&nlk->sk), nlk->portid);
-	return jhash(&arg, netlink_compare_arg_len, seed);
+	return jhash2((u32 *)&arg, netlink_compare_arg_len / sizeof(u32), seed);
 }
 
 static const struct rhashtable_params netlink_rhashtable_params = {
 	.head_offset = offsetof(struct netlink_sock, node),
 	.key_len = netlink_compare_arg_len,
-	.hashfn = jhash,
 	.obj_hashfn = netlink_hash,
 	.obj_cmpfn = netlink_compare,
 	.max_size = 65536,
