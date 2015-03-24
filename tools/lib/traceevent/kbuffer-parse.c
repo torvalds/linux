@@ -729,3 +729,14 @@ void kbuffer_set_old_format(struct kbuffer *kbuf)
 
 	kbuf->next_event = __old_next_event;
 }
+
+/**
+ * kbuffer_start_of_data - return offset of where data starts on subbuffer
+ * @kbuf:	The kbuffer
+ *
+ * Returns the location on the subbuffer where the data starts.
+ */
+int kbuffer_start_of_data(struct kbuffer *kbuf)
+{
+	return kbuf->start;
+}
