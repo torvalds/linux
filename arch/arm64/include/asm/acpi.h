@@ -38,6 +38,7 @@ typedef u64 phys_cpuid_t;
 extern int acpi_disabled;
 extern int acpi_noirq;
 extern int acpi_pci_disabled;
+extern bool param_acpi_force;
 
 /* 1 to indicate PSCI 0.2+ is implemented */
 static inline bool acpi_psci_present(void)
@@ -91,6 +92,8 @@ void __init acpi_init_cpus(void);
 static inline bool acpi_psci_present(void) { return false; }
 static inline bool acpi_psci_use_hvc(void) { return false; }
 static inline void acpi_init_cpus(void) { }
+
+#define param_acpi_force false
 #endif /* CONFIG_ACPI */
 
 #endif /*_ASM_ACPI_H*/

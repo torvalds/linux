@@ -43,7 +43,7 @@ static int enabled_cpus;
 static bool bootcpu_valid  __initdata;
 
 static bool param_acpi_off __initdata;
-static bool param_acpi_force __initdata;
+bool param_acpi_force __initdata;
 
 static int __init parse_acpi(char *arg)
 {
