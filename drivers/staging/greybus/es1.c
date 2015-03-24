@@ -558,10 +558,8 @@ static void usb_log_enable(struct es1_ap_dev *es1, int enable)
 							gb_debugfs_get(), NULL,
 							&apb1_log_fops);
 	} else {
-		if (apb1_log_dentry) {
-			debugfs_remove(apb1_log_dentry);
-			apb1_log_dentry = NULL;
-		}
+		debugfs_remove(apb1_log_dentry);
+		apb1_log_dentry = NULL;
 
 		if (apb1_log_task) {
 			kthread_stop(apb1_log_task);
