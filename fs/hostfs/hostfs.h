@@ -66,7 +66,8 @@ extern int stat_file(const char *path, struct hostfs_stat *p, int fd);
 extern int access_file(char *path, int r, int w, int x);
 extern int open_file(char *path, int r, int w, int append);
 extern void *open_dir(char *path, int *err_out);
-extern char *read_dir(void *stream, unsigned long long *pos,
+extern void seek_dir(void *stream, unsigned long long pos);
+extern char *read_dir(void *stream, unsigned long long *pos_out,
 		      unsigned long long *ino_out, int *len_out,
 		      unsigned int *type_out);
 extern void close_file(void *stream);

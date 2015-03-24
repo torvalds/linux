@@ -97,21 +97,27 @@ void *open_dir(char *path, int *err_out)
 	return dir;
 }
 
-char *read_dir(void *stream, unsigned long long *pos,
+void seek_dir(void *stream, unsigned long long pos)
+{
+	DIR *dir = stream;
+
+	seekdir(dir, pos);
+}
+
+char *read_dir(void *stream, unsigned long long *pos_out,
 	       unsigned long long *ino_out, int *len_out,
 	       unsigned int *type_out)
 {
 	DIR *dir = stream;
 	struct dirent *ent;
 
-	seekdir(dir, *pos);
 	ent = readdir(dir);
 	if (ent == NULL)
 		return NULL;
 	*len_out = strlen(ent->d_name);
 	*ino_out = ent->d_ino;
 	*type_out = ent->d_type;
-	*pos = telldir(dir);
+	*pos_out = ent->d_off;
 	return ent->d_name;
 }
 
