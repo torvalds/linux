@@ -1101,6 +1101,7 @@
 		phy-mode = "rgmii";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rgmii_pins>;
+                status = "disabled";
 	};
 
 	gpu {
