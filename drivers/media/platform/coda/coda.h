@@ -178,6 +178,7 @@ struct coda_ctx;
 struct coda_context_ops {
 	int (*queue_init)(void *priv, struct vb2_queue *src_vq,
 			  struct vb2_queue *dst_vq);
+	int (*reqbufs)(struct coda_ctx *ctx, struct v4l2_requestbuffers *rb);
 	int (*start_streaming)(struct coda_ctx *ctx);
 	int (*prepare_run)(struct coda_ctx *ctx);
 	void (*finish_run)(struct coda_ctx *ctx);
