@@ -31,6 +31,7 @@
 
 #include "coda.h"
 
+#define CODA_PARA_BUF_SIZE	(10 * 1024)
 #define CODA7_PS_BUF_SIZE	0x28000
 #define CODA9_PS_SAVE_SIZE	(512 * 1024)
 
@@ -300,6 +301,14 @@ static void coda_parabuf_write(struct coda_ctx *ctx, int index, u32 value)
 		p[index ^ 1] = value;
 }
 
+static inline int coda_alloc_context_buf(struct coda_ctx *ctx,
+					 struct coda_aux_buf *buf, size_t size,
+					 const char *name)
+{
+	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->debugfs_entry);
+}
+
+
 static void coda_free_framebuffers(struct coda_ctx *ctx)
 {
 	int i;
@@ -380,6 +389,7 @@ static void coda_free_context_buffers(struct coda_ctx *ctx)
 	coda_free_aux_buf(dev, &ctx->psbuf);
 	if (dev->devtype->product != CODA_DX6)
 		coda_free_aux_buf(dev, &ctx->workbuf);
+	coda_free_aux_buf(dev, &ctx->parabuf);
 }
 
 static int coda_alloc_context_buffers(struct coda_ctx *ctx,
@@ -388,6 +398,15 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 	struct coda_dev *dev = ctx->dev;
 	size_t size;
 	int ret;
+
+	if (!ctx->parabuf.vaddr) {
+		ret = coda_alloc_context_buf(ctx, &ctx->parabuf,
+					     CODA_PARA_BUF_SIZE, "parabuf");
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev, "failed to allocate parabuf");
+			return ret;
+		}
+	}
 
 	if (dev->devtype->product == CODA_DX6)
 		return 0;
@@ -402,7 +421,7 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 			v4l2_err(&dev->v4l2_dev,
 				 "failed to allocate %d byte slice buffer",
 				 ctx->slicebuf.size);
-			return ret;
+			goto err;
 		}
 	}
 

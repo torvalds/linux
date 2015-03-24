@@ -46,7 +46,6 @@
 #define CODADX6_MAX_INSTANCES	4
 #define CODA_MAX_FORMATS	4
 
-#define CODA_PARA_BUF_SIZE	(10 * 1024)
 #define CODA_ISRAM_SIZE	(2048 * 2)
 
 #define MIN_W 176
@@ -1715,14 +1714,6 @@ static int coda_open(struct file *file)
 
 	ctx->fh.ctrl_handler = &ctx->ctrls;
 
-	if (ctx->use_bit) {
-		ret = coda_alloc_context_buf(ctx, &ctx->parabuf,
-					     CODA_PARA_BUF_SIZE, "parabuf");
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev, "failed to allocate parabuf");
-			goto err_dma_alloc;
-		}
-	}
 	mutex_init(&ctx->bitstream_mutex);
 	mutex_init(&ctx->buffer_mutex);
 	INIT_LIST_HEAD(&ctx->buffer_meta_list);
@@ -1736,8 +1727,6 @@ static int coda_open(struct file *file)
 
 	return 0;
 
-err_dma_alloc:
-	v4l2_ctrl_handler_free(&ctx->ctrls);
 err_ctrls_setup:
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 err_ctx_init:
@@ -1783,7 +1772,6 @@ static int coda_release(struct file *file)
 	if (ctx->dev->devtype->product == CODA_DX6)
 		coda_free_aux_buf(dev, &ctx->workbuf);
 
-	coda_free_aux_buf(dev, &ctx->parabuf);
 	v4l2_ctrl_handler_free(&ctx->ctrls);
 	clk_disable_unprepare(dev->clk_ahb);
 	clk_disable_unprepare(dev->clk_per);

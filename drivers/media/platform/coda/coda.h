@@ -249,13 +249,6 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		       size_t size, const char *name, struct dentry *parent);
 void coda_free_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf);
 
-static inline int coda_alloc_context_buf(struct coda_ctx *ctx,
-					 struct coda_aux_buf *buf, size_t size,
-					 const char *name)
-{
-	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->debugfs_entry);
-}
-
 int coda_encoder_queue_init(void *priv, struct vb2_queue *src_vq,
 			    struct vb2_queue *dst_vq);
 int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
