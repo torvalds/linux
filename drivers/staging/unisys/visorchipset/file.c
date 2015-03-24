@@ -73,13 +73,13 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 }
 
 void
-visorchipset_file_cleanup(void)
+visorchipset_file_cleanup(dev_t major_dev)
 {
 	if (file_cdev.ops != NULL)
 		cdev_del(&file_cdev);
 	file_cdev.ops = NULL;
-	if (MAJOR(majordev) >= 0) {
-		unregister_chrdev_region(majordev, 1);
+	if (MAJOR(major_dev) >= 0) {
+		unregister_chrdev_region(major_dev, 1);
 		majordev = MKDEV(0, 0);
 	}
 }

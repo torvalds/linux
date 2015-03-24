@@ -2278,7 +2278,7 @@ visorchipset_exit(void)
 
 	visorchannel_destroy(controlvm_channel);
 
-	visorchipset_file_cleanup();
+	visorchipset_file_cleanup(visorchipset_platform_device.dev.devt);
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
 }
 

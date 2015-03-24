@@ -22,6 +22,6 @@
 
 int visorchipset_file_init(dev_t majorDev,
 			   struct visorchannel **pControlVm_channel);
-void visorchipset_file_cleanup(void);
+void visorchipset_file_cleanup(dev_t major_dev);
 
 #endif
