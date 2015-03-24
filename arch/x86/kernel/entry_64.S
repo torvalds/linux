@@ -267,12 +267,22 @@ system_call_fastpath:
  * Has incompletely filled pt_regs, iret frame is also incomplete.
  */
 ret_from_sys_call:
-	testl $_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
-	jnz int_ret_from_sys_call	/* Go the slow path */
 
 	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+
+	/*
+	 * We must check ti flags with interrupts (or at least preemption)
+	 * off because we must *never* return to userspace without
+	 * processing exit work that is enqueued if we're preempted here.
+	 * In particular, returning to userspace with any of the one-shot
+	 * flags (TIF_NOTIFY_RESUME, TIF_USER_RETURN_NOTIFY, etc) set is
+	 * very bad.
+	 */
+	testl $_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
+	jnz int_ret_from_sys_call_irqs_off	/* Go to the slow path */
+
 	CFI_REMEMBER_STATE
 	/*
 	 * sysretq will re-enable interrupts:
@@ -337,6 +347,7 @@ tracesys_phase2:
 GLOBAL(int_ret_from_sys_call)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
+int_ret_from_sys_call_irqs_off:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	mask to check */
 GLOBAL(int_with_check)
