@@ -1098,7 +1098,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	     cap, ci, &ci->vfs_inode);
 	spin_lock(&ci->i_ceph_lock);
 	__ceph_remove_cap(cap, false);
-	if (!__ceph_is_any_real_caps(ci)) {
+	if (!ci->i_auth_cap) {
 		struct ceph_mds_client *mdsc =
 			ceph_sb_to_client(inode->i_sb)->mdsc;
 

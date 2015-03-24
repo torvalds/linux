@@ -1404,6 +1404,13 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 	int was = ci->i_dirty_caps;
 	int dirty = 0;
 
+	if (!ci->i_auth_cap) {
+		pr_warn("__mark_dirty_caps %p %llx mask %s, "
+			"but no auth cap (session was closed?)\n",
+			inode, ceph_ino(inode), ceph_cap_string(mask));
+		return 0;
+	}
+
 	dout("__mark_dirty_caps %p %s dirty %s -> %s\n", &ci->vfs_inode,
 	     ceph_cap_string(mask), ceph_cap_string(was),
 	     ceph_cap_string(was | mask));
@@ -1414,7 +1421,6 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 				ci->i_snap_realm->cached_context);
 		dout(" inode %p now dirty snapc %p auth cap %p\n",
 		     &ci->vfs_inode, ci->i_head_snapc, ci->i_auth_cap);
-		WARN_ON(!ci->i_auth_cap);
 		BUG_ON(!list_empty(&ci->i_dirty_item));
 		spin_lock(&mdsc->cap_dirty_lock);
 		list_add(&ci->i_dirty_item, &mdsc->cap_dirty);
