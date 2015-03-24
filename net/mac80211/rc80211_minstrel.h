@@ -38,11 +38,14 @@ struct minstrel_rate_stats {
 	/* total attempts/success counters */
 	u64 att_hist, succ_hist;
 
-	/* current throughput */
+	/* current EWMA of rate throughput */
 	unsigned int cur_tp;
 
-	/* packet delivery probabilities */
-	unsigned int cur_prob, probability;
+	/* statistis of packet delivery probability
+	 *  cur_prob  - current prob within last update intervall
+	 *  prob_ewma - exponential weighted moving average of prob */
+	unsigned int cur_prob;
+	unsigned int prob_ewma;
 
 	/* maximum retry counts */
 	u8 retry_count;
@@ -70,7 +73,7 @@ struct minstrel_rate {
 struct minstrel_sta_info {
 	struct ieee80211_sta *sta;
 
-	unsigned long stats_update;
+	unsigned long last_stats_update;
 	unsigned int sp_ack_dur;
 	unsigned int rate_avg;
 
@@ -133,7 +136,7 @@ void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
 void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 
 /* Recalculate success probabilities and counters for a given rate using EWMA */
-void minstrel_calc_rate_stats(struct minstrel_rate_stats *mr);
+void minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs);
 
 /* debugfs */
 int minstrel_stats_open(struct inode *inode, struct file *file);

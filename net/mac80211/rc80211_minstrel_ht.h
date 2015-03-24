@@ -78,7 +78,7 @@ struct minstrel_ht_sta {
 	u16 max_prob_rate;
 
 	/* time of last status update */
-	unsigned long stats_update;
+	unsigned long last_stats_update;
 
 	/* overhead time in usec for each frame */
 	unsigned int overhead;

@@ -107,7 +107,7 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 
 		tp = MINSTREL_TRUNC(mrs->cur_tp / 10);
 		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
-		eprob = MINSTREL_TRUNC(mrs->probability * 1000);
+		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
 		p += sprintf(p, " %4u.%1u   %3u.%1u     %3u.%1u %3u"
 				"   %3u %-3u   %9llu   %-9llu\n",
@@ -171,7 +171,7 @@ minstrel_stats_csv_open(struct inode *inode, struct file *file)
 
 		tp = MINSTREL_TRUNC(mrs->cur_tp / 10);
 		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
-		eprob = MINSTREL_TRUNC(mrs->probability * 1000);
+		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
 		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u,%u,%u,"
 				"%llu,%llu,%d,%d\n",

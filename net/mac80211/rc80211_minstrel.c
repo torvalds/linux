@@ -137,9 +137,9 @@ minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs)
 		mrs->sample_skipped = 0;
 		mrs->cur_prob = MINSTREL_FRAC(mrs->success, mrs->attempts);
 		if (unlikely(!mrs->att_hist))
-			mrs->probability = mrs->cur_prob;
+			mrs->prob_ewma = mrs->cur_prob;
 		else
-			mrs->probability = minstrel_ewma(mrs->probability,
+			mrs->prob_ewma = minstrel_ewma(mrs->prob_ewma,
 						     mrs->cur_prob, EWMA_LEVEL);
 		mrs->att_hist += mrs->attempts;
 		mrs->succ_hist += mrs->success;
@@ -176,15 +176,15 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		minstrel_calc_rate_stats(mrs);
 
 		/* Update throughput per rate, reset thr. below 10% success */
-		if (mrs->probability < MINSTREL_FRAC(10, 100))
+		if (mrs->prob_ewma < MINSTREL_FRAC(10, 100))
 			mrs->cur_tp = 0;
 		else
-			mrs->cur_tp = mrs->probability * (1000000 / usecs);
+			mrs->cur_tp = mrs->prob_ewma * (1000000 / usecs);
 
 		/* Sample less often below the 10% chance of success.
 		 * Sample less often above the 95% chance of success. */
-		if (mrs->probability > MINSTREL_FRAC(95, 100) ||
-		    mrs->probability < MINSTREL_FRAC(10, 100)) {
+		if (mrs->prob_ewma > MINSTREL_FRAC(95, 100) ||
+		    mrs->prob_ewma < MINSTREL_FRAC(10, 100)) {
 			mr->adjusted_retry_count = mrs->retry_count >> 1;
 			if (mr->adjusted_retry_count > 2)
 				mr->adjusted_retry_count = 2;
@@ -204,11 +204,11 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		 * choose the maximum throughput rate as max_prob_rate
 		 * (2) if all success probabilities < 95%, the rate with
 		 * highest success probability is chosen as max_prob_rate */
-		if (mrs->probability >= MINSTREL_FRAC(95, 100)) {
+		if (mrs->prob_ewma >= MINSTREL_FRAC(95, 100)) {
 			if (mrs->cur_tp >= mi->r[tmp_prob_rate].stats.cur_tp)
 				tmp_prob_rate = i;
 		} else {
-			if (mrs->probability >= mi->r[tmp_prob_rate].stats.probability)
+			if (mrs->prob_ewma >= mi->r[tmp_prob_rate].stats.prob_ewma)
 				tmp_prob_rate = i;
 		}
 	}
@@ -227,7 +227,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 #endif
 
 	/* Reset update timer */
-	mi->stats_update = jiffies;
+	mi->last_stats_update = jiffies;
 
 	minstrel_update_rates(mp, mi);
 }
@@ -265,7 +265,7 @@ minstrel_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	if (mi->sample_deferred > 0)
 		mi->sample_deferred--;
 
-	if (time_after(jiffies, mi->stats_update +
+	if (time_after(jiffies, mi->last_stats_update +
 				(mp->update_interval * HZ) / 1000))
 		minstrel_update_stats(mp, mi);
 }
@@ -397,7 +397,7 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 	 * has a probability of >95%, we shouldn't be attempting
 	 * to use it, as this only wastes precious airtime */
 	if (!mrr_capable &&
-	   (mi->r[ndx].stats.probability > MINSTREL_FRAC(95, 100)))
+	   (mi->r[ndx].stats.prob_ewma > MINSTREL_FRAC(95, 100)))
 		return;
 
 	mi->prev_sample = true;
@@ -531,7 +531,7 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	}
 
 	mi->n_rates = n;
-	mi->stats_update = jiffies;
+	mi->last_stats_update = jiffies;
 
 	init_sample_table(mi);
 	minstrel_update_rates(mp, mi);
@@ -565,7 +565,7 @@ minstrel_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 	if (!mi->sample_table)
 		goto error1;
 
-	mi->stats_update = jiffies;
+	mi->last_stats_update = jiffies;
 	return mi;
 
 error1:
