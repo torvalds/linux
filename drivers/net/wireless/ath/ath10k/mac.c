@@ -6016,6 +6016,10 @@ int ath10k_mac_register(struct ath10k *ar)
 	ht_cap = ath10k_get_ht_cap(ar);
 	vht_cap = ath10k_create_vht_cap(ar);
 
+	BUILD_BUG_ON((ARRAY_SIZE(ath10k_2ghz_channels) +
+		      ARRAY_SIZE(ath10k_5ghz_channels)) !=
+		     ATH10K_NUM_CHANS);
+
 	if (ar->phy_capability & WHAL_WLAN_11G_CAPABILITY) {
 		channels = kmemdup(ath10k_2ghz_channels,
 				   sizeof(ath10k_2ghz_channels),
