@@ -1620,24 +1620,11 @@ static void ath10k_control_ibss(struct ath10k_vif *arvif,
 	lockdep_assert_held(&arvif->ar->conf_mutex);
 
 	if (!info->ibss_joined) {
-		ret = ath10k_peer_delete(arvif->ar, arvif->vdev_id, self_peer);
-		if (ret)
-			ath10k_warn(ar, "failed to delete IBSS self peer %pM for vdev %d: %d\n",
-				    self_peer, arvif->vdev_id, ret);
-
 		if (is_zero_ether_addr(arvif->bssid))
 			return;
 
 		memset(arvif->bssid, 0, ETH_ALEN);
 
-		return;
-	}
-
-	ret = ath10k_peer_create(arvif->ar, arvif->vdev_id, self_peer,
-				 WMI_PEER_TYPE_DEFAULT);
-	if (ret) {
-		ath10k_warn(ar, "failed to create IBSS self peer %pM for vdev %d: %d\n",
-			    self_peer, arvif->vdev_id, ret);
 		return;
 	}
 
@@ -4174,15 +4161,18 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
+	if (arvif->vdev_type == WMI_VDEV_TYPE_AP ||
+	    arvif->vdev_type == WMI_VDEV_TYPE_IBSS) {
 		ret = ath10k_peer_create(ar, arvif->vdev_id, vif->addr,
 					 WMI_PEER_TYPE_DEFAULT);
 		if (ret) {
-			ath10k_warn(ar, "failed to create vdev %i peer for AP: %d\n",
+			ath10k_warn(ar, "failed to create vdev %i peer for AP/IBSS: %d\n",
 				    arvif->vdev_id, ret);
 			goto err_vdev_delete;
 		}
+	}
 
+	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
 		ret = ath10k_mac_set_kickout(arvif);
 		if (ret) {
 			ath10k_warn(ar, "failed to set vdev %i kickout parameters: %d\n",
@@ -4251,7 +4241,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	return 0;
 
 err_peer_delete:
-	if (arvif->vdev_type == WMI_VDEV_TYPE_AP)
+	if (arvif->vdev_type == WMI_VDEV_TYPE_AP ||
+	    arvif->vdev_type == WMI_VDEV_TYPE_IBSS)
 		ath10k_wmi_peer_delete(ar, arvif->vdev_id, vif->addr);
 
 err_vdev_delete:
@@ -4303,11 +4294,12 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	ar->free_vdev_map |= 1LL << arvif->vdev_id;
 	list_del(&arvif->list);
 
-	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
+	if (arvif->vdev_type == WMI_VDEV_TYPE_AP ||
+	    arvif->vdev_type == WMI_VDEV_TYPE_IBSS) {
 		ret = ath10k_wmi_peer_delete(arvif->ar, arvif->vdev_id,
 					     vif->addr);
 		if (ret)
-			ath10k_warn(ar, "failed to submit AP self-peer removal on vdev %i: %d\n",
+			ath10k_warn(ar, "failed to submit AP/IBSS self-peer removal on vdev %i: %d\n",
 				    arvif->vdev_id, ret);
 
 		kfree(arvif->u.ap.noa_data);
@@ -4324,7 +4316,8 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	/* Some firmware revisions don't notify host about self-peer removal
 	 * until after associated vdev is deleted.
 	 */
-	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
+	if (arvif->vdev_type == WMI_VDEV_TYPE_AP ||
+	    arvif->vdev_type == WMI_VDEV_TYPE_IBSS) {
 		ret = ath10k_wait_for_peer_deleted(ar, arvif->vdev_id,
 						   vif->addr);
 		if (ret)
