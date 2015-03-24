@@ -325,6 +325,9 @@ enum {
 #define VTD_FLAG_TRANS_PRE_ENABLED	(1 << 0)
 #define VTD_FLAG_IRQ_REMAP_PRE_ENABLED	(1 << 1)
 
+struct pasid_entry;
+struct pasid_state_entry;
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64 		reg_phys; /* physical address of hw register set */
@@ -347,6 +350,15 @@ struct intel_iommu {
 	struct root_entry *root_entry; /* virtual address */
 
 	struct iommu_flush flush;
+#endif
+#ifdef CONFIG_INTEL_IOMMU_SVM
+	/* These are large and need to be contiguous, so we allocate just
+	 * one for now. We'll maybe want to rethink that if we truly give
+	 * devices away to userspace processes (e.g. for DPDK) and don't
+	 * want to trust that userspace will use *only* the PASID it was
+	 * told to. But while it's all driver-arbitrated, we're fine. */
+	struct pasid_entry *pasid_table;
+	struct pasid_state_entry *pasid_state_table;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
 	u32 *iommu_state; /* Store iommu states between suspend and resume.*/
@@ -386,6 +398,9 @@ extern void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
 extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
 extern int dmar_ir_support(void);
+
+extern int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu);
+extern int intel_svm_free_pasid_tables(struct intel_iommu *iommu);
 
 extern const struct attribute_group *intel_iommu_groups[];
 
