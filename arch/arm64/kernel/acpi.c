@@ -303,6 +303,11 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 	 */
 	if (table->revision > 5 ||
 	    (table->revision == 5 && fadt->minor_revision >= 1)) {
+		if (!acpi_gbl_reduced_hardware) {
+			pr_err("Not hardware reduced ACPI mode, will not be supported\n");
+			goto disable_acpi;
+		}
+
 		/*
 		 * ACPI 5.1 only has two explicit methods to boot up SMP,
 		 * PSCI and Parking protocol, but the Parking protocol is
@@ -319,8 +324,9 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 
 	pr_warn("Unsupported FADT revision %d.%d, should be 5.1+, will disable ACPI\n",
 		table->revision, fadt->minor_revision);
-	disable_acpi();
 
+disable_acpi:
+	disable_acpi();
 	return -EINVAL;
 }
 
