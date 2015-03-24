@@ -284,7 +284,7 @@ const char *coda_product_name(int product);
 
 int coda_check_firmware(struct coda_dev *dev);
 
-static inline int coda_get_bitstream_payload(struct coda_ctx *ctx)
+static inline unsigned int coda_get_bitstream_payload(struct coda_ctx *ctx)
 {
 	return kfifo_len(&ctx->bitstream_fifo);
 }
