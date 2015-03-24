@@ -1120,13 +1120,6 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			mdsc->num_cap_flushing--;
 			drop = 1;
 		}
-		if (drop && ci->i_wrbuffer_ref) {
-			pr_info(" dropping dirty data for %p %lld\n",
-				inode, ceph_ino(inode));
-			ci->i_wrbuffer_ref = 0;
-			ci->i_wrbuffer_ref_head = 0;
-			drop++;
-		}
 		spin_unlock(&mdsc->cap_dirty_lock);
 	}
 	spin_unlock(&ci->i_ceph_lock);
