@@ -76,9 +76,7 @@ visorchipset_file_cleanup(dev_t major_dev)
 	if (file_cdev.ops != NULL)
 		cdev_del(&file_cdev);
 	file_cdev.ops = NULL;
-	if (MAJOR(major_dev) >= 0) {
-		unregister_chrdev_region(major_dev, 1);
-	}
+	unregister_chrdev_region(major_dev, 1);
 }
 
 static int
