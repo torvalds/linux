@@ -182,6 +182,7 @@ struct __sk_buff {
 	__u32 protocol;
 	__u32 vlan_present;
 	__u32 vlan_tci;
+	__u32 vlan_proto;
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */

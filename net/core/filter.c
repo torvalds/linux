@@ -272,6 +272,16 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		insn += cnt - 1;
 		break;
 
+	case SKF_AD_OFF + SKF_AD_VLAN_TPID:
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_proto) != 2);
+
+		/* A = *(u16 *) (CTX + offsetof(vlan_proto)) */
+		*insn++ = BPF_LDX_MEM(BPF_H, BPF_REG_A, BPF_REG_CTX,
+				      offsetof(struct sk_buff, vlan_proto));
+		/* A = ntohs(A) [emitting a nop or swap16] */
+		*insn = BPF_ENDIAN(BPF_FROM_BE, BPF_REG_A, 16);
+		break;
+
 	case SKF_AD_OFF + SKF_AD_PAY_OFFSET:
 	case SKF_AD_OFF + SKF_AD_NLATTR:
 	case SKF_AD_OFF + SKF_AD_NLATTR_NEST:
@@ -1224,6 +1234,13 @@ static u32 sk_filter_convert_ctx_access(int dst_reg, int src_reg, int ctx_off,
 
 		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
 				      offsetof(struct sk_buff, protocol));
+		break;
+
+	case offsetof(struct __sk_buff, vlan_proto):
+		BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_proto) != 2);
+
+		*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg,
+				      offsetof(struct sk_buff, vlan_proto));
 		break;
 
 	case offsetof(struct __sk_buff, mark):
