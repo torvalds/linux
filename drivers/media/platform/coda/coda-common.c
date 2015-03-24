@@ -1215,8 +1215,9 @@ void coda_free_aux_buf(struct coda_dev *dev,
 				  buf->vaddr, buf->paddr);
 		buf->vaddr = NULL;
 		buf->size = 0;
+		debugfs_remove(buf->dentry);
+		buf->dentry = NULL;
 	}
-	debugfs_remove(buf->dentry);
 }
 
 static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
