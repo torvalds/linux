@@ -13,6 +13,27 @@
 
 #include "greybus.h"
 
+static const char *get_descriptor_type_string(u8 type)
+{
+	switch(type) {
+	case GREYBUS_TYPE_INVALID:
+		return "invalid";
+	case GREYBUS_TYPE_MODULE:
+		return "module";
+	case GREYBUS_TYPE_STRING:
+		return "string";
+	case GREYBUS_TYPE_INTERFACE:
+		return "interface";
+	case GREYBUS_TYPE_CPORT:
+		return "cport";
+	case GREYBUS_TYPE_CLASS:
+		return "class";
+	default:
+		WARN_ON(1);
+		return "unknown";
+	}
+}
+
 /*
  * We scan the manifest once to identify where all the descriptors
  * are.  The result is a list of these manifest_desc structures.  We
@@ -72,32 +93,21 @@ static int identify_descriptor(struct gb_interface *intf,
 		return -EINVAL;
 	}
 
+	/* Descriptor needs to at least have a header */
+	expected_size = sizeof(*desc_header);
+
 	switch (desc_header->type) {
 	case GREYBUS_TYPE_MODULE:
-		if (desc_size < sizeof(struct greybus_descriptor_module)) {
-			pr_err("module descriptor too small (%u)\n",
-				desc_size);
-			return -EINVAL;
-		}
+		expected_size += sizeof(struct greybus_descriptor_module);
 		break;
 	case GREYBUS_TYPE_STRING:
-		expected_size = sizeof(*desc_header);
 		expected_size += sizeof(struct greybus_descriptor_string);
-		expected_size += (size_t)desc->string.length;
-		if (desc_size < expected_size) {
-			pr_err("string descriptor too small (%u)\n",
-				desc_size);
-			return -EINVAL;
-		}
+		expected_size += desc->string.length;
 		break;
 	case GREYBUS_TYPE_INTERFACE:
 		break;
 	case GREYBUS_TYPE_CPORT:
-		if (desc_size < sizeof(struct greybus_descriptor_cport)) {
-			pr_err("cport descriptor too small (%u)\n",
-				desc_size);
-			return -EINVAL;
-		}
+		expected_size += sizeof(struct greybus_descriptor_cport);
 		break;
 	case GREYBUS_TYPE_CLASS:
 		pr_warn("class descriptor found (ignoring)\n");
@@ -105,6 +115,13 @@ static int identify_descriptor(struct gb_interface *intf,
 	case GREYBUS_TYPE_INVALID:
 	default:
 		pr_err("invalid descriptor type (%hhu)\n", desc_header->type);
+		return -EINVAL;
+	}
+
+	if (desc_size < expected_size) {
+		pr_err("%s descriptor too small (%u < %zu)\n",
+		       get_descriptor_type_string(desc_header->type),
+		       desc_size, expected_size);
 		return -EINVAL;
 	}
 
