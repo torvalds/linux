@@ -214,12 +214,18 @@ struct drm_crtc_state *
 intel_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *crtc_state;
 
 	if (WARN_ON(!intel_crtc->config))
-		return kzalloc(sizeof(*intel_crtc->config), GFP_KERNEL);
+		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	else
+		crtc_state = kmemdup(intel_crtc->config,
+				     sizeof(*intel_crtc->config), GFP_KERNEL);
 
-	return kmemdup(intel_crtc->config, sizeof(*intel_crtc->config),
-		       GFP_KERNEL);
+	if (crtc_state)
+		crtc_state->base.crtc = crtc;
+
+	return &crtc_state->base;
 }
 
 /**

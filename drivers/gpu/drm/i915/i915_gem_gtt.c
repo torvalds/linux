@@ -716,15 +716,19 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	if (size % (1<<30))
 		DRM_INFO("Pages will be wasted unless GTT size (%llu) is divisible by 1GB\n", size);
 
-	/* 1. Do all our allocations for page directories and page tables. */
-	ret = gen8_ppgtt_alloc(ppgtt, max_pdp);
+	/* 1. Do all our allocations for page directories and page tables.
+	 * We allocate more than was asked so that we can point the unused parts
+	 * to valid entries that point to scratch page. Dynamic page tables
+	 * will fix this eventually.
+	 */
+	ret = gen8_ppgtt_alloc(ppgtt, GEN8_LEGACY_PDPES);
 	if (ret)
 		return ret;
 
 	/*
 	 * 2. Create DMA mappings for the page directories and page tables.
 	 */
-	for (i = 0; i < max_pdp; i++) {
+	for (i = 0; i < GEN8_LEGACY_PDPES; i++) {
 		ret = gen8_ppgtt_setup_page_directories(ppgtt, i);
 		if (ret)
 			goto bail;
@@ -744,7 +748,7 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	 * plugged in correctly. So we do that now/here. For aliasing PPGTT, we
 	 * will never need to touch the PDEs again.
 	 */
-	for (i = 0; i < max_pdp; i++) {
+	for (i = 0; i < GEN8_LEGACY_PDPES; i++) {
 		struct i915_page_directory_entry *pd = ppgtt->pdp.page_directory[i];
 		gen8_ppgtt_pde_t *pd_vaddr;
 		pd_vaddr = kmap_atomic(ppgtt->pdp.page_directory[i]->page);
@@ -764,9 +768,14 @@ static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt, uint64_t size)
 	ppgtt->base.insert_entries = gen8_ppgtt_insert_entries;
 	ppgtt->base.cleanup = gen8_ppgtt_cleanup;
 	ppgtt->base.start = 0;
-	ppgtt->base.total = ppgtt->num_pd_entries * GEN8_PTES_PER_PAGE * PAGE_SIZE;
 
-	ppgtt->base.clear_range(&ppgtt->base, 0, ppgtt->base.total, true);
+	/* This is the area that we advertise as usable for the caller */
+	ppgtt->base.total = max_pdp * GEN8_PDES_PER_PAGE * GEN8_PTES_PER_PAGE * PAGE_SIZE;
+
+	/* Set all ptes to a valid scratch page. Also above requested space */
+	ppgtt->base.clear_range(&ppgtt->base, 0,
+				ppgtt->num_pd_pages * GEN8_PTES_PER_PAGE * PAGE_SIZE,
+				true);
 
 	DRM_DEBUG_DRIVER("Allocated %d pages for page directories (%d wasted)\n",
 			 ppgtt->num_pd_pages, ppgtt->num_pd_pages - max_pdp);

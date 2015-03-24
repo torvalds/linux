@@ -733,10 +733,14 @@ static bool check_txmsg_state(struct drm_dp_mst_topology_mgr *mgr,
 			      struct drm_dp_sideband_msg_tx *txmsg)
 {
 	bool ret;
-	mutex_lock(&mgr->qlock);
+
+	/*
+	 * All updates to txmsg->state are protected by mgr->qlock, and the two
+	 * cases we check here are terminal states. For those the barriers
+	 * provided by the wake_up/wait_event pair are enough.
+	 */
 	ret = (txmsg->state == DRM_DP_SIDEBAND_TX_RX ||
 	       txmsg->state == DRM_DP_SIDEBAND_TX_TIMEOUT);
-	mutex_unlock(&mgr->qlock);
 	return ret;
 }
 
@@ -1363,11 +1367,12 @@ static int process_single_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	return 0;
 }
 
-/* must be called holding qlock */
 static void process_single_down_tx_qlock(struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_dp_sideband_msg_tx *txmsg;
 	int ret;
+
+	WARN_ON(!mutex_is_locked(&mgr->qlock));
 
 	/* construct a chunk from the first msg in the tx_msg queue */
 	if (list_empty(&mgr->tx_msg_downq)) {

@@ -92,6 +92,7 @@ static const char version[] =
 #include "smc91x.h"
 
 #if defined(CONFIG_ASSABET_NEPONSET)
+#include <mach/assabet.h>
 #include <mach/neponset.h>
 #endif
 

@@ -56,7 +56,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150227"
+#define DRIVER_DATE		"20150313"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -69,6 +69,9 @@
 #else
 #define WARN_ON(x) WARN((x), "WARN_ON(" #x ")")
 #endif
+
+#undef WARN_ON_ONCE
+#define WARN_ON_ONCE(x) WARN_ONCE((x), "WARN_ON_ONCE(" #x ")")
 
 #define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
 			     (long) (x), __func__);
@@ -223,9 +226,14 @@ enum hpd_pin {
 
 #define for_each_pipe(__dev_priv, __p) \
 	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++)
-#define for_each_plane(pipe, p) \
-	for ((p) = 0; (p) < INTEL_INFO(dev)->num_sprites[(pipe)] + 1; (p)++)
-#define for_each_sprite(p, s) for ((s) = 0; (s) < INTEL_INFO(dev)->num_sprites[(p)]; (s)++)
+#define for_each_plane(__dev_priv, __pipe, __p)				\
+	for ((__p) = 0;							\
+	     (__p) < INTEL_INFO(__dev_priv)->num_sprites[(__pipe)] + 1;	\
+	     (__p)++)
+#define for_each_sprite(__dev_priv, __p, __s)				\
+	for ((__s) = 0;							\
+	     (__s) < INTEL_INFO(__dev_priv)->num_sprites[(__p)];	\
+	     (__s)++)
 
 #define for_each_crtc(dev, crtc) \
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
@@ -237,6 +245,12 @@ enum hpd_pin {
 	list_for_each_entry(intel_encoder,			\
 			    &(dev)->mode_config.encoder_list,	\
 			    base.head)
+
+#define for_each_intel_connector(dev, intel_connector)		\
+	list_for_each_entry(intel_connector,			\
+			    &dev->mode_config.connector_list,	\
+			    base.head)
+
 
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
@@ -783,10 +797,19 @@ struct intel_context {
 	struct list_head link;
 };
 
+enum fb_op_origin {
+	ORIGIN_GTT,
+	ORIGIN_CPU,
+	ORIGIN_CS,
+	ORIGIN_FLIP,
+};
+
 struct i915_fbc {
 	unsigned long uncompressed_size;
 	unsigned threshold;
 	unsigned int fb_id;
+	unsigned int possible_framebuffer_bits;
+	unsigned int busy_bits;
 	struct intel_crtc *crtc;
 	int y;
 
@@ -798,14 +821,6 @@ struct i915_fbc {
 	/* Tracks whether the HW is actually enabled, not whether the feature is
 	 * possible. */
 	bool enabled;
-
-	/* On gen8 some rings cannont perform fbc clean operation so for now
-	 * we are doing this on SW with mmio.
-	 * This variable works in the opposite information direction
-	 * of ring->fbc_dirty telling software on frontbuffer tracking
-	 * to perform the cache clean on sw side.
-	 */
-	bool need_sw_cache_clean;
 
 	struct intel_fbc_work {
 		struct delayed_work work;
@@ -1053,9 +1068,6 @@ struct intel_ilk_power_mgmt {
 
 	int c_m;
 	int r_t;
-
-	struct drm_i915_gem_object *pwrctx;
-	struct drm_i915_gem_object *renderctx;
 };
 
 struct drm_i915_private;
@@ -1396,6 +1408,25 @@ struct ilk_wm_values {
 	uint32_t wm_linetime[3];
 	bool enable_fbc_wm;
 	enum intel_ddb_partitioning partitioning;
+};
+
+struct vlv_wm_values {
+	struct {
+		uint16_t primary;
+		uint16_t sprite[2];
+		uint8_t cursor;
+	} pipe[3];
+
+	struct {
+		uint16_t plane;
+		uint8_t cursor;
+	} sr;
+
+	struct {
+		uint8_t cursor;
+		uint8_t sprite[2];
+		uint8_t primary;
+	} ddl[3];
 };
 
 struct skl_ddb_entry {
@@ -1760,6 +1791,7 @@ struct drm_i915_private {
 		union {
 			struct ilk_wm_values hw;
 			struct skl_wm_values skl_hw;
+			struct vlv_wm_values vlv;
 		};
 	} wm;
 
@@ -2396,6 +2428,7 @@ struct drm_i915_cmd_table {
 #define NUM_L3_SLICES(dev) (IS_HSW_GT3(dev) ? 2 : HAS_L3_DPF(dev))
 
 #define GT_FREQUENCY_MULTIPLIER 50
+#define GEN9_FREQ_SCALER 3
 
 #include "i915_trace.h"
 
@@ -2433,7 +2466,7 @@ struct i915_params {
 	bool disable_display;
 	bool disable_vtd_wa;
 	int use_mmio_flip;
-	bool mmio_debug;
+	int mmio_debug;
 	bool verbose_state_checks;
 	bool nuclear_pageflip;
 };

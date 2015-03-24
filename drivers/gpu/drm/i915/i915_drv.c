@@ -346,7 +346,6 @@ static const struct intel_device_info intel_broadwell_gt3m_info = {
 };
 
 static const struct intel_device_info intel_cherryview_info = {
-	.is_preliminary = 1,
 	.gen = 8, .num_pipes = 3,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
@@ -880,12 +879,6 @@ int i915_reset(struct drm_device *dev)
 		DRM_ERROR("Failed hw init on reset %d\n", ret);
 		return ret;
 	}
-
-	/*
-	 * FIXME: This races pretty badly against concurrent holders of
-	 * ring interrupts. This is possible since we've started to drop
-	 * dev->struct_mutex in select places when waiting for the gpu.
-	 */
 
 	/*
 	 * rps/rc6 re-init is necessary to restore state lost after the

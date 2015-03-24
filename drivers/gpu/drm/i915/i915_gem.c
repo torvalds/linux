@@ -351,7 +351,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	void *vaddr = obj->phys_handle->vaddr + args->offset;
 	char __user *user_data = to_user_ptr(args->data_ptr);
-	int ret;
+	int ret = 0;
 
 	/* We manually control the domain here and pretend that it
 	 * remains coherent i.e. in the GTT domain, like shmem_pwrite.
@@ -360,6 +360,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	intel_fb_obj_invalidate(obj, NULL, ORIGIN_CPU);
 	if (__copy_from_user_inatomic_nocache(vaddr, user_data, args->size)) {
 		unsigned long unwritten;
 
@@ -370,13 +371,18 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 		mutex_unlock(&dev->struct_mutex);
 		unwritten = copy_from_user(vaddr, user_data, args->size);
 		mutex_lock(&dev->struct_mutex);
-		if (unwritten)
-			return -EFAULT;
+		if (unwritten) {
+			ret = -EFAULT;
+			goto out;
+		}
 	}
 
 	drm_clflush_virt_range(vaddr, args->size);
 	i915_gem_chipset_flush(dev);
-	return 0;
+
+out:
+	intel_fb_obj_flush(obj, false);
+	return ret;
 }
 
 void *i915_gem_object_alloc(struct drm_device *dev)
@@ -810,6 +816,8 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 
 	offset = i915_gem_obj_ggtt_offset(obj) + args->offset;
 
+	intel_fb_obj_invalidate(obj, NULL, ORIGIN_GTT);
+
 	while (remain > 0) {
 		/* Operation in this page
 		 *
@@ -830,7 +838,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		if (fast_user_write(dev_priv->gtt.mappable, page_base,
 				    page_offset, user_data, page_length)) {
 			ret = -EFAULT;
-			goto out_unpin;
+			goto out_flush;
 		}
 
 		remain -= page_length;
@@ -838,6 +846,8 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		offset += page_length;
 	}
 
+out_flush:
+	intel_fb_obj_flush(obj, false);
 out_unpin:
 	i915_gem_object_ggtt_unpin(obj);
 out:
@@ -952,6 +962,8 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	if (ret)
 		return ret;
 
+	intel_fb_obj_invalidate(obj, NULL, ORIGIN_CPU);
+
 	i915_gem_object_pin_pages(obj);
 
 	offset = args->offset;
@@ -1030,6 +1042,7 @@ out:
 	if (needs_clflush_after)
 		i915_gem_chipset_flush(dev);
 
+	intel_fb_obj_flush(obj, false);
 	return ret;
 }
 
@@ -2929,9 +2942,9 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	req = obj->last_read_req;
 
 	/* Do this after OLR check to make sure we make forward progress polling
-	 * on this IOCTL with a timeout <=0 (like busy ioctl)
+	 * on this IOCTL with a timeout == 0 (like busy ioctl)
 	 */
-	if (args->timeout_ns <= 0) {
+	if (args->timeout_ns == 0) {
 		ret = -ETIME;
 		goto out;
 	}
@@ -2941,7 +2954,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	i915_gem_request_reference(req);
 	mutex_unlock(&dev->struct_mutex);
 
-	ret = __i915_wait_request(req, reset_counter, true, &args->timeout_ns,
+	ret = __i915_wait_request(req, reset_counter, true,
+				  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
 				  file->driver_priv);
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_request_unreference(req);
@@ -3756,7 +3770,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	}
 
 	if (write)
-		intel_fb_obj_invalidate(obj, NULL);
+		intel_fb_obj_invalidate(obj, NULL, ORIGIN_GTT);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -4071,7 +4085,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	}
 
 	if (write)
-		intel_fb_obj_invalidate(obj, NULL);
+		intel_fb_obj_invalidate(obj, NULL, ORIGIN_CPU);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -4781,6 +4795,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
 
+	/* Double layer security blanket, see i915_gem_init() */
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
 	if (dev_priv->ellc_size)
 		I915_WRITE(HSW_IDICR, I915_READ(HSW_IDICR) | IDIHASHMSK(0xf));
 
@@ -4813,7 +4830,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, i) {
 		ret = ring->init_hw(ring);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	for (i = 0; i < NUM_L3_SLICES(dev); i++)
@@ -4830,9 +4847,11 @@ i915_gem_init_hw(struct drm_device *dev)
 		DRM_ERROR("Context enable failed %d\n", ret);
 		i915_gem_cleanup_ringbuffer(dev);
 
-		return ret;
+		goto out;
 	}
 
+out:
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	return ret;
 }
 
@@ -4866,6 +4885,14 @@ int i915_gem_init(struct drm_device *dev)
 		dev_priv->gt.stop_ring = intel_logical_ring_stop;
 	}
 
+	/* This is just a security blanket to placate dragons.
+	 * On some systems, we very sporadically observe that the first TLBs
+	 * used by the CS may be stale, despite us poking the TLB reset. If
+	 * we hold the forcewake during initialisation these problems
+	 * just magically go away.
+	 */
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
 	ret = i915_gem_init_userptr(dev);
 	if (ret)
 		goto out_unlock;
@@ -4892,6 +4919,7 @@ int i915_gem_init(struct drm_device *dev)
 	}
 
 out_unlock:
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	mutex_unlock(&dev->struct_mutex);
 
 	return ret;

@@ -1696,11 +1696,6 @@ static void i9xx_pipe_crc_irq_handler(struct drm_device *dev, enum pipe pipe)
  * the work queue. */
 static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 {
-	/* TODO: RPS on GEN9+ is not supported yet. */
-	if (WARN_ONCE(INTEL_INFO(dev_priv)->gen >= 9,
-		      "GEN9+: unexpected RPS IRQ\n"))
-		return;
-
 	if (pm_iir & dev_priv->pm_rps_events) {
 		spin_lock(&dev_priv->irq_lock);
 		gen6_disable_pm_irq(dev_priv, pm_iir & dev_priv->pm_rps_events);
@@ -3169,15 +3164,24 @@ static void gen8_irq_reset(struct drm_device *dev)
 	ibx_irq_reset(dev);
 }
 
-void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv)
+void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
+				     unsigned int pipe_mask)
 {
 	uint32_t extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B, dev_priv->de_irq_mask[PIPE_B],
-			  ~dev_priv->de_irq_mask[PIPE_B] | extra_ier);
-	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_C, dev_priv->de_irq_mask[PIPE_C],
-			  ~dev_priv->de_irq_mask[PIPE_C] | extra_ier);
+	if (pipe_mask & 1 << PIPE_A)
+		GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_A,
+				  dev_priv->de_irq_mask[PIPE_A],
+				  ~dev_priv->de_irq_mask[PIPE_A] | extra_ier);
+	if (pipe_mask & 1 << PIPE_B)
+		GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B,
+				  dev_priv->de_irq_mask[PIPE_B],
+				  ~dev_priv->de_irq_mask[PIPE_B] | extra_ier);
+	if (pipe_mask & 1 << PIPE_C)
+		GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_C,
+				  dev_priv->de_irq_mask[PIPE_C],
+				  ~dev_priv->de_irq_mask[PIPE_C] | extra_ier);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 

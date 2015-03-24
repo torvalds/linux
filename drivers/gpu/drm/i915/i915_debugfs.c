@@ -1090,7 +1090,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
 	} else if (IS_GEN6(dev) || (IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) ||
-		   IS_BROADWELL(dev)) {
+		   IS_BROADWELL(dev) || IS_GEN9(dev)) {
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
@@ -1109,11 +1109,15 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 		reqf = I915_READ(GEN6_RPNSWREQ);
-		reqf &= ~GEN6_TURBO_DISABLE;
-		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-			reqf >>= 24;
-		else
-			reqf >>= 25;
+		if (IS_GEN9(dev))
+			reqf >>= 23;
+		else {
+			reqf &= ~GEN6_TURBO_DISABLE;
+			if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+				reqf >>= 24;
+			else
+				reqf >>= 25;
+		}
 		reqf = intel_gpu_freq(dev_priv, reqf);
 
 		rpmodectl = I915_READ(GEN6_RP_CONTROL);
@@ -1127,7 +1131,9 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		rpdownei = I915_READ(GEN6_RP_CUR_DOWN_EI);
 		rpcurdown = I915_READ(GEN6_RP_CUR_DOWN);
 		rpprevdown = I915_READ(GEN6_RP_PREV_DOWN);
-		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		if (IS_GEN9(dev))
+			cagf = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
+		else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 			cagf = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
 		else
 			cagf = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
@@ -1153,7 +1159,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   pm_ier, pm_imr, pm_isr, pm_iir, pm_mask);
 		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
 		seq_printf(m, "Render p-state ratio: %d\n",
-			   (gt_perf_status & 0xff00) >> 8);
+			   (gt_perf_status & (IS_GEN9(dev) ? 0x1ff00 : 0xff00)) >> 8);
 		seq_printf(m, "Render p-state VID: %d\n",
 			   gt_perf_status & 0xff);
 		seq_printf(m, "Render p-state limit: %d\n",
@@ -1178,14 +1184,17 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   GEN6_CURBSYTAVG_MASK);
 
 		max_freq = (rp_state_cap & 0xff0000) >> 16;
+		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = (rp_state_cap & 0xff00) >> 8;
+		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
 		max_freq = rp_state_cap & 0xff;
+		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
 
@@ -1831,18 +1840,6 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	if (dev_priv->ips.pwrctx) {
-		seq_puts(m, "power context ");
-		describe_obj(m, dev_priv->ips.pwrctx);
-		seq_putc(m, '\n');
-	}
-
-	if (dev_priv->ips.renderctx) {
-		seq_puts(m, "render context ");
-		describe_obj(m, dev_priv->ips.renderctx);
-		seq_putc(m, '\n');
-	}
-
 	list_for_each_entry(ctx, &dev_priv->context_list, link) {
 		if (!i915.enable_execlists &&
 		    ctx->legacy_hw_ctx.rcs_state == NULL)
@@ -2246,6 +2243,11 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	enum pipe pipe;
 	bool enabled = false;
 
+	if (!HAS_PSR(dev)) {
+		seq_puts(m, "PSR not supported\n");
+		return 0;
+	}
+
 	intel_runtime_pm_get(dev_priv);
 
 	mutex_lock(&dev_priv->psr.lock);
@@ -2258,17 +2260,15 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	seq_printf(m, "Re-enable work scheduled: %s\n",
 		   yesno(work_busy(&dev_priv->psr.work.work)));
 
-	if (HAS_PSR(dev)) {
-		if (HAS_DDI(dev))
-			enabled = I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
-		else {
-			for_each_pipe(dev_priv, pipe) {
-				stat[pipe] = I915_READ(VLV_PSRSTAT(pipe)) &
-					VLV_EDP_PSR_CURR_STATE_MASK;
-				if ((stat[pipe] == VLV_EDP_PSR_ACTIVE_NORFB_UP) ||
-				    (stat[pipe] == VLV_EDP_PSR_ACTIVE_SF_UPDATE))
-					enabled = true;
-			}
+	if (HAS_DDI(dev))
+		enabled = I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
+	else {
+		for_each_pipe(dev_priv, pipe) {
+			stat[pipe] = I915_READ(VLV_PSRSTAT(pipe)) &
+				VLV_EDP_PSR_CURR_STATE_MASK;
+			if ((stat[pipe] == VLV_EDP_PSR_ACTIVE_NORFB_UP) ||
+			    (stat[pipe] == VLV_EDP_PSR_ACTIVE_SF_UPDATE))
+				enabled = true;
 		}
 	}
 	seq_printf(m, "HW Enabled & Active bit: %s", yesno(enabled));
@@ -2285,7 +2285,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		   yesno((bool)dev_priv->psr.link_standby));
 
 	/* CHV PSR has no kind of performance counter */
-	if (HAS_PSR(dev) && HAS_DDI(dev)) {
+	if (HAS_DDI(dev)) {
 		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &
 			EDP_PSR_PERF_CNT_MASK;
 
@@ -2308,8 +2308,7 @@ static int i915_sink_crc(struct seq_file *m, void *data)
 	u8 crc[6];
 
 	drm_modeset_lock_all(dev);
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	for_each_intel_encoder(dev, connector) {
 
 		if (connector->base.dpms != DRM_MODE_DPMS_ON)
 			continue;
@@ -2677,7 +2676,8 @@ static int i915_display_info(struct seq_file *m, void *unused)
 			active = cursor_position(dev, crtc->pipe, &x, &y);
 			seq_printf(m, "\tcursor visible? %s, position (%d, %d), size %dx%d, addr 0x%08x, active? %s\n",
 				   yesno(crtc->cursor_base),
-				   x, y, crtc->cursor_width, crtc->cursor_height,
+				   x, y, crtc->base.cursor->state->crtc_w,
+				   crtc->base.cursor->state->crtc_h,
 				   crtc->cursor_addr, yesno(active));
 		}
 
@@ -2853,7 +2853,7 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 	for_each_pipe(dev_priv, pipe) {
 		seq_printf(m, "Pipe %c\n", pipe_name(pipe));
 
-		for_each_plane(pipe, plane) {
+		for_each_plane(dev_priv, pipe, plane) {
 			entry = &ddb->plane[pipe][plane];
 			seq_printf(m, "  Plane%-8d%8u%8u%8u\n", plane + 1,
 				   entry->start, entry->end,
@@ -2866,6 +2866,115 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 	}
 
 	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
+static void drrs_status_per_crtc(struct seq_file *m,
+		struct drm_device *dev, struct intel_crtc *intel_crtc)
+{
+	struct intel_encoder *intel_encoder;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_drrs *drrs = &dev_priv->drrs;
+	int vrefresh = 0;
+
+	for_each_encoder_on_crtc(dev, &intel_crtc->base, intel_encoder) {
+		/* Encoder connected on this CRTC */
+		switch (intel_encoder->type) {
+		case INTEL_OUTPUT_EDP:
+			seq_puts(m, "eDP:\n");
+			break;
+		case INTEL_OUTPUT_DSI:
+			seq_puts(m, "DSI:\n");
+			break;
+		case INTEL_OUTPUT_HDMI:
+			seq_puts(m, "HDMI:\n");
+			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			seq_puts(m, "DP:\n");
+			break;
+		default:
+			seq_printf(m, "Other encoder (id=%d).\n",
+						intel_encoder->type);
+			return;
+		}
+	}
+
+	if (dev_priv->vbt.drrs_type == STATIC_DRRS_SUPPORT)
+		seq_puts(m, "\tVBT: DRRS_type: Static");
+	else if (dev_priv->vbt.drrs_type == SEAMLESS_DRRS_SUPPORT)
+		seq_puts(m, "\tVBT: DRRS_type: Seamless");
+	else if (dev_priv->vbt.drrs_type == DRRS_NOT_SUPPORTED)
+		seq_puts(m, "\tVBT: DRRS_type: None");
+	else
+		seq_puts(m, "\tVBT: DRRS_type: FIXME: Unrecognized Value");
+
+	seq_puts(m, "\n\n");
+
+	if (intel_crtc->config->has_drrs) {
+		struct intel_panel *panel;
+
+		mutex_lock(&drrs->mutex);
+		/* DRRS Supported */
+		seq_puts(m, "\tDRRS Supported: Yes\n");
+
+		/* disable_drrs() will make drrs->dp NULL */
+		if (!drrs->dp) {
+			seq_puts(m, "Idleness DRRS: Disabled");
+			mutex_unlock(&drrs->mutex);
+			return;
+		}
+
+		panel = &drrs->dp->attached_connector->panel;
+		seq_printf(m, "\t\tBusy_frontbuffer_bits: 0x%X",
+					drrs->busy_frontbuffer_bits);
+
+		seq_puts(m, "\n\t\t");
+		if (drrs->refresh_rate_type == DRRS_HIGH_RR) {
+			seq_puts(m, "DRRS_State: DRRS_HIGH_RR\n");
+			vrefresh = panel->fixed_mode->vrefresh;
+		} else if (drrs->refresh_rate_type == DRRS_LOW_RR) {
+			seq_puts(m, "DRRS_State: DRRS_LOW_RR\n");
+			vrefresh = panel->downclock_mode->vrefresh;
+		} else {
+			seq_printf(m, "DRRS_State: Unknown(%d)\n",
+						drrs->refresh_rate_type);
+			mutex_unlock(&drrs->mutex);
+			return;
+		}
+		seq_printf(m, "\t\tVrefresh: %d", vrefresh);
+
+		seq_puts(m, "\n\t\t");
+		mutex_unlock(&drrs->mutex);
+	} else {
+		/* DRRS not supported. Print the VBT parameter*/
+		seq_puts(m, "\tDRRS Supported : No");
+	}
+	seq_puts(m, "\n");
+}
+
+static int i915_drrs_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct intel_crtc *intel_crtc;
+	int active_crtc_cnt = 0;
+
+	for_each_intel_crtc(dev, intel_crtc) {
+		drm_modeset_lock(&intel_crtc->base.mutex, NULL);
+
+		if (intel_crtc->active) {
+			active_crtc_cnt++;
+			seq_printf(m, "\nCRTC %d:  ", active_crtc_cnt);
+
+			drrs_status_per_crtc(m, dev, intel_crtc);
+		}
+
+		drm_modeset_unlock(&intel_crtc->base.mutex);
+	}
+
+	if (!active_crtc_cnt)
+		seq_puts(m, "No active crtc found\n");
 
 	return 0;
 }
@@ -4362,7 +4471,7 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned int s_tot = 0, ss_tot = 0, ss_per = 0, eu_tot = 0, eu_per = 0;
 
-	if (INTEL_INFO(dev)->gen < 9)
+	if ((INTEL_INFO(dev)->gen < 8) || IS_BROADWELL(dev))
 		return -ENODEV;
 
 	seq_puts(m, "SSEU Device Info\n");
@@ -4384,7 +4493,34 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		   yesno(INTEL_INFO(dev)->has_eu_pg));
 
 	seq_puts(m, "SSEU Device Status\n");
-	if (IS_SKYLAKE(dev)) {
+	if (IS_CHERRYVIEW(dev)) {
+		const int ss_max = 2;
+		int ss;
+		u32 sig1[ss_max], sig2[ss_max];
+
+		sig1[0] = I915_READ(CHV_POWER_SS0_SIG1);
+		sig1[1] = I915_READ(CHV_POWER_SS1_SIG1);
+		sig2[0] = I915_READ(CHV_POWER_SS0_SIG2);
+		sig2[1] = I915_READ(CHV_POWER_SS1_SIG2);
+
+		for (ss = 0; ss < ss_max; ss++) {
+			unsigned int eu_cnt;
+
+			if (sig1[ss] & CHV_SS_PG_ENABLE)
+				/* skip disabled subslice */
+				continue;
+
+			s_tot = 1;
+			ss_per++;
+			eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
+				 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
+				 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
+				 ((sig2[ss] & CHV_EU311_PG_ENABLE) ? 0 : 2);
+			eu_tot += eu_cnt;
+			eu_per = max(eu_per, eu_cnt);
+		}
+		ss_tot = ss_per;
+	} else if (IS_SKYLAKE(dev)) {
 		const int s_max = 3, ss_max = 4;
 		int s, ss;
 		u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
@@ -4548,6 +4684,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_wa_registers", i915_wa_registers, 0},
 	{"i915_ddb_info", i915_ddb_info, 0},
 	{"i915_sseu_status", i915_sseu_status, 0},
+	{"i915_drrs_status", i915_drrs_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

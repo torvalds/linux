@@ -194,8 +194,39 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
 	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
 
-	if (IS_BROADWELL(dev) || (INTEL_INFO(dev)->gen >= 9))
-		gen8_irq_power_well_post_enable(dev_priv);
+	if (IS_BROADWELL(dev))
+		gen8_irq_power_well_post_enable(dev_priv,
+						1 << PIPE_C | 1 << PIPE_B);
+}
+
+static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
+				       struct i915_power_well *power_well)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	/*
+	 * After we re-enable the power well, if we touch VGA register 0x3d5
+	 * we'll get unclaimed register interrupts. This stops after we write
+	 * anything to the VGA MSR register. The vgacon module uses this
+	 * register all the time, so if we unbind our driver and, as a
+	 * consequence, bind vgacon, we'll get stuck in an infinite loop at
+	 * console_unlock(). So make here we touch the VGA MSR register, making
+	 * sure vgacon can keep working normally without triggering interrupts
+	 * and error messages.
+	 */
+	if (power_well->data == SKL_DISP_PW_2) {
+		vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
+		outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
+		vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
+
+		gen8_irq_power_well_post_enable(dev_priv,
+						1 << PIPE_C | 1 << PIPE_B);
+	}
+
+	if (power_well->data == SKL_DISP_PW_1) {
+		intel_prepare_ddi(dev);
+		gen8_irq_power_well_post_enable(dev_priv, 1 << PIPE_A);
+	}
 }
 
 static void hsw_set_power_well(struct drm_i915_private *dev_priv,
@@ -293,7 +324,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 {
 	uint32_t tmp, fuse_status;
 	uint32_t req_mask, state_mask;
-	bool check_fuse_status = false;
+	bool is_enabled, enable_requested, check_fuse_status = false;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
 	fuse_status = I915_READ(SKL_FUSE_STATUS);
@@ -324,15 +355,17 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 	}
 
 	req_mask = SKL_POWER_WELL_REQ(power_well->data);
+	enable_requested = tmp & req_mask;
 	state_mask = SKL_POWER_WELL_STATE(power_well->data);
+	is_enabled = tmp & state_mask;
 
 	if (enable) {
-		if (!(tmp & req_mask)) {
+		if (!enable_requested) {
 			I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
-			DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
 		}
 
-		if (!(tmp & state_mask)) {
+		if (!is_enabled) {
+			DRM_DEBUG_KMS("Enabling %s\n", power_well->name);
 			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
 				state_mask), 1))
 				DRM_ERROR("%s enable timeout\n",
@@ -340,7 +373,7 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			check_fuse_status = true;
 		}
 	} else {
-		if (tmp & req_mask) {
+		if (enable_requested) {
 			I915_WRITE(HSW_PWR_WELL_DRIVER,	tmp & ~req_mask);
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Disabling %s\n", power_well->name);
@@ -358,6 +391,9 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 				DRM_ERROR("PG2 distributing status timeout\n");
 		}
 	}
+
+	if (enable && !is_enabled)
+		skl_power_well_post_enable(dev_priv, power_well);
 }
 
 static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -1420,7 +1456,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_aux_display_runtime_get - grab an auxilliary power domain reference
+ * intel_aux_display_runtime_get - grab an auxiliary power domain reference
  * @dev_priv: i915 device instance
  *
  * This function grabs a power domain reference for the auxiliary power domain
@@ -1437,10 +1473,10 @@ void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_aux_display_runtime_put - release an auxilliary power domain reference
+ * intel_aux_display_runtime_put - release an auxiliary power domain reference
  * @dev_priv: i915 device instance
  *
- * This function drops the auxilliary power domain reference obtained by
+ * This function drops the auxiliary power domain reference obtained by
  * intel_aux_display_runtime_get() and might power down the corresponding
  * hardware block right away if this is the last reference.
  */

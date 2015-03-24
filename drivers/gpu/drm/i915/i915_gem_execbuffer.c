@@ -971,7 +971,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 			obj->dirty = 1;
 			i915_gem_request_assign(&obj->last_write_req, req);
 
-			intel_fb_obj_invalidate(obj, ring);
+			intel_fb_obj_invalidate(obj, ring, ORIGIN_CS);
 
 			/* update for the implicit flush after a batch */
 			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
@@ -1518,7 +1518,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		 * - The batch is already pinned into the relevant ppgtt, so we
 		 *   already have the backing storage fully allocated.
 		 * - No other BO uses the global gtt (well contexts, but meh),
-		 *   so we don't really have issues with mutliple objects not
+		 *   so we don't really have issues with multiple objects not
 		 *   fitting due to fragmentation.
 		 * So this is actually safe.
 		 */

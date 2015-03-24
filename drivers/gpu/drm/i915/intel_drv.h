@@ -464,7 +464,6 @@ struct intel_crtc {
 
 	struct drm_i915_gem_object *cursor_bo;
 	uint32_t cursor_addr;
-	int16_t cursor_width, cursor_height;
 	uint32_t cursor_cntl;
 	uint32_t cursor_size;
 	uint32_t cursor_base;
@@ -623,10 +622,12 @@ struct intel_dp {
 	uint32_t color_range;
 	bool color_range_auto;
 	uint8_t link_bw;
+	uint8_t rate_select;
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
+	__le16 supported_rates[DP_MAX_SUPPORTED_RATES];
 	struct drm_dp_aux aux;
 	uint8_t train_set[4];
 	int panel_power_up_delay;
@@ -839,7 +840,8 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
-void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv);
+void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
+				     unsigned int pipe_mask);
 
 /* intel_crt.c */
 void intel_crt_init(struct drm_device *dev);
@@ -874,7 +876,8 @@ void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
 
 /* intel_frontbuffer.c */
 void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
-			     struct intel_engine_cs *ring);
+			     struct intel_engine_cs *ring,
+			     enum fb_op_origin origin);
 void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 				    unsigned frontbuffer_bits);
 void intel_frontbuffer_flip_complete(struct drm_device *dev,
@@ -1115,7 +1118,11 @@ bool intel_fbc_enabled(struct drm_device *dev);
 void intel_fbc_update(struct drm_device *dev);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
 void intel_fbc_disable(struct drm_device *dev);
-void bdw_fbc_sw_flush(struct drm_device *dev, u32 value);
+void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
+			  unsigned int frontbuffer_bits,
+			  enum fb_op_origin origin);
+void intel_fbc_flush(struct drm_i915_private *dev_priv,
+		     unsigned int frontbuffer_bits);
 
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port);
@@ -1231,7 +1238,6 @@ void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);
 void intel_suspend_gt_powersave(struct drm_device *dev);
 void intel_reset_gt_powersave(struct drm_device *dev);
-void ironlake_teardown_rc6(struct drm_device *dev);
 void gen6_update_ring_freq(struct drm_device *dev);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct drm_i915_private *dev_priv);

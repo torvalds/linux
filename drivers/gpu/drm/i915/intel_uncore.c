@@ -557,18 +557,24 @@ hsw_unclaimed_reg_debug(struct drm_i915_private *dev_priv, u32 reg, bool read,
 		WARN(1, "Unclaimed register detected %s %s register 0x%x\n",
 		     when, op, reg);
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+		i915.mmio_debug--; /* Only report the first N failures */
 	}
 }
 
 static void
 hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
 {
-	if (i915.mmio_debug)
+	static bool mmio_debug_once = true;
+
+	if (i915.mmio_debug || !mmio_debug_once)
 		return;
 
 	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
-		DRM_ERROR("Unclaimed register detected. Please use the i915.mmio_debug=1 to debug this problem.");
+		DRM_DEBUG("Unclaimed register detected, "
+			  "enabling oneshot unclaimed register reporting. "
+			  "Please use i915.mmio_debug=N for more information.\n");
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+		i915.mmio_debug = mmio_debug_once--;
 	}
 }
 
@@ -1082,8 +1088,14 @@ static void intel_uncore_fw_domains_init(struct drm_device *dev)
 
 		/* We need to init first for ECOBUS access and then
 		 * determine later if we want to reinit, in case of MT access is
-		 * not working
+		 * not working. In this stage we don't know which flavour this
+		 * ivb is, so it is better to reset also the gen6 fw registers
+		 * before the ecobus check.
 		 */
+
+		__raw_i915_write32(dev_priv, FORCEWAKE, 0);
+		__raw_posting_read(dev_priv, ECOBUS);
+
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_MT, FORCEWAKE_MT_ACK);
 
