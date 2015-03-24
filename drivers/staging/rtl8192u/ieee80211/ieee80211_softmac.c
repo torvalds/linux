@@ -1921,8 +1921,8 @@ static void ieee80211_process_action(struct ieee80211_device *ieee,
 
 }
 
-void ieee80211_check_auth_response(struct ieee80211_device *ieee,
-				   struct sk_buff *skb)
+static void ieee80211_check_auth_response(struct ieee80211_device *ieee,
+					  struct sk_buff *skb)
 {
 	/* default support N mode, disable halfNmode */
 	bool bSupportNmode = true, bHalfSupportNmode = false;
