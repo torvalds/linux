@@ -592,14 +592,12 @@ static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 	if (retval)
 		return retval;
 
-	if (enable) {
+	if (enable)
 		usb_log_enable(es1);
-		retval = count;
-	} else {
-		retval = -EINVAL;
-	}
+	else
+		usb_log_disable(es1);
 
-	return retval;
+	return count;
 }
 
 static const struct file_operations apb1_log_enable_fops = {
