@@ -372,7 +372,6 @@ translate_data(struct kbuffer *kbuf, void *data, void **rptr,
 	switch (type_len) {
 	case KBUFFER_TYPE_PADDING:
 		*length = read_4(kbuf, data);
-		data += *length;
 		break;
 
 	case KBUFFER_TYPE_TIME_EXTEND:
