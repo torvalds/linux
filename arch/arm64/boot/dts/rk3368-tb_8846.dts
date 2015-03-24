@@ -68,7 +68,7 @@
 	       irq-gpio = <&gpio0 GPIO_C0 IRQ_TYPE_EDGE_BOTH>;
 	};
 
-	backlight {
+	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 25000>;
 		brightness-levels = <255 254 253 252 251 250 249 248 247 246 245 244 243 242 241 240
@@ -563,6 +563,7 @@
 
 &lcdc {
 	status = "okay";
+	backlight = <&backlight>;
 	rockchip,mirror = <NO_MIRROR>;
 	rockchip,cabc_mode = <0>;
 	rockchip,fb-win-map = <FB_DEFAULT_ORDER>;
