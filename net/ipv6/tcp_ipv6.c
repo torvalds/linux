@@ -582,9 +582,9 @@ clear_hash_noput:
 	return 1;
 }
 
-static int tcp_v6_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
+static int tcp_v6_md5_hash_skb(char *md5_hash,
+			       const struct tcp_md5sig_key *key,
 			       const struct sock *sk,
-			       const struct request_sock *req,
 			       const struct sk_buff *skb)
 {
 	const struct in6_addr *saddr, *daddr;
@@ -592,12 +592,9 @@ static int tcp_v6_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
 	struct hash_desc *desc;
 	const struct tcphdr *th = tcp_hdr(skb);
 
-	if (sk) {
-		saddr = &inet6_sk(sk)->saddr;
+	if (sk) { /* valid for establish/request sockets */
+		saddr = &sk->sk_v6_rcv_saddr;
 		daddr = &sk->sk_v6_daddr;
-	} else if (req) {
-		saddr = &inet_rsk(req)->ir_v6_loc_addr;
-		daddr = &inet_rsk(req)->ir_v6_rmt_addr;
 	} else {
 		const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 		saddr = &ip6h->saddr;
@@ -662,7 +659,7 @@ static bool tcp_v6_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
 	/* check the signature */
 	genhash = tcp_v6_md5_hash_skb(newhash,
 				      hash_expected,
-				      NULL, NULL, skb);
+				      NULL, skb);
 
 	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
 		net_info_ratelimited("MD5 Hash %s for [%pI6c]:%u->[%pI6c]:%u\n",
@@ -880,7 +877,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 		if (!key)
 			goto release_sk1;
 
-		genhash = tcp_v6_md5_hash_skb(newhash, key, NULL, NULL, skb);
+		genhash = tcp_v6_md5_hash_skb(newhash, key, NULL, skb);
 		if (genhash || memcmp(hash_location, newhash, 16) != 0)
 			goto release_sk1;
 	} else {

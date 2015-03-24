@@ -986,7 +986,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 	if (md5) {
 		sk_nocaps_add(sk, NETIF_F_GSO_MASK);
 		tp->af_specific->calc_md5_hash(opts.hash_location,
-					       md5, sk, NULL, skb);
+					       md5, sk, skb);
 	}
 #endif
 
@@ -2973,7 +2973,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	/* Okay, we have all we need - do the md5 hash if needed */
 	if (md5)
 		tcp_rsk(req)->af_specific->calc_md5_hash(opts.hash_location,
-					       md5, NULL, req, skb);
+					       md5, req_to_sk(req), skb);
 	rcu_read_unlock();
 #endif
 

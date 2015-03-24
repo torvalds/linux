@@ -648,7 +648,7 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 		if (!key)
 			goto release_sk1;
 
-		genhash = tcp_v4_md5_hash_skb(newhash, key, NULL, NULL, skb);
+		genhash = tcp_v4_md5_hash_skb(newhash, key, NULL, skb);
 		if (genhash || memcmp(hash_location, newhash, 16) != 0)
 			goto release_sk1;
 	} else {
@@ -1102,8 +1102,8 @@ clear_hash_noput:
 	return 1;
 }
 
-int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
-			const struct sock *sk, const struct request_sock *req,
+int tcp_v4_md5_hash_skb(char *md5_hash, const struct tcp_md5sig_key *key,
+			const struct sock *sk,
 			const struct sk_buff *skb)
 {
 	struct tcp_md5sig_pool *hp;
@@ -1111,12 +1111,9 @@ int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
 	const struct tcphdr *th = tcp_hdr(skb);
 	__be32 saddr, daddr;
 
-	if (sk) {
-		saddr = inet_sk(sk)->inet_saddr;
-		daddr = inet_sk(sk)->inet_daddr;
-	} else if (req) {
-		saddr = inet_rsk(req)->ir_loc_addr;
-		daddr = inet_rsk(req)->ir_rmt_addr;
+	if (sk) { /* valid for establish/request sockets */
+		saddr = sk->sk_rcv_saddr;
+		daddr = sk->sk_daddr;
 	} else {
 		const struct iphdr *iph = ip_hdr(skb);
 		saddr = iph->saddr;
@@ -1195,7 +1192,7 @@ static bool tcp_v4_inbound_md5_hash(struct sock *sk,
 	 */
 	genhash = tcp_v4_md5_hash_skb(newhash,
 				      hash_expected,
-				      NULL, NULL, skb);
+				      NULL, skb);
 
 	if (genhash || memcmp(hash_location, newhash, 16) != 0) {
 		net_info_ratelimited("MD5 Hash failed for (%pI4, %d)->(%pI4, %d)%s\n",
