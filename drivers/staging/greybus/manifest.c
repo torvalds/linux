@@ -383,9 +383,7 @@ bool gb_manifest_parse(struct gb_interface *intf, void *data, size_t size)
 		int desc_size;
 
 		desc_size = identify_descriptor(intf, desc, size);
-		if (desc_size <= 0) {
-			if (!desc_size)
-				pr_err("zero-sized manifest descriptor\n");
+		if (desc_size < 0) {
 			result = false;
 			goto out;
 		}
