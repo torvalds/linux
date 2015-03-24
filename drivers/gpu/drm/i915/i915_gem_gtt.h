@@ -339,9 +339,9 @@ struct i915_hw_ppgtt {
  * XXX: temp is not actually needed, but it saves doing the ALIGN operation.
  */
 #define gen6_for_each_pde(pt, pd, start, length, temp, iter) \
-	for (iter = gen6_pde_index(start), pt = (pd)->page_table[iter]; \
-	     length > 0 && iter < I915_PDES; \
-	     pt = (pd)->page_table[++iter], \
+	for (iter = gen6_pde_index(start); \
+	     pt = (pd)->page_table[iter], length > 0 && iter < I915_PDES; \
+	     iter++, \
 	     temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT) - start, \
 	     temp = min_t(unsigned, temp, length), \
 	     start += temp, length -= temp)
