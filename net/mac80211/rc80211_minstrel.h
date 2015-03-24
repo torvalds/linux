@@ -27,7 +27,12 @@
 static inline int
 minstrel_ewma(int old, int new, int weight)
 {
-	return (new * (EWMA_DIV - weight) + old * weight) / EWMA_DIV;
+	int diff, incr;
+
+	diff = new - old;
+	incr = (EWMA_DIV - weight) * diff / EWMA_DIV;
+
+	return old + incr;
 }
 
 struct minstrel_rate_stats {
