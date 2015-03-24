@@ -68,8 +68,12 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 
 	file->private_data = ms;
 	p = ms->buf;
-	p += sprintf(p, "rate          tpt eprob *prob"
-			"  *ok(*cum)        ok(      cum)\n");
+	p += sprintf(p, "\n");
+	p += sprintf(p, "best   _______rate_____    __statistics__    "
+			"________last_______    ______sum-of________\n");
+	p += sprintf(p, "rate  [name idx airtime]  [ ø(tp) ø(prob)]  "
+			"[prob.|retry|suc|att]  [#success | #attempts]\n");
+
 	for (i = 0; i < mi->n_rates; i++) {
 		struct minstrel_rate *mr = &mi->r[i];
 		struct minstrel_rate_stats *mrs = &mi->r[i].stats;
@@ -79,18 +83,22 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		*(p++) = (i == mi->max_tp_rate[2]) ? 'C' : ' ';
 		*(p++) = (i == mi->max_tp_rate[3]) ? 'D' : ' ';
 		*(p++) = (i == mi->max_prob_rate) ? 'P' : ' ';
-		p += sprintf(p, "%3u%s", mr->bitrate / 2,
+
+		p += sprintf(p, " %3u%s ", mr->bitrate / 2,
 				(mr->bitrate & 1 ? ".5" : "  "));
+		p += sprintf(p, "%3u  ", i);
+		p += sprintf(p, "%6u  ", mr->perfect_tx_time);
 
 		tp = MINSTREL_TRUNC(mrs->cur_tp / 10);
 		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mrs->probability * 1000);
 
-		p += sprintf(p, " %4u.%1u %3u.%1u %3u.%1u"
-				" %4u(%4u) %9llu(%9llu)\n",
+		p += sprintf(p, " %4u.%1u   %3u.%1u     %3u.%1u %3u"
+				"   %3u %-3u   %9llu   %-9llu\n",
 				tp / 10, tp % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,
+				mrs->retry_count,
 				mrs->last_success,
 				mrs->last_attempts,
 				(unsigned long long)mrs->succ_hist,
