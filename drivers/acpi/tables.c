@@ -23,6 +23,8 @@
  *
  */
 
+/* Uncomment next line to get verbose printout */
+/* #define DEBUG */
 #define pr_fmt(fmt) "ACPI: " fmt
 
 #include <linux/init.h>
@@ -61,9 +63,9 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_local_apic *p =
 			    (struct acpi_madt_local_apic *)header;
-			pr_info("LAPIC (acpi_id[0x%02x] lapic_id[0x%02x] %s)\n",
-				p->processor_id, p->id,
-				(p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+			pr_debug("LAPIC (acpi_id[0x%02x] lapic_id[0x%02x] %s)\n",
+				 p->processor_id, p->id,
+				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
 		}
 		break;
 
@@ -71,9 +73,9 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_local_x2apic *p =
 			    (struct acpi_madt_local_x2apic *)header;
-			pr_info("X2APIC (apic_id[0x%02x] uid[0x%02x] %s)\n",
-				p->local_apic_id, p->uid,
-				(p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+			pr_debug("X2APIC (apic_id[0x%02x] uid[0x%02x] %s)\n",
+				 p->local_apic_id, p->uid,
+				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
 		}
 		break;
 
@@ -81,8 +83,8 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_io_apic *p =
 			    (struct acpi_madt_io_apic *)header;
-			pr_info("IOAPIC (id[0x%02x] address[0x%08x] gsi_base[%d])\n",
-				p->id, p->address, p->global_irq_base);
+			pr_debug("IOAPIC (id[0x%02x] address[0x%08x] gsi_base[%d])\n",
+				 p->id, p->address, p->global_irq_base);
 		}
 		break;
 
@@ -155,9 +157,9 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_io_sapic *p =
 			    (struct acpi_madt_io_sapic *)header;
-			pr_info("IOSAPIC (id[0x%x] address[%p] gsi_base[%d])\n",
-				p->id, (void *)(unsigned long)p->address,
-				p->global_irq_base);
+			pr_debug("IOSAPIC (id[0x%x] address[%p] gsi_base[%d])\n",
+				 p->id, (void *)(unsigned long)p->address,
+				 p->global_irq_base);
 		}
 		break;
 
@@ -165,9 +167,9 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 		{
 			struct acpi_madt_local_sapic *p =
 			    (struct acpi_madt_local_sapic *)header;
-			pr_info("LSAPIC (acpi_id[0x%02x] lsapic_id[0x%02x] lsapic_eid[0x%02x] %s)\n",
-				p->processor_id, p->id, p->eid,
-				(p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+			pr_debug("LSAPIC (acpi_id[0x%02x] lsapic_id[0x%02x] lsapic_eid[0x%02x] %s)\n",
+				 p->processor_id, p->id, p->eid,
+				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
 		}
 		break;
 
