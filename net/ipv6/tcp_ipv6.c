@@ -633,8 +633,7 @@ clear_hash_noput:
 	return 1;
 }
 
-static int __tcp_v6_inbound_md5_hash(struct sock *sk,
-				     const struct sk_buff *skb)
+static bool tcp_v6_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
 {
 	const __u8 *hash_location = NULL;
 	struct tcp_md5sig_key *hash_expected;
@@ -648,16 +647,16 @@ static int __tcp_v6_inbound_md5_hash(struct sock *sk,
 
 	/* We've parsed the options - do we have a hash? */
 	if (!hash_expected && !hash_location)
-		return 0;
+		return false;
 
 	if (hash_expected && !hash_location) {
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPMD5NOTFOUND);
-		return 1;
+		return true;
 	}
 
 	if (!hash_expected && hash_location) {
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
-		return 1;
+		return true;
 	}
 
 	/* check the signature */
@@ -670,22 +669,10 @@ static int __tcp_v6_inbound_md5_hash(struct sock *sk,
 				     genhash ? "failed" : "mismatch",
 				     &ip6h->saddr, ntohs(th->source),
 				     &ip6h->daddr, ntohs(th->dest));
-		return 1;
+		return true;
 	}
-	return 0;
+	return false;
 }
-
-static int tcp_v6_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
-{
-	int ret;
-
-	rcu_read_lock();
-	ret = __tcp_v6_inbound_md5_hash(sk, skb);
-	rcu_read_unlock();
-
-	return ret;
-}
-
 #endif
 
 static void tcp_v6_init_req(struct request_sock *req, struct sock *sk,

@@ -1153,8 +1153,9 @@ clear_hash_noput:
 }
 EXPORT_SYMBOL(tcp_v4_md5_hash_skb);
 
-static bool __tcp_v4_inbound_md5_hash(struct sock *sk,
-				      const struct sk_buff *skb)
+/* Called with rcu_read_lock() */
+static bool tcp_v4_inbound_md5_hash(struct sock *sk,
+				    const struct sk_buff *skb)
 {
 	/*
 	 * This gets called for each TCP segment that arrives
@@ -1206,18 +1207,6 @@ static bool __tcp_v4_inbound_md5_hash(struct sock *sk,
 	}
 	return false;
 }
-
-static bool tcp_v4_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
-{
-	bool ret;
-
-	rcu_read_lock();
-	ret = __tcp_v4_inbound_md5_hash(sk, skb);
-	rcu_read_unlock();
-
-	return ret;
-}
-
 #endif
 
 static void tcp_v4_init_req(struct request_sock *req, struct sock *sk_listener,
