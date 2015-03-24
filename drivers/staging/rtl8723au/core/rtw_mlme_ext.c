@@ -968,8 +968,7 @@ OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat = rtw_get_stainfo23a(pstapriv, sa);
 	if (!pstat) {
 		/*  allocate a new one */
-		DBG_8723A("going to alloc stainfo for sa ="MAC_FMT"\n",
-			  MAC_ARG(sa));
+		DBG_8723A("going to alloc stainfo for sa =%pM\n", sa);
 		pstat = rtw_alloc_stainfo23a(pstapriv, sa, GFP_ATOMIC);
 		if (!pstat) {
 			DBG_8723A(" Exceed the upper limit of supported "
@@ -1396,8 +1395,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	/* now parse all ieee802_11 ie to point to elems */
 
 	if (rtw_validate_frame_ies(pos, left)) {
-		DBG_8723A("STA " MAC_FMT " sent invalid association request\n",
-			  MAC_ARG(pstat->hwaddr));
+		DBG_8723A("STA %pM sent invalid association request\n",
+			  pstat->hwaddr);
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto OnAssocReq23aFail;
 	}
@@ -1407,8 +1406,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	p = cfg80211_find_ie(WLAN_EID_SSID, pos, left);
 	if (!p || p[1] == 0) {
 		/*  broadcast ssid, however it is not allowed in assocreq */
-		DBG_8723A("STA " MAC_FMT " sent invalid association request "
-			  "lacking an SSID\n", MAC_ARG(pstat->hwaddr));
+		DBG_8723A("STA %pM sent invalid association request lacking an SSID\n",
+			  pstat->hwaddr);
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto OnAssocReq23aFail;
 	} else {
@@ -1537,9 +1536,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		int copy_len;
 
 		if (psecuritypriv->wpa_psk == 0) {
-			DBG_8723A("STA " MAC_FMT ": WPA/RSN IE in association "
-			"request, but AP don't support WPA/RSN\n",
-				  MAC_ARG(pstat->hwaddr));
+			DBG_8723A("STA %pM: WPA/RSN IE in association request, but AP don't support WPA/RSN\n",
+				  pstat->hwaddr);
 
 			status = WLAN_STATUS_INVALID_IE;
 
@@ -1645,8 +1643,8 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	if (pstat->flags & WLAN_STA_HT &&
 	    (pstat->wpa2_pairwise_cipher & WPA_CIPHER_TKIP ||
 	     pstat->wpa_pairwise_cipher & WPA_CIPHER_TKIP)) {
-		DBG_8723A("HT: " MAC_FMT " tried to use TKIP with HT "
-			  "association\n", MAC_ARG(pstat->hwaddr));
+		DBG_8723A("HT: %pM tried to use TKIP with HT association\n",
+			  pstat->hwaddr);
 
 		/* status = WLAN_STATUS_CIPHER_REJECTED_PER_POLICY; */
 		/* goto OnAssocReq23aFail; */
@@ -2806,17 +2804,16 @@ static int issue_probereq_ex(struct rtw_adapter *padapter,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n",	__func__,
-				  padapter->pnetdev->name,
-				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+			DBG_8723A("%s(%s): to %pM, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
+				  da, rtw_get_oper_ch23a(padapter),
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
 			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
 				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 	}
 exit:
@@ -3460,17 +3457,16 @@ int issue_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", __func__,
-				  padapter->pnetdev->name,
-				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+			DBG_8723A("%s(%s): to %pM, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
+				  da, rtw_get_oper_ch23a(padapter),
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
 			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
 				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 	}
 exit:
@@ -3587,17 +3583,16 @@ int issue_qos_nulldata23a(struct rtw_adapter *padapter, unsigned char *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", __func__,
-				  padapter->pnetdev->name,
-				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+			DBG_8723A("%s(%s): to %pM, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
+				  da, rtw_get_oper_ch23a(padapter),
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
 			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
 				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 	}
 exit:
@@ -3615,7 +3610,7 @@ static int _issue_deauth(struct rtw_adapter *padapter, unsigned char *da,
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	int ret = _FAIL;
 
-	/* DBG_8723A("%s to "MAC_FMT"\n", __func__, MAC_ARG(da)); */
+	/* DBG_8723A("%s to %pM\n", __func__, da); */
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)
@@ -3660,7 +3655,7 @@ exit:
 int issue_deauth23a(struct rtw_adapter *padapter, unsigned char *da,
 		    unsigned short reason)
 {
-	DBG_8723A("%s to "MAC_FMT"\n", __func__, MAC_ARG(da));
+	DBG_8723A("%s to %pM\n", __func__, da);
 	return _issue_deauth(padapter, da, reason, false);
 }
 
@@ -3692,17 +3687,16 @@ static int issue_deauth_ex(struct rtw_adapter *padapter, u8 *da,
 
 	if (try_cnt && wait_ms) {
 		if (da)
-			DBG_8723A("%s(%s): to "MAC_FMT", ch:%u%s, %d/%d "
-				  "in %u ms\n", __func__,
-				  padapter->pnetdev->name,
-				  MAC_ARG(da), rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+			DBG_8723A("%s(%s): to %pM, ch:%u%s, %d/%d in %u ms\n",
+				  __func__, padapter->pnetdev->name,
+				  da, rtw_get_oper_ch23a(padapter),
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 		else
 			DBG_8723A("%s(%s):, ch:%u%s, %d/%d in %u ms\n",
 				  __func__, padapter->pnetdev->name,
 				  rtw_get_oper_ch23a(padapter),
-				  ret == _SUCCESS?", acked":"", i, try_cnt,
+				  ret == _SUCCESS ? ", acked" : "", i, try_cnt,
 				  jiffies_to_msecs(jiffies - start));
 	}
 exit:
@@ -3719,8 +3713,8 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
-	DBG_8723A("%s(%s): ra ="MAC_FMT", ch:%u, offset:%u\n", __func__,
-		  padapter->pnetdev->name, MAC_ARG(ra), new_ch, ch_offset);
+	DBG_8723A("%s(%s): ra=%pM, ch:%u, offset:%u\n",
+		  __func__, padapter->pnetdev->name, ra, new_ch, ch_offset);
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)

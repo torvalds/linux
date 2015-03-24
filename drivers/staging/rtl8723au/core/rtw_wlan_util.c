@@ -876,9 +876,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	}
 
 	if (!ether_addr_equal(cur_network->network.MacAddress, mgmt->bssid)) {
-		DBG_8723A("%s: linked but recv other bssid bcn"
-			  MAC_FMT MAC_FMT "\n", __func__, MAC_ARG(mgmt->bssid),
-			  MAC_ARG(cur_network->network.MacAddress));
+		DBG_8723A("%s: linked but recv other bssid bcn %pM %pM\n",
+			  __func__, mgmt->bssid,
+			  cur_network->network.MacAddress);
 		return _FAIL;
 	}
 

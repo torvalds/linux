@@ -493,8 +493,8 @@ static int update_attrib(struct rtw_adapter *padapter,
 		psta = rtw_get_stainfo23a(pstapriv, pattrib->ra);
 		if (psta == NULL) { /*  if we cannot get psta => drrp the pkt */
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_alert_,
-				 ("\nupdate_attrib => get sta_info fail, ra:"
-				  MAC_FMT"\n", MAC_ARG(pattrib->ra)));
+				 ("\nupdate_attrib => get sta_info fail, ra:%pM\n",
+				  pattrib->ra));
 			res = _FAIL;
 			goto exit;
 		} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) &&
@@ -511,8 +511,8 @@ static int update_attrib(struct rtw_adapter *padapter,
 	} else {
 		/*  if we cannot get psta => drop the pkt */
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_alert_,
-			 ("\nupdate_attrib => get sta_info fail, ra:" MAC_FMT
-			  "\n", MAC_ARG(pattrib->ra)));
+			 ("\nupdate_attrib => get sta_info fail, ra:%pM\n",
+			  pattrib->ra));
 		res = _FAIL;
 		goto exit;
 	}

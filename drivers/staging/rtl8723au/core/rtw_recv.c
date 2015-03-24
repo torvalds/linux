@@ -301,10 +301,7 @@ int recvframe_chkmic(struct rtw_adapter *adapter,
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 			 ("\n recvframe_chkmic:prxattrib->encrypt == WLAN_CIPHER_SUITE_TKIP\n"));
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-			 ("\n recvframe_chkmic:da = 0x%02x:0x%02x:0x%02x:0x%02x:"
-			  "0x%02x:0x%02x\n", prxattrib->ra[0],
-			  prxattrib->ra[1], prxattrib->ra[2], prxattrib->ra[3],
-			  prxattrib->ra[4], prxattrib->ra[5]));
+			 ("\n recvframe_chkmic:da = %pM\n", prxattrib->ra));
 
 		/* calculate mic code */
 		if (stainfo != NULL) {
@@ -406,12 +403,8 @@ int recvframe_chkmic(struct rtw_adapter *adapter,
 					  prxattrib->hdrlen));
 
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
-					 ("ra = 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%."
-					  "2x 0x%.2x psecuritypriv->"
-					  "binstallGrpkey =%d ",
-					  prxattrib->ra[0], prxattrib->ra[1],
-					  prxattrib->ra[2], prxattrib->ra[3],
-					  prxattrib->ra[4], prxattrib->ra[5],
+					 ("ra = %pM psecuritypriv->binstallGrpkey =%d ",
+					  prxattrib->ra,
 					  psecuritypriv->binstallGrpkey));
 
 				/*  double check key_index for some timing
@@ -887,8 +880,8 @@ int ap2sta_data_frame(struct rtw_adapter *adapter,
 		/*  da should be for me */
 		if (!ether_addr_equal(myhwaddr, pattrib->dst) && !bmcast) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-				(" ap2sta_data_frame:  compare DA fail; DA ="
-				 MAC_FMT"\n", MAC_ARG(pattrib->dst)));
+				 (" ap2sta_data_frame:  compare DA fail; DA=%pM\n",
+				  pattrib->dst));
 			ret = _FAIL;
 			goto exit;
 		}
@@ -898,15 +891,14 @@ int ap2sta_data_frame(struct rtw_adapter *adapter,
 		    ether_addr_equal(mybssid, "\x0\x0\x0\x0\x0\x0") ||
 		    !ether_addr_equal(pattrib->bssid, mybssid)) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-				(" ap2sta_data_frame:  compare BSSID fail ; "
-				 "BSSID ="MAC_FMT"\n", MAC_ARG(pattrib->bssid)));
+				(" ap2sta_data_frame:  compare BSSID fail ; BSSID=%pM\n",
+				 pattrib->bssid));
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
-				 ("mybssid ="MAC_FMT"\n", MAC_ARG(mybssid)));
+				 ("mybssid=%pM\n", mybssid));
 
 			if (!bmcast) {
-				DBG_8723A("issue_deauth23a to the nonassociated "
-					  "ap =" MAC_FMT " for the reason(7)\n",
-					  MAC_ARG(pattrib->bssid));
+				DBG_8723A("issue_deauth23a to the nonassociated ap=%pM for the reason(7)\n",
+					  pattrib->bssid);
 				issue_deauth23a(adapter, pattrib->bssid,
 					     WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
 			}
@@ -964,9 +956,8 @@ int ap2sta_data_frame(struct rtw_adapter *adapter,
 		if (ether_addr_equal(myhwaddr, pattrib->dst) && !bmcast) {
 			*psta = rtw_get_stainfo23a(pstapriv, pattrib->bssid);
 			if (*psta == NULL) {
-				DBG_8723A("issue_deauth23a to the ap =" MAC_FMT
-					  " for the reason(7)\n",
-					  MAC_ARG(pattrib->bssid));
+				DBG_8723A("issue_deauth23a to the ap=%pM for the reason(7)\n",
+					  pattrib->bssid);
 
 				issue_deauth23a(adapter, pattrib->bssid,
 					     WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
@@ -1011,9 +1002,8 @@ int sta2ap_data_frame(struct rtw_adapter *adapter,
 		if (*psta == NULL) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 				 ("can't get psta under AP_MODE; drop pkt\n"));
-			DBG_8723A("issue_deauth23a to sta =" MAC_FMT
-				  " for the reason(7)\n",
-				  MAC_ARG(pattrib->src));
+			DBG_8723A("issue_deauth23a to sta=%pM for the reason(7)\n",
+				  pattrib->src);
 
 			issue_deauth23a(adapter, pattrib->src,
 				     WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
@@ -1043,8 +1033,8 @@ int sta2ap_data_frame(struct rtw_adapter *adapter,
 			ret = RTW_RX_HANDLED;
 			goto exit;
 		}
-		DBG_8723A("issue_deauth23a to sta =" MAC_FMT " for the reason(7)\n",
-			  MAC_ARG(pattrib->src));
+		DBG_8723A("issue_deauth23a to sta=%pM for the reason(7)\n",
+			  pattrib->src);
 		issue_deauth23a(adapter, pattrib->src,
 			     WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
 		ret = RTW_RX_HANDLED;

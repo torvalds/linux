@@ -594,8 +594,8 @@ static int _rtw_drv_register_netdev(struct rtw_adapter *padapter, char *name)
 		ret = _FAIL;
 		goto error_register_netdev;
 	}
-	DBG_8723A("%s, MAC Address (if%d) = " MAC_FMT "\n", __func__,
-		  (padapter->iface_id + 1), MAC_ARG(pnetdev->dev_addr));
+	DBG_8723A("%s, MAC Address (if%d) = %pM\n",
+		  __func__, padapter->iface_id + 1, pnetdev->dev_addr);
 	return ret;
 
 error_register_netdev:
@@ -666,8 +666,7 @@ int netdev_open23a(struct net_device *pnetdev)
 			goto netdev_open23a_error;
 		}
 
-		DBG_8723A("MAC Address = "MAC_FMT"\n",
-			  MAC_ARG(pnetdev->dev_addr));
+		DBG_8723A("MAC Address = %pM\n", pnetdev->dev_addr);
 
 		if (init_hw_mlme_ext23a(padapter) == _FAIL) {
 			DBG_8723A("can't init mlme_ext_priv\n");

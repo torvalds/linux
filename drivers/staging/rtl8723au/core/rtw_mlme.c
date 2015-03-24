@@ -238,9 +238,9 @@ static void _rtw_roaming(struct rtw_adapter *padapter,
 		pnetwork = &pmlmepriv->cur_network;
 
 	if (padapter->mlmepriv.to_roaming > 0) {
-		DBG_8723A("roaming from %s("MAC_FMT"), length:%d\n",
+		DBG_8723A("roaming from %s(%pM), length:%d\n",
 			  pnetwork->network.Ssid.ssid,
-			  MAC_ARG(pnetwork->network.MacAddress),
+			  pnetwork->network.MacAddress,
 			  pnetwork->network.Ssid.ssid_len);
 		memcpy(&pmlmepriv->assoc_ssid, &pnetwork->network.Ssid,
 		       sizeof(struct cfg80211_ssid));
@@ -747,8 +747,8 @@ void rtw_free_assoc_resources23a(struct rtw_adapter *adapter,
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
 		 ("+rtw_free_assoc_resources23a\n"));
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("tgt_network->network.MacAddress="MAC_FMT" ssid=%s\n",
-		  MAC_ARG(tgt_network->network.MacAddress),
+		 ("tgt_network->network.MacAddress=%pM ssid=%s\n",
+		  tgt_network->network.MacAddress,
 		  tgt_network->network.Ssid.ssid));
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_AP_STATE)) {
@@ -991,8 +991,9 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 	DBG_8723A("%s\n", __func__);
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("\nfw_state:%x, BSSID:"MAC_FMT"\n", get_fwstate(pmlmepriv),
-		  MAC_ARG(pnetwork->network.MacAddress)));
+		 ("\nfw_state:%x, BSSID:%pM\n",
+		  get_fwstate(pmlmepriv),
+		  pnetwork->network.MacAddress));
 
 	/*  why not use ptarget_wlan?? */
 	memcpy(&cur_network->network, &pnetwork->network,
@@ -1323,8 +1324,7 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	else
 		mac_id = pstadel->mac_id;
 
-	DBG_8723A("%s(mac_id=%d)=" MAC_FMT "\n", __func__, mac_id,
-		  MAC_ARG(pstadel->macaddr));
+	DBG_8723A("%s(mac_id=%d)=%pM\n", __func__, mac_id, pstadel->macaddr);
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		return;
@@ -1575,13 +1575,12 @@ static int rtw_check_join_candidate(struct mlme_priv *pmlmepriv,
 	}
 
 	if (updated) {
-		DBG_8723A("[by_bssid:%u][assoc_ssid:%s][to_roaming:%u] "
-			  "new candidate: %s("MAC_FMT") rssi:%d\n",
+		DBG_8723A("[by_bssid:%u][assoc_ssid:%s][to_roaming:%u] new candidate: %s(%pM) rssi:%d\n",
 			  pmlmepriv->assoc_by_bssid,
 			  pmlmepriv->assoc_ssid.ssid,
 			  adapter->mlmepriv.to_roaming,
 			  (*candidate)->network.Ssid.ssid,
-			  MAC_ARG((*candidate)->network.MacAddress),
+			  (*candidate)->network.MacAddress,
 			  (int)(*candidate)->network.Rssi);
 	}
 
@@ -1732,9 +1731,10 @@ int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
 		ret = _FAIL;
 		goto exit;
 	} else {
-		DBG_8723A("%s: candidate: %s("MAC_FMT", ch:%u)\n", __func__,
+		DBG_8723A("%s: candidate: %s(%pM, ch:%u)\n",
+			  __func__,
 			  candidate->network.Ssid.ssid,
-			  MAC_ARG(candidate->network.MacAddress),
+			  candidate->network.MacAddress,
 			  candidate->network.DSConfig);
 	}
 

@@ -1076,8 +1076,7 @@ static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 		ret = -ENOENT;
 		goto exit;
 	}
-	DBG_8723A("%s(%s): mac =" MAC_FMT "\n", __func__, ndev->name,
-		  MAC_ARG(mac));
+	DBG_8723A("%s(%s): mac=%pM\n", __func__, ndev->name, mac);
 
 	/* for infra./P2PClient mode */
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) &&
@@ -1085,8 +1084,8 @@ static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 		struct wlan_network *cur_network = &pmlmepriv->cur_network;
 
 		if (!ether_addr_equal(mac, cur_network->network.MacAddress)) {
-			DBG_8723A("%s, mismatch bssid =" MAC_FMT "\n", __func__,
-				  MAC_ARG(cur_network->network.MacAddress));
+			DBG_8723A("%s, mismatch bssid=%pM\n",
+				  __func__, cur_network->network.MacAddress);
 			ret = -ENOENT;
 			goto exit;
 		}
@@ -1989,7 +1988,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	DBG_8723A("ssid =%s, len =%zu\n", sme->ssid, sme->ssid_len);
 
 	if (sme->bssid)
-		DBG_8723A("bssid =" MAC_FMT "\n", MAC_ARG(sme->bssid));
+		DBG_8723A("bssid=%pM\n", sme->bssid);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)) {
 		ret = -EBUSY;
@@ -2523,8 +2522,8 @@ static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb,
 
 		mgmt = (struct ieee80211_mgmt *)dot11_hdr;
 
-		DBG_8723A("RTW_Tx:da =" MAC_FMT " via %s(%s)\n",
-			  MAC_ARG(mgmt->da), __func__, ndev->name);
+		DBG_8723A("RTW_Tx:da=%pM via %s(%s)\n",
+			  mgmt->da, __func__, ndev->name);
 		category = mgmt->u.action.category;
 		action = mgmt->u.action.u.wme_action.action_code;
 		DBG_8723A("RTW_Tx:category(%u), action(%u)\n",
@@ -2877,7 +2876,7 @@ static int cfg80211_rtw_del_station(struct wiphy *wiphy,
 		return ret;
 	}
 
-	DBG_8723A("free sta macaddr =" MAC_FMT "\n", MAC_ARG(mac));
+	DBG_8723A("free sta macaddr=%pM\n", mac);
 
 	if (is_broadcast_ether_addr(mac))
 		return -EINVAL;
@@ -3053,8 +3052,7 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	cfg80211_mgmt_tx_status(padapter->rtw_wdev, *cookie, buf, len, ack,
 				GFP_KERNEL);
 
-	DBG_8723A("RTW_Tx:tx_ch =%d, da =" MAC_FMT "\n", tx_ch,
-		  MAC_ARG(hdr->da));
+	DBG_8723A("RTW_Tx:tx_ch =%d, da =%pM\n", tx_ch, hdr->da);
 	category = hdr->u.action.category;
 	action = hdr->u.action.u.wme_action.action_code;
 	DBG_8723A("RTW_Tx:category(%u), action(%u)\n", category, action);
