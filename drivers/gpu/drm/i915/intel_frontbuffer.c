@@ -110,9 +110,6 @@ static void intel_mark_fb_busy(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
 
-	if (!i915.powersave)
-		return;
-
 	for_each_pipe(dev_priv, pipe) {
 		if (!(frontbuffer_bits & INTEL_FRONTBUFFER_ALL_MASK(pipe)))
 			continue;

@@ -2443,7 +2443,6 @@ extern int i915_resume_legacy(struct drm_device *dev);
 struct i915_params {
 	int modeset;
 	int panel_ignore_lid;
-	unsigned int powersave;
 	int semaphores;
 	unsigned int lvds_downclock;
 	int lvds_channel_mode;

@@ -521,7 +521,7 @@ void intel_fbc_update(struct drm_device *dev)
 		goto out_disable;
 	}
 
-	if (!i915.enable_fbc || !i915.powersave) {
+	if (!i915.enable_fbc) {
 		if (set_no_fbc_reason(dev_priv, FBC_MODULE_PARAM))
 			DRM_DEBUG_KMS("fbc disabled per module param\n");
 		goto out_disable;

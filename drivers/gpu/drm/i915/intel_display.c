@@ -6024,7 +6024,7 @@ static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 
 	crtc->lowfreq_avail = false;
 	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_LVDS) &&
-	    reduced_clock && i915.powersave) {
+	    reduced_clock) {
 		crtc_state->dpll_hw_state.fp1 = fp2;
 		crtc->lowfreq_avail = true;
 	} else {
@@ -7807,7 +7807,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 		}
 	}
 
-	if (is_lvds && has_reduced_clock && i915.powersave)
+	if (is_lvds && has_reduced_clock)
 		crtc->lowfreq_avail = true;
 	else
 		crtc->lowfreq_avail = false;
@@ -9322,9 +9322,6 @@ void intel_mark_idle(struct drm_device *dev)
 
 	dev_priv->mm.busy = false;
 
-	if (!i915.powersave)
-		goto out;
-
 	for_each_crtc(dev, crtc) {
 		if (!crtc->primary->fb)
 			continue;
@@ -9335,7 +9332,6 @@ void intel_mark_idle(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 6)
 		gen6_rps_idle(dev->dev_private);
 
-out:
 	intel_runtime_pm_put(dev_priv);
 }
 
