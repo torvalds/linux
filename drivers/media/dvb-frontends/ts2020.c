@@ -123,29 +123,14 @@ static int ts2020_readreg(struct dvb_frontend *fe, u8 reg)
 static int ts2020_sleep(struct dvb_frontend *fe)
 {
 	struct ts2020_priv *priv = fe->tuner_priv;
-	int ret;
-	u8 buf[] = { 10, 0 };
-	struct i2c_msg msg = {
-		.addr = priv->i2c_address,
-		.flags = 0,
-		.buf = buf,
-		.len = 2
-	};
+	u8 u8tmp;
 
-	if (priv->tuner == TS2020_M88TS2022)
-		buf[0] = 0x00;
+	if (priv->tuner == TS2020_M88TS2020)
+		u8tmp = 0x0a; /* XXX: probably wrong */
+	else
+		u8tmp = 0x00;
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-
-	ret = i2c_transfer(priv->i2c, &msg, 1);
-	if (ret != 1)
-		printk(KERN_ERR "%s: i2c error\n", __func__);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
-
-	return (ret == 1) ? 0 : ret;
+	return ts2020_writereg(fe, u8tmp, 0x00);
 }
 
 static int ts2020_init(struct dvb_frontend *fe)
