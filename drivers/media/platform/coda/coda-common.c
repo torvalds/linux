@@ -1282,12 +1282,23 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (!(ctx->streamon_out & ctx->streamon_cap))
 		return 0;
 
+	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if ((q_data_src->width != q_data_dst->width &&
+	     round_up(q_data_src->width, 16) != q_data_dst->width) ||
+	    (q_data_src->height != q_data_dst->height &&
+	     round_up(q_data_src->height, 16) != q_data_dst->height)) {
+		v4l2_err(v4l2_dev, "can't convert %dx%d to %dx%d\n",
+			 q_data_src->width, q_data_src->height,
+			 q_data_dst->width, q_data_dst->height);
+		ret = -EINVAL;
+		goto err;
+	}
+
 	/* Allow BIT decoder device_run with no new buffers queued */
 	if (ctx->inst_type == CODA_INST_DECODER && ctx->use_bit)
 		v4l2_m2m_set_src_buffered(ctx->fh.m2m_ctx, true);
 
 	ctx->gopcounter = ctx->params.gop_size - 1;
-	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
 	ctx->codec = coda_find_codec(ctx->dev, q_data_src->fourcc,
 				     q_data_dst->fourcc);
