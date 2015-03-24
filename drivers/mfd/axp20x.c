@@ -29,7 +29,7 @@
 
 #define AXP20X_OFF	0x80
 
-static const char const *axp20x_model_names[] = {
+static const char * const axp20x_model_names[] = {
 	"AXP202",
 	"AXP209",
 	"AXP288",
