@@ -43,6 +43,8 @@
 
 #include "ti-bandgap.h"
 
+static int ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id);
+
 /***   Helper functions to access registers and their bitfields   ***/
 
 /**
@@ -828,6 +830,12 @@ int ti_bandgap_read_temperature(struct ti_bandgap *bgp, int id,
 	ret = ti_bandgap_validate(bgp, id);
 	if (ret)
 		return ret;
+
+	if (!TI_BANDGAP_HAS(bgp, MODE_CONFIG)) {
+		ret = ti_bandgap_force_single_read(bgp, id);
+		if (ret)
+			return ret;
+	}
 
 	spin_lock(&bgp->lock);
 	temp = ti_bandgap_read_temp(bgp, id);
