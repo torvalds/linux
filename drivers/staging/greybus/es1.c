@@ -554,7 +554,7 @@ static void usb_log_enable(struct es1_ap_dev *es1, int enable)
 		apb1_log_task = kthread_run(apb1_log_poll, es1, "apb1_log");
 		if (apb1_log_task == ERR_PTR(-ENOMEM))
 			return;
-		apb1_log_dentry = debugfs_create_file("apb1_log", 444,
+		apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
 							gb_debugfs_get(), NULL,
 							&apb1_log_fops);
 	} else {
@@ -730,7 +730,8 @@ static int ap_probe(struct usb_interface *interface,
 	if (retval)
 		goto error;
 
-	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable", 666,
+	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
+							(S_IWUSR | S_IRUGO),
 							gb_debugfs_get(), es1,
 							&apb1_log_enable_fops);
 
