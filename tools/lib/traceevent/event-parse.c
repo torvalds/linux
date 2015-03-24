@@ -3615,7 +3615,7 @@ static const struct flag flags[] = {
 	{ "HRTIMER_RESTART", 1 },
 };
 
-static unsigned long long eval_flag(const char *flag)
+static long long eval_flag(const char *flag)
 {
 	int i;
 
@@ -3631,7 +3631,7 @@ static unsigned long long eval_flag(const char *flag)
 		if (strcmp(flags[i].name, flag) == 0)
 			return flags[i].value;
 
-	return 0;
+	return -1LL;
 }
 
 static void print_str_to_seq(struct trace_seq *s, const char *format,
@@ -3705,7 +3705,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	struct print_flag_sym *flag;
 	struct format_field *field;
 	struct printk_map *printk;
-	unsigned long long val, fval;
+	long long val, fval;
 	unsigned long addr;
 	char *str;
 	unsigned char *hex;
@@ -3764,11 +3764,11 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		print = 0;
 		for (flag = arg->flags.flags; flag; flag = flag->next) {
 			fval = eval_flag(flag->value);
-			if (!val && !fval) {
+			if (!val && fval < 0) {
 				print_str_to_seq(s, format, len_arg, flag->str);
 				break;
 			}
-			if (fval && (val & fval) == fval) {
+			if (fval > 0 && (val & fval) == fval) {
 				if (print && arg->flags.delim)
 					trace_seq_puts(s, arg->flags.delim);
 				print_str_to_seq(s, format, len_arg, flag->str);
