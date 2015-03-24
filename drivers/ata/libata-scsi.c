@@ -4240,10 +4240,7 @@ int ata_sas_allocate_tag(struct ata_port *ap)
 	unsigned int i, tag;
 
 	for (i = 0, tag = ap->sas_last_tag + 1; i < max_queue; i++, tag++) {
-		if (ap->flags & ATA_FLAG_LOWTAG)
-			tag = 1;
-		else
-			tag = tag < max_queue ? tag : 0;
+		tag = tag < max_queue ? tag : 0;
 
 		/* the last tag is reserved for internal command. */
 		if (tag == ATA_TAG_INTERNAL)
