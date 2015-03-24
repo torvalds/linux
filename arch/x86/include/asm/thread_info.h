@@ -206,10 +206,29 @@ static inline unsigned long current_stack_pointer(void)
 	_ASM_SUB $(THREAD_SIZE),reg ;
 
 /*
- * ASM operand which evaluates to thread_info address
- * if it is known that "reg" is exactly "off" bytes below stack top.
- * Example (fetch thread_info->fieldname):
- *  mov TI_fieldname+THREAD_INFO(reg, off),%eax
+ * ASM operand which evaluates to a 'thread_info' address of
+ * the current task, if it is known that "reg" is exactly "off"
+ * bytes below the top of the stack currently.
+ *
+ * ( The kernel stack's size is known at build time, it is usually
+ *   2 or 4 pages, and the bottom  of the kernel stack contains
+ *   the thread_info structure. So to access the thread_info very
+ *   quickly from assembly code we can calculate down from the
+ *   top of the kernel stack to the bottom, using constant,
+ *   build-time calculations only. )
+ *
+ * For example, to fetch the current thread_info->flags value into %eax
+ * on x86-64 defconfig kernels, in syscall entry code where RSP is
+ * currently at exactly SIZEOF_PTREGS bytes away from the top of the
+ * stack:
+ *
+ *      mov TI_flags+THREAD_INFO(%rsp, SIZEOF_PTREGS), %eax
+ *
+ * will translate to:
+ *
+ *      8b 84 24 b8 c0 ff ff      mov    -0x3f48(%rsp), %eax
+ *
+ * which is below the current RSP by almost 16K.
  */
 #define THREAD_INFO(reg, off) ((off)-THREAD_SIZE)(reg)
 
