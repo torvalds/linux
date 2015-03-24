@@ -726,23 +726,23 @@ static unsigned int ssp_get_clk_div(struct driver_data *drv_data, int rate)
 	rate = min_t(int, ssp_clk, rate);
 
 	if (ssp->type == PXA25x_SSP || ssp->type == CE4100_SSP)
-		return ((ssp_clk / (2 * rate) - 1) & 0xff) << 8;
+		return (ssp_clk / (2 * rate) - 1) & 0xff;
 	else
-		return ((ssp_clk / rate - 1) & 0xfff) << 8;
+		return (ssp_clk / rate - 1) & 0xfff;
 }
 
 static unsigned int pxa2xx_ssp_get_clk_div(struct driver_data *drv_data,
 					   struct chip_data *chip, int rate)
 {
-	u32 clk_div;
+	unsigned int clk_div;
 
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
 		quark_x1000_set_clk_regvals(rate, &chip->dds_rate, &clk_div);
-		return clk_div << 8;
 	default:
-		return ssp_get_clk_div(drv_data, rate);
+		clk_div = ssp_get_clk_div(drv_data, rate);
 	}
+	return clk_div << 8;
 }
 
 static void pump_transfers(unsigned long data)
