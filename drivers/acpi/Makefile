@@ -56,6 +56,7 @@ ifdef CONFIG_ACPI_VIDEO
 acpi-y				+= video_detect.o
 endif
 acpi-y				+= acpi_lpat.o
+acpi-$(CONFIG_ACPI_GENERIC_GSI) += gsi.o
 
 # These are (potentially) separate modules
 

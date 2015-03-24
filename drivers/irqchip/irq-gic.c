@@ -1189,6 +1189,8 @@ gic_v2_acpi_init(struct acpi_table_header *table)
 	 */
 	gic_init_bases(0, -1, dist_base, cpu_base, 0, NULL);
 	irq_set_default_host(gic_data[0].domain);
+
+	acpi_irq_model = ACPI_IRQ_MODEL_GIC;
 	return 0;
 }
 #endif
