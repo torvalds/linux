@@ -123,7 +123,7 @@ MODULE_LICENSE("GPL v2");
  * CPC_MSG_TYPE_EXT_CAN_FRAME or CPC_MSG_TYPE_EXT_RTR_FRAME.
  */
 struct cpc_can_msg {
-	u32 id;
+	__le32 id;
 	u8 length;
 	u8 msg[8];
 };
@@ -765,7 +765,7 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 	msg = (struct ems_cpc_msg *)&buf[CPC_HEADER_SIZE];
 
-	msg->msg.can_msg.id = cf->can_id & CAN_ERR_MASK;
+	msg->msg.can_msg.id = cpu_to_le32(cf->can_id & CAN_ERR_MASK);
 	msg->msg.can_msg.length = cf->can_dlc;
 
 	if (cf->can_id & CAN_RTR_FLAG) {
@@ -782,9 +782,6 @@ static netdev_tx_t ems_usb_start_xmit(struct sk_buff *skb, struct net_device *ne
 
 		msg->length = CPC_CAN_MSG_MIN_SIZE + cf->can_dlc;
 	}
-
-	/* Respect byte order */
-	msg->msg.can_msg.id = cpu_to_le32(msg->msg.can_msg.id);
 
 	for (i = 0; i < MAX_TX_URBS; i++) {
 		if (dev->tx_contexts[i].echo_index == MAX_TX_URBS) {
