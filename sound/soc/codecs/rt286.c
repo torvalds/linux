@@ -1219,7 +1219,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt286_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt286_priv *rt286;
-	int i, ret;
+	int i, ret, val;
 
 	rt286 = devm_kzalloc(&i2c->dev,	sizeof(*rt286),
 				GFP_KERNEL);
@@ -1234,11 +1234,15 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	regmap_read(rt286->regmap,
-		RT286_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &ret);
-	if (ret != RT286_VENDOR_ID && ret != RT288_VENDOR_ID) {
+	ret = regmap_read(rt286->regmap,
+		RT286_GET_PARAM(AC_NODE_ROOT, AC_PAR_VENDOR_ID), &val);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "I2C error %d\n", ret);
+		return ret;
+	}
+	if (val != RT286_VENDOR_ID && val != RT288_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt286\n", ret);
+			"Device with ID register %x is not rt286\n", val);
 		return -ENODEV;
 	}
 
