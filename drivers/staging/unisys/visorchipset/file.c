@@ -31,7 +31,6 @@
 static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
 static dev_t majordev = -1; /**< indicates major num for device */
-static BOOL registered = FALSE;
 
 static int visorchipset_open(struct inode *inode, struct file *file);
 static int visorchipset_release(struct inode *inode, struct file *file);
@@ -62,12 +61,10 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 		/* dynamic major device number registration required */
 		if (alloc_chrdev_region(&majordev, 0, 1, MYDRVNAME) < 0)
 			return -1;
-		registered = TRUE;
 	} else {
 		/* static major device number registration required */
 		if (register_chrdev_region(majordev, 1, MYDRVNAME) < 0)
 			return -1;
-		registered = TRUE;
 	}
 	rc = cdev_add(&file_cdev, MKDEV(MAJOR(majordev), 0), 1);
 	if (rc  < 0)
@@ -81,12 +78,9 @@ visorchipset_file_cleanup(void)
 	if (file_cdev.ops != NULL)
 		cdev_del(&file_cdev);
 	file_cdev.ops = NULL;
-	if (registered) {
-		if (MAJOR(majordev) >= 0) {
-			unregister_chrdev_region(majordev, 1);
-			majordev = MKDEV(0, 0);
-		}
-		registered = FALSE;
+	if (MAJOR(majordev) >= 0) {
+		unregister_chrdev_region(majordev, 1);
+		majordev = MKDEV(0, 0);
 	}
 }
 
