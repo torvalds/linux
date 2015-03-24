@@ -191,8 +191,15 @@ static ssize_t musb_test_mode_write(struct file *file,
 {
 	struct seq_file		*s = file->private_data;
 	struct musb		*musb = s->private;
-	u8			test = 0;
+	u8			test;
 	char			buf[18];
+
+	test = musb_readb(musb->mregs, MUSB_TESTMODE);
+	if (test) {
+		dev_err(musb->controller, "Error: test mode is already set. "
+			"Please do USB Bus Reset to start a new test.\n");
+		return count;
+	}
 
 	memset(buf, 0x00, sizeof(buf));
 
