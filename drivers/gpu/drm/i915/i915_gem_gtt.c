@@ -311,7 +311,10 @@ static inline int i915_dma_map_page_single(struct page *page,
 	struct device *device = &dev->pdev->dev;
 
 	*daddr = dma_map_page(device, page, 0, 4096, PCI_DMA_BIDIRECTIONAL);
-	return dma_mapping_error(device, *daddr);
+	if (dma_mapping_error(device, *daddr))
+		return -ENOMEM;
+
+	return 0;
 }
 
 static void unmap_and_free_pt(struct i915_page_table_entry *pt,
