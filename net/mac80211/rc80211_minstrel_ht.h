@@ -112,6 +112,7 @@ struct minstrel_ht_sta_priv {
 	};
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *dbg_stats;
+	struct dentry *dbg_stats_csv;
 #endif
 	void *ratelist;
 	void *sample_table;
