@@ -1809,7 +1809,6 @@ static struct platform_driver sl811h_driver = {
 	.resume =	sl811h_resume,
 	.driver = {
 		.name =	(char *) hcd_name,
-		.owner = THIS_MODULE,
 	},
 };
 EXPORT_SYMBOL(sl811h_driver);
