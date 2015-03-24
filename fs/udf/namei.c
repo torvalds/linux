@@ -568,8 +568,8 @@ static int udf_add_nondir(struct dentry *dentry, struct inode *inode)
 	*(__le32 *)((struct allocDescImpUse *)cfi.icb.impUse)->impUse =
 		cpu_to_le32(iinfo->i_unique & 0x00000000FFFFFFFFUL);
 	udf_write_fi(dir, &cfi, fi, &fibh, NULL, NULL);
-	if (UDF_I(dir)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
-		mark_inode_dirty(dir);
+	dir->i_ctime = dir->i_mtime = current_fs_time(dir->i_sb);
+	mark_inode_dirty(dir);
 	if (fibh.sbh != fibh.ebh)
 		brelse(fibh.ebh);
 	brelse(fibh.sbh);
@@ -682,6 +682,7 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	cfi.fileCharacteristics |= FID_FILE_CHAR_DIRECTORY;
 	udf_write_fi(dir, &cfi, fi, &fibh, NULL, NULL);
 	inc_nlink(dir);
+	dir->i_ctime = dir->i_mtime = current_fs_time(dir->i_sb);
 	mark_inode_dirty(dir);
 	unlock_new_inode(inode);
 	d_instantiate(dentry, inode);
@@ -1023,6 +1024,8 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 	inc_nlink(inode);
 	inode->i_ctime = current_fs_time(inode->i_sb);
 	mark_inode_dirty(inode);
+	dir->i_ctime = dir->i_mtime = current_fs_time(dir->i_sb);
+	mark_inode_dirty(dir);
 	ihold(inode);
 	d_instantiate(dentry, inode);
 
@@ -1126,7 +1129,9 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 		inode_dec_link_count(new_inode);
 	}
 	old_dir->i_ctime = old_dir->i_mtime = current_fs_time(old_dir->i_sb);
+	new_dir->i_ctime = new_dir->i_mtime = current_fs_time(new_dir->i_sb);
 	mark_inode_dirty(old_dir);
+	mark_inode_dirty(new_dir);
 
 	if (dir_fi) {
 		dir_fi->icb.extLocation = cpu_to_lelb(UDF_I(new_dir)->i_location);
