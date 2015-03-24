@@ -766,6 +766,11 @@ static void free_arg(struct print_arg *arg)
 		free_arg(arg->hex.field);
 		free_arg(arg->hex.size);
 		break;
+	case PRINT_INT_ARRAY:
+		free_arg(arg->int_array.field);
+		free_arg(arg->int_array.count);
+		free_arg(arg->int_array.el_size);
+		break;
 	case PRINT_TYPE:
 		free(arg->typecast.type);
 		free_arg(arg->typecast.item);
@@ -2545,6 +2550,32 @@ out:
 }
 
 static enum event_type
+process_int_array(struct event_format *event, struct print_arg *arg, char **tok)
+{
+	memset(arg, 0, sizeof(*arg));
+	arg->type = PRINT_INT_ARRAY;
+
+	if (alloc_and_process_delim(event, ",", &arg->int_array.field))
+		goto out;
+
+	if (alloc_and_process_delim(event, ",", &arg->int_array.count))
+		goto free_field;
+
+	if (alloc_and_process_delim(event, ")", &arg->int_array.el_size))
+		goto free_size;
+
+	return read_token_item(tok);
+
+free_size:
+	free_arg(arg->int_array.count);
+free_field:
+	free_arg(arg->int_array.field);
+out:
+	*tok = NULL;
+	return EVENT_ERROR;
+}
+
+static enum event_type
 process_dynamic_array(struct event_format *event, struct print_arg *arg, char **tok)
 {
 	struct format_field *field;
@@ -2838,6 +2869,10 @@ process_function(struct event_format *event, struct print_arg *arg,
 	if (strcmp(token, "__print_hex") == 0) {
 		free_token(token);
 		return process_hex(event, arg, tok);
+	}
+	if (strcmp(token, "__print_array") == 0) {
+		free_token(token);
+		return process_int_array(event, arg, tok);
 	}
 	if (strcmp(token, "__get_str") == 0) {
 		free_token(token);
@@ -3367,6 +3402,7 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		break;
 	case PRINT_FLAGS:
 	case PRINT_SYMBOL:
+	case PRINT_INT_ARRAY:
 	case PRINT_HEX:
 		break;
 	case PRINT_TYPE:
@@ -3777,6 +3813,54 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		}
 		break;
 
+	case PRINT_INT_ARRAY: {
+		void *num;
+		int el_size;
+
+		if (arg->int_array.field->type == PRINT_DYNAMIC_ARRAY) {
+			unsigned long offset;
+			struct format_field *field =
+				arg->int_array.field->dynarray.field;
+			offset = pevent_read_number(pevent,
+						    data + field->offset,
+						    field->size);
+			num = data + (offset & 0xffff);
+		} else {
+			field = arg->int_array.field->field.field;
+			if (!field) {
+				str = arg->int_array.field->field.name;
+				field = pevent_find_any_field(event, str);
+				if (!field)
+					goto out_warning_field;
+				arg->int_array.field->field.field = field;
+			}
+			num = data + field->offset;
+		}
+		len = eval_num_arg(data, size, event, arg->int_array.count);
+		el_size = eval_num_arg(data, size, event,
+				       arg->int_array.el_size);
+		for (i = 0; i < len; i++) {
+			if (i)
+				trace_seq_putc(s, ' ');
+
+			if (el_size == 1) {
+				trace_seq_printf(s, "%u", *(uint8_t *)num);
+			} else if (el_size == 2) {
+				trace_seq_printf(s, "%u", *(uint16_t *)num);
+			} else if (el_size == 4) {
+				trace_seq_printf(s, "%u", *(uint32_t *)num);
+			} else if (el_size == 8) {
+				trace_seq_printf(s, "%lu", *(uint64_t *)num);
+			} else {
+				trace_seq_printf(s, "BAD SIZE:%d 0x%x",
+						 el_size, *(uint8_t *)num);
+				el_size = 1;
+			}
+
+			num += el_size;
+		}
+		break;
+	}
 	case PRINT_TYPE:
 		break;
 	case PRINT_STRING: {
@@ -5359,6 +5443,15 @@ static void print_args(struct print_arg *args)
 		print_args(args->hex.field);
 		printf(", ");
 		print_args(args->hex.size);
+		printf(")");
+		break;
+	case PRINT_INT_ARRAY:
+		printf("__print_array(");
+		print_args(args->int_array.field);
+		printf(", ");
+		print_args(args->int_array.count);
+		printf(", ");
+		print_args(args->int_array.el_size);
 		printf(")");
 		break;
 	case PRINT_STRING:
