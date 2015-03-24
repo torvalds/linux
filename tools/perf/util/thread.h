@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include "symbol.h"
 #include <strlist.h>
+#include <intlist.h>
 
 struct thread_stack;
 
@@ -97,6 +98,16 @@ static inline bool thread__is_filtered(struct thread *thread)
 {
 	if (symbol_conf.comm_list &&
 	    !strlist__has_entry(symbol_conf.comm_list, thread__comm_str(thread))) {
+		return true;
+	}
+
+	if (symbol_conf.pid_list &&
+	    !intlist__has_entry(symbol_conf.pid_list, thread->pid_)) {
+		return true;
+	}
+
+	if (symbol_conf.tid_list &&
+	    !intlist__has_entry(symbol_conf.tid_list, thread->tid)) {
 		return true;
 	}
 

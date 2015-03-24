@@ -78,6 +78,7 @@ static inline size_t symbol__size(const struct symbol *sym)
 }
 
 struct strlist;
+struct intlist;
 
 struct symbol_conf {
 	unsigned short	priv_size;
@@ -115,6 +116,8 @@ struct symbol_conf {
 	const char	*guestmount;
 	const char	*dso_list_str,
 			*comm_list_str,
+			*pid_list_str,
+			*tid_list_str,
 			*sym_list_str,
 			*col_width_list_str;
        struct strlist	*dso_list,
@@ -124,6 +127,8 @@ struct symbol_conf {
 			*dso_to_list,
 			*sym_from_list,
 			*sym_to_list;
+	struct intlist	*pid_list,
+			*tid_list;
 	const char	*symfs;
 };
 
@@ -295,5 +300,7 @@ int compare_proc_modules(const char *from, const char *to);
 
 int setup_list(struct strlist **list, const char *list_str,
 	       const char *list_name);
+int setup_intlist(struct intlist **list, const char *list_str,
+		  const char *list_name);
 
 #endif /* __PERF_SYMBOL */

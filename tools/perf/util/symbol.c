@@ -15,6 +15,7 @@
 #include "machine.h"
 #include "symbol.h"
 #include "strlist.h"
+#include "intlist.h"
 #include "header.h"
 
 #include <elf.h>
@@ -1859,6 +1860,20 @@ int setup_list(struct strlist **list, const char *list_str,
 	return 0;
 }
 
+int setup_intlist(struct intlist **list, const char *list_str,
+		  const char *list_name)
+{
+	if (list_str == NULL)
+		return 0;
+
+	*list = intlist__new(list_str);
+	if (!*list) {
+		pr_err("problems parsing %s list\n", list_name);
+		return -1;
+	}
+	return 0;
+}
+
 static bool symbol__read_kptr_restrict(void)
 {
 	bool value = false;
@@ -1909,9 +1924,17 @@ int symbol__init(struct perf_session_env *env)
 		       symbol_conf.comm_list_str, "comm") < 0)
 		goto out_free_dso_list;
 
+	if (setup_intlist(&symbol_conf.pid_list,
+		       symbol_conf.pid_list_str, "pid") < 0)
+		goto out_free_comm_list;
+
+	if (setup_intlist(&symbol_conf.tid_list,
+		       symbol_conf.tid_list_str, "tid") < 0)
+		goto out_free_pid_list;
+
 	if (setup_list(&symbol_conf.sym_list,
 		       symbol_conf.sym_list_str, "symbol") < 0)
-		goto out_free_comm_list;
+		goto out_free_tid_list;
 
 	/*
 	 * A path to symbols of "/" is identical to ""
@@ -1930,6 +1953,10 @@ int symbol__init(struct perf_session_env *env)
 	symbol_conf.initialized = true;
 	return 0;
 
+out_free_tid_list:
+	intlist__delete(symbol_conf.tid_list);
+out_free_pid_list:
+	intlist__delete(symbol_conf.pid_list);
 out_free_comm_list:
 	strlist__delete(symbol_conf.comm_list);
 out_free_dso_list:
@@ -1944,6 +1971,8 @@ void symbol__exit(void)
 	strlist__delete(symbol_conf.sym_list);
 	strlist__delete(symbol_conf.dso_list);
 	strlist__delete(symbol_conf.comm_list);
+	intlist__delete(symbol_conf.tid_list);
+	intlist__delete(symbol_conf.pid_list);
 	vmlinux_path__exit();
 	symbol_conf.sym_list = symbol_conf.dso_list = symbol_conf.comm_list = NULL;
 	symbol_conf.initialized = false;
