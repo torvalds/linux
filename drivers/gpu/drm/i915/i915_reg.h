@@ -1306,6 +1306,9 @@ enum skl_disp_power_wells {
 #define   ERR_INT_FIFO_UNDERRUN_A	(1<<0)
 #define   ERR_INT_FIFO_UNDERRUN(pipe)	(1<<(pipe*3))
 
+#define GEN8_FAULT_TLB_DATA0		0x04b10
+#define GEN8_FAULT_TLB_DATA1		0x04b14
+
 #define FPGA_DBG		0x42300
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
 
