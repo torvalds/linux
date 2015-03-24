@@ -1528,7 +1528,8 @@ void check_dev_msr()
 	struct stat sb;
 
 	if (stat("/dev/cpu/0/msr", &sb))
-		err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
+ 		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
+			err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
 }
 
 void check_permissions()
@@ -2713,7 +2714,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(stderr, "turbostat version 4.2 23 Mar, 2015"
+	fprintf(stderr, "turbostat version 4.3 24 Mar, 2015"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
