@@ -1908,6 +1908,17 @@ static struct file_system_type btrfs_fs_type = {
 };
 MODULE_ALIAS_FS("btrfs");
 
+static int btrfs_control_open(struct inode *inode, struct file *file)
+{
+	/*
+	 * The control file's private_data is used to hold the
+	 * transaction when it is started and is used to keep
+	 * track of whether a transaction is already in progress.
+	 */
+	file->private_data = NULL;
+	return 0;
+}
+
 /*
  * used by btrfsctl to scan devices when no FS is mounted
  */
@@ -2009,6 +2020,7 @@ static const struct super_operations btrfs_super_ops = {
 };
 
 static const struct file_operations btrfs_ctl_fops = {
+	.open = btrfs_control_open,
 	.unlocked_ioctl	 = btrfs_control_ioctl,
 	.compat_ioctl = btrfs_control_ioctl,
 	.owner	 = THIS_MODULE,
