@@ -367,7 +367,7 @@ static void rht_deferred_worker(struct work_struct *work)
 
 	if (rht_grow_above_75(ht, tbl))
 		rhashtable_expand(ht);
-	else if (rht_shrink_below_30(ht, tbl))
+	else if (ht->p.automatic_shrinking && rht_shrink_below_30(ht, tbl))
 		rhashtable_shrink(ht);
 
 	err = rhashtable_rehash_table(ht);

@@ -2,7 +2,7 @@
  * Resizable, Scalable, Concurrent Hash Table
  *
  * Copyright (c) 2015 Herbert Xu <herbert@gondor.apana.org.au>
- * Copyright (c) 2014 Thomas Graf <tgraf@suug.ch>
+ * Copyright (c) 2014-2015 Thomas Graf <tgraf@suug.ch>
  * Copyright (c) 2008-2014 Patrick McHardy <kaber@trash.net>
  *
  * Code partially derived from nft_hash
@@ -104,6 +104,7 @@ struct rhashtable;
  * @min_size: Minimum size while shrinking
  * @nulls_base: Base value to generate nulls marker
  * @insecure_elasticity: Set to true to disable chain length checks
+ * @automatic_shrinking: Enable automatic shrinking of tables
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Hash function (default: jhash2 if !(key_len % 4), or jhash)
  * @obj_hashfn: Function to hash object
@@ -118,6 +119,7 @@ struct rhashtable_params {
 	unsigned int		min_size;
 	u32			nulls_base;
 	bool			insecure_elasticity;
+	bool			automatic_shrinking;
 	size_t			locks_mul;
 	rht_hashfn_t		hashfn;
 	rht_obj_hashfn_t	obj_hashfn;
@@ -784,7 +786,8 @@ static inline int rhashtable_remove_fast(
 		goto out;
 
 	atomic_dec(&ht->nelems);
-	if (rht_shrink_below_30(ht, tbl))
+	if (unlikely(ht->p.automatic_shrinking &&
+		     rht_shrink_below_30(ht, tbl)))
 		schedule_work(&ht->run_work);
 
 out:

@@ -3142,6 +3142,7 @@ static const struct rhashtable_params netlink_rhashtable_params = {
 	.obj_hashfn = netlink_hash,
 	.obj_cmpfn = netlink_compare,
 	.max_size = 65536,
+	.automatic_shrinking = true,
 };
 
 static int __init netlink_proto_init(void)
