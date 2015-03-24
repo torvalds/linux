@@ -146,9 +146,14 @@ void acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa);
 int acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma);
 void acpi_numa_arch_fixup(void);
 
+#ifndef PHYS_CPUID_INVALID
+typedef u32 phys_cpuid_t;
+#define PHYS_CPUID_INVALID (phys_cpuid_t)(-1)
+#endif
+
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
-int acpi_map_cpu(acpi_handle handle, int physid, int *pcpu);
+int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
 int acpi_unmap_cpu(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 

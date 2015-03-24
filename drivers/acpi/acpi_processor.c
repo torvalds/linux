@@ -170,7 +170,7 @@ static int acpi_processor_hotadd_init(struct acpi_processor *pr)
 	acpi_status status;
 	int ret;
 
-	if (pr->phys_id == -1)
+	if (pr->phys_id == PHYS_CPUID_INVALID)
 		return -ENODEV;
 
 	status = acpi_evaluate_integer(pr->handle, "_STA", NULL, &sta);
@@ -215,7 +215,8 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	union acpi_object object = { 0 };
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
 	struct acpi_processor *pr = acpi_driver_data(device);
-	int phys_id, cpu_index, device_declaration = 0;
+	phys_cpuid_t phys_id;
+	int cpu_index, device_declaration = 0;
 	acpi_status status = AE_OK;
 	static int cpu0_initialized;
 	unsigned long long value;
@@ -263,7 +264,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	}
 
 	phys_id = acpi_get_phys_id(pr->handle, device_declaration, pr->acpi_id);
-	if (phys_id < 0)
+	if (phys_id == PHYS_CPUID_INVALID)
 		acpi_handle_debug(pr->handle, "failed to get CPU physical ID.\n");
 	pr->phys_id = phys_id;
 
