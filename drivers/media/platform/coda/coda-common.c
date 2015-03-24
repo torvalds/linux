@@ -1628,6 +1628,11 @@ static int coda_open(struct file *file)
 	set_bit(idx, &dev->instance_mask);
 
 	name = kasprintf(GFP_KERNEL, "context%d", idx);
+	if (!name) {
+		ret = -ENOMEM;
+		goto err_coda_name_init;
+	}
+
 	ctx->debugfs_entry = debugfs_create_dir(name, dev->debugfs_root);
 	kfree(name);
 
@@ -1742,6 +1747,7 @@ err_pm_get:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	clear_bit(ctx->idx, &dev->instance_mask);
+err_coda_name_init:
 err_coda_max:
 	kfree(ctx);
 	return ret;
