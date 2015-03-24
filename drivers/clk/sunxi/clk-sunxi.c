@@ -1088,11 +1088,12 @@ static const struct divs_data pll5_divs_data __initconst = {
 
 static const struct divs_data pll6_divs_data __initconst = {
 	.factors = &sun4i_pll6_data,
-	.ndivs = 3,
+	.ndivs = 4,
 	.div = {
 		{ .shift = 0, .table = pll6_sata_tbl, .gate = 14 }, /* M, SATA */
 		{ .fixed = 2 }, /* P, other */
 		{ .self = 1 }, /* base factor clock, 2x */
+		{ .fixed = 4 }, /* pll6 / 4, used as ahb input */
 	}
 };
 
