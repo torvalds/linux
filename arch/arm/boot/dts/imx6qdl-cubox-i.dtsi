@@ -41,6 +41,8 @@
  */
 #include "imx6qdl-microsom.dtsi"
 #include "imx6qdl-microsom-ar8035.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	ir_recv: ir-receiver {
@@ -103,6 +105,18 @@
 		/* IMX6 doesn't implement this yet */
 		spdif-controller = <&spdif>;
 		spdif-out;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pinctrl_gpio_key>;
+		pinctrl-names = "default";
+
+		button_0 {
+			label = "Button 0";
+			gpios = <&gpio3 8 GPIO_ACTIVE_LOW>;
+			linux,code = <BTN_0>;
+		};
 	};
 };
 
@@ -206,6 +220,12 @@
 				MX6QDL_PAD_SD2_DAT1__SD2_DATA1 0x17059
 				MX6QDL_PAD_SD2_DAT2__SD2_DATA2 0x17059
 				MX6QDL_PAD_SD2_DAT3__SD2_DATA3 0x13059
+			>;
+		};
+
+		pinctrl_gpio_key: gpio-key {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_DA8__GPIO3_IO08	0x17059
 			>;
 		};
 	};
