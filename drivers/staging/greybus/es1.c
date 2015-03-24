@@ -581,20 +581,19 @@ static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	int enable;
-	char *tmp_buf;
-	ssize_t retval = -EINVAL;
+	ssize_t retval;
 	struct es1_ap_dev *es1 = (struct es1_ap_dev *)f->f_inode->i_private;
 
-	tmp_buf = kmalloc(count, GFP_KERNEL);
-	if (!tmp_buf)
-		return -ENOMEM;
+	retval = kstrtoint_from_user(buf, count, 10, &enable);
+	if (retval)
+		return retval;
 
-	copy_from_user(tmp_buf, buf, count);
-	if (sscanf(tmp_buf, "%d", &enable) == 1) {
+	if (enable) {
 		usb_log_enable(es1, enable);
 		retval = count;
+	} else {
+		retval = -EINVAL;
 	}
-	kfree(tmp_buf);
 
 	return retval;
 }
