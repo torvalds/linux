@@ -185,14 +185,13 @@ static __init int protocol_init(void)
 
 	return gb_protocol_register(&vibrator_protocol);
 }
+module_init(protocol_init);
 
 static __exit void protocol_exit(void)
 {
 	gb_protocol_deregister(&vibrator_protocol);
 	class_unregister(&vibrator_class);
 }
-
-module_init(protocol_init);
 module_exit(protocol_exit);
 
 MODULE_LICENSE("GPL v2");

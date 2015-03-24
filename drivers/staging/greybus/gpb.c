@@ -72,6 +72,7 @@ error_pwm:
 error_gpio:
 	return -EPROTO;
 }
+module_init(gpbridge_init);
 
 static void __exit gpbridge_exit(void)
 {
@@ -84,8 +85,6 @@ static void __exit gpbridge_exit(void)
 	gb_pwm_protocol_exit();
 	gb_gpio_protocol_exit();
 }
-
-module_init(gpbridge_init);
 module_exit(gpbridge_exit);
 
 MODULE_LICENSE("GPL");
