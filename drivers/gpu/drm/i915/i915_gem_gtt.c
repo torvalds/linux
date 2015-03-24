@@ -1155,16 +1155,6 @@ static void gen6_ppgtt_insert_entries(struct i915_address_space *vm,
 		kunmap_atomic(pt_vaddr);
 }
 
-static void gen6_ppgtt_unmap_pages(struct i915_hw_ppgtt *ppgtt)
-{
-	int i;
-
-	for (i = 0; i < ppgtt->num_pd_entries; i++)
-		pci_unmap_page(ppgtt->base.dev->pdev,
-			       ppgtt->pd.page_table[i]->daddr,
-			       4096, PCI_DMA_BIDIRECTIONAL);
-}
-
 /* PDE TLBs are a pain invalidate pre GEN8. It requires a context reload. If we
  * are switching between contexts with the same LRCA, we also must do a force
  * restore.
@@ -1215,7 +1205,6 @@ static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 
 	drm_mm_remove_node(&ppgtt->node);
 
-	gen6_ppgtt_unmap_pages(ppgtt);
 	gen6_ppgtt_free(ppgtt);
 }
 
