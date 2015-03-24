@@ -573,6 +573,7 @@ static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
 {
 	char tmp_buf[3];
 	int enable = apb1_log_task != NULL;
+
 	sprintf(tmp_buf, "%d\n", enable);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 3);
 }
