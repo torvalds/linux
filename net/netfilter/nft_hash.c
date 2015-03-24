@@ -188,26 +188,15 @@ static int nft_hash_init(const struct nft_set *set,
 	return rhashtable_init(priv, &params);
 }
 
+static void nft_free_element(void *ptr, void *arg)
+{
+	nft_hash_elem_destroy((const struct nft_set *)arg, ptr);
+}
+
 static void nft_hash_destroy(const struct nft_set *set)
 {
-	struct rhashtable *priv = nft_set_priv(set);
-	const struct bucket_table *tbl;
-	struct nft_hash_elem *he;
-	struct rhash_head *pos, *next;
-	unsigned int i;
-
-	/* Stop an eventual async resizing */
-	priv->being_destroyed = true;
-	mutex_lock(&priv->mutex);
-
-	tbl = rht_dereference(priv->tbl, priv);
-	for (i = 0; i < tbl->size; i++) {
-		rht_for_each_entry_safe(he, pos, next, tbl, i, node)
-			nft_hash_elem_destroy(set, he);
-	}
-	mutex_unlock(&priv->mutex);
-
-	rhashtable_destroy(priv);
+	rhashtable_free_and_destroy(nft_set_priv(set), nft_free_element,
+				    (void *)set);
 }
 
 static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,

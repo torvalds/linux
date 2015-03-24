@@ -359,8 +359,6 @@ static void rht_deferred_worker(struct work_struct *work)
 
 	ht = container_of(work, struct rhashtable, run_work);
 	mutex_lock(&ht->mutex);
-	if (ht->being_destroyed)
-		goto unlock;
 
 	tbl = rht_dereference(ht->tbl, ht);
 	tbl = rhashtable_last_table(ht, tbl);
@@ -372,7 +370,6 @@ static void rht_deferred_worker(struct work_struct *work)
 
 	err = rhashtable_rehash_table(ht);
 
-unlock:
 	mutex_unlock(&ht->mutex);
 
 	if (err)
@@ -783,21 +780,53 @@ int rhashtable_init(struct rhashtable *ht,
 EXPORT_SYMBOL_GPL(rhashtable_init);
 
 /**
- * rhashtable_destroy - destroy hash table
+ * rhashtable_free_and_destroy - free elements and destroy hash table
  * @ht:		the hash table to destroy
+ * @free_fn:	callback to release resources of element
+ * @arg:	pointer passed to free_fn
  *
- * Frees the bucket array. This function is not rcu safe, therefore the caller
- * has to make sure that no resizing may happen by unpublishing the hashtable
- * and waiting for the quiescent cycle before releasing the bucket array.
+ * Stops an eventual async resize. If defined, invokes free_fn for each
+ * element to releasal resources. Please note that RCU protected
+ * readers may still be accessing the elements. Releasing of resources
+ * must occur in a compatible manner. Then frees the bucket array.
+ *
+ * This function will eventually sleep to wait for an async resize
+ * to complete. The caller is responsible that no further write operations
+ * occurs in parallel.
  */
-void rhashtable_destroy(struct rhashtable *ht)
+void rhashtable_free_and_destroy(struct rhashtable *ht,
+				 void (*free_fn)(void *ptr, void *arg),
+				 void *arg)
 {
-	ht->being_destroyed = true;
+	const struct bucket_table *tbl;
+	unsigned int i;
 
 	cancel_work_sync(&ht->run_work);
 
 	mutex_lock(&ht->mutex);
-	bucket_table_free(rht_dereference(ht->tbl, ht));
+	tbl = rht_dereference(ht->tbl, ht);
+	if (free_fn) {
+		for (i = 0; i < tbl->size; i++) {
+			struct rhash_head *pos, *next;
+
+			for (pos = rht_dereference(tbl->buckets[i], ht),
+			     next = !rht_is_a_nulls(pos) ?
+					rht_dereference(pos->next, ht) : NULL;
+			     !rht_is_a_nulls(pos);
+			     pos = next,
+			     next = !rht_is_a_nulls(pos) ?
+					rht_dereference(pos->next, ht) : NULL)
+				free_fn(rht_obj(ht, pos), arg);
+		}
+	}
+
+	bucket_table_free(tbl);
 	mutex_unlock(&ht->mutex);
+}
+EXPORT_SYMBOL_GPL(rhashtable_free_and_destroy);
+
+void rhashtable_destroy(struct rhashtable *ht)
+{
+	return rhashtable_free_and_destroy(ht, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(rhashtable_destroy);

@@ -136,12 +136,10 @@ struct rhashtable_params {
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
  * @lock: Spin lock to protect walker list
- * @being_destroyed: True if table is set up for destruction
  */
 struct rhashtable {
 	struct bucket_table __rcu	*tbl;
 	atomic_t			nelems;
-	bool                            being_destroyed;
 	unsigned int			key_len;
 	unsigned int			elasticity;
 	struct rhashtable_params	p;
@@ -334,6 +332,9 @@ int rhashtable_walk_start(struct rhashtable_iter *iter) __acquires(RCU);
 void *rhashtable_walk_next(struct rhashtable_iter *iter);
 void rhashtable_walk_stop(struct rhashtable_iter *iter) __releases(RCU);
 
+void rhashtable_free_and_destroy(struct rhashtable *ht,
+				 void (*free_fn)(void *ptr, void *arg),
+				 void *arg);
 void rhashtable_destroy(struct rhashtable *ht);
 
 #define rht_dereference(p, ht) \
