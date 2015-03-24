@@ -575,7 +575,9 @@ re_read:
 
 		sector_div(bm_blocks,
 			   bitmap->mddev->bitmap_info.chunksize >> 9);
-		bm_blocks = bm_blocks << 3;
+		/* bits to bytes */
+		bm_blocks = ((bm_blocks+7) >> 3) + sizeof(bitmap_super_t);
+		/* to 4k blocks */
 		bm_blocks = DIV_ROUND_UP_SECTOR_T(bm_blocks, 4096);
 		bitmap->mddev->bitmap_info.offset += bitmap->cluster_slot * (bm_blocks << 3);
 		pr_info("%s:%d bm slot: %d offset: %llu\n", __func__, __LINE__,
@@ -672,9 +674,6 @@ out:
 			goto out_no_sb;
 		}
 		bitmap->cluster_slot = md_cluster_ops->slot_number(bitmap->mddev);
-		pr_info("%s:%d bm slot: %d offset: %llu\n", __func__, __LINE__,
-			bitmap->cluster_slot,
-			(unsigned long long)bitmap->mddev->bitmap_info.offset);
 		goto re_read;
 	}
 
