@@ -132,6 +132,9 @@ extern const struct rate_control_ops mac80211_minstrel;
 void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
 void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 
+/* Recalculate success probabilities and counters for a given rate using EWMA */
+void minstrel_calc_rate_stats(struct minstrel_rate_stats *mr);
+
 /* debugfs */
 int minstrel_stats_open(struct inode *inode, struct file *file);
 int minstrel_stats_csv_open(struct inode *inode, struct file *file);

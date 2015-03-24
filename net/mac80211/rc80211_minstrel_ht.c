@@ -313,32 +313,6 @@ minstrel_get_ratestats(struct minstrel_ht_sta *mi, int index)
 	return &mi->groups[index / MCS_GROUP_RATES].rates[index % MCS_GROUP_RATES];
 }
 
-
-/*
- * Recalculate success probabilities and counters for a rate using EWMA
- */
-static void
-minstrel_calc_rate_ewma(struct minstrel_rate_stats *mr)
-{
-	if (unlikely(mr->attempts > 0)) {
-		mr->sample_skipped = 0;
-		mr->cur_prob = MINSTREL_FRAC(mr->success, mr->attempts);
-		if (!mr->att_hist)
-			mr->probability = mr->cur_prob;
-		else
-			mr->probability = minstrel_ewma(mr->probability,
-				mr->cur_prob, EWMA_LEVEL);
-		mr->att_hist += mr->attempts;
-		mr->succ_hist += mr->success;
-	} else {
-		mr->sample_skipped++;
-	}
-	mr->last_success = mr->success;
-	mr->last_attempts = mr->attempts;
-	mr->success = 0;
-	mr->attempts = 0;
-}
-
 /*
  * Calculate throughput based on the average A-MPDU length, taking into account
  * the expected number of retransmissions and their expected length
@@ -567,7 +541,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 
 			mr = &mg->rates[i];
 			mr->retry_updated = false;
-			minstrel_calc_rate_ewma(mr);
+			minstrel_calc_rate_stats(mr);
 			minstrel_ht_calc_tp(mi, group, i);
 
 			if (!mr->cur_tp)

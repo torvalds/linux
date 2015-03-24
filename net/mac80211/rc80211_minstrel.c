@@ -127,6 +127,32 @@ minstrel_update_rates(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 	rate_control_set_rates(mp->hw, mi->sta, ratetbl);
 }
 
+/*
+* Recalculate success probabilities and counters for a given rate using EWMA
+*/
+void
+minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs)
+{
+	if (unlikely(mrs->attempts > 0)) {
+		mrs->sample_skipped = 0;
+		mrs->cur_prob = MINSTREL_FRAC(mrs->success, mrs->attempts);
+		if (unlikely(!mrs->att_hist))
+			mrs->probability = mrs->cur_prob;
+		else
+			mrs->probability = minstrel_ewma(mrs->probability,
+						     mrs->cur_prob, EWMA_LEVEL);
+		mrs->att_hist += mrs->attempts;
+		mrs->succ_hist += mrs->success;
+	} else {
+		mrs->sample_skipped++;
+	}
+
+	mrs->last_success = mrs->success;
+	mrs->last_attempts = mrs->attempts;
+	mrs->success = 0;
+	mrs->attempts = 0;
+}
+
 static void
 minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 {
@@ -146,22 +172,8 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		if (!usecs)
 			usecs = 1000000;
 
-		if (unlikely(mrs->attempts > 0)) {
-			mrs->sample_skipped = 0;
-			mrs->cur_prob = MINSTREL_FRAC(mrs->success,
-						      mrs->attempts);
-			mrs->succ_hist += mrs->success;
-			mrs->att_hist += mrs->attempts;
-			mrs->probability = minstrel_ewma(mrs->probability,
-							 mrs->cur_prob,
-							 EWMA_LEVEL);
-		} else
-			mrs->sample_skipped++;
-
-		mrs->last_success = mrs->success;
-		mrs->last_attempts = mrs->attempts;
-		mrs->success = 0;
-		mrs->attempts = 0;
+		/* Update success probabilities per rate */
+		minstrel_calc_rate_stats(mrs);
 
 		/* Update throughput per rate, reset thr. below 10% success */
 		if (mrs->probability < MINSTREL_FRAC(10, 100))
