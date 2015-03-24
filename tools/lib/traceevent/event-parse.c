@@ -304,7 +304,10 @@ int pevent_register_comm(struct pevent *pevent, const char *comm, int pid)
 	if (!item)
 		return -1;
 
-	item->comm = strdup(comm);
+	if (comm)
+		item->comm = strdup(comm);
+	else
+		item->comm = strdup("<...>");
 	if (!item->comm) {
 		free(item);
 		return -1;
