@@ -140,6 +140,9 @@ void ath10k_thermal_set_throttling(struct ath10k *ar)
 
 	lockdep_assert_held(&ar->conf_mutex);
 
+	if (!ar->wmi.ops->gen_pdev_set_quiet_mode)
+		return;
+
 	if (ar->state != ATH10K_STATE_ON)
 		return;
 
