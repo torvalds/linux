@@ -498,6 +498,11 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 	if (kmod_path__parse_name(&m, filename))
 		return NULL;
 
+	map = map_groups__find_by_name(&machine->kmaps, MAP__FUNCTION,
+				       m.name);
+	if (map)
+		goto out;
+
 	dso = machine__module_dso(machine, &m, filename);
 	if (dso == NULL)
 		goto out;
@@ -851,6 +856,39 @@ static char *get_kernel_version(const char *root_dir)
 	return strdup(name);
 }
 
+static bool is_kmod_dso(struct dso *dso)
+{
+	return dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE ||
+	       dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE;
+}
+
+static int map_groups__set_module_path(struct map_groups *mg, const char *path,
+				       struct kmod_path *m)
+{
+	struct map *map;
+	char *long_name;
+
+	map = map_groups__find_by_name(mg, MAP__FUNCTION, m->name);
+	if (map == NULL)
+		return 0;
+
+	long_name = strdup(path);
+	if (long_name == NULL)
+		return -ENOMEM;
+
+	dso__set_long_name(map->dso, long_name, true);
+	dso__kernel_module_get_build_id(map->dso, "");
+
+	/*
+	 * Full name could reveal us kmod compression, so
+	 * we need to update the symtab_type if needed.
+	 */
+	if (m->comp && is_kmod_dso(map->dso))
+		map->dso->symtab_type++;
+
+	return 0;
+}
+
 static int map_groups__set_modules_path_dir(struct map_groups *mg,
 				const char *dir_name, int depth)
 {
@@ -889,35 +927,19 @@ static int map_groups__set_modules_path_dir(struct map_groups *mg,
 			if (ret < 0)
 				goto out;
 		} else {
-			char *dot = strrchr(dent->d_name, '.'),
-			     dso_name[PATH_MAX];
-			struct map *map;
-			char *long_name;
+			struct kmod_path m;
 
-			if (dot == NULL)
-				continue;
-
-			/* On some system, modules are compressed like .ko.gz */
-			if (is_supported_compression(dot + 1) &&
-			    is_kmodule_extension(dot - 2))
-				dot -= 3;
-
-			snprintf(dso_name, sizeof(dso_name), "[%.*s]",
-				 (int)(dot - dent->d_name), dent->d_name);
-
-			strxfrchar(dso_name, '-', '_');
-			map = map_groups__find_by_name(mg, MAP__FUNCTION,
-						       dso_name);
-			if (map == NULL)
-				continue;
-
-			long_name = strdup(path);
-			if (long_name == NULL) {
-				ret = -1;
+			ret = kmod_path__parse_name(&m, dent->d_name);
+			if (ret)
 				goto out;
-			}
-			dso__set_long_name(map->dso, long_name, true);
-			dso__kernel_module_get_build_id(map->dso, "");
+
+			if (m.kmod)
+				ret = map_groups__set_module_path(mg, path, &m);
+
+			free(m.name);
+
+			if (ret)
+				goto out;
 		}
 	}
 
@@ -1087,7 +1109,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		struct dso *dso;
 
 		list_for_each_entry(dso, &machine->kernel_dsos.head, node) {
-			if (is_kernel_module(dso->long_name, NULL))
+			if (is_kernel_module(dso->long_name))
 				continue;
 
 			kernel = dso;

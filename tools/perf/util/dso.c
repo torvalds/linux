@@ -165,32 +165,14 @@ bool is_supported_compression(const char *ext)
 	return false;
 }
 
-bool is_kmodule_extension(const char *ext)
+bool is_kernel_module(const char *pathname)
 {
-	if (strncmp(ext, "ko", 2))
-		return false;
+	struct kmod_path m;
 
-	if (ext[2] == '\0' || (ext[2] == '.' && is_supported_compression(ext+3)))
-		return true;
+	if (kmod_path__parse(&m, pathname))
+		return NULL;
 
-	return false;
-}
-
-bool is_kernel_module(const char *pathname, bool *compressed)
-{
-	const char *ext = strrchr(pathname, '.');
-
-	if (ext == NULL)
-		return false;
-
-	if (is_supported_compression(ext + 1)) {
-		if (compressed)
-			*compressed = true;
-		ext -= 3;
-	} else if (compressed)
-		*compressed = false;
-
-	return is_kmodule_extension(ext + 1);
+	return m.kmod;
 }
 
 bool decompress_to_file(const char *ext, const char *filename, int output_fd)
@@ -1154,4 +1136,37 @@ enum dso_type dso__type(struct dso *dso, struct machine *machine)
 		return DSO__TYPE_UNKNOWN;
 
 	return dso__type_fd(fd);
+}
+
+int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
+{
+	int idx, errnum = dso->load_errno;
+	/*
+	 * This must have a same ordering as the enum dso_load_errno.
+	 */
+	static const char *dso_load__error_str[] = {
+	"Internal tools/perf/ library error",
+	"Invalid ELF file",
+	"Can not read build id",
+	"Mismatching build id",
+	"Decompression failure",
+	};
+
+	BUG_ON(buflen == 0);
+
+	if (errnum >= 0) {
+		const char *err = strerror_r(errnum, buf, buflen);
+
+		if (err != buf)
+			scnprintf(buf, buflen, "%s", err);
+
+		return 0;
+	}
+
+	if (errnum <  __DSO_LOAD_ERRNO__START || errnum >= __DSO_LOAD_ERRNO__END)
+		return -1;
+
+	idx = errnum - __DSO_LOAD_ERRNO__START;
+	scnprintf(buf, buflen, "%s", dso_load__error_str[idx]);
+	return 0;
 }

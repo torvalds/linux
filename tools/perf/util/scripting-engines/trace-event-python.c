@@ -231,6 +231,11 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->hex.field);
 		define_event_symbols(event, ev_name, args->hex.size);
 		break;
+	case PRINT_INT_ARRAY:
+		define_event_symbols(event, ev_name, args->int_array.field);
+		define_event_symbols(event, ev_name, args->int_array.count);
+		define_event_symbols(event, ev_name, args->int_array.el_size);
+		break;
 	case PRINT_STRING:
 		break;
 	case PRINT_TYPE:

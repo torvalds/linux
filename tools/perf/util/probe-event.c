@@ -310,7 +310,10 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 
 	/* Find the address of given function */
 	map__for_each_symbol_by_name(map, pp->function, sym) {
-		address = sym->start;
+		if (uprobes)
+			address = sym->start;
+		else
+			address = map->unmap_ip(map, sym->start);
 		break;
 	}
 	if (!address) {
