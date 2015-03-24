@@ -494,7 +494,7 @@ static irqreturn_t sx9500_trigger_handler(int irq, void *private)
 
 	mutex_lock(&data->mutex);
 
-	for_each_set_bit(bit, indio_dev->buffer->scan_mask,
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
 		ret = sx9500_read_proximity(data, &indio_dev->channels[bit],
 					    &val);

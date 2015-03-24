@@ -659,7 +659,7 @@ static irqreturn_t bma180_trigger_handler(int irq, void *p)
 
 	mutex_lock(&data->mutex);
 
-	for_each_set_bit(bit, indio_dev->buffer->scan_mask,
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
 		ret = bma180_get_data_reg(data, bit);
 		if (ret < 0) {

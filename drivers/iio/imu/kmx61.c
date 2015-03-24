@@ -1227,7 +1227,7 @@ static irqreturn_t kmx61_trigger_handler(int irq, void *p)
 		base = KMX61_MAG_XOUT_L;
 
 	mutex_lock(&data->lock);
-	for_each_set_bit(bit, indio_dev->buffer->scan_mask,
+	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
 		ret = kmx61_read_measurement(data, base, bit);
 		if (ret < 0) {
