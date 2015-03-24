@@ -1021,6 +1021,33 @@ static void cleanup_cap_releases(struct ceph_mds_session *session)
 	spin_unlock(&session->s_cap_lock);
 }
 
+static void cleanup_session_requests(struct ceph_mds_client *mdsc,
+				     struct ceph_mds_session *session)
+{
+	struct ceph_mds_request *req;
+	struct rb_node *p;
+
+	dout("cleanup_session_requests mds%d\n", session->s_mds);
+	mutex_lock(&mdsc->mutex);
+	while (!list_empty(&session->s_unsafe)) {
+		req = list_first_entry(&session->s_unsafe,
+				       struct ceph_mds_request, r_unsafe_item);
+		list_del_init(&req->r_unsafe_item);
+		pr_info(" dropping unsafe request %llu\n", req->r_tid);
+		__unregister_request(mdsc, req);
+	}
+	/* zero r_attempts, so kick_requests() will re-send requests */
+	p = rb_first(&mdsc->request_tree);
+	while (p) {
+		req = rb_entry(p, struct ceph_mds_request, r_node);
+		p = rb_next(p);
+		if (req->r_session &&
+		    req->r_session->s_mds == session->s_mds)
+			req->r_attempts = 0;
+	}
+	mutex_unlock(&mdsc->mutex);
+}
+
 /*
  * Helper to safely iterate over all caps associated with a session, with
  * special care taken to handle a racing __ceph_remove_cap().
@@ -2589,6 +2616,7 @@ static void handle_session(struct ceph_mds_session *session,
 	case CEPH_SESSION_CLOSE:
 		if (session->s_state == CEPH_MDS_SESSION_RECONNECTING)
 			pr_info("mds%d reconnect denied\n", session->s_mds);
+		cleanup_session_requests(mdsc, session);
 		remove_session_caps(session);
 		wake = 2; /* for good measure */
 		wake_up_all(&mdsc->session_close_wq);
