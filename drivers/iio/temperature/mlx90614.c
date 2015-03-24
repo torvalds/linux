@@ -20,11 +20,35 @@
 
 #include <linux/iio/iio.h>
 
-#define MLX90614_OP_RAM 0x00
+#define MLX90614_OP_RAM		0x00
+#define MLX90614_OP_EEPROM	0x20
+#define MLX90614_OP_SLEEP	0xff
 
 /* RAM offsets with 16-bit data, MSB first */
+#define MLX90614_RAW1	(MLX90614_OP_RAM | 0x04) /* raw data IR channel 1 */
+#define MLX90614_RAW2	(MLX90614_OP_RAM | 0x05) /* raw data IR channel 2 */
 #define MLX90614_TA	(MLX90614_OP_RAM | 0x06) /* ambient temperature */
 #define MLX90614_TOBJ1	(MLX90614_OP_RAM | 0x07) /* object 1 temperature */
+#define MLX90614_TOBJ2	(MLX90614_OP_RAM | 0x08) /* object 2 temperature */
+
+/* EEPROM offsets with 16-bit data, MSB first */
+#define MLX90614_EMISSIVITY	(MLX90614_OP_EEPROM | 0x04) /* emissivity correction coefficient */
+#define MLX90614_CONFIG		(MLX90614_OP_EEPROM | 0x05) /* configuration register */
+
+/* Control bits in configuration register */
+#define MLX90614_CONFIG_IIR_SHIFT 0 /* IIR coefficient */
+#define MLX90614_CONFIG_IIR_MASK (0x7 << MLX90614_CONFIG_IIR_SHIFT)
+#define MLX90614_CONFIG_DUAL_SHIFT 6 /* single (0) or dual (1) IR sensor */
+#define MLX90614_CONFIG_DUAL_MASK (1 << MLX90614_CONFIG_DUAL_SHIFT)
+#define MLX90614_CONFIG_FIR_SHIFT 8 /* FIR coefficient */
+#define MLX90614_CONFIG_FIR_MASK (0x7 << MLX90614_CONFIG_FIR_SHIFT)
+#define MLX90614_CONFIG_GAIN_SHIFT 11 /* gain */
+#define MLX90614_CONFIG_GAIN_MASK (0x7 << MLX90614_CONFIG_GAIN_SHIFT)
+
+/* Timings (in ms) */
+#define MLX90614_TIMING_EEPROM 20 /* time for EEPROM write/erase to complete */
+#define MLX90614_TIMING_WAKEUP 34 /* time to hold SDA low for wake-up */
+#define MLX90614_TIMING_STARTUP 250 /* time before first data after wake-up */
 
 struct mlx90614_data {
 	struct i2c_client *client;
