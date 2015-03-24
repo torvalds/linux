@@ -2297,6 +2297,7 @@ static const struct rhashtable_params tsk_rht_params = {
 	.key_len = sizeof(u32), /* portid */
 	.max_size = 1048576,
 	.min_size = 256,
+	.automatic_shrinking = true,
 };
 
 int tipc_sk_rht_init(struct net *net)

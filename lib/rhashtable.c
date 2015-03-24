@@ -153,7 +153,7 @@ static struct bucket_table *rhashtable_last_table(struct rhashtable *ht,
 	return new_tbl;
 }
 
-static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
+static int rhashtable_rehash_one(struct rhashtable *ht, unsigned int old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
 	struct bucket_table *new_tbl = rhashtable_last_table(ht,
@@ -162,7 +162,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
 	int err = -ENOENT;
 	struct rhash_head *head, *next, *entry;
 	spinlock_t *new_bucket_lock;
-	unsigned new_hash;
+	unsigned int new_hash;
 
 	rht_for_each(entry, old_tbl, old_hash) {
 		err = 0;
@@ -199,7 +199,8 @@ out:
 	return err;
 }
 
-static void rhashtable_rehash_chain(struct rhashtable *ht, unsigned old_hash)
+static void rhashtable_rehash_chain(struct rhashtable *ht,
+				    unsigned int old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
 	spinlock_t *old_bucket_lock;
@@ -244,7 +245,7 @@ static int rhashtable_rehash_table(struct rhashtable *ht)
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
 	struct bucket_table *new_tbl;
 	struct rhashtable_walker *walker;
-	unsigned old_hash;
+	unsigned int old_hash;
 
 	new_tbl = rht_dereference(old_tbl->future_tbl, ht);
 	if (!new_tbl)
@@ -324,11 +325,12 @@ static int rhashtable_expand(struct rhashtable *ht)
 static int rhashtable_shrink(struct rhashtable *ht)
 {
 	struct bucket_table *new_tbl, *old_tbl = rht_dereference(ht->tbl, ht);
-	unsigned size = roundup_pow_of_two(atomic_read(&ht->nelems) * 3 / 2);
+	unsigned int size;
 	int err;
 
 	ASSERT_RHT_MUTEX(ht);
 
+	size = roundup_pow_of_two(atomic_read(&ht->nelems) * 3 / 2);
 	if (size < ht->p.min_size)
 		size = ht->p.min_size;
 
@@ -357,20 +359,17 @@ static void rht_deferred_worker(struct work_struct *work)
 
 	ht = container_of(work, struct rhashtable, run_work);
 	mutex_lock(&ht->mutex);
-	if (ht->being_destroyed)
-		goto unlock;
 
 	tbl = rht_dereference(ht->tbl, ht);
 	tbl = rhashtable_last_table(ht, tbl);
 
 	if (rht_grow_above_75(ht, tbl))
 		rhashtable_expand(ht);
-	else if (rht_shrink_below_30(ht, tbl))
+	else if (ht->p.automatic_shrinking && rht_shrink_below_30(ht, tbl))
 		rhashtable_shrink(ht);
 
 	err = rhashtable_rehash_table(ht);
 
-unlock:
 	mutex_unlock(&ht->mutex);
 
 	if (err)
@@ -379,9 +378,9 @@ unlock:
 
 static bool rhashtable_check_elasticity(struct rhashtable *ht,
 					struct bucket_table *tbl,
-					unsigned hash)
+					unsigned int hash)
 {
-	unsigned elasticity = ht->elasticity;
+	unsigned int elasticity = ht->elasticity;
 	struct rhash_head *head;
 
 	rht_for_each(head, tbl, hash)
@@ -431,7 +430,7 @@ int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 			   struct bucket_table *tbl)
 {
 	struct rhash_head *head;
-	unsigned hash;
+	unsigned int hash;
 	int err;
 
 	tbl = rhashtable_last_table(ht, tbl);
@@ -781,21 +780,53 @@ int rhashtable_init(struct rhashtable *ht,
 EXPORT_SYMBOL_GPL(rhashtable_init);
 
 /**
- * rhashtable_destroy - destroy hash table
+ * rhashtable_free_and_destroy - free elements and destroy hash table
  * @ht:		the hash table to destroy
+ * @free_fn:	callback to release resources of element
+ * @arg:	pointer passed to free_fn
  *
- * Frees the bucket array. This function is not rcu safe, therefore the caller
- * has to make sure that no resizing may happen by unpublishing the hashtable
- * and waiting for the quiescent cycle before releasing the bucket array.
+ * Stops an eventual async resize. If defined, invokes free_fn for each
+ * element to releasal resources. Please note that RCU protected
+ * readers may still be accessing the elements. Releasing of resources
+ * must occur in a compatible manner. Then frees the bucket array.
+ *
+ * This function will eventually sleep to wait for an async resize
+ * to complete. The caller is responsible that no further write operations
+ * occurs in parallel.
  */
-void rhashtable_destroy(struct rhashtable *ht)
+void rhashtable_free_and_destroy(struct rhashtable *ht,
+				 void (*free_fn)(void *ptr, void *arg),
+				 void *arg)
 {
-	ht->being_destroyed = true;
+	const struct bucket_table *tbl;
+	unsigned int i;
 
 	cancel_work_sync(&ht->run_work);
 
 	mutex_lock(&ht->mutex);
-	bucket_table_free(rht_dereference(ht->tbl, ht));
+	tbl = rht_dereference(ht->tbl, ht);
+	if (free_fn) {
+		for (i = 0; i < tbl->size; i++) {
+			struct rhash_head *pos, *next;
+
+			for (pos = rht_dereference(tbl->buckets[i], ht),
+			     next = !rht_is_a_nulls(pos) ?
+					rht_dereference(pos->next, ht) : NULL;
+			     !rht_is_a_nulls(pos);
+			     pos = next,
+			     next = !rht_is_a_nulls(pos) ?
+					rht_dereference(pos->next, ht) : NULL)
+				free_fn(rht_obj(ht, pos), arg);
+		}
+	}
+
+	bucket_table_free(tbl);
 	mutex_unlock(&ht->mutex);
+}
+EXPORT_SYMBOL_GPL(rhashtable_free_and_destroy);
+
+void rhashtable_destroy(struct rhashtable *ht)
+{
+	return rhashtable_free_and_destroy(ht, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(rhashtable_destroy);

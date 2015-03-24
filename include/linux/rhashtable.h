@@ -2,7 +2,7 @@
  * Resizable, Scalable, Concurrent Hash Table
  *
  * Copyright (c) 2015 Herbert Xu <herbert@gondor.apana.org.au>
- * Copyright (c) 2014 Thomas Graf <tgraf@suug.ch>
+ * Copyright (c) 2014-2015 Thomas Graf <tgraf@suug.ch>
  * Copyright (c) 2008-2014 Patrick McHardy <kaber@trash.net>
  *
  * Code partially derived from nft_hash
@@ -104,6 +104,7 @@ struct rhashtable;
  * @min_size: Minimum size while shrinking
  * @nulls_base: Base value to generate nulls marker
  * @insecure_elasticity: Set to true to disable chain length checks
+ * @automatic_shrinking: Enable automatic shrinking of tables
  * @locks_mul: Number of bucket locks to allocate per cpu (default: 128)
  * @hashfn: Hash function (default: jhash2 if !(key_len % 4), or jhash)
  * @obj_hashfn: Function to hash object
@@ -118,6 +119,7 @@ struct rhashtable_params {
 	unsigned int		min_size;
 	u32			nulls_base;
 	bool			insecure_elasticity;
+	bool			automatic_shrinking;
 	size_t			locks_mul;
 	rht_hashfn_t		hashfn;
 	rht_obj_hashfn_t	obj_hashfn;
@@ -134,12 +136,10 @@ struct rhashtable_params {
  * @run_work: Deferred worker to expand/shrink asynchronously
  * @mutex: Mutex to protect current/future table swapping
  * @lock: Spin lock to protect walker list
- * @being_destroyed: True if table is set up for destruction
  */
 struct rhashtable {
 	struct bucket_table __rcu	*tbl;
 	atomic_t			nelems;
-	bool                            being_destroyed;
 	unsigned int			key_len;
 	unsigned int			elasticity;
 	struct rhashtable_params	p;
@@ -208,13 +208,13 @@ static inline unsigned int rht_key_hashfn(
 	struct rhashtable *ht, const struct bucket_table *tbl,
 	const void *key, const struct rhashtable_params params)
 {
-	unsigned hash;
+	unsigned int hash;
 
 	/* params must be equal to ht->p if it isn't constant. */
 	if (!__builtin_constant_p(params.key_len))
 		hash = ht->p.hashfn(key, ht->key_len, tbl->hash_rnd);
 	else if (params.key_len) {
-		unsigned key_len = params.key_len;
+		unsigned int key_len = params.key_len;
 
 		if (params.hashfn)
 			hash = params.hashfn(key, key_len, tbl->hash_rnd);
@@ -224,7 +224,7 @@ static inline unsigned int rht_key_hashfn(
 			hash = jhash2(key, key_len / sizeof(u32),
 				      tbl->hash_rnd);
 	} else {
-		unsigned key_len = ht->p.key_len;
+		unsigned int key_len = ht->p.key_len;
 
 		if (params.hashfn)
 			hash = params.hashfn(key, key_len, tbl->hash_rnd);
@@ -332,6 +332,9 @@ int rhashtable_walk_start(struct rhashtable_iter *iter) __acquires(RCU);
 void *rhashtable_walk_next(struct rhashtable_iter *iter);
 void rhashtable_walk_stop(struct rhashtable_iter *iter) __releases(RCU);
 
+void rhashtable_free_and_destroy(struct rhashtable *ht,
+				 void (*free_fn)(void *ptr, void *arg),
+				 void *arg);
 void rhashtable_destroy(struct rhashtable *ht);
 
 #define rht_dereference(p, ht) \
@@ -512,7 +515,7 @@ static inline void *rhashtable_lookup_fast(
 	};
 	const struct bucket_table *tbl;
 	struct rhash_head *he;
-	unsigned hash;
+	unsigned int hash;
 
 	rcu_read_lock();
 
@@ -539,6 +542,7 @@ restart:
 	return NULL;
 }
 
+/* Internal function, please use rhashtable_insert_fast() instead */
 static inline int __rhashtable_insert_fast(
 	struct rhashtable *ht, const void *key, struct rhash_head *obj,
 	const struct rhashtable_params params)
@@ -550,8 +554,8 @@ static inline int __rhashtable_insert_fast(
 	struct bucket_table *tbl, *new_tbl;
 	struct rhash_head *head;
 	spinlock_t *lock;
-	unsigned elasticity;
-	unsigned hash;
+	unsigned int elasticity;
+	unsigned int hash;
 	int err;
 
 restart:
@@ -585,8 +589,8 @@ restart:
 	if (unlikely(rht_grow_above_100(ht, tbl))) {
 slow_path:
 		spin_unlock_bh(lock);
-		rcu_read_unlock();
 		err = rhashtable_insert_rehash(ht);
+		rcu_read_unlock();
 		if (err)
 			return err;
 
@@ -711,6 +715,7 @@ static inline int rhashtable_lookup_insert_key(
 	return __rhashtable_insert_fast(ht, key, obj, params);
 }
 
+/* Internal function, please use rhashtable_remove_fast() instead */
 static inline int __rhashtable_remove_fast(
 	struct rhashtable *ht, struct bucket_table *tbl,
 	struct rhash_head *obj, const struct rhashtable_params params)
@@ -718,7 +723,7 @@ static inline int __rhashtable_remove_fast(
 	struct rhash_head __rcu **pprev;
 	struct rhash_head *he;
 	spinlock_t * lock;
-	unsigned hash;
+	unsigned int hash;
 	int err = -ENOENT;
 
 	hash = rht_head_hashfn(ht, tbl, obj, params);
@@ -782,7 +787,8 @@ static inline int rhashtable_remove_fast(
 		goto out;
 
 	atomic_dec(&ht->nelems);
-	if (rht_shrink_below_30(ht, tbl))
+	if (unlikely(ht->p.automatic_shrinking &&
+		     rht_shrink_below_30(ht, tbl)))
 		schedule_work(&ht->run_work);
 
 out:
