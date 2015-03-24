@@ -110,7 +110,23 @@ int hdmi_wp_video_start(struct hdmi_wp_data *wp)
 
 void hdmi_wp_video_stop(struct hdmi_wp_data *wp)
 {
+	int i;
+
+	hdmi_write_reg(wp->base, HDMI_WP_IRQSTATUS, HDMI_IRQ_VIDEO_FRAME_DONE);
+
 	REG_FLD_MOD(wp->base, HDMI_WP_VIDEO_CFG, false, 31, 31);
+
+	for (i = 0; i < 50; ++i) {
+		u32 v;
+
+		msleep(20);
+
+		v = hdmi_read_reg(wp->base, HDMI_WP_IRQSTATUS_RAW);
+		if (v & HDMI_IRQ_VIDEO_FRAME_DONE)
+			return;
+	}
+
+	DSSERR("no HDMI FRAMEDONE when disabling output\n");
 }
 
 void hdmi_wp_video_config_format(struct hdmi_wp_data *wp,
