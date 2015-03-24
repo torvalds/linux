@@ -114,6 +114,34 @@ module_param_named(dbg_level, pwm_dbg_level, int, 0644);
 
 };
 
+extern int rk3368_lcdc_update_pwm(int bl_pwm_period, int bl_pwm_duty);
+extern int rk3368_lcdc_cabc_status(void);
+
+static inline void rk_pwm_writel(struct rk_pwm_chip *chip,
+				    unsigned int num, unsigned long offset,
+				    unsigned long val);
+static inline u32 rk_pwm_readl(struct rk_pwm_chip *chip, unsigned int num,
+				  unsigned long offset);
+static struct rk_pwm_chip* s_rk_pwm_chip = NULL;
+static struct rk_pwm_chip* rk_pwm_get_chip(void)
+{
+	BUG_ON(!s_rk_pwm_chip);
+	return s_rk_pwm_chip;
+}
+void rk_pwm_set(int bl_pwm_period, int bl_pwm_duty)
+{
+	struct rk_pwm_chip* pc = rk_pwm_get_chip();
+	rk_pwm_writel(pc, pc->chip.pwms->hwpwm, PWM_REG_DUTY, bl_pwm_duty);
+	rk_pwm_writel(pc, pc->chip.pwms->hwpwm, PWM_REG_PERIOD, bl_pwm_period);
+}
+
+void rk_pwm_get(int* bl_pwm_period, int* bl_pwm_duty)
+{
+	struct rk_pwm_chip* pc = rk_pwm_get_chip();
+	*bl_pwm_duty = rk_pwm_readl(pc, pc->chip.pwms->hwpwm, PWM_REG_DUTY);
+	*bl_pwm_period = rk_pwm_readl(pc, pc->chip.pwms->hwpwm, PWM_REG_PERIOD);
+}
+
 static inline struct rk_pwm_chip *to_rk_pwm_chip(struct pwm_chip *chip)
 {
 	return container_of(chip, struct rk_pwm_chip, chip);
@@ -238,6 +266,7 @@ static void rk_pwm_resume_v1(struct pwm_chip *chip, struct pwm_device *pwm)
 	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,pc->pwm_ctrl);
 }
+
 /* config for rockchip,pwm*/
 static int  rk_pwm_config_v2(struct pwm_chip *chip, struct pwm_device *pwm,
 			    int duty_ns, int period_ns)
@@ -303,8 +332,12 @@ static int  rk_pwm_config_v2(struct pwm_chip *chip, struct pwm_device *pwm,
 	barrier();
 	//rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,off);
 	//dsb(sy);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,dc);//0x1900);// dc);
-	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD,pv);//0x5dc0);//pv);
+	if (!rk3368_lcdc_cabc_status()) {
+	    rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_DUTY,dc);//0x1900);// dc);
+	    rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_PERIOD,pv);//0x5dc0);//pv);
+	} else {
+	    rk3368_lcdc_update_pwm(pv,dc);
+	}
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CNTR,0);
 	dsb(sy);
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL,on|conf);
@@ -325,8 +358,6 @@ static void rk_pwm_set_enable_v2(struct pwm_chip *chip, struct pwm_device *pwm,b
 		val &= ~RK_PWM_ENABLE;
 	rk_pwm_writel(pc, pwm->hwpwm, PWM_REG_CTRL, val);
 	DBG("%s %d \n", __FUNCTION__, rk_pwm_readl(pc, pwm->hwpwm, PWM_REG_CTRL));
-
-
 }
 
 static void rk_pwm_suspend_v2(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -601,6 +632,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	s_rk_pwm_chip = pc;
 	pc->base = of_iomap(np, 0);
 	if (IS_ERR(pc->base)) {
 		printk("PWM base ERR \n");
