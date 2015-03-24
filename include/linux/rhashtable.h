@@ -539,6 +539,7 @@ restart:
 	return NULL;
 }
 
+/* Internal function, please use rhashtable_insert_fast() instead */
 static inline int __rhashtable_insert_fast(
 	struct rhashtable *ht, const void *key, struct rhash_head *obj,
 	const struct rhashtable_params params)
@@ -711,6 +712,7 @@ static inline int rhashtable_lookup_insert_key(
 	return __rhashtable_insert_fast(ht, key, obj, params);
 }
 
+/* Internal function, please use rhashtable_remove_fast() instead */
 static inline int __rhashtable_remove_fast(
 	struct rhashtable *ht, struct bucket_table *tbl,
 	struct rhash_head *obj, const struct rhashtable_params params)
