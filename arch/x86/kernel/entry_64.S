@@ -249,7 +249,7 @@ GLOBAL(system_call_after_swapgs)
 	pushq_cfi_reg	r11			/* pt_regs->r11 */
 	sub	$(6*8),%rsp /* pt_regs->bp,bx,r12-15 not saved */
 
-	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,SIZEOF_PTREGS)
+	testl $_TIF_WORK_SYSCALL_ENTRY, THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz tracesys
 system_call_fastpath:
 #if __SYSCALL_MASK == ~0
@@ -267,7 +267,7 @@ system_call_fastpath:
  * Has incompletely filled pt_regs, iret frame is also incomplete.
  */
 ret_from_sys_call:
-	testl $_TIF_ALLWORK_MASK,TI_flags+THREAD_INFO(%rsp,SIZEOF_PTREGS)
+	testl $_TIF_ALLWORK_MASK, THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz int_ret_from_sys_call	/* Go the slow path */
 
 	LOCKDEP_SYS_EXIT
