@@ -1900,8 +1900,12 @@ static int ftdi_8u2232c_probe(struct usb_serial *serial)
 {
 	struct usb_device *udev = serial->dev;
 
-	if ((udev->manufacturer && !strcmp(udev->manufacturer, "CALAO Systems")) ||
-	    (udev->product && !strcmp(udev->product, "BeagleBone/XDS100V2")))
+	if (udev->manufacturer && !strcmp(udev->manufacturer, "CALAO Systems"))
+		return ftdi_jtag_probe(serial);
+
+	if (udev->product &&
+		(!strcmp(udev->product, "BeagleBone/XDS100V2") ||
+		 !strcmp(udev->product, "SNAP Connect E10")))
 		return ftdi_jtag_probe(serial);
 
 	return 0;
