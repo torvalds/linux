@@ -8,9 +8,9 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp5.xml            (  28872 bytes, from 2015-03-09 12:40:51)
+- /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp5.xml            (  29312 bytes, from 2015-03-23 21:18:48)
 - /local/mnt2/workspace2/sviau/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2014-06-02 18:31:15)
-- /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp_common.xml      (   2357 bytes, from 2015-01-23 16:20:19)
+- /local/mnt2/workspace2/sviau/envytools/rnndb/mdp/mdp_common.xml      (   2357 bytes, from 2015-03-23 20:38:49)
 
 Copyright (C) 2013-2015 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -458,11 +458,19 @@ static inline uint32_t REG_MDP5_CTL_FLUSH(uint32_t i0) { return 0x00000018 + __o
 #define MDP5_CTL_FLUSH_DSPP0					0x00002000
 #define MDP5_CTL_FLUSH_DSPP1					0x00004000
 #define MDP5_CTL_FLUSH_DSPP2					0x00008000
+#define MDP5_CTL_FLUSH_WB					0x00010000
 #define MDP5_CTL_FLUSH_CTL					0x00020000
 #define MDP5_CTL_FLUSH_VIG3					0x00040000
 #define MDP5_CTL_FLUSH_RGB3					0x00080000
 #define MDP5_CTL_FLUSH_LM5					0x00100000
 #define MDP5_CTL_FLUSH_DSPP3					0x00200000
+#define MDP5_CTL_FLUSH_CURSOR_0					0x00400000
+#define MDP5_CTL_FLUSH_CURSOR_1					0x00800000
+#define MDP5_CTL_FLUSH_CHROMADOWN_0				0x04000000
+#define MDP5_CTL_FLUSH_TIMING_3					0x10000000
+#define MDP5_CTL_FLUSH_TIMING_2					0x20000000
+#define MDP5_CTL_FLUSH_TIMING_1					0x40000000
+#define MDP5_CTL_FLUSH_TIMING_0					0x80000000
 
 static inline uint32_t REG_MDP5_CTL_START(uint32_t i0) { return 0x0000001c + __offset_CTL(i0); }
 
