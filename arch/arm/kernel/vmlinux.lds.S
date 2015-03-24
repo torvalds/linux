@@ -381,5 +381,5 @@ ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")
  * and should not cross a page boundary.
  * The above comment applies as well.
  */
-ASSERT((__hyp_idmap_text_start & ~PAGE_MASK) + __hyp_idmap_size <= PAGE_SIZE,
+ASSERT(__hyp_idmap_text_end - (__hyp_idmap_text_start & PAGE_MASK) <= PAGE_SIZE,
 	"HYP init code too big or misaligned")
