@@ -440,6 +440,7 @@ config USB_CONFIGFS_F_UVC
 config USB_CONFIGFS_F_PRINTER
 	bool "Printer function"
 	select USB_F_PRINTER
+	depends on USB_CONFIGFS
 	help
 	  The Printer function channels data between the USB host and a
 	  userspace program driving the print engine. The user space
