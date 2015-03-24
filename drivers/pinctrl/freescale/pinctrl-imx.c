@@ -542,10 +542,13 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 		struct imx_pin_reg *pin_reg;
 		struct imx_pin *pin = &grp->pins[i];
 
-		if (info->flags & SHARE_MUX_CONF_REG)
+		if (info->flags & SHARE_MUX_CONF_REG) {
 			conf_reg = mux_reg;
-		else
+		} else {
 			conf_reg = be32_to_cpu(*list++);
+			if (!conf_reg)
+				conf_reg = -1;
+		}
 
 		pin_id = mux_reg ? mux_reg / 4 : conf_reg / 4;
 		pin_reg = &info->pin_regs[pin_id];
