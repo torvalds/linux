@@ -31,6 +31,9 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
+--kallsyms=<file>::
+        kallsyms pathname
+
 -m::
 --modules::
         Load module symbols. WARNING: use only with -k and LIVE kernel
