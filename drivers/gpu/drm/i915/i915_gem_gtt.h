@@ -320,6 +320,8 @@ struct i915_hw_ppgtt {
 		struct i915_page_directory_entry pd;
 	};
 
+	struct i915_page_table_entry *scratch_pt;
+
 	struct drm_i915_file_private *file_priv;
 
 	gen6_pte_t __iomem *pd_addr;
