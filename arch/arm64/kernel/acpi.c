@@ -22,14 +22,48 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/smp.h>
 
-int acpi_noirq;			/* skip ACPI IRQ initialization */
-int acpi_disabled;
+int acpi_noirq = 1;		/* skip ACPI IRQ initialization */
+int acpi_disabled = 1;
 EXPORT_SYMBOL(acpi_disabled);
 
-int acpi_pci_disabled;		/* skip ACPI PCI scan and IRQ initialization */
+int acpi_pci_disabled = 1;	/* skip ACPI PCI scan and IRQ initialization */
 EXPORT_SYMBOL(acpi_pci_disabled);
+
+static bool param_acpi_off __initdata;
+static bool param_acpi_force __initdata;
+
+static int __init parse_acpi(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	/* "acpi=off" disables both ACPI table parsing and interpreter */
+	if (strcmp(arg, "off") == 0)
+		param_acpi_off = true;
+	else if (strcmp(arg, "force") == 0) /* force ACPI to be enabled */
+		param_acpi_force = true;
+	else
+		return -EINVAL;	/* Core will print when we return error */
+
+	return 0;
+}
+early_param("acpi", parse_acpi);
+
+static int __init dt_scan_depth1_nodes(unsigned long node,
+				       const char *uname, int depth,
+				       void *data)
+{
+	/*
+	 * Return 1 as soon as we encounter a node at depth 1 that is
+	 * not the /chosen node.
+	 */
+	if (depth == 1 && (strcmp(uname, "chosen") != 0))
+		return 1;
+	return 0;
+}
 
 /*
  * __acpi_map_table() will be called before page_init(), so early_ioremap()
@@ -83,9 +117,17 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
  */
 void __init acpi_boot_table_init(void)
 {
-	/* If acpi_disabled, bail out */
-	if (acpi_disabled)
+	/*
+	 * Enable ACPI instead of device tree unless
+	 * - ACPI has been disabled explicitly (acpi=off), or
+	 * - the device tree is not empty (it has more than just a /chosen node)
+	 *   and ACPI has not been force enabled (acpi=force)
+	 */
+	if (param_acpi_off ||
+	    (!param_acpi_force && of_scan_flat_dt(dt_scan_depth1_nodes, NULL)))
 		return;
+
+	enable_acpi();
 
 	/* Initialize the ACPI boot-time table parser. */
 	if (acpi_table_init()) {
