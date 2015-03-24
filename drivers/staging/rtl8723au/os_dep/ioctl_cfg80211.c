@@ -729,7 +729,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 	if (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_,
-			 ("wpa_set_encryption, crypt.alg = WEP\n"));
+			 "wpa_set_encryption, crypt.alg = WEP\n");
 		DBG_8723A("wpa_set_encryption, crypt.alg = WEP\n");
 
 		if (psecuritypriv->bWepDefaultKeyIdxSet == 0) {
@@ -1127,14 +1127,14 @@ static int cfg80211_infrastructure_mode(struct rtw_adapter *padapter,
 	old_mode = cur_network->network.ifmode;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
-		 ("+%s: old =%d new =%d fw_state = 0x%08x\n", __func__,
-		  old_mode, ifmode, get_fwstate(pmlmepriv)));
+		 "+%s: old =%d new =%d fw_state = 0x%08x\n", __func__,
+		 old_mode, ifmode, get_fwstate(pmlmepriv));
 
 	if (old_mode != ifmode) {
 		spin_lock_bh(&pmlmepriv->lock);
 
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-			 (" change mode!"));
+			 "change mode!\n");
 
 		if (old_mode == NL80211_IFTYPE_AP ||
 		    old_mode == NL80211_IFTYPE_P2P_GO) {
@@ -1193,10 +1193,6 @@ static int cfg80211_infrastructure_mode(struct rtw_adapter *padapter,
 		}
 
 		/* SecClearAllKeys(adapter); */
-
-		/* RT_TRACE(COMP_OID_SET, DBG_LOUD,
-		   ("set_infrastructure: fw_state:%x after changing mode\n", */
-		/* get_fwstate(pmlmepriv))); */
 
 		spin_unlock_bh(&pmlmepriv->lock);
 	}
@@ -1602,7 +1598,7 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 			  pie[i + 4], pie[i + 5], pie[i + 6], pie[i + 7]);
 	if (ielen < RSN_HEADER_LEN) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_,
-			 ("Ie len too short %d\n", (int)ielen));
+			 "Ie len too short %d\n", (int)ielen);
 		ret = -1;
 		goto exit;
 	}
@@ -1725,11 +1721,10 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 		rtl8723a_off_rcr_am(padapter);
 
 	RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_info_,
-		 ("rtw_set_wpa_ie: pairwise_cipher = 0x%08x padapter->"
-		  "securitypriv.ndisencryptstatus =%d padapter->"
-		  "securitypriv.ndisauthtype =%d\n", pairwise_cipher,
-		  padapter->securitypriv.ndisencryptstatus,
-		  padapter->securitypriv.ndisauthtype));
+		 "rtw_set_wpa_ie: pairwise_cipher = 0x%08x padapter->securitypriv.ndisencryptstatus =%d padapter->securitypriv.ndisauthtype =%d\n",
+		 pairwise_cipher,
+		 padapter->securitypriv.ndisencryptstatus,
+		 padapter->securitypriv.ndisauthtype);
 
 exit:
 	if (ret)
@@ -1745,7 +1740,7 @@ static int rtw_cfg80211_add_wep(struct rtw_adapter *padapter,
 
 	if (keyid >= NUM_WEP_KEYS) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-			 ("%s:keyid>4 =>fail\n", __func__));
+			 "%s:keyid>4 =>fail\n", __func__);
 		res = _FAIL;
 		goto exit;
 	}
@@ -1754,45 +1749,45 @@ static int rtw_cfg80211_add_wep(struct rtw_adapter *padapter,
 	case WLAN_KEY_LEN_WEP40:
 		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-			 ("%s:wep->KeyLength = 5\n", __func__));
+			 "%s:wep->KeyLength = 5\n", __func__);
 		break;
 	case WLAN_KEY_LEN_WEP104:
 		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-			 ("%s:wep->KeyLength = 13\n", __func__));
+			 "%s:wep->KeyLength = 13\n", __func__);
 		break;
 	default:
 		psecuritypriv->dot11PrivacyAlgrthm = 0;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-			 ("%s:wep->KeyLength!= 5 or 13\n", __func__));
+			 "%s:wep->KeyLength!= 5 or 13\n", __func__);
 		res = _FAIL;
 		goto exit;
 	}
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("%s:before memcpy, wep->KeyLength = 0x%x keyid =%x\n",
-		  __func__, wep->keylen, keyid));
+		 "%s:before memcpy, wep->KeyLength = 0x%x keyid =%x\n",
+		 __func__, wep->keylen, keyid);
 
 	memcpy(&psecuritypriv->wep_key[keyid], wep, sizeof(struct rtw_wep_key));
 
 	psecuritypriv->dot11PrivacyKeyIndex = keyid;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("%s:security key material : "
-		  "%x %x %x %x %x %x %x %x %x %x %x %x %x\n", __func__,
-		  psecuritypriv->wep_key[keyid].key[0],
-		  psecuritypriv->wep_key[keyid].key[1],
-		  psecuritypriv->wep_key[keyid].key[2],
-		  psecuritypriv->wep_key[keyid].key[3],
-		  psecuritypriv->wep_key[keyid].key[4],
-		  psecuritypriv->wep_key[keyid].key[5],
-		  psecuritypriv->wep_key[keyid].key[6],
-		  psecuritypriv->wep_key[keyid].key[7],
-		  psecuritypriv->wep_key[keyid].key[8],
-		  psecuritypriv->wep_key[keyid].key[9],
-		  psecuritypriv->wep_key[keyid].key[10],
-		  psecuritypriv->wep_key[keyid].key[11],
-		  psecuritypriv->wep_key[keyid].key[12]));
+		 "%s:security key material : %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
+		 __func__,
+		 psecuritypriv->wep_key[keyid].key[0],
+		 psecuritypriv->wep_key[keyid].key[1],
+		 psecuritypriv->wep_key[keyid].key[2],
+		 psecuritypriv->wep_key[keyid].key[3],
+		 psecuritypriv->wep_key[keyid].key[4],
+		 psecuritypriv->wep_key[keyid].key[5],
+		 psecuritypriv->wep_key[keyid].key[6],
+		 psecuritypriv->wep_key[keyid].key[7],
+		 psecuritypriv->wep_key[keyid].key[8],
+		 psecuritypriv->wep_key[keyid].key[9],
+		 psecuritypriv->wep_key[keyid].key[10],
+		 psecuritypriv->wep_key[keyid].key[11],
+		 psecuritypriv->wep_key[keyid].key[12]);
 
 	res = rtw_set_key23a(padapter, psecuritypriv, keyid, 1);
 
@@ -1814,7 +1809,7 @@ static int rtw_set_ssid(struct rtw_adapter *padapter,
 
 	if (padapter->hw_init_completed == false) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-			 ("set_ssid: hw_init_completed == false =>exit!!!\n"));
+			 "set_ssid: hw_init_completed == false =>exit!!!\n");
 		status = _FAIL;
 		goto exit;
 	}
@@ -1827,7 +1822,7 @@ static int rtw_set_ssid(struct rtw_adapter *padapter,
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED|WIFI_ADHOC_MASTER_STATE)) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-			 ("set_ssid: _FW_LINKED||WIFI_ADHOC_MASTER_STATE\n"));
+			 "set_ssid: _FW_LINKED||WIFI_ADHOC_MASTER_STATE\n");
 
 		if (pmlmepriv->assoc_ssid.ssid_len ==
 		    newnetwork->network.Ssid.ssid_len &&
@@ -1836,9 +1831,9 @@ static int rtw_set_ssid(struct rtw_adapter *padapter,
 			    newnetwork->network.Ssid.ssid_len)) {
 			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 				RT_TRACE(_module_rtl871x_ioctl_set_c_,
-					 _drv_err_, ("New SSID is same SSID, "
-						     "fw_state = 0x%08x\n",
-						     get_fwstate(pmlmepriv)));
+					 _drv_err_,
+					 "New SSID is same SSID, fw_state = 0x%08x\n",
+					 get_fwstate(pmlmepriv));
 
 				if (rtw_is_same_ibss23a(padapter, pnetwork)) {
 					/*
@@ -1874,15 +1869,15 @@ static int rtw_set_ssid(struct rtw_adapter *padapter,
 			}
 		} else {
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-				 ("Set SSID not the same ssid\n"));
+				 "Set SSID not the same ssid\n");
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-				 ("set_ssid =[%s] len = 0x%x\n",
-				  newnetwork->network.Ssid.ssid,
-				  newnetwork->network.Ssid.ssid_len));
+				 "set_ssid =[%s] len = 0x%x\n",
+				 newnetwork->network.Ssid.ssid,
+				 newnetwork->network.Ssid.ssid_len);
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-				 ("assoc_ssid =[%s] len = 0x%x\n",
-				  pmlmepriv->assoc_ssid.ssid,
-				  pmlmepriv->assoc_ssid.ssid_len));
+				 "assoc_ssid =[%s] len = 0x%x\n",
+				 pmlmepriv->assoc_ssid.ssid,
+				 pmlmepriv->assoc_ssid.ssid_len);
 
 			rtw_disassoc_cmd23a(padapter, 0, true);
 
@@ -1946,7 +1941,7 @@ release_mlme_lock:
 
 exit:
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-		 ("-%s: status =%d\n", __func__, status));
+		 "-%s: status =%d\n", __func__, status);
 
 	return status;
 }

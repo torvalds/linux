@@ -657,8 +657,8 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 
 	if (index > 13) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-			 ("Currently we do not support reserved sub-fr-type ="
-			  "%d\n", index));
+			 "Currently we do not support reserved sub-fr-type =%d\n",
+			 index);
 		return;
 	}
 	ptable += index;
@@ -2685,7 +2685,7 @@ static int _issue_probereq(struct rtw_adapter *padapter,
 	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-		 ("+%s\n", __func__));
+		 "+%s\n", __func__);
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)
@@ -2756,7 +2756,7 @@ static int _issue_probereq(struct rtw_adapter *padapter,
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-		 ("issuing probe_req, tx_len =%d\n", pattrib->last_txcmdsz));
+		 "issuing probe_req, tx_len =%d\n", pattrib->last_txcmdsz);
 
 	if (wait_ack) {
 		ret = dump_mgntframe23a_and_wait_ack23a(padapter, pmgntframe);
@@ -4338,7 +4338,8 @@ static void start_create_ibss(struct rtw_adapter *padapter)
 
 		/* issue beacon */
 		if (send_beacon23a(padapter) == _FAIL) {
-			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("issuing beacon frame fail....\n"));
+			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
+				 "issuing beacon frame fail....\n");
 
 			report_join_res23a(padapter, -1);
 			pmlmeinfo->state = MSR_NOLINK;
@@ -4522,7 +4523,7 @@ static void process_80211d(struct rtw_adapter *padapter,
 
 		p += 3;
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-			 ("%s: 802.11d country =%s\n", __func__, country));
+			 "%s: 802.11d country =%s\n", __func__, country);
 
 		i = 0;
 		while ((ie - p) >= 3) {
@@ -4699,9 +4700,8 @@ static void process_80211d(struct rtw_adapter *padapter,
 
 				chplan_new[i].ScanType = SCAN_ACTIVE;
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_,
-					 ("%s: change channel %d scan type "
-					  "from passive to active\n",
-					  __func__, channel));
+					 "%s: change channel %d scan type from passive to active\n",
+					 __func__, channel);
 			}
 			break;
 		}
@@ -6057,7 +6057,7 @@ int mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	/*  checking if event code is valid */
 	if (evt_code >= MAX_C2HEVT) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\nEvent Code(%d) mismatch!\n", evt_code));
+			 "Event Code(%d) mismatch!\n", evt_code);
 		goto _abort_event_;
 	}
 
@@ -6065,8 +6065,8 @@ int mlme_evt_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	if (wlanevents[evt_code].parmsize != 0 &&
 	    wlanevents[evt_code].parmsize != evt_sz) {
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_,
-			 ("\nEvent(%d) Parm Size mismatch (%d vs %d)!\n",
-			  evt_code, wlanevents[evt_code].parmsize, evt_sz));
+			 "Event(%d) Parm Size mismatch (%d vs %d)!\n",
+			 evt_code, wlanevents[evt_code].parmsize, evt_sz);
 		goto _abort_event_;
 	}
 

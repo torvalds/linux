@@ -516,7 +516,7 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	/*  Check if MAC has already power on. by tynli. 2011.05.27. */
 	val8 = rtl8723au_read8(Adapter, REG_CR);
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("%s: REG_CR 0x100 = 0x%02x\n", __func__, val8));
+		 "%s: REG_CR 0x100 = 0x%02x\n", __func__, val8);
 	/* Fix 92DU-VC S3 hang with the reason is that secondary mac is not
 	   initialized. */
 	/* 0x100 value of first mac is 0xEA while 0x100 value of secondary
@@ -526,13 +526,13 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	} else {
 		mac_on = true;
 		RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-			 ("%s: MAC has already power on\n", __func__));
+			 "%s: MAC has already power on\n", __func__);
 	}
 
 	status = _InitPowerOn(Adapter);
 	if (status == _FAIL) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-			 ("Failed to init power on!\n"));
+			 "Failed to init power on!\n");
 		goto exit;
 	}
 
@@ -547,7 +547,7 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 		status =  InitLLTTable23a(Adapter, boundary);
 		if (status == _FAIL) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-				 ("Failed to init LLT table\n"));
+				 "Failed to init LLT table\n");
 			goto exit;
 		}
 	}
@@ -623,8 +623,8 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	rtl8723au_write32(Adapter, rFPGA0_XA_RFInterfaceOE, 0x66F60210);
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("%s: 0x870 = value 0x%x\n", __func__,
-		  rtl8723au_read32(Adapter, 0x870)));
+		 "%s: 0x870 = value 0x%x\n", __func__,
+		 rtl8723au_read32(Adapter, 0x870));
 
 	/*  */
 	/*  Joseph Note: Keep RfRegChnlVal for later use. */
@@ -744,7 +744,8 @@ int rtl8723au_hal_init(struct rtw_adapter *Adapter)
 	if (((rtl8723au_read32(Adapter, rFPGA0_RFMOD) & 0xFF000000) !=
 	     0x83000000)) {
 		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, BIT(24), 1);
-		RT_TRACE(_module_hci_hal_init_c_, _drv_err_, ("%s: IQK fail recorver\n", __func__));
+		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
+			 "%s: IQK fail recover\n", __func__);
 	}
 
 	/* ack for xmit mgmt frames. */
@@ -817,7 +818,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 		else
 			sps0 &= ~(BIT(0) | BIT(3));
 
-		RT_TRACE(_module_hal_init_c_, _drv_err_, ("SS LVL1\n"));
+		RT_TRACE(_module_hal_init_c_, _drv_err_, "SS LVL1\n");
 		/*  Disable RF and BB only for SelectSuspend. */
 
 		/*  1. Set BB/RF to shutdown. */
@@ -933,14 +934,14 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 
 	status = _SUCCESS;
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("===> usb_inirp_init\n"));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, "===> usb_inirp_init\n");
 
 	/* issue Rx irp to receive data */
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
 		if (rtl8723au_read_port(Adapter, 0, precvbuf) == _FAIL) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-				 ("usb_rx_init: usb_read_port error\n"));
+				 "usb_rx_init: usb_read_port error\n");
 			status = _FAIL;
 			goto exit;
 		}
@@ -948,7 +949,7 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 	}
 	if (rtl8723au_read_interrupt(Adapter) == _FAIL) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-			 ("%s: usb_read_interrupt error\n", __func__));
+			 "%s: usb_read_interrupt error\n", __func__);
 		status = _FAIL;
 	}
 	pHalData->IntrMask[0] = rtl8723au_read32(Adapter, REG_USB_HIMR);
@@ -957,7 +958,7 @@ int rtl8723au_inirp_init(struct rtw_adapter *Adapter)
 	rtl8723au_write32(Adapter, REG_USB_HIMR, pHalData->IntrMask[0]);
 exit:
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("<=== usb_inirp_init\n"));
+		 "<=== usb_inirp_init\n");
 	return status;
 }
 
@@ -966,7 +967,7 @@ int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
 	struct hal_data_8723a	*pHalData = GET_HAL_DATA(Adapter);
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("\n ===> usb_rx_deinit\n"));
+		 "===> usb_rx_deinit\n");
 	rtl8723au_read_port_cancel(Adapter);
 	pHalData->IntrMask[0] = rtl8723au_read32(Adapter, REG_USB_HIMR);
 	MSG_8723A("%s pHalData->IntrMask = 0x%04x\n", __func__,
@@ -974,7 +975,7 @@ int rtl8723au_inirp_deinit(struct rtw_adapter *Adapter)
 	pHalData->IntrMask[0] = 0x0;
 	rtl8723au_write32(Adapter, REG_USB_HIMR, pHalData->IntrMask[0]);
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("\n <=== usb_rx_deinit\n"));
+		 "<=== usb_rx_deinit\n");
 	return _SUCCESS;
 }
 
@@ -1021,11 +1022,10 @@ static void Hal_EfuseParseMACAddr_8723AU(struct rtw_adapter *padapter,
 	}
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-		 ("Hal_EfuseParseMACAddr_8723AU: Permanent Address =%02x:%02x:"
-		  "%02x:%02x:%02x:%02x\n",
-		  pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
-		  pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
-		  pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]));
+		 "Hal_EfuseParseMACAddr_8723AU: Permanent Address =%02x:%02x:%02x:%02x:%02x:%02x\n",
+		 pEEPROM->mac_addr[0], pEEPROM->mac_addr[1],
+		 pEEPROM->mac_addr[2], pEEPROM->mac_addr[3],
+		 pEEPROM->mac_addr[4], pEEPROM->mac_addr[5]);
 }
 
 static void readAdapterInfo(struct rtw_adapter *padapter)
@@ -1165,8 +1165,6 @@ int GetHalDefVar8192CUsb(struct rtw_adapter *Adapter,
 	}
 		break;
 	default:
-		/* RT_TRACE(COMP_INIT, DBG_WARNING, ("GetHalDefVar8192CUsb(): "
-		   "Unkown variable: %d!\n", eVariable)); */
 		bResult = _FAIL;
 		break;
 	}

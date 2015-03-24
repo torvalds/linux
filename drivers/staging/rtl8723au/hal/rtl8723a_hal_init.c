@@ -95,7 +95,7 @@ static int _WriteFW(struct rtw_adapter *padapter, void *buffer, u32 size)
 			goto exit;
 	}
 	RT_TRACE(_module_hal_init_c_, _drv_info_,
-		 ("_WriteFW Done- for Normal chip.\n"));
+		 "_WriteFW Done- for Normal chip.\n");
 
 exit:
 	return ret;
@@ -115,13 +115,13 @@ static int _FWFreeToGo(struct rtw_adapter *padapter)
 
 	if (counter >= POLLING_READY_TIMEOUT_COUNT) {
 		RT_TRACE(_module_hal_init_c_, _drv_err_,
-			 ("%s: chksum report fail! REG_MCUFWDL:0x%08x\n",
-			  __func__, value32));
+			 "%s: chksum report fail! REG_MCUFWDL:0x%08x\n",
+			 __func__, value32);
 		return _FAIL;
 	}
 	RT_TRACE(_module_hal_init_c_, _drv_info_,
-		 ("%s: Checksum report OK! REG_MCUFWDL:0x%08x\n", __func__,
-		  value32));
+		 "%s: Checksum report OK! REG_MCUFWDL:0x%08x\n", __func__,
+		 value32);
 
 	value32 = rtl8723au_read32(padapter, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
@@ -134,17 +134,16 @@ static int _FWFreeToGo(struct rtw_adapter *padapter)
 		value32 = rtl8723au_read32(padapter, REG_MCUFWDL);
 		if (value32 & WINTINI_RDY) {
 			RT_TRACE(_module_hal_init_c_, _drv_info_,
-				 ("%s: Polling FW ready success!! "
-				  "REG_MCUFWDL:0x%08x\n",
-				  __func__, value32));
+				 "%s: Polling FW ready success!! REG_MCUFWDL:0x%08x\n",
+				 __func__, value32);
 			return _SUCCESS;
 		}
 		udelay(5);
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
 	RT_TRACE(_module_hal_init_c_, _drv_err_,
-		 ("%s: Polling FW ready fail!! REG_MCUFWDL:0x%08x\n",
-		  __func__, value32));
+		 "%s: Polling FW ready fail!! REG_MCUFWDL:0x%08x\n",
+		 __func__, value32);
 	return _FAIL;
 }
 
@@ -173,8 +172,8 @@ void rtl8723a_FirmwareSelfReset(struct rtw_adapter *padapter)
 			u1bTmp = rtl8723au_read8(padapter, REG_SYS_FUNC_EN + 1);
 		}
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("-%s: 8051 reset success (%d)\n", __func__,
-			  Delay));
+			 "-%s: 8051 reset success (%d)\n", __func__,
+			 Delay);
 
 		if ((Delay == 0)) {
 			/* force firmware reset */
@@ -206,13 +205,12 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 	int fw_size;
 	static int log_version;
 
-	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
+	RT_TRACE(_module_hal_init_c_, _drv_info_, "+%s\n", __func__);
 
 	if (IS_8723A_A_CUT(pHalData->VersionID)) {
 		fw_name = "rtlwifi/rtl8723aufw_A.bin";
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("rtl8723a_FirmwareDownload: R8723FwImageArray_UMC "
-			  "for RTL8723A A CUT\n"));
+			 "rtl8723a_FirmwareDownload: R8723FwImageArray_UMC for RTL8723A A CUT\n");
 	} else if (IS_8723A_B_CUT(pHalData->VersionID)) {
 		/*  WLAN Fw. */
 		if (padapter->registrypriv.wifi_spec == 1) {
@@ -234,7 +232,7 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 		/*  <Roger_TODO> We should download proper RAM Code here
 		    to match the ROM code. */
 		RT_TRACE(_module_hal_init_c_, _drv_err_,
-			 ("%s: unknow version!\n", __func__));
+			 "%s: unknown version!\n", __func__);
 		rtStatus = _FAIL;
 		goto Exit;
 	}
@@ -319,11 +317,11 @@ int rtl8723a_FirmwareDownload(struct rtw_adapter *padapter)
 	rtStatus = _FWFreeToGo(padapter);
 	if (_SUCCESS != rtStatus) {
 		RT_TRACE(_module_hal_init_c_, _drv_err_,
-			 ("DL Firmware failed!\n"));
+			 "DL Firmware failed!\n");
 		goto Exit;
 	}
 	RT_TRACE(_module_hal_init_c_, _drv_info_,
-		 ("Firmware is ready to run!\n"));
+		 "Firmware is ready to run!\n");
 
 Exit:
 	kfree(firmware_buf);
@@ -819,7 +817,7 @@ static void ResumeTxBeacon(struct rtw_adapter *padapter)
 	    we record the value */
 	/*  which should be read from register to a global variable. */
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("+ResumeTxBeacon\n"));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, "+ResumeTxBeacon\n");
 
 	pHalData->RegFwHwTxQCtrl |= BIT(6);
 	rtl8723au_write8(padapter, REG_FWHW_TXQ_CTRL + 2,
@@ -837,7 +835,7 @@ static void StopTxBeacon(struct rtw_adapter *padapter)
 	    we record the value */
 	/*  which should be read from register to a global variable. */
 
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("+StopTxBeacon\n"));
+	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, "+StopTxBeacon\n");
 
 	pHalData->RegFwHwTxQCtrl &= ~BIT(6);
 	rtl8723au_write8(padapter, REG_FWHW_TXQ_CTRL + 2,
@@ -983,7 +981,7 @@ int c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
 	switch (c2h_evt->id) {
 	case C2H_DBG:
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("C2HCommandHandler: %s\n", c2h_evt->payload));
+			 "C2HCommandHandler: %s\n", c2h_evt->payload);
 		break;
 
 	case C2H_CCX_TX_RPT:
@@ -993,22 +991,22 @@ int c2h_handler_8723a(struct rtw_adapter *padapter, struct c2h_evt_hdr *c2h_evt)
 		break;
 	case C2H_HW_INFO_EXCH:
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("[BT], C2H_HW_INFO_EXCH\n"));
+			 "[BT], C2H_HW_INFO_EXCH\n");
 		for (i = 0; i < c2h_evt->plen; i++) {
 			RT_TRACE(_module_hal_init_c_, _drv_info_,
-				 ("[BT], tmpBuf[%d]= 0x%x\n", i,
-				  c2h_evt->payload[i]));
+				 "[BT], tmpBuf[%d]= 0x%x\n", i,
+				 c2h_evt->payload[i]);
 		}
 		break;
 
 	case C2H_C2H_H2C_TEST:
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("[BT], C2H_H2C_TEST\n"));
+			 "[BT], C2H_H2C_TEST\n");
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("[BT], tmpBuf[0]/[1]/[2]/[3]/[4]= 0x%x/ 0x%x/ "
-			  "0x%x/ 0x%x/ 0x%x\n", c2h_evt->payload[0],
-			  c2h_evt->payload[1], c2h_evt->payload[2],
-			  c2h_evt->payload[3], c2h_evt->payload[4]));
+			 "[BT], tmpBuf[0]/[1]/[2]/[3]/[4]= 0x%x/ 0x%x/ 0x%x/ 0x%x/ 0x%x\n",
+			 c2h_evt->payload[0],
+			 c2h_evt->payload[1], c2h_evt->payload[2],
+			 c2h_evt->payload[3], c2h_evt->payload[4]);
 		break;
 
 	case C2H_BT_INFO:
@@ -1141,8 +1139,8 @@ static int _LLTWrite(struct rtw_adapter *padapter, u32 address, u32 data)
 
 		if (count > POLLING_LLT_THRESHOLD) {
 			RT_TRACE(_module_hal_init_c_, _drv_err_,
-				 ("Failed to polling write LLT done at "
-				  "address %d!\n", address));
+				 "Failed to polling write LLT done at address %d!\n",
+				 address);
 			status = _FAIL;
 			break;
 		}
@@ -1254,8 +1252,6 @@ e.	SYS_FUNC_EN 0x02[7:0] = 0x14		reset BB state machine
 
 	/*  2010/08/12 MH We need to set BB/GLBAL reset to save power
 	    for SS mode. */
-
-/*	RT_TRACE(COMP_INIT, DBG_LOUD, ("======> RF off and reset BB.\n")); */
 }
 
 static void _ResetDigitalProcedure1_92C(struct rtw_adapter *padapter,
@@ -1384,8 +1380,6 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 		value8 = rtl8723au_read8(padapter, REG_LDOV12D_CTRL);
 		value8 &= ~LDV12_EN;
 		rtl8723au_write8(padapter, REG_LDOV12D_CTRL, value8);
-/*		RT_TRACE(COMP_INIT, DBG_LOUD,
-		(" REG_LDOV12D_CTRL Reg0x21:0x%02x.\n", value8)); */
 	}
 
 	/*****************************
@@ -1433,7 +1427,7 @@ int CardDisableHWSM(struct rtw_adapter *padapter, u8 resetMCU)
 	_DisableAnalog(padapter, false);
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("======> Card disable finished.\n"));
+		 "======> Card disable finished.\n");
 
 	return _SUCCESS;
 }
@@ -1459,8 +1453,6 @@ int CardDisableWithoutHWSM(struct rtw_adapter *padapter)
 	/*   ==== Disable analog sequence === */
 	_DisableAnalog(padapter, true);
 
-	/* RT_TRACE(COMP_INIT, DBG_LOUD,
-	   ("<====== Card Disable Without HWSM .\n")); */
 	return _SUCCESS;
 }
 
@@ -1477,7 +1469,7 @@ void Hal_InitPGData(struct rtw_adapter *padapter, u8 *PROMContent)
 		}
 	} else {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_notice_,
-			 ("AutoLoad Fail reported from CR9346!!\n"));
+			 "AutoLoad Fail reported from CR9346!!\n");
 		/* update to default value 0xFF */
 		if (!pEEPROM->EepromOrEfuse)
 			EFUSE_ShadowMapUpdate23a(padapter, EFUSE_WIFI);
@@ -1502,7 +1494,7 @@ void Hal_EfuseParseIDCode(struct rtw_adapter *padapter, u8 *hwinfo)
 	}
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,
-		 ("EEPROM ID = 0x%04x\n", EEPROMId));
+		 "EEPROM ID = 0x%04x\n", EEPROMId);
 }
 
 static void Hal_EEValueCheck(u8 EEType, void *pInValue, void *pOutValue)
@@ -1517,9 +1509,8 @@ static void Hal_EEValueCheck(u8 EEType, void *pInValue, void *pOutValue)
 			*pOut = *pIn;
 		else {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_err_,
-				 ("EETYPE_TX_PWR, value =%d is invalid, set "
-				  "to default = 0x%x\n",
-				  *pIn, EEPROM_Default_TxPowerLevel));
+				 "EETYPE_TX_PWR, value =%d is invalid, set to default = 0x%x\n",
+				 *pIn, EEPROM_Default_TxPowerLevel);
 			*pOut = EEPROM_Default_TxPowerLevel;
 		}
 	}
@@ -1657,35 +1648,34 @@ Hal_EfuseParsetxpowerinfo_8723A(struct rtw_adapter *padapter,
 	for (rfPath = 0; rfPath < RF_PATH_MAX; rfPath++) {
 		for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++) {
 			RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-				 ("RF(%u)-Ch(%u) [CCK / HT40_1S / HT40_2S] = "
-				  "[0x%x / 0x%x / 0x%x]\n",
-				  rfPath, ch,
-				  pHalData->TxPwrLevelCck[rfPath][ch],
-				  pHalData->TxPwrLevelHT40_1S[rfPath][ch],
-				  pHalData->TxPwrLevelHT40_2S[rfPath][ch]));
+				 "RF(%u)-Ch(%u) [CCK / HT40_1S / HT40_2S] = [0x%x / 0x%x / 0x%x]\n",
+				 rfPath, ch,
+				 pHalData->TxPwrLevelCck[rfPath][ch],
+				 pHalData->TxPwrLevelHT40_1S[rfPath][ch],
+				 pHalData->TxPwrLevelHT40_2S[rfPath][ch]);
 
 		}
 	}
 	for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-			 ("RF-A Ht20 to HT40 Diff[%u] = 0x%x(%d)\n", ch,
-			  pHalData->TxPwrHt20Diff[RF_PATH_A][ch],
-			  pHalData->TxPwrHt20Diff[RF_PATH_A][ch]));
+			 "RF-A Ht20 to HT40 Diff[%u] = 0x%x(%d)\n", ch,
+			 pHalData->TxPwrHt20Diff[RF_PATH_A][ch],
+			 pHalData->TxPwrHt20Diff[RF_PATH_A][ch]);
 	}
 	for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++)
 		RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-			 ("RF-A Legacy to Ht40 Diff[%u] = 0x%x\n", ch,
-			  pHalData->TxPwrLegacyHtDiff[RF_PATH_A][ch]));
+			 "RF-A Legacy to Ht40 Diff[%u] = 0x%x\n", ch,
+			 pHalData->TxPwrLegacyHtDiff[RF_PATH_A][ch]);
 	for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++) {
 		RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-			 ("RF-B Ht20 to HT40 Diff[%u] = 0x%x(%d)\n", ch,
-			  pHalData->TxPwrHt20Diff[RF_PATH_B][ch],
-			  pHalData->TxPwrHt20Diff[RF_PATH_B][ch]));
+			 "RF-B Ht20 to HT40 Diff[%u] = 0x%x(%d)\n", ch,
+			 pHalData->TxPwrHt20Diff[RF_PATH_B][ch],
+			 pHalData->TxPwrHt20Diff[RF_PATH_B][ch]);
 	}
 	for (ch = 0; ch < CHANNEL_MAX_NUMBER; ch++)
 		RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-			 ("RF-B Legacy to HT40 Diff[%u] = 0x%x\n", ch,
-			  pHalData->TxPwrLegacyHtDiff[RF_PATH_B][ch]));
+			 "RF-B Legacy to HT40 Diff[%u] = 0x%x\n", ch,
+			 pHalData->TxPwrLegacyHtDiff[RF_PATH_B][ch]);
 	if (!AutoLoadFail) {
 		struct registry_priv *registry_par = &padapter->registrypriv;
 		if (registry_par->regulatory_tid == 0xff) {
@@ -1702,7 +1692,7 @@ Hal_EfuseParsetxpowerinfo_8723A(struct rtw_adapter *padapter,
 		pHalData->EEPROMRegulatory = 0;
 	}
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("EEPROMRegulatory = 0x%x\n", pHalData->EEPROMRegulatory));
+		 "EEPROMRegulatory = 0x%x\n", pHalData->EEPROMRegulatory);
 
 	if (!AutoLoadFail)
 		pHalData->bTXPowerDataReadFromEEPORM = true;
@@ -1752,8 +1742,8 @@ Hal_EfuseParseEEPROMVer(struct rtw_adapter *padapter,
 	else
 		pHalData->EEPROMVersion = 1;
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("Hal_EfuseParseEEPROMVer(), EEVer = %d\n",
-		  pHalData->EEPROMVersion));
+		 "Hal_EfuseParseEEPROMVer(), EEVer = %d\n",
+		 pHalData->EEPROMVersion);
 }
 
 void
@@ -1786,10 +1776,10 @@ Hal_EfuseParseCustomerID(struct rtw_adapter *padapter,
 		pHalData->EEPROMSubCustomerID = 0;
 	}
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("EEPROM Customer ID: 0x%2x\n", pHalData->EEPROMCustomerID));
+		 "EEPROM Customer ID: 0x%2x\n", pHalData->EEPROMCustomerID);
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("EEPROM SubCustomer ID: 0x%02x\n",
-		  pHalData->EEPROMSubCustomerID));
+		 "EEPROM SubCustomer ID: 0x%02x\n",
+		 pHalData->EEPROMSubCustomerID);
 }
 
 void
@@ -1818,8 +1808,8 @@ Hal_EfuseParseXtal_8723A(struct rtw_adapter *pAdapter,
 		pHalData->CrystalCap = EEPROM_Default_CrystalCap_8723A;
 	}
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
-		 ("%s: CrystalCap = 0x%2x\n", __func__,
-		  pHalData->CrystalCap));
+		 "%s: CrystalCap = 0x%2x\n", __func__,
+		 pHalData->CrystalCap);
 }
 
 void

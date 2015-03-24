@@ -395,9 +395,6 @@ rtl8723a_set_ampdu_min_space(struct rtw_adapter *padapter, u8 MinSpacingToSet)
 		if (MinSpacingToSet < SecMinSpace)
 			MinSpacingToSet = SecMinSpace;
 
-		/* RT_TRACE(COMP_MLME, DBG_LOUD,
-		   ("Set HW_VAR_AMPDU_MIN_SPACE: %#x\n",
-		   padapter->MgntInfo.MinSpaceCfg)); */
 		MinSpacingToSet |=
 			rtl8723au_read8(padapter, REG_AMPDU_MIN_SPACE) & 0xf8;
 		rtl8723au_write8(padapter, REG_AMPDU_MIN_SPACE,
@@ -437,9 +434,6 @@ void rtl8723a_set_ampdu_factor(struct rtw_adapter *padapter, u8 FactorToSet)
 			rtl8723au_write8(padapter, REG_AGGLEN_LMT + index,
 					 pRegToSet[index]);
 		}
-
-		/* RT_TRACE(COMP_MLME, DBG_LOUD,
-		   ("Set HW_VAR_AMPDU_FACTOR: %#x\n", FactorToSet)); */
 	}
 }
 
@@ -624,14 +618,8 @@ void rtl8723a_cam_empty_entry(struct rtw_adapter *padapter, u8 ucIndex)
 		/*  write content 0 is equall to mark invalid */
 		/* delay_ms(40); */
 		rtl8723au_write32(padapter, WCAMI, ulContent);
-		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("rtl8723a_cam_empty_entry(): WRITE A4: %lx\n",
-		   ulContent));*/
 		/* delay_ms(40); */
 		rtl8723au_write32(padapter, REG_CAMCMD, ulCommand);
-		/* RT_TRACE(COMP_SEC, DBG_LOUD,
-		   ("rtl8723a_cam_empty_entry(): WRITE A0: %lx\n",
-		   ulCommand));*/
 	}
 }
 

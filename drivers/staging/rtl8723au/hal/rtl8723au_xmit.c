@@ -272,7 +272,8 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz)
 	if (bmcst)
 		ptxdesc->txdw0 |= cpu_to_le32(BIT(24));
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("offset0-txdesc = 0x%x\n", ptxdesc->txdw0));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+		 "offset0-txdesc = 0x%x\n", ptxdesc->txdw0);
 
 	/* offset 4 */
 	/*  pkt_offset, unit:8 bytes padding */
@@ -303,7 +304,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 
 	mem_addr = pxmitframe->buf_addr;
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("rtw_dump_xframe()\n"));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, "rtw_dump_xframe()\n");
 
 	for (t = 0; t < pattrib->nr_frags; t++) {
 		if (inner_ret != _SUCCESS && ret == _SUCCESS)
@@ -311,7 +312,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 
 		if (t != (pattrib->nr_frags - 1)) {
 			RT_TRACE(_module_rtl871x_xmit_c_, _drv_err_,
-				 ("pattrib->nr_frags =%d\n", pattrib->nr_frags));
+				 "pattrib->nr_frags =%d\n", pattrib->nr_frags);
 
 			sz = pxmitpriv->frag_len;
 			sz = sz - 4 - pattrib->icv_len;
@@ -338,7 +339,7 @@ static int rtw_dump_xframe(struct rtw_adapter *padapter,
 		rtw_count_tx_stats23a(padapter, pxmitframe, sz);
 
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
-			 ("rtw_write_port, w_sz =%d\n", w_sz));
+			 "rtw_write_port, w_sz =%d\n", w_sz);
 
 		mem_addr += w_sz;
 
@@ -365,7 +366,7 @@ bool rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
 	phwxmits = pxmitpriv->hwxmits;
 	hwentry = pxmitpriv->hwxmit_entry;
 
-	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("xmitframe_complete()\n"));
+	RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, "xmitframe_complete()\n");
 
 	if (pxmitbuf == NULL) {
 		pxmitbuf = rtw_alloc_xmitbuf23a(pxmitpriv);
@@ -388,7 +389,8 @@ bool rtl8723au_xmitframe_complete(struct rtw_adapter *padapter,
 			rtw_os_xmit_complete23a(padapter, pxmitframe);/* always return ndis_packet after rtw_xmitframe_coalesce23a */
 		}
 
-		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_, ("xmitframe_complete(): rtw_dump_xframe\n"));
+		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
+			 "xmitframe_complete(): rtw_dump_xframe\n");
 
 		if (res == _SUCCESS) {
 			rtw_dump_xframe(padapter, pxmitframe);
@@ -481,7 +483,7 @@ enqueue:
 
 	if (res != _SUCCESS) {
 		RT_TRACE(_module_xmit_osdep_c_, _drv_err_,
-			 ("pre_xmitframe: enqueue xmitframe fail\n"));
+			 "pre_xmitframe: enqueue xmitframe fail\n");
 		rtw_free_xmitframe23a(pxmitpriv, pxmitframe);
 
 		/*  Trick, make the statistics correct */

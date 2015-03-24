@@ -926,10 +926,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	}
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("%s bssid.Ssid.Ssid:%s bssid.Ssid.SsidLength:%d "
-		  "cur_network->network.Ssid.Ssid:%s len:%d\n", __func__,
-		  ssid, ssid_len, cur_network->network.Ssid.ssid,
-		  cur_network->network.Ssid.ssid_len));
+		 "%s bssid.Ssid.Ssid:%s bssid.Ssid.SsidLength:%d cur_network->network.Ssid.Ssid:%s len:%d\n",
+		 __func__, ssid, ssid_len, cur_network->network.Ssid.ssid,
+		 cur_network->network.Ssid.ssid_len);
 
 	if (ssid_len != cur_network->network.Ssid.ssid_len || ssid_len > 32 ||
 	    (ssid_len &&
@@ -947,8 +946,8 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		privacy = 0;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("%s(): cur_network->network.Privacy is %d, bssid.Privacy "
-		  "is %d\n", __func__, cur_network->network.Privacy, privacy));
+		 "%s(): cur_network->network.Privacy is %d, bssid.Privacy is %d\n",
+		 __func__, cur_network->network.Privacy, privacy);
 	if (cur_network->network.Privacy != privacy) {
 		DBG_8723A("%s(), privacy is not match return FAIL\n", __func__);
 		goto _mismatch;
@@ -962,10 +961,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 						 &pairwise_cipher, &is_8021x);
 			if (r == _SUCCESS)
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-					 ("%s pnetwork->pairwise_cipher: %d, "
-					  "pnetwork->group_cipher: %d, is_802x "
-					  ": %d\n", __func__, pairwise_cipher,
-					  group_cipher, is_8021x));
+					 "%s pnetwork->pairwise_cipher: %d, pnetwork->group_cipher: %d, is_802x : %d\n",
+					 __func__, pairwise_cipher,
+					 group_cipher, is_8021x);
 			}
 	} else {
 		p = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
@@ -977,10 +975,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 						&pairwise_cipher, &is_8021x);
 			if (r == _SUCCESS)
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-					 ("%s pnetwork->pairwise_cipher: %d, "
-					  "group_cipher is %d, is_8021x is "
-					  "%d\n", __func__, pairwise_cipher,
-					  group_cipher, is_8021x));
+					 "%s pnetwork->pairwise_cipher: %d, group_cipher is %d, is_8021x is %d\n",
+					 __func__, pairwise_cipher,
+					 group_cipher, is_8021x);
 		} else {
 			if (privacy)
 				crypto = ENCRYP_PROTOCOL_WEP;
@@ -996,8 +993,8 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 
 	if (crypto == ENCRYP_PROTOCOL_WPA || crypto == ENCRYP_PROTOCOL_WPA2) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-			 ("%s cur_network->group_cipher is %d: %d\n", __func__,
-			  cur_network->BcnInfo.group_cipher, group_cipher));
+			 "%s cur_network->group_cipher is %d: %d\n", __func__,
+			 cur_network->BcnInfo.group_cipher, group_cipher);
 		if (pairwise_cipher != cur_network->BcnInfo.pairwise_cipher ||
 		    group_cipher != cur_network->BcnInfo.group_cipher) {
 			DBG_8723A("%s pairwise_cipher(%x:%x) or group_cipher "

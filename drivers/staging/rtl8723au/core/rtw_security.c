@@ -248,14 +248,11 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 	if (crc[3] != payload[length - 1] || crc[2] != payload[length - 2] ||
 	    crc[1] != payload[length - 3] || crc[0] != payload[length - 4]) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-			 ("rtw_wep_decrypt23a:icv error crc[3](%x)!= payload"
-			  "[length-1](%x) || crc[2](%x)!= payload[length-2](%x)"
-			  " || crc[1](%x)!= payload[length-3](%x) || crc[0](%x)"
-			  "!= payload[length-4](%x)\n",
-			  crc[3], payload[length - 1],
-			  crc[2], payload[length - 2],
-			  crc[1], payload[length - 3],
-			  crc[0], payload[length - 4]));
+			 "rtw_wep_decrypt23a:icv error crc[3](%x)!= payload[length-1](%x) || crc[2](%x)!= payload[length-2](%x) || crc[1](%x)!= payload[length-3](%x) || crc[0](%x)!= payload[length-4](%x)\n",
+			 crc[3], payload[length - 1],
+			 crc[2], payload[length - 2],
+			 crc[1], payload[length - 3],
+			 crc[0], payload[length - 4]);
 	}
 }
 
@@ -644,7 +641,8 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 				return _FAIL;
 			}
 
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_tkip_encrypt23a: stainfo!= NULL!!!\n"));
+			RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
+				 "rtw_tkip_encrypt23a: stainfo!= NULL!!!\n");
 
 			if (is_multicast_ether_addr(pattrib->ra))
 				prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
@@ -668,7 +666,10 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 
 				if ((curfragnum+1) == pattrib->nr_frags) {	/* 4 the last fragment */
 					length = pattrib->last_txcmdsz-pattrib->hdrlen-pattrib->iv_len- pattrib->icv_len;
-					RT_TRACE(_module_rtl871x_security_c_, _drv_info_, ("pattrib->iv_len =%x, pattrib->icv_len =%x\n", pattrib->iv_len, pattrib->icv_len));
+					RT_TRACE(_module_rtl871x_security_c_, _drv_info_,
+						 "pattrib->iv_len =%x, pattrib->icv_len =%x\n",
+						 pattrib->iv_len,
+						 pattrib->icv_len);
 					*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length));/* modified by Amy*/
 
 					arcfour_init(&mycontext, rc4key, 16);
@@ -690,7 +691,8 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 
 		}
 		else{
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_tkip_encrypt23a: stainfo == NULL!!!\n"));
+			RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
+				 "rtw_tkip_encrypt23a: stainfo == NULL!!!\n");
 			DBG_8723A("%s, psta == NUL\n", __func__);
 			res = _FAIL;
 		}
@@ -738,7 +740,8 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 				prwskeylen = 16;
 			} else {
-			        RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_tkip_decrypt23a: stainfo!= NULL!!!\n"));
+				RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
+					 "rtw_tkip_decrypt23a: stainfo!= NULL!!!\n");
 				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
 				prwskeylen = 16;
 			}
@@ -763,12 +766,17 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 
 			if (crc[3]!= payload[length-1] || crc[2]!= payload[length-2] || crc[1]!= payload[length-3] || crc[0]!= payload[length-4])
 			{
-			    RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_wep_decrypt23a:icv error crc[3](%x)!= payload[length-1](%x) || crc[2](%x)!= payload[length-2](%x) || crc[1](%x)!= payload[length-3](%x) || crc[0](%x)!= payload[length-4](%x)\n",
-						crc[3], payload[length-1], crc[2], payload[length-2], crc[1], payload[length-3], crc[0], payload[length-4]));
+				RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
+					 "rtw_wep_decrypt23a:icv error crc[3](%x)!= payload[length-1](%x) || crc[2](%x)!= payload[length-2](%x) || crc[1](%x)!= payload[length-3](%x) || crc[0](%x)!= payload[length-4](%x)\n",
+					 crc[3], payload[length-1],
+					 crc[2], payload[length-2],
+					 crc[1], payload[length-3],
+					 crc[0], payload[length-4]);
 				res = _FAIL;
 			}
 		} else {
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_tkip_decrypt23a: stainfo == NULL!!!\n"));
+			RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
+				 "rtw_tkip_decrypt23a: stainfo == NULL!!!\n");
 			res = _FAIL;
 		}
 	}
@@ -1304,7 +1312,7 @@ int rtw_aes_encrypt23a(struct rtw_adapter *padapter,
 
 	if (!stainfo) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-			 ("rtw_aes_encrypt23a: stainfo == NULL!!!\n"));
+			 "rtw_aes_encrypt23a: stainfo == NULL!!!\n");
 		DBG_8723A("%s, psta == NUL\n", __func__);
 		res = _FAIL;
 		goto out;
@@ -1315,7 +1323,7 @@ int rtw_aes_encrypt23a(struct rtw_adapter *padapter,
 		return _FAIL;
 	}
 	RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-		 ("rtw_aes_encrypt23a: stainfo!= NULL!!!\n"));
+		 "rtw_aes_encrypt23a: stainfo!= NULL!!!\n");
 
 	if (is_multicast_ether_addr(pattrib->ra))
 		prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
@@ -1544,8 +1552,9 @@ static int aes_decipher(u8 *key, uint	hdrlen,
 	for (i = 0; i < 8; i++) {
 		if (pframe[hdrlen+8+plen-8+i] != message[hdrlen+8+plen-8+i]) {
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-				 ("aes_decipher:mic check error mic[%d]: pframe(%x) != message(%x)\n",
-				 i, pframe[hdrlen+8+plen-8+i], message[hdrlen+8+plen-8+i]));
+				 "aes_decipher:mic check error mic[%d]: pframe(%x) != message(%x)\n",
+				 i, pframe[hdrlen + 8 + plen - 8 + i],
+				 message[hdrlen + 8 + plen - 8 + i]);
 			DBG_8723A("aes_decipher:mic check error mic[%d]: pframe(%x) != message(%x)\n",
 				  i, pframe[hdrlen+8+plen-8+i], message[hdrlen+8+plen-8+i]);
 			res = _FAIL;
@@ -1573,13 +1582,13 @@ int rtw_aes_decrypt23a(struct rtw_adapter *padapter,
 	stainfo = rtw_get_stainfo23a(&padapter->stapriv, &prxattrib->ta[0]);
 	if (!stainfo) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-			 ("rtw_aes_encrypt23a: stainfo == NULL!!!\n"));
+			 "rtw_aes_encrypt23a: stainfo == NULL!!!\n");
 		res = _FAIL;
 		goto exit;
 	}
 
 	RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-		 ("rtw_aes_decrypt23a: stainfo!= NULL!!!\n"));
+		 "rtw_aes_decrypt23a: stainfo!= NULL!!!\n");
 
 	if (is_multicast_ether_addr(prxattrib->ra)) {
 		/* in concurrent we should use sw decrypt in group key,
@@ -1613,9 +1622,10 @@ void rtw_use_tkipkey_handler23a(void *FunctionContext)
 {
 	struct rtw_adapter *padapter = (struct rtw_adapter *)FunctionContext;
 
-	RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("^^^rtw_use_tkipkey_handler23a ^^^\n"));
+	RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
+		 "^^^rtw_use_tkipkey_handler23a ^^^\n");
 	padapter->securitypriv.busetkipkey = 1;
 	RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
-		 ("^^^rtw_use_tkipkey_handler23a padapter->securitypriv.busetkipkey =%d^^^\n",
-		 padapter->securitypriv.busetkipkey));
+		 "^^^rtw_use_tkipkey_handler23a padapter->securitypriv.busetkipkey =%d^^^\n",
+		 padapter->securitypriv.busetkipkey);
 }

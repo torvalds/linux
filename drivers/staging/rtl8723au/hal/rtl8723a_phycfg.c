@@ -121,8 +121,6 @@ PHY_SetBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask, u32	Data)
 {
 	u32 OriginalValue, BitShift;
 
-	/* RT_TRACE(COMP_RF, DBG_TRACE, ("--->PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
-
 	if (BitMask != bMaskDWord) {/* if not "double word" write */
 		OriginalValue = rtl8723au_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
@@ -132,7 +130,6 @@ PHY_SetBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask, u32	Data)
 	rtl8723au_write32(Adapter, RegAddr, Data);
 
 	/* RTPRINT(FPHY, PHY_BBW, ("BBW MASK = 0x%lx Addr[0x%lx]= 0x%lx\n", BitMask, RegAddr, Data)); */
-	/* RT_TRACE(COMP_RF, DBG_TRACE, ("<---PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
 }
 
 /*  */
@@ -548,131 +545,51 @@ storePwrIndexDiffRateOffset(struct rtw_adapter *Adapter, u32 RegAddr,
 
 	if (RegAddr == rTxAGC_A_Rate18_06) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][0] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][0] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][0])); */
 	}
 	if (RegAddr == rTxAGC_A_Rate54_24) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][1] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][1] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][1])); */
 	}
 	if (RegAddr == rTxAGC_A_CCK1_Mcs32) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][6] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][6] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][6])); */
 	}
 	if (RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == 0xffffff00) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][7] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][7] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][7])); */
 	}
 	if (RegAddr == rTxAGC_A_Mcs03_Mcs00) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][2] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][2] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][2])); */
 	}
 	if (RegAddr == rTxAGC_A_Mcs07_Mcs04) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][3] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][3] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][3])); */
 	}
 	if (RegAddr == rTxAGC_A_Mcs11_Mcs08) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][4] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][4] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][4])); */
 	}
 	if (RegAddr == rTxAGC_A_Mcs15_Mcs12) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][5] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][5] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][5])); */
 	}
 	if (RegAddr == rTxAGC_B_Rate18_06) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][8] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][8] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][8])); */
 	}
 	if (RegAddr == rTxAGC_B_Rate54_24) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][9] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][9] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][9])); */
 	}
 	if (RegAddr == rTxAGC_B_CCK1_55_Mcs32) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][14] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][14] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][14])); */
 	}
 	if (RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == 0x000000ff) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][15] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][15] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][15])); */
 	}
 	if (RegAddr == rTxAGC_B_Mcs03_Mcs00) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][10] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][10] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][10])); */
 	}
 	if (RegAddr == rTxAGC_B_Mcs07_Mcs04) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][11] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][11] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][11])); */
 	}
 	if (RegAddr == rTxAGC_B_Mcs11_Mcs08) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][12] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][12] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][12])); */
 	}
 	if (RegAddr == rTxAGC_B_Mcs15_Mcs12) {
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][13] = Data;
-		/* RT_TRACE(COMP_INIT, DBG_TRACE,
-		   ("MCSTxPowerLevelOriginalOffset[%d][13] = 0x%lx\n",
-		   pHalData->pwrGroupCnt, */
-		/*	pHalData->MCSTxPowerLevelOriginalOffset[
-			pHalData->pwrGroupCnt][13])); */
 		pHalData->pwrGroupCnt++;
 	}
 }
@@ -974,10 +891,7 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 		break;
 
 	default:
-		/*RT_TRACE(COMP_DBG, DBG_LOUD,
-		  ("PHY_SetBWMode23aCallback8192C(): unknown Bandwidth: %#X\n" \
-		  , pHalData->CurrentChannelBW));*/
-			break;
+		break;
 	}
 	/* Skip over setting of J-mode in BB register here. Default value
 	   is "None J mode". Emily 20070315 */
@@ -986,13 +900,8 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	/* NowL = PlatformEFIORead4Byte(Adapter, TSFR); */
 	/* NowH = PlatformEFIORead4Byte(Adapter, TSFR+4); */
 	/* EndTime = ((u64)NowH << 32) + NowL; */
-	/* RT_TRACE(COMP_SCAN, DBG_LOUD, ("SetBWMode23aCallback8190Pci: time
-	   of SetBWMode23a = %I64d us!\n", (EndTime - BeginTime))); */
 
 	rtl8723a_phy_rf6052set_bw(Adapter, pHalData->CurrentChannelBW);
-
-	/* RT_TRACE(COMP_SCAN, DBG_LOUD,
-	   ("<== PHY_SetBWMode23aCallback8192C() \n")); */
 }
 
  /*-----------------------------------------------------------------------------

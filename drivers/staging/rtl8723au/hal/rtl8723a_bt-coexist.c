@@ -1554,7 +1554,8 @@ static void bthci_ResetBtSec(struct rtw_adapter *padapter, struct bt_security *p
 		pBtSec->bUsedHwEncrypt = true;
 	else
 		pBtSec->bUsedHwEncrypt = false;
-	RT_TRACE(_module_rtl871x_security_c_, _drv_info_, ("%s: bUsedHwEncrypt =%d\n", __func__, pBtSec->bUsedHwEncrypt));
+	RT_TRACE(_module_rtl871x_security_c_, _drv_info_,
+		 "%s: bUsedHwEncrypt =%d\n", __func__, pBtSec->bUsedHwEncrypt);
 
 	pBtSec->RSNIE.Octet = pBtSec->RSNIEBuf;
 }
@@ -4518,8 +4519,8 @@ bthci_StateConnecting(struct rtw_adapter *padapter,
 		RTPRINT(FIOCTL, IOCTL_STATE, ("STATE_CMD_MAC_CONNECT_COMPLETE\n"));
 
 		if (pBTInfo->BtAsocEntry[EntryNum].AMPRole == AMP_BTAP_JOINER) {
-			RT_TRACE(_module_rtl871x_security_c_,
-				 _drv_info_, ("StateConnecting \n"));
+			RT_TRACE(_module_rtl871x_security_c_, _drv_info_,
+				 "StateConnecting\n");
 		}
 		break;
 	case STATE_CMD_DISCONNECT_PHY_LINK:
@@ -11196,15 +11197,17 @@ void rtl8723a_BT_init_hal_vars(struct rtw_adapter *padapter)
 	pHalData->bt_coexist.bt_radiosharedtype = pHalData->EEPROMBluetoothRadioShared;
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,
-		 ("BT Coexistance = 0x%x\n", rtl8723a_BT_coexist(padapter)));
+		 "BT Coexistance = 0x%x\n", rtl8723a_BT_coexist(padapter));
 
 	if (rtl8723a_BT_coexist(padapter)) {
 		if (pHalData->bt_coexist.BT_Ant_Num == Ant_x2) {
 			BTDM_SetBtCoexCurrAntNum(padapter, 2);
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("BlueTooth BT_Ant_Num = Antx2\n"));
+			RT_TRACE(_module_hal_init_c_, _drv_info_,
+				 "BlueTooth BT_Ant_Num = Antx2\n");
 		} else if (pHalData->bt_coexist.BT_Ant_Num == Ant_x1) {
 			BTDM_SetBtCoexCurrAntNum(padapter, 1);
-			RT_TRACE(_module_hal_init_c_, _drv_info_, ("BlueTooth BT_Ant_Num = Antx1\n"));
+			RT_TRACE(_module_hal_init_c_, _drv_info_,
+				 "BlueTooth BT_Ant_Num = Antx1\n");
 		}
 		pHalData->bt_coexist.bBTBusyTraffic = false;
 		pHalData->bt_coexist.bBTTrafficModeSet = false;
@@ -11213,8 +11216,8 @@ void rtl8723a_BT_init_hal_vars(struct rtw_adapter *padapter)
 		pHalData->bt_coexist.PreviousState = 0;
 
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
-			 ("bt_radiosharedType = 0x%x\n",
-			 pHalData->bt_coexist.bt_radiosharedtype));
+			 "bt_radiosharedType = 0x%x\n",
+			 pHalData->bt_coexist.bt_radiosharedtype);
 	}
 }
 

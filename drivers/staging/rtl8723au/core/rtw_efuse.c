@@ -335,7 +335,6 @@ EFUSE_Write1Byte(struct rtw_adapter *Adapter, u16 Address, u8 Value)
 	u32	k = 0;
 	u16	contentLen = 0;
 
-	/* RT_TRACE(COMP_EFUSE, DBG_LOUD, ("Addr =%x Data =%x\n", Address, Value)); */
 	EFUSE_GetEfuseDefinition23a(Adapter, EFUSE_WIFI,
 				 TYPE_EFUSE_REAL_CONTENT_LEN,
 				 (void *)&contentLen);
@@ -403,8 +402,6 @@ efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data)
 {
 	u8	tmpidx = 0;
 	int	bResult;
-
-	/* RT_TRACE(COMP_EFUSE, DBG_LOUD, ("Addr = %x Data =%x\n", addr, data)); */
 
 	/* return	0; */
 
