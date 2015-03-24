@@ -29,7 +29,7 @@ static inline unsigned long long rdclock(void)
 	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 }
 
-#define MAX_NR_CPUS			256
+#define MAX_NR_CPUS			1024
 
 extern const char *input_name;
 extern bool perf_host, perf_guest;
