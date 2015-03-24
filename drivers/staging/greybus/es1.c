@@ -101,7 +101,8 @@ static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 }
 
 static void cport_out_callback(struct urb *urb);
-static void usb_log_enable(struct es1_ap_dev *es1, int enable);
+static void usb_log_enable(struct es1_ap_dev *es1);
+static void usb_log_disable(struct es1_ap_dev *es1);
 
 /*
  * Buffer constraints for the host driver.
@@ -337,7 +338,7 @@ static void ap_disconnect(struct usb_interface *interface)
 	if (!es1)
 		return;
 
-	usb_log_enable(es1, 0);
+	usb_log_disable(es1);
 
 	/* Tear down everything! */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
@@ -544,28 +545,30 @@ static const struct file_operations apb1_log_fops = {
 	.read	= apb1_log_read,
 };
 
-static void usb_log_enable(struct es1_ap_dev *es1, int enable)
+static void usb_log_enable(struct es1_ap_dev *es1)
 {
-	if (enable && apb1_log_task != NULL)
+	if (apb1_log_task != NULL)
 		return;
 
-	if (enable) {
-		/* get log from APB1 */
-		apb1_log_task = kthread_run(apb1_log_poll, es1, "apb1_log");
-		if (apb1_log_task == ERR_PTR(-ENOMEM))
-			return;
-		apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
-							gb_debugfs_get(), NULL,
-							&apb1_log_fops);
-	} else {
-		debugfs_remove(apb1_log_dentry);
-		apb1_log_dentry = NULL;
+	/* get log from APB1 */
+	apb1_log_task = kthread_run(apb1_log_poll, es1, "apb1_log");
+	if (apb1_log_task == ERR_PTR(-ENOMEM))
+		return;
+	apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
+						gb_debugfs_get(), NULL,
+						&apb1_log_fops);
+}
 
-		if (apb1_log_task) {
-			kthread_stop(apb1_log_task);
-			apb1_log_task = NULL;
-		}
-	}
+static void usb_log_disable(struct es1_ap_dev *es1)
+{
+	if (apb1_log_task == NULL)
+		return;
+
+	debugfs_remove(apb1_log_dentry);
+	apb1_log_dentry = NULL;
+
+	kthread_stop(apb1_log_task);
+	apb1_log_task = NULL;
 }
 
 static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
@@ -590,7 +593,7 @@ static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 		return retval;
 
 	if (enable) {
-		usb_log_enable(es1, enable);
+		usb_log_enable(es1);
 		retval = count;
 	} else {
 		retval = -EINVAL;
