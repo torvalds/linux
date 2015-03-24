@@ -486,15 +486,9 @@ static struct tcp_md5sig_key *tcp_v6_md5_do_lookup(struct sock *sk,
 }
 
 static struct tcp_md5sig_key *tcp_v6_md5_lookup(struct sock *sk,
-						struct sock *addr_sk)
+						const struct sock *addr_sk)
 {
 	return tcp_v6_md5_do_lookup(sk, &addr_sk->sk_v6_daddr);
-}
-
-static struct tcp_md5sig_key *tcp_v6_reqsk_md5_lookup(struct sock *sk,
-						      struct request_sock *req)
-{
-	return tcp_v6_md5_do_lookup(sk, &inet_rsk(req)->ir_v6_rmt_addr);
 }
 
 static int tcp_v6_parse_md5_keys(struct sock *sk, char __user *optval,
@@ -720,7 +714,7 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 	.mss_clamp	=	IPV6_MIN_MTU - sizeof(struct tcphdr) -
 				sizeof(struct ipv6hdr),
 #ifdef CONFIG_TCP_MD5SIG
-	.md5_lookup	=	tcp_v6_reqsk_md5_lookup,
+	.req_md5_lookup	=	tcp_v6_md5_lookup,
 	.calc_md5_hash	=	tcp_v6_md5_hash_skb,
 #endif
 	.init_req	=	tcp_v6_init_req,

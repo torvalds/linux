@@ -2938,7 +2938,7 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 
 #ifdef CONFIG_TCP_MD5SIG
 	rcu_read_lock();
-	md5 = tcp_rsk(req)->af_specific->md5_lookup(sk, req);
+	md5 = tcp_rsk(req)->af_specific->req_md5_lookup(sk, req_to_sk(req));
 #endif
 	tcp_header_size = tcp_synack_options(sk, req, mss, skb, &opts, md5,
 					     foc) + sizeof(*th);

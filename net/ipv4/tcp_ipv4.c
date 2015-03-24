@@ -898,10 +898,10 @@ struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
 					 const union tcp_md5_addr *addr,
 					 int family)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
+	const struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_key *key;
 	unsigned int size = sizeof(struct in_addr);
-	struct tcp_md5sig_info *md5sig;
+	const struct tcp_md5sig_info *md5sig;
 
 	/* caller either holds rcu_read_lock() or socket lock */
 	md5sig = rcu_dereference_check(tp->md5sig_info,
@@ -924,23 +924,14 @@ struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
 EXPORT_SYMBOL(tcp_md5_do_lookup);
 
 struct tcp_md5sig_key *tcp_v4_md5_lookup(struct sock *sk,
-					 struct sock *addr_sk)
+					 const struct sock *addr_sk)
 {
 	union tcp_md5_addr *addr;
 
-	addr = (union tcp_md5_addr *)&inet_sk(addr_sk)->inet_daddr;
+	addr = (union tcp_md5_addr *)&sk->sk_daddr;
 	return tcp_md5_do_lookup(sk, addr, AF_INET);
 }
 EXPORT_SYMBOL(tcp_v4_md5_lookup);
-
-static struct tcp_md5sig_key *tcp_v4_reqsk_md5_lookup(struct sock *sk,
-						      struct request_sock *req)
-{
-	union tcp_md5_addr *addr;
-
-	addr = (union tcp_md5_addr *)&inet_rsk(req)->ir_rmt_addr;
-	return tcp_md5_do_lookup(sk, addr, AF_INET);
-}
 
 /* This can be called on a newly created socket, from other files */
 int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
@@ -1247,7 +1238,7 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 	.mss_clamp	=	TCP_MSS_DEFAULT,
 #ifdef CONFIG_TCP_MD5SIG
-	.md5_lookup	=	tcp_v4_reqsk_md5_lookup,
+	.req_md5_lookup	=	tcp_v4_md5_lookup,
 	.calc_md5_hash	=	tcp_v4_md5_hash_skb,
 #endif
 	.init_req	=	tcp_v4_init_req,

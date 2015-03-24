@@ -1303,7 +1303,7 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr,
 		   int family);
 struct tcp_md5sig_key *tcp_v4_md5_lookup(struct sock *sk,
-					 struct sock *addr_sk);
+					 const struct sock *addr_sk);
 
 #ifdef CONFIG_TCP_MD5SIG
 struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
@@ -1614,7 +1614,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 struct tcp_sock_af_ops {
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key	*(*md5_lookup) (struct sock *sk,
-						struct sock *addr_sk);
+						const struct sock *addr_sk);
 	int		(*calc_md5_hash)(char *location,
 					 const struct tcp_md5sig_key *md5,
 					 const struct sock *sk,
@@ -1628,8 +1628,8 @@ struct tcp_sock_af_ops {
 struct tcp_request_sock_ops {
 	u16 mss_clamp;
 #ifdef CONFIG_TCP_MD5SIG
-	struct tcp_md5sig_key	*(*md5_lookup) (struct sock *sk,
-						struct request_sock *req);
+	struct tcp_md5sig_key *(*req_md5_lookup)(struct sock *sk,
+						 const struct sock *addr_sk);
 	int		(*calc_md5_hash) (char *location,
 					  const struct tcp_md5sig_key *md5,
 					  const struct sock *sk,
