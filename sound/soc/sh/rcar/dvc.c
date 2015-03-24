@@ -36,7 +36,7 @@ struct rsnd_dvc {
 	     ((pos) = (struct rsnd_dvc *)(priv)->dvc + i);	\
 	     i++)
 
-static const char const *dvc_ramp_rate[] = {
+static const char * const dvc_ramp_rate[] = {
 	"128 dB/1 step",	 /* 00000 */
 	"64 dB/1 step",		 /* 00001 */
 	"32 dB/1 step",		 /* 00010 */
