@@ -13,7 +13,6 @@
 #define EWMA_DIV	128
 #define SAMPLE_COLUMNS	10	/* number of columns in sample table */
 
-
 /* scaled fraction values */
 #define MINSTREL_SCALE  16
 #define MINSTREL_FRAC(val, div) (((val) << MINSTREL_SCALE) / div)
@@ -24,7 +23,7 @@
 
 /*
  * Perform EWMA (Exponentially Weighted Moving Average) calculation
-  */
+ */
 static inline int
 minstrel_ewma(int old, int new, int weight)
 {
@@ -95,6 +94,7 @@ struct minstrel_sta_info {
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *dbg_stats;
+	struct dentry *dbg_stats_csv;
 #endif
 };
 
@@ -121,7 +121,6 @@ struct minstrel_priv {
 	u32 fixed_rate_idx;
 	struct dentry *dbg_fixed_rate;
 #endif
-
 };
 
 struct minstrel_debugfs_info {
@@ -135,6 +134,7 @@ void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 
 /* debugfs */
 int minstrel_stats_open(struct inode *inode, struct file *file);
+int minstrel_stats_csv_open(struct inode *inode, struct file *file);
 ssize_t minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos);
 int minstrel_stats_release(struct inode *inode, struct file *file);
 

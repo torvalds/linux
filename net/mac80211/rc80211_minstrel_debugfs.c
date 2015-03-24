@@ -54,6 +54,22 @@
 #include <net/mac80211.h>
 #include "rc80211_minstrel.h"
 
+ssize_t
+minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
+{
+	struct minstrel_debugfs_info *ms;
+
+	ms = file->private_data;
+	return simple_read_from_buffer(buf, len, ppos, ms->buf, ms->len);
+}
+
+int
+minstrel_stats_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
 int
 minstrel_stats_open(struct inode *inode, struct file *file)
 {
@@ -115,25 +131,72 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-ssize_t
-minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
-{
-	struct minstrel_debugfs_info *ms;
-
-	ms = file->private_data;
-	return simple_read_from_buffer(buf, len, ppos, ms->buf, ms->len);
-}
-
-int
-minstrel_stats_release(struct inode *inode, struct file *file)
-{
-	kfree(file->private_data);
-	return 0;
-}
-
 static const struct file_operations minstrel_stat_fops = {
 	.owner = THIS_MODULE,
 	.open = minstrel_stats_open,
+	.read = minstrel_stats_read,
+	.release = minstrel_stats_release,
+	.llseek = default_llseek,
+};
+
+int
+minstrel_stats_csv_open(struct inode *inode, struct file *file)
+{
+	struct minstrel_sta_info *mi = inode->i_private;
+	struct minstrel_debugfs_info *ms;
+	unsigned int i, tp, prob, eprob;
+	char *p;
+
+	ms = kmalloc(2048, GFP_KERNEL);
+	if (!ms)
+		return -ENOMEM;
+
+	file->private_data = ms;
+	p = ms->buf;
+
+	for (i = 0; i < mi->n_rates; i++) {
+		struct minstrel_rate *mr = &mi->r[i];
+		struct minstrel_rate_stats *mrs = &mi->r[i].stats;
+
+		p += sprintf(p, "%s" ,((i == mi->max_tp_rate[0]) ? "A" : ""));
+		p += sprintf(p, "%s" ,((i == mi->max_tp_rate[1]) ? "B" : ""));
+		p += sprintf(p, "%s" ,((i == mi->max_tp_rate[2]) ? "C" : ""));
+		p += sprintf(p, "%s" ,((i == mi->max_tp_rate[3]) ? "D" : ""));
+		p += sprintf(p, "%s" ,((i == mi->max_prob_rate) ? "P" : ""));
+
+		p += sprintf(p, ",%u%s", mr->bitrate / 2,
+				(mr->bitrate & 1 ? ".5," : ","));
+		p += sprintf(p, "%u,", i);
+		p += sprintf(p, "%u,",mr->perfect_tx_time);
+
+		tp = MINSTREL_TRUNC(mrs->cur_tp / 10);
+		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
+		eprob = MINSTREL_TRUNC(mrs->probability * 1000);
+
+		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u,%u,%u,"
+				"%llu,%llu,%d,%d\n",
+				tp / 10, tp % 10,
+				eprob / 10, eprob % 10,
+				prob / 10, prob % 10,
+				mrs->retry_count,
+				mrs->last_success,
+				mrs->last_attempts,
+				(unsigned long long)mrs->succ_hist,
+				(unsigned long long)mrs->att_hist,
+				mi->total_packets - mi->sample_packets,
+				mi->sample_packets);
+
+	}
+	ms->len = p - ms->buf;
+
+	WARN_ON(ms->len + sizeof(*ms) > 2048);
+
+	return 0;
+}
+
+static const struct file_operations minstrel_stat_csv_fops = {
+	.owner = THIS_MODULE,
+	.open = minstrel_stats_csv_open,
 	.read = minstrel_stats_read,
 	.release = minstrel_stats_release,
 	.llseek = default_llseek,
@@ -146,6 +209,9 @@ minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir)
 
 	mi->dbg_stats = debugfs_create_file("rc_stats", S_IRUGO, dir, mi,
 			&minstrel_stat_fops);
+
+	mi->dbg_stats_csv = debugfs_create_file("rc_stats_csv", S_IRUGO, dir,
+			mi, &minstrel_stat_csv_fops);
 }
 
 void
@@ -154,4 +220,6 @@ minstrel_remove_sta_debugfs(void *priv, void *priv_sta)
 	struct minstrel_sta_info *mi = priv_sta;
 
 	debugfs_remove(mi->dbg_stats);
+
+	debugfs_remove(mi->dbg_stats_csv);
 }
