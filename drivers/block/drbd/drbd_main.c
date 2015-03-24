@@ -3270,6 +3270,10 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
 	 * and read it. */
 	bdev->md.meta_dev_idx = bdev->disk_conf->meta_dev_idx;
 	bdev->md.md_offset = drbd_md_ss(bdev);
+	/* Even for (flexible or indexed) external meta data,
+	 * initially restrict us to the 4k superblock for now.
+	 * Affects the paranoia out-of-range access check in drbd_md_sync_page_io(). */
+	bdev->md.md_size_sect = 8;
 
 	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset, READ)) {
 		/* NOTE: can't do normal error processing here as this is
