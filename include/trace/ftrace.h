@@ -33,6 +33,19 @@
 
 TRACE_MAKE_SYSTEM_STR();
 
+#undef TRACE_DEFINE_ENUM
+#define TRACE_DEFINE_ENUM(a)				\
+	static struct trace_enum_map __used __initdata	\
+	__##TRACE_SYSTEM##_##a =			\
+	{						\
+		.system = TRACE_SYSTEM_STRING,		\
+		.enum_string = #a,			\
+		.enum_value = a				\
+	};						\
+	static struct trace_enum_map __used		\
+	__attribute__((section("_ftrace_enum_map")))	\
+	*TRACE_SYSTEM##_##a = &__##TRACE_SYSTEM##_##a
+
 /*
  * DECLARE_EVENT_CLASS can be used to add a generic function
  * handlers for events. That is, if all events have the same
@@ -135,6 +148,9 @@ TRACE_MAKE_SYSTEM_STR();
  * to keep the offset of each array from the beginning of the event.
  * The size of an array is also encoded, in the higher 16 bits of <item>.
  */
+
+#undef TRACE_DEFINE_ENUM
+#define TRACE_DEFINE_ENUM(a)
 
 #undef __field
 #define __field(type, item)
@@ -553,7 +569,7 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *	.trace			= ftrace_raw_output_<call>, <-- stage 2
  * };
  *
- * static const char print_fmt_<call>[] = <TP_printk>;
+ * static char print_fmt_<call>[] = <TP_printk>;
  *
  * static struct ftrace_event_class __used event_class_<template> = {
  *	.system			= "<system>",
@@ -704,7 +720,7 @@ static inline void ftrace_test_probe_##call(void)			\
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 _TRACE_PERF_PROTO(call, PARAMS(proto));					\
-static const char print_fmt_##call[] = print;				\
+static char print_fmt_##call[] = print;					\
 static struct ftrace_event_class __used __refdata event_class_##call = { \
 	.system			= TRACE_SYSTEM_STRING,			\
 	.define_fields		= ftrace_define_fields_##call,		\
@@ -733,7 +749,7 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
 									\
-static const char print_fmt_##call[] = print;				\
+static char print_fmt_##call[] = print;					\
 									\
 static struct ftrace_event_call __used event_##call = {			\
 	.class			= &event_class_##template,		\

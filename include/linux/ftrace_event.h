@@ -285,7 +285,7 @@ struct ftrace_event_call {
 		struct tracepoint	*tp;
 	};
 	struct trace_event	event;
-	const char		*print_fmt;
+	char			*print_fmt;
 	struct event_filter	*filter;
 	void			*mod;
 	void			*data;
