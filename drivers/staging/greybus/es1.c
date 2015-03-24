@@ -540,7 +540,7 @@ static ssize_t apb1_log_read(struct file *f, char __user *buf,
 	return ret;
 }
 
-static struct file_operations apb1_log_fops = {
+static const struct file_operations apb1_log_fops = {
 	.read	= apb1_log_read,
 };
 
@@ -599,7 +599,7 @@ static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 	return retval;
 }
 
-static struct file_operations apb1_log_enable_fops = {
+static const struct file_operations apb1_log_enable_fops = {
 	.read	= apb1_log_enable_read,
 	.write	= apb1_log_enable_write,
 };
