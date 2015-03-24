@@ -253,4 +253,8 @@ config XEN_EFI
 	def_bool y
 	depends on X86_64 && EFI
 
+config XEN_ACPI
+	def_bool y
+	depends on X86 && ACPI
+
 endmenu
