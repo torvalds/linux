@@ -87,8 +87,7 @@
 
 struct lguest_data lguest_data = {
 	.hcall_status = { [0 ... LHCALL_RING_SIZE-1] = 0xFF },
-	.noirq_start = (u32)lguest_noirq_start,
-	.noirq_end = (u32)lguest_noirq_end,
+	.noirq_iret = (u32)lguest_noirq_iret,
 	.kernel_address = PAGE_OFFSET,
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
 	.syscall_vec = SYSCALL_VECTOR,

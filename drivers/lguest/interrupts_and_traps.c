@@ -204,8 +204,7 @@ void try_deliver_interrupt(struct lg_cpu *cpu, unsigned int irq, bool more)
 	 * They may be in the middle of an iret, where they asked us never to
 	 * deliver interrupts.
 	 */
-	if (cpu->regs->eip >= cpu->lg->noirq_start &&
-	   (cpu->regs->eip < cpu->lg->noirq_end))
+	if (cpu->regs->eip == cpu->lg->noirq_iret)
 		return;
 
 	/* If they're halted, interrupts restart them. */
@@ -395,8 +394,9 @@ static bool direct_trap(unsigned int num)
  * The Guest has the ability to turn its interrupt gates into trap gates,
  * if it is careful.  The Host will let trap gates can go directly to the
  * Guest, but the Guest needs the interrupts atomically disabled for an
- * interrupt gate.  It can do this by pointing the trap gate at instructions
- * within noirq_start and noirq_end, where it can safely disable interrupts.
+ * interrupt gate.  The Host could provide a mechanism to register more
+ * "no-interrupt" regions, and the Guest could point the trap gate at
+ * instructions within that region, where it can safely disable interrupts.
  */
 
 /*M:006

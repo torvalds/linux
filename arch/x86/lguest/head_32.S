@@ -133,9 +133,8 @@ ENTRY(lg_restore_fl)
 	ret
 /*:*/
 
-/* These demark the EIP range where host should never deliver interrupts. */
-.global lguest_noirq_start
-.global lguest_noirq_end
+/* These demark the EIP where host should never deliver interrupts. */
+.global lguest_noirq_iret
 
 /*M:004
  * When the Host reflects a trap or injects an interrupt into the Guest, it
@@ -174,12 +173,11 @@ ENTRY(lg_restore_fl)
  *
  * The second is harder: copying eflags to lguest_data.irq_enabled will turn
  * interrupts on before we're finished, so we could be interrupted before we
- * return to userspace or wherever.  Our solution to this is to surround the
- * code with lguest_noirq_start: and lguest_noirq_end: labels.  We tell the
+ * return to userspace or wherever.  Our solution to this is to tell the
  * Host that it is *never* to interrupt us there, even if interrupts seem to be
  * enabled. (It's not necessary to protect pop instruction, since
- * data gets updated only after it completes, so we end up surrounding
- * just one instruction, iret).
+ * data gets updated only after it completes, so we only need to protect
+ * one instruction, iret).
  */
 ENTRY(lguest_iret)
 	pushl	2*4(%esp)
@@ -190,6 +188,5 @@ ENTRY(lguest_iret)
 	 * prefix makes sure we use the stack segment, which is still valid.
 	 */
 	popl	%ss:lguest_data+LGUEST_DATA_irq_enabled
-lguest_noirq_start:
+lguest_noirq_iret:
 	iret
-lguest_noirq_end:
