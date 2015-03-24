@@ -224,7 +224,8 @@
 			compatible = "allwinner,sun4i-a10-pll6-clk";
 			reg = <0x01c20028 0x4>;
 			clocks = <&osc24M>;
-			clock-output-names = "pll6_sata", "pll6_other", "pll6";
+			clock-output-names = "pll6_sata", "pll6_other", "pll6",
+					     "pll6_div_4";
 		};
 
 		pll8: clk@01c20040 {
@@ -253,10 +254,16 @@
 
 		ahb: ahb@01c20054 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-ahb-clk";
+			compatible = "allwinner,sun5i-a13-ahb-clk";
 			reg = <0x01c20054 0x4>;
-			clocks = <&axi>;
+			clocks = <&axi>, <&pll6 3>, <&pll6 1>;
 			clock-output-names = "ahb";
+			/*
+			 * Use PLL6 as parent, instead of CPU/AXI
+			 * which has rate changes due to cpufreq
+			 */
+			assigned-clocks = <&ahb>;
+			assigned-clock-parents = <&pll6 3>;
 		};
 
 		ahb_gates: clk@01c20060 {

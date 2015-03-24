@@ -150,10 +150,16 @@
 
 		ahb: ahb@01c20054 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-ahb-clk";
+			compatible = "allwinner,sun5i-a13-ahb-clk";
 			reg = <0x01c20054 0x4>;
-			clocks = <&axi>;
+			clocks = <&axi>, <&cpu>, <&pll6 1>;
 			clock-output-names = "ahb";
+			/*
+			 * Use PLL6 as parent, instead of CPU/AXI
+			 * which has rate changes due to cpufreq
+			 */
+			assigned-clocks = <&ahb>;
+			assigned-clock-parents = <&pll6 1>;
 		};
 
 		apb0: apb0@01c20054 {
