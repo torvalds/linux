@@ -684,8 +684,9 @@ static int __run_perf_stat(int argc, const char **argv)
 			unit_width = l;
 	}
 
-	if (perf_evlist__apply_filters(evsel_list)) {
-		error("failed to set filter with %d (%s)\n", errno,
+	if (perf_evlist__apply_filters(evsel_list, &counter)) {
+		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
+			counter->filter, perf_evsel__name(counter), errno,
 			strerror_r(errno, msg, sizeof(msg)));
 		return -1;
 	}
