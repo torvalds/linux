@@ -53,7 +53,9 @@ static void __get_inode_rdev(struct inode *inode, struct f2fs_inode *ri)
 
 static bool __written_first_block(struct f2fs_inode *ri)
 {
-	if (ri->i_addr[0] != NEW_ADDR && ri->i_addr[0] != NULL_ADDR)
+	block_t addr = le32_to_cpu(ri->i_addr[0]);
+
+	if (addr != NEW_ADDR && addr != NULL_ADDR)
 		return true;
 	return false;
 }
