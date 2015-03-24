@@ -303,25 +303,19 @@ static void __init psci_0_2_set_functions(void)
 }
 
 /*
- * PSCI Function IDs for v0.2+ are well defined so use
- * standard values.
+ * Probe function for PSCI firmware versions >= 0.2
  */
-static int __init psci_0_2_init(struct device_node *np)
+static int __init psci_probe(void)
 {
-	int err, ver;
-
-	err = get_set_conduit_method(np);
-
-	if (err)
-		goto out_put_node;
-
-	ver = psci_get_version();
+	int ver = psci_get_version();
 
 	if (ver == PSCI_RET_NOT_SUPPORTED) {
-		/* PSCI v0.2 mandates implementation of PSCI_ID_VERSION. */
+		/*
+		 * PSCI versions >=0.2 mandates implementation of
+		 * PSCI_VERSION.
+		 */
 		pr_err("PSCI firmware does not comply with the v0.2 spec.\n");
-		err = -EOPNOTSUPP;
-		goto out_put_node;
+		return -EOPNOTSUPP;
 	} else {
 		pr_info("PSCIv%d.%d detected in firmware.\n",
 				PSCI_VERSION_MAJOR(ver),
@@ -329,13 +323,37 @@ static int __init psci_0_2_init(struct device_node *np)
 
 		if (PSCI_VERSION_MAJOR(ver) == 0 &&
 				PSCI_VERSION_MINOR(ver) < 2) {
-			err = -EINVAL;
 			pr_err("Conflicting PSCI version detected.\n");
-			goto out_put_node;
+			return -EINVAL;
 		}
 	}
 
 	psci_0_2_set_functions();
+
+	return 0;
+}
+
+/*
+ * PSCI init function for PSCI versions >=0.2
+ *
+ * Probe based on PSCI PSCI_VERSION function
+ */
+static int __init psci_0_2_init(struct device_node *np)
+{
+	int err;
+
+	err = get_set_conduit_method(np);
+
+	if (err)
+		goto out_put_node;
+	/*
+	 * Starting with v0.2, the PSCI specification introduced a call
+	 * (PSCI_VERSION) that allows probing the firmware version, so
+	 * that PSCI function IDs and version specific initialization
+	 * can be carried out according to the specific version reported
+	 * by firmware
+	 */
+	err = psci_probe();
 
 out_put_node:
 	of_node_put(np);
