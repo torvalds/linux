@@ -15,7 +15,7 @@
 #include <linux/usb.h>
 #include <linux/kfifo.h>
 #include <linux/debugfs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "greybus.h"
 #include "svc_msg.h"
