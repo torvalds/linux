@@ -30,7 +30,6 @@
 
 static struct cdev file_cdev;
 static struct visorchannel **file_controlvm_channel;
-static dev_t majordev = -1; /**< indicates major num for device */
 
 static int visorchipset_open(struct inode *inode, struct file *file);
 static int visorchipset_release(struct inode *inode, struct file *file);
@@ -54,7 +53,6 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 	int rc = 0;
 
 	file_controlvm_channel = controlvm_channel;
-	majordev = major_dev;
 	cdev_init(&file_cdev, &visorchipset_fops);
 	file_cdev.owner = THIS_MODULE;
 	if (MAJOR(major_dev) == 0) {
@@ -80,7 +78,6 @@ visorchipset_file_cleanup(dev_t major_dev)
 	file_cdev.ops = NULL;
 	if (MAJOR(major_dev) >= 0) {
 		unregister_chrdev_region(major_dev, 1);
-		majordev = MKDEV(0, 0);
 	}
 }
 
