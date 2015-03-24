@@ -69,14 +69,32 @@ rix_to_ndx(struct minstrel_sta_info *mi, int rix)
 	return i;
 }
 
+/* return current EMWA throughput */
+int minstrel_get_tp_avg(struct minstrel_rate *mr)
+{
+	int usecs;
+
+	usecs = mr->perfect_tx_time;
+	if (!usecs)
+		usecs = 1000000;
+
+	/* reset thr. below 10% success */
+	if (mr->stats.prob_ewma < MINSTREL_FRAC(10, 100))
+		return 0;
+	else
+		return MINSTREL_TRUNC(mr->stats.prob_ewma * (100000 / usecs));
+}
+
 /* find & sort topmost throughput rates */
 static inline void
 minstrel_sort_best_tp_rates(struct minstrel_sta_info *mi, int i, u8 *tp_list)
 {
 	int j = MAX_THR_RATES;
 
-	while (j > 0 && mi->r[i].stats.cur_tp > mi->r[tp_list[j - 1]].stats.cur_tp)
+	while (j > 0 && (minstrel_get_tp_avg(&mi->r[i]) >
+	       minstrel_get_tp_avg(&mi->r[tp_list[j - 1]])))
 		j--;
+
 	if (j < MAX_THR_RATES - 1)
 		memmove(&tp_list[j + 1], &tp_list[j], MAX_THR_RATES - (j + 1));
 	if (j < MAX_THR_RATES)
@@ -158,8 +176,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 {
 	u8 tmp_tp_rate[MAX_THR_RATES];
 	u8 tmp_prob_rate = 0;
-	u32 usecs;
-	int i;
+	int i, tmp_cur_tp, tmp_prob_tp;
 
 	for (i = 0; i < MAX_THR_RATES; i++)
 	    tmp_tp_rate[i] = 0;
@@ -168,18 +185,8 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		struct minstrel_rate *mr = &mi->r[i];
 		struct minstrel_rate_stats *mrs = &mi->r[i].stats;
 
-		usecs = mr->perfect_tx_time;
-		if (!usecs)
-			usecs = 1000000;
-
 		/* Update success probabilities per rate */
 		minstrel_calc_rate_stats(mrs);
-
-		/* Update throughput per rate, reset thr. below 10% success */
-		if (mrs->prob_ewma < MINSTREL_FRAC(10, 100))
-			mrs->cur_tp = 0;
-		else
-			mrs->cur_tp = mrs->prob_ewma * (1000000 / usecs);
 
 		/* Sample less often below the 10% chance of success.
 		 * Sample less often above the 95% chance of success. */
@@ -205,7 +212,9 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		 * (2) if all success probabilities < 95%, the rate with
 		 * highest success probability is chosen as max_prob_rate */
 		if (mrs->prob_ewma >= MINSTREL_FRAC(95, 100)) {
-			if (mrs->cur_tp >= mi->r[tmp_prob_rate].stats.cur_tp)
+			tmp_cur_tp = minstrel_get_tp_avg(mr);
+			tmp_prob_tp = minstrel_get_tp_avg(&mi->r[tmp_prob_rate]);
+			if (tmp_cur_tp >= tmp_prob_tp)
 				tmp_prob_rate = i;
 		} else {
 			if (mrs->prob_ewma >= mi->r[tmp_prob_rate].stats.prob_ewma)
@@ -676,11 +685,15 @@ static u32 minstrel_get_expected_throughput(void *priv_sta)
 {
 	struct minstrel_sta_info *mi = priv_sta;
 	int idx = mi->max_tp_rate[0];
+	int tmp_cur_tp;
 
 	/* convert pkt per sec in kbps (1200 is the average pkt size used for
 	 * computing cur_tp
 	 */
-	return MINSTREL_TRUNC(mi->r[idx].stats.cur_tp) * 1200 * 8 / 1024;
+	tmp_cur_tp = minstrel_get_tp_avg(&mi->r[idx]);
+	tmp_cur_tp = tmp_cur_tp * 1200 * 8 / 1024;
+
+	return tmp_cur_tp;
 }
 
 const struct rate_control_ops mac80211_minstrel = {

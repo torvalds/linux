@@ -19,7 +19,7 @@ static char *
 minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 {
 	const struct mcs_group *mg;
-	unsigned int j, tp, prob, eprob, tx_time;
+	unsigned int j, tp_avg, prob, eprob, tx_time;
 	char htmode = '2';
 	char gimode = 'L';
 	u32 gflags;
@@ -81,13 +81,13 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		tx_time = DIV_ROUND_CLOSEST(mg->duration[j], 1000);
 		p += sprintf(p, "%6u   ", tx_time);
 
-		tp = mrs->cur_tp / 10;
+		tp_avg = minstrel_ht_get_tp_avg(mi, i, j);
 		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
 		p += sprintf(p, "%4u.%1u   %3u.%1u     %3u.%1u "
 				"%3u   %3u %-3u   %9llu   %-9llu\n",
-				tp / 10, tp % 10,
+				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,
 				mrs->retry_count,
@@ -163,7 +163,7 @@ static char *
 minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 {
 	const struct mcs_group *mg;
-	unsigned int j, tp, prob, eprob, tx_time;
+	unsigned int j, tp_avg, prob, eprob, tx_time;
 	char htmode = '2';
 	char gimode = 'L';
 	u32 gflags;
@@ -222,12 +222,12 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		tx_time = DIV_ROUND_CLOSEST(mg->duration[j], 1000);
 		p += sprintf(p, "%u,", tx_time);
 
-		tp = mrs->cur_tp / 10;
+		tp_avg = minstrel_ht_get_tp_avg(mi, i, j);
 		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
 		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u,%u,%u,%llu,%llu,",
-				tp / 10, tp % 10,
+				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,
 				mrs->retry_count,

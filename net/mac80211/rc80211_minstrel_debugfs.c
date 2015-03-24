@@ -75,7 +75,7 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 {
 	struct minstrel_sta_info *mi = inode->i_private;
 	struct minstrel_debugfs_info *ms;
-	unsigned int i, tp, prob, eprob;
+	unsigned int i, tp_avg, prob, eprob;
 	char *p;
 
 	ms = kmalloc(2048, GFP_KERNEL);
@@ -105,13 +105,13 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		p += sprintf(p, "%3u  ", i);
 		p += sprintf(p, "%6u  ", mr->perfect_tx_time);
 
-		tp = MINSTREL_TRUNC(mrs->cur_tp / 10);
+		tp_avg = minstrel_get_tp_avg(mr);
 		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
 		p += sprintf(p, " %4u.%1u   %3u.%1u     %3u.%1u %3u"
 				"   %3u %-3u   %9llu   %-9llu\n",
-				tp / 10, tp % 10,
+				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,
 				mrs->retry_count,
@@ -144,7 +144,7 @@ minstrel_stats_csv_open(struct inode *inode, struct file *file)
 {
 	struct minstrel_sta_info *mi = inode->i_private;
 	struct minstrel_debugfs_info *ms;
-	unsigned int i, tp, prob, eprob;
+	unsigned int i, tp_avg, prob, eprob;
 	char *p;
 
 	ms = kmalloc(2048, GFP_KERNEL);
@@ -169,13 +169,13 @@ minstrel_stats_csv_open(struct inode *inode, struct file *file)
 		p += sprintf(p, "%u,", i);
 		p += sprintf(p, "%u,",mr->perfect_tx_time);
 
-		tp = MINSTREL_TRUNC(mrs->cur_tp / 10);
+		tp_avg = minstrel_get_tp_avg(mr);
 		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
 		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u,%u,%u,"
 				"%llu,%llu,%d,%d\n",
-				tp / 10, tp % 10,
+				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,
 				mrs->retry_count,
