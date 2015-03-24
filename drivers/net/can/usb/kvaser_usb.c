@@ -1856,7 +1856,7 @@ static void kvaser_usb_remove_interfaces(struct kvaser_usb *dev)
 		if (!dev->nets[i])
 			continue;
 
-		unregister_netdev(dev->nets[i]->netdev);
+		unregister_candev(dev->nets[i]->netdev);
 	}
 
 	kvaser_usb_unlink_all_urbs(dev);
