@@ -1046,13 +1046,20 @@ static void __init sunxi_gates_clk_setup(struct device_node *node,
  * sunxi_divs_clk_setup() helper data
  */
 
-#define SUNXI_DIVS_MAX_QTY	2
+#define SUNXI_DIVS_MAX_QTY	4
 #define SUNXI_DIVISOR_WIDTH	2
 
 struct divs_data {
 	const struct factors_data *factors; /* data for the factor clock */
-	int ndivs; /* number of children */
+	int ndivs; /* number of outputs */
+	/*
+	 * List of outputs. Refer to the diagram for sunxi_divs_clk_setup():
+	 * self or base factor clock refers to the output from the pll
+	 * itself. The remaining refer to fixed or configurable divider
+	 * outputs.
+	 */
 	struct {
+		u8 self; /* is it the base factor clock? (only one) */
 		u8 fixed; /* is it a fixed divisor? if not... */
 		struct clk_div_table *table; /* is it a table based divisor? */
 		u8 shift; /* otherwise it's a normal divisor with this shift */
@@ -1075,23 +1082,26 @@ static const struct divs_data pll5_divs_data __initconst = {
 	.div = {
 		{ .shift = 0, .pow = 0, }, /* M, DDR */
 		{ .shift = 16, .pow = 1, }, /* P, other */
+		/* No output for the base factor clock */
 	}
 };
 
 static const struct divs_data pll6_divs_data __initconst = {
 	.factors = &sun4i_pll6_data,
-	.ndivs = 2,
+	.ndivs = 3,
 	.div = {
 		{ .shift = 0, .table = pll6_sata_tbl, .gate = 14 }, /* M, SATA */
 		{ .fixed = 2 }, /* P, other */
+		{ .self = 1 }, /* base factor clock, 2x */
 	}
 };
 
 static const struct divs_data sun6i_a31_pll6_divs_data __initconst = {
 	.factors = &sun6i_a31_pll6_data,
-	.ndivs = 1,
+	.ndivs = 2,
 	.div = {
 		{ .fixed = 2 }, /* normal output */
+		{ .self = 1 }, /* base factor clock, 2x */
 	}
 };
 
@@ -1122,6 +1132,10 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	int ndivs = SUNXI_DIVS_MAX_QTY, i = 0;
 	int flags, clkflags;
 
+	/* if number of children known, use it */
+	if (data->ndivs)
+		ndivs = data->ndivs;
+
 	/* Set up factor clock that we will be dividing */
 	pclk = sunxi_factors_clk_setup(node, data->factors);
 	parent = __clk_get_name(pclk);
@@ -1132,7 +1146,7 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	if (!clk_data)
 		return;
 
-	clks = kzalloc((SUNXI_DIVS_MAX_QTY+1) * sizeof(*clks), GFP_KERNEL);
+	clks = kcalloc(ndivs, sizeof(*clks), GFP_KERNEL);
 	if (!clks)
 		goto free_clkdata;
 
@@ -1142,14 +1156,16 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 	 * our RAM clock! */
 	clkflags = !strcmp("pll5", parent) ? 0 : CLK_SET_RATE_PARENT;
 
-	/* if number of children known, use it */
-	if (data->ndivs)
-		ndivs = data->ndivs;
-
 	for (i = 0; i < ndivs; i++) {
 		if (of_property_read_string_index(node, "clock-output-names",
 						  i, &clk_name) != 0)
 			break;
+
+		/* If this is the base factor clock, only update clks */
+		if (data->div[i].self) {
+			clk_data->clks[i] = pclk;
+			continue;
+		}
 
 		gate_hw = NULL;
 		rate_hw = NULL;
@@ -1208,9 +1224,6 @@ static void __init sunxi_divs_clk_setup(struct device_node *node,
 		WARN_ON(IS_ERR(clk_data->clks[i]));
 		clk_register_clkdev(clks[i], clk_name, NULL);
 	}
-
-	/* The last clock available on the getter is the parent */
-	clks[i++] = pclk;
 
 	/* Adjust to the real max */
 	clk_data->clk_num = i;
