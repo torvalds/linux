@@ -387,6 +387,10 @@ struct sge_rspq;
 
 #include "cxgb4_dcb.h"
 
+#ifdef CONFIG_CHELSIO_T4_FCOE
+#include "cxgb4_fcoe.h"
+#endif /* CONFIG_CHELSIO_T4_FCOE */
+
 struct port_info {
 	struct adapter *adapter;
 	u16    viid;
@@ -406,6 +410,9 @@ struct port_info {
 #ifdef CONFIG_CHELSIO_T4_DCB
 	struct port_dcb_info dcb;     /* Data Center Bridging support */
 #endif
+#ifdef CONFIG_CHELSIO_T4_FCOE
+	struct cxgb_fcoe fcoe;
+#endif /* CONFIG_CHELSIO_T4_FCOE */
 };
 
 struct dentry;
