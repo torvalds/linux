@@ -922,6 +922,8 @@ static const struct pci_device_id smtcfb_pci_table[] = {
 	{0,}
 };
 
+MODULE_DEVICE_TABLE(pci, smtcfb_pci_table);
+
 static void smtcfb_pci_remove(struct pci_dev *pdev)
 {
 	struct smtcfb_info *sfb;
