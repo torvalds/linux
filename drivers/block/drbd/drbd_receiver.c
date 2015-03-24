@@ -1124,7 +1124,10 @@ randomize:
 	}
 
 	drbd_thread_start(&connection->ack_receiver);
-	connection->ack_sender = create_singlethread_workqueue("drbd_ack_sender");
+	/* opencoded create_singlethread_workqueue(),
+	 * to be able to use format string arguments */
+	connection->ack_sender =
+		alloc_ordered_workqueue("drbd_as_%s", WQ_MEM_RECLAIM, connection->resource->name);
 	if (!connection->ack_sender) {
 		drbd_err(connection, "Failed to create workqueue ack_sender\n");
 		return 0;
