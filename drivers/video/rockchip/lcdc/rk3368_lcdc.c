@@ -438,13 +438,21 @@ static int rk3368_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		lcdc_grf_writel(lcdc_dev->pmugrf_base,
 				PMUGRF_SOC_CON0_VOP, v);
 	}
+#if 0
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_0, 0x15110903);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_1, 0x00030911);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_0, 0x1a150b04);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_1, 0x00040b15);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_0, 0x15110903);
 	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_1, 0x00030911);
-
+#else
+	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_0, 0x40000000);
+	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE0_1, 0x0);
+	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_0, 0x80000000);
+	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE1_1, 0x0);
+	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_0, 0x40000000);
+	lcdc_writel(lcdc_dev, CABC_GAUSS_LINE2_1, 0x0);
+#endif
 	lcdc_writel(lcdc_dev, FRC_LOWER01_0, 0x12844821);
 	lcdc_writel(lcdc_dev, FRC_LOWER01_1, 0x21488412);
 	lcdc_writel(lcdc_dev, FRC_LOWER10_0, 0xa55a9696);
@@ -1906,13 +1914,6 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		else
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_DSP_LUT_EN,
 				     v_DSP_LUT_EN(1));
-		if (screen->cabc_lut == NULL) {
-			lcdc_msk_reg(lcdc_dev, CABC_CTRL0, m_CABC_EN,
-				     v_CABC_EN(0));
-		} else {
-			lcdc_msk_reg(lcdc_dev, CABC_CTRL1, m_CABC_LUT_EN,
-				     v_CABC_LUT_EN(1));
-		}
 		rk3368_lcdc_bcsh_path_sel(dev_drv);
 		rk3368_config_timing(dev_drv);
 	}
@@ -3019,11 +3020,13 @@ static int rk3368_lcdc_get_backlight_device(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
-	/*struct device_node *backlight;*/
+	struct device_node *backlight;
+	struct property *prop;
+	u32 brightness_levels[256];
+	u32 length, max, last;
 
 	if (lcdc_dev->backlight)
 		return 0;
-#if 0
 	backlight = of_parse_phandle(lcdc_dev->dev->of_node, "backlight", 0);
 	if (backlight) {
 		lcdc_dev->backlight = of_find_backlight_by_node(backlight);
@@ -3032,7 +3035,19 @@ static int rk3368_lcdc_get_backlight_device(struct rk_lcdc_driver *dev_drv)
 	} else {
 		dev_info(lcdc_dev->dev, "No find backlight device node\n");
 	}
-#endif
+	prop = of_find_property(backlight, "brightness-levels", &length);
+	if (!prop)
+		return -EINVAL;
+	max = length / sizeof(u32);
+	last = max - 1;
+	if (!of_property_read_u32_array(backlight, "brightness-levels", brightness_levels, max)) {
+		if (brightness_levels[0] > brightness_levels[last])
+			dev_drv->cabc_pwm_pol = 1;/*negative*/
+		else
+			dev_drv->cabc_pwm_pol = 0;/*positive*/
+	} else {
+		dev_info(lcdc_dev->dev, "Can not read brightness-levels value\n");
+	}
 	return 0;
 }
 
@@ -3913,16 +3928,26 @@ static int rk3368_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
 }
+static u32 pwm_period_hpr, pwm_duty_lpr;
+static u32 cabc_status = 0;
 
-static struct lcdc_cabc_mode cabc_mode[4] = {
-      /* calc,     up,     down,   global_limit   */
-	{5,    256,  256,   256},  /*mode 1   0*/
-	{5,    258,  253,   277},  /*mode 2   15%*/
-	{5,    259,  252,   330},  /*mode 3   40%*/
-	{5,    267,  244,   400},  /*mode 4   60%*/
-};
+int rk3368_lcdc_update_pwm(int bl_pwm_period, int bl_pwm_duty)
+{
+	pwm_period_hpr = bl_pwm_period;
+	pwm_duty_lpr = bl_pwm_duty;
+	/*pr_info("bl_pwm_period_hpr = 0x%x, bl_pwm_duty_lpr = 0x%x\n",
+	bl_pwm_period, bl_pwm_duty);*/
+	return 0;
+}
 
-static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
+int rk3368_lcdc_cabc_status(void)
+{
+	return cabc_status;
+}
+
+static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv,
+				    int mode, int calc, int up,
+				    int down, int global)
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
@@ -3940,9 +3965,13 @@ static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 		cabc_lut = screen->cabc_lut;
 	}
 
+	if (!screen->cabc_gamma_base) {
+		pr_err("screen cabc_gamma_base no config, so not open cabc\n");
+		return 0;
+	}
 	dev_drv->cabc_mode = mode;
 	cabc_en = (mode > 0) ? 1 : 0;
-
+	rk3368_lcdc_get_backlight_device(dev_drv);
 	if (cabc_en == 0) {
 		spin_lock(&lcdc_dev->reg_lock);
 		if (lcdc_dev->clk_on) {
@@ -3950,20 +3979,30 @@ static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 				     m_CABC_EN, v_CABC_EN(0));
 			lcdc_cfg_done(lcdc_dev);
 		}
+		pr_info("mode = 0, close cabc\n");
+		rk_pwm_set(pwm_period_hpr, pwm_duty_lpr);
+		cabc_status = 0;
 		spin_unlock(&lcdc_dev->reg_lock);
 		return 0;
 	}
+	if (cabc_status == 0) { /*get from pwm*/
+		rk_pwm_get(&pwm_period_hpr, &pwm_duty_lpr);
+		pr_info("pwm_period_hpr=0x%x, pwm_duty_lpr=0x%x\n",
+			pwm_period_hpr, pwm_duty_lpr);
+	}
 
 	total_pixel = screen->mode.xres * screen->mode.yres;
-	pixel_num = 1000 - (cabc_mode[mode - 1].pixel_num);
+	pixel_num = 1000 - calc;
 	calc_pixel = (total_pixel * pixel_num) / 1000;
-	stage_up = cabc_mode[mode - 1].stage_up;
-	stage_down = cabc_mode[mode - 1].stage_down;
-	global_su = cabc_mode[mode - 1].global_su;
+	stage_up = up;
+	stage_down = down;
+	global_su = global;
+	pr_info("enable cabc:mode=%d, calc=%d, up=%d, down=%d, global=%d\n",
+		mode, calc, stage_up, stage_down, global_su);
 
 	stage_up_rec = 256 * 256 / stage_up;
 	stage_down_rec = 256 * 256 / stage_down;
-	global_su_rec = (256 * 256 / global_su) - 1;
+	global_su_rec = (256 * 256 / global_su);
 	gamma_global_su_rec = cabc_lut[global_su_rec];
 
 	spin_lock(&lcdc_dev->reg_lock);
@@ -3993,6 +4032,7 @@ static int rk3368_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 		lcdc_msk_reg(lcdc_dev, CABC_CTRL3, mask, val);
 		lcdc_cfg_done(lcdc_dev);
 	}
+	cabc_status = 1;
 	spin_unlock(&lcdc_dev->reg_lock);
 
 	return 0;
@@ -4331,7 +4371,10 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 	struct lcdc_device *lcdc_dev = (struct lcdc_device *)dev_id;
 	ktime_t timestamp = ktime_get();
 	u32 intr_status;
-
+	u32 scale_global_limit, scale_global_limit_reg;
+	u32 cabc_pwm_lut_value;
+	int pwm_plus;
+	int *cabc_gamma_base = NULL;
 	intr_status = lcdc_readl(lcdc_dev, INTR_STATUS);
 
 	if (intr_status & m_FS_INTR_STS) {
@@ -4349,13 +4392,34 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 #endif
 		lcdc_dev->driver.vsync_info.timestamp = timestamp;
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
-
 	} else if (intr_status & m_LINE_FLAG0_INTR_STS) {
 		lcdc_dev->driver.frame_time.last_framedone_t =
-		    lcdc_dev->driver.frame_time.framedone_t;
+			lcdc_dev->driver.frame_time.framedone_t;
 		lcdc_dev->driver.frame_time.framedone_t = cpu_clock(0);
 		lcdc_msk_reg(lcdc_dev, INTR_CLEAR, m_LINE_FLAG0_INTR_CLR,
 			     v_LINE_FLAG0_INTR_CLR(1));
+
+		if (cabc_status == 1) {
+			cabc_gamma_base =
+				lcdc_dev->driver.cur_screen->cabc_gamma_base;
+			scale_global_limit  = lcdc_readl(lcdc_dev, CABC_DEBUG2);
+			scale_global_limit_reg = scale_global_limit;
+			scale_global_limit >>= 16;
+			scale_global_limit &= 0xff;
+
+			if (lcdc_dev->driver.cabc_pwm_pol == 1) {/*negative*/
+				pwm_plus = pwm_period_hpr - pwm_duty_lpr;
+				cabc_pwm_lut_value =
+					pwm_period_hpr -
+					((cabc_gamma_base[scale_global_limit] * pwm_plus) >> 16);
+			} else {/*positive*/
+				pwm_plus = pwm_duty_lpr;
+				cabc_pwm_lut_value =
+					cabc_gamma_base[scale_global_limit] *
+					pwm_plus >> 16;
+			}
+			rk_pwm_set(pwm_period_hpr, cabc_pwm_lut_value);
+		}
 	} else if (intr_status & m_LINE_FLAG1_INTR_STS) {
 		/*line flag1 */
 		lcdc_msk_reg(lcdc_dev, INTR_CLEAR, m_LINE_FLAG1_INTR_CLR,
@@ -4514,6 +4578,7 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't find lcdc pmu grf property\n");
 		return PTR_ERR(lcdc_dev->pmugrf_base);
 	}
+
 	lcdc_dev->id = 0;
 	dev_set_name(lcdc_dev->dev, "lcdc%d", lcdc_dev->id);
 	dev_drv = &lcdc_dev->driver;

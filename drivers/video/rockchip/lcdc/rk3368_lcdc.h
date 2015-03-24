@@ -2005,4 +2005,7 @@ static inline int lcdc_grf_writel(struct regmap *base,
 #define SCALE_OFFSET_FIXPOINT(x)              \
 	((INT32)((x) * (1 << SCALE_OFFSET_FIXPOINT_SHIFT)))
 
+
+extern void rk_pwm_set(int bl_pwm_period, int bl_pwm_duty);
+extern void rk_pwm_get(int *bl_pwm_period, int *bl_pwm_duty);
 #endif
