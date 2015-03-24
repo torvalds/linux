@@ -335,11 +335,11 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
  * LCD types
  */
 #define LCD_TYPE_NONE		0
-#define LCD_TYPE_OLD		1
-#define LCD_TYPE_KS0074		2
-#define LCD_TYPE_HANTRONIX	3
-#define LCD_TYPE_NEXCOM		4
-#define LCD_TYPE_CUSTOM		5
+#define LCD_TYPE_CUSTOM		1
+#define LCD_TYPE_OLD		2
+#define LCD_TYPE_KS0074		3
+#define LCD_TYPE_HANTRONIX	4
+#define LCD_TYPE_NEXCOM		5
 
 /*
  * keypad types
@@ -500,7 +500,7 @@ MODULE_PARM_DESC(keypad_type,
 static int lcd_type = NOT_SET;
 module_param(lcd_type, int, 0000);
 MODULE_PARM_DESC(lcd_type,
-		 "LCD type: 0=none, 1=old //, 2=serial ks0074, 3=hantronix //, 4=nexcom //, 5=compiled-in");
+		 "LCD type: 0=none, 1=compiled-in, 2=old, 3=serial ks0074, 4=hantronix, 5=nexcom");
 
 static int lcd_height = NOT_SET;
 module_param(lcd_height, int, 0000);
