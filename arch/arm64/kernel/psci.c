@@ -439,9 +439,7 @@ int __init psci_acpi_init(void)
 	else
 		invoke_psci_fn = __invoke_psci_fn_smc;
 
-	psci_0_2_set_functions();
-
-	return 0;
+	return psci_probe();
 }
 
 #ifdef CONFIG_SMP
