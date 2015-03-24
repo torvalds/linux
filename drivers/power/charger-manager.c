@@ -1772,7 +1772,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 						&psy_cfg);
 	if (IS_ERR(cm->charger_psy)) {
 		dev_err(&pdev->dev, "Cannot register charger-manager with name \"%s\"\n",
-			cm->charger_psy->desc->name);
+			cm->charger_psy_desc.name);
 		return PTR_ERR(cm->charger_psy);
 	}
 
