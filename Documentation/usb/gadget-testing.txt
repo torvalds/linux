@@ -19,6 +19,7 @@ provided by gadgets.
 16. UAC1 function
 17. UAC2 function
 18. UVC function
+19. PRINTER function
 
 
 1. ACM function
@@ -726,3 +727,49 @@ with these patches:
 http://www.spinics.net/lists/linux-usb/msg99220.html
 
 host: luvcview -f yuv
+
+19. PRINTER function
+====================
+
+The function is provided by usb_f_printer.ko module.
+
+Function-specific configfs interface
+------------------------------------
+
+The function name to use when creating the function directory is "printer".
+The printer function provides these attributes in its function directory:
+
+	pnp_string	- Data to be passed to the host in pnp string
+	q_len		- Number of requests per endpoint
+
+Testing the PRINTER function
+----------------------------
+
+The most basic testing:
+
+device: run the gadget
+# ls -l /devices/virtual/usb_printer_gadget/
+
+should show g_printer<number>.
+
+If udev is active, then /dev/g_printer<number> should appear automatically.
+
+host:
+
+If udev is active, then e.g. /dev/usb/lp0 should appear.
+
+host->device transmission:
+
+device:
+# cat /dev/g_printer<number>
+host:
+# cat > /dev/usb/lp0
+
+device->host transmission:
+
+# cat > /dev/g_printer<number>
+host:
+# cat /dev/usb/lp0
+
+More advanced testing can be done with the prn_example
+described in Documentation/usb/gadget-printer.txt.

@@ -1085,7 +1085,7 @@ static int do_inquiry(struct fsg_common *common, struct fsg_buffhd *bh)
 	if (!curlun) {		/* Unsupported LUNs are okay */
 		common->bad_lun_okay = 1;
 		memset(buf, 0, 36);
-		buf[0] = 0x7f;		/* Unsupported, no device-type */
+		buf[0] = TYPE_NO_LUN;	/* Unsupported, no device-type */
 		buf[4] = 31;		/* Additional length */
 		return 36;
 	}

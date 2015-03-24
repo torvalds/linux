@@ -325,15 +325,6 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	return IRQ_HANDLED;
 }
 
-static int dwc3_omap_remove_core(struct device *dev, void *c)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	of_device_unregister(pdev);
-
-	return 0;
-}
-
 static void dwc3_omap_enable_irqs(struct dwc3_omap *omap)
 {
 	u32			reg;
@@ -600,7 +591,7 @@ static int dwc3_omap_remove(struct platform_device *pdev)
 	if (omap->extcon_id_dev.edev)
 		extcon_unregister_interest(&omap->extcon_id_dev);
 	dwc3_omap_disable_irqs(omap);
-	device_for_each_child(&pdev->dev, NULL, dwc3_omap_remove_core);
+	of_platform_depopulate(omap->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 

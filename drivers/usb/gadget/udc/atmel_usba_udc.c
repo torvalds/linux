@@ -152,7 +152,7 @@ static int regs_dbg_open(struct inode *inode, struct file *file)
 
 	spin_lock_irq(&udc->lock);
 	for (i = 0; i < inode->i_size / 4; i++)
-		data[i] = __raw_readl(udc->regs + i * 4);
+		data[i] = usba_io_readl(udc->regs + i * 4);
 	spin_unlock_irq(&udc->lock);
 
 	file->private_data = data;
@@ -1249,7 +1249,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 		if (crq->wLength != cpu_to_le16(sizeof(status)))
 			goto stall;
 		ep->state = DATA_STAGE_IN;
-		__raw_writew(status, ep->fifo);
+		usba_io_writew(status, ep->fifo);
 		usba_ep_writel(ep, SET_STA, USBA_TX_PK_RDY);
 		break;
 	}
@@ -1739,7 +1739,72 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t usba_vbus_irq(int irq, void *devid)
+static int start_clock(struct usba_udc *udc)
+{
+	int ret;
+
+	if (udc->clocked)
+		return 0;
+
+	ret = clk_prepare_enable(udc->pclk);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(udc->hclk);
+	if (ret) {
+		clk_disable_unprepare(udc->pclk);
+		return ret;
+	}
+
+	udc->clocked = true;
+	return 0;
+}
+
+static void stop_clock(struct usba_udc *udc)
+{
+	if (!udc->clocked)
+		return;
+
+	clk_disable_unprepare(udc->hclk);
+	clk_disable_unprepare(udc->pclk);
+
+	udc->clocked = false;
+}
+
+static int usba_start(struct usba_udc *udc)
+{
+	unsigned long flags;
+	int ret;
+
+	ret = start_clock(udc);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&udc->lock, flags);
+	toggle_bias(udc, 1);
+	usba_writel(udc, CTRL, USBA_ENABLE_MASK);
+	usba_int_enb_set(udc, USBA_END_OF_RESET);
+	spin_unlock_irqrestore(&udc->lock, flags);
+
+	return 0;
+}
+
+static void usba_stop(struct usba_udc *udc)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&udc->lock, flags);
+	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	reset_all_endpoints(udc);
+
+	/* This will also disable the DP pullup */
+	toggle_bias(udc, 0);
+	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
+	spin_unlock_irqrestore(&udc->lock, flags);
+
+	stop_clock(udc);
+}
+
+static irqreturn_t usba_vbus_irq_thread(int irq, void *devid)
 {
 	struct usba_udc *udc = devid;
 	int vbus;
@@ -1747,35 +1812,22 @@ static irqreturn_t usba_vbus_irq(int irq, void *devid)
 	/* debounce */
 	udelay(10);
 
-	spin_lock(&udc->lock);
-
-	/* May happen if Vbus pin toggles during probe() */
-	if (!udc->driver)
-		goto out;
+	mutex_lock(&udc->vbus_mutex);
 
 	vbus = vbus_is_present(udc);
 	if (vbus != udc->vbus_prev) {
 		if (vbus) {
-			toggle_bias(udc, 1);
-			usba_writel(udc, CTRL, USBA_ENABLE_MASK);
-			usba_int_enb_set(udc, USBA_END_OF_RESET);
+			usba_start(udc);
 		} else {
-			udc->gadget.speed = USB_SPEED_UNKNOWN;
-			reset_all_endpoints(udc);
-			toggle_bias(udc, 0);
-			usba_writel(udc, CTRL, USBA_DISABLE_MASK);
-			if (udc->driver->disconnect) {
-				spin_unlock(&udc->lock);
+			usba_stop(udc);
+
+			if (udc->driver->disconnect)
 				udc->driver->disconnect(&udc->gadget);
-				spin_lock(&udc->lock);
-			}
 		}
 		udc->vbus_prev = vbus;
 	}
 
-out:
-	spin_unlock(&udc->lock);
-
+	mutex_unlock(&udc->vbus_mutex);
 	return IRQ_HANDLED;
 }
 
@@ -1787,55 +1839,47 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 	unsigned long flags;
 
 	spin_lock_irqsave(&udc->lock, flags);
-
 	udc->devstatus = 1 << USB_DEVICE_SELF_POWERED;
 	udc->driver = driver;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	ret = clk_prepare_enable(udc->pclk);
-	if (ret)
-		return ret;
-	ret = clk_prepare_enable(udc->hclk);
-	if (ret) {
-		clk_disable_unprepare(udc->pclk);
-		return ret;
-	}
+	mutex_lock(&udc->vbus_mutex);
 
-	udc->vbus_prev = 0;
 	if (gpio_is_valid(udc->vbus_pin))
 		enable_irq(gpio_to_irq(udc->vbus_pin));
 
 	/* If Vbus is present, enable the controller and wait for reset */
-	spin_lock_irqsave(&udc->lock, flags);
-	if (vbus_is_present(udc) && udc->vbus_prev == 0) {
-		toggle_bias(udc, 1);
-		usba_writel(udc, CTRL, USBA_ENABLE_MASK);
-		usba_int_enb_set(udc, USBA_END_OF_RESET);
+	udc->vbus_prev = vbus_is_present(udc);
+	if (udc->vbus_prev) {
+		ret = usba_start(udc);
+		if (ret)
+			goto err;
 	}
-	spin_unlock_irqrestore(&udc->lock, flags);
 
+	mutex_unlock(&udc->vbus_mutex);
 	return 0;
+
+err:
+	if (gpio_is_valid(udc->vbus_pin))
+		disable_irq(gpio_to_irq(udc->vbus_pin));
+
+	mutex_unlock(&udc->vbus_mutex);
+
+	spin_lock_irqsave(&udc->lock, flags);
+	udc->devstatus &= ~(1 << USB_DEVICE_SELF_POWERED);
+	udc->driver = NULL;
+	spin_unlock_irqrestore(&udc->lock, flags);
+	return ret;
 }
 
 static int atmel_usba_stop(struct usb_gadget *gadget)
 {
 	struct usba_udc *udc = container_of(gadget, struct usba_udc, gadget);
-	unsigned long flags;
 
 	if (gpio_is_valid(udc->vbus_pin))
 		disable_irq(gpio_to_irq(udc->vbus_pin));
 
-	spin_lock_irqsave(&udc->lock, flags);
-	udc->gadget.speed = USB_SPEED_UNKNOWN;
-	reset_all_endpoints(udc);
-	spin_unlock_irqrestore(&udc->lock, flags);
-
-	/* This will also disable the DP pullup */
-	toggle_bias(udc, 0);
-	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
-
-	clk_disable_unprepare(udc->hclk);
-	clk_disable_unprepare(udc->pclk);
+	usba_stop(udc);
 
 	udc->driver = NULL;
 
@@ -2057,6 +2101,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 		return PTR_ERR(hclk);
 
 	spin_lock_init(&udc->lock);
+	mutex_init(&udc->vbus_mutex);
 	udc->pdev = pdev;
 	udc->pclk = pclk;
 	udc->hclk = hclk;
@@ -2111,17 +2156,17 @@ static int usba_udc_probe(struct platform_device *pdev)
 
 	if (gpio_is_valid(udc->vbus_pin)) {
 		if (!devm_gpio_request(&pdev->dev, udc->vbus_pin, "atmel_usba_udc")) {
-			ret = devm_request_irq(&pdev->dev,
-					gpio_to_irq(udc->vbus_pin),
-					usba_vbus_irq, 0,
+			irq_set_status_flags(gpio_to_irq(udc->vbus_pin),
+					IRQ_NOAUTOEN);
+			ret = devm_request_threaded_irq(&pdev->dev,
+					gpio_to_irq(udc->vbus_pin), NULL,
+					usba_vbus_irq_thread, IRQF_ONESHOT,
 					"atmel_usba_udc", udc);
 			if (ret) {
 				udc->vbus_pin = -ENODEV;
 				dev_warn(&udc->pdev->dev,
 					 "failed to request vbus irq; "
 					 "assuming always on\n");
-			} else {
-				disable_irq(gpio_to_irq(udc->vbus_pin));
 			}
 		} else {
 			/* gpio_request fail so use -EINVAL for gpio_is_valid */
@@ -2132,6 +2177,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 	ret = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (ret)
 		return ret;
+	device_init_wakeup(&pdev->dev, 1);
 
 	usba_init_debugfs(udc);
 	for (i = 1; i < udc->num_ep; i++)
@@ -2147,6 +2193,7 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 
 	udc = platform_get_drvdata(pdev);
 
+	device_init_wakeup(&pdev->dev, 0);
 	usb_del_gadget_udc(&udc->gadget);
 
 	for (i = 1; i < udc->num_ep; i++)
@@ -2156,10 +2203,65 @@ static int __exit usba_udc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int usba_udc_suspend(struct device *dev)
+{
+	struct usba_udc *udc = dev_get_drvdata(dev);
+
+	/* Not started */
+	if (!udc->driver)
+		return 0;
+
+	mutex_lock(&udc->vbus_mutex);
+
+	if (!device_may_wakeup(dev)) {
+		usba_stop(udc);
+		goto out;
+	}
+
+	/*
+	 * Device may wake up. We stay clocked if we failed
+	 * to request vbus irq, assuming always on.
+	 */
+	if (gpio_is_valid(udc->vbus_pin)) {
+		usba_stop(udc);
+		enable_irq_wake(gpio_to_irq(udc->vbus_pin));
+	}
+
+out:
+	mutex_unlock(&udc->vbus_mutex);
+	return 0;
+}
+
+static int usba_udc_resume(struct device *dev)
+{
+	struct usba_udc *udc = dev_get_drvdata(dev);
+
+	/* Not started */
+	if (!udc->driver)
+		return 0;
+
+	if (device_may_wakeup(dev) && gpio_is_valid(udc->vbus_pin))
+		disable_irq_wake(gpio_to_irq(udc->vbus_pin));
+
+	/* If Vbus is present, enable the controller and wait for reset */
+	mutex_lock(&udc->vbus_mutex);
+	udc->vbus_prev = vbus_is_present(udc);
+	if (udc->vbus_prev)
+		usba_start(udc);
+	mutex_unlock(&udc->vbus_mutex);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(usba_udc_pm_ops, usba_udc_suspend, usba_udc_resume);
+
 static struct platform_driver udc_driver = {
 	.remove		= __exit_p(usba_udc_remove),
 	.driver		= {
 		.name		= "atmel_usba_udc",
+		.pm		= &usba_udc_pm_ops,
 		.of_match_table	= of_match_ptr(atmel_udc_dt_ids),
 	},
 };

@@ -80,6 +80,13 @@ static const char *const ep_name[] = {
 	"ep-e", "ep-f", "ep-g", "ep-h",
 };
 
+/* Endpoint names for usb3380 advance mode */
+static const char *const ep_name_adv[] = {
+	ep0name,
+	"ep1in", "ep2out", "ep3in", "ep4out",
+	"ep1out", "ep2in", "ep3out", "ep4in",
+};
+
 /* mode 0 == ep-{a,b,c,d} 1K fifo each
  * mode 1 == ep-{a,b} 2K fifo each, ep-{c,d} unavailable
  * mode 2 == ep-a 2K fifo, ep-{b,c} 1K each, ep-d unavailable
@@ -138,31 +145,44 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	u32			max, tmp;
 	unsigned long		flags;
 	static const u32 ep_key[9] = { 1, 0, 1, 0, 1, 1, 0, 1, 0 };
+	int ret = 0;
 
 	ep = container_of(_ep, struct net2280_ep, ep);
 	if (!_ep || !desc || ep->desc || _ep->name == ep0name ||
-			desc->bDescriptorType != USB_DT_ENDPOINT)
+			desc->bDescriptorType != USB_DT_ENDPOINT) {
+		pr_err("%s: failed at line=%d\n", __func__, __LINE__);
 		return -EINVAL;
+	}
 	dev = ep->dev;
-	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
-		return -ESHUTDOWN;
+	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN) {
+		ret = -ESHUTDOWN;
+		goto print_err;
+	}
 
 	/* erratum 0119 workaround ties up an endpoint number */
-	if ((desc->bEndpointAddress & 0x0f) == EP_DONTUSE)
-		return -EDOM;
+	if ((desc->bEndpointAddress & 0x0f) == EP_DONTUSE) {
+		ret = -EDOM;
+		goto print_err;
+	}
 
 	if (dev->quirks & PLX_SUPERSPEED) {
-		if ((desc->bEndpointAddress & 0x0f) >= 0x0c)
-			return -EDOM;
+		if ((desc->bEndpointAddress & 0x0f) >= 0x0c) {
+			ret = -EDOM;
+			goto print_err;
+		}
 		ep->is_in = !!usb_endpoint_dir_in(desc);
-		if (dev->enhanced_mode && ep->is_in && ep_key[ep->num])
-			return -EINVAL;
+		if (dev->enhanced_mode && ep->is_in && ep_key[ep->num]) {
+			ret = -EINVAL;
+			goto print_err;
+		}
 	}
 
 	/* sanity check ep-e/ep-f since their fifos are small */
 	max = usb_endpoint_maxp(desc) & 0x1fff;
-	if (ep->num > 4 && max > 64 && (dev->quirks & PLX_LEGACY))
-		return -ERANGE;
+	if (ep->num > 4 && max > 64 && (dev->quirks & PLX_LEGACY)) {
+		ret = -ERANGE;
+		goto print_err;
+	}
 
 	spin_lock_irqsave(&dev->lock, flags);
 	_ep->maxpacket = max & 0x7ff;
@@ -192,7 +212,8 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		    (dev->gadget.speed == USB_SPEED_HIGH && max != 512) ||
 		    (dev->gadget.speed == USB_SPEED_FULL && max > 64)) {
 			spin_unlock_irqrestore(&dev->lock, flags);
-			return -ERANGE;
+			ret = -ERANGE;
+			goto print_err;
 		}
 	}
 	ep->is_iso = (tmp == USB_ENDPOINT_XFER_ISOC);
@@ -271,7 +292,11 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 
 	/* pci writes may still be posted */
 	spin_unlock_irqrestore(&dev->lock, flags);
-	return 0;
+	return ret;
+
+print_err:
+	dev_err(&ep->dev->pdev->dev, "%s: error=%d\n", __func__, ret);
+	return ret;
 }
 
 static int handshake(u32 __iomem *ptr, u32 mask, u32 done, int usec)
@@ -426,9 +451,10 @@ static int net2280_disable(struct usb_ep *_ep)
 	unsigned long		flags;
 
 	ep = container_of(_ep, struct net2280_ep, ep);
-	if (!_ep || !ep->desc || _ep->name == ep0name)
+	if (!_ep || !ep->desc || _ep->name == ep0name) {
+		pr_err("%s: Invalid ep=%p or ep->desc\n", __func__, _ep);
 		return -EINVAL;
-
+	}
 	spin_lock_irqsave(&ep->dev->lock, flags);
 	nuke(ep);
 
@@ -458,8 +484,10 @@ static struct usb_request
 	struct net2280_ep	*ep;
 	struct net2280_request	*req;
 
-	if (!_ep)
+	if (!_ep) {
+		pr_err("%s: Invalid ep\n", __func__);
 		return NULL;
+	}
 	ep = container_of(_ep, struct net2280_ep, ep);
 
 	req = kzalloc(sizeof(*req), gfp_flags);
@@ -491,8 +519,11 @@ static void net2280_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	struct net2280_request	*req;
 
 	ep = container_of(_ep, struct net2280_ep, ep);
-	if (!_ep || !_req)
+	if (!_ep || !_req) {
+		dev_err(&ep->dev->pdev->dev, "%s: Inavlid ep=%p or req=%p\n",
+							__func__, _ep, _req);
 		return;
+	}
 
 	req = container_of(_req, struct net2280_request, req);
 	WARN_ON(!list_empty(&req->queue));
@@ -896,35 +927,44 @@ net2280_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	struct net2280_ep	*ep;
 	struct net2280		*dev;
 	unsigned long		flags;
+	int ret = 0;
 
 	/* we always require a cpu-view buffer, so that we can
 	 * always use pio (as fallback or whatever).
 	 */
+	ep = container_of(_ep, struct net2280_ep, ep);
+	if (!_ep || (!ep->desc && ep->num != 0)) {
+		pr_err("%s: Invalid ep=%p or ep->desc\n", __func__, _ep);
+		return -EINVAL;
+	}
 	req = container_of(_req, struct net2280_request, req);
 	if (!_req || !_req->complete || !_req->buf ||
-				!list_empty(&req->queue))
-		return -EINVAL;
-	if (_req->length > (~0 & DMA_BYTE_COUNT_MASK))
-		return -EDOM;
-	ep = container_of(_ep, struct net2280_ep, ep);
-	if (!_ep || (!ep->desc && ep->num != 0))
-		return -EINVAL;
+				!list_empty(&req->queue)) {
+		ret = -EINVAL;
+		goto print_err;
+	}
+	if (_req->length > (~0 & DMA_BYTE_COUNT_MASK)) {
+		ret = -EDOM;
+		goto print_err;
+	}
 	dev = ep->dev;
-	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
-		return -ESHUTDOWN;
+	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN) {
+		ret = -ESHUTDOWN;
+		goto print_err;
+	}
 
 	/* FIXME implement PIO fallback for ZLPs with DMA */
-	if (ep->dma && _req->length == 0)
-		return -EOPNOTSUPP;
+	if (ep->dma && _req->length == 0) {
+		ret = -EOPNOTSUPP;
+		goto print_err;
+	}
 
 	/* set up dma mapping in case the caller didn't */
 	if (ep->dma) {
-		int ret;
-
 		ret = usb_gadget_map_request(&dev->gadget, _req,
 				ep->is_in);
 		if (ret)
-			return ret;
+			goto print_err;
 	}
 
 	ep_vdbg(dev, "%s queue req %p, len %d buf %p\n",
@@ -1013,7 +1053,11 @@ done:
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	/* pci writes may still be posted */
-	return 0;
+	return ret;
+
+print_err:
+	dev_err(&ep->dev->pdev->dev, "%s: error=%d\n", __func__, ret);
+	return ret;
 }
 
 static inline void
@@ -1134,8 +1178,11 @@ static int net2280_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	int			stopped;
 
 	ep = container_of(_ep, struct net2280_ep, ep);
-	if (!_ep || (!ep->desc && ep->num != 0) || !_req)
+	if (!_ep || (!ep->desc && ep->num != 0) || !_req) {
+		pr_err("%s: Invalid ep=%p or ep->desc or req=%p\n",
+						__func__, _ep, _req);
 		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&ep->dev->lock, flags);
 	stopped = ep->stopped;
@@ -1157,6 +1204,8 @@ static int net2280_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	}
 	if (&req->req != _req) {
 		spin_unlock_irqrestore(&ep->dev->lock, flags);
+		dev_err(&ep->dev->pdev->dev, "%s: Request mismatch\n",
+								__func__);
 		return -EINVAL;
 	}
 
@@ -1214,20 +1263,28 @@ net2280_set_halt_and_wedge(struct usb_ep *_ep, int value, int wedged)
 	int			retval = 0;
 
 	ep = container_of(_ep, struct net2280_ep, ep);
-	if (!_ep || (!ep->desc && ep->num != 0))
+	if (!_ep || (!ep->desc && ep->num != 0)) {
+		pr_err("%s: Invalid ep=%p or ep->desc\n", __func__, _ep);
 		return -EINVAL;
-	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKNOWN)
-		return -ESHUTDOWN;
+	}
+	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKNOWN) {
+		retval = -ESHUTDOWN;
+		goto print_err;
+	}
 	if (ep->desc /* not ep0 */ && (ep->desc->bmAttributes & 0x03)
-						== USB_ENDPOINT_XFER_ISOC)
-		return -EINVAL;
+						== USB_ENDPOINT_XFER_ISOC) {
+		retval = -EINVAL;
+		goto print_err;
+	}
 
 	spin_lock_irqsave(&ep->dev->lock, flags);
-	if (!list_empty(&ep->queue))
+	if (!list_empty(&ep->queue)) {
 		retval = -EAGAIN;
-	else if (ep->is_in && value && net2280_fifo_status(_ep) != 0)
+		goto print_unlock;
+	} else if (ep->is_in && value && net2280_fifo_status(_ep) != 0) {
 		retval = -EAGAIN;
-	else {
+		goto print_unlock;
+	} else {
 		ep_vdbg(ep->dev, "%s %s %s\n", _ep->name,
 				value ? "set" : "clear",
 				wedged ? "wedge" : "halt");
@@ -1251,6 +1308,12 @@ net2280_set_halt_and_wedge(struct usb_ep *_ep, int value, int wedged)
 	spin_unlock_irqrestore(&ep->dev->lock, flags);
 
 	return retval;
+
+print_unlock:
+	spin_unlock_irqrestore(&ep->dev->lock, flags);
+print_err:
+	dev_err(&ep->dev->pdev->dev, "%s: error=%d\n", __func__, retval);
+	return retval;
 }
 
 static int net2280_set_halt(struct usb_ep *_ep, int value)
@@ -1260,8 +1323,10 @@ static int net2280_set_halt(struct usb_ep *_ep, int value)
 
 static int net2280_set_wedge(struct usb_ep *_ep)
 {
-	if (!_ep || _ep->name == ep0name)
+	if (!_ep || _ep->name == ep0name) {
+		pr_err("%s: Invalid ep=%p or ep0\n", __func__, _ep);
 		return -EINVAL;
+	}
 	return net2280_set_halt_and_wedge(_ep, 1, 1);
 }
 
@@ -1271,14 +1336,22 @@ static int net2280_fifo_status(struct usb_ep *_ep)
 	u32			avail;
 
 	ep = container_of(_ep, struct net2280_ep, ep);
-	if (!_ep || (!ep->desc && ep->num != 0))
+	if (!_ep || (!ep->desc && ep->num != 0)) {
+		pr_err("%s: Invalid ep=%p or ep->desc\n", __func__, _ep);
 		return -ENODEV;
-	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKNOWN)
+	}
+	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKNOWN) {
+		dev_err(&ep->dev->pdev->dev,
+			"%s: Invalid driver=%p or speed=%d\n",
+			__func__, ep->dev->driver, ep->dev->gadget.speed);
 		return -ESHUTDOWN;
+	}
 
 	avail = readl(&ep->regs->ep_avail) & (BIT(12) - 1);
-	if (avail > ep->fifo_size)
+	if (avail > ep->fifo_size) {
+		dev_err(&ep->dev->pdev->dev, "%s: Fifo overflow\n", __func__);
 		return -EOVERFLOW;
+	}
 	if (ep->is_in)
 		avail = ep->fifo_size - avail;
 	return avail;
@@ -1289,10 +1362,16 @@ static void net2280_fifo_flush(struct usb_ep *_ep)
 	struct net2280_ep	*ep;
 
 	ep = container_of(_ep, struct net2280_ep, ep);
-	if (!_ep || (!ep->desc && ep->num != 0))
+	if (!_ep || (!ep->desc && ep->num != 0)) {
+		pr_err("%s: Invalid ep=%p or ep->desc\n", __func__, _ep);
 		return;
-	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKNOWN)
+	}
+	if (!ep->dev->driver || ep->dev->gadget.speed == USB_SPEED_UNKNOWN) {
+		dev_err(&ep->dev->pdev->dev,
+			"%s: Invalid driver=%p or speed=%d\n",
+			__func__, ep->dev->driver, ep->dev->gadget.speed);
 		return;
+	}
 
 	writel(BIT(FIFO_FLUSH), &ep->regs->ep_stat);
 	(void) readl(&ep->regs->ep_rsp);
@@ -1977,7 +2056,7 @@ static void usb_reinit_338x(struct net2280 *dev)
 	for (i = 0; i < dev->n_ep; i++) {
 		struct net2280_ep *ep = &dev->ep[i];
 
-		ep->ep.name = ep_name[i];
+		ep->ep.name = dev->enhanced_mode ? ep_name_adv[i] : ep_name[i];
 		ep->dev = dev;
 		ep->num = i;
 
@@ -1989,11 +2068,9 @@ static void usb_reinit_338x(struct net2280 *dev)
 			ep->regs = (struct net2280_ep_regs __iomem *)
 				(((void __iomem *)&dev->epregs[ne[i]]) +
 				ep_reg_addr[i]);
-			ep->fiforegs = &dev->fiforegs[i];
 		} else {
 			ep->cfg = &dev->epregs[i];
 			ep->regs = &dev->epregs[i];
-			ep->fiforegs = &dev->fiforegs[i];
 		}
 
 		ep->fifo_size = (i != 0) ? 2048 : 512;
@@ -2186,7 +2263,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 		dev->ep[i].irqs = 0;
 
 	/* hook up the driver ... */
-	dev->softconnect = 1;
 	driver->driver.bus = NULL;
 	dev->driver = driver;
 
@@ -3052,6 +3128,8 @@ next_endpoints:
 		BIT(PCI_RETRY_ABORT_INTERRUPT))
 
 static void handle_stat1_irqs(struct net2280 *dev, u32 stat)
+__releases(dev->lock)
+__acquires(dev->lock)
 {
 	struct net2280_ep	*ep;
 	u32			tmp, num, mask, scratch;
@@ -3373,8 +3451,6 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		u32 usbstat;
 		dev->usb_ext = (struct usb338x_usb_ext_regs __iomem *)
 							(base + 0x00b4);
-		dev->fiforegs = (struct usb338x_fifo_regs __iomem *)
-							(base + 0x0500);
 		dev->llregs = (struct usb338x_ll_regs __iomem *)
 							(base + 0x0700);
 		dev->ll_lfps_regs = (struct usb338x_ll_lfps_regs __iomem *)

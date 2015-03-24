@@ -507,7 +507,8 @@ void musb_hnp_stop(struct musb *musb)
 	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
 }
 
-static void musb_generic_disable(struct musb *musb);
+static void musb_recover_from_babble(struct musb *musb);
+
 /*
  * Interrupt Service Routine to record USB "global" interrupts.
  * Since these do not happen often and signify things of
@@ -534,29 +535,15 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	 */
 	if (int_usb & MUSB_INTR_RESUME) {
 		handled = IRQ_HANDLED;
-		dev_dbg(musb->controller, "RESUME (%s)\n", usb_otg_state_string(musb->xceiv->otg->state));
+		dev_dbg(musb->controller, "RESUME (%s)\n",
+				usb_otg_state_string(musb->xceiv->otg->state));
 
 		if (devctl & MUSB_DEVCTL_HM) {
-			void __iomem *mbase = musb->mregs;
-			u8 power;
-
 			switch (musb->xceiv->otg->state) {
 			case OTG_STATE_A_SUSPEND:
 				/* remote wakeup?  later, GetPortStatus
 				 * will stop RESUME signaling
 				 */
-
-				power = musb_readb(musb->mregs, MUSB_POWER);
-				if (power & MUSB_POWER_SUSPENDM) {
-					/* spurious */
-					musb->int_usb &= ~MUSB_INTR_SUSPEND;
-					dev_dbg(musb->controller, "Spurious SUSPENDM\n");
-					break;
-				}
-
-				power &= ~MUSB_POWER_SUSPENDM;
-				musb_writeb(mbase, MUSB_POWER,
-						power | MUSB_POWER_RESUME);
 
 				musb->port1_status |=
 						(USB_PORT_STAT_C_SUSPEND << 16)
@@ -775,10 +762,6 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 
 		musb->ep0_stage = MUSB_EP0_START;
 
-		/* flush endpoints when transitioning from Device Mode */
-		if (is_peripheral_active(musb)) {
-			/* REVISIT HNP; just force disconnect */
-		}
 		musb->intrtxe = musb->epmask;
 		musb_writew(musb->mregs, MUSB_INTRTXE, musb->intrtxe);
 		musb->intrrxe = musb->epmask & 0xfffe;
@@ -879,20 +862,19 @@ b_host:
 	 */
 	if (int_usb & MUSB_INTR_RESET) {
 		handled = IRQ_HANDLED;
-		if ((devctl & MUSB_DEVCTL_HM) != 0) {
+		if (devctl & MUSB_DEVCTL_HM) {
 			/*
-			 * Looks like non-HS BABBLE can be ignored, but
-			 * HS BABBLE is an error condition. For HS the solution
-			 * is to avoid babble in the first place and fix what
-			 * caused BABBLE. When HS BABBLE happens we can only
-			 * stop the session.
+			 * When BABBLE happens what we can depends on which
+			 * platform MUSB is running, because some platforms
+			 * implemented proprietary means for 'recovering' from
+			 * Babble conditions. One such platform is AM335x. In
+			 * most cases, however, the only thing we can do is
+			 * drop the session.
 			 */
-			if (devctl & (MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV))
-				dev_dbg(musb->controller, "BABBLE devctl: %02x\n", devctl);
-			else {
-				ERR("Stopping host session -- babble\n");
-				musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
-			}
+			dev_err(musb->controller, "Babble\n");
+
+			if (is_host_active(musb))
+				musb_recover_from_babble(musb);
 		} else {
 			dev_dbg(musb->controller, "BUS RESET as %s\n",
 				usb_otg_state_string(musb->xceiv->otg->state));
@@ -929,13 +911,6 @@ b_host:
 					usb_otg_state_string(musb->xceiv->otg->state));
 			}
 		}
-	}
-
-	/* handle babble condition */
-	if (int_usb & MUSB_INTR_BABBLE && is_host_active(musb)) {
-		musb_generic_disable(musb);
-		schedule_delayed_work(&musb->recover_work,
-				      msecs_to_jiffies(100));
 	}
 
 #if 0
@@ -990,7 +965,7 @@ b_host:
 
 /*-------------------------------------------------------------------------*/
 
-static void musb_generic_disable(struct musb *musb)
+static void musb_disable_interrupts(struct musb *musb)
 {
 	void __iomem	*mbase = musb->mregs;
 	u16	temp;
@@ -1002,14 +977,33 @@ static void musb_generic_disable(struct musb *musb)
 	musb->intrrxe = 0;
 	musb_writew(mbase, MUSB_INTRRXE, 0);
 
-	/* off */
-	musb_writeb(mbase, MUSB_DEVCTL, 0);
-
 	/*  flush pending interrupts */
 	temp = musb_readb(mbase, MUSB_INTRUSB);
 	temp = musb_readw(mbase, MUSB_INTRTX);
 	temp = musb_readw(mbase, MUSB_INTRRX);
+}
 
+static void musb_enable_interrupts(struct musb *musb)
+{
+	void __iomem    *regs = musb->mregs;
+
+	/*  Set INT enable registers, enable interrupts */
+	musb->intrtxe = musb->epmask;
+	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
+	musb->intrrxe = musb->epmask & 0xfffe;
+	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
+	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
+
+}
+
+static void musb_generic_disable(struct musb *musb)
+{
+	void __iomem	*mbase = musb->mregs;
+
+	musb_disable_interrupts(musb);
+
+	/* off */
+	musb_writeb(mbase, MUSB_DEVCTL, 0);
 }
 
 /*
@@ -1022,13 +1016,7 @@ void musb_start(struct musb *musb)
 
 	dev_dbg(musb->controller, "<== devctl %02x\n", devctl);
 
-	/*  Set INT enable registers, enable interrupts */
-	musb->intrtxe = musb->epmask;
-	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
-	musb->intrrxe = musb->epmask & 0xfffe;
-	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
-	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
-
+	musb_enable_interrupts(musb);
 	musb_writeb(regs, MUSB_TESTMODE, 0);
 
 	/* put into basic highspeed mode and start session */
@@ -1587,9 +1575,12 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 irqreturn_t musb_interrupt(struct musb *musb)
 {
 	irqreturn_t	retval = IRQ_NONE;
+	unsigned long	status;
+	unsigned long	epnum;
 	u8		devctl;
-	int		ep_num;
-	u32		reg;
+
+	if (!musb->int_usb && !musb->int_tx && !musb->int_rx)
+		return IRQ_NONE;
 
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
@@ -1597,56 +1588,57 @@ irqreturn_t musb_interrupt(struct musb *musb)
 		is_host_active(musb) ? "host" : "peripheral",
 		musb->int_usb, musb->int_tx, musb->int_rx);
 
-	/* the core can interrupt us for multiple reasons; docs have
-	 * a generic interrupt flowchart to follow
+	/**
+	 * According to Mentor Graphics' documentation, flowchart on page 98,
+	 * IRQ should be handled as follows:
+	 *
+	 * . Resume IRQ
+	 * . Session Request IRQ
+	 * . VBUS Error IRQ
+	 * . Suspend IRQ
+	 * . Connect IRQ
+	 * . Disconnect IRQ
+	 * . Reset/Babble IRQ
+	 * . SOF IRQ (we're not using this one)
+	 * . Endpoint 0 IRQ
+	 * . TX Endpoints
+	 * . RX Endpoints
+	 *
+	 * We will be following that flowchart in order to avoid any problems
+	 * that might arise with internal Finite State Machine.
 	 */
+
 	if (musb->int_usb)
-		retval |= musb_stage0_irq(musb, musb->int_usb,
-				devctl);
+		retval |= musb_stage0_irq(musb, musb->int_usb, devctl);
 
-	/* "stage 1" is handling endpoint irqs */
-
-	/* handle endpoint 0 first */
 	if (musb->int_tx & 1) {
 		if (is_host_active(musb))
 			retval |= musb_h_ep0_irq(musb);
 		else
 			retval |= musb_g_ep0_irq(musb);
+
+		/* we have just handled endpoint 0 IRQ, clear it */
+		musb->int_tx &= ~BIT(0);
 	}
 
-	/* RX on endpoints 1-15 */
-	reg = musb->int_rx >> 1;
-	ep_num = 1;
-	while (reg) {
-		if (reg & 1) {
-			/* musb_ep_select(musb->mregs, ep_num); */
-			/* REVISIT just retval = ep->rx_irq(...) */
-			retval = IRQ_HANDLED;
-			if (is_host_active(musb))
-				musb_host_rx(musb, ep_num);
-			else
-				musb_g_rx(musb, ep_num);
-		}
+	status = musb->int_tx;
 
-		reg >>= 1;
-		ep_num++;
+	for_each_set_bit(epnum, &status, 16) {
+		retval = IRQ_HANDLED;
+		if (is_host_active(musb))
+			musb_host_tx(musb, epnum);
+		else
+			musb_g_tx(musb, epnum);
 	}
 
-	/* TX on endpoints 1-15 */
-	reg = musb->int_tx >> 1;
-	ep_num = 1;
-	while (reg) {
-		if (reg & 1) {
-			/* musb_ep_select(musb->mregs, ep_num); */
-			/* REVISIT just retval |= ep->tx_irq(...) */
-			retval = IRQ_HANDLED;
-			if (is_host_active(musb))
-				musb_host_tx(musb, ep_num);
-			else
-				musb_g_tx(musb, ep_num);
-		}
-		reg >>= 1;
-		ep_num++;
+	status = musb->int_rx;
+
+	for_each_set_bit(epnum, &status, 16) {
+		retval = IRQ_HANDLED;
+		if (is_host_active(musb))
+			musb_host_rx(musb, epnum);
+		else
+			musb_g_rx(musb, epnum);
 	}
 
 	return retval;
@@ -1825,33 +1817,44 @@ static void musb_irq_work(struct work_struct *data)
 	}
 }
 
-/* Recover from babble interrupt conditions */
-static void musb_recover_work(struct work_struct *data)
+static void musb_recover_from_babble(struct musb *musb)
 {
-	struct musb *musb = container_of(data, struct musb, recover_work.work);
-	int status, ret;
+	int ret;
+	u8 devctl;
 
-	ret  = musb_platform_reset(musb);
-	if (ret)
+	musb_disable_interrupts(musb);
+
+	/*
+	 * wait at least 320 cycles of 60MHz clock. That's 5.3us, we will give
+	 * it some slack and wait for 10us.
+	 */
+	udelay(10);
+
+	ret  = musb_platform_recover(musb);
+	if (ret) {
+		musb_enable_interrupts(musb);
 		return;
+	}
 
-	usb_phy_vbus_off(musb->xceiv);
-	usleep_range(100, 200);
+	/* drop session bit */
+	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+	devctl &= ~MUSB_DEVCTL_SESSION;
+	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
 
-	usb_phy_vbus_on(musb->xceiv);
-	usleep_range(100, 200);
+	/* tell usbcore about it */
+	musb_root_disconnect(musb);
 
 	/*
 	 * When a babble condition occurs, the musb controller
 	 * removes the session bit and the endpoint config is lost.
 	 */
 	if (musb->dyn_fifo)
-		status = ep_config_from_table(musb);
+		ret = ep_config_from_table(musb);
 	else
-		status = ep_config_from_hw(musb);
+		ret = ep_config_from_hw(musb);
 
-	/* start the session again */
-	if (status == 0)
+	/* restart session */
+	if (ret == 0)
 		musb_start(musb);
 }
 
@@ -2087,7 +2090,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&musb->irq_work, musb_irq_work);
-	INIT_DELAYED_WORK(&musb->recover_work, musb_recover_work);
 	INIT_DELAYED_WORK(&musb->deassert_reset_work, musb_deassert_reset);
 	INIT_DELAYED_WORK(&musb->finish_resume_work, musb_host_finish_resume);
 
@@ -2183,7 +2185,6 @@ fail4:
 
 fail3:
 	cancel_work_sync(&musb->irq_work);
-	cancel_delayed_work_sync(&musb->recover_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
@@ -2249,7 +2250,6 @@ static int musb_remove(struct platform_device *pdev)
 		dma_controller_destroy(musb->dma_controller);
 
 	cancel_work_sync(&musb->irq_work);
-	cancel_delayed_work_sync(&musb->recover_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	musb_free(musb);
