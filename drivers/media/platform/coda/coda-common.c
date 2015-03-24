@@ -1339,6 +1339,9 @@ static void coda_stop_streaming(struct vb2_queue *q)
 	struct coda_ctx *ctx = vb2_get_drv_priv(q);
 	struct coda_dev *dev = ctx->dev;
 	struct vb2_buffer *buf;
+	bool stop;
+
+	stop = ctx->streamon_out && ctx->streamon_cap;
 
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		v4l2_dbg(1, coda_debug, &dev->v4l2_dev,
@@ -1363,7 +1366,7 @@ static void coda_stop_streaming(struct vb2_queue *q)
 			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_ERROR);
 	}
 
-	if (!ctx->streamon_out && !ctx->streamon_cap) {
+	if (stop) {
 		struct coda_buffer_meta *meta;
 
 		if (ctx->ops->seq_end_work) {
