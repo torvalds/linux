@@ -316,13 +316,6 @@ int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u32 blend_cfg)
 
 u32 mdp_ctl_flush_mask_encoder(struct mdp5_interface *intf)
 {
-	/* these are dummy bits for now, but will appear in next chipsets: */
-#define MDP5_CTL_FLUSH_TIMING_0		0x80000000
-#define MDP5_CTL_FLUSH_TIMING_1		0x40000000
-#define MDP5_CTL_FLUSH_TIMING_2		0x20000000
-#define MDP5_CTL_FLUSH_TIMING_3		0x10000000
-#define MDP5_CTL_FLUSH_WB		0x00010000
-
 	if (intf->type == INTF_WB)
 		return MDP5_CTL_FLUSH_WB;
 
@@ -337,10 +330,6 @@ u32 mdp_ctl_flush_mask_encoder(struct mdp5_interface *intf)
 
 u32 mdp_ctl_flush_mask_cursor(int cursor_id)
 {
-	/* these are dummy bits for now, but will appear in next chipsets: */
-#define MDP5_CTL_FLUSH_CURSOR_0		0x00400000
-#define MDP5_CTL_FLUSH_CURSOR_1		0x00800000
-
 	switch (cursor_id) {
 	case 0: return MDP5_CTL_FLUSH_CURSOR_0;
 	case 1: return MDP5_CTL_FLUSH_CURSOR_1;
