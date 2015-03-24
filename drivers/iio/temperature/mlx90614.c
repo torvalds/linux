@@ -23,8 +23,8 @@
 #define MLX90614_OP_RAM 0x00
 
 /* RAM offsets with 16-bit data, MSB first */
-#define MLX90614_TA 0x06 /* ambient temperature */
-#define MLX90614_TOBJ1 0x07 /* object temperature */
+#define MLX90614_TA	(MLX90614_OP_RAM | 0x06) /* ambient temperature */
+#define MLX90614_TOBJ1	(MLX90614_OP_RAM | 0x07) /* object 1 temperature */
 
 struct mlx90614_data {
 	struct i2c_client *client;
@@ -42,13 +42,13 @@ static int mlx90614_read_raw(struct iio_dev *indio_dev,
 		switch (channel->channel2) {
 		case IIO_MOD_TEMP_AMBIENT:
 			ret = i2c_smbus_read_word_data(data->client,
-			    MLX90614_OP_RAM | MLX90614_TA);
+			    MLX90614_TA);
 			if (ret < 0)
 				return ret;
 			break;
 		case IIO_MOD_TEMP_OBJECT:
 			ret = i2c_smbus_read_word_data(data->client,
-			    MLX90614_OP_RAM | MLX90614_TOBJ1);
+			    MLX90614_TOBJ1);
 			if (ret < 0)
 				return ret;
 			break;

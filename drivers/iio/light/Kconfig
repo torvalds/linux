@@ -59,6 +59,16 @@ config CM3232
 	 To compile this driver as a module, choose M here:
 	 the module will be called cm3232.
 
+config CM3323
+	depends on I2C
+	tristate "Capella CM3323 color light sensor"
+	help
+	 Say Y here if you want to build a driver for Capela CM3323
+	 color sensor.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called cm3323.
+
 config CM36651
 	depends on I2C
 	tristate "CM36651 driver"

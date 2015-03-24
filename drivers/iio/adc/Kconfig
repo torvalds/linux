@@ -186,10 +186,11 @@ config MAX1363
 	  data via the iio dev interface.
 
 config MCP320X
-	tristate "Microchip Technology MCP3204/08"
+	tristate "Microchip Technology MCP3x01/02/04/08"
 	depends on SPI
 	help
-	  Say yes here to build support for Microchip Technology's MCP3204 or
+	  Say yes here to build support for Microchip Technology's
+	  MCP3001, MCP3002, MCP3004, MCP3008, MCP3201, MCP3202, MCP3204 or
 	  MCP3208 analog to digital converter.
 
 	  This driver can also be built as a module. If so, the module will be

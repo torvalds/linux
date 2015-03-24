@@ -95,12 +95,7 @@ static int dump_one_trigger(const char *dev_dir_name)
 static void dump_devices(void)
 {
 	const struct dirent *ent;
-	int number, numstrlen;
-
-	FILE *nameFile;
 	DIR *dp;
-	char thisname[IIO_MAX_NAME_LENGTH];
-	char *filename;
 
 	dp = opendir(iio_dir);
 	if (dp == NULL) {

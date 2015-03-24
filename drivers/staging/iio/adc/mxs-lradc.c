@@ -993,7 +993,7 @@ static ssize_t mxs_lradc_show_scale_available_ch(struct device *dev,
 	int i, len = 0;
 
 	for (i = 0; i < ARRAY_SIZE(lradc->scale_avail[ch]); i++)
-		len += sprintf(buf + len, "%d.%09u ",
+		len += sprintf(buf + len, "%u.%09u ",
 			       lradc->scale_avail[ch][i].integer,
 			       lradc->scale_avail[ch][i].nano);
 

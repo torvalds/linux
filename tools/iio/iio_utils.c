@@ -11,17 +11,12 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <dirent.h>
 #include <errno.h>
-
-/* Made up value to limit allocation sizes */
-#define IIO_MAX_NAME_LENGTH 30
-
-#define FORMAT_SCAN_ELEMENTS_DIR "%s/scan_elements"
-#define FORMAT_TYPE_FILE "%s_type"
+#include <ctype.h>
+#include "iio_utils.h"
 
 const char *iio_dir = "/sys/bus/iio/devices/";
 
@@ -30,7 +25,7 @@ const char *iio_dir = "/sys/bus/iio/devices/";
  * @full_name: the full channel name
  * @generic_name: the output generic channel name
  **/
-inline int iioutils_break_up_name(const char *full_name,
+int iioutils_break_up_name(const char *full_name,
 				  char **generic_name)
 {
 	char *current;
@@ -57,33 +52,6 @@ inline int iioutils_break_up_name(const char *full_name,
 }
 
 /**
- * struct iio_channel_info - information about a given channel
- * @name: channel name
- * @generic_name: general name for channel type
- * @scale: scale factor to be applied for conversion to si units
- * @offset: offset to be applied for conversion to si units
- * @index: the channel index in the buffer output
- * @bytes: number of bytes occupied in buffer output
- * @mask: a bit mask for the raw output
- * @is_signed: is the raw value stored signed
- * @enabled: is this channel enabled
- **/
-struct iio_channel_info {
-	char *name;
-	char *generic_name;
-	float scale;
-	float offset;
-	unsigned index;
-	unsigned bytes;
-	unsigned bits_used;
-	unsigned shift;
-	uint64_t mask;
-	unsigned be;
-	unsigned is_signed;
-	unsigned location;
-};
-
-/**
  * iioutils_get_type() - find and process _type attribute data
  * @is_signed: output whether channel is signed
  * @bytes: output how many bytes the channel storage occupies
@@ -93,7 +61,7 @@ struct iio_channel_info {
  * @name: the channel name
  * @generic_name: the channel type name
  **/
-inline int iioutils_get_type(unsigned *is_signed,
+int iioutils_get_type(unsigned *is_signed,
 			     unsigned *bytes,
 			     unsigned *bits_used,
 			     unsigned *shift,
@@ -197,7 +165,7 @@ error_ret:
 	return ret;
 }
 
-inline int iioutils_get_param_float(float *output,
+int iioutils_get_param_float(float *output,
 				    const char *param_name,
 				    const char *device_dir,
 				    const char *name,
@@ -261,7 +229,7 @@ error_ret:
  *
  **/
 
-inline void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
+void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
 					 int cnt)
 {
 
@@ -282,7 +250,7 @@ inline void bsort_channel_array_by_index(struct iio_channel_info **ci_array,
  * @device_dir: the IIO device directory in sysfs
  * @
  **/
-inline int build_channel_array(const char *device_dir,
+int build_channel_array(const char *device_dir,
 			      struct iio_channel_info **ci_array,
 			      int *counter)
 {
@@ -445,7 +413,7 @@ error_ret:
  *
  * Typical types this is used for are device and trigger.
  **/
-inline int find_type_by_name(const char *name, const char *type)
+int find_type_by_name(const char *name, const char *type)
 {
 	const struct dirent *ent;
 	int number, numstrlen;
@@ -504,7 +472,7 @@ inline int find_type_by_name(const char *name, const char *type)
 	return -ENODEV;
 }
 
-inline int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
+int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 {
 	int ret = 0;
 	FILE *sysfsfp;
