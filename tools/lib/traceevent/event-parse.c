@@ -4008,6 +4008,10 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				goto process_again;
 			case '.':
 				goto process_again;
+			case 'z':
+			case 'Z':
+				ls = 1;
+				goto process_again;
 			case 'p':
 				ls = 1;
 				/* fall through */
