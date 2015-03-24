@@ -458,6 +458,7 @@ __create_page_tables:
 	 */
 	mov	x0, x25
 	add	x1, x26, #SWAPPER_DIR_SIZE
+	dmb	sy
 	bl	__inval_cache_range
 
 	mov	lr, x27
