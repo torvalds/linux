@@ -13,6 +13,8 @@
 #define _ASM_ACPI_H
 
 #include <linux/mm.h>
+#include <asm/cputype.h>
+#include <asm/smp_plat.h>
 
 /* Basic configuration for ACPI */
 #ifdef	CONFIG_ACPI
@@ -26,6 +28,9 @@ static inline void __iomem *acpi_os_ioremap(acpi_physical_address phys,
 	return ioremap_cache(phys, size);
 }
 #define acpi_os_ioremap acpi_os_ioremap
+
+typedef u64 phys_cpuid_t;
+#define PHYS_CPUID_INVALID INVALID_HWID
 
 #define acpi_strict 1	/* No out-of-spec workarounds on ARM64 */
 extern int acpi_disabled;
@@ -57,6 +62,13 @@ static inline void enable_acpi(void)
 	acpi_pci_disabled = 0;
 	acpi_noirq = 0;
 }
+
+/*
+ * The ACPI processor driver for ACPI core code needs this macro
+ * to find out this cpu was already mapped (mapping from CPU hardware
+ * ID to CPU logical ID) or not.
+ */
+#define cpu_physical_id(cpu) cpu_logical_map(cpu)
 
 /*
  * It's used from ACPI core in kdump to boot UP system with SMP kernel,

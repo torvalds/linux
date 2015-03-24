@@ -83,6 +83,31 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
 	return 0;
 }
 
+/*
+ * Retrieve the ARM CPU physical identifier (MPIDR)
+ */
+static int map_gicc_mpidr(struct acpi_subtable_header *entry,
+		int device_declaration, u32 acpi_id, phys_cpuid_t *mpidr)
+{
+	struct acpi_madt_generic_interrupt *gicc =
+	    container_of(entry, struct acpi_madt_generic_interrupt, header);
+
+	if (!(gicc->flags & ACPI_MADT_ENABLED))
+		return -ENODEV;
+
+	/* device_declaration means Device object in DSDT, in the
+	 * GIC interrupt model, logical processors are required to
+	 * have a Processor Device object in the DSDT, so we should
+	 * check device_declaration here
+	 */
+	if (device_declaration && (gicc->uid == acpi_id)) {
+		*mpidr = gicc->arm_mpidr;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static phys_cpuid_t map_madt_entry(int type, u32 acpi_id)
 {
 	unsigned long madt_end, entry;
@@ -110,6 +135,9 @@ static phys_cpuid_t map_madt_entry(int type, u32 acpi_id)
 				break;
 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
 			if (!map_lsapic_id(header, type, acpi_id, &phys_id))
+				break;
+		} else if (header->type == ACPI_MADT_TYPE_GENERIC_INTERRUPT) {
+			if (!map_gicc_mpidr(header, type, acpi_id, &phys_id))
 				break;
 		}
 		entry += header->length;
@@ -143,6 +171,8 @@ static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
 		map_lsapic_id(header, type, acpi_id, &phys_id);
 	else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC)
 		map_x2apic_id(header, type, acpi_id, &phys_id);
+	else if (header->type == ACPI_MADT_TYPE_GENERIC_INTERRUPT)
+		map_gicc_mpidr(header, type, acpi_id, &phys_id);
 
 exit:
 	kfree(buffer.pointer);
