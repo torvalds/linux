@@ -262,7 +262,7 @@ PV_CALLEE_SAVE_REGS_THUNK(lguest_save_fl);
 PV_CALLEE_SAVE_REGS_THUNK(lguest_irq_disable);
 /*:*/
 
-/* These are in i386_head.S */
+/* These are in head_32.S */
 extern void lg_irq_enable(void);
 extern void lg_restore_fl(unsigned long flags);
 
@@ -1366,7 +1366,7 @@ static void lguest_restart(char *reason)
  * fit comfortably.
  *
  * First we need assembly templates of each of the patchable Guest operations,
- * and these are in i386_head.S.
+ * and these are in head_32.S.
  */
 
 /*G:060 We construct a table from the assembler templates: */
