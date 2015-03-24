@@ -208,13 +208,13 @@ static inline unsigned int rht_key_hashfn(
 	struct rhashtable *ht, const struct bucket_table *tbl,
 	const void *key, const struct rhashtable_params params)
 {
-	unsigned hash;
+	unsigned int hash;
 
 	/* params must be equal to ht->p if it isn't constant. */
 	if (!__builtin_constant_p(params.key_len))
 		hash = ht->p.hashfn(key, ht->key_len, tbl->hash_rnd);
 	else if (params.key_len) {
-		unsigned key_len = params.key_len;
+		unsigned int key_len = params.key_len;
 
 		if (params.hashfn)
 			hash = params.hashfn(key, key_len, tbl->hash_rnd);
@@ -224,7 +224,7 @@ static inline unsigned int rht_key_hashfn(
 			hash = jhash2(key, key_len / sizeof(u32),
 				      tbl->hash_rnd);
 	} else {
-		unsigned key_len = ht->p.key_len;
+		unsigned int key_len = ht->p.key_len;
 
 		if (params.hashfn)
 			hash = params.hashfn(key, key_len, tbl->hash_rnd);
@@ -512,7 +512,7 @@ static inline void *rhashtable_lookup_fast(
 	};
 	const struct bucket_table *tbl;
 	struct rhash_head *he;
-	unsigned hash;
+	unsigned int hash;
 
 	rcu_read_lock();
 
@@ -550,8 +550,8 @@ static inline int __rhashtable_insert_fast(
 	struct bucket_table *tbl, *new_tbl;
 	struct rhash_head *head;
 	spinlock_t *lock;
-	unsigned elasticity;
-	unsigned hash;
+	unsigned int elasticity;
+	unsigned int hash;
 	int err;
 
 restart:
@@ -718,7 +718,7 @@ static inline int __rhashtable_remove_fast(
 	struct rhash_head __rcu **pprev;
 	struct rhash_head *he;
 	spinlock_t * lock;
-	unsigned hash;
+	unsigned int hash;
 	int err = -ENOENT;
 
 	hash = rht_head_hashfn(ht, tbl, obj, params);

@@ -153,7 +153,7 @@ static struct bucket_table *rhashtable_last_table(struct rhashtable *ht,
 	return new_tbl;
 }
 
-static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
+static int rhashtable_rehash_one(struct rhashtable *ht, unsigned int old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
 	struct bucket_table *new_tbl = rhashtable_last_table(ht,
@@ -162,7 +162,7 @@ static int rhashtable_rehash_one(struct rhashtable *ht, unsigned old_hash)
 	int err = -ENOENT;
 	struct rhash_head *head, *next, *entry;
 	spinlock_t *new_bucket_lock;
-	unsigned new_hash;
+	unsigned int new_hash;
 
 	rht_for_each(entry, old_tbl, old_hash) {
 		err = 0;
@@ -199,7 +199,8 @@ out:
 	return err;
 }
 
-static void rhashtable_rehash_chain(struct rhashtable *ht, unsigned old_hash)
+static void rhashtable_rehash_chain(struct rhashtable *ht,
+				    unsigned int old_hash)
 {
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
 	spinlock_t *old_bucket_lock;
@@ -244,7 +245,7 @@ static int rhashtable_rehash_table(struct rhashtable *ht)
 	struct bucket_table *old_tbl = rht_dereference(ht->tbl, ht);
 	struct bucket_table *new_tbl;
 	struct rhashtable_walker *walker;
-	unsigned old_hash;
+	unsigned int old_hash;
 
 	new_tbl = rht_dereference(old_tbl->future_tbl, ht);
 	if (!new_tbl)
@@ -324,11 +325,12 @@ static int rhashtable_expand(struct rhashtable *ht)
 static int rhashtable_shrink(struct rhashtable *ht)
 {
 	struct bucket_table *new_tbl, *old_tbl = rht_dereference(ht->tbl, ht);
-	unsigned size = roundup_pow_of_two(atomic_read(&ht->nelems) * 3 / 2);
+	unsigned int size;
 	int err;
 
 	ASSERT_RHT_MUTEX(ht);
 
+	size = roundup_pow_of_two(atomic_read(&ht->nelems) * 3 / 2);
 	if (size < ht->p.min_size)
 		size = ht->p.min_size;
 
@@ -379,9 +381,9 @@ unlock:
 
 static bool rhashtable_check_elasticity(struct rhashtable *ht,
 					struct bucket_table *tbl,
-					unsigned hash)
+					unsigned int hash)
 {
-	unsigned elasticity = ht->elasticity;
+	unsigned int elasticity = ht->elasticity;
 	struct rhash_head *head;
 
 	rht_for_each(head, tbl, hash)
@@ -431,7 +433,7 @@ int rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 			   struct bucket_table *tbl)
 {
 	struct rhash_head *head;
-	unsigned hash;
+	unsigned int hash;
 	int err;
 
 	tbl = rhashtable_last_table(ht, tbl);
