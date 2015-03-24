@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -150,10 +150,60 @@ const struct mdp5_cfg_hw apq8084_config = {
 	.max_clk = 320000000,
 };
 
+const struct mdp5_cfg_hw msm8x16_config = {
+	.name = "msm8x16",
+	.mdp = {
+		.count = 1,
+		.base = { 0x01000 },
+	},
+	.smp = {
+		.mmb_count = 8,
+		.mmb_size = 8192,
+		.clients = {
+			[SSPP_VIG0] = 1, [SSPP_DMA0] = 4,
+			[SSPP_RGB0] = 7, [SSPP_RGB1] = 8,
+		},
+	},
+	.ctl = {
+		.count = 5,
+		.base = { 0x02000, 0x02200, 0x02400, 0x02600, 0x02800 },
+		.flush_hw_mask = 0x4003ffff,
+	},
+	.pipe_vig = {
+		.count = 1,
+		.base = { 0x05000 },
+	},
+	.pipe_rgb = {
+		.count = 2,
+		.base = { 0x15000, 0x17000 },
+	},
+	.pipe_dma = {
+		.count = 1,
+		.base = { 0x25000 },
+	},
+	.lm = {
+		.count = 2, /* LM0 and LM3 */
+		.base = { 0x45000, 0x48000 },
+		.nb_stages = 5,
+	},
+	.dspp = {
+		.count = 1,
+		.base = { 0x55000 },
+
+	},
+	.intf = {
+		.count = 1, /* INTF_1 */
+		.base = { 0x6B800 },
+	},
+	/* TODO enable .intfs[] with [1] = INTF_DSI, once DSI is implemented */
+	.max_clk = 320000000,
+};
+
 static const struct mdp5_cfg_handler cfg_handlers[] = {
 	{ .revision = 0, .config = { .hw = &msm8x74_config } },
 	{ .revision = 2, .config = { .hw = &msm8x74_config } },
 	{ .revision = 3, .config = { .hw = &apq8084_config } },
+	{ .revision = 6, .config = { .hw = &msm8x16_config } },
 };
 
 
