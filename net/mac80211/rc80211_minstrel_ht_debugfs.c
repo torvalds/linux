@@ -19,7 +19,7 @@ static char *
 minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 {
 	const struct mcs_group *mg;
-	unsigned int j, tp, prob, eprob;
+	unsigned int j, tp, prob, eprob, tx_time;
 	char htmode = '2';
 	char gimode = 'L';
 	u32 gflags;
@@ -45,12 +45,19 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		if (!(mi->groups[i].supported & BIT(j)))
 			continue;
 
-		if (gflags & IEEE80211_TX_RC_MCS)
-			p += sprintf(p, " HT%c0/%cGI ", htmode, gimode);
-		else if (gflags & IEEE80211_TX_RC_VHT_MCS)
-			p += sprintf(p, "VHT%c0/%cGI ", htmode, gimode);
-		else
-			p += sprintf(p, " CCK/%cP   ", j < 4 ? 'L' : 'S');
+		if (gflags & IEEE80211_TX_RC_MCS) {
+			p += sprintf(p, "HT%c0  ", htmode);
+			p += sprintf(p, "%cGI  ", gimode);
+			p += sprintf(p, "%d  ", mg->streams);
+		} else if (gflags & IEEE80211_TX_RC_VHT_MCS) {
+			p += sprintf(p, "VHT%c0 ", htmode);
+			p += sprintf(p, "%cGI ", gimode);
+			p += sprintf(p, "%d  ", mg->streams);
+		} else {
+			p += sprintf(p, "CCK    ");
+			p += sprintf(p, "%cP  ", j < 4 ? 'L' : 'S');
+			p += sprintf(p, "1 ");
+		}
 
 		*(p++) = (idx == mi->max_tp_rate[0]) ? 'A' : ' ';
 		*(p++) = (idx == mi->max_tp_rate[1]) ? 'B' : ' ';
@@ -59,21 +66,27 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		*(p++) = (idx == mi->max_prob_rate) ? 'P' : ' ';
 
 		if (gflags & IEEE80211_TX_RC_MCS) {
-			p += sprintf(p, " MCS%-2u ", (mg->streams - 1) * 8 + j);
+			p += sprintf(p, "  MCS%-2u", (mg->streams - 1) * 8 + j);
 		} else if (gflags & IEEE80211_TX_RC_VHT_MCS) {
-			p += sprintf(p, " MCS%-1u/%1u", j, mg->streams);
+			p += sprintf(p, "  MCS%-1u/%1u", j, mg->streams);
 		} else {
 			int r = bitrates[j % 4];
 
-			p += sprintf(p, " %2u.%1uM ", r / 10, r % 10);
+			p += sprintf(p, "   %2u.%1uM", r / 10, r % 10);
 		}
+
+		p += sprintf(p, "  %3u  ", idx);
+
+		/* tx_time[rate(i)] in usec */
+		tx_time = DIV_ROUND_CLOSEST(mg->duration[j], 1000);
+		p += sprintf(p, "%6u   ", tx_time);
 
 		tp = mr->cur_tp / 10;
 		prob = MINSTREL_TRUNC(mr->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mr->probability * 1000);
 
-		p += sprintf(p, " %4u.%1u %3u.%1u %3u.%1u "
-				"%3u %4u(%4u) %9llu(%9llu)\n",
+		p += sprintf(p, "%4u.%1u   %3u.%1u     %3u.%1u "
+				"%3u   %3u %-3u   %9llu   %-9llu\n",
 				tp / 10, tp % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,
@@ -110,8 +123,14 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 
 	file->private_data = ms;
 	p = ms->buf;
-	p += sprintf(p, " type           rate      tpt eprob *prob "
-			"ret  *ok(*cum)        ok(      cum)\n");
+
+	p += sprintf(p, "\n");
+	p += sprintf(p, "              best   ________rate______    "
+			"__statistics__    ________last_______    "
+			"______sum-of________\n");
+	p += sprintf(p, "mode guard #  rate  [name   idx airtime]  [ ø(tp) "
+			"ø(prob)]  [prob.|retry|suc|att]  [#success | "
+			"#attempts]\n");
 
 	p = minstrel_ht_stats_dump(mi, MINSTREL_CCK_GROUP, p);
 	for (i = 0; i < MINSTREL_CCK_GROUP; i++)
@@ -123,7 +142,7 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 			"lookaround %d\n",
 			max(0, (int) mi->total_packets - (int) mi->sample_packets),
 			mi->sample_packets);
-	p += sprintf(p, "Average A-MPDU length: %d.%d\n",
+	p += sprintf(p, "Average # of aggregated frames per A-MPDU: %d.%d\n",
 		MINSTREL_TRUNC(mi->avg_ampdu_len),
 		MINSTREL_TRUNC(mi->avg_ampdu_len * 10) % 10);
 	ms->len = p - ms->buf;
