@@ -222,7 +222,7 @@ static inline unsigned long current_stack_pointer(void)
  * currently at exactly SIZEOF_PTREGS bytes away from the top of the
  * stack:
  *
- *      mov THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS), %eax
+ *      mov ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS), %eax
  *
  * will translate to:
  *
@@ -230,7 +230,7 @@ static inline unsigned long current_stack_pointer(void)
  *
  * which is below the current RSP by almost 16K.
  */
-#define THREAD_INFO(field, reg, off) ((field)+(off)-THREAD_SIZE)(reg)
+#define ASM_THREAD_INFO(field, reg, off) ((field)+(off)-THREAD_SIZE)(reg)
 
 #endif
 
