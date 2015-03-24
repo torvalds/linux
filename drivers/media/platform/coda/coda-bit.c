@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/irqreturn.h>
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -35,6 +36,8 @@
 
 #define CODA_DEFAULT_GAMMA	4096
 #define CODA9_DEFAULT_GAMMA	24576	/* 0.75 * 32768 */
+
+static void coda_free_bitstream_buffer(struct coda_ctx *ctx);
 
 static inline int coda_is_initialized(struct coda_dev *dev)
 {
@@ -389,21 +392,7 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 	if (dev->devtype->product == CODA_DX6)
 		return 0;
 
-	if (ctx->psbuf.vaddr) {
-		v4l2_err(&dev->v4l2_dev, "psmembuf still allocated\n");
-		return -EBUSY;
-	}
-	if (ctx->slicebuf.vaddr) {
-		v4l2_err(&dev->v4l2_dev, "slicebuf still allocated\n");
-		return -EBUSY;
-	}
-	if (ctx->workbuf.vaddr) {
-		v4l2_err(&dev->v4l2_dev, "context buffer still allocated\n");
-		ret = -EBUSY;
-		return -ENOMEM;
-	}
-
-	if (q_data->fourcc == V4L2_PIX_FMT_H264) {
+	if (!ctx->slicebuf.vaddr && q_data->fourcc == V4L2_PIX_FMT_H264) {
 		/* worst case slice size */
 		size = (DIV_ROUND_UP(q_data->width, 16) *
 			DIV_ROUND_UP(q_data->height, 16)) * 3200 / 8 + 512;
@@ -417,7 +406,7 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 		}
 	}
 
-	if (dev->devtype->product == CODA_7541) {
+	if (!ctx->psbuf.vaddr && dev->devtype->product == CODA_7541) {
 		ret = coda_alloc_context_buf(ctx, &ctx->psbuf,
 					     CODA7_PS_BUF_SIZE, "psbuf");
 		if (ret < 0) {
@@ -427,16 +416,19 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 		}
 	}
 
-	size = dev->devtype->workbuf_size;
-	if (dev->devtype->product == CODA_960 &&
-	    q_data->fourcc == V4L2_PIX_FMT_H264)
-		size += CODA9_PS_SAVE_SIZE;
-	ret = coda_alloc_context_buf(ctx, &ctx->workbuf, size, "workbuf");
-	if (ret < 0) {
-		v4l2_err(&dev->v4l2_dev,
-			 "failed to allocate %d byte context buffer",
-			 ctx->workbuf.size);
-		goto err;
+	if (!ctx->workbuf.vaddr) {
+		size = dev->devtype->workbuf_size;
+		if (dev->devtype->product == CODA_960 &&
+		    q_data->fourcc == V4L2_PIX_FMT_H264)
+			size += CODA9_PS_SAVE_SIZE;
+		ret = coda_alloc_context_buf(ctx, &ctx->workbuf, size,
+					     "workbuf");
+		if (ret < 0) {
+			v4l2_err(&dev->v4l2_dev,
+				 "failed to allocate %d byte context buffer",
+				 ctx->workbuf.size);
+			goto err;
+		}
 	}
 
 	return 0;
@@ -1337,6 +1329,7 @@ static void coda_bit_release(struct coda_ctx *ctx)
 	mutex_lock(&ctx->buffer_mutex);
 	coda_free_framebuffers(ctx);
 	coda_free_context_buffers(ctx);
+	coda_free_bitstream_buffer(ctx);
 	mutex_unlock(&ctx->buffer_mutex);
 }
 
@@ -1354,6 +1347,38 @@ const struct coda_context_ops coda_bit_encode_ops = {
  * Decoder context operations
  */
 
+static int coda_alloc_bitstream_buffer(struct coda_ctx *ctx,
+				       struct coda_q_data *q_data)
+{
+	if (ctx->bitstream.vaddr)
+		return 0;
+
+	ctx->bitstream.size = roundup_pow_of_two(q_data->sizeimage * 2);
+	ctx->bitstream.vaddr = dma_alloc_writecombine(
+			&ctx->dev->plat_dev->dev, ctx->bitstream.size,
+			&ctx->bitstream.paddr, GFP_KERNEL);
+	if (!ctx->bitstream.vaddr) {
+		v4l2_err(&ctx->dev->v4l2_dev,
+			 "failed to allocate bitstream ringbuffer");
+		return -ENOMEM;
+	}
+	kfifo_init(&ctx->bitstream_fifo,
+		   ctx->bitstream.vaddr, ctx->bitstream.size);
+
+	return 0;
+}
+
+static void coda_free_bitstream_buffer(struct coda_ctx *ctx)
+{
+	if (ctx->bitstream.vaddr == NULL)
+		return;
+
+	dma_free_writecombine(&ctx->dev->plat_dev->dev, ctx->bitstream.size,
+			      ctx->bitstream.vaddr, ctx->bitstream.paddr);
+	ctx->bitstream.vaddr = NULL;
+	kfifo_init(&ctx->bitstream_fifo, NULL, 0);
+}
+
 static int coda_decoder_reqbufs(struct coda_ctx *ctx,
 				struct v4l2_requestbuffers *rb)
 {
@@ -1368,7 +1393,13 @@ static int coda_decoder_reqbufs(struct coda_ctx *ctx,
 		ret = coda_alloc_context_buffers(ctx, q_data_src);
 		if (ret < 0)
 			return ret;
+		ret = coda_alloc_bitstream_buffer(ctx, q_data_src);
+		if (ret < 0) {
+			coda_free_context_buffers(ctx);
+			return ret;
+		}
 	} else {
+		coda_free_bitstream_buffer(ctx);
 		coda_free_context_buffers(ctx);
 	}
 
@@ -1736,7 +1767,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	 * by up to 512 bytes
 	 */
 	if (ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG) {
-		if (coda_get_bitstream_payload(ctx) >= CODA_MAX_FRAME_SIZE - 512)
+		if (coda_get_bitstream_payload(ctx) >= ctx->bitstream.size - 512)
 			kfifo_init(&ctx->bitstream_fifo,
 				ctx->bitstream.vaddr, ctx->bitstream.size);
 	}

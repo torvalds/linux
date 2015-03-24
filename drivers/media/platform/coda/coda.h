@@ -26,7 +26,6 @@
 #include "coda_regs.h"
 
 #define CODA_MAX_FRAMEBUFFERS	8
-#define CODA_MAX_FRAME_SIZE	0x100000
 #define FMO_SLICE_SAVE_BUF_SIZE	(32)
 
 enum {

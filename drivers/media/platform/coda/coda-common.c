@@ -1723,20 +1723,6 @@ static int coda_open(struct file *file)
 			goto err_dma_alloc;
 		}
 	}
-	if (ctx->use_bit && ctx->inst_type == CODA_INST_DECODER) {
-		ctx->bitstream.size = CODA_MAX_FRAME_SIZE;
-		ctx->bitstream.vaddr = dma_alloc_writecombine(
-				&dev->plat_dev->dev, ctx->bitstream.size,
-				&ctx->bitstream.paddr, GFP_KERNEL);
-		if (!ctx->bitstream.vaddr) {
-			v4l2_err(&dev->v4l2_dev,
-				 "failed to allocate bitstream ringbuffer");
-			ret = -ENOMEM;
-			goto err_dma_writecombine;
-		}
-	}
-	kfifo_init(&ctx->bitstream_fifo,
-		ctx->bitstream.vaddr, ctx->bitstream.size);
 	mutex_init(&ctx->bitstream_mutex);
 	mutex_init(&ctx->buffer_mutex);
 	INIT_LIST_HEAD(&ctx->buffer_meta_list);
@@ -1750,10 +1736,6 @@ static int coda_open(struct file *file)
 
 	return 0;
 
-err_dma_writecombine:
-	if (ctx->dev->devtype->product == CODA_DX6)
-		coda_free_aux_buf(dev, &ctx->workbuf);
-	coda_free_aux_buf(dev, &ctx->parabuf);
 err_dma_alloc:
 	v4l2_ctrl_handler_free(&ctx->ctrls);
 err_ctrls_setup:
@@ -1798,10 +1780,6 @@ static int coda_release(struct file *file)
 	list_del(&ctx->list);
 	coda_unlock(ctx);
 
-	if (ctx->bitstream.vaddr) {
-		dma_free_writecombine(&dev->plat_dev->dev, ctx->bitstream.size,
-			ctx->bitstream.vaddr, ctx->bitstream.paddr);
-	}
 	if (ctx->dev->devtype->product == CODA_DX6)
 		coda_free_aux_buf(dev, &ctx->workbuf);
 
