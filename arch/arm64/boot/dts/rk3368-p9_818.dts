@@ -249,6 +249,10 @@
 	status = "disabled";
 };
 
+&gmac {
+        status = "disabled";
+};
+
 &uart_dbg {
 	status = "okay";
 };
