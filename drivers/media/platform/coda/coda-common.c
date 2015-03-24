@@ -1932,10 +1932,8 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 	/* allocate auxiliary per-device code buffer for the BIT processor */
 	ret = coda_alloc_aux_buf(dev, &dev->codebuf, fw->size, "codebuf",
 				 dev->debugfs_root);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to allocate code buffer\n");
+	if (ret < 0)
 		goto put_pm;
-	}
 
 	/* Copy the whole firmware image to the code buffer */
 	memcpy(dev->codebuf.vaddr, fw->data, fw->size);
@@ -2173,20 +2171,16 @@ static int coda_probe(struct platform_device *pdev)
 		ret = coda_alloc_aux_buf(dev, &dev->workbuf,
 					 dev->devtype->workbuf_size, "workbuf",
 					 dev->debugfs_root);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to allocate work buffer\n");
+		if (ret < 0)
 			goto err_v4l2_register;
-		}
 	}
 
 	if (dev->devtype->tempbuf_size) {
 		ret = coda_alloc_aux_buf(dev, &dev->tempbuf,
 					 dev->devtype->tempbuf_size, "tempbuf",
 					 dev->debugfs_root);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to allocate temp buffer\n");
+		if (ret < 0)
 			goto err_v4l2_register;
-		}
 	}
 
 	dev->iram.size = dev->devtype->iram_size;

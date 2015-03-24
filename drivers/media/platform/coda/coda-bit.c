@@ -402,10 +402,8 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 	if (!ctx->parabuf.vaddr) {
 		ret = coda_alloc_context_buf(ctx, &ctx->parabuf,
 					     CODA_PARA_BUF_SIZE, "parabuf");
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev, "failed to allocate parabuf");
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	if (dev->devtype->product == CODA_DX6)
@@ -417,22 +415,15 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 			DIV_ROUND_UP(q_data->height, 16)) * 3200 / 8 + 512;
 		ret = coda_alloc_context_buf(ctx, &ctx->slicebuf, size,
 					     "slicebuf");
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "failed to allocate %d byte slice buffer",
-				 ctx->slicebuf.size);
+		if (ret < 0)
 			goto err;
-		}
 	}
 
 	if (!ctx->psbuf.vaddr && dev->devtype->product == CODA_7541) {
 		ret = coda_alloc_context_buf(ctx, &ctx->psbuf,
 					     CODA7_PS_BUF_SIZE, "psbuf");
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "failed to allocate psmem buffer");
+		if (ret < 0)
 			goto err;
-		}
 	}
 
 	if (!ctx->workbuf.vaddr) {
@@ -442,12 +433,8 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 			size += CODA9_PS_SAVE_SIZE;
 		ret = coda_alloc_context_buf(ctx, &ctx->workbuf, size,
 					     "workbuf");
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "failed to allocate %d byte context buffer",
-				 ctx->workbuf.size);
+		if (ret < 0)
 			goto err;
-		}
 	}
 
 	return 0;
