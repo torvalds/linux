@@ -134,7 +134,7 @@ void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 
 /* Recalculate success probabilities and counters for a given rate using EWMA */
 void minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs);
-int minstrel_get_tp_avg(struct minstrel_rate *mr);
+int minstrel_get_tp_avg(struct minstrel_rate *mr, int prob_ewma);
 
 /* debugfs */
 int minstrel_stats_open(struct inode *inode, struct file *file);
