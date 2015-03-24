@@ -3512,6 +3512,8 @@ search_free:
 
 	/*  allocate before insert / bind */
 	if (vma->vm->allocate_va_range) {
+		trace_i915_va_alloc(vma->vm, vma->node.start, vma->node.size,
+				VM_TO_TRACE_NAME(vma->vm));
 		ret = vma->vm->allocate_va_range(vma->vm,
 						vma->node.start,
 						vma->node.size);
