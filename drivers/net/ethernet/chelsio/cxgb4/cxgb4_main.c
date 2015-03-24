@@ -1271,6 +1271,10 @@ static u16 cxgb_select_queue(struct net_device *dev, struct sk_buff *skb,
 			txq = 0;
 		} else {
 			txq = (vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+#ifdef CONFIG_CHELSIO_T4_FCOE
+			if (skb->protocol == htons(ETH_P_FCOE))
+				txq = skb->priority & 0x7;
+#endif /* CONFIG_CHELSIO_T4_FCOE */
 		}
 		return txq;
 	}
@@ -4578,6 +4582,10 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller  = cxgb_netpoll,
 #endif
+#ifdef CONFIG_CHELSIO_T4_FCOE
+	.ndo_fcoe_enable      = cxgb_fcoe_enable,
+	.ndo_fcoe_disable     = cxgb_fcoe_disable,
+#endif /* CONFIG_CHELSIO_T4_FCOE */
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll        = cxgb_busy_poll,
 #endif
