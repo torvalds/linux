@@ -144,6 +144,8 @@ extent_cache           Enable an extent cache based on rb-tree, it can cache
                        as many as extent which map between contiguous logical
                        address and physical address per inode, resulting in
                        increasing the cache hit ratio.
+noinline_data          Disable the inline data feature, inline data feature is
+                       enabled by default.
 
 ================================================================================
 DEBUGFS ENTRIES
