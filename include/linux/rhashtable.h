@@ -585,8 +585,8 @@ restart:
 	if (unlikely(rht_grow_above_100(ht, tbl))) {
 slow_path:
 		spin_unlock_bh(lock);
-		rcu_read_unlock();
 		err = rhashtable_insert_rehash(ht);
+		rcu_read_unlock();
 		if (err)
 			return err;
 
