@@ -56,8 +56,7 @@ physdev_mt(const struct sk_buff *skb, struct xt_action_param *par)
 
 	/* This only makes sense in the FORWARD and POSTROUTING chains */
 	if ((info->bitmask & XT_PHYSDEV_OP_BRIDGED) &&
-	    (!!(nf_bridge->mask & BRNF_BRIDGED) ^
-	    !(info->invert & XT_PHYSDEV_OP_BRIDGED)))
+	    (!!nf_bridge->physoutdev ^ !(info->invert & XT_PHYSDEV_OP_BRIDGED)))
 		return false;
 
 	if ((info->bitmask & XT_PHYSDEV_OP_ISIN &&
