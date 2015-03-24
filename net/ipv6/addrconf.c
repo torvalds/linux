@@ -2906,7 +2906,7 @@ static int ipv6_generate_stable_address(struct in6_addr *address,
 		char __data[SHA_MESSAGE_BYTES];
 		struct {
 			struct in6_addr secret;
-			__be64 prefix;
+			__be32 prefix[2];
 			unsigned char hwaddr[MAX_ADDR_LEN];
 			u8 dad_count;
 		} __packed;
@@ -2932,16 +2932,16 @@ retry:
 	memset(&data, 0, sizeof(data));
 	memset(workspace, 0, sizeof(workspace));
 	memcpy(data.hwaddr, idev->dev->perm_addr, idev->dev->addr_len);
-	data.prefix = ((__be64)address->s6_addr32[0] << 32) |
-		       (__be64)address->s6_addr32[1];
+	data.prefix[0] = address->s6_addr32[0];
+	data.prefix[1] = address->s6_addr32[1];
 	data.secret = secret;
 	data.dad_count = dad_count;
 
 	sha_transform(digest, data.__data, workspace);
 
 	temp = *address;
-	temp.s6_addr32[2] = digest[0];
-	temp.s6_addr32[3] = digest[1];
+	temp.s6_addr32[2] = (__force __be32)digest[0];
+	temp.s6_addr32[3] = (__force __be32)digest[1];
 
 	spin_unlock_bh(&lock);
 
