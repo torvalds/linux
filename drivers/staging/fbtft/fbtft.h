@@ -259,9 +259,7 @@ struct fbtft_par {
 #define NUMARGS(...)  (sizeof((int[]){__VA_ARGS__})/sizeof(int))
 
 #define write_reg(par, ...)                                              \
-do {                                                                     \
-	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__); \
-} while (0)
+	par->fbtftops.write_register(par, NUMARGS(__VA_ARGS__), __VA_ARGS__)
 
 /* fbtft-core.c */
 extern void fbtft_dbg_hex(const struct device *dev,
