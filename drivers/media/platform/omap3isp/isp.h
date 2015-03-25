@@ -18,6 +18,7 @@
 #define OMAP3_ISP_CORE_H
 
 #include <media/omap3isp.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <linux/clk-provider.h>
 #include <linux/device.h>
@@ -178,6 +179,7 @@ struct isp_xclk {
  */
 struct isp_device {
 	struct v4l2_device v4l2_dev;
+	struct v4l2_async_notifier notifier;
 	struct media_device media_dev;
 	struct device *dev;
 	u32 revision;
@@ -224,6 +226,15 @@ struct isp_device {
 
 	unsigned int sbl_resources;
 	unsigned int subclk_resources;
+
+#define ISP_MAX_SUBDEVS		8
+	struct v4l2_subdev *subdevs[ISP_MAX_SUBDEVS];
+};
+
+struct isp_async_subdev {
+	struct v4l2_subdev *sd;
+	struct isp_bus_cfg bus;
+	struct v4l2_async_subdev asd;
 };
 
 #define v4l2_dev_to_isp_device(dev) \
