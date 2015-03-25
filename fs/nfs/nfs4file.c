@@ -10,6 +10,8 @@
 #include "fscache.h"
 #include "pnfs.h"
 
+#include "nfstrace.h"
+
 #ifdef CONFIG_NFS_V4_2
 #include "nfs42.h"
 #endif
@@ -100,6 +102,8 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	int ret;
 	struct inode *inode = file_inode(file);
 
+	trace_nfs_fsync_enter(inode);
+
 	do {
 		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 		if (ret != 0)
@@ -118,6 +122,7 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		end = LLONG_MAX;
 	} while (ret == -EAGAIN);
 
+	trace_nfs_fsync_exit(inode, ret);
 	return ret;
 }
 
