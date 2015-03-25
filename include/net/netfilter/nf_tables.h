@@ -423,6 +423,8 @@ static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
 	return elem + set->ops->elemsize;
 }
 
+void nft_set_elem_destroy(const struct nft_set *set, void *elem);
+
 /**
  *	struct nft_expr_type - nf_tables expression type
  *

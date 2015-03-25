@@ -72,17 +72,6 @@ out:
 	return false;
 }
 
-static void nft_rbtree_elem_destroy(const struct nft_set *set,
-				    struct nft_rbtree_elem *rbe)
-{
-	nft_data_uninit(nft_set_ext_key(&rbe->ext), NFT_DATA_VALUE);
-	if (set->flags & NFT_SET_MAP &&
-	    nft_set_ext_exists(&rbe->ext, NFT_SET_EXT_DATA))
-		nft_data_uninit(nft_set_ext_data(&rbe->ext), set->dtype);
-
-	kfree(rbe);
-}
-
 static int __nft_rbtree_insert(const struct nft_set *set,
 			       struct nft_rbtree_elem *new)
 {
@@ -133,7 +122,6 @@ static void nft_rbtree_remove(const struct nft_set *set,
 	spin_lock_bh(&nft_rbtree_lock);
 	rb_erase(&rbe->node, &priv->root);
 	spin_unlock_bh(&nft_rbtree_lock);
-	kfree(rbe);
 }
 
 static int nft_rbtree_get(const struct nft_set *set, struct nft_set_elem *elem)
@@ -213,7 +201,7 @@ static void nft_rbtree_destroy(const struct nft_set *set)
 	while ((node = priv->root.rb_node) != NULL) {
 		rb_erase(node, &priv->root);
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
-		nft_rbtree_elem_destroy(set, rbe);
+		nft_set_elem_destroy(set, rbe);
 	}
 }
 

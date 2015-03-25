@@ -96,23 +96,12 @@ static int nft_hash_insert(const struct nft_set *set,
 					    nft_hash_params);
 }
 
-static void nft_hash_elem_destroy(const struct nft_set *set,
-				  struct nft_hash_elem *he)
-{
-	nft_data_uninit(nft_set_ext_key(&he->ext), NFT_DATA_VALUE);
-	if (set->flags & NFT_SET_MAP)
-		nft_data_uninit(nft_set_ext_data(&he->ext), set->dtype);
-	kfree(he);
-}
-
 static void nft_hash_remove(const struct nft_set *set,
 			    const struct nft_set_elem *elem)
 {
 	struct nft_hash *priv = nft_set_priv(set);
 
 	rhashtable_remove_fast(&priv->ht, elem->cookie, nft_hash_params);
-	synchronize_rcu();
-	kfree(elem->cookie);
 }
 
 static int nft_hash_get(const struct nft_set *set, struct nft_set_elem *elem)
@@ -208,16 +197,17 @@ static int nft_hash_init(const struct nft_set *set,
 	return rhashtable_init(&priv->ht, &params);
 }
 
-static void nft_free_element(void *ptr, void *arg)
+static void nft_hash_elem_destroy(void *ptr, void *arg)
 {
-	nft_hash_elem_destroy((const struct nft_set *)arg, ptr);
+	nft_set_elem_destroy((const struct nft_set *)arg, ptr);
 }
 
 static void nft_hash_destroy(const struct nft_set *set)
 {
 	struct nft_hash *priv = nft_set_priv(set);
 
-	rhashtable_free_and_destroy(&priv->ht, nft_free_element, (void *)set);
+	rhashtable_free_and_destroy(&priv->ht, nft_hash_elem_destroy,
+				    (void *)set);
 }
 
 static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
