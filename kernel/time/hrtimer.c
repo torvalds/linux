@@ -54,7 +54,7 @@
 
 #include <trace/events/timer.h>
 
-#include "timekeeping.h"
+#include "tick-internal.h"
 
 /*
  * The timer bases:
