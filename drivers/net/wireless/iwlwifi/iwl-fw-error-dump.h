@@ -252,6 +252,8 @@ iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
  *	goes below a threshold.
  * @FW_DBG_TRIGGER_TXQ_TIMERS: configures the timers for the Tx queue hang
  *	detection.
+ * @FW_DBG_TRIGGER_TIME_EVENT: trigger log collection upon time events related
+ *	events.
  */
 enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_INVALID = 0,
@@ -264,6 +266,7 @@ enum iwl_fw_dbg_trigger {
 	FW_DBG_TRIGGER_STATS,
 	FW_DBG_TRIGGER_RSSI,
 	FW_DBG_TRIGGER_TXQ_TIMERS,
+	FW_DBG_TRIGGER_TIME_EVENT,
 
 	/* must be last */
 	FW_DBG_TRIGGER_MAX,

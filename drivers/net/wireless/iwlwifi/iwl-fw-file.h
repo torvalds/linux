@@ -637,6 +637,22 @@ struct iwl_fw_dbg_trigger_txq_timer {
 } __packed;
 
 /**
+ * struct iwl_fw_dbg_trigger_time_event - configures a time event trigger
+ * time_Events: a list of tuples <id, action_bitmap>. The driver will issue a
+ *	trigger each time a time event notification that relates to time event
+ *	id with one of the actions in the bitmap is received and
+ *	BIT(notif->status) is set in status_bitmap.
+ *
+ */
+struct iwl_fw_dbg_trigger_time_event {
+	struct {
+		__le32 id;
+		__le32 action_bitmap;
+		__le32 status_bitmap;
+	} __packed time_events[16];
+} __packed;
+
+/**
  * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used

@@ -1237,6 +1237,8 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		sizeof(struct iwl_fw_dbg_trigger_low_rssi);
 	trigger_tlv_sz[FW_DBG_TRIGGER_TXQ_TIMERS] =
 		sizeof(struct iwl_fw_dbg_trigger_txq_timer);
+	trigger_tlv_sz[FW_DBG_TRIGGER_TIME_EVENT] =
+		sizeof(struct iwl_fw_dbg_trigger_time_event);
 
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++) {
 		if (pieces->dbg_trigger_tlv[i]) {

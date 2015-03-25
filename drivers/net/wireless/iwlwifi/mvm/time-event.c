@@ -226,6 +226,44 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 	iwl_mvm_te_clear_data(mvm, te_data);
 }
 
+static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
+				     struct iwl_time_event_notif *notif,
+				     struct iwl_mvm_time_event_data *te_data)
+{
+	struct iwl_fw_dbg_trigger_tlv *trig;
+	struct iwl_fw_dbg_trigger_time_event *te_trig;
+	int i;
+
+	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT))
+		return;
+
+	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TIME_EVENT);
+	te_trig = (void *)trig->data;
+
+	if (!iwl_fw_dbg_trigger_check_stop(mvm, te_data->vif, trig))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(te_trig->time_events); i++) {
+		u32 trig_te_id = le32_to_cpu(te_trig->time_events[i].id);
+		u32 trig_action_bitmap =
+			le32_to_cpu(te_trig->time_events[i].action_bitmap);
+		u32 trig_status_bitmap =
+			le32_to_cpu(te_trig->time_events[i].status_bitmap);
+
+		if (trig_te_id != te_data->id ||
+		    !(trig_action_bitmap & le32_to_cpu(notif->action)) ||
+		    !(trig_status_bitmap & BIT(le32_to_cpu(notif->status))))
+			continue;
+
+		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
+					    "Time event %d Action 0x%x received status: %d",
+					    te_data->id,
+					    le32_to_cpu(notif->action),
+					    le32_to_cpu(notif->status));
+		break;
+	}
+}
+
 /*
  * Handles a FW notification for an event that is known to the driver.
  *
@@ -242,6 +280,8 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	IWL_DEBUG_TE(mvm, "Handle time event notif - UID = 0x%x action %d\n",
 		     le32_to_cpu(notif->unique_id),
 		     le32_to_cpu(notif->action));
+
+	iwl_mvm_te_check_trigger(mvm, notif, te_data);
 
 	/*
 	 * The FW sends the start/end time event notifications even for events
@@ -323,6 +363,8 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 	}
 	if (!aux_roc_te) /* Not a Aux ROC time event */
 		return -EINVAL;
+
+	iwl_mvm_te_check_trigger(mvm, notif, te_data);
 
 	if (!le32_to_cpu(notif->status)) {
 		IWL_DEBUG_TE(mvm,
