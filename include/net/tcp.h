@@ -529,8 +529,6 @@ int tcp_write_wakeup(struct sock *);
 void tcp_send_fin(struct sock *sk);
 void tcp_send_active_reset(struct sock *sk, gfp_t priority);
 int tcp_send_synack(struct sock *);
-bool tcp_syn_flood_action(struct sock *sk, const struct sk_buff *skb,
-			  const char *proto);
 void tcp_push_one(struct sock *, unsigned int mss_now);
 void tcp_send_ack(struct sock *sk);
 void tcp_send_delayed_ack(struct sock *sk);

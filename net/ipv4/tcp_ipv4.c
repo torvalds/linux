@@ -856,35 +856,6 @@ static void tcp_v4_reqsk_destructor(struct request_sock *req)
 	kfree(inet_rsk(req)->opt);
 }
 
-/*
- * Return true if a syncookie should be sent
- */
-bool tcp_syn_flood_action(struct sock *sk,
-			 const struct sk_buff *skb,
-			 const char *proto)
-{
-	const char *msg = "Dropping request";
-	bool want_cookie = false;
-	struct listen_sock *lopt;
-
-#ifdef CONFIG_SYN_COOKIES
-	if (sysctl_tcp_syncookies) {
-		msg = "Sending cookies";
-		want_cookie = true;
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPREQQFULLDOCOOKIES);
-	} else
-#endif
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPREQQFULLDROP);
-
-	lopt = inet_csk(sk)->icsk_accept_queue.listen_opt;
-	if (!lopt->synflood_warned && sysctl_tcp_syncookies != 2) {
-		lopt->synflood_warned = 1;
-		pr_info("%s: Possible SYN flooding on port %d. %s.  Check SNMP counters.\n",
-			proto, ntohs(tcp_hdr(skb)->dest), msg);
-	}
-	return want_cookie;
-}
-EXPORT_SYMBOL(tcp_syn_flood_action);
 
 #ifdef CONFIG_TCP_MD5SIG
 /*
