@@ -3908,11 +3908,9 @@ static const struct file_operations tracing_saved_cmdlines_size_fops = {
 	.write		= tracing_saved_cmdlines_size_write,
 };
 
-static void
-trace_insert_enum_map(struct trace_enum_map **start, struct trace_enum_map **stop)
+static void trace_insert_enum_map(struct trace_enum_map **start, int len)
 {
 	struct trace_enum_map **map;
-	int len = stop - start;
 
 	if (len <= 0)
 		return;
@@ -6561,8 +6559,47 @@ extern struct trace_enum_map *__stop_ftrace_enum_maps[];
 
 static void __init trace_enum_init(void)
 {
-	trace_insert_enum_map(__start_ftrace_enum_maps, __stop_ftrace_enum_maps);
+	int len;
+
+	len = __stop_ftrace_enum_maps - __start_ftrace_enum_maps;
+	trace_insert_enum_map(__start_ftrace_enum_maps, len);
 }
+
+#ifdef CONFIG_MODULES
+static void trace_module_add_enums(struct module *mod)
+{
+	if (!mod->num_trace_enums)
+		return;
+
+	/*
+	 * Modules with bad taint do not have events created, do
+	 * not bother with enums either.
+	 */
+	if (trace_module_has_bad_taint(mod))
+		return;
+
+	trace_insert_enum_map(mod->trace_enums, mod->num_trace_enums);
+}
+
+static int trace_module_notify(struct notifier_block *self,
+			       unsigned long val, void *data)
+{
+	struct module *mod = data;
+
+	switch (val) {
+	case MODULE_STATE_COMING:
+		trace_module_add_enums(mod);
+		break;
+	}
+
+	return 0;
+}
+
+static struct notifier_block trace_module_nb = {
+	.notifier_call = trace_module_notify,
+	.priority = 0,
+};
+#endif
 
 static __init int tracer_init_debugfs(void)
 {
@@ -6589,6 +6626,10 @@ static __init int tracer_init_debugfs(void)
 			  NULL, &tracing_saved_cmdlines_size_fops);
 
 	trace_enum_init();
+
+#ifdef CONFIG_MODULES
+	register_module_notifier(&trace_module_nb);
+#endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,

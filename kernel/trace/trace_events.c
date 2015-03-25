@@ -2034,7 +2034,7 @@ static int trace_module_notify(struct notifier_block *self,
 
 static struct notifier_block trace_module_nb = {
 	.notifier_call = trace_module_notify,
-	.priority = 0,
+	.priority = 1, /* higher than trace.c module notify */
 };
 #endif /* CONFIG_MODULES */
 
