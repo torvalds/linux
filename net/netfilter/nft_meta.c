@@ -153,7 +153,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		}
 		break;
 	case NFT_META_CPU:
-		dest->data[0] = smp_processor_id();
+		dest->data[0] = raw_smp_processor_id();
 		break;
 	case NFT_META_IIFGROUP:
 		if (in == NULL)
