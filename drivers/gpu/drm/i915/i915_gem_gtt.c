@@ -2540,7 +2540,7 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 	struct sg_table *st;
 	unsigned int tile_pitch, tile_height;
 	unsigned int width_pages, height_pages;
-	int ret = ENOMEM;
+	int ret = -ENOMEM;
 
 	pages = obj->base.size / PAGE_SIZE;
 
