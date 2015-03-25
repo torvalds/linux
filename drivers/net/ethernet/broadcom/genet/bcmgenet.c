@@ -2050,9 +2050,6 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv)
 
 	netif_dbg(priv, hw, priv->dev, "%s\n", __func__);
 
-	/* Init rDma */
-	bcmgenet_rdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
-
 	/* Initialize common Rx ring structures */
 	priv->rx_bds = priv->base + priv->hw_params->rdma_offset;
 	priv->num_rx_bds = TOTAL_DESC;
@@ -2066,25 +2063,13 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv)
 		cb->bd_addr = priv->rx_bds + i * DMA_DESC_SIZE;
 	}
 
-	/* Initialize Rx queues */
-	ret = bcmgenet_init_rx_queues(priv->dev);
-	if (ret) {
-		netdev_err(priv->dev, "failed to initialize Rx queues\n");
-		bcmgenet_free_rx_buffers(priv);
-		kfree(priv->rx_cbs);
-		return ret;
-	}
-
-	/* Init tDma */
-	bcmgenet_tdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
-
 	/* Initialize common TX ring structures */
 	priv->tx_bds = priv->base + priv->hw_params->tdma_offset;
 	priv->num_tx_bds = TOTAL_DESC;
 	priv->tx_cbs = kcalloc(priv->num_tx_bds, sizeof(struct enet_cb),
 			       GFP_KERNEL);
 	if (!priv->tx_cbs) {
-		__bcmgenet_fini_dma(priv);
+		kfree(priv->rx_cbs);
 		return -ENOMEM;
 	}
 
@@ -2092,6 +2077,22 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv)
 		cb = priv->tx_cbs + i;
 		cb->bd_addr = priv->tx_bds + i * DMA_DESC_SIZE;
 	}
+
+	/* Init rDma */
+	bcmgenet_rdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
+
+	/* Initialize Rx queues */
+	ret = bcmgenet_init_rx_queues(priv->dev);
+	if (ret) {
+		netdev_err(priv->dev, "failed to initialize Rx queues\n");
+		bcmgenet_free_rx_buffers(priv);
+		kfree(priv->rx_cbs);
+		kfree(priv->tx_cbs);
+		return ret;
+	}
+
+	/* Init tDma */
+	bcmgenet_tdma_writel(priv, DMA_MAX_BURST_LENGTH, DMA_SCB_BURST_SIZE);
 
 	/* Initialize Tx queues */
 	bcmgenet_init_tx_queues(priv->dev);
