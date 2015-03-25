@@ -554,6 +554,14 @@ static inline void msg_set_node_capabilities(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 15, 0x1fff, n);
 }
 
+static inline bool msg_dup(struct tipc_msg *m)
+{
+	if (likely(msg_user(m) != CHANGEOVER_PROTOCOL))
+		return false;
+	if (msg_type(m) != DUPLICATE_MSG)
+		return false;
+	return true;
+}
 
 /*
  * Word 2

@@ -60,6 +60,7 @@
  */
 #define LINK_STARTED    0x0001
 #define LINK_STOPPED    0x0002
+#define LINK_SYNCHING   0x0004
 
 /* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
@@ -170,6 +171,7 @@ struct tipc_link {
 	/* Changeover */
 	u32 exp_msg_count;
 	u32 reset_checkpoint;
+	u32 synch_point;
 
 	/* Max packet negotiation */
 	u32 max_pkt;
