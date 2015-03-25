@@ -173,10 +173,10 @@ static unsigned int nft_hash_privsize(const struct nlattr * const nla[])
 }
 
 static const struct rhashtable_params nft_hash_params = {
-	.head_offset = offsetof(struct nft_hash_elem, node),
-	.key_offset = offsetof(struct nft_hash_elem, key),
-	.hashfn = jhash,
-	.automatic_shrinking = true,
+	.head_offset		= offsetof(struct nft_hash_elem, node),
+	.key_offset		= offsetof(struct nft_hash_elem, key),
+	.hashfn			= jhash,
+	.automatic_shrinking	= true,
 };
 
 static int nft_hash_init(const struct nft_set *set,
@@ -187,7 +187,7 @@ static int nft_hash_init(const struct nft_set *set,
 	struct rhashtable_params params = nft_hash_params;
 
 	params.nelem_hint = desc->size ?: NFT_HASH_ELEMENT_HINT;
-	params.key_len = set->klen;
+	params.key_len	  = set->klen;
 
 	return rhashtable_init(&priv->ht, &params);
 }
