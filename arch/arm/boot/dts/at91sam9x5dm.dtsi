@@ -12,6 +12,18 @@
 / {
 	ahb {
 		apb {
+			i2c0: i2c@f8010000 {
+				qt1070: keyboard@1b {
+					compatible = "qt1070";
+					reg = <0x1b>;
+					interrupt-parent = <&pioA>;
+					interrupts = <7 0x0>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_qt1070_irq>;
+					wakeup-source;
+				};
+			};
+
 			hlcdc: hlcdc@f8038000 {
 				hlcdc-display-controller {
 					pinctrl-names = "default";
@@ -30,6 +42,15 @@
 				atmel,adc-ts-wires = <4>;
 				atmel,adc-ts-pressure-threshold = <10000>;
 				status = "okay";
+			};
+
+			pinctrl@fffff400 {
+				board {
+					pinctrl_qt1070_irq: qt1070_irq {
+						atmel,pins =
+							<AT91_PIOA 7 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+				};
 			};
 		};
 	};
