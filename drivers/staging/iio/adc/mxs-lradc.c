@@ -243,7 +243,7 @@ struct mxs_lradc {
 	 * be sampled as regular LRADC channels. The driver will refuse any
 	 * attempt to sample these channels.
 	 */
-#define CHAN_MASK_TOUCHBUTTON		(0x3 << 0)
+#define CHAN_MASK_TOUCHBUTTON		(BIT(1) | BIT(0))
 #define CHAN_MASK_TOUCHSCREEN_4WIRE	(0xf << 2)
 #define CHAN_MASK_TOUCHSCREEN_5WIRE	(0x1f << 2)
 	enum mxs_lradc_ts	use_touchscreen;
@@ -268,20 +268,20 @@ struct mxs_lradc {
 };
 
 #define	LRADC_CTRL0				0x00
-# define LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE	(1 << 23)
-# define LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE	(1 << 22)
-# define LRADC_CTRL0_MX28_YNNSW	/* YM */	(1 << 21)
-# define LRADC_CTRL0_MX28_YPNSW	/* YP */	(1 << 20)
-# define LRADC_CTRL0_MX28_YPPSW	/* YP */	(1 << 19)
-# define LRADC_CTRL0_MX28_XNNSW	/* XM */	(1 << 18)
-# define LRADC_CTRL0_MX28_XNPSW	/* XM */	(1 << 17)
-# define LRADC_CTRL0_MX28_XPPSW	/* XP */	(1 << 16)
+# define LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE	BIT(23)
+# define LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE	BIT(22)
+# define LRADC_CTRL0_MX28_YNNSW	/* YM */	BIT(21)
+# define LRADC_CTRL0_MX28_YPNSW	/* YP */	BIT(20)
+# define LRADC_CTRL0_MX28_YPPSW	/* YP */	BIT(19)
+# define LRADC_CTRL0_MX28_XNNSW	/* XM */	BIT(18)
+# define LRADC_CTRL0_MX28_XNPSW	/* XM */	BIT(17)
+# define LRADC_CTRL0_MX28_XPPSW	/* XP */	BIT(16)
 
-# define LRADC_CTRL0_MX23_TOUCH_DETECT_ENABLE	(1 << 20)
-# define LRADC_CTRL0_MX23_YM			(1 << 19)
-# define LRADC_CTRL0_MX23_XM			(1 << 18)
-# define LRADC_CTRL0_MX23_YP			(1 << 17)
-# define LRADC_CTRL0_MX23_XP			(1 << 16)
+# define LRADC_CTRL0_MX23_TOUCH_DETECT_ENABLE	BIT(20)
+# define LRADC_CTRL0_MX23_YM			BIT(19)
+# define LRADC_CTRL0_MX23_XM			BIT(18)
+# define LRADC_CTRL0_MX23_YP			BIT(17)
+# define LRADC_CTRL0_MX23_XP			BIT(16)
 
 # define LRADC_CTRL0_MX28_PLATE_MASK \
 		(LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE | \
@@ -295,12 +295,12 @@ struct mxs_lradc {
 		LRADC_CTRL0_MX23_YP | LRADC_CTRL0_MX23_XP)
 
 #define	LRADC_CTRL1				0x10
-#define	LRADC_CTRL1_TOUCH_DETECT_IRQ_EN		(1 << 24)
+#define	LRADC_CTRL1_TOUCH_DETECT_IRQ_EN		BIT(24)
 #define	LRADC_CTRL1_LRADC_IRQ_EN(n)		(1 << ((n) + 16))
 #define	LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK	(0x1fff << 16)
 #define	LRADC_CTRL1_MX23_LRADC_IRQ_EN_MASK	(0x01ff << 16)
 #define	LRADC_CTRL1_LRADC_IRQ_EN_OFFSET		16
-#define	LRADC_CTRL1_TOUCH_DETECT_IRQ		(1 << 8)
+#define	LRADC_CTRL1_TOUCH_DETECT_IRQ		BIT(8)
 #define	LRADC_CTRL1_LRADC_IRQ(n)		(1 << (n))
 #define	LRADC_CTRL1_MX28_LRADC_IRQ_MASK		0x1fff
 #define	LRADC_CTRL1_MX23_LRADC_IRQ_MASK		0x01ff
@@ -308,13 +308,13 @@ struct mxs_lradc {
 
 #define	LRADC_CTRL2				0x20
 #define	LRADC_CTRL2_DIVIDE_BY_TWO_OFFSET	24
-#define	LRADC_CTRL2_TEMPSENSE_PWD		(1 << 15)
+#define	LRADC_CTRL2_TEMPSENSE_PWD		BIT(15)
 
 #define	LRADC_STATUS				0x40
-#define	LRADC_STATUS_TOUCH_DETECT_RAW		(1 << 0)
+#define	LRADC_STATUS_TOUCH_DETECT_RAW		BIT(0)
 
 #define	LRADC_CH(n)				(0x50 + (0x10 * (n)))
-#define	LRADC_CH_ACCUMULATE			(1 << 29)
+#define	LRADC_CH_ACCUMULATE			BIT(29)
 #define	LRADC_CH_NUM_SAMPLES_MASK		(0x1f << 24)
 #define	LRADC_CH_NUM_SAMPLES_OFFSET		24
 #define	LRADC_CH_NUM_SAMPLES(x) \
@@ -477,7 +477,7 @@ static void mxs_lradc_setup_ts_channel(struct mxs_lradc *lradc, unsigned ch)
 	 */
 	mxs_lradc_reg_wrt(lradc,
 		LRADC_DELAY_TRIGGER(0) | /* don't trigger ADC */
-		LRADC_DELAY_TRIGGER_DELAYS(1 << 3) | /* trigger DELAY unit#3 */
+		LRADC_DELAY_TRIGGER_DELAYS(BIT(3)) | /* trigger DELAY unit#3 */
 		LRADC_DELAY_KICK |
 		LRADC_DELAY_DELAY(lradc->settling_delay),
 			LRADC_DELAY(2));
@@ -532,7 +532,7 @@ static void mxs_lradc_setup_ts_pressure(struct mxs_lradc *lradc, unsigned ch1,
 	 */
 	mxs_lradc_reg_wrt(lradc,
 		LRADC_DELAY_TRIGGER(0) | /* don't trigger ADC */
-		LRADC_DELAY_TRIGGER_DELAYS(1 << 3) | /* trigger DELAY unit#3 */
+		LRADC_DELAY_TRIGGER_DELAYS(BIT(3)) | /* trigger DELAY unit#3 */
 		LRADC_DELAY_KICK |
 		LRADC_DELAY_DELAY(lradc->settling_delay), LRADC_DELAY(2));
 }
@@ -850,7 +850,7 @@ static int mxs_lradc_read_single(struct iio_dev *iio_dev, int chan, int *val)
 
 	/* Enable the IRQ and start sampling the channel. */
 	mxs_lradc_reg_set(lradc, LRADC_CTRL1_LRADC_IRQ_EN(0), LRADC_CTRL1);
-	mxs_lradc_reg_set(lradc, 1 << 0, LRADC_CTRL0);
+	mxs_lradc_reg_set(lradc, BIT(0), LRADC_CTRL0);
 
 	/* Wait for completion on the channel, 1 second max. */
 	ret = wait_for_completion_killable_timeout(&lradc->completion, HZ);
