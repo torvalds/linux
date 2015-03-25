@@ -2703,14 +2703,14 @@ xfs_cross_rename(
 				ip2->i_ino,
 				first_block, free_list, spaceres);
 	if (error)
-		goto out;
+		goto out_trans_abort;
 
 	/* Swap inode number for dirent in second parent */
 	error = xfs_dir_replace(tp, dp2, name2,
 				ip1->i_ino,
 				first_block, free_list, spaceres);
 	if (error)
-		goto out;
+		goto out_trans_abort;
 
 	/*
 	 * If we're renaming one or more directories across different parents,
@@ -2725,16 +2725,16 @@ xfs_cross_rename(
 						dp1->i_ino, first_block,
 						free_list, spaceres);
 			if (error)
-				goto out;
+				goto out_trans_abort;
 
 			/* transfer ip2 ".." reference to dp1 */
 			if (!S_ISDIR(ip1->i_d.di_mode)) {
 				error = xfs_droplink(tp, dp2);
 				if (error)
-					goto out;
+					goto out_trans_abort;
 				error = xfs_bumplink(tp, dp1);
 				if (error)
-					goto out;
+					goto out_trans_abort;
 			}
 
 			/*
@@ -2752,16 +2752,16 @@ xfs_cross_rename(
 						dp2->i_ino, first_block,
 						free_list, spaceres);
 			if (error)
-				goto out;
+				goto out_trans_abort;
 
 			/* transfer ip1 ".." reference to dp2 */
 			if (!S_ISDIR(ip2->i_d.di_mode)) {
 				error = xfs_droplink(tp, dp1);
 				if (error)
-					goto out;
+					goto out_trans_abort;
 				error = xfs_bumplink(tp, dp2);
 				if (error)
-					goto out;
+					goto out_trans_abort;
 			}
 
 			/*
@@ -2789,7 +2789,11 @@ xfs_cross_rename(
 	}
 	xfs_trans_ichgtime(tp, dp1, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, dp1, XFS_ILOG_CORE);
-out:
+	return xfs_finish_rename(tp, free_list);
+
+out_trans_abort:
+	xfs_bmap_cancel(free_list);
+	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
 	return error;
 }
 
@@ -2819,6 +2823,9 @@ xfs_rename(
 	int		spaceres;
 
 	trace_xfs_rename(src_dp, target_dp, src_name, target_name);
+
+	if ((flags & RENAME_EXCHANGE) && !target_ip)
+		return -EINVAL;
 
 	new_parent = (src_dp != target_dp);
 	src_is_directory = S_ISDIR(src_ip->i_d.di_mode);
@@ -2877,17 +2884,11 @@ xfs_rename(
 
 	xfs_bmap_init(&free_list, &first_block);
 
-	/*
-	 * Handle RENAME_EXCHANGE flags
-	 */
-	if (flags & RENAME_EXCHANGE) {
-		error = xfs_cross_rename(tp, src_dp, src_name, src_ip,
-					 target_dp, target_name, target_ip,
-					 &free_list, &first_block, spaceres);
-		if (error)
-			goto out_trans_abort;
-		return xfs_finish_rename(tp, &free_list);
-	}
+	/* RENAME_EXCHANGE is unique from here on. */
+	if (flags & RENAME_EXCHANGE)
+		return xfs_cross_rename(tp, src_dp, src_name, src_ip,
+					target_dp, target_name, target_ip,
+					&free_list, &first_block, spaceres);
 
 	/*
 	 * Set up the target.
