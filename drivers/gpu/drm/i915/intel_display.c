@@ -2442,6 +2442,7 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 		struct drm_plane *primary = intel_crtc->base.primary;
 
 		primary->state->crtc = &intel_crtc->base;
+		primary->crtc = &intel_crtc->base;
 		update_state_fb(primary);
 
 		return;
@@ -2476,6 +2477,7 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 			drm_framebuffer_reference(c->primary->fb);
 			primary->fb = c->primary->fb;
 			primary->state->crtc = &intel_crtc->base;
+			primary->crtc = &intel_crtc->base;
 			obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 			break;
 		}
