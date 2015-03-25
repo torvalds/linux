@@ -175,17 +175,17 @@ static inline int arch_irqs_disabled(void)
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #  ifdef CONFIG_X86_64
-#    define ARCH_LOCKDEP_SYS_EXIT	call lockdep_sys_exit_thunk
-#    define ARCH_LOCKDEP_SYS_EXIT_IRQ \
+#    define LOCKDEP_SYS_EXIT		call lockdep_sys_exit_thunk
+#    define LOCKDEP_SYS_EXIT_IRQ \
 	TRACE_IRQS_ON; \
 	sti; \
 	SAVE_EXTRA_REGS; \
-	LOCKDEP_SYS_EXIT; \
+	call lockdep_sys_exit_thunk; \
 	RESTORE_EXTRA_REGS; \
 	cli; \
 	TRACE_IRQS_OFF;
 #  else
-#    define ARCH_LOCKDEP_SYS_EXIT \
+#    define LOCKDEP_SYS_EXIT \
 	pushl %eax;				\
 	pushl %ecx;				\
 	pushl %edx;				\
@@ -193,14 +193,12 @@ static inline int arch_irqs_disabled(void)
 	popl %edx;				\
 	popl %ecx;				\
 	popl %eax;
-#    define ARCH_LOCKDEP_SYS_EXIT_IRQ
+#    define LOCKDEP_SYS_EXIT_IRQ
 #  endif
-#  define LOCKDEP_SYS_EXIT	ARCH_LOCKDEP_SYS_EXIT
-#  define LOCKDEP_SYS_EXIT_IRQ	ARCH_LOCKDEP_SYS_EXIT_IRQ
-# else
+#else
 #  define LOCKDEP_SYS_EXIT
 #  define LOCKDEP_SYS_EXIT_IRQ
-# endif
+#endif
 #endif /* __ASSEMBLY__ */
 
 #endif
