@@ -133,6 +133,12 @@ void nfs_evict_inode(struct inode *inode)
 	nfs_clear_inode(inode);
 }
 
+static int nfs_sync_inode(struct inode *inode)
+{
+	nfs_inode_dio_wait(inode);
+	return nfs_wb_all(inode);
+}
+
 /**
  * nfs_sync_mapping - helper to flush all mmapped dirty data to disk
  */
@@ -525,10 +531,8 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	trace_nfs_setattr_enter(inode);
 
 	/* Write all dirty data */
-	if (S_ISREG(inode->i_mode)) {
-		nfs_inode_dio_wait(inode);
-		nfs_wb_all(inode);
-	}
+	if (S_ISREG(inode->i_mode))
+		nfs_sync_inode(inode);
 
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
@@ -644,8 +648,7 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	trace_nfs_getattr_enter(inode);
 	/* Flush out writes to the server in order to update c/mtime.  */
 	if (S_ISREG(inode->i_mode)) {
-		nfs_inode_dio_wait(inode);
-		err = filemap_write_and_wait(inode->i_mapping);
+		err = nfs_sync_inode(inode);
 		if (err)
 			goto out;
 	}
