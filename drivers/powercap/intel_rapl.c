@@ -1054,7 +1054,7 @@ static const struct rapl_defaults rapl_defaults_atom = {
 		.driver_data = (kernel_ulong_t)&_ops,	\
 		}
 
-static const struct x86_cpu_id rapl_ids[] = {
+static const struct x86_cpu_id rapl_ids[] __initconst = {
 	RAPL_CPU(0x2a, rapl_defaults_core),/* Sandy Bridge */
 	RAPL_CPU(0x2d, rapl_defaults_core),/* Sandy Bridge EP */
 	RAPL_CPU(0x37, rapl_defaults_atom),/* Valleyview */
