@@ -229,7 +229,7 @@ int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 void omap3isp_pipeline_cancel_stream(struct isp_pipeline *pipe);
 void omap3isp_configure_bridge(struct isp_device *isp,
 			       enum ccdc_input_entity input,
-			       const struct isp_parallel_platform_data *pdata,
+			       const struct isp_parallel_cfg *buscfg,
 			       unsigned int shift, unsigned int bridge);
 
 struct isp_device *omap3isp_get(struct isp_device *isp);

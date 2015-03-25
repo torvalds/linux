@@ -548,7 +548,7 @@ int omap3isp_csi2_reset(struct isp_csi2_device *csi2)
 
 static int csi2_configure(struct isp_csi2_device *csi2)
 {
-	const struct isp_v4l2_subdevs_group *pdata;
+	const struct isp_bus_cfg *buscfg;
 	struct isp_device *isp = csi2->isp;
 	struct isp_csi2_timing_cfg *timing = &csi2->timing[0];
 	struct v4l2_subdev *sensor;
@@ -565,14 +565,14 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 
 	pad = media_entity_remote_pad(&csi2->pads[CSI2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
-	pdata = sensor->host_priv;
+	buscfg = sensor->host_priv;
 
 	csi2->frame_skip = 0;
 	v4l2_subdev_call(sensor, sensor, g_skip_frames, &csi2->frame_skip);
 
-	csi2->ctrl.vp_out_ctrl = pdata->bus.csi2.vpclk_div;
+	csi2->ctrl.vp_out_ctrl = buscfg->bus.csi2.vpclk_div;
 	csi2->ctrl.frame_mode = ISP_CSI2_FRAME_IMMEDIATE;
-	csi2->ctrl.ecc_enable = pdata->bus.csi2.crc;
+	csi2->ctrl.ecc_enable = buscfg->bus.csi2.crc;
 
 	timing->ionum = 1;
 	timing->force_rx_mode = 1;

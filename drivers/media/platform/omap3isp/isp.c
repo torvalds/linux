@@ -447,7 +447,7 @@ static void isp_core_init(struct isp_device *isp, int idle)
  */
 void omap3isp_configure_bridge(struct isp_device *isp,
 			       enum ccdc_input_entity input,
-			       const struct isp_parallel_platform_data *pdata,
+			       const struct isp_parallel_cfg *parcfg,
 			       unsigned int shift, unsigned int bridge)
 {
 	u32 ispctrl_val;
@@ -462,8 +462,8 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	switch (input) {
 	case CCDC_INPUT_PARALLEL:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_PARALLEL;
-		ispctrl_val |= pdata->clk_pol << ISPCTRL_PAR_CLK_POL_SHIFT;
-		shift += pdata->data_lane_shift * 2;
+		ispctrl_val |= parcfg->clk_pol << ISPCTRL_PAR_CLK_POL_SHIFT;
+		shift += parcfg->data_lane_shift * 2;
 		break;
 
 	case CCDC_INPUT_CSI2A:
@@ -1809,52 +1809,44 @@ static void isp_unregister_entities(struct isp_device *isp)
 }
 
 /*
- * isp_register_subdev_group - Register a group of subdevices
+ * isp_register_subdev - Register a sub-device
  * @isp: OMAP3 ISP device
- * @board_info: I2C subdevs board information array
+ * @isp_subdev: platform data related to a sub-device
  *
- * Register all I2C subdevices in the board_info array. The array must be
- * terminated by a NULL entry, and the first entry must be the sensor.
+ * Register an I2C sub-device which has not been registered by other
+ * means (such as the Device Tree).
  *
- * Return a pointer to the sensor media entity if it has been successfully
+ * Return a pointer to the sub-device if it has been successfully
  * registered, or NULL otherwise.
  */
 static struct v4l2_subdev *
-isp_register_subdev_group(struct isp_device *isp,
-		     struct isp_subdev_i2c_board_info *board_info)
+isp_register_subdev(struct isp_device *isp,
+		    struct isp_platform_subdev *isp_subdev)
 {
-	struct v4l2_subdev *sensor = NULL;
-	unsigned int first;
+	struct i2c_adapter *adapter;
+	struct v4l2_subdev *sd;
 
-	if (board_info->board_info == NULL)
+	if (isp_subdev->board_info == NULL)
 		return NULL;
 
-	for (first = 1; board_info->board_info; ++board_info, first = 0) {
-		struct v4l2_subdev *subdev;
-		struct i2c_adapter *adapter;
-
-		adapter = i2c_get_adapter(board_info->i2c_adapter_id);
-		if (adapter == NULL) {
-			dev_err(isp->dev, "%s: Unable to get I2C adapter %d for "
-				"device %s\n", __func__,
-				board_info->i2c_adapter_id,
-				board_info->board_info->type);
-			continue;
-		}
-
-		subdev = v4l2_i2c_new_subdev_board(&isp->v4l2_dev, adapter,
-				board_info->board_info, NULL);
-		if (subdev == NULL) {
-			dev_err(isp->dev, "%s: Unable to register subdev %s\n",
-				__func__, board_info->board_info->type);
-			continue;
-		}
-
-		if (first)
-			sensor = subdev;
+	adapter = i2c_get_adapter(isp_subdev->i2c_adapter_id);
+	if (adapter == NULL) {
+		dev_err(isp->dev,
+			"%s: Unable to get I2C adapter %d for device %s\n",
+			__func__, isp_subdev->i2c_adapter_id,
+			isp_subdev->board_info->type);
+		return NULL;
 	}
 
-	return sensor;
+	sd = v4l2_i2c_new_subdev_board(&isp->v4l2_dev, adapter,
+				       isp_subdev->board_info, NULL);
+	if (sd == NULL) {
+		dev_err(isp->dev, "%s: Unable to register subdev %s\n",
+			__func__, isp_subdev->board_info->type);
+		return NULL;
+	}
+
+	return sd;
 }
 
 static int isp_link_entity(
@@ -1931,7 +1923,7 @@ static int isp_link_entity(
 static int isp_register_entities(struct isp_device *isp)
 {
 	struct isp_platform_data *pdata = isp->pdata;
-	struct isp_v4l2_subdevs_group *subdevs;
+	struct isp_platform_subdev *isp_subdev;
 	int ret;
 
 	isp->media_dev.dev = isp->dev;
@@ -1989,17 +1981,23 @@ static int isp_register_entities(struct isp_device *isp)
 		goto done;
 
 	/* Register external entities */
-	for (subdevs = pdata ? pdata->subdevs : NULL;
-	     subdevs && subdevs->subdevs; ++subdevs) {
-		struct v4l2_subdev *sensor;
+	for (isp_subdev = pdata ? pdata->subdevs : NULL;
+	     isp_subdev && isp_subdev->board_info; isp_subdev++) {
+		struct v4l2_subdev *sd;
 
-		sensor = isp_register_subdev_group(isp, subdevs->subdevs);
-		if (sensor == NULL)
+		sd = isp_register_subdev(isp, isp_subdev);
+
+		/*
+		 * No bus information --- this is either a flash or a
+		 * lens subdev.
+		 */
+		if (!sd || !isp_subdev->bus)
 			continue;
 
-		sensor->host_priv = subdevs;
+		sd->host_priv = isp_subdev->bus;
 
-		ret = isp_link_entity(isp, &sensor->entity, subdevs->interface);
+		ret = isp_link_entity(isp, &sd->entity,
+				      isp_subdev->bus->interface);
 		if (ret < 0)
 			goto done;
 	}

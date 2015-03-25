@@ -201,14 +201,14 @@ static void ccp2_mem_enable(struct isp_ccp2_device *ccp2, u8 enable)
 /*
  * ccp2_phyif_config - Initialize CCP2 phy interface config
  * @ccp2: Pointer to ISP CCP2 device
- * @pdata: CCP2 platform data
+ * @buscfg: CCP2 platform data
  *
  * Configure the CCP2 physical interface module from platform data.
  *
  * Returns -EIO if strobe is chosen in CSI1 mode, or 0 on success.
  */
 static int ccp2_phyif_config(struct isp_ccp2_device *ccp2,
-			     const struct isp_ccp2_platform_data *pdata)
+			     const struct isp_ccp2_cfg *buscfg)
 {
 	struct isp_device *isp = to_isp_device(ccp2);
 	u32 val;
@@ -218,16 +218,16 @@ static int ccp2_phyif_config(struct isp_ccp2_device *ccp2,
 			    ISPCCP2_CTRL_IO_OUT_SEL | ISPCCP2_CTRL_MODE;
 	/* Data/strobe physical layer */
 	BIT_SET(val, ISPCCP2_CTRL_PHY_SEL_SHIFT, ISPCCP2_CTRL_PHY_SEL_MASK,
-		pdata->phy_layer);
+		buscfg->phy_layer);
 	BIT_SET(val, ISPCCP2_CTRL_INV_SHIFT, ISPCCP2_CTRL_INV_MASK,
-		pdata->strobe_clk_pol);
+		buscfg->strobe_clk_pol);
 	isp_reg_writel(isp, val, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_CTRL);
 
 	val = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_CTRL);
 	if (!(val & ISPCCP2_CTRL_MODE)) {
-		if (pdata->ccp2_mode == ISP_CCP2_MODE_CCP2)
+		if (buscfg->ccp2_mode == ISP_CCP2_MODE_CCP2)
 			dev_warn(isp->dev, "OMAP3 CCP2 bus not available\n");
-		if (pdata->phy_layer == ISP_CCP2_PHY_DATA_STROBE)
+		if (buscfg->phy_layer == ISP_CCP2_PHY_DATA_STROBE)
 			/* Strobe mode requires CCP2 */
 			return -EIO;
 	}
@@ -347,7 +347,7 @@ static void ccp2_lcx_config(struct isp_ccp2_device *ccp2,
  */
 static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 {
-	const struct isp_v4l2_subdevs_group *pdata;
+	const struct isp_bus_cfg *buscfg;
 	struct v4l2_mbus_framefmt *format;
 	struct media_pad *pad;
 	struct v4l2_subdev *sensor;
@@ -358,20 +358,20 @@ static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 
 	pad = media_entity_remote_pad(&ccp2->pads[CCP2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
-	pdata = sensor->host_priv;
+	buscfg = sensor->host_priv;
 
-	ret = ccp2_phyif_config(ccp2, &pdata->bus.ccp2);
+	ret = ccp2_phyif_config(ccp2, &buscfg->bus.ccp2);
 	if (ret < 0)
 		return ret;
 
-	ccp2_vp_config(ccp2, pdata->bus.ccp2.vpclk_div + 1);
+	ccp2_vp_config(ccp2, buscfg->bus.ccp2.vpclk_div + 1);
 
 	v4l2_subdev_call(sensor, sensor, g_skip_top_lines, &lines);
 
 	format = &ccp2->formats[CCP2_PAD_SINK];
 
 	ccp2->if_cfg.data_start = lines;
-	ccp2->if_cfg.crc = pdata->bus.ccp2.crc;
+	ccp2->if_cfg.crc = buscfg->bus.ccp2.crc;
 	ccp2->if_cfg.format = format->code;
 	ccp2->if_cfg.data_size = format->height;
 

@@ -168,18 +168,18 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 {
 	struct isp_csi2_device *csi2 = phy->csi2;
 	struct isp_pipeline *pipe = to_isp_pipeline(&csi2->subdev.entity);
-	struct isp_v4l2_subdevs_group *subdevs = pipe->external->host_priv;
+	struct isp_bus_cfg *buscfg = pipe->external->host_priv;
 	struct isp_csiphy_lanes_cfg *lanes;
 	int csi2_ddrclk_khz;
 	unsigned int used_lanes = 0;
 	unsigned int i;
 	u32 reg;
 
-	if (subdevs->interface == ISP_INTERFACE_CCP2B_PHY1
-	    || subdevs->interface == ISP_INTERFACE_CCP2B_PHY2)
-		lanes = &subdevs->bus.ccp2.lanecfg;
+	if (buscfg->interface == ISP_INTERFACE_CCP2B_PHY1
+	    || buscfg->interface == ISP_INTERFACE_CCP2B_PHY2)
+		lanes = &buscfg->bus.ccp2.lanecfg;
 	else
-		lanes = &subdevs->bus.csi2.lanecfg;
+		lanes = &buscfg->bus.csi2.lanecfg;
 
 	/* Clock and data lanes verification */
 	for (i = 0; i < phy->num_data_lanes; i++) {
@@ -203,8 +203,8 @@ static int omap3isp_csiphy_config(struct isp_csiphy *phy)
 	 * issue since the MPU power domain is forced on whilst the
 	 * ISP is in use.
 	 */
-	csiphy_routing_cfg(phy, subdevs->interface, true,
-			   subdevs->bus.ccp2.phy_layer);
+	csiphy_routing_cfg(phy, buscfg->interface, true,
+			   buscfg->bus.ccp2.phy_layer);
 
 	/* DPHY timing configuration */
 	/* CSI-2 is DDR and we only count used lanes. */
@@ -302,11 +302,10 @@ void omap3isp_csiphy_release(struct isp_csiphy *phy)
 		struct isp_csi2_device *csi2 = phy->csi2;
 		struct isp_pipeline *pipe =
 			to_isp_pipeline(&csi2->subdev.entity);
-		struct isp_v4l2_subdevs_group *subdevs =
-			pipe->external->host_priv;
+		struct isp_bus_cfg *buscfg = pipe->external->host_priv;
 
-		csiphy_routing_cfg(phy, subdevs->interface, false,
-				   subdevs->bus.ccp2.phy_layer);
+		csiphy_routing_cfg(phy, buscfg->interface, false,
+				   buscfg->bus.ccp2.phy_layer);
 		csiphy_power_autoswitch_enable(phy, false);
 		csiphy_set_power(phy, ISPCSI2_PHY_CFG_PWR_CMD_OFF);
 		regulator_disable(phy->vdd);
