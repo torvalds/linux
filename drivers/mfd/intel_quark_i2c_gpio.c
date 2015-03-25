@@ -70,6 +70,7 @@ static const struct i2c_mode_info platform_i2c_mode_info[] = {
 		.name = "GalileoGen2",
 		.i2c_scl_freq = 400000,
 	},
+	{}
 };
 
 static struct resource intel_quark_i2c_res[] = {
@@ -153,10 +154,10 @@ static void intel_quark_unregister_i2c_clk(struct pci_dev *pdev)
 static int intel_quark_i2c_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 {
 	const char *board_name = dmi_get_system_info(DMI_BOARD_NAME);
+	const struct i2c_mode_info *info;
 	struct dw_i2c_platform_data *pdata;
 	struct resource *res = (struct resource *)cell->resources;
 	struct device *dev = &pdev->dev;
-	unsigned int i;
 
 	res[INTEL_QUARK_IORES_MEM].start =
 		pci_resource_start(pdev, MFD_I2C_BAR);
@@ -170,13 +171,17 @@ static int intel_quark_i2c_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 	if (!pdata)
 		return -ENOMEM;
 
-	/* Fast mode by default */
-	pdata->i2c_scl_freq = 400000;
+	/* Normal mode by default */
+	pdata->i2c_scl_freq = 100000;
 
-	for (i = 0; i < ARRAY_SIZE(platform_i2c_mode_info); i++)
-		if (!strcmp(board_name, platform_i2c_mode_info[i].name))
-			pdata->i2c_scl_freq
-				= platform_i2c_mode_info[i].i2c_scl_freq;
+	if (board_name) {
+		for (info = platform_i2c_mode_info; info->name; info++) {
+			if (!strcmp(board_name, info->name)) {
+				pdata->i2c_scl_freq = info->i2c_scl_freq;
+				break;
+			}
+		}
+	}
 
 	cell->platform_data = pdata;
 	cell->pdata_size = sizeof(*pdata);
