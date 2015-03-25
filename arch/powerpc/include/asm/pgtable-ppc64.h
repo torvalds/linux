@@ -118,7 +118,7 @@
  */
 #ifndef __real_pte
 
-#ifdef STRICT_MM_TYPECHECKS
+#ifdef CONFIG_STRICT_MM_TYPECHECKS
 #define __real_pte(e,p)		((real_pte_t){(e)})
 #define __rpte_to_pte(r)	((r).pte)
 #else
