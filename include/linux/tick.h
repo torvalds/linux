@@ -29,10 +29,13 @@ extern struct tick_device *tick_get_device(int cpu);
 extern void __init tick_init(void);
 extern void tick_freeze(void);
 extern void tick_unfreeze(void);
+/* Should be core only, but XEN resume magic abuses this interface */
+extern void tick_resume(void);
 #else /* CONFIG_GENERIC_CLOCKEVENTS */
 static inline void tick_init(void) { }
 static inline void tick_freeze(void) { }
 static inline void tick_unfreeze(void) { }
+static inline void tick_resume(void) { }
 #endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 
 #ifdef CONFIG_TICK_ONESHOT

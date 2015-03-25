@@ -373,18 +373,39 @@ void tick_shutdown(unsigned int *cpup)
 	}
 }
 
+/**
+ * tick_suspend - Suspend the tick and the broadcast device
+ *
+ * Called from syscore_suspend() via timekeeping_suspend with only one
+ * CPU online and interrupts disabled or from tick_unfreeze() under
+ * tick_freeze_lock.
+ *
+ * No locks required. Nothing can change the per cpu device.
+ */
 void tick_suspend(void)
 {
 	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 
 	clockevents_shutdown(td->evtdev);
+	tick_suspend_broadcast();
 }
 
+/**
+ * tick_resume - Resume the tick and the broadcast device
+ *
+ * Called from syscore_resume() via timekeeping_resume with only one
+ * CPU online and interrupts disabled or from tick_unfreeze() under
+ * tick_freeze_lock.
+ *
+ * No locks required. Nothing can change the per cpu device.
+ */
 void tick_resume(void)
 {
-	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
-	int broadcast = tick_resume_broadcast();
+	struct tick_device *td;
+	int broadcast;
 
+	broadcast = tick_resume_broadcast();
+	td = this_cpu_ptr(&tick_cpu_device);
 	clockevents_tick_resume(td->evtdev);
 
 	if (!broadcast) {
@@ -416,7 +437,6 @@ void tick_freeze(void)
 		timekeeping_suspend();
 	} else {
 		tick_suspend();
-		tick_suspend_broadcast();
 	}
 
 	raw_spin_unlock(&tick_freeze_lock);
