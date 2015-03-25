@@ -16,7 +16,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kmod.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/cache.h>
@@ -1359,7 +1358,6 @@ of_register_spi_device(struct spi_master *master, struct device_node *nc)
 	spi->dev.of_node = nc;
 
 	/* Register the new device */
-	request_module("%s%s", SPI_MODULE_PREFIX, spi->modalias);
 	rc = spi_add_device(spi);
 	if (rc) {
 		dev_err(&master->dev, "spi_device register error %s\n",
