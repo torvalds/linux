@@ -327,9 +327,13 @@ static int core_scsi3_pr_seq_non_holder(
 	int we = 0; /* Write Exclusive */
 	int legacy = 0; /* Act like a legacy device and return
 			 * RESERVATION CONFLICT on some CDBs */
+	bool registered = false;
 
 	rcu_read_lock();
 	se_deve = target_nacl_find_deve(nacl, cmd->orig_fe_lun);
+	if (se_deve)
+		registered = test_bit(DEF_PR_REG_ACTIVE, &se_deve->deve_flags);
+	rcu_read_unlock();
 	/*
 	 * Determine if the registration should be ignored due to
 	 * non-matching ISIDs in target_scsi3_pr_reservation_check().
@@ -346,7 +350,7 @@ static int core_scsi3_pr_seq_non_holder(
 		 * Some commands are only allowed for the persistent reservation
 		 * holder.
 		 */
-		if ((se_deve->def_pr_registered) && !(ignore_reg))
+		if ((registered) && !(ignore_reg))
 			registered_nexus = 1;
 		break;
 	case PR_TYPE_WRITE_EXCLUSIVE_REGONLY:
@@ -356,7 +360,7 @@ static int core_scsi3_pr_seq_non_holder(
 		 * Some commands are only allowed for registered I_T Nexuses.
 		 */
 		reg_only = 1;
-		if ((se_deve->def_pr_registered) && !(ignore_reg))
+		if ((registered) && !(ignore_reg))
 			registered_nexus = 1;
 		break;
 	case PR_TYPE_WRITE_EXCLUSIVE_ALLREG:
@@ -366,14 +370,12 @@ static int core_scsi3_pr_seq_non_holder(
 		 * Each registered I_T Nexus is a reservation holder.
 		 */
 		all_reg = 1;
-		if ((se_deve->def_pr_registered) && !(ignore_reg))
+		if ((registered) && !(ignore_reg))
 			registered_nexus = 1;
 		break;
 	default:
-		rcu_read_unlock();
 		return -EINVAL;
 	}
-	rcu_read_unlock();
 	/*
 	 * Referenced from spc4r17 table 45 for *NON* PR holder access
 	 */
@@ -1009,10 +1011,6 @@ static void __core_scsi3_dump_registration(
 		pr_reg->pr_reg_aptpl);
 }
 
-/*
- * this function can be called with struct se_device->dev_reservation_lock
- * when register_move = 1
- */
 static void __core_scsi3_add_registration(
 	struct se_device *dev,
 	struct se_node_acl *nacl,
@@ -1023,6 +1021,7 @@ static void __core_scsi3_add_registration(
 	const struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
 	struct t10_pr_registration *pr_reg_tmp, *pr_reg_tmp_safe;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
+	struct se_dev_entry *deve;
 
 	/*
 	 * Increment PRgeneration counter for struct se_device upon a successful
@@ -1039,10 +1038,16 @@ static void __core_scsi3_add_registration(
 
 	spin_lock(&pr_tmpl->registration_lock);
 	list_add_tail(&pr_reg->pr_reg_list, &pr_tmpl->registration_list);
-	pr_reg->pr_reg_deve->def_pr_registered = 1;
 
 	__core_scsi3_dump_registration(tfo, dev, nacl, pr_reg, register_type);
 	spin_unlock(&pr_tmpl->registration_lock);
+
+	rcu_read_lock();
+	deve = pr_reg->pr_reg_deve;
+	if (deve)
+		set_bit(DEF_PR_REG_ACTIVE, &deve->deve_flags);
+	rcu_read_unlock();
+
 	/*
 	 * Skip extra processing for ALL_TG_PT=0 or REGISTER_AND_MOVE.
 	 */
@@ -1054,6 +1059,8 @@ static void __core_scsi3_add_registration(
 	 */
 	list_for_each_entry_safe(pr_reg_tmp, pr_reg_tmp_safe,
 			&pr_reg->pr_reg_atp_list, pr_reg_atp_mem_list) {
+		struct se_node_acl *nacl_tmp = pr_reg_tmp->pr_reg_nacl;
+
 		list_del(&pr_reg_tmp->pr_reg_atp_mem_list);
 
 		pr_reg_tmp->pr_res_generation = core_scsi3_pr_generation(dev);
@@ -1061,12 +1068,17 @@ static void __core_scsi3_add_registration(
 		spin_lock(&pr_tmpl->registration_lock);
 		list_add_tail(&pr_reg_tmp->pr_reg_list,
 			      &pr_tmpl->registration_list);
-		pr_reg_tmp->pr_reg_deve->def_pr_registered = 1;
 
-		__core_scsi3_dump_registration(tfo, dev,
-				pr_reg_tmp->pr_reg_nacl, pr_reg_tmp,
-				register_type);
+		__core_scsi3_dump_registration(tfo, dev, nacl_tmp, pr_reg_tmp,
+					       register_type);
 		spin_unlock(&pr_tmpl->registration_lock);
+
+		rcu_read_lock();
+		deve = pr_reg_tmp->pr_reg_deve;
+		if (deve)
+			set_bit(DEF_PR_REG_ACTIVE, &deve->deve_flags);
+		rcu_read_unlock();
+
 		/*
 		 * Drop configfs group dependency reference from
 		 * __core_scsi3_alloc_registration()
@@ -1242,13 +1254,13 @@ static void __core_scsi3_free_registration(
 	const struct target_core_fabric_ops *tfo =
 			pr_reg->pr_reg_nacl->se_tpg->se_tpg_tfo;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
+	struct se_node_acl *nacl = pr_reg->pr_reg_nacl;
+	struct se_dev_entry *deve;
 	char i_buf[PR_REG_ISID_ID_LEN];
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
-	pr_reg->pr_reg_deve->def_pr_registered = 0;
-	pr_reg->pr_reg_deve->pr_res_key = 0;
 	if (!list_empty(&pr_reg->pr_reg_list))
 		list_del(&pr_reg->pr_reg_list);
 	/*
@@ -1257,6 +1269,8 @@ static void __core_scsi3_free_registration(
 	 */
 	if (dec_holders)
 		core_scsi3_put_pr_reg(pr_reg);
+
+	spin_unlock(&pr_tmpl->registration_lock);
 	/*
 	 * Wait until all reference from any other I_T nexuses for this
 	 * *pr_reg have been released.  Because list_del() is called above,
@@ -1264,13 +1278,18 @@ static void __core_scsi3_free_registration(
 	 * count back to zero, and we release *pr_reg.
 	 */
 	while (atomic_read(&pr_reg->pr_res_holders) != 0) {
-		spin_unlock(&pr_tmpl->registration_lock);
 		pr_debug("SPC-3 PR [%s] waiting for pr_res_holders\n",
 				tfo->get_fabric_name());
 		cpu_relax();
-		spin_lock(&pr_tmpl->registration_lock);
 	}
 
+	rcu_read_lock();
+	deve = target_nacl_find_deve(nacl, pr_reg->pr_res_mapped_lun);
+	if (deve)
+		clear_bit(DEF_PR_REG_ACTIVE, &deve->deve_flags);
+	rcu_read_unlock();
+
+	spin_lock(&pr_tmpl->registration_lock);
 	pr_debug("SPC-3 PR [%s] Service Action: UNREGISTER Initiator"
 		" Node: %s%s\n", tfo->get_fabric_name(),
 		pr_reg->pr_reg_nacl->initiatorname,
@@ -3421,13 +3440,14 @@ after_iport_check:
 	dest_pr_reg = __core_scsi3_locate_pr_reg(dev, dest_node_acl,
 					iport_ptr);
 	if (!dest_pr_reg) {
+		spin_unlock(&dev->dev_reservation_lock);
 		if (core_scsi3_alloc_registration(cmd->se_dev,
 				dest_node_acl, dest_se_deve, iport_ptr,
 				sa_res_key, 0, aptpl, 2, 1)) {
-			spin_unlock(&dev->dev_reservation_lock);
 			ret = TCM_INVALID_PARAMETER_LIST;
 			goto out;
 		}
+		spin_lock(&dev->dev_reservation_lock);
 		dest_pr_reg = __core_scsi3_locate_pr_reg(dev, dest_node_acl,
 						iport_ptr);
 		new_reg = 1;
