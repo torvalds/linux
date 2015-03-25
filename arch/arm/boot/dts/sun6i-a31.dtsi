@@ -241,6 +241,14 @@
 			reg = <0x01c20054 0x4>;
 			clocks = <&osc32k>, <&osc24M>, <&axi>, <&pll6 0>;
 			clock-output-names = "ahb1";
+
+			/*
+			 * Clock AHB1 from PLL6, instead of CPU/AXI which
+			 * has rate changes due to cpufreq. Also the DMA
+			 * controller requires AHB1 clocked from PLL6.
+			 */
+			assigned-clocks = <&ahb1>;
+			assigned-clock-parents = <&pll6 0>;
 		};
 
 		ahb1_gates: clk@01c20060 {
@@ -426,10 +434,6 @@
 			clocks = <&ahb1_gates 6>;
 			resets = <&ahb1_rst 6>;
 			#dma-cells = <1>;
-
-			/* DMA controller requires AHB1 clocked from PLL6 */
-			assigned-clocks = <&ahb1>;
-			assigned-clock-parents = <&pll6 0>;
 		};
 
 		mmc0: mmc@01c0f000 {
