@@ -112,7 +112,7 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		mutex_lock(&inode->i_mutex);
 		ret = nfs_file_fsync_commit(file, start, end, datasync);
 		if (!ret)
-			ret = pnfs_layoutcommit_inode(inode, true);
+			ret = pnfs_sync_inode(inode, !!datasync);
 		mutex_unlock(&inode->i_mutex);
 		/*
 		 * If nfs_file_fsync_commit detected a server reboot, then

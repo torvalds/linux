@@ -2231,6 +2231,13 @@ clear_layoutcommitting:
 }
 EXPORT_SYMBOL_GPL(pnfs_layoutcommit_inode);
 
+int
+pnfs_generic_sync(struct inode *inode, bool datasync)
+{
+	return pnfs_layoutcommit_inode(inode, true);
+}
+EXPORT_SYMBOL_GPL(pnfs_generic_sync);
+
 struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {
 	struct nfs4_threshold *thp;

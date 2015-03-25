@@ -1139,6 +1139,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.write_pagelist		= filelayout_write_pagelist,
 	.alloc_deviceid_node	= filelayout_alloc_deviceid_node,
 	.free_deviceid_node	= filelayout_free_deviceid_node,
+	.sync			= pnfs_nfs_generic_sync,
 };
 
 static int __init nfs4filelayout_init(void)

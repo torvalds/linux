@@ -1509,6 +1509,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.write_pagelist		= ff_layout_write_pagelist,
 	.alloc_deviceid_node    = ff_layout_alloc_deviceid_node,
 	.encode_layoutreturn    = ff_layout_encode_layoutreturn,
+	.sync			= pnfs_nfs_generic_sync,
 };
 
 static int __init nfs4flexfilelayout_init(void)

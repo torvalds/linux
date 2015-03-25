@@ -868,3 +868,13 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 	nfs_request_add_commit_list(req, list, cinfo);
 }
 EXPORT_SYMBOL_GPL(pnfs_layout_mark_request_commit);
+
+int
+pnfs_nfs_generic_sync(struct inode *inode, bool datasync)
+{
+	if (datasync)
+		return 0;
+	return pnfs_layoutcommit_inode(inode, true);
+}
+EXPORT_SYMBOL_GPL(pnfs_nfs_generic_sync);
+

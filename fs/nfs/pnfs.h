@@ -155,6 +155,8 @@ struct pnfs_layoutdriver_type {
 			       int how,
 			       struct nfs_commit_info *cinfo);
 
+	int (*sync)(struct inode *inode, bool datasync);
+
 	/*
 	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
 	 * I/O, else return PNFS_NOT_ATTEMPTED to fall back to normal NFS
@@ -267,6 +269,8 @@ bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task);
 void pnfs_set_layoutcommit(struct inode *, struct pnfs_layout_segment *, loff_t);
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
+int pnfs_generic_sync(struct inode *inode, bool datasync);
+int pnfs_nfs_generic_sync(struct inode *inode, bool datasync);
 int _pnfs_return_layout(struct inode *);
 int pnfs_commit_and_return_layout(struct inode *);
 void pnfs_ld_write_done(struct nfs_pgio_header *);
@@ -488,6 +492,14 @@ pnfs_ld_read_whole_page(struct inode *inode)
 	return NFS_SERVER(inode)->pnfs_curr_ld->flags & PNFS_READ_WHOLE_PAGE;
 }
 
+static inline int
+pnfs_sync_inode(struct inode *inode, bool datasync)
+{
+	if (!pnfs_enabled_sb(NFS_SERVER(inode)))
+		return 0;
+	return NFS_SERVER(inode)->pnfs_curr_ld->sync(inode, datasync);
+}
+
 static inline bool
 pnfs_layoutcommit_outstanding(struct inode *inode)
 {
@@ -568,6 +580,12 @@ static inline bool
 pnfs_ld_read_whole_page(struct inode *inode)
 {
 	return false;
+}
+
+static inline int
+pnfs_sync_inode(struct inode *inode, bool datasync)
+{
+	return 0;
 }
 
 static inline bool
