@@ -1234,8 +1234,7 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id)
 			skb = txq->tx_skbuff[index];
 			bdnum++;
 		}
-		if (skb_shinfo(skb)->nr_frags &&
-		    (status = bdp_t->cbd_sc) & BD_ENET_TX_READY)
+		if ((status = bdp_t->cbd_sc) & BD_ENET_TX_READY)
 			break;
 
 		for (i = 0; i < bdnum; i++) {
