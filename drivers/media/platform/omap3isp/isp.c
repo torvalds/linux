@@ -1946,6 +1946,19 @@ static int isp_register_entities(struct isp_device *isp)
 			goto done;
 		}
 
+		/*
+		 * Not all interfaces are available on all revisions
+		 * of the ISP. The sub-devices of those interfaces
+		 * aren't initialised in such a case. Check this by
+		 * ensuring the num_pads is non-zero.
+		 */
+		if (!input->num_pads) {
+			dev_err(isp->dev, "%s: invalid input %u\n",
+				entity->name, subdevs->interface);
+			ret = -EINVAL;
+			goto done;
+		}
+
 		for (i = 0; i < sensor->entity.num_pads; i++) {
 			if (sensor->entity.pads[i].flags & MEDIA_PAD_FL_SOURCE)
 				break;
