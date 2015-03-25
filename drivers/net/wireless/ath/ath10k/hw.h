@@ -104,6 +104,11 @@ enum ath10k_fw_ie_type {
 	 * FW API 4 and above.
 	 */
 	ATH10K_FW_IE_WMI_OP_VERSION = 5,
+
+	/* HTT "operations" interface version, 32 bit value. Supported from
+	 * FW API 5 and above.
+	 */
+	ATH10K_FW_IE_HTT_OP_VERSION = 6,
 };
 
 enum ath10k_fw_wmi_op_version {
@@ -117,6 +122,20 @@ enum ath10k_fw_wmi_op_version {
 
 	/* keep last */
 	ATH10K_FW_WMI_OP_VERSION_MAX,
+};
+
+enum ath10k_fw_htt_op_version {
+	ATH10K_FW_HTT_OP_VERSION_UNSET = 0,
+
+	ATH10K_FW_HTT_OP_VERSION_MAIN = 1,
+
+	/* also used in 10.2 and 10.2.4 branches */
+	ATH10K_FW_HTT_OP_VERSION_10_1 = 2,
+
+	ATH10K_FW_HTT_OP_VERSION_TLV = 3,
+
+	/* keep last */
+	ATH10K_FW_HTT_OP_VERSION_MAX,
 };
 
 enum ath10k_hw_rev {

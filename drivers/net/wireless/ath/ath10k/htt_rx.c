@@ -1892,6 +1892,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
 	struct htt_resp *resp = (struct htt_resp *)skb->data;
+	enum htt_t2h_msg_type type;
 
 	/* confirm alignment */
 	if (!IS_ALIGNED((unsigned long)skb->data, 4))
@@ -1899,7 +1900,16 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx, msg_type: 0x%0X\n",
 		   resp->hdr.msg_type);
-	switch (resp->hdr.msg_type) {
+
+	if (resp->hdr.msg_type >= ar->htt.t2h_msg_types_max) {
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx, unsupported msg_type: 0x%0X\n max: 0x%0X",
+			   resp->hdr.msg_type, ar->htt.t2h_msg_types_max);
+		dev_kfree_skb_any(skb);
+		return;
+	}
+	type = ar->htt.t2h_msg_types[resp->hdr.msg_type];
+
+	switch (type) {
 	case HTT_T2H_MSG_TYPE_VERSION_CONF: {
 		htt->target_version_major = resp->ver_resp.major;
 		htt->target_version_minor = resp->ver_resp.minor;
@@ -1976,7 +1986,6 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_TEST:
-		/* FIX THIS */
 		break;
 	case HTT_T2H_MSG_TYPE_STATS_CONF:
 		trace_ath10k_htt_stats(ar, skb->data, skb->len);
@@ -2018,11 +2027,8 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		return;
 	}
 	case HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND:
-		/* FIXME: This WMI-TLV event is overlapping with 10.2
-		 * CHAN_CHANGE - both being 0xF. Neither is being used in
-		 * practice so no immediate action is necessary. Nevertheless
-		 * HTT may need an abstraction layer like WMI has one day.
-		 */
+		break;
+	case HTT_T2H_MSG_TYPE_CHAN_CHANGE:
 		break;
 	default:
 		ath10k_warn(ar, "htt event (%d) not handled\n",
