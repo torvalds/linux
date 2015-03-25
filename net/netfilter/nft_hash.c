@@ -29,8 +29,7 @@ struct nft_hash {
 
 struct nft_hash_elem {
 	struct rhash_head		node;
-	struct nft_data			key;
-	struct nft_data			data[];
+	struct nft_set_ext		ext;
 };
 
 struct nft_hash_cmp_arg {
@@ -51,7 +50,7 @@ static inline u32 nft_hash_obj(const void *data, u32 len, u32 seed)
 {
 	const struct nft_hash_elem *he = data;
 
-	return jhash(&he->key, len, seed);
+	return jhash(nft_set_ext_key(&he->ext), len, seed);
 }
 
 static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
@@ -60,7 +59,7 @@ static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
 	const struct nft_hash_cmp_arg *x = arg->key;
 	const struct nft_hash_elem *he = ptr;
 
-	if (nft_data_cmp(&he->key, x->key, x->set->klen))
+	if (nft_data_cmp(nft_set_ext_key(&he->ext), x->key, x->set->klen))
 		return 1;
 	return 0;
 }
@@ -78,7 +77,7 @@ static bool nft_hash_lookup(const struct nft_set *set,
 
 	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_hash_params);
 	if (he && set->flags & NFT_SET_MAP)
-		nft_data_copy(data, he->data);
+		nft_data_copy(data, nft_set_ext_data(&he->ext));
 
 	return !!he;
 }
@@ -87,43 +86,22 @@ static int nft_hash_insert(const struct nft_set *set,
 			   const struct nft_set_elem *elem)
 {
 	struct nft_hash *priv = nft_set_priv(set);
-	struct nft_hash_elem *he;
+	struct nft_hash_elem *he = elem->priv;
 	struct nft_hash_cmp_arg arg = {
 		.set	 = set,
 		.key	 = &elem->key,
 	};
-	unsigned int size;
-	int err;
 
-	if (elem->flags != 0)
-		return -EINVAL;
-
-	size = sizeof(*he);
-	if (set->flags & NFT_SET_MAP)
-		size += sizeof(he->data[0]);
-
-	he = kzalloc(size, GFP_KERNEL);
-	if (he == NULL)
-		return -ENOMEM;
-
-	nft_data_copy(&he->key, &elem->key);
-	if (set->flags & NFT_SET_MAP)
-		nft_data_copy(he->data, &elem->data);
-
-	err = rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
-					   nft_hash_params);
-	if (err)
-		kfree(he);
-
-	return err;
+	return rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
+					    nft_hash_params);
 }
 
 static void nft_hash_elem_destroy(const struct nft_set *set,
 				  struct nft_hash_elem *he)
 {
-	nft_data_uninit(&he->key, NFT_DATA_VALUE);
+	nft_data_uninit(nft_set_ext_key(&he->ext), NFT_DATA_VALUE);
 	if (set->flags & NFT_SET_MAP)
-		nft_data_uninit(he->data, set->dtype);
+		nft_data_uninit(nft_set_ext_data(&he->ext), set->dtype);
 	kfree(he);
 }
 
@@ -150,10 +128,7 @@ static int nft_hash_get(const struct nft_set *set, struct nft_set_elem *elem)
 	if (!he)
 		return -ENOENT;
 
-	elem->cookie = he;
-	elem->flags = 0;
-	if (set->flags & NFT_SET_MAP)
-		nft_data_copy(&elem->data, he->data);
+	elem->priv = he;
 
 	return 0;
 }
@@ -162,7 +137,7 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 			  struct nft_set_iter *iter)
 {
 	struct nft_hash *priv = nft_set_priv(set);
-	const struct nft_hash_elem *he;
+	struct nft_hash_elem *he;
 	struct rhashtable_iter hti;
 	struct nft_set_elem elem;
 	int err;
@@ -192,10 +167,7 @@ static void nft_hash_walk(const struct nft_ctx *ctx, const struct nft_set *set,
 		if (iter->count < iter->skip)
 			goto cont;
 
-		memcpy(&elem.key, &he->key, sizeof(elem.key));
-		if (set->flags & NFT_SET_MAP)
-			memcpy(&elem.data, he->data, sizeof(elem.data));
-		elem.flags = 0;
+		elem.priv = he;
 
 		iter->err = iter->fn(ctx, set, iter, &elem);
 		if (iter->err < 0)
@@ -254,9 +226,6 @@ static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
 	unsigned int esize;
 
 	esize = sizeof(struct nft_hash_elem);
-	if (features & NFT_SET_MAP)
-		esize += FIELD_SIZEOF(struct nft_hash_elem, data[0]);
-
 	if (desc->size) {
 		est->size = sizeof(struct nft_hash) +
 			    roundup_pow_of_two(desc->size * 4 / 3) *
@@ -278,6 +247,7 @@ static bool nft_hash_estimate(const struct nft_set_desc *desc, u32 features,
 
 static struct nft_set_ops nft_hash_ops __read_mostly = {
 	.privsize       = nft_hash_privsize,
+	.elemsize	= offsetof(struct nft_hash_elem, ext),
 	.estimate	= nft_hash_estimate,
 	.init		= nft_hash_init,
 	.destroy	= nft_hash_destroy,

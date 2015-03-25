@@ -2771,10 +2771,11 @@ static int nf_tables_bind_check_setelem(const struct nft_ctx *ctx,
 					const struct nft_set_iter *iter,
 					const struct nft_set_elem *elem)
 {
+	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 	enum nft_registers dreg;
 
 	dreg = nft_type_to_reg(set->dtype);
-	return nft_validate_data_load(ctx, dreg, &elem->data,
+	return nft_validate_data_load(ctx, dreg, nft_set_ext_data(ext),
 				      set->dtype == NFT_DATA_VERDICT ?
 				      NFT_DATA_VERDICT : NFT_DATA_VALUE);
 }
@@ -2889,6 +2890,7 @@ static int nf_tables_fill_setelem(struct sk_buff *skb,
 				  const struct nft_set *set,
 				  const struct nft_set_elem *elem)
 {
+	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 
@@ -2896,20 +2898,20 @@ static int nf_tables_fill_setelem(struct sk_buff *skb,
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	if (nft_data_dump(skb, NFTA_SET_ELEM_KEY, &elem->key, NFT_DATA_VALUE,
-			  set->klen) < 0)
+	if (nft_data_dump(skb, NFTA_SET_ELEM_KEY, nft_set_ext_key(ext),
+			  NFT_DATA_VALUE, set->klen) < 0)
 		goto nla_put_failure;
 
-	if (set->flags & NFT_SET_MAP &&
-	    !(elem->flags & NFT_SET_ELEM_INTERVAL_END) &&
-	    nft_data_dump(skb, NFTA_SET_ELEM_DATA, &elem->data,
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA) &&
+	    nft_data_dump(skb, NFTA_SET_ELEM_DATA, nft_set_ext_data(ext),
 			  set->dtype == NFT_DATA_VERDICT ? NFT_DATA_VERDICT : NFT_DATA_VALUE,
 			  set->dlen) < 0)
 		goto nla_put_failure;
 
-	if (elem->flags != 0)
-		if (nla_put_be32(skb, NFTA_SET_ELEM_FLAGS, htonl(elem->flags)))
-			goto nla_put_failure;
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_FLAGS) &&
+	    nla_put_be32(skb, NFTA_SET_ELEM_FLAGS,
+		         htonl(*nft_set_ext_flags(ext))))
+		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
 	return 0;
@@ -3130,15 +3132,42 @@ static struct nft_trans *nft_trans_elem_alloc(struct nft_ctx *ctx,
 	return trans;
 }
 
+static void *nft_set_elem_init(const struct nft_set *set,
+			       const struct nft_set_ext_tmpl *tmpl,
+			       const struct nft_data *key,
+			       const struct nft_data *data,
+			       gfp_t gfp)
+{
+	struct nft_set_ext *ext;
+	void *elem;
+
+	elem = kzalloc(set->ops->elemsize + tmpl->len, gfp);
+	if (elem == NULL)
+		return NULL;
+
+	ext = nft_set_elem_ext(set, elem);
+	nft_set_ext_init(ext, tmpl);
+
+	memcpy(nft_set_ext_key(ext), key, set->klen);
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
+		memcpy(nft_set_ext_data(ext), data, set->dlen);
+
+	return elem;
+}
+
 static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 			    const struct nlattr *attr)
 {
 	struct nlattr *nla[NFTA_SET_ELEM_MAX + 1];
 	struct nft_data_desc d1, d2;
+	struct nft_set_ext_tmpl tmpl;
+	struct nft_set_ext *ext;
 	struct nft_set_elem elem;
 	struct nft_set_binding *binding;
+	struct nft_data data;
 	enum nft_registers dreg;
 	struct nft_trans *trans;
+	u32 flags;
 	int err;
 
 	if (set->size && set->nelems == set->size)
@@ -3152,22 +3181,26 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	if (nla[NFTA_SET_ELEM_KEY] == NULL)
 		return -EINVAL;
 
-	elem.flags = 0;
+	nft_set_ext_prepare(&tmpl);
+
+	flags = 0;
 	if (nla[NFTA_SET_ELEM_FLAGS] != NULL) {
-		elem.flags = ntohl(nla_get_be32(nla[NFTA_SET_ELEM_FLAGS]));
-		if (elem.flags & ~NFT_SET_ELEM_INTERVAL_END)
+		flags = ntohl(nla_get_be32(nla[NFTA_SET_ELEM_FLAGS]));
+		if (flags & ~NFT_SET_ELEM_INTERVAL_END)
 			return -EINVAL;
 		if (!(set->flags & NFT_SET_INTERVAL) &&
-		    elem.flags & NFT_SET_ELEM_INTERVAL_END)
+		    flags & NFT_SET_ELEM_INTERVAL_END)
 			return -EINVAL;
+		if (flags != 0)
+			nft_set_ext_add(&tmpl, NFT_SET_EXT_FLAGS);
 	}
 
 	if (set->flags & NFT_SET_MAP) {
 		if (nla[NFTA_SET_ELEM_DATA] == NULL &&
-		    !(elem.flags & NFT_SET_ELEM_INTERVAL_END))
+		    !(flags & NFT_SET_ELEM_INTERVAL_END))
 			return -EINVAL;
 		if (nla[NFTA_SET_ELEM_DATA] != NULL &&
-		    elem.flags & NFT_SET_ELEM_INTERVAL_END)
+		    flags & NFT_SET_ELEM_INTERVAL_END)
 			return -EINVAL;
 	} else {
 		if (nla[NFTA_SET_ELEM_DATA] != NULL)
@@ -3185,8 +3218,10 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	if (set->ops->get(set, &elem) == 0)
 		goto err2;
 
+	nft_set_ext_add(&tmpl, NFT_SET_EXT_KEY);
+
 	if (nla[NFTA_SET_ELEM_DATA] != NULL) {
-		err = nft_data_init(ctx, &elem.data, &d2, nla[NFTA_SET_ELEM_DATA]);
+		err = nft_data_init(ctx, &data, &d2, nla[NFTA_SET_ELEM_DATA]);
 		if (err < 0)
 			goto err2;
 
@@ -3203,29 +3238,42 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 			};
 
 			err = nft_validate_data_load(&bind_ctx, dreg,
-						     &elem.data, d2.type);
+						     &data, d2.type);
 			if (err < 0)
 				goto err3;
 		}
+
+		nft_set_ext_add(&tmpl, NFT_SET_EXT_DATA);
 	}
+
+	err = -ENOMEM;
+	elem.priv = nft_set_elem_init(set, &tmpl, &elem.key, &data, GFP_KERNEL);
+	if (elem.priv == NULL)
+		goto err3;
+
+	ext = nft_set_elem_ext(set, elem.priv);
+	if (flags)
+		*nft_set_ext_flags(ext) = flags;
 
 	trans = nft_trans_elem_alloc(ctx, NFT_MSG_NEWSETELEM, set);
 	if (trans == NULL)
-		goto err3;
+		goto err4;
 
 	err = set->ops->insert(set, &elem);
 	if (err < 0)
-		goto err4;
+		goto err5;
 
 	nft_trans_elem(trans) = elem;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 	return 0;
 
-err4:
+err5:
 	kfree(trans);
+err4:
+	kfree(elem.priv);
 err3:
 	if (nla[NFTA_SET_ELEM_DATA] != NULL)
-		nft_data_uninit(&elem.data, d2.type);
+		nft_data_uninit(&data, d2.type);
 err2:
 	nft_data_uninit(&elem.key, d1.type);
 err1:
@@ -3557,6 +3605,7 @@ static int nf_tables_commit(struct sk_buff *skb)
 	struct net *net = sock_net(skb->sk);
 	struct nft_trans *trans, *next;
 	struct nft_trans_elem *te;
+	struct nft_set_ext *ext;
 
 	/* Bump generation counter, invalidate any dump in progress */
 	while (++net->nft.base_seq == 0);
@@ -3641,14 +3690,16 @@ static int nf_tables_commit(struct sk_buff *skb)
 			break;
 		case NFT_MSG_DELSETELEM:
 			te = (struct nft_trans_elem *)trans->data;
+			ext = nft_set_elem_ext(te->set, te->elem.priv);
+
 			nf_tables_setelem_notify(&trans->ctx, te->set,
 						 &te->elem,
 						 NFT_MSG_DELSETELEM, 0);
 			te->set->ops->get(te->set, &te->elem);
 			nft_data_uninit(&te->elem.key, NFT_DATA_VALUE);
-			if (te->set->flags & NFT_SET_MAP &&
-			    !(te->elem.flags & NFT_SET_ELEM_INTERVAL_END))
-				nft_data_uninit(&te->elem.data, te->set->dtype);
+			if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
+				nft_data_uninit(nft_set_ext_data(ext),
+						te->set->dtype);
 			te->set->ops->remove(te->set, &te->elem);
 			nft_trans_destroy(trans);
 			break;
@@ -3691,6 +3742,7 @@ static int nf_tables_abort(struct sk_buff *skb)
 	struct net *net = sock_net(skb->sk);
 	struct nft_trans *trans, *next;
 	struct nft_trans_elem *te;
+	struct nft_set_ext *ext;
 
 	list_for_each_entry_safe(trans, next, &net->nft.commit_list, list) {
 		switch (trans->msg_type) {
@@ -3752,11 +3804,13 @@ static int nf_tables_abort(struct sk_buff *skb)
 		case NFT_MSG_NEWSETELEM:
 			nft_trans_elem_set(trans)->nelems--;
 			te = (struct nft_trans_elem *)trans->data;
+			ext = nft_set_elem_ext(te->set, te->elem.priv);
+
 			te->set->ops->get(te->set, &te->elem);
 			nft_data_uninit(&te->elem.key, NFT_DATA_VALUE);
-			if (te->set->flags & NFT_SET_MAP &&
-			    !(te->elem.flags & NFT_SET_ELEM_INTERVAL_END))
-				nft_data_uninit(&te->elem.data, te->set->dtype);
+			if (nft_set_ext_exists(ext, NFT_SET_EXT_DATA))
+				nft_data_uninit(nft_set_ext_data(ext),
+						te->set->dtype);
 			te->set->ops->remove(te->set, &te->elem);
 			nft_trans_destroy(trans);
 			break;
@@ -3836,13 +3890,18 @@ static int nf_tables_loop_check_setelem(const struct nft_ctx *ctx,
 					const struct nft_set_iter *iter,
 					const struct nft_set_elem *elem)
 {
-	if (elem->flags & NFT_SET_ELEM_INTERVAL_END)
+	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+	const struct nft_data *data;
+
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_FLAGS) &&
+	    *nft_set_ext_flags(ext) & NFT_SET_ELEM_INTERVAL_END)
 		return 0;
 
-	switch (elem->data.verdict) {
+	data = nft_set_ext_data(ext);
+	switch (data->verdict) {
 	case NFT_JUMP:
 	case NFT_GOTO:
-		return nf_tables_check_loops(ctx, elem->data.chain);
+		return nf_tables_check_loops(ctx, data->chain);
 	default:
 		return 0;
 	}

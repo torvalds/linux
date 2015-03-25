@@ -140,8 +140,7 @@ struct nft_userdata {
  *
  *	@cookie: implementation specific element cookie
  *	@key: element key
- *	@data: element data (maps only)
- *	@flags: element flags (end of interval)
+ *	@priv: element private data and extensions
  *
  *	The cookie can be used to store a handle to the element for subsequent
  *	removal.
@@ -149,8 +148,7 @@ struct nft_userdata {
 struct nft_set_elem {
 	void			*cookie;
 	struct nft_data		key;
-	struct nft_data		data;
-	u32			flags;
+	void			*priv;
 };
 
 struct nft_set;
@@ -214,6 +212,7 @@ struct nft_set_estimate {
  *	@destroy: destroy private data of set instance
  *	@list: nf_tables_set_ops list node
  *	@owner: module reference
+ *	@elemsize: element private size
  *	@features: features supported by the implementation
  */
 struct nft_set_ops {
@@ -241,6 +240,7 @@ struct nft_set_ops {
 
 	struct list_head		list;
 	struct module			*owner;
+	unsigned int			elemsize;
 	u32				features;
 };
 
@@ -415,6 +415,12 @@ static inline struct nft_data *nft_set_ext_data(const struct nft_set_ext *ext)
 static inline u8 *nft_set_ext_flags(const struct nft_set_ext *ext)
 {
 	return nft_set_ext(ext, NFT_SET_EXT_FLAGS);
+}
+
+static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
+						   void *elem)
+{
+	return elem + set->ops->elemsize;
 }
 
 /**
