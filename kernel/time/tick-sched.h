@@ -3,6 +3,16 @@
 
 #include <linux/hrtimer.h>
 
+enum tick_device_mode {
+	TICKDEV_MODE_PERIODIC,
+	TICKDEV_MODE_ONESHOT,
+};
+
+struct tick_device {
+	struct clock_event_device *evtdev;
+	enum tick_device_mode mode;
+};
+
 enum tick_nohz_mode {
 	NOHZ_MODE_INACTIVE,
 	NOHZ_MODE_LOWRES,

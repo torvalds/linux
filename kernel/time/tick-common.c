@@ -380,7 +380,7 @@ void tick_shutdown(unsigned int *cpup)
  *
  * No locks required. Nothing can change the per cpu device.
  */
-static void tick_suspend_local(void)
+void tick_suspend_local(void)
 {
 	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
 

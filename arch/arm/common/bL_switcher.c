@@ -151,8 +151,6 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	unsigned int mpidr, this_cpu, that_cpu;
 	unsigned int ob_mpidr, ob_cpu, ob_cluster, ib_mpidr, ib_cpu, ib_cluster;
 	struct completion inbound_alive;
-	struct tick_device *tdev;
-	enum clock_event_state tdev_state;
 	long volatile *handshake_ptr;
 	int ipi_nr, ret;
 
@@ -219,13 +217,7 @@ static int bL_switch_to(unsigned int new_cluster_id)
 	/* redirect GIC's SGIs to our counterpart */
 	gic_migrate_target(bL_gic_id[ib_cpu][ib_cluster]);
 
-	tdev = tick_get_device(this_cpu);
-	if (tdev && !cpumask_equal(tdev->evtdev->cpumask, cpumask_of(this_cpu)))
-		tdev = NULL;
-	if (tdev) {
-		tdev_state = tdev->evtdev->state;
-		clockevents_set_state(tdev->evtdev, CLOCK_EVT_STATE_SHUTDOWN);
-	}
+	tick_suspend_local();
 
 	ret = cpu_pm_enter();
 
@@ -251,11 +243,7 @@ static int bL_switch_to(unsigned int new_cluster_id)
 
 	ret = cpu_pm_exit();
 
-	if (tdev) {
-		clockevents_set_state(tdev->evtdev, tdev_state);
-		clockevents_program_event(tdev->evtdev,
-					  tdev->evtdev->next_event, 1);
-	}
+	tick_resume_local();
 
 	trace_cpu_migrate_finish(ktime_get_real_ns(), ib_mpidr);
 	local_fiq_enable();
