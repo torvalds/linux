@@ -423,7 +423,7 @@ static int flexfb_probe_common(struct spi_device *sdev, struct platform_device *
 			}
 			par->fbtftops.write_register = fbtft_write_reg8_bus9;
 			par->fbtftops.write_vmem = fbtft_write_vmem16_bus9;
-			sdev->bits_per_word=9;
+			sdev->bits_per_word = 9;
 			ret = sdev->master->setup(sdev);
 			if (ret) {
 				dev_warn(dev,
