@@ -830,12 +830,13 @@ static bool dsa_slave_dev_check(struct net_device *dev)
 static int dsa_slave_master_changed(struct net_device *dev)
 {
 	struct net_device *master = netdev_master_upper_dev_get(dev);
+	struct dsa_slave_priv *p = netdev_priv(dev);
 	int err = 0;
 
 	if (master && master->rtnl_link_ops &&
 	    !strcmp(master->rtnl_link_ops->kind, "bridge"))
 		err = dsa_slave_bridge_port_join(dev, master);
-	else
+	else if (dsa_port_is_bridged(p))
 		err = dsa_slave_bridge_port_leave(dev);
 
 	return err;
