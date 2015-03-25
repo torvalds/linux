@@ -621,7 +621,7 @@ static void dsps_read_fifo32(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 	void __iomem *fifo = hw_ep->fifo;
 
 	if (len >= 4) {
-		readsl(fifo, dst, len >> 2);
+		ioread32_rep(fifo, dst, len >> 2);
 		dst += len & ~0x03;
 		len &= 0x03;
 	}
