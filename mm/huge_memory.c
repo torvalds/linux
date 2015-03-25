@@ -1350,7 +1350,8 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (migrated) {
 		flags |= TNF_MIGRATED;
 		page_nid = target_nid;
-	}
+	} else
+		flags |= TNF_MIGRATE_FAIL;
 
 	goto out;
 clear_pmdnuma:
