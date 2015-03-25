@@ -31,7 +31,7 @@ struct nft_rbtree_elem {
 
 static bool nft_rbtree_lookup(const struct nft_set *set,
 			      const struct nft_data *key,
-			      struct nft_data *data)
+			      const struct nft_set_ext **ext)
 {
 	const struct nft_rbtree *priv = nft_set_priv(set);
 	const struct nft_rbtree_elem *rbe, *interval = NULL;
@@ -55,10 +55,9 @@ found:
 			    *nft_set_ext_flags(&rbe->ext) &
 			    NFT_SET_ELEM_INTERVAL_END)
 				goto out;
-			if (set->flags & NFT_SET_MAP)
-				nft_data_copy(data, nft_set_ext_data(&rbe->ext));
-
 			spin_unlock_bh(&nft_rbtree_lock);
+
+			*ext = &rbe->ext;
 			return true;
 		}
 	}

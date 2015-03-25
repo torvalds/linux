@@ -66,7 +66,7 @@ static inline int nft_hash_cmp(struct rhashtable_compare_arg *arg,
 
 static bool nft_hash_lookup(const struct nft_set *set,
 			    const struct nft_data *key,
-			    struct nft_data *data)
+			    const struct nft_set_ext **ext)
 {
 	struct nft_hash *priv = nft_set_priv(set);
 	const struct nft_hash_elem *he;
@@ -76,8 +76,8 @@ static bool nft_hash_lookup(const struct nft_set *set,
 	};
 
 	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_hash_params);
-	if (he && set->flags & NFT_SET_MAP)
-		nft_data_copy(data, nft_set_ext_data(&he->ext));
+	if (he != NULL)
+		*ext = &he->ext;
 
 	return !!he;
 }

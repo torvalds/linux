@@ -200,6 +200,8 @@ struct nft_set_estimate {
 	enum nft_set_class	class;
 };
 
+struct nft_set_ext;
+
 /**
  *	struct nft_set_ops - nf_tables set operations
  *
@@ -218,7 +220,7 @@ struct nft_set_estimate {
 struct nft_set_ops {
 	bool				(*lookup)(const struct nft_set *set,
 						  const struct nft_data *key,
-						  struct nft_data *data);
+						  const struct nft_set_ext **ext);
 	int				(*get)(const struct nft_set *set,
 					       struct nft_set_elem *elem);
 	int				(*insert)(const struct nft_set *set,
