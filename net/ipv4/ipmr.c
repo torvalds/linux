@@ -1642,7 +1642,8 @@ static struct notifier_block ip_mr_notifier = {
  *	important for multicast video.
  */
 
-static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
+static void ip_encap(struct net *net, struct sk_buff *skb,
+		     __be32 saddr, __be32 daddr)
 {
 	struct iphdr *iph;
 	const struct iphdr *old_iph = ip_hdr(skb);
@@ -1661,7 +1662,7 @@ static void ip_encap(struct sk_buff *skb, __be32 saddr, __be32 daddr)
 	iph->protocol	=	IPPROTO_IPIP;
 	iph->ihl	=	5;
 	iph->tot_len	=	htons(skb->len);
-	ip_select_ident(skb, NULL);
+	ip_select_ident(net, skb, NULL);
 	ip_send_check(iph);
 
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
@@ -1758,7 +1759,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	 * What do we do with netfilter? -- RR
 	 */
 	if (vif->flags & VIFF_TUNNEL) {
-		ip_encap(skb, vif->local, vif->remote);
+		ip_encap(net, skb, vif->local, vif->remote);
 		/* FIXME: extra output firewall step used to be here. --RR */
 		vif->dev->stats.tx_packets++;
 		vif->dev->stats.tx_bytes += skb->len;
