@@ -5980,7 +5980,7 @@ struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
 		atomic64_set(&ireq->ir_cookie, 0);
 		ireq->ireq_state = TCP_NEW_SYN_RECV;
 		write_pnet(&ireq->ireq_net, sock_net(sk_listener));
-
+		ireq->ireq_family = sk_listener->sk_family;
 	}
 
 	return req;

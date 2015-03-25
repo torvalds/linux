@@ -1206,7 +1206,6 @@ static void tcp_v4_init_req(struct request_sock *req, struct sock *sk_listener,
 	sk_daddr_set(req_to_sk(req), ip_hdr(skb)->saddr);
 	ireq->no_srccheck = inet_sk(sk_listener)->transparent;
 	ireq->opt = tcp_v4_save_options(skb);
-	ireq->ireq_family = AF_INET;
 }
 
 static struct dst_entry *tcp_v4_route_req(struct sock *sk, struct flowi *fl,
