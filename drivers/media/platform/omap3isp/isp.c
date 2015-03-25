@@ -86,35 +86,43 @@ static void isp_restore_ctx(struct isp_device *isp);
 static const struct isp_res_mapping isp_res_maps[] = {
 	{
 		.isp_rev = ISP_REVISION_2_0,
-		.map = 1 << OMAP3_ISP_IOMEM_MAIN |
-		       1 << OMAP3_ISP_IOMEM_CCP2 |
-		       1 << OMAP3_ISP_IOMEM_CCDC |
-		       1 << OMAP3_ISP_IOMEM_HIST |
-		       1 << OMAP3_ISP_IOMEM_H3A |
-		       1 << OMAP3_ISP_IOMEM_PREV |
-		       1 << OMAP3_ISP_IOMEM_RESZ |
-		       1 << OMAP3_ISP_IOMEM_SBL |
-		       1 << OMAP3_ISP_IOMEM_CSI2A_REGS1 |
-		       1 << OMAP3_ISP_IOMEM_CSIPHY2,
+		.offset = {
+			/* first MMIO area */
+			0x0000, /* base, len 0x0070 */
+			0x0400, /* ccp2, len 0x01f0 */
+			0x0600, /* ccdc, len 0x00a8 */
+			0x0a00, /* hist, len 0x0048 */
+			0x0c00, /* h3a, len 0x0060 */
+			0x0e00, /* preview, len 0x00a0 */
+			0x1000, /* resizer, len 0x00ac */
+			0x1200, /* sbl, len 0x00fc */
+			/* second MMIO area */
+			0x0000, /* csi2a, len 0x0170 */
+			0x0170, /* csiphy2, len 0x000c */
+		},
 		.syscon_offset = 0xdc,
 		.phy_type = ISP_PHY_TYPE_3430,
 	},
 	{
 		.isp_rev = ISP_REVISION_15_0,
-		.map = 1 << OMAP3_ISP_IOMEM_MAIN |
-		       1 << OMAP3_ISP_IOMEM_CCP2 |
-		       1 << OMAP3_ISP_IOMEM_CCDC |
-		       1 << OMAP3_ISP_IOMEM_HIST |
-		       1 << OMAP3_ISP_IOMEM_H3A |
-		       1 << OMAP3_ISP_IOMEM_PREV |
-		       1 << OMAP3_ISP_IOMEM_RESZ |
-		       1 << OMAP3_ISP_IOMEM_SBL |
-		       1 << OMAP3_ISP_IOMEM_CSI2A_REGS1 |
-		       1 << OMAP3_ISP_IOMEM_CSIPHY2 |
-		       1 << OMAP3_ISP_IOMEM_CSI2A_REGS2 |
-		       1 << OMAP3_ISP_IOMEM_CSI2C_REGS1 |
-		       1 << OMAP3_ISP_IOMEM_CSIPHY1 |
-		       1 << OMAP3_ISP_IOMEM_CSI2C_REGS2,
+		.offset = {
+			/* first MMIO area */
+			0x0000, /* base, len 0x0070 */
+			0x0400, /* ccp2, len 0x01f0 */
+			0x0600, /* ccdc, len 0x00a8 */
+			0x0a00, /* hist, len 0x0048 */
+			0x0c00, /* h3a, len 0x0060 */
+			0x0e00, /* preview, len 0x00a0 */
+			0x1000, /* resizer, len 0x00ac */
+			0x1200, /* sbl, len 0x00fc */
+			/* second MMIO area */
+			0x0000, /* csi2a, len 0x0170 (1st area) */
+			0x0170, /* csiphy2, len 0x000c */
+			0x01c0, /* csi2a, len 0x0040 (2nd area) */
+			0x0400, /* csi2c, len 0x0170 (1st area) */
+			0x0570, /* csiphy1, len 0x000c */
+			0x05c0, /* csi2c, len 0x0040 (2nd area) */
+		},
 		.syscon_offset = 0x2f0,
 		.phy_type = ISP_PHY_TYPE_3630,
 	},
@@ -2235,27 +2243,6 @@ static int isp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int isp_map_mem_resource(struct platform_device *pdev,
-				struct isp_device *isp,
-				enum isp_mem_resources res)
-{
-	struct resource *mem;
-
-	/* request the mem region for the camera registers */
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, res);
-
-	/* map the region */
-	isp->mmio_base[res] = devm_ioremap_resource(isp->dev, mem);
-	if (IS_ERR(isp->mmio_base[res]))
-		return PTR_ERR(isp->mmio_base[res]);
-
-	if (res == OMAP3_ISP_IOMEM_HIST)
-		isp->mmio_hist_base_phys = mem->start;
-
-	return 0;
-}
-
 /*
  * isp_probe - Probe ISP platform device
  * @pdev: Pointer to ISP platform device
@@ -2271,6 +2258,7 @@ static int isp_probe(struct platform_device *pdev)
 {
 	struct isp_platform_data *pdata = pdev->dev.platform_data;
 	struct isp_device *isp;
+	struct resource *mem;
 	int ret;
 	int i, m;
 
@@ -2303,10 +2291,21 @@ static int isp_probe(struct platform_device *pdev)
 	 *
 	 * The ISP clock tree is revision-dependent. We thus need to enable ICLK
 	 * manually to read the revision before calling __omap3isp_get().
+	 *
+	 * Start by mapping the ISP MMIO area, which is in two pieces.
+	 * The ISP IOMMU is in between. Map both now, and fill in the
+	 * ISP revision specific portions a little later in the
+	 * function.
 	 */
-	ret = isp_map_mem_resource(pdev, isp, OMAP3_ISP_IOMEM_MAIN);
-	if (ret < 0)
-		goto error;
+	for (i = 0; i < 2; i++) {
+		unsigned int map_idx = i ? OMAP3_ISP_IOMEM_CSI2A_REGS1 : 0;
+
+		mem = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		isp->mmio_base[map_idx] =
+			devm_ioremap_resource(isp->dev, mem);
+		if (IS_ERR(isp->mmio_base[map_idx]))
+			return PTR_ERR(isp->mmio_base[map_idx]);
+	}
 
 	ret = isp_get_clocks(isp);
 	if (ret < 0)
@@ -2347,13 +2346,17 @@ static int isp_probe(struct platform_device *pdev)
 		goto error_isp;
 	}
 
-	for (i = 1; i < OMAP3_ISP_IOMEM_LAST; i++) {
-		if (isp_res_maps[m].map & 1 << i) {
-			ret = isp_map_mem_resource(pdev, isp, i);
-			if (ret)
-				goto error_isp;
-		}
-	}
+	for (i = 1; i < OMAP3_ISP_IOMEM_CSI2A_REGS1; i++)
+		isp->mmio_base[i] =
+			isp->mmio_base[0] + isp_res_maps[m].offset[i];
+
+	for (i = OMAP3_ISP_IOMEM_CSIPHY2; i < OMAP3_ISP_IOMEM_LAST; i++)
+		isp->mmio_base[i] =
+			isp->mmio_base[OMAP3_ISP_IOMEM_CSI2A_REGS1]
+			+ isp_res_maps[m].offset[i];
+
+	isp->mmio_hist_base_phys =
+		mem->start + isp_res_maps[m].offset[OMAP3_ISP_IOMEM_HIST];
 
 	isp->syscon = syscon_regmap_lookup_by_pdevname("syscon.0");
 	if (IS_ERR(isp->syscon)) {

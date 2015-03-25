@@ -99,7 +99,7 @@ struct regmap;
 /*
  * struct isp_res_mapping - Map ISP io resources to ISP revision.
  * @isp_rev: ISP_REVISION_x_x
- * @map: bitmap for enum isp_mem_resources
+ * @offset: register offsets of various ISP sub-blocks
  * @syscon_offset: offset of the syscon register for 343x / 3630
  *	    (CONTROL_CSIRXFE / CONTROL_CAMERA_PHY_CTRL, respectively)
  *	    from the syscon base address
@@ -107,7 +107,7 @@ struct regmap;
  */
 struct isp_res_mapping {
 	u32 isp_rev;
-	u32 map;
+	u32 offset[OMAP3_ISP_IOMEM_LAST];
 	u32 syscon_offset;
 	u32 phy_type;
 };
