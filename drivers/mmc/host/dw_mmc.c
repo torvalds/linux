@@ -69,7 +69,8 @@ struct idmac_desc_64addr {
 
 	u32		des2;	/*Buffer sizes */
 #define IDMAC_64ADDR_SET_BUFFER1_SIZE(d, s) \
-	((d)->des2 = ((d)->des2 & 0x03ffe000) | ((s) & 0x1fff))
+	((d)->des2 = ((d)->des2 & cpu_to_le32(0x03ffe000)) | \
+	 ((cpu_to_le32(s)) & cpu_to_le32(0x1fff)))
 
 	u32		des3;	/* Reserved */
 
@@ -81,7 +82,7 @@ struct idmac_desc_64addr {
 };
 
 struct idmac_desc {
-	u32		des0;	/* Control Descriptor */
+	__le32		des0;	/* Control Descriptor */
 #define IDMAC_DES0_DIC	BIT(1)
 #define IDMAC_DES0_LD	BIT(2)
 #define IDMAC_DES0_FD	BIT(3)
@@ -90,13 +91,13 @@ struct idmac_desc {
 #define IDMAC_DES0_CES	BIT(30)
 #define IDMAC_DES0_OWN	BIT(31)
 
-	u32		des1;	/* Buffer sizes */
+	__le32		des1;	/* Buffer sizes */
 #define IDMAC_SET_BUFFER1_SIZE(d, s) \
 	((d)->des1 = ((d)->des1 & 0x03ffe000) | ((s) & 0x1fff))
 
-	u32		des2;	/* buffer 1 physical address */
+	__le32		des2;	/* buffer 1 physical address */
 
-	u32		des3;	/* buffer 2 physical address */
+	__le32		des3;	/* buffer 2 physical address */
 };
 #endif /* CONFIG_MMC_DW_IDMAC */
 
@@ -504,23 +505,23 @@ static void dw_mci_translate_sglist(struct dw_mci *host, struct mmc_data *data,
 			 * Set the OWN bit and disable interrupts for this
 			 * descriptor
 			 */
-			desc->des0 = IDMAC_DES0_OWN | IDMAC_DES0_DIC |
-						IDMAC_DES0_CH;
+			desc->des0 = cpu_to_le32(IDMAC_DES0_OWN |
+					IDMAC_DES0_DIC | IDMAC_DES0_CH);
 			/* Buffer length */
 			IDMAC_SET_BUFFER1_SIZE(desc, length);
 
 			/* Physical address to DMA to/from */
-			desc->des2 = mem_addr;
+			desc->des2 = cpu_to_le32(mem_addr);
 		}
 
 		/* Set first descriptor */
 		desc = host->sg_cpu;
-		desc->des0 |= IDMAC_DES0_FD;
+		desc->des0 |= cpu_to_le32(IDMAC_DES0_FD);
 
 		/* Set last descriptor */
 		desc = host->sg_cpu + (i - 1) * sizeof(struct idmac_desc);
-		desc->des0 &= ~(IDMAC_DES0_CH | IDMAC_DES0_DIC);
-		desc->des0 |= IDMAC_DES0_LD;
+		desc->des0 &= cpu_to_le32(~(IDMAC_DES0_CH | IDMAC_DES0_DIC));
+		desc->des0 |= cpu_to_le32(IDMAC_DES0_LD);
 	}
 
 	wmb();
@@ -589,12 +590,12 @@ static int dw_mci_idmac_init(struct dw_mci *host)
 
 		/* Forward link the descriptor list */
 		for (i = 0, p = host->sg_cpu; i < host->ring_size - 1; i++, p++)
-			p->des3 = host->sg_dma + (sizeof(struct idmac_desc) *
-								(i + 1));
+			p->des3 = cpu_to_le32(host->sg_dma +
+					(sizeof(struct idmac_desc) * (i + 1)));
 
 		/* Set the last descriptor as the end-of-ring descriptor */
-		p->des3 = host->sg_dma;
-		p->des0 = IDMAC_DES0_ER;
+		p->des3 = cpu_to_le32(host->sg_dma);
+		p->des0 = cpu_to_le32(IDMAC_DES0_ER);
 	}
 
 	dw_mci_idmac_reset(host);
