@@ -144,7 +144,7 @@ static void dw_spi_set_cs(struct spi_device *spi, bool enable)
 	struct chip_data *chip = spi_get_ctldata(spi);
 
 	/* Chip select logic is inverted from spi_set_cs() */
-	if (chip->cs_control)
+	if (chip && chip->cs_control)
 		chip->cs_control(!enable);
 
 	if (!enable)
