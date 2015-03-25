@@ -26,12 +26,6 @@
 #include <linux/workqueue.h>
 
 #include "rtsx.h"
-#include "rtsx_chip.h"
-#include "rtsx_transport.h"
-#include "rtsx_scsi.h"
-#include "rtsx_card.h"
-#include "general.h"
-
 #include "ms.h"
 #include "sd.h"
 #include "xd.h"

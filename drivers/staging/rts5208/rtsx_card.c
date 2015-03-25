@@ -27,13 +27,6 @@
 #include <linux/kernel.h>
 
 #include "rtsx.h"
-#include "rtsx_transport.h"
-#include "rtsx_scsi.h"
-#include "rtsx_card.h"
-
-#include "rtsx_sys.h"
-#include "general.h"
-
 #include "sd.h"
 #include "xd.h"
 #include "ms.h"
@@ -657,8 +650,10 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	dev_dbg(rtsx_dev(chip), "Switch SSC clock to %dMHz (cur_clk = %d)\n",
 		clk, chip->cur_clk);
 
-	if ((clk <= 2) || (N > max_N))
-		TRACE_RET(chip, STATUS_FAIL);
+	if ((clk <= 2) || (N > max_N)) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	mcu_cnt = (u8)(125/clk + 3);
 	if (mcu_cnt > 7)
@@ -697,8 +692,10 @@ int switch_ssc_clock(struct rtsx_chip *chip, int clk)
 	}
 
 	retval = rtsx_send_cmd(chip, 0, WAIT_TIME);
-	if (retval < 0)
-		TRACE_RET(chip, STATUS_ERROR);
+	if (retval < 0) {
+		rtsx_trace(chip);
+		return STATUS_ERROR;
+	}
 
 	udelay(10);
 	RTSX_WRITE_REG(chip, CLK_CTL, CLK_LOW_FREQ, 0);
@@ -790,7 +787,8 @@ int switch_normal_clock(struct rtsx_chip *chip, int clk)
 	default:
 		dev_dbg(rtsx_dev(chip), "Try to switch to an illegal clock (%d)\n",
 			clk);
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	RTSX_WRITE_REG(chip, CLK_CTL, 0xFF, CLK_LOW_FREQ);
@@ -893,8 +891,10 @@ int card_power_on(struct rtsx_chip *chip, u8 card)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PWR_CTL, mask, val1);
 
 	retval = rtsx_send_cmd(chip, 0, 100);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	udelay(chip->pmos_pwr_on_interval);
 
@@ -902,8 +902,10 @@ int card_power_on(struct rtsx_chip *chip, u8 card)
 	rtsx_add_cmd(chip, WRITE_REG_CMD, CARD_PWR_CTL, mask, val2);
 
 	retval = rtsx_send_cmd(chip, 0, 100);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -932,8 +934,10 @@ int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	unsigned int lun = SCSI_LUN(srb);
 	int i;
 
-	if (chip->rw_card[lun] == NULL)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (chip->rw_card[lun] == NULL) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	for (i = 0; i < 3; i++) {
 		chip->rw_need_retry = 0;
@@ -942,11 +946,14 @@ int card_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 		if (retval != STATUS_SUCCESS) {
 			if (rtsx_check_chip_exist(chip) != STATUS_SUCCESS) {
 				rtsx_release_chip(chip);
-				TRACE_RET(chip, STATUS_FAIL);
+				rtsx_trace(chip);
+				return STATUS_FAIL;
 			}
 			if (detect_card_cd(chip, chip->cur_card) !=
-							STATUS_SUCCESS)
-				TRACE_RET(chip, STATUS_FAIL);
+							STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
+			}
 
 			if (!chip->rw_need_retry) {
 				dev_dbg(rtsx_dev(chip), "RW fail, but no need to retry\n");
@@ -975,8 +982,10 @@ int card_share_mode(struct rtsx_chip *chip, int card)
 			value = CARD_SHARE_48_MS;
 		else if (card == XD_CARD)
 			value = CARD_SHARE_48_XD;
-		else
-			TRACE_RET(chip, STATUS_FAIL);
+		else {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 	} else if (CHECK_PID(chip, 0x5288)) {
 		mask = 0x03;
@@ -986,11 +995,14 @@ int card_share_mode(struct rtsx_chip *chip, int card)
 			value = CARD_SHARE_BAROSSA_MS;
 		else if (card == XD_CARD)
 			value = CARD_SHARE_BAROSSA_XD;
-		else
-			TRACE_RET(chip, STATUS_FAIL);
+		else {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 	} else {
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	RTSX_WRITE_REG(chip, CARD_SHARE_MODE, mask, value);
@@ -1014,15 +1026,19 @@ int select_card(struct rtsx_chip *chip, int card)
 			mod = XD_MOD_SEL;
 		else if (card == SPI_CARD)
 			mod = SPI_MOD_SEL;
-		else
-			TRACE_RET(chip, STATUS_FAIL);
+		else {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		RTSX_WRITE_REG(chip, CARD_SELECT, 0x07, mod);
 		chip->cur_card = card;
 
 		retval =  card_share_mode(chip, card);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -1067,12 +1083,15 @@ int detect_card_cd(struct rtsx_chip *chip, int card)
 		card_cd = XD_EXIST;
 	} else {
 		dev_dbg(rtsx_dev(chip), "Wrong card type: 0x%x\n", card);
-		TRACE_RET(chip, STATUS_FAIL);
+		rtsx_trace(chip);
+		return STATUS_FAIL;
 	}
 
 	status = rtsx_readl(chip, RTSX_BIPR);
-	if (!(status & card_cd))
-		TRACE_RET(chip, STATUS_FAIL);
+	if (!(status & card_cd)) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }

@@ -27,13 +27,6 @@
 #include <linux/vmalloc.h>
 
 #include "rtsx.h"
-#include "rtsx_transport.h"
-#include "rtsx_scsi.h"
-#include "rtsx_card.h"
-#include "rtsx_chip.h"
-#include "rtsx_sys.h"
-#include "general.h"
-
 #include "sd.h"
 #include "xd.h"
 #include "ms.h"
@@ -198,15 +191,19 @@ static int rtsx_pre_handle_sdio_new(struct rtsx_chip *chip)
 
 			if (chip->asic_code) {
 				retval = sd_pull_ctl_enable(chip);
-				if (retval != STATUS_SUCCESS)
-					TRACE_RET(chip, STATUS_FAIL);
+				if (retval != STATUS_SUCCESS) {
+					rtsx_trace(chip);
+					return STATUS_FAIL;
+				}
 			} else {
 				RTSX_WRITE_REG(chip, FPGA_PULL_CTL,
 					       FPGA_SD_PULL_CTL_BIT | 0x20, 0);
 			}
 			retval = card_share_mode(chip, SD_CARD);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, STATUS_FAIL);
+			if (retval != STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
+			}
 
 			/* Enable sdio_bus_auto_switch */
 			if (CHECK_PID(chip, 0x5288))
@@ -237,8 +234,10 @@ static int rtsx_reset_aspm(struct rtsx_chip *chip)
 
 		ret = rtsx_write_cfg_dw(chip, 2, 0xC0, 0xFF,
 					chip->aspm_l0s_l1_en);
-		if (ret != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (ret != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		return STATUS_SUCCESS;
 	}
@@ -246,16 +245,20 @@ static int rtsx_reset_aspm(struct rtsx_chip *chip)
 	if (CHECK_PID(chip, 0x5208))
 		RTSX_WRITE_REG(chip, ASPM_FORCE_CTL, 0xFF, 0x3F);
 	ret = rtsx_write_config_byte(chip, LCTLR, chip->aspm_l0s_l1_en);
-	if (ret != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (ret != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	chip->aspm_level[0] = chip->aspm_l0s_l1_en;
 	if (CHK_SDIO_EXIST(chip)) {
 		chip->aspm_level[1] = chip->aspm_l0s_l1_en;
 		ret = rtsx_write_cfg_dw(chip, CHECK_PID(chip, 0x5288) ? 2 : 1,
 					0xC0, 0xFF, chip->aspm_l0s_l1_en);
-		if (ret != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (ret != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	chip->aspm_enabled = 1;
@@ -283,23 +286,31 @@ static int rtsx_enable_pcie_intr(struct rtsx_chip *chip)
 		u16 reg;
 
 		ret = rtsx_read_phy_register(chip, 0x00, &reg);
-		if (ret != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (ret != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		reg &= 0xFE7F;
 		reg |= 0x80;
 		ret = rtsx_write_phy_register(chip, 0x00, reg);
-		if (ret != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (ret != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		ret = rtsx_read_phy_register(chip, 0x1C, &reg);
-		if (ret != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (ret != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		reg &= 0xFFF7;
 		ret = rtsx_write_phy_register(chip, 0x1C, reg);
-		if (ret != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (ret != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	if (chip->driver_first_load && (chip->ic_version < IC_VER_C))
@@ -371,41 +382,55 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 	/* Enable ASPM */
 	if (chip->aspm_l0s_l1_en) {
 		retval = rtsx_reset_aspm(chip);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	} else {
 		if (chip->asic_code && CHECK_PID(chip, 0x5208)) {
 			retval = rtsx_write_phy_register(chip, 0x07, 0x0129);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, STATUS_FAIL);
+			if (retval != STATUS_SUCCESS) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
+			}
 		}
 		retval = rtsx_write_config_byte(chip, LCTLR,
 						chip->aspm_l0s_l1_en);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	retval = rtsx_write_config_byte(chip, 0x81, 1);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	if (CHK_SDIO_EXIST(chip)) {
 		retval = rtsx_write_cfg_dw(chip,
 					   CHECK_PID(chip, 0x5288) ? 2 : 1,
 					   0xC0, 0xFF00, 0x0100);
 
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	if (CHECK_PID(chip, 0x5288) && !CHK_SDIO_EXIST(chip)) {
 		retval = rtsx_write_cfg_dw(chip, 2, 0xC0, 0xFFFF, 0x0103);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		retval = rtsx_write_cfg_dw(chip, 2, 0x84, 0xFF, 0x03);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	RTSX_WRITE_REG(chip, IRQSTAT0, LINK_RDY_INT, LINK_RDY_INT);
@@ -413,8 +438,10 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 	RTSX_WRITE_REG(chip, PERST_GLITCH_WIDTH, 0xFF, 0x80);
 
 	retval = rtsx_enable_pcie_intr(chip);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	chip->need_reset = 0;
 
@@ -436,8 +463,10 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 #else  /* HW_AUTO_SWITCH_SD_BUS */
 		retval = rtsx_pre_handle_sdio_old(chip);
 #endif  /* HW_AUTO_SWITCH_SD_BUS */
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 	} else {
 		chip->sd_io = 0;
@@ -477,8 +506,10 @@ nextcard:
 
 	if (chip->asic_code && CHECK_PID(chip, 0x5208)) {
 		retval = rtsx_clr_phy_reg_bit(chip, 0x1C, 2);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	if (chip->ft2_fast_mode) {
@@ -545,8 +576,10 @@ static int rts5208_init(struct rtsx_chip *chip)
 
 	if (chip->asic_code) {
 		retval = rtsx_read_phy_register(chip, 0x1C, &reg);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		dev_dbg(rtsx_dev(chip), "Value of phy register 0x1C is 0x%x\n",
 			reg);
@@ -605,8 +638,10 @@ static int rts5288_init(struct rtsx_chip *chip)
 	chip->hw_bypass_sd = val & 0x10 ? 1 : 0;
 
 	retval = rtsx_read_cfg_dw(chip, 0, 0x718, &lval);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	max_func = (u8)((lval >> 29) & 0x07);
 	dev_dbg(rtsx_dev(chip), "Max function number: %d\n", max_func);
@@ -703,13 +738,17 @@ int rtsx_init_chip(struct rtsx_chip *chip)
 
 	if (CHECK_PID(chip, 0x5208)) {
 		retval = rts5208_init(chip);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 	} else if (CHECK_PID(chip, 0x5288)) {
 		retval = rts5288_init(chip);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	if (chip->ss_en == 2)
@@ -756,8 +795,10 @@ int rtsx_init_chip(struct rtsx_chip *chip)
 	}
 
 	retval = rtsx_reset_chip(chip);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -1155,14 +1196,17 @@ int rtsx_write_register(struct rtsx_chip *chip, u16 addr, u8 mask, u8 data)
 	for (i = 0; i < MAX_RW_REG_CNT; i++) {
 		val = rtsx_readl(chip, RTSX_HAIMR);
 		if ((val & (1 << 31)) == 0) {
-			if (data != (u8)val)
-				TRACE_RET(chip, STATUS_FAIL);
+			if (data != (u8)val) {
+				rtsx_trace(chip);
+				return STATUS_FAIL;
+			}
 
 			return STATUS_SUCCESS;
 		}
 	}
 
-	TRACE_RET(chip, STATUS_TIMEDOUT);
+	rtsx_trace(chip);
+	return STATUS_TIMEDOUT;
 }
 
 int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data)
@@ -1183,8 +1227,10 @@ int rtsx_read_register(struct rtsx_chip *chip, u16 addr, u8 *data)
 			break;
 	}
 
-	if (i >= MAX_RW_REG_CNT)
-		TRACE_RET(chip, STATUS_TIMEDOUT);
+	if (i >= MAX_RW_REG_CNT) {
+		rtsx_trace(chip);
+		return STATUS_TIMEDOUT;
+	}
 
 	if (data)
 		*data = (u8)(val & 0xFF);
@@ -1261,8 +1307,10 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 	int dw_len, i, j;
 	int retval;
 
-	if (!buf)
-		TRACE_RET(chip, STATUS_NOMEM);
+	if (!buf) {
+		rtsx_trace(chip);
+		return STATUS_NOMEM;
+	}
 
 	if ((len + offset) % 4)
 		dw_len = (len + offset) / 4 + 1;
@@ -1272,13 +1320,16 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 	dev_dbg(rtsx_dev(chip), "dw_len = %d\n", dw_len);
 
 	data = vzalloc(dw_len * 4);
-	if (!data)
-		TRACE_RET(chip, STATUS_NOMEM);
+	if (!data) {
+		rtsx_trace(chip);
+		return STATUS_NOMEM;
+	}
 
 	mask = vzalloc(dw_len * 4);
 	if (!mask) {
 		vfree(data);
-		TRACE_RET(chip, STATUS_NOMEM);
+		rtsx_trace(chip);
+		return STATUS_NOMEM;
 	}
 
 	j = 0;
@@ -1302,7 +1353,8 @@ int rtsx_write_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 		if (retval != STATUS_SUCCESS) {
 			vfree(data);
 			vfree(mask);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 	}
 
@@ -1329,15 +1381,18 @@ int rtsx_read_cfg_seq(struct rtsx_chip *chip, u8 func, u16 addr, u8 *buf,
 	dev_dbg(rtsx_dev(chip), "dw_len = %d\n", dw_len);
 
 	data = vmalloc(dw_len * 4);
-	if (!data)
-		TRACE_RET(chip, STATUS_NOMEM);
+	if (!data) {
+		rtsx_trace(chip);
+		return STATUS_NOMEM;
+	}
 
 	for (i = 0; i < dw_len; i++) {
 		retval = rtsx_read_cfg_dw(chip, func, aligned_addr + i * 4,
 					  data + i);
 		if (retval != STATUS_SUCCESS) {
 			vfree(data);
-			TRACE_RET(chip, STATUS_FAIL);
+			rtsx_trace(chip);
+			return STATUS_FAIL;
 		}
 	}
 
@@ -1377,8 +1432,10 @@ int rtsx_write_phy_register(struct rtsx_chip *chip, u8 addr, u16 val)
 		}
 	}
 
-	if (!finished)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (!finished) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -1401,8 +1458,10 @@ int rtsx_read_phy_register(struct rtsx_chip *chip, u8 addr, u16 *val)
 		}
 	}
 
-	if (!finished)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (!finished) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	RTSX_READ_REG(chip, PHYDATA0, &tmp);
 	data = tmp;
@@ -1429,8 +1488,10 @@ int rtsx_read_efuse(struct rtsx_chip *chip, u8 addr, u8 *val)
 		udelay(1);
 	}
 
-	if (data & 0x80)
-		TRACE_RET(chip, STATUS_TIMEDOUT);
+	if (data & 0x80) {
+		rtsx_trace(chip);
+		return STATUS_TIMEDOUT;
+	}
 
 	RTSX_READ_REG(chip, EFUSE_DATA, &data);
 	if (val)
@@ -1461,8 +1522,10 @@ int rtsx_write_efuse(struct rtsx_chip *chip, u8 addr, u8 val)
 			wait_timeout(3);
 		}
 
-		if (data & 0x80)
-			TRACE_RET(chip, STATUS_TIMEDOUT);
+		if (data & 0x80) {
+			rtsx_trace(chip);
+			return STATUS_TIMEDOUT;
+		}
 
 		wait_timeout(5);
 	}
@@ -1476,14 +1539,18 @@ int rtsx_clr_phy_reg_bit(struct rtsx_chip *chip, u8 reg, u8 bit)
 	u16 value;
 
 	retval = rtsx_read_phy_register(chip, reg, &value);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	if (value & (1 << bit)) {
 		value &= ~(1 << bit);
 		retval = rtsx_write_phy_register(chip, reg, value);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -1495,14 +1562,18 @@ int rtsx_set_phy_reg_bit(struct rtsx_chip *chip, u8 reg, u8 bit)
 	u16 value;
 
 	retval = rtsx_read_phy_register(chip, reg, &value);
-	if (retval != STATUS_SUCCESS)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (retval != STATUS_SUCCESS) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	if ((value & (1 << bit)) == 0) {
 		value |= (1 << bit);
 		retval = rtsx_write_phy_register(chip, reg, value);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -1818,8 +1889,10 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 	u16 reg_addr;
 	u8 *ptr;
 
-	if (!buf)
-		TRACE_RET(chip, STATUS_ERROR);
+	if (!buf) {
+		rtsx_trace(chip);
+		return STATUS_ERROR;
+	}
 
 	ptr = buf;
 	reg_addr = PPBUF_BASE2;
@@ -1830,8 +1903,10 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 			rtsx_add_cmd(chip, READ_REG_CMD, reg_addr++, 0, 0);
 
 		retval = rtsx_send_cmd(chip, 0, 250);
-		if (retval < 0)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval < 0) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		memcpy(ptr, rtsx_get_cmd_data(chip), 256);
 		ptr += 256;
@@ -1844,8 +1919,10 @@ int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 			rtsx_add_cmd(chip, READ_REG_CMD, reg_addr++, 0, 0);
 
 		retval = rtsx_send_cmd(chip, 0, 250);
-		if (retval < 0)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval < 0) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	memcpy(ptr, rtsx_get_cmd_data(chip), buf_len%256);
@@ -1860,8 +1937,10 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 	u16 reg_addr;
 	u8 *ptr;
 
-	if (!buf)
-		TRACE_RET(chip, STATUS_ERROR);
+	if (!buf) {
+		rtsx_trace(chip);
+		return STATUS_ERROR;
+	}
 
 	ptr = buf;
 	reg_addr = PPBUF_BASE2;
@@ -1875,8 +1954,10 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		}
 
 		retval = rtsx_send_cmd(chip, 0, 250);
-		if (retval < 0)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval < 0) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	if (buf_len%256) {
@@ -1889,8 +1970,10 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 		}
 
 		retval = rtsx_send_cmd(chip, 0, 250);
-		if (retval < 0)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval < 0) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -1898,8 +1981,10 @@ int rtsx_write_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
 
 int rtsx_check_chip_exist(struct rtsx_chip *chip)
 {
-	if (rtsx_readl(chip, 0) == 0xFFFFFFFF)
-		TRACE_RET(chip, STATUS_FAIL);
+	if (rtsx_readl(chip, 0) == 0xFFFFFFFF) {
+		rtsx_trace(chip);
+		return STATUS_FAIL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -1922,8 +2007,10 @@ int rtsx_force_power_on(struct rtsx_chip *chip, u8 ctl)
 
 	if (mask) {
 		retval = rtsx_write_register(chip, FPDCTL, mask, 0);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 
 		if (CHECK_PID(chip, 0x5288))
 			wait_timeout(200);
@@ -1951,8 +2038,10 @@ int rtsx_force_power_down(struct rtsx_chip *chip, u8 ctl)
 	if (mask) {
 		val = mask;
 		retval = rtsx_write_register(chip, FPDCTL, mask, val);
-		if (retval != STATUS_SUCCESS)
-			TRACE_RET(chip, STATUS_FAIL);
+		if (retval != STATUS_SUCCESS) {
+			rtsx_trace(chip);
+			return STATUS_FAIL;
+		}
 	}
 
 	return STATUS_SUCCESS;
