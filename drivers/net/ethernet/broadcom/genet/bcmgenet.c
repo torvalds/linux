@@ -964,33 +964,29 @@ static void bcmgenet_free_cb(struct enet_cb *cb)
 	dma_unmap_addr_set(cb, dma_addr, 0);
 }
 
-static inline void bcmgenet_tx_ring16_int_disable(struct bcmgenet_priv *priv,
-						  struct bcmgenet_tx_ring *ring)
+static inline void bcmgenet_tx_ring16_int_disable(struct bcmgenet_tx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(priv,
+	bcmgenet_intrl2_0_writel(ring->priv,
 				 UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE,
 				 INTRL2_CPU_MASK_SET);
 }
 
-static inline void bcmgenet_tx_ring16_int_enable(struct bcmgenet_priv *priv,
-						 struct bcmgenet_tx_ring *ring)
+static inline void bcmgenet_tx_ring16_int_enable(struct bcmgenet_tx_ring *ring)
 {
-	bcmgenet_intrl2_0_writel(priv,
+	bcmgenet_intrl2_0_writel(ring->priv,
 				 UMAC_IRQ_TXDMA_BDONE | UMAC_IRQ_TXDMA_PDONE,
 				 INTRL2_CPU_MASK_CLEAR);
 }
 
-static inline void bcmgenet_tx_ring_int_enable(struct bcmgenet_priv *priv,
-					       struct bcmgenet_tx_ring *ring)
+static inline void bcmgenet_tx_ring_int_enable(struct bcmgenet_tx_ring *ring)
 {
-	bcmgenet_intrl2_1_writel(priv, (1 << ring->index),
+	bcmgenet_intrl2_1_writel(ring->priv, 1 << ring->index,
 				 INTRL2_CPU_MASK_CLEAR);
 }
 
-static inline void bcmgenet_tx_ring_int_disable(struct bcmgenet_priv *priv,
-						struct bcmgenet_tx_ring *ring)
+static inline void bcmgenet_tx_ring_int_disable(struct bcmgenet_tx_ring *ring)
 {
-	bcmgenet_intrl2_1_writel(priv, (1 << ring->index),
+	bcmgenet_intrl2_1_writel(ring->priv, 1 << ring->index,
 				 INTRL2_CPU_MASK_SET);
 }
 
@@ -1083,7 +1079,7 @@ static int bcmgenet_tx_poll(struct napi_struct *napi, int budget)
 
 	if (work_done == 0) {
 		napi_complete(napi);
-		ring->int_enable(ring->priv, ring);
+		ring->int_enable(ring);
 
 		return 0;
 	}
@@ -2172,7 +2168,7 @@ static irqreturn_t bcmgenet_isr1(int irq, void *dev_id)
 		ring = &priv->tx_rings[index];
 
 		if (likely(napi_schedule_prep(&ring->napi))) {
-			ring->int_disable(priv, ring);
+			ring->int_disable(ring);
 			__napi_schedule(&ring->napi);
 		}
 	}
@@ -2211,7 +2207,7 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 		struct bcmgenet_tx_ring *ring = &priv->tx_rings[DESC_INDEX];
 
 		if (likely(napi_schedule_prep(&ring->napi))) {
-			ring->int_disable(priv, ring);
+			ring->int_disable(ring);
 			__napi_schedule(&ring->napi);
 		}
 	}
