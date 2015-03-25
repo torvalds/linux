@@ -305,7 +305,7 @@ system_call_fastpath:
 	/* Do syscall entry tracing */
 tracesys:
 	movq %rsp, %rdi
-	movq $AUDIT_ARCH_X86_64, %rsi
+	movl $AUDIT_ARCH_X86_64, %esi
 	call syscall_trace_enter_phase1
 	test %rax, %rax
 	jnz tracesys_phase2		/* if needed, run the slow path */
@@ -316,7 +316,7 @@ tracesys:
 tracesys_phase2:
 	SAVE_EXTRA_REGS
 	movq %rsp, %rdi
-	movq $AUDIT_ARCH_X86_64, %rsi
+	movl $AUDIT_ARCH_X86_64, %esi
 	movq %rax,%rdx
 	call syscall_trace_enter_phase2
 
