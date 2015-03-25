@@ -36,10 +36,20 @@ static inline void spi_set_err_code(struct rtsx_chip *chip, u8 err_code)
 
 static int spi_init(struct rtsx_chip *chip)
 {
-	RTSX_WRITE_REG(chip, SPI_CONTROL, 0xFF,
-		CS_POLARITY_LOW | DTO_MSB_FIRST | SPI_MASTER | SPI_MODE0 |
-		SPI_AUTO);
-	RTSX_WRITE_REG(chip, SPI_TCTL, EDO_TIMING_MASK, SAMPLE_DELAY_HALF);
+	int retval;
+
+	retval = rtsx_write_register(chip, SPI_CONTROL, 0xFF,
+				     CS_POLARITY_LOW | DTO_MSB_FIRST | SPI_MASTER | SPI_MODE0 | SPI_AUTO);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, SPI_TCTL, EDO_TIMING_MASK,
+				     SAMPLE_DELAY_HALF);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -49,8 +59,18 @@ static int spi_set_init_para(struct rtsx_chip *chip)
 	struct spi_info *spi = &(chip->spi);
 	int retval;
 
-	RTSX_WRITE_REG(chip, SPI_CLK_DIVIDER1, 0xFF, (u8)(spi->clk_div >> 8));
-	RTSX_WRITE_REG(chip, SPI_CLK_DIVIDER0, 0xFF, (u8)(spi->clk_div));
+	retval = rtsx_write_register(chip, SPI_CLK_DIVIDER1, 0xFF,
+				     (u8)(spi->clk_div >> 8));
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, SPI_CLK_DIVIDER0, 0xFF,
+				     (u8)(spi->clk_div));
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	retval = switch_clock(chip, spi->spi_clock);
 	if (retval != STATUS_SUCCESS) {
@@ -64,8 +84,18 @@ static int spi_set_init_para(struct rtsx_chip *chip)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, CARD_CLK_EN, SPI_CLK_EN, SPI_CLK_EN);
-	RTSX_WRITE_REG(chip, CARD_OE, SPI_OUTPUT_EN, SPI_OUTPUT_EN);
+	retval = rtsx_write_register(chip, CARD_CLK_EN, SPI_CLK_EN,
+				     SPI_CLK_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, CARD_OE, SPI_OUTPUT_EN,
+				     SPI_OUTPUT_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	wait_timeout(10);
 
@@ -228,8 +258,16 @@ static int spi_init_eeprom(struct rtsx_chip *chip)
 	else
 		clk = CLK_30;
 
-	RTSX_WRITE_REG(chip, SPI_CLK_DIVIDER1, 0xFF, 0x00);
-	RTSX_WRITE_REG(chip, SPI_CLK_DIVIDER0, 0xFF, 0x27);
+	retval = rtsx_write_register(chip, SPI_CLK_DIVIDER1, 0xFF, 0x00);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, SPI_CLK_DIVIDER0, 0xFF, 0x27);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	retval = switch_clock(chip, clk);
 	if (retval != STATUS_SUCCESS) {
@@ -243,14 +281,33 @@ static int spi_init_eeprom(struct rtsx_chip *chip)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, CARD_CLK_EN, SPI_CLK_EN, SPI_CLK_EN);
-	RTSX_WRITE_REG(chip, CARD_OE, SPI_OUTPUT_EN, SPI_OUTPUT_EN);
+	retval = rtsx_write_register(chip, CARD_CLK_EN, SPI_CLK_EN,
+				     SPI_CLK_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, CARD_OE, SPI_OUTPUT_EN,
+				     SPI_OUTPUT_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	wait_timeout(10);
 
-	RTSX_WRITE_REG(chip, SPI_CONTROL, 0xFF,
-		CS_POLARITY_HIGH | SPI_EEPROM_AUTO);
-	RTSX_WRITE_REG(chip, SPI_TCTL, EDO_TIMING_MASK, SAMPLE_DELAY_HALF);
+	retval = rtsx_write_register(chip, SPI_CONTROL, 0xFF,
+				     CS_POLARITY_HIGH | SPI_EEPROM_AUTO);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, SPI_TCTL, EDO_TIMING_MASK,
+				     SAMPLE_DELAY_HALF);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -310,7 +367,11 @@ int spi_erase_eeprom_chip(struct rtsx_chip *chip)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, CARD_GPIO_DIR, 0x01, 0x01);
+	retval = rtsx_write_register(chip, CARD_GPIO_DIR, 0x01, 0x01);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -350,7 +411,11 @@ int spi_erase_eeprom_byte(struct rtsx_chip *chip, u16 addr)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, CARD_GPIO_DIR, 0x01, 0x01);
+	retval = rtsx_write_register(chip, CARD_GPIO_DIR, 0x01, 0x01);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -388,12 +453,20 @@ int spi_read_eeprom(struct rtsx_chip *chip, u16 addr, u8 *val)
 	}
 
 	wait_timeout(5);
-	RTSX_READ_REG(chip, SPI_DATA, &data);
+	retval = rtsx_read_register(chip, SPI_DATA, &data);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	if (val)
 		*val = data;
 
-	RTSX_WRITE_REG(chip, CARD_GPIO_DIR, 0x01, 0x01);
+	retval = rtsx_write_register(chip, CARD_GPIO_DIR, 0x01, 0x01);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -434,7 +507,11 @@ int spi_write_eeprom(struct rtsx_chip *chip, u16 addr, u8 val)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, CARD_GPIO_DIR, 0x01, 0x01);
+	retval = rtsx_write_register(chip, CARD_GPIO_DIR, 0x01, 0x01);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }

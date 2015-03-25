@@ -105,9 +105,14 @@ static void sd_init_reg_addr(struct rtsx_chip *chip)
 
 static int sd_check_data0_status(struct rtsx_chip *chip)
 {
+	int retval;
 	u8 stat;
 
-	RTSX_READ_REG(chip, REG_SD_STAT1, &stat);
+	retval = rtsx_read_register(chip, REG_SD_STAT1, &stat);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	if (!(stat & SD_DAT0_STATUS)) {
 		sd_set_err_code(chip, SD_BUSY);
@@ -529,8 +534,8 @@ static int sd_check_csd(struct rtsx_chip *chip, char check_wp)
 
 static int sd_set_sample_push_timing(struct rtsx_chip *chip)
 {
+	int retval;
 	struct sd_info *sd_card = &(chip->sd_card);
-
 	u8 val = 0;
 
 	if ((chip->sd_ctl & SD_PUSH_POINT_CTL_MASK) == SD_PUSH_POINT_DELAY)
@@ -558,7 +563,11 @@ static int sd_set_sample_push_timing(struct rtsx_chip *chip)
 			val |= 0x08;
 	}
 
-	RTSX_WRITE_REG(chip, REG_SD_CFG1, 0x1C, val);
+	retval = rtsx_write_register(chip, REG_SD_CFG1, 0x1C, val);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -607,6 +616,7 @@ static void sd_choose_proper_clock(struct rtsx_chip *chip)
 
 static int sd_set_clock_divider(struct rtsx_chip *chip, u8 clk_div)
 {
+	int retval;
 	u8 mask = 0, val = 0;
 
 	mask = 0x60;
@@ -617,7 +627,11 @@ static int sd_set_clock_divider(struct rtsx_chip *chip, u8 clk_div)
 	else if (clk_div == SD_CLK_DIVIDE_256)
 		val = 0x20;
 
-	RTSX_WRITE_REG(chip, REG_SD_CFG1, mask, val);
+	retval = rtsx_write_register(chip, REG_SD_CFG1, mask, val);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -740,7 +754,12 @@ static int sd_change_bank_voltage(struct rtsx_chip *chip, u8 voltage)
 				return STATUS_FAIL;
 			}
 		} else {
-			RTSX_WRITE_REG(chip, SD_PAD_CTL, SD_IO_USING_1V8, 0);
+			retval = rtsx_write_register(chip, SD_PAD_CTL,
+						     SD_IO_USING_1V8, 0);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 		}
 	} else if (voltage == SD_IO_1V8) {
 		if (chip->asic_code) {
@@ -752,8 +771,13 @@ static int sd_change_bank_voltage(struct rtsx_chip *chip, u8 voltage)
 				return STATUS_FAIL;
 			}
 		} else {
-			RTSX_WRITE_REG(chip, SD_PAD_CTL, SD_IO_USING_1V8,
-				SD_IO_USING_1V8);
+			retval = rtsx_write_register(chip, SD_PAD_CTL,
+						     SD_IO_USING_1V8,
+						     SD_IO_USING_1V8);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 		}
 	} else {
 		rtsx_trace(chip);
@@ -768,8 +792,13 @@ static int sd_voltage_switch(struct rtsx_chip *chip)
 	int retval;
 	u8 stat;
 
-	RTSX_WRITE_REG(chip, SD_BUS_STAT, SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP,
-		SD_CLK_TOGGLE_EN);
+	retval = rtsx_write_register(chip, SD_BUS_STAT,
+				     SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP,
+				     SD_CLK_TOGGLE_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	retval = sd_send_cmd_get_rsp(chip, VOLTAGE_SWITCH, 0, SD_RSP_TYPE_R1,
 				NULL, 0);
@@ -780,14 +809,23 @@ static int sd_voltage_switch(struct rtsx_chip *chip)
 
 	udelay(chip->sd_voltage_switch_delay);
 
-	RTSX_READ_REG(chip, SD_BUS_STAT, &stat);
+	retval = rtsx_read_register(chip, SD_BUS_STAT, &stat);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 	if (stat & (SD_CMD_STATUS | SD_DAT3_STATUS | SD_DAT2_STATUS |
 				SD_DAT1_STATUS | SD_DAT0_STATUS)) {
 		rtsx_trace(chip);
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, SD_BUS_STAT, 0xFF, SD_CLK_FORCE_STOP);
+	retval = rtsx_write_register(chip, SD_BUS_STAT, 0xFF,
+				     SD_CLK_FORCE_STOP);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 	retval = sd_change_bank_voltage(chip, SD_IO_1V8);
 	if (retval != STATUS_SUCCESS) {
 		rtsx_trace(chip);
@@ -796,10 +834,19 @@ static int sd_voltage_switch(struct rtsx_chip *chip)
 
 	wait_timeout(50);
 
-	RTSX_WRITE_REG(chip, SD_BUS_STAT, 0xFF, SD_CLK_TOGGLE_EN);
+	retval = rtsx_write_register(chip, SD_BUS_STAT, 0xFF,
+				     SD_CLK_TOGGLE_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 	wait_timeout(10);
 
-	RTSX_READ_REG(chip, SD_BUS_STAT, &stat);
+	retval = rtsx_read_register(chip, SD_BUS_STAT, &stat);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 	if ((stat & (SD_CMD_STATUS | SD_DAT3_STATUS | SD_DAT2_STATUS |
 				SD_DAT1_STATUS | SD_DAT0_STATUS)) !=
 			(SD_CMD_STATUS | SD_DAT3_STATUS | SD_DAT2_STATUS |
@@ -812,20 +859,44 @@ static int sd_voltage_switch(struct rtsx_chip *chip)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, SD_BUS_STAT, SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP,
-		0);
+	retval = rtsx_write_register(chip, SD_BUS_STAT,
+				     SD_CLK_TOGGLE_EN | SD_CLK_FORCE_STOP, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
 
 static int sd_reset_dcm(struct rtsx_chip *chip, u8 tune_dir)
 {
+	int retval;
+
 	if (tune_dir == TUNE_RX) {
-		RTSX_WRITE_REG(chip, DCM_DRP_CTL, 0xFF, DCM_RESET | DCM_RX);
-		RTSX_WRITE_REG(chip, DCM_DRP_CTL, 0xFF, DCM_RX);
+		retval = rtsx_write_register(chip, DCM_DRP_CTL, 0xFF,
+					     DCM_RESET | DCM_RX);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, DCM_DRP_CTL, 0xFF, DCM_RX);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	} else {
-		RTSX_WRITE_REG(chip, DCM_DRP_CTL, 0xFF, DCM_RESET | DCM_TX);
-		RTSX_WRITE_REG(chip, DCM_DRP_CTL, 0xFF, DCM_TX);
+		retval = rtsx_write_register(chip, DCM_DRP_CTL, 0xFF,
+					     DCM_RESET | DCM_TX);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, DCM_DRP_CTL, 0xFF, DCM_TX);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	}
 
 	return STATUS_SUCCESS;
@@ -853,12 +924,35 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 	}
 
 	if (chip->asic_code) {
-		RTSX_WRITE_REG(chip, CLK_CTL, CHANGE_CLK, CHANGE_CLK);
-		RTSX_WRITE_REG(chip, SD_VP_CTL, 0x1F, sample_point);
-		RTSX_WRITE_REG(chip, SD_VPCLK0_CTL, PHASE_NOT_RESET, 0);
-		RTSX_WRITE_REG(chip, SD_VPCLK0_CTL, PHASE_NOT_RESET,
-			PHASE_NOT_RESET);
-		RTSX_WRITE_REG(chip, CLK_CTL, CHANGE_CLK, 0);
+		retval = rtsx_write_register(chip, CLK_CTL, CHANGE_CLK,
+					     CHANGE_CLK);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, SD_VP_CTL, 0x1F,
+					     sample_point);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, SD_VPCLK0_CTL,
+					     PHASE_NOT_RESET, 0);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, SD_VPCLK0_CTL,
+					     PHASE_NOT_RESET, PHASE_NOT_RESET);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CLK_CTL, CHANGE_CLK, 0);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	} else {
 		rtsx_read_register(chip, SD_VP_CTL, &val);
 		dev_dbg(rtsx_dev(chip), "SD_VP_CTL: 0x%x\n", val);
@@ -866,16 +960,34 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 		dev_dbg(rtsx_dev(chip), "SD_DCMPS_CTL: 0x%x\n", val);
 
 		if (ddr_rx) {
-			RTSX_WRITE_REG(chip, SD_VP_CTL, PHASE_CHANGE,
-				PHASE_CHANGE);
+			retval = rtsx_write_register(chip, SD_VP_CTL,
+						     PHASE_CHANGE,
+						     PHASE_CHANGE);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 			udelay(50);
-			RTSX_WRITE_REG(chip, SD_VP_CTL, 0xFF,
-				PHASE_CHANGE | PHASE_NOT_RESET | sample_point);
+			retval = rtsx_write_register(chip, SD_VP_CTL, 0xFF,
+						     PHASE_CHANGE | PHASE_NOT_RESET | sample_point);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 		} else {
-			RTSX_WRITE_REG(chip, CLK_CTL, CHANGE_CLK, CHANGE_CLK);
+			retval = rtsx_write_register(chip, CLK_CTL,
+						     CHANGE_CLK, CHANGE_CLK);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 			udelay(50);
-			RTSX_WRITE_REG(chip, SD_VP_CTL, 0xFF,
-					PHASE_NOT_RESET | sample_point);
+			retval = rtsx_write_register(chip, SD_VP_CTL, 0xFF,
+						     PHASE_NOT_RESET | sample_point);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 		}
 		udelay(100);
 
@@ -901,16 +1013,36 @@ static int sd_change_phase(struct rtsx_chip *chip, u8 sample_point, u8 tune_dir)
 			goto Fail;
 		}
 
-		RTSX_WRITE_REG(chip, SD_DCMPS_CTL, DCMPS_CHANGE, 0);
-		if (ddr_rx)
-			RTSX_WRITE_REG(chip, SD_VP_CTL, PHASE_CHANGE, 0);
-		else
-			RTSX_WRITE_REG(chip, CLK_CTL, CHANGE_CLK, 0);
+		retval = rtsx_write_register(chip, SD_DCMPS_CTL,
+					     DCMPS_CHANGE, 0);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		if (ddr_rx) {
+			retval = rtsx_write_register(chip, SD_VP_CTL,
+						     PHASE_CHANGE, 0);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+		} else {
+			retval = rtsx_write_register(chip, CLK_CTL,
+						     CHANGE_CLK, 0);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+		}
 
 		udelay(50);
 	}
 
-	RTSX_WRITE_REG(chip, SD_CFG1, SD_ASYNC_FIFO_NOT_RST, 0);
+	retval = rtsx_write_register(chip, SD_CFG1, SD_ASYNC_FIFO_NOT_RST, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 
@@ -1160,10 +1292,20 @@ static int sd_check_switch_mode(struct rtsx_chip *chip, u8 mode,
 		}
 
 		if ((cc > 400) || (func_to_switch > CURRENT_LIMIT_400)) {
-			RTSX_WRITE_REG(chip, OCPPARA2, SD_OCP_THD_MASK,
-				chip->sd_800mA_ocp_thd);
-			RTSX_WRITE_REG(chip, CARD_PWR_CTL, PMOS_STRG_MASK,
-				PMOS_STRG_800mA);
+			retval = rtsx_write_register(chip, OCPPARA2,
+						     SD_OCP_THD_MASK,
+						     chip->sd_800mA_ocp_thd);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_write_register(chip, CARD_PWR_CTL,
+						     PMOS_STRG_MASK,
+						     PMOS_STRG_800mA);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 		}
 	}
 
@@ -1210,7 +1352,11 @@ static int sd_check_switch(struct rtsx_chip *chip,
 				break;
 			}
 
-			RTSX_READ_REG(chip, SD_STAT1, &stat);
+			retval = rtsx_read_register(chip, SD_STAT1, &stat);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 			if (stat & SD_CRC16_ERR) {
 				dev_dbg(rtsx_dev(chip), "SD CRC16 error when switching mode\n");
 				rtsx_trace(chip);
@@ -1328,7 +1474,12 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 	}
 
 	if (CHK_SD_DDR50(sd_card)) {
-		RTSX_WRITE_REG(chip, SD_PUSH_POINT_CTL, 0x06, 0x04);
+		retval = rtsx_write_register(chip, SD_PUSH_POINT_CTL, 0x06,
+					     0x04);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 		retval = sd_set_sample_push_timing(chip);
 		if (retval != STATUS_SUCCESS) {
 			rtsx_trace(chip);
@@ -1396,8 +1547,13 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 			retval);
 	}
 
-	if (CHK_SD_DDR50(sd_card))
-		RTSX_WRITE_REG(chip, SD_PUSH_POINT_CTL, 0x06, 0);
+	if (CHK_SD_DDR50(sd_card)) {
+		retval = rtsx_write_register(chip, SD_PUSH_POINT_CTL, 0x06, 0);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -1409,7 +1565,11 @@ static int sd_wait_data_idle(struct rtsx_chip *chip)
 	u8 val = 0;
 
 	for (i = 0; i < 100; i++) {
-		RTSX_READ_REG(chip, SD_DATA_STATE, &val);
+		retval = rtsx_read_register(chip, SD_DATA_STATE, &val);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 		if (val & SD_DATA_IDLE) {
 			retval = STATUS_SUCCESS;
 			break;
@@ -1542,8 +1702,12 @@ static int sd_sdr_tuning_tx_cmd(struct rtsx_chip *chip, u8 sample_point)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
-		SD_RSP_80CLK_TIMEOUT_EN);
+	retval = rtsx_write_register(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
+				     SD_RSP_80CLK_TIMEOUT_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	retval = sd_send_cmd_get_rsp(chip, SEND_STATUS, sd_card->sd_addr,
 		SD_RSP_TYPE_R1, NULL, 0);
@@ -1556,7 +1720,12 @@ static int sd_sdr_tuning_tx_cmd(struct rtsx_chip *chip, u8 sample_point)
 		}
 	}
 
-	RTSX_WRITE_REG(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN, 0);
+	retval = rtsx_write_register(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
+				     0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -1590,8 +1759,12 @@ static int sd_ddr_tuning_tx_cmd(struct rtsx_chip *chip, u8 sample_point)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
-		SD_RSP_80CLK_TIMEOUT_EN);
+	retval = rtsx_write_register(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
+				     SD_RSP_80CLK_TIMEOUT_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	cmd[0] = 0x40 | PROGRAM_CSD;
 	cmd[1] = 0;
@@ -1608,7 +1781,12 @@ static int sd_ddr_tuning_tx_cmd(struct rtsx_chip *chip, u8 sample_point)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN, 0);
+	retval = rtsx_write_register(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
+				     0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	sd_send_cmd_get_rsp(chip, SEND_STATUS, sd_card->sd_addr, SD_RSP_TYPE_R1,
 			NULL, 0);
@@ -1804,8 +1982,12 @@ static int sd_ddr_pre_tuning_tx(struct rtsx_chip *chip)
 	u32 phase_map;
 	u8 final_phase;
 
-	RTSX_WRITE_REG(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
-		SD_RSP_80CLK_TIMEOUT_EN);
+	retval = rtsx_write_register(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
+				     SD_RSP_80CLK_TIMEOUT_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	phase_map = 0;
 	for (i = MAX_PHASE; i >= 0; i--) {
@@ -1829,7 +2011,12 @@ static int sd_ddr_pre_tuning_tx(struct rtsx_chip *chip)
 			phase_map |= 1 << i;
 	}
 
-	RTSX_WRITE_REG(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN, 0);
+	retval = rtsx_write_register(chip, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
+				     0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	dev_dbg(rtsx_dev(chip), "DDR TX pre tune phase_map = 0x%08x\n",
 		phase_map);
@@ -2073,10 +2260,18 @@ static int sd_prepare_reset(struct rtsx_chip *chip)
 		return retval;
 	}
 
-	RTSX_WRITE_REG(chip, REG_SD_CFG1, 0xFF, 0x40);
+	retval = rtsx_write_register(chip, REG_SD_CFG1, 0xFF, 0x40);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
-	RTSX_WRITE_REG(chip, CARD_STOP, SD_STOP | SD_CLR_ERR,
-		SD_STOP | SD_CLR_ERR);
+	retval = rtsx_write_register(chip, CARD_STOP, SD_STOP | SD_CLR_ERR,
+				     SD_STOP | SD_CLR_ERR);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	retval = select_card(chip, SD_CARD);
 	if (retval != STATUS_SUCCESS) {
@@ -2089,24 +2284,71 @@ static int sd_prepare_reset(struct rtsx_chip *chip)
 
 static int sd_pull_ctl_disable(struct rtsx_chip *chip)
 {
+	int retval;
+
 	if (CHECK_PID(chip, 0x5208)) {
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL1, 0xFF,
-			XD_D3_PD | SD_D7_PD | SD_CLK_PD | SD_D5_PD);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL2, 0xFF,
-			SD_D6_PD | SD_D0_PD | SD_D1_PD | XD_D5_PD);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL3, 0xFF,
-			SD_D4_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL4, 0xFF,
-			XD_RDY_PD | SD_D3_PD | SD_D2_PD | XD_ALE_PD);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL5, 0xFF,
-			MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
-		RTSX_WRITE_REG(chip, CARD_PULL_CTL6, 0xFF, MS_D5_PD | MS_D4_PD);
+		retval = rtsx_write_register(chip, CARD_PULL_CTL1, 0xFF,
+					     XD_D3_PD | SD_D7_PD | SD_CLK_PD | SD_D5_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL2, 0xFF,
+					     SD_D6_PD | SD_D0_PD | SD_D1_PD | XD_D5_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL3, 0xFF,
+					     SD_D4_PD | XD_CE_PD | XD_CLE_PD | XD_CD_PU);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL4, 0xFF,
+					     XD_RDY_PD | SD_D3_PD | SD_D2_PD | XD_ALE_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL5, 0xFF,
+					     MS_INS_PU | SD_WP_PD | SD_CD_PU | SD_CMD_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, CARD_PULL_CTL6, 0xFF,
+					     MS_D5_PD | MS_D4_PD);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	} else if (CHECK_PID(chip, 0x5288)) {
 		if (CHECK_BARO_PKG(chip, QFN)) {
-			RTSX_WRITE_REG(chip, CARD_PULL_CTL1, 0xFF, 0x55);
-			RTSX_WRITE_REG(chip, CARD_PULL_CTL2, 0xFF, 0x55);
-			RTSX_WRITE_REG(chip, CARD_PULL_CTL3, 0xFF, 0x4B);
-			RTSX_WRITE_REG(chip, CARD_PULL_CTL4, 0xFF, 0x69);
+			retval = rtsx_write_register(chip, CARD_PULL_CTL1,
+						     0xFF, 0x55);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_write_register(chip, CARD_PULL_CTL2,
+						     0xFF, 0x55);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_write_register(chip, CARD_PULL_CTL3,
+						     0xFF, 0x4B);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
+			retval = rtsx_write_register(chip, CARD_PULL_CTL4,
+						     0xFF, 0x69);
+			if (retval) {
+				rtsx_trace(chip);
+				return retval;
+			}
 		}
 	}
 
@@ -2180,8 +2422,12 @@ static int sd_init_power(struct rtsx_chip *chip)
 			return STATUS_FAIL;
 		}
 	} else {
-		RTSX_WRITE_REG(chip, FPGA_PULL_CTL, FPGA_SD_PULL_CTL_BIT | 0x20,
-			0);
+		retval = rtsx_write_register(chip, FPGA_PULL_CTL,
+					     FPGA_SD_PULL_CTL_BIT | 0x20, 0);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	}
 
 	if (!chip->ft2_fast_mode) {
@@ -2203,16 +2449,31 @@ static int sd_init_power(struct rtsx_chip *chip)
 #endif
 	}
 
-	RTSX_WRITE_REG(chip, CARD_OE, SD_OUTPUT_EN, SD_OUTPUT_EN);
+	retval = rtsx_write_register(chip, CARD_OE, SD_OUTPUT_EN,
+				     SD_OUTPUT_EN);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
 
 static int sd_dummy_clock(struct rtsx_chip *chip)
 {
-	RTSX_WRITE_REG(chip, REG_SD_CFG3, 0x01, 0x01);
+	int retval;
+
+	retval = rtsx_write_register(chip, REG_SD_CFG3, 0x01, 0x01);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 	wait_timeout(5);
-	RTSX_WRITE_REG(chip, REG_SD_CFG3, 0x01, 0);
+	retval = rtsx_write_register(chip, REG_SD_CFG3, 0x01, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -2622,8 +2883,12 @@ SD_UNLOCK_ENTRY:
 	if (!sd20_mode && CHK_SD30_SPEED(sd_card)) {
 		int read_lba0 = 1;
 
-		RTSX_WRITE_REG(chip, SD30_DRIVE_SEL, 0x07,
-			chip->sd30_drive_sel_1v8);
+		retval = rtsx_write_register(chip, SD30_DRIVE_SEL, 0x07,
+					     chip->sd30_drive_sel_1v8);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 
 		retval = sd_set_init_para(chip);
 		if (retval != STATUS_SUCCESS) {
@@ -2693,8 +2958,18 @@ SD_UNLOCK_ENTRY:
 
 #ifdef SUPPORT_SD_LOCK
 	if (sd_card->sd_lock_status & SD_UNLOCK_POW_ON) {
-		RTSX_WRITE_REG(chip, REG_SD_BLOCK_CNT_H, 0xFF, 0x02);
-		RTSX_WRITE_REG(chip, REG_SD_BLOCK_CNT_L, 0xFF, 0x00);
+		retval = rtsx_write_register(chip, REG_SD_BLOCK_CNT_H, 0xFF,
+					     0x02);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, REG_SD_BLOCK_CNT_L, 0xFF,
+					     0x00);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	}
 #endif
 
@@ -3149,8 +3424,18 @@ MMC_UNLOCK_ENTRY:
 
 #ifdef SUPPORT_SD_LOCK
 	if (sd_card->sd_lock_status & SD_UNLOCK_POW_ON) {
-		RTSX_WRITE_REG(chip, REG_SD_BLOCK_CNT_H, 0xFF, 0x02);
-		RTSX_WRITE_REG(chip, REG_SD_BLOCK_CNT_L, 0xFF, 0x00);
+		retval = rtsx_write_register(chip, REG_SD_BLOCK_CNT_H, 0xFF,
+					     0x02);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
+		retval = rtsx_write_register(chip, REG_SD_BLOCK_CNT_L, 0xFF,
+					     0x00);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	}
 #endif
 
@@ -3251,8 +3536,16 @@ int reset_sd_card(struct rtsx_chip *chip)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, REG_SD_BYTE_CNT_L, 0xFF, 0);
-	RTSX_WRITE_REG(chip, REG_SD_BYTE_CNT_H, 0xFF, 2);
+	retval = rtsx_write_register(chip, REG_SD_BYTE_CNT_L, 0xFF, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, REG_SD_BYTE_CNT_H, 0xFF, 2);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	chip->capacity[chip->card2lun[SD_CARD]] = sd_card->capacity;
 
@@ -3309,8 +3602,16 @@ static int reset_mmc_only(struct rtsx_chip *chip)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, REG_SD_BYTE_CNT_L, 0xFF, 0);
-	RTSX_WRITE_REG(chip, REG_SD_BYTE_CNT_H, 0xFF, 2);
+	retval = rtsx_write_register(chip, REG_SD_BYTE_CNT_L, 0xFF, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
+	retval = rtsx_write_register(chip, REG_SD_BYTE_CNT_H, 0xFF, 2);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	chip->capacity[chip->card2lun[SD_CARD]] = sd_card->capacity;
 
@@ -4950,7 +5251,11 @@ int sd_power_off_card3v3(struct rtsx_chip *chip)
 		return STATUS_FAIL;
 	}
 
-	RTSX_WRITE_REG(chip, CARD_OE, SD_OUTPUT_EN, 0);
+	retval = rtsx_write_register(chip, CARD_OE, SD_OUTPUT_EN, 0);
+	if (retval) {
+		rtsx_trace(chip);
+		return retval;
+	}
 
 	if (!chip->ft2_fast_mode) {
 		retval = card_power_off(chip, SD_CARD);
@@ -4969,8 +5274,13 @@ int sd_power_off_card3v3(struct rtsx_chip *chip)
 			return STATUS_FAIL;
 		}
 	} else {
-		RTSX_WRITE_REG(chip, FPGA_PULL_CTL,
-			FPGA_SD_PULL_CTL_BIT | 0x20, FPGA_SD_PULL_CTL_BIT);
+		retval = rtsx_write_register(chip, FPGA_PULL_CTL,
+					     FPGA_SD_PULL_CTL_BIT | 0x20,
+					     FPGA_SD_PULL_CTL_BIT);
+		if (retval) {
+			rtsx_trace(chip);
+			return retval;
+		}
 	}
 
 	return STATUS_SUCCESS;
