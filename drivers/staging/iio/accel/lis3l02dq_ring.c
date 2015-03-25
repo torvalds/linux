@@ -330,19 +330,21 @@ static int lis3l02dq_buffer_postenable(struct iio_dev *indio_dev)
 	if (test_bit(0, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
 		oneenabled = true;
-	} else
+	} else {
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
+	}
 	if (test_bit(1, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
 		oneenabled = true;
-	} else
+	} else {
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
+	}
 	if (test_bit(2, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
 		oneenabled = true;
-	} else
+	} else {
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
-
+	}
 	if (!oneenabled) /* what happens in this case is unknown */
 		return -EINVAL;
 	ret = lis3l02dq_spi_write_reg_8(indio_dev,
