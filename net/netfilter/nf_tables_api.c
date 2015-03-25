@@ -198,36 +198,31 @@ static int nft_delchain(struct nft_ctx *ctx)
 static inline bool
 nft_rule_is_active(struct net *net, const struct nft_rule *rule)
 {
-	return (rule->genmask & (1 << net->nft.gencursor)) == 0;
-}
-
-static inline int gencursor_next(struct net *net)
-{
-	return net->nft.gencursor+1 == 1 ? 1 : 0;
+	return (rule->genmask & nft_genmask_cur(net)) == 0;
 }
 
 static inline int
 nft_rule_is_active_next(struct net *net, const struct nft_rule *rule)
 {
-	return (rule->genmask & (1 << gencursor_next(net))) == 0;
+	return (rule->genmask & nft_genmask_next(net)) == 0;
 }
 
 static inline void
 nft_rule_activate_next(struct net *net, struct nft_rule *rule)
 {
 	/* Now inactive, will be active in the future */
-	rule->genmask = (1 << net->nft.gencursor);
+	rule->genmask = nft_genmask_cur(net);
 }
 
 static inline void
 nft_rule_deactivate_next(struct net *net, struct nft_rule *rule)
 {
-	rule->genmask = (1 << gencursor_next(net));
+	rule->genmask = nft_genmask_next(net);
 }
 
 static inline void nft_rule_clear(struct net *net, struct nft_rule *rule)
 {
-	rule->genmask &= ~(1 << gencursor_next(net));
+	rule->genmask &= ~nft_genmask_next(net);
 }
 
 static int
@@ -3626,7 +3621,7 @@ static int nf_tables_commit(struct sk_buff *skb)
 	while (++net->nft.base_seq == 0);
 
 	/* A new generation has just started */
-	net->nft.gencursor = gencursor_next(net);
+	net->nft.gencursor = nft_gencursor_next(net);
 
 	/* Make sure all packets have left the previous generation before
 	 * purging old rules.

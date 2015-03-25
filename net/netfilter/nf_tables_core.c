@@ -121,11 +121,7 @@ nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
 	struct nft_stats *stats;
 	int rulenum;
-	/*
-	 * Cache cursor to avoid problems in case that the cursor is updated
-	 * while traversing the ruleset.
-	 */
-	unsigned int gencursor = ACCESS_ONCE(net->nft.gencursor);
+	unsigned int gencursor = nft_genmask_cur(net);
 
 do_chain:
 	rulenum = 0;

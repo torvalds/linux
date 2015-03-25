@@ -720,6 +720,34 @@ void nft_unregister_expr(struct nft_expr_type *);
 #define MODULE_ALIAS_NFT_SET() \
 	MODULE_ALIAS("nft-set")
 
+/*
+ * The gencursor defines two generations, the currently active and the
+ * next one. Objects contain a bitmask of 2 bits specifying the generations
+ * they're active in. A set bit means they're inactive in the generation
+ * represented by that bit.
+ *
+ * New objects start out as inactive in the current and active in the
+ * next generation. When committing the ruleset the bitmask is cleared,
+ * meaning they're active in all generations. When removing an object,
+ * it is set inactive in the next generation. After committing the ruleset,
+ * the objects are removed.
+ */
+static inline unsigned int nft_gencursor_next(const struct net *net)
+{
+	return net->nft.gencursor + 1 == 1 ? 1 : 0;
+}
+
+static inline u8 nft_genmask_next(const struct net *net)
+{
+	return 1 << nft_gencursor_next(net);
+}
+
+static inline u8 nft_genmask_cur(const struct net *net)
+{
+	/* Use ACCESS_ONCE() to prevent refetching the value for atomicity */
+	return 1 << ACCESS_ONCE(net->nft.gencursor);
+}
+
 /**
  *	struct nft_trans - nf_tables object update in transaction
  *
