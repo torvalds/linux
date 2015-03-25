@@ -1090,6 +1090,7 @@ bool pnfs_roc(struct inode *ino)
 	pnfs_get_layout_hdr(lo); /* matched in pnfs_roc_release */
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
+	pnfs_layoutcommit_inode(ino, true);
 	return true;
 
 out_noroc:
@@ -1104,8 +1105,10 @@ out_noroc:
 		}
 	}
 	spin_unlock(&ino->i_lock);
-	if (layoutreturn)
+	if (layoutreturn) {
+		pnfs_layoutcommit_inode(ino, true);
 		pnfs_send_layoutreturn(lo, stateid, IOMODE_ANY, true);
+	}
 	return false;
 }
 
