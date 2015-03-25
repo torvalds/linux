@@ -43,7 +43,7 @@ static int enabled_cpus;
 static bool bootcpu_valid  __initdata;
 
 static bool param_acpi_off __initdata;
-bool param_acpi_force __initdata;
+static bool param_acpi_force __initdata;
 
 static int __init parse_acpi(char *arg)
 {
@@ -284,8 +284,13 @@ out:
  * We can parse ACPI boot-time tables such as MADT after
  * this function is called.
  *
- * ACPI is enabled on return if ACPI tables initialized and sanity checks
- * passed, disabled otherwise
+ * On return ACPI is enabled if either:
+ *
+ * - ACPI tables are initialized and sanity checks passed
+ * - acpi=force was passed in the command line and ACPI was not disabled
+ *   explicitly through acpi=off command line parameter
+ *
+ * ACPI is disabled on function return otherwise
  */
 void __init acpi_boot_table_init(void)
 {
@@ -309,10 +314,13 @@ void __init acpi_boot_table_init(void)
 	 * If ACPI tables are initialized and FADT sanity checks passed,
 	 * leave ACPI enabled and carry on booting; otherwise disable ACPI
 	 * on initialization error.
+	 * If acpi=force was passed on the command line it forces ACPI
+	 * to be enabled even if its initialization failed.
 	 */
 	if (acpi_table_init() || acpi_fadt_sanity_check()) {
 		pr_err("Failed to init ACPI tables\n");
-		disable_acpi();
+		if (!param_acpi_force)
+			disable_acpi();
 	}
 }
 

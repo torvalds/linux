@@ -390,7 +390,7 @@ void __init setup_arch(char **cmdline_p)
 
 	early_ioremap_reset();
 
-	if (acpi_disabled  && !param_acpi_force) {
+	if (acpi_disabled) {
 		unflatten_device_tree();
 		psci_dt_init();
 		cpu_read_bootcpu_ops();
