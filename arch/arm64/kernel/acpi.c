@@ -218,43 +218,60 @@ void __init acpi_init_cpus(void)
 	pr_info("%d CPUs enabled, %d CPUs total\n", enabled_cpus, total_cpus);
 }
 
-static int __init acpi_parse_fadt(struct acpi_table_header *table)
+/*
+ * acpi_fadt_sanity_check() - Check FADT presence and carry out sanity
+ *			      checks on it
+ *
+ * Return 0 on success,  <0 on failure
+ */
+static int __init acpi_fadt_sanity_check(void)
 {
-	struct acpi_table_fadt *fadt = (struct acpi_table_fadt *)table;
+	struct acpi_table_header *table;
+	struct acpi_table_fadt *fadt;
+	acpi_status status;
+	acpi_size tbl_size;
+	int ret = 0;
+
+	/*
+	 * FADT is required on arm64; retrieve it to check its presence
+	 * and carry out revision and ACPI HW reduced compliancy tests
+	 */
+	status = acpi_get_table_with_size(ACPI_SIG_FADT, 0, &table, &tbl_size);
+	if (ACPI_FAILURE(status)) {
+		const char *msg = acpi_format_exception(status);
+
+		pr_err("Failed to get FADT table, %s\n", msg);
+		return -ENODEV;
+	}
+
+	fadt = (struct acpi_table_fadt *)table;
 
 	/*
 	 * Revision in table header is the FADT Major revision, and there
 	 * is a minor revision of FADT which was introduced by ACPI 5.1,
 	 * we only deal with ACPI 5.1 or newer revision to get GIC and SMP
-	 * boot protocol configuration data, or we will disable ACPI.
+	 * boot protocol configuration data.
 	 */
-	if (table->revision > 5 ||
-	    (table->revision == 5 && fadt->minor_revision >= 1)) {
-		if (!acpi_gbl_reduced_hardware) {
-			pr_err("Not hardware reduced ACPI mode, will not be supported\n");
-			goto disable_acpi;
-		}
-
-		/*
-		 * ACPI 5.1 only has two explicit methods to boot up SMP,
-		 * PSCI and Parking protocol, but the Parking protocol is
-		 * only specified for ARMv7 now, so make PSCI as the only
-		 * way for the SMP boot protocol before some updates for
-		 * the Parking protocol spec.
-		 */
-		if (acpi_psci_present())
-			return 0;
-
-		pr_warn("No PSCI support, will not bring up secondary CPUs\n");
-		return -EOPNOTSUPP;
+	if (table->revision < 5 ||
+	   (table->revision == 5 && fadt->minor_revision < 1)) {
+		pr_err("Unsupported FADT revision %d.%d, should be 5.1+\n",
+		       table->revision, fadt->minor_revision);
+		ret = -EINVAL;
+		goto out;
 	}
 
-	pr_warn("Unsupported FADT revision %d.%d, should be 5.1+, will disable ACPI\n",
-		table->revision, fadt->minor_revision);
+	if (!(fadt->flags & ACPI_FADT_HW_REDUCED)) {
+		pr_err("FADT not ACPI hardware reduced compliant\n");
+		ret = -EINVAL;
+	}
 
-disable_acpi:
-	disable_acpi();
-	return -EINVAL;
+out:
+	/*
+	 * acpi_get_table_with_size() creates FADT table mapping that
+	 * should be released after parsing and before resuming boot
+	 */
+	early_acpi_os_unmap_memory(table, tbl_size);
+	return ret;
 }
 
 /*
@@ -262,9 +279,13 @@ disable_acpi:
  *	1. find RSDP and get its address, and then find XSDT
  *	2. extract all tables and checksums them all
  *	3. check ACPI FADT revision
+ *	4. check ACPI FADT HW reduced flag
  *
  * We can parse ACPI boot-time tables such as MADT after
  * this function is called.
+ *
+ * ACPI is enabled on return if ACPI tables initialized and sanity checks
+ * passed, disabled otherwise
  */
 void __init acpi_boot_table_init(void)
 {
@@ -278,18 +299,20 @@ void __init acpi_boot_table_init(void)
 	    (!param_acpi_force && of_scan_flat_dt(dt_scan_depth1_nodes, NULL)))
 		return;
 
+	/*
+	 * ACPI is disabled at this point. Enable it in order to parse
+	 * the ACPI tables and carry out sanity checks
+	 */
 	enable_acpi();
 
-	/* Initialize the ACPI boot-time table parser. */
-	if (acpi_table_init()) {
+	/*
+	 * If ACPI tables are initialized and FADT sanity checks passed,
+	 * leave ACPI enabled and carry on booting; otherwise disable ACPI
+	 * on initialization error.
+	 */
+	if (acpi_table_init() || acpi_fadt_sanity_check()) {
+		pr_err("Failed to init ACPI tables\n");
 		disable_acpi();
-		return;
-	}
-
-	if (acpi_table_parse(ACPI_SIG_FADT, acpi_parse_fadt)) {
-		/* disable ACPI if no FADT is found */
-		disable_acpi();
-		pr_err("Can't find FADT\n");
 	}
 }
 
