@@ -548,6 +548,7 @@ int omap3isp_csi2_reset(struct isp_csi2_device *csi2)
 
 static int csi2_configure(struct isp_csi2_device *csi2)
 {
+	struct isp_pipeline *pipe = to_isp_pipeline(&csi2->subdev.entity);
 	const struct isp_bus_cfg *buscfg;
 	struct isp_device *isp = csi2->isp;
 	struct isp_csi2_timing_cfg *timing = &csi2->timing[0];
@@ -570,7 +571,12 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 	csi2->frame_skip = 0;
 	v4l2_subdev_call(sensor, sensor, g_skip_frames, &csi2->frame_skip);
 
-	csi2->ctrl.vp_out_ctrl = buscfg->bus.csi2.vpclk_div;
+	csi2->ctrl.vp_out_ctrl =
+		clamp_t(unsigned int, pipe->l3_ick / pipe->external_rate - 1,
+			1, 3);
+	dev_dbg(isp->dev, "%s: l3_ick %lu, external_rate %u, vp_out_ctrl %u\n",
+		__func__, pipe->l3_ick,  pipe->external_rate,
+		csi2->ctrl.vp_out_ctrl);
 	csi2->ctrl.frame_mode = ISP_CSI2_FRAME_IMMEDIATE;
 	csi2->ctrl.ecc_enable = buscfg->bus.csi2.crc;
 

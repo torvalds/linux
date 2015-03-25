@@ -129,11 +129,9 @@ struct isp_ccp2_cfg {
 /**
  * struct isp_csi2_cfg - CSI2 interface configuration
  * @crc: Enable the cyclic redundancy check
- * @vpclk_div: Video port output clock control
  */
 struct isp_csi2_cfg {
 	unsigned crc:1;
-	unsigned vpclk_div:2;
 	struct isp_csiphy_lanes_cfg lanecfg;
 };
 
