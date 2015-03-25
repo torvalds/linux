@@ -609,9 +609,9 @@ EXPORT_SYMBOL(ieee80211_stop_scan);
 /* called with ieee->lock held */
 static void ieee80211_start_scan(struct ieee80211_device *ieee)
 {
-	if(IS_DOT11D_ENABLE(ieee) )
+	if (IS_DOT11D_ENABLE(ieee) )
 	{
-		if(IS_COUNTRY_IE_VALID(ieee))
+		if (IS_COUNTRY_IE_VALID(ieee))
 		{
 			RESET_CIE_WATCHDOG(ieee);
 		}
@@ -629,9 +629,9 @@ static void ieee80211_start_scan(struct ieee80211_device *ieee)
 /* called with wx_sem held */
 void ieee80211_start_scan_syncro(struct ieee80211_device *ieee)
 {
-	if(IS_DOT11D_ENABLE(ieee) )
+	if (IS_DOT11D_ENABLE(ieee) )
 	{
-		if(IS_COUNTRY_IE_VALID(ieee))
+		if (IS_COUNTRY_IE_VALID(ieee))
 		{
 			RESET_CIE_WATCHDOG(ieee);
 		}
@@ -739,7 +739,7 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	HTConstructInfoElement(ieee,tmp_ht_info_buf,&tmp_ht_info_len, encrypt);
 
 
-	if(pHTInfo->bRegRT2RTAggregation)
+	if (pHTInfo->bRegRT2RTAggregation)
 	{
 		tmp_generic_ie_buf = ieee->pHTInfo->szRT2RTAggBuffer;
 		tmp_generic_ie_len = sizeof(ieee->pHTInfo->szRT2RTAggBuffer);
@@ -1016,12 +1016,12 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	encrypt = ieee->host_encrypt && crypt && crypt->ops && ((0 == strcmp(crypt->ops->name,"WEP") || wpa_ie_len));
 
 	//Include High Throuput capability && Realtek proprietary
-	if(ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT)
+	if (ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT)
 	{
 		ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
 		ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
 		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt);
-		if(ieee->pHTInfo->bCurrentRT2RTAggregation)
+		if (ieee->pHTInfo->bCurrentRT2RTAggregation)
 		{
 			realtek_ie_buf = ieee->pHTInfo->szRT2RTAggBuffer;
 			realtek_ie_len = sizeof( ieee->pHTInfo->szRT2RTAggBuffer);
@@ -1034,11 +1034,11 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	}
 
 
-	if(beacon->bCkipSupported)
+	if (beacon->bCkipSupported)
 	{
 		ckip_ie_len = 30+2;
 	}
-	if(beacon->bCcxRmEnable)
+	if (beacon->bCcxRmEnable)
 	{
 		ccxrm_ie_len = 6+2;
 	}
@@ -1141,7 +1141,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 		tag += osCcxAironetIE.Length;
 	}
 
-	if(beacon->bCcxRmEnable)
+	if (beacon->bCcxRmEnable)
 	{
 		static u8 CcxRmCapBuf[] = {0x00, 0x40, 0x96, 0x01, 0x01, 0x00};
 		OCTET_STRING osCcxRmCap;
@@ -1168,8 +1168,8 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 		tag += osCcxVerNum.Length;
 	}
 	//HT cap element
-	if(ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT){
-		if(ieee->pHTInfo->ePeerHTSpecVer != HT_SPEC_VER_EWC)
+	if (ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT){
+		if (ieee->pHTInfo->ePeerHTSpecVer != HT_SPEC_VER_EWC)
 		{
 			tag = skb_put(skb, ht_cap_len);
 			*tag++ = MFIE_TYPE_HT_CAP;
@@ -1187,12 +1187,12 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	}
 
 	tag = skb_put(skb, wmm_info_len);
-	if(wmm_info_len) {
+	if (wmm_info_len) {
 	  ieee80211_WMM_Info(ieee, &tag);
 	}
 #ifdef THOMAS_TURBO
 	tag = skb_put(skb, turbo_info_len);
-	if(turbo_info_len) {
+	if (turbo_info_len) {
 		ieee80211_TURBO_Info(ieee, &tag);
 	}
 #endif
@@ -1358,7 +1358,7 @@ static void ieee80211_associate_complete_wq(struct work_struct *work)
 	}
 	ieee->LinkDetectInfo.SlotNum = 2 * (1 + ieee->current_network.beacon_interval/500);
 	// To prevent the immediately calling watch_dog after association.
-	if(ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0 )
+	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0 )
 	{
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
 		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
@@ -1782,7 +1782,7 @@ static inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	if((ieee->ps == IEEE80211_PS_DISABLED ||
+	if ((ieee->ps == IEEE80211_PS_DISABLED ||
 		ieee->iw_mode != IW_MODE_INFRA ||
 		ieee->state != IEEE80211_LINKED)){
 
@@ -2024,7 +2024,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 				ieee->softmac_stats.rx_ass_ok++;
 				/* station support qos */
 				/* Let the register setting defaultly with Legacy station */
-				if(ieee->qos_support) {
+				if (ieee->qos_support) {
 					assoc_resp = (struct ieee80211_assoc_response_frame *)skb->data;
 					memset(network, 0, sizeof(*network));
 					if (ieee80211_parse_info_param(ieee,assoc_resp->info_element,\
@@ -2156,7 +2156,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 	ieee->stats.tx_bytes += txb->payload_size;
 	ieee->stats.tx_packets++;
 	tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
-	if(tcb_desc->bMulticast) {
+	if (tcb_desc->bMulticast) {
 		ieee->stats.multicast++;
 	}
 	/* if xmit available, just xmit it immediately, else just insert it to the wait queue */
@@ -2460,9 +2460,9 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 	// Ref: 802.11d 11.1.3.3
 	// STA shall not start a BSS unless properly formed Beacon frame including a Country IE.
 	//
-	if(IS_DOT11D_ENABLE(ieee) && !IS_COUNTRY_IE_VALID(ieee))
+	if (IS_DOT11D_ENABLE(ieee) && !IS_COUNTRY_IE_VALID(ieee))
 	{
-		if(! ieee->bGlobalDomain)
+		if (! ieee->bGlobalDomain)
 		{
 			return;
 		}

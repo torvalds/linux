@@ -345,7 +345,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee->dev);
 	// To prevent the immediately calling watch_dog after scan.
-	if(ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0 )
+	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0 )
 	{
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
 		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
@@ -469,7 +469,7 @@ EXPORT_SYMBOL(ieee80211_wx_get_mode);
 	printk(KERN_INFO"raw TX is %s\n",
 	      ieee->raw_tx ? "enabled" : "disabled");
 
-	if(ieee->iw_mode == IW_MODE_MONITOR)
+	if (ieee->iw_mode == IW_MODE_MONITOR)
 	{
 		if(prev == 0 && ieee->raw_tx){
 			if (ieee->data_hard_resume)
