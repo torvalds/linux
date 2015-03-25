@@ -15,7 +15,7 @@
 #include <linux/usb.h>
 #include <linux/kfifo.h>
 #include <linux/debugfs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "greybus.h"
 #include "svc_msg.h"
@@ -101,7 +101,8 @@ static inline struct es1_ap_dev *hd_to_es1(struct greybus_host_device *hd)
 }
 
 static void cport_out_callback(struct urb *urb);
-static void usb_log_enable(struct es1_ap_dev *es1, int enable);
+static void usb_log_enable(struct es1_ap_dev *es1);
+static void usb_log_disable(struct es1_ap_dev *es1);
 
 /*
  * Buffer constraints for the host driver.
@@ -129,7 +130,7 @@ static void usb_log_enable(struct es1_ap_dev *es1, int enable);
  *		host driver.  I.e., ((char *)buffer - headroom) must
  *		point to valid memory, usable only by the host driver.
  *  size_max:	The maximum size of a buffer (not including the
- *  		headroom) must not exceed this.
+ *		headroom) must not exceed this.
  */
 static void hd_buffer_constraints(struct greybus_host_device *hd)
 {
@@ -337,7 +338,7 @@ static void ap_disconnect(struct usb_interface *interface)
 	if (!es1)
 		return;
 
-	usb_log_enable(es1, 0);
+	usb_log_disable(es1);
 
 	/* Tear down everything! */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
@@ -540,34 +541,34 @@ static ssize_t apb1_log_read(struct file *f, char __user *buf,
 	return ret;
 }
 
-static struct file_operations apb1_log_fops = {
+static const struct file_operations apb1_log_fops = {
 	.read	= apb1_log_read,
 };
 
-static void usb_log_enable(struct es1_ap_dev *es1, int enable)
+static void usb_log_enable(struct es1_ap_dev *es1)
 {
-	if (enable && apb1_log_task != NULL)
+	if (apb1_log_task != NULL)
 		return;
 
-	if (enable) {
-		/* get log from APB1 */
-		apb1_log_task = kthread_run(apb1_log_poll, es1, "apb1_log");
-		if (apb1_log_task == ERR_PTR(-ENOMEM))
-			return;
-		apb1_log_dentry = debugfs_create_file("apb1_log", 444,
-							gb_debugfs_get(), NULL,
-							&apb1_log_fops);
-	} else {
-		if (apb1_log_dentry) {
-			debugfs_remove(apb1_log_dentry);
-			apb1_log_dentry = NULL;
-		}
+	/* get log from APB1 */
+	apb1_log_task = kthread_run(apb1_log_poll, es1, "apb1_log");
+	if (apb1_log_task == ERR_PTR(-ENOMEM))
+		return;
+	apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
+						gb_debugfs_get(), NULL,
+						&apb1_log_fops);
+}
 
-		if (apb1_log_task) {
-			kthread_stop(apb1_log_task);
-			apb1_log_task = NULL;
-		}
-	}
+static void usb_log_disable(struct es1_ap_dev *es1)
+{
+	if (apb1_log_task == NULL)
+		return;
+
+	debugfs_remove(apb1_log_dentry);
+	apb1_log_dentry = NULL;
+
+	kthread_stop(apb1_log_task);
+	apb1_log_task = NULL;
 }
 
 static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
@@ -575,33 +576,31 @@ static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
 {
 	char tmp_buf[3];
 	int enable = apb1_log_task != NULL;
+
 	sprintf(tmp_buf, "%d\n", enable);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 3);
 }
 
-static ssize_t apb1_log_enable_write(struct file *f, char __user *buf,
+static ssize_t apb1_log_enable_write(struct file *f, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	int enable;
-	char *tmp_buf;
-	ssize_t retval = -EINVAL;
+	ssize_t retval;
 	struct es1_ap_dev *es1 = (struct es1_ap_dev *)f->f_inode->i_private;
 
-	tmp_buf = kmalloc(count, GFP_KERNEL);
-	if (!tmp_buf)
-		return -ENOMEM;
+	retval = kstrtoint_from_user(buf, count, 10, &enable);
+	if (retval)
+		return retval;
 
-	copy_from_user(tmp_buf, buf, count);
-	if (sscanf(tmp_buf, "%d", &enable) == 1) {
-		usb_log_enable(es1, enable);
-		retval = count;
-	}
-	kfree(tmp_buf);
-	
-	return retval;
+	if (enable)
+		usb_log_enable(es1);
+	else
+		usb_log_disable(es1);
+
+	return count;
 }
 
-static struct file_operations apb1_log_enable_fops = {
+static const struct file_operations apb1_log_enable_fops = {
 	.read	= apb1_log_enable_read,
 	.write	= apb1_log_enable_write,
 };
@@ -732,7 +731,8 @@ static int ap_probe(struct usb_interface *interface,
 	if (retval)
 		goto error;
 
-	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable", 666,
+	apb1_log_enable_dentry = debugfs_create_file("apb1_log_enable",
+							(S_IWUSR | S_IRUGO),
 							gb_debugfs_get(), es1,
 							&apb1_log_enable_fops);
 
