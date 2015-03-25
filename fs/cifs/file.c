@@ -1552,8 +1552,8 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		rc = server->ops->mand_unlock_range(cfile, flock, xid);
 
 out:
-	if (flock->fl_flags & FL_POSIX)
-		posix_lock_file_wait(file, flock);
+	if (flock->fl_flags & FL_POSIX && !rc)
+		rc = posix_lock_file_wait(file, flock);
 	return rc;
 }
 
