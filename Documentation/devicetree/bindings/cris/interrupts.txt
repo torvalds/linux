@@ -1,0 +1,23 @@
+* CRISv32 Interrupt Controller
+
+Interrupt controller for the CRISv32 SoCs.
+
+Main node required properties:
+
+- compatible : should be:
+	"axis,crisv32-intc"
+- interrupt-controller : Identifies the node as an interrupt controller
+- #interrupt-cells : Specifies the number of cells needed to encode an
+  interrupt source. The type shall be a <u32> and the value shall be 1.
+- reg: physical base address and size of the intc registers map.
+
+Example:
+
+	intc: interrupt-controller {
+		compatible = "axis,crisv32-intc";
+		reg = <0xb001c000 0x1000>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+
