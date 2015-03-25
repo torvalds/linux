@@ -37,8 +37,10 @@ static int tick_broadcast_force;
 
 #ifdef CONFIG_TICK_ONESHOT
 static void tick_broadcast_clear_oneshot(int cpu);
+static void tick_resume_broadcast_oneshot(struct clock_event_device *bc);
 #else
 static inline void tick_broadcast_clear_oneshot(int cpu) { }
+static inline void tick_resume_broadcast_oneshot(struct clock_event_device *bc) { }
 #endif
 
 /*
@@ -475,7 +477,7 @@ int tick_resume_broadcast(void)
 			break;
 		case TICKDEV_MODE_ONESHOT:
 			if (!cpumask_empty(tick_broadcast_mask))
-				broadcast = tick_resume_broadcast_oneshot(bc);
+				tick_resume_broadcast_oneshot(bc);
 			break;
 		}
 	}
@@ -541,10 +543,9 @@ static int tick_broadcast_set_event(struct clock_event_device *bc, int cpu,
 	return ret;
 }
 
-int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
+static void tick_resume_broadcast_oneshot(struct clock_event_device *bc)
 {
 	clockevents_set_state(bc, CLOCK_EVT_STATE_ONESHOT);
-	return 0;
 }
 
 /*
