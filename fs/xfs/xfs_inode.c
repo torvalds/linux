@@ -2650,6 +2650,31 @@ xfs_sort_for_rename(
 	}
 }
 
+static int
+xfs_finish_rename(
+	struct xfs_trans	*tp,
+	struct xfs_bmap_free	*free_list)
+{
+	int			committed = 0;
+	int			error;
+
+	/*
+	 * If this is a synchronous mount, make sure that the rename transaction
+	 * goes to disk before returning to the user.
+	 */
+	if (tp->t_mountp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC))
+		xfs_trans_set_sync(tp);
+
+	error = xfs_bmap_finish(&tp, free_list, &committed);
+	if (error) {
+		xfs_bmap_cancel(free_list);
+		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
+		return error;
+	}
+
+	return xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+}
+
 /*
  * xfs_cross_rename()
  *
@@ -2789,7 +2814,6 @@ xfs_rename(
 	xfs_bmap_free_t free_list;
 	xfs_fsblock_t   first_block;
 	int		cancel_flags = 0;
-	int		committed;
 	xfs_inode_t	*inodes[__XFS_SORT_INODES];
 	int		num_inodes = __XFS_SORT_INODES;
 	int		spaceres;
@@ -2862,7 +2886,7 @@ xfs_rename(
 					 &free_list, &first_block, spaceres);
 		if (error)
 			goto out_trans_abort;
-		goto finish_rename;
+		return xfs_finish_rename(tp, &free_list);
 	}
 
 	/*
@@ -3004,25 +3028,7 @@ xfs_rename(
 	if (new_parent)
 		xfs_trans_log_inode(tp, target_dp, XFS_ILOG_CORE);
 
-finish_rename:
-	/*
-	 * If this is a synchronous mount, make sure that the
-	 * rename transaction goes to disk before returning to
-	 * the user.
-	 */
-	if (mp->m_flags & (XFS_MOUNT_WSYNC|XFS_MOUNT_DIRSYNC)) {
-		xfs_trans_set_sync(tp);
-	}
-
-	error = xfs_bmap_finish(&tp, &free_list, &committed);
-	if (error)
-		goto out_trans_abort;
-
-	/*
-	 * trans_commit will unlock src_ip, target_ip & decrement
-	 * the vnode references.
-	 */
-	return xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
+	return xfs_finish_rename(tp, &free_list);
 
 out_trans_abort:
 	cancel_flags |= XFS_TRANS_ABORT;
