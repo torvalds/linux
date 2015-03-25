@@ -181,10 +181,6 @@ static int coda_bitstream_queue(struct coda_ctx *ctx,
 	if (n < src_size)
 		return -ENOSPC;
 
-	dma_sync_single_for_device(&ctx->dev->plat_dev->dev,
-				   ctx->bitstream.paddr, ctx->bitstream.size,
-				   DMA_TO_DEVICE);
-
 	src_buf->v4l2_buf.sequence = ctx->qsequence++;
 
 	return 0;
