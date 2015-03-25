@@ -442,7 +442,8 @@ static int rk312x_phy_power_up(struct dsi *dsi)
 	if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
 		clk_prepare_enable(dsi->h2p_hclk);
 		clk_prepare_enable(dsi->dsi_pd);
-	}
+	} else
+		clk_prepare_enable(dsi->dsi_pd);
 
 	udelay(10);
 
@@ -503,7 +504,8 @@ static int rk312x_phy_power_down(struct dsi *dsi)
 	if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
 		clk_disable_unprepare(dsi->h2p_hclk);
 		clk_disable_unprepare(dsi->dsi_pd);
-	}
+	} else
+		clk_disable_unprepare(dsi->dsi_pd);
 	return 0;
 }
 
@@ -1747,6 +1749,12 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 		if (unlikely(IS_ERR(dsi->dsi_host_pclk))) {
 			dev_err(&pdev->dev, "get pclk_mipi_dsi_host clock fail\n");
 			return PTR_ERR(dsi->dsi_host_pclk);
+		}
+
+		dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
+		if (unlikely(IS_ERR(dsi->dsi_pd))) {
+			dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
+			return PTR_ERR(dsi->dsi_pd);
 		}
 	}
 
