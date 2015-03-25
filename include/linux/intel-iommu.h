@@ -115,6 +115,17 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
  * Extended Capability Register
  */
 
+#define ecap_pss(e)		((e >> 35) & 0x1f)
+#define ecap_eafs(e)		((e >> 34) & 0x1)
+#define ecap_nwfs(e)		((e >> 33) & 0x1)
+#define ecap_srs(e)		((e >> 31) & 0x1)
+#define ecap_ers(e)		((e >> 30) & 0x1)
+#define ecap_prs(e)		((e >> 29) & 0x1)
+#define ecap_pasid(e)		((e >> 28) & 0x1)
+#define ecap_dis(e)		((e >> 27) & 0x1)
+#define ecap_nest(e)		((e >> 26) & 0x1)
+#define ecap_mts(e)		((e >> 25) & 0x1)
+#define ecap_ecs(e)		((e >> 24) & 0x1)
 #define ecap_iotlb_offset(e) 	((((e) >> 8) & 0x3ff) * 16)
 #define ecap_max_iotlb_offset(e) (ecap_iotlb_offset(e) + 16)
 #define ecap_coherent(e)	((e) & 0x1)
@@ -177,6 +188,9 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_GSTS_IRTPS (((u32)1) << 24)
 #define DMA_GSTS_IRES (((u32)1) << 25)
 #define DMA_GSTS_CFIS (((u32)1) << 23)
+
+/* DMA_RTADDR_REG */
+#define DMA_RTADDR_RTT (((u64)1) << 11)
 
 /* CCMD_REG */
 #define DMA_CCMD_ICC (((u64)1) << 63)
