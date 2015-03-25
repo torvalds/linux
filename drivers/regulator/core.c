@@ -1316,6 +1316,54 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 	return NULL;
 }
 
+static int regulator_resolve_supply(struct regulator_dev *rdev)
+{
+	struct regulator_dev *r;
+	struct device *dev = rdev->dev.parent;
+	int ret;
+
+	/* No supply to resovle? */
+	if (!rdev->supply_name)
+		return 0;
+
+	/* Supply already resolved? */
+	if (rdev->supply)
+		return 0;
+
+	r = regulator_dev_lookup(dev, rdev->supply_name, &ret);
+	if (ret == -ENODEV) {
+		/*
+		 * No supply was specified for this regulator and
+		 * there will never be one.
+		 */
+		return 0;
+	}
+
+	if (!r) {
+		dev_err(dev, "Failed to resolve %s-supply for %s\n",
+			rdev->supply_name, rdev->desc->name);
+		return -EPROBE_DEFER;
+	}
+
+	/* Recursively resolve the supply of the supply */
+	ret = regulator_resolve_supply(r);
+	if (ret < 0)
+		return ret;
+
+	ret = set_supply(rdev, r);
+	if (ret < 0)
+		return ret;
+
+	/* Cascade always-on state to supply */
+	if (_regulator_is_enabled(rdev)) {
+		ret = regulator_enable(rdev->supply);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 /* Internal regulator request function */
 static struct regulator *_regulator_get(struct device *dev, const char *id,
 					bool exclusive, bool allow_dummy)
@@ -1382,6 +1430,12 @@ found:
 
 	if (exclusive && rdev->open_count) {
 		regulator = ERR_PTR(-EBUSY);
+		goto out;
+	}
+
+	ret = regulator_resolve_supply(rdev);
+	if (ret < 0) {
+		regulator = ERR_PTR(ret);
 		goto out;
 	}
 
@@ -3536,7 +3590,6 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	struct regulator_dev *rdev;
 	struct device *dev;
 	int ret, i;
-	const char *supply = NULL;
 
 	if (regulator_desc == NULL || cfg == NULL)
 		return ERR_PTR(-EINVAL);
@@ -3650,41 +3703,10 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		goto scrub;
 
 	if (init_data && init_data->supply_regulator)
-		supply = init_data->supply_regulator;
+		rdev->supply_name = init_data->supply_regulator;
 	else if (regulator_desc->supply_name)
-		supply = regulator_desc->supply_name;
+		rdev->supply_name = regulator_desc->supply_name;
 
-	if (supply) {
-		struct regulator_dev *r;
-
-		r = regulator_dev_lookup(dev, supply, &ret);
-
-		if (ret == -ENODEV) {
-			/*
-			 * No supply was specified for this regulator and
-			 * there will never be one.
-			 */
-			ret = 0;
-			goto add_dev;
-		} else if (!r) {
-			dev_err(dev, "Failed to find supply %s\n", supply);
-			ret = -EPROBE_DEFER;
-			goto scrub;
-		}
-
-		ret = set_supply(rdev, r);
-		if (ret < 0)
-			goto scrub;
-
-		/* Enable supply if rail is enabled */
-		if (_regulator_is_enabled(rdev)) {
-			ret = regulator_enable(rdev->supply);
-			if (ret < 0)
-				goto scrub;
-		}
-	}
-
-add_dev:
 	/* add consumers devices */
 	if (init_data) {
 		for (i = 0; i < init_data->num_consumer_supplies; i++) {
@@ -3711,8 +3733,6 @@ unset_supplies:
 	unset_regulator_supplies(rdev);
 
 scrub:
-	if (rdev->supply)
-		_regulator_put(rdev->supply);
 	regulator_ena_gpio_free(rdev);
 	kfree(rdev->constraints);
 wash:
