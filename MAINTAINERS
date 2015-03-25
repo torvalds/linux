@@ -3252,6 +3252,13 @@ S:	Maintained
 F:	Documentation/hwmon/dme1737
 F:	drivers/hwmon/dme1737.c
 
+DMI/SMBIOS SUPPORT
+M:	Jean Delvare <jdelvare@suse.de>
+S:	Maintained
+F:	drivers/firmware/dmi-id.c
+F:	drivers/firmware/dmi_scan.c
+F:	include/linux/dmi.h
+
 DOCKING STATION DRIVER
 M:	Shaohua Li <shaohua.li@intel.com>
 L:	linux-acpi@vger.kernel.org
