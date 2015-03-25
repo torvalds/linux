@@ -1,0 +1,8 @@
+config POWERVR_ROGUE
+	tristate "PowerVR Rogue"
+	default n
+	help
+	  Driver for PowerVR Rogue hardware.
+	  
+	  Say Y here if your SoC contains a PowerVR Rogue GPU. For more
+	  information, see <http://www.imgtec.com/powervr/>.
