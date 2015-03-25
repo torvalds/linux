@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 
-#include "tick-internal.h"
 #include "ntp_internal.h"
 
 /*
