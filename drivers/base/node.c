@@ -209,15 +209,7 @@ static struct attribute *node_dev_attrs[] = {
 	&dev_attr_vmstat.attr,
 	NULL
 };
-
-static struct attribute_group node_dev_attr_group = {
-	.attrs	= node_dev_attrs,
-};
-
-static const struct attribute_group *node_dev_attr_groups[] = {
-	&node_dev_attr_group,
-	NULL
-};
+ATTRIBUTE_GROUPS(node_dev);
 
 #ifdef CONFIG_HUGETLBFS
 /*
@@ -292,7 +284,7 @@ static int register_node(struct node *node, int num, struct node *parent)
 	node->dev.id = num;
 	node->dev.bus = &node_subsys;
 	node->dev.release = node_device_release;
-	node->dev.groups = node_dev_attr_groups;
+	node->dev.groups = node_dev_groups;
 	error = device_register(&node->dev);
 
 	if (!error){
