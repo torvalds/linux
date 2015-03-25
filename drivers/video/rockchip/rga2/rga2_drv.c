@@ -234,7 +234,7 @@ static void rga2_power_on(void)
     clk_prepare_enable(rga2_drvdata->rga2);
 	clk_prepare_enable(rga2_drvdata->aclk_rga2);
 	clk_prepare_enable(rga2_drvdata->hclk_rga2);
-	//clk_enable(rga2_drvdata->pd_rga2);
+	clk_prepare_enable(rga2_drvdata->pd_rga2);
 	wake_lock(&rga2_drvdata->wake_lock);
 	rga2_service.enable = true;
 }
@@ -256,9 +256,8 @@ static void rga2_power_off(void)
 		rga2_dump();
 	}
 
-	//clk_disable(rga2_drvdata->pd_rga2);
     clk_disable_unprepare(rga2_drvdata->rga2);
-    //clk_disable_unprepare(rga2_drvdata->pd_rga2);
+    clk_disable_unprepare(rga2_drvdata->pd_rga2);
 	clk_disable_unprepare(rga2_drvdata->aclk_rga2);
 	clk_disable_unprepare(rga2_drvdata->hclk_rga2);
 	wake_unlock(&rga2_drvdata->wake_lock);
@@ -974,13 +973,10 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
             RGA_MSG_2_RGA2_MSG_32(&req_rga, &req);
 
             if((atomic_read(&rga2_service.total_running) > 8))
-            {
 			    ret = rga2_blit_sync(session, &req);
-            }
             else
-            {
                 ret = rga2_blit_async(session, &req);
-            }
+
 			break;
 		case RGA2_BLIT_SYNC:
     		if (unlikely(copy_from_user(&req, compat_ptr((compat_uptr_t)arg), sizeof(struct rga2_req))))
@@ -1000,13 +996,10 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
         	}
 
             if((atomic_read(&rga2_service.total_running) > 16))
-            {
 			    ret = rga2_blit_sync(session, &req);
-            }
             else
-            {
                 ret = rga2_blit_async(session, &req);
-            }
+
 			break;
         case RGA_FLUSH:
 		case RGA2_FLUSH:
@@ -1258,7 +1251,8 @@ static int rga2_drv_remove(struct platform_device *pdev)
 	iounmap((void __iomem *)(data->rga_base));
 
 	//clk_put(data->pd_rga2);
-    devm_clk_put(&pdev->dev, data->rga2);
+	devm_clk_put(&pdev->dev, data->rga2);
+    devm_clk_put(&pdev->dev, data->pd_rga2);
 	devm_clk_put(&pdev->dev, data->aclk_rga2);
 	devm_clk_put(&pdev->dev, data->hclk_rga2);
 
