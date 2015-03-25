@@ -982,7 +982,7 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	list_del(&quota_root->dirty_list);
 
 	btrfs_tree_lock(quota_root->node);
-	clean_tree_block(trans, tree_root, quota_root->node);
+	clean_tree_block(trans, tree_root->fs_info, quota_root->node);
 	btrfs_tree_unlock(quota_root->node);
 	btrfs_free_tree_block(trans, quota_root, quota_root->node, 0, 1);
 

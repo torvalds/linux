@@ -237,12 +237,8 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	}
 
 	x = cmpxchg(&info->stripe_hash_table, NULL, table);
-	if (x) {
-		if (is_vmalloc_addr(x))
-			vfree(x);
-		else
-			kfree(x);
-	}
+	if (x)
+		kvfree(x);
 	return 0;
 }
 
@@ -453,10 +449,7 @@ void btrfs_free_stripe_hash_table(struct btrfs_fs_info *info)
 	if (!info->stripe_hash_table)
 		return;
 	btrfs_clear_rbio_cache(info);
-	if (is_vmalloc_addr(info->stripe_hash_table))
-		vfree(info->stripe_hash_table);
-	else
-		kfree(info->stripe_hash_table);
+	kvfree(info->stripe_hash_table);
 	info->stripe_hash_table = NULL;
 }
 

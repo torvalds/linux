@@ -3241,8 +3241,5 @@ void btrfsic_unmount(struct btrfs_root *root,
 
 	mutex_unlock(&btrfsic_mutex);
 
-	if (is_vmalloc_addr(state))
-		vfree(state);
-	else
-		kfree(state);
+	kvfree(state);
 }

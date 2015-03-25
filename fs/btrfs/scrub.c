@@ -3560,7 +3560,7 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_fs_info *fs_info,
 						int is_dev_replace)
 {
 	int ret = 0;
-	int flags = WQ_FREEZABLE | WQ_UNBOUND;
+	unsigned int flags = WQ_FREEZABLE | WQ_UNBOUND;
 	int max_active = fs_info->thread_pool_size;
 
 	if (fs_info->scrub_workers_refcnt == 0) {

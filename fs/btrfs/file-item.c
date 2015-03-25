@@ -553,7 +553,7 @@ static noinline void truncate_one_csum(struct btrfs_root *root,
 		btrfs_truncate_item(root, path, new_size, 0);
 
 		key->offset = end_byte;
-		btrfs_set_item_key_safe(root, path, key);
+		btrfs_set_item_key_safe(root->fs_info, path, key);
 	} else {
 		BUG();
 	}

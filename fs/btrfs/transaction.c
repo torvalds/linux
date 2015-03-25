@@ -35,7 +35,7 @@
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
-static unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
+static const unsigned int btrfs_blocked_trans_types[TRANS_STATE_MAX] = {
 	[TRANS_STATE_RUNNING]		= 0U,
 	[TRANS_STATE_BLOCKED]		= (__TRANS_USERSPACE |
 					   __TRANS_START),

@@ -87,7 +87,7 @@ BTRFS_WORK_HELPER(scrubwrc_helper);
 BTRFS_WORK_HELPER(scrubnc_helper);
 
 static struct __btrfs_workqueue *
-__btrfs_alloc_workqueue(const char *name, int flags, int max_active,
+__btrfs_alloc_workqueue(const char *name, unsigned int flags, int max_active,
 			 int thresh)
 {
 	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
@@ -132,7 +132,7 @@ static inline void
 __btrfs_destroy_workqueue(struct __btrfs_workqueue *wq);
 
 struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
-					      int flags,
+					      unsigned int flags,
 					      int max_active,
 					      int thresh)
 {
