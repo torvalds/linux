@@ -110,7 +110,7 @@ static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 }
 
 static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
-				u8 *buf)
+					u8 *buf)
 {
 	int ret, i;
 	u8 *rx_array;

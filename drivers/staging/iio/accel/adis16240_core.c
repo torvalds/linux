@@ -27,9 +27,9 @@
 #include "adis16240.h"
 
 static ssize_t adis16240_spi_read_signed(struct device *dev,
-		struct device_attribute *attr,
-		char *buf,
-		unsigned bits)
+					 struct device_attribute *attr,
+					 char *buf,
+					 unsigned bits)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis *st = iio_priv(indio_dev);
@@ -39,7 +39,7 @@ static ssize_t adis16240_spi_read_signed(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
 	ret = adis_read_reg_16(st,
-					this_attr->address, (u16 *)&val);
+			       this_attr->address, (u16 *)&val);
 	if (ret)
 		return ret;
 
@@ -51,8 +51,8 @@ static ssize_t adis16240_spi_read_signed(struct device *dev,
 }
 
 static ssize_t adis16240_read_12bit_signed(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	ssize_t ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -176,11 +176,14 @@ static const struct iio_chan_spec adis16240_channels[] = {
 	ADIS_SUPPLY_CHAN(ADIS16240_SUPPLY_OUT, ADIS16240_SCAN_SUPPLY, 0, 10),
 	ADIS_AUX_ADC_CHAN(ADIS16240_AUX_ADC, ADIS16240_SCAN_AUX_ADC, 0, 10),
 	ADIS_ACCEL_CHAN(X, ADIS16240_XACCL_OUT, ADIS16240_SCAN_ACC_X,
-		BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK), 0, 10),
+			BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK),
+			0, 10),
 	ADIS_ACCEL_CHAN(Y, ADIS16240_YACCL_OUT, ADIS16240_SCAN_ACC_Y,
-		BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK), 0, 10),
+			BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK),
+			0, 10),
 	ADIS_ACCEL_CHAN(Z, ADIS16240_ZACCL_OUT, ADIS16240_SCAN_ACC_Z,
-		BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK), 0, 10),
+			BIT(IIO_CHAN_INFO_CALIBBIAS) | BIT(IIO_CHAN_INFO_PEAK),
+			0, 10),
 	ADIS_TEMP_CHAN(ADIS16240_TEMP_OUT, ADIS16240_SCAN_TEMP, 0, 10),
 	IIO_CHAN_SOFT_TIMESTAMP(6)
 };

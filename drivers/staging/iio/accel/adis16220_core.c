@@ -21,8 +21,8 @@
 #include "adis16220.h"
 
 static ssize_t adis16220_read_16bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				    struct device_attribute *attr,
+				    char *buf)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -40,9 +40,9 @@ static ssize_t adis16220_read_16bit(struct device *dev,
 }
 
 static ssize_t adis16220_write_16bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				     struct device_attribute *attr,
+				     const char *buf,
+				     size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
@@ -75,8 +75,8 @@ static int adis16220_capture(struct iio_dev *indio_dev)
 }
 
 static ssize_t adis16220_write_capture(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool val;
@@ -95,10 +95,10 @@ static ssize_t adis16220_write_capture(struct device *dev,
 }
 
 static ssize_t adis16220_capture_buffer_read(struct iio_dev *indio_dev,
-					char *buf,
-					loff_t off,
-					size_t count,
-					int addr)
+					     char *buf,
+					     loff_t off,
+					     size_t count,
+					     int addr)
 {
 	struct adis16220_state *st = iio_priv(indio_dev);
 	struct spi_transfer xfers[] = {
@@ -130,8 +130,8 @@ static ssize_t adis16220_capture_buffer_read(struct iio_dev *indio_dev,
 
 	/* write the begin position of capture buffer */
 	ret = adis_write_reg_16(&st->adis,
-					ADIS16220_CAPT_PNTR,
-					off > 1);
+				ADIS16220_CAPT_PNTR,
+				off > 1);
 	if (ret)
 		return -EIO;
 
@@ -181,9 +181,9 @@ static struct bin_attribute accel_bin = {
 };
 
 static ssize_t adis16220_adc1_bin_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *attr,
-				char *buf, loff_t off,
-				size_t count)
+				       struct bin_attribute *attr,
+				       char *buf, loff_t off,
+				       size_t count)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(kobj_to_dev(kobj));
 
@@ -202,9 +202,9 @@ static struct bin_attribute adc1_bin = {
 };
 
 static ssize_t adis16220_adc2_bin_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *attr,
-				char *buf, loff_t off,
-				size_t count)
+				       struct bin_attribute *attr,
+				       char *buf, loff_t off,
+				       size_t count)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(kobj_to_dev(kobj));
 

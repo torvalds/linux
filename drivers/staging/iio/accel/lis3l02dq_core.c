@@ -656,8 +656,8 @@ static int lis3l02dq_write_event_config(struct iio_dev *indio_dev,
 			(control | LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT) :
 			(control & ~LIS3L02DQ_REG_CTRL_2_ENABLE_INTERRUPT);
 		ret = lis3l02dq_spi_write_reg_8(indio_dev,
-					       LIS3L02DQ_REG_CTRL_2_ADDR,
-					       control);
+						LIS3L02DQ_REG_CTRL_2_ADDR,
+						control);
 		if (ret)
 			goto error_ret;
 	}
