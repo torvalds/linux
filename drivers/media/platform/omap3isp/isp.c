@@ -330,8 +330,8 @@ static int isp_xclk_init(struct isp_device *isp)
 		if (np)
 			continue;
 
-		if (pdata->xclks[i].con_id == NULL &&
-		    pdata->xclks[i].dev_id == NULL)
+		if (!pdata || (pdata->xclks[i].con_id == NULL &&
+			       pdata->xclks[i].dev_id == NULL))
 			continue;
 
 		xclk->lookup = kzalloc(sizeof(*xclk->lookup), GFP_KERNEL);
@@ -1989,7 +1989,8 @@ static int isp_register_entities(struct isp_device *isp)
 		goto done;
 
 	/* Register external entities */
-	for (subdevs = pdata->subdevs; subdevs && subdevs->subdevs; ++subdevs) {
+	for (subdevs = pdata ? pdata->subdevs : NULL;
+	     subdevs && subdevs->subdevs; ++subdevs) {
 		struct v4l2_subdev *sensor;
 
 		sensor = isp_register_subdev_group(isp, subdevs->subdevs);
@@ -2270,9 +2271,6 @@ static int isp_probe(struct platform_device *pdev)
 	struct isp_device *isp;
 	int ret;
 	int i, m;
-
-	if (pdata == NULL)
-		return -EINVAL;
 
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp) {
