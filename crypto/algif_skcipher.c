@@ -537,7 +537,7 @@ static int skcipher_recvmsg_async(struct socket *sock, struct msghdr *msg,
 
 	while (iov_iter_count(&msg->msg_iter)) {
 		struct skcipher_async_rsgl *rsgl;
-		unsigned long used;
+		int used;
 
 		if (!ctx->used) {
 			err = skcipher_wait_for_data(sk, flags);
