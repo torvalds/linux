@@ -1358,6 +1358,7 @@ clear_pmdnuma:
 	BUG_ON(!PageLocked(page));
 	was_writable = pmd_write(pmd);
 	pmd = pmd_modify(pmd, vma->vm_page_prot);
+	pmd = pmd_mkyoung(pmd);
 	if (was_writable)
 		pmd = pmd_mkwrite(pmd);
 	set_pmd_at(mm, haddr, pmdp, pmd);
