@@ -2790,8 +2790,8 @@ xfs_rename(
 {
 	xfs_trans_t	*tp = NULL;
 	xfs_mount_t	*mp = src_dp->i_mount;
-	int		new_parent;		/* moving to a new dir */
-	int		src_is_directory;	/* src_name is a directory */
+	bool		new_parent;		/* moving to a new dir */
+	bool		src_is_directory;	/* src_name is a directory */
 	int		error;
 	xfs_bmap_free_t free_list;
 	xfs_fsblock_t   first_block;
