@@ -1609,7 +1609,7 @@ icn_setup(char *line)
 	if (ints[0] > 1)
 		membase = (unsigned long)ints[2];
 	if (str && *str) {
-		strcpy(sid, str);
+		strlcpy(sid, str, sizeof(sid));
 		icn_id = sid;
 		if ((p = strchr(sid, ','))) {
 			*p++ = 0;

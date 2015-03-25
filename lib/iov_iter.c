@@ -751,3 +751,18 @@ int iov_iter_npages(const struct iov_iter *i, int maxpages)
 	return npages;
 }
 EXPORT_SYMBOL(iov_iter_npages);
+
+const void *dup_iter(struct iov_iter *new, struct iov_iter *old, gfp_t flags)
+{
+	*new = *old;
+	if (new->type & ITER_BVEC)
+		return new->bvec = kmemdup(new->bvec,
+				    new->nr_segs * sizeof(struct bio_vec),
+				    flags);
+	else
+		/* iovec and kvec have identical layout */
+		return new->iov = kmemdup(new->iov,
+				   new->nr_segs * sizeof(struct iovec),
+				   flags);
+}
+EXPORT_SYMBOL(dup_iter);

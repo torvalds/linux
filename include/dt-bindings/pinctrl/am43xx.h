@@ -18,7 +18,8 @@
 #define PULL_DISABLE		(1 << 16)
 #define PULL_UP			(1 << 17)
 #define INPUT_EN		(1 << 18)
-#define SLEWCTRL_FAST		(1 << 19)
+#define SLEWCTRL_SLOW		(1 << 19)
+#define SLEWCTRL_FAST		0
 #define DS0_PULL_UP_DOWN_EN	(1 << 27)
 
 #define PIN_OUTPUT		(PULL_DISABLE)

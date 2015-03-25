@@ -64,8 +64,7 @@ SYSCALL_DEFINE3(s390_pci_mmio_write, unsigned long, mmio_addr,
 	if (copy_from_user(buf, user_buffer, length))
 		goto out;
 
-	memcpy_toio(io_addr, buf, length);
-	ret = 0;
+	ret = zpci_memcpy_toio(io_addr, buf, length);
 out:
 	if (buf != local_buf)
 		kfree(buf);
@@ -98,16 +97,16 @@ SYSCALL_DEFINE3(s390_pci_mmio_read, unsigned long, mmio_addr,
 		goto out;
 	io_addr = (void __iomem *)((pfn << PAGE_SHIFT) | (mmio_addr & ~PAGE_MASK));
 
-	ret = -EFAULT;
-	if ((unsigned long) io_addr < ZPCI_IOMAP_ADDR_BASE)
+	if ((unsigned long) io_addr < ZPCI_IOMAP_ADDR_BASE) {
+		ret = -EFAULT;
 		goto out;
-
-	memcpy_fromio(buf, io_addr, length);
-
+	}
+	ret = zpci_memcpy_fromio(buf, io_addr, length);
+	if (ret)
+		goto out;
 	if (copy_to_user(user_buffer, buf, length))
-		goto out;
+		ret = -EFAULT;
 
-	ret = 0;
 out:
 	if (buf != local_buf)
 		kfree(buf);

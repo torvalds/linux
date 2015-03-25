@@ -378,6 +378,12 @@ EXPORT_SYMBOL_GPL(tcp_slow_start);
  */
 void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w, u32 acked)
 {
+	/* If credits accumulated at a higher w, apply them gently now. */
+	if (tp->snd_cwnd_cnt >= w) {
+		tp->snd_cwnd_cnt = 0;
+		tp->snd_cwnd++;
+	}
+
 	tp->snd_cwnd_cnt += acked;
 	if (tp->snd_cwnd_cnt >= w) {
 		u32 delta = tp->snd_cwnd_cnt / w;

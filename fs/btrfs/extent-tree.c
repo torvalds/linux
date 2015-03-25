@@ -3325,6 +3325,32 @@ out:
 	return ret;
 }
 
+int btrfs_setup_space_cache(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root)
+{
+	struct btrfs_block_group_cache *cache, *tmp;
+	struct btrfs_transaction *cur_trans = trans->transaction;
+	struct btrfs_path *path;
+
+	if (list_empty(&cur_trans->dirty_bgs) ||
+	    !btrfs_test_opt(root, SPACE_CACHE))
+		return 0;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	/* Could add new block groups, use _safe just in case */
+	list_for_each_entry_safe(cache, tmp, &cur_trans->dirty_bgs,
+				 dirty_list) {
+		if (cache->disk_cache_state == BTRFS_DC_CLEAR)
+			cache_save_setup(cache, trans, path);
+	}
+
+	btrfs_free_path(path);
+	return 0;
+}
+
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
@@ -5110,7 +5136,11 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
 
 	spin_lock(&BTRFS_I(inode)->lock);
-	BTRFS_I(inode)->outstanding_extents++;
+	nr_extents = (unsigned)div64_u64(num_bytes +
+					 BTRFS_MAX_EXTENT_SIZE - 1,
+					 BTRFS_MAX_EXTENT_SIZE);
+	BTRFS_I(inode)->outstanding_extents += nr_extents;
+	nr_extents = 0;
 
 	if (BTRFS_I(inode)->outstanding_extents >
 	    BTRFS_I(inode)->reserved_extents)
@@ -5254,6 +5284,9 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 	spin_unlock(&BTRFS_I(inode)->lock);
 	if (dropped > 0)
 		to_free += btrfs_calc_trans_metadata_size(root, dropped);
+
+	if (btrfs_test_is_dummy_root(root))
+		return;
 
 	trace_btrfs_space_reservation(root->fs_info, "delalloc",
 				      btrfs_ino(inode), to_free, 0);

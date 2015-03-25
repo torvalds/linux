@@ -466,7 +466,7 @@ static u16 gic_compute_target_list(int *base_cpu, const struct cpumask *mask,
 		tlist |= 1 << (mpidr & 0xf);
 
 		cpu = cpumask_next(cpu, mask);
-		if (cpu == nr_cpu_ids)
+		if (cpu >= nr_cpu_ids)
 			goto out;
 
 		mpidr = cpu_logical_map(cpu);
