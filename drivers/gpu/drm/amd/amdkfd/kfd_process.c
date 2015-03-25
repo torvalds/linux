@@ -173,7 +173,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 		pr_debug("Releasing pdd (topology id %d) for process (pasid %d) in workqueue\n",
 				pdd->dev->id, p->pasid);
 
-		if (p->reset_wavefronts)
+		if (pdd->reset_wavefronts)
 			dbgdev_wave_reset_wavefronts(pdd->dev, p);
 
 		amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
@@ -222,6 +222,7 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 					struct mm_struct *mm)
 {
 	struct kfd_process *p;
+	struct kfd_process_device *pdd = NULL;
 
 	/*
 	 * The kfd_process structure can not be free because the
@@ -239,6 +240,15 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 
 	/* In case our notifier is called before IOMMU notifier */
 	pqm_uninit(&p->pqm);
+
+	/* Iterate over all process device data structure and check
+	 * if we should reset all wavefronts */
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list)
+		if (pdd->reset_wavefronts) {
+			pr_warn("amdkfd: Resetting all wave fronts\n");
+			dbgdev_wave_reset_wavefronts(pdd->dev, p);
+			pdd->reset_wavefronts = false;
+		}
 
 	mutex_unlock(&p->mutex);
 
@@ -305,8 +315,6 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (kfd_init_apertures(process) != 0)
 		goto err_init_apretures;
 
-	process->reset_wavefronts = false;
-
 	return process;
 
 err_init_apretures:
@@ -348,6 +356,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 		INIT_LIST_HEAD(&pdd->qpd.queues_list);
 		INIT_LIST_HEAD(&pdd->qpd.priv_queue_list);
 		pdd->qpd.dqm = dev->dqm;
+		pdd->reset_wavefronts = false;
 		list_add(&pdd->per_device_list, &p->per_device_data);
 	}
 
@@ -409,10 +418,12 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 		kfd_dbgmgr_destroy(dev->dbgmgr);
 
 	pqm_uninit(&p->pqm);
-	if (p->reset_wavefronts)
-		dbgdev_wave_reset_wavefronts(dev, p);
 
 	pdd = kfd_get_process_device_data(dev, p);
+	if (pdd->reset_wavefronts) {
+		dbgdev_wave_reset_wavefronts(pdd->dev, p);
+		pdd->reset_wavefronts = false;
+	}
 
 	/*
 	 * Just mark pdd as unbound, because we still need it to call
