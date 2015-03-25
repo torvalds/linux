@@ -691,7 +691,7 @@ static u32 rhashtable_jhash2(const void *key, u32 length, u32 seed)
  *	struct rhash_head	node;
  * };
  *
- * u32 my_hash_fn(const void *data, u32 seed)
+ * u32 my_hash_fn(const void *data, u32 len, u32 seed)
  * {
  *	struct test_obj *obj = data;
  *

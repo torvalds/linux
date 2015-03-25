@@ -3127,7 +3127,7 @@ static struct pernet_operations __net_initdata netlink_net_ops = {
 	.exit = netlink_net_exit,
 };
 
-static inline u32 netlink_hash(const void *data, u32 seed)
+static inline u32 netlink_hash(const void *data, u32 len, u32 seed)
 {
 	const struct netlink_sock *nlk = data;
 	struct netlink_compare_arg arg;

@@ -88,7 +88,7 @@ struct rhashtable_compare_arg {
 };
 
 typedef u32 (*rht_hashfn_t)(const void *data, u32 len, u32 seed);
-typedef u32 (*rht_obj_hashfn_t)(const void *data, u32 seed);
+typedef u32 (*rht_obj_hashfn_t)(const void *data, u32 len, u32 seed);
 typedef int (*rht_obj_cmpfn_t)(struct rhashtable_compare_arg *arg,
 			       const void *obj);
 
@@ -242,7 +242,9 @@ static inline unsigned int rht_head_hashfn(
 	const char *ptr = rht_obj(ht, he);
 
 	return likely(params.obj_hashfn) ?
-	       rht_bucket_index(tbl, params.obj_hashfn(ptr, tbl->hash_rnd)) :
+	       rht_bucket_index(tbl, params.obj_hashfn(ptr, params.key_len ?:
+							    ht->p.key_len,
+						       tbl->hash_rnd)) :
 	       rht_key_hashfn(ht, tbl, ptr + params.key_offset, params);
 }
 
