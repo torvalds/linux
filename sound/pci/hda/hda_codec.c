@@ -146,7 +146,7 @@ static int codec_exec_verb(struct hdac_device *dev, unsigned int cmd,
 	bus->no_response_fallback = 0;
 	mutex_unlock(&bus->core.cmd_mutex);
 	snd_hda_power_down_pm(codec);
-	if (!codec_in_pm(codec) && res && err < 0 && bus->rirb_error) {
+	if (!codec_in_pm(codec) && res && err == -EAGAIN) {
 		if (bus->response_reset) {
 			codec_dbg(codec,
 				  "resetting BUS due to fatal communication error\n");
@@ -436,9 +436,8 @@ static unsigned int get_num_devices(struct hda_codec *codec, hda_nid_t nid)
 	    get_wcaps_type(wcaps) != AC_WID_PIN)
 		return 0;
 
-	parm = snd_hda_param_read(codec, nid, AC_PAR_DEVLIST_LEN);
-	if (parm == -1 && codec->bus->rirb_error)
-		parm = 0;
+	if (_snd_hdac_read_parm(&codec->core, nid, AC_PAR_DEVLIST_LEN, &parm))
+		return 0; /* error */
 	return parm & AC_DEV_LIST_LEN_MASK;
 }
 
@@ -467,10 +466,9 @@ int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
 
 	devices = 0;
 	while (devices < dev_len) {
-		parm = snd_hda_codec_read(codec, nid, 0,
-					  AC_VERB_GET_DEVICE_LIST, devices);
-		if (parm == -1 && codec->bus->rirb_error)
-			break;
+		if (snd_hdac_read(&codec->core, nid,
+				  AC_VERB_GET_DEVICE_LIST, devices, &parm))
+			break; /* error */
 
 		for (i = 0; i < 8; i++) {
 			dev_list[devices] = (u8)parm;
@@ -520,8 +518,7 @@ static int _hda_bus_get_response(struct hdac_bus *_bus, unsigned int addr,
 				 unsigned int *res)
 {
 	struct hda_bus *bus = container_of(_bus, struct hda_bus, core);
-	*res = bus->ops.get_response(bus, addr);
-	return bus->rirb_error ? -EIO : 0;
+	return bus->ops.get_response(bus, addr, res);
 }
 
 static const struct hdac_bus_ops bus_ops = {

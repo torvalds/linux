@@ -1156,8 +1156,8 @@ static void azx_update_rirb(struct azx *chip)
 }
 
 /* receive a response */
-static unsigned int azx_rirb_get_response(struct hda_bus *bus,
-					  unsigned int addr)
+static int azx_rirb_get_response(struct hda_bus *bus, unsigned int addr,
+				 unsigned int *res)
 {
 	struct azx *chip = bus->private_data;
 	unsigned long timeout;
@@ -1175,11 +1175,12 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		}
 		if (!chip->rirb.cmds[addr]) {
 			smp_rmb();
-			bus->rirb_error = 0;
 
 			if (!do_poll)
 				chip->poll_count = 0;
-			return chip->rirb.res[addr]; /* the last value */
+			if (res)
+				*res = chip->rirb.res[addr]; /* the last value */
+			return 0;
 		}
 		if (time_after(jiffies, timeout))
 			break;
@@ -1192,7 +1193,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 	}
 
 	if (bus->no_response_fallback)
-		return -1;
+		return -EIO;
 
 	if (!chip->polling_mode && chip->poll_count < 2) {
 		dev_dbg(chip->card->dev,
@@ -1217,10 +1218,8 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 			 "No response from codec, disabling MSI: last cmd=0x%08x\n",
 			 chip->last_cmd[addr]);
 		if (chip->ops->disable_msi_reset_irq(chip) &&
-		    chip->ops->disable_msi_reset_irq(chip) < 0) {
-			bus->rirb_error = 1;
-			return -1;
-		}
+		    chip->ops->disable_msi_reset_irq(chip) < 0)
+			return -EIO;
 		goto again;
 	}
 
@@ -1229,16 +1228,15 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		 * phase, this is likely an access to a non-existing codec
 		 * slot.  Better to return an error and reset the system.
 		 */
-		return -1;
+		return -EIO;
 	}
 
 	/* a fatal communication error; need either to reset or to fallback
 	 * to the single_cmd mode
 	 */
-	bus->rirb_error = 1;
 	if (bus->allow_bus_reset && !bus->response_reset && !bus->in_reset) {
 		bus->response_reset = 1;
-		return -1; /* give a chance to retry */
+		return -EAGAIN; /* give a chance to retry */
 	}
 
 	dev_err(chip->card->dev,
@@ -1250,7 +1248,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 	azx_free_cmd_io(chip);
 	/* disable unsolicited responses */
 	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~AZX_GCTL_UNSOL);
-	return -1;
+	return -EIO;
 }
 
 /*
@@ -1291,7 +1289,6 @@ static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
 	unsigned int addr = azx_command_addr(val);
 	int timeout = 50;
 
-	bus->rirb_error = 0;
 	while (timeout--) {
 		/* check ICB busy bit */
 		if (!((azx_readw(chip, IRS) & AZX_IRS_BUSY))) {
@@ -1313,11 +1310,14 @@ static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
 }
 
 /* receive a response */
-static unsigned int azx_single_get_response(struct hda_bus *bus,
-					    unsigned int addr)
+static int azx_single_get_response(struct hda_bus *bus, unsigned int addr,
+				   unsigned int *res)
 {
 	struct azx *chip = bus->private_data;
-	return chip->rirb.res[addr];
+
+	if (res)
+		*res = chip->rirb.res[addr];
+	return 0;
 }
 
 /*
@@ -1342,16 +1342,16 @@ static int azx_send_cmd(struct hda_bus *bus, unsigned int val)
 }
 
 /* get a response */
-static unsigned int azx_get_response(struct hda_bus *bus,
-				     unsigned int addr)
+static int azx_get_response(struct hda_bus *bus, unsigned int addr,
+			    unsigned int *res)
 {
 	struct azx *chip = bus->private_data;
 	if (chip->disabled)
 		return 0;
 	if (chip->single_cmd)
-		return azx_single_get_response(bus, addr);
+		return azx_single_get_response(bus, addr, res);
 	else
-		return azx_rirb_get_response(bus, addr);
+		return azx_rirb_get_response(bus, addr, res);
 }
 
 #ifdef CONFIG_SND_HDA_DSP_LOADER
@@ -1762,15 +1762,16 @@ static int probe_codec(struct azx *chip, int addr)
 {
 	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
+	int err;
 	unsigned int res;
 
 	mutex_lock(&chip->bus->core.cmd_mutex);
 	chip->probing = 1;
 	azx_send_cmd(chip->bus, cmd);
-	res = azx_get_response(chip->bus, addr);
+	err = azx_get_response(chip->bus, addr, &res);
 	chip->probing = 0;
 	mutex_unlock(&chip->bus->core.cmd_mutex);
-	if (res == -1)
+	if (err < 0 || res == -1)
 		return -EIO;
 	dev_dbg(chip->card->dev, "codec #%d probed OK\n", addr);
 	return 0;
