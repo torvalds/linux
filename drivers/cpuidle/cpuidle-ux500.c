@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
 
 static atomic_t master = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(master_lock);

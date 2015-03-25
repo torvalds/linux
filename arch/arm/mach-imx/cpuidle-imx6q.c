@@ -9,7 +9,6 @@
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
 
 #include "common.h"
 #include "cpuidle.h"

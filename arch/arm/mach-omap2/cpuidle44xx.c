@@ -17,7 +17,6 @@
 #include <linux/clockchips.h>
 
 #include <asm/cpuidle.h>
-#include <asm/proc-fns.h>
 
 #include "common.h"
 #include "pm.h"
