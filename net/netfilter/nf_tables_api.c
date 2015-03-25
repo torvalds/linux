@@ -2690,6 +2690,7 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 		goto err2;
 
 	INIT_LIST_HEAD(&set->bindings);
+	write_pnet(&set->pnet, net);
 	set->ops   = ops;
 	set->ktype = ktype;
 	set->klen  = desc.klen;
@@ -3221,10 +3222,6 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	if (d1.type != NFT_DATA_VALUE || d1.len != set->klen)
 		goto err2;
 
-	err = -EEXIST;
-	if (set->ops->get(set, &elem) == 0)
-		goto err2;
-
 	nft_set_ext_add(&tmpl, NFT_SET_EXT_KEY);
 
 	if (nla[NFTA_SET_ELEM_DATA] != NULL) {
@@ -3266,6 +3263,7 @@ static int nft_add_set_elem(struct nft_ctx *ctx, struct nft_set *set,
 	if (trans == NULL)
 		goto err4;
 
+	ext->genmask = nft_genmask_cur(ctx->net);
 	err = set->ops->insert(set, &elem);
 	if (err < 0)
 		goto err5;
@@ -3353,19 +3351,24 @@ static int nft_del_setelem(struct nft_ctx *ctx, struct nft_set *set,
 	if (desc.type != NFT_DATA_VALUE || desc.len != set->klen)
 		goto err2;
 
-	err = set->ops->get(set, &elem);
-	if (err < 0)
-		goto err2;
-
 	trans = nft_trans_elem_alloc(ctx, NFT_MSG_DELSETELEM, set);
 	if (trans == NULL) {
 		err = -ENOMEM;
 		goto err2;
 	}
 
+	elem.priv = set->ops->deactivate(set, &elem);
+	if (elem.priv == NULL) {
+		err = -ENOENT;
+		goto err3;
+	}
+
 	nft_trans_elem(trans) = elem;
 	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
 	return 0;
+
+err3:
+	kfree(trans);
 err2:
 	nft_data_uninit(&elem.key, desc.type);
 err1:
@@ -3692,9 +3695,11 @@ static int nf_tables_commit(struct sk_buff *skb)
 					     NFT_MSG_DELSET, GFP_KERNEL);
 			break;
 		case NFT_MSG_NEWSETELEM:
-			nf_tables_setelem_notify(&trans->ctx,
-						 nft_trans_elem_set(trans),
-						 &nft_trans_elem(trans),
+			te = (struct nft_trans_elem *)trans->data;
+
+			te->set->ops->activate(te->set, &te->elem);
+			nf_tables_setelem_notify(&trans->ctx, te->set,
+						 &te->elem,
 						 NFT_MSG_NEWSETELEM, 0);
 			nft_trans_destroy(trans);
 			break;
@@ -3704,7 +3709,6 @@ static int nf_tables_commit(struct sk_buff *skb)
 			nf_tables_setelem_notify(&trans->ctx, te->set,
 						 &te->elem,
 						 NFT_MSG_DELSETELEM, 0);
-			te->set->ops->get(te->set, &te->elem);
 			te->set->ops->remove(te->set, &te->elem);
 			break;
 		}
@@ -3812,11 +3816,14 @@ static int nf_tables_abort(struct sk_buff *skb)
 			nft_trans_elem_set(trans)->nelems--;
 			te = (struct nft_trans_elem *)trans->data;
 
-			te->set->ops->get(te->set, &te->elem);
 			te->set->ops->remove(te->set, &te->elem);
 			break;
 		case NFT_MSG_DELSETELEM:
+			te = (struct nft_trans_elem *)trans->data;
+
 			nft_trans_elem_set(trans)->nelems++;
+			te->set->ops->activate(te->set, &te->elem);
+
 			nft_trans_destroy(trans);
 			break;
 		}

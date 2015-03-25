@@ -138,15 +138,10 @@ struct nft_userdata {
 /**
  *	struct nft_set_elem - generic representation of set elements
  *
- *	@cookie: implementation specific element cookie
  *	@key: element key
  *	@priv: element private data and extensions
- *
- *	The cookie can be used to store a handle to the element for subsequent
- *	removal.
  */
 struct nft_set_elem {
-	void			*cookie;
 	struct nft_data		key;
 	void			*priv;
 };
@@ -207,6 +202,8 @@ struct nft_set_ext;
  *
  *	@lookup: look up an element within the set
  *	@insert: insert new element into set
+ *	@activate: activate new element in the next generation
+ *	@deactivate: deactivate element in the next generation
  *	@remove: remove element from set
  *	@walk: iterate over all set elemeennts
  *	@privsize: function to return size of set private data
@@ -221,10 +218,12 @@ struct nft_set_ops {
 	bool				(*lookup)(const struct nft_set *set,
 						  const struct nft_data *key,
 						  const struct nft_set_ext **ext);
-	int				(*get)(const struct nft_set *set,
-					       struct nft_set_elem *elem);
 	int				(*insert)(const struct nft_set *set,
 						  const struct nft_set_elem *elem);
+	void				(*activate)(const struct nft_set *set,
+						    const struct nft_set_elem *elem);
+	void *				(*deactivate)(const struct nft_set *set,
+						      const struct nft_set_elem *elem);
 	void				(*remove)(const struct nft_set *set,
 						  const struct nft_set_elem *elem);
 	void				(*walk)(const struct nft_ctx *ctx,
@@ -261,6 +260,7 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@nelems: number of elements
  *	@policy: set parameterization (see enum nft_set_policies)
  * 	@ops: set ops
+ * 	@pnet: network namespace
  * 	@flags: set flags
  * 	@klen: key length
  * 	@dlen: data length
@@ -277,6 +277,7 @@ struct nft_set {
 	u16				policy;
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
+	possible_net_t			pnet;
 	u16				flags;
 	u8				klen;
 	u8				dlen;
@@ -355,10 +356,12 @@ struct nft_set_ext_tmpl {
 /**
  *	struct nft_set_ext - set extensions
  *
+ *	@genmask: generation mask
  *	@offset: offsets of individual extension types
  *	@data: beginning of extension data
  */
 struct nft_set_ext {
+	u8	genmask;
 	u8	offset[NFT_SET_EXT_NUM];
 	char	data[0];
 };
@@ -746,6 +749,22 @@ static inline u8 nft_genmask_cur(const struct net *net)
 {
 	/* Use ACCESS_ONCE() to prevent refetching the value for atomicity */
 	return 1 << ACCESS_ONCE(net->nft.gencursor);
+}
+
+/*
+ * Set element transaction helpers
+ */
+
+static inline bool nft_set_elem_active(const struct nft_set_ext *ext,
+				       u8 genmask)
+{
+	return !(ext->genmask & genmask);
+}
+
+static inline void nft_set_elem_change_active(const struct nft_set *set,
+					      struct nft_set_ext *ext)
+{
+	ext->genmask ^= nft_genmask_next(read_pnet(&set->pnet));
 }
 
 /**
