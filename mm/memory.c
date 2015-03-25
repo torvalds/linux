@@ -3035,6 +3035,7 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	int last_cpupid;
 	int target_nid;
 	bool migrated = false;
+	bool was_writable = pte_write(pte);
 	int flags = 0;
 
 	/* A PROT_NONE fault should not end up here */
@@ -3059,6 +3060,8 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	/* Make it present again */
 	pte = pte_modify(pte, vma->vm_page_prot);
 	pte = pte_mkyoung(pte);
+	if (was_writable)
+		pte = pte_mkwrite(pte);
 	set_pte_at(mm, addr, ptep, pte);
 	update_mmu_cache(vma, addr, ptep);
 
@@ -3075,11 +3078,6 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * to it but pte_write gets cleared during protection updates and
 	 * pte_dirty has unpredictable behaviour between PTE scan updates,
 	 * background writeback, dirty balancing and application behaviour.
-	 *
-	 * TODO: Note that the ideal here would be to avoid a situation where a
-	 * NUMA fault is taken immediately followed by a write fault in
-	 * some cases which would have lower overhead overall but would be
-	 * invasive as the fault paths would need to be unified.
 	 */
 	if (!(vma->vm_flags & VM_WRITE))
 		flags |= TNF_NO_GROUP;
