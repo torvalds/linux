@@ -19,11 +19,10 @@
 
 #include <media/v4l2-of.h>
 
-static void v4l2_of_parse_csi_bus(const struct device_node *node,
-				  struct v4l2_of_endpoint *endpoint)
+static int v4l2_of_parse_csi_bus(const struct device_node *node,
+				 struct v4l2_of_endpoint *endpoint)
 {
 	struct v4l2_of_bus_mipi_csi2 *bus = &endpoint->bus.mipi_csi2;
-	u32 data_lanes[ARRAY_SIZE(bus->data_lanes)];
 	struct property *prop;
 	bool have_clk_lane = false;
 	unsigned int flags = 0;
@@ -32,16 +31,34 @@ static void v4l2_of_parse_csi_bus(const struct device_node *node,
 	prop = of_find_property(node, "data-lanes", NULL);
 	if (prop) {
 		const __be32 *lane = NULL;
-		int i;
+		unsigned int i;
 
-		for (i = 0; i < ARRAY_SIZE(data_lanes); i++) {
-			lane = of_prop_next_u32(prop, lane, &data_lanes[i]);
+		for (i = 0; i < ARRAY_SIZE(bus->data_lanes); i++) {
+			lane = of_prop_next_u32(prop, lane, &v);
 			if (!lane)
 				break;
+			bus->data_lanes[i] = v;
 		}
 		bus->num_data_lanes = i;
-		while (i--)
-			bus->data_lanes[i] = data_lanes[i];
+	}
+
+	prop = of_find_property(node, "lane-polarities", NULL);
+	if (prop) {
+		const __be32 *polarity = NULL;
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(bus->lane_polarities); i++) {
+			polarity = of_prop_next_u32(prop, polarity, &v);
+			if (!polarity)
+				break;
+			bus->lane_polarities[i] = v;
+		}
+
+		if (i < 1 + bus->num_data_lanes /* clock + data */) {
+			pr_warn("%s: too few lane-polarities entries (need %u, got %u)\n",
+				node->full_name, 1 + bus->num_data_lanes, i);
+			return -EINVAL;
+		}
 	}
 
 	if (!of_property_read_u32(node, "clock-lanes", &v)) {
@@ -56,6 +73,8 @@ static void v4l2_of_parse_csi_bus(const struct device_node *node,
 
 	bus->flags = flags;
 	endpoint->bus_type = V4L2_MBUS_CSI2;
+
+	return 0;
 }
 
 static void v4l2_of_parse_parallel_bus(const struct device_node *node,
@@ -127,11 +146,15 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
 int v4l2_of_parse_endpoint(const struct device_node *node,
 			   struct v4l2_of_endpoint *endpoint)
 {
+	int rval;
+
 	of_graph_parse_endpoint(node, &endpoint->base);
 	endpoint->bus_type = 0;
 	memset(&endpoint->bus, 0, sizeof(endpoint->bus));
 
-	v4l2_of_parse_csi_bus(node, endpoint);
+	rval = v4l2_of_parse_csi_bus(node, endpoint);
+	if (rval)
+		return rval;
 	/*
 	 * Parse the parallel video bus properties only if none
 	 * of the MIPI CSI-2 specific properties were found.
