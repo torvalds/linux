@@ -54,7 +54,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 
 		/* Set the IPv6 fragment id if not set yet */
 		if (!skb_shinfo(skb)->ip6_frag_id)
-			ipv6_proxy_select_ident(skb);
+			ipv6_proxy_select_ident(dev_net(skb->dev), skb);
 
 		segs = NULL;
 		goto out;
@@ -113,7 +113,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		fptr->nexthdr = nexthdr;
 		fptr->reserved = 0;
 		if (!skb_shinfo(skb)->ip6_frag_id)
-			ipv6_proxy_select_ident(skb);
+			ipv6_proxy_select_ident(dev_net(skb->dev), skb);
 		fptr->identification = skb_shinfo(skb)->ip6_frag_id;
 
 		/* Fragment the skb. ipv6 header and the remaining fields of the
