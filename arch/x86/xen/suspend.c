@@ -85,7 +85,7 @@ static void xen_vcpu_notify_restore(void *data)
 	if (smp_processor_id() == 0)
 		return;
 
-	tick_resume();
+	tick_resume_local();
 }
 
 void xen_arch_resume(void)

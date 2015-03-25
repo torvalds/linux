@@ -23,6 +23,7 @@ extern void tick_check_new_device(struct clock_event_device *dev);
 extern void tick_handover_do_timer(int *cpup);
 extern void tick_shutdown(unsigned int *cpup);
 extern void tick_suspend(void);
+extern void tick_resume(void);
 extern bool tick_check_replacement(struct clock_event_device *curdev,
 				   struct clock_event_device *newdev);
 extern void tick_install_replacement(struct clock_event_device *dev);
@@ -43,6 +44,7 @@ extern int __clockevents_update_freq(struct clock_event_device *dev, u32 freq);
 extern ssize_t sysfs_get_uname(const char *buf, char *dst, size_t cnt);
 #else
 static inline void tick_suspend(void) { }
+static inline void tick_resume(void) { }
 #endif /* GENERIC_CLOCKEVENTS */
 
 /* Oneshot related functions */
@@ -81,7 +83,8 @@ extern int tick_is_broadcast_device(struct clock_event_device *dev);
 extern void tick_broadcast_on_off(unsigned long reason, int *oncpu);
 extern void tick_shutdown_broadcast(unsigned int *cpup);
 extern void tick_suspend_broadcast(void);
-extern int tick_resume_broadcast(void);
+extern void tick_resume_broadcast(void);
+extern bool tick_resume_check_broadcast(void);
 extern void tick_broadcast_init(void);
 extern void tick_set_periodic_handler(struct clock_event_device *dev, int broadcast);
 extern int tick_broadcast_update_freq(struct clock_event_device *dev, u32 freq);
@@ -95,7 +98,8 @@ static inline void tick_do_periodic_broadcast(struct clock_event_device *d) { }
 static inline void tick_broadcast_on_off(unsigned long reason, int *oncpu) { }
 static inline void tick_shutdown_broadcast(unsigned int *cpup) { }
 static inline void tick_suspend_broadcast(void) { }
-static inline int tick_resume_broadcast(void) { return 0; }
+static inline void tick_resume_broadcast(void) { }
+static inline bool tick_resume_check_broadcast(void) { return false; }
 static inline void tick_broadcast_init(void) { }
 static inline int tick_broadcast_update_freq(struct clock_event_device *dev, u32 freq) { return -ENODEV; }
 
