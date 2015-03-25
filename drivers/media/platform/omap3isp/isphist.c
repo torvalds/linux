@@ -193,8 +193,7 @@ static int hist_buf_dma(struct ispstat *hist)
 	omap3isp_flush(hist->isp);
 
 	memset(&cfg, 0, sizeof(cfg));
-	cfg.src_addr = hist->isp->mmio_base_phys[OMAP3_ISP_IOMEM_HIST]
-		     + ISPHIST_DATA;
+	cfg.src_addr = hist->isp->mmio_hist_base_phys + ISPHIST_DATA;
 	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	cfg.src_maxburst = hist->buf_size / 4;
 

@@ -2247,7 +2247,8 @@ static int isp_map_mem_resource(struct platform_device *pdev,
 	if (IS_ERR(isp->mmio_base[res]))
 		return PTR_ERR(isp->mmio_base[res]);
 
-	isp->mmio_base_phys[res] = mem->start;
+	if (res == OMAP3_ISP_IOMEM_HIST)
+		isp->mmio_hist_base_phys = mem->start;
 
 	return 0;
 }

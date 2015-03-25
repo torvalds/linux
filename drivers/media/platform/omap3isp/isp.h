@@ -138,8 +138,8 @@ struct isp_xclk {
  * @irq_num: Currently used IRQ number.
  * @mmio_base: Array with kernel base addresses for ioremapped ISP register
  *             regions.
- * @mmio_base_phys: Array with physical L4 bus addresses for ISP register
- *                  regions.
+ * @mmio_hist_base_phys: Physical L4 bus address for ISP hist block register
+ *			 region.
  * @mapping: IOMMU mapping
  * @stat_lock: Spinlock for handling statistics
  * @isp_mutex: Mutex for serializing requests to ISP.
@@ -175,7 +175,7 @@ struct isp_device {
 	unsigned int irq_num;
 
 	void __iomem *mmio_base[OMAP3_ISP_IOMEM_LAST];
-	unsigned long mmio_base_phys[OMAP3_ISP_IOMEM_LAST];
+	unsigned long mmio_hist_base_phys;
 
 	struct dma_iommu_mapping *mapping;
 
