@@ -1564,7 +1564,7 @@ static noinline int btrfs_ioctl_resize(struct file *file,
 		goto out_free;
 	}
 
-	do_div(new_size, root->sectorsize);
+	new_size = div_u64(new_size, root->sectorsize);
 	new_size *= root->sectorsize;
 
 	printk_in_rcu(KERN_INFO "BTRFS: new size for %s is %llu\n",
@@ -3039,7 +3039,7 @@ out:
 static int check_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     u64 disko)
 {
-	struct seq_list tree_mod_seq_elem = {};
+	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	struct ulist *roots;
 	struct ulist_iterator uiter;
 	struct ulist_node *root_node = NULL;

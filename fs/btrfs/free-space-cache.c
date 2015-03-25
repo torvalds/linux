@@ -298,7 +298,7 @@ static int io_ctl_init(struct io_ctl *io_ctl, struct inode *inode,
 
 	memset(io_ctl, 0, sizeof(struct io_ctl));
 
-	io_ctl->pages = kzalloc(sizeof(struct page *) * num_pages, GFP_NOFS);
+	io_ctl->pages = kcalloc(num_pages, sizeof(struct page *), GFP_NOFS);
 	if (!io_ctl->pages)
 		return -ENOMEM;
 
@@ -1298,11 +1298,11 @@ static inline u64 offset_to_bitmap(struct btrfs_free_space_ctl *ctl,
 				   u64 offset)
 {
 	u64 bitmap_start;
-	u64 bytes_per_bitmap;
+	u32 bytes_per_bitmap;
 
 	bytes_per_bitmap = BITS_PER_BITMAP * ctl->unit;
 	bitmap_start = offset - ctl->start;
-	bitmap_start = div64_u64(bitmap_start, bytes_per_bitmap);
+	bitmap_start = div_u64(bitmap_start, bytes_per_bitmap);
 	bitmap_start *= bytes_per_bitmap;
 	bitmap_start += ctl->start;
 
@@ -1521,10 +1521,10 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	u64 bitmap_bytes;
 	u64 extent_bytes;
 	u64 size = block_group->key.offset;
-	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
-	int max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
+	u32 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
+	u32 max_bitmaps = div_u64(size + bytes_per_bg - 1, bytes_per_bg);
 
-	max_bitmaps = max(max_bitmaps, 1);
+	max_bitmaps = max_t(u32, max_bitmaps, 1);
 
 	ASSERT(ctl->total_bitmaps <= max_bitmaps);
 
@@ -1537,7 +1537,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 		max_bytes = MAX_CACHE_BYTES_PER_GIG;
 	else
 		max_bytes = MAX_CACHE_BYTES_PER_GIG *
-			div64_u64(size, 1024 * 1024 * 1024);
+			div_u64(size, 1024 * 1024 * 1024);
 
 	/*
 	 * we want to account for 1 more bitmap than what we have so we can make
@@ -1552,14 +1552,14 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	}
 
 	/*
-	 * we want the extent entry threshold to always be at most 1/2 the maxw
+	 * we want the extent entry threshold to always be at most 1/2 the max
 	 * bytes we can have, or whatever is less than that.
 	 */
 	extent_bytes = max_bytes - bitmap_bytes;
-	extent_bytes = min_t(u64, extent_bytes, div64_u64(max_bytes, 2));
+	extent_bytes = min_t(u64, extent_bytes, max_bytes >> 1);
 
 	ctl->extents_thresh =
-		div64_u64(extent_bytes, (sizeof(struct btrfs_free_space)));
+		div_u64(extent_bytes, sizeof(struct btrfs_free_space));
 }
 
 static inline void __bitmap_clear_bits(struct btrfs_free_space_ctl *ctl,
@@ -1673,7 +1673,7 @@ find_free_space(struct btrfs_free_space_ctl *ctl, u64 *offset, u64 *bytes,
 		 */
 		if (*bytes >= align) {
 			tmp = entry->offset - ctl->start + align - 1;
-			do_div(tmp, align);
+			tmp = div64_u64(tmp, align);
 			tmp = tmp * align + ctl->start;
 			align_off = tmp - entry->offset;
 		} else {
@@ -2402,11 +2402,8 @@ static void __btrfs_remove_free_space_cache_locked(
 		} else {
 			free_bitmap(ctl, info);
 		}
-		if (need_resched()) {
-			spin_unlock(&ctl->tree_lock);
-			cond_resched();
-			spin_lock(&ctl->tree_lock);
-		}
+
+		cond_resched_lock(&ctl->tree_lock);
 	}
 }
 
@@ -2431,11 +2428,8 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 
 		WARN_ON(cluster->block_group != block_group);
 		__btrfs_return_cluster_to_free_space(block_group, cluster);
-		if (need_resched()) {
-			spin_unlock(&ctl->tree_lock);
-			cond_resched();
-			spin_lock(&ctl->tree_lock);
-		}
+
+		cond_resched_lock(&ctl->tree_lock);
 	}
 	__btrfs_remove_free_space_cache_locked(ctl);
 	spin_unlock(&ctl->tree_lock);

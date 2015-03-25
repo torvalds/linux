@@ -964,9 +964,8 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 * the statistics.
 	 */
 
-	sblocks_for_recheck = kzalloc(BTRFS_MAX_MIRRORS *
-				     sizeof(*sblocks_for_recheck),
-				     GFP_NOFS);
+	sblocks_for_recheck = kcalloc(BTRFS_MAX_MIRRORS,
+				      sizeof(*sblocks_for_recheck), GFP_NOFS);
 	if (!sblocks_for_recheck) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -2319,7 +2318,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 				       unsigned long *bitmap,
 				       u64 start, u64 len)
 {
-	int offset;
+	u32 offset;
 	int nsectors;
 	int sectorsize = sparity->sctx->dev_root->sectorsize;
 
@@ -2329,7 +2328,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 	}
 
 	start -= sparity->logic_start;
-	offset = (int)do_div(start, sparity->stripe_len);
+	start = div_u64_rem(start, sparity->stripe_len, &offset);
 	offset /= sectorsize;
 	nsectors = (int)len / sectorsize;
 
@@ -2612,8 +2611,8 @@ static int get_raid56_logic_offset(u64 physical, int num,
 	int j = 0;
 	u64 stripe_nr;
 	u64 last_offset;
-	int stripe_index;
-	int rot;
+	u32 stripe_index;
+	u32 rot;
 
 	last_offset = (physical - map->stripes[num].physical) *
 		      nr_data_stripes(map);
@@ -2624,12 +2623,11 @@ static int get_raid56_logic_offset(u64 physical, int num,
 	for (i = 0; i < nr_data_stripes(map); i++) {
 		*offset = last_offset + i * map->stripe_len;
 
-		stripe_nr = *offset;
-		do_div(stripe_nr, map->stripe_len);
-		do_div(stripe_nr, nr_data_stripes(map));
+		stripe_nr = div_u64(*offset, map->stripe_len);
+		stripe_nr = div_u64(stripe_nr, nr_data_stripes(map));
 
 		/* Work out the disk rotation on this stripe-set */
-		rot = do_div(stripe_nr, map->num_stripes);
+		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes, &rot);
 		/* calculate which stripe this data locates */
 		rot += i;
 		stripe_index = rot % map->num_stripes;
@@ -2995,10 +2993,9 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	int extent_mirror_num;
 	int stop_loop = 0;
 
-	nstripes = length;
 	physical = map->stripes[num].physical;
 	offset = 0;
-	do_div(nstripes, map->stripe_len);
+	nstripes = div_u64(length, map->stripe_len);
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
 		offset = map->stripe_len * num;
 		increment = map->stripe_len * map->num_stripes;

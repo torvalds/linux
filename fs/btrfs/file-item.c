@@ -185,8 +185,8 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	nblocks = bio->bi_iter.bi_size >> inode->i_sb->s_blocksize_bits;
 	if (!dst) {
 		if (nblocks * csum_size > BTRFS_BIO_INLINE_CSUM_SIZE) {
-			btrfs_bio->csum_allocated = kmalloc(nblocks * csum_size,
-							    GFP_NOFS);
+			btrfs_bio->csum_allocated = kmalloc_array(nblocks,
+					csum_size, GFP_NOFS);
 			if (!btrfs_bio->csum_allocated) {
 				btrfs_free_path(path);
 				return -ENOMEM;

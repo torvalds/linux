@@ -273,11 +273,7 @@ void btrfs_cleanup_defrag_inodes(struct btrfs_fs_info *fs_info)
 		defrag = rb_entry(node, struct inode_defrag, rb_node);
 		kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 
-		if (need_resched()) {
-			spin_unlock(&fs_info->defrag_inodes_lock);
-			cond_resched();
-			spin_lock(&fs_info->defrag_inodes_lock);
-		}
+		cond_resched_lock(&fs_info->defrag_inodes_lock);
 
 		node = rb_first(&fs_info->defrag_inodes);
 	}
@@ -1485,7 +1481,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 			PAGE_CACHE_SIZE / (sizeof(struct page *)));
 	nrptrs = min(nrptrs, current->nr_dirtied_pause - current->nr_dirtied);
 	nrptrs = max(nrptrs, 8);
-	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
+	pages = kmalloc_array(nrptrs, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
 
@@ -1635,8 +1631,8 @@ again:
 			btrfs_end_write_no_snapshoting(root);
 
 		if (only_release_metadata && copied > 0) {
-			u64 lockstart = round_down(pos, root->sectorsize);
-			u64 lockend = lockstart +
+			lockstart = round_down(pos, root->sectorsize);
+			lockend = lockstart +
 				(dirty_pages << PAGE_CACHE_SHIFT) - 1;
 
 			set_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,

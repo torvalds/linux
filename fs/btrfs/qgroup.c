@@ -1845,7 +1845,7 @@ static int qgroup_shared_accounting(struct btrfs_trans_handle *trans,
 	struct ulist *roots = NULL;
 	struct ulist *qgroups, *tmp;
 	struct btrfs_qgroup *qgroup;
-	struct seq_list elem = {};
+	struct seq_list elem = SEQ_LIST_INIT(elem);
 	u64 seq;
 	int old_roots = 0;
 	int new_roots = 0;
@@ -1967,7 +1967,7 @@ static int qgroup_subtree_accounting(struct btrfs_trans_handle *trans,
 	int err;
 	struct btrfs_qgroup *qg;
 	u64 root_obj = 0;
-	struct seq_list elem = {};
+	struct seq_list elem = SEQ_LIST_INIT(elem);
 
 	parents = ulist_alloc(GFP_NOFS);
 	if (!parents)
@@ -2522,7 +2522,7 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 {
 	struct btrfs_key found;
 	struct ulist *roots = NULL;
-	struct seq_list tree_mod_seq_elem = {};
+	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	u64 num_bytes;
 	u64 seq;
 	int new_roots;
