@@ -537,11 +537,32 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 
 void acpi_pci_add_bus(struct pci_bus *bus)
 {
+	union acpi_object *obj;
+	struct pci_host_bridge *bridge;
+
 	if (acpi_pci_disabled || !bus->bridge)
 		return;
 
 	acpi_pci_slot_enumerate(bus);
 	acpiphp_enumerate_slots(bus);
+
+	/*
+	 * For a host bridge, check its _DSM for function 8 and if
+	 * that is available, mark it in pci_host_bridge.
+	 */
+	if (!pci_is_root_bus(bus))
+		return;
+
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(bus->bridge), pci_acpi_dsm_uuid, 3,
+				RESET_DELAY_DSM, NULL);
+	if (!obj)
+		return;
+
+	if (obj->type == ACPI_TYPE_INTEGER && obj->integer.value == 1) {
+		bridge = pci_find_host_bridge(bus);
+		bridge->ignore_reset_delay = 1;
+	}
+	ACPI_FREE(obj);
 }
 
 void acpi_pci_remove_bus(struct pci_bus *bus)
@@ -567,6 +588,57 @@ static struct acpi_device *acpi_pci_find_companion(struct device *dev)
 				      check_children);
 }
 
+/**
+ * pci_acpi_optimize_delay - optimize PCI D3 and D3cold delay from ACPI
+ * @pdev: the PCI device whose delay is to be updated
+ * @adev: the companion ACPI device of this PCI device
+ *
+ * Update the d3_delay and d3cold_delay of a PCI device from the ACPI _DSM
+ * control method of either the device itself or the PCI host bridge.
+ *
+ * Function 8, "Reset Delay," applies to the entire hierarchy below a PCI
+ * host bridge.  If it returns one, the OS may assume that all devices in
+ * the hierarchy have already completed power-on reset delays.
+ *
+ * Function 9, "Device Readiness Durations," applies only to the object
+ * where it is located.  It returns delay durations required after various
+ * events if the device requires less time than the spec requires.  Delays
+ * from this function take precedence over the Reset Delay function.
+ *
+ * These _DSM functions are defined by the draft ECN of January 28, 2014,
+ * titled "ACPI additions for FW latency optimizations."
+ */
+static void pci_acpi_optimize_delay(struct pci_dev *pdev,
+				    acpi_handle handle)
+{
+	struct pci_host_bridge *bridge = pci_find_host_bridge(pdev->bus);
+	int value;
+	union acpi_object *obj, *elements;
+
+	if (bridge->ignore_reset_delay)
+		pdev->d3cold_delay = 0;
+
+	obj = acpi_evaluate_dsm(handle, pci_acpi_dsm_uuid, 3,
+				FUNCTION_DELAY_DSM, NULL);
+	if (!obj)
+		return;
+
+	if (obj->type == ACPI_TYPE_PACKAGE && obj->package.count == 5) {
+		elements = obj->package.elements;
+		if (elements[0].type == ACPI_TYPE_INTEGER) {
+			value = (int)elements[0].integer.value / 1000;
+			if (value < PCI_PM_D3COLD_WAIT)
+				pdev->d3cold_delay = value;
+		}
+		if (elements[3].type == ACPI_TYPE_INTEGER) {
+			value = (int)elements[3].integer.value / 1000;
+			if (value < PCI_PM_D3_WAIT)
+				pdev->d3_delay = value;
+		}
+	}
+	ACPI_FREE(obj);
+}
+
 static void pci_acpi_setup(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -574,6 +646,8 @@ static void pci_acpi_setup(struct device *dev)
 
 	if (!adev)
 		return;
+
+	pci_acpi_optimize_delay(pci_dev, adev->handle);
 
 	pci_acpi_add_pm_notifier(adev, pci_dev);
 	if (!adev->wakeup.flags.valid)
