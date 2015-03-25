@@ -432,14 +432,10 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",norbytes");
 	if (fsopt->flags & CEPH_MOUNT_OPT_NOASYNCREADDIR)
 		seq_puts(m, ",noasyncreaddir");
-	if (fsopt->flags & CEPH_MOUNT_OPT_DCACHE)
-		seq_puts(m, ",dcache");
-	else
+	if ((fsopt->flags & CEPH_MOUNT_OPT_DCACHE) == 0)
 		seq_puts(m, ",nodcache");
 	if (fsopt->flags & CEPH_MOUNT_OPT_FSCACHE)
 		seq_puts(m, ",fsc");
-	else
-		seq_puts(m, ",nofsc");
 
 #ifdef CONFIG_CEPH_FS_POSIX_ACL
 	if (fsopt->sb_flags & MS_POSIXACL)
