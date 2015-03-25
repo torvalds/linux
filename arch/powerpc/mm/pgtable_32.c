@@ -54,9 +54,6 @@ extern char etext[], _stext[];
 #ifdef HAVE_BATS
 extern phys_addr_t v_mapped_by_bats(unsigned long va);
 extern unsigned long p_mapped_by_bats(phys_addr_t pa);
-void setbat(int index, unsigned long virt, phys_addr_t phys,
-	    unsigned int size, int flags);
-
 #else /* !HAVE_BATS */
 #define v_mapped_by_bats(x)	(0UL)
 #define p_mapped_by_bats(x)	(0UL)
