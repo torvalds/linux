@@ -27,11 +27,13 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0xc0000000 0x00010000>,
-			<0x00000001 0x00110000 0xff310000 0x00000010>;
+			<0x00000001 0x00002000 0xff202000 0x00000010>;
 	
 		pio_0: gpio@0x100000000 {
+			status = "okay";
+
 			compatible = "altr,pio-14.1", "altr,pio-1.0";
-			reg = <0x00000001 0x00110000 0x00000010>;
+			reg = <0x00000001 0x00002000 0x00000010>;
 			altr,gpio-bank-width = <32>;	/* embeddedsw.dts.params.altr,gpio-bank-width type NUMBER */
 			resetvalue = <0>;	/* embeddedsw.dts.params.resetvalue type NUMBER */
 			#gpio-cells = <2>;
@@ -42,8 +44,6 @@
 };
 
 &spi0 {
-	status = "okay";
-
 /*	compatible = "snps,dw-spi-mmio";
 	#address-cells = <1>;
 	#size-cells = <0>;
