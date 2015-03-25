@@ -16,6 +16,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
 #include "isp.h"
@@ -26,9 +27,10 @@ static void csiphy_routing_cfg_3630(struct isp_csiphy *phy,
 				    enum isp_interface_type iface,
 				    bool ccp2_strobe)
 {
-	u32 reg = isp_reg_readl(
-		phy->isp, OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL, 0);
+	u32 reg;
 	u32 shift, mode;
+
+	regmap_read(phy->isp->syscon, phy->isp->syscon_offset, &reg);
 
 	switch (iface) {
 	default:
@@ -63,8 +65,7 @@ static void csiphy_routing_cfg_3630(struct isp_csiphy *phy,
 	reg &= ~(OMAP3630_CONTROL_CAMERA_PHY_CTRL_CAMMODE_MASK << shift);
 	reg |= mode << shift;
 
-	isp_reg_writel(phy->isp, reg,
-		       OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL, 0);
+	regmap_write(phy->isp->syscon, phy->isp->syscon_offset, reg);
 }
 
 static void csiphy_routing_cfg_3430(struct isp_csiphy *phy, u32 iface, bool on,
@@ -78,16 +79,14 @@ static void csiphy_routing_cfg_3430(struct isp_csiphy *phy, u32 iface, bool on,
 		return;
 
 	if (!on) {
-		isp_reg_writel(phy->isp, 0,
-			       OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE, 0);
+		regmap_write(phy->isp->syscon, phy->isp->syscon_offset, 0);
 		return;
 	}
 
 	if (ccp2_strobe)
 		csirxfe |= OMAP343X_CONTROL_CSIRXFE_SELFORM;
 
-	isp_reg_writel(phy->isp, csirxfe,
-		       OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE, 0);
+	regmap_write(phy->isp->syscon, phy->isp->syscon_offset, csirxfe);
 }
 
 /*
@@ -106,10 +105,9 @@ static void csiphy_routing_cfg(struct isp_csiphy *phy,
 			       enum isp_interface_type iface, bool on,
 			       bool ccp2_strobe)
 {
-	if (phy->isp->mmio_base[OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL]
-	    && on)
+	if (phy->isp->phy_type == ISP_PHY_TYPE_3630 && on)
 		return csiphy_routing_cfg_3630(phy, iface, ccp2_strobe);
-	if (phy->isp->mmio_base[OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE])
+	if (phy->isp->phy_type == ISP_PHY_TYPE_3430)
 		return csiphy_routing_cfg_3430(phy, iface, on, ccp2_strobe);
 }
 

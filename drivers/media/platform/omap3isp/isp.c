@@ -51,6 +51,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/omap-iommu.h>
 #include <linux/platform_device.h>
@@ -94,8 +95,9 @@ static const struct isp_res_mapping isp_res_maps[] = {
 		       1 << OMAP3_ISP_IOMEM_RESZ |
 		       1 << OMAP3_ISP_IOMEM_SBL |
 		       1 << OMAP3_ISP_IOMEM_CSI2A_REGS1 |
-		       1 << OMAP3_ISP_IOMEM_CSIPHY2 |
-		       1 << OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE,
+		       1 << OMAP3_ISP_IOMEM_CSIPHY2,
+		.syscon_offset = 0xdc,
+		.phy_type = ISP_PHY_TYPE_3430,
 	},
 	{
 		.isp_rev = ISP_REVISION_15_0,
@@ -112,8 +114,9 @@ static const struct isp_res_mapping isp_res_maps[] = {
 		       1 << OMAP3_ISP_IOMEM_CSI2A_REGS2 |
 		       1 << OMAP3_ISP_IOMEM_CSI2C_REGS1 |
 		       1 << OMAP3_ISP_IOMEM_CSIPHY1 |
-		       1 << OMAP3_ISP_IOMEM_CSI2C_REGS2 |
-		       1 << OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL,
+		       1 << OMAP3_ISP_IOMEM_CSI2C_REGS2,
+		.syscon_offset = 0x2f0,
+		.phy_type = ISP_PHY_TYPE_3630,
 	},
 };
 
@@ -2351,6 +2354,15 @@ static int isp_probe(struct platform_device *pdev)
 				goto error_isp;
 		}
 	}
+
+	isp->syscon = syscon_regmap_lookup_by_pdevname("syscon.0");
+	if (IS_ERR(isp->syscon)) {
+		ret = PTR_ERR(isp->syscon);
+		goto error_isp;
+	}
+
+	isp->syscon_offset = isp_res_maps[m].syscon_offset;
+	isp->phy_type = isp_res_maps[m].phy_type;
 
 	/* IOMMU */
 	ret = isp_attach_iommu(isp);

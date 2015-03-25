@@ -59,8 +59,6 @@ enum isp_mem_resources {
 	OMAP3_ISP_IOMEM_CSI2C_REGS1,
 	OMAP3_ISP_IOMEM_CSIPHY1,
 	OMAP3_ISP_IOMEM_CSI2C_REGS2,
-	OMAP3_ISP_IOMEM_343X_CONTROL_CSIRXFE,
-	OMAP3_ISP_IOMEM_3630_CONTROL_CAMERA_PHY_CTRL,
 	OMAP3_ISP_IOMEM_LAST
 };
 
@@ -93,14 +91,25 @@ enum isp_subclk_resource {
 /* ISP2P: OMAP 36xx */
 #define ISP_REVISION_15_0		0xF0
 
+#define ISP_PHY_TYPE_3430		0
+#define ISP_PHY_TYPE_3630		1
+
+struct regmap;
+
 /*
  * struct isp_res_mapping - Map ISP io resources to ISP revision.
  * @isp_rev: ISP_REVISION_x_x
  * @map: bitmap for enum isp_mem_resources
+ * @syscon_offset: offset of the syscon register for 343x / 3630
+ *	    (CONTROL_CSIRXFE / CONTROL_CAMERA_PHY_CTRL, respectively)
+ *	    from the syscon base address
+ * @phy_type: ISP_PHY_TYPE_{3430,3630}
  */
 struct isp_res_mapping {
 	u32 isp_rev;
 	u32 map;
+	u32 syscon_offset;
+	u32 phy_type;
 };
 
 /*
@@ -140,6 +149,9 @@ struct isp_xclk {
  *             regions.
  * @mmio_hist_base_phys: Physical L4 bus address for ISP hist block register
  *			 region.
+ * @syscon: Regmap for the syscon register space
+ * @syscon_offset: Offset of the CSIPHY control register in syscon
+ * @phy_type: ISP_PHY_TYPE_{3430,3630}
  * @mapping: IOMMU mapping
  * @stat_lock: Spinlock for handling statistics
  * @isp_mutex: Mutex for serializing requests to ISP.
@@ -176,6 +188,9 @@ struct isp_device {
 
 	void __iomem *mmio_base[OMAP3_ISP_IOMEM_LAST];
 	unsigned long mmio_hist_base_phys;
+	struct regmap *syscon;
+	u32 syscon_offset;
+	u32 phy_type;
 
 	struct dma_iommu_mapping *mapping;
 
