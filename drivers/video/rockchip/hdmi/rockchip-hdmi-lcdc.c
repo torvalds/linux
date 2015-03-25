@@ -450,16 +450,15 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 			vic = modelist->vic & HDMI_VIC_MASK;
 			if (vic == hdmi_mode[i].vic ||
 			    vic == hdmi_mode[i].vic_2nd) {
-				if ((((feature & SUPPORT_TMDS_600M) == 0 &&
-				      !(modelist->vic & HDMI_VIDEO_YUV420)) ||
-				    edid->maxtmdsclock < 340000000) &&
-				    hdmi_mode[i].mode.pixclock > 340000000)
-					continue;
 				if ((feature & SUPPORT_4K) == 0 &&
 				    hdmi_mode[i].mode.xres >= 3840)
 					continue;
 				if ((feature & SUPPORT_4K_4096) == 0 &&
 				    hdmi_mode[i].mode.xres == 4096)
+					continue;
+				if ((feature & SUPPORT_TMDS_600M) == 0 &&
+				    !(modelist->vic & HDMI_VIDEO_YUV420) &&  
+				    hdmi_mode[i].mode.pixclock > 340000000)
 					continue;
 				if ((modelist->vic & HDMI_VIDEO_YUV420) &&
 				    (feature & SUPPORT_YUV420) == 0)
