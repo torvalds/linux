@@ -247,4 +247,16 @@ extern const struct gf100_gr_init gk110_gr_init_tex_0[];
 extern const struct gf100_gr_init gk110_gr_init_sm_0[];
 
 extern const struct gf100_gr_init gk208_gr_init_gpc_unk_0[];
+
+extern const struct gf100_gr_init gm107_gr_init_scc_0[];
+extern const struct gf100_gr_init gm107_gr_init_prop_0[];
+extern const struct gf100_gr_init gm107_gr_init_setup_1[];
+extern const struct gf100_gr_init gm107_gr_init_zcull_0[];
+extern const struct gf100_gr_init gm107_gr_init_gpc_unk_1[];
+extern const struct gf100_gr_init gm107_gr_init_tex_0[];
+extern const struct gf100_gr_init gm107_gr_init_l1c_0[];
+extern const struct gf100_gr_init gm107_gr_init_wwdx_0[];
+extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
+void gm107_gr_init_bios(struct gf100_gr_priv *);
+
 #endif

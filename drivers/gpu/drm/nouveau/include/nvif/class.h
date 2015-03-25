@@ -92,6 +92,7 @@
 #define KEPLER_C                                                     0x0000a297
 
 #define MAXWELL_A                                                    0x0000b097
+#define MAXWELL_B                                                    0x0000b197
 
 #define FERMI_COMPUTE_A                                              0x000090c0
 #define FERMI_COMPUTE_B                                              0x000091c0
@@ -100,6 +101,7 @@
 #define KEPLER_COMPUTE_B                                             0x0000a1c0
 
 #define MAXWELL_COMPUTE_A                                            0x0000b0c0
+#define MAXWELL_COMPUTE_B                                            0x0000b1c0
 
 
 /*******************************************************************************
