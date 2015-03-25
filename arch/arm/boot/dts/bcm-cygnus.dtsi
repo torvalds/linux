@@ -70,6 +70,26 @@
 		};
 	};
 
+	i2c0: i2c@18008000 {
+		compatible = "brcm,cygnus-iproc-i2c", "brcm,iproc-i2c";
+		reg = <0x18008000 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_NONE>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c1: i2c@1800b000 {
+		compatible = "brcm,cygnus-iproc-i2c", "brcm,iproc-i2c";
+		reg = <0x1800b000 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_NONE>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
 	uart0: serial@18020000 {
 		compatible = "snps,dw-apb-uart";
 		reg = <0x18020000 0x100>;

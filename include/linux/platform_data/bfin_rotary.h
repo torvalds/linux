@@ -40,6 +40,7 @@ struct bfin_rotary_platform_data {
 	unsigned short debounce;	/* 0..17 */
 	unsigned short mode;
 	unsigned short pm_wakeup;
+	unsigned short *pin_list;
 };
 
 /* CNT_CONFIG bitmasks */

@@ -1811,7 +1811,7 @@ int vprintk_default(const char *fmt, va_list args)
 
 #ifdef CONFIG_KGDB_KDB
 	if (unlikely(kdb_trap_printk)) {
-		r = vkdb_printf(fmt, args);
+		r = vkdb_printf(KDB_MSGSRC_PRINTK, fmt, args);
 		return r;
 	}
 #endif
@@ -2464,6 +2464,7 @@ void register_console(struct console *newcon)
 	for (i = 0, c = console_cmdline;
 	     i < MAX_CMDLINECONSOLES && c->name[0];
 	     i++, c++) {
+		BUILD_BUG_ON(sizeof(c->name) != sizeof(newcon->name));
 		if (strcmp(c->name, newcon->name) != 0)
 			continue;
 		if (newcon->index >= 0 &&

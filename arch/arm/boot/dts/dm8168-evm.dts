@@ -35,6 +35,18 @@
 			DM816X_IOPAD(0x0aac, PIN_INPUT | MUX_MODE0)	/* SPI_D1 */
 		>;
 	};
+
+	usb0_pins: pinmux_usb0_pins {
+		pinctrl-single,pins = <
+			DM816X_IOPAD(0x0d00, MUX_MODE0)			/* USB0_DRVVBUS */
+		>;
+	};
+
+	usb1_pins: pinmux_usb0_pins {
+		pinctrl-single,pins = <
+			DM816X_IOPAD(0x0d04, MUX_MODE0)			/* USB1_DRVVBUS */
+		>;
+	};
 };
 
 &i2c1 {
@@ -126,4 +138,17 @@
 
 &mmc1 {
 	vmmc-supply = <&vmmcsd_fixed>;
+};
+
+/* At least dm8168-evm rev c won't support multipoint, later may */
+&usb0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins>;
+	mentor,multipoint = <0>;
+};
+
+&usb1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb1_pins>;
+	mentor,multipoint = <0>;
 };

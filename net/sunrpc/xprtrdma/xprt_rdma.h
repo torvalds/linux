@@ -285,7 +285,7 @@ rpcr_to_rdmar(struct rpc_rqst *rqst)
  */
 struct rpcrdma_buffer {
 	spinlock_t	rb_lock;	/* protects indexes */
-	int		rb_max_requests;/* client max requests */
+	u32		rb_max_requests;/* client max requests */
 	struct list_head rb_mws;	/* optional memory windows/fmrs/frmrs */
 	struct list_head rb_all;
 	int		rb_send_index;

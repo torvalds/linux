@@ -73,6 +73,7 @@ config ARCH_VEXPRESS_TC2_PM
 	depends on MCPM
 	select ARM_CCI
 	select ARCH_VEXPRESS_SPC
+	select ARM_CPU_SUSPEND
 	help
 	  Support for CPU and cluster power management on Versatile Express
 	  with a TC2 (A15x2 A7x3) big.LITTLE core tile.

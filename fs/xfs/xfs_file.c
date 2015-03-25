@@ -36,6 +36,7 @@
 #include "xfs_trace.h"
 #include "xfs_log.h"
 #include "xfs_icache.h"
+#include "xfs_pnfs.h"
 
 #include <linux/aio.h>
 #include <linux/dcache.h>
@@ -396,7 +397,8 @@ STATIC int				/* error (positive) */
 xfs_zero_last_block(
 	struct xfs_inode	*ip,
 	xfs_fsize_t		offset,
-	xfs_fsize_t		isize)
+	xfs_fsize_t		isize,
+	bool			*did_zeroing)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		last_fsb = XFS_B_TO_FSBT(mp, isize);
@@ -424,6 +426,7 @@ xfs_zero_last_block(
 	zero_len = mp->m_sb.sb_blocksize - zero_offset;
 	if (isize + zero_len > offset)
 		zero_len = offset - isize;
+	*did_zeroing = true;
 	return xfs_iozero(ip, isize, zero_len);
 }
 
@@ -442,7 +445,8 @@ int					/* error (positive) */
 xfs_zero_eof(
 	struct xfs_inode	*ip,
 	xfs_off_t		offset,		/* starting I/O offset */
-	xfs_fsize_t		isize)		/* current inode size */
+	xfs_fsize_t		isize,		/* current inode size */
+	bool			*did_zeroing)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		start_zero_fsb;
@@ -464,7 +468,7 @@ xfs_zero_eof(
 	 * We only zero a part of that block so it is handled specially.
 	 */
 	if (XFS_B_FSB_OFFSET(mp, isize) != 0) {
-		error = xfs_zero_last_block(ip, offset, isize);
+		error = xfs_zero_last_block(ip, offset, isize, did_zeroing);
 		if (error)
 			return error;
 	}
@@ -524,6 +528,7 @@ xfs_zero_eof(
 		if (error)
 			return error;
 
+		*did_zeroing = true;
 		start_zero_fsb = imap.br_startoff + imap.br_blockcount;
 		ASSERT(start_zero_fsb <= (end_zero_fsb + 1));
 	}
@@ -554,6 +559,10 @@ restart:
 	if (error)
 		return error;
 
+	error = xfs_break_layouts(inode, iolock);
+	if (error)
+		return error;
+
 	/*
 	 * If the offset is beyond the size of the file, we need to zero any
 	 * blocks that fall between the existing EOF and the start of this
@@ -562,13 +571,15 @@ restart:
 	 * having to redo all checks before.
 	 */
 	if (*pos > i_size_read(inode)) {
+		bool	zero = false;
+
 		if (*iolock == XFS_IOLOCK_SHARED) {
 			xfs_rw_iunlock(ip, *iolock);
 			*iolock = XFS_IOLOCK_EXCL;
 			xfs_rw_ilock(ip, *iolock);
 			goto restart;
 		}
-		error = xfs_zero_eof(ip, *pos, i_size_read(inode));
+		error = xfs_zero_eof(ip, *pos, i_size_read(inode), &zero);
 		if (error)
 			return error;
 	}
@@ -822,6 +833,7 @@ xfs_file_fallocate(
 	struct xfs_inode	*ip = XFS_I(inode);
 	long			error;
 	enum xfs_prealloc_flags	flags = 0;
+	uint			iolock = XFS_IOLOCK_EXCL;
 	loff_t			new_size = 0;
 
 	if (!S_ISREG(inode->i_mode))
@@ -830,7 +842,11 @@ xfs_file_fallocate(
 		     FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE))
 		return -EOPNOTSUPP;
 
-	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	xfs_ilock(ip, iolock);
+	error = xfs_break_layouts(inode, &iolock);
+	if (error)
+		goto out_unlock;
+
 	if (mode & FALLOC_FL_PUNCH_HOLE) {
 		error = xfs_free_file_space(ip, offset, len);
 		if (error)
@@ -894,7 +910,7 @@ xfs_file_fallocate(
 	}
 
 out_unlock:
-	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+	xfs_iunlock(ip, iolock);
 	return error;
 }
 

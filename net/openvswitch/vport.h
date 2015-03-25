@@ -103,6 +103,7 @@ struct vport_portids {
  * @ops: Class structure.
  * @percpu_stats: Points to per-CPU statistics used and maintained by vport
  * @err_stats: Points to error statistics used and maintained by vport
+ * @detach_list: list used for detaching vport in net-exit call.
  */
 struct vport {
 	struct rcu_head rcu;
@@ -117,6 +118,7 @@ struct vport {
 	struct pcpu_sw_netstats __percpu *percpu_stats;
 
 	struct vport_err_stats err_stats;
+	struct list_head detach_list;
 };
 
 /**

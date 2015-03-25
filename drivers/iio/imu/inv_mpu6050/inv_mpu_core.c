@@ -780,7 +780,11 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, indio_dev);
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->name = id->name;
+	/* id will be NULL when enumerated via ACPI */
+	if (id)
+		indio_dev->name = (char *)id->name;
+	else
+		indio_dev->name = (char *)dev_name(&client->dev);
 	indio_dev->channels = inv_mpu_channels;
 	indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
 

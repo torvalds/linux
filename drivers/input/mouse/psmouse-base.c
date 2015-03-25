@@ -454,6 +454,17 @@ static void psmouse_set_rate(struct psmouse *psmouse, unsigned int rate)
 }
 
 /*
+ * Here we set the mouse scaling.
+ */
+
+static void psmouse_set_scale(struct psmouse *psmouse, enum psmouse_scale scale)
+{
+	ps2_command(&psmouse->ps2dev, NULL,
+		    scale == PSMOUSE_SCALE21 ? PSMOUSE_CMD_SETSCALE21 :
+					       PSMOUSE_CMD_SETSCALE11);
+}
+
+/*
  * psmouse_poll() - default poll handler. Everyone except for ALPS uses it.
  */
 
@@ -689,6 +700,7 @@ static void psmouse_apply_defaults(struct psmouse *psmouse)
 
 	psmouse->set_rate = psmouse_set_rate;
 	psmouse->set_resolution = psmouse_set_resolution;
+	psmouse->set_scale = psmouse_set_scale;
 	psmouse->poll = psmouse_poll;
 	psmouse->protocol_handler = psmouse_process_byte;
 	psmouse->pktsize = 3;
@@ -727,7 +739,7 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	if (psmouse_do_detect(focaltech_detect, psmouse, set_properties) == 0) {
 		if (max_proto > PSMOUSE_IMEX) {
 			if (!set_properties || focaltech_init(psmouse) == 0) {
-				if (focaltech_supported())
+				if (IS_ENABLED(CONFIG_MOUSE_PS2_FOCALTECH))
 					return PSMOUSE_FOCALTECH;
 				/*
 				 * Note that we need to also restrict
@@ -776,7 +788,7 @@ static int psmouse_extensions(struct psmouse *psmouse,
  * Try activating protocol, but check if support is enabled first, since
  * we try detecting Synaptics even when protocol is disabled.
  */
-			if (synaptics_supported() &&
+			if (IS_ENABLED(CONFIG_MOUSE_PS2_SYNAPTICS) &&
 			    (!set_properties || synaptics_init(psmouse) == 0)) {
 				return PSMOUSE_SYNAPTICS;
 			}
@@ -801,7 +813,7 @@ static int psmouse_extensions(struct psmouse *psmouse,
  */
 	if (max_proto > PSMOUSE_IMEX &&
 			cypress_detect(psmouse, set_properties) == 0) {
-		if (cypress_supported()) {
+		if (IS_ENABLED(CONFIG_MOUSE_PS2_CYPRESS)) {
 			if (cypress_init(psmouse) == 0)
 				return PSMOUSE_CYPRESS;
 
@@ -1160,7 +1172,7 @@ static void psmouse_initialize(struct psmouse *psmouse)
 	if (psmouse_max_proto != PSMOUSE_PS2) {
 		psmouse->set_rate(psmouse, psmouse->rate);
 		psmouse->set_resolution(psmouse, psmouse->resolution);
-		ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_SETSCALE11);
+		psmouse->set_scale(psmouse, PSMOUSE_SCALE11);
 	}
 }
 

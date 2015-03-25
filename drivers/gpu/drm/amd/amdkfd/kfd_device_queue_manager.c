@@ -62,10 +62,16 @@ enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
 	return KFD_MQD_TYPE_CP;
 }
 
-static inline unsigned int get_first_pipe(struct device_queue_manager *dqm)
+unsigned int get_first_pipe(struct device_queue_manager *dqm)
 {
-	BUG_ON(!dqm);
+	BUG_ON(!dqm || !dqm->dev);
 	return dqm->dev->shared_resources.first_compute_pipe;
+}
+
+unsigned int get_pipes_num(struct device_queue_manager *dqm)
+{
+	BUG_ON(!dqm || !dqm->dev);
+	return dqm->dev->shared_resources.compute_pipe_count;
 }
 
 static inline unsigned int get_pipes_num_cpsch(void)
@@ -639,6 +645,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	pr_debug("     sdma queue id: %d\n", q->properties.sdma_queue_id);
 	pr_debug("     sdma engine id: %d\n", q->properties.sdma_engine_id);
 
+	init_sdma_vm(dqm, q, qpd);
 	retval = mqd->init_mqd(mqd, &q->mqd, &q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (retval != 0) {
@@ -646,7 +653,14 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 		return retval;
 	}
 
-	init_sdma_vm(dqm, q, qpd);
+	retval = mqd->load_mqd(mqd, q->mqd, 0,
+				0, NULL);
+	if (retval != 0) {
+		deallocate_sdma_queue(dqm, q->sdma_id);
+		mqd->uninit_mqd(mqd, q->mqd, q->mqd_mem_obj);
+		return retval;
+	}
+
 	return 0;
 }
 

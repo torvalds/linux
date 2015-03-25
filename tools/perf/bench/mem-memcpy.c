@@ -289,7 +289,7 @@ static u64 do_memcpy_cycle(const struct routine *r, size_t len, bool prefault)
 	memcpy_t fn = r->fn.memcpy;
 	int i;
 
-	memcpy_alloc_mem(&src, &dst, len);
+	memcpy_alloc_mem(&dst, &src, len);
 
 	if (prefault)
 		fn(dst, src, len);
@@ -312,7 +312,7 @@ static double do_memcpy_gettimeofday(const struct routine *r, size_t len,
 	void *src = NULL, *dst = NULL;
 	int i;
 
-	memcpy_alloc_mem(&src, &dst, len);
+	memcpy_alloc_mem(&dst, &src, len);
 
 	if (prefault)
 		fn(dst, src, len);

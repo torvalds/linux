@@ -54,6 +54,7 @@ config MIPS
 	select CPU_PM if CPU_IDLE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_BINFMT_ELF_STATE
+	select SYSCTL_EXCEPTION_TRACE
 
 menu "Machine selection"
 
@@ -376,8 +377,10 @@ config MIPS_MALTA
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_CPU_MIPS32_R3_5
+	select SYS_HAS_CPU_MIPS32_R6
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_MIPS64_R2
+	select SYS_HAS_CPU_MIPS64_R6
 	select SYS_HAS_CPU_NEVADA
 	select SYS_HAS_CPU_RM7000
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -1033,6 +1036,9 @@ config MIPS_MACHINE
 config NO_IOPORT_MAP
 	def_bool n
 
+config GENERIC_CSUM
+	bool
+
 config GENERIC_ISA_DMA
 	bool
 	select ZONE_DMA if GENERIC_ISA_DMA_SUPPORT_BROKEN=n
@@ -1145,6 +1151,9 @@ config SOC_PNX833X
 config SOC_PNX8335
 	bool
 	select SOC_PNX833X
+
+config MIPS_SPRAM
+	bool
 
 config SWAP_IO_SPACE
 	bool
@@ -1304,6 +1313,22 @@ config CPU_MIPS32_R2
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
 
+config CPU_MIPS32_R6
+	bool "MIPS32 Release 6 (EXPERIMENTAL)"
+	depends on SYS_HAS_CPU_MIPS32_R6
+	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_MSA
+	select GENERIC_CSUM
+	select HAVE_KVM
+	select MIPS_O32_FP64_SUPPORT
+	help
+	  Choose this option to build a kernel for release 6 or later of the
+	  MIPS32 architecture.  New MIPS processors, starting with the Warrior
+	  family, are based on a MIPS32r6 processor. If you own an older
+	  processor, you probably need to select MIPS32r1 or MIPS32r2 instead.
+
 config CPU_MIPS64_R1
 	bool "MIPS64 Release 1"
 	depends on SYS_HAS_CPU_MIPS64_R1
@@ -1338,6 +1363,21 @@ config CPU_MIPS64_R2
 	  MIPS processor are based on a MIPS64 processor.  If you know the
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
+
+config CPU_MIPS64_R6
+	bool "MIPS64 Release 6 (EXPERIMENTAL)"
+	depends on SYS_HAS_CPU_MIPS64_R6
+	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_MSA
+	select GENERIC_CSUM
+	help
+	  Choose this option to build a kernel for release 6 or later of the
+	  MIPS64 architecture.  New MIPS processors, starting with the Warrior
+	  family, are based on a MIPS64r6 processor. If you own an older
+	  processor, you probably need to select MIPS64r1 or MIPS64r2 instead.
 
 config CPU_R3000
 	bool "R3000"
@@ -1539,7 +1579,7 @@ endchoice
 config CPU_MIPS32_3_5_FEATURES
 	bool "MIPS32 Release 3.5 Features"
 	depends on SYS_HAS_CPU_MIPS32_R3_5
-	depends on CPU_MIPS32_R2
+	depends on CPU_MIPS32_R2 || CPU_MIPS32_R6
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture including features from the 3.5 release such as
@@ -1659,10 +1699,16 @@ config SYS_HAS_CPU_MIPS32_R2
 config SYS_HAS_CPU_MIPS32_R3_5
 	bool
 
+config SYS_HAS_CPU_MIPS32_R6
+	bool
+
 config SYS_HAS_CPU_MIPS64_R1
 	bool
 
 config SYS_HAS_CPU_MIPS64_R2
+	bool
+
+config SYS_HAS_CPU_MIPS64_R6
 	bool
 
 config SYS_HAS_CPU_R3000
@@ -1764,11 +1810,11 @@ endmenu
 #
 config CPU_MIPS32
 	bool
-	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2
+	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R6
 
 config CPU_MIPS64
 	bool
-	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2
+	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2 || CPU_MIPS64_R6
 
 #
 # These two indicate the revision of the architecture, either Release 1 or Release 2
@@ -1780,6 +1826,12 @@ config CPU_MIPSR1
 config CPU_MIPSR2
 	bool
 	default y if CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_CAVIUM_OCTEON
+	select MIPS_SPRAM
+
+config CPU_MIPSR6
+	bool
+	default y if CPU_MIPS32_R6 || CPU_MIPS64_R6
+	select MIPS_SPRAM
 
 config EVA
 	bool
@@ -2013,6 +2065,19 @@ config MIPS_MT_FPAFF
 	default y
 	depends on MIPS_MT_SMP
 
+config MIPSR2_TO_R6_EMULATOR
+	bool "MIPS R2-to-R6 emulator"
+	depends on CPU_MIPSR6 && !SMP
+	default y
+	help
+	  Choose this option if you want to run non-R6 MIPS userland code.
+	  Even if you say 'Y' here, the emulator will still be disabled by
+	  default. You can enable it using the 'mipsr2emul' kernel option.
+	  The only reason this is a build-time option is to save ~14K from the
+	  final kernel image.
+comment "MIPS R2-to-R6 emulator is only available for UP kernels"
+	depends on SMP && CPU_MIPSR6
+
 config MIPS_VPE_LOADER
 	bool "VPE loader support."
 	depends on SYS_SUPPORTS_MULTITHREADING && MODULES
@@ -2148,7 +2213,7 @@ config CPU_HAS_SMARTMIPS
 	  here.
 
 config CPU_MICROMIPS
-	depends on 32BIT && SYS_SUPPORTS_MICROMIPS
+	depends on 32BIT && SYS_SUPPORTS_MICROMIPS && !CPU_MIPSR6
 	bool "microMIPS"
 	help
 	  When this option is enabled the kernel will be built using the

@@ -304,7 +304,7 @@ static int coda_rename(struct inode *old_dir, struct dentry *old_dentry,
 			     (const char *) old_name, (const char *)new_name);
 	if (!error) {
 		if (new_dentry->d_inode) {
-			if (S_ISDIR(new_dentry->d_inode->i_mode)) {
+			if (d_is_dir(new_dentry)) {
 				coda_dir_drop_nlink(old_dir);
 				coda_dir_inc_nlink(new_dir);
 			}

@@ -89,8 +89,11 @@ void			rpc_free_iostats(struct rpc_iostats *);
 static inline struct rpc_iostats *rpc_alloc_iostats(struct rpc_clnt *clnt) { return NULL; }
 static inline void rpc_count_iostats(const struct rpc_task *task,
 				     struct rpc_iostats *stats) {}
-static inline void rpc_count_iostats_metrics(const struct rpc_task *,
-					     struct rpc_iostats *) {}
+static inline void rpc_count_iostats_metrics(const struct rpc_task *task,
+					     struct rpc_iostats *stats)
+{
+}
+
 static inline void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt) {}
 static inline void rpc_free_iostats(struct rpc_iostats *stats) {}
 

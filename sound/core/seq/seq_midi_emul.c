@@ -269,6 +269,9 @@ do_control(struct snd_midi_op *ops, void *drv, struct snd_midi_channel_set *chse
 {
 	int  i;
 
+	if (control >= ARRAY_SIZE(chan->control))
+		return;
+
 	/* Switches */
 	if ((control >=64 && control <=69) || (control >= 80 && control <= 83)) {
 		/* These are all switches; either off or on so set to 0 or 127 */

@@ -21,7 +21,7 @@
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 
-#include "iscsi_target_core.h"
+#include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_seq_pdu_list.h"
 #include "iscsi_target_tq.h"
 #include "iscsi_target_erl0.h"

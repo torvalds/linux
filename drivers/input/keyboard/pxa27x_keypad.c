@@ -345,13 +345,11 @@ static int pxa27x_keypad_build_keycode(struct pxa27x_keypad *keypad)
 {
 	const struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	struct input_dev *input_dev = keypad->input_dev;
-	const struct matrix_keymap_data *keymap_data =
-				pdata ? pdata->matrix_keymap_data : NULL;
 	unsigned short keycode;
 	int i;
 	int error;
 
-	error = matrix_keypad_build_keymap(keymap_data, NULL,
+	error = matrix_keypad_build_keymap(pdata->matrix_keymap_data, NULL,
 					   pdata->matrix_key_rows,
 					   pdata->matrix_key_cols,
 					   keypad->keycodes, input_dev);

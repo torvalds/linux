@@ -8,6 +8,7 @@ obj-y += clk-a20-gmac.o
 obj-y += clk-mod0.o
 obj-y += clk-sun8i-mbus.o
 obj-y += clk-sun9i-core.o
+obj-y += clk-sun9i-mmc.o
 
 obj-$(CONFIG_MFD_SUN6I_PRCM) += \
 	clk-sun6i-ar100.o clk-sun6i-apb0.o clk-sun6i-apb0-gates.o \

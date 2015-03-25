@@ -17,7 +17,6 @@
 
 #include <uapi/linux/nvme.h>
 #include <linux/pci.h>
-#include <linux/miscdevice.h>
 #include <linux/kref.h>
 #include <linux/blk-mq.h>
 
@@ -62,8 +61,6 @@ enum {
 	NVME_CSTS_SHST_MASK	= 3 << 2,
 };
 
-#define NVME_VS(major, minor)	(major << 16 | minor)
-
 extern unsigned char nvme_io_timeout;
 #define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
@@ -91,9 +88,10 @@ struct nvme_dev {
 	struct nvme_bar __iomem *bar;
 	struct list_head namespaces;
 	struct kref kref;
-	struct miscdevice miscdev;
+	struct device *device;
 	work_func_t reset_workfn;
 	struct work_struct reset_work;
+	struct work_struct probe_work;
 	char name[12];
 	char serial[20];
 	char model[40];
@@ -105,7 +103,6 @@ struct nvme_dev {
 	u16 abort_limit;
 	u8 event_limit;
 	u8 vwc;
-	u8 initialized;
 };
 
 /*
@@ -121,6 +118,7 @@ struct nvme_ns {
 	unsigned ns_id;
 	int lba_shift;
 	int ms;
+	int pi_type;
 	u64 mode_select_num_blocks;
 	u32 mode_select_block_len;
 };
@@ -138,6 +136,7 @@ struct nvme_iod {
 	int nents;		/* Used in scatterlist */
 	int length;		/* Of data, in bytes */
 	dma_addr_t first_dma;
+	struct scatterlist meta_sg[1]; /* metadata requires single contiguous buffer */
 	struct scatterlist sg[0];
 };
 

@@ -459,6 +459,7 @@ void nfs_mark_request_commit(struct nfs_page *req,
 			     struct nfs_commit_info *cinfo,
 			     u32 ds_commit_idx);
 int nfs_write_need_commit(struct nfs_pgio_header *);
+void nfs_writeback_update_inode(struct nfs_pgio_header *hdr);
 int nfs_generic_commit_list(struct inode *inode, struct list_head *head,
 			    int how, struct nfs_commit_info *cinfo);
 void nfs_retry_commit(struct list_head *page_list,
@@ -595,6 +596,19 @@ void nfs_super_set_maxbytes(struct super_block *sb, __u64 maxfilesize)
 	sb->s_maxbytes = (loff_t)maxfilesize;
 	if (sb->s_maxbytes > MAX_LFS_FILESIZE || sb->s_maxbytes <= 0)
 		sb->s_maxbytes = MAX_LFS_FILESIZE;
+}
+
+/*
+ * Record the page as unstable and mark its inode as dirty.
+ */
+static inline
+void nfs_mark_page_unstable(struct page *page)
+{
+	struct inode *inode = page_file_mapping(page)->host;
+
+	inc_zone_page_state(page, NR_UNSTABLE_NFS);
+	inc_bdi_stat(inode_to_bdi(inode), BDI_RECLAIMABLE);
+	 __mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 }
 
 /*

@@ -348,7 +348,7 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 	 * We need to shift the lower 32 facility bits (bit 0-31) from a u64
 	 * into a u32 memory representation. They will remain bits 0-31.
 	 */
-	fac = *vcpu->kvm->arch.model.fac->sie >> 32;
+	fac = *vcpu->kvm->arch.model.fac->list >> 32;
 	rc = write_guest_lc(vcpu, offsetof(struct _lowcore, stfl_fac_list),
 			    &fac, sizeof(fac));
 	if (rc)

@@ -41,6 +41,7 @@
 #include <linux/i2c-mux.h>
 #include <linux/i2c/pca954x.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 
@@ -186,6 +187,8 @@ static int pca954x_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
 	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct device_node *of_node = client->dev.of_node;
+	bool idle_disconnect_dt;
 	struct gpio_desc *gpio;
 	int num, force, class;
 	struct pca954x *data;
@@ -217,8 +220,13 @@ static int pca954x_probe(struct i2c_client *client,
 	data->type = id->driver_data;
 	data->last_chan = 0;		   /* force the first selection */
 
+	idle_disconnect_dt = of_node &&
+		of_property_read_bool(of_node, "i2c-mux-idle-disconnect");
+
 	/* Now create an adapter for each channel */
 	for (num = 0; num < chips[data->type].nchans; num++) {
+		bool idle_disconnect_pd = false;
+
 		force = 0;			  /* dynamic adap number */
 		class = 0;			  /* no class by default */
 		if (pdata) {
@@ -229,12 +237,13 @@ static int pca954x_probe(struct i2c_client *client,
 			} else
 				/* discard unconfigured channels */
 				break;
+			idle_disconnect_pd = pdata->modes[num].deselect_on_exit;
 		}
 
 		data->virt_adaps[num] =
 			i2c_add_mux_adapter(adap, &client->dev, client,
 				force, num, class, pca954x_select_chan,
-				(pdata && pdata->modes[num].deselect_on_exit)
+				(idle_disconnect_pd || idle_disconnect_dt)
 					? pca954x_deselect_mux : NULL);
 
 		if (data->virt_adaps[num] == NULL) {

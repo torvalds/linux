@@ -140,7 +140,7 @@ int qib_create_ctxts(struct qib_devdata *dd)
 	 * Allocate full ctxtcnt array, rather than just cfgctxts, because
 	 * cleanup iterates across all possible ctxts.
 	 */
-	dd->rcd = kzalloc(sizeof(*dd->rcd) * dd->ctxtcnt, GFP_KERNEL);
+	dd->rcd = kcalloc(dd->ctxtcnt, sizeof(*dd->rcd), GFP_KERNEL);
 	if (!dd->rcd) {
 		qib_dev_err(dd,
 			"Unable to allocate ctxtdata array, failing\n");
@@ -234,6 +234,7 @@ int qib_init_pportdata(struct qib_pportdata *ppd, struct qib_devdata *dd,
 			u8 hw_pidx, u8 port)
 {
 	int size;
+
 	ppd->dd = dd;
 	ppd->hw_pidx = hw_pidx;
 	ppd->port = port; /* IB port number, not index */
@@ -613,6 +614,7 @@ static int qib_create_workqueues(struct qib_devdata *dd)
 		ppd = dd->pport + pidx;
 		if (!ppd->qib_wq) {
 			char wq_name[8]; /* 3 + 2 + 1 + 1 + 1 */
+
 			snprintf(wq_name, sizeof(wq_name), "qib%d_%d",
 				dd->unit, pidx);
 			ppd->qib_wq =
@@ -714,6 +716,7 @@ int qib_init(struct qib_devdata *dd, int reinit)
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		int mtu;
+
 		if (lastfail)
 			ret = lastfail;
 		ppd = dd->pport + pidx;
@@ -931,7 +934,6 @@ static void qib_shutdown_device(struct qib_devdata *dd)
 		qib_free_pportdata(ppd);
 	}
 
-	qib_update_eeprom_log(dd);
 }
 
 /**
@@ -1026,8 +1028,7 @@ static void qib_verify_pioperf(struct qib_devdata *dd)
 	addr = vmalloc(cnt);
 	if (!addr) {
 		qib_devinfo(dd->pcidev,
-			 "Couldn't get memory for checking PIO perf,"
-			 " skipping\n");
+			 "Couldn't get memory for checking PIO perf, skipping\n");
 		goto done;
 	}
 
@@ -1163,6 +1164,7 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 
 	if (!qib_cpulist_count) {
 		u32 count = num_online_cpus();
+
 		qib_cpulist = kzalloc(BITS_TO_LONGS(count) *
 				      sizeof(long), GFP_KERNEL);
 		if (qib_cpulist)
@@ -1179,7 +1181,7 @@ bail:
 	if (!list_empty(&dd->list))
 		list_del_init(&dd->list);
 	ib_dealloc_device(&dd->verbs_dev.ibdev);
-	return ERR_PTR(ret);;
+	return ERR_PTR(ret);
 }
 
 /*

@@ -710,8 +710,3 @@ err_exit:
 
 	return -1;
 }
-
-bool cypress_supported(void)
-{
-	return true;
-}

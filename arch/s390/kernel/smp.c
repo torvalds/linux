@@ -59,14 +59,13 @@ enum {
 	CPU_STATE_CONFIGURED,
 };
 
+static DEFINE_PER_CPU(struct cpu *, cpu_device);
+
 struct pcpu {
-	struct cpu *cpu;
 	struct _lowcore *lowcore;	/* lowcore page(s) for the cpu */
-	unsigned long async_stack;	/* async stack for the cpu */
-	unsigned long panic_stack;	/* panic stack for the cpu */
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
-	int state;			/* physical cpu state */
-	int polarization;		/* physical polarization */
+	signed char state;		/* physical cpu state */
+	signed char polarization;	/* physical polarization */
 	u16 address;			/* physical cpu address */
 };
 
@@ -173,25 +172,30 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 	pcpu_sigp_retry(pcpu, order, 0);
 }
 
+#define ASYNC_FRAME_OFFSET (ASYNC_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
+#define PANIC_FRAME_OFFSET (PAGE_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE)
+
 static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 {
+	unsigned long async_stack, panic_stack;
 	struct _lowcore *lc;
 
 	if (pcpu != &pcpu_devices[0]) {
 		pcpu->lowcore =	(struct _lowcore *)
 			__get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
-		pcpu->async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
-		pcpu->panic_stack = __get_free_page(GFP_KERNEL);
-		if (!pcpu->lowcore || !pcpu->panic_stack || !pcpu->async_stack)
+		async_stack = __get_free_pages(GFP_KERNEL, ASYNC_ORDER);
+		panic_stack = __get_free_page(GFP_KERNEL);
+		if (!pcpu->lowcore || !panic_stack || !async_stack)
 			goto out;
+	} else {
+		async_stack = pcpu->lowcore->async_stack - ASYNC_FRAME_OFFSET;
+		panic_stack = pcpu->lowcore->panic_stack - PANIC_FRAME_OFFSET;
 	}
 	lc = pcpu->lowcore;
 	memcpy(lc, &S390_lowcore, 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
-	lc->async_stack = pcpu->async_stack + ASYNC_SIZE
-		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->panic_stack = pcpu->panic_stack + PAGE_SIZE
-		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
+	lc->async_stack = async_stack + ASYNC_FRAME_OFFSET;
+	lc->panic_stack = panic_stack + PANIC_FRAME_OFFSET;
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 #ifndef CONFIG_64BIT
@@ -212,8 +216,8 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	return 0;
 out:
 	if (pcpu != &pcpu_devices[0]) {
-		free_page(pcpu->panic_stack);
-		free_pages(pcpu->async_stack, ASYNC_ORDER);
+		free_page(panic_stack);
+		free_pages(async_stack, ASYNC_ORDER);
 		free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
 	}
 	return -ENOMEM;
@@ -235,11 +239,11 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 #else
 	vdso_free_per_cpu(pcpu->lowcore);
 #endif
-	if (pcpu != &pcpu_devices[0]) {
-		free_page(pcpu->panic_stack);
-		free_pages(pcpu->async_stack, ASYNC_ORDER);
-		free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
-	}
+	if (pcpu == &pcpu_devices[0])
+		return;
+	free_page(pcpu->lowcore->panic_stack-PANIC_FRAME_OFFSET);
+	free_pages(pcpu->lowcore->async_stack-ASYNC_FRAME_OFFSET, ASYNC_ORDER);
+	free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
 }
 
 #endif /* CONFIG_HOTPLUG_CPU */
@@ -366,7 +370,8 @@ void smp_call_online_cpu(void (*func)(void *), void *data)
 void smp_call_ipl_cpu(void (*func)(void *), void *data)
 {
 	pcpu_delegate(&pcpu_devices[0], func, data,
-		      pcpu_devices->panic_stack + PAGE_SIZE);
+		      pcpu_devices->lowcore->panic_stack -
+		      PANIC_FRAME_OFFSET + PAGE_SIZE);
 }
 
 int smp_find_processor_id(u16 address)
@@ -935,10 +940,6 @@ void __init smp_prepare_boot_cpu(void)
 	pcpu->state = CPU_STATE_CONFIGURED;
 	pcpu->address = stap();
 	pcpu->lowcore = (struct _lowcore *)(unsigned long) store_prefix();
-	pcpu->async_stack = S390_lowcore.async_stack - ASYNC_SIZE
-		+ STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
-	pcpu->panic_stack = S390_lowcore.panic_stack - PAGE_SIZE
-		+ STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 	set_cpu_present(0, true);
@@ -1078,8 +1079,7 @@ static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
 			  void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
-	struct cpu *c = pcpu_devices[cpu].cpu;
-	struct device *s = &c->dev;
+	struct device *s = &per_cpu(cpu_device, cpu)->dev;
 	int err = 0;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
@@ -1102,7 +1102,7 @@ static int smp_add_present_cpu(int cpu)
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return -ENOMEM;
-	pcpu_devices[cpu].cpu = c;
+	per_cpu(cpu_device, cpu) = c;
 	s = &c->dev;
 	c->hotpluggable = 1;
 	rc = register_cpu(c, cpu);

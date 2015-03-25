@@ -6831,10 +6831,8 @@ static struct workqueue_struct *hpsa_create_controller_wq(struct ctlr_info *h,
 						char *name)
 {
 	struct workqueue_struct *wq = NULL;
-	char wq_name[20];
 
-	snprintf(wq_name, sizeof(wq_name), "%s_%d_hpsa", name, h->ctlr);
-	wq = alloc_ordered_workqueue(wq_name, 0);
+	wq = alloc_ordered_workqueue("%s_%d_hpsa", 0, name, h->ctlr);
 	if (!wq)
 		dev_err(&h->pdev->dev, "failed to create %s workqueue\n", name);
 

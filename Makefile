@@ -1,8 +1,8 @@
-VERSION = 3
-PATCHLEVEL = 19
+VERSION = 4
+PATCHLEVEL = 0
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = Diseased Newt
+EXTRAVERSION = -rc5
+NAME = Hurr durr I'ma sheep
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

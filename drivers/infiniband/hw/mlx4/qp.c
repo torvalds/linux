@@ -1696,8 +1696,10 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			    qp->mlx4_ib_qp_type == MLX4_IB_QPT_PROXY_GSI ||
 			    qp->mlx4_ib_qp_type == MLX4_IB_QPT_TUN_GSI) {
 				err = handle_eth_ud_smac_index(dev, qp, (u8 *)attr->smac, context);
-				if (err)
-					return -EINVAL;
+				if (err) {
+					err = -EINVAL;
+					goto out;
+				}
 				if (qp->mlx4_ib_qp_type == MLX4_IB_QPT_PROXY_GSI)
 					dev->qp1_proxy[qp->port - 1] = qp;
 			}

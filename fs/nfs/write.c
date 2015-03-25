@@ -789,13 +789,8 @@ nfs_request_add_commit_list(struct nfs_page *req, struct list_head *dst,
 	nfs_list_add_request(req, dst);
 	cinfo->mds->ncommit++;
 	spin_unlock(cinfo->lock);
-	if (!cinfo->dreq) {
-		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-		inc_bdi_stat(inode_to_bdi(page_file_mapping(req->wb_page)->host),
-			     BDI_RECLAIMABLE);
-		__mark_inode_dirty(req->wb_context->dentry->d_inode,
-				   I_DIRTY_DATASYNC);
-	}
+	if (!cinfo->dreq)
+		nfs_mark_page_unstable(req->wb_page);
 }
 EXPORT_SYMBOL_GPL(nfs_request_add_commit_list);
 
@@ -1382,6 +1377,36 @@ static int nfs_should_remove_suid(const struct inode *inode)
 	return 0;
 }
 
+static void nfs_writeback_check_extend(struct nfs_pgio_header *hdr,
+		struct nfs_fattr *fattr)
+{
+	struct nfs_pgio_args *argp = &hdr->args;
+	struct nfs_pgio_res *resp = &hdr->res;
+
+	if (!(fattr->valid & NFS_ATTR_FATTR_SIZE))
+		return;
+	if (argp->offset + resp->count != fattr->size)
+		return;
+	if (nfs_size_to_loff_t(fattr->size) < i_size_read(hdr->inode))
+		return;
+	/* Set attribute barrier */
+	nfs_fattr_set_barrier(fattr);
+}
+
+void nfs_writeback_update_inode(struct nfs_pgio_header *hdr)
+{
+	struct nfs_fattr *fattr = hdr->res.fattr;
+	struct inode *inode = hdr->inode;
+
+	if (fattr == NULL)
+		return;
+	spin_lock(&inode->i_lock);
+	nfs_writeback_check_extend(hdr, fattr);
+	nfs_post_op_update_inode_force_wcc_locked(inode, fattr);
+	spin_unlock(&inode->i_lock);
+}
+EXPORT_SYMBOL_GPL(nfs_writeback_update_inode);
+
 /*
  * This function is called when the WRITE call is complete.
  */
@@ -1605,11 +1630,8 @@ void nfs_retry_commit(struct list_head *page_list,
 		req = nfs_list_entry(page_list->next);
 		nfs_list_remove_request(req);
 		nfs_mark_request_commit(req, lseg, cinfo, ds_commit_idx);
-		if (!cinfo->dreq) {
-			dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-			dec_bdi_stat(inode_to_bdi(page_file_mapping(req->wb_page)->host),
-				     BDI_RECLAIMABLE);
-		}
+		if (!cinfo->dreq)
+			nfs_clear_page_commit(req->wb_page);
 		nfs_unlock_and_release_request(req);
 	}
 }

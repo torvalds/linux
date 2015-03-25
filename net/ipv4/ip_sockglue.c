@@ -432,17 +432,32 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 		kfree_skb(skb);
 }
 
-static bool ipv4_pktinfo_prepare_errqueue(const struct sock *sk,
-					  const struct sk_buff *skb,
-					  int ee_origin)
+/* IPv4 supports cmsg on all imcp errors and some timestamps
+ *
+ * Timestamp code paths do not initialize the fields expected by cmsg:
+ * the PKTINFO fields in skb->cb[]. Fill those in here.
+ */
+static bool ipv4_datagram_support_cmsg(const struct sock *sk,
+				       struct sk_buff *skb,
+				       int ee_origin)
 {
-	struct in_pktinfo *info = PKTINFO_SKB_CB(skb);
+	struct in_pktinfo *info;
 
-	if ((ee_origin != SO_EE_ORIGIN_TIMESTAMPING) ||
-	    (!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG)) ||
+	if (ee_origin == SO_EE_ORIGIN_ICMP)
+		return true;
+
+	if (ee_origin == SO_EE_ORIGIN_LOCAL)
+		return false;
+
+	/* Support IP_PKTINFO on tstamp packets if requested, to correlate
+	 * timestamp with egress dev. Not possible for packets without dev
+	 * or without payload (SOF_TIMESTAMPING_OPT_TSONLY).
+	 */
+	if ((!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG)) ||
 	    (!skb->dev))
 		return false;
 
+	info = PKTINFO_SKB_CB(skb);
 	info->ipi_spec_dst.s_addr = ip_hdr(skb)->saddr;
 	info->ipi_ifindex = skb->dev->ifindex;
 	return true;
@@ -483,7 +498,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	serr = SKB_EXT_ERR(skb);
 
-	if (sin && skb->len) {
+	if (sin && serr->port) {
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = *(__be32 *)(skb_network_header(skb) +
 						   serr->addr_offset);
@@ -496,9 +511,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	sin = &errhdr.offender;
 	memset(sin, 0, sizeof(*sin));
 
-	if (skb->len &&
-	    (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP ||
-	     ipv4_pktinfo_prepare_errqueue(sk, skb, serr->ee.ee_origin))) {
+	if (ipv4_datagram_support_cmsg(sk, skb, serr->ee.ee_origin)) {
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 		if (inet_sk(sk)->cmsg_flags)
