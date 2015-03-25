@@ -33,6 +33,11 @@ void rtw_btcoex_PowerOnSetting(PADAPTER padapter)
 	hal_btcoex_PowerOnSetting(padapter);
 }
 
+void rtw_btcoex_PreLoadFirmware(PADAPTER padapter)
+{
+	hal_btcoex_PreLoadFirmware(padapter);
+}
+
 void rtw_btcoex_HAL_Initialize(PADAPTER padapter, u8 bWifiOnly)
 {
 	hal_btcoex_InitHwConfig(padapter, bWifiOnly);

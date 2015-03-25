@@ -37,13 +37,13 @@ const char *odm_comp_str[] = {
 	/* BIT12 */"ODM_COMP_DYNAMIC_PRICCA",
 	/* BIT13 */"ODM_COMP_RXHP",
 	/* BIT14 */"ODM_COMP_MP",
-	/* BIT15 */"ODM_COMP_DYNAMIC_ATC",
-	/* BIT16 */"ODM_COMP_EDCA_TURBO",
-	/* BIT17 */"ODM_COMP_EARLY_MODE",
+	/* BIT15 */"ODM_COMP_CFO_TRACKING",
+	/* BIT16 */"ODM_COMP_ACS",
+	/* BIT17 */"PHYDM_COMP_ADAPTIVITY",
 	/* BIT18 */NULL,
 	/* BIT19 */NULL,
-	/* BIT20 */NULL,
-	/* BIT21 */NULL,
+	/* BIT20 */"ODM_COMP_EDCA_TURBO",
+	/* BIT21 */"ODM_COMP_EARLY_MODE",
 	/* BIT22 */NULL,
 	/* BIT23 */NULL,
 	/* BIT24 */"ODM_COMP_TX_PWR_TRACK",
@@ -73,14 +73,14 @@ const char *odm_ability_str[] = {
 	/* BIT11 */"ODM_BB_PSD",
 	/* BIT12 */"ODM_BB_RXHP",
 	/* BIT13 */"ODM_BB_ADAPTIVITY",
-	/* BIT14 */"ODM_BB_DYNAMIC_ATC",
-	/* BIT15 */NULL,
-	/* BIT16 */"ODM_MAC_EDCA_TURBO",
-	/* BIT17 */"ODM_MAC_EARLY_MODE",
+	/* BIT14 */"ODM_BB_CFO_TRACKING",
+	/* BIT15 */"ODM_BB_NHM_CNT",
+	/* BIT16 */"ODM_BB_PRIMARY_CCA",
+	/* BIT17 */NULL,
 	/* BIT18 */NULL,
 	/* BIT19 */NULL,
-	/* BIT20 */NULL,
-	/* BIT21 */NULL,
+	/* BIT20 */"ODM_MAC_EDCA_TURBO",
+	/* BIT21 */"ODM_MAC_EARLY_MODE",
 	/* BIT22 */NULL,
 	/* BIT23 */NULL,
 	/* BIT24 */"ODM_RF_TX_PWR_TRACK",
@@ -166,6 +166,11 @@ inline void rtw_odm_ability_set(_adapter *adapter, u32 ability)
 	rtw_hal_set_hwreg(adapter, HW_VAR_DM_FLAG, (u8*)&ability);
 }
 
+void rtw_odm_adaptivity_ver_msg(void *sel, _adapter *adapter)
+{
+	DBG_871X_SEL_NL(sel, "ADAPTIVITY_VERSION "ADAPTIVITY_VERSION"\n");
+}
+
 #define RTW_ADAPTIVITY_EN_DISABLE 0
 #define RTW_ADAPTIVITY_EN_ENABLE 1
 #define RTW_ADAPTIVITY_EN_AUTO 2
@@ -208,6 +213,25 @@ void rtw_odm_adaptivity_mode_msg(void *sel, _adapter *adapter)
 		DBG_871X_SEL(sel, "INVALID\n");
 	}
 }
+
+#define RTW_NHM_EN_DISABLE 0
+#define RTW_NHM_EN_ENABLE 1
+
+void rtw_odm_nhm_en_msg(void *sel, _adapter *adapter)
+{
+	struct registry_priv *regsty = &adapter->registrypriv;
+
+	DBG_871X_SEL_NL(sel, "RTW_NHM_EN_");
+
+	if (regsty->nhm_en == RTW_NHM_EN_DISABLE) {
+		DBG_871X_SEL(sel, "DISABLE\n");
+	} else if (regsty->nhm_en == RTW_NHM_EN_ENABLE) {
+		DBG_871X_SEL(sel, "ENABLE\n");
+	} else {
+		DBG_871X_SEL(sel, "INVALID\n");
+	}
+}
+
 bool rtw_odm_adaptivity_needed(_adapter *adapter)
 {
 	struct registry_priv *regsty = &adapter->registrypriv;
@@ -219,8 +243,10 @@ bool rtw_odm_adaptivity_needed(_adapter *adapter)
 		ret = _TRUE;
 
 	if (ret == _TRUE) {
+		rtw_odm_adaptivity_ver_msg(RTW_DBGDUMP, adapter);
 		rtw_odm_adaptivity_en_msg(RTW_DBGDUMP, adapter);
 		rtw_odm_adaptivity_mode_msg(RTW_DBGDUMP, adapter);
+		rtw_odm_nhm_en_msg(RTW_DBGDUMP, adapter);
 	}
 
 	return ret;
@@ -231,8 +257,10 @@ void rtw_odm_adaptivity_parm_msg(void *sel, _adapter *adapter)
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(adapter);
 	DM_ODM_T *odm = &pHalData->odmpriv;
 
+	rtw_odm_adaptivity_ver_msg(sel, adapter);
 	rtw_odm_adaptivity_en_msg(sel, adapter);
 	rtw_odm_adaptivity_mode_msg(sel, adapter);
+	rtw_odm_nhm_en_msg(sel, adapter);
 
 	DBG_871X_SEL_NL(sel, "%10s %16s %8s %10s %11s %14s\n"
 		, "TH_L2H_ini", "TH_EDCCA_HL_diff", "IGI_Base", "ForceEDCCA", "AdapEn_RSSI", "IGI_LowerBound");
@@ -244,6 +272,14 @@ void rtw_odm_adaptivity_parm_msg(void *sel, _adapter *adapter)
 		, odm->AdapEn_RSSI
 		, odm->IGI_LowerBound
 	);
+
+	DBG_871X_SEL_NL(sel, "%8s %9s\n", "EDCCA_ES","Adap_Flag");
+	DBG_871X_SEL_NL(sel, "%-8x %-9x \n"
+		, odm->EDCCA_enable_state
+		, odm->adaptivity_flag
+	);
+	
+	
 }
 
 void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 TH_L2H_ini, s8 TH_EDCCA_HL_diff,
@@ -268,3 +304,35 @@ void rtw_odm_get_perpkt_rssi(void *sel, _adapter *adapter)
 	DBG_871X_SEL_NL(sel,"RxRate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n", 
 	HDATA_RATE(odm->RxRate), odm->RSSI_A, odm->RSSI_B);	
 }
+
+
+void rtw_odm_acquirespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type)
+{
+	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(adapter);
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	_irqL irqL;
+
+	switch(type)
+	{
+		case RT_IQK_SPINLOCK:
+			_enter_critical_bh(&pdmpriv->IQKSpinLock, &irqL);
+		default:
+			break;
+	}
+}
+
+void rtw_odm_releasespinlock(_adapter *adapter,	RT_SPINLOCK_TYPE type)
+{
+	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(adapter);
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	_irqL irqL;
+
+	switch(type)
+	{
+		case RT_IQK_SPINLOCK:
+			_exit_critical_bh(&pdmpriv->IQKSpinLock, &irqL);
+		default:
+			break;
+	}
+}
+

@@ -270,7 +270,8 @@ void _8051Reset8723(PADAPTER padapter)
 	u8 cpu_rst;
 	u8 io_rst;
 
-
+	io_rst = rtw_read8(padapter, REG_RSV_CTRL);
+	rtw_write8(padapter, REG_RSV_CTRL, io_rst&(~BIT1));
 	// Reset 8051(WLMCU) IO wrapper
 	// 0x1c[8] = 0
 	// Suggested by Isaac@SD1 and Gimmy@SD1, coding by Lucas@20130624
@@ -282,6 +283,8 @@ void _8051Reset8723(PADAPTER padapter)
 	cpu_rst &= ~BIT(2);
 	rtw_write8(padapter, REG_SYS_FUNC_EN+1, cpu_rst);
 
+	io_rst = rtw_read8(padapter, REG_RSV_CTRL);
+	rtw_write8(padapter, REG_RSV_CTRL, io_rst&(~BIT1));
 	// Enable 8051 IO wrapper	
 	// 0x1c[8] = 1
 	io_rst = rtw_read8(padapter, REG_RSV_CTRL+1);
@@ -295,7 +298,6 @@ void _8051Reset8723(PADAPTER padapter)
 	DBG_8192C("%s: Finish\n", __FUNCTION__);
 }
 
-extern u8 g_fwdl_chksum_fail;
 static s32 polling_fwdl_chksum(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
 	s32 ret = _FAIL;
@@ -316,11 +318,8 @@ static s32 polling_fwdl_chksum(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 		goto exit;
 	}
 
-	if (g_fwdl_chksum_fail) {
-		DBG_871X("%s: fwdl test case: fwdl_chksum_fail\n", __FUNCTION__);
-		g_fwdl_chksum_fail--;
+	if (rtw_fwdl_test_trigger_chksum_fail())
 		goto exit;
-	}
 
 	ret = _SUCCESS;
 
@@ -331,7 +330,6 @@ exit:
 	return ret;
 }
 
-extern u8 g_fwdl_wintint_rdy_fail;
 static s32 _FWFreeToGo(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
 	s32 ret = _FAIL;
@@ -359,11 +357,8 @@ static s32 _FWFreeToGo(_adapter *adapter, u32 min_cnt, u32 timeout_ms)
 		goto exit;
 	}
 
-	if (g_fwdl_wintint_rdy_fail) {
-		DBG_871X("%s: fwdl test case: wintint_rdy_fail\n", __FUNCTION__);
-		g_fwdl_wintint_rdy_fail--;
+	if (rtw_fwdl_test_trigger_wintint_rdy_fail())
 		goto exit;
-	}
 
 	ret = _SUCCESS;
 
@@ -450,6 +445,9 @@ int _WriteBTFWtoTxPktBuf8723B(
 	struct pkt_attrib	*pattrib;
 	u8 			txdesc_offset = TXDESC_OFFSET;
 	u8			val8;
+#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
+	u8			u1bTmp;
+#endif
 
 #if 1//(DEV_BUS_TYPE == RT_PCI_INTERFACE)
 	TotalPktLen = FwBufLen;
@@ -483,7 +481,7 @@ int _WriteBTFWtoTxPktBuf8723B(
 	// 1. Pause BCN
 	//---------------------------------------------------------
 	//Set REG_CR bit 8. DMA beacon by SW.
-#if 0//(DEV_BUS_TYPE == RT_PCI_INTERFACE)
+#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
 	u1bTmp = PlatformEFIORead1Byte(Adapter, REG_CR+1);
 	PlatformEFIOWrite1Byte(Adapter,  REG_CR+1, (u1bTmp|BIT0));
 #else
@@ -909,11 +907,11 @@ s32 FirmwareDownloadBT(PADAPTER padapter, PRT_MP_FIRMWARE pFirmware)
 
 		pBTFirmwareBuf = (u8*)Rtl8723BFwBTImgArray;
 		BTFirmwareLen = Rtl8723BFwBTImgArrayLength;
+		pFirmware->szFwBuffer = pBTFirmwareBuf;
+		pFirmware->ulFwLength = BTFirmwareLen;
 #endif // CONFIG_EMBEDDED_FWIMG
 	}
 
-	pFirmware->szFwBuffer = pBTFirmwareBuf;
-	pFirmware->ulFwLength = BTFirmwareLen;
 	DBG_8192C("%s: MP BT Firmware size=%d\n", __FUNCTION__, BTFirmwareLen);
 
 	// for h2c cam here should be set to  true
@@ -1015,6 +1013,9 @@ s32 rtl8723b_FirmwareDownload(PADAPTER padapter, BOOLEAN  bUsedWoWLANFw)
 				pdbgpriv->dbg_downloadfw_pwr_state_cnt++;
 			}
 	}
+
+	rtw_btcoex_PreLoadFirmware(padapter);
+	
 #ifdef CONFIG_FILE_FWIMG
 #ifdef CONFIG_WOWLAN
 	if (bUsedWoWLANFw)
@@ -3238,6 +3239,30 @@ void UpdateHalRAMask8723B(PADAPTER padapter, u32 mac_id, u8 rssi_level)
 	DBG_871X("%s(): mac_id=%d raid=0x%x bw=%d mask=0x%x init_rate=0x%x\n", __func__, mac_id, psta->raid, psta->bw_mode, mask, psta->init_rate);
 }
 
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+void rtl8723b_cal_txdesc_chksum(struct tx_desc *ptxdesc)
+{
+	u16	*usPtr = (u16*)ptxdesc;
+	u32 count;
+	u32 index;
+	u16 checksum = 0;
+
+
+	// Clear first
+	ptxdesc->txdw7 &= cpu_to_le32(0xffff0000);
+
+	// checksume is always calculated by first 32 bytes,
+	// and it doesn't depend on TX DESC length.
+	// Thomas,Lucas@SD4,20130515
+	count = 16;
+
+	for (index = 0; index < count; index++) {
+		checksum ^= le16_to_cpu(*(usPtr + index));
+	}
+
+	ptxdesc->txdw7 |= cpu_to_le32(checksum & 0x0000ffff);
+}
+#endif
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
@@ -3259,8 +3284,11 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 
 	pHalFunc->hal_dm_watchdog = &rtl8723b_HalDmWatchDog;
 	pHalFunc->hal_dm_watchdog_in_lps = &rtl8723b_HalDmWatchDog_in_LPS;
-	
 
+#ifdef CONFIG_C2H_PACKET_EN
+	pHalFunc->SetHwRegHandlerWithBuf = &SetHwRegWithBuf8723B;
+#endif // CONFIG_C2H_PACKET_EN
+	
 	pHalFunc->SetBeaconRelatedRegistersHandler = &rtl8723b_SetBeaconRelatedRegisters;
 
 	pHalFunc->Add_RateATid = &rtl8723b_Add_RateATid;
@@ -3304,9 +3332,14 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->c2h_handler = c2h_handler_8723b;
 	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723b;
 
-#ifdef CONFIG_BT_COEXIST
 	pHalFunc->fill_h2c_cmd = &FillH2CCmd8723B;
-#endif // CONFIG_BT_COEXIST
+#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+	pHalFunc->hal_cal_txdesc_chksum = &rtl8723b_cal_txdesc_chksum;
+#endif
+#ifdef CONFIG_WOWLAN
+	pHalFunc->hal_set_wowlan_fw = &SetFwRelatedForWoWLAN8723b;
+#endif
+	pHalFunc->hal_get_tx_buff_rsvd_page_num = &GetTxBufferRsvdPageNum8723B;
 }
 
 void rtl8723b_InitAntenna_Selection(PADAPTER padapter)
@@ -3370,7 +3403,9 @@ void rtl8723b_init_default_value(PADAPTER padapter)
 	if (!adapter_to_pwrctl(padapter)->bkeepfwalive)
 		pHalData->LastHMEBoxNum = 0;
 
-	pHalData->bIQKInitialized = _FALSE;
+	/* hal capability values */
+	pHalData->macid_num = MACID_NUM_8723B;
+	pHalData->cam_entry_num = CAM_ENTRY_NUM_8723B;
 
 	// init dm default value
 	pdmpriv->TM_Trigger = 0;//for IQK
@@ -4258,6 +4293,10 @@ Hal_EfuseParseBTCoexistInfo_8723B(
 		#endif
 	}
 
+#ifdef CONFIG_FOR_RTL8723BS_VQ0
+	pHalData->ant_path = ODM_RF_PATH_B;//s0
+#endif
+
 #ifdef CONFIG_BT_COEXIST
 	if (padapter->registrypriv.ant_num > 0) {
 		DBG_8192C("%s: Apply driver defined antenna number(%d) to replace origin(%d)\n",
@@ -4418,7 +4457,7 @@ Hal_EfuseParseAntennaDiversity_8723B(
 	)
 {
 #ifdef CONFIG_ANTENNA_DIVERSITY
-	HAL_DATA_TYPE		pHalData = GET_HAL_DATA(pAdapter);
+	PHAL_DATA_TYPE		pHalData = GET_HAL_DATA(pAdapter);
 	struct registry_priv	*registry_par = &pAdapter->registrypriv;
 
 	if (pHalData->EEPROMBluetoothAntNum == Ant_x1){
@@ -4426,49 +4465,31 @@ Hal_EfuseParseAntennaDiversity_8723B(
 	}
 	else{
 		if(registry_par->antdiv_cfg == 2)// 0:OFF , 1:ON, 2:By EFUSE
-			pHalData->AntDivCfg = 0;  
+			pHalData->AntDivCfg = 1;
 		else
 			pHalData->AntDivCfg = registry_par->antdiv_cfg;
 	}
 
-	//if (REGISTRY(pAdapter,bEfusePriorityAuto) == TRUE)
-	if(registry_par->antdiv_type == 0)// If TRxAntDivType is AUTO in advanced setting, use EFUSE value instead.
-	{
+	// If TRxAntDivType is AUTO in advanced setting, use EFUSE value instead.
+	if(registry_par->antdiv_type == 0) {
 		pHalData->TRxAntDivType = hwinfo[EEPROM_RFE_OPTION_8723B];
 		if (pHalData->TRxAntDivType == 0xFF)
 			pHalData->TRxAntDivType = S0S1_SW_ANTDIV;//GetRegAntDivType(pAdapter);
 		else if (pHalData->TRxAntDivType == 0x10)
 			pHalData->TRxAntDivType = S0S1_SW_ANTDIV; //intrnal switch S0S1
-		else if (pHalData->TRxAntDivType == 0x11)		
+		else if (pHalData->TRxAntDivType == 0x11)
 			pHalData->TRxAntDivType = S0S1_SW_ANTDIV; //intrnal switch S0S1
-			//pHalData->TRxAntDivType = CG_TRX_HW_ANTDIV; //DPDT
-		
+		else
+			DBG_8192C("%s: efuse[0x%x]=0x%02x is unknown type\n",
+				__FUNCTION__, EEPROM_RFE_OPTION_8723B, pHalData->TRxAntDivType);
 	}
 	else{
 		pHalData->TRxAntDivType = registry_par->antdiv_type ;//GetRegAntDivType(pAdapter);
 	}
-		
-		
-/*
-	if(!AutoLoadFail)
-	{
-		// Antenna Diversity setting.
-		pHalData->AntDivCfg = (hwinfo[RF_OPTION1_8723A]&0x18)>>3;
 
-		if(BT_1Ant(pAdapter))
-			pHalData->AntDivCfg = 0;
-		pHalData->ReverseDPDT = (hwinfo[RF_OPTION1_8723A]&BIT5) >> 5;
-	}
-	else
-	{
-		pHalData->AntDivCfg = 0;
-		pHalData->ReverseDPDT = 1;
-	}
-
-	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("EEPROM SWAS: bHwAntDiv = %x, TRxAntDivType = %x\n", 
-                                                pHalData->AntDivCfg, pHalData->TRxAntDivType));
-*/
-#endif	
+	DBG_8192C("%s: AntDivCfg=%d, AntDivType=%d\n",
+		__FUNCTION__, pHalData->AntDivCfg, pHalData->TRxAntDivType);
+#endif
 }
 
 VOID
@@ -4652,30 +4673,6 @@ u8	SCMapping_8723B(PADAPTER Adapter, struct pkt_attrib *pattrib)
 	return SCSettingOfDesc;
 }
 
-#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
-void rtl8723b_cal_txdesc_chksum(struct tx_desc *ptxdesc)
-{
-	u16	*usPtr = (u16*)ptxdesc;
-	u32 count;
-	u32 index;
-	u16 checksum = 0;
-
-
-	// Clear first
-	ptxdesc->txdw7 &= cpu_to_le32(0xffff0000);
-
-	// checksume is always calculated by first 32 bytes,
-	// and it doesn't depend on TX DESC length.
-	// Thomas,Lucas@SD4,20130515
-	count = 16;
-
-	for (index = 0; index < count; index++) {
-		checksum ^= le16_to_cpu(*(usPtr + index));
-	}
-
-	ptxdesc->txdw7 |= cpu_to_le32(checksum & 0x0000ffff);
-}
-#endif
 
 static u8 fill_txdesc_sectype(struct pkt_attrib *pattrib)
 {
@@ -4807,7 +4804,8 @@ static void rtl8723b_fill_default_txdesc(
 				SET_TX_DESC_AGG_ENABLE_8723B(pbuf, 1);
 				SET_TX_DESC_MAX_AGG_NUM_8723B(pbuf, 0x1F);
 				SET_TX_DESC_AMPDU_DENSITY_8723B(pbuf, pattrib->ampdu_spacing);
-			} else {
+			}
+			else {
 				SET_TX_DESC_AGG_BREAK_8723B(pbuf, 1);
 			}
 
@@ -4832,7 +4830,9 @@ static void rtl8723b_fill_default_txdesc(
 					SET_TX_DESC_DATA_SHORT_8723B(pbuf, 1);
 				}
 				SET_TX_DESC_TX_RATE_8723B(pbuf, padapter->fix_rate & 0x7F);
-				SET_TX_DESC_DISABLE_FB_8723B(pbuf, 1);
+				if (!padapter->data_fb) {
+					SET_TX_DESC_DISABLE_FB_8723B(pbuf, 1);
+				}
 			}
 
 			if (pattrib->ldpc) {
@@ -4942,10 +4942,7 @@ static void rtl8723b_fill_default_txdesc(
 #ifdef CONFIG_USB_HCI
 		pkt_offset = pxmitframe->pkt_offset;
 		offset += (pxmitframe->pkt_offset >> 3);
-		SET_TX_DESC_OFFSET_8723B(pbuf, TXDESC_SIZE + (pxmitframe->pkt_offset >> 3));
-#else // CONFIG_SDIO_HCI & CONFIG_GSPI_HCI
-		offset += OFFSET_SZ;
-#endif // !CONFIG_USB_HCI
+#endif // CONFIG_USB_HCI
 
 #ifdef CONFIG_TX_EARLY_MODE
 		if (pxmitframe->frame_tag == DATA_FRAMETAG) {
@@ -4985,6 +4982,10 @@ static void rtl8723b_fill_default_txdesc(
 void rtl8723b_update_txdesc(struct xmit_frame *pxmitframe, u8 *pbuf)
 {
 	rtl8723b_fill_default_txdesc(pxmitframe, pbuf);
+
+#ifdef CONFIG_ANTENNA_DIVERSITY
+	ODM_SetTxAntByTxInfo(&GET_HAL_DATA(padapter)->odmpriv, pbuf, pxmitframe->attrib.mac_id);
+#endif // CONFIG_ANTENNA_DIVERSITY
 
 #if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	rtl8723b_cal_txdesc_chksum((struct tx_desc*)pbuf);
@@ -5878,24 +5879,66 @@ void CCX_FwC2HTxRpt_8723b(PADAPTER padapter, u8 *pdata, u8 len)
 }
 
 #ifdef CONFIG_FW_C2H_DEBUG
+/*
+ * C2H RX package original is 128.
+ * If enable CONFIG_FW_C2H_DEBUG, it should increase to 256. 
+ * C2H FW debug message:
+ * without aggregate:
+ * {C2H CmdID, Seq, SubID, Len, Content[0~n]}
+ * Content[0~n] = { 'a' , 'b' , 'c' ,..., 'z' , '\n'}
+ *
+ * with aggregate:
+ * {C2H CmdID, Seq, SubID, Len, Content[0~n]}
+ * Content[0~n] = { 'a' , 'b' , 'c' ,..., 'z', '\n' , Extend C2H pkt 2...}
+ * Extend C2H pkt 2 = {C2H CmdID, Seq, SubID, Len, Content = { 'a' , 'b' , 'c' ,..., 'z' , '\n'}}
+ *
+ * Author: Isaac
+ */
 void Debug_FwC2H_8723b(PADAPTER padapter, u8 *pdata, u8 len)
 {
-	u8 data_len = *(pdata + 1);
-	u8 seq_no = *(pdata + 2);
 	int i = 0;
-	int cnt = 0;
+	int cnt = 0, total_length = 0;
 	u8 buf[128]={0};
+	u8 more_data = _FALSE;
+	u8 *nextdata = NULL;
+	u8 test = 0;
 
-	//DBG_871X("%s: SubID: %02x, data_len: %02x, Content: %02x\n",
-	//		__func__, *pdata, *(pdata+1), *(pdata+2));
+	u8 data_len;
+	u8 seq_no;
 
-	for (i = 0 ; i < data_len ; i++)
-		cnt += sprintf((buf+cnt), "%c", pdata[3 + i]);
+	nextdata = pdata;
+#if 0
+	for (i = 0 ; i < len ; i++) {
+		printk("%02x ", pdata[i]);
+		if ((i + 1)%8 == 0)
+			printk("\n");
+	}
+	printk("\n");
+#endif
+	do {
+		data_len = *(nextdata + 1);
+		seq_no = *(nextdata + 2);
 
-	if (seq_no == 0)
-		DBG_871X("[RTKFW, SEQ=%d]: %s\n", seq_no, buf);
-	else
+		for (i = 0 ; i < data_len - 2 ; i++) {
+			cnt += sprintf((buf+cnt), "%c", nextdata[3 + i]);
+
+			if (nextdata[3 + i] == 0x0a && nextdata[4 + i] == 0xff) {
+				more_data = _TRUE;
+			} else if (nextdata[3 + i] == 0x0a && nextdata[4 + i] != 0xff) {
+				more_data = _FALSE;
+			}
+		}
+
 		DBG_871X("[RTKFW, SEQ=%d]: %s", seq_no, buf);
+		data_len += 3;
+		total_length += data_len;
+
+		if (more_data == _TRUE) {
+			_rtw_memset(buf, '\0', 128);
+			cnt = 0;
+			nextdata = (pdata + total_length);
+		}
+	} while (more_data == _TRUE);
 }
 #endif //CONFIG_FW_C2H_DEBUG
 
@@ -6053,7 +6096,7 @@ static void process_c2h_event(PADAPTER padapter, PC2H_EVT_HDR pC2hEvent, u8 *c2h
 			break;
 
 		case C2H_CCX_TX_RPT:
-//			CCX_FwC2HTxRpt(padapter, QueueID, tmpBuf);
+			CCX_FwC2HTxRpt_8723b(padapter, c2hBuf, pC2hEvent->CmdLen);
 			break;
 
 #ifdef CONFIG_BT_COEXIST
@@ -6088,6 +6131,13 @@ static void process_c2h_event(PADAPTER padapter, PC2H_EVT_HDR pC2hEvent, u8 *c2h
 			MPTBT_FwC2hBtMpCtrl(padapter, c2hBuf, pC2hEvent->CmdLen);
 			break;
 #endif
+
+#ifdef CONFIG_FW_C2H_DEBUG
+		case C2H_8723B_FW_DEBUG:
+			Debug_FwC2H_8723b(padapter, c2hBuf, pC2hEvent->CmdLen);
+			break;
+#endif // CONFIG_FW_C2H_DEBUG
+
 		default:
 			break;
 	}
@@ -6102,7 +6152,7 @@ static void process_c2h_event(PADAPTER padapter, PC2H_EVT_HDR pC2hEvent, u8 *c2h
 
 #ifdef CONFIG_C2H_PACKET_EN
 
-void C2HPacketHandler_8723B(PADAPTER padapter, u8 *pbuffer, u16 length)
+static void C2HPacketHandler_8723B(PADAPTER padapter, u8 *pbuffer, u16 length)
 {
 	C2H_EVT_HDR 	C2hEvent;
 	u8 *tmpBuf=NULL;
@@ -6117,18 +6167,55 @@ void C2HPacketHandler_8723B(PADAPTER padapter, u8 *pbuffer, u16 length)
 #endif
 	C2hEvent.CmdID = pbuffer[0];
 	C2hEvent.CmdSeq = pbuffer[1];
-	C2hEvent.CmdLen = length -2;
-	tmpBuf = pbuffer+2;
+	C2hEvent.CmdLen = length - 2;
+	tmpBuf = pbuffer + 2;
 
 	//DBG_871X("%s C2hEvent.CmdID:%x C2hEvent.CmdLen:%x C2hEvent.CmdSeq:%x\n",
 	//		__func__, C2hEvent.CmdID, C2hEvent.CmdLen, C2hEvent.CmdSeq);
 	RT_PRINT_DATA(_module_hal_init_c_, _drv_notice_, "C2HPacketHandler_8723B(): Command Content:\n", tmpBuf, C2hEvent.CmdLen);
 	
-	process_c2h_event(padapter,&C2hEvent, tmpBuf);
+	process_c2h_event(padapter, &C2hEvent, tmpBuf);
 	//c2h_handler_8723b(padapter,&C2hEvent);
 	return;
 }
-#else
+
+void rtl8723b_c2h_packet_handler(PADAPTER padapter, u8 *pbuf, u16 length)
+{
+	C2H_EVT_HDR C2hEvent;
+	u8 *pdata;
+
+
+	if (length == 0)
+		return;
+
+	C2hEvent.CmdID = pbuf[0];
+	C2hEvent.CmdSeq = pbuf[1];
+	C2hEvent.CmdLen = length - 2;
+	pdata = pbuf + 2;
+
+	DBG_8192C("%s: C2H, ID=%d seq=%d len=%d\n",
+		__FUNCTION__, C2hEvent.CmdID, C2hEvent.CmdSeq, C2hEvent.CmdLen);
+
+	switch (C2hEvent.CmdID) {
+	case C2H_CCX_TX_RPT:
+#ifdef CONFIG_FW_C2H_DEBUG
+	case C2H_8723B_FW_DEBUG:
+#endif // CONFIG_FW_C2H_DEBUG
+		process_c2h_event(padapter, &C2hEvent, pdata);
+		break;
+
+	default:
+		pdata = rtw_zmalloc(length);
+		if (pdata == NULL)
+			break;
+		_rtw_memcpy(pdata, pbuf, length);
+		if (rtw_c2h_packet_wk_cmd(padapter, pdata, length) == _FAIL)
+			rtw_mfree(pdata, length);
+		break;
+	}
+}
+
+#else // !CONFIG_C2H_PACKET_EN
 //
 //C2H event format:
 // Field	 TRIGGER		CONTENT    CMD_SEQ	CMD_LEN 	 CMD_ID
@@ -6191,7 +6278,7 @@ static void C2HCommandHandler(PADAPTER padapter)
 	c2h_handler_8723b(padapter,&C2hEvent);
 	if (tmpBuf)
 		rtw_mfree(tmpBuf, C2hEvent.CmdLen);
-#endif
+#endif // CONFIG_SDIO_HCI || CONFIG_GSPI_HCI
 
 #ifdef CONFIG_USB_HCI
 	HAL_DATA_TYPE	*pHalData=GET_HAL_DATA(padapter);
@@ -6202,7 +6289,8 @@ static void C2HCommandHandler(PADAPTER padapter)
 	C2hEvent.CmdSeq =pHalData->C2hArray[USB_C2H_SEQ_OFFSET];
 	c2h_handler_8723b(padapter,(u8 *)&C2hEvent);
 	//process_c2h_event(padapter,&C2hEvent,&pHalData->C2hArray[USB_C2H_EVENT_OFFSET]);
-#endif
+#endif // CONFIG_USB_HCI
+
 	//REG_C2HEVT_CLEAR have done in process_c2h_event
 	return;
 exit:
@@ -6210,7 +6298,7 @@ exit:
 	return;
 }
 
-#endif
+#endif // !CONFIG_C2H_PACKET_EN
 
 void SetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val)
 {
@@ -6567,20 +6655,6 @@ _func_enter_;
 			rtw_write32(padapter, REG_RCR, rtw_read32(padapter, REG_RCR)|(RCR_CBSSID_DATA));
 			break;
 #endif //CONFIG_TDLS
-		case HW_VAR_INITIAL_GAIN:
-			{
-				DIG_T *pDigTable = &pHalData->odmpriv.DM_DigTable;
-				u32 rx_gain = *(u32*)val;
-
-				if (rx_gain == 0xff) {//restore rx gain
-					ODM_Write_DIG(&pHalData->odmpriv, pDigTable->BackupIGValue);
-				} else {
-					pDigTable->BackupIGValue = pDigTable->CurIGValue;
-					ODM_Write_DIG(&pHalData->odmpriv, rx_gain);
-				}
-			}
-			break;
-
 #ifdef CONFIG_SW_ANTENNA_DIVERSITY
 		case HW_VAR_ANTENNA_DIVERSITY_LINK:
 			//SwAntDivRestAfterLink8192C(padapter);
@@ -6720,16 +6794,13 @@ _func_enter_;
 				rtw_write8(padapter, REG_NAV_UPPER, (u8)usNavUpper);
 			}
 			break;
-			
+
 #ifndef CONFIG_C2H_PACKET_EN
 		case HW_VAR_C2H_HANDLE:
-					C2HCommandHandler(padapter);
-				break;
+			C2HCommandHandler(padapter);
+			break;
 #endif
 
-//		case HW_VAR_C2H_HANDLE:
-//			C2HCommandHandler(padapter);
-//			break;
 		case HW_VAR_H2C_MEDIA_STATUS_RPT:
 			{
 				u16	mstatus_rpt = (*(u16 *)val);
@@ -6795,41 +6866,73 @@ _func_enter_;
 			break;
 
 		case HW_VAR_MACID_SLEEP:
-			// Input is MACID
-			val32 = *(u32*)val;
-			if (val32 > 31) {
-				DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_SLEEP] Invalid macid(%d)\n",
-					FUNC_ADPT_ARG(padapter), val32);
+		{
+			u32 reg_macid_sleep;
+			u8 bit_shift;
+			u8 id = *(u8*)val;
+
+			if (id < 32) {
+				reg_macid_sleep = REG_MACID_SLEEP;
+				bit_shift = id;
+			} else if (id < 64) {
+				reg_macid_sleep = REG_MACID_SLEEP_1;
+				bit_shift = id-32;
+			} else if (id < 96) {
+				reg_macid_sleep = REG_MACID_SLEEP_2;
+				bit_shift = id-64;
+			} else if (id < 128) {
+				reg_macid_sleep = REG_MACID_SLEEP_3;
+				bit_shift = id-96;
+			} else {
+				rtw_warn_on(1);
 				break;
 			}
-			val8 = (u8)val32; // macid is between 0~31
 
-			val32 = rtw_read32(padapter, REG_MACID_SLEEP);
-			DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_SLEEP] macid=%d, org MACID_SLEEP=0x%08X\n",
-				FUNC_ADPT_ARG(padapter), val8, val32);
-			if (val32 & BIT(val8))
+			val32 = rtw_read32(padapter, reg_macid_sleep);
+			DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_SLEEP] macid=%d, org reg_0x%03x=0x%08X\n",
+				FUNC_ADPT_ARG(padapter), id, reg_macid_sleep, val32);
+
+			if (val32 & BIT(bit_shift))
 				break;
-			val32 |= BIT(val8);
-			rtw_write32(padapter, REG_MACID_SLEEP, val32);
+
+			val32 |= BIT(bit_shift);
+			rtw_write32(padapter, reg_macid_sleep, val32);
+		}
 			break;
 
 		case HW_VAR_MACID_WAKEUP:
-			// Input is MACID
-			val32 = *(u32*)val;
-			if (val32 > 31) {
-				DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_WAKEUP] Invalid macid(%d)\n",
-					FUNC_ADPT_ARG(padapter), val32);
+		{
+			u32 reg_macid_sleep;
+			u8 bit_shift;
+			u8 id = *(u8*)val;
+
+			if (id < 32) {
+				reg_macid_sleep = REG_MACID_SLEEP;
+				bit_shift = id;
+			} else if (id < 64) {
+				reg_macid_sleep = REG_MACID_SLEEP_1;
+				bit_shift = id-32;
+			} else if (id < 96) {
+				reg_macid_sleep = REG_MACID_SLEEP_2;
+				bit_shift = id-64;
+			} else if (id < 128) {
+				reg_macid_sleep = REG_MACID_SLEEP_3;
+				bit_shift = id-96;
+			} else {
+				rtw_warn_on(1);
 				break;
 			}
-			val8 = (u8)val32; // macid is between 0~31
 
-			val32 = rtw_read32(padapter, REG_MACID_SLEEP);
-			DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_WAKEUP] macid=%d, org MACID_SLEEP=0x%08X\n",
-				FUNC_ADPT_ARG(padapter), val8, val32);
-			if (!(val32 & BIT(val8)))
+			val32 = rtw_read32(padapter, reg_macid_sleep);
+			DBG_8192C(FUNC_ADPT_FMT ": [HW_VAR_MACID_WAKEUP] macid=%d, org reg_0x%03x=0x%08X\n",
+				FUNC_ADPT_ARG(padapter), id, reg_macid_sleep, val32);
+
+			if (!(val32 & BIT(bit_shift)))
 				break;
-			val32 &= ~BIT(val8);
-			rtw_write32(padapter, REG_MACID_SLEEP, val32);
+
+			val32 &= ~BIT(bit_shift);
+			rtw_write32(padapter, reg_macid_sleep, val32);
+		}
 			break;
 
 		default:
@@ -6838,6 +6941,74 @@ _func_enter_;
 	}
 
 _func_exit_;
+}
+
+struct qinfo_8723b {
+	u32 head:8;
+	u32 pkt_num:7;
+	u32 tail:8;
+	u32 ac:2;
+	u32 macid:7;
+};
+
+struct bcn_qinfo_8723b {
+	u16 head:8;
+	u16 pkt_num:8;
+};
+
+void dump_qinfo_8723b(void *sel, struct qinfo_8723b *info, const char *tag)
+{
+	//if (info->pkt_num)
+	DBG_871X_SEL_NL(sel, "%shead:0x%02x, tail:0x%02x, pkt_num:%u, macid:%u, ac:%u\n"
+		, tag ? tag : "", info->head, info->tail, info->pkt_num, info->macid, info->ac
+	);
+}
+
+void dump_bcn_qinfo_8723b(void *sel, struct bcn_qinfo_8723b *info, const char *tag)
+{
+	//if (info->pkt_num)
+	DBG_871X_SEL_NL(sel, "%shead:0x%02x, pkt_num:%u\n"
+		, tag ? tag : "", info->head, info->pkt_num
+	);
+}
+
+void dump_mac_qinfo_8723b(void *sel, _adapter *adapter)
+{
+	u32 q0_info;
+	u32 q1_info;
+	u32 q2_info;
+	u32 q3_info;
+	u32 q4_info;
+	u32 q5_info;
+	u32 q6_info;
+	u32 q7_info;
+	u32 mg_q_info;
+	u32 hi_q_info;
+	u16 bcn_q_info;
+
+	q0_info = rtw_read32(adapter, REG_Q0_INFO);
+	q1_info = rtw_read32(adapter, REG_Q1_INFO);
+	q2_info = rtw_read32(adapter, REG_Q2_INFO);
+	q3_info = rtw_read32(adapter, REG_Q3_INFO);
+	q4_info = rtw_read32(adapter, REG_Q4_INFO);
+	q5_info = rtw_read32(adapter, REG_Q5_INFO);
+	q6_info = rtw_read32(adapter, REG_Q6_INFO);
+	q7_info = rtw_read32(adapter, REG_Q7_INFO);
+	mg_q_info = rtw_read32(adapter, REG_MGQ_INFO);
+	hi_q_info = rtw_read32(adapter, REG_HGQ_INFO);
+	bcn_q_info = rtw_read16(adapter, REG_BCNQ_INFO);
+
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&q0_info, "Q0 ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&q1_info, "Q1 ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&q2_info, "Q2 ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&q3_info, "Q3 ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&q4_info, "Q4 ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&q5_info, "Q5 ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&q6_info, "Q6 ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&q7_info, "Q7 ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&mg_q_info, "MG ");
+	dump_qinfo_8723b(sel, (struct qinfo_8723b *)&hi_q_info, "HI ");
+	dump_bcn_qinfo_8723b(sel, (struct bcn_qinfo_8723b *)&bcn_q_info, "BCN ");
 }
 
 void GetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val)
@@ -6942,6 +7113,9 @@ void GetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val)
 			*val = rtw_read8(padapter, REG_SYS_CLKR);
 			break;
 #endif
+		case HW_VAR_DUMP_MAC_QUEUE_INFO:
+			dump_mac_qinfo_8723b(val, padapter);
+			break;
 		default:
 			GetHwReg(padapter, variable, val);
 			break;
@@ -6970,6 +7144,27 @@ u8 SetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval)
 
 	return bResult;
 }
+
+#ifdef CONFIG_C2H_PACKET_EN
+void SetHwRegWithBuf8723B(PADAPTER padapter, u8 variable, u8 *pbuf, int len)
+{
+	PHAL_DATA_TYPE pHalData;
+
+_func_enter_;
+
+	pHalData = GET_HAL_DATA(padapter);
+
+	switch (variable) {
+	case HW_VAR_C2H_HANDLE:
+		C2HPacketHandler_8723B(padapter, pbuf, len);
+		break;
+
+	default:
+		break;
+	}
+_func_exit_;
+}
+#endif // CONFIG_C2H_PACKET_EN
 
 /*
  *	Description: 
@@ -7080,7 +7275,9 @@ u8 GetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval)
 		case HAL_DEF_MACID_SLEEP:
 			*(u8*)pval = _TRUE; // support macid sleep
 			break;
-
+		case HAL_DEF_TX_PAGE_SIZE:
+			 *(( u32*)pval) = PAGE_SIZE_128;
+			break;
 		default:
 			bResult = GetHalDefVar(padapter, variable, pval);
 			break;

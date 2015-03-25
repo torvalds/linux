@@ -150,7 +150,7 @@ static int rk32_dsi_set_bits(struct dsi *dsi, u32 data, u32 reg)
 	val |= (data & bits) << offset;
 	rk32_dsi_write_reg(dsi, reg_addr, &val);
 
-	if(data > ((1 << (bits+1)) - 1)) {
+	if (data > ((1 << (bits+1)) - 1)) {
 		MIPI_TRACE("%s error reg_addr:0x%04x, offset:%d, bits:0x%04x, value:0x%04x\n",
 				__func__, reg_addr, offset, bits, data);
 	}
@@ -900,7 +900,7 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	rk32_dsi_set_bits(dsi, 4, outvact_lpcmd_time);
 	rk32_dsi_set_bits(dsi, 4, invact_lpcmd_time);
 	rk32_dsi_set_bits(dsi, 1, lp_cmd_en);
-	
+
 	rk32_dsi_set_bits(dsi, 20, phy_hs2lp_time);
 	rk32_dsi_set_bits(dsi, 16, phy_lp2hs_time);
 	/*
@@ -919,7 +919,7 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	/* rk32_dsi_set_bits(dsi, 1, frame_bta_ack_en); */
 	rk32_dsi_set_bits(dsi, 1, phy_enableclk);
 	rk32_dsi_set_bits(dsi, 0, phy_tx_triggers);
-	
+
 	/* enable non-continued function */
 	/* rk32_dsi_set_bits(dsi, 1, auto_clklane_ctrl); */
 	/*
@@ -1152,7 +1152,7 @@ static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 length
 			data = type;
 			data |= regs[2] << 8;	/* dcs command */
 			data |= regs[3] << 16;	/* parameter of command */
-			break;	
+			break;
 		}
 
 		/* The below is used for Generic Short WRITE Packet with 2 parameters
@@ -1393,7 +1393,7 @@ int reg_proc_read(struct seq_file *s, void *v)
 	int i = 0;
 	u32 val = 0;
 	struct dsi *dsi = s->private;
-	
+
 	for (i = VERSION; i < (VERSION + (0xdc << 16)); i += 4<<16) {
 		val = rk32_dsi_get_bits(dsi, i);
 		seq_printf(s, "%04x: %08x\n", i>>16, val);

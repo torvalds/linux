@@ -20,17 +20,6 @@
 #ifndef __RTL8723B_XMIT_H__
 #define __RTL8723B_XMIT_H__
 
-//
-// Queue Select Value in TxDesc
-//
-#define QSLT_BK							0x2//0x01
-#define QSLT_BE							0x0
-#define QSLT_VI							0x5//0x4
-#define QSLT_VO							0x7//0x6
-#define QSLT_BEACON						0x10
-#define QSLT_HIGH						0x11
-#define QSLT_MGNT						0x12
-#define QSLT_CMD						0x13
 
 #define MAX_TID (15)
 

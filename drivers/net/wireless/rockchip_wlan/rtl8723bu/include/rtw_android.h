@@ -88,7 +88,7 @@ int rtw_android_cfg80211_pno_setup(struct net_device *net,
 #if defined(RTW_ENABLE_WIFI_CONTROL_FUNC)
 int rtw_android_wifictrl_func_add(void);
 void rtw_android_wifictrl_func_del(void);
-void* rtw_wl_android_prealloc(int section, unsigned long size);
+void* wl_android_prealloc(int section, unsigned long size);
 
 int wifi_get_irq_number(unsigned long *irq_flags_ptr);
 int wifi_set_power(int on, unsigned long msec);
@@ -98,6 +98,14 @@ void *wifi_get_country_code(char *ccode);
 static int rtw_android_wifictrl_func_add(void) { return 0; }
 static void rtw_android_wifictrl_func_del(void) {}
 #endif /* defined(RTW_ENABLE_WIFI_CONTROL_FUNC) */
+
+#ifdef CONFIG_GPIO_WAKEUP
+#ifdef CONFIG_PLATFORM_INTEL_BYT
+int wifi_configure_gpio(void);
+#endif //CONFIG_PLATFORM_INTEL_BYT
+void wifi_free_gpio(unsigned int gpio);
+#endif //CONFIG_GPIO_WAKEUP
+
 
 #endif //__RTW_ANDROID_H__
 
