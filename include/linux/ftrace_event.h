@@ -13,6 +13,7 @@ struct trace_array;
 struct trace_buffer;
 struct tracer;
 struct dentry;
+struct bpf_prog;
 
 struct trace_print_flags {
 	unsigned long		mask;
@@ -306,6 +307,7 @@ struct ftrace_event_call {
 #ifdef CONFIG_PERF_EVENTS
 	int				perf_refcount;
 	struct hlist_head __percpu	*perf_events;
+	struct bpf_prog			*prog;
 
 	int	(*perf_perm)(struct ftrace_event_call *,
 			     struct perf_event *);
@@ -550,6 +552,15 @@ event_trigger_unlock_commit_regs(struct ftrace_event_file *file,
 	if (tt)
 		event_triggers_post_call(file, tt);
 }
+
+#ifdef CONFIG_BPF_SYSCALL
+unsigned int trace_call_bpf(struct bpf_prog *prog, void *ctx);
+#else
+static inline unsigned int trace_call_bpf(struct bpf_prog *prog, void *ctx)
+{
+	return 1;
+}
+#endif
 
 enum {
 	FILTER_OTHER = 0,
