@@ -974,6 +974,22 @@ static void pnv_pci_ioda_setup_PEs(void)
 	}
 }
 
+#ifdef CONFIG_PCI_IOV
+int pcibios_sriov_disable(struct pci_dev *pdev)
+{
+	/* Release PCI data */
+	remove_dev_pci_data(pdev);
+	return 0;
+}
+
+int pcibios_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
+{
+	/* Allocate PCI data */
+	add_dev_pci_data(pdev);
+	return 0;
+}
+#endif /* CONFIG_PCI_IOV */
+
 static void pnv_pci_ioda_dma_dev_setup(struct pnv_phb *phb, struct pci_dev *pdev)
 {
 	struct pci_dn *pdn = pci_get_pdn(pdev);

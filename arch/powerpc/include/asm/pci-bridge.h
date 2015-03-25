@@ -156,6 +156,7 @@ struct iommu_table;
 
 struct pci_dn {
 	int     flags;
+#define PCI_DN_FLAG_IOV_VF	0x01
 
 	int	busno;			/* pci bus number */
 	int	devfn;			/* pci device and function number */
@@ -188,6 +189,8 @@ struct pci_dn {
 extern struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
 					   int devfn);
 extern struct pci_dn *pci_get_pdn(struct pci_dev *pdev);
+extern struct pci_dn *add_dev_pci_data(struct pci_dev *pdev);
+extern void remove_dev_pci_data(struct pci_dev *pdev);
 extern void *update_dn_pci_info(struct device_node *dn, void *data);
 
 static inline int pci_device_from_OF_node(struct device_node *np,
