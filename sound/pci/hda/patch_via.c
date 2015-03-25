@@ -107,6 +107,8 @@ struct via_spec {
 	/* work to check hp jack state */
 	int hp_work_active;
 	int vt1708_jack_detect;
+
+	unsigned int beep_amp;
 };
 
 static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec);
@@ -266,6 +268,59 @@ static const struct snd_kcontrol_new via_pin_power_ctl_enum[] = {
 	{} /* terminator */
 };
 
+#ifdef CONFIG_SND_HDA_INPUT_BEEP
+static inline void set_beep_amp(struct via_spec *spec, hda_nid_t nid,
+				int idx, int dir)
+{
+	spec->gen.beep_nid = nid;
+	spec->beep_amp = HDA_COMPOSE_AMP_VAL(nid, 1, idx, dir);
+}
+
+/* additional beep mixers; the actual parameters are overwritten at build */
+static const struct snd_kcontrol_new cxt_beep_mixer[] = {
+	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0, 1, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_BEEP_MONO("Beep Playback Switch", 0, 1, 0, HDA_OUTPUT),
+	{ } /* end */
+};
+
+/* create beep controls if needed */
+static int add_beep_ctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	int err;
+
+	if (spec->beep_amp) {
+		const struct snd_kcontrol_new *knew;
+		for (knew = cxt_beep_mixer; knew->name; knew++) {
+			struct snd_kcontrol *kctl;
+			kctl = snd_ctl_new1(knew, codec);
+			if (!kctl)
+				return -ENOMEM;
+			kctl->private_value = spec->beep_amp;
+			err = snd_hda_ctl_add(codec, 0, kctl);
+			if (err < 0)
+				return err;
+		}
+	}
+	return 0;
+}
+
+static void auto_parse_beep(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	hda_nid_t nid;
+
+	for_each_hda_codec_node(nid, codec)
+		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP) {
+			set_beep_amp(spec, nid, 0, HDA_OUTPUT);
+			break;
+		}
+}
+#else
+#define set_beep_amp(spec, nid, idx, dir) /* NOP */
+#define add_beep_ctls(codec)	0
+#define auto_parse_beep(codec)
+#endif
 
 /* check AA path's mute status */
 static bool is_aa_path_mute(struct hda_codec *codec)
@@ -349,6 +404,10 @@ static int via_build_controls(struct hda_codec *codec)
 	int err, i;
 
 	err = snd_hda_gen_build_controls(codec);
+	if (err < 0)
+		return err;
+
+	err = add_beep_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -511,6 +570,8 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, NULL, 0);
 	if (err < 0)
 		return err;
+
+	auto_parse_beep(codec);
 
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
