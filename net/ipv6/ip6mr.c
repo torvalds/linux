@@ -252,7 +252,7 @@ static int __net_init ip6mr_rules_init(struct net *net)
 	return 0;
 
 err2:
-	kfree(mrt);
+	ip6mr_free_table(mrt);
 err1:
 	fib_rules_unregister(ops);
 	return err;
