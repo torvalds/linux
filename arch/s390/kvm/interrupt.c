@@ -585,6 +585,8 @@ static int __must_check __deliver_prog(struct kvm_vcpu *vcpu)
 		kvm_s390_rewind_psw(vcpu, ilc);
 
 	rc |= put_guest_lc(vcpu, ilc, (u16 *) __LC_PGM_ILC);
+	rc |= put_guest_lc(vcpu, vcpu->arch.sie_block->gbea,
+				 (u64 *) __LC_LAST_BREAK);
 	rc |= put_guest_lc(vcpu, pgm_info.code,
 			   (u16 *)__LC_PGM_INT_CODE);
 	rc |= write_guest_lc(vcpu, __LC_PGM_OLD_PSW,
