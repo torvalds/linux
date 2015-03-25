@@ -4295,8 +4295,8 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 	if (dev_priv->rps.min_freq_softlimit == 0) {
 		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 			dev_priv->rps.min_freq_softlimit =
-				/* max(RPe, 450 MHz) */
-				max(dev_priv->rps.efficient_freq, (u8) 9);
+				max_t(int, dev_priv->rps.efficient_freq,
+				      intel_freq_opcode(dev_priv, 450));
 		else
 			dev_priv->rps.min_freq_softlimit =
 				dev_priv->rps.min_freq;
