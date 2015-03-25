@@ -330,7 +330,7 @@ BOOLEAN	issue_ht_ndpa_packet(PADAPTER Adapter, u8 *ra, CHANNEL_WIDTH bw, u8 qidx
 	update_mgntframe_attrib(Adapter, pattrib);
 
 	if (qidx == BCN_QUEUE_INX)
-		pattrib->qsel = 0x10;
+		pattrib->qsel = QSLT_BEACON;
 	pattrib->rate = MGN_MCS8;
 	pattrib->bwmode = bw;
 	pattrib->order = 1;
@@ -412,7 +412,7 @@ BOOLEAN	issue_vht_ndpa_packet(PADAPTER Adapter, u8 *ra, u16 aid, CHANNEL_WIDTH b
 	update_mgntframe_attrib(Adapter, pattrib);
 
 	if (qidx == BCN_QUEUE_INX)
-		pattrib->qsel = 0x10;
+		pattrib->qsel = QSLT_BEACON;
 	pattrib->rate = MGN_VHT2SS_MCS0;
 	pattrib->bwmode = bw;
 	pattrib->subtype = WIFI_NDPA;

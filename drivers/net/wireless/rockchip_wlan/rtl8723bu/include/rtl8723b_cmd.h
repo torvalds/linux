@@ -80,6 +80,8 @@ enum h2c_cmd_8723B{
 	H2C_8723B_D0_SCAN_OFFLOAD_CTRL = 0x85,
 	H2C_8723B_D0_SCAN_OFFLOAD_INFO = 0x86,
 	H2C_8723B_CHNL_SWITCH_OFFLOAD = 0x87,
+	H2C_8723B_P2P_OFFLOAD_RSVD_PAGE = 0x8A,	
+	H2C_8723B_P2P_OFFLOAD = 0x8B,
 
 	H2C_8723B_RESET_TSF = 0xC0,
 	H2C_8723B_MAXID,
@@ -354,12 +356,16 @@ void rtl8723b_set_ap_wowlan_cmd(_adapter* padapter, u8 enable);
 void SetFwRelatedForWoWLAN8723b(_adapter* padapter, u8 bHostIsGoingtoSleep);
 #endif//CONFIG_WOWLAN
 
+#ifdef CONFIG_P2P_WOWLAN
+void rtl8723b_set_p2p_wowlan_offload_cmd(PADAPTER padapter);
+#endif
+
 void rtl8723b_set_FwPwrModeInIPS_cmd(PADAPTER padapter, u8 cmd_param);
 
 #ifdef CONFIG_TSF_RESET_OFFLOAD
 u8 rtl8723b_reset_tsf(_adapter *padapter, u8 reset_port);
 #endif	// CONFIG_TSF_RESET_OFFLOAD
 s32 FillH2CCmd8723B(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
-
-#define FillH2CCmd FillH2CCmd8723B
+u8 GetTxBufferRsvdPageNum8723B(_adapter *padapter, bool wowlan);
 #endif
+

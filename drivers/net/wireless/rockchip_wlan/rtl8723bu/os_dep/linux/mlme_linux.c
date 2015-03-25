@@ -464,11 +464,7 @@ static int mgnt_netdev_open(struct net_device *pnetdev)
 
 	init_usb_anchor(&phostapdpriv->anchored);
 	
-	if(!rtw_netif_queue_stopped(pnetdev))
-		rtw_netif_start_queue(pnetdev);
-	else
-		rtw_netif_wake_queue(pnetdev);
-
+	rtw_netif_wake_queue(pnetdev);
 
 	netif_carrier_on(pnetdev);
 		
@@ -486,9 +482,8 @@ static int mgnt_netdev_close(struct net_device *pnetdev)
 
 	netif_carrier_off(pnetdev);
 
-	if (!rtw_netif_queue_stopped(pnetdev))
-		rtw_netif_stop_queue(pnetdev);
-	
+	rtw_netif_stop_queue(pnetdev);
+
 	//rtw_write16(phostapdpriv->padapter, 0x0116, 0x3f3f);
 	
 	return 0;	
