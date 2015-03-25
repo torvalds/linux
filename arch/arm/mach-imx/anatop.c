@@ -82,10 +82,10 @@ static inline void imx_anatop_disconnect_high_snvs(bool enable)
 void imx_anatop_pre_suspend(void)
 {
 	if (cpu_is_imx7d()) {
-		/* PLL overwrite set */
+		/* PLL and PFDs overwrite set */
 		regmap_write(anatop, ANADIG_ARM_PLL + REG_SET, 1 << 20);
 		regmap_write(anatop, ANADIG_DDR_PLL + REG_SET, 1 << 19);
-		regmap_write(anatop, ANADIG_SYS_PLL + REG_SET, 1 << 17);
+		regmap_write(anatop, ANADIG_SYS_PLL + REG_SET, 0x1ff << 17);
 		regmap_write(anatop, ANADIG_ENET_PLL + REG_SET, 1 << 13);
 		regmap_write(anatop, ANADIG_AUDIO_PLL + REG_SET, 1 << 24);
 		regmap_write(anatop, ANADIG_VIDEO_PLL + REG_SET, 1 << 24);
@@ -106,10 +106,10 @@ void imx_anatop_pre_suspend(void)
 void imx_anatop_post_resume(void)
 {
 	if (cpu_is_imx7d()) {
-		/* PLL overwrite set */
+		/* PLL and PFDs overwrite clear */
 		regmap_write(anatop, ANADIG_ARM_PLL + REG_CLR, 1 << 20);
 		regmap_write(anatop, ANADIG_DDR_PLL + REG_CLR, 1 << 19);
-		regmap_write(anatop, ANADIG_SYS_PLL + REG_CLR, 1 << 17);
+		regmap_write(anatop, ANADIG_SYS_PLL + REG_CLR, 0x1ff << 17);
 		regmap_write(anatop, ANADIG_ENET_PLL + REG_CLR, 1 << 13);
 		regmap_write(anatop, ANADIG_AUDIO_PLL + REG_CLR, 1 << 24);
 		regmap_write(anatop, ANADIG_VIDEO_PLL + REG_CLR, 1 << 24);
