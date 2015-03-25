@@ -133,11 +133,12 @@ void nfs_evict_inode(struct inode *inode)
 	nfs_clear_inode(inode);
 }
 
-static int nfs_sync_inode(struct inode *inode)
+int nfs_sync_inode(struct inode *inode)
 {
 	nfs_inode_dio_wait(inode);
 	return nfs_wb_all(inode);
 }
+EXPORT_SYMBOL_GPL(nfs_sync_inode);
 
 /**
  * nfs_sync_mapping - helper to flush all mmapped dirty data to disk
