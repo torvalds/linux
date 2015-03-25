@@ -10,7 +10,7 @@ extern seqlock_t jiffies_lock;
 
 #define CS_NAME_LEN	32
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BUILD
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
 
 #define TICK_DO_TIMER_NONE	-1
 #define TICK_DO_TIMER_BOOT	-2
@@ -167,7 +167,7 @@ static inline int tick_device_is_functional(struct clock_event_device *dev)
 
 int __clockevents_update_freq(struct clock_event_device *dev, u32 freq);
 
-#endif
+#endif /* GENERIC_CLOCKEVENTS */
 
 extern void do_timer(unsigned long ticks);
 extern void update_wall_time(void);

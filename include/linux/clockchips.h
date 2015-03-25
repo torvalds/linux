@@ -22,7 +22,7 @@ enum clock_event_nofitiers {
 	CLOCK_EVT_NOTIFY_CPU_DEAD,
 };
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BUILD
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
 
 #include <linux/clocksource.h>
 #include <linux/cpumask.h>
@@ -229,13 +229,9 @@ static inline int tick_check_broadcast_expired(void) { return 0; }
 static inline void tick_setup_hrtimer_broadcast(void) {};
 #endif
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
 extern int clockevents_notify(unsigned long reason, void *arg);
-#else
-static inline int clockevents_notify(unsigned long reason, void *arg) { return 0; }
-#endif
 
-#else /* CONFIG_GENERIC_CLOCKEVENTS_BUILD */
+#else /* CONFIG_GENERIC_CLOCKEVENTS */
 
 static inline void clockevents_suspend(void) {}
 static inline void clockevents_resume(void) {}
@@ -243,6 +239,7 @@ static inline void clockevents_resume(void) {}
 static inline int clockevents_notify(unsigned long reason, void *arg) { return 0; }
 static inline int tick_check_broadcast_expired(void) { return 0; }
 static inline void tick_setup_hrtimer_broadcast(void) {};
+static inline int clockevents_notify(unsigned long reason, void *arg) { return 0; }
 
 #endif
 
