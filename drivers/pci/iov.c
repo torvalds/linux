@@ -46,6 +46,30 @@ static inline void pci_iov_set_numvfs(struct pci_dev *dev, int nr_virtfn)
 	pci_read_config_word(dev, iov->pos + PCI_SRIOV_VF_STRIDE, &iov->stride);
 }
 
+/*
+ * The PF consumes one bus number.  NumVFs, First VF Offset, and VF Stride
+ * determine how many additional bus numbers will be consumed by VFs.
+ *
+ * Iterate over all valid NumVFs and calculate the maximum number of bus
+ * numbers that could ever be required.
+ */
+static inline u8 virtfn_max_buses(struct pci_dev *dev)
+{
+	struct pci_sriov *iov = dev->sriov;
+	int nr_virtfn;
+	u8 max = 0;
+	u8 busnr;
+
+	for (nr_virtfn = 1; nr_virtfn <= iov->total_VFs; nr_virtfn++) {
+		pci_iov_set_numvfs(dev, nr_virtfn);
+		busnr = virtfn_bus(dev, nr_virtfn - 1);
+		if (busnr > max)
+			max = busnr;
+	}
+
+	return max;
+}
+
 static struct pci_bus *virtfn_add_bus(struct pci_bus *bus, int busnr)
 {
 	struct pci_bus *child;
@@ -427,6 +451,7 @@ found:
 
 	dev->sriov = iov;
 	dev->is_physfn = 1;
+	iov->max_VF_buses = virtfn_max_buses(dev);
 
 	return 0;
 
@@ -556,15 +581,13 @@ void pci_restore_iov_state(struct pci_dev *dev)
 int pci_iov_bus_range(struct pci_bus *bus)
 {
 	int max = 0;
-	u8 busnr;
 	struct pci_dev *dev;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (!dev->is_physfn)
 			continue;
-		busnr = virtfn_bus(dev, dev->sriov->total_VFs - 1);
-		if (busnr > max)
-			max = busnr;
+		if (dev->sriov->max_VF_buses > max)
+			max = dev->sriov->max_VF_buses;
 	}
 
 	return max ? max - bus->number : 0;
