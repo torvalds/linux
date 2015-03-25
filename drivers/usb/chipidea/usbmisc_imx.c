@@ -274,7 +274,6 @@ static int usbmisc_imx6sx_init(struct imx_usbmisc_data *data)
 	unsigned long flags;
 	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
 	u32 val;
-	int ret = 0;
 
 	usbmisc_imx6q_init(data);
 
@@ -294,7 +293,7 @@ static int usbmisc_imx6sx_init(struct imx_usbmisc_data *data)
 		spin_unlock_irqrestore(&usbmisc->lock, flags);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int usbmisc_vf610_init(struct imx_usbmisc_data *data)
