@@ -920,8 +920,6 @@ int __mmc_claim_host(struct mmc_host *host, atomic_t *abort)
 		wake_up(&host->wq);
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
-	if (host->ops->enable && !stop && host->claim_cnt == 1)
-		host->ops->enable(host);
 	return stop;
 }
 
@@ -939,9 +937,6 @@ void mmc_release_host(struct mmc_host *host)
 	unsigned long flags;
 
 	WARN_ON(!host->claimed);
-
-	if (host->ops->disable && host->claim_cnt == 1)
-		host->ops->disable(host);
 
 	spin_lock_irqsave(&host->lock, flags);
 	if (--host->claim_cnt) {
