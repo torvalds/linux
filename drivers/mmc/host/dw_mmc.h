@@ -171,22 +171,22 @@
 
 /* Register access macros */
 #define mci_readl(dev, reg)			\
-	__raw_readl((dev)->regs + SDMMC_##reg)
+	readl_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writel(dev, reg, value)			\
-	__raw_writel((value), (dev)->regs + SDMMC_##reg)
+	writel_relaxed((value), (dev)->regs + SDMMC_##reg)
 
 /* 16-bit FIFO access macros */
 #define mci_readw(dev, reg)			\
-	__raw_readw((dev)->regs + SDMMC_##reg)
+	readw_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writew(dev, reg, value)			\
-	__raw_writew((value), (dev)->regs + SDMMC_##reg)
+	writew_relaxed((value), (dev)->regs + SDMMC_##reg)
 
 /* 64-bit FIFO access macros */
 #ifdef readq
 #define mci_readq(dev, reg)			\
-	__raw_readq((dev)->regs + SDMMC_##reg)
+	readq_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writeq(dev, reg, value)			\
-	__raw_writeq((value), (dev)->regs + SDMMC_##reg)
+	writeq_relaxed((value), (dev)->regs + SDMMC_##reg)
 #else
 /*
  * Dummy readq implementation for architectures that don't define it.
