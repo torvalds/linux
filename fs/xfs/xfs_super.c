@@ -1380,7 +1380,7 @@ xfs_init_percpu_counters(
 
 	error = percpu_counter_init(&mp->m_icount, 0, GFP_KERNEL);
 	if (error)
-		return ENOMEM;
+		return -ENOMEM;
 
 	error = percpu_counter_init(&mp->m_ifree, 0, GFP_KERNEL);
 	if (error)

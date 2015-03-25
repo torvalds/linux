@@ -244,30 +244,6 @@ xfs_bmap_forkoff_reset(
 	}
 }
 
-/*
- * Debug/sanity checking code
- */
-
-STATIC int
-xfs_bmap_sanity_check(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp,
-	int			level)
-{
-	struct xfs_btree_block  *block = XFS_BUF_TO_BLOCK(bp);
-
-	if (block->bb_magic != cpu_to_be32(XFS_BMAP_CRC_MAGIC) &&
-	    block->bb_magic != cpu_to_be32(XFS_BMAP_MAGIC))
-		return 0;
-
-	if (be16_to_cpu(block->bb_level) != level ||
-	    be16_to_cpu(block->bb_numrecs) == 0 ||
-	    be16_to_cpu(block->bb_numrecs) > mp->m_bmap_dmxr[level != 0])
-		return 0;
-
-	return 1;
-}
-
 #ifdef DEBUG
 STATIC struct xfs_buf *
 xfs_bmap_get_bp(
@@ -410,9 +386,6 @@ xfs_bmap_check_leaf_extents(
 				goto error_norelse;
 		}
 		block = XFS_BUF_TO_BLOCK(bp);
-		XFS_WANT_CORRUPTED_GOTO(mp,
-			xfs_bmap_sanity_check(mp, bp, level),
-			error0);
 		if (level == 0)
 			break;
 
@@ -1312,8 +1285,6 @@ xfs_bmap_read_extents(
 		if (error)
 			return error;
 		block = XFS_BUF_TO_BLOCK(bp);
-		XFS_WANT_CORRUPTED_GOTO(mp,
-			xfs_bmap_sanity_check(mp, bp, level), error0);
 		if (level == 0)
 			break;
 		pp = XFS_BMBT_PTR_ADDR(mp, block, 1, mp->m_bmap_dmxr[1]);
@@ -1346,9 +1317,6 @@ xfs_bmap_read_extents(
 				XFS_ERRLEVEL_LOW, ip->i_mount, block);
 			goto error0;
 		}
-		XFS_WANT_CORRUPTED_GOTO(mp,
-			xfs_bmap_sanity_check(mp, bp, 0),
-			error0);
 		/*
 		 * Read-ahead the next leaf block, if any.
 		 */

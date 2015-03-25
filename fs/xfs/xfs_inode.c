@@ -2911,8 +2911,8 @@ xfs_rename(
 	struct xfs_inode	*wip = NULL;		/* whiteout inode */
 	struct xfs_inode	*inodes[__XFS_SORT_INODES];
 	int			num_inodes = __XFS_SORT_INODES;
-	int			new_parent = (src_dp != target_dp);
-	int			src_is_directory = S_ISDIR(src_ip->i_d.di_mode);
+	bool			new_parent = (src_dp != target_dp);
+	bool			src_is_directory = S_ISDIR(src_ip->i_d.di_mode);
 	int			cancel_flags = 0;
 	int			spaceres;
 	int			error;

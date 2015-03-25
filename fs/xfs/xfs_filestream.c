@@ -322,7 +322,7 @@ xfs_filestream_lookup_ag(
 
 	pip = xfs_filestream_get_parent(ip);
 	if (!pip)
-		goto out;
+		return NULLAGNUMBER;
 
 	mru = xfs_mru_cache_lookup(mp->m_filestream, pip->i_ino);
 	if (mru) {
