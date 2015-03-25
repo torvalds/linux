@@ -2252,7 +2252,7 @@ static int isp_probe(struct platform_device *pdev)
 
 	ret = dma_coerce_mask_and_coherent(isp->dev, DMA_BIT_MASK(32));
 	if (ret)
-		return ret;
+		goto error;
 
 	platform_set_drvdata(pdev, isp);
 
