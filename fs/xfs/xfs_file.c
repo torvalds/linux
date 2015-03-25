@@ -816,6 +816,11 @@ xfs_file_write_iter(
 	return ret;
 }
 
+#define	XFS_FALLOC_FL_SUPPORTED						\
+		(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |		\
+		 FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE |	\
+		 FALLOC_FL_INSERT_RANGE)
+
 STATIC long
 xfs_file_fallocate(
 	struct file		*file,
@@ -829,11 +834,11 @@ xfs_file_fallocate(
 	enum xfs_prealloc_flags	flags = 0;
 	uint			iolock = XFS_IOLOCK_EXCL;
 	loff_t			new_size = 0;
+	bool			do_file_insert = 0;
 
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
-	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
-		     FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_ZERO_RANGE))
+	if (mode & ~XFS_FALLOC_FL_SUPPORTED)
 		return -EOPNOTSUPP;
 
 	xfs_ilock(ip, iolock);
@@ -867,6 +872,27 @@ xfs_file_fallocate(
 		error = xfs_collapse_file_space(ip, offset, len);
 		if (error)
 			goto out_unlock;
+	} else if (mode & FALLOC_FL_INSERT_RANGE) {
+		unsigned blksize_mask = (1 << inode->i_blkbits) - 1;
+
+		new_size = i_size_read(inode) + len;
+		if (offset & blksize_mask || len & blksize_mask) {
+			error = -EINVAL;
+			goto out_unlock;
+		}
+
+		/* check the new inode size does not wrap through zero */
+		if (new_size > inode->i_sb->s_maxbytes) {
+			error = -EFBIG;
+			goto out_unlock;
+		}
+
+		/* Offset should be less than i_size */
+		if (offset >= i_size_read(inode)) {
+			error = -EINVAL;
+			goto out_unlock;
+		}
+		do_file_insert = 1;
 	} else {
 		flags |= XFS_PREALLOC_SET;
 
@@ -901,7 +927,18 @@ xfs_file_fallocate(
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
 		error = xfs_setattr_size(ip, &iattr);
+		if (error)
+			goto out_unlock;
 	}
+
+	/*
+	 * Perform hole insertion now that the file size has been
+	 * updated so that if we crash during the operation we don't
+	 * leave shifted extents past EOF and hence losing access to
+	 * the data that is contained within them.
+	 */
+	if (do_file_insert)
+		error = xfs_insert_file_space(ip, offset, len);
 
 out_unlock:
 	xfs_iunlock(ip, iolock);
