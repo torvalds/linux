@@ -260,7 +260,7 @@ static void odm_RateDecision_8188E(struct odm_dm_struct *dm_odm,
 		struct odm_ra_info *pRaInfo
 	)
 {
-	u8 RateID = 0, RtyPtID = 0, PenaltyID1 = 0, PenaltyID2 = 0;
+	u8 RateID = 0, RtyPtID = 0, PenaltyID1 = 0, PenaltyID2 = 0, i = 0;
 	/* u32 pool_retry; */
 	static u8 DynamicTxRPTTimingCounter;
 
@@ -286,14 +286,14 @@ static void odm_RateDecision_8188E(struct odm_dm_struct *dm_odm,
 
 		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 			     (" NscDown init is %d\n", pRaInfo->NscDown));
-		pRaInfo->NscDown += pRaInfo->RTY[0] * RETRY_PENALTY[PenaltyID1][0];
-		pRaInfo->NscDown += pRaInfo->RTY[1] * RETRY_PENALTY[PenaltyID1][1];
-		pRaInfo->NscDown += pRaInfo->RTY[2] * RETRY_PENALTY[PenaltyID1][2];
-		pRaInfo->NscDown += pRaInfo->RTY[3] * RETRY_PENALTY[PenaltyID1][3];
-		pRaInfo->NscDown += pRaInfo->RTY[4] * RETRY_PENALTY[PenaltyID1][4];
+
+		for (i = 0 ; i <= 4 ; i++)
+			pRaInfo->NscDown += pRaInfo->RTY[i] * RETRY_PENALTY[PenaltyID1][i];
+
 		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
-			     (" NscDown is %d, total*penalty[5] is %d\n",
-			     pRaInfo->NscDown, (pRaInfo->TOTAL * RETRY_PENALTY[PenaltyID1][5])));
+			     (" NscDown is %d, total*penalty[5] is %d\n", pRaInfo->NscDown,
+			      (pRaInfo->TOTAL * RETRY_PENALTY[PenaltyID1][5])));
+
 		if (pRaInfo->NscDown > (pRaInfo->TOTAL * RETRY_PENALTY[PenaltyID1][5]))
 			pRaInfo->NscDown -= pRaInfo->TOTAL * RETRY_PENALTY[PenaltyID1][5];
 		else
@@ -303,14 +303,14 @@ static void odm_RateDecision_8188E(struct odm_dm_struct *dm_odm,
 		PenaltyID2 = RETRY_PENALTY_UP_IDX[RateID];
 		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 			     (" NscUp init is %d\n", pRaInfo->NscUp));
-		pRaInfo->NscUp += pRaInfo->RTY[0] * RETRY_PENALTY[PenaltyID2][0];
-		pRaInfo->NscUp += pRaInfo->RTY[1] * RETRY_PENALTY[PenaltyID2][1];
-		pRaInfo->NscUp += pRaInfo->RTY[2] * RETRY_PENALTY[PenaltyID2][2];
-		pRaInfo->NscUp += pRaInfo->RTY[3] * RETRY_PENALTY[PenaltyID2][3];
-		pRaInfo->NscUp += pRaInfo->RTY[4] * RETRY_PENALTY[PenaltyID2][4];
+
+		for (i = 0 ; i <= 4 ; i++)
+			pRaInfo->NscUp += pRaInfo->RTY[i] * RETRY_PENALTY[PenaltyID2][i];
+
 		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 			     ("NscUp is %d, total*up[5] is %d\n",
 			     pRaInfo->NscUp, (pRaInfo->TOTAL * RETRY_PENALTY[PenaltyID2][5])));
+
 		if (pRaInfo->NscUp > (pRaInfo->TOTAL * RETRY_PENALTY[PenaltyID2][5]))
 			pRaInfo->NscUp -= pRaInfo->TOTAL * RETRY_PENALTY[PenaltyID2][5];
 		else
