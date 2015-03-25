@@ -13,6 +13,7 @@
 #ifndef _LINUX_PROPERTY_H_
 #define _LINUX_PROPERTY_H_
 
+#include <linux/fwnode.h>
 #include <linux/types.h>
 
 struct device;
@@ -39,16 +40,6 @@ int device_property_read_string_array(struct device *dev, const char *propname,
 				      const char **val, size_t nval);
 int device_property_read_string(struct device *dev, const char *propname,
 				const char **val);
-
-enum fwnode_type {
-	FWNODE_INVALID = 0,
-	FWNODE_OF,
-	FWNODE_ACPI,
-};
-
-struct fwnode_handle {
-	enum fwnode_type type;
-};
 
 bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname);
 int fwnode_property_read_u8_array(struct fwnode_handle *fwnode,

@@ -17,6 +17,8 @@
 
 enum of_gpio_flags;
 
+struct acpi_device;
+
 /**
  * struct acpi_gpio_info - ACPI GPIO specific information
  * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
