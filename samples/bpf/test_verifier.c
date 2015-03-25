@@ -689,7 +689,7 @@ static int test(void)
 
 		prog_fd = bpf_prog_load(BPF_PROG_TYPE_UNSPEC, prog,
 					prog_len * sizeof(struct bpf_insn),
-					"GPL");
+					"GPL", 0);
 
 		if (tests[i].result == ACCEPT) {
 			if (prog_fd < 0) {
