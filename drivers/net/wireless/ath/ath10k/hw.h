@@ -78,6 +78,9 @@ enum qca6174_chip_id_rev {
 /* added support for ATH10K_FW_IE_WMI_OP_VERSION */
 #define ATH10K_FW_API4_FILE		"firmware-4.bin"
 
+/* HTT id conflict fix for management frames over HTT */
+#define ATH10K_FW_API5_FILE		"firmware-5.bin"
+
 #define ATH10K_FW_UTF_FILE		"utf.bin"
 
 /* includes also the null byte */
