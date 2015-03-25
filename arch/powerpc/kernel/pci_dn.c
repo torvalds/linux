@@ -217,6 +217,19 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 	struct pci_dn *pdn, *tmp;
 	int i;
 
+	/*
+	 * VF and VF PE are created/released dynamically, so we need to
+	 * bind/unbind them.  Otherwise the VF and VF PE would be mismatched
+	 * when re-enabling SR-IOV.
+	 */
+	if (pdev->is_virtfn) {
+		pdn = pci_get_pdn(pdev);
+#ifdef CONFIG_PPC_POWERNV
+		pdn->pe_number = IODA_INVALID_PE;
+#endif
+		return;
+	}
+
 	/* Only support IOV PF for now */
 	if (!pdev->is_physfn)
 		return;

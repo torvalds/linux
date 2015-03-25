@@ -180,6 +180,10 @@ struct pci_dn {
 	int	pe_number;
 #ifdef CONFIG_PCI_IOV
 	u16     vfs_expanded;		/* number of VFs IOV BAR expanded */
+	u16     num_vfs;		/* number of VFs enabled*/
+	int     offset;			/* PE# for the first VF PE */
+#define IODA_INVALID_M64        (-1)
+	int     m64_wins[PCI_SRIOV_NUM_BARS];
 #endif /* CONFIG_PCI_IOV */
 #endif
 	struct list_head child_list;
