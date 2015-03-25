@@ -36,7 +36,7 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 
 	down(&ieee->wx_sem);
 
-	if(ieee->iw_mode == IW_MODE_INFRA){
+	if (ieee->iw_mode == IW_MODE_INFRA) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -148,12 +148,12 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 
 	down(&ieee->wx_sem);
 	/* use ifconfig hw ether */
-	if (ieee->iw_mode == IW_MODE_MASTER){
+	if (ieee->iw_mode == IW_MODE_MASTER) {
 		ret = -1;
 		goto out;
 	}
 
-	if (temp->sa_family != ARPHRD_ETHER){
+	if (temp->sa_family != ARPHRD_ETHER) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -369,7 +369,7 @@ int ieee80211_wx_set_scan(struct ieee80211_device *ieee, struct iw_request_info 
 
 	down(&ieee->wx_sem);
 
-	if (ieee->iw_mode == IW_MODE_MONITOR || !(ieee->proto_started)){
+	if (ieee->iw_mode == IW_MODE_MONITOR || !(ieee->proto_started)) {
 		ret = -1;
 		goto out;
 	}
@@ -400,12 +400,12 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 
 	proto_started = ieee->proto_started;
 
-	if (wrqu->essid.length > IW_ESSID_MAX_SIZE){
+	if (wrqu->essid.length > IW_ESSID_MAX_SIZE) {
 		ret= -E2BIG;
 		goto out;
 	}
 
-	if (ieee->iw_mode == IW_MODE_MONITOR){
+	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		ret= -1;
 		goto out;
 	}
@@ -471,7 +471,7 @@ EXPORT_SYMBOL(ieee80211_wx_get_mode);
 
 	if (ieee->iw_mode == IW_MODE_MONITOR)
 	{
-		if(prev == 0 && ieee->raw_tx){
+		if (prev == 0 && ieee->raw_tx) {
 			if (ieee->data_hard_resume)
 				ieee->data_hard_resume(ieee->dev);
 
@@ -522,7 +522,7 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 	int ret = 0;
 	down(&ieee->wx_sem);
 
-	if (wrqu->power.disabled){
+	if (wrqu->power.disabled) {
 		ieee->ps = IEEE80211_PS_DISABLED;
 		goto exit;
 	}
@@ -572,7 +572,7 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 {
 	down(&ieee->wx_sem);
 
-	if(ieee->ps == IEEE80211_PS_DISABLED){
+	if (ieee->ps == IEEE80211_PS_DISABLED) {
 		wrqu->power.disabled = 1;
 		goto exit;
 	}
