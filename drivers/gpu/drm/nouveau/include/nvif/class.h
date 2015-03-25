@@ -12,6 +12,13 @@
 #define NV_DMA_TO_MEMORY                                             0x00000003
 #define NV_DMA_IN_MEMORY                                             0x0000003d
 
+#define FERMI_TWOD_A                                                 0x0000902d
+
+#define FERMI_MEMORY_TO_MEMORY_FORMAT_A                              0x0000903d
+
+#define KEPLER_INLINE_TO_MEMORY_A                                    0x0000a040
+#define KEPLER_INLINE_TO_MEMORY_B                                    0x0000a140
+
 #define NV04_DISP                                                    0x00000046
 
 #define NV03_CHANNEL_DMA                                             0x0000006b

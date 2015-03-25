@@ -34,8 +34,8 @@
 
 struct nvkm_oclass
 gk110_gr_sclass[] = {
-	{ 0x902d, &nvkm_object_ofuncs },
-	{ 0xa140, &nvkm_object_ofuncs },
+	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
+	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
 	{ KEPLER_B, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
 	{ KEPLER_COMPUTE_B, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },
 	{}
