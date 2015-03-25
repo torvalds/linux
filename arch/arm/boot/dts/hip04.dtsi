@@ -344,6 +344,14 @@
 				interrupts = <0 389 4>;
 			};
 		};
+
+		nand: nand@4020000 {
+			compatible = "hisilicon,504-nfc";
+			reg = <0x4020000 0x10000>, <0x5000000 0x1000>;
+			interrupts = <0 379 4>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
 	};
 
 	etb@0,e3c42000 {
