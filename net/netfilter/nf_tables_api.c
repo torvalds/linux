@@ -2827,6 +2827,22 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
 		nf_tables_set_destroy(ctx, set);
 }
 
+const struct nft_set_ext_type nft_set_ext_types[] = {
+	[NFT_SET_EXT_KEY]		= {
+		.len	= sizeof(struct nft_data),
+		.align	= __alignof__(struct nft_data),
+	},
+	[NFT_SET_EXT_DATA]		= {
+		.len	= sizeof(struct nft_data),
+		.align	= __alignof__(struct nft_data),
+	},
+	[NFT_SET_EXT_FLAGS]		= {
+		.len	= sizeof(u8),
+		.align	= __alignof__(u8),
+	},
+};
+EXPORT_SYMBOL_GPL(nft_set_ext_types);
+
 /*
  * Set elements
  */
