@@ -185,7 +185,7 @@ struct pci_dn {
 #define M64_PER_IOV 4
 	int     m64_per_iov;
 #define IODA_INVALID_M64        (-1)
-	int     m64_wins[PCI_SRIOV_NUM_BARS];
+	int     m64_wins[PCI_SRIOV_NUM_BARS][M64_PER_IOV];
 #endif /* CONFIG_PCI_IOV */
 #endif
 	struct list_head child_list;
