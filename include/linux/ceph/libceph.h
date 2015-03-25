@@ -191,6 +191,7 @@ extern struct ceph_options *ceph_parse_options(char *options,
 			      const char *dev_name, const char *dev_name_end,
 			      int (*parse_extra_token)(char *c, void *private),
 			      void *private);
+int ceph_print_client_options(struct seq_file *m, struct ceph_client *client);
 extern void ceph_destroy_options(struct ceph_options *opt);
 extern int ceph_compare_options(struct ceph_options *new_opt,
 				struct ceph_client *client);
