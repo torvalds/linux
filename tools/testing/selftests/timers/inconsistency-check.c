@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 	int clockid, opt;
 	int userclock = CLOCK_REALTIME;
 	int maxclocks = NR_CLOCKIDS;
-	int runtime = 30;
+	int runtime = 10;
 	struct timespec ts;
 
 	/* Process arguments */

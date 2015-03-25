@@ -58,7 +58,7 @@ static inline int ksft_exit_fail(void)
 #define NSEC_PER_SEC 1000000000ULL
 #define UNRESONABLE_LATENCY 40000000 /* 40ms in nanosecs */
 
-#define TIMER_SECS 3
+#define TIMER_SECS 1
 int alarmcount;
 int clock_id;
 struct timespec start_time;
