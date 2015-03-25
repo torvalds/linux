@@ -310,6 +310,11 @@ struct bcmgenet_mib_counters {
 #define UMAC_IRQ_MDIO_DONE		(1 << 23)
 #define UMAC_IRQ_MDIO_ERROR		(1 << 24)
 
+/* INTRL2 instance 1 definitions */
+#define UMAC_IRQ1_TX_INTR_MASK		0xFFFF
+#define UMAC_IRQ1_RX_INTR_MASK		0xFFFF
+#define UMAC_IRQ1_RX_INTR_SHIFT		16
+
 /* Register block offsets */
 #define GENET_SYS_OFF			0x0000
 #define GENET_GR_BRIDGE_OFF		0x0040
@@ -541,6 +546,7 @@ struct bcmgenet_tx_ring {
 };
 
 struct bcmgenet_rx_ring {
+	struct napi_struct napi;	/* Rx NAPI struct */
 	unsigned int	index;		/* Rx ring index */
 	struct enet_cb	*cbs;		/* Rx ring buffer control block */
 	unsigned int	size;		/* Rx ring size */
@@ -549,6 +555,9 @@ struct bcmgenet_rx_ring {
 	unsigned int	cb_ptr;		/* Rx ring initial CB ptr */
 	unsigned int	end_ptr;	/* Rx ring end CB ptr */
 	unsigned int	old_discards;
+	void (*int_enable)(struct bcmgenet_rx_ring *);
+	void (*int_disable)(struct bcmgenet_rx_ring *);
+	struct bcmgenet_priv *priv;
 };
 
 /* device context */
@@ -556,9 +565,6 @@ struct bcmgenet_priv {
 	void __iomem *base;
 	enum bcmgenet_version version;
 	struct net_device *dev;
-
-	/* NAPI for descriptor based rx */
-	struct napi_struct napi ____cacheline_aligned;
 
 	/* transmit variables */
 	void __iomem *tx_bds;
