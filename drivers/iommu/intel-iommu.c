@@ -50,6 +50,7 @@
 #define CONTEXT_SIZE		VTD_PAGE_SIZE
 
 #define IS_GFX_DEVICE(pdev) ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY)
+#define IS_USB_DEVICE(pdev) ((pdev->class >> 8) == PCI_CLASS_SERIAL_USB)
 #define IS_ISA_DEVICE(pdev) ((pdev->class >> 8) == PCI_CLASS_BRIDGE_ISA)
 #define IS_AZALIA(pdev) ((pdev)->vendor == 0x8086 && (pdev)->device == 0x3a3e)
 
@@ -2561,6 +2562,10 @@ static bool device_has_rmrr(struct device *dev)
  * In both cases we assume that PCI USB devices with RMRRs have them largely
  * for historical reasons and that the RMRR space is not actively used post
  * boot.  This exclusion may change if vendors begin to abuse it.
+ *
+ * The same exception is made for graphics devices, with the requirement that
+ * any use of the RMRR regions will be torn down before assigning the device
+ * to a guest.
  */
 static bool device_is_rmrr_locked(struct device *dev)
 {
@@ -2570,7 +2575,7 @@ static bool device_is_rmrr_locked(struct device *dev)
 	if (dev_is_pci(dev)) {
 		struct pci_dev *pdev = to_pci_dev(dev);
 
-		if ((pdev->class >> 8) == PCI_CLASS_SERIAL_USB)
+		if (IS_USB_DEVICE(pdev) || IS_GFX_DEVICE(pdev))
 			return false;
 	}
 
