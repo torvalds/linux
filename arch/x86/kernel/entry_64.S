@@ -258,16 +258,15 @@ system_call_fastpath:
 	andl $__SYSCALL_MASK,%eax
 	cmpl $__NR_syscall_max,%eax
 #endif
-	ja ret_from_sys_call  /* and return regs->ax */
+	ja	1f	/* return -ENOSYS (already in pt_regs->ax) */
 	movq %r10,%rcx
-	call *sys_call_table(,%rax,8)  # XXX:	 rip relative
+	call *sys_call_table(,%rax,8)
 	movq %rax,RAX(%rsp)
+1:
 /*
- * Syscall return path ending with SYSRET (fast path)
- * Has incompletely filled pt_regs, iret frame is also incomplete.
+ * Syscall return path ending with SYSRET (fast path).
+ * Has incompletely filled pt_regs.
  */
-ret_from_sys_call:
-
 	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
@@ -1407,7 +1406,7 @@ ENTRY(nmi)
 	 * NMI.
 	 */
 
-	/* Use %rdx as out temp variable throughout */
+	/* Use %rdx as our temp variable throughout */
 	pushq_cfi %rdx
 	CFI_REL_OFFSET rdx, 0
 
