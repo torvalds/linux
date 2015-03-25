@@ -985,7 +985,6 @@ static inline void bcmgenet_tx_ring_int_enable(struct bcmgenet_priv *priv,
 {
 	bcmgenet_intrl2_1_writel(priv, (1 << ring->index),
 				 INTRL2_CPU_MASK_CLEAR);
-	priv->int1_mask &= ~(1 << ring->index);
 }
 
 static inline void bcmgenet_tx_ring_int_disable(struct bcmgenet_priv *priv,
@@ -993,7 +992,6 @@ static inline void bcmgenet_tx_ring_int_disable(struct bcmgenet_priv *priv,
 {
 	bcmgenet_intrl2_1_writel(priv, (1 << ring->index),
 				 INTRL2_CPU_MASK_SET);
-	priv->int1_mask |= (1 << ring->index);
 }
 
 /* Unlocked version of the reclaim routine */
