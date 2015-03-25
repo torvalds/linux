@@ -60,6 +60,7 @@
  */
 #define LINK_STARTED    0x0001
 #define LINK_STOPPED    0x0002
+#define LINK_SYNCHING   0x0004
 
 /* Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
@@ -118,7 +119,7 @@ struct tipc_stats {
  * @pmsg: convenience pointer to "proto_msg" field
  * @priority: current link priority
  * @net_plane: current link network plane ('A' through 'H')
- * @queue_limit: outbound message queue congestion thresholds (indexed by user)
+ * @backlog_limit: backlog queue congestion thresholds (indexed by importance)
  * @exp_msg_count: # of tunnelled messages expected during link changeover
  * @reset_checkpoint: seq # of last acknowledged message at time of link reset
  * @max_pkt: current maximum packet size for this link
@@ -166,11 +167,11 @@ struct tipc_link {
 	struct tipc_msg *pmsg;
 	u32 priority;
 	char net_plane;
-	u32 queue_limit[15];	/* queue_limit[0]==window limit */
 
 	/* Changeover */
 	u32 exp_msg_count;
 	u32 reset_checkpoint;
+	u32 synch_point;
 
 	/* Max packet negotiation */
 	u32 max_pkt;
@@ -180,6 +181,10 @@ struct tipc_link {
 	/* Sending */
 	struct sk_buff_head transmq;
 	struct sk_buff_head backlogq;
+	struct {
+		u16 len;
+		u16 limit;
+	} backlog[5];
 	u32 next_out_no;
 	u32 window;
 	u32 last_retransmitted;

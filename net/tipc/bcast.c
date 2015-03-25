@@ -831,7 +831,7 @@ int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg)
 	prop = nla_nest_start(msg->skb, TIPC_NLA_LINK_PROP);
 	if (!prop)
 		goto attr_msg_full;
-	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_WIN, bcl->queue_limit[0]))
+	if (nla_put_u32(msg->skb, TIPC_NLA_PROP_WIN, bcl->window))
 		goto prop_msg_full;
 	nla_nest_end(msg->skb, prop);
 

@@ -240,6 +240,15 @@ static inline void msg_set_size(struct tipc_msg *m, u32 sz)
 	m->hdr[0] = htonl((msg_word(m, 0) & ~0x1ffff) | sz);
 }
 
+static inline unchar *msg_data(struct tipc_msg *m)
+{
+	return ((unchar *)m) + msg_hdr_sz(m);
+}
+
+static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
+{
+	return (struct tipc_msg *)msg_data(m);
+}
 
 /*
  * Word 1
@@ -372,6 +381,8 @@ static inline void msg_set_prevnode(struct tipc_msg *m, u32 a)
 
 static inline u32 msg_origport(struct tipc_msg *m)
 {
+	if (msg_user(m) == MSG_FRAGMENTER)
+		m = msg_get_wrapped(m);
 	return msg_word(m, 4);
 }
 
@@ -467,16 +478,6 @@ static inline void msg_set_nameupper(struct tipc_msg *m, u32 n)
 	msg_set_word(m, 10, n);
 }
 
-static inline unchar *msg_data(struct tipc_msg *m)
-{
-	return ((unchar *)m) + msg_hdr_sz(m);
-}
-
-static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
-{
-	return (struct tipc_msg *)msg_data(m);
-}
-
 /*
  * Constants and routines used to read and write TIPC internal message headers
  */
@@ -553,6 +554,14 @@ static inline void msg_set_node_capabilities(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 15, 0x1fff, n);
 }
 
+static inline bool msg_dup(struct tipc_msg *m)
+{
+	if (likely(msg_user(m) != CHANGEOVER_PROTOCOL))
+		return false;
+	if (msg_type(m) != DUPLICATE_MSG)
+		return false;
+	return true;
+}
 
 /*
  * Word 2
@@ -751,13 +760,6 @@ static inline u32 msg_link_tolerance(struct tipc_msg *m)
 static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 9, 0, 0xffff, n);
-}
-
-static inline u32 msg_tot_origport(struct tipc_msg *m)
-{
-	if ((msg_user(m) == MSG_FRAGMENTER) && (msg_type(m) == FIRST_FRAGMENT))
-		return msg_origport(msg_get_wrapped(m));
-	return msg_origport(m);
 }
 
 struct sk_buff *tipc_buf_acquire(u32 size);
