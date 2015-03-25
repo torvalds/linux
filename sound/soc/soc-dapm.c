@@ -3356,7 +3356,6 @@ int snd_soc_dapm_new_pcm(struct snd_soc_card *card,
 {
 	struct snd_soc_dapm_widget template;
 	struct snd_soc_dapm_widget *w;
-	size_t len;
 	char *link_name;
 	int ret, count;
 	unsigned long private_value;
@@ -3376,28 +3375,26 @@ int snd_soc_dapm_new_pcm(struct snd_soc_card *card,
 	if (!w_param_text)
 		return -ENOMEM;
 
-	len = strlen(source->name) + strlen(sink->name) + 2;
-	link_name = devm_kzalloc(card->dev, len, GFP_KERNEL);
+	link_name = devm_kasprintf(card->dev, GFP_KERNEL, "%s-%s",
+				   source->name, sink->name);
 	if (!link_name) {
 		ret = -ENOMEM;
 		goto outfree_w_param;
 	}
-	snprintf(link_name, len, "%s-%s", source->name, sink->name);
 
 	for (count = 0 ; count < num_params; count++) {
 		if (!config->stream_name) {
 			dev_warn(card->dapm.dev,
 				"ASoC: anonymous config %d for dai link %s\n",
 				count, link_name);
-			len = strlen("Anonymous Configuration ") + 3;
 			w_param_text[count] =
-				devm_kzalloc(card->dev, len, GFP_KERNEL);
+				devm_kasprintf(card->dev, GFP_KERNEL,
+					       "Anonymous Configuration %d",
+					       count);
 			if (!w_param_text[count]) {
 				ret = -ENOMEM;
 				goto outfree_link_name;
 			}
-			snprintf(w_param_text[count], len,
-				"Anonymous Configuration %d", count);
 		} else {
 			w_param_text[count] = devm_kmemdup(card->dev,
 						config->stream_name,
