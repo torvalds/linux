@@ -523,11 +523,13 @@ receive:
 			tipc_bclink_unlock(net);
 			tipc_node_unlock(node);
 		} else if (msg_user(msg) == MSG_FRAGMENTER) {
-			tipc_buf_append(&node->bclink.reasm_buf, &buf);
-			if (unlikely(!buf && !node->bclink.reasm_buf))
-				goto unlock;
 			tipc_bclink_lock(net);
 			bclink_accept_pkt(node, seqno);
+			tipc_buf_append(&node->bclink.reasm_buf, &buf);
+			if (unlikely(!buf && !node->bclink.reasm_buf)) {
+				tipc_bclink_unlock(net);
+				goto unlock;
+			}
 			bcl->stats.recv_fragments++;
 			if (buf) {
 				bcl->stats.recv_fragmented++;
