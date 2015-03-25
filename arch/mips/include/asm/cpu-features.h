@@ -238,8 +238,39 @@
 /* MIPSR2 and MIPSR6 have a lot of similarities */
 #define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r6)
 
+/*
+ * cpu_has_mips_r2_exec_hazard - return if IHB is required on current processor
+ *
+ * Returns non-zero value if the current processor implementation requires
+ * an IHB instruction to deal with an instruction hazard as per MIPS R2
+ * architecture specification, zero otherwise.
+ */
 #ifndef cpu_has_mips_r2_exec_hazard
-#define cpu_has_mips_r2_exec_hazard (cpu_has_mips_r2 | cpu_has_mips_r6)
+#define cpu_has_mips_r2_exec_hazard					\
+({									\
+	int __res;							\
+									\
+	switch (current_cpu_type()) {					\
+	case CPU_M14KC:							\
+	case CPU_74K:							\
+	case CPU_1074K:							\
+	case CPU_PROAPTIV:						\
+	case CPU_P5600:							\
+	case CPU_M5150:							\
+	case CPU_QEMU_GENERIC:						\
+	case CPU_CAVIUM_OCTEON:						\
+	case CPU_CAVIUM_OCTEON_PLUS:					\
+	case CPU_CAVIUM_OCTEON2:					\
+	case CPU_CAVIUM_OCTEON3:					\
+		__res = 0;						\
+		break;							\
+									\
+	default:							\
+		__res = 1;						\
+	}								\
+									\
+	__res;								\
+})
 #endif
 
 /*
