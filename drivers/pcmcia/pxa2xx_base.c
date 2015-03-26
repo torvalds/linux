@@ -308,7 +308,6 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 		return -ENOMEM;
 
 	sinfo->nskt = ops->nr;
-	sinfo->clk = clk;
 
 	/* Initialize processor specific parameters */
 	for (i = 0; i < ops->nr; i++) {
