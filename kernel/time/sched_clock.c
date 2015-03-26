@@ -111,7 +111,7 @@ unsigned long long notrace sched_clock(void)
 /*
  * Atomically update the sched_clock epoch.
  */
-static void notrace update_sched_clock(void)
+static void update_sched_clock(void)
 {
 	unsigned long flags;
 	u64 cyc;
