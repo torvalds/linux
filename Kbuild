@@ -36,7 +36,7 @@ endef
 bounds-file := include/generated/bounds.h
 
 always  := $(bounds-file)
-targets := $(bounds-file) kernel/bounds.s
+targets := kernel/bounds.s
 
 # We use internal kbuild rules to avoid the "is up to date" message from make
 kernel/bounds.s: kernel/bounds.c FORCE
@@ -53,7 +53,6 @@ $(obj)/$(bounds-file): kernel/bounds.s FORCE
 offsets-file := include/generated/asm-offsets.h
 
 always  += $(offsets-file)
-targets += $(offsets-file)
 targets += arch/$(SRCARCH)/kernel/asm-offsets.s
 
 # We use internal kbuild rules to avoid the "is up to date" message from make
