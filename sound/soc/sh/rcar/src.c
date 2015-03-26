@@ -22,12 +22,13 @@
 struct rsnd_src {
 	struct rsnd_src_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
+	u32 convert_rate; /* sampling rate convert */
 	int err;
 };
 
 #define RSND_SRC_NAME_SIZE 16
 
-#define rsnd_src_convert_rate(p) ((p)->info->convert_rate)
+#define rsnd_src_convert_rate(s) ((s)->convert_rate)
 #define rsnd_src_of_node(priv) \
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,src")
 
@@ -288,7 +289,43 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod)
 	return 0;
 }
 
-static int rsnd_src_init(struct rsnd_mod *mod)
+static int rsnd_src_hw_params(struct rsnd_mod *mod,
+			      struct snd_pcm_substream *substream,
+			      struct snd_pcm_hw_params *fe_params)
+{
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
+	struct snd_soc_pcm_runtime *fe = substream->private_data;
+
+	/* default value (mainly for non-DT) */
+	src->convert_rate = src->info->convert_rate;
+
+	/*
+	 * SRC assumes that it is used under DPCM if user want to use
+	 * sampling rate convert. Then, SRC should be FE.
+	 * And then, this function will be called *after* BE settings.
+	 * this means, each BE already has fixuped hw_params.
+	 * see
+	 *	dpcm_fe_dai_hw_params()
+	 *	dpcm_be_dai_hw_params()
+	 */
+	if (fe->dai_link->dynamic) {
+		int stream = substream->stream;
+		struct snd_soc_dpcm *dpcm;
+		struct snd_pcm_hw_params *be_params;
+
+		list_for_each_entry(dpcm, &fe->dpcm[stream].be_clients, list_be) {
+			be_params = &dpcm->hw_params;
+
+			if (params_rate(fe_params) != params_rate(be_params))
+				src->convert_rate = params_rate(be_params);
+		}
+	}
+
+	return 0;
+}
+
+static int rsnd_src_init(struct rsnd_mod *mod,
+			 struct rsnd_priv *priv)
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
@@ -316,6 +353,8 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	if (src->err)
 		dev_warn(dev, "%s[%d] under/over flow err = %d\n",
 			 rsnd_mod_name(mod), rsnd_mod_id(mod), src->err);
+
+	src->convert_rate = 0;
 
 	return 0;
 }
@@ -465,7 +504,7 @@ static int rsnd_src_init_gen1(struct rsnd_mod *mod,
 {
 	int ret;
 
-	ret = rsnd_src_init(mod);
+	ret = rsnd_src_init(mod, priv);
 	if (ret < 0)
 		return ret;
 
@@ -511,6 +550,7 @@ static struct rsnd_mod_ops rsnd_src_gen1_ops = {
 	.quit	= rsnd_src_quit,
 	.start	= rsnd_src_start_gen1,
 	.stop	= rsnd_src_stop_gen1,
+	.hw_params = rsnd_src_hw_params,
 };
 
 /*
@@ -736,7 +776,7 @@ static int rsnd_src_init_gen2(struct rsnd_mod *mod,
 {
 	int ret;
 
-	ret = rsnd_src_init(mod);
+	ret = rsnd_src_init(mod, priv);
 	if (ret < 0)
 		return ret;
 
@@ -780,6 +820,7 @@ static struct rsnd_mod_ops rsnd_src_gen2_ops = {
 	.quit	= rsnd_src_quit,
 	.start	= rsnd_src_start_gen2,
 	.stop	= rsnd_src_stop_gen2,
+	.hw_params = rsnd_src_hw_params,
 };
 
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)

@@ -203,7 +203,7 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod)
 ({								\
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);		\
 	struct device *dev = rsnd_priv_to_dev(priv);		\
-	u32 mask = 1 << __rsnd_mod_shift_##func;			\
+	u32 mask = (1 << __rsnd_mod_shift_##func) & ~(1 << 31);	\
 	u32 call = __rsnd_mod_call_##func << __rsnd_mod_shift_##func;	\
 	int ret = 0;							\
 	if ((mod->status & mask) == call) {				\
@@ -728,6 +728,15 @@ static int rsnd_pcm_open(struct snd_pcm_substream *substream)
 static int rsnd_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
+	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
+	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
+	int ret;
+
+	ret = rsnd_dai_call(hw_params, io, substream, hw_params);
+	if (ret)
+		return ret;
+
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }

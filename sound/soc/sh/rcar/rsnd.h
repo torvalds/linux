@@ -239,6 +239,9 @@ struct rsnd_mod_ops {
 		    struct rsnd_priv *priv);
 	int (*pcm_new)(struct rsnd_mod *mod,
 		       struct snd_soc_pcm_runtime *rtd);
+	int (*hw_params)(struct rsnd_mod *mod,
+			 struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *hw_params);
 	int (*fallback)(struct rsnd_mod *mod,
 			struct rsnd_priv *priv);
 };
@@ -262,6 +265,9 @@ struct rsnd_mod {
  * 2	0: start	1: stop
  * 3	0: pcm_new
  * 4	0: fallback
+ *
+ * 31 bit is always called (see __rsnd_mod_call)
+ * 31	0: hw_params
  */
 #define __rsnd_mod_shift_probe		0
 #define __rsnd_mod_shift_remove		0
@@ -271,6 +277,7 @@ struct rsnd_mod {
 #define __rsnd_mod_shift_stop		2
 #define __rsnd_mod_shift_pcm_new	3
 #define __rsnd_mod_shift_fallback	4
+#define __rsnd_mod_shift_hw_params	31 /* always called */
 
 #define __rsnd_mod_call_probe		0
 #define __rsnd_mod_call_remove		1
@@ -280,6 +287,7 @@ struct rsnd_mod {
 #define __rsnd_mod_call_stop		1
 #define __rsnd_mod_call_pcm_new		0
 #define __rsnd_mod_call_fallback	0
+#define __rsnd_mod_call_hw_params	0
 
 #define rsnd_mod_to_priv(mod) (rsnd_io_to_priv(rsnd_mod_to_io(mod)))
 #define rsnd_mod_to_dma(mod) (&(mod)->dma)
