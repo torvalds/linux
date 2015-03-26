@@ -698,7 +698,7 @@ static void iscsi_post_login_start_timers(struct iscsi_conn *conn)
 		iscsit_start_nopin_timer(conn);
 }
 
-int iscsit_start_kthreads(struct iscsi_conn *conn)
+static int iscsit_start_kthreads(struct iscsi_conn *conn)
 {
 	int ret = 0;
 
