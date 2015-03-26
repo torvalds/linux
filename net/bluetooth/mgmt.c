@@ -977,8 +977,14 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 *ptr)
 {
 	u8 ad_len = 0, flags = 0;
 
+	/* The Add Advertising command allows userspace to set both the general
+	 * and limited discoverable flags.
+	 */
 	if (hdev->adv_instance.flags & MGMT_ADV_FLAG_DISCOV)
 		flags |= LE_AD_GENERAL;
+
+	if (hdev->adv_instance.flags & MGMT_ADV_FLAG_LIMITED_DISCOV)
+		flags |= LE_AD_LIMITED;
 
 	if (flags) {
 		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
@@ -6576,8 +6582,9 @@ static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
 	u8 max_len = HCI_MAX_AD_LENGTH;
 	int i, cur_len;
 	bool flags_managed = false;
+	u32 flags_params = MGMT_ADV_FLAG_DISCOV | MGMT_ADV_FLAG_LIMITED_DISCOV;
 
-	if (is_adv_data && (adv_flags & MGMT_ADV_FLAG_DISCOV)) {
+	if (is_adv_data && (adv_flags & flags_params)) {
 		flags_managed = true;
 		max_len -= 3;
 	}
