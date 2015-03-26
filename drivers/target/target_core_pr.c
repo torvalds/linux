@@ -78,6 +78,22 @@ enum preempt_type {
 static void __core_scsi3_complete_pro_release(struct se_device *, struct se_node_acl *,
 					      struct t10_pr_registration *, int, int);
 
+static int is_reservation_holder(
+	struct t10_pr_registration *pr_res_holder,
+	struct t10_pr_registration *pr_reg)
+{
+	int pr_res_type;
+
+	if (pr_res_holder) {
+		pr_res_type = pr_res_holder->pr_res_type;
+
+		return pr_res_holder == pr_reg ||
+		       pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG ||
+		       pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG;
+	}
+	return 0;
+}
+
 static sense_reason_t
 target_scsi2_reservation_check(struct se_cmd *cmd)
 {
@@ -2287,7 +2303,6 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 	spin_lock(&dev->dev_reservation_lock);
 	pr_res_holder = dev->dev_pr_res_holder;
 	if (pr_res_holder) {
-		int pr_res_type = pr_res_holder->pr_res_type;
 		/*
 		 * From spc4r17 Section 5.7.9: Reserving:
 		 *
@@ -2298,9 +2313,7 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 		 * the logical unit, then the command shall be completed with
 		 * RESERVATION CONFLICT status.
 		 */
-		if ((pr_res_holder != pr_reg) &&
-		    (pr_res_type != PR_TYPE_WRITE_EXCLUSIVE_ALLREG) &&
-		    (pr_res_type != PR_TYPE_EXCLUSIVE_ACCESS_ALLREG)) {
+		if (!is_reservation_holder(pr_res_holder, pr_reg)) {
 			struct se_node_acl *pr_res_nacl = pr_res_holder->pr_reg_nacl;
 			pr_err("SPC-3 PR: Attempted RESERVE from"
 				" [%s]: %s while reservation already held by"
@@ -2477,7 +2490,6 @@ core_scsi3_emulate_pro_release(struct se_cmd *cmd, int type, int scope,
 	struct se_lun *se_lun = cmd->se_lun;
 	struct t10_pr_registration *pr_reg, *pr_reg_p, *pr_res_holder;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
-	int all_reg = 0;
 	sense_reason_t ret = 0;
 
 	if (!se_sess || !se_lun) {
@@ -2514,13 +2526,9 @@ core_scsi3_emulate_pro_release(struct se_cmd *cmd, int type, int scope,
 		spin_unlock(&dev->dev_reservation_lock);
 		goto out_put_pr_reg;
 	}
-	if ((pr_res_holder->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG) ||
-	    (pr_res_holder->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG))
-		all_reg = 1;
 
-	if ((all_reg == 0) && (pr_res_holder != pr_reg)) {
+	if (!is_reservation_holder(pr_res_holder, pr_reg)) {
 		/*
-		 * Non 'All Registrants' PR Type cases..
 		 * Release request from a registered I_T nexus that is not a
 		 * persistent reservation holder. return GOOD status.
 		 */
@@ -3375,7 +3383,7 @@ after_iport_check:
 	 * From spc4r17 section 5.7.8  Table 50 --
 	 * 	Register behaviors for a REGISTER AND MOVE service action
 	 */
-	if (pr_res_holder != pr_reg) {
+	if (!is_reservation_holder(pr_res_holder, pr_reg)) {
 		pr_warn("SPC-3 PR REGISTER_AND_MOVE: Calling I_T"
 			" Nexus is not reservation holder\n");
 		spin_unlock(&dev->dev_reservation_lock);
