@@ -99,6 +99,10 @@
 	status = "okay";
 };
 
+&emac_sram {
+	status = "okay";
+};
+
 &emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&emac_pins_a>;
