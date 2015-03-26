@@ -237,6 +237,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	}
 
 	packet->send_completion = NULL;
+	packet->xmit_more = false;
 
 	ret = netvsc_send(dev->net_dev->dev, packet);
 	return ret;
@@ -855,6 +856,7 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	u32 status;
 	int ret;
 	unsigned long t;
+	struct netvsc_device *nvdev = dev->net_dev;
 
 	request = get_rndis_request(dev, RNDIS_MSG_INIT,
 			RNDIS_MESSAGE_SIZE(struct rndis_initialize_request));
@@ -889,6 +891,8 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	status = init_complete->status;
 	if (status == RNDIS_STATUS_SUCCESS) {
 		dev->state = RNDIS_DEV_INITIALIZED;
+		nvdev->max_pkt = init_complete->max_pkt_per_msg;
+		nvdev->pkt_align = 1 << init_complete->pkt_alignment_factor;
 		ret = 0;
 	} else {
 		dev->state = RNDIS_DEV_UNINITIALIZED;

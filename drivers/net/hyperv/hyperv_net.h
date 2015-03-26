@@ -131,6 +131,7 @@ struct hv_netvsc_packet {
 
 	struct hv_device *device;
 	bool is_data_pkt;
+	bool xmit_more; /* from skb */
 	u16 vlan_tci;
 
 	u16 q_idx;
@@ -596,7 +597,16 @@ struct nvsp_message {
 
 #define VRSS_SEND_TAB_SIZE 16
 
-/* Per netvsc channel-specific */
+#define RNDIS_MAX_PKT_DEFAULT 8
+#define RNDIS_PKT_ALIGN_DEFAULT 8
+
+struct multi_send_data {
+	spinlock_t lock; /* protect struct multi_send_data */
+	struct hv_netvsc_packet *pkt; /* netvsc pkt pending */
+	u32 count; /* counter of batched packets */
+};
+
+/* Per netvsc device */
 struct netvsc_device {
 	struct hv_device *dev;
 
@@ -647,6 +657,10 @@ struct netvsc_device {
 	unsigned char *cb_buffer;
 	/* The sub channel callback buffer */
 	unsigned char *sub_cb_buf;
+
+	struct multi_send_data msd[NR_CPUS];
+	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
+	u32 pkt_align; /* alignment bytes, e.g. 8 */
 };
 
 /* NdisInitialize message */
