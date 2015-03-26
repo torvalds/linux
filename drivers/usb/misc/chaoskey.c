@@ -27,6 +27,8 @@
 #include <linux/usb.h>
 #include <linux/wait.h>
 #include <linux/hw_random.h>
+#include <linux/mutex.h>
+#include <linux/uaccess.h>
 
 static struct usb_driver chaoskey_driver;
 static struct usb_class_driver chaoskey_class;
@@ -113,8 +115,8 @@ static int chaoskey_probe(struct usb_interface *interface,
 	/* Find the first bulk IN endpoint and its packet size */
 	for (i = 0; i < altsetting->desc.bNumEndpoints; i++) {
 		if (usb_endpoint_is_bulk_in(&altsetting->endpoint[i].desc)) {
-			in_ep = altsetting->endpoint[i].desc.bEndpointAddress;
-			size = altsetting->endpoint[i].desc.wMaxPacketSize;
+			in_ep = usb_endpoint_num(&altsetting->endpoint[i].desc);
+			size = usb_endpoint_maxp(&altsetting->endpoint[i].desc);
 			break;
 		}
 	}
