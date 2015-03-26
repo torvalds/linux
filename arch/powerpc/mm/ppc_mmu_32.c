@@ -224,7 +224,7 @@ void __init MMU_init_hw(void)
 	 */
 	if ( ppc_md.progress ) ppc_md.progress("hash:find piece", 0x322);
 	Hash = __va(memblock_alloc(Hash_size, Hash_size));
-	cacheable_memzero(Hash, Hash_size);
+	memset(Hash, 0, Hash_size);
 	_SDR1 = __pa(Hash) | SDR1_LOW_BITS;
 
 	Hash_end = (struct hash_pte *) ((unsigned long)Hash + Hash_size);

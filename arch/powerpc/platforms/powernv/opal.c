@@ -23,6 +23,8 @@
 #include <linux/kobject.h>
 #include <linux/delay.h>
 #include <linux/memblock.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 
 #include <asm/machdep.h>
 #include <asm/opal.h>
@@ -58,6 +60,7 @@ static struct atomic_notifier_head opal_msg_notifier_head[OPAL_MSG_TYPE_MAX];
 static DEFINE_SPINLOCK(opal_notifier_lock);
 static uint64_t last_notified_mask = 0x0ul;
 static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
+static uint32_t opal_heartbeat;
 
 static void opal_reinit_cores(void)
 {
@@ -305,18 +308,21 @@ void opal_notifier_disable(void)
 int opal_message_notifier_register(enum opal_msg_type msg_type,
 					struct notifier_block *nb)
 {
-	if (!nb) {
-		pr_warning("%s: Invalid argument (%p)\n",
-			   __func__, nb);
-		return -EINVAL;
-	}
-	if (msg_type > OPAL_MSG_TYPE_MAX) {
-		pr_warning("%s: Invalid message type argument (%d)\n",
+	if (!nb || msg_type >= OPAL_MSG_TYPE_MAX) {
+		pr_warning("%s: Invalid arguments, msg_type:%d\n",
 			   __func__, msg_type);
 		return -EINVAL;
 	}
+
 	return atomic_notifier_chain_register(
 				&opal_msg_notifier_head[msg_type], nb);
+}
+
+int opal_message_notifier_unregister(enum opal_msg_type msg_type,
+				     struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(
+			&opal_msg_notifier_head[msg_type], nb);
 }
 
 static void opal_message_do_notify(uint32_t msg_type, void *msg)
@@ -351,7 +357,7 @@ static void opal_handle_message(void)
 	type = be32_to_cpu(msg.msg_type);
 
 	/* Sanity check */
-	if (type > OPAL_MSG_TYPE_MAX) {
+	if (type >= OPAL_MSG_TYPE_MAX) {
 		pr_warning("%s: Unknown message type: %u\n", __func__, type);
 		return;
 	}
@@ -744,6 +750,29 @@ static void __init opal_irq_init(struct device_node *dn)
 	}
 }
 
+static int kopald(void *unused)
+{
+	set_freezable();
+	do {
+		try_to_freeze();
+		opal_poll_events(NULL);
+		msleep_interruptible(opal_heartbeat);
+	} while (!kthread_should_stop());
+
+	return 0;
+}
+
+static void opal_init_heartbeat(void)
+{
+	/* Old firwmware, we assume the HVC heartbeat is sufficient */
+	if (of_property_read_u32(opal_node, "ibm,heartbeat-ms",
+				 &opal_heartbeat) != 0)
+		opal_heartbeat = 0;
+
+	if (opal_heartbeat)
+		kthread_run(kopald, NULL, "kopald");
+}
+
 static int __init opal_init(void)
 {
 	struct device_node *np, *consoles;
@@ -772,6 +801,9 @@ static int __init opal_init(void)
 	/* Create i2c platform devices */
 	opal_i2c_create_devs();
 
+	/* Setup a heatbeat thread if requested by OPAL */
+	opal_init_heartbeat();
+
 	/* Find all OPAL interrupts and request them */
 	opal_irq_init(opal_node);
 
@@ -794,6 +826,7 @@ static int __init opal_init(void)
 		opal_msglog_init();
 	}
 
+	/* Initialize OPAL IPMI backend */
 	opal_ipmi_init(opal_node);
 
 	return 0;
