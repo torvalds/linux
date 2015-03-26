@@ -2454,8 +2454,9 @@ static void be_tx_queues_destroy(struct be_adapter *adapter)
 
 static int be_tx_qs_create(struct be_adapter *adapter)
 {
-	struct be_queue_info *cq, *eq;
+	struct be_queue_info *cq;
 	struct be_tx_obj *txo;
+	struct be_eq_obj *eqo;
 	int status, i;
 
 	adapter->num_tx_qs = min(adapter->num_evt_qs, be_max_txqs(adapter));
@@ -2473,8 +2474,8 @@ static int be_tx_qs_create(struct be_adapter *adapter)
 		/* If num_evt_qs is less than num_tx_qs, then more than
 		 * one txq share an eq
 		 */
-		eq = &adapter->eq_obj[i % adapter->num_evt_qs].q;
-		status = be_cmd_cq_create(adapter, cq, eq, false, 3);
+		eqo = &adapter->eq_obj[i % adapter->num_evt_qs];
+		status = be_cmd_cq_create(adapter, cq, &eqo->q, false, 3);
 		if (status)
 			return status;
 
@@ -2486,6 +2487,9 @@ static int be_tx_qs_create(struct be_adapter *adapter)
 		status = be_cmd_txq_create(adapter, txo);
 		if (status)
 			return status;
+
+		netif_set_xps_queue(adapter->netdev, eqo->affinity_mask,
+				    eqo->idx);
 	}
 
 	dev_info(&adapter->pdev->dev, "created %d TX queue(s)\n",
