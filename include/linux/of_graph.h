@@ -14,6 +14,8 @@
 #ifndef __LINUX_OF_GRAPH_H
 #define __LINUX_OF_GRAPH_H
 
+#include <linux/types.h>
+
 /**
  * struct of_endpoint - the OF graph endpoint data structure
  * @port: identifier (value of reg property) of a port this endpoint belongs to
