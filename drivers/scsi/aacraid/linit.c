@@ -713,7 +713,9 @@ static long aac_cfg_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
 	int ret;
-	if (!capable(CAP_SYS_RAWIO))
+	struct aac_dev *aac;
+	aac = (struct aac_dev *)file->private_data;
+	if (!capable(CAP_SYS_RAWIO) || aac->adapter_shutdown)
 		return -EPERM;
 	mutex_lock(&aac_mutex);
 	ret = aac_do_ioctl(file->private_data, cmd, (void __user *)arg);

@@ -231,6 +231,7 @@ int aac_send_shutdown(struct aac_dev * dev)
 	/* FIB should be freed only after getting the response from the F/W */
 	if (status != -ERESTARTSYS)
 		aac_fib_free(fibctx);
+	dev->adapter_shutdown = 1;
 	if ((dev->pdev->device == PMC_DEVICE_S7 ||
 	     dev->pdev->device == PMC_DEVICE_S8 ||
 	     dev->pdev->device == PMC_DEVICE_S9) &&
@@ -400,6 +401,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	}
 	dev->max_msix = 0;
 	dev->msi_enabled = 0;
+	dev->adapter_shutdown = 0;
 	if ((!aac_adapter_sync_cmd(dev, GET_COMM_PREFERRED_SETTINGS,
 	  0, 0, 0, 0, 0, 0,
 	  status+0, status+1, status+2, status+3, status+4))
@@ -511,6 +513,7 @@ static void aac_define_int_mode(struct aac_dev *dev)
 
 	int i, msi_count;
 
+	msi_count = i = 0;
 	/* max. vectors from GET_COMM_PREFERRED_SETTINGS */
 	if (dev->max_msix == 0 ||
 	    dev->pdev->device == PMC_DEVICE_S6 ||
