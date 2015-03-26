@@ -349,7 +349,7 @@ static LIST_HEAD(cleanup_list);  /* Must hold cleanup_list_lock to touch */
 static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
-	struct net *net, *tmp;
+	struct net *net, *tmp, *peer;
 	struct list_head net_kill_list;
 	LIST_HEAD(net_exit_list);
 
@@ -365,14 +365,6 @@ static void cleanup_net(struct work_struct *work)
 	list_for_each_entry(net, &net_kill_list, cleanup_list) {
 		list_del_rcu(&net->list);
 		list_add_tail(&net->exit_list, &net_exit_list);
-		for_each_net(tmp) {
-			int id = __peernet2id(tmp, net, false);
-
-			if (id >= 0)
-				idr_remove(&tmp->netns_ids, id);
-		}
-		idr_destroy(&net->netns_ids);
-
 	}
 	rtnl_unlock();
 
@@ -398,12 +390,26 @@ static void cleanup_net(struct work_struct *work)
 	 */
 	rcu_barrier();
 
+	rtnl_lock();
 	/* Finally it is safe to free my network namespace structure */
 	list_for_each_entry_safe(net, tmp, &net_exit_list, exit_list) {
+		/* Unreference net from all peers (no need to loop over
+		 * net_exit_list because idr_destroy() will be called for each
+		 * element of this list.
+		 */
+		for_each_net(peer) {
+			int id = __peernet2id(peer, net, false);
+
+			if (id >= 0)
+				idr_remove(&peer->netns_ids, id);
+		}
+		idr_destroy(&net->netns_ids);
+
 		list_del_init(&net->exit_list);
 		put_user_ns(net->user_ns);
 		net_drop_ns(net);
 	}
+	rtnl_unlock();
 }
 static DECLARE_WORK(net_cleanup_work, cleanup_net);
 
