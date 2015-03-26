@@ -58,6 +58,10 @@ Supported chips:
     Prefix: 'it8786'
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Not publicly available
+  * IT8790E
+    Prefix: 'it8790'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
   * SiS950   [clone of IT8705F]
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -102,9 +106,10 @@ motherboard models.
 Description
 -----------
 
-This driver implements support for the IT8603E, IT8623E, IT8705F, IT8712F,
-IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E, IT8771E,
-IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, and SiS950 chips.
+This driver implements support for the IT8603E, IT8623E, IT8705F,
+IT8712F, IT8716F, IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E,
+IT8771E, IT8772E, IT8781F, IT8782F, IT8783E/F, IT8786E, IT8790E, and SiS950
+chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -144,6 +149,8 @@ until a datasheet becomes available (hopefully.)
 The IT8603E/IT8623E is a custom design, hardware monitoring part is similar to
 IT8728F. It only supports 16-bit fan mode, the full speed mode of the
 fan is not supported (value 0 of pwmX_enable).
+
+The IT8790E supports up to 3 fans. 16-bit fan mode is always enabled.
 
 Temperatures are measured in degrees Celsius. An alarm is triggered once
 when the Overtemperature Shutdown limit is crossed.

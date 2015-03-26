@@ -27,6 +27,7 @@
  *            IT8782F  Super I/O chip w/LPC interface
  *            IT8783E/F Super I/O chip w/LPC interface
  *            IT8786E  Super I/O chip w/LPC interface
+ *            IT8790E  Super I/O chip w/LPC interface
  *            Sis950   A clone of the IT8705F
  *
  *  Copyright (C) 2001 Chris Gauthron
@@ -68,7 +69,7 @@
 #define DRVNAME "it87"
 
 enum chips { it87, it8712, it8716, it8718, it8720, it8721, it8728, it8771,
-	     it8772, it8781, it8782, it8783, it8786, it8603 };
+	     it8772, it8781, it8782, it8783, it8786, it8790, it8603 };
 
 static unsigned short force_id;
 module_param(force_id, ushort, 0);
@@ -152,6 +153,7 @@ static inline void superio_exit(void)
 #define IT8782F_DEVID 0x8782
 #define IT8783E_DEVID 0x8783
 #define IT8786E_DEVID 0x8786
+#define IT8790E_DEVID 0x8790
 #define IT8603E_DEVID 0x8603
 #define IT8623E_DEVID 0x8623
 #define IT87_ACT_REG  0x30
@@ -354,6 +356,13 @@ static const struct it87_devices it87_devices[] = {
 	},
 	[it8786] = {
 		.name = "it8786",
+		.suffix = "E",
+		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
+		.peci_mask = 0x07,
+	},
+	[it8790] = {
+		.name = "it8790",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
@@ -1833,6 +1842,9 @@ static int __init it87_find(unsigned short *address,
 		break;
 	case IT8786E_DEVID:
 		sio_data->type = it8786;
+		break;
+	case IT8790E_DEVID:
+		sio_data->type = it8790;
 		break;
 	case IT8603E_DEVID:
 	case IT8623E_DEVID:
