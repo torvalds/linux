@@ -1113,16 +1113,18 @@ static __init void tegra124_periph_clk_init(void __iomem *clk_base,
 					1, 2);
 	clks[TEGRA124_CLK_XUSB_SS_DIV2] = clk;
 
-	clk = clk_register_gate(NULL, "plld_dsi", "plld_out0", 0,
+	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
 				clk_base + PLLD_MISC, 30, 0, &pll_d_lock);
-	clks[TEGRA124_CLK_PLLD_DSI] = clk;
+	clks[TEGRA124_CLK_PLL_D_DSI_OUT] = clk;
 
-	clk = tegra_clk_register_periph_gate("dsia", "plld_dsi", 0, clk_base,
-					     0, 48, periph_clk_enb_refcnt);
+	clk = tegra_clk_register_periph_gate("dsia", "pll_d_dsi_out", 0,
+					     clk_base, 0, 48,
+					     periph_clk_enb_refcnt);
 	clks[TEGRA124_CLK_DSIA] = clk;
 
-	clk = tegra_clk_register_periph_gate("dsib", "plld_dsi", 0, clk_base,
-					     0, 82, periph_clk_enb_refcnt);
+	clk = tegra_clk_register_periph_gate("dsib", "pll_d_dsi_out", 0,
+					     clk_base, 0, 82,
+					     periph_clk_enb_refcnt);
 	clks[TEGRA124_CLK_DSIB] = clk;
 
 	/* emc mux */
