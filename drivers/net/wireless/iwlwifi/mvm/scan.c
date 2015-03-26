@@ -1179,6 +1179,18 @@ static bool iwl_mvm_find_scan_type(struct iwl_mvm *mvm,
 	return false;
 }
 
+static int iwl_mvm_find_first_scan(struct iwl_mvm *mvm,
+				   enum iwl_umac_scan_uid_type type)
+{
+	int i;
+
+	for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++)
+		if (mvm->scan_uid[i] & type)
+			return i;
+
+	return i;
+}
+
 static u32 iwl_generate_scan_uid(struct iwl_mvm *mvm,
 				 enum iwl_umac_scan_uid_type type)
 {
@@ -1629,11 +1641,30 @@ int iwl_mvm_scan_size(struct iwl_mvm *mvm)
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 {
 	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
-		if (iwl_mvm_find_scan_type(mvm, IWL_UMAC_SCAN_UID_REG_SCAN))
+		u32 uid, i;
+
+		uid = iwl_mvm_find_first_scan(mvm, IWL_UMAC_SCAN_UID_REG_SCAN);
+		if (uid < IWL_MVM_MAX_SIMULTANEOUS_SCANS) {
 			ieee80211_scan_completed(mvm->hw, true);
-		if (iwl_mvm_find_scan_type(mvm, IWL_UMAC_SCAN_UID_SCHED_SCAN) &&
-		    !mvm->restart_fw)
+			mvm->scan_uid[uid] = 0;
+		}
+		uid = iwl_mvm_find_first_scan(mvm,
+					      IWL_UMAC_SCAN_UID_SCHED_SCAN);
+		if (uid < IWL_MVM_MAX_SIMULTANEOUS_SCANS && !mvm->restart_fw) {
 			ieee80211_sched_scan_stopped(mvm->hw);
+			mvm->scan_uid[uid] = 0;
+		}
+
+		/* We shouldn't have any UIDs still set.  Loop over all the
+		 * UIDs to make sure there's nothing left there and warn if
+		 * any is found.
+		 */
+		for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++) {
+			if (WARN_ONCE(mvm->scan_uid[i],
+				      "UMAC scan UID %d was not cleaned\n",
+				      mvm->scan_uid[i]))
+				mvm->scan_uid[i] = 0;
+		}
 	} else {
 		switch (mvm->scan_status) {
 		case IWL_MVM_SCAN_NONE:

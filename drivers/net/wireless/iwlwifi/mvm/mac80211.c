@@ -1413,6 +1413,20 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	 */
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 
+	/* We shouldn't have any UIDs still set.  Loop over all the UIDs to
+	 * make sure there's nothing left there and warn if any is found.
+	 */
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
+		int i;
+
+		for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++) {
+			if (WARN_ONCE(mvm->scan_uid[i],
+				      "UMAC scan UID %d was not cleaned\n",
+				      mvm->scan_uid[i]))
+				mvm->scan_uid[i] = 0;
+		}
+	}
+
 	mvm->ucode_loaded = false;
 }
 
