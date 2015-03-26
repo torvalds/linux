@@ -425,18 +425,8 @@ static int davinci_evm_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int davinci_evm_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_card(card);
-
-	return 0;
-}
-
 static struct platform_driver davinci_evm_driver = {
 	.probe		= davinci_evm_probe,
-	.remove		= davinci_evm_remove,
 	.driver		= {
 		.name	= "davinci_evm",
 		.pm	= &snd_soc_pm_ops,
