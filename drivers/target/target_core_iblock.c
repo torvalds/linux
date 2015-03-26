@@ -444,7 +444,7 @@ iblock_execute_write_same_unmap(struct se_cmd *cmd)
 	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 	sector_t lba = cmd->t_task_lba;
 	sector_t nolb = sbc_get_write_same_sectors(cmd);
-	int ret;
+	sense_reason_t ret;
 
 	ret = iblock_do_unmap(cmd, bdev, lba, nolb);
 	if (ret)

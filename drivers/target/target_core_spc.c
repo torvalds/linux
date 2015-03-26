@@ -1112,7 +1112,7 @@ static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 	unsigned char *buf;
 	unsigned char tbuf[SE_MODE_PAGE_BUF];
 	int length;
-	int ret = 0;
+	sense_reason_t ret = 0;
 	int i;
 
 	if (!cmd->data_length) {

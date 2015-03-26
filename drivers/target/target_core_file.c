@@ -536,7 +536,7 @@ fd_execute_write_same_unmap(struct se_cmd *cmd)
 	struct file *file = fd_dev->fd_file;
 	sector_t lba = cmd->t_task_lba;
 	sector_t nolb = sbc_get_write_same_sectors(cmd);
-	int ret;
+	sense_reason_t ret;
 
 	if (!nolb) {
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
