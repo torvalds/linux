@@ -1681,18 +1681,18 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 
 	switch (port) {
 	case PORT_B:
-		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
+		intel_hdmi->ddc_bus = GMBUS_PIN_DPB;
 		intel_encoder->hpd_pin = HPD_PORT_B;
 		break;
 	case PORT_C:
-		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
+		intel_hdmi->ddc_bus = GMBUS_PIN_DPC;
 		intel_encoder->hpd_pin = HPD_PORT_C;
 		break;
 	case PORT_D:
 		if (IS_CHERRYVIEW(dev))
-			intel_hdmi->ddc_bus = GMBUS_PORT_DPD_CHV;
+			intel_hdmi->ddc_bus = GMBUS_PIN_DPD_CHV;
 		else
-			intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
+			intel_hdmi->ddc_bus = GMBUS_PIN_DPD;
 		intel_encoder->hpd_pin = HPD_PORT_D;
 		break;
 	case PORT_A:

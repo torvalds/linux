@@ -1788,16 +1788,16 @@ enum skl_disp_power_wells {
 #define   GMBUS_RATE_400KHZ	(2<<8) /* reserved on Pineview */
 #define   GMBUS_RATE_1MHZ	(3<<8) /* reserved on Pineview */
 #define   GMBUS_HOLD_EXT	(1<<7) /* 300ns hold time, rsvd on Pineview */
-#define   GMBUS_PORT_DISABLED	0
-#define   GMBUS_PORT_SSC	1
-#define   GMBUS_PORT_VGADDC	2
-#define   GMBUS_PORT_PANEL	3
-#define   GMBUS_PORT_DPD_CHV	3 /* HDMID_CHV */
-#define   GMBUS_PORT_DPC	4 /* HDMIC */
-#define   GMBUS_PORT_DPB	5 /* SDVO, HDMIB */
-#define   GMBUS_PORT_DPD	6 /* HDMID */
-#define   GMBUS_PORT_RESERVED	7 /* 7 reserved */
-#define   GMBUS_NUM_PORTS	(GMBUS_PORT_DPD - GMBUS_PORT_SSC + 1)
+#define   GMBUS_PIN_DISABLED	0
+#define   GMBUS_PIN_SSC		1
+#define   GMBUS_PIN_VGADDC	2
+#define   GMBUS_PIN_PANEL	3
+#define   GMBUS_PIN_DPD_CHV	3 /* HDMID_CHV */
+#define   GMBUS_PIN_DPC		4 /* HDMIC */
+#define   GMBUS_PIN_DPB		5 /* SDVO, HDMIB */
+#define   GMBUS_PIN_DPD		6 /* HDMID */
+#define   GMBUS_PIN_RESERVED	7 /* 7 reserved */
+#define   GMBUS_NUM_PORTS	(GMBUS_PIN_DPD - GMBUS_PIN_SSC + 1)
 #define GMBUS1			0x5104 /* command/status */
 #define   GMBUS_SW_CLR_INT	(1<<31)
 #define   GMBUS_SW_RDY		(1<<30)

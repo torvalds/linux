@@ -1133,7 +1133,7 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	enum port port;
 
-	dev_priv->vbt.crt_ddc_pin = GMBUS_PORT_VGADDC;
+	dev_priv->vbt.crt_ddc_pin = GMBUS_PIN_VGADDC;
 
 	/* Default to having backlight */
 	dev_priv->vbt.backlight.present = true;

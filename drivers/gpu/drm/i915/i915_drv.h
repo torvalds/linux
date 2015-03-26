@@ -3067,7 +3067,7 @@ extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
 static inline bool intel_gmbus_is_port_valid(unsigned port)
 {
-	return (port >= GMBUS_PORT_SSC && port <= GMBUS_PORT_DPD);
+	return (port >= GMBUS_PIN_SSC && port <= GMBUS_PIN_DPD);
 }
 
 extern struct i2c_adapter *intel_gmbus_get_adapter(

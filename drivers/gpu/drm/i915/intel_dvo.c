@@ -80,7 +80,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.name = "ch7017",
 		.dvo_reg = DVOC,
 		.slave_addr = 0x75,
-		.gpio = GMBUS_PORT_DPB,
+		.gpio = GMBUS_PIN_DPB,
 		.dev_ops = &ch7017_ops,
 	},
 	{
@@ -364,7 +364,7 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 	 * that's not the case.
 	 */
 	intel_ddc_get_modes(connector,
-			    intel_gmbus_get_adapter(dev_priv, GMBUS_PORT_DPC));
+			    intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPC));
 	if (!list_empty(&connector->probed_modes))
 		return 1;
 
@@ -505,9 +505,9 @@ void intel_dvo_init(struct drm_device *dev)
 		if (intel_gmbus_is_port_valid(dvo->gpio))
 			gpio = dvo->gpio;
 		else if (dvo->type == INTEL_DVO_CHIP_LVDS)
-			gpio = GMBUS_PORT_SSC;
+			gpio = GMBUS_PIN_SSC;
 		else
-			gpio = GMBUS_PORT_DPB;
+			gpio = GMBUS_PIN_DPB;
 
 		/* Set up the I2C bus necessary for the chip we're probing.
 		 * It appears that everything is on GPIOE except for panels
