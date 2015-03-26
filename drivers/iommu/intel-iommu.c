@@ -339,7 +339,7 @@ struct dmar_domain {
 	DECLARE_BITMAP(iommu_bmp, DMAR_UNITS_SUPPORTED);
 					/* bitmap of iommus this domain uses*/
 
-	struct list_head devices; 	/* all devices' list */
+	struct list_head devices;	/* all devices' list */
 	struct iova_domain iovad;	/* iova's that belong to this domain */
 
 	struct dma_pte	*pgd;		/* virtual address */
@@ -358,6 +358,9 @@ struct dmar_domain {
 					   2 == 1GiB, 3 == 512GiB, 4 == 1TiB */
 	spinlock_t	iommu_lock;	/* protect iommu set in domain */
 	u64		max_addr;	/* maximum mapped address */
+
+	struct iommu_domain domain;	/* generic domain data structure for
+					   iommu core */
 };
 
 /* PCI domain-device relationship */
@@ -448,6 +451,12 @@ static DEFINE_SPINLOCK(device_domain_lock);
 static LIST_HEAD(device_domain_list);
 
 static const struct iommu_ops intel_iommu_ops;
+
+/* Convert generic 'struct iommu_domain to private struct dmar_domain */
+static struct dmar_domain *to_dmar_domain(struct iommu_domain *dom)
+{
+	return container_of(dom, struct dmar_domain, domain);
+}
 
 static int __init intel_iommu_setup(char *str)
 {
@@ -4340,44 +4349,45 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width)
 	return 0;
 }
 
-static int intel_iommu_domain_init(struct iommu_domain *domain)
+static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 {
 	struct dmar_domain *dmar_domain;
+	struct iommu_domain *domain;
+
+	if (type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
 
 	dmar_domain = alloc_domain(DOMAIN_FLAG_VIRTUAL_MACHINE);
 	if (!dmar_domain) {
 		printk(KERN_ERR
 			"intel_iommu_domain_init: dmar_domain == NULL\n");
-		return -ENOMEM;
+		return NULL;
 	}
 	if (md_domain_init(dmar_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
 		printk(KERN_ERR
 			"intel_iommu_domain_init() failed\n");
 		domain_exit(dmar_domain);
-		return -ENOMEM;
+		return NULL;
 	}
 	domain_update_iommu_cap(dmar_domain);
-	domain->priv = dmar_domain;
 
+	domain = &dmar_domain->domain;
 	domain->geometry.aperture_start = 0;
 	domain->geometry.aperture_end   = __DOMAIN_MAX_ADDR(dmar_domain->gaw);
 	domain->geometry.force_aperture = true;
 
-	return 0;
+	return domain;
 }
 
-static void intel_iommu_domain_destroy(struct iommu_domain *domain)
+static void intel_iommu_domain_free(struct iommu_domain *domain)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
-
-	domain->priv = NULL;
-	domain_exit(dmar_domain);
+	domain_exit(to_dmar_domain(domain));
 }
 
 static int intel_iommu_attach_device(struct iommu_domain *domain,
 				     struct device *dev)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	struct intel_iommu *iommu;
 	int addr_width;
 	u8 bus, devfn;
@@ -4442,16 +4452,14 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 static void intel_iommu_detach_device(struct iommu_domain *domain,
 				      struct device *dev)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
-
-	domain_remove_one_dev_info(dmar_domain, dev);
+	domain_remove_one_dev_info(to_dmar_domain(domain), dev);
 }
 
 static int intel_iommu_map(struct iommu_domain *domain,
 			   unsigned long iova, phys_addr_t hpa,
 			   size_t size, int iommu_prot)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	u64 max_addr;
 	int prot = 0;
 	int ret;
@@ -4488,7 +4496,7 @@ static int intel_iommu_map(struct iommu_domain *domain,
 static size_t intel_iommu_unmap(struct iommu_domain *domain,
 				unsigned long iova, size_t size)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	struct page *freelist = NULL;
 	struct intel_iommu *iommu;
 	unsigned long start_pfn, last_pfn;
@@ -4536,7 +4544,7 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 					    dma_addr_t iova)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	struct dma_pte *pte;
 	int level = 0;
 	u64 phys = 0;
@@ -4595,8 +4603,8 @@ static void intel_iommu_remove_device(struct device *dev)
 
 static const struct iommu_ops intel_iommu_ops = {
 	.capable	= intel_iommu_capable,
-	.domain_init	= intel_iommu_domain_init,
-	.domain_destroy = intel_iommu_domain_destroy,
+	.domain_alloc	= intel_iommu_domain_alloc,
+	.domain_free	= intel_iommu_domain_free,
 	.attach_dev	= intel_iommu_attach_device,
 	.detach_dev	= intel_iommu_detach_device,
 	.map		= intel_iommu_map,
