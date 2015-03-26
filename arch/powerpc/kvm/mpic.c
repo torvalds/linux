@@ -34,7 +34,7 @@
 #include <asm/kvm_para.h>
 #include <asm/kvm_host.h>
 #include <asm/kvm_ppc.h>
-#include "iodev.h"
+#include <kvm/iodev.h>
 
 #define MAX_CPU     32
 #define MAX_SRC     256
