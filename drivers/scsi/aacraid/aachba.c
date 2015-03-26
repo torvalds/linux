@@ -462,6 +462,11 @@ int aac_get_containers(struct aac_dev *dev)
 	if (status >= 0) {
 		dresp = (struct aac_get_container_count_resp *)fib_data(fibptr);
 		maximum_num_containers = le32_to_cpu(dresp->ContainerSwitchEntries);
+		if (fibptr->dev->supplement_adapter_info.SupportedOptions2 &
+		    AAC_OPTION_SUPPORTED_240_VOLUMES) {
+			maximum_num_containers =
+				le32_to_cpu(dresp->MaxSimpleVolumes);
+		}
 		aac_fib_complete(fibptr);
 	}
 	/* FIB should be freed only after getting the response from the F/W */

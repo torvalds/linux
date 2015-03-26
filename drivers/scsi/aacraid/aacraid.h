@@ -1016,6 +1016,8 @@ struct aac_supplement_adapter_info
 #define AAC_OPTION_DOORBELL_RESET	cpu_to_le32(0x00004000)
 /* 4KB sector size */
 #define AAC_OPTION_VARIABLE_BLOCK_SIZE	cpu_to_le32(0x00040000)
+/* 240 simple volume support */
+#define AAC_OPTION_SUPPORTED_240_VOLUMES cpu_to_le32(0x10000000)
 #define AAC_SIS_VERSION_V3	3
 #define AAC_SIS_SLOT_UNKNOWN	0xFF
 
@@ -1751,6 +1753,7 @@ struct aac_get_container_count_resp {
 	__le32		MaxContainers;
 	__le32		ContainerSwitchEntries;
 	__le32		MaxPartitions;
+	__le32		MaxSimpleVolumes;
 };
 
 
