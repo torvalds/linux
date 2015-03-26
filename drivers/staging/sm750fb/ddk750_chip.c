@@ -2,7 +2,7 @@
 #include "ddk750_reg.h"
 #include "ddk750_chip.h"
 #include "ddk750_power.h"
-typedef struct _pllcalparam{
+typedef struct _pllcalparam {
 	unsigned char power;/* d : 0~ 6*/
 	unsigned char pod;
 	unsigned char od;
