@@ -257,7 +257,7 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 		return PTR_ERR(led_cdev->dev);
 
 	if (ret)
-		dev_info(parent, "Led %s renamed to %s due to name collision",
+		dev_warn(parent, "Led %s renamed to %s due to name collision",
 				led_cdev->name, dev_name(led_cdev->dev));
 
 #ifdef CONFIG_LEDS_TRIGGERS
