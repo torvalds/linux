@@ -252,7 +252,7 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 		return ret;
 
 	led_cdev->dev = device_create_with_groups(leds_class, parent, 0,
-					led_cdev, led_cdev->groups, name);
+				led_cdev, led_cdev->groups, "%s", name);
 	if (IS_ERR(led_cdev->dev))
 		return PTR_ERR(led_cdev->dev);
 
