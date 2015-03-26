@@ -296,17 +296,15 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 		goto err0;
 	}
 
-	clk = clk_get(&dev->dev, NULL);
+	clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(clk))
 		return -ENODEV;
 
 	pxa2xx_drv_pcmcia_ops(ops);
 
 	sinfo = kzalloc(SKT_DEV_INFO_SIZE(ops->nr), GFP_KERNEL);
-	if (!sinfo) {
-		clk_put(clk);
+	if (!sinfo)
 		return -ENOMEM;
-	}
 
 	sinfo->nskt = ops->nr;
 	sinfo->clk = clk;
@@ -332,7 +330,6 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 err1:
 	while (--i >= 0)
 		soc_pcmcia_remove_one(&sinfo->skt[i]);
-	clk_put(clk);
 	kfree(sinfo);
 err0:
 	return ret;
@@ -348,7 +345,6 @@ static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
 	for (i = 0; i < sinfo->nskt; i++)
 		soc_pcmcia_remove_one(&sinfo->skt[i]);
 
-	clk_put(sinfo->clk);
 	kfree(sinfo);
 	return 0;
 }
