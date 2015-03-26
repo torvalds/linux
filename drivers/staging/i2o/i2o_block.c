@@ -871,13 +871,13 @@ static int i2o_block_transfer(struct request *req)
 
 	return 0;
 
-      context_remove:
+context_remove:
 	i2o_cntxt_list_remove(c, req);
 
-      nop_msg:
+nop_msg:
 	i2o_msg_nop(c, msg);
 
-      exit:
+exit:
 	return rc;
 };
 
@@ -1002,13 +1002,13 @@ static struct i2o_block_device *i2o_block_device_alloc(void)
 
 	return dev;
 
-      cleanup_queue:
+cleanup_queue:
 	put_disk(gd);
 
-      cleanup_dev:
+cleanup_dev:
 	kfree(dev);
 
-      exit:
+exit:
 	return ERR_PTR(rc);
 };
 
@@ -1115,10 +1115,10 @@ static int i2o_block_probe(struct device *dev)
 
 	return 0;
 
-      claim_release:
+claim_release:
 	i2o_device_claim_release(i2o_dev);
 
-      exit:
+exit:
 	return rc;
 };
 
@@ -1187,16 +1187,16 @@ static int __init i2o_block_init(void)
 
 	return 0;
 
-      unregister_blkdev:
+unregister_blkdev:
 	unregister_blkdev(I2O_MAJOR, "i2o_block");
 
-      free_mempool:
+free_mempool:
 	mempool_destroy(i2o_blk_req_pool.pool);
 
-      free_slab:
+free_slab:
 	kmem_cache_destroy(i2o_blk_req_pool.slab);
 
-      exit:
+exit:
 	return rc;
 };
 
