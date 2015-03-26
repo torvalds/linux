@@ -82,6 +82,16 @@
 
 #define AHB_ARBITRATION_XBAR_CTRL_SMMU_INIT_DONE BIT(17)
 
+/*
+ * INCORRECT_BASE_ADDR_LOW_BYTE: Legacy kernel DT files for Tegra SoCs
+ * prior to Tegra124 generally use a physical base address ending in
+ * 0x4 for the AHB IP block.  According to the TRM, the low byte
+ * should be 0x0.  During device probing, this macro is used to detect
+ * whether the passed-in physical address is incorrect, and if so, to
+ * correct it.
+ */
+#define INCORRECT_BASE_ADDR_LOW_BYTE		0x4
+
 static struct platform_driver tegra_ahb_driver;
 
 static const u32 tegra_ahb_gizmo[] = {
@@ -124,12 +134,12 @@ struct tegra_ahb {
 
 static inline u32 gizmo_readl(struct tegra_ahb *ahb, u32 offset)
 {
-	return readl(ahb->regs - 4 + offset);
+	return readl(ahb->regs + offset);
 }
 
 static inline void gizmo_writel(struct tegra_ahb *ahb, u32 value, u32 offset)
 {
-	writel(value, ahb->regs - 4 + offset);
+	writel(value, ahb->regs + offset);
 }
 
 #ifdef CONFIG_TEGRA_IOMMU_SMMU
@@ -258,6 +268,15 @@ static int tegra_ahb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	/* Correct the IP block base address if necessary */
+	if (res &&
+	    (res->start & INCORRECT_BASE_ADDR_LOW_BYTE) ==
+	    INCORRECT_BASE_ADDR_LOW_BYTE) {
+		dev_warn(&pdev->dev, "incorrect AHB base address in DT data - enabling workaround\n");
+		res->start -= INCORRECT_BASE_ADDR_LOW_BYTE;
+	}
+
 	ahb->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ahb->regs))
 		return PTR_ERR(ahb->regs);
