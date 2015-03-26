@@ -376,7 +376,8 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 
 		/* Even iov_base is relative to mb_addr */
 		iov->iov_len = copy_bytes;
-		iov->iov_base = (void *) udev->data_off + udev->data_head;
+		iov->iov_base = (void __user *) udev->data_off +
+						udev->data_head;
 		iov_cnt++;
 		iov++;
 
@@ -388,7 +389,8 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 			copy_bytes = sg->length - copy_bytes;
 
 			iov->iov_len = copy_bytes;
-			iov->iov_base = (void *) udev->data_off + udev->data_head;
+			iov->iov_base = (void __user *) udev->data_off +
+							udev->data_head;
 
 			if (se_cmd->data_direction == DMA_TO_DEVICE) {
 				to = (void *) mb + udev->data_off + udev->data_head;
