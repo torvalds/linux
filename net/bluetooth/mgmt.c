@@ -1004,6 +1004,16 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 *ptr)
 		ptr += 3;
 	}
 
+	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID &&
+	    (hdev->adv_instance.flags & MGMT_ADV_FLAG_TX_POWER)) {
+		ptr[0] = 0x02;
+		ptr[1] = EIR_TX_POWER;
+		ptr[2] = (u8)hdev->adv_tx_power;
+
+		ad_len += 3;
+		ptr += 3;
+	}
+
 	memcpy(ptr, hdev->adv_instance.adv_data,
 	       hdev->adv_instance.adv_data_len);
 	ad_len += hdev->adv_instance.adv_data_len;
@@ -6588,11 +6598,17 @@ static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
 	u8 max_len = HCI_MAX_AD_LENGTH;
 	int i, cur_len;
 	bool flags_managed = false;
+	bool tx_power_managed = false;
 	u32 flags_params = MGMT_ADV_FLAG_DISCOV | MGMT_ADV_FLAG_LIMITED_DISCOV |
 			   MGMT_ADV_FLAG_MANAGED_FLAGS;
 
 	if (is_adv_data && (adv_flags & flags_params)) {
 		flags_managed = true;
+		max_len -= 3;
+	}
+
+	if (is_adv_data && (adv_flags & MGMT_ADV_FLAG_TX_POWER)) {
+		tx_power_managed = true;
 		max_len -= 3;
 	}
 
@@ -6604,6 +6620,9 @@ static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
 		cur_len = data[i];
 
 		if (flags_managed && data[i + 1] == EIR_FLAGS)
+			return false;
+
+		if (tx_power_managed && data[i + 1] == EIR_TX_POWER)
 			return false;
 
 		/* If the current field length would exceed the total data
