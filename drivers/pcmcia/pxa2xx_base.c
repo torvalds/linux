@@ -302,7 +302,8 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 
 	pxa2xx_drv_pcmcia_ops(ops);
 
-	sinfo = kzalloc(SKT_DEV_INFO_SIZE(ops->nr), GFP_KERNEL);
+	sinfo = devm_kzalloc(&dev->dev, SKT_DEV_INFO_SIZE(ops->nr),
+			     GFP_KERNEL);
 	if (!sinfo)
 		return -ENOMEM;
 
@@ -330,7 +331,7 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 err1:
 	while (--i >= 0)
 		soc_pcmcia_remove_one(&sinfo->skt[i]);
-	kfree(sinfo);
+
 err0:
 	return ret;
 }
@@ -340,12 +341,9 @@ static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
 	struct skt_dev_info *sinfo = platform_get_drvdata(dev);
 	int i;
 
-	platform_set_drvdata(dev, NULL);
-
 	for (i = 0; i < sinfo->nskt; i++)
 		soc_pcmcia_remove_one(&sinfo->skt[i]);
 
-	kfree(sinfo);
 	return 0;
 }
 
