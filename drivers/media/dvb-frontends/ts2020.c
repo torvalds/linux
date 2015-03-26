@@ -233,7 +233,6 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct ts2020_priv *priv = fe->tuner_priv;
 	int ret;
-	u32 symbol_rate = (c->symbol_rate / 1000);
 	u32 f3db, gdiv28;
 	u16 u16tmp, value, lpf_coeff;
 	u8 buf[3], reg10, lpf_mxdiv, mlpf_max, mlpf_min, nlpf;
@@ -312,12 +311,9 @@ static int ts2020_set_params(struct dvb_frontend *fe)
 
 	value = ts2020_readreg(fe, 0x26);
 
-	f3db = (symbol_rate * 135) / 200 + 2000;
-	f3db += FREQ_OFFSET_LOW_SYM_RATE;
-	if (f3db < 7000)
-		f3db = 7000;
-	if (f3db > 40000)
-		f3db = 40000;
+	f3db = (c->bandwidth_hz / 1000 / 2) + 2000;
+	f3db += FREQ_OFFSET_LOW_SYM_RATE; /* FIXME: ~always too wide filter */
+	f3db = clamp(f3db, 7000U, 40000U);
 
 	gdiv28 = gdiv28 * 207 / (value * 2 + 151);
 	mlpf_max = gdiv28 * 135 / 100;
