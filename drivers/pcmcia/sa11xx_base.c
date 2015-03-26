@@ -259,16 +259,6 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 }
 EXPORT_SYMBOL(sa11xx_drv_pcmcia_probe);
 
-static int __init sa11xx_pcmcia_init(void)
-{
-	return 0;
-}
-fs_initcall(sa11xx_pcmcia_init);
-
-static void __exit sa11xx_pcmcia_exit(void) {}
-
-module_exit(sa11xx_pcmcia_exit);
-
 MODULE_AUTHOR("John Dorsey <john+@cs.cmu.edu>");
 MODULE_DESCRIPTION("Linux PCMCIA Card Services: SA-11xx core socket driver");
 MODULE_LICENSE("Dual MPL/GPL");
