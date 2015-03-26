@@ -477,7 +477,8 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	console_lock();
 
-	if ((ret = pci_set_power_state(pdev, PCI_D0)) != 0) {
+	ret = pci_set_power_state(pdev, PCI_D0);
+	if (ret) {
 		pr_err("error:%d occured in pci_set_power_state\n", ret);
 		return ret;
 	}
@@ -485,7 +486,8 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
 		pci_restore_state(pdev);
-		if ((ret = pci_enable_device(pdev)) != 0) {
+		ret = pci_enable_device(pdev);
+		if (ret) {
 			pr_err("error:%d occured in pci_enable_device\n", ret);
 			return ret;
 		}
@@ -975,7 +977,8 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 		 info->cmap.red, info->cmap.green, info->cmap.blue,
 		 info->cmap.transp);
 
-	if ((ret = fb_alloc_cmap(&info->cmap, 256, 0)) < 0) {
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret < 0) {
 		pr_err("Could not allcate memory for cmap.\n");
 		goto exit;
 	}
