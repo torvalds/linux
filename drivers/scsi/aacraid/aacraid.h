@@ -12,7 +12,7 @@
  *              D E F I N E S
  *----------------------------------------------------------------------------*/
 
-#define AAC_MAX_MSIX		32	/* vectors */
+#define AAC_MAX_MSIX		8	/* vectors */
 #define AAC_PCI_MSI_ENABLE	0x8000
 
 enum {
@@ -633,7 +633,8 @@ struct aac_queue {
 	spinlock_t		lockdata;	/* Actual lock (used only on one side of the lock) */
 	struct list_head	cmdq;		/* A queue of FIBs which need to be prcessed by the FS thread. This is */
 						/* only valid for command queues which receive entries from the adapter. */
-	u32			numpending;	/* Number of entries on outstanding queue. */
+	/* Number of entries on outstanding queue. */
+	atomic_t		numpending;
 	struct aac_dev *	dev;		/* Back pointer to adapter structure */
 };
 

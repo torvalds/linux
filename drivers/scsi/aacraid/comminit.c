@@ -53,7 +53,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 {
 	unsigned char *base;
 	unsigned long size, align;
-	const unsigned long fibsize = 4096;
+	const unsigned long fibsize = dev->max_fib_size;
 	const unsigned long printfbufsiz = 256;
 	unsigned long host_rrq_size = 0;
 	struct aac_init *init;
@@ -182,7 +182,7 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
     
 static void aac_queue_init(struct aac_dev * dev, struct aac_queue * q, u32 *mem, int qsize)
 {
-	q->numpending = 0;
+	atomic_set(&q->numpending, 0);
 	q->dev = dev;
 	init_waitqueue_head(&q->cmdready);
 	INIT_LIST_HEAD(&q->cmdq);

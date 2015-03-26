@@ -251,26 +251,14 @@ static struct aac_driver_ident aac_drivers[] = {
  *	TODO: unify with aac_scsi_cmd().
  */
 
-static int aac_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+static int aac_queuecommand(struct Scsi_Host *shost,
+			    struct scsi_cmnd *cmd)
 {
-	struct Scsi_Host *host = cmd->device->host;
-	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
-	u32 count = 0;
-	cmd->scsi_done = done;
-	for (; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
-		struct fib * fib = &dev->fibs[count];
-		struct scsi_cmnd * command;
-		if (fib->hw_fib_va->header.XferState &&
-		    ((command = fib->callback_data)) &&
-		    (command == cmd) &&
-		    (cmd->SCp.phase == AAC_OWNER_FIRMWARE))
-			return 0; /* Already owned by Adapter */
-	}
+	int r = 0;
 	cmd->SCp.phase = AAC_OWNER_LOWLEVEL;
-	return (aac_scsi_cmd(cmd) ? FAILED : 0);
+	r = (aac_scsi_cmd(cmd) ? FAILED : 0);
+	return r;
 }
-
-static DEF_SCSI_QCMD(aac_queuecommand)
 
 /**
  *	aac_info		-	Returns the host adapter name
@@ -1085,6 +1073,7 @@ static struct scsi_host_template aac_driver_template = {
 static void __aac_shutdown(struct aac_dev * aac)
 {
 	int i;
+	int cpu;
 
 	if (aac->aif_thread) {
 		int i;
@@ -1099,14 +1088,26 @@ static void __aac_shutdown(struct aac_dev * aac)
 	}
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
+	cpu = cpumask_first(cpu_online_mask);
 	if (aac->pdev->device == PMC_DEVICE_S6 ||
 	    aac->pdev->device == PMC_DEVICE_S7 ||
 	    aac->pdev->device == PMC_DEVICE_S8 ||
 	    aac->pdev->device == PMC_DEVICE_S9) {
 		if (aac->max_msix > 1) {
-			for (i = 0; i < aac->max_msix; i++)
+			for (i = 0; i < aac->max_msix; i++) {
+				if (irq_set_affinity_hint(
+				    aac->msixentry[i].vector,
+				    NULL)) {
+					printk(KERN_ERR "%s%d: Failed to reset IRQ affinity for cpu %d\n",
+						aac->name,
+						aac->id,
+						cpu);
+				}
+				cpu = cpumask_next(cpu,
+						cpu_online_mask);
 				free_irq(aac->msixentry[i].vector,
 					 &(aac->aac_msix[i]));
+			}
 		} else {
 			free_irq(aac->pdev->irq,
 				 &(aac->aac_msix[0]));

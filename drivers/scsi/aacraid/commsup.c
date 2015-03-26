@@ -208,14 +208,10 @@ struct fib *aac_fib_alloc(struct aac_dev *dev)
 
 void aac_fib_free(struct fib *fibptr)
 {
-	unsigned long flags, flagsv;
+	unsigned long flags;
 
-	spin_lock_irqsave(&fibptr->event_lock, flagsv);
-	if (fibptr->done == 2) {
-		spin_unlock_irqrestore(&fibptr->event_lock, flagsv);
+	if (fibptr->done == 2)
 		return;
-	}
-	spin_unlock_irqrestore(&fibptr->event_lock, flagsv);
 
 	spin_lock_irqsave(&fibptr->dev->fib_lock, flags);
 	if (unlikely(fibptr->flags & FIB_CONTEXT_FLAG_TIMED_OUT))
@@ -321,7 +317,7 @@ static int aac_get_entry (struct aac_dev * dev, u32 qid, struct aac_entry **entr
 	/* Queue is full */
 	if ((*index + 1) == le32_to_cpu(*(q->headers.consumer))) {
 		printk(KERN_WARNING "Queue %d full, %u outstanding.\n",
-				qid, q->numpending);
+				qid, atomic_read(&q->numpending));
 		return 0;
 	} else {
 		*entry = q->base + *index;
@@ -414,7 +410,6 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	struct aac_dev * dev = fibptr->dev;
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
 	unsigned long flags = 0;
-	unsigned long qflags;
 	unsigned long mflags = 0;
 	unsigned long sflags = 0;
 
@@ -568,9 +563,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				int blink;
 				if (time_is_before_eq_jiffies(timeout)) {
 					struct aac_queue * q = &dev->queues->queue[AdapNormCmdQueue];
-					spin_lock_irqsave(q->lock, qflags);
-					q->numpending--;
-					spin_unlock_irqrestore(q->lock, qflags);
+					atomic_dec(&q->numpending);
 					if (wait == -1) {
 	        				printk(KERN_ERR "aacraid: aac_fib_send: first asynchronous command timed out.\n"
 						  "Usually a result of a PCI interrupt routing problem;\n"
@@ -775,7 +768,6 @@ int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 
 int aac_fib_complete(struct fib *fibptr)
 {
-	unsigned long flags;
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
 
 	/*
@@ -798,12 +790,6 @@ int aac_fib_complete(struct fib *fibptr)
 	 *	command is complete that we had sent to the adapter and this
 	 *	cdb could be reused.
 	 */
-	spin_lock_irqsave(&fibptr->event_lock, flags);
-	if (fibptr->done == 2) {
-		spin_unlock_irqrestore(&fibptr->event_lock, flags);
-		return 0;
-	}
-	spin_unlock_irqrestore(&fibptr->event_lock, flags);
 
 	if((hw_fib->header.XferState & cpu_to_le32(SentFromHost)) &&
 		(hw_fib->header.XferState & cpu_to_le32(AdapterProcessed)))
@@ -1257,6 +1243,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	struct scsi_cmnd *command;
 	struct scsi_cmnd *command_list;
 	int jafo = 0;
+	int cpu;
 
 	/*
 	 * Assumptions:
@@ -1319,14 +1306,26 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	aac->comm_phys = 0;
 	kfree(aac->queues);
 	aac->queues = NULL;
+	cpu = cpumask_first(cpu_online_mask);
 	if (aac->pdev->device == PMC_DEVICE_S6 ||
 	    aac->pdev->device == PMC_DEVICE_S7 ||
 	    aac->pdev->device == PMC_DEVICE_S8 ||
 	    aac->pdev->device == PMC_DEVICE_S9) {
 		if (aac->max_msix > 1) {
-			for (i = 0; i < aac->max_msix; i++)
+			for (i = 0; i < aac->max_msix; i++) {
+				if (irq_set_affinity_hint(
+				    aac->msixentry[i].vector,
+				    NULL)) {
+					printk(KERN_ERR "%s%d: Failed to reset IRQ affinity for cpu %d\n",
+						aac->name,
+						aac->id,
+						cpu);
+				}
+				cpu = cpumask_next(cpu,
+						cpu_online_mask);
 				free_irq(aac->msixentry[i].vector,
 					 &(aac->aac_msix[i]));
+			}
 			pci_disable_msix(aac->pdev);
 		} else {
 			free_irq(aac->pdev->irq, &(aac->aac_msix[0]));

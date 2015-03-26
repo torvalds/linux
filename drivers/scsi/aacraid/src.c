@@ -444,15 +444,12 @@ static int aac_src_deliver_message(struct fib *fib)
 {
 	struct aac_dev *dev = fib->dev;
 	struct aac_queue *q = &dev->queues->queue[AdapNormCmdQueue];
-	unsigned long qflags;
 	u32 fibsize;
 	dma_addr_t address;
 	struct aac_fib_xporthdr *pFibX;
 	u16 hdr_size = le16_to_cpu(fib->hw_fib_va->header.Size);
 
-	spin_lock_irqsave(q->lock, qflags);
-	q->numpending++;
-	spin_unlock_irqrestore(q->lock, qflags);
+	atomic_inc(&q->numpending);
 
 	if (dev->msi_enabled && fib->hw_fib_va->header.Command != AifRequest &&
 	    dev->max_msix > 1) {
@@ -794,6 +791,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	int instance = dev->id;
 	int i, j;
 	const char *name = dev->name;
+	int cpu;
 
 	dev->a_ops.adapter_ioremap = aac_srcv_ioremap;
 	dev->a_ops.adapter_comm = aac_src_select_comm;
@@ -911,6 +909,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	if (dev->msi_enabled)
 		aac_src_access_devreg(dev, AAC_ENABLE_MSIX);
 	if (!dev->sync_mode && dev->msi_enabled && dev->max_msix > 1) {
+		cpu = cpumask_first(cpu_online_mask);
 		for (i = 0; i < dev->max_msix; i++) {
 			dev->aac_msix[i].vector_no = i;
 			dev->aac_msix[i].dev = dev;
@@ -928,6 +927,13 @@ int aac_srcv_init(struct aac_dev *dev)
 				pci_disable_msix(dev->pdev);
 				goto error_iounmap;
 			}
+			if (irq_set_affinity_hint(
+			   dev->msixentry[i].vector,
+			   get_cpu_mask(cpu))) {
+				printk(KERN_ERR "%s%d: Failed to set IRQ affinity for cpu %d\n",
+						name, instance, cpu);
+			}
+			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
 	} else {
 		dev->aac_msix[0].vector_no = 0;
