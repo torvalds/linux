@@ -876,7 +876,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
-	if (cl->state != MEI_FILE_CONNECTED) {
+	if (!mei_cl_is_connected(cl)) {
 		cl->state = MEI_FILE_DISCONNECTED;
 		/* something went really wrong */
 		if (!cl->status)

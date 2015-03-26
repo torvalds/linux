@@ -110,7 +110,7 @@ int mei_cl_irq_read_msg(struct mei_cl *cl,
 		goto out;
 	}
 
-	if (cl->state != MEI_FILE_CONNECTED) {
+	if (!mei_cl_is_connected(cl)) {
 		cl_dbg(dev, cl, "not connected\n");
 		cb->status = -ENODEV;
 		goto out;

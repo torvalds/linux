@@ -238,7 +238,7 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 	dev = cl->dev;
 
 	mutex_lock(&dev->device_lock);
-	if (cl->state != MEI_FILE_CONNECTED) {
+	if (!mei_cl_is_connected(cl)) {
 		rets = -ENODEV;
 		goto out;
 	}
@@ -474,7 +474,7 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 
 	mutex_lock(&dev->device_lock);
 
-	if (cl->state != MEI_FILE_CONNECTED) {
+	if (!mei_cl_is_connected(cl)) {
 		dev_err(dev->dev, "Already disconnected");
 		err = 0;
 		goto out;

@@ -107,7 +107,7 @@ static int mei_release(struct inode *inode, struct file *file)
 		rets = mei_amthif_release(dev, file);
 		goto out;
 	}
-	if (cl->state == MEI_FILE_CONNECTED) {
+	if (mei_cl_is_connected(cl)) {
 		cl->state = MEI_FILE_DISCONNECTING;
 		cl_dbg(dev, cl, "disconnecting\n");
 		rets = mei_cl_disconnect(cl);
@@ -309,9 +309,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
-	if (cl->state != MEI_FILE_CONNECTED) {
-		dev_err(dev->dev, "host client = %d,  is not connected to ME client = %d",
-			cl->host_client_id, cl->me_client_id);
+	if (!mei_cl_is_connected(cl)) {
+		cl_err(dev, cl, "is not connected");
 		rets = -ENODEV;
 		goto out;
 	}
@@ -418,7 +417,7 @@ static int mei_ioctl_connect_client(struct file *file,
 	 */
 	if (uuid_le_cmp(data->in_client_uuid, mei_amthif_guid) == 0) {
 		dev_dbg(dev->dev, "FW Client is amthi\n");
-		if (dev->iamthif_cl.state != MEI_FILE_CONNECTED) {
+		if (!mei_cl_is_connected(&dev->iamthif_cl)) {
 			rets = -ENODEV;
 			goto end;
 		}
@@ -554,7 +553,9 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 
 	mutex_lock(&dev->device_lock);
 
-	if (!mei_cl_is_connected(cl)) {
+
+	if (dev->dev_state != MEI_DEV_ENABLED ||
+	    !mei_cl_is_connected(cl)) {
 		mask = POLLERR;
 		goto out;
 	}
