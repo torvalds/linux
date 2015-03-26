@@ -12,6 +12,7 @@ frequencies.
 		    "qcom,rpm-apq8064"
 		    "qcom,rpm-msm8660"
 		    "qcom,rpm-msm8960"
+		    "qcom,rpm-ipq8064"
 
 - reg:
 	Usage: required
