@@ -34,20 +34,12 @@
 #include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
+#include "target_core_internal.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 #include "target_core_xcopy.h"
 
 static struct workqueue_struct *xcopy_wq = NULL;
-/*
- * From target_core_device.c
- */
-extern struct mutex g_device_mutex;
-extern struct list_head g_device_list;
-/*
- * From target_core_configfs.c
- */
-extern struct configfs_subsystem *target_core_subsystem[];
 
 static int target_xcopy_gen_naa_ieee(struct se_device *dev, unsigned char *buf)
 {
