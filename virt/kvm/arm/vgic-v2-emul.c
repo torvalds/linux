@@ -715,7 +715,7 @@ static int vgic_attr_regs_access(struct kvm_device *dev,
 	default:
 		BUG();
 	}
-	r = vgic_find_range(ranges, &mmio, offset);
+	r = vgic_find_range(ranges, 4, offset);
 
 	if (unlikely(!r || !r->handle_mmio)) {
 		ret = -ENXIO;

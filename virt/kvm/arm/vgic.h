@@ -90,8 +90,7 @@ static inline bool is_in_range(phys_addr_t addr, unsigned long len,
 
 const
 struct vgic_io_range *vgic_find_range(const struct vgic_io_range *ranges,
-				      struct kvm_exit_mmio *mmio,
-				      phys_addr_t offset);
+				      int len, gpa_t offset);
 
 bool vgic_handle_mmio_range(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			    struct kvm_exit_mmio *mmio,

@@ -713,16 +713,13 @@ void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 
 const
 struct vgic_io_range *vgic_find_range(const struct vgic_io_range *ranges,
-				      struct kvm_exit_mmio *mmio,
-				      phys_addr_t offset)
+				      int len, gpa_t offset)
 {
-	const struct vgic_io_range *r = ranges;
-
-	while (r->len) {
-		if (offset >= r->base &&
-		    (offset + mmio->len) <= (r->base + r->len))
-			return r;
-		r++;
+	while (ranges->len) {
+		if (offset >= ranges->base &&
+		    (offset + len) <= (ranges->base + ranges->len))
+			return ranges;
+		ranges++;
 	}
 
 	return NULL;
@@ -813,7 +810,7 @@ bool vgic_handle_mmio_range(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	unsigned long offset;
 
 	offset = mmio->phys_addr - mmio_base;
-	range = vgic_find_range(ranges, mmio, offset);
+	range = vgic_find_range(ranges, mmio->len, offset);
 	if (unlikely(!range || !range->handle_mmio)) {
 		pr_warn("Unhandled access %d %08llx %d\n",
 			mmio->is_write, mmio->phys_addr, mmio->len);
@@ -1986,10 +1983,7 @@ int vgic_get_common_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 
 int vgic_has_attr_regs(const struct vgic_io_range *ranges, phys_addr_t offset)
 {
-	struct kvm_exit_mmio dev_attr_mmio;
-
-	dev_attr_mmio.len = 4;
-	if (vgic_find_range(ranges, &dev_attr_mmio, offset))
+	if (vgic_find_range(ranges, 4, offset))
 		return 0;
 	else
 		return -ENXIO;
