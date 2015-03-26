@@ -329,12 +329,16 @@ void nf_tables_unbind_set(const struct nft_ctx *ctx, struct nft_set *set,
  *	@NFT_SET_EXT_KEY: element key
  *	@NFT_SET_EXT_DATA: mapping data
  *	@NFT_SET_EXT_FLAGS: element flags
+ *	@NFT_SET_EXT_TIMEOUT: element timeout
+ *	@NFT_SET_EXT_EXPIRATION: element expiration time
  *	@NFT_SET_EXT_NUM: number of extension types
  */
 enum nft_set_extensions {
 	NFT_SET_EXT_KEY,
 	NFT_SET_EXT_DATA,
 	NFT_SET_EXT_FLAGS,
+	NFT_SET_EXT_TIMEOUT,
+	NFT_SET_EXT_EXPIRATION,
 	NFT_SET_EXT_NUM
 };
 
@@ -429,6 +433,22 @@ static inline struct nft_data *nft_set_ext_data(const struct nft_set_ext *ext)
 static inline u8 *nft_set_ext_flags(const struct nft_set_ext *ext)
 {
 	return nft_set_ext(ext, NFT_SET_EXT_FLAGS);
+}
+
+static inline u64 *nft_set_ext_timeout(const struct nft_set_ext *ext)
+{
+	return nft_set_ext(ext, NFT_SET_EXT_TIMEOUT);
+}
+
+static inline unsigned long *nft_set_ext_expiration(const struct nft_set_ext *ext)
+{
+	return nft_set_ext(ext, NFT_SET_EXT_EXPIRATION);
+}
+
+static inline bool nft_set_elem_expired(const struct nft_set_ext *ext)
+{
+	return nft_set_ext_exists(ext, NFT_SET_EXT_EXPIRATION) &&
+	       time_is_before_eq_jiffies(*nft_set_ext_expiration(ext));
 }
 
 static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
