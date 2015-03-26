@@ -1951,6 +1951,8 @@ extern struct aac_common aac_config;
 #define			AifEnEnclosureManagement 13	/* EM_DRIVE_* */
 #define				EM_DRIVE_INSERTION	31
 #define				EM_DRIVE_REMOVAL	32
+#define			EM_SES_DRIVE_INSERTION	33
+#define			EM_SES_DRIVE_REMOVAL	26
 #define			AifEnBatteryEvent	14	/* Change in Battery State */
 #define			AifEnAddContainer	15	/* A new array was created */
 #define			AifEnDeleteContainer	16	/* A container was deleted */
