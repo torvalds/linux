@@ -941,115 +941,6 @@ static u8 get_adv_discov_flags(struct hci_dev *hdev)
 	return 0;
 }
 
-static u8 create_default_adv_data(struct hci_dev *hdev, u8 *ptr)
-{
-	u8 ad_len = 0, flags = 0;
-
-	flags |= get_adv_discov_flags(hdev);
-
-	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-		flags |= LE_AD_NO_BREDR;
-
-	if (flags) {
-		BT_DBG("adv flags 0x%02x", flags);
-
-		ptr[0] = 2;
-		ptr[1] = EIR_FLAGS;
-		ptr[2] = flags;
-
-		ad_len += 3;
-		ptr += 3;
-	}
-
-	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID) {
-		ptr[0] = 2;
-		ptr[1] = EIR_TX_POWER;
-		ptr[2] = (u8) hdev->adv_tx_power;
-
-		ad_len += 3;
-		ptr += 3;
-	}
-
-	return ad_len;
-}
-
-static u8 create_instance_adv_data(struct hci_dev *hdev, u8 *ptr)
-{
-	u8 ad_len = 0, flags = 0;
-
-	/* The Add Advertising command allows userspace to set both the general
-	 * and limited discoverable flags.
-	 */
-	if (hdev->adv_instance.flags & MGMT_ADV_FLAG_DISCOV)
-		flags |= LE_AD_GENERAL;
-
-	if (hdev->adv_instance.flags & MGMT_ADV_FLAG_LIMITED_DISCOV)
-		flags |= LE_AD_LIMITED;
-
-	if (flags || (hdev->adv_instance.flags & MGMT_ADV_FLAG_MANAGED_FLAGS)) {
-		/* If a discovery flag wasn't provided, simply use the global
-		 * settings.
-		 */
-		if (!flags)
-			flags |= get_adv_discov_flags(hdev);
-
-		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-			flags |= LE_AD_NO_BREDR;
-
-		ptr[0] = 0x02;
-		ptr[1] = EIR_FLAGS;
-		ptr[2] = flags;
-
-		ad_len += 3;
-		ptr += 3;
-	}
-
-	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID &&
-	    (hdev->adv_instance.flags & MGMT_ADV_FLAG_TX_POWER)) {
-		ptr[0] = 0x02;
-		ptr[1] = EIR_TX_POWER;
-		ptr[2] = (u8)hdev->adv_tx_power;
-
-		ad_len += 3;
-		ptr += 3;
-	}
-
-	memcpy(ptr, hdev->adv_instance.adv_data,
-	       hdev->adv_instance.adv_data_len);
-	ad_len += hdev->adv_instance.adv_data_len;
-
-	return ad_len;
-}
-
-static void update_adv_data_for_instance(struct hci_request *req, u8 instance)
-{
-	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_adv_data cp;
-	u8 len;
-
-	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
-		return;
-
-	memset(&cp, 0, sizeof(cp));
-
-	if (instance)
-		len = create_instance_adv_data(hdev, cp.data);
-	else
-		len = create_default_adv_data(hdev, cp.data);
-
-	/* There's nothing to do if the data hasn't changed */
-	if (hdev->adv_data_len == len &&
-	    memcmp(cp.data, hdev->adv_data, len) == 0)
-		return;
-
-	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
-	hdev->adv_data_len = len;
-
-	cp.length = len;
-
-	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
-}
-
 static u8 get_current_adv_instance(struct hci_dev *hdev)
 {
 	/* The "Set Advertising" setting supersedes the "Add Advertising"
@@ -1088,19 +979,101 @@ static u32 get_adv_instance_flags(struct hci_dev *hdev, u8 instance)
 	if (instance > 0x01)
 		return 0;
 
-	if (instance == 1)
+	if (instance == 0x01)
 		return hdev->adv_instance.flags;
 
-	flags = 0;
+	/* Instance 0 always manages the "Tx Power" and "Flags" fields */
+	flags = MGMT_ADV_FLAG_TX_POWER | MGMT_ADV_FLAG_MANAGED_FLAGS;
 
 	/* For instance 0, assemble the flags from global settings */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING_CONNECTABLE) ||
 	    get_connectable(hdev))
 		flags |= MGMT_ADV_FLAG_CONNECTABLE;
 
-	/* TODO: Add the rest of the flags */
-
 	return flags;
+}
+
+static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
+{
+	u8 ad_len = 0, flags = 0;
+	u32 instance_flags = get_adv_instance_flags(hdev, instance);
+
+	/* The Add Advertising command allows userspace to set both the general
+	 * and limited discoverable flags.
+	 */
+	if (instance_flags & MGMT_ADV_FLAG_DISCOV)
+		flags |= LE_AD_GENERAL;
+
+	if (instance_flags & MGMT_ADV_FLAG_LIMITED_DISCOV)
+		flags |= LE_AD_LIMITED;
+
+	if (flags || (instance_flags & MGMT_ADV_FLAG_MANAGED_FLAGS)) {
+		/* If a discovery flag wasn't provided, simply use the global
+		 * settings.
+		 */
+		if (!flags)
+			flags |= get_adv_discov_flags(hdev);
+
+		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+			flags |= LE_AD_NO_BREDR;
+
+		/* If flags would still be empty, then there is no need to
+		 * include the "Flags" AD field".
+		 */
+		if (flags) {
+			ptr[0] = 0x02;
+			ptr[1] = EIR_FLAGS;
+			ptr[2] = flags;
+
+			ad_len += 3;
+			ptr += 3;
+		}
+	}
+
+	/* Provide Tx Power only if we can provide a valid value for it */
+	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID &&
+	    (instance_flags & MGMT_ADV_FLAG_TX_POWER)) {
+		ptr[0] = 0x02;
+		ptr[1] = EIR_TX_POWER;
+		ptr[2] = (u8)hdev->adv_tx_power;
+
+		ad_len += 3;
+		ptr += 3;
+	}
+
+	if (instance) {
+		memcpy(ptr, hdev->adv_instance.adv_data,
+		       hdev->adv_instance.adv_data_len);
+		ad_len += hdev->adv_instance.adv_data_len;
+	}
+
+	return ad_len;
+}
+
+static void update_adv_data_for_instance(struct hci_request *req, u8 instance)
+{
+	struct hci_dev *hdev = req->hdev;
+	struct hci_cp_le_set_adv_data cp;
+	u8 len;
+
+	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
+		return;
+
+	memset(&cp, 0, sizeof(cp));
+
+	len = create_instance_adv_data(hdev, instance, cp.data);
+
+	/* There's nothing to do if the data hasn't changed */
+	if (hdev->adv_data_len == len &&
+	    memcmp(cp.data, hdev->adv_data, len) == 0)
+		return;
+
+	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
+	hdev->adv_data_len = len;
+
+	cp.length = len;
+
+	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
 }
 
 static void update_adv_data(struct hci_request *req)
