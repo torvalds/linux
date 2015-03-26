@@ -23,10 +23,17 @@
 		      <0x0 0x2c02f000 0 0x2000>,
 		      <0x0 0x2c04f000 0 0x2000>,
 		      <0x0 0x2c06f000 0 0x2000>;
-		#address-cells = <0>;
+		#address-cells = <2>;
 		#interrupt-cells = <3>;
+		#size-cells = <2>;
 		interrupt-controller;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_HIGH)>;
+		ranges = <0 0 0 0x2c1c0000 0 0x40000>;
+		v2m_0: v2m@0 {
+			compatible = "arm,gic-v2m-frame";
+			msi-controller;
+			reg = <0 0 0 0x1000>;
+		};
 	};
 
 	timer {
@@ -129,19 +136,19 @@
 
 		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 15>;
-		interrupt-map = <0 0  0 &gic 0  68 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  1 &gic 0  69 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  2 &gic 0  70 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  3 &gic 0 160 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  4 &gic 0 161 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  5 &gic 0 162 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  6 &gic 0 163 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  7 &gic 0 164 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  8 &gic 0 165 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0  9 &gic 0 166 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0 10 &gic 0 167 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0 11 &gic 0 168 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0 12 &gic 0 169 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-map = <0 0  0 &gic 0 0 0  68 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  1 &gic 0 0 0  69 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  2 &gic 0 0 0  70 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  3 &gic 0 0 0 160 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  4 &gic 0 0 0 161 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  5 &gic 0 0 0 162 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  6 &gic 0 0 0 163 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  7 &gic 0 0 0 164 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  8 &gic 0 0 0 165 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0  9 &gic 0 0 0 166 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 10 &gic 0 0 0 167 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 11 &gic 0 0 0 168 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 12 &gic 0 0 0 169 IRQ_TYPE_LEVEL_HIGH>;
 
 		/include/ "juno-motherboard.dtsi"
 	};
