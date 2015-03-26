@@ -295,13 +295,18 @@ static int ll_xattr_find_get_lock(struct inode *inode,
 
 
 	mutex_lock(&lli->lli_xattrs_enq_lock);
-	/* Try matching first. */
-	mode = ll_take_md_lock(inode, MDS_INODELOCK_XATTR, &lockh, 0, LCK_PR);
-	if (mode != 0) {
-		/* fake oit in mdc_revalidate_lock() manner */
-		oit->d.lustre.it_lock_handle = lockh.cookie;
-		oit->d.lustre.it_lock_mode = mode;
-		goto out;
+	/* inode may have been shrunk and recreated, so data is gone, match lock
+	 * only when data exists. */
+	if (ll_xattr_cache_valid(lli)) {
+		/* Try matching first. */
+		mode = ll_take_md_lock(inode, MDS_INODELOCK_XATTR, &lockh, 0,
+				       LCK_PR);
+		if (mode != 0) {
+			/* fake oit in mdc_revalidate_lock() manner */
+			oit->d.lustre.it_lock_handle = lockh.cookie;
+			oit->d.lustre.it_lock_mode = mode;
+			goto out;
+		}
 	}
 
 	/* Enqueue if the lock isn't cached locally. */
