@@ -934,6 +934,21 @@ static void quiesce_rx(struct adapter *adap)
 	}
 }
 
+/* Disable interrupt and napi handler */
+static void disable_interrupts(struct adapter *adap)
+{
+	if (adap->flags & FULL_INIT_DONE) {
+		t4_intr_disable(adap);
+		if (adap->flags & USING_MSIX) {
+			free_msix_queue_irqs(adap);
+			free_irq(adap->msix_info[0].vec, adap);
+		} else {
+			free_irq(adap->pdev->irq, adap);
+		}
+		quiesce_rx(adap);
+	}
+}
+
 /*
  * Enable NAPI scheduling and interrupt generation for all Rx queues.
  */
@@ -4257,19 +4272,12 @@ static int cxgb_up(struct adapter *adap)
 
 static void cxgb_down(struct adapter *adapter)
 {
-	t4_intr_disable(adapter);
 	cancel_work_sync(&adapter->tid_release_task);
 	cancel_work_sync(&adapter->db_full_task);
 	cancel_work_sync(&adapter->db_drop_task);
 	adapter->tid_release_task_busy = false;
 	adapter->tid_release_head = NULL;
 
-	if (adapter->flags & USING_MSIX) {
-		free_msix_queue_irqs(adapter);
-		free_irq(adapter->msix_info[0].vec, adapter);
-	} else
-		free_irq(adapter->pdev->irq, adapter);
-	quiesce_rx(adapter);
 	t4_sge_stop(adapter);
 	t4_free_sge_resources(adapter);
 	adapter->flags &= ~FULL_INIT_DONE;
@@ -5591,6 +5599,7 @@ static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
 		netif_carrier_off(dev);
 	}
 	spin_unlock(&adap->stats_lock);
+	disable_interrupts(adap);
 	if (adap->flags & FULL_INIT_DONE)
 		cxgb_down(adap);
 	rtnl_unlock();
@@ -6303,6 +6312,8 @@ static void remove_one(struct pci_dev *pdev)
 
 		if (is_offload(adapter))
 			detach_ulds(adapter);
+
+		disable_interrupts(adapter);
 
 		for_each_port(adapter, i)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
