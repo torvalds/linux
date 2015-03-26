@@ -2553,41 +2553,6 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		slic_intagg_set(adapter, intagg);
 		return 0;
 
-#ifdef SLIC_TRACE_DUMP_ENABLED
-	case SIOCSLICTRACEDUMP:
-		{
-			u32 value;
-
-			DBG_IOCTL("slic_ioctl  SIOCSLIC_TRACE_DUMP\n");
-
-			if (copy_from_user(data, rq->ifr_data, 28)) {
-				PRINT_ERROR
-				    ("slic: copy_from_user FAILED getting initial simba param\n");
-				return -EFAULT;
-			}
-
-			value = data[0];
-			if (tracemon_request == SLIC_DUMP_DONE) {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested\n");
-				tracemon_request = SLIC_DUMP_REQUESTED;
-				tracemon_request_type = value;
-				tracemon_timestamp = jiffies;
-			} else if ((tracemon_request == SLIC_DUMP_REQUESTED) ||
-				   (tracemon_request ==
-				    SLIC_DUMP_IN_PROGRESS)) {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested but already in progress... ignore\n");
-			} else {
-				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested\n");
-				tracemon_request = SLIC_DUMP_REQUESTED;
-				tracemon_request_type = value;
-				tracemon_timestamp = jiffies;
-			}
-			return 0;
-		}
-#endif
 	case SIOCETHTOOL:
 		if (copy_from_user(&ecmd, rq->ifr_data, sizeof(ecmd)))
 			return -EFAULT;
