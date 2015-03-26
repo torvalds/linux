@@ -52,10 +52,15 @@ struct ts2020_config {
 	 * pointer to DVB frontend
 	 */
 	struct dvb_frontend *fe;
+
+	/*
+	 * driver private, do not set value
+	 */
+	u8 attach_in_use:1;
 };
 
+/* Do not add new ts2020_attach() users! Use I2C bindings instead. */
 #if IS_REACHABLE(CONFIG_DVB_TS2020)
-
 extern struct dvb_frontend *ts2020_attach(
 	struct dvb_frontend *fe,
 	const struct ts2020_config *config,
