@@ -340,13 +340,20 @@ static int rockchip_hdmiv2_parse_dt(struct hdmi_dev *hdmi_dev)
 
 	if (!of_property_read_u32(np, "rockchip,cec_enable", &val) &&
 	    (val == 1)) {
-		pr_info("hdmi support cec\n");
+		pr_debug("hdmi support cec\n");
 		rk_hdmi_property.feature |= SUPPORT_CEC;
 	}
 	if (!of_property_read_u32(np, "rockchip,hdcp_enable", &val) &&
 	    (val == 1)) {
-		pr_info("hdmi support hdcp\n");
+		pr_debug("hdmi support hdcp\n");
 		rk_hdmi_property.feature |= SUPPORT_HDCP;
+	}
+	if (!of_property_read_u32(np, "rockchip,defaultmode", &val) &&
+	    (val > 0)) {
+		pr_debug("default mode is %d\n", val);
+		rk_hdmi_property.defaultmode = val;
+	} else {
+		rk_hdmi_property.defaultmode = HDMI_VIDEO_DEFAULT_MODE;
 	}
 	#ifdef CONFIG_MFD_SYSCON
 	hdmi_dev->grf_base =

@@ -28,6 +28,7 @@ Required properties:
 - rockchip,cec_enable: hdmi cec function is described as follow
 	<0>: cec function is disabled.
 	<1>: cec function is enabled.
+- rockchip,defaultmode: hdmi default output video mode.
 Example:
 
 	hdmi: hdmi@ff980000 {
