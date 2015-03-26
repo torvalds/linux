@@ -749,9 +749,9 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 {
 	struct receive_queue *rq =
 		container_of(napi, struct receive_queue, napi);
-	unsigned int r, received = 0;
+	unsigned int r, received;
 
-	received += virtnet_receive(rq, budget - received);
+	received = virtnet_receive(rq, budget);
 
 	/* Out of packets? */
 	if (received < budget) {
