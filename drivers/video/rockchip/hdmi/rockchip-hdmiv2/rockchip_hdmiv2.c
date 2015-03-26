@@ -250,6 +250,7 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 	int blank_mode = *((int *)event->data);
 	struct hdmi *hdmi = hdmi_dev->hdmi;
 	struct delayed_work *delay_work;
+	struct pinctrl_state *gpio_state;
 
 	if (action == FB_EARLY_EVENT_BLANK) {
 		switch (blank_mode) {
@@ -265,6 +266,8 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 				if (delay_work)
 					flush_delayed_work(delay_work);
 				rockchip_hdmiv2_clk_disable(hdmi_dev);
+				gpio_state = pinctrl_lookup_state(hdmi_dev->dev->pins->p, "gpio");
+				pinctrl_select_state(hdmi_dev->dev->pins->p, gpio_state);
 			}
 			break;
 		}
@@ -273,6 +276,8 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 		case FB_BLANK_UNBLANK:
 			HDMIDBG("resume hdmi\n");
 			if (hdmi->sleep) {
+				pinctrl_select_state(hdmi_dev->dev->pins->p,
+						     hdmi_dev->dev->pins->default_state);
 				rockchip_hdmiv2_clk_enable(hdmi_dev);
 				rockchip_hdmiv2_dev_initial(hdmi_dev);
 				if (hdmi->ops->hdcp_power_on_cb)
