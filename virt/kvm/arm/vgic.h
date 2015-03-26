@@ -20,6 +20,8 @@
 #ifndef __KVM_VGIC_H__
 #define __KVM_VGIC_H__
 
+#include <kvm/iodev.h>
+
 #define VGIC_ADDR_UNDEF		(-1)
 #define IS_VGIC_ADDR_UNDEF(_x)  ((_x) == VGIC_ADDR_UNDEF)
 
@@ -81,6 +83,11 @@ struct vgic_io_range {
 	bool (*handle_mmio)(struct kvm_vcpu *vcpu, struct kvm_exit_mmio *mmio,
 			    phys_addr_t offset);
 };
+
+int vgic_register_kvm_io_dev(struct kvm *kvm, gpa_t base, int len,
+			     const struct vgic_io_range *ranges,
+			     int redist_id,
+			     struct vgic_io_device *iodev);
 
 static inline bool is_in_range(phys_addr_t addr, unsigned long len,
 			       phys_addr_t baseaddr, unsigned long size)

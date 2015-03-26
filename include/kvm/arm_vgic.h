@@ -24,6 +24,7 @@
 #include <linux/irqreturn.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <kvm/iodev.h>
 
 #define VGIC_NR_IRQS_LEGACY	256
 #define VGIC_NR_SGIS		16
@@ -145,6 +146,14 @@ struct vgic_vm_ops {
 	void	(*add_sgi_source)(struct kvm_vcpu *, int irq, int source);
 	int	(*init_model)(struct kvm *);
 	int	(*map_resources)(struct kvm *, const struct vgic_params *);
+};
+
+struct vgic_io_device {
+	gpa_t addr;
+	int len;
+	const struct vgic_io_range *reg_ranges;
+	struct kvm_vcpu *redist_vcpu;
+	struct kvm_io_device dev;
 };
 
 struct vgic_dist {
