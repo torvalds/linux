@@ -1862,9 +1862,14 @@ static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
         case MMC_SIGNAL_VOLTAGE_330:
         	/* Set 1.8V Signal Enable in the Host Control2 register to 0 */
         	if (host->vmmc) {
-        		ret = io_domain_regulator_set_voltage(host->vmmc, 3300000, 3300000);
-        		/* regulator_put(host->vmmc); //to be done in remove function. */
-        		
+			if (cpu_is_rk3288())
+				ret = io_domain_regulator_set_voltage(
+						host->vmmc, 3300000, 3300000);
+			else
+				ret = regulator_set_voltage(host->vmmc, 3300000, 3300000);
+
+			/* regulator_put(host->vmmc); //to be done in remove function. */
+
         		MMC_DBG_SW_VOL_FUNC(host->mmc,"%s   =%dmV  set 3.3end, ret=%d  \n", 
         		    __func__, regulator_get_voltage(host->vmmc), ret);
         		if (ret) {
@@ -1899,7 +1904,14 @@ static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
         	return -EAGAIN;
         case MMC_SIGNAL_VOLTAGE_180:
         	if (host->vmmc) {
-        		ret = io_domain_regulator_set_voltage(host->vmmc,1800000, 1800000);
+			if (cpu_is_rk3288())
+				ret = io_domain_regulator_set_voltage(
+							host->vmmc,
+							1800000, 1800000);
+			else
+				ret = regulator_set_voltage(
+							host->vmmc,
+							1800000, 1800000);
                         /* regulator_put(host->vmmc);//to be done in remove function. */
 
         		MMC_DBG_SW_VOL_FUNC(host->mmc,"%d..%s   =%dmV  set 1.8end, ret=%d . \n",
@@ -1934,7 +1946,13 @@ static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
         	return -EAGAIN;
         case MMC_SIGNAL_VOLTAGE_120:
         	if (host->vmmc) {
-        		ret = io_domain_regulator_set_voltage(host->vmmc, 1200000, 1200000);
+			if (cpu_is_rk3288())
+				ret = io_domain_regulator_set_voltage(
+							host->vmmc,
+							1200000, 1200000);
+			else
+				ret = regulator_set_voltage(host->vmmc,
+							1200000, 1200000);
         		if (ret) {
         			MMC_DBG_SW_VOL_FUNC(host->mmc, "%s: Switching to 1.2V signalling voltage "
         					" failed\n", mmc_hostname(host->mmc));
