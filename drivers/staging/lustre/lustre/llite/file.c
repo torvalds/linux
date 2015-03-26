@@ -1712,6 +1712,12 @@ static int ll_do_fiemap(struct inode *inode, struct ll_user_fiemap *fiemap,
 	fm_key.oa.o_oi = lsm->lsm_oi;
 	fm_key.oa.o_valid = OBD_MD_FLID | OBD_MD_FLGROUP;
 
+	if (i_size_read(inode) == 0) {
+		rc = ll_glimpse_size(inode);
+		if (rc)
+			goto out;
+	}
+
 	obdo_from_inode(&fm_key.oa, inode, OBD_MD_FLSIZE);
 	obdo_set_parent_fid(&fm_key.oa, &ll_i2info(inode)->lli_fid);
 	/* If filesize is 0, then there would be no objects for mapping */
