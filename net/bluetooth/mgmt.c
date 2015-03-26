@@ -975,13 +975,28 @@ static u8 create_default_adv_data(struct hci_dev *hdev, u8 *ptr)
 
 static u8 create_instance_adv_data(struct hci_dev *hdev, u8 *ptr)
 {
-	/* TODO: Set the appropriate entries based on advertising instance flags
-	 * here once flags other than 0 are supported.
-	 */
+	u8 ad_len = 0, flags = 0;
+
+	if (hdev->adv_instance.flags & MGMT_ADV_FLAG_DISCOV)
+		flags |= LE_AD_GENERAL;
+
+	if (flags) {
+		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+			flags |= LE_AD_NO_BREDR;
+
+		ptr[0] = 0x02;
+		ptr[1] = EIR_FLAGS;
+		ptr[2] = flags;
+
+		ad_len += 3;
+		ptr += 3;
+	}
+
 	memcpy(ptr, hdev->adv_instance.adv_data,
 	       hdev->adv_instance.adv_data_len);
+	ad_len += hdev->adv_instance.adv_data_len;
 
-	return hdev->adv_instance.adv_data_len;
+	return ad_len;
 }
 
 static void update_adv_data_for_instance(struct hci_request *req, u8 instance)
@@ -6556,12 +6571,16 @@ static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 }
 
 static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
-			      u8 len)
+			      u8 len, bool is_adv_data)
 {
 	u8 max_len = HCI_MAX_AD_LENGTH;
 	int i, cur_len;
+	bool flags_managed = false;
 
-	/* TODO: Correctly reduce len based on adv_flags. */
+	if (is_adv_data && (adv_flags & MGMT_ADV_FLAG_DISCOV)) {
+		flags_managed = true;
+		max_len -= 3;
+	}
 
 	if (len > max_len)
 		return false;
@@ -6569,6 +6588,9 @@ static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
 	/* Make sure that the data is correctly formatted. */
 	for (i = 0, cur_len = 0; i < len; i += (cur_len + 1)) {
 		cur_len = data[i];
+
+		if (flags_managed && data[i + 1] == EIR_FLAGS)
+			return false;
 
 		/* If the current field length would exceed the total data
 		 * length, then it's invalid.
@@ -6671,9 +6693,9 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (!tlv_data_is_valid(hdev, flags, cp->data, cp->adv_data_len) ||
+	if (!tlv_data_is_valid(hdev, flags, cp->data, cp->adv_data_len, true) ||
 	    !tlv_data_is_valid(hdev, flags, cp->data + cp->adv_data_len,
-			       cp->scan_rsp_len)) {
+			       cp->scan_rsp_len, false)) {
 		err = mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
 				      MGMT_STATUS_INVALID_PARAMS);
 		goto unlock;
