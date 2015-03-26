@@ -1967,7 +1967,7 @@ static int rtl8192_handle_assoc_response(struct net_device *dev,
 }
 
 
-void rtl8192_update_ratr_table(struct net_device *dev)
+static void rtl8192_update_ratr_table(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
