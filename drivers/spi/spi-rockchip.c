@@ -179,6 +179,7 @@ struct rockchip_spi {
 	u8 tmode;
 	u8 bpw;
 	u8 n_bytes;
+	u8 rsd_nsecs;
 	unsigned len;
 	u32 speed;
 
@@ -499,6 +500,7 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 {
 	u32 div = 0;
 	u32 dmacr = 0;
+	int rsd = 0;
 
 	u32 cr0 = (CR0_BHT_8BIT << CR0_BHT_OFFSET)
 		| (CR0_SSD_ONE << CR0_SSD_OFFSET);
@@ -527,6 +529,20 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 	/* div doesn't support odd number */
 	div = max_t(u32, rs->max_freq / rs->speed, 1);
 	div = (div + 1) & 0xfffe;
+
+	/* Rx sample delay is expressed in parent clock cycles (max 3) */
+	rsd = DIV_ROUND_CLOSEST(rs->rsd_nsecs * (rs->max_freq >> 8),
+				1000000000 >> 8);
+	if (!rsd && rs->rsd_nsecs) {
+		pr_warn_once("rockchip-spi: %u Hz are too slow to express %u ns delay\n",
+			     rs->max_freq, rs->rsd_nsecs);
+	} else if (rsd > 3) {
+		rsd = 3;
+		pr_warn_once("rockchip-spi: %u Hz are too fast to express %u ns delay, clamping at %u ns\n",
+			     rs->max_freq, rs->rsd_nsecs,
+			     rsd * 1000000000U / rs->max_freq);
+	}
+	cr0 |= rsd << CR0_RSD_OFFSET;
 
 	writel_relaxed(cr0, rs->regs + ROCKCHIP_SPI_CTRLR0);
 
@@ -620,6 +636,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	struct rockchip_spi *rs;
 	struct spi_master *master;
 	struct resource *mem;
+	u32 rsd_nsecs;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct rockchip_spi));
 	if (!master)
@@ -670,6 +687,10 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	rs->master = master;
 	rs->dev = &pdev->dev;
 	rs->max_freq = clk_get_rate(rs->spiclk);
+
+	if (!of_property_read_u32(pdev->dev.of_node, "rx-sample-delay-ns",
+				  &rsd_nsecs))
+		rs->rsd_nsecs = rsd_nsecs;
 
 	rs->fifo_len = get_fifo_len(rs);
 	if (!rs->fifo_len) {
