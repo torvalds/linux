@@ -909,14 +909,15 @@ struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 	ops = bus->iommu_ops;
 
 	if (ops->domain_alloc)
-		domain = ops->domain_alloc();
+		domain = ops->domain_alloc(IOMMU_DOMAIN_UNMANAGED);
 	else
 		domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 
 	if (!domain)
 		return NULL;
 
-	domain->ops = bus->iommu_ops;
+	domain->ops  = bus->iommu_ops;
+	domain->type = IOMMU_DOMAIN_UNMANAGED;
 
 	if (ops->domain_init && domain->ops->domain_init(domain))
 		goto out_free;

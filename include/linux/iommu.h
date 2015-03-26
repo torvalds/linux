@@ -51,7 +51,32 @@ struct iommu_domain_geometry {
 	bool force_aperture;       /* DMA only allowed in mappable range? */
 };
 
+/* Domain feature flags */
+#define __IOMMU_DOMAIN_PAGING	(1U << 0)  /* Support for iommu_map/unmap */
+#define __IOMMU_DOMAIN_DMA_API	(1U << 1)  /* Domain for use in DMA-API
+					      implementation              */
+#define __IOMMU_DOMAIN_PT	(1U << 2)  /* Domain is identity mapped   */
+
+/*
+ * This are the possible domain-types
+ *
+ *	IOMMU_DOMAIN_BLOCKED	- All DMA is blocked, can be used to isolate
+ *				  devices
+ *	IOMMU_DOMAIN_IDENTITY	- DMA addresses are system physical addresses
+ *	IOMMU_DOMAIN_UNMANAGED	- DMA mappings managed by IOMMU-API user, used
+ *				  for VMs
+ *	IOMMU_DOMAIN_DMA	- Internally used for DMA-API implementations.
+ *				  This flag allows IOMMU drivers to implement
+ *				  certain optimizations for these domains
+ */
+#define IOMMU_DOMAIN_BLOCKED	(0U)
+#define IOMMU_DOMAIN_IDENTITY	(__IOMMU_DOMAIN_PT)
+#define IOMMU_DOMAIN_UNMANAGED	(__IOMMU_DOMAIN_PAGING)
+#define IOMMU_DOMAIN_DMA	(__IOMMU_DOMAIN_PAGING |	\
+				 __IOMMU_DOMAIN_DMA_API)
+
 struct iommu_domain {
+	unsigned type;
 	const struct iommu_ops *ops;
 	void *priv;
 	iommu_fault_handler_t handler;
@@ -117,7 +142,7 @@ struct iommu_ops {
 	void (*domain_destroy)(struct iommu_domain *domain);
 
 	/* Domain allocation and freeing by the iommu driver */
-	struct iommu_domain *(*domain_alloc)(void);
+	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
 	void (*domain_free)(struct iommu_domain *);
 
 	int (*attach_dev)(struct iommu_domain *domain, struct device *dev);
