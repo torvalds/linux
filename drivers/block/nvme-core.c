@@ -1347,6 +1347,9 @@ static int nvme_suspend_queue(struct nvme_queue *nvmeq)
 	nvmeq->cq_vector = -1;
 	spin_unlock_irq(&nvmeq->q_lock);
 
+	if (!nvmeq->qid && nvmeq->dev->admin_q)
+		blk_mq_freeze_queue_start(nvmeq->dev->admin_q);
+
 	irq_set_affinity_hint(vector, NULL);
 	free_irq(vector, nvmeq);
 
@@ -1378,8 +1381,6 @@ static void nvme_disable_queue(struct nvme_dev *dev, int qid)
 		adapter_delete_sq(dev, qid);
 		adapter_delete_cq(dev, qid);
 	}
-	if (!qid && dev->admin_q)
-		blk_mq_freeze_queue_start(dev->admin_q);
 
 	spin_lock_irq(&nvmeq->q_lock);
 	nvme_process_cq(nvmeq);
