@@ -640,12 +640,12 @@ int nvme_setup_prps(struct nvme_dev *dev, struct nvme_iod *iod, int total_len,
 	struct scatterlist *sg = iod->sg;
 	int dma_len = sg_dma_len(sg);
 	u64 dma_addr = sg_dma_address(sg);
-	int offset = offset_in_page(dma_addr);
+	u32 page_size = dev->page_size;
+	int offset = dma_addr & (page_size - 1);
 	__le64 *prp_list;
 	__le64 **list = iod_list(iod);
 	dma_addr_t prp_dma;
 	int nprps, i;
-	u32 page_size = dev->page_size;
 
 	length -= (page_size - offset);
 	if (length <= 0)
