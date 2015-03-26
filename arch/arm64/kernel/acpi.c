@@ -103,9 +103,12 @@ void __init __acpi_unmap_table(char *map, unsigned long size)
  *
  * Returns the logical cpu number which maps to MPIDR
  */
-static int __init acpi_map_gic_cpu_interface(u64 mpidr, u8 enabled)
+static int __init
+acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 {
 	int i;
+	u64 mpidr = processor->arm_mpidr & MPIDR_HWID_BITMASK;
+	bool enabled = !!(processor->flags & ACPI_MADT_ENABLED);
 
 	if (mpidr == INVALID_HWID) {
 		pr_info("Skip MADT cpu entry with invalid MPIDR\n");
@@ -178,11 +181,7 @@ acpi_parse_gic_cpu_interface(struct acpi_subtable_header *header,
 		return -EINVAL;
 
 	acpi_table_print_madt_entry(header);
-
-	acpi_map_gic_cpu_interface(processor->arm_mpidr & MPIDR_HWID_BITMASK,
-		processor->flags & ACPI_MADT_ENABLED);
-
-	return 0;
+	return acpi_map_gic_cpu_interface(processor);
 }
 
 /* Parse GIC cpu interface entries in MADT for SMP init */
