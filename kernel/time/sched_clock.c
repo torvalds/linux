@@ -18,27 +18,58 @@
 #include <linux/seqlock.h>
 #include <linux/bitops.h>
 
-struct clock_data {
-	ktime_t wrap_kt;
+/**
+ * struct clock_read_data - data required to read from sched_clock
+ *
+ * @epoch_ns:		sched_clock value at last update
+ * @epoch_cyc:		Clock cycle value at last update
+ * @sched_clock_mask:   Bitmask for two's complement subtraction of non 64bit
+ *			clocks
+ * @read_sched_clock:	Current clock source (or dummy source when suspended)
+ * @mult:		Multipler for scaled math conversion
+ * @shift:		Shift value for scaled math conversion
+ * @suspended:		Flag to indicate if the clock is suspended (stopped)
+ *
+ * Care must be taken when updating this structure; it is read by
+ * some very hot code paths. It occupies <=48 bytes and, when combined
+ * with the seqcount used to synchronize access, comfortably fits into
+ * a 64 byte cache line.
+ */
+struct clock_read_data {
 	u64 epoch_ns;
 	u64 epoch_cyc;
-	seqcount_t seq;
-	unsigned long rate;
+	u64 sched_clock_mask;
+	u64 (*read_sched_clock)(void);
 	u32 mult;
 	u32 shift;
 	bool suspended;
+};
+
+/**
+ * struct clock_data - all data needed for sched_clock (including
+ *                     registration of a new clock source)
+ *
+ * @seq:		Sequence counter for protecting updates.
+ * @read_data:		Data required to read from sched_clock.
+ * @wrap_kt:		Duration for which clock can run before wrapping
+ * @rate:		Tick rate of the registered clock
+ * @actual_read_sched_clock: Registered clock read function
+ *
+ * The ordering of this structure has been chosen to optimize cache
+ * performance. In particular seq and read_data (combined) should fit
+ * into a single 64 byte cache line.
+ */
+struct clock_data {
+	seqcount_t seq;
+	struct clock_read_data read_data;
+	ktime_t wrap_kt;
+	unsigned long rate;
 };
 
 static struct hrtimer sched_clock_timer;
 static int irqtime = -1;
 
 core_param(irqtime, irqtime, int, 0400);
-
-static struct clock_data cd = {
-	.mult	= NSEC_PER_SEC / HZ,
-};
-
-static u64 __read_mostly sched_clock_mask;
 
 static u64 notrace jiffy_sched_clock_read(void)
 {
@@ -49,7 +80,10 @@ static u64 notrace jiffy_sched_clock_read(void)
 	return (u64)(jiffies - INITIAL_JIFFIES);
 }
 
-static u64 __read_mostly (*read_sched_clock)(void) = jiffy_sched_clock_read;
+static struct clock_data cd ____cacheline_aligned = {
+	.read_data = { .mult = NSEC_PER_SEC / HZ,
+		       .read_sched_clock = jiffy_sched_clock_read, },
+};
 
 static inline u64 notrace cyc_to_ns(u64 cyc, u32 mult, u32 shift)
 {
@@ -60,15 +94,16 @@ unsigned long long notrace sched_clock(void)
 {
 	u64 cyc, res;
 	unsigned long seq;
+	struct clock_read_data *rd = &cd.read_data;
 
 	do {
 		seq = raw_read_seqcount_begin(&cd.seq);
 
-		res = cd.epoch_ns;
-		if (!cd.suspended) {
-			cyc = read_sched_clock();
-			cyc = (cyc - cd.epoch_cyc) & sched_clock_mask;
-			res += cyc_to_ns(cyc, cd.mult, cd.shift);
+		res = rd->epoch_ns;
+		if (!rd->suspended) {
+			cyc = rd->read_sched_clock();
+			cyc = (cyc - rd->epoch_cyc) & rd->sched_clock_mask;
+			res += cyc_to_ns(cyc, rd->mult, rd->shift);
 		}
 	} while (read_seqcount_retry(&cd.seq, seq));
 
@@ -83,16 +118,17 @@ static void notrace update_sched_clock(void)
 	unsigned long flags;
 	u64 cyc;
 	u64 ns;
+	struct clock_read_data *rd = &cd.read_data;
 
-	cyc = read_sched_clock();
-	ns = cd.epoch_ns +
-		cyc_to_ns((cyc - cd.epoch_cyc) & sched_clock_mask,
-			  cd.mult, cd.shift);
+	cyc = rd->read_sched_clock();
+	ns = rd->epoch_ns +
+	     cyc_to_ns((cyc - rd->epoch_cyc) & rd->sched_clock_mask,
+		       rd->mult, rd->shift);
 
 	raw_local_irq_save(flags);
 	raw_write_seqcount_begin(&cd.seq);
-	cd.epoch_ns = ns;
-	cd.epoch_cyc = cyc;
+	rd->epoch_ns = ns;
+	rd->epoch_cyc = cyc;
 	raw_write_seqcount_end(&cd.seq);
 	raw_local_irq_restore(flags);
 }
@@ -111,6 +147,7 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 	u32 new_mult, new_shift;
 	unsigned long r;
 	char r_unit;
+	struct clock_read_data *rd = &cd.read_data;
 
 	if (cd.rate > rate)
 		return;
@@ -129,17 +166,18 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 
 	/* update epoch for new counter and update epoch_ns from old counter*/
 	new_epoch = read();
-	cyc = read_sched_clock();
-	ns = cd.epoch_ns + cyc_to_ns((cyc - cd.epoch_cyc) & sched_clock_mask,
-			  cd.mult, cd.shift);
+	cyc = rd->read_sched_clock();
+	ns = rd->epoch_ns +
+	     cyc_to_ns((cyc - rd->epoch_cyc) & rd->sched_clock_mask,
+		       rd->mult, rd->shift);
 
 	raw_write_seqcount_begin(&cd.seq);
-	read_sched_clock = read;
-	sched_clock_mask = new_mask;
-	cd.mult = new_mult;
-	cd.shift = new_shift;
-	cd.epoch_cyc = new_epoch;
-	cd.epoch_ns = ns;
+	rd->read_sched_clock = read;
+	rd->sched_clock_mask = new_mask;
+	rd->mult = new_mult;
+	rd->shift = new_shift;
+	rd->epoch_cyc = new_epoch;
+	rd->epoch_ns = ns;
 	raw_write_seqcount_end(&cd.seq);
 
 	r = rate;
@@ -171,7 +209,7 @@ void __init sched_clock_postinit(void)
 	 * If no sched_clock function has been provided at that point,
 	 * make it the final one one.
 	 */
-	if (read_sched_clock == jiffy_sched_clock_read)
+	if (cd.read_data.read_sched_clock == jiffy_sched_clock_read)
 		sched_clock_register(jiffy_sched_clock_read, BITS_PER_LONG, HZ);
 
 	update_sched_clock();
@@ -187,17 +225,21 @@ void __init sched_clock_postinit(void)
 
 static int sched_clock_suspend(void)
 {
+	struct clock_read_data *rd = &cd.read_data;
+
 	update_sched_clock();
 	hrtimer_cancel(&sched_clock_timer);
-	cd.suspended = true;
+	rd->suspended = true;
 	return 0;
 }
 
 static void sched_clock_resume(void)
 {
-	cd.epoch_cyc = read_sched_clock();
+	struct clock_read_data *rd = &cd.read_data;
+
+	rd->epoch_cyc = rd->read_sched_clock();
 	hrtimer_start(&sched_clock_timer, cd.wrap_kt, HRTIMER_MODE_REL);
-	cd.suspended = false;
+	rd->suspended = false;
 }
 
 static struct syscore_ops sched_clock_ops = {
