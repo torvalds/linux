@@ -6540,6 +6540,21 @@ done:
 	return err;
 }
 
+static u32 get_supported_adv_flags(struct hci_dev *hdev)
+{
+	u32 flags = 0;
+
+	flags |= MGMT_ADV_FLAG_CONNECTABLE;
+	flags |= MGMT_ADV_FLAG_DISCOV;
+	flags |= MGMT_ADV_FLAG_LIMITED_DISCOV;
+	flags |= MGMT_ADV_FLAG_MANAGED_FLAGS;
+
+	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID)
+		flags |= MGMT_ADV_FLAG_TX_POWER;
+
+	return flags;
+}
+
 static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 			     void *data, u16 data_len)
 {
@@ -6547,8 +6562,13 @@ static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 	size_t rp_len;
 	int err;
 	bool instance;
+	u32 supported_flags;
 
 	BT_DBG("%s", hdev->name);
+
+	if (!lmp_le_capable(hdev))
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_READ_ADV_FEATURES,
+				       MGMT_STATUS_REJECTED);
 
 	hci_dev_lock(hdev);
 
@@ -6567,7 +6587,9 @@ static int read_adv_features(struct sock *sk, struct hci_dev *hdev,
 		return -ENOMEM;
 	}
 
-	rp->supported_flags = cpu_to_le32(0);
+	supported_flags = get_supported_adv_flags(hdev);
+
+	rp->supported_flags = cpu_to_le32(supported_flags);
 	rp->max_adv_data_len = HCI_MAX_AD_LENGTH;
 	rp->max_scan_rsp_len = HCI_MAX_AD_LENGTH;
 	rp->max_instances = 1;
@@ -6689,6 +6711,7 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	struct mgmt_cp_add_advertising *cp = data;
 	struct mgmt_rp_add_advertising rp;
 	u32 flags;
+	u32 supported_flags;
 	u8 status;
 	u16 timeout;
 	int err;
@@ -6705,8 +6728,11 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 	flags = __le32_to_cpu(cp->flags);
 	timeout = __le16_to_cpu(cp->timeout);
 
-	/* The current implementation only supports adding one instance */
-	if (cp->instance != 0x01)
+	/* The current implementation only supports adding one instance and only
+	 * a subset of the specified flags.
+	 */
+	supported_flags = get_supported_adv_flags(hdev);
+	if (cp->instance != 0x01 || (flags & ~supported_flags))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
 				       MGMT_STATUS_INVALID_PARAMS);
 
