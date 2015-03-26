@@ -362,6 +362,18 @@ int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	return mei_amthif_run_next_cmd(dev);
 }
 
+/**
+ * mei_amthif_poll - the amthif poll function
+ *
+ * @dev: the device structure
+ * @file: pointer to file structure
+ * @wait: pointer to poll_table structure
+ *
+ * Return: poll mask
+ *
+ * Locking: called under "dev->device_lock" lock
+ */
+
 unsigned int mei_amthif_poll(struct mei_device *dev,
 		struct file *file, poll_table *wait)
 {
@@ -369,19 +381,12 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 
 	poll_wait(file, &dev->iamthif_cl.wait, wait);
 
-	mutex_lock(&dev->device_lock);
-	if (!mei_cl_is_connected(&dev->iamthif_cl)) {
+	if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
+	    dev->iamthif_file_object == file) {
 
-		mask = POLLERR;
-
-	} else if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
-		   dev->iamthif_file_object == file) {
-
-		mask |= (POLLIN | POLLRDNORM);
-		dev_dbg(dev->dev, "run next amthif cb\n");
+		mask |= POLLIN | POLLRDNORM;
 		mei_amthif_run_next_cmd(dev);
 	}
-	mutex_unlock(&dev->device_lock);
 
 	return mask;
 }

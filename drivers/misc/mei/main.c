@@ -542,6 +542,7 @@ static long mei_compat_ioctl(struct file *file,
  */
 static unsigned int mei_poll(struct file *file, poll_table *wait)
 {
+	unsigned long req_events = poll_requested_events(wait);
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
 	unsigned int mask = 0;
@@ -558,22 +559,19 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 		goto out;
 	}
 
-	mutex_unlock(&dev->device_lock);
-
-
-	if (cl == &dev->iamthif_cl)
-		return mei_amthif_poll(dev, file, wait);
-
-	poll_wait(file, &cl->tx_wait, wait);
-
-	mutex_lock(&dev->device_lock);
-
-	if (!mei_cl_is_connected(cl)) {
-		mask = POLLERR;
+	if (cl == &dev->iamthif_cl) {
+		mask = mei_amthif_poll(dev, file, wait);
 		goto out;
 	}
 
-	mask |= (POLLIN | POLLRDNORM);
+	if (req_events & (POLLIN | POLLRDNORM)) {
+		poll_wait(file, &cl->rx_wait, wait);
+
+		if (!list_empty(&cl->rd_completed))
+			mask |= POLLIN | POLLRDNORM;
+		else
+			mei_cl_read_start(cl, 0, file);
+	}
 
 out:
 	mutex_unlock(&dev->device_lock);
