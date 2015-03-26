@@ -3482,6 +3482,31 @@ static int nf_tables_delsetelem(struct sock *nlsk, struct sk_buff *skb,
 	return err;
 }
 
+void nft_set_gc_batch_release(struct rcu_head *rcu)
+{
+	struct nft_set_gc_batch *gcb;
+	unsigned int i;
+
+	gcb = container_of(rcu, struct nft_set_gc_batch, head.rcu);
+	for (i = 0; i < gcb->head.cnt; i++)
+		nft_set_elem_destroy(gcb->head.set, gcb->elems[i]);
+	kfree(gcb);
+}
+EXPORT_SYMBOL_GPL(nft_set_gc_batch_release);
+
+struct nft_set_gc_batch *nft_set_gc_batch_alloc(const struct nft_set *set,
+						gfp_t gfp)
+{
+	struct nft_set_gc_batch *gcb;
+
+	gcb = kzalloc(sizeof(*gcb), gfp);
+	if (gcb == NULL)
+		return gcb;
+	gcb->head.set = set;
+	return gcb;
+}
+EXPORT_SYMBOL_GPL(nft_set_gc_batch_alloc);
+
 static int nf_tables_fill_gen_info(struct sk_buff *skb, struct net *net,
 				   u32 portid, u32 seq)
 {

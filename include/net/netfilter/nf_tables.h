@@ -460,6 +460,62 @@ static inline struct nft_set_ext *nft_set_elem_ext(const struct nft_set *set,
 void nft_set_elem_destroy(const struct nft_set *set, void *elem);
 
 /**
+ *	struct nft_set_gc_batch_head - nf_tables set garbage collection batch
+ *
+ *	@rcu: rcu head
+ *	@set: set the elements belong to
+ *	@cnt: count of elements
+ */
+struct nft_set_gc_batch_head {
+	struct rcu_head			rcu;
+	const struct nft_set		*set;
+	unsigned int			cnt;
+};
+
+#define NFT_SET_GC_BATCH_SIZE	((PAGE_SIZE -				  \
+				  sizeof(struct nft_set_gc_batch_head)) / \
+				 sizeof(void *))
+
+/**
+ *	struct nft_set_gc_batch - nf_tables set garbage collection batch
+ *
+ * 	@head: GC batch head
+ * 	@elems: garbage collection elements
+ */
+struct nft_set_gc_batch {
+	struct nft_set_gc_batch_head	head;
+	void				*elems[NFT_SET_GC_BATCH_SIZE];
+};
+
+struct nft_set_gc_batch *nft_set_gc_batch_alloc(const struct nft_set *set,
+						gfp_t gfp);
+void nft_set_gc_batch_release(struct rcu_head *rcu);
+
+static inline void nft_set_gc_batch_complete(struct nft_set_gc_batch *gcb)
+{
+	if (gcb != NULL)
+		call_rcu(&gcb->head.rcu, nft_set_gc_batch_release);
+}
+
+static inline struct nft_set_gc_batch *
+nft_set_gc_batch_check(const struct nft_set *set, struct nft_set_gc_batch *gcb,
+		       gfp_t gfp)
+{
+	if (gcb != NULL) {
+		if (gcb->head.cnt + 1 < ARRAY_SIZE(gcb->elems))
+			return gcb;
+		nft_set_gc_batch_complete(gcb);
+	}
+	return nft_set_gc_batch_alloc(set, gfp);
+}
+
+static inline void nft_set_gc_batch_add(struct nft_set_gc_batch *gcb,
+					void *elem)
+{
+	gcb->elems[gcb->head.cnt++] = elem;
+}
+
+/**
  *	struct nft_expr_type - nf_tables expression type
  *
  *	@select_ops: function to select nft_expr_ops
