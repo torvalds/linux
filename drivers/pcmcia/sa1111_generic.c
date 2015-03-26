@@ -145,7 +145,7 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 			return -ENOMEM;
 
 		s->soc.nr = ops->first + i;
-		s->soc.clk = clk_get(&dev->dev, NULL);
+		s->soc.clk = devm_clk_get(&dev->dev, NULL);
 		if (IS_ERR(s->soc.clk)) {
 			ret = PTR_ERR(s->soc.clk);
 			kfree(s);
@@ -226,7 +226,6 @@ static int pcmcia_remove(struct sa1111_dev *dev)
 	for (; s; s = next) {
 		next = s->next;
 		soc_pcmcia_remove_one(&s->soc);
-		clk_put(s->soc.clk);
 		kfree(s);
 	}
 
