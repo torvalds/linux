@@ -88,7 +88,6 @@ static bool hda_writeable_reg(struct device *dev, unsigned int reg)
 	switch (verb) {
 	case AC_VERB_GET_CONNECT_SEL:
 	case AC_VERB_GET_SDI_SELECT:
-	case AC_VERB_GET_CONV:
 	case AC_VERB_GET_PIN_WIDGET_CONTROL:
 	case AC_VERB_GET_UNSOLICITED_RESPONSE: /* only as SET_UNSOLICITED_ENABLE */
 	case AC_VERB_GET_BEEP_CONTROL:
@@ -96,14 +95,12 @@ static bool hda_writeable_reg(struct device *dev, unsigned int reg)
 	case AC_VERB_GET_DIGI_CONVERT_1:
 	case AC_VERB_GET_DIGI_CONVERT_2: /* only for beep control */
 	case AC_VERB_GET_VOLUME_KNOB_CONTROL:
-	case AC_VERB_GET_CONFIG_DEFAULT:
 	case AC_VERB_GET_GPIO_MASK:
 	case AC_VERB_GET_GPIO_DIRECTION:
 	case AC_VERB_GET_GPIO_DATA: /* not for volatile read */
 	case AC_VERB_GET_GPIO_WAKE_MASK:
 	case AC_VERB_GET_GPIO_UNSOLICITED_RSP_MASK:
 	case AC_VERB_GET_GPIO_STICKY_MASK:
-	case AC_VERB_GET_CVT_CHAN_COUNT:
 		return true;
 	}
 
@@ -122,6 +119,13 @@ static bool hda_readable_reg(struct device *dev, unsigned int reg)
 	case AC_VERB_PARAMETERS:
 	case AC_VERB_GET_CONNECT_LIST:
 	case AC_VERB_GET_SUBSYSTEM_ID:
+		return true;
+	/* below are basically writable, but disabled for reducing unnecessary
+	 * writes at sync
+	 */
+	case AC_VERB_GET_CONFIG_DEFAULT: /* usually just read */
+	case AC_VERB_GET_CONV: /* managed in PCM code */
+	case AC_VERB_GET_CVT_CHAN_COUNT: /* managed in HDMI CA code */
 		return true;
 	}
 
