@@ -9060,13 +9060,15 @@ static void ipr_free_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 {
 	int i;
 
-	for (i = 0; i < IPR_NUM_CMD_BLKS; i++) {
-		if (ioa_cfg->ipr_cmnd_list[i])
-			dma_pool_free(ioa_cfg->ipr_cmd_pool,
-				      ioa_cfg->ipr_cmnd_list[i],
-				      ioa_cfg->ipr_cmnd_list_dma[i]);
+	if (ioa_cfg->ipr_cmnd_list) {
+		for (i = 0; i < IPR_NUM_CMD_BLKS; i++) {
+			if (ioa_cfg->ipr_cmnd_list[i])
+				dma_pool_free(ioa_cfg->ipr_cmd_pool,
+					      ioa_cfg->ipr_cmnd_list[i],
+					      ioa_cfg->ipr_cmnd_list_dma[i]);
 
-		ioa_cfg->ipr_cmnd_list[i] = NULL;
+			ioa_cfg->ipr_cmnd_list[i] = NULL;
+		}
 	}
 
 	if (ioa_cfg->ipr_cmd_pool)
