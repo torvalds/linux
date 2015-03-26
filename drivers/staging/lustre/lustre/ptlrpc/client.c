@@ -285,14 +285,27 @@ static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 	time_t now = get_seconds();
 
 	LASSERT(req->rq_import);
-	at = &req->rq_import->imp_at;
+
+	if (service_time > now - req->rq_sent + 3) {
+		/* bz16408, however, this can also happen if early reply
+		 * is lost and client RPC is expired and resent, early reply
+		 * or reply of original RPC can still be fit in reply buffer
+		 * of resent RPC, now client is measuring time from the
+		 * resent time, but server sent back service time of original
+		 * RPC.
+		 */
+		CDEBUG((lustre_msg_get_flags(req->rq_reqmsg) & MSG_RESENT) ?
+		       D_ADAPTTO : D_WARNING,
+		       "Reported service time %u > total measured time "
+		       CFS_DURATION_T"\n", service_time,
+		       cfs_time_sub(now, req->rq_sent));
+		return;
+	}
 
 	/* Network latency is total time less server processing time */
-	nl = max_t(int, now - req->rq_sent - service_time, 0) + 1/*st rounding*/;
-	if (service_time > now - req->rq_sent + 3 /* bz16408 */)
-		CWARN("Reported service time %u > total measured time "
-		      CFS_DURATION_T"\n", service_time,
-		      cfs_time_sub(now, req->rq_sent));
+	nl = max_t(int, now - req->rq_sent -
+			service_time, 0) + 1; /* st rounding */
+	at = &req->rq_import->imp_at;
 
 	oldnl = at_measured(&at->iat_net_latency, nl);
 	if (oldnl != 0)
