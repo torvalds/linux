@@ -852,6 +852,41 @@ static inline void nft_set_elem_change_active(const struct nft_set *set,
 	ext->genmask ^= nft_genmask_next(read_pnet(&set->pnet));
 }
 
+/*
+ * We use a free bit in the genmask field to indicate the element
+ * is busy, meaning it is currently being processed either by
+ * the netlink API or GC.
+ *
+ * Even though the genmask is only a single byte wide, this works
+ * because the extension structure if fully constant once initialized,
+ * so there are no non-atomic write accesses unless it is already
+ * marked busy.
+ */
+#define NFT_SET_ELEM_BUSY_MASK	(1 << 2)
+
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+#define NFT_SET_ELEM_BUSY_BIT	2
+#elif defined(__BIG_ENDIAN_BITFIELD)
+#define NFT_SET_ELEM_BUSY_BIT	(BITS_PER_LONG - BITS_PER_BYTE + 2)
+#else
+#error
+#endif
+
+static inline int nft_set_elem_mark_busy(struct nft_set_ext *ext)
+{
+	unsigned long *word = (unsigned long *)ext;
+
+	BUILD_BUG_ON(offsetof(struct nft_set_ext, genmask) != 0);
+	return test_and_set_bit(NFT_SET_ELEM_BUSY_BIT, word);
+}
+
+static inline void nft_set_elem_clear_busy(struct nft_set_ext *ext)
+{
+	unsigned long *word = (unsigned long *)ext;
+
+	clear_bit(NFT_SET_ELEM_BUSY_BIT, word);
+}
+
 /**
  *	struct nft_trans - nf_tables object update in transaction
  *
