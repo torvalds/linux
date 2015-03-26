@@ -64,7 +64,8 @@ enum {
 	TIPC_NOTIFY_LINK_UP		= (1 << 6),
 	TIPC_NOTIFY_LINK_DOWN		= (1 << 7),
 	TIPC_NAMED_MSG_EVT		= (1 << 8),
-	TIPC_BCAST_MSG_EVT		= (1 << 9)
+	TIPC_BCAST_MSG_EVT		= (1 << 9),
+	TIPC_BCAST_RESET		= (1 << 10)
 };
 
 /**

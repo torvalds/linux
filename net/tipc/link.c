@@ -980,7 +980,6 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 			(unsigned long) TIPC_SKB_CB(buf)->handle);
 
 		n_ptr = tipc_bclink_retransmit_to(net);
-		tipc_node_lock(n_ptr);
 
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
 		pr_info("Broadcast link info for %s\n", addr_string);
@@ -992,9 +991,7 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 			n_ptr->bclink.oos_state,
 			n_ptr->bclink.last_sent);
 
-		tipc_node_unlock(n_ptr);
-
-		tipc_bclink_set_flags(net, TIPC_BCLINK_RESET);
+		n_ptr->action_flags |= TIPC_BCAST_RESET;
 		l_ptr->stale_count = 0;
 	}
 }

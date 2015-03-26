@@ -459,7 +459,7 @@ void tipc_node_unlock(struct tipc_node *node)
 				TIPC_NOTIFY_NODE_DOWN | TIPC_NOTIFY_NODE_UP |
 				TIPC_NOTIFY_LINK_DOWN | TIPC_NOTIFY_LINK_UP |
 				TIPC_WAKEUP_BCAST_USERS | TIPC_BCAST_MSG_EVT |
-				TIPC_NAMED_MSG_EVT);
+				TIPC_NAMED_MSG_EVT | TIPC_BCAST_RESET);
 
 	spin_unlock_bh(&node->lock);
 
@@ -488,6 +488,9 @@ void tipc_node_unlock(struct tipc_node *node)
 
 	if (flags & TIPC_BCAST_MSG_EVT)
 		tipc_bclink_input(net);
+
+	if (flags & TIPC_BCAST_RESET)
+		tipc_link_reset_all(node);
 }
 
 /* Caller should hold node lock for the passed node */
