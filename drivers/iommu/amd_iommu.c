@@ -126,6 +126,11 @@ static int __init alloc_passthrough_domain(void);
  *
  ****************************************************************************/
 
+static struct protection_domain *to_pdomain(struct iommu_domain *dom)
+{
+	return container_of(dom, struct protection_domain, domain);
+}
+
 static struct iommu_dev_data *alloc_dev_data(u16 devid)
 {
 	struct iommu_dev_data *dev_data;
@@ -3236,41 +3241,44 @@ static int __init alloc_passthrough_domain(void)
 
 	return 0;
 }
-static int amd_iommu_domain_init(struct iommu_domain *dom)
+
+static struct iommu_domain *amd_iommu_domain_alloc(unsigned type)
+{
+	struct protection_domain *pdomain;
+
+	/* We only support unmanaged domains for now */
+	if (type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
+
+	pdomain = protection_domain_alloc();
+	if (!pdomain)
+		goto out_free;
+
+	pdomain->mode    = PAGE_MODE_3_LEVEL;
+	pdomain->pt_root = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!pdomain->pt_root)
+		goto out_free;
+
+	pdomain->domain.geometry.aperture_start = 0;
+	pdomain->domain.geometry.aperture_end   = ~0ULL;
+	pdomain->domain.geometry.force_aperture = true;
+
+	return &pdomain->domain;
+
+out_free:
+	protection_domain_free(pdomain);
+
+	return NULL;
+}
+
+static void amd_iommu_domain_free(struct iommu_domain *dom)
 {
 	struct protection_domain *domain;
 
-	domain = protection_domain_alloc();
-	if (!domain)
-		goto out_free;
-
-	domain->mode    = PAGE_MODE_3_LEVEL;
-	domain->pt_root = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!domain->pt_root)
-		goto out_free;
-
-	domain->iommu_domain = dom;
-
-	dom->priv = domain;
-
-	dom->geometry.aperture_start = 0;
-	dom->geometry.aperture_end   = ~0ULL;
-	dom->geometry.force_aperture = true;
-
-	return 0;
-
-out_free:
-	protection_domain_free(domain);
-
-	return -ENOMEM;
-}
-
-static void amd_iommu_domain_destroy(struct iommu_domain *dom)
-{
-	struct protection_domain *domain = dom->priv;
-
-	if (!domain)
+	if (!dom)
 		return;
+
+	domain = to_pdomain(dom);
 
 	if (domain->dev_cnt > 0)
 		cleanup_domain(domain);
@@ -3284,8 +3292,6 @@ static void amd_iommu_domain_destroy(struct iommu_domain *dom)
 		free_gcr3_table(domain);
 
 	protection_domain_free(domain);
-
-	dom->priv = NULL;
 }
 
 static void amd_iommu_detach_device(struct iommu_domain *dom,
@@ -3313,7 +3319,7 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 static int amd_iommu_attach_device(struct iommu_domain *dom,
 				   struct device *dev)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
 	int ret;
@@ -3340,7 +3346,7 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 			 phys_addr_t paddr, size_t page_size, int iommu_prot)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	int prot = 0;
 	int ret;
 
@@ -3362,7 +3368,7 @@ static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 			   size_t page_size)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	size_t unmap_size;
 
 	if (domain->mode == PAGE_MODE_NONE)
@@ -3380,7 +3386,7 @@ static size_t amd_iommu_unmap(struct iommu_domain *dom, unsigned long iova,
 static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 					  dma_addr_t iova)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long offset_mask;
 	phys_addr_t paddr;
 	u64 *pte, __pte;
@@ -3420,8 +3426,8 @@ static bool amd_iommu_capable(enum iommu_cap cap)
 
 static const struct iommu_ops amd_iommu_ops = {
 	.capable = amd_iommu_capable,
-	.domain_init = amd_iommu_domain_init,
-	.domain_destroy = amd_iommu_domain_destroy,
+	.domain_alloc = amd_iommu_domain_alloc,
+	.domain_free  = amd_iommu_domain_free,
 	.attach_dev = amd_iommu_attach_device,
 	.detach_dev = amd_iommu_detach_device,
 	.map = amd_iommu_map,
@@ -3483,7 +3489,7 @@ EXPORT_SYMBOL(amd_iommu_unregister_ppr_notifier);
 
 void amd_iommu_domain_direct_map(struct iommu_domain *dom)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long flags;
 
 	spin_lock_irqsave(&domain->lock, flags);
@@ -3504,7 +3510,7 @@ EXPORT_SYMBOL(amd_iommu_domain_direct_map);
 
 int amd_iommu_domain_enable_v2(struct iommu_domain *dom, int pasids)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long flags;
 	int levels, ret;
 
@@ -3616,7 +3622,7 @@ static int __amd_iommu_flush_page(struct protection_domain *domain, int pasid,
 int amd_iommu_flush_page(struct iommu_domain *dom, int pasid,
 			 u64 address)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long flags;
 	int ret;
 
@@ -3638,7 +3644,7 @@ static int __amd_iommu_flush_tlb(struct protection_domain *domain, int pasid)
 
 int amd_iommu_flush_tlb(struct iommu_domain *dom, int pasid)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long flags;
 	int ret;
 
@@ -3718,7 +3724,7 @@ static int __clear_gcr3(struct protection_domain *domain, int pasid)
 int amd_iommu_domain_set_gcr3(struct iommu_domain *dom, int pasid,
 			      unsigned long cr3)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long flags;
 	int ret;
 
@@ -3732,7 +3738,7 @@ EXPORT_SYMBOL(amd_iommu_domain_set_gcr3);
 
 int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, int pasid)
 {
-	struct protection_domain *domain = dom->priv;
+	struct protection_domain *domain = to_pdomain(dom);
 	unsigned long flags;
 	int ret;
 
@@ -3765,17 +3771,17 @@ EXPORT_SYMBOL(amd_iommu_complete_ppr);
 
 struct iommu_domain *amd_iommu_get_v2_domain(struct pci_dev *pdev)
 {
-	struct protection_domain *domain;
+	struct protection_domain *pdomain;
 
-	domain = get_domain(&pdev->dev);
-	if (IS_ERR(domain))
+	pdomain = get_domain(&pdev->dev);
+	if (IS_ERR(pdomain))
 		return NULL;
 
 	/* Only return IOMMUv2 domains */
-	if (!(domain->flags & PD_IOMMUV2_MASK))
+	if (!(pdomain->flags & PD_IOMMUV2_MASK))
 		return NULL;
 
-	return domain->iommu_domain;
+	return &pdomain->domain;
 }
 EXPORT_SYMBOL(amd_iommu_get_v2_domain);
 
