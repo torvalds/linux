@@ -2291,7 +2291,7 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 	else
 		mapping = &dev_priv->sdvo_mappings[1];
 
-	if (mapping->initialized && intel_gmbus_is_port_valid(mapping->i2c_pin))
+	if (mapping->initialized && intel_gmbus_is_valid_pin(mapping->i2c_pin))
 		pin = mapping->i2c_pin;
 	else
 		pin = GMBUS_PIN_DPB;

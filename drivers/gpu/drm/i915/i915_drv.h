@@ -3065,13 +3065,13 @@ void i915_teardown_sysfs(struct drm_device *dev_priv);
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
-static inline bool intel_gmbus_is_port_valid(unsigned port)
+static inline bool intel_gmbus_is_valid_pin(unsigned int pin)
 {
-	return (port >= GMBUS_PIN_SSC && port <= GMBUS_PIN_DPD);
+	return (pin >= GMBUS_PIN_SSC && pin <= GMBUS_PIN_DPD);
 }
 
-extern struct i2c_adapter *intel_gmbus_get_adapter(
-		struct drm_i915_private *dev_priv, unsigned port);
+extern struct i2c_adapter *
+intel_gmbus_get_adapter(struct drm_i915_private *dev_priv, unsigned int pin);
 extern void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed);
 extern void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit);
 static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
