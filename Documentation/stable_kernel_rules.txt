@@ -81,6 +81,16 @@ format in the sign-off area:
      git cherry-pick fd21073
      git cherry-pick <this commit>
 
+Also, some patches may have kernel version prerequisites.  This can be
+specified in the following format in the sign-off area:
+
+     Cc:  <stable@vger.kernel.org> # 3.3.x-
+
+   The tag has the meaning of:
+     git cherry-pick <this commit>
+
+   For each "-stable" tree starting with the specified version.
+
 Following the submission:
 
  - The sender will receive an ACK when the patch has been accepted into the
