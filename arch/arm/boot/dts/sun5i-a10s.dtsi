@@ -125,6 +125,7 @@
 			reg = <0x01c0b000 0x1000>;
 			interrupts = <55>;
 			clocks = <&ahb_gates 17>;
+			allwinner,sram = <&emac_sram 1>;
 			status = "disabled";
 		};
 
@@ -199,5 +200,13 @@
 		allwinner,function = "mmc1";
 		allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+};
+
+&sram_a {
+	emac_sram: sram-section@8000 {
+		compatible = "allwinner,sun4i-a10-sram-a3-a4";
+		reg = <0x8000 0x4000>;
+		status = "disabled";
 	};
 };
