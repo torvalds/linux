@@ -749,7 +749,7 @@
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates4 14>, <&clk_gates22 10>, <&clk_gates17 3>, <&pd_mipidsi>;
 		clock-names = "clk_mipi_24m", "pclk_mipi_dsi", "pclk_mipi_dsi_host", "pd_mipi_dsi";
-		status = "okay";
+		status = "disabled";
 	};
 
 	lvds: lvds@ff968000 {
