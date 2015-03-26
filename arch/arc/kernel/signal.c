@@ -131,6 +131,15 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	/* Don't restart from sigreturn */
 	syscall_wont_restart(regs);
 
+	/*
+	 * Ensure that sigreturn always returns to user mode (in case the
+	 * regs saved on user stack got fudged between save and sigreturn)
+	 * Otherwise it is easy to panic the kernel with a custom
+	 * signal handler and/or restorer which clobberes the status32/ret
+	 * to return to a bogus location in kernel mode.
+	 */
+	regs->status32 |= STATUS_U_MASK;
+
 	return regs->r0;
 
 badframe:
@@ -229,8 +238,11 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 
 	/*
 	 * handler returns using sigreturn stub provided already by userpsace
+	 * If not, nuke the process right away
 	 */
-	BUG_ON(!(ksig->ka.sa.sa_flags & SA_RESTORER));
+	if(!(ksig->ka.sa.sa_flags & SA_RESTORER))
+		return 1;
+
 	regs->blink = (unsigned long)ksig->ka.sa.sa_restorer;
 
 	/* User Stack for signal handler will be above the frame just carved */
@@ -296,12 +308,12 @@ static void
 handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
-	int ret;
+	int failed;
 
 	/* Set up the stack frame */
-	ret = setup_rt_frame(ksig, oldset, regs);
+	failed = setup_rt_frame(ksig, oldset, regs);
 
-	signal_setup_done(ret, ksig, 0);
+	signal_setup_done(failed, ksig, 0);
 }
 
 void do_signal(struct pt_regs *regs)
