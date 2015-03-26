@@ -1561,7 +1561,19 @@ retry_locked:
 	if (!mdsc->stopping && inode->i_nlink > 0) {
 		if (want) {
 			retain |= CEPH_CAP_ANY;       /* be greedy */
+		} else if (S_ISDIR(inode->i_mode) &&
+			   (issued & CEPH_CAP_FILE_SHARED) &&
+			    __ceph_dir_is_complete(ci)) {
+			/*
+			 * If a directory is complete, we want to keep
+			 * the exclusive cap. So that MDS does not end up
+			 * revoking the shared cap on every create/unlink
+			 * operation.
+			 */
+			want = CEPH_CAP_ANY_SHARED | CEPH_CAP_FILE_EXCL;
+			retain |= want;
 		} else {
+
 			retain |= CEPH_CAP_ANY_SHARED;
 			/*
 			 * keep RD only if we didn't have the file open RW,
