@@ -230,6 +230,9 @@ static int lov_init_raid0(const struct lu_env *env,
 			struct lov_oinfo *oinfo = lsm->lsm_oinfo[i];
 			int ost_idx = oinfo->loi_ost_idx;
 
+			if (lov_oinfo_is_dummy(oinfo))
+				continue;
+
 			result = ostid_to_fid(ofid, &oinfo->loi_oi,
 					      oinfo->loi_ost_idx);
 			if (result != 0)
@@ -973,6 +976,10 @@ int lov_read_and_clear_async_rc(struct cl_object *clob)
 			LASSERT(lsm != NULL);
 			for (i = 0; i < lsm->lsm_stripe_count; i++) {
 				struct lov_oinfo *loi = lsm->lsm_oinfo[i];
+
+				if (lov_oinfo_is_dummy(loi))
+					continue;
+
 				if (loi->loi_ar.ar_rc && !rc)
 					rc = loi->loi_ar.ar_rc;
 				loi->loi_ar.ar_rc = 0;

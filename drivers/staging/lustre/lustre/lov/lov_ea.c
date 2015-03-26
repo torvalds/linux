@@ -227,6 +227,9 @@ static int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
 		ostid_le_to_cpu(&lmm->lmm_objects[i].l_ost_oi, &loi->loi_oi);
 		loi->loi_ost_idx = le32_to_cpu(lmm->lmm_objects[i].l_ost_idx);
 		loi->loi_ost_gen = le32_to_cpu(lmm->lmm_objects[i].l_ost_gen);
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
 		if (loi->loi_ost_idx >= lov->desc.ld_tgt_count) {
 			CERROR("OST index %d more than OST count %d\n",
 			       loi->loi_ost_idx, lov->desc.ld_tgt_count);
@@ -314,6 +317,9 @@ static int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
 		ostid_le_to_cpu(&lmm->lmm_objects[i].l_ost_oi, &loi->loi_oi);
 		loi->loi_ost_idx = le32_to_cpu(lmm->lmm_objects[i].l_ost_idx);
 		loi->loi_ost_gen = le32_to_cpu(lmm->lmm_objects[i].l_ost_gen);
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
 		if (loi->loi_ost_idx >= lov->desc.ld_tgt_count) {
 			CERROR("OST index %d more than OST count %d\n",
 			       loi->loi_ost_idx, lov->desc.ld_tgt_count);
