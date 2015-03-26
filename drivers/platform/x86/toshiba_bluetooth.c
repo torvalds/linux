@@ -57,6 +57,38 @@ static struct acpi_driver toshiba_bt_rfkill_driver = {
 	.drv.pm =	&toshiba_bt_pm,
 };
 
+static int toshiba_bluetooth_present(acpi_handle handle)
+{
+	acpi_status result;
+	u64 bt_present;
+
+	result = acpi_evaluate_integer(handle, "_STA", NULL, &bt_present);
+	if (ACPI_FAILURE(result)) {
+		pr_err("ACPI call to query Bluetooth presence failed");
+		return -ENXIO;
+	} else if (!bt_present) {
+		pr_info("Bluetooth device not present\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int toshiba_bluetooth_status(acpi_handle handle)
+{
+	acpi_status result;
+	u64 status;
+
+	result = acpi_evaluate_integer(handle, "BTST", NULL, &status);
+	if (ACPI_FAILURE(result)) {
+		pr_err("Could not get Bluetooth device status\n");
+		return -ENXIO;
+	}
+
+	pr_info("Bluetooth status %llu\n", status);
+
+	return status;
+}
 
 static int toshiba_bluetooth_enable(acpi_handle handle)
 {
@@ -83,6 +115,25 @@ static int toshiba_bluetooth_enable(acpi_handle handle)
 	pr_warn("Failed to re-enable Toshiba Bluetooth\n");
 
 	return -ENODEV;
+}
+
+static int toshiba_bluetooth_disable(acpi_handle handle)
+{
+	acpi_status result;
+
+	result = acpi_evaluate_object(handle, "BTPF", NULL, NULL);
+	if (ACPI_FAILURE(result)) {
+		pr_err("Could not power OFF Bluetooth device\n");
+		return -ENXIO;
+	}
+
+	result = acpi_evaluate_object(handle, "DUSB", NULL, NULL);
+	if (ACPI_FAILURE(result)) {
+		pr_err("Could not detach USB Bluetooth device\n");
+		return -ENXIO;
+	}
+
+	return 0;
 }
 
 static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event)
