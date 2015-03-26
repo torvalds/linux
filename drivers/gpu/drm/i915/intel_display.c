@@ -2439,7 +2439,12 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 		return;
 
 	if (intel_alloc_plane_obj(intel_crtc, plane_config)) {
-		update_state_fb(intel_crtc->base.primary);
+		struct drm_plane *primary = intel_crtc->base.primary;
+
+		primary->state->crtc = &intel_crtc->base;
+		primary->crtc = &intel_crtc->base;
+		update_state_fb(primary);
+
 		return;
 	}
 
@@ -2464,11 +2469,15 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 			continue;
 
 		if (i915_gem_obj_ggtt_offset(obj) == plane_config->base) {
+			struct drm_plane *primary = intel_crtc->base.primary;
+
 			if (obj->tiling_mode != I915_TILING_NONE)
 				dev_priv->preserve_bios_swizzle = true;
 
 			drm_framebuffer_reference(c->primary->fb);
-			intel_crtc->base.primary->fb = c->primary->fb;
+			primary->fb = c->primary->fb;
+			primary->state->crtc = &intel_crtc->base;
+			primary->crtc = &intel_crtc->base;
 			obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 			break;
 		}
