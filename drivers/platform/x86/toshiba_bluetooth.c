@@ -62,6 +62,11 @@ static int toshiba_bluetooth_present(acpi_handle handle)
 	acpi_status result;
 	u64 bt_present;
 
+	/*
+	 * Some Toshiba laptops may have a fake TOS6205 device in
+	 * their ACPI BIOS, so query the _STA method to see if there
+	 * is really anything there.
+	 */
 	result = acpi_evaluate_integer(handle, "_STA", NULL, &bt_present);
 	if (ACPI_FAILURE(result)) {
 		pr_err("ACPI call to query Bluetooth presence failed");
@@ -150,23 +155,18 @@ static int toshiba_bt_resume(struct device *dev)
 
 static int toshiba_bt_rfkill_add(struct acpi_device *device)
 {
-	acpi_status status;
-	u64 bt_present;
-	int result = -ENODEV;
+	int result;
 
-	/*
-	 * Some Toshiba laptops may have a fake TOS6205 device in
-	 * their ACPI BIOS, so query the _STA method to see if there
-	 * is really anything there, before trying to enable it.
-	 */
-	status = acpi_evaluate_integer(device->handle, "_STA", NULL,
-				       &bt_present);
+	result = toshiba_bluetooth_present(device->handle);
+	if (result)
+		return result;
 
-	if (!ACPI_FAILURE(status) && bt_present) {
-		pr_info("Detected Toshiba ACPI Bluetooth device - "
-			"installing RFKill handler\n");
-		result = toshiba_bluetooth_enable(device->handle);
-	}
+	pr_info("Toshiba ACPI Bluetooth device driver\n");
+
+	/* Enable the BT device */
+	result = toshiba_bluetooth_enable(device->handle);
+	if (result)
+		return result;
 
 	return result;
 }
@@ -174,7 +174,7 @@ static int toshiba_bt_rfkill_add(struct acpi_device *device)
 static int toshiba_bt_rfkill_remove(struct acpi_device *device)
 {
 	/* clean up */
-	return 0;
+	return toshiba_bluetooth_disable(device->handle);
 }
 
 module_acpi_driver(toshiba_bt_rfkill_driver);
