@@ -498,6 +498,10 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"4061: Multipath redundancy level got better"},
 	{0x066B9200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4060: Multipath redundancy level got worse"},
+	{0x06808100, 0, IPR_DEFAULT_LOG_LEVEL,
+	"9083: Device raw mode enabled"},
+	{0x06808200, 0, IPR_DEFAULT_LOG_LEVEL,
+	"9084: Device raw mode disabled"},
 	{0x07270000, 0, 0,
 	"Failure due to other device"},
 	{0x07278000, 0, IPR_DEFAULT_LOG_LEVEL,
@@ -4496,11 +4500,83 @@ static struct device_attribute ipr_resource_type_attr = {
 	.show = ipr_show_resource_type
 };
 
+/**
+ * ipr_show_raw_mode - Show the adapter's raw mode
+ * @dev:	class device struct
+ * @buf:	buffer
+ *
+ * Return value:
+ * 	number of bytes printed to buffer
+ **/
+static ssize_t ipr_show_raw_mode(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
+	struct ipr_resource_entry *res;
+	unsigned long lock_flags = 0;
+	ssize_t len;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	res = (struct ipr_resource_entry *)sdev->hostdata;
+	if (res)
+		len = snprintf(buf, PAGE_SIZE, "%d\n", res->raw_mode);
+	else
+		len = -ENXIO;
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return len;
+}
+
+/**
+ * ipr_store_raw_mode - Change the adapter's raw mode
+ * @dev:	class device struct
+ * @buf:	buffer
+ *
+ * Return value:
+ * 	number of bytes printed to buffer
+ **/
+static ssize_t ipr_store_raw_mode(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
+	struct ipr_resource_entry *res;
+	unsigned long lock_flags = 0;
+	ssize_t len;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	res = (struct ipr_resource_entry *)sdev->hostdata;
+	if (res) {
+		if (ioa_cfg->sis64 && ipr_is_af_dasd_device(res)) {
+			res->raw_mode = simple_strtoul(buf, NULL, 10);
+			len = strlen(buf);
+			if (res->sdev)
+				sdev_printk(KERN_INFO, res->sdev, "raw mode is %s\n",
+					res->raw_mode ? "enabled" : "disabled");
+		} else
+			len = -EINVAL;
+	} else
+		len = -ENXIO;
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return len;
+}
+
+static struct device_attribute ipr_raw_mode_attr = {
+	.attr = {
+		.name =		"raw_mode",
+		.mode =		S_IRUGO | S_IWUSR,
+	},
+	.show = ipr_show_raw_mode,
+	.store = ipr_store_raw_mode
+};
+
 static struct device_attribute *ipr_dev_attrs[] = {
 	&ipr_adapter_handle_attr,
 	&ipr_resource_path_attr,
 	&ipr_device_id_attr,
 	&ipr_resource_type_attr,
+	&ipr_raw_mode_attr,
 	NULL,
 };
 
@@ -6152,6 +6228,13 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 		break;
 	case IPR_IOASC_NR_INIT_CMD_REQUIRED:
 		break;
+	case IPR_IOASC_IR_NON_OPTIMIZED:
+		if (res->raw_mode) {
+			res->raw_mode = 0;
+			scsi_cmd->result |= (DID_IMM_RETRY << 16);
+		} else
+			scsi_cmd->result |= (DID_ERROR << 16);
+		break;
 	default:
 		if (IPR_IOASC_SENSE_KEY(ioasc) > RECOVERED_ERROR)
 			scsi_cmd->result |= (DID_ERROR << 16);
@@ -6291,6 +6374,8 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 	    (!ipr_is_gscsi(res) || scsi_cmd->cmnd[0] == IPR_QUERY_RSRC_STATE)) {
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
 	}
+	if (res->raw_mode && ipr_is_af_dasd_device(res))
+		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_PIPE;
 
 	if (ioa_cfg->sis64)
 		rc = ipr_build_ioadl64(ioa_cfg, ipr_cmd);

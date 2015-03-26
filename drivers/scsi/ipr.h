@@ -138,6 +138,7 @@
 #define IPR_IOASC_BUS_WAS_RESET			0x06290000
 #define IPR_IOASC_BUS_WAS_RESET_BY_OTHER		0x06298000
 #define IPR_IOASC_ABORTED_CMD_TERM_BY_HOST	0x0B5A0000
+#define IPR_IOASC_IR_NON_OPTIMIZED		0x05258200
 
 #define IPR_FIRST_DRIVER_IOASC			0x10000000
 #define IPR_IOASC_IOA_WAS_RESET			0x10000001
@@ -521,6 +522,7 @@ struct ipr_cmd_pkt {
 #define IPR_RQTYPE_IOACMD		0x01
 #define IPR_RQTYPE_HCAM			0x02
 #define IPR_RQTYPE_ATA_PASSTHRU	0x04
+#define IPR_RQTYPE_PIPE			0x05
 
 	u8 reserved2;
 
@@ -1274,6 +1276,7 @@ struct ipr_resource_entry {
 	u8 del_from_ml:1;
 	u8 resetting_device:1;
 	u8 reset_occurred:1;
+	u8 raw_mode:1;
 
 	u32 bus;		/* AKA channel */
 	u32 target;		/* AKA id */
