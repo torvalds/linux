@@ -986,7 +986,13 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 *ptr)
 	if (hdev->adv_instance.flags & MGMT_ADV_FLAG_LIMITED_DISCOV)
 		flags |= LE_AD_LIMITED;
 
-	if (flags) {
+	if (flags || (hdev->adv_instance.flags & MGMT_ADV_FLAG_MANAGED_FLAGS)) {
+		/* If a discovery flag wasn't provided, simply use the global
+		 * settings.
+		 */
+		if (!flags)
+			flags |= get_adv_discov_flags(hdev);
+
 		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
 			flags |= LE_AD_NO_BREDR;
 
@@ -6582,7 +6588,8 @@ static bool tlv_data_is_valid(struct hci_dev *hdev, u32 adv_flags, u8 *data,
 	u8 max_len = HCI_MAX_AD_LENGTH;
 	int i, cur_len;
 	bool flags_managed = false;
-	u32 flags_params = MGMT_ADV_FLAG_DISCOV | MGMT_ADV_FLAG_LIMITED_DISCOV;
+	u32 flags_params = MGMT_ADV_FLAG_DISCOV | MGMT_ADV_FLAG_LIMITED_DISCOV |
+			   MGMT_ADV_FLAG_MANAGED_FLAGS;
 
 	if (is_adv_data && (adv_flags & flags_params)) {
 		flags_managed = true;
