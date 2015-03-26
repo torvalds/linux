@@ -1434,7 +1434,8 @@ static void __init tegra30_clock_init(struct device_node *np)
 		return;
 
 	if (tegra_osc_clk_init(clk_base, tegra30_clks, tegra30_input_freq,
-		ARRAY_SIZE(tegra30_input_freq), &input_freq, NULL) < 0)
+			       ARRAY_SIZE(tegra30_input_freq), 1, &input_freq,
+			       NULL) < 0)
 		return;
 
 

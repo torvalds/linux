@@ -1480,7 +1480,8 @@ static void __init tegra124_132_clock_init_pre(struct device_node *np)
 		return;
 
 	if (tegra_osc_clk_init(clk_base, tegra124_clks, tegra124_input_freq,
-		ARRAY_SIZE(tegra124_input_freq), &osc_freq, &pll_ref_freq) < 0)
+			       ARRAY_SIZE(tegra124_input_freq), 1, &osc_freq,
+			       &pll_ref_freq) < 0)
 		return;
 
 	tegra_fixed_clk_init(tegra124_clks);
