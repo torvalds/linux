@@ -77,6 +77,8 @@ const struct mdp5_cfg_hw msm8x74_config = {
 	},
 	.intfs = {
 		[0] = INTF_eDP,
+		[1] = INTF_DSI,
+		[2] = INTF_DSI,
 		[3] = INTF_HDMI,
 	},
 	.max_clk = 200000000,
@@ -145,6 +147,8 @@ const struct mdp5_cfg_hw apq8084_config = {
 	},
 	.intfs = {
 		[0] = INTF_eDP,
+		[1] = INTF_DSI,
+		[2] = INTF_DSI,
 		[3] = INTF_HDMI,
 	},
 	.max_clk = 320000000,

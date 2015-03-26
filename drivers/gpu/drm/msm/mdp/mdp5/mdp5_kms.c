@@ -86,6 +86,18 @@ static long mdp5_round_pixclk(struct msm_kms *kms, unsigned long rate,
 	return rate;
 }
 
+static int mdp5_set_split_display(struct msm_kms *kms,
+		struct drm_encoder *encoder,
+		struct drm_encoder *slave_encoder,
+		bool is_cmd_mode)
+{
+	if (is_cmd_mode)
+		return mdp5_cmd_encoder_set_split_display(encoder,
+							slave_encoder);
+	else
+		return mdp5_encoder_set_split_display(encoder, slave_encoder);
+}
+
 static void mdp5_preclose(struct msm_kms *kms, struct drm_file *file)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
@@ -131,6 +143,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.complete_commit = mdp5_complete_commit,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
+		.set_split_display = mdp5_set_split_display,
 		.preclose        = mdp5_preclose,
 		.destroy         = mdp5_destroy,
 	},
@@ -174,7 +187,12 @@ static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 			.mode	= intf_mode,
 	};
 
-	encoder = mdp5_encoder_init(dev, &intf);
+	if ((intf_type == INTF_DSI) &&
+		(intf_mode == MDP5_INTF_DSI_MODE_COMMAND))
+		encoder = mdp5_cmd_encoder_init(dev, &intf);
+	else
+		encoder = mdp5_encoder_init(dev, &intf);
+
 	if (IS_ERR(encoder)) {
 		dev_err(dev->dev, "failed to construct encoder\n");
 		return encoder;
@@ -184,6 +202,24 @@ static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 	priv->encoders[priv->num_encoders++] = encoder;
 
 	return encoder;
+}
+
+static int get_dsi_id_from_intf(const struct mdp5_cfg_hw *hw_cfg, int intf_num)
+{
+	const int intf_cnt = hw_cfg->intf.count;
+	const u32 *intfs = hw_cfg->intfs;
+	int id = 0, i;
+
+	for (i = 0; i < intf_cnt; i++) {
+		if (intfs[i] == INTF_DSI) {
+			if (intf_num == i)
+				return id;
+
+			id++;
+		}
+	}
+
+	return -EINVAL;
 }
 
 static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
@@ -225,6 +261,38 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 
 		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
 		break;
+	case INTF_DSI:
+	{
+		int dsi_id = get_dsi_id_from_intf(hw_cfg, intf_num);
+		struct drm_encoder *dsi_encs[MSM_DSI_ENCODER_NUM];
+		enum mdp5_intf_mode mode;
+		int i;
+
+		if ((dsi_id >= ARRAY_SIZE(priv->dsi)) || (dsi_id < 0)) {
+			dev_err(dev->dev, "failed to find dsi from intf %d\n",
+				intf_num);
+			ret = -EINVAL;
+			break;
+		}
+
+		if (!priv->dsi[dsi_id])
+			break;
+
+		for (i = 0; i < MSM_DSI_ENCODER_NUM; i++) {
+			mode = (i == MSM_DSI_CMD_ENCODER_ID) ?
+				MDP5_INTF_DSI_MODE_COMMAND :
+				MDP5_INTF_DSI_MODE_VIDEO;
+			dsi_encs[i] = construct_encoder(mdp5_kms, INTF_DSI,
+							intf_num, mode);
+			if (IS_ERR(dsi_encs)) {
+				ret = PTR_ERR(dsi_encs);
+				break;
+			}
+		}
+
+		ret = msm_dsi_modeset_init(priv->dsi[dsi_id], dev, dsi_encs);
+		break;
+	}
 	default:
 		dev_err(dev->dev, "unknown intf: %d\n", intf_type);
 		ret = -EINVAL;

@@ -286,12 +286,51 @@ static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
 	.enable = mdp5_encoder_enable,
 };
 
+int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
+					struct drm_encoder *slave_encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms;
+	int intf_num;
+	u32 data = 0;
+
+	if (!encoder || !slave_encoder)
+		return -EINVAL;
+
+	mdp5_kms = get_kms(encoder);
+	intf_num = mdp5_encoder->intf.num;
+
+	/* Switch slave encoder's TimingGen Sync mode,
+	 * to use the master's enable signal for the slave encoder.
+	 */
+	if (intf_num == 1)
+		data |= MDP5_SPLIT_DPL_LOWER_INTF2_TG_SYNC;
+	else if (intf_num == 2)
+		data |= MDP5_SPLIT_DPL_LOWER_INTF1_TG_SYNC;
+	else
+		return -EINVAL;
+
+	/* Make sure clocks are on when connectors calling this function. */
+	mdp5_enable(mdp5_kms);
+	mdp5_write(mdp5_kms, REG_MDP5_MDP_SPARE_0(0),
+		MDP5_MDP_SPARE_0_SPLIT_DPL_SINGLE_FLUSH_EN);
+	/* Dumb Panel, Sync mode */
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, 0);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER, data);
+	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
+	mdp5_disable(mdp5_kms);
+
+	return 0;
+}
+
 /* initialize encoder */
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 				struct mdp5_interface *intf)
 {
 	struct drm_encoder *encoder = NULL;
 	struct mdp5_encoder *mdp5_encoder;
+	int enc_type = (intf->type == INTF_DSI) ?
+		DRM_MODE_ENCODER_DSI : DRM_MODE_ENCODER_TMDS;
 	int ret;
 
 	mdp5_encoder = kzalloc(sizeof(*mdp5_encoder), GFP_KERNEL);
@@ -305,8 +344,8 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 
 	spin_lock_init(&mdp5_encoder->intf_lock);
 
-	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs, enc_type);
+
 	drm_encoder_helper_add(encoder, &mdp5_encoder_helper_funcs);
 
 	bs_init(mdp5_encoder);

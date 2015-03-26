@@ -622,7 +622,16 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
 
 	/* now that we know what irq's we want: */
 	mdp5_crtc->err.irqmask = intf2err(intf->num);
-	mdp5_crtc->vblank.irqmask = intf2vblank(lm, intf);
+
+	/* Register command mode Pingpong done as vblank for now,
+	 * so that atomic commit should wait for it to finish.
+	 * Ideally, in the future, we should take rd_ptr done as vblank,
+	 * and let atomic commit wait for pingpong done for commond mode.
+	 */
+	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mdp5_crtc->vblank.irqmask = lm2ppdone(lm);
+	else
+		mdp5_crtc->vblank.irqmask = intf2vblank(lm, intf);
 	mdp_irq_update(&mdp5_kms->base);
 
 	mdp5_ctl_set_intf(mdp5_crtc->ctl, intf);
