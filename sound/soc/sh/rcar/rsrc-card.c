@@ -63,6 +63,7 @@ struct rsrc_card_priv {
 	} dai_props[RSRC_FB_NUM];
 	struct snd_soc_codec_conf codec_conf;
 	struct snd_soc_dai_link dai_link[RSRC_FB_NUM];
+	u32 convert_rate;
 };
 
 #define rsrc_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -150,6 +151,21 @@ static int rsrc_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	ret = __rsrc_card_dai_init(cpu, &dai_props->cpu_dai);
 	if (ret < 0)
 		return ret;
+
+	return 0;
+}
+
+static int rsrc_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+					struct snd_pcm_hw_params *params)
+{
+	struct rsrc_card_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_interval *rate = hw_param_interval(params,
+						      SNDRV_PCM_HW_PARAM_RATE);
+
+	if (!priv->convert_rate)
+		return 0;
+
+	rate->min = rate->max = priv->convert_rate;
 
 	return 0;
 }
@@ -347,6 +363,9 @@ static int rsrc_card_dai_link_of(struct device_node *node,
 	dai_link->ops = &rsrc_card_ops;
 	dai_link->init = rsrc_card_dai_init;
 
+	if (idx == IDX_CODEC)
+		dai_link->be_hw_params_fixup = rsrc_card_be_hw_params_fixup;
+
 	dev_dbg(dev, "\tname : %s\n", dai_link->stream_name);
 	dev_dbg(dev, "\tcpu : %s / %04x / %d\n",
 		dai_link->cpu_dai_name,
@@ -394,8 +413,12 @@ static int rsrc_card_parse_of(struct device_node *node,
 	priv->snd_card.of_dapm_routes		= of_data->routes;
 	priv->snd_card.num_of_dapm_routes	= of_data->num_routes;
 
-	dev_dbg(dev, "New rsrc-audio-card: %s\n", priv->snd_card.name ?
-		priv->snd_card.name : "");
+	/* sampling rate convert */
+	of_property_read_u32(node, "convert-rate", &priv->convert_rate);
+
+	dev_dbg(dev, "New rsrc-audio-card: %s (%d)\n",
+		priv->snd_card.name ? priv->snd_card.name : "",
+		priv->convert_rate);
 
 	/* FE/BE */
 	for (i = 0; i < RSRC_FB_NUM; i++) {

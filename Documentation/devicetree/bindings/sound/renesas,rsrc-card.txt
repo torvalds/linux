@@ -28,6 +28,7 @@ Optional subnode properties:
 					  dai-link uses bit clock inversion.
 - frame-inversion			: bool property. Add this if the
 					  dai-link uses frame clock inversion.
+- convert-rate				: platform specified sampling rate convert
 
 Required CPU/CODEC subnodes properties:
 
