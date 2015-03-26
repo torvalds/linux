@@ -251,7 +251,7 @@ unsigned int ddk750_getVMSize(void)
 
 }
 
-int ddk750_initHw(initchip_param_t * pInitParam)
+int ddk750_initHw(initchip_param_t *pInitParam)
 {
 
 	unsigned int ulReg;
