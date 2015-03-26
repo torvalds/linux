@@ -481,6 +481,9 @@ static int mdc_unpack_acl(struct ptlrpc_request *req, struct lustre_md *md)
 		return -EPROTO;
 
 	acl = posix_acl_from_xattr(&init_user_ns, buf, body->aclsize);
+	if (acl == NULL)
+		return 0;
+
 	if (IS_ERR(acl)) {
 		rc = PTR_ERR(acl);
 		CERROR("convert xattr to acl: %d\n", rc);
