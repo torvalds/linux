@@ -263,7 +263,7 @@ static ssize_t dfs_file_read(struct file *file, char __user *user_buf,
 	struct dentry *dent = file->f_path.dentry;
 	struct ubi_device *ubi;
 	struct ubi_debug_info *d;
-	char buf[3];
+	char buf[8];
 	int val;
 
 	ubi = ubi_get_device(ubi_num);
@@ -283,6 +283,22 @@ static ssize_t dfs_file_read(struct file *file, char __user *user_buf,
 		val = d->emulate_bitflips;
 	else if (dent == d->dfs_emulate_io_failures)
 		val = d->emulate_io_failures;
+	else if (dent == d->dfs_emulate_power_cut) {
+		snprintf(buf, sizeof(buf), "%u\n", d->emulate_power_cut);
+		count = simple_read_from_buffer(user_buf, count, ppos,
+						buf, strlen(buf));
+		goto out;
+	} else if (dent == d->dfs_power_cut_min) {
+		snprintf(buf, sizeof(buf), "%u\n", d->power_cut_min);
+		count = simple_read_from_buffer(user_buf, count, ppos,
+						buf, strlen(buf));
+		goto out;
+	} else if (dent == d->dfs_power_cut_max) {
+		snprintf(buf, sizeof(buf), "%u\n", d->power_cut_max);
+		count = simple_read_from_buffer(user_buf, count, ppos,
+						buf, strlen(buf));
+		goto out;
+	}
 	else {
 		count = -EINVAL;
 		goto out;
@@ -311,7 +327,7 @@ static ssize_t dfs_file_write(struct file *file, const char __user *user_buf,
 	struct ubi_device *ubi;
 	struct ubi_debug_info *d;
 	size_t buf_size;
-	char buf[8];
+	char buf[8] = {0};
 	int val;
 
 	ubi = ubi_get_device(ubi_num);
@@ -322,6 +338,21 @@ static ssize_t dfs_file_write(struct file *file, const char __user *user_buf,
 	buf_size = min_t(size_t, count, (sizeof(buf) - 1));
 	if (copy_from_user(buf, user_buf, buf_size)) {
 		count = -EFAULT;
+		goto out;
+	}
+
+	if (dent == d->dfs_power_cut_min) {
+		if (kstrtouint(buf, 0, &d->power_cut_min) != 0)
+			count = -EINVAL;
+		goto out;
+	} else if (dent == d->dfs_power_cut_max) {
+		if (kstrtouint(buf, 0, &d->power_cut_max) != 0)
+			count = -EINVAL;
+		goto out;
+	} else if (dent == d->dfs_emulate_power_cut) {
+		if (kstrtoint(buf, 0, &val) != 0)
+			count = -EINVAL;
+		d->emulate_power_cut = val;
 		goto out;
 	}
 
@@ -438,6 +469,27 @@ int ubi_debugfs_init_dev(struct ubi_device *ubi)
 		goto out_remove;
 	d->dfs_emulate_io_failures = dent;
 
+	fname = "tst_emulate_power_cut";
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_emulate_power_cut = dent;
+
+	fname = "tst_emulate_power_cut_min";
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_power_cut_min = dent;
+
+	fname = "tst_emulate_power_cut_max";
+	dent = debugfs_create_file(fname, S_IWUSR, d->dfs_dir, (void *)ubi_num,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_power_cut_max = dent;
+
 	return 0;
 
 out_remove:
@@ -457,4 +509,37 @@ void ubi_debugfs_exit_dev(struct ubi_device *ubi)
 {
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
 		debugfs_remove_recursive(ubi->dbg.dfs_dir);
+}
+
+/**
+ * ubi_dbg_power_cut - emulate a power cut if it is time to do so
+ * @ubi: UBI device description object
+ * @caller: Flags set to indicate from where the function is being called
+ *
+ * Returns non-zero if a power cut was emulated, zero if not.
+ */
+int ubi_dbg_power_cut(struct ubi_device *ubi, int caller)
+{
+	unsigned int range;
+
+	if ((ubi->dbg.emulate_power_cut & caller) == 0)
+		return 0;
+
+	if (ubi->dbg.power_cut_counter == 0) {
+		ubi->dbg.power_cut_counter = ubi->dbg.power_cut_min;
+
+		if (ubi->dbg.power_cut_max > ubi->dbg.power_cut_min) {
+			range = ubi->dbg.power_cut_max - ubi->dbg.power_cut_min;
+			ubi->dbg.power_cut_counter += prandom_u32() % range;
+		}
+		return 0;
+	}
+
+	ubi->dbg.power_cut_counter--;
+	if (ubi->dbg.power_cut_counter)
+		return 0;
+
+	ubi_msg(ubi, "XXXXXXXXXXXXXXX emulating a power cut XXXXXXXXXXXXXXXX");
+	ubi_ro_mode(ubi);
+	return 1;
 }

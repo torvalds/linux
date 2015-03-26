@@ -137,4 +137,6 @@ static inline void ubi_enable_dbg_chk_fastmap(struct ubi_device *ubi)
 {
 	ubi->dbg.chk_fastmap = 1;
 }
+
+int ubi_dbg_power_cut(struct ubi_device *ubi, int caller);
 #endif /* !__UBI_DEBUG_H__ */
