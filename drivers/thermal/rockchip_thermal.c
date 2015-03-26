@@ -27,6 +27,7 @@
 #include <linux/regmap.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include "../../arch/arm/mach-rockchip/efuse.h"
 
 #if 0
 #define thermal_dbg(dev, format, arg...)		\
@@ -826,7 +827,7 @@ static int rockchip_thermal_user_mode_get_temp(struct rockchip_thermal_data *the
 
 #ifdef TSADC_CPU_GATE
 	temp_cpu = rk_tsadcv3_code_to_temp((val_cpu * voltage + 500000) / 1000000) / 1000;
-	temp_cpu = temp_cpu + thermal->cpu_temp_adjust;
+	temp_cpu = temp_cpu - thermal->cpu_temp_adjust;
 	thermal->cpu_temp = temp_cpu;
 	if(thermal->logout)
 		printk("cpu[%d, %d], voltage: %d\n"
@@ -1040,7 +1041,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 			error);
 		goto err_disable_pclk;
 	}
-
+	thermal->cpu_temp_adjust = rockchip_get_temp(0);
 	if (thermal->chip->mode == TSADC_AUTO_MODE)
 	{
 		thermal->chip->initialize(thermal->regs, thermal->tshut_polarity);
