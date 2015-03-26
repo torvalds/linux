@@ -47,6 +47,10 @@ struct msm_kms_funcs {
 	const struct msm_format *(*get_format)(struct msm_kms *kms, uint32_t format);
 	long (*round_pixclk)(struct msm_kms *kms, unsigned long rate,
 			struct drm_encoder *encoder);
+	int (*set_split_display)(struct msm_kms *kms,
+			struct drm_encoder *encoder,
+			struct drm_encoder *slave_encoder,
+			bool is_cmd_mode);
 	/* cleanup: */
 	void (*preclose)(struct msm_kms *kms, struct drm_file *file);
 	void (*destroy)(struct msm_kms *kms);
