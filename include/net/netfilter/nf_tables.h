@@ -294,6 +294,11 @@ static inline void *nft_set_priv(const struct nft_set *set)
 	return (void *)set->data;
 }
 
+static inline struct nft_set *nft_set_container_of(const void *priv)
+{
+	return (void *)priv - offsetof(struct nft_set, data);
+}
+
 struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
 				     const struct nlattr *nla);
 struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
