@@ -1374,8 +1374,9 @@ static int kvm_mpic_write_internal(struct openpic *opp, gpa_t addr, u32 val)
 	return -ENXIO;
 }
 
-static int kvm_mpic_read(struct kvm_io_device *this, gpa_t addr,
-			 int len, void *ptr)
+static int kvm_mpic_read(struct kvm_vcpu *vcpu,
+			 struct kvm_io_device *this,
+			 gpa_t addr, int len, void *ptr)
 {
 	struct openpic *opp = container_of(this, struct openpic, mmio);
 	int ret;
@@ -1415,8 +1416,9 @@ static int kvm_mpic_read(struct kvm_io_device *this, gpa_t addr,
 	return ret;
 }
 
-static int kvm_mpic_write(struct kvm_io_device *this, gpa_t addr,
-			  int len, const void *ptr)
+static int kvm_mpic_write(struct kvm_vcpu *vcpu,
+			  struct kvm_io_device *this,
+			  gpa_t addr, int len, const void *ptr)
 {
 	struct openpic *opp = container_of(this, struct openpic, mmio);
 	int ret;

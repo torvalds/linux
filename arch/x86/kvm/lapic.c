@@ -1038,7 +1038,7 @@ static int apic_mmio_in_range(struct kvm_lapic *apic, gpa_t addr)
 	    addr < apic->base_address + LAPIC_MMIO_LENGTH;
 }
 
-static int apic_mmio_read(struct kvm_io_device *this,
+static int apic_mmio_read(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 			   gpa_t address, int len, void *data)
 {
 	struct kvm_lapic *apic = to_lapic(this);
@@ -1358,7 +1358,7 @@ static int apic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 	return ret;
 }
 
-static int apic_mmio_write(struct kvm_io_device *this,
+static int apic_mmio_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this,
 			    gpa_t address, int len, const void *data)
 {
 	struct kvm_lapic *apic = to_lapic(this);
