@@ -2108,16 +2108,16 @@ pnfs_set_layoutcommit(struct nfs_pgio_header *hdr)
 
 	spin_lock(&inode->i_lock);
 	if (!test_and_set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
+		nfsi->layout->plh_lwb = end_pos;
 		mark_as_dirty = true;
 		dprintk("%s: Set layoutcommit for inode %lu ",
 			__func__, inode->i_ino);
-	}
+	} else if (end_pos > nfsi->layout->plh_lwb)
+		nfsi->layout->plh_lwb = end_pos;
 	if (!test_and_set_bit(NFS_LSEG_LAYOUTCOMMIT, &hdr->lseg->pls_flags)) {
 		/* references matched in nfs4_layoutcommit_release */
 		pnfs_get_lseg(hdr->lseg);
 	}
-	if (end_pos > nfsi->layout->plh_lwb)
-		nfsi->layout->plh_lwb = end_pos;
 	spin_unlock(&inode->i_lock);
 	dprintk("%s: lseg %p end_pos %llu\n",
 		__func__, hdr->lseg, nfsi->layout->plh_lwb);
@@ -2137,16 +2137,16 @@ void pnfs_commit_set_layoutcommit(struct nfs_commit_data *data)
 
 	spin_lock(&inode->i_lock);
 	if (!test_and_set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
+		nfsi->layout->plh_lwb = data->lwb;
 		mark_as_dirty = true;
 		dprintk("%s: Set layoutcommit for inode %lu ",
 			__func__, inode->i_ino);
-	}
+	} else if (data->lwb > nfsi->layout->plh_lwb)
+		nfsi->layout->plh_lwb = data->lwb;
 	if (!test_and_set_bit(NFS_LSEG_LAYOUTCOMMIT, &data->lseg->pls_flags)) {
 		/* references matched in nfs4_layoutcommit_release */
 		pnfs_get_lseg(data->lseg);
 	}
-	if (data->lwb > nfsi->layout->plh_lwb)
-		nfsi->layout->plh_lwb = data->lwb;
 	spin_unlock(&inode->i_lock);
 	dprintk("%s: lseg %p end_pos %llu\n",
 		__func__, data->lseg, nfsi->layout->plh_lwb);
@@ -2216,7 +2216,6 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	pnfs_list_write_lseg(inode, &data->lseg_list);
 
 	end_pos = nfsi->layout->plh_lwb;
-	nfsi->layout->plh_lwb = 0;
 
 	nfs4_stateid_copy(&data->args.stateid, &nfsi->layout->plh_stateid);
 	spin_unlock(&inode->i_lock);
@@ -2233,11 +2232,11 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 		status = ld->prepare_layoutcommit(&data->args);
 		if (status) {
 			spin_lock(&inode->i_lock);
-			if (end_pos < nfsi->layout->plh_lwb)
+			set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags);
+			if (end_pos > nfsi->layout->plh_lwb)
 				nfsi->layout->plh_lwb = end_pos;
 			spin_unlock(&inode->i_lock);
 			put_rpccred(data->cred);
-			set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags);
 			goto clear_layoutcommitting;
 		}
 	}
