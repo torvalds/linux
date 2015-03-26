@@ -2065,6 +2065,9 @@ extern struct aac_common aac_config;
 /* PMC NEW COMM: Request the event data */
 #define		AifReqEvent		200
 
+/* RAW device deleted */
+#define		AifRawDeviceRemove	203
+
 /*
  *	Adapter Initiated FIB command structures. Start with the adapter
  *	initiated FIBs that really come from the adapter, and get responded
