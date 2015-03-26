@@ -554,6 +554,14 @@ struct mgmt_rp_add_advertising {
 	__u8	instance;
 } __packed;
 
+#define MGMT_ADV_FLAG_CONNECTABLE	BIT(0)
+#define MGMT_ADV_FLAG_DISCOV		BIT(1)
+#define MGMT_ADV_FLAG_LIMITED_DISCOV	BIT(2)
+#define MGMT_ADV_FLAG_MANAGED_FLAGS	BIT(3)
+#define MGMT_ADV_FLAG_TX_POWER		BIT(4)
+#define MGMT_ADV_FLAG_APPEARANCE	BIT(5)
+#define MGMT_ADV_FLAG_LOCAL_NAME	BIT(6)
+
 #define MGMT_OP_REMOVE_ADVERTISING	0x003F
 struct mgmt_cp_remove_advertising {
 	__u8	instance;
