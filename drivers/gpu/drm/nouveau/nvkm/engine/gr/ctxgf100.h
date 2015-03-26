@@ -88,6 +88,7 @@ void gk104_grctx_generate_bundle(struct gf100_grctx *);
 void gk104_grctx_generate_pagepool(struct gf100_grctx *);
 void gk104_grctx_generate_unkn(struct gf100_gr_priv *);
 void gk104_grctx_generate_r418bb8(struct gf100_gr_priv *);
+void gk104_grctx_generate_rop_active_fbps(struct gf100_gr_priv *);
 
 extern struct nvkm_oclass *gk110_grctx_oclass;
 extern struct nvkm_oclass *gk110b_grctx_oclass;

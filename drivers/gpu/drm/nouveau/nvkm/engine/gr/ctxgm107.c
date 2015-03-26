@@ -982,13 +982,7 @@ gm107_grctx_generate_main(struct gf100_gr_priv *priv, struct gf100_grctx *info)
 
 	nv_wr32(priv, 0x405b00, (priv->tpc_total << 8) | priv->gpc_nr);
 
-	if (priv->gpc_nr == 1) {
-		nv_mask(priv, 0x408850, 0x0000000f, priv->tpc_nr[0]);
-		nv_mask(priv, 0x408958, 0x0000000f, priv->tpc_nr[0]);
-	} else {
-		nv_mask(priv, 0x408850, 0x0000000f, priv->gpc_nr);
-		nv_mask(priv, 0x408958, 0x0000000f, priv->gpc_nr);
-	}
+	gk104_grctx_generate_rop_active_fbps(priv);
 
 	gf100_gr_icmd(priv, oclass->icmd);
 	nv_wr32(priv, 0x404154, 0x00000400);
