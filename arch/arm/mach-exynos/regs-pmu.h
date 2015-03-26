@@ -43,6 +43,7 @@
 #define S5P_WAKEUP_STAT				0x0600
 #define S5P_EINT_WAKEUP_MASK			0x0604
 #define S5P_WAKEUP_MASK				0x0608
+#define S5P_WAKEUP_MASK2				0x0614
 
 #define S5P_INFORM0				0x0800
 #define S5P_INFORM1				0x0804
