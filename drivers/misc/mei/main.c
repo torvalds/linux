@@ -203,7 +203,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 		if (wait_event_interruptible(cl->rx_wait,
 				(!list_empty(&cl->rd_completed)) ||
-				mei_cl_is_transitioning(cl))) {
+				(!mei_cl_is_connected(cl)))) {
 
 			if (signal_pending(current))
 				return -EINTR;
@@ -211,7 +211,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		}
 
 		mutex_lock(&dev->device_lock);
-		if (mei_cl_is_transitioning(cl)) {
+		if (!mei_cl_is_connected(cl)) {
 			rets = -EBUSY;
 			goto out;
 		}

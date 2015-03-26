@@ -90,15 +90,17 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl);
 /*
  *  MEI input output function prototype
  */
+
+/**
+ * mei_cl_is_connected - host client is connected
+ *
+ * @cl: host clinet
+ *
+ * Return: true if the host clinet is connected
+ */
 static inline bool mei_cl_is_connected(struct mei_cl *cl)
 {
 	return  cl->state == MEI_FILE_CONNECTED;
-}
-static inline bool mei_cl_is_transitioning(struct mei_cl *cl)
-{
-	return  MEI_FILE_INITIALIZING == cl->state ||
-		MEI_FILE_DISCONNECTED == cl->state ||
-		MEI_FILE_DISCONNECTING == cl->state;
 }
 
 bool mei_cl_is_other_connecting(struct mei_cl *cl);

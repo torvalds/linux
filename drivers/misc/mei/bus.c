@@ -302,7 +302,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 
 		if (wait_event_interruptible(cl->rx_wait,
 				(!list_empty(&cl->rd_completed)) ||
-				mei_cl_is_transitioning(cl))) {
+				(!mei_cl_is_connected(cl)))) {
 
 			if (signal_pending(current))
 				return -EINTR;
@@ -311,7 +311,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 
 		mutex_lock(&dev->device_lock);
 
-		if (mei_cl_is_transitioning(cl)) {
+		if (!mei_cl_is_connected(cl)) {
 			rets = -EBUSY;
 			goto out;
 		}
