@@ -358,8 +358,10 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	dev->raw_io_interface = dev->raw_io_64 = 0;
 
 	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
-		0, 0, 0, 0, 0, 0, status+0, status+1, status+2, NULL, NULL)) &&
+		0, 0, 0, 0, 0, 0,
+		status+0, status+1, status+2, status+3, NULL)) &&
 	 		(status[0] == 0x00000001)) {
+		dev->doorbell_mask = status[3];
 		if (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_64))
 			dev->raw_io_64 = 1;
 		dev->sync_mode = aac_sync_mode;

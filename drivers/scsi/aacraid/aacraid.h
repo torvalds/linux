@@ -1216,6 +1216,7 @@ struct aac_dev
 	int			sync_mode;
 	struct fib		*sync_fib;
 	struct list_head	sync_fib_list;
+	u32			doorbell_mask;
 	u32			max_msix;	/* max. MSI-X vectors */
 	u32			vector_cap;	/* MSI-X vector capab.*/
 	int			msi_enabled;	/* MSI/MSI-X enabled */
