@@ -216,11 +216,11 @@ static bool fix_pwm_polarity;
 
 /* Monitors: 9 voltage (0 to 7, battery), 3 temp (1 to 3), 3 fan (1 to 3) */
 
-static const u8 IT87_REG_FAN[]		= { 0x0d, 0x0e, 0x0f, 0x80, 0x82 };
-static const u8 IT87_REG_FAN_MIN[]	= { 0x10, 0x11, 0x12, 0x84, 0x86 };
-static const u8 IT87_REG_FANX[]		= { 0x18, 0x19, 0x1a, 0x81, 0x83 };
-static const u8 IT87_REG_FANX_MIN[]	= { 0x1b, 0x1c, 0x1d, 0x85, 0x87 };
-static const u8 IT87_REG_TEMP_OFFSET[]	= { 0x56, 0x57, 0x59 };
+static const u8 IT87_REG_FAN[]         = { 0x0d, 0x0e, 0x0f, 0x80, 0x82, 0x4c };
+static const u8 IT87_REG_FAN_MIN[]     = { 0x10, 0x11, 0x12, 0x84, 0x86, 0x4e };
+static const u8 IT87_REG_FANX[]        = { 0x18, 0x19, 0x1a, 0x81, 0x83, 0x4d };
+static const u8 IT87_REG_FANX_MIN[]    = { 0x1b, 0x1c, 0x1d, 0x85, 0x87, 0x4f };
+static const u8 IT87_REG_TEMP_OFFSET[] = { 0x56, 0x57, 0x59 };
 
 #define IT87_REG_FAN_MAIN_CTRL 0x13
 #define IT87_REG_FAN_CTL       0x14
@@ -264,6 +264,7 @@ struct it87_devices {
 #define FEAT_FIVE_FANS		(1 << 8)	/* Supports five fans */
 #define FEAT_VID		(1 << 9)	/* Set if chip supports VID */
 #define FEAT_IN7_INTERNAL	(1 << 10)	/* Set if in7 is internal */
+#define FEAT_SIX_FANS		(1 << 11)	/* Supports six fans */
 
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
@@ -382,7 +383,7 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8620",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_FIVE_FANS
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_SIX_FANS
 		  | FEAT_IN7_INTERNAL,
 		.peci_mask = 0x07,
 	},
@@ -399,9 +400,11 @@ static const struct it87_devices it87_devices[] = {
 				(((data)->features & FEAT_TEMP_OLD_PECI) && \
 				 ((data)->old_peci_mask & (1 << nr)))
 #define has_fan16_config(data)	((data)->features & FEAT_FAN16_CONFIG)
-#define has_five_fans(data)	((data)->features & FEAT_FIVE_FANS)
+#define has_five_fans(data)	((data)->features & (FEAT_FIVE_FANS | \
+						     FEAT_SIX_FANS))
 #define has_vid(data)		((data)->features & FEAT_VID)
 #define has_in7_internal(data)	((data)->features & FEAT_IN7_INTERNAL)
+#define has_six_fans(data)	((data)->features & FEAT_SIX_FANS)
 
 struct it87_sio_data {
 	enum chips type;
@@ -438,7 +441,7 @@ struct it87_data {
 	u16 in_scaled;		/* Internal voltage sensors are scaled */
 	u8 in[10][3];		/* [nr][0]=in, [1]=min, [2]=max */
 	u8 has_fan;		/* Bitfield, fans enabled */
-	u16 fan[5][2];		/* Register values, [nr][0]=fan, [1]=min */
+	u16 fan[6][2];		/* Register values, [nr][0]=fan, [1]=min */
 	u8 has_temp;		/* Bitfield, temp sensors enabled */
 	s8 temp[3][4];		/* [nr][0]=temp, [1]=min, [2]=max, [3]=offset */
 	u8 sensor;		/* Register value (IT87_REG_TEMP_ENABLE) */
@@ -1277,6 +1280,10 @@ static SENSOR_DEVICE_ATTR_2(fan5_input, S_IRUGO, show_fan, NULL, 4, 0);
 static SENSOR_DEVICE_ATTR_2(fan5_min, S_IRUGO | S_IWUSR, show_fan, set_fan,
 			    4, 1);
 
+static SENSOR_DEVICE_ATTR_2(fan6_input, S_IRUGO, show_fan, NULL, 5, 0);
+static SENSOR_DEVICE_ATTR_2(fan6_min, S_IRUGO | S_IWUSR, show_fan, set_fan,
+			    5, 1);
+
 static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR,
 			  show_pwm_enable, set_pwm_enable, 0);
 static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_pwm, set_pwm, 0);
@@ -1407,6 +1414,7 @@ static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 1);
 static SENSOR_DEVICE_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 2);
 static SENSOR_DEVICE_ATTR(fan4_alarm, S_IRUGO, show_alarm, NULL, 3);
 static SENSOR_DEVICE_ATTR(fan5_alarm, S_IRUGO, show_alarm, NULL, 6);
+static SENSOR_DEVICE_ATTR(fan6_alarm, S_IRUGO, show_alarm, NULL, 7);
 static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 16);
 static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 17);
 static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 18);
@@ -1457,6 +1465,7 @@ static SENSOR_DEVICE_ATTR(fan2_beep, S_IRUGO, show_beep, set_beep, 0);
 static SENSOR_DEVICE_ATTR(fan3_beep, S_IRUGO, show_beep, set_beep, 0);
 static SENSOR_DEVICE_ATTR(fan4_beep, S_IRUGO, show_beep, set_beep, 0);
 static SENSOR_DEVICE_ATTR(fan5_beep, S_IRUGO, show_beep, set_beep, 0);
+static SENSOR_DEVICE_ATTR(fan6_beep, S_IRUGO, show_beep, set_beep, 0);
 static SENSOR_DEVICE_ATTR(temp1_beep, S_IRUGO | S_IWUSR,
 			  show_beep, set_beep, 2);
 static SENSOR_DEVICE_ATTR(temp2_beep, S_IRUGO, show_beep, NULL, 2);
@@ -1660,7 +1669,7 @@ static struct attribute *it87_attributes_temp_beep[] = {
 	&sensor_dev_attr_temp3_beep.dev_attr.attr,
 };
 
-static struct attribute *it87_attributes_fan[5][3+1] = { {
+static struct attribute *it87_attributes_fan[6][3+1] = { {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_min.dev_attr.attr,
 	&sensor_dev_attr_fan1_alarm.dev_attr.attr,
@@ -1685,14 +1694,20 @@ static struct attribute *it87_attributes_fan[5][3+1] = { {
 	&sensor_dev_attr_fan5_min.dev_attr.attr,
 	&sensor_dev_attr_fan5_alarm.dev_attr.attr,
 	NULL
+}, {
+	&sensor_dev_attr_fan6_input.dev_attr.attr,
+	&sensor_dev_attr_fan6_min.dev_attr.attr,
+	&sensor_dev_attr_fan6_alarm.dev_attr.attr,
+	NULL
 } };
 
-static const struct attribute_group it87_group_fan[5] = {
+static const struct attribute_group it87_group_fan[6] = {
 	{ .attrs = it87_attributes_fan[0] },
 	{ .attrs = it87_attributes_fan[1] },
 	{ .attrs = it87_attributes_fan[2] },
 	{ .attrs = it87_attributes_fan[3] },
 	{ .attrs = it87_attributes_fan[4] },
+	{ .attrs = it87_attributes_fan[5] },
 };
 
 static const struct attribute *it87_attributes_fan_div[] = {
@@ -1774,6 +1789,7 @@ static struct attribute *it87_attributes_fan_beep[] = {
 	&sensor_dev_attr_fan3_beep.dev_attr.attr,
 	&sensor_dev_attr_fan4_beep.dev_attr.attr,
 	&sensor_dev_attr_fan5_beep.dev_attr.attr,
+	&sensor_dev_attr_fan6_beep.dev_attr.attr,
 };
 
 static struct attribute *it87_attributes_vid[] = {
@@ -2155,7 +2171,7 @@ static void it87_remove_files(struct device *dev)
 			sysfs_remove_file(&dev->kobj,
 					  it87_attributes_temp_beep[i]);
 	}
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < 6; i++) {
 		if (!(data->has_fan & (1 << i)))
 			continue;
 		sysfs_remove_group(&dev->kobj, &it87_group_fan[i]);
@@ -2312,7 +2328,7 @@ static int it87_probe(struct platform_device *pdev)
 
 	/* Do not create fan files for disabled fans */
 	fan_beep_need_rw = 1;
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < 6; i++) {
 		if (!(data->has_fan & (1 << i)))
 			continue;
 		err = sysfs_create_group(&dev->kobj, &it87_group_fan[i]);
@@ -2557,9 +2573,10 @@ static void it87_init_device(struct platform_device *pdev)
 	}
 	data->has_fan = (data->fan_main_ctrl >> 4) & 0x07;
 
+	tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
+
 	/* Set tachometers to 16-bit mode if needed */
 	if (has_fan16_config(data)) {
-		tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
 		if (~tmp & 0x07 & data->has_fan) {
 			dev_dbg(&pdev->dev,
 				"Setting fan1-3 to 16-bit mode\n");
@@ -2570,11 +2587,12 @@ static void it87_init_device(struct platform_device *pdev)
 
 	/* Check for additional fans */
 	if (has_five_fans(data)) {
-		tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
 		if (tmp & (1 << 4))
 			data->has_fan |= (1 << 3); /* fan4 enabled */
 		if (tmp & (1 << 5))
 			data->has_fan |= (1 << 4); /* fan5 enabled */
+		if (has_six_fans(data) && (tmp & (1 << 2)))
+			data->has_fan |= (1 << 5); /* fan6 enabled */
 	}
 
 	/* Fan input pins may be used for alternative functions */
@@ -2642,7 +2660,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 		if (data->type == it8603)
 			data->in[9][0] = it87_read_value(data, 0x2f);
 
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < 6; i++) {
 			/* Skip disabled fans */
 			if (!(data->has_fan & (1 << i)))
 				continue;
