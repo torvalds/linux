@@ -329,13 +329,12 @@ static void bclink_peek_nack(struct net *net, struct tipc_msg *msg)
 		return;
 
 	tipc_node_lock(n_ptr);
-
 	if (n_ptr->bclink.recv_permitted &&
 	    (n_ptr->bclink.last_in != n_ptr->bclink.last_sent) &&
 	    (n_ptr->bclink.last_in == msg_bcgap_after(msg)))
 		n_ptr->bclink.oos_state = 2;
-
 	tipc_node_unlock(n_ptr);
+	tipc_node_put(n_ptr);
 }
 
 /* tipc_bclink_xmit - deliver buffer chain to all nodes in cluster
@@ -466,6 +465,7 @@ void tipc_bclink_rcv(struct net *net, struct sk_buff *buf)
 			tipc_node_unlock(node);
 			bclink_peek_nack(net, msg);
 		}
+		tipc_node_put(node);
 		goto exit;
 	}
 
@@ -570,6 +570,7 @@ receive:
 
 unlock:
 	tipc_node_unlock(node);
+	tipc_node_put(node);
 exit:
 	kfree_skb(buf);
 }

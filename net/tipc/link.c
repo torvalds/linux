@@ -854,6 +854,7 @@ int tipc_link_xmit(struct net *net, struct sk_buff_head *list, u32 dnode,
 		if (link)
 			rc = __tipc_link_xmit(net, link, list);
 		tipc_node_unlock(node);
+		tipc_node_put(node);
 	}
 	if (link)
 		return rc;
@@ -1116,8 +1117,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		n_ptr = tipc_node_find(net, msg_prevnode(msg));
 		if (unlikely(!n_ptr))
 			goto discard;
-		tipc_node_lock(n_ptr);
 
+		tipc_node_lock(n_ptr);
 		/* Locate unicast link endpoint that should handle message */
 		l_ptr = n_ptr->links[b_ptr->identity];
 		if (unlikely(!l_ptr))
@@ -1205,6 +1206,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		skb = NULL;
 unlock:
 		tipc_node_unlock(n_ptr);
+		tipc_node_put(n_ptr);
 discard:
 		if (unlikely(skb))
 			kfree_skb(skb);
@@ -2236,7 +2238,6 @@ int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	msg.seq = cb->nlh->nlmsg_seq;
 
 	rcu_read_lock();
-
 	if (prev_node) {
 		node = tipc_node_find(net, prev_node);
 		if (!node) {
@@ -2249,6 +2250,7 @@ int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			cb->prev_seq = 1;
 			goto out;
 		}
+		tipc_node_put(node);
 
 		list_for_each_entry_continue_rcu(node, &tn->node_list,
 						 list) {
@@ -2256,6 +2258,7 @@ int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			err = __tipc_nl_add_node_links(net, &msg, node,
 						       &prev_link);
 			tipc_node_unlock(node);
+			tipc_node_put(node);
 			if (err)
 				goto out;
 

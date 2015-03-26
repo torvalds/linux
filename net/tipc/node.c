@@ -42,6 +42,7 @@
 
 static void node_lost_contact(struct tipc_node *n_ptr);
 static void node_established_contact(struct tipc_node *n_ptr);
+static void tipc_node_delete(struct tipc_node *node);
 
 struct tipc_sock_conn {
 	u32 port;
@@ -67,6 +68,23 @@ static unsigned int tipc_hashfn(u32 addr)
 	return addr & (NODE_HTABLE_SIZE - 1);
 }
 
+static void tipc_node_kref_release(struct kref *kref)
+{
+	struct tipc_node *node = container_of(kref, struct tipc_node, kref);
+
+	tipc_node_delete(node);
+}
+
+void tipc_node_put(struct tipc_node *node)
+{
+	kref_put(&node->kref, tipc_node_kref_release);
+}
+
+static void tipc_node_get(struct tipc_node *node)
+{
+	kref_get(&node->kref);
+}
+
 /*
  * tipc_node_find - locate specified node object, if it exists
  */
@@ -82,6 +100,7 @@ struct tipc_node *tipc_node_find(struct net *net, u32 addr)
 	hlist_for_each_entry_rcu(node, &tn->node_htable[tipc_hashfn(addr)],
 				 hash) {
 		if (node->addr == addr) {
+			tipc_node_get(node);
 			rcu_read_unlock();
 			return node;
 		}
@@ -106,6 +125,7 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	}
 	n_ptr->addr = addr;
 	n_ptr->net = net;
+	kref_init(&n_ptr->kref);
 	spin_lock_init(&n_ptr->lock);
 	INIT_HLIST_NODE(&n_ptr->hash);
 	INIT_LIST_HEAD(&n_ptr->list);
@@ -120,16 +140,17 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr)
 	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 	n_ptr->action_flags = TIPC_WAIT_PEER_LINKS_DOWN;
 	n_ptr->signature = INVALID_NODE_SIG;
+	tipc_node_get(n_ptr);
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
 	return n_ptr;
 }
 
-static void tipc_node_delete(struct tipc_net *tn, struct tipc_node *n_ptr)
+static void tipc_node_delete(struct tipc_node *node)
 {
-	list_del_rcu(&n_ptr->list);
-	hlist_del_rcu(&n_ptr->hash);
-	kfree_rcu(n_ptr, rcu);
+	list_del_rcu(&node->list);
+	hlist_del_rcu(&node->hash);
+	kfree_rcu(node, rcu);
 }
 
 void tipc_node_stop(struct net *net)
@@ -139,7 +160,7 @@ void tipc_node_stop(struct net *net)
 
 	spin_lock_bh(&tn->node_list_lock);
 	list_for_each_entry_safe(node, t_node, &tn->node_list, list)
-		tipc_node_delete(tn, node);
+		tipc_node_put(node);
 	spin_unlock_bh(&tn->node_list_lock);
 }
 
@@ -147,6 +168,7 @@ int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port)
 {
 	struct tipc_node *node;
 	struct tipc_sock_conn *conn;
+	int err = 0;
 
 	if (in_own_node(net, dnode))
 		return 0;
@@ -157,8 +179,10 @@ int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port)
 		return -EHOSTUNREACH;
 	}
 	conn = kmalloc(sizeof(*conn), GFP_ATOMIC);
-	if (!conn)
-		return -EHOSTUNREACH;
+	if (!conn) {
+		err = -EHOSTUNREACH;
+		goto exit;
+	}
 	conn->peer_node = dnode;
 	conn->port = port;
 	conn->peer_port = peer_port;
@@ -166,7 +190,9 @@ int tipc_node_add_conn(struct net *net, u32 dnode, u32 port, u32 peer_port)
 	tipc_node_lock(node);
 	list_add_tail(&conn->list, &node->conn_sks);
 	tipc_node_unlock(node);
-	return 0;
+exit:
+	tipc_node_put(node);
+	return err;
 }
 
 void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
@@ -189,6 +215,7 @@ void tipc_node_remove_conn(struct net *net, u32 dnode, u32 port)
 		kfree(conn);
 	}
 	tipc_node_unlock(node);
+	tipc_node_put(node);
 }
 
 /**
@@ -417,19 +444,25 @@ int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 addr,
 			   char *linkname, size_t len)
 {
 	struct tipc_link *link;
+	int err = -EINVAL;
 	struct tipc_node *node = tipc_node_find(net, addr);
 
-	if ((bearer_id >= MAX_BEARERS) || !node)
-		return -EINVAL;
+	if (!node)
+		return err;
+
+	if (bearer_id >= MAX_BEARERS)
+		goto exit;
+
 	tipc_node_lock(node);
 	link = node->links[bearer_id];
 	if (link) {
 		strncpy(linkname, link->name, len);
-		tipc_node_unlock(node);
-		return 0;
+		err = 0;
 	}
+exit:
 	tipc_node_unlock(node);
-	return -EINVAL;
+	tipc_node_put(node);
+	return err;
 }
 
 void tipc_node_unlock(struct tipc_node *node)
@@ -545,17 +578,21 @@ int tipc_nl_node_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	msg.seq = cb->nlh->nlmsg_seq;
 
 	rcu_read_lock();
-
-	if (last_addr && !tipc_node_find(net, last_addr)) {
-		rcu_read_unlock();
-		/* We never set seq or call nl_dump_check_consistent() this
-		 * means that setting prev_seq here will cause the consistence
-		 * check to fail in the netlink callback handler. Resulting in
-		 * the NLMSG_DONE message having the NLM_F_DUMP_INTR flag set if
-		 * the node state changed while we released the lock.
-		 */
-		cb->prev_seq = 1;
-		return -EPIPE;
+	if (last_addr) {
+		node = tipc_node_find(net, last_addr);
+		if (!node) {
+			rcu_read_unlock();
+			/* We never set seq or call nl_dump_check_consistent()
+			 * this means that setting prev_seq here will cause the
+			 * consistence check to fail in the netlink callback
+			 * handler. Resulting in the NLMSG_DONE message having
+			 * the NLM_F_DUMP_INTR flag set if the node state
+			 * changed while we released the lock.
+			 */
+			cb->prev_seq = 1;
+			return -EPIPE;
+		}
+		tipc_node_put(node);
 	}
 
 	list_for_each_entry_rcu(node, &tn->node_list, list) {
