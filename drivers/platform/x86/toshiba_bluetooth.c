@@ -2,6 +2,7 @@
  * Toshiba Bluetooth Enable Driver
  *
  * Copyright (C) 2009 Jes Sorensen <Jes.Sorensen@gmail.com>
+ * Copyright (C) 2015 Azael Avalos <coproscefalo@gmail.com>
  *
  * Thanks to Matthew Garrett for background info on ACPI innards which
  * normal people aren't meant to understand :-)
@@ -24,6 +25,10 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
+
+#define BT_KILLSWITCH_MASK	0x01
+#define BT_PLUGGED_MASK		0x40
+#define BT_POWER_MASK		0x80
 
 MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@gmail.com>");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Bluetooth Enable Driver");
@@ -97,29 +102,48 @@ static int toshiba_bluetooth_status(acpi_handle handle)
 
 static int toshiba_bluetooth_enable(acpi_handle handle)
 {
-	acpi_status res1, res2;
-	u64 result;
+	acpi_status result;
+	bool killswitch;
+	bool powered;
+	bool plugged;
+	int status;
 
 	/*
 	 * Query ACPI to verify RFKill switch is set to 'on'.
 	 * If not, we return silently, no need to report it as
 	 * an error.
 	 */
-	res1 = acpi_evaluate_integer(handle, "BTST", NULL, &result);
-	if (ACPI_FAILURE(res1))
-		return res1;
-	if (!(result & 0x01))
+	status = toshiba_bluetooth_status(handle);
+	if (status < 0)
+		return status;
+
+	killswitch = (status & BT_KILLSWITCH_MASK) ? true : false;
+	powered = (status & BT_POWER_MASK) ? true : false;
+	plugged = (status & BT_PLUGGED_MASK) ? true : false;
+
+	if (!killswitch)
+		return 0;
+	/*
+	 * This check ensures to only enable the device if it is powered
+	 * off or detached, as some recent devices somehow pass the killswitch
+	 * test, causing a loop enabling/disabling the device, see bug 93911.
+	 */
+	if (powered || plugged)
 		return 0;
 
-	pr_info("Re-enabling Toshiba Bluetooth\n");
-	res1 = acpi_evaluate_object(handle, "AUSB", NULL, NULL);
-	res2 = acpi_evaluate_object(handle, "BTPO", NULL, NULL);
-	if (!ACPI_FAILURE(res1) || !ACPI_FAILURE(res2))
-		return 0;
+	result = acpi_evaluate_object(handle, "AUSB", NULL, NULL);
+	if (ACPI_FAILURE(result)) {
+		pr_err("Could not attach USB Bluetooth device\n");
+		return -ENXIO;
+	}
 
-	pr_warn("Failed to re-enable Toshiba Bluetooth\n");
+	result = acpi_evaluate_object(handle, "BTPO", NULL, NULL);
+	if (ACPI_FAILURE(result)) {
+		pr_err("Could not power ON Bluetooth device\n");
+		return -ENXIO;
+	}
 
-	return -ENODEV;
+	return 0;
 }
 
 static int toshiba_bluetooth_disable(acpi_handle handle)
