@@ -3064,10 +3064,8 @@ void i915_teardown_sysfs(struct drm_device *dev_priv);
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
-static inline bool intel_gmbus_is_valid_pin(unsigned int pin)
-{
-	return (pin >= GMBUS_PIN_SSC && pin <= GMBUS_PIN_DPD);
-}
+extern bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
+				     unsigned int pin);
 
 extern struct i2c_adapter *
 intel_gmbus_get_adapter(struct drm_i915_private *dev_priv, unsigned int pin);

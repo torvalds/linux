@@ -49,6 +49,12 @@ static const struct gmbus_pin gmbus_pins[] = {
 	[GMBUS_PIN_DPD] = { "dpd", GPIOF },
 };
 
+bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
+			      unsigned int pin)
+{
+	return pin < ARRAY_SIZE(gmbus_pins) && gmbus_pins[pin].reg;
+}
+
 /* Intel GPIO access functions */
 
 #define I2C_RISEFALL_TIME 10
@@ -534,7 +540,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	init_waitqueue_head(&dev_priv->gmbus_wait_queue);
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {
-		if (!intel_gmbus_is_valid_pin(pin))
+		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
 			continue;
 
 		bus = &dev_priv->gmbus[pin];
@@ -571,7 +577,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 err:
 	while (--pin) {
-		if (!intel_gmbus_is_valid_pin(pin))
+		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
 			continue;
 
 		bus = &dev_priv->gmbus[pin];
@@ -583,7 +589,7 @@ err:
 struct i2c_adapter *intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
 					    unsigned int pin)
 {
-	if (WARN_ON(!intel_gmbus_is_valid_pin(pin)))
+	if (WARN_ON(!intel_gmbus_is_valid_pin(dev_priv, pin)))
 		return NULL;
 
 	return &dev_priv->gmbus[pin].adapter;
@@ -613,7 +619,7 @@ void intel_teardown_gmbus(struct drm_device *dev)
 	unsigned int pin;
 
 	for (pin = 0; pin < ARRAY_SIZE(dev_priv->gmbus); pin++) {
-		if (!intel_gmbus_is_valid_pin(pin))
+		if (!intel_gmbus_is_valid_pin(dev_priv, pin))
 			continue;
 
 		bus = &dev_priv->gmbus[pin];
