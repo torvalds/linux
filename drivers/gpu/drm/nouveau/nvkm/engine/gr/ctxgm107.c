@@ -926,7 +926,7 @@ gm107_grctx_generate_attrib(struct gf100_grctx *info)
 			mmio_wr32(info, o + 0xe4, as);
 			mmio_wr32(info, o + 0xf8, ao);
 			ao += impl->alpha_nr_max * priv->ppc_tpc_nr[gpc][ppc];
-			mmio_wr32(info, u, (0x715 /*XXX*/ << 16) | bs);
+			mmio_wr32(info, u, ((bs / 3 /*XXX*/) << 16) | bs);
 		}
 	}
 }
