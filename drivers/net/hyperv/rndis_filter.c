@@ -1141,8 +1141,6 @@ int rndis_filter_device_add(struct hv_device *dev,
 	net_device->num_chn = 1 +
 		init_packet->msg.v5_msg.subchn_comp.num_subchannels;
 
-	vmbus_are_subchannels_present(dev->channel);
-
 	ret = rndis_filter_set_rss_param(rndis_device, net_device->num_chn);
 
 out:
