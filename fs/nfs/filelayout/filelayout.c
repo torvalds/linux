@@ -258,7 +258,8 @@ filelayout_set_layoutcommit(struct nfs_pgio_header *hdr)
 	    hdr->res.verf->committed != NFS_DATA_SYNC)
 		return;
 
-	pnfs_set_layoutcommit(hdr);
+	pnfs_set_layoutcommit(hdr->inode, hdr->lseg,
+			hdr->mds_offset + hdr->res.count);
 	dprintk("%s inode %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
 		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
 }
@@ -373,7 +374,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 	}
 
 	if (data->verf.committed == NFS_UNSTABLE)
-		pnfs_commit_set_layoutcommit(data);
+		pnfs_set_layoutcommit(data->inode, data->lseg, data->lwb);
 
 	return 0;
 }
