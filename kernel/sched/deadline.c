@@ -218,6 +218,52 @@ static inline void set_post_schedule(struct rq *rq)
 	rq->post_schedule = has_pushable_dl_tasks(rq);
 }
 
+static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq);
+
+static void dl_task_offline_migration(struct rq *rq, struct task_struct *p)
+{
+	struct rq *later_rq = NULL;
+	bool fallback = false;
+
+	later_rq = find_lock_later_rq(p, rq);
+
+	if (!later_rq) {
+		int cpu;
+
+		/*
+		 * If we cannot preempt any rq, fall back to pick any
+		 * online cpu.
+		 */
+		fallback = true;
+		cpu = cpumask_any_and(cpu_active_mask, tsk_cpus_allowed(p));
+		if (cpu >= nr_cpu_ids) {
+			/*
+			 * Fail to find any suitable cpu.
+			 * The task will never come back!
+			 */
+			BUG_ON(dl_bandwidth_enabled());
+
+			/*
+			 * If admission control is disabled we
+			 * try a little harder to let the task
+			 * run.
+			 */
+			cpu = cpumask_any(cpu_active_mask);
+		}
+		later_rq = cpu_rq(cpu);
+		double_lock_balance(rq, later_rq);
+	}
+
+	deactivate_task(rq, p, 0);
+	set_task_cpu(p, later_rq->cpu);
+	activate_task(later_rq, p, ENQUEUE_REPLENISH);
+
+	if (!fallback)
+		resched_curr(later_rq);
+
+	double_unlock_balance(rq, later_rq);
+}
+
 #else
 
 static inline
@@ -535,6 +581,17 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 
 	sched_clock_tick();
 	update_rq_clock(rq);
+
+#ifdef CONFIG_SMP
+	/*
+	 * If we find that the rq the task was on is no longer
+	 * available, we need to select a new rq.
+	 */
+	if (unlikely(!rq->online)) {
+		dl_task_offline_migration(rq, p);
+		goto unlock;
+	}
+#endif
 
 	/*
 	 * If the throttle happened during sched-out; like:
