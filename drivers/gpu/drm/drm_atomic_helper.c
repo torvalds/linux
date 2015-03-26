@@ -587,7 +587,8 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		old_crtc_state = old_state->crtc_states[drm_crtc_index(old_conn_state->crtc)];
 
-		if (!old_crtc_state->active)
+		if (!old_crtc_state->active ||
+		    !needs_modeset(old_conn_state->crtc->state))
 			continue;
 
 		encoder = old_conn_state->best_encoder;
@@ -847,7 +848,8 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		if (!connector || !connector->state->best_encoder)
 			continue;
 
-		if (!connector->state->crtc->state->active)
+		if (!connector->state->crtc->state->active ||
+		    !needs_modeset(connector->state->crtc->state))
 			continue;
 
 		encoder = connector->state->best_encoder;
