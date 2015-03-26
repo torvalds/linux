@@ -6404,7 +6404,6 @@ static struct scsi_host_template driver_template = {
 	.shost_attrs = ipr_ioa_attrs,
 	.sdev_attrs = ipr_dev_attrs,
 	.proc_name = IPR_NAME,
-	.no_write_same = 1,
 	.use_blk_tags = 1,
 };
 
