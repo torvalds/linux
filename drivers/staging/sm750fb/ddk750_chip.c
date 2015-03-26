@@ -236,11 +236,16 @@ unsigned int ddk750_getVMSize(void)
 	/* get frame buffer size from GPIO */
 	reg = FIELD_GET(PEEK32(MISC_CTRL), MISC_CTRL, LOCALMEM_SIZE);
 	switch (reg) {
-	case MISC_CTRL_LOCALMEM_SIZE_8M:  data = MB(8);  break; /* 8  Mega byte */
-	case MISC_CTRL_LOCALMEM_SIZE_16M: data = MB(16); break; /* 16 Mega byte */
-	case MISC_CTRL_LOCALMEM_SIZE_32M: data = MB(32); break; /* 32 Mega byte */
-	case MISC_CTRL_LOCALMEM_SIZE_64M: data = MB(64); break; /* 64 Mega byte */
-	default: data = 0;break;
+	case MISC_CTRL_LOCALMEM_SIZE_8M:
+		data = MB(8);  break; /* 8  Mega byte */
+	case MISC_CTRL_LOCALMEM_SIZE_16M:
+		data = MB(16); break; /* 16 Mega byte */
+	case MISC_CTRL_LOCALMEM_SIZE_32M:
+		data = MB(32); break; /* 32 Mega byte */
+	case MISC_CTRL_LOCALMEM_SIZE_64M:
+		data = MB(64); break; /* 64 Mega byte */
+	default:
+		data = 0;break;
 	}
 	return data;
 
