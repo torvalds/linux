@@ -258,6 +258,7 @@ struct it87_devices {
 #define FEAT_FAN16_CONFIG	(1 << 7)	/* Need to enable 16-bit fans */
 #define FEAT_FIVE_FANS		(1 << 8)	/* Supports five fans */
 #define FEAT_VID		(1 << 9)	/* Set if chip supports VID */
+#define FEAT_IN7_INTERNAL	(1 << 10)	/* Set if in7 is internal */
 
 static const struct it87_devices it87_devices[] = {
 	[it87] = {
@@ -296,7 +297,7 @@ static const struct it87_devices it87_devices[] = {
 		.suffix = "F",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
 		  | FEAT_TEMP_OFFSET | FEAT_TEMP_OLD_PECI | FEAT_TEMP_PECI
-		  | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS,
+		  | FEAT_FAN16_CONFIG | FEAT_FIVE_FANS | FEAT_IN7_INTERNAL,
 		.peci_mask = 0x05,
 		.old_peci_mask = 0x02,	/* Actually reports PCH */
 	},
@@ -304,14 +305,15 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8728",
 		.suffix = "F",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_FIVE_FANS,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_FIVE_FANS
+		  | FEAT_IN7_INTERNAL,
 		.peci_mask = 0x07,
 	},
 	[it8771] = {
 		.name = "it8771",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
 				/* PECI: guesswork */
 				/* 12mV ADC (OHM) */
 				/* 16 bit fans (OHM) */
@@ -322,7 +324,7 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8772",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
 				/* PECI (coreboot) */
 				/* 12mV ADC (HWSensors4, OHM) */
 				/* 16 bit fans (HWSensors4, OHM) */
@@ -354,14 +356,14 @@ static const struct it87_devices it87_devices[] = {
 		.name = "it8786",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
 		.peci_mask = 0x07,
 	},
 	[it8603] = {
 		.name = "it8603",
 		.suffix = "E",
 		.features = FEAT_NEWER_AUTOPWM | FEAT_12MV_ADC | FEAT_16BIT_FANS
-		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI,
+		  | FEAT_TEMP_OFFSET | FEAT_TEMP_PECI | FEAT_IN7_INTERNAL,
 		.peci_mask = 0x07,
 	},
 };
@@ -379,6 +381,7 @@ static const struct it87_devices it87_devices[] = {
 #define has_fan16_config(data)	((data)->features & FEAT_FAN16_CONFIG)
 #define has_five_fans(data)	((data)->features & FEAT_FIVE_FANS)
 #define has_vid(data)		((data)->features & FEAT_VID)
+#define has_in7_internal(data)	((data)->features & FEAT_IN7_INTERNAL)
 
 struct it87_sio_data {
 	enum chips type;
@@ -1860,8 +1863,13 @@ static int __init it87_find(unsigned short *address,
 		it87_devices[sio_data->type].suffix,
 		*address, sio_data->revision);
 
+	/* in7 (VSB or VCCH5V) is always internal on some chips */
+	if (it87_devices[sio_data->type].features & FEAT_IN7_INTERNAL)
+		sio_data->internal |= (1 << 1);
+
 	/* in8 (Vbat) is always internal */
-	sio_data->internal = (1 << 2);
+	sio_data->internal |= (1 << 2);
+
 	/* Only the IT8603E has in9 */
 	if (sio_data->type != it8603)
 		sio_data->skip_in |= (1 << 9);
@@ -1962,7 +1970,6 @@ static int __init it87_find(unsigned short *address,
 		sio_data->skip_in |= (1 << 5); /* No VIN5 */
 		sio_data->skip_in |= (1 << 6); /* No VIN6 */
 
-		sio_data->internal |= (1 << 1); /* in7 is VSB */
 		sio_data->internal |= (1 << 3); /* in9 is AVCC */
 
 		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
@@ -2023,9 +2030,7 @@ static int __init it87_find(unsigned short *address,
 		}
 		if (reg & (1 << 0))
 			sio_data->internal |= (1 << 0);
-		if ((reg & (1 << 1)) || sio_data->type == it8721 ||
-		    sio_data->type == it8728 || sio_data->type == it8771 ||
-		    sio_data->type == it8772 || sio_data->type == it8786)
+		if (reg & (1 << 1))
 			sio_data->internal |= (1 << 1);
 
 		/*
