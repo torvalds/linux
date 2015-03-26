@@ -67,7 +67,7 @@ stash_usr_regs(struct rt_sigframe __user *sf, struct pt_regs *regs,
 	       sigset_t *set)
 {
 	int err;
-	err = __copy_to_user(&(sf->uc.uc_mcontext.regs), regs,
+	err = __copy_to_user(&(sf->uc.uc_mcontext.regs.scratch), regs,
 			     sizeof(sf->uc.uc_mcontext.regs.scratch));
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(sigset_t));
 
@@ -83,7 +83,7 @@ static int restore_usr_regs(struct pt_regs *regs, struct rt_sigframe __user *sf)
 	if (!err)
 		set_current_blocked(&set);
 
-	err |= __copy_from_user(regs, &(sf->uc.uc_mcontext.regs),
+	err |= __copy_from_user(regs, &(sf->uc.uc_mcontext.regs.scratch),
 				sizeof(sf->uc.uc_mcontext.regs.scratch));
 
 	return err;
