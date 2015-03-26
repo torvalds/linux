@@ -87,7 +87,7 @@ unsigned int getChipClock(void)
 {
 	pll_value_t pll;
 #if 1
-	if(getChipType() == SM750LE)
+	if (getChipType() == SM750LE)
 		return MHz(130);
 #endif
 
@@ -225,7 +225,7 @@ unsigned int ddk750_getVMSize(void)
 	unsigned int data;
 
 	/* sm750le only use 64 mb memory*/
-	if(getChipType() == SM750LE)
+	if (getChipType() == SM750LE)
 		return MB(64);
 
 	/* for 750,always use power mode0*/
@@ -252,7 +252,7 @@ int ddk750_initHw(initchip_param_t * pInitParam)
 	unsigned int ulReg;
 #if 0
 	//move the code to map regiter function.
-	if(getChipType() == SM718) {
+	if (getChipType() == SM718) {
 		/* turn on big endian bit*/
 		ulReg = PEEK32(0x74);
 		/* now consider register definition in a big endian pattern*/
@@ -272,7 +272,7 @@ int ddk750_initHw(initchip_param_t * pInitParam)
 	ulReg = FIELD_SET(ulReg,CURRENT_GATE,LOCALMEM,ON);
 	setCurrentGate(ulReg);
 
-	if(getChipType() != SM750LE) {
+	if (getChipType() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
 		ulReg = PEEK32(VGA_CONFIGURATION);
 		ulReg = FIELD_SET(ulReg,VGA_CONFIGURATION,PLL,PANEL);
@@ -444,7 +444,7 @@ unsigned int calcPllValue(unsigned int request_orig,pll_value_t *pll)
 
 	/* for MXCLK register , no POD provided, so need be treated differently	*/
 
-	if(pll->clockType != MXCLK_PLL) {
+	if (pll->clockType != MXCLK_PLL) {
 		xparm = &xparm_PIXEL[0];
 		xcnt = sizeof(xparm_PIXEL)/sizeof(xparm_PIXEL[0]);
 	} else {
@@ -466,11 +466,11 @@ unsigned int calcPllValue(unsigned int request_orig,pll_value_t *pll)
 			M += fl_quo * X / 10000;
 			/* round step */
 			M += (fl_quo*X % 10000)>5000?1:0;
-			if(M < 256 && M > 0) {
+			if (M < 256 && M > 0) {
 				unsigned int diff;
 				tmpClock = pll->inputFreq *M / N / X;
 				diff = absDiff(tmpClock,request_orig);
-				if(diff < miniDiff) {
+				if (diff < miniDiff) {
 					pll->M = M;
 					pll->N = N;
 					pll->OD = xparm[d].od;
