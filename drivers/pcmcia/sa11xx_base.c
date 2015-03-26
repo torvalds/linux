@@ -222,7 +222,7 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 	int i, ret = 0;
 	struct clk *clk;
 
-	clk = clk_get(dev, NULL);
+	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
@@ -251,7 +251,6 @@ int sa11xx_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
 	if (ret) {
 		while (--i >= 0)
 			soc_pcmcia_remove_one(&sinfo->skt[i]);
-		clk_put(clk);
 		kfree(sinfo);
 	} else {
 		dev_set_drvdata(dev, sinfo);
