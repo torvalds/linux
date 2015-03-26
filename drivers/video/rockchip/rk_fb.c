@@ -1383,6 +1383,12 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
         if (likely((var->reserved[3] & 0x1) == 0))
 	        dev_drv->ops->cfg_done(dev_drv);
 
+	if (dev_drv->iommu_enabled) {
+		rk_fb_poll_wait_frame_complete();
+		if (dev_drv->ops->mmu_en)
+			dev_drv->ops->mmu_en(dev_drv);
+	}
+
 	return 0;
 }
 
