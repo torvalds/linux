@@ -230,11 +230,11 @@ unsigned int ddk750_getVMSize(void)
 
 	/* for 750,always use power mode0*/
 	reg = PEEK32(MODE0_GATE);
-	reg = FIELD_SET(reg,MODE0_GATE,GPIO,ON);
-	POKE32(MODE0_GATE,reg);
+	reg = FIELD_SET(reg, MODE0_GATE, GPIO, ON);
+	POKE32(MODE0_GATE, reg);
 
 	/* get frame buffer size from GPIO */
-	reg = FIELD_GET(PEEK32(MISC_CTRL),MISC_CTRL,LOCALMEM_SIZE);
+	reg = FIELD_GET(PEEK32(MISC_CTRL), MISC_CTRL, LOCALMEM_SIZE);
 	switch (reg) {
 	case MISC_CTRL_LOCALMEM_SIZE_8M:  data = MB(8);  break; /* 8  Mega byte */
 	case MISC_CTRL_LOCALMEM_SIZE_16M: data = MB(16); break; /* 16 Mega byte */
@@ -256,7 +256,7 @@ int ddk750_initHw(initchip_param_t * pInitParam)
 		/* turn on big endian bit*/
 		ulReg = PEEK32(0x74);
 		/* now consider register definition in a big endian pattern*/
-		POKE32(0x74,ulReg|0x80000000);
+		POKE32(0x74, ulReg|0x80000000);
 	}
 
 #endif
@@ -269,20 +269,20 @@ int ddk750_initHw(initchip_param_t * pInitParam)
 	/* Enable display power gate & LOCALMEM power gate*/
 	ulReg = PEEK32(CURRENT_GATE);
 	ulReg = FIELD_SET(ulReg, CURRENT_GATE, DISPLAY, ON);
-	ulReg = FIELD_SET(ulReg,CURRENT_GATE,LOCALMEM,ON);
+	ulReg = FIELD_SET(ulReg, CURRENT_GATE, LOCALMEM, ON);
 	setCurrentGate(ulReg);
 
 	if (getChipType() != SM750LE) {
 		/*	set panel pll and graphic mode via mmio_88 */
 		ulReg = PEEK32(VGA_CONFIGURATION);
-		ulReg = FIELD_SET(ulReg,VGA_CONFIGURATION,PLL,PANEL);
-		ulReg = FIELD_SET(ulReg,VGA_CONFIGURATION,MODE,GRAPHIC);
-		POKE32(VGA_CONFIGURATION,ulReg);
+		ulReg = FIELD_SET(ulReg, VGA_CONFIGURATION, PLL, PANEL);
+		ulReg = FIELD_SET(ulReg, VGA_CONFIGURATION, MODE, GRAPHIC);
+		POKE32(VGA_CONFIGURATION, ulReg);
 	} else {
 #if defined(__i386__) || defined( __x86_64__)
 		/* set graphic mode via IO method */
-		outb_p(0x88,0x3d4);
-		outb_p(0x06,0x3d5);
+		outb_p(0x88, 0x3d4);
+		outb_p(0x06, 0x3d5);
 #endif
 	}
 
@@ -399,34 +399,34 @@ unsigned int absDiff(unsigned int a, unsigned int b)
 	M = {1,...,255}
 	N = {2,...,15}
 */
-unsigned int calcPllValue(unsigned int request_orig,pll_value_t *pll)
+unsigned int calcPllValue(unsigned int request_orig, pll_value_t *pll)
 {
 	/* used for primary and secondary channel pixel clock pll */
 	static pllcalparam xparm_PIXEL[] = {
-		/* 2^0 = 1*/			{0,0,0,1},
-		/* 2^ 1 =2*/			{1,0,1,2},
-		/* 2^ 2  = 4*/		{2,0,2,4},
-							{3,0,3,8},
-							{4,1,3,16},
-							{5,2,3,32},
-		/* 2^6 = 64  */		{6,3,3,64},
+		/* 2^0 = 1*/			{0, 0, 0, 1},
+		/* 2^ 1 =2*/			{1, 0, 1, 2},
+		/* 2^ 2  = 4*/		{2, 0, 2, 4},
+							{3, 0, 3, 8},
+							{4, 1, 3, 16},
+							{5, 2, 3, 32},
+		/* 2^6 = 64  */		{6, 3, 3, 64},
 							};
 
 	/* used for MXCLK (chip clock) */
 	static pllcalparam xparm_MXCLK[] = {
-		/* 2^0 = 1*/			{0,0,0,1},
-		/* 2^ 1 =2*/			{1,0,1,2},
-		/* 2^ 2  = 4*/		{2,0,2,4},
-							{3,0,3,8},
+		/* 2^0 = 1*/			{0, 0, 0, 1},
+		/* 2^ 1 =2*/			{1, 0, 1, 2},
+		/* 2^ 2  = 4*/		{2, 0, 2, 4},
+							{3, 0, 3, 8},
 							};
 
 	/* as sm750 register definition, N located in 2,15 and M located in 1,255	*/
-	int N,M,X,d;
+	int N, M, X, d;
 	int xcnt;
 	int miniDiff;
-	unsigned int RN,quo,rem,fl_quo;
-	unsigned int input,request;
-	unsigned int tmpClock,ret;
+	unsigned int RN, quo, rem, fl_quo;
+	unsigned int input, request;
+	unsigned int tmpClock, ret;
 	pllcalparam * xparm;
 
 #if 1
@@ -469,7 +469,7 @@ unsigned int calcPllValue(unsigned int request_orig,pll_value_t *pll)
 			if (M < 256 && M > 0) {
 				unsigned int diff;
 				tmpClock = pll->inputFreq *M / N / X;
-				diff = absDiff(tmpClock,request_orig);
+				diff = absDiff(tmpClock, request_orig);
 				if (diff < miniDiff) {
 					pll->M = M;
 					pll->N = N;
