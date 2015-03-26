@@ -44,98 +44,128 @@
 
 #include "aacraid.h"
 
-static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
+static int aac_src_get_sync_status(struct aac_dev *dev);
+
+irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 {
-	struct aac_dev *dev = dev_id;
+	struct aac_msix_ctx *ctx;
+	struct aac_dev *dev;
 	unsigned long bellbits, bellbits_shifted;
-	int our_interrupt = 0;
-	int isFastResponse;
+	int vector_no;
+	int isFastResponse, mode;
 	u32 index, handle;
 
-	bellbits = src_readl(dev, MUnit.ODR_R);
-	if (bellbits & PmDoorBellResponseSent) {
-		bellbits = PmDoorBellResponseSent;
-		/* handle async. status */
-		src_writel(dev, MUnit.ODR_C, bellbits);
-		src_readl(dev, MUnit.ODR_C);
-		our_interrupt = 1;
-		index = dev->host_rrq_idx;
+	ctx = (struct aac_msix_ctx *)dev_id;
+	dev = ctx->dev;
+	vector_no = ctx->vector_no;
+
+	if (dev->msi_enabled) {
+		mode = AAC_INT_MODE_MSI;
+		if (vector_no == 0) {
+			bellbits = src_readl(dev, MUnit.ODR_MSI);
+			if (bellbits & 0x40000)
+				mode |= AAC_INT_MODE_AIF;
+			if (bellbits & 0x1000)
+				mode |= AAC_INT_MODE_SYNC;
+		}
+	} else {
+		mode = AAC_INT_MODE_INTX;
+		bellbits = src_readl(dev, MUnit.ODR_R);
+		if (bellbits & PmDoorBellResponseSent) {
+			bellbits = PmDoorBellResponseSent;
+			src_writel(dev, MUnit.ODR_C, bellbits);
+			src_readl(dev, MUnit.ODR_C);
+		} else {
+			bellbits_shifted = (bellbits >> SRC_ODR_SHIFT);
+			src_writel(dev, MUnit.ODR_C, bellbits);
+			src_readl(dev, MUnit.ODR_C);
+
+			if (bellbits_shifted & DoorBellAifPending)
+				mode |= AAC_INT_MODE_AIF;
+			else if (bellbits_shifted & OUTBOUNDDOORBELL_0)
+				mode |= AAC_INT_MODE_SYNC;
+		}
+	}
+
+	if (mode & AAC_INT_MODE_SYNC) {
+		unsigned long sflags;
+		struct list_head *entry;
+		int send_it = 0;
+		extern int aac_sync_mode;
+
+		if (!aac_sync_mode && !dev->msi_enabled) {
+			src_writel(dev, MUnit.ODR_C, bellbits);
+			src_readl(dev, MUnit.ODR_C);
+		}
+
+		if (dev->sync_fib) {
+			if (dev->sync_fib->callback)
+				dev->sync_fib->callback(dev->sync_fib->callback_data,
+					dev->sync_fib);
+			spin_lock_irqsave(&dev->sync_fib->event_lock, sflags);
+			if (dev->sync_fib->flags & FIB_CONTEXT_FLAG_WAIT) {
+				dev->management_fib_count--;
+				up(&dev->sync_fib->event_wait);
+			}
+			spin_unlock_irqrestore(&dev->sync_fib->event_lock,
+						sflags);
+			spin_lock_irqsave(&dev->sync_lock, sflags);
+			if (!list_empty(&dev->sync_fib_list)) {
+				entry = dev->sync_fib_list.next;
+				dev->sync_fib = list_entry(entry,
+							   struct fib,
+							   fiblink);
+				list_del(entry);
+				send_it = 1;
+			} else {
+				dev->sync_fib = NULL;
+			}
+			spin_unlock_irqrestore(&dev->sync_lock, sflags);
+			if (send_it) {
+				aac_adapter_sync_cmd(dev, SEND_SYNCHRONOUS_FIB,
+					(u32)dev->sync_fib->hw_fib_pa,
+					0, 0, 0, 0, 0,
+					NULL, NULL, NULL, NULL, NULL);
+			}
+		}
+		if (!dev->msi_enabled)
+			mode = 0;
+
+	}
+
+	if (mode & AAC_INT_MODE_AIF) {
+		/* handle AIF */
+		aac_intr_normal(dev, 0, 2, 0, NULL);
+		if (dev->msi_enabled)
+			aac_src_access_devreg(dev, AAC_CLEAR_AIF_BIT);
+		mode = 0;
+	}
+
+	if (mode) {
+		index = dev->host_rrq_idx[vector_no];
+
 		for (;;) {
 			isFastResponse = 0;
 			/* remove toggle bit (31) */
-			handle = le32_to_cpu(dev->host_rrq[index]) & 0x7fffffff;
+			handle = (dev->host_rrq[index] & 0x7fffffff);
 			/* check fast response bit (30) */
 			if (handle & 0x40000000)
 				isFastResponse = 1;
 			handle &= 0x0000ffff;
 			if (handle == 0)
 				break;
-
+			if (dev->msi_enabled && dev->max_msix > 1)
+				atomic_dec(&dev->rrq_outstanding[vector_no]);
 			aac_intr_normal(dev, handle-1, 0, isFastResponse, NULL);
-
 			dev->host_rrq[index++] = 0;
-			if (index == dev->scsi_host_ptr->can_queue +
-						AAC_NUM_MGT_FIB)
-				index = 0;
-			dev->host_rrq_idx = index;
+			if (index == (vector_no + 1) * dev->vector_cap)
+				index = vector_no * dev->vector_cap;
+			dev->host_rrq_idx[vector_no] = index;
 		}
-	} else {
-		bellbits_shifted = (bellbits >> SRC_ODR_SHIFT);
-		if (bellbits_shifted & DoorBellAifPending) {
-			src_writel(dev, MUnit.ODR_C, bellbits);
-			src_readl(dev, MUnit.ODR_C);
-			our_interrupt = 1;
-			/* handle AIF */
-			aac_intr_normal(dev, 0, 2, 0, NULL);
-		} else if (bellbits_shifted & OUTBOUNDDOORBELL_0) {
-			unsigned long sflags;
-			struct list_head *entry;
-			int send_it = 0;
-			extern int aac_sync_mode;
-
-			src_writel(dev, MUnit.ODR_C, bellbits);
-			src_readl(dev, MUnit.ODR_C);
-
-			if (!aac_sync_mode) {
-				src_writel(dev, MUnit.ODR_C, bellbits);
-				src_readl(dev, MUnit.ODR_C);
-				our_interrupt = 1;
-			}
-
-			if (dev->sync_fib) {
-				our_interrupt = 1;
-				if (dev->sync_fib->callback)
-					dev->sync_fib->callback(dev->sync_fib->callback_data,
-						dev->sync_fib);
-				spin_lock_irqsave(&dev->sync_fib->event_lock, sflags);
-				if (dev->sync_fib->flags & FIB_CONTEXT_FLAG_WAIT) {
-					dev->management_fib_count--;
-					up(&dev->sync_fib->event_wait);
-				}
-				spin_unlock_irqrestore(&dev->sync_fib->event_lock, sflags);
-				spin_lock_irqsave(&dev->sync_lock, sflags);
-				if (!list_empty(&dev->sync_fib_list)) {
-					entry = dev->sync_fib_list.next;
-					dev->sync_fib = list_entry(entry, struct fib, fiblink);
-					list_del(entry);
-					send_it = 1;
-				} else {
-					dev->sync_fib = NULL;
-				}
-				spin_unlock_irqrestore(&dev->sync_lock, sflags);
-				if (send_it) {
-					aac_adapter_sync_cmd(dev, SEND_SYNCHRONOUS_FIB,
-						(u32)dev->sync_fib->hw_fib_pa, 0, 0, 0, 0, 0,
-						NULL, NULL, NULL, NULL, NULL);
-				}
-			}
-		}
+		mode = 0;
 	}
 
-	if (our_interrupt) {
-		return IRQ_HANDLED;
-	}
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 /**
@@ -155,7 +185,7 @@ static void aac_src_disable_interrupt(struct aac_dev *dev)
 
 static void aac_src_enable_interrupt_message(struct aac_dev *dev)
 {
-	src_writel(dev, MUnit.OIMR, dev->OIMR = 0xfffffff8);
+	aac_src_access_devreg(dev, AAC_ENABLE_INTERRUPT);
 }
 
 /**
@@ -191,7 +221,10 @@ static int src_sync_cmd(struct aac_dev *dev, u32 command,
 	/*
 	 *	Clear the synch command doorbell to start on a clean slate.
 	 */
-	src_writel(dev, MUnit.ODR_C, OUTBOUNDDOORBELL_0 << SRC_ODR_SHIFT);
+	if (!dev->msi_enabled)
+		src_writel(dev,
+			   MUnit.ODR_C,
+			   OUTBOUNDDOORBELL_0 << SRC_ODR_SHIFT);
 
 	/*
 	 *	Disable doorbell interrupts
@@ -221,11 +254,17 @@ static int src_sync_cmd(struct aac_dev *dev, u32 command,
 			/*
 			 *	Mon960 will set doorbell0 bit when it has completed the command.
 			 */
-			if ((src_readl(dev, MUnit.ODR_R) >> SRC_ODR_SHIFT) & OUTBOUNDDOORBELL_0) {
+			if (aac_src_get_sync_status(dev) & OUTBOUNDDOORBELL_0) {
 				/*
 				 *	Clear the doorbell.
 				 */
-				src_writel(dev, MUnit.ODR_C, OUTBOUNDDOORBELL_0 << SRC_ODR_SHIFT);
+				if (dev->msi_enabled)
+					aac_src_access_devreg(dev,
+						AAC_CLEAR_SYNC_BIT);
+				else
+					src_writel(dev,
+						MUnit.ODR_C,
+						OUTBOUNDDOORBELL_0 << SRC_ODR_SHIFT);
 				ok = 1;
 				break;
 			}
@@ -254,11 +293,16 @@ static int src_sync_cmd(struct aac_dev *dev, u32 command,
 			*r3 = readl(&dev->IndexRegs->Mailbox[3]);
 		if (r4)
 			*r4 = readl(&dev->IndexRegs->Mailbox[4]);
-
+		if (command == GET_COMM_PREFERRED_SETTINGS)
+			dev->max_msix =
+				readl(&dev->IndexRegs->Mailbox[5]) & 0xFFFF;
 		/*
 		 *	Clear the synch command doorbell.
 		 */
-		src_writel(dev, MUnit.ODR_C, OUTBOUNDDOORBELL_0 << SRC_ODR_SHIFT);
+		if (!dev->msi_enabled)
+			src_writel(dev,
+				MUnit.ODR_C,
+				OUTBOUNDDOORBELL_0 << SRC_ODR_SHIFT);
 	}
 
 	/*
@@ -335,9 +379,14 @@ static void aac_src_notify_adapter(struct aac_dev *dev, u32 event)
 static void aac_src_start_adapter(struct aac_dev *dev)
 {
 	struct aac_init *init;
+	int i;
 
 	 /* reset host_rrq_idx first */
-	dev->host_rrq_idx = 0;
+	for (i = 0; i < dev->max_msix; i++) {
+		dev->host_rrq_idx[i] = i * dev->vector_cap;
+		atomic_set(&dev->rrq_outstanding[i], 0);
+	}
+	dev->fibs_pushed_no = 0;
 
 	init = dev->init;
 	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
@@ -399,6 +448,33 @@ static int aac_src_deliver_message(struct fib *fib)
 	spin_lock_irqsave(q->lock, qflags);
 	q->numpending++;
 	spin_unlock_irqrestore(q->lock, qflags);
+
+	if (dev->msi_enabled && fib->hw_fib_va->header.Command != AifRequest &&
+	    dev->max_msix > 1) {
+		u_int16_t vector_no, first_choice = 0xffff;
+
+		vector_no = dev->fibs_pushed_no % dev->max_msix;
+		do {
+			vector_no += 1;
+			if (vector_no == dev->max_msix)
+				vector_no = 1;
+			if (atomic_read(&dev->rrq_outstanding[vector_no]) <
+			    dev->vector_cap)
+				break;
+			if (0xffff == first_choice)
+				first_choice = vector_no;
+			else if (vector_no == first_choice)
+				break;
+		} while (1);
+		if (vector_no == first_choice)
+			vector_no = 0;
+		atomic_inc(&dev->rrq_outstanding[vector_no]);
+		if (dev->fibs_pushed_no == 0xffffffff)
+			dev->fibs_pushed_no = 0;
+		else
+			dev->fibs_pushed_no++;
+		fib->hw_fib_va->header.Handle += (vector_no << 16);
+	}
 
 	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
 		/* Calculate the amount to the fibsize bits */
@@ -502,10 +578,19 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled)
 			0, 0, 0, 0, 0, 0, &var, &reset_mask, NULL, NULL, NULL);
 			if (bled || (var != 0x00000001))
 				return -EINVAL;
+
+		if ((dev->pdev->device == PMC_DEVICE_S7 ||
+		    dev->pdev->device == PMC_DEVICE_S8 ||
+		    dev->pdev->device == PMC_DEVICE_S9) && dev->msi_enabled) {
+			aac_src_access_devreg(dev, AAC_ENABLE_INTX);
+			dev->msi_enabled = 0;
+			msleep(5000); /* Delay 5 seconds */
+		}
+
 		if (dev->supplement_adapter_info.SupportedOptions2 &
 			AAC_OPTION_DOORBELL_RESET) {
 			src_writel(dev, MUnit.IDR, reset_mask);
-			msleep(5000); /* Delay 5 seconds */
+			ssleep(45);
 		}
 	}
 
@@ -646,8 +731,11 @@ int aac_src_init(struct aac_dev *dev)
 
 	dev->msi = aac_msi && !pci_enable_msi(dev->pdev);
 
+	dev->aac_msix[0].vector_no = 0;
+	dev->aac_msix[0].dev = dev;
+
 	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
-			IRQF_SHARED, "aacraid", dev) < 0) {
+			IRQF_SHARED, "aacraid", &(dev->aac_msix[0]))  < 0) {
 
 		if (dev->msi)
 			pci_disable_msi(dev->pdev);
@@ -688,6 +776,7 @@ int aac_srcv_init(struct aac_dev *dev)
 	unsigned long status;
 	int restart = 0;
 	int instance = dev->id;
+	int i, j;
 	const char *name = dev->name;
 
 	dev->a_ops.adapter_ioremap = aac_srcv_ioremap;
@@ -802,14 +891,41 @@ int aac_srcv_init(struct aac_dev *dev)
 		goto error_iounmap;
 	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE2)
 		goto error_iounmap;
-	dev->msi = aac_msi && !pci_enable_msi(dev->pdev);
-	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
-		IRQF_SHARED, "aacraid", dev) < 0) {
-		if (dev->msi)
-			pci_disable_msi(dev->pdev);
-		printk(KERN_ERR "%s%d: Interrupt unavailable.\n",
-			name, instance);
-		goto error_iounmap;
+	if (dev->msi_enabled)
+		aac_src_access_devreg(dev, AAC_ENABLE_MSIX);
+	if (!dev->sync_mode && dev->msi_enabled && dev->max_msix > 1) {
+		for (i = 0; i < dev->max_msix; i++) {
+			dev->aac_msix[i].vector_no = i;
+			dev->aac_msix[i].dev = dev;
+
+			if (request_irq(dev->msixentry[i].vector,
+					dev->a_ops.adapter_intr,
+					0,
+					"aacraid",
+					&(dev->aac_msix[i]))) {
+				printk(KERN_ERR "%s%d: Failed to register IRQ for vector %d.\n",
+						name, instance, i);
+				for (j = 0 ; j < i ; j++)
+					free_irq(dev->msixentry[j].vector,
+						 &(dev->aac_msix[j]));
+				pci_disable_msix(dev->pdev);
+				goto error_iounmap;
+			}
+		}
+	} else {
+		dev->aac_msix[0].vector_no = 0;
+		dev->aac_msix[0].dev = dev;
+
+		if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
+				IRQF_SHARED,
+				"aacraid",
+				&(dev->aac_msix[0])) < 0) {
+			if (dev->msi)
+				pci_disable_msi(dev->pdev);
+			printk(KERN_ERR "%s%d: Interrupt unavailable.\n",
+					name, instance);
+			goto error_iounmap;
+		}
 	}
 	dev->dbg_base = dev->base_start;
 	dev->dbg_base_mapped = dev->base;
@@ -831,3 +947,93 @@ error_iounmap:
 	return -1;
 }
 
+void aac_src_access_devreg(struct aac_dev *dev, int mode)
+{
+	u_int32_t val;
+
+	switch (mode) {
+	case AAC_ENABLE_INTERRUPT:
+		src_writel(dev,
+			   MUnit.OIMR,
+			   dev->OIMR = (dev->msi_enabled ?
+					AAC_INT_ENABLE_TYPE1_MSIX :
+					AAC_INT_ENABLE_TYPE1_INTX));
+		break;
+
+	case AAC_DISABLE_INTERRUPT:
+		src_writel(dev,
+			   MUnit.OIMR,
+			   dev->OIMR = AAC_INT_DISABLE_ALL);
+		break;
+
+	case AAC_ENABLE_MSIX:
+		/* set bit 6 */
+		val = src_readl(dev, MUnit.IDR);
+		val |= 0x40;
+		src_writel(dev,  MUnit.IDR, val);
+		src_readl(dev, MUnit.IDR);
+		/* unmask int. */
+		val = PMC_ALL_INTERRUPT_BITS;
+		src_writel(dev, MUnit.IOAR, val);
+		val = src_readl(dev, MUnit.OIMR);
+		src_writel(dev,
+			   MUnit.OIMR,
+			   val & (~(PMC_GLOBAL_INT_BIT2 | PMC_GLOBAL_INT_BIT0)));
+		break;
+
+	case AAC_DISABLE_MSIX:
+		/* reset bit 6 */
+		val = src_readl(dev, MUnit.IDR);
+		val &= ~0x40;
+		src_writel(dev, MUnit.IDR, val);
+		src_readl(dev, MUnit.IDR);
+		break;
+
+	case AAC_CLEAR_AIF_BIT:
+		/* set bit 5 */
+		val = src_readl(dev, MUnit.IDR);
+		val |= 0x20;
+		src_writel(dev, MUnit.IDR, val);
+		src_readl(dev, MUnit.IDR);
+		break;
+
+	case AAC_CLEAR_SYNC_BIT:
+		/* set bit 4 */
+		val = src_readl(dev, MUnit.IDR);
+		val |= 0x10;
+		src_writel(dev, MUnit.IDR, val);
+		src_readl(dev, MUnit.IDR);
+		break;
+
+	case AAC_ENABLE_INTX:
+		/* set bit 7 */
+		val = src_readl(dev, MUnit.IDR);
+		val |= 0x80;
+		src_writel(dev, MUnit.IDR, val);
+		src_readl(dev, MUnit.IDR);
+		/* unmask int. */
+		val = PMC_ALL_INTERRUPT_BITS;
+		src_writel(dev, MUnit.IOAR, val);
+		src_readl(dev, MUnit.IOAR);
+		val = src_readl(dev, MUnit.OIMR);
+		src_writel(dev, MUnit.OIMR,
+				val & (~(PMC_GLOBAL_INT_BIT2)));
+		break;
+
+	default:
+		break;
+	}
+}
+
+static int aac_src_get_sync_status(struct aac_dev *dev)
+{
+
+	int val;
+
+	if (dev->msi_enabled)
+		val = src_readl(dev, MUnit.ODR_MSI) & 0x1000 ? 1 : 0;
+	else
+		val = src_readl(dev, MUnit.ODR_R) >> SRC_ODR_SHIFT;
+
+	return val;
+}
