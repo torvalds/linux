@@ -319,7 +319,7 @@ static bool handle_mmio_sgi_clear(struct kvm_vcpu *vcpu,
 		return write_set_clear_sgi_pend_reg(vcpu, mmio, offset, false);
 }
 
-static const struct kvm_mmio_range vgic_dist_ranges[] = {
+static const struct vgic_io_range vgic_dist_ranges[] = {
 	{
 		.base		= GIC_DIST_CTRL,
 		.len		= 12,
@@ -647,7 +647,7 @@ static bool handle_cpu_mmio_ident(struct kvm_vcpu *vcpu,
  * CPU Interface Register accesses - these are not accessed by the VM, but by
  * user space for saving and restoring VGIC state.
  */
-static const struct kvm_mmio_range vgic_cpu_ranges[] = {
+static const struct vgic_io_range vgic_cpu_ranges[] = {
 	{
 		.base		= GIC_CPU_CTRL,
 		.len		= 12,
@@ -674,7 +674,7 @@ static int vgic_attr_regs_access(struct kvm_device *dev,
 				 struct kvm_device_attr *attr,
 				 u32 *reg, bool is_write)
 {
-	const struct kvm_mmio_range *r = NULL, *ranges;
+	const struct vgic_io_range *r = NULL, *ranges;
 	phys_addr_t offset;
 	int ret, cpuid, c;
 	struct kvm_vcpu *vcpu, *tmp_vcpu;

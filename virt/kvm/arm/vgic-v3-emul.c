@@ -340,7 +340,7 @@ static bool handle_mmio_idregs(struct kvm_vcpu *vcpu,
 	return false;
 }
 
-static const struct kvm_mmio_range vgic_v3_dist_ranges[] = {
+static const struct vgic_io_range vgic_v3_dist_ranges[] = {
 	{
 		.base           = GICD_CTLR,
 		.len            = 0x04,
@@ -570,7 +570,7 @@ static bool handle_mmio_cfg_reg_redist(struct kvm_vcpu *vcpu,
 	return vgic_handle_cfg_reg(reg, mmio, offset);
 }
 
-static const struct kvm_mmio_range vgic_redist_sgi_ranges[] = {
+static const struct vgic_io_range vgic_redist_sgi_ranges[] = {
 	{
 		.base		= GICR_IGROUPR0,
 		.len		= 0x04,
@@ -676,7 +676,7 @@ static bool handle_mmio_typer_redist(struct kvm_vcpu *vcpu,
 	return false;
 }
 
-static const struct kvm_mmio_range vgic_redist_ranges[] = {
+static const struct vgic_io_range vgic_redist_ranges[] = {
 	{
 		.base           = GICR_CTLR,
 		.len            = 0x04,
@@ -726,7 +726,7 @@ static bool vgic_v3_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	unsigned long rdbase = dist->vgic_redist_base;
 	int nrcpus = atomic_read(&vcpu->kvm->online_vcpus);
 	int vcpu_id;
-	const struct kvm_mmio_range *mmio_range;
+	const struct vgic_io_range *mmio_range;
 
 	if (is_in_range(mmio->phys_addr, mmio->len, dbase, GIC_V3_DIST_SIZE)) {
 		return vgic_handle_mmio_range(vcpu, run, mmio,

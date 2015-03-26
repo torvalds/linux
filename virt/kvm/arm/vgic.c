@@ -712,11 +712,11 @@ void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 }
 
 const
-struct kvm_mmio_range *vgic_find_range(const struct kvm_mmio_range *ranges,
-				       struct kvm_exit_mmio *mmio,
-				       phys_addr_t offset)
+struct vgic_io_range *vgic_find_range(const struct vgic_io_range *ranges,
+				      struct kvm_exit_mmio *mmio,
+				      phys_addr_t offset)
 {
-	const struct kvm_mmio_range *r = ranges;
+	const struct vgic_io_range *r = ranges;
 
 	while (r->len) {
 		if (offset >= r->base &&
@@ -729,7 +729,7 @@ struct kvm_mmio_range *vgic_find_range(const struct kvm_mmio_range *ranges,
 }
 
 static bool vgic_validate_access(const struct vgic_dist *dist,
-				 const struct kvm_mmio_range *range,
+				 const struct vgic_io_range *range,
 				 unsigned long offset)
 {
 	int irq;
@@ -757,7 +757,7 @@ static bool vgic_validate_access(const struct vgic_dist *dist,
 static bool call_range_handler(struct kvm_vcpu *vcpu,
 			       struct kvm_exit_mmio *mmio,
 			       unsigned long offset,
-			       const struct kvm_mmio_range *range)
+			       const struct vgic_io_range *range)
 {
 	u32 *data32 = (void *)mmio->data;
 	struct kvm_exit_mmio mmio32;
@@ -804,10 +804,10 @@ static bool call_range_handler(struct kvm_vcpu *vcpu,
  */
 bool vgic_handle_mmio_range(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			    struct kvm_exit_mmio *mmio,
-			    const struct kvm_mmio_range *ranges,
+			    const struct vgic_io_range *ranges,
 			    unsigned long mmio_base)
 {
-	const struct kvm_mmio_range *range;
+	const struct vgic_io_range *range;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 	bool updated_state;
 	unsigned long offset;
@@ -1984,7 +1984,7 @@ int vgic_get_common_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	return r;
 }
 
-int vgic_has_attr_regs(const struct kvm_mmio_range *ranges, phys_addr_t offset)
+int vgic_has_attr_regs(const struct vgic_io_range *ranges, phys_addr_t offset)
 {
 	struct kvm_exit_mmio dev_attr_mmio;
 
