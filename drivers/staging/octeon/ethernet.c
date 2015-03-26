@@ -573,8 +573,6 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 #endif
 };
 
-extern void octeon_mdiobus_force_mod_depencency(void);
-
 static struct device_node *cvm_oct_of_get_child(
 				const struct device_node *parent, int reg_val)
 {
