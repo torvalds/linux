@@ -39,7 +39,7 @@ inline unsigned int twoToPowerOfx(unsigned long x)
 	unsigned long i;
 	unsigned long result = 1;
 
-	for (i=1; i<=x; i++)
+	for (i = 1; i <= x; i++)
 		result *= 2;
 	return result;
 }
@@ -453,14 +453,14 @@ unsigned int calcPllValue(unsigned int request_orig,pll_value_t *pll)
 	}
 
 
-	for(N = 15;N>1;N--) {
+	for (N = 15; N > 1; N--) {
 		/* RN will not exceed maximum long if @request <= 285 MHZ (for 32bit cpu) */
 		RN = N * request;
 		quo = RN / input;
 		rem = RN % input;/* rem always small than 14318181 */
 		fl_quo = (rem * 10000 /input);
 
-		for(d = xcnt - 1;d >= 0;d--) {
+		for (d = xcnt - 1; d >= 0; d--) {
 			X = xparm[d].value;
 			M = quo*X;
 			M += fl_quo * X / 10000;
@@ -508,7 +508,7 @@ pll_value_t *pPLL           /* Structure to hold the value to be set in PLL */
 
 #ifndef VALIDATION_CHIP
     /* The maximum of post divider is 8. */
-	for (POD=0; POD<=3; POD++)
+	for (POD = 0; POD <= 3; POD++)
 #endif
 		{
 
@@ -522,7 +522,7 @@ pll_value_t *pPLL           /* Structure to hold the value to be set in PLL */
 	podPower = twoToPowerOfx(POD);
 
 	/* OD has only 2 bits [15:14] and its value must between 0 to 3 */
-	for (OD=0; OD<=3; OD++) {
+	for (OD = 0; OD <= 3; OD++) {
 		/* Work out 2 to the power of OD */
 		odPower = twoToPowerOfx(OD);
 
@@ -535,7 +535,7 @@ pll_value_t *pPLL           /* Structure to hold the value to be set in PLL */
 
 		/* N has 4 bits [11:8] and its value must between 2 and 15.
 		The N == 1 will behave differently --> Result is not correct. */
-	for (N=2; N<=15; N++) {
+	for (N = 2; N <= 15; N++) {
 		/* The formula for PLL is ulRequestClk = inputFreq * M / N / (2^OD)
 		In the following steps, we try to work out a best M value given the others are known.
 		To avoid decimal calculation, we use 1000 as multiplier for up to 3 decimal places of accuracy.
