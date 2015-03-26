@@ -434,7 +434,5 @@ int rsnd_adg_probe(struct platform_device *pdev,
 
 	priv->adg = adg;
 
-	dev_dbg(dev, "adg probed\n");
-
 	return 0;
 }

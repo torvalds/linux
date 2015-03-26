@@ -194,7 +194,6 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 static int rsnd_gen2_probe(struct platform_device *pdev,
 			   struct rsnd_priv *priv)
 {
-	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_regmap_field_conf conf_ssiu[] = {
 		RSND_GEN_S_REG(SSI_MODE0,	0x800),
 		RSND_GEN_S_REG(SSI_MODE1,	0x804),
@@ -278,8 +277,6 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 	    ret_ssi  < 0)
 		return ret_ssiu | ret_scu | ret_adg | ret_ssi;
 
-	dev_dbg(dev, "Gen2 is probed\n");
-
 	return 0;
 }
 
@@ -290,7 +287,6 @@ static int rsnd_gen2_probe(struct platform_device *pdev,
 static int rsnd_gen1_probe(struct platform_device *pdev,
 			   struct rsnd_priv *priv)
 {
-	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_regmap_field_conf conf_sru[] = {
 		RSND_GEN_S_REG(SRC_ROUTE_SEL,	0x00),
 		RSND_GEN_S_REG(SRC_TMG_SEL0,	0x08),
@@ -347,8 +343,6 @@ static int rsnd_gen1_probe(struct platform_device *pdev,
 	    ret_adg  < 0 ||
 	    ret_ssi  < 0)
 		return ret_sru | ret_adg | ret_ssi;
-
-	dev_dbg(dev, "Gen1 is probed\n");
 
 	return 0;
 }

@@ -460,17 +460,6 @@ static int rsnd_src_set_convert_rate_gen1(struct rsnd_mod *mod)
 	return 0;
 }
 
-static int rsnd_src_probe_gen1(struct rsnd_mod *mod,
-			       struct rsnd_priv *priv)
-{
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	dev_dbg(dev, "%s[%d] (Gen1) is probed\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-	return 0;
-}
-
 static int rsnd_src_init_gen1(struct rsnd_mod *mod,
 			      struct rsnd_priv *priv)
 {
@@ -518,7 +507,6 @@ static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
 static struct rsnd_mod_ops rsnd_src_gen1_ops = {
 	.name	= SRC_NAME,
 	.dma_req = rsnd_src_dma_req,
-	.probe	= rsnd_src_probe_gen1,
 	.init	= rsnd_src_init_gen1,
 	.quit	= rsnd_src_quit,
 	.start	= rsnd_src_start_gen1,
@@ -725,23 +713,12 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 				       IRQF_SHARED,
 				       dev_name(dev), mod);
 		if (ret)
-			goto rsnd_src_probe_gen2_fail;
+			return ret;
 	}
 
 	ret = rsnd_dma_init(priv,
 			    rsnd_mod_to_dma(mod),
 			    src->info->dma_id);
-	if (ret)
-		goto rsnd_src_probe_gen2_fail;
-
-	dev_dbg(dev, "%s[%d] (Gen2) is probed\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-	return ret;
-
-rsnd_src_probe_gen2_fail:
-	dev_err(dev, "%s[%d] (Gen2) failed\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return ret;
 }
@@ -910,8 +887,6 @@ int rsnd_src_probe(struct platform_device *pdev,
 		ret = rsnd_mod_init(&src->mod, ops, clk, RSND_MOD_SRC, i);
 		if (ret)
 			return ret;
-
-		dev_dbg(dev, "SRC%d probed\n", i);
 	}
 
 	return 0;

@@ -119,17 +119,6 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, DVC_DVUER, 1);
 }
 
-static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
-			       struct rsnd_priv *priv)
-{
-	struct device *dev = rsnd_priv_to_dev(priv);
-
-	dev_dbg(dev, "%s[%d] (Gen2) is probed\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-	return 0;
-}
-
 static int rsnd_dvc_remove_gen2(struct rsnd_mod *mod,
 				struct rsnd_priv *priv)
 {
@@ -283,7 +272,6 @@ static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_mod *mod)
 static struct rsnd_mod_ops rsnd_dvc_ops = {
 	.name		= DVC_NAME,
 	.dma_req	= rsnd_dvc_dma_req,
-	.probe		= rsnd_dvc_probe_gen2,
 	.remove		= rsnd_dvc_remove_gen2,
 	.init		= rsnd_dvc_init,
 	.quit		= rsnd_dvc_quit,
@@ -382,8 +370,6 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 			      clk, RSND_MOD_DVC, i);
 		if (ret)
 			return ret;
-
-		dev_dbg(dev, "CMD%d probed\n", i);
 	}
 
 	return 0;

@@ -144,8 +144,6 @@ static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 		return -EIO;
 	}
 
-	dev_dbg(dev, "Audio DMAC init\n");
-
 	if (dev->of_node) {
 		dmaen->chan = rsnd_dmaen_request_channel(mod_from, mod_to);
 	} else {
@@ -328,8 +326,6 @@ static int rsnd_dmapp_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 	struct rsnd_dmapp *dmapp = rsnd_dma_to_dmapp(dma);
 	struct rsnd_dma_ctrl *dmac = rsnd_priv_to_dmac(priv);
 	struct device *dev = rsnd_priv_to_dev(priv);
-
-	dev_dbg(dev, "Audio DMAC peri peri init\n");
 
 	dmapp->dmapp_id = dmac->dmapp_num;
 	dmapp->chcr = rsnd_dmapp_get_chcr(mod_from, mod_to) | PDMACHCR_DE;

@@ -445,12 +445,6 @@ static int rsnd_ssi_pio_probe(struct rsnd_mod *mod,
 			       rsnd_ssi_interrupt,
 			       IRQF_SHARED,
 			       dev_name(dev), ssi);
-	if (ret)
-		dev_err(dev, "%s[%d] (PIO) request interrupt failed\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
-	else
-		dev_dbg(dev, "%s[%d] (PIO) is probed\n",
-			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return ret;
 }
@@ -477,22 +471,11 @@ static int rsnd_ssi_dma_probe(struct rsnd_mod *mod,
 			       IRQF_SHARED,
 			       dev_name(dev), ssi);
 	if (ret)
-		goto rsnd_ssi_dma_probe_fail;
+		return ret;
 
 	ret = rsnd_dma_init(
 		priv, rsnd_mod_to_dma(mod),
 		dma_id);
-	if (ret)
-		goto rsnd_ssi_dma_probe_fail;
-
-	dev_dbg(dev, "%s[%d] (DMA) is probed\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod));
-
-	return ret;
-
-rsnd_ssi_dma_probe_fail:
-	dev_err(dev, "%s[%d] (DMA) is failed\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return ret;
 }
