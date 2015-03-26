@@ -2910,7 +2910,7 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				break;
 			case 8:
 				WARN(1, "Unsupported pixel depth for rotation");
-			};
+			}
 		}
 		y_tile_minimum = plane_blocks_per_line * min_scanlines;
 		selected_result = max(method2, y_tile_minimum);
