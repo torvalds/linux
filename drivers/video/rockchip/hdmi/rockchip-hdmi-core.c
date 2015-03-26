@@ -457,7 +457,7 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	} else if (hdmi->autoset) {
 		hdmi->vic = 0;
 	} else {
-		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
+		hdmi->vic = hdmi->property->defaultmode;
 	}
 	hdmi->colormode = HDMI_VIDEO_DEFAULT_COLORMODE;
 	hdmi->colordepth = HDMI_DEPP_COLOR_AUTO;

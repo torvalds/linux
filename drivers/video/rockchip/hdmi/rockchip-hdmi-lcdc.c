@@ -40,7 +40,7 @@ static int hdmi_set_info(struct rk_screen *screen, struct hdmi *hdmi)
 		return HDMI_ERROR_FALSE;
 
 	if (hdmi->vic == 0)
-		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
+		hdmi->vic = hdmi->property->defaultmode;
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
 		if (hdmi_mode[i].vic == (hdmi->vic & HDMI_VIC_MASK) ||
@@ -136,7 +136,7 @@ int hdmi_find_best_mode(struct hdmi *hdmi, int vic)
 		/* If parse edid error, we select default mode; */
 		if (hdmi->edid.specs == NULL ||
 		    hdmi->edid.specs->modedb_len == 0)
-			return HDMI_VIDEO_DEFAULT_MODE;
+			return hdmi->property->defaultmode;
 			/*modelist = list_entry(head->prev,
 					struct display_modelist, list);*/
 		else
@@ -167,7 +167,7 @@ int hdmi_set_lcdc(struct hdmi *hdmi)
 		hdmi->vic = hdmi_find_best_mode(hdmi, hdmi->vic);
 
 	if (hdmi->vic == 0)
-		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
+		hdmi->vic = hdmi->property->defaultmode;
 
 	rc = hdmi_set_info(&screen, hdmi);
 
@@ -457,7 +457,7 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 				    hdmi_mode[i].mode.xres == 4096)
 					continue;
 				if ((feature & SUPPORT_TMDS_600M) == 0 &&
-				    !(modelist->vic & HDMI_VIDEO_YUV420) &&  
+				    !(modelist->vic & HDMI_VIDEO_YUV420) &&
 				    hdmi_mode[i].mode.pixclock > 340000000)
 					continue;
 				if ((modelist->vic & HDMI_VIDEO_YUV420) &&

@@ -338,6 +338,7 @@ struct hdmi_property {
 	int videosrc;
 	int display;
 	int feature;
+	int defaultmode;
 	void *priv;
 };
 
