@@ -28,10 +28,9 @@
  * @read_sched_clock:	Current clock source (or dummy source when suspended)
  * @mult:		Multipler for scaled math conversion
  * @shift:		Shift value for scaled math conversion
- * @suspended:		Flag to indicate if the clock is suspended (stopped)
  *
  * Care must be taken when updating this structure; it is read by
- * some very hot code paths. It occupies <=48 bytes and, when combined
+ * some very hot code paths. It occupies <=40 bytes and, when combined
  * with the seqcount used to synchronize access, comfortably fits into
  * a 64 byte cache line.
  */
@@ -42,7 +41,6 @@ struct clock_read_data {
 	u64 (*read_sched_clock)(void);
 	u32 mult;
 	u32 shift;
-	bool suspended;
 };
 
 /**
@@ -64,6 +62,7 @@ struct clock_data {
 	struct clock_read_data read_data;
 	ktime_t wrap_kt;
 	unsigned long rate;
+	u64 (*actual_read_sched_clock)(void);
 };
 
 static struct hrtimer sched_clock_timer;
@@ -83,6 +82,8 @@ static u64 notrace jiffy_sched_clock_read(void)
 static struct clock_data cd ____cacheline_aligned = {
 	.read_data = { .mult = NSEC_PER_SEC / HZ,
 		       .read_sched_clock = jiffy_sched_clock_read, },
+	.actual_read_sched_clock = jiffy_sched_clock_read,
+
 };
 
 static inline u64 notrace cyc_to_ns(u64 cyc, u32 mult, u32 shift)
@@ -99,12 +100,9 @@ unsigned long long notrace sched_clock(void)
 	do {
 		seq = raw_read_seqcount_begin(&cd.seq);
 
-		res = rd->epoch_ns;
-		if (!rd->suspended) {
-			cyc = rd->read_sched_clock();
-			cyc = (cyc - rd->epoch_cyc) & rd->sched_clock_mask;
-			res += cyc_to_ns(cyc, rd->mult, rd->shift);
-		}
+		cyc = (rd->read_sched_clock() - rd->epoch_cyc) &
+		      rd->sched_clock_mask;
+		res = rd->epoch_ns + cyc_to_ns(cyc, rd->mult, rd->shift);
 	} while (read_seqcount_retry(&cd.seq, seq));
 
 	return res;
@@ -120,7 +118,7 @@ static void notrace update_sched_clock(void)
 	u64 ns;
 	struct clock_read_data *rd = &cd.read_data;
 
-	cyc = rd->read_sched_clock();
+	cyc = cd.actual_read_sched_clock();
 	ns = rd->epoch_ns +
 	     cyc_to_ns((cyc - rd->epoch_cyc) & rd->sched_clock_mask,
 		       rd->mult, rd->shift);
@@ -166,10 +164,11 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 
 	/* update epoch for new counter and update epoch_ns from old counter*/
 	new_epoch = read();
-	cyc = rd->read_sched_clock();
+	cyc = cd.actual_read_sched_clock();
 	ns = rd->epoch_ns +
 	     cyc_to_ns((cyc - rd->epoch_cyc) & rd->sched_clock_mask,
 		       rd->mult, rd->shift);
+	cd.actual_read_sched_clock = read;
 
 	raw_write_seqcount_begin(&cd.seq);
 	rd->read_sched_clock = read;
@@ -209,7 +208,7 @@ void __init sched_clock_postinit(void)
 	 * If no sched_clock function has been provided at that point,
 	 * make it the final one one.
 	 */
-	if (cd.read_data.read_sched_clock == jiffy_sched_clock_read)
+	if (cd.actual_read_sched_clock == jiffy_sched_clock_read)
 		sched_clock_register(jiffy_sched_clock_read, BITS_PER_LONG, HZ);
 
 	update_sched_clock();
@@ -223,13 +222,24 @@ void __init sched_clock_postinit(void)
 	hrtimer_start(&sched_clock_timer, cd.wrap_kt, HRTIMER_MODE_REL);
 }
 
+/*
+ * Clock read function for use when the clock is suspended.
+ *
+ * This function makes it appear to sched_clock() as if the clock
+ * stopped counting at its last update.
+ */
+static u64 notrace suspended_sched_clock_read(void)
+{
+	return cd.read_data.epoch_cyc;
+}
+
 static int sched_clock_suspend(void)
 {
 	struct clock_read_data *rd = &cd.read_data;
 
 	update_sched_clock();
 	hrtimer_cancel(&sched_clock_timer);
-	rd->suspended = true;
+	rd->read_sched_clock = suspended_sched_clock_read;
 	return 0;
 }
 
@@ -237,9 +247,9 @@ static void sched_clock_resume(void)
 {
 	struct clock_read_data *rd = &cd.read_data;
 
-	rd->epoch_cyc = rd->read_sched_clock();
+	rd->epoch_cyc = cd.actual_read_sched_clock();
 	hrtimer_start(&sched_clock_timer, cd.wrap_kt, HRTIMER_MODE_REL);
-	rd->suspended = false;
+	rd->read_sched_clock = cd.actual_read_sched_clock;
 }
 
 static struct syscore_ops sched_clock_ops = {
