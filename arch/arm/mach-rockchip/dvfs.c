@@ -44,10 +44,14 @@ struct regulator *vdd_gpu_regulator;
 
 static int dvfs_get_temp(int chn)
 {
-	int temp = 0;
+	int temp = INVALID_TEMP;
 
 #if IS_ENABLED(CONFIG_ROCKCHIP_THERMAL)
 	int read_back = 0;
+
+	if (clk_cpu_bl_dvfs_node == NULL ||
+	    IS_ERR_OR_NULL(clk_cpu_bl_dvfs_node->vd->regulator))
+		return temp;
 
 	mutex_lock(&clk_cpu_bl_dvfs_node->vd->mutex);
 	read_back = dvfs_regulator_get_voltage(
