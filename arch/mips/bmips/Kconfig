@@ -1,3 +1,5 @@
+if BMIPS_GENERIC
+
 choice
 	prompt "Built-in device tree"
 	help
@@ -56,3 +58,5 @@ config DT_BCM97425SVMB
 	select BUILTIN_DTB
 
 endchoice
+
+endif
