@@ -202,7 +202,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 	pitch = info->fix.line_length;
 	Bpp = info->var.bits_per_pixel >> 3;
 
-	color = (Bpp == 1)?region->color:((u32*)info->pseudo_palette)[region->color];
+	color = (Bpp == 1)?region->color:((u32 *)info->pseudo_palette)[region->color];
 	rop = (region->rop != ROP_COPY) ? HW_ROP2_XOR:HW_ROP2_COPY;
 
 	/*
@@ -271,8 +271,8 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	if (image->depth == 1) {
 		if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
 		    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-			fgcol = ((u32*)info->pseudo_palette)[image->fg_color];
-			bgcol = ((u32*)info->pseudo_palette)[image->bg_color];
+			fgcol = ((u32 *)info->pseudo_palette)[image->fg_color];
+			bgcol = ((u32 *)info->pseudo_palette)[image->bg_color];
 		} else {
 			fgcol = image->fg_color;
 			bgcol = image->bg_color;
