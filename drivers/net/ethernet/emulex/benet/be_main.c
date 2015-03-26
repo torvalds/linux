@@ -2342,6 +2342,7 @@ static void be_evt_queues_destroy(struct be_adapter *adapter)
 			napi_hash_del(&eqo->napi);
 			netif_napi_del(&eqo->napi);
 		}
+		free_cpumask_var(eqo->affinity_mask);
 		be_queue_free(adapter, &eqo->q);
 	}
 }
@@ -2357,6 +2358,11 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 				    adapter->cfg_num_qs);
 
 	for_all_evt_queues(adapter, eqo, i) {
+		if (!zalloc_cpumask_var(&eqo->affinity_mask, GFP_KERNEL))
+			return -ENOMEM;
+		cpumask_set_cpu_local_first(i, dev_to_node(&adapter->pdev->dev),
+					    eqo->affinity_mask);
+
 		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
 			       BE_NAPI_WEIGHT);
 		napi_hash_add(&eqo->napi);
@@ -3028,6 +3034,8 @@ static int be_msix_register(struct be_adapter *adapter)
 		status = request_irq(vec, be_msix, 0, eqo->desc, eqo);
 		if (status)
 			goto err_msix;
+
+		irq_set_affinity_hint(vec, eqo->affinity_mask);
 	}
 
 	return 0;
@@ -3072,7 +3080,7 @@ static void be_irq_unregister(struct be_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct be_eq_obj *eqo;
-	int i;
+	int i, vec;
 
 	if (!adapter->isr_registered)
 		return;
@@ -3084,8 +3092,11 @@ static void be_irq_unregister(struct be_adapter *adapter)
 	}
 
 	/* MSIx */
-	for_all_evt_queues(adapter, eqo, i)
-		free_irq(be_msix_vec_get(adapter, eqo), eqo);
+	for_all_evt_queues(adapter, eqo, i) {
+		vec = be_msix_vec_get(adapter, eqo);
+		irq_set_affinity_hint(vec, NULL);
+		free_irq(vec, eqo);
+	}
 
 done:
 	adapter->isr_registered = false;
