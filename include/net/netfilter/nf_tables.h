@@ -258,6 +258,8 @@ void nft_unregister_set(struct nft_set_ops *ops);
  * 	@dtype: data type (verdict or numeric type defined by userspace)
  * 	@size: maximum set size
  * 	@nelems: number of elements
+ * 	@timeout: default timeout value in msecs
+ * 	@gc_int: garbage collection interval in msecs
  *	@policy: set parameterization (see enum nft_set_policies)
  * 	@ops: set ops
  * 	@pnet: network namespace
@@ -274,6 +276,8 @@ struct nft_set {
 	u32				dtype;
 	u32				size;
 	u32				nelems;
+	u64				timeout;
+	u32				gc_int;
 	u16				policy;
 	/* runtime data below here */
 	const struct nft_set_ops	*ops ____cacheline_aligned;
@@ -294,6 +298,11 @@ struct nft_set *nf_tables_set_lookup(const struct nft_table *table,
 				     const struct nlattr *nla);
 struct nft_set *nf_tables_set_lookup_byid(const struct net *net,
 					  const struct nlattr *nla);
+
+static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
+{
+	return set->gc_int ? msecs_to_jiffies(set->gc_int) : HZ;
+}
 
 /**
  *	struct nft_set_binding - nf_tables set binding

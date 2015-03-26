@@ -2216,6 +2216,8 @@ static const struct nla_policy nft_set_policy[NFTA_SET_MAX + 1] = {
 	[NFTA_SET_POLICY]		= { .type = NLA_U32 },
 	[NFTA_SET_DESC]			= { .type = NLA_NESTED },
 	[NFTA_SET_ID]			= { .type = NLA_U32 },
+	[NFTA_SET_TIMEOUT]		= { .type = NLA_U64 },
+	[NFTA_SET_GC_INTERVAL]		= { .type = NLA_U32 },
 };
 
 static const struct nla_policy nft_set_desc_policy[NFTA_SET_DESC_MAX + 1] = {
@@ -2365,6 +2367,13 @@ static int nf_tables_fill_set(struct sk_buff *skb, const struct nft_ctx *ctx,
 		if (nla_put_be32(skb, NFTA_SET_DATA_LEN, htonl(set->dlen)))
 			goto nla_put_failure;
 	}
+
+	if (set->timeout &&
+	    nla_put_be64(skb, NFTA_SET_TIMEOUT, cpu_to_be64(set->timeout)))
+		goto nla_put_failure;
+	if (set->gc_int &&
+	    nla_put_be32(skb, NFTA_SET_GC_INTERVAL, htonl(set->gc_int)))
+		goto nla_put_failure;
 
 	if (set->policy != NFT_SET_POL_PERFORMANCE) {
 		if (nla_put_be32(skb, NFTA_SET_POLICY, htonl(set->policy)))
@@ -2578,7 +2587,8 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	char name[IFNAMSIZ];
 	unsigned int size;
 	bool create;
-	u32 ktype, dtype, flags, policy;
+	u64 timeout;
+	u32 ktype, dtype, flags, policy, gc_int;
 	struct nft_set_desc desc;
 	int err;
 
@@ -2605,7 +2615,8 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	if (nla[NFTA_SET_FLAGS] != NULL) {
 		flags = ntohl(nla_get_be32(nla[NFTA_SET_FLAGS]));
 		if (flags & ~(NFT_SET_ANONYMOUS | NFT_SET_CONSTANT |
-			      NFT_SET_INTERVAL | NFT_SET_MAP))
+			      NFT_SET_INTERVAL | NFT_SET_MAP |
+			      NFT_SET_TIMEOUT))
 			return -EINVAL;
 	}
 
@@ -2630,6 +2641,19 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 			desc.dlen = sizeof(struct nft_data);
 	} else if (flags & NFT_SET_MAP)
 		return -EINVAL;
+
+	timeout = 0;
+	if (nla[NFTA_SET_TIMEOUT] != NULL) {
+		if (!(flags & NFT_SET_TIMEOUT))
+			return -EINVAL;
+		timeout = be64_to_cpu(nla_get_be64(nla[NFTA_SET_TIMEOUT]));
+	}
+	gc_int = 0;
+	if (nla[NFTA_SET_GC_INTERVAL] != NULL) {
+		if (!(flags & NFT_SET_TIMEOUT))
+			return -EINVAL;
+		gc_int = ntohl(nla_get_be32(nla[NFTA_SET_GC_INTERVAL]));
+	}
 
 	policy = NFT_SET_POL_PERFORMANCE;
 	if (nla[NFTA_SET_POLICY] != NULL)
@@ -2699,6 +2723,8 @@ static int nf_tables_newset(struct sock *nlsk, struct sk_buff *skb,
 	set->flags = flags;
 	set->size  = desc.size;
 	set->policy = policy;
+	set->timeout = timeout;
+	set->gc_int = gc_int;
 
 	err = ops->init(set, &desc, nla);
 	if (err < 0)
