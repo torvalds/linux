@@ -8319,11 +8319,36 @@ static int ipr_reset_start_bist(struct ipr_cmnd *ipr_cmd)
 static int ipr_reset_slot_reset_done(struct ipr_cmnd *ipr_cmd)
 {
 	ENTER;
-	pci_set_pcie_reset_state(ipr_cmd->ioa_cfg->pdev, pcie_deassert_reset);
 	ipr_cmd->job_step = ipr_reset_bist_done;
 	ipr_reset_start_timer(ipr_cmd, IPR_WAIT_FOR_BIST_TIMEOUT);
 	LEAVE;
 	return IPR_RC_JOB_RETURN;
+}
+
+/**
+ * ipr_reset_reset_work - Pulse a PCIe fundamental reset
+ * @work:	work struct
+ *
+ * Description: This pulses warm reset to a slot.
+ *
+ **/
+static void ipr_reset_reset_work(struct work_struct *work)
+{
+	struct ipr_cmnd *ipr_cmd = container_of(work, struct ipr_cmnd, work);
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	struct pci_dev *pdev = ioa_cfg->pdev;
+	unsigned long lock_flags = 0;
+
+	ENTER;
+	pci_set_pcie_reset_state(pdev, pcie_warm_reset);
+	msleep(jiffies_to_msecs(IPR_PCI_RESET_TIMEOUT));
+	pci_set_pcie_reset_state(pdev, pcie_deassert_reset);
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	if (ioa_cfg->reset_cmd == ipr_cmd)
+		ipr_reset_ioa_job(ipr_cmd);
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	LEAVE;
 }
 
 /**
@@ -8338,12 +8363,11 @@ static int ipr_reset_slot_reset_done(struct ipr_cmnd *ipr_cmd)
 static int ipr_reset_slot_reset(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
-	struct pci_dev *pdev = ioa_cfg->pdev;
 
 	ENTER;
-	pci_set_pcie_reset_state(pdev, pcie_warm_reset);
+	INIT_WORK(&ipr_cmd->work, ipr_reset_reset_work);
+	queue_work(ioa_cfg->reset_work_q, &ipr_cmd->work);
 	ipr_cmd->job_step = ipr_reset_slot_reset_done;
-	ipr_reset_start_timer(ipr_cmd, IPR_PCI_RESET_TIMEOUT);
 	LEAVE;
 	return IPR_RC_JOB_RETURN;
 }
@@ -9092,6 +9116,38 @@ static void ipr_free_mem(struct ipr_ioa_cfg *ioa_cfg)
 }
 
 /**
+ * ipr_free_irqs - Free all allocated IRQs for the adapter.
+ * @ioa_cfg:	ipr cfg struct
+ *
+ * This function frees all allocated IRQs for the
+ * specified adapter.
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_free_irqs(struct ipr_ioa_cfg *ioa_cfg)
+{
+	struct pci_dev *pdev = ioa_cfg->pdev;
+
+	if (ioa_cfg->intr_flag == IPR_USE_MSI ||
+	    ioa_cfg->intr_flag == IPR_USE_MSIX) {
+		int i;
+		for (i = 0; i < ioa_cfg->nvectors; i++)
+			free_irq(ioa_cfg->vectors_info[i].vec,
+				 &ioa_cfg->hrrq[i]);
+	} else
+		free_irq(pdev->irq, &ioa_cfg->hrrq[0]);
+
+	if (ioa_cfg->intr_flag == IPR_USE_MSI) {
+		pci_disable_msi(pdev);
+		ioa_cfg->intr_flag &= ~IPR_USE_MSI;
+	} else if (ioa_cfg->intr_flag == IPR_USE_MSIX) {
+		pci_disable_msix(pdev);
+		ioa_cfg->intr_flag &= ~IPR_USE_MSIX;
+	}
+}
+
+/**
  * ipr_free_all_resources - Free all allocated resources for an adapter.
  * @ipr_cmd:	ipr command struct
  *
@@ -9106,23 +9162,9 @@ static void ipr_free_all_resources(struct ipr_ioa_cfg *ioa_cfg)
 	struct pci_dev *pdev = ioa_cfg->pdev;
 
 	ENTER;
-	if (ioa_cfg->intr_flag == IPR_USE_MSI ||
-	    ioa_cfg->intr_flag == IPR_USE_MSIX) {
-		int i;
-		for (i = 0; i < ioa_cfg->nvectors; i++)
-			free_irq(ioa_cfg->vectors_info[i].vec,
-				&ioa_cfg->hrrq[i]);
-	} else
-		free_irq(pdev->irq, &ioa_cfg->hrrq[0]);
-
-	if (ioa_cfg->intr_flag == IPR_USE_MSI) {
-		pci_disable_msi(pdev);
-		ioa_cfg->intr_flag &= ~IPR_USE_MSI;
-	} else if (ioa_cfg->intr_flag == IPR_USE_MSIX) {
-		pci_disable_msix(pdev);
-		ioa_cfg->intr_flag &= ~IPR_USE_MSIX;
-	}
-
+	ipr_free_irqs(ioa_cfg);
+	if (ioa_cfg->reset_work_q)
+		destroy_workqueue(ioa_cfg->reset_work_q);
 	iounmap(ioa_cfg->hdw_dma_regs);
 	pci_release_regions(pdev);
 	ipr_free_mem(ioa_cfg);
@@ -9942,6 +9984,14 @@ static int ipr_probe_ioa(struct pci_dev *pdev,
 	    (dev_id->device == PCI_DEVICE_ID_IBM_OBSIDIAN_E && !ioa_cfg->revid)) {
 		ioa_cfg->needs_warm_reset = 1;
 		ioa_cfg->reset = ipr_reset_slot_reset;
+
+		ioa_cfg->reset_work_q = alloc_ordered_workqueue("ipr_reset_%d",
+								WQ_MEM_RECLAIM, host->host_no);
+
+		if (!ioa_cfg->reset_work_q) {
+			dev_err(&pdev->dev, "Couldn't register reset workqueue\n");
+			goto out_free_irq;
+		}
 	} else
 		ioa_cfg->reset = ipr_reset_start_bist;
 
@@ -9953,6 +10003,8 @@ static int ipr_probe_ioa(struct pci_dev *pdev,
 out:
 	return rc;
 
+out_free_irq:
+	ipr_free_irqs(ioa_cfg);
 cleanup_nolog:
 	ipr_free_mem(ioa_cfg);
 out_msi_disable:
@@ -10033,6 +10085,8 @@ static void __ipr_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
 	flush_work(&ioa_cfg->work_q);
+	if (ioa_cfg->reset_work_q)
+		flush_workqueue(ioa_cfg->reset_work_q);
 	INIT_LIST_HEAD(&ioa_cfg->used_res_q);
 	spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
 
@@ -10178,22 +10232,7 @@ static void ipr_shutdown(struct pci_dev *pdev)
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
 	if (ipr_fast_reboot && system_state == SYSTEM_RESTART && ioa_cfg->sis64) {
-		if (ioa_cfg->intr_flag == IPR_USE_MSI ||
-		    ioa_cfg->intr_flag == IPR_USE_MSIX) {
-			int i;
-			for (i = 0; i < ioa_cfg->nvectors; i++)
-				free_irq(ioa_cfg->vectors_info[i].vec,
-					 &ioa_cfg->hrrq[i]);
-		}
-
-		if (ioa_cfg->intr_flag == IPR_USE_MSI) {
-			pci_disable_msi(ioa_cfg->pdev);
-			ioa_cfg->intr_flag &= ~IPR_USE_MSI;
-		} else if (ioa_cfg->intr_flag == IPR_USE_MSIX) {
-			pci_disable_msix(ioa_cfg->pdev);
-			ioa_cfg->intr_flag &= ~IPR_USE_MSIX;
-		}
-
+		ipr_free_irqs(ioa_cfg);
 		pci_disable_device(ioa_cfg->pdev);
 	}
 }

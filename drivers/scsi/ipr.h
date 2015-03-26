@@ -1540,6 +1540,7 @@ struct ipr_ioa_cfg {
 	u8 saved_mode_page_len;
 
 	struct work_struct work_q;
+	struct workqueue_struct *reset_work_q;
 
 	wait_queue_head_t reset_wait_q;
 	wait_queue_head_t msi_wait_q;
@@ -1591,6 +1592,7 @@ struct ipr_cmnd {
 	struct ata_queued_cmd *qc;
 	struct completion completion;
 	struct timer_list timer;
+	struct work_struct work;
 	void (*fast_done) (struct ipr_cmnd *);
 	void (*done) (struct ipr_cmnd *);
 	int (*job_step) (struct ipr_cmnd *);
