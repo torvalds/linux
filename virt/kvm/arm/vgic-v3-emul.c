@@ -502,6 +502,43 @@ static const struct vgic_io_range vgic_v3_dist_ranges[] = {
 	{},
 };
 
+static bool handle_mmio_ctlr_redist(struct kvm_vcpu *vcpu,
+				    struct kvm_exit_mmio *mmio,
+				    phys_addr_t offset)
+{
+	/* since we don't support LPIs, this register is zero for now */
+	vgic_reg_access(mmio, NULL, offset,
+			ACCESS_READ_RAZ | ACCESS_WRITE_IGNORED);
+	return false;
+}
+
+static bool handle_mmio_typer_redist(struct kvm_vcpu *vcpu,
+				     struct kvm_exit_mmio *mmio,
+				     phys_addr_t offset)
+{
+	u32 reg;
+	u64 mpidr;
+	struct kvm_vcpu *redist_vcpu = mmio->private;
+	int target_vcpu_id = redist_vcpu->vcpu_id;
+
+	/* the upper 32 bits contain the affinity value */
+	if ((offset & ~3) == 4) {
+		mpidr = kvm_vcpu_get_mpidr_aff(redist_vcpu);
+		reg = compress_mpidr(mpidr);
+
+		vgic_reg_access(mmio, &reg, offset,
+				ACCESS_READ_VALUE | ACCESS_WRITE_IGNORED);
+		return false;
+	}
+
+	reg = redist_vcpu->vcpu_id << 8;
+	if (target_vcpu_id == atomic_read(&vcpu->kvm->online_vcpus) - 1)
+		reg |= GICR_TYPER_LAST;
+	vgic_reg_access(mmio, &reg, offset,
+			ACCESS_READ_VALUE | ACCESS_WRITE_IGNORED);
+	return false;
+}
+
 static bool handle_mmio_set_enable_reg_redist(struct kvm_vcpu *vcpu,
 					      struct kvm_exit_mmio *mmio,
 					      phys_addr_t offset)
@@ -570,111 +607,7 @@ static bool handle_mmio_cfg_reg_redist(struct kvm_vcpu *vcpu,
 	return vgic_handle_cfg_reg(reg, mmio, offset);
 }
 
-static const struct vgic_io_range vgic_redist_sgi_ranges[] = {
-	{
-		.base		= GICR_IGROUPR0,
-		.len		= 0x04,
-		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_rao_wi,
-	},
-	{
-		.base		= GICR_ISENABLER0,
-		.len		= 0x04,
-		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_set_enable_reg_redist,
-	},
-	{
-		.base		= GICR_ICENABLER0,
-		.len		= 0x04,
-		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_clear_enable_reg_redist,
-	},
-	{
-		.base		= GICR_ISPENDR0,
-		.len		= 0x04,
-		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_set_pending_reg_redist,
-	},
-	{
-		.base		= GICR_ICPENDR0,
-		.len		= 0x04,
-		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_clear_pending_reg_redist,
-	},
-	{
-		.base		= GICR_ISACTIVER0,
-		.len		= 0x04,
-		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_raz_wi,
-	},
-	{
-		.base		= GICR_ICACTIVER0,
-		.len		= 0x04,
-		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_raz_wi,
-	},
-	{
-		.base		= GICR_IPRIORITYR0,
-		.len		= 0x20,
-		.bits_per_irq	= 8,
-		.handle_mmio	= handle_mmio_priority_reg_redist,
-	},
-	{
-		.base		= GICR_ICFGR0,
-		.len		= 0x08,
-		.bits_per_irq	= 2,
-		.handle_mmio	= handle_mmio_cfg_reg_redist,
-	},
-	{
-		.base		= GICR_IGRPMODR0,
-		.len		= 0x04,
-		.bits_per_irq	= 1,
-		.handle_mmio	= handle_mmio_raz_wi,
-	},
-	{
-		.base		= GICR_NSACR,
-		.len		= 0x04,
-		.handle_mmio	= handle_mmio_raz_wi,
-	},
-	{},
-};
-
-static bool handle_mmio_ctlr_redist(struct kvm_vcpu *vcpu,
-				    struct kvm_exit_mmio *mmio,
-				    phys_addr_t offset)
-{
-	/* since we don't support LPIs, this register is zero for now */
-	vgic_reg_access(mmio, NULL, offset,
-			ACCESS_READ_RAZ | ACCESS_WRITE_IGNORED);
-	return false;
-}
-
-static bool handle_mmio_typer_redist(struct kvm_vcpu *vcpu,
-				     struct kvm_exit_mmio *mmio,
-				     phys_addr_t offset)
-{
-	u32 reg;
-	u64 mpidr;
-	struct kvm_vcpu *redist_vcpu = mmio->private;
-	int target_vcpu_id = redist_vcpu->vcpu_id;
-
-	/* the upper 32 bits contain the affinity value */
-	if ((offset & ~3) == 4) {
-		mpidr = kvm_vcpu_get_mpidr_aff(redist_vcpu);
-		reg = compress_mpidr(mpidr);
-
-		vgic_reg_access(mmio, &reg, offset,
-				ACCESS_READ_VALUE | ACCESS_WRITE_IGNORED);
-		return false;
-	}
-
-	reg = redist_vcpu->vcpu_id << 8;
-	if (target_vcpu_id == atomic_read(&vcpu->kvm->online_vcpus) - 1)
-		reg |= GICR_TYPER_LAST;
-	vgic_reg_access(mmio, &reg, offset,
-			ACCESS_READ_VALUE | ACCESS_WRITE_IGNORED);
-	return false;
-}
+#define SGI_base(x) ((x) + SZ_64K)
 
 static const struct vgic_io_range vgic_redist_ranges[] = {
 	{
@@ -707,6 +640,71 @@ static const struct vgic_io_range vgic_redist_ranges[] = {
 		.bits_per_irq   = 0,
 		.handle_mmio    = handle_mmio_idregs,
 	},
+	{
+		.base		= SGI_base(GICR_IGROUPR0),
+		.len		= 0x04,
+		.bits_per_irq	= 1,
+		.handle_mmio	= handle_mmio_rao_wi,
+	},
+	{
+		.base		= SGI_base(GICR_ISENABLER0),
+		.len		= 0x04,
+		.bits_per_irq	= 1,
+		.handle_mmio	= handle_mmio_set_enable_reg_redist,
+	},
+	{
+		.base		= SGI_base(GICR_ICENABLER0),
+		.len		= 0x04,
+		.bits_per_irq	= 1,
+		.handle_mmio	= handle_mmio_clear_enable_reg_redist,
+	},
+	{
+		.base		= SGI_base(GICR_ISPENDR0),
+		.len		= 0x04,
+		.bits_per_irq	= 1,
+		.handle_mmio	= handle_mmio_set_pending_reg_redist,
+	},
+	{
+		.base		= SGI_base(GICR_ICPENDR0),
+		.len		= 0x04,
+		.bits_per_irq	= 1,
+		.handle_mmio	= handle_mmio_clear_pending_reg_redist,
+	},
+	{
+		.base		= SGI_base(GICR_ISACTIVER0),
+		.len		= 0x04,
+		.bits_per_irq	= 1,
+		.handle_mmio	= handle_mmio_raz_wi,
+	},
+	{
+		.base		= SGI_base(GICR_ICACTIVER0),
+		.len		= 0x04,
+		.bits_per_irq	= 1,
+		.handle_mmio	= handle_mmio_raz_wi,
+	},
+	{
+		.base		= SGI_base(GICR_IPRIORITYR0),
+		.len		= 0x20,
+		.bits_per_irq	= 8,
+		.handle_mmio	= handle_mmio_priority_reg_redist,
+	},
+	{
+		.base		= SGI_base(GICR_ICFGR0),
+		.len		= 0x08,
+		.bits_per_irq	= 2,
+		.handle_mmio	= handle_mmio_cfg_reg_redist,
+	},
+	{
+		.base		= SGI_base(GICR_IGRPMODR0),
+		.len		= 0x04,
+		.bits_per_irq	= 1,
+		.handle_mmio	= handle_mmio_raz_wi,
+	},
+	{
+		.base		= SGI_base(GICR_NSACR),
+		.len		= 0x04,
+		.handle_mmio	= handle_mmio_raz_wi,
+	},
 	{},
 };
 
@@ -726,7 +724,6 @@ static bool vgic_v3_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	unsigned long rdbase = dist->vgic_redist_base;
 	int nrcpus = atomic_read(&vcpu->kvm->online_vcpus);
 	int vcpu_id;
-	const struct vgic_io_range *mmio_range;
 
 	if (is_in_range(mmio->phys_addr, mmio->len, dbase, GIC_V3_DIST_SIZE)) {
 		return vgic_handle_mmio_range(vcpu, run, mmio,
@@ -741,13 +738,8 @@ static bool vgic_v3_handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	rdbase += (vcpu_id * GIC_V3_REDIST_SIZE);
 	mmio->private = kvm_get_vcpu(vcpu->kvm, vcpu_id);
 
-	if (mmio->phys_addr >= rdbase + SGI_BASE_OFFSET) {
-		rdbase += SGI_BASE_OFFSET;
-		mmio_range = vgic_redist_sgi_ranges;
-	} else {
-		mmio_range = vgic_redist_ranges;
-	}
-	return vgic_handle_mmio_range(vcpu, run, mmio, mmio_range, rdbase);
+	return vgic_handle_mmio_range(vcpu, run, mmio, vgic_redist_ranges,
+				      rdbase);
 }
 
 static bool vgic_v3_queue_sgi(struct kvm_vcpu *vcpu, int irq)
