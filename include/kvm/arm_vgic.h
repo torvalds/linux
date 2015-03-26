@@ -251,6 +251,7 @@ struct vgic_dist {
 	unsigned long		*irq_active_on_cpu;
 
 	struct vgic_vm_ops	vm_ops;
+	struct vgic_io_device	dist_iodev;
 };
 
 struct vgic_v2_cpu_if {
