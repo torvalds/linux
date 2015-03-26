@@ -2508,8 +2508,8 @@ static int skl_format_to_fourcc(int format, bool rgb_order, bool alpha)
 }
 
 static bool
-intel_alloc_plane_obj(struct intel_crtc *crtc,
-		      struct intel_initial_plane_config *plane_config)
+intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
+			      struct intel_initial_plane_config *plane_config)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_gem_object *obj = NULL;
@@ -2553,7 +2553,7 @@ intel_alloc_plane_obj(struct intel_crtc *crtc,
 	obj->frontbuffer_bits = INTEL_FRONTBUFFER_PRIMARY(crtc->pipe);
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_DEBUG_KMS("plane fb obj %p\n", obj);
+	DRM_DEBUG_KMS("initial plane fb obj %p\n", obj);
 	return true;
 
 out_unref_obj:
@@ -2577,8 +2577,8 @@ update_state_fb(struct drm_plane *plane)
 }
 
 static void
-intel_find_plane_obj(struct intel_crtc *intel_crtc,
-		     struct intel_initial_plane_config *plane_config)
+intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
+			     struct intel_initial_plane_config *plane_config)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2589,7 +2589,7 @@ intel_find_plane_obj(struct intel_crtc *intel_crtc,
 	if (!plane_config->fb)
 		return;
 
-	if (intel_alloc_plane_obj(intel_crtc, plane_config)) {
+	if (intel_alloc_initial_plane_obj(intel_crtc, plane_config)) {
 		struct drm_plane *primary = intel_crtc->base.primary;
 
 		primary->fb = &plane_config->fb->base;
@@ -13572,7 +13572,7 @@ void intel_modeset_init(struct drm_device *dev)
 			 * If the fb is shared between multiple heads, we'll
 			 * just get the first one.
 			 */
-			intel_find_plane_obj(crtc, &crtc->plane_config);
+			intel_find_initial_plane_obj(crtc, &crtc->plane_config);
 		}
 	}
 }
