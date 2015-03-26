@@ -49,6 +49,7 @@
 #define S5P_INFORM5				0x0814
 #define S5P_INFORM6				0x0818
 #define S5P_INFORM7				0x081C
+#define S5P_PMU_SPARE2				0x0908
 #define S5P_PMU_SPARE3				0x090C
 
 #define EXYNOS_IROM_DATA2			0x0988
@@ -182,6 +183,7 @@
 
 #define S5P_CORE_LOCAL_PWR_EN			0x3
 #define S5P_CORE_WAKEUP_FROM_LOCAL_CFG		(0x3 << 8)
+#define S5P_CORE_AUTOWAKEUP_EN			(1 << 31)
 
 /* Only for EXYNOS4210 */
 #define S5P_CMU_CLKSTOP_LCD1_LOWPWR	0x1154
