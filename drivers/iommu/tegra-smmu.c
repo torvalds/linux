@@ -266,6 +266,11 @@ static int tegra_smmu_domain_init(struct iommu_domain *domain)
 
 	domain->priv = as;
 
+	/* setup aperture */
+	domain->geometry.aperture_start = 0;
+	domain->geometry.aperture_end = 0xffffffff;
+	domain->geometry.force_aperture = true;
+
 	return 0;
 }
 
