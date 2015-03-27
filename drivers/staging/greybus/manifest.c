@@ -1,8 +1,8 @@
 /*
  * Greybus module manifest parsing
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -79,7 +79,7 @@ static int identify_descriptor(struct gb_interface *intf,
 {
 	struct greybus_descriptor_header *desc_header = &desc->header;
 	struct manifest_desc *descriptor;
-	int desc_size;
+	size_t desc_size;
 	size_t expected_size;
 
 	if (size < sizeof(*desc_header)) {
@@ -87,8 +87,8 @@ static int identify_descriptor(struct gb_interface *intf,
 		return -EINVAL;		/* Must at least have header */
 	}
 
-	desc_size = (int)le16_to_cpu(desc_header->size);
-	if ((size_t)desc_size > size) {
+	desc_size = le16_to_cpu(desc_header->size);
+	if (desc_size > size) {
 		pr_err("descriptor too big\n");
 		return -EINVAL;
 	}
@@ -119,7 +119,7 @@ static int identify_descriptor(struct gb_interface *intf,
 	}
 
 	if (desc_size < expected_size) {
-		pr_err("%s descriptor too small (%u < %zu)\n",
+		pr_err("%s descriptor too small (%zu < %zu)\n",
 		       get_descriptor_type_string(desc_header->type),
 		       desc_size, expected_size);
 		return -EINVAL;
@@ -133,6 +133,8 @@ static int identify_descriptor(struct gb_interface *intf,
 	descriptor->data = (u8 *)desc + sizeof(*desc_header);
 	descriptor->type = desc_header->type;
 	list_add_tail(&descriptor->links, &intf->manifest_descs);
+
+	/* desc_size is is positive and is known to fit in a signed int */
 
 	return desc_size;
 }
