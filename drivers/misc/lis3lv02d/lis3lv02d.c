@@ -1032,6 +1032,23 @@ int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 		pdata->wakeup_flags |= LIS3_WAKEUP_Z_LO;
 	if (of_get_property(np, "st,wakeup-z-hi", NULL))
 		pdata->wakeup_flags |= LIS3_WAKEUP_Z_HI;
+	if (of_get_property(np, "st,wakeup-threshold", &val))
+		pdata->wakeup_thresh = val;
+
+	if (of_get_property(np, "st,wakeup2-x-lo", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_X_LO;
+	if (of_get_property(np, "st,wakeup2-x-hi", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_X_HI;
+	if (of_get_property(np, "st,wakeup2-y-lo", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_Y_LO;
+	if (of_get_property(np, "st,wakeup2-y-hi", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_Y_HI;
+	if (of_get_property(np, "st,wakeup2-z-lo", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_Z_LO;
+	if (of_get_property(np, "st,wakeup2-z-hi", NULL))
+		pdata->wakeup_flags2 |= LIS3_WAKEUP_Z_HI;
+	if (of_get_property(np, "st,wakeup2-threshold", &val))
+		pdata->wakeup_thresh2 = val;
 
 	if (!of_property_read_u32(np, "st,highpass-cutoff-hz", &val)) {
 		switch (val) {
