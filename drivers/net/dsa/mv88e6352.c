@@ -369,8 +369,6 @@ static int mv88e6352_setup(struct dsa_switch *ds)
 
 	mutex_init(&ps->eeprom_mutex);
 
-	ps->id = REG_READ(REG_PORT(0), 0x03) & 0xfff0;
-
 	ret = mv88e6352_switch_reset(ds);
 	if (ret < 0)
 		return ret;
