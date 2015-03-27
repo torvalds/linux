@@ -1,5 +1,6 @@
 /*
- * sched_clock.c: support for extending counters to full 64-bit ns counter
+ * sched_clock.c: Generic sched_clock() support, to extend low level
+ *                hardware time counters to full 64-bit ns values.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,15 +20,15 @@
 #include <linux/bitops.h>
 
 /**
- * struct clock_read_data - data required to read from sched_clock
+ * struct clock_read_data - data required to read from sched_clock()
  *
- * @epoch_ns:		sched_clock value at last update
- * @epoch_cyc:		Clock cycle value at last update
+ * @epoch_ns:		sched_clock() value at last update
+ * @epoch_cyc:		Clock cycle value at last update.
  * @sched_clock_mask:   Bitmask for two's complement subtraction of non 64bit
- *			clocks
- * @read_sched_clock:	Current clock source (or dummy source when suspended)
- * @mult:		Multipler for scaled math conversion
- * @shift:		Shift value for scaled math conversion
+ *			clocks.
+ * @read_sched_clock:	Current clock source (or dummy source when suspended).
+ * @mult:		Multipler for scaled math conversion.
+ * @shift:		Shift value for scaled math conversion.
  *
  * Care must be taken when updating this structure; it is read by
  * some very hot code paths. It occupies <=40 bytes and, when combined
@@ -44,25 +45,26 @@ struct clock_read_data {
 };
 
 /**
- * struct clock_data - all data needed for sched_clock (including
+ * struct clock_data - all data needed for sched_clock() (including
  *                     registration of a new clock source)
  *
  * @seq:		Sequence counter for protecting updates. The lowest
  *			bit is the index for @read_data.
  * @read_data:		Data required to read from sched_clock.
- * @wrap_kt:		Duration for which clock can run before wrapping
- * @rate:		Tick rate of the registered clock
- * @actual_read_sched_clock: Registered clock read function
+ * @wrap_kt:		Duration for which clock can run before wrapping.
+ * @rate:		Tick rate of the registered clock.
+ * @actual_read_sched_clock: Registered hardware level clock read function.
  *
  * The ordering of this structure has been chosen to optimize cache
- * performance. In particular seq and read_data[0] (combined) should fit
- * into a single 64 byte cache line.
+ * performance. In particular 'seq' and 'read_data[0]' (combined) should fit
+ * into a single 64-byte cache line.
  */
 struct clock_data {
-	seqcount_t seq;
-	struct clock_read_data read_data[2];
-	ktime_t wrap_kt;
-	unsigned long rate;
+	seqcount_t		seq;
+	struct clock_read_data	read_data[2];
+	ktime_t			wrap_kt;
+	unsigned long		rate;
+
 	u64 (*actual_read_sched_clock)(void);
 };
 
@@ -112,10 +114,10 @@ unsigned long long notrace sched_clock(void)
 /*
  * Updating the data required to read the clock.
  *
- * sched_clock will never observe mis-matched data even if called from
+ * sched_clock() will never observe mis-matched data even if called from
  * an NMI. We do this by maintaining an odd/even copy of the data and
- * steering sched_clock to one or the other using a sequence counter.
- * In order to preserve the data cache profile of sched_clock as much
+ * steering sched_clock() to one or the other using a sequence counter.
+ * In order to preserve the data cache profile of sched_clock() as much
  * as possible the system reverts back to the even copy when the update
  * completes; the odd copy is used *only* during an update.
  */
@@ -135,7 +137,7 @@ static void update_clock_read_data(struct clock_read_data *rd)
 }
 
 /*
- * Atomically update the sched_clock epoch.
+ * Atomically update the sched_clock() epoch.
  */
 static void update_sched_clock(void)
 {
@@ -146,9 +148,7 @@ static void update_sched_clock(void)
 	rd = cd.read_data[0];
 
 	cyc = cd.actual_read_sched_clock();
-	ns = rd.epoch_ns +
-	     cyc_to_ns((cyc - rd.epoch_cyc) & rd.sched_clock_mask,
-		       rd.mult, rd.shift);
+	ns = rd.epoch_ns + cyc_to_ns((cyc - rd.epoch_cyc) & rd.sched_clock_mask, rd.mult, rd.shift);
 
 	rd.epoch_ns = ns;
 	rd.epoch_cyc = cyc;
@@ -160,11 +160,12 @@ static enum hrtimer_restart sched_clock_poll(struct hrtimer *hrt)
 {
 	update_sched_clock();
 	hrtimer_forward_now(hrt, cd.wrap_kt);
+
 	return HRTIMER_RESTART;
 }
 
-void __init sched_clock_register(u64 (*read)(void), int bits,
-				 unsigned long rate)
+void __init
+sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 {
 	u64 res, wrap, new_mask, new_epoch, cyc, ns;
 	u32 new_mult, new_shift;
@@ -177,51 +178,53 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 
 	WARN_ON(!irqs_disabled());
 
-	/* calculate the mult/shift to convert counter ticks to ns. */
+	/* Calculate the mult/shift to convert counter ticks to ns. */
 	clocks_calc_mult_shift(&new_mult, &new_shift, rate, NSEC_PER_SEC, 3600);
 
 	new_mask = CLOCKSOURCE_MASK(bits);
 	cd.rate = rate;
 
-	/* calculate how many nanosecs until we risk wrapping */
+	/* Calculate how many nanosecs until we risk wrapping */
 	wrap = clocks_calc_max_nsecs(new_mult, new_shift, 0, new_mask, NULL);
 	cd.wrap_kt = ns_to_ktime(wrap);
 
 	rd = cd.read_data[0];
 
-	/* update epoch for new counter and update epoch_ns from old counter*/
+	/* Update epoch for new counter and update 'epoch_ns' from old counter*/
 	new_epoch = read();
 	cyc = cd.actual_read_sched_clock();
-	ns = rd.epoch_ns +
-	     cyc_to_ns((cyc - rd.epoch_cyc) & rd.sched_clock_mask,
-		       rd.mult, rd.shift);
+	ns = rd.epoch_ns + cyc_to_ns((cyc - rd.epoch_cyc) & rd.sched_clock_mask, rd.mult, rd.shift);
 	cd.actual_read_sched_clock = read;
 
-	rd.read_sched_clock = read;
-	rd.sched_clock_mask = new_mask;
-	rd.mult = new_mult;
-	rd.shift = new_shift;
-	rd.epoch_cyc = new_epoch;
-	rd.epoch_ns = ns;
+	rd.read_sched_clock	= read;
+	rd.sched_clock_mask	= new_mask;
+	rd.mult			= new_mult;
+	rd.shift		= new_shift;
+	rd.epoch_cyc		= new_epoch;
+	rd.epoch_ns		= ns;
+
 	update_clock_read_data(&rd);
 
 	r = rate;
 	if (r >= 4000000) {
 		r /= 1000000;
 		r_unit = 'M';
-	} else if (r >= 1000) {
-		r /= 1000;
-		r_unit = 'k';
-	} else
-		r_unit = ' ';
+	} else {
+		if (r >= 1000) {
+			r /= 1000;
+			r_unit = 'k';
+		} else {
+			r_unit = ' ';
+		}
+	}
 
-	/* calculate the ns resolution of this counter */
+	/* Calculate the ns resolution of this counter */
 	res = cyc_to_ns(1ULL, new_mult, new_shift);
 
 	pr_info("sched_clock: %u bits at %lu%cHz, resolution %lluns, wraps every %lluns\n",
 		bits, r, r_unit, res, wrap);
 
-	/* Enable IRQ time accounting if we have a fast enough sched_clock */
+	/* Enable IRQ time accounting if we have a fast enough sched_clock() */
 	if (irqtime > 0 || (irqtime == -1 && rate >= 1000000))
 		enable_sched_clock_irqtime();
 
@@ -231,7 +234,7 @@ void __init sched_clock_register(u64 (*read)(void), int bits,
 void __init sched_clock_postinit(void)
 {
 	/*
-	 * If no sched_clock function has been provided at that point,
+	 * If no sched_clock() function has been provided at that point,
 	 * make it the final one one.
 	 */
 	if (cd.actual_read_sched_clock == jiffy_sched_clock_read)
@@ -257,7 +260,7 @@ void __init sched_clock_postinit(void)
  * This function must only be called from the critical
  * section in sched_clock(). It relies on the read_seqcount_retry()
  * at the end of the critical section to be sure we observe the
- * correct copy of epoch_cyc.
+ * correct copy of 'epoch_cyc'.
  */
 static u64 notrace suspended_sched_clock_read(void)
 {
@@ -273,6 +276,7 @@ static int sched_clock_suspend(void)
 	update_sched_clock();
 	hrtimer_cancel(&sched_clock_timer);
 	rd->read_sched_clock = suspended_sched_clock_read;
+
 	return 0;
 }
 
@@ -286,13 +290,14 @@ static void sched_clock_resume(void)
 }
 
 static struct syscore_ops sched_clock_ops = {
-	.suspend = sched_clock_suspend,
-	.resume = sched_clock_resume,
+	.suspend	= sched_clock_suspend,
+	.resume		= sched_clock_resume,
 };
 
 static int __init sched_clock_syscore_init(void)
 {
 	register_syscore_ops(&sched_clock_ops);
+
 	return 0;
 }
 device_initcall(sched_clock_syscore_init);
