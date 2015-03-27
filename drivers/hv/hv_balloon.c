@@ -1081,9 +1081,9 @@ static void free_balloon_pages(struct hv_dynmem_device *dm,
 
 
 
-static int  alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
-			 struct dm_balloon_response *bl_resp, int alloc_unit,
-			 bool *alloc_error)
+static int alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
+			       struct dm_balloon_response *bl_resp,
+			       int alloc_unit)
 {
 	int i = 0;
 	struct page *pg;
@@ -1104,11 +1104,8 @@ static int  alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
 				__GFP_NOMEMALLOC | __GFP_NOWARN,
 				get_order(alloc_unit << PAGE_SHIFT));
 
-		if (!pg) {
-			*alloc_error = true;
+		if (!pg)
 			return i * alloc_unit;
-		}
-
 
 		dm->num_pages_ballooned += alloc_unit;
 
@@ -1140,7 +1137,6 @@ static void balloon_up(struct work_struct *dummy)
 	struct dm_balloon_response *bl_resp;
 	int alloc_unit;
 	int ret;
-	bool alloc_error;
 	bool done = false;
 	int i;
 	struct sysinfo val;
@@ -1173,18 +1169,15 @@ static void balloon_up(struct work_struct *dummy)
 
 
 		num_pages -= num_ballooned;
-		alloc_error = false;
 		num_ballooned = alloc_balloon_pages(&dm_device, num_pages,
-						bl_resp, alloc_unit,
-						 &alloc_error);
+						    bl_resp, alloc_unit);
 
 		if (alloc_unit != 1 && num_ballooned == 0) {
 			alloc_unit = 1;
 			continue;
 		}
 
-		if ((alloc_unit == 1 && alloc_error) ||
-			(num_ballooned == num_pages)) {
+		if (num_ballooned == 0 || num_ballooned == num_pages) {
 			bl_resp->more_pages = 0;
 			done = true;
 			dm_device.state = DM_INITIALIZED;
