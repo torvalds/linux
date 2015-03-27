@@ -32,14 +32,14 @@ static const struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 /* Maximum baudrate for F81232 */
-#define F81232_MAX_BAUDRATE	115200
+#define F81232_MAX_BAUDRATE		115200
 
 /* USB Control EP parameter */
-#define F81232_REGISTER_REQUEST	0xa0
+#define F81232_REGISTER_REQUEST		0xa0
 #define F81232_GET_REGISTER		0xc0
 #define F81232_SET_REGISTER		0x40
 
-#define SERIAL_BASE_ADDRESS			0x0120
+#define SERIAL_BASE_ADDRESS		0x0120
 #define RECEIVE_BUFFER_REGISTER		(0x00 + SERIAL_BASE_ADDRESS)
 #define INTERRUPT_ENABLE_REGISTER	(0x01 + SERIAL_BASE_ADDRESS)
 #define FIFO_CONTROL_REGISTER		(0x02 + SERIAL_BASE_ADDRESS)
@@ -349,7 +349,8 @@ static void f81232_break_ctl(struct tty_struct *tty, int break_state)
 static void f81232_set_baudrate(struct usb_serial_port *port, speed_t baudrate)
 {
 	u8 lcr;
-	int divisor, status = 0;
+	int divisor;
+	int status = 0;
 
 	divisor = calc_baud_divisor(baudrate);
 
@@ -666,7 +667,7 @@ static struct usb_serial_driver f81232_device = {
 	.bulk_out_size =	256,
 	.open =			f81232_open,
 	.close =		f81232_close,
-	.dtr_rts = 		f81232_dtr_rts,
+	.dtr_rts =		f81232_dtr_rts,
 	.carrier_raised =	f81232_carrier_raised,
 	.ioctl =		f81232_ioctl,
 	.break_ctl =		f81232_break_ctl,
