@@ -126,6 +126,12 @@ static __init int exynos4_pm_init_power_domain(void)
 		struct device *dev;
 
 		pdev = of_find_device_by_node(np);
+		if (!pdev) {
+			pr_err("%s: failed to find device for node %s\n",
+					__func__, np->name);
+			of_node_put(np);
+			continue;
+		}
 		dev = &pdev->dev;
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
@@ -136,6 +142,12 @@ static __init int exynos4_pm_init_power_domain(void)
 		}
 
 		pd->pd.name = kstrdup(dev_name(dev), GFP_KERNEL);
+		if (!pd->pd.name) {
+			kfree(pd);
+			of_node_put(np);
+			return -ENOMEM;
+		}
+
 		pd->name = pd->pd.name;
 		pd->base = of_iomap(np, 0);
 		if (!pd->base) {
