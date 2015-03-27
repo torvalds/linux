@@ -663,39 +663,30 @@ long drm_ioctl(struct file *filp,
 	int retcode = -EINVAL;
 	char stack_kdata[128];
 	char *kdata = NULL;
-	unsigned int usize, asize;
+	unsigned int usize, asize, drv_size;
 
 	dev = file_priv->minor->dev;
 
 	if (drm_device_is_unplugged(dev))
 		return -ENODEV;
 
-	if ((nr >= DRM_CORE_IOCTL_COUNT) &&
-	    ((nr < DRM_COMMAND_BASE) || (nr >= DRM_COMMAND_END)))
-		goto err_i1;
-	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END) &&
-	    (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
-		u32 drv_size;
+	if (nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END) {
+		/* driver ioctl */
+		if (nr - DRM_COMMAND_BASE >= dev->driver->num_ioctls)
+			goto err_i1;
 		ioctl = &dev->driver->ioctls[nr - DRM_COMMAND_BASE];
-		drv_size = _IOC_SIZE(ioctl->cmd);
-		usize = asize = _IOC_SIZE(cmd);
-		if (drv_size > asize)
-			asize = drv_size;
-		cmd = ioctl->cmd;
-	}
-	else if ((nr >= DRM_COMMAND_END) || (nr < DRM_COMMAND_BASE)) {
-		u32 drv_size;
-
+	} else {
+		/* core ioctl */
+		if (nr >= DRM_CORE_IOCTL_COUNT)
+			goto err_i1;
 		ioctl = &drm_ioctls[nr];
+	}
 
-		drv_size = _IOC_SIZE(ioctl->cmd);
-		usize = asize = _IOC_SIZE(cmd);
-		if (drv_size > asize)
-			asize = drv_size;
-
-		cmd = ioctl->cmd;
-	} else
-		goto err_i1;
+	drv_size = _IOC_SIZE(ioctl->cmd);
+	usize = asize = _IOC_SIZE(cmd);
+	if (drv_size > asize)
+		asize = drv_size;
+	cmd = ioctl->cmd;
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
 		  task_pid_nr(current),
