@@ -212,11 +212,7 @@ static int __init gb_init(void)
 
 	BUILD_BUG_ON(HOST_DEV_CPORT_ID_MAX >= (long)CPORT_ID_BAD);
 
-	retval = gb_debugfs_init();
-	if (retval) {
-		pr_err("debugfs failed\n");
-		return retval;
-	}
+	gb_debugfs_init();
 
 	retval = bus_register(&greybus_bus_type);
 	if (retval) {

@@ -158,7 +158,7 @@ int greybus_disabled(void);
 int greybus_svc_in(struct greybus_host_device *hd, u8 *data, int length);
 int gb_ap_init(void);
 void gb_ap_exit(void);
-int gb_debugfs_init(void);
+void gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
 struct dentry *gb_debugfs_get(void);
 

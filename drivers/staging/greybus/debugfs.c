@@ -15,13 +15,9 @@
 
 static struct dentry *gb_debug_root;
 
-int gb_debugfs_init(void)
+void gb_debugfs_init(void)
 {
 	gb_debug_root = debugfs_create_dir("greybus", NULL);
-	if (!gb_debug_root)
-		return -ENOENT;
-
-	return 0;
 }
 
 void gb_debugfs_cleanup(void)
