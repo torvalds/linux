@@ -1569,8 +1569,8 @@ static void rkclk_cache_parents(struct rkclk *rkclk)
 void rk_dump_cru(void)
 {
 	printk(KERN_WARNING "CRU:\n");
-	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 4, rk_cru_base,
-		       0x220, false);
+	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 32, 4, rk_cru_base,
+		       0x420, false);
 }
 EXPORT_SYMBOL_GPL(rk_dump_cru);
 
