@@ -50,7 +50,6 @@
 
 #include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "mite.h"
 
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
