@@ -18,7 +18,7 @@ export dtbinst-root ?= $(obj)
 
 include include/config/auto.conf
 include scripts/Kbuild.include
-include $(srctree)/$(obj)/Makefile
+include $(obj)/Makefile
 
 PHONY += __dtbs_install_prep
 __dtbs_install_prep:

@@ -51,7 +51,7 @@ obj-$(CONFIG_BINFMT_ELF)	+= elfcore.o
 CFLAGS_traps.o  += -mfixed-range=f2-f5,f16-f31
 
 # The gate DSO image is built using a special linker script.
-include $(srctree)/arch/ia64/kernel/Makefile.gate
+include arch/ia64/kernel/Makefile.gate
 # tell compiled for native
 CPPFLAGS_gate.lds += -D__IA64_GATE_PARAVIRTUALIZED_NATIVE
 
