@@ -899,8 +899,10 @@ void gb_connection_recv(struct gb_connection *connection,
 
 	header = data;
 	msg_size = le16_to_cpu(header->size);
-	if (msg_size > size) {
-		dev_err(&connection->dev, "incomplete message\n");
+	if (size < msg_size) {
+		dev_err(&connection->dev,
+			"incomplete message received: 0x%04x (%zu < %zu)\n",
+			le16_to_cpu(header->operation_id), size, msg_size);
 		return;		/* XXX Should still complete operation */
 	}
 
