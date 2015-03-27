@@ -1777,7 +1777,8 @@ static void pnv_ioda_setup_pe_seg(struct pci_controller *hose,
 				region.start += phb->ioda.io_segsize;
 				index++;
 			}
-		} else if (res->flags & IORESOURCE_MEM) {
+		} else if ((res->flags & IORESOURCE_MEM) &&
+			   !pnv_pci_is_mem_pref_64(res->flags)) {
 			region.start = res->start -
 				       hose->mem_offset[0] -
 				       phb->ioda.m32_pci_base;
