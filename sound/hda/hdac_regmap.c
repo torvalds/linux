@@ -328,6 +328,7 @@ static const struct regmap_config hda_regmap_cfg = {
 	.cache_type = REGCACHE_RBTREE,
 	.reg_read = hda_reg_read,
 	.reg_write = hda_reg_write,
+	.use_single_rw = true,
 };
 
 int snd_hdac_regmap_init(struct hdac_device *codec)
