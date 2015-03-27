@@ -28,6 +28,18 @@
 
 #ifndef __ASSEMBLY__
 
+struct arm64_cpu_capabilities {
+	const char *desc;
+	u16 capability;
+	bool (*matches)(const struct arm64_cpu_capabilities *);
+	union {
+		struct {	/* To be used for erratum handling only */
+			u32 midr_model;
+			u32 midr_range_min, midr_range_max;
+		};
+	};
+};
+
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 
 static inline bool cpu_have_feature(unsigned int num)
@@ -51,7 +63,10 @@ static inline void cpus_set_cap(unsigned int num)
 		__set_bit(num, cpu_hwcaps);
 }
 
+void check_cpu_capabilities(const struct arm64_cpu_capabilities *caps,
+			    const char *info);
 void check_local_cpu_errata(void);
+void check_local_cpu_features(void);
 bool cpu_supports_mixed_endian_el0(void);
 bool system_supports_mixed_endian_el0(void);
 
