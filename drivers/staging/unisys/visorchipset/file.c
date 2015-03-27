@@ -56,18 +56,20 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 	cdev_init(&file_cdev, &visorchipset_fops);
 	file_cdev.owner = THIS_MODULE;
 	if (MAJOR(major_dev) == 0) {
+		rc = alloc_chrdev_region(&major_dev, 0, 1, MYDRVNAME);
 		/* dynamic major device number registration required */
-		if (alloc_chrdev_region(&major_dev, 0, 1, MYDRVNAME) < 0)
-			return -1;
+		if (rc < 0)
+			return rc;
 	} else {
 		/* static major device number registration required */
-		if (register_chrdev_region(major_dev, 1, MYDRVNAME) < 0)
-			return -1;
+		rc = register_chrdev_region(major_dev, 1, MYDRVNAME);
+		if (rc < 0)
+			return rc;
 	}
 	rc = cdev_add(&file_cdev, MKDEV(MAJOR(major_dev), 0), 1);
 	if (rc < 0) {
 		unregister_chrdev_region(major_dev, 1);
-		return -1;
+		return rc;
 	}
 	return 0;
 }
