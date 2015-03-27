@@ -2562,6 +2562,14 @@ static netdev_features_t harmonize_features(struct sk_buff *skb,
 	return features;
 }
 
+netdev_features_t passthru_features_check(struct sk_buff *skb,
+					  struct net_device *dev,
+					  netdev_features_t features)
+{
+	return features;
+}
+EXPORT_SYMBOL(passthru_features_check);
+
 static netdev_features_t dflt_features_check(const struct sk_buff *skb,
 					     struct net_device *dev,
 					     netdev_features_t features)
