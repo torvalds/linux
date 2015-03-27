@@ -567,9 +567,13 @@ EXPORT_SYMBOL_GPL(gb_operation_create);
 
 static struct gb_operation *
 gb_operation_create_incoming(struct gb_connection *connection, u16 id,
-				u8 type, void *data, size_t request_size)
+				u8 type, void *data, size_t size)
 {
 	struct gb_operation *operation;
+	size_t request_size;
+
+	/* Caller has made sure we at least have a message header. */
+	request_size = size - sizeof(struct gb_operation_msg_hdr);
 
 	operation = gb_operation_create_common(connection,
 					GB_OPERATION_TYPE_INVALID,
@@ -577,7 +581,7 @@ gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 	if (operation) {
 		operation->id = id;
 		operation->type = type;
-		memcpy(operation->request->header, data, request_size);
+		memcpy(operation->request->header, data, size);
 	}
 
 	return operation;
