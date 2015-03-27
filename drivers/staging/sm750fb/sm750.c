@@ -131,9 +131,8 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 	}
 
 	cursor->disable(cursor);
-	if (fbcursor->set & FB_CUR_SETSIZE) {
+	if (fbcursor->set & FB_CUR_SETSIZE)
 		cursor->setSize(cursor, fbcursor->image.width, fbcursor->image.height);
-	}
 
 	if (fbcursor->set & FB_CUR_SETPOS) {
 		cursor->setPos(cursor, fbcursor->image.dx - info->var.xoffset,
@@ -162,9 +161,8 @@ static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 				fbcursor->mask);
 	}
 
-	if (fbcursor->enable) {
+	if (fbcursor->enable)
 		cursor->enable(cursor);
-	}
 
 	return 0;
 }
@@ -176,9 +174,8 @@ static void lynxfb_ops_fillrect(struct fb_info *info, const struct fb_fillrect *
 	unsigned int base, pitch, Bpp, rop;
 	u32 color;
 
-	if (info->state != FBINFO_STATE_RUNNING) {
+	if (info->state != FBINFO_STATE_RUNNING)
 		return;
-	}
 
 	par = info->par;
 	share = par->share;
