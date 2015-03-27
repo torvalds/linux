@@ -1050,7 +1050,7 @@ out_delete_threads:
 	return -1;
 }
 
-int perf_evlist__apply_filters(struct perf_evlist *evlist)
+int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel)
 {
 	struct perf_evsel *evsel;
 	int err = 0;
@@ -1062,8 +1062,10 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist)
 			continue;
 
 		err = perf_evsel__set_filter(evsel, ncpus, nthreads, evsel->filter);
-		if (err)
+		if (err) {
+			*err_evsel = evsel;
 			break;
+		}
 	}
 
 	return err;

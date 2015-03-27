@@ -1735,7 +1735,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	}
 
 	if (!trace->summary_only)
-		printed += trace__printf_interrupted_entry(trace, sample);
+		trace__printf_interrupted_entry(trace, sample);
 
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;

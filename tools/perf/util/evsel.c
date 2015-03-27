@@ -1915,7 +1915,7 @@ u64 perf_evsel__intval(struct perf_evsel *evsel, struct perf_sample *sample,
 		value = *(u32 *)ptr;
 		break;
 	case 8:
-		value = *(u64 *)ptr;
+		memcpy(&value, ptr, sizeof(u64));
 		break;
 	default:
 		return 0;

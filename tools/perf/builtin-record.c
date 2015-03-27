@@ -161,8 +161,9 @@ try_again:
 		}
 	}
 
-	if (perf_evlist__apply_filters(evlist)) {
-		error("failed to set filter with %d (%s)\n", errno,
+	if (perf_evlist__apply_filters(evlist, &pos)) {
+		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
+			pos->filter, perf_evsel__name(pos), errno,
 			strerror_r(errno, msg, sizeof(msg)));
 		rc = -1;
 		goto out;
