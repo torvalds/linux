@@ -986,8 +986,8 @@ static void its_cpu_init_lpis(void)
 
 	/* set PENDBASE */
 	val = (page_to_phys(pend_page) |
-	       GICR_PROPBASER_InnerShareable |
-	       GICR_PROPBASER_WaWb);
+	       GICR_PENDBASER_InnerShareable |
+	       GICR_PENDBASER_WaWb);
 
 	writeq_relaxed(val, rbase + GICR_PENDBASER);
 
@@ -1425,7 +1425,7 @@ static int its_probe(struct device_node *node, struct irq_domain *parent)
 	writeq_relaxed(0, its->base + GITS_CWRITER);
 	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
-	if ((tmp ^ baser) & GITS_BASER_SHAREABILITY_MASK) {
+	if ((tmp ^ baser) & GITS_CBASER_SHAREABILITY_MASK) {
 		pr_info("ITS: using cache flushing for cmd queue\n");
 		its->flags |= ITS_FLAGS_CMDQ_NEEDS_FLUSHING;
 	}

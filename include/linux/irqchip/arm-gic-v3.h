@@ -128,6 +128,19 @@
 #define GICR_PROPBASER_RaWaWb		(7U << 7)
 #define GICR_PROPBASER_IDBITS_MASK	(0x1f)
 
+#define GICR_PENDBASER_NonShareable	(0U << 10)
+#define GICR_PENDBASER_InnerShareable	(1U << 10)
+#define GICR_PENDBASER_OuterShareable	(2U << 10)
+#define GICR_PENDBASER_SHAREABILITY_MASK (3UL << 10)
+#define GICR_PENDBASER_nCnB		(0U << 7)
+#define GICR_PENDBASER_nC		(1U << 7)
+#define GICR_PENDBASER_RaWt		(2U << 7)
+#define GICR_PENDBASER_RaWb		(3U << 7)
+#define GICR_PENDBASER_WaWt		(4U << 7)
+#define GICR_PENDBASER_WaWb		(5U << 7)
+#define GICR_PENDBASER_RaWaWt		(6U << 7)
+#define GICR_PENDBASER_RaWaWb		(7U << 7)
+
 /*
  * Re-Distributor registers, offsets from SGI_base
  */
