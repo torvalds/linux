@@ -442,8 +442,8 @@ static int max98925_dai_hw_params(struct snd_pcm_substream *substream,
 	case 24:
 		regmap_update_bits(max98925->regmap,
 				MAX98925_FORMAT,
-				M98925_DAI_CHANSZ_MASK, M98925_DAI_CHANSZ_32);
-		max98925->ch_size = 32;
+				M98925_DAI_CHANSZ_MASK, M98925_DAI_CHANSZ_24);
+		max98925->ch_size = 24;
 		break;
 	case 32:
 		regmap_update_bits(max98925->regmap,
