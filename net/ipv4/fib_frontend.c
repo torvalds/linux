@@ -1176,10 +1176,6 @@ static void ip_fib_net_exit(struct net *net)
 
 	rtnl_lock();
 
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-	fib4_rules_exit(net);
-#endif
-
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[i];
 		struct hlist_node *tmp;
@@ -1212,6 +1208,10 @@ static void ip_fib_net_exit(struct net *net)
 			fib_free_table(tb);
 		}
 	}
+
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	fib4_rules_exit(net);
+#endif
 	rtnl_unlock();
 	kfree(net->ipv4.fib_table_hash);
 }
