@@ -21,6 +21,9 @@
 #include <xen/grant_table.h>
 #include "common.h"
 
+/* Enlarge the array size in order to fully show blkback name. */
+#define BLKBACK_NAME_LEN (20)
+
 struct backend_info {
 	struct xenbus_device	*dev;
 	struct xen_blkif	*blkif;
@@ -70,7 +73,7 @@ static int blkback_name(struct xen_blkif *blkif, char *buf)
 	else
 		devname  = devpath;
 
-	snprintf(buf, TASK_COMM_LEN, "blkback.%d.%s", blkif->domid, devname);
+	snprintf(buf, BLKBACK_NAME_LEN, "blkback.%d.%s", blkif->domid, devname);
 	kfree(devpath);
 
 	return 0;
@@ -79,7 +82,7 @@ static int blkback_name(struct xen_blkif *blkif, char *buf)
 static void xen_update_blkif_status(struct xen_blkif *blkif)
 {
 	int err;
-	char name[TASK_COMM_LEN];
+	char name[BLKBACK_NAME_LEN];
 
 	/* Not ready to connect? */
 	if (!blkif->irq || !blkif->vbd.bdev)
