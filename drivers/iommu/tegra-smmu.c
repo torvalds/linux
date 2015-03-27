@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/iommu.h>
 #include <linux/kernel.h>
@@ -23,6 +24,8 @@ struct tegra_smmu {
 
 	struct tegra_mc *mc;
 	const struct tegra_smmu_soc *soc;
+
+	unsigned long pfn_mask;
 
 	unsigned long *asids;
 	struct mutex lock;
@@ -104,8 +107,6 @@ static inline u32 smmu_readl(struct tegra_smmu *smmu, unsigned long offset)
 
 #define SMMU_PDE_SHIFT 22
 #define SMMU_PTE_SHIFT 12
-
-#define SMMU_PFN_MASK 0x000fffff
 
 #define SMMU_PD_READABLE	(1 << 31)
 #define SMMU_PD_WRITABLE	(1 << 30)
@@ -486,7 +487,7 @@ static u32 *as_get_pte(struct tegra_smmu_as *as, dma_addr_t iova,
 		smmu_flush_tlb_section(smmu, as->id, iova);
 		smmu_flush(smmu);
 	} else {
-		page = pfn_to_page(pd[pde] & SMMU_PFN_MASK);
+		page = pfn_to_page(pd[pde] & smmu->pfn_mask);
 		pt = page_address(page);
 	}
 
@@ -508,7 +509,7 @@ static void as_put_pte(struct tegra_smmu_as *as, dma_addr_t iova)
 	u32 *pd = page_address(as->pd), *pt;
 	struct page *page;
 
-	page = pfn_to_page(pd[pde] & SMMU_PFN_MASK);
+	page = pfn_to_page(pd[pde] & as->smmu->pfn_mask);
 	pt = page_address(page);
 
 	/*
@@ -583,7 +584,7 @@ static phys_addr_t tegra_smmu_iova_to_phys(struct iommu_domain *domain,
 	u32 *pte;
 
 	pte = as_get_pte(as, iova, &page);
-	pfn = *pte & SMMU_PFN_MASK;
+	pfn = *pte & as->smmu->pfn_mask;
 
 	return PFN_PHYS(pfn);
 }
@@ -706,6 +707,10 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 	smmu->soc = soc;
 	smmu->dev = dev;
 	smmu->mc = mc;
+
+	smmu->pfn_mask = BIT_MASK(mc->soc->num_address_bits - PAGE_SHIFT) - 1;
+	dev_dbg(dev, "address bits: %u, PFN mask: %#lx\n",
+		mc->soc->num_address_bits, smmu->pfn_mask);
 
 	value = SMMU_PTC_CONFIG_ENABLE | SMMU_PTC_CONFIG_INDEX_MAP(0x3f);
 
