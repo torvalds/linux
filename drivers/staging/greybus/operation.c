@@ -244,10 +244,9 @@ static void gb_operation_work(struct work_struct *work)
 	struct gb_operation *operation;
 
 	operation = container_of(work, struct gb_operation, work);
-	if (operation->callback) {
-		operation->callback(operation);
-		operation->callback = NULL;
-	}
+
+	operation->callback(operation);
+
 	gb_operation_put(operation);
 }
 
@@ -526,7 +525,6 @@ gb_operation_create_common(struct gb_connection *connection, u8 type,
 	operation->errno = -EBADR;  /* Initial value--means "never set" */
 
 	INIT_WORK(&operation->work, gb_operation_work);
-	operation->callback = NULL;	/* set at submit time */
 	init_completion(&operation->completion);
 	kref_init(&operation->kref);
 
@@ -632,16 +630,12 @@ static void gb_operation_sync_callback(struct gb_operation *operation)
 }
 
 /*
- * Send an operation request message.  The caller has filled in
- * any payload so the request message is ready to go.  If non-null,
- * the callback function supplied will be called when the response
- * message has arrived indicating the operation is complete.  In
- * that case, the callback function is responsible for fetching the
- * result of the operation using gb_operation_result() if desired,
- * and dropping the final reference to (i.e., destroying) the
- * operation.  A null callback function is used for a synchronous
- * request; in that case return from this function won't occur until
- * the operation is complete.
+ * Send an operation request message. The caller has filled in any payload so
+ * the request message is ready to go. The callback function supplied will be
+ * called when the response message has arrived indicating the operation is
+ * complete. In that case, the callback function is responsible for fetching
+ * the result of the operation using gb_operation_result() if desired, and
+ * dropping the initial reference to the operation.
  */
 int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback)
@@ -649,6 +643,9 @@ int gb_operation_request_send(struct gb_operation *operation,
 	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
 	unsigned int cycle;
+
+	if (!callback)
+		return -EINVAL;
 
 	if (connection->state != GB_CONNECTION_STATE_ENABLED)
 		return -ENOTCONN;
@@ -805,10 +802,8 @@ static void gb_connection_recv_request(struct gb_connection *connection,
 	 * request handler to be the operation's callback function.
 	 *
 	 * The last thing the handler does is send a response
-	 * message.  The callback function is then cleared (in
-	 * gb_operation_work()).  The original reference to the
-	 * operation will be dropped when the response has been
-	 * sent.
+	 * message. The original reference to the operation will be
+	 * dropped when the response has been sent.
 	 */
 	operation->callback = gb_operation_request_handle;
 	if (gb_operation_result_set(operation, -EINPROGRESS))
