@@ -817,7 +817,6 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
 		struct se_device *dev, char *page)
 {
 	struct se_node_acl *se_nacl;
-	struct se_lun *lun;
 	struct se_portal_group *se_tpg;
 	struct t10_pr_registration *pr_reg;
 	const struct target_core_fabric_ops *tfo;
@@ -832,7 +831,6 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
 
 	se_nacl = pr_reg->pr_reg_nacl;
 	se_tpg = se_nacl->se_tpg;
-	lun = pr_reg->pr_reg_tg_pt_lun;
 	tfo = se_tpg->se_tpg_tfo;
 
 	len += sprintf(page+len, "SPC-3 Reservation: %s"
@@ -840,9 +838,9 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
 		tfo->tpg_get_wwn(se_tpg));
 	len += sprintf(page+len, "SPC-3 Reservation: Relative Port"
 		" Identifier Tag: %hu %s Portal Group Tag: %hu"
-		" %s Logical Unit: %u\n", lun->lun_sep->sep_rtpi,
+		" %s Logical Unit: %u\n", pr_reg->tg_pt_sep_rtpi,
 		tfo->get_fabric_name(), tfo->tpg_get_tag(se_tpg),
-		tfo->get_fabric_name(), lun->unpacked_lun);
+		tfo->get_fabric_name(), pr_reg->pr_aptpl_target_lun);
 
 out_unlock:
 	spin_unlock(&dev->dev_reservation_lock);

@@ -372,13 +372,14 @@ struct t10_pr_registration {
 	bool isid_present_at_reg;
 	u32 pr_res_mapped_lun;
 	u32 pr_aptpl_target_lun;
+	u16 tg_pt_sep_rtpi;
 	u32 pr_res_generation;
 	u64 pr_reg_bin_isid;
 	u64 pr_res_key;
 	atomic_t pr_res_holders;
 	struct se_node_acl *pr_reg_nacl;
+	/* Used by ALL_TG_PT=1 registration with deve->pr_ref taken */
 	struct se_dev_entry *pr_reg_deve;
-	struct se_lun *pr_reg_tg_pt_lun;
 	struct list_head pr_reg_list;
 	struct list_head pr_reg_abort_list;
 	struct list_head pr_reg_aptpl_list;
@@ -498,7 +499,6 @@ struct se_cmd {
 	struct list_head	se_delayed_node;
 	struct list_head	se_qf_node;
 	struct se_device      *se_dev;
-	struct se_dev_entry   *se_deve;
 	struct se_lun		*se_lun;
 	/* Only used for internal passthrough and legacy TCM fabric modules */
 	struct se_session	*se_sess;
