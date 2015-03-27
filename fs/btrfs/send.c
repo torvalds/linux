@@ -3353,6 +3353,37 @@ out:
 	return ret;
 }
 
+/*
+ * Check if ino ino1 is an ancestor of inode ino2 in the given root.
+ * Return 1 if true, 0 if false and < 0 on error.
+ */
+static int is_ancestor(struct btrfs_root *root,
+		       const u64 ino1,
+		       const u64 ino1_gen,
+		       const u64 ino2,
+		       struct fs_path *fs_path)
+{
+	u64 ino = ino2;
+
+	while (ino > BTRFS_FIRST_FREE_OBJECTID) {
+		int ret;
+		u64 parent;
+		u64 parent_gen;
+
+		fs_path_reset(fs_path);
+		ret = get_first_ref(root, ino, &parent, &parent_gen, fs_path);
+		if (ret < 0) {
+			if (ret == -ENOENT && ino == ino2)
+				ret = 0;
+			return ret;
+		}
+		if (parent == ino1)
+			return parent_gen == ino1_gen ? 1 : 0;
+		ino = parent;
+	}
+	return 0;
+}
+
 static int wait_for_parent_move(struct send_ctx *sctx,
 				struct recorded_ref *parent_ref)
 {
@@ -3374,11 +3405,24 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 	 * Our current directory inode may not yet be renamed/moved because some
 	 * ancestor (immediate or not) has to be renamed/moved first. So find if
 	 * such ancestor exists and make sure our own rename/move happens after
-	 * that ancestor is processed.
+	 * that ancestor is processed to avoid path build infinite loops (done
+	 * at get_cur_path()).
 	 */
 	while (ino > BTRFS_FIRST_FREE_OBJECTID) {
 		if (is_waiting_for_move(sctx, ino)) {
-			ret = 1;
+			/*
+			 * If the current inode is an ancestor of ino in the
+			 * parent root, we need to delay the rename of the
+			 * current inode, otherwise don't delayed the rename
+			 * because we can end up with a circular dependency
+			 * of renames, resulting in some directories never
+			 * getting the respective rename operations issued in
+			 * the send stream or getting into infinite path build
+			 * loops.
+			 */
+			ret = is_ancestor(sctx->parent_root,
+					  sctx->cur_ino, sctx->cur_inode_gen,
+					  ino, path_before);
 			break;
 		}
 
