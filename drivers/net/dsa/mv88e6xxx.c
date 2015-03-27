@@ -707,11 +707,10 @@ int mv88e6xxx_setup_port_common(struct dsa_switch *ds, int port)
 
 	mutex_lock(&ps->smi_mutex);
 
-	/* Port Control 1: disable trunking.  Also, if this is the
-	 * CPU port, enable learn messages to be sent to this port.
+	/* Port Control 1: disable trunking, disable sending
+	 * learning messages to this port.
 	 */
-	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), 0x05,
-				   dsa_is_cpu_port(ds, port) ? 0x8000 : 0x0000);
+	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), 0x05, 0x0000);
 	if (ret)
 		goto abort;
 
