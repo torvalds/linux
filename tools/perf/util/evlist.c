@@ -7,7 +7,6 @@
  * Released under the GPL v2. (and only v2, not any later version)
  */
 #include "util.h"
-#include <api/fs/debugfs.h>
 #include <api/fs/fs.h>
 #include <poll.h>
 #include "cpumap.h"
@@ -1051,7 +1050,7 @@ out_delete_threads:
 	return -1;
 }
 
-int perf_evlist__apply_filters(struct perf_evlist *evlist)
+int perf_evlist__apply_filters(struct perf_evlist *evlist, struct perf_evsel **err_evsel)
 {
 	struct perf_evsel *evsel;
 	int err = 0;
@@ -1063,8 +1062,10 @@ int perf_evlist__apply_filters(struct perf_evlist *evlist)
 			continue;
 
 		err = perf_evsel__set_filter(evsel, ncpus, nthreads, evsel->filter);
-		if (err)
+		if (err) {
+			*err_evsel = evsel;
 			break;
+		}
 	}
 
 	return err;
@@ -1084,6 +1085,38 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 	}
 
 	return err;
+}
+
+int perf_evlist__set_filter_pids(struct perf_evlist *evlist, size_t npids, pid_t *pids)
+{
+	char *filter;
+	int ret = -1;
+	size_t i;
+
+	for (i = 0; i < npids; ++i) {
+		if (i == 0) {
+			if (asprintf(&filter, "common_pid != %d", pids[i]) < 0)
+				return -1;
+		} else {
+			char *tmp;
+
+			if (asprintf(&tmp, "%s && common_pid != %d", filter, pids[i]) < 0)
+				goto out_free;
+
+			free(filter);
+			filter = tmp;
+		}
+	}
+
+	ret = perf_evlist__set_filter(evlist, filter);
+out_free:
+	free(filter);
+	return ret;
+}
+
+int perf_evlist__set_filter_pid(struct perf_evlist *evlist, pid_t pid)
+{
+	return perf_evlist__set_filter_pids(evlist, 1, &pid);
 }
 
 bool perf_evlist__valid_sample_type(struct perf_evlist *evlist)
@@ -1329,7 +1362,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 		 * writing exactly one byte, in workload.cork_fd, usually via
 		 * perf_evlist__start_workload().
 		 *
-		 * For cancelling the workload without actuallin running it,
+		 * For cancelling the workload without actually running it,
 		 * the parent will just close workload.cork_fd, without writing
 		 * anything, i.e. read will return zero and we just exit()
 		 * here.

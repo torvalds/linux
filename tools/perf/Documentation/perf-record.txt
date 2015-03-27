@@ -55,15 +55,17 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
+	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
+	  Each event is separated by commas and the group should be quoted to
+	  prevent the shell interpretation.  You also need to use --group on
+	  "perf report" to view group events together.
+
 --filter=<filter>::
         Event filter.
 
 -a::
 --all-cpus::
         System-wide collection from all CPUs.
-
--l::
-        Scale counter values.
 
 -p::
 --pid=::
@@ -107,6 +109,10 @@ OPTIONS
 	specification with appended unit character - B/K/M/G. The
 	size is rounded up to have nearest pages power of two value.
 
+--group::
+	Put all events in a single event group.  This precedes the --event
+	option and remains only for backward compatibility.  See --event.
+
 -g::
 	Enables call-graph (stack chain/backtrace) recording.
 
@@ -115,13 +121,19 @@ OPTIONS
 	implies -g.
 
 	Allows specifying "fp" (frame pointer) or "dwarf"
-	(DWARF's CFI - Call Frame Information) as the method to collect
+	(DWARF's CFI - Call Frame Information) or "lbr"
+	(Hardware Last Branch Record facility) as the method to collect
 	the information used to show the call graphs.
 
 	In some systems, where binaries are build with gcc
 	--fomit-frame-pointer, using the "fp" method will produce bogus
 	call graphs, using "dwarf", if available (perf tools linked to
 	the libunwind library) should be used instead.
+	Using the "lbr" method doesn't require any compiler options. It
+	will produce call graphs from the hardware LBR registers. The
+	main limition is that it is only available on new Intel
+	platforms, such as Haswell. It can only get user call chain. It
+	doesn't work with branch stack sampling at the same time.
 
 -q::
 --quiet::
@@ -234,6 +246,9 @@ filter out the startup phase of the program, which is often very different.
 Capture machine state (registers) at interrupt, i.e., on counter overflows for
 each sample. List of captured registers depends on the architecture. This option
 is off by default.
+
+--running-time::
+Record running and enabled time for read events (:S)
 
 SEE ALSO
 --------

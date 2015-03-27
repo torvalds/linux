@@ -11,6 +11,7 @@ enum perf_call_graph_mode {
 	CALLCHAIN_NONE,
 	CALLCHAIN_FP,
 	CALLCHAIN_DWARF,
+	CALLCHAIN_LBR,
 	CALLCHAIN_MAX
 };
 

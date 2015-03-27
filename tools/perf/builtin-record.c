@@ -161,8 +161,9 @@ try_again:
 		}
 	}
 
-	if (perf_evlist__apply_filters(evlist)) {
-		error("failed to set filter with %d (%s)\n", errno,
+	if (perf_evlist__apply_filters(evlist, &pos)) {
+		error("failed to set filter \"%s\" on event %s with %d (%s)\n",
+			pos->filter, perf_evsel__name(pos), errno,
 			strerror_r(errno, msg, sizeof(msg)));
 		rc = -1;
 		goto out;
@@ -225,7 +226,7 @@ static int process_buildids(struct record *rec)
 	 */
 	symbol_conf.ignore_vmlinux_buildid = true;
 
-	return perf_session__process_events(session, &rec->tool);
+	return perf_session__process_events(session);
 }
 
 static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
@@ -343,7 +344,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
 
-	session = perf_session__new(file, false, NULL);
+	session = perf_session__new(file, false, tool);
 	if (session == NULL) {
 		pr_err("Perf session creation failed.\n");
 		return -1;
@@ -658,7 +659,7 @@ error:
 
 static void callchain_debug(void)
 {
-	static const char *str[CALLCHAIN_MAX] = { "NONE", "FP", "DWARF" };
+	static const char *str[CALLCHAIN_MAX] = { "NONE", "FP", "DWARF", "LBR" };
 
 	pr_debug("callchain: type %s\n", str[callchain_param.record_mode]);
 
@@ -751,9 +752,9 @@ static struct record record = {
 #define CALLCHAIN_HELP "setup and enables call-graph (stack chain/backtrace) recording: "
 
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-const char record_callchain_help[] = CALLCHAIN_HELP "fp dwarf";
+const char record_callchain_help[] = CALLCHAIN_HELP "fp dwarf lbr";
 #else
-const char record_callchain_help[] = CALLCHAIN_HELP "fp";
+const char record_callchain_help[] = CALLCHAIN_HELP "fp lbr";
 #endif
 
 /*
@@ -839,6 +840,8 @@ struct option __record_options[] = {
 		    "use per-thread mmaps"),
 	OPT_BOOLEAN('I', "intr-regs", &record.opts.sample_intr_regs,
 		    "Sample machine registers on interrupt"),
+	OPT_BOOLEAN(0, "running-time", &record.opts.running_time,
+		    "Record running/enabled time of read (:S) events"),
 	OPT_END()
 };
 

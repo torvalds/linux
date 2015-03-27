@@ -29,7 +29,12 @@ int test__open_syscall_event_on_all_cpus(void)
 
 	evsel = perf_evsel__newtp("syscalls", "sys_enter_open");
 	if (evsel == NULL) {
-		pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
+		if (tracefs_configured())
+			pr_debug("is tracefs mounted on /sys/kernel/tracing?\n");
+		else if (debugfs_configured())
+			pr_debug("is debugfs mounted on /sys/kernel/debug?\n");
+		else
+			pr_debug("Neither tracefs or debugfs is enabled in this kernel\n");
 		goto out_thread_map_delete;
 	}
 

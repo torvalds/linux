@@ -249,6 +249,8 @@ static int report__setup_sample_type(struct report *rep)
 		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
 		    (sample_type & PERF_SAMPLE_STACK_USER))
 			callchain_param.record_mode = CALLCHAIN_DWARF;
+		else if (sample_type & PERF_SAMPLE_BRANCH_STACK)
+			callchain_param.record_mode = CALLCHAIN_LBR;
 		else
 			callchain_param.record_mode = CALLCHAIN_FP;
 	}
@@ -302,7 +304,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 
 	if (rep->mem_mode) {
 		ret += fprintf(fp, "\n# Total weight : %" PRIu64, nr_events);
-		ret += fprintf(fp, "\n# Sort order   : %s", sort_order);
+		ret += fprintf(fp, "\n# Sort order   : %s", sort_order ? : default_mem_sort_order);
 	} else
 		ret += fprintf(fp, "\n# Event count (approx.): %" PRIu64, nr_events);
 	return ret + fprintf(fp, "\n#\n");
@@ -480,7 +482,7 @@ static int __cmd_report(struct report *rep)
 	if (ret)
 		return ret;
 
-	ret = perf_session__process_events(session, &rep->tool);
+	ret = perf_session__process_events(session);
 	if (ret)
 		return ret;
 
@@ -667,6 +669,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "only consider symbols in these dsos"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
 		   "only consider symbols in these comms"),
+	OPT_STRING(0, "pid", &symbol_conf.pid_list_str, "pid[,pid...]",
+		   "only consider symbols in these pids"),
+	OPT_STRING(0, "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
+		   "only consider symbols in these tids"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
 	OPT_STRING(0, "symbol-filter", &report.symbol_filter_str, "filter",
@@ -674,7 +680,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
-	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
+	OPT_STRING_NOEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
 	OPT_BOOLEAN('U', "hide-unresolved", &report.hide_unresolved,
@@ -766,7 +772,7 @@ repeat:
 	 * 0/1 means the user chose a mode.
 	 */
 	if (((branch_mode == -1 && has_br_stack) || branch_mode == 1) &&
-	    branch_call_mode == -1) {
+	    !branch_call_mode) {
 		sort__mode = SORT_MODE__BRANCH;
 		symbol_conf.cumulate_callchain = false;
 	}

@@ -3,6 +3,7 @@
 #include "evsel.h"
 #include "evlist.h"
 #include <api/fs/fs.h>
+#include <api/fs/tracefs.h>
 #include <api/fs/debugfs.h>
 #include "tests.h"
 #include "debug.h"
@@ -1192,11 +1193,19 @@ static int count_tracepoints(void)
 {
 	char events_path[PATH_MAX];
 	struct dirent *events_ent;
+	const char *mountpoint;
 	DIR *events_dir;
 	int cnt = 0;
 
-	scnprintf(events_path, PATH_MAX, "%s/tracing/events",
-		  debugfs_find_mountpoint());
+	mountpoint = tracefs_find_mountpoint();
+	if (mountpoint) {
+		scnprintf(events_path, PATH_MAX, "%s/events",
+			  mountpoint);
+	} else {
+		mountpoint = debugfs_find_mountpoint();
+		scnprintf(events_path, PATH_MAX, "%s/tracing/events",
+			  mountpoint);
+	}
 
 	events_dir = opendir(events_path);
 

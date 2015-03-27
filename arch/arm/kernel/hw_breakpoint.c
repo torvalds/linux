@@ -648,7 +648,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 		 * Per-cpu breakpoints are not supported by our stepping
 		 * mechanism.
 		 */
-		if (!bp->hw.bp_target)
+		if (!bp->hw.target)
 			return -EINVAL;
 
 		/*

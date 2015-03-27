@@ -800,7 +800,7 @@ static int __cmd_script(struct perf_script *script)
 		script->tool.mmap2 = process_mmap2_event;
 	}
 
-	ret = perf_session__process_events(script->session, &script->tool);
+	ret = perf_session__process_events(script->session);
 
 	if (debug_mode)
 		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);
@@ -1562,6 +1562,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING('C', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
 		   "only display events for these comms"),
+	OPT_STRING(0, "pid", &symbol_conf.pid_list_str, "pid[,pid...]",
+		   "only consider symbols in these pids"),
+	OPT_STRING(0, "tid", &symbol_conf.tid_list_str, "tid[,tid...]",
+		   "only consider symbols in these tids"),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
@@ -1572,7 +1576,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show the mmap events"),
 	OPT_END()
 	};
-	const char * const script_usage[] = {
+	const char * const script_subcommands[] = { "record", "report", NULL };
+	const char *script_usage[] = {
 		"perf script [<options>]",
 		"perf script [<options>] record <script> [<record-options>] <command>",
 		"perf script [<options>] report <script> [script-args]",
@@ -1586,7 +1591,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	setup_scripting();
 
-	argc = parse_options(argc, argv, options, script_usage,
+	argc = parse_options_subcommand(argc, argv, options, script_subcommands, script_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	file.path = input_name;

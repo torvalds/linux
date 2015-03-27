@@ -1,0 +1,8 @@
+ex-y += ex.o
+ex-y += a.o
+ex-y += b.o
+ex-y += empty/
+
+libex-y += c.o
+libex-y += d.o
+libex-y += arch/
