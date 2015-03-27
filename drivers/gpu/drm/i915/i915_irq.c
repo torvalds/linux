@@ -1428,7 +1428,7 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 		if (port && dev_priv->hpd_irq_port[port]) {
 			bool long_hpd;
 
-			if (HAS_PCH_SPLIT(dev)) {
+			if (!HAS_GMCH_DISPLAY(dev_priv)) {
 				dig_shift = pch_port_to_hotplug_shift(port);
 				long_hpd = (dig_hotplug_reg >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
 			} else {
