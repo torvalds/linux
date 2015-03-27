@@ -39,7 +39,6 @@
 
 #include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "mite.h"
 #include "ni_tio.h"
 
