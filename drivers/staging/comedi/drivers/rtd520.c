@@ -99,7 +99,6 @@
 
 #include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "plx9080.h"
 
 /*
@@ -733,21 +732,22 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
 					TRIG_TIMER | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -756,32 +756,32 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* Note: these are time periods, not actual rates */
 		if (1 == cmd->chanlist_len) {	/* no scanning */
-			if (cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						      RTD_MAX_SPEED_1)) {
+			if (comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
 						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
-			if (cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
-						      RTD_MIN_SPEED_1)) {
+			if (comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+							 RTD_MIN_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
 						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		} else {
-			if (cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						      RTD_MAX_SPEED)) {
+			if (comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 RTD_MAX_SPEED)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
 						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
-			if (cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
-						      RTD_MIN_SPEED)) {
+			if (comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+							 RTD_MIN_SPEED)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
 						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
@@ -791,32 +791,32 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
+		err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (1 == cmd->chanlist_len) {	/* no scanning */
-			if (cfc_check_trigger_arg_min(&cmd->convert_arg,
-						      RTD_MAX_SPEED_1)) {
+			if (comedi_check_trigger_arg_min(&cmd->convert_arg,
+							 RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
 						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
-			if (cfc_check_trigger_arg_max(&cmd->convert_arg,
-						      RTD_MIN_SPEED_1)) {
+			if (comedi_check_trigger_arg_max(&cmd->convert_arg,
+							 RTD_MIN_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
 						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
 			}
 		} else {
-			if (cfc_check_trigger_arg_min(&cmd->convert_arg,
-						      RTD_MAX_SPEED)) {
+			if (comedi_check_trigger_arg_min(&cmd->convert_arg,
+							 RTD_MAX_SPEED)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
 						CMDF_ROUND_UP);
 				err |= -EINVAL;
 			}
-			if (cfc_check_trigger_arg_max(&cmd->convert_arg,
-						      RTD_MIN_SPEED)) {
+			if (comedi_check_trigger_arg_max(&cmd->convert_arg,
+							 RTD_MIN_SPEED)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
 						CMDF_ROUND_DOWN);
 				err |= -EINVAL;
@@ -825,15 +825,16 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	} else {
 		/* external trigger */
 		/* see above */
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 9);
+		err |= comedi_check_trigger_arg_max(&cmd->convert_arg, 9);
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -843,18 +844,19 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
 		rtd_ns_to_timer(&arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
 		rtd_ns_to_timer(&arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			arg = cmd->convert_arg * cmd->scan_end_arg;
-			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-							 arg);
+			err |= comedi_check_trigger_arg_min(&cmd->
+							    scan_begin_arg,
+							    arg);
 		}
 	}
 
