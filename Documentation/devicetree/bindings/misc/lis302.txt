@@ -46,11 +46,18 @@ Optional properties for all bus drivers:
 				interrupt 2
  - st,wakeup-{x,y,z}-{lo,hi}:	set wakeup condition on x/y/z axis for
 				upper/lower limit
+ - st,wakeup-threshold:		set wakeup threshold
+ - st,wakeup2-{x,y,z}-{lo,hi}:	set wakeup condition on x/y/z axis for
+				upper/lower limit for second wakeup
+				engine.
+ - st,wakeup2-threshold:	set wakeup threshold for second wakeup
+				engine.
  - st,highpass-cutoff-hz=:	1, 2, 4 or 8 for 1Hz, 2Hz, 4Hz or 8Hz of
 				highpass cut-off frequency
  - st,hipass{1,2}-disable:	disable highpass 1/2.
  - st,default-rate=:		set the default rate
- - st,axis-{x,y,z}=:		set the axis to map to the three coordinates
+ - st,axis-{x,y,z}=:		set the axis to map to the three coordinates.
+				Negative values can be used for inverted axis.
  - st,{min,max}-limit-{x,y,z}	set the min/max limits for x/y/z axis
 				(used by self-test)
 
