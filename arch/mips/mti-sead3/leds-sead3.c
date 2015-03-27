@@ -13,8 +13,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#define DRVNAME "sead3-led"
-
 static void sead3_pled_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
@@ -65,7 +63,7 @@ static struct platform_driver sead3_led_driver = {
 	.probe		= sead3_led_probe,
 	.remove		= sead3_led_remove,
 	.driver		= {
-		.name		= DRVNAME,
+		.name		= "sead3-led",
 	},
 };
 
