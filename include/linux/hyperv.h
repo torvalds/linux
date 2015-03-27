@@ -653,8 +653,6 @@ struct vmbus_channel {
 
 	struct hv_device *device_obj;
 
-	struct work_struct work;
-
 	enum vmbus_channel_state state;
 
 	struct vmbus_channel_offer_channel offermsg;
@@ -675,7 +673,6 @@ struct vmbus_channel {
 	struct hv_ring_buffer_info outbound;	/* send to parent */
 	struct hv_ring_buffer_info inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
-	struct workqueue_struct *controlwq;
 
 	struct vmbus_close_msg close_msg;
 

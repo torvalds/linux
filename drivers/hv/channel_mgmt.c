@@ -147,28 +147,7 @@ static struct vmbus_channel *alloc_channel(void)
 	INIT_LIST_HEAD(&channel->sc_list);
 	INIT_LIST_HEAD(&channel->percpu_list);
 
-	channel->controlwq = alloc_workqueue("hv_vmbus_ctl/%d", WQ_MEM_RECLAIM,
-					     1, channel->id);
-	if (!channel->controlwq) {
-		kfree(channel);
-		return NULL;
-	}
-
 	return channel;
-}
-
-/*
- * release_hannel - Release the vmbus channel object itself
- */
-static void release_channel(struct work_struct *work)
-{
-	struct vmbus_channel *channel = container_of(work,
-						     struct vmbus_channel,
-						     work);
-
-	destroy_workqueue(channel->controlwq);
-
-	kfree(channel);
 }
 
 /*
@@ -176,14 +155,7 @@ static void release_channel(struct work_struct *work)
  */
 static void free_channel(struct vmbus_channel *channel)
 {
-
-	/*
-	 * We have to release the channel's workqueue/thread in the vmbus's
-	 * workqueue/thread context
-	 * ie we can't destroy ourselves.
-	 */
-	INIT_WORK(&channel->work, release_channel);
-	queue_work(vmbus_connection.work_queue, &channel->work);
+	kfree(channel);
 }
 
 static void percpu_channel_enq(void *arg)
