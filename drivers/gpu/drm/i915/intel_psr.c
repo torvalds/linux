@@ -133,7 +133,7 @@ static void hsw_psr_setup_vsc(struct intel_dp *intel_dp)
 static void vlv_psr_enable_sink(struct intel_dp *intel_dp)
 {
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
-			   DP_PSR_ENABLE);
+			   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
 }
 
 static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
