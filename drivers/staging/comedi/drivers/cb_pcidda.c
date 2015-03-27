@@ -39,7 +39,6 @@
 
 #include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "8255.h"
 
 #define EEPROM_SIZE	128	/*  number of entries in eeprom */
