@@ -77,9 +77,6 @@
 #include <asm/realmode.h>
 #include <asm/misc.h>
 
-/* State of each CPU */
-DEFINE_PER_CPU(int, cpu_state) = { 0 };
-
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
 EXPORT_SYMBOL(smp_num_siblings);
@@ -257,7 +254,7 @@ static void notrace start_secondary(void *unused)
 	lock_vector_lock();
 	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
-	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	cpu_set_state_online(smp_processor_id());
 	x86_platform.nmi_init();
 
 	/* enable local interrupts */
@@ -948,7 +945,10 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	 */
 	mtrr_save_state();
 
-	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
+	/* x86 CPUs take themselves offline, so delayed offline is OK. */
+	err = cpu_check_up_prepare(cpu);
+	if (err && err != -EBUSY)
+		return err;
 
 	/* the FPU context is blank, nobody can own it */
 	__cpu_disable_lazy_restore(cpu);
@@ -1191,7 +1191,7 @@ void __init native_smp_prepare_boot_cpu(void)
 	switch_to_new_gdt(me);
 	/* already set me in cpu_online_mask in boot_cpu_init() */
 	cpumask_set_cpu(me, cpu_callout_mask);
-	per_cpu(cpu_state, me) = CPU_ONLINE;
+	cpu_set_state_online(me);
 }
 
 void __init native_smp_cpus_done(unsigned int max_cpus)
@@ -1318,13 +1318,9 @@ static void __ref remove_cpu_from_maps(int cpu)
 	numa_remove_cpu(cpu);
 }
 
-static DEFINE_PER_CPU(struct completion, die_complete);
-
 void cpu_disable_common(void)
 {
 	int cpu = smp_processor_id();
-
-	init_completion(&per_cpu(die_complete, smp_processor_id()));
 
 	remove_siblinginfo(cpu);
 
@@ -1349,24 +1345,27 @@ int native_cpu_disable(void)
 	return 0;
 }
 
-void cpu_die_common(unsigned int cpu)
+int common_cpu_die(unsigned int cpu)
 {
-	wait_for_completion_timeout(&per_cpu(die_complete, cpu), HZ);
-}
+	int ret = 0;
 
-void native_cpu_die(unsigned int cpu)
-{
 	/* We don't do anything here: idle task is faking death itself. */
 
-	cpu_die_common(cpu);
-
 	/* They ack this in play_dead() by setting CPU_DEAD */
-	if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
+	if (cpu_wait_death(cpu, 5)) {
 		if (system_state == SYSTEM_RUNNING)
 			pr_info("CPU %u is now offline\n", cpu);
 	} else {
 		pr_err("CPU %u didn't die...\n", cpu);
+		ret = -1;
 	}
+
+	return ret;
+}
+
+void native_cpu_die(unsigned int cpu)
+{
+	common_cpu_die(cpu);
 }
 
 void play_dead_common(void)
@@ -1375,10 +1374,8 @@ void play_dead_common(void)
 	reset_lazy_tlbstate();
 	amd_e400_remove_cpu(raw_smp_processor_id());
 
-	mb();
 	/* Ack it */
-	__this_cpu_write(cpu_state, CPU_DEAD);
-	complete(&per_cpu(die_complete, smp_processor_id()));
+	(void)cpu_report_death();
 
 	/*
 	 * With physical CPU hotplug, we should halt the cpu

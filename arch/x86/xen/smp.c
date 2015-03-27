@@ -90,14 +90,10 @@ static void cpu_bringup(void)
 
 	set_cpu_online(cpu, true);
 
-	this_cpu_write(cpu_state, CPU_ONLINE);
-
-	wmb();
+	cpu_set_state_online(cpu);  /* Implies full memory barrier. */
 
 	/* We can take interrupts now: we're officially "up". */
 	local_irq_enable();
-
-	wmb();			/* make sure everything is out */
 }
 
 /*
@@ -459,7 +455,13 @@ static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 	xen_setup_timer(cpu);
 	xen_init_lock_cpu(cpu);
 
-	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
+	/*
+	 * PV VCPUs are always successfully taken down (see 'while' loop
+	 * in xen_cpu_die()), so -EBUSY is an error.
+	 */
+	rc = cpu_check_up_prepare(cpu);
+	if (rc)
+		return rc;
 
 	/* make sure interrupts start blocked */
 	per_cpu(xen_vcpu, cpu)->evtchn_upcall_mask = 1;
@@ -479,10 +481,8 @@ static int xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 	rc = HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL);
 	BUG_ON(rc);
 
-	while(per_cpu(cpu_state, cpu) != CPU_ONLINE) {
+	while (cpu_report_state(cpu) != CPU_ONLINE)
 		HYPERVISOR_sched_op(SCHEDOP_yield, NULL);
-		barrier();
-	}
 
 	return 0;
 }
@@ -511,11 +511,11 @@ static void xen_cpu_die(unsigned int cpu)
 		schedule_timeout(HZ/10);
 	}
 
-	cpu_die_common(cpu);
-
-	xen_smp_intr_free(cpu);
-	xen_uninit_lock_cpu(cpu);
-	xen_teardown_timer(cpu);
+	if (common_cpu_die(cpu) == 0) {
+		xen_smp_intr_free(cpu);
+		xen_uninit_lock_cpu(cpu);
+		xen_teardown_timer(cpu);
+	}
 }
 
 static void xen_play_dead(void) /* used only with HOTPLUG_CPU */
@@ -747,6 +747,16 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 static int xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc;
+
+	/*
+	 * This can happen if CPU was offlined earlier and
+	 * offlining timed out in common_cpu_die().
+	 */
+	if (cpu_report_state(cpu) == CPU_DEAD_FROZEN) {
+		xen_smp_intr_free(cpu);
+		xen_uninit_lock_cpu(cpu);
+	}
+
 	/*
 	 * xen_smp_intr_init() needs to run before native_cpu_up()
 	 * so that IPI vectors are set up on the booting CPU before
@@ -768,12 +778,6 @@ static int xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	return rc;
 }
 
-static void xen_hvm_cpu_die(unsigned int cpu)
-{
-	xen_cpu_die(cpu);
-	native_cpu_die(cpu);
-}
-
 void __init xen_hvm_smp_init(void)
 {
 	if (!xen_have_vector_callback)
@@ -781,7 +785,7 @@ void __init xen_hvm_smp_init(void)
 	smp_ops.smp_prepare_cpus = xen_hvm_smp_prepare_cpus;
 	smp_ops.smp_send_reschedule = xen_smp_send_reschedule;
 	smp_ops.cpu_up = xen_hvm_cpu_up;
-	smp_ops.cpu_die = xen_hvm_cpu_die;
+	smp_ops.cpu_die = xen_cpu_die;
 	smp_ops.send_call_func_ipi = xen_smp_send_call_function_ipi;
 	smp_ops.send_call_func_single_ipi = xen_smp_send_call_function_single_ipi;
 	smp_ops.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu;

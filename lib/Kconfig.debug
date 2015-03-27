@@ -1180,16 +1180,7 @@ config DEBUG_CREDENTIALS
 menu "RCU Debugging"
 
 config PROVE_RCU
-	bool "RCU debugging: prove RCU correctness"
-	depends on PROVE_LOCKING
-	default n
-	help
-	 This feature enables lockdep extensions that check for correct
-	 use of RCU APIs.  This is currently under development.  Say Y
-	 if you want to debug RCU usage or help work on the PROVE_RCU
-	 feature.
-
-	 Say N if you are unsure.
+	def_bool PROVE_LOCKING
 
 config PROVE_RCU_REPEATEDLY
 	bool "RCU debugging: don't disable PROVE_RCU on first splat"
@@ -1256,6 +1247,30 @@ config RCU_TORTURE_TEST_RUNNABLE
 	  boot (you probably don't).
 	  Say N here if you want the RCU torture tests to start only
 	  after being manually enabled via /proc.
+
+config RCU_TORTURE_TEST_SLOW_INIT
+	bool "Slow down RCU grace-period initialization to expose races"
+	depends on RCU_TORTURE_TEST
+	help
+	  This option makes grace-period initialization block for a
+	  few jiffies between initializing each pair of consecutive
+	  rcu_node structures.	This helps to expose races involving
+	  grace-period initialization, in other words, it makes your
+	  kernel less stable.  It can also greatly increase grace-period
+	  latency, especially on systems with large numbers of CPUs.
+	  This is useful when torture-testing RCU, but in almost no
+	  other circumstance.
+
+	  Say Y here if you want your system to crash and hang more often.
+	  Say N if you want a sane system.
+
+config RCU_TORTURE_TEST_SLOW_INIT_DELAY
+	int "How much to slow down RCU grace-period initialization"
+	range 0 5
+	default 3
+	help
+	  This option specifies the number of jiffies to wait between
+	  each rcu_node structure initialization.
 
 config RCU_CPU_STALL_TIMEOUT
 	int "RCU CPU stall timeout in seconds"
