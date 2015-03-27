@@ -96,8 +96,9 @@ static irqreturn_t mpc_i2c_isr(int irq, void *dev_id)
 		i2c->interrupt = readb(i2c->base + MPC_I2C_SR);
 		writeb(0, i2c->base + MPC_I2C_SR);
 		wake_up(&i2c->queue);
+		return IRQ_HANDLED;
 	}
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 /* Sometimes 9th clock pulse isn't generated, and slave doesn't release
