@@ -248,6 +248,7 @@ GLOBAL(system_call_after_swapgs)
 	pushq_cfi_reg	r10			/* pt_regs->r10 */
 	pushq_cfi_reg	r11			/* pt_regs->r11 */
 	sub	$(6*8),%rsp /* pt_regs->bp,bx,r12-15 not saved */
+	CFI_ADJUST_CFA_OFFSET 6*8
 
 	testl $_TIF_WORK_SYSCALL_ENTRY, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz tracesys
