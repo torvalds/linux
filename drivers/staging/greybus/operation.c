@@ -75,7 +75,7 @@ static DEFINE_SPINLOCK(gb_operations_lock);
  * valid value operation->errno can be set to is -EINPROGRESS,
  * indicating the request has been (or rather is about to be) sent.
  * At that point nobody should be looking at the result until the
- * reponse arrives.
+ * response arrives.
  *
  * The first time the result gets set after the request has been
  * sent, that result "sticks."  That is, if two concurrent threads
