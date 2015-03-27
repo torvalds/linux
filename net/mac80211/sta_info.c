@@ -106,6 +106,16 @@ static void __cleanup_single_sta(struct sta_info *sta)
 		atomic_dec(&ps->num_sta_ps);
 	}
 
+	if (sta->sta.txq[0]) {
+		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
+			struct txq_info *txqi = to_txq_info(sta->sta.txq[i]);
+			int n = skb_queue_len(&txqi->queue);
+
+			ieee80211_purge_tx_queue(&local->hw, &txqi->queue);
+			atomic_sub(n, &sdata->txqs_len[txqi->txq.ac]);
+		}
+	}
+
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		local->total_ps_buffered -= skb_queue_len(&sta->ps_tx_buf[ac]);
 		ieee80211_purge_tx_queue(&local->hw, &sta->ps_tx_buf[ac]);
@@ -218,6 +228,8 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 
 	sta_dbg(sta->sdata, "Destroyed STA %pM\n", sta->sta.addr);
 
+	if (sta->sta.txq[0])
+		kfree(to_txq_info(sta->sta.txq[0]));
 	kfree(rcu_dereference_raw(sta->sta.rates));
 	kfree(sta);
 }
@@ -268,11 +280,12 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 				const u8 *addr, gfp_t gfp)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_hw *hw = &local->hw;
 	struct sta_info *sta;
 	struct timespec uptime;
 	int i;
 
-	sta = kzalloc(sizeof(*sta) + local->hw.sta_data_size, gfp);
+	sta = kzalloc(sizeof(*sta) + hw->sta_data_size, gfp);
 	if (!sta)
 		return NULL;
 
@@ -304,10 +317,24 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
 		ewma_init(&sta->chain_signal_avg[i], 1024, 8);
 
-	if (sta_prepare_rate_control(local, sta, gfp)) {
-		kfree(sta);
-		return NULL;
+	if (local->ops->wake_tx_queue) {
+		void *txq_data;
+		int size = sizeof(struct txq_info) +
+			   ALIGN(hw->txq_data_size, sizeof(void *));
+
+		txq_data = kcalloc(ARRAY_SIZE(sta->sta.txq), size, gfp);
+		if (!txq_data)
+			goto free;
+
+		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
+			struct txq_info *txq = txq_data + i * size;
+
+			ieee80211_init_tx_queue(sdata, sta, txq, i);
+		}
 	}
+
+	if (sta_prepare_rate_control(local, sta, gfp))
+		goto free_txq;
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 		/*
@@ -329,7 +356,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
 		struct ieee80211_supported_band *sband =
-			local->hw.wiphy->bands[ieee80211_get_sdata_band(sdata)];
+			hw->wiphy->bands[ieee80211_get_sdata_band(sdata)];
 		u8 smps = (sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >>
 				IEEE80211_HT_CAP_SM_PS_SHIFT;
 		/*
@@ -354,6 +381,13 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
 
 	return sta;
+
+free_txq:
+	if (sta->sta.txq[0])
+		kfree(to_txq_info(sta->sta.txq[0]));
+free:
+	kfree(sta);
+	return NULL;
 }
 
 static int sta_info_insert_check(struct sta_info *sta)
@@ -623,6 +657,8 @@ static void __sta_info_recalc_tim(struct sta_info *sta, bool ignore_pending)
 
 		indicate_tim |=
 			sta->driver_buffered_tids & tids;
+		indicate_tim |=
+			sta->txq_buffered_tids & tids;
 	}
 
  done:
@@ -1072,7 +1108,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff_head pending;
-	int filtered = 0, buffered = 0, ac;
+	int filtered = 0, buffered = 0, ac, i;
 	unsigned long flags;
 	struct ps_data *ps;
 
@@ -1091,9 +1127,21 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	BUILD_BUG_ON(BITS_TO_LONGS(IEEE80211_NUM_TIDS) > 1);
 	sta->driver_buffered_tids = 0;
+	sta->txq_buffered_tids = 0;
 
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
 		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
+
+	if (sta->sta.txq[0]) {
+		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
+			struct txq_info *txqi = to_txq_info(sta->sta.txq[i]);
+
+			if (!skb_queue_len(&txqi->queue))
+				continue;
+
+			drv_wake_tx_queue(local, txqi);
+		}
+	}
 
 	skb_queue_head_init(&pending);
 
@@ -1276,8 +1324,10 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		/* if we already have frames from software, then we can't also
 		 * release from hardware queues
 		 */
-		if (skb_queue_empty(&frames))
+		if (skb_queue_empty(&frames)) {
 			driver_release_tids |= sta->driver_buffered_tids & tids;
+			driver_release_tids |= sta->txq_buffered_tids & tids;
+		}
 
 		if (driver_release_tids) {
 			/* If the driver has data on more than one TID then
@@ -1448,6 +1498,9 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		sta_info_recalc_tim(sta);
 	} else {
+		unsigned long tids = sta->txq_buffered_tids & driver_release_tids;
+		int tid;
+
 		/*
 		 * We need to release a frame that is buffered somewhere in the
 		 * driver ... it'll have to handle that.
@@ -1467,8 +1520,22 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		 * that the TID(s) became empty before returning here from the
 		 * release function.
 		 * Either way, however, when the driver tells us that the TID(s)
-		 * became empty we'll do the TIM recalculation.
+		 * became empty or we find that a txq became empty, we'll do the
+		 * TIM recalculation.
 		 */
+
+		if (!sta->sta.txq[0])
+			return;
+
+		for (tid = 0; tid < ARRAY_SIZE(sta->sta.txq); tid++) {
+			struct txq_info *txqi = to_txq_info(sta->sta.txq[tid]);
+
+			if (!(tids & BIT(tid)) || skb_queue_len(&txqi->queue))
+				continue;
+
+			sta_info_recalc_tim(sta);
+			break;
+		}
 	}
 }
 

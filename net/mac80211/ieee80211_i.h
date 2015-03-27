@@ -811,6 +811,19 @@ struct mac80211_qos_map {
 	struct rcu_head rcu_head;
 };
 
+enum txq_info_flags {
+	IEEE80211_TXQ_STOP,
+	IEEE80211_TXQ_AMPDU,
+};
+
+struct txq_info {
+	struct sk_buff_head queue;
+	unsigned long flags;
+
+	/* keep last! */
+	struct ieee80211_txq txq;
+};
+
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -853,6 +866,7 @@ struct ieee80211_sub_if_data {
 	bool control_port_no_encrypt;
 	int encrypt_headroom;
 
+	atomic_t txqs_len[IEEE80211_NUM_ACS];
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 	struct mac80211_qos_map __rcu *qos_map;
 
@@ -1450,6 +1464,10 @@ static inline struct ieee80211_local *hw_to_local(
 	return container_of(hw, struct ieee80211_local, hw);
 }
 
+static inline struct txq_info *to_txq_info(struct ieee80211_txq *txq)
+{
+	return container_of(txq, struct txq_info, txq);
+}
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 {
@@ -1906,6 +1924,9 @@ static inline bool ieee80211_can_run_worker(struct ieee80211_local *local)
 	return true;
 }
 
+void ieee80211_init_tx_queue(struct ieee80211_sub_if_data *sdata,
+			     struct sta_info *sta,
+			     struct txq_info *txq, int tid);
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg, u16 status,
 			 const u8 *extra, size_t extra_len, const u8 *bssid,

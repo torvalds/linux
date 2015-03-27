@@ -767,12 +767,22 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
+static __le16 ieee80211_tx_next_seq(struct sta_info *sta, int tid)
+{
+	u16 *seq = &sta->tid_seq[tid];
+	__le16 ret = cpu_to_le16(*seq);
+
+	/* Increase the sequence number. */
+	*seq = (*seq + 0x10) & IEEE80211_SCTL_SEQ;
+
+	return ret;
+}
+
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
-	u16 *seq;
 	u8 *qc;
 	int tid;
 
@@ -823,13 +833,10 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 
 	qc = ieee80211_get_qos_ctl(hdr);
 	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
-	seq = &tx->sta->tid_seq[tid];
 	tx->sta->tx_msdu[tid]++;
 
-	hdr->seq_ctrl = cpu_to_le16(*seq);
-
-	/* Increase the sequence number. */
-	*seq = (*seq + 0x10) & IEEE80211_SCTL_SEQ;
+	if (!tx->sta->sta.txq[0])
+		hdr->seq_ctrl = ieee80211_tx_next_seq(tx->sta, tid);
 
 	return TX_CONTINUE;
 }
@@ -1070,7 +1077,7 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 		 * nothing -- this aggregation session is being started
 		 * but that might still fail with the driver
 		 */
-	} else {
+	} else if (!tx->sta->sta.txq[tid]) {
 		spin_lock(&tx->sta->lock);
 		/*
 		 * Need to re-check now, because we may get here
@@ -1211,13 +1218,102 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	return TX_CONTINUE;
 }
 
+static void ieee80211_drv_tx(struct ieee80211_local *local,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *pubsta,
+			     struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_control control = {
+		.sta = pubsta,
+	};
+	struct ieee80211_txq *txq = NULL;
+	struct txq_info *txqi;
+	u8 ac;
+
+	if (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE)
+		goto tx_normal;
+
+	if (!ieee80211_is_data(hdr->frame_control))
+		goto tx_normal;
+
+	if (pubsta) {
+		u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+
+		txq = pubsta->txq[tid];
+	} else if (vif) {
+		txq = vif->txq;
+	}
+
+	if (!txq)
+		goto tx_normal;
+
+	ac = txq->ac;
+	txqi = to_txq_info(txq);
+	atomic_inc(&sdata->txqs_len[ac]);
+	if (atomic_read(&sdata->txqs_len[ac]) >= local->hw.txq_ac_max_pending)
+		netif_stop_subqueue(sdata->dev, ac);
+
+	skb_queue_tail(&txqi->queue, skb);
+	drv_wake_tx_queue(local, txqi);
+
+	return;
+
+tx_normal:
+	drv_tx(local, &control, skb);
+}
+
+struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
+				     struct ieee80211_txq *txq)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(txq->vif);
+	struct txq_info *txqi = container_of(txq, struct txq_info, txq);
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb = NULL;
+	u8 ac = txq->ac;
+
+	spin_lock_bh(&txqi->queue.lock);
+
+	if (test_bit(IEEE80211_TXQ_STOP, &txqi->flags))
+		goto out;
+
+	skb = __skb_dequeue(&txqi->queue);
+	if (!skb)
+		goto out;
+
+	atomic_dec(&sdata->txqs_len[ac]);
+	if (__netif_subqueue_stopped(sdata->dev, ac))
+		ieee80211_propagate_queue_wake(local, sdata->vif.hw_queue[ac]);
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	if (txq->sta && ieee80211_is_data_qos(hdr->frame_control)) {
+		struct sta_info *sta = container_of(txq->sta, struct sta_info,
+						    sta);
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+		hdr->seq_ctrl = ieee80211_tx_next_seq(sta, txq->tid);
+		if (test_bit(IEEE80211_TXQ_AMPDU, &txqi->flags))
+			info->flags |= IEEE80211_TX_CTL_AMPDU;
+		else
+			info->flags &= ~IEEE80211_TX_CTL_AMPDU;
+	}
+
+out:
+	spin_unlock_bh(&txqi->queue.lock);
+
+	return skb;
+}
+EXPORT_SYMBOL(ieee80211_tx_dequeue);
+
 static bool ieee80211_tx_frags(struct ieee80211_local *local,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
 			       struct sk_buff_head *skbs,
 			       bool txpending)
 {
-	struct ieee80211_tx_control control;
 	struct sk_buff *skb, *tmp;
 	unsigned long flags;
 
@@ -1275,10 +1371,9 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 		info->control.vif = vif;
-		control.sta = sta;
 
 		__skb_unlink(skb, skbs);
-		drv_tx(local, &control, skb);
+		ieee80211_drv_tx(local, vif, sta, skb);
 	}
 
 	return true;

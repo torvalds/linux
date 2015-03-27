@@ -188,6 +188,43 @@ ieee80211_wake_queue_agg(struct ieee80211_sub_if_data *sdata, int tid)
 	__release(agg_queue);
 }
 
+static void
+ieee80211_agg_stop_txq(struct sta_info *sta, int tid)
+{
+	struct ieee80211_txq *txq = sta->sta.txq[tid];
+	struct txq_info *txqi;
+
+	if (!txq)
+		return;
+
+	txqi = to_txq_info(txq);
+
+	/* Lock here to protect against further seqno updates on dequeue */
+	spin_lock_bh(&txqi->queue.lock);
+	set_bit(IEEE80211_TXQ_STOP, &txqi->flags);
+	spin_unlock_bh(&txqi->queue.lock);
+}
+
+static void
+ieee80211_agg_start_txq(struct sta_info *sta, int tid, bool enable)
+{
+	struct ieee80211_txq *txq = sta->sta.txq[tid];
+	struct txq_info *txqi;
+
+	if (!txq)
+		return;
+
+	txqi = to_txq_info(txq);
+
+	if (enable)
+		set_bit(IEEE80211_TXQ_AMPDU, &txqi->flags);
+	else
+		clear_bit(IEEE80211_TXQ_AMPDU, &txqi->flags);
+
+	clear_bit(IEEE80211_TXQ_STOP, &txqi->flags);
+	drv_wake_tx_queue(sta->sdata->local, txqi);
+}
+
 /*
  * splice packets from the STA's pending to the local pending,
  * requires a call to ieee80211_agg_splice_finish later
@@ -247,6 +284,7 @@ static void ieee80211_remove_tid_tx(struct sta_info *sta, int tid)
 	ieee80211_assign_tid_tx(sta, tid, NULL);
 
 	ieee80211_agg_splice_finish(sta->sdata, tid);
+	ieee80211_agg_start_txq(sta, tid, false);
 
 	kfree_rcu(tid_tx, rcu_head);
 }
@@ -418,6 +456,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	 */
 	clear_bit(HT_AGG_STATE_WANT_START, &tid_tx->state);
 
+	ieee80211_agg_stop_txq(sta, tid);
+
 	/*
 	 * Make sure no packets are being processed. This ensures that
 	 * we have a valid starting sequence number and that in-flight
@@ -439,6 +479,8 @@ void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 		ieee80211_assign_tid_tx(sta, tid, NULL);
 		ieee80211_agg_splice_finish(sdata, tid);
 		spin_unlock_bh(&sta->lock);
+
+		ieee80211_agg_start_txq(sta, tid, false);
 
 		kfree_rcu(tid_tx, rcu_head);
 		return;
@@ -669,6 +711,8 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	ieee80211_agg_splice_finish(sta->sdata, tid);
 
 	spin_unlock_bh(&sta->lock);
+
+	ieee80211_agg_start_txq(sta, tid, true);
 }
 
 void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
