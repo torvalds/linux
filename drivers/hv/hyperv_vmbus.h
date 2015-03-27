@@ -685,6 +685,23 @@ struct vmbus_msginfo {
 
 extern struct vmbus_connection vmbus_connection;
 
+enum vmbus_message_handler_type {
+	/* The related handler can sleep. */
+	VMHT_BLOCKING = 0,
+
+	/* The related handler must NOT sleep. */
+	VMHT_NON_BLOCKING = 1,
+};
+
+struct vmbus_channel_message_table_entry {
+	enum vmbus_channel_message_type message_type;
+	enum vmbus_message_handler_type handler_type;
+	void (*message_handler)(struct vmbus_channel_message_header *msg);
+};
+
+extern struct vmbus_channel_message_table_entry
+	channel_message_table[CHANNELMSG_COUNT];
+
 /* General vmbus interface */
 
 struct hv_device *vmbus_device_create(const uuid_le *type,

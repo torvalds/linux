@@ -657,21 +657,36 @@ static void vmbus_on_msg_dpc(unsigned long data)
 	void *page_addr = hv_context.synic_message_page[cpu];
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
+	struct vmbus_channel_message_header *hdr;
+	struct vmbus_channel_message_table_entry *entry;
 	struct onmessage_work_context *ctx;
 
 	while (1) {
-		if (msg->header.message_type == HVMSG_NONE) {
+		if (msg->header.message_type == HVMSG_NONE)
 			/* no msg */
 			break;
-		} else {
+
+		hdr = (struct vmbus_channel_message_header *)msg->u.payload;
+
+		if (hdr->msgtype >= CHANNELMSG_COUNT) {
+			WARN_ONCE(1, "unknown msgtype=%d\n", hdr->msgtype);
+			goto msg_handled;
+		}
+
+		entry = &channel_message_table[hdr->msgtype];
+		if (entry->handler_type	== VMHT_BLOCKING) {
 			ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
 			if (ctx == NULL)
 				continue;
+
 			INIT_WORK(&ctx->work, vmbus_onmessage_work);
 			memcpy(&ctx->msg, msg, sizeof(*msg));
-			queue_work(vmbus_connection.work_queue, &ctx->work);
-		}
 
+			queue_work(vmbus_connection.work_queue, &ctx->work);
+		} else
+			entry->message_handler(hdr);
+
+msg_handled:
 		msg->header.message_type = HVMSG_NONE;
 
 		/*

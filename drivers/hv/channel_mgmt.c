@@ -33,11 +33,6 @@
 
 #include "hyperv_vmbus.h"
 
-struct vmbus_channel_message_table_entry {
-	enum vmbus_channel_message_type message_type;
-	void (*message_handler)(struct vmbus_channel_message_header *msg);
-};
-
 struct vmbus_rescind_work {
 	struct work_struct work;
 	struct vmbus_channel *channel;
@@ -827,25 +822,25 @@ static void vmbus_onversion_response(
 }
 
 /* Channel message dispatch table */
-static struct vmbus_channel_message_table_entry
+struct vmbus_channel_message_table_entry
 	channel_message_table[CHANNELMSG_COUNT] = {
-	{CHANNELMSG_INVALID,			NULL},
-	{CHANNELMSG_OFFERCHANNEL,		vmbus_onoffer},
-	{CHANNELMSG_RESCIND_CHANNELOFFER,	vmbus_onoffer_rescind},
-	{CHANNELMSG_REQUESTOFFERS,		NULL},
-	{CHANNELMSG_ALLOFFERS_DELIVERED,	vmbus_onoffers_delivered},
-	{CHANNELMSG_OPENCHANNEL,		NULL},
-	{CHANNELMSG_OPENCHANNEL_RESULT,	vmbus_onopen_result},
-	{CHANNELMSG_CLOSECHANNEL,		NULL},
-	{CHANNELMSG_GPADL_HEADER,		NULL},
-	{CHANNELMSG_GPADL_BODY,		NULL},
-	{CHANNELMSG_GPADL_CREATED,		vmbus_ongpadl_created},
-	{CHANNELMSG_GPADL_TEARDOWN,		NULL},
-	{CHANNELMSG_GPADL_TORNDOWN,		vmbus_ongpadl_torndown},
-	{CHANNELMSG_RELID_RELEASED,		NULL},
-	{CHANNELMSG_INITIATE_CONTACT,		NULL},
-	{CHANNELMSG_VERSION_RESPONSE,		vmbus_onversion_response},
-	{CHANNELMSG_UNLOAD,			NULL},
+	{CHANNELMSG_INVALID,			0, NULL},
+	{CHANNELMSG_OFFERCHANNEL,		0, vmbus_onoffer},
+	{CHANNELMSG_RESCIND_CHANNELOFFER,	0, vmbus_onoffer_rescind},
+	{CHANNELMSG_REQUESTOFFERS,		0, NULL},
+	{CHANNELMSG_ALLOFFERS_DELIVERED,	1, vmbus_onoffers_delivered},
+	{CHANNELMSG_OPENCHANNEL,		0, NULL},
+	{CHANNELMSG_OPENCHANNEL_RESULT,		1, vmbus_onopen_result},
+	{CHANNELMSG_CLOSECHANNEL,		0, NULL},
+	{CHANNELMSG_GPADL_HEADER,		0, NULL},
+	{CHANNELMSG_GPADL_BODY,			0, NULL},
+	{CHANNELMSG_GPADL_CREATED,		1, vmbus_ongpadl_created},
+	{CHANNELMSG_GPADL_TEARDOWN,		0, NULL},
+	{CHANNELMSG_GPADL_TORNDOWN,		1, vmbus_ongpadl_torndown},
+	{CHANNELMSG_RELID_RELEASED,		0, NULL},
+	{CHANNELMSG_INITIATE_CONTACT,		0, NULL},
+	{CHANNELMSG_VERSION_RESPONSE,		1, vmbus_onversion_response},
+	{CHANNELMSG_UNLOAD,			0, NULL},
 };
 
 /*
