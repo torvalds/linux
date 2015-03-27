@@ -607,7 +607,8 @@ static void _gb_operation_destroy(struct kref *kref)
 	list_del(&operation->links);
 	spin_unlock_irqrestore(&gb_operations_lock, flags);
 
-	gb_operation_message_free(operation->response);
+	if (operation->response)
+		gb_operation_message_free(operation->response);
 	gb_operation_message_free(operation->request);
 
 	kmem_cache_free(gb_operation_cache, operation);
