@@ -390,6 +390,28 @@ static int mv88e6171_get_sset_count(struct dsa_switch *ds)
 	return ARRAY_SIZE(mv88e6171_hw_stats);
 }
 
+static int mv88e6171_get_eee(struct dsa_switch *ds, int port,
+			     struct ethtool_eee *e)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (ps->id == ID_6172)
+		return mv88e6xxx_get_eee(ds, port, e);
+
+	return -EOPNOTSUPP;
+}
+
+static int mv88e6171_set_eee(struct dsa_switch *ds, int port,
+			     struct phy_device *phydev, struct ethtool_eee *e)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	if (ps->id == ID_6172)
+		return mv88e6xxx_set_eee(ds, port, phydev, e);
+
+	return -EOPNOTSUPP;
+}
+
 struct dsa_switch_driver mv88e6171_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
@@ -402,6 +424,8 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 	.get_strings		= mv88e6171_get_strings,
 	.get_ethtool_stats	= mv88e6171_get_ethtool_stats,
 	.get_sset_count		= mv88e6171_get_sset_count,
+	.set_eee		= mv88e6171_set_eee,
+	.get_eee		= mv88e6171_get_eee,
 #ifdef CONFIG_NET_DSA_HWMON
 	.get_temp               = mv88e6xxx_get_temp,
 #endif
