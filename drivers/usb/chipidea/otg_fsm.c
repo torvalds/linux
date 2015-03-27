@@ -660,6 +660,7 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 			if (ci->id_event)
 				ci->id_event = false;
 		} else if (ci->fsm.otg->state == OTG_STATE_B_IDLE) {
+			ci->fsm.b_sess_vld = hw_read_otgsc(ci, OTGSC_BSV);
 			if (ci->fsm.b_sess_vld) {
 				ci->fsm.power_up = 0;
 				/*
