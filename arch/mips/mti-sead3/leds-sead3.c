@@ -18,14 +18,12 @@
 static void sead3_pled_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	pr_debug("sead3_pled_set\n");
 	writel(value, (void __iomem *)0xBF000210);	/* FIXME */
 }
 
 static void sead3_fled_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
-	pr_debug("sead3_fled_set\n");
 	writel(value, (void __iomem *)0xBF000218);	/* FIXME */
 }
 
