@@ -38,7 +38,6 @@ Status: experimental
 
 #include "../comedi_pcmcia.h"
 
-#include "comedi_fc.h"
 #include "comedi_8254.h"
 
 #define DAS16CS_ADC_DATA		0
