@@ -75,6 +75,7 @@ static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_B), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_20G_KR2), 0},
 	/* required last entry */
 	{0, }
 };
@@ -4638,6 +4639,9 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 	switch (vsi->back->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
 		strlcpy(speed, "40 Gbps", SPEED_SIZE);
+		break;
+	case I40E_LINK_SPEED_20GB:
+		strncpy(speed, "20 Gbps", SPEED_SIZE);
 		break;
 	case I40E_LINK_SPEED_10GB:
 		strlcpy(speed, "10 Gbps", SPEED_SIZE);
