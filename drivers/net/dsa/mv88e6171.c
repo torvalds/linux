@@ -17,6 +17,10 @@
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
+/* Switch product IDs */
+#define ID_6171	0x1710
+#define ID_6172	0x1720
+
 static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 {
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
@@ -27,9 +31,9 @@ static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
-		if ((ret & 0xfff0) == 0x1710)
+		if ((ret & 0xfff0) == ID_6171)
 			return "Marvell 88E6171";
-		if ((ret & 0xfff0) == 0x1720)
+		if ((ret & 0xfff0) == ID_6172)
 			return "Marvell 88E6172";
 	}
 
