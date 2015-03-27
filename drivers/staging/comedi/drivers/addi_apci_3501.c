@@ -27,7 +27,6 @@
 #include <linux/sched.h>
 
 #include "../comedi_pci.h"
-#include "comedi_fc.h"
 #include "amcc_s5933.h"
 
 /*
