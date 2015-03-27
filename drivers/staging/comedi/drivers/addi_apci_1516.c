@@ -26,7 +26,6 @@
 
 #include "../comedi_pci.h"
 #include "addi_watchdog.h"
-#include "comedi_fc.h"
 
 /*
  * PCI bar 1 I/O Register map - Digital input/output
