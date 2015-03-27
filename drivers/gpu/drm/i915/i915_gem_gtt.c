@@ -1349,13 +1349,7 @@ err_out:
 
 static int gen6_ppgtt_alloc(struct i915_hw_ppgtt *ppgtt)
 {
-	int ret;
-
-	ret = gen6_ppgtt_allocate_page_directories(ppgtt);
-	if (ret)
-		return ret;
-
-	return 0;
+	return gen6_ppgtt_allocate_page_directories(ppgtt);
 }
 
 static void gen6_scratch_va_range(struct i915_hw_ppgtt *ppgtt,
