@@ -88,6 +88,12 @@ static const u32 hpd_status_i915[HPD_NUM_PINS] = { /* i915 and valleyview are th
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
 };
 
+/* BXT hpd list */
+static const u32 hpd_bxt[HPD_NUM_PINS] = {
+	[HPD_PORT_B] = BXT_DE_PORT_HP_DDIB,
+	[HPD_PORT_C] = BXT_DE_PORT_HP_DDIC
+};
+
 /* IIR can theoretically queue up two events. Be paranoid. */
 #define GEN8_IRQ_RESET_NDX(type, which) do { \
 	I915_WRITE(GEN8_##type##_IMR(which), 0xffffffff); \
@@ -3159,6 +3165,42 @@ static void ibx_hpd_irq_setup(struct drm_device *dev)
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
+static void bxt_hpd_irq_setup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_encoder *intel_encoder;
+	u32 hotplug_port = 0;
+	u32 hotplug_ctrl;
+
+	/* Now, enable HPD */
+	for_each_intel_encoder(dev, intel_encoder) {
+		if (dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark
+				== HPD_ENABLED)
+			hotplug_port |= hpd_bxt[intel_encoder->hpd_pin];
+	}
+
+	/* Mask all HPD control bits */
+	hotplug_ctrl = I915_READ(BXT_HOTPLUG_CTL) & ~BXT_HOTPLUG_CTL_MASK;
+
+	/* Enable requested port in hotplug control */
+	/* TODO: implement (short) HPD support on port A */
+	WARN_ON_ONCE(hotplug_port & BXT_DE_PORT_HP_DDIA);
+	if (hotplug_port & BXT_DE_PORT_HP_DDIB)
+		hotplug_ctrl |= BXT_DDIB_HPD_ENABLE;
+	if (hotplug_port & BXT_DE_PORT_HP_DDIC)
+		hotplug_ctrl |= BXT_DDIC_HPD_ENABLE;
+	I915_WRITE(BXT_HOTPLUG_CTL, hotplug_ctrl);
+
+	/* Unmask DDI hotplug in IMR */
+	hotplug_ctrl = I915_READ(GEN8_DE_PORT_IMR) & ~hotplug_port;
+	I915_WRITE(GEN8_DE_PORT_IMR, hotplug_ctrl);
+
+	/* Enable DDI hotplug in IER */
+	hotplug_ctrl = I915_READ(GEN8_DE_PORT_IER) | hotplug_port;
+	I915_WRITE(GEN8_DE_PORT_IER, hotplug_ctrl);
+	POSTING_READ(GEN8_DE_PORT_IER);
+}
+
 static void ibx_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4279,7 +4321,10 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_uninstall = gen8_irq_uninstall;
 		dev->driver->enable_vblank = gen8_enable_vblank;
 		dev->driver->disable_vblank = gen8_disable_vblank;
-		dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
+		if (HAS_PCH_SPLIT(dev))
+			dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
+		else
+			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev->driver->irq_handler = ironlake_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_reset;
