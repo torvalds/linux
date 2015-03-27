@@ -683,9 +683,8 @@ long drm_ioctl(struct file *filp,
 	}
 
 	drv_size = _IOC_SIZE(ioctl->cmd);
-	usize = asize = _IOC_SIZE(cmd);
-	if (drv_size > asize)
-		asize = drv_size;
+	usize = _IOC_SIZE(cmd);
+	asize = max(usize, drv_size);
 	cmd = ioctl->cmd;
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
