@@ -82,9 +82,6 @@ static const u16 csc_coeff_rgb_in_eitu709[3][4] = {
 
 struct hdmi_vmode {
 	bool mdvi;
-	bool mhsyncpolarity;
-	bool mvsyncpolarity;
-	bool minterlaced;
 	bool mdataenablepolarity;
 
 	unsigned int mpixelclock;
@@ -1023,9 +1020,6 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	struct hdmi_vmode *vmode = &hdmi->hdmi_data.video_mode;
 	int hblank, vblank, h_de_hs, v_de_vs, hsync_len, vsync_len;
 
-	vmode->mhsyncpolarity = !!(mode->flags & DRM_MODE_FLAG_PHSYNC);
-	vmode->mvsyncpolarity = !!(mode->flags & DRM_MODE_FLAG_PVSYNC);
-	vmode->minterlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
 	vmode->mpixelclock = mode->clock * 1000;
 
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
@@ -1035,13 +1029,13 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 		HDMI_FC_INVIDCONF_HDCP_KEEPOUT_ACTIVE :
 		HDMI_FC_INVIDCONF_HDCP_KEEPOUT_INACTIVE);
 
-	inv_val |= (vmode->mvsyncpolarity ?
+	inv_val |= mode->flags & DRM_MODE_FLAG_PVSYNC ?
 		HDMI_FC_INVIDCONF_VSYNC_IN_POLARITY_ACTIVE_HIGH :
-		HDMI_FC_INVIDCONF_VSYNC_IN_POLARITY_ACTIVE_LOW);
+		HDMI_FC_INVIDCONF_VSYNC_IN_POLARITY_ACTIVE_LOW;
 
-	inv_val |= (vmode->mhsyncpolarity ?
+	inv_val |= mode->flags & DRM_MODE_FLAG_PHSYNC ?
 		HDMI_FC_INVIDCONF_HSYNC_IN_POLARITY_ACTIVE_HIGH :
-		HDMI_FC_INVIDCONF_HSYNC_IN_POLARITY_ACTIVE_LOW);
+		HDMI_FC_INVIDCONF_HSYNC_IN_POLARITY_ACTIVE_LOW;
 
 	inv_val |= (vmode->mdataenablepolarity ?
 		HDMI_FC_INVIDCONF_DE_IN_POLARITY_ACTIVE_HIGH :
@@ -1050,13 +1044,13 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	if (hdmi->vic == 39)
 		inv_val |= HDMI_FC_INVIDCONF_R_V_BLANK_IN_OSC_ACTIVE_HIGH;
 	else
-		inv_val |= (vmode->minterlaced ?
+		inv_val |= mode->flags & DRM_MODE_FLAG_INTERLACE ?
 			HDMI_FC_INVIDCONF_R_V_BLANK_IN_OSC_ACTIVE_HIGH :
-			HDMI_FC_INVIDCONF_R_V_BLANK_IN_OSC_ACTIVE_LOW);
+			HDMI_FC_INVIDCONF_R_V_BLANK_IN_OSC_ACTIVE_LOW;
 
-	inv_val |= (vmode->minterlaced ?
+	inv_val |= mode->flags & DRM_MODE_FLAG_INTERLACE ?
 		HDMI_FC_INVIDCONF_IN_I_P_INTERLACED :
-		HDMI_FC_INVIDCONF_IN_I_P_PROGRESSIVE);
+		HDMI_FC_INVIDCONF_IN_I_P_PROGRESSIVE;
 
 	inv_val |= (vmode->mdvi ?
 		HDMI_FC_INVIDCONF_DVI_MODEZ_DVI_MODE :
