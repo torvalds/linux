@@ -137,6 +137,7 @@ struct hsw_priv_data {
 	struct device *dev;
 	enum hsw_pm_state pm_state;
 	struct snd_soc_card *soc_card;
+	struct sst_module_runtime *runtime_waves; /* sound effect module */
 
 	/* page tables */
 	struct snd_dma_buffer dmab[HSW_PCM_COUNT][2];
@@ -902,13 +903,10 @@ static int hsw_pcm_create_modules(struct hsw_priv_data *pdata)
 
 	/* create runtime blocks for module waves */
 	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
-		pcm_data = &pdata->pcm[HSW_PCM_COUNT-1][0];
-		pcm_data->runtime = sst_hsw_runtime_module_create(hsw,
-			SST_HSW_MODULE_WAVES, pcm_data->persistent_offset);
-		if (pcm_data->runtime == NULL)
+		pdata->runtime_waves = sst_hsw_runtime_module_create(hsw,
+			SST_HSW_MODULE_WAVES, 0);
+		if (pdata->runtime_waves == NULL)
 			goto err;
-		pcm_data->persistent_offset =
-			pcm_data->runtime->persistent_offset;
 	}
 
 	return 0;
@@ -933,8 +931,7 @@ static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
 		sst_hsw_runtime_module_free(pcm_data->runtime);
 	}
 	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
-		pcm_data = &pdata->pcm[HSW_PCM_COUNT-1][0];
-		sst_hsw_runtime_module_free(pcm_data->runtime);
+		sst_hsw_runtime_module_free(pdata->runtime_waves);
 	}
 }
 
