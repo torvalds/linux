@@ -308,7 +308,7 @@ enum storvsc_request_type {
  * This is the end of Protocol specific defines.
  */
 
-static int storvsc_ringbuffer_size = (20 * PAGE_SIZE);
+static int storvsc_ringbuffer_size = (256 * PAGE_SIZE);
 
 module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
