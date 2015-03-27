@@ -139,10 +139,12 @@ static int gb_hid_set_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 	memcpy(request->report, buf, len);
 
 	ret = gb_operation_request_send_sync(operation);
-	if (ret)
-		pr_err("%s: operation failed (%d)\n", __func__, ret);
-	else
+	if (ret) {
+		dev_err(&operation->connection->dev,
+			"failed to set report: %d\n", ret);
+	} else {
 		ret = len;
+	}
 
 	gb_operation_destroy(operation);
 	return ret;
@@ -156,18 +158,21 @@ static void gb_hid_irq_handler(u8 type, struct gb_operation *op)
 	int ret, size;
 
 	if (type != GB_HID_TYPE_IRQ_EVENT) {
-		pr_err("unsupported unsolicited request\n");
+		dev_err(&connection->dev,
+			"unsupported unsolicited request\n");
 		return;
 	}
 
 	ret = gb_operation_response_send(op, 0);
-	if (ret)
-		pr_err("%s: error %d sending response status %d\n", __func__,
-		       ret, 0);
+	if (ret) {
+		dev_err(&connection->dev,
+			"failed to send response status %d: %d\n",
+			0, ret);
+	}
 
 	size = request->report[0] | request->report[1] << 8;
 	if (!size) {
-		pr_err("%s: size can't be zero.\n", __func__);
+		dev_err(&connection->dev, "bad report size: %d\n", size);
 		return;
 	}
 
