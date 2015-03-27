@@ -730,17 +730,19 @@ EXPORT_SYMBOL_GPL(gb_operation_request_send_sync);
  */
 int gb_operation_response_send(struct gb_operation *operation, int errno)
 {
+	struct gb_connection *connection = operation->connection;
 	int ret;
 
 	/* Record the result */
 	if (!gb_operation_result_set(operation, errno)) {
-		pr_err("request result already set\n");
+		dev_err(&connection->dev, "request result already set\n");
 		return -EIO;	/* Shouldn't happen */
 	}
 
 	if (!operation->response) {
 		if (!gb_operation_response_alloc(operation, 0)) {
-			pr_err("error allocating response\n");
+			dev_err(&connection->dev,
+				"error allocating response\n");
 			/* XXX Respond with pre-allocated -ENOMEM? */
 			return -ENOMEM;
 		}
@@ -787,8 +789,10 @@ greybus_data_sent(struct greybus_host_device *hd, void *header, int status)
 	 */
 	operation = message->operation;
 	if (message == operation->response) {
-		if (status)
-			pr_err("error %d sending response\n", status);
+		if (status) {
+			dev_err(&operation->connection->dev,
+				"error sending response: %d\n", status);
+		}
 		gb_operation_put(operation);
 	} else if (status) {
 		if (gb_operation_result_set(operation, status))
