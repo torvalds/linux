@@ -629,7 +629,7 @@ Function-specific configfs interface
 The function name to use when creating the function directory is "uac2".
 The uac2 function provides these attributes in its function directory:
 
-	chmask - capture channel mask
+	c_chmask - capture channel mask
 	c_srate - capture sampling rate
 	c_ssize - capture sample size (bytes)
 	p_chmask - playback channel mask
