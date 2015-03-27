@@ -413,6 +413,12 @@ static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 	ggc = connection->private;
 
 	request = op->request;
+
+	if (request->payload_size < sizeof(*event)) {
+		dev_err(ggc->chip.dev, "short event received\n");
+		return;
+	}
+
 	event = request->payload;
 	if (event->which > ggc->line_max) {
 		dev_err(ggc->chip.dev, "invalid hw irq: %d\n", event->which);
