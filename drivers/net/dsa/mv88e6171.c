@@ -292,12 +292,12 @@ static int mv88e6171_setup_port(struct dsa_switch *ds, int p)
 
 static int mv88e6171_setup(struct dsa_switch *ds)
 {
-	struct mv88e6xxx_priv_state *ps = (void *)(ds + 1);
 	int i;
 	int ret;
 
-	mutex_init(&ps->smi_mutex);
-	mutex_init(&ps->stats_mutex);
+	ret = mv88e6xxx_setup_common(ds);
+	if (ret < 0)
+		return ret;
 
 	ret = mv88e6171_switch_reset(ds);
 	if (ret < 0)
@@ -317,8 +317,6 @@ static int mv88e6171_setup(struct dsa_switch *ds)
 		if (ret < 0)
 			return ret;
 	}
-
-	mutex_init(&ps->phy_mutex);
 
 	return 0;
 }

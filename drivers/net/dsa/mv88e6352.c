@@ -385,9 +385,10 @@ static int mv88e6352_setup(struct dsa_switch *ds)
 	int ret;
 	int i;
 
-	mutex_init(&ps->smi_mutex);
-	mutex_init(&ps->stats_mutex);
-	mutex_init(&ps->phy_mutex);
+	ret = mv88e6xxx_setup_common(ds);
+	if (ret < 0)
+		return ret;
+
 	mutex_init(&ps->eeprom_mutex);
 
 	ps->id = REG_READ(REG_PORT(0), 0x03) & 0xfff0;
