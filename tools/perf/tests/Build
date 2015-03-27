@@ -34,7 +34,7 @@ perf-y += kmod-path.o
 
 perf-$(CONFIG_X86) += perf-time-to-tsc.o
 
-ifeq ($(ARCH),$(filter $(ARCH),x86 arm))
+ifeq ($(ARCH),$(filter $(ARCH),x86 arm arm64))
 perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
 endif
 
