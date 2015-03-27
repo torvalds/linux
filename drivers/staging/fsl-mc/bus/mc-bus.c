@@ -730,7 +730,14 @@ static int __init fsl_mc_bus_driver_init(void)
 	if (error < 0)
 		goto error_cleanup_driver;
 
+	error = fsl_mc_allocator_driver_init();
+	if (error < 0)
+		goto error_cleanup_dprc_driver;
+
 	return 0;
+
+error_cleanup_dprc_driver:
+	dprc_driver_exit();
 
 error_cleanup_driver:
 	platform_driver_unregister(&fsl_mc_bus_driver);
@@ -750,6 +757,7 @@ static void __exit fsl_mc_bus_driver_exit(void)
 	if (WARN_ON(!mc_dev_cache))
 		return;
 
+	fsl_mc_allocator_driver_exit();
 	dprc_driver_exit();
 	platform_driver_unregister(&fsl_mc_bus_driver);
 	bus_unregister(&fsl_mc_bus_type);

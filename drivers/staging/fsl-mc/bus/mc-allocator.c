@@ -562,8 +562,12 @@ static struct fsl_mc_driver fsl_mc_allocator_driver = {
 	.remove = fsl_mc_allocator_remove,
 };
 
-module_fsl_mc_driver(fsl_mc_allocator_driver);
+int __init fsl_mc_allocator_driver_init(void)
+{
+	return fsl_mc_driver_register(&fsl_mc_allocator_driver);
+}
 
-MODULE_AUTHOR("Freescale Semiconductor Inc.");
-MODULE_DESCRIPTION("Freescale's MC object device allocator");
-MODULE_LICENSE("GPL");
+void __exit fsl_mc_allocator_driver_exit(void)
+{
+	fsl_mc_driver_unregister(&fsl_mc_allocator_driver);
+}
