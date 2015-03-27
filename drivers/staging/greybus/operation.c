@@ -208,24 +208,27 @@ static void gb_message_cancel(struct gb_message *message)
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
 	struct gb_protocol *protocol = operation->connection->protocol;
+	int status;
 	int ret;
 
 	if (!protocol)
 		return;
 
 	if (protocol->request_recv) {
-		protocol->request_recv(operation->type, operation);
-		return;
+		status = protocol->request_recv(operation->type, operation);
+	} else {
+		dev_err(&operation->connection->dev,
+			"unexpected incoming request type 0x%02hhx\n",
+			operation->type);
+
+		status = -EPROTONOSUPPORT;
 	}
 
-	dev_err(&operation->connection->dev,
-		"unexpected incoming request type 0x%02hhx\n", operation->type);
-
-	ret = gb_operation_response_send(operation, -EPROTONOSUPPORT);
+	ret = gb_operation_response_send(operation, status);
 	if (ret) {
 		dev_err(&operation->connection->dev,
 			"failed to send response %d: %d\n",
-			-EPROTONOSUPPORT, ret);
+			status, ret);
 			return;
 	}
 }
