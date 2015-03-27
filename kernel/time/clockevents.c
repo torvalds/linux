@@ -94,6 +94,57 @@ u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *evt)
 }
 EXPORT_SYMBOL_GPL(clockevent_delta2ns);
 
+static int __clockevents_set_mode(struct clock_event_device *dev,
+				  enum clock_event_mode mode)
+{
+	/* Transition with legacy set_mode() callback */
+	if (dev->set_mode) {
+		/* Legacy callback doesn't support new modes */
+		if (mode > CLOCK_EVT_MODE_RESUME)
+			return -ENOSYS;
+		dev->set_mode(mode, dev);
+		return 0;
+	}
+
+	if (dev->features & CLOCK_EVT_FEAT_DUMMY)
+		return 0;
+
+	/* Transition with new mode-specific callbacks */
+	switch (mode) {
+	case CLOCK_EVT_MODE_UNUSED:
+		/*
+		 * This is an internal state, which is guaranteed to go from
+		 * SHUTDOWN to UNUSED. No driver interaction required.
+		 */
+		return 0;
+
+	case CLOCK_EVT_MODE_SHUTDOWN:
+		return dev->set_mode_shutdown(dev);
+
+	case CLOCK_EVT_MODE_PERIODIC:
+		/* Core internal bug */
+		if (!(dev->features & CLOCK_EVT_FEAT_PERIODIC))
+			return -ENOSYS;
+		return dev->set_mode_periodic(dev);
+
+	case CLOCK_EVT_MODE_ONESHOT:
+		/* Core internal bug */
+		if (!(dev->features & CLOCK_EVT_FEAT_ONESHOT))
+			return -ENOSYS;
+		return dev->set_mode_oneshot(dev);
+
+	case CLOCK_EVT_MODE_RESUME:
+		/* Optional callback */
+		if (dev->set_mode_resume)
+			return dev->set_mode_resume(dev);
+		else
+			return 0;
+
+	default:
+		return -ENOSYS;
+	}
+}
+
 /**
  * clockevents_set_mode - set the operating mode of a clock event device
  * @dev:	device to modify
@@ -105,7 +156,9 @@ void clockevents_set_mode(struct clock_event_device *dev,
 				 enum clock_event_mode mode)
 {
 	if (dev->mode != mode) {
-		dev->set_mode(mode, dev);
+		if (__clockevents_set_mode(dev, mode))
+			return;
+
 		dev->mode = mode;
 
 		/*
@@ -373,6 +426,35 @@ int clockevents_unbind_device(struct clock_event_device *ced, int cpu)
 }
 EXPORT_SYMBOL_GPL(clockevents_unbind);
 
+/* Sanity check of mode transition callbacks */
+static int clockevents_sanity_check(struct clock_event_device *dev)
+{
+	/* Legacy set_mode() callback */
+	if (dev->set_mode) {
+		/* We shouldn't be supporting new modes now */
+		WARN_ON(dev->set_mode_periodic || dev->set_mode_oneshot ||
+			dev->set_mode_shutdown || dev->set_mode_resume);
+		return 0;
+	}
+
+	if (dev->features & CLOCK_EVT_FEAT_DUMMY)
+		return 0;
+
+	/* New mode-specific callbacks */
+	if (!dev->set_mode_shutdown)
+		return -EINVAL;
+
+	if ((dev->features & CLOCK_EVT_FEAT_PERIODIC) &&
+	    !dev->set_mode_periodic)
+		return -EINVAL;
+
+	if ((dev->features & CLOCK_EVT_FEAT_ONESHOT) &&
+	    !dev->set_mode_oneshot)
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * clockevents_register_device - register a clock event device
  * @dev:	device to register
@@ -382,6 +464,8 @@ void clockevents_register_device(struct clock_event_device *dev)
 	unsigned long flags;
 
 	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
+	BUG_ON(clockevents_sanity_check(dev));
+
 	if (!dev->cpumask) {
 		WARN_ON(num_possible_cpus() > 1);
 		dev->cpumask = cpumask_of(smp_processor_id());
@@ -449,7 +533,7 @@ int __clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 		return clockevents_program_event(dev, dev->next_event, false);
 
 	if (dev->mode == CLOCK_EVT_MODE_PERIODIC)
-		dev->set_mode(CLOCK_EVT_MODE_PERIODIC, dev);
+		return __clockevents_set_mode(dev, CLOCK_EVT_MODE_PERIODIC);
 
 	return 0;
 }
