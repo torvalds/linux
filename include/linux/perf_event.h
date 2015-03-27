@@ -53,6 +53,7 @@ struct perf_guest_info_callbacks {
 #include <linux/sysfs.h>
 #include <linux/perf_regs.h>
 #include <linux/workqueue.h>
+#include <linux/cgroup.h>
 #include <asm/local.h>
 
 struct perf_callchain_entry {
@@ -118,9 +119,15 @@ struct hw_perf_event {
 			struct hrtimer	hrtimer;
 		};
 		struct { /* tracepoint */
-			struct task_struct	*tp_target;
 			/* for tp_event->class */
 			struct list_head	tp_list;
+		};
+		struct { /* intel_cqm */
+			int			cqm_state;
+			int			cqm_rmid;
+			struct list_head	cqm_events_entry;
+			struct list_head	cqm_groups_entry;
+			struct list_head	cqm_group_entry;
 		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		struct { /* breakpoint */
@@ -129,12 +136,12 @@ struct hw_perf_event {
 			 * problem hw_breakpoint has with context
 			 * creation and event initalization.
 			 */
-			struct task_struct		*bp_target;
 			struct arch_hw_breakpoint	info;
 			struct list_head		bp_list;
 		};
 #endif
 	};
+	struct task_struct		*target;
 	int				state;
 	local64_t			prev_count;
 	u64				sample_period;
@@ -271,6 +278,11 @@ struct pmu {
 	 */
 	size_t				task_ctx_size;
 
+
+	/*
+	 * Return the count value for a counter.
+	 */
+	u64 (*count)			(struct perf_event *event); /*optional*/
 };
 
 /**
@@ -547,6 +559,35 @@ struct perf_output_handle {
 	int				page;
 };
 
+#ifdef CONFIG_CGROUP_PERF
+
+/*
+ * perf_cgroup_info keeps track of time_enabled for a cgroup.
+ * This is a per-cpu dynamically allocated data structure.
+ */
+struct perf_cgroup_info {
+	u64				time;
+	u64				timestamp;
+};
+
+struct perf_cgroup {
+	struct cgroup_subsys_state	css;
+	struct perf_cgroup_info	__percpu *info;
+};
+
+/*
+ * Must ensure cgroup is pinned (css_get) before calling
+ * this function. In other words, we cannot call this function
+ * if there is no cgroup event for the current CPU context.
+ */
+static inline struct perf_cgroup *
+perf_cgroup_from_task(struct task_struct *task)
+{
+	return container_of(task_css(task, perf_event_cgrp_id),
+			    struct perf_cgroup, css);
+}
+#endif /* CONFIG_CGROUP_PERF */
+
 #ifdef CONFIG_PERF_EVENTS
 
 extern int perf_pmu_register(struct pmu *pmu, const char *name, int type);
@@ -738,6 +779,11 @@ static inline void perf_event_task_sched_out(struct task_struct *prev,
 
 	if (static_key_false(&perf_sched_events.key))
 		__perf_event_task_sched_out(prev, next);
+}
+
+static inline u64 __perf_event_count(struct perf_event *event)
+{
+	return local64_read(&event->count) + atomic64_read(&event->child_count);
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);

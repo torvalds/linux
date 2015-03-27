@@ -34,11 +34,11 @@
 #include <linux/syscalls.h>
 #include <linux/anon_inodes.h>
 #include <linux/kernel_stat.h>
+#include <linux/cgroup.h>
 #include <linux/perf_event.h>
 #include <linux/ftrace_event.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/mm_types.h>
-#include <linux/cgroup.h>
 #include <linux/module.h>
 #include <linux/mman.h>
 #include <linux/compat.h>
@@ -350,32 +350,6 @@ static void perf_ctx_unlock(struct perf_cpu_context *cpuctx,
 }
 
 #ifdef CONFIG_CGROUP_PERF
-
-/*
- * perf_cgroup_info keeps track of time_enabled for a cgroup.
- * This is a per-cpu dynamically allocated data structure.
- */
-struct perf_cgroup_info {
-	u64				time;
-	u64				timestamp;
-};
-
-struct perf_cgroup {
-	struct cgroup_subsys_state	css;
-	struct perf_cgroup_info	__percpu *info;
-};
-
-/*
- * Must ensure cgroup is pinned (css_get) before calling
- * this function. In other words, we cannot call this function
- * if there is no cgroup event for the current CPU context.
- */
-static inline struct perf_cgroup *
-perf_cgroup_from_task(struct task_struct *task)
-{
-	return container_of(task_css(task, perf_event_cgrp_id),
-			    struct perf_cgroup, css);
-}
 
 static inline bool
 perf_cgroup_match(struct perf_event *event)
@@ -3220,7 +3194,10 @@ static void __perf_event_read(void *info)
 
 static inline u64 perf_event_count(struct perf_event *event)
 {
-	return local64_read(&event->count) + atomic64_read(&event->child_count);
+	if (event->pmu->count)
+		return event->pmu->count(event);
+
+	return __perf_event_count(event);
 }
 
 static u64 perf_event_read(struct perf_event *event)
@@ -7149,7 +7126,7 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 		 struct perf_event *group_leader,
 		 struct perf_event *parent_event,
 		 perf_overflow_handler_t overflow_handler,
-		 void *context)
+		 void *context, int cgroup_fd)
 {
 	struct pmu *pmu;
 	struct perf_event *event;
@@ -7204,16 +7181,12 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 
 	if (task) {
 		event->attach_state = PERF_ATTACH_TASK;
-
-		if (attr->type == PERF_TYPE_TRACEPOINT)
-			event->hw.tp_target = task;
-#ifdef CONFIG_HAVE_HW_BREAKPOINT
 		/*
-		 * hw_breakpoint is a bit difficult here..
+		 * XXX pmu::event_init needs to know what task to account to
+		 * and we cannot use the ctx information because we need the
+		 * pmu before we get a ctx.
 		 */
-		else if (attr->type == PERF_TYPE_BREAKPOINT)
-			event->hw.bp_target = task;
-#endif
+		event->hw.target = task;
 	}
 
 	if (!overflow_handler && parent_event) {
@@ -7245,6 +7218,12 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 	if (!has_branch_stack(event))
 		event->attr.branch_sample_type = 0;
 
+	if (cgroup_fd != -1) {
+		err = perf_cgroup_connect(cgroup_fd, event, attr, group_leader);
+		if (err)
+			goto err_ns;
+	}
+
 	pmu = perf_init_event(event);
 	if (!pmu)
 		goto err_ns;
@@ -7268,6 +7247,8 @@ err_pmu:
 		event->destroy(event);
 	module_put(pmu->module);
 err_ns:
+	if (is_cgroup_event(event))
+		perf_detach_cgroup(event);
 	if (event->ns)
 		put_pid_ns(event->ns);
 	kfree(event);
@@ -7486,6 +7467,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	int move_group = 0;
 	int err;
 	int f_flags = O_RDWR;
+	int cgroup_fd = -1;
 
 	/* for future expandability... */
 	if (flags & ~PERF_FLAG_ALL)
@@ -7551,19 +7533,14 @@ SYSCALL_DEFINE5(perf_event_open,
 
 	get_online_cpus();
 
+	if (flags & PERF_FLAG_PID_CGROUP)
+		cgroup_fd = pid;
+
 	event = perf_event_alloc(&attr, cpu, task, group_leader, NULL,
-				 NULL, NULL);
+				 NULL, NULL, cgroup_fd);
 	if (IS_ERR(event)) {
 		err = PTR_ERR(event);
 		goto err_cpus;
-	}
-
-	if (flags & PERF_FLAG_PID_CGROUP) {
-		err = perf_cgroup_connect(pid, event, &attr, group_leader);
-		if (err) {
-			__free_event(event);
-			goto err_cpus;
-		}
 	}
 
 	if (is_sampling_event(event)) {
@@ -7802,7 +7779,7 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 	 */
 
 	event = perf_event_alloc(attr, cpu, task, NULL, NULL,
-				 overflow_handler, context);
+				 overflow_handler, context, -1);
 	if (IS_ERR(event)) {
 		err = PTR_ERR(event);
 		goto err;
@@ -8163,7 +8140,7 @@ inherit_event(struct perf_event *parent_event,
 					   parent_event->cpu,
 					   child,
 					   group_leader, parent_event,
-				           NULL, NULL);
+					   NULL, NULL, -1);
 	if (IS_ERR(child_event))
 		return child_event;
 
