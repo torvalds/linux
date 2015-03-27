@@ -1176,35 +1176,20 @@ static void ip_fib_net_exit(struct net *net)
 
 	rtnl_lock();
 
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	RCU_INIT_POINTER(net->ipv4.fib_local, NULL);
+	RCU_INIT_POINTER(net->ipv4.fib_main, NULL);
+	RCU_INIT_POINTER(net->ipv4.fib_default, NULL);
+#endif
+
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[i];
 		struct hlist_node *tmp;
 		struct fib_table *tb;
 
-		/* this is done in two passes as flushing the table could
-		 * cause it to be reallocated in order to accommodate new
-		 * tnodes at the root as the table shrinks.
-		 */
-		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist)
-			fib_table_flush(tb);
-
 		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist) {
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-			switch (tb->tb_id) {
-			case RT_TABLE_LOCAL:
-				RCU_INIT_POINTER(net->ipv4.fib_local, NULL);
-				break;
-			case RT_TABLE_MAIN:
-				RCU_INIT_POINTER(net->ipv4.fib_main, NULL);
-				break;
-			case RT_TABLE_DEFAULT:
-				RCU_INIT_POINTER(net->ipv4.fib_default, NULL);
-				break;
-			default:
-				break;
-			}
-#endif
 			hlist_del(&tb->tb_hlist);
+			fib_table_flush(tb);
 			fib_free_table(tb);
 		}
 	}
