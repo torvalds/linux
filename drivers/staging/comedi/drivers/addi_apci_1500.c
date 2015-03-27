@@ -25,7 +25,6 @@
 #include <linux/interrupt.h>
 
 #include "../comedi_pci.h"
-#include "comedi_fc.h"
 #include "amcc_s5933.h"
 #include "z8536.h"
 
@@ -385,11 +384,11 @@ static int apci1500_di_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_NONE);
 
 	if (err)
 		return 1;
@@ -414,12 +413,13 @@ static int apci1500_di_cmdtest(struct comedi_device *dev,
 	 *   3	OR mode for Port A (digital inputs 0-7)
 	 *	OR mode for Port B (digital inputs 8-13 and internal signals)
 	 */
-	err |= cfc_check_trigger_arg_max(&cmd->start_arg, 3);
+	err |= comedi_check_trigger_arg_max(&cmd->start_arg, 3);
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -513,11 +513,11 @@ static int apci1500_di_cfg_trig(struct comedi_device *dev,
 
 		src = pt & 0xff;
 		if (src)
-			ret |= cfc_check_trigger_is_unique(src);
+			ret |= comedi_check_trigger_is_unique(src);
 
 		src = (pt >> 8) & 0xff;
 		if (src)
-			ret |= cfc_check_trigger_is_unique(src);
+			ret |= comedi_check_trigger_is_unique(src);
 
 		if (ret) {
 			dev_dbg(dev->class_dev,
