@@ -344,6 +344,10 @@ struct module {
 	unsigned long *ftrace_callsites;
 #endif
 
+#ifdef CONFIG_LIVEPATCH
+	bool klp_alive;
+#endif
+
 #ifdef CONFIG_MODULE_UNLOAD
 	/* What modules depend on me? */
 	struct list_head source_list;

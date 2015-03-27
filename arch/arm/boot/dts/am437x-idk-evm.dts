@@ -133,20 +133,6 @@
 		>;
 	};
 
-	i2c1_pins_default: i2c1_pins_default {
-		pinctrl-single,pins = <
-			0x15c (PIN_INPUT | SLEWCTRL_FAST | MUX_MODE2) /* spi0_cs0.i2c1_scl */
-			0x158 (PIN_INPUT | SLEWCTRL_FAST | MUX_MODE2) /* spi0_d1.i2c1_sda */
-		>;
-	};
-
-	i2c1_pins_sleep: i2c1_pins_sleep {
-		pinctrl-single,pins = <
-			0x15c (PIN_INPUT_PULLDOWN | MUX_MODE7) /* spi0_cs0.i2c1_scl */
-			0x158 (PIN_INPUT_PULLDOWN | MUX_MODE7) /* spi0_d1.i2c1_sda */
-		>;
-	};
-
 	mmc1_pins_default: pinmux_mmc1_pins_default {
 		pinctrl-single,pins = <
 			0x100 (PIN_INPUT | MUX_MODE0) /* mmc0_clk.mmc0_clk */
@@ -254,7 +240,7 @@
 	status = "okay";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c0_pins_default>;
-	pinctrl-1 = <&i2c0_pins_default>;
+	pinctrl-1 = <&i2c0_pins_sleep>;
 	clock-frequency = <400000>;
 
 	at24@50 {
@@ -262,17 +248,10 @@
 		pagesize = <64>;
 		reg = <0x50>;
 	};
-};
-
-&i2c1 {
-	status = "okay";
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&i2c1_pins_default>;
-	pinctrl-1 = <&i2c1_pins_default>;
-	clock-frequency = <400000>;
 
 	tps: tps62362@60 {
 		compatible = "ti,tps62362";
+		reg = <0x60>;
 		regulator-name = "VDD_MPU";
 		regulator-min-microvolt = <950000>;
 		regulator-max-microvolt = <1330000>;

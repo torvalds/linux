@@ -2110,7 +2110,8 @@ static int __init intel_opregion_present(void)
 
 int acpi_video_register(void)
 {
-	int result = 0;
+	int ret;
+
 	if (register_count) {
 		/*
 		 * if the function of acpi_video_register is already called,
@@ -2122,9 +2123,9 @@ int acpi_video_register(void)
 	mutex_init(&video_list_lock);
 	INIT_LIST_HEAD(&video_bus_head);
 
-	result = acpi_bus_register_driver(&acpi_video_bus);
-	if (result < 0)
-		return -ENODEV;
+	ret = acpi_bus_register_driver(&acpi_video_bus);
+	if (ret)
+		return ret;
 
 	/*
 	 * When the acpi_video_bus is loaded successfully, increase
@@ -2176,6 +2177,17 @@ EXPORT_SYMBOL(acpi_video_unregister_backlight);
 
 static int __init acpi_video_init(void)
 {
+	/*
+	 * Let the module load even if ACPI is disabled (e.g. due to
+	 * a broken BIOS) so that i915.ko can still be loaded on such
+	 * old systems without an AcpiOpRegion.
+	 *
+	 * acpi_video_register() will report -ENODEV later as well due
+	 * to acpi_disabled when i915.ko tries to register itself afterwards.
+	 */
+	if (acpi_disabled)
+		return 0;
+
 	dmi_check_system(video_dmi_table);
 
 	if (intel_opregion_present())

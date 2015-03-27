@@ -520,6 +520,7 @@ struct bcmgenet_hw_params {
 
 struct bcmgenet_tx_ring {
 	spinlock_t	lock;		/* ring lock */
+	struct napi_struct napi;	/* NAPI per tx queue */
 	unsigned int	index;		/* ring index */
 	unsigned int	queue;		/* queue index */
 	struct enet_cb	*cbs;		/* tx ring buffer control block*/
@@ -534,6 +535,7 @@ struct bcmgenet_tx_ring {
 			   struct bcmgenet_tx_ring *);
 	void (*int_disable)(struct bcmgenet_priv *priv,
 			    struct bcmgenet_tx_ring *);
+	struct bcmgenet_priv *priv;
 };
 
 /* device context */

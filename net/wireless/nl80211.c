@@ -2654,10 +2654,6 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 			return err;
 	}
 
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
 	err = parse_monitor_flags(type == NL80211_IFTYPE_MONITOR ?
 				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,
 				  &flags);
@@ -2665,6 +2661,10 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	if (!err && (flags & MONITOR_FLAG_ACTIVE) &&
 	    !(rdev->wiphy.features & NL80211_FEATURE_ACTIVE_MONITOR))
 		return -EOPNOTSUPP;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
 
 	wdev = rdev_add_virtual_intf(rdev,
 				nla_data(info->attrs[NL80211_ATTR_IFNAME]),
@@ -4399,6 +4399,16 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
+
+	/* HT/VHT requires QoS, but if we don't have that just ignore HT/VHT
+	 * as userspace might just pass through the capabilities from the IEs
+	 * directly, rather than enforcing this restriction and returning an
+	 * error in this case.
+	 */
+	if (!(params.sta_flags_set & BIT(NL80211_STA_FLAG_WME))) {
+		params.ht_capa = NULL;
+		params.vht_capa = NULL;
+	}
 
 	/* When you run into this, adjust the code below for the new flag */
 	BUILD_BUG_ON(NL80211_STA_FLAG_MAX != 7);
@@ -12528,9 +12538,7 @@ static int cfg80211_net_detect_results(struct sk_buff *msg,
 			}
 
 			for (j = 0; j < match->n_channels; j++) {
-				if (nla_put_u32(msg,
-						NL80211_ATTR_WIPHY_FREQ,
-						match->channels[j])) {
+				if (nla_put_u32(msg, j, match->channels[j])) {
 					nla_nest_cancel(msg, nl_freqs);
 					nla_nest_cancel(msg, nl_match);
 					goto out;

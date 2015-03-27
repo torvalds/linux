@@ -713,6 +713,9 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&l4_sp_clk>;
+			dmas = <&pdma 28>,
+			       <&pdma 29>;
+			dma-names = "tx", "rx";
 		};
 
 		uart1: serial1@ffc03000 {
@@ -722,6 +725,9 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clocks = <&l4_sp_clk>;
+			dmas = <&pdma 30>,
+			       <&pdma 31>;
+			dma-names = "tx", "rx";
 		};
 
 		rst: rstmgr@ffd05000 {

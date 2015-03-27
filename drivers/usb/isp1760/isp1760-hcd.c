@@ -1274,7 +1274,7 @@ static void errata2_function(unsigned long data)
 	for (slot = 0; slot < 32; slot++)
 		if (priv->atl_slots[slot].qh && time_after(jiffies,
 					priv->atl_slots[slot].timestamp +
-					SLOT_TIMEOUT * HZ / 1000)) {
+					msecs_to_jiffies(SLOT_TIMEOUT))) {
 			ptd_read(hcd->regs, ATL_PTD_OFFSET, slot, &ptd);
 			if (!FROM_DW0_VALID(ptd.dw0) &&
 					!FROM_DW3_ACTIVE(ptd.dw3))
@@ -1286,7 +1286,7 @@ static void errata2_function(unsigned long data)
 
 	spin_unlock_irqrestore(&priv->lock, spinflags);
 
-	errata2_timer.expires = jiffies + SLOT_CHECK_PERIOD * HZ / 1000;
+	errata2_timer.expires = jiffies + msecs_to_jiffies(SLOT_CHECK_PERIOD);
 	add_timer(&errata2_timer);
 }
 
@@ -1336,7 +1336,7 @@ static int isp1760_run(struct usb_hcd *hcd)
 		return retval;
 
 	setup_timer(&errata2_timer, errata2_function, (unsigned long)hcd);
-	errata2_timer.expires = jiffies + SLOT_CHECK_PERIOD * HZ / 1000;
+	errata2_timer.expires = jiffies + msecs_to_jiffies(SLOT_CHECK_PERIOD);
 	add_timer(&errata2_timer);
 
 	chipid = reg_read32(hcd->regs, HC_CHIP_ID_REG);

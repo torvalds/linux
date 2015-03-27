@@ -738,8 +738,9 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	struct rpc_xprt *xprt = rep->rr_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	__be32 *iptr;
-	int credits, rdmalen, status;
+	int rdmalen, status;
 	unsigned long cwnd;
+	u32 credits;
 
 	/* Check status. If bad, signal disconnect and return rep to pool */
 	if (rep->rr_len == ~0U) {

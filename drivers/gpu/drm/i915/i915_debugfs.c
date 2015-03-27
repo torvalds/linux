@@ -152,12 +152,12 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 			seq_puts(m, " (pp");
 		else
 			seq_puts(m, " (g");
-		seq_printf(m, "gtt offset: %08lx, size: %08lx, type: %u)",
+		seq_printf(m, "gtt offset: %08llx, size: %08llx, type: %u)",
 			   vma->node.start, vma->node.size,
 			   vma->ggtt_view.type);
 	}
 	if (obj->stolen)
-		seq_printf(m, " (stolen: %08lx)", obj->stolen->start);
+		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
 	if (obj->pin_mappable || obj->fault_mappable) {
 		char s[3], *t = s;
 		if (obj->pin_mappable)

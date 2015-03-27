@@ -214,9 +214,9 @@
 	INTEL_VGA_DEVICE((((gt) - 1) << 4) | (id), info)
 
 #define _INTEL_BDW_M_IDS(gt, info) \
-	_INTEL_BDW_M(gt, 0x1602, info), /* ULT */ \
+	_INTEL_BDW_M(gt, 0x1602, info), /* Halo */ \
 	_INTEL_BDW_M(gt, 0x1606, info), /* ULT */ \
-	_INTEL_BDW_M(gt, 0x160B, info), /* Iris */ \
+	_INTEL_BDW_M(gt, 0x160B, info), /* ULT */ \
 	_INTEL_BDW_M(gt, 0x160E, info) /* ULX */
 
 #define _INTEL_BDW_D_IDS(gt, info) \

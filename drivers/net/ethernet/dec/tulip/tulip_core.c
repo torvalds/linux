@@ -589,7 +589,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 			       (unsigned int)tp->rx_ring[i].buffer1,
 			       (unsigned int)tp->rx_ring[i].buffer2,
 			       buf[0], buf[1], buf[2]);
-			for (j = 0; buf[j] != 0xee && j < 1600; j++)
+			for (j = 0; ((j < 1600) && buf[j] != 0xee); j++)
 				if (j < 100)
 					pr_cont(" %02x", buf[j]);
 			pr_cont(" j=%d\n", j);
