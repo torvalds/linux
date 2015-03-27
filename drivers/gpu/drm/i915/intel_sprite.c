@@ -1134,30 +1134,6 @@ out_unlock:
 	return ret;
 }
 
-int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
-{
-	struct drm_intel_sprite_colorkey *get = data;
-	struct drm_plane *plane;
-	struct intel_plane *intel_plane;
-	int ret = 0;
-
-	drm_modeset_lock_all(dev);
-
-	plane = drm_plane_find(dev, get->plane_id);
-	if (!plane) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
-
-	intel_plane = to_intel_plane(plane);
-	*get = intel_plane->ckey;
-
-out_unlock:
-	drm_modeset_unlock_all(dev);
-	return ret;
-}
-
 int intel_plane_restore(struct drm_plane *plane)
 {
 	if (!plane->crtc || !plane->state->fb)
