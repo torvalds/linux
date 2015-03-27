@@ -71,18 +71,7 @@ static struct platform_driver sead3_led_driver = {
 	},
 };
 
-static int __init sead3_led_init(void)
-{
-	return platform_driver_register(&sead3_led_driver);
-}
-
-static void __exit sead3_led_exit(void)
-{
-	platform_driver_unregister(&sead3_led_driver);
-}
-
-module_init(sead3_led_init);
-module_exit(sead3_led_exit);
+module_platform_driver(sead3_led_driver);
 
 MODULE_AUTHOR("Kristian Kielhofner <kris@krisk.org>");
 MODULE_DESCRIPTION("SEAD3 LED driver");
