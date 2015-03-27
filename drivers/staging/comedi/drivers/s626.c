@@ -67,7 +67,6 @@
 
 #include "../comedi_pci.h"
 
-#include "comedi_fc.h"
 #include "s626.h"
 
 struct s626_buffer_dma {
@@ -2115,24 +2114,24 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src,
-				     TRIG_NOW | TRIG_INT | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
-				     TRIG_TIMER | TRIG_EXT | TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->convert_src,
-				     TRIG_TIMER | TRIG_EXT | TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src,
+					TRIG_NOW | TRIG_INT | TRIG_EXT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_EXT | TRIG_FOLLOW);
+	err |= comedi_check_trigger_src(&cmd->convert_src,
+					TRIG_TIMER | TRIG_EXT | TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= comedi_check_trigger_is_unique(cmd->convert_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -2144,49 +2143,53 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	switch (cmd->start_src) {
 	case TRIG_NOW:
 	case TRIG_INT:
-		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
-		err |= cfc_check_trigger_arg_max(&cmd->start_arg, 39);
+		err |= comedi_check_trigger_arg_max(&cmd->start_arg, 39);
 		break;
 	}
 
 	if (cmd->scan_begin_src == TRIG_EXT)
-		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 39);
+		err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg, 39);
 	if (cmd->convert_src == TRIG_EXT)
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 39);
+		err |= comedi_check_trigger_arg_max(&cmd->convert_arg, 39);
 
 #define S626_MAX_SPEED	200000	/* in nanoseconds */
 #define S626_MIN_SPEED	2000000000	/* in nanoseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 S626_MAX_SPEED);
-		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
-						 S626_MIN_SPEED);
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    S626_MAX_SPEED);
+		err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg,
+						    S626_MIN_SPEED);
 	} else {
-		/* external trigger */
-		/* should be level/edge, hi/lo specification here */
-		/* should specify multiple external triggers */
-		/* err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9); */
+		/*
+		 * external trigger
+		 * should be level/edge, hi/lo specification here
+		 * should specify multiple external triggers
+		 * err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
+		 */
 	}
 	if (cmd->convert_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 S626_MAX_SPEED);
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
-						 S626_MIN_SPEED);
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg,
+						    S626_MAX_SPEED);
+		err |= comedi_check_trigger_arg_max(&cmd->convert_arg,
+						    S626_MIN_SPEED);
 	} else {
-		/* external trigger */
-		/* see above */
-		/* err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9); */
+		/*
+		 * external trigger - see above
+		 * err |= comedi_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
+		 */
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -2196,18 +2199,19 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
 		s626_ns_to_timer(&arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
 		s626_ns_to_timer(&arg, cmd->flags);
-		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+		err |= comedi_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			arg = cmd->convert_arg * cmd->scan_end_arg;
-			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-							 arg);
+			err |= comedi_check_trigger_arg_min(&cmd->
+							    scan_begin_arg,
+							    arg);
 		}
 	}
 
