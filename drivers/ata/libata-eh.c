@@ -1852,6 +1852,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		ata_dev_dbg(dev, "NCQ Autosense %02x/%02x/%02x\n",
 			    sense_key, asc, ascq);
 		ata_scsi_set_sense(qc->scsicmd, sense_key, asc, ascq);
+		ata_scsi_set_sense_information(qc->scsicmd, &qc->result_tf);
 		qc->flags |= ATA_QCFLAG_SENSE_VALID;
 	}
 
@@ -1894,6 +1895,8 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 			tmp = ata_eh_request_sense(qc, qc->scsicmd);
 			if (tmp)
 				qc->err_mask |= tmp;
+			else
+				ata_scsi_set_sense_information(qc->scsicmd, tf);
 		} else {
 			ata_dev_warn(qc->dev, "sense data available but port frozen\n");
 		}
