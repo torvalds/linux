@@ -126,6 +126,7 @@
 #define GICR_PROPBASER_WaWb		(5U << 7)
 #define GICR_PROPBASER_RaWaWt		(6U << 7)
 #define GICR_PROPBASER_RaWaWb		(7U << 7)
+#define GICR_PROPBASER_CACHEABILITY_MASK (7U << 7)
 #define GICR_PROPBASER_IDBITS_MASK	(0x1f)
 
 #define GICR_PENDBASER_NonShareable	(0U << 10)
@@ -140,6 +141,7 @@
 #define GICR_PENDBASER_WaWb		(5U << 7)
 #define GICR_PENDBASER_RaWaWt		(6U << 7)
 #define GICR_PENDBASER_RaWaWb		(7U << 7)
+#define GICR_PENDBASER_CACHEABILITY_MASK (7U << 7)
 
 /*
  * Re-Distributor registers, offsets from SGI_base
@@ -195,6 +197,7 @@
 #define GITS_CBASER_WaWb		(5UL << 59)
 #define GITS_CBASER_RaWaWt		(6UL << 59)
 #define GITS_CBASER_RaWaWb		(7UL << 59)
+#define GITS_CBASER_CACHEABILITY_MASK	(7UL << 59)
 #define GITS_CBASER_NonShareable	(0UL << 10)
 #define GITS_CBASER_InnerShareable	(1UL << 10)
 #define GITS_CBASER_OuterShareable	(2UL << 10)
@@ -211,6 +214,7 @@
 #define GITS_BASER_WaWb			(5UL << 59)
 #define GITS_BASER_RaWaWt		(6UL << 59)
 #define GITS_BASER_RaWaWb		(7UL << 59)
+#define GITS_BASER_CACHEABILITY_MASK	(7UL << 59)
 #define GITS_BASER_TYPE_SHIFT		(56)
 #define GITS_BASER_TYPE(r)		(((r) >> GITS_BASER_TYPE_SHIFT) & 7)
 #define GITS_BASER_ENTRY_SIZE_SHIFT	(48)
