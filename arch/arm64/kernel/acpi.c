@@ -181,7 +181,8 @@ acpi_parse_gic_cpu_interface(struct acpi_subtable_header *header,
 		return -EINVAL;
 
 	acpi_table_print_madt_entry(header);
-	return acpi_map_gic_cpu_interface(processor);
+	acpi_map_gic_cpu_interface(processor);
+	return 0;
 }
 
 /* Parse GIC cpu interface entries in MADT for SMP init */
