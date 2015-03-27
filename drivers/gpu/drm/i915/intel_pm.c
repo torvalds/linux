@@ -94,6 +94,11 @@ static void skl_init_clock_gating(struct drm_device *dev)
 			   GEN8_LQSC_RO_PERF_DIS);
 }
 
+static void bxt_init_clock_gating(struct drm_device *dev)
+{
+	gen9_init_clock_gating(dev);
+}
+
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6548,7 +6553,12 @@ void intel_init_pm(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 9) {
 		skl_setup_wm_latency(dev);
 
-		dev_priv->display.init_clock_gating = skl_init_clock_gating;
+		if (IS_BROXTON(dev))
+			dev_priv->display.init_clock_gating =
+				bxt_init_clock_gating;
+		else if (IS_SKYLAKE(dev))
+			dev_priv->display.init_clock_gating =
+				skl_init_clock_gating;
 		dev_priv->display.update_wm = skl_update_wm;
 		dev_priv->display.update_sprite_wm = skl_update_sprite_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
