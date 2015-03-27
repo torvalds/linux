@@ -540,12 +540,12 @@ static const struct file_operations apb1_log_fops = {
 
 static void usb_log_enable(struct es1_ap_dev *es1)
 {
-	if (apb1_log_task != NULL)
+	if (!IS_ERR_OR_NULL(apb1_log_task))
 		return;
 
 	/* get log from APB1 */
 	apb1_log_task = kthread_run(apb1_log_poll, es1, "apb1_log");
-	if (apb1_log_task == ERR_PTR(-ENOMEM))
+	if (IS_ERR(apb1_log_task))
 		return;
 	apb1_log_dentry = debugfs_create_file("apb1_log", S_IRUGO,
 						gb_debugfs_get(), NULL,
@@ -554,7 +554,7 @@ static void usb_log_enable(struct es1_ap_dev *es1)
 
 static void usb_log_disable(struct es1_ap_dev *es1)
 {
-	if (apb1_log_task == NULL)
+	if (IS_ERR_OR_NULL(apb1_log_task))
 		return;
 
 	debugfs_remove(apb1_log_dentry);
@@ -568,7 +568,7 @@ static ssize_t apb1_log_enable_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	char tmp_buf[3];
-	int enable = apb1_log_task != NULL;
+	int enable = !IS_ERR_OR_NULL(apb1_log_task);
 
 	sprintf(tmp_buf, "%d\n", enable);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf, 3);
