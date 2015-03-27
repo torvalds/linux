@@ -778,7 +778,17 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 			pgs_ol = has->ha_end_pfn - start_pfn;
 			if (pgs_ol > pfn_cnt)
 				pgs_ol = pfn_cnt;
-			hv_bring_pgs_online(start_pfn, pgs_ol);
+
+			/*
+			 * Check if the corresponding memory block is already
+			 * online by checking its last previously backed page.
+			 * In case it is we need to bring rest (which was not
+			 * backed previously) online too.
+			 */
+			if (start_pfn > has->start_pfn &&
+			    !PageReserved(pfn_to_page(start_pfn - 1)))
+				hv_bring_pgs_online(start_pfn, pgs_ol);
+
 			has->covered_end_pfn +=  pgs_ol;
 			pfn_cnt -= pgs_ol;
 		}
