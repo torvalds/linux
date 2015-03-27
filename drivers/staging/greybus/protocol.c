@@ -1,8 +1,8 @@
 /*
  * Greybus protocol handling
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -191,6 +191,7 @@ EXPORT_SYMBOL_GPL(gb_protocol_get_version);
 
 void gb_protocol_put(struct gb_protocol *protocol)
 {
+	u8 id;
 	u8 major;
 	u8 minor;
 	u8 protocol_count;
@@ -198,12 +199,12 @@ void gb_protocol_put(struct gb_protocol *protocol)
 	if (!protocol)
 		return;
 
+	id = protocol->id;
 	major = protocol->major;
 	minor = protocol->minor;
 
 	spin_lock_irq(&gb_protocols_lock);
-	protocol = _gb_protocol_find(protocol->id, protocol->major,
-						protocol->minor);
+	protocol = _gb_protocol_find(id, major, minor);
 	if (protocol) {
 		protocol_count = protocol->count;
 		if (protocol_count)
@@ -214,9 +215,6 @@ void gb_protocol_put(struct gb_protocol *protocol)
 	if (protocol)
 		WARN_ON(!protocol_count);
 	else
-		/* FIXME a different message is needed since this one
-		 * will result in a NULL dereference
-		 */
 		pr_err("protocol id %hhu version %hhu.%hhu not found\n",
-			protocol->id, major, minor);
+			id, major, minor);
 }

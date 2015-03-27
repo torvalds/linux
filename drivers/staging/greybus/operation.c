@@ -1,8 +1,8 @@
 /*
  * Greybus operations
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -732,7 +732,6 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 		}
 	}
 
-	/* FIXME operation->response could still be NULL here */
 	/* Fill in the response header and send it */
 	operation->response->header->result = gb_operation_errno_map(errno);
 
