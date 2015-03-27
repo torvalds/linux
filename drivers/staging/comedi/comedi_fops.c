@@ -601,8 +601,8 @@ static struct attribute *comedi_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(comedi_dev);
 
-static void comedi_set_subdevice_runflags(struct comedi_subdevice *s,
-					  unsigned mask, unsigned bits)
+static void comedi_update_subdevice_runflags(struct comedi_subdevice *s,
+					     unsigned mask, unsigned bits)
 {
 	unsigned long flags;
 
@@ -677,7 +677,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 {
 	struct comedi_async *async = s->async;
 
-	comedi_set_subdevice_runflags(s, COMEDI_SRF_RUNNING, 0);
+	comedi_update_subdevice_runflags(s, COMEDI_SRF_RUNNING, 0);
 	if (async) {
 		comedi_buf_reset(s);
 		async->inttrig = NULL;
@@ -1678,8 +1678,8 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	if (async->cmd.flags & CMDF_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
-	comedi_set_subdevice_runflags(s, COMEDI_SRF_BUSY_MASK,
-				      COMEDI_SRF_RUNNING);
+	comedi_update_subdevice_runflags(s, COMEDI_SRF_BUSY_MASK,
+					 COMEDI_SRF_RUNNING);
 
 	/*
 	 * Set s->busy _after_ setting COMEDI_SRF_RUNNING flag to avoid
@@ -2657,10 +2657,10 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	if (runflags_mask) {
 		/*
-		 * Sets COMEDI_SRF_ERROR and COMEDI_SRF_RUNNING together
+		 * Changes COMEDI_SRF_ERROR and COMEDI_SRF_RUNNING together
 		 * atomically.
 		 */
-		comedi_set_subdevice_runflags(s, runflags_mask, runflags);
+		comedi_update_subdevice_runflags(s, runflags_mask, runflags);
 	}
 
 	if (async->cb_mask & s->async->events) {
