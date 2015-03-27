@@ -2079,7 +2079,7 @@ static void it87_remove_files(struct device *dev)
 					  it87_attributes_fan_div[i]);
 	}
 	for (i = 0; i < 3; i++) {
-		if (sio_data->skip_pwm & (1 << 0))
+		if (sio_data->skip_pwm & (1 << i))
 			continue;
 		sysfs_remove_group(&dev->kobj, &it87_group_pwm[i]);
 		if (has_old_autopwm(data))
