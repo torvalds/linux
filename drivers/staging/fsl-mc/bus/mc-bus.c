@@ -333,7 +333,7 @@ int fsl_mc_device_add(struct dprc_obj_desc *obj_desc,
 	device_initialize(&mc_dev->dev);
 	mc_dev->dev.parent = parent_dev;
 	mc_dev->dev.bus = &fsl_mc_bus_type;
-	dev_set_name(&mc_dev->dev, "%s.%x", obj_desc->type, obj_desc->id);
+	dev_set_name(&mc_dev->dev, "%s.%d", obj_desc->type, obj_desc->id);
 
 	if (strcmp(obj_desc->type, "dprc") == 0) {
 		struct fsl_mc_io *mc_io2;
