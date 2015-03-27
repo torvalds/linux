@@ -1828,8 +1828,20 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.has_powergate = true,
 };
 
+static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
+	.supports_border_color = false,
+	.supports_interlacing = true,
+	.supports_cursor = true,
+	.supports_block_linear = true,
+	.pitch_align = 64,
+	.has_powergate = true,
+};
+
 static const struct of_device_id tegra_dc_of_match[] = {
 	{
+		.compatible = "nvidia,tegra210-dc",
+		.data = &tegra210_dc_soc_info,
+	}, {
 		.compatible = "nvidia,tegra124-dc",
 		.data = &tegra124_dc_soc_info,
 	}, {
