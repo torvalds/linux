@@ -687,7 +687,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
 		s->busy = NULL;
-		wake_up_interruptible_all(&s->async->wait_head);
+		wake_up_interruptible_all(&async->wait_head);
 	} else {
 		dev_err(dev->class_dev,
 			"BUG: (?) do_become_nonbusy called with async=NULL\n");
@@ -2652,14 +2652,14 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (!comedi_is_subdevice_running(s))
 		return;
 
-	if (s->async->events & COMEDI_CB_CANCEL_MASK)
+	if (async->events & COMEDI_CB_CANCEL_MASK)
 		runflags_mask |= COMEDI_SRF_RUNNING;
 
 	/*
 	 * Remember if an error event has occurred, so an error
 	 * can be returned the next time the user does a read().
 	 */
-	if (s->async->events & COMEDI_CB_ERROR_MASK) {
+	if (async->events & COMEDI_CB_ERROR_MASK) {
 		runflags_mask |= COMEDI_SRF_ERROR;
 		runflags |= COMEDI_SRF_ERROR;
 	}
@@ -2671,14 +2671,14 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 		comedi_update_subdevice_runflags(s, runflags_mask, runflags);
 	}
 
-	if (async->cb_mask & s->async->events) {
+	if (async->cb_mask & async->events) {
 		wake_up_interruptible(&async->wait_head);
 		if (s->subdev_flags & SDF_CMD_READ)
 			kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
 		if (s->subdev_flags & SDF_CMD_WRITE)
 			kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
 	}
-	s->async->events = 0;
+	async->events = 0;
 }
 EXPORT_SYMBOL_GPL(comedi_event);
 
