@@ -766,12 +766,13 @@ EXPORT_SYMBOL(drm_ioctl);
  */
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags)
 {
-	if ((nr >= DRM_COMMAND_END && nr < DRM_CORE_IOCTL_COUNT) ||
-	    (nr < DRM_COMMAND_BASE)) {
-		*flags = drm_ioctls[nr].flags;
-		return true;
-	}
+	if (nr >= DRM_COMMAND_BASE && nr < DRM_COMMAND_END)
+		return false;
 
-	return false;
+	if (nr >= DRM_CORE_IOCTL_COUNT)
+		return false;
+
+	*flags = drm_ioctls[nr].flags;
+	return true;
 }
 EXPORT_SYMBOL(drm_ioctl_flags);
