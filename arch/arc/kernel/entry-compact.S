@@ -321,13 +321,10 @@ END(call_do_page_fault)
 	; decide that.
 
 	; if Returning from Exception
-	bbit0  r10, STATUS_AE_BIT, not_exception
-	EXCEPTION_EPILOGUE
-	rtie
+	btst   r10, STATUS_AE_BIT
+	bnz    .Lexcep_ret
 
 	; Not Exception so maybe Interrupts (Level 1 or 2)
-
-not_exception:
 
 #ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS
 
@@ -377,16 +374,17 @@ not_level2_interrupt:
 
 #endif
 
-	bbit0  r10, STATUS_A1_BIT, not_level1_interrupt
+	bbit0  r10, STATUS_A1_BIT, .Lpure_k_mode_ret
 
 	;return from level 1
 	INTERRUPT_EPILOGUE 1
 debug_marker_l1:
 	rtie
 
-not_level1_interrupt:
+.Lexcep_ret:
+.Lpure_k_mode_ret:
 
-	;this case is for syscalls or Exceptions (with fake rtie)
+	;this case is for syscalls or Exceptions or pure kernel mode
 
 	EXCEPTION_EPILOGUE
 debug_marker_syscall:
