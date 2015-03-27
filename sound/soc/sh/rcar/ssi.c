@@ -710,7 +710,7 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 	struct clk *clk;
 	struct rsnd_ssi *ssi;
 	char name[RSND_SSI_NAME_SIZE];
-	int i, nr;
+	int i, nr, ret;
 
 	rsnd_of_parse_ssi(pdev, of_data, priv);
 
@@ -745,10 +745,23 @@ int rsnd_ssi_probe(struct platform_device *pdev,
 		else if (rsnd_ssi_pio_available(ssi))
 			ops = &rsnd_ssi_pio_ops;
 
-		rsnd_mod_init(&ssi->mod, ops, clk, RSND_MOD_SSI, i);
+		ret = rsnd_mod_init(&ssi->mod, ops, clk, RSND_MOD_SSI, i);
+		if (ret)
+			return ret;
 
 		rsnd_ssi_parent_clk_setup(priv, ssi);
 	}
 
 	return 0;
+}
+
+void rsnd_ssi_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv)
+{
+	struct rsnd_ssi *ssi;
+	int i;
+
+	for_each_rsnd_ssi(ssi, priv, i) {
+		rsnd_mod_quit(&ssi->mod);
+	}
 }

@@ -345,7 +345,7 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 	struct rsnd_dvc *dvc;
 	struct clk *clk;
 	char name[RSND_DVC_NAME_SIZE];
-	int i, nr;
+	int i, nr, ret;
 
 	rsnd_of_parse_dvc(pdev, of_data, priv);
 
@@ -378,11 +378,24 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 
 		dvc->info = &info->dvc_info[i];
 
-		rsnd_mod_init(&dvc->mod, &rsnd_dvc_ops,
+		ret = rsnd_mod_init(&dvc->mod, &rsnd_dvc_ops,
 			      clk, RSND_MOD_DVC, i);
+		if (ret)
+			return ret;
 
 		dev_dbg(dev, "CMD%d probed\n", i);
 	}
 
 	return 0;
+}
+
+void rsnd_dvc_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv)
+{
+	struct rsnd_dvc *dvc;
+	int i;
+
+	for_each_rsnd_dvc(dvc, priv, i) {
+		rsnd_mod_quit(&dvc->mod);
+	}
 }

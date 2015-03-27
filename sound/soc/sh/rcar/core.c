@@ -145,16 +145,29 @@ struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod)
 	return mod->ops->dma_req(mod);
 }
 
-void rsnd_mod_init(struct rsnd_mod *mod,
+int rsnd_mod_init(struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
 		   struct clk *clk,
 		   enum rsnd_mod_type type,
 		   int id)
 {
+	int ret = clk_prepare(clk);
+
+	if (ret)
+		return ret;
+
 	mod->id		= id;
 	mod->ops	= ops;
 	mod->type	= type;
 	mod->clk	= clk;
+
+	return ret;
+}
+
+void rsnd_mod_quit(struct rsnd_mod *mod)
+{
+	if (mod->clk)
+		clk_unprepare(mod->clk);
 }
 
 /*
@@ -1073,6 +1086,12 @@ static int rsnd_remove(struct platform_device *pdev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(&pdev->dev);
 	struct rsnd_dai *rdai;
+	void (*remove_func[])(struct platform_device *pdev,
+			      struct rsnd_priv *priv) = {
+		rsnd_ssi_remove,
+		rsnd_src_remove,
+		rsnd_dvc_remove,
+	};
 	int ret = 0, i;
 
 	pm_runtime_disable(&pdev->dev);
@@ -1081,6 +1100,9 @@ static int rsnd_remove(struct platform_device *pdev)
 		ret |= rsnd_dai_call(remove, &rdai->playback, priv);
 		ret |= rsnd_dai_call(remove, &rdai->capture, priv);
 	}
+
+	for (i = 0; i < ARRAY_SIZE(remove_func); i++)
+		remove_func[i](pdev, priv);
 
 	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_unregister_platform(&pdev->dev);
