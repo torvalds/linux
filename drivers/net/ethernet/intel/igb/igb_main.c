@@ -2093,6 +2093,7 @@ static const struct net_device_ops igb_netdev_ops = {
 #endif
 	.ndo_fix_features	= igb_fix_features,
 	.ndo_set_features	= igb_set_features,
+	.ndo_features_check	= passthru_features_check,
 };
 
 /**
