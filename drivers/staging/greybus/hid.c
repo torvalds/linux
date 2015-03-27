@@ -168,8 +168,12 @@ static void gb_hid_irq_handler(u8 type, struct gb_operation *op)
 		return;
 	}
 
+	/*
+	 * FIXME: add report size to Greybus HID protocol if we need to parse
+	 *        it here.
+	 */
 	size = request->report[0] | request->report[1] << 8;
-	if (!size) {
+	if (size < 2 || size > op->request->payload_size - 2) {
 		dev_err(&connection->dev, "bad report size: %d\n", size);
 		return;
 	}
