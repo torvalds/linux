@@ -72,24 +72,33 @@ int __mv88e6xxx_reg_read(struct mii_bus *bus, int sw_addr, int addr, int reg)
 	return ret & 0xffff;
 }
 
-int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg)
+/* Must be called with SMI mutex held */
+static int _mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(ds->master_dev);
 	int ret;
 
 	if (bus == NULL)
 		return -EINVAL;
 
-	mutex_lock(&ps->smi_mutex);
 	ret = __mv88e6xxx_reg_read(bus, ds->pd->sw_addr, addr, reg);
-	mutex_unlock(&ps->smi_mutex);
-
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(ds->master_dev, "<- addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
 		addr, reg, ret);
+
+	return ret;
+}
+
+int mv88e6xxx_reg_read(struct dsa_switch *ds, int addr, int reg)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
+	mutex_lock(&ps->smi_mutex);
+	ret = _mv88e6xxx_reg_read(ds, addr, reg);
+	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
 }
@@ -125,11 +134,11 @@ int __mv88e6xxx_reg_write(struct mii_bus *bus, int sw_addr, int addr,
 	return 0;
 }
 
-int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
+/* Must be called with SMI mutex held */
+static int _mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg,
+				u16 val)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(ds->master_dev);
-	int ret;
 
 	if (bus == NULL)
 		return -EINVAL;
@@ -137,8 +146,16 @@ int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 	dev_dbg(ds->master_dev, "-> addr: 0x%.2x reg: 0x%.2x val: 0x%.4x\n",
 		addr, reg, val);
 
+	return __mv88e6xxx_reg_write(bus, ds->pd->sw_addr, addr, reg, val);
+}
+
+int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
 	mutex_lock(&ps->smi_mutex);
-	ret = __mv88e6xxx_reg_write(bus, ds->pd->sw_addr, addr, reg, val);
+	ret = _mv88e6xxx_reg_write(ds, addr, reg, val);
 	mutex_unlock(&ps->smi_mutex);
 
 	return ret;
