@@ -643,6 +643,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
 	unsigned int cycle;
+	int ret;
 
 	if (!callback)
 		return -EINVAL;
@@ -675,7 +676,11 @@ int gb_operation_request_send(struct gb_operation *operation,
 	/* All set, send the request */
 	gb_operation_result_set(operation, -EINPROGRESS);
 
-	return gb_message_send(operation->request);
+	ret = gb_message_send(operation->request);
+	if (ret)
+		gb_operation_put(operation);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gb_operation_request_send);
 
