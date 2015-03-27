@@ -318,22 +318,19 @@ static ssize_t migrate_store(struct class *class, struct class_attribute *attr,
 {
 	u64 streamid;
 	int rc;
-	int vasi_rc = 0;
 
 	rc = kstrtou64(buf, 0, &streamid);
 	if (rc)
 		return rc;
 
 	do {
-		rc = rtas_ibm_suspend_me(streamid, &vasi_rc);
-		if (!rc && vasi_rc == RTAS_NOT_SUSPENDABLE)
+		rc = rtas_ibm_suspend_me(streamid);
+		if (rc == -EAGAIN)
 			ssleep(1);
-	} while (!rc && vasi_rc == RTAS_NOT_SUSPENDABLE);
+	} while (rc == -EAGAIN);
 
 	if (rc)
 		return rc;
-	if (vasi_rc)
-		return vasi_rc;
 
 	post_mobility_fixup();
 	return count;
