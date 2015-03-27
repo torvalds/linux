@@ -2253,7 +2253,17 @@ static int ggtt_probe_common(struct drm_device *dev,
 	gtt_phys_addr = pci_resource_start(dev->pdev, 0) +
 		(pci_resource_len(dev->pdev, 0) / 2);
 
-	dev_priv->gtt.gsm = ioremap_wc(gtt_phys_addr, gtt_size);
+	/*
+	 * On BXT writes larger than 64 bit to the GTT pagetable range will be
+	 * dropped. For WC mappings in general we have 64 byte burst writes
+	 * when the WC buffer is flushed, so we can't use it, but have to
+	 * resort to an uncached mapping. The WC issue is easily caught by the
+	 * readback check when writing GTT PTE entries.
+	 */
+	if (IS_BROXTON(dev))
+		dev_priv->gtt.gsm = ioremap_nocache(gtt_phys_addr, gtt_size);
+	else
+		dev_priv->gtt.gsm = ioremap_wc(gtt_phys_addr, gtt_size);
 	if (!dev_priv->gtt.gsm) {
 		DRM_ERROR("Failed to map the gtt page table\n");
 		return -ENOMEM;
