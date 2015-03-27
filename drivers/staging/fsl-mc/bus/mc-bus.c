@@ -36,6 +36,8 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 	struct fsl_mc_driver *mc_drv = to_fsl_mc_driver(drv);
 	bool found = false;
+	bool major_version_mismatch = false;
+	bool minor_version_mismatch = false;
 
 	if (WARN_ON(!fsl_mc_bus_type.dev_root))
 		goto out;
@@ -57,12 +59,31 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	 */
 	for (id = mc_drv->match_id_table; id->vendor != 0x0; id++) {
 		if (id->vendor == mc_dev->obj_desc.vendor &&
-		    strcmp(id->obj_type, mc_dev->obj_desc.type) == 0 &&
-		    id->ver_major == mc_dev->obj_desc.ver_major &&
-		    id->ver_minor == mc_dev->obj_desc.ver_minor) {
-			found = true;
+		    strcmp(id->obj_type, mc_dev->obj_desc.type) == 0) {
+			if (id->ver_major == mc_dev->obj_desc.ver_major) {
+				found = true;
+				if (id->ver_minor != mc_dev->obj_desc.ver_minor)
+					minor_version_mismatch = true;
+			} else {
+				major_version_mismatch = true;
+			}
+
 			break;
 		}
+	}
+
+	if (major_version_mismatch) {
+		dev_warn(dev,
+			 "Major version mismatch: driver version %u.%u, MC object version %u.%u\n",
+			 id->ver_major, id->ver_minor,
+			 mc_dev->obj_desc.ver_major,
+			 mc_dev->obj_desc.ver_minor);
+	} else if (minor_version_mismatch) {
+		dev_warn(dev,
+			 "Minor version mismatch: driver version %u.%u, MC object version %u.%u\n",
+			 id->ver_major, id->ver_minor,
+			 mc_dev->obj_desc.ver_major,
+			 mc_dev->obj_desc.ver_minor);
 	}
 
 out:
