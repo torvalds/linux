@@ -167,7 +167,6 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 
 	for (i = 0; i < num_child_objects_in_mc; i++) {
 		struct fsl_mc_device *child_dev;
-		struct fsl_mc_io *mc_io = NULL;
 		struct dprc_obj_desc *obj_desc = &obj_desc_array[i];
 
 		if (strlen(obj_desc->type) == 0)
@@ -182,14 +181,10 @@ static void dprc_add_new_devices(struct fsl_mc_device *mc_bus_dev,
 			continue;
 		}
 
-		error = fsl_mc_device_add(obj_desc, mc_io, &mc_bus_dev->dev,
+		error = fsl_mc_device_add(obj_desc, NULL, &mc_bus_dev->dev,
 					  &child_dev);
-		if (error < 0) {
-			if (mc_io)
-				fsl_destroy_mc_io(mc_io);
-
+		if (error < 0)
 			continue;
-		}
 	}
 }
 

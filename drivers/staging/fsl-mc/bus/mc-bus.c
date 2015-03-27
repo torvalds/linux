@@ -444,15 +444,16 @@ void fsl_mc_device_remove(struct fsl_mc_device *mc_dev)
 	put_device(&mc_dev->dev);
 
 	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0) {
-		struct fsl_mc_io *mc_io = mc_dev->mc_io;
-
 		mc_bus = to_fsl_mc_bus(mc_dev);
-		fsl_destroy_mc_io(mc_io);
+		if (mc_dev->mc_io) {
+			fsl_destroy_mc_io(mc_dev->mc_io);
+			mc_dev->mc_io = NULL;
+		}
+
 		if (&mc_dev->dev == fsl_mc_bus_type.dev_root)
 			fsl_mc_bus_type.dev_root = NULL;
 	}
 
-	mc_dev->mc_io = NULL;
 	if (mc_bus)
 		devm_kfree(mc_dev->dev.parent, mc_bus);
 	else
