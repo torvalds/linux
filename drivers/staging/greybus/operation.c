@@ -208,14 +208,11 @@ static void gb_message_cancel(struct gb_message *message)
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
 	struct gb_protocol *protocol = operation->connection->protocol;
+	int ret;
 
 	if (!protocol)
 		return;
 
-	/*
-	 * If the protocol has no incoming request handler, report
-	 * an error and mark the request bad.
-	 */
 	if (protocol->request_recv) {
 		protocol->request_recv(operation->type, operation);
 		return;
@@ -223,10 +220,14 @@ static void gb_operation_request_handle(struct gb_operation *operation)
 
 	dev_err(&operation->connection->dev,
 		"unexpected incoming request type 0x%02hhx\n", operation->type);
-	if (gb_operation_result_set(operation, -EPROTONOSUPPORT))
-		queue_work(gb_operation_workqueue, &operation->work);
-	else
-		WARN(true, "failed to mark request bad\n");
+
+	ret = gb_operation_response_send(operation, -EPROTONOSUPPORT);
+	if (ret) {
+		dev_err(&operation->connection->dev,
+			"failed to send response %d: %d\n",
+			-EPROTONOSUPPORT, ret);
+			return;
+	}
 }
 
 /*
