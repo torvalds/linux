@@ -1270,6 +1270,8 @@ static void hp_amp_power(struct snd_soc_codec *codec, int on)
 			snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
 				RT5645_PWR_HP_L | RT5645_PWR_HP_R |
 				RT5645_PWR_HA, 0);
+			snd_soc_update_bits(codec, RT5645_DEPOP_M2,
+				RT5645_DEPOP_MASK, 0);
 		}
 	}
 }
