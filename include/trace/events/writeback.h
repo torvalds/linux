@@ -23,15 +23,32 @@
 		{I_REFERENCED,		"I_REFERENCED"}		\
 	)
 
+/* enums need to be exported to user space */
+#undef EM
+#undef EMe
+#define EM(a,b) 	TRACE_DEFINE_ENUM(a);
+#define EMe(a,b)	TRACE_DEFINE_ENUM(a);
+
 #define WB_WORK_REASON							\
-		{WB_REASON_BACKGROUND,		"background"},		\
-		{WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages"},	\
-		{WB_REASON_SYNC,		"sync"},		\
-		{WB_REASON_PERIODIC,		"periodic"},		\
-		{WB_REASON_LAPTOP_TIMER,	"laptop_timer"},	\
-		{WB_REASON_FREE_MORE_MEM,	"free_more_memory"},	\
-		{WB_REASON_FS_FREE_SPACE,	"fs_free_space"},	\
-		{WB_REASON_FORKER_THREAD,	"forker_thread"}
+	EM( WB_REASON_BACKGROUND,		"background")		\
+	EM( WB_REASON_TRY_TO_FREE_PAGES,	"try_to_free_pages")	\
+	EM( WB_REASON_SYNC,			"sync")			\
+	EM( WB_REASON_PERIODIC,			"periodic")		\
+	EM( WB_REASON_LAPTOP_TIMER,		"laptop_timer")		\
+	EM( WB_REASON_FREE_MORE_MEM,		"free_more_memory")	\
+	EM( WB_REASON_FS_FREE_SPACE,		"fs_free_space")	\
+	EMe(WB_REASON_FORKER_THREAD,		"forker_thread")
+
+WB_WORK_REASON
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a,b)		{ a, b },
+#define EMe(a,b)	{ a, b }
 
 struct wb_writeback_work;
 
