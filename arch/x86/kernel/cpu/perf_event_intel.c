@@ -1649,11 +1649,11 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event
 	if (c)
 		return c;
 
-	c = intel_pebs_constraints(event);
+	c = intel_shared_regs_constraints(cpuc, event);
 	if (c)
 		return c;
 
-	c = intel_shared_regs_constraints(cpuc, event);
+	c = intel_pebs_constraints(event);
 	if (c)
 		return c;
 
