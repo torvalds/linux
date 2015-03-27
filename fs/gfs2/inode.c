@@ -37,61 +37,9 @@
 #include "super.h"
 #include "glops.h"
 
-struct gfs2_skip_data {
-	u64 no_addr;
-	int skipped;
-	int non_block;
-};
-
-static int iget_test(struct inode *inode, void *opaque)
+struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_skip_data *data = opaque;
-
-	if (ip->i_no_addr == data->no_addr) {
-		if (data->non_block &&
-		    inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)) {
-			data->skipped = 1;
-			return 0;
-		}
-		return 1;
-	}
-	return 0;
-}
-
-static int iget_set(struct inode *inode, void *opaque)
-{
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_skip_data *data = opaque;
-
-	if (data->skipped)
-		return -ENOENT;
-	inode->i_ino = (unsigned long)(data->no_addr);
-	ip->i_no_addr = data->no_addr;
-	return 0;
-}
-
-struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr, int non_block)
-{
-	unsigned long hash = (unsigned long)no_addr;
-	struct gfs2_skip_data data;
-
-	data.no_addr = no_addr;
-	data.skipped = 0;
-	data.non_block = non_block;
-	return ilookup5(sb, hash, iget_test, &data);
-}
-
-static struct inode *gfs2_iget(struct super_block *sb, u64 no_addr,
-			       int non_block)
-{
-	struct gfs2_skip_data data;
-	unsigned long hash = (unsigned long)no_addr;
-
-	data.no_addr = no_addr;
-	data.skipped = 0;
-	data.non_block = non_block;
-	return iget5_locked(sb, hash, iget_test, iget_set, &data);
+	return ilookup(sb, (unsigned long)no_addr);
 }
 
 /**
@@ -145,8 +93,9 @@ struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned int type,
 	struct gfs2_glock *io_gl = NULL;
 	int error;
 
-	inode = gfs2_iget(sb, no_addr, non_block);
+	inode = iget_locked(sb, (unsigned long)no_addr);
 	ip = GFS2_I(inode);
+	ip->i_no_addr = no_addr;
 
 	if (!inode)
 		return ERR_PTR(-ENOMEM);

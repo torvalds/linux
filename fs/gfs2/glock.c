@@ -582,7 +582,7 @@ static void delete_work_func(struct work_struct *work)
 	/* Note: Unsafe to dereference ip as we don't hold right refs/locks */
 
 	if (ip)
-		inode = gfs2_ilookup(sdp->sd_vfs, no_addr, 1);
+		inode = gfs2_ilookup(sdp->sd_vfs, no_addr);
 	else
 		inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
 	if (inode && !IS_ERR(inode)) {

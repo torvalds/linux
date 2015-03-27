@@ -99,7 +99,7 @@ extern struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type,
 extern struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 					 u64 *no_formal_ino,
 					 unsigned int blktype);
-extern struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr, int nonblock);
+extern struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr);
 
 extern int gfs2_inode_refresh(struct gfs2_inode *ip);
 
