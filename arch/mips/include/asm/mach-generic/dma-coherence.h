@@ -52,6 +52,10 @@ static inline int plat_device_is_coherent(struct device *dev)
 	return coherentio;
 }
 
+static inline void plat_post_dma_flush(struct device *dev)
+{
+}
+
 #ifdef CONFIG_SWIOTLB
 static inline dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
 {
