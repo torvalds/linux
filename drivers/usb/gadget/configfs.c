@@ -21,6 +21,18 @@ extern int acc_ctrlrequest(struct usb_composite_dev *cdev,
 void acc_disconnect(void);
 #endif
 static struct class *android_class;
+static struct device *android_device;
+static int index;
+
+struct device *create_function_device(char *name)
+{
+	if (android_device && !IS_ERR(android_device))
+		return device_create(android_class, android_device,
+			MKDEV(0, index++), NULL, name);
+	else
+		return ERR_PTR(-EINVAL);
+}
+EXPORT_SYMBOL_GPL(create_function_device);
 #endif
 
 int check_user_usb_string(const char *name,
@@ -1418,19 +1430,22 @@ static void android_work(struct work_struct *data)
 	spin_unlock_irqrestore(&cdev->lock, flags);
 
 	if (status[0]) {
-		kobject_uevent_env(&gi->dev->kobj, KOBJ_CHANGE, connected);
+		kobject_uevent_env(&android_device->kobj,
+					KOBJ_CHANGE, connected);
 		pr_info("%s: sent uevent %s\n", __func__, connected[0]);
 		uevent_sent = true;
 	}
 
 	if (status[1]) {
-		kobject_uevent_env(&gi->dev->kobj, KOBJ_CHANGE, configured);
+		kobject_uevent_env(&android_device->kobj,
+					KOBJ_CHANGE, configured);
 		pr_info("%s: sent uevent %s\n", __func__, configured[0]);
 		uevent_sent = true;
 	}
 
 	if (status[2]) {
-		kobject_uevent_env(&gi->dev->kobj, KOBJ_CHANGE, disconnected);
+		kobject_uevent_env(&android_device->kobj,
+					KOBJ_CHANGE, disconnected);
 		pr_info("%s: sent uevent %s\n", __func__, disconnected[0]);
 		uevent_sent = true;
 	}
@@ -1607,8 +1622,10 @@ static struct config_group *gadgets_make(
 
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
 	INIT_WORK(&gi->work, android_work);
-	gi->dev = device_create(android_class, NULL,
+	android_device = device_create(android_class, NULL,
 				MKDEV(0, 0), NULL, "android0");
+	if (IS_ERR(android_device))
+		goto err;
 #endif
 
 	if (!gi->composite.gadget_driver.function)
@@ -1623,6 +1640,9 @@ err:
 static void gadgets_drop(struct config_group *group, struct config_item *item)
 {
 	config_item_put(item);
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+	device_destroy(android_device->class, android_device->devt);
+#endif
 }
 
 static struct configfs_group_operations gadgets_ops = {
@@ -1676,5 +1696,10 @@ module_init(gadget_cfs_init);
 static void __exit gadget_cfs_exit(void)
 {
 	configfs_unregister_subsystem(&gadget_subsys);
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+	if (!IS_ERR(android_class))
+		class_destroy(android_class);
+#endif
+
 }
 module_exit(gadget_cfs_exit);
