@@ -163,13 +163,6 @@ static void gb_hid_irq_handler(u8 type, struct gb_operation *op)
 		return;
 	}
 
-	ret = gb_operation_response_send(op, 0);
-	if (ret) {
-		dev_err(&connection->dev,
-			"failed to send response status %d: %d\n",
-			0, ret);
-	}
-
 	size = request->report[0] | request->report[1] << 8;
 	if (!size) {
 		dev_err(&connection->dev, "bad report size: %d\n", size);
@@ -179,6 +172,13 @@ static void gb_hid_irq_handler(u8 type, struct gb_operation *op)
 	if (test_bit(GB_HID_STARTED, &ghid->flags))
 		hid_input_report(ghid->hid, HID_INPUT_REPORT,
 				 request->report + 2, size - 2, 1);
+
+	ret = gb_operation_response_send(op, 0);
+	if (ret) {
+		dev_err(&connection->dev,
+			"failed to send response status %d: %d\n",
+			0, ret);
+	}
 }
 
 
