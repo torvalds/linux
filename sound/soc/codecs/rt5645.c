@@ -2396,7 +2396,8 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_OFF:
 		snd_soc_write(codec, RT5645_DEPOP_M2, 0x1100);
-		snd_soc_write(codec, RT5645_GEN_CTRL1, 0x0128);
+		snd_soc_update_bits(codec, RT5645_GEN_CTRL1,
+				RT5645_DIG_GATE_CTRL, 0);
 		snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
 				RT5645_PWR_VREF1 | RT5645_PWR_MB |
 				RT5645_PWR_BG | RT5645_PWR_VREF2 |
