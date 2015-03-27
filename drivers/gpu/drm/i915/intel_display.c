@@ -11985,6 +11985,8 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	for_each_intel_connector(dev, connector) {
 		connector_state =
 			drm_atomic_get_connector_state(state, &connector->base);
+		if (IS_ERR(connector_state))
+			return PTR_ERR(connector_state);
 
 		if (connector->new_encoder) {
 			if (connector->new_encoder != connector->encoder)
