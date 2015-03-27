@@ -205,36 +205,6 @@ static void dprc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev)
 		dprc_cleanup_resource_pool(mc_bus_dev, pool_type);
 }
 
-static void reorder_obj_desc_array(struct dprc_obj_desc *obj_desc_array,
-				   int num_devs)
-{
-	struct dprc_obj_desc tmp;
-	struct dprc_obj_desc *top_cursor = &obj_desc_array[0];
-	struct dprc_obj_desc *bottom_cursor = &obj_desc_array[num_devs - 1];
-
-	/*
-	 * Reorder entries in obj_desc_array so that all allocatable devices
-	 * are placed before all non-allocatable devices:
-	 *
-	 * Loop Invariant: everything before top_cursor is allocatable and
-	 * everything after bottom_cursor is non-allocatable.
-	 */
-	while (top_cursor < bottom_cursor) {
-		if (FSL_MC_IS_ALLOCATABLE(top_cursor->type)) {
-			top_cursor++;
-		} else {
-			if (FSL_MC_IS_ALLOCATABLE(bottom_cursor->type)) {
-				tmp = *bottom_cursor;
-				*bottom_cursor = *top_cursor;
-				*top_cursor = tmp;
-				top_cursor++;
-			}
-
-			bottom_cursor--;
-		}
-	}
-}
-
 /**
  * dprc_scan_objects - Discover objects in a DPRC
  *
@@ -313,8 +283,6 @@ int dprc_scan_objects(struct fsl_mc_device *mc_bus_dev)
 				"%d out of %d devices could not be retrieved\n",
 				dprc_get_obj_failures, num_child_objects);
 		}
-
-		reorder_obj_desc_array(child_obj_desc_array, num_child_objects);
 	}
 
 	dprc_remove_devices(mc_bus_dev, child_obj_desc_array,
