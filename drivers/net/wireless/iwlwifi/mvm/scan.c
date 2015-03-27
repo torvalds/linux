@@ -296,8 +296,7 @@ static inline bool iwl_mvm_rrm_scan_needed(struct iwl_mvm *mvm)
 	       IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT;
 }
 
-static int iwl_mvm_max_scan_ie_fw_cmd_room(struct iwl_mvm *mvm,
-					   bool is_sched_scan)
+static int iwl_mvm_max_scan_ie_fw_cmd_room(struct iwl_mvm *mvm)
 {
 	int max_probe_len;
 
@@ -313,9 +312,9 @@ static int iwl_mvm_max_scan_ie_fw_cmd_room(struct iwl_mvm *mvm,
 	return max_probe_len;
 }
 
-int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm, bool is_sched_scan)
+int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm)
 {
-	int max_ie_len = iwl_mvm_max_scan_ie_fw_cmd_room(mvm, is_sched_scan);
+	int max_ie_len = iwl_mvm_max_scan_ie_fw_cmd_room(mvm);
 
 	/* TODO: [BUG] This function should return the maximum allowed size of
 	 * scan IEs, however the LMAC scan api contains both 2GHZ and 5GHZ IEs
@@ -802,6 +801,18 @@ iwl_mvm_build_generic_scan_cmd(struct iwl_mvm *mvm,
 			cpu_to_le32(IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 }
 
+static inline bool iwl_mvm_scan_fits(struct iwl_mvm *mvm, int n_ssids,
+				     struct ieee80211_scan_ies *ies,
+				     int n_channels)
+{
+	return ((n_ssids <= PROBE_OPTION_MAX) &&
+		(n_channels <= mvm->fw->ucode_capa.n_scan_channels) &
+		(ies->common_ie_len +
+		 ies->len[NL80211_BAND_2GHZ] +
+		 ies->len[NL80211_BAND_5GHZ] <=
+		 iwl_mvm_max_scan_ie_fw_cmd_room(mvm)));
+}
+
 static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     struct cfg80211_scan_request *req,
 			     struct ieee80211_scan_ies *ies)
@@ -825,11 +836,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (WARN_ON(mvm->scan_cmd == NULL))
 		return -ENOMEM;
 
-	if (req->n_ssids > PROBE_OPTION_MAX ||
-	    ies->common_ie_len + ies->len[NL80211_BAND_2GHZ] +
-	    ies->len[NL80211_BAND_5GHZ] >
-		iwl_mvm_max_scan_ie_fw_cmd_room(mvm, false) ||
-	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
+	if (!iwl_mvm_scan_fits(mvm, req->n_ssids, ies, req->n_channels))
 		return -ENOBUFS;
 
 	mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
@@ -938,11 +945,7 @@ static int iwl_mvm_sched_scan_lmac(struct iwl_mvm *mvm,
 	if (WARN_ON(mvm->scan_cmd == NULL))
 		return -ENOMEM;
 
-	if (req->n_ssids > PROBE_OPTION_MAX ||
-	    ies->common_ie_len + ies->len[NL80211_BAND_2GHZ] +
-	    ies->len[NL80211_BAND_5GHZ] >
-		iwl_mvm_max_scan_ie_fw_cmd_room(mvm, true) ||
-	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
+	if (!iwl_mvm_scan_fits(mvm, req->n_ssids, ies, req->n_channels))
 		return -ENOBUFS;
 
 	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, 0, &params);
@@ -1316,12 +1319,7 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (WARN_ON(mvm->scan_cmd == NULL))
 		return -ENOMEM;
 
-	if (WARN_ON(req->n_ssids > PROBE_OPTION_MAX ||
-		    ies->common_ie_len +
-		    ies->len[NL80211_BAND_2GHZ] +
-		    ies->len[NL80211_BAND_5GHZ] + 24 + 2 >
-		    SCAN_OFFLOAD_PROBE_REQ_SIZE || req->n_channels >
-		    mvm->fw->ucode_capa.n_scan_channels))
+	if (!iwl_mvm_scan_fits(mvm, req->n_ssids, ies, req->n_channels))
 		return -ENOBUFS;
 
 	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, req->flags,
@@ -1414,11 +1412,7 @@ static int iwl_mvm_sched_scan_umac(struct iwl_mvm *mvm,
 	if (WARN_ON(mvm->scan_cmd == NULL))
 		return -ENOMEM;
 
-	if (WARN_ON(req->n_ssids > PROBE_OPTION_MAX ||
-		    ies->common_ie_len + ies->len[NL80211_BAND_2GHZ] +
-		    ies->len[NL80211_BAND_5GHZ] + 24 + 2 >
-		    SCAN_OFFLOAD_PROBE_REQ_SIZE || req->n_channels >
-		    mvm->fw->ucode_capa.n_scan_channels))
+	if (!iwl_mvm_scan_fits(mvm, req->n_ssids, ies, req->n_channels))
 		return -ENOBUFS;
 
 	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, req->flags,

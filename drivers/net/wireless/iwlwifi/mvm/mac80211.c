@@ -505,7 +505,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	iwl_mvm_reset_phy_ctxts(mvm);
 
-	hw->wiphy->max_scan_ie_len = iwl_mvm_max_scan_ie_len(mvm, false);
+	hw->wiphy->max_scan_ie_len = iwl_mvm_max_scan_ie_len(mvm);
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
 
