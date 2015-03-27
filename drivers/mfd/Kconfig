@@ -1414,7 +1414,7 @@ config MFD_WM8994
 	depends on I2C
 	help
 	  The WM8994 is a highly integrated hi-fi CODEC designed for
-	  smartphone applicatiosn.  As well as audio functionality it
+	  smartphone applications.  As well as audio functionality it
 	  has on board GPIO and regulator functionality which is
 	  supported via the relevant subsystems.  This driver provides
 	  core support for the WM8994, in order to use the actual
