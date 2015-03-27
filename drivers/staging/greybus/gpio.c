@@ -425,7 +425,15 @@ static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 		return;
 	}
 	irq = gpio_to_irq(ggc->chip.base + event->which);
+	if (irq < 0) {
+		dev_err(ggc->chip.dev, "failed to map irq\n");
+		return;
+	}
 	desc = irq_to_desc(irq);
+	if (!desc) {
+		dev_err(ggc->chip.dev, "failed to look up irq\n");
+		return;
+	}
 
 	/* Dispatch interrupt */
 	local_irq_disable();
