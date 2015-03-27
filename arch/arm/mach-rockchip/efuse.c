@@ -314,7 +314,7 @@ int rockchip_get_leakage(int ch)
 	}
 	return 0;
 }
-int rockchip_get_temp(int ch)
+int rockchip_efuse_get_temp(int ch)
 {
 	int ret = 0;
 	int temp = 0;

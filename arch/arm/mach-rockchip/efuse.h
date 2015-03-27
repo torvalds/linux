@@ -28,5 +28,5 @@
 int rockchip_efuse_version(void);
 int rockchip_process_version(void);
 int rockchip_get_leakage(int ch);
-int rockchip_get_temp(int ch);
+int rockchip_efuse_get_temp(int ch);
 #endif
