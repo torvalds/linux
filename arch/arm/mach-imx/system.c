@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1999 ARM Limited
  * Copyright (C) 2000 Deep Blue Solutions Ltd
- * Copyright 2006-2007 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright 2006-2015 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
  * Copyright 2009 Ilya Yanok, Emcraft Systems Ltd, yanok@emcraft.com
  *
@@ -94,7 +94,7 @@ void __init imx_init_l2cache(void)
 {
 	void __iomem *l2x0_base;
 	struct device_node *np;
-	unsigned int val;
+	unsigned int val, cache_id;
 
 	np = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
 	if (!np)
@@ -107,20 +107,26 @@ void __init imx_init_l2cache(void)
 	}
 
 	/* Configure the L2 PREFETCH and POWER registers */
+	/* Set prefetch offset with any value except 23 as per errata 765569 */
 	val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
-	val |= 0x70800000;
+	val |= 0x7000000f;
 	/*
 	 * The L2 cache controller(PL310) version on the i.MX6D/Q is r3p1-50rel0
-	 * The L2 cache controller(PL310) version on the i.MX6DL/SOLO/SL is r3p2
+	 * The L2 cache controller(PL310) version on the i.MX6DL/SOLO/SL/SX/DQP
+	 * is r3p2.
 	 * But according to ARM PL310 errata: 752271
 	 * ID: 752271: Double linefill feature can cause data corruption
 	 * Fault Status: Present in: r3p0, r3p1, r3p1-50rel0. Fixed in r3p2
 	 * Workaround: The only workaround to this erratum is to disable the
 	 * double linefill feature. This is the default behavior.
 	 */
-	if (cpu_is_imx6q())
-		val &= ~(1 << 30 | 1 << 23);
+	cache_id = readl_relaxed(l2x0_base + L2X0_CACHE_ID);
+	if (((cache_id & L2X0_CACHE_ID_PART_MASK) == L2X0_CACHE_ID_PART_L310)
+	    && ((cache_id & L2X0_CACHE_ID_RTL_MASK) < L310_CACHE_ID_RTL_R3P2))
+		val &= ~(1 << 30);
 	writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
+	val = L310_DYNAMIC_CLK_GATING_EN | L310_STNDBY_MODE_EN;
+	writel_relaxed(val, l2x0_base + L310_POWER_CTRL);
 
 	iounmap(l2x0_base);
 	of_node_put(np);
