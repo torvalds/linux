@@ -122,8 +122,11 @@ ENTRY(ia32_sysenter_target)
 	movq	PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
 	ENABLE_INTERRUPTS(CLBR_NONE)
 
+	/* Zero-extending 32-bit regs, do not remove */
+	movl	%ebp, %ebp
+	movl	%eax, %eax
+
 	/* Construct iret frame (ss,rsp,rflags,cs,rip) */
- 	movl	%ebp,%ebp		/* zero extension */
 	pushq_cfi $__USER32_DS
 	/*CFI_REL_OFFSET ss,0*/
 	pushq_cfi %rbp
@@ -134,7 +137,6 @@ ENTRY(ia32_sysenter_target)
 	CFI_REGISTER rip,r10
 	pushq_cfi $__USER32_CS
 	/*CFI_REL_OFFSET cs,0*/
-	movl	%eax, %eax
 	/* Store thread_info->sysenter_return in rip stack slot */
 	pushq_cfi %r10
 	CFI_REL_OFFSET rip,0
@@ -329,9 +331,11 @@ ENTRY(ia32_cstar_target)
 	movq	PER_CPU_VAR(kernel_stack),%rsp
 	ENABLE_INTERRUPTS(CLBR_NONE)
 
+	/* Zero-extending 32-bit regs, do not remove */
+	movl	%eax,%eax
+
 	ALLOC_PT_GPREGS_ON_STACK 6*8 /* 6*8: space for orig_ax and iret frame */
 	SAVE_C_REGS_EXCEPT_RCX_R891011
-	movl 	%eax,%eax	/* zero extension */
 	movq	%rax,ORIG_RAX(%rsp)
 	movq	%rcx,RIP(%rsp)
 	CFI_REL_OFFSET rip,RIP
@@ -471,7 +475,9 @@ ENTRY(ia32_syscall)
 	SWAPGS
 	ENABLE_INTERRUPTS(CLBR_NONE)
 
-	movl %eax,%eax
+	/* Zero-extending 32-bit regs, do not remove */
+	movl	%eax,%eax
+
 	pushq_cfi %rax		/* store orig_ax */
 	cld
 	/* note the registers are not zero extended to the sf.
