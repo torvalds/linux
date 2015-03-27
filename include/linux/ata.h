@@ -696,6 +696,13 @@ static inline bool ata_id_wcache_enabled(const u16 *id)
 	return id[ATA_ID_CFS_ENABLE_1] & (1 << 5);
 }
 
+static inline bool ata_id_has_read_log_dma_ext(const u16 *id)
+{
+	if (!(id[ATA_ID_CFS_ENABLE_2] & (1 << 15)))
+		return false;
+	return id[ATA_ID_COMMAND_SET_3] & (1 << 3);
+}
+
 /**
  *	ata_id_major_version	-	get ATA level of drive
  *	@id: Identify data

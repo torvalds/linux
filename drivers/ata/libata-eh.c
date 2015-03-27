@@ -1510,13 +1510,18 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 	DPRINTK("read log page - log 0x%x, page 0x%x\n", log, page);
 
 	ata_tf_init(dev, &tf);
-	tf.command = ATA_CMD_READ_LOG_EXT;
+	if (dev->dma_mode && ata_id_has_read_log_dma_ext(dev->id)) {
+		tf.command = ATA_CMD_READ_LOG_DMA_EXT;
+		tf.protocol = ATA_PROT_DMA;
+	} else {
+		tf.command = ATA_CMD_READ_LOG_EXT;
+		tf.protocol = ATA_PROT_PIO;
+	}
 	tf.lbal = log;
 	tf.lbam = page;
 	tf.nsect = sectors;
 	tf.hob_nsect = sectors >> 8;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
-	tf.protocol = ATA_PROT_PIO;
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
 				     buf, sectors * ATA_SECT_SIZE, 0);
