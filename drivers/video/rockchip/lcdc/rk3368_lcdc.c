@@ -1392,7 +1392,6 @@ static int rk3368_lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 	int timeout;
 	unsigned long flags;
 
-	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
 			     v_STANDBY_EN(lcdc_dev->standby));
@@ -1405,7 +1404,6 @@ static int rk3368_lcdc_layer_update_regs(struct lcdc_device *lcdc_dev,
 		/*rk3368_lcdc_post_cfg(dev_drv); */
 		lcdc_cfg_done(lcdc_dev);
 	}
-	spin_unlock(&lcdc_dev->reg_lock);
 
 	/*if (dev_drv->wait_fs) { */
 	if (0) {
