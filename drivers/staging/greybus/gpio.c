@@ -396,43 +396,47 @@ static int gb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 {
-	struct gb_gpio_controller *ggc;
 	struct gb_connection *connection = op->connection;
+	struct gb_gpio_controller *ggc = connection->private;
 	struct gb_message *request;
 	struct gb_gpio_irq_event_request *event;
 	int irq;
 	struct irq_desc *desc;
 	int ret;
+	int status;
 
 	if (type != GB_GPIO_TYPE_IRQ_EVENT) {
 		dev_err(&connection->dev,
 			"unsupported unsolicited request: %u\n", type);
-		return;
+		status = -EINVAL;
+		goto send_response;
 	}
-
-	ggc = connection->private;
 
 	request = op->request;
 
 	if (request->payload_size < sizeof(*event)) {
 		dev_err(ggc->chip.dev, "short event received\n");
-		return;
+		status = -EINVAL;
+		goto send_response;
 	}
 
 	event = request->payload;
 	if (event->which > ggc->line_max) {
 		dev_err(ggc->chip.dev, "invalid hw irq: %d\n", event->which);
-		return;
+		status = -EINVAL;
+		goto send_response;
 	}
 	irq = gpio_to_irq(ggc->chip.base + event->which);
 	if (irq < 0) {
 		dev_err(ggc->chip.dev, "failed to map irq\n");
-		return;
+		status = -EINVAL;
+		goto send_response;
 	}
 	desc = irq_to_desc(irq);
 	if (!desc) {
 		dev_err(ggc->chip.dev, "failed to look up irq\n");
-		return;
+		status = -EINVAL;
+		goto send_response;
 	}
 
 	/* Dispatch interrupt */
@@ -440,10 +444,13 @@ static void gb_gpio_request_recv(u8 type, struct gb_operation *op)
 	handle_simple_irq(irq, desc);
 	local_irq_enable();
 
-	ret = gb_operation_response_send(op, 0);
+	status = 0;
+send_response:
+	ret = gb_operation_response_send(op, status);
 	if (ret) {
 		dev_err(ggc->chip.dev,
-			"failed to send response status %d: %d\n", 0, ret);
+			"failed to send response status %d: %d\n",
+			status, ret);
 	}
 }
 
