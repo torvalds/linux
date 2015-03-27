@@ -2322,8 +2322,6 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 			const struct drm_plane_state *plane_state)
 {
 	struct intel_rotation_info *info = &view->rotation_info;
-	static const struct i915_ggtt_view rotated_view =
-				{ .type = I915_GGTT_VIEW_ROTATED };
 
 	*view = i915_ggtt_view_normal;
 
@@ -2333,7 +2331,7 @@ intel_fill_fb_ggtt_view(struct i915_ggtt_view *view, struct drm_framebuffer *fb,
 	if (!intel_rotation_90_or_270(plane_state->rotation))
 		return 0;
 
-	*view = rotated_view;
+	*view = i915_ggtt_view_rotated;
 
 	info->height = fb->height;
 	info->pixel_format = fb->pixel_format;
@@ -2930,10 +2928,10 @@ u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
 unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
 				     struct drm_i915_gem_object *obj)
 {
-	enum i915_ggtt_view_type view = I915_GGTT_VIEW_NORMAL;
+	const struct i915_ggtt_view *view = &i915_ggtt_view_normal;
 
 	if (intel_rotation_90_or_270(intel_plane->base.state->rotation))
-		view = I915_GGTT_VIEW_ROTATED;
+		view = &i915_ggtt_view_rotated;
 
 	return i915_gem_obj_ggtt_offset_view(obj, view);
 }

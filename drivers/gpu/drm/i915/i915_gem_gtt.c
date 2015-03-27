@@ -93,6 +93,9 @@
  */
 
 const struct i915_ggtt_view i915_ggtt_view_normal;
+const struct i915_ggtt_view i915_ggtt_view_rotated = {
+        .type = I915_GGTT_VIEW_ROTATED
+};
 
 static void bdw_setup_private_ppat(struct drm_i915_private *dev_priv);
 static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);

@@ -4129,7 +4129,7 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 
 		if (i915_vma_misplaced(vma, alignment, flags)) {
 			unsigned long offset;
-			offset = ggtt_view ? i915_gem_obj_ggtt_offset_view(obj, ggtt_view->type) :
+			offset = ggtt_view ? i915_gem_obj_ggtt_offset_view(obj, ggtt_view) :
 					     i915_gem_obj_offset(obj, vm);
 			WARN(vma->pin_count,
 			     "bo is already pinned in %s with incorrect alignment:"
@@ -4228,7 +4228,7 @@ i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 
 	BUG_ON(!vma);
 	WARN_ON(vma->pin_count == 0);
-	WARN_ON(!i915_gem_obj_ggtt_bound_view(obj, view->type));
+	WARN_ON(!i915_gem_obj_ggtt_bound_view(obj, view));
 
 	if (--vma->pin_count == 0 && view->type == I915_GGTT_VIEW_NORMAL)
 		obj->pin_mappable = false;
@@ -4550,7 +4550,8 @@ struct i915_vma *i915_gem_obj_to_ggtt_view(struct drm_i915_gem_object *obj,
 		return ERR_PTR(-EINVAL);
 
 	list_for_each_entry(vma, &obj->vma_list, vma_link)
-		if (vma->vm == ggtt && vma->ggtt_view.type == view->type)
+		if (vma->vm == ggtt &&
+		    i915_ggtt_view_equal(&vma->ggtt_view, view))
 			return vma;
 	return NULL;
 }
@@ -5107,13 +5108,14 @@ i915_gem_obj_offset(struct drm_i915_gem_object *o,
 
 unsigned long
 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
-			      enum i915_ggtt_view_type view)
+			      const struct i915_ggtt_view *view)
 {
 	struct i915_address_space *ggtt = i915_obj_to_ggtt(o);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &o->vma_list, vma_link)
-		if (vma->vm == ggtt && vma->ggtt_view.type == view)
+		if (vma->vm == ggtt &&
+		    i915_ggtt_view_equal(&vma->ggtt_view, view))
 			return vma->node.start;
 
 	WARN(1, "global vma for this object not found.\n");
@@ -5137,14 +5139,14 @@ bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
 }
 
 bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
-				  enum i915_ggtt_view_type view)
+				  const struct i915_ggtt_view *view)
 {
 	struct i915_address_space *ggtt = i915_obj_to_ggtt(o);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, &o->vma_list, vma_link)
 		if (vma->vm == ggtt &&
-		    vma->ggtt_view.type == view &&
+		    i915_ggtt_view_equal(&vma->ggtt_view, view) &&
 		    drm_mm_node_allocated(&vma->node))
 			return true;
 

@@ -2795,19 +2795,19 @@ void i915_gem_restore_fences(struct drm_device *dev);
 
 unsigned long
 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
-			      enum i915_ggtt_view_type view);
+			      const struct i915_ggtt_view *view);
 unsigned long
 i915_gem_obj_offset(struct drm_i915_gem_object *o,
 		    struct i915_address_space *vm);
 static inline unsigned long
 i915_gem_obj_ggtt_offset(struct drm_i915_gem_object *o)
 {
-	return i915_gem_obj_ggtt_offset_view(o, I915_GGTT_VIEW_NORMAL);
+	return i915_gem_obj_ggtt_offset_view(o, &i915_ggtt_view_normal);
 }
 
 bool i915_gem_obj_bound_any(struct drm_i915_gem_object *o);
 bool i915_gem_obj_ggtt_bound_view(struct drm_i915_gem_object *o,
-				  enum i915_ggtt_view_type view);
+				  const struct i915_ggtt_view *view);
 bool i915_gem_obj_bound(struct drm_i915_gem_object *o,
 			struct i915_address_space *vm);
 
@@ -2855,7 +2855,7 @@ i915_vm_to_ppgtt(struct i915_address_space *vm)
 
 static inline bool i915_gem_obj_ggtt_bound(struct drm_i915_gem_object *obj)
 {
-	return i915_gem_obj_ggtt_bound_view(obj, I915_GGTT_VIEW_NORMAL);
+	return i915_gem_obj_ggtt_bound_view(obj, &i915_ggtt_view_normal);
 }
 
 static inline unsigned long

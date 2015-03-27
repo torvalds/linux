@@ -138,6 +138,7 @@ struct i915_ggtt_view {
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;
+extern const struct i915_ggtt_view i915_ggtt_view_rotated;
 
 enum i915_cache_level;
 
@@ -423,5 +424,15 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 
 int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
+
+static inline bool
+i915_ggtt_view_equal(const struct i915_ggtt_view *a,
+                     const struct i915_ggtt_view *b)
+{
+	if (WARN_ON(!a || !b))
+		return false;
+
+	return a->type == b->type;
+}
 
 #endif
