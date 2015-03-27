@@ -152,7 +152,7 @@
 					rtc@68 {
 						compatible = "dallas,ds3232";
 						reg = <0x68>;
-						interrupts = <0x1 0x1 0 0>;
+						interrupts = <0xb 0x1 0 0>;
 					};
 				};
 
