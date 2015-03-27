@@ -502,15 +502,25 @@ static int DIV_TO_REG(int val)
 }
 #define DIV_FROM_REG(val) (1 << (val))
 
+/*
+ * PWM base frequencies. The frequency has to be divided by either 128 or 256,
+ * depending on the chip type, to calculate the actual PWM frequency.
+ *
+ * Some of the chip datasheets suggest a base frequency of 51 kHz instead
+ * of 750 kHz for the slowest base frequency, resulting in a PWM frequency
+ * of 200 Hz. Sometimes both PWM frequency select registers are affected,
+ * sometimes just one. It is unknown if this is a datasheet error or real,
+ * so this is ignored for now.
+ */
 static const unsigned int pwm_freq[8] = {
-	48000000 / 128,
-	24000000 / 128,
-	12000000 / 128,
-	8000000 / 128,
-	6000000 / 128,
-	3000000 / 128,
-	1500000 / 128,
-	750000 / 128,
+	48000000,
+	24000000,
+	12000000,
+	8000000,
+	6000000,
+	3000000,
+	1500000,
+	750000,
 };
 
 static int it87_probe(struct platform_device *pdev);
@@ -828,8 +838,11 @@ static ssize_t show_pwm_freq(struct device *dev, struct device_attribute *attr,
 {
 	struct it87_data *data = it87_update_device(dev);
 	int index = (data->fan_ctl >> 4) & 0x07;
+	unsigned int freq;
 
-	return sprintf(buf, "%u\n", pwm_freq[index]);
+	freq = pwm_freq[index] / (has_newer_autopwm(data) ? 256 : 128);
+
+	return sprintf(buf, "%u\n", freq);
 }
 
 static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
@@ -1050,6 +1063,9 @@ static ssize_t set_pwm_freq(struct device *dev,
 
 	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
+
+	val = clamp_val(val, 0, 1000000);
+	val *= has_newer_autopwm(data) ? 256 : 128;
 
 	/* Search for the nearest available frequency */
 	for (i = 0; i < 7; i++) {
