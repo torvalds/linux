@@ -156,19 +156,9 @@ static inline bool gart_iova_range_valid(struct gart_device *gart,
 static int gart_iommu_attach_dev(struct iommu_domain *domain,
 				 struct device *dev)
 {
-	struct gart_device *gart;
+	struct gart_device *gart = domain->priv;
 	struct gart_client *client, *c;
 	int err = 0;
-
-	gart = gart_handle;
-	if (!gart)
-		return -EINVAL;
-	domain->priv = gart;
-
-	domain->geometry.aperture_start = gart->iovmm_base;
-	domain->geometry.aperture_end   = gart->iovmm_base +
-					gart->page_count * GART_PAGE_SIZE - 1;
-	domain->geometry.force_aperture = true;
 
 	client = devm_kzalloc(gart->dev, sizeof(*c), GFP_KERNEL);
 	if (!client)
@@ -218,6 +208,19 @@ out:
 
 static int gart_iommu_domain_init(struct iommu_domain *domain)
 {
+	struct gart_device *gart;
+
+	gart = gart_handle;
+	if (!gart)
+		return -EINVAL;
+
+	domain->priv = gart;
+
+	domain->geometry.aperture_start = gart->iovmm_base;
+	domain->geometry.aperture_end = gart->iovmm_base +
+					gart->page_count * GART_PAGE_SIZE - 1;
+	domain->geometry.force_aperture = true;
+
 	return 0;
 }
 
