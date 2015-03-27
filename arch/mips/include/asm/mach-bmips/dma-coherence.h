@@ -15,6 +15,10 @@
 #ifndef __ASM_MACH_BMIPS_DMA_COHERENCE_H
 #define __ASM_MACH_BMIPS_DMA_COHERENCE_H
 
+#include <asm/bmips.h>
+#include <asm/cpu-type.h>
+#include <asm/cpu.h>
+
 struct device;
 
 extern dma_addr_t plat_map_dma_mem(struct device *dev, void *addr, size_t size);
@@ -47,6 +51,18 @@ static inline int plat_device_is_coherent(struct device *dev)
 
 static inline void plat_post_dma_flush(struct device *dev)
 {
+	void __iomem *cbr = BMIPS_GET_CBR();
+	u32 cfg;
+
+	if (boot_cpu_type() != CPU_BMIPS3300 &&
+	    boot_cpu_type() != CPU_BMIPS4350 &&
+	    boot_cpu_type() != CPU_BMIPS4380)
+		return;
+
+	/* Flush stale data out of the readahead cache */
+	cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
+	__raw_writel(cfg | 0x100, cbr + BMIPS_RAC_CONFIG);
+	__raw_readl(cbr + BMIPS_RAC_CONFIG);
 }
 
 #endif /* __ASM_MACH_BMIPS_DMA_COHERENCE_H */
