@@ -9,6 +9,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
@@ -951,6 +952,141 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 	schedule_work(&ps->bridge_work);
 
 	return 0;
+}
+
+static int __mv88e6xxx_write_addr(struct dsa_switch *ds,
+				  const unsigned char *addr)
+{
+	int i, ret;
+
+	for (i = 0; i < 3; i++) {
+		ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, 0x0d + i,
+					(addr[i * 2] << 8) | addr[i * 2 + 1]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int __mv88e6xxx_read_addr(struct dsa_switch *ds, unsigned char *addr)
+{
+	int i, ret;
+
+	for (i = 0; i < 3; i++) {
+		ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL, 0x0d + i);
+		if (ret < 0)
+			return ret;
+		addr[i * 2] = ret >> 8;
+		addr[i * 2 + 1] = ret & 0xff;
+	}
+
+	return 0;
+}
+
+static int __mv88e6xxx_port_fdb_cmd(struct dsa_switch *ds, int port,
+				    const unsigned char *addr, int state)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u8 fid = ps->fid[port];
+	int ret;
+
+	ret = _mv88e6xxx_atu_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	ret = __mv88e6xxx_write_addr(ds, addr);
+	if (ret < 0)
+		return ret;
+
+	ret = _mv88e6xxx_reg_write(ds, REG_GLOBAL, 0x0c,
+				   (0x10 << port) | state);
+	if (ret)
+		return ret;
+
+	ret = _mv88e6xxx_atu_cmd(ds, fid, ATU_CMD_LOAD_FID);
+
+	return ret;
+}
+
+int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid)
+{
+	int state = is_multicast_ether_addr(addr) ?
+					FDB_STATE_MC_STATIC : FDB_STATE_STATIC;
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
+	mutex_lock(&ps->smi_mutex);
+	ret = __mv88e6xxx_port_fdb_cmd(ds, port, addr, state);
+	mutex_unlock(&ps->smi_mutex);
+
+	return ret;
+}
+
+int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
+	mutex_lock(&ps->smi_mutex);
+	ret = __mv88e6xxx_port_fdb_cmd(ds, port, addr, FDB_STATE_UNUSED);
+	mutex_unlock(&ps->smi_mutex);
+
+	return ret;
+}
+
+static int __mv88e6xxx_port_getnext(struct dsa_switch *ds, int port,
+				    unsigned char *addr, bool *is_static)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	u8 fid = ps->fid[port];
+	int ret, state;
+
+	ret = _mv88e6xxx_atu_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	ret = __mv88e6xxx_write_addr(ds, addr);
+	if (ret < 0)
+		return ret;
+
+	do {
+		ret = _mv88e6xxx_atu_cmd(ds, fid, ATU_CMD_GETNEXT_FID);
+		if (ret < 0)
+			return ret;
+
+		ret = _mv88e6xxx_reg_read(ds, REG_GLOBAL, 0x0c);
+		if (ret < 0)
+			return ret;
+		state = ret & FDB_STATE_MASK;
+		if (state == FDB_STATE_UNUSED)
+			return -ENOENT;
+	} while (!(((ret >> 4) & 0xff) & (1 << port)));
+
+	ret = __mv88e6xxx_read_addr(ds, addr);
+	if (ret < 0)
+		return ret;
+
+	*is_static = state == (is_multicast_ether_addr(addr) ?
+			       FDB_STATE_MC_STATIC : FDB_STATE_STATIC);
+
+	return 0;
+}
+
+/* get next entry for port */
+int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
+			       unsigned char *addr, bool *is_static)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
+	mutex_lock(&ps->smi_mutex);
+	ret = __mv88e6xxx_port_getnext(ds, port, addr, is_static);
+	mutex_unlock(&ps->smi_mutex);
+
+	return ret;
 }
 
 static void mv88e6xxx_bridge_work(struct work_struct *work)

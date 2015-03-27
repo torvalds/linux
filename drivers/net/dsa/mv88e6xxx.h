@@ -19,6 +19,8 @@
 
 #define ATU_BUSY			0x8000
 
+#define ATU_CMD_LOAD_FID		(ATU_BUSY | 0x3000)
+#define ATU_CMD_GETNEXT_FID		(ATU_BUSY | 0x4000)
 #define ATU_CMD_FLUSH_NONSTATIC_FID	(ATU_BUSY | 0x6000)
 
 /* port states */
@@ -28,6 +30,14 @@
 #define PSTATE_BLOCKING		0x01
 #define PSTATE_LEARNING		0x02
 #define PSTATE_FORWARDING	0x03
+
+/* FDB states */
+
+#define FDB_STATE_MASK			0x0f
+
+#define FDB_STATE_UNUSED		0x00
+#define FDB_STATE_MC_STATIC		0x07	/* static multicast */
+#define FDB_STATE_STATIC		0x0e	/* static unicast */
 
 struct mv88e6xxx_priv_state {
 	/* When using multi-chip addressing, this mutex protects
@@ -121,6 +131,12 @@ int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 int mv88e6xxx_join_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_leave_bridge(struct dsa_switch *ds, int port, u32 br_port_mask);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
+int mv88e6xxx_port_fdb_add(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid);
+int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid);
+int mv88e6xxx_port_fdb_getnext(struct dsa_switch *ds, int port,
+			       unsigned char *addr, bool *is_static);
 
 extern struct dsa_switch_driver mv88e6131_switch_driver;
 extern struct dsa_switch_driver mv88e6123_61_65_switch_driver;
