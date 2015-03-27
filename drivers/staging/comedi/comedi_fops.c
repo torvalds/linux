@@ -623,6 +623,16 @@ static unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 	return runflags;
 }
 
+static bool comedi_is_runflags_running(unsigned runflags)
+{
+	return runflags & COMEDI_SRF_RUNNING;
+}
+
+static bool comedi_is_runflags_in_error(unsigned runflags)
+{
+	return runflags & COMEDI_SRF_ERROR;
+}
+
 /**
  * comedi_is_subdevice_running - check if async command running on subdevice
  * @s: comedi_subdevice struct
@@ -634,16 +644,9 @@ bool comedi_is_subdevice_running(struct comedi_subdevice *s)
 {
 	unsigned runflags = comedi_get_subdevice_runflags(s);
 
-	return (runflags & COMEDI_SRF_RUNNING) ? true : false;
+	return comedi_is_runflags_running(runflags);
 }
 EXPORT_SYMBOL_GPL(comedi_is_subdevice_running);
-
-static bool comedi_is_subdevice_in_error(struct comedi_subdevice *s)
-{
-	unsigned runflags = comedi_get_subdevice_runflags(s);
-
-	return (runflags & COMEDI_SRF_ERROR) ? true : false;
-}
 
 static bool comedi_is_subdevice_idle(struct comedi_subdevice *s)
 {
@@ -2282,13 +2285,16 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	add_wait_queue(&async->wait_head, &wait);
 	on_wait_queue = true;
 	while (nbytes > 0 && !retval) {
+		unsigned runflags;
+
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		if (!comedi_is_subdevice_running(s)) {
+		runflags = comedi_get_subdevice_runflags(s);
+		if (!comedi_is_runflags_running(runflags)) {
 			if (count == 0) {
 				struct comedi_subdevice *new_s;
 
-				if (comedi_is_subdevice_in_error(s))
+				if (comedi_is_runflags_in_error(runflags))
 					retval = -EPIPE;
 				else
 					retval = 0;
@@ -2435,8 +2441,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			n = m;
 
 		if (n == 0) {
-			if (!comedi_is_subdevice_running(s)) {
-				if (comedi_is_subdevice_in_error(s))
+			unsigned runflags = comedi_get_subdevice_runflags(s);
+
+			if (!comedi_is_runflags_running(runflags)) {
+				if (comedi_is_runflags_in_error(runflags))
 					retval = -EPIPE;
 				else
 					retval = 0;
